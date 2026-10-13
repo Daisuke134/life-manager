@@ -25,17 +25,20 @@ function loadDataset() {
   const versionMatch = source.match(/^\*\*Status:\*\*[^\n]*\bv(\d+)\b/mu);
   if (!versionMatch) rejectInput();
 
-  const caseIds = [];
+  const cases = [];
   const seen = new Set();
-  for (const match of source.matchAll(/^\|\s*(W-C-\d{3})\s*\|/gmu)) {
-    if (seen.has(match[1])) rejectInput();
+  for (const line of source.split(/\r?\n/u)) {
+    if (!/^\|\s*W-C-\d{3}\s*\|/u.test(line)) continue;
+    const match = line.match(/^\|\s*(W-C-\d{3})\s*\|\s*(.*?)\s*\|\s*\|\s*\|$/u);
+    if (!match || seen.has(match[1])) rejectInput();
     seen.add(match[1]);
-    caseIds.push(match[1]);
+    cases.push({ case_id: match[1], excerpt: match[2] });
   }
-  if (caseIds.length === 0) rejectInput();
+  if (cases.length === 0) rejectInput();
 
   return {
-    caseIds,
+    cases,
+    caseIds: cases.map((item) => item.case_id),
     caseIdSet: seen,
     version: `writer-edd-a8-v${versionMatch[1]}`,
     sha256: crypto.createHash("sha256").update(bytes).digest("hex"),
@@ -133,4 +136,4 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { joinLabels };
+module.exports = { joinLabels, loadDataset, readJsonl };
