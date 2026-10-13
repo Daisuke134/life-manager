@@ -385,6 +385,10 @@ prev_failed = {
 
 def apply_order(loop_id):
     entry = loops[loop_id] if isinstance(loops.get(loop_id), dict) else {}
+    # Cleanup/recovery adoption must not depend on the business workload it supports.
+    control_plane_rank = 0 if (
+        entry.get("domain") == "system" and entry.get("system_role") == "control"
+    ) else 1
     # Mobile publishing owns the user's current acquisition goal; keep its scheduled lanes
     # inside the bounded fleet budget before unrelated owner work.
     mobile_distribution_rank = 0 if (
@@ -400,7 +404,7 @@ def apply_order(loop_id):
         entry.get("priority"), 3
     )
     admission_rank = {"revenue": 0, "borrow": 1}.get(entry.get("admission_class"), 2)
-    return mobile_distribution_rank, domain_rank, priority_rank, admission_rank, loop_id
+    return control_plane_rank, mobile_distribution_rank, domain_rank, priority_rank, admission_rank, loop_id
 
 skip_current, clean, failed_last = [], [], []
 for loop_id in sorted(loops.keys(), key=apply_order):
