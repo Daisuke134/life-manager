@@ -33,6 +33,7 @@ if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
 
 import seedance_set  # noqa: E402
+from chatgpt_image_backend import run_session_name  # noqa: E402
 
 CLI = Path.home() / ".agents/skills/chatgpt-imagegen/chatgpt-imagegen"
 GRID = (3, 2)  # cols, rows -> 6 poses per motion: within LINE's apng min_frames=5/max_frames=20.
@@ -61,9 +62,10 @@ def sheet_prompt(character_prompt: str, motion_prompt: str) -> str:
 def generate_sheet(prompt: str, out_path: Path, *, timeout: int = 280) -> None:
     if not CLI.is_file():
         raise ChatGptImageGenUnavailable(f"chatgpt-imagegen is not installed at {CLI}")
+    session = run_session_name()
     done = subprocess.run(
         [str(CLI), prompt, "-o", str(out_path), "--size", "1024x1024", "--backend", "auto",
-         "--quiet", "--timeout", str(timeout)],
+         "--quiet", "--timeout", str(timeout), "--session", session],
         capture_output=True, text=True, timeout=timeout + 30, check=False,
     )
     if done.returncode != 0 or not out_path.is_file() or out_path.stat().st_size == 0:
