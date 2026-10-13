@@ -161,7 +161,16 @@ def attach_runtime_event(*, summary: dict[str, Any], loop_id: str,
             registry_path=registry_path,
             release_sha=release_sha,
         )
-        summary["runtime_event_id"] = event["event_id"]
+        summary.update({
+            "runtime_event_id": event["event_id"],
+            "owner_id": event["owner_id"],
+            "run_id": event["run_id"],
+            "occurrence_id": event["occurrence_id"],
+            "release_sha": event["release_sha"],
+            "parent_lifecycle_run_id": os.environ.get("LIFE_MANAGER_RUN_ID", "").strip() or None,
+            "parent_lifecycle_occurrence_id": os.environ.get("LIFE_MANAGER_OCCURRENCE_ID", "").strip() or None,
+            "parent_article_run_id": os.environ.get("ARTICLE_RUN_ID", "").strip() or None,
+        })
         return True
     except (OSError, ValueError, json.JSONDecodeError) as error:
         summary["runtime_event_error"] = str(error)

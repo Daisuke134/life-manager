@@ -34,7 +34,7 @@
 
 ## Atomic sequence: Writer Pilot Aから外部再現まで
 
-canonical SSOTのE01は`agent-economy-loop`のrelease adoptionと自然評価を追跡し続けるが、Writerの評価作業の前提条件ではない。Writer Pilot Aの旧順`A1 → A2 → A3…A7 → A8…A14`を`A1 → A2 → A3…A7 → A3b → A8…A14`へ変更する。理由は、8件すべての自然runでsource SHAが`UNKNOWN`で、現行immutable releaseには`.git`がなく、run生成時には`LIFE_MANAGER_RELEASE_SHA`が渡るのにcapture側が使わないため。source lineageを直してからjudge較正へ進む。E01は別cursorとして未完のままにし、Writer進捗で完了扱いしない。
+canonical SSOTのE01は`agent-economy-loop`のrelease adoptionと自然評価を追跡し続けるが、Writerの評価作業の前提条件ではない。Writer Pilot Aの旧順`A1 → A2 → A3…A7 → A3b → A8…A14`を`A1 → A2 → A3…A7 → A3b → A3c → A8…A14`へ変更する。理由は、251件のchild judge summaryにparent article run/occurrence/release fieldsがなく、case入力と親runを再構成できないため。A3cのchild-to-parent metadata bindingを直してからjudge較正へ進む。E01は別cursorとして未完のままにし、Writer進捗で完了扱いしない。
 
 このchecklistはWriter Pilot Aの詳細計画であり、canonical SSOTの全体TODOを複製しない。完了表示は実測後にcanonical SSOTへ反映する。
 
@@ -47,8 +47,9 @@ canonical SSOTのE01は`agent-economy-loop`のrelease adoptionと自然評価を
 - [x] **A5:** W-01のcase cardにtask、initial state、allowed tools、budget、期待outcome、natural provenance、evidence refsを記録した。これは0-byte recovery artifactのevidence-integrity caseであり、writer quality、人手identity label、source reproductionはunknown/pendingのまま別表示する。case → [Writer EDD trace discovery](../../evals/writer-edd-trace-discovery.md)。
 - [x] **A6 / E02 case-level vector:** W-01 cardにtask completion、quality、safety gate、effect integrity、settled net、cost coverage、latency、human interventionを別fieldで記録した。証拠がない項目は`unknown`のまま保持し、publication stageは`blocked-before-publication`として分離する。これはPilot Aのcase定義だけで、canonical E02の自然failure/CFO official receipt joinは未完。
 - [x] **A7:** hash/schema/receipt/重複/publication statusをcodeで採点するgraderを`apps/life-manager/eval/writer/receipt-grader.js`へ追加。9 testsとW-01 CLI出力は`npm run test:writer-eval`でPASS。意味判定は行わず、task completion・quality・effect integrity・settled netは`unknown`のまま保持する。詳細 → [Writer EDD trace discovery](../../evals/writer-edd-trace-discovery.md)。
-- [ ] **A3b — current cursor:** `LIFE_MANAGER_RELEASE_SHA`が正しい40文字SHAならWriterの`git-hash.txt`へ記録し、local checkoutではGit fallbackを使う。focused testでenv優先・fallback・UNKNOWNを確認する。これは将来runのprovenance修復で、過去run `20261011-210544`のsourceを推定せず、publish fenceやlive ownerを変更しない。
-- [ ] **A8:** Writer quality judgeをdomain expertのblind labelsと比べ、false-passとfalse-failを別々に測る。tuning/dev labelsとheld-out labelsを混ぜない。開始条件は最低20 Pass/20 Failの人手ラベル。現状はsemantic candidate 1件、human label 0件なので、source lineage修復後にcaseを増やして開始する。
+- [x] **A3b:** Writer runはvalidな`LIFE_MANAGER_RELEASE_SHA`を`git-hash.txt`へ記録し、local checkoutではGit fallbackを使う。focused regressionとWriter CIはPASS。source merge PR #7878 / main `a6fccbb8`。live article-dailyは旧releaseのままなのでnatural adoptionは未確認。過去run `20261011-210544`のsourceはUNKNOWNのまま、publish fence/live ownerを変更しない。
+- [ ] **A3c — current cursor:** `attach_runtime_event`はchild eventのowner/run/occurrence/release SHAと、親lifecycle run/occurrence、Writer `ARTICLE_RUN_ID`をsummary.jsonへ記録する。focused testで値がevent/envと一致することを確認し、raw article textはsummaryへ複製しない。
+- [ ] **A8:** Writer quality judgeをdomain expertのblind labelsと比べ、false-passとfalse-failを別々に測る。tuning/dev labelsとheld-out labelsを混ぜない。開始条件は最低20 Pass/20 Failの人手ラベル。current inventoryは8 article runs、4 identity receipts、0 human labels、251 child writer-judge callsで、子callは独立記事taskとして数えない。A3c後に親caseを再構成して開始する。
 - [ ] **A9 / E04:** input/case/runner/grader/baseline/model/runtimeのversionとhashを固定し、dev・held-out・challengeを分ける。公開fixtureをsecret testと呼ばない。
 - [ ] **A10:** 同一model/runtime/tool/budgetでbaselineを各case 3回以上実行し、trial数・結果のばらつき・費用を保存する。
 - [ ] **A11:** 自然traceから選んだ失敗を最小の回帰testにし、修正前REDを確認する。既存testが覆うassertionのwrapperを作らない。
