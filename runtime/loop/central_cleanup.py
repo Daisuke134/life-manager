@@ -621,8 +621,11 @@ def git_duplicate_cleanup(source_repo: Path) -> dict:
             return int(next(line.partition(":")[2] for line in git("count-objects", "-v").splitlines()
                             if line.startswith("prune-packable:")))
         result["prune_packable_before"] = count()
-        # Native Git removes only loose copies already present in a pack, preserving all refs.
-        if result["prune_packable_before"]:
+        # Git owns the auto threshold, bounded loose-object batches and maintenance lock.
+        # This never runs full gc or expires unreachable history.
+        git("maintenance", "run", "--auto", "--task=loose-objects")
+        # Newly packed loose objects can be reclaimed in this same sweep.
+        if count():
             git("prune-packed")
             result["prune_packable_after"] = count()
         else:

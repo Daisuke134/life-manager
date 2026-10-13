@@ -125,6 +125,40 @@ class LoopCleanupTest(unittest.TestCase):
             self.assertEqual(replay["prune_packable_before"], 0)
             self.assertEqual(replay["prune_packable_after"], 0)
 
+    def test_native_git_cleanup_packs_loose_objects_without_losing_work(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            def git(*args, **kwargs):
+                return subprocess.run(["git", "-C", str(repo), *args],
+                    check=True, capture_output=True, text=True, **kwargs).stdout.strip()
+            git("init", "-q")
+            (repo / "source.txt").write_text("committed source\n")
+            git("add", "source.txt")
+            git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+                "commit", "-qm", "source")
+            head, branch = git("rev-parse", "HEAD"), git("symbolic-ref", "HEAD")
+            objects = [git("hash-object", "-w", "--stdin", input=f"retained blob {i}\n")
+                       for i in range(110)]
+            (repo / "source.txt").write_text("active source change\n")
+            (repo / "memory").mkdir()
+            (repo / "memory/keep.txt").write_text("retained memory\n")
+            dirty = git("status", "--porcelain")
+            result = central_cleanup.git_duplicate_cleanup(repo)
+            self.assertEqual(result["errors"], 0)
+            counts = dict(line.split(": ", 1) for line in git("count-objects", "-v").splitlines())
+            self.assertGreaterEqual(int(counts["in-pack"]), len(objects))
+            self.assertEqual(int(counts["count"]), 0)
+            for i, oid in enumerate(objects):
+                self.assertEqual(git("cat-file", "blob", oid), f"retained blob {i}")
+            self.assertEqual(git("rev-parse", "HEAD"), head)
+            self.assertEqual(git("symbolic-ref", "HEAD"), branch)
+            self.assertEqual(git("status", "--porcelain"), dirty)
+            self.assertEqual((repo / "source.txt").read_text(), "active source change\n")
+            self.assertEqual((repo / "memory/keep.txt").read_text(), "retained memory\n")
+            replay = central_cleanup.git_duplicate_cleanup(repo)
+            self.assertEqual(replay["errors"], 0)
+            self.assertEqual(replay["prune_packable_after"], 0)
+
     def test_native_git_duplicate_cleanup_skips_absent_source_checkout(self):
         with tempfile.TemporaryDirectory() as directory, \
              mock.patch.object(central_cleanup.subprocess, "run") as run:
