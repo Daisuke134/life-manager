@@ -18,12 +18,14 @@ const NO_EFFECT_ERRORS = new Set([
 ]);
 const ISOLATED_GATE_COMMAND = [
   'ARTICLE_ROOT="$8" ARTICLE_SKILL_DIR="$8" LIFE_MANAGER_REPO="$9"; export ARTICLE_ROOT ARTICLE_SKILL_DIR LIFE_MANAGER_REPO',
+  'if [ "${ARTICLE_NESTED_SANDBOX:-}" = "1" ] || [ "${ARTICLE_JUDGE_BROKER_SERVER:-}" = "1" ]; then exit 86; fi',
   'source "$ARTICLE_ROOT/scripts/writer-runtime-env.sh" >/dev/null 2>&1 || exit 70',
   'if [ "${ARTICLE_NESTED_SANDBOX:-}" = "1" ] || [ "${ARTICLE_JUDGE_BROKER_SERVER:-}" = "1" ]; then exit 86; fi',
   'export ARTICLE_ROOT="$8" ARTICLE_SKILL_DIR="$8" LIFE_MANAGER_REPO="$9"',
   'export ARTICLE_RUN_DIR="$2" WRITER_STATE_DIR="$3" ARTICLE_STATE_DIR="$3" STATE_DIR="$3" WRITER_LOG_DIR="$4"',
   'export ARTICLE_GATES_LOG="$4/article-gates.log" ARTICLE_MODEL_ROOT="$8" ARTICLE_MODEL_STATE_ROOT="$5" ARTICLE_MODEL_LOG="$6" ARTICLE_PROVIDER_HEALTH="$5/provider-health.json"',
   'export WRITER_SHARED_RUNNER_STATE="$7" ARTICLE_MODEL_ROLE=terra',
+  'export ANICCA_USAGE_LEDGER="${12}"',
   'export LIFE_MANAGER_RUN_ID="${10}" LIFE_MANAGER_LOOP_ID=writer-a8-identity-eval LIFE_MANAGER_OCCURRENCE_ID="${10}-${11}" WRITER_EVAL_RUN_ID="${10}" WRITER_EVAL_CASE_ID="${11}"',
   'unset ARTICLE_CODEX_EVENTS_FILE ARTICLE_CODEX_LAST_MESSAGE_FILE ARTICLE_CODEX_RESUME_SESSION_ID ARTICLE_SOL_TRIGGER_RECEIPT',
   'export LIFE_MANAGER_ENV_FILE=/dev/null',
@@ -92,6 +94,7 @@ function eventRecord({ runId, caseId, exitCode, verdict, errorClass, retryable }
       ARTICLE_MODEL_LOG: "<isolated-temp>",
       ARTICLE_PROVIDER_HEALTH: "<isolated-temp>",
       WRITER_SHARED_RUNNER_STATE: "<isolated-temp>",
+      ANICCA_USAGE_LEDGER: "<isolated-temp>",
       ARTICLE_MODEL_ROLE: "terra",
       ARTICLE_CODEX_EVENTS_FILE: "cleared",
       ARTICLE_CODEX_LAST_MESSAGE_FILE: "cleared",
@@ -143,6 +146,7 @@ function invokeIdentityGate({ caseData, caseDir, runId, dataset }) {
   const modelStateDir = path.join(caseDir, "model-state");
   const modelLogPath = path.join(logDir, "model-runner.log");
   const sharedRunnerStateDir = path.join(caseDir, "shared-runner-evidence");
+  const usageLedgerPath = path.join(caseDir, "usage-ledger.jsonl");
   const env = {
     ...process.env,
     ARTICLE_ROOT: WRITER_ROOT,
@@ -156,6 +160,7 @@ function invokeIdentityGate({ caseData, caseDir, runId, dataset }) {
     ARTICLE_MODEL_LOG: modelLogPath,
     ARTICLE_PROVIDER_HEALTH: path.join(modelStateDir, "provider-health.json"),
     WRITER_SHARED_RUNNER_STATE: sharedRunnerStateDir,
+    ANICCA_USAGE_LEDGER: usageLedgerPath,
     ARTICLE_RUN_DIR: caseDir,
     LIFE_MANAGER_RUN_ID: runId,
     LIFE_MANAGER_LOOP_ID: "writer-a8-identity-eval",
@@ -167,6 +172,7 @@ function invokeIdentityGate({ caseData, caseDir, runId, dataset }) {
     "-c", ISOLATED_GATE_COMMAND, "writer-a8-identity-eval", articlePath,
     caseDir, stateDir, logDir, modelStateDir, modelLogPath, sharedRunnerStateDir,
     WRITER_ROOT, REPO_ROOT, runId, caseData.case_id,
+    usageLedgerPath,
   ], {
     encoding: "utf8",
     env,
