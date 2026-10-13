@@ -253,8 +253,13 @@ matching_locked_dependencies() {
     donor_package="$donor$relative"
     [ -d "$donor_package/node_modules" ] || continue
     [ -f "$donor_package/node_modules/.package-lock.json" ] || continue
-    cmp -s "$package_dir/package.json" "$donor_package/package.json" || continue
+    PYTHONPATH="$SCRIPT_ROOT" "$RUNTIME_PYTHON" -B -c \
+      'import sys; from pathlib import Path; from runtime.host.disk_admission import dependency_manifest_matches; sys.exit(not dependency_manifest_matches(Path(sys.argv[1]).read_bytes(), Path(sys.argv[2]).read_bytes()))' \
+      "$package_dir/package.json" "$donor_package/package.json" || continue
     cmp -s "$package_dir/package-lock.json" "$donor_package/package-lock.json" || continue
+    PYTHONPATH="$SCRIPT_ROOT" "$RUNTIME_PYTHON" -B -c \
+      'import sys; from pathlib import Path; from runtime.host.disk_admission import dependency_bundle_is_reusable; sys.exit(not dependency_bundle_is_reusable(Path(sys.argv[1]), Path(sys.argv[2])))' \
+      "$donor_package/node_modules" "$DEPENDENCY_BUNDLES" || continue
     (cd "$donor_package/node_modules" && pwd -P)
     return
   done
@@ -296,8 +301,11 @@ link_locked_dependencies() {
   } | shasum -a 256 | awk '{print $1}')" || return 1
   bundle="$DEPENDENCY_BUNDLES/npm-$key"
   if [ ! -f "$bundle/.complete" ] || [ "$(cat "$bundle/.complete" 2>/dev/null)" != "$key" ] || [ ! -f "$bundle/node_modules/.package-lock.json" ]; then
-    if [ "${RELEASE_REQUIRED_BYTES:-2147483648}" != 2147483648 ]; then
-      return 1 # Measured source-only admission never permits dependency generation.
+    donor_modules=""
+    if donor_modules="$(matching_locked_dependencies "$package_dir")"; then
+      : # A compatible locked bundle can be re-keyed without installing dependencies.
+    elif [ "${RELEASE_REQUIRED_BYTES:-2147483648}" != 2147483648 ]; then
+      return 1 # Measured source-only admission never permits dependency installation.
     fi
     if [ -e "$bundle" ]; then
       find "$bundle" -type d -exec chmod u+w {} + 2>/dev/null || return 1
@@ -307,7 +315,7 @@ link_locked_dependencies() {
     DEPENDENCY_BUILD="$build"
     mkdir -p "$build" || return 1
     cp "$package_dir/package.json" "$package_dir/package-lock.json" "$build/" || return 1
-    if donor_modules="$(matching_locked_dependencies "$package_dir")"; then
+    if [ -n "$donor_modules" ]; then
       cp -alR "$donor_modules" "$build/node_modules" || return 1
     elif [ -n "$NPM_BIN" ]; then
       if [ -n "$NPM_NODE_BIN" ]; then
