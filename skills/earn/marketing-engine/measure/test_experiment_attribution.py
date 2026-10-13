@@ -250,6 +250,38 @@ class AttributionContractTest(unittest.TestCase):
         self.assertEqual(calls[0][1]["Prefer"], "count=exact")
         self.assertNotIn("secret", json.dumps(result))
 
+    def test_click_query_rejects_incomplete_or_duplicate_receipts(self):
+        token = "hl_r7py2zlsvjjafl4srigi"
+        valid_row = {
+            "campaign_token": token, "product_id": "hook-lab",
+            "clicked_at": "2026-10-16T01:00:00Z",
+        }
+        cases = [
+            (
+                "count exceeds returned rows",
+                {"content-range": "0-0/2"},
+                [{**valid_row, "receipt_id": "r1"}],
+                "receipt_rows_incomplete",
+            ),
+            (
+                "duplicate receipt IDs",
+                {"content-range": "0-1/2"},
+                [{**valid_row, "receipt_id": "r1"}, {**valid_row, "receipt_id": "r1"}],
+                "receipt_ids_invalid",
+            ),
+        ]
+        for label, headers, rows, reason in cases:
+            with self.subTest(label=label):
+                result = ea.query_click_receipts(
+                    supabase_url="https://project.supabase.co",
+                    service_role_key="secret",
+                    product_id="hook-lab", campaign_token=token,
+                    observed_at="2026-10-17T02:20:00Z",
+                    fetch=lambda _url, _headers: (200, headers, rows),
+                )
+                self.assertEqual(result["status"], "unavailable")
+                self.assertEqual(result["reason"], reason)
+
 
 if __name__ == "__main__":
     unittest.main()

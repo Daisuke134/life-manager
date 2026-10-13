@@ -386,14 +386,26 @@ def query_click_receipts(*, supabase_url: str, service_role_key: str,
     if not content_range or "/" not in content_range or content_range.rsplit("/", 1)[1] == "*":
         return {"status": "unavailable", "reason": "exact_count_header_missing",
                 "observed_at": observed_at, "evidence_refs": base_evidence}
-    count = int(content_range.rsplit("/", 1)[1])
+    try:
+        count = int(content_range.rsplit("/", 1)[1])
+    except ValueError:
+        return {"status": "unavailable", "reason": "exact_count_invalid",
+                "observed_at": observed_at, "evidence_refs": base_evidence}
+    if count != len(body):
+        return {"status": "unavailable", "reason": "receipt_rows_incomplete",
+                "observed_at": observed_at, "evidence_refs": base_evidence}
+    receipt_ids = [row.get("receipt_id") for row in body]
+    if (any(not isinstance(receipt_id, str) or not receipt_id for receipt_id in receipt_ids)
+            or len(set(receipt_ids)) != len(receipt_ids)):
+        return {"status": "unavailable", "reason": "receipt_ids_invalid",
+                "observed_at": observed_at, "evidence_refs": base_evidence}
     require(all(row.get("campaign_token") == campaign_token and
                 row.get("product_id") == product_id for row in body),
             "click scope mismatch")
     return {"status": "available", "product_id": product_id,
             "campaign_token": campaign_token, "count": count,
             "observed_at": observed_at, "content_range": content_range,
-            "receipt_ids": [row["receipt_id"] for row in body],
+            "receipt_ids": receipt_ids,
             "evidence_refs": base_evidence}
 
 

@@ -73,7 +73,9 @@ The `run_create_intent` regression test uses a temporary synthetic account fixtu
 - [x] Add failing test `test_hook_lab_snapshot_rejects_foreign_or_shared_token` for an unregistered seller CT and one shared token reused across two publication slots.
 - [x] Run `python3 skills/earn/marketing-engine/measure/test_experiment_attribution.py`; confirm the three invalid-token subcases fail.
 - [x] Recompute and require the exact per-publication Hook Lab token before snapshot construction; run the evaluator test file and confirm it passes.
-- [ ] Add failing query test `test_click_query_rejects_incomplete_or_duplicate_receipts` for a count/body mismatch and duplicate receipt IDs.
+- [x] Add failing query test `test_click_query_rejects_incomplete_or_duplicate_receipts` for a count/body mismatch and duplicate receipt IDs.
+- [x] Run the focused experiment-attribution file; confirm both query cases incorrectly return `available`.
+- [x] Return `unavailable` for incomplete rows, malformed IDs, or duplicate receipt IDs; run the focused file and confirm it passes.
 - [ ] Add failing evaluator test `test_hook_lab_click_join_rejects_incomplete_or_duplicate_receipts` for missing or duplicate IDs in a supplied Hook Lab click query.
 - [ ] Add failing success test `test_hook_lab_click_receipt_id_is_saved_as_creative_evidence` proving the exact receipt ID is retained with the publication/creative snapshot.
 - [ ] Implement complete unique receipt-ID validation and add each exact receipt ID to Hook Lab evidence references; run the focused evaluator tests and confirm they pass.
