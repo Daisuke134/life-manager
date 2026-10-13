@@ -41,14 +41,14 @@
 
 **Interface:** `hl_<20 base32 characters>` identifies a first-party publication token. The wrapper maps only prefix `hl` to `product_id=hook-lab`, agent `8123079349`, and downstream `ct=hooklab_ig`.
 
-- [ ] Write a failing test through the production Netlify wrapper proving `hl_` stores a minimal `hook-lab` receipt and redirects only to `https://capafy.ai/agent/8123079349?ct=hooklab_ig`.
-- [ ] Run `node --test apps/landing/netlify/functions/_lib/__tests__/marketing-go.test.js`; confirm the new case fails because `hl_` is not recognized.
-- [ ] Add only the `hl` token prefix and fixed Hook Lab product mapping; run the focused Node test and confirm this case passes.
-- [ ] Write a failing test that a valid `?diagnostic=1` request returns 204 with no receipt and no `Location` header.
-- [ ] Run the focused Node test; confirm the diagnostic case fails before the implementation.
-- [ ] Add the diagnostic early return after token/product validation; do not copy arbitrary query values into the destination.
-- [ ] Run the focused Node test and `git diff --check`.
-- [ ] Commit and push the route change from its dedicated `anicca-products` worktree.
+- [x] Write a failing test through the production Netlify wrapper proving `hl_` stores a minimal `hook-lab` receipt and redirects only to `https://capafy.ai/agent/8123079349?ct=hooklab_ig`.
+- [x] Run `node --test apps/landing/netlify/functions/_lib/__tests__/marketing-go.test.js`; confirm the new case fails because `hl_` is not recognized.
+- [x] Add only the `hl` token prefix and fixed Hook Lab product mapping; run the focused Node test and confirm this case passes.
+- [x] Write a failing test that a valid `?diagnostic=1` request returns 204 with no receipt and no `Location` header.
+- [x] Run the focused Node test; confirm the diagnostic case fails before the implementation.
+- [x] Add the diagnostic early return after token/product validation; do not copy arbitrary query values into the destination.
+- [x] Run the focused Node test and `git diff --check`.
+- [x] Commit and push the route change from its dedicated `anicca-products` worktree (`9fab16b0`). PR/merge/deployed diagnostic remain final integration steps.
 
 ### Task 2: Per-publication token and receipt join (Life Manager)
 
