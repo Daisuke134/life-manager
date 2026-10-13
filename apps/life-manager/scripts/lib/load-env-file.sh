@@ -42,3 +42,13 @@ lm_require_env_keys() {
   done
   return 0
 }
+
+lm_require_data_root() {
+  local expected_data_root="$1"
+  if [ -n "${LM_DATA_DIR:-}" ] && [ "$LM_DATA_DIR" != "$expected_data_root" ]; then
+    printf 'LM_DATA_DIR does not match the registered Life Manager data root\n' >&2
+    return 78
+  fi
+  LM_DATA_DIR="$expected_data_root"
+  export LM_DATA_DIR
+}
