@@ -236,6 +236,25 @@ F1とF3の2/5のみ完了。2.61 GiBというdf値や2 GiB診断statusはKPIで�
 6. Line Sticker ownerがroute-readyになったら、他担当のcodeへ触れず、そのownerの自然run→子process終了→閉じたscratch回収を3 cycle確認する（F5）。
 7. F1–F5すべてpass後、残る18 business capabilityをregistry順で一件ずつ修理し、各ownerの公式readback後に次へ進む。
 F4はcentralの5分周期でpassが始まってから最低約10–15分。F2はreconcilerの10分自然cadenceと公式証拠次第。F5はownerがroute-readyになってから15分周期なら最低45分。source patch merge後はF3再受入時間も加わる。全体の終了時刻はF2公式proofとF5 readinessが未確定のため固定できない。これは実測したowner cadenceの見積りで、追加review待ちではない。
+### 2026-10-14 03:23 JST — latest-main foundation readback
+
+PR #7954 merged after all required checks as merge commit 22924a4fd321a6c4ee690c5b3223ad8f6ddb33c5. It changes release/run cleanup temp names to hidden names and adds the Finder metadata regression. Release 20261014T031532-22924a4f is current. Main later advanced to ab0d16bf9225c10a7c4caf5c919b4ca93c22eba6; the intervening source changes are marketing-summary only, and shared cleanup/runtime files match the foundation release. The one-time orphan gc-trash containing only a verified closed Finder .DS_Store was removed; worktree .DS_Store files remain untouched.
+
+F1 PASS: existing 191-job registry and common-runner namespace fixture.
+F2 NOT PASS: reconciler is loaded on 22924a4f but has not completed a natural run after this apply. Line Sticker owner remains unloaded on 7018416d. Exact occurrence 18de1e0534af8540-84609 still reads publish/effect unknown/exit143, provider receipt/readback null, admission_effect_unknown=false. No new exact reconciliation record exists. Do not replay or clear by hand.
+F3 PASS: watchdog, central cleanup, and reconciler all load 22924a4f. Watchdog argv points to release/bin/disk-watchdog.sh with StartInterval=60, ThrottleInterval=60, script SHA-256 d5d5255db66cda06dd000fbc8d5c42ecfae4b1cfd475dfeaae5d9d27cb0d5ac6. Central cleanup and reconciler argv each contain release/bin/lm-loop-run, owner ID, and release root. Their state/log roots remain their existing ~/.local/state/life-manager/<owner> paths, and lm-loop status reports 300s / 600s cadence. Each loaded SHA/argv was read back; no other owners were applied.
+F4 NOT PASS: watchdog has two observed post-release natural receipts (18:18:41Z and 18:22:39Z); the latest reports errors=0/protected_deletions=0 and inventory_gaps=29. Central cleanup occurrence 18de29967b38c7a0-31442 naturally ended exit0/pass on SHA 22924a4f at 18:18:06Z. The bounded stdout log contains cleanup summaries with ok=true/errors=0/protected_deletions=0, but those summaries omit run_id/release_sha, so they are not joined one-to-one to the natural event. For conservative acceptance count watchdog=2/3 and central=0/3 until those receipts can be joined. Inventory gaps remain 29.
+F5 NOT PASS: Line Sticker is unloaded and its exact external effect remains unverified. After route-ready, require 3 natural producer→child exit→closed scratch reclaim cycles; source remains with the other owner.
+F1/F3 are complete (2/5). This is progress, not proof that every storage writer is bounded. The last full inventory is incomplete with 29 gaps; unknown roots remain unknown and are never deletion candidates. The target architecture is bounded producer output, owner cleanup plus safe central recovery, and typed durable defer/resume without losing task/effect identity. It does not promise zero failures or exact-minute scheduling for all time.
+
+Remaining order:
+1. On the next natural 22924a4f reconciler run, seek official LINE readback for occurrence 18de1e0534af8540-84609. Keep unknown and do not resend if provider proof is absent; after exact closure, confirm central cleanup reclaims only that closed scratch (F2).
+2. Join natural owner events to structured cleanup receipts and obtain 3 post-release successes from watchdog and central cleanup with errors=0/protected_deletions=0. Current observations are watchdog 2/3 and central 0/3 formally joined (F4).
+3. Once Line Sticker is route-ready, observe its 3 natural run→teardown→reclaim cycles without editing its source (F5).
+4. Close the remaining 29 full-inventory gaps through bounded owner/path attribution; only proven closed regenerable data is eligible for deletion.
+5. After F1–F5 and resource paths are covered, repair the remaining 18 business capabilities one at a time.
+
+Timing: F2 waits for the reconciler's 600-second natural cadence plus official provider proof. F4 needs two more central passes at a 300-second interval if they succeed. F5 takes at least 45 minutes after route-ready at a 15-minute producer cadence. Therefore the fastest plausible runtime gates are around 45 minutes after route-ready, plus F2 proof and inventory attribution. No honest exact finish time exists until the external readback and owner readiness are known. Do not restart all 18 at once yet.
 **EDD担当境界:** このレーンの実装cursorはE02 Writer Pilot。18製品ループの下記read-only監査は全体判断のための状況把握であり、E01 Agent Economy、F1–F5共有cleanup、18 capability修理のownerを引き受けない。Agent Economyは18製品ループの一つとして監査表に含むが、Writer作業と混同しない。
 
 **前回cleanup readback（2026-10-13 11:44 JST）:** `life-manager-disk-cleanup`はrelease `3e19c846`でloaded-idle、F1–F5は当時0/5完了。これは歴史的観測で現在状態へ再利用しない。
