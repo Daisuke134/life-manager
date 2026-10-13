@@ -20,6 +20,7 @@ const crypto = require("node:crypto");
 const path = require("node:path");
 
 const { createContentObjectStore } = require("../lib/content-object-store.js");
+const { createMarketingLocalLedger } = require("../lib/marketing-local-ledger.js");
 const { readCreativeMetrics } = require("../lib/marketing-creative-metrics.js");
 const { generateSlidePackCandidates } = require("../lib/marketing-slide-pack-factory.js");
 const { selectSlidePack } = require("../lib/marketing-slide-pack-rotation.js");
@@ -29,6 +30,7 @@ const { JA_LARRY_PRODUCTION_SLOTS } = require("./anicca-larry-ja-canary.js");
 
 const MIN_POOL_SIZE = 4;
 const MIN_DAYS_BETWEEN_REPEAT = 7;
+const MAX_SLOT_LATE_MS = 15 * 60 * 1000;
 
 function required(value, label) {
   const text = String(value == null ? "" : value).trim();
@@ -131,6 +133,12 @@ async function resolveLarryJaSlot({ env = process.env, now = () => new Date().to
   const initialPostedHistory = readPostedHistory(distributionLedger);
   const nowMs = Date.parse(nowIso);
   const dueSlots = marketingVideoDueSlots(nowMs, "Asia/Tokyo", productionSlots);
+  // TikTok uses fixed organic slots: allow launch jitter, but never catch up an expired slot.
+  const freshDueSlots = lane.platform === "tiktok"
+    ? dueSlots
+      .filter((candidateSlot) => nowMs - Date.parse(candidateSlot) <= MAX_SLOT_LATE_MS)
+      .sort((left, right) => Date.parse(left) - Date.parse(right))
+    : dueSlots;
   const slotHashFor = (candidateSlot) => crypto.createHash("sha256").update(candidateSlot).digest("hex");
   const alreadyPublished = (history, candidateSlot) => history.find(
     (row) => row.integrationRef === lane.integrationRef && row.slotHash === slotHashFor(candidateSlot),
@@ -151,8 +159,9 @@ async function resolveLarryJaSlot({ env = process.env, now = () => new Date().to
     throw Object.assign(new Error(`${lane.name} daily publication limit reached`), { code: "DAILY_LIMIT_REACHED" });
   }
 
-  const unpostedDueSlot = dueSlots.find((candidateSlot) => !alreadyPublished(initialPostedHistory, candidateSlot));
-  const dueSlot = slot || unpostedDueSlot || null;
+  const dueSlot = slot || (lane.platform === "tiktok"
+    ? freshDueSlots.at(-1)
+    : dueSlots.find((candidateSlot) => !alreadyPublished(initialPostedHistory, candidateSlot))) || null;
   if (!dueSlot) {
     throw Object.assign(new Error(`${lane.name} production has no due slot yet`), { code: "NO_DUE_SLOT" });
   }
@@ -160,11 +169,55 @@ async function resolveLarryJaSlot({ env = process.env, now = () => new Date().to
   if (initialSlotReceipt) {
     return { slot: dueSlot, selected: null, alreadyPublished: true, providerPostId: initialSlotReceipt.providerPostId };
   }
-  if (!dueSlots.includes(dueSlot)) {
+  if (!freshDueSlots.includes(dueSlot)) {
     throw Object.assign(new Error(`${lane.name} production has no due slot yet`), { code: "NO_DUE_SLOT" });
   }
 
   const objectStore = createContentObjectStore({ objectDir: path.join(dataDir, "objects") });
+  const integrationKey = lane.platform + "_integration_ref";
+  const slotProbeId = "slot-probe-" + crypto.createHash("sha256")
+    .update([tenantId, lane.integrationRef, dueSlot].join("\n"))
+    .digest("hex");
+  const priorSlot = await createMarketingLocalLedger({ dataDir, env, now }).readPriorPublicationForSlot({
+    tenant_id: tenantId,
+    job_id: slotProbeId,
+    input_refs: {
+      product_ref: "product://" + lane.productId,
+      format_ref: "format://" + lane.formatId,
+      locale_ref: "locale://" + lane.locale,
+      platform_ref: "platform://" + lane.platform,
+      slot_ref: "schedule-slot://" + dueSlot,
+      [integrationKey]: lane.integrationRef,
+    },
+  });
+  if (priorSlot) {
+    if (priorSlot.slot_conflict === true) {
+      throw Object.assign(new Error(`${lane.name} slot has conflicting publication jobs`), { code: "SLOT_ALREADY_ATTEMPTED" });
+    }
+    const priorJob = priorSlot.job;
+    const priorReceipt = priorSlot.receipt;
+    if (priorReceipt?.status === "published" && priorReceipt.provider_reconciled === true
+        && typeof priorReceipt.provider_post_id === "string" && priorReceipt.provider_post_id) {
+      return { slot: dueSlot, selected: null, alreadyPublished: true, providerPostId: priorReceipt.provider_post_id };
+    }
+    if (priorJob.status === "queued" && priorJob.unknown_effect !== true && priorReceipt === null) {
+      const refs = priorJob.input_refs || {};
+      const selected = {
+        packRef: refs.pack_ref,
+        mediaRefs: refs.media_refs,
+        captionRef: refs.caption_ref,
+        approvalRef: refs.approval_ref,
+      };
+      if (typeof selected.packRef !== "string" || !Array.isArray(selected.mediaRefs)
+          || typeof selected.captionRef !== "string" || typeof selected.approvalRef !== "string"
+          || filterCandidatesForLane([selected], lane, objectStore).length !== 1) {
+        throw Object.assign(new Error(`${lane.name} slot already has a publication attempt`), { code: "SLOT_ALREADY_ATTEMPTED" });
+      }
+      return { slot: dueSlot, selected, queuedJobReused: true };
+    }
+    throw Object.assign(new Error(`${lane.name} slot already has a publication attempt`), { code: "SLOT_ALREADY_ATTEMPTED" });
+  }
+
   const workspaceDir = path.join(dataDir, "tenants", encodeURIComponent(tenantId), "marketing", "slide-pack-rotation", lane.productId, ".workspace");
   const imageCacheDir = path.join(dataDir, "tenants", encodeURIComponent(tenantId), "marketing", "slide-pack-rotation", lane.productId, "image-cache");
   const pool = poolPath(dataDir, tenantId, lane.productId, lane.lane);

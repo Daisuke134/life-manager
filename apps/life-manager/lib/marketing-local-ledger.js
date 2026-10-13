@@ -637,9 +637,23 @@ function createMarketingLocalLedger(options = {}) {
         if (!sameImmutableJob(existing, normalized)) throw new Error("local ledger job id collision");
         return { created: false, job: clone(existing) };
       }
-      if (normalized.capability === "marketing.video.publish" && normalized.input_refs.platform_ref === "platform://youtube") {
-        const prior = priorPublicationForSlot(state, normalized);
-        if (prior) return { created: false, prior_slot_publication: true, job: clone(prior) };
+      const tikTokSlotRefs = ["product_ref", "format_ref", "locale_ref", "slot_ref", "tiktok_integration_ref"];
+      const hasTikTokSlotIdentity = tikTokSlotRefs.every((key) => normalized.input_refs[key]);
+      if (normalized.capability === "marketing.video.publish"
+        && (normalized.input_refs.platform_ref === "platform://youtube"
+          || (normalized.input_refs.platform_ref === "platform://tiktok" && hasTikTokSlotIdentity))) {
+        const priors = priorPublicationsForSlot(state, normalized);
+        if (priors.length > 0) {
+          const prior = normalized.input_refs.platform_ref === "platform://tiktok"
+            ? (priors.find((job) => job.status !== "queued" || job.unknown_effect === true) || priors[0])
+            : priors[0];
+          return {
+            created: false,
+            prior_slot_publication: true,
+            ...(normalized.input_refs.platform_ref === "platform://tiktok" && priors.length > 1 ? { slot_conflict: true } : {}),
+            job: clone(prior),
+          };
+        }
       }
       assertPublicationEffectAllowed(normalized, "enqueue");
       if (normalized.effect_key && [...state.jobs.values()].some((job) => (
@@ -1060,21 +1074,34 @@ function createMarketingLocalLedger(options = {}) {
 
   // CTA/caption changes create a new byte-level effect identity. A single
   // account's scheduled slot must still not publish a second job for that slot.
-  function priorPublicationForSlot(state, input) {
+  function priorPublicationsForSlot(state, input) {
     const tenantId = identifier(input.tenant_id, "local ledger tenant id");
     const jobId = identifier(input.job_id, "local ledger job id");
-    const keys = ["product_ref", "format_ref", "locale_ref", "platform_ref", "slot_ref", "youtube_integration_ref"];
+    const platformRef = required(input.input_refs?.platform_ref, "publication slot platform_ref", 500);
+    const platform = /^platform:\/\/([a-z0-9][a-z0-9._-]{0,127})$/i.exec(platformRef)?.[1]?.toLowerCase();
+    if (!platform) throw new Error("publication slot platform_ref invalid");
+    const integrationKey = `${platform}_integration_ref`;
+    const keys = ["product_ref", "format_ref", "locale_ref", "platform_ref", "slot_ref", integrationKey];
     for (const key of keys) required(input.input_refs?.[key], `publication slot ${key}`, 500);
-    return [...state.jobs.values()].find((job) => job.tenant_id === tenantId
+    return [...state.jobs.values()].filter((job) => job.tenant_id === tenantId
       && job.job_id !== jobId && job.capability === "marketing.video.publish"
       && keys.every((key) => job.input_refs?.[key] === input.input_refs[key]));
   }
 
   function readPriorPublicationForSlot(input = {}) {
     const state = snapshot();
-    const prior = priorPublicationForSlot(state, input);
+    const priors = priorPublicationsForSlot(state, input);
+    const isTikTok = input.input_refs?.platform_ref === "platform://tiktok";
+    const prior = isTikTok
+      ? (priors.find((job) => job.status !== "queued" || job.unknown_effect === true) || priors[0])
+      : priors[0];
     const tenantId = identifier(input.tenant_id, "local ledger tenant id");
-    return prior ? { job: clone(prior), receipt: clone(receiptFor(state, tenantId, prior.job_id)) } : null;
+    if (!prior) return null;
+    return {
+      job: clone(prior),
+      receipt: clone(receiptFor(state, tenantId, prior.job_id)),
+      ...(isTikTok && priors.length > 1 ? { slot_conflict: true } : {}),
+    };
   }
 
   function readCommonJob(input = {}) {

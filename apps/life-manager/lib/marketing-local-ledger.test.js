@@ -69,6 +69,121 @@ test("YouTube prior-slot lookup survives caption changes but isolates destinatio
   assert.equal(await ledger.readPriorPublicationForSlot({ ...changed, tenant_id: "another-tenant" }), null);
 });
 
+test("TikTok prior-slot lookup binds the TikTok integration and isolates other slots", async () => {
+  const ledger = createMarketingLocalLedger({ dataDir: tempDataDir() });
+  const input = job({
+    job_id: "anicca-tiktok-slot-job",
+    tenant_id: "dais-local",
+    loop_id: "marketing.video.publish",
+    effect_key: "marketing:carousel:anicca-ios:slot-check",
+    input_refs: {
+      product_ref: "product://anicca-ios",
+      format_ref: "format://larry",
+      locale_ref: "locale://en",
+      platform_ref: "platform://tiktok",
+      slot_ref: "schedule-slot://2026-10-13T05:15:00.000Z",
+      account_ref: "account://tiktok/@aniccaaffirmation",
+      tiktok_integration_ref: "integration://postiz/tiktok/cmp93bkpu01uvoh0yd3aj560g",
+      caption_ref: `object://sha256/${"a".repeat(64)}`,
+    },
+    available_at: "2026-10-13T05:15:00.000Z",
+  });
+  await ledger.enqueueJob(input);
+  const changedCaption = {
+    ...input,
+    job_id: "anicca-tiktok-changed-caption",
+    effect_key: "marketing:carousel:anicca-ios:changed-caption",
+    input_refs: { ...input.input_refs, caption_ref: `object://sha256/${"b".repeat(64)}` },
+  };
+
+  const prior = await ledger.readPriorPublicationForSlot(changedCaption);
+  assert.equal(prior.job.job_id, input.job_id);
+  assert.equal(prior.receipt, null);
+  assert.equal(await ledger.readPriorPublicationForSlot({
+    ...changedCaption,
+    input_refs: { ...changedCaption.input_refs, slot_ref: "schedule-slot://2026-10-13T10:15:00.000Z" },
+  }), null);
+  assert.equal(await ledger.readPriorPublicationForSlot({
+    ...changedCaption,
+    input_refs: { ...changedCaption.input_refs, tiktok_integration_ref: "integration://postiz/tiktok/another" },
+  }), null);
+});
+
+test("TikTok prior-slot lookup flags a historical duplicate even when the first job is safe queued", async () => {
+  const dataDir = tempDataDir();
+  const ledger = createMarketingLocalLedger({ dataDir });
+  const input = job({
+    job_id: "anicca-tiktok-queued-slot-job",
+    effect_key: "anicca-tiktok-queued-slot-effect",
+    input_refs: {
+      product_ref: "product://anicca-ios",
+      format_ref: "format://larry",
+      locale_ref: "locale://en",
+      platform_ref: "platform://tiktok",
+      slot_ref: "schedule-slot://2026-10-13T05:15:00.000Z",
+      tiktok_integration_ref: "integration://postiz/tiktok/cmp93bkpu01uvoh0yd3aj560g",
+      caption_ref: `object://sha256/${"a".repeat(64)}`,
+    },
+  });
+  const queued = await ledger.enqueueJob(input);
+  const unresolved = {
+    ...queued.job,
+    job_id: "anicca-tiktok-unknown-duplicate",
+    effect_key: "anicca-tiktok-unknown-duplicate-effect",
+    status: "failed",
+    attempt: 1,
+    unknown_effect: true,
+    error_code: "provider_unknown",
+    lease_owner: null,
+    lease_expires_at: null,
+  };
+  fs.appendFileSync(path.join(dataDir, "marketing", "jobs.jsonl"), `${JSON.stringify({
+    schema_version: 1,
+    kind: "job",
+    event: "fail",
+    job: unresolved,
+  })}\n`);
+
+  const prior = await ledger.readPriorPublicationForSlot({
+    tenant_id: input.tenant_id,
+    job_id: "anicca-tiktok-slot-probe",
+    input_refs: input.input_refs,
+  });
+
+  assert.equal(prior.slot_conflict, true);
+  assert.equal(prior.job.job_id, unresolved.job_id);
+  assert.equal(prior.job.unknown_effect, true);
+});
+
+test("TikTok enqueue atomically refuses a second content identity for the same slot", async () => {
+  const dataDir = tempDataDir();
+  const first = createMarketingLocalLedger({ dataDir });
+  const second = createMarketingLocalLedger({ dataDir });
+  const refs = {
+    product_ref: "product://anicca-ios",
+    format_ref: "format://larry",
+    locale_ref: "locale://en",
+    platform_ref: "platform://tiktok",
+    slot_ref: "schedule-slot://2026-10-13T05:15:00.000Z",
+    tiktok_integration_ref: "integration://postiz/tiktok/cmp93bkpu01uvoh0yd3aj560g",
+  };
+  const a = job({ job_id: "anicca-tiktok-slot-first", effect_key: "anicca-tiktok-slot-first-effect", input_refs: refs });
+  const b = job({ job_id: "anicca-tiktok-slot-second", effect_key: "anicca-tiktok-slot-second-effect", input_refs: refs });
+  assert.equal(await first.readPriorPublicationForSlot(a), null);
+  assert.equal(await second.readPriorPublicationForSlot(b), null);
+
+  const results = await Promise.all([first.enqueueJob(a), second.enqueueJob(b)]);
+
+  assert.equal(results.filter((result) => result.created).length, 1);
+  const refused = results.find((result) => !result.created);
+  assert.equal(refused.prior_slot_publication, true);
+  const persisted = await Promise.all([
+    first.readJob({ tenantId: a.tenant_id, jobId: a.job_id }),
+    first.readJob({ tenantId: b.tenant_id, jobId: b.job_id }),
+  ]);
+  assert.equal(persisted.filter(Boolean).length, 1);
+});
+
 test("YouTube enqueue atomically refuses a second caption job after both prior reads missed", async () => {
   const dataDir = tempDataDir();
   const first = createMarketingLocalLedger({ dataDir });
