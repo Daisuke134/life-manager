@@ -1264,7 +1264,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
         row = registry["loops"]["line-sticker-distribute"]
         self.assertEqual(row["resource_class"], "deterministic")
         self.assertEqual(row["admission_class"], "revenue")
-        self.assertEqual(row["priority"], "revenue")
+        self.assertEqual(row["priority"], "distribution")
 
     def test_line_sticker_articles_is_ordered_as_distribution_work(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())

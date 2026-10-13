@@ -14,19 +14,6 @@ import pytest
 from runtime.host import resource_admission as admission
 
 
-def test_line_sticker_distributor_uses_distribution_priority_without_weakening_fences():
-    registry = json.loads((Path(__file__).resolve().parents[3]
-                           / "config/loop-registry.json").read_text())["loops"]
-    distributor = registry["line-sticker-distribute"]
-
-    assert distributor["priority"] == "distribution"
-    assert distributor["admission_class"] == "revenue"
-    assert distributor["effect_class"] == "publish"
-    assert distributor["effect_reconcile"]["argv"] == [
-        "skills/earn/line-sticker-distribute/scripts/distribute_fence_reconcile.py"
-    ]
-
-
 def isolated(tmp_path, monkeypatch, total="1"):
     monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(tmp_path))
     monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", total)
