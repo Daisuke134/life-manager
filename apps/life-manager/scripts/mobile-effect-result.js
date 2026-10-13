@@ -8,7 +8,7 @@ const path = require("node:path");
 const SAFE_OWNER = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const SAFE_RECEIPT = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const MAX_RESULT_BYTES = 1024 * 1024;
-const MOBILE_NO_EFFECT_REASONS = new Set(["no_due_slot", "daily_limit_reached"]);
+const MOBILE_NO_EFFECT_REASONS = new Set(["no_due_slot", "daily_limit_reached", "slot_already_attempted"]);
 
 function required(value, label) {
   const text = String(value == null ? "" : value).trim();

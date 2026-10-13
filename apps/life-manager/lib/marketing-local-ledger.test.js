@@ -69,6 +69,46 @@ test("YouTube prior-slot lookup survives caption changes but isolates destinatio
   assert.equal(await ledger.readPriorPublicationForSlot({ ...changed, tenant_id: "another-tenant" }), null);
 });
 
+test("TikTok prior-slot lookup binds the TikTok integration and isolates other slots", async () => {
+  const ledger = createMarketingLocalLedger({ dataDir: tempDataDir() });
+  const input = job({
+    job_id: "anicca-tiktok-slot-job",
+    tenant_id: "dais-local",
+    loop_id: "marketing.video.publish",
+    effect_key: "marketing:carousel:anicca-ios:slot-check",
+    input_refs: {
+      product_ref: "product://anicca-ios",
+      format_ref: "format://larry",
+      locale_ref: "locale://en",
+      platform_ref: "platform://tiktok",
+      slot_ref: "schedule-slot://2026-10-13T05:15:00.000Z",
+      account_ref: "account://tiktok/@aniccaaffirmation",
+      tiktok_integration_ref: "integration://postiz/tiktok/cmp93bkpu01uvoh0yd3aj560g",
+      caption_ref: `object://sha256/${"a".repeat(64)}`,
+    },
+    available_at: "2026-10-13T05:15:00.000Z",
+  });
+  await ledger.enqueueJob(input);
+  const changedCaption = {
+    ...input,
+    job_id: "anicca-tiktok-changed-caption",
+    effect_key: "marketing:carousel:anicca-ios:changed-caption",
+    input_refs: { ...input.input_refs, caption_ref: `object://sha256/${"b".repeat(64)}` },
+  };
+
+  const prior = await ledger.readPriorPublicationForSlot(changedCaption);
+  assert.equal(prior.job.job_id, input.job_id);
+  assert.equal(prior.receipt, null);
+  assert.equal(await ledger.readPriorPublicationForSlot({
+    ...changedCaption,
+    input_refs: { ...changedCaption.input_refs, slot_ref: "schedule-slot://2026-10-13T10:15:00.000Z" },
+  }), null);
+  assert.equal(await ledger.readPriorPublicationForSlot({
+    ...changedCaption,
+    input_refs: { ...changedCaption.input_refs, tiktok_integration_ref: "integration://postiz/tiktok/another" },
+  }), null);
+});
+
 test("YouTube enqueue atomically refuses a second caption job after both prior reads missed", async () => {
   const dataDir = tempDataDir();
   const first = createMarketingLocalLedger({ dataDir });
