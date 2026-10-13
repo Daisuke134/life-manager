@@ -368,6 +368,20 @@ The Writer owner has a separate browser-capacity defect: its worker still uses i
 
 **Current remaining order:** (1) Get official LINE readback for the exact old factory/readback occurrences through the existing line-creators browser owner; keep every publish unknown fenced and let the existing central cleanup remove only proven-closed scratch. This is the only currently identified safe path to reclaim the 8.13 GiB factory scratch; the browser lease holder is live, so no force-release or deletion. (2) The Writer owner must fix writer-sales-measure's busy loop so it does not hold the sole observed browser/borrow reservation while waiting, and stop using interactive:dais per its goal; the owner has the exact failure evidence but has not replied. (3) After exact preflight passes, cut a complete immutable release from current main, target-apply watchdog/central cleanup/fence reconciler, and verify loaded argv/SHA/cadence plus lm-loop doctor (F3). (4) Collect three natural watchdog and central-cleanup passes on that release with errors=0/protected_deletions=0; Git timeout may be a typed defer (F4). (5) Prove three producer→child teardown→closed scratch reclaim cycles, classify the 29 inventory gaps, and retain unknown paths (F5/resource paths). (6) Only after F1–F5 pass, repair the 18 business capabilities one by one.
 
+### 2026-10-14 06:22 JST — F3未完了、基盤は1/5
+
+**判定:** F3は未完了で、基盤全体も未完了。F1だけPASS。mainに修正をmergeしたことと、Mac上の実行版へ配布したことは別である。
+
+**確認した状態:** latest `origin/main`=`d7664a1e99db5647e41ff5a6d4393a107b85c457`。`~/loops/current`は`20261014T043159-6dfec005`。中央cleanupはこのreleaseでloaded-idle。watchdog plistは`20261014T031532-22924a4f/bin/disk-watchdog.sh`を指し、`StartInterval=60` / `ThrottleInterval=60`。`lm-loop doctor`は`ai.anicca.provision-browser.promptbase.dais`をunmanagedとして報告し、現行runtimeでは失敗する。06:22の`life-manager-release-reconciler` readbackはPID 75244、loaded-running、exit75/reconcile_owner。これを重複起動しない。
+
+latest main `d7664a1`からのrelease preflightは必要量2,399,170,560 bytes。06:22の`df -kP /`は2,171,031,552 bytes freeで、228,139,008 bytes不足し、releaseは作成していない。これは安全なrelease作成条件の診断値で、KPIや基盤Done条件ではない。
+
+F2も未完了: factory occurrence `18de1e0534af8540-84609`はunloaded/effect unknownで、公式LINE receipt/readbackは未確認。readback ownerは旧release `2275018c`で、effect unknownが残る。F3も未完了: cleanup/watchdog/reconcilerを修正入りlatest-main releaseへ揃えておらず、doctorもPASSしていない。F4は新releaseからの成功receipt列がない。F5は最大scratch約8.13 GiBが未照合で、inventory gap 29件が残る。未知データ・live browser lease・active processは保持する。
+
+**残りの順番:** (1) 稼働中のrelease reconcilerの自然終端をreadbackする（追加start/applyなし）。(2) 既存LINE ownerの公式readbackでfactory/readbackのexact occurrenceを照合し、unknownを推測で解除しない。effectとprocess終了が証明されたrunだけを既存中央cleanupに回収させる。(3) 最新mainに対する正確なcapacity preflightを取り直し、PASSしたらimmutable releaseを作る。(4) watchdog・central cleanup・fence reconcilerだけを対象適用し、loaded SHA/argv/state path/cadenceと`lm-loop doctor`を確認する。ここで初めてF3 PASS。(5) そのreleaseからwatchdogとcentral cleanup各3回の自然receiptを取り、`errors=0` / `protected_deletions=0`を確認してF4 PASS。(6) 3回の自然producer→child終了→closed scratch回収とinventory分類を完了してF2/F5 PASS。(7) F1–F5後に18業務capabilityを一件ずつ修理する。
+
+**時間見通し:** いつまでも続ける計画ではない。preflight通過後のF3はrelease作成・対象適用・readbackで約15–30分、F4は自然5分周期のため約10–15分、F5はroute-ready後に15分周期で最低約45分。F2は次の自然readbackとLINE側の公式証拠に依存する。現在はrelease preflight不足とlive browser ownerによる公式照合待ちがあるため、完了時刻は正直には固定できない。追加レビュー待ちではない。
+
 **EDD担当境界:** このレーンの実装cursorはE02 Writer Pilot。18製品ループの下記read-only監査は全体判断のための状況把握であり、E01 Agent Economy、F1–F5共有cleanup、18 capability修理のownerを引き受けない。Agent Economyは18製品ループの一つとして監査表に含むが、Writer作業と混同しない。
 
 **前回cleanup readback（2026-10-13 11:44 JST）:** `life-manager-disk-cleanup`はrelease `3e19c846`でloaded-idle、F1–F5は当時0/5完了。これは歴史的観測で現在状態へ再利用しない。
