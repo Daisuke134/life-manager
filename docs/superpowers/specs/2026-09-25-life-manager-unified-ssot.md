@@ -16185,6 +16185,15 @@ Source inspection found two A2.1 defects: marketing-attribution-lineage.js accep
 
 TREG re-read using the existing SSOT token: org ls lists Anicca as owner; balance returns no active org. No additional provider route or charge occurred. That auth/balance issue is A5 in the revised order and does not block A2.1.
 
+### 2026-10-14 08:30 JST — Anicca A3 live cursor refreshed
+
+- PR #7972's source repair and PR #7974's spec correction are merged. A3 is still open until production owners load and naturally run the repaired code.
+- The existing reconciler occurrence `18de3930c1b915f0-75462` ended at 2026-10-13T23:16:18Z with `entrypoint_exit_1` / `effect=not_applicable`, without provider receipt or official readback. Its structured detail says release `28614ef51d8f5be0aa82c0967d4d8562ba7f14dc`, `fleet-apply status=partial`, 4 changed, 9 skipped, 0 errors, no timed-out owners, and `budget exceeded`; self-handoff also reported its helper was already loaded. Four changed owners do not prove full adoption.
+- Successor occurrence `18de39fd026913d0-6652` ended at 2026-10-13T23:28:49Z with `entrypoint_exit_1` / `effect=not_applicable`, without provider receipt or official readback. Its exact detail is `fleet-apply status=partial`, 3 changed, 20 skipped, 0 errors, no timed-out owners, `budget exceeded`; this is incomplete owner adoption, not a delivery result.
+- The next natural occurrence `18de3aa78a316b00-82401` started at 2026-10-13T23:29:53Z on the same release; latest event is `execute/running`, `next_action=monitor_running`. Do not overlap it with another apply or restart. Continue from this exact run to natural terminal and loaded-SHA/argv readback.
+- The latest HostDiskGovernor receipt (2026-10-13T23:10:31Z) evaluated 16 candidates, reclaimed 0, preserved 16, and reported 0 errors / 0 protected deletions; its 2 GiB diagnostic floor was met. Direct `df -kP /` at 2026-10-13T23:17:55Z reported 2,301,752 KiB (2,356,994,048 bytes), 37,335,040 bytes below the exact 2,394,329,088-byte immutable-release requirement. This `df` observation is not an exact release preflight; do not cut a new release until that preflight passes.
+- **Current cursor remains A3:** follow the existing successor run, confirm the exact production owner SHA/argv and natural delivery, then obtain official receipt/readback and replay-zero while preserving unresolved legacy fences. Only then move to A2.3b. The acquisition TODO order below is unchanged.
+
 ## Capafy status 2026-10-11 16:15 JST (claude-capafy)
 
 - **Official status (`publish-remote-status`):** Hook Lab 8123079349 v1.0.8 price-restore (day $1.99/10, week $4.99/30, month $9.99/50, Sonnet 5) = under_review (status 1). AI Evaluation 4243672453 v1.0.2 = under_review. TikTok 2844813315, YouTube 7686597754, customer-escalation 8822853032 = draft (queued updates). ad/shorts/reels Hook Lab = still online on old version, update pending.
