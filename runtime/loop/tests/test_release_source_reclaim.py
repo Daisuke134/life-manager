@@ -179,26 +179,17 @@ def test_owner_reclaims_one_old_snapshot_and_keeps_rollback(tmp_path, monkeypatc
     monkeypatch.setattr(central_cleanup, "loaded_release_roots", lambda *_: set())
     monkeypatch.setattr(central_cleanup, "open_release_roots", lambda *_: set())
     real_run = subprocess.run
+    lsof_calls = 0
     def run(command, **kw):
+        nonlocal lsof_calls
         if command[0] == "lsof":
-            # Report actual open validation FDs, just as production lsof does.
+            lsof_calls += 1
             lines = ["p" + str(os.getpid())]
-            resources = [release, release / "bin", release / "bin/one.py", release / "bin/two.py"]
-            opened = []
-            for p in Path("/dev/fd").iterdir():
-                try:
-                    fd = int(p.name)
-                    info = os.fstat(fd)
-                except (OSError, ValueError):
-                    continue
-                for resource in resources:
-                    if resource.exists() and (info.st_dev, info.st_ino) == (resource.stat().st_dev, resource.stat().st_ino):
-                        lines.extend(("f" + str(fd), "n" + str(resource)))
-                        opened.append(fd)
-            if opened and additional_reference:
+            # The first inventory is clear; a second inventory sees a newly opened
+            # unrelated file under the release, either by this process or another PID.
+            if lsof_calls == 2 and additional_reference:
                 if additional_reference == "other_pid":
                     lines.append("p" + str(os.getpid() + 100000))
-                    lines.append("f" + str(opened[0]))
                 else:
                     lines.append("f999999")
                 lines.append("n" + str(release / "unknown.py"))
@@ -216,6 +207,7 @@ def test_owner_reclaims_one_old_snapshot_and_keeps_rollback(tmp_path, monkeypatc
     monkeypatch.setattr(lm_loop, "_apply_lock", initially_busy)
     result = central_cleanup.reclaim_unreferenced_source(release.parent, current, tmp_path / "agents", 1)
     assert result["removed_files"] == (0 if additional_reference else 4)
+    assert lsof_calls == 2
     assert attempts >= 3
     assert (release / "RELEASE.json").exists() == bool(additional_reference)
     assert (rollback / "RELEASE.json").exists()

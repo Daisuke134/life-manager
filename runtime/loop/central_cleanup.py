@@ -641,8 +641,21 @@ def reclaim_unreferenced_source(releases: Path, current: Path, agents: Path, kee
                 pinned_source = ensure_source_pin(sha, source_ref)
                 if pinned_source is None:
                     continue
+                open_reference_snapshot = None
+
+                def can_reclaim(owned_fds):
+                    nonlocal open_reference_snapshot
+                    if not owned_fds:
+                        return path.resolve() not in held
+                    if open_reference_snapshot is None:
+                        # Refresh once after the release descriptors are open, then reuse
+                        # that lock-scoped inventory for this source-file batch. Re-running
+                        # full-system lsof for every leaf exhausted the 15s cleanup budget.
+                        open_reference_snapshot = references(owned_fds)
+                    return path.resolve() not in open_reference_snapshot
+
                 result = reclaim_release_source(path, source_repo,
-                    can_reclaim=lambda owned: path.resolve() not in references(owned),
+                    can_reclaim=can_reclaim,
                     source_ref=pinned_source, deadline=deadline)
                 result["release_root"] = str(path)
                 result["release_sha"] = sha
