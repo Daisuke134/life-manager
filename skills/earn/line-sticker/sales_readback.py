@@ -70,6 +70,8 @@ def parse_sticker_table_rows(rows: list[dict]) -> list[dict]:
 
 def _stats_table_is_complete(snapshot: dict) -> bool:
     rows = snapshot.get("rows")
+    page_numbers = snapshot.get("page_numbers")
+    current_page = snapshot.get("current_page")
     return (
         snapshot.get("ready_state") == "complete"
         and snapshot.get("table_count") == 1
@@ -78,9 +80,13 @@ def _stats_table_is_complete(snapshot: dict) -> bool:
         and isinstance(rows, list)
         and bool(rows)
         and snapshot.get("body_row_count") == len(rows)
-        and snapshot.get("page_numbers") == [1]
-        and snapshot.get("current_page") == 1
-        and snapshot.get("has_next_page") is False
+        and isinstance(page_numbers, list)
+        and bool(page_numbers)
+        and all(type(number) is int and number >= 1 for number in page_numbers)
+        and page_numbers == list(range(1, len(page_numbers) + 1))
+        and type(current_page) is int
+        and current_page in page_numbers
+        and isinstance(snapshot.get("has_next_control"), bool)
     )
 
 
@@ -176,7 +182,7 @@ def _read_json(path: Path) -> dict | None:
 
 
 async def _fetch(cdp: str) -> dict:
-    from playwright.async_api import async_playwright
+    from playwright.async_api import TimeoutError as PlaywrightTimeoutError, async_playwright
 
     async with async_playwright() as p:
         browser = await p.chromium.connect_over_cdp(cdp)
@@ -186,7 +192,7 @@ async def _fetch(cdp: str) -> dict:
             await page.goto(f"{CREATOR_BASE}/stats/sticker", wait_until="load", timeout=60000)
             if "access.line.me" in page.url:
                 return {"status": "needs_login"}
-            snapshot_script = """() => {
+            snapshot_script = """/* LINE_STICKER_STATS_SNAPSHOT */ () => {
                 const tables = [...document.querySelectorAll('table')];
                 const table = tables.find(candidate => candidate.classList.contains('item-list-table'));
                 const bodyRows = table
@@ -207,12 +213,12 @@ async def _fetch(cdp: str) -> dict:
                 const selected = controls.find(element =>
                     element.classList.contains('selected') && /^\\d+$/.test(controlText(element)));
                 const currentPage = selected ? Number(controlText(selected)) : null;
-                const hasNextPage = controls.some(element => {
+                const hasNextControl = controls.some(element => {
                     const text = controlText(element).toLowerCase();
                     return !element.disabled
                         && element.getAttribute('aria-disabled') !== 'true'
                         && /^(next|次へ|次|›|»|>|>>)$/.test(text);
-                }) || pageNumbers.some(number => number > 1);
+                });
                 return {
                     ready_state: document.readyState,
                     table_count: tables.length,
@@ -220,23 +226,87 @@ async def _fetch(cdp: str) -> dict:
                     body_row_count: bodyRows.length,
                     page_numbers: pageNumbers,
                     current_page: currentPage,
-                    has_next_page: hasNextPage,
+                    has_next_control: hasNextControl,
                     busy: !!document.querySelector(
                         '[aria-busy="true"],[role="progressbar"],.loading,.spinner'
                     )
                 };
             }"""
-            await page.wait_for_timeout(700)
-            first_snapshot = await page.evaluate(snapshot_script)
-            await page.wait_for_timeout(700)
-            snapshot = await page.evaluate(snapshot_script)
-            snapshot["stable"] = first_snapshot == snapshot
-            if not _stats_table_is_complete(snapshot):
-                return {"status": "incomplete_stats_table"}
-            stats_rows = snapshot["rows"]
-            try:
-                parse_sticker_table_rows(stats_rows)
-            except ValueError:
+            click_page_script = """/* LINE_STICKER_STATS_CLICK_PAGE */ targetPage => {
+                const controls = [...document.querySelectorAll('a,button,[role="button"]')]
+                    .filter(element => element.getClientRects().length > 0);
+                const controlText = element =>
+                    (element.innerText || element.getAttribute('aria-label') || '').trim();
+                const matches = controls.filter(element =>
+                    controlText(element) === String(targetPage)
+                    && !element.classList.contains('selected')
+                    && !element.disabled
+                    && element.getAttribute('aria-disabled') !== 'true');
+                if (matches.length !== 1) return false;
+                matches[0].click();
+                return true;
+            }"""
+            selected_page_script = """targetPage => {
+                const control = [...document.querySelectorAll('a,button,[role="button"]')]
+                    .find(element => element.getClientRects().length > 0
+                        && element.classList.contains('selected'));
+                const text = control
+                    ? (control.innerText || control.getAttribute('aria-label') || '').trim()
+                    : '';
+                return text === String(targetPage);
+            }"""
+            stats_rows = []
+            seen_ids: set[str] = set()
+            expected_pages: list[int] | None = None
+            visited_pages: set[int] = set()
+            while True:
+                await page.wait_for_timeout(700)
+                first_snapshot = await page.evaluate(snapshot_script)
+                await page.wait_for_timeout(700)
+                snapshot = await page.evaluate(snapshot_script)
+                snapshot["stable"] = first_snapshot == snapshot
+                if not _stats_table_is_complete(snapshot):
+                    return {"status": "incomplete_stats_table"}
+
+                page_numbers = snapshot["page_numbers"]
+                current_page = snapshot["current_page"]
+                if expected_pages is None:
+                    expected_pages = page_numbers
+                if (page_numbers != expected_pages
+                        or current_page != len(visited_pages) + 1
+                        or current_page in visited_pages):
+                    return {"status": "incomplete_stats_table"}
+                try:
+                    parsed_page = parse_sticker_table_rows(snapshot["rows"])
+                except ValueError:
+                    return {"status": "incomplete_stats_table"}
+                page_ids = [row["product_id"] for row in parsed_page]
+                if len(page_ids) != len(set(page_ids)) or seen_ids.intersection(page_ids):
+                    return {"status": "incomplete_stats_table"}
+                seen_ids.update(page_ids)
+                stats_rows.extend(snapshot["rows"])
+                visited_pages.add(current_page)
+
+                later_pages = [number for number in page_numbers if number > current_page]
+                if later_pages:
+                    next_page = min(later_pages)
+                    if next_page != current_page + 1:
+                        return {"status": "incomplete_stats_table"}
+                    clicked = await page.evaluate(click_page_script, next_page)
+                    if clicked is not True:
+                        return {"status": "incomplete_stats_table"}
+                    try:
+                        await page.wait_for_function(
+                            selected_page_script, arg=next_page, timeout=15000
+                        )
+                    except PlaywrightTimeoutError:
+                        return {"status": "incomplete_stats_table"}
+                    continue
+                if snapshot["has_next_control"]:
+                    return {"status": "incomplete_stats_table"}
+                break
+
+            if expected_pages is None or visited_pages != set(expected_pages):
                 return {"status": "incomplete_stats_table"}
             await page.goto(f"{CREATOR_BASE}/payment_request/", wait_until="domcontentloaded", timeout=60000)
             await page.wait_for_timeout(2000)

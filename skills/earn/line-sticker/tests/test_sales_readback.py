@@ -210,10 +210,107 @@ class FetchTableCompleteness(unittest.TestCase):
         package = types.ModuleType("playwright")
         async_api = types.ModuleType("playwright.async_api")
         async_api.async_playwright = FakePlaywright
+        async_api.TimeoutError = TimeoutError
         package.async_api = async_api
         with patch.dict(sys.modules, {"playwright": package, "playwright.async_api": async_api}):
             result = asyncio.run(MODULE._fetch("http://127.0.0.1:9222"))
         self.assertEqual(result["status"], "incomplete_stats_table")
+
+    def test_fetch_reads_all_stable_numbered_stats_pages(self) -> None:
+        def row(product_id: int) -> dict[str, str]:
+            return {
+                "href": f"https://creator.line.me/my/account/stats/sticker/{product_id}",
+                "text": f"商品{product_id}\t2026/10/13\t￥0",
+            }
+
+        page_rows = {
+            1: [row(48000000 + index) for index in range(20)],
+            2: [row(48000020 + index) for index in range(9)],
+        }
+        snapshots = {
+            1: {
+                "ready_state": "complete", "table_count": 1,
+                "rows": page_rows[1], "body_row_count": 20,
+                "page_numbers": [1, 2], "current_page": 1,
+                "has_next_control": False, "busy": False,
+            },
+            2: {
+                "ready_state": "complete", "table_count": 1,
+                "rows": page_rows[2], "body_row_count": 9,
+                "page_numbers": [1, 2], "current_page": 2,
+                "has_next_control": False, "busy": False,
+            },
+        }
+        page_clicks: list[int] = []
+        pages: list[object] = []
+
+        class FakePage:
+            url = "https://creator.line.me/my/account/stats/sticker"
+            current_page = 1
+
+            async def goto(self, url: str, **_kwargs: object) -> None:
+                self.url = url
+                if url.endswith("/stats/sticker"):
+                    self.current_page = 1
+
+            async def wait_for_timeout(self, _milliseconds: int) -> None:
+                return None
+
+            async def evaluate(self, script: str, argument: object = None) -> dict | bool:
+                if "LINE_STICKER_STATS_CLICK_PAGE" in script:
+                    self.current_page = int(argument)
+                    page_clicks.append(self.current_page)
+                    return True
+                return snapshots[self.current_page]
+
+            async def wait_for_function(self, _script: str, arg: object = None,
+                                        **_kwargs: object) -> None:
+                if self.current_page != arg:
+                    raise AssertionError("pagination did not advance to the requested page")
+
+            async def inner_text(self, _selector: str) -> str:
+                return PAYMENT_TEXT
+
+            async def close(self) -> None:
+                return None
+
+        class FakeContext:
+            async def new_page(self) -> FakePage:
+                page = FakePage()
+                pages.append(page)
+                return page
+
+        class FakeBrowser:
+            contexts = [FakeContext()]
+
+        class FakeChromium:
+            async def connect_over_cdp(self, _cdp: str) -> FakeBrowser:
+                return FakeBrowser()
+
+        class FakePlaywright:
+            chromium = FakeChromium()
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *_args: object) -> None:
+                return None
+
+        package = types.ModuleType("playwright")
+        async_api = types.ModuleType("playwright.async_api")
+        async_api.async_playwright = FakePlaywright
+        async_api.TimeoutError = TimeoutError
+        package.async_api = async_api
+        with patch.dict(sys.modules, {"playwright": package, "playwright.async_api": async_api}):
+            result = asyncio.run(MODULE._fetch("http://127.0.0.1:9222"))
+
+        self.assertEqual(result["status"], "ok")
+        parsed = MODULE.parse_sticker_table_rows(result["stats_rows"])
+        self.assertEqual(page_clicks, [2])
+        self.assertEqual(pages[0].current_page, 2)
+        self.assertEqual(len(parsed), 29)
+        self.assertEqual(parsed[0]["product_id"], "48000000")
+        self.assertEqual(parsed[-1]["product_id"], "48000028")
 
 
 class TrackedProducts(unittest.TestCase):
