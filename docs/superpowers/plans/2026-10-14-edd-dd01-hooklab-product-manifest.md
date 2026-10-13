@@ -98,7 +98,7 @@ git commit -m "feat(marketing-engine): register Hook Lab distribution profile"
 
 - [x] **Step 1: Extend the failing test**
 
-Rename the test to make its fixture scope explicit. Assert the four Gate10 core products and Hook Lab are registered, the two historical safe-plan identity tuples remain unchanged, and the fixture-backed verifier passes. Add separate assertions that the default live path without `plans.jsonl` raises `FileNotFoundError`, and that supplying only the plan fixture still fails when the live quarantine receipt is absent. Current main has neither file; tracked fixtures must never masquerade as live receipts.
+Rename the test to make its contract-fixture scope explicit. Assert the four Gate10 core products and Hook Lab are registered, and lock two valid current route tuples: ebook-en/tiktok.monk_anicca/current hook/heygen-avatar-iv and ebook-ja/tiktok.obou_anicca/current hook/watercolor-monk. The orphaned historical English row used `omniavatar-monk`, which the current account does not allow; do not revive it. Add separate checks that the default live plan path fails closed and that supplying only the plan fixture still fails when the live quarantine receipt is absent. Neither fixture represents a live receipt or publication.
 
 - [x] **Step 2: Run the test and confirm RED**
 
@@ -108,13 +108,13 @@ Run from `skills/earn/marketing-engine/gates`:
 python3 -m unittest test_verify_gate10
 ```
 
-Expected: the first RED is `TypeError: unexpected keyword argument plans_path` because the verifier has no explicit fixture seam; after adding that seam, re-run and confirm the stale global product check is the next failure. The live-evidence assertions must not pass using the test fixture.
+Observed RED: before the fixture seam, the fixture-backed test gets `TypeError: unexpected keyword argument plans_path`; the default call also stops at `initial product registry differs`. After adding the seam and core-product subset, the orphaned historical fixture fails at `safe plan renderer not allowed`, so the test fixture now uses current allowlisted renderers.
 
-- [ ] **Step 3: Make Gate10 scope explicit**
+- [x] **Step 3: Make Gate10 scope explicit**
 
 Change the verifier to require its core product IDs as a subset and remove the stale global account-count assertion. Add optional explicit `plans_path` and `quarantine_path` for deterministic tests while keeping both default runtime evidence paths unchanged. Preserve exact safe-plan count, hook, renderer, CTA, attribution, stable-ID, and quarantine checks.
 
-- [ ] **Step 4: Run the Gate10 test and confirm GREEN**
+- [x] **Step 4: Run the Gate10 test and confirm GREEN**
 
 Run `python3 -m unittest test_verify_gate10` from `skills/earn/marketing-engine/gates`.
 
