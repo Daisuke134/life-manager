@@ -42,10 +42,10 @@ To-Beは各agentがobserve→decide→act→official verify→persist→自分�
 
 **基盤Done / 18業務修理の再開ゲート:** 下のF1–F5がすべてPASSした時点を「共有基盤が修理に耐える」と判定し、primaryは18業務capabilityの個別修理を一件ずつ開始する。これは18件すべての完了条件ではない。容量GiBは一切の合否に使わない。有限の検証は永久無故障の数学的保証ではなく、容量不足を失われた仕事にせず、自動で待機・再開できることの出荷条件とする。
 
-- [ ] **F1 — 全jobの共通入口:** 最新`config/loop-registry.json`のjobを100%調査し、各jobを「容量を書き込む」「制御/cleanup」「永続書込なし」に分類する。未分類=`0`。書込jobは既存の共有capacity admissionを通り、保護対象/別ownerの保存先を使わないことをsource/fixtureで確認する。
-- [ ] **F2 — 容量不足の3境界:** 隔離fixtureで (a) 起動前に容量不足、(b) 作業用一時ファイルの書込中にENOSPC、(c) 最終receipt保存時にENOSPCを再現する。(a)では外部action開始=`0`、(b/c)では完了と偽らずtask identityと証拠を保持する。容量回復後、外部effectが未実行と証明できるtaskは同じtaskとして一度だけ再開し、再送/重複=`0`。effectが不明なら公式照合まで保持する。
-- [ ] **F3 — 配布済み掃除役:** 60秒watchdogと300秒Life Manager central cleanupの両方について、最新main由来immutable release、loaded script/argv/SHA、cadenceのreadbackを取る。未反映・旧版・別ownerとの競合があれば修正し、対象だけを安全に適用する。
-- [ ] **F4 — 掃除の反復:** 両掃除役それぞれの自然実行receiptを3回連続で取得する。各receiptは保存済み、`errors=0`、`protected_deletions=0`。単にprocessがいることやexit 0だけでは数えず、実際に掃除passまで実行したreceiptだけを数える。
+- [x] **F1 — 全jobの共通入口:** 最新`config/loop-registry.json`のjobを100%調査し、各jobを「容量を書き込む」「制御/cleanup」「永続書込なし」に分類する。未分類=`0`。書込jobは既存の共有capacity admissionを通り、保護対象/別ownerの保存先を使わないことをsource/fixtureで確認する。
+- [x] **F2 — 容量不足の3境界:** 隔離fixtureで (a) 起動前に容量不足、(b) 作業用一時ファイルの書込中にENOSPC、(c) 最終receipt保存時にENOSPCを再現する。(a)では外部action開始=`0`、(b/c)では完了と偽らずtask identityと証拠を保持する。容量回復後、外部effectが未実行と証明できるtaskは同じtaskとして一度だけ再開し、再送/重複=`0`。effectが不明なら公式照合まで保持する。
+- [x] **F3 — 配布済み掃除役:** 60秒watchdogと300秒Life Manager central cleanupの両方について、最新main由来immutable release、loaded script/argv/SHA、cadenceのreadbackを取る。未反映・旧版・別ownerとの競合があれば修正し、対象だけを安全に適用する。
+- [x] **F4 — 掃除の反復:** 両掃除役それぞれの自然実行receiptを3回連続で取得する。各receiptは保存済み、`errors=0`、`protected_deletions=0`。単にprocessがいることやexit 0だけでは数えず、実際に掃除passまで実行したreceiptだけを数える。
 - [ ] **F5 — 大きな一時データの往復:** 一番大きいフォルダ名を推測で選ばない。同一時間窓で`owner_id + PID + 出力先path + bytes before/after`を結び、実writerを確認する。該当jobのbusiness ownerは維持し、primaryはそのsource/外部操作を変更しない。自然実行を3回連続で確認し、終了した親と子processがいなくなった後、次の成功したcentral sweepまでにその回だけの一時フォルダが消え、商品出力/正式receiptは残る。3回の観測window全体で未帰属の増加=`0`、capacity起因のterminal failure=`0`、次の予定wakeを越えて残るcapacity defer=`0`、lost task=`0`、duplicate effect=`0`、手動cleanup=`0`。
 
 **共有資源gate:** F1→F2→F3→F4→F5は、shared-capacity recoveryと18 capability修理の完了判定に引き続き必要。Daisの明示したEDD優先により、独立したWriter E02 A3b/A3c→A8–A14とE03–E06 benchmark作業は、F1–F5が未完でも先行できる。これはcleanupのgateを満たした扱いにせず、既存cleanup owner/stateも変更しない。
@@ -85,6 +85,8 @@ To-Beは各agentがobserve→decide→act→official verify→persist→自分�
 **本番採用の完了と残差:** #7885/head606711acの表示CI12項目PASS後main `5f9018925f894709cb9713b06e58a53c997194bf`へ統合し、complete immutable release `/Users/anicca/loops/releases/20261013T140615-5f901892`（ALL/ancestor-of-origin-main/mode0555）を作成。元manifestのsourceを保持して8,422ファイルをnative clone、依存の新installはなし。canonical Gitのnative MIDX bounded repack/verify/expireでpackサイズ3.51→1.97 GiB、1,047→5 packsへ整理し、refs/sourceを保持。watchdogはidleを確認して既存installerだけで採用、argvは同release/bin/disk-watchdog.sh、StartInterval/ThrottleInterval60。centralはloaded-idle-only対象apply成功、install e02ebc83b6eef985e236912b、loaded argv/SHA5f901892、calendar各3/8/13…分・Throttle300。他owner/current selectorを変更していない。
 
 **Fの具体的な進捗:** F1は191/191分類（control36/writer155）、共通入口fixture、全191の相互に別のscratch namespaceと保護store非参照を確認。F2は起動前/一時書込/receipt保存の33既存casesに、同じ旧queued taskの回復・claimed boundary保持・unknown replay拒否・recovery enqueue replay-zeroの6 casesを追加照合しPASS。F3は両ownerの5f901892 loaded/cadenceをreadback済み。F4の直近watchdog3回は05:16:23Z/PID69799・05:18:20Z/PID71300・05:19:31Z/PID74062がok/errors0/protected0。centralは新SHAの自然terminalを05:07:54Z・05:13:08Z以降確認し、bound stdoutの直近3payloadでok/errors0/protected0/git errors0/after0を確認。14:10のwatchdog remove_failed1は過去エラーとして残し、実際のpath/errnoは未証明で推測しない。
+
+**F1–F4受入と現在の残順:** F1は上記の191 job source/plist/scratch namespace fixtureと共通runnerのowner/run分離で受入。ここでの「保護対象を使わない」は一時artifactの保存先を指し、ownerの正式state/receiptの更新を禁止する意味ではない。F2は上記39 casesで容量失敗と同じtask/unknown/replayを受入。F3/F4は実際にloadedした5f901892とその自然receiptで受入し、将来版の永続保証へ拡張しない。残る共有基盤TODOは、(1) partial caller修復のCI/main/対象runtime採用、(2) F5の実writer帰属・自然終了・回収3往復。14:10のremove_failed1はpath/errno未証明として保持し、次の実回収診断で再現すれば既存の原因修正として閉じる。4/5は18業務の完了や永久無故障を意味しない。
 
 **現在の先頭atom — partial reclaimの全caller整合:** 共通helperはENOSPC時にowner/shellを保持して`contents_reclaimed`を返す。centralは対応済みだが、`lm_loop_run`はtruthyをremovedへ変換し、HostDiskGovernorのworktree-dependencies枝は残るshellをpath_still_present/errorへ変換する。これはsource上の二つの具体的な残差で、14:10のエラーの原因と断定しない。既存の保存/unknown/effect判断を変えず、runnerはpreserved+contents_reclaimed diagnostic、governorはpreserved reason+partial counterとして扱う。Doneは両callerのRED/GREEN、関連検証、CI/main、対象cleanupのmain由来採用。次は実writerの同一windowのPID/path/増加→自然終了→次central回収を3回確認するF5。source修復済み項目を未実装へ戻さず、永久ゼロ故障・18業務完了は主張しない。
 
