@@ -53,7 +53,7 @@ Update `test_four_products_and_locked_accounts_validate` to assert its five exis
 
 - [ ] **Step 2: Write the RED malformed-profile test**
 
-Add `test_marketplace_profile_missing_offer_or_outcome_source_fails_closed`. Remove `published_version` or the `settled_net_contribution` outcome source from a temporary copy and assert `load_registry` rejects the profile.
+Add `test_marketplace_profile_missing_offer_or_outcome_source_fails_closed`. Build a temporary registry with a marketplace profile fixture based on an existing product, remove `published_version` or the `settled_net_contribution` outcome source, and assert `load_registry` rejects the specific malformed profile field.
 
 - [ ] **Step 3: Run the focused tests and confirm RED**
 
