@@ -150,6 +150,51 @@ test("keeps unknown references and judge verdicts out of reference rates", () =>
   });
 });
 
+test("rejects any known judge verdict without frozen provenance", () => {
+  const noFreeze = {
+    freeze_id: null,
+    freeze_sha256: null,
+    provider: null,
+    model_id: null,
+    effort: null,
+  };
+  const rows = [
+    ...Array.from({ length: 20 }, (_, index) => row(`p-${index}`, "PASS", "PASS", noFreeze)),
+    ...Array.from({ length: 20 }, (_, index) => row(`f-${index}`, "FAIL", "FAIL", noFreeze)),
+  ];
+  const result = invoke(rows);
+
+  assert.equal(result.status, 2);
+  assert.equal(result.stdout, "");
+  assert.equal(result.stderr, "Writer metrics rejected input\n");
+});
+
+test("keeps all-UNKNOWN rows without freeze provenance incomplete and unrated", () => {
+  const noFreeze = {
+    freeze_id: null,
+    freeze_sha256: null,
+    provider: null,
+    model_id: null,
+    effort: null,
+  };
+  const rows = [
+    ...Array.from({ length: 20 }, (_, index) => row(`p-${index}`, "PASS", "UNKNOWN", noFreeze)),
+    ...Array.from({ length: 20 }, (_, index) => row(`f-${index}`, "FAIL", "UNKNOWN", noFreeze)),
+  ];
+  const result = invoke(rows);
+  assert.equal(result.status, 0, result.stderr);
+  const summary = JSON.parse(result.stdout);
+  assert.equal(summary.status, "incomplete_predictions");
+  assert.equal(summary.freeze_id, null);
+  assert.equal(summary.freeze_sha256, null);
+  assert.deepEqual(summary.rates, {
+    reference_tpr: null,
+    reference_tnr: null,
+    reference_false_pass_rate: null,
+    reference_false_fail_rate: null,
+  });
+});
+
 test("rejects human labels, mixed reference sets, and duplicate IDs without echoing input", () => {
   const marker = "PRIVATE-ARTICLE-MARKER";
   const human = invoke([{

@@ -89,6 +89,7 @@ function validateRows(rows) {
     effort = row.effort;
     seen.add(row.case_id);
   }
+  if (freezeMode === "none" && rows.some((row) => row.judge_verdict !== "UNKNOWN")) rejectInput();
   return { referenceSetVersion, referenceSetSha256, freezeId, freezeSha256, provider, modelId, effort };
 }
 
