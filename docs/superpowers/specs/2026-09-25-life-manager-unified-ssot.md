@@ -2276,8 +2276,8 @@ Instagram/Threadsのローカル台帳は17件（Instagram 14、Threads 3）で�
 | D14c | DONE（campaign-safe submit source is loaded and live feature conditions were read） | factory ownerへcampaign-safe sourceを採用し、参加条件を確かめる | 08:05 JSTのfactory ownerは旧release `cb530368`でloaded-idle。loaded `line_sticker_submit.py` hash `a69a4275` はcampaign-safe sourceと一致し、radio・listing eligibility・直前のofficial conditions再readbackを実装。authenticated create-page readでWinter feature id835 / deadline2026-12-04を確認。これは申請/参加/掲載の証明ではない。 |
 | D14 | DEFERRED（現在の対象は既存SKUのみ） | 新規SKUが必要な冬特集申請は現在のdistribution作業では行わない | ユーザー指示は既存カタログのマーケティング優先。既存SKUの配信結果と新たな対象範囲が定まるまで、商品申請/特集申請をしない。
 | D09c | DEFERRED（現在の対象に新SKU制作を含めない） | 工場cap/新規申請の最適化ではなく、既存SKUの配信と公式readbackを優先する | 既存スタンプのdistributionが目的。cap24を維持し、effect_unknown fenceは保持する。このcampaignで新しいSKU申請を開始/再送しない。
-| D15 | IN PROGRESS（YouTube許可済み、sticker account route未確認） | sticker-owned YouTube identity/channelと投稿owner leaseを確認し、無料Shorts経路を準備する | credential SSOTは値を表示せず全体確認。service=youtube完全一致行は0、service=googleは2行。browser registryにsticker-owned YouTube identityはない。公開@stardust_doubutsu URLは404。既存@anicca-aiは「Anicca - Daily Affirmation」（21 subscribers/757 videos at crawl）でLINEスタンプ用channelではない。Google identityやchannelを別ownerから流用しない。
-| D24 | QUEUED（selector error observed; exact item join pending） | static sticker rejectionで正しいカテゴリを公式保存/readbackし、その後だけreview requestする | Latest readback window includes bounded stderr `KeyError: 'motions'`; earlier diagnosis associates this with a static item entering the animated retag selector, but the current error has not been joined to an exact Creator item. Identify the rejected static SKU and official rejection reason before changing the selector; do not resubmit or retry uncertain effects. |
+| D15 | IN PROGRESS（無料YouTube route未準備） | sticker-owned YouTube identity/channelと投稿owner leaseを確認し、無料Shorts経路を準備する | credential SSOTの `service=youtube` 完全一致行は0、sticker用Google signupはpending。browser registryにsticker-owned YouTube identityはない。公開Threads `@stardust_doubutsu` は3投稿/0 followers、Instagram公開画面はreadback不可。既存 `@anicca-ai` はLINEスタンプ用channelではない。本人確認を通った専用owner routeだけ使う。
+| D24 | DEFERRED（既存の販売中SKUへの無料配信を先行） | static sticker rejectionの調査/retag/resubmitは既存カタログのmarketing実測後に戻る | bounded stderrに `KeyError: 'motions'` があるが、exact SKU/rejection reasonは未join。現在cursorではfactory修正・再申請を行わない。 |
 | D12 | HELD（social effect fence and identity ownership unresolved） | Instagram/Threads profileとexact occurrenceをofficial readbackする | Fence `line-sticker-distribute:18dd103ced88c860-32314` remains open. Official browser reconciliation returned `post_count_unreadable` / `verified=false`; Instagram public page is unavailable. Threads is visible with 0 followers and at least 3 posts. `instagram:capafy-provision` is registered to `capafy-ig-marketing-loop`, not the sticker lane. No post or manual release. |
 | D16 | CANCELLED（2026-10-13ユーザー指示：無料施策のみ） | paid PR/adsのCAC・最低費用を調査または実施しない | paid PR、paid ads、boost、その他有料distributionは現scope外。出稿予定・spendなし。
 | D17 | CANCELLED（2026-10-13ユーザー指示：無料施策のみ） | paid PRを出稿しない | 無料owned-channel、検索記事、自然動画だけを続ける。ユーザーがscopeを変えない限り再開しない。
@@ -2285,7 +2285,7 @@ Instagram/Threadsのローカル台帳は17件（Instagram 14、Threads 3）で�
 | D19 | DEFERRED（続編SKUは現在の対象外） | 売れ筋確認後の続編制作を現在のcursorにしない | まず既存カタログを配信し、続編は現campaignに含めない。
 | D20 | TODO（free-only reallocation） | 次periodの無料organic distribution枠を、測定済みclick・sales・creator contributionへ寄せる | 同期間のchannel/SKU gross sales、creator share、all-in costを比較する。有料枠は配分対象外。
 | D21 | TODO（all-in cost/revenue monthly reconciliation） | 日次official readbackと月末gross/distribution/payout/production+distribution costを同期間で照合する | Recorded stage cost is USD 17.9076 across 38 stage files. `set-002` has no stage file; distribution, tax, FX, transfer, and other costs remain unknown. Join official monthly gross, standard/Premium distribution, payable cash, refunds, and all-in costs for the same period. |
-| D22 | END CONDITION | 任意の一暦月で公式確定LINE sticker gross sales USD 10,000以上へ到達し、初回販売と累計費用回収も満たす | Reach one calendar month with official gross sales of USD 10,000 or more, at least one confirmed positive sale, and cumulative creator distribution above all-in cumulative cost. Current cached price mix is 21×¥250 + 18×¥190 (average ¥222.31). At an assumed ¥150/USD, $10K buyer gross requires about 6,748 purchases/month (225/day); $10K creator distribution at 35–37% requires about 18,237–19,279 purchases/month (608–643/day). Scale arithmetic, not forecast or guarantee. |
+| D22 | END CONDITION | 任意の一暦月で公式確定LINE sticker gross sales USD 10,000以上へ到達し、初回販売と累計費用回収も満たす | 以前の39-row cache mix（21×¥250 + 18×¥190）は履歴値。現行29 on-sale SKUの価格とgross購入規模は2026-10-14の最新cursorを参照する。目標はbuyer grossでありcreator take-homeではない。数量は規模計算で、予測や保証ではない。 |
 
 **現在cursorと配信のreadback（2026-10-13 05:30 JST）:** D00は完了。次のcursorはD09。05:12の公式画面では追跡IDが35件だが、永続sales snapshotは34件のまま。工場商品で確認済みの正の売上はなく、画面上の分配/送金可能額は¥0。公開ブログindexにはLINE記事が計11本（10/12公開分8本）あり、10/13の新しいLINE記事URLはまだない。05:20の記事occurrence `18dde1b7de992e38-16728` はexit 0でもeffect unknownで、再送しない。05:25の公開statsは全体222 views、LINE記事5 views、`line_sticker_click`なし。05:23 natural sales reader `18dde1e0c5a10ee0-20677` はeffect_unknown fenceによりexit 75でblocked、sales snapshot更新なし。SNS台帳は17試行（14 published、3 failed）、10/10以降の新規公開は未確認で、distributorのeffect_unknown fenceは保持中。実行順はD09 → D09d → D07a → D10 → D11 → D13。記事公開はあるが、流入帰属と購入転換はまだ動作確認できていない。clickと工場売上が0のため有料PRは保留する。
 
@@ -2596,19 +2596,34 @@ Current cached catalog: 21 item records at ¥250 and 18 at ¥190; weighted avera
 
 | ID | Atomic TODO | 完了証拠 |
 |---|---|---|
-| D25 | DONE（current runtime）: `line-sticker-factory-hourly`をowner経由でunloadし、新規runを止める | loaded state=`unloaded` / PIDなし。set-041 ID `48299386` の公式readbackをもってoccurrence `18de16a707d61ff8-19583` をeffectedとして閉鎖。set-042は未申請stateを保持。別ownerのopen `imagegen` profileは触らない |
-| D15 | sticker-owned YouTubeのchannel/account/owner routeを解決する。別ownerのGoogle/Capafy identityは流用しない | 認証済みowner route、使える投稿先、無料配信条件を確認 |
-| D10 | 記事UTMとSKU click計測を整え、自然analytics snapshotを取得する | source/campaignとSKU clickが識別され、自己clickなし。CTRは同じ期間の分母・分子で計算 |
-| D13 | 完成済みShortを無料で1回配信する | permalink、正しいSKU URL/UTM、公式投稿readback、replay-zero |
-| D09d | DONE: 40商品の公式状態を読み直す | 14:03Z item readbackは販売中29 / 審査中2 / 審査待ち8 / リジェクト1。`sales.json` は40 ID・28件¥0・12件null・正の売上0。分配の表示期間は2025.12.01–12.31で、10月確定額ではない |
-| D07 | article ownerのeffect-unknown occurrencesをexact公開URLへ照合する | occurrenceごとの公開readback/receipt。既存ページは再公開しない |
-| D12 | 旧social occurrenceを対象URL/公式投稿一覧で照合する | exact-effect receiptまたはpre-effect proofでowner reconciliation完了。未解決中は再送しない |
-| D20 | 反応のある既存SKUと無料チャネルに投稿枠を寄せる | views/clicks/公式salesを同期間で比較し、次の無料配信を記録 |
-| D21 | 売上分配と計上済み制作・配信費を同期間で照合する | 公式確定月次分配とcost ledgerの差額、欠損費用、返金/税を明記 |
-| D22 | 一暦月でUSD 10,000のgross salesを達成する | 公式確定売上snapshotと為替/期間定義を保存。MRR・再生数・未確定分配で代用しない |
-| D26 | Support-only: direct cleanup ownerのallowlisted sweepを回復床まで継続する | fresh receiptでfree_after≥2 GiB、またはsafe candidates exhaustedを確認。errors=0 / protected_deletions=0。open/shared profileはownerのclose proof前に消さない |
+| D25 | DONE: `line-sticker-factory-hourly` をowner経由でunloadし、新規runを止める | loaded state=`unloaded` / PIDなし。set-041 ID `48299386` の公式readbackでoccurrence `18de16a707d61ff8-19583` をeffectedとして閉鎖。set-042は未申請stateを保持 |
+| D12a | IN PROGRESS: `stardust_doubutsu` の既存Instagram/Threadsを、スタンプ専用のbrowser identityとowner leaseへ結び直す | いまの配信設定は両transportを `instagram:capafy-provision` へ割当て、registry ownerは `capafy-ig-marketing-loop`。このidentityを使わない。専用identity/sessionとアカウント一致を確認し、owner leaseを確認する |
+| D29 | IN PROGRESS（未送信）: 既存SKUを載せられる無料directoryを確認する | LUSHEの掲載依頼はLINE STORE URLとサイト/X掲載を受け付けるが、料金なしの明記がなく、名前・メール・画像CAPTCHAが必須。`aniccaai.com` に公開連絡先メールを確認できず、まだ送らない。有料依頼・個人メール公開・CAPTCHA bypassなしで完了する無料経路だけ採用する |
+| D10 | IN PROGRESS: 記事UTMとSKU別CTA clickを計測し、自然analytics snapshotを取得する | statsは2026-10-13T17:20:55Zに310 pageviews、LINE記事7 views/5 paths。`line_sticker_click` eventは記録されていない。期間ラベルがないためCTR・全期間click=0とはしない |
+| D15 | IN PROGRESS: sticker-owned YouTube identity/channelとowner routeを用意する | credential SSOTの `service=youtube` 完全一致は0。sticker向けGoogle signupはpending。ユーザー承認済みの無料YouTube配信は本人確認を通った専用owner routeができるまで待つ。他ownerのGoogle/YouTubeを流用しない |
+| D13 | TODO: 完成済みset-011 Shortを無料で1回配信する | sticker-owned YouTube channelから投稿し、正しいSKU CTA/UTM、公式permalinkと投稿readback、replay-zeroを記録。広告・有料PRなし |
+| D07 | TODO: `line-sticker-articles` のeffect-unknown occurrenceをexact公開URLへ照合する | 最新status occurrence `18de267a274885f0-83002` はexit 0でもeffect unknown。公開記事を再送せず、登録済みadapterが公式readbackで閉じる |
+| D12 | HELD: 10/10 social occurrence `18dd103ced88c860-32314` を公式投稿一覧とledgerで照合する | 登録済みreconcileは `post_count_unreadable` で未検証。公開Threads profileは3投稿/0 followers。identity owner mismatchも残る。手動clear・再送なし |
+| D09d | DONE: 40 Creator item IDsの公式状態を読み直す | 公式readbackは販売中29 / 審査中2 / 審査待ち8 / リジェクト1。販売中SKU 29件のpublic Store URLを確認 |
+| D09 | TODO: `/stats/sticker` と送金画面を自然readbackし、40 IDsごとの売上・分配と `sales.json` を照合する | 最新公式stats readbackは2026-10-13T15:52:37Z: factory SKU 28件が¥0、12件は未掲載/`null`、正の売上なし。送金画面の¥0は2025.12.01–12.31の期間表示で、10月確定額ではない |
+| D09f | TODO: set-020の個別stats欠落と未追跡ID `42100028` を公式画面で個別照合する | set-020は販売中だがstats detailに行がない。`42100028` の¥189はfactory外の旧商品で、public Store URLは商品不在。どちらもfactory売上/分配に足さない |
+| D20 | TODO: 測定した反応に応じて既存SKUと無料organic channelへ配信枠を寄せる | 同期間のpageviews、SKU click、公式gross sales、creator distributionを比較。クリック/閲覧だけを勝ち判定や売上扱いにしない |
+| D27 | TODO: 既存制作原価記録の重複を解いて all-in cost を作る | clip manifestsは328 records / 298 unique request IDs、estimated USD 19.5786（sets 002–011）。stage ledger USD 17.9076と重複関係を照合する。これはprovider invoiceでも全費用でもないため加算しない |
+| D21 | TODO: 日次official readbackと月末gross/distribution/payout/制作・配信費を同期間で照合する | 確定分配、Premium、返金、源泉、送金可能額、USD換算、原価・無料配信費を別列で記録し、累計回収を算出する |
+| D28 | SUPPORT / DEFERRED: feature cacheと公式一覧の不一致を記録し、既存SKUで申請しない | local `features.json` は0件、公式create pageは4 campaign。現行campaignは新規SKU限定で、既存SKU-onlyの本scopeでは申請しない |
+| D22 | END CONDITION: 一暦月で公式LINE sticker gross sales USD 10,000以上を達成し、正の売上と累計費用回収を確認する | 仮にUSD/JPY=150ならgross目標は約¥1,500,000/月。現行販売中29 SKUの価格mixは21×¥250+8×¥190。端価格なら月6,000–7,895購入、均等SKU mixの参考値は約6,425購入/月。規模計算であり予測ではなく、$10K grossはcreator take-home $10Kではない |
+| D26 | SUPPORT ONLY: 登録済みcleanup ownerのallowlist sweepでclosed proofのある再生成可能物だけ回収する | `line-sticker/loop-tmp` は9,570,476 KiB。2026-10-13T17:28:08Z receiptは13件評価/13件保持、reclaimed=0、errors=0、protected_deletions=0（probe-budget-exhausted 4 / protected descendant 7 / protected path 2）。直前17:19:36Z receiptはENOSPC error 1。現dfは969,980 KiB空き。lsofはexit 1ながらloop-tmp配下のopen path 123件・Chrome PID 43件/12 run IDsを観測し、42 PIDに非PID1 parentがある。probeは完全成功ではなく、個々のowner/close proofもないため手動削除/killしない。cleanupはdistributionのgateにしない |
 
-**新cursor:** D15 → D10 → D13 → D07/D12 → D20 → D21 → D22。D09dは公式item status readback完了。D26はwatchdog側のsupport-only自動処理として並行する。D11のShort制作は完了済み。D16/D17の有料施策は取消し、追加SKU・続編・ローカライズは本scopeで保留する。為替を仮に¥150/USDとすると、USD 10,000 grossは約¥1,500,000で、¥250商品なら約6,000購入/月、¥190商品なら約7,895購入/月。これは規模計算であり予測ではない。
+**As-Is / To-Be（2026-10-14 fresh audit）**
+
+- **As-Is — catalog/revenue:** 40 factory Creator IDsを追跡し、29商品が販売中、11商品が審査中/待ち/リジェクト。公式statsでは28 SKUの表示売上が¥0、12 SKUは未掲載で `null`。factoryで確定した正の販売・分配はまだ確認できない。過去12月の¥0 payout表示を10月売上と扱わない。
+- **As-Is — free distribution:** 公開blog archiveにはLINE記事13本。最新はset-011（10/13）で、その後のLINE記事は増えていない。公開analyticsは310 pageviews、LINE記事7 views/5 paths、SKU click eventなし（集計期間不明）。公開Threadsは3投稿/0 followers。投稿設定はCapafy ownerのInstagram identityを指しているため、投稿・reconcileに使わない。9秒1080×1920のset-011 MP4は完成済みだが未投稿。YouTube専用identityは未準備で、Google signupはpending。無料紹介サイトLUSHEはURL掲載依頼を受けるが、掲載料は明記されず、名前/メール/CAPTCHAが必須のため未送信。
+- **As-Is — loop/capacity:** `line-sticker-articles` はdistribution優先でloaded-idle、直近run `18de267a274885f0-83002` はexit 0でもeffect unknown。`line-sticker-distribute` は10/10 occurrenceのeffect_unknown fenceが残り、次wakeも `resource_effect_unknown` で延期。`line-sticker-readback-hourly` も同種fenceで延期。factoryはunloadedだが、最新occurrence `18de1e0534af8540-84609` はexit143/effect unknown。登録済みfactory reconcilerのread-only呼出しは `occurrence is not an effect_unknown row` でrefuseされ、fence closeも申請も行っていない。set-042のlocal stageは `images` でCreator item IDなし。loop-tmpは約9.1GiB。lsofはexit 1の不完全probeでopen path 123件・Chrome PID 43件を検出した。直近cleanup receiptはerrors=0へ戻ったが、候補を1件も回収できていない。
+- **To-Be:** 既存販売SKUだけを、無料の記事・用途デモ・専用SNS/YouTube channelから配信する。UTM visit → SKU click → 公式購入/確定分配 → 同期間費用を同じSKU/channelで計測し、実測の反応に無料枠を寄せる。有料広告/PR/boost、新規SKU制作、続編、ローカライズは現在のscope外。
+
+**TODO順序変更:** 旧cursorは `D15 → D10 → D13 → D07/D12 → D20 → D21 → D22`。新cursorは `D12a + D10 + D29（独立並行） → D15（専用YouTube route） → D13（Short 1回） → D07/D12（公式fence reconciliation・再送なし） → D09/D09f（公式売上と例外IDを並行照合、初回無料投稿を遅らせない） → D20 → D27/D21 → D22`。理由は、SNS設定が別product ownerを参照し、YouTube identityも未準備で、配信可能な所有ルートが現状ないため。click attributionを独立して整えながら、使える無料routeを先に回復する。D26 cleanupはsupport-onlyで配信cursorを止めない。D14/D18/D19/D24は既存catalog配信が先のためdeferred、D16/D17は無料施策限定の指示でcancelled。
+
+**現在cursor:** D12a + D10（並行）+ D29無料directory適格性確認。ユーザーは無料YouTube配信を明示許可済みだが、専用Google/YouTube routeの本人確認待ち。LUSHEにはまだ送信せず、料金と安全な連絡先が確認できる無料経路だけ使う。投稿・SNS fence解除は未実施。
 ### 5.1 自己修復・自己改善の定義（T5 / T12 の正本）
 
 **目的**: Life Manager が、外部の coding agent（Dais が操作する Claude Code や Codex のセッション）にも人にも頼らず、自分の問題を見つけて、自分で直し、自分で改善すること。人と外部 agent はループの外にいる。
