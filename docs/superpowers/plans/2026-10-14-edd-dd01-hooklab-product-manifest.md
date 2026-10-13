@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md` (DD01 design decision).
 
-**Execution:** Native solo implementation is explicitly requested by Dais. Astra Advisor's dedicated native tools are not exposed and parent model/effort metadata are unobservable; no model-pinned reviewer will be fabricated. The primary self-reviews the complete diff and required CI; there is no production effect.
+**Execution:** The primary implements inline as explicitly requested by Dais. Astra Advisor's dedicated native tools are not exposed, so no Astra orchestration is claimed. A fresh read-only reviewer from the available collaboration tool reviews the whole branch before integration. There is no production effect.
 
 ## Global Constraints
 
@@ -131,9 +131,9 @@ git commit -m "fix(marketing-engine): keep Gate10 checks product-scoped"
 - Modify: `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`
 - Modify: `docs/evals/distribution-edd-research.md` only if a new source limitation must be recorded.
 
-- [ ] Run `python3 -m unittest test_product_routing test_verify_gate10` from `skills/earn/marketing-engine/gates`.
-- [ ] Run `python3 -m unittest test_product_binding` from `skills/earn/marketing-engine/identity`.
-- [ ] Run `python3 -m unittest test_experiment_attribution` from `skills/earn/marketing-engine/measure`.
-- [ ] Run `npm run test:writer-eval` from `apps/life-manager`.
-- [ ] Update DD01's SSOT status with the exact profile path, validation results, source conflict, and `publish_enabled=false`; leave DD02–DD12 in order.
-- [ ] Run `bash scripts/verify-source-boundary.sh`, `git diff --check`, commit/push, open PR, complete exact-head CI, and self-review the full diff before integration. Astra native orchestration/reviewer controls are not exposed and parent model/effort are unobservable; do not claim Astra review. Do not deploy or publish because DD01 is source/evaluation metadata only.
+- [x] Run `python3 -m unittest test_product_routing test_verify_gate10` from `skills/earn/marketing-engine/gates` (20/20).
+- [x] Run `python3 -m unittest test_product_binding` from `skills/earn/marketing-engine/identity` (17/17).
+- [x] Run `python3 -m unittest test_experiment_attribution` from `skills/earn/marketing-engine/measure` (8/8).
+- [x] Run `npm run test:writer-eval` from `apps/life-manager` (34/34).
+- [x] Update DD01's SSOT status with the exact profile path, validation results, source conflict, and `publish_enabled=false`; leave DD02–DD12 in order.
+- [ ] Run `bash scripts/verify-source-boundary.sh`, `git diff --check`, commit/push, open PR, complete exact-head CI, and obtain a fresh read-only full-branch review before integration. Astra-native orchestration is unavailable and is not claimed. Do not deploy or publish because DD01 is source/evaluation metadata only.
