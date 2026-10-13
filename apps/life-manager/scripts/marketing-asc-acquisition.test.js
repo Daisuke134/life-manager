@@ -43,6 +43,21 @@ test("ASC acquisition covers six mobile app bindings and keeps pending reports u
   }
 });
 
+test("pending Anicca ASC reports retain configured campaign breakdowns as unavailable", () => {
+  const result = pending(PRODUCTS[0]);
+
+  assert.ok(Array.isArray(result.campaign_breakdowns), "pending products must retain configured campaign breakdowns");
+  assert.deepEqual(result.campaign_breakdowns.map((row) => [
+    row.campaign_id, row.platform, row.account_id, row.locale,
+    row.metrics.first_time_downloads.status, row.metrics.first_time_downloads.value,
+    row.metrics.impressions.status, row.metrics.impressions.value,
+  ]), [
+    ["anicca-ios_tt_aniccaaff_en", "tiktok", "@aniccaaffirmation", "en", "unavailable", null, "unavailable", null],
+    ["anicca-ios_ig_anicca-en_en", "instagram", "@anicca.en", "en", "unavailable", null, "unavailable", null],
+    ["anicca-ios_youtube_en", "youtube", "@anicca-ai", "en", "unavailable", null, "unavailable", null],
+  ]);
+});
+
 test("ASC product totals remain unattributed and unavailable stays null on replay", async (t) => {
   const parsed = rows("Date\tApp Name\tApp Apple Identifier\tDownload Type\tCounts\n2026-08-20\tDaily Affirmations - Anicca\t6755129214\tFirst-time download\t1\n");
   const anicca = summarize(PRODUCTS[0], parsed, [{ Date: "2026-08-19", "App Name": PRODUCTS[0].app_name, "App Apple Identifier": PRODUCTS[0].app_id, Event: "Impression", "Page Type": "No page", Counts: "9", "Unique Counts": "5" }], []);
@@ -98,6 +113,83 @@ test("Anicca ASC acquisition uses the exact YouTube campaign token from its acti
   assert.equal(result.attribution_status, "partial");
   assert.equal(result.attribution_reason, "campaign_metrics_observed_for_subset");
   assert.equal(result.confidence, "official_product_total_with_campaign_subset");
+});
+
+test("Anicca campaign breakdowns isolate configured CTs by account and preserve missing data as unavailable", () => {
+  const anicca = PRODUCTS[0];
+  const downloads = [{ Date: "2026-10-10", "App Apple Identifier": anicca.app_id, "Download Type": "First-time download", Counts: "10" }];
+  const engagement = [
+    { Date: "2026-10-10", "App Apple Identifier": anicca.app_id, Event: "Impression", Counts: "5", "Unique Counts": "4", Campaign: "anicca-ios_ig_anicca-en_en" },
+    { Date: "2026-10-10", "App Apple Identifier": anicca.app_id, Event: "Impression", Counts: "9", "Unique Counts": "8", Campaign: "anicca-ios_youtube_en" },
+    { Date: "2026-10-10", "App Apple Identifier": anicca.app_id, Event: "Impression", Counts: "99", "Unique Counts": "90", Campaign: "unconfigured" },
+  ];
+  const detailed = [
+    { ...downloads[0], Campaign: "anicca-ios_ig_anicca-en_en", Counts: "2" },
+    { ...downloads[0], "Download Type": "Redownload", Campaign: "anicca-ios_ig_anicca-en_en", Counts: "40" },
+    { ...downloads[0], Campaign: "anicca-ios_youtube_en", Counts: "1" },
+    { ...downloads[0], Campaign: "unconfigured", Counts: "80" },
+  ];
+
+  const result = summarize(anicca, downloads, engagement, [], detailed);
+
+  assert.ok(Array.isArray(result.campaign_breakdowns), "configured Anicca campaign breakdowns must be present");
+  const byToken = Object.fromEntries(result.campaign_breakdowns.map((row) => [row.campaign_id, {
+    platform: row.platform,
+    account_id: row.account_id,
+    locale: row.locale,
+    first_time_downloads: row.metrics.first_time_downloads,
+    impressions: row.metrics.impressions,
+  }]));
+  assert.deepEqual(byToken, {
+    "anicca-ios_ig_anicca-en_en": {
+      platform: "instagram", account_id: "@anicca.en", locale: "en",
+      first_time_downloads: { status: "measured", value: 2, source: "app_store_connect_app_downloads_detailed" },
+      impressions: { status: "measured", value: 5, source: "app_store_connect_discovery_engagement_detailed" },
+    },
+    "anicca-ios_tt_aniccaaff_en": {
+      platform: "tiktok", account_id: "@aniccaaffirmation", locale: "en",
+      first_time_downloads: { status: "unavailable", value: null, reason: "campaign_not_observed_or_privacy_threshold" },
+      impressions: { status: "unavailable", value: null, reason: "campaign_not_observed_or_privacy_threshold" },
+    },
+    "anicca-ios_youtube_en": {
+      platform: "youtube", account_id: "@anicca-ai", locale: "en",
+      first_time_downloads: { status: "measured", value: 1, source: "app_store_connect_app_downloads_detailed" },
+      impressions: { status: "measured", value: 9, source: "app_store_connect_discovery_engagement_detailed" },
+    },
+  });
+  assert.equal(result.campaign_id, "anicca-ios_youtube_en");
+  assert.equal(result.metrics.campaign_first_time_downloads.value, 1);
+  assert.equal(result.metrics.campaign_impressions.value, 9);
+});
+
+test("ASC campaign breakdowns reject detailed rows for a different App Store app", () => {
+  const anicca = PRODUCTS[0];
+  const downloads = [{ Date: "2026-10-10", "App Apple Identifier": anicca.app_id, "Download Type": "First-time download", Counts: "10" }];
+  const engagement = [{ Date: "2026-10-10", "App Apple Identifier": anicca.app_id, Event: "Impression", Counts: "5", "Unique Counts": "4" }];
+  const wrongAppDetailed = [{
+    Date: "2026-10-10", "App Apple Identifier": "6759667221", "Download Type": "First-time download",
+    Campaign: "anicca-ios_ig_anicca-en_en", Counts: "99",
+  }];
+
+  assert.throws(() => summarize(anicca, downloads, engagement, [], wrongAppDetailed), /ASC app identity mismatch/);
+});
+
+test("campaign first-time downloads distinguish explicit zero from a redownload-only row", () => {
+  const anicca = PRODUCTS[0];
+  const downloads = [{ Date: "2026-10-10", "App Apple Identifier": anicca.app_id, "Download Type": "First-time download", Counts: "1" }];
+  const engagement = [{ Date: "2026-10-10", "App Apple Identifier": anicca.app_id, Event: "Impression", Counts: "1", "Unique Counts": "1" }];
+  const redownloadOnly = [{ Date: "2026-10-10", "App Apple Identifier": anicca.app_id, "Download Type": "Redownload", Campaign: "anicca-ios_tt_aniccaaff_en", Counts: "2" }];
+  const tiktokBreakdown = (detailed) => summarize(anicca, downloads, engagement, [], detailed)
+    .campaign_breakdowns.find((row) => row.campaign_id === "anicca-ios_tt_aniccaaff_en");
+
+  assert.deepEqual(tiktokBreakdown(redownloadOnly).metrics.first_time_downloads, {
+    status: "unavailable", value: null, reason: "campaign_not_observed_or_privacy_threshold",
+  });
+  assert.deepEqual(tiktokBreakdown([...redownloadOnly, {
+    ...redownloadOnly[0], "Download Type": "First-time download", Counts: "0",
+  }]).metrics.first_time_downloads, {
+    status: "measured", value: 0, source: "app_store_connect_app_downloads_detailed",
+  });
 });
 
 test("ASC daily metrics keep date-level zeros measured and leave absent report dates missing", () => {
