@@ -70,10 +70,11 @@ The `run_create_intent` regression test uses a temporary synthetic account fixtu
 - [x] Add failing tests `test_hook_lab_intent_rewrites_registered_ct` and `test_hook_lab_intent_rejects_foreign_ct` through `run_create_intent` with the temporary synthetic Hook Lab account. The first proves `hooklab_ig` becomes the deterministic owned `hl_` URL; the second rejects an `ej_`/arbitrary token.
 - [x] Run `python3 -m pytest skills/earn/marketing-engine/publish/test_intent_cli.py`; confirm both new cases fail for the expected reasons.
 - [x] Implement Hook Lab intent token/caption binding and strict input-token allowlist; run the focused publisher test file and confirm both cases pass.
-- [ ] Add failing test `test_hook_lab_snapshot_rejects_foreign_or_shared_token` for a foreign product token and one shared token reused across two publication slots.
-- [ ] Run `python3 skills/earn/marketing-engine/measure/test_experiment_attribution.py`; confirm the new assertions fail.
+- [x] Add failing test `test_hook_lab_snapshot_rejects_foreign_or_shared_token` for an unregistered seller CT and one shared token reused across two publication slots.
+- [x] Run `python3 skills/earn/marketing-engine/measure/test_experiment_attribution.py`; confirm the three invalid-token subcases fail.
+- [x] Recompute and require the exact per-publication Hook Lab token before snapshot construction; run the evaluator test file and confirm it passes.
 - [ ] Add failing test `test_hook_lab_click_join_rejects_incomplete_or_duplicate_receipts` for incomplete/duplicate receipt IDs.
-- [ ] Implement exact per-publication token/scope and receipt-ID validation, then add exact receipt IDs to evidence references; run the focused evaluator tests and confirm they pass.
+- [ ] Implement complete unique receipt-ID validation and add each exact receipt ID to evidence references; run the focused evaluator tests and confirm they pass.
 - [ ] Add failing test `test_hook_lab_paid_revenue_stays_unknown_without_capafy_order_join` showing a Stripe campaign-shaped or Capafy channel aggregate cannot become Hook Lab per-creative paid revenue without an order join.
 - [ ] Run the focused evaluator test; confirm it fails on the currently accepted Stripe campaign-shaped input.
 - [ ] Keep Hook Lab paid/revenue metrics unknown without a supported Capafy click-to-order join; run the focused evaluator test and confirm it passes.

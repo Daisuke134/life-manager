@@ -98,8 +98,47 @@ class AttributionContractTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "native identity mismatch"):
             ea.build_snapshot(intent=fixture_intent(), identity=bad_identity,
                               post_metric=post_metric, click_query=None,
-                              business_snapshot=None,
-                              observed_at="2026-08-02T02:20:00Z")
+                business_snapshot=None,
+                observed_at="2026-08-02T02:20:00Z")
+
+    def test_hook_lab_snapshot_rejects_foreign_or_shared_token(self):
+        intent = {
+            "schema_version": "marketing.publication-intent.v2",
+            "publish_key": "publication.hooklab",
+            "experiment_id": "experiment.dd03",
+            "creative_id": "creative.dd03",
+            "product_id": "hook-lab",
+            "account_id": "life-manager-capafy-ig",
+            "hook_id": "hook.dd03",
+            "renderer_id": "watercolor-monk",
+            "attribution_token": "hl_r7py2zlsvjjafl4srigi",
+            "scheduled_at": "2026-10-16T00:00:00Z",
+        }
+        identity = {
+            **fixture_identity(),
+            "experiment_id": "experiment.dd03",
+            "publish_date": "2026-10-16T00:00:00Z",
+        }
+        variants = [
+            {**intent, "attribution_token": "capafy-distribute-hook-lab"},
+            {**intent, "attribution_token": "hooklab_ig"},
+            {**intent, "scheduled_at": "2026-10-16T01:00:00Z"},
+        ]
+        for candidate in variants:
+            with self.subTest(token=candidate["attribution_token"],
+                              scheduled_at=candidate["scheduled_at"]):
+                click = {
+                    "status": "available", "product_id": "hook-lab",
+                    "campaign_token": candidate["attribution_token"], "count": 1,
+                    "receipt_ids": ["click-1"],
+                    "evidence_refs": ["evidence/click.json"],
+                }
+                with self.assertRaisesRegex(ValueError, "Hook Lab publication token mismatch"):
+                    ea.build_snapshot(
+                        intent=candidate, identity=identity, post_metric=None,
+                        click_query=click, business_snapshot=None,
+                        observed_at="2026-10-17T02:20:00Z",
+                    )
         with self.assertRaisesRegex(ValueError, "click scope mismatch"):
             ea.build_snapshot(
                 intent=fixture_intent(), identity=fixture_identity(), post_metric=None,

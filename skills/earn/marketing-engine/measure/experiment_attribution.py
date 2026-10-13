@@ -13,6 +13,8 @@ from typing import Any
 import urllib.parse
 import urllib.request
 
+from attribution import publication_campaign_token
+
 
 SCHEMA_VERSION = "marketing.experiment-attribution.v1"
 REQUIRED_METRICS = (
@@ -255,6 +257,9 @@ def _join_business(rows: dict[str, dict[str, Any]], intent: dict,
 def build_snapshot(*, intent: dict, identity: dict, post_metric: dict | None,
                    click_query: dict | None, business_snapshot: dict | None,
                    observed_at: str) -> dict[str, Any]:
+    if intent.get("product_id") == "hook-lab":
+        require(intent.get("attribution_token") == publication_campaign_token(intent),
+                "Hook Lab publication token mismatch")
     published_at = identity.get("publish_date") or intent.get("scheduled_at")
     require(identity.get("identity_status") == "resolved", "native identity unresolved")
     require(identity.get("experiment_id") == intent.get("experiment_id"),
