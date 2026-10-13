@@ -32,13 +32,23 @@ primaryは全体TODO/SSOT/共有cleanupとreleaseの統括・acceptance・integr
 
 **全体architectureの判断とAs-Is/To-Be:** 18 agentは18業務capabilityであり、190の小さいjobがそれぞれのcadenceで実装する。最善の進め方は既存のdurable state/effect/receiptと、常時監督＋有限worker＋優先度/経過時間を扱うadmissionを土台に、実資源・業務進行から配分を調整することである。FIFOは同優先度の順序補助として使え、先頭の不適合/古い予約が全業務を止めるgateにしない。固定2/5/10は現設定であり、達成目標や永久の適正値ではない。開始時刻/時差/周期の分散はburstを減らすが、仕事の長期化/再試行/保存先共有があるため衝突や容量問題が無い証明にならない。
 
-As-Isはmain由来immutable release＋Mac launchd/private state。PR #7774はmainへ統合済み（merge `6a9e49c9`）。現行`~/loops/current`と両cleanup labelはまだrelease `e91b1087`。60秒watchdogはStartInterval=60でruns18/last exit0、5分ownerのlast exitは75。06:17Zには5分ownerの`disk_cleanup.py` PID22494が共有lockを保持中にwatchdogがexit75し、コード上75はlock busy分岐のみ。source修正のruntime採用・lock非競合・容量writer停止は未確認。
+As-Is（2026-10-13 11:44 JST readback）: `origin/main=1f4614ecf1057793553d7198cb466ed6acf05180`。`life-manager-disk-cleanup`はinstalled release `3e19c846`、interval 300s、11:44:03 JSTに直近pass。60秒watchdogのloaded script/argv/SHAは今回未確認。`df -k /`は11:44:09に207,772 KiB availableで、11:25:13の2,752,240 KiBから約19分で2,544,468 KiB減少した。これは診断値であり合否基準ではない。増加した実writerは同一時間窓のPID/path/bytes差分でまだ特定できていない。
 
 To-Beは各agentがobserve→decide→act→official verify→persist→自分の不要物cleanup→次の仕事を、必要なcadence/期限で継続すること。独立する業務は並列に進み、同じidentity/投稿/決済/注文はlockとidempotencyで保護する。不明な効果は照合の仕事を継続し、独立する観測・他仕事まで無理由に永久停止させない。監督・中央cleanup・復旧は収益workerの混雑に巻き込まれず、stale owner/予約、実資源不足、provider制約を別々に診断し、自己所有修復→自然再開まで行う。正式state/receiptの成長は内容を保持した既存native管理と容量/保存先計画で扱う。最終のcloud/control plane・disposable computeは既存cloud節に従い、現時点で導入済みとはしない。外部審査/quota/障害を含む有限systemに永久ゼロ待機・ゼロ故障を保証せず、仕事の継続・障害の封じ込め・自動回復・公式収益で受け入れる。全面作り直し、FIFO一律撤去、任意の100枠化は現在の先頭taskにしない。
 
 **正本と優先範囲:** 共有資源の目的・完了条件・統括順・cursorはこの節を正本とする。旧snapshot/旧cursorの11GiB到達条件、空き容量を資源修復KPIにする記述、数値達成まで事業TODOを止める記述は撤回する。過去の容量数値は診断履歴として残し、現在の完了gateにしない。lane固有の収益目標・effect境界は変更しない。
 
 **資源修復の目的・完了契約:** 各agentが収益活動を継続しても、ディスク由来のENOSPC・証拠書込失敗・永久的なheadroom待ちで業務が停止せず、作業後の後始末と中央cleanupが自動で回り続ける状態を作る。空きbytes、回収bytes、内部thresholdは診断・制御値でありKPI/完了条件ではない。安全な延期、cleanup exit0、guard実装だけではDoneにしない。自然な生成・販売・記録・後始末の反復で実際の業務進捗とofficial receiptが継続し、保護データを保持し、人手による繰返し掃除を要しないことを確認する。他agentの並列作業も共有資源契約の対象とする。
+
+**基盤Done / 18業務修理の再開ゲート:** 下のF1–F5がすべてPASSした時点を「共有基盤が修理に耐える」と判定し、primaryは18業務capabilityの個別修理を一件ずつ開始する。これは18件すべての完了条件ではない。容量GiBは一切の合否に使わない。有限の検証は永久無故障の数学的保証ではなく、容量不足を失われた仕事にせず、自動で待機・再開できることの出荷条件とする。
+
+- [ ] **F1 — 全jobの共通入口:** 最新`config/loop-registry.json`のjobを100%調査し、各jobを「容量を書き込む」「制御/cleanup」「永続書込なし」に分類する。未分類=`0`。書込jobは既存の共有capacity admissionを通り、保護対象/別ownerの保存先を使わないことをsource/fixtureで確認する。
+- [ ] **F2 — 容量不足の3境界:** 隔離fixtureで (a) 起動前に容量不足、(b) 作業用一時ファイルの書込中にENOSPC、(c) 最終receipt保存時にENOSPCを再現する。(a)では外部action開始=`0`、(b/c)では完了と偽らずtask identityと証拠を保持する。容量回復後、外部effectが未実行と証明できるtaskは同じtaskとして一度だけ再開し、再送/重複=`0`。effectが不明なら公式照合まで保持する。
+- [ ] **F3 — 配布済み掃除役:** 60秒watchdogと300秒Life Manager central cleanupの両方について、最新main由来immutable release、loaded script/argv/SHA、cadenceのreadbackを取る。未反映・旧版・別ownerとの競合があれば修正し、対象だけを安全に適用する。
+- [ ] **F4 — 掃除の反復:** 両掃除役それぞれの自然実行receiptを3回連続で取得する。各receiptは保存済み、`errors=0`、`protected_deletions=0`。単にprocessがいることやexit 0だけでは数えず、実際に掃除passまで実行したreceiptだけを数える。
+- [ ] **F5 — 大きな一時データの往復:** 一番大きいフォルダ名を推測で選ばない。同一時間窓で`owner_id + PID + 出力先path + bytes before/after`を結び、実writerを確認する。該当jobのbusiness ownerは維持し、primaryはそのsource/外部操作を変更しない。自然実行を3回連続で確認し、終了した親と子processがいなくなった後、次の成功したcentral sweepまでにその回だけの一時フォルダが消え、商品出力/正式receiptは残る。3回の観測window全体で未帰属の増加=`0`、capacity起因のterminal failure=`0`、次の予定wakeを越えて残るcapacity defer=`0`、lost task=`0`、duplicate effect=`0`、手動cleanup=`0`。
+
+**ゲート後の順序:** F1→F2→F3→F4→F5。5/5 PASSでprimaryが既存TODO順に18業務capabilityを一つずつ修理する。各laneのsource→release→natural run→公式成果確認は既存SSOTの条件を保つ。18/18の後にLM-EAB/eval/benchmark、self-healing/self-improvement、新agent factory、OSSの簡単な起動、会社全体US$10,000,000 MRRの公式検証へ進む。Daisが新しいCodexを大量起動したり、既存ownerへ同じ修理を重複依頼したりすることは再開条件にしない。
 
 **順序変更:** 旧順序は各laneを並列再開し、それぞれ容量/release/admissionを解決する方式。新順序はP0共有ディスク → P1実行枠 → 各laneの安全な先頭atom。理由は同じ容量不足が既存の正常loopとcleanup自身を止め、複数writer/releaseが共有資源を競合させるため。実行中の外部effectを中断・重複させず、独立した読み取りは進められる。
 
@@ -48,9 +58,9 @@ To-Beは各agentがobserve→decide→act→official verify→persist→自分�
 
 **不変条件:** iOS Simulator runtime/image/device/data/dyld、memory/state、credentials、browser identity、参照release、active/dirty/unmerged/leased/locked worktree、open/unknown dataを削除しない。各agentは自分が生成し所有する非authoritative scratchだけを片付け、中央cleanupは残ったclosed/orphaned artifactと証明済みの不要物を回収する。他agentの作業や正式receiptを消さない。effect_unknownはexact official receipt/pre-effect proofまで解除・再送しない。内部の余白・時間・byte予算は安全な制御に使い、空き容量の固定値を事業再開の条件にしない。
 
-**現在cursor:** latest mainは`6a9e49c9370fbba34ba70280c4faddf45367062b`（PR #7774統合済み）。current releaseはまだ`e91b1087`で、release-reconciler PID78448がrun中。次はその自然収束後、latest-main releaseに中央 sweep removalを採用し、central 5分owner/15日legacy ownerのloaded argv/SHAとwatchdogの自然終端を照合する。その後、lock busy exit75がなくなることと容量growthのPID/path/bytesを結ぶ。空き容量値をKPIにせず、資源起因のstop再発防止は未完。
+**現在cursor（2026-10-13 11:44 JST readback）:** main=`1f4614ecf1057793553d7198cb466ed6acf05180`。`life-manager-disk-cleanup`はrelease `3e19c846`でloaded-idle、11:44:03 JSTに直近passが1回ある。これだけではF4の3回を満たさない。`df -k /`は11:44:09に207,772 KiB available、11:25:13から約19分で2,544,468 KiB減少したが、診断値のみ。60秒watchdogのこの時点のloaded readback、F1/F2の全gate証拠、writerの同時刻PID/path/bytes join、3回の大きなscratch往復は未確認。F1–F5はまだ0/5完了。Line Stickerのsource/runtimeは別ownerが担当し、primaryは変更しない。既存ownerの自然receiptは必要な時だけF5の証拠として読む。
 
-**次の順序:** cleanupの自然反復と容量増加源の相関を確認 → 実行枠/再開の実状態を照合 → 各業務agentはownerと既存TODOを維持して一件ずつ修復・公式readback → settled revenueと費用を確認 → 18業務の公式receiptに基づくLM-EAB評価・benchmark・自己修復/改善 → OSS起動導線と会社全体US$10M/月の継続運用。共有基盤が未完でも、独立した読み取りと既存ownerの安全な仕事は止めない。
+**次のatomic TODO:** F1 registry全job分類 → F2の3容量境界と一度だけの再開をfixtureでPASS → F3両掃除役のmain release/argv/cadence確認と必要な共通修復 → F4各掃除役3回連続の自然receipt → F5最大scratch jobの自然終了・一時領域回収を3回連続で確認。5/5 PASS後に18 capabilityの既存修理TODOへ移る。まだmain releaseの再発防止を完了とは呼ばない。
 
 **Evoの状態:** cleanup用regression testはshared source変更の検証で、LM-EAB/Evoではない。LM-EABの公開fixtureは5件（tuning 3/held-out 2）で合成データ。PR #7737は費用欠測の合成ケースを追加しmerge済み、PR #7736はREADMEからの再現手順を追加しmerge済み。自然trace・実経済task family・本番performance比較・benchmark報告は未完。OpenEvolveの7月runはbacktest昇格の履歴で現在稼働ではなく、registryの同名 `self-improve-evolve` はmarketing report runnerのpassでLM-EAB評価ではない。今回のread-only監査で専任のEAB/Eval/Evo稼働席は確認できず、production-connected evalと改善の自然runは未完。
 
