@@ -48,7 +48,7 @@ To-Beは各agentがobserve→decide→act→official verify→persist→自分�
 - [ ] **F4 — 掃除の反復:** 両掃除役それぞれの自然実行receiptを3回連続で取得する。各receiptは保存済み、`errors=0`、`protected_deletions=0`。単にprocessがいることやexit 0だけでは数えず、実際に掃除passまで実行したreceiptだけを数える。
 - [ ] **F5 — 大きな一時データの往復:** 一番大きいフォルダ名を推測で選ばない。同一時間窓で`owner_id + PID + 出力先path + bytes before/after`を結び、実writerを確認する。該当jobのbusiness ownerは維持し、primaryはそのsource/外部操作を変更しない。自然実行を3回連続で確認し、終了した親と子processがいなくなった後、次の成功したcentral sweepまでにその回だけの一時フォルダが消え、商品出力/正式receiptは残る。3回の観測window全体で未帰属の増加=`0`、capacity起因のterminal failure=`0`、次の予定wakeを越えて残るcapacity defer=`0`、lost task=`0`、duplicate effect=`0`、手動cleanup=`0`。
 
-**共有資源gate:** F1→F2→F3→F4→F5は、shared-capacity recoveryと18 capability修理の完了判定に引き続き必要。Daisの明示したEDD優先により、独立したWriter E02 A3b→A8–A14とE03–E06 benchmark作業は、F1–F5が未完でも先行できる。これはcleanupのgateを満たした扱いにせず、既存cleanup owner/stateも変更しない。
+**共有資源gate:** F1→F2→F3→F4→F5は、shared-capacity recoveryと18 capability修理の完了判定に引き続き必要。Daisの明示したEDD優先により、独立したWriter E02 A3b/A3c→A8–A14とE03–E06 benchmark作業は、F1–F5が未完でも先行できる。これはcleanupのgateを満たした扱いにせず、既存cleanup owner/stateも変更しない。
 
 **前回の順序変更（共有資源）:** 旧順序は各laneを並列再開し、それぞれ容量/release/admissionを解決する方式。新順序はP0共有ディスク → P1実行枠 → 各laneの安全な先頭atom。理由は同じ容量不足が既存の正常loopとcleanup自身を止め、複数writer/releaseが共有資源を競合させるため。実行中の外部effectを中断・重複させず、独立した読み取りは進められる。
 
@@ -288,7 +288,7 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 | H03 | Life Manager自身のdev/repair経路が必要な最小code修復を実施 | intent→issue/PR→CI/main→immutable→次自然run/公式readback |
 | H04 | 自己修復の一連の因果を証明する | 外部Codexの手動修正やsupervisor単独PASSをLM自身の修復としない |
 | E01 | selfEvalの欠測net→0をfail-closedへ修復 | unknown/不正金額がDEAD/利益/ゼロへ誤変換されないRED/GREEN |
-| E02 | recovery/economic evalを自然障害とCFOの公式receiptへ接続 | task success/effect integrity/settled net/cost/latency/介入を別採点。Writer Pilot A A1–A7は実装済み（PR #7876 merged、9/9 focused/CI PASS）。current cursor A3b: Writer immutable runへvalidな`LIFE_MANAGER_RELEASE_SHA`を記録するtest-first修正。A8のjudge較正は20 Pass/20 Failの人手labelが揃うまで未実施。E01 Agent Economyのruntime adoptionは別pending cursor。詳細は`docs/superpowers/plans/2026-10-12-edd-recovery-pilot.md`と`docs/evals/writer-edd-trace-discovery.md`。 |
+| E02 | recovery/economic evalを自然障害とCFOの公式receiptへ接続 | task success/effect integrity/settled net/cost/latency/介入を別採点。A3b source fixはPR #7878 / main `a6fccbb8`へ統合済み、live adoption/natural runは未確認。current cursor A3c: child summaryへevent child identityとparent Writer article/lifecycle IDsを結ぶ。inventoryは251 writer-judge child calls / 8 article runs / 4 identity receipts / 0 human labels。子callを独立記事taskに数えない。A8は20 Pass/20 Failのblind labelsが揃うまで未実施。E01 Agent Economyは別pending cursor。詳細は`docs/superpowers/plans/2026-10-12-edd-recovery-pilot.md`と`docs/evals/writer-edd-trace-discovery.md`。 |
 | E03 | LM-EABの自然失敗・境界・実経済task familyを増やす | PR #7737（merge `42131f52`）で費用欠測synthetic regressionを追加済み。現行5 public fixtures（tuning3/held-out2）は契約検証で実性能ではない。自然trace/実経済family/独立held-out protocolは未完 |
 | E04 | case/runner/grader/baselineをversion/hashで凍結 | public/dev/held-out/challenge分離、grader較正/複数trial/不確かさ/汚染監査 |
 | E05 | 既存runnerへ他harness adapterを接続し外部再現を確認 | 新framework先行導入なし、独立実行で同versionの結果を再現 |
