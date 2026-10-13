@@ -965,7 +965,7 @@
       "state_root": "~/.local/state/life-manager/line-sticker"
     },
     "line-sticker-distribute": {
-      "priority": "revenue",
+      "priority": "distribution",
       "resource_class": "deterministic",
       "admission_class": "revenue",
       "coalesce_reserved_wakes": true,
