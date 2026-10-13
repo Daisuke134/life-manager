@@ -2839,7 +2839,7 @@ Current cached catalog: 21 item records at ¥250 and 18 at ¥190; weighted avera
 **Revenue:** 永続sales.jsonは15:14:45Zの40 IDs、28行は明示¥0・12行はnull・正値0。送金表示¥0は2025.12.01–12.31なので、10月実績ではない。初回positive sale・current-month payout・費用回収は未確認/未達。保存済みstage cost 17.9476 USDと339 generation JSON内のestimated_usd合計19.5786 USDは一致せず、実請求額でもない。
 
 **Marketing:** 13記事slot中10 published / 3 failed、10 unique sets。最新記事はset-011、10/13 08:00 JST。04:20 JSTのnatural runはnot_due、次slotは07:00 JST。公開analytics 19:33:57Zは323 total views、LINE記事5 paths/7 views、set-011 path・line_sticker_clickなし。集計期間不明のためCTR・CVR不明。Social ledgerは17件中14 published / 3 failed、最後の公開は10/10 02:15Z。10/10 occurrence fenceはpost_count_unreadableで保持中。Instagram/Threads transportが参照するinstagram:capafy-provisionはCapafy ownerなので使わない。sticker-owned YouTube Google rowはpending_signupかつbrowser leaseは使用中。set-011 9秒Shortは完成済みだが未投稿。
-15-minuteのarticle heartbeatは15本/日ではなく、article_dailyがeligibleな1日1枠を出す。04:20のnot_dueは新規記事なしを示し、次は07:00 JSTの自然slot。
+15分heartbeatはslotを確認するcadenceであり、公開上限ではない。article_daily.pyのPUBLISH_HOURSは07/08/09/11/12/14–23 JSTの15枠で、販売中SKUに未掲載記事がある間は各eligible hourに1記事を選ぶ（1 slot最大2 attempt）。全販売中SKUを掲載後は正午slotだけ既存SKUを日次rotationする。06:05 JSTのnatural wakeはnot_dueで、次のeligible slotは07:00 JST、最初のlaunchd wakeは07:05 JST。
 
 **コピーできる成功者の公開例（すべて本人申告、独立監査なし）:**
 
@@ -3300,6 +3300,35 @@ Lancers focused suiteは **153 passed, 183 subtests passed**、`./bin/lm-loop-co
 6. [進行中] CrowdWorksのlock競合defer修正をcommit/pushし、main由来releaseでtarget apply後、収益laneがreconcileの無期限待ちにならないことをnatural readbackする。既存effect_unknown（応募のreceipt-bound/in-window、paidのzero-effect証拠不足、replyのofficial conversation不足）はprovider receiptなしに解放しない。
 7. [未完] Mercorの3 ownerをmain由来releaseへtarget applyし、pre-effect markerで安全に解放できるoccurrenceと、公式Mercor receiptが必要なoccurrenceを分離する。
 8. [未完] Freelancer・Upworkを同じshared kernelへ接続し、最後にMeta Loopのplatform discovery→adapter生成→canary→rollbackを有効化する。
+
+#### 5.L Fresh whole-state audit, creator research, and distribution cursor（2026-10-14 06:31 JST、main d7664a1e）
+
+**As-Is — shipping / factory:** 公開LINE STORE author pageのfresh crawlは29 distinct products。Creators Marketの保存済みitem-status snapshot（10/13 15:39Z）は40 management IDs中29販売中・2審査中・8審査待ち・1リジェクトで、これは現在画面のfresh readbackではない。工場はunloaded、最後の申請occurrence 18de1e0534af8540-84609 はexit143 / effect_unknown / official receiptなし。新規出荷・再申請は行わない。
+
+**As-Is — sales / cost:** 保存sales.jsonは2026-10-13T15:14:45Zの40 IDsで、28件は明示¥0、12件はnull、正値0。¥0の分配/送金表示は2025.12.01–12.31 periodで、10月入金を示さない。最新readerはbrowser_unavailable / effect_unknownのままで公式refなし。保存stage.jsonは40 files合計USD 17.9476、set-002にstage fileなし。339 generation JSONのestimated_usd合計19.5786は別定義の推計値であり実請求額ではない。配信費・振込費・税・FX等も未計上なので、17.9476 USDは累計all-in costではない。したがって初回売上、現月確定分配、累計費用回収は未達/未確認。
+
+**As-Is — free marketing:** article ledgerは13 slots中10 published / 3 failed、10 unique sets。最新はset-011。06:05 JST natural runはnot_due。ロード済みrelease 2275018cのarticle pickerはrequire_clips=falseで29販売中SKUを候補にし、現在10件掲載済み・19件未掲載。07時slotのread-only選定結果はset-022「ふわもこリスの毎日スタンプ(文字あり)」→ https://line.me/S/sticker/37251266。公式LINE STORE商品ページは掲載中・¥250を表示。記事自体はまだ公開されていないので、D30は進行中。PUBLISH_HOURSは1日15個のeligible hourで、未掲載SKUがある間は最大15新規記事/日を選べる設計、29件のcoverageに最短2自然日。これは上限であり実際の公開成功数ではない。
+
+公開analyticsは2026-10-13T21:27:08Z時点で全体333 pageviews、LINE記事6 paths・合計8 views（set-011 path 1 view）。集計期間は表示されず、line_sticker_click eventもない。今回のreadback/crawler trafficがaggregateへ混入する可能性を除外できないため、organic reach・CTR・CVRとは呼ばない。
+
+social ledgerは17 attempts（14 local published / 3 failed）、最後の記録は10/10 02:15Z。public Threadsは3 posts / 0 followers、Instagram profileはpublic readback unavailable。distribute fence line-sticker-distribute:18dd103ced88c860-32314はofficial list reconciliationでpost_count_unreadable / verified=falseのまま。設定identity instagram:capafy-provisionはCapafy ownerのため使用しない。set-011の9秒Shortは完成済みだがYouTube owner route/signup pendingで未投稿。Stamp Mania推薦はPOSTなしで、3種類のGET preflightが失敗したため再試行しない。
+
+**追加で確認した成功例・反例（本人申告、独立監査なし）:**
+
+| 作者・一次発信 | 公開数値 | 現在コピーする仕組み | 限界 |
+|---|---|---|---|
+| [RingRingLab](https://note.com/ringringlab/n/nf6766403ff12) | 2025年9月、約9年の活動で分配金受取額2,000万円超、源泉徴収前の分配額2,500万円超と本人公開 | 1回のヒットでなく、長期catalogを積み上げ、通常販売とPremiumを分けて見る。paid note収入はLINE分配と混ぜない | noteの詳しい実践編は有料。累計は自己申告、月間成果の予測ではない |
+| [Hoko](https://x.com/hoko525/article/2092946088978497931) | 26日で売上約¥130万円、約20%が海外と本人申告 | 既存の文字なしSKUを海外向けの短い使い方・動画で試し、国別statsを分ける | 投稿は主に制作tutorial。売上/分配・流入の独立検証なし。新規素材/新SKUは現在のscope外 |
+| [Moko](https://note.com/mokox_68/n/nc16529c835fa) | 6か月平均月収約¥32万円、個別販売約¥21万円+Premium、月10–16作と本人説明 | Premiumと個別販売のsourceを分けて測定し、既存SKUにも規則的なpromotion cadenceを当てる | note本文は一部有料、gross/distribution定義と施策ごとの因果が不明。現在は新作を作らない |
+| [Marina](https://marina.mediaview.jp/2026/02/25/linestamp_sidebusiness/) | 発売20日で約¥36,000と本人報告 | 話題になった類似テーマから検索流入が波及したと本人が説明。既存SKUでも話題語と会話場面の組合せを試す | 本人は偶然と品質を要因に挙げ、再現性はないと明記。受取額/売上の定義も区別しない |
+
+参考: [LINE Creators Market 10周年Award](https://www.lycorp.co.jp/ja/news/release/016587/) はユーザー投票266万票・コメント8万件を公表したが、売上額ではない。2015年の[JellyFishDesignOffice / syako取材](https://www.itmedia.co.jp/mobile/articles/1512/28/news020.html)は、ランキング調査・会話での共有・初日¥5,000をシリーズ判断に使う例を紹介する。Sponsored interviewで現市場の効果や売上保証ではない。手法を写し、キャラ・絵・固有表現は模倣しない。
+
+**To-Be — existing-SKU-only / free distribution:** まず19未掲載SKUへ自然記事を15 eligible slots/dayまで使って順次露出し、各記事から正確なLINE STORE商品へ送る。同期間のarticle view → SKU CTA click → official gross sales → creator distribution / Premium → all-in costを同じSKU/channelで結び、click/saleのある既存SKUへ無料枠を寄せる。Instagram/ThreadsとYouTubeはowner identity・fence readbackが揃うまで投稿しない。paid ads/PR、new stamp art、new SKUは含めない。
+
+**USD 10,000の算術（予測ではない）:** 保存price mix 21×¥250 + 8×¥190は平均約¥233.45。USD/JPY=150という仮定ならbuyer gross USD 10,000は約¥1,500,000、約6,425 purchases/month（214/day）。qualified product-page visitからの購入率を1%/3%/5%と置くと、必要visitは約642,500/214,200/128,500/month。現行aggregateは全site333 views・LINE記事8 viewsで期間不明、click event未観測なので、conversion実績や達成時期の予測は作れない。USD 10,000をcreator distributionの意味で目標にする場合、LINE公式式の直接販売shareはgrossの35–37%（税引前、経路による）なので、gross約USD 27.0k–28.6k、price mixで約17,400–18,400 purchases/month（579–613/day）が目安。Premiumは2026-07-01以降、加入者数×税抜¥12×送信割合の別計算。buyer grossをtake-homeと同一視しない。
+
+**TODO order / current cursor:** (1) D30: 07:05 JST以降のnatural article occurrenceを読み、set-022のpublic URL・正確なSKU CTA・ledgerを照合。公開確認後、残る18商品のeligible slotsを自然実行で埋める（duplicate/replay zero）。(2) D09 sales/payout official readerとD10 click/UTM analyticsを並行し、effect_unknownは登録済みreadbackだけで扱う。(3) D12a/D12はInstagram/Threadsの正しい専用ownerと10/10 fenceを公式照合。(4) D15のYouTube sticker-owned identity/leaseを用意し、D13で既存Shortを無料1回だけ投稿。(5) D29は別のhumanless無料directoryを探し、Stamp Mania endpointは再試行しない。(6) D27/D21でstage cost・missing set-002・provider invoice・distribution費・確定payoutを同期間に照合。(7) D20は測定済みwinnersに無料枠を再配分。(8) D22は一暦月buyer gross USD 10,000、最初の正値売上、累計distribution > verified all-in costを公式画面と同一期間のevidenceで達成する。D14/D09c/D19はexisting-SKU-only scopeから外す。
 
 ## 5.5 投資OSS検証の再確認（2026-09-29）
 
