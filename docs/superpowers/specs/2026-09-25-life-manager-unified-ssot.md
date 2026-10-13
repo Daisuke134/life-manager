@@ -2549,6 +2549,32 @@ Current cached catalog: 21 item records at ¥250 and 18 at ¥190; weighted avera
 **変更理由:** Daisは既存スタンプのmarketing/distributionを最優先し、YouTubeを無料施策として許可、paid ads/PRと新作SKUを除外した。ウェブ記事は本番で表示されるが、最新statsにset-011 path/clickはまだなく、自然流入は未観測。9秒shortはlocal MP4として完成した。YouTubeは無料配信先として指定されたが、credentials SSOTにservice=youtube行はなく、browser registryにもsticker-owned YouTube identityがない。Google identityは別ownerに紐づくため流用しない。
 
 **現在cursor:** D15のsticker-owned YouTube route/owner確認。ルートが成立したらD13の無料Shortを投稿し、公式permalink/readbackを取る。D10/D09は並行して自然計測・公式売上を追う。YouTubeへの投稿は未実施、paid施策なし。$10Kは一暦月grossであり、MRRや予測ではない。
+
+**2026-10-13 23:19 JST fresh live audit:**
+
+- **As-Is / shipped:** 公開LINE STORE作者ページには29個の異なる公開商品URLがある。14:03Zの公式item readbackは40件で、販売中29・審査中2・審査待ち8・リジェクト1。`sales.json` は `2026-10-13T13:47:57Z` の40商品IDで、28件は明示的に¥0、12件は `null`、正の売上は0。Creators Market ID `48299386`（「星くずカワウソの秋色日和【文字入り】」）は「審査待ち」。分配・送金可能額の¥0は2025.12.01–12.31の古い期間表示で、10月の精算額ではない。
+- **Marketing / reach:** set-011記事は公開中で、CTAは商品37168875へ一致する。公開 `/api/stats` は `2026-10-13T13:50:20Z`、全site 295 views、LINE記事7 views/5 paths。集計期間は表示されず、set-011 pathと `line_sticker_click` はsnapshotにないため、全期間の実view/clickが0とは断定しない。記事ownerの最新13:50Z runはexit0でもeffect unknown/receiptなし。social distributorは`resource_effect_unknown`のfenceを保持し、再送しない。完成済み9秒Shortは未投稿。
+- **Factory:** `lm-loop stop line-sticker-factory-hourly`でownerをunloadし、PID 19583と`factory.py` childは終了した。current run `18de16a707d61ff8-19583` のeffect reconcilerはset-041の申請ID `48299386`・公式状態「審査待ち」を `effected=true` / `closed=true` で照合した。set-042は `images` 段階で申請IDなし。5つのrun-scoped agent-browser profileはまだopenで、共有`imagegen` poolの別ownerも稼働しているため閉じたり削除したりしない。Factoryは現在unloadedだがregistry desired modeはscheduledなので、配信routeが整うまで再start/applyしない。
+- **Capacity:** 60秒 `com.anicca.disk-watchdog` はloaded/running。latest direct-owner receipt `2026-10-13T14:18:36Z` は `free_after=1,219,469,312` bytes（約1.14 GiB）、`reclaimed=278,890` bytes、`preserved=13`（open 4 / protected descendant 7 / protected path 2）、errors=0 / protected_deletions=0、capacity recovery=`unmet`、next action=`inspect_preserved_candidates`。LINE loop-tmpの論理サイズは8.9 GiB。watchdogのbounded sweepを継続し、shared/open profileを手で消さない。
+- **To-Be:** 新規SKU制作を止め、公開済み商品を無料・自然配信する。既存記事と完成済みShortを所有者確認済みの無料チャネルへ送り、UTM visit → SKU固有click → 公式販売 → 同期間の確定分配を測る。paid ads/PR/boostは行わない。
+
+**TODO順序変更（2026-10-13 23:19 JST）:** 旧cursorは `D25 → D26 → D09d → D15 → D13 → D10 → D07/D12 → D20 → D21 → D22`。D25のfactory unload、set-041のexact-effect reconciliation、D09dの40商品の公式status readbackは完了した。capacity watchdogは安全候補を自動巡回しており、profile cleanupは別ownerが共有するopen sessionを閉じるまで保持する。配信routeと測定が次の成果なので、cleanupはsupport-onlyへ移す。
+
+| ID | Atomic TODO | 完了証拠 |
+|---|---|---|
+| D25 | DONE（current runtime）: `line-sticker-factory-hourly`をowner経由でunloadし、新規runを止める | loaded state=`unloaded` / PIDなし。set-041 ID `48299386` の公式readbackをもってoccurrence `18de16a707d61ff8-19583` をeffectedとして閉鎖。set-042は未申請stateを保持。別ownerのopen `imagegen` profileは触らない |
+| D15 | sticker-owned YouTubeのchannel/account/owner routeを解決する。別ownerのGoogle/Capafy identityは流用しない | 認証済みowner route、使える投稿先、無料配信条件を確認 |
+| D10 | 記事UTMとSKU click計測を整え、自然analytics snapshotを取得する | source/campaignとSKU clickが識別され、自己clickなし。CTRは同じ期間の分母・分子で計算 |
+| D13 | 完成済みShortを無料で1回配信する | permalink、正しいSKU URL/UTM、公式投稿readback、replay-zero |
+| D09d | DONE: 40商品の公式状態を読み直す | 14:03Z item readbackは販売中29 / 審査中2 / 審査待ち8 / リジェクト1。`sales.json` は40 ID・28件¥0・12件null・正の売上0。分配の表示期間は2025.12.01–12.31で、10月確定額ではない |
+| D07 | article ownerのeffect-unknown occurrencesをexact公開URLへ照合する | occurrenceごとの公開readback/receipt。既存ページは再公開しない |
+| D12 | 旧social occurrenceを対象URL/公式投稿一覧で照合する | exact-effect receiptまたはpre-effect proofでowner reconciliation完了。未解決中は再送しない |
+| D20 | 反応のある既存SKUと無料チャネルに投稿枠を寄せる | views/clicks/公式salesを同期間で比較し、次の無料配信を記録 |
+| D21 | 売上分配と計上済み制作・配信費を同期間で照合する | 公式確定月次分配とcost ledgerの差額、欠損費用、返金/税を明記 |
+| D22 | 一暦月でUSD 10,000のgross salesを達成する | 公式確定売上snapshotと為替/期間定義を保存。MRR・再生数・未確定分配で代用しない |
+| D26 | Support-only: direct cleanup ownerのallowlisted sweepを回復床まで継続する | fresh receiptでfree_after≥2 GiB、またはsafe candidates exhaustedを確認。errors=0 / protected_deletions=0。open/shared profileはownerのclose proof前に消さない |
+
+**新cursor:** D15 → D10 → D13 → D07/D12 → D20 → D21 → D22。D09dは公式item status readback完了。D26はwatchdog側のsupport-only自動処理として並行する。D11のShort制作は完了済み。D16/D17の有料施策は取消し、追加SKU・続編・ローカライズは本scopeで保留する。為替を仮に¥150/USDとすると、USD 10,000 grossは約¥1,500,000で、¥250商品なら約6,000購入/月、¥190商品なら約7,895購入/月。これは規模計算であり予測ではない。
 ### 5.1 自己修復・自己改善の定義（T5 / T12 の正本）
 
 **目的**: Life Manager が、外部の coding agent（Dais が操作する Claude Code や Codex のセッション）にも人にも頼らず、自分の問題を見つけて、自分で直し、自分で改善すること。人と外部 agent はループの外にいる。
