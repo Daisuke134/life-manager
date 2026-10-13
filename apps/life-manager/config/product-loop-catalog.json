@@ -220,7 +220,7 @@
     },
     {
       "id": "line-sticker",
-      "job_ids": ["line-creators-browser", "line-sticker-factory-hourly", "line-sticker-readback-hourly"],
+      "job_ids": ["line-creators-browser", "line-sticker-factory-hourly", "line-sticker-readback-hourly", "line-sticker-tiktok-browser"],
       "name": "LINE Sticker",
       "description": "Design original animated LINE stickers end to end, submit a finished set to LINE Creators Market about every hour, and read review and sales status back.",
       "recovery_classes": ["continuous_service", "external_effect_owner"],

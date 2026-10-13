@@ -4078,6 +4078,28 @@
       "resource_class": "deterministic",
       "state_root": "~/.local/state/life-manager/x402-sell"
     },
+    "line-sticker-tiktok-browser": {
+      "adapter": "exec",
+      "browser_owner": {
+        "cdp_port": 9232,
+        "profile": "~/.cloak/profiles/tiktok-stardust-doubutsu"
+      },
+      "cadence": {
+        "keep_alive": true
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "command": [],
+      "domain": "growth",
+      "effect_class": "none",
+      "entrypoint": "skills/browser/owned-persistent-context",
+      "label": "ai.anicca.line-sticker-tiktok-browser",
+      "log_root": "~/.local/state/life-manager/line-sticker-tiktok-browser/logs",
+      "provider_route": "shared-agent-runner",
+      "state_root": "~/.local/state/life-manager/line-sticker-tiktok-browser"
+    },
     "tiktok-browser": {
       "adapter": "exec",
       "browser_owner": {
