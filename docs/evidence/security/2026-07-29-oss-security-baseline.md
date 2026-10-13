@@ -179,19 +179,6 @@ Only this exact fingerprint is added to .gitleaksignore:
 ## Addendum 2026-10-14 — synthetic Hook Lab attribution fixtures
 
 PR #7971's first Gitleaks run (`38472309335`) found five `generic-api-key`
-fingerprints in earlier revisions of
-`skills/earn/marketing-engine/measure/test_experiment_attribution.py`. They
-were deterministic first-party campaign IDs in test-only `attribution_token`
-fixtures, not provider credentials and not values sent to Capafy. Current
-fixtures derive IDs from the public test identity with
-`publication_campaign_token`, so the current-file redacted Gitleaks scan has no
-findings. The five old commit/path/rule/line fingerprints are individually
-recorded in `.gitleaksignore`; no rule, path, or directory-wide suppression was
-added. The full-history check is rerun on the PR head before merge.
-
-## Addendum 2026-10-14 — synthetic Hook Lab attribution fixtures
-
-PR #7971's first Gitleaks run (`38472309335`) found five `generic-api-key`
 fingerprints in earlier revisions of `skills/earn/marketing-engine/measure/test_experiment_attribution.py`.
 They were deterministic first-party campaign IDs placed in test-only
 `attribution_token` fields; they are not provider credentials and were not sent

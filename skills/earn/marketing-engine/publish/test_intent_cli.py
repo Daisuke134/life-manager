@@ -116,3 +116,17 @@ def test_hook_lab_intent_rejects_foreign_ct(monkeypatch, tmp_path):
     args = _hook_lab_intent_args(tmp_path, "ej_abcdefghijklmnopqrst")
     with pytest.raises(ValueError, match="Hook Lab attribution token"):
         run_create_intent(**args)
+
+
+@pytest.mark.parametrize("malformed_url", [
+    "https://aniccaai.com/go/hooklab_igx",
+    "https://aniccaai.com/go/hooklab_ig?diagnostic=1",
+    "https://aniccaai.com/go/hooklab_ig#diagnostic",
+])
+def test_hook_lab_intent_rejects_non_exact_owned_url(monkeypatch, tmp_path, malformed_url):
+    _install_hook_lab_test_route(monkeypatch)
+    args = _hook_lab_intent_args(tmp_path, "hooklab_ig")
+    args["caption"] = f"Open Hook Lab on Capafy {malformed_url}"
+    with pytest.raises(ValueError, match="Hook Lab owned attribution URL"):
+        run_create_intent(**args)
+    assert not args["output_path"].exists()

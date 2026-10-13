@@ -1066,9 +1066,3 @@ bf724f8aa6d1441728a06250055df577f60b7f9f:skills/earn/marketing-engine/measure/te
 acdafffdd97b37ff655e77b51bb5b6832710545c:skills/earn/marketing-engine/measure/test_experiment_attribution.py:generic-api-key:295
 acdafffdd97b37ff655e77b51bb5b6832710545c:skills/earn/marketing-engine/measure/test_experiment_attribution.py:generic-api-key:332
 a572c1509832e981c46959a900f5a947b6e249d3:skills/earn/marketing-engine/measure/test_experiment_attribution.py:generic-api-key:368
-# 2026-10-14: deterministic synthetic Hook Lab campaign IDs in test-only attribution fixtures; no credentials.
-bf724f8aa6d1441728a06250055df577f60b7f9f:skills/earn/marketing-engine/measure/test_experiment_attribution.py:generic-api-key:114
-929c69d900d5f654fc7716f083c93babb9410c1f:skills/earn/marketing-engine/measure/test_experiment_attribution.py:generic-api-key:254
-acdafffdd97b37ff655e77b51bb5b6832710545c:skills/earn/marketing-engine/measure/test_experiment_attribution.py:generic-api-key:295
-acdafffdd97b37ff655e77b51bb5b6832710545c:skills/earn/marketing-engine/measure/test_experiment_attribution.py:generic-api-key:332
-a572c1509832e981c46959a900f5a947b6e249d3:skills/earn/marketing-engine/measure/test_experiment_attribution.py:generic-api-key:368

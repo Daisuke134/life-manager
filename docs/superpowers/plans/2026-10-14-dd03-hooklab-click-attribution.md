@@ -15,6 +15,7 @@
 - Product is fixed to Hook Lab agent `8123079349`; the official seller CT is exactly `hooklab_ig`.
 - The internal first-party token uses `hl_` plus the existing 20-character base32 token body and is unique to one publication identity.
 - A generated/unregistered seller `ct` is invalid. `hl_<hash>` is only our internal join key; the downstream Capafy `ct` remains the verified `hooklab_ig`.
+- A publication caption must contain exactly one complete owned URL token. Path suffixes, query strings, and fragments (including `?diagnostic=1`) are not accepted as the registered route.
 - The redirect maps to the fixed Capafy URL and seller CT; caller-controlled destinations or seller CTs are rejected.
 - Diagnostic requests create no click receipt and do not redirect.
 - A Hook Lab click is deterministic only when exact product/token scope and a complete, unique receipt-ID list match; other products retain their existing exact `Content-Range` count behavior.
@@ -89,7 +90,10 @@ The `run_create_intent` regression test uses a temporary synthetic account fixtu
 - [x] Run current-tree and PR-range Gitleaks checks; both report zero findings.
 - [ ] Pass exact-head CI's full-history Gitleaks check before merge.
 - [x] Run `python3 skills/earn/marketing-engine/measure/test_attribution.py` (9/9), `python3 skills/earn/marketing-engine/measure/test_experiment_attribution.py` (14/14), `python3 -m pytest skills/earn/marketing-engine/publish/test_intent_cli.py` (4/4), source-boundary check, and `git diff --check`.
-- [x] Commit and push the Life Manager change from this dedicated worktree.
+- [x] Add RED regression cases proving a URL path suffix, query, or fragment cannot pass as the exact Hook Lab owned URL; verified all three failed before changing the publisher.
+- [x] Require exactly one complete Hook Lab URL token before rewriting the registered CT placeholder; focused publisher suite passes 7/7.
+- [x] Initial implementation was committed and pushed to PR #7971.
+- [ ] Commit and push this URL-validation review correction from the same dedicated worktree.
 
 ### Task 3: Close the DD03 SSOT entry
 

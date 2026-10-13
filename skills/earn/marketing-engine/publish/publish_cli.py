@@ -68,8 +68,9 @@ def run_create_intent(*, engine: pathlib.Path, output_path: pathlib.Path,
         if not isinstance(registered_ct, str) or attribution_token not in {registered_ct, expected_token}:
             raise ValueError("Hook Lab attribution token is not registered or publication-bound")
         old_owned_url = f"https://aniccaai.com/go/{attribution_token}"
-        if normalized_caption.count(old_owned_url) != 1:
-            raise ValueError("Hook Lab owned attribution URL must appear exactly once")
+        owned_url_tokens = [token for token in normalized_caption.split() if old_owned_url in token]
+        if owned_url_tokens != [old_owned_url]:
+            raise ValueError("Hook Lab owned attribution URL must appear exactly once as a complete token")
         normalized_caption = normalized_caption.replace(
             old_owned_url, f"https://aniccaai.com/go/{expected_token}", 1)
         attribution_token = expected_token
