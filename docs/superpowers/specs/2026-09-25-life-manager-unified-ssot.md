@@ -276,6 +276,28 @@ Remaining atomic TODO:
 5. Only after F1–F5 and resource paths are covered, repair the 18 business capabilities one at a time.
 
 Timing: earliest readback-owner attempt is 04:23 JST; if it yields official proof and the factory is route-ready, F5 then needs at least 45 minutes at its 15-minute cadence. From 03:43 JST the fastest plausible finish is about 85 minutes; unavailable provider evidence or route readiness extends it. This is a cadence-based estimate, not a promised deadline.
+### 2026-10-14 03:56 JST — F4 git-timeout regression and repair cursor
+
+Main is f62cca80dad6d92fb47ae9b596a33664523a3446. Foundation release remains 20261014T031532-22924a4f; no shared cleanup/runtime files changed after it. F3 is still loaded and valid.
+
+F1 PASS: 191-job registry/common-runner fixture.
+F2 NOT PASS: readback owner fence line-sticker-readback-hourly:18de29ea362c7388-45417 was closed only after the registered adapter proved effected=false and no automatic-resubmit timestamp since queued_at. This is a no-effect receipt for the readback run, not an official LINE receipt for factory occurrence 18de1e0534af8540-84609. The factory event remains publish/effect unknown with provider receipt/readback null. The readback owner is still loaded on old SHA 5b90b21e, exit75, next natural calendar slot 04:23 JST; no manual wake/resend.
+F3 PASS: watchdog, central cleanup, and reconciler remain loaded on 22924a4f; plist lint, argv, state roots, and cadence readbacks pass.
+F4 NOT PASS: central cleanup on 22924a4f failed again at 18:49:25Z, run 18de2b4853fd8b68-87767. The structured central result identifies git_cleanup.status=failed, error_class=TimeoutExpired, prune_packable_before=6, while scratch_cleanup.errors=0 and protected_deletions=0. A later natural run 18de2b8d5d13e0b8-47259 passed at 18:54:54Z with git_cleanup.status=pass, but the timeout recurrence is unresolved. Root cause: git maintenance uses a 15-second subprocess bound; its timeout is currently counted as an error and makes the entire cleanup owner exit1 even though release/scratch cleanup can continue.
+F4 source repair candidate (local): branch fix/central-git-timeout-defer-20261014, commit 1c141093. A Git maintenance TimeoutExpired is now recorded as status=deferred, error_class=TimeoutExpired, retryable=true, next_action=retry_next_natural_pass, errors=0; all other Git failures remain errors. RED was observed on the existing timeout regression; focused test_loop_cleanup passes 69 tests and 11 subtests. The change is not on main/released yet.
+F5 NOT PASS: factory owner is unloaded and its separate unknown publish event has no official receipt. Other agent owns this source.
+
+F1/F3 are complete (2/5); F2/F4/F5 remain. Full inventory still has 29 gaps, so the host still has unclassified storage roots. A single df value is not a success metric. The to-be remains bounded producer output, owner cleanup, exact safe central recovery, and durable defer/resume without dropping a task or external-effect identity; this avoids silent resource loss, not every possible failure.
+
+Remaining atomic TODO:
+1. Commit/push/merge the local git-timeout defer fix with the updated spec, then cut the main-derived release and target-apply central cleanup. Verify the status row and exact loaded SHA.
+2. Observe three post-fix natural central passes. A Git maintenance timeout must appear as deferred while the rest of cleanup completes; other errors/protected deletions remain zero. Do not count the pre-fix timeout as a pass.
+3. At the 04:23 JST natural readback slot, let line-sticker-readback-hourly run and obtain official LINE status. Only then reconcile factory occurrence 18de1e0534af8540-84609; preserve unknown and do not resend without official proof.
+4. When factory is route-ready, confirm 3 natural producer→child teardown→closed scratch reclaim cycles.
+5. Resolve the 29 inventory gaps with bounded owner/path measurement; keep unknown roots protected.
+6. After F1–F5 and resource paths are covered, repair the 18 business capabilities one by one.
+
+Timing: source CI/release must land before a post-fix recurrence window; central cleanup runs every 5 minutes, so 3 successful passes need about 10–15 minutes after the first. The next readback slot is 04:23 JST, about 27 minutes away, and F5 needs at least 45 minutes after route-ready. Earliest plausible full-foundation finish is roughly 72 minutes from 03:56 if the readback succeeds at the next slot and the factory is route-ready; otherwise there is no fixed finish time. Do not restart all 18 agents yet.
 **EDD担当境界:** このレーンの実装cursorはE02 Writer Pilot。18製品ループの下記read-only監査は全体判断のための状況把握であり、E01 Agent Economy、F1–F5共有cleanup、18 capability修理のownerを引き受けない。Agent Economyは18製品ループの一つとして監査表に含むが、Writer作業と混同しない。
 
 **前回cleanup readback（2026-10-13 11:44 JST）:** `life-manager-disk-cleanup`はrelease `3e19c846`でloaded-idle、F1–F5は当時0/5完了。これは歴史的観測で現在状態へ再利用しない。

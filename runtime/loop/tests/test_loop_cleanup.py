@@ -173,10 +173,14 @@ class LoopCleanupTest(unittest.TestCase):
             (repo / ".git").mkdir()
             count = subprocess.CompletedProcess([], 0, "prune-packable: 3\n", "")
             with mock.patch.object(central_cleanup.subprocess, "run", side_effect=(
-                    count, subprocess.TimeoutExpired("git prune-packed", 15))):
+                    count, subprocess.TimeoutExpired(
+                        ["git", "maintenance", "run", "--auto", "--task=loose-objects"], 15))):
                 result = central_cleanup.git_duplicate_cleanup(repo)
-            self.assertEqual(result["errors"], 1)
-            self.assertEqual(result["status"], "failed")
+            self.assertEqual(result["errors"], 0)
+            self.assertEqual(result["status"], "deferred")
+            self.assertEqual(result["error_class"], "TimeoutExpired")
+            self.assertTrue(result["retryable"])
+            self.assertEqual(result["next_action"], "retry_next_natural_pass")
             self.assertEqual(result["prune_packable_before"], 3)
             self.assertIsNone(result["prune_packable_after"])
 
