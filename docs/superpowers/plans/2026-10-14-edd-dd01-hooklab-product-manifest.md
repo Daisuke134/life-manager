@@ -91,12 +91,13 @@ git commit -m "feat(marketing-engine): register Hook Lab distribution profile"
 **Files:**
 - Modify: `skills/earn/marketing-engine/gates/verify_gate10.py`
 - Test: `skills/earn/marketing-engine/gates/test_verify_gate10.py`
+- Create: `skills/earn/marketing-engine/gates/fixtures/gate10-safe-plans.jsonl`
 
-**Interfaces:** Gate10 continues to require its four core products and validates the exact existing safe-plan product/account/hook/renderer identities; unrelated product profiles and accounts do not fail a global equality check.
+**Interfaces:** `verify_gate10(engine, plans_path=None)` requires its four core products and validates exact safe-plan product/account/hook/renderer identities. Tests pass a tracked contract fixture explicitly; the default runtime evidence path remains occurrence-backed and missing live evidence fails closed. Unrelated product profiles and accounts do not fail global equality checks.
 
 - [ ] **Step 1: Extend the failing test**
 
-Update `test_live_gate10_evidence_passes` to assert the core Gate10 products remain registered, Hook Lab can coexist in the registry, and the existing two safe plans are unchanged. The baseline currently fails with `initial product registry differs` because Gate10 compares the complete registry to a stale four-product list.
+Rename the test to make its fixture scope explicit. Assert the four Gate10 core products and Hook Lab are registered, the two historical safe-plan identity tuples remain unchanged, and the fixture-backed verifier passes. Add a separate assertion that the default live path without `plans.jsonl` raises `FileNotFoundError`; current main has no such evidence file, and a tracked test fixture must never masquerade as a live receipt.
 
 - [ ] **Step 2: Run the test and confirm RED**
 
@@ -106,11 +107,11 @@ Run from `skills/earn/marketing-engine/gates`:
 python3 -m unittest test_verify_gate10
 ```
 
-Expected: fail at the stale global product-count equality, not at a safe-plan identity.
+Expected: the fixture-backed test fails first at `initial product registry differs`; the missing-live-evidence assertion is separate and confirms fail-closed behavior.
 
 - [ ] **Step 3: Make Gate10 scope explicit**
 
-Change the verifier to require its core product IDs as a subset and rely on existing per-plan checks for account and route identity. Remove the stale global account-count assertion; preserve exact safe-plan count, hook, renderer, CTA, attribution, and quarantine checks.
+Change the verifier to require its core product IDs as a subset and remove the stale global account-count assertion. Add an optional explicit `plans_path` for deterministic tests while keeping the default runtime evidence path unchanged. Preserve exact safe-plan count, hook, renderer, CTA, attribution, stable-ID, and quarantine checks.
 
 - [ ] **Step 4: Run the Gate10 test and confirm GREEN**
 
@@ -119,7 +120,7 @@ Run `python3 -m unittest test_verify_gate10` from `skills/earn/marketing-engine/
 - [ ] **Step 5: Commit the Gate10 correction**
 
 ```bash
-git add skills/earn/marketing-engine/gates/verify_gate10.py skills/earn/marketing-engine/gates/test_verify_gate10.py
+git add skills/earn/marketing-engine/gates/verify_gate10.py skills/earn/marketing-engine/gates/test_verify_gate10.py skills/earn/marketing-engine/gates/fixtures/gate10-safe-plans.jsonl
 git commit -m "fix(marketing-engine): keep Gate10 checks product-scoped"
 ```
 
