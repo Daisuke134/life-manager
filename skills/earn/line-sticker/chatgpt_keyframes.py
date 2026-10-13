@@ -64,7 +64,8 @@ def generate_sheet(prompt: str, out_path: Path, *, timeout: int = 280) -> None:
     try:
         done = subprocess.run(
             [str(CLI), prompt, "-o", str(out_path), "--size", "1024x1024", "--backend", "auto",
-             "--quiet", "--timeout", str(timeout), "--session", session],
+             "--profile", "relay", "--quiet", "--timeout", str(timeout),
+             "--session", session],
             capture_output=True, text=True, timeout=timeout + 30, check=False,
         )
     except subprocess.TimeoutExpired as exc:

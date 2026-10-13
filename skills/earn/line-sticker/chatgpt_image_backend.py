@@ -80,7 +80,8 @@ def generate(prompt: str, *, size: str = "1024x1024", timeout: int = 280) -> Pat
     try:
         done = subprocess.run(
             [str(CLI), prompt, "-o", str(out_path), "--size", size, "--backend", "auto",
-             "--quiet", "--timeout", str(timeout), "--session", session],
+             "--profile", "relay", "--quiet", "--timeout", str(timeout),
+             "--session", session],
             capture_output=True, text=True, timeout=timeout + 30, check=False,
         )
     except subprocess.TimeoutExpired as exc:

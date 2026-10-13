@@ -120,6 +120,8 @@ class RunScopedBrowserSessionTest(unittest.TestCase):
                     MODULE.generate_sheet("prompt", output)
             args = calls[0]
             self.assertIn("--session", args)
+            self.assertIn("--profile", args)
+            self.assertEqual(args[args.index("--profile") + 1], "relay")
             session = args[args.index("--session") + 1]
             self.assertEqual(session, "line-sticker-run-a")
             self.assertTrue(output.is_file())

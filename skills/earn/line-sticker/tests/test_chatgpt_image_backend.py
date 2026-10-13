@@ -105,6 +105,8 @@ class RunScopedBrowserSession(unittest.TestCase):
             sessions = []
             for args in calls:
                 self.assertIn("--session", args)
+                self.assertIn("--profile", args)
+                self.assertEqual(args[args.index("--profile") + 1], "relay")
                 sessions.append(args[args.index("--session") + 1])
             self.assertEqual(sessions, ["line-sticker-run-a", "line-sticker-run-a",
                                         "line-sticker-run-b"])

@@ -1,0 +1,124 @@
+{
+  "status": "FINAL",
+  "category": "kinetic-type",
+  "duration_s": 9,
+  "fps": 30,
+  "canvas": {
+    "w": 1080,
+    "h": 1920,
+    "aspect": "9:16"
+  },
+  "style": "Silent, warm, friendly product demo on a soft light background. Keep one consistent generic rounded chat-bubble silhouette as the sole dominant motif; show one bubble at a time, with the supplied otter sticker as its reply. Use only restrained lavender sampled from the sticker artwork. Keep Japanese copy large and high-contrast for in-feed reading. No phone frame, avatar, status bar, controls, LINE branding or other reconstructed app UI. No narration, music, price, sales or engagement claims.",
+  "palette": "derive-from-asset",
+  "font": "Noto Sans JP",
+  "beats": [0, 9, 33, 60, 120, 126, 189, 201, 269],
+  "export": "mp4",
+  "asset_needs": [],
+  "content": {
+    "block": "chat-message",
+    "customize": {
+      "bubble": "Use the catalog chat-message component as one neutral, generic message bubble with a small tail. Preserve the same scale, position and styling through the three message scenes; never show multiple bubbles at once. Keep its brief corner-grown entrance restrained, then hold. Do not add typing indicators, cursors, notification chrome or extra bounce effects.",
+      "text": "Use embedded Noto Sans JP for every Japanese line; do not use Inter or rely on a system-only CJK fallback. Keep copy within generous safe margins and make it legible at in-feed size.",
+      "palette": "Sample a restrained lavender accent from the artwork's chest star; keep the character's original peach and salmon colors intact over a warm near-white field.",
+      "layout": "Place the bubble in the upper-middle with the sticker below or beside it, clear of text. Keep the same silhouette and alignment in both use cases. On the final card, resolve that silhouette around the title and CTA.",
+      "supporting_components": [
+        {
+          "id": "cta-lockup",
+          "scene": "product-title-and-cta",
+          "use": "Use its calm closing layout for the exact title and CTA only. Omit logos, URLs, badges, proof, or extra claims; keep the bubble as the dominant shape."
+        }
+      ]
+    },
+    "media_assets": [
+      {
+        "id": "thanks",
+        "frame_pattern": "assets/frames/thanks/frame-%02d.png",
+        "frames": "assets/frames/thanks/frame-00.png through assets/frames/thanks/frame-19.png",
+        "frame_count": 20,
+        "source_fps": 10,
+        "duration_s": 2,
+        "preserve_rgba_alpha": true,
+        "playback": "Timeline-controlled PNG frames at source cadence, one play, no loop. Hold each source frame for 3 composition frames at 30fps.",
+        "mapping": "Sticker #01, thanks"
+      },
+      {
+        "id": "goodmorning",
+        "frame_pattern": "assets/frames/goodmorning/frame-%02d.png",
+        "frames": "assets/frames/goodmorning/frame-00.png through assets/frames/goodmorning/frame-19.png",
+        "frame_count": 20,
+        "source_fps": 10,
+        "duration_s": 2,
+        "preserve_rgba_alpha": true,
+        "playback": "Timeline-controlled PNG frames at source cadence, one play, no loop. Hold each source frame for 3 composition frames at 30fps.",
+        "mapping": "Sticker #03, goodmorning"
+      }
+    ],
+    "sticker_reply_count": 2,
+    "caption_url": "https://aniccaai.com/blog/line-sticker-set-011-2026-10-13-08",
+    "delivery": "Local-only marketing asset for the existing sticker set. Do not publish from this task; no paid marketing and no new sticker designs. The tracked caption URL is for the later post caption, not on-screen text.",
+    "scenes": [
+      {
+        "id": "hook",
+        "start": 0,
+        "end": 1.1,
+        "text": "丁寧な返事、スタンプで。",
+        "emphasis_words": ["スタンプ"],
+        "emotion": "warm, inviting",
+        "motion": "Show the complete phrase in one generic chat bubble from frame 0. Use the chat-message component's single restrained entrance, finish settling by about 0.3s, and hold the full line until the scene cut.",
+        "beats": [0, 9, 33]
+      },
+      {
+        "id": "polite-confirmation-and-thanks",
+        "start": 1.1,
+        "end": 4,
+        "text": "確認しました。\nありがとうございます。",
+        "emphasis_words": ["ありがとうございます"],
+        "emotion": "polite, reassuring",
+        "motion": "Replace the hook copy in the same single-bubble position. Hold the message clearly, then show sticker #01 once beside or below it from 2.0s to 4.0s using its 20 local RGBA frames at 10fps. Do not loop, duplicate, or replace the frames with the animated APNG or a green-screen clip.",
+        "beats": [33, 60, 120],
+        "media_ref": "thanks",
+        "media_window": {
+          "start_s": 2,
+          "duration_s": 2,
+          "source_fps": 10,
+          "composition_fps": 30,
+          "frame_count": 20,
+          "play_count": 1,
+          "loop": false
+        }
+      },
+      {
+        "id": "morning-greeting",
+        "start": 4,
+        "end": 6.3,
+        "text": "おはようございます！",
+        "emphasis_words": ["おはよう"],
+        "emotion": "bright, gentle",
+        "motion": "Keep the same bubble position and silhouette, change only the greeting and reply sticker. Show sticker #03 once from 4.2s to 6.2s from its local RGBA frame sequence, then hold its final frame until the end card begins.",
+        "beats": [120, 126, 189],
+        "media_ref": "goodmorning",
+        "media_window": {
+          "start_s": 4.2,
+          "duration_s": 2,
+          "source_fps": 10,
+          "composition_fps": 30,
+          "frame_count": 20,
+          "play_count": 1,
+          "loop": false,
+          "hold_final_frame_until_s": 6.3
+        }
+      },
+      {
+        "id": "product-title-and-cta",
+        "start": 6.3,
+        "end": 9,
+        "text": "動く！おたーくんの丁寧な毎日",
+        "emphasis_words": ["おたーくん"],
+        "emotion": "clear, welcoming",
+        "motion": "Resolve the same bubble silhouette into a quiet final card. Show the exact title with the CTA by 6.7s, then hold both clearly and completely still through the final frame.",
+        "beats": [189, 201, 269],
+        "cta": "商品ページは投稿内のリンクから"
+      }
+    ]
+  }
+}

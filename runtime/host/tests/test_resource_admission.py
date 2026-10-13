@@ -1860,7 +1860,43 @@ def test_started_child_timeout_fences_occurrence_and_preserves_next_owner(tmp_pa
     assert blocked is None and reason == "effect_unknown"
 
 
-def test_successful_release_clears_stale_unknown_on_its_claim(tmp_path, monkeypatch):
+@pytest.mark.parametrize("preterminal_state", ("released", "missing"))
+def test_unknown_release_restores_fence_if_occurrence_row_changed_before_terminal(
+        tmp_path, monkeypatch, preterminal_state):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    owner = "line-sticker-factory-hourly"
+    occurrence = f"{owner}:heartbeat-unavailable"
+    admission.enqueue_durable("deterministic", owner, admission_class="revenue",
+                              occurrence_id=occurrence, now=100)
+    claim, reason = admission.claim_durable(
+        "deterministic", owner, admission_class="revenue", now=101)
+    assert claim is not None and reason == "acquired"
+    # A competing terminal path can release the occurrence before this live
+    # process records that its external effect became unknown.
+    with sqlite3.connect(tmp_path / "admission-v2.sqlite3") as connection:
+        if preterminal_state == "released":
+            connection.execute(
+                "UPDATE occurrences SET state='released' WHERE occurrence_id=?",
+                (occurrence,),
+            )
+        else:
+            connection.execute("DELETE FROM occurrences WHERE occurrence_id=?", (occurrence,))
+        connection.commit()
+
+    admission.release_and_reserve(claim, effect_unknown=True, reserve=False, now=102)
+
+    row = next(row for row in durable_rows(tmp_path, "occurrences")
+               if row["occurrence_id"] == occurrence)
+    assert (row["state"], row["effect_unknown"]) == ("released", 1)
+    queued, reason = admission.enqueue_durable(
+        "deterministic", owner, admission_class="revenue",
+        occurrence_id=f"{owner}:next", now=103,
+    )
+    assert queued is None and reason == "effect_unknown"
+
+
+def test_successful_release_does_not_clear_unknown_without_readback(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="1")
     admission.activate_durable_v2()
     admission.enqueue_durable("agent", "application", admission_class="revenue",
@@ -1874,7 +1910,7 @@ def test_successful_release_clears_stale_unknown_on_its_claim(tmp_path, monkeypa
     admission.release_and_reserve(claim, reserve=False, now=102)
     row = next(row for row in durable_rows(tmp_path, "occurrences")
                if row["occurrence_id"] == "application:old-wake")
-    assert (row["state"], row["effect_unknown"]) == ("released", 0)
+    assert (row["state"], row["effect_unknown"]) == ("released", 1)
 
 
 def test_unknown_occurrence_requires_matching_official_readback(tmp_path, monkeypatch):
