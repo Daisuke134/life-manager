@@ -124,6 +124,35 @@ class RunScopedBrowserSessionTest(unittest.TestCase):
             self.assertEqual(session, "line-sticker-run-a")
             self.assertTrue(output.is_file())
 
+    def test_timeout_closes_only_run_session_and_reports_sanitized_cleanup_failure(self) -> None:
+        timeout_error = subprocess.TimeoutExpired(
+            ["chatgpt-imagegen", "private prompt"], 310, stderr="private timeout output")
+        calls = []
+
+        def fake_run(args, **kwargs):
+            calls.append((list(args), kwargs))
+            if len(calls) == 1:
+                raise timeout_error
+            return subprocess.CompletedProcess(args, 1, "private close output", "private close error")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            cli = Path(tmp) / "chatgpt-imagegen"
+            cli.touch()
+            output = Path(tmp) / "sheet.png"
+            with mock.patch.object(MODULE, "CLI", cli):
+                with mock.patch.object(MODULE.subprocess, "run", side_effect=fake_run):
+                    with mock.patch("shutil.which", return_value="/mock/chrome-use"):
+                        with mock.patch.dict(os.environ, {"LIFE_MANAGER_RUN_ID": "run-456"}):
+                            with self.assertRaises(MODULE.ChatGptImageGenUnavailable) as caught:
+                                MODULE.generate_sheet("private prompt", output)
+
+        self.assertIs(caught.exception.__cause__, timeout_error)
+        self.assertIn("timed out", str(caught.exception))
+        self.assertIn("browser_session_cleanup_failed", str(caught.exception))
+        self.assertNotIn("private", str(caught.exception))
+        self.assertEqual(calls[1][0], ["/mock/chrome-use", "close", "--session", "line-sticker-run-456"])
+        self.assertEqual(calls[1][1]["timeout"], 15)
+
 
 if __name__ == "__main__":
     unittest.main()
