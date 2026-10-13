@@ -8,6 +8,24 @@ const test = require("node:test");
 const { importContentObject } = require("../lib/content-object-store.js");
 const { PRODUCTS, pending, persistAscAcquisition, rows, summarize } = require("./marketing-asc-acquisition.js");
 
+function addMetricReceipt(dataDir, { productId, appId, accountId, postId, token = null }) {
+  const objectDir = path.join(dataDir, "objects");
+  const captionFile = path.join(dataDir, `${postId}.caption.txt`);
+  const videoFile = path.join(dataDir, `${postId}.video.mp4`);
+  const campaignLine = token ? `\nhttps://apps.apple.com/app/id${appId}?ct=${token}&mt=8` : "";
+  fs.writeFileSync(captionFile, `Hook for ${accountId}${campaignLine}\n`);
+  fs.writeFileSync(videoFile, `video-${postId}`);
+  const caption = importContentObject(captionFile, { objectDir });
+  const video = importContentObject(videoFile, { objectDir });
+  const publicUrl = `https://www.tiktok.com/${accountId}/video/${postId}`;
+  const receiptDir = path.join(dataDir, "marketing");
+  fs.mkdirSync(receiptDir, { recursive: true });
+  fs.appendFileSync(path.join(receiptDir, "receipts.jsonl"), `${JSON.stringify({ receipt: { kind: "marketing_video_distribution", status: "published", product_id: productId, locale: "en", platform: "tiktok", provider_post_id: postId, public_url: publicUrl, creative_id: `${productId}-${postId}`, slot: "2026-08-20T00:00:00.000Z", published_at: "2026-08-20T00:01:00.000Z", video_sha256: video.sha256, caption_sha256: caption.sha256 } })}\n`);
+  const metricDir = path.join(dataDir, "tenants", "dais-local", "marketing", "metrics", accountId, postId);
+  fs.mkdirSync(metricDir, { recursive: true });
+  fs.writeFileSync(path.join(metricDir, "24h.combined.json"), JSON.stringify({ schema_version: 1, kind: "tiktok_combined_metric_snapshot", product_id: productId, locale: "en", account_id: accountId, integration_id: "integration-1", provider_post_id: postId, public_url: publicUrl, window: "24h", observed_at: "2026-08-21T00:01:00.000Z" }));
+}
+
 test("ASC acquisition covers six mobile app bindings and keeps pending reports unavailable", () => {
   assert.deepEqual(PRODUCTS.map(({ product_id, app_id, request_id }) => [product_id, app_id, request_id]), [
     ["anicca-ios", "6755129214", "04c74879-547f-4e35-b231-1fafd485801d"],
@@ -25,7 +43,7 @@ test("ASC acquisition covers six mobile app bindings and keeps pending reports u
   }
 });
 
-test("ASC product totals remain unattributed and unavailable stays null on replay", async () => {
+test("ASC product totals remain unattributed and unavailable stays null on replay", async (t) => {
   const parsed = rows("Date\tApp Name\tApp Apple Identifier\tDownload Type\tCounts\n2026-08-20\tDaily Affirmations - Anicca\t6755129214\tFirst-time download\t1\n");
   const anicca = summarize(PRODUCTS[0], parsed, [{ Date: "2026-08-19", "App Name": PRODUCTS[0].app_name, "App Apple Identifier": PRODUCTS[0].app_id, Event: "Impression", "Page Type": "No page", Counts: "9", "Unique Counts": "5" }], []);
   assert.equal(anicca.metrics.first_time_downloads.value, 1);
@@ -37,14 +55,9 @@ test("ASC product totals remain unattributed and unavailable stays null on repla
   assert.equal(pending(PRODUCTS[0]).attribution_reason, "campaign_link_configured_no_product_readback");
   assert.equal(summarize(PRODUCTS[0], [], [], []).metrics.first_time_downloads.value, null);
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-asc-join-"));
-  const objectDir = path.join(dataDir, "objects");
-  const attributionDir = path.join(dataDir, "tenants/dais-local/marketing/attribution");
-  fs.mkdirSync(attributionDir, { recursive: true });
-  const lineageFile = path.join(dataDir, "lineage.json");
-  const lineage = { rows: [{ product_id: "anicca-ios", account_id: "@anicca-ai", platform: "youtube", provider_post_id: "post-1", public_url: "https://www.youtube.com/shorts/1", campaign_id: "anicca-ios_youtube_en" }, { product_id: "honne-ai", account_id: "@honne_reveal", platform: "tiktok", provider_post_id: "post-2", public_url: "https://www.tiktok.com/@honne_reveal/video/2", campaign_id: null }] };
-  fs.writeFileSync(lineageFile, JSON.stringify(lineage));
-  const imported = importContentObject(lineageFile, { objectDir });
-  fs.writeFileSync(path.join(attributionDir, "lineage.json"), JSON.stringify({ ...lineage, snapshot_ref: imported.ref }));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  addMetricReceipt(dataDir, { productId: "anicca-ios", appId: "6755129214", accountId: "@anicca-ai", postId: "post-1", token: "anicca-ios_youtube_en" });
+  addMetricReceipt(dataDir, { productId: "honne-ai", appId: "6759667221", accountId: "@honne_reveal", postId: "post-2" });
   const collector = (product) => product.product_id === "anicca-ios" ? anicca : pending(product);
   const first = await persistAscAcquisition(dataDir, "2026-08-23", collector);
   const replay = await persistAscAcquisition(dataDir, "2026-08-23", collector);
@@ -109,4 +122,26 @@ test("ASC daily metrics keep date-level zeros measured and leave absent report d
   assert.deepEqual([byDate["2026-10-07"].product_page_views.status, byDate["2026-10-07"].product_page_views.value], ["measured", 3]);
   assert.deepEqual([byDate["2026-10-08"].first_time_downloads.status, byDate["2026-10-08"].first_time_downloads.value], ["measured", 1]);
   assert.deepEqual([byDate["2026-10-08"].impressions.status, byDate["2026-10-08"].impressions.value], ["unavailable", null]);
+});
+
+test("daily ASC acquisition refreshes a stale lineage pointer from current metrics and receipts", async (t) => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-asc-refresh-"));
+  const objectDir = path.join(dataDir, "objects");
+  const attributionDir = path.join(dataDir, "tenants/dais-local/marketing/attribution");
+  fs.mkdirSync(attributionDir, { recursive: true });
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+
+  const staleFile = path.join(dataDir, "stale-lineage.json");
+  fs.writeFileSync(staleFile, JSON.stringify({ schema_version: 1, kind: "marketing_attribution_lineage", tenant_id: "dais-local", rows: [{ product_id: "anicca-ios", account_id: "@stale", platform: "tiktok", provider_post_id: "old-post", public_url: "https://www.tiktok.com/@stale/video/old-post", campaign_id: null, attribution_status: "unattributed" }] }));
+  const staleObject = importContentObject(staleFile, { objectDir });
+  fs.writeFileSync(path.join(attributionDir, "lineage.json"), JSON.stringify({ rows: [{ product_id: "anicca-ios", account_id: "@stale", platform: "tiktok", provider_post_id: "old-post", public_url: "https://www.tiktok.com/@stale/video/old-post", campaign_id: null, attribution_status: "unattributed" }], snapshot_ref: staleObject.ref }));
+  addMetricReceipt(dataDir, { productId: "anicca-ios", appId: "6755129214", accountId: "@anicca_new", postId: "123", token: "anicca-ios_youtube_en" });
+
+  const snapshot = await persistAscAcquisition(dataDir, "2026-08-24", async (product) => ({ product_id: product.product_id, source_status: "unavailable" }));
+  const currentLineage = JSON.parse(fs.readFileSync(path.join(attributionDir, "lineage.json"), "utf8"));
+  assert.notEqual(currentLineage.snapshot_ref, staleObject.ref);
+  assert.equal(snapshot.lineage_ref, currentLineage.snapshot_ref);
+  assert.equal(snapshot.rows.length, 1);
+  assert.equal(snapshot.rows[0].account_id, "@anicca_new");
+  assert.equal(snapshot.rows[0].campaign_id, "anicca-ios_youtube_en");
 });

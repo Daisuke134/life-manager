@@ -9,6 +9,7 @@ const { promisify } = require("node:util");
 
 const { importContentObject, resolveContentObject } = require("../lib/content-object-store.js");
 const { resolveDataRoot } = require("../lib/runtime-paths.js");
+const { persistLineage } = require("./marketing-attribution-lineage.js");
 
 const PRODUCTS = Object.freeze([
   Object.freeze({ product_id: "anicca-ios", app_id: "6755129214", app_name: "Daily Affirmations - Anicca", request_id: "04c74879-547f-4e35-b231-1fafd485801d", campaign_token: "anicca-ios_youtube_en", bootstrap_day: "2026-08-23", bootstrap_reports: Object.freeze([
@@ -184,8 +185,7 @@ async function persistAscAcquisition(dataDir = resolveDataRoot(process.env), rep
   const directory = path.join(dataDir, "tenants/dais-local/marketing/attribution/asc", reportDay);
   const pointer = path.join(directory, "acquisition.json");
   if (fs.existsSync(pointer)) return { ...JSON.parse(fs.readFileSync(pointer, "utf8")), created: false, pointer };
-  const lineagePointer = path.join(dataDir, "tenants/dais-local/marketing/attribution/lineage.json");
-  const lineage = JSON.parse(fs.readFileSync(lineagePointer, "utf8"));
+  const lineage = persistLineage({ dataDir });
   resolveContentObject(lineage.snapshot_ref, { objectDir: path.join(dataDir, "objects") });
   const products = await Promise.all(PRODUCTS.map((product) => collector(product, reportDay)));
   const snapshot = { schema_version: 1, kind: "marketing_asc_acquisition", tenant_id: "dais-local", report_day: reportDay, lineage_ref: lineage.snapshot_ref, products, rows: lineage.rows.map((row) => {
