@@ -5,6 +5,8 @@
 **選定:** Writerの一記事・一言語・一媒体の公開前品質評価をPilot Aとする。effect-unknown recoveryはPilot Bとして続ける。Writer quality PASSを売上改善と扱わず、既存recovery-intent/apply-plan testを再利用する。実行順とcursorはcanonical SSOTが所有する。
 **今回の作業境界:** E02 Writer Pilot Aだけを進める。E01 Agent Economyは別cursorであり、このWriter計画の調査・実装対象に含めない。
 
+**実行順の参照:** A8a→A9→A8bの較正後は、canonical SSOTのDD01–DD12共通配信EDDを先に実施してからA10以降へ戻る。Daisの配信優先とCapafy公式funnel readbackに基づく順序変更であり、この参考計画へDD checklistを複製しない。A8a human labelsは0、judge/modelの実baselineは未実行。
+
 **Goal:** Writerの自然traceから観測された失敗を一つ選び、同じ条件のevalで修正前後を測る。task完了・外部effect・費用控除後のsettled net・時間・人の介入を分け、自己修復・自己改善を経て独立再現可能なbenchmark報告へつなぐ。
 
 **Architecture:** Writerの既存gate/run artifact、runtime event、LM-EAB scorer、recoveryのpure-function testを再利用する。A8のhuman-label exportとbinary metricsを接続するjoinerまで実装した結果、残る具体的な欠落は、ラベル済みcaseを既存identity gateへ流すbatch runnerだったため、その薄いadapterだけ追加する。新eval frameworkは持ち込まない。実judgeは20/20の人手ラベルとA9のmodel/runtime/hash/split freezeが揃うまで呼ばない。
