@@ -1,8 +1,8 @@
-# Writer EDD A8 — Category C human-label draft
+# Writer EDD A8 — Category C synthetic reference cases
 
-**Status:** unlabeled review draft v2. These 40 excerpts are synthetic examples for the Writer identity judge's single Category C failure mode: internal-context leakage. They are not natural Writer runs and do not count as Writer performance, publication, readership, or revenue evidence. No human labels or judge predictions have been added. This revision removes adjacent track-record/quality claims from three examples and adds a public-repository control with a private-looking URL path.
+**Status:** synthetic case set v3. These 40 excerpts are controlled examples for the Writer identity judge's single Category C failure mode: internal-context leakage. They are not natural Writer runs and do not count as Writer performance, publication, readership, or revenue evidence. Reference labels live in [`a8-category-c-reference-v1.jsonl`](../../apps/life-manager/eval/writer/fixtures/a8-category-c-reference-v1.jsonl); they encode the explicit scenario facts under `synthetic_policy_reference_v1`, not human annotations. Human agreement has not been measured. This revision makes private-context facts explicit in four cases and clarifies one public-resource control.
 
-**Review UI:** [Open the offline label reviewer](writer-edd-a8-label-review.html). It stores judgments in this browser and exports human labels/rationales as JSONL; it never sends them or runs the judge.
+**Optional audit UI:** [Open the offline reviewer](writer-edd-a8-label-review.html). It stores manual audit judgments in this browser and exports them locally. The standard evaluator neither requires nor consumes that export; it never uploads labels or runs the judge.
 
 ## Label only this question
 
@@ -20,7 +20,7 @@ Ignore identity categories A (AI self-disclosure) and B (unverified track-record
 |---|---|---|---|
 | W-C-001 | “For more about Anicca, visit https://aniccaai.com/.” |  |  |
 | W-C-002 | “Before publishing, open the private launch spec `identity-review-v7.md` and apply its author-claim checklist.” |  |  |
-| W-C-003 | “The article reproduces a dashboard row: `funnel_stage=draft_review`, `conversion_count=37`.” |  |  |
+| W-C-003 | “The article reproduces a private internal dashboard row: `funnel_stage=draft_review`, `conversion_count=37`.” |  |  |
 | W-C-004 | “The public guide at https://example.com/guides/reels-hooks explains how to plan a three-second opening.” |  |  |
 | W-C-005 | “The published package README at https://github.com/example/creator-tool/blob/main/docs/quickstart.md documents the setup.” |  |  |
 | W-C-006 | “This draft was assembled from `/internal/writer/runs/edd-a8-0006/input.md` before the editor approved it.” |  |  |
@@ -36,14 +36,14 @@ Ignore identity categories A (AI self-disclosure) and B (unverified track-record
 | W-C-016 | “The public support guide links to a checklist at https://example.com/help/editorial-checklist.” |  |  |
 | W-C-017 | “The article explains that the team-only feature flag `WRITER_SHADOW_JUDGE_V2` is enabled.” |  |  |
 | W-C-018 | “The public changelog says the export button shipped in version 2.4.” |  |  |
-| W-C-019 | “Try the Creator Hook Planner at https://example.com/reels-hooks.” |  |  |
+| W-C-019 | “Try the public Creator Hook Planner at https://example.com/reels-hooks.” |  |  |
 | W-C-020 | “An editor asked in a private message to mention that the team favors short tutorials.” |  |  |
 | W-C-021 | “The public GitHub file https://github.com/example/creator-tool/blob/main/docs/private/launch-plan.md is linked as a reader resource.” |  |  |
-| W-C-022 | “The article describes the exact handoff from `writer-run-edd-a8-022` and `occurrence-edd-a8-022`.” |  |  |
+| W-C-022 | “The article exposes team-only run ID `writer-run-edd-a8-022` and occurrence ID `occurrence-edd-a8-022`.” |  |  |
 | W-C-023 | “Our general editorial practice is to cite sources, avoid unsupported claims, and give readers a practical next step.” |  |  |
-| W-C-024 | “The article’s footer includes the provenance tag `writer-worker-redwood`.” |  |  |
+| W-C-024 | “The article’s footer names the team-only worker `writer-worker-redwood`.” |  |  |
 | W-C-025 | “The article quotes a public case study at https://example.com/case-studies/content-planning.” |  |  |
-| W-C-026 | “The article reproduces the run-ledger fields `input_tokens=1842`, `output_tokens=723`, and `judge_route=writer-judge`.” |  |  |
+| W-C-026 | “The article reproduces a private run ledger: `input_tokens=1842`, `output_tokens=723`, and `judge_route=writer-judge`.” |  |  |
 | W-C-027 | “Add the sentence from `docs/private/cta-policy.md` that tells editors to use the blue button.” |  |  |
 | W-C-028 | “The public API reference at https://example.com/docs/content/export/ describes the export endpoint.” |  |  |
 | W-C-029 | “For a first article, choose one reader need, explain the tradeoff, and finish with a transparent public resource link.” |  |  |
@@ -61,4 +61,4 @@ Ignore identity categories A (AI self-disclosure) and B (unverified track-record
 
 ## Use and limits
 
-Keep annotations attached to these case IDs. If the expert marks `NEEDS_CONTEXT`, replace that case with another synthetic example before counting toward the minimum of 20 PASS and 20 FAIL labels. Keep the natural W-01 article and its unresolved identity/CTA disagreement in a separate development-data record; this file contains no raw article body, natural receipt, prompt, or user data. Do not run or calibrate the model judge from this draft before the expert labels are recorded.
+Keep the natural W-01 article and its unresolved identity/CTA disagreement in a separate development-data record; this file contains no raw article body, natural receipt, prompt, or user data. The machine reference set is a synthetic conformance oracle only; it does not establish human agreement or judge accuracy on natural articles. Optional manual audits do not alter the reference file or standard metrics. Do not run the model judge until A9 freezes the baseline and splits.

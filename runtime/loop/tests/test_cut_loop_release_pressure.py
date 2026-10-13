@@ -158,11 +158,47 @@ class CutLoopReleasePressureTest(unittest.TestCase):
         )
         return result, loops
 
-    def test_pressure_marker_does_not_block_sparse_release(self) -> None:
-        repo = Path(__file__).resolve().parents[3]
+    def make_sparse_release_repo(self, home: Path) -> Path:
+        source = Path(__file__).resolve().parents[3]
+        repo = home / "repo"
+        repo.mkdir()
+        subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
+        for key, value in (("user.email", "test@example.invalid"), ("user.name", "Test")):
+            subprocess.run(["git", "config", key, value], cwd=repo, check=True)
+        for relative in (
+            "bin/cut-loop-release.sh",
+            "bin/lm-loop-run",
+            "runtime/host/disk_admission.py",
+            "runtime/loop/runtime_event.py",
+            "skills/_shared/browser-state-backup.sh",
+        ):
+            target = repo / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source / relative, target)
+        cleanup = repo / "runtime/loop/central_cleanup.py"
+        cleanup.parent.mkdir(parents=True, exist_ok=True)
+        cleanup.write_text("raise SystemExit(0)\n", encoding="utf-8")
+        subprocess.run(["git", "add", "."], cwd=repo, check=True)
+        subprocess.run(["git", "commit", "-m", "sparse release base"], cwd=repo, check=True, capture_output=True)
+        base = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
+        subprocess.run(["git", "commit", "--allow-empty", "-m", "sparse release PR head"],
+                       cwd=repo, check=True, capture_output=True)
+        head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
+        tree = subprocess.check_output(["git", "rev-parse", f"{head}^{{tree}}"], cwd=repo, text=True).strip()
+        merge = subprocess.check_output(
+            ["git", "commit-tree", tree, "-p", base, "-p", head, "-m", "synthetic PR merge"],
+            cwd=repo, text=True,
+        ).strip()
+        subprocess.run(["git", "update-ref", "refs/remotes/origin/main", base], cwd=repo, check=True)
+        subprocess.run(["git", "update-ref", "refs/remotes/origin/eval/sparse-release", head], cwd=repo, check=True)
+        subprocess.run(["git", "update-ref", "refs/remotes/pull/7931/merge", merge], cwd=repo, check=True)
+        subprocess.run(["git", "checkout", "--detach", merge], cwd=repo, check=True, capture_output=True)
+        return repo
 
+    def test_pressure_marker_does_not_block_sparse_release(self) -> None:
         with tempfile.TemporaryDirectory() as raw_home:
             home = Path(raw_home)
+            repo = self.make_sparse_release_repo(home)
             trace = home / "git.trace"
             result, loops = self.run_cut(
                 repo, home, "runtime/loop/runtime_event.py", LOOPS_ACTIVATE_CURRENT="0", GIT_TRACE=str(trace),
@@ -175,10 +211,9 @@ class CutLoopReleasePressureTest(unittest.TestCase):
             self.assertTrue((releases[0] / "RELEASE.json").is_file())
 
     def test_legacy_archive_size_limit_does_not_block_sparse_release(self) -> None:
-        repo = Path(__file__).resolve().parents[3]
-
         with tempfile.TemporaryDirectory() as raw_home:
             home = Path(raw_home)
+            repo = self.make_sparse_release_repo(home)
             result, loops = self.run_cut(
                 repo, home, "runtime/loop/runtime_event.py", LOOPS_ACTIVATE_CURRENT="0",
                 LOOPS_PRESSURE_MAX_ARCHIVE_BYTES="1",
@@ -335,14 +370,19 @@ class CutLoopReleasePressureTest(unittest.TestCase):
             self.assertEqual(json.loads((release / "RELEASE.json").read_text())["release_paths"], "ALL")
 
     def test_sparse_release_keeps_required_bin_closure_with_tabs(self) -> None:
-        repo = Path(__file__).resolve().parents[3]
         with tempfile.TemporaryDirectory() as raw_home:
+            home = Path(raw_home)
+            repo = self.make_sparse_release_repo(home)
             result, loops = self.run_cut(
-                repo, Path(raw_home), "bin\truntime/loop/runtime_event.py",
+                repo, home, "bin\truntime/loop/runtime_event.py",
                 LOOPS_ACTIVATE_CURRENT="0",
             )
             self.assertEqual(result.returncode, 0, result.stderr)
             release, = (loops / "releases").iterdir()
+            manifest = json.loads((release / "RELEASE.json").read_text())
+            expected_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
+            self.assertEqual(manifest["sha"], expected_sha)
+            self.assertEqual(manifest["provenance"], "pushed-not-yet-on-main")
             self.assertTrue((release / "bin/lm-loop-run").is_file())
             self.assertTrue((release / "skills/_shared/browser-state-backup.sh").is_file())
 

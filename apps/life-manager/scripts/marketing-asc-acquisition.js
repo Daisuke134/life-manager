@@ -188,7 +188,11 @@ async function persistAscAcquisition(dataDir = resolveDataRoot(process.env), rep
   const lineage = JSON.parse(fs.readFileSync(lineagePointer, "utf8"));
   resolveContentObject(lineage.snapshot_ref, { objectDir: path.join(dataDir, "objects") });
   const products = await Promise.all(PRODUCTS.map((product) => collector(product, reportDay)));
-  const snapshot = { schema_version: 1, kind: "marketing_asc_acquisition", tenant_id: "dais-local", report_day: reportDay, lineage_ref: lineage.snapshot_ref, products, rows: lineage.rows.map((row) => ({ product_id: row.product_id, account_id: row.account_id, platform: row.platform, provider_post_id: row.provider_post_id, public_url: row.public_url, campaign_id: row.campaign_id, acquisition_status: row.campaign_id ? "partial" : "unattributed", acquisition_reason: row.campaign_id ? "campaign_link_configured_no_product_readback" : "campaign_not_configured", product_observation_status: products.find((product) => product.product_id === row.product_id).source_status })) };
+  const snapshot = { schema_version: 1, kind: "marketing_asc_acquisition", tenant_id: "dais-local", report_day: reportDay, lineage_ref: lineage.snapshot_ref, products, rows: lineage.rows.map((row) => {
+    const acquisitionStatus = row.attribution_status === "unprovable" ? "unprovable" : row.campaign_id ? "partial" : "unattributed";
+    const acquisitionReason = row.attribution_reason || (row.campaign_id ? "campaign_link_configured_no_product_readback" : "campaign_not_configured");
+    return { product_id: row.product_id, account_id: row.account_id, platform: row.platform, provider_post_id: row.provider_post_id, public_url: row.public_url, campaign_id: row.campaign_id, acquisition_status: acquisitionStatus, acquisition_reason: acquisitionReason, product_observation_status: products.find((product) => product.product_id === row.product_id).source_status };
+  }) };
   fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
   const candidate = path.join(directory, `.candidate-${process.pid}.json`);
   fs.writeFileSync(candidate, `${JSON.stringify(snapshot, null, 2)}\n`, { mode: 0o600 });
