@@ -262,6 +262,49 @@ def test_dashboard_absent_after_window_resolves_no_effect():
         tmp.cleanup()
 
 
+def test_partial_dashboard_cannot_prove_candidate_absent_after_window(tmp_path):
+    ledger_path = tmp_path / "ledger.jsonl"
+    ledger_mod.append(
+        {"slug": "existing", "promptbase_id": "1", "url": "", "title": "Existing Prompt",
+         "status": "live", "submitted_at": "2026-09-20T04:00:00Z"},
+        ledger_path,
+    )
+    resolved = []
+    partial_dashboard = """Dashboard
+Prompts
+Status
+Approved
+Pending
+Scheduled
+Draft
+Declined
+Archived
+Disputed
+Newest
+Most Popular
+Trending
+\\U0001f300 Claude
+Approved
+Unrelated Listing"""
+
+    result = reconciler.reconcile(
+        OCCURRENCE,
+        fenced_row_fn=_fenced_row_fn(),
+        load_snapshot_fn=lambda occurrence: _snapshot(),
+        read_dashboard_fn=lambda: {"ok": True, "text": partial_dashboard},
+        resolve_unknown_fn=lambda *args, **kwargs: resolved.append("unknown") or True,
+        resolve_pre_effect_fn=lambda *args, **kwargs: resolved.append("pre_effect") or True,
+        ledger_path=ledger_path,
+        evidence_dir=tmp_path / "evidence",
+        now=QUEUED_AT + dt.timedelta(seconds=reconciler.NO_EFFECT_MIN_AGE_SECONDS + 1),
+        resolve=True,
+    )
+
+    assert result["verified"] is False
+    assert result["reason"] == "promptbase_dashboard_incomplete"
+    assert resolved == []
+
+
 def test_dashboard_read_uses_dedicated_promptbase_identity(tmp_path, monkeypatch):
     call_log = tmp_path / "guard-calls.log"
     monkeypatch.setenv("GUARD_CALL_LOG", str(call_log))

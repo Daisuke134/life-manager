@@ -16,7 +16,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
+import tempfile
 import time
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
@@ -27,6 +29,8 @@ import ledger as ledger_mod  # noqa: E402
 PROMPTS_URL = "https://promptbase.com/account?view=prompts"
 SALES_URL = "https://promptbase.com/account?view=sales"
 SUMMARY_PATH = Path.home() / ".local/state/life-manager/state/promptbase-sales.json"
+PROMPTS_READY_TIMEOUT_MS = 10_000
+_DASHBOARD_SORT_OPTIONS = {"Newest", "Most Popular", "Trending"}
 
 _STATUSES = {
     "Approved",
@@ -58,7 +62,9 @@ def parse_dashboard_cards(text: str) -> list[tuple[str, str]]:
     cards: list[tuple[str, str]] = []
     i = 0
     while i < len(lines):
-        if lines[i] in _STATUSES and i + 1 < len(lines) and lines[i + 1] not in _STATUSES:
+        if (lines[i] in _STATUSES and i + 1 < len(lines)
+                and lines[i + 1] not in _STATUSES
+                and lines[i + 1] not in _DASHBOARD_SORT_OPTIONS):
             cards.append((lines[i], lines[i + 1]))
             i += 2
         else:
@@ -170,6 +176,60 @@ def status_for_title(text: str, title: str) -> str | None:
     return _STATUS_MAP.get(best, best.lower())
 
 
+def prompts_dashboard_contains_titles(text: str, titles: list[str]) -> bool:
+    return all(status_for_title(text, title) is not None for title in titles)
+
+
+def wait_for_prompt_dashboard(page, expected_titles: list[str], *, timeout_ms: int = PROMPTS_READY_TIMEOUT_MS) -> str:
+    """Wait for the rendered seller cards, not the static filter/sort controls."""
+    deadline = time.monotonic() + max(0, timeout_ms) / 1000
+    while True:
+        text = page.inner_text("body")
+        if (not account_view_is_official(page.url, "prompts")
+                or any(marker in text.casefold() for marker in _UNVERIFIED_PAGE_MARKERS)):
+            raise RuntimeError("promptbase_prompts_readback_unverified")
+        if prompts_dashboard_is_official(page.url, text) and prompts_dashboard_contains_titles(
+            text, expected_titles,
+        ):
+            return text
+        if time.monotonic() >= deadline:
+            raise RuntimeError("promptbase_prompts_readback_incomplete")
+        page.wait_for_timeout(250)
+
+
+def _read_sales_page(page) -> dict:
+    sales_response = page.goto(SALES_URL, wait_until="domcontentloaded", timeout=20000)
+    page.wait_for_timeout(3000)
+    sales_text = page.inner_text("body")
+    if (sales_response is None or sales_response.status != 200
+            or not sales_dashboard_is_official(page.url, sales_text)):
+        raise RuntimeError("promptbase_sales_readback_unverified")
+    return parse_sales(sales_text)
+
+
+def _write_sales_summary(sales: dict, checked_at: str | None = None) -> str:
+    checked_at = checked_at or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    SUMMARY_PATH.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{SUMMARY_PATH.name}.", suffix=".tmp", dir=SUMMARY_PATH.parent,
+    )
+    temporary_path = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            json.dump(
+                {"observed_at": checked_at, "source": SALES_URL, **sales},
+                handle,
+                indent=2,
+            )
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary_path, SUMMARY_PATH)
+    finally:
+        temporary_path.unlink(missing_ok=True)
+    return checked_at
+
+
 def run(endpoint: str) -> dict:
     from playwright.sync_api import sync_playwright
 
@@ -177,6 +237,7 @@ def run(endpoint: str) -> dict:
     if not rows:
         return {"ok": True, "checked": 0, "updates": []}
 
+    expected_titles = [row["title"] for row in rows.values() if row.get("title")]
     updates = []
     with sync_playwright() as p:
         browser = p.chromium.connect_over_cdp(endpoint)
@@ -184,18 +245,10 @@ def run(endpoint: str) -> dict:
         page = ctx.new_page()
         try:
             prompts_response = page.goto(PROMPTS_URL, wait_until="domcontentloaded", timeout=20000)
-            page.wait_for_timeout(2000)
-            text = page.inner_text("body")
-            if (prompts_response is None or prompts_response.status != 200
-                    or not prompts_dashboard_is_official(page.url, text)):
+            if prompts_response is None or prompts_response.status != 200:
                 raise RuntimeError("promptbase_prompts_readback_unverified")
-            sales_response = page.goto(SALES_URL, wait_until="domcontentloaded", timeout=20000)
-            page.wait_for_timeout(3000)
-            sales_text = page.inner_text("body")
-            if (sales_response is None or sales_response.status != 200
-                    or not sales_dashboard_is_official(page.url, sales_text)):
-                raise RuntimeError("promptbase_sales_readback_unverified")
-            sales = parse_sales(sales_text)
+            text = wait_for_prompt_dashboard(page, expected_titles)
+            sales = _read_sales_page(page)
         finally:
             page.close()
 
@@ -211,16 +264,32 @@ def run(endpoint: str) -> dict:
         ledger_mod.update_status(slug, status=new_status, checked_at=checked_at, sales=item_sales)
         updates.append({"slug": slug, "old_status": row.get("status"), "new_status": new_status})
 
-    SUMMARY_PATH.parent.mkdir(parents=True, exist_ok=True)
-    SUMMARY_PATH.write_text(json.dumps({"observed_at": checked_at, "source": SALES_URL, **sales}, indent=2) + "\n")
+    _write_sales_summary(sales, checked_at)
     return {"ok": True, "checked": len(rows), "updates": updates, "sales": sales}
+
+
+def run_sales_only(endpoint: str) -> dict:
+    """Refresh only PromptBase's official Sales page and private sales summary."""
+    from playwright.sync_api import sync_playwright
+
+    with sync_playwright() as p:
+        browser = p.chromium.connect_over_cdp(endpoint)
+        ctx = browser.contexts[0]
+        page = ctx.new_page()
+        try:
+            sales = _read_sales_page(page)
+        finally:
+            page.close()
+    checked_at = _write_sales_summary(sales)
+    return {"ok": True, "observed_at": checked_at, "sales": sales}
 
 
 def _main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--endpoint", required=True)
+    parser.add_argument("--sales-only", action="store_true")
     args = parser.parse_args()
-    result = run(args.endpoint)
+    result = run_sales_only(args.endpoint) if args.sales_only else run(args.endpoint)
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
 

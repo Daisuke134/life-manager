@@ -5,9 +5,12 @@ import json
 import os
 import stat
 import subprocess
+import sys
 import tempfile
 import unittest
+from contextlib import nullcontext
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 
@@ -311,7 +314,8 @@ class CdpPersistentContextPreflightTests(unittest.TestCase):
     def test_shell_preflight_precedes_profile_and_launch_side_effects(self) -> None:
         text = ENSURE.read_text(encoding="utf-8")
         launch = text.split("launch() {", 1)[1].split("\n}", 1)[0]
-        preflight = launch.index('--port 0 --preflight-only')
+        preflight = launch.index("--preflight-only")
+        self.assertLess(launch.index('--port 0'), preflight)
         for effect in (
             'mkdir -p "$profile"',
             "clear_stale_singletons",
@@ -320,7 +324,8 @@ class CdpPersistentContextPreflightTests(unittest.TestCase):
             '"$LAUNCHCTL_SAFE" submit',
         ):
             self.assertLess(preflight, launch.index(effect))
-        self.assertIn('"$CLOAK_PY" "$KEEPALIVE" --profile "$profile" --port 0 --preflight-only', launch)
+        self.assertIn('"$CLOAK_PY" "$KEEPALIVE" --profile "$profile" --port 0', launch)
+        self.assertIn('owner_args=(--owner-id "$owner_id")', text)
 
     def test_launcher_uses_guarded_launchctl_control_plane(self) -> None:
         text = ENSURE.read_text(encoding="utf-8")
@@ -391,6 +396,151 @@ class CdpPersistentContextPreflightTests(unittest.TestCase):
             self.assertEqual(calls.read_text(encoding="utf-8").splitlines(), ["remove", "submit"])
             self.assertEqual(guard_calls.read_text(encoding="utf-8").splitlines(), ["status"])
 
+    def test_launcher_passes_registered_loop_owner_to_persistent_context(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            home = root / "home"
+            profile = home / ".local/state/anicca/promptbase/browser-profile"
+            registry = root / "browsers.toml"
+            registry.write_text(
+                f'[[identity]]\nid = "promptbase:dais"\nprofile = "{profile}"\n'
+                'owner = "promptbase-loop-daily"\n',
+                encoding="utf-8",
+            )
+            calls = root / "launchctl.calls"
+            guard = root / "browser-guard.sh"
+            guard.write_text(
+                "#!/bin/sh\n"
+                '[ "$1" = status ] && printf \'%s\\n\' '
+                "'{\"identities\":[{\"reachable\":false}]}\'\n"
+                "exit 0\n",
+                encoding="utf-8",
+            )
+            runtime = root / "python"
+            runtime.write_text(
+                "#!/bin/sh\n"
+                "for arg in \"$@\"; do [ \"$arg\" = --preflight-only ] && exit 0; done\n"
+                "exit 0\n",
+                encoding="utf-8",
+            )
+            launchctl_safe = root / "launchctl-safe"
+            launchctl_safe.write_text(
+                "#!/bin/sh\n"
+                f"printf '%s\\n' \"$*\" >> {calls}\n"
+                "exit 0\n",
+                encoding="utf-8",
+            )
+            for executable in (guard, runtime, launchctl_safe):
+                executable.chmod(0o755)
+
+            completed = subprocess.run(
+                ["bash", str(ENSURE), "promptbase:dais"],
+                env={**os.environ, "HOME": str(home), "AI_BROWSER_GUARD": str(guard),
+                     "AI_BROWSER_REGISTRY": str(registry), "CLOAK_PYTHON": str(runtime),
+                     "LIFE_MANAGER_LAUNCHCTL_SAFE": str(launchctl_safe),
+                     "PROVISION_BROWSER_WAIT": "0"},
+                capture_output=True, text=True, check=False, timeout=15,
+            )
+
+            self.assertEqual(completed.returncode, 1, completed.stderr)
+            submitted = next(line for line in calls.read_text().splitlines() if line.startswith("submit "))
+            self.assertIn("--owner-id promptbase-loop-daily", submitted)
+
+    def test_memory_preflight_defer_does_not_touch_profile_or_launchctl(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            home = root / "home"
+            profile = home / ".cloak/profiles/test"
+            registry = root / "browsers.toml"
+            registry.write_text(
+                f'[[identity]]\nid = "test:browser"\nprofile = "{profile}"\n',
+                encoding="utf-8",
+            )
+            calls = root / "launchctl.calls"
+            guard = root / "browser-guard.sh"
+            guard.write_text(
+                "#!/bin/sh\n"
+                '[ "$1" = status ] && printf \'%s\\n\' '
+                "'{\"identities\":[{\"reachable\":false}]}\'\n"
+                "exit 0\n",
+                encoding="utf-8",
+            )
+            runtime = root / "python"
+            runtime.write_text(
+                "#!/bin/sh\n"
+                "for arg in \"$@\"; do [ \"$arg\" = --preflight-only ] && exit 75; done\n"
+                "exit 0\n",
+                encoding="utf-8",
+            )
+            launchctl_safe = root / "launchctl-safe"
+            launchctl_safe.write_text(
+                "#!/bin/sh\n"
+                f"printf '%s\\n' \"$*\" >> {calls}\n"
+                "exit 0\n",
+                encoding="utf-8",
+            )
+            for executable in (guard, runtime, launchctl_safe):
+                executable.chmod(0o755)
+
+            completed = subprocess.run(
+                ["bash", str(ENSURE), "test:browser"],
+                env={**os.environ, "HOME": str(home), "AI_BROWSER_GUARD": str(guard),
+                     "AI_BROWSER_REGISTRY": str(registry), "CLOAK_PYTHON": str(runtime),
+                     "LIFE_MANAGER_LAUNCHCTL_SAFE": str(launchctl_safe)},
+                capture_output=True, text=True, check=False, timeout=15,
+            )
+
+            self.assertEqual(completed.returncode, 75, completed.stderr)
+            self.assertFalse(profile.exists())
+            self.assertFalse(calls.exists())
+
+    def test_declared_loop_owner_fails_closed_when_loop_registry_is_invalid(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            home = root / "home"
+            profile = home / ".local/state/anicca/promptbase/browser-profile"
+            registry = root / "browsers.toml"
+            registry.write_text(
+                f'[[identity]]\nid = "promptbase:dais"\nprofile = "{profile}"\n'
+                'owner = "promptbase-loop-daily"\n',
+                encoding="utf-8",
+            )
+            calls = root / "launchctl.calls"
+            guard = root / "browser-guard.sh"
+            guard.write_text(
+                "#!/bin/sh\n"
+                '[ "$1" = status ] && printf \'%s\\n\' '
+                "'{\"identities\":[{\"reachable\":false}]}\'\n"
+                "exit 0\n",
+                encoding="utf-8",
+            )
+            runtime = root / "python"
+            runtime.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            launchctl_safe = root / "launchctl-safe"
+            launchctl_safe.write_text(
+                "#!/bin/sh\n"
+                f"printf '%s\\n' \"$*\" >> {calls}\n"
+                "exit 0\n",
+                encoding="utf-8",
+            )
+            for executable in (guard, runtime, launchctl_safe):
+                executable.chmod(0o755)
+
+            completed = subprocess.run(
+                ["bash", str(ENSURE), "promptbase:dais"],
+                env={**os.environ, "HOME": str(home), "AI_BROWSER_GUARD": str(guard),
+                     "AI_BROWSER_REGISTRY": str(registry), "CLOAK_PYTHON": str(runtime),
+                     "LIFE_MANAGER_LOOP_REGISTRY": str(root / "missing-loop-registry.json"),
+                     "LIFE_MANAGER_LAUNCHCTL_SAFE": str(launchctl_safe),
+                     "PROVISION_BROWSER_WAIT": "0"},
+                capture_output=True, text=True, check=False, timeout=15,
+            )
+
+            self.assertEqual(completed.returncode, 1)
+            self.assertIn("owner", completed.stderr.casefold())
+            self.assertFalse(profile.exists())
+            self.assertFalse(calls.exists())
+
     def test_missing_symlink_or_unreadable_guard_has_no_cloak_import(self) -> None:
         for kind in ("missing", "symlink", "unreadable"):
             with self.subTest(kind=kind), tempfile.TemporaryDirectory() as temporary:
@@ -419,6 +569,73 @@ class CdpPersistentContextPreflightTests(unittest.TestCase):
                       patch("builtins.__import__", side_effect=self.reject_browser_import())):
                     self.assertEqual(MODULE.main(["--profile", str(root / "profile"), "--port", port]), 1)
                 self.assertFalse((root / "profile").exists())
+
+    def test_memory_preflight_defers_before_persistent_browser_launch(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            profile = Path(temporary) / "profile"
+            with (patch.object(MODULE, "_disk_preflight", return_value=True),
+                  patch.object(MODULE, "memory_free_percent", return_value=10, create=True),
+                  patch("builtins.__import__", side_effect=self.reject_browser_import())):
+                result = MODULE.main([
+                    "--profile", str(profile), "--port", "0", "--owner-id",
+                    "promptbase-loop-daily", "--preflight-only",
+                ])
+            self.assertEqual(result, 75)
+            self.assertFalse(profile.exists())
+
+    def test_registered_owner_runs_under_bounded_launchd_output(self) -> None:
+        state = {"inside": False, "exited": False, "browser_closed": False}
+
+        class BoundedOutput:
+            def __enter__(self):
+                state["inside"] = True
+
+            def __exit__(self, *_args):
+                state["inside"] = False
+                state["exited"] = True
+
+        class BrowserContext:
+            def close(self):
+                state["browser_closed"] = True
+
+        browser_context = BrowserContext()
+
+        def launch_persistent_context(*_args, **_kwargs):
+            if not state["inside"]:
+                raise AssertionError("browser launch escaped bounded output")
+            return browser_context
+
+        with (
+            patch.object(MODULE, "_disk_preflight", return_value=True),
+            patch.object(MODULE, "memory_free_percent", return_value=48, create=True),
+            patch.object(MODULE, "_owner_output_context", return_value=BoundedOutput(), create=True),
+            patch.object(MODULE.signal, "signal", side_effect=lambda _sig, handler: handler(None, None)),
+            patch.dict(sys.modules, {"cloakbrowser": SimpleNamespace(
+                launch_persistent_context=launch_persistent_context,
+            )}),
+        ):
+            result = MODULE.main([
+                "--profile", "/private/promptbase-profile", "--port", "0",
+                "--owner-id", "promptbase-loop-daily",
+            ])
+
+        self.assertEqual(result, 0)
+        self.assertTrue(state["exited"])
+        self.assertTrue(state["browser_closed"])
+
+    def test_owner_output_context_uses_registered_storage_policy(self) -> None:
+        with patch.object(
+            MODULE, "bounded_launchd_output", return_value=nullcontext(), create=True,
+        ) as bounded:
+            with MODULE._owner_output_context("promptbase-loop-daily"):
+                pass
+
+        log_root, policy = bounded.call_args.args
+        self.assertEqual(
+            log_root,
+            Path("~/.local/state/life-manager/logs").expanduser(),
+        )
+        self.assertEqual(policy.owner_id, "promptbase-loop-daily")
 
 if __name__ == "__main__":
     unittest.main()

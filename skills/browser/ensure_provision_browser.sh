@@ -26,6 +26,7 @@ IDENTITY="${1:?identity is required (see ~/.config/ai/registry/browsers.toml)}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GUARD="${AI_BROWSER_GUARD:-$HERE/browser-guard.sh}"
 REGISTRY="${AI_BROWSER_REGISTRY:-$HOME/.config/ai/registry/browsers.toml}"
+LOOP_REGISTRY="${LIFE_MANAGER_LOOP_REGISTRY:-$HERE/../../config/loop-registry.json}"
 KEEPALIVE="$HERE/cdp_persistent_context.py"
 LAUNCHCTL_SAFE="${LIFE_MANAGER_LAUNCHCTL_SAFE:-$HERE/../../bin/launchctl-safe}"
 CLOAK_PY="${CLOAK_PYTHON:-${LIFE_MANAGER_PYTHON:-$HOME/.local/share/life-manager/venv/bin/python}}"
@@ -67,6 +68,35 @@ for block in text.split("[[identity]]")[1:]:
 PYEOF
 )"
 [ -n "$profile" ] || fail "identity '$IDENTITY' is not in $REGISTRY — add an [[identity]] block first"
+# A registered loop owner can use the same storage-policy and bounded-output
+# contract as its loop. Non-loop/external browser identities remain unchanged.
+owner_id="$("$PY" - "$REGISTRY" "$IDENTITY" "$LOOP_REGISTRY" <<'PYEOF'
+import json, os, re, sys
+registry, want, loop_registry = sys.argv[1:]
+try:
+    text = open(os.path.expanduser(registry), encoding="utf-8").read()
+except OSError:
+    raise SystemExit(1)
+for block in text.split("[[identity]]")[1:]:
+    ident = re.search(r'^id\s*=\s*"([^"]*)"', block, re.M)
+    owner = re.search(r'^owner\s*=\s*"([^"]*)"', block, re.M)
+    if ident and ident.group(1) == want:
+        if not owner:
+            raise SystemExit(0)
+        try:
+            loop_rows = json.load(open(loop_registry, encoding="utf-8")).get("loops")
+        except (OSError, ValueError, AttributeError):
+            raise SystemExit(2)
+        if not isinstance(loop_rows, dict):
+            raise SystemExit(2)
+        if owner.group(1) in loop_rows:
+            print(owner.group(1))
+        raise SystemExit(0)
+raise SystemExit(1)
+PYEOF
+)" || fail "could not resolve browser owner from $REGISTRY and $LOOP_REGISTRY"
+owner_args=()
+[ -n "$owner_id" ] && owner_args=(--owner-id "$owner_id")
 # Optional unpacked extensions for this identity: extensions = ["~/path/a", "~/path/b"]
 extension_args=()
 while IFS= read -r ext; do
@@ -126,10 +156,17 @@ clear_stale_singletons() {
 }
 
 launch() {
-  if ! "$CLOAK_PY" "$KEEPALIVE" --profile "$profile" --port 0 --preflight-only >>"$LOG" 2>&1; then
+  "$CLOAK_PY" "$KEEPALIVE" --profile "$profile" --port 0 \
+    ${owner_args[@]+"${owner_args[@]}"} --preflight-only >>"$LOG" 2>&1
+  preflight_rc=$?
+  [ "$preflight_rc" -eq 75 ] && {
+    log "memory admission deferred browser launch before touching profile $profile"
+    return 75
+  }
+  [ "$preflight_rc" -eq 0 ] || {
     log "disk preflight failed before touching provisioning profile $profile"
     return 1
-  fi
+  }
   mkdir -p "$profile" 2>/dev/null || true
   clear_stale_singletons
   "$LAUNCHCTL_SAFE" remove "$LABEL" 2>/dev/null
@@ -139,7 +176,8 @@ launch() {
   # --port 0 = let the kernel hand us a genuinely free port; Chromium writes the real one into
   # DevToolsActivePort, which the guard reads. This is why no port is ever hardcoded again.
   "$LAUNCHCTL_SAFE" submit -l "$LABEL" -o "$LOG" -e "$LOG" -- \
-    "$CLOAK_PY" "$KEEPALIVE" --profile "$profile" --port 0 ${extension_args[@]+"${extension_args[@]}"}
+    "$CLOAK_PY" "$KEEPALIVE" --profile "$profile" --port 0 \
+    ${owner_args[@]+"${owner_args[@]}"} ${extension_args[@]+"${extension_args[@]}"}
   submit_rc=$?
   [ "$submit_rc" -eq 0 ] || return "$submit_rc"
   log "submitted persistent-context owner label=$LABEL profile=$profile port=dynamic"

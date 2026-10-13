@@ -9,6 +9,7 @@
     "ai.anicca.provision-browser.buyma.na-l5-client",
     "ai.anicca.provision-browser.colors-hachioji.owner-18211957",
     "ai.anicca.provision-browser.instagram.capafy-provision",
+    "ai.anicca.provision-browser.promptbase.dais",
     "ai.anicca.provision-browser.tiktok-anicca-jp",
     "ai.anicca.provision-browser.upwork.dais",
     "ai.anicca.provision-browser.x.anicca",
@@ -3873,6 +3874,32 @@
         "resolve_flag": "--resolve",
         "timeout_seconds": 120
       }
+    },
+    "promptbase-sales-readback-hourly": {
+      "priority": "support",
+      "resource_class": "browser",
+      "admission_class": "borrow",
+      "coalesce_reserved_wakes": true,
+      "coalesce_queued_wakes": true,
+      "cadence": {
+        "calendar_interval": {
+          "Minute": 37
+        }
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "domain": "earn",
+      "effect_class": "none",
+      "entrypoint": "skills/earn/promptbase/hourly_readback.sh",
+      "browser_identity": "promptbase:dais",
+      "browser_target_owner": "promptbase-loop-daily",
+      "label": "ai.anicca.promptbase-sales-readback-hourly",
+      "log_root": "~/.local/state/life-manager/logs",
+      "provider_route": "deterministic",
+      "runtime_timeout_seconds": 120,
+      "state_root": "~/.local/state/life-manager"
     },
     "realtime-guide": {
       "cadence": {

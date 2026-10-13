@@ -419,11 +419,18 @@ def read_dashboard_text(
             page = ctx.new_page()
             try:
                 response = page.goto(readback_mod.PROMPTS_URL, wait_until="domcontentloaded", timeout=20000)
-                page.wait_for_timeout(2000)
-                text = page.inner_text("body")
-                if (response is None or response.status != 200
-                        or not readback_mod.prompts_dashboard_is_official(page.url, text)):
+                if response is None or response.status != 200:
                     return {"ok": False, "reason": "promptbase_dashboard_readback_unverified"}
+                expected_titles = [
+                    row["title"] for row in ledger_mod.latest_by_slug().values() if row.get("title")
+                ]
+                try:
+                    text = readback_mod.wait_for_prompt_dashboard(page, expected_titles)
+                except RuntimeError as exc:
+                    reason = str(exc)
+                    if reason == "promptbase_prompts_readback_unverified":
+                        reason = "promptbase_dashboard_readback_unverified"
+                    return {"ok": False, "reason": reason}
             finally:
                 page.close()
         return {"ok": True, "url": page.url, "text": text}
@@ -545,6 +552,15 @@ def reconcile(
         return {
             "owner_id": OWNER_ID, "occurrence_id": occurrence_id, "verified": False,
             "reason": str(dashboard.get("reason") or "dashboard_read_failed"),
+            "error_class": "provider_read_failed", "admission_state": state,
+        }
+    expected_titles = [
+        row["title"] for row in ledger_mod.latest_by_slug(ledger_path).values() if row.get("title")
+    ]
+    if not readback_mod.prompts_dashboard_contains_titles(dashboard["text"], expected_titles):
+        return {
+            "owner_id": OWNER_ID, "occurrence_id": occurrence_id, "verified": False,
+            "reason": "promptbase_dashboard_incomplete",
             "error_class": "provider_read_failed", "admission_state": state,
         }
 

@@ -1487,6 +1487,16 @@ class MacosLoopRegistryTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "overlap"):
             validate_registry(value)
 
+    def test_promptbase_provision_browser_is_registered_as_external(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        label = "ai.anicca.provision-browser.promptbase.dais"
+        self.assertIn(label, registry["external_labels"])
+        self.assertNotIn(label, {row["label"] for row in registry["loops"].values()})
+        self.assertEqual(
+            registry["loops"]["promptbase-loop-daily"]["browser_identity"],
+            "promptbase:dais",
+        )
+
     def test_upwork_provision_browser_is_owned_by_the_external_browser_registry(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         label = "ai.anicca.provision-browser.upwork.dais"

@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 """Tests for the pure dashboard-text parser in readback.py (no browser)."""
+import json
+import os
+import stat
 import sys
 import unittest
 from pathlib import Path
@@ -91,6 +94,54 @@ class ParseDashboardCardsTest(unittest.TestCase):
     def test_empty_text_yields_no_cards(self):
         self.assertEqual(parse_dashboard_cards(""), [])
 
+    def test_status_filters_and_sort_options_are_not_prompt_cards(self):
+        filter_only = """Dashboard
+Prompts
+Status
+Approved
+Pending
+Scheduled
+Draft
+Declined
+Archived
+Disputed
+Newest
+Most Popular
+Trending"""
+
+        self.assertEqual(parse_dashboard_cards(filter_only), [])
+        self.assertFalse(readback.prompts_dashboard_is_official(readback.PROMPTS_URL, filter_only))
+
+    def test_dashboard_must_contain_each_tracked_title(self):
+        self.assertTrue(readback.prompts_dashboard_contains_titles(
+            REAL_DASHBOARD_TEXT,
+            ["Hook Lab Win The First 3 Seconds", "Reels Hook Lab — Win the Cover Frame"],
+        ))
+        self.assertFalse(readback.prompts_dashboard_contains_titles(
+            REAL_DASHBOARD_TEXT,
+            ["Hook Lab Win The First 3 Seconds", "New Listing Not Loaded Yet"],
+        ))
+
+    def test_waits_through_transient_login_shell_until_cards_render(self):
+        class FakePage:
+            url = readback.PROMPTS_URL
+            bodies = ["Dashboard\nPrompts\nLogin", REAL_DASHBOARD_TEXT]
+            waits = 0
+
+            def inner_text(self, _selector):
+                return self.bodies.pop(0) if len(self.bodies) > 1 else self.bodies[0]
+
+            def wait_for_timeout(self, _milliseconds):
+                self.waits += 1
+
+        page = FakePage()
+        result = readback.wait_for_prompt_dashboard(
+            page, ["Hook Lab Win The First 3 Seconds"], timeout_ms=1000,
+        )
+
+        self.assertEqual(result, REAL_DASHBOARD_TEXT)
+        self.assertEqual(page.waits, 1)
+
 
 class ParseSalesTest(unittest.TestCase):
     def test_unrecognized_login_page_is_not_zero_sales(self):
@@ -168,7 +219,7 @@ def test_run_does_not_write_zero_for_unverified_sales_page(
     import playwright.sync_api
     monkeypatch.setattr(playwright.sync_api, "sync_playwright", lambda: FakeManager())
     monkeypatch.setattr(readback.ledger_mod, "latest_by_slug", lambda: {
-        "hook-lab": {"title": "Hook Lab", "status": "live", "sales_usd": 0.0},
+        "hook-lab": {"title": "Hook Lab Win The First 3 Seconds", "status": "live", "sales_usd": 0.0},
     })
     summary = tmp_path / "promptbase-sales.json"
     monkeypatch.setattr(readback, "SUMMARY_PATH", summary)
@@ -177,6 +228,159 @@ def test_run_does_not_write_zero_for_unverified_sales_page(
         readback.run("http://127.0.0.1:9222")
 
     assert not summary.exists()
+
+
+def test_run_rejects_a_partial_prompts_dashboard_before_writing_sales(tmp_path, monkeypatch):
+    class FakeResponse:
+        status = 200
+
+    class FakePage:
+        url = "about:blank"
+        body = ""
+
+        def goto(self, url, **kwargs):
+            self.url = url
+            if url == readback.PROMPTS_URL:
+                self.body = """PromptBase
+Dashboard
+Prompts
+Status
+Approved
+Pending
+Scheduled
+Draft
+Declined
+Archived
+Disputed
+Newest
+Most Popular
+Trending
+\\U0001f300 Claude
+Approved
+Unrelated Listing"""
+            else:
+                self.body = "Dashboard\nSales\nNo sales yet"
+            return FakeResponse()
+
+        def wait_for_timeout(self, _milliseconds):
+            pass
+
+        def inner_text(self, _selector):
+            return self.body
+
+        def close(self):
+            pass
+
+    page = FakePage()
+    browser = SimpleNamespace(contexts=[SimpleNamespace(new_page=lambda: page)])
+    fake_playwright = SimpleNamespace(
+        chromium=SimpleNamespace(connect_over_cdp=lambda _endpoint: browser),
+    )
+
+    class FakeManager:
+        def __enter__(self):
+            return fake_playwright
+
+        def __exit__(self, *_args):
+            return False
+
+    import playwright.sync_api
+    monkeypatch.setattr(playwright.sync_api, "sync_playwright", lambda: FakeManager())
+    monkeypatch.setattr(readback, "PROMPTS_READY_TIMEOUT_MS", 0, raising=False)
+    monkeypatch.setattr(readback.ledger_mod, "latest_by_slug", lambda: {
+        "hook-lab": {"title": "Hook Lab Win The First 3 Seconds", "status": "live"},
+        "new-listing": {"title": "New Listing Not Loaded Yet", "status": "pending_review"},
+    })
+    summary = tmp_path / "promptbase-sales.json"
+    monkeypatch.setattr(readback, "SUMMARY_PATH", summary)
+
+    with pytest.raises(RuntimeError, match="promptbase_prompts_readback_incomplete"):
+        readback.run("http://127.0.0.1:9222")
+
+    assert not summary.exists()
+
+
+def test_sales_only_readback_does_not_depend_on_prompts_page(tmp_path, monkeypatch):
+    class FakeResponse:
+        status = 200
+
+    class FakePage:
+        url = "about:blank"
+        visited = []
+
+        def goto(self, url, **_kwargs):
+            self.visited.append(url)
+            self.url = url
+            return FakeResponse()
+
+        def wait_for_timeout(self, _milliseconds):
+            pass
+
+        def inner_text(self, _selector):
+            return "Dashboard\nSales\nNo sales yet"
+
+        def close(self):
+            pass
+
+    page = FakePage()
+    browser = SimpleNamespace(contexts=[SimpleNamespace(new_page=lambda: page)])
+    fake_playwright = SimpleNamespace(
+        chromium=SimpleNamespace(connect_over_cdp=lambda _endpoint: browser),
+    )
+
+    class FakeManager:
+        def __enter__(self):
+            return fake_playwright
+
+        def __exit__(self, *_args):
+            return False
+
+    import playwright.sync_api
+    monkeypatch.setattr(playwright.sync_api, "sync_playwright", lambda: FakeManager())
+    summary = tmp_path / "promptbase-sales.json"
+    monkeypatch.setattr(readback, "SUMMARY_PATH", summary)
+
+    result = readback.run_sales_only("http://127.0.0.1:9222")
+
+    assert result["sales"] == {"sales_count": 0, "net_usd": 0.0, "by_item": {}}
+    assert page.visited == [readback.SALES_URL]
+    assert json.loads(summary.read_text())["sales_count"] == 0
+
+
+def test_sales_summary_preserves_previous_file_when_serialization_fails(tmp_path, monkeypatch):
+    summary = tmp_path / "promptbase-sales.json"
+    previous = '{"observed_at":"previous","sales_count":1}\n'
+    summary.write_text(previous, encoding="utf-8")
+    monkeypatch.setattr(readback, "SUMMARY_PATH", summary)
+
+    def fail_after_partial_write(_value, handle, **_kwargs):
+        handle.write('{"partial":')
+        raise OSError("simulated no space left")
+
+    monkeypatch.setattr(readback.json, "dump", fail_after_partial_write)
+    with pytest.raises(OSError, match="simulated no space left"):
+        readback._write_sales_summary(
+            {"sales_count": 2, "net_usd": 4.25, "by_item": {}},
+            "2026-10-12T12:00:00Z",
+        )
+
+    assert summary.read_text(encoding="utf-8") == previous
+    assert list(tmp_path.iterdir()) == [summary]
+
+
+def test_new_sales_summary_has_owner_only_permissions(tmp_path, monkeypatch):
+    summary = tmp_path / "promptbase-sales.json"
+    monkeypatch.setattr(readback, "SUMMARY_PATH", summary)
+    previous_umask = os.umask(0)
+    try:
+        readback._write_sales_summary(
+            {"sales_count": 0, "net_usd": 0.0, "by_item": {}},
+            "2026-10-12T12:00:00Z",
+        )
+    finally:
+        os.umask(previous_umask)
+
+    assert stat.S_IMODE(summary.stat().st_mode) == 0o600
 
 
 if __name__ == "__main__":

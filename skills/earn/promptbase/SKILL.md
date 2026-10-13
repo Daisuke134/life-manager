@@ -22,6 +22,11 @@ SKILL.md pasted as the buyer-hidden "prompt template", and a
   (title from `LISTING.md`'s `## Title`, description from `## shortDescription`,
   example input/output split from `evidence/verified-demonstration.md`,
   fixed price/model/category matching Hook Lab). No network/browser.
+- `scripts/gen_examples.py` — keeps the verified demonstration as example one
+  and uses the shared model runner for three distinct buyer examples. It
+  atomically checkpoints the chosen inputs and each completed output in a
+  private `.partial.json`; a later run resumes only missing outputs. The final
+  `.json` is written only after all four outputs are distinct.
 - `scripts/ledger.py` — JSONL idempotency ledger at
   `~/.local/state/life-manager/state/promptbase-listings.jsonl`. One line per
   submission; `already_listed(slug)` is the guard `publish.py` checks before
@@ -36,13 +41,12 @@ SKILL.md pasted as the buyer-hidden "prompt template", and a
   submit control) raises instead of guessing. Without `--confirm` it is a
   dry run that fills the whole wizard and stops at the reCAPTCHA-gated
   "ready to submit" screen (screenshot + text dump in `--evidence-dir`).
-- `scripts/readback.py` — re-reads `account?view=prompts`' rendered text and
+- `scripts/readback.py` — the default mode re-reads `account?view=prompts` and
   updates each ledger slug's status (`live` / `pending_review` / `rejected` /
-  `draft` / ...) from PromptBase's own Approved/Pending/Declined labels. The
-  text-parsing part (`parse_dashboard_cards`, `status_for_title`) is pure and
-  tested against real captured dashboard text; only the fetch is a browser
-  call. It accepts readbacks only while the browser remains on the expected
-  PromptBase account view. Sales are zero only when the official Sales page
+  `draft` / ...) from PromptBase's own labels. It waits for every tracked title
+  to render and rejects status/sort controls as cards. `--sales-only` reads only
+  the official Sales page and refreshes `promptbase-sales.json`; it does not
+  alter the listing ledger. Sales are zero only when the official Sales page
   has the Dashboard/Sales headings and an exact `No sales yet` line; a login
   redirect, challenge, or unrecognized page fails closed without writing a
   zero summary or changing listing rows.
@@ -183,3 +187,18 @@ if a run dies after submitting but before `ledger.append`, it re-reads the
 seller dashboard (the only official PromptBase readback there is) for the
 slug/title `daily.sh` snapshotted immediately before `publish.py --confirm`,
 and closes the fence from that receipt instead of leaving it stuck.
+
+The existing `promptbase:dais` profile stays owned by `promptbase-loop-daily`.
+Its persistent provisioner label, `ai.anicca.provision-browser.promptbase.dais`,
+is registered as an external launchd owner. New contexts use the loop's memory
+admission floor and bounded launchd output policy; source changes never stop,
+clear, or replace an already-running seller profile.
+
+## Hourly sales readback (`promptbase-sales-readback-hourly`)
+
+The existing `lm-loop` scheduler runs `hourly_readback.sh` once per hour at
+minute 37. It borrows the registered `promptbase:dais` browser lease and calls
+`readback.py --sales-only` once to refresh the official Sales page and private
+sales summary. A busy or unreachable browser skips that wake with exit 75; the
+next hourly wake retries. This loop has `effect_class: none`: it never submits
+or edits a listing and does not change the daily publisher cadence.

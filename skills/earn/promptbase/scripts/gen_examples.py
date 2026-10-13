@@ -84,29 +84,126 @@ def _clean(text: str) -> str:
     return text.replace("[", "(").replace("]", ")").strip()
 
 
+def _write_json(path: Path, value: object) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w", encoding="utf-8", dir=path.parent, prefix=f".{path.name}.", delete=False,
+        ) as handle:
+            temporary_path = Path(handle.name)
+            json.dump(value, handle, ensure_ascii=False, indent=2)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary_path, path)
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
+
+
+def _load_complete_cache(path: Path, first_example: dict) -> list[dict]:
+    try:
+        examples = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise RuntimeError("examples_cache_invalid") from error
+    if (
+        not isinstance(examples, list)
+        or len(examples) != 4
+        or any(
+            not isinstance(example, dict)
+            or not isinstance(example.get("input"), str)
+            or not example["input"].strip()
+            or "[" in example["input"]
+            or "]" in example["input"]
+            or not isinstance(example.get("output"), str)
+            or not example["output"].strip()
+            for example in examples
+        )
+    ):
+        raise RuntimeError("examples_cache_invalid")
+    if (
+        examples[0] != first_example
+        or len({example["input"] for example in examples}) != 4
+        or len({example["output"] for example in examples}) != 4
+    ):
+        raise RuntimeError("examples_cache_invalid")
+    return examples
+
+
+def _load_progress(path: Path, first_example: dict) -> tuple[list[str], list[dict]]:
+    try:
+        progress = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise RuntimeError("examples_progress_invalid") from error
+    inputs = progress.get("inputs") if isinstance(progress, dict) else None
+    examples = progress.get("examples") if isinstance(progress, dict) else None
+    if (
+        not isinstance(progress, dict)
+        or progress.get("schema_version") != 1
+        or not isinstance(inputs, list)
+        or len(inputs) != 3
+        or any(not isinstance(value, str) or not value for value in inputs)
+        or any("[" in value or "]" in value for value in inputs)
+        or len(set(inputs)) != 3
+        or first_example["input"] in inputs
+        or not isinstance(examples, list)
+        or not 1 <= len(examples) <= 4
+        or examples[0] != first_example
+    ):
+        raise RuntimeError("examples_progress_invalid")
+    for index, example in enumerate(examples[1:]):
+        if (
+            not isinstance(example, dict)
+            or example.get("input") != inputs[index]
+            or not isinstance(example.get("output"), str)
+            or not example["output"].strip()
+        ):
+            raise RuntimeError("examples_progress_invalid")
+    if len({example.get("output") for example in examples if isinstance(example, dict)}) != len(examples):
+        raise RuntimeError("examples_progress_invalid")
+    return inputs, examples
+
+
 def generate(catalog_dir: Path) -> list[dict]:
     target = EXAMPLES_DIR / f"{catalog_dir.name}.json"
-    if target.exists():
-        return json.loads(target.read_text(encoding="utf-8"))
+    progress_path = EXAMPLES_DIR / f"{catalog_dir.name}.partial.json"
     skill_md = (catalog_dir / "SKILL.md").read_text(encoding="utf-8")
     first_in, first_out = _split_example(
         (catalog_dir / "evidence" / "verified-demonstration.md").read_text(encoding="utf-8"))
-    raw = _claude(
-        "Here is a skill a buyer uses:\n\n" + skill_md +
-        "\n\nOne real buyer input was:\n" + first_in +
-        "\n\nWrite 3 NEW realistic buyer inputs for this skill, each for a clearly different "
-        "niche and situation, in the same style and length. Reply with a JSON array of 3 "
-        "strings and nothing else.")
-    inputs = json.loads(raw[raw.index("["): raw.rindex("]") + 1])
-    examples = [{"input": _clean(first_in), "output": first_out.strip()}]
-    for text in inputs[:3]:
-        text = _clean(str(text))
+    first_example = {"input": _clean(first_in), "output": first_out.strip()}
+    if target.exists():
+        return _load_complete_cache(target, first_example)
+    if progress_path.exists():
+        inputs, examples = _load_progress(progress_path, first_example)
+    else:
+        raw = _claude(
+            "Here is a skill a buyer uses:\n\n" + skill_md +
+            "\n\nOne real buyer input was:\n" + first_in +
+            "\n\nWrite 3 NEW realistic buyer inputs for this skill, each for a clearly different "
+            "niche and situation, in the same style and length. Reply with a JSON array of 3 "
+            "strings and nothing else.")
+        generated_inputs = json.loads(raw[raw.index("["): raw.rindex("]") + 1])
+        inputs = [_clean(str(text)) for text in generated_inputs[:3]]
+        if (
+            len(inputs) != 3
+            or any(not text for text in inputs)
+            or len({first_example["input"], *inputs}) != 4
+        ):
+            raise RuntimeError("examples_require_3_distinct_inputs")
+        examples = [first_example]
+        _write_json(progress_path, {"schema_version": 1, "inputs": inputs, "examples": examples})
+
+    for text in inputs[len(examples) - 1:]:
         output = _claude(text, system=skill_md)
+        if output in {example["output"] for example in examples}:
+            raise RuntimeError("examples are not 4 distinct outputs")
         examples.append({"input": text, "output": output})
-    if len({e["output"] for e in examples}) != 4:
+        _write_json(progress_path, {"schema_version": 1, "inputs": inputs, "examples": examples})
+    if len(examples) != 4 or len({e["output"] for e in examples}) != 4:
         raise RuntimeError("examples are not 4 distinct outputs")
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(json.dumps(examples, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    _write_json(target, examples)
+    progress_path.unlink(missing_ok=True)
     return examples
 
 
