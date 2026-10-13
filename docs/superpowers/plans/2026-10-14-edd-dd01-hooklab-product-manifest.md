@@ -91,13 +91,14 @@ git commit -m "feat(marketing-engine): register Hook Lab distribution profile"
 **Files:**
 - Modify: `skills/earn/marketing-engine/gates/verify_gate10.py`
 - Test: `skills/earn/marketing-engine/gates/test_verify_gate10.py`
-- Create: `skills/earn/marketing-engine/gates/fixtures/gate10-safe-plans.jsonl`
+- Create: `skills/earn/marketing-engine/gates/fixtures/gate10-safe-plans.contract-test-fixture.jsonl`
+- Create: `skills/earn/marketing-engine/gates/fixtures/gate10-quarantine.contract-test-fixture.json`
 
-**Interfaces:** `verify_gate10(engine, plans_path=None)` requires its four core products and validates exact safe-plan product/account/hook/renderer identities. Tests pass a tracked contract fixture explicitly; the default runtime evidence path remains occurrence-backed and missing live evidence fails closed. Unrelated product profiles and accounts do not fail global equality checks.
+**Interfaces:** `verify_gate10(engine, plans_path=None, quarantine_path=None)` requires its four core products and validates exact safe-plan product/account/hook/renderer identities. Tests pass tracked contract fixtures explicitly; default runtime evidence paths remain owner-backed and missing live evidence fails closed. Unrelated product profiles and accounts do not fail global equality checks.
 
 - [ ] **Step 1: Extend the failing test**
 
-Rename the test to make its fixture scope explicit. Assert the four Gate10 core products and Hook Lab are registered, the two historical safe-plan identity tuples remain unchanged, and the fixture-backed verifier passes. Add a separate assertion that the default live path without `plans.jsonl` raises `FileNotFoundError`; current main has no such evidence file, and a tracked test fixture must never masquerade as a live receipt.
+Rename the test to make its fixture scope explicit. Assert the four Gate10 core products and Hook Lab are registered, the two historical safe-plan identity tuples remain unchanged, and the fixture-backed verifier passes. Add separate assertions that the default live path without `plans.jsonl` raises `FileNotFoundError`, and that supplying only the plan fixture still fails when the live quarantine receipt is absent. Current main has neither file; tracked fixtures must never masquerade as live receipts.
 
 - [ ] **Step 2: Run the test and confirm RED**
 
@@ -111,7 +112,7 @@ Expected: the fixture-backed test fails first at `initial product registry diffe
 
 - [ ] **Step 3: Make Gate10 scope explicit**
 
-Change the verifier to require its core product IDs as a subset and remove the stale global account-count assertion. Add an optional explicit `plans_path` for deterministic tests while keeping the default runtime evidence path unchanged. Preserve exact safe-plan count, hook, renderer, CTA, attribution, stable-ID, and quarantine checks.
+Change the verifier to require its core product IDs as a subset and remove the stale global account-count assertion. Add optional explicit `plans_path` and `quarantine_path` for deterministic tests while keeping both default runtime evidence paths unchanged. Preserve exact safe-plan count, hook, renderer, CTA, attribution, stable-ID, and quarantine checks.
 
 - [ ] **Step 4: Run the Gate10 test and confirm GREEN**
 
@@ -120,7 +121,7 @@ Run `python3 -m unittest test_verify_gate10` from `skills/earn/marketing-engine/
 - [ ] **Step 5: Commit the Gate10 correction**
 
 ```bash
-git add skills/earn/marketing-engine/gates/verify_gate10.py skills/earn/marketing-engine/gates/test_verify_gate10.py skills/earn/marketing-engine/gates/fixtures/gate10-safe-plans.jsonl
+git add skills/earn/marketing-engine/gates/verify_gate10.py skills/earn/marketing-engine/gates/test_verify_gate10.py skills/earn/marketing-engine/gates/fixtures/gate10-safe-plans.contract-test-fixture.jsonl skills/earn/marketing-engine/gates/fixtures/gate10-quarantine.contract-test-fixture.json
 git commit -m "fix(marketing-engine): keep Gate10 checks product-scoped"
 ```
 
