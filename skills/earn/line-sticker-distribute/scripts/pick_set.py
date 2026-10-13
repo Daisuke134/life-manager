@@ -20,7 +20,8 @@ from pathlib import Path
 ON_SALE = "販売中"
 
 
-def load_on_sale_sets(line_sticker_state_root: Path) -> list[dict]:
+def load_on_sale_sets(line_sticker_state_root: Path, *, require_clips: bool = True) -> list[dict]:
+    """Load on-sale items; article callers can omit clips, while Reel callers require them."""
     sets = []
     for item_file in sorted(line_sticker_state_root.glob("set-*/creators-item.json")):
         try:
@@ -32,14 +33,14 @@ def load_on_sale_sets(line_sticker_state_root: Path) -> list[dict]:
         set_dir = item_file.parent
         clips_dir = set_dir / "clips"
         listing_file = set_dir / "listing.json"
-        if not clips_dir.is_dir() or not listing_file.is_file():
+        if not listing_file.is_file() or (require_clips and not clips_dir.is_dir()):
             continue
         try:
             listing = json.loads(listing_file.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             continue
-        clip_ids = sorted(p.stem for p in clips_dir.glob("*.mp4"))
-        if not clip_ids:
+        clip_ids = sorted(p.stem for p in clips_dir.glob("*.mp4")) if clips_dir.is_dir() else []
+        if require_clips and not clip_ids:
             continue
         # The only trustworthy link is the one Creators Market itself shows as 購入用URL
         # (https://line.me/S/sticker/<store id>). The store's product id differs from the item id,

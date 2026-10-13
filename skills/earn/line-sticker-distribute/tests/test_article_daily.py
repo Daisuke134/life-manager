@@ -51,6 +51,62 @@ class Pick(unittest.TestCase):
         self.assertIn(MODULE.pick(self.SETS, ledger, "seed", hour=12)["set_id"], {s["set_id"] for s in self.SETS})
 
 
+class ArticleCandidates(unittest.TestCase):
+    def test_on_sale_set_without_video_clips_can_receive_article(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            sticker_root = root / "line-sticker"
+            item_dir = sticker_root / "set-012"
+            item_dir.mkdir(parents=True)
+            store_url = "https://line.me/S/sticker/37168875"
+            (item_dir / "creators-item.json").write_text(json.dumps({
+                "state_observed": "販売中",
+                "title_ja": "動く！おたーくんの丁寧な毎日",
+                "purchase_url": store_url,
+            }), encoding="utf-8")
+            (item_dir / "listing.json").write_text(json.dumps({
+                "title": {"ja": "動く！おたーくんの丁寧な毎日"},
+                "character_name": "おたーくん",
+            }), encoding="utf-8")
+            state_root = root / "article-state"
+            state_root.mkdir()
+            published = {}
+
+            class Publisher:
+                def publish(self, **kwargs: object) -> dict[str, str]:
+                    published.update(kwargs)
+                    return {
+                        "url": "https://aniccaai.com/blog/line-sticker-set-012-2026-10-14-07",
+                        "title": "動く！おたーくんの丁寧な毎日",
+                        "commit": "abc123",
+                    }
+
+            completed = type("Completed", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+            with (
+                patch.object(MODULE, "compose", return_value={
+                    "title": "動く！おたーくんの丁寧な毎日",
+                    "body": "返事やお礼を伝えたい会話で使えるスタンプです。" * 20,
+                }),
+                patch.object(MODULE, "_publisher", return_value=Publisher()),
+                patch.object(MODULE.subprocess, "run", return_value=completed),
+                patch.dict(MODULE.os.environ, {
+                    "ARTICLE_SELF_OWNED_LANDING_ROOT": str(root / "landing"),
+                    "ARTICLE_SELF_OWNED_BASE_URL": "https://aniccaai.com",
+                }),
+            ):
+                result = MODULE.run(
+                    dt.datetime(2026, 10, 13, 22, 6, tzinfo=dt.timezone.utc),
+                    sticker_root,
+                    state_root,
+                )
+
+            self.assertEqual(result.get("status"), "published")
+            self.assertEqual(result.get("set_id"), "set-012")
+            self.assertEqual(published.get("cta_url"), store_url)
+            article = Path(published["draft_path"]).read_text(encoding="utf-8")
+            self.assertEqual(article.count(store_url), 1)
+
+
 class BuildMarkdown(unittest.TestCase):
     def test_store_link_is_appended_exactly_once_under_an_h1(self) -> None:
         url = "https://store.line.me/stickershop/product/48067450/ja"

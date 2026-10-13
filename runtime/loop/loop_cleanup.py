@@ -118,7 +118,7 @@ def _contains_protected(path: Path) -> bool:
 
 def _remove_marked(path: Path) -> int:
     size = _tree_bytes(path)
-    trash = path.with_name(f"{path.name}.gc-trash.{os.getpid()}")
+    trash = path.with_name(f".{path.name}.gc-trash.{os.getpid()}")
     os.replace(path, trash)
     shutil.rmtree(trash)
     return size
