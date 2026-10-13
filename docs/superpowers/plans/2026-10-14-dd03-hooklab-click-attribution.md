@@ -43,9 +43,10 @@
 
 - [ ] Write a failing test through the production Netlify wrapper proving `hl_` stores a minimal `hook-lab` receipt and redirects only to `https://capafy.ai/agent/8123079349?ct=hooklab_ig`.
 - [ ] Run `node --test apps/landing/netlify/functions/_lib/__tests__/marketing-go.test.js`; confirm the new case fails because `hl_` is not recognized.
+- [ ] Add only the `hl` token prefix and fixed Hook Lab product mapping; run the focused Node test and confirm this case passes.
 - [ ] Write a failing test that a valid `?diagnostic=1` request returns 204 with no receipt and no `Location` header.
 - [ ] Run the focused Node test; confirm the diagnostic case fails before the implementation.
-- [ ] Add the fixed `hl` product mapping and diagnostic early return; do not copy arbitrary query values into the destination.
+- [ ] Add the diagnostic early return after token/product validation; do not copy arbitrary query values into the destination.
 - [ ] Run the focused Node test and `git diff --check`.
 - [ ] Commit and push the route change from its dedicated `anicca-products` worktree.
 
@@ -64,12 +65,17 @@
 The `run_create_intent` regression test uses a temporary synthetic account fixture because DD01 intentionally adds no live Hook Lab publisher-account route; do not add that account route or enable publishing in production.
 
 - [ ] Add a failing token test for repeatability on the same identity and distinct tokens for different publication slots.
+- [ ] Run `python3 skills/earn/marketing-engine/measure/test_attribution.py`; confirm the new token case fails.
+- [ ] Add the minimal Hook Lab prefix and deterministic publication-token helper; run the focused test and confirm it passes.
 - [ ] Add a failing `run_create_intent` test with the temporary synthetic Hook Lab account proving the static registered `hooklab_ig` placeholder becomes the deterministic owned `hl_` URL and an `ej_`/arbitrary token is rejected.
 - [ ] Run `python3 -m pytest skills/earn/marketing-engine/publish/test_intent_cli.py`; confirm the new case fails before the implementation.
-- [ ] Add a failing token test for a foreign product token and a shared token reused across two publication slots.
-- [ ] Add failing receipt tests for incomplete/duplicate receipt IDs and channel-level Capafy paid totals without a per-creative order join.
-- [ ] Run the two focused measurement test files and confirm each new assertion fails for the intended missing behavior.
-- [ ] Implement the minimal per-intent token generation, caption binding, exact receipt validation, and receipt evidence references.
+- [ ] Implement Hook Lab intent token/caption binding; run the focused publisher test and confirm it passes.
+- [ ] Add failing evaluator tests for a foreign token, one shared token reused across two slots, and incomplete/duplicate receipt IDs.
+- [ ] Run `python3 skills/earn/marketing-engine/measure/test_experiment_attribution.py`; confirm the new assertions fail.
+- [ ] Implement exact per-publication token/scope and receipt-ID validation, then add exact receipt IDs to evidence references; run the focused test and confirm it passes.
+- [ ] Add a failing evaluator test showing a Stripe or Capafy channel aggregate cannot become Hook Lab per-creative paid revenue without an order join.
+- [ ] Run the focused evaluator test; confirm it fails on the currently accepted Stripe campaign-shaped input.
+- [ ] Keep Hook Lab paid/revenue metrics unknown without a supported Capafy click-to-order join; run the focused evaluator test and confirm it passes.
 - [ ] Run `python3 skills/earn/marketing-engine/measure/test_attribution.py`, `python3 skills/earn/marketing-engine/measure/test_experiment_attribution.py`, `python3 -m pytest skills/earn/marketing-engine/publish/test_intent_cli.py`, source-boundary check, and `git diff --check`.
 - [ ] Commit and push the Life Manager change from this dedicated worktree.
 
