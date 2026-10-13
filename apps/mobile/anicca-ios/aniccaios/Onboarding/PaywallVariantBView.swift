@@ -92,9 +92,11 @@ struct PaywallVariantBView: View {
                 hasTracked = true
                 AnalyticsManager.shared.trackPaywallViewed()
             }
-            if selectedPackage == nil {
-                selectedPackage = yearlyPackage ?? monthlyPackage
-            }
+            synchronizePackageSelection()
+        }
+        // Observe instances: a refreshed offering can reuse package IDs and values.
+        .onChange(of: packages.map { ObjectIdentifier($0) }) { _ in
+            synchronizePackageSelection()
         }
         .sheet(isPresented: $showRetention) {
             RetentionOfferSheet { customerInfo in
@@ -324,6 +326,15 @@ struct PaywallVariantBView: View {
     }
 
     // MARK: - Actions
+
+    private func synchronizePackageSelection() {
+        selectedPackage = PaywallPackageSelection.resolve(
+            packages: packages,
+            selectedID: selectedPackage?.id,
+            isAnnual: { $0.packageType == .annual },
+            isMonthly: { $0.packageType == .monthly }
+        )
+    }
 
     private func scheduleReloadTimeout() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
