@@ -285,3 +285,49 @@ def test_release_capacity_measurement_failure_fails_closed(
         "--release-capacity", str(tmp_path), "a" * 40, str(tmp_path), "node", "npm",
     ]) == 1
     assert capsys.readouterr().out == ""
+
+
+def test_release_capacity_reuses_locked_bundle_for_script_only_change(tmp_path: Path):
+    import hashlib
+    import platform
+    guard, repo, seed_sha, loops = _release_capacity_fixture(tmp_path)
+    donor = (loops / "current").resolve()
+    old = json.dumps({"name": "fixture", "version": "1.0.0", "scripts": {"test": "old"}}).encode()
+    lock = b'{"lockfileVersion":3}\n'
+    donor.chmod(0o755)
+    (donor / "package.json").write_bytes(old)
+    (donor / "package-lock.json").write_bytes(lock)
+    header = "\0".join(("command", "npm-ci --omit=dev --ignore-scripts", "os", platform.system(),
+                          "arch", platform.machine(), "node", "node", "npm", "npm")) + "\0"
+    key_data = header.encode()
+    for label, payload in (("package-json", old), ("package-lock", lock)):
+        key_data += label.encode() + b"\0" + (hashlib.sha256(payload).hexdigest() + "  -\n").encode()
+    key = hashlib.sha256(key_data).hexdigest()
+    bundle = loops / "dependency-bundles" / ("npm-" + key)
+    (bundle / "node_modules").mkdir(parents=True)
+    (bundle / "node_modules/.package-lock.json").write_bytes(lock)
+    (bundle / ".complete").write_text(key + "\n")
+    bundle.chmod(0o555)
+    (donor / "node_modules").symlink_to(bundle / "node_modules")
+    donor.chmod(0o555)
+    (repo / "package-lock.json").write_bytes(lock)
+
+    def commit_package(package):
+        (repo / "package.json").write_text(json.dumps(package))
+        subprocess.run(["git", "-C", str(repo), "add", "package.json", "package-lock.json"], check=True)
+        subprocess.run(["git", "-C", str(repo), "commit", "-qm", "package"], check=True)
+        sha = subprocess.check_output(["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip()
+        subprocess.run(["git", "-C", str(repo), "update-ref", "refs/remotes/origin/main", sha], check=True)
+        return sha
+
+    package = {"name": "fixture", "version": "1.0.0", "scripts": {"test": "new"}}
+    sha = commit_package(package)
+    assert guard.release_capacity_bytes(repo, sha, loops, "node", "npm") > guard.RECOVERY_FLOOR_BYTES
+    assert list((loops / "dependency-bundles").iterdir()) == [bundle]
+    assert (donor / "package.json").read_bytes() == old
+    package["dependencies"] = {"changed": "1.0.0"}
+    changed_sha = commit_package(package)
+    with pytest.raises(ValueError, match="dependency manifests changed"):
+        guard.release_capacity_bytes(repo, changed_sha, loops, "node", "npm")
+    donor.chmod(0o755)
+    bundle.chmod(0o755)
