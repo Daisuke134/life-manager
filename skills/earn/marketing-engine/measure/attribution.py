@@ -27,6 +27,7 @@ PRODUCT_PREFIXES = {
     "honne-ai": "ho",
     "ebook-ja": "ej",
     "ebook-en": "ee",
+    "hook-lab": "hl",
 }
 
 
@@ -45,6 +46,18 @@ def campaign_token(product_id: str, publication_id: str) -> str:
     if product_id not in PRODUCT_PREFIXES:
         raise ValueError(f"unknown product: {product_id}")
     return _campaign_token_for_identifier(product_id, publication_id)
+
+
+def publication_campaign_token(intent: dict[str, str]) -> str:
+    fields = (
+        "experiment_id", "creative_id", "product_id", "account_id",
+        "hook_id", "renderer_id", "scheduled_at",
+    )
+    values = [intent.get(field) for field in fields]
+    if any(not isinstance(value, str) or not value.strip() for value in values):
+        raise ValueError("publication identity incomplete")
+    publication_id = json.dumps(values, ensure_ascii=False, separators=(",", ":"))
+    return campaign_token(intent["product_id"], publication_id)
 
 
 def build_owned_redirect(base_url: str, token: str) -> str:

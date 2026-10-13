@@ -64,9 +64,9 @@
 
 The `run_create_intent` regression test uses a temporary synthetic account fixture because DD01 intentionally adds no live Hook Lab publisher-account route; do not add that account route or enable publishing in production.
 
-- [ ] Add failing test `test_publication_campaign_token_is_deterministic_and_slot_specific`, including the golden vector above and a distinct token for a different scheduled slot.
-- [ ] Run `python3 skills/earn/marketing-engine/measure/test_attribution.py`; confirm the new token case fails.
-- [ ] Add the minimal Hook Lab prefix and deterministic publication-token helper; run the focused test and confirm it passes.
+- [x] Add failing test `test_publication_campaign_token_is_deterministic_and_slot_specific`, including the golden vector above and a distinct token for a different scheduled slot.
+- [x] Run `python3 skills/earn/marketing-engine/measure/test_attribution.py`; confirm the new token case fails.
+- [x] Add the minimal Hook Lab prefix and deterministic publication-token helper; run the focused test and confirm it passes.
 - [ ] Add failing test `test_hook_lab_intent_uses_unique_owned_token_and_rejects_foreign_ct` through `run_create_intent` with the temporary synthetic Hook Lab account, proving the static registered `hooklab_ig` placeholder becomes the deterministic owned `hl_` URL and an `ej_`/arbitrary token is rejected.
 - [ ] Run `python3 -m pytest skills/earn/marketing-engine/publish/test_intent_cli.py`; confirm the new case fails before the implementation.
 - [ ] Implement Hook Lab intent token/caption binding; run the focused publisher test and confirm it passes.
