@@ -1856,6 +1856,14 @@
       "coalesce_reserved_wakes": true,
       "domain": "earn",
       "effect_class": "message",
+      "effect_reconcile": {
+        "argv": [
+          "skills/earn/gig/scripts/coconala_reply_effect_reconcile.py"
+        ],
+        "occurrence_flag": "--occurrence",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 180
+      },
       "reconcile_queued_release": true,
       "command": [],
       "entrypoint": "skills/earn/gig/scripts/coconala-reply-owner",

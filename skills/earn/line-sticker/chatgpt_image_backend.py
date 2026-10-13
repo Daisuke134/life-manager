@@ -16,6 +16,8 @@ fallback when this CLI fails or is not installed.
 """
 from __future__ import annotations
 
+import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -28,6 +30,14 @@ class ChatGptImageGenUnavailable(RuntimeError):
     pass
 
 
+def run_session_name() -> str:
+    """Keep imagegen browser tabs scoped to one Life Manager occurrence."""
+    run_id = os.environ.get("LIFE_MANAGER_RUN_ID", "")
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", run_id):
+        run_id = f"manual-{os.getpid()}"
+    return f"line-sticker-{run_id}"
+
+
 def generate(prompt: str, *, size: str = "1024x1024", timeout: int = 280) -> Path:
     """Generate one PNG and return its path (caller owns deleting it). Raises
     ChatGptImageGenUnavailable on any failure (CLI missing, timeout, generation error) so callers
@@ -37,10 +47,11 @@ def generate(prompt: str, *, size: str = "1024x1024", timeout: int = 280) -> Pat
     handle = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
     out_path = Path(handle.name)
     handle.close()
+    session = run_session_name()
     try:
         done = subprocess.run(
             [str(CLI), prompt, "-o", str(out_path), "--size", size, "--backend", "auto",
-             "--quiet", "--timeout", str(timeout)],
+             "--quiet", "--timeout", str(timeout), "--session", session],
             capture_output=True, text=True, timeout=timeout + 30, check=False,
         )
     except subprocess.TimeoutExpired as exc:

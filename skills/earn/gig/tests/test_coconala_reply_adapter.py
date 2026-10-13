@@ -100,6 +100,101 @@ def test_mutation_and_official_readback_remain_provider_specific(tmp_path):
     assert effects == ["回答"]
 
 
+def test_readback_uses_text_only_fallback_after_attachment_identity_failure(
+    tmp_path, monkeypatch,
+):
+    def broken_reader(_thread_id):
+        raise RuntimeError("collector_unhealthy:dm_attachment_message_identity_changed")
+
+    context = {"conversation": [
+        {"side": "buyer", "message_id": "buyer-1", "body": "質問"},
+        {"side": "seller", "message_id": "seller-2", "body": "回答"},
+    ]}
+    adapter = adapter_module.CoconalaReplyAdapter(
+        state_root=tmp_path, inventory_reader=lambda: [], thread_reader=broken_reader,
+    )
+    observed_threads = []
+    monkeypatch.setattr(
+        adapter, "_read_thread_text_only",
+        lambda thread_id: observed_threads.append(thread_id) or (context, {}),
+        raising=False,
+    )
+
+    result = adapter.readback({
+        "action": "reply", "thread_id": "12", "latest_event_id": "buyer-1",
+        "effect_key": "effect", "payload": {"body": "回答"},
+    })
+
+    assert result["verified"] is True
+    assert result["provider_receipt_id"] == "seller-2"
+    assert observed_threads == ["12"]
+
+
+def test_readback_does_not_match_same_seller_body_before_target_buyer_event(tmp_path):
+    context = {"conversation": [
+        {"side": "buyer", "message_id": "buyer-1", "body": "以前の質問"},
+        {"side": "seller", "message_id": "seller-2", "body": "回答"},
+        {"side": "buyer", "message_id": "buyer-3", "body": "新しい質問"},
+    ]}
+    adapter = adapter_module.CoconalaReplyAdapter(
+        state_root=tmp_path, inventory_reader=lambda: [],
+        thread_reader=lambda _thread_id: (context, {}),
+    )
+
+    result = adapter.readback({
+        "action": "reply", "thread_id": "12", "latest_event_id": "buyer-3",
+        "effect_key": "effect", "payload": {"body": "回答"},
+    })
+
+    assert result == {"authoritative_absent": True}
+
+
+def test_text_only_readback_stays_unknown_without_exact_buyer_event(tmp_path, monkeypatch):
+    def broken_reader(_thread_id):
+        raise RuntimeError("collector_unhealthy:dm_attachment_message_identity_changed")
+
+    context = {"conversation": [
+        {"side": "buyer", "message_id": "different-buyer", "body": "質問"},
+        {"side": "seller", "message_id": "seller-2", "body": "回答"},
+    ]}
+    adapter = adapter_module.CoconalaReplyAdapter(
+        state_root=tmp_path, inventory_reader=lambda: [], thread_reader=broken_reader,
+    )
+    monkeypatch.setattr(
+        adapter, "_read_thread_text_only", lambda _thread: (context, {}), raising=False,
+    )
+
+    result = adapter.readback({
+        "action": "reply", "thread_id": "12", "latest_event_id": "buyer-1",
+        "effect_key": "effect", "payload": {"body": "回答"},
+    })
+
+    assert result == {"authoritative_absent": False}
+
+
+def test_text_only_readback_requires_a_real_provider_message_id(tmp_path, monkeypatch):
+    def broken_reader(_thread_id):
+        raise RuntimeError("collector_unhealthy:dm_attachment_message_identity_changed")
+
+    context = {"conversation": [
+        {"side": "buyer", "message_id": "buyer-1", "body": "質問"},
+        {"side": "seller", "message_id": "sha256_synthetic", "body": "回答"},
+    ]}
+    adapter = adapter_module.CoconalaReplyAdapter(
+        state_root=tmp_path, inventory_reader=lambda: [], thread_reader=broken_reader,
+    )
+    monkeypatch.setattr(
+        adapter, "_read_thread_text_only", lambda _thread: (context, {}), raising=False,
+    )
+
+    result = adapter.readback({
+        "action": "reply", "thread_id": "12", "latest_event_id": "buyer-1",
+        "effect_key": "effect", "payload": {"body": "回答"},
+    })
+
+    assert result == {"authoritative_absent": False}
+
+
 @pytest.mark.parametrize(("failure_stage", "expected_phase"), [
     ("fill", "fill"), ("read_after", "read_after"), ("final_read", "final_read"),
     ("final_match_missing", "final_read"),

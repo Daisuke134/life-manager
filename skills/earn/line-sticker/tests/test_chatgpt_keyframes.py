@@ -5,6 +5,8 @@ official package validator calls)."""
 from __future__ import annotations
 
 import json
+import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -100,6 +102,27 @@ class ClipsReceiptTest(unittest.TestCase):
                                     side_effect=MODULE.ChatGptImageGenUnavailable("no cli")):
                 MODULE.clips(set_dir, plan)
             self.assertFalse((set_dir / "clips" / "wave.json").exists())
+
+
+class RunScopedBrowserSessionTest(unittest.TestCase):
+    def test_generate_sheet_passes_a_line_sticker_session(self) -> None:
+        calls = []
+
+        def fake_run(args, **kwargs):
+            calls.append(list(args))
+            Path(args[args.index("-o") + 1]).write_bytes(b"image")
+            return subprocess.CompletedProcess(args, 0, "", "")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "sheet.png"
+            with mock.patch.object(MODULE.subprocess, "run", side_effect=fake_run):
+                with mock.patch.dict(os.environ, {"LIFE_MANAGER_RUN_ID": "run-a"}):
+                    MODULE.generate_sheet("prompt", output)
+            args = calls[0]
+            self.assertIn("--session", args)
+            session = args[args.index("--session") + 1]
+            self.assertEqual(session, "line-sticker-run-a")
+            self.assertTrue(output.is_file())
 
 
 if __name__ == "__main__":
