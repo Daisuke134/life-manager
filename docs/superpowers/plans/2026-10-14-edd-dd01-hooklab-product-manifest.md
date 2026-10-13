@@ -96,11 +96,11 @@ git commit -m "feat(marketing-engine): register Hook Lab distribution profile"
 
 **Interfaces:** `verify_gate10(engine, plans_path=None, quarantine_path=None)` requires its four core products and validates exact safe-plan product/account/hook/renderer identities. Tests pass tracked contract fixtures explicitly; default runtime evidence paths remain owner-backed and missing live evidence fails closed. Unrelated product profiles and accounts do not fail global equality checks.
 
-- [ ] **Step 1: Extend the failing test**
+- [x] **Step 1: Extend the failing test**
 
 Rename the test to make its fixture scope explicit. Assert the four Gate10 core products and Hook Lab are registered, the two historical safe-plan identity tuples remain unchanged, and the fixture-backed verifier passes. Add separate assertions that the default live path without `plans.jsonl` raises `FileNotFoundError`, and that supplying only the plan fixture still fails when the live quarantine receipt is absent. Current main has neither file; tracked fixtures must never masquerade as live receipts.
 
-- [ ] **Step 2: Run the test and confirm RED**
+- [x] **Step 2: Run the test and confirm RED**
 
 Run from `skills/earn/marketing-engine/gates`:
 
@@ -108,7 +108,7 @@ Run from `skills/earn/marketing-engine/gates`:
 python3 -m unittest test_verify_gate10
 ```
 
-Expected: the fixture-backed test fails first at `initial product registry differs`; the missing-live-evidence assertion is separate and confirms fail-closed behavior.
+Expected: the first RED is `TypeError: unexpected keyword argument plans_path` because the verifier has no explicit fixture seam; after adding that seam, re-run and confirm the stale global product check is the next failure. The live-evidence assertions must not pass using the test fixture.
 
 - [ ] **Step 3: Make Gate10 scope explicit**
 
