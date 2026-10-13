@@ -2,6 +2,8 @@
 
 **Status:** unlabeled review draft v2. These 40 excerpts are synthetic examples for the Writer identity judge's single Category C failure mode: internal-context leakage. They are not natural Writer runs and do not count as Writer performance, publication, readership, or revenue evidence. No human labels or judge predictions have been added. This revision removes adjacent track-record/quality claims from three examples and adds a public-repository control with a private-looking URL path.
 
+**Review UI:** [Open the offline label reviewer](writer-edd-a8-label-review.html). It stores judgments in this browser and exports human labels/rationales as JSONL; it never sends them or runs the judge.
+
 ## Label only this question
 
 Would the excerpt disclose a detail that is private to the writing team and does not belong in a reader-facing article?
