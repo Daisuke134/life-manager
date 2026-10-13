@@ -261,7 +261,7 @@ P0/P1後のlane順は依存・納期・実収益への距離をfresh readbackで
 | H03 | Life Manager自身のdev/repair経路が必要な最小code修復を実施 | intent→issue/PR→CI/main→immutable→次自然run/公式readback |
 | H04 | 自己修復の一連の因果を証明する | 外部Codexの手動修正やsupervisor単独PASSをLM自身の修復としない |
 | E01 | selfEvalの欠測net→0をfail-closedへ修復 | unknown/不正金額がDEAD/利益/ゼロへ誤変換されないRED/GREEN |
-| E02 | recovery/economic evalを自然障害とCFOの公式receiptへ接続 | task success/effect integrity/settled net/cost/latency/介入を別採点 |
+| E02 | recovery/economic evalを自然障害とCFOの公式receiptへ接続 | task success/effect integrity/settled net/cost/latency/介入を別採点。active parallel slice: Writer Pilot AのW-01 A3–A7を実装中。A7 code graderは`apps/life-manager/eval/writer/receipt-grader.js`、focused tests 9/9 PASS。Agent Economy E01のruntime adoptionとは別作業で、E01を完了扱いせず、Writer graderの前提にも置かない。次はA8のblind domain labelsを用いたquality-judge calibration準備。詳細は`docs/superpowers/plans/2026-10-12-edd-recovery-pilot.md`と`docs/evals/writer-edd-trace-discovery.md`。 |
 | E03 | LM-EABの自然失敗・境界・実経済task familyを増やす | PR #7737（merge `42131f52`）で費用欠測synthetic regressionを追加済み。現行5 public fixtures（tuning3/held-out2）は契約検証で実性能ではない。自然trace/実経済family/独立held-out protocolは未完 |
 | E04 | case/runner/grader/baselineをversion/hashで凍結 | public/dev/held-out/challenge分離、grader較正/複数trial/不確かさ/汚染監査 |
 | E05 | 既存runnerへ他harness adapterを接続し外部再現を確認 | 新framework先行導入なし、独立実行で同versionの結果を再現 |

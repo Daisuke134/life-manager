@@ -32,20 +32,21 @@
 - policy判定は業務完了・自然自己修復・実利益・モデル順位の証拠ではない。
 - 公開held_outを秘密試験と称さない。
 
-## Atomic sequence: E01から外部再現まで
+## Atomic sequence: Writer Pilot Aから外部再現まで
 
-このchecklistは計画案であり、完了表示は実測後にcanonical SSOTへ反映する。最初のcursorはSSOT E01のmain由来release adoptionと自然評価。Writer pilotを理由に収益laneの既存順序や他ownerの作業を並べ替えない。
+canonical SSOTのE01は`agent-economy-loop`のrelease adoptionと自然評価を追跡し続けるが、Writerのオフライン評価器を作る前提条件ではない。Daisの現在の指示に合わせ、このpilot内の順序を旧`A0/E01 → A1…A7`から`A1 → A2 → A3…A7 → A8…`へ変更する。理由は、W-01のcode graderが匿名化済みcase入力だけを読む独立した評価作業で、Agent Economyのruntime・state・effectに触れないため。E01の状態や順序は変更せず、Writer Pilot Aの進捗でE01完了を主張しない。
+
+このchecklistはWriter Pilot Aの詳細計画であり、canonical SSOTの全体TODOを複製しない。完了表示は実測後にcanonical SSOTへ反映する。
 
 ### Pilot A — Writer公開前quality eval
 
-- [ ] **A0 / E01:** 修正sourceとmain由来releaseのSHAを照合し、自然ledgerを読み取り専用で評価して通常入力のbaselineを記録する。欠測・不正・混在netは既存8件の単体回帰testで検証し、natural dataに欠測が無ければ自然障害として扱わない。実呼び出しownerが安全にloaded-idleとなってから修正済みreleaseのloaded SHAと次の自然runを確認する。effect fenceを変更しない。現checkpointではcurrent release SHAは一致するが、`agent-economy-loop`は古いreleaseをloaded-runningしているため未完。
-- [ ] **A1:** Writer owner・lease・run状態をread-only確認し、既存ownerと重複しない担当範囲を確定する。
-- [ ] **A2:** English blog article draftの公開前quality gateを一つのstageとして選ぶ。本文/CTA/identity gateを評価し、blog・note・Substack等の新規公開や再送はしない。
+- [x] **A1:** Writer owner・lease・run状態をread-only確認し、既存ownerと重複しない評価専用範囲を選んだ。観測checkpointはdesign specのWriter trace checkpoint。今回の変更は新規eval files、package script、CI jobに限定し、production Writer runtimeや外部effectを変更しない。
+- [x] **A2:** English blog article draftの公開前quality gateを一つのstageとして選んだ。本文/CTA/identity gateを評価し、blog・note・Substack等への新規公開や再送を行わない。
 - [x] **A3:** task-level article runとchild agent-runner traceを別々に数える。8件の自然article runと276件の`article-daily` child summaryを照合し、全article source SHAが`UNKNOWN`、child summaryのparent run/occurrence/source SHAが欠落と記録した。child callを独立task数へ足さず、human labelとlineageが揃うまで性能率・saturationを出さない。詳細 → [Writer EDD trace discovery](../../evals/writer-edd-trace-discovery.md)。
 - [x] **A4:** 実traceからfailure taxonomyを作り、`quality_self_heal_record_unparseable`を最初のcode-checkable failure classに選んだ。W-01のartifactは0 bytesでSHA-256=`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`、JSONDecodeError。これはevidence-integrity failureで、agent content qualityやhuman labelの代わりにしない。E01 cursorは動かさない。taxonomy → [Writer EDD trace discovery](../../evals/writer-edd-trace-discovery.md)。
 - [x] **A5:** W-01のcase cardにtask、initial state、allowed tools、budget、期待outcome、natural provenance、evidence refsを記録した。これは0-byte recovery artifactのevidence-integrity caseであり、writer quality、人手identity label、source reproductionはunknown/pendingのまま別表示する。case → [Writer EDD trace discovery](../../evals/writer-edd-trace-discovery.md)。
 - [x] **A6 / E02 case-level vector:** W-01 cardにtask completion、quality、safety gate、effect integrity、settled net、cost coverage、latency、human interventionを別fieldで記録した。証拠がない項目は`unknown`のまま保持し、publication stageは`blocked-before-publication`として分離する。これはPilot Aのcase定義だけで、canonical E02の自然failure/CFO official receipt joinは未完。
-- [ ] **A7:** hash/schema/receipt/重複/publication statusなど判定可能なものをcodeで採点する。LLM judgeは意味解釈だけに使う。
+- [x] **A7:** hash/schema/receipt/重複/publication statusをcodeで採点するgraderを`apps/life-manager/eval/writer/receipt-grader.js`へ追加。9 testsとW-01 CLI出力は`npm run test:writer-eval`でPASS。意味判定は行わず、task completion・quality・effect integrity・settled netは`unknown`のまま保持する。詳細 → [Writer EDD trace discovery](../../evals/writer-edd-trace-discovery.md)。
 - [ ] **A8:** Writer quality judgeをdomain expertのblind labelsと比べ、false-passとfalse-failを別々に測る。tuning/dev labelsとheld-out labelsを混ぜない。
 - [ ] **A9 / E04:** input/case/runner/grader/baseline/model/runtimeのversionとhashを固定し、dev・held-out・challengeを分ける。公開fixtureをsecret testと呼ばない。
 - [ ] **A10:** 同一model/runtime/tool/budgetでbaselineを各case 3回以上実行し、trial数・結果のばらつき・費用を保存する。

@@ -4,7 +4,9 @@
 
 目的は、一つの実障害を既存の回帰試験と対応付け、修理の前後を測れるようにすること。初版の成果は調査・説明・spec・plan。2026-10-12、Daisは英語解説記事をAniccaのブログとXへ公開することを別途明示した。この編集上の配信はE02/E03実行、runtime変更、benchmark性能の主張には当たらない。
 
-これはE02/E03の設計候補であり、新しいTODO正本や開始済みcursorではない。実行状態・順序・所有者は [統一SSOT](2026-09-25-life-manager-unified-ssot.md) に従う。既存評価ownerの範囲と調整してから後続作業へ接続する。
+これはWriter Pilot Aの設計と実装記録であり、新しい全体TODO正本ではない。実行状態・全体順序・所有者は [統一SSOT](2026-09-25-life-manager-unified-ssot.md) に従う。Daisの現在の指示により、この作業のactive scopeはWriterの評価駆動開発とする。E01の`agent-economy-loop` release adoption/natural evaluationは別cursorとして残り、Writer graderの前提条件ではない。Writer側ではproduction runtime・外部effectを変更しない。
+
+**実装checkpoint（2026-10-13）:** A7のW-01 deterministic code graderを`apps/life-manager/eval/writer/receipt-grader.js`に実装し、9/9 focused testsとCLI caseをPASS。W-01のempty artifactはhash PASS、receipt parseability FAIL、publication stage PASS。task completion、quality、effect integrity、settled netは`unknown`/`null`のまま。これはartifact integrity evaluatorのsource-level結果で、Writer quality、収益改善、自然runの修復、benchmark performanceを示さない。次はA8のquality judgeを人手blind labelで較正する準備だが、まずcase/evidence provenanceとdomain labelを揃える。
 
 ## E01 runtime checkpoint
 

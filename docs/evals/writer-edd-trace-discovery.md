@@ -95,6 +95,14 @@ Identity/CTAの不一致は人手ラベル待ちのcandidateです。
 
 このcardはcase定義であり、grader実装、source再現、agent performance測定の完了ではありません。外部receiptや費用がない状態を売上0へ変換しません。Case-level dimensionsを揃えても、canonical E02のCFO receipt/cost join完了とは扱いません。
 
+## A7 code grader — W-01 receipt parseability
+
+`apps/life-manager/eval/writer/receipt-grader.js`は匿名化したcase入力をstdinから受け、artifact SHA-256、UTF-8/JSON parseability、既存v2 receipt schema、self-hash、receipt chain/重複、publication stageをcodeで判定します。入力・artifactのサイズを制限し、path/network/providerアクセスを行いません。
+
+W-01の0-byte artifactに対するgradeは、artifact hash `pass`、receipt parseability `fail`、publication status `pass`（`blocked-before-publication`）、reason `quality_self_heal_record_unparseable`です。receipt schema/id/duplicateは解析可能なreceiptがないため`unknown`。task completion、content quality、effect integrityも`unknown`、settled netは`null`です。
+
+`npm run test:writer-eval`で9件のgrader testsとW-01 CLI出力を検証します。別のsynthetic valid v2 fixtureはschema/receipt hashのcontrol testだけに使い、natural case数、writer performance、qualityやrevenue scoreへ数えません。grader出力は一つのcode-checkable evidence dimensionであり、A8のsemantic judge calibration、自然source reproduction、E02の公式receipt/cost joinは未完です。
+
 ## 優先findings
 
 ### 1. Source lineageが不足

@@ -57,6 +57,18 @@ jobs:
           runtime/loop/__tests__/recovery-executor.test.mjs
           runtime/loop/__tests__/recovery-supervisor.test.mjs
 
+  writer-eval:
+    name: Writer EDD receipt grader
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.16.0'
+      - name: Run W-01 code grader and regression tests
+        working-directory: apps/life-manager
+        run: npm run test:writer-eval
+
   openclaw-foundation:
     name: OpenClaw offline foundations
     runs-on: ubuntu-latest
