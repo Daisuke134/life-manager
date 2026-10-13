@@ -722,6 +722,30 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
         self.assertIn("job_search_loop.browser_agent.browser_agent.runtime", prompt)
         self.assertIn("replace it with the canonical module", prompt)
 
+    def test_daily_prompt_searches_for_grounded_picker_value_before_continuing(self):
+        prompt = (APP_ROOT / "prompts" / "daily-pass.md").read_text(encoding="utf-8")
+        normalized = " ".join(prompt.split())
+
+        self.assertIn(
+            "When the exact grounded target is missing from the visible picker options",
+            normalized,
+        )
+        self.assertIn(
+            "use `runtime type-text` on the currently visible search control",
+            normalized,
+        )
+        self.assertIn("inspect the fresh filtered options", normalized)
+        self.assertIn("select only an exact match", normalized)
+        self.assertIn("A typed search term is not a committed selection", normalized)
+        self.assertIn(
+            "Never click Continue while a required picker remains unfilled",
+            normalized,
+        )
+        self.assertIn(
+            "report only this row as `not_submitted` and continue to the next `observe`",
+            normalized,
+        )
+
     def test_daily_prompt_skips_captcha_row_without_bypass_and_continues(self):
         prompt = (APP_ROOT / "prompts" / "daily-pass.md").read_text(encoding="utf-8")
         normalized = " ".join(prompt.split())

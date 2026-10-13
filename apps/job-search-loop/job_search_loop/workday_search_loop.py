@@ -570,27 +570,8 @@ def main() -> int:
         args.ledger, allowed_hosts, policy_version=POLICY_VERSION
     )
     rolling = rolling_submission_metrics(args.ledger)
-    if rolling["deficit"] > 0 and queued_ids:
-        result = {
-            "status": "queued_existing",
-            "discoveries": [],
-            "decisions": [],
-            "qualified_application_ids": [],
-            "shortlist": [],
-            "discovered": [],
-            "stale_rows": list(stale_rows),
-            "queued_application_ids": list(queued_ids),
-        }
-        result.update(rolling)
-        result["remaining_deficit"] = rolling["deficit"]
-        args.output.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        args.output.write_text(
-            json.dumps(result, ensure_ascii=False, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
-        os.chmod(args.output, 0o600)
-        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-        return 0
+    # Keep durable queued rows in the result, but do not let them suppress fresh
+    # qualification: a materials-ready row can remain blocked on a required fact.
     preferred_urls: tuple[str, ...] = ()
     if candidates:
         candidate_memory = args.candidate_memory.read_text(encoding="utf-8")

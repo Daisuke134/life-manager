@@ -154,11 +154,19 @@ For text without a candidate concept, use exactly one `runtime type-text` comman
 If the fresh observation exposes visible options, click the chosen option's exact
 fresh `ref:*` instead of typing a narrative answer into the picker.
 For an editable picker, a scalar answer that leaves `filled=false` is not accepted.
-Clear the search control with one `runtime type-text --text ""` action, observe
-the unfiltered options, then click one exact fresh option ref. For an application
-discovered from its official ATS posting, the truthful broad source category is
-`Website` when that option is visible; do not keep typing `Job board` into a picker
-that does not expose that option.
+When the exact grounded target is missing from the visible picker options, use
+`runtime type-text` on the currently visible search control with that exact
+grounded value, then inspect the fresh filtered options and select only an exact
+match. A typed search term is not a committed selection: verify the chosen value
+or `filled=true` before continuing.
+Never click Continue while a required picker remains unfilled. If search returns
+no exact match, clear the search control with one `runtime type-text --text ""`
+action, reopen the exact options control, and search once more. If the exact option
+is still unavailable, report only this row as `not_submitted` and continue to the
+next `observe`; never choose a nearby value or repeat the same search loop.
+For an application discovered from its official ATS posting, the truthful broad
+source category is `Website` when that option is visible; do not keep typing
+`Job board` into a picker that does not expose that option.
 
 ## Company-specific resume
 

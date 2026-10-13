@@ -6,10 +6,13 @@ raised ChatGptImageGenUnavailable is observably routed to the Gemini fallback.
 """
 from __future__ import annotations
 
+import os
+import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 MODULE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(MODULE_ROOT))
@@ -80,6 +83,35 @@ class StaticStickerFallsBackToGemini(unittest.TestCase):
         self.assertEqual(backend, "chatgpt_imagegen")
         self.assertEqual(str(cost), "0")
         self.assertFalse(tmp_png.exists())  # the temp PNG is deleted after loading
+
+
+class RunScopedBrowserSession(unittest.TestCase):
+    def test_generation_reuses_session_within_run_but_isolates_runs(self) -> None:
+        calls = []
+
+        def fake_run(args, **kwargs):
+            calls.append(list(args))
+            output = Path(args[args.index("-o") + 1])
+            output.write_bytes(b"image")
+            return subprocess.CompletedProcess(args, 0, "", "")
+
+        with mock.patch.object(BACKEND.subprocess, "run", side_effect=fake_run):
+            with mock.patch.dict(os.environ, {"LIFE_MANAGER_RUN_ID": "run-a"}):
+                first = BACKEND.generate("first prompt")
+                second = BACKEND.generate("second prompt")
+            with mock.patch.dict(os.environ, {"LIFE_MANAGER_RUN_ID": "run-b"}):
+                third = BACKEND.generate("third prompt")
+        try:
+            sessions = []
+            for args in calls:
+                self.assertIn("--session", args)
+                sessions.append(args[args.index("--session") + 1])
+            self.assertEqual(sessions, ["line-sticker-run-a", "line-sticker-run-a",
+                                        "line-sticker-run-b"])
+        finally:
+            first.unlink(missing_ok=True)
+            second.unlink(missing_ok=True)
+            third.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":
