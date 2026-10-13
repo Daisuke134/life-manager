@@ -297,6 +297,30 @@ def dependency_manifest_matches(left: bytes, right: bytes) -> bool:
         return False
 
 
+def dependency_bundle_is_reusable(node_modules: Path, bundle_root: Path) -> bool:
+    """Accept only a complete read-only content-addressed bundle under the shared root."""
+    try:
+        if not node_modules.is_symlink():
+            return False
+        modules = node_modules.resolve(strict=True)
+        bundle = modules.parent
+        key = bundle.name.removeprefix("npm-")
+        marker = bundle / ".complete"
+        return (
+            modules == (bundle / "node_modules").resolve(strict=True)
+            and bundle.parent.resolve(strict=True) == bundle_root.resolve(strict=True)
+            and len(key) == 64
+            and all(char in "0123456789abcdef" for char in key)
+            and not bundle.stat().st_mode & 0o222
+            and not marker.is_symlink()
+            and stat.S_ISREG(marker.lstat().st_mode)
+            and marker.read_text(encoding="utf-8").strip() == key
+            and (modules / ".package-lock.json").is_file()
+        )
+    except (OSError, UnicodeError, ValueError, RuntimeError):
+        return False
+
+
 def release_capacity_bytes(repo: Path, sha: str, loops: Path, node: str, npm: str) -> int:
     """Measure a source export plus enough space to retain the recovery floor."""
     roots = ("", "runtime/compute-proxy", "runtime/agentmail", "apps/life-manager",
@@ -334,21 +358,8 @@ def release_capacity_bytes(repo: Path, sha: str, loops: Path, node: str, npm: st
         # The bundle was built from the donor's bytes, including its old script aliases.
         manifests = donor_manifests
         # cut-loop-release can hardlink a dependency-compatible donor bundle into a
-        # new toolchain-keyed bundle. Capacity preflight must validate the donor bundle,
-        # not require that the new toolchain key already exists.
-        node_modules = directory / "node_modules"
-        if not node_modules.is_symlink():
-            raise ValueError("dependency bundle unavailable")
-        resolved_node_modules = node_modules.resolve(strict=True)
-        bundle = resolved_node_modules.parent
-        bundle_key = bundle.name.removeprefix("npm-")
-        if (resolved_node_modules.name != "node_modules"
-                or bundle.parent.resolve() != (loops / "dependency-bundles").resolve()
-                or len(bundle_key) != 64
-                or any(char not in "0123456789abcdef" for char in bundle_key)
-                or bundle.stat().st_mode & 0o222
-                or (bundle / ".complete").read_text().strip() != bundle_key
-                or not (bundle / "node_modules/.package-lock.json").is_file()):
+        # new toolchain-keyed bundle. Validate that shared bundle contract in one place.
+        if not dependency_bundle_is_reusable(directory / "node_modules", loops / "dependency-bundles"):
             raise ValueError("dependency bundle unavailable")
     block = os.statvfs(loops).f_frsize
     if block <= 0:
