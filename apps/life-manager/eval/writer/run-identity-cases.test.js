@@ -103,6 +103,25 @@ process.stdin.on("end", () => {
     WRITER_LOG_DIR: process.env.WRITER_LOG_DIR,
   }));
   const caseId = process.env.WRITER_EVAL_CASE_ID;
+  if (caseId === process.env.FAKE_PROVIDER_FAILURE_CASE_ID) {
+    const evidenceDir = path.join(process.env.WRITER_SHARED_RUNNER_STATE, "judge-failure");
+    fs.mkdirSync(evidenceDir, { recursive: true });
+    const attemptsPath = path.join(evidenceDir, "attempts.jsonl");
+    fs.writeFileSync(attemptsPath, JSON.stringify({
+      provider: "codex",
+      status: "failed",
+      provider_started: false,
+      error_class: "codex_home_busy",
+      rc: 75,
+      usage: { measurement: "prelaunch_provider_home_busy" },
+    }) + "\\n");
+    fs.writeFileSync(path.join(evidenceDir, "summary.json"), JSON.stringify({
+      status: "failed",
+      provider_started: false,
+      attempts_path: attemptsPath,
+    }));
+    process.exit(75);
+  }
   const output = caseId === "W-C-001"
     ? { verdict: "FAIL", violations: ["B: non-target-only failure"] }
     : caseId === "W-C-002"
@@ -424,6 +443,31 @@ test("refuses a broker marker loaded from dotenv before invoking the judge", () 
     const event = JSON.parse(result.stderr.trim());
     assert.equal(event.error_class, "nested_sandbox_execution");
     assert.equal(event.effect, "none");
+  } finally {
+    fs.rmSync(harness.directory, { recursive: true, force: true });
+  }
+});
+
+test("preserves prelaunch provider failure evidence instead of misclassifying it as malformed output", () => {
+  const harness = makeHarness();
+  harness.env.FAKE_PROVIDER_FAILURE_CASE_ID = "W-C-026";
+  try {
+    const result = invoke(harness);
+
+    assert.equal(result.error, undefined, result.error?.message);
+    assert.equal(result.status, 0, result.stderr);
+    const events = result.stderr.trim().split(/\r?\n/u).map((line) => JSON.parse(line));
+    const event = events.find((row) => row.case_id === "W-C-026");
+    assert.equal(event.error_class, "codex_home_busy");
+    assert.equal(event.retryable, true);
+    assert.equal(event.effect, "none");
+    assert.equal(event.readback.judge_verdict, "UNKNOWN");
+    assert.equal(event.readback.provider_started, false);
+    assert.equal(event.readback.provider_usage_measurement, "prelaunch_provider_home_busy");
+    assert.equal(event.next_action, "wait_for_profile_provider_lease_release_then_retry_case");
+    const prediction = result.stdout.trim().split(/\r?\n/u).map((line) => JSON.parse(line))
+      .find((row) => row.case_id === "W-C-026");
+    assert.equal(prediction.judge_verdict, "UNKNOWN");
   } finally {
     fs.rmSync(harness.directory, { recursive: true, force: true });
   }
