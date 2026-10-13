@@ -3213,7 +3213,21 @@
         "max_runs": 100
       },
       "domain": "growth",
-      "effect_class": "publish",
+      "effect_class": "message",
+      "effect_reconcile": {
+        "argv": [
+          "apps/life-manager/scripts/marketing-metrics-effect-reconcile.py",
+          "--owner-id",
+          "life-manager-instagram-metrics",
+          "--state-root",
+          "~/.local/state/life-manager",
+          "--data-root",
+          "~/.local/state/life-manager"
+        ],
+        "occurrence_flag": "--occurrence-id",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 60
+      },
       "entrypoint": "apps/life-manager/scripts/instagram-metrics-production-boot.sh",
       "label": "ai.anicca.life-manager-instagram-metrics",
       "log_root": "~/.local/state/life-manager/logs",
@@ -3365,7 +3379,21 @@
         "max_runs": 100
       },
       "domain": "growth",
-      "effect_class": "publish",
+      "effect_class": "message",
+      "effect_reconcile": {
+        "argv": [
+          "apps/life-manager/scripts/marketing-metrics-effect-reconcile.py",
+          "--owner-id",
+          "life-manager-tiktok-metrics",
+          "--state-root",
+          "~/.local/state/life-manager",
+          "--data-root",
+          "~/.local/state/life-manager"
+        ],
+        "occurrence_flag": "--occurrence-id",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 60
+      },
       "entrypoint": "apps/life-manager/scripts/tiktok-metrics-production-boot.sh",
       "label": "ai.anicca.life-manager-tiktok-metrics",
       "log_root": "~/.local/state/life-manager/logs",
