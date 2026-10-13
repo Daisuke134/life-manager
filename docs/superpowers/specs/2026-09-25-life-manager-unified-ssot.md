@@ -3392,6 +3392,34 @@ social ledgerは17 attempts（14 local published / 3 failed）、最後の記録
 
 **容量/計測readback補足（2026-10-14 07:46 JST）:** 07:41の`crwl` `/api/stats`取得は`unable to open database file`で失敗し、原因の帰属は未確認。最後に成功したsnapshotは`updated_at=2026-10-13T22:27:41Z`（07:27 JST）、全体340 pageviewsで、set-022 pathと`line_sticker_click`は未記録。root volumeは07:39に一時99%/空き149,312 KiBまで下がり、登録済み`life-manager-disk-cleanup:18de37d50652bb38-4257`が07:45にexit0で終端した後は97%/空き420,284 KiB。イベントに`reclaimed_bytes`はなく、`last-receipt.json`は10/11、`cleanup-latest.json`は9/14の古い記録なので、今回の実回収量は不明。factory scratchはなお8,527,236 KiB（約8.13 GiB）で、60 processesがopen referencesを持つ。既存effect unknownとopen ownerを保ったままcleanupを続け、直接削除/killはしない。
 
+#### 5.L Live distribution update — as-is/to-be/current cursor（readback 2026-10-14 08:14 JST、latest main `30da463c`）
+
+**As-Is — free distribution:** 08:07 JSTの自然occurrence `line-sticker-articles:18de396d02cd90e8-85398` はloaded release `2275018c`で08:13:03 JSTにexit 0。article ledgerは15 slots中12 published / 3 failed、12 unique existing SKU。set-018の08時記事 `https://aniccaai.com/blog/line-sticker-set-018-2026-10-14-08` を公開し、commit `f8e98fbbb18ddc9cd4626dfa9db3fd303eec76b5`。公開ページ本文のLINE STORE CTA `https://line.me/S/sticker/37225873` は既存item cacheのproduct ID `48172824` / `purchase_url` と一致し、`store_public=true`。set-022の07時記事も引き続き公開済み。販売中29 SKUのうち記事未掲載は17件。新SKU制作・有料広告/PRは行っていない。
+
+**Effect/fence:** runtime eventは成功した公開runも`effect_status=unknown` / provider receiptなし / official readback refなしで記録している。08:05:12 JSTの`18de394ef15676e0-80263`と08:05:29 JSTの`18de3952ba3c5a18-81831`はどちらもexit75 / `entrypoint_exit_75` / effect_unknown / `retryable=false` / `official_readback_required`。どのoccurrenceも手動再送・fence解除していない。loaded releaseの登録済み`article_fence_reconcile.py`は、各run開始から最大3,600秒のGitHub landing article additionsをlocal ledgerと照合し、開始から4,500秒を超えるまでno-effect証明を返さない。最短照合開始時刻は08:05:12 occurrenceが09:20:12 JSTより後、08:05:29が09:20:29より後、08:07:22 occurrenceが09:22:22より後。公式remote/ledgerで全記事が照合できた場合だけresolveし、unledgered articleやreadback失敗ならunknownを保持する。
+
+**As-Is — measurement/money/capacity:** 成功した`crwl` `/api/stats`取得のsnapshotは`updated_at=2026-10-13T23:13:05.261Z`（08:13:05 JST）、全site345 pageviews。snapshot内にset-018/set-022 pathも`line_sticker_click` eventもなく、期間窓・organic流入・購入帰属は不明。最新保存sales readbackは10/13 15:14:45Z（40 IDs中28明示¥0、12 null、正値0、分配表示期間は2025.12.01–12.31）のまま。初回正値売上・現月確定分配・累計費用回収は未確認。root volumeは08:14時点83%使用・空き2,327,440 KiB。07:46時点で約8.13 GiBのfactory scratchにopen referencesがあったが、その後の回収可能量は再確認していない。現在の空き容量では不要物の直接削除を配信の前提にしない。
+
+**To-Be — existing-SKU/free-only:** 29販売中SKUの露出を自然記事、既存素材、所有が確認できた無料チャネルへ広げる。投稿URL/CTAを公式商品IDと照合し、article path view→CTA click→公式gross sale→creator distribution→verified all-in costを同一期間で結ぶ。YouTubeは既存set-011 Shortを使う無料organic候補。paid ads/PR、自己購入、購入依頼、新SKU制作は対象外。
+
+**Remaining atomic TODO (distribution first; exact cursor):**
+
+| ID | 次の作業 | 完了条件 |
+|---|---|---|
+| D30.1 | 09:05 JST以降の自然eligible slotで、未掲載17 SKUから記事を1件出す | 記事ledgerのSKU/URLと公開ページが一致し、CTAがそのSKUの公式`purchase_url`と一致。手動wake・重複公開なし |
+| D30.2 | 次の自然article wakeのterminalとeffect状態を読む | provider page/readbackとledgerを分けて記録し、売上やクリックを公開成功から推測しない |
+| D30.3 | 09:20:12 / 09:20:29 / 09:22:22 JSTより後に、08:05・08:07の3 occurrenceを登録済みGitHub-remote/ledger reconcilerへ一件ずつ渡す | 各windowのremote article additionsが全てledgerと一致し`verified=true`の場合だけresolve。unledgered item・readback失敗・too-recentはunknownのまま。再送なし |
+| D09.1 | 次の既存`line-creators-browser` owner自然readbackを読む | `/stats/sticker`、`/payment_request`、40 item statusを日付・対象期間付きで保存。live profileを奪わない |
+| D09.2 | 40 cache IDsと38 factory submitted IDsの差分をitemごとに照合する | set-002/set-005を含む2件の差分を公式ID/statusと結び、記録の欠落と商品喪失を混同しない |
+| D10.1 | article path viewとSKU CTA clickを同期間で計測する | slot/article/SKU/channel/windowが結び付き、crawler/self-viewを除外。現状の未計測を0扱いしない |
+| D10.2 | 安全なofficial editor ownerが空いた後、既存29 SKUのtitle/tag/main imageを検索ガイドに照らして監査する | 変更する場合は既存SKUだけを一件ずつ修正し、公開一覧の反映を確認 |
+| D12 | Threads/Instagramの専用identity/ownerと既存effect fenceを公式readbackする | 所有と過去効果が確定するまで投稿・再送・fence手動解除なし |
+| D15→D13 | 既存set-011 Short用の専用YouTube identity/leaseを確認し、無料で1回配信する | 公式公開permalinkとCTAを照合し、再投稿なし。動画の新規制作なし |
+| D29 | Stamp Maniaは再試行せず、無料・人手不要・追加PII/CAPTCHA/feeなしの別directoryを調べる | 条件を満たし既存SKUを受け入れるrouteだけ使い、受付receiptを保存 |
+| D20/D21 | 公式readbackで反応した既存SKU/channelへ無料枠を移し、売上・確定分配・全費用を同期間で照合する | article view、CTA click、gross sale、creator distribution、production/distribution costを別計上。all-in回収を推計で埋めない |
+| D22 | 一暦月のbuyer gross USD 10,000、最初の正値売上、累計分配が確認済み累計費用を上回る条件を確認する | 公式証拠・定義・期間が揃う。USD/JPY ¥150・平均¥233.45なら約6,426購入/月（約214/日）は規模算術であり予測/保証ではない |
+| D-clean | 容量ゲートが再発した時だけ登録済みcleanup ownerに回収可能物を評価させる | closed proofとopen-referenceゼロを確認した再生成可能物だけ回収。8.13 GiB scratchはowner確認なしに消さない |
+
 ## 5.5 投資OSS検証の再確認（2026-09-29）
 
 公式OSSの共通手順は、backtest/research → paper/dry-run → official readback付きの小額live検証であり、OSSやpaper損益自体は利益保証ではない。[Freqtrade](https://docs.freqtrade.io/en/stable/)はdry-runをlive前に要求し、[Hummingbot](https://github.com/hummingbot/hummingbot)はpaper tradeとlive executionを分離する。[LEAN](https://github.com/QuantConnect/Lean)と[QuantConnectのlive reconciliation docs](https://www.quantconnect.com/docs/v2/cloud-platform/live-trading/reconciliation)はfill・fee・slippage・market impactの差を明記し、[Alpacaのpaper docs](https://docs.alpaca.markets/us/v1.4.2/docs/paper-trading)はpaperがmarket impact等を再現しないと説明する。よって投資loopはweb上の成功談や29回の手動wakeを利益証拠にせず、`main由来immutable release → Life Manager自然paper receipt → cost-complete net P&L → 30 natural samples → bounded promotion`を維持する。
