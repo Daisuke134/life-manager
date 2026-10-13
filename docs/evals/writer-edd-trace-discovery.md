@@ -107,7 +107,7 @@ W-01の0-byte artifactに対するgradeは、artifact hash `pass`、receipt pars
 
 Current private inventory has 251 `writer-judge` child summaries under `article-daily`. They contain `runtime_event_id` and model-generated results, but omit child owner/run/occurrence/release fields and parent Writer article/lifecycle IDs. `shared-model-runner.py` inherits `ARTICLE_RUN_ID`; loop launchd provides `LIFE_MANAGER_RUN_ID`, `LIFE_MANAGER_OCCURRENCE_ID`, and `LIFE_MANAGER_RELEASE_SHA`. The generic agent-runner writes the child runtime event but only copies `event_id` into summary.json.
 
-A3c adds those deterministic identity fields to the child summary; it does not copy article body or turn model verdicts into human labels. The 251 child calls remain child samples, not independent article tasks. Current human labels: 0; 8 article runs / 4 identity receipts remain calibration candidates.
+A3c child-to-parent binding is merged in PR #7881 (`e2463ba9`) and CI passes. It does not copy article body or convert model verdicts to human labels. Historical child summaries remain unbound; they are not retroactively rewritten. Current human labels: 0; 8 historical article runs (7 retained run dirs) / 4 identity receipts remain natural-case candidates.
 
 ## A3b source provenance — current Writer atom
 
