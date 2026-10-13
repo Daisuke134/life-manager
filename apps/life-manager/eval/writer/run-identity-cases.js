@@ -255,8 +255,54 @@ function targetVerdict(result) {
   return { verdict: "UNKNOWN", errorClass: "unexpected_gate_result", retryable: true };
 }
 
+function readProviderFailureEvidence(sharedRunnerStateDir) {
+  let evidenceDirs;
+  try {
+    evidenceDirs = fs.readdirSync(sharedRunnerStateDir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => path.join(sharedRunnerStateDir, entry.name))
+      .filter((directory) => fs.existsSync(path.join(directory, "summary.json")));
+  } catch {
+    return null;
+  }
+  if (evidenceDirs.length !== 1) return null;
+
+  const evidenceDir = path.resolve(evidenceDirs[0]);
+  let summary;
+  try {
+    summary = JSON.parse(fs.readFileSync(path.join(evidenceDir, "summary.json"), "utf8"));
+  } catch {
+    return null;
+  }
+  if (summary.status !== "failed" || typeof summary.attempts_path !== "string") return null;
+
+  const attemptsPath = path.resolve(summary.attempts_path);
+  if (!attemptsPath.startsWith(`${evidenceDir}${path.sep}`)) return null;
+  let attempts;
+  try {
+    const stat = fs.statSync(attemptsPath);
+    if (stat.size > MAX_OUTPUT_BYTES) return null;
+    attempts = fs.readFileSync(attemptsPath, "utf8").trim().split(/\r?\n/u)
+      .filter(Boolean).map((line) => JSON.parse(line));
+  } catch {
+    return null;
+  }
+  const attempt = attempts.at(-1);
+  if (typeof attempt?.error_class !== "string"
+    || !/^[a-z][a-z0-9_]{0,63}$/u.test(attempt.error_class)) return null;
+  return {
+    errorClass: attempt.error_class,
+    providerStarted: typeof attempt.provider_started === "boolean"
+      ? attempt.provider_started
+      : typeof summary.provider_started === "boolean" ? summary.provider_started : null,
+    usageMeasurement: typeof attempt.usage?.measurement === "string"
+      ? attempt.usage.measurement : null,
+  };
+}
+
 function eventRecord({ runId, caseId, exitCode, verdict, errorClass, retryable, referenceSet = null, freeze = null,
-  ownerId = "writer-a8-identity-eval", nextActionOverride = null, preflightOnly = false }) {
+  ownerId = "writer-a8-identity-eval", nextActionOverride = null, preflightOnly = false,
+  providerEvidence = null }) {
   const preflight = caseId === null || NO_EFFECT_ERRORS.has(errorClass);
   return {
     run_id: runId,
@@ -291,7 +337,7 @@ function eventRecord({ runId, caseId, exitCode, verdict, errorClass, retryable, 
     phase: preflight ? "preflight" : "identity_judge",
     command: caseId === null ? "run-identity-cases.js" : "isolated-gate-wrapper",
     exit_code: exitCode,
-    effect: preflight ? "none" : "judge_model_inference",
+    effect: preflight || providerEvidence?.providerStarted === false ? "none" : "judge_model_inference",
     readback: {
       judge_verdict: verdict,
       reference_set_version: referenceSet?.version || null,
@@ -301,6 +347,10 @@ function eventRecord({ runId, caseId, exitCode, verdict, errorClass, retryable, 
       provider: freeze?.provider || null,
       model_id: freeze?.model_id || null,
       effort: freeze?.effort || null,
+      ...(providerEvidence ? {
+        provider_started: providerEvidence.providerStarted,
+        provider_usage_measurement: providerEvidence.usageMeasurement,
+      } : {}),
     },
     provider_receipt_id: null,
     evidence_refs: [
@@ -330,6 +380,7 @@ function nextAction(errorClass) {
   if (errorClass === "unknown_case") return "reconcile_case_ids_with_canonical_dataset";
   if (errorClass === "nested_sandbox_execution") return "run_from_owner_controlled_outer_shell_not_nested_agent";
   if (errorClass === "writer_runtime_env_failed") return "repair_writer_runtime_environment_before_retry";
+  if (errorClass === "codex_home_busy") return "wait_for_profile_provider_lease_release_then_retry_case";
   if (errorClass === "non_target_failure_category") return "keep_prediction_unknown_and_review_target_category";
   if (errorClass === "judge_spawn_failed") return "verify_model_runner_availability_before_retry";
   return "inspect_identity_gate_and_model_runner_diagnostics_before_retry";
@@ -384,7 +435,16 @@ function invokeIdentityGate({ caseData, caseDir, runId, dataset, referenceSet, f
     env,
     maxBuffer: MAX_OUTPUT_BYTES,
   });
-  const classified = targetVerdict(result);
+  const providerEvidence = readProviderFailureEvidence(sharedRunnerStateDir);
+  const classified = providerEvidence && result.status !== 0
+    ? {
+      verdict: "UNKNOWN",
+      errorClass: providerEvidence.errorClass,
+      retryable: providerEvidence.errorClass === "codex_home_busy"
+        || providerEvidence.errorClass.startsWith("transient_")
+        || providerEvidence.errorClass === "codex_prelaunch_auth_missing",
+    }
+    : targetVerdict(result);
   emitEvent(eventRecord({
     runId,
     caseId: caseData.case_id,
@@ -394,6 +454,7 @@ function invokeIdentityGate({ caseData, caseDir, runId, dataset, referenceSet, f
     retryable: classified.retryable,
     referenceSet,
     freeze,
+    providerEvidence,
   }));
   if (NO_EFFECT_ERRORS.has(classified.errorClass)) {
     const error = new Error("Writer evaluation could not establish its isolated runtime context");

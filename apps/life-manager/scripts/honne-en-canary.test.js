@@ -19,6 +19,24 @@ const {
   runHonneEnCanary,
 } = require("./honne-en-canary.js");
 
+const testTempDirs = new Set();
+
+function testTempDir(prefix) {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  fs.writeFileSync(path.join(dataDir, ".lm-test-canary"), "life-manager-canary-test-v1\n", { mode: 0o600 });
+  testTempDirs.add(dataDir);
+  return dataDir;
+}
+
+test.after(() => {
+  const leftovers = [];
+  for (const dataDir of testTempDirs) {
+    fs.rmSync(dataDir, { recursive: true, force: true });
+    if (fs.existsSync(dataDir)) leftovers.push(path.basename(dataDir));
+  }
+  assert.deepEqual(leftovers, []);
+});
+
 const RECEIPT = {
   schema_version: 1,
   kind: "marketing_video_distribution",
@@ -119,7 +137,7 @@ test("Honne EN canary receipt is bound to the @honne_reveal TikTok account", () 
 
 test("real Postiz canary checks the Life Manager secret boundary before claiming a job", async () => {
   const store = createMarketingLocalLedger({
-    dataDir: fs.mkdtempSync(path.join(os.tmpdir(), "lm-canary-postiz-preflight-")),
+    dataDir: testTempDir("lm-canary-postiz-preflight-"),
   });
   await assert.rejects(
     runHonneEnCanary(
@@ -145,7 +163,7 @@ test("real Postiz canary checks the Life Manager secret boundary before claiming
 
 test("real Postiz canary rejects injected URL verification", async () => {
   const store = createMarketingLocalLedger({
-    dataDir: fs.mkdtempSync(path.join(os.tmpdir(), "lm-canary-postiz-verifier-")),
+    dataDir: testTempDir("lm-canary-postiz-verifier-"),
   });
   await assert.rejects(
     runHonneEnCanary(
@@ -199,7 +217,7 @@ test("configured fake transport still rejects an unmarked custom executor", asyn
 
 test("controlled canary promotes one job, publishes one receipt, sends one URL receipt, and replays idempotently", async () => {
   const store = createMarketingLocalLedger({
-    dataDir: fs.mkdtempSync(path.join(os.tmpdir(), "lm-canary-script-test-")),
+    dataDir: testTempDir("lm-canary-script-test-"),
     now: () => "2026-08-21T02:00:00.000Z",
   });
   await store.enqueueJob({
@@ -265,7 +283,7 @@ test("controlled canary promotes one job, publishes one receipt, sends one URL r
 
 test("canary refuses to repost when publication receipt is missing after a terminal job", async () => {
   const store = createMarketingLocalLedger({
-    dataDir: fs.mkdtempSync(path.join(os.tmpdir(), "lm-canary-missing-receipt-")),
+    dataDir: testTempDir("lm-canary-missing-receipt-"),
     now: () => "2026-08-21T02:00:00.000Z",
   });
   await store.enqueueJob({
@@ -321,7 +339,7 @@ test("canary refuses to repost when publication receipt is missing after a termi
 
 test("canary rerun claims a promotion that persisted before the first process crashed", async () => {
   const store = createMarketingLocalLedger({
-    dataDir: fs.mkdtempSync(path.join(os.tmpdir(), "lm-canary-promoted-restart-")),
+    dataDir: testTempDir("lm-canary-promoted-restart-"),
     now: () => "2026-08-21T02:00:00.000Z",
   });
   await store.enqueueJob({
@@ -376,7 +394,7 @@ test("canary rerun claims a promotion that persisted before the first process cr
 test("canary fails closed on a reconciling publication with no receipt", async () => {
   let clock = "2026-08-21T02:00:00.000Z";
   const store = createMarketingLocalLedger({
-    dataDir: fs.mkdtempSync(path.join(os.tmpdir(), "lm-canary-reconciling-")),
+    dataDir: testTempDir("lm-canary-reconciling-"),
     now: () => clock,
   });
   await store.enqueueJob({
@@ -424,7 +442,7 @@ test("canary fails closed on a reconciling publication with no receipt", async (
 
 test("fake-gated main runs the local process without constructing a real provider transport", async () => {
   const store = createMarketingLocalLedger({
-    dataDir: fs.mkdtempSync(path.join(os.tmpdir(), "lm-canary-main-test-")),
+    dataDir: testTempDir("lm-canary-main-test-"),
     now: () => "2026-08-21T02:00:00.000Z",
   });
   await store.enqueueJob({

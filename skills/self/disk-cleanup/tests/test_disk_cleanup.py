@@ -274,6 +274,83 @@ def test_discover_stale_test_temporary_families_only(
     assert all(item["discovery"] == "allowlisted" for item in candidates)
 
 
+def test_closed_old_canary_test_tmp_is_reclaimed_but_unknown_fresh_and_open_are_kept(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    home = tmp_path / "home"
+    temporary = tmp_path / "T"
+    home.mkdir()
+    temporary.mkdir()
+    old_names = [
+        "lm-larry-ja-canary-Ab12Xz",
+        "lm-anicca-en-affirmation-canary-Bc23Yz",
+        "lm-anicca-en-tiktok-canary-Cd34Ef",
+        "lm-jp1-production-controls-Dg45Hi",
+        "lm-canary-script-test-Ej56Kl",
+        "lm-canary-postiz-preflight-Fm67No",
+        "lm-canary-postiz-verifier-Pq78Rs",
+        "lm-canary-missing-receipt-Tu89Vw",
+        "lm-canary-promoted-restart-Xy12Za",
+        "lm-canary-reconciling-Bc34De",
+        "lm-canary-main-test-Fg56Hi",
+    ]
+    old_paths = []
+    for name in old_names:
+        path = temporary / name
+        path.mkdir()
+        marker = path / ".lm-test-canary"
+        marker.write_text("life-manager-canary-test-v1\n")
+        marker.chmod(0o600)
+        os.utime(path, (1, 1))
+        old_paths.append(path)
+
+    closed = old_paths[0]
+    marketing = closed / "marketing"
+    marketing.mkdir()
+    (marketing / "receipts.jsonl").write_text('{"status":"published","provider_post_id":"postiz-test-fixture"}\n')
+    (marketing / "publication-effect-fence.json").write_text('{"schema_version":1,"state":"closed"}\n')
+    os.utime(closed, (1, 1))
+
+    opened = old_paths[2]
+
+    fresh = temporary / "lm-anicca-en-affirmation-canary-Gh56Ij"
+    fresh.mkdir()
+    (fresh / ".lm-test-canary").write_text("life-manager-canary-test-v1\n")
+    (fresh / ".lm-test-canary").chmod(0o600)
+
+    unknown = temporary / "lm-unknown-canary-Kl78Mn"
+    unknown.mkdir()
+    (unknown / ".lm-test-canary").write_text("life-manager-canary-test-v1\n")
+    (unknown / ".lm-test-canary").chmod(0o600)
+    os.utime(unknown, (1, 1))
+
+    unmarked = temporary / "lm-larry-ja-canary-Zz98Yx"
+    unmarked.mkdir()
+    os.utime(unmarked, (1, 1))
+
+    monkeypatch.setattr(disk_cleanup, "_readonly_temp_root", lambda: temporary)
+    monkeypatch.setattr(disk_cleanup, "_temporary_roots", lambda _primary: (temporary,))
+    governor = HostDiskGovernor(
+        home=home,
+        state_dir=home / "state",
+        lsof=lambda path: "open" if Path(path) == opened else "confirmed-closed",
+        usage=lambda: (100, 1),
+    )
+
+    candidates = [item for item in governor.discover_candidates() if item.get("owner") == "test-canary"]
+    assert {Path(item["path"]) for item in candidates} == set(old_paths)
+
+    result = governor.sweep(candidates, write_receipt=False)
+
+    assert result["preserved_reasons"] == {"open": 1}, result
+    assert all(not path.exists() for path in old_paths if path != opened), result
+    assert opened.is_dir()
+    assert fresh.is_dir()
+    assert unknown.is_dir()
+    assert unmarked.is_dir()
+    assert result["reclaimed"] > 0
+
+
 @pytest.mark.parametrize("protected_filename", ["credentials.json", ".env.sh"])
 def test_sweep_retires_only_registered_clean_merged_unleased_worktree(
     tmp_path: Path, monkeypatch, protected_filename: str,
