@@ -16599,3 +16599,63 @@ Order of preference (Ponytail): existing `apps/life-manager/eval/` runner and pl
 - Old Capafy order: T0 → T1 → T2 → T3 → T4 → T5 → … → T14.
 - New Capafy order: T0 → CD1 → CD2/CD3/CD4/CD5 (parallel, separate owners) → T2 → T3 → T4 remainder → CD6/CD7 → CD8 → CD9 → CD10. T1 fence/receipt proofs continue in parallel and no longer gate distribution work.
 - Current cursor: CD1 (claude-evo-eval-1012). No seller, price, trial or live listing was changed by this entry.
+
+## 全18能力の読み取り専用監査と修復計画 — 2026-10-13 21:31 JST観測
+
+**今回の依頼と境界:** 全体の実状、共通障害、個別障害、Capafyを商業重点にする優先案、自己修復・評価に基づく自己改善・OSSの残差を説明する。Daisの「Don’t go fix yet」を優先し、変更はこの監査と参照planの文書だけに限定する。provider操作、送信、価格・seller変更、fence解除、再実行、loop停止・再起動、release/apply、実行cursorの変更は行わない。既存ownerの作業は保持する。今回は通貨未指定なので既存のUS$10,000,000 MRR目標を維持し、JPY10,000,000や単発売上へ置き換えない。月間売上、MRR、settled revenue、net利益、銀行入金は別々に記録する。
+
+**sourceと観測:** sourceはGitHub main `086bfed5bb0a45234f49e0d605cbf7f6bf42cb47`。catalogは18能力、registryは191 jobs、catalogに対応するjobsは113、残る78は共通基盤や補助job。`current`はmain祖先のimmutable release `20261013T150253-5b90b21e`。12:31:13Zの既存`lm_loop.snapshot`を使用し、観測process内のlaunchctl呼び出しだけを`launchctl-safe`に通す（製品source/設定変更なし）。UID/Directory Services/Aqua/manager UID/PID/GUI readbackのpreflight PASS後に読取だけを行う。33 loaded-running、151 loaded-idle、4 disabled、3 unloaded。直近状態はpass45、blocked92、fail24、running26、記録なし4。これは成功率でも191件の独立販売agentでもない。schedule待ちのidleを故障と扱わない。
+
+**監視の限界:** health-observerの12:16:40Zと12:21:45Zのsnapshotは`health_snapshot_timeout`で191 telemetry_gap。全停止を意味しない。summaryのeffect_unknown=0もfence不存在の証拠ではない。各ownerの台帳と安全なruntime readbackで補う。plist上のrelease参照は27種類だが、全てのloaded argvを別途検証したという意味ではない。
+
+| 能力 | jobs | 直近状態（pass/blocked/fail/running/記録なし） | 経済・成果の現状 | 次に狭める境界 |
+|---|---:|---|---|---|
+| Coconala | 7 | 1/5/0/1/0 | net未確認。応募・返信・Storefrontがeffect未確定/実行枠待ち | 納期のある既存案件と各occurrenceの公式結果を照合 |
+| Lancers | 7 | 0/4/2/1/0 | net未確認。個別entrypoint_exit_1あり | 当該入力・stderr・provider状態で最初の失敗を確定 |
+| CrowdWorks | 5 | 0/4/0/1/0 | net未確認。実行枠/effect待ち | 応募・返信・Paidを案件単位で照合 |
+| Mercor | 3 | 0/3/0/0/0 | 3件ともeffect未確定待ち。仕事・本人手続きは会社MRRと別 | 許可済みprovider経路と既存提出結果を照合 |
+| PromptBase | 1 | 0/0/1/0/0 | 01:59:52Z公式Sales readbackでsales_count0/net_usd0。費用込みnetは別 | 出品ownerのentrypoint_exit_1を診断 |
+| Writer | 7 | 3/4/0/0/0 | 記事供給あり。04:32Zのpitch eligible0。経済readback stale | 供給/配信/顧客需要/支払を分離し、既存Writer eval pilotを継続 |
+| Affiliate | 6 | 1/2/0/3/0 | source刷新等が稼働。commission/cost接続不足、net未確認 | 公開→click→承認commission→settlementの接続 |
+| Investment | 4 | 0/4/0/0/0 | live jobはdisabled。paperや未実現損益は会社MRRではない | 既存paper round-trip/公式注文receiptと費用を照合 |
+| Agent Economy | 19 | 2/8/3/6/0 | 個別brain_transport/entrypoint失敗、枠/effect待ち。自己資金化未証明 | 顧客のpaid taskとdelivery/settlement/costの同一case join |
+| Job Hunter | 4 | 0/4/0/0/0 | 実行枠/effect待ち。内定・本人所得は会社MRRと別 | 既存応募→公式受付・返信を照合 |
+| Fundraiser | 1 | 0/0/1/0/0 | disabled、過去exit75。資金調達は顧客売上ではない | 無効化理由と本人要件を確認し、既存応募receiptを照合 |
+| Connector | 1 | 1/0/0/0/0 | 直近run成功。非収益の支援能力 | event/登録/Calendar等の実成果は個別receiptで判定 |
+| Self-Build | 4 | 4/0/0/0/0 | scheduler/issue bridge等の成功は全自動修復完遂の証明ではない | intent→issue→PR→release→自然再成功を同一障害で結ぶ |
+| Mobile | 23 | 9/3/9/1/1 | RevenueCat由来MRR USD20.34 verified。投稿の成功/失敗が混在、net未確認 | 実投稿・metrics・ASC・RevenueCat・費用の同一期間接続 |
+| eBook | 4 | 1/3/0/0/0 | 3件effect待ち、net未確認 | 投稿→checkout→PDF納品→settlementを結ぶ |
+| Capafy | 11 | 3/3/2/1/2 | 累計売上あり、7日売上0。工場枠/実行枠/effect/保存失敗が併存 | CD1の計測、sellerへの買手到達/転換と工場の個別cursor |
+| LINE Sticker | 3 | 0/2/0/1/0 | 09:23:42Zの39商品中28件は売上JPY0、11件欠測 | 制作・申請・審査・販売・公式売上を分けて照合 |
+| CFO | 3 | 1/2/0/0/0 | 財務packet送信済み。全18の費用込みnetはunknown | 公式収益、全費用、refund/fee、期間/owner/receiptを接続 |
+
+**Capafyの公式readback（11:07:50Z）:** 累計70 orders、101 unit sales（free trial69/non-trial32）、gross USD102.75、creator earnings USD76.18、payout balance USD59.00、paid_out USD0.00、MRR null。直近30日trafficは4064 views、paid17、trial6、sales USD43.83（累計やMRRではない）。paidの帰属はsearch9/hot5/direct2/google1。直近7日は447 views/paid0/sales0、registered CT viewsはその内7（blog2/IG5）/paid0。X CTの帰属0は間接効果0の証明ではない。daily revenue trendの最後のpositiveは2026-09-29。inventoryはlisted49/free0/occupied6で、審査枠制約とrun admissionを混同しない。FROZEN sellerは保持する。
+
+**確認した計測不具合:** `skills/earn/capafy-marketing/capafy-goal-monitor.sh`は`last_sales_date = observed_at[:10]`を代入し、再照合日を最終売上日のように表示する。新しい売上の証明として使わない。修正は今回行わず、下のPA03に含める。過去のlink stripping、投稿回数、フォロワー数だけで現在の全creativeや購入0の原因を断定しない。全流入447/購入0から、到達に加えて購入転換の診断も必要である。
+
+**CFOの実packet:** `~/.local/state/life-manager/life-manager-cfo-hourly/last-result-report.json`が参照する相対`b7ReadbackRef.path`のsent packet `life-manager-cfo-hourly:18de121b11f12388-43209.json`。snapshot11:07:02.142135Z、trailing開始2026-09-13T11:07:02.142135Z。全18 net unknown、company MRR unknown。Mobile MRR USD20.34は6/6 verified/matchedのRevenueCat snapshot由来で、銀行入金やcost-complete netではない。packet全体のprovenanceは`partial/asc_receipt_missing_in_reporting_window`。unknownを売上0へ置換しない。catalog宣言financialはimplemented4/partial4/missing8/not-applicable2、costはimplemented4/partial5/missing7/not-applicable2で、宣言は実receipt coverageではない。
+
+**共通原因と未確定部分:** 資源不足・実行枠待ち、保存/読取失敗をまたぐeffect照合不足、source/current/owner/intentの世代差、全体監視欠測、収益/費用/購入帰属の欠測が複数laneに共通する。16GiB hostの観測swap used7889.12MiB、空き約1.3〜1.4GiBは資源制約の証拠で、特定ownerへの全量帰属や全capacity_busyの原因は証明しない。recovery supervisorの12:24:03Zログにも`release_sha_mismatch`がある。これは世代不一致を拒否する安全策であり、guard緩和や旧intentのblind rebindで解決しない。個別entrypoint_exit_*の内部原因、需要不足、購入転換、平台本人要件は別途診断する。一つの共通修復で全てが稼ぐとは言わない。
+
+**自己修復/自己改善/OSS:** recovery intent、supervisor、issue bridge、dev/PR/昇格の部品はある。12:24Z前後のself-build-issuedにissue#7872等の発行証拠はあるが、同一実障害の検知→内部コード修正→PR→本番採用→自然再成功を外部開発session/手動apply0で閉じた証明は未確認。LM-EABの5公開fixture（tuning3/held-out2）は合成データ。math/receipt integrity testsは実需・自然trace・利益改善比較の代わりではない。`self-improve-evolve`は現registryではmarketing report runnerであり、過去OpenEvolve backtestを現在の全18改善と呼ばない。repoはGitHub PUBLIC/MITであり、未達は全18のportable起動とCapafy単体の利用可能な配布。導入可能なguided経路もあるため、OSSが何も動かないとは断定しない。
+
+### 提案する原子的な修復順（文書化のみ、実行未着手）
+
+**順序理由:** 共通障害の修復は複数laneへ波及する。Capafyには実購入の証拠があり、Daisも商業重点を指定するが、最大ROIは比較未確認。CFOはその利益を評価する依存。既存の納期案件は保持する。旧実行順とcursorはこの文書のF/E/各lane節およびCapafy CD1のまま変更しない。以下は修復開始後の統括候補であり、active ownerへ新dispatchを行わない。Writerの既存eval pilotも取り替えない。
+
+| ID | 優先 | 作業・owner | 根拠/依存 | 完了証拠 | 今回の状態 |
+|---|---|---|---|---|---|
+| PA01 | 共通P0 | 基盤owner: 監視timeoutの遅い境界と資源/枠/F5の残証拠を診断 | 191欠測、複数capacity待ち。既存F1–F5受入を未実装へ戻さない | 実失敗fixtureのRED→GREEN、対象自然readback。追加の大型frameworkなし | 未着手・提案 |
+| PA02 | 共通P0 | 各effect ownerとrelease owner: 正確なoccurrence/receipt/世代を照合 | unknown/旧intentが複数laneへ波及 | 同一occurrenceの公式証拠、旧effect再送0、対象自然進行。receiptなし解除0 | 未着手・提案 |
+| PA03 | 商業P1 | Capafy owner: CD1を先頭に売上日/slot→click→paid計測を正す | 正本CD1、447閲覧0購入、観測日誤代入 | 取得日と売上日の区別、unique receipt join。link欠落slotのRED | 未着手・提案 |
+| PA04 | 商業P1 | Capafy owner: CD2–CD5の無料到達・実output demo・転換比較 | PA03、現FROZEN保持。工場のT1証拠を並行維持 | providerに残る開けるCTA、実click/paid/再購入を窓・sample・費用つき比較 | 未着手・提案 |
+| PA05 | 財務P1 | CFO owner: 既存A8/B7順で収益/費用/返金/手数料を接続 | PA03/04と並行、missingを0にしない | 選定laneで公式receiptと全費用のnet。未接続laneはunknown保持 | 未着手・提案 |
+| PA06 | 次の商業P2 | 各lane owner: Mobile/Cloud、納期Gig、Writerを既存cursorから修復 | MRR/既存顧客/納期の根拠で再評価。Cloudはhost/offerで19番目ではない | 当該失敗RED→GREEN、自然実行、実投稿/納品/決済のreceipt | 未着手・提案 |
+| PA07 | 個別P2/P3 | 各owner: 残る各laneの最初の個別失敗を一つずつ修復 | 上表の診断境界、既存lane順。本人要件と非収益役割を分離 | 同一caseの納品/決済等、支援能力は役割に応じた成果。単なるPASSは収益扱いしない | 未着手・提案 |
+| PA08 | 全工程 | LM自身とeval owner: 一実障害の内部自己修復と実trace EDDを閉じる | PA01以降の各修復に評価を組込む。18の手修正完了を待たない | intent/issue/PR/release/自然再成功、human intervention0。候補とbaselineのheld-out比較 | 未着手・提案 |
+| PA09 | 配布 | OSS owner: CD9のCapafy配布と全体portable経路を既存installersへ接続 | CD1–CD5で到達を確認。現PUBLIC/MITは達成済みのまま | clean-hostで選択loop起動/読取/停止、secret非同梱、verified claim。今回新repo公開なし | 未着手・提案 |
+| PA10 | 売上拡大 | 統括/CFO: 継続購入→lane目標→全社US$100K→$1M→$10M MRR | 転換/継続率/顧客当たり利益/運用容量を実測 | 各milestoneの公式subscription/invoiceとCFO定義。予測を達成と扱わない | 未着手・提案 |
+
+**判断の幅:** 最良は共通境界の修復が複数laneを再開し、Capafyの購入再開につながる。基準は技術復旧と需要/転換改善を別々に検証する。最悪はprovider本人要件または需要・継続率不足が残り、コード修復だけでは目標に近づかない。全18を先に均等修復する案の強みはportfolio分散だが、現在は共通枠競合と成果欠測を拡大するため採らない。Capafy重点が誤る最有力の筋は既存売上が継続せず、別laneの顧客当たり利益が高いこと。月USD30の継続課金だけでUSD10M MRRへ到達する算術は約333,334 active customersであり、18 job能力の修復数ではない。価格・通貨・顧客獲得の予測ではない。
+
+**今回の完了条件:** 上の観測/限界/優先候補と参照planを専用branchへcommit/pushしremote objectを確認、chatへ全18の状況を説明する。修復・本番効果・目標売上は未達のまま。数字と主要診断はfresh-context read-only検証者が一次情報で反証を試み、重大な事実誤りなし、CT/監視/OSS/ROIの限定を反映する。手順の参照は `docs/superpowers/plans/2026-10-13-life-manager-portfolio-repair-plan.md`。TODO/status/cursorは本節が正本、planへ複製しない。
