@@ -4082,7 +4082,7 @@
       "adapter": "exec",
       "browser_owner": {
         "cdp_port": 9232,
-        "profile": "~/.cloak/profiles/tiktok-anicca-videojp"
+        "profile": "~/.cloak/profiles/tiktok-stardust-doubutsu"
       },
       "cadence": {
         "keep_alive": true
