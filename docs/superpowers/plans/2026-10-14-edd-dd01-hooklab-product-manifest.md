@@ -23,7 +23,7 @@
 
 ## Review Focus
 
-- The official v1.0.7 price snapshot conflicts with stale static listing copy; use the official detail snapshot and preserve the conflict in the profile.
+- The public page readback confirms v1.0.7 but omits prices. Preserve the last official detail price snapshot as stale-unverified and record both readback times; do not claim a current price. The official detail snapshot also conflicts with stale static listing copy; preserve both sources and the selected source in the profile.
 - Marketplace profiles without a matching active account manifest must remain non-routable.
 - A shared `hooklab_ig` token cannot attribute a visit to multiple creative slots.
 - Public Sold counters, detail views, gross sales, and model-cost estimates do not establish settled net profit.
@@ -43,11 +43,11 @@
 - `load_registry(engine)` returns `Registry.products["hook-lab"]` with `type="marketplace_agent"` and a validated `distribution_profile`.
 - The profile binds `buyer_problem`, `offer_snapshot`, `allowed_channel_accounts`, `destination`, `outcome_sources`, `economic_role`, and `related_loop_id`.
 - The profile records `publish_enabled=false`; no account is added to `registry/accounts`, so `product_router` cannot create a publisher route for Hook Lab.
-- The top-level `price` uses the starting day plan; the complete frozen day/week/month schedule lives in `distribution_profile.offer_snapshot.price_tiers`.
+- The top-level `price` preserves the last official day-plan snapshot and marks it unverified-current; the full day/week/month schedule and separate latest-public-readback timestamp live in `distribution_profile.offer_snapshot`.
 
 - [ ] **Step 1: Write the RED profile test**
 
-Add `test_hook_lab_marketplace_profile_is_frozen_and_not_routable` to assert `product_id="hook-lab"`, seller ID `8123079349`, v1.0.7 observed at `2026-10-13T17:40:00+09:00`, day USD 3.99/cap 10, week USD 9.99/cap 30, month USD 19.99/cap 80, and trial days 0. Also assert `buyer_problem.validation_status="seller_copy_unvalidated"`, a static-listing price conflict is preserved, Instagram `@capafy.hooklab` / Postiz integration `cmuuycr5402uzqw0yhanqggo9` / token `hooklab_ig`, destination `https://capafy.ai/agent/8123079349`, `per_slot_attribution="shared_token_not_per_slot"`, `primary_metric="settled_net_contribution"`, `publish_enabled=false`, settled-net/actual-cost sources are `unknown`, and no account-registry entry exists for `hook-lab`.
+Add `test_hook_lab_marketplace_profile_is_frozen_and_not_routable` to assert `product_id="hook-lab"`, seller ID `8123079349`, v1.0.7, price snapshot at `2026-10-13T17:40:00+09:00`, latest public readback at `2026-10-14T03:43:35+09:00`, `price_status="stale_unverified"`, day USD 3.99/cap 10, week USD 9.99/cap 30, month USD 19.99/cap 80, and trial days 0. Also assert `buyer_problem.validation_status="seller_copy_unvalidated"`, a static-listing price conflict is preserved, Instagram `@capafy.hooklab` / Postiz integration `cmuuycr5402uzqw0yhanqggo9` / token `hooklab_ig`, destination `https://capafy.ai/agent/8123079349`, `per_slot_attribution="shared_token_not_per_slot"`, `primary_metric="settled_net_contribution"`, `publish_enabled=false`, settled-net/actual-cost sources are `unknown`, and no account-registry entry exists for `hook-lab`.
 
 Update `test_four_products_and_locked_accounts_validate` to assert its five existing products as a required subset, not the full registry equality; the dedicated Hook Lab test covers the new profile.
 
