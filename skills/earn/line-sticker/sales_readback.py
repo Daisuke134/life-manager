@@ -21,6 +21,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 
 HERE = Path(__file__).resolve().parent
 REPO = Path(__file__).resolve().parents[3]
@@ -88,6 +89,36 @@ def _stats_table_is_complete(snapshot: dict) -> bool:
         and current_page in page_numbers
         and isinstance(snapshot.get("has_next_control"), bool)
     )
+
+
+def _stats_page_matches_api(snapshot: dict, payload: object) -> bool:
+    """Require the rendered page IDs to match the official page response exactly."""
+    if not isinstance(payload, dict):
+        return False
+    products = payload.get("products")
+    pager = payload.get("pager")
+    page_numbers = snapshot.get("page_numbers")
+    current_page = snapshot.get("current_page")
+    rows = snapshot.get("rows")
+    if (not isinstance(products, list) or not products
+            or not isinstance(pager, dict)
+            or type(pager.get("currentPage")) is not int
+            or type(pager.get("maxPage")) is not int
+            or not isinstance(page_numbers, list)
+            or pager["currentPage"] != current_page
+            or pager["maxPage"] != len(page_numbers)):
+        return False
+    api_ids = []
+    for product in products:
+        product_id = product.get("id") if isinstance(product, dict) else None
+        if type(product_id) not in (int, str) or not str(product_id):
+            return False
+        api_ids.append(str(product_id))
+    try:
+        dom_ids = [row["product_id"] for row in parse_sticker_table_rows(rows)]
+    except (TypeError, ValueError):
+        return False
+    return len(api_ids) == len(set(api_ids)) and set(api_ids) == set(dom_ids)
 
 
 def parse_payment_request(text: str) -> dict:
@@ -188,6 +219,27 @@ async def _fetch(cdp: str) -> dict:
         browser = await p.chromium.connect_over_cdp(cdp)
         context = browser.contexts[0]
         page = await context.new_page()
+        stats_api_path = urlsplit(f"{CREATOR_BASE}/api/stats/sticker").path
+        api_responses: list[tuple[int | None, int, asyncio.Task[object] | None]] = []
+        capture_stats_responses = True
+
+        def capture_stats_response(response) -> None:
+            if not capture_stats_responses:
+                return
+            parsed_url = urlsplit(response.url)
+            if parsed_url.path != stats_api_path:
+                return
+            page_values = parse_qs(parsed_url.query, keep_blank_values=True).get("page", [])
+            page_number = None
+            if len(page_values) == 1 and re.fullmatch(r"[0-9]+", page_values[0]):
+                try:
+                    page_number = int(page_values[0])
+                except ValueError:
+                    pass
+            task = asyncio.create_task(response.json()) if page_number is not None else None
+            api_responses.append((page_number, response.status, task))
+
+        page.on("response", capture_stats_response)
         try:
             await page.goto(f"{CREATOR_BASE}/stats/sticker", wait_until="load", timeout=60000)
             if "access.line.me" in page.url:
@@ -259,6 +311,7 @@ async def _fetch(cdp: str) -> dict:
             seen_ids: set[str] = set()
             expected_pages: list[int] | None = None
             visited_pages: set[int] = set()
+            page_snapshots: dict[int, dict] = {}
             while True:
                 await page.wait_for_timeout(700)
                 first_snapshot = await page.evaluate(snapshot_script)
@@ -276,6 +329,19 @@ async def _fetch(cdp: str) -> dict:
                         or current_page != len(visited_pages) + 1
                         or current_page in visited_pages):
                     return {"status": "incomplete_stats_table"}
+                page_responses = [entry for entry in api_responses if entry[0] == current_page]
+                if (any(entry[0] is None for entry in api_responses)
+                        or len(page_responses) != 1
+                        or page_responses[0][1] != 200
+                        or page_responses[0][2] is None):
+                    return {"status": "incomplete_stats_table"}
+                try:
+                    api_payload = await page_responses[0][2]
+                except Exception:
+                    return {"status": "incomplete_stats_table"}
+                if not _stats_page_matches_api(snapshot, api_payload):
+                    return {"status": "incomplete_stats_table"}
+                page_snapshots[current_page] = snapshot
                 try:
                     parsed_page = parse_sticker_table_rows(snapshot["rows"])
                 except ValueError:
@@ -306,11 +372,35 @@ async def _fetch(cdp: str) -> dict:
                     return {"status": "incomplete_stats_table"}
                 break
 
-            if expected_pages is None or visited_pages != set(expected_pages):
+            try:
+                await page.wait_for_load_state("networkidle", timeout=15000)
+            except PlaywrightTimeoutError:
                 return {"status": "incomplete_stats_table"}
             await page.goto(f"{CREATOR_BASE}/payment_request/", wait_until="domcontentloaded", timeout=60000)
             await page.wait_for_timeout(2000)
             payment_text = await page.inner_text("body")
+            try:
+                await page.wait_for_load_state("networkidle", timeout=15000)
+            except PlaywrightTimeoutError:
+                return {"status": "incomplete_stats_table"}
+            response_pages = [entry[0] for entry in api_responses]
+            if (expected_pages is None
+                    or visited_pages != set(expected_pages)
+                    or set(page_snapshots) != set(expected_pages)
+                    or len(api_responses) != len(expected_pages)
+                    or set(response_pages) != set(expected_pages)):
+                return {"status": "incomplete_stats_table"}
+            for page_number in expected_pages:
+                page_response = next(entry for entry in api_responses if entry[0] == page_number)
+                if page_response[1] != 200 or page_response[2] is None:
+                    return {"status": "incomplete_stats_table"}
+                try:
+                    api_payload = await page_response[2]
+                except Exception:
+                    return {"status": "incomplete_stats_table"}
+                if not _stats_page_matches_api(page_snapshots[page_number], api_payload):
+                    return {"status": "incomplete_stats_table"}
+            capture_stats_responses = False
             return {"status": "ok", "stats_rows": stats_rows, "payment_text": payment_text}
         finally:
             await page.close()
