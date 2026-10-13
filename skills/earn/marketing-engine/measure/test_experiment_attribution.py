@@ -282,6 +282,79 @@ class AttributionContractTest(unittest.TestCase):
                 self.assertEqual(result["status"], "unavailable")
                 self.assertEqual(result["reason"], reason)
 
+    def test_hook_lab_click_join_rejects_incomplete_or_duplicate_receipts(self):
+        intent = {
+            "schema_version": "marketing.publication-intent.v2",
+            "publish_key": "publication.hooklab",
+            "experiment_id": "experiment.dd03",
+            "creative_id": "creative.dd03",
+            "product_id": "hook-lab",
+            "account_id": "life-manager-capafy-ig",
+            "hook_id": "hook.dd03",
+            "renderer_id": "watercolor-monk",
+            "attribution_token": "hl_r7py2zlsvjjafl4srigi",
+            "scheduled_at": "2026-10-16T00:00:00Z",
+        }
+        identity = {
+            **fixture_identity(),
+            "experiment_id": "experiment.dd03",
+            "publish_date": "2026-10-16T00:00:00Z",
+        }
+        cases = [
+            {"count": 1, "receipt_ids": []},
+            {"count": 2, "receipt_ids": ["click-1", "click-1"]},
+        ]
+        for click in cases:
+            with self.subTest(click=click):
+                query = {
+                    "status": "available", "product_id": "hook-lab",
+                    "campaign_token": intent["attribution_token"],
+                    "evidence_refs": ["supabase:marketing_click_receipts"],
+                    **click,
+                }
+                with self.assertRaisesRegex(ValueError, "click receipt IDs invalid"):
+                    ea.build_snapshot(
+                        intent=intent, identity=identity, post_metric=None,
+                        click_query=query, business_snapshot=None,
+                        observed_at="2026-10-17T02:20:00Z",
+                    )
+
+    def test_hook_lab_click_receipt_id_is_saved_as_creative_evidence(self):
+        intent = {
+            "schema_version": "marketing.publication-intent.v2",
+            "publish_key": "publication.hooklab",
+            "experiment_id": "experiment.dd03",
+            "creative_id": "creative.dd03",
+            "product_id": "hook-lab",
+            "account_id": "life-manager-capafy-ig",
+            "hook_id": "hook.dd03",
+            "renderer_id": "watercolor-monk",
+            "attribution_token": "hl_r7py2zlsvjjafl4srigi",
+            "scheduled_at": "2026-10-16T00:00:00Z",
+        }
+        identity = {
+            **fixture_identity(),
+            "experiment_id": "experiment.dd03",
+            "publish_date": "2026-10-16T00:00:00Z",
+        }
+        snapshot = ea.build_snapshot(
+            intent=intent, identity=identity, post_metric=None,
+            click_query={
+                "status": "available", "product_id": "hook-lab",
+                "campaign_token": intent["attribution_token"], "count": 1,
+                "receipt_ids": ["click-hooklab-1"],
+                "evidence_refs": ["supabase:marketing_click_receipts"],
+            },
+            business_snapshot=None, observed_at="2026-10-17T02:20:00Z",
+        )
+        click = next(row for row in snapshot["results"]
+                     if row["metric_name"] == "qualified_clicks")
+        self.assertEqual(click["value"], 1)
+        self.assertIn("marketing_click_receipt:click-hooklab-1", click["evidence_refs"])
+        self.assertEqual(snapshot["experiment_id"], "experiment.dd03")
+        self.assertEqual(snapshot["creative_id"], "creative.dd03")
+        self.assertEqual(snapshot["publish_key"], "publication.hooklab")
+
 
 if __name__ == "__main__":
     unittest.main()

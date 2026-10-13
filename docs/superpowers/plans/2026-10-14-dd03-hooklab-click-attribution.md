@@ -76,9 +76,9 @@ The `run_create_intent` regression test uses a temporary synthetic account fixtu
 - [x] Add failing query test `test_click_query_rejects_incomplete_or_duplicate_receipts` for a count/body mismatch and duplicate receipt IDs.
 - [x] Run the focused experiment-attribution file; confirm both query cases incorrectly return `available`.
 - [x] Return `unavailable` for incomplete rows, malformed IDs, or duplicate receipt IDs; run the focused file and confirm it passes.
-- [ ] Add failing evaluator test `test_hook_lab_click_join_rejects_incomplete_or_duplicate_receipts` for missing or duplicate IDs in a supplied Hook Lab click query.
-- [ ] Add failing success test `test_hook_lab_click_receipt_id_is_saved_as_creative_evidence` proving the exact receipt ID is retained with the publication/creative snapshot.
-- [ ] Implement complete unique receipt-ID validation and add each exact receipt ID to Hook Lab evidence references; run the focused evaluator tests and confirm they pass.
+- [x] Add failing evaluator test `test_hook_lab_click_join_rejects_incomplete_or_duplicate_receipts` for missing or duplicate IDs in a supplied Hook Lab click query.
+- [x] Add failing success test `test_hook_lab_click_receipt_id_is_saved_as_creative_evidence` proving the exact receipt ID is retained with the publication/creative snapshot.
+- [x] Implement complete unique receipt-ID validation and add each exact receipt ID to Hook Lab evidence references; run the focused evaluator tests and confirm they pass.
 - [ ] Add failing test `test_hook_lab_paid_revenue_stays_unknown_without_capafy_order_join` showing a Stripe campaign-shaped or Capafy channel aggregate cannot become Hook Lab per-creative paid revenue without an order join.
 - [ ] Run the focused evaluator test; confirm it fails on the currently accepted Stripe campaign-shaped input.
 - [ ] Keep Hook Lab paid/revenue metrics unknown without a supported Capafy click-to-order join; run the focused evaluator test and confirm it passes.

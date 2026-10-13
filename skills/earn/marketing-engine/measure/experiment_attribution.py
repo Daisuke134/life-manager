@@ -195,13 +195,21 @@ def _join_click(rows: dict[str, dict[str, Any]], intent: dict, click_query: dict
                 published_at: str, observed_at: str) -> None:
     if click_query is None:
         return
-    evidence = click_query.get("evidence_refs") or ["marketing_click_receipts"]
+    evidence = list(click_query.get("evidence_refs") or ["marketing_click_receipts"])
     if click_query.get("status") == "available":
         require(click_query.get("product_id") == intent.get("product_id") and
                 click_query.get("campaign_token") == intent.get("attribution_token"),
                 "click scope mismatch")
         count = click_query.get("count")
         require(isinstance(count, int) and count >= 0, "click count invalid")
+        if intent.get("product_id") == "hook-lab":
+            receipt_ids = click_query.get("receipt_ids")
+            require(isinstance(receipt_ids, list) and len(receipt_ids) == count and
+                    all(isinstance(receipt_id, str) and receipt_id for receipt_id in receipt_ids) and
+                    len(set(receipt_ids)) == len(receipt_ids),
+                    "click receipt IDs invalid")
+            evidence.extend(f"marketing_click_receipt:{receipt_id}"
+                            for receipt_id in receipt_ids)
         rows["qualified_clicks"] = observed_result(
             "qualified_clicks", count, "count", "marketing_click_receipts",
             "deterministic", 1.0, published_at, observed_at, evidence)
