@@ -20,6 +20,7 @@ must add their adapter.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -49,6 +50,7 @@ EVENT_TAIL_LIMIT = 4 * 1024 * 1024
 DEFAULT_LOG = Path(
     "~/.local/state/life-manager/lm-fence-reconciler/reconcile-calls.jsonl"
 ).expanduser()
+CALL_LOG_TAIL_BYTES = 4 * 1024 * 1024
 
 
 def run_call(argv: list[str], timeout: float = CALL_TIMEOUT_SECONDS) -> tuple[int, str]:
@@ -330,6 +332,64 @@ def _append_jsonl(path: Path, rows: list[dict]) -> None:
             handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
 
 
+def _recent_call_rows(path: Path | None) -> dict[tuple[str, str], dict]:
+    """Read only the recent call window; historical proof rows stay untouched."""
+    if path is None:
+        return {}
+    try:
+        with path.open("rb") as handle:
+            size = os.fstat(handle.fileno()).st_size
+            offset = max(0, size - CALL_LOG_TAIL_BYTES)
+            handle.seek(offset)
+            lines = handle.read(CALL_LOG_TAIL_BYTES).splitlines()
+    except OSError:
+        return {}
+    if offset and lines:
+        lines = lines[1:]
+    latest: dict[tuple[str, str], dict] = {}
+    for line in lines:
+        try:
+            row = json.loads(line)
+        except (UnicodeError, json.JSONDecodeError):
+            continue
+        if (isinstance(row, dict) and isinstance(row.get("owner_id"), str)
+                and isinstance(row.get("occurrence_id"), str)):
+            latest[(row["owner_id"], row["occurrence_id"])] = row
+    return latest
+
+
+def _occurrence_digest(occurrences: set[str] | tuple[str, ...]) -> str:
+    payload = "\n".join(sorted(occurrences)).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _owner_batch_summary(owner_id: str, checked: set[str], still_fenced: set[str],
+                         exit_code: int, *, result_kind: str = "batch_checked") -> dict:
+    return {
+        "owner_id": owner_id,
+        "occurrence_id": f"{owner_id}:*",
+        "owner_batch_summary": True,
+        "checked_occurrence_count": len(checked),
+        "checked_occurrences_sha256": _occurrence_digest(checked),
+        "still_fenced_count": len(still_fenced),
+        "still_fenced_occurrences_sha256": _occurrence_digest(still_fenced),
+        "exit_code": exit_code,
+        "closed": False,
+        "result_kind": result_kind,
+        "recorded_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+
+
+def _batch_summary_changed(previous: dict | None, current: dict) -> bool:
+    if not isinstance(previous, dict) or previous.get("owner_batch_summary") is not True:
+        return True
+    keys = (
+        "checked_occurrence_count", "checked_occurrences_sha256", "still_fenced_count",
+        "still_fenced_occurrences_sha256", "exit_code", "result_kind",
+    )
+    return any(previous.get(key) != current.get(key) for key in keys)
+
+
 LOCK_RETRIES = 4
 LOCK_RETRY_SECONDS = 2.0
 
@@ -420,6 +480,7 @@ def reconcile(
     deferred = 0
     locked = False
     records: list[dict] = []
+    recent_call_rows = _recent_call_rows(log_path)
     started = clock()
     for owner_id, occurrence in calls:
         reconcile_cfg = loops[owner_id]["effect_reconcile"]
@@ -434,30 +495,48 @@ def reconcile(
         except sqlite3.OperationalError:
             # Keep what already ran in the log and end the wake cleanly; the next wake resumes.
             locked = True
-            records.append({
-                "owner_id": owner_id, "occurrence_id": occurrence or "",
-                "exit_code": exit_code, "closed": False, "stdout_tail": tail,
-            })
+            if occurrence is None:
+                before = set(fenced.get(owner_id, ()))
+                record = _owner_batch_summary(
+                    owner_id, before, before, exit_code,
+                    result_kind="post_call_admission_read_locked",
+                )
+                if _batch_summary_changed(
+                        recent_call_rows.get((owner_id, record["occurrence_id"])), record):
+                    records.append(record)
+            else:
+                records.append({
+                    "owner_id": owner_id, "occurrence_id": occurrence,
+                    "exit_code": exit_code, "closed": False, "stdout_tail": tail,
+                })
             break
         still_open = set(after.get(owner_id, ()))
         if occurrence is None:
-            before = set(fenced.get(owner_id, ()))
-            for occ in sorted(before):
-                occ_closed = occ not in still_open
-                if occ_closed:
+            before = sorted(set(fenced.get(owner_id, ())))
+            still_fenced = set(before) & still_open
+            for occ in before:
+                if occ not in still_open:
                     closed += 1
-                records.append({
-                    "owner_id": owner_id, "occurrence_id": occ,
-                    "exit_code": exit_code, "closed": occ_closed, "stdout_tail": tail,
-                })
-                if occ_closed and exit_code == 0:
-                    proof = _closure_proof(
-                        tail, owner_id=owner_id, occurrence_id=occ,
-                        release_sha=event_release_shas.get(owner_id, {}).get(occ),
-                    )
-                    if proof is not None:
-                        records[-1]["release_sha"] = proof["release_sha"]
-                        records[-1]["closure_proof"] = proof
+                    record = {
+                        "owner_id": owner_id, "occurrence_id": occ,
+                        "exit_code": exit_code, "closed": True, "stdout_tail": tail,
+                    }
+                    records.append(record)
+                    if exit_code == 0:
+                        proof = _closure_proof(
+                            tail, owner_id=owner_id, occurrence_id=occ,
+                            release_sha=event_release_shas.get(owner_id, {}).get(occ),
+                        )
+                        if proof is not None:
+                            record["release_sha"] = proof["release_sha"]
+                            record["closure_proof"] = proof
+            if still_fenced:
+                record = _owner_batch_summary(
+                    owner_id, set(before), still_fenced, exit_code,
+                )
+                previous = recent_call_rows.get((owner_id, record["occurrence_id"]))
+                if _batch_summary_changed(previous, record):
+                    records.append(record)
         else:
             occ_closed = occurrence not in still_open
             if occ_closed:
