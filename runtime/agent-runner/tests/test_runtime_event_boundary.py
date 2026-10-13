@@ -70,7 +70,7 @@ class RuntimeEventBoundaryTest(unittest.TestCase):
             state = root / "state"
             registry = root / "registry.json"
             registry.write_text(json.dumps({"schema_version": 2, "loops": {"article-daily": {
-                "label": "ai.anicca.article-daily", "domain": "content",
+                "label": "ai.anicca.article-daily", "domain": "earn",
                 "entrypoint": "skills/writer-agent/article-daily.sh",
                 "cadence": {"run_at_load": True}, "effect_class": "publish",
                 "state_root": "~/state", "log_root": "~/state/logs",
