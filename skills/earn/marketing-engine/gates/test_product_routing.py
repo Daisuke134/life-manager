@@ -1,5 +1,6 @@
 import json
 import pathlib
+import shutil
 import tempfile
 import unittest
 import subprocess
@@ -39,11 +40,11 @@ class ProductRegistryTest(unittest.TestCase):
             for term in legacy_terms:
                 self.assertNotIn(term, source, f"{term} found in {path}")
 
-    def test_four_products_and_locked_accounts_validate(self):
+    def test_core_products_and_locked_accounts_validate(self):
         registry = load_registry(ENGINE)
-        self.assertEqual(set(registry.products), {
+        self.assertLessEqual({
             "anicca-ios", "honne-ai", "ebook-ja", "ebook-en", "life-manager-cloud",
-        })
+        }, set(registry.products))
         self.assertGreaterEqual(len(registry.accounts), 9)
         for account in registry.accounts.values():
             self.assertIn(account["product_id"], registry.products)
@@ -147,6 +148,168 @@ class ProductRegistryTest(unittest.TestCase):
         packs = load_ebook_packs(ENGINE)
         self.assertEqual(packs["ebook-en-anicca-monk"]["slots_jst"], ["08:00", "21:00"])
 
+
+class MarketplaceProductProfileTest(unittest.TestCase):
+    @staticmethod
+    def _marketplace_product_fixture():
+        product = json.loads(
+            (ENGINE / "registry" / "products" / "life-manager-cloud.json")
+            .read_text(encoding="utf-8")
+        )
+        product["product_id"] = "hook-lab"
+        product["type"] = "marketplace_agent"
+        product["destination_url"] = "https://capafy.ai/agent/8123079349"
+        product["distribution_profile"] = {
+            "economic_role": "customer_revenue",
+            "related_loop_id": "capafy",
+            "buyer_problem": {
+                "statement": "Creators lose viewers before the second sentence.",
+                "source_ref": "test://listing",
+                "validation_status": "seller_copy_unvalidated",
+            },
+            "offer_snapshot": {
+                "seller_agent_id": "8123079349",
+                "published_version": "v1.0.7",
+                "observed_at": "2026-10-13T17:40:00+09:00",
+                "latest_public_readback_at": "2026-10-14T03:43:35+09:00",
+                "price_status": "stale_unverified",
+                "frozen": True,
+                "trial_days": 0,
+                "price_tiers": [
+                    {"period": "day", "amount": 3.99, "currency": "USD", "cap": 10},
+                    {"period": "week", "amount": 9.99, "currency": "USD", "cap": 30},
+                    {"period": "month", "amount": 19.99, "currency": "USD", "cap": 80},
+                ],
+                "source_refs": ["test://offer"],
+                "source_conflicts": [{
+                    "source_ref": "test://stale-listing",
+                    "detail": "Stale price table conflicts with official offer.",
+                    "resolution": "official_detail_snapshot_preferred",
+                }],
+            },
+            "allowed_channel_accounts": [{
+                "account_ref": "life-manager-capafy-ig",
+                "platform": "instagram",
+                "native_handle": "@capafy.hooklab",
+                "publisher_integration_id": "test-postiz",
+                "campaign_token": "hooklab_ig",
+                "last_observed_at": "2026-10-13T19:00:00+09:00",
+                "operational_status": "disabled_last_observed_current_unverified",
+                "publish_enabled": False,
+            }],
+            "destination": {
+                "url": "https://capafy.ai/agent/8123079349",
+                "campaign_token": "hooklab_ig",
+                "per_slot_attribution": "shared_token_not_per_slot",
+                "source_ref": "test://destination",
+            },
+            "outcome_sources": [
+                {"metric": "capafy_impressions", "source": "Capafy traffic-sources v2",
+                 "status": "available", "attribution_granularity": "channel_window",
+                 "source_ref": "test://traffic"},
+                {"metric": "settled_net_contribution", "source": "Official order receipt join",
+                 "status": "unknown", "attribution_granularity": "occurrence_bound",
+                 "source_ref": "test://settlement"},
+                {"metric": "actual_model_cost", "source": "Provider usage receipt join",
+                 "status": "unknown", "attribution_granularity": "occurrence_bound",
+                 "source_ref": "test://cost"},
+            ],
+        }
+        return product
+
+    def test_hook_lab_marketplace_profile_is_frozen_and_not_routable(self):
+        registry = load_registry(ENGINE)
+        product = registry.products["hook-lab"]
+        profile = product["distribution_profile"]
+        offer = profile["offer_snapshot"]
+
+        self.assertEqual(product["product_id"], "hook-lab")
+        self.assertEqual(product["type"], "marketplace_agent")
+        self.assertEqual(product["price"], {
+            "amount": 3.99, "currency": "USD",
+            "basis": "last_official_day_plan_snapshot_2026-10-13;current_price_unverified;full_schedule_in_profile",
+        })
+        self.assertEqual(profile["economic_role"], "customer_revenue")
+        self.assertEqual(profile["related_loop_id"], "capafy")
+        self.assertEqual(profile["buyer_problem"]["validation_status"],
+                         "seller_copy_unvalidated")
+        self.assertIn("viewers swipe before the second sentence",
+                      profile["buyer_problem"]["statement"])
+
+        self.assertEqual(offer["seller_agent_id"], "8123079349")
+        self.assertEqual(offer["published_version"], "v1.0.7")
+        self.assertEqual(offer["observed_at"], "2026-10-13T17:40:00+09:00")
+        self.assertEqual(offer["latest_public_readback_at"], "2026-10-14T03:43:35+09:00")
+        self.assertEqual(offer["price_status"], "stale_unverified")
+        self.assertTrue(offer["frozen"])
+        self.assertEqual(offer["trial_days"], 0)
+        self.assertEqual(offer["price_tiers"], [
+            {"period": "day", "amount": 3.99, "currency": "USD", "cap": 10},
+            {"period": "week", "amount": 9.99, "currency": "USD", "cap": 30},
+            {"period": "month", "amount": 19.99, "currency": "USD", "cap": 80},
+        ])
+        self.assertTrue(any(
+            row["source_ref"] == "skills/capafy/catalog/hook-lab/LISTING.md#pricing"
+            and "USD 1.99" in row["detail"] and "USD 4.99" in row["detail"]
+            and "USD 9.99" in row["detail"] and "cap 50" in row["detail"]
+            for row in offer["source_conflicts"]
+        ))
+
+        channel = profile["allowed_channel_accounts"][0]
+        self.assertEqual(channel["account_ref"], "life-manager-capafy-ig")
+        self.assertEqual(channel["platform"], "instagram")
+        self.assertEqual(channel["native_handle"], "@capafy.hooklab")
+        self.assertEqual(channel["publisher_integration_id"], "cmuuycr5402uzqw0yhanqggo9")
+        self.assertEqual(channel["campaign_token"], "hooklab_ig")
+        self.assertEqual(channel["last_observed_at"], "2026-10-13T19:00:00+09:00")
+        self.assertEqual(channel["operational_status"],
+                         "disabled_last_observed_current_unverified")
+        self.assertFalse(channel["publish_enabled"])
+
+        destination = profile["destination"]
+        self.assertEqual(destination["url"], "https://capafy.ai/agent/8123079349")
+        self.assertEqual(product["destination_url"], destination["url"])
+        self.assertEqual(destination["campaign_token"], "hooklab_ig")
+        self.assertEqual(destination["per_slot_attribution"], "shared_token_not_per_slot")
+        self.assertEqual(product["primary_metric"], "settled_net_contribution")
+        self.assertEqual(profile["outcome_sources"][0]["metric"], "capafy_impressions")
+        self.assertEqual(next(row["status"] for row in profile["outcome_sources"]
+                              if row["metric"] == "settled_net_contribution"), "unknown")
+        self.assertEqual(next(row["status"] for row in profile["outcome_sources"]
+                              if row["metric"] == "actual_model_cost"), "unknown")
+        self.assertNotIn("hook-lab", {
+            row["product_id"] for row in registry.accounts.values()
+        })
+
+    def test_marketplace_profile_missing_offer_or_outcome_source_fails_closed(self):
+        for mutation, expected_error in (
+            ("published_version", "offer"),
+            ("settled_net_contribution", "outcome_sources"),
+            ("destination_campaign_token", "campaign_token"),
+            ("primary_metric", "primary_metric"),
+        ):
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as tmp:
+                root = pathlib.Path(tmp)
+                shutil.copytree(ENGINE / "registry", root / "registry")
+                profile_path = root / "registry" / "products" / "hook-lab.json"
+                product = self._marketplace_product_fixture()
+                profile = product["distribution_profile"]
+                if mutation == "published_version":
+                    profile["offer_snapshot"].pop("published_version")
+                else:
+                    if mutation == "settled_net_contribution":
+                        profile["outcome_sources"] = [
+                            row for row in profile["outcome_sources"]
+                            if row["metric"] != mutation
+                        ]
+                    elif mutation == "destination_campaign_token":
+                        profile["destination"]["campaign_token"] = "unlinked-token"
+                    else:
+                        product["primary_metric"] = "unmeasured_metric"
+                profile_path.write_text(json.dumps(product), encoding="utf-8")
+
+                with self.assertRaisesRegex(RoutingError, expected_error):
+                    load_registry(root)
 
 class VariationPlanTest(unittest.TestCase):
     def setUp(self):
