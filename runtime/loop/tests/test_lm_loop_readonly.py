@@ -1,5 +1,6 @@
 import unittest
 import io
+import hashlib
 import json
 import os
 import sqlite3
@@ -1119,6 +1120,54 @@ class EffectUnknownDiagnosisTest(unittest.TestCase):
         self.assertEqual(bare["cause_run"], "journal_unavailable")
         self.assertEqual(bare["provider_state"], "no_adapter")
         self.assertTrue(bare["next_action"].startswith("no_readback_adapter"))
+
+    def test_owner_batch_summary_is_used_only_for_the_exact_still_fenced_set(self):
+        owner = "crowdworks-revenue-reply"
+        occurrences = (f"{owner}:one", f"{owner}:two")
+        digest = hashlib.sha256("\n".join(sorted(occurrences)).encode()).hexdigest()
+        summary = {
+            "owner_id": owner,
+            "occurrence_id": f"{owner}:*",
+            "owner_batch_summary": True,
+            "checked_occurrence_count": 2,
+            "still_fenced_count": 2,
+            "still_fenced_occurrences_sha256": digest,
+            "recorded_at": "2026-10-14T00:00:00Z",
+            "exit_code": 75,
+            "closed": False,
+        }
+        entry = {"effect_reconcile": {"argv": ["x.py"]}}
+
+        got = lm_loop.effect_unknown_diagnosis(
+            owner, entry, occurrences, journal_rows=None,
+            adapter_calls={f"{owner}:*": summary},
+        )
+        self.assertEqual(got["provider_state"]["status"], "owner_batch_checked_unresolved")
+        self.assertEqual(got["provider_state"]["still_fenced_count"], 2)
+        self.assertFalse(got["provider_state"].get("verified", False))
+        self.assertEqual(got["next_action"], "official_readback_required")
+
+        changed = lm_loop.effect_unknown_diagnosis(
+            owner, entry, (*occurrences, f"{owner}:new"), journal_rows=None,
+            adapter_calls={f"{owner}:*": summary},
+        )
+        self.assertEqual(changed["provider_state"], "adapter_not_run_yet")
+
+
+class BoundedReconcileCallReadTest(unittest.TestCase):
+    def test_latest_adapter_calls_reads_only_recent_log_tail(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "reconcile-calls.jsonl"
+            old = {"owner_id": "owner-a", "occurrence_id": "owner-a:old",
+                   "closed": False, "stdout_tail": "x" * (5 * 1024 * 1024)}
+            current = {"owner_id": "owner-b", "occurrence_id": "owner-b:current",
+                       "closed": False, "stdout_tail": "held"}
+            path.write_text(json.dumps(old) + "\n" + json.dumps(current) + "\n")
+
+            latest = lm_loop._last_adapter_calls(path)
+
+        self.assertFalse("owner-a:old" in latest, "latest call reader included an old row")
+        self.assertEqual(latest["owner-b:current"]["stdout_tail"], "held")
 
 
 class AdmissionEffectUnknownDetailsTest(unittest.TestCase):
