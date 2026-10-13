@@ -120,14 +120,49 @@ To-Beは各agentがobserve→decide→act→official verify→persist→自分�
 
 **配布のfresh診断:** launchctl-safeのUID/Directory Services/Aqua/manager/GUI確認はPASS。現currentは`3e19c846`、新mainの`apps/life-manager/package.json`にはWriter test scriptの追加があり、release-capacityは`dependency manifests changed`で拒否する。旧native runtimeとpackage-lock/sourceを保持し、この拒否をoverrideしない。Gitの反復保守をsourceで閉じた後、配布側の既存dependency reuse/容量測定を診断して本番採用へ進む。Line Sticker業務source/owner/fenceを変更しない。
 
-本sessionはDaisの共有資源修復依頼を継続する。以下の別ownerのEDD作業は保持し、停止・巻戻し・重複修理をしない。
+**EDD担当境界:** このレーンの実装cursorはE02 Writer Pilot。18製品ループの下記read-only監査は全体判断のための状況把握であり、E01 Agent Economy、F1–F5共有cleanup、18 capability修理のownerを引き受けない。Agent Economyは18製品ループの一つとして監査表に含むが、Writer作業と混同しない。
 
 **前回cleanup readback（2026-10-13 11:44 JST）:** `life-manager-disk-cleanup`はrelease `3e19c846`でloaded-idle、F1–F5は当時0/5完了。これは歴史的観測で現在状態へ再利用しない。
-**既存EDD担当のcursor（2026-10-13）:** E02 Writer Pilot A3b source-lineage repair。main=`535c1acc3654591b00bc3a5d0defb8d91222071a`。Writer immutable release `3e19c8463a1751b8c3c5a7c3a273330d4280b2f2`に`.git`がなく、`LIFE_MANAGER_RELEASE_SHA`の注入値はcaptureで使われない。自然run source SHAはUNKNOWN。現行Writer statusはloaded-idleだが既存publish occurrenceはeffect_unknownであり、本atomではfenceを変更しない。
+**E02 Writer Pilotのcursor:** A3b source-lineage修正PR #7878とA3c parent-binding PR #7881は完了。A8 batch runnerの状態・usage-ledger隔離PR #7901はmain commit `80940fbeb4d2c959c3ea0893933cacc213b55c07`へ統合済み。現在はA8a blind human labels、PASS 0 / FAIL 0。20件ずつ集まるまでjudgeを呼ばない。自然traceの8 article runs、4 identity receipts、251 pre-A3c child summariesは過去のinventoryであり、今回のライブfleet集計へ混ぜない。
 
-**EDD担当の作業順（共有資源修復cursorを置換しない）:** 旧順=`F1→F5 shared cleanup→18 capability修理→E01–E06`。新順=`E02 Writer Pilot A3b→A8–A14→E03 natural economic task families→E04 frozen versions/splits/calibration→E05 independent harness reproduction→E06 public benchmark report→H01–H04 recovery→I01–I04 bounded self-improvement→F1–F5と残capability`。理由はDaisがEDDを優先し、Writerの自然traceでsource SHAが`UNKNOWN`、immutable releaseに`.git`がなく、loop注入済みrelease SHAをWriter captureが使わないため。source lineageなしではmodel比較を帰属できない。F1–F5のstateは変更せず、Agent Economy E01は別cursorのまま未完とする。
+**EDD担当の順序:** 旧順=`F1–F5共有cleanup→18 capability修理→E01–E06`。新順=`E02 Writer A8a→A9→A8b→A10→A11/A12→A13→A14→EDD-FLEET-01/02/03→E03–E06→H01–H04→I01–I04→残るF1–F5/capability`。理由は、ライブfleetで78/191 managed jobsが18製品loopへ未分類、30日CFO netが18/18 unknownで、広範囲の修理を先に行うと改善を測れないため。これはEDD作業順だけを更新し、別ownerの共有cleanup・Agent Economy E01・外部effect fenceは変更しない。現在cursorはA8a。
 
-**EDD担当の独立atomic TODO:** E02 / Writer Pilot A3bで有効な`LIFE_MANAGER_RELEASE_SHA`を記録するfocused regressionと最小修正を完了 → A8 blind labels → A9 splits → A10 baseline trials → A11/A12 regression修正 → A13 held-out比較 → A14 official outcome/CFO receipts → E03–E06 benchmark拡張・再現・報告 → H/I self-heal/self-improvement → F1–F5 cleanup。effect_unknown、既存owner、cleanup stateを変えずに進める。
+**EDD担当のatomic TODO:** (1) A8aでblind human PASS/FAILを各20件集める。 (2) A9でdataset/runner/grader/provider/model/runtime hashとdev/held-out/challenge splitを凍結する。 (3) A8bでfrozen baselineのfalse-pass/false-failを出す。 (4) A10で同条件を各case 3回以上実行する。 (5) A11/A12で自然trace由来の一failure classだけをRED→最小修正→GREENにする。 (6) A13でheld-out上のquality/safety/effect/net/cost/latency/human interventionを別々に比較する。 (7) A14でpublication/payment/refund/fee/costの公式receiptを同じproduct/runへ結ぶ。 (8) EDD-FLEET-01で78 unmapped jobsを18 product loopsまたは明示的なunmapped ownerへ分類し、live inventoryを再生成する。 (9) EDD-FLEET-02でfinancial source missing/partialを解消し、18 loopのverified/zero/unknownをreceipt coverage付きで報告する。 (10) EDD-FLEET-03で自然traceのshared failure classとloop固有failure classを分け、共通修理は一度・loop固有修理は対象evalで反復する。 (11) E03–E06で自然task family、凍結protocol、外部harness再現、公開benchmark報告を完了する。 (12) H01–H04のsafe self-heal、I01–I04のoutcome-gated self-improvementへ進む。`unknown` effectは公式readback前に再送・解除せず、別ownerのstateを変更しない。
+
+### EDD fleet status baseline
+
+**Read-only capture:** hostの`/Users/anicca/loops/current` releaseは`5b90b21e6d68f0657b9dec7ac92d5898bab0775c`（mainのancestor）。`lm-loop status all`は2026-10-13 08:19:13–08:19:19 UTCに取得。registryの18 product-loop catalogは18の単一agentではなく、複数jobを束ねる業務loopである。191 managed jobsのうち113が18 loopへ結び付き、78は`product_loop_id`なし。
+
+`launchd` cadenceはkeep-alive 30件、interval 98件、calendar 62件、run-at-load 1件。全jobを24/7で連続実行する設計ではない。`loaded-idle`はschedule待機として正常になり得る。191 managed jobsのcapture時点はloaded-running 48、loaded-idle 136、disabled 4、unloaded 3。最新終端状態はpass 48、blocked 96、fail 17、running 27、記録なし3。blockerは`resource_capacity_busy` 46、`resource_effect_unknown` 46、`resource_control_busy` 4、`scratch_enospc` 1など。Effect状態はunknown 66、started 4、verified 1、reconciled 1、not-applicable 119。process/terminal PASSは外部成果や利益の証明ではない。
+
+| Product loop | jobs | launchd: R/I/D/U | last terminal: P/B/F/RUN/Ø |
+|---|---:|---|---|
+| Affiliate | 6 | 3/3/0/0 | 0/3/0/3/0 |
+| Agent Economy | 19 | 9/9/0/1 | 0/11/1/7/0 |
+| Capafy | 11 | 5/4/2/0 | 4/4/0/1/2 |
+| CFO | 3 | 0/3/0/0 | 1/2/0/0/0 |
+| Connector | 1 | 0/1/0/0 | 1/0/0/0/0 |
+| eBook | 4 | 0/4/0/0 | 1/2/1/0/0 |
+| Fundraiser | 1 | 0/0/1/0 | 0/0/1/0/0 |
+| Gig — Coconala | 7 | 3/4/0/0 | 2/4/0/1/0 |
+| Gig — CrowdWorks | 5 | 2/3/0/0 | 0/4/0/1/0 |
+| Gig — Lancers | 7 | 2/5/0/0 | 0/5/1/1/0 |
+| Gig — Mercor | 3 | 1/2/0/0 | 0/3/0/0/0 |
+| Investment | 4 | 0/3/1/0 | 0/4/0/0/0 |
+| Job Hunter | 4 | 0/4/0/0 | 1/3/0/0/0 |
+| LINE Sticker | 3 | 2/1/0/0 | 0/1/1/1/0 |
+| Mobile Apps | 23 | 4/19/0/0 | 14/1/6/1/1 |
+| PromptBase | 1 | 0/1/0/0 | 0/0/1/0/0 |
+| Self-Build / Product Improvement | 4 | 0/4/0/0 | 3/1/0/0/0 |
+| Writer | 7 | 0/7/0/0 | 3/4/0/0/0 |
+
+`R/I/D/U`=`loaded-running/loaded-idle/disabled/unloaded`; `P/B/F/RUN/Ø`=`pass/blocked/fail/running/no terminal`. Each column is a latest-state snapshot, not a success rate. The separate 78-job unmapped group has 18 pass, 44 blocked, 5 fail, 11 running, 2 unloaded, and 21 effect-unknown.
+
+**Money readback:** offline `skills/cfo/loop_pnl.py --date 2026-10-12 --json` at `2026-10-13T08:18:45Z`, with live RevenueCat/Stripe readback flags off, reads saved artifacts only. Its 30-day trailing window is `2026-09-13`–`2026-10-13`; all 18 product loops return net `unknown`, with no verified amount rows. `actual_billed_expenses` is unavailable (`source_unconnected`); Google billed expenses are verified. Catalog mappings say financial source: 4 implemented / 4 partial / 8 missing / 2 not applicable; cost source: 4 implemented / 5 partial / 7 missing / 2 not applicable. This proves measurement coverage is incomplete, not that revenue is zero or absent.
+
+`docs/loops/current-inventory.json` and `docs/loops/README.md` still report their older frozen counts (174 managed / 22 external / 50 retired; source git `f7b109ab30caa3be6903d13e3afabc7919856183`). They do not match this current-release status capture (191 managed / 14 external / 92 retired / 1 unmanaged) and remain stale until EDD-FLEET-01 regenerates them from one pinned readback.
+
+**EDD implication:** do not repair all 18 loops manually before measuring. First keep the Writer vertical slice as the current eval pilot; use typed trace/recovery evals for execution reliability, official receipts for external effect, and receipt-backed net/cost plus human intervention for self-improvement. Fix a shared admission/effect-readback failure once against a cross-loop regression set; fix business logic only with the owning loop's eval. EDD identifies and prevents regressions; it does not automatically repair an agent, and a task PASS alone is not life impact or income.
 
 **Evoの状態:** cleanup用regression testはshared source変更の検証で、LM-EAB/Evoではない。LM-EABの公開fixtureは5件（tuning 3/held-out 2）で合成データ。PR #7737は費用欠測の合成ケースを追加しmerge済み、PR #7736はREADMEからの再現手順を追加しmerge済み。自然trace・実経済task family・本番performance比較・benchmark報告は未完。OpenEvolveの7月runはbacktest昇格の履歴で現在稼働ではなく、registryの同名 `self-improve-evolve` はmarketing report runnerのpassでLM-EAB評価ではない。今回のread-only監査で専任のEAB/Eval/Evo稼働席は確認できず、production-connected evalと改善の自然runは未完。
 
