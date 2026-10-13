@@ -10,7 +10,7 @@ const { resolveDataRoot } = require("../lib/runtime-paths.js");
 
 const HASH = /^[0-9a-f]{64}$/;
 const APPLE_CAMPAIGNS = Object.freeze({
-  "anicca-ios": Object.freeze({ app_id: "6755129214", token: /^anicca-ios_[a-z0-9_]+$/ }),
+  "anicca-ios": Object.freeze({ app_id: "6755129214", token: /^anicca-ios_[A-Za-z0-9_-]{1,19}$/ }),
   "honne-ai": Object.freeze({ app_id: "6759667221", token: /^honne_en_(?:base|hook)_[a-z0-9_]+$/ }),
 });
 
