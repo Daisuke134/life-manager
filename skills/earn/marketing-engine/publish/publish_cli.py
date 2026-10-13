@@ -49,6 +49,30 @@ def run_create_intent(*, engine: pathlib.Path, output_path: pathlib.Path,
     if not account["publisher_integration_id"] or not account["publisher_settings"]:
         raise ValueError("account publisher route is not configured")
     normalized_caption = " ".join(caption.split())
+    if product_id == "hook-lab":
+        measure_dir = pathlib.Path(engine) / "measure"
+        if str(measure_dir) not in sys.path:
+            sys.path.insert(0, str(measure_dir))
+        from attribution import publication_campaign_token
+
+        expected_token = publication_campaign_token({
+            "experiment_id": experiment_id,
+            "creative_id": creative_id,
+            "product_id": product_id,
+            "account_id": account_id,
+            "hook_id": hook_id,
+            "renderer_id": renderer_id,
+            "scheduled_at": scheduled_at,
+        })
+        registered_ct = ((product.get("distribution_profile") or {}).get("destination") or {}).get("campaign_token")
+        if not isinstance(registered_ct, str) or attribution_token not in {registered_ct, expected_token}:
+            raise ValueError("Hook Lab attribution token is not registered or publication-bound")
+        old_owned_url = f"https://aniccaai.com/go/{attribution_token}"
+        if normalized_caption.count(old_owned_url) != 1:
+            raise ValueError("Hook Lab owned attribution URL must appear exactly once")
+        normalized_caption = normalized_caption.replace(
+            old_owned_url, f"https://aniccaai.com/go/{expected_token}", 1)
+        attribution_token = expected_token
     if product["cta"] not in normalized_caption:
         raise ValueError("product CTA missing from caption")
     owned_url = f"https://aniccaai.com/go/{attribution_token}"
