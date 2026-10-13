@@ -158,6 +158,7 @@ class MarketplaceProductProfileTest(unittest.TestCase):
         )
         product["product_id"] = "hook-lab"
         product["type"] = "marketplace_agent"
+        product["destination_url"] = "https://capafy.ai/agent/8123079349"
         product["distribution_profile"] = {
             "economic_role": "customer_revenue",
             "related_loop_id": "capafy",
@@ -249,8 +250,8 @@ class MarketplaceProductProfileTest(unittest.TestCase):
         ])
         self.assertTrue(any(
             row["source_ref"] == "skills/capafy/catalog/hook-lab/LISTING.md#pricing"
-            and "$1.99" in row["detail"] and "$4.99" in row["detail"]
-            and "$9.99" in row["detail"]
+            and "USD 1.99" in row["detail"] and "USD 4.99" in row["detail"]
+            and "USD 9.99" in row["detail"] and "cap 50" in row["detail"]
             for row in offer["source_conflicts"]
         ))
 
@@ -267,6 +268,7 @@ class MarketplaceProductProfileTest(unittest.TestCase):
 
         destination = profile["destination"]
         self.assertEqual(destination["url"], "https://capafy.ai/agent/8123079349")
+        self.assertEqual(product["destination_url"], destination["url"])
         self.assertEqual(destination["campaign_token"], "hooklab_ig")
         self.assertEqual(destination["per_slot_attribution"], "shared_token_not_per_slot")
         self.assertEqual(product["primary_metric"], "settled_net_contribution")
@@ -283,6 +285,8 @@ class MarketplaceProductProfileTest(unittest.TestCase):
         for mutation, expected_error in (
             ("published_version", "offer"),
             ("settled_net_contribution", "outcome_sources"),
+            ("destination_campaign_token", "campaign_token"),
+            ("primary_metric", "primary_metric"),
         ):
             with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as tmp:
                 root = pathlib.Path(tmp)
@@ -293,10 +297,15 @@ class MarketplaceProductProfileTest(unittest.TestCase):
                 if mutation == "published_version":
                     profile["offer_snapshot"].pop("published_version")
                 else:
-                    profile["outcome_sources"] = [
-                        row for row in profile["outcome_sources"]
-                        if row["metric"] != mutation
-                    ]
+                    if mutation == "settled_net_contribution":
+                        profile["outcome_sources"] = [
+                            row for row in profile["outcome_sources"]
+                            if row["metric"] != mutation
+                        ]
+                    elif mutation == "destination_campaign_token":
+                        profile["destination"]["campaign_token"] = "unlinked-token"
+                    else:
+                        product["primary_metric"] = "unmeasured_metric"
                 profile_path.write_text(json.dumps(product), encoding="utf-8")
 
                 with self.assertRaisesRegex(RoutingError, expected_error):

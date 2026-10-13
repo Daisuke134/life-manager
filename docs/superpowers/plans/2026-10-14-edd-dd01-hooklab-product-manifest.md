@@ -45,17 +45,17 @@
 - The profile records `publish_enabled=false`; no account is added to `registry/accounts`, so `product_router` cannot create a publisher route for Hook Lab.
 - The top-level `price` preserves the last official day-plan snapshot and marks it unverified-current; the full day/week/month schedule and separate latest-public-readback timestamp live in `distribution_profile.offer_snapshot`.
 
-- [ ] **Step 1: Write the RED profile test**
+- [x] **Step 1: Write the RED profile test**
 
 Add `test_hook_lab_marketplace_profile_is_frozen_and_not_routable` to assert `product_id="hook-lab"`, seller ID `8123079349`, v1.0.7, price snapshot at `2026-10-13T17:40:00+09:00`, latest public readback at `2026-10-14T03:43:35+09:00`, `price_status="stale_unverified"`, day USD 3.99/cap 10, week USD 9.99/cap 30, month USD 19.99/cap 80, and trial days 0. Also assert `buyer_problem.validation_status="seller_copy_unvalidated"`, a static-listing price conflict is preserved, Instagram `@capafy.hooklab` / Postiz integration `cmuuycr5402uzqw0yhanqggo9` / token `hooklab_ig`, destination `https://capafy.ai/agent/8123079349`, `per_slot_attribution="shared_token_not_per_slot"`, `primary_metric="settled_net_contribution"`, `publish_enabled=false`, settled-net/actual-cost sources are `unknown`, and no account-registry entry exists for `hook-lab`.
 
 Update `test_four_products_and_locked_accounts_validate` to assert its five existing products as a required subset, not the full registry equality; the dedicated Hook Lab test covers the new profile.
 
-- [ ] **Step 2: Write the RED malformed-profile test**
+- [x] **Step 2: Write the RED malformed-profile test**
 
-Add `test_marketplace_profile_missing_offer_or_outcome_source_fails_closed`. Build a temporary registry with a marketplace profile fixture based on an existing product, remove `published_version` or the `settled_net_contribution` outcome source, and assert `load_registry` rejects the specific malformed profile field.
+Add `test_marketplace_profile_missing_offer_or_outcome_source_fails_closed`. Build a temporary registry with a marketplace profile fixture based on an existing product, remove `published_version` or the `settled_net_contribution` outcome source, mismatch the destination token, or mismatch `primary_metric`, and assert `load_registry` rejects the specific malformed field or linkage.
 
-- [ ] **Step 3: Run the focused tests and confirm RED**
+- [x] **Step 3: Run the focused tests and confirm RED**
 
 Run from `skills/earn/marketing-engine/gates`:
 
@@ -65,11 +65,11 @@ python3 -m unittest test_product_routing.MarketplaceProductProfileTest
 
 Expected: the new product is absent or the marketplace profile is rejected by the current product schema/router.
 
-- [ ] **Step 4: Implement the minimal registry extension**
+- [x] **Step 4: Implement the minimal registry extension**
 
 Add `marketplace_agent` and the optional `distribution_profile` object to the existing schema. Update `product_router.py` to validate required provenance and offer tiers for marketplace profiles while keeping all existing product manifests valid. Add the Hook Lab profile with v1.0.7 official offer data, source conflict reference, allowed Instagram identity, Capafy destination/CT, and unknown settled-net/cost status. Do not add a publisher account or change provider state.
 
-- [ ] **Step 5: Run tests and confirm GREEN**
+- [x] **Step 5: Run tests and confirm GREEN**
 
 Run from `skills/earn/marketing-engine/gates`:
 
@@ -79,7 +79,7 @@ python3 -m unittest test_product_routing
 
 Expected: all product manifests validate; Hook Lab is loaded but no publishing account is registered.
 
-- [ ] **Step 6: Commit the profile and validator**
+- [x] **Step 6: Commit the profile and validator**
 
 ```bash
 git add skills/earn/marketing-engine/schemas/product-manifest.schema.json skills/earn/marketing-engine/gates/product_router.py skills/earn/marketing-engine/gates/test_product_routing.py skills/earn/marketing-engine/registry/products/hook-lab.json
