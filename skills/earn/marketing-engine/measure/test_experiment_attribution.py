@@ -355,6 +355,52 @@ class AttributionContractTest(unittest.TestCase):
         self.assertEqual(snapshot["creative_id"], "creative.dd03")
         self.assertEqual(snapshot["publish_key"], "publication.hooklab")
 
+    def test_hook_lab_paid_revenue_stays_unknown_without_capafy_order_join(self):
+        intent = {
+            "schema_version": "marketing.publication-intent.v2",
+            "publish_key": "publication.hooklab",
+            "experiment_id": "experiment.dd03",
+            "creative_id": "creative.dd03",
+            "product_id": "hook-lab",
+            "account_id": "life-manager-capafy-ig",
+            "hook_id": "hook.dd03",
+            "renderer_id": "watercolor-monk",
+            "attribution_token": "hl_r7py2zlsvjjafl4srigi",
+            "scheduled_at": "2026-10-16T00:00:00Z",
+        }
+        identity = {
+            **fixture_identity(),
+            "experiment_id": "experiment.dd03",
+            "publish_date": "2026-10-16T00:00:00Z",
+        }
+        business = {
+            "product_id": "hook-lab",
+            "business_date": "2026-10-16",
+            "sources": {
+                "capafy": {"status": "available", "data": {
+                    "paid_orders": 7, "sales_usd": "5.93",
+                    "scope": "agent_total_not_click_joined",
+                }},
+                "stripe": {"status": "available", "data": {
+                    "campaigns": {intent["attribution_token"]: {
+                        "paid_orders": 7, "refunds": 0,
+                        "gross_revenue": 593, "net_revenue": 593,
+                        "currency": "usd", "evidence_ref": "evidence/stripe.json",
+                    }},
+                }},
+            },
+        }
+        snapshot = ea.build_snapshot(
+            intent=intent, identity=identity, post_metric=None,
+            click_query=None, business_snapshot=business,
+            observed_at="2026-10-17T02:20:00Z",
+        )
+        by_name = {row["metric_name"]: row for row in snapshot["results"]}
+        for metric in ("paid_orders", "gross_revenue", "net_revenue"):
+            self.assertIsNone(by_name[metric]["value"])
+            self.assertEqual(by_name[metric]["status"], "unknown")
+            self.assertEqual(by_name[metric]["attribution_class"], "unknown")
+
 
 if __name__ == "__main__":
     unittest.main()

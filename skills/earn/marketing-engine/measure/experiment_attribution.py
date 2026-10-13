@@ -228,6 +228,20 @@ def _join_business(rows: dict[str, dict[str, Any]], intent: dict,
     require(business.get("product_id") == intent.get("product_id"),
             "business product mismatch")
     sources = business.get("sources") or {}
+    if intent.get("product_id") == "hook-lab":
+        capafy = sources.get("capafy") or {}
+        source_ref = capafy.get("evidence_ref")
+        evidence = [source_ref] if isinstance(source_ref, str) and source_ref else [
+            "capafy_channel_window_without_order_join"
+        ]
+        for metric in ("paid_orders", "refunds", "gross_revenue", "net_revenue"):
+            unit = "minor_currency_units" if metric in REVENUE_METRICS else "count"
+            rows[metric] = empty_result(
+                metric, unit, published_at, observed_at, "capafy",
+                status="unknown", reason="capafy_per_creative_order_join_unavailable",
+                evidence_refs=evidence,
+            )
+        return
     token = intent["attribution_token"]
     asc = sources.get("app_store_connect") or {}
     asc_campaign = ((asc.get("data") or {}).get("campaigns") or {}).get(token)
