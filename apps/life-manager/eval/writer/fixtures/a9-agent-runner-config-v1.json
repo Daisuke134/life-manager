@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "scope": "writer-edd-a9-eval-only",
+  "timeout_seconds": 900,
+  "candidate_profiles": {},
+  "task_classes": {
+    "composition-agent": {
+      "route": "writer-edd-a9-frozen-codex-terra-medium",
+      "token_reservation": 16384,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-terra",
+          "effort": "medium",
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
+        }
+      ]
+    }
+  },
+  "providers": {
+    "codex": {
+      "executable": "~/.local/bin/codex",
+      "executable_fallbacks": [],
+      "profiles": {
+        "acct1": {
+          "automation_home": "~/.local/state/life-manager/codex-runner/acct1",
+          "auth_file": "~/.codex/auth.json"
+        }
+      },
+      "account_profile_order": [
+        "acct1"
+      ],
+      "ssl_cert_file": "/etc/ssl/cert.pem",
+      "project_doc_max_bytes": 0,
+      "disabled_skills": [
+        "imagegen",
+        "openai-docs",
+        "plugin-creator",
+        "skill-creator",
+        "skill-installer"
+      ],
+      "disabled_features": [
+        "apps",
+        "auth_elicitation",
+        "goals",
+        "hooks",
+        "image_generation",
+        "multi_agent",
+        "plugins",
+        "remote_plugin",
+        "tool_call_mcp_elicitation",
+        "tool_suggest",
+        "workspace_dependencies"
+      ],
+      "capabilities": {
+        "structured_json": true,
+        "tools": false,
+        "browser": false
+      },
+      "cost_tier": "subscription",
+      "quota": {
+        "source": "provider"
+      }
+    }
+  }
+}

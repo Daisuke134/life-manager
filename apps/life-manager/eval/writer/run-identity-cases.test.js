@@ -219,20 +219,64 @@ process.stdin.on("end", () => {
   delete env.LIFE_MANAGER_OCCURRENCE_ID;
 
   const freezeSha256 = sha256File(freezePath);
-  return { directory, referencePath, referenceSha256, freezePath, freezeSha256, promptsDirectory, contextsDirectory, env };
+  return {
+    directory, referencePath, referenceSha256, freezePath, freezeSha256,
+    agentRunnerConfigPath, codexExecutablePath, pythonExecutablePath,
+    promptsDirectory, contextsDirectory, env,
+  };
 }
 
-function invoke(harness) {
+function invoke(harness, extraArgs = []) {
   return spawnSync(process.execPath, [
     CLI,
     "--reference-labels", harness.referencePath,
     "--freeze-manifest", harness.freezePath,
+    ...extraArgs,
   ], {
     cwd: REPO_ROOT,
     encoding: "utf8",
     env: harness.env,
   });
 }
+
+test("validates a frozen manifest without starting a provider in preflight-only mode", () => {
+  const harness = makeHarness();
+  const home = path.join(harness.directory, "preflight-home");
+  const localBin = path.join(home, ".local/bin");
+  fs.mkdirSync(localBin, { recursive: true });
+  fs.symlinkSync(harness.codexExecutablePath, path.join(localBin, "codex"));
+  fs.symlinkSync(harness.pythonExecutablePath, path.join(localBin, "python3"));
+  const config = JSON.parse(fs.readFileSync(harness.agentRunnerConfigPath, "utf8"));
+  config.providers.codex.executable = "~/.local/bin/codex";
+  fs.writeFileSync(harness.agentRunnerConfigPath, `${JSON.stringify(config, null, 2)}\n`);
+  const freeze = JSON.parse(fs.readFileSync(harness.freezePath, "utf8"));
+  freeze.codex_executable_path = "~/.local/bin/codex";
+  freeze.python_executable_path = "~/.local/bin/python3";
+  freeze.artifact_hashes.agent_runner_config = sha256File(harness.agentRunnerConfigPath);
+  fs.writeFileSync(harness.freezePath, `${JSON.stringify(freeze, null, 2)}\n`);
+  harness.freezeSha256 = sha256File(harness.freezePath);
+  harness.env.HOME = home;
+  harness.env.ARTICLE_NESTED_SANDBOX = "1";
+  try {
+    const result = invoke(harness, ["--preflight-only"]);
+
+    assert.equal(result.error, undefined, result.error?.message);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, "");
+    assert.equal(fs.existsSync(harness.promptsDirectory), false);
+    const [event] = result.stderr.trim().split("\n").map((line) => JSON.parse(line));
+    assert.equal(event.owner_id, "writer-a9-freeze-preflight");
+    assert.equal(event.phase, "preflight");
+    assert.equal(event.effect, "none");
+    assert.equal(event.error_class, null);
+    assert.equal(event.readback.freeze_id, "writer-edd-a9-test-freeze-v1");
+    assert.equal(event.readback.freeze_sha256, harness.freezeSha256);
+    assert.equal(event.readback.judge_verdict, "UNKNOWN");
+    assert.equal(event.next_action, "run_frozen_identity_cases");
+  } finally {
+    fs.rmSync(harness.directory, { recursive: true, force: true });
+  }
+});
 
 test("refuses any judge inference when the A9 freeze manifest is absent", () => {
   const harness = makeHarness();

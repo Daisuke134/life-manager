@@ -63,6 +63,7 @@ function exactKeys(value, expected) {
 
 function resolveManifestPath(value) {
   if (typeof value !== "string" || !value.trim()) rejectInput("eval_freeze_invalid");
+  if (value.startsWith("~/")) return path.resolve(os.homedir(), value.slice(2));
   return path.isAbsolute(value) ? path.resolve(value) : path.resolve(REPO_ROOT, value);
 }
 
@@ -215,11 +216,12 @@ function loadFreezeManifest(filePath, dataset, referenceSet) {
 }
 
 function parseArgs(args) {
-  if (args.length !== 4 || args[0] !== "--reference-labels" || !args[1]
+  const preflightOnly = args.length === 5 && args[4] === "--preflight-only";
+  if ((!preflightOnly && args.length !== 4) || args[0] !== "--reference-labels" || !args[1]
     || args[2] !== "--freeze-manifest" || !args[3]) {
     rejectInput("invalid_arguments");
   }
-  return { referenceLabelsPath: args[1], freezeManifestPath: args[3] };
+  return { referenceLabelsPath: args[1], freezeManifestPath: args[3], preflightOnly };
 }
 
 function targetVerdict(result) {
@@ -253,16 +255,18 @@ function targetVerdict(result) {
   return { verdict: "UNKNOWN", errorClass: "unexpected_gate_result", retryable: true };
 }
 
-function eventRecord({ runId, caseId, exitCode, verdict, errorClass, retryable, referenceSet = null, freeze = null }) {
+function eventRecord({ runId, caseId, exitCode, verdict, errorClass, retryable, referenceSet = null, freeze = null,
+  ownerId = "writer-a8-identity-eval", nextActionOverride = null, preflightOnly = false }) {
   const preflight = caseId === null || NO_EFFECT_ERRORS.has(errorClass);
   return {
     run_id: runId,
-    owner_id: "writer-a8-identity-eval",
+    owner_id: ownerId,
     occurrence_id: caseId === null ? `${runId}:preflight` : `${runId}:${caseId}`,
     case_id: caseId,
     release_sha: process.env.LIFE_MANAGER_RELEASE_SHA || null,
     loaded_argv: caseId === null
-      ? ["node", "run-identity-cases.js", "--reference-labels", "<provided>", "--freeze-manifest", "<provided>"]
+      ? ["node", "run-identity-cases.js", "--reference-labels", "<provided>", "--freeze-manifest", "<provided>",
+        ...(preflightOnly ? ["--preflight-only"] : [])]
       : ["bash", "-c", "<isolated-gate-wrapper>", "<isolated>/article.md"],
     loaded_env: {
       ARTICLE_ROOT: "skills/writer-agent",
@@ -307,7 +311,7 @@ function eventRecord({ runId, caseId, exitCode, verdict, errorClass, retryable, 
     ],
     error_class: errorClass,
     retryable,
-    next_action: nextAction(errorClass),
+    next_action: nextActionOverride || nextAction(errorClass),
   };
 }
 
@@ -418,7 +422,7 @@ function main() {
   let referenceSet = null;
   let freeze = null;
   try {
-    const { referenceLabelsPath, freezeManifestPath } = parseArgs(process.argv.slice(2));
+    const { referenceLabelsPath, freezeManifestPath, preflightOnly } = parseArgs(process.argv.slice(2));
     const dataset = loadDataset();
     referenceSet = loadReferenceSet(referenceLabelsPath, dataset);
     const counts = { PASS: 0, FAIL: 0 };
@@ -428,10 +432,27 @@ function main() {
     if (counts.PASS < MIN_PER_CLASS || counts.FAIL < MIN_PER_CLASS) {
       rejectInput("insufficient_reference_labels");
     }
-    if (process.env.ARTICLE_NESTED_SANDBOX === "1" || process.env.ARTICLE_JUDGE_BROKER_SERVER === "1") {
+    if (!preflightOnly && (process.env.ARTICLE_NESTED_SANDBOX === "1"
+      || process.env.ARTICLE_JUDGE_BROKER_SERVER === "1")) {
       rejectInput("nested_sandbox_execution");
     }
     freeze = loadFreezeManifest(freezeManifestPath, dataset, referenceSet);
+    if (preflightOnly) {
+      emitEvent(eventRecord({
+        runId: `writer-a9-preflight-${crypto.randomUUID()}`,
+        caseId: null,
+        exitCode: 0,
+        verdict: "UNKNOWN",
+        errorClass: null,
+        retryable: false,
+        referenceSet,
+        freeze,
+        ownerId: "writer-a9-freeze-preflight",
+        nextActionOverride: "run_frozen_identity_cases",
+        preflightOnly: true,
+      }));
+      return;
+    }
 
     const casesById = new Map(dataset.cases.map((item) => [item.case_id, item]));
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "writer-a8-identity-"));
