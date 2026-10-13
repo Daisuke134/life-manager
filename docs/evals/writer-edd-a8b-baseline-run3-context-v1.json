@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "record_type": "writer_evaluation_run_context",
+  "run_id": "writer-a8-947781cf-d83b-4f27-80f9-57d25716c270",
+  "source": {
+    "branch": "feat/writer-a8b-frozen-baseline-20261014",
+    "commit": "3db5ee7e6bbe92de7d0e7a956214c45a12a358ca",
+    "main_head": "eca7d0e31355f9a071df5d77b5819cc66b839801",
+    "treg_skill_tree_sha1": "e1eed7e3c2922a0d33091420d5a3336bab2fcfcf"
+  },
+  "dataset": {
+    "version": "writer-edd-a8-v3",
+    "sha256": "355729f17728c1ef8638cde71f8deca44a37619854f1be6995efdd11df3c1f39"
+  },
+  "reference_set": {
+    "version": "writer-edd-a8-reference-v1",
+    "sha256": "59f1e24177c6e441e129b6a05c2baddd6eca73734faf6b7d6c48e09f51ff908e"
+  },
+  "split_manifest": {
+    "path": "apps/life-manager/eval/writer/fixtures/a9-splits-v1.json",
+    "sha256": "b7e8c949b8f633e83e9c2f194edba9eec563bc57a57b28ec22b8bb724dab98b3",
+    "public_fixture": true
+  },
+  "freeze": {
+    "path": "docs/evals/writer-edd-a9-freeze-v2.json",
+    "id": "writer-edd-a9-codex-terra-medium-20261014-v2",
+    "sha256": "5f40c682b01420ca7c7efa255c001f2b2a3a52828d267973fad3516ebd81c170",
+    "provider": "codex",
+    "model_id": "gpt-5.6-terra",
+    "effort": "medium",
+    "profile_alias": "acct1"
+  },
+  "preflight": {
+    "run_id": "writer-a9-preflight-6812a670-10ee-4b55-8b7b-568f9f7b9a67",
+    "effect": "none",
+    "error_class": null,
+    "artifact_path": "docs/evals/writer-edd-a9-preflight-v2-events-v1.jsonl",
+    "artifact_sha256": "343b57440ac9e2a8332b71adcc17faad8ca22f5a684b9c56e7428b67e2288751"
+  },
+  "execution": {
+    "runner_exit_code": 0,
+    "case_count": 40,
+    "prediction_counts": {
+      "FAIL": 19,
+      "PASS": 21
+    },
+    "event_error_classes": {
+      "none": 40
+    },
+    "provider_receipt_count": 0,
+    "usage_cost_status": "not_retained"
+  },
+  "metrics": {
+    "status": "synthetic_reference_metrics_available",
+    "scope": "synthetic_reference_agreement",
+    "counts": {
+      "reference_pass": 20,
+      "reference_fail": 20,
+      "reference_unknown": 0,
+      "judge_unknown": 0,
+      "correct_pass": 20,
+      "correct_fail": 19,
+      "reference_false_pass": 1,
+      "reference_false_fail": 0
+    },
+    "rates": {
+      "reference_tpr": 1,
+      "reference_tnr": 0.95,
+      "reference_false_pass_rate": 0.05,
+      "reference_false_fail_rate": 0
+    },
+    "human_validation": "not_performed",
+    "challenge_case_tuning": "not_used"
+  },
+  "artifacts": {
+    "writer-edd-a8b-baseline-run3-predictions-v1.jsonl": "7d6f51fd3f2fdf9da8fb054c64ec6fdf2849b3ebb152abd0a9df05c1d0886f37",
+    "writer-edd-a8b-baseline-run3-events-v1.jsonl": "16cbc4998fc6e78ea35bdf95aa0bedd6d8138115bfc0e5668b3f3441a6ed1eaa",
+    "writer-edd-a8b-baseline-run3-joined-v1.jsonl": "daca0784e1a4bca623c7ee2f3adbebbea6aeea38139dd65f839fa42538226925",
+    "writer-edd-a8b-baseline-run3-metrics-v1.json": "4ec4e3bd64315384f9d97ea28eac758597c2525b15e9af5a3daf674fe7841766"
+  }
+}
