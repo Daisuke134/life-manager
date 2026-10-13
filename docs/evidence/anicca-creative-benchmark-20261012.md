@@ -8,15 +8,15 @@ This records public references and original Anicca concepts. Public media was in
 - Apple country lookup rating counts: US 734,791; Japan 1,775; Spain 7,169. The listing reports 14 language codes. The public TikTok profile snapshot shows 39.2K followers and 252.6K likes.
 - Five public TikTok samples inspected on 2026-10-12:
 
-| TikTok post | Uploaded | Duration | Views | Likes | Comments | Reposts |
+| TikTok post | Uploaded | Duration | Views | Likes | Comments | Reposts | Weighted engagement/1K views |
 |---|---|---:|---:|---:|---:|---:|
-| [7682746221114510606](https://www.tiktok.com/@iam.app/video/7682746221114510606) | 2026-09-07 | 8s | 417 | 32 | 1 | 1 |
-| [7682468356691201293](https://www.tiktok.com/@iam.app/video/7682468356691201293) | 2026-09-06 | 12s | 912 | 126 | 1 | 3 |
-| [7666990812093287694](https://www.tiktok.com/@iam.app/video/7666990812093287694) | 2026-07-27 | 8s | 276 | 14 | 1 | 0 |
-| [7691359823086013709](https://www.tiktok.com/@iam.app/video/7691359823086013709) | 2026-09-30 | 8s | 80 | 2 | 2 | 0 |
-| [7686828434462428429](https://www.tiktok.com/@iam.app/video/7686828434462428429) | 2026-09-18 | 8s | 206 | 15 | 1 | 0 |
+| [7682746221114510606](https://www.tiktok.com/@iam.app/video/7682746221114510606) | 2026-09-07 | 8s | 417 | 32 | 1 | 1 | 172.7 |
+| [7682468356691201293](https://www.tiktok.com/@iam.app/video/7682468356691201293) | 2026-09-06 | 12s | 912 | 126 | 1 | 3 | 296.1 |
+| [7666990812093287694](https://www.tiktok.com/@iam.app/video/7666990812093287694) | 2026-07-27 | 8s | 276 | 14 | 1 | 0 | 112.3 |
+| [7691359823086013709](https://www.tiktok.com/@iam.app/video/7691359823086013709) | 2026-09-30 | 8s | 80 | 2 | 2 | 0 | 125.0 |
+| [7686828434462428429](https://www.tiktok.com/@iam.app/video/7686828434462428429) | 2026-09-18 | 8s | 206 | 15 | 1 | 0 | 160.2 |
 
-Counters are lifetime totals returned by yt-dlp on 2026-10-12, not 24-hour performance. The inspected 12-second clip keeps one abstract marbled background, changes centered affirmation text about every few seconds, and places a small account mark at the bottom. It does not show an app demo; the caption directs viewers to the profile link. The other samples use similarly short affirmation-first captions. This is a repeatable format hypothesis, not proof every post performs well.
+Counters are lifetime totals returned by yt-dlp on 2026-10-12, not 24-hour performance. The weighted TikTok engagement score shown in the tables is (likes × 2 + comments × 3 + shares/reposts × 5) / max(views, 1) × 1,000. It is a within-platform discovery proxy, not an install/conversion or revenue measure. The inspected 12-second clip keeps one abstract marbled background, changes centered affirmation text about every few seconds, and places a small account mark at the bottom. It does not show an app demo; the caption directs viewers to the profile link. The other samples use similarly short affirmation-first captions. This is a repeatable format hypothesis, not proof every post performs well.
 
 References: [US App Store listing](https://apps.apple.com/us/app/i-am-daily-affirmations/id874656917), [US Apple lookup](https://itunes.apple.com/lookup?id=874656917&country=us), [Japan lookup](https://itunes.apple.com/lookup?id=874656917&country=jp), [Spain lookup](https://itunes.apple.com/lookup?id=874656917&country=es), [I Am site](https://iam.monkeytaps.app/), [TikTok profile](https://www.tiktok.com/@iam.app).
 
@@ -82,20 +82,20 @@ The Motivation site links directly to the verified Instagram account [@motivatio
 | 2024-11-09 | [DCKWLOsP_RX](https://www.instagram.com/motivationapp/reel/DCKWLOsP_RX/) | Unknown | 3,736 / 15 | Broad gratitude/lifestyle quote, standard quote-led execution. Historical sample. |
 | 2024-10-02 | [DAow2s_iQUH](https://www.instagram.com/motivationapp/reel/DAow2s_iQUH/) | Unknown | 2,447 / 9 | New-beginnings/mindset quote. Historical sample. |
 
-The brand-matched TikTok account [@motivationapp](https://www.tiktok.com/@motivationapp) posted a 32-second lock-screen demonstration on 2026-10-09: 224 views, 4 likes, 0 comments, 0 shares in the public snapshot. It emphasizes putting the reminder where the user sees the phone, then demonstrates a lock-screen quote and asks viewers to screenshot it. The official website links to Instagram but not this TikTok profile, so treat the TikTok account as a strong brand match rather than a fully cross-linked official channel.
+The brand-matched TikTok account [@motivationapp](https://www.tiktok.com/@motivationapp) posted a 32-second lock-screen demonstration on 2026-10-09: 224 views, 4 likes, 0 comments, 0 shares, weighted engagement 35.7/1K views in the public snapshot. It emphasizes putting the reminder where the user sees the phone, then demonstrates a lock-screen quote and asks viewers to screenshot it. The official website links to Instagram but not this TikTok profile, so treat the TikTok account as a strong brand match rather than a fully cross-linked official channel.
 
 ### Innertune — current multi-platform competitor with an official social link path
 
 Innertune's [official site](https://innertune.com/) links to the App Store, Instagram, TikTok, YouTube, Facebook, and X. Its homepage describes affirmations, sleep listening, and subconscious reprogramming; its 1.3M-user figure is a company claim, not an audited user count. The US App Store listing has 11,967 ratings. Six TikTok posts from the cross-linked @innertune.affirmations account provide a current and historical sample.
 
-| Date | TikTok post | Duration | Views / likes / comments / shares | Format and hook |
+| Date | TikTok post | Duration | Views / likes / comments / shares | Weighted engagement/1K views | Format and hook |
 |---|---|---:|---:|---|
-| 2026-10-09 | [7694736191203085600](https://www.tiktok.com/@innertune.affirmations/video/7694736191203085600) | 87s | 127,900 / 9,625 / 362 / 2,501 | Event-timed date/new-moon narrative, black screen typography, science/cosmos visuals, captioned story, then a personal reflection and comment-keyword CTA. Its numerology/astrology assertions are unverified; copy only the timely-hook/story/CTA structure. |
-| 2025-03-06 | [7478741593445469462](https://www.tiktok.com/@innertune.affirmations/video/7478741593445469462) | 26s | 424,600 / 28,300 / 316 / 9,474 | Emotional “second chance” framing, close-up and cinematic images, then a reflective question. This is the largest observed reach/share sample in this small set, not proof of installs. |
-| 2025-06-29 | [7521443907276721430](https://www.tiktok.com/@innertune.affirmations/video/7521443907276721430) | 33s | 59,000 / 4,534 / 143 / 772 | “Repeat for 30 days” transformation framing, captioned affirmation/manifestation narrative, profile CTA. Outcome claims are unverified. |
-| 2025-05-31 | [7510691118560922902](https://www.tiktok.com/@innertune.affirmations/video/7510691118560922902) | 54s | 37,300 / 2,385 / 54 / 468 | Sleep/subconscious hook followed by three bedtime affirmations and a product CTA. |
-| 2026-01-13 | [7594907646231317783](https://www.tiktok.com/@innertune.affirmations/video/7594907646231317783) | 29s | 3,535 / 191 / 2 / 40 | Educational claim about music shaping beliefs; captioned narration and an app-linked conclusion. |
-| 2024-10-15 | [7426056171481615638](https://www.tiktok.com/@innertune.affirmations/video/7426056171481615638) | 50s | 42,800 / 2,498 / 136 / 765 | Nightly-affirmation framing with an explicit Innertune app CTA. Historical sample. |
+| 2026-10-09 | [7694736191203085600](https://www.tiktok.com/@innertune.affirmations/video/7694736191203085600) | 87s | 127,900 / 9,625 / 362 / 2,501 | 256.8 | Event-timed date/new-moon narrative, black screen typography, science/cosmos visuals, captioned story, then a personal reflection and comment-keyword CTA. Its numerology/astrology assertions are unverified; copy only the timely-hook/story/CTA structure. |
+| 2025-03-06 | [7478741593445469462](https://www.tiktok.com/@innertune.affirmations/video/7478741593445469462) | 26s | 424,600 / 28,300 / 316 / 9,474 | 247.1 | Emotional “second chance” framing, close-up and cinematic images, then a reflective question. This is the largest observed reach/share sample in this small set, not proof of installs. |
+| 2025-06-29 | [7521443907276721430](https://www.tiktok.com/@innertune.affirmations/video/7521443907276721430) | 33s | 59,000 / 4,534 / 143 / 772 | 226.4 | “Repeat for 30 days” transformation framing, captioned affirmation/manifestation narrative, profile CTA. Outcome claims are unverified. |
+| 2025-05-31 | [7510691118560922902](https://www.tiktok.com/@innertune.affirmations/video/7510691118560922902) | 54s | 37,300 / 2,385 / 54 / 468 | 195.0 | Sleep/subconscious hook followed by three bedtime affirmations and a product CTA. |
+| 2026-01-13 | [7594907646231317783](https://www.tiktok.com/@innertune.affirmations/video/7594907646231317783) | 29s | 3,535 / 191 / 2 / 40 | 166.3 | Educational claim about music shaping beliefs; captioned narration and an app-linked conclusion. |
+| 2024-10-15 | [7426056171481615638](https://www.tiktok.com/@innertune.affirmations/video/7426056171481615638) | 50s | 42,800 / 2,498 / 136 / 765 | 215.6 | Nightly-affirmation framing with an explicit Innertune app CTA. Historical sample. |
 
 ### ThinkUp and Mantra — historical social examples, not current performance leaders
 
@@ -126,4 +126,4 @@ The Mantra landing page [getmantra.app](https://getmantra.app/) presents reminde
 
 **Anicca test candidate:** one original 10–15 second English video: first second states a specific moment (e.g. “Your mind is still replaying that conversation?”), then show the Anicca quote/notification on a phone, then tap and show the same quote in-app, finish with one trackable App Store CTA. This is only a test hypothesis; use one existing slot, create three distinct original posts, and compare views/clicks/ASC first-time downloads. Do not use testimonial, health, financial or guaranteed-outcome claims without evidence.
 
-**Coverage:** 26 source-linked samples are now documented (5 I Am, 8 Motivation including one brand-matched TikTok, 6 Innertune, 5 ThinkUp, 2 Mantra). Ten are confirmed within the prior 90 days (5 I Am, 4 verified Motivation Instagram posts, 1 Innertune TikTok); one additional current Motivation TikTok is only a brand match because the company site does not link it. Older posts are explicitly historical. Instagram views are unavailable for the cited posts, so no Instagram engagement rate is claimed. The possible Manifest Instagram account has 96K followers and a matching name, but the App Store/site did not link that profile; it remains an unverified discovery candidate and is not counted.
+**Coverage:** 26 unique source-linked samples are documented (5 I Am, 8 Motivation including one brand-matched TikTok, 6 Innertune, 5 ThinkUp, 2 Mantra). Ten confirmed posts are within the prior 90 days (5 I Am, 4 verified Motivation Instagram posts, 1 Innertune TikTok); a further current Motivation TikTok is a brand match only because the company site does not link it. Older posts are explicitly historical. Instagram views are unavailable for the cited posts, so no Instagram engagement rate is claimed. The possible Manifest Instagram account has 96K followers and a matching name, but the App Store/site did not link that profile; it remains an unverified discovery candidate and is not counted.
