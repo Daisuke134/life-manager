@@ -323,6 +323,18 @@ F4 NOT PASS: central cleanupはGit maintenance timeoutでexit1になった再発
 F5 NOT PASS: Line Sticker factory unloaded/route-ready未確認。ready後に自然run→child teardown→中央回収を3 cycle確認する。
 lm-loop healthはhost storage=unmetを返した。これはrelease/applyの時点preflightに使う診断で、成功KPIではない。release cut前に正式cutterのfresh preflightを行う。
 
+### 2026-10-14 04:54 JST — renewed browser-capacity deferral
+
+F2の最新自然runはline-sticker-readback-hourly occurrence 18de2e6b0224fd28-93810。exit75/resource_capacity_busy、effect_status=unknown、admission_effect_unknown=true、effect identityはnot_written、provider adapter未実行、next_action=official_readback_required。lm-fence-reconcilerのnatural pass後もこのoccurrenceは未解決。factory occurrence 18de1e0534af8540-84609も公式LINE receipt/readbackのないpublish unknownのまま。どちらも再送・手動fence解除しない。
+
+当該readback ownerはbrowser identity line-creators:dais / browser target owner line-creators-browserを使う。04:50のbrowser-guard readbackでは同identityのlease holder PID 85491、開始は2026-10-13 21:09 JST、CDP reachable。line-creators-browserはPID 59749でcontinuous稼働。これはresource_capacity_busyと同時間帯の競合証拠だが、単独原因とまでは未確定。Line Sticker ownerへexact occurrenceと読み取り証拠をAGMSGで通知済み、返答・readback修復は未確認。
+
+Writerもwriter-sales-measure occurrence 18de2afb25a31230-77664がexit124/1時間timeout/no external effectで終了しloaded-idle、next_action=reconcile_owner。interactive:dais lease holderは引き続きPID 85491。Writer ownerにno-interactive:daisとbounded yieldの修復を再通知済み、返答未確認。停止・強制終了やglobal capacity変更は行わない。
+
+PR #7959にはcentral cleanup timeout defer、PromptBase provisioner external-label登録、および回帰testをpush済み。current headの必須CIはpending。旧headのCIはforce-cancel要求済みだがGitHub上でまだ終了しておらず、新headのCI開始を待っている。
+
+**更新後の次順:** (1) latest-head required CIを完了しPR #7959をmerge。(2) exact capacity preflight後にmain由来immutable releaseを作り、owner idleを確認してcleanup変更をtarget apply、3 ownerのloaded SHA/argv/cadenceとdoctorを再確認。(3) 新releaseのwatchdog/central cleanup自然passを各3回取得。central timeoutはtyped deferredでcleanup全体が成功し、errors/protected deletionsが0であること。(4) 次の自然readback slotでregistered LINE adapterのofficial readbackを実行できるまで待つ。証拠がなければunknownを維持。(5) factory route-ready後に3 producer→child teardown→closed scratch reclaim cycle。(6) 29 inventory gapsをowner/pathでbounded分類。(7) F1–F5とresource path gateがPASSしてから18 business capabilityを一件ずつ直す。
+
 **EDD担当境界:** このレーンの実装cursorはE02 Writer Pilot。18製品ループの下記read-only監査は全体判断のための状況把握であり、E01 Agent Economy、F1–F5共有cleanup、18 capability修理のownerを引き受けない。Agent Economyは18製品ループの一つとして監査表に含むが、Writer作業と混同しない。
 
 **前回cleanup readback（2026-10-13 11:44 JST）:** `life-manager-disk-cleanup`はrelease `3e19c846`でloaded-idle、F1–F5は当時0/5完了。これは歴史的観測で現在状態へ再利用しない。
