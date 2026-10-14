@@ -17,7 +17,7 @@
 - Do not alter `deploy/local`, add a database, service, package, or authentication provider.
 - Calls require `call_enabled === true`. Dais receives all-event calls; other tenants explicitly opt in.
 - Physical-event reminder time is computed departure T-5; non-travel reminder time is event-start T-5.
-- Transit requests include the event date, clock time, correct `arrival`/`departure` anchor, and `numItineraries=3`.
+- Transit requests include the event date, clock time, correct `arrival`/`departure` anchor, and `numItineraries=1`; the provider may return multiple viable journeys.
 - A valid Transit result causes zero Google calls. An unusable/error result causes at most one sequential Google fallback.
 - Platform, exit, carriage, congestion and accessibility facts are nullable. Never infer or fabricate them.
 - Telegram reminder dedupe reuses `lm_travel_log` with leg `telegram-t5`; failed sends release the claim.
@@ -60,7 +60,7 @@
 
 **Files:** Modify `lib/travel.js`, `lib/travel-transit-wire.test.js`, `lib/route-cache.js`, `lib/route-cache.test.js`.
 
-1. Write failing tests that inspect the Transit URL for `date=YYYYMMDD`, `time=HH:MM`, `type=arrival|departure`, `numItineraries=3`, and timezone-correct values.
+1. Write failing tests that inspect the Transit URL for `date=YYYYMMDD`, `time=HH:MM`, `type=arrival|departure`, `numItineraries=1`, and timezone-correct values.
 2. Add tests proving accepted Transit makes zero Google calls, failure/unusable output makes exactly one Google call, and cache keys differ by provider, endpoints, mode, anchor type, and time bucket.
 3. Run the two tests and record RED.
 4. Introduce a structured `directionsRoute(...)`; retain `directionsMinutes(...)` as a thin compatibility adapter.
