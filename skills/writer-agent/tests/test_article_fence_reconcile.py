@@ -8,6 +8,7 @@ time window is used only to PAIR a fence with a publish, never to infer that not
 import hashlib
 import importlib.util
 import json
+import sqlite3
 import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
@@ -463,6 +464,12 @@ def test_a_run_that_stopped_at_the_gate_closes_as_pre_effect(tmp_path):
     _run_dir(runs, "20261008-232303", ["git-hash.txt"])        # 08:23:03 JST, 4 min after the claim
     result, closed = _pre(m, tmp_path, runs)
     assert result["status"] == "pre_effect" and result["closed"] is True
+    assert result["owner_id"] == OWNER and result["verified"] is True
+    assert result["evidence_ref"] == closed[0][1]["evidence_ref"]
+    from runtime.loop.fence_reconcile import _closure_proof
+    closure = _closure_proof(json.dumps(result), owner_id=OWNER,
+                             occurrence_id=GATE_OCC, release_sha="a" * 40)
+    assert closure and closure["receipt_ref"] == result["evidence_ref"]
     occ, proof = closed[0]
     assert occ == GATE_OCC and proof["proof_type"] == "pre_effect" and proof["verified"] is True
     assert proof["owner_id"] == OWNER and proof["occurrence_id"] == GATE_OCC and proof["evidence_ref"]
@@ -490,6 +497,54 @@ def test_pre_effect_without_resolve_writes_nothing(tmp_path):
     _run_dir(runs, "20261008-232303", ["git-hash.txt"])
     result, closed = _pre(m, tmp_path, runs, resolve=False)
     assert result["status"] == "pre_effect" and result["closed"] is False and closed == []
+    assert result.get("verified") is not True
+
+
+def test_released_fence_is_reread_and_returns_idempotent_closure_proof(tmp_path, capsys):
+    m = _load()
+    occurrence = GATE_OCC
+    admission_db = tmp_path / "admission-v2.sqlite3"
+    with sqlite3.connect(admission_db) as connection:
+        connection.execute(
+            "CREATE TABLE occurrences (owner_id TEXT, occurrence_id TEXT, queued_at REAL, "
+            "state TEXT, effect_unknown INTEGER)"
+        )
+        connection.execute(
+            "INSERT INTO occurrences VALUES (?, ?, ?, ?, ?)",
+            (OWNER, occurrence, GATE_QUEUED, "released", 0),
+        )
+    m.ADMISSION_DB = admission_db
+    m.ARTICLES = _articles(tmp_path, [])
+    m.RUNS_ROOT = tmp_path / "runs"
+    _run_dir(m.RUNS_ROOT, "20261008-232303", ["git-hash.txt"])
+
+    exit_code = m.main(["--occurrence", occurrence])
+    result = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0, result
+    assert result["status"] == "pre_effect" and result["closed"] is True
+    assert result["owner_id"] == OWNER and result["verified"] is True
+    assert result["evidence_ref"].startswith("writer-run-no-publication-state:")
+    with sqlite3.connect(admission_db) as connection:
+        state, effect_unknown = connection.execute(
+            "SELECT state, effect_unknown FROM occurrences WHERE occurrence_id=?", (occurrence,)
+        ).fetchone()
+    assert (state, effect_unknown) == ("released", 0)
+
+    with sqlite3.connect(admission_db) as connection:
+        connection.execute("UPDATE occurrences SET effect_unknown=2 WHERE occurrence_id=?", (occurrence,))
+    exit_code = m.main(["--occurrence", occurrence])
+    result = json.loads(capsys.readouterr().out)
+    assert exit_code == 1 and result["reason"] == "occurrence_not_fenced_or_unreadable"
+
+    with sqlite3.connect(admission_db) as connection:
+        connection.execute(
+            "UPDATE occurrences SET state='claimed', effect_unknown=0 WHERE occurrence_id=?", (occurrence,)
+        )
+    exit_code = m.main(["--occurrence", occurrence])
+    result = json.loads(capsys.readouterr().out)
+    assert exit_code == 1
+    assert result["status"] == "inconclusive" and result["reason"] == "occurrence_not_fenced_or_unreadable"
 
 
 def test_a_generated_run_without_publication_state_closes_as_pre_effect(tmp_path):
@@ -685,6 +740,8 @@ def test_resume_fence_closes_when_every_readback_and_the_ledger_predate_it(tmp_p
     m = _load()
     result, calls = _resume(m, tmp_path)
     assert result["status"] == "no_dispatch_proven" and result["closed"] is True
+    assert result["owner_id"] == "article-resume" and result["verified"] is True
+    assert result["evidence_ref"] == result["proof_ref"]
     owner, occurrence, proof, state = calls[0]
     assert (owner, occurrence, state) == ("article-resume", RESUME_OCC, "claimed")
     assert proof["proof_type"] == "historical_writer_resume_no_dispatch"

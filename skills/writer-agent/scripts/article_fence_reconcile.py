@@ -503,6 +503,17 @@ def _pre_effect(occurrence_id: str, queued_at: float, state: str, rows: list, ru
     return result
 
 
+def _central_closure_result(owner_id: str, result: dict) -> dict:
+    """Expose the exact proof contract consumed by lm-fence-reconciler."""
+    if result.get("closed") is True:
+        result["owner_id"] = owner_id
+        result["verified"] = True
+        proof_ref = result.get("proof_ref")
+        if isinstance(proof_ref, str) and proof_ref.strip() and not result.get("evidence_ref"):
+            result["evidence_ref"] = proof_ref
+    return result
+
+
 def reconcile(occurrence_id: str, *, queued_at: float, state: str, articles_path: Path = ARTICLES,
               fetch_status: Callable[[str], int] = _http_status, resolver: Callable[..., bool] | None = None,
               resolve: bool = False, now: float | None = None, runs_root: Path = RUNS_ROOT,
@@ -512,9 +523,10 @@ def reconcile(occurrence_id: str, *, queued_at: float, state: str, articles_path
               fetch_json: Callable[[str], object] = _fetch_json) -> dict:
     now = datetime.now(timezone.utc).timestamp() if now is None else now
     if occurrence_id.startswith(f"{RESUME_OWNER_ID}:"):
-        return _reconcile_resume(occurrence_id, queued_at=queued_at, state=state,
-                                 articles_path=articles_path, fetch_json=fetch_json,
-                                 resolver=resolver, resolve=resolve, now=now, writer_root=writer_root)
+        result = _reconcile_resume(occurrence_id, queued_at=queued_at, state=state,
+                                   articles_path=articles_path, fetch_json=fetch_json,
+                                   resolver=resolver, resolve=resolve, now=now, writer_root=writer_root)
+        return _central_closure_result(RESUME_OWNER_ID, result)
     if not occurrence_id.startswith(f"{OWNER_ID}:"):
         return _inconclusive(occurrence_id, "owner_not_allowlisted")
     if now - queued_at < MIN_AGE_SECONDS:
@@ -561,9 +573,10 @@ def reconcile(occurrence_id: str, *, queued_at: float, state: str, articles_path
                 no_dispatch_proof=lambda: no_dispatch,
                 expected_state=state,
             ))
-            return result
-        return _pre_effect(occurrence_id, queued_at, state, rows, runs_root,
-                           pre_effect_resolver, resolve)
+            return _central_closure_result(OWNER_ID, result)
+        result = _pre_effect(occurrence_id, queued_at, state, rows, runs_root,
+                             pre_effect_resolver, resolve)
+        return _central_closure_result(OWNER_ID, result)
     receipt = str(proven[0]["live_url"])
     result = {"status": "effected", "occurrence_id": occurrence_id, "closed": False,
               "provider_receipt_id": receipt, "run_id": proven[0].get("run_id"),
@@ -577,21 +590,23 @@ def reconcile(occurrence_id: str, *, queued_at: float, state: str, articles_path
              "provider_receipt_id": receipt}
     result["closed"] = bool(resolver(OWNER_ID, occurrence_id, official_readback=lambda: proof,
                                      expected_state=state))
-    return result
+    return _central_closure_result(OWNER_ID, result)
 
 
-def _admission_row(occurrence_id: str) -> tuple[float, str] | None:
+def _admission_row(occurrence_id: str) -> tuple[float, str, bool] | None:
     owner_id = occurrence_id.split(":", 1)[0]
     if owner_id not in {OWNER_ID, RESUME_OWNER_ID}:
         return None
     try:
         with sqlite3.connect(f"file:{ADMISSION_DB}?mode=ro", uri=True, timeout=20) as connection:
             row = connection.execute(
-                "SELECT queued_at, state FROM occurrences WHERE occurrence_id=? AND owner_id=? "
-                "AND effect_unknown=1", (occurrence_id, owner_id)).fetchone()
+                "SELECT queued_at, state, effect_unknown FROM occurrences WHERE occurrence_id=? AND owner_id=?",
+                (occurrence_id, owner_id)).fetchone()
     except sqlite3.Error:
         return None
-    return (float(row[0]), str(row[1])) if row else None
+    if row is None or type(row[2]) is not int or row[2] not in (0, 1):
+        return None
+    return (float(row[0]), str(row[1]), bool(row[2]))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -603,7 +618,22 @@ def main(argv: list[str] | None = None) -> int:
     if row is None:
         result = _inconclusive(args.occurrence, "occurrence_not_fenced_or_unreadable")
     else:
-        result = reconcile(args.occurrence, queued_at=row[0], state=row[1], resolve=args.resolve)
+        queued_at, state, effect_unknown = row
+        already_released = state == "released" and not effect_unknown
+        if effect_unknown or already_released:
+            result = reconcile(
+                args.occurrence, queued_at=queued_at, state=state,
+                resolve=args.resolve and not already_released,
+                articles_path=ARTICLES, runs_root=RUNS_ROOT,
+                writer_root=WRITER_STATE_ROOT, source_repo=SOURCE_REPO,
+            )
+            if already_released and result.get("status") in {
+                    "effected", "pre_effect", "no_dispatch_proven"}:
+                # Revalidate an already-released occurrence without mutating admission state.
+                result["closed"] = True
+                result = _central_closure_result(args.occurrence.split(":", 1)[0], result)
+        else:
+            result = _inconclusive(args.occurrence, "occurrence_not_fenced_or_unreadable")
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
     return 0 if (
         result["status"] in {"effected", "pre_effect", "no_dispatch_proven"}
