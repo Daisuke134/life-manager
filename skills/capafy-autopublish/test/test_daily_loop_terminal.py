@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import os
 import shlex
 import subprocess
 from pathlib import Path
@@ -126,3 +128,208 @@ def test_legitimate_noop_still_marks_child_and_parent_healthy(tmp_path: Path, po
     assert child_marker.exists()
     assert parent_last_pass.exists()
     assert parent_healthy.exists()
+
+
+def _resume_block() -> str:
+    source = CHILD.read_text(encoding="utf-8")
+    start = 'RESUME="$(printf'
+    return _between(source, start, "\n# PUBLISHABLE →")
+
+
+def _run_retry_existing(
+    tmp_path: Path,
+    *,
+    finish_rc: int = 0,
+    manifest_agent_id: str = "7393298474",
+    manifest_version: str = "2110426515594047488",
+    remote_status: int = 0,
+    remote_version: str = "2110426515594047488",
+    confirmed_skills: bool = True,
+    confirmed_config_keys: bool = True,
+    package_uploaded: bool = True,
+    model_result: str = "MODEL_MATCH deepseek/deepseek-v4.1-flash",
+    retry_reason: str = "retry Capafy AI-generator stub draft on the same agent_id",
+) -> tuple[subprocess.CompletedProcess[str], Path, Path, Path, Path]:
+    release = tmp_path / "release"
+    auto = release / "skills/capafy-autopublish"
+    scripts = auto / "scripts"
+    scripts.mkdir(parents=True)
+    publisher = auto / "vendor/capafy-publisher"
+    publisher.mkdir(parents=True)
+    state_home = tmp_path / "state"
+    capafy_state = state_home / "state/capafy-autopublish"
+    capafy_state.mkdir(parents=True)
+    publisher_state = state_home / "runtime/capafy-publisher"
+    agent_id = "7393298474"
+    version_id = "2110426515594047488"
+    remote_version = remote_version or version_id
+    skill_dir = tmp_path / "catalog/tiktok-comment-reply-script-pack"
+    skill_dir.mkdir(parents=True)
+    skill = skill_dir / "SKILL.md"
+    listing = skill_dir / "LISTING.md"
+    icon = skill_dir / "icon.png"
+    skill.write_text("skill", encoding="utf-8")
+    listing.write_text("listing", encoding="utf-8")
+    icon.write_bytes(b"png")
+    manifest = publisher_state / "work" / "agents" / agent_id / "publish-work-state.json"
+    manifest.parent.mkdir(parents=True)
+    manifest.write_text(
+        json.dumps({"agent_id": manifest_agent_id, "agent_version_id": manifest_version}),
+        encoding="utf-8",
+    )
+
+    (scripts / "check_hosted_model.py").write_text(
+        'import os\nprint(os.environ["MODEL_RESULT"])\n', encoding="utf-8")
+    (publisher / "packager.py").write_text(
+        "import json,sys\n"
+        "agent_id=sys.argv[sys.argv.index('--agent-id')+1]\n"
+        "print(json.dumps({'agent_id':agent_id,'latest_version':{"
+        f"'agent_id':agent_id,'agent_version_id':'{remote_version}',"
+        f"'platform_status':{remote_status},'is_confirmed_skills':{confirmed_skills},"
+        f"'is_confirmed_config_keys':{confirmed_config_keys},'package_uploaded':{package_uploaded},"
+        "'agent_type':'run_online'}}))\n",
+        encoding="utf-8",
+    )
+    finish_log = tmp_path / "finish.log"
+    finish = scripts / "publish_finish.sh"
+    finish.write_text(
+        '#!/usr/bin/env bash\nprintf "%s\\n" "$*" >> "$FINISH_LOG"\n'
+        'if [ "$FINISH_RC" -eq 0 ]; then\n'
+        '  echo "CP3 submit attempt 1"\n'
+        '  echo "platform_status=1 skills=1 cfg=1 package_uploaded=1 audit=1 title=Test Agent"\n'
+        'fi\n'
+        'exit "$FINISH_RC"\n',
+        encoding="utf-8",
+    )
+    finish.chmod(0o755)
+
+    inventory = {
+        "verdict": "PUBLISHABLE",
+        "action": "retry_existing",
+        "reason": retry_reason,
+        "item": {
+            "agent_id": agent_id, "skill": str(skill), "listing": str(listing),
+            "icon": str(icon), "title": "TikTok Comment Reply Script Pack",
+        },
+    }
+    log = tmp_path / "daily_loop.log"
+    marker = capafy_state / ".capafy-healthy-pass"
+    script = "\n".join((
+        "set -uo pipefail",
+        f"export AUTO={shlex.quote(str(auto))}",
+        f"export LIFE_MANAGER_STATE_HOME={shlex.quote(str(state_home))}",
+        f"export CAPAFY_PUBLISHER_STATE_HOME={shlex.quote(str(publisher_state))}",
+        f"export CAPAFY_STATE_DIR={shlex.quote(str(capafy_state))}",
+        f"export MODEL_RESULT={shlex.quote(model_result)}",
+        "export LIFE_MANAGER_RUN_ID=test-run-123",
+        "export LIFE_MANAGER_OCCURRENCE_ID=capafy-loop-daily:test-run-123",
+        "export LIFE_MANAGER_RELEASE_SHA=" + ("a" * 40),
+        f"export FINISH_LOG={shlex.quote(str(finish_log))}",
+        f"export FINISH_RC={finish_rc}",
+        f"LOG={shlex.quote(str(log))}",
+        f"MARK={shlex.quote(str(marker))}",
+        "TS=test",
+        f"INV={shlex.quote(json.dumps(inventory))}",
+        _resume_block(),
+        "echo SHOULD_NOT_REACH_DETERMINISTIC_FINISH",
+        "",
+    ))
+
+    result = subprocess.run(["bash", "-c", script], capture_output=True, text=True, check=False)
+    return result, finish_log, marker, capafy_state, log
+
+
+def test_retry_existing_finishes_the_exact_existing_agent_version(tmp_path: Path) -> None:
+    result, finish_log, marker, capafy_state, log = _run_retry_existing(tmp_path)
+
+    assert result.returncode == 0
+    assert not result.stdout.strip()
+    assert finish_log.read_text(encoding="utf-8").strip() == (
+        f"7393298474 tiktok-comment-reply-script-pack "
+        f"{tmp_path / 'catalog/tiktok-comment-reply-script-pack/LISTING.md'} 2110426515594047488"
+    )
+    assert marker.is_file()
+    assert (capafy_state / ".maxturns-streak").read_text(encoding="utf-8").strip() == "0"
+    loop_log = log.read_text(encoding="utf-8")
+    assert "AGENT_ID=7393298474" in loop_log
+    assert "AGENT_VERSION_ID=2110426515594047488" in loop_log
+    assert "SUBMITTED — 7393298474 finished CP2/CP3 after prepare" in loop_log
+    assert "RETRY_EXISTING version=2110426515594047488" in loop_log
+    receipt_lines = [line.split("=", 1)[1] for line in loop_log.splitlines()
+                     if line.startswith("CAPAFY_RETRY_FINISH_RECEIPT=")]
+    assert len(receipt_lines) == 1
+    receipt = json.loads(receipt_lines[0])
+    assert receipt["owner_id"] == "capafy-loop-daily"
+    assert receipt["run_id"] == "test-run-123"
+    assert receipt["occurrence_id"] == "capafy-loop-daily:test-run-123"
+    assert receipt["release_sha"] == "a" * 40
+    assert receipt["agent_id"] == "7393298474"
+    assert receipt["agent_version_id"] == "2110426515594047488"
+    assert receipt["platform_status"] == 1
+    assert receipt["is_confirmed_skills"] is True
+    assert receipt["is_confirmed_config_keys"] is True
+    assert receipt["package_uploaded"] is True
+
+
+def test_retry_existing_finish_failure_does_not_fall_back_to_agentic_submit(
+    tmp_path: Path,
+) -> None:
+    result, finish_log, marker, _, _ = _run_retry_existing(tmp_path, finish_rc=1)
+
+    assert result.returncode == 1
+    assert result.stdout.strip() == ""
+    assert finish_log.read_text(encoding="utf-8").splitlines() == [
+        f"7393298474 tiktok-comment-reply-script-pack "
+        f"{tmp_path / 'catalog/tiktok-comment-reply-script-pack/LISTING.md'} 2110426515594047488"
+    ]
+    assert not marker.exists()
+
+
+@pytest.mark.parametrize(
+    ("manifest_agent_id", "remote_version"),
+    [("different-agent", "2110426515594047488"),
+     ("7393298474", "different-version")],
+)
+def test_retry_existing_manifest_and_official_version_must_match(
+    tmp_path: Path, manifest_agent_id: str, remote_version: str,
+) -> None:
+    result, finish_log, marker, _, _ = _run_retry_existing(
+        tmp_path, manifest_agent_id=manifest_agent_id, remote_version=remote_version,
+    )
+
+    assert result.returncode == 1
+    assert result.stdout.strip() == ""
+    assert not finish_log.exists()
+    assert not marker.exists()
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"confirmed_skills": False},
+        {"confirmed_config_keys": False},
+        {"package_uploaded": False},
+        {"model_result": "MODEL_MISMATCH old new"},
+        {"model_result": "MODEL_UNKNOWN detail-fetch-failed:TimeoutError"},
+    ],
+)
+def test_retry_existing_stops_when_cp1_or_model_confirmation_is_missing(
+    tmp_path: Path, overrides: dict[str, object],
+) -> None:
+    result, finish_log, marker, _, _ = _run_retry_existing(tmp_path, **overrides)
+
+    assert result.returncode == 1
+    assert result.stdout.strip() == ""
+    assert not finish_log.exists()
+    assert not marker.exists()
+
+
+def test_rejected_retry_existing_falls_back_without_deterministic_finish(tmp_path: Path) -> None:
+    result, finish_log, marker, _, _ = _run_retry_existing(
+        tmp_path, remote_status=2, retry_reason="review_rejected retry",
+    )
+
+    assert result.returncode == 0
+    assert result.stdout.strip() == "SHOULD_NOT_REACH_DETERMINISTIC_FINISH"
+    assert not finish_log.exists()
+    assert not marker.exists()

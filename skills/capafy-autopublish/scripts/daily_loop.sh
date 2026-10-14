@@ -111,17 +111,113 @@ esac
 # this exact confusion produced a false "PUBLISHED" label on a run where nothing went online).
 PRE_ONLINE="$(printf '%s' "$INV" | tail -1 | python3 -c 'import json,sys; print(json.load(sys.stdin).get("online_count", -1))' 2>>"$LOG")"
 
-# A resumed draft whose CP1 is already confirmed only needs CP2 -> CP3, which is
-# deterministic. The agentic runbook re-enters CP1 and demands an edit URL that
-# Capafy no longer issues once CP1 is saved (2026-09-28, Agent 9466718786: the
-# refresh returned only /R<digits> and every resume stopped). publish_finish.sh
-# refuses before any write unless is_confirmed_skills=true, so a draft that still
-# needs CP1 falls through to the agentic flow below.
+# A resumed repo draft or retryable Capafy AI-generator stub reuses the exact
+# existing Agent ID. If its saved CP1 is already confirmed, finish CP2 -> CP3
+# deterministically; the agentic runbook re-enters CP1 and may lack an edit URL.
+# publish_finish.sh refuses before any write unless is_confirmed_skills=true, so
+# a draft that still needs CP1 falls through to the agentic flow below.
 RESUME="$(printf '%s' "$INV" | tail -1 | python3 -c 'import json,os,sys
 d=json.load(sys.stdin); i=d.get("item") or {}
-if d.get("action") == "resume_draft" and i.get("agent_id") and i.get("skill") and i.get("listing"):
+if (d.get("action") == "resume_draft"
+        or (d.get("action") == "retry_existing"
+            and d.get("reason") == "retry Capafy AI-generator stub draft on the same agent_id")) \
+        and i.get("agent_id") and i.get("skill") and i.get("listing"):
     print(i["agent_id"], os.path.basename(os.path.dirname(i["skill"])), i["listing"],
           os.path.dirname(i["skill"]), i.get("icon",""), sep="\t")' 2>>"$LOG")"
+
+# A retry_existing AI-generator stub can already have CP1 and the package
+# saved on Capafy. Only finish that exact manifest version after a fresh
+# official readback confirms identity, version, and every CP1/upload flag.
+# Any mismatch or finish failure ends this wake so the agentic run cannot issue
+# a second CP3 submission against an uncertain version.
+retry_existing_stub_finish() {
+  local is_stub R_ID R_SKILL R_LISTING R_SKILL_DIR R_ICON R_MANIFEST R_VERSION
+  local REMOTE_STATUS REMOTE_PREFLIGHT MODEL_CHECK RETRY_FINISH_RC
+  is_stub="$(printf '%s' "$INV" | tail -1 | python3 -c 'import json,sys
+d=json.load(sys.stdin)
+print("1" if d.get("action") == "retry_existing" and d.get("reason") == "retry Capafy AI-generator stub draft on the same agent_id" else "0")' 2>>"$LOG")"
+  [ "$is_stub" = "1" ] || return 0
+  if [ -z "$RESUME" ]; then
+    echo "$TS retry_existing stub: selected item is missing exact catalog inputs; stop before publish" >>"$LOG"
+    echo "=== $TS daily_loop done rc=1 (RETRY_EXISTING_PREFLIGHT_FAILED — marker NOT touched; no fallback) ===" >>"$LOG"
+    exit 1
+  fi
+  IFS=$'\t' read -r R_ID R_SKILL R_LISTING R_SKILL_DIR R_ICON <<<"$RESUME"
+  R_MANIFEST="${CAPAFY_PUBLISHER_STATE_HOME:-$LIFE_MANAGER_STATE_HOME/runtime/capafy-publisher}/work/agents/$R_ID/publish-work-state.json"
+  R_VERSION="$(python3 - "$R_MANIFEST" "$R_ID" <<'PY'
+import json,sys
+try:
+    manifest=json.load(open(sys.argv[1], encoding="utf-8"))
+    version=str(manifest.get("agent_version_id") or "")
+    if manifest.get("agent_id") != sys.argv[2] or not version:
+        raise ValueError("manifest identity/version mismatch")
+    print(version)
+except (OSError, ValueError, TypeError, AttributeError):
+    raise SystemExit(1)
+PY
+  2>>"$LOG")" || R_VERSION=""
+  if [ -z "$R_VERSION" ]; then
+    echo "$TS retry_existing stub $R_ID: local manifest is not bound to selected Agent ID/version; stop before publish" >>"$LOG"
+    echo "=== $TS daily_loop done rc=1 (RETRY_EXISTING_PREFLIGHT_FAILED — marker NOT touched; no fallback) ===" >>"$LOG"
+    exit 1
+  fi
+  if ! REMOTE_STATUS="$(cd "$AUTO/vendor/capafy-publisher" && \
+      CAPAFY_PUBLISH_WORK_DIR="${R_MANIFEST%/*}" \
+      python3 packager.py publish-remote-status --agent-id "$R_ID" 2>>"$LOG")"; then
+    echo "$TS retry_existing stub $R_ID version=$R_VERSION: official remote-status read failed; stop before publish" >>"$LOG"
+    echo "=== $TS daily_loop done rc=1 (RETRY_EXISTING_PREFLIGHT_FAILED — marker NOT touched; no fallback) ===" >>"$LOG"
+    exit 1
+  fi
+  REMOTE_PREFLIGHT="$(printf '%s' "$REMOTE_STATUS" | EXPECTED_AGENT_ID="$R_ID" \
+    EXPECTED_AGENT_VERSION_ID="$R_VERSION" python3 -c 'import json,os,sys
+try:
+    payload=json.loads(sys.stdin.read(), strict=False)
+    latest=payload.get("latest_version")
+    expected_id=os.environ["EXPECTED_AGENT_ID"]
+    expected_version=os.environ["EXPECTED_AGENT_VERSION_ID"]
+    def confirmed(key):
+        value=latest.get(key)
+        return value is True or (type(value) is int and value == 1)
+    status=latest.get("platform_status")
+    ready=(isinstance(latest,dict) and payload.get("agent_id") == expected_id
+           and str(latest.get("agent_version_id") or "") == expected_version
+           and type(status) is int and status == 0
+           and latest.get("agent_type") == "run_online"
+           and all(confirmed(key) for key in (
+               "is_confirmed_skills", "is_confirmed_config_keys", "package_uploaded")))
+    print("READY" if ready else "BLOCKED")
+except (KeyError, TypeError, ValueError):
+    print("BLOCKED")')"
+  if [ "$REMOTE_PREFLIGHT" != "READY" ]; then
+    echo "$TS retry_existing stub $R_ID version=$R_VERSION: official version/status/CP1/upload readback mismatch; stop before publish" >>"$LOG"
+    echo "=== $TS daily_loop done rc=1 (RETRY_EXISTING_PREFLIGHT_FAILED — marker NOT touched; no fallback) ===" >>"$LOG"
+    exit 1
+  fi
+  MODEL_CHECK="$(python3 "$AUTO/scripts/check_hosted_model.py" --agent-id "$R_ID" --listing "$R_LISTING" 2>&1)"
+  case "$MODEL_CHECK" in
+    "MODEL_MATCH "*|"MODEL_UNKNOWN cp1-confirmed-awaiting-cp2") ;;
+    *)
+      echo "$TS retry_existing stub $R_ID version=$R_VERSION: hosted-model confirmation is not safe to reuse; stop before publish" >>"$LOG"
+      echo "=== $TS daily_loop done rc=1 (RETRY_EXISTING_PREFLIGHT_FAILED — marker NOT touched; no fallback) ===" >>"$LOG"
+      exit 1
+      ;;
+  esac
+  echo "AGENT_ID=$R_ID" >>"$LOG"
+  echo "AGENT_VERSION_ID=$R_VERSION" >>"$LOG"
+  echo "$TS retry_existing stub $R_ID version=$R_VERSION: official identity, CP1/upload, and model preflight passed" >>"$LOG"
+  if bash "$AUTO/scripts/publish_finish.sh" "$R_ID" "$R_SKILL" "$R_LISTING" "$R_VERSION" >>"$LOG" 2>&1; then
+    touch "$MARK"; echo 0 > "$CAPAFY_STATE_DIR/.maxturns-streak"
+    echo "=== $TS daily_loop done rc=0 (SUBMITTED — $R_ID finished CP2/CP3 after prepare; RETRY_EXISTING version=$R_VERSION; no LLM spend) ===" >>"$LOG"
+    exit 0
+  else
+    RETRY_FINISH_RC=$?
+    echo "$TS retry_existing stub $R_ID version=$R_VERSION: publish_finish failed rc=$RETRY_FINISH_RC; stop this wake; no retry/fallback" >>"$LOG"
+    echo "=== $TS daily_loop done rc=1 (RETRY_EXISTING_FINISH_FAILED — marker NOT touched; no fallback) ===" >>"$LOG"
+    exit 1
+  fi
+}
+retry_existing_stub_finish
+
 REUSE_PREPARE_ID=""
 FRESH=""
 if [ -n "$RESUME" ]; then
