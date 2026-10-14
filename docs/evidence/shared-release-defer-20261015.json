@@ -65,9 +65,9 @@
       "source_sha256": "dfc3553b44730b2e6e4bd0bcb4d1aa5a4153cafeb458bde383b7ca7c2e882483",
       "test_sha256": "f4e63c8147537d3ae302ffa5ab356d220cb1b81a25f8dbc22303039c4ea9ad4b",
       "review_before_fix": "FIX-FIRST: JSON bool type and conditional self-handoff error propagation",
-      "review_after_fix": "pending"
+      "review_after_fix": "GO: strict JSON bool and explicit conditional self-handoff propagation"
     },
-    "production_adoption": "not_yet"
+    "production_adoption": "loaded and natural run started"
   },
   "previous_repair_natural_acceptance": {
     "run_id": "18de744079150de0-86096",
@@ -80,6 +80,34 @@
     "fleet_changed": 16,
     "fleet_errors": 0,
     "budget_progress_continue": true
+  },
+  "promotion": {
+    "pr": 8064,
+    "accepted_head": "f60f215c62fe129e163c39b5ac1727d8b32b88d7",
+    "ci": "all_pass",
+    "merged_sha": "39f1bf0031d15257085ba2c48f3fc83f5bf6a9b1",
+    "merged_at": "2026-10-14T18:03:00Z",
+    "release_root": "/Users/anicca/loops/releases/20261015T030456-39f1bf00",
+    "release_paths": "ALL",
+    "release_mode": "555",
+    "main_release_source_hash_matches": true,
+    "launchd_preflight_at": "2026-10-14T18:08:29.358371+00:00",
+    "launchd_preflight": "pass",
+    "target": "life-manager-release-reconciler",
+    "target_apply_changed": false,
+    "target_loaded_arguments": [
+      "/Users/anicca/loops/releases/20261015T030456-39f1bf00/bin/lm-loop-run",
+      "life-manager-release-reconciler",
+      "/Users/anicca/loops/releases/20261015T030456-39f1bf00"
+    ],
+    "install_event_id": "f8dc9fa04961537d295f8dd3",
+    "natural_run": {
+      "run_id": "18de77b58113f5d8-62559",
+      "occurrence_id": "life-manager-release-reconciler:18de77b58113f5d8-62559",
+      "execute_at": "2026-10-14T18:08:43.236046+00:00",
+      "release_sha": "39f1bf0031d15257085ba2c48f3fc83f5bf6a9b1",
+      "terminal": "pending"
+    }
   },
   "interpretation": {
     "confirmed": "one fleet apply was refused before the admission rebind transaction because the bounded control lock acquisition did not succeed",
