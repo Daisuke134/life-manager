@@ -97,6 +97,65 @@ test("a repeated Web-linked Telegram answer patches one Calendar event only once
   assert.equal(matches, 1);
 });
 
+test("Telegram travel-origin reply stores the chosen origin without mutating Calendar", async () => {
+  const uid = "lm_12345678-1234-4234-8234-123456789abc";
+  const webUser = {
+    uid,
+    telegram_chat_id: null,
+    web_message_telegram_chat_id: "123456789",
+    calendar_provider: "composio_gcal",
+    calendar_connected_account_id: "cal_abc123",
+    gmail_account_id: null,
+    paid: true,
+    plan_status: "active",
+  };
+  const ask = {
+    uid,
+    event_id: "travel-origin:calendar-event-1",
+    reply_token: "fixture-origin-token",
+    question_type: "travel_origin",
+    question_context: {
+      replyChannel: "telegram", calendarEventId: "calendar-event-1", summary: "Dinner",
+    },
+    answered_at: null,
+  };
+  let pendingCalls = 0;
+  let answerCalls = 0;
+  let travelRuns = 0;
+  const result = await resolveTelegramReply("123456789", "MUIT 生駒", {
+    lookupUser: async () => webUser,
+    nowMs: Date.parse("2030-01-01T17:40:00+09:00"),
+    pendingTravelOriginAskImpl: async (requestedUid, channel) => {
+      pendingCalls++;
+      assert.equal(requestedUid, uid);
+      assert.equal(channel, "telegram");
+      return [ask];
+    },
+    answerTravelOriginAskImpl: async (requestedUid, row, text, options) => {
+      answerCalls++;
+      assert.equal(requestedUid, uid);
+      assert.equal(row, ask);
+      assert.equal(text, "MUIT 生駒");
+      assert.equal(options.channel, "telegram");
+      return { kind: "answered", location: "MUIT 生駒", event: "Dinner" };
+    },
+    afterTravelOriginAnswer: async (requestedUid) => {
+      travelRuns++;
+      assert.equal(requestedUid, uid);
+      return { inserted: 1, outboundReports: [{ summary: "Dinner" }] };
+    },
+    calendar: { async listEventsRaw() { assert.fail("origin reply must not read Calendar"); } },
+  });
+
+  assert.deepEqual(result, {
+    filled: false, event: "Dinner", location: "MUIT 生駒", originSet: true,
+    uid, travelResult: { inserted: 1, outboundReports: [{ summary: "Dinner" }] },
+  });
+  assert.equal(pendingCalls, 1);
+  assert.equal(answerCalls, 1);
+  assert.equal(travelRuns, 1);
+});
+
 test("expired Web billing entitlement blocks a Telegram-linked reply before Calendar access", async () => {
   const uid = "lm_12345678-1234-4234-8234-123456789abc";
   let calendarReads = 0;

@@ -85,6 +85,31 @@ test("valid iMessage pairing binds the exact sender and acknowledges once", asyn
   assert.match(sent[0], /iMessage.*接続/);
 });
 
+test("iMessage travel-origin answer gets a Calendar progress acknowledgement", async () => {
+  const sent = [];
+  let travelRuns = 0;
+  const result = await api.handleIMessageStreamMessage(dmSpace(sent), textMessage("MUIT 生駒"), {
+    webMessageUserBySenderImpl: async () => ({ uid }),
+    resolveIMessageReplyImpl: async (_uid, _sender, text, options) => {
+      assert.equal(text, "MUIT 生駒");
+      assert.equal(options.messageId, "imsg-message-1");
+      return { filled: false, originSet: true, event: "Dinner", location: "MUIT 生駒" };
+    },
+    afterTravelOriginAnswer: async (requestedUid) => {
+      travelRuns++;
+      assert.equal(requestedUid, uid);
+      return { inserted: 1, outboundReports: [{ summary: "Dinner" }] };
+    },
+  });
+
+  assert.deepEqual(result, { handled: true, action: "travel_origin_set", uid });
+  assert.equal(sent.length, 1);
+  assert.match(sent[0], /出発元/);
+  assert.match(sent[0], /MUIT 生駒/);
+  assert.match(sent[0], /再計算しました/);
+  assert.equal(travelRuns, 1);
+});
+
 test("invalid, expired, or replayed iMessage code has no binding or reply side effect", async () => {
   assert.equal(typeof api.handleIMessageStreamMessage, "function", "the Spectrum stream message handler must exist");
   for (const text of [`LMI_${token}`, "LMI_short"]) {

@@ -1,7 +1,7 @@
 "use strict";
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { agentResolveLocation, agentResolveTravelOrigin, agentSearchCandidate } = require("./ask.js");
+const { agentResolveLocation, agentResolveTravelOrigin, agentMatchTravelOriginReply, agentSearchCandidate } = require("./ask.js");
 
 test("travel-origin agent selects only a supplied candidate with high confidence", async () => {
   const oldFetch = globalThis.fetch;
@@ -50,6 +50,51 @@ test("travel-origin agent abstains on low confidence or an invented candidate id
     const options = { geminiKey: "fixture", candidates: [{ id: "home", location: "Home" }] };
     assert.deepEqual(await agentResolveTravelOrigin(event, options), { kind: "unresolved" });
     assert.deepEqual(await agentResolveTravelOrigin(event, options), { kind: "unresolved" });
+  } finally { globalThis.fetch = oldFetch; }
+});
+
+test("travel-origin reply selects only a supplied candidate and rejects invented ids", async () => {
+  const oldFetch = globalThis.fetch;
+  const answers = [
+    { candidateId: "office", confidence: "high" },
+    { candidateId: "invented", confidence: "high" },
+  ];
+  globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => ({
+    candidates: [{ content: { parts: [{ text: JSON.stringify(answers.shift()) }] } }],
+  }) });
+  try {
+    const options = {
+      geminiKey: "fixture-gemini-key", uid: "tenant-origin-reply",
+      candidates: [
+        { id: "home", location: "Home", source: "saved_home" },
+        { id: "office", location: "MUIT 生駒", source: "repeated_calendar_location" },
+      ],
+    };
+    assert.deepEqual(await agentMatchTravelOriginReply("office", options), {
+      kind: "selected", candidateId: "office", location: "MUIT 生駒",
+    });
+    assert.deepEqual(await agentMatchTravelOriginReply("somewhere else", options), { kind: "unresolved" });
+  } finally { globalThis.fetch = oldFetch; }
+});
+
+test("travel-origin reply accepts only a location phrase present in the user's message", async () => {
+  const oldFetch = globalThis.fetch;
+  const answers = [
+    { candidateId: null, newLocation: "渋谷駅", confidence: "high" },
+    { candidateId: null, newLocation: "invented address", confidence: "high" },
+  ];
+  globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => ({
+    candidates: [{ content: { parts: [{ text: JSON.stringify(answers.shift()) }] } }],
+  }) });
+  try {
+    const options = {
+      geminiKey: "fixture-gemini-key", uid: "tenant-origin-reply",
+      candidates: [{ id: "home", location: "Home", source: "saved_home" }],
+    };
+    assert.deepEqual(await agentMatchTravelOriginReply("渋谷駅から向かいます", options), {
+      kind: "selected", candidateId: null, location: "渋谷駅",
+    });
+    assert.deepEqual(await agentMatchTravelOriginReply("別の場所", options), { kind: "unresolved" });
   } finally { globalThis.fetch = oldFetch; }
 });
 

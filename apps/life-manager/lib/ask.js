@@ -410,8 +410,8 @@ function needsLocation(ev) {
   return !((ev.location || "").trim());
 }
 
-async function askedSet(uid, supaUrl, supaKey) {
-  const r = await fetch(`${supaUrl}/rest/v1/lm_ask_log?uid=eq.${encodeURIComponent(uid)}` +
+async function askedSet(uid, supaUrl, supaKey, fetchImpl = fetch) {
+  const r = await fetchImpl(`${supaUrl}/rest/v1/lm_ask_log?uid=eq.${encodeURIComponent(uid)}` +
     `&select=event_id,semantic_key,question_type,question_context,answer_value,answered_at`,
     { headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}` } });
   if (!r || r.ok !== true) {
@@ -424,6 +424,8 @@ async function askedSet(uid, supaUrl, supaKey) {
   const result = new Set();
   result.seriesAnswers = {};
   result.pendingIMessage = false;
+  result.pendingTelegram = false;
+  result.pendingTravelOrigin = false;
   for (const row of rows) {
     if (row.event_id) result.add(row.event_id);
     if (row.semantic_key) result.add(row.semantic_key);
@@ -431,16 +433,18 @@ async function askedSet(uid, supaUrl, supaKey) {
     if (seriesId && row.question_type === "calendar_online" && ["online", "offline"].includes(row.answer_value)) {
       result.seriesAnswers[seriesId] = { decision: row.answer_value };
     }
-    if (row.answered_at == null && row.question_context && row.question_context.replyChannel === "imessage") {
-      result.pendingIMessage = true;
+    if (row.answered_at == null && row.question_context) {
+      if (row.question_context.replyChannel === "imessage") result.pendingIMessage = true;
+      if (row.question_context.replyChannel === "telegram") result.pendingTelegram = true;
+      if (row.question_type === "travel_origin") result.pendingTravelOrigin = true;
     }
   }
   return result;
 }
-// ATOMIC claim of an ask (C-H1) — mirrors claimWake. INSERT relies on lm_ask_log UNIQUE(uid,event_id):
-// 201 = first claimer (proceed to send); 409 = already asked (skip). Race-safe; no SELECT-then-POST window.
+// ATOMIC claim of an ask (C-H1) — mirrors claimWake. INSERT relies on lm_ask_log UNIQUE(uid,event_id)
+// and, when set, UNIQUE(uid,semantic_key): 201 = first claimer; duplicate = skip, with no SELECT-then-POST window.
 // If supa is unconfigured, return true (don't block) — matches the pre-ledger best-effort behaviour.
-async function claimAsk(uid, eventId, supaUrl, supaKey, replyToken, metadata = {}) {
+async function claimAsk(uid, eventId, supaUrl, supaKey, replyToken, metadata = {}, fetchImpl = fetch) {
   if (!supaUrl || !supaKey) return true;
   const row = { uid, event_id: eventId };
   if (replyToken) row.reply_token = replyToken; // ties the email reply (reply+<token>@) back to this event
@@ -450,7 +454,7 @@ async function claimAsk(uid, eventId, supaUrl, supaKey, replyToken, metadata = {
   if (metadata.questionType) row.question_type = metadata.questionType;
   if (metadata.questionContext) row.question_context = metadata.questionContext;
   if (metadata.telegramChatId) row.telegram_chat_id = String(metadata.telegramChatId);
-  const r = await fetch(`${supaUrl}/rest/v1/lm_ask_log`, {
+  const r = await fetchImpl(`${supaUrl}/rest/v1/lm_ask_log`, {
     method: "POST",
     headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}`, "Content-Type": "application/json", Prefer: "return=minimal" },
     body: JSON.stringify(row),
@@ -458,9 +462,9 @@ async function claimAsk(uid, eventId, supaUrl, supaKey, replyToken, metadata = {
   return !!r && r.status === 201; // 201 inserted (claimed) | 409 duplicate (already asked)
 }
 // Release only after a confirmed no-effect send failure; ambiguous sends retain the claim.
-async function unclaimAsk(uid, eventId, supaUrl, supaKey) {
+async function unclaimAsk(uid, eventId, supaUrl, supaKey, fetchImpl = fetch) {
   if (!supaUrl || !supaKey) return;
-  await fetch(`${supaUrl}/rest/v1/lm_ask_log?uid=eq.${encodeURIComponent(uid)}&event_id=eq.${encodeURIComponent(eventId)}`, {
+  await fetchImpl(`${supaUrl}/rest/v1/lm_ask_log?uid=eq.${encodeURIComponent(uid)}&event_id=eq.${encodeURIComponent(eventId)}`, {
     method: "DELETE",
     headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}`, Prefer: "return=minimal" },
   }).catch(() => {});
@@ -476,6 +480,215 @@ async function recordResolution(uid, eventId, source, supaUrl, supaKey) {
     },
     body: JSON.stringify({ uid, event_id: eventId, resolved_from: source }),
   }).catch(() => {});
+}
+
+// Keep the Calendar event's earlier location question intact while deduping a second question type.
+// The colon prefix is outside Google Calendar's allowed base32hex event-ID alphabet; the real event key
+// is stored in question_context.calendarEventKey.
+function travelOriginAskKey(eventKey) {
+  return `travel-origin:${String(eventKey || "")}`;
+}
+
+async function readTravelOriginAskState(uid, eventKey, opts = {}) {
+  const supaUrl = String(opts.supaUrl || "").replace(/\/$/, "");
+  const supaKey = opts.supaKey || "";
+  if (!uid || !eventKey || !supaUrl || !supaKey) return { kind: "unavailable" };
+  const url = new URL(`${supaUrl}/rest/v1/lm_ask_log`);
+  url.searchParams.set("uid", `eq.${uid}`);
+  url.searchParams.set("event_id", `eq.${travelOriginAskKey(eventKey)}`);
+  url.searchParams.set("question_type", "eq.travel_origin");
+  url.searchParams.set("select", "answered_at,answer_value");
+  url.searchParams.set("limit", "2");
+  const response = await (opts.fetchImpl || fetch)(url.toString(), {
+    headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}` },
+  });
+  if (!response || response.ok !== true) {
+    throw new Error(`lm_ask_log_read_failed${response && Number.isFinite(Number(response.status)) ? ` status=${response.status}` : ""}`);
+  }
+  const rows = await response.json().catch(() => null);
+  if (!Array.isArray(rows)) throw new Error("lm_ask_log_invalid_response");
+  if (rows.length === 0) return { kind: "none" };
+  if (rows.length !== 1) throw new Error("lm_ask_log_ambiguous_travel_origin");
+  const row = rows[0];
+  const location = String(row && row.answer_value || "").trim();
+  return row && row.answered_at && location
+    ? { kind: "answered", location }
+    : { kind: "pending" };
+}
+
+async function pendingTravelOriginAsks(uid, channel, opts = {}) {
+  const supaUrl = String(opts.supaUrl || "").replace(/\/$/, "");
+  const supaKey = opts.supaKey || "";
+  if (!uid || !["telegram", "imessage"].includes(channel) || !supaUrl || !supaKey) return [];
+  const url = new URL(`${supaUrl}/rest/v1/lm_ask_log`);
+  url.searchParams.set("uid", `eq.${uid}`);
+  url.searchParams.set("question_type", "eq.travel_origin");
+  url.searchParams.set("answered_at", "is.null");
+  url.searchParams.set("question_context->>replyChannel", `eq.${channel}`);
+  url.searchParams.set("select", "uid,event_id,reply_token,question_type,question_context,answer_value,answered_at");
+  // A semantic-key claim permits only one outstanding origin question per user; read two to fail closed
+  // if historical data violates that invariant instead of silently truncating a larger set.
+  url.searchParams.set("limit", "2");
+  const response = await (opts.fetchImpl || fetch)(url.toString(), {
+    headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}` },
+  });
+  if (!response || response.ok !== true) {
+    throw new Error(`lm_ask_log_read_failed${response && Number.isFinite(Number(response.status)) ? ` status=${response.status}` : ""}`);
+  }
+  const rows = await response.json().catch(() => null);
+  if (!Array.isArray(rows)) throw new Error("lm_ask_log_invalid_response");
+  return rows.filter((row) => row && row.question_type === "travel_origin"
+    && row.question_context && row.question_context.replyChannel === channel);
+}
+
+async function agentMatchTravelOriginReply(replyText, { candidates = [], geminiKey, uid,
+  recordUsageEvent: usageWriter } = {}) {
+  const safeCandidates = candidates.filter((candidate) => candidate
+    && typeof candidate.id === "string" && typeof candidate.location === "string");
+  const allowed = new Map(safeCandidates.map((candidate) => [candidate.id, candidate]));
+  if (!geminiKey || !allowed.size || !String(replyText || "").trim()) return { kind: "unresolved" };
+  const answer = await geminiJson(
+    `A user replied to a Life Manager question about the starting point for one trip. Match the reply only
+to a supplied candidate id. If the user clearly supplies a different physical place, return the exact
+place phrase from their reply as newLocation. Never infer the user's live location or invent an address.
+Return JSON only: {"candidateId":"an exact supplied id or null","newLocation":"exact phrase from reply or null","confidence":"high" or "low"}.
+Candidates: ${JSON.stringify(safeCandidates.map(({ id, location, source }) => ({ id, location, source })))}
+User reply: ${JSON.stringify(String(replyText).slice(0, 500))}`,
+    geminiKey,
+    { tenantId: uid, feature: "travel_origin_reply", recordUsageEvent: usageWriter },
+  );
+  const candidateId = answer && typeof answer.candidateId === "string" ? answer.candidateId : "";
+  const selected = allowed.get(candidateId);
+  if (String(answer.confidence || "").toLowerCase() !== "high") return { kind: "unresolved" };
+  if (selected) return { kind: "selected", candidateId, location: selected.location };
+  const newLocation = String(answer && answer.newLocation || "").trim();
+  const normalize = (value) => String(value || "").normalize("NFKC").toLowerCase().replace(/[\s\p{P}\p{S}]/gu, "");
+  const normalizedLocation = normalize(newLocation);
+  if (newLocation && [...newLocation].length <= 240 && normalizedLocation
+    && normalize(replyText).includes(normalizedLocation)) {
+    return { kind: "selected", candidateId: null, location: newLocation };
+  }
+  return { kind: "unresolved" };
+}
+
+async function answerTravelOriginAsk(uid, row, replyText, opts = {}) {
+  const channel = opts.channel;
+  const context = row && row.question_context;
+  if (!uid || !row || row.uid && row.uid !== uid || row.question_type !== "travel_origin"
+    || !row.event_id || !row.reply_token || !context
+    || context.replyChannel !== channel || !["telegram", "imessage"].includes(channel)) {
+    return { kind: "unresolved" };
+  }
+  const messageId = String(opts.messageId || "").trim();
+  if (messageId && context.lastInboundMessageId === messageId) return { kind: "already_answered" };
+  const candidates = Array.isArray(context.candidates) ? context.candidates : [];
+  const matchReply = opts.matchReply || agentMatchTravelOriginReply;
+  const match = await matchReply(replyText, {
+    candidates, geminiKey: opts.geminiKey || process.env.GEMINI_API_KEY,
+    uid, recordUsageEvent: opts.recordUsageEvent,
+  });
+  const candidate = match && match.kind === "selected" && match.candidateId
+    ? candidates.find((item) => item && item.id === match.candidateId) : null;
+  const selectedLocation = candidate && candidate.location
+    || (match && match.kind === "selected" && match.candidateId == null
+      ? String(match.location || "").trim() : "");
+  if (!selectedLocation || [...selectedLocation].length > 240) return { kind: "unresolved" };
+  const supaUrl = String(opts.supaUrl || process.env.SUPABASE_URL || "").replace(/\/$/, "");
+  const supaKey = opts.supaKey || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+  if (!supaUrl || !supaKey) return { kind: "unavailable" };
+  const url = new URL(`${supaUrl}/rest/v1/lm_ask_log`);
+  url.searchParams.set("uid", `eq.${uid}`);
+  url.searchParams.set("event_id", `eq.${row.event_id}`);
+  url.searchParams.set("reply_token", `eq.${row.reply_token}`);
+  url.searchParams.set("question_type", "eq.travel_origin");
+  url.searchParams.set("answered_at", "is.null");
+  url.searchParams.set("question_context->>replyChannel", `eq.${channel}`);
+  if (Object.prototype.hasOwnProperty.call(opts, "messageId")) {
+    const previousId = String(context.lastInboundMessageId || "");
+    url.searchParams.set("question_context->>lastInboundMessageId", previousId
+      ? `eq.${previousId}` : "is.null");
+  }
+  const nowMs = opts.nowMs === undefined ? Date.now() : Number(opts.nowMs);
+  const questionContext = { ...context, ...(messageId ? { lastInboundMessageId: messageId } : {}) };
+  const response = await (opts.fetchImpl || fetch)(url.toString(), {
+    method: "PATCH",
+    headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}`, "Content-Type": "application/json", Prefer: "return=representation" },
+    body: JSON.stringify({
+      answered_at: new Date(nowMs).toISOString(),
+      answer_value: selectedLocation,
+      answer_source: channel,
+      answer_provenance: { kind: `${channel}_stream`, ...(messageId ? { message_id: messageId } : {}) },
+      candidate_location: selectedLocation,
+      semantic_key: null,
+      question_context: questionContext,
+      resolved_from: "user_answer",
+    }),
+  }).catch(() => null);
+  if (!response || response.ok !== true) return { kind: "unavailable" };
+  const rows = await response.json().catch(() => []);
+  if (!Array.isArray(rows) || !rows[0]) return { kind: "already_answered" };
+  return { kind: "answered", location: selectedLocation, event: context.summary || "予定" };
+}
+
+async function askTravelOriginOnce(uid, event, eventKey, candidates, opts = {}) {
+  const supaUrl = String(opts.supaUrl || "").replace(/\/$/, "");
+  const supaKey = opts.supaKey || "";
+  if (!uid || !eventKey || !supaUrl || !supaKey || opts.notificationsEnabled === false) return { kind: "unavailable", sent: false };
+  const telegramChatId = String(opts.telegramChatId || "").trim();
+  const imessageSenderId = String(opts.imessageSenderId || "").trim();
+  const channel = telegramChatId && opts.telegramToken ? "telegram"
+    : imessageSenderId && typeof opts.imessageSend === "function" ? "imessage" : null;
+  if (!channel) return { kind: "unavailable", sent: false };
+  const safeCandidates = (Array.isArray(candidates) ? candidates : []).filter((candidate) => candidate
+    && typeof candidate.id === "string" && typeof candidate.location === "string" && candidate.location.trim());
+  if (!safeCandidates.length) return { kind: "unavailable", sent: false };
+  const fetchImpl = opts.fetchImpl || fetch;
+  const already = await askedSet(uid, supaUrl, supaKey, fetchImpl);
+  if (already.pendingTelegram || already.pendingIMessage) return { kind: "pending", sent: false };
+  const askKey = travelOriginAskKey(eventKey);
+  const replyToken = newReplyToken();
+  const questionContext = {
+    calendarEventId: String(event && event.id || ""),
+    calendarEventKey: String(eventKey),
+    summary: String(event && event.summary || "予定").slice(0, 200),
+    start: String(event && (event.startIso || event.start && event.start.dateTime) || "").slice(0, 80),
+    replyChannel: channel,
+    candidates: safeCandidates.map(({ id, location, source }) => ({ id, location, source })),
+  };
+  const claimed = await claimAsk(uid, askKey, supaUrl, supaKey, replyToken, {
+    semanticKey: "travel-origin-pending",
+    questionType: "travel_origin",
+    questionContext,
+    telegramChatId: channel === "telegram" ? telegramChatId : null,
+  }, fetchImpl);
+  if (!claimed) return { kind: "pending", sent: false };
+  const choices = safeCandidates.map((candidate) => `• ${candidate.source === "saved_home" ? "自宅" : candidate.location}`).join("\n");
+  const when = questionContext.start ? `（${questionContext.start}）` : "";
+  const text = `「${questionContext.summary}」${when}への出発元を確認したいです。どこから向かいますか？\n${choices}\n候補の場所名、または別の場所の住所・施設名を返信してください。`;
+  let sent = false;
+  let unknown = false;
+  try {
+    if (channel === "telegram") {
+      const send = opts.sendTelegram || tgSend;
+      const result = await send(opts.telegramToken, telegramChatId, text);
+      sent = Boolean(result && result.ok === true);
+      unknown = Boolean(result && result.delivery_unknown === true);
+    } else {
+      const result = await opts.imessageSend(imessageSenderId, text, {
+        uid, eventId: String(eventKey), questionType: "travel_origin",
+      });
+      const receiptId = String(result && result.receiptId || "").trim();
+      sent = Boolean(result && result.ok === true && receiptId);
+      unknown = Boolean(result && result.effectUnknown === true)
+        || Boolean(result && result.ok === true && !receiptId);
+    }
+  } catch {
+    unknown = true;
+  }
+  if (sent) return { kind: "pending", sent: true };
+  if (unknown) return { kind: "pending", sent: false };
+  await unclaimAsk(uid, askKey, supaUrl, supaKey, fetchImpl);
+  return { kind: "unavailable", sent: false };
 }
 
 // recallOrResolve(event, opts) → { kind:"filled"|"online"|"ask", location?, fromMemory? }. Checks remembered
@@ -505,6 +718,8 @@ async function askTick(uid, opts) {
   let autofilled = 0, asked = 0, resolved = 0;
   const events = await listEvents(uid, composioKey, nowMs, opts.gmailAccountId);
   const already = await getAskedSet(uid, supaUrl, supaKey);
+  // A travel-origin reply should be consumed before we enqueue another question for this tenant.
+  if (already.pendingTravelOrigin) return { autofilled, asked, resolved };
 
   // For EVERY event still missing a location, let the agent RESOLVE it again every tick — the agent may
   // now succeed where a past tick asked (better search / a newer model). We dedup only the ASK SEND
@@ -777,7 +992,9 @@ async function handleInboundReply(token, replyText, opts = {}) {
 
 module.exports = {
   geminiJson,
-  askTick, recallOrResolve, agentResolveLocation, agentResolveTravelOrigin, agentSearchCandidate, closedAskMessage,
+  askTick, recallOrResolve, agentResolveLocation, agentResolveTravelOrigin, agentMatchTravelOriginReply,
+  askTravelOriginOnce, readTravelOriginAskState, pendingTravelOriginAsks, answerTravelOriginAsk,
+  travelOriginAskKey, agentSearchCandidate, closedAskMessage,
   closedOnlineAskMessage, semanticQuestionKey,
   agentMatchReply, claimAsk, unclaimAsk, recordResolution, handleAskCallback, lookupAskCandidate,
   handleInboundReply, parseInboundRecipient, consumeAskToken,
