@@ -19,7 +19,7 @@ interviews, emails each receipt-confirmed application and a daily briefing, and 
 | Personal data | Verified private profile and generated materials are mode `0600` |
 | Career summary | Every terminal daily path atomically refreshes private `summary.v2.json` with state counts and Workday receipt coverage |
 | Application receipt | Every confirmed submission records the exact resume path and SHA-256, then sends that same PDF to Telegram once when Telegram is configured, with company, role and URL |
-| Email reporting | Per-application status emails and a natural-language daily briefing are shipped in source. One partial daily briefing was sent and read back in Gmail on 2026-10-13; per-application status email awaits the first receipt-confirmed application. |
+| Email reporting | Per-application status emails and one natural-language daily email briefing are shipped in source. One partial daily briefing was sent and read back in Gmail on 2026-10-13; per-application status email awaits the first receipt-confirmed application. |
 | Daily report repair | A materially changed same-day catch-up sends one content-addressed correction; identical retries remain at-most-once |
 | Inbox | Gmail threads expand to immutable unseen message IDs; official late application receipts reconcile before the model; a model runs only for remaining new recruiting messages or a pending prep-pack generation job |
 | Calendar | Only explicit timezone-aware recruiter candidates are considered; the earliest free candidate is confirmed once |

@@ -892,6 +892,8 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
         self.assertIn("Agent loop adopted from Browser Use and career-ops", prompt)
         self.assertIn("observation-local `ref:*`", prompt)
         self.assertIn("Act on exactly one currently visible control", prompt)
+        self.assertIn("runtime fill-profile --fields-json", prompt)
+        self.assertIn("separate action receipt for each field", prompt)
         self.assertIn("Opening a dropdown is\none action", prompt)
         self.assertIn("A row-local failure never ends the queue", " ".join(prompt.split()))
         self.assertIn("job_search_loop.browser_agent.candidate_memory", daily)

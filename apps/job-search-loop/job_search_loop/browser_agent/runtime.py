@@ -47,6 +47,24 @@ from .workday_account import MachineWorkdayCredentialStore
 _EMAIL = re.compile(r"\b[^\s@]+@[^\s@]+\.[^\s@]+\b")
 _PHONE = re.compile(r"(?<!\w)(?:\+?\d[\d ()-]{7,}\d)(?!\w)")
 _WAKE_STEP_BUDGET = 100
+_PROFILE_BATCH_MAX_FIELDS = 12
+_PROFILE_BATCH_TEXT_TYPES = frozenset({"text", "email", "tel", "url"})
+_PROFILE_BATCH_SENSITIVE = re.compile(
+    r"work[\s_-]?authori[sz]|visa|citizen|nationality|sponsor|immigra|salary|"
+    r"compensation|base[\s_-]?pay|wage|income|bonus|social[\s_-]?security|\bssn\b|"
+    r"passport|tax[\s_-]?id|birth|date[\s_-]?of[\s_-]?birth|\bage\b|gender|"
+    r"\bsex\b|race|ethnicity|disabilit|veteran|military|criminal|conviction|"
+    r"attest|certif|employer|previous[\s_-]?employment|prior[\s_-]?employment|"
+    r"password|credential|token",
+    re.IGNORECASE,
+)
+_PROFILE_BATCH_PROFILE_LABEL = re.compile(
+    r"\b(first|last|middle|preferred|full|given|family|name|email|phone|mobile|cell|"
+    r"address|street|postal|zip|city|state|province|country|website|url|linkedin|"
+    r"github|portfolio|contact|location)\b",
+    re.IGNORECASE,
+)
+_PROFILE_BATCH_WORD = re.compile(r"[a-z0-9]+", re.IGNORECASE)
 
 
 def _path_env(name: str) -> Path:
@@ -902,6 +920,188 @@ async def type_candidate(
         return result
 
 
+def _parse_profile_fill_fields(fields_json: str) -> tuple[list[dict[str, str]] | None, str | None]:
+    try:
+        value = json.loads(fields_json)
+    except (TypeError, json.JSONDecodeError):
+        return None, "profile_batch_invalid_json"
+    if not isinstance(value, list) or not 1 <= len(value) <= _PROFILE_BATCH_MAX_FIELDS:
+        return None, "profile_batch_field_count_out_of_range"
+
+    expected = {"label", "role", "stable_id", "candidate_concept"}
+    fields: list[dict[str, str]] = []
+    stable_ids: set[str] = set()
+    for item in value:
+        if not isinstance(item, dict) or set(item) != expected:
+            return None, "profile_batch_invalid_field_shape"
+        field = {key: item[key] for key in expected}
+        if any(not isinstance(part, str) or not part.strip() for part in field.values()):
+            return None, "profile_batch_invalid_field_value"
+        field = {key: part.strip() for key, part in field.items()}
+        if field["role"] != "textbox":
+            return None, "profile_batch_requires_textbox"
+        if not field["candidate_concept"].startswith("candidate."):
+            return None, "profile_batch_requires_candidate_concept"
+        if not re.fullmatch(r"(?:id|automation|ref):[^\s]+", field["stable_id"]):
+            return None, "profile_batch_requires_stable_id"
+        if field["stable_id"] in stable_ids:
+            return None, "profile_batch_duplicate_target"
+        stable_ids.add(field["stable_id"])
+        if _PROFILE_BATCH_SENSITIVE.search(
+            f"{field['label']} {field['candidate_concept']}"
+        ):
+            return None, "profile_batch_sensitive_field"
+        if not _PROFILE_BATCH_PROFILE_LABEL.search(field["label"]):
+            return None, "profile_batch_not_profile_field"
+        label_words = set(_PROFILE_BATCH_WORD.findall(field["label"].casefold()))
+        concept_words = set(
+            _PROFILE_BATCH_WORD.findall(field["candidate_concept"].casefold())
+        )
+        if not label_words.intersection(concept_words):
+            return None, "profile_batch_concept_label_mismatch"
+        fields.append(field)
+    return fields, None
+
+
+def _profile_batch_control_reason(
+    field: dict[str, str], observation: dict[str, Any]
+) -> str | None:
+    controls = observation.get("controls")
+    if not isinstance(controls, list):
+        return "profile_batch_observation_unavailable"
+    matches = [
+        control
+        for control in controls
+        if isinstance(control, dict)
+        and control.get("label") == field["label"]
+        and control.get("role") == field["role"]
+        and control.get("stable_id") == field["stable_id"]
+    ]
+    if len(matches) != 1:
+        return "profile_batch_target_not_fresh"
+    control = matches[0]
+    if (
+        control.get("disabled") is True
+        or control.get("type") not in _PROFILE_BATCH_TEXT_TYPES
+        or control.get("options")
+    ):
+        return "profile_batch_control_not_plain_text"
+    controls = observation.get("controls", [])
+    target_label = field["label"].casefold().strip()
+    if any(
+        isinstance(other, dict)
+        and other.get("role") == "button"
+        and isinstance(other.get("label"), str)
+        and other["label"].casefold().strip().endswith(" options")
+        and other["label"].casefold().strip()[: -len(" options")] == target_label
+        for other in controls
+    ):
+        return "profile_batch_control_is_picker"
+    if _PROFILE_BATCH_SENSITIVE.search(field["label"]):
+        return "profile_batch_sensitive_field"
+    return None
+
+
+def _profile_batch_result(
+    *,
+    completed_fields: list[str],
+    receipts: list[str],
+    observation: dict[str, Any],
+    reason: str,
+) -> dict[str, Any]:
+    return {
+        "status": "batch_partial" if completed_fields else "action_rejected",
+        "reason": reason,
+        "completed_fields": completed_fields,
+        "receipts": receipts,
+        "observation": observation,
+        "next_action": (
+            "continue from this fresh observation; do not replay completed fields"
+        ),
+    }
+
+
+async def fill_profile_fields(fields_json: str) -> dict[str, Any]:
+    """Fill bounded, independent profile textboxes with one typed command."""
+    fields, reason = _parse_profile_fill_fields(fields_json)
+    if fields is None:
+        return {"status": "action_rejected", "reason": reason}
+
+    memory = CandidateMemoryView.load(_path_env("JOB_SEARCH_CANDIDATE_MEMORY"))
+    known_concepts = set(memory.concepts())
+    for field in fields:
+        concept = field["candidate_concept"]
+        if concept not in known_concepts:
+            return {"status": "action_rejected", "reason": "candidate_concept_not_found"}
+        value = memory.get(concept)
+        if not isinstance(value, (str, int, float)) or isinstance(value, bool) or not str(value).strip():
+            return {"status": "action_rejected", "reason": "candidate_concept_requires_scalar_value"}
+
+    current = await observe()
+    if current.get("status") != "observed":
+        return current
+    visible_concepts = current.get("candidate_concepts")
+    if not isinstance(visible_concepts, (list, tuple)):
+        return _profile_batch_result(
+            completed_fields=[],
+            receipts=[],
+            observation=current.get("observation", {}),
+            reason="candidate_concepts_not_currently_visible",
+        )
+    if any(field["candidate_concept"] not in visible_concepts for field in fields):
+        return _profile_batch_result(
+            completed_fields=[],
+            receipts=[],
+            observation=current.get("observation", {}),
+            reason="candidate_concept_not_currently_grounded",
+        )
+
+    completed_fields: list[str] = []
+    receipts: list[str] = []
+    observation = current.get("observation", {})
+    for field in fields:
+        reason = _profile_batch_control_reason(field, observation)
+        if reason:
+            return _profile_batch_result(
+                completed_fields=completed_fields,
+                receipts=receipts,
+                observation=observation,
+                reason=reason,
+            )
+        result = await type_candidate(
+            label=field["label"],
+            role=field["role"],
+            stable_id=field["stable_id"],
+            candidate_concept=field["candidate_concept"],
+        )
+        next_observation = result.get("observation")
+        if result.get("status") != "acted" or not isinstance(next_observation, dict):
+            return _profile_batch_result(
+                completed_fields=completed_fields,
+                receipts=receipts,
+                observation=next_observation if isinstance(next_observation, dict) else observation,
+                reason=str(result.get("reason") or result.get("status") or "profile_batch_action_failed"),
+            )
+        receipt = str((result.get("action") or {}).get("receipt_sha256") or "")
+        if not re.fullmatch(r"[0-9a-f]{64}", receipt):
+            return _profile_batch_result(
+                completed_fields=completed_fields,
+                receipts=receipts,
+                observation=next_observation,
+                reason="profile_batch_action_receipt_missing",
+            )
+        completed_fields.append(field["label"])
+        receipts.append(receipt)
+        observation = next_observation
+
+    return {
+        "status": "batch_acted",
+        "completed_fields": completed_fields,
+        "receipts": receipts,
+        "observation": observation,
+    }
+
+
 async def tailor_resume(sections_json: str) -> dict[str, Any]:
     """The existing browser model selects facts; this tool adds no candidate claims."""
     row = _row()
@@ -1371,6 +1571,8 @@ def _run_main(argv: list[str] | None = None) -> int:
     type_text_parser.add_argument("--role", default="")
     type_text_parser.add_argument("--stable-id", default="")
     type_text_parser.add_argument("--text", required=True)
+    fill_profile_parser = subparsers.add_parser("fill-profile")
+    fill_profile_parser.add_argument("--fields-json", required=True)
     answer_parser = subparsers.add_parser("answer")
     answer_parser.add_argument("--question-label", required=True)
     tailor_parser = subparsers.add_parser("tailor")
@@ -1440,6 +1642,8 @@ def _run_main(argv: list[str] | None = None) -> int:
             stable_id=args.stable_id,
             text=args.text,
         )
+    elif args.command == "fill-profile":
+        operation = lambda: fill_profile_fields(args.fields_json)
     elif args.command == "answer":
         operation = lambda: resolve_saved_answer(args.question_label)
     elif args.command == "tailor":

@@ -18,7 +18,6 @@ from job_search_loop.workday_search_loop import (
     cached_source_fetcher,
     interleave_companies,
     qualified_queue_ids,
-    rank_candidates,
     rotated_sources,
     rolling_submission_metrics,
     search_until_qualified,
@@ -28,29 +27,15 @@ from job_search_loop.workday_search_loop import (
     qualify_with_wake_cursor,
     reject_stale_workday_rows,
     submit_attempt_hosts,
-    validate_shortlist,
     unique_sources,
 )
 from job_search_loop.workday_qualification import POLICY_VERSION, qualify_one
 
 
 class WorkdayQualificationTests(unittest.TestCase):
-    def test_shortlist_prompt_includes_worldwide_locations_and_salary_target(self):
-        prompt_source = inspect.getsource(workday_search_loop.main)
-
-        self.assertIn("No location category outranks another", prompt_source)
-        self.assertIn("onsite or hybrid roles worldwide", prompt_source)
-        self.assertIn("remote roles worldwide", prompt_source)
-        self.assertIn("USD 100,000 annual gross base target", prompt_source)
-        self.assertNotIn("Tokyo onsite or hybrid", prompt_source)
-        self.assertNotIn("United States roles in any location", prompt_source)
-        self.assertNotIn("Japan employment first", prompt_source)
-        self.assertNotIn(
-            "Every row that explicitly supports employment from Japan must rank before any row tied to another country",
-            prompt_source,
-        )
-
+    def test_workday_fit_policy_includes_worldwide_scope_and_salary_target(self):
         fit_source = inspect.getsource(workday_qualification.qualify_one)
+        self.assertIn("Remote, onsite, and hybrid roles in every country", fit_source)
         self.assertIn("USD 100,000 annual gross base", fit_source)
         self.assertIn("CEO or C-suite", fit_source)
         self.assertIn("Do not reject a role based on title alone", fit_source)
@@ -95,16 +80,14 @@ class WorkdayQualificationTests(unittest.TestCase):
         self.assertEqual([row["application_id"] for row in rows], [eligible])
 
     def test_sponsorship_wording_alone_does_not_exclude_worldwide_roles(self):
-        shortlist_source = inspect.getsource(workday_search_loop.main)
         fit_source = inspect.getsource(workday_qualification.qualify_one)
 
         self.assertIn("Sponsorship status alone is not a reason to reject any role", fit_source)
-        self.assertIn("regardless of country", shortlist_source)
-        self.assertIn("answer every work-authorization and sponsorship question truthfully", fit_source)
-        self.assertNotIn(
-            "eligible only with existing work authorization or explicit employer sponsorship",
-            shortlist_source,
+        self.assertIn(
+            "including when sponsorship is stated as unavailable or left unstated",
+            fit_source,
         )
+        self.assertIn("answer every work-authorization and sponsorship question truthfully", fit_source)
 
     def test_candidate_windows_interleave_companies_instead_of_source_volume(self):
         rows = [
@@ -119,7 +102,25 @@ class WorkdayQualificationTests(unittest.TestCase):
             ["r-0", "s-1", "z-1", "r-1", "r-2", "r-3"],
         )
 
-    def test_qualification_uses_model_shortlist_before_ledger_order(self):
+    def test_priority_window_orders_lower_exposure_companies_then_interleaves(self):
+        candidates = [
+            {"company": "Company A", "url": "a-1"},
+            {"company": "Company A", "url": "a-2"},
+            {"company": "Company A", "url": "a-3"},
+            {"company": "Company B", "url": "b-1"},
+            {"company": "Company B", "url": "b-2"},
+            {"company": "Company C", "url": "c-1"},
+        ]
+
+        result = workday_search_loop.priority_candidate_urls(
+            candidates,
+            {"Company A": 3, "Company B": 1, "Company C": 0},
+            limit=4,
+        )
+
+        self.assertEqual(result, ("c-1", "b-1", "a-1", "b-2"))
+
+    def test_qualification_uses_priority_window_before_ledger_order(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             ledger_path, oldest, memory = self._row(root)
@@ -386,8 +387,6 @@ class WorkdayQualificationTests(unittest.TestCase):
                 str(root / "agent-runner.py"),
                 "--schema",
                 str(root / "schema.json"),
-                "--shortlist-schema",
-                str(root / "shortlist-schema.json"),
                 "--workdir",
                 str(root / "workdir"),
                 "--evidence-root",
@@ -449,7 +448,6 @@ class WorkdayQualificationTests(unittest.TestCase):
                 ("--sources", sources),
                 ("--runner", root / "agent-runner.py"),
                 ("--schema", root / "schema.json"),
-                ("--shortlist-schema", root / "shortlist-schema.json"),
                 ("--workdir", root / "workdir"),
                 ("--evidence-root", root / "evidence"),
                 ("--output", output),
@@ -464,8 +462,11 @@ class WorkdayQualificationTests(unittest.TestCase):
                 "location": "Remote",
                 "url": fresh_url,
             }
+            agent_runner = Mock()
             with patch.object(
                 workday_search_loop, "snapshot_candidates", return_value=[fresh_candidate]
+            ), patch.object(
+                workday_search_loop, "AgentRunner", return_value=agent_runner
             ), patch.object(
                 workday_search_loop,
                 "reject_stale_workday_rows",
@@ -479,10 +480,6 @@ class WorkdayQualificationTests(unittest.TestCase):
                 "discover_one",
                 return_value={"status": "no_fresh_workday", "discovered": []},
             ) as discover, patch.object(
-                workday_search_loop,
-                "rank_candidates",
-                return_value=(fresh_url,),
-            ) as rank, patch.object(
                 workday_search_loop,
                 "qualify_with_wake_cursor",
                 return_value={
@@ -509,7 +506,8 @@ class WorkdayQualificationTests(unittest.TestCase):
             )
             self.assertEqual(result["qualified_application_ids"], ["new-application"])
             self.assertEqual(result["shortlist"], [fresh_url])
-            rank.assert_called_once()
+            self.assertEqual(discover.call_args.kwargs["preferred_urls"], (fresh_url,))
+            agent_runner.run.assert_not_called()
             discover.assert_called_once()
             qualify.assert_called_once()
 
@@ -740,30 +738,6 @@ class WorkdayQualificationTests(unittest.TestCase):
         )
         self.assertEqual(len(unique_sources(sources)), 1)
 
-    def test_complete_snapshot_is_ranked_in_chunks_then_finalists(self):
-        candidates = [
-            {"url": f"https://a.wd1.myworkdayjobs.com/Careers/job/{index}"}
-            for index in range(50)
-        ]
-        calls = []
-        candidate_id_calls = []
-
-        def rank(chunk):
-            calls.append([row["url"] for row in chunk])
-            candidate_id_calls.append([row["candidate_id"] for row in chunk])
-            return {"ranked_candidate_ids": [chunk[-1]["candidate_id"]]}
-
-        result = rank_candidates(
-            candidates=candidates,
-            rank_chunk=rank,
-            chunk_size=2,
-        )
-
-        self.assertEqual(len(calls), 26)
-        self.assertEqual(len(calls[-1]), 25)
-        self.assertEqual(result, (calls[-1][-1],))
-        self.assertTrue(all(ids[0] == "c0" for ids in candidate_id_calls))
-
     def test_snapshot_skips_failed_source_and_keeps_other_company(self):
         with tempfile.TemporaryDirectory() as directory:
             sources = (
@@ -952,24 +926,6 @@ class WorkdayQualificationTests(unittest.TestCase):
                 "Fresh Red Hat 2",
             ],
         )
-
-    def test_shortlist_drops_model_invented_url_and_keeps_official_rows(self):
-        official = "https://a.wd1.myworkdayjobs.com/Careers/job/A"
-        candidates = [{"candidate_id": "candidate-1", "url": official}]
-        self.assertEqual(
-            validate_shortlist(
-                {"ranked_candidate_ids": ["invented", "candidate-1"]},
-                candidates,
-            ),
-            (official,),
-        )
-
-    def test_shortlist_fails_closed_when_no_official_url_remains(self):
-        with self.assertRaisesRegex(ValueError, "no official candidate ID"):
-            validate_shortlist(
-                {"ranked_candidate_ids": ["invented"]},
-                [{"candidate_id": "candidate-1", "url": "https://a.wd1.myworkdayjobs.com/Careers/job/A"}],
-            )
 
     def test_each_source_is_fetched_once_per_wake(self):
         calls = []
