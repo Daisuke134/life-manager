@@ -67,7 +67,7 @@
       "review_before_fix": "FIX-FIRST: JSON bool type and conditional self-handoff error propagation",
       "review_after_fix": "GO: strict JSON bool and explicit conditional self-handoff propagation"
     },
-    "production_adoption": "loaded and natural run started"
+    "production_adoption": "loaded and bound natural terminal pass"
   },
   "previous_repair_natural_acceptance": {
     "run_id": "18de744079150de0-86096",
@@ -106,7 +106,28 @@
       "occurrence_id": "life-manager-release-reconciler:18de77b58113f5d8-62559",
       "execute_at": "2026-10-14T18:08:43.236046+00:00",
       "release_sha": "39f1bf0031d15257085ba2c48f3fc83f5bf6a9b1",
-      "terminal": "pending"
+      "terminal": "pass",
+      "terminal_at": "2026-10-14T18:17:02.600877+00:00",
+      "exit_code": 0,
+      "error_class": null,
+      "bound_owner_rows": 29,
+      "bound_owner_changed": 18,
+      "bound_owner_skipped": 11,
+      "bound_owner_nonzero_rc": 0,
+      "previously_control_busy_owner": {
+        "loop_id": "life-manager-anicca-affirmation-youtube",
+        "rc": 0,
+        "changed": 1,
+        "at": "2026-10-14T18:15:25.172951+00:00"
+      },
+      "fleet_snapshot": {
+        "status": "partial",
+        "errors": 0,
+        "budget_progress_continue": true,
+        "control_busy_continue": false,
+        "next_retry_epoch": 1792001931
+      },
+      "fleet_snapshot_binding": "aggregate agrees with the 29 exact-run owner records; fleet snapshot itself has no run_id"
     }
   },
   "interpretation": {

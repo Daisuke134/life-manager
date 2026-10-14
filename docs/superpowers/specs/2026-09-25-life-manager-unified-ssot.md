@@ -79,13 +79,13 @@ To-Beは各agentがobserve→decide→act→official verify→persist→自分�
 
 **新順:** R1共有実行・資源管理の現在停止境界→R2最小修復/既済source反映→R3条件の整った仕事を進める→R4Gigと他lane→R5実結果を使う自己修復/自己改善。共有課題は当該producer/occurrenceごとに並行処理する。
 
-**理由:** 全体の連続合格待ちは実資源・個別故障の改善を測らず、条件が整った仕事まで止める。外部の実行枠/待機/障害隔離の設計へ合わせ、現在の収益経路を先に通す。進行中のeffectや他ownerの運転は中断・重複させない。**現在cursorはR1。今回の文書更新を本番修復済みや新方式導入済みにしない。**
+**理由:** 全体の連続合格待ちは実資源・個別故障の改善を測らず、条件が整った仕事まで止める。外部の実行枠/待機/障害隔離の設計へ合わせ、現在の収益経路を先に通す。進行中のeffectや他ownerの運転は中断・重複させない。**現在cursorはR3（Capafyの現停止境界と実結果）。R1/R2の今回の共有release修復は、main/immutable採用と新版自然terminalで完了する。全18の事業成功・F2/F5全件完了とは別に扱う。**
 
 |順|具体的な次作業|対象file/functionと、終える事実|
 |---|---|---|
-|R1 / 現在|共有実行・資源管理の現在停止境界を絞る|該当ownerのstatus/run/loaded SHAと公式結果を読む。source済みなら既存ownerの採用へ、保留なら当該registered adapterへ、実資源ならそのwriterへ進む。古いblocked eventを現在の保留一覧と同一視しない|
-|R2|最初に不成立な境界だけ修復する|queueはresource_admission.py::claim_durable/release_and_reserve、保存はdisk_admission.py::_producer_gate、子終了はlm_loop_run.py::_run_entrypoint、後始末はcentral_cleanup.py::scratch_gc。既存回帰で足りれば増やさず、必要なREDだけ追加。修正済みsourceを再実装しない|
-|R3|Capafyの制作・公開・配信を通常の仕事として進める|登録済みownerと同operation identityで進め、実結果を記録する。故障修復と販売/入金の達成は別に測る。回数を満たすための再実行をしない|
+|R1 / 今回完了|共有release/制御の最初の失敗を確定する|正常budget・control競合/current置換の誤失敗と、条件付きBash関数内の生成/保存/handoff失敗隠蔽を特定する。境界とbound runを下の修復記録へ保存する|
+|R2 / 今回完了|既知の共有release障害を最小修復し反映する|bin/reconcile-agent-runner-release.shと既存fleet_apply test。51件PASS→review GO→CI/main→ALL immutable→新版自然run pass/exit0。未適用fleetのpartial/再確認は保持する|
+|R3 / 現在|Capafyの制作・公開・配信の現停止境界を直し実結果へ進む|config/loop-registry.jsonのownerと実entrypoint、skills/self/capafy-loop/capafy-loop-daily.sh・capafy_factory_fence_reconcile.py、skills/earn/capafy-marketing/capafy-distribute-daily.sh・scripts/capafy_distribute_fence_reconcile.pyを照合する。factory/publication/distributionの現runと公式結果を結び、同operation identityで未成立な箇所だけ直す。frozen sellerを変更せず、制作・配信・販売/入金を別々に測る|
 |R4|Gigのfunded案件と、条件が整った他laneを進める|shared Paid→正式納品→受領/精算。別laneの保留やF backlogで一括停止しない。Storefrontの展開と公開起動整備は既存差分計画へ|
 |R5|評価から自己修復・自己改善へ戻す|同taskの品質・工数・費用・official outcomeを既存eval/CFOへ戻す。全18完成を準備開始条件にせず、成功の型を共有する|
 
@@ -103,7 +103,7 @@ source変更は最新main由来の成果専用worktreeで最小RED→修正→fo
 
 R1の目的は、共有実行・資源管理の現在の故障を閉じ、条件が揃った実仕事が進むこと。Capafyの個別改善はその後へ戻す。連続回数は要求しない。収益・全18・新端末・自己改善の全体完了へ言い換えず、業務段階/公式結果と残TODOを保持する。
 
-**共通部分を先に修復する順序:** Daisの追加指示により、旧R1（Capafyの個別停止境界）から、新R1（共通の実行・資源管理）へ変更する。理由は共通修復を先頭にする明示指示であり、連続N回や全F合格待ちを復活させない。最新read-only観測では清掃/監視/効果照合は605177d版でpass、release-reconcilerのexact run18de6e58507dc040-44741はentrypoint_exit_1、配信にはresource_control_busyがある。先頭は共有release/制御の同run診断→最小修復、次にwriter/終了/保存、最後にCapafyへ戻す。
+**共通部分を先に修復する順序:** Daisの追加指示に従って共有release/制御を先頭にし、PR #8058/#8064と新版自然runで今回の既知障害を閉じる。現在はCapafyへ戻る。順序更新の理由は、共有boundaryが実際に通過し、未特定のwriter全体確認を追加gateにすると事業を再び止めるため。旧順=共有release→writer/終了/保存の一括確認→Capafy、新順=今回の共有修復完了→Capafyの現境界→Gig/公開起動→実結果の評価共有、現在cursor=R3。writer/F2/F5はfreshな具体的故障と該当ownerで並行修復し、unknown receipt/active processは保持する。連続N回や全F合格待ちは復活させない。
 
 ## 共有release進行結果の修復
 
@@ -124,8 +124,8 @@ source base=a91a31a9beeb61def0d522ec3e3e5e144ab1c49f、worktree=/Users/anicca/Pr
 - [x] **R1 source — 延期分類の最小差分:** rc1かつ余分なfieldのないexact control_busy拒否だけをskipped/admission-control-busyとして記録し、他ownerを続ける。errors0/timeoutなしのbusyはpartial/control_busy_continue/既存continue間隔で再確認し、last_ok_epochは更新しない。同SHAで「適用済み」へ短絡させない。新SHAのcoalescingも保存済み延期期限を使う。確認済みの別40桁SHAへのsupersededは旧owner開始を止め、partial/即時次回のままtick exit0とする。欠測/不正SHAは非0のまま。source検証は45件PASS、反映は次の項目。
 - [x] **R1 source — 保存失敗の明示伝播:** 初回fresh read-only reviewはFIX-FIRST。state保存先fleet-apply-state.json.tmpを隔離fixtureでdirectoryにするとIsADirectoryErrorでもtick0/stateなしになる。親のrun_fleet_apply呼出が`||`内にあり、関数内のerrexitに頼れないためである。fleetの出力/plan/owner journal/stateを必須結果とし、生成・保存の非0を明示return1で伝える。registryの欠測/不正を空台帳へ置換しない。延期が未保存なら正常tickとしない。保存/plan/outputの4 test（5失敗case）はRED（3.634秒）→GREEN（2.806秒）。resource/provider/他ownerへ変更範囲を広げない。
 - [x] **R1 source — 厳密な結果型とself-handoff失敗伝播:** Pythonのdict比較だけではok=0がok=falseに等しくなるため、busy/supersededの拒否分類はboolean Falseを明示確認する。schedule_self_handoffも親の`||`内で呼ばれるため、mkdir/chmod、plist生成、launchctl-safe bootstrapの非0を明示return1で伝え、生成失敗後にbootstrapへ進まない。sourceの実関数を隔離fixtureの同じ`||`文脈で動かし、3 test/4失敗caseのRED（3.510秒）→GREEN（3.074秒）を確認する。実launchd/owner/receiptは変更しない。
-- [ ] **R1現在cursor — 同修復の本番終端:** 型/self-handoff修復後の関連51件PASS（72.624秒）、独立read-only再検証GO、exact head f60f215cのCI全PASS。PR #8064をmain39f1bf0031d15257085ba2c48f3fc83f5bf6a9b1へ統合し、ALL/mode555 release20261015T030456-39f1bf00へ反映する。main/releaseのsource SHA-256は検証済みdfc3553b44730b2e6e4bd0bcb4d1aa5a4153cafeb458bde383b7ca7c2e882483と一致する。fresh launchctl-safe前提はPASS（UID501/Aqua）。対象限定loaded-idle applyはchanged=falseで新loaded argvを確認し、既存引き継ぎが採用済み。自然run18de77b58113f5d8-62559/occurrence life-manager-release-reconciler:18de77b58113f5d8-62559は18:08:43Zに新版でexecute、終端は未確認。次は同runのreportとbound owner結果を確認する。連続N回や全fleet無故障をgateにしない。
-- [ ] **R1次の境界:** この延期分類とは別に、親reconcileの実exit/最初に時間を使うreadbackを確定する。全events読取は候補だが未確定なので、timeout延長・全snapshot撤去・protected JSONL削除で代用しない。実障害が残ればその箇所だけ修復し、次にwriter/終了/保存、Capafyへ進む。
+- [x] **R1/R2 — 同修復の本番受入:** 型/self-handoff修復後の関連51件PASS（72.624秒）、独立read-only再検証GO、exact head f60f215cのCI全PASS。PR #8064をmain39f1bf0031d15257085ba2c48f3fc83f5bf6a9b1へ統合し、ALL/mode555 release20261015T030456-39f1bf00へ反映する。main/releaseのsource SHA-256は検証済みdfc3553b44730b2e6e4bd0bcb4d1aa5a4153cafeb458bde383b7ca7c2e882483と一致する。fresh launchctl-safe前提はPASS（UID501/Aqua）。対象限定loaded-idle applyはchanged=falseで新loaded argvを確認し、既存引き継ぎが採用済み。自然run18de77b58113f5d8-62559/occurrence life-manager-release-reconciler:18de77b58113f5d8-62559は18:08:43Zに新版でexecute、18:17:02Zにreport pass/exit0。exact runに結び付くowner log29件はchanged18/skipped11/非0rc0件で、前回control_busyのYouTube ownerもrc0/changed1。fleet snapshotはpartial/errors0/next_retryを保つ。18件は更新jobであり、18収益capabilityの売上証明ではない。currentに対するtarget applyのchanged=falseを重複更新なしのreadbackとし、回数を満たす追加runはしない。
+- [x] **R1診断 — 次の実障害だけを扱う:** 親/entrypointを含む新版自然runがexit0で境界を通過する。追加snapshot profileは下記のとおりで、全events/欠測indexを300秒待機の根因とはしない。未確認の性能推測だけでtimeout延長・全snapshot撤去・protected JSONL削除をしない。今後freshな実障害が出れば当該producer/adapterで診断・修復し、事業を一括停止する追加gateにしない。
 
 差分手順と検証入力はdocs/superpowers/plans/2026-10-15-shared-release-defer-plan.md、bound本番観測はdocs/evidence/shared-release-defer-20261015.json。TODO順/状態の正本はこの節だけ。
 
