@@ -18410,7 +18410,7 @@ Paid-orders/views is descriptive, not causal: hot `5/46 ≈ 10.9%`, search `8/79
 
 **TODO順序更新:** 旧cursorは「既存`tiktok_blog`記事を7日測定し、fence receipt調査を並行」。新cursorは「(1) occurrence-bound receiptのadapter修正をTDD/PR/CIで統合 → (2) main由来immutable releaseを作成しadapter実行ownerの`lm-fence-reconciler`だけloaded-idleでapply → (3) 自然reconcilerが登録adapterで対象occurrenceを照合し、公式readback付きで閉じた場合に限りFactoryの次の自然runと公式Agent readbackを確認 → (4) Oct 21 23:30 JST以降に既存`tiktok_blog`の7日source窓を保存 → (5) search/hot/Googleのwinner分布と`ai_overview` conversionを改善 → (6) sales/source/MRRを再readback → (7) goal-monitor bindingを修理」。理由は、現在のeffect fenceが新Agent shippingを止めており、強いoccurrence結合証拠が発見されたため。FROZEN sellerの編集・再提出、duplicate SEO page、broad social volumeは行わない。**Current cursor: item 1—実装とfocused testsはlocalで完了（26/26）；次は通常PR・required CI・独立review・main merge。その後`lm-fence-reconciler`をrelease/applyし、自然reconcile readbackへ進む。**
 
-### Capafy draft resume after factory recovery — 2026-10-15 02:58 JST
+### Capafy draft resume after factory recovery — 2026-10-15 05:51 JST
 
 **目的・受入条件:** 既存FROZEN sellerを編集せず、remote draft Agent `7393298474`を同じAgent IDのままCP1/CP2/CP3へ進め、official `publish-remote-status`で`platform_status=1`（under_review）または`4`（listed）と`is_confirmed_skills=true`・`is_confirmed_config_keys=true`を確認する。失敗時は新Agentを重複作成しない。
 
@@ -18422,6 +18422,8 @@ Paid-orders/views is descriptive, not causal: hot `5/46 ≈ 10.9%`, search `8/79
 - occurrence capafy-loop-daily:18de7d74ebe48340-62606（19:54:08Z、release 974654dd）は20:02:47Zにparent rc=1。child resultはAI-generator stubにcard dataがなく、Pricing後のtab switchでprice fieldsがresetしたため最終状態を確認できないと報告した。save/submit前に止まり、登録adapterは公式publish-listを比較してverdict=no_effect / closed=true。evidence: ~/.local/state/life-manager/reconciliation/evidence/capafy-loop-daily-capafy-loop-daily_18de7d74ebe48340-62606.json。
 - occurrence capafy-loop-daily:18de7e472cda4948-90387（20:09:05Z、release 222d1e18）はchild run `1792008590-92792`（20:09:52Z–20:21:30Z）がplan cardの表示順が変わり`PRICES_MATCH`未到達で停止と報告。parentは20:21:42Zに`host_admission_deferred:resource_heartbeat_unavailable` / exit75で終端。registered adapterは20:23:57Zに公式publish-list 72件をsnapshotと照合し`verdict=no_effect`でfenceを閉じた。
 - occurrence capafy-loop-daily:18de7f18bdc180d0-18952（20:24:07Z、release 222d1e18）は20:25:03Zにexit0/passで終端したが、child-runner summary/provider receiptはない。20:28Zの公式publish-listは72件、Agent 7393298474は開始snapshotと同じversion `2110426515594047488`; fresh remote-statusは`platform_status=0`, `audit_status=0`, 両confirmation=false。provider effectはunknownのまま保持し、passを公開成功と扱わない。active admission fenceは0。
+- occurrence capafy-loop-daily:18de7feaeab72108-54713（20:39:15Z snapshot、release 222d1e18）は20:39:54Zにexit0/passで終端したが、provider receiptはなくeffect unknown。20:51:04Zにregistry登録済み`capafy_factory_fence_reconcile.py`が公式`packager.py publish-list`を読み、72件・snapshot使用・対象Agent/version不変を確認して`verdict=no_effect`、`closed=true`。evidence: `~/.local/state/life-manager/reconciliation/evidence/capafy-loop-daily-capafy-loop-daily_18de7feaeab72108-54713.json`。status readback後のadmission fenceは0。これはこのoccurrenceのno-effectだけを証明し、Agent shipmentやremote status更新は証明しない。
+- 現在のmain由来`~/loops/current`はSHA `235b6ef5a8aa18b20bdac09c047fec04bcd02b20`だが、`capafy-loop-daily`は引き続きloaded-idle / SHA `222d1e182b5a8ef989653be19b5fd58b76d37069`。PR #8089はopenでexact-head CI進行中。`draft-attempts.json`の7393298474は3、admission fenceは0。
 - Shared runtime: 2026-10-14 UTCのevent ledgerには`resource_heartbeat_unavailable`が6件/5 owners（Capafy 2、他4 owners）。Capafy parent eventは`effect_identity_status=not_written`。現terminalはgeneric error classのみで、control-busy timeout、claim ownership loss/expiry、OSError、SQLite errorの内訳は保存されない。原因を特定するまでこのshared heartbeat boundaryを未解決扱いにする。
 - `draft-attempts.json`の7393298474は3。loaded releaseの`MAX_DRAFT_ATTEMPTS=3`と選択条件`attempts < MAX_DRAFT_ATTEMPTS`を確認済み。Factoryはloaded-idle / SHA 222d1e18。修正releaseまでcounterを3のまま保持する。
 - tab-order修正は専用branchでCP1_AGENTIC.md、DAILY_LOOP.md、PUBLISHING_RUNBOOK.md、daily_loop.shの両CP1 promptへ反映済み。focused prompt contract + CP2 timeout testsは6 passed、bash -n、git diff --check、node scripts/verify-oss-self-contained.mjsはPASS。latest inventory digestはmanifestに反映済み。
@@ -18434,7 +18436,7 @@ Paid-orders/views is descriptive, not causal: hot `5/46 ≈ 10.9%`, search `8/79
 5. `draft-attempts.json`のcounter 3を保持し、修正release adoption後に7393298474だけ0へ戻す。次の自然runで同Agent/versionを使い、Week/Month/Year、No Free Trial、daily quotaなし、`PRICES_MATCH 3`、card-done、CP2/CP3のofficial status 1/4と両confirmation trueを確認する。effect unknownはregistered adapterだけで照合する。
 6. fresh sales readbackでorders>70、gross>$102.75、settled MRRを個別に確認し、7日後に`tiktok_blog` funnelとsearch/hot/Google・`ai_overview`のview-to-paidを追う。
 **順序変更理由:** 2回のCP1 childでprice resetとplan row reorderが別々に起き、gate未達。3回目のparent wakeにはchild summaryがなく、official status/versionは不変。さらに同じheartbeat failureが複数ownerに出ており、CP1再試行を止める共有runtime問題が再発している。FROZEN seller編集・再提出、draft削除、duplicate Agent作成、稼働中owner停止、強制wakeはしない。
-**Current cursor:** item 1—PR #8089の明示的Period-label re-anchorと回帰testを追加し、直近のterminal/effect記録を正本へ反映する。counter 3は維持し、production retryはしない。
+**Current cursor:** item 2—PR #8089のexact-head CIを完了させてmergeする。次にsuperseded docs PR #8082を閉じ、item 3で共通heartbeat障害をfresh-main worktreeから原因別に診断する。CP1/heartbeat両source fixがmainへ入った後、loaded-idleのCapafy ownerへimmutable releaseを適用する。counter 3は適用後まで維持し、manual wake/retryはしない。
 
 ### Life Manager Cloud current cursor — 2026-10-15
 
