@@ -45,6 +45,13 @@ remain the sole owner of browser, application, ledger, evidence, and Telegram-ou
 side effects. The CLI and registry add no parallel executor and must never be used to
 submit an application independently.
 
+The Workday browser agent may batch up to 12 independent name, contact, address,
+location, and profile-link fields in one typed runtime command when each visible
+label matches a returned `candidate.*` concept. The runtime revalidates each
+control and records its own action receipt. Pickers, narrative answers, legal or
+sensitive questions, account credentials, uploads, and final submission remain
+on their individual guarded paths.
+
 Ashby, Greenhouse, Lever, Mercor, and generic providers are not active OSS lanes. They
 remain broken or unverified until each independently proves a fresh fit-qualified job,
 authoritative completion, Ledger reconciliation, Telegram receipt, and next-wake

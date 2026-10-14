@@ -148,7 +148,6 @@ if [[ -f "$WORKDAY_SOURCES" ]]; then
   --sources "$WORKDAY_SOURCES" \
   --runner "$JOB_SEARCH_RUNNER" \
   --schema "$JOB_SEARCH_APP_ROOT/schemas/workday-fit-decision.v1.schema.json" \
-  --shortlist-schema "$JOB_SEARCH_APP_ROOT/schemas/workday-shortlist.v1.schema.json" \
   --workdir "$JOB_SEARCH_REPO_ROOT" \
   --evidence-root "$EVIDENCE/qualification" \
   --output "$WORKDAY_DISCOVERY_RESULT" \
