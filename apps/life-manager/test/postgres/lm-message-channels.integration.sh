@@ -5,7 +5,9 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 MIGRATION="$ROOT_DIR/migrations/2026-10-08-zzz-lm-message-channels.sql"
 FORWARD_MIGRATION="$ROOT_DIR/migrations/20261014190913_lm_message_channels_guest_compat.sql"
 POSTGREST_TIMEOUT_MIGRATION="$ROOT_DIR/migrations/20261014195919_lm_postgrest_authenticator_timeout.sql"
-if [[ ! -f "$MIGRATION" || ! -f "$FORWARD_MIGRATION" || ! -f "$POSTGREST_TIMEOUT_MIGRATION" ]]; then
+ALLOWANCE_MIGRATION="$ROOT_DIR/migrations/2026-09-07-lm-monthly-managed-allowance.sql"
+MANAGED_PERIOD_MIGRATION="$ROOT_DIR/migrations/20261014203700_lm_managed_period_timezone_lookup.sql"
+if [[ ! -f "$MIGRATION" || ! -f "$FORWARD_MIGRATION" || ! -f "$POSTGREST_TIMEOUT_MIGRATION" || ! -f "$ALLOWANCE_MIGRATION" || ! -f "$MANAGED_PERIOD_MIGRATION" ]]; then
   printf '%s\n' 'FAIL missing required Postgres migration fixture' >&2
   exit 1
 fi
@@ -31,7 +33,7 @@ trap cleanup EXIT INT TERM
 if command -v postgres >/dev/null 2>&1; then
   mkdir -p "$PGSOCKET_DIR"
   initdb -D "$PGDATA_DIR" -A trust --no-locale >/dev/null
-  pg_ctl -D "$PGDATA_DIR" -l "$PGLOG" -o "-F -h '' -k $PGSOCKET_DIR" start >/dev/null
+  pg_ctl -D "$PGDATA_DIR" -l "$PGLOG" -o "-F -h '' -k $PGSOCKET_DIR -c shared_preload_libraries=pg_stat_statements -c pg_stat_statements.track=all" start >/dev/null
   createdb -h "$PGSOCKET_DIR" "$DB_NAME"
   PSQL=(psql -X -q -v ON_ERROR_STOP=1 -h "$PGSOCKET_DIR" -d "$DB_NAME")
 else
@@ -39,7 +41,8 @@ else
   export PGPASSWORD="lm-message-channels-test-only"
   docker run --rm -d --name "$DOCKER_NAME" \
     -e POSTGRES_PASSWORD="$PGPASSWORD" -e POSTGRES_DB="$DB_NAME" \
-    -p 127.0.0.1::5432 postgres:18-alpine >/dev/null
+    -p 127.0.0.1::5432 postgres:18-alpine \
+    -c shared_preload_libraries=pg_stat_statements -c pg_stat_statements.track=all >/dev/null
   MAPPED="$(docker port "$DOCKER_NAME" 5432/tcp)"
   PGPORT="${MAPPED##*:}"
   for _ in {1..100}; do
@@ -50,6 +53,7 @@ else
   PSQL=(psql -X -q -v ON_ERROR_STOP=1 -h 127.0.0.1 -p "$PGPORT" -U postgres -d "$DB_NAME")
 fi
 
+"${PSQL[@]}" -c "CREATE EXTENSION IF NOT EXISTS pg_stat_statements;" >/dev/null
 "${PSQL[@]}" >/dev/null <<'SQL'
 DO $$ BEGIN CREATE ROLE anon NOLOGIN; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE ROLE authenticated NOLOGIN; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
@@ -59,10 +63,15 @@ ALTER ROLE authenticator SET statement_timeout = '8s';
 ALTER ROLE authenticator SET lock_timeout = '8s';
 CREATE TABLE public.lm_users (
   uid text PRIMARY KEY,
+  paid boolean NOT NULL DEFAULT false,
   telegram_chat_id text,
   name text,
   tg_onboard_stage text,
   updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE public.lm_panel_preferences (
+  uid text PRIMARY KEY,
+  call_time_zone text NOT NULL DEFAULT 'UTC'
 );
 INSERT INTO public.lm_users(uid, telegram_chat_id, name, tg_onboard_stage)
 VALUES ('lm_tg_legacy', '123456789', 'Legacy', 'done');
@@ -76,12 +85,36 @@ VALUES
   ('lm_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', NULL, 'Web B', 'done'),
   ('lm_cccccccc-cccc-4ccc-8ccc-cccccccccccc', NULL, 'Web C', 'done'),
   ('lm_dddddddd-dddd-4ddd-8ddd-dddddddddddd', NULL, 'Web D', 'done');
+INSERT INTO public.lm_panel_preferences(uid,call_time_zone)
+VALUES ('lm_tg_legacy','Asia/Tokyo'),('lm_tg_empty','Not/ARealTimeZone');
 SQL
 
 "${PSQL[@]}" -f "$MIGRATION" >/dev/null
 "${PSQL[@]}" -f "$MIGRATION" >/dev/null
 "${PSQL[@]}" -f "$FORWARD_MIGRATION" >/dev/null
 "${PSQL[@]}" -f "$FORWARD_MIGRATION" >/dev/null
+
+# The baseline function scans pg_timezone_names inside every allowance call. Capture the nested
+# query in pg_stat_statements so the forward migration proves it removes that repeated catalog work.
+"${PSQL[@]}" -f "$ALLOWANCE_MIGRATION" >/dev/null
+"${PSQL[@]}" -Atqc "SELECT pg_stat_statements_reset();" >/dev/null
+"${PSQL[@]}" -Atqc "SELECT public.lm_managed_period('lm_tg_legacy');" >/dev/null
+BASELINE_TZ_QUERY="$("${PSQL[@]}" -Atqc "SELECT queryid || ',' || calls FROM pg_stat_statements WHERE position(convert_from(decode('70675f74696d657a6f6e655f6e616d6573','hex'),'UTF8') in lower(query))>0 AND lower(query) LIKE 'select%' ORDER BY calls DESC LIMIT 1;")"
+IFS=',' read -r BASELINE_TZ_QUERY_ID BASELINE_TZ_CALLS <<<"$BASELINE_TZ_QUERY"
+if [[ -z "$BASELINE_TZ_QUERY_ID" || -z "$BASELINE_TZ_CALLS" ]]; then
+  printf '%s\n' 'FAIL baseline lm_managed_period did not expose its timezone catalog query' >&2
+  exit 1
+fi
+"${PSQL[@]}" -f "$MANAGED_PERIOD_MIGRATION" >/dev/null
+"${PSQL[@]}" -f "$MANAGED_PERIOD_MIGRATION" >/dev/null
+[[ "$("${PSQL[@]}" -Atqc "SELECT public.lm_managed_period('lm_tg_legacy') = date_trunc('month', statement_timestamp() AT TIME ZONE 'Asia/Tokyo')::date;")" == "t" ]]
+[[ "$("${PSQL[@]}" -Atqc "SELECT public.lm_managed_period('lm_tg_empty') = date_trunc('month', statement_timestamp() AT TIME ZONE 'UTC')::date;")" == "t" ]]
+[[ "$("${PSQL[@]}" -Atqc "SELECT public.lm_managed_period('lm_missing') = date_trunc('month', statement_timestamp() AT TIME ZONE 'UTC')::date;")" == "t" ]]
+POST_FIX_TZ_CALLS="$("${PSQL[@]}" -Atqc "SELECT COALESCE((SELECT calls FROM pg_stat_statements WHERE queryid=${BASELINE_TZ_QUERY_ID}),0);")"
+if [[ "$POST_FIX_TZ_CALLS" != "$BASELINE_TZ_CALLS" ]]; then
+  printf '%s\n' 'FAIL lm_managed_period still executes a pg_timezone_names lookup' >&2
+  exit 1
+fi
 "${PSQL[@]}" -f "$POSTGREST_TIMEOUT_MIGRATION" >/dev/null
 "${PSQL[@]}" -f "$POSTGREST_TIMEOUT_MIGRATION" >/dev/null
 if [[ "$("${PSQL[@]}" -Atqc "SELECT EXISTS (SELECT 1 FROM pg_roles r CROSS JOIN LATERAL unnest(r.rolconfig) c WHERE r.rolname='authenticator' AND c='statement_timeout=15s');")" != "t" ]]; then
@@ -158,4 +191,4 @@ if "${PSQL[@]}" -c "TRUNCATE public.lm_web_message_link_tokens;" >/dev/null 2>&1
   exit 1
 fi
 
-printf '%s\n' 'PASS message-channel ownership, one-use linking, RLS, ACL, and immutable records'
+printf '%s\n' 'PASS message-channel ownership, RLS/ACL, managed-period timezone fallback, no catalog scan, and migration idempotence'
