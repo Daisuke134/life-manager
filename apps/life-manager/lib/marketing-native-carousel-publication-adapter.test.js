@@ -15,6 +15,7 @@ const {
   buildMarketingNativeCarouselPublicationJob,
   createMarketingNativeCarouselPublicationLoopAdapter,
   executeMarketingNativeCarouselPublicationJob,
+  runPostizCarouselProcess,
   verifyMarketingNativeCarouselPublicationReceipt,
 } = require("./marketing-native-carousel-publication-adapter.js");
 const { buildMarketingCtaCaption } = require("./marketing-app-store-cta.js");
@@ -25,6 +26,41 @@ const jpeg = (width, height) => Buffer.from([
   0x03, 0x01, 0x11, 0x00, 0x02, 0x11, 0x00, 0x03, 0x11, 0x00,
   0xff, 0xd9,
 ]);
+
+test("native carousel Postiz subprocess inherits the host pre-effect marker", (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "lm-carousel-pre-effect-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const hint = path.join(directory, "entrypoint-result.json");
+  const observed = path.join(directory, "hint-state.txt");
+  const python = path.join(directory, "python");
+  fs.writeFileSync(hint, '{"status":"pre_effect_failure","effect":0}\n', { mode: 0o600 });
+  fs.writeFileSync(
+    python,
+    "#!/bin/sh\n"
+      + "if [ -n \"$LIFE_MANAGER_RESULT_HINT_PATH\" ] && [ -e \"$LIFE_MANAGER_RESULT_HINT_PATH\" ]; then "
+      + "printf present > \"" + observed + "\"; else printf missing > \"" + observed + "\"; fi\n"
+      + "printf '%s\\n' '{\"post_id\":\"fixture-post\"}'\n",
+    { mode: 0o700 },
+  );
+  const previous = process.env.LIFE_MANAGER_RESULT_HINT_PATH;
+  process.env.LIFE_MANAGER_RESULT_HINT_PATH = hint;
+  try {
+    const result = runPostizCarouselProcess({
+      python,
+      token: "fixture-token",
+      mediaPaths: ["first.jpg", "second.jpg"],
+      captionPath: "caption.txt",
+      integrationId: "fixture-integration",
+      platform: "instagram",
+      title: "Fixture",
+    });
+    assert.equal(result.post_id, "fixture-post");
+  } finally {
+    if (previous === undefined) delete process.env.LIFE_MANAGER_RESULT_HINT_PATH;
+    else process.env.LIFE_MANAGER_RESULT_HINT_PATH = previous;
+  }
+  assert.equal(fs.readFileSync(observed, "utf8"), "present");
+});
 
 test("TikTok carousel JPEG dimensions stay within the provider gate", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-carousel-size-"));
