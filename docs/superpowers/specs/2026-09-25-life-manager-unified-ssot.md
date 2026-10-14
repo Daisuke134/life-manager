@@ -17545,3 +17545,10 @@ Sales/rating values above are the buyer-search `salesVolume`/rating display, not
 - Direct `df` at 11:25 JST reports 428,620 KiB free, below the 2 GiB floor and exact release requirement `2,394,329,088` bytes. No release cut/apply or additional video download is eligible.
 
 **Current cursor:** wait for `resource_fifo_wait` eligibility and the next natural `capafy-loop-daily` terminal; require provider inventory/readback for the exact outcome. In parallel, preserve the goal-monitor release/apply gate until disk capacity meets its exact preflight. No Agent, listing, price, or post was changed in this delta.
+
+### Runtime delta — 2026-10-14 11:31 JST
+
+- The next natural factory occurrence `capafy-loop-daily:18de446ef304a7c0-31239` ran on installed SHA `b2a97edfaf145f84566a2a4ab7b1c44c94243cf1` and passed at `2026-10-14T02:30:33Z` (11:30:33 JST). Its publish effect is `unknown`; receipt and official readback are null. The run-start snapshot captured `agent_count=70` at `02:29:13Z` (11:29:13 JST), which is pre-effect evidence only. Do not claim the run created or did not create an Agent, and do not replay it.
+- `8767154808` remains publicly online with 0 sold and no star rating shown; this Agent has already passed review. The goal-monitor release/date issue, 11:07 seller-data observation, and disk gate remain as in the 11:22 delta.
+
+**Current cursor:** use an occurrence-bound official provider readback for `18de446ef304a7c0-31239` through a registered adapter when that occurrence is eligible for reconciliation; keep the effect unknown until then. Continue TODO 1 only when the disk release preflight passes. No Capafy account or listing was mutated in this delta.
