@@ -51,7 +51,7 @@ OFFICIAL_STATUSES = frozenset({"審査待ち", "審査中", "承認", "販売中
 DRAFT_STATUS = "編集中"
 
 
-def _has_terminal_unknown_event(state_root: Path, occurrence_id: str) -> bool:
+def _terminal_unknown_release_sha(state_root: Path, occurrence_id: str) -> str | None:
     path = state_root / "events.jsonl"
     try:
         size = path.stat().st_size
@@ -60,7 +60,7 @@ def _has_terminal_unknown_event(state_root: Path, occurrence_id: str) -> bool:
             handle.seek(offset)
             payload = handle.read(4 * 1024 * 1024)
     except OSError:
-        return False
+        return None
     lines = payload.splitlines()
     if offset and lines:
         lines = lines[1:]
@@ -75,7 +75,7 @@ def _has_terminal_unknown_event(state_root: Path, occurrence_id: str) -> bool:
                 or event.get("owner_id") != OWNER_ID
                 or event.get("occurrence_id") != occurrence_id
                 or event.get("phase") != "report"
-                or event.get("status") not in {"blocked", "failed"}
+                or event.get("status") not in {"blocked", "fail"}
                 or event.get("effect_status") != "unknown"
                 or not isinstance(event.get("effect_class"), str)
                 or event.get("effect_class") == "none"):
@@ -84,11 +84,11 @@ def _has_terminal_unknown_event(state_root: Path, occurrence_id: str) -> bool:
         if isinstance(release_sha, str) and re.fullmatch(r"[a-f0-9]{40}", release_sha):
             releases.add(release_sha)
         else:
-            return False
-    return len(releases) == 1
+            return None
+    return next(iter(releases)) if len(releases) == 1 else None
 
 
-def fenced_row(owner_id: str, occurrence_id: str) -> tuple[str, dt.datetime]:
+def fenced_row(owner_id: str, occurrence_id: str) -> tuple[str, dt.datetime, bool]:
     from runtime.host import resource_admission
 
     database = resource_admission.state_root() / "admission-v2.sqlite3"
@@ -100,11 +100,10 @@ def fenced_row(owner_id: str, occurrence_id: str) -> tuple[str, dt.datetime]:
         ).fetchone()
     if row is None or row[1] is None:
         raise ValueError("occurrence is not an effect_unknown row")
-    if row[2] != 1 and not (
-            str(row[0]) == "released" and row[2] == 0
-            and _has_terminal_unknown_event(STATE_ROOT, occurrence_id)):
+    lost = str(row[0]) == "released" and row[2] == 0
+    if row[2] != 1 and not (lost and _terminal_unknown_release_sha(STATE_ROOT, occurrence_id)):
         raise ValueError("occurrence is not an effect_unknown row")
-    return str(row[0]), dt.datetime.fromtimestamp(float(row[1]), dt.timezone.utc)
+    return str(row[0]), dt.datetime.fromtimestamp(float(row[1]), dt.timezone.utc), lost
 
 
 def _at_or_after(value: Any, since: dt.datetime) -> bool:
@@ -139,7 +138,7 @@ def touched_since(state_root: Path, since: dt.datetime) -> list[str]:
     return hits
 
 
-def confirmed_submission(path: Path) -> str | None:
+def confirmed_submission(path: Path, *, expected_binding: tuple[str, str, str] | None = None) -> str | None:
     """'<product_id>:<status>' when the run's effect is an item Creators Market itself shows
     (readback's state_observed): a finished submission, or one stopped mid-flight that LINE lists as
     編集中 (submit resumes from the recorded item, so nothing is created twice). None when unread,
@@ -150,6 +149,9 @@ def confirmed_submission(path: Path) -> str | None:
         return None
     if not (isinstance(item, dict) and item.get("product_id")):
         return None
+    if expected_binding is not None and tuple(
+            item.get(key) for key in ("owner_id", "occurrence_id", "release_sha")) != expected_binding:
+        return None
     finished = item.get("state") == "review_requested" and item.get("state_observed") in OFFICIAL_STATUSES
     resumable = item.get("state") in MID_SUBMISSION_STATES and item.get("state_observed") == DRAFT_STATUS
     if finished or resumable:
@@ -158,19 +160,22 @@ def confirmed_submission(path: Path) -> str | None:
 
 
 def build_proof(occurrence_id: str, queued_at: dt.datetime, *, now: dt.datetime,
-                state_root: Path) -> dict[str, Any]:
+                state_root: Path, expected_binding: tuple[str, str, str] | None = None) -> dict[str, Any]:
     proof: dict[str, Any] = {"owner_id": OWNER_ID, "occurrence_id": occurrence_id,
                              "verified": False, "queued_at": queued_at.isoformat()}
     hits = touched_since(state_root, queued_at)
     if hits:
-        confirmed = [confirmed_submission(state_root / label) for label in hits]
+        confirmed = [confirmed_submission(state_root / label, expected_binding=expected_binding)
+                     for label in hits]
         if all(confirmed):  # the effect happened, finished, and LINE shows it: close as effected
             proof.update(verified=True, effected=True,
                          provider_receipt_id="creators-market-readback:" + ",".join(confirmed),
                          proof_kind="factory_submission_confirmed_by_creators_readback",
                          checked_at=now.isoformat(timespec="seconds"))
             return proof
-        proof["reason"] = "state_touched_after_run_start:" + ",".join(hits)
+        reason = ("exact_occurrence_receipt_binding_required" if expected_binding is not None
+                  else "state_touched_after_run_start")
+        proof["reason"] = reason + ":" + ",".join(hits)
         return proof
     age = (now - queued_at).total_seconds()
     proof.update(reason="official_line_no_effect_readback_required",
@@ -180,8 +185,15 @@ def build_proof(occurrence_id: str, queued_at: dt.datetime, *, now: dt.datetime,
 
 def reconcile(occurrence_id: str, *, resolve: bool = False) -> dict[str, Any]:
     now = dt.datetime.now(dt.timezone.utc)
-    state, queued_at = fenced_row(OWNER_ID, occurrence_id)
-    proof = build_proof(occurrence_id, queued_at, now=now, state_root=STATE_ROOT)
+    state, queued_at, lost = fenced_row(OWNER_ID, occurrence_id)
+    binding = None
+    if lost:
+        release_sha = _terminal_unknown_release_sha(STATE_ROOT, occurrence_id)
+        if release_sha is None:
+            raise ValueError("exact terminal unknown release is unavailable")
+        binding = (OWNER_ID, occurrence_id, release_sha)
+    proof = build_proof(occurrence_id, queued_at, now=now, state_root=STATE_ROOT,
+                        expected_binding=binding)
     result = {**proof, "admission_state": state}
     if not proof.get("verified") or not resolve:
         return result

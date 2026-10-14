@@ -418,7 +418,7 @@ class ReconcileTest(unittest.TestCase):
                 "occurrence_id": occurrence_id,
                 "release_sha": release_sha,
                 "phase": "report",
-                "status": "blocked",
+                "status": "fail",
                 "effect_class": "publish",
                 "effect_status": "unknown",
             }) + "\n")
@@ -443,11 +443,20 @@ class ReconcileTest(unittest.TestCase):
                 },
             }})
 
+            held_proof = json.dumps({"owner_id": owner_id, "occurrence_id": occurrence_id,
+                                     "verified": False, "reason": "official_readback_required"})
+            responses = [(1, held_proof), (1, held_proof), (0, held_proof), (0, proof)]
+
             def run_call(argv, **_kwargs):
                 calls.append(argv)
-                return 0, proof + "\n"
+                code, response = responses.pop(0)
+                return code, response + "\n"
 
             with patch("runtime.host.resource_admission.state_root", return_value=root):
+                held = [reconcile(
+                    registry=loops, root=root, read_fenced=lambda: {}, run_call=run_call,
+                    log_path=call_log,
+                ) for _ in range(3)]
                 first = reconcile(
                     registry=loops, root=root, read_fenced=lambda: {}, run_call=run_call,
                     log_path=call_log,
@@ -459,13 +468,19 @@ class ReconcileTest(unittest.TestCase):
 
             rows = [json.loads(line) for line in call_log.read_text().splitlines()]
 
-        self.assertEqual(len(calls), 1)
+        self.assertEqual(len(calls), 4)
         self.assertEqual(calls[0][-3:], ["--occurrence", occurrence_id, "--resolve"])
         self.assertEqual(first["checked"], 1)
         self.assertEqual(first["closed"], 1)
         self.assertEqual(second["checked"], 0)
-        self.assertTrue(rows[0]["closure_proof"]["verified"])
-        self.assertEqual(rows[0]["closure_proof"]["release_sha"], release_sha)
+        for result in held:
+            self.assertEqual(result["closed"], 0)
+            self.assertEqual(result["still_fenced"], 1)
+        self.assertEqual(len(rows), 3)
+        self.assertFalse(rows[0]["closed"])
+        self.assertFalse(rows[1]["closed"])
+        self.assertTrue(rows[-1]["closure_proof"]["verified"])
+        self.assertEqual(rows[-1]["closure_proof"]["release_sha"], release_sha)
 
     def test_closed_call_logs_exact_release_bound_provider_proof(self):
         import json

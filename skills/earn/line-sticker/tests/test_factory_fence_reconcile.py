@@ -137,6 +137,48 @@ class BuildProof(unittest.TestCase):
 
 
 class ReleasedFenceRecovery(unittest.TestCase):
+    def test_active_released_unknown_keeps_the_existing_readback_route(self) -> None:
+        owner = MODULE.OWNER_ID
+        occurrence = f"{owner}:active-run"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with sqlite3.connect(root / "admission-v2.sqlite3") as connection:
+                connection.execute("CREATE TABLE occurrences(owner_id TEXT, occurrence_id TEXT, "
+                                   "state TEXT, queued_at REAL, effect_unknown INTEGER)")
+                connection.execute("INSERT INTO occurrences VALUES(?,?,?,?,?)",
+                                   (owner, occurrence, "released", Q.timestamp(), 1))
+            _set(root, "set-018", "submitted", {
+                "product_id": "48172824", "state": "review_requested",
+                "state_observed": "審査待ち", "created_at": _iso(Q + dt.timedelta(minutes=1))})
+            with patch("runtime.host.resource_admission.state_root", return_value=root), \
+                    patch.object(MODULE, "STATE_ROOT", root):
+                proof = MODULE.reconcile(occurrence)
+            self.assertTrue(proof["verified"])
+
+    def test_released_recovery_uses_only_exact_occurrence_receipt_binding(self) -> None:
+        owner = MODULE.OWNER_ID
+        occurrence = f"{owner}:old-run"
+        release_sha = "a" * 40
+        exact = {"owner_id": owner, "occurrence_id": occurrence, "release_sha": release_sha}
+        for binding, verified in [(exact, True), ({}, False),
+                ({**exact, "occurrence_id": f"{owner}:later-run"}, False),
+                ({**exact, "release_sha": "b" * 40}, False),
+                ({**exact, "owner_id": "another-owner"}, False)]:
+            with self.subTest(binding=binding), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                _set(root, "set-018", "submitted", {
+                    "product_id": "48172824", "state": "review_requested",
+                    "state_observed": "審査待ち", "created_at": _iso(Q + dt.timedelta(minutes=1)),
+                    **binding})
+                with patch.object(MODULE, "STATE_ROOT", root), \
+                        patch.object(MODULE, "fenced_row", return_value=("released", Q, True)), \
+                        patch.object(MODULE, "_terminal_unknown_release_sha", return_value=release_sha,
+                                     create=True):
+                    proof = MODULE.reconcile(occurrence)
+                self.assertEqual(proof["verified"], verified)
+                if not verified:
+                    self.assertNotIn("provider_receipt_id", proof)
+
     def test_released_row_is_recoverable_only_with_exact_terminal_unknown_event(self) -> None:
         owner = MODULE.OWNER_ID
         occurrence = f"{owner}:run-1"
@@ -159,17 +201,18 @@ class ReleasedFenceRecovery(unittest.TestCase):
                 "occurrence_id": occurrence,
                 "release_sha": release_sha,
                 "phase": "report",
-                "status": "blocked",
+                "status": "fail",
                 "effect_class": "publish",
                 "effect_status": "unknown",
             }) + "\n")
 
             with patch("runtime.host.resource_admission.state_root", return_value=root), \
                     patch.object(MODULE, "STATE_ROOT", root):
-                state, queued_at = MODULE.fenced_row(owner, occurrence)
+                state, queued_at, lost = MODULE.fenced_row(owner, occurrence)
 
         self.assertEqual(state, "released")
         self.assertEqual(queued_at, Q)
+        self.assertTrue(lost)
 
     def test_released_row_without_exact_unknown_event_is_rejected(self) -> None:
         owner = MODULE.OWNER_ID
