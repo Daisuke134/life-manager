@@ -84,10 +84,10 @@ Gate 13 `gate_pass` means the snapshot is structurally complete, contains no fab
 
 **Interface:** `run_sweep(...)` follows the Sweep Contract above. It reads source JSONL without modifying it, reports legacy/unresolved/ambiguous/mismatched coverage separately, and returns `attention` when no exact publication is eligible.
 
-- [ ] Add local JSONL fixtures for exact, legacy, unresolved, duplicate, and mismatched identity rows.
-- [ ] Add RED tests for exact selection, no snapshot before 24 hours, daily deduplication, and explicit attention on no eligible rows.
-- [ ] Implement the bounded sweep by calling the existing `build_snapshot()` and click-receipt reader.
-- [ ] Run the focused sweep tests and verify no test contacts a real provider.
+- [x] Add local JSONL fixtures for exact, legacy, unresolved, duplicate, and mismatched identity rows.
+- [x] Add RED tests for exact selection, no snapshot before 24 hours, daily deduplication, and explicit attention on no eligible rows.
+- [x] Implement the bounded sweep by calling the existing `build_snapshot()` and click-receipt reader.
+- [x] Run the focused sweep tests and verify no test contacts a real provider (6 passed; all click queries use test callbacks).
 
 ### Task 4: Wire the sweep into the existing truth owner
 
@@ -106,5 +106,6 @@ Gate 13 `gate_pass` means the snapshot is structurally complete, contains no fab
 - [ ] Require exact-head CI to pass, then merge to main.
 - [ ] Allow the existing release reconciler to ship the immutable main release and apply only when the truth owner is idle and its owner lock is clear.
 - [ ] Let the registered cleanup owner and existing fence reconciler resolve the current `scratch_enospc` and distributor fence; do not manually wake the publisher, clear the fence, or replay an uncertain occurrence.
+- [ ] Resolve the four existing `sending` / `delivery_unknown` owner-report message keys only with exact Telegram MTProto history and `OwnerReportStore.reconcile_delivery()`; do not resend or edit the delivery ledger manually.
 - [ ] Verify the first natural `marketing-owner-events` pass from the new SHA and its attribution-sweep evidence; if the live ledger still has no intent-bound rows, report that exact coverage gap without claiming attribution completion.
 - [ ] Update the SSOT cursor from DD05 only after the sweep and its natural owner readback are verified.
