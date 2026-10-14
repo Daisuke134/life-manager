@@ -280,6 +280,7 @@ test("after-work Travel uses the agent-selected same-day office candidate", asyn
       },
       _completeManagedAction: async () => true,
       _releaseManagedAction: async () => true,
+      _readTravelOriginAskState: async () => ({ kind: "none" }),
       _agentResolveTravelOrigin: async (_event, options) => {
         originCandidates = options.candidates;
         const candidate = options.candidates.find((item) => item.location === office);
@@ -297,6 +298,131 @@ test("after-work Travel uses the agent-selected same-day office candidate", asyn
     assert.equal(result.inserted, 1);
     assert.equal(replay.inserted, 0);
     assert.equal(created.length, 1);
+  });
+});
+
+test("unresolved origin asks once, holds outbound routing, then uses the reply", async () => {
+  await withTravelClaimStore(async () => {
+    const office = "MUIT 生駒";
+    const sourceRows = [
+      { id: "office-morning", summary: "Work", location: office,
+        start: { dateTime: "2030-01-01T09:00:00+09:00", timeZone: "Asia/Tokyo" },
+        end: { dateTime: "2030-01-01T10:00:00+09:00", timeZone: "Asia/Tokyo" } },
+      { id: "office-midday", summary: "Team", location: office,
+        start: { dateTime: "2030-01-01T12:00:00+09:00", timeZone: "Asia/Tokyo" },
+        end: { dateTime: "2030-01-01T13:00:00+09:00", timeZone: "Asia/Tokyo" } },
+      { id: "office-afternoon", summary: "Work", location: office,
+        start: { dateTime: "2030-01-01T14:00:00+09:00", timeZone: "Asia/Tokyo" },
+        end: { dateTime: "2030-01-01T15:00:00+09:00", timeZone: "Asia/Tokyo" } },
+      { id: "dinner", summary: "Dinner", location: "Venue",
+        start: { dateTime: "2030-01-01T19:00:00+09:00", timeZone: "Asia/Tokyo" },
+        end: { dateTime: "2030-01-01T20:00:00+09:00", timeZone: "Asia/Tokyo" } },
+    ];
+    const outboundOrigins = [];
+    const created = [];
+    let askState = { kind: "none" };
+    let originAgentCalls = 0;
+    let askCalls = 0;
+    const calendar = {
+      async listEventsRaw(_uid, bounds) {
+        const min = Date.parse(bounds.timeMin);
+        return sourceRows.filter((event) => Date.parse(event.end.dateTime) >= min);
+      },
+      async createEvent(_uid, args) { created.push(args); return { successful: true }; },
+    };
+    const options = {
+      home: HOME,
+      geminiKey: "fixture-gemini-key",
+      timezone: "Asia/Tokyo",
+      nowMs: Date.parse("2030-01-01T17:30:00+09:00"),
+      calendar,
+      supaUrl: "https://db.example",
+      supaKey: "fixture",
+      _directionsMinutes: async (from, _to, _key, _anchor, _now, isReturn) => {
+        if (!isReturn) outboundOrigins.push(from);
+        return 30;
+      },
+      _reserveManagedAction: async (_uid, eventKey) => ({ allowed: true, reservationToken: eventKey }),
+      _completeManagedAction: async () => true,
+      _releaseManagedAction: async () => true,
+      _readTravelOriginAskState: async (_uid, eventKey) => {
+        assert.equal(eventKey, "dinner");
+        return askState;
+      },
+      _agentResolveTravelOrigin: async () => {
+        originAgentCalls++;
+        return { kind: "unresolved" };
+      },
+      _askTravelOrigin: async (_uid, event, eventKey, candidates) => {
+        assert.equal(event.id, "dinner");
+        assert.equal(eventKey, "dinner");
+        assert.ok(candidates.some((candidate) => candidate.location === office));
+        askCalls++;
+        askState = { kind: "pending" };
+        return { kind: "pending", sent: true };
+      },
+    };
+
+    await fillTravel("tenant-origin-question", options);
+    await fillTravel("tenant-origin-question", options);
+    assert.deepEqual(outboundOrigins, [], "never create an outbound block from a guessed home while the question is pending");
+    assert.equal(askCalls, 1, "replay must not send another question");
+    assert.equal(originAgentCalls, 1, "a pending question suppresses repeated model calls");
+
+    askState = { kind: "answered", location: office };
+    await fillTravel("tenant-origin-question", options);
+    assert.deepEqual(outboundOrigins, [office]);
+    assert.equal(askCalls, 1);
+    assert.equal(created.length, 2, "the return leg remains independently eligible while the outbound waits");
+  });
+});
+
+test("unreadable origin ask state fails closed before outbound routing", async () => {
+  await withTravelClaimStore(async () => {
+    const office = "MUIT 生駒";
+    const sourceRows = [
+      { id: "office-one", summary: "Work", location: office,
+        start: { dateTime: "2030-01-01T09:00:00+09:00", timeZone: "Asia/Tokyo" },
+        end: { dateTime: "2030-01-01T10:00:00+09:00", timeZone: "Asia/Tokyo" } },
+      { id: "office-two", summary: "Team", location: office,
+        start: { dateTime: "2030-01-01T12:00:00+09:00", timeZone: "Asia/Tokyo" },
+        end: { dateTime: "2030-01-01T13:00:00+09:00", timeZone: "Asia/Tokyo" } },
+      { id: "office-three", summary: "Work", location: office,
+        start: { dateTime: "2030-01-01T14:00:00+09:00", timeZone: "Asia/Tokyo" },
+        end: { dateTime: "2030-01-01T15:00:00+09:00", timeZone: "Asia/Tokyo" } },
+      { id: "dinner", summary: "Dinner", location: "Venue",
+        start: { dateTime: "2030-01-01T19:00:00+09:00", timeZone: "Asia/Tokyo" },
+        end: { dateTime: "2030-01-01T20:00:00+09:00", timeZone: "Asia/Tokyo" } },
+    ];
+    const outboundOrigins = [];
+    const calendar = {
+      async listEventsRaw() { return sourceRows; },
+      async createEvent() { return { successful: true }; },
+    };
+    const options = {
+      home: HOME,
+      geminiKey: "fixture-gemini-key",
+      timezone: "Asia/Tokyo",
+      nowMs: Date.parse("2030-01-01T17:30:00+09:00"),
+      calendar,
+      supaUrl: "https://db.example",
+      supaKey: "fixture",
+      _directionsMinutes: async (_from, _to, _key, _anchor, _now, isReturn) => {
+        if (!isReturn) outboundOrigins.push(_from);
+        return isReturn ? null : 40;
+      },
+      _readTravelOriginAskState: async () => { throw new Error("ledger unavailable"); },
+      _agentResolveTravelOrigin: async () => ({ kind: "selected", candidateId: "home" }),
+      _askTravelOrigin: async () => assert.fail("do not send when ask-state read failed"),
+    };
+    await fillTravel("tenant-origin-ledger-down", options);
+    await fillTravel("tenant-origin-ledger-unconfigured", {
+      ...options,
+      supaUrl: undefined,
+      supaKey: undefined,
+      _readTravelOriginAskState: undefined,
+    });
+    assert.deepEqual(outboundOrigins, []);
   });
 });
 
