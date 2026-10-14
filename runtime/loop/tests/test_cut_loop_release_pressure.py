@@ -66,7 +66,7 @@ class CutLoopReleasePressureTest(unittest.TestCase):
             subprocess.run(["git", "update-ref", "refs/remotes/origin/main", "HEAD"], cwd=repo, check=True)
             probe = home / "capacity-probe"
             probe.mkdir()
-            (probe / "sitecustomize.py").write_text("import shutil,types\nshutil.disk_usage=lambda p: types.SimpleNamespace(free=4*1024**3)\n")
+            (probe / "sitecustomize.py").write_text("import shutil,types\nshutil.disk_usage=lambda p: types.SimpleNamespace(free=128*1024**2)\n")
             loops = home / "loops"
             donor = loops / "releases/donor"
             subprocess.run(["git", "clone", "--local", str(repo), str(donor)], check=True, capture_output=True)
@@ -112,7 +112,7 @@ class CutLoopReleasePressureTest(unittest.TestCase):
                            check=True, capture_output=True)
             subprocess.run(["git", "update-ref", "refs/remotes/origin/main", "HEAD"], cwd=repo, check=True)
             (probe / "sitecustomize.py").write_text(
-                "import shutil,types\nshutil.disk_usage=lambda p: types.SimpleNamespace(free=4*1024**3)\n")
+                "import shutil,types\nshutil.disk_usage=lambda p: types.SimpleNamespace(free=128*1024**2)\n")
             result, _ = self.run_cut(repo, home, "", LOOPS_ACTIVATE_CURRENT="0", PYTHONPATH=str(probe),
                 NPM_NODE_VERSION="v-test", NPM_VERSION="test", LOOPS_RUNTIME_PYTHON=sys.executable)
             self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
@@ -120,8 +120,8 @@ class CutLoopReleasePressureTest(unittest.TestCase):
                           if (p / "serial-4.bin").is_file())
             self.assertEqual((newest / "serial-4.bin").stat().st_size, 4 * 1024**2)
             required = json.loads((newest / "RELEASE.json").read_text())["capacity_required_bytes"]
-            self.assertGreaterEqual(required, 2 * 1024**3)
-            self.assertLess(required, 4 * 1024**3)
+            self.assertGreaterEqual(required, 64 * 1024**2 + 24 * 1024**2)
+            self.assertLess(required, 128 * 1024**2)
             # Dependency changes require the ordinary budget before extraction.
             (repo / "package.json").write_text("{}")
             (repo / "package-lock.json").write_text("{}")
@@ -132,6 +132,40 @@ class CutLoopReleasePressureTest(unittest.TestCase):
             self.assertEqual(result.returncode,1,result.stderr + result.stdout)
             self.assertIn("release_capacity_measurement_failed", result.stderr)
             self.assertEqual(len(list((loops / "releases").iterdir())),3)
+
+    def test_manifest_write_failure_removes_partial_release_and_keeps_current(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            repo = self.make_sparse_release_repo(home)
+            paths = "runtime/loop/runtime_event.py"
+            result, loops = self.run_cut(repo, home, paths, LOOPS_ACTIVATE_CURRENT="0")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            previous, = (loops / "releases").iterdir()
+            previous.chmod(0o755)
+            previous = previous.rename(loops / "releases" / "previous")
+            previous.chmod(0o555)
+            (loops / "current").symlink_to(previous)
+            descriptor = (previous / "RELEASE.json").read_bytes()
+            fail_write = home / "fail-manifest-write.sh"
+            fail_write.write_text(
+                'cat() {\n'
+                '  if [ "$#" -eq 0 ]; then\n'
+                '    printf \'{"sha":\'; return 1\n'
+                '  fi\n'
+                '  command cat "$@"\n'
+                '}\n'
+            )
+
+            result, _ = self.run_cut(
+                repo, home, paths, LOOPS_ACTIVATE_CURRENT="0", BASH_ENV=str(fail_write),
+            )
+
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertIn("release manifest write failed", result.stderr)
+            self.assertEqual((loops / "current").resolve(), previous.resolve())
+            self.assertEqual((previous / "RELEASE.json").read_bytes(), descriptor)
+            self.assertEqual(list((loops / "releases").iterdir()), [previous])
+            self.assertFalse((loops / ".release-cut.lock").exists())
 
     def run_cut(self, repo: Path, home: Path, paths: str, **extra_env: str):
         pressure = home / ".local" / "state" / "life-manager" / "state" / "disk-pressure.block"

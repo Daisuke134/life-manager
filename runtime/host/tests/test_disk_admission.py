@@ -264,12 +264,12 @@ def _release_capacity_fixture(tmp_path: Path):
     return guard, repo, sha, loops
 
 
-def test_release_capacity_includes_recovery_floor(tmp_path: Path):
+def test_release_capacity_uses_staging_budget_without_diagnostic_floor(tmp_path: Path):
     guard, repo, sha, loops = _release_capacity_fixture(tmp_path)
 
     required = guard.release_capacity_bytes(repo, sha, loops, "node", "npm")
 
-    assert required >= guard.RECOVERY_FLOOR_BYTES + 64 * 1024**2
+    assert 64 * 1024**2 < required < 65 * 1024**2
 
 
 def test_release_capacity_measurement_failure_fails_closed(
@@ -324,7 +324,7 @@ def test_release_capacity_reuses_locked_bundle_for_script_and_toolchain_change(t
     sha = commit_package(package)
     try:
         required = guard.release_capacity_bytes(repo, sha, loops, "node-next", "npm-next")
-        assert required > guard.RECOVERY_FLOOR_BYTES
+        assert 64 * 1024**2 < required < guard.RECOVERY_FLOOR_BYTES
         assert list((loops / "dependency-bundles").iterdir()) == [bundle]
         assert (donor / "package.json").read_bytes() == old
         package["dependencies"] = {"changed": "1.0.0"}
