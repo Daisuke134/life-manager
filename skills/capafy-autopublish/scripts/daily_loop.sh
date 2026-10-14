@@ -328,10 +328,12 @@ elif tail -60 "$LOG" | grep -q "Reached max turns"; then
     touch "$MARK"
     echo "=== $TS daily_loop done rc=$RC (MAXTURNS-CONTINUE ${N}/3 — headless agent hit the 60-turn budget mid-publish; marker touched (alive), continues next pass, self-fix NOT escalated) ===" >> "$LOG"
   else
+    [ "$RC" -ne 0 ] || RC=1
     echo "=== $TS daily_loop done rc=$RC (MAXTURNS-STUCK ${N} passes — persistent budget exhaustion, marker NOT touched → self-fix will escalate) ===" >> "$LOG"
   fi
 else
   echo 0 > "$MAXTURNS_STREAK"
+  [ "$RC" -ne 0 ] || RC=1
   echo "=== $TS daily_loop done rc=$RC (BLOCKED — post-verdict=$POST, marker NOT touched → self-fix will escalate) ===" >> "$LOG"
 fi
 exit $RC

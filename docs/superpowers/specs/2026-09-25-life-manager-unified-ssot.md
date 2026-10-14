@@ -89,19 +89,25 @@ To-Beは各agentがobserve→decide→act→official verify→persist→自分�
 |R4|Gigのfunded案件と、条件が整った他laneを進める|shared Paid→正式納品→受領/精算。別laneの保留やF backlogで一括停止しない。Storefrontの展開と公開起動整備は既存差分計画へ|
 |R5|評価から自己修復・自己改善へ戻す|同taskの品質・工数・費用・official outcomeを既存eval/CFOへ戻す。全18完成を準備開始条件にせず、成功の型を共有する|
 
+**R3の最初のsource境界 — false healthy terminal:** 2026-10-14T19:17:58Zのread-only statusで`capafy-loop-daily`はrelease `5113cbe55fca411b86a9f48b4102956a79481494`、自然run `18de7b01590c9a50-48794`、pass/exit 0だがpublisher receipt/readbackなし・effect `unknown`。別の観測済み自然runでは`daily_loop.sh`が`POST=PUBLISHABLE`のまま`BLOCKED`を記録し、`rc=0`・marker未更新で終了した。親`capafy-loop-daily.sh`はbounded drainerのrc 0を`DRAINER_RC_0`として受け、正常guardを通って`mark_healthy`する。原因は共通runtimeではなく、子`daily_loop.sh`の`MAXTURNS-STUCK`と最終`BLOCKED`分岐が失敗状態を`RC`へ反映せず、最後に`exit $RC`すること。R1/R2の共有release/制御修復は完了済みで、このCapafy固有境界を全agent共通障害として扱わない。
+
+**R3 patch contract:** 変更対象は`skills/capafy-autopublish/scripts/daily_loop.sh`の`MAXTURNS-STUCK`と最終`BLOCKED`分岐だけ。各分岐でterminal logより前に、`RC=0`だけを`1`へ昇格し、既存の非0値（例:`124`）は保持する。markerは更新しない。親`skills/self/capafy-loop/capafy-loop-daily.sh`の既存「子rc非0ならexit、rc 0だけ`mark_healthy`」契約は変更しない。`skills/capafy-autopublish/test/test_daily_loop_terminal.py`を追加し、実際の親child-dispatch blockと子terminal blockを隔離shell fixtureで実行する。RED/GREEN受入は (a)`PUBLISHABLE`・runner rc 0の`BLOCKED`→親exit 1、親/子marker未更新、(b)`Reached max turns` streak 3回目→同じくexit 1/marker未更新、(c)両failure pathのrunner rc 124→親まで124を保持、(d)`DRAINED`と`CAP_FULL`・rc 0→exit 0/各marker更新。browser/provider/launchd/live stateはfixtureから呼ばない。変更後にfocused Capafy tests、shell syntax、`./bin/lm-loop-contract`、PR CIを通す。main統合後はimmutable releaseへ反映し、対象ownerがloaded-idleの時だけ適用する。自然terminalの失敗が非0で記録され、self-healへ渡ることを確認する。distribution occurrence `capafy-distribute-daily:18de7718a9089ed8-27714`のeffect-unknown fenceは別のreadback taskとして保持し、再送・解除しない。
+
+**R3 TODO順序更新:** 旧cursor=`CP1 Year planのcycle集合修正を先にPR/反映する`。新順=`(1) false healthy terminalを最小修正してsource acceptance → (2) 独立whole-branch review・commit/push・exact-head PR CI・main統合 → (3) loaded-idleのcapafy-loop-dailyへmain由来immutable releaseを適用し、新版の自然terminalをreadback → (4) Agent 7393298474の同一ID retryでWeek/Month/Year・PRICES_MATCH・保存/公式confirmationを完了 → (5) held distribution occurrenceの公式readback → (6) Capafy収益/精算のreadback`。理由は、子が未完了を`BLOCKED`と明記しているのに親が正常扱いするため、CP1再開より先に失敗の伝播と自己修復を成立させる必要がある。source acceptanceはbase `5c83b1f`からREDで失敗2件、修正後focused 6/6、関連回帰25/25、shell syntax/diff check PASS、loop contract `18/191` PASS。provider/launchd操作は未実施。現在cursor=`whole-branch review`。
+
 **実装上の境界:** 同時実行数と時間制限は既存policyから読み、根拠なく増減しない。Macのソフト予算/観測をOSが強制するRAM/disk quotaと称さない。外部結果のunknownとprocess占有は分けるが、active child、参照中のbrowser、正式商品、未保存の証拠を安全性未確認のまま回収しない。別ownerがheldでも別の適格ownerは進める。queue/state/receipt/skillの第二正本は作らない。
 
 **他案との比較:** 全Temporal移植の強みは成熟したdurable executionを直接使えることだが、現在は新server・Mac worker・既存operation identityの移行が新たな作業となる。固定時刻だけのシフトは簡単だが、長いjobや漏れる保存量を制御しない。最善は既存部品で停止境界を閉じて直ちに仕事が進むこと、基準は一producer/adapterの最小修復、最悪は枠管理外のwriterまたは物理容量不足が見つかり、その重い仕事だけを隔離すること。推奨が誤る最有力の筋は、既存の枠管理外で動く子process/保存先があること。R1/R2でowner/PID/path/bytesを結ぶのは、その点を見分けるためである。
 
 **参照:** 外部取得の記録はdocs/evidence/external-job-operation-methods-20261015.json、具体的な差分手順はdocs/superpowers/plans/2026-10-15-external-job-operation-plan.md。これらに別のTODO順/statusを作らない。
 
-### R1の実行範囲
+### R1/R2完了からR3へのhandoff
 
-Daisの「Let's go」「Let's continue」により、上の方式で現在の停止境界の実装修復へ進む。先頭は共有実行・資源管理のstatus/owner/loaded sourceを確認し、原因が実在する箇所だけ修復する。既済sourceは再実装せず、対象ownerの反映・既存registered readbackへ結ぶ。別のlive ownerが同対象を担当中ならagmsgで所有範囲と現在cursorを照合し、重複mutationや競合source編集をしない。
+共有実行・資源管理のR1/R2はPR #8058/#8064とmain由来releaseの自然terminalで完了した。現在cursorはR3のCapafy source境界である。古い共有障害の履歴を再実行条件へ戻さず、freshな具体的故障が別ownerで見つかった場合はそのoccurrenceだけを修復する。
 
-source変更は最新main由来の成果専用worktreeで最小RED→修正→focused検証/CI/main→対象反映を行う。本番操作は所有者・leaseとlaunchctl-safeの前提を満たす対象限定の既存経路だけを使う。auth/browser/provider操作前は既存private credential SSOTとbrowser registryを確認し、secretを文書・log・chatへ複製しない。本文にある「今回文書のみ」は調査/計画作成時の記録であり、この実行範囲を上書きしない。
+R3 source変更は最新main由来の成果専用worktreeで最小RED→修正→focused検証/CI/main→対象反映を行う。本番操作は所有者・leaseとlaunchctl-safeの前提を満たす対象限定の既存経路だけを使う。auth/browser/provider操作前は既存private credential SSOTとbrowser registryを確認し、secretを文書・log・chatへ複製しない。外部effectがunknownなら、そのoccurrenceの公式readbackを継続し、再送・推測解放をしない。
 
-R1の目的は、共有実行・資源管理の現在の故障を閉じ、条件が揃った実仕事が進むこと。Capafyの個別改善はその後へ戻す。連続回数は要求しない。収益・全18・新端末・自己改善の全体完了へ言い換えず、業務段階/公式結果と残TODOを保持する。
+R1/R2の目的は共有実行・資源管理の停止境界を閉じることであり、既定の受け入れ条件を完了した。F2/F5全件、連続成功数、全18事業成功は今回のR3・R4の開始gateにしない。収益・新端末・自己改善の全体完了へ言い換えず、業務段階/公式結果と残TODOを保持する。
 
 **共通部分を先に修復する順序:** Daisの追加指示に従って共有release/制御を先頭にし、PR #8058/#8064と新版自然runで今回の既知障害を閉じる。現在はCapafyへ戻る。順序更新の理由は、共有boundaryが実際に通過し、未特定のwriter全体確認を追加gateにすると事業を再び止めるため。旧順=共有release→writer/終了/保存の一括確認→Capafy、新順=今回の共有修復完了→Capafyの現境界→Gig/公開起動→実結果の評価共有、現在cursor=R3。writer/F2/F5はfreshな具体的故障と該当ownerで並行修復し、unknown receipt/active processは保持する。連続N回や全F合格待ちは復活させない。
 
