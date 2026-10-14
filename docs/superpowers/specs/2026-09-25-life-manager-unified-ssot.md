@@ -17535,3 +17535,12 @@ Sales/rating values above are the buyer-search `salesVolume`/rating display, not
 - Latest direct `df` was 632,612 KiB free at 11:22 JST; this is below the 2 GiB release/media floor and exact release requirement `2,394,329,088` bytes. The cleaner's persisted receipt remains stale. Do not cut/apply a release or download the remaining 11 creative videos.
 
 **Current cursor:** (1) wait for the next natural factory run on `b2a97ed` and obtain an official post-run inventory/readback; do not replay occurrence `18de43784b6cdfd8-4595`. (2) Keep the goal-monitor source correction at TODO 1 and release/apply it only after exact capacity preflight; then require a natural terminal and a correct revenue-date field. (3) Keep outcome-monitor and IG effects held until exact provider proof. (4) Make the 60/70 Agent coverage and 10-minute hourly reconciliation visible in the reporting TODO; preserve unknowns rather than turning omitted data into zero.
+
+### Runtime delta — 2026-10-14 11:25 JST
+
+- `capafy-loop-daily` currently has installed SHA `b2a97edfaf145f84566a2a4ab7b1c44c94243cf1`; that release contains the CP1 step-5b value `毎日の無料クォータなし`. Its 11:25:23 JST attempt `capafy-loop-daily:18de443934d22cd0-26349` exited 75 at admission with `host_admission_deferred:resource_fifo_wait`, effect `not_applicable`. The provider create/review step did not run. The last completed provider-side factory effect remains the separate 11:12:39 JST occurrence on SHA `5b566149`, whose effect is `unknown` and has no receipt. Do not replay or infer a new Agent.
+- The 8767154808 public listing remains online with `Sold 0` / `More ratings needed`; it has already passed review, but no sale is shown. No one-star review is shown.
+- `capafy-goal-monitor-hourly` remains on `5b566149`; its 11:17:26 JST natural terminal passed but the production sale-date field remains wrong. `capafy-hourly-reconcile.json` freshness is 11:07 JST; the last positive-revenue day is 2026-09-29.
+- Direct `df` at 11:25 JST reports 428,620 KiB free, below the 2 GiB floor and exact release requirement `2,394,329,088` bytes. No release cut/apply or additional video download is eligible.
+
+**Current cursor:** wait for `resource_fifo_wait` eligibility and the next natural `capafy-loop-daily` terminal; require provider inventory/readback for the exact outcome. In parallel, preserve the goal-monitor release/apply gate until disk capacity meets its exact preflight. No Agent, listing, price, or post was changed in this delta.
