@@ -4,7 +4,7 @@
 
 > **共有資源方針:** →「統括cursor — 共有資源回復と全案件の引き継ぎ」。旧floor撤去方針は現在のproducer契約により置換する。
 
-この文書は Life Manager 全体（Foundation 14ループ + Paid fulfillment）の唯一の入口。
+この文書はLife Manager全体の唯一の入口。現行18 capabilityは`apps/life-manager/config/product-loop-catalog.json`を参照し、旧14-loop構成は履歴として扱う。
 以下の文書は設計の参照資料。実行TODO・順序・状態・現在cursorの正本はこの文書だけとする。
 
 - Foundation/全体: `docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md`（Whole-ship handover / AGI addendum / Whole-ship remaining TODO）
@@ -4280,9 +4280,9 @@ current readbackでは、Coconala browser/evidence-gc/daily-report/storefront、
 - [ ] cost-complete net P&Lを計算する。完了条件: fee、tool cost、model cost込みのnet値。
 - [ ] quality evaluatorへ結果を渡す。完了条件: 改善候補がshared kernelへ戻る。
 
-## 現在の正本cursor — 14 Product Loop、observability、orchestration、cloud移行
+## 履歴参照 — 14 Product Loop、observability、orchestration、cloud移行
 
-この節がEOFの最新cursorであり、上に残る古いcursor・個別platform TODO・古いrelease SHAより優先する。過去の記録は証拠として残すが、実行順はこの節の「統合Atomic TODO」だけを使う。既に`[x]`になった項目はやり直さない。
+この節は旧14-loop時点の計画と証拠を保持する履歴。現在の共有基盤は「統括cursor — 共有資源回復と全案件の引き継ぎ」、全体の依存関係は「全体の完走順」、各laneは最新のowner checkpointを参照する。本節の古いrelease/順序が現行cursorを上書きするとは扱わない。完了済み項目を再実装せず、現在の実測で再開された修復だけを進める。
 
 ### 1. 今回固定する成果
 
@@ -17855,3 +17855,62 @@ Sales/rating values above are the buyer-search `salesVolume`/rating display, not
 - Candidate backlog refreshed at 13:40:38 JST and remains 47 total: 28 listed, 10 ready, 1 retry, and 8 submitted. Its current submitted rows still show 3 under_review and 5 drafts of existing listings. Capacity readbacks still agree that free slots are 0; their occupied counts remain inconsistent (5 versus 8), so keep the slot definition open.
 - Seller money/traffic reconciliation remains observed at 13:11 JST, and goal-monitor JSON remains at 11:07 JST. No new paid-order or MRR evidence arrived in this follow-up.
 - PR #8006 merged at 13:41:23 JST as 11553c5640bd1dd0d01d3242bcd4a0cff634f1d5. The goal-monitor freshness issue, factory slot-definition discrepancy, and distributor/outcome/IG held effects remain the active cursors.
+
+
+## README・新端末起動・meta-loopの完走像
+
+**依頼と今回の範囲:** README日英版の長さ/構成/unfinished WebMCP記述と起動commandを整理し、新利用者のsupported deviceで選択agentを一commandで導入・起動する計画と、meta-loopを含む終点までのTODOを説明する。今回はsource監査、隔離contract検証、日英全文案、spec更新。実installer/依存install/auth/wallet/provider/loop起動/release/applyなし。既存ownerと本番cursorは保持する。
+
+**根拠:** main c900bf0aa3b0d5f00ceff32d01f9d108df4c7dea。GitHub mainのREADME580行/日本語306行。install dispatch、catalog、integration graph、metaloop gate、optimizer呼出しを確認。監査と検証はdocs/evidence/readme-onboarding-meta-audit-20261014.json、設計/変更file/function/受入はdocs/superpowers/plans/2026-10-14-readme-onboarding-meta-roadmap.md。日英短縮全文案はdocs/superpowers/patches/2026-10-14-readme-onboarding/README.en.proposed.mdとREADME.ja.proposed.md（各75行、未適用）。
+
+**READMEの単一推奨:** 製品説明→Start→agent/起動範囲→起動前plan→data/account→詳細guide→North Star/MITを同じ順序へ揃える。目安100–120行以内、setup条件は削らない。WebMCP tool/Challenge-period/judge/hackathon historyと長いConnector architectureは主READMEから外し、既存参照doc/Git履歴へ残す。runtime/API削除の依頼とは扱わない。READMEに全18のfake起動commandや未実証のAGI/利益を掲載しない。
+
+### O01–O03の具体的な残対象
+
+| 対象 | 確認したas-is | 次の差分・受入 |
+|---|---|---|
+| 両README | 580/306行、section不一致、英語版のWebMCP/hackathon説明、長い起動/内部runtime情報 | 全文短縮案へ揃える。既存両name検査、startup context、North Starを保持。status/commandを同じcatalogから照合 |
+| 共通一command入口 | install.shはplan/coconala/job-hunter/connector/fundraiserのみ。defaultはAgent Economy | 既存bootstrap.shにloop選択flagをparseしcatalog ID/legacy aliasへ接続。未対応はsetup_required/理由を出す。全owner一斉起動をしない |
+| generic onboarding | bootstrap→server→integration graph、業務manifestはCoconala1本 | load_manifests/graphと_graph/_connectを18 catalogへ接続。provider ceremony manifestを第二のproduct一覧にしない |
+| 新端末の準備 | Connector/Fundraiserは既存deps/gog/CDP前提。Connectorはfixed interactive:dais | missing deps/private runtime/利用者自身のidentity/sessionを準備。既存installer/registry/immutable境界を使い、Daisの資格情報やprofileを移植しない |
+| GUI/readback | onboarding serverはraw launchctl print gui/...、非macOSでloaded数を代入する分岐 | 既存launchctl-safe/owner前提へ統一。unsupported環境をready扱いせず、GUI前提失敗後のprobeを発行しない |
+| 要件の不一致 | Job Hunter catalogはTelegram必須、configure_connectorsは任意 | 現行report transport条件を確定しrequirements/installer/説明を同じ差分で修正 |
+| 残package | Lancers/CrowdWorks/Mercor/Capafy/Writer等はpublic installer未完成。manual Investment/CFO/Mobileは有限入口 | 既存business source/selected registry ownerから一能力ずつpackageを受け入れる。workspace生成をApp公開、process開始を収益へ置換しない |
+| O02 clean-device受入 | 今回実新端末E2Eなし | 独立supported deviceで同一command→公式setup→選択owner→自然仕事/official readback→停止/再開を確認。親のprivate credential/state/runtimeを借りない |
+| O03公開再現 | repo PUBLIC/MIT、全18の一command受入は未達 | 能力別の実確認範囲・必要条件・未知・介入を公開。全18受入をREADME短縮だけの完了gateにしない |
+
+**未実装の入口案:** bootstrap.sh --loop <canonical product ID>を共通形式とし、planの一行例は実装・新利用者受入後にのみREADMEへ載せる。現在のbootstrapはこのflagを処理せず、引数を付けただけではCapafyを起動しない。first supported self-hostは宣言済みmacos-arm64、他OSはadapter受入までunsupportedを明記し、Cloudの範囲も正確に示す。
+
+**検証:** pinned install.shの未知product分岐を隔離snapshotで実行し、capafy/lancers/freelancer/crowdworks/promptbase/writer/affiliate/self-build/line-stickerの9種でexit2/stdout空、mutating分岐前の拒否を確認。OSS fixture12/12、focused pure onboarding8/8 PASS。初回の7/8/ENOENTはsnapshotのserver.js不足で、同1file追加/同check再実行でPASS。source欠陥ではない。この20契約PASSは新端末の依存取得・認証・owner・仕事・収益の証明ではない。
+
+### meta-loopはいつ、どこまで始めるか
+
+全18の修復完了をH/E/I/N/O/Gの開始条件にはしない。これは既存「全体の完走順」の方針を明確にするもので、今回の質問だけでactive F2→F5、配信EDD DD05、各Gig/Capafy cursorをreorder/dispatchしない。
+
+- **現在から:** README/source監査、自然trace採取、限定評価、candidate比較の設計/隔離試験。Writer A8a/A9/A8bとDD01–DD04は既に先行し、DD04は自然採用まで確認、current DD05。合成一致率を自然品質/利益へ読み替えない。
+- **対象を限定して:** 自然障害が揃ったH01–03、frozen baselineと実費/outcomeが揃ったI01–02、需要/契約/最小sourceを確認するN01–03。対象ownerのscope/leaseと既存F安全条件を守る。
+- **本番への自動採用:** H04はLM自身による同障害の検知→修正→PR/main→immutable→次自然成功。I03はcandidate自身が評価器/権限/receipt/fence/spend capを編集できず、actual cost/official outcomeで限定canaryを評価し、悪化はsource rollback/外部effect保持。部品PASSや外部開発sessionの手修正を閉じた自己修復としない。
+- **新市場/新agentの拡張:** N04–05/marketplace Metaは最初の検証済みlaneから一candidateを進める。候補発見だけでownerを起動せず、適格action/adapter/必要なfunded work/official canary/replay-zero/settlement/positive net/quality feedbackを接続する。全市場の完了待ちにも、未実証providerの一斉追加にもならない。
+
+**実装と運転の区別:** platform_enrollment.evaluate_platform_candidateはpolicy/adapter/funded_work/canary/unit_economicsのrecordを検査するpure gate。候補scheduler→durable state→provisioning→official settlement→shared feedbackの自然一周は未証明。receipt URLの構文検査をprovider公式照合へ置換しない。
+
+**自己改善経路の説明更新:** self-improve-evolveの入口はscheduled_runnerだが、runners.jsonはrun_evolve.shを指すoptimizer経路を持つ。sourceのquarantine_reason=verified_writeback_not_ready_until_gate_14により、run_with_contractはoptimizer childを開始せずskipped/returncode0を返す。run_evolveはpaper/backtest strategy対象で、全18収益の閉じた改善ではない。以前の「report runner」という入口説明をoptimizer不在の意味で使わない。今回live loaded ownerは再観測していないため、全versionでguard skipを実観測したとは報告しない。quarantine解除/optimizer起動0。
+
+### 全体の終点までの依存関係
+
+| 区間 | 既存正本 | 現在地/次の成果 |
+|---|---|---|
+| 共有基盤 | F1–F5 | source checkpointではF1/F3/F4完了、F2/F5未完。current F2→F5。過去のgreenや空き容量を全完了へしない |
+| 稼ぐ業務の復旧 | 各lane/Gig/Capafy/PA | 応募・交渉・funded・制作/品質・正式納品・受入・購入を自然実行/official receiptで閉じる。全18を同じ症状扱いしない |
+| 会計と実評価 | M01–M05/E01–E06/DD | 同期間のgross/refund/actual fee/payout/全実費/netと、task/quality/effect/cost/latency/介入を別々に評価。current配信EDD DD05 |
+| 自己修復 | H01–H04 | 一件の自然障害がLM内部の修復と次自然成功まで閉じる。手動編集/手動apply0の因果を記録 |
+| 自己改善 | I01–I04 | 凍結baselineとの同条件比較→限定canary→CFO/official readback→改善またはrollback。candidateは自分のgraderを変えない |
+| 新市場・新agent | N01–N05/Meta | shared kernelへ最小adapter、候補永続化、検証済みowner登録、正net unit、quality/費用feedback。agent数増加を収益にしない |
+| OSSとCloud | O01–O03/既存local-cloud節 | 日英README、選択起動、新user/tenantの再現、同一core/evidence。phone-only Cloudも対応済み範囲を明示 |
+| 収益拡大とgeneral agent | G01/既存AGI addendum | positive unit netと継続購入から$10K→$100K→$1M→既存US$10M/月以上。未知task/身体/心/ソフトウェアへの転移と外部再現は別の能力評価 |
+
+**受託/remote workの位置:** 既存Gigの実納品経路とshared paid kernelを使い、現在提供できる固定scopeの正利益を先に証明する。一般化可能なscope/品質/工数/fee lessonをshared skillへ戻し、proposal/offer/fulfillmentを改善する。顧客固有の本文/asset/credentialは他顧客や学習へ流用しない。本人がemployeeになるJob Hunterやidentity/interviewを含む仕事と、agentが許可された成果物を納品する受託を区別し、単発売上/本人給与を会社MRRへ加えない。
+
+**時間とAGIの限界:** metaの準備/評価は開始済みで、対象ごとの証拠が揃う範囲から本番一周へ進む。全18完成を一律開始gateにしないが、原goalの全18/各lane成果は未達のまま保持する。完了日を約束する根拠はない。AGI/世界順位は18 capabilityの登録、起動、合成5case、backtest scoreで達成としない。利益と未知taskへの適応を別々に検証し、一般目的のLife Managerへ広げる。
+
+**今回の完了:** 日英全文案・起動/メタの具体的差分計画・sanitizeした監査をspecへ結び、独立read-only検証で重大な事実誤りを修正し、専用branch commit/push/remote readback後に両論点と全体TODOをchatへ説明する。実装・本番・new-device成果は未実施を保持する。

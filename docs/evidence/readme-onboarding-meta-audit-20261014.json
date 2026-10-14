@@ -1,0 +1,413 @@
+{
+  "schema_version": "life-manager.readme-onboarding-meta-audit.v1",
+  "source_sha": "c900bf0aa3b0d5f00ceff32d01f9d108df4c7dea",
+  "observed_at": "2026-10-14T05:03:57.385055+00:00",
+  "scope": "source, isolated offline contracts, documentation proposals",
+  "production_mutations": 0,
+  "provider_calls": 0,
+  "auth_calls": 0,
+  "real_installers_executed": 0,
+  "readmes": {
+    "README.md": {
+      "lines": 580,
+      "sha256": "ba3a67338cb55d1f9372b672574798a450fb0f4acdda5cab712522a6806cdb75"
+    },
+    "README.ja.md": {
+      "lines": 306,
+      "sha256": "bd9e579398643dd4dc17ecc5387b4f485a0e95ae5f159a73989620ef5c938a47"
+    }
+  },
+  "catalog_count": 18,
+  "catalog_rows": [
+    {
+      "id": "gig-coconala",
+      "name": "Gig — Coconala",
+      "local": {
+        "availability": "guided",
+        "command": [
+          "./install.sh",
+          "coconala"
+        ]
+      },
+      "cloud": {
+        "availability": "setup_required",
+        "command": null
+      }
+    },
+    {
+      "id": "gig-lancers",
+      "name": "Gig — Lancers",
+      "local": {
+        "availability": "setup_required",
+        "command": null
+      },
+      "cloud": {
+        "availability": "setup_required",
+        "command": null
+      }
+    },
+    {
+      "id": "gig-crowdworks",
+      "name": "Gig — CrowdWorks",
+      "local": {
+        "availability": "setup_required",
+        "command": null
+      },
+      "cloud": {
+        "availability": "setup_required",
+        "command": null
+      }
+    },
+    {
+      "id": "gig-mercor",
+      "name": "Gig — Mercor",
+      "local": {
+        "availability": "setup_required",
+        "command": null
+      },
+      "cloud": {
+        "availability": "setup_required",
+        "command": null
+      }
+    },
+    {
+      "id": "promptbase",
+      "name": "PromptBase",
+      "local": {
+        "availability": "setup_required",
+        "command": null
+      },
+      "cloud": {
+        "availability": "setup_required",
+        "command": null
+      }
+    },
+    {
+      "id": "writer",
+      "name": "Writer",
+      "local": {
+        "availability": "setup_required",
+        "command": null
+      },
+      "cloud": {
+        "availability": "setup_required",
+        "command": null
+      }
+    },
+    {
+      "id": "affiliate",
+      "name": "Affiliate",
+      "local": {
+        "availability": "setup_required",
+        "command": null
+      },
+      "cloud": {
+        "availability": "setup_required",
+        "command": null
+      }
+    },
+    {
+      "id": "investment",
+      "name": "Investment",
+      "local": {
+        "availability": "guided",
+        "command": [
+          "python3",
+          "skills/alpaca-investment/run.py"
+        ]
+      },
+      "cloud": {
+        "availability": "setup_required",
+        "command": null
+      }
+    },
+    {
+      "id": "agent-economy",
+      "name": "Agent Economy",
+      "local": {
+        "availability": "guided",
+        "command": [
+          "./install.sh"
+        ]
+      },
+      "cloud": {
+        "availability": "guided",
+        "command": [
+          "/start"
+        ]
+      }
+    },
+    {
+      "id": "job-hunter",
+      "name": "Job Hunter",
+      "local": {
+        "availability": "guided",
+        "command": [
+          "./install.sh",
+          "job-hunter"
+        ]
+      },
+      "cloud": {
+        "availability": "setup_required",
+        "command": null
+      }
+    },
+    {
+      "id": "fundraiser",
+      "name": "Fundraiser",
+      "local": {
+        "availability": "guided",
+        "command": [
+          "./install.sh",
+          "fundraiser"
+        ]
+      },
+      "cloud": {
+        "availability": "setup_required",
+        "command": null
+      }
+    },
+    {
+      "id": "connector",
+      "name": "Connector",
+      "local": {
+        "availability": "guided",
+        "command": [
+          "./install.sh",
+          "connector"
+        ]
+      },
+      "cloud": {
+        "availability": "setup_required",
+        "command": null
+      }
+    },
+    {
+      "id": "self-build",
+      "name": "Self-Build / Product Improvement",
+      "local": {
+        "availability": "setup_required",
+        "command": null
+      },
+      "cloud": {
+        "availability": "setup_required",
+        "command": null
+      }
+    },
+    {
+      "id": "mobile-apps",
+      "name": "Mobile App Loops",
+      "local": {
+        "availability": "guided",
+        "command": [
+          "node",
+          "apps/life-manager/scripts/mobile-product-bootstrap.js",
+          "--opportunity-file",
+          "opportunity.json"
+        ]
+      },
+      "cloud": {
+        "availability": "setup_required",
+        "command": null
+      }
+    },
+    {
+      "id": "ebook",
+      "name": "eBook",
+      "local": {
+        "availability": "setup_required",
+        "command": null
+      },
+      "cloud": {
+        "availability": "setup_required",
+        "command": null
+      }
+    },
+    {
+      "id": "capafy",
+      "name": "Capafy",
+      "local": {
+        "availability": "setup_required",
+        "command": null
+      },
+      "cloud": {
+        "availability": "setup_required",
+        "command": null
+      }
+    },
+    {
+      "id": "line-sticker",
+      "name": "LINE Sticker",
+      "local": {
+        "availability": "setup_required",
+        "command": null
+      },
+      "cloud": {
+        "availability": "setup_required",
+        "command": null
+      }
+    },
+    {
+      "id": "cfo",
+      "name": "CFO",
+      "local": {
+        "availability": "guided",
+        "command": [
+          "bash",
+          "skills/cfo/run.sh"
+        ]
+      },
+      "cloud": {
+        "availability": "setup_required",
+        "command": null
+      }
+    }
+  ],
+  "dispatch": {
+    "supported_product_arguments": [
+      "plan",
+      "coconala",
+      "connector",
+      "fundraiser",
+      "job-hunter"
+    ],
+    "no_argument_target": "agent-economy",
+    "unsupported_probes": [
+      {
+        "argument": "capafy",
+        "exit_code": 2,
+        "stdout": "",
+        "boundary": "unknown-product before dependency/runtime/wallet/owner setup"
+      },
+      {
+        "argument": "lancers",
+        "exit_code": 2,
+        "stdout": "",
+        "boundary": "unknown-product before dependency/runtime/wallet/owner setup"
+      },
+      {
+        "argument": "freelancer",
+        "exit_code": 2,
+        "stdout": "",
+        "boundary": "unknown-product before dependency/runtime/wallet/owner setup"
+      },
+      {
+        "argument": "crowdworks",
+        "exit_code": 2,
+        "stdout": "",
+        "boundary": "unknown-product before dependency/runtime/wallet/owner setup"
+      },
+      {
+        "argument": "promptbase",
+        "exit_code": 2,
+        "stdout": "",
+        "boundary": "unknown-product before dependency/runtime/wallet/owner setup"
+      },
+      {
+        "argument": "writer",
+        "exit_code": 2,
+        "stdout": "",
+        "boundary": "unknown-product before dependency/runtime/wallet/owner setup"
+      },
+      {
+        "argument": "affiliate",
+        "exit_code": 2,
+        "stdout": "",
+        "boundary": "unknown-product before dependency/runtime/wallet/owner setup"
+      },
+      {
+        "argument": "self-build",
+        "exit_code": 2,
+        "stdout": "",
+        "boundary": "unknown-product before dependency/runtime/wallet/owner setup"
+      },
+      {
+        "argument": "line-sticker",
+        "exit_code": 2,
+        "stdout": "",
+        "boundary": "unknown-product before dependency/runtime/wallet/owner setup"
+      }
+    ]
+  },
+  "generic_onboarding": {
+    "business_manifests": [
+      "coconala.json"
+    ],
+    "catalog_18_connected": "not evidenced",
+    "chain": [
+      "scripts/bootstrap.sh",
+      "scripts/life-manager-onboarding-server.py",
+      "scripts/integration-onboarding.py",
+      "integrations/*.json"
+    ]
+  },
+  "clean_host_limits": [
+    "Coconala and Job Hunter have dedicated bootstrap paths; independent fresh-device acceptance remains unverified",
+    "Connector/Fundraiser activation requires existing dependencies and CDP; not full fresh-host bootstrap",
+    "Connector uses fixed interactive:dais identity; user-owned identity portability unverified",
+    "Default installer initializes an Agent Economy citizen, not all product loops",
+    "Investment/CFO are direct runners; mobile bootstrap materializes workspace/assets, not full app lifecycle",
+    "Job Hunter catalog requires Telegram, configure_connectors treats it as optional"
+  ],
+  "offline_checks": [
+    {
+      "command": "node --test --test-reporter=tap test/oss-self-contained.test.mjs",
+      "exit_code": 0,
+      "pass": 12,
+      "fail": 0
+    },
+    {
+      "command": "node --test --test-reporter=tap --test-name-pattern='^(one catalog|the same eighteen|economic source|the catalog loads|Local plans|Cloud /start|there is no start-all|Cloud provisioning)' apps/life-manager/lib/product-onboarding.test.js",
+      "exit_code": 0,
+      "pass": 8,
+      "fail": 0,
+      "initial_probe": "7/8; ENOENT server.js in temporary snapshot; dependency added, same focused rerun pass; not a source defect"
+    }
+  ],
+  "new_device_e2e": "not performed",
+  "meta": {
+    "foundation_ssot": {
+      "F1": "done",
+      "F2": "open",
+      "F3": "done",
+      "F4": "done",
+      "F5": "open",
+      "cursor": "F2 -> F5"
+    },
+    "evaluation_cursor": "DD05 after source DD01-DD04 and DD04 natural adoption; Writer A10 remains later",
+    "promotion_gate": "skills/_shared/marketplace-core/scripts/platform_enrollment.py:evaluate_platform_candidate",
+    "promotion_gate_scope": "pure record validation; no discovery/provisioning/settlement effect",
+    "self_improve_evolve_entrypoint": "skills/earn/marketing-engine/report/scheduled_runner.py",
+    "end_to_end_no_manual_self_heal": "unverified",
+    "end_to_end_settled_profit_improvement": "unverified",
+    "AGI_claim": "unverified",
+    "optimizer_command": "/bin/bash <repo>/skills/earn/self-improve/run_evolve.sh",
+    "optimizer_quarantine_reason": "verified_writeback_not_ready_until_gate_14",
+    "wrapper_quarantine_behavior": "status skipped; returncode0; optimizer child not executed",
+    "optimizer_current_scope": "paper/backtest strategy, not all18 revenue optimization",
+    "actual_loaded_evolve_behavior": "not refreshed live in this audit"
+  },
+  "source_refs": [
+    "install.sh",
+    "start-local.sh",
+    "scripts/bootstrap.sh",
+    "scripts/bootstrap-coconala.sh",
+    "scripts/bootstrap-job-hunter.sh",
+    "scripts/integration-onboarding.py",
+    "scripts/life-manager-onboarding-server.py",
+    "skills/connector/install.sh",
+    "skills/fundraiser-agent/runtime/install.sh",
+    "apps/job-search-loop/scripts/install-oss.sh",
+    "skills/_shared/marketplace-core/scripts/platform_enrollment.py"
+  ],
+  "draft_validation": {
+    "readme_en_lines": 75,
+    "readme_ja_lines": 75,
+    "catalog_names_order": "all18 matched both",
+    "code_blocks": "identical",
+    "north_star": "preserved",
+    "startup_metadata": "preserved",
+    "WebMCP_hackathon_section": "absent from drafts",
+    "runtime_repairs": 0
+  }
+}
