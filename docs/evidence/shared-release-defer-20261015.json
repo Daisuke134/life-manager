@@ -54,6 +54,19 @@
       "source_and_dependencies_unchanged_after_main_merge": true,
       "read_only_review": "pending"
     },
+    "type_and_handoff_fix": {
+      "red_tests": 3,
+      "red_failure_cases": 4,
+      "red_seconds": 3.510,
+      "green_tests": 3,
+      "green_seconds": 3.074,
+      "suite_passed": 51,
+      "suite_seconds": 72.624,
+      "source_sha256": "dfc3553b44730b2e6e4bd0bcb4d1aa5a4153cafeb458bde383b7ca7c2e882483",
+      "test_sha256": "f4e63c8147537d3ae302ffa5ab356d220cb1b81a25f8dbc22303039c4ea9ad4b",
+      "review_before_fix": "FIX-FIRST: JSON bool type and conditional self-handoff error propagation",
+      "review_after_fix": "pending"
+    },
     "production_adoption": "not_yet"
   },
   "previous_repair_natural_acceptance": {

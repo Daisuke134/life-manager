@@ -547,7 +547,7 @@ try:
     result = json.load(sys.stdin)
 except (ValueError, TypeError):
     sys.exit(1)
-sys.exit(0 if result == {
+sys.exit(0 if isinstance(result, dict) and result.get("ok") is False and result == {
     "ok": False,
     "error": "release is no longer current",
 } else 1)
@@ -567,7 +567,7 @@ for error, reason in (
     ("admission rebind refused: effect_unknown", "effect-unknown-fence"),
     ("admission rebind refused: control_busy", "admission-control-busy"),
 ):
-    if result == {"ok": False, "error": error}:
+    if isinstance(result, dict) and result.get("ok") is False and result == {"ok": False, "error": error}:
         print(reason)
         sys.exit(0)
 sys.exit(1)
@@ -740,13 +740,13 @@ schedule_self_handoff() {
   local launchctl_safe="$release_root/bin/launchctl-safe"
   [ -x "$helper_script" ] || { printf 'agent-runner self-handoff: helper missing in release\n' >&2; return 1; }
   [ -x "$launchctl_safe" ] || { printf 'agent-runner self-handoff: launchctl-safe missing in release\n' >&2; return 1; }
-  mkdir -p "$handoff_dir"
-  chmod 700 "$handoff_dir"
-  mkdir -p "$(dirname "$installed_plist")"
+  mkdir -p "$handoff_dir" || return 1
+  chmod 700 "$handoff_dir" || return 1
+  mkdir -p "$(dirname "$installed_plist")" || return 1
 
   LIFE_MANAGER_RUNTIME_PYTHON="$runtime_python" PYTHONPATH="$release_root" \
     "$runtime_python" - "$release_root" "$target_plist_tmp" "$installed_plist" \
-    "$helper_plist" "$helper_script" "$launchctl_safe" "$receipt_path" "$helper_label" "$$" <<'PY'
+    "$helper_plist" "$helper_script" "$launchctl_safe" "$receipt_path" "$helper_label" "$$" <<'PY' || return 1
 import json, os, plistlib, sys, tempfile
 from pathlib import Path
 from runtime.loop.lm_loop_apply import _plist, _preserve_operational_attributes
@@ -815,7 +815,7 @@ PY
     printf 'agent-runner self-handoff: helper already loaded for release %s\n' "$release_sha" >&2
     return 0
   fi
-  "$SCRIPT_ROOT/bin/launchctl-safe" bootstrap "gui/$(id -u)" "$helper_plist"
+  "$SCRIPT_ROOT/bin/launchctl-safe" bootstrap "gui/$(id -u)" "$helper_plist" || return 1
   printf 'agent-runner self-handoff: scheduled release %s after parent exit\n' "$release_sha" >&2
 }
 
