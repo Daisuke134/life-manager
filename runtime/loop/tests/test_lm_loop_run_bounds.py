@@ -1416,9 +1416,16 @@ def test_detached_grandchild_stderr_write_after_run_returns_does_not_epipe(tmp_p
     assert result == 1
     assert not (scratch / "entrypoint-stderr.log").exists()
     deadline = time.monotonic() + 5
-    while not marker.exists() and time.monotonic() < deadline:
+    marker_text = ""
+    while time.monotonic() < deadline:
+        try:
+            marker_text = marker.read_text()
+        except FileNotFoundError:
+            marker_text = ""
+        if marker_text == "ok":
+            break
         time.sleep(0.05)
-    assert marker.read_text() == "ok"
+    assert marker_text == "ok"
 
 
 def test_acquired_slot_keeps_the_full_entrypoint_runtime_budget(tmp_path):

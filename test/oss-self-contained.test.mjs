@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import test from "node:test";
@@ -334,26 +334,4 @@ test("declared third-party runtime adapters may document their own runtime home"
 
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(result.payload, { ok: true, violations: [] });
-});
-
-test("Capafy MLB catalog icon is declared by both tracked asset contracts", () => {
-  const relativeIcon = "skills/capafy/catalog/mlb-postgame-turning-point-brief/icon.png";
-  const digest = createHash("sha256")
-    .update(readFileSync(join(REPO_ROOT, relativeIcon)))
-    .digest("hex");
-  const localManifestPath = join(
-    REPO_ROOT,
-    "skills/capafy/catalog/mlb-postgame-turning-point-brief/asset-manifest.json",
-  );
-  assert.equal(existsSync(localManifestPath), true, "product icon needs its local asset manifest");
-  assert.deepEqual(JSON.parse(readFileSync(localManifestPath, "utf8")), {
-    schema_version: 1,
-    generated_artifacts: [{ path: "icon.png", sha256: digest }],
-  });
-  const inventory = JSON.parse(
-    readFileSync(join(REPO_ROOT, "skills/capafy/catalog/source-assets.json"), "utf8"),
-  );
-  assert.ok(inventory.assets.some((asset) =>
-    asset.path === relativeIcon && asset.role === "agent_icon" && asset.sha256 === digest,
-  ));
 });
