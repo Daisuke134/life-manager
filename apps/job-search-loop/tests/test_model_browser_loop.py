@@ -626,6 +626,20 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
                 "observed_row_without_terminal_outcome",
             )
 
+    def test_invalid_utf8_queue_evidence_requires_semantic_retry(self):
+        from job_search_loop.browser_agent import orchestrator
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_queue_complete_observe_fixture(root, ("queue_complete",))
+            self._write_wake_queue_evidence(root, (), ())
+            (root / "workday-discovery.json").write_bytes(b"\xff")
+
+            self.assertEqual(
+                orchestrator.validate_pass_result(root),
+                "observed_row_without_terminal_outcome",
+            )
+
     def test_blocked_rows_are_terminal_after_completed_ids_drain_discovery_queue(self):
         from job_search_loop.browser_agent import orchestrator
 

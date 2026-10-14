@@ -53,7 +53,7 @@ def _has_unprocessed_discovery_rows(evidence_dir: Path) -> bool:
     try:
         discovery = json.loads(discovery_path.read_text(encoding="utf-8"))
         completed = json.loads(completed_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
+    except (OSError, UnicodeError, json.JSONDecodeError):
         return True
     if not isinstance(discovery, dict) or not isinstance(completed, dict):
         return True
