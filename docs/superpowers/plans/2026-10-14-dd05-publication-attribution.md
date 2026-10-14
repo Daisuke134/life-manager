@@ -105,10 +105,16 @@ Gate 13 `gate_pass` means the snapshot is structurally complete, contains no fab
 - [x] Commit and push the initial SSOT, plan, and implementation (`84714bf8cb9454deda7aa2fdb427aa77b2a0fa93`); PR #8009 is open.
 - [x] Merge latest `origin/main` (`c900bf0aa3b0d5f00ceff32d01f9d108df4c7dea`) into the DD05 branch locally (`143ff3ea743e9137f1d5de3b2397e4bc2a5d292d`); the merge adds seven upstream SSOT lines without conflicts.
 - [x] Push the latest-main merge plus the refreshed SSOT cursor and Task 5 list (`82d877ed42ec325732b50739f8c11a0db26c9b4c`); verify the remote branch and PR point to that head.
+- [x] Merge newer `origin/main` (`513704a5e0ce8a144573322a3ae17ee930d5ee21`) locally as `48031faf42f6509887c54d28a66213cf5b2c73b4`; no conflict, only the canonical SSOT auto-merged.
+- [x] Verify the preceding exact PR head `506f210403aec002f239e0fc28bdbbb5b602bbfd` passed all 11 CI jobs and CodeRabbit. This is historical evidence only; it does not cover the newer main merge.
+- [x] Merge current `origin/main` (`0a22b9f1bed2a9f7a2d9d3e24cf008521b3122b1`) locally as `7381c7de983ce766e274d18098db77cc244b9c97`; no conflict, 13 upstream SSOT lines added.
+- [x] Push the latest-main merge plus this refreshed SSOT/Task 5 cursor; confirm the remote PR head after push.
 - [ ] Require exact-head CI to pass, then merge to main under the repository's merge policy.
 - [ ] Allow the existing release reconciler to ship the immutable main release and apply only when the truth owner is idle and its owner lock is clear.
-- [ ] Let the registered cleanup owner produce a fresh cleanup receipt and restore eligible release capacity; do not stop active processes or delete protected paths.
+- [ ] Let the registered cleanup owner produce a fresh receipt and restore release capacity. Its 05:16Z run passed, but `last-receipt.json` is still from 2026-10-10 and `df` showed 918,028 KiB available at 05:17Z; do not stop active processes or delete protected paths.
 - [ ] Let the existing fence reconciler resolve `capafy-distribute-daily:18de4680b4bcfe18-18857` from exact provider evidence; do not manually wake the publisher, clear the fence, or replay the occurrence.
-- [ ] Reconcile the four owner-report `sending` / `delivery_unknown` message keys from exact Telegram MTProto history through `OwnerReportStore.reconcile_delivery()`; do not resend or edit the delivery ledger manually.
+- [x] Reconcile `checkpoint:anicca-ios:postiz:cmv2xvo4717ywqz0ynar3tp1r:24` through `OwnerReportStore.reconcile_delivery()` using exact Cloud-bot MTProto history: message ID `111504`, matching the unique stored event text hash. No send occurred.
+- [x] Refresh the prior four-key snapshot: that snapshot's `action:anicca-ios:18096103553103372` is absent from current canonical report/delivery ledgers; three unknown rows remained, and the exact-history reconciliation reduced the current set to two.
+- [ ] Reconcile the two remaining `delivery_unknown` keys only if exact MTProto history proves delivery; otherwise preserve `unknown` and do not resend or edit the ledger manually.
 - [ ] Verify the first natural `marketing-owner-events` pass from the new SHA and its attribution-sweep evidence; if the live ledger still has no intent-bound rows, report that exact coverage gap without claiming attribution completion.
 - [ ] Keep DD05 open while attribution is absent or unverified; advance the SSOT cursor to DD06 only after natural owner readback and exact sweep evidence are verified.
