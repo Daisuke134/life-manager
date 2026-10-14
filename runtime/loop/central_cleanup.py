@@ -12,6 +12,7 @@ import stat
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from contextlib import ExitStack, contextmanager
 from pathlib import Path
@@ -683,9 +684,26 @@ def git_duplicate_cleanup(source_repo: Path) -> dict:
         if source_repo.stat().st_uid != os.getuid():
             raise ValueError("source repository owner mismatch")
         def git(*args):
-            return subprocess.run(["git", "-C", str(source_repo), *args],
+            command = ["git", "-C", str(source_repo), *args]
+            environment = {**os.environ, "LC_ALL": "C"}
+            if args[:2] == ("maintenance", "run"):
+                from runtime.loop.lm_loop_run import _run_entrypoint
+                with tempfile.TemporaryFile(mode="w+") as stdout, \
+                     tempfile.TemporaryFile(mode="w+") as stderr:
+                    code = _run_entrypoint(command, env=environment, timeout_seconds=15,
+                        termination_grace_seconds=15, stdout_capture_fd=stdout.fileno(),
+                        stderr_capture_fd=stderr.fileno())
+                    stdout.seek(0)
+                    stderr.seek(0)
+                    completed = subprocess.CompletedProcess(command, code, stdout.read(), stderr.read())
+                if code == 124:
+                    raise subprocess.TimeoutExpired(command, 15,
+                        output=completed.stdout, stderr=completed.stderr)
+                completed.check_returncode()
+                return completed
+            return subprocess.run(command,
                 capture_output=True, text=True, timeout=15, check=True,
-                env={**os.environ, "LC_ALL": "C"})
+                env=environment)
         def count():
             lines = git("count-objects", "-v").stdout.splitlines()
             return {name: int(next(line.partition(":")[2] for line in lines
@@ -864,6 +882,7 @@ def main() -> int:
                    "codex_storage": codex_result,
                    "host_cleanup": host_result,
                    "scratch_cleanup": scratch_result,
+                   "run_binding": binding,
                    "idle_reconcile": [],
                    "shared_cache_candidates": 0, "orphan_candidates": 0})
     print(json.dumps(result, sort_keys=True, separators=(",", ":")))

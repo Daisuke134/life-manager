@@ -1359,6 +1359,21 @@ def test_entrypoint_stderr_capture_replays_bounded_slices_for_large_output(
     assert list(scratch.iterdir()) == []
 
 
+def test_entrypoint_captures_stdout_and_stderr_without_replaying_them(tmp_path, capfd):
+    with (tmp_path / "stdout").open("w+b") as stdout, \
+         (tmp_path / "stderr").open("w+b") as stderr:
+        result = _run_entrypoint(
+            [sys.executable, "-B", "-c", "import os; os.write(1,b'out\\n'); os.write(2,b'err\\n')"],
+            timeout_seconds=5, stdout_capture_fd=stdout.fileno(), stderr_capture_fd=stderr.fileno())
+        stdout.seek(0)
+        stderr.seek(0)
+        assert stdout.read() == b"out\n"
+        assert stderr.read() == b"err\n"
+    assert result == 0
+    captured = capfd.readouterr()
+    assert captured.out == "" and captured.err == ""
+
+
 def test_entrypoint_without_stderr_capture_is_unaffected(capfd):
     child = "import sys; sys.stderr.write('untouched\\n'); sys.exit(1)"
 
