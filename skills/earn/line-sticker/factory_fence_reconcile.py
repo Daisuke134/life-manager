@@ -15,7 +15,8 @@ images, set tags, request review). ``factory._submit`` records those steps in th
   - ``state_observed`` / ``purchase_url`` / ``store_public`` / ``last_auto_resubmit_at`` are written
     by readback and are never evidence.
 
-  - No hit and enough time has passed: close as no-effect.
+  - No hit: local absence is not proof that LINE saw no effect; keep the occurrence fenced until an
+    exact official no-effect readback is available.
   - Every hit an item with a product_id that readback has seen on Creators Market: a finished
     submission (review_requested, official status) or one stopped mid-flight that LINE lists as 編集中
     (submit resumes from the recorded item): close as effected, citing those.
@@ -29,6 +30,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import re
 import sqlite3
 import sys
 from pathlib import Path
@@ -40,10 +42,6 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 OWNER_ID = "line-sticker-factory-hourly"
-# A wake can run for up to the loop's runtime (5400 s); the file check is local and exact, so only
-# a short settle time is needed for a late writer to finish.
-MAX_RUN_SECONDS = 5400
-NO_EFFECT_MIN_AGE_SECONDS = 300
 STATE_ROOT = Path.home() / ".local/state/life-manager/line-sticker"
 MID_SUBMISSION_STATES = frozenset({"metadata_saved", "images_uploaded", "tagged"})
 FACTORY_TIME_FIELDS = ("created_at", "review_requested_at")
@@ -53,17 +51,58 @@ OFFICIAL_STATUSES = frozenset({"審査待ち", "審査中", "承認", "販売中
 DRAFT_STATUS = "編集中"
 
 
+def _has_terminal_unknown_event(state_root: Path, occurrence_id: str) -> bool:
+    path = state_root / "events.jsonl"
+    try:
+        size = path.stat().st_size
+        offset = max(0, size - 4 * 1024 * 1024)
+        with path.open("rb") as handle:
+            handle.seek(offset)
+            payload = handle.read(4 * 1024 * 1024)
+    except OSError:
+        return False
+    lines = payload.splitlines()
+    if offset and lines:
+        lines = lines[1:]
+    releases = set()
+    for line in lines:
+        try:
+            event = json.loads(line)
+        except (UnicodeError, json.JSONDecodeError):
+            continue
+        if (not isinstance(event, dict)
+                or event.get("loop_id") != OWNER_ID
+                or event.get("owner_id") != OWNER_ID
+                or event.get("occurrence_id") != occurrence_id
+                or event.get("phase") != "report"
+                or event.get("status") not in {"blocked", "failed"}
+                or event.get("effect_status") != "unknown"
+                or not isinstance(event.get("effect_class"), str)
+                or event.get("effect_class") == "none"):
+            continue
+        release_sha = event.get("release_sha")
+        if isinstance(release_sha, str) and re.fullmatch(r"[a-f0-9]{40}", release_sha):
+            releases.add(release_sha)
+        else:
+            return False
+    return len(releases) == 1
+
+
 def fenced_row(owner_id: str, occurrence_id: str) -> tuple[str, dt.datetime]:
     from runtime.host import resource_admission
 
     database = resource_admission.state_root() / "admission-v2.sqlite3"
     with sqlite3.connect(f"file:{database}?mode=ro", uri=True) as connection:
         row = connection.execute(
-            """SELECT state, queued_at FROM occurrences
-                 WHERE owner_id=? AND occurrence_id=? AND effect_unknown=1""",
+            """SELECT state, queued_at, effect_unknown FROM occurrences
+                 WHERE owner_id=? AND occurrence_id=?""",
             (owner_id, occurrence_id),
         ).fetchone()
     if row is None or row[1] is None:
+        raise ValueError("occurrence is not an effect_unknown row")
+    if row[2] != 1 and not (
+            str(row[0]) == "released" and row[2] == 0
+            and _has_terminal_unknown_event(STATE_ROOT, occurrence_id)):
         raise ValueError("occurrence is not an effect_unknown row")
     return str(row[0]), dt.datetime.fromtimestamp(float(row[1]), dt.timezone.utc)
 
@@ -134,13 +173,8 @@ def build_proof(occurrence_id: str, queued_at: dt.datetime, *, now: dt.datetime,
         proof["reason"] = "state_touched_after_run_start:" + ",".join(hits)
         return proof
     age = (now - queued_at).total_seconds()
-    if age <= NO_EFFECT_MIN_AGE_SECONDS:
-        proof["reason"] = f"too_recent:{int(age)}s<={NO_EFFECT_MIN_AGE_SECONDS}s"
-        return proof
-    proof.update(verified=True, effected=False,
-                 provider_receipt_id=f"line-sticker-state-untouched-since:{queued_at.isoformat()}",
-                 proof_kind="factory_state_files_unmodified_since_run_start",
-                 checked_at=now.isoformat(timespec="seconds"))
+    proof.update(reason="official_line_no_effect_readback_required",
+                 elapsed_seconds=max(0, int(age)))
     return proof
 
 

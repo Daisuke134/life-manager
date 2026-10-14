@@ -9,6 +9,7 @@
     "ai.anicca.provision-browser.buyma.na-l5-client",
     "ai.anicca.provision-browser.colors-hachioji.owner-18211957",
     "ai.anicca.provision-browser.instagram.capafy-provision",
+    "ai.anicca.provision-browser.promptbase.dais",
     "ai.anicca.provision-browser.tiktok-anicca-jp",
     "ai.anicca.provision-browser.upwork.dais",
     "ai.anicca.provision-browser.x.anicca",
@@ -926,7 +927,7 @@
         "max_runs": 100
       },
       "domain": "earn",
-      "effect_class": "publish",
+      "effect_class": "none",
       "effect_reconcile": {"argv": ["skills/earn/line-sticker/readback_fence_reconcile.py"], "occurrence_flag": "--occurrence", "resolve_flag": "--resolve", "timeout_seconds": 60}, "entrypoint": "skills/earn/line-sticker/line-sticker-readback.sh",
       "browser_identity": "line-creators:dais",
       "browser_target_owner": "line-creators-browser",
@@ -3212,7 +3213,21 @@
         "max_runs": 100
       },
       "domain": "growth",
-      "effect_class": "publish",
+      "effect_class": "message",
+      "effect_reconcile": {
+        "argv": [
+          "apps/life-manager/scripts/marketing-metrics-effect-reconcile.py",
+          "--owner-id",
+          "life-manager-instagram-metrics",
+          "--state-root",
+          "~/.local/state/life-manager",
+          "--data-root",
+          "~/.local/state/life-manager"
+        ],
+        "occurrence_flag": "--occurrence-id",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 60
+      },
       "entrypoint": "apps/life-manager/scripts/instagram-metrics-production-boot.sh",
       "label": "ai.anicca.life-manager-instagram-metrics",
       "log_root": "~/.local/state/life-manager/logs",
@@ -3364,7 +3379,21 @@
         "max_runs": 100
       },
       "domain": "growth",
-      "effect_class": "publish",
+      "effect_class": "message",
+      "effect_reconcile": {
+        "argv": [
+          "apps/life-manager/scripts/marketing-metrics-effect-reconcile.py",
+          "--owner-id",
+          "life-manager-tiktok-metrics",
+          "--state-root",
+          "~/.local/state/life-manager",
+          "--data-root",
+          "~/.local/state/life-manager"
+        ],
+        "occurrence_flag": "--occurrence-id",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 60
+      },
       "entrypoint": "apps/life-manager/scripts/tiktok-metrics-production-boot.sh",
       "label": "ai.anicca.life-manager-tiktok-metrics",
       "log_root": "~/.local/state/life-manager/logs",

@@ -34,7 +34,7 @@ if str(HERE) not in sys.path:
 
 import seedance_set  # noqa: E402
 from chatgpt_image_backend import (  # noqa: E402
-    ChatGptImageGenUnavailable, run_session_name, timeout_failure,
+    ChatGptImageGenUnavailable, timeout_failure,
 )
 
 CLI = Path.home() / ".agents/skills/chatgpt-imagegen/chatgpt-imagegen"
@@ -60,17 +60,15 @@ def sheet_prompt(character_prompt: str, motion_prompt: str) -> str:
 def generate_sheet(prompt: str, out_path: Path, *, timeout: int = 280) -> None:
     if not CLI.is_file():
         raise ChatGptImageGenUnavailable(f"chatgpt-imagegen is not installed at {CLI}")
-    session = run_session_name()
     try:
         done = subprocess.run(
             [str(CLI), prompt, "-o", str(out_path), "--size", "1024x1024", "--backend", "auto",
-             "--profile", "relay", "--quiet", "--timeout", str(timeout),
-             "--session", session],
+             "--profile", "relay", "--quiet", "--timeout", str(timeout)],
             capture_output=True, text=True, timeout=timeout + 30, check=False,
         )
     except subprocess.TimeoutExpired as exc:
         out_path.unlink(missing_ok=True)
-        raise timeout_failure(session) from exc
+        raise timeout_failure() from exc
     if done.returncode != 0 or not out_path.is_file() or out_path.stat().st_size == 0:
         out_path.unlink(missing_ok=True)
         raise ChatGptImageGenUnavailable(f"chatgpt-imagegen failed rc={done.returncode}: {done.stderr[-400:]}")

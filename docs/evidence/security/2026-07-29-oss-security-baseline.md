@@ -176,5 +176,17 @@ filesystem/history reports verified secrets zero on the clean PR head.
 Only this exact fingerprint is added to .gitleaksignore:
 68e8bc2888ff119b59c6f65c67ef63759af20af9:docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md:generic-api-key:3848
 
+## Addendum 2026-10-14 — synthetic Hook Lab attribution fixtures
+
+PR #7971's first Gitleaks run (`38472309335`) found five `generic-api-key`
+fingerprints in earlier revisions of `skills/earn/marketing-engine/measure/test_experiment_attribution.py`.
+They were deterministic first-party campaign IDs placed in test-only
+`attribution_token` fields; they are not provider credentials and were not sent
+to Capafy. Current fixtures derive those IDs from the public test identity via
+`publication_campaign_token`, so the current-file redacted Gitleaks scan reports
+zero findings. The five old commit/path/rule/line fingerprints are individually
+recorded in `.gitleaksignore`; no rule, path, or directory-wide suppression was
+added. The full-history scan is rerun on the PR head before merge.
+
 The full-history scan remains enabled. A match at a different commit, path,
 rule, or line is not suppressed.

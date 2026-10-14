@@ -9,6 +9,7 @@ const path = require("node:path");
 const test = require("node:test");
 
 const { createMarketingLocalLedger } = require("./marketing-local-ledger.js");
+const { buildMarketingLivenessJob } = require("./marketing-liveness-adapter.js");
 const {
   createMarketingLaneManifest,
   writeMarketingLaneManifest,
@@ -293,6 +294,69 @@ test("local ledger uses the portable runtime data root and rejects legacy roots"
     () => createMarketingLocalLedger({ dataDir: "/srv/anicca/marketing" }),
     /legacy runtime root/i,
   );
+});
+
+test("message enqueue and receipt records are fsynced before returning", async () => {
+  const dataDir = tempDataDir();
+  const ledger = createMarketingLocalLedger({ dataDir, now: () => "2026-10-13T20:00:00.000Z" });
+  const job = buildMarketingLivenessJob({
+    tenantId: "dais-local",
+    telegramTokenRef: "secret://telegram/bot-token",
+    telegramChatRef: "telegram-chat://owner",
+    payload: {
+      lane: "test-lane", product: "anicca-ios", locale: "en", platform: "multi",
+      status: "summary", period: "daily", observed_at: "2026-10-13T20:00:00.000Z",
+      summary_ref: `object://sha256/${"a".repeat(64)}`,
+    },
+  });
+  const jobsFile = path.join(dataDir, "marketing", "jobs.jsonl");
+  const receiptsFile = path.join(dataDir, "marketing", "receipts.jsonl");
+  const operations = [];
+  const originalAppend = fs.appendFileSync;
+  const originalFsync = fs.fsyncSync;
+  const hasFileDescriptor = (fd, file) => {
+    try {
+      const left = fs.fstatSync(fd);
+      const right = fs.statSync(file);
+      return left.dev === right.dev && left.ino === right.ino;
+    } catch {
+      return false;
+    }
+  };
+  fs.appendFileSync = (file, ...args) => {
+    const result = originalAppend(file, ...args);
+    if (file === jobsFile) operations.push("jobs_append");
+    if (file === receiptsFile) operations.push("receipts_append");
+    return result;
+  };
+  fs.fsyncSync = (fd) => {
+    if (hasFileDescriptor(fd, jobsFile)) operations.push("jobs_fsync");
+    if (hasFileDescriptor(fd, receiptsFile)) operations.push("receipts_fsync");
+    return originalFsync(fd);
+  };
+
+  try {
+    await ledger.enqueueJob(job);
+    assert.deepEqual(operations, ["jobs_append", "jobs_fsync"]);
+    const claim = await ledger.claimJob({
+      tenantId: job.tenant_id, jobId: job.job_id, capability: job.capability,
+      workerId: "metrics-test", leaseSeconds: 30,
+    });
+    await ledger.completeJob({
+      tenantId: job.tenant_id, jobId: job.job_id, attempt: claim.attempt,
+      workerId: "metrics-test", receipt: {
+        schema_version: 1, kind: "telegram_marketing_liveness",
+        message_id: 1, chat_id_hash: "b".repeat(64), sent_at: "2026-10-13T20:00:00.000Z",
+      },
+    });
+    assert.deepEqual(operations.slice(-4), [
+      "receipts_append", "receipts_fsync", "jobs_append", "jobs_fsync",
+    ]);
+    assert.ok(operations.includes("receipts_fsync"));
+  } finally {
+    fs.appendFileSync = originalAppend;
+    fs.fsyncSync = originalFsync;
+  }
 });
 
 test("local JSONL jobs project through the common Job contract without rewriting storage", async () => {

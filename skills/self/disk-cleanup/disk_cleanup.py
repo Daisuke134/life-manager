@@ -62,6 +62,15 @@ SLIDE_PACK_DIRECTORY_PATTERN = re.compile(
 )
 SLIDE_PACK_FIXTURE_PATTERN = re.compile(r"slide-pack-fixture-bg-\d{5,6}\.png")
 PYTEST_RUN_PATTERN = re.compile(r"pytest-\d+")
+TEST_CANARY_DIRECTORY_PATTERNS = tuple(re.compile(pattern) for pattern in (
+    r"lm-larry-ja-canary-[A-Za-z0-9]{6}",
+    r"lm-anicca-en-affirmation-canary-[A-Za-z0-9]{6}",
+    r"lm-anicca-en-tiktok-canary-[A-Za-z0-9]{6}",
+    r"lm-jp1-production-controls-[A-Za-z0-9]{6}",
+    r"lm-canary-(?:script-test|postiz-preflight|postiz-verifier|missing-receipt|promoted-restart|reconciling|main-test)-[A-Za-z0-9]{6}",
+))
+TEST_CANARY_MARKER_NAME = ".lm-test-canary"
+TEST_CANARY_MARKER_CONTENT = b"life-manager-canary-test-v1\n"
 # A release is ~1.2GiB, so unbounded generations fill the disk on their own.
 # Main plus the current immutable release are the rollback source. Older
 # unreferenced, closed generations must not consume another 1.2 GiB each.
@@ -107,6 +116,47 @@ GLOBAL_OPEN_PROBE_NAMES = frozenset(Path(relative).name for relative in EXACT_CA
 class _ReceiptAtomicFailure(Exception):
     def __init__(self, error: OSError) -> None:
         self.error = error
+
+
+def _test_canary_identity(path: Path) -> tuple[object, ...] | None:
+    """Bind stale test-TMPDIR cleanup to one marker and the exact directory identity."""
+    marker = path / TEST_CANARY_MARKER_NAME
+    try:
+        path_info = path.lstat()
+        marker_info = marker.lstat()
+        if (not stat.S_ISDIR(path_info.st_mode) or path_info.st_uid != os.getuid()
+                or not stat.S_ISREG(marker_info.st_mode) or marker_info.st_uid != os.getuid()
+                or stat.S_IMODE(marker_info.st_mode) & 0o077
+                or marker_info.st_size != len(TEST_CANARY_MARKER_CONTENT)):
+            return None
+        content = marker.read_bytes()
+        if content != TEST_CANARY_MARKER_CONTENT:
+            return None
+        current_path = path.lstat()
+        current_marker = marker.lstat()
+        path_identity = (
+            path_info.st_dev, path_info.st_ino, path_info.st_mode,
+            path_info.st_uid, path_info.st_mtime_ns, path_info.st_ctime_ns,
+        )
+        marker_identity = (
+            marker_info.st_dev, marker_info.st_ino, marker_info.st_mode,
+            marker_info.st_uid, marker_info.st_size, marker_info.st_mtime_ns,
+            marker_info.st_ctime_ns,
+        )
+        if path_identity != (
+            current_path.st_dev, current_path.st_ino, current_path.st_mode,
+            current_path.st_uid, current_path.st_mtime_ns, current_path.st_ctime_ns,
+        ):
+            return None
+        if marker_identity != (
+            current_marker.st_dev, current_marker.st_ino, current_marker.st_mode,
+            current_marker.st_uid, current_marker.st_size, current_marker.st_mtime_ns,
+            current_marker.st_ctime_ns,
+        ):
+            return None
+        return path_identity, marker_identity, hashlib.sha256(content).hexdigest()
+    except OSError:
+        return None
 
 
 def classify_tier(free_bytes: int) -> str:
@@ -1369,6 +1419,15 @@ class HostDiskGovernor:
             temporary = set(_temporary_roots(temporary_path))
         except OSError:
             return False
+        if item.get("class") == "ephemeral" and item.get("owner") == "test-canary":
+            proof = item.get("test_canary_identity")
+            return (
+                resolved.parent in temporary
+                and any(pattern.fullmatch(resolved.name) for pattern in TEST_CANARY_DIRECTORY_PATTERNS)
+                and _old_real_temporary_path(resolved)
+                and isinstance(proof, tuple)
+                and _test_canary_identity(resolved) == proof
+            )
         if item.get("class") == "ephemeral" and item.get("owner") == "temporary-run":
             old = _old_real_temporary_path(path)
             legacy_cache = (
@@ -1750,13 +1809,18 @@ class HostDiskGovernor:
             if deadline is not None and self.clock() >= deadline:
                 preserve("probe-budget-exhausted")
                 continue
-            if self._protected(path):
-                preserve("protected_path")
-                continue
             if item.get("class") not in {"ephemeral", "regenerable_output"}:
                 preserve("unknown_class")
                 continue
-            if not self._allowlisted_candidate(path, item):
+            test_canary_proven = (
+                item.get("class") == "ephemeral"
+                and item.get("owner") == "test-canary"
+                and self._allowlisted_candidate(path, item)
+            )
+            if self._protected(path) and not test_canary_proven:
+                preserve("protected_path")
+                continue
+            if not test_canary_proven and not self._allowlisted_candidate(path, item):
                 preserve("unknown_artifact")
                 continue
             if self._active_lease(item):
@@ -1789,7 +1853,7 @@ class HostDiskGovernor:
                 preserve(state)
                 continue
             if (
-                item.get("owner") in {"codex-app-updater", "clang-module-cache"}
+                item.get("owner") in {"codex-app-updater", "clang-module-cache", "test-canary"}
                 and not self._allowlisted_candidate(path, item)
             ):
                 result["errors"] += 1
@@ -1805,6 +1869,7 @@ class HostDiskGovernor:
             whole_tree_is_the_unit = path.is_file() or item.get("owner") in {
                 "browser", "codex-app-updater", "codex-runtime-cache", "whisper-model-cache",
                 "release-retention", "zombie-worktree", "clang-module-cache", "worktree-dependencies",
+                "test-canary",
             } | set(EXACT_CACHE_ROOTS)
             descendant_state = None if whole_tree_is_the_unit else self._protected_descendant(
                 path, deadline=deadline,
@@ -1835,7 +1900,7 @@ class HostDiskGovernor:
                     preserve("probe-budget-exhausted")
                     continue
                 if (
-                    item.get("owner") in {"codex-app-updater", "clang-module-cache"}
+                    item.get("owner") in {"codex-app-updater", "clang-module-cache", "test-canary"}
                     and not self._allowlisted_candidate(path, item)
                 ):
                     result["errors"] += 1
@@ -2192,6 +2257,16 @@ class HostDiskGovernor:
                 if deadline is not None and self.clock() >= deadline:
                     break
                 old = _old_real_temporary_path(child)
+                if old and any(pattern.fullmatch(child.name) for pattern in TEST_CANARY_DIRECTORY_PATTERNS):
+                    identity = _test_canary_identity(child)
+                    if identity is not None:
+                        candidates.append({
+                            "path": child,
+                            "class": "ephemeral",
+                            "owner": "test-canary",
+                            "discovery": "allowlisted",
+                            "test_canary_identity": identity,
+                        })
                 exact_family = (
                     child.name == "capafy-hf-npm-cache"
                     or child.name.startswith("capafy-hf-npm.")

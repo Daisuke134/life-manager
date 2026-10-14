@@ -1134,6 +1134,17 @@ def _project_cause_event(row: dict | None) -> dict | None:
         return None
     return {
         "timestamp": row.get("timestamp"),
+        "event_id": row.get("event_id"),
+        "loop_id": row.get("loop_id"),
+        "job_id": row.get("job_id"),
+        "owner_id": row.get("owner_id"),
+        "run_id": row.get("run_id"),
+        "wake_id": row.get("wake_id"),
+        "occurrence_id": row.get("occurrence_id"),
+        "release_sha": row.get("release_sha"),
+        "provider": row.get("provider"),
+        "loaded_argv_sha256": row.get("loaded_argv_sha256"),
+        "loaded_env_sha256": row.get("loaded_env_sha256"),
         "phase": row.get("phase"),
         "status": row.get("status"),
         "blocker": row.get("blocker"),
@@ -1147,9 +1158,15 @@ def _project_cause_event(row: dict | None) -> dict | None:
     }
 
 
-def _latest_run_row(runtime_rows: list[dict], run_id: str) -> dict | None:
-    """The last journal row for a run_id, by timestamp order in the file."""
-    matching = [row for row in runtime_rows if row.get("run_id") == run_id]
+def _latest_occurrence_row(
+    runtime_rows: list[dict], owner_id: str, occurrence_id: str,
+) -> dict | None:
+    """The latest journal row for this owner's exact occurrence."""
+    matching = [
+        row for row in runtime_rows
+        if row.get("owner_id") == owner_id
+        and row.get("occurrence_id") == occurrence_id
+    ]
     if not matching:
         return None
 
@@ -1166,8 +1183,7 @@ def _admission_effect_unknown_detail(
     loop_id: str, occurrence_id: str, state: str, queued_at: object,
     cause_event: dict | None, auto_close_reason: str,
 ) -> dict:
-    prefix = f"{loop_id}:"
-    run_id = occurrence_id[len(prefix):] if occurrence_id.startswith(prefix) else occurrence_id
+    run_id = cause_event.get("run_id") if cause_event else None
     if auto_close_reason == "ok":
         next_action = "lm-loop reconcile"
     elif cause_event is None:
@@ -1226,9 +1242,8 @@ def _admission_effect_unknown_details(
             loop_id, entry, occurrence_id, state, runtime_rows,
             queued_at=float(queued_at) if queued_at is not None else float("inf"),
             history_start=history_start)
-        prefix = f"{loop_id}:"
-        run_id = occurrence_id[len(prefix):] if occurrence_id.startswith(prefix) else occurrence_id
-        cause_event = _project_cause_event(_latest_run_row(runtime_rows, run_id))
+        cause_event = _project_cause_event(
+            _latest_occurrence_row(runtime_rows, loop_id, occurrence_id))
         details.append(_admission_effect_unknown_detail(
             loop_id, occurrence_id, state, queued_at, cause_event, proof_reason))
     return details, truncated
@@ -1576,6 +1591,7 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
             "effect_class": entry["effect_class"],
             "effect_status": effect_status,
             "event_release_sha": event.get("release_sha"),
+            "registered_cadence": entry.get("cadence"),
             "next_eligible_run": _next_eligible(entry["cadence"]),
             "blocker": blocker,
             "admission_effect_unknown": current_effect_unknown,
@@ -1708,6 +1724,24 @@ def explain_status_row(row: dict) -> dict:
             "wake_id": row.get("wake_id"),
             "occurrence_id": row.get("occurrence_id"),
             "phase": row.get("phase"),
+        },
+        "run_identity": {
+            "job_id": row.get("job_id"),
+            "owner_id": row.get("owner_id"),
+            "run_id": row.get("run_id"),
+            "wake_id": row.get("wake_id"),
+            "occurrence_id": row.get("occurrence_id"),
+            "event_release_sha": row.get("event_release_sha"),
+            "loaded_argv_sha256": row.get("loaded_argv_sha256"),
+            "loaded_env_sha256": row.get("loaded_env_sha256"),
+        },
+        "schedule": {
+            "registered_cadence": row.get("registered_cadence"),
+            "next_eligible_run": row.get("next_eligible_run"),
+            "loaded_cadence": row.get("loaded_cadence"),
+            "loaded_cadence_status": (
+                "reported" if row.get("loaded_cadence") is not None else "not_reported"
+            ),
         },
         "cause_chain": cause_chain,
         "effect": {
@@ -2262,27 +2296,44 @@ def _bounded_reconcile_candidates(registry: dict, route: str,
 FENCE_RECONCILE_LOG = Path(os.path.expanduser(
     "~/.local/state/life-manager/lm-fence-reconciler/reconcile-calls.jsonl"))
 DIAGNOSIS_DETAIL_CHARS = 600
+RECONCILE_CALL_TAIL_BYTES = 4 * 1024 * 1024
 
 
 def _last_adapter_calls(log_path: Path) -> dict[str, dict]:
-    """Latest lm-fence-reconciler adapter call per fenced occurrence."""
+    """Recent lm-fence-reconciler adapter calls from a bounded log tail."""
     latest: dict[str, dict] = {}
     try:
-        with log_path.open(encoding="utf-8") as handle:
-            for line in handle:
-                try:
-                    row = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if isinstance(row, dict) and isinstance(row.get("occurrence_id"), str):
-                    latest[row["occurrence_id"]] = row
+        size = log_path.stat().st_size
+        offset = max(0, size - RECONCILE_CALL_TAIL_BYTES)
+        with log_path.open("rb") as handle:
+            handle.seek(offset)
+            lines = handle.read(RECONCILE_CALL_TAIL_BYTES).splitlines()
     except OSError:
         return {}
+    if offset and lines:
+        lines = lines[1:]
+    for line in lines:
+        try:
+            row = json.loads(line)
+        except (UnicodeError, json.JSONDecodeError):
+            continue
+        if isinstance(row, dict) and isinstance(row.get("occurrence_id"), str):
+            latest[row["occurrence_id"]] = row
     return latest
 
 
 def _adapter_verdict(call: dict) -> dict:
     """Project the adapter's own provider-side readback out of its stdout tail."""
+    if call.get("owner_batch_summary") is True:
+        return {
+            "status": "owner_batch_checked_unresolved",
+            "adapter_exit_code": call.get("exit_code"),
+            "closed": False,
+            "checked_occurrence_count": call.get("checked_occurrence_count"),
+            "still_fenced_count": call.get("still_fenced_count"),
+            "recorded_at": call.get("recorded_at"),
+            "verified": False,
+        }
     tail = call.get("stdout_tail") if isinstance(call.get("stdout_tail"), str) else ""
     detail: dict = {}
     marker = None
@@ -2358,6 +2409,16 @@ def effect_unknown_diagnosis(loop_id: str, entry: dict, occurrences: tuple[str, 
                 "evidence_refs": chosen.get("evidence_refs"),
             }
     call = adapter_calls.get(occurrence_id)
+    if call is None:
+        owner_batch = adapter_calls.get(f"{loop_id}:*")
+        still_fenced = tuple(sorted(set(occurrences)))
+        digest = hashlib.sha256("\n".join(still_fenced).encode("utf-8")).hexdigest()
+        if (isinstance(owner_batch, dict)
+                and owner_batch.get("owner_id") == loop_id
+                and owner_batch.get("owner_batch_summary") is True
+                and owner_batch.get("still_fenced_count") == len(still_fenced)
+                and owner_batch.get("still_fenced_occurrences_sha256") == digest):
+            call = owner_batch
     has_adapter = isinstance(entry.get("effect_reconcile"), dict)
     provider_state = _adapter_verdict(call) if call else None
     if not has_adapter:
@@ -2367,6 +2428,8 @@ def effect_unknown_diagnosis(loop_id: str, entry: dict, occurrences: tuple[str, 
         next_action = "await_lm_fence_reconciler_pass"
     elif call.get("closed"):
         next_action = "closed_by_adapter"
+    elif call.get("owner_batch_summary") is True:
+        next_action = "official_readback_required"
     else:
         reason = (provider_state or {}).get("reason") or (provider_state or {}).get("marker")
         next_action = f"adapter_held:{reason}" if reason else "adapter_held:inspect_provider_state"

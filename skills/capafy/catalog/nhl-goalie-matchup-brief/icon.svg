@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">NHL Goalie Matchup Brief</title>
+  <desc id="desc">A hockey puck and a goalie matchup card on an ice-blue background.</desc>
+  <rect width="512" height="512" rx="96" fill="#071E3D"/>
+  <path d="M54 128h404M54 384h404" stroke="#62D6FF" stroke-width="8" opacity=".55"/>
+  <path d="M256 54v404" stroke="#E8F8FF" stroke-width="8" opacity=".28"/>
+  <circle cx="256" cy="256" r="132" fill="none" stroke="#62D6FF" stroke-width="10" opacity=".7"/>
+  <g transform="translate(104 142)">
+    <rect x="174" y="0" width="132" height="176" rx="22" fill="#F3FBFF"/>
+    <rect x="194" y="34" width="70" height="13" rx="6.5" fill="#0E3E70"/>
+    <rect x="194" y="65" width="92" height="10" rx="5" fill="#62D6FF"/>
+    <rect x="194" y="90" width="74" height="10" rx="5" fill="#62D6FF"/>
+    <rect x="194" y="115" width="86" height="10" rx="5" fill="#62D6FF"/>
+    <circle cx="240" cy="146" r="13" fill="#F7A52C"/>
+  </g>
+  <g transform="translate(76 284)">
+    <ellipse cx="126" cy="54" rx="112" ry="43" fill="#020A17"/>
+    <path d="M14 54v-20c0-24 50-43 112-43s112 19 112 43v20" fill="#1E2E45"/>
+    <ellipse cx="126" cy="33" rx="112" ry="43" fill="#263A55"/>
+    <ellipse cx="126" cy="33" rx="82" ry="28" fill="#0C1421"/>
+    <path d="M55 33h142" stroke="#54718E" stroke-width="8" stroke-linecap="round"/>
+  </g>
+  <text x="256" y="463" text-anchor="middle" fill="#F3FBFF" font-family="Arial, sans-serif" font-size="30" font-weight="700" letter-spacing="2">GOALIE BRIEF</text>
+</svg>

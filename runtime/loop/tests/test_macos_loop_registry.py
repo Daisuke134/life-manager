@@ -147,7 +147,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
         for loop_id, entrypoint in expected.items():
             with self.subTest(loop_id=loop_id):
                 row = registry["loops"][loop_id]
-                self.assertEqual(row["effect_class"], "publish")
+                self.assertEqual(row["effect_class"], "message")
                 self.assertEqual(row["entrypoint"], entrypoint)
                 self.assertEqual(row.get("admission_effect_scope"), "occurrence")
                 self.assertEqual(admission_effect_scope(row), "occurrence")
@@ -1620,6 +1620,11 @@ class MacosLoopRegistryTest(unittest.TestCase):
         right = {"schema_version": 2, "loops": {"a": entry("ai.anicca.a"), "b": entry("ai.anicca.b")}}
         self.assertEqual(render_job_models(left), render_job_models(right))
 
+    def test_line_sticker_readback_is_read_only_not_a_publish(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        self.assertEqual(registry["loops"]["line-sticker-readback-hourly"]["effect_class"], "none")
+        self.assertEqual(registry["loops"]["line-sticker-factory-hourly"]["effect_class"], "publish")
+
     def test_registry_covers_every_active_owned_inventory_label(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         inventory = json.loads((ROOT / "docs/evidence/runtime/2026-08-28-macos-loop-control-plane-inventory.json").read_text())
@@ -1880,6 +1885,25 @@ class MobileAppEffectReconcileTests(unittest.TestCase):
             if not valid:
                 missing.append(loop_id)
         self.assertEqual(missing, [])
+
+
+class MarketingMetricsEffectReconcileTests(unittest.TestCase):
+    def test_metrics_owners_share_the_local_telegram_pre_effect_reconciler(self):
+        registry = json.loads(
+            (ROOT / "config/loop-registry.json").read_text(encoding="utf-8")
+        )
+        for owner in ("life-manager-instagram-metrics", "life-manager-tiktok-metrics"):
+            with self.subTest(owner=owner):
+                reconcile = registry["loops"][owner].get("effect_reconcile") or {}
+                self.assertEqual(registry["loops"][owner]["effect_class"], "message")
+                self.assertEqual(reconcile.get("argv"), [
+                    "apps/life-manager/scripts/marketing-metrics-effect-reconcile.py",
+                    "--owner-id", owner,
+                    "--state-root", "~/.local/state/life-manager",
+                    "--data-root", "~/.local/state/life-manager",
+                ])
+                self.assertEqual(reconcile.get("occurrence_flag"), "--occurrence-id")
+                self.assertEqual(reconcile.get("resolve_flag"), "--resolve")
 
 
 if __name__ == "__main__":

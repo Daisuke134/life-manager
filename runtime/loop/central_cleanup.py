@@ -429,11 +429,11 @@ def loaded_release_roots(agents_dir: Path, releases_root: Path) -> set[Path]:
     return protected
 
 
-def open_release_roots(releases_root: Path) -> set[Path]:
+def open_release_roots(releases_root: Path, timeout: float = 15) -> set[Path]:
     """Return release roots named by a running process command."""
     completed = subprocess.run(
         ["ps", "-axo", "command="],
-        capture_output=True, text=True, timeout=5,
+        capture_output=True, text=True, timeout=timeout,
     )
     if completed.returncode != 0:
         raise OSError(f"release process inventory failed: {completed.returncode}")
@@ -503,7 +503,11 @@ def reclaim_unreferenced_source(releases: Path, current: Path, agents: Path, kee
         return subprocess.run(["git", "-C", str(source_repo), *args], check=True,
                               capture_output=True, text=True, timeout=min(3, remaining)).stdout.strip()
     def references(owned_fds=()):
-        held = loaded_release_roots(agents, releases) | open_release_roots(releases)
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise subprocess.TimeoutExpired("ps", 0)
+        held = loaded_release_roots(agents, releases) | open_release_roots(
+            releases, min(5, remaining))
         held.add(current.resolve(strict=True))
         protected_file = Path(os.environ.get(
             "LIFE_MANAGER_PROTECTED_RELEASES", "~/.local/state/life-manager/protected-releases.json")).expanduser()
@@ -694,6 +698,9 @@ def git_duplicate_cleanup(source_repo: Path) -> dict:
         else:
             result["prune_packable_after"] = 0
         result["status"] = "pass"
+    except subprocess.TimeoutExpired:
+        result.update(status="deferred", error_class="TimeoutExpired",
+                      retryable=True, next_action="retry_next_natural_pass")
     except (OSError, ValueError, StopIteration, subprocess.SubprocessError) as error:
         result.update(errors=1, status="failed", error_class=type(error).__name__)
     return result

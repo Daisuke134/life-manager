@@ -173,10 +173,14 @@ class LoopCleanupTest(unittest.TestCase):
             (repo / ".git").mkdir()
             count = subprocess.CompletedProcess([], 0, "prune-packable: 3\n", "")
             with mock.patch.object(central_cleanup.subprocess, "run", side_effect=(
-                    count, subprocess.TimeoutExpired("git prune-packed", 15))):
+                    count, subprocess.TimeoutExpired(
+                        ["git", "maintenance", "run", "--auto", "--task=loose-objects"], 15))):
                 result = central_cleanup.git_duplicate_cleanup(repo)
-            self.assertEqual(result["errors"], 1)
-            self.assertEqual(result["status"], "failed")
+            self.assertEqual(result["errors"], 0)
+            self.assertEqual(result["status"], "deferred")
+            self.assertEqual(result["error_class"], "TimeoutExpired")
+            self.assertTrue(result["retryable"])
+            self.assertEqual(result["next_action"], "retry_next_natural_pass")
             self.assertEqual(result["prune_packable_before"], 3)
             self.assertIsNone(result["prune_packable_after"])
 
@@ -421,6 +425,40 @@ class LoopCleanupTest(unittest.TestCase):
 
             self.assertFalse(stale.exists())
             self.assertEqual(result["errors"], 0)
+
+    def test_release_gc_hides_trash_from_finder_metadata_race(self):
+        with tempfile.TemporaryDirectory() as directory:
+            releases = Path(directory) / "releases"; releases.mkdir()
+            stale = releases / ("20260101T000000-" + "a" * 8); stale.mkdir()
+            (stale / "RELEASE.json").write_text(json.dumps({"sha": "a" * 40}))
+            current = Path(directory) / "current"
+            from runtime.loop import loop_cleanup
+            original_replace = loop_cleanup.os.replace
+            original_rmdir = loop_cleanup.os.rmdir
+            trash_names = []
+
+            def capture_trash(src, dst, *args, **kwargs):
+                trash_names.append(Path(dst).name)
+                return original_replace(src, dst, *args, **kwargs)
+
+            def finder_metadata_rmdir(path, *args, **kwargs):
+                name = os.fspath(path)
+                if (trash_names and Path(name).name == trash_names[0]
+                        and not Path(name).name.startswith(".")):
+                    fd = os.open(".DS_Store", os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                                 0o644, dir_fd=kwargs.get("dir_fd"))
+                    os.close(fd)
+                return original_rmdir(path, *args, **kwargs)
+
+            with mock.patch("runtime.loop.loop_cleanup.os.replace",
+                            side_effect=capture_trash), \
+                 mock.patch("runtime.loop.loop_cleanup.os.rmdir",
+                            side_effect=finder_metadata_rmdir):
+                result = gc_releases(releases, current, keep=0, protected=set())
+
+            self.assertEqual(result["errors"], 0)
+            self.assertTrue(trash_names[0].startswith("."))
+            self.assertFalse((releases / trash_names[0]).exists())
 
     def test_release_gc_preserves_memory_and_state_jsonl_but_removes_plain_release(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1378,8 +1416,28 @@ class LoopCleanupTest(unittest.TestCase):
             completed = mock.Mock(returncode=0, stdout=f"p123\nn{entry}\n", stderr="")
             with mock.patch("runtime.loop.central_cleanup.subprocess.run", return_value=completed) as run:
                 self.assertEqual(open_release_roots(releases), {entry.parents[1].resolve()})
-        run.assert_called_once_with(
-            ["ps", "-axo", "command="], capture_output=True, text=True, timeout=5)
+            run.assert_called_once_with(
+                ["ps", "-axo", "command="], capture_output=True, text=True, timeout=15)
+
+    def test_open_process_release_is_discovered_when_ps_takes_six_seconds(self):
+        with tempfile.TemporaryDirectory() as directory:
+            releases = Path(directory) / "releases"
+            entry = releases / ("20260101T000000-" + "a" * 8) / "bin/job.sh"
+            entry.parent.mkdir(parents=True)
+            entry.write_text("x")
+
+            timeouts = []
+            def slow_process_inventory(command, **kwargs):
+                timeouts.append(kwargs["timeout"])
+                if kwargs["timeout"] < 6:
+                    raise subprocess.TimeoutExpired(command, kwargs["timeout"])
+                return subprocess.CompletedProcess(command, 0, stdout=f"{entry}\n", stderr="")
+
+            with mock.patch("runtime.loop.central_cleanup.subprocess.run", side_effect=slow_process_inventory):
+                self.assertEqual(open_release_roots(releases), {entry.parents[1].resolve()})
+
+        self.assertGreaterEqual(timeouts[0], 6)
+        self.assertLessEqual(timeouts[0], 15)
 
     def _run_terminal_event(self, exit_code: int) -> dict:
         with tempfile.TemporaryDirectory() as directory:

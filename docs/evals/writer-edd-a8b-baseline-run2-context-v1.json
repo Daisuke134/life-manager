@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "record_type": "writer_eval_run_context",
+  "run_id": "writer-a8-1d216396-e380-43df-9574-faac1b2e7fc4",
+  "completed_at_utc": "2026-10-13T16:48:00.370Z",
+  "source_commit": "72492854e662291041a71c1118975a67bfe9b699",
+  "source_main_parent": "040d192de663422b310f39c49813bca396d9ac97",
+  "sparse_paths": [
+    "apps/life-manager",
+    "docs/evals",
+    "docs/superpowers/specs",
+    "runtime/agent-runner",
+    "runtime/host",
+    "runtime/loop",
+    "skills/earn/marketing-engine/intel",
+    "skills/writer-agent"
+  ],
+  "treg_skill_tree_path": "skills/earn/marketing-engine/intel",
+  "treg_skill_tree_sha1": "e1eed7e3c2922a0d33091420d5a3336bab2fcfcf",
+  "treg_skill_names": [
+    "treg",
+    "lead-signals"
+  ],
+  "freeze_id": "writer-edd-a9-codex-terra-medium-20261014-v1",
+  "freeze_manifest_sha256": "24499ffba04ee18bfca55cc1e76809d04b200909cb62d4b0b56f66b397fcabb5",
+  "dataset_version": "writer-edd-a8-v3",
+  "dataset_sha256": "355729f17728c1ef8638cde71f8deca44a37619854f1be6995efdd11df3c1f39",
+  "reference_set_version": "writer-edd-a8-reference-v1",
+  "reference_set_sha256": "59f1e24177c6e441e129b6a05c2baddd6eca73734faf6b7d6c48e09f51ff908e",
+  "split_manifest_sha256": "b7e8c949b8f633e83e9c2f194edba9eec563bc57a57b28ec22b8bb724dab98b3",
+  "provider": "codex",
+  "model_id": "gpt-5.6-terra",
+  "effort": "medium",
+  "profile_alias": "acct1",
+  "predictions": 40,
+  "unique_case_ids": 40,
+  "verdict_counts": {
+    "PASS": 20,
+    "FAIL": 18,
+    "UNKNOWN": 2
+  },
+  "event_error_counts": {
+    "none": 38,
+    "non_target_failure_category": 1,
+    "malformed_judge_output": 1
+  },
+  "provider_receipt_id_count": 0,
+  "metrics_status": "incomplete_predictions",
+  "metrics_counts": {
+    "reference_pass": 20,
+    "reference_fail": 20,
+    "reference_unknown": 0,
+    "judge_unknown": 2,
+    "correct_pass": 19,
+    "correct_fail": 18,
+    "reference_false_pass": 1,
+    "reference_false_fail": 0
+  },
+  "metrics_rates": {
+    "reference_tpr": null,
+    "reference_tnr": null,
+    "reference_false_pass_rate": null,
+    "reference_false_fail_rate": null
+  },
+  "scope": "synthetic_reference_agreement",
+  "human_validation": "not_performed",
+  "usage_cost_status": "not_retained_by_run_identity_runner",
+  "artifacts": {
+    "predictions": {
+      "path": "docs/evals/writer-edd-a8b-baseline-run2-predictions-v1.jsonl",
+      "sha256": "7c4ef05e6b6528d2c76b9195914d1d6af9d08b9b1a40c7a985baa7297ebca9d4"
+    },
+    "events": {
+      "path": "docs/evals/writer-edd-a8b-baseline-run2-events-v1.jsonl",
+      "sha256": "3fabbec858416ce2c65b759d90ae586e92ebde090a92ad79bf4b6f02e8ae61b3"
+    },
+    "joined": {
+      "path": "docs/evals/writer-edd-a8b-baseline-run2-joined-v1.jsonl",
+      "sha256": "27279babe904bb69465e64f7dc1239dc1716c695c6806ca1899bf7b44b90a01e"
+    },
+    "metrics": {
+      "path": "docs/evals/writer-edd-a8b-baseline-run2-metrics-v1.json",
+      "sha256": "86887d18dafb1e65df232d8fbad24dbe368d485927cb793343d1529da327cdc0"
+    }
+  },
+  "limitations": [
+    "public synthetic fixture is not blind or natural data",
+    "two UNKNOWN predictions keep all rates null",
+    "provider receipt IDs and usage cost are not retained"
+  ]
+}

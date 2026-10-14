@@ -1087,18 +1087,18 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             )
 
     def test_mobile_distribution_publishers_precede_bounded_fleet_budget(self):
-        """Mobile distribution owners must not sit behind unrelated work in a bounded pass."""
+        """System controls enter first; mobile distribution leads the business owners."""
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             repo, sha = self._make_repo(root)
             release_dir = self._make_release(
                 root,
                 sha,
-                loop_ids=("aaa-growth", "mobile-publisher", "zzz-contract"),
+                loop_ids=("aaa-growth", "mobile-publisher", "zzz-contract", "zzz-cleanup"),
                 entry_overrides={
                     "aaa-growth": {
                         "domain": "growth", "admission_class": "revenue",
-                        "priority": "revenue",
+                        "priority": "revenue", "system_role": "control",
                     },
                     "mobile-publisher": {
                         "domain": "growth", "admission_class": "revenue",
@@ -1108,6 +1108,9 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
                     "zzz-contract": {
                         "domain": "earn", "admission_class": "revenue",
                         "priority": "critical_paid",
+                    },
+                    "zzz-cleanup": {
+                        "domain": "system", "system_role": "control",
                     },
                 },
             )
@@ -1120,9 +1123,14 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             calls_text = calls_log.read_text()
             self.assertLess(
+                calls_text.index("target=zzz-cleanup"),
+                calls_text.index("target=mobile-publisher"),
+                "cleanup and recovery must enter before business owners consume the apply budget",
+            )
+            self.assertLess(
                 calls_text.index("target=mobile-publisher"),
                 calls_text.index("target=zzz-contract"),
-                "mobile distribution must enter the bounded apply budget first",
+                "mobile distribution must lead the remaining business owners",
             )
             self.assertLess(
                 calls_text.index("target=zzz-contract"),

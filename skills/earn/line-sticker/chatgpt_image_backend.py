@@ -16,55 +16,21 @@ fallback when this CLI fails or is not installed.
 """
 from __future__ import annotations
 
-import os
-import re
-import shutil
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
 CLI = Path.home() / ".agents/skills/chatgpt-imagegen/chatgpt-imagegen"
-BROWSER_BIN_CANDIDATES = ("chrome-use", "agent-browser", "agent-browser-stealth", "abs")
-BROWSER_CLOSE_TIMEOUT_SECONDS = 15
 
 
 class ChatGptImageGenUnavailable(RuntimeError):
     pass
 
 
-def run_session_name() -> str:
-    """Keep imagegen browser tabs scoped to one Life Manager occurrence."""
-    run_id = os.environ.get("LIFE_MANAGER_RUN_ID", "")
-    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", run_id):
-        run_id = f"manual-{os.getpid()}"
-    return f"line-sticker-{run_id}"
-
-
-def _close_run_browser_session(session: str) -> str | None:
-    """Close only the named Line Sticker run session; return a sanitized failure code."""
-    if not session.startswith("line-sticker-"):
-        return "not_run_scoped"
-    browser = next((found for name in BROWSER_BIN_CANDIDATES
-                    if (found := shutil.which(name))), None)
-    if browser is None:
-        return "browser_binary_unavailable"
-    try:
-        result = subprocess.run(
-            [browser, "close", "--session", session], capture_output=True, text=True,
-            timeout=BROWSER_CLOSE_TIMEOUT_SECONDS, check=False,
-        )
-    except subprocess.TimeoutExpired:
-        return "browser_close_timeout"
-    except OSError:
-        return "browser_close_error"
-    return f"browser_close_exit_{result.returncode}" if result.returncode else None
-
-
-def timeout_failure(session: str) -> ChatGptImageGenUnavailable:
-    cleanup_failure = _close_run_browser_session(session)
-    detail = f"; browser_session_cleanup_failed:{cleanup_failure}" if cleanup_failure else ""
-    return ChatGptImageGenUnavailable(f"chatgpt-imagegen timed out{detail}")
+def timeout_failure() -> ChatGptImageGenUnavailable:
+    """Report a caller timeout without closing the CLI's shared browser session."""
+    return ChatGptImageGenUnavailable("chatgpt-imagegen timed out")
 
 
 def generate(prompt: str, *, size: str = "1024x1024", timeout: int = 280) -> Path:
@@ -76,17 +42,15 @@ def generate(prompt: str, *, size: str = "1024x1024", timeout: int = 280) -> Pat
     handle = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
     out_path = Path(handle.name)
     handle.close()
-    session = run_session_name()
     try:
         done = subprocess.run(
             [str(CLI), prompt, "-o", str(out_path), "--size", size, "--backend", "auto",
-             "--profile", "relay", "--quiet", "--timeout", str(timeout),
-             "--session", session],
+             "--profile", "relay", "--quiet", "--timeout", str(timeout)],
             capture_output=True, text=True, timeout=timeout + 30, check=False,
         )
     except subprocess.TimeoutExpired as exc:
         out_path.unlink(missing_ok=True)
-        raise timeout_failure(session) from exc
+        raise timeout_failure() from exc
     if done.returncode != 0 or not out_path.is_file() or out_path.stat().st_size == 0:
         out_path.unlink(missing_ok=True)
         raise ChatGptImageGenUnavailable(
