@@ -61,6 +61,9 @@ test("real Telegram webhook classifies and durably queues natural language witho
       sent.push(JSON.parse(init.body));
       return response(200, { ok: true, result: { message_id: 9001 } });
     }
+    if (url.pathname === "/rest/v1/lm_message_channels" && method === "GET") {
+      return response(200, [{ uid: "u1", owner_kind: "legacy" }]);
+    }
     if (url.pathname === "/rest/v1/lm_users" && method === "GET") {
       return response(200, [{
         uid: "u1",
