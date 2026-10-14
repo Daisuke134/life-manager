@@ -88,6 +88,38 @@ test("iMessage free-text location reply can update only a pending asked event on
   assert.equal(patches.length, 1);
 });
 
+test("iMessage travel-origin reply records the chosen origin without a Calendar write", async () => {
+  const ask = askRow({
+    event_id: "travel-origin:calendar-event-1",
+    question_type: "travel_origin",
+    question_context: {
+      replyChannel: "imessage", calendarEventId: event.id, summary: "Dinner",
+      candidates: [{ id: "office", location: "MUIT 生駒", source: "repeated_calendar_location" }],
+    },
+  });
+  let calendarReads = 0;
+  const result = await resolveIMessageReply(uid, senderId, "MUIT 生駒", {
+    linkedUser,
+    pendingAsksImpl: async (requestedUid) => {
+      assert.equal(requestedUid, uid);
+      return [ask];
+    },
+    answerTravelOriginAskImpl: async (requestedUid, row, text, options) => {
+      assert.equal(requestedUid, uid);
+      assert.equal(row, ask);
+      assert.equal(text, "MUIT 生駒");
+      assert.equal(options.channel, "imessage");
+      return { kind: "answered", location: "MUIT 生駒", event: "Dinner" };
+    },
+    calendar: { async listEventsRaw() { calendarReads++; throw new Error("origin reply does not need Calendar"); } },
+  });
+
+  assert.deepEqual(result, {
+    filled: false, originSet: true, event: "Dinner", location: "MUIT 生駒",
+  });
+  assert.equal(calendarReads, 0);
+});
+
 test("iMessage online answer resolves a pending online question without a Calendar write", async () => {
   assert.equal(typeof resolveIMessageReply, "function", "the iMessage reply resolver must exist");
   const updates = [];

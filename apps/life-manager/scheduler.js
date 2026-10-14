@@ -1267,11 +1267,17 @@ async function travelUserOnce(u, deps = {}) {
         return;
       }
     }
+    const telegramToken = deps.telegramToken !== undefined ? deps.telegramToken : process.env.LM_TELEGRAM_BOT_TOKEN;
     const r = await (deps.fillTravel || fillTravel)(u.uid, {
       apiKey, mapsKey, geminiKey, home: u.home_address,
       timezone: u.call_time_zone,
       nowMs,
       calendar: deps.calendar, supaUrl, supaKey,
+      telegramChatId: u.telegram_chat_id || u.web_message_telegram_chat_id || null,
+      telegramToken,
+      imessageSenderId: u.web_message_imessage_sender_id || null,
+      imessageSend: deps.imessageSend,
+      notificationsEnabled: u.notifications_enabled !== false,
       expectedCalendarAccountId,
       allowWebInitialScan: initialWebScan,
       _directionsMinutes: deps.directionsMinutes,
@@ -1280,9 +1286,8 @@ async function travelUserOnce(u, deps = {}) {
       _releaseManagedAction: deps.releaseManagedAction || (deps.fillTravel ? undefined : releaseManagedAction),
       gmailAccountId: u.gmail_account_id,
     });
-    if (r.inserted) console.log(`[travel] uid=${u.uid.slice(0, 12)} inserted=${r.inserted} checked=${r.checked}`);
-    const telegramToken = deps.telegramToken !== undefined ? deps.telegramToken : process.env.LM_TELEGRAM_BOT_TOKEN;
-    if (u.notifications_enabled !== false && telegramToken && u.telegram_chat_id) {
+    if (r.inserted || r.originQuestionsAsked) console.log(`[travel] uid=${u.uid.slice(0, 12)} inserted=${r.inserted} checked=${r.checked} origin_asks=${r.originQuestionsAsked || 0}`);
+    if (!deps.suppressAutofillReport && u.notifications_enabled !== false && telegramToken && u.telegram_chat_id) {
       for (const report of r.outboundReports || []) {
         try {
           await (deps.sendMessage || sendMessage)(telegramToken, u.telegram_chat_id,
@@ -1307,9 +1312,17 @@ async function travelTick(deps = {}) {
   const users = await listUsers();
   await forEachUserSafe(users.filter(u => u.daily_automation_enabled !== false), "travel", travel);
 }
-function startTravelLoop() {
+async function travelUserByUid(uid, deps = {}) {
+  if (!uid) return null;
+  const listUsers = deps.listUsers || supaUsers;
+  const users = await listUsers();
+  const user = Array.isArray(users) ? users.find((row) => row && row.uid === uid) : null;
+  if (!user) return null;
+  return (deps.travelUserOnceImpl || travelUserOnce)(user, deps);
+}
+function startTravelLoop(deps = {}) {
   console.log(`[travel] started — every ${TRAVEL_TICK_MS / 60000}min, horizon 7d`);
-  const run = () => travelTick().catch((e) => console.error("[travel] tick err", e.message));
+  const run = () => travelTick(deps).catch((e) => console.error("[travel] tick err", e.message));
   run();
   return setInterval(run, TRAVEL_TICK_MS);
 }
@@ -1467,7 +1480,7 @@ async function getUserByUid(uid) {
 
 module.exports = {
   startScheduler, startWakeLoop, startReminderLoop, startTravelLoop, startAskLoop, startOnboardLoop, startDiscoveryLoop,
-  tick, wakeTick, reminderTick, travelTick, askTickAll, onboardTick, discoveryTick,
+  tick, wakeTick, reminderTick, travelTick, travelUserByUid, askTickAll, onboardTick, discoveryTick,
   // the wake loop's own per-user budget — exported so a revert to the shared 90s is test-caught
   WAKE_USER_TIMEOUT_MS,
   // per-user single-invocation functions (for Inngest fan-out + testing)

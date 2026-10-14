@@ -18,6 +18,46 @@ test("scheduler helper-skip and signed streamUrl contract", () => {
   assert.strictEqual(p.searchParams.get("urgency"), "firm");
 });
 
+test("travel loop passes linked Telegram and iMessage routes into unresolved-origin handling", async () => {
+  const { travelUserOnce } = require("../scheduler.js");
+  const linked = {
+    uid: "tenant-origin-ask",
+    telegram_chat_id: null,
+    web_message_telegram_chat_id: "telegram-chat-fixture",
+    web_message_imessage_sender_id: "+819012345678",
+    home_address: "Home",
+    daily_automation_enabled: true,
+    notifications_enabled: true,
+  };
+  let options;
+  await travelUserOnce(linked, {
+    apiKey: "fixture-composio", mapsKey: "fixture-maps", geminiKey: "fixture-gemini",
+    telegramToken: "fixture-telegram-token", imessageSend: async () => ({ ok: true, receiptId: "receipt" }),
+    supaUrl: "https://db.example", supaKey: "fixture-supa", nowMs: 1_900_000_000_000,
+    fillTravel: async (_uid, input) => { options = input; return { inserted: 0, outboundReports: [] }; },
+  });
+  assert.equal(options.telegramChatId, "telegram-chat-fixture");
+  assert.equal(options.telegramToken, "fixture-telegram-token");
+  assert.equal(options.imessageSenderId, "+819012345678");
+  assert.equal(typeof options.imessageSend, "function");
+  assert.equal(options.notificationsEnabled, true);
+});
+
+test("reply-triggered travel run selects only the matching tenant and suppresses duplicate report", async () => {
+  const { travelUserByUid } = require("../scheduler.js");
+  const calls = [];
+  const result = await travelUserByUid("tenant-b", {
+    listUsers: async () => [{ uid: "tenant-a" }, { uid: "tenant-b" }],
+    travelUserOnceImpl: async (user, deps) => {
+      calls.push({ uid: user.uid, suppressAutofillReport: deps.suppressAutofillReport });
+      return { inserted: 1, outboundReports: [{ summary: "Dinner" }] };
+    },
+    suppressAutofillReport: true,
+  });
+  assert.deepEqual(calls, [{ uid: "tenant-b", suppressAutofillReport: true }]);
+  assert.equal(result.inserted, 1);
+});
+
 test("voice allowance context is signed and tampering is rejected by the bridge", () => {
   const { buildStreamUrl } = require("../scheduler.js");
   const { ctxFromReq } = require("../server.js");

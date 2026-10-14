@@ -857,7 +857,7 @@ async function recordTravelTelegramReceipt(uid, eventKey, leg, messageId, supaUr
   return { ok: true, matched };
 }
 
-async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, nowMs = Date.now(), bufferMin = 5, calendar, supaUrl, supaKey, _directionsRoute, _directionsMinutes, _routeCache, _reserveManagedAction, _completeManagedAction, _releaseManagedAction, _agentResolveLocation, _agentResolveTravelOrigin, _recordUsageEvent, gmailAccountId, expectedCalendarAccountId, allowWebInitialScan = false } = {}) {
+async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, nowMs = Date.now(), bufferMin = 5, calendar, supaUrl, supaKey, telegramChatId, telegramToken, imessageSenderId, imessageSend, notificationsEnabled, _directionsRoute, _directionsMinutes, _routeCache, _reserveManagedAction, _completeManagedAction, _releaseManagedAction, _agentResolveLocation, _agentResolveTravelOrigin, _readTravelOriginAskState, _askTravelOrigin, _recordUsageEvent, gmailAccountId, expectedCalendarAccountId, allowWebInitialScan = false } = {}) {
   const directionsFn = _directionsMinutes || directionsMinutes;
   const routeFn = _directionsRoute || (!_directionsMinutes ? directionsRoute : null);
   const cal = calendar || getCalendar({ apiKey, gmailAccountId, expectedCalendarAccountId });
@@ -868,7 +868,7 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
     homeAddress: home,
     calendarEvents: events.filter((event) => !isTravel(event.summary)).map(({ location, startMs }) => ({ location, startMs })),
   }).work;
-  let inserted = 0, verified = 0, checked = 0, skipped = 0;
+  let inserted = 0, verified = 0, checked = 0, skipped = 0, originQuestionsAsked = 0;
   const outboundReports = [];
   const releaseAllowance = async (eventKey, state) => {
     if (!state || !state.receipt || typeof _releaseManagedAction !== "function") return;
@@ -889,6 +889,7 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
     // startMs:summary (NOT startMs alone — two different same-user events can share a start time, FIND-001).
     const evKey = String(ev.id || `${ev.startMs}:${ev.summary || ""}`);
     let eventAllowanceBlocked = false;
+    let originQuestionPending = false;
 
     // ── OUTBOUND LEG ──────────────────────────────────────────────────────────────────────────────
     // Single source of truth for the skip/insert decision (home→home, no-origin, online, etc.).
@@ -935,31 +936,65 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
     const hasNonHomeSameDayEvent = sameDayEvents.some((event) => String(event.location || "").replace(/\s+/g, "").toLowerCase()
       !== String(home || "").replace(/\s+/g, "").toLowerCase());
     if (ev.startMs > nowMs && !hasDirectPreviousOrigin && hasNonHomeSameDayEvent
-      && (originCandidates.length > 1 || !String(home || "").trim() && originCandidates.length > 0)
-      && geminiKey) {
+      && (originCandidates.length > 1 || !String(home || "").trim() && originCandidates.length > 0)) {
       try {
-        const resolveOrigin = _agentResolveTravelOrigin || require("./ask.js").agentResolveTravelOrigin;
-        const resolution = await resolveOrigin(ev, {
-          candidates: originCandidates,
-          scheduledEvents: sameDayEvents.slice(-5).map((event) => ({
-            summary: event.summary || "",
-            location: event.location || "",
-            startIso: event.startIso || new Date(event.startMs).toISOString(),
-            endIso: new Date(event.endMs).toISOString(),
-          })),
-          timezone: routeTimezone,
-          geminiKey,
-          uid,
-          recordUsageEvent: _recordUsageEvent,
-        });
-        const selected = resolution && resolution.kind === "selected"
-          ? originCandidates.find((candidate) => candidate.id === resolution.candidateId) : null;
-        if (selected) originOverride = selected.location;
-      } catch { /* keep the existing conservative home/direct-previous decision */ }
+        const readAskState = _readTravelOriginAskState || require("./ask.js").readTravelOriginAskState;
+        const askState = await readAskState(uid, evKey, { supaUrl, supaKey });
+        if (askState && askState.kind === "answered" && askState.location) {
+          originOverride = askState.location;
+        } else if (askState && askState.kind === "pending") {
+          originQuestionPending = true;
+        } else if (askState && askState.kind === "unavailable" && (supaUrl || supaKey)) {
+          // A configured but unreadable ask ledger cannot prove that an earlier question has no reply.
+          originQuestionPending = true;
+        } else {
+          if (geminiKey) {
+            try {
+              const resolveOrigin = _agentResolveTravelOrigin || require("./ask.js").agentResolveTravelOrigin;
+              const resolution = await resolveOrigin(ev, {
+                candidates: originCandidates,
+                scheduledEvents: sameDayEvents.slice(-5).map((event) => ({
+                  summary: event.summary || "",
+                  location: event.location || "",
+                  startIso: event.startIso || new Date(event.startMs).toISOString(),
+                  endIso: new Date(event.endMs).toISOString(),
+                })),
+                timezone: routeTimezone,
+                geminiKey,
+                uid,
+                recordUsageEvent: _recordUsageEvent,
+              });
+              const selected = resolution && resolution.kind === "selected"
+                ? originCandidates.find((candidate) => candidate.id === resolution.candidateId) : null;
+              if (selected) originOverride = selected.location;
+            } catch { /* an abstention falls through to the linked-message question */ }
+          }
+          if (!originOverride) {
+            const askOrigin = _askTravelOrigin || require("./ask.js").askTravelOriginOnce;
+            try {
+              const result = await askOrigin(uid, ev, evKey, originCandidates, {
+                supaUrl, supaKey, telegramChatId, telegramToken, imessageSenderId, imessageSend,
+                notificationsEnabled,
+              });
+              if (result && result.kind === "pending") originQuestionPending = true;
+              if (result && result.sent === true) originQuestionsAsked++;
+            } catch {
+              // The send/read outcome is uncertain. Hold outbound routing so the user is not asked twice
+              // and a guessed-home route is not inserted while a reply may be in flight.
+              originQuestionPending = true;
+            }
+          }
+        }
+      } catch {
+        // An unreadable ask state cannot distinguish unanswered from answered; do not guess a departure.
+        originQuestionPending = true;
+      }
     }
     // An event already in progress cannot need an outbound route; preserve its independent return leg.
     const outboundEligible = Number.isFinite(ev.startMs) && ev.startMs > nowMs;
-    const decision = outboundEligible
+    const decision = originQuestionPending
+      ? { insert: false, origin: null, reason: "origin-question-pending" }
+      : outboundEligible
       ? travelDecision(ev, previous, home, originOverride)
       : { insert: false, origin: null, reason: "event-already-started" };
     let outboundInserted = false;
@@ -1157,7 +1192,7 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
     }
     void outboundInserted; // suppress unused warning — used for semantic clarity only
   }
-  return { inserted, verified, checked, skipped, outboundReports };
+  return { inserted, verified, checked, skipped, originQuestionsAsked, outboundReports };
 }
 
 // PURE return-leg decision — mirrors travelDecision geometry for the post-event leg (venue→home).
