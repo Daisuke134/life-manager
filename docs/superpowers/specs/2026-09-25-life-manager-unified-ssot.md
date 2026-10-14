@@ -18463,3 +18463,13 @@ Paid-orders/views is descriptive, not causal: hot `5/46 ≈ 10.9%`, search `8/79
 - `loops/current` points to `20261015T025403-cc3c5a71`. `lm-fence-reconciler` is loaded-idle on SHA `cc3c5a7164f40a5f4d37338862d0869ce1a5201a`. Its last natural pass (17:55:55Z) ran release `3372c363` and exited 0; the two Anicca rows remain `claimed/effect_unknown=1` in admission DB. Do not treat controller health or current symlink as adoption of this source fix.
 - The current worktree's read-only proof evaluator returns the exact marker proof for both target occurrences; the SHA-256 is `bc68b6c09ee78331c4baf41981d2d5ce910f84432e5195fd19150f24074b3dcd`. This is proof evaluation only; no admission row was resolved.
 - **Cursor:** rebase branch/spec onto `cc3c5a71` → exact-head CI and merge → cut latest-main immutable release and apply only loaded-idle `lm-fence-reconciler` → let its natural occurrence-bound reconciler write proof receipts → confirm both rows `effect_unknown=0`, then resume natural post receipts and campaign metrics. Paid spend remains zero; no post is replayed.
+
+
+### Anicca A3 source readiness — 2026-10-15 03:03 JST
+
+- Source/spec branch `fix/anicca-mobile-pre-effect-reconcile-20261015` is rebased onto latest main `39f1bf0031d`; HEAD is `3a3d9c7cced`. The five upstream commits touch the canonical spec and LINE Sticker code, not the runtime verifier or test file. Worktree diff is source fix, regression, and this SSOT checkpoint only; pre-existing `.DS_Store` stays untracked.
+- Post-rebase verification: `PreEffectForeignClaimTests` 25/25, publisher marker contract 2/2, and `git diff --check` pass. Full `test_lm_loop_apply` passed 197/197 before rebase; intervening main source/test changes do not overlap those files.
+- The current-source read-only evaluator returns `proof_type=pre_effect` for both exact occurrences and records marker SHA `bc68b6c09ee78331c4baf41981d2d5ce910f84432e5195fd19150f24074b3dcd`. The production admission DB still reads `state=claimed/effect_unknown=1` for both; no resolver ran.
+- Production `loops/current` remains release `20261015T025403-cc3c5a71`; `lm-fence-reconciler` is loaded-idle on SHA `cc3c5a7164f40a5f4d37338862d0869ce1a5201a`. It has not adopted this source fix.
+
+**Current cursor:** push the rebased branch and canonical spec, pass exact-head PR CI, merge, cut latest-main immutable release, and apply only the loaded-idle `lm-fence-reconciler`. Then allow its natural run and verify occurrence-bound pre-effect receipts plus `effect_unknown=0` for the two rows. Keep posting fenced from replay until that readback.
