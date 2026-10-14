@@ -2,6 +2,7 @@
 
 const WEB_UID_RE = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const { WEB_ATTRIBUTION_KEYS } = require("./web-attribution.js");
 
 function escapeHtml(value) {
   return String(value == null ? "" : value).replace(/[&<>"']/g, (character) => ({
@@ -106,7 +107,7 @@ const CLIENT_SCRIPT = String.raw`(async () => {
     try {
       const source = new URL(window.location.href);
       const destination = new URL(signIn.getAttribute("href") || "/auth/google", source.origin);
-      for (const key of ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"]) {
+      for (const key of ${JSON.stringify(WEB_ATTRIBUTION_KEYS)}) {
         const values = source.searchParams.getAll(key);
         if (values.length === 1 && values[0]) destination.searchParams.set(key, values[0]);
       }

@@ -84,6 +84,10 @@ test("does not claim complete payout attribution for manual or unreconciled payo
 
 test("report reads invoice history outside the current window to distinguish first sale from renewal", async () => {
   const nowMs = Date.parse("2030-02-01T00:00:00Z");
+  const firstTouch = {
+    utm_source: "instagram", product_id: "anicca", run_id: "20261014-140000",
+    artifact_id: "article-ja", variant_id: "role-map", click_id: "click-article-ja",
+  };
   const events = [
     { event_id: "evt_paid_old", event_name: "paid_invoice", uid: UID,
       source_object_id: "in_old", amount_usd: 29, currency: "usd",
@@ -91,13 +95,15 @@ test("report reads invoice history outside the current window to distinguish fir
     { event_id: "evt_paid_current", event_name: "paid_invoice", uid: UID,
       source_object_id: "in_current", amount_usd: 29, currency: "usd",
       occurred_at: new Date(nowMs - 1000).toISOString() },
+    { event_id: "evt_landing", event_name: "landing_view", attribution: firstTouch,
+      occurred_at: new Date(nowMs - 2000).toISOString() },
   ];
   const requests = [];
   const fetchImpl = async (input) => {
     const url = new URL(String(input));
     requests.push(url);
     if (url.pathname.endsWith("/lm_users")) return { ok: true, json: async () => [{
-      uid: UID, telegram_chat_id: null, web_first_touch: {}, web_first_travel_at: null,
+      uid: UID, telegram_chat_id: null, web_first_touch: firstTouch, web_first_travel_at: null,
       stripe_customer_id: null,
     }] };
     if (url.pathname.endsWith("/lm_web_funnel_events")) {
@@ -122,4 +128,11 @@ test("report reads invoice history outside the current window to distinguish fir
   assert.equal(result.funnel.paidInvoices, 1);
   assert.equal(result.funnel.firstPaidUsers, 0);
   assert.equal(result.funnel.renewalInvoices, 1);
+  assert.equal(result.attribution.length, 1);
+  assert.deepEqual(result.attribution[0].attribution, {
+    utm_source: "instagram", utm_medium: null, utm_campaign: null, utm_content: null,
+    utm_term: null, product_id: "anicca", run_id: "20261014-140000", artifact_id: "article-ja",
+    variant_id: "role-map", click_id: "click-article-ja",
+  });
+  assert.equal(result.attribution[0].landingViews, 1);
 });
