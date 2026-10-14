@@ -70,8 +70,12 @@ If a runtime command exits nonzero before returning JSON, do not repeat that com
 return a `transport_failed` pass result immediately. Retrying an identical transport
 failure is not row recovery and must never spend the rest of the model budget.
 `transport_failed` is prohibited when every runtime command completed with exit code
-zero. An exit-zero `acted`, `observed`, or `action_rejected` response always means
-continue from its returned observation; it is not a transport failure.
+zero. An exit-zero `acted`, `observed`, `action_rejected`, `batch_acted`, or
+`batch_partial` response always means continue from its returned fresh observation.
+These are successful runtime commands, not transport failures; never return
+`transport_failed` for them. For `batch_partial`, do not replay completed
+fields or receipts; continue only with still-visible exact targets from the returned
+observation.
 If the shell parser rejects malformed quoting before Python starts, no runtime command
 or external effect occurred. Correct the quoting and issue that intended command once
 with the same fresh target. A shell parse error is not `transport_failed`; only a

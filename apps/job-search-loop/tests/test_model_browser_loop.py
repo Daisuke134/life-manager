@@ -722,6 +722,14 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
         self.assertIn("job_search_loop.browser_agent.browser_agent.runtime", prompt)
         self.assertIn("replace it with the canonical module", prompt)
 
+    def test_daily_prompt_continues_after_profile_batch_results(self):
+        prompt = " ".join(
+            (APP_ROOT / "prompts" / "daily-pass.md").read_text(encoding="utf-8").split()
+        )
+        self.assertIn("`batch_acted`", prompt)
+        self.assertIn("`batch_partial`", prompt)
+        self.assertIn("never return `transport_failed` for them", prompt)
+
     def test_daily_prompt_searches_for_grounded_picker_value_before_continuing(self):
         prompt = (APP_ROOT / "prompts" / "daily-pass.md").read_text(encoding="utf-8")
         normalized = " ".join(prompt.split())
