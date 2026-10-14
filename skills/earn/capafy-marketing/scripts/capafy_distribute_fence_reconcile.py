@@ -56,6 +56,7 @@ LANDING_ROOT = Path(os.environ.get(
     "~/.local/state/life-manager/writer/checkouts/self-owned-landing")).expanduser()
 BASE_URL = "https://aniccaai.com/blog/"
 X_INTEGRATION_ID = os.environ.get("POSTIZ_X_INTEGRATION_ID", "cmt4l2jld031tqp0y8qtyo983")
+POSTIZ_POST_LIST_PROOF_ROW_CAP = 500
 COMMIT_PREFIX = "feat(capafy-distribute): publish free article "
 OCCURRENCE_SCHEMA = "capafy-distribute-occurrence.v1"
 SLOT_PATTERN = re.compile(r"\d{4}-\d{2}-\d{2}-h(?:[01]\d|2[0-3])m(?:00|30)")
@@ -340,8 +341,25 @@ def read_x_posts(start: dt.datetime, end: dt.datetime) -> dict[str, Any]:
         posts = HttpPostizClient(key).list_posts(start, end)
     except Exception as exc:  # noqa: BLE001
         return {"ok": False, "reason": f"postiz_readback_failed:{type(exc).__name__}"}
-    ours = [p for p in posts if (p.get("integration") or {}).get("id") == X_INTEGRATION_ID]
-    return {"ok": True, "posts": [p.get("id") for p in ours]}
+    if not isinstance(posts, list):
+        return {"ok": False, "reason": "postiz_readback_malformed"}
+    if len(posts) >= POSTIZ_POST_LIST_PROOF_ROW_CAP:
+        return {"ok": False, "reason": "postiz_listing_exceeds_proof_row_cap"}
+    if any(not isinstance(post, dict) for post in posts):
+        return {"ok": False, "reason": "postiz_readback_malformed"}
+    ours = []
+    for post in posts:
+        integration = post.get("integration")
+        if (not isinstance(integration, dict)
+                or not isinstance(integration.get("id"), str)
+                or not integration["id"]):
+            return {"ok": False, "reason": "postiz_readback_malformed"}
+        if integration["id"] == X_INTEGRATION_ID:
+            post_id = post.get("id")
+            if not isinstance(post_id, str) or not post_id:
+                return {"ok": False, "reason": "postiz_readback_malformed"}
+            ours.append(post_id)
+    return {"ok": True, "posts": ours}
 
 
 def build_proof(occurrence_id: str, queued_at: dt.datetime, *,

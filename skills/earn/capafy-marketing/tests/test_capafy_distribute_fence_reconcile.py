@@ -2,6 +2,7 @@ import datetime as dt
 import json
 import os
 import sys
+import types
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -278,6 +279,61 @@ def test_postiz_key_rejects_ambiguous_or_malformed_ssot(tmp_path, monkeypatch):
     assert rec.postiz_key(path) == ""
     path.write_text("not-json")
     assert rec.postiz_key(path) == ""
+
+
+def test_postiz_window_at_proof_row_cap_is_not_complete_evidence(monkeypatch):
+    class CappedClient:
+        def __init__(self, _api_key):
+            pass
+
+        def list_posts(self, _start, _end):
+            return [{"id": f"post-{index}", "integration": {"id": rec.X_INTEGRATION_ID}}
+                    for index in range(500)]
+
+    fake_adapter = types.ModuleType("postiz_adapter")
+    fake_adapter.HttpPostizClient = CappedClient
+    monkeypatch.setattr(rec, "postiz_key", lambda: "test-key")
+    monkeypatch.setitem(sys.modules, "postiz_adapter", fake_adapter)
+
+    result = rec.read_x_posts(Q, Q + dt.timedelta(minutes=70))
+
+    assert result == {"ok": False, "reason": "postiz_listing_exceeds_proof_row_cap"}
+
+
+def test_postiz_window_with_missing_integration_is_not_complete_evidence(monkeypatch):
+    class MissingIntegrationClient:
+        def __init__(self, _api_key):
+            pass
+
+        def list_posts(self, _start, _end):
+            return [{"id": "post-1"}]
+
+    fake_adapter = types.ModuleType("postiz_adapter")
+    fake_adapter.HttpPostizClient = MissingIntegrationClient
+    monkeypatch.setattr(rec, "postiz_key", lambda: "test-key")
+    monkeypatch.setitem(sys.modules, "postiz_adapter", fake_adapter)
+
+    result = rec.read_x_posts(Q, Q + dt.timedelta(minutes=70))
+
+    assert result == {"ok": False, "reason": "postiz_readback_malformed"}
+
+
+def test_postiz_window_with_malformed_integration_is_not_complete_evidence(monkeypatch):
+    class MalformedIntegrationClient:
+        def __init__(self, _api_key):
+            pass
+
+        def list_posts(self, _start, _end):
+            return [{"id": "post-1", "integration": "not-an-object"}]
+
+    fake_adapter = types.ModuleType("postiz_adapter")
+    fake_adapter.HttpPostizClient = MalformedIntegrationClient
+    monkeypatch.setattr(rec, "postiz_key", lambda: "test-key")
+    monkeypatch.setitem(sys.modules, "postiz_adapter", fake_adapter)
+
+    result = rec.read_x_posts(Q, Q + dt.timedelta(minutes=70))
+
+    assert result == {"ok": False, "reason": "postiz_readback_malformed"}
 
 
 def pre_effect_manifest_failure(tmp_path, monkeypatch, *, artifact=None):

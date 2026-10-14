@@ -65,10 +65,13 @@ class HttpPostizClient:
         query = urllib.parse.urlencode({
             "startDate": start.astimezone(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z"),
             "endDate": end.astimezone(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z"),
-            "limit": 500,
         })
         body = self._json("GET", f"/posts?{query}")
-        return body if isinstance(body, list) else list(body.get("posts") or [])
+        if isinstance(body, list):
+            return body
+        if not isinstance(body, dict) or not isinstance(body.get("posts"), list):
+            raise ValueError("Postiz posts response malformed")
+        return body["posts"]
 
     def upload_file(self, path: pathlib.Path):
         path = pathlib.Path(path)
