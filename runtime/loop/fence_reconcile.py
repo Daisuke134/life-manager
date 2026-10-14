@@ -426,7 +426,9 @@ def _rotate_occurrences_from_log(targets: dict[str, list[str | None]], log_path:
                 continue
             if not isinstance(row, dict):
                 continue
-            owner, occurrence = row.get("owner_id"), row.get("occurrence_id")
+            owner = row.get("owner_id")
+            occurrence = (row.get("last_occurrence_id") if row.get("owner_cursor") is True
+                          else row.get("occurrence_id"))
             if isinstance(owner, str) and isinstance(occurrence, str):
                 last[owner] = occurrence
     except OSError:
@@ -556,6 +558,15 @@ def reconcile(
             if (not lost or occ_closed or previous is None or previous.get("closed")
                     or previous.get("exit_code") != exit_code):
                 records.append(record)
+            elif len(targets.get(owner_id, ())) > 1:
+                cursor = {
+                    "owner_id": owner_id, "occurrence_id": f"{owner_id}:*",
+                    "owner_cursor": True, "last_occurrence_id": occurrence,
+                    "closed": False,
+                }
+                previous_cursor = recent_call_rows.get((owner_id, cursor["occurrence_id"]), {})
+                if previous_cursor.get("last_occurrence_id") != occurrence:
+                    records.append(cursor)
             if occ_closed and proof is not None:
                 record["release_sha"] = proof["release_sha"]
                 record["closure_proof"] = proof
