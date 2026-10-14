@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
-"""Close a Writer fence from paired publish, paired pre-effect, or exact historical no-dispatch proof.
+"""Close Writer fences only from exact publication or no-dispatch evidence.
 
-article-daily: the fence is closed only when a Writer run that STARTED shortly after the fenced
-occurrence has a published article whose URL answers HTTP 200, or the exact allowlisted historical run
-is proven to have exited at its pre-publication demand gate. Ordinary URL absence never closes a fence.
-The time window pairs a fence with a run; it is never used to conclude that nothing happened.
+article-daily pairs a fence with the run start or a generation-attempt start. A resumed attempt can
+pair even when its run directory predates the fence. The time window selects candidates; it never
+proves no effect. Require HTTP 200 for a ledger URL or exact allowlisted pre-publication stop proof.
 
-article-resume: the fence is closed only when it is at least 7 days old and every official Writer
-destination readback (note, both Substacks) returns posts whose newest predates the fence, and the
-writer ledger (which also records self-owned aniccaai.com posts) has no row at or after it.
+article-resume requires age >= 7 days, official Note and both Substack reads whose newest posts
+predate the fence, and no at-or-after row in the Writer ledger (including self-owned aniccaai.com posts).
 
     python3 article_fence_reconcile.py --occurrence article-daily:<run_id> [--resolve]
     python3 article_fence_reconcile.py --occurrence article-resume:<run_id> [--resolve]
@@ -139,13 +137,21 @@ def _run_start_epoch(run_id: str) -> float | None:
 
 
 def _run_starts(run_dir: Path) -> list[float]:
-    """The run's creation time plus every generation attempt start (a run can be resumed later)."""
-    starts = [t for t in [_run_start_epoch(run_dir.name)] if t is not None]
+    """Run start plus resumed generation attempt starts."""
+    base = _run_start_epoch(run_dir.name)
+    starts = [base] if base is not None else []
+    gates = run_dir / "gates"
+    state_path = gates / "generation-state.json"
+    if run_dir.is_symlink() or not run_dir.is_dir() or gates.is_symlink() or state_path.is_symlink():
+        return starts
     try:
-        state = json.loads((run_dir / "gates/generation-state.json").read_text(encoding="utf-8"))
-        for attempt in state.get("attempts") or []:
-            starts.append(datetime.fromisoformat(str(attempt["started_at"]).replace("Z", "+00:00")).timestamp())
-    except (OSError, ValueError, TypeError, KeyError, AttributeError):
+        # Directory start may predate the fence; include retry start.
+        starts.extend(
+            timestamp for attempt in json.loads(state_path.read_text(encoding="utf-8")).get("attempts") or []
+            if isinstance(attempt, dict)
+            if (timestamp := _epoch(attempt.get("started_at"))) is not None
+        )
+    except (OSError, ValueError, TypeError, AttributeError):
         pass
     return starts
 
@@ -519,11 +525,18 @@ def reconcile(occurrence_id: str, *, queued_at: float, state: str, articles_path
         return _inconclusive(occurrence_id, "articles_ledger_unreadable")
     candidates = []
     for row in rows:
-        started = _run_start_epoch(str(row.get("run_id", "")))
+        run_id = str(row.get("run_id", ""))
+        if (len(run_id) != 15 or not run_id.isascii() or run_id[8] != "-"
+                or not (run_id[:8] + run_id[9:]).isdigit()):
+            continue
+        started = _run_start_epoch(run_id)
         url = str(row.get("live_url") or "")
         if started is None or not url.startswith("https://"):
             continue
-        if 0 <= started - queued_at <= PAIR_WINDOW_SECONDS:
+        run_dir = runs_root / run_id
+        starts = ([started] if runs_root.is_symlink() or run_dir.is_symlink() or not run_dir.is_dir()
+                  else _run_starts(run_dir))
+        if any(queued_at <= start <= queued_at + PAIR_WINDOW_SECONDS for start in starts):
             candidates.append(row)
     proven = [row for row in candidates if fetch_status(str(row["live_url"])) == 200]
     if not proven:

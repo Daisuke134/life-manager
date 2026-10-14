@@ -18027,7 +18027,6 @@ Public salesVolume period/profit definition, search exposure and query volume ar
 
 **Cursor:** capacity/receipt-write recovery → run the registered Factory adapter for the exact occurrence and close only with verified official readback → repair the goal-monitor Telegram occurrence binding and reconcile its exact effect → apply eligible Capafy owners only while loaded-idle → natural runs plus official provider readbacks → refresh order/source/MRR metrics. Distributor is applied to `dfb8213c`; wait for its natural run and verify its landing-page/Postiz receipts before claiming distribution. Do not manually wake the watchdog, clear unknown rows, or replay provider effects.
 
-
 ### Capafy Factory apply readiness — 2026-10-14 21:22 JST
 
 **判定: Factory apply は現在未準備。** 21:19 JSTの独立read-only reviewは対象条件をPASSしたが、その後の21:22:03 JSTの launchctl-safe preflight は blocked_control_plane / mutation_allowed=false / receipt_write_failed（OSError errno=28）を返した。UID 501、Aqua manager、gui/501のreadbackは成功したが、preflight receiptを保存できなかったため、この時点でapplyしない。21:20 JST頃のdf -kPは148,368 KiB（約145 MiB）空き、Data volumeは100%使用。
@@ -18039,6 +18038,17 @@ Public salesVolume period/profit definition, search exposure and query volume ar
 - Revenue: このcheckpointでは新しいseller sales/MRR readbackを取っていない。post-2026-10-03 paid-order milestone、active MRR、settled MRRは未確認のまま扱い、CI・apply・Agentの既存掲載を売上証拠にしない。
 
 **Cursor/order update:** 前回の順序は (1) receipt-write/capacity recovery, (2) exact Factory fence readback, (3) goal-monitor occurrence binding, (4) eligible owner apply, (5) natural runs + official readbacks, (6) revenue/source refresh。exact Factory fence reconciliationとDistributor applyは完了したため、現在の順序は (1) HostDiskGovernorのallowlistだけでreceipt-write capacityを回復し、保護対象を削除しない, (2) launchctl-safe preflightを再実行してreceiptが保存されmutation_allowed=trueになることを確認, (3) Factory ownerのloaded-idleとexact admissionを再確認して対象apply, (4) 自然Factory run後にofficial publish-listでAgent数/ID/versionを照合, (5) Distributorの自然run後にPostiz/landing receiptを照合, (6) Goal-monitorのoccurrence-bound Telegram evidenceとregistered adapterを修復, (7) seller/source readbackを更新しpaid-order gateとactive/settled MRRを確認。順序変更の理由は、Fenceはno-effectで安全に閉じた一方、最新の必須preflightがerrno 28で停止し、Factory applyを許可しないため。**現在cursor: item 1（receipt-write recovery）。** No Factory apply, manual wake, provider replay, or new Agent shipment is claimed.
+
+### EDD current cursor — 2026-10-14 21:32 JST
+
+**Current-main merge:** GitHub main `70a9ead` includes the latest Capafy recovery checkpoint and shared cleanup/runtime updates. PR #8037 is synchronized from prior head `10301b7` and base `72ff5f9` by a server-side merge commit with main as second parent; this preserves current main and the four intended PR files. Exact-head CI reruns on the new commit. Prior-head checks passed; CodeRabbit reports pass but skipped manual review, and self-review found no Critical/Important finding.
+
+**Writer EDD evidence:** the focused fence suite passes 24/24 on the prior merged tree. The repair pairs the original run start plus valid generation-attempt starts, validates ASCII run IDs, avoids reading symlinked state, and still requires HTTP 200 or exact stop proof before the registered resolver acts. Eight retained runs produced 14/439 ledger joins; all 14 joined artifacts remain engagement/revenue unknown. The Web CTA product/run/artifact/variant/click identifiers are filtered by the UTM-only landing/sign-in/report path, and article-ja click ID is reused across destinations. Reuse the existing Web funnel, first-touch, Stripe, and Writer artifact join; do not add a parallel tracker.
+
+**Capacity and outcomes:** the cleanup receipt remains stale at 2026-10-10 and exact release capacity for `70a9ead` is unmeasured. No release, owner adoption, mature publication-level revenue, cost, or intervention is verified.
+
+**Next order:** pass exact-head CI, merge PR #8037 through the authorized no-human-loop path, then complete CTA lineage/destination identity and receipt-backed outcomes; satisfy DD05 fresh capacity/release/natural-sweep gates; freeze a baseline and run one controlled experiment; continue DD07–DD12. No provider effect is claimed.
+
 ## Anicca iOS distribution checkpoint — 2026-10-14 21:40 JST
 
 **AS-IS:**
@@ -18070,3 +18080,13 @@ Public salesVolume period/profit definition, search exposure and query volume ar
 | 11 | Publish the Life Manager/mobile-app factory as OSS after Anicca's playbook is repeatable. | A clean computer can run a few documented commands, isolate each operator's credentials/state, and show provider receipts and settled results; no guaranteed-income claim. |
 
 **Current cursor:** #1. Runtime owner failures show ENOSPC reaches the Anicca ledger and metrics path. The exact publication effects remain unknown pending official readback; no provider action was replayed.
+
+### EDD DD06 integration cursor — 2026-10-14 21:52 JST
+
+**同期:** GitHub main `3de213777ef82996ada82ea6bbc4d898afcee7a9` の追記を保持し、PR #8037のWriter cursorを続けて残した。PR旧head `04a0b1c` はbase `70a9ead` から分岐したOPEN/CONFLICTING状態だった。旧headの全status checksはSUCCESSだが、新headで再実行が必要。CodeRabbitはSUCCESSだがmanual reviewをskip。
+
+**検証境界:** Writer focused suite 24/24はmerged `72ff5f9` treeでの過去結果。旧headではPython syntax + unittestとWriter EDD receipt graderを含む全自動checkがPASS。今回の同期ではWriter source/testを変えない。最新head CIがPASSするまで統合済みとは扱わない。ローカルGit fetch/writeはENOSPCで完了しておらず、ローカルbranch同期を主張しない。
+
+**未証明:** current-main release capacity、immutable release、owner adoption、自然run、publication単位の売上・コスト・人手介入。HTTP 200、CI、掲載状態は収益証拠ではない。
+
+**Cursor:** (1) 同期後headのexact checksをPASSさせPR #8037をmerge、(2) Writer CTAのproduct/run/artifact/variant/click lineageとdestination identityを既存Web funnel→first-touch→Stripe/Writer joinで保持、(3) fresh capacity gate後にDD05をregistered ownerのnatural run/24h成熟publicationまで確認、(4) outcome baselineを凍結して単一変数experiment、(5) DD07–DD12。次の実装atomはCTA lineage/destination identity。
