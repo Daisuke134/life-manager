@@ -148,7 +148,7 @@ def _lost_terminal_unknown_occurrences(
             release_sha = event.get("release_sha")
             if (event.get("loop_id") != owner_id or event.get("owner_id") != owner_id
                     or event.get("phase") != "report"
-                    or event.get("status") not in {"blocked", "failed"}
+                    or event.get("status") not in {"blocked", "fail"}
                     or event.get("effect_status") != "unknown"
                     or not isinstance(event.get("effect_class"), str)
                     or not event.get("effect_class") or event.get("effect_class") == "none"
@@ -426,7 +426,9 @@ def _rotate_occurrences_from_log(targets: dict[str, list[str | None]], log_path:
                 continue
             if not isinstance(row, dict):
                 continue
-            owner, occurrence = row.get("owner_id"), row.get("occurrence_id")
+            owner = row.get("owner_id")
+            occurrence = (row.get("last_occurrence_id") if row.get("owner_cursor") is True
+                          else row.get("occurrence_id"))
             if isinstance(owner, str) and isinstance(occurrence, str):
                 last[owner] = occurrence
     except OSError:
@@ -538,21 +540,36 @@ def reconcile(
                 if _batch_summary_changed(previous, record):
                     records.append(record)
         else:
+            proof = _closure_proof(
+                tail, owner_id=owner_id, occurrence_id=occurrence,
+                release_sha=event_release_shas.get(owner_id, {}).get(occurrence),
+            ) if exit_code == 0 else None
+            lost = occurrence in lost_fences.get(owner_id, ())
             occ_closed = occurrence not in still_open
+            if lost:
+                occ_closed = occ_closed and proof is not None
             if occ_closed:
                 closed += 1
-            records.append({
+            record = {
                 "owner_id": owner_id, "occurrence_id": occurrence,
                 "exit_code": exit_code, "closed": occ_closed, "stdout_tail": tail,
-            })
-            if occ_closed and exit_code == 0:
-                proof = _closure_proof(
-                    tail, owner_id=owner_id, occurrence_id=occurrence,
-                    release_sha=event_release_shas.get(owner_id, {}).get(occurrence),
-                )
-                if proof is not None:
-                    records[-1]["release_sha"] = proof["release_sha"]
-                    records[-1]["closure_proof"] = proof
+            }
+            previous = recent_call_rows.get((owner_id, occurrence))
+            if (not lost or occ_closed or previous is None or previous.get("closed")
+                    or previous.get("exit_code") != exit_code):
+                records.append(record)
+            elif len(targets.get(owner_id, ())) > 1:
+                cursor = {
+                    "owner_id": owner_id, "occurrence_id": f"{owner_id}:*",
+                    "owner_cursor": True, "last_occurrence_id": occurrence,
+                    "closed": False,
+                }
+                previous_cursor = recent_call_rows.get((owner_id, cursor["occurrence_id"]), {})
+                if previous_cursor.get("last_occurrence_id") != occurrence:
+                    records.append(cursor)
+            if occ_closed and proof is not None:
+                record["release_sha"] = proof["release_sha"]
+                record["closure_proof"] = proof
     if log_path is not None:
         _append_jsonl(log_path, records)
     summary = {

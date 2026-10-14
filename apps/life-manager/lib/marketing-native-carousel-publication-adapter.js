@@ -478,6 +478,7 @@ function assertMarketingCarouselJpeg(file, label, limits = {}) {
 function postizEnv(token) {
   const env = {};
   for (const key of ["PATH", "LANG", "LC_ALL", "TMPDIR"]) if (process.env[key] !== undefined) env[key] = process.env[key];
+  if (process.env.LIFE_MANAGER_RESULT_HINT_PATH !== undefined) env.LIFE_MANAGER_RESULT_HINT_PATH = process.env.LIFE_MANAGER_RESULT_HINT_PATH;
   env.POSTIZ_API_KEY = token;
   return env;
 }

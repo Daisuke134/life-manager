@@ -246,6 +246,16 @@ def _goal_monitor_fixture(tmp_path: Path) -> dict[str, Path]:
         }),
         encoding="utf-8",
     )
+    (state_home / "state/capafy-skill-analytics.json").write_text(
+        json.dumps({
+            "daily_revenue_trend_last_30d": [
+                {"date": "2026-08-20", "revenue": 2.0, "orders": 1},
+                {"date": "2026-08-21", "revenue": 0.0, "orders": 0},
+                {"date": "2026-08-22", "revenue": -2.0, "orders": -1},
+            ]
+        }),
+        encoding="utf-8",
+    )
 
     safe_calls = tmp_path / "launchctl-safe.calls"
     safe = tmp_path / "launchctl-safe"
@@ -312,6 +322,17 @@ def test_real_goal_monitor_headless_bridge_skips_safe_and_reaches_report_state(t
     assert report["goal_c"]["go_live_action"] == "headless_bridge"
     state = json.loads((fixture["state_home"] / "state/capafy-goal-monitor.json").read_text(encoding="utf-8"))
     assert state["latest"] == report
+
+
+def test_goal_monitor_separates_reconcile_date_from_last_revenue_day(tmp_path: Path) -> None:
+    result, _ = _run_full_goal_monitor(tmp_path, headless=True)
+
+    assert result.returncode == 0, result.stderr
+    report = json.loads(result.stdout.strip().splitlines()[-1])
+    goal_b = report["goal_b"]
+    assert goal_b["reconcile_observed_date"] == "2026-08-23"
+    assert goal_b["last_positive_revenue_date_30d"] == "2026-08-20"
+    assert "last_sales_date" not in goal_b
 
 
 def test_real_goal_monitor_normal_mode_still_fails_closed_before_report(tmp_path: Path) -> None:

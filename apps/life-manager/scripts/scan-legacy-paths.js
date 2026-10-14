@@ -113,7 +113,7 @@ const ALLOWLIST = [
   },
   {
     file: "runtime/host/disk_admission.py",
-    line: 111,
+    line: 115,
     lineIncludes: 'owner_home / "' + "." + "open" + "claw" + '" / "state",',
     reason: "read-only stop-flag check preserves the protected host control state",
   },

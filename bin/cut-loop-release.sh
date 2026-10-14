@@ -361,7 +361,7 @@ if [ -d "$DEST/runtime" ]; then
     -s "$DEST" "$DEST/runtime" || die "runtime bytecode build failed"
 fi
 
-cat >"$DEST/RELEASE.json" <<EOF
+cat >"$DEST/RELEASE.json" <<EOF || die "release manifest write failed"
 {
   "sha": "$SHA",
   "ref": "$REF",

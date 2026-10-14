@@ -322,7 +322,7 @@ def dependency_bundle_is_reusable(node_modules: Path, bundle_root: Path) -> bool
 
 
 def release_capacity_bytes(repo: Path, sha: str, loops: Path, node: str, npm: str) -> int:
-    """Measure a source export plus enough space to retain the recovery floor."""
+    """Measure the source export, bytecode, and serial temporary write budget."""
     roots = ("", "runtime/compute-proxy", "runtime/agentmail", "apps/life-manager",
              "skills/earn/taskmarket", "skills/earn/x402-sell", "services/x402-endpoint")
     package_manifests = []
@@ -380,7 +380,7 @@ def release_capacity_bytes(repo: Path, sha: str, loops: Path, node: str, npm: st
                     budget += 2 * (block + rounded(16 + len(marshal.dumps(code))))
         if archive.wait() != 0:
             raise ValueError("Git export measurement failed")
-    return RECOVERY_FLOOR_BYTES + budget + largest_temporary
+    return budget + largest_temporary
 
 
 def main(argv: Sequence[str] | None = None) -> int:
