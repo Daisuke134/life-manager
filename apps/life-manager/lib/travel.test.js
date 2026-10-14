@@ -340,6 +340,63 @@ test("ongoing Calendar event skips outbound routing but keeps its return route",
   });
 });
 
+test("event starting at now skips origin resolution and outbound routing but keeps its return route", async () => {
+  await withTravelClaimStore(async () => {
+    const office = "MUIT 生駒";
+    const sourceRows = [
+      { id: "office-morning", summary: "Work", location: office,
+        start: { dateTime: "2030-01-01T09:00:00+09:00", timeZone: "Asia/Tokyo" },
+        end: { dateTime: "2030-01-01T10:00:00+09:00", timeZone: "Asia/Tokyo" } },
+      { id: "office-midday", summary: "Team", location: office,
+        start: { dateTime: "2030-01-01T12:00:00+09:00", timeZone: "Asia/Tokyo" },
+        end: { dateTime: "2030-01-01T13:00:00+09:00", timeZone: "Asia/Tokyo" } },
+      { id: "office-afternoon", summary: "Work", location: office,
+        start: { dateTime: "2030-01-01T14:00:00+09:00", timeZone: "Asia/Tokyo" },
+        end: { dateTime: "2030-01-01T15:00:00+09:00", timeZone: "Asia/Tokyo" } },
+      { id: "event-now", summary: "Dinner", location: "Venue",
+        start: { dateTime: "2030-01-01T17:30:00+09:00", timeZone: "Asia/Tokyo" },
+        end: { dateTime: "2030-01-01T18:00:00+09:00", timeZone: "Asia/Tokyo" } },
+    ];
+    const routeCalls = [];
+    const allowanceCalls = [];
+    const created = [];
+    let originResolutions = 0;
+    const calendar = {
+      async listEventsRaw() { return sourceRows; },
+      async createEvent(_uid, args) { created.push(args); return { successful: true }; },
+    };
+    const result = await fillTravel("tenant-event-now", {
+      home: HOME,
+      geminiKey: "fixture-gemini-key",
+      timezone: "Asia/Tokyo",
+      nowMs: Date.parse("2030-01-01T17:30:00+09:00"),
+      calendar,
+      supaUrl: "https://db.example",
+      supaKey: "fixture",
+      _directionsMinutes: async (_from, _to, _key, _anchor, _now, isReturn) => {
+        routeCalls.push(isReturn ? "return" : "outbound");
+        return isReturn ? 30 : 40;
+      },
+      _reserveManagedAction: async (_uid, eventKey) => {
+        allowanceCalls.push(eventKey);
+        return { allowed: true, reservationToken: eventKey };
+      },
+      _completeManagedAction: async () => true,
+      _releaseManagedAction: async () => true,
+      _agentResolveTravelOrigin: async () => {
+        originResolutions++;
+        return { kind: "selected", candidateId: "repeated-location" };
+      },
+    });
+
+    assert.equal(originResolutions, 0);
+    assert.deepEqual(routeCalls, ["return"]);
+    assert.equal(allowanceCalls.length, 1);
+    assert.equal(result.inserted, 1);
+    assert.equal(created.length, 1);
+  });
+});
+
 test("previous-day location is not offered as the origin for today's event", async () => {
   await withTravelClaimStore(async () => {
     const sourceRows = [

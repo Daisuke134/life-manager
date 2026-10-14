@@ -934,7 +934,7 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
     let originOverride = null;
     const hasNonHomeSameDayEvent = sameDayEvents.some((event) => String(event.location || "").replace(/\s+/g, "").toLowerCase()
       !== String(home || "").replace(/\s+/g, "").toLowerCase());
-    if (ev.startMs >= nowMs && !hasDirectPreviousOrigin && hasNonHomeSameDayEvent
+    if (ev.startMs > nowMs && !hasDirectPreviousOrigin && hasNonHomeSameDayEvent
       && (originCandidates.length > 1 || !String(home || "").trim() && originCandidates.length > 0)
       && geminiKey) {
       try {
@@ -958,7 +958,7 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
       } catch { /* keep the existing conservative home/direct-previous decision */ }
     }
     // An event already in progress cannot need an outbound route; preserve its independent return leg.
-    const outboundEligible = Number.isFinite(ev.startMs) && ev.startMs >= nowMs;
+    const outboundEligible = Number.isFinite(ev.startMs) && ev.startMs > nowMs;
     const decision = outboundEligible
       ? travelDecision(ev, previous, home, originOverride)
       : { insert: false, origin: null, reason: "event-already-started" };
