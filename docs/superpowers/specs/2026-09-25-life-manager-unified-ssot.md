@@ -4009,6 +4009,22 @@ LINE Creators Support Programは募集期間が未定。選抜時は支援期間
 
 **判断:** この2施策を無料チャネルとして扱わず、費用発生・新作制作を開始しない。対象にできるのは既存素材を使う無料の自然配信のみ。現在cursorは引き続き10/15 07:05 JSTのset-019 article slot。
 
+#### 5.L 既存記事のsocial share preview修正 — 2026-10-15 06:06 JST（base main 2345448e）
+
+**As-Is:** 公開記事 /blog/line-sticker-set-018-2026-10-14-08 のScrapy readbackはtitle・description・canonical・robots=index,followを返すが、og:*とtwitter:* metadataがない。DDGでは同ページとLINE記事全体の検索結果が見つからない一方、公開sitemapには記事URLが掲載されrobots.txtもAllow: /。これはDuckDuckGoの検索結果がない証拠であり、他検索エンジンの非indexingを意味しない。anicca-products main 071836d0の apps/landing/app/blog/[slug]/page.tsx generateMetadata はtitle/description/canonical/robotsだけを返す。
+
+**既存画像で埋める方法:** 記事markdownには公式CTA https://line.me/S/sticker/<product_id> があり、LINE STORE公式ページのog:imageは商品ごとに https://stickershop.line-scdn.net/stickershop/v1/product/<product_id>/LINEStorePC/main.png?v=1 を返すことを、37254973・37253001・37293682の3商品で確認した。新規画像やスタンプ制作なしで、LINEスタンプ記事だけにog:title/description/url/imageとtwitter:card=summary_large_imageを付けられる。一般のblog記事は現行metadataを保つ。
+
+**To-Be / TODO順更新:** 旧cursorは「07:05 natural article → click/sales readback → 許可済みchannel」。新cursorは「(1) landingの既存dynamic article metadataに、line-sticker slugかつ正規LINE STORE CTAがある時だけproduct-specific share cardを足す（TDDでproduct ID/image/非LINE記事の不変条件を確認） → (2) 07:05 natural set-019 article slotを止めずに公開/CTA/ledgerを照合 → (3) main deploy後にScrapyで公開HTMLのOG/Twitter tagsとLINE画像URLをreadbackし、self-viewをtraffic成果に数えない → (4) 10/16 JSTの公式販売/分配readerと同期間clickを照合 → (5) owner/identity/effect gateを越えた既存Short/SNSの無料配信 → (6) actual winnerへの無料枠再配分・月間gross/payout/cost判定」。理由は、SEO indexability設定とsitemapは既にあるのに公開share cardsが欠け、既存SNS配信にも友だち/フォロワー到達の受け皿が必要だから。OG修正は07:05の自然記事をブロックしない。no paid route・no new SKU。
+
+#### 5.L 既存LINE記事のshare-card改善 — 2026-10-15 06:15 JST（base main 2345448e）
+
+**観測された欠落:** 公開set-018記事のScrapy HTMLにはtitle・description・canonical・robots=index,followがあるが、Open Graph/Twitter card metadataがない。anicca-products main 071836d0のapps/landing/app/blog/[slug]/page.tsxもgenerateMetadataから同項目だけを返す。記事はsitemapにありrobots.txtはAllow:/だが、DuckDuckGoは試した記事queryで結果0件。これはDuckDuckGoの観測だけで、Google等のindexing結果とはみなさない。
+
+**既存素材の利用可否:** LINE STORE公式商品ページ37254973・37253001・37293682のScrapy readbackで、全てog:imageがhttps://stickershop.line-scdn.net/stickershop/v1/product/<ID>/LINEStorePC/main.png?v=1だった。既存記事markdownのLINE STORE CTAからSKU IDを取り出せるため、追加の画像生成・新商品作成なしでsticker別share cardを作れる。Scrapyによる自社記事アクセスはtraffic成果に計上しない。
+
+**To-Be / 追加TODO:** landingのdynamic generateMetadataで、slugがline-sticker-set-*かつ本文に正規https://line.me/S/sticker/<5–12桁ID> CTAがある記事だけ、OG title/description/canonical URL/公式商品main imageとTwitter summary_large_imageを出す。非LINE記事のmetadataは変えない。valid/invalid CTAを分けた最小testを先に追加する。旧順序「07:05自然記事→analytics→他channel」から、(1) share-card実装を進めつつ(2)07:05自然記事を止めず(3)deploy後の公開HTMLでshare tagsを照合(4)10/16 official sales/payoutと同期間clickを照合(5)許可済owner/fenceの無料channelへ広げる、へ追加する。share tags欠落は既存articleの外部共有クリック率を下げうる仮説であり、売上との因果は未計測。
+
 ## 6. 不変の制約
 
 - Ryu room `18211957` へは再送しない。正式納品ボタンは loop から押さない。Ryu は CDP :9223 での手動例外として扱う。
@@ -18444,7 +18460,35 @@ Paid-orders/views is descriptive, not causal: hot `5/46 ≈ 10.9%`, search `8/79
 5. `draft-attempts.json`のcounter 3を保持し、修正release adoption後に7393298474だけ0へ戻す。次の自然runで同Agent/versionを使い、Week/Month/Year、No Free Trial、daily quotaなし、`PRICES_MATCH 3`、card-done、CP2/CP3のofficial status 1/4と両confirmation trueを確認する。effect unknownはregistered adapterだけで照合する。
 6. fresh sales readbackでorders>70、gross>$102.75、settled MRRを個別に確認し、7日後に`tiktok_blog` funnelとsearch/hot/Google・`ai_overview`のview-to-paidを追う。
 **順序変更理由:** 2回のCP1 childでprice resetとplan row reorderが別々に起き、gate未達。3回目のparent wakeにはchild summaryがなく、official status/versionは不変。さらに同じheartbeat failureが複数ownerに出ており、CP1再試行を止める共有runtime問題が再発している。FROZEN seller編集・再提出、draft削除、duplicate Agent作成、稼働中owner停止、強制wakeはしない。
-**Current cursor:** item 2—PR #8089のexact-head CIを完了させてmergeする。次にsuperseded docs PR #8082を閉じ、item 3で共通heartbeat障害をfresh-main worktreeから原因別に診断する。CP1/heartbeat両source fixがmainへ入った後、loaded-idleのCapafy ownerへimmutable releaseを適用する。counter 3は適用後まで維持し、manual wake/retryはしない。
+**直近cursor（2026-10-15 06:03 JST完了）:** PR #8089はexact-head CI全pass後、main commit `2345448e0277242d9d71f425e2899aabd2502f09`へmerge済み。docs-only PR #8082は重複としてclose済み。現在cursorは次の「共通runtime heartbeat障害」item 1へ移行した。
+
+
+### 共通runtime heartbeat障害 — 2026-10-15
+
+**目的・完了条件:** 複数ownerに共通するfinite-run heartbeat failureの実原因を一度の自然発生から判別できるようにし、観測された原因だけを修正する。heartbeat失敗時のcancel、effect-unknown fence、公式readback境界は維持する。未登録の再送・手動wake・DB手修正は行わない。
+
+**確認済み:**
+
+- 直近24時間の記録は`resource_heartbeat_unavailable` 6件 / 5 owners（Capafy 2、他4 owners）。Capafyの一件は親exit 75、`effect_identity_status=not_written`で終端し、公式Capafy publish-listの72件snapshotにより`no_effect` closure済み。これはそのoccurrenceの外部効果なしを示すが、heartbeat subcauseまでは示さない。
+- PR #8089はmain `2345448e0277242d9d71f425e2899aabd2502f09`にmerge済み。`PR #8082`はsuperseded docs-only差分としてclose済み。main由来`~/loops/current`はまだ`235b6ef5a8aa18b20bdac09c047fec04bcd02b20`で、`capafy-loop-daily`はloaded-idle / `222d1e182b5a8ef989653be19b5fd58b76d37069`。修正releaseの作成・applyは未実施。
+- 自然occurrence `capafy-loop-daily:18de80bc08e35030-42822`（20:54:06–20:54:36Z、release 222d1e18）はexit 0だが`effect_status=unknown`、receiptなし。直前snapshotは72 Agents、Agent 7393298474はversion `2110426515594047488`。直後の公式publish-listも72件・同じAgent/version・`updated_at=1791999865802`（2026-10-14 17:44:25.802Z、runより前）で、official remote-statusはplatform_status=0 / audit_status=0 / 両confirmation=false。shipmentは確認されず、active admission fenceは0。eventのeffect statusはunknownのまま記録する。
+- `draft-attempts.json`の7393298474は3のまま。修正release適用前にcounterを下げず、手動wake/retryをしない。
+- `runtime/loop/lm_loop_run.py::_heartbeat_loop`は`control_busy` timeout、claim更新失敗、OSError等を同じfailure eventへ畳み、`_run_admitted`も一つの`resource_heartbeat_unavailable` reasonだけをreceiptへ書く。`runtime/host/resource_admission.py::heartbeat_durable`はmissing/invalid claim、identity不一致、expiryを`False`へ畳む。原因はまだ未確定。
+- この`heartbeat_durable`経路はclaim JSONと`control.lock`のflockを使い、SQLiteを呼ばない。従って「SQLite busyが原因」とは推定しない。live controllerのterminal handoff保護も既存`_durable_capacity`と回帰testで存在するため、同箇所を未検証で変更しない。
+
+**パッチと受け入れ条件:**
+
+1. `runtime/host/resource_admission.py::heartbeat_durable`でmissing/invalid、process identity unavailable、ownership lost、expiredを識別する。`control_busy`は既存の240秒toleranceを維持し、OSErrorはclassとerrnoを安全な固定tokenへ変換する。
+2. `runtime/loop/lm_loop_run.py::_heartbeat_loop`からreceiptの`heartbeat_subcause`とruntime eventの`error_detail`へ同じsubcause tokenを伝える。既存consumerがgeneric blockerを完全一致するため、receipt `reason`とevent `blocker/error_class`は`resource_heartbeat_unavailable`のまま保つ。raw exception text、path、secretは保存しない。effectful ownerのheartbeat failureは`retryable=false`, `next_action=official_readback_required`とし、既存event schema・failure時のcancel・`effect_status=unknown`を緩めない。
+3. `runtime/host/tests/test_resource_admission.py`と`runtime/loop/tests/test_lm_loop_run_bounds.py`で各subcauseのRED→GREEN、240秒busy tolerance、receipt/event伝播、秘密の非記録を確認する。productionの強制再実行は診断に使わない。
+4. main統合・immutable release後の自然runは、subcauseを一度観測する受け入れとする。新しいeffect-unknownは登録済みofficial readbackで閉じる。原因が判明した場合は同じshared runtime経路を直し、追加の診断runを重ねず次の自然実行で確認する。
+
+**TODO順序変更:** 旧順=`(1) CP1 prompt修正PRをmerge; (2) release/apply後にCP1を再実行; (3) 共通heartbeatを後から診断`。新順=`(1) shared heartbeatのsubcause保持をlatest-mainでtest/PR/CI/merge; (2) 最新mainからimmutable releaseを作成; (3) loaded-idleのcapafy-loop-dailyだけapply; (4) Agent 7393298474のattempt counterを3→0へ対象限定で戻す; (5) 同Agent IDで次の自然runを一度だけ実行させ、CP1 pricing gateとofficial status 1/4・両confirmationを読む; (6) fresh sales/MRRを確認し、search/hot/Google/ai_overviewのsource別view→paidを計測する`。理由=`複数ownerでheartbeat failureが再発し、factoryが同じ段階で停止している。CP1 source fixはすでにmainに入ったため、共有停止境界の修復後に一度のrelease/applyで両方を採用する。`
+
+**実装互換性の確認:** `skills/earn/gig/scripts/coconala_discovery_pre_effect_migration.py`と`coconala_legacy_pre_effect_migration.py`は既存の`host_admission_deferred:resource_heartbeat_unavailable`を完全一致で読む。従ってsubcauseは補助diagnosticへ保存し、既存reason/blocker/error_classは変更しない。
+
+**現在cursor:** item 1。malformed claim shapeの誤分類と既存generic blockerを崩す案の両方でREDを確認し、必須claim shapeの検証・subcause記録・旧reason/blocker/error_class保持を実装した。関連testsは`test_resource_admission.py` 172/172、`test_lm_loop_run_bounds.py` 182/182、`py_compile`、`git diff --check`がpass。PR #8095の初回CIでOSS boundaryがtest fixture中の`/Users/anicca/path`を拒否したため、個人pathを含まない`private test detail`へ置換し、`node scripts/verify-oss-self-contained.mjs`とheartbeat-focused 3件がpass。過去heartbeat failureの実原因は未確認で、このsource修正は次回発生時の原因を記録する。次はfollow-up commitをpushし、latest-head CIを通す。
+
 
 ### Life Manager Cloud current cursor — 2026-10-15
 
@@ -18477,6 +18521,7 @@ Paid-orders/views is descriptive, not causal: hot `5/46 ≈ 10.9%`, search `8/79
 **Marketing runtime/readiness:** The live `/lm/guide` hub and `/lm/guide/google-calendar-travel-time-auto` page already describe the Web product and link to `/lm` with SEO UTMs. Three Web-first Japanese Reels/Shorts scripts are in merged PR #427. PR #465 updates Product Hunt and directory drafts to the Web offer, but those drafts are unpublished. Main also has a real `life-manager-daily` video publisher: registered once daily at 10:15, defaults to TikTok, and can be configured for Instagram plus TikTok. Fresh `lm-loop status --explain` shows it loaded-idle on release `36881e439c04368837aa89e43aebcd9e3deac950`, last successful publish 2026-09-17, and blocked by `effect_unknown` occurrence `life-manager-daily:tiktok-retry-20260918-3`; its official readback and provider receipt are absent. Do not resend until that exact occurrence is reconciled. Its 16-row creative bank contains claims beyond the approved Cloud offer (for example calls that continue ringing, automatic late emails, and appointment booking), and `distribute.py` hardcodes `aniccaai.com/life-manager` without UTM tags. No account registry entry is assigned to `life-manager-cloud`; the existing YouTube `@life-manager-m4p` account belongs to `anicca-ios` and is quarantined. `marketing-mine-daily` is research/reporting, not a publisher. Cloud-specific claims, destination/UTM, account owner, X/article lanes, high-frequency cadence, and attribution receipts remain unfinished.
 
 **TODO order update:** Old order=`(1) raise authenticator timeout in stage/prod; (2) verify tenant and marketing; (3) scale acquisition; (4) reach USD 10K MRR.` New order=`(1) commit/push the fail-first `pg_stat_statements` integration and forward migration replacing `lm_managed_period`; run exact-head checks/review and merge; (2) apply in staging, confirm valid zone and UTC fallback, zero additional `pg_timezone_names` calls, and REST responds instead of PGRST002; (3) apply in production and read back REST plus Postgres cancellation logs; (4) read back the exact tenant and complete ask/reply, Travel block, replay-zero, and 07:00 wake checks without Google re-login; (5) reconcile `life-manager-daily:tiktok-retry-20260918-3` through its owner path and exact provider readback without manual resend; (6) replace unsupported video claims and `/life-manager` CTA with approved Cloud copy plus `/lm` UTMs, map a Cloud channel owner, add X/article lanes and higher cadence; (7) finish staging Stripe TEST Checkout/webhook and authenticated Web OAuth/Calendar E2E through an existing session; (8) grow to 345 active USD 29 subscribers = USD 10,005 gross MRR, then reconcile refunds, fees, provider, hosting, and marketing cost.` Reason: the 15s timeout migration is applied to both environments but did not restore production REST; logs show repeated `pg_timezone_names` scans inside the shared allowance path, and the local integration now proves the optimization removes that nested SQL while preserving timezone/fallback behavior. **Current cursor: item 1 — push the new Postgres integration and forward function migration, pass exact-head checks, merge, then test in staging.**
+
 ### Anicca distribution checkpoint — 2026-10-15 02:12 JST
 
 **目的:** paid ads・追加マーケ費用ゼロでAniccaを成長させる。最初の成果指標はASCの初回ダウンロード数を7日平均1,000件/日にすること。その後AniccaのMRR USD 10K、実入金・返金・手数料・費用を別々に照合する。確認できた勝ち筋だけをHonne/他アプリへ展開し、ポートフォリオMRR USD 10Mを目指す。
