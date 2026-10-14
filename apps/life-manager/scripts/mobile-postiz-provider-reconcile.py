@@ -354,16 +354,119 @@ def _load_postiz_video_adapter():
     return adapter
 
 
-def _remote_video_receipt(identity: dict[str, Any], ledger: Path,
-                          api_key: str) -> tuple[dict[str, Any], str] | None:
+def _postiz_publish_time(row: dict[str, Any]) -> datetime:
+    values = [row[key] for key in ("publishDate", "date") if key in row]
+    if not values:
+        raise ValueError("Postiz publish time is unavailable")
+    times = []
+    for value in values:
+        try:
+            published_at = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise ValueError("Postiz publish time is invalid") from exc
+        if published_at.tzinfo is None:
+            raise ValueError("Postiz publish time is timezone-naive")
+        times.append(published_at.astimezone(timezone.utc))
+    if any(published_at != times[0] for published_at in times[1:]):
+        raise ValueError("Postiz publish time aliases conflict")
+    return times[0]
+
+
+def _postiz_integration_id(row: dict[str, Any]) -> str:
+    nested = row.get("integration")
+    if nested is not None and not isinstance(nested, dict):
+        raise ValueError("Postiz integration object is invalid")
+    values = []
+    if isinstance(nested, dict) and "id" in nested:
+        values.append(nested["id"])
+    if "integrationId" in row:
+        values.append(row["integrationId"])
+    if (not values or any(not isinstance(value, str) or not value.strip() for value in values)
+            or any(value != values[0] for value in values[1:])):
+        raise ValueError("Postiz integration identifiers are missing, invalid, or conflicting")
+    return values[0]
+
+
+def _remote_video_identity_is_unique(
+    identity: dict[str, Any], identity_dir: Path | None, ledger: Path,
+    published_at: datetime, provider_caption: str,
+) -> bool:
+    if identity_dir is None or published_at.tzinfo is None:
+        return False
+    try:
+        sidecars = sorted(identity_dir.expanduser().glob("*.jsonl"), key=lambda item: item.name)
+    except OSError:
+        return False
+    if not sidecars:
+        return False
+    owner_id = str(identity.get("loop_id", ""))
+    occurrence_id = str(identity.get("occurrence_id", ""))
+    published_utc = published_at.astimezone(timezone.utc)
+    provider_caption_sha256 = hashlib.sha256(provider_caption.encode("utf-8")).hexdigest()
+    current_identity_count = 0
+    for sidecar in sidecars:
+        rows = _safe_jsonl(sidecar)
+        if rows is None:
+            return False
+        for other in rows:
+            other_owner = str(other.get("loop_id", ""))
+            other_occurrence = str(other.get("occurrence_id", ""))
+            if other_owner == owner_id and other_occurrence == occurrence_id:
+                if (not _valid_identity(other, owner_id, occurrence_id)
+                        or other != identity):
+                    return False
+                current_identity_count += 1
+                continue
+            if (other.get("platform") != identity.get("platform")
+                    or other.get("account_id") != identity.get("account_id")):
+                continue
+            try:
+                other_slot = datetime.fromisoformat(str(other["slot"]).replace("Z", "+00:00"))
+            except (KeyError, TypeError, ValueError, OverflowError):
+                return False
+            if other_slot.tzinfo is None:
+                return False
+            other_slot_utc = other_slot.astimezone(timezone.utc)
+            if not (other_slot_utc - timedelta(minutes=15) <= published_utc
+                    <= other_slot_utc + timedelta(hours=36)):
+                continue
+            if not _valid_identity(other, other_owner, other_occurrence):
+                return False
+            if other.get("integration_ref") != identity.get("integration_ref"):
+                continue
+            if other.get("caption_sha256") in {
+                identity.get("caption_sha256"), provider_caption_sha256,
+            }:
+                return False
+            if other.get("video_sha256") is not None:
+                other_caption = _stored_caption(other, ledger)
+                if other_caption is None:
+                    return False
+                if _video_caption_normalization(other, other_caption, provider_caption) is not None:
+                    return False
+            elif _native_carousel_caption_matches(provider_caption, other):
+                return False
+    return current_identity_count == 1
+
+
+def _remote_video_receipt(
+    identity: dict[str, Any], ledger: Path, api_key: str, *,
+    identity_dir: Path | None = None,
+) -> tuple[dict[str, Any], str] | None:
     """Recover an exact Postiz post when its local published row was not flushed."""
     caption = _stored_caption(identity, ledger)
-    token_prefix = EBOOK_TOKEN_PREFIXES.get(str(identity.get("product_id", "")))
-    if (token_prefix is None or caption is None
-            or not re.search(
-                rf"https://aniccaai\.com/go/{re.escape(token_prefix)}[a-z2-7]{{20}}(?:\b|$)",
-                caption,
-            )):
+    product_id = str(identity.get("product_id", ""))
+    token_prefix = EBOOK_TOKEN_PREFIXES.get(product_id)
+    if caption is None:
+        return None
+    if token_prefix is None:
+        # Anicca videos have no ebook CT; the unique slot and exact caption bind the post.
+        if product_id != "anicca-ios":
+            return None
+    elif not re.search(
+        rf"https://aniccaai\.com/go/{re.escape(token_prefix)}[a-z2-7]{{20}}(?:\b|$)",
+        caption,
+    ):
         return None
     try:
         slot = datetime.fromisoformat(str(identity["slot"]).replace("Z", "+00:00"))
@@ -372,27 +475,49 @@ def _remote_video_receipt(identity: dict[str, Any], ledger: Path,
     if slot.tzinfo is None:
         return None
     slot_utc = slot.astimezone(timezone.utc)
-    start = (slot_utc - timedelta(minutes=15)).isoformat().replace("+00:00", "Z")
-    end = (slot_utc + timedelta(hours=36)).isoformat().replace("+00:00", "Z")
-    query = urllib.parse.urlencode({"startDate": start, "endDate": end, "limit": "100"})
+    slot_start = slot_utc - timedelta(minutes=15)
+    slot_end = slot_utc + timedelta(hours=36)
+    start = slot_start.isoformat().replace("+00:00", "Z")
+    end = slot_end.isoformat().replace("+00:00", "Z")
+    query = urllib.parse.urlencode({"startDate": start, "endDate": end})
     payload = _request_json(f"{POSTIZ_V1}/posts?{query}", api_key)
+    rows = _rows(payload)
+    raw_rows = payload if isinstance(payload, list) else None
+    if isinstance(payload, dict):
+        raw_rows = next((payload[key] for key in ("posts", "integrations", "rows", "data")
+                         if isinstance(payload.get(key), list)), None)
+    if raw_rows is not None and len(rows) != len(raw_rows):
+        return None
     integration_id = str(identity["integration_ref"]).rsplit("/", 1)[-1]
     adapter = _load_postiz_video_adapter()
-    matches: dict[str, tuple[dict[str, Any], str | None, str]] = {}
-    for row in _rows(payload):
-        nested = row.get("integration")
-        row_integration = nested.get("id") if isinstance(nested, dict) else row.get("integrationId")
-        row_video_sha = row.get("lifeManagerVideoSha256") or row.get("video_sha256")
-        provider_id = row.get("id")
-        if (row_integration != integration_id
-                or (row_video_sha is not None and row_video_sha != identity.get("video_sha256"))
-                or not isinstance(provider_id, str)
-                or not PROVIDER_ID.fullmatch(provider_id)):
+    matches: dict[str, tuple[dict[str, Any], str | None, str, datetime]] = {}
+    for row in rows:
+        try:
+            row_integration = _postiz_integration_id(row)
+        except ValueError:
+            return None
+        if row_integration != integration_id:
             continue
+        try:
+            published_at = _postiz_publish_time(row)
+        except ValueError:
+            return None
+        if not slot_start <= published_at.astimezone(timezone.utc) <= slot_end:
+            continue
+        row_video_hashes = (
+            row.get("lifeManagerVideoSha256"), row.get("video_sha256"),
+        )
+        if any(value is not None and value != identity.get("video_sha256")
+               for value in row_video_hashes):
+            continue
+        provider_id = row.get("id")
+        if (not isinstance(provider_id, str)
+                or not PROVIDER_ID.fullmatch(provider_id)):
+            return None
         try:
             row_caption = _caption(row)
         except ValueError:
-            continue
+            return None
         provider_caption_sha256 = hashlib.sha256(row_caption.encode("utf-8")).hexdigest()
         caption_normalization = _video_caption_normalization(identity, caption, row_caption)
         if (provider_caption_sha256 != identity.get("caption_sha256")
@@ -401,21 +526,34 @@ def _remote_video_receipt(identity: dict[str, Any], ledger: Path,
         try:
             state = adapter.find_post([row], provider_id, identity["platform"])
         except (RuntimeError, ValueError):
-            continue
+            return None
         if (state.get("state") != "PUBLISHED"
                 or not adapter._valid_public_url(identity["platform"], state.get("post_url"))):
-            continue
-        matches[provider_id] = (row, caption_normalization, provider_caption_sha256)
+            return None
+        matches[provider_id] = (
+            row, caption_normalization, provider_caption_sha256,
+            published_at.astimezone(timezone.utc),
+        )
     if len(matches) != 1:
         return None
-    provider_id, (row, caption_normalization, provider_caption_sha256) = next(iter(matches.items()))
-    selected_video_sha = row.get("lifeManagerVideoSha256") or row.get("video_sha256")
+    provider_id, (
+        row, caption_normalization, provider_caption_sha256, published_at,
+    ) = next(iter(matches.items()))
+    if (product_id == "anicca-ios"
+            and not _remote_video_identity_is_unique(
+                identity, identity_dir, ledger, published_at, _caption(row),
+            )):
+        return None
+    selected_video_sha = next((value for value in (
+        row.get("lifeManagerVideoSha256"), row.get("video_sha256"),
+    ) if value is not None), None)
     remote_effect_locator = {
         "source": "postiz_public_v1_posts",
         "post_id": provider_id,
         "integration_id": integration_id,
         "caption_sha256": identity["caption_sha256"],
         "slot": identity["slot"],
+        "published_at": published_at.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
     }
     if caption_normalization is not None:
         remote_effect_locator.update({
@@ -715,14 +853,30 @@ def _final_caption_sha256(identity: dict[str, Any], receipt: dict[str, Any]) -> 
 def _provider_readback(identity: dict[str, Any], provider_id: str, api_key: str,
                        expected_caption_sha256: str | None = None,
                        expected_caption_text: str | None = None,
-                       expected_pack_title: str | None = None) -> dict[str, Any]:
+                       expected_pack_title: str | None = None,
+                       expected_published_at: str | None = None) -> dict[str, Any]:
     row = _postiz_post(provider_id, api_key)
     adapter = _load_postiz_video_adapter()
     state = adapter.find_post([row], provider_id, identity["platform"])
     if state.get("state") != "PUBLISHED":
         raise ValueError("Postiz post is not published")
-    nested = row.get("integration")
-    integration_id = nested.get("id") if isinstance(nested, dict) else row.get("integrationId")
+    if expected_published_at is not None:
+        try:
+            expected_time = datetime.fromisoformat(expected_published_at.replace("Z", "+00:00"))
+            detail_time = _postiz_publish_time(row)
+            slot_time = datetime.fromisoformat(str(identity["slot"]).replace("Z", "+00:00"))
+        except (KeyError, TypeError, ValueError, OverflowError) as exc:
+            raise ValueError("Postiz detailed publish time is unavailable") from exc
+        if (expected_time.tzinfo is None or detail_time.tzinfo is None or slot_time.tzinfo is None
+                or expected_time.astimezone(timezone.utc) != detail_time.astimezone(timezone.utc)
+                or not slot_time.astimezone(timezone.utc) - timedelta(minutes=15)
+                <= detail_time.astimezone(timezone.utc)
+                <= slot_time.astimezone(timezone.utc) + timedelta(hours=36)):
+            raise ValueError("Postiz detailed publish time does not match the recovered slot")
+    try:
+        integration_id = _postiz_integration_id(row)
+    except ValueError as exc:
+        raise ValueError("Postiz post integration metadata is invalid") from exc
     expected_integration_id = identity["integration_ref"].rsplit("/", 1)[-1]
     if integration_id != expected_integration_id:
         raise ValueError("Postiz post integration mismatch")
@@ -744,9 +898,13 @@ def _provider_readback(identity: dict[str, Any], provider_id: str, api_key: str,
             and not _ends_with_known_cta(caption)
             and caption_normalization is None):
         raise ValueError("Postiz caption CTA suffix is not a known App Store CTA")
-    provider_video_sha = row.get("lifeManagerVideoSha256") or row.get("video_sha256")
-    if provider_video_sha is not None and provider_video_sha != identity.get("video_sha256"):
+    provider_video_hashes = (
+        row.get("lifeManagerVideoSha256"), row.get("video_sha256"),
+    )
+    if any(value is not None and value != identity.get("video_sha256")
+           for value in provider_video_hashes):
         raise ValueError("Postiz video hash mismatch")
+    provider_video_sha = next((value for value in provider_video_hashes if value is not None), None)
     provider_content = {"caption_sha256": identity["caption_sha256"]}
     local_content: dict[str, Any] = {}
     for key in ("video_sha256", "caption_sha256", "media_sha256", "pack_sha256",
@@ -833,16 +991,26 @@ def build_official_proof(
         if native_carousel:
             local = _remote_native_carousel_receipt(identity, ledger, api_key)
         if local is None:
-            local = _remote_video_receipt(identity, ledger, api_key)
+            local = _remote_video_receipt(
+                identity, ledger, api_key, identity_dir=identity_dir,
+            )
     if local is None:
         raise ValueError("receipt_missing_or_ambiguous")
     receipt, provider_id = local
+    remote_locator = receipt.get("remote_effect_locator")
+    expected_published_at = None
+    if identity.get("video_sha256") is not None and remote_locator is not None:
+        expected_published_at = (
+            remote_locator.get("published_at") if isinstance(remote_locator, dict) else None
+        )
+        if not isinstance(expected_published_at, str):
+            raise ValueError("Postiz recovered publish time is unavailable")
     expected_caption_text = (
         _stored_caption(identity, ledger) if identity.get("video_sha256") is not None else None
     )
     readback = _provider_readback(
         identity, provider_id, api_key, _final_caption_sha256(identity, receipt),
-        expected_caption_text, expected_pack_title,
+        expected_caption_text, expected_pack_title, expected_published_at,
     )
     if readback.get("account_id") != identity.get("account_id"):
         raise ValueError("provider_readback_not_exact")
@@ -1245,7 +1413,9 @@ def reconcile_pending_owner(
                 continue
             if (_local_receipt(identity, ledger) is None
                     and identity.get("product_id") not in EBOOK_TOKEN_PREFIXES
-                    and not _is_native_carousel_identity(identity)):
+                    and not _is_native_carousel_identity(identity)
+                    and not (identity.get("product_id") == "anicca-ios"
+                             and identity.get("video_sha256") is not None)):
                 continue
             result = reconcile_provider_effect(
                 identity, ledger, owner_id, occurrence_id,
@@ -1334,7 +1504,9 @@ def reconcile_current_occurrence(
         return _inconclusive(owner_id, occurrence_id, "distribution_ledger_path_invalid")
     if (_local_receipt(identity, ledger) is None
             and identity.get("product_id") not in EBOOK_TOKEN_PREFIXES
-            and not _is_native_carousel_identity(identity)):
+            and not _is_native_carousel_identity(identity)
+            and not (identity.get("product_id") == "anicca-ios"
+                     and identity.get("video_sha256") is not None)):
         return _inconclusive(owner_id, occurrence_id, "exact_pending_receipt_unavailable")
     return reconcile_provider_effect(
         identity, ledger, owner_id, occurrence_id,
