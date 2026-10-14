@@ -30,13 +30,19 @@ class Gate13VerifierTest(unittest.TestCase):
                     "window_end": "2026-08-01T20:30:00Z", "evidence_refs": ["e"],
                     "null_reason": "not_mature", "model": None,
                 })
+            for name, reason in (
+                ("actual_cost_usd", "publication_scoped_cost_evidence_unavailable"),
+                ("human_interventions", "publication_scoped_intervention_evidence_unavailable"),
+            ):
+                metric = next(row for row in results if row["metric_name"] == name)
+                metric.update({"status": "unknown", "null_reason": reason})
             click = next(row for row in results
                          if row["metric_name"] == "qualified_clicks")
             click.update({"status": "observed", "value": 0,
                           "attribution_class": "deterministic",
                           "confidence": 1.0, "null_reason": None})
             snapshot = {
-                "schema_version": "marketing.experiment-attribution.v1",
+                "schema_version": "marketing.experiment-attribution.v2",
                 "attribution_id": verify.experiment_attribution.stable_id(
                     "attribution", ["publication.abc", "2026-08-01T20:30:00Z"]),
                 "observed_at": "2026-08-01T20:30:00Z", "publish_key": "publication.abc",
@@ -56,8 +62,18 @@ class Gate13VerifierTest(unittest.TestCase):
             }))
             report = verify.verify_gate13(ledger, evidence)
             self.assertTrue(report["gate_pass"])
-            self.assertEqual(report["result_records"], 10)
+            self.assertEqual(report["result_records"], 12)
             self.assertEqual(report["fabricated_zero_count"], 0)
+            self.assertIn("actual_cost_usd", report["unknown_metrics"])
+            self.assertIn("human_interventions", report["unknown_metrics"])
+            self.assertEqual(
+                report["unknown_metric_reasons"]["actual_cost_usd"],
+                "publication_scoped_cost_evidence_unavailable",
+            )
+            self.assertEqual(
+                report["unknown_metric_reasons"]["human_interventions"],
+                "publication_scoped_intervention_evidence_unavailable",
+            )
 
 
 if __name__ == "__main__":
