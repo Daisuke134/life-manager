@@ -38,6 +38,7 @@ from media_integrity import (
     descriptor_from_file,
 )
 from writer_runtime_paths import note_work_dir
+from publisher_cta_copy import ACTIVE_PUBLISHER_PAIRS, publisher_copy_path
 
 
 DESTINATION_PROOF_FLAGS = {
@@ -636,6 +637,15 @@ def _artifact_path(state: dict[str, Any], pair: str) -> Path:
     return Path(str(state.get("drafts", {}).get(lang, {}).get("path", "")))
 
 
+def _publisher_content_path(state: dict[str, Any], pair: str) -> Path:
+    """Use the pair copy for body readback while artifact hashes stay source-bound."""
+    source = _artifact_path(state, pair)
+    run_dir_value = state.get("run_dir")
+    if pair not in ACTIVE_PUBLISHER_PAIRS or not isinstance(run_dir_value, str) or not run_dir_value:
+        return source
+    return publisher_copy_path(Path(run_dir_value), pair, source)
+
+
 def _body_asset_count(state: dict[str, Any]) -> int:
     return len(
         [
@@ -1027,6 +1037,7 @@ def note(target: str, state: dict[str, Any] | None = None) -> dict[str, Any]:
                 if value
             )
             artifact = _artifact_path(state, "note/ja")
+            content_artifact = _publisher_content_path(state, "note/ja")
             eyecatch = _candidate_url(data.get("eyecatch"))
             if not eyecatch:
                 match = re.search(
@@ -1062,10 +1073,10 @@ def note(target: str, state: dict[str, Any] | None = None) -> dict[str, Any]:
                     or ""
                 ),
                 "content_verified": note_content_matches(
-                    canonical_readback, artifact
+                    canonical_readback, content_artifact
                 ),
                 "authenticated_content_verified": note_content_matches(
-                    canonical_readback, artifact
+                    canonical_readback, content_artifact
                 ),
                 "monetization_verified": (
                     data.get("price") == 500
@@ -1310,7 +1321,7 @@ def substack(
                     post_date or data.get("published_at") or ""
                 ),
                 "content_verified": content_matches(
-                    remote, _artifact_path(state, pair)
+                    remote, _publisher_content_path(state, pair)
                 ),
                 "monetization_verified": monetization_verified,
                 "audience": data.get("audience"),
@@ -1733,6 +1744,7 @@ def x_article(
                     "reason": "managed-state-required-for-x-draft-readback",
                 }
             artifact = _artifact_path(state, pair)
+            content_artifact = _publisher_content_path(state, pair)
             try:
                 editor_title = title_fields.first.input_value()
                 editor_body = composer.first.inner_text()
@@ -1742,7 +1754,7 @@ def x_article(
                     "reason": "x-draft-content-readback-failed",
                 }
             content_verified = x_content_matches(
-                f"{editor_title}\n{editor_body}", artifact
+                f"{editor_title}\n{editor_body}", content_artifact
             )
             if not content_verified:
                 return {
@@ -1878,6 +1890,7 @@ def x_article(
                 else []
             )
             artifact = _artifact_path(state, pair)
+            content_artifact = _publisher_content_path(state, pair)
             expected_table_count = _x_markdown_table_count(artifact)
             table_descriptors = _x_table_descriptors(state, pair)
             table_proofs = prove_remote_descriptors(
@@ -1914,7 +1927,7 @@ def x_article(
                     "status": "unknown",
                     "reason": "x-public-id-mismatch",
                 }
-            text_verified = x_content_matches(remote, artifact)
+            text_verified = x_content_matches(remote, content_artifact)
             observed_live = {
                 "status": "live",
                 "live_url": live_url,
@@ -1955,7 +1968,7 @@ def x_article(
                     target,
                     observed_live,
                     remote_text=remote,
-                    artifact=artifact,
+                    artifact=content_artifact,
                     title_rendered=title.count() >= 1,
                 )
                 if content_gap is not None:

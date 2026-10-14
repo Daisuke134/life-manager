@@ -37,6 +37,10 @@ class XRepairRefused(RuntimeError):
 
 
 SCRIPTS = Path(__file__).resolve().parents[1]
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))
+from publisher_cta_copy import publisher_copy_path
+
 EDIT_RE = re.compile(
     r"^https://x\.com/compose/articles/edit/([0-9]{8,})$"
 )
@@ -259,6 +263,7 @@ def _adapt_source(
     body_assets: list[dict[str, Any]],
     destination: Path,
 ) -> Path:
+    source = publisher_copy_path(Path(str(state.get("run_dir", ""))), pair, source)
     language = pair.rsplit("/", 1)[1]
     marker = (
         f"<!-- article-run:{state['run_id']} "

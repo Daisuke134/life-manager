@@ -19,6 +19,12 @@ TARGET_KINDS = {
     "devto/en": "devto-article-id",
 }
 RELEASE_NAME = re.compile(r"^[0-9]{8}T[0-9]{6}-[0-9a-f]{8,40}$")
+V1_PLATFORM_PAIRS = {
+    "note/ja": {("note", "ja")},
+    "substack/ja": {("substack-ja", "ja"), ("substack", "ja")},
+    "substack/en": {("substack-en", "en"), ("substack", "en")},
+    "x-article/ja": {("x-article", "ja")},
+}
 
 
 def _writer_root() -> Path:
@@ -191,6 +197,100 @@ def main() -> int:
     ):
         raise SystemExit("refuse initialization: invalid env")
 
+    cta_mode = persisted_env.get("ARTICLE_PUBLISH_CTA_V1", "")
+    if cta_mode and cta_mode != "1":
+        raise SystemExit("refuse initialization: invalid ARTICLE_PUBLISH_CTA_V1")
+    publisher_copy: Path | None = None
+    if cta_mode == "1":
+        if args.pair not in V1_PLATFORM_PAIRS:
+            raise SystemExit("refuse initialization: publisher CTA v1 pair is not active")
+        v1_pairs: list[str] = []
+        landing_urls: set[str] = set()
+        product_ids: set[str] = set()
+        for item in rows:
+            item_env = item.get("env")
+            item_argv = item.get("argv")
+            item_pair = (
+                item_env.get("ARTICLE_PUBLISH_PAIR")
+                if isinstance(item_env, dict)
+                else None
+            )
+            if item_pair not in V1_PLATFORM_PAIRS:
+                raise SystemExit("refuse initialization: v1 manifest contains a non-active pair")
+            if item_env.get("ARTICLE_PUBLISH_CTA_V1") != "1":
+                raise SystemExit("refuse initialization: all active rows must opt into publisher CTA v1")
+            if (item.get("platform"), item.get("lang")) not in V1_PLATFORM_PAIRS[item_pair]:
+                raise SystemExit("refuse initialization: v1 manifest pair/platform mismatch")
+            if not isinstance(item_argv, list) or not all(isinstance(value, str) for value in item_argv):
+                raise SystemExit("refuse initialization: v1 manifest argv is invalid")
+            item_run_dir = Path(str(item_env.get("ARTICLE_RUN_DIR", ""))).resolve()
+            item_state = Path(str(item_env.get("ARTICLE_PUBLICATION_STATE", ""))).resolve()
+            item_ledger = Path(str(item_env.get("ARTICLE_LEDGER", ""))).resolve()
+            if (
+                item_run_dir != run_dir
+                or item_state != state_path
+                or item_ledger != ledger_path
+            ):
+                raise SystemExit("refuse initialization: v1 manifest paths do not match the current run")
+            item_lang = item_pair.rsplit("/", 1)[1]
+            item_source = run_dir / f"article-{item_lang}.md"
+            matches = []
+            for value in item_argv:
+                try:
+                    candidate = Path(value)
+                    if candidate.is_absolute() and candidate.resolve(strict=True) == item_source.resolve(strict=True):
+                        matches.append(value)
+                except (OSError, RuntimeError):
+                    continue
+            if len(matches) != 1:
+                raise SystemExit("refuse initialization: v1 argv must contain its frozen source exactly once")
+            landing_urls.add(
+                item_env.get("ARTICLE_PRODUCT_LANDING_URL")
+                or os.environ.get("ARTICLE_PRODUCT_LANDING_URL", "")
+            )
+            product_ids.add(
+                item_env.get("ARTICLE_PRODUCT_ID")
+                or os.environ.get("ARTICLE_PRODUCT_ID", "")
+            )
+            v1_pairs.append(item_pair)
+        from publisher_cta_copy import (
+            ACTIVE_PUBLISHER_PAIRS,
+            PublisherCTAError,
+            prepare_all,
+            publisher_copy_path,
+        )
+        if (
+            len(rows) != len(ACTIVE_PUBLISHER_PAIRS)
+            or set(v1_pairs) != set(ACTIVE_PUBLISHER_PAIRS)
+            or len(v1_pairs) != len(set(v1_pairs))
+            or len(landing_urls) != 1
+            or not next(iter(landing_urls))
+            or len(product_ids) != 1
+            or not next(iter(product_ids))
+        ):
+            raise SystemExit("refuse initialization: v1 manifest must bind all four unique active pairs")
+        try:
+            prepare_all(
+                run_dir,
+                landing_url=next(iter(landing_urls)),
+                product_id=next(iter(product_ids)),
+            )
+            source = run_dir / f"article-{args.pair.rsplit('/', 1)[1]}.md"
+            publisher_copy = publisher_copy_path(run_dir, args.pair, source)
+        except (PublisherCTAError, OSError, ValueError) as error:
+            raise SystemExit(f"refuse initialization: publisher CTA v1 copy is invalid: {error}") from error
+    elif args.pair in V1_PLATFORM_PAIRS:
+        from publisher_cta_copy import PublisherCTAError, verify_legacy_source
+
+        try:
+            verify_legacy_source(
+                run_dir,
+                args.pair,
+                run_dir / f"article-{args.pair.rsplit('/', 1)[1]}.md",
+            )
+        except (PublisherCTAError, OSError, ValueError) as error:
+            raise SystemExit(f"refuse initialization: v1 publisher copy is required: {error}") from error
+
     required_paths = {
         "ARTICLE_RUN_DIR": run_dir,
         "ARTICLE_PUBLICATION_STATE": state_path,
@@ -224,6 +324,8 @@ def main() -> int:
     env = os.environ.copy()
     env.update(persisted_env)
     env.update(managed_controls)
+    if publisher_copy is not None:
+        env["ARTICLE_PUBLISH_COPY_PATH"] = str(publisher_copy)
     completed = subprocess.run(argv, env=env, check=False)
     if completed.returncode != 0:
         return completed.returncode

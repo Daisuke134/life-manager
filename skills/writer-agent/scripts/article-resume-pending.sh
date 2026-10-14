@@ -969,6 +969,7 @@ if [ "$(printf '%s' "$PLAN" | jq -r '.recovery_pairs[0] // empty')" = "note/ja" 
     --code-file "$ARTICLE_ROOT/scripts/article-resume-pending.sh" \
     --code-file "$ARTICLE_ROOT/scripts/publication-guard.py" \
     --code-file "$ARTICLE_ROOT/scripts/publication_remote.py" \
+    --code-file "$ARTICLE_ROOT/scripts/publisher_cta_copy.py" \
     --code-file "$ARTICLE_ROOT/scripts/publication_resume.py" \
     --pair "note/ja" \
     --threshold "${ARTICLE_RESUME_FAILURE_THRESHOLD:-2}" \
@@ -1073,6 +1074,7 @@ if [ "$INITIALIZATION_COUNT" -eq 0 ] \
     --code-file "$ARTICLE_ROOT/scripts/_shared/publish-substack-mermaid.sh"
     --code-file "$ARTICLE_ROOT/scripts/publication-guard.py"
     --code-file "$ARTICLE_ROOT/scripts/publication_remote.py"
+    --code-file "$ARTICLE_ROOT/scripts/publisher_cta_copy.py"
     --code-file "$ARTICLE_ROOT/scripts/publication_resume.py"
     --code-file "$ARTICLE_ROOT/scripts/pii-gate.py"
     --code-file "$ARTICLE_ROOT/scripts/substack-publish/verify-preview.py"

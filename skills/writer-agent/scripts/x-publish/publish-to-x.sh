@@ -154,7 +154,38 @@ print(len(CJK_RE.findall(open(sys.argv[1], encoding='utf-8').read())))
     fi
     fi
 
-    export X_SRC="$MD" X_DST="$WORK/$SLUG-x.md" X_ASSETS="$WORK/$SLUG-x-assets" X_TITLE
+    PUBLISH_MD="$MD"
+    if [ -n "${ARTICLE_PUBLISH_CTA_V1:-}" ] && [ "$ARTICLE_PUBLISH_CTA_V1" != "1" ]; then
+      echo "REFUSED: ARTICLE_PUBLISH_CTA_V1 must be exactly 1 when present" >&2
+      exit 3
+    fi
+    if [ "${ARTICLE_PUBLISH_CTA_V1:-}" = "1" ]; then
+      [ "$STAGE_PAIR" = "x-article/$LANG_X" ] || {
+        echo "REFUSED: publisher CTA v1 pair does not match X Article language" >&2
+        exit 3
+      }
+      [ -n "${ARTICLE_RUN_DIR:-}" ] && [ -n "${ARTICLE_PUBLISH_COPY_PATH:-}" ] || {
+        echo "REFUSED: publisher CTA v1 requires ARTICLE_RUN_DIR and ARTICLE_PUBLISH_COPY_PATH" >&2
+        exit 3
+      }
+      "$HBPY" "$DIR/../publisher_cta_copy.py" verify-copy \
+        --run-dir "$ARTICLE_RUN_DIR" --pair "$STAGE_PAIR" \
+        --source "$MD" --copy "$ARTICLE_PUBLISH_COPY_PATH" >/dev/null || exit $?
+      "$HBPY" "$DIR/../pii-gate.py" --stage x-article-stage \
+        "$ARTICLE_PUBLISH_COPY_PATH" >&2 || exit $?
+      PUBLISH_MD="$ARTICLE_PUBLISH_COPY_PATH"
+    else
+      if [ -n "${ARTICLE_PUBLISH_COPY_PATH:-}" ]; then
+        echo "REFUSED: ARTICLE_PUBLISH_COPY_PATH requires ARTICLE_PUBLISH_CTA_V1=1" >&2
+        exit 3
+      fi
+      if [ -n "${ARTICLE_RUN_DIR:-}" ] && [ -n "$STAGE_PAIR" ]; then
+        "$HBPY" "$DIR/../publisher_cta_copy.py" verify-legacy \
+          --run-dir "$ARTICLE_RUN_DIR" --pair "$STAGE_PAIR" --source "$MD" >/dev/null || exit $?
+      fi
+    fi
+
+    export X_SRC="$PUBLISH_MD" X_DST="$WORK/$SLUG-x.md" X_ASSETS="$WORK/$SLUG-x-assets" X_TITLE
     export WRITER_X_CLIPBOARD_HELPER="$DIR/browser_clipboard.py"
     mkdir -p "$X_ASSETS"
     echo "[1/3] prep (tables→clean HTML renderer, mermaid→kroki)"; "$VC" "$DIR/prep-x-md.py" | filt
