@@ -683,14 +683,16 @@ The mapper also recognizes approved current-location and GitHub-portfolio fields
 LangChain's Solutions Engineer (Chicago) form reached the real submit click and is
 fenced as `submit_unknown`; its direct Telegram application report was acknowledged
 as message `27539`.
-The daily script now bounds the model-based browser lane at 2400 seconds by
-default so a queue-incomplete result has time for its semantic retry. The latest
-measured pass used 1712 seconds before returning with one qualified row left;
-the prior 1800-second bound left only 88 seconds for that retry. Each
-`job-hunter-agent` attempt retains its existing 1800-second runner cap, so the
-larger outer browser budget gives the retry the remaining time (688 seconds
-after a 1712-second first pass) without increasing the per-attempt cap. The
-independent loop runtime ceiling remains 3600 seconds, and
+The daily script bounds the Workday browser lane at 2400 seconds by default so
+a queue-incomplete result has time for its semantic retry. The latest measured
+pass used 1712 seconds before returning with one qualified row left; the prior
+1800-second outer bound left only 88 seconds for that retry. A later live pass
+recorded `codex_home_busy` followed by `transient_timeout` because the shared
+`job-hunter-agent` task class also had an 1800-second per-attempt cap. Workday
+therefore uses a dedicated `workday-browser-agent` task class with the same Codex
+route/candidate and a 2400-second per-attempt cap; inbox, tailoring, and other
+Job Hunter tasks keep the shared 1800-second cap. The independent loop runtime
+ceiling remains 3600 seconds, and
 `JOB_SEARCH_BROWSER_TIMEOUT_SECONDS` may lower or raise the browser-lane bound.
 It is a required form-operator lane, not an optional fallback: the
 deterministic preflight runs first, then hands each eligible row to the model

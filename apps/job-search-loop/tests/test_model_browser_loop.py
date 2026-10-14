@@ -1106,7 +1106,7 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
                 "/python3",
                 "/runtime/agent_runner.py",
                 "--task-class",
-                "job-hunter-agent",
+                "workday-browser-agent",
                 "--escalation-reason",
                 "repeated browser form completion abandoned before provider terminal outcome",
                 "--timeout-seconds",
@@ -1129,6 +1129,29 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
         self.assertEqual(
             kwargs["env"]["JOB_SEARCH_ACTIVE_APPLICATION_PROVIDER"], "workday"
         )
+
+    def test_orchestrator_keeps_the_shared_task_class_for_non_workday_providers(self):
+        from job_search_loop.browser_agent.orchestrator import invoke_runner
+
+        completed = Mock(returncode=0)
+        with patch(
+            "job_search_loop.browser_agent.orchestrator.subprocess.run",
+            return_value=completed,
+        ) as run:
+            returncode = invoke_runner(
+                runner=Path("/runtime/agent_runner.py"),
+                prompt=Path("/app/prompts/daily-pass.md"),
+                schema=Path("/app/schemas/pass-result.v1.schema.json"),
+                evidence_dir=Path("/state/evidence/wake"),
+                workdir=Path("/repo"),
+                timeout_seconds=900,
+                python="/python3",
+                active_provider="ashby",
+            )
+
+        self.assertEqual(returncode, 0)
+        command = run.call_args.args[0]
+        self.assertEqual(command[command.index("--task-class") + 1], "job-hunter-agent")
 
     def test_orchestrator_retries_once_after_false_transport_failure(self):
         from job_search_loop.browser_agent import orchestrator
