@@ -47,7 +47,11 @@
       "red_seconds": 3.634,
       "green_tests": 4,
       "green_seconds": 2.806,
-      "full_suite": "running",
+      "full_suite": "pass",
+      "suite_passed": 49,
+      "suite_seconds": 68.850,
+      "merged_main_base": "6fac41444ccdf13d5f9fd819b44ef00149834b21",
+      "source_and_dependencies_unchanged_after_main_merge": true,
       "read_only_review": "pending"
     },
     "production_adoption": "not_yet"

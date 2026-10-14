@@ -181,6 +181,398 @@ def test_same_version_updated_after_queue_stays_inconclusive(tmp_path):
     assert not evidence_dir.exists()
 
 
+def _write_bound_cp3_run(tmp_path, *, parent_occurrence=OCCURRENCE,
+                         agent_id="111", version_id="v1", cp3_attempts=1,
+                         event_release_sha=None, publisher_start="2026-09-27 19:00:05",
+                         log_summary_overrides=None, verifications_before_cp3=(),
+                         verifications_after_cp3=None):
+    child_start = QUEUED_AT + dt.timedelta(seconds=10)
+    child_finish = QUEUED_AT + dt.timedelta(seconds=20)
+    parent_run_id = OCCURRENCE.split(":", 1)[1]
+    child_run_id = "f30ba176ebb74acb09a01535"
+    release_sha = "a" * 40
+    summary = {
+        "version": 1,
+        "owner_id": OWNER,
+        "loop": "capafy",
+        "run_id": child_run_id,
+        "occurrence_id": f"{OWNER}:{child_run_id}",
+        "parent_lifecycle_run_id": parent_run_id,
+        "parent_lifecycle_occurrence_id": parent_occurrence,
+        "release_sha": release_sha,
+        "started_at": child_start.isoformat(),
+        "finished_at": child_finish.isoformat(),
+        "task_label": "capafy-drainer",
+        "task_class": "application-lane-agent",
+        "status": "success",
+    }
+    evidence_root = tmp_path / "agent-runner-evidence" / "capafy-drainer"
+    run_dir = evidence_root / f"{int(child_start.timestamp())}-47974"
+    run_dir.mkdir(parents=True)
+    summary_path = run_dir / "summary.json"
+    summary_path.write_text(json.dumps(summary), encoding="utf-8")
+    summary_path.chmod(0o600)
+
+    log_summary = {**summary, **(log_summary_overrides or {})}
+    lines = [
+        f"=== {publisher_start} daily_loop start ===",
+        f"AGENT_ID={agent_id}",
+        f"AGENT_VERSION_ID={version_id}",
+        json.dumps(log_summary),
+        *verifications_before_cp3,
+        *[f"CP3 submit attempt {attempt}" for attempt in range(1, cp3_attempts + 1)],
+    ]
+    if verifications_after_cp3 is None:
+        verifications_after_cp3 = (
+            "platform_status=1",
+            "platform_status=1 skills=1 cfg=1 package_uploaded=1 audit=1 title=Test Agent",
+        )
+    lines.extend(verifications_after_cp3)
+    lines.extend([
+        f"ledger appended {agent_id}",
+        f"PUBLISHED + VERIFIED: agent_id={agent_id} (test) — status=1 under review.",
+        f"=== {publisher_start} daily_loop done rc=0 (SUBMITTED — {agent_id} finished CP2/CP3 after prepare) ===",
+    ])
+    publisher_log = tmp_path / "daily_loop.log"
+    publisher_log.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    event_log = tmp_path / "events.jsonl"
+    event_sha = event_release_sha or release_sha
+    events = [
+        {
+            "owner_id": OWNER, "job_id": OWNER, "run_id": parent_run_id,
+            "occurrence_id": OCCURRENCE, "release_sha": event_sha,
+            "phase": "execute", "status": "running", "effect_class": "publish",
+            "effect_status": "started", "timestamp": (QUEUED_AT + dt.timedelta(seconds=1)).isoformat(),
+        },
+        {
+            "owner_id": OWNER, "job_id": OWNER, "run_id": parent_run_id,
+            "occurrence_id": OCCURRENCE, "release_sha": event_sha,
+            "phase": "report", "status": "pass", "effect_class": "publish",
+            "effect_status": "unknown", "exit_code": 0,
+            "timestamp": (QUEUED_AT + dt.timedelta(seconds=30)).isoformat(),
+        },
+    ]
+    event_log.write_text("".join(json.dumps(event) + "\n" for event in events), encoding="utf-8")
+    event_log.chmod(0o600)
+    return evidence_root, publisher_log, event_log
+
+
+def test_occurrence_bound_cp3_and_official_status_close_same_version(tmp_path, monkeypatch):
+    snapshot = {
+        "schema_version": 1, "owner_id": OWNER, "occurrence_id": OCCURRENCE, "ok": True,
+        "agent_count": 1, "latest_versions": {"111": "v1"},
+    }
+    current_agents = [{
+        "agent_id": "111",
+        "updated_at": int((QUEUED_AT + dt.timedelta(minutes=10)).timestamp() * 1000),
+        "latest_agent_version_id": "v1",
+    }]
+    evidence_root, publisher_log, event_log = _write_bound_cp3_run(tmp_path)
+    monkeypatch.setattr(reconciler, "CAPAFY_DRAINER_EVIDENCE_ROOT", evidence_root, raising=False)
+    monkeypatch.setattr(reconciler, "CAPAFY_DAILY_LOOP_LOG", publisher_log, raising=False)
+    monkeypatch.setattr(reconciler, "RUNTIME_EVENT_LOG", event_log, raising=False)
+    closed_calls = []
+
+    def fake_resolve(owner_id, occurrence_id, *, official_readback, expected_state):
+        proof = official_readback()
+        closed_calls.append((owner_id, occurrence_id, proof, expected_state))
+        return True
+
+    result = reconciler.reconcile(
+        OCCURRENCE,
+        fenced_row_fn=_fenced_row_fn(state="released"),
+        load_snapshot_fn=lambda occurrence: snapshot,
+        read_publish_list_fn=lambda: _publish_list(current_agents),
+        read_remote_status_fn=lambda agent_id: {
+            "ok": True, "platform_status": 1, "agent_version_id": "v1",
+        },
+        resolve_unknown_fn=fake_resolve,
+        evidence_dir=tmp_path / "evidence",
+        now=QUEUED_AT + dt.timedelta(hours=2),
+        run_finished_fn=lambda occurrence, queued: True,
+        resolve=True,
+    )
+
+    assert result["verified"] is True
+    assert result["effected"] is True
+    assert result["provider_receipt_id"] == "capafy:agent/111/version/v1:platform_status=1"
+    assert result["proof_kind"] == "occurrence_bound_capafy_cp3_and_remote_status"
+    assert result["closed"] is True
+    assert len(closed_calls) == 1
+    proof = closed_calls[0][2]
+    assert proof["child_run_id"] == "f30ba176ebb74acb09a01535"
+    assert proof["parent_release_sha"] == "a" * 40
+    assert proof["platform_status"] == 1
+    assert closed_calls[0][3] == "released"
+    evidence_path = Path(proof["evidence_ref"])
+    evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+    assert evidence["occurrence_id"] == OCCURRENCE
+    assert evidence["agent_version_id"] == "v1"
+    assert "publisher_log" not in evidence
+
+
+def test_occurrence_bound_cp3_rejects_wrong_parent_occurrence(tmp_path, monkeypatch):
+    snapshot = {
+        "schema_version": 1, "owner_id": OWNER, "occurrence_id": OCCURRENCE, "ok": True,
+        "agent_count": 1, "latest_versions": {"111": "v1"},
+    }
+    current_agents = [{
+        "agent_id": "111",
+        "updated_at": int((QUEUED_AT + dt.timedelta(minutes=10)).timestamp() * 1000),
+        "latest_agent_version_id": "v1",
+    }]
+    evidence_root, publisher_log, event_log = _write_bound_cp3_run(
+        tmp_path, parent_occurrence=f"{OWNER}:different-run",
+    )
+    monkeypatch.setattr(reconciler, "CAPAFY_DRAINER_EVIDENCE_ROOT", evidence_root, raising=False)
+    monkeypatch.setattr(reconciler, "CAPAFY_DAILY_LOOP_LOG", publisher_log, raising=False)
+    monkeypatch.setattr(reconciler, "RUNTIME_EVENT_LOG", event_log, raising=False)
+    remote_calls = []
+    closed_calls = []
+
+    result = reconciler.reconcile(
+        OCCURRENCE,
+        fenced_row_fn=_fenced_row_fn(state="released"),
+        load_snapshot_fn=lambda occurrence: snapshot,
+        read_publish_list_fn=lambda: _publish_list(current_agents),
+        read_remote_status_fn=lambda agent_id: remote_calls.append(agent_id) or {
+            "ok": True, "platform_status": 1, "agent_version_id": "v1",
+        },
+        resolve_unknown_fn=lambda *args, **kwargs: closed_calls.append((args, kwargs)) or True,
+        evidence_dir=tmp_path / "evidence",
+        now=QUEUED_AT + dt.timedelta(hours=2),
+        run_finished_fn=lambda occurrence, queued: True,
+        resolve=True,
+    )
+
+    assert result["verified"] is False
+    assert result["reason"] == "same_version_updated_after_queued_at"
+    assert remote_calls == []
+    assert closed_calls == []
+    assert not (tmp_path / "evidence").exists()
+
+
+def test_occurrence_bound_cp3_rejects_parent_release_mismatch(tmp_path, monkeypatch):
+    snapshot = {
+        "schema_version": 1, "owner_id": OWNER, "occurrence_id": OCCURRENCE, "ok": True,
+        "agent_count": 1, "latest_versions": {"111": "v1"},
+    }
+    current_agents = [{
+        "agent_id": "111",
+        "updated_at": int((QUEUED_AT + dt.timedelta(minutes=10)).timestamp() * 1000),
+        "latest_agent_version_id": "v1",
+    }]
+    evidence_root, publisher_log, event_log = _write_bound_cp3_run(
+        tmp_path, event_release_sha="b" * 40,
+    )
+    monkeypatch.setattr(reconciler, "CAPAFY_DRAINER_EVIDENCE_ROOT", evidence_root, raising=False)
+    monkeypatch.setattr(reconciler, "CAPAFY_DAILY_LOOP_LOG", publisher_log, raising=False)
+    monkeypatch.setattr(reconciler, "RUNTIME_EVENT_LOG", event_log, raising=False)
+    closed_calls = []
+
+    result = reconciler.reconcile(
+        OCCURRENCE,
+        fenced_row_fn=_fenced_row_fn(state="released"),
+        load_snapshot_fn=lambda occurrence: snapshot,
+        read_publish_list_fn=lambda: _publish_list(current_agents),
+        read_remote_status_fn=lambda agent_id: {
+            "ok": True, "platform_status": 1, "agent_version_id": "v1",
+        },
+        resolve_unknown_fn=lambda *args, **kwargs: closed_calls.append((args, kwargs)) or True,
+        evidence_dir=tmp_path / "evidence",
+        now=QUEUED_AT + dt.timedelta(hours=2),
+        run_finished_fn=lambda occurrence, queued: True,
+        resolve=True,
+    )
+
+    assert result["verified"] is False
+    assert result["reason"] == "same_version_updated_after_queued_at"
+    assert closed_calls == []
+    assert not (tmp_path / "evidence").exists()
+
+
+def test_occurrence_bound_cp3_rejects_multiple_submit_attempts(tmp_path, monkeypatch):
+    snapshot = {
+        "schema_version": 1, "owner_id": OWNER, "occurrence_id": OCCURRENCE, "ok": True,
+        "agent_count": 1, "latest_versions": {"111": "v1"},
+    }
+    current_agents = [{
+        "agent_id": "111",
+        "updated_at": int((QUEUED_AT + dt.timedelta(minutes=10)).timestamp() * 1000),
+        "latest_agent_version_id": "v1",
+    }]
+    evidence_root, publisher_log, event_log = _write_bound_cp3_run(tmp_path, cp3_attempts=2)
+    monkeypatch.setattr(reconciler, "CAPAFY_DRAINER_EVIDENCE_ROOT", evidence_root, raising=False)
+    monkeypatch.setattr(reconciler, "CAPAFY_DAILY_LOOP_LOG", publisher_log, raising=False)
+    monkeypatch.setattr(reconciler, "RUNTIME_EVENT_LOG", event_log, raising=False)
+    remote_calls = []
+    closed_calls = []
+
+    result = reconciler.reconcile(
+        OCCURRENCE,
+        fenced_row_fn=_fenced_row_fn(state="released"),
+        load_snapshot_fn=lambda occurrence: snapshot,
+        read_publish_list_fn=lambda: _publish_list(current_agents),
+        read_remote_status_fn=lambda agent_id: remote_calls.append(agent_id) or {
+            "ok": True, "platform_status": 1, "agent_version_id": "v1",
+        },
+        resolve_unknown_fn=lambda *args, **kwargs: closed_calls.append((args, kwargs)) or True,
+        evidence_dir=tmp_path / "evidence",
+        now=QUEUED_AT + dt.timedelta(hours=2),
+        run_finished_fn=lambda occurrence, queued: True,
+        resolve=True,
+    )
+
+    assert result["verified"] is False
+    assert result["reason"] == "same_version_updated_after_queued_at"
+    assert remote_calls == []
+    assert closed_calls == []
+    assert not (tmp_path / "evidence").exists()
+
+
+def test_occurrence_bound_cp3_rejects_log_summary_time_mismatch(tmp_path):
+    evidence_root, publisher_log, event_log = _write_bound_cp3_run(
+        tmp_path,
+        log_summary_overrides={
+            "finished_at": (QUEUED_AT + dt.timedelta(minutes=5)).isoformat(),
+        },
+    )
+
+    assert reconciler.read_occurrence_bound_cp3_receipt(
+        OCCURRENCE,
+        QUEUED_AT,
+        QUEUED_AT + dt.timedelta(seconds=reconciler.MAX_RUN_SECONDS),
+        evidence_root=evidence_root,
+        publisher_log=publisher_log,
+        event_log=event_log,
+    ) is None
+
+
+def test_occurrence_bound_cp3_rejects_log_summary_parent_run_mismatch(tmp_path):
+    evidence_root, publisher_log, event_log = _write_bound_cp3_run(
+        tmp_path, log_summary_overrides={"parent_lifecycle_run_id": "another-parent"},
+    )
+
+    assert reconciler.read_occurrence_bound_cp3_receipt(
+        OCCURRENCE,
+        QUEUED_AT,
+        QUEUED_AT + dt.timedelta(seconds=reconciler.MAX_RUN_SECONDS),
+        evidence_root=evidence_root,
+        publisher_log=publisher_log,
+        event_log=event_log,
+    ) is None
+
+
+def test_occurrence_bound_cp3_rejects_publisher_started_before_parent_window(tmp_path):
+    evidence_root, publisher_log, event_log = _write_bound_cp3_run(
+        tmp_path, publisher_start="2026-09-27 18:59:59",
+    )
+
+    assert reconciler.read_occurrence_bound_cp3_receipt(
+        OCCURRENCE,
+        QUEUED_AT,
+        QUEUED_AT + dt.timedelta(seconds=reconciler.MAX_RUN_SECONDS),
+        evidence_root=evidence_root,
+        publisher_log=publisher_log,
+        event_log=event_log,
+    ) is None
+
+
+def test_occurrence_bound_cp3_rejects_conflicting_final_verification_order(tmp_path):
+    evidence_root, publisher_log, event_log = _write_bound_cp3_run(
+        tmp_path,
+        verifications_before_cp3=(
+            "platform_status=1 skills=1 cfg=1 package_uploaded=1 audit=1 title=Test Agent",
+        ),
+        verifications_after_cp3=(
+            "platform_status=0 skills=1 cfg=1 package_uploaded=1 audit=1 title=Test Agent",
+        ),
+    )
+
+    assert reconciler.read_occurrence_bound_cp3_receipt(
+        OCCURRENCE,
+        QUEUED_AT,
+        QUEUED_AT + dt.timedelta(seconds=reconciler.MAX_RUN_SECONDS),
+        evidence_root=evidence_root,
+        publisher_log=publisher_log,
+        event_log=event_log,
+    ) is None
+
+
+def test_occurrence_bound_cp3_rejects_current_remote_version_mismatch(tmp_path, monkeypatch):
+    snapshot = {
+        "schema_version": 1, "owner_id": OWNER, "occurrence_id": OCCURRENCE, "ok": True,
+        "agent_count": 1, "latest_versions": {"111": "v1"},
+    }
+    current_agents = [{
+        "agent_id": "111",
+        "updated_at": int((QUEUED_AT + dt.timedelta(minutes=10)).timestamp() * 1000),
+        "latest_agent_version_id": "v1",
+    }]
+    evidence_root, publisher_log, event_log = _write_bound_cp3_run(tmp_path)
+    monkeypatch.setattr(reconciler, "CAPAFY_DRAINER_EVIDENCE_ROOT", evidence_root, raising=False)
+    monkeypatch.setattr(reconciler, "CAPAFY_DAILY_LOOP_LOG", publisher_log, raising=False)
+    monkeypatch.setattr(reconciler, "RUNTIME_EVENT_LOG", event_log, raising=False)
+    closed_calls = []
+
+    result = reconciler.reconcile(
+        OCCURRENCE,
+        fenced_row_fn=_fenced_row_fn(state="released"),
+        load_snapshot_fn=lambda occurrence: snapshot,
+        read_publish_list_fn=lambda: _publish_list(current_agents),
+        read_remote_status_fn=lambda agent_id: {
+            "ok": True, "platform_status": 1, "agent_version_id": "v2",
+        },
+        resolve_unknown_fn=lambda *args, **kwargs: closed_calls.append((args, kwargs)) or True,
+        evidence_dir=tmp_path / "evidence",
+        now=QUEUED_AT + dt.timedelta(hours=2),
+        run_finished_fn=lambda occurrence, queued: True,
+        resolve=True,
+    )
+
+    assert result["verified"] is False
+    assert result["reason"] == "occurrence_bound_remote_status_mismatch"
+    assert closed_calls == []
+    assert not (tmp_path / "evidence").exists()
+
+
+def test_occurrence_bound_cp3_rejects_current_draft_status(tmp_path, monkeypatch):
+    snapshot = {
+        "schema_version": 1, "owner_id": OWNER, "occurrence_id": OCCURRENCE, "ok": True,
+        "agent_count": 1, "latest_versions": {"111": "v1"},
+    }
+    current_agents = [{
+        "agent_id": "111",
+        "updated_at": int((QUEUED_AT + dt.timedelta(minutes=10)).timestamp() * 1000),
+        "latest_agent_version_id": "v1",
+    }]
+    evidence_root, publisher_log, event_log = _write_bound_cp3_run(tmp_path)
+    monkeypatch.setattr(reconciler, "CAPAFY_DRAINER_EVIDENCE_ROOT", evidence_root, raising=False)
+    monkeypatch.setattr(reconciler, "CAPAFY_DAILY_LOOP_LOG", publisher_log, raising=False)
+    monkeypatch.setattr(reconciler, "RUNTIME_EVENT_LOG", event_log, raising=False)
+    closed_calls = []
+
+    result = reconciler.reconcile(
+        OCCURRENCE,
+        fenced_row_fn=_fenced_row_fn(state="released"),
+        load_snapshot_fn=lambda occurrence: snapshot,
+        read_publish_list_fn=lambda: _publish_list(current_agents),
+        read_remote_status_fn=lambda agent_id: {
+            "ok": True, "platform_status": 0, "agent_version_id": "v1",
+        },
+        resolve_unknown_fn=lambda *args, **kwargs: closed_calls.append((args, kwargs)) or True,
+        evidence_dir=tmp_path / "evidence",
+        now=QUEUED_AT + dt.timedelta(hours=2),
+        run_finished_fn=lambda occurrence, queued: True,
+        resolve=True,
+    )
+
+    assert result["verified"] is False
+    assert result["reason"] == "occurrence_bound_remote_status_mismatch"
+    assert closed_calls == []
+    assert not (tmp_path / "evidence").exists()
+
+
 def test_same_version_without_verifiable_updated_at_stays_inconclusive(tmp_path):
     snapshot = {
         "schema_version": 1, "owner_id": OWNER, "occurrence_id": OCCURRENCE, "ok": True,
