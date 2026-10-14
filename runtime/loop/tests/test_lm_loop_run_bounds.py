@@ -994,7 +994,7 @@ def test_heartbeat_failure_sets_cancellation_event(tmp_path, monkeypatch):
     failed = threading.Event()
 
     def heartbeat(_claim):
-        raise OSError("ENOSPC")
+        raise OSError(errno.ENOSPC, "private /Users/anicca/path")
 
     monkeypatch.setattr("runtime.loop.lm_loop_run.HEARTBEAT_INTERVAL_SECONDS", 0.01)
     with patch("runtime.loop.lm_loop_run.heartbeat_durable_resource",
@@ -1004,7 +1004,14 @@ def test_heartbeat_failure_sets_cancellation_event(tmp_path, monkeypatch):
     assert failed.is_set()
 
 
-def test_admitted_child_is_cancelled_when_heartbeat_fails(tmp_path, monkeypatch):
+@pytest.mark.parametrize("heartbeat_error,expected_reason,busy_tolerance", (
+    (OSError(errno.ENOSPC, "private /Users/anicca/path"),
+     "resource_heartbeat_oserror_errno_28", 240.0),
+    (RuntimeError("control_busy"),
+     "resource_heartbeat_control_busy_timeout", 0.001),
+))
+def test_admitted_child_is_cancelled_when_heartbeat_fails(
+        tmp_path, monkeypatch, heartbeat_error, expected_reason, busy_tolerance):
     entry = {
         "cadence": {"start_interval_seconds": 60},
         "provider_route": "deterministic",
@@ -1023,6 +1030,9 @@ def test_admitted_child_is_cancelled_when_heartbeat_fails(tmp_path, monkeypatch)
         return 0
 
     monkeypatch.setattr("runtime.loop.lm_loop_run.HEARTBEAT_INTERVAL_SECONDS", 0.01)
+    monkeypatch.setattr(
+        "runtime.loop.lm_loop_run.HEARTBEAT_BUSY_TOLERANCE_SECONDS", busy_tolerance,
+    )
     with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
           patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
                 return_value=(tmp_path / "ticket", "ready")),
@@ -1030,7 +1040,7 @@ def test_admitted_child_is_cancelled_when_heartbeat_fails(tmp_path, monkeypatch)
                 return_value=(claim, "acquired")),
           patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
           patch("runtime.loop.lm_loop_run.heartbeat_durable_resource",
-                side_effect=OSError("ENOSPC")),
+                side_effect=heartbeat_error),
           patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
                 return_value=[]),
           patch("runtime.loop.lm_loop_run._run_entrypoint",
@@ -1039,7 +1049,10 @@ def test_admitted_child_is_cancelled_when_heartbeat_fails(tmp_path, monkeypatch)
             ["/bin/true"], entry, "heartbeat-owner", {}, receipt,
         ) == 75
 
-    assert json.loads(receipt.read_text())["reason"] == "resource_heartbeat_unavailable"
+    receipt_payload = json.loads(receipt.read_text())
+    assert receipt_payload["reason"] == "resource_heartbeat_unavailable"
+    assert receipt_payload["heartbeat_subcause"] == expected_reason
+    assert "private /Users/anicca/path" not in receipt.read_text()
 
 
 def test_release_waits_for_inflight_heartbeat_before_closing_claim(tmp_path, monkeypatch):
@@ -2436,6 +2449,45 @@ def test_main_projects_exact_mobile_result_into_terminal_event(tmp_path):
     assert events[-1]["official_readback_ref"] == "postiz://posts/postiz-post-1"
     assert len(events[-1]["loaded_argv_sha256"]) == 64
     assert len(events[-1]["loaded_env_sha256"]) == 64
+    enqueue.assert_not_called()
+
+
+def test_main_fences_heartbeat_failure_until_official_readback(tmp_path):
+    release = _write_prestart_lock_release(tmp_path, effect_class="publish")
+    state_root = tmp_path / "state"
+    events = []
+
+    def run_admitted(_command, _entry, loop_id, _env, receipt, *,
+                     occurrence_id, on_claimed, **_kwargs):
+        on_claimed(occurrence_id)
+        receipt.write_text(json.dumps({
+            "status": "deferred", "effect": 0,
+            "reason": "resource_heartbeat_unavailable",
+            "heartbeat_subcause": "resource_heartbeat_control_busy_timeout",
+        }), encoding="utf-8")
+        receipt.chmod(0o600)
+        return 75
+
+    with (patch.dict(os.environ, {
+              "LIFE_MANAGER_STATE_ROOT": str(state_root),
+              "LIFE_MANAGER_RUN_ID": "heartbeat-run",
+              "WAKE_ID": "heartbeat-wake",
+          }, clear=False),
+          patch("runtime.loop.lm_loop_run._apply_lock", return_value=nullcontext()),
+          patch("runtime.loop.lm_loop_run.build_loop_command", return_value=["/bin/true"]),
+          patch("runtime.loop.lm_loop_run._run_admitted", side_effect=run_admitted),
+          patch("runtime.loop.lm_loop_run.append_runtime_event",
+                side_effect=lambda _path, event: events.append(event)),
+          patch("runtime.loop.lm_loop_run._enqueue_recovery_intent") as enqueue):
+        assert lm_loop_run_main(["example-publisher", str(release)]) == 75
+
+    event = events[-1]
+    expected = "host_admission_deferred:resource_heartbeat_unavailable"
+    assert event["blocker"] == event["error_class"] == expected
+    assert event["effect_status"] == "unknown"
+    assert event["retryable"] is False
+    assert event["next_action"] == "official_readback_required"
+    assert event["error_detail"] == "heartbeat_subcause=resource_heartbeat_control_busy_timeout"
     enqueue.assert_not_called()
 
 

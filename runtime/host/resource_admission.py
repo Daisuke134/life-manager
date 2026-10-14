@@ -1360,12 +1360,48 @@ def transfer_durable(claim: Path, child_pid: int) -> None:
         os.close(descriptor)
 
 
+class DurableHeartbeatFailure(RuntimeError):
+    """A bounded, secret-free reason a durable claim could not be renewed."""
+
+    def __init__(self, reason: str) -> None:
+        if reason not in {
+                "claim_missing", "claim_invalid", "process_identity_unavailable",
+                "claim_ownership_lost", "claim_expired"}:
+            raise ValueError("invalid durable heartbeat reason")
+        self.reason = reason
+        super().__init__(f"heartbeat_{reason}")
+
+
+def _heartbeat_claim_row(claim: Path) -> dict[str, object]:
+    try:
+        raw = claim.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        raise DurableHeartbeatFailure("claim_missing") from None
+    except UnicodeError:
+        raise DurableHeartbeatFailure("claim_invalid") from None
+    try:
+        value = json.loads(raw)
+    except (TypeError, ValueError):
+        raise DurableHeartbeatFailure("claim_invalid") from None
+    if not isinstance(value, dict):
+        raise DurableHeartbeatFailure("claim_invalid")
+    phase = value.get("phase", "claimed")
+    if (type(value.get("pid")) is not int or value["pid"] <= 0
+            or not isinstance(value.get("process_start"), str)
+            or not value["process_start"]
+            or not isinstance(phase, str) or phase not in {"claimed", "running"}):
+        raise DurableHeartbeatFailure("claim_invalid")
+    return value
+
+
 def heartbeat_durable(claim: Path, *, now: float | None = None) -> bool:
-    """Refresh progress for the exact live claim, without changing ownership."""
-    value = _row(claim)
+    """Refresh the exact live claim or raise a bounded, secret-free failure."""
+    value = _heartbeat_claim_row(claim)
     started = process_start(os.getpid())
-    if not value or not started or not _controlled_by(value, os.getpid(), started):
-        return False
+    if not started:
+        raise DurableHeartbeatFailure("process_identity_unavailable")
+    if not _controlled_by(value, os.getpid(), started):
+        raise DurableHeartbeatFailure("claim_ownership_lost")
     instant = time.time() if now is None else now
     root, _, _, _ = _durable_paths()
     descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
@@ -1373,10 +1409,11 @@ def heartbeat_durable(claim: Path, *, now: float | None = None) -> bool:
         if not _acquire_bounded(descriptor, timeout_seconds=5.0):
             # Lock contention is transient; only lost ownership or expiry is fatal.
             raise RuntimeError("control_busy")
-        current = _row(claim)
-        if (not current or not _controlled_by(current, os.getpid(), started)
-                or _heartbeat_expired(current, instant)):
-            return False
+        current = _heartbeat_claim_row(claim)
+        if not _controlled_by(current, os.getpid(), started):
+            raise DurableHeartbeatFailure("claim_ownership_lost")
+        if _heartbeat_expired(current, instant):
+            raise DurableHeartbeatFailure("claim_expired")
         atomic_json(claim, {**current, "heartbeat_at": instant})
         return True
     finally:
