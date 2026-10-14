@@ -17552,3 +17552,9 @@ Sales/rating values above are the buyer-search `salesVolume`/rating display, not
 - `8767154808` remains publicly online with 0 sold and no star rating shown; this Agent has already passed review. The goal-monitor release/date issue, 11:07 seller-data observation, and disk gate remain as in the 11:22 delta.
 
 **Current cursor:** use an occurrence-bound official provider readback for `18de446ef304a7c0-31239` through a registered adapter when that occurrence is eligible for reconciliation; keep the effect unknown until then. Continue TODO 1 only when the disk release preflight passes. No Capafy account or listing was mutated in this delta.
+
+### Runtime delta — 2026-10-14 11:41 JST
+
+- A second natural run on loaded SHA `b2a97edfaf145f84566a2a4ab7b1c44c94243cf1`, occurrence `capafy-loop-daily:18de44fba82cc718-77225`, passed at `2026-10-14T02:40:48Z` (11:40:48 JST). Its publish effect remains `unknown`; there is no provider receipt, official readback, or active admission fence. Do not treat the pass as a new-Agent submission and do not replay either unknown occurrence.
+
+**Current cursor:** use occurrence-bound official readback for both terminal runs (`18de446ef304a7c0-31239`, `18de44fba82cc718-77225`) before counting a submission; preserve `unknown` until evidence arrives. The 8767154808 Agent is already public but remains at 0 sold. Keep the goal-monitor release gate blocked by exact disk preflight.
