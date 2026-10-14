@@ -18489,29 +18489,17 @@ Paid-orders/views is descriptive, not causal: hot `5/46 ≈ 10.9%`, search `8/79
 3. `runtime/host/tests/test_resource_admission.py`と`runtime/loop/tests/test_lm_loop_run_bounds.py`で各subcauseのRED→GREEN、malformed heartbeat timestamp/timeout、legacy claimの連続2回renewal、60秒future-skew境界、errno/token allowlist、240秒busy tolerance、receipt/event伝播、秘密の非記録を確認する。productionの強制再実行は診断に使わない。
 4. main統合・immutable release後の自然runは、subcauseを一度観測する受け入れとする。新しいeffect-unknownは登録済みofficial readbackで閉じる。原因が判明した場合は同じshared runtime経路を直し、追加の診断runを重ねず次の自然実行で確認する。
 
-**TODO順序変更:** 旧順=`(1) CP1 prompt修正PRをmerge; (2) release/apply後にCP1を再実行; (3) 共通heartbeatを後から診断`。
+**TODO順序更新:** 旧順=(1) 2 GiB cleanup floorを満たすまでreleaseを保留; (2) main由来release/apply; (3) heartbeat原因観測; (4) 7393298474のunknown occurrenceを閉じてからcounter reset。新順=(1) #8095/#8098のshared source修正をmainへ統合; (2) main由来release a5ea4040を通常cutし、capafy-loop-dailyへloaded-idleで採用; (3) 既存draft 7393298474を同一IDで一度だけ自然runから再開し、CP1結果と公式remote statusを読む; (4) 21:54のevent/Admission ledger差を記録し、active fenceが無いまま履歴unknownを保持; (5) fresh money/source funnelとslot inventoryを照合; (6)空きslot後に検索需要順のAgent供給を続け、search/hot/Google/ai_overviewからdistributionを拡大する。理由=release-capacity measurementはa5eaを許容しCapafyへのadoptionは完了したため、2 GiB recovery floorはこのreleaseの完了条件ではない。未解決の主作業は既存draftの自然再開と収益readback。
 
-新順:
+**実装互換性の確認:** skills/earn/gig/scripts/coconala_discovery_pre_effect_migration.pyとcoconala_legacy_pre_effect_migration.pyはresource_heartbeat_unavailableを完全一致で読む。subcauseは補助diagnosticだけに保存し、既存reason/blocker/error_classは変えない。
 
-1. **共通heartbeat source repair — 完了:** subcause保持とclaim検証をPR #8095/#8098でmainへ統合する。production adoptionとは分けて扱う。
-2. **容量回復 — 現cursor:** registered cleanupのfresh receiptとowner-controlled writerを照合する。current `free_after`を2 GiB recovery floor + 最新`release_capacity_bytes()`以上にし、open/protected候補を削除しない。receiptが`unmet`ならrelease cut/applyしない。
-3. **immutable releaseとadoption:** capacity preflightがpassした後、latest main由来releaseを標準cutterで作り、標準release reconciler経由でloaded-idle ownerだけに採用する。
-4. **heartbeat subcauseを一度観測:** 新SHAを読んだ後、未解決のeffect-unknown occurrence/fenceがないaffected ownerの次の自然runを一度だけ確認し、subcauseとterminal boundaryを記録する。effectful runは同じoccurrenceの公式receipt/readbackを要求し、unknownを保持する。
-5. **Capafyの保留occurrenceを先に照合:** `capafy-loop-daily:18de8401772b28b8-58517`をregistered official adapterでreadbackする。no-effectが証明された後にだけ7393298474のattempt counterを3→0へ対象限定で戻し、手動wakeなしで同Agent IDの自然runを一度だけ確認する。
-6. **revenue readback:** fresh orders/gross/settled MRRとsearch/hot/Google/ai_overview別view→paidを更新する。
+**現在cursor:** PR #8098は2026-10-14 21:50:35Zにmerge commit ef37309a5f19a5620ab25f788de1052b0efc103cでmainへ統合済み。main a5ea4040にCP1の毎日の無料クォータなしとheartbeat claim検証/subcause保持がある。Capafy ownerは22:06Z時点でa5ea4040 loaded-idle、active admission effect-unknown fence 0。release manifestはcut_at=2026-10-14T21:58:31Z、capacity_required_bytes=253915136。target Agent 7393298474はrelease内FROZEN.jsonに無く、official inventoryでdraft version 2110426515594047488、repo catalogのTikTok Comment Reply Script Packに完全一致する。同ID attempt counterはmanual-reset ledger記録つきで3→0へ戻した。自然run capafy-loop-daily:18de84d37d8627d0-93465は22:09:05Zにa5ea4040で開始し、22:21:24Z時点でrunning、attempt=1、host admission pass、terminal/receipt未取得。手動wakeや追加resetは行わない。
 
-順序変更の理由=`共有source patchはmainへ統合済みだが、hostは旧SHAのまま。disk recovery floor未達でreleaseできず、最新Capafy occurrenceはeffect unknownかつofficial readbackなし。attempt counterを戻す前にunknownを閉じ、同じ停止を反復しない。`
+**slot inventory:** 同run前のofficial inventory_status readbackはtotal=72、listed=55、occupied=5、free=0、retry=2、recover=12、unknown=0でCAP_FULL。5枠はdraft 7393298474、draft 2781635836、under_review 8354665033、review_rejected 6355996845と2576591785。hourly seller snapshotのinventory summaryはlisted=51/occupied=7と異なるため、slot決定にはcapafy-autopublishのinventory_status.pyを用い、両readbackの差は次回reconcileで調べる。FROZEN sellersは枠を消費しないため編集/再提出しない。21:57Zのnatural passはCAP_FULL、agent spend=0、platform write=0。21:24Z、21:57Z、22:09Zのofficial pre-dispatch snapshotsは72 agent ID/versionが全て一致し、7393298474も同じversion。
 
-**実装互換性の確認:** `skills/earn/gig/scripts/coconala_discovery_pre_effect_migration.py`と`coconala_legacy_pre_effect_migration.py`は既存の`host_admission_deferred:resource_heartbeat_unavailable`を完全一致で読む。従ってsubcauseは補助diagnosticへ保存し、既存reason/blocker/error_classは変更しない。
+**過去eventの扱い:** capafy-loop-daily:18de8401772b28b8-58517（21:54:05Z）はentrypoint_exit_75 / event effect_status=unknown。run scratchにはpre-dispatch snapshot・factory log・stderrがなく、host admissionはresource_slot_acquired。read-only ledger rowはstate=cancelled/effect_unknown=0で、登録済みcapafy_factory_fence_reconcile.py --resolveはoccurrence is not an effect_unknown rowとして拒否し、何も変更しなかった。後続official snapshotsで全72 versionが不変。履歴eventのunknownは上書きせず、active fenceは無い。再送しない。
 
-**現在cursor:** PR #8098は2026-10-14 21:50:35Zにmerge commit `ef37309a5f19a5620ab25f788de1052b0efc103c`でmainへ統合済み。latest main `ad2d2180f342fd69e643a1e3bc1975825f558f3e`にもruntime変更は保持される。PR exact-head 12 checksとheartbeat-focused 38 testsはpass。これはsource-level完了で、production adoption/根本原因確認の完了ではない。
-
-**production readback:** `capafy-loop-daily`はloaded-idleだがinstalled SHAは旧`2345448e0277242d9d71f425e2899aabd2502f09`。最新terminal `capafy-loop-daily:18de8401772b28b8-58517`（2026-10-14 21:54:05Z）はexit 78 / `entrypoint_exit_75`、effect status unknown、official readback/receiptなし。active admission fenceはfalseだが、このoccurrenceはno-effect扱いせず、counter reset・手動wake・再送をしない。
-
-**capacity readback:** `life-manager-disk-cleanup:18de83f39d869aa0-57252`は21:54:49Zにexit 0。fresh unbound receipt `2026-10-14T21:55:11Z`は`free_after=1,009,303,552` bytes、recovery floor `2,147,483,648` bytes、status `unmet`、reclaimed 0、preserved 11（open 2 / protected descendant 7 / protected path 2）、inventory gaps 28、errors 0。direct `df`もdata volumeの空き約968 MiB。cleanup passでsafe reclaimは確認できず、release cut/applyは未実施。
-
-最後のsales snapshotは21:07:11Z（orders=70、gross=$102.75、pending=$59、settled MRR=null）でfreshではない。次はcapacity growthのowner-controlled原因を照合し、fresh release-capacity preflightが2 GiB floorとexport/temp reserveを満たしてからimmutable releaseへ進む。以降のCapafy retryは上記exact occurrenceのofficial no-effect readback後にだけ許す。
-
+**収益・distribution readback（2026-10-14 22:07:56Z）:** orders=70、gross USD 102.75、pending USD 59、paid_out USD 0、settled MRR=null。first milestone orders>70かつgross>$102.75は未達。直近30dは4,282 views / 16 paid / USD 41.84: search 859/8、hot 46/5、Google 39/1、direct 1,593/2、ai_overview 375/0、instagram_bio 39/0。直近7dは822 views / 0 paid / 1 trial: search 468/0、ai_overview 53/0、Google 12/0、hot 1/0。次はcurrent natural runの公式readback、fresh source funnelの確認、hourly reconcile ownerのentrypoint_exit_1原因調査の順。distributionは実測でpaidが出たsearch/hotを優先し、ai_overview conversionを改善する。social volumeは計測流入が出るまで増やさない。
 
 ### Life Manager Cloud current cursor — 2026-10-15
 
