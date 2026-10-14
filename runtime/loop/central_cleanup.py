@@ -675,7 +675,8 @@ def reclaim_unreferenced_source(releases: Path, current: Path, agents: Path, kee
 
 
 def git_duplicate_cleanup(source_repo: Path) -> dict:
-    result = {"errors": 0, "prune_packable_before": None, "prune_packable_after": None}
+    result = {"errors": 0, "prune_packable_before": None, "prune_packable_after": None,
+              "loose_bytes_before": None, "loose_bytes_after": None}
     if not (source_repo / ".git").exists():
         return {**result, "status": "not_applicable"}
     try:
@@ -683,20 +684,38 @@ def git_duplicate_cleanup(source_repo: Path) -> dict:
             raise ValueError("source repository owner mismatch")
         def git(*args):
             return subprocess.run(["git", "-C", str(source_repo), *args],
-                capture_output=True, text=True, timeout=15, check=True).stdout
+                capture_output=True, text=True, timeout=15, check=True,
+                env={**os.environ, "LC_ALL": "C"})
         def count():
-            return int(next(line.partition(":")[2] for line in git("count-objects", "-v").splitlines()
-                            if line.startswith("prune-packable:")))
-        result["prune_packable_before"] = count()
-        # Git owns the auto threshold, bounded loose-object batches and maintenance lock.
-        # This never runs full gc or expires unreachable history.
-        git("maintenance", "run", "--auto", "--task=loose-objects")
+            lines = git("count-objects", "-v").stdout.splitlines()
+            return {name: int(next(line.partition(":")[2] for line in lines
+                                  if line.startswith(f"{name}:")))
+                    for name in ("prune-packable", "size")}
+        before = count()
+        result["prune_packable_before"] = before["prune-packable"]
+        result["loose_bytes_before"] = before["size"] * 1024
+        # Byte pressure bypasses only the count threshold; Git keeps its batch and lock.
+        auto = ("--auto",) if before["size"] < 128 * 1024 else ()
+        lock = Path(git("rev-parse", "--git-path", "objects/maintenance.lock").stdout.strip())
+        if not lock.is_absolute():
+            lock = source_repo / lock
+        maintenance = (None if lock.exists() else
+                       git("maintenance", "run", "--no-quiet", *auto, "--task=loose-objects"))
+        if (maintenance is None or lock.exists()
+                or "skipping maintenance" in maintenance.stderr):
+            result.update(status="deferred", error_class="NativeMaintenanceSkipped",
+                          retryable=True, next_action="retry_next_natural_pass",
+                          native_diagnostic=(maintenance.stderr[-2048:].strip()
+                                             if maintenance is not None and maintenance.stderr
+                                             else "maintenance lock observed; ownership unknown"))
+            return result
         # Newly packed loose objects can be reclaimed in this same sweep.
-        if count():
+        after = count()
+        if after["prune-packable"]:
             git("prune-packed")
-            result["prune_packable_after"] = count()
-        else:
-            result["prune_packable_after"] = 0
+            after = count()
+        result["prune_packable_after"] = after["prune-packable"]
+        result["loose_bytes_after"] = after["size"] * 1024
         result["status"] = "pass"
     except subprocess.TimeoutExpired:
         result.update(status="deferred", error_class="TimeoutExpired",

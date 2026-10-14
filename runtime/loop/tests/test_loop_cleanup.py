@@ -167,14 +167,94 @@ class LoopCleanupTest(unittest.TestCase):
             self.assertEqual(result["errors"], 0)
             run.assert_not_called()
 
+    def test_native_git_cleanup_handles_few_objects_under_byte_pressure_and_replays_zero(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            native_run = subprocess.run
+            def git(*args, **kwargs):
+                return native_run(["git", "-C", str(repo), *args],
+                    check=True, capture_output=True, text=True, **kwargs).stdout.strip()
+            git("init", "-q")
+            (repo / "source.txt").write_text("committed source\n")
+            git("add", "source.txt")
+            git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+                "commit", "-qm", "source")
+            head, branch = git("rev-parse", "HEAD"), git("symbolic-ref", "HEAD")
+            objects = [git("hash-object", "-w", "--stdin", input=f"retained blob {i}\n")
+                       for i in range(3)]
+            (repo / "source.txt").write_text("active source change\n")
+            (repo / "memory").mkdir()
+            (repo / "memory/keep.txt").write_text("retained memory\n")
+            dirty = git("status", "--porcelain")
+            commands = []
+            def byte_pressure(command, **kwargs):
+                commands.append(command)
+                self.assertEqual(kwargs["env"]["LC_ALL"], "C")
+                completed = native_run(command, **kwargs)
+                if command[-2:] == ["count-objects", "-v"]:
+                    counts = dict(line.split(": ", 1) for line in completed.stdout.splitlines())
+                    if int(counts["count"]):
+                        # Exercise 128 MiB policy without allocating a large disk fixture.
+                        completed.stdout = "\n".join(
+                            "size: 131072" if line.startswith("size: ") else line
+                            for line in completed.stdout.splitlines()) + "\n"
+                return completed
+            with mock.patch.object(central_cleanup.subprocess, "run", side_effect=byte_pressure):
+                result = central_cleanup.git_duplicate_cleanup(repo)
+                counts = dict(line.split(": ", 1) for line in git("count-objects", "-v").splitlines())
+                self.assertEqual(int(counts["count"]), 0)
+                self.assertEqual(result["status"], "pass")
+                self.assertEqual(result["loose_bytes_before"], 134217728)
+                self.assertEqual(result["loose_bytes_after"], 0)
+                packed = {path.name: path.stat().st_mtime_ns for path in (repo / ".git/objects/pack").iterdir()}
+                replay = central_cleanup.git_duplicate_cleanup(repo)
+            self.assertEqual(replay["status"], "pass")
+            self.assertEqual(packed, {path.name: path.stat().st_mtime_ns for path in (repo / ".git/objects/pack").iterdir()})
+            maintenance = [command for command in commands if "maintenance" in command]
+            self.assertNotIn("--auto", maintenance[0])
+            self.assertIn("--auto", maintenance[1])
+            for i, oid in enumerate(objects):
+                self.assertEqual(git("cat-file", "blob", oid), f"retained blob {i}")
+            self.assertEqual(git("rev-parse", "HEAD"), head)
+            self.assertEqual(git("symbolic-ref", "HEAD"), branch)
+            self.assertEqual(git("status", "--porcelain"), dirty)
+            self.assertEqual((repo / "source.txt").read_text(), "active source change\n")
+            self.assertEqual((repo / "memory/keep.txt").read_text(), "retained memory\n")
+
+    def test_native_git_cleanup_defers_skipped_maintenance_and_preserves_unknown_lock(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            def git(*args, **kwargs):
+                return subprocess.run(["git", "-C", str(repo), *args],
+                    check=True, capture_output=True, text=True, **kwargs).stdout.strip()
+            git("init", "-q")
+            oid = git("hash-object", "-w", "--stdin", input="retained unreachable blob\n")
+            lock = repo / ".git/objects/maintenance.lock"
+            lock.write_text("unknown owner\n")
+            identity = lock.stat().st_ino
+            counts = git("count-objects", "-v")
+            result = central_cleanup.git_duplicate_cleanup(repo)
+            self.assertEqual(result["status"], "deferred")
+            self.assertEqual(result["errors"], 0)
+            self.assertEqual(result["error_class"], "NativeMaintenanceSkipped")
+            self.assertTrue(result["retryable"])
+            self.assertEqual(result["next_action"], "retry_next_natural_pass")
+            self.assertIsNone(result["prune_packable_after"])
+            self.assertIsNone(result["loose_bytes_after"])
+            self.assertEqual(lock.stat().st_ino, identity)
+            self.assertEqual(lock.read_text(), "unknown owner\n")
+            self.assertEqual(git("count-objects", "-v"), counts)
+            self.assertEqual(git("cat-file", "blob", oid), "retained unreachable blob")
+
     def test_native_git_duplicate_cleanup_preserves_unknown_after_timeout(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
             (repo / ".git").mkdir()
-            count = subprocess.CompletedProcess([], 0, "prune-packable: 3\n", "")
+            count = subprocess.CompletedProcess([], 0, "prune-packable: 3\nsize: 0\n", "")
+            lock_path = subprocess.CompletedProcess([], 0, str(repo / ".git/objects/maintenance.lock"), "")
             with mock.patch.object(central_cleanup.subprocess, "run", side_effect=(
-                    count, subprocess.TimeoutExpired(
-                        ["git", "maintenance", "run", "--auto", "--task=loose-objects"], 15))):
+                    count, lock_path, subprocess.TimeoutExpired(
+                        ["git", "maintenance", "run", "--no-quiet", "--auto", "--task=loose-objects"], 15))):
                 result = central_cleanup.git_duplicate_cleanup(repo)
             self.assertEqual(result["errors"], 0)
             self.assertEqual(result["status"], "deferred")
