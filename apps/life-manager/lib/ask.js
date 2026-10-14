@@ -333,6 +333,46 @@ User's home address: ${JSON.stringify(home || "")}` }],
   return { kind: "ask" }; // ran out of turns → ask
 }
 
+// A long gap between a same-day Calendar event and the next one makes the origin uncertain.
+// Let the model choose only among addresses already present in the user's Calendar or saved home;
+// Calendar entries are schedule evidence, never live location.
+async function agentResolveTravelOrigin(event, {
+  candidates = [], scheduledEvents = [], timezone = "", geminiKey, uid,
+  recordUsageEvent: usageWriter,
+} = {}) {
+  if (!geminiKey || !Array.isArray(candidates) || candidates.length === 0) return { kind: "unresolved" };
+  const safeCandidates = candidates.filter((candidate) => candidate
+    && typeof candidate.id === "string" && typeof candidate.location === "string");
+  const allowed = new Set(safeCandidates
+    .map((candidate) => candidate.id));
+  if (!allowed.size) return { kind: "unresolved" };
+  const answer = await geminiJson(
+    `You are Life Manager choosing the most likely starting point for this user's trip to an upcoming
+calendar event. Choose only one exact candidate id below; never invent or alter an address. Consider
+the user's saved home, repeated non-home locations, the same-day schedule, event purpose, and time.
+Do not treat saved home as the user's live location, and do not choose it only because time has passed.
+Calendar entries show planned activity, not live location. Use the strongest schedule evidence, and
+abstain only when the choices are genuinely ambiguous.
+
+Examples:
+- The user's last real event today is a repeatedly used office, 09:00–17:00; the next event is an
+  in-person meeting at 19:00; no later event suggests they went home. Prefer that office candidate.
+- A later same-day event before the 19:00 meeting is at the user's home. Prefer saved home.
+
+Return JSON only: {"candidateId": "an exact candidate id or null", "confidence": "high" or "low"}.
+
+Timezone: ${JSON.stringify(timezone)}
+Upcoming event: ${JSON.stringify({ summary: event && event.summary || "", location: event && event.location || "", start: event && (event.startIso || event.start && event.start.dateTime) || "" })}
+Origin candidates: ${JSON.stringify(safeCandidates.map(({ id, location, source }) => ({ id, location, source })))}
+Same-day scheduled events: ${JSON.stringify((Array.isArray(scheduledEvents) ? scheduledEvents : []).map(({ summary, location, startIso, endIso }) => ({ summary, location, start: startIso, end: endIso })))} `,
+    geminiKey,
+    { tenantId: uid, feature: "travel_origin", recordUsageEvent: usageWriter },
+  );
+  const candidateId = answer && typeof answer.candidateId === "string" ? answer.candidateId : "";
+  if (!answer || String(answer.confidence || "").toLowerCase() !== "high" || !allowed.has(candidateId)) return { kind: "unresolved" };
+  return { kind: "selected", candidateId };
+}
+
 // Reading a reply is a single judgment, not a search — one JSON call (deterministic enough, no tools).
 async function agentMatchReply(replyText, pending, geminiKey) {
   if (!pending.length) return null;
@@ -737,7 +777,7 @@ async function handleInboundReply(token, replyText, opts = {}) {
 
 module.exports = {
   geminiJson,
-  askTick, recallOrResolve, agentResolveLocation, agentSearchCandidate, closedAskMessage,
+  askTick, recallOrResolve, agentResolveLocation, agentResolveTravelOrigin, agentSearchCandidate, closedAskMessage,
   closedOnlineAskMessage, semanticQuestionKey,
   agentMatchReply, claimAsk, unclaimAsk, recordResolution, handleAskCallback, lookupAskCandidate,
   handleInboundReply, parseInboundRecipient, consumeAskToken,

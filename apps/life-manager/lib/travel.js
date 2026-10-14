@@ -1,7 +1,8 @@
-// lib/travel.js — cloud travel-time auto-fill. For a user, look at today→+7d of located events and
+// lib/travel.js — cloud travel-time auto-fill. Keep a 26h origin lookback plus the next 7d of located events and
 // insert a "[Travel]" block before each one so the wake call fires before they must LEAVE. Ports
 // travel/travel_fill.py to the Railway service: Google Directions for the leave time, Composio for the
-// gcal read + write. Origin priority: previous event's location (back-to-back) → the user's home.
+// gcal read + write. Origin: nearby previous event, otherwise a high-confidence agent choice from
+// saved home, repeated Calendar locations, and same-day real events; home remains the fallback.
 // Idempotent: never inserts a second [Travel] for an event that already has one.
 "use strict";
 
@@ -17,6 +18,7 @@ const {
 const { interpretCalendarEvent } = require("./calendar-interpreter.js");
 const { computeDoorDepartureMs } = require("./travel-timing.js");
 const { recordUsageEvent, usageRuntimeEnv } = require("./usage-event.js");
+const { deriveAnchors } = require("./care-anchors.js");
 
 const GOOGLE_DIRECTIONS_EST_USD = 0.005; // list price per request after free cap, checked 2026-09-06
 const GOOGLE_GEOCODING_EST_USD = 0.005;
@@ -31,6 +33,7 @@ const GEOCODE_TRANSIENT_TTL_MS = 2 * 60_000;
 const ROUTING_POLICY_VERSION = "travel-routing-policy-v1";
 const OPAQUE_EVENT_VERSION = /^[a-f0-9]{64}$/;
 const LIFE_MANAGER_TRAVEL_DESCRIPTION = "Auto-inserted by Life Manager — adjust if the route is wrong.";
+const TRAVEL_ORIGIN_LOOKBACK_MS = 26 * 60 * 60_000;
 
 function eventVersionMeta(usage) {
   const eventVersion = usage && usage.eventVersion;
@@ -126,22 +129,23 @@ function hasDeparturePopupReminder(event) {
     && event.reminders.overrides.some((reminder) => reminder && reminder.method === "popup" && reminder.minutes === 0));
 }
 
-// PURE travel decision — geometry only (origin selection + home→home guard). It does NOT judge whether
+// PURE travel decision — base geometry plus a validated, optional origin candidate. It does NOT judge whether
 // an event is "online": that is the AGENT's call (agentResolveLocation, ask.js), made via prompt+tools,
 // never a hardcoded keyword regex (Dais 2026-06-23: ~/.claude/rules/building-effective-ai-agents.md —
 // "no brittle if-else hardcoded logic; the model decides"). An online event surfaces here as an
 // un-routable location → fillTravel asks the agent, which returns kind:"online" → skipped.
 // Returns { insert: boolean, origin: string|null, reason: string }.
-function travelDecision(ev, prev, home) {
+function travelDecision(ev, prev, home, originOverride) {
   const norm = (s) => (s || "").replace(/\s+/g, "").toLowerCase();
   if (!ev || isTravel(ev.summary) || !((ev.location || "").trim())) {
     return { insert: false, origin: null, reason: "helper-or-no-location" };
   }
-  // Origin = previous event's location if it ends within [0,90] min before this one (back-to-back) AND
-  // the previous event is a REAL event (not one of Anicca's own [Travel] helper blocks); else home.
+  // Base origin = previous real event within [0,90] min, else home. fillTravel may supply a high-confidence
+  // candidate selected by the agent for longer same-day gaps; helpers and invented addresses never qualify.
   const gap = prev && prev.endMs ? ev.startMs - prev.endMs : Infinity;
-  const origin = prev && prev.location && !isTravel(prev.summary) && gap >= 0 && gap <= 90 * 60000
-    ? prev.location : home;
+  const origin = typeof originOverride === "string" && originOverride.trim() ? originOverride.trim()
+    : prev && prev.location && !isTravel(prev.summary) && gap >= 0 && gap <= 90 * 60000
+      ? prev.location : home;
   if (!origin) return { insert: false, origin: null, reason: "no-origin" }; // home unknown → ask-loop handles it
   if (norm(origin) === norm(ev.location)) return { insert: false, origin, reason: "same-location" }; // home→home etc.
   return { insert: true, origin, reason: "travel-needed" };
@@ -153,7 +157,7 @@ function shortName(addr) {
 async function listEvents7d(uid, apiKey, nowMs, calendar, gmailAccountId, { strict = false, expectedCalendarAccountId } = {}) {
   const cal = calendar || getCalendar({ apiKey, gmailAccountId, expectedCalendarAccountId });
   const items = await cal.listEventsRaw(uid, {
-    timeMin: new Date(nowMs).toISOString().replace(/\.\d{3}Z$/, "Z"),
+    timeMin: new Date(nowMs - TRAVEL_ORIGIN_LOOKBACK_MS).toISOString().replace(/\.\d{3}Z$/, "Z"),
     timeMax: new Date(nowMs + 7 * 86400 * 1000).toISOString().replace(/\.\d{3}Z$/, "Z"),
     ...(strict ? { strict: true } : {}),
     ...(expectedCalendarAccountId ? { expectedCalendarAccountId } : {}),
@@ -467,6 +471,51 @@ function validRouteTimezone(value) {
     new Intl.DateTimeFormat("en", { timeZone: zone }).format(0);
     return zone;
   } catch { return null; }
+}
+
+function localCalendarDate(event, timezone) {
+  if (!event || !Number.isFinite(event.startMs)) return null;
+  const zone = validRouteTimezone(timezone) || validRouteTimezone(event.timezone) || DEFAULT_ROUTE_TIMEZONE;
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
+    timeZone: zone, year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(new Date(event.startMs)).filter((part) => part.type !== "literal")
+    .map(({ type, value }) => [type, value]));
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function sameLocalCalendarDay(left, right, timezone) {
+  const zone = validRouteTimezone(timezone) || validRouteTimezone(right && right.timezone)
+    || validRouteTimezone(left && left.timezone) || DEFAULT_ROUTE_TIMEZONE;
+  const leftDate = localCalendarDate(left, zone);
+  return Boolean(leftDate && leftDate === localCalendarDate(right, zone));
+}
+
+function previousLocatedCalendarEvents(events, event, timezone, sameDayOnly = false) {
+  if (!event || !Number.isFinite(event.startMs)) return [];
+  return (Array.isArray(events) ? events : [])
+    .filter((candidate) => candidate && !isTravel(candidate.summary)
+      && String(candidate.location || "").trim()
+      && Number.isFinite(candidate.endMs) && candidate.endMs <= event.startMs
+      && (!sameDayOnly || sameLocalCalendarDay(candidate, event, timezone)))
+    .sort((left, right) => left.endMs - right.endMs);
+}
+
+function travelOriginCandidates(home, repeatedLocation, previousEvents) {
+  const candidates = [];
+  const add = (id, location, source) => {
+    const value = String(location || "").trim();
+    if (!value) return;
+    const key = value.replace(/\s+/g, "").toLowerCase();
+    if (candidates.some((candidate) => candidate.location.replace(/\s+/g, "").toLowerCase() === key)) return;
+    candidates.push({ id, location: value, source });
+  };
+  add("home", home, "saved_home");
+  add("repeated-location", repeatedLocation, "repeated_calendar_location");
+  for (const [index, event] of [...(previousEvents || [])].reverse().entries()) {
+    if (index >= 3) break;
+    add(`previous-${index}`, event.location, "same_day_calendar");
+  }
+  return candidates;
 }
 
 function asEpochMs(value) {
@@ -808,13 +857,17 @@ async function recordTravelTelegramReceipt(uid, eventKey, leg, messageId, supaUr
   return { ok: true, matched };
 }
 
-async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, nowMs = Date.now(), bufferMin = 5, calendar, supaUrl, supaKey, _directionsRoute, _directionsMinutes, _routeCache, _reserveManagedAction, _completeManagedAction, _releaseManagedAction, _agentResolveLocation, _recordUsageEvent, gmailAccountId, expectedCalendarAccountId, allowWebInitialScan = false } = {}) {
+async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, nowMs = Date.now(), bufferMin = 5, calendar, supaUrl, supaKey, _directionsRoute, _directionsMinutes, _routeCache, _reserveManagedAction, _completeManagedAction, _releaseManagedAction, _agentResolveLocation, _agentResolveTravelOrigin, _recordUsageEvent, gmailAccountId, expectedCalendarAccountId, allowWebInitialScan = false } = {}) {
   const directionsFn = _directionsMinutes || directionsMinutes;
   const routeFn = _directionsRoute || (!_directionsMinutes ? directionsRoute : null);
   const cal = calendar || getCalendar({ apiKey, gmailAccountId, expectedCalendarAccountId });
-  const events = await listEvents7d(uid, apiKey, nowMs, cal, gmailAccountId, {
+  const events = (await listEvents7d(uid, apiKey, nowMs, cal, gmailAccountId, {
     strict: Boolean(expectedCalendarAccountId), expectedCalendarAccountId,
-  });
+  })).sort((left, right) => left.startMs - right.startMs);
+  const repeatedLocation = deriveAnchors({
+    homeAddress: home,
+    calendarEvents: events.filter((event) => !isTravel(event.summary)).map(({ location, startMs }) => ({ location, startMs })),
+  }).work;
   let inserted = 0, verified = 0, checked = 0, skipped = 0;
   const outboundReports = [];
   const releaseAllowance = async (eventKey, state) => {
@@ -825,6 +878,8 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
   for (let i = 0; i < events.length; i++) {
     const ev = events[i];
     if (isTravel(ev.summary) || !ev.location) continue;
+    // Past events stay in `events` as same-day origin context, but must never trigger provider work.
+    if (Number.isFinite(ev.endMs) && ev.endMs <= nowMs) continue;
     checked++;
     // A verified user preference is authoritative. If it is malformed, use the event's own IANA
     // zone when available, then the product's JST default; never let an invalid preference poison the
@@ -870,7 +925,43 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
       } catch { /* do not create a duplicate when strict readback is unavailable */ }
     }
 
-    const decision = travelDecision(ev, events[i - 1], home);
+    const earlierEvents = events.slice(0, i);
+    const previous = previousLocatedCalendarEvents(earlierEvents, ev, routeTimezone).at(-1) || null;
+    const sameDayEvents = previousLocatedCalendarEvents(earlierEvents, ev, routeTimezone, true);
+    const previousGap = previous ? ev.startMs - previous.endMs : Infinity;
+    const hasDirectPreviousOrigin = previous && previousGap >= 0 && previousGap <= 90 * 60000;
+    const originCandidates = travelOriginCandidates(home, repeatedLocation, sameDayEvents);
+    let originOverride = null;
+    const hasNonHomeSameDayEvent = sameDayEvents.some((event) => String(event.location || "").replace(/\s+/g, "").toLowerCase()
+      !== String(home || "").replace(/\s+/g, "").toLowerCase());
+    if (ev.startMs > nowMs && !hasDirectPreviousOrigin && hasNonHomeSameDayEvent
+      && (originCandidates.length > 1 || !String(home || "").trim() && originCandidates.length > 0)
+      && geminiKey) {
+      try {
+        const resolveOrigin = _agentResolveTravelOrigin || require("./ask.js").agentResolveTravelOrigin;
+        const resolution = await resolveOrigin(ev, {
+          candidates: originCandidates,
+          scheduledEvents: sameDayEvents.slice(-5).map((event) => ({
+            summary: event.summary || "",
+            location: event.location || "",
+            startIso: event.startIso || new Date(event.startMs).toISOString(),
+            endIso: new Date(event.endMs).toISOString(),
+          })),
+          timezone: routeTimezone,
+          geminiKey,
+          uid,
+          recordUsageEvent: _recordUsageEvent,
+        });
+        const selected = resolution && resolution.kind === "selected"
+          ? originCandidates.find((candidate) => candidate.id === resolution.candidateId) : null;
+        if (selected) originOverride = selected.location;
+      } catch { /* keep the existing conservative home/direct-previous decision */ }
+    }
+    // An event already in progress cannot need an outbound route; preserve its independent return leg.
+    const outboundEligible = Number.isFinite(ev.startMs) && ev.startMs > nowMs;
+    const decision = outboundEligible
+      ? travelDecision(ev, previous, home, originOverride)
+      : { insert: false, origin: null, reason: "event-already-started" };
     let outboundInserted = false;
     let resolvedDest = ev.location; // tracks the agent-resolved venue for the return leg
 
