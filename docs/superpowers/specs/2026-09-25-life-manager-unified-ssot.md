@@ -18489,11 +18489,28 @@ Paid-orders/views is descriptive, not causal: hot `5/46 ≈ 10.9%`, search `8/79
 3. `runtime/host/tests/test_resource_admission.py`と`runtime/loop/tests/test_lm_loop_run_bounds.py`で各subcauseのRED→GREEN、malformed heartbeat timestamp/timeout、legacy claimの連続2回renewal、60秒future-skew境界、errno/token allowlist、240秒busy tolerance、receipt/event伝播、秘密の非記録を確認する。productionの強制再実行は診断に使わない。
 4. main統合・immutable release後の自然runは、subcauseを一度観測する受け入れとする。新しいeffect-unknownは登録済みofficial readbackで閉じる。原因が判明した場合は同じshared runtime経路を直し、追加の診断runを重ねず次の自然実行で確認する。
 
-**TODO順序変更:** 旧順=`(1) CP1 prompt修正PRをmerge; (2) release/apply後にCP1を再実行; (3) 共通heartbeatを後から診断`。新順=`(1) shared heartbeatのsubcause保持をlatest-mainでtest/PR/CI/merge; (2) 最新mainからimmutable releaseを作成; (3) loaded-idleのcapafy-loop-dailyだけapply; (4) Agent 7393298474のattempt counterを3→0へ対象限定で戻す; (5) 同Agent IDで次の自然runを一度だけ実行させ、CP1 pricing gateとofficial status 1/4・両confirmationを読む; (6) fresh sales/MRRを確認し、search/hot/Google/ai_overviewのsource別view→paidを計測する`。理由=`複数ownerでheartbeat failureが再発し、factoryが同じ段階で停止している。CP1 source fixはすでにmainに入ったため、共有停止境界の修復後に一度のrelease/applyで両方を採用する。`
+**TODO順序変更:** 旧順=`(1) CP1 prompt修正PRをmerge; (2) release/apply後にCP1を再実行; (3) 共通heartbeatを後から診断`。
+
+新順:
+
+1. **共通heartbeat source repair — 完了:** subcause保持とclaim検証をPR #8095/#8098でmainへ統合する。production adoptionとは分けて扱う。
+2. **容量回復 — 現cursor:** registered cleanupのfresh receiptとowner-controlled writerを照合する。current `free_after`を2 GiB recovery floor + 最新`release_capacity_bytes()`以上にし、open/protected候補を削除しない。receiptが`unmet`ならrelease cut/applyしない。
+3. **immutable releaseとadoption:** capacity preflightがpassした後、latest main由来releaseを標準cutterで作り、標準release reconciler経由でloaded-idle ownerだけに採用する。
+4. **heartbeat subcauseを一度観測:** 新SHAを読んだ後、未解決のeffect-unknown occurrence/fenceがないaffected ownerの次の自然runを一度だけ確認し、subcauseとterminal boundaryを記録する。effectful runは同じoccurrenceの公式receipt/readbackを要求し、unknownを保持する。
+5. **Capafyの保留occurrenceを先に照合:** `capafy-loop-daily:18de8401772b28b8-58517`をregistered official adapterでreadbackする。no-effectが証明された後にだけ7393298474のattempt counterを3→0へ対象限定で戻し、手動wakeなしで同Agent IDの自然runを一度だけ確認する。
+6. **revenue readback:** fresh orders/gross/settled MRRとsearch/hot/Google/ai_overview別view→paidを更新する。
+
+順序変更の理由=`共有source patchはmainへ統合済みだが、hostは旧SHAのまま。disk recovery floor未達でreleaseできず、最新Capafy occurrenceはeffect unknownかつofficial readbackなし。attempt counterを戻す前にunknownを閉じ、同じ停止を反復しない。`
 
 **実装互換性の確認:** `skills/earn/gig/scripts/coconala_discovery_pre_effect_migration.py`と`coconala_legacy_pre_effect_migration.py`は既存の`host_admission_deferred:resource_heartbeat_unavailable`を完全一致で読む。従ってsubcauseは補助diagnosticへ保存し、既存reason/blocker/error_classは変更しない。
 
-**現在cursor:** item 1。PR #8095 (`84eb2a1`) はexact-head checks全PASS後、main merge commit `da54cf0335d735cc837008b4cb8c24b6976be038`へ統合済み。これはsubcause記録をmainへ載せた状態で、production release/applyは未実施。fresh reviewの2巡目で検出したlegacy claimの二回目renewal失敗と未来timestamp上限漏れを修正し、3巡目reviewでCritical/Importantなし、legacy version未指定の仕様文言も実装・testと一致することを確認した。PR #8098のhead `93ee5ea`はfull-checkout CI全pass。mainのPR #8087 merge後、PR base `c4378358`をbranchへmergeし、runtime差分に競合がないことを確認。最新merge head `3024adcac1ca28638801169a1a49a3d1643bf497`でheartbeat-focused 38件、source-boundary、`py_compile`、`git diff --check`はPASS。merge headのpushとexact-head CIはこれから。local OSS verifierはsparse checkoutで未展開の`skills/_shared`等4ディレクトリのmanifest inventory不一致となるが、full-checkout CIではPASS済み。過去heartbeat failureの実原因は未確認で、このsource修正は次回の原因を記録する。次はmerge headをpushし、CIとfresh reviewを更新する。production apply、counter変更、手動wakeは未実施。
+**現在cursor:** PR #8098は2026-10-14 21:50:35Zにmerge commit `ef37309a5f19a5620ab25f788de1052b0efc103c`でmainへ統合済み。latest main `ad2d2180f342fd69e643a1e3bc1975825f558f3e`にもruntime変更は保持される。PR exact-head 12 checksとheartbeat-focused 38 testsはpass。これはsource-level完了で、production adoption/根本原因確認の完了ではない。
+
+**production readback:** `capafy-loop-daily`はloaded-idleだがinstalled SHAは旧`2345448e0277242d9d71f425e2899aabd2502f09`。最新terminal `capafy-loop-daily:18de8401772b28b8-58517`（2026-10-14 21:54:05Z）はexit 78 / `entrypoint_exit_75`、effect status unknown、official readback/receiptなし。active admission fenceはfalseだが、このoccurrenceはno-effect扱いせず、counter reset・手動wake・再送をしない。
+
+**capacity readback:** `life-manager-disk-cleanup:18de83f39d869aa0-57252`は21:54:49Zにexit 0。fresh unbound receipt `2026-10-14T21:55:11Z`は`free_after=1,009,303,552` bytes、recovery floor `2,147,483,648` bytes、status `unmet`、reclaimed 0、preserved 11（open 2 / protected descendant 7 / protected path 2）、inventory gaps 28、errors 0。direct `df`もdata volumeの空き約968 MiB。cleanup passでsafe reclaimは確認できず、release cut/applyは未実施。
+
+最後のsales snapshotは21:07:11Z（orders=70、gross=$102.75、pending=$59、settled MRR=null）でfreshではない。次はcapacity growthのowner-controlled原因を照合し、fresh release-capacity preflightが2 GiB floorとexport/temp reserveを満たしてからimmutable releaseへ進む。以降のCapafy retryは上記exact occurrenceのofficial no-effect readback後にだけ許す。
 
 
 ### Life Manager Cloud current cursor — 2026-10-15
