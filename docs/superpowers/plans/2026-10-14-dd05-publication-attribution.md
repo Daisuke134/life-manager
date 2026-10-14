@@ -104,7 +104,7 @@ Gate 13 `gate_pass` means the snapshot is structurally complete, contains no fab
 
 - [x] Commit and push the initial SSOT, plan, and implementation (`84714bf8cb9454deda7aa2fdb427aa77b2a0fa93`); PR #8009 is open.
 - [x] Merge latest `origin/main` (`c900bf0aa3b0d5f00ceff32d01f9d108df4c7dea`) into the DD05 branch locally (`143ff3ea743e9137f1d5de3b2397e4bc2a5d292d`); the merge adds seven upstream SSOT lines without conflicts.
-- [ ] Commit and push the latest-main merge plus the refreshed SSOT cursor and Task 5 list; confirm the exact PR head.
+- [x] Push the latest-main merge plus the refreshed SSOT cursor and Task 5 list (`82d877ed42ec325732b50739f8c11a0db26c9b4c`); verify the remote branch and PR point to that head.
 - [ ] Require exact-head CI to pass, then merge to main under the repository's merge policy.
 - [ ] Allow the existing release reconciler to ship the immutable main release and apply only when the truth owner is idle and its owner lock is clear.
 - [ ] Let the registered cleanup owner produce a fresh cleanup receipt and restore eligible release capacity; do not stop active processes or delete protected paths.
