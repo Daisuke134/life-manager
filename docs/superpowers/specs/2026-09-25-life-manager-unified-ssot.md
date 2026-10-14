@@ -18027,6 +18027,17 @@ Public salesVolume period/profit definition, search exposure and query volume ar
 
 **Cursor:** capacity/receipt-write recovery → run the registered Factory adapter for the exact occurrence and close only with verified official readback → repair the goal-monitor Telegram occurrence binding and reconcile its exact effect → apply eligible Capafy owners only while loaded-idle → natural runs plus official provider readbacks → refresh order/source/MRR metrics. Distributor is applied to `dfb8213c`; wait for its natural run and verify its landing-page/Postiz receipts before claiming distribution. Do not manually wake the watchdog, clear unknown rows, or replay provider effects.
 
+### Capafy Factory apply readiness — 2026-10-14 21:22 JST
+
+**判定: Factory apply は現在未準備。** 21:19 JSTの独立read-only reviewは対象条件をPASSしたが、その後の21:22:03 JSTの launchctl-safe preflight は blocked_control_plane / mutation_allowed=false / receipt_write_failed（OSError errno=28）を返した。UID 501、Aqua manager、gui/501のreadbackは成功したが、preflight receiptを保存できなかったため、この時点でapplyしない。21:20 JST頃のdf -kPは148,368 KiB（約145 MiB）空き、Data volumeは100%使用。
+
+- Release/source: loops/current はimmutable release 20261014T202446-dfb8213c, SHA dfb8213c4a51dcbc74d925d4ee8ee136a1978e64。独立reviewはこのSHAが現在のmainのancestorで、後続PR #8035–#8038がdocs-onlyであることを確認した。Factory ownerは loaded-idle のまま旧SHA 277c9202; applyはまだ実行していない。
+- Factory effect fence: capafy-loop-daily:18de5a5231e1e4f0-23105 の登録済みadapter readbackは、公式seller APIで71 Agents / no_effect（2026-10-14 21:15 JST）を確認。exact admission rowはreleased/effect_unknown=0、Factoryのactive unknown・queue・reservationはいずれも0。FROZEN.jsonの5 sellerは同じsnapshotに存在し、Factory判断コードも同ファイルを読む。このoccurrenceで新Agentが出たとは扱わない。
+- Review vs latest preflight: 独立review時のpreflightは21:19:19 JSTにPASSし、空きは約189 MiBだった。その後の観測で空きが減り、より新しい21:22 JSTのreceipt-write failureが優先される。review PASSは現在のapply許可を意味しない。
+- Distributor / goal monitor: Distributor fenceは前checkpointどおり登録済みreadbackで閉じ、ownerはrelease dfb8213c に適用済み。適用後の自然runと公式Postiz/landing readbackはこのcheckpointでは確認していない。Goal-monitorのTelegram occurrence binding / registered adapterは引き続き別TODO。
+- Revenue: このcheckpointでは新しいseller sales/MRR readbackを取っていない。post-2026-10-03 paid-order milestone、active MRR、settled MRRは未確認のまま扱い、CI・apply・Agentの既存掲載を売上証拠にしない。
+
+**Cursor/order update:** 前回の順序は (1) receipt-write/capacity recovery, (2) exact Factory fence readback, (3) goal-monitor occurrence binding, (4) eligible owner apply, (5) natural runs + official readbacks, (6) revenue/source refresh。exact Factory fence reconciliationとDistributor applyは完了したため、現在の順序は (1) HostDiskGovernorのallowlistだけでreceipt-write capacityを回復し、保護対象を削除しない, (2) launchctl-safe preflightを再実行してreceiptが保存されmutation_allowed=trueになることを確認, (3) Factory ownerのloaded-idleとexact admissionを再確認して対象apply, (4) 自然Factory run後にofficial publish-listでAgent数/ID/versionを照合, (5) Distributorの自然run後にPostiz/landing receiptを照合, (6) Goal-monitorのoccurrence-bound Telegram evidenceとregistered adapterを修復, (7) seller/source readbackを更新しpaid-order gateとactive/settled MRRを確認。順序変更の理由は、Fenceはno-effectで安全に閉じた一方、最新の必須preflightがerrno 28で停止し、Factory applyを許可しないため。**現在cursor: item 1（receipt-write recovery）。** No Factory apply, manual wake, provider replay, or new Agent shipment is claimed.
 
 ### EDD current cursor — 2026-10-14 21:32 JST
 
@@ -18037,3 +18048,45 @@ Public salesVolume period/profit definition, search exposure and query volume ar
 **Capacity and outcomes:** the cleanup receipt remains stale at 2026-10-10 and exact release capacity for `70a9ead` is unmeasured. No release, owner adoption, mature publication-level revenue, cost, or intervention is verified.
 
 **Next order:** pass exact-head CI, merge PR #8037 through the authorized no-human-loop path, then complete CTA lineage/destination identity and receipt-backed outcomes; satisfy DD05 fresh capacity/release/natural-sweep gates; freeze a baseline and run one controlled experiment; continue DD07–DD12. No provider effect is claimed.
+
+## Anicca iOS distribution checkpoint — 2026-10-14 21:40 JST
+
+**AS-IS:**
+
+- Current GitHub `main` is `ec5b15386c2ff8bd48cc0fe91ab147af2a34fd32`. The installed immutable release is `dfb8213c4a51dcbc74d925d4ee8ee136a1978e64`; Anicca Instagram/TikTok publishers and TikTok metrics owner report loaded-idle on it. This is not proof of a successful new publication.
+- Current runtime readback (21:38 JST): Instagram publication occurrence `life-manager-anicca-en-widget-instagram:18de27b12ced54d0-63894` remains effect-unknown after `.ledger.lock` creation failed with ENOSPC. TikTok publication occurrence `life-manager-anicca-en-affirmation-tiktok:18de0ea01058a060-68528` remains effect-unknown without an official receipt. TikTok metrics occurrence `life-manager-tiktok-metrics:18de5ed99c4bb308-1944` exited 78 before effect because scratch allocation failed with ENOSPC. Do not replay either publication.
+- The 21:38 JST disk-watchdog pass reclaimed 6,407 bytes from the GitHub cache, but preserved 11 candidates (2 open, 7 protected descendants, 2 protected paths), found 29 inventory gaps, and could not recreate its receipt reserve. Capacity recovery remains unmet. The user-data volume has about 150 MB physically unallocated; a one-byte file creation still fails with ENOSPC.
+- The exact Instagram reel `https://www.instagram.com/reel/DdvxhT1jm8F/` has a measured 168-hour row: 2,229 views, 1,610 reach, 3 saves, 1 like, 0 comments, 0 shares. Impressions and account totals are unavailable. PR #8029 contains the one-row correction but is open and based on a stale main; its prior checks apply to its old head.
+- The user-provided TikTok 24-hour checkpoint is 481 views; impressions are unavailable. This is not an install count.
+- RevenueCat Charts v2 read at 2026-10-14 20:32 JST (2026-09-16–10-13) reports Anicca `customers_new=19` in 28 days and `customers_active=3.75` average/day; Honne is 0 for both. These are not ASC downloads or settled revenue. The last complete MRR read was USD 20.34 for 2026-10-13 and is stale.
+- The latest persisted ASC artifact is report day 2026-10-13 for source window 2026-10-10–11: 2 Anicca first-time downloads, 32 impressions (29 unique), and 0 product-page views. It is not a live read or a seven-day average. Postiz lists the expected `@anicca.en` Instagram and `@aniccaaffirmation` TikTok integrations; public profile destinations remain unverified.
+
+**TO-BE:** Reach zero-paid-ad organic acquisition with reliable post-to-store measurement. First reach 1,000 ASC first-time downloads/day on a trailing seven-day average; then pursue USD 10K Anicca MRR while reconciling Apple proceeds, refunds, fees, and costs separately. Replicate only measured wins across Honne and other apps toward USD 10M portfolio MRR. Make the mobile-app factory open source after it is repeatable; never promise earnings.
+
+**Remaining TODO — order unchanged; cursor is #1:**
+
+| # | Atomic TODO | Acceptance evidence |
+|---:|---|---|
+| 1 | Restore Anicca distribution measurement: safely recover write headroom; reconcile the two exact unknown publication occurrences through official Postiz readback; rebase PR #8029 onto current main, run its focused metrics checks, pass exact-head CI, and merge. Then follow the main-derived release and loaded-idle owner path. | Successful natural Instagram/TikTok publications with exact `PUBLISHED` receipts and permalinks, mature metric readback, and occurrence-bound replay-zero. Keep unresolved effects fenced; do not resend. |
+| 2 | Verify the configured Apple campaign links on the owned Instagram `@anicca.en` and TikTok `@aniccaaffirmation` profiles. | Public readback confirms each account and exact destination; ASC campaign values stay account/window totals, not post installs. |
+| 3 | Run the four-day US-English cohort of nine original posts across the three recorded formats, changing one creative variable at a time. | Distinct mature official receipts, exact creative/account/slot identities, tracked store taps, and same-window ASC first-time downloads. Reuse winning structure; make Anicca-owned copy and assets. |
+| 4 | Evaluate OpenSEO (`every-app/open-seo`, not OpenSea) and TREG through USD 0 paths only, after measuring the cohort. | OpenSEO uses only existing compute and an existing GSC connection, without hosted service or DataForSEO. TREG uses the existing owner and a route with verified zero balance debit and zero upstream cost; otherwise skip. |
+| 5 | Publish English SEO pages only for validated queries, each with a distinct campaign destination. | Dated search impressions/clicks → tagged store visits → ASC first-time downloads. |
+| 6 | Localize winning content and the App Store listing for Japanese and Spanish markets. | Native EN/JA/ES copy, screenshots, metadata, captions, and distinct campaign attribution; downloads reported by storefront and date. |
+| 7 | On an installable Anicca build, fix paywall loading/error, notification taps opening the exact quote ID, and EN/JA/ES string parity. Read back every RevenueCat package price, billing period, and trial eligibility. | Reproduce and verify the defects on-device/build; document the current provider offering and trial terms. Keep organic posting active. |
+| 8 | Run the daily acquisition-to-revenue scoreboard and scale only measured winners. | ASC first-time downloads reach 1,000/day on a trailing seven-day average, then RevenueCat MRR reaches USD 10K; Apple settlement and costs are separate evidence. |
+| 9 | Replicate the validated acquisition/conversion playbook to Honne and other iOS apps, one app at a time. | Per-app ASC, RevenueCat, localization, attribution, retention, and cost-adjusted revenue evidence; portfolio target USD 10M MRR. |
+| 10 | Move from Postiz Cloud to self-hosted OSS only after the growth path is established. | Existing infrastructure, zero added monthly spend, and natural post plus official receipt on every required platform before stopping the reported USD 90/month plan; confirm the invoice stops. |
+| 11 | Publish the Life Manager/mobile-app factory as OSS after Anicca's playbook is repeatable. | A clean computer can run a few documented commands, isolate each operator's credentials/state, and show provider receipts and settled results; no guaranteed-income claim. |
+
+**Current cursor:** #1. Runtime owner failures show ENOSPC reaches the Anicca ledger and metrics path. The exact publication effects remain unknown pending official readback; no provider action was replayed.
+
+### EDD DD06 integration cursor — 2026-10-14 21:52 JST
+
+**同期:** GitHub main `3de213777ef82996ada82ea6bbc4d898afcee7a9` の追記を保持し、PR #8037のWriter cursorを続けて残した。PR旧head `04a0b1c` はbase `70a9ead` から分岐したOPEN/CONFLICTING状態だった。旧headの全status checksはSUCCESSだが、新headで再実行が必要。CodeRabbitはSUCCESSだがmanual reviewをskip。
+
+**検証境界:** Writer focused suite 24/24はmerged `72ff5f9` treeでの過去結果。旧headではPython syntax + unittestとWriter EDD receipt graderを含む全自動checkがPASS。今回の同期ではWriter source/testを変えない。最新head CIがPASSするまで統合済みとは扱わない。ローカルGit fetch/writeはENOSPCで完了しておらず、ローカルbranch同期を主張しない。
+
+**未証明:** current-main release capacity、immutable release、owner adoption、自然run、publication単位の売上・コスト・人手介入。HTTP 200、CI、掲載状態は収益証拠ではない。
+
+**Cursor:** (1) 同期後headのexact checksをPASSさせPR #8037をmerge、(2) Writer CTAのproduct/run/artifact/variant/click lineageとdestination identityを既存Web funnel→first-touch→Stripe/Writer joinで保持、(3) fresh capacity gate後にDD05をregistered ownerのnatural run/24h成熟publicationまで確認、(4) outcome baselineを凍結して単一変数experiment、(5) DD07–DD12。次の実装atomはCTA lineage/destination identity。
