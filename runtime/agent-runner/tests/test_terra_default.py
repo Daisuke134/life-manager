@@ -101,7 +101,8 @@ class TerraDefaultTest(unittest.TestCase):
                          "effort": "medium", "profile_alias": "acct2",
                          "fail_fast_provider_lease": True},
                     ]
-                if name in {"connector-agent", "job-hunter-agent", "fundraiser-agent"}:
+                if name in {"connector-agent", "job-hunter-agent", "workday-browser-agent",
+                            "fundraiser-agent"}:
                     expected = [{
                         "provider": "codex", "model": "gpt-6-luna",
                         "effort": "max", "service_tier": "fast",
@@ -125,7 +126,8 @@ class TerraDefaultTest(unittest.TestCase):
                     "treg-lead-signals-agent",
                     "affiliate-marketing-agent", "affiliate-escalation-agent",
                     "self-heal-code-agent", "self-fix-code-agent",
-                    "connector-agent", "job-hunter-agent", "fundraiser-agent",
+                    "connector-agent", "job-hunter-agent", "workday-browser-agent",
+                    "fundraiser-agent",
                 } and fallback not in expected:
                     expected.append(fallback)
                 self.assertEqual(candidates, expected)

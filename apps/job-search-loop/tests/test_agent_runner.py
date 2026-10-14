@@ -18,6 +18,22 @@ from job_search_loop.agent_runner import (
 
 
 class AgentRunnerTests(unittest.TestCase):
+    def test_workday_browser_task_has_its_own_extended_attempt_budget(self):
+        repo_root = Path(__file__).resolve().parents[3]
+        config = json.loads(
+            (repo_root / "runtime" / "agent-runner" / "config.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        task_classes = config["task_classes"]
+        workday = task_classes["workday-browser-agent"]
+        job_hunter = task_classes["job-hunter-agent"]
+
+        self.assertEqual(workday["timeout_seconds"], 2400)
+        self.assertEqual(job_hunter["timeout_seconds"], 1800)
+        self.assertEqual(workday["route"], job_hunter["route"])
+        self.assertEqual(workday["candidates"], job_hunter["candidates"])
+
     def test_default_runner_is_the_canonical_life_manager_runtime(self):
         with tempfile.TemporaryDirectory() as directory:
             runner = AgentRunner(evidence_root=Path(directory) / "evidence")
