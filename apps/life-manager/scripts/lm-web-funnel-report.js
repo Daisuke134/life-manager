@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 "use strict";
 
-const Stripe = require("stripe");
 const { buildWebFunnelReport } = require("../lib/web-funnel-report.js");
 
 const PAGE_SIZE = 1000;
@@ -161,7 +160,11 @@ async function stripeFeeRows(stripe, usersByCustomer, startSec) {
 
 async function runWebFunnelReport({ env = process.env, fetchImpl = fetch, stripeClient, nowMs = Date.now(), periodDays = 30 } = {}) {
   const settings = config(env);
-  const stripe = stripeClient || new Stripe(settings.stripeKey);
+  let stripe = stripeClient;
+  if (!stripe) {
+    const Stripe = require("stripe");
+    stripe = new Stripe(settings.stripeKey);
+  }
   const startIso = new Date(nowMs - periodDays * 86400000).toISOString();
   const users = await getRows("lm_users", {
     select: "uid,telegram_chat_id,web_first_touch,web_first_travel_at,web_initial_scan_completed_at,plan_status,paid,trial_expires_at,web_trial_payment_method_present,web_billing_cancel_at_period_end,stripe_customer_id,stripe_subscription_id",

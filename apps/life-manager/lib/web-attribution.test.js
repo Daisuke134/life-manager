@@ -204,7 +204,7 @@ test("preserves signed first-touch through Google OAuth", async () => {
   const start = makeResponse();
   await handleWebAuthRequest({
     method: "GET",
-    url: "/auth/google?utm_source=instagram&utm_medium=social&utm_campaign=october-travel",
+    url: "/auth/google?utm_source=instagram&utm_medium=social&utm_campaign=october-travel&product_id=anicca&run_id=20261014-140000&artifact_id=article-ja&variant_id=role-map&click_id=20261014-140000-article-ja",
     headers: { host: "life-manager.example.test" },
   }, start, flow.options);
 
@@ -219,6 +219,11 @@ test("preserves signed first-touch through Google OAuth", async () => {
     utm_source: "instagram",
     utm_medium: "social",
     utm_campaign: "october-travel",
+    product_id: "anicca",
+    run_id: "20261014-140000",
+    artifact_id: "article-ja",
+    variant_id: "role-map",
+    click_id: "20261014-140000-article-ja",
   });
 
   const callback = makeResponse();
@@ -236,15 +241,63 @@ test("preserves signed first-touch through Google OAuth", async () => {
     utm_source: "instagram",
     utm_medium: "social",
     utm_campaign: "october-travel",
+    product_id: "anicca",
+    run_id: "20261014-140000",
+    artifact_id: "article-ja",
+    variant_id: "role-map",
+    click_id: "20261014-140000-article-ja",
   } });
   assert.ok(flow.events.findIndex(([name]) => name === "getUser") < flow.events.findIndex(([name]) => name === "db:PATCH"));
   assert.equal(flow.rows[0].paid, false);
   assert.equal(flow.rows[0].stripe_customer_id, "cus-existing");
   assert.equal(flow.rows[0].stripe_subscription_id, "sub-existing");
   assert.equal(flow.rows[0].plan_status, "trialing");
+  const authenticatedEvent = flow.events.find(([name, row]) =>
+    name === "db:POST" && row && row.event_name === "google_authenticated");
+  assert.deepEqual(authenticatedEvent[1].attribution, {
+    utm_source: "instagram",
+    utm_medium: "social",
+    utm_campaign: "october-travel",
+    product_id: "anicca",
+    run_id: "20261014-140000",
+    artifact_id: "article-ja",
+    variant_id: "role-map",
+    click_id: "20261014-140000-article-ja",
+  });
   const callbackCookies = responseCookies(callback);
   assert.ok(callbackCookies.some((header) => header.startsWith("lm-web-auth.0=verified-session-chunk")), "SSR session cookie survives attribution cleanup");
   assert.equal(cookieValue(callbackCookies, "lm-web-attribution"), "", "consumed cookie is expired");
+});
+
+test("drops the complete Writer identity tuple if any member is duplicate or unsafe", () => {
+  const query = new URLSearchParams([
+    ["utm_source", "instagram"],
+    ["product_id", "anicca"],
+    ["product_id", "other-product"],
+    ["run_id", "20261014-140000"],
+    ["artifact_id", "article/ja"],
+    ["variant_id", "role-map"],
+    ["click_id", "click-article-ja"],
+  ]);
+  const cookie = captureWebAttribution(query, SECRET, NOW);
+
+  assert.deepEqual(consumeWebAttribution(cookie, SECRET, NOW), {
+    utm_source: "instagram",
+  });
+});
+
+test("drops the complete Writer identity tuple when one ID exceeds the bound", () => {
+  const identity = {
+    utm_source: "instagram",
+    product_id: "anicca",
+    run_id: "20261014-140000",
+    artifact_id: "article-ja",
+    variant_id: "role-map",
+    click_id: "x".repeat(129),
+  };
+  const cookie = captureWebAttribution(identity, SECRET, NOW);
+
+  assert.deepEqual(consumeWebAttribution(cookie, SECRET, NOW), { utm_source: "instagram" });
 });
 
 test("rejects tampered or expired attribution without blocking sign-in", async () => {
@@ -361,4 +414,30 @@ test("carries only approved UTM values from /lm to the Google sign-in link", () 
   assert.equal(destination.searchParams.get("utm_source"), "instagram");
   assert.equal(destination.searchParams.get("utm_campaign"), "travel");
   assert.equal(destination.searchParams.has("utm_id"), false);
+});
+
+test("signed first-touch cookie preserves the complete Writer CTA identity tuple", () => {
+  const identity = {
+    utm_source: "writer",
+    utm_medium: "owned-content",
+    utm_campaign: "role-map",
+    product_id: "anicca",
+    run_id: "20261014-061500",
+    artifact_id: "article-ja",
+    variant_id: "role-map",
+    click_id: "20261014-061500-article-ja-note-ja",
+  };
+  const cookie = captureWebAttribution(identity, SECRET, NOW);
+  assert.ok(cookie);
+  assert.deepEqual(consumeWebAttribution(cookie, SECRET, NOW), identity);
+  const partial = { ...identity };
+  delete partial.artifact_id;
+  const utmOnly = {
+    utm_source: identity.utm_source,
+    utm_medium: identity.utm_medium,
+    utm_campaign: identity.utm_campaign,
+  };
+  assert.deepEqual(consumeWebAttribution(captureWebAttribution(partial, SECRET, NOW), SECRET, NOW), utmOnly);
+  const unsafe = { ...identity, click_id: "not safe" };
+  assert.deepEqual(consumeWebAttribution(captureWebAttribution(unsafe, SECRET, NOW), SECRET, NOW), utmOnly);
 });
