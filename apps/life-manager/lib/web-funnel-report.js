@@ -1,7 +1,8 @@
 "use strict";
 
 const WEB_UID_RE = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const ATTRIBUTION_FIELDS = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"];
+const { WEB_ATTRIBUTION_KEYS, sanitizeWebAttribution } = require("./web-attribution.js");
+const ATTRIBUTION_FIELDS = WEB_ATTRIBUTION_KEYS;
 const ZERO_FUNNEL = () => ({
   landingViews: 0,
   googleConnectStarts: 0,
@@ -35,10 +36,7 @@ function inPeriod(value, startMs, nowMs) {
 }
 
 function normalizedAttribution(value) {
-  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
-  return Object.fromEntries(ATTRIBUTION_FIELDS
-    .filter((key) => typeof source[key] === "string" && source[key].trim())
-    .map((key) => [key, source[key].trim()]));
+  return sanitizeWebAttribution(value);
 }
 
 function attributionKey(value) {

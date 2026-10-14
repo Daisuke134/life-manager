@@ -14,6 +14,18 @@ const UTM_LIMITS = Object.freeze({
   utm_term: 120,
 });
 const WEB_ATTRIBUTION_UTM_KEYS = Object.freeze(Object.keys(UTM_LIMITS));
+const IDENTITY_LIMITS = Object.freeze({
+  product_id: 64,
+  run_id: 64,
+  artifact_id: 64,
+  variant_id: 64,
+  click_id: 64,
+});
+const WEB_ATTRIBUTION_KEYS = Object.freeze([
+  ...WEB_ATTRIBUTION_UTM_KEYS,
+  ...Object.keys(IDENTITY_LIMITS),
+]);
+const SAFE_IDENTITY_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/;
 
 function valuesFor(query, key) {
   if (query && typeof query.getAll === "function") return query.getAll(key);
@@ -29,6 +41,13 @@ function boundedFields(query) {
     if (values.length !== 1 || values[0] == null) continue;
     const value = String(values[0]).trim();
     if (!value || Buffer.byteLength(value, "utf8") > maxBytes) continue;
+    fields[key] = value;
+  }
+  for (const [key, maxBytes] of Object.entries(IDENTITY_LIMITS)) {
+    const values = valuesFor(query, key);
+    if (values.length !== 1 || values[0] == null) continue;
+    const value = String(values[0]).trim();
+    if (!value || Buffer.byteLength(value, "utf8") > maxBytes || !SAFE_IDENTITY_RE.test(value)) continue;
     fields[key] = value;
   }
   return fields;
@@ -80,6 +99,7 @@ function consumeWebAttribution(cookie, secret, nowMs = Date.now()) {
 module.exports = {
   WEB_ATTRIBUTION_COOKIE,
   WEB_ATTRIBUTION_MAX_AGE_SECONDS,
+  WEB_ATTRIBUTION_KEYS,
   WEB_ATTRIBUTION_UTM_KEYS,
   sanitizeWebAttribution: boundedFields,
   captureWebAttribution,

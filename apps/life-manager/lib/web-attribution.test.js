@@ -204,7 +204,7 @@ test("preserves signed first-touch through Google OAuth", async () => {
   const start = makeResponse();
   await handleWebAuthRequest({
     method: "GET",
-    url: "/auth/google?utm_source=instagram&utm_medium=social&utm_campaign=october-travel",
+    url: "/auth/google?utm_source=instagram&utm_medium=social&utm_campaign=october-travel&product_id=anicca&run_id=20261014-140000&artifact_id=article-ja&variant_id=role-map&click_id=20261014-140000-article-ja",
     headers: { host: "life-manager.example.test" },
   }, start, flow.options);
 
@@ -219,6 +219,11 @@ test("preserves signed first-touch through Google OAuth", async () => {
     utm_source: "instagram",
     utm_medium: "social",
     utm_campaign: "october-travel",
+    product_id: "anicca",
+    run_id: "20261014-140000",
+    artifact_id: "article-ja",
+    variant_id: "role-map",
+    click_id: "20261014-140000-article-ja",
   });
 
   const callback = makeResponse();
@@ -236,15 +241,51 @@ test("preserves signed first-touch through Google OAuth", async () => {
     utm_source: "instagram",
     utm_medium: "social",
     utm_campaign: "october-travel",
+    product_id: "anicca",
+    run_id: "20261014-140000",
+    artifact_id: "article-ja",
+    variant_id: "role-map",
+    click_id: "20261014-140000-article-ja",
   } });
   assert.ok(flow.events.findIndex(([name]) => name === "getUser") < flow.events.findIndex(([name]) => name === "db:PATCH"));
   assert.equal(flow.rows[0].paid, false);
   assert.equal(flow.rows[0].stripe_customer_id, "cus-existing");
   assert.equal(flow.rows[0].stripe_subscription_id, "sub-existing");
   assert.equal(flow.rows[0].plan_status, "trialing");
+  const authenticatedEvent = flow.events.find(([name, row]) =>
+    name === "db:POST" && row && row.event_name === "google_authenticated");
+  assert.deepEqual(authenticatedEvent[1].attribution, {
+    utm_source: "instagram",
+    utm_medium: "social",
+    utm_campaign: "october-travel",
+    product_id: "anicca",
+    run_id: "20261014-140000",
+    artifact_id: "article-ja",
+    variant_id: "role-map",
+    click_id: "20261014-140000-article-ja",
+  });
   const callbackCookies = responseCookies(callback);
   assert.ok(callbackCookies.some((header) => header.startsWith("lm-web-auth.0=verified-session-chunk")), "SSR session cookie survives attribution cleanup");
   assert.equal(cookieValue(callbackCookies, "lm-web-attribution"), "", "consumed cookie is expired");
+});
+
+test("keeps only unique safe Writer IDs in signed attribution", () => {
+  const query = new URLSearchParams([
+    ["utm_source", "instagram"],
+    ["product_id", "anicca"],
+    ["product_id", "other-product"],
+    ["run_id", "20261014-140000"],
+    ["artifact_id", "article/ja"],
+    ["variant_id", "role-map"],
+    ["click_id", "x".repeat(65)],
+  ]);
+  const cookie = captureWebAttribution(query, SECRET, NOW);
+
+  assert.deepEqual(consumeWebAttribution(cookie, SECRET, NOW), {
+    utm_source: "instagram",
+    run_id: "20261014-140000",
+    variant_id: "role-map",
+  });
 });
 
 test("rejects tampered or expired attribution without blocking sign-in", async () => {

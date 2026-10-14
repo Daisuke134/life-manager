@@ -18116,3 +18116,21 @@ DD06 source integration is complete. Release capacity, production owner adoption
 **Still unverified:** latest-main release capacity, immutable release, production owner adoption, a natural Writer publication, artifact-level engagement and paid/refund outcomes, production cost, and human intervention. The 24/24 local focused suite is historical on `72ff5f9`; current-main verification is the exact-head CI above. These source/CI results do not establish publication or revenue.
 
 **Current EDD cursor:** preserve `product_id`, `run_id`, `artifact_id`, `variant_id`, and `click_id` from the `/lm` landing request through authenticated first touch and Stripe paid/refund events, reusing the existing funnel and Writer artifact join. Give each publication destination a distinct attribution identity. Then verify per-artifact outcome receipts, complete DD05 capacity/release/registered-owner/natural-publication gates, freeze a mature baseline, run one controlled single-variable experiment, and continue DD07–DD12. Keep missing revenue, cost, and intervention evidence unknown.
+
+
+### EDD Writer attribution dependency correction — 2026-10-14 23:39 JST
+
+**Order update:** Old: preserve the five CTA fields → join the Web report to the Writer artifact join → assign destination identity → verify outcomes. New: preserve the five fields (current Task 6) → assign a publisher-specific `destination_id=<platform>/<lang>` → map the exact `(run_id, destination_id)` to the existing Writer artifact key `run_id__platform__lang` → verify mature outcome receipts. The next implementation after Task 6 is destination identity; the report/artifact join follows it.
+
+**Evidence:** `publication_resume.py` validates CTA `artifact_id` values `article-ja`, `article-en`, and `x-post-ja`, and the same frozen CTA is published to multiple publisher pairs. The Writer artifact join instead derives one key per `run_id + platform + lang`. `lm_web_funnel_events` and `lm_users.web_first_touch` can retain the existing five fields, but those fields alone cannot identify which publisher copy produced a click. This reorder avoids attributing one article-level click to an arbitrary destination. No new table or experiment is authorized by this measurement work.
+
+**Current cursor:** complete Task 6 (carry the five existing IDs through `/lm` → OAuth first touch → Stripe paid/refund attribution and report groups); then implement publisher-specific `destination_id` rewrites and exact-key Writer joins. Keep destination-level outcomes and experiments unknown until verified.
+
+
+### EDD Writer CTA identity propagation complete — 2026-10-14 23:41 JST
+
+**Completed:** Task 6 carries `product_id`, `run_id`, `artifact_id`, `variant_id`, and `click_id` through the `/lm` sign-in link, existing signed attribution cookie, OAuth first-touch write, append-only funnel event, and per-lineage report grouping. Paid/refund report rows with empty event attribution fall back to the same user's immutable `web_first_touch`. Existing UTM behavior remains, IDs are bounded safe values, landing requests are not treated as unique users, and the existing JSONB schema is unchanged.
+
+**Verification:** RED tests observed dropped IDs at the OAuth-link, signed-cookie/first-touch, and report-bucketing boundaries. After the minimum change, focused Web tests pass 58/58, the related non-database Web unit suite passes 270/270, and the `lm-web-funnel-report` CLI suite passes 5/5; `git diff --check` and `scripts/verify-source-boundary.sh` pass. `npm ci` installed the existing lockfile only. No provider, production database, publication, release, or payment action ran.
+
+**Current cursor:** add a publisher-specific `destination_id=<platform>/<lang>` to each outbound CTA, then map that exact pair plus `run_id` to the Writer artifact join key `run_id__platform__lang`. The existing CTA artifact IDs (`article-ja`/`article-en`) are language-level and cannot distinguish publisher copies. Per-destination attribution, Writer artifact join, mature outcome receipts, revenue/cost/intervention, and experiments remain open; no earnings are claimed.

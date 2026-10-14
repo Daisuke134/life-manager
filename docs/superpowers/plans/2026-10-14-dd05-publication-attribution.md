@@ -136,9 +136,9 @@ Gate 13 `gate_pass` means the snapshot is structurally complete, contains no fab
 
 **Writer CTA outcome measurement — required before experimentation**
 
-1. [ ] Preserve product_id, run_id, artifact_id, variant_id, and click_id from the /lm landing request through authenticated first-touch and Stripe paid/refund events. The current UTM-only sanitizer and sign-in forwarding drop these fields.
-2. [ ] Reuse lm_web_funnel_events, lm_users.web_first_touch, lm-web-funnel-report, and the Writer artifact join; keep request counts separate from unique people.
-3. [ ] Bind each publication destination to a distinct attribution identity. A single article-ja click_id is reused across published copies, so it cannot compare destinations.
+1. [x] Preserve `product_id`, `run_id`, `artifact_id`, `variant_id`, and `click_id` from `/lm` through the signed auth cookie, `lm_users.web_first_touch`, funnel events, and report grouping. Task 6 verified OAuth first-touch and paid/refund report fallback by exact identity; no new table or migration was needed.
+2. [ ] Bind each publication CTA to `destination_id=<platform>/<lang>` for its actual publisher pair (`note/ja`, `substack/ja`, `substack/en`, `x-article/ja`). The CTA's existing `artifact_id=article-ja|article-en` is language-level, while the Writer artifact join keys each destination by `run_id__platform__lang`.
+3. [ ] Reuse `lm_web_funnel_events`, `lm_users.web_first_touch`, `lm-web-funnel-report`, and the Writer artifact join. Map only exact `run_id` + `destination_id` pairs to the existing artifact key; keep request counts separate from unique people.
 4. [ ] Verify per-artifact views/landing requests, activation, paid invoices, refunds/net, production cost, and intervention from exact receipts. Keep missing values unknown and do not run an experiment before the join works.
 
 **DD05 remains open**
@@ -175,6 +175,25 @@ DD05 is shared publication-measurement infrastructure. The first agent-level EDD
 
 
 **DD06 closeout, 2026-10-14T14:15Z:** PR #8037 merged as `e0a53f1`; tested head `8e7df3c` passed all 11 automated checks. PR #8044 merged the post-merge cursor update as `1d1c012`; its tested head `f281cdb` also passed all 11 automated checks. Writer source integration and its status update are complete. Next EDD atom: preserve Writer CTA lineage and destination identity through the existing funnel. Production release/adoption, natural publication, per-artifact outcomes, revenue, cost, and intervention remain unverified.
+
+### Task 6: Preserve Writer CTA identity through the existing Web funnel
+
+**Spec:** `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`, EDD DD06 closeout and current cursor.
+
+**Goal:** Carry `product_id`, `run_id`, `artifact_id`, `variant_id`, and `click_id` from the Writer `/lm` CTA through signed attribution, Google OAuth first touch, Web funnel events, and report grouping. Keep landing-request counts separate from unique authenticated people. Stripe paid/refund rows resolve attribution through the existing `lm_users.web_first_touch` join.
+
+**Constraints:** reuse `web_first_touch` and `lm_web_funnel_events`; carry the exact fields needed for the existing Writer artifact join, but leave per-publisher mapping to Task 7. No new table, scheduler, provider call, production release, or external publication. Invalid, duplicate, or oversized IDs fail closed without blocking sign-in. Do not invent destination values.
+
+- [x] Add failing tests for `/lm` → OAuth forwarding, signed-cookie/first-touch/event propagation, and per-lineage report grouping with distinct click IDs.
+- [x] Observe RED at each boundary: the OAuth link omitted five IDs, the signed cookie/first-touch retained only UTM, and two click IDs collapsed to one report bucket.
+- [x] Extend the existing allowlist and report identity key with bounded, safe IDs; preserve legacy UTM behavior and the JSONB schema.
+- [x] Run the focused Web tests (58/58), related non-database Web unit suite (270/270), report CLI tests (5/5), `git diff --check`, and source-boundary (PASS).
+- [x] Mark Writer CTA outcome measurement item 1 complete. Keep destination identity, Writer artifact joining, exact outcome receipts, revenue/cost/intervention unknown, and experiments held.
+- [ ] Commit/push the dedicated source branch, pass exact-head CI, merge, and read back main. No production release or provider action is part of Task 6.
+
+**Task 6 evidence, 2026-10-14T14:41Z:** `web-attribution.js` now preserves the five safe IDs in its existing signed HMAC cookie; `web-page.js` forwards only single-valued allowlisted parameters; the OAuth callback stores them in `web_first_touch` and `google_authenticated`; the existing funnel event and report reuse the same allowlist, with report buckets keyed by all five IDs. Request counts remain separate from unique authenticated users. Focused tests passed 58/58, the non-database Web unit suite 270/270, and the report CLI suite 5/5. No provider, database, or external publication call was made. Destination identity and exact Writer artifact joining remain Task 7.
+
+**Dependency ruling, 2026-10-14T14:39Z:** Destination identity must precede the Writer artifact join. The current CTA `artifact_id` is `article-ja`/`article-en`, while `artifact_attribution.py` derives the join key from `run_id + platform + lang`; the same article CTA is reused across publisher copies. Old order: preserve fields → join Web report to Writer artifacts → assign per-destination identity → verify outcomes. New order: preserve fields (Task 6) → assign `destination_id=<platform>/<lang>` at the publisher boundary → map the exact pair to `run_id__platform__lang` → verify outcomes. Current cursor remains Task 6, preserving the existing five fields. This ruling leaves channel-level outcomes unscorable until each publisher's link rewrite is verified.
 
 
 **EDD integration checkpoint, 2026-10-14T12:52Z:** Current main is `3de213777ef82996ada82ea6bbc4d898afcee7a9`. Before synchronization PR #8037 was head `04a0b1c4145e4f73d6ca6314bdb7699c2e831c0f`, based on `70a9ead`; its prior-head checks all passed, but main advanced and the branch conflicted. This update creates a non-force merge commit with the current main parent and preserves the PR four intended files. Exact-head checks rerun on the new commit. Writer source/test are unchanged by this sync. No current-main local pytest, capacity measurement, release adoption, natural outcome, or revenue is claimed. After integration, CTA lineage and destination identity are the next EDD implementation atom.
