@@ -148,6 +148,124 @@ def test_no_effect_stable_publish_list_writes_evidence_and_closes(tmp_path):
     assert evidence["agent_count"] == 1
 
 
+def test_same_version_updated_after_queue_stays_inconclusive(tmp_path):
+    snapshot = {
+        "schema_version": 1, "owner_id": OWNER, "occurrence_id": OCCURRENCE, "ok": True,
+        "agent_count": 1, "latest_versions": {"111": "v1"},
+    }
+    current_agents = [{
+        "agent_id": "111",
+        "updated_at": int((QUEUED_AT + dt.timedelta(minutes=10)).timestamp() * 1000),
+        "latest_agent_version_id": "v1",
+    }]
+    closed_calls = []
+    evidence_dir = tmp_path / "evidence"
+
+    result = reconciler.reconcile(
+        OCCURRENCE,
+        fenced_row_fn=_fenced_row_fn(),
+        load_snapshot_fn=lambda occurrence: snapshot,
+        read_publish_list_fn=lambda: _publish_list(current_agents),
+        read_remote_status_fn=lambda agent_id: {"ok": False, "reason": "unused"},
+        resolve_pre_effect_fn=lambda *args, **kwargs: closed_calls.append((args, kwargs)) or True,
+        evidence_dir=evidence_dir,
+        now=QUEUED_AT + dt.timedelta(hours=2),
+        run_finished_fn=lambda occurrence, queued: True,
+        resolve=True,
+    )
+
+    assert result["verified"] is False
+    assert result["reason"] == "same_version_updated_after_queued_at"
+    assert "closed" not in result
+    assert closed_calls == []
+    assert not evidence_dir.exists()
+
+
+def test_same_version_without_verifiable_updated_at_stays_inconclusive(tmp_path):
+    snapshot = {
+        "schema_version": 1, "owner_id": OWNER, "occurrence_id": OCCURRENCE, "ok": True,
+        "agent_count": 1, "latest_versions": {"111": "v1"},
+    }
+    for updated_at in (None, "not-an-iso-timestamp"):
+        current_agents = [{
+            "agent_id": "111", "updated_at": updated_at,
+            "latest_agent_version_id": "v1",
+        }]
+        closed_calls = []
+        evidence_dir = tmp_path / str(updated_at)
+        result = reconciler.reconcile(
+            OCCURRENCE,
+            fenced_row_fn=_fenced_row_fn(),
+            load_snapshot_fn=lambda occurrence: snapshot,
+            read_publish_list_fn=lambda: _publish_list(current_agents),
+            read_remote_status_fn=lambda agent_id: {"ok": False, "reason": "unused"},
+            resolve_pre_effect_fn=lambda *args, **kwargs: closed_calls.append((args, kwargs)) or True,
+            evidence_dir=evidence_dir,
+            now=QUEUED_AT + dt.timedelta(hours=2),
+            run_finished_fn=lambda occurrence, queued: True,
+            resolve=True,
+        )
+
+        assert result["verified"] is False
+        assert result["reason"] == "same_version_updated_at_missing_or_malformed"
+        assert "closed" not in result
+        assert closed_calls == []
+        assert not evidence_dir.exists()
+
+
+def test_out_of_range_numeric_updated_at_stays_inconclusive(tmp_path):
+    snapshot = {
+        "schema_version": 1, "owner_id": OWNER, "occurrence_id": OCCURRENCE, "ok": True,
+        "agent_count": 1, "latest_versions": {"111": "v1"},
+    }
+    result = reconciler.reconcile(
+        OCCURRENCE,
+        fenced_row_fn=_fenced_row_fn(),
+        load_snapshot_fn=lambda occurrence: snapshot,
+        read_publish_list_fn=lambda: _publish_list([{
+            "agent_id": "111", "updated_at": 10 ** 400, "latest_agent_version_id": "v1",
+        }]),
+        read_remote_status_fn=lambda agent_id: {"ok": False, "reason": "unused"},
+        resolve_pre_effect_fn=lambda *args, **kwargs: True,
+        evidence_dir=tmp_path / "evidence",
+        now=QUEUED_AT + dt.timedelta(hours=2),
+        run_finished_fn=lambda occurrence, queued: True,
+        resolve=True,
+    )
+
+    assert result["verified"] is False
+    assert result["reason"] == "same_version_updated_at_missing_or_malformed"
+    assert "closed" not in result
+    assert not (tmp_path / "evidence").exists()
+
+
+def test_numeric_epoch_milliseconds_without_snapshot_prove_window_hit():
+    updated_at = int((QUEUED_AT + dt.timedelta(minutes=5)).timestamp() * 1000)
+    current_agents = [{
+        "agent_id": "9563867391", "updated_at": updated_at,
+        "latest_agent_version_id": "2104175282811195392",
+    }]
+    closed_calls = []
+
+    result = reconciler.reconcile(
+        OCCURRENCE,
+        fenced_row_fn=_fenced_row_fn(),
+        load_snapshot_fn=lambda occurrence: None,
+        read_publish_list_fn=lambda: _publish_list(current_agents),
+        read_remote_status_fn=lambda agent_id: {"ok": True, "platform_status": 1,
+                                                 "agent_version_id": "2104175282811195392"},
+        resolve_unknown_fn=lambda owner, occurrence, **kwargs: closed_calls.append(
+            (owner, occurrence, kwargs)) or True,
+        now=QUEUED_AT + dt.timedelta(minutes=10),
+        resolve=True,
+    )
+
+    assert result["verified"] is True
+    assert result["effected"] is True
+    assert result["closed"] is True
+    assert len(closed_calls) == 1
+
+
 def test_inconclusive_too_recent_stays_fenced(tmp_path):
     current_agents = [
         {"agent_id": "111", "updated_at": "2026-09-20T00:00:00Z", "latest_agent_version_id": "v1"},
