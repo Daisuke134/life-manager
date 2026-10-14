@@ -46,6 +46,27 @@ def _runtime_command_parts(command: str) -> list[str]:
         return []
 
 
+def _has_unprocessed_discovery_rows(evidence_dir: Path) -> bool:
+    """Fail closed when the model says queue_complete but row evidence is incomplete."""
+    discovery_path = evidence_dir / "workday-discovery.json"
+    completed_path = evidence_dir / "scratch" / "completed-rows.json"
+    try:
+        discovery = json.loads(discovery_path.read_text(encoding="utf-8"))
+        completed = json.loads(completed_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return True
+    if not isinstance(discovery, dict) or not isinstance(completed, dict):
+        return True
+    queued_ids = discovery.get("queued_application_ids")
+    completed_ids = completed.get("application_ids")
+    if not isinstance(queued_ids, list) or not isinstance(completed_ids, list):
+        return True
+    if any(not isinstance(item, str) or not item for item in queued_ids + completed_ids):
+        return True
+    completed_set = set(completed_ids)
+    return any(application_id not in completed_set for application_id in queued_ids)
+
+
 def validate_pass_result(evidence_dir: Path) -> str | None:
     summary_path = evidence_dir / "summary.json"
     if not summary_path.is_file():
@@ -70,25 +91,23 @@ def validate_pass_result(evidence_dir: Path) -> str | None:
     status = result.get("status")
     if result.get("submit_unknown"):
         return "submission_outcome_unknown"
-    if result.get("submitted"):
+    retry_queue_incomplete = (
+        (status == "queue_complete" or bool(result.get("submitted")))
+        and _has_unprocessed_discovery_rows(evidence_dir)
+    )
+    if result.get("submitted") and not retry_queue_incomplete:
         return None
     retry_in_progress = (
         status == "in_progress"
         and result.get("submitted") == []
         and result.get("submit_unknown") == []
     )
-    retry_queue_complete = (
-        status == "queue_complete"
-        and result.get("submitted") == []
-        and result.get("submit_unknown") == []
-        and result.get("blocked") == []
-    )
     retry_reason = (
         "in_progress_without_terminal_outcome"
         if retry_in_progress
         else (
             "observed_row_without_terminal_outcome"
-            if retry_queue_complete
+            if retry_queue_incomplete
             else "transport_failed_without_command_failure"
         )
     )
@@ -172,10 +191,12 @@ def validate_pass_result(evidence_dir: Path) -> str | None:
     if (
         status != "transport_failed"
         and not retry_in_progress
-        and not retry_queue_complete
+        and not retry_queue_incomplete
     ):
         return None
-    if retry_queue_complete and latest_observe_status != "observed":
+    if retry_queue_incomplete:
+        return retry_reason
+    if retry_reason == "observed_row_without_terminal_outcome" and latest_observe_status != "observed":
         return None
     return retry_reason
 
