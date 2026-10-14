@@ -197,7 +197,6 @@ async function recordWebFunnelRefund(event, opts = {}) {
     const url = new URL(`${supaUrl}/rest/v1/lm_users`);
     url.searchParams.set("stripe_customer_id", `eq.${customerId}`);
     url.searchParams.set("telegram_chat_id", "is.null");
-    url.searchParams.set("web_first_travel_at", "not.is.null");
     url.searchParams.set("select", "uid");
     url.searchParams.set("limit", "2");
     response = await fetchImpl(url.toString(), {

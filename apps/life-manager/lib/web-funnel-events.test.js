@@ -209,7 +209,6 @@ test("refund webhook recording joins only the saved Web Stripe customer and retr
   assert.equal(ok, true);
   assert.match(calls[0], /stripe_customer_id=eq\.cus_web/);
   assert.match(calls[0], /telegram_chat_id=is\.null/);
-  assert.match(calls[0], /web_first_travel_at=not\.is\.null/);
   assert.equal(calls[1].uid, UID);
   assert.equal(calls[1].amountUsd, 5);
   assert.equal(calls[1].sourceObjectId, "re_web");
@@ -237,4 +236,30 @@ test("landing event retains the complete Writer CTA identity tuple and filters u
   };
   assert.deepEqual(event.attribution, expected);
   assert.deepEqual(funnelEvents.normalizeWebFunnelEvent(event).attribution, expected);
+});
+
+test("records refunds for Web customers before their first Travel block", async () => {
+  const event = {
+    id: "evt_refund_before_travel", type: "refund.created", created: 1_893_456_000,
+    data: { object: { id: "re_before_travel", status: "succeeded", amount: 500, currency: "usd", customer: "cus_web" } },
+  };
+  const recorded = [];
+  const result = await funnelEvents.recordWebFunnelRefund(event, {
+    supaUrl: "https://db.example", supaKey: "service-role-test-key",
+    fetchImpl: async (url) => {
+      const lookup = new URL(String(url));
+      return {
+        ok: true,
+        json: async () => lookup.searchParams.has("web_first_travel_at") ? [] : [{ uid: UID }],
+      };
+    },
+    recordWebFunnelEventImpl: async (row) => { recorded.push(row); return true; },
+  });
+
+  assert.equal(result, true);
+  assert.deepEqual(recorded, [{
+    eventName: "refund_recorded", uid: UID, sourceObjectId: "re_before_travel",
+    sourceEventId: "evt_refund_before_travel", amountUsd: 5, currency: "usd",
+    attribution: {}, occurredAt: "2030-01-01T00:00:00.000Z",
+  }]);
 });
