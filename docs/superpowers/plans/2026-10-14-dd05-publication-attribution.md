@@ -22,7 +22,7 @@
 ## Review Focus
 
 - Legacy provider refresh omits intent fields: retain the previous exact intent binding for the same Postiz ID.
-- Conflicting experiment/product/account/token on a Postiz ID: fail closed rather than overwrite.
+- Conflicting publish key, experiment, creative, product, account, integration/platform, token, or native receipt on a Postiz ID: fail closed rather than overwrite.
 - Unresolved or duplicate native receipt: do not emit a deterministic attribution snapshot.
 - Missing click, sales/order, cost, or intervention evidence: preserve explicit unavailable/unknown reasons.
 - Repeated hourly sweep: append at most one snapshot per `publish_key` per UTC date.
@@ -49,13 +49,13 @@ The report is `evidence/metrics/attribution-sweep-latest.json` with `schema_vers
 - Test: `skills/earn/marketing-engine/identity/test_publication_ledger.py`
 - Test: `skills/earn/marketing-engine/publish/test_reconcile.py`
 
-**Interface:** `reconcile.identity_row()` emits `publish_key`, `experiment_id`, `creative_id`, `product_id`, `account_id`, `hook_id`, `renderer_id`, `attribution_token`, `scheduled_at`, Postiz identity, and native receipt. `merge_rows()` retains these fields when a later provider-list row for the same Postiz ID omits them, and rejects conflicting non-null values.
+**Interface:** `reconcile.identity_row()` emits `publish_key`, `experiment_id`, `creative_id`, `product_id`, `account_id`, `integration_id`, `platform`, `hook_id`, `renderer_id`, `attribution_token`, `scheduled_at`, Postiz identity, and native receipt. `merge_rows()` retains these fields when a later provider-list row for the same Postiz ID omits them, and rejects conflicting non-null values, including a changed native receipt.
 
-- [ ] Add a regression test proving a provider refresh preserves intent-bound metadata and the exact native receipt.
-- [ ] Add a regression test proving conflicting identity metadata fails closed.
-- [ ] Run the two tests and verify the expected failures.
-- [ ] Implement the minimal metadata-preserving merge and complete identity row.
-- [ ] Run both focused test files and `git diff --check`.
+- [x] Add a regression test proving a provider refresh preserves intent-bound metadata and the exact native receipt.
+- [x] Add a regression test proving conflicting identity metadata fails closed.
+- [x] Run the two test files against the old implementation and confirm the intended RED failures.
+- [x] Implement the minimal metadata-preserving merge and complete identity row.
+- [x] Run both focused test files and `git diff --check` (28 passed, 9 subtests passed).
 
 ### Task 2: Make attribution snapshots complete and truthful
 
