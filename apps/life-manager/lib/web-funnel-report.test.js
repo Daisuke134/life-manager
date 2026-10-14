@@ -158,49 +158,63 @@ test("does not report zero balance net when Stripe balance transaction reads are
   });
 });
 
-test("groups Web outcomes by Writer CTA lineage and counts landing requests separately from people", () => {
-  const firstTouchA = {
-    utm_source: "instagram",
-    utm_medium: "social",
-    utm_campaign: "writer-test",
-    utm_content: "article",
-    utm_term: "commute",
-    product_id: "anicca",
-    run_id: "20261014-140000",
-    artifact_id: "article-ja",
-    variant_id: "role-map",
-    click_id: "click-article-a",
+test("attributes Stripe paid and refund events to separate complete first-touch CTA identities", () => {
+  const noteLineage = {
+    utm_source: "writer", utm_medium: "owned-content", utm_campaign: "role-map",
+    product_id: "anicca", run_id: "20261014-061500", artifact_id: "article-ja",
+    variant_id: "role-map", click_id: "20261014-061500-article-ja-note-ja",
   };
-  const firstTouchB = { ...firstTouchA, click_id: "click-article-b" };
+  const substackLineage = { ...noteLineage, click_id: "20261014-061500-article-ja-substack-ja" };
   const events = [
-    { event_name: "landing_view", attribution: firstTouchA, occurred_at: new Date(NOW - 6000).toISOString() },
-    { event_name: "landing_view", attribution: firstTouchA, occurred_at: new Date(NOW - 5000).toISOString() },
-    { event_name: "landing_view", attribution: firstTouchB, occurred_at: new Date(NOW - 4000).toISOString() },
-    { event_name: "google_authenticated", uid: UID_A, attribution: {}, occurred_at: new Date(NOW - 3000).toISOString() },
-    { event_name: "paid_invoice", uid: UID_A, source_object_id: "in_writer_a", amount_usd: 29, currency: "usd", attribution: {}, occurred_at: new Date(NOW - 2000).toISOString() },
-    { event_name: "refund_recorded", uid: UID_A, source_object_id: "re_writer_a", amount_usd: 5, currency: "usd", attribution: {}, occurred_at: new Date(NOW - 1000).toISOString() },
-    { event_name: "google_authenticated", uid: UID_B, attribution: {}, occurred_at: new Date(NOW - 500).toISOString() },
+    { event_name: "landing_view", attribution: noteLineage, occurred_at: new Date(NOW - 5000).toISOString() },
+    { event_name: "paid_invoice", uid: UID_A, source_object_id: "in_note", amount_usd: 29, currency: "usd", attribution: {}, occurred_at: new Date(NOW - 3000).toISOString() },
+    { event_name: "refund_recorded", uid: UID_A, source_object_id: "re_note", amount_usd: 5, currency: "usd", attribution: {}, occurred_at: new Date(NOW - 2000).toISOString() },
+    { event_name: "landing_view", attribution: substackLineage, occurred_at: new Date(NOW - 4000).toISOString() },
+    { event_name: "paid_invoice", uid: UID_B, source_object_id: "in_substack", amount_usd: 15, currency: "usd", attribution: {}, occurred_at: new Date(NOW - 1000).toISOString() },
+    { event_name: "google_authenticated", uid: UID_A, source_object_id: UID_A, attribution: { utm_source: "calendar" }, occurred_at: new Date(NOW - 500).toISOString() },
   ];
   const users = [
-    { uid: UID_A, telegram_chat_id: null, web_first_touch: firstTouchA },
-    { uid: UID_B, telegram_chat_id: null, web_first_touch: firstTouchB },
+    { uid: UID_A, telegram_chat_id: null, web_first_touch: noteLineage, web_first_travel_at: null, paid: false, plan_status: "free" },
+    { uid: UID_B, telegram_chat_id: null, web_first_touch: substackLineage, web_first_travel_at: null, paid: false, plan_status: "free" },
   ];
-
-  const result = reportModule.buildWebFunnelReport({
+  const report = reportModule.buildWebFunnelReport({
     events, users, providerCosts: [], subscriptions: [], balanceTransactions: [],
-    nowMs: NOW, periodDays: 30,
+    stripeFeesComplete: true, stripePayoutsComplete: true, nowMs: NOW, periodDays: 30,
   });
-  const rowA = result.attribution.find((row) => row.attribution.click_id === "click-article-a");
-  const rowB = result.attribution.find((row) => row.attribution.click_id === "click-article-b");
+  const note = report.attribution.find((row) => row.attribution.click_id === noteLineage.click_id
+    && row.attribution.utm_source === "writer");
+  const substack = report.attribution.find((row) => row.attribution.click_id === substackLineage.click_id
+    && row.attribution.utm_source === "writer");
+  const authenticated = report.attribution.find((row) => row.attribution.click_id === noteLineage.click_id
+    && row.attribution.utm_source === "calendar");
+  assert.ok(note);
+  assert.equal(note.landingViews, 1);
+  assert.equal(note.paidInvoices, 1);
+  assert.equal(note.refundsUsd, 5);
+  assert.ok(substack);
+  assert.equal(substack.landingViews, 1);
+  assert.equal(substack.paidInvoices, 1);
+  assert.equal(substack.refundsUsd, 0);
+  assert.ok(authenticated);
+  assert.equal(authenticated.googleAuthenticatedUsers, 1);
+});
 
-  assert.equal(result.attribution.length, 2);
-  assert.deepEqual(rowA.attribution, firstTouchA);
-  assert.equal(rowA.landingViews, 2);
-  assert.equal(rowA.googleAuthenticatedUsers, 1);
-  assert.equal(rowA.paidInvoices, 1);
-  assert.equal(rowA.refundsUsd, 5);
-  assert.deepEqual(rowB.attribution, firstTouchB);
-  assert.equal(rowB.landingViews, 1);
-  assert.equal(rowB.googleAuthenticatedUsers, 1);
-  assert.equal(rowB.paidInvoices, 0);
+test("counts repeated landings separately from one authenticated Writer user", () => {
+  const lineage = {
+    utm_source: "writer", utm_medium: "owned-content", utm_campaign: "role-map",
+    product_id: "anicca", run_id: "20261014-061500", artifact_id: "article-ja",
+    variant_id: "role-map", click_id: "20261014-061500-article-ja-note-ja",
+  };
+  const report = reportModule.buildWebFunnelReport({
+    events: [
+      { event_name: "landing_view", attribution: lineage, occurred_at: new Date(NOW - 3000).toISOString() },
+      { event_name: "landing_view", attribution: lineage, occurred_at: new Date(NOW - 2000).toISOString() },
+      { event_name: "google_authenticated", uid: UID_A, attribution: {}, occurred_at: new Date(NOW - 1000).toISOString() },
+    ],
+    users: [{ uid: UID_A, telegram_chat_id: null, web_first_touch: lineage }],
+    providerCosts: [], subscriptions: [], balanceTransactions: [], nowMs: NOW, periodDays: 30,
+  });
+  const row = report.attribution.find((candidate) => candidate.attribution.click_id === lineage.click_id);
+  assert.equal(row.landingViews, 2);
+  assert.equal(row.googleAuthenticatedUsers, 1);
 });

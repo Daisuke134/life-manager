@@ -1,8 +1,12 @@
 "use strict";
 
 const WEB_UID_RE = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const { WEB_ATTRIBUTION_KEYS, sanitizeWebAttribution } = require("./web-attribution.js");
-const ATTRIBUTION_FIELDS = WEB_ATTRIBUTION_KEYS;
+const {
+  WEB_ATTRIBUTION_KEYS: ATTRIBUTION_FIELDS,
+  WEB_ATTRIBUTION_LINEAGE_KEYS,
+  WEB_ATTRIBUTION_UTM_KEYS,
+  sanitizeWebAttribution,
+} = require("./web-attribution.js");
 const ZERO_FUNNEL = () => ({
   landingViews: 0,
   googleConnectStarts: 0,
@@ -39,6 +43,16 @@ function normalizedAttribution(value) {
   return sanitizeWebAttribution(value);
 }
 
+function outputAttribution(value) {
+  const attribution = normalizedAttribution(value);
+  const output = Object.fromEntries(WEB_ATTRIBUTION_UTM_KEYS
+    .map((key) => [key, attribution[key] || null]));
+  for (const key of WEB_ATTRIBUTION_LINEAGE_KEYS) {
+    if (attribution[key]) output[key] = attribution[key];
+  }
+  return output;
+}
+
 function attributionKey(value) {
   const attribution = normalizedAttribution(value);
   return JSON.stringify(ATTRIBUTION_FIELDS.map((key) => attribution[key] || ""));
@@ -46,8 +60,12 @@ function attributionKey(value) {
 
 function eventAttribution(event, usersByUid) {
   const explicit = normalizedAttribution(event.attribution);
-  if (Object.keys(explicit).length) return explicit;
-  return normalizedAttribution(usersByUid.get(String(event.uid || ""))?.web_first_touch);
+  const firstTouch = normalizedAttribution(usersByUid.get(String(event.uid || ""))?.web_first_touch);
+  const merged = { ...firstTouch, ...explicit };
+  for (const key of WEB_ATTRIBUTION_LINEAGE_KEYS) {
+    if (firstTouch[key]) merged[key] = firstTouch[key];
+  }
+  return merged;
 }
 
 function firstPaidInvoiceByUid(events, usersByUid) {
@@ -137,7 +155,7 @@ function buildWebFunnelReport(input = {}) {
     const key = attributionKey(attribution);
     let entry = buckets.get(key);
     if (!entry) {
-      entry = { attribution: Object.fromEntries(ATTRIBUTION_FIELDS.map((field) => [field, attribution[field] || null])), ...ZERO_FUNNEL(),
+      entry = { attribution: outputAttribution(attribution), ...ZERO_FUNNEL(),
         _sets: { auth: new Set(), calendar: new Set(), travel: new Set(), checkouts: new Set(), trials: new Set(),
           paidInvoices: new Map(), cancelRequests: new Set(), canceled: new Set() } };
       buckets.set(key, entry);
