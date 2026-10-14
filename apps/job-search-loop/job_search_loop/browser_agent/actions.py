@@ -108,9 +108,16 @@ class ActionExecutor:
                 await page.upload_target(target, str(action.file_path))
             return
         if action.kind == "scroll":
-            if action.delta_y is None or abs(action.delta_y) > 10_000:
+            if type(action.delta_y) is not int or abs(action.delta_y) > 10_000:
                 raise ValueError("scroll requires bounded delta_y")
-            await page.scroll(action.delta_y)
+            if action.target is None:
+                await page.scroll(action.delta_y)
+            else:
+                if abs(action.delta_y) > 600:
+                    raise ValueError("targeted scroll requires a delta up to 600")
+                await page.scroll_target(
+                    self._direct_target(action.target), action.delta_y
+                )
             return
         if action.kind == "wait":
             if action.wait_ms is None or not 0 < action.wait_ms <= 10_000:
@@ -257,9 +264,23 @@ class ActionExecutor:
                     chooser = await chooser_info.value
                     await chooser.set_files(str(action.file_path))
         elif action.kind == "scroll":
-            if action.delta_y is None or abs(action.delta_y) > 10_000:
+            if type(action.delta_y) is not int or abs(action.delta_y) > 10_000:
                 raise ValueError("scroll requires bounded delta_y")
-            await page.mouse.wheel(0, action.delta_y)
+            if action.target is None:
+                await page.mouse.wheel(0, action.delta_y)
+            else:
+                if abs(action.delta_y) > 600:
+                    raise ValueError("targeted scroll requires a delta up to 600")
+                target = await self._target(page, action.target)
+                box = await target.bounding_box()
+                if not box:
+                    raise RuntimeError("scroll anchor is no longer visible")
+                await page.mouse.move(
+                    box["x"] + box["width"] / 2,
+                    box["y"] + box["height"] / 2,
+                )
+                await page.mouse.wheel(0, action.delta_y)
+                await page.wait_for_timeout(350)
         elif action.kind == "wait":
             if action.wait_ms is None or not 0 < action.wait_ms <= 10_000:
                 raise ValueError("wait requires 1..10000 milliseconds")

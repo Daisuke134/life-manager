@@ -1341,6 +1341,45 @@ async def wait(milliseconds: int) -> dict[str, Any]:
     return await act(path)
 
 
+async def scroll(
+    *, label: str, role: str, stable_id: str, delta_y: int
+) -> dict[str, Any]:
+    """Scroll inside one freshly observed control, such as a virtualized picker."""
+    if type(delta_y) is not int or not 0 < abs(delta_y) <= 600:
+        return {
+            "status": "action_rejected",
+            "reason": "targeted_scroll_delta_out_of_range",
+        }
+    if not label.strip() or not role.strip() or not stable_id.strip():
+        return {
+            "status": "action_rejected",
+            "reason": "targeted_scroll_requires_observed_anchor",
+        }
+    path = _path_env("JOB_SEARCH_BROWSER_SCRATCH") / "runtime-scroll.json"
+    path.write_text(
+        json.dumps(
+            {
+                "kind": "scroll",
+                "target": {
+                    "label": label,
+                    "role": role,
+                    "stable_id": stable_id,
+                },
+                "delta_y": delta_y,
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    os.chmod(path, 0o600)
+    try:
+        return await act(path)
+    finally:
+        path.unlink(missing_ok=True)
+
+
 async def checkpoint(reason: str) -> dict[str, Any]:
     row, session, checkpoints, _evidence, cursor, builder = await _context()
     observation = await builder.build(cursor.handle)
@@ -1744,6 +1783,11 @@ def _run_main(argv: list[str] | None = None) -> int:
     upload_parser.add_argument("--stable-id", default="")
     wait_parser = subparsers.add_parser("wait")
     wait_parser.add_argument("--milliseconds", required=True, type=int)
+    scroll_parser = subparsers.add_parser("scroll")
+    scroll_parser.add_argument("--label", required=True)
+    scroll_parser.add_argument("--role", required=True)
+    scroll_parser.add_argument("--stable-id", required=True)
+    scroll_parser.add_argument("--delta-y", required=True, type=int)
     act_parser = subparsers.add_parser("act")
     act_parser.add_argument("--action-file", required=True, type=Path)
     auth_parser = subparsers.add_parser("auth")
@@ -1815,6 +1859,13 @@ def _run_main(argv: list[str] | None = None) -> int:
         )
     elif args.command == "wait":
         operation = lambda: wait(args.milliseconds)
+    elif args.command == "scroll":
+        operation = lambda: scroll(
+            label=args.label,
+            role=args.role,
+            stable_id=args.stable_id,
+            delta_y=args.delta_y,
+        )
     elif args.command == "act":
         operation = lambda: act(args.action_file)
     elif args.command == "auth":

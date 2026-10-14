@@ -7,14 +7,18 @@ import tempfile
 import fcntl
 import os
 import time
-from contextlib import redirect_stdout
+from contextlib import nullcontext, redirect_stdout
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
 
 from job_search_loop.browser_agent.direct_cdp import DirectCDPPage
 from job_search_loop.browser_agent.observation import ObservationBuilder
 from job_search_loop.browser_agent.actions import ActionExecutor
-from job_search_loop.browser_agent.contracts import ActionTargetV1, VisibleActionV1
+from job_search_loop.browser_agent.contracts import (
+    ActionTargetV1,
+    SessionHandleV1,
+    VisibleActionV1,
+)
 from job_search_loop.browser_agent.runtime import main as browser_runtime_main
 from job_search_loop.browser_agent.runtime import auth, type_candidate, type_text
 from job_search_loop.ledger import Ledger
@@ -672,6 +676,147 @@ class DirectCDPTypeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             [call.args for call in page.call.await_args_list if call.args[0] == "Input.insertText"],
             [("Input.insertText", {"text": "Developer"})],
+        )
+
+    async def test_scroll_target_wheels_inside_the_exact_visible_option(self):
+        page = DirectCDPPage("ws://example", "target")
+        target = {
+            "label": "Afghanistan",
+            "role": "option",
+            "stable_id": "ref:e14",
+        }
+        page.resolve_target = AsyncMock(return_value={"x": 420.0, "y": 615.0})
+        page.call = AsyncMock(return_value={})
+
+        with patch(
+            "job_search_loop.browser_agent.direct_cdp.asyncio.sleep",
+            new=AsyncMock(),
+        ):
+            await page.scroll_target(target, delta_y=300)
+
+        page.resolve_target.assert_awaited_once_with(target, scroll=False)
+        page.call.assert_awaited_once_with(
+            "Input.dispatchMouseEvent",
+            {
+                "type": "mouseWheel",
+                "x": 420.0,
+                "y": 615.0,
+                "deltaX": 0,
+                "deltaY": 300,
+            },
+        )
+
+    async def test_direct_scroll_action_uses_the_observed_option_as_its_anchor(self):
+        page = DirectCDPPage("ws://example", "target")
+        page.scroll_target = AsyncMock()
+        page.scroll = AsyncMock()
+        target = ActionTargetV1("option", "Afghanistan", stable_id="ref:e14")
+        action = VisibleActionV1("scroll", target=target, delta_y=300)
+
+        await ActionExecutor(unittest.mock.Mock())._execute_direct(page, action)
+
+        page.scroll_target.assert_awaited_once_with(
+            {
+                "role": "option",
+                "label": "Afghanistan",
+                "exact": True,
+                "stable_id": "ref:e14",
+                "ordinal": None,
+            },
+            300,
+        )
+        page.scroll.assert_not_awaited()
+
+    async def test_playwright_scroll_moves_to_the_observed_option_before_wheeling(self):
+        page = Mock()
+        page.url = "https://venaenergy.wd102.myworkdayjobs.com/careers"
+        page.mouse.move = AsyncMock()
+        page.mouse.wheel = AsyncMock()
+        page.wait_for_timeout = AsyncMock()
+        session = Mock()
+        session.page.return_value = page
+        target = ActionTargetV1("option", "Afghanistan", stable_id="ref:e14")
+        locator = Mock()
+        locator.bounding_box = AsyncMock(
+            return_value={"x": 400.0, "y": 600.0, "width": 120.0, "height": 24.0}
+        )
+        executor = ActionExecutor(session)
+        executor._target = AsyncMock(return_value=locator)
+        handle = SessionHandleV1(1, "http://localhost:9222", "wake-1", "page-1", 1)
+        action = VisibleActionV1("scroll", target=target, delta_y=300)
+
+        await executor.execute(handle, action)
+
+        executor._target.assert_awaited_once_with(page, target)
+        page.mouse.move.assert_awaited_once_with(460.0, 612.0)
+        page.mouse.wheel.assert_awaited_once_with(0, 300)
+        page.wait_for_timeout.assert_awaited_once_with(350)
+
+    async def test_scroll_runtime_writes_only_the_observed_anchor_and_removes_action_file(self):
+        from job_search_loop.browser_agent import runtime
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            received = {}
+
+            async def consume(action_path):
+                received["value"] = json.loads(action_path.read_text(encoding="utf-8"))
+                received["mode"] = os.stat(action_path).st_mode & 0o777
+                return {"status": "acted"}
+
+            with patch.object(runtime, "_path_env", return_value=root), patch.object(
+                runtime, "act", new=consume
+            ):
+                result = await runtime.scroll(
+                    label="Afghanistan",
+                    role="option",
+                    stable_id="ref:e14",
+                    delta_y=300,
+                )
+
+            self.assertEqual(result, {"status": "acted"})
+            self.assertEqual(received["mode"], 0o600)
+            self.assertEqual(
+                received["value"],
+                {
+                    "kind": "scroll",
+                    "target": {
+                        "label": "Afghanistan",
+                        "role": "option",
+                        "stable_id": "ref:e14",
+                    },
+                    "delta_y": 300,
+                },
+            )
+            self.assertFalse((root / "runtime-scroll.json").exists())
+
+    def test_runtime_exposes_targeted_picker_scroll(self):
+        from job_search_loop.browser_agent import runtime
+
+        scroll = AsyncMock(return_value={"status": "acted"})
+        stdout = io.StringIO()
+        with patch.object(runtime, "_claim_active_command"), patch.object(
+            runtime, "_clear_active_command"
+        ), patch.object(runtime, "_check_terminal_failure_marker"), patch.object(
+            runtime, "_exclusive_command", return_value=nullcontext()
+        ), patch.object(runtime, "scroll", new=scroll), redirect_stdout(stdout):
+            result = browser_runtime_main(
+                [
+                    "scroll",
+                    "--label",
+                    "Afghanistan",
+                    "--role",
+                    "option",
+                    "--stable-id",
+                    "ref:e14",
+                    "--delta-y",
+                    "300",
+                ]
+            )
+
+        self.assertEqual(result, 0)
+        scroll.assert_awaited_once_with(
+            label="Afghanistan", role="option", stable_id="ref:e14", delta_y=300
         )
 
     def test_ineligible_preserves_a_claimed_submission_without_terminal_failure(self):
