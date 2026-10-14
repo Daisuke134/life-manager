@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
-"""Close Writer fences from exact publish or no-dispatch evidence.
+"""Close Writer fences only from exact publication or no-dispatch evidence.
 
-article-daily pairs a run to the fence and requires HTTP 200 from a live URL or exact stop proof.
-Missing URLs never prove no effect.
-article-resume requires age >= 7d, official reads of Note and both Substacks older than the fence,
-and no Writer-ledger row at/after it.
+article-daily pairs a fence with the run start or a generation-attempt start. A resumed attempt can
+pair even when its run directory predates the fence. The time window selects candidates; it never
+proves no effect. Require HTTP 200 for a ledger URL or exact allowlisted pre-publication stop proof.
+
+article-resume requires age >= 7 days, official Note and both Substack reads whose newest posts
+predate the fence, and no at-or-after row in the Writer ledger (including self-owned aniccaai.com posts).
+
+    python3 article_fence_reconcile.py --occurrence article-daily:<run_id> [--resolve]
+    python3 article_fence_reconcile.py --occurrence article-resume:<run_id> [--resolve]
 """
 from __future__ import annotations
 

@@ -131,7 +131,7 @@ Gate 13 `gate_pass` means the snapshot is structurally complete, contains no fab
 2. [x] Pair publication rows with attempt starts from valid run directories; validate IDs and refuse symlink paths. AST and diff checks pass.
 3. [x] Real read-only reconcile returns effected with 4 HTTP 200 URLs and closed=false; resolver test double passes without production mutation.
 4. [x] Run the focused fence suite (24 passed); real read-only reconcile returns four HTTP 200 URLs, effected/closed=false; injected resolver test did not mutate the fence.
-5. [ ] Integrate on latest main through review/CI/release; only the registered reconciler may close receipt-backed proof. Never resolve manually or replay.
+5. [ ] Push a dedicated latest-main branch and open a focused PR; pass exact-head CI/review and merge. Production release/apply is a separate DD05 gate; only the registered reconciler may close receipt-backed proof. Never resolve manually or replay.
 6. [x] Classify all 8 retained runs; 14/439 ledger rows join. Dispatch, prepublication ambiguity, identity-gate block, pending run state, and outcome-coverage gap are distinct.
 
 **Writer CTA outcome measurement — required before experimentation**
@@ -143,11 +143,12 @@ Gate 13 `gate_pass` means the snapshot is structurally complete, contains no fab
 
 **DD05 remains open**
 
-1. [ ] Restore scratch-write capacity through the registered cleanup owner, then synchronize to current `origin/main` and measure exact release capacity for that SHA. The requirement for `dfb8213` is unmeasured; the 252653568-byte result is historical for `49d9858` only.
-2. [ ] Recover only the newly measured shortfall through the registered cleanup owner; preserve protected and unknown paths. Do not treat a passing process terminal without a fresh receipt as capacity recovery.
-3. [ ] Cut/apply a main-derived immutable release only after the exact gate; verify installed SHA and natural owner terminal.
-4. [ ] Inspect the persisted attribution sweep. The 08:36Z artifact has 0 eligible rows, 0 snapshots, 1323 legacy-uninstrumented and 31 unpublished rows.
-5. [ ] Verify a unique exact-identity publication after 24h maturity or keep DD05 open. Revenue/cost/intervention remain unknown without exact sources.
+1. [ ] Push the current-main source branch/PR after the merge commit; require exact-head CI/review and merge. The focused fence suite already passes 24/24 on the merged tree.
+2. [ ] Obtain a fresh exact release-capacity measurement for then-current `origin/main`. The requirement for `dfb8213` is unmeasured; the 252653568-byte result is historical for `49d9858` only.
+3. [ ] Recover only the newly measured shortfall through the registered cleanup owner; preserve protected and unknown paths. Do not treat a passing process terminal without a fresh receipt as capacity recovery.
+4. [ ] Cut/apply a main-derived immutable release only after the exact gate; verify installed SHA and natural owner terminal.
+5. [ ] Inspect the persisted attribution sweep. The 08:36Z artifact has 0 eligible rows, 0 snapshots, 1323 legacy-uninstrumented and 31 unpublished rows.
+6. [ ] Verify a unique exact-identity publication after 24h maturity or keep DD05 open. Revenue/cost/intervention remain unknown without exact sources.
 
 HTTP 200 proves publication only; resolver test double left fence open.
 
@@ -165,4 +166,4 @@ DD05 is shared publication-measurement infrastructure. The first agent-level EDD
 
 **Verification update, 2026-10-14T11:15Z:** `PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q -p no:cacheprovider skills/writer-agent/tests/test_article_fence_reconcile.py` passed 24/24 on worktree HEAD `7e8e37f`; AST and `git diff --check` also pass. This is source-only; latest-main sync, CI/review, integration, release, and natural readback remain open. Git-reported orphan packs totaling 15990784 bytes were reclaimed after confirming no open handles. The cleanup owner still has no receipt after its 11:08Z `scratch_enospc` failure; exact capacity for `dfb8213` remains unmeasured. The current pytest temp `pytest-505` was removed; older temp dirs were preserved.
 
-**Current branch blocker, 2026-10-14T11:16Z:** GitHub `main` is `dfb8213`; GitHub compare verifies base `13f` is its ancestor, but the shallow local graph has no `merge-base`. `git fetch --deepen=15 --filter=blob:none origin main` failed creating `shallow.lock` with `ENOSPC`. All four task files are staged; `git commit` then failed writing the worktree `index.lock` with `ENOSPC`, and no lock file remains. The focused Writer suite passed 24/24 on local HEAD `7e8e37f`, but it has not run on current main. The `dfb8213` release-capacity requirement remains unmeasured; no PR, release, or natural readback exists.
+**Current branch state, 2026-10-14T11:38Z:** GitHub `main=7919bc9` is three commits beyond local merge base `dfb8213`; those commits change the unified SSOT only. Merge commit `6503cd9` contains `dfb8213`, and the focused Writer suite passes 24/24 on that merged tree. Sync the three latest-main commits, then push branch `fix/writer-resumed-publication-fence-20261014` and open a focused PR. At 11:38Z, `df` showed 440424 KiB free; the cleanup owner failed pre-effect with `scratch_enospc`, and `last-receipt.json` remains dated 2026-10-10. Exact release capacity for `7919bc9` is unmeasured. PR/CI/review, production release, owner adoption, and natural readback remain open. Preserve `.DS_Store` as untracked.
