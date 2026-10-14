@@ -39,6 +39,8 @@ The sweep waits until a publication is at least 24 hours old, then appends no mo
 
 The report is `evidence/metrics/attribution-sweep-latest.json` with `schema_version`, `observed_at`, `status`, `eligible_publications` (mature exact rows), `snapshots_written`, `snapshots_already_present`, `excluded` counts by reason (including `not_mature_yet`), and unknown metric counts. The command exits 0 when at least one mature exact publication is eligible (including an idempotent no-op), 3 when none is eligible (attention), and 1 on an execution or data-integrity error. The truth pipeline classifies exit 3 as attention, not failure.
 
+Gate 13 `gate_pass` means the snapshot is structurally complete, contains no fabricated zero, and agrees with the exact click query. It does not mean revenue, cost, or human-intervention evidence is known or that the publication was profitable; unknown metrics and their reasons remain visible.
+
 ---
 
 ### Task 1: Preserve the intent-bound identity row
@@ -66,13 +68,13 @@ The report is `evidence/metrics/attribution-sweep-latest.json` with `schema_vers
 - Test: `skills/earn/marketing-engine/measure/test_verify_gate13.py`
 - Test: `skills/earn/marketing-engine/report/test_owner_report.py`
 
-**Interface:** `build_snapshot()` accepts only an exact identity whose `publish_key`, experiment, product, account, token, Postiz ID, native ID, and native URL agree with the intent. The result schema advances to v2 and includes separate `actual_cost_usd` and `human_interventions` metric rows. An exact publication-scoped execution record may populate them; otherwise each remains null/unknown with its own reason. Existing Capafy aggregate sales remain unknown for per-publication revenue.
+**Interface:** `build_snapshot()` accepts only an exact identity whose `publish_key`, experiment, creative/hash, product, account, integration/platform, token, scheduled time, Postiz ID, native ID, and native URL agree with the enriched intent context. The result schema advances to v2 and includes separate `actual_cost_usd` and `human_interventions` metric rows. Because no publication-scoped source exists today, DD05 always emits these metrics as null/unknown with distinct reasons and adds no cost/intervention input source. Existing Capafy aggregate sales remain unknown for per-publication revenue.
 
-- [ ] Add failing tests for a mismatched publish key/native receipt and for separate `unknown` cost/intervention metrics with explicit reasons. No publication-scoped source exists today, so DD05 does not invent one or claim measured values.
-- [ ] Verify those tests fail for the expected missing contract behavior.
-- [ ] Implement v2 snapshot validation and exact identity checks.
-- [ ] Update Gate 13 and owner-report fixtures for the expanded result set.
-- [ ] Run the focused attribution, Gate 13, and owner-report tests.
+- [x] Add failing tests for a mismatched publish key/native receipt and for separate `unknown` cost/intervention metrics with explicit reasons. No publication-scoped source exists today, so DD05 does not invent one or claim measured values.
+- [x] Verify those tests fail for the expected missing contract behavior.
+- [x] Implement v2 snapshot validation and exact identity checks.
+- [x] Update Gate 13 and owner-report fixtures for the expanded result set.
+- [x] Run the focused attribution, Gate 13, and owner-report tests (17 passed, 22 subtests; owner report 3 passed).
 
 ### Task 3: Sweep exact publications from the canonical ledger
 
