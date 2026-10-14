@@ -143,7 +143,7 @@ Gate 13 `gate_pass` means the snapshot is structurally complete, contains no fab
 
 **DD05 remains open**
 
-1. [ ] Pass exact-head checks on the latest-main-synchronized PR #8037, then merge. The preceding head `04a0b1c` passed all checks but lacked current main `3de2137`; the synchronization commit includes that main tip. The focused fence suite 24/24 is historical on merged `72ff5f9`.
+1. [x] Merge Writer DD06 source fix PR #8037 as `e0a53f1` after current-main synchronization; all 11 automated checks passed on exact head `8e7df3c`. CodeRabbit skipped manual review. Source integration does not establish production release/adoption or revenue.
 2. [ ] Obtain a fresh exact release-capacity measurement for then-current `origin/main`. The requirement for `dfb8213` is unmeasured; the 252653568-byte result is historical for `49d9858` only.
 3. [ ] Recover only the newly measured shortfall through the registered cleanup owner; preserve protected and unknown paths. Do not treat a passing process terminal without a fresh receipt as capacity recovery.
 4. [ ] Cut/apply a main-derived immutable release only after the exact gate; verify installed SHA and natural owner terminal.
@@ -175,3 +175,6 @@ DD05 is shared publication-measurement infrastructure. The first agent-level EDD
 
 
 **EDD integration checkpoint, 2026-10-14T12:52Z:** Current main is `3de213777ef82996ada82ea6bbc4d898afcee7a9`. Before synchronization PR #8037 was head `04a0b1c4145e4f73d6ca6314bdb7699c2e831c0f`, based on `70a9ead`; its prior-head checks all passed, but main advanced and the branch conflicted. This update creates a non-force merge commit with the current main parent and preserves the PR four intended files. Exact-head checks rerun on the new commit. Writer source/test are unchanged by this sync. No current-main local pytest, capacity measurement, release adoption, natural outcome, or revenue is claimed. After integration, CTA lineage and destination identity are the next EDD implementation atom.
+
+
+**DD06 status update, 2026-10-14T13:13Z:** PR #8037 is merged as `e0a53f1`; its tested head `8e7df3c` passed all 11 automated checks. Current main is `6f40a0c9c96a91bfc561bbb23a6d905cfb987b93` after PR #8045. PR #8044 carries only the post-merge spec/plan update and has been synchronized with current main; its new exact-head checks are pending. Next EDD atom is CTA lineage/destination identity. Production release, adoption, natural outcome, and publication-level revenue remain unverified.
