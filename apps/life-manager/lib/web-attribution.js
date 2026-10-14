@@ -14,12 +14,32 @@ const UTM_LIMITS = Object.freeze({
   utm_term: 120,
 });
 const WEB_ATTRIBUTION_UTM_KEYS = Object.freeze(Object.keys(UTM_LIMITS));
+const WEB_ATTRIBUTION_LINEAGE_KEYS = Object.freeze([
+  "product_id", "run_id", "artifact_id", "variant_id", "click_id",
+]);
+const WEB_ATTRIBUTION_KEYS = Object.freeze([
+  ...WEB_ATTRIBUTION_UTM_KEYS, ...WEB_ATTRIBUTION_LINEAGE_KEYS,
+]);
+const LINEAGE_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 
 function valuesFor(query, key) {
   if (query && typeof query.getAll === "function") return query.getAll(key);
   if (!query || typeof query !== "object" || !Object.prototype.hasOwnProperty.call(query, key)) return [];
   const value = query[key];
   return Array.isArray(value) ? value : [value];
+}
+
+function boundedLineageFields(query) {
+  const valuesByKey = WEB_ATTRIBUTION_LINEAGE_KEYS.map((key) => [key, valuesFor(query, key)]);
+  if (valuesByKey.every(([, values]) => values.length === 0)) return {};
+  const fields = {};
+  for (const [key, values] of valuesByKey) {
+    if (values.length !== 1 || values[0] == null) return {};
+    const value = String(values[0]).trim();
+    if (!value || Buffer.byteLength(value, "utf8") > 128 || !LINEAGE_ID_RE.test(value)) return {};
+    fields[key] = value;
+  }
+  return fields;
 }
 
 function boundedFields(query) {
@@ -31,7 +51,7 @@ function boundedFields(query) {
     if (!value || Buffer.byteLength(value, "utf8") > maxBytes) continue;
     fields[key] = value;
   }
-  return fields;
+  return { ...fields, ...boundedLineageFields(query) };
 }
 
 function captureWebAttribution(query, secret, nowMs = Date.now()) {
@@ -81,6 +101,8 @@ module.exports = {
   WEB_ATTRIBUTION_COOKIE,
   WEB_ATTRIBUTION_MAX_AGE_SECONDS,
   WEB_ATTRIBUTION_UTM_KEYS,
+  WEB_ATTRIBUTION_LINEAGE_KEYS,
+  WEB_ATTRIBUTION_KEYS,
   sanitizeWebAttribution: boundedFields,
   captureWebAttribution,
   consumeWebAttribution,

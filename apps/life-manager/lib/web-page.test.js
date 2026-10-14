@@ -435,11 +435,12 @@ test("zero-block state has no manual rescan control", () => {
   assert.match(visible, /data-action="checkout"/);
 });
 
-test("the signed-out CTA preserves one source UTM through the auth start URL", async () => {
+test("the signed-out CTA forwards the Writer lineage through the auth start URL", async () => {
   const page = renderWebPage({});
-  const client = mountClient(page, {}, "https://life.example/lm?utm_source=ig&utm_campaign=founder-diary");
+  const client = mountClient(page, {}, "https://life.example/lm?utm_source=ig&utm_campaign=founder-diary&product_id=anicca&run_id=20261014-140000&artifact_id=article-ja&variant_id=role-map&click_id=20261014-140000-article-ja");
 
   await client.execution;
 
-  assert.equal(client.signIn.href, "/auth/google?utm_source=ig&utm_campaign=founder-diary");
+  assert.equal(client.signIn.href,
+    "/auth/google?utm_source=ig&utm_campaign=founder-diary&product_id=anicca&run_id=20261014-140000&artifact_id=article-ja&variant_id=role-map&click_id=20261014-140000-article-ja");
 });
