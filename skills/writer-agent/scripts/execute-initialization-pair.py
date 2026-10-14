@@ -19,6 +19,10 @@ TARGET_KINDS = {
     "devto/en": "devto-article-id",
 }
 RELEASE_NAME = re.compile(r"^[0-9]{8}T[0-9]{6}-[0-9a-f]{8,40}$")
+# Typed outcome: STEP 5 never persisted a staging row for this pair (its model
+# pass was killed first, 2026-10-12). The worker hands the pair to the same-run
+# model staging path instead of failing closed on every tick.
+NEEDS_STAGING_EXIT = 3
 
 
 def _writer_root() -> Path:
@@ -164,16 +168,19 @@ def main() -> int:
         raise SystemExit(f"refuse initialization: {args.pair} already has a persisted pair")
 
     platform, lang = args.pair.split("/", 1)
-    rows = [
-        json.loads(line)
-        for line in manifest_path.read_text().splitlines()
-        if line.strip()
-    ]
+    try:
+        manifest_text = manifest_path.read_text()
+    except FileNotFoundError:
+        manifest_text = ""
+    rows = [json.loads(line) for line in manifest_text.splitlines() if line.strip()]
     matching = [
         row
         for row in rows
         if row.get("platform") == platform and row.get("lang") == lang
     ]
+    if not matching:
+        print(f"initialization: {args.pair} dispatch-row-missing; same-run staging required")
+        return NEEDS_STAGING_EXIT
     if len(matching) != 1:
         raise SystemExit(
             f"refuse initialization: expected one {args.pair} manifest row, got {len(matching)}"
@@ -226,7 +233,8 @@ def main() -> int:
     env.update(managed_controls)
     completed = subprocess.run(argv, env=env, check=False)
     if completed.returncode != 0:
-        return completed.returncode
+        # A staging child's status must never read as the typed outcome above.
+        return 1 if completed.returncode == NEEDS_STAGING_EXIT else completed.returncode
 
     updated = json.loads(state_path.read_text())
     pair = updated.get("pairs", {}).get(args.pair, {})

@@ -1001,8 +1001,13 @@ if [ "$INITIALIZATION_COUNT" -gt 0 ] \
   RC=$?
   kill "$INITIALIZATION_BROKER_PID" 2>/dev/null || true
   wait "$INITIALIZATION_BROKER_PID" 2>/dev/null || true
+  trap 'release_publication_lock' EXIT
   echo "article-resume: run=$RUN_ID rc=$RC deterministic=initialize-$FIRST_INITIALIZATION" >>"$LOG"
-  exit "$RC"
+  # rc=3 is the executor's typed dispatch-row-missing outcome: STEP 5 was
+  # killed before persisting this pair's row, so no deterministic replay
+  # exists. Fall through to the same-run model staging path below instead of
+  # failing every tick while article-daily defers to this worker.
+  [ "$RC" -eq 3 ] || exit "$RC"
 fi
 
 # The first money-bearing note intent is a fully specified operation: immutable
