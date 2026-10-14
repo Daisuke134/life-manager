@@ -714,6 +714,28 @@ class SurvivesLockedDatabaseTest(unittest.TestCase):
         return {f"o{k:02d}": {"effect_reconcile": {"argv": ["x.py"], "occurrence_flag": "--occurrence"}}
                 for k in range(n)}
 
+    def test_lock_in_supplemental_lost_fence_scan_does_not_skip_active_fences(self):
+        import sqlite3
+        loops = self._loops(1)
+        fenced = {"o00": ("o00:active",)}
+        called = []
+
+        with patch("runtime.loop.fence_reconcile._lost_terminal_unknown_occurrences",
+                   side_effect=sqlite3.OperationalError("database is locked")):
+            summary = reconcile(
+                registry=_registry(loops), root=Path("/r"), cap=1,
+                budget_seconds=100, clock=lambda: 0.0, sleep=lambda _seconds: None,
+                run_call=lambda argv, **_kwargs: (called.append(argv[argv.index("--occurrence") + 1]) or (0, "")),
+                read_fenced=lambda: fenced, log_path=None, wake_epoch=0.0,
+            )
+
+        self.assertEqual(called, ["o00:active"])
+        self.assertEqual(summary["status"], "partial_database_locked")
+        self.assertTrue(summary["lost_fence_scan_locked"])
+        self.assertEqual(summary["checked"], 1)
+        self.assertEqual(summary["closed"], 0)
+        self.assertEqual(summary["still_fenced"], 1)
+
     def test_a_transient_lock_on_the_post_call_read_is_retried_and_the_wake_continues(self):
         import sqlite3
         loops = self._loops(3)
