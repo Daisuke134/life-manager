@@ -326,9 +326,9 @@ function loadLocalTelegramCredentials(env = process.env) {
   return { botToken: row.bot_token, chatId: String(row.chat_id) };
 }
 
-async function sendMetricSnapshot(result, env, dataDir) {
+async function sendMetricSnapshot(result, env, dataDir, telegramCredentials = null) {
   if (!result.created) return { created: false, reason: "snapshot_replay" };
-  const telegram = loadLocalTelegramCredentials(env);
+  const telegram = telegramCredentials || loadLocalTelegramCredentials(env);
   const expected = result.snapshot;
   const platform = metricPlatform(expected);
   const lane = platform === "tiktok" ? `tiktok-metrics-${String(expected.account_id).replace(/^@/, "").replace(/[^A-Za-z0-9._-]/g, "-")}` : "anicca-main-ja-instagram";
@@ -373,8 +373,9 @@ async function collectWindow(window, env = process.env, observedAt = new Date().
     get(`https://api.postiz.com/public/v1/analytics/post/${expected.provider_post_id}?date=${days}`, { Authorization: key }).then((response) => response.json()),
   ]);
   const dataDir = resolveDataRoot(env);
+  const telegramCredentials = window === "current" ? null : loadLocalTelegramCredentials(env);
   const result = persistSnapshot({ dataDir, window, observedAt, html: page, accountRows: account, postRows: post, expected });
-  const telegram = window === "current" ? { created: false, reason: "current_observation_for_daily_report" } : await sendMetricSnapshot(result, env, dataDir);
+  const telegram = window === "current" ? { created: false, reason: "current_observation_for_daily_report" } : await sendMetricSnapshot(result, env, dataDir, telegramCredentials);
   return { created: result.created, file: result.file, post: result.snapshot.post, account: result.snapshot.account_metrics, telegram };
 }
 
