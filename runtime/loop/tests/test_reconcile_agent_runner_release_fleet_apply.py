@@ -560,6 +560,77 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             self.assertEqual(self._apply_call_count(calls_log), 1,
                              "a failed apply must not retry on the very next tick")
 
+    def test_required_fleet_receipt_write_failure_is_nonzero(self):
+        for path in ("fleet-apply-state.json.tmp", "fleet-apply-owners.jsonl"):
+            with self.subTest(path=path), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                repo, sha = self._make_repo(root)
+                self._activate(root, self._make_release(root, sha, loop_ids=("loop-a", "loop-b")))
+                state_dir = root / "reconciler-state"
+                (state_dir / path).mkdir(parents=True)
+                env = self._base_env(root, repo, calls_log=root / "calls.log",
+                                     apply_mode="control_busy")
+                env["FAKE_CONTROL_BUSY_TARGET"] = "loop-a"
+
+                result = self._run(env)
+
+                self.assertNotEqual(result.returncode, 0, result.stderr)
+                self.assertIn("IsADirectoryError", result.stderr)
+                self.assertFalse((state_dir / "fleet-apply-state.json").exists())
+
+    def test_current_skip_journal_write_failure_does_not_mark_release_applied(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            label = "ai.anicca.loop-a"
+            release = self._make_release(root, sha, labels={"loop-a": label})
+            self._activate(root, release)
+            agents = root / "agents"
+            agents.mkdir()
+            (agents / f"{label}.plist").write_bytes(plistlib.dumps({
+                "EnvironmentVariables": {"LIFE_MANAGER_RELEASE_SHA": sha},
+            }))
+            state_dir = root / "reconciler-state"
+            (state_dir / "fleet-apply-owners.jsonl").mkdir(parents=True)
+            calls_log = root / "calls.log"
+            env = self._base_env(root, repo, calls_log=calls_log)
+            env["LIFE_MANAGER_LAUNCH_AGENTS_DIR"] = str(agents)
+
+            result = self._run(env)
+
+            self.assertNotEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(self._apply_call_count(calls_log), 0)
+            self.assertFalse((state_dir / "fleet-apply-state.json").exists())
+
+    def test_invalid_fleet_plan_stops_before_applying_owners(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            release = self._make_release(root, sha)
+            self._activate(root, release)
+            (release / "config/loop-registry.json").write_text("{broken")
+            calls_log = root / "calls.log"
+
+            result = self._run(self._base_env(root, repo, calls_log=calls_log))
+
+            self.assertNotEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(self._apply_call_count(calls_log), 0)
+            self.assertFalse((root / "reconciler-state/fleet-apply-state.json").exists())
+
+    def test_fleet_output_write_failure_stops_before_applying_owners(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            self._activate(root, self._make_release(root, sha))
+            (root / "reconciler-state/fleet-apply-last-output.log").mkdir(parents=True)
+            calls_log = root / "calls.log"
+
+            result = self._run(self._base_env(root, repo, calls_log=calls_log))
+
+            self.assertNotEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(self._apply_call_count(calls_log), 0)
+            self.assertFalse((root / "reconciler-state/fleet-apply-state.json").exists())
+
     def test_control_busy_defers_owner_without_marking_fleet_applied_and_retries(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
