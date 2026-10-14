@@ -193,6 +193,12 @@ default. Prefer a visible non-disclosure option for optional demographics.
 For routine logistics, select the least-claiming option consistent with the resume,
 job location, and candidate facts. Missing a prewritten answer is never a reason to
 stop the row.
+If a required fact still cannot be supported after checking candidate memory,
+resume facts, saved Answer Memory, and any explicit user-authorized assumption, do
+not invent it. Call `runtime report --status not_submitted` once, then continue to
+the next `observe`. Do not mark a role generally ineligible only because that one
+fact is missing; the durable queue cursor moves to other Workday rows and will
+revisit this row on a later rotation.
 For a segmented Workday month/year date, fill Year first and use the returned fresh
 observation. If Month is still empty, open Calendar once and select the exact visible
 month-year matching the grounded date. Never click Next Year or Previous Year, and
