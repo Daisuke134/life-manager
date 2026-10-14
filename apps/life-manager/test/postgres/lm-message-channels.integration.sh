@@ -3,7 +3,8 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 MIGRATION="$ROOT_DIR/migrations/2026-10-08-zzz-lm-message-channels.sql"
-if [[ ! -f "$MIGRATION" ]]; then
+FORWARD_MIGRATION="$ROOT_DIR/migrations/20261014190913_lm_message_channels_guest_compat.sql"
+if [[ ! -f "$MIGRATION" || ! -f "$FORWARD_MIGRATION" ]]; then
   printf '%s\n' 'FAIL missing tenant-safe message-channel migration' >&2
   exit 1
 fi
@@ -64,6 +65,8 @@ VALUES ('lm_tg_legacy', '123456789', 'Legacy', 'done');
 INSERT INTO public.lm_users(uid, telegram_chat_id, name, tg_onboard_stage)
 VALUES ('lm_tg_empty', '', 'Empty legacy value', 'done');
 INSERT INTO public.lm_users(uid, telegram_chat_id, name, tg_onboard_stage)
+VALUES ('webmcp-guest-0123456789abcdef01234567', 'webmcp-guest-0123456789abcdef01234567', 'WebMCP guest', 'done');
+INSERT INTO public.lm_users(uid, telegram_chat_id, name, tg_onboard_stage)
 VALUES
   ('lm_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', NULL, 'Web A', 'done'),
   ('lm_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', NULL, 'Web B', 'done'),
@@ -73,9 +76,19 @@ SQL
 
 "${PSQL[@]}" -f "$MIGRATION" >/dev/null
 "${PSQL[@]}" -f "$MIGRATION" >/dev/null
+"${PSQL[@]}" -f "$FORWARD_MIGRATION" >/dev/null
+"${PSQL[@]}" -f "$FORWARD_MIGRATION" >/dev/null
+"${PSQL[@]}" >/dev/null <<'SQL'
+INSERT INTO public.lm_users(uid, telegram_chat_id, name, tg_onboard_stage)
+VALUES ('webmcp-guest-0123456789abcdef01234567', 'webmcp-guest-0123456789abcdef01234567', 'WebMCP guest', 'done')
+ON CONFLICT (uid) DO UPDATE SET telegram_chat_id = EXCLUDED.telegram_chat_id;
+SQL
+[[ "$("${PSQL[@]}" -Atqc "SELECT count(*) FROM public.lm_message_channels WHERE sender_id LIKE 'webmcp-guest-%';")" == "0" ]]
 
 [[ "$("${PSQL[@]}" -Atqc "SELECT owner_kind FROM public.lm_message_channels WHERE channel='telegram' AND sender_id='123456789';")" == "legacy" ]]
 [[ "$("${PSQL[@]}" -Atqc "SELECT count(*) FROM public.lm_message_channels WHERE channel='telegram' AND sender_id='';")" == "0" ]]
+[[ "$("${PSQL[@]}" -Atqc "SELECT count(*) FROM public.lm_users WHERE uid='webmcp-guest-0123456789abcdef01234567' AND telegram_chat_id=uid;")" == "1" ]]
+[[ "$("${PSQL[@]}" -Atqc "SELECT count(*) FROM public.lm_message_channels WHERE sender_id LIKE 'webmcp-guest-%';")" == "0" ]]
 [[ "$("${PSQL[@]}" -Atqc "SELECT public.create_lm_web_message_link('lm_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','telegram',repeat('a',64),now()+interval '10 minutes');")" == "t" ]]
 [[ "$("${PSQL[@]}" -Atqc "SELECT public.consume_lm_web_message_link(repeat('a',64),'telegram','987654321');")" == "lm_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" ]]
 [[ -z "$("${PSQL[@]}" -Atqc "SELECT public.consume_lm_web_message_link(repeat('a',64),'telegram','987654321');")" ]]

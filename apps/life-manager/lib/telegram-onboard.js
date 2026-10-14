@@ -133,10 +133,31 @@ async function saveField(uid, patch, supaUrl, supaKey) {
 // a join — it makes the ASK MOMENT the source of truth rather than re-deriving an answer that can
 // drift. Any future handler with the same need should carry it the same way.
 async function rowByChatId(chatId, supaUrl, supaKey) {
-  const response = await fetch(`${supaUrl}/rest/v1/lm_users?telegram_chat_id=eq.${encodeURIComponent(chatId)}&select=${SEL}&limit=1`,
-    { headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}` } });
-  const data = await response.json().catch(() => []);
-  return Array.isArray(data) && data[0] ? data[0] : null;
+  const root = String(supaUrl || "").replace(/\/$/, "");
+  const headers = { apikey: supaKey, Authorization: "Bearer " + supaKey };
+  const channelUrl = new URL(root + "/rest/v1/lm_message_channels");
+  channelUrl.searchParams.set("channel", "eq.telegram");
+  channelUrl.searchParams.set("sender_id", "eq." + String(chatId));
+  channelUrl.searchParams.set("owner_kind", "eq.legacy");
+  channelUrl.searchParams.set("select", "uid,owner_kind");
+  channelUrl.searchParams.set("limit", "2");
+  const channelResponse = await fetch(channelUrl.toString(), { headers });
+  if (!channelResponse.ok) return null;
+  const channels = await channelResponse.json().catch(() => null);
+  if (!Array.isArray(channels) || channels.length !== 1
+    || channels[0].owner_kind !== "legacy" || typeof channels[0].uid !== "string" || !channels[0].uid) return null;
+
+  const userUrl = new URL(root + "/rest/v1/lm_users");
+  userUrl.searchParams.set("uid", "eq." + channels[0].uid);
+  userUrl.searchParams.set("select", SEL);
+  userUrl.searchParams.set("limit", "2");
+  const userResponse = await fetch(userUrl.toString(), { headers });
+  if (!userResponse.ok) return null;
+  const users = await userResponse.json().catch(() => null);
+  if (!Array.isArray(users) || users.length !== 1
+    || users[0].uid !== channels[0].uid
+    || String(users[0].telegram_chat_id) !== String(chatId)) return null;
+  return users[0];
 }
 // notifications_enabled lives in lm_panel_preferences, not lm_users, so it is joined here the same way
 // scheduler.supaUsers does it: ONE batched `uid=in.(...)` query, because this feeds a 2-minute loop and
