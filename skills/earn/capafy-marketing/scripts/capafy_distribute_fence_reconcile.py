@@ -14,8 +14,11 @@ happens after (1). The official readbacks are therefore:
 
   - A landing commit in the window whose live page answers 200 proves the
     effect happened: close as effected (the page URL + commit is the receipt).
-  - No landing commit AND no Postiz X post in the window AND enough time has
-    passed proves no effect: close as no-effect, citing both listings.
+  - No matching landing commit AND no Postiz X post in the window AND enough
+    time has passed proves no effect: close as no-effect, citing both listings.
+  - If the exact pre-effect ENOSPC marker proves the occurrence slot but the
+    manifest was never written, only a Capafy article slug for that slot can
+    conflict; unrelated commits in the shared landing repo do not.
   - Any readback failure, or not enough time yet: stays fenced.
 
 Usage:
@@ -383,9 +386,23 @@ def build_proof(occurrence_id: str, queued_at: dt.datetime, *,
     if not isinstance(commit_rows, list):
         proof["reason"] = "github_readback_malformed"
         return proof
-    matching_commits = (commit_rows if expected_slug is None else [
-        commit for commit in commit_rows if commit.get("slug") == expected_slug
-    ])
+    if expected_slug is not None:
+        matching_commits = [
+            commit for commit in commit_rows if commit.get("slug") == expected_slug
+        ]
+    elif pre_effect is not None:
+        slot = pre_effect.get("slot")
+        if not isinstance(slot, str) or not SLOT_PATTERN.fullmatch(slot):
+            proof["reason"] = "pre_effect_slot_missing_or_malformed"
+            return proof
+        pattern = rf"capafy-[a-z0-9]+(?:-[a-z0-9]+)*-{re.escape(slot)}"
+        matching_commits = [
+            commit for commit in commit_rows
+            if isinstance(commit, dict) and isinstance(commit.get("slug"), str)
+            and re.fullmatch(pattern, commit["slug"])
+        ]
+    else:
+        matching_commits = commit_rows
     for commit in matching_commits:
         if expected_slug is not None and page_status_fn(commit["slug"]) == 200:
             proof.update(verified=True, effected=True,
