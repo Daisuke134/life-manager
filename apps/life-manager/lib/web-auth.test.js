@@ -645,7 +645,13 @@ test("OAuth first touch stores the complete signed Writer CTA identity", async (
   const events = [];
   const funnelEvents = [];
   const database = makeRestFetch();
-  const client = authClient({ events });
+  const client = authClient({
+    events,
+    exchange: async (_code, cookies) => {
+      cookies.setAll([{ name: "lm-web-auth", value: "verified-session", options: { path: "/", httpOnly: true } }]);
+      return { data: { session: { access_token: "verified-session" } }, error: null };
+    },
+  });
   const fixture = authOptions(client, {
     fetch: database.fetch,
     recordWebFunnelEventImpl: async (event) => { funnelEvents.push(event); return true; },
