@@ -39,7 +39,7 @@ publish-remote-status.
      third "Agent ワークスペース" tab appears requiring one click to re-confirm
      the (already re-registered by `publish_prepare.sh`) skill — see
      CP1_AGENTIC.md "Switching an EXISTING agent's hosted model".
-   - 価格設定: "Capafy で実行" → "Subscription" → set Plan 1 cycle + Add Plan ×2 → fill price/cap per cycle → **select a trial choice on EVERY plan (an unselected trial radio silently blocks save): day = No Free Trial, week/month = Enable Free Trial with the target hours/requests from BEST_PRACTICES.md §3, falling back to No Free Trial if the revealed fields do not match.**
+   - 価格設定: "Capafy で実行" → "Subscription" → set Plan 1 cycle + Add Plan ×2 → fill price/cap per cycle → select the exact trial from LISTING on EVERY plan. An unselected trial radio blocks save. If the target is Free Trial, enter its exact hours/requests; if the UI cannot represent the target, do not substitute No Free Trial and do not save/submit. Require `PRICES_MATCH` before saving.
    Required CP1 tab order: 基本情報 → Agent ワークスペース → 価格設定 last. Finish and verify the first two tabs before opening Pricing. After each Add Plan or period change, re-read state and match the card by its visible Period label; never reuse a positional index. After entering 価格設定, do not switch tabs before PRICES_MATCH, save, and confirmation. If you leave 価格設定, re-enter every plan price/cap/trial and daily quota, then rerun PRICES_MATCH.
    - Click **提出を確認**. ★ VERIFY GATE: page must reach `page=card-done` / "カードを保存しました". If still `page=edit`, a required field is empty/invalid — find the red error or empty input and fix; do NOT proceed. ★ `is_confirmed_skills=true` is the CP1 done-gate; the `model` field is verified later, after CP2 (step 9 below), never before.
 7. **Finish through the 0.9.11 submit flow** with
@@ -119,7 +119,7 @@ A brand-new run_online agent (NOT a junk-draft reuse) has CP1 traps the reused-d
 7. Plans: "Add Plan" button label is "Add Plan (1/3)" etc. — match loosely.
 8. ★ AI service provider field (placeholder "例: OpenAI、Anthropic、MiniMax") is REQUIRED ★ → `.type("openrouter.ai")`.
 9. Container mode (On-Demand US$0.07/day vs Cron+On-Demand) — select On-Demand.
-10. ★★ THE FINAL BLOCKER: EVERY plan must have an EXPLICIT trial choice. An unselected trial radio on ANY plan = price-tab red ✗ = 提出を確認 no-ops, with NO red text (only a tab-icon goes red). New skills: day = No Free Trial, week/month = Enable Free Trial per BEST_PRACTICES.md §3 (fall back to No Free Trial for a plan if its revealed fields don't match the target — never block submission on it). ★★
+10. ★★ EVERY plan must have an EXPLICIT trial choice matching LISTING. An unselected trial radio on ANY plan = price-tab red ✗ = 提出を確認 no-ops, with NO red text (only a tab-icon goes red). `PRICES_MATCH` includes trial values. If the LISTING trial target is not matched, do not save or submit; never replace a Free Trial target with No Free Trial. ★★
 11. ★ Validate via the TAB ICON COLOR: find the 価格設定 tab <button>, read its <svg> color — green rgb(61,220,132)=✓ valid, red rgb(229,83,75)=✗ invalid. This is the ONLY reliable "is the tab complete" signal. ★
 12. Success = toast "カードを保存しました" OR url=card-done/credential — never trust the absence of red text.
 

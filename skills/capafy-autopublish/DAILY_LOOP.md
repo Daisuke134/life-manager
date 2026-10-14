@@ -102,6 +102,7 @@ monitoring/deferred work.
       `latest_version.is_confirmed_skills=true`.
       Required CP1 tab order: 基本情報 → Agent ワークスペース → 価格設定 last.
       After each Add Plan or period change, re-read state and match the card by its visible Period label; never reuse a positional index.
+      If the LISTING trial target is not matched, do not save or submit; never replace a Free Trial target with No Free Trial.
       After entering 価格設定, do not switch tabs before PRICES_MATCH, save, and confirmation.
       If you leave 価格設定, re-enter every plan price/cap/trial and daily quota, then rerun PRICES_MATCH.
       Do NOT re-tune coordinates blindly — read the screenshot and decide each click.

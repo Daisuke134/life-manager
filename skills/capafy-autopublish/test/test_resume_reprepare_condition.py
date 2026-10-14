@@ -7,6 +7,7 @@ CP1_ORDER = "Required CP1 tab order: 基本情報 → Agent ワークスペー�
 CP1_STAY_ON_PRICING = "After entering 価格設定, do not switch tabs before PRICES_MATCH, save, and confirmation."
 CP1_RESTORE_AFTER_SWITCH = "If you leave 価格設定, re-enter every plan price/cap/trial and daily quota, then rerun PRICES_MATCH."
 CP1_REANCHOR_AFTER_CARD_CHANGE = "After each Add Plan or period change, re-read state and match the card by its visible Period label; never reuse a positional index."
+CP1_TRIAL_TARGET = "If the LISTING trial target is not matched, do not save or submit; never replace a Free Trial target with No Free Trial."
 
 
 def _pattern():
@@ -70,11 +71,11 @@ def test_cp1_tab_order_is_consistent_across_every_instruction_surface():
     }
     for name, text in surfaces.items():
         normalized = " ".join(text.split())
-        for contract in (CP1_ORDER, CP1_STAY_ON_PRICING, CP1_RESTORE_AFTER_SWITCH, CP1_REANCHOR_AFTER_CARD_CHANGE):
+        for contract in (CP1_ORDER, CP1_STAY_ON_PRICING, CP1_RESTORE_AFTER_SWITCH, CP1_REANCHOR_AFTER_CARD_CHANGE, CP1_TRIAL_TARGET):
             assert " ".join(contract.split()) in normalized, f"{name} missing CP1 contract: {contract}"
 
     # daily_loop.sh injects two distinct prompts: new-version re-prepare and
     # ordinary step 5b. Both must carry the same safe tab-order contract.
     normalized_src = " ".join(SRC.split())
-    for contract in (CP1_ORDER, CP1_STAY_ON_PRICING, CP1_RESTORE_AFTER_SWITCH, CP1_REANCHOR_AFTER_CARD_CHANGE):
+    for contract in (CP1_ORDER, CP1_STAY_ON_PRICING, CP1_RESTORE_AFTER_SWITCH, CP1_REANCHOR_AFTER_CARD_CHANGE, CP1_TRIAL_TARGET):
         assert normalized_src.count(" ".join(contract.split())) == 2, f"daily_loop.sh must include twice: {contract}"
