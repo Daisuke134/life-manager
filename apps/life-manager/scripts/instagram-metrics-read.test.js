@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
-const { EXPECTED, metricPlatform, persistDailyDigest, persistDelayedSnapshot, persistSnapshot, postMetrics } = require("./instagram-metrics-read.js");
+const { EXPECTED, metricPlatform, persistDailyDigest, persistDelayedSnapshot, persistHistoricalCheckpointCorrection, persistSnapshot, postMetrics } = require("./instagram-metrics-read.js");
 
 const html = `<link rel="canonical" href="${EXPECTED.public_url}" /><meta property="og:description" content="0 likes - ${EXPECTED.native_owner}: &quot;強い人の口癖、5つだけ #anicca #セルフケア #習慣 #AI&quot;" />`;
 const postRows = [["Views", 32], ["Reach", 31], ["Saves", 0], ["Likes", 0], ["Comments", 0], ["Shares", 0]].map(([label, total]) => ({ label, data: [{ total: String(total) }] }));
@@ -60,10 +60,10 @@ function writeDdvxhMetricFixture(dataDir, metricRows = null) {
     provider_post_id: "cmui7zo8n0ixho80yybalkhj0",
     shortcode: "DdvxhT1jm8F",
     public_url: "https://www.instagram.com/reel/DdvxhT1jm8F/",
-    published_at: "2026-09-26T10:01:00.000Z",
+    published_at: "2026-09-26T10:02:41.890420Z",
   };
   const metric = {
-    observed_at: "2026-10-03T10:02:54Z", published_at: expected.published_at,
+    observed_at: "2026-10-03T10:02:54Z", published_at: "2026-09-26T10:01:00.000Z",
     product_id: "anicca-ios", platform: "instagram", integration_id: expected.integration_id,
     postiz_id: expected.provider_post_id, native_post_id: "18112495088019182", native_url: expected.public_url,
     target_age_hours: 168, observed_age_hours: 168.0317, checkpoint_status: "measured", checkpoint_sla_status: "in_window",
@@ -74,7 +74,7 @@ function writeDdvxhMetricFixture(dataDir, metricRows = null) {
     source: "postiz_instagram_graph_api",
   };
   const identity = {
-    observed_at: "2026-10-04T09:44:01Z", publish_date: expected.published_at,
+    observed_at: "2026-10-04T09:44:01Z", publish_date: "2026-09-26T10:01:00.000Z",
     account_id: "instagram.anicca_en", platform: "instagram-standalone", product_id: "anicca-ios",
     integration_id: expected.integration_id, postiz_post_id: expected.provider_post_id,
     native_post_id: "18112495088019182", native_post_url: expected.public_url,
@@ -92,6 +92,8 @@ function writeDdvxhMetricFixture(dataDir, metricRows = null) {
 test("a missed 7d snapshot is corrected from one exact measured Postiz checkpoint without rewriting the original", () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-instagram-7d-ledger-correction-"));
   const { expected, metric, missed, missedBytes } = writeDdvxhMetricFixture(dataDir);
+  const historical = persistHistoricalCheckpointCorrection({ dataDir, expected, correctionCreatedAt: "2026-10-14T06:30:00.000Z" });
+  assert.equal(historical.created, true, historical.reason);
   const daily = persistDailyDigest({ dataDir, reportDay: "2026-10-14", observedAt: "2026-10-14T06:30:00.000Z", expected });
   const correctionFile = path.join(path.dirname(missed.file), "7d.correction.json");
   assert.equal(fs.existsSync(correctionFile), true);
@@ -104,6 +106,7 @@ test("a missed 7d snapshot is corrected from one exact measured Postiz checkpoin
   assert.equal(correction.post.impressions.reason, "provider_field_missing");
   assert.equal(correction.post.watch_time.reason, "metric_not_supported");
   assert.equal(correction.post.engagement.percent, 0.18);
+  assert.equal(correction.checkpoint_published_at, "2026-09-26T10:01:00.000Z");
   assert.equal(correction.sources.instagram_native.status, "unavailable");
   assert.equal(correction.sources.postiz_post.status, "measured");
   assert.equal(correction.account_metrics.status, "unavailable");
@@ -121,6 +124,21 @@ test("ambiguous normalized rows do not correct a delayed 7d checkpoint", () => {
   assert.equal(fs.existsSync(path.join(path.dirname(first.missed.file), "7d.correction.json")), false);
   assert.deepEqual(fs.readFileSync(first.missed.file), first.missedBytes);
   assert.equal(daily.snapshot.post.views.status, "unavailable");
+  assert.equal(daily.snapshot.historical_checkpoint_correction, undefined);
+});
+
+test("publication timestamp skew beyond three minutes leaves the delayed checkpoint unavailable", () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-instagram-7d-ledger-skew-"));
+  const { expected, metric, missed, missedBytes } = writeDdvxhMetricFixture(dataDir);
+  const outsideWindow = { ...metric, published_at: "2026-09-26T09:59:00.000Z", observed_age_hours: 168.065 };
+  fs.writeFileSync(path.join(dataDir, "marketing-owner-events", "state", "post-metrics.jsonl"), `${JSON.stringify(outsideWindow)}\n`);
+  const identityFile = path.join(dataDir, "state", "publication-identity.jsonl");
+  const identity = JSON.parse(fs.readFileSync(identityFile, "utf8"));
+  identity.publish_date = outsideWindow.published_at;
+  fs.writeFileSync(identityFile, `${JSON.stringify(identity)}\n`);
+  const daily = persistDailyDigest({ dataDir, reportDay: "2026-10-14", observedAt: "2026-10-14T06:30:00.000Z", expected });
+  assert.equal(fs.existsSync(path.join(path.dirname(missed.file), "7d.correction.json")), false);
+  assert.deepEqual(fs.readFileSync(missed.file), missedBytes);
   assert.equal(daily.snapshot.historical_checkpoint_correction, undefined);
 });
 

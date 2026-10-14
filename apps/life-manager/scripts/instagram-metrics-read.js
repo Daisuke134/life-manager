@@ -28,6 +28,7 @@ function metricPlatform(snapshot) {
 }
 const POST_LABELS = Object.freeze({ Views: "views", Reach: "reach", Saves: "saves", Likes: "likes", Comments: "comments", Shares: "shares" });
 const JSONL_CACHE = new Map();
+const HISTORICAL_PUBLISH_TIMESTAMP_SKEW_MS = 3 * 60_000;
 
 function decodeHtml(value) {
   return String(value).replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
@@ -153,7 +154,15 @@ function persistHistoricalCheckpointCorrection({ dataDir, expected = EXPECTED, c
   const identityCandidates = identityRows.filter((row) => row.product_id === expected.product_id && row.postiz_post_id === expected.provider_post_id);
   if (metricCandidates.length !== 1 || identityCandidates.length !== 1) return { created: false, reason: "historical_metrics_identity_ambiguous" };
   const metric = metricCandidates[0]; const identity = identityCandidates[0];
-  if (metric.native_url !== expected.public_url || metric.published_at !== expected.published_at || metric.integration_id !== expected.integration_id
+  const metricPublishedAt = Date.parse(metric.published_at || "");
+  const expectedPublishedAt = Date.parse(expected.published_at || "");
+  const metricObservedAt = Date.parse(metric.observed_at || "");
+  const measuredAgeHours = (metricObservedAt - metricPublishedAt) / 3600_000;
+  if (!Number.isFinite(metricPublishedAt) || !Number.isFinite(expectedPublishedAt) || !Number.isFinite(metricObservedAt)
+    || metric.published_at !== identity.publish_date
+    || Math.abs(metricPublishedAt - expectedPublishedAt) > HISTORICAL_PUBLISH_TIMESTAMP_SKEW_MS
+    || Math.abs(measuredAgeHours - metric.observed_age_hours) > 0.0001
+    || metric.native_url !== expected.public_url || metric.integration_id !== expected.integration_id
     || metric.source !== "postiz_instagram_graph_api" || metric.checkpoint_status !== "measured"
     || metric.checkpoint_sla_status !== "in_window" || !Number.isFinite(metric.observed_age_hours)
     || metric.observed_age_hours < 168 || metric.observed_age_hours > 169.5
@@ -162,7 +171,7 @@ function persistHistoricalCheckpointCorrection({ dataDir, expected = EXPECTED, c
     || !/^[a-f0-9]{64}$/.test(String(metric.snapshot_id || ""))
     || !/^[a-f0-9]{64}$/.test(String(metric.raw_evidence_hash || ""))) return { created: false, reason: "historical_metrics_row_invalid" };
   if (identity.platform !== "instagram-standalone" || identity.native_post_url !== expected.public_url
-    || identity.publish_date !== expected.published_at || identity.integration_id !== expected.integration_id
+    || identity.publish_date !== metric.published_at || identity.integration_id !== expected.integration_id
     || identity.native_post_id !== metric.native_post_id
     || identity.postiz_state !== "PUBLISHED" || identity.identity_status !== "resolved"
     || identity.resolution_method !== "postiz_provider_native_receipt") return { created: false, reason: "historical_publication_identity_invalid" };
@@ -183,6 +192,7 @@ function persistHistoricalCheckpointCorrection({ dataDir, expected = EXPECTED, c
     schema_version: 1, kind: "instagram_combined_metric_snapshot_correction", ...expected,
     window: "7d", observed_at: metric.observed_at, correction_created_at: correctionCreatedAt,
     correction: true, historical_checkpoint: true,
+    checkpoint_published_at: metric.published_at,
     caption_sha256: crypto.createHash("sha256").update(expected.caption).digest("hex"),
     corrects_source_snapshot_sha256: crypto.createHash("sha256").update(originalBytes).digest("hex"),
     source_snapshot_id: metric.snapshot_id, source_raw_evidence_hash: metric.raw_evidence_hash,

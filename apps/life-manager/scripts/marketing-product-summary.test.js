@@ -198,12 +198,17 @@ test("Anicca daily summary includes @anicca.en current metrics and ignores stale
     public_url: "https://www.instagram.com/reel/MissingDate/", post: { views: { status: "measured", value: 888888 } } });
   writeDaily("anicca.en", "InvalidDate", `${day}.json`, { observed_at: `${day}T10:40:00.000Z`, published_at: "not-a-date", locale: "en", account_id: "@anicca.en",
     public_url: "https://www.instagram.com/reel/InvalidDate/", post: { views: { status: "measured", value: 777777 } } });
+  const currentCorrection = JSON.parse(fs.readFileSync(path.join(dataDir, "tenants/dais-local/marketing/metrics/anicca.en/DdvxhT1jm8F/daily", `${day}.historical.correction.json`), "utf8"));
+  currentCorrection.observed_at = "2026-10-11T09:18:53.023Z";
+  currentCorrection.source_observed_at = currentCorrection.observed_at;
+  currentCorrection.post.views.value = 2300;
+  writeDaily("anicca.en", "DdvxhT1jm8F", `${day}.current.correction.json`, currentCorrection);
 
   const summary = persistAniccaDaily(dataDir, day, "2026-10-11T13:00:00.000Z");
   assert.equal(summary.snapshot.source_refs.length, 3);
   assert.match(summary.snapshot.message, /@anicca\.en Instagram: 現在値/);
   assert.match(summary.snapshot.message, /過去のチェックポイント値ではありません/);
-  assert.match(summary.snapshot.message, /閲覧数 2229.*リーチ 1610.*保存数 3.*いいね 1.*コメント 0.*シェア 0.*エンゲージメント率 0\.18%/);
+  assert.match(summary.snapshot.message, /閲覧数 2300.*リーチ 1610.*保存数 3.*いいね 1.*コメント 0.*シェア 0.*エンゲージメント率 0\.18%/);
   assert.match(summary.snapshot.message, /訂正済み7日checkpoint.*2026-10-03T10:02:54Z/);
   assert.match(summary.snapshot.message, /過去の値.*閲覧数 2229.*2026-10-03.*リーチ 1610.*2026-10-03/);
   assert.match(summary.snapshot.message, /APIでは取得できない項目：表示回数、視聴時間、平均視聴時間、視聴完了率/);

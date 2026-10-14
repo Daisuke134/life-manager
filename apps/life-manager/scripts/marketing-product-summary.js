@@ -18,8 +18,13 @@ function latestDaily(dataDir, owner, reportDay) {
   const reportEnd = Date.parse(`${reportDay}T23:59:59.999+09:00`); const cutoff = reportEnd - 30 * 86400_000; const candidates = [];
   for (const id of fs.readdirSync(root)) {
     const daily = path.join(root, id, "daily"); if (!fs.existsSync(daily)) continue;
-    const file = [`${reportDay}.historical.correction.json`, `${reportDay}.current.correction.json`, `${reportDay}.correction.json`, `${reportDay}.json`].map((name) => path.join(daily, name)).find((candidate) => fs.existsSync(candidate)); if (!file) continue;
-    const snapshot = JSON.parse(fs.readFileSync(file, "utf8")); const publishedAt = Date.parse(snapshot.published_at || "");
+    const rows = [`${reportDay}.current.correction.json`, `${reportDay}.historical.correction.json`, `${reportDay}.correction.json`, `${reportDay}.json`]
+      .map((name) => path.join(daily, name)).filter((candidate) => fs.existsSync(candidate))
+      .map((file) => ({ file, snapshot: JSON.parse(fs.readFileSync(file, "utf8")) }))
+      .filter(({ snapshot }) => Number.isFinite(Date.parse(snapshot.observed_at || "")))
+      .sort((a, b) => Date.parse(b.snapshot.observed_at) - Date.parse(a.snapshot.observed_at));
+    const { file, snapshot } = rows[0] || {}; if (!snapshot) continue;
+    const publishedAt = Date.parse(snapshot.published_at || "");
     if (!Number.isFinite(publishedAt) || publishedAt > reportEnd || publishedAt < cutoff) continue;
     candidates.push({ file, snapshot });
   }
