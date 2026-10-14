@@ -4017,6 +4017,14 @@ LINE Creators Support Programは募集期間が未定。選抜時は支援期間
 
 **To-Be / TODO順更新:** 旧cursorは「07:05 natural article → click/sales readback → 許可済みchannel」。新cursorは「(1) landingの既存dynamic article metadataに、line-sticker slugかつ正規LINE STORE CTAがある時だけproduct-specific share cardを足す（TDDでproduct ID/image/非LINE記事の不変条件を確認） → (2) 07:05 natural set-019 article slotを止めずに公開/CTA/ledgerを照合 → (3) main deploy後にScrapyで公開HTMLのOG/Twitter tagsとLINE画像URLをreadbackし、self-viewをtraffic成果に数えない → (4) 10/16 JSTの公式販売/分配readerと同期間clickを照合 → (5) owner/identity/effect gateを越えた既存Short/SNSの無料配信 → (6) actual winnerへの無料枠再配分・月間gross/payout/cost判定」。理由は、SEO indexability設定とsitemapは既にあるのに公開share cardsが欠け、既存SNS配信にも友だち/フォロワー到達の受け皿が必要だから。OG修正は07:05の自然記事をブロックしない。no paid route・no new SKU。
 
+#### 5.L 既存LINE記事のshare-card改善 — 2026-10-15 06:15 JST（base main 2345448e）
+
+**観測された欠落:** 公開set-018記事のScrapy HTMLにはtitle・description・canonical・robots=index,followがあるが、Open Graph/Twitter card metadataがない。anicca-products main 071836d0のapps/landing/app/blog/[slug]/page.tsxもgenerateMetadataから同項目だけを返す。記事はsitemapにありrobots.txtはAllow:/だが、DuckDuckGoは試した記事queryで結果0件。これはDuckDuckGoの観測だけで、Google等のindexing結果とはみなさない。
+
+**既存素材の利用可否:** LINE STORE公式商品ページ37254973・37253001・37293682のScrapy readbackで、全てog:imageがhttps://stickershop.line-scdn.net/stickershop/v1/product/<ID>/LINEStorePC/main.png?v=1だった。既存記事markdownのLINE STORE CTAからSKU IDを取り出せるため、追加の画像生成・新商品作成なしでsticker別share cardを作れる。Scrapyによる自社記事アクセスはtraffic成果に計上しない。
+
+**To-Be / 追加TODO:** landingのdynamic generateMetadataで、slugがline-sticker-set-*かつ本文に正規https://line.me/S/sticker/<5–12桁ID> CTAがある記事だけ、OG title/description/canonical URL/公式商品main imageとTwitter summary_large_imageを出す。非LINE記事のmetadataは変えない。valid/invalid CTAを分けた最小testを先に追加する。旧順序「07:05自然記事→analytics→他channel」から、(1) share-card実装を進めつつ(2)07:05自然記事を止めず(3)deploy後の公開HTMLでshare tagsを照合(4)10/16 official sales/payoutと同期間clickを照合(5)許可済owner/fenceの無料channelへ広げる、へ追加する。share tags欠落は既存articleの外部共有クリック率を下げうる仮説であり、売上との因果は未計測。
+
 ## 6. 不変の制約
 
 - Ryu room `18211957` へは再送しない。正式納品ボタンは loop から押さない。Ryu は CDP :9223 での手動例外として扱う。
