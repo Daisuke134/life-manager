@@ -1,0 +1,44 @@
+diff --git a/runtime/host/disk_admission.py b/runtime/host/disk_admission.py
+--- a/runtime/host/disk_admission.py
++++ b/runtime/host/disk_admission.py
+@@ -397,6 +397,13 @@
+                 "readback": 0,
+                 "reason": "release_capacity_measurement_failed",
+                 "error_class": type(exc).__name__,
++                "measurement_reason": {
++                    "donor is not a complete immutable runtime": "donor_runtime_invalid",
++                    "dependency manifests changed": "dependency_manifest_changed",
++                    "dependency bundle unavailable": "dependency_bundle_unavailable",
++                    "filesystem allocation unknown": "filesystem_allocation_unknown",
++                    "Git export measurement failed": "git_export_measurement_failed",
++                }.get(str(exc), "unclassified"),
+             }, sort_keys=True, separators=(",", ":")), file=sys.stderr)
+             return 1
+         print(required)
+diff --git a/runtime/host/tests/test_disk_admission.py b/runtime/host/tests/test_disk_admission.py
+--- a/runtime/host/tests/test_disk_admission.py
++++ b/runtime/host/tests/test_disk_admission.py
+@@ -334,3 +334,23 @@
+     finally:
+         donor.chmod(0o755)
+         bundle.chmod(0o755)
++
++
++@pytest.mark.parametrize("message,expected", [
++    ("dependency bundle unavailable", "dependency_bundle_unavailable"),
++    ("fixture-sensitive-value", "unclassified"),
++])
++def test_release_capacity_error_reports_safe_measurement_reason(
++    monkeypatch, tmp_path, capsys, message, expected,
++):
++    guard = load_guard()
++    monkeypatch.setattr(guard, "release_capacity_bytes",
++                        lambda *_args: (_ for _ in ()).throw(ValueError(message)))
++    assert guard.main(["--release-capacity", str(tmp_path), "a" * 40,
++                       str(tmp_path), "node", "npm"]) == 1
++    captured = capsys.readouterr()
++    assert captured.out == ""
++    payload = json.loads(captured.err)
++    assert payload["reason"] == "release_capacity_measurement_failed"
++    assert payload["measurement_reason"] == expected
++    assert "fixture-sensitive-value" not in captured.err

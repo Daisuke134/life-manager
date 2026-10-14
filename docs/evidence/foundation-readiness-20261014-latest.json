@@ -1,0 +1,919 @@
+{
+  "schema_version": "life-manager.foundation-readiness-audit.v1",
+  "scope": "read-only diagnosis and spec/plan update; no implementation or runtime/provider changes",
+  "observed_at": "2026-10-14T14:26:55.569460+00:00",
+  "source_sha": "1d1c0127bca23eb344fb7a6fe388ffe907d4e72f",
+  "planned_patch_source_sha": "13f59bca114e48e284b3b55fee1c1f450c66b2c0",
+  "status_capture": {
+    "start_exact": "not_recorded",
+    "started_after_read_only_probe": "2026-10-14T14:34:47.633652+00:00",
+    "end": "2026-10-14T14:35:56.626200+00:00",
+    "atomic": false,
+    "command": "LIFE_MANAGER_LAUNCHCTL=<current>/bin/launchctl-safe <current>/bin/lm-loop status all --json",
+    "exit_code": 0,
+    "rows_in_status_output": 298,
+    "rows_are_not_capability_count": true
+  },
+  "counts": {
+    "product_capabilities": 18,
+    "registered_jobs": 191
+  },
+  "current_release": {
+    "path": "/Users/anicca/loops/releases/20261014T231804-1d1c0127",
+    "sha": "1d1c0127bca23eb344fb7a6fe388ffe907d4e72f",
+    "observed_at": "2026-10-14T14:41:15.670830+00:00",
+    "common_source_file_proof": {
+      "runtime/loop/central_cleanup.py": {
+        "matches_pinned_main": true,
+        "sha256": "d11a6be22e253766c332711f879ce60b5253ca1edd698a23cb721abde1fc9a59",
+        "mode": "0o555"
+      },
+      "runtime/loop/lm_loop_run.py": {
+        "matches_pinned_main": true,
+        "sha256": "40deb4b809e1584d8abd92316313e63143416023d0ef17e13f8827d71f40790b",
+        "mode": "0o555"
+      }
+    },
+    "whole_release_provenance_audit": "not repeated; owner loaded SHA and two changed source files checked"
+  },
+  "capacity": {
+    "observed_at": "2026-10-14T14:26:55.569460+00:00",
+    "volume": "/System/Volumes/Data",
+    "available_kib": 16289032,
+    "completion_gate": false,
+    "recovery_cause": "not attributed by this audit"
+  },
+  "control_plane_preflight": {
+    "observed_at": "2026-10-14T14:25:01.649079Z",
+    "status": "pass",
+    "uid": 501,
+    "managername": "Aqua",
+    "manageruid": 501,
+    "managerpid": 1,
+    "gui_readback": "pass",
+    "production_mutations": 0
+  },
+  "canonical_foundation_gates": {
+    "F1": "DONE",
+    "F2": "OPEN",
+    "F3": "DONE",
+    "F4": "DONE",
+    "F5": "OPEN",
+    "source": "1d1c0127bca23eb344fb7a6fe388ffe907d4e72f:docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md",
+    "not_readiness_percentage": true
+  },
+  "new_source_atom": {
+    "commit": "dabdc40fa5001abe75161a0e572d4f73bee11b76",
+    "in_pinned_main": true,
+    "changed_files": [
+      "runtime/loop/central_cleanup.py",
+      "runtime/loop/lm_loop_run.py"
+    ],
+    "change": "Git maintenance uses existing bounded child teardown and stdout carries run_binding",
+    "current_release_contains_this_delta": true,
+    "next_action": "existing owner: finish target adoption -> bound new-SHA natural terminal/result; fence has new loaded SHA but prior-SHA PASS, cleanup has prior loaded SHA at status capture",
+    "owner_adoption": {
+      "life-manager-disk-cleanup": {
+        "installed_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+        "event_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+        "last_terminal_result": "pass"
+      },
+      "lm-fence-reconciler": {
+        "installed_release_sha": "1d1c0127bca23eb344fb7a6fe388ffe907d4e72f",
+        "event_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+        "last_terminal_result": "pass"
+      }
+    },
+    "previous_release_contains_this_delta": false
+  },
+  "loops": [
+    {
+      "loop_id": "capafy-distribute-daily",
+      "run_id": "18de6b2e08e47a58-14969",
+      "owner_id": "capafy-distribute-daily",
+      "occurrence_id": "capafy-distribute-daily:18de6b2e08e47a58-14969",
+      "installed_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+      "event_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+      "launchd_state": "loaded-idle",
+      "phase": "report",
+      "exit_code": 75,
+      "error_class": "host_admission_deferred:resource_effect_unknown",
+      "failure_layer": "admission",
+      "effect_status": "unknown",
+      "provider_receipt_id": null,
+      "official_readback_ref": null,
+      "admission_effect_unknown": false,
+      "admission_effect_unknown_occurrences": [],
+      "next_action": "retry_after_eligibility",
+      "evidence_refs": [
+        "lm-loop://capafy-distribute-daily/18de6b2e08e47a58-14969/summary.json"
+      ],
+      "last_terminal_result": "blocked",
+      "current_snapshot": {
+        "installed_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+        "last_exit": "75",
+        "launchd_state": "loaded-idle",
+        "pid": null
+      },
+      "health_clocks": {
+        "last_attempt": "2026-10-14T14:19:39.157243+00:00",
+        "last_effect": "2026-10-14T14:19:07.293330+00:00",
+        "last_receipt": null,
+        "last_success": "2026-10-14T02:01:20.286921+00:00"
+      },
+      "loaded_argv_sha256": "c0814f31d8c220ef57a3ef2fe5d22aee235692849da08f4c04a5fb95b6504e2b",
+      "loaded_env_sha256": "849f926643217755333d6e62540c82cee57748fe27d1d694d233f28211662cdc"
+    },
+    {
+      "loop_id": "capafy-loop-daily",
+      "run_id": "18de6b744c775740-22241",
+      "owner_id": "capafy-loop-daily",
+      "occurrence_id": "capafy-loop-daily:18de6b744c775740-22241",
+      "installed_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+      "event_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+      "launchd_state": "loaded-idle",
+      "phase": "report",
+      "exit_code": 75,
+      "error_class": "host_admission_deferred:resource_effect_unknown",
+      "failure_layer": "admission",
+      "effect_status": "unknown",
+      "provider_receipt_id": null,
+      "official_readback_ref": null,
+      "admission_effect_unknown": false,
+      "admission_effect_unknown_occurrences": [],
+      "next_action": "retry_after_eligibility",
+      "evidence_refs": [
+        "lm-loop://capafy-loop-daily/18de6b744c775740-22241/summary.json"
+      ],
+      "last_terminal_result": "blocked",
+      "current_snapshot": {
+        "installed_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+        "last_exit": "75",
+        "launchd_state": "loaded-idle",
+        "pid": null
+      },
+      "health_clocks": {
+        "last_attempt": "2026-10-14T14:24:12.478243+00:00",
+        "last_effect": "2026-10-14T14:24:09.044773+00:00",
+        "last_receipt": null,
+        "last_success": "2026-10-14T08:55:13.126994+00:00"
+      },
+      "loaded_argv_sha256": "f08cdb79fc78919c9c88a0d206489343995acfc6565359aac6a058ebf355a718",
+      "loaded_env_sha256": "85e481e995f995c1d84a1ee460e7c154ab80d1b843e8206dc02988b2efa4efa8"
+    },
+    {
+      "loop_id": "hf-gig-apply-direct",
+      "run_id": "18de6bffdd676368-38746",
+      "owner_id": "hf-gig-apply-direct",
+      "occurrence_id": "hf-gig-apply-direct:18de6bffdd676368-38746",
+      "installed_release_sha": "5b90b21e6d68f0657b9dec7ac92d5898bab0775c",
+      "event_release_sha": "5b90b21e6d68f0657b9dec7ac92d5898bab0775c",
+      "launchd_state": "loaded-idle",
+      "phase": "report",
+      "exit_code": 75,
+      "error_class": "host_admission_deferred:resource_effect_unknown",
+      "failure_layer": "admission",
+      "effect_status": "unknown",
+      "provider_receipt_id": null,
+      "official_readback_ref": null,
+      "admission_effect_unknown": true,
+      "admission_effect_unknown_occurrences": [
+        "hf-gig-apply-direct:18dadcd76d9c61b0-37711"
+      ],
+      "next_action": "retry_after_eligibility",
+      "evidence_refs": [
+        "lm-loop://hf-gig-apply-direct/18de6bffdd676368-38746/summary.json"
+      ],
+      "last_terminal_result": "blocked",
+      "current_snapshot": {
+        "installed_release_sha": "5b90b21e6d68f0657b9dec7ac92d5898bab0775c",
+        "last_exit": "75",
+        "launchd_state": "loaded-idle",
+        "pid": null
+      },
+      "health_clocks": {
+        "last_attempt": "2026-10-14T14:34:09.437791+00:00",
+        "last_effect": "2026-10-14T14:34:08.472541+00:00",
+        "last_receipt": null,
+        "last_success": "2026-10-03T00:32:40.045125+00:00"
+      },
+      "loaded_argv_sha256": "a8eb4dc73e15e1031ac9b7b3b16d59da4f1855ab5acb014d10df55f908474462",
+      "loaded_env_sha256": "235c1ef77ede4c49ac4371cdecd2edb87ee097d0362c7fa1686414032dbe22dc"
+    },
+    {
+      "loop_id": "hf-gig-paid-direct",
+      "run_id": "18de6c0c7f3e2e68-40837",
+      "owner_id": "hf-gig-paid-direct",
+      "occurrence_id": "hf-gig-paid-direct:18de6c0c7f3e2e68-40837",
+      "installed_release_sha": "277c9202b206339c77d064ced051afd432ae318e",
+      "event_release_sha": "277c9202b206339c77d064ced051afd432ae318e",
+      "launchd_state": "loaded-running",
+      "phase": "report",
+      "exit_code": 75,
+      "error_class": "host_admission_deferred:resource_capacity_busy",
+      "failure_layer": "admission",
+      "effect_status": "not_applicable",
+      "provider_receipt_id": null,
+      "official_readback_ref": null,
+      "admission_effect_unknown": false,
+      "admission_effect_unknown_occurrences": [],
+      "next_action": "retry_after_eligibility",
+      "evidence_refs": [
+        "lm-loop://hf-gig-paid-direct/18de6c0c7f3e2e68-40837/summary.json"
+      ],
+      "last_terminal_result": "blocked",
+      "current_snapshot": {
+        "installed_release_sha": "277c9202b206339c77d064ced051afd432ae318e",
+        "last_exit": "0",
+        "launchd_state": "loaded-running",
+        "pid": "40837"
+      },
+      "health_clocks": {
+        "last_attempt": "2026-10-14T14:35:22.400219+00:00",
+        "last_effect": null,
+        "last_receipt": null,
+        "last_success": "2026-10-14T14:31:47.140665+00:00"
+      },
+      "loaded_argv_sha256": "6fdf44970067984eeca9bea2130c9673ab48c9fa916e21c1f9be25e30dce6ac8",
+      "loaded_env_sha256": "09acd7c2c788dcd406dad47d8570f616eb4d338baf66cc3e3cb9b106d422aed9"
+    },
+    {
+      "loop_id": "hf-gig-storefront-direct",
+      "run_id": "18de6c0f7e3da310-41178",
+      "owner_id": "hf-gig-storefront-direct",
+      "occurrence_id": "hf-gig-storefront-direct:18de6c0f7e3da310-41178",
+      "installed_release_sha": "5b90b21e6d68f0657b9dec7ac92d5898bab0775c",
+      "event_release_sha": "5b90b21e6d68f0657b9dec7ac92d5898bab0775c",
+      "launchd_state": "loaded-running",
+      "phase": "report",
+      "exit_code": 75,
+      "error_class": "host_admission_deferred:resource_effect_unknown",
+      "failure_layer": "admission",
+      "effect_status": "unknown",
+      "provider_receipt_id": null,
+      "official_readback_ref": null,
+      "admission_effect_unknown": true,
+      "admission_effect_unknown_occurrences": [
+        "hf-gig-storefront-direct:18d8d288748508e8-23902"
+      ],
+      "next_action": "retry_after_eligibility",
+      "evidence_refs": [
+        "lm-loop://hf-gig-storefront-direct/18de6c0f7e3da310-41178/summary.json"
+      ],
+      "last_terminal_result": "blocked",
+      "current_snapshot": {
+        "installed_release_sha": "5b90b21e6d68f0657b9dec7ac92d5898bab0775c",
+        "last_exit": "75",
+        "launchd_state": "loaded-running",
+        "pid": "41178"
+      },
+      "health_clocks": {
+        "last_attempt": "2026-10-14T14:35:21.402836+00:00",
+        "last_effect": "2026-10-14T14:35:15.609959+00:00",
+        "last_receipt": null,
+        "last_success": null
+      },
+      "loaded_argv_sha256": "a8eb4dc73e15e1031ac9b7b3b16d59da4f1855ab5acb014d10df55f908474462",
+      "loaded_env_sha256": "d91bf81212decaa57ee42bd47dce39b542e4090cb15469a050ba79c2d264fcc2"
+    },
+    {
+      "loop_id": "life-manager-disk-cleanup",
+      "run_id": "18de6bab65c29638-27165",
+      "owner_id": "life-manager-disk-cleanup",
+      "occurrence_id": "life-manager-disk-cleanup:18de6bab65c29638-27165",
+      "installed_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+      "event_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+      "launchd_state": "loaded-running",
+      "phase": "report",
+      "exit_code": 0,
+      "error_class": null,
+      "failure_layer": "clean",
+      "effect_status": "not_applicable",
+      "provider_receipt_id": null,
+      "official_readback_ref": null,
+      "admission_effect_unknown": false,
+      "admission_effect_unknown_occurrences": [],
+      "next_action": "none",
+      "evidence_refs": [
+        "lm-loop://life-manager-disk-cleanup/18de6bab65c29638-27165/summary.json"
+      ],
+      "last_terminal_result": "pass",
+      "current_snapshot": {
+        "installed_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+        "last_exit": "0",
+        "launchd_state": "loaded-running",
+        "pid": "36117"
+      },
+      "health_clocks": {
+        "last_attempt": "2026-10-14T14:33:00.636371+00:00",
+        "last_effect": null,
+        "last_receipt": null,
+        "last_success": "2026-10-14T14:31:54.554143+00:00"
+      },
+      "loaded_argv_sha256": "97b3615b3f55bac29dd3e7c2d5017a0c98fd2ea239377dbcab94645ec66bbcd6",
+      "loaded_env_sha256": "b7d83aea1f9614b0c78aadbc6c600cbbd2b22eb5081d3f88d373557476f2920d"
+    },
+    {
+      "loop_id": "life-manager-health-observer",
+      "run_id": "18de6bd5617e2860-32830",
+      "owner_id": "life-manager-health-observer",
+      "occurrence_id": "life-manager-health-observer:18de6bd5617e2860-32830",
+      "installed_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+      "event_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+      "launchd_state": "loaded-idle",
+      "phase": "report",
+      "exit_code": 0,
+      "error_class": null,
+      "failure_layer": "clean",
+      "effect_status": "not_applicable",
+      "provider_receipt_id": null,
+      "official_readback_ref": null,
+      "admission_effect_unknown": false,
+      "admission_effect_unknown_occurrences": [],
+      "next_action": "none",
+      "evidence_refs": [
+        "lm-loop://life-manager-health-observer/18de6bd5617e2860-32830/summary.json"
+      ],
+      "last_terminal_result": "pass",
+      "current_snapshot": {
+        "installed_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+        "last_exit": "0",
+        "launchd_state": "loaded-idle",
+        "pid": null
+      },
+      "health_clocks": {
+        "last_attempt": "2026-10-14T14:32:29.879766+00:00",
+        "last_effect": null,
+        "last_receipt": null,
+        "last_success": "2026-10-14T14:32:29.879766+00:00"
+      },
+      "loaded_argv_sha256": "91671529ec30e4bdd1f5de6ef5d895620b66ae26055bef455060631afb5664b4",
+      "loaded_env_sha256": "73941690269b822cbcfad90620837585ca760b6b2961e138507611a4a8bc1f3c"
+    },
+    {
+      "loop_id": "life-manager-recovery-supervisor",
+      "run_id": "18de6bffdd2d92a0-38727",
+      "owner_id": "life-manager-recovery-supervisor",
+      "occurrence_id": "life-manager-recovery-supervisor:18de6bffdd2d92a0-38727",
+      "installed_release_sha": "6455356147c460e226aef3308e07a5fdf7c5711e",
+      "event_release_sha": "6455356147c460e226aef3308e07a5fdf7c5711e",
+      "launchd_state": "loaded-idle",
+      "phase": "report",
+      "exit_code": 0,
+      "error_class": null,
+      "failure_layer": "clean",
+      "effect_status": "not_applicable",
+      "provider_receipt_id": null,
+      "official_readback_ref": null,
+      "admission_effect_unknown": false,
+      "admission_effect_unknown_occurrences": [],
+      "next_action": "none",
+      "evidence_refs": [
+        "lm-loop://life-manager-recovery-supervisor/18de6bffdd2d92a0-38727/summary.json"
+      ],
+      "last_terminal_result": "pass",
+      "current_snapshot": {
+        "installed_release_sha": "6455356147c460e226aef3308e07a5fdf7c5711e",
+        "last_exit": "0",
+        "launchd_state": "loaded-idle",
+        "pid": null
+      },
+      "health_clocks": {
+        "last_attempt": "2026-10-14T14:35:30.523131+00:00",
+        "last_effect": null,
+        "last_receipt": null,
+        "last_success": "2026-10-14T14:34:25.495111+00:00"
+      },
+      "loaded_argv_sha256": "563b08c39d26dececd18c4f397d4aa8bc0a0354cfbe2f7ab3728524a294bd2a6",
+      "loaded_env_sha256": "c43d075376ff8f90c297ff158b39af7466618c17400bafc9abf85cceb6ba37ab"
+    },
+    {
+      "loop_id": "life-manager-release-reconciler",
+      "run_id": "18de65bbc7d25c50-26023",
+      "owner_id": "life-manager-release-reconciler",
+      "occurrence_id": "life-manager-release-reconciler:18de65bbc7d25c50-26023",
+      "installed_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+      "event_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+      "launchd_state": "loaded-running",
+      "phase": "report",
+      "exit_code": 78,
+      "error_class": "storage_write_failed_pre_effect",
+      "failure_layer": "runtime",
+      "effect_status": "not_applicable",
+      "provider_receipt_id": null,
+      "official_readback_ref": null,
+      "admission_effect_unknown": false,
+      "admission_effect_unknown_occurrences": [],
+      "next_action": "retry_after_cleanup",
+      "evidence_refs": [],
+      "last_terminal_result": "fail",
+      "current_snapshot": {
+        "installed_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+        "last_exit": "0",
+        "launchd_state": "loaded-running",
+        "pid": "3267"
+      },
+      "health_clocks": {
+        "last_attempt": "2026-10-14T14:11:10.643590+00:00",
+        "last_effect": null,
+        "last_receipt": null,
+        "last_success": "2026-10-14T12:25:36.130522+00:00"
+      },
+      "loaded_argv_sha256": "96ffc7b37229fed1f1190c9d8272c3425346918c2e2218d7893d321be86dcaf1",
+      "loaded_env_sha256": "d68e6c5e1bb265b908945d24b8df2d256d1d7ef6a6d50826b5131013dad49240"
+    },
+    {
+      "loop_id": "lm-fence-reconciler",
+      "run_id": "18de6b80a8916190-23241",
+      "owner_id": "lm-fence-reconciler",
+      "occurrence_id": "lm-fence-reconciler:18de6b80a8916190-23241",
+      "installed_release_sha": "1d1c0127bca23eb344fb7a6fe388ffe907d4e72f",
+      "event_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+      "launchd_state": "loaded-running",
+      "phase": "report",
+      "exit_code": 0,
+      "error_class": null,
+      "failure_layer": "clean",
+      "effect_status": "not_applicable",
+      "provider_receipt_id": null,
+      "official_readback_ref": null,
+      "admission_effect_unknown": false,
+      "admission_effect_unknown_occurrences": [],
+      "next_action": "none",
+      "evidence_refs": [
+        "lm-loop://lm-fence-reconciler/18de6b80a8916190-23241/summary.json"
+      ],
+      "last_terminal_result": "pass",
+      "current_snapshot": {
+        "installed_release_sha": "1d1c0127bca23eb344fb7a6fe388ffe907d4e72f",
+        "last_exit": "0",
+        "launchd_state": "loaded-running",
+        "pid": "40830"
+      },
+      "health_clocks": {
+        "last_attempt": "2026-10-14T14:35:02.595708+00:00",
+        "last_effect": null,
+        "last_receipt": null,
+        "last_success": "2026-10-14T14:30:16.596894+00:00"
+      },
+      "loaded_argv_sha256": "c4b77b477b5f72e9d48c3c0d8335d0ff5d388a84795a4a917e10ebc7b27c79c4",
+      "loaded_env_sha256": "8e1faff436db32611e77cc821d24d8bc836c707e8ae5fcf2e4c02a73a1049adf"
+    }
+  ],
+  "diagnostic_limits": [
+    "loaded-running does not imply successful business work",
+    "latest terminal and current PID/attempt may refer to different wakes",
+    "official business outcomes and settled revenue were not refreshed",
+    "historical unbound stdout and stale receipts are not current occurrence proof",
+    "health observer entrypoint_exit_1 requires exact current occurrence stderr/classifier diagnostics before assigning a cause",
+    "Capafy latest terminal blocked and empty current admission list are different observations; no subsequent provider success was observed"
+  ],
+  "readiness": {
+    "start_all_capabilities": "not_ready",
+    "clean_device_chatgpt_only_end_to_end": "not_proven",
+    "common_fix_solves_all": "false",
+    "safe_existing_lanes": "retain existing owner/cadence/fence; no extra manual wakes",
+    "next_order": "existing shared cleanup source adoption/bound natural result -> measured producer lifecycle -> F2 official closure -> F5 three natural roundtrips; then selected business repairs"
+  },
+  "production_mutations": 0,
+  "provider_calls": 0,
+  "auth_calls": 0,
+  "fence_releases": 0,
+  "provider_replays": 0,
+  "followup_diagnostics": {
+    "status_attempt": {
+      "ended_at": "2026-10-14T14:29:15.496755+00:00",
+      "exit_code": 1,
+      "result": {
+        "detail": "database is locked",
+        "error": "admission_fence_read_failed",
+        "error_class": "admission_database_locked",
+        "next_action": "retry_admission_read",
+        "ok": false,
+        "retryable": true
+      },
+      "fleet_rows_replaced": false
+    },
+    "read_only_admission_probe": {
+      "at": "2026-10-14T14:34:47.633652+00:00",
+      "probe": "read-only SQLite journal/schema",
+      "database": "/Users/anicca/.local/state/life-manager/host-admission/resources/admission-v2.sqlite3",
+      "exists": true,
+      "timeout_seconds": 0.2,
+      "writes": 0,
+      "journal_mode": "delete",
+      "table_count": 6,
+      "ok": true
+    },
+    "root_cause": "contention at admission-fence read; exact writer/query window not attributed; transient read-only probe succeeded",
+    "mutations": 0,
+    "status_retried_after_probe": {
+      "exit_code": 0,
+      "ended_at": "2026-10-14T14:35:56.626200+00:00",
+      "fleet_rows_replaced": true
+    }
+  },
+  "independent_fact_review": {
+    "agent": "foundation_readiness_fact_review",
+    "status": "PASS",
+    "scope": "original and followup ten status rows, 23 fields per row; four readiness/source/terminal claims; latest current two-file byte match",
+    "required_corrections": [],
+    "not_reexecuted": [
+      "capacity measurement",
+      "preflight",
+      "read-only DB probe connection",
+      "provider outcomes",
+      "new-device E2E"
+    ],
+    "followup_status": "PASS"
+  },
+  "status_capture_previous": {
+    "start": "2026-10-14T14:14:22Z",
+    "end": "2026-10-14T14:17:37.492259+00:00",
+    "atomic": false,
+    "command": "LIFE_MANAGER_LAUNCHCTL=<current>/bin/launchctl-safe <current>/bin/lm-loop status all --json",
+    "exit_code": 0,
+    "rows_in_status_output": 298,
+    "rows_are_not_capability_count": true
+  },
+  "loops_previous": [
+    {
+      "loop_id": "capafy-distribute-daily",
+      "run_id": "18de67e7c0794760-45721",
+      "owner_id": "capafy-distribute-daily",
+      "occurrence_id": "capafy-distribute-daily:18de67e7c0794760-45721",
+      "installed_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+      "event_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+      "launchd_state": "loaded-idle",
+      "phase": "report",
+      "exit_code": 78,
+      "error_class": "storage_write_failed_pre_effect",
+      "failure_layer": "runtime",
+      "effect_status": "not_applicable",
+      "provider_receipt_id": null,
+      "official_readback_ref": null,
+      "admission_effect_unknown": true,
+      "admission_effect_unknown_occurrences": [
+        "capafy-distribute-daily:18de64e634175888-16074"
+      ],
+      "next_action": "retry_after_cleanup",
+      "evidence_refs": [],
+      "last_terminal_result": "fail",
+      "current_snapshot": {
+        "installed_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+        "last_exit": "0",
+        "launchd_state": "loaded-idle",
+        "pid": null
+      },
+      "health_clocks": {
+        "last_attempt": "2026-10-14T13:19:06.822649+00:00",
+        "last_effect": "2026-10-14T12:24:01.636864+00:00",
+        "last_receipt": null,
+        "last_success": "2026-10-14T02:01:20.286921+00:00"
+      },
+      "loaded_argv_sha256": "c0814f31d8c220ef57a3ef2fe5d22aee235692849da08f4c04a5fb95b6504e2b",
+      "loaded_env_sha256": "fdcf075783c23d37c310796f7c6d96eb77648432d34a2559b01e195b1c778d7d"
+    },
+    {
+      "loop_id": "capafy-loop-daily",
+      "run_id": "18de65b93551bf08-25739",
+      "owner_id": "capafy-loop-daily",
+      "occurrence_id": "capafy-loop-daily:18de65b93551bf08-25739",
+      "installed_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+      "event_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+      "launchd_state": "loaded-idle",
+      "phase": "report",
+      "exit_code": 75,
+      "error_class": "host_admission_deferred:resource_effect_unknown",
+      "failure_layer": "admission",
+      "effect_status": "unknown",
+      "provider_receipt_id": null,
+      "official_readback_ref": null,
+      "admission_effect_unknown": true,
+      "admission_effect_unknown_occurrences": [
+        "capafy-loop-daily:18de64e8635b7af0-16265"
+      ],
+      "next_action": "retry_after_eligibility",
+      "evidence_refs": [
+        "lm-loop://capafy-loop-daily/18de65b93551bf08-25739/summary.json"
+      ],
+      "last_terminal_result": "blocked",
+      "current_snapshot": {
+        "installed_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+        "last_exit": "0",
+        "launchd_state": "loaded-idle",
+        "pid": null
+      },
+      "health_clocks": {
+        "last_attempt": "2026-10-14T12:39:08.329509+00:00",
+        "last_effect": "2026-10-14T12:39:07.905401+00:00",
+        "last_receipt": null,
+        "last_success": "2026-10-14T08:55:13.126994+00:00"
+      },
+      "loaded_argv_sha256": "f08cdb79fc78919c9c88a0d206489343995acfc6565359aac6a058ebf355a718",
+      "loaded_env_sha256": "33bb6a21166cd59a62f7ce8750da60c81bad46aa5fe558bf19ab4890473f8a0c"
+    },
+    {
+      "loop_id": "hf-gig-apply-direct",
+      "run_id": "18de6ae7e3978218-7863",
+      "owner_id": "hf-gig-apply-direct",
+      "occurrence_id": "hf-gig-apply-direct:18de6ae7e3978218-7863",
+      "installed_release_sha": "5b90b21e6d68f0657b9dec7ac92d5898bab0775c",
+      "event_release_sha": "5b90b21e6d68f0657b9dec7ac92d5898bab0775c",
+      "launchd_state": "loaded-idle",
+      "phase": "report",
+      "exit_code": 75,
+      "error_class": "host_admission_deferred:resource_effect_unknown",
+      "failure_layer": "admission",
+      "effect_status": "unknown",
+      "provider_receipt_id": null,
+      "official_readback_ref": null,
+      "admission_effect_unknown": true,
+      "admission_effect_unknown_occurrences": [
+        "hf-gig-apply-direct:18dadcd76d9c61b0-37711"
+      ],
+      "next_action": "retry_after_eligibility",
+      "evidence_refs": [
+        "lm-loop://hf-gig-apply-direct/18de6ae7e3978218-7863/summary.json"
+      ],
+      "last_terminal_result": "blocked",
+      "current_snapshot": {
+        "installed_release_sha": "5b90b21e6d68f0657b9dec7ac92d5898bab0775c",
+        "last_exit": "75",
+        "launchd_state": "loaded-idle",
+        "pid": null
+      },
+      "health_clocks": {
+        "last_attempt": "2026-10-14T14:14:32.484765+00:00",
+        "last_effect": "2026-10-14T14:14:06.033754+00:00",
+        "last_receipt": null,
+        "last_success": "2026-10-03T00:32:40.045125+00:00"
+      },
+      "loaded_argv_sha256": "a8eb4dc73e15e1031ac9b7b3b16d59da4f1855ab5acb014d10df55f908474462",
+      "loaded_env_sha256": "a1c8ba1b7e419fcb5109f91de6865963ace9ce8408f6e83ab040e51ef7db7634"
+    },
+    {
+      "loop_id": "hf-gig-paid-direct",
+      "run_id": "18de6af6f2a60248-8767",
+      "owner_id": "hf-gig-paid-direct",
+      "occurrence_id": "hf-gig-paid-direct:18de6af6f2a60248-8767",
+      "installed_release_sha": "277c9202b206339c77d064ced051afd432ae318e",
+      "event_release_sha": "277c9202b206339c77d064ced051afd432ae318e",
+      "launchd_state": "loaded-running",
+      "phase": "report",
+      "exit_code": 75,
+      "error_class": "host_admission_deferred:resource_capacity_busy",
+      "failure_layer": "admission",
+      "effect_status": "not_applicable",
+      "provider_receipt_id": null,
+      "official_readback_ref": null,
+      "admission_effect_unknown": true,
+      "admission_effect_unknown_occurrences": [
+        "hf-gig-paid-direct:18de6ab8d50e1a10-1326"
+      ],
+      "next_action": "retry_after_eligibility",
+      "evidence_refs": [
+        "lm-loop://hf-gig-paid-direct/18de6af6f2a60248-8767/summary.json"
+      ],
+      "last_terminal_result": "blocked",
+      "current_snapshot": {
+        "installed_release_sha": "277c9202b206339c77d064ced051afd432ae318e",
+        "last_exit": "0",
+        "launchd_state": "loaded-running",
+        "pid": "8767"
+      },
+      "health_clocks": {
+        "last_attempt": "2026-10-14T14:15:41.143821+00:00",
+        "last_effect": null,
+        "last_receipt": null,
+        "last_success": "2026-10-14T14:12:38.185799+00:00"
+      },
+      "loaded_argv_sha256": "6fdf44970067984eeca9bea2130c9673ab48c9fa916e21c1f9be25e30dce6ac8",
+      "loaded_env_sha256": "abc82664ac589f207508c840b582e34c3505a6c113f1333069a8d542abcec8a1"
+    },
+    {
+      "loop_id": "hf-gig-storefront-direct",
+      "run_id": "18de6af5c4631660-8718",
+      "owner_id": "hf-gig-storefront-direct",
+      "occurrence_id": "hf-gig-storefront-direct:18de6af5c4631660-8718",
+      "installed_release_sha": "5b90b21e6d68f0657b9dec7ac92d5898bab0775c",
+      "event_release_sha": "5b90b21e6d68f0657b9dec7ac92d5898bab0775c",
+      "launchd_state": "loaded-running",
+      "phase": "report",
+      "exit_code": 75,
+      "error_class": "host_admission_deferred:resource_effect_unknown",
+      "failure_layer": "admission",
+      "effect_status": "unknown",
+      "provider_receipt_id": null,
+      "official_readback_ref": null,
+      "admission_effect_unknown": true,
+      "admission_effect_unknown_occurrences": [
+        "hf-gig-storefront-direct:18d8d288748508e8-23902"
+      ],
+      "next_action": "retry_after_eligibility",
+      "evidence_refs": [
+        "lm-loop://hf-gig-storefront-direct/18de6af5c4631660-8718/summary.json"
+      ],
+      "last_terminal_result": "blocked",
+      "current_snapshot": {
+        "installed_release_sha": "5b90b21e6d68f0657b9dec7ac92d5898bab0775c",
+        "last_exit": "75",
+        "launchd_state": "loaded-running",
+        "pid": "8718"
+      },
+      "health_clocks": {
+        "last_attempt": "2026-10-14T14:15:32.359422+00:00",
+        "last_effect": "2026-10-14T14:15:05.654700+00:00",
+        "last_receipt": null,
+        "last_success": null
+      },
+      "loaded_argv_sha256": "a8eb4dc73e15e1031ac9b7b3b16d59da4f1855ab5acb014d10df55f908474462",
+      "loaded_env_sha256": "41a447ce80cd80e3f336a8370d47e55cb8f4f0c6389678c1ef2ebf2b98a799ce"
+    },
+    {
+      "loop_id": "life-manager-disk-cleanup",
+      "run_id": "18de65ac41c6ec20-25260",
+      "owner_id": "life-manager-disk-cleanup",
+      "occurrence_id": "life-manager-disk-cleanup:18de65ac41c6ec20-25260",
+      "installed_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+      "event_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+      "launchd_state": "loaded-running",
+      "phase": "report",
+      "exit_code": 78,
+      "error_class": "storage_write_failed_pre_effect",
+      "failure_layer": "runtime",
+      "effect_status": "not_applicable",
+      "provider_receipt_id": null,
+      "official_readback_ref": null,
+      "admission_effect_unknown": false,
+      "admission_effect_unknown_occurrences": [],
+      "next_action": "retry_after_cleanup",
+      "evidence_refs": [],
+      "last_terminal_result": "fail",
+      "current_snapshot": {
+        "installed_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+        "last_exit": "0",
+        "launchd_state": "loaded-running",
+        "pid": "7036"
+      },
+      "health_clocks": {
+        "last_attempt": "2026-10-14T14:13:07.172244+00:00",
+        "last_effect": null,
+        "last_receipt": null,
+        "last_success": "2026-10-14T12:19:58.314085+00:00"
+      },
+      "loaded_argv_sha256": "97b3615b3f55bac29dd3e7c2d5017a0c98fd2ea239377dbcab94645ec66bbcd6",
+      "loaded_env_sha256": "79e922aaf262efa40d0e190c9b74ec1d00e5ddc9318b79f0f5e5f236714124f6"
+    },
+    {
+      "loop_id": "life-manager-health-observer",
+      "run_id": "18de6abf09f103e0-3380",
+      "owner_id": "life-manager-health-observer",
+      "occurrence_id": "life-manager-health-observer:18de6abf09f103e0-3380",
+      "installed_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+      "event_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+      "launchd_state": "loaded-running",
+      "phase": "report",
+      "exit_code": 1,
+      "error_class": "entrypoint_exit_1",
+      "failure_layer": "entrypoint",
+      "effect_status": "not_applicable",
+      "provider_receipt_id": null,
+      "official_readback_ref": null,
+      "admission_effect_unknown": false,
+      "admission_effect_unknown_occurrences": [],
+      "next_action": "reconcile_owner",
+      "evidence_refs": [
+        "lm-loop://life-manager-health-observer/18de6abf09f103e0-3380/summary.json"
+      ],
+      "last_terminal_result": "fail",
+      "current_snapshot": {
+        "installed_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+        "last_exit": "0",
+        "launchd_state": "loaded-running",
+        "pid": "3380"
+      },
+      "health_clocks": {
+        "last_attempt": "2026-10-14T14:14:33.877847+00:00",
+        "last_effect": null,
+        "last_receipt": null,
+        "last_success": "2026-10-14T12:21:46.396080+00:00"
+      },
+      "loaded_argv_sha256": "91671529ec30e4bdd1f5de6ef5d895620b66ae26055bef455060631afb5664b4",
+      "loaded_env_sha256": "58c151c58cde860e476f4e2bd5913087532df5553d37662697457692c6922ccb"
+    },
+    {
+      "loop_id": "life-manager-recovery-supervisor",
+      "run_id": "18de6ad8b7b3eb50-6829",
+      "owner_id": "life-manager-recovery-supervisor",
+      "occurrence_id": "life-manager-recovery-supervisor:18de6ad8b7b3eb50-6829",
+      "installed_release_sha": "6455356147c460e226aef3308e07a5fdf7c5711e",
+      "event_release_sha": "6455356147c460e226aef3308e07a5fdf7c5711e",
+      "launchd_state": "loaded-running",
+      "phase": "report",
+      "exit_code": 0,
+      "error_class": null,
+      "failure_layer": "clean",
+      "effect_status": "not_applicable",
+      "provider_receipt_id": null,
+      "official_readback_ref": null,
+      "admission_effect_unknown": false,
+      "admission_effect_unknown_occurrences": [],
+      "next_action": "none",
+      "evidence_refs": [
+        "lm-loop://life-manager-recovery-supervisor/18de6ad8b7b3eb50-6829/summary.json"
+      ],
+      "last_terminal_result": "pass",
+      "current_snapshot": {
+        "installed_release_sha": "6455356147c460e226aef3308e07a5fdf7c5711e",
+        "last_exit": "0",
+        "launchd_state": "loaded-running",
+        "pid": "9193"
+      },
+      "health_clocks": {
+        "last_attempt": "2026-10-14T14:13:35.803567+00:00",
+        "last_effect": null,
+        "last_receipt": null,
+        "last_success": "2026-10-14T14:13:35.803567+00:00"
+      },
+      "loaded_argv_sha256": "563b08c39d26dececd18c4f397d4aa8bc0a0354cfbe2f7ab3728524a294bd2a6",
+      "loaded_env_sha256": "3efc86684eecd75bf64b8ed10008b8d8650b6dbb10b149bf10bf6b6f5423c8d0"
+    },
+    {
+      "loop_id": "life-manager-release-reconciler",
+      "run_id": "18de65bbc7d25c50-26023",
+      "owner_id": "life-manager-release-reconciler",
+      "occurrence_id": "life-manager-release-reconciler:18de65bbc7d25c50-26023",
+      "installed_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+      "event_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+      "launchd_state": "loaded-running",
+      "phase": "report",
+      "exit_code": 78,
+      "error_class": "storage_write_failed_pre_effect",
+      "failure_layer": "runtime",
+      "effect_status": "not_applicable",
+      "provider_receipt_id": null,
+      "official_readback_ref": null,
+      "admission_effect_unknown": false,
+      "admission_effect_unknown_occurrences": [],
+      "next_action": "retry_after_cleanup",
+      "evidence_refs": [],
+      "last_terminal_result": "fail",
+      "current_snapshot": {
+        "installed_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+        "last_exit": "0",
+        "launchd_state": "loaded-running",
+        "pid": "3267"
+      },
+      "health_clocks": {
+        "last_attempt": "2026-10-14T14:11:10.643590+00:00",
+        "last_effect": null,
+        "last_receipt": null,
+        "last_success": "2026-10-14T12:25:36.130522+00:00"
+      },
+      "loaded_argv_sha256": "96ffc7b37229fed1f1190c9d8272c3425346918c2e2218d7893d321be86dcaf1",
+      "loaded_env_sha256": "d68e6c5e1bb265b908945d24b8df2d256d1d7ef6a6d50826b5131013dad49240"
+    },
+    {
+      "loop_id": "lm-fence-reconciler",
+      "run_id": "18de6581789f5e88-22881",
+      "owner_id": "lm-fence-reconciler",
+      "occurrence_id": "lm-fence-reconciler:18de6581789f5e88-22881",
+      "installed_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+      "event_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+      "launchd_state": "loaded-running",
+      "phase": "report",
+      "exit_code": 78,
+      "error_class": "storage_write_failed_pre_effect",
+      "failure_layer": "runtime",
+      "effect_status": "not_applicable",
+      "provider_receipt_id": null,
+      "official_readback_ref": null,
+      "admission_effect_unknown": false,
+      "admission_effect_unknown_occurrences": [],
+      "next_action": "retry_after_cleanup",
+      "evidence_refs": [],
+      "last_terminal_result": "fail",
+      "current_snapshot": {
+        "installed_release_sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+        "last_exit": "0",
+        "launchd_state": "loaded-running",
+        "pid": "8777"
+      },
+      "health_clocks": {
+        "last_attempt": "2026-10-14T14:15:08.972160+00:00",
+        "last_effect": null,
+        "last_receipt": null,
+        "last_success": "2026-10-14T12:18:48.733980+00:00"
+      },
+      "loaded_argv_sha256": "c4b77b477b5f72e9d48c3c0d8335d0ff5d388a84795a4a917e10ebc7b27c79c4",
+      "loaded_env_sha256": "6b5af5e92a3c0ce79c8fd7ecce23841a088be71dabc6c552b2889855b940fea4"
+    }
+  ],
+  "previous_current_release": {
+    "path": "/Users/anicca/loops/releases/20261014T202446-dfb8213c",
+    "sha": "dfb8213c4a51dcbc74d925d4ee8ee136a1978e64",
+    "latest_path_observed_at": "2026-10-14T14:39:09.076722+00:00",
+    "latest_path": "/Users/anicca/loops/releases/20261014T231804-1d1c0127"
+  }
+}
