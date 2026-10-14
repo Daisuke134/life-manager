@@ -4039,6 +4039,14 @@ LINE Creators Support Programは募集期間が未定。選抜時は支援期間
 
 **TODO順更新:** 旧cursor=`10/15 07:05 set-019 natural article`。新cursor=`(1) 07:23 natural item-status readbackを待ち、売上snapshotがdaily gateでskipされる場合はsales.jsonの古さを保つ → (2) 08:05 natural free article slotで次の未掲載既存SKUを1件出し、公開URL・CTA・ledgerを照合 → (3) crawler/self-viewを除外して記事流入・LINEクリックを同期間で観測 → (4) 10/16 JSTの次のsales/payout gateで40 IDsを公式readbackし、nullを未知のまま保持 → (5) 専用YouTube identity/profile/live leaseが整ってから既存set-011 Shortを無料配信 → (6) Instagram/Threadsの10/10 effect fenceは公式readbackだけで解決し、再送しない → (7) qualified clickと公式販売で実測winnerを選び、無料配信枠を寄せる → (8) gross sales・確定分配・確認済み制作/配信費を同期間で照合し、USD 10,000目標を判定`。現在cursorはitem 1。理由: set-019は初めての07:05記事として公開・CTA・share cardまで確認できたが、同期間click/saleはまだ観測されず、当日sales gateも更新されていない。公開viewやcrawler hitを売上の代替にしない。
 
+#### 5.L Natural item-status readback and next cursor — 2026-10-15 07:39 JST（base main `269e9d14`）
+
+**07:23 natural reader:** occurrence `line-sticker-readback-hourly:18de85a456538910-93728` on release `222d1e18` ended at 07:37:58 JST with terminal `pass` / exit 0 / effect `none/not_applicable`. During this occurrence, `readback.jsonl` gained 40 distinct product IDs: 36 `販売中`, 1 `審査中`, 1 `リジェクト`, 2 `審査待ち`. This is item-status evidence, not a purchase or payout. Provider receipt/readback refs are null.
+
+`sales.json` remains the 10/15 00:28:49 JST snapshot (40 IDs, 29 numeric totaling ¥0, 11 null); the same-day daily gate did not refresh it. No positive sale is verified.
+
+**TODO順更新:** 旧cursor=`07:23 natural item-status readback`。新cursor=`(1) 07:23 reader完了、40 product IDsのstatusを更新 → (2) 08:05 natural free article slotで次の未掲載既存SKUを配信し、公開URL・CTA・ledgerを照合 → (3) crawler/self-viewを除外して記事流入・LINEクリックを同期間で観測 → (4) 10/16 JSTのsales/payout gateで40 IDsを公式readbackし、nullを未知のまま保持 → (5) 専用YouTube identity/profile/live leaseが整ってから既存set-011 Shortを無料配信 → (6) Instagram/Threadsの10/10 effect fenceは公式readbackだけで解決し、再送しない → (7) qualified clickと公式販売で実測winnerを選び、無料配信枠を寄せる → (8) gross sales・確定分配・確認済み制作/配信費を同期間で照合し、USD 10,000目標を判定`。現在cursorはitem 2。販売状態だけでは売上を推定しない。
+
 ## 6. 不変の制約
 
 - Ryu room `18211957` へは再送しない。正式納品ボタンは loop から押さない。Ryu は CDP :9223 での手動例外として扱う。
