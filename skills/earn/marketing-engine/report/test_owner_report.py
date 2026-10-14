@@ -395,7 +395,8 @@ class OwnerReportRendererTest(unittest.TestCase):
         event = self.event("action", "anicca-ios")
         text = owner_report.render_japanese(event)
         self.assertEqual(event["product_id"], "anicca-ios")
-        self.assertIn("anicca-ios", text)
+        self.assertIn("Anicca iOS", text)
+        self.assertNotIn("anicca-ios", text)
         self.assertIn(NATIVE_URL, text)
 
     def test_action_replay_is_stable_when_attribution_snapshot_appended(self):
@@ -980,8 +981,11 @@ class OwnerReportRendererTest(unittest.TestCase):
     def test_portfolio_weekly_contains_each_product_once(self):
         event = self.event("portfolio_weekly")
         text = owner_report.render_japanese(event)
-        for product_id in PRODUCTS:
-            self.assertEqual(text.count(product_id), 1, product_id)
+        for product_name in (
+            "Anicca iOS", "Honne", "BreathCalm", "SleepRitual",
+            "Desk Stretch Timer", "Micro-Mood", "日本語電子書籍", "英語電子書籍",
+        ):
+            self.assertEqual(text.count(product_name), 1, product_name)
 
     def test_portfolio_weekly_sums_revenue_28d_and_installs_28d_across_products(self):
         event = self.event("portfolio_weekly")
@@ -1039,6 +1043,25 @@ class OwnerReportRendererTest(unittest.TestCase):
         self.assertIn("0.0", honne)
         self.assertIn("42", checkpoint)
         self.assertIn("50", checkpoint)
+
+    def test_checkpoint_copy_is_natural_and_hides_internal_evidence(self):
+        event = self.event("checkpoint", "anicca-ios")
+        event["facts"].update({
+            "platform": "tiktok",
+            "target_age_hours": 24,
+            "checkpoint_status": "measured",
+            "views": 481,
+            "impressions": None,
+            "native_url": NATIVE_URL,
+        })
+        text = owner_report.render_japanese(event)
+        self.assertIn("Anicca iOS", text)
+        self.assertIn("TikTok", text)
+        self.assertIn("閲覧数 481", text)
+        self.assertIn("表示回数は取得できませんでした", text)
+        self.assertIn(NATIVE_URL, text)
+        for machine_field in ("None", "anicca-ios", "message_key=", "evidence_refs=", "object://sha256/", "確認情報"):
+            self.assertNotIn(machine_field, text)
 
     def test_openclaw_legacy_state_is_never_read(self):
         legacy = self.root / ".openclaw" / "state" / "content-library"
@@ -1108,46 +1131,37 @@ class OwnerReportRendererTest(unittest.TestCase):
         self.assertFalse(delivery_path.exists())
         client.from_env.assert_not_called()
 
-    def test_send_text_uses_cloud_bot_token_without_changing_chat_target(self):
+    def test_send_text_uses_exact_local_credential_not_hosted_alias(self):
         import owner_report_cli
 
+        credentials = self.root / "credentials.json"
+        credentials.write_text(json.dumps({"credentials": [
+            {"service": "telegram-life-manager", "bot_token": "local-token", "chat_id": "local-chat"},
+            {"service": "telegram-cloud-life-manager", "bot_token": "cloud-token", "chat_id": "cloud-chat"},
+        ]}) + "\n", encoding="utf-8")
         client = mock.Mock()
         with (
-            mock.patch.dict(os.environ, {"LM_TELEGRAM_BOT_TOKEN": "cloud-token"}),
-            mock.patch.object(owner_report_cli, "TELEGRAM_TARGET", "report-chat"),
-            mock.patch.object(
-                owner_report_cli.TelegramClient, "from_env", return_value=client
-            ) as from_env,
+            mock.patch.object(owner_report_cli, "CREDENTIALS_FILE", credentials, create=True),
+            mock.patch.dict(os.environ, {"LM_TELEGRAM_BOT_TOKEN": "cloud-token", "MKT_TELEGRAM_TARGET": "cloud-chat"}, clear=True),
+            mock.patch.object(owner_report_cli.TelegramClient, "from_env", return_value=client) as from_env,
         ):
             owner_report_cli._send_text("checkpoint")
 
         environ = from_env.call_args.kwargs.get("environ", {})
-        self.assertEqual(environ.get("TELEGRAM_BOT_TOKEN"), "cloud-token")
-        client.send_text.assert_called_once_with(
-            "checkpoint", chat_id="report-chat"
-        )
+        self.assertEqual(environ.get("TELEGRAM_BOT_TOKEN"), "local-token")
+        self.assertEqual(environ.get("TELEGRAM_CHAT_ID"), "local-chat")
+        client.send_text.assert_called_once_with("checkpoint", chat_id="local-chat")
 
-    def test_cloud_bot_token_reads_global_env_without_printing_it(self):
+    def test_send_text_fails_closed_when_only_cloud_credential_exists(self):
         import owner_report_cli
 
-        global_env = self.root / "global.env"
-        global_env.write_text("export LM_TELEGRAM_BOT_TOKEN='cloud-token'\n")
+        credentials = self.root / "credentials.json"
+        credentials.write_text(json.dumps({"credentials": [
+            {"service": "telegram-cloud-life-manager", "bot_token": "cloud-token", "chat_id": "cloud-chat"},
+        ]}) + "\n", encoding="utf-8")
         with (
-            mock.patch.object(owner_report_cli, "CLOUD_BOT_ENV_FILE", global_env),
-            mock.patch.dict(os.environ, {"LM_TELEGRAM_BOT_TOKEN": ""}),
-        ):
-            token = owner_report_cli._cloud_bot_token()
-
-        self.assertEqual(token, "cloud-token")
-
-    def test_send_text_fails_closed_when_cloud_bot_token_is_missing(self):
-        import owner_report_cli
-
-        with (
-            mock.patch.object(
-                owner_report_cli, "CLOUD_BOT_ENV_FILE", self.root / "missing.env"
-            ),
-            mock.patch.dict(os.environ, {"LM_TELEGRAM_BOT_TOKEN": ""}),
+            mock.patch.object(owner_report_cli, "CREDENTIALS_FILE", credentials, create=True),
+            mock.patch.dict(os.environ, {"LM_TELEGRAM_BOT_TOKEN": "cloud-token", "MKT_TELEGRAM_TARGET": "cloud-chat"}, clear=True),
             mock.patch.object(owner_report_cli.TelegramClient, "from_env") as from_env,
         ):
             with self.assertRaises(owner_report_cli.TelegramError):
@@ -1692,7 +1706,7 @@ class OwnerReportRendererTest(unittest.TestCase):
                 as_of=dt.datetime(2026, 8, 6, 12, tzinfo=dt.timezone.utc),
             )[0]
             text = owner_report.render_japanese(event)
-        ebook_line = next(line for line in text.splitlines() if line.startswith("ebook-ja:"))
+        ebook_line = next(line for line in text.splitlines() if line.startswith("日本語電子書籍:"))
         self.assertIn("2073 XYZ", ebook_line)
         self.assertIn("最小単位", ebook_line)
         self.assertNotIn("売上額は取得できませんでした", ebook_line)

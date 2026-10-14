@@ -190,6 +190,12 @@ test("Postiz-only carousel metrics stay pending when the API has not populated p
 test("Postiz carousel metrics use the exact published permalink in the snapshot and Telegram report", async (t) => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-tiktok-photo-permalink-"));
   t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const home = path.join(dataDir, "test-home");
+  const credentialsFile = path.join(home, ".local", "share", "anicca", "credentials.json");
+  fs.mkdirSync(path.dirname(credentialsFile), { recursive: true });
+  fs.writeFileSync(credentialsFile, JSON.stringify({ credentials: [
+    { service: "telegram-life-manager", bot_token: "local-token-fixture", chat_id: "local-chat-fixture" },
+  ] }));
   const photoUrl = "https://www.tiktok.com/@anicca.jpx/photo/7695154487559851270";
   const expected = {
     ...EXPECTED,
@@ -217,12 +223,14 @@ test("Postiz carousel metrics use the exact published permalink in the snapshot 
   ];
   const originalFetch = global.fetch;
   let telegramText = "";
+  let telegramBotUrl = "";
   global.fetch = async (url, init = {}) => {
     const address = String(url);
     if (address.includes("/analytics/post/")) return { ok: true, json: async () => postRows };
     if (address.includes("/analytics/")) return { ok: true, json: async () => accountRows };
     if (address.includes("/posts?")) return { ok: true, json: async () => listedPosts };
     if (address.includes("api.telegram.org") && address.includes("/sendMessage")) {
+      telegramBotUrl = address;
       telegramText = JSON.parse(init.body).text;
       return { ok: true, json: async () => ({ ok: true, result: { message_id: 2 } }) };
     }
@@ -231,15 +239,18 @@ test("Postiz carousel metrics use the exact published permalink in the snapshot 
   try {
     const now = Date.parse("2026-10-10T23:45:00.000Z");
     const result = await runDue(now, {
+      HOME: home,
       LM_DATA_DIR: dataDir,
       LM_POSTIZ_API_KEY: "test-only",
-      LM_TELEGRAM_BOT_TOKEN: "fake",
-      LM_TELEGRAM_ALERT_CHAT_ID: "fake",
+      LM_TELEGRAM_BOT_TOKEN: "cloud-token-fixture",
+      LM_TELEGRAM_ALERT_CHAT_ID: "cloud-chat-fixture",
     }, [expected]);
     const twoHour = result.find((row) => row.window === "2h");
     assert.equal(twoHour.state, "measured");
     const snapshot = JSON.parse(fs.readFileSync(path.join(dataDir, "tenants", expected.tenant_id, "marketing", "metrics", expected.native_owner, expected.shortcode, "2h.combined.json"), "utf8"));
     assert.equal(snapshot.public_url, photoUrl);
+    assert.match(telegramBotUrl, /local-token-fixture/);
+    assert.equal(telegramBotUrl.includes("cloud-token-fixture"), false);
     assert.match(telegramText, new RegExp(photoUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 
     const profileOnlyURL = "https://www.tiktok.com/@anicca_buddha";
@@ -255,15 +266,18 @@ test("Postiz carousel metrics use the exact published permalink in the snapshot 
     listedPosts = [{ id: profileExpected.provider_post_id, state: "PUBLISHED", integration: { id: profileExpected.integration_id }, releaseURL: profileOnlyURL }];
     telegramText = "";
     await runDue(now, {
+      HOME: home,
       LM_DATA_DIR: dataDir,
       LM_POSTIZ_API_KEY: "test-only",
-      LM_TELEGRAM_BOT_TOKEN: "fake",
-      LM_TELEGRAM_ALERT_CHAT_ID: "fake",
+      LM_TELEGRAM_BOT_TOKEN: "cloud-token-fixture",
+      LM_TELEGRAM_ALERT_CHAT_ID: "cloud-chat-fixture",
     }, [profileExpected]);
     const profileSnapshot = JSON.parse(fs.readFileSync(path.join(dataDir, "tenants", profileExpected.tenant_id, "marketing", "metrics", profileExpected.native_owner, profileExpected.shortcode, "2h.combined.json"), "utf8"));
     assert.equal(profileSnapshot.public_url, "unavailable");
-    assert.match(telegramText, /投稿リンク未取得/);
+    assert.match(telegramText, /投稿リンクは取得できませんでした/);
     assert.equal(telegramText.includes(profileOnlyURL), false);
+    assert.match(telegramBotUrl, /local-token-fixture/);
+    assert.equal(telegramBotUrl.includes("cloud-token-fixture"), false);
   } finally {
     global.fetch = originalFetch;
   }

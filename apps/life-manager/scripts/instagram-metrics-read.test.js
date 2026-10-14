@@ -4,10 +4,38 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
-const { EXPECTED, metricPlatform, persistDailyDigest, persistDelayedSnapshot, persistHistoricalCheckpointCorrection, persistSnapshot, postMetrics } = require("./instagram-metrics-read.js");
+const { EXPECTED, loadLocalTelegramCredentials, metricPlatform, persistDailyDigest, persistDelayedSnapshot, persistHistoricalCheckpointCorrection, persistSnapshot, postMetrics } = require("./instagram-metrics-read.js");
 
 const html = `<link rel="canonical" href="${EXPECTED.public_url}" /><meta property="og:description" content="0 likes - ${EXPECTED.native_owner}: &quot;強い人の口癖、5つだけ #anicca #セルフケア #習慣 #AI&quot;" />`;
 const postRows = [["Views", 32], ["Reach", 31], ["Saves", 0], ["Likes", 0], ["Comments", 0], ["Shares", 0]].map(([label, total]) => ({ label, data: [{ total: String(total) }] }));
+
+test("metric reports select the exact local Life Manager Telegram credential", () => {
+  assert.equal(typeof loadLocalTelegramCredentials, "function");
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "lm-local-telegram-"));
+  const file = path.join(home, ".local", "share", "anicca", "credentials.json");
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify({ credentials: [
+    { service: "telegram-life-manager", bot_token: "local-token", chat_id: "local-chat" },
+    { service: "telegram-cloud-life-manager", bot_token: "cloud-token", chat_id: "cloud-chat" },
+  ] }));
+  assert.deepEqual(loadLocalTelegramCredentials({ HOME: home, LM_TELEGRAM_BOT_TOKEN: "cloud-token", LM_TELEGRAM_ALERT_CHAT_ID: "cloud-chat" }), {
+    botToken: "local-token",
+    chatId: "local-chat",
+  });
+  fs.rmSync(home, { recursive: true, force: true });
+});
+
+test("metric reports fail closed when only the cloud Telegram credential exists", () => {
+  assert.equal(typeof loadLocalTelegramCredentials, "function");
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "lm-local-telegram-"));
+  const file = path.join(home, ".local", "share", "anicca", "credentials.json");
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify({ credentials: [
+    { service: "telegram-cloud-life-manager", bot_token: "cloud-token", chat_id: "cloud-chat" },
+  ] }));
+  assert.throws(() => loadLocalTelegramCredentials({ HOME: home, LM_TELEGRAM_BOT_TOKEN: "cloud-token", LM_TELEGRAM_ALERT_CHAT_ID: "cloud-chat" }), /local_telegram_credential_unavailable/);
+  fs.rmSync(home, { recursive: true, force: true });
+});
 
 test("current Instagram observation recovers live values without rewriting missed historical checkpoints", () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-instagram-current-"));

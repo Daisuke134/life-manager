@@ -154,9 +154,12 @@ test("metric snapshot renders every measured and unavailable field with stable d
     snapshotProvider: { get: async () => ({ public_url: payload.public_url, window: "24h", post: { views: { status: "measured", value: 32 }, reach: { status: "measured", value: 31 }, engagement: { status: "derived", percent: 0 }, watch_time: { status: "unavailable" } }, sources: { postiz_account: { status: "unavailable" } } }) },
     sendTelegram: async (_token, _chat, text) => { sent.push(text); return { ok: true, result: { message_id: 704 } }; },
   });
-  assert.match(sent[0], /Views 32、Reach 31、Engagement 0%/);
-  assert.match(sent[0], /取得不可: Watch time、Account totals/);
-  assert.match(sent[0], /DcTFx_UjSio/); assert.equal(verifyMarketingLivenessReceipt(result.receipt), true);
+  assert.match(sent[0], /Anicca iOSのInstagram（@anicca.jp1）、24時間のメトリクスです/);
+  assert.match(sent[0], /閲覧数 32、リーチ 31、エンゲージメント率 0%/);
+  assert.match(sent[0], /取得できなかった指標: 視聴時間、アカウント全体の指標/);
+  assert.match(sent[0], /投稿リンク: https:\/\/www\.instagram\.com\/reel\/DcTFx_UjSio\//);
+  assert.doesNotMatch(sent[0], /Snapshot:|object:\/\/sha256|anicca-ios|Views|Reach|Account totals/);
+  assert.equal(verifyMarketingLivenessReceipt(result.receipt), true);
 });
 
 test("Instagram current recovery reports real account values, source time, and unsupported fields separately", async () => {
@@ -175,12 +178,12 @@ test("Instagram current recovery reports real account values, source time, and u
       ] }) },
     sendTelegram: async (_token, _chat, body) => { text = body; return { ok: true, result: { message_id: 705 } }; },
   });
-  assert.match(text, /現在値.*2026-10-11T07:53:00.000Z/);
+  assert.match(text, /現在値.*2026\/10\/11 16:53/);
   assert.match(text, /過去のチェックポイント値ではありません/);
-  assert.match(text, /Account views 17481.*2026-10-11/);
-  assert.match(text, /Account reach 2937.*2026-10-10/);
-  assert.match(text, /API未提供: Watch time/);
-  assert.doesNotMatch(text, /Account totals 2/);
+  assert.match(text, /アカウント閲覧数 17481（2026-10-11時点）/);
+  assert.match(text, /アカウントリーチ 2937（2026-10-10時点）/);
+  assert.match(text, /APIでは提供されていない指標: 視聴時間/);
+  assert.doesNotMatch(text, /Snapshot:|object:\/\/sha256|anicca-ios|Account views|Account totals/);
 });
 
 test("TikTok metric snapshot renders every account value instead of an aggregate count", async () => {
@@ -195,10 +198,10 @@ test("TikTok metric snapshot renders every account value instead of an aggregate
     snapshotProvider: { get: async () => ({ public_url: payload.public_url, window: "24h", post: { views: { status: "measured", value: 141 } }, sources: { postiz_account: { status: "measured" } }, account_metrics: { followers: { status: "measured", value: 122 }, following: { status: "measured", value: 0 }, total_likes: { status: "measured", value: 6839 }, videos: { status: "measured", value: 304 }, recent_views: { status: "measured", value: 11873 }, recent_likes: { status: "measured", value: 110 }, recent_comments: { status: "measured", value: 1 }, recent_shares: { status: "measured", value: 2 } } }) },
     sendTelegram: async (_token, _chat, text) => { sent.push(text); return { ok: true, result: { message_id: 705 } }; },
   });
-  assert.match(sent[0], /Followers 122、Following 0、Account total likes 6839、Videos 304/);
-  assert.match(sent[0], /24h訂正版メトリクス/);
-  assert.match(sent[0], /Latest 20 videos views 11873、Latest 20 videos likes 110、Latest 20 videos comments 1、Latest 20 videos shares 2/);
-  assert.doesNotMatch(sent[0], /Account totals 8/);
+  assert.match(sent[0], /フォロワー数 122、フォロー中 0、総いいね数 6839、投稿数 304/);
+  assert.match(sent[0], /24時間の訂正メトリクスです/);
+  assert.match(sent[0], /直近20投稿の閲覧数 11873、直近20投稿のいいね数 110、直近20投稿のコメント数 1、直近20投稿のシェア数 2/);
+  assert.doesNotMatch(sent[0], /Snapshot:|object:\/\/sha256|anicca-ios|Followers|Account totals/);
 });
 
 test("immutable product summary renders through the durable Telegram adapter", async () => {
