@@ -870,6 +870,17 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
         self.assertIn("`batch_partial`", prompt)
         self.assertIn("never return `transport_failed` for them", prompt)
 
+    def test_daily_prompt_batches_grounded_workday_fields_and_checkpoints_before_budget_end(self):
+        prompt = " ".join(
+            (APP_ROOT / "prompts" / "daily-pass.md").read_text(encoding="utf-8").split()
+        )
+        self.assertIn("runtime fill-form --fields-json", prompt)
+        self.assertIn("exact `fact_refs`", prompt)
+        self.assertIn("literal substring", prompt)
+        self.assertIn("remaining_steps <= 2", prompt)
+        self.assertIn("checkpoint --reason wake_budget_low", prompt)
+        self.assertNotIn("do not create an intermediate file, helper code, or batch action", prompt)
+
     def test_daily_prompt_stops_after_profile_batch_post_action_failure(self):
         prompt = " ".join(
             (APP_ROOT / "prompts" / "daily-pass.md").read_text(encoding="utf-8").split()
