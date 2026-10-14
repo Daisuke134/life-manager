@@ -247,6 +247,27 @@ def validate_rows(rows: list[dict[str, Any]]) -> None:
 
 def merge_rows(existing: list[dict[str, Any]], current: list[dict[str, Any]]) -> list[dict[str, Any]]:
     merged = {str(row["postiz_post_id"]): row for row in existing}
+    immutable_fields = (
+        "publish_key",
+        "experiment_id",
+        "creative_id",
+        "creative_sha256",
+        "product_id",
+        "account_id",
+        "hook_id",
+        "renderer_id",
+        "attribution_token",
+        "scheduled_at",
+        "integration_id",
+        "platform",
+    )
+    native_receipt_fields = ("native_post_id", "native_post_url")
+    reason_fields = {
+        "experiment_id": "experiment_id_null_reason",
+        "creative_sha256": "creative_sha256_null_reason",
+        "product_id": "product_id_null_reason",
+        "account_id": "account_id_null_reason",
+    }
     identity_fields = (
         "identity_status",
         "native_post_id",
@@ -258,20 +279,36 @@ def merge_rows(existing: list[dict[str, Any]], current: list[dict[str, Any]]) ->
     for row in current:
         key = str(row["postiz_post_id"])
         previous = merged.get(key)
+        row = dict(row)
+        if previous is not None:
+            for field in (*immutable_fields, *native_receipt_fields):
+                previous_value = previous.get(field)
+                current_value = row.get(field)
+                if (
+                    previous_value is not None
+                    and current_value is not None
+                    and previous_value != current_value
+                ):
+                    raise ValueError(
+                        f"conflicting publication identity field {field}: {key}"
+                    )
+                if previous_value is not None and field in immutable_fields:
+                    row[field] = previous_value
+                    reason_field = reason_fields.get(field)
+                    if reason_field and reason_field in previous:
+                        row[reason_field] = previous[reason_field]
         if (
             previous is not None
             and previous.get("identity_status") == "resolved"
             and row.get("postiz_state") == "PUBLISHED"
             and row.get("identity_status") != "resolved"
         ):
-            row = dict(row)
             for field in identity_fields:
                 row[field] = previous.get(field)
-            row["provenance"] = list(
-                dict.fromkeys(
-                    [*(previous.get("provenance") or []), *(row.get("provenance") or [])]
-                )
-            )
+        if previous is not None:
+            row["provenance"] = list(dict.fromkeys(
+                [*(previous.get("provenance") or []), *(row.get("provenance") or [])]
+            ))
         merged[key] = row
     rows = sorted(merged.values(), key=lambda row: (str(row.get("publish_date") or ""), str(row["postiz_post_id"])))
     validate_rows(rows)

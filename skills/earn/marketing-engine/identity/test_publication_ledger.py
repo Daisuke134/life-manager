@@ -257,9 +257,9 @@ class PublicationLedgerTest(unittest.TestCase):
 
     def test_merge_never_downgrades_resolved_identity_to_unresolved(self):
         existing = ledger.make_row(post("p1"), [], "2026-08-01T01:00:00Z")
-        current_post = post("p1", platform="tiktok")
-        current_post["releaseId"] = "publish-token"
-        current_post["releaseURL"] = "https://www.tiktok.com/@handle"
+        current_post = post("p1")
+        current_post["releaseId"] = None
+        current_post["releaseURL"] = None
         current = ledger.make_row(current_post, [], "2026-08-05T13:00:00Z")
         self.assertEqual(current["identity_status"], "unresolved")
 
@@ -272,6 +272,69 @@ class PublicationLedgerTest(unittest.TestCase):
             merged[0]["resolution_method"], "postiz_provider_native_receipt"
         )
         self.assertEqual(merged[0]["observed_at"], "2026-08-05T13:00:00Z")
+
+    def test_provider_refresh_preserves_intent_metadata_and_exact_native_receipt(self):
+        existing = ledger.make_row(post("p1"), [], "2026-08-01T01:00:00Z")
+        existing.update({
+            "publish_key": "publication.0123456789abcdef01234567",
+            "experiment_id": "experiment.writer",
+            "experiment_id_null_reason": None,
+            "creative_id": "creative.article-1",
+            "creative_sha256": "a" * 64,
+            "creative_sha256_null_reason": None,
+            "product_id": "writer-ja",
+            "product_id_null_reason": None,
+            "account_id": "note.anicca",
+            "account_id_null_reason": None,
+            "hook_id": "hook.problem-first",
+            "renderer_id": "renderer.editorial-v1",
+            "attribution_token": "writer-01234567",
+            "scheduled_at": "2026-08-01T00:00:00Z",
+            "provenance": ["marketing_publication_intent", "native_readback"],
+        })
+        refreshed = ledger.make_row(post("p1"), [], "2026-08-02T01:00:00Z")
+
+        merged = ledger.merge_rows([existing], [refreshed])[0]
+
+        for field in (
+            "publish_key", "experiment_id", "creative_id", "creative_sha256",
+            "product_id", "account_id", "hook_id", "renderer_id",
+            "attribution_token", "scheduled_at",
+        ):
+            self.assertEqual(merged[field], existing[field], field)
+        self.assertEqual(merged["native_post_id"], existing["native_post_id"])
+        self.assertEqual(merged["native_post_url"], existing["native_post_url"])
+        self.assertIsNone(merged["experiment_id_null_reason"])
+        self.assertIsNone(merged["creative_sha256_null_reason"])
+        self.assertIn("marketing_publication_intent", merged["provenance"])
+
+    def test_provider_refresh_rejects_conflicting_immutable_identity(self):
+        for field, conflicting_value in (
+            ("experiment_id", "experiment.other"),
+            ("creative_id", "creative.other"),
+            ("product_id", "writer-en"),
+            ("account_id", "note.other"),
+            ("attribution_token", "writer-other"),
+            ("integration_id", "integration-other"),
+            ("platform", "tiktok"),
+            ("native_post_id", "native-other"),
+            ("native_post_url", "https://example.com/native-other"),
+        ):
+            with self.subTest(field=field):
+                existing = ledger.make_row(post("p1"), [], "2026-08-01T01:00:00Z")
+                existing.update({
+                    "publish_key": "publication.0123456789abcdef01234567",
+                    "experiment_id": "experiment.writer",
+                    "creative_id": "creative.article-1",
+                    "product_id": "writer-ja",
+                    "account_id": "note.anicca",
+                    "attribution_token": "writer-01234567",
+                })
+                refreshed = dict(existing, observed_at="2026-08-02T01:00:00Z")
+                refreshed[field] = conflicting_value
+
+                with self.assertRaisesRegex(ValueError, "conflicting publication identity"):
+                    ledger.merge_rows([existing], [refreshed])
 
     def test_report_uses_only_published_denominator(self):
         published = ledger.make_row(post("p1"), [], "2026-08-01T01:00:00Z")
@@ -374,7 +437,7 @@ class PublicationLedgerTest(unittest.TestCase):
             self.assertEqual(report["binding"]["bound"], 2)
             replay_report = json.loads(report_path.read_text(encoding="utf-8"))
             self.assertEqual(replay_report["binding"]["bound"], 2)
-            self.assertEqual(replay_report["binding"]["already_bound"], 1)
+            self.assertEqual(replay_report["binding"]["already_bound"], 2)
 
     def test_cli_uses_default_registries_through_binding_behavior(self):
         with tempfile.TemporaryDirectory() as temporary:
