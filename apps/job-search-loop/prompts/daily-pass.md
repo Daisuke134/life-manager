@@ -51,7 +51,9 @@ overlay after an extra observation is an agent sequencing error, never
 `provider_unavailable`. If an earlier
 search left zero options, clear the textbox with one empty `kind=type` action, then
 click the fresh `options` button again. Never press Continue while that picker is
-unfilled, and never invent a runtime module or command to recover it.
+unfilled, and never invent a runtime module or command to recover it. Long or
+virtualized menus follow the bounded targeted-scroll protocol in the picker-search
+section below.
 Provider pickers can be hierarchical. After `choose`, inspect its returned JSON. If
 it still contains `Options Expanded` and fresh options, the chosen value was a
 category, not a committed answer. Before touching any other field, call `choose`
@@ -191,8 +193,15 @@ or `filled=true` before continuing.
 Never click Continue while a required picker remains unfilled. If search returns
 no exact match, clear the search control with one `runtime type-text --text ""`
 action, reopen the exact options control, and search once more. If the exact option
-is still unavailable, report only this row as `not_submitted` and continue to the
-next `observe`; never choose a nearby value or repeat the same search loop.
+is still unavailable and the open menu is long or virtualized, scroll inside it using
+one exact currently visible option as the anchor:
+`runtime scroll --label "EXACT_VISIBLE_OPTION" --role "OBSERVED_ROLE"
+--stable-id "FRESH_REF" --delta-y 300`. Use role and stable ID from the latest
+observation, increments no larger than 600 pixels, and inspect the returned fresh
+observation after every scroll. Stop after at most eight targeted scrolls. If the
+exact grounded option/leaf remains unavailable, report only this row as
+`not_submitted` and continue to the next `observe`; never choose a nearby value or
+repeat the search loop. Never use a global page scroll to hunt an option.
 For an application discovered from its official ATS posting, the truthful broad
 source category is `Website` when that option is visible; do not keep typing
 `Job board` into a picker that does not expose that option.

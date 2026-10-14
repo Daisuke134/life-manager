@@ -331,3 +331,20 @@ class DirectCDPPage:
 
     async def scroll(self, delta_y: int) -> None:
         await self.call("Input.dispatchMouseEvent", {"type": "mouseWheel", "x": 1, "y": 1, "deltaX": 0, "deltaY": delta_y})
+
+    async def scroll_target(self, target: dict[str, Any], delta_y: int) -> None:
+        """Scroll one visible picker surface without moving the whole page."""
+        if type(delta_y) is not int or not 0 < abs(delta_y) <= 600:
+            raise ValueError("targeted scroll requires a nonzero delta up to 600")
+        resolved = await self.resolve_target(target, scroll=False)
+        await self.call(
+            "Input.dispatchMouseEvent",
+            {
+                "type": "mouseWheel",
+                "x": float(resolved["x"]),
+                "y": float(resolved["y"]),
+                "deltaX": 0,
+                "deltaY": delta_y,
+            },
+        )
+        await asyncio.sleep(0.35)
