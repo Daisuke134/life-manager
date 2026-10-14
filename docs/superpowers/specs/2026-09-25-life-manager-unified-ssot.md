@@ -18027,9 +18027,27 @@ At 11:11:20Z, `df` showed 146460 KiB available while the volume remained 100% fu
 **Cursor:** capacity recoveryとshallow ancestry修復が先。正確なmain-derived release後にDistributor/Factoryの登録adapter readback、goal monitorのTelegram occurrence binding/adapter、loaded-idle owner apply、自然terminalと公式readbackを確認する。理由はcapacityが依然release/artifact writeを妨げ、goal monitorの実Telegram effectがregistryで正しく表現されていないため。FROZEN sellers・価格・投稿は変更していない。
 ### EDD test update — 2026-10-14 20:15 JST
 Writer fence suite 24/24 passed on `7e8e37f`; AST and diff check pass. Current main is `dfb8213`; local shallow fetch (`shallow.lock`) and commit (`index.lock`) fail `ENOSPC`; no lock remains. Main capacity is unmeasured; no PR, release, or natural readback.
+
+### Capafy deploy readiness and current cursor — 2026-10-14 20:34 JST
+
+- `loops/current` readback points to `releases/20261014T202446-dfb8213c` (release mtime 20:26:49 JST), confirming an immutable release at `dfb8213c`. Main now includes docs-only PR #8035 at `7919bc92`; the release predates that documentation commit and no runtime difference is implied. A release cut does not prove any Capafy owner loaded it or completed a natural run.
+- Last complete owner status confirmed at 20:14 JST: `capafy-loop-daily` loaded `277c9202`, `capafy-distribute-daily` `a299acc0`, `capafy-goal-monitor-hourly` `277c9202`, and `lm-fence-reconciler` `9c71a1a`. No later complete owner status is available. `lm-loop status --explain` was interrupted after more than 50 seconds in runtime-event scanning; no status is inferred from that attempt.
+- At 20:30 JST, disk readback showed 146,496 KiB available and HostDiskGovernor `.receipt-reserve` absent. `capafy-hourly-reconcile.json` remained at mtime 16:21:58 JST with `observed_at=2026-10-14T07:12:07Z` (16:12 JST), 70 orders, `net_mrr_usd=null`, and `settled_mrr_usd=null`; this is stale and does not verify the post-2026-10-03 paid-order milestone.
+- **Deployment verdict: not ready for Capafy owner apply.** The immutable release exists, but storage preflight, current owner adoption, and exact effect-fence reconciliation are not verified. Keep held occurrences held; do not replay provider actions or close fences manually.
+
+**Cursor:** capacity/receipt-reserve recovery → exact registered adapter readbacks for factory, distributor, and goal monitor → fresh owner loaded-SHA/idle readback → apply only eligible owners → natural terminal + official provider readback → refresh order/source/MRR metrics.
 ### EDD current cursor — 2026-10-14 20:42 JST
 
 Current GitHub `main` is `7919bc92d885751cfacff65ee7e21871108937fd`, integrated locally by merge commit `66d91bff7b3e85e9c1591d6a1101ede28066c0ed`. Branch `fix/writer-resumed-publication-fence-20261014` has only the four task files in its diff against main. The focused Writer suite passes 24/24 on the 7919 tree. At 11:42Z, `df` showed 314124 KiB free. The cleanup owner failed at 11:38Z before effect with `scratch_enospc`; `last-receipt.json` remains dated 2026-10-10, so exact release capacity for `7919bc9` remains unmeasured. The branch is not pushed and has no PR or exact-head CI/review yet. No immutable release, owner adoption, natural sweep, or publication-level revenue is verified.
 
 **Current order:** (1) push `fix/writer-resumed-publication-fence-20261014`, open a focused PR, pass exact-head CI/review, and merge; (2) preserve CTA lineage and destination identity through the existing Web funnel/OAuth/Stripe path; (3) measure fresh release capacity, then adopt DD05 through the registered owner and verify a 24h-mature exact publication; (4) freeze an outcome baseline and run one controlled experiment; (5) continue DD07–DD12. Main synchronization, shallow-history repair, and focused verification on 7919 are complete; push/PR/CI, production capacity, and provider evidence remain open.
 <!-- main Capafy follow-up retained   -->
+
+
+### EDD current cursor — 2026-10-14 20:54 JST
+
+PR #8037 is OPEN (`head=1c9c553`, `base=72ff5f9`, `mergeable=CONFLICTING`). Main adds a 20:34 SSOT checkpoint; `gh pr update-branch` was rejected. Local merge is in progress with only the SSOT conflicted. CodeRabbit passed but skipped manual review; no suite CI result is recorded. Writer focused suite passed 24/24 on 7919 and must rerun after this merge.
+
+At 11:50Z, `df` showed 197740 KiB free. The cleanup owner passed at 11:45Z, but `last-receipt.json` is still dated 2026-10-10; exact capacity for `72ff5f9` is unmeasured.
+
+**Next:** resolve SSOT preserving main and EDD notes; rerun the focused test and push the updated branch; pass PR checks/review; then continue CTA lineage, DD05 exact release/natural publication, baseline/experiment, and DD07–DD12. No provider effect is claimed.
