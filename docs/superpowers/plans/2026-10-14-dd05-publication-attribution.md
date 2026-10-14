@@ -186,8 +186,8 @@ DD05 is shared publication-measurement infrastructure. The first agent-level EDD
 **Contract:** keep the signed first-touch cookie and existing JSONB event storage; accept only the complete five-field CTA identity tuple; group UID-bound paid/refund events by the persisted first-touch identity; preserve existing UTM report behavior and request-versus-unique-person definitions. Do not add a database table, migration, collector, or second analytics path.
 
 - [x] Add regressions for cookie, OAuth first touch, landing event, and separate paid/refund groups; add the focused PR CI job.
-- [ ] Observe the new focused check fail on missing identity propagation, not a syntax or harness error.
-- [ ] Implement the minimal all-or-nothing safe lineage allowlist and report grouping/fallback; run the focused check green.
-- [ ] Merge the exact-head CI-passing source/spec update; keep production revenue unknown until exact natural receipts arrive.
+- [x] Observe RED on test head cfe9cbac: five focused assertions fail because the current UTM-only path drops the complete CTA tuple; after fixing the OAuth fixture, no syntax or harness error remains.
+- [x] Implement the minimal all-or-nothing safe lineage allowlist and report grouping/fallback.
+- [ ] Pass the focused Web CTA check and all exact-head CI checks, then merge; keep production revenue unknown until exact natural receipts arrive.
 
 **Next separate atom:** generate a distinct click ID for the same article artifact published to Note/JA and Substack/JA, without weakening frozen publication-content/readback invariants. Then join event receipts to money_artifacts and verify a mature outcome before running an experiment.

@@ -18117,3 +18117,11 @@ DD06 source integration is complete. Release capacity, production owner adoption
 **Acceptance:** cookie capture/consume and OAuth callback preserve the tuple; /lm events persist it; two distinct click IDs produce separate first-touch/paid/refund report groups; arbitrary or partial lineage does not produce an attributed group; a focused CI job runs these regressions on every PR.
 
 **Not complete in this atom:** article-ja click ID is shared by Note/JA and Substack/JA publication copies. The next atom makes CTA identity unique per exact publication destination and joins those events to the existing Writer artifact ledger before experimentation. No revenue is claimed from an ID, request, or report count.
+
+### EDD CTA lineage implementation — 2026-10-14 22:54 JST
+
+The test-only PR head cfe9cbac produced five focused assertion failures after the OAuth fixture was corrected. Each failure showed the current UTM-only output where the five CTA IDs were expected. The focused CI job is therefore RED for the intended behavior, not a syntax or setup failure.
+
+This source update adds a bounded, all-or-nothing allowlist for product_id, run_id, artifact_id, variant_id, and click_id; carries it through the existing HMAC first-touch and JSONB event flow; and groups the existing Web funnel report by the complete identity. UID-bound paid/refund events inherit the persisted first-touch tuple. UTM-only report output remains compatible, arbitrary query fields remain excluded, and no database migration or second tracker is introduced.
+
+Exact-head verification is pending. The remaining destination atom is still open: article-ja shares one click_id across Note/JA and Substack/JA. Do not experiment or claim publication-level revenue until that identity is made destination-specific and the Writer artifact receipt join is exact.
