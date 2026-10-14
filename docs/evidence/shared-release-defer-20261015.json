@@ -40,7 +40,16 @@
     "suite_command": "env -u LM_TELEGRAM_BOT_TOKEN -u LM_ADMIN_TELEGRAM_CHAT_ID PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s runtime/loop/tests -p test_reconcile_agent_runner_release_fleet_apply.py -v",
     "bash_syntax": "pass",
     "diff_check": "pass",
-    "read_only_review": "FIX-FIRST: required state write failure can fall through to tick success",
+    "read_only_review_before_receipt_fix": "FIX-FIRST: required state write failure can fall through to tick success",
+    "receipt_fix": {
+      "red_tests": 4,
+      "red_failure_cases": 5,
+      "red_seconds": 3.634,
+      "green_tests": 4,
+      "green_seconds": 2.806,
+      "full_suite": "running",
+      "read_only_review": "pending"
+    },
     "production_adoption": "not_yet"
   },
   "previous_repair_natural_acceptance": {

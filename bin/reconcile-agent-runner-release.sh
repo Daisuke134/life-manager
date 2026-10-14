@@ -199,7 +199,7 @@ run_fleet_apply() {
   local state_dir="${LIFE_MANAGER_RELEASE_RECONCILER_STATE_ROOT:-$HOME/.local/state/life-manager/release-reconciler}"
   local state_path="$state_dir/fleet-apply-state.json"
   local log_path="$state_dir/fleet-apply.jsonl"
-  mkdir -p "$state_dir"
+  mkdir -p "$state_dir" || return 1
 
   local last_sha last_status last_next_retry last_ok_epoch last_attempt_epoch
   local last_budget_progress_continue last_release_superseded last_control_busy_continue
@@ -314,7 +314,7 @@ PY
   # same apply to a file finished in 298s). The output file is also the evidence for a failure.
   local output_path="$state_dir/fleet-apply-last-output.log"
   local owners_log_path="$state_dir/fleet-apply-owners.jsonl"
-  : >"$output_path"
+  : >"$output_path" || return 1
 
   # One `apply --all` call waits on every owner in one process; a single stuck owner (or the
   # reconciler's own label, which `apply --all` skips as "already owned" by itself) hangs the
@@ -336,10 +336,10 @@ PY
   # apply, and push owners that errored or timed out on a previous attempt for this same sha to the
   # end of the queue so a repeatedly-stuck owner cannot starve the rest of the fleet.
   local plan_path
-  plan_path="$(mktemp "$state_dir/.fleet-apply-plan.XXXXXX")"
+  plan_path="$(mktemp "$state_dir/.fleet-apply-plan.XXXXXX")" || return 1
   FLEET_APPLY_REGISTRY_PATH="$registry_path" FLEET_APPLY_OWNERS_LOG_PATH="$owners_log_path" \
     FLEET_APPLY_OWN_LOOP_ID="$own_loop_id" FLEET_APPLY_SHA="$release_sha" \
-    "$runtime_python" - >"$plan_path" <<'PY'
+    "$runtime_python" - >"$plan_path" <<'PY' || { rm -f "$plan_path"; return 1; }
 import json, os, plistlib
 from pathlib import Path
 
@@ -350,14 +350,11 @@ release_sha = os.environ["FLEET_APPLY_SHA"]
 agents_dir = Path(os.environ.get(
     "LIFE_MANAGER_LAUNCH_AGENTS_DIR", "~/Library/LaunchAgents")).expanduser()
 
-try:
-    with open(registry_path, encoding="utf-8") as handle:
-        registry = json.load(handle)
-except (OSError, ValueError):
-    registry = {}
-loops = registry.get("loops") or {}
-if not isinstance(loops, dict):
-    loops = {}
+with open(registry_path, encoding="utf-8") as handle:
+    registry = json.load(handle)
+if not isinstance(registry, dict) or not isinstance(registry.get("loops"), dict):
+    raise ValueError("invalid fleet registry loops")
+loops = registry["loops"]
 
 # The most recent owners-log row per loop_id for this exact sha decides whether that owner
 # errored or timed out last time; a later successful retry for the same sha must not still be
@@ -455,7 +452,7 @@ PY
       skipped=$((skipped + 1))
       FLEET_APPLY_OWNERS_LOG_PATH="$owners_log_path" FLEET_APPLY_SHA="$release_sha" \
         FLEET_APPLY_OWNER_LOOP_ID="$loop_id" \
-        "$runtime_python" - <<'PY'
+        "$runtime_python" - <<'PY' || { rm -f "$plan_path"; return 1; }
 import json, os
 from datetime import datetime, timezone
 record = {
@@ -493,7 +490,8 @@ PY
     fi
 
     local owner_output_path owner_started owner_rc owner_output owner_seconds
-    owner_output_path="$(mktemp "$state_dir/.fleet-apply-owner-output.XXXXXX")"
+    owner_output_path="$(mktemp "$state_dir/.fleet-apply-owner-output.XXXXXX")" \
+      || { rm -f "$plan_path"; return 1; }
     owner_started="$(date -u +%s)"
     owner_rc=0
     LIFE_MANAGER_RELEASE_ROOT="$release_root" LIFE_MANAGER_APPLY_TARGET="$loop_id" \
@@ -505,7 +503,7 @@ PY
     {
       printf '=== owner %s (rc=%s, %ss) ===\n' "$loop_id" "$owner_rc" "$owner_seconds"
       cat "$owner_output_path"
-    } >>"$output_path"
+    } >>"$output_path" || { rm -f "$owner_output_path" "$plan_path"; return 1; }
     rm -f "$owner_output_path"
 
     local owner_changed=0 owner_skipped=0 owner_errors=0 owner_skip_reason=""
@@ -593,7 +591,7 @@ sys.exit(1)
       FLEET_APPLY_OWNER_SECONDS="$owner_seconds" FLEET_APPLY_OWNER_CHANGED="$owner_changed" \
       FLEET_APPLY_OWNER_SKIPPED="$owner_skipped" \
       FLEET_APPLY_OWNER_SKIP_REASON="$owner_skip_reason" \
-      "$runtime_python" - <<'PY'
+      "$runtime_python" - <<'PY' || { rm -f "$plan_path"; return 1; }
 import json, os
 from datetime import datetime, timezone
 record = {
@@ -688,7 +686,7 @@ PY
     FLEET_APPLY_CONTROL_BUSY_CONTINUE="$control_busy_continue" \
     FLEET_APPLY_RELEASE_SUPERSEDED="$release_superseded_continue" \
     FLEET_APPLY_LAST_OK_EPOCH="$new_last_ok_epoch" \
-    "$runtime_python" - <<'PY'
+    "$runtime_python" - <<'PY' || return 1
 import json, os, time
 record = {
     "sha": os.environ["FLEET_APPLY_SHA"],
