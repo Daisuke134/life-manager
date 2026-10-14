@@ -17877,3 +17877,28 @@ The latest complete acquisition evidence is still limited: RevenueCat Charts v3 
 - **Capacity:** the 15:39:56 JST full inventory pass had 28 gaps and measured only `/Users/anicca/.openclaw` at about 4.45 GB; that shared identity/workspace root is protected. It reclaimed 0 bytes. The 15:43:04 JST fast receipt reports `630,767,616` bytes free, 0 reclaimed, and 29 gaps. The exact release requirement is `2,394,329,088` bytes, leaving `1,763,561,472` bytes to recover. Do not cut/apply a release or download more creative assets yet.
 
 **Cursor/order:** unchanged. TODO 1 remains capacity recovery, then apply the already merged goal-monitor fix only through the idle-owner path and verify its natural report against that run's reconcile. TODO 2 remains factory occurrence/capacity reconciliation; a new Agent is not confirmed. TODO 3's Postiz source acceptance is complete and merged, but production readback and closure remain pending the release gate. No paid order, live release, or MRR increase is claimed.
+
+### Capafy source-funnel refresh — observation 2026-10-14 15:11:48 JST
+
+Source: `capafy-hourly-reconcile.json`; its `observed_at` is `2026-10-14T06:11:48Z`. These are Capafy-attributed Agent detail views, not marketplace impressions or a user-level attribution experiment.
+
+| Source | 7d views / paid | 30d views / paid / attributed sales | 30d paid per view (observational) |
+|---|---:|---:|---:|
+| Capafy search | 361 / 0 | 752 / 8 / `$17.92` | 1.06% |
+| Capafy hot | 1 / 0 | 46 / 5 / `$9.95` | 10.87% (small sample) |
+| Direct | 156 / 0 | 1,553 / 2 / `$3.98` | 0.13% |
+| Google | 10 / 0 | 37 / 1 / `$9.99` | 2.70% |
+| `ai_overview` | 48 / 0 | 370 / 0 / `$0.00` | 0% |
+| Instagram bio | not returned / 0 | 39 / 0 / `$0.00` | 0% |
+| Other | 72 / 0 | 1,276 / 0 / `$0.00` | 0% |
+| Category | 3 / 0 | 36 / 0 / `$0.00` | 0% |
+| Registered social/blog CT labels (combined) | 8 / 0 | 8 / 0 / `$0.00` | 0% |
+| **All sources** | **660 / 0** | **4,120 / 16 / `$41.84`** | — |
+
+The 30d source rows also include ChatGPT 1, Facebook 1, Bing 1, and several individual social/blog tags at 1–2 views each, all with 0 paid; X-tagged rows remain 0. Do not assign the 1,276 `other` views to a channel. Search and hot account for 13/16 attributed paid orders, while `ai_overview` accounts for 370/4,120 views and 0 paid. These ratios are directional source counts, not causal conversion rates.
+
+Seller-level money is unchanged in this observation: 70 lifetime orders, `$102.75` gross, `$76.18` creator earnings, `$0` refunds, `$21.16` OpenRouter actual cost for Sep 13–Oct 13, and true active MRR `null`. 30d attributed source sales `$41.84` are not lifetime gross. The first post-2026-10-03 paid-order milestone remains unmet; last positive revenue remains 2026-09-29. No FROZEN seller, title, price, or listing was changed.
+
+At the recorded 80% seller share, `$41.84` attributed sales imply `$33.47` seller share; subtracting `$21.16` account OpenRouter actual cost gives estimated `$12.31` account-level contribution for this window. It is not exact per-order profit.
+
+**Distribution cursor:** keep Capafy search/hot discovery and `ai_overview` conversion ahead of external posting volume. Investigate the 1,276 `other` views and 39 Instagram-bio views with distinct source links; maintain 7d source-to-paid reporting because all sources are currently 0/660 in the latest 7d window. No TODO reorder.
