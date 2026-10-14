@@ -4029,6 +4029,16 @@ LINE Creators Support Programは募集期間が未定。選抜時は支援期間
 
 **To-Be / 追加TODO:** landingのdynamic generateMetadataで、slugがline-sticker-set-*かつ本文に正規https://line.me/S/sticker/<5–12桁ID> CTAがある記事だけ、OG title/description/canonical URL/公式商品main imageとTwitter summary_large_imageを出す。非LINE記事のmetadataは変えない。valid/invalid CTAを分けた最小testを先に追加する。旧順序「07:05自然記事→analytics→他channel」から、(1) share-card実装を進めつつ(2)07:05自然記事を止めず(3)deploy後の公開HTMLでshare tagsを照合(4)10/16 official sales/payoutと同期間clickを照合(5)許可済owner/fenceの無料channelへ広げる、へ追加する。share tags欠落は既存articleの外部共有クリック率を下げうる仮説であり、売上との因果は未計測。
 
+#### 5.L Live distribution result and next cursor — 2026-10-15 07:14 JST（base main `ad2d2180`）
+
+**07:05自然記事の結果:** occurrence `line-sticker-articles:18de849be4e01c70-84429`（release `222d1e18`）は既存set-019を選択し、landing main commit `bd258edbb60c944443a1d17c80a849fc1c3bd636`を公開した。Netlify Deploy workflow `38645298027` は同SHAでcompleted/success。公開URLは https://aniccaai.com/blog/line-sticker-set-019-2026-10-15-07、titleは「星くずカワウソのあいさつ返【文字入り】新作紹介」、正規CTAはSKU `37254973`。article ledger `2026-10-15@07` はattempts=1/status=published。ScrapyのHTTP 200 readbackでcanonical、robots=index/follow、OG title/url/image、Twitter summary card、LINE STORE CTAを確認し、OG画像の商品IDは37254973と一致する。記事作成のcrawler閲覧は流入成果へ数えない。
+
+登録済み`article_fence_reconcile.py`をこのexact occurrenceでread-only実行すると`occurrence is not an effect_unknown row`を返したため、`--resolve`は実行していない。記事公開とNetlify readbackは確認済み。追加の`lm-loop status`照会は30秒で結果を返さず、terminal recordのreadbackは未取得として残す。
+
+**計測のAs-Is:** article ledgerは24 slots中21 published / 3 failed。first-party `/api/stats` はupdated_at 2026-10-14T22:12:29Z（07:12:29 JST）、total_pageviews=416。set-019 URLにcount=1があるが、直前のScrapy readbackを含む可能性があるためorganic流入とは数えない。LINE記事は観測上8 URL・12 pageviews、`line_sticker_click` eventはこのaggregateに現れない。集計期間は不明で、クリック・購入成果には読み替えない。sales.jsonは2026-10-15 00:28:49 JSTの40 IDs、29 numeric・合計¥0・positive 0・11 nullのまま。初回売上・費用回収・USD 10,000 grossは未達。
+
+**TODO順更新:** 旧cursor=`10/15 07:05 set-019 natural article`。新cursor=`(1) 07:23 natural item-status readbackを待ち、売上snapshotがdaily gateでskipされる場合はsales.jsonの古さを保つ → (2) 08:05 natural free article slotで次の未掲載既存SKUを1件出し、公開URL・CTA・ledgerを照合 → (3) crawler/self-viewを除外して記事流入・LINEクリックを同期間で観測 → (4) 10/16 JSTの次のsales/payout gateで40 IDsを公式readbackし、nullを未知のまま保持 → (5) 専用YouTube identity/profile/live leaseが整ってから既存set-011 Shortを無料配信 → (6) Instagram/Threadsの10/10 effect fenceは公式readbackだけで解決し、再送しない → (7) qualified clickと公式販売で実測winnerを選び、無料配信枠を寄せる → (8) gross sales・確定分配・確認済み制作/配信費を同期間で照合し、USD 10,000目標を判定`。現在cursorはitem 1。理由: set-019は初めての07:05記事として公開・CTA・share cardまで確認できたが、同期間click/saleはまだ観測されず、当日sales gateも更新されていない。公開viewやcrawler hitを売上の代替にしない。
+
 ## 6. 不変の制約
 
 - Ryu room `18211957` へは再送しない。正式納品ボタンは loop から押さない。Ryu は CDP :9223 での手動例外として扱う。
