@@ -3978,10 +3978,25 @@ SNS ledgerは17回（ローカルpublished14／failed3）、最後の実投稿�
 | 4 | DONE: `line-sticker-readback-hourly`が修正版release `cc3c5a71`をloaded-idleで使用中とfresh statusで確認（target-only apply不要） | installed release SHA `cc3c5a7164f40a5f4d37338862d0869ce1a5201a`、`admission_effect_unknown=false`。旧releaseの失敗terminalは履歴として保持 |
 | 5 | DONE: natural reader occurrence `18de787e5fa1be20-91606`が修正版releaseでexit 0、40 product IDsのitem statusを更新 | installed SHA `cc3c5a7164f40a5f4d37338862d0869ce1a5201a`、`loaded-idle`、unknown fence 0。36販売中/1審査中/1リジェクト/2審査待ち。sales JSONはdaily gateで未更新、provider receipt/readback refなし |
 | 6 | **現在cursor:** 10/15 07:05 JSTの自然記事枠で未掲載の既存SKUを1件配信する | 公開URL・正確な公式商品CTA・台帳を照合。手動wakeや再公開なし |
-| 7 | QR確認完了後、既存set-011 Shortを専用Brand channelから無料配信する | official channel identity・public permalink・UTM付き記事CTAを確認。paid promotionなし |
-| 8 | article URL→view→`line_sticker_click`→公式販売→確定分配をSKU・channel・同一期間で結び、無料枠を実測winnerへ配る | crawler/self-viewを売上成果に数えず、クリック・販売・分配を分離する |
-| 9 | 既存SNS/短尺素材の無料配信を、許可された専用owner・公式readback・解決済みfenceの範囲で再開する | Capafy identityを使わず、effect_unknownの手動clear/再送なし |
-| 10 | 公式の一暦月gross、確定分配、返金、全制作/配信/税/為替/送金費を同期間で照合する | 初回正値売上、累計分配>確認済み累計費用、buyer gross USD 10,000を公式証拠で達成 |
+| 7 | 記事URL→閲覧→LINE商品クリック→公式販売→確定分配をSKU・channel・同一期間で結び、無料枠を実測winnerへ配る | 自然な外部クリックだけを計測し、crawler/self-viewを売上成果に数えない |
+| 8 | 日次gate後の次回公式販売・分配読取で、40商品IDを照合する | 10/16 JSTの自然readback。nullをゼロに置き換えない |
+| 9 | **BLOCKED:** 既存set-011 Shortを専用YouTube Brand channelから無料配信する | 専用の許可済みidentity/profileとlive leaseが登録された後だけ投稿し、公式permalinkを確認。interactive:daisは使わない |
+| 10 | Instagram/Threadsの専用owner mappingと10/10のeffect_unknownを公式readbackで解決する | Capafy identityを使わず、fenceの手動clear・同一投稿の再送なし |
+| 11 | 既存商品を掲載できる無料directoryを使う | fee・追加PII・CAPTCHAなしの受付routeと公式receiptが確認できた場合だけ掲載 |
+| 12 | 実測した商品・channelへ無料配信枠を寄せる | 同じ期間のqualified clickと公式販売を比較。閲覧数だけでwinnerを決めない |
+| 13 | 公式の一暦月gross、確定分配、返金、全制作/配信/税/為替/送金費を同期間で照合する | 初回正値売上、累計分配>確認済み累計費用、buyer gross USD 10,000を公式証拠で達成 |
+
+#### 5.L Live distribution delta — 2026-10-15 05:10 JST（base main 395c9f8d）
+
+**現状:** 05:05:34 JSTのnatural article runはowner logでarticle_daily:not_due。直前の04:50:33 JSTもnot_dueで、10/15のarticle ledger slotはまだない。source cadenceは15分ごと、記事slotは07/08/09/11–23 JSTのため、次のeligible runは07:05 JST。read-only pickerは未掲載既存商品set-019を選び、SKU 37254973の公式LINE STORE pageは「Stardust Otter's (with text)」¥190を表示する。実行は自然slotのみで、manual wake/replayなし。
+
+**流入計測:** 04:46:49 JSTのpublic /api/statsは全体409 pageviews、LINE記事7 URLで11 views、返却eventsはquiz_start=2とapp_store_click=5で、LINE sticker click eventは含まれない。集計期間は表示されないので、これをorganic reach・click rate・売上に読み替えない。anicca-products PR #458（merge SHA 896a88d6f39168e6f9e23e6a9048dff627bedffe）にはLINE商品CTAをarticle path/SKUへ結ぶtrackerがあり、公開pageのcompiled layout bundleにもline_sticker_click eventとline.me gateがある。したがって二つ目のtrackerは作らない。今の集計でスタンプclickが未観測なのは分配不足の兆候として扱い、次の自然readbackを待つ。自己クリックで数値を作らない。
+
+**販売・配信の境界:** 10/15 00:28:49 JSTの公式sales snapshotは40 IDs中29件が数値、既知合計¥0、11件null。tracked IDsが同日不変ならdaily gateによりsales再取得は翌JST日までskipされるため、10/16の次回自然readbackで確認する。初回の正値販売、creator distribution、累計費用回収はいずれも未確認。
+
+**無料チャネル調査:** YouTube専用Brand account rowはcredentials SSOT上pending_signup。browser registryでYouTubeに一致するのはinteractive:daisだけで、Life Manager AGENTS.mdは個人Chromeの利用を禁じる。確認コードは未使用のまま保持し、個人identityではsignup/postしない。Instagram/Threadsの最新既知stateはCapafy-owned identityと未解決effect_unknownのままなので投稿しない。無料directory候補では、Foresta pageに現在使える投稿formを確認できず、StariCoは閲覧directoryで投稿routeを確認できなかった。第三者の紹介記事が案内するKANAZ/STAMPOOはemail/account登録、宣伝部長Zはemailとchallenge入力を要求する。D29のno-fee/no-extra-PII/no-CAPTCHA条件を満たす代替受付先は今回確認できず、申請していない（[Foresta](https://line-stamps.jimdofree.com/%E3%83%A9%E3%82%A4%E3%83%B3%E3%82%B9%E3%82%BF%E3%83%B3%E3%83%97%E5%AE%A3%E4%BC%9D%E3%82%B5%E3%82%A4%E3%83%88/)、[directory guide](https://www.atelier-sunko.info/entry/stamp-advertise)、[StariCo](https://www.starico.jp/)）。
+
+**順序更新（2026-10-15 05:10 JST）:** 旧順序は「07:05 free article → QR確認後YouTube Short → click/sales/distribution計測」。新順序は「(1)07:05 natural articleとSKU CTA readback → (2)public analyticsの自然eventを同期間で観測し、10/16の日次gate後に公式販売・分配を照合 → (3)許可済み専用YouTube identity/profile/live leaseが実際に使える場合だけ既存Shortを投稿 → (4)Instagram/Threadsの専用ownerとexact effect fenceを解決してから既存素材を配信 → (5)無料directoryは適格routeを確認できた場合だけ提出 → (6)実測winnerへの無料枠再配分、月次gross/payout/cost照合」。理由はtracker自体は公開bundleに存在する一方、LINE記事viewsは11・CTA eventは未観測、YouTubeに使えるidentityがなく、directory候補も追加個人情報かchallengeを要求するため。現在cursorは07:05 JSTのset-019 article slot。新SKU・有料配信・personal browser・manual social replayは対象外。
 
 ## 6. 不変の制約
 
