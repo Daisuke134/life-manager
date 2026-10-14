@@ -50,6 +50,75 @@ To-Beは各agentがobserve→decide→act→official verify→persist→自分�
 
 **現在の原子的順序:** →「共有release進行結果の修復」。正常budget継続が失敗になる共有境界を先に修復し、対象反映後に条件の整った仕事へ進む。連続N回と全F合格待ちは撤回する。
 
+**Cursor/order update:** The first post-apply natural reconciler call ran from release `605177d4`; its exact call for `capafy-loop-daily:18de6c4535b17e60-47142` recorded `exit_code=1`, `closed=false`, `same_version_updated_after_queued_at`, and `HELD`. Thus central adoption is verified and the fence remains intentionally open. The former order was (1) wait for this natural run, (2) find provider receipt/history, (3) resume Factory, (4) refresh sales/source, (5) market. Fresh metrics justify the new parallel order: (1) keep the exact occurrence held and continue provider receipt/API-history search; (2) run one measurable SEO experiment for an existing FROZEN winner without editing its Capafy listing, because Google has 38 views / 1 paid and TikTok Script Pro itself has 3 Google views / 1 paid; (3) investigate Hook Lab's hot re-entry, where 15 views produced 5 paid orders, and improve `ai_overview` conversion, where 373 views produced 0 paid; (4) keep broad social volume unchanged because tracked CT links produced 8 views / 0 paid; (5) refresh seller-money/MRR and source snapshots; (6) reopen new-Agent shipping only after the exact fence is reconciled from supported evidence; (7) repair the separate goal-monitor Telegram binding. **Current cursor: item 1—receipt/history investigation; item 2 can progress independently.**
+
+## 外部の実運用方式へ揃える
+
+**目的・範囲:** 連続成功回数と全体合格待ちで修復を終えられない進め方を撤回し、実運用のキュー/worker/負荷制御/再送設計を既存Life Managerへ適用する。今回は外部調査とspec/参照plan更新だけで、実装修復・本番起動・新server導入・provider操作は行わない。
+
+**新ルール:** 「連続N回成功」「F1–F5全部PASSまで全事業再開禁止」を完了条件にしない。成功回数を別の数字へ置換もしない。既知の故障を再現する最小検証と実仕事の該当境界で修復を閉じ、安定性は既存監視で継続観測する。過去snapshotの回数は観測履歴であり、現在の実行指示ではない。
+
+**調べた一次資料と採用する方法:**
+
+|実運用の根拠|採用する方法|Life Managerでの対応|
+|---|---|---|
+|[Google SRE: Handling Overload](https://sre.google/sre-book/handling-overload/)|処理件数だけでなく実資源から容量を決め、過負荷を局所化する|既存resource admissionとdisk producer gateを使い、現在の重いwriterだけを抑える。枠待ちは永続キューへ置く|
+|[Temporal: Task Queues](https://docs.temporal.io/task-queue)|仕事を永続キューへ置き、workerが取る。worker停止でも未処理の仕事を保持する|enqueue_durable/claim_durable/heartbeat_durable/release_and_reserveを再利用。全agentを同時に重く起動しない|
+|[Inngest: Step concurrency](https://www.inngest.com/docs/durable-execution/flow-control/concurrency)|実行しているstepだけが枠を使い、待っている仕事は空き枠を占有しない。共有resourceのkeyで並列数を制御する|provider/readback待ちと実行中processを分ける。停止した一仕事のunknownを保ち、無関係なownerの実行枠を止めない|
+|[Amazon Builders' Library: Making retries safe with idempotent APIs](https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/)|同じ操作の再送をrequest IDで識別し、結果不明時の重複実行を避ける|既存occurrence/intent/hash/provider receiptを維持。providerがidempotencyを保証しない公開/応募/納品は公式結果照合を先に行う|
+
+これらは各社/公式開発者が公開した設計であり、全外部サービスの成功・収益を独立監査したという主張ではない。Mac上のsourceで実装された部分と、外部方式からの設計判断を区別する。
+
+**単一推奨:** 既存native運転を「永続キュー→空き枠の有限worker→小さいcheckpoint→終了時の資源返却→次の仕事」へ揃える。収益判断はagentが行い、実行枠/identity/金額/重複検査は既存contractで行う。受注済み納品を守り、Capafyを収益laneの優先対象にする。固定時刻のシフトはburst緩和の補助として使えるが、長い仕事と保存量の制限の代わりにしない。
+
+**既存sourceとの比較（main605177d47acdb77ded7c130f3d5d1cdeb46576b2）:** Macには永続queue/lease/priority/heartbeat/有限child/中央cleanupが既にある。Cloud appにはInngest ^4.11.0、uid単位のconcurrency、step.run、single-writer guardがあるが、Macの18業務をInngestへ接続済みとは言えない。Inngest self-hostの公式方式も確認したが、既定のqueue/stateはin-memory RedisからSQLiteへ定期snapshotするため、daemon追加だけで同じ耐久性が自動的に得られると仮定しない。今回は全体のengine移植を先頭にしない。
+
+### 実行順の変更と現在cursor
+
+**旧順:** 共有基盤C1→C2→F2公式closure→F5連続実行→全F合格→Capafy/Gig。
+
+**新順:** R1共有実行・資源管理の現在停止境界→R2最小修復/既済source反映→R3条件の整った仕事を進める→R4Gigと他lane→R5実結果を使う自己修復/自己改善。共有課題は当該producer/occurrenceごとに並行処理する。
+
+**理由:** 全体の連続合格待ちは実資源・個別故障の改善を測らず、条件が整った仕事まで止める。外部の実行枠/待機/障害隔離の設計へ合わせ、現在の収益経路を先に通す。進行中のeffectや他ownerの運転は中断・重複させない。**現在cursorはR1。今回の文書更新を本番修復済みや新方式導入済みにしない。**
+
+|順|具体的な次作業|対象file/functionと、終える事実|
+|---|---|---|
+|R1 / 現在|共有実行・資源管理の現在停止境界を絞る|該当ownerのstatus/run/loaded SHAと公式結果を読む。source済みなら既存ownerの採用へ、保留なら当該registered adapterへ、実資源ならそのwriterへ進む。古いblocked eventを現在の保留一覧と同一視しない|
+|R2|最初に不成立な境界だけ修復する|queueはresource_admission.py::claim_durable/release_and_reserve、保存はdisk_admission.py::_producer_gate、子終了はlm_loop_run.py::_run_entrypoint、後始末はcentral_cleanup.py::scratch_gc。既存回帰で足りれば増やさず、必要なREDだけ追加。修正済みsourceを再実装しない|
+|R3|Capafyの制作・公開・配信を通常の仕事として進める|登録済みownerと同operation identityで進め、実結果を記録する。故障修復と販売/入金の達成は別に測る。回数を満たすための再実行をしない|
+|R4|Gigのfunded案件と、条件が整った他laneを進める|shared Paid→正式納品→受領/精算。別laneの保留やF backlogで一括停止しない。Storefrontの展開と公開起動整備は既存差分計画へ|
+|R5|評価から自己修復・自己改善へ戻す|同taskの品質・工数・費用・official outcomeを既存eval/CFOへ戻す。全18完成を準備開始条件にせず、成功の型を共有する|
+
+**実装上の境界:** 同時実行数と時間制限は既存policyから読み、根拠なく増減しない。Macのソフト予算/観測をOSが強制するRAM/disk quotaと称さない。外部結果のunknownとprocess占有は分けるが、active child、参照中のbrowser、正式商品、未保存の証拠を安全性未確認のまま回収しない。別ownerがheldでも別の適格ownerは進める。queue/state/receipt/skillの第二正本は作らない。
+
+**他案との比較:** 全Temporal移植の強みは成熟したdurable executionを直接使えることだが、現在は新server・Mac worker・既存operation identityの移行が新たな作業となる。固定時刻だけのシフトは簡単だが、長いjobや漏れる保存量を制御しない。最善は既存部品で停止境界を閉じて直ちに仕事が進むこと、基準は一producer/adapterの最小修復、最悪は枠管理外のwriterまたは物理容量不足が見つかり、その重い仕事だけを隔離すること。推奨が誤る最有力の筋は、既存の枠管理外で動く子process/保存先があること。R1/R2でowner/PID/path/bytesを結ぶのは、その点を見分けるためである。
+
+**参照:** 外部取得の記録はdocs/evidence/external-job-operation-methods-20261015.json、具体的な差分手順はdocs/superpowers/plans/2026-10-15-external-job-operation-plan.md。これらに別のTODO順/statusを作らない。
+
+### R1の実行範囲
+
+Daisの「Let's go」「Let's continue」により、上の方式で現在の停止境界の実装修復へ進む。先頭は共有実行・資源管理のstatus/owner/loaded sourceを確認し、原因が実在する箇所だけ修復する。既済sourceは再実装せず、対象ownerの反映・既存registered readbackへ結ぶ。別のlive ownerが同対象を担当中ならagmsgで所有範囲と現在cursorを照合し、重複mutationや競合source編集をしない。
+
+source変更は最新main由来の成果専用worktreeで最小RED→修正→focused検証/CI/main→対象反映を行う。本番操作は所有者・leaseとlaunchctl-safeの前提を満たす対象限定の既存経路だけを使う。auth/browser/provider操作前は既存private credential SSOTとbrowser registryを確認し、secretを文書・log・chatへ複製しない。本文にある「今回文書のみ」は調査/計画作成時の記録であり、この実行範囲を上書きしない。
+
+R1の目的は、共有実行・資源管理の現在の故障を閉じ、条件が揃った実仕事が進むこと。Capafyの個別改善はその後へ戻す。連続回数は要求しない。収益・全18・新端末・自己改善の全体完了へ言い換えず、業務段階/公式結果と残TODOを保持する。
+
+**共通部分を先に修復する順序:** Daisの追加指示により、旧R1（Capafyの個別停止境界）から、新R1（共通の実行・資源管理）へ変更する。理由は共通修復を先頭にする明示指示であり、連続N回や全F合格待ちを復活させない。最新read-only観測では清掃/監視/効果照合は605177d版でpass、release-reconcilerのexact run18de6e58507dc040-44741はentrypoint_exit_1、配信にはresource_control_busyがある。先頭は共有release/制御の同run診断→最小修復、次にwriter/終了/保存、最後にCapafyへ戻す。
+
+## 共有release進行結果の修復
+
+目的: errors=0、timeoutなし、changed>0の正常なbudget継続をentrypoint失敗へ変換しない。controllerの有限tickを成功として閉じつつ、fleet状態はpartial、next_retry、owner結果、last_ok_epochをそのまま保つ。実apply失敗/timeout/混在失敗は非0のまま。
+
+所有sourceはbin/reconcile-agent-runner-release.sh::run_fleet_apply末尾とruntime/loop/tests/test_reconcile_agent_runner_release_fleet_apply.pyだけ。既存budget_progress_continue=1の分岐を終了コードへ反映する最小修正。既存正常budget caseでexpected parent exit0をREDとして確認し、同一入力のstate partial/changed1/errors0/継続flag/second-owner未開始を保持。失敗・timeout・混在・backoffの既存回帰も確認する。全fleet適用完了や収益成功とは報告しない。
+
+source base=be10731c00a326fdf9ebaf071391cb73efeae522、worktree=/Users/anicca/Projects/life-manager-main/.worktrees/shared-release-progress-result-20261015、branch=fix/shared-release-progress-result-20261015、owner=lm-common-runtime-1015。現在cursorはこの最小RED→GREEN→CI/main→対象owner反映。連続N回は要求しない。
+
+共有release修復のsource進捗: 正常budget継続の既存fixtureをexpected exit0へ変更し、修正前はparent exit1/status partial/changed1/errors0でRED。既存budget_progress_continue=1を終了判定へ反映する最小差分後、同testはGREEN。state partial/last_ok_epoch0/next_retry/second-owner未開始を保持する。独立fresh read-only code reviewはGO（実失敗/timeout/親reconcile/self-handoffの非0保持、guard不変更）。最初の全suiteは38 PASS/1 FAILで、FAILは疎checkoutにdisk_admission.pyが無いENＯENT。source欠陥とせずその既存fileを追加して同suiteを再実行中。CI/main/本番採用は未完。
+
+共有release修復のsource検証完了: 疎checkoutの既存disk_admission.pyを追加した同suiteは39/39 PASS（93.886秒）。新規の本番検証条件は追加しない。bash syntax/diff check PASS、fresh read-only code review GO。現在cursorは専用branchへのsource保存→exact-head CI/main→対象RRCのidle反映と自然結果。実apply失敗/timeout/混在/backoffの既存caseを保持。
+
+## 共有資源の診断履歴
+
 **直前の共有修復記録（履歴、現在の順序ではない）:** F1/F3/F4はPASS、F2/F5は未完。空き容量は書込可否の診断値であり、基盤DoneのKPIではない。直近の完了はPR #8033（source bbad660175f709695aff06872db9417348c39271、全12 checks PASS、main73594329a40e4185f3482086641f19f1d6ff4dc9）による、native maintenanceの延期前にも既存git prune-packedで安全なpacked duplicateだけを回収する2行修復。private native regressionのRED→関連7 PASS→cleanup全73 PASSを確認し、unknown lock・unique object・HEAD/ref/dirty/memoryは保持する。既存release ownerがmain dfb8213c4a51dcbc74d925d4ee8ee136a1978e64からcomplete immutable ALL release /Users/anicca/loops/releases/20261014T202446-dfb8213cを完成し、provenance=ancestor-of-origin-main、mode555、Python3.14.7、central_cleanup.py SHA256=f48cc82cc49d99df79000bf9b86ed22947952c5df43871fdc3566208ae48c4b3/source一致を確認する。UID501/Aqua/manager501/PID1/GUI preflight後、life-manager-disk-cleanupだけloaded-idle-onlyで採用済み（install26079147983000b2ac621043）。最初の新SHA自然run18de621dcf864930-89553は11:33:01.972490Zにscratch_allocation ENOSPC/exit78、eventce90289bbe5773ee2756f270。旧SHAのstdout passをこのrunへ結び付けない。続く新SHA自然run18de6264cc4677d0-4172は11:38:06.846554Zに開始し、11:39:03.474888Zにpass/exit0（terminal d585d258c814b2e45f322879）となる。PR8033のsource/main/ALL配布/対象採用/新SHA自然terminalのatomは完了。stdoutのGit bytesはまだrun bindingが無いため、このterminalへ手でjoinせず、次のbinding修復に残す。local shallow ancestryはnative fetch --deepen=32で復旧し、9c71a1a0と73594329がorigin/mainのancestorであることを再確認する。bootstrapではsutando node_modulesの生成ファイル256270336 bytesとpaired pyc151228416+302075904 bytesを回収し、source hash/dirty状態・保護subtree・未paired/unsafe411件を保持する。この手動回収はF5の安定証明へ数えない。Git maintenanceの時間切れ後始末はprivate lock残存のREDから、cleanup74/74・runner bounds180/180 PASS、diff check PASSへ進みsource受入れ済み。bindingは現main出力のkey欠落REDをfilesystem writeなしのfixtureで確認し、同一candidateのrun_binding追加1行でmanaged identityとstandalone Noneの2casesがPASSする。追加testを既存LoopCleanupTestへ保存し、現在cursorはcombined sourceのCI/main→ALL配布→対象採用→自然terminalとbound結果のjoin。localへのbinding保存とcleanup全suite再実行はENOSPCのため未実施なので、実commitのfocused CIで確認する。旧順はmaintenanceのCI/main/配布後にbindingを別配布する形だが、新順はmaintenance source受入れ→binding source受入れ→同じPR/CI/main/ALL配布とする。変更理由は独立した1行の結果識別を同じ修復に含め、CIとALL exportの回数・共有容量負荷を減らすため。進行中の業務effectは中断・重複させない。専用branch=fix/git-maintenance-owned-timeout-20261014、base7919bc92d885751cfacff65ee7e21871108937fd、worktree=/Users/anicca/Projects/life-manager-main/.worktrees/central-cleanup-process-inventory-20261014、lease owner=codex-money-printer。所有sourceはcentral_cleanup.pyとlm_loop_run.py、対応する既存test_loop_cleanup.py/test_lm_loop_run_bounds.py、このSSOTのみ。private fixtureでは旧subprocess.run timeoutがTERMによる自分のlock後始末を実行せず、既存_run_entrypointのTERM→所有group drain→reapでは後始末する。これはgeneric childの終了性であり、live native Gitのunknown lock creatorを確定した証明ではない。maintenanceだけ既存runnerへ通し、optional stdout_capture_fdを追加してstdout/stderr/CompletedProcess契約を保持する。124はdeferred/TimeoutExpired/after unknown、未知lockは自動削除しない。自然exit124と時間切れの124を既存runnerは区別しないため同じ安全な延期へ分類する。既存timeout15秒とtermination grace15秒を維持し、新しいretry/PID台帳/process frameworkは作らない。続いて既存cleanup_run_bindingのowner/run/occurrence/releaseをstdout結果へ保存し、standaloneではNoneのままとし、時刻や別runから手でidentityを作らない。最小RED→GREENと既存関連検証→必要CI/main→main由来ALL release/対象loaded-idle採用→新SHA自然terminalとbound結果を確認する。その後は生成元の後始末/保存上限の実例修復→F2旧effectの公式照合と証明済み回収→F5業務・終了・自動掃除の3自然往復。掃除自身のscratch allocation ENOSPCも共有資源の調査cursorに含める。業務effectは既存ownerに残し、LINEの商品・投稿・審査ロジックはrootで変更しない。F2/F5のDone条件は追加・削除せず、18業務agent全完了とは報告しない。
 
 **F5前回snapshot（2026-10-13 21:16 JST、後続readbackで更新済み）:** main=086bfed5bb0a45234f49e0d605cbf7f6bf42cb47; `~/loops/current` was `5b90b21e6d68f0657b9dec7ac92d5898bab0775c`. The complete-release preflight was 2,394,476,544 bytes and Data-volume free was 1,790,568 KiB. These are historical diagnostics, not foundation success KPIs.
@@ -18193,69 +18262,36 @@ DD06 source integration is complete. Release capacity, production owner adoption
 
 Paid-orders/views is descriptive, not causal: hot `5/46 ≈ 10.9%`, search `8/799 ≈ 1.0%`, Google `1/38 ≈ 2.6%`, direct `2/1,590 ≈ 0.13%`. The current since-launch seller-sales endpoint independently returns tracker-defined paid orders `70` and gross `$102.75` at 2026-10-14 15:17:44Z; raw order-row sum `101` includes zero-revenue rows and is not the paid-order metric. The full `capafy_hourly_reconcile.py --money --json` read timed out at 180 seconds; active/settled MRR remains unknown.
 
-**Cursor/order update:** The first post-apply natural reconciler call ran from release `605177d4`; its exact call for `capafy-loop-daily:18de6c4535b17e60-47142` recorded `exit_code=1`, `closed=false`, `same_version_updated_after_queued_at`, and `HELD`. Thus central adoption is verified and the fence remains intentionally open. The former order was (1) wait for this natural run, (2) find provider receipt/history, (3) resume Factory, (4) refresh sales/source, (5) market. Fresh metrics justify the new parallel order: (1) keep the exact occurrence held and continue provider receipt/API-history search; (2) run one measurable SEO experiment for an existing FROZEN winner without editing its Capafy listing, because Google has 38 views / 1 paid and TikTok Script Pro itself has 3 Google views / 1 paid; (3) investigate Hook Lab's hot re-entry, where 15 views produced 5 paid orders, and improve `ai_overview` conversion, where 373 views produced 0 paid; (4) keep broad social volume unchanged because tracked CT links produced 8 views / 0 paid; (5) refresh seller-money/MRR and source snapshots; (6) reopen new-Agent shipping only after the exact fence is reconciled from supported evidence; (7) repair the separate goal-monitor Telegram binding. **Current cursor: item 1—receipt/history investigation; item 2 can progress independently.**
+### Capafy current cursor and distribution action — 2026-10-15 00:36 JST
 
-## 外部の実運用方式へ揃える
+**更新readback:** PR #8053は2026-10-14 15:29:13Zにmergeされ、mainは`328bb607ac33668924293942e13c293f00833e8b`。docsのみの変更なのでproduction releaseは不要。Factory/reconcilerのloaded releaseは引き続き`605177d47acdb77ded7c130f3d5d1cdeb46576b2`。
 
-**目的・範囲:** 連続成功回数と全体合格待ちで修復を終えられない進め方を撤回し、実運用のキュー/worker/負荷制御/再送設計を既存Life Managerへ適用する。今回は外部調査とspec/参照plan更新だけで、実装修復・本番起動・新server導入・provider操作は行わない。
+- `lm-fence-reconciler`の自然terminal `18de6ec7c1d59398-88036` は2026-10-14 15:30:14Zにexit 0、release `605177d4`、loaded-idle。exact occurrence `capafy-loop-daily:18de6c4535b17e60-47142` の登録adapter readbackは`closed=false / exit_code=1 / same_version_updated_after_queued_at / HELD`。2026-10-15 00:31 JSTの最新`lm-loop status --explain capafy-loop-daily`でも同occurrenceは`effect_unknown`のまま。後続run `18de6eb9d1e282e0-86217` は15:24:06Zに`resource_effect_unknown` / exit 75でadmission前停止。
+- source境界: `drive_checkpoint3.py`はUI submit/confirmを押して`RESULT: submitted`だけを返す。`publish_finish.sh`はその後のlatest-version `platform_status`をpollし、Agent IDと簡易statusをlocal ledgerへ書くが、provider operation/request/receipt ID、Agent version、loop occurrenceを結合したreadback eventを残さない。公開Capafy docs/repositoryの検索でもRun Onlineのsubmission history/request IDは見つからない。これは未公開経路が存在しない証明ではない。現行のprovider receipt/historyがない以上、現在のoccurrenceを手動closure・再送しない。
+- Distribution occurrence `capafy-distribute-daily:18de6e7423564878-47961` は15:19:06Zに開始、15:19:55Zに`resource_control_busy / exit 75 / effect_identity_status=not_written / effect_unknown`で終端した。exact scratchには`.terminal-unrecorded`と`host-admission.json(effect=0)`が残り、cleanup diagnosticは`official_readback_required / held_effect_unknown`。登録済み`capafy_distribute_fence_reconcile.py`のread-only実行はadmission DB readで`database is locked`となり、GitHub/Postizのprovider readback前に終了した。`lm-loop health`はこのdistribution occurrenceを`effect_unknown=1`と報告。scratchを削除・再送しない。
+- 2026-10-14 15:39:07ZのFactory自然run `capafy-loop-daily:18de6f8b9826a9a0-72221`も同じrelease `605177d4`から開始直後に`resource_effect_unknown / exit 75 / effect_identity_status=not_written`で停止した。先行する`18de6c...-47142`のfenceは解除されていない。
+- Admission DB `/Users/anicca/.local/state/life-manager/host-admission/resources/admission-v2.sqlite3`は170,983,424 bytesで、`life-manager-release-reconciler` process (PID 60470)が開いている。read-only `lm-loop status`と登録adapterは`database is locked`を返す。00:42 JST snapshotで3件の別owner予約がrunning。どのownerも停止・解放しない。lockが解消した後に同じ登録adapterで再readbackする。
+- Capafy 30日source snapshot（15:23:27Z）は`4,214 views / 16 paid / $41.84 / 5 trials`。search `799/8/$17.92`、hot `46/5/$9.95`、Google `38/1/$9.99`、direct `1,590/2/$3.98`、`ai_overview 373/0/$0`、tracked CT `8/0/$0`。FROZEN 5 Agentsは全16 paidを占めるが、listing変更はしない。
+- since-launch seller-sales narrow readback（15:17:44Z）はtracker定義のpaid orders `70`、gross `$102.75`。first-paid milestoneの`orders > 70`かつ`gross > $102.75`は未達。現金受領・active/settled MRRは別readbackがなく`unknown`。
 
-**新ルール:** 「連続N回成功」「F1–F5全部PASSまで全事業再開禁止」を完了条件にしない。成功回数を別の数字へ置換もしない。既知の故障を再現する最小検証と実仕事の該当境界で修復を閉じ、安定性は既存監視で継続観測する。過去snapshotの回数は観測履歴であり、現在の実行指示ではない。
+**順序変更:** 旧順序は「provider receipt解決 → Factory再開 → money readback → distribution」。新順序は、fenceをheldのまま保ちつつ **(1) 既存FROZEN winnersを対象に1件のorganic SEO/Google計測実験 → (2) provider発行receipt/historyまたはCP3応答IDの取得経路を調査・記録（配信と並行） → (3) exact occurrenceが安全にreconcileされた後、Factoryの自然runとnew-Agent queueを再開 → (4) bounded official money readbackでmilestone/MRR確認 → (5) goal-monitor occurrence binding修復**。理由は、distributionはfence解決に依存せず、source実測ではCapafy search/hotに13 paid/$27.87があり、Googleに1 paid、対してtracked CTは8 visits/0 paidだから。外部配信量を増やす前に、成功sellerへ結ぶ1つの追跡可能なorganic経路を試す。
 
-**調べた一次資料と採用する方法:**
+**次のatom (owner: Capafy primary):** query `tiktok script`でrank 1、sales_volume 4のFROZEN seller TikTok Script Pro `2844813315`を対象にする（market snapshot `2026-10-14T01:55:46Z`）。このsellerは直近30日`272 views / 4 paid / $15.96`、Google `3/1/$9.99`、Capafy search `10/3/$5.97`、`ai_overview 184/0`。既存記事`aniccaai.com/blog/capafy-tiktok-script-pro-2026-10-14-h23m30`はlanding main commit `8ba16b6`で公開済み。2026-10-15 00:46 JSTの`crwl` readbackは記事本文取得に成功し、CTA `?ct=tiktok_blog`を確認。source snapshot 15:23:27Zでは`tiktok_blog`が`1 unique visitor / 1 view / 0 paid / $0 / 0 trial`（公開から約53分後）、tracked CT合計は`8/0`。Google Search impressionsは未取得。このページを7日窓のreadbackに結び、page impressions/clicks（site analyticsで取得できる場合）とCapafy `tiktok_blog` views/paid/salesを同windowで測る。done=個別source/windowを保存し、次の編集判断が数値で決まる。duplicate pageなし、listing・価格・review変更なし、no-cost、broad social volumeなし。
 
-|実運用の根拠|採用する方法|Life Managerでの対応|
-|---|---|---|
-|[Google SRE: Handling Overload](https://sre.google/sre-book/handling-overload/)|処理件数だけでなく実資源から容量を決め、過負荷を局所化する|既存resource admissionとdisk producer gateを使い、現在の重いwriterだけを抑える。枠待ちは永続キューへ置く|
-|[Temporal: Task Queues](https://docs.temporal.io/task-queue)|仕事を永続キューへ置き、workerが取る。worker停止でも未処理の仕事を保持する|enqueue_durable/claim_durable/heartbeat_durable/release_and_reserveを再利用。全agentを同時に重く起動しない|
-|[Inngest: Step concurrency](https://www.inngest.com/docs/durable-execution/flow-control/concurrency)|実行しているstepだけが枠を使い、待っている仕事は空き枠を占有しない。共有resourceのkeyで並列数を制御する|provider/readback待ちと実行中processを分ける。停止した一仕事のunknownを保ち、無関係なownerの実行枠を止めない|
-|[Amazon Builders' Library: Making retries safe with idempotent APIs](https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/)|同じ操作の再送をrequest IDで識別し、結果不明時の重複実行を避ける|既存occurrence/intent/hash/provider receiptを維持。providerがidempotencyを保証しない公開/応募/納品は公式結果照合を先に行う|
+**並行保留atom:** exact factory/distribution occurrenceのreceipt/history調査を続ける。provider発行IDと`agent_id/version_id/run_id/occurrence_id/release_sha`が登録adapterの証拠として結び付くまで`effect_unknown`を保持し、同じAgentへのsubmitを再送しない。current cursorは既存`tiktok_blog` pageの7日計測、公式reconcilerのDB lock解消readback待ち。
 
-これらは各社/公式開発者が公開した設計であり、全外部サービスの成功・収益を独立監査したという主張ではない。Mac上のsourceで実装された部分と、外部方式からの設計判断を区別する。
+**Cursor/order update:** The first post-apply natural reconciler call ran from release `605177d4`; its exact call for `capafy-loop-daily:18de6c4535b17e60-47142` recorded `exit_code=1`, `closed=false`, `same_version_updated_after_queued_at`, and `HELD`. Thus central adoption is verified and the fence remains intentionally open. PR #8053 stored the source/seller snapshot. The new order starts with measuring the already-live TikTok Script Pro page because it is independent of the held factory and search/hot/Google produced 14 paid orders / `$37.86`, while tracked CT links produced 8 views / 0 paid. Provider receipt/history research continues in parallel; no duplicate article or social-volume increase is justified yet. After that: (2) analyze Hook Lab hot re-entry (`15` views / `5` paid) and `ai_overview` conversion (`373` / `0`); (3) preserve source-level daily/weekly attribution; (4) refresh seller-money/MRR; (5) reopen new-Agent shipping only after supported reconciliation; (6) repair the separate goal-monitor Telegram binding. **Current cursor: item 1—measure the existing `tiktok_blog` page over 7 days; official exact-fence readback waits for the admission DB lock to clear.**
 
-**単一推奨:** 既存native運転を「永続キュー→空き枠の有限worker→小さいcheckpoint→終了時の資源返却→次の仕事」へ揃える。収益判断はagentが行い、実行枠/identity/金額/重複検査は既存contractで行う。受注済み納品を守り、Capafyを収益laneの優先対象にする。固定時刻のシフトはburst緩和の補助として使えるが、長い仕事と保存量の制限の代わりにしない。
+### Life Manager Cloud current cursor — 2026-10-15
 
-**既存sourceとの比較（main605177d47acdb77ded7c130f3d5d1cdeb46576b2）:** Macには永続queue/lease/priority/heartbeat/有限child/中央cleanupが既にある。Cloud appにはInngest ^4.11.0、uid単位のconcurrency、step.run、single-writer guardがあるが、Macの18業務をInngestへ接続済みとは言えない。Inngest self-hostの公式方式も確認したが、既定のqueue/stateはin-memory RedisからSQLiteへ定期snapshotするため、daemon追加だけで同じ耐久性が自動的に得られると仮定しない。今回は全体のengine移植を先頭にしない。
+**Production/app:** `life-call` runs build `be10731c00a326fdf9ebaf071391cb73efeae522`; `/health` returns that SHA. PR #7765 is merged and the Web Customer-before-Checkout persistence fix is in production. Current 30-day Web/Stripe report (2026-09-14 15:48Z–2026-10-14 15:48Z, source `be10731`) reads landing 71, connect starts 37, auth 1, Calendar ACTIVE 1, first Travel 1, Checkout 1, trials 0, paid invoices 0, active paid 0, gross MRR USD 0. `internal-e2e` accounts for 10 landing / 9 connect starts and all auth/Calendar/Travel/Checkout events; Writer accounts for 7 / 6 / 0 authenticated; unattributed traffic is 54 / 22 / 0. Estimated provider cost is USD 0.12639 known plus one unknown; actual cost, hosting, marketing spend, and net remain null.
 
-### 実行順の変更と現在cursor
+**Legacy entry correction:** Public `https://aniccaai.com/life-manager` still returned the Telegram-first QR/start page even after PR #465 merged and its Netlify deploy completed. The workflow's deploy command runs from `apps/landing`, which has a separate `apps/landing/netlify.toml`; the root-only redirect did not affect the public route. PR #466 adds the same forced 301 (`/life-manager` → `/lm`) to the deploy-root config and extends the contract test to require the rule in both configs. Its `landing` check is pending at head `48f5eb12d3c07ec43eeabd529a91bcf6eb9f3f9f`. Do not mark the route fixed until that PR is merged, its Netlify run completes, and a fresh public readback reaches `/lm` with query/UTM preserved. The existing post-deploy smoke checks `/lm`, not the legacy path.
 
-**旧順:** 共有基盤C1→C2→F2公式closure→F5連続実行→全F合格→Capafy/Gig。
+**Google/Calendar E2E:** In the registered `interactive:dais` CloakBrowser, `/lm` and its Calendar CTA render; clicking the CTA reaches `accounts.google.com/v3/signin/identifier`, not Calendar consent. No login/password/recovery, Gmail access, consent, Calendar link, or Calendar write occurred. This follows Dais's explicit existing-session-only instruction; no new login is attempted. The initial Calendar scan and offer remain unverified against a live user session.
 
-**新順:** R1共有実行・資源管理の現在停止境界→R2最小修復/既済source反映→R3条件の整った仕事を進める→R4Gigと他lane→R5実結果を使う自己修復/自己改善。共有課題は当該producer/occurrenceごとに並行処理する。
+**Travel origin:** `travelDecision` in `apps/life-manager/lib/travel.js` uses the previous real event when its gap is 0–90 minutes, otherwise the saved home address. `care-anchors.js` identifies a repeated non-home work anchor at three occurrences, but Travel does not consume it. Thus a post-work event can use home when no sufficiently recent same-day event provides the office location; no claim is made about a specific event. Any new fallback must use existing same-day calendar evidence and keep ambiguous origins unguessed.
 
-**理由:** 全体の連続合格待ちは実資源・個別故障の改善を測らず、条件が整った仕事まで止める。外部の実行枠/待機/障害隔離の設計へ合わせ、現在の収益経路を先に通す。進行中のeffectや他ownerの運転は中断・重複させない。**現在cursorはR1。今回の文書更新を本番修復済みや新方式導入済みにしない。**
+**Marketing assets/readiness:** The live `/lm/guide` hub and `/lm/guide/google-calendar-travel-time-auto` page already describe the Web product and link to `/lm` with SEO UTMs. Three Web-first Japanese Reels/Shorts scripts are in merged PR #427. PR #465 updates Product Hunt and directory drafts to the Web offer, but those drafts are unpublished. The marketing engine has a Cloud product manifest and metrics runner but no Cloud destination/account or publishing owner; `marketing-mine-daily` performs research rather than posting. No native Cloud publication receipt exists.
 
-|順|具体的な次作業|対象file/functionと、終える事実|
-|---|---|---|
-|R1 / 現在|共有実行・資源管理の現在停止境界を絞る|該当ownerのstatus/run/loaded SHAと公式結果を読む。source済みなら既存ownerの採用へ、保留なら当該registered adapterへ、実資源ならそのwriterへ進む。古いblocked eventを現在の保留一覧と同一視しない|
-|R2|最初に不成立な境界だけ修復する|queueはresource_admission.py::claim_durable/release_and_reserve、保存はdisk_admission.py::_producer_gate、子終了はlm_loop_run.py::_run_entrypoint、後始末はcentral_cleanup.py::scratch_gc。既存回帰で足りれば増やさず、必要なREDだけ追加。修正済みsourceを再実装しない|
-|R3|Capafyの制作・公開・配信を通常の仕事として進める|登録済みownerと同operation identityで進め、実結果を記録する。故障修復と販売/入金の達成は別に測る。回数を満たすための再実行をしない|
-|R4|Gigのfunded案件と、条件が整った他laneを進める|shared Paid→正式納品→受領/精算。別laneの保留やF backlogで一括停止しない。Storefrontの展開と公開起動整備は既存差分計画へ|
-|R5|評価から自己修復・自己改善へ戻す|同taskの品質・工数・費用・official outcomeを既存eval/CFOへ戻す。全18完成を準備開始条件にせず、成功の型を共有する|
-
-**実装上の境界:** 同時実行数と時間制限は既存policyから読み、根拠なく増減しない。Macのソフト予算/観測をOSが強制するRAM/disk quotaと称さない。外部結果のunknownとprocess占有は分けるが、active child、参照中のbrowser、正式商品、未保存の証拠を安全性未確認のまま回収しない。別ownerがheldでも別の適格ownerは進める。queue/state/receipt/skillの第二正本は作らない。
-
-**他案との比較:** 全Temporal移植の強みは成熟したdurable executionを直接使えることだが、現在は新server・Mac worker・既存operation identityの移行が新たな作業となる。固定時刻だけのシフトは簡単だが、長いjobや漏れる保存量を制御しない。最善は既存部品で停止境界を閉じて直ちに仕事が進むこと、基準は一producer/adapterの最小修復、最悪は枠管理外のwriterまたは物理容量不足が見つかり、その重い仕事だけを隔離すること。推奨が誤る最有力の筋は、既存の枠管理外で動く子process/保存先があること。R1/R2でowner/PID/path/bytesを結ぶのは、その点を見分けるためである。
-
-**参照:** 外部取得の記録はdocs/evidence/external-job-operation-methods-20261015.json、具体的な差分手順はdocs/superpowers/plans/2026-10-15-external-job-operation-plan.md。これらに別のTODO順/statusを作らない。
-
-### R1の実行範囲
-
-Daisの「Let's go」「Let's continue」により、上の方式で現在の停止境界の実装修復へ進む。先頭は共有実行・資源管理のstatus/owner/loaded sourceを確認し、原因が実在する箇所だけ修復する。既済sourceは再実装せず、対象ownerの反映・既存registered readbackへ結ぶ。別のlive ownerが同対象を担当中ならagmsgで所有範囲と現在cursorを照合し、重複mutationや競合source編集をしない。
-
-source変更は最新main由来の成果専用worktreeで最小RED→修正→focused検証/CI/main→対象反映を行う。本番操作は所有者・leaseとlaunchctl-safeの前提を満たす対象限定の既存経路だけを使う。auth/browser/provider操作前は既存private credential SSOTとbrowser registryを確認し、secretを文書・log・chatへ複製しない。本文にある「今回文書のみ」は調査/計画作成時の記録であり、この実行範囲を上書きしない。
-
-R1の目的は、共有実行・資源管理の現在の故障を閉じ、条件が揃った実仕事が進むこと。Capafyの個別改善はその後へ戻す。連続回数は要求しない。収益・全18・新端末・自己改善の全体完了へ言い換えず、業務段階/公式結果と残TODOを保持する。
-
-**共通部分を先に修復する順序:** Daisの追加指示により、旧R1（Capafyの個別停止境界）から、新R1（共通の実行・資源管理）へ変更する。理由は共通修復を先頭にする明示指示であり、連続N回や全F合格待ちを復活させない。最新read-only観測では清掃/監視/効果照合は605177d版でpass、release-reconcilerのexact run18de6e58507dc040-44741はentrypoint_exit_1、配信にはresource_control_busyがある。先頭は共有release/制御の同run診断→最小修復、次にwriter/終了/保存、最後にCapafyへ戻す。
-
-## 共有release進行結果の修復
-
-目的: errors=0、timeoutなし、changed>0の正常なbudget継続をentrypoint失敗へ変換しない。controllerの有限tickを成功として閉じつつ、fleet状態はpartial、next_retry、owner結果、last_ok_epochをそのまま保つ。実apply失敗/timeout/混在失敗は非0のまま。
-
-所有sourceはbin/reconcile-agent-runner-release.sh::run_fleet_apply末尾とruntime/loop/tests/test_reconcile_agent_runner_release_fleet_apply.pyだけ。既存budget_progress_continue=1の分岐を終了コードへ反映する最小修正。既存正常budget caseでexpected parent exit0をREDとして確認し、同一入力のstate partial/changed1/errors0/継続flag/second-owner未開始を保持。失敗・timeout・混在・backoffの既存回帰も確認する。全fleet適用完了や収益成功とは報告しない。
-
-source base=be10731c00a326fdf9ebaf071391cb73efeae522、worktree=/Users/anicca/Projects/life-manager-main/.worktrees/shared-release-progress-result-20261015、branch=fix/shared-release-progress-result-20261015、owner=lm-common-runtime-1015。現在cursorはこの最小RED→GREEN→CI/main→対象owner反映。連続N回は要求しない。
-
-共有release修復のsource進捗: 正常budget継続の既存fixtureをexpected exit0へ変更し、修正前はparent exit1/status partial/changed1/errors0でRED。既存budget_progress_continue=1を終了判定へ反映する最小差分後、同testはGREEN。state partial/last_ok_epoch0/next_retry/second-owner未開始を保持する。独立fresh read-only code reviewはGO（実失敗/timeout/親reconcile/self-handoffの非0保持、guard不変更）。最初の全suiteは38 PASS/1 FAILで、FAILは疎checkoutにdisk_admission.pyが無いENＯENT。source欠陥とせずその既存fileを追加して同suiteを再実行中。CI/main/本番採用は未完。
-
-共有release修復のsource検証完了: 疎checkoutの既存disk_admission.pyを追加した同suiteは39/39 PASS（93.886秒）。新規の本番検証条件は追加しない。bash syntax/diff check PASS、fresh read-only code review GO。現在cursorは専用branchへのsource保存→exact-head CI/main→対象RRCのidle反映と自然結果。実apply失敗/timeout/混在/backoffの既存caseを保持。
+**TODO order update:** Old order=`merge root `/life-manager` redirect → Netlify live-readback → Web OAuth/Calendar E2E → work-origin improvement → Cloud distribution owner/content → Stripe-verified USD 10K gross MRR`. New order=`(1) pass and merge PR #466, then verify the Netlify deploy and public legacy-route 301/UTM; (2) finish OAuth/Calendar/initial Travel E2E only with the already-authenticated authorized session; (3) wire and test the existing work anchor in the Travel origin priority; (4) keep the updated SEO/Reels/launch drafts and create the Cloud publishing target/owner; (5) publish distinct UTM-tagged content with official receipts and optimize from native/funnel data; (6) reach 345 active USD 29 subscribers = USD 10,005 gross MRR and separately reconcile refunds, fees, provider, hosting, and marketing cost. Reason: root redirect alone did not change the live page, while the deploy-root config is the active path. **Current cursor: PR #466 `landing` check → merge → Netlify production readback.**
