@@ -17877,3 +17877,42 @@ The latest complete acquisition evidence is still limited: RevenueCat Charts v3 
 - **Capacity:** the 15:39:56 JST full inventory pass had 28 gaps and measured only `/Users/anicca/.openclaw` at about 4.45 GB; that shared identity/workspace root is protected. It reclaimed 0 bytes. The 15:43:04 JST fast receipt reports `630,767,616` bytes free, 0 reclaimed, and 29 gaps. The exact release requirement is `2,394,329,088` bytes, leaving `1,763,561,472` bytes to recover. Do not cut/apply a release or download more creative assets yet.
 
 **Cursor/order:** unchanged. TODO 1 remains capacity recovery, then apply the already merged goal-monitor fix only through the idle-owner path and verify its natural report against that run's reconcile. TODO 2 remains factory occurrence/capacity reconciliation; a new Agent is not confirmed. TODO 3's Postiz source acceptance is complete and merged, but production readback and closure remain pending the release gate. No paid order, live release, or MRR increase is claimed.
+
+### Capafy source-funnel refresh — observation 2026-10-14 15:11:48 JST
+
+Source: `capafy-hourly-reconcile.json`; its `observed_at` is `2026-10-14T06:11:48Z`. These are Capafy-attributed Agent detail views, not marketplace impressions or a user-level attribution experiment.
+
+| Source | 7d views / paid | 30d views / paid / attributed sales | 30d paid per view (observational) |
+|---|---:|---:|---:|
+| Capafy search | 361 / 0 | 752 / 8 / `$17.92` | 1.06% |
+| Capafy hot | 1 / 0 | 46 / 5 / `$9.95` | 10.87% (small sample) |
+| Direct | 156 / 0 | 1,553 / 2 / `$3.98` | 0.13% |
+| Google | 10 / 0 | 37 / 1 / `$9.99` | 2.70% |
+| `ai_overview` | 48 / 0 | 370 / 0 / `$0.00` | 0% |
+| Instagram bio | not returned / 0 | 39 / 0 / `$0.00` | 0% |
+| Other | 72 / 0 | 1,276 / 0 / `$0.00` | 0% |
+| Category | 3 / 0 | 36 / 0 / `$0.00` | 0% |
+| Registered social/blog CT labels (combined) | 8 / 0 | 8 / 0 / `$0.00` | 0% |
+| **All sources** | **660 / 0** | **4,120 / 16 / `$41.84`** | — |
+
+The 30d source rows also include ChatGPT 1, Facebook 1, Bing 1, and several individual social/blog tags at 1–2 views each, all with 0 paid; X-tagged rows remain 0. Do not assign the 1,276 `other` views to a channel. Search and hot account for 13/16 attributed paid orders, while `ai_overview` accounts for 370/4,120 views and 0 paid. These ratios are directional source counts, not causal conversion rates.
+
+Seller-level money is unchanged in this observation: 70 lifetime orders, `$102.75` gross, `$76.18` creator earnings, `$0` refunds, `$21.16` OpenRouter actual cost for Sep 13–Oct 13, and true active MRR `null`. 30d attributed source sales `$41.84` are not lifetime gross. The first post-2026-10-03 paid-order milestone remains unmet; last positive revenue remains 2026-09-29. No FROZEN seller, title, price, or listing was changed.
+
+At the recorded 80% seller share, `$41.84` attributed sales imply `$33.47` seller share; subtracting `$21.16` account OpenRouter actual cost gives estimated `$12.31` account-level contribution for this window. It is not exact per-order profit.
+
+**Distribution cursor:** keep Capafy search/hot discovery and `ai_overview` conversion ahead of external posting volume. Investigate the 1,276 `other` views and 39 Instagram-bio views with distinct source links; maintain 7d source-to-paid reporting because all sources are currently 0/660 in the latest 7d window. No TODO reorder.
+
+### Capafy deployment-readiness checkpoint — 2026-10-14 17:47 JST
+
+**Decision: not ready for a complete production rollout.** This is a read-only status update; no loop, listing, Agent, or provider state was changed.
+
+- **Main and release:** `origin/main=c484c047a2e73054f545682347c07c9d1fd60530` (PR #8027). `loops/current` is `20261014T161701-277c9202`, source SHA `277c9202b206339c77d064ced051afd432ae318e`, cut at 16:17:41 JST from an ancestor of current main. PR #8022 is included in this release; current main is newer. Its manifest records `capacity_required_bytes=252575744`.
+- **Owner adoption:** `capafy-loop-daily` is running from that release under PID `77832` (`18de58c09cd00258-77832`); it has not reached a terminal/readback in this observation. Do not count a new Agent or replay/resolve an effect from this run yet. The latest reconcile inventory at 16:12:07 JST reports 71 observed Agents, 51 listed, 6 occupied, 0 free, and 2 retry; use an occurrence-bound official publish-list readback to confirm any slot or shipment.
+- **Distributor:** `capafy-distribute-daily` is not running and remains loaded from old release `a299acc0`; its last launchd result is `78: EX_CONFIG`. Therefore the merged Postiz proof fix is present in the release tree but has not been adopted by this owner.
+- **Goal monitor:** `capafy-goal-monitor-hourly` is not running; launchd reports `78: EX_CONFIG` on release `277c9202`. Its JSON was last written at 16:12:02 JST and references the 15:11:48 JST reconcile. The newer seller reconcile observed at 16:12:07 JST is not reflected in that report. The exact configuration failure is not diagnosed here.
+- **Capacity:** direct `df -kP` at 17:47 JST shows `550,244 KiB` available (`563,449,856` bytes), which exceeds this already-cut release's manifest requirement by `310,874,112` bytes. The older `2,394,329,088`-byte preflight figure belongs to the earlier checkpoint; do not reuse it as the current cutter threshold. Run the exact preflight for the current main before any future release cut.
+- **Revenue:** the 16:12:07 JST seller reconcile still reports 70 lifetime orders, `$102.75` gross, `$76.18` creator earnings, `$0` refunds, `$59` payout balance, `$17.18` confirmed, `$0` pending balance, and `$0` paid out; `net_mrr_usd=null` / `settled_mrr_usd=null`. OpenRouter actual account cost is `$21.16` for Sep 13–Oct 13. The first-paid gate (post-2026-10-03 paid order, orders >70 and gross >$102.75) is unmet. The monitor's last-positive-revenue field remains 2026-09-29, based on its older reconcile.
+- **Distribution funnel:** at the 16:12:07 JST source observation, 7d detail views were 675 with 0 paid; 30d detail views were 4,135 with 16 paid and `$41.84` attributed sales. 30d paid split: search 8 (`$17.92`), hot 5 (`$9.95`), direct 2 (`$3.98`), Google 1 (`$9.99`); `ai_overview` had 370 views and 0 paid. These are source-attributed counts, not causal conversion rates. Separate 7d listing impressions were search 5,216 (2,516 user-id exposures), hot 521 (291), and category 601 (391); impression deduplication semantics remain unverified. These observations are about 95 minutes old at this checkpoint.
+
+**Cursor/order change:** the 15:43 order was (1) capacity recovery, (2) goal-monitor release/apply, (3) factory reconciliation, (4) distributor adoption. New order is (1) let the already-running factory occurrence reach a natural terminal and get its occurrence-bound official publish-list readback; (2) diagnose the exact `EX_CONFIG` occurrences for distributor and goal monitor; (3) after the affected owner is idle, deploy a latest-main release through exact preflight and the normal targeted apply path, then verify each natural run/readback; (4) resume search/hot/`ai_overview` distribution work with refreshed source-to-paid metrics. Reason: a release is already cut and factory is running, while the two other owners are stopped and the goal-monitor report lags the latest reconcile. **Current cursor: item 1.** Keep unknown effects fenced and use registered adapters only. No new sale, Agent shipment, or MRR is claimed.
