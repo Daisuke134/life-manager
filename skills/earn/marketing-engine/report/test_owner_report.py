@@ -395,8 +395,12 @@ class OwnerReportRendererTest(unittest.TestCase):
         event = self.event("action", "anicca-ios")
         text = owner_report.render_japanese(event)
         self.assertEqual(event["product_id"], "anicca-ios")
-        self.assertIn("anicca-ios", text)
+        self.assertIn("Anicca iOS", text)
+        self.assertNotIn("anicca-ios", text)
         self.assertIn(NATIVE_URL, text)
+        self.assertNotIn("message_key=", text)
+        self.assertNotIn("evidence_refs=", text)
+        self.assertNotIn("確認情報", text)
 
     def test_action_replay_is_stable_when_attribution_snapshot_appended(self):
         first = self.event("action", "ebook-ja")
@@ -512,6 +516,42 @@ class OwnerReportRendererTest(unittest.TestCase):
             [],
             "unmeasured checkpoints belong in one health incident, not checkpoint spam",
         )
+
+
+    def test_late_checkpoint_shows_actual_age_and_hides_internal_report_fields(self):
+        metrics_path = self.root / "post-metrics.jsonl"
+        metrics = owner_report.load_jsonl(metrics_path)
+        row = next(row for row in metrics if row.get("publication_id") == "pub-anicca")
+        row.update(
+            observed_at="2026-08-07T05:12:45Z",
+            observed_age_hours=45.2125,
+            checkpoint_sla_status="missed",
+            impressions=None,
+            metric_null_reasons={"impressions": "provider_field_missing"},
+        )
+        metrics_path.write_text(
+            "".join(json.dumps(item, ensure_ascii=False) + "\n" for item in metrics),
+            encoding="utf-8",
+        )
+        events = owner_report.build_events(
+            self.root,
+            "checkpoint",
+            product_id="anicca-ios",
+            as_of=dt.datetime(2026, 8, 7, 6, 0, tzinfo=dt.timezone.utc),
+        )
+        event = next(item for item in events if item["facts"].get("publication_id") == "pub-anicca")
+        self.assertEqual(event["facts"]["observed_age_hours"], 45.2125)
+        self.assertEqual(event["facts"]["checkpoint_sla_status"], "missed")
+        self.assertTrue(event["evidence_refs"])
+        text = owner_report.render_japanese(event)
+        self.assertIn("Anicca iOS", text)
+        self.assertIn("TikTok", text)
+        self.assertIn("目標24時間", text)
+        self.assertIn("実測45.2時間後", text)
+        self.assertIn("期限超過", text)
+        self.assertIn("表示回数は取得できませんでした", text)
+        for internal in ("None", "anicca-ios", "message_key=", "evidence_refs=", "確認情報"):
+            self.assertNotIn(internal, text)
 
     def test_bound_checkpoint_is_product_scoped_and_replays_delivery(self):
         native_url = "https://www.tiktok.com/@account/video/native-1"
@@ -980,8 +1020,20 @@ class OwnerReportRendererTest(unittest.TestCase):
     def test_portfolio_weekly_contains_each_product_once(self):
         event = self.event("portfolio_weekly")
         text = owner_report.render_japanese(event)
+        expected_labels = (
+            "Anicca iOS",
+            "Honne AI",
+            "Breath Reset",
+            "Sleep Ritual",
+            "Desk Stretch Timer",
+            "Micro-Mood",
+            "アニッチャ・リセット（日本語）",
+            "The Anicca Reset（英語）",
+        )
+        for label in expected_labels:
+            self.assertEqual(text.count(label), 1, label)
         for product_id in PRODUCTS:
-            self.assertEqual(text.count(product_id), 1, product_id)
+            self.assertNotIn(product_id, text)
 
     def test_portfolio_weekly_sums_revenue_28d_and_installs_28d_across_products(self):
         event = self.event("portfolio_weekly")
@@ -1692,7 +1744,7 @@ class OwnerReportRendererTest(unittest.TestCase):
                 as_of=dt.datetime(2026, 8, 6, 12, tzinfo=dt.timezone.utc),
             )[0]
             text = owner_report.render_japanese(event)
-        ebook_line = next(line for line in text.splitlines() if line.startswith("ebook-ja:"))
+        ebook_line = next(line for line in text.splitlines() if line.startswith("アニッチャ・リセット（日本語）:"))
         self.assertIn("2073 XYZ", ebook_line)
         self.assertIn("最小単位", ebook_line)
         self.assertNotIn("売上額は取得できませんでした", ebook_line)

@@ -1,0 +1,24 @@
+name: Owner report contract
+
+on:
+  pull_request:
+    paths:
+      - "skills/earn/marketing-engine/report/**"
+      - ".github/workflows/owner-report-contract.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "skills/earn/marketing-engine/report/**"
+      - ".github/workflows/owner-report-contract.yml"
+
+jobs:
+  owner-report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run owner report contract tests
+        run: python3 skills/earn/marketing-engine/report/test_owner_report.py
