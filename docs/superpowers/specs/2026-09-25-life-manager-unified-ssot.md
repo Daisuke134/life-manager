@@ -18107,3 +18107,10 @@ PR #8037 is merged as `e0a53f1`; its tested head `8e7df3c` passed all 11 automat
 DD06 source integration is complete. Release capacity, production owner adoption, natural Writer publication, artifact-level attribution, revenue, cost, and human intervention remain unverified. The Writer focused suite 24/24 is historical on merged `72ff5f9`; do not present it as a current-main local run.
 
 **Current EDD cursor:** preserve Writer CTA product/run/artifact/variant/click lineage and destination identity through the existing `/lm` funnel → authenticated first touch → Stripe paid/refund events → Writer artifact join. Then complete DD05 capacity/release/registered-owner/natural-publication gates, freeze a mature baseline, run one controlled single-variable experiment, and continue DD07–DD12. Missing evidence remains unknown.
+## Owner-facing metrics report clarity — 2026-10-14
+
+**AS-IS:** The Anicca iOS TikTok checkpoint for the post published at 2026-10-10T05:20:00Z has target age 24 hours, observed age 45.2125 hours, `checkpoint_sla_status=missed`, 481 views, and unavailable impressions. The current event builder drops the observed age/SLA fields; the Japanese renderer presents only the target age, prints Python `None`, and appends internal product/message/evidence identifiers to the user-facing report.
+
+**TO-BE / acceptance:** Keep the structured message key and evidence references in the local event ledger, while the delivered Japanese text uses readable product/platform names, distinguishes target age from actual measurement age, states that the checkpoint was late, renders unavailable metrics as natural Japanese, and omits internal IDs/references. Add a regression test for this exact late-checkpoint and missing-impressions case plus a dedicated owner-report CI workflow. This is an A3 measurement/reporting subtask; it does not resolve production publication fences or prove downloads.
+
+**Cursor impact:** Overall Anicca TODO order remains unchanged. Continue A3 production adoption/readback first; the report-language correction improves trustworthy interpretation of its metrics.
