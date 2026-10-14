@@ -418,6 +418,47 @@ def test_pre_effect_enospc_manifest_failure_needs_empty_official_readbacks(tmp_p
     assert result["proof_kind"] == "official_github_postiz_empty_after_pre_effect_enospc"
 
 
+def test_pre_effect_enospc_ignores_unrelated_landing_slug_in_shared_window(tmp_path, monkeypatch):
+    occurrence_id, started = pre_effect_manifest_failure(tmp_path, monkeypatch)
+    unrelated_line_sticker_commit = {
+        "sha": "a9271bd94298d6a8573143cfe23dad6a2545bc40",
+        "at": "2026-10-14T12:09:29+09:00",
+        "slug": "line-sticker-set-020-2026-10-14-12",
+    }
+
+    result = rec.reconcile(
+        occurrence_id,
+        now=started + dt.timedelta(seconds=rec.NO_EFFECT_MIN_AGE_SECONDS + 1),
+        fenced_row_fn=lambda _owner, _occurrence: ("claimed", started - dt.timedelta(seconds=1)),
+        commits_fn=lambda _start, _end: {"ok": True, "commits": [unrelated_line_sticker_commit]},
+        x_fn=lambda _start, _end: {"ok": True, "posts": []},
+    )
+
+    assert result["verified"] is True
+    assert result["effected"] is False
+    assert result["proof_kind"] == "official_github_postiz_empty_after_pre_effect_enospc"
+
+
+def test_pre_effect_enospc_keeps_same_slot_capafy_commit_inconclusive(tmp_path, monkeypatch):
+    occurrence_id, started = pre_effect_manifest_failure(tmp_path, monkeypatch)
+    same_slot_capafy_commit = {
+        "sha": "b" * 40,
+        "at": "2026-10-14T12:09:29+09:00",
+        "slug": "capafy-tiktok-script-pro-2026-10-14-h12m00",
+    }
+
+    result = rec.reconcile(
+        occurrence_id,
+        now=started + dt.timedelta(seconds=rec.NO_EFFECT_MIN_AGE_SECONDS + 1),
+        fenced_row_fn=lambda _owner, _occurrence: ("claimed", started - dt.timedelta(seconds=1)),
+        commits_fn=lambda _start, _end: {"ok": True, "commits": [same_slot_capafy_commit]},
+        x_fn=lambda _start, _end: {"ok": True, "posts": []},
+    )
+
+    assert result["verified"] is False
+    assert result["reason"] == "landing_commit_in_window_without_occurrence_manifest"
+
+
 def test_pre_effect_enospc_manifest_failure_stays_fenced_if_postiz_has_a_post(tmp_path, monkeypatch):
     occurrence_id, started = pre_effect_manifest_failure(tmp_path, monkeypatch)
     result = rec.reconcile(
