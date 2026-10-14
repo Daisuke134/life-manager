@@ -250,6 +250,8 @@ test("after-work Travel uses the agent-selected same-day office candidate", asyn
         end: { dateTime: "2030-01-01T20:00:00+09:00", timeZone: "Asia/Tokyo" } },
     ];
     const routeCalls = [];
+    const outboundTargets = [];
+    const allowanceCalls = [];
     const created = [];
     let originCandidates = [];
     const calendar = {
@@ -268,9 +270,16 @@ test("after-work Travel uses the agent-selected same-day office candidate", asyn
       supaUrl: "https://db.example",
       supaKey: "fixture",
       _directionsMinutes: async (from, to, _key, _anchor, _now, isReturn) => {
+        if (!isReturn) outboundTargets.push(to);
         if (to === "渋谷ヒカリエ" && !isReturn) routeCalls.push(from);
         return isReturn ? null : 40;
       },
+      _reserveManagedAction: async (_uid, eventKey) => {
+        allowanceCalls.push(eventKey);
+        return { allowed: true, reservationToken: eventKey };
+      },
+      _completeManagedAction: async () => true,
+      _releaseManagedAction: async () => true,
       _agentResolveTravelOrigin: async (_event, options) => {
         originCandidates = options.candidates;
         const candidate = options.candidates.find((item) => item.location === office);
@@ -283,8 +292,50 @@ test("after-work Travel uses the agent-selected same-day office candidate", asyn
     const replay = await fillTravel("tenant-after-work", options);
     assert.ok(originCandidates.some((candidate) => candidate.location === office));
     assert.deepEqual(routeCalls, [office, office]);
+    assert.deepEqual(outboundTargets, ["渋谷ヒカリエ", "渋谷ヒカリエ"]);
+    assert.equal(allowanceCalls.length, 4, "only the future event may reserve route usage on each run");
     assert.equal(result.inserted, 1);
     assert.equal(replay.inserted, 0);
+    assert.equal(created.length, 1);
+  });
+});
+
+test("ongoing Calendar event skips outbound routing but keeps its return route", async () => {
+  await withTravelClaimStore(async () => {
+    const sourceRows = [
+      { id: "ongoing-event", summary: "Dinner", location: "Venue",
+        start: { dateTime: "2030-01-01T17:00:00+09:00", timeZone: "Asia/Tokyo" },
+        end: { dateTime: "2030-01-01T18:00:00+09:00", timeZone: "Asia/Tokyo" } },
+    ];
+    const routeCalls = [];
+    const allowanceCalls = [];
+    const created = [];
+    const calendar = {
+      async listEventsRaw() { return sourceRows; },
+      async createEvent(_uid, args) { created.push(args); return { successful: true }; },
+    };
+    const result = await fillTravel("tenant-ongoing-event", {
+      home: HOME,
+      timezone: "Asia/Tokyo",
+      nowMs: Date.parse("2030-01-01T17:30:00+09:00"),
+      calendar,
+      supaUrl: "https://db.example",
+      supaKey: "fixture",
+      _directionsMinutes: async (_from, _to, _key, _anchor, _now, isReturn) => {
+        routeCalls.push(isReturn ? "return" : "outbound");
+        return isReturn ? 30 : 40;
+      },
+      _reserveManagedAction: async (_uid, eventKey) => {
+        allowanceCalls.push(eventKey);
+        return { allowed: true, reservationToken: eventKey };
+      },
+      _completeManagedAction: async () => true,
+      _releaseManagedAction: async () => true,
+    });
+
+    assert.deepEqual(routeCalls, ["return"]);
+    assert.equal(allowanceCalls.length, 1);
+    assert.equal(result.inserted, 1);
     assert.equal(created.length, 1);
   });
 });

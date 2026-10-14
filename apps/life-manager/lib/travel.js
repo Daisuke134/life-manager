@@ -878,6 +878,8 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
   for (let i = 0; i < events.length; i++) {
     const ev = events[i];
     if (isTravel(ev.summary) || !ev.location) continue;
+    // Past events stay in `events` as same-day origin context, but must never trigger provider work.
+    if (Number.isFinite(ev.endMs) && ev.endMs <= nowMs) continue;
     checked++;
     // A verified user preference is authoritative. If it is malformed, use the event's own IANA
     // zone when available, then the product's JST default; never let an invalid preference poison the
@@ -955,7 +957,11 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
         if (selected) originOverride = selected.location;
       } catch { /* keep the existing conservative home/direct-previous decision */ }
     }
-    const decision = travelDecision(ev, previous, home, originOverride);
+    // An event already in progress cannot need an outbound route; preserve its independent return leg.
+    const outboundEligible = Number.isFinite(ev.startMs) && ev.startMs >= nowMs;
+    const decision = outboundEligible
+      ? travelDecision(ev, previous, home, originOverride)
+      : { insert: false, origin: null, reason: "event-already-started" };
     let outboundInserted = false;
     let resolvedDest = ev.location; // tracks the agent-resolved venue for the return leg
 
