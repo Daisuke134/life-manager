@@ -994,7 +994,7 @@ def test_heartbeat_failure_sets_cancellation_event(tmp_path, monkeypatch):
     failed = threading.Event()
 
     def heartbeat(_claim):
-        raise OSError(errno.ENOSPC, "private /Users/anicca/path")
+        raise OSError(errno.ENOSPC, "private test detail")
 
     monkeypatch.setattr("runtime.loop.lm_loop_run.HEARTBEAT_INTERVAL_SECONDS", 0.01)
     with patch("runtime.loop.lm_loop_run.heartbeat_durable_resource",
@@ -1005,7 +1005,7 @@ def test_heartbeat_failure_sets_cancellation_event(tmp_path, monkeypatch):
 
 
 @pytest.mark.parametrize("heartbeat_error,expected_reason,busy_tolerance", (
-    (OSError(errno.ENOSPC, "private /Users/anicca/path"),
+    (OSError(errno.ENOSPC, "private test detail"),
      "resource_heartbeat_oserror_errno_28", 240.0),
     (RuntimeError("control_busy"),
      "resource_heartbeat_control_busy_timeout", 0.001),
@@ -1052,7 +1052,7 @@ def test_admitted_child_is_cancelled_when_heartbeat_fails(
     receipt_payload = json.loads(receipt.read_text())
     assert receipt_payload["reason"] == "resource_heartbeat_unavailable"
     assert receipt_payload["heartbeat_subcause"] == expected_reason
-    assert "private /Users/anicca/path" not in receipt.read_text()
+    assert "private test detail" not in receipt.read_text()
 
 
 def test_release_waits_for_inflight_heartbeat_before_closing_claim(tmp_path, monkeypatch):

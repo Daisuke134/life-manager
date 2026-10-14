@@ -18471,7 +18471,7 @@ Paid-orders/views is descriptive, not causal: hot `5/46 ≈ 10.9%`, search `8/79
 
 **実装互換性の確認:** `skills/earn/gig/scripts/coconala_discovery_pre_effect_migration.py`と`coconala_legacy_pre_effect_migration.py`は既存の`host_admission_deferred:resource_heartbeat_unavailable`を完全一致で読む。従ってsubcauseは補助diagnosticへ保存し、既存reason/blocker/error_classは変更しない。
 
-**現在cursor:** item 1。malformed claim shapeの誤分類と既存generic blockerを崩す案の両方でREDを確認し、必須claim shapeの検証・subcause記録・旧reason/blocker/error_class保持を実装した。最終差分の全関連testは`test_resource_admission.py` 172/172、`test_lm_loop_run_bounds.py` 182/182、`py_compile`、`git diff --check`がpass。過去heartbeat failureの実原因は未確認で、このsource修正は次回発生時の原因を記録する。次はcommit/push/PR/exact-head CI、merge後のlatest-main release採用へ進む。
+**現在cursor:** item 1。malformed claim shapeの誤分類と既存generic blockerを崩す案の両方でREDを確認し、必須claim shapeの検証・subcause記録・旧reason/blocker/error_class保持を実装した。関連testsは`test_resource_admission.py` 172/172、`test_lm_loop_run_bounds.py` 182/182、`py_compile`、`git diff --check`がpass。PR #8095の初回CIでOSS boundaryがtest fixture中の`/Users/anicca/path`を拒否したため、個人pathを含まない`private test detail`へ置換し、`node scripts/verify-oss-self-contained.mjs`とheartbeat-focused 3件がpass。過去heartbeat failureの実原因は未確認で、このsource修正は次回発生時の原因を記録する。次はfollow-up commitをpushし、latest-head CIを通す。
 
 
 ### Life Manager Cloud current cursor — 2026-10-15
