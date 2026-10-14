@@ -97,8 +97,16 @@ function historyProvider(dataDir) {
 async function executeJob(store, job, workerId, handler) {
   const existing = await store.readReceipt({ tenantId: job.tenant_id, jobId: job.job_id });
   if (existing) return existing;
+  if (job.capability === "marketing.video.publish") {
+    const failed = await store.readJob({ tenantId: job.tenant_id, jobId: job.job_id });
+    // The publication adapter marks every post-dispatch failure as unknown.
+    if (failed?.status === "failed" && failed.unknown_effect === false
+      && failed.attempt < failed.max_attempts) {
+      await store.retryJob({ tenantId: job.tenant_id, jobId: job.job_id });
+    }
+  }
   const claim = await store.claimJob({ tenantId: job.tenant_id, jobId: job.job_id, capability: job.capability, workerId, leaseSeconds: 300 });
-  if (!claim) throw new Error(`honne JA ${job.capability} job is not claimable`);
+  if (!claim) throw new Error(`Mobile marketing job is not claimable: ${job.job_id}`);
   await executeCapabilityJob(claim, {
     workerId,
     handlers: { [job.capability]: handler },
@@ -108,7 +116,7 @@ async function executeJob(store, job, workerId, handler) {
     leaseSeconds: 300,
   });
   const receipt = await store.readReceipt({ tenantId: job.tenant_id, jobId: job.job_id });
-  if (!receipt) throw new Error(`honne JA ${job.capability} receipt is unavailable`);
+  if (!receipt) throw new Error(`Mobile marketing receipt unavailable: ${job.job_id}`);
   return receipt;
 }
 
