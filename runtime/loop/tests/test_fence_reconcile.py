@@ -4,13 +4,16 @@ These tests use fake ``run_call``/``read_fenced`` callables so no real owner
 script, browser, or admission database is touched.
 """
 
+import io
 import json
+import os
 import sqlite3
 import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 from runtime.loop.fence_reconcile import (
     build_argv,
@@ -579,6 +582,59 @@ class ReconcileTest(unittest.TestCase):
         self.assertIsNone(run_case(event_releases=(release_sha, "b" * 40)))
 
 
+
+
+
+class ReconcileCursorTest(unittest.TestCase):
+    def test_unchanged_lost_results_still_advance_to_later_fresh_proof(self):
+        owner = "owner-a"
+        occurrences = tuple(f"{owner}:{index}" for index in range(3))
+        sha = "a" * 40
+        rows, calls, attempts = [], [], {}
+        ledger = MagicMock(spec=Path)
+        class MemoryLog(io.BytesIO):
+            def fileno(self):
+                return 87654
+        def payload():
+            return b"\n".join(json.dumps(row).encode() for row in rows) + b"\n"
+        ledger.open.side_effect = lambda *args, **kwargs: MemoryLog(payload())
+        real_fstat = os.fstat
+        def fstat(fd):
+            return SimpleNamespace(st_size=len(payload())) if fd == 87654 else real_fstat(fd)
+        def call(argv, **kwargs):
+            occurrence = argv[argv.index("--occurrence") + 1]
+            calls.append(occurrence)
+            attempts[occurrence] = attempts.get(occurrence, 0) + 1
+            if occurrence == occurrences[-1] and attempts[occurrence] > 1:
+                return 0, json.dumps({
+                    "owner_id": owner, "occurrence_id": occurrence, "release_sha": sha,
+                    "verified": True, "provider_receipt_id": "fixture-official:ready",
+                })
+            return 1, "HELD"
+        loops = {owner: {"effect_reconcile": {
+            "argv": ["reconcile.py"], "occurrence_flag": "--occurrence",
+            "resolve_flag": "--resolve",
+        }}}
+        with patch("runtime.loop.fence_reconcile._lost_terminal_unknown_occurrences",
+                   return_value={owner: occurrences}), \
+             patch("runtime.loop.fence_reconcile._runtime_release_shas",
+                   side_effect=lambda owner, targets, loops: {occ: sha for occ in targets}), \
+             patch("runtime.loop.fence_reconcile._append_jsonl",
+                   side_effect=lambda path, added: rows.extend(added)), \
+             patch("runtime.loop.fence_reconcile.os.fstat", side_effect=fstat):
+            results = [reconcile(
+                registry=_registry(loops), root=Path("/fixture"), cap=1,
+                run_call=call, read_fenced=lambda: {}, log_path=ledger, wake_epoch=wake * 600,
+            ) for wake in range(6)]
+        self.assertEqual(calls, list(occurrences) * 2)
+        self.assertEqual([result["closed"] for result in results], [0, 0, 0, 0, 0, 1])
+        cursors = [row for row in rows if row.get("owner_cursor")]
+        self.assertEqual(len(cursors), 2)
+        self.assertTrue(all(row["closed"] is False and "closure_proof" not in row
+                            for row in cursors))
+        self.assertEqual(sum(row["occurrence_id"] == occurrences[0] for row in rows), 1)
+        self.assertEqual(sum(row["occurrence_id"] == occurrences[1] for row in rows), 1)
+        self.assertEqual(rows[-1]["closure_proof"]["release_sha"], sha)
 
 
 class WakeBudgetTest(unittest.TestCase):
