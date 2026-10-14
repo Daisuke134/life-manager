@@ -401,6 +401,18 @@
     "skills/_shared/marketplace-core/scripts/platform_enrollment.py"
   ],
   "draft_validation": {
+    "readme_en_lines": 79,
+    "readme_ja_lines": 79,
+    "catalog_names_order": "all18 matched both",
+    "code_blocks": "identical",
+    "north_star": "preserved",
+    "startup_metadata": "preserved",
+    "WebMCP_hackathon_section": "absent from drafts",
+    "runtime_repairs": 0,
+    "whole_life_philosophy": "restored; proactive body/mind/money and user impact",
+    "philosophy_commit": "74c269a0b5ca6178a91c819e5a72b053abde4c04"
+  },
+  "draft_validation_previous": {
     "readme_en_lines": 75,
     "readme_ja_lines": 75,
     "catalog_names_order": "all18 matched both",
@@ -409,5 +421,53 @@
     "startup_metadata": "preserved",
     "WebMCP_hackathon_section": "absent from drafts",
     "runtime_repairs": 0
+  },
+  "subscription_source_audit": {
+    "source_sha": "13f59bca114e48e284b3b55fee1c1f450c66b2c0",
+    "native_transport": "reusable",
+    "public_config_generator": "not implemented",
+    "shared_profiles": [
+      "acct1",
+      "acct2"
+    ],
+    "non_codex_candidates": 13,
+    "one_profile_ast_probe": "PASS",
+    "old_job_config_probe": "codex candidate requires explicit profile_alias",
+    "auth_model_metadata": "contract probe required before patch",
+    "production_or_auth_actions": 0
+  },
+  "ordered_patch_plan": {
+    "source_sha": "13f59bca114e48e284b3b55fee1c1f450c66b2c0",
+    "path": "docs/superpowers/plans/2026-10-14-ordered-patch-execution-plan.md",
+    "lines": 168,
+    "current_cursor": "S01/F2 -> S02/F5",
+    "source_paths_checked": {
+      "checked": 42,
+      "missing": []
+    },
+    "source_classifications": [
+      "SOURCE_ACCEPTANCE",
+      "PATCH_READY",
+      "EVIDENCE_FIRST"
+    ],
+    "auth_model_probe_is_prerequisite": true,
+    "runtime_repairs": 0,
+    "new_device_e2e": "not_executed",
+    "independent_fresh_review": {
+      "status": "not_executed",
+      "error_class": "ENOSPC",
+      "first_failing_boundary": "thread_writer_lock_creation"
+    }
+  },
+  "capafy_hosted_inference_source_audit": {
+    "source_sha": "13f59bca114e48e284b3b55fee1c1f450c66b2c0",
+    "entrypoint": "skills/capafy-autopublish/scripts/drive_checkpoint2.py",
+    "config_builder": "skills/capafy-autopublish/scripts/build_config.py",
+    "current_host": "openrouter.ai",
+    "key_required": "CAPAFY_HOST_OPENROUTER_KEY",
+    "chatgpt_only_hosted_support": "not_proven",
+    "next_action": "S09.P0 HOSTED_INFERENCE_CONTRACT_REQUIRED",
+    "account_and_key_read": false,
+    "provider_calls": 0
   }
 }

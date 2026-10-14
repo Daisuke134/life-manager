@@ -18132,3 +18132,53 @@ At the recorded 80% seller share, `$41.84` attributed sales imply `$33.47` selle
 - **Distribution funnel:** at the 16:12:07 JST source observation, 7d detail views were 675 with 0 paid; 30d detail views were 4,135 with 16 paid and `$41.84` attributed sales. 30d paid split: search 8 (`$17.92`), hot 5 (`$9.95`), direct 2 (`$3.98`), Google 1 (`$9.99`); `ai_overview` had 370 views and 0 paid. These are source-attributed counts, not causal conversion rates. Separate 7d listing impressions were search 5,216 (2,516 user-id exposures), hot 521 (291), and category 601 (391); impression deduplication semantics remain unverified. These observations are about 95 minutes old at this checkpoint.
 
 **Cursor/order change:** the 15:43 order was (1) capacity recovery, (2) goal-monitor release/apply, (3) factory reconciliation, (4) distributor adoption. New order is (1) let the already-running factory occurrence reach a natural terminal and get its occurrence-bound official publish-list readback; (2) diagnose the exact `EX_CONFIG` occurrences for distributor and goal monitor; (3) after the affected owner is idle, deploy a latest-main release through exact preflight and the normal targeted apply path, then verify each natural run/readback; (4) resume search/hot/`ai_overview` distribution work with refreshed source-to-paid metrics. Reason: a release is already cut and factory is running, while the two other owners are stopped and the goal-monitor report lags the latest reconcile. **Current cursor: item 1.** Keep unknown effects fenced and use registered adapters only. No new sale, Agent shipment, or MRR is claimed.
+
+
+## whole-life哲学と順序付きpatch cursor
+
+今回の範囲はspecとREADME案の修正、実装可能な差分計画。runtime/auth/installer/provider/release/applyは実行しない。sourceは13f59bca114e48e284b3b55fee1c1f450c66b2c0。
+
+製品の意味を固定する: Life Managerは、あなた以上にあなたの人生全体を管理するAI。身体・心・お金を支え、頼む前に気づき、行動し、完遂する。時間・心の余裕・収入という生活への効果と、すべての生き物の苦しみを減らす使命を冒頭へ置く。workflow/durable stateを製品の価値へ置換しない。日英proposalはcommit74c269a0b5で修正済み、各79行。本体への短縮適用は未実施。
+
+導入目標: 新利用者の必要な推論契約はChatGPT一つ。既存native Codex/OAuth/SDKを使い、追加Claude/Gemini/OpenAI API契約を必須にしない。これはprovider本人/税/payout/実費が不要という意味ではない。最初のaccount→listing/apply→制作→正式納品/購入→settlement/全費用→正利益を、新利用者自身のaccountで閉じる。単発受注や給与をMRRへ加えない。
+
+既存部品の再利用を固定する: Codex resolve_provider_profiles/provider_process_env/command_for/run、product catalog/planner、marketplace-core contracts/application/reply/paid/paid_handoff、CFO marketplace adapter、recovery、Writer/DD/EAB evaluator。新harness/scheduler/victory ledgerを作らず、provider差分はthin adapter。
+
+## 実装修復の順序と具体差分
+
+この表が今回詳細化する実装cursor。既存F2→F5、Gig/Capafy/DDのownerを引き継がず、同じ先頭作業を参照する。SOURCE_ACCEPTANCE=source済み、自然/公式受入待ち。PATCH_READY=差分とREDを定義した設計。EVIDENCE_FIRST=次probeまで明確、原因未確定のsource変更を開始しない。
+
+|順|Task/状態|file/functionと変更|REDまたは完了証拠|
+|---|---|---|---|
+|0|S00 文書修正済み|README日英proposalの冒頭をwhole-life/proactive/impactへ戻す。元のNorth Star保持|意味/全18name/同command確認済み。本体短縮は後続startup範囲と一致させる|
+|1|S01 F2 / SOURCE_ACCEPTANCE|fence_reconcile.py::_lost_terminal_unknown_occurrences/_closure_proof/reconcile、central_cleanup.py::scratch_gc。既済sourceを再実装せず、同occurrenceのofficial proofを取得|自然loaded SHA→closure→参照なしclosed scratch回収、receipt保持。既存test_fence_reconcile.pyを使う。解除/再送0|
+|2|S02 F5 / EVIDENCE_FIRST|central_cleanup.py::scratch_gc/lm_loop_run.pyと実測producer。owner/PID/run/path/bytes→parent/child終了→次sweepを三自然cycle結ぶ|GC誤拒否ならscratch_gc、child残存ならそのproducer teardownへ一RED。producer名を先に推測しない。lost/duplicate/manual cleanup0|
+|3a|S03.1 PATCH_READY|Create runtime/agent-runner/oss_config.py::build_public_config(base_config,auth_file,automation_home,model=None,effort=None)。private configへCodex/owner一profile/account_fallback_next=falseを生成|one-owner/only-Codex/no-other-account fixture。共有production configは不変更|
+|3b|S03.2 PATCH_READY|Job job_search_loop/local_setup.py::install、scripts/runtime-paths.sh、install-oss.shの読込を生成configへ。古いJob configへ単に切替えない|test_public_runtime_paths_use_generated_config。現旧configはprofile_alias不足でresolver拒否、AST probeで確認済み|
+|3c|S03.3 PATCH_READY|Gig coconala_onboarding.configure/gig_release.plist_for/launchd-jobs.jsonの既存overrideでapply/storefront/replyへ同じpublic configを渡す|同生成path/一account、quota時Claude/他profile呼出し0。既存money_loop_onboarding testを再利用|
+|3d|S03.4 AUTH_MODEL_CONTRACT_REQUIRED|provider_authenticated/installer preflightとcommand_for。login status exit0だけのChatGPT/API同一視を修正。保存UI modelを保持、公開model未指定は既定へ|vendor auth metadata/ignore-user-config継承を先に確認。API authはchatgpt_auth_required、別provider0、未指定model強制0。新transport/新固定model IDなし|
+|4|S04 PATCH_READY|bootstrap.sh/install.shへ--loop/--plan-only選択、canonical ID→legacy installer。planProductOnboardingはpure|selected once、unknown starts nothing、plan_only installer0。syntax不正はnetwork前、未知IDはcatalog後もaccount/owner前に拒否|
+|5|S05 PATCH_READY|integration-onboarding.load_manifests/graph、onboarding-server._graph/_connect、provider manifests、Connector/Fundraiser installers。catalogとown identityへ接続|未選択preflight0、interactive:dais要求0、GUI前提失敗後probe0、非Mac fake loaded0。Job Telegram条件も一致|
+|6|S06 EVIDENCE_FIRST|Coconala application_parent._runtime_occurrence_binding/application_occurrence_reconcile.build_provider_proof、Storefront/Reply registered adapters、Lancers read_paid_inventory/run_tick、CrowdWorks account ensure、Freelancer readiness/bid-watch/transport/paid adapter|同run/request/body/listingとofficial結果。欠落proofを比較緩和で閉じない。account失敗の最初のresponse/identity後にadapterのRED|
+|7|S07 EVIDENCE_FIRST|shared paid_handoff.build_paid_handoff/paid_kernelと各paid_adapter._inventory/mutate。funded条件→制作/品質→正式納品→受領|exact-funded-terms、formal-delivery-not-answerのRED、自然receipt/精算/replay0。Mercor human gateは許可されたagent提出の実surfaceを取るまで削らない|
+|8|S08 proof後PATCH_READY|gig-work/profile/listings/catalog.json、storefront_direct.run_once、catalog grounding tests。正利益の固定scopeをcanonical offerへ、市場差はprojection|scope/deliverable hashが市場投影で不変、未実装factoryをcomplete商品扱いしない。最初のnative listing一件から積む|
+|9|S09 EVIDENCE_FIRST|Capafy _inventory/_window_totals/_fetch_agent_stats_windows/normalize_agents、既存distributor/event/CFO marketplace|既済修正/loaded版比較、EX_CONFIGのexact path/profile/error。slot一致/FROZEN優先/売上日≠取得日、同期間fee/refund/payout/全費用。欠測でpositive netなし|
+|10|S10 観測後PATCH_READY|buyer_outcome_ledger.scan、CFO/event、canonical offer/quality/delivery skill、Writer/DD evalへlessonを返す|匿名{symptom,wrong_instinct,correct_step,general_law,evidence_refs}。private payload除外、missing netを成功例にしない、同lesson versionでoffer/品質を比較|
+|11|S11 EVIDENCE_FIRST|recovery-intent/apply-plan、self-build bridge、dev guard、platform_enrollment、economic-autonomy scorer。H/I/Nの一周|同障害のLM修復→自然成功、frozen比較→canary→CFO、候補発見→owner→settlement→quality/net。自分のgrader編集/unknown再送0|
+|12|S12 horizon|同じcontractで残capability/public package/Cloud/general-task coverageを増やし、両README/catalog/CLIへ自動同期|全18と新agentのaccount/仕事/公式結果/会計を一つずつ受入。正unit net/継続購入からUS$10M/月以上。登録数や合成scoreをAGIへしない|
+
+差分手順と各taskのinput/output/assert/既存testはdocs/superpowers/plans/2026-10-14-ordered-patch-execution-plan.mdを参照。この参照planに別のstatusを作らない。S03はconfig生成→Job binding→Gig binding→auth/model contractの独立patchへ分け、shared fileのwriterを重ねない。S03.P0のauth識別/model継承probeを最初に閉じ、未確定の認証fieldやmodel設定を実装者の推測へ任せない。
+
+今の着手点はS01/F2、その後S02/F5。S03–05のOSS設計/fixture、S06–09の観測、S10/11の評価準備は依存のない範囲で並行可能。新しい本番業務修復は既存F境界へ従う。全18完了をmeta準備の開始gateにはしない。本番採用は対象ごとの自然/金銭/quality証拠後。
+
+ChatGPT-only source監査: resolverは一profileに対応し、Codex auth alias/execは存在するので再実装不要。公開設定生成は未確認ではなくsource13fで未対応。共有configはacct1/acct2とnon-Codex候補13件、Job runtime-pathsは共有を固定。古いJob configはprofile_alias不足で失敗。sourceだけのAST probeはone-profile/false fallback PASS、実auth/inference/新端末成果は未実証。別Treg等のdata credentialをmodel契約へ混同しない。
+
+account→収入の最初の受入は、追加model契約を要求しない実装済み固定scopeの一件を新利用者で閉じる。費用が必要なproviderはactual cost/支払元/capを正しく記録し、未確認を無料へ置換しない。ソフトウェアの正常終了を購入需要や銀行着金の保証にしない。
+
+Capafy hosted依存の追加診断: source13fのskills/capafy-autopublish/scripts/drive_checkpoint2.pyはOpenRouter BASE_URLとCAPAFY_HOST_OPENROUTER_KEYを要求し、build_config.pyはprovider=openrouter.aiを生成する。LM自身のChatGPT/Codex推論と、売った商品のhosted推論を区別する。S09.P0はHOSTED_INFERENCE_CONTRACT_REQUIRED: Capafy正式対応の実行方式/課金/所有者を一次契約で確認してからadapterの差分を固定する。ChatGPT-only hosted対応は未実証。既存catalog/plannerのsetup_requiredへ欠落を反映し、Capafyを一契約readyと誤表示しない。未知のCodex proxyや課金不要を仮定しない。この点は共通F障害の解決だけでは閉じない。
+
+Storefront/知見共有: 商品scope/納品品質/工数/実費/official outcomeを共通kernel/evalへ戻す。顧客固有の本文/asset/credentialを他顧客や学習へコピーしない。既存勝ち筋の型を原創のoffer/作例へ適用し、同skill/versionを別市場へ投影する。pipelineと会計をproviderごとに再実装しない。
+
+今回の保存境界: 作業treeでGit index書込ENOSPCを再現。自分の不要temp約4MBだけを除きREADME修正をcommit/pushした。残文書は同branchの親commitを保持したGitHub Git APIで保存する。共有runtime/state/credential/他owner cleanupは変更しない。mainへの統合・実装修復は今回未実施。
+
+今回の検証: source SHA固定のpath/function/schema照合と公開一profileのAST probeを実施。新fresh reviewerの起動はthread writer lock作成時のENOSPCで失敗し、独立した新計画レビューは未実施。失敗をPASSへ置換しない。実装開始前の既定review/CIは保持する。

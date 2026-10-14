@@ -12,7 +12,7 @@ GitHub mainの英語版580行、日本語版306行は構成が一致しない。
 
 **単一推奨:** READMEは製品説明、Start、agent/startup coverage、起動前plan、data/account、開発参照、North Star、MITの短い対へ揃える。目安は各100–120行以下。行数だけを減らすために起動条件を削らない。未完成のハッカソンtool/historyは主READMEから外し、既存`docs/webmcp-judge-guide.md`等の参照資料とGit履歴へ残す。tool、API、Money Printerのsourceを削除する依頼とは扱わない。
 
-レビュー可能な全文案は `../patches/2026-10-14-readme-onboarding/README.en.proposed.md` と `README.ja.proposed.md`（各75行）。今回はREADME本体をこの案へ置換しない。sourceに存在するCoconala beta bootstrapを例とし、全18を起動するコマンドが既にあるとは書かない。両案は全18nameと同じ順序/command/状態を持ち、North Starの2行とstartup context metadataを保つ。
+レビュー可能な全文案は `../patches/2026-10-14-readme-onboarding/README.en.proposed.md` と `README.ja.proposed.md`（前稿各75行、whole-life哲学修正後各79行）。今回はREADME本体をこの案へ置換しない。sourceに存在するCoconala beta bootstrapを例とし、全18を起動するコマンドが既にあるとは書かない。両案は全18nameと同じ順序/command/状態を持ち、North Starの2行とstartup context metadataを保つ。
 
 情報を全部READMEへ残す案の強みは一ページで検索できることだが、初回導入の判断と内部設計を混ぜるため採らない。数行の宣伝だけにする案は短いが、現実の対応範囲を隠すため採らない。最良は短い両READMEから新端末の実起動まで閉じる、基準は短縮後も未完成installerを明示して段階修復、最悪は文面だけ簡潔になりcommandが失敗し続ける。推奨が誤る最有力の筋は、新端末の利用者が詳細ガイドへの移動でsetup条件を見落とすことで、setup待ちの理由はCLIにも残す。
 
