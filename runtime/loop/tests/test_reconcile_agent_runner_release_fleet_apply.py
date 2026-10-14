@@ -1168,9 +1168,14 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
                 calls_text,
                 "the next owner must wait for a later retry when less than one full owner timeout remains",
             )
-            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(result.returncode, 0, result.stderr)
             state = self._state(root)
             self.assertEqual(state["status"], "partial")
+            self.assertEqual(state["errors"], 0)
+            self.assertEqual(state["changed"], 1)
+            self.assertTrue(state["budget_progress_continue"])
+            self.assertEqual(state["last_ok_epoch"], 0)
+            self.assertGreater(state["next_retry_epoch"], time.time())
             self.assertIn("budget exceeded", state["message"])
 
     def test_owner_failure_does_not_delay_healthy_same_sha_budget_continuation(self):
@@ -1258,7 +1263,7 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             env["LIFE_MANAGER_FLEET_APPLY_CONTINUE_SECONDS"] = "0"
 
             first = self._run(env)
-            self.assertNotEqual(first.returncode, 0)
+            self.assertEqual(first.returncode, 0, first.stderr)
             first_state = self._state(root)
             self.assertEqual(first_state["status"], "partial")
             self.assertEqual(first_state["changed"], 1)
@@ -1386,7 +1391,7 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             env["LIFE_MANAGER_FLEET_APPLY_PER_OWNER_TIMEOUT_SECONDS"] = "3"
 
             first = self._run(env)
-            self.assertNotEqual(first.returncode, 0)
+            self.assertEqual(first.returncode, 0, first.stderr)
             self.assertEqual(self._apply_call_count(calls_log), 1)
             first_state = self._state(root)
             self.assertEqual(first_state["status"], "partial")

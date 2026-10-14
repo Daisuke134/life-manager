@@ -698,7 +698,10 @@ PY
     "$release_sha" "$status" "$changed" "$skipped" "$errors" \
     "${message:+ message=\"$message\"}" >&2
 
-  { [ "$status" = "error" ] || [ "$status" = "partial" ]; } && return 1
+  # A healthy bounded tick succeeds while fleet convergence stays partial in the journal.
+  # Actual apply failures and timeouts never set budget_progress_continue.
+  { [ "$status" = "error" ] || { [ "$status" = "partial" ] \
+    && [ "$budget_progress_continue" -ne 1 ]; }; } && return 1
   return 0
 }
 
