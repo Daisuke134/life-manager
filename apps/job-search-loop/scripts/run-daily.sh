@@ -231,7 +231,9 @@ if [[ -n "$APPLICATION_ID" ]]; then
     print -u2 "job-search daily: realtime application progress report failed"
   fi
 fi
-MODEL_TIMEOUT_SECONDS="${JOB_SEARCH_BROWSER_TIMEOUT_SECONDS:-1800}"
+# Leave room for one semantic retry after a long Workday form pass; the loop
+# runtime still enforces its independent 3600-second ceiling.
+MODEL_TIMEOUT_SECONDS="${JOB_SEARCH_BROWSER_TIMEOUT_SECONDS:-2400}"
 set +e
 "$JOB_SEARCH_PYTHON" -m job_search_loop.browser_agent.orchestrator \
   --runner "$JOB_SEARCH_RUNNER" \
