@@ -102,10 +102,13 @@ Gate 13 `gate_pass` means the snapshot is structurally complete, contains no fab
 
 ### Task 5: Integrate and read the natural owner result
 
-- [ ] Commit and push the SSOT, plan, and implementation on the DD05 branch.
-- [ ] Require exact-head CI to pass, then merge to main.
+- [x] Commit and push the initial SSOT, plan, and implementation (`84714bf8cb9454deda7aa2fdb427aa77b2a0fa93`); PR #8009 is open.
+- [x] Merge latest `origin/main` (`c900bf0aa3b0d5f00ceff32d01f9d108df4c7dea`) into the DD05 branch locally (`143ff3ea743e9137f1d5de3b2397e4bc2a5d292d`); the merge adds seven upstream SSOT lines without conflicts.
+- [ ] Commit and push the latest-main merge plus the refreshed SSOT cursor and Task 5 list; confirm the exact PR head.
+- [ ] Require exact-head CI to pass, then merge to main under the repository's merge policy.
 - [ ] Allow the existing release reconciler to ship the immutable main release and apply only when the truth owner is idle and its owner lock is clear.
-- [ ] Let the registered cleanup owner and existing fence reconciler resolve the current `scratch_enospc` and distributor fence; do not manually wake the publisher, clear the fence, or replay an uncertain occurrence.
-- [ ] Resolve the four existing `sending` / `delivery_unknown` owner-report message keys only with exact Telegram MTProto history and `OwnerReportStore.reconcile_delivery()`; do not resend or edit the delivery ledger manually.
+- [ ] Let the registered cleanup owner produce a fresh cleanup receipt and restore eligible release capacity; do not stop active processes or delete protected paths.
+- [ ] Let the existing fence reconciler resolve `capafy-distribute-daily:18de4680b4bcfe18-18857` from exact provider evidence; do not manually wake the publisher, clear the fence, or replay the occurrence.
+- [ ] Reconcile the four owner-report `sending` / `delivery_unknown` message keys from exact Telegram MTProto history through `OwnerReportStore.reconcile_delivery()`; do not resend or edit the delivery ledger manually.
 - [ ] Verify the first natural `marketing-owner-events` pass from the new SHA and its attribution-sweep evidence; if the live ledger still has no intent-bound rows, report that exact coverage gap without claiming attribution completion.
-- [ ] Update the SSOT cursor from DD05 only after the sweep and its natural owner readback are verified.
+- [ ] Keep DD05 open while attribution is absent or unverified; advance the SSOT cursor to DD06 only after natural owner readback and exact sweep evidence are verified.
