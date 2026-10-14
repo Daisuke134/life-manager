@@ -55,7 +55,7 @@ if [ "$1" = "apply" ]; then
       echo '{"ok": false, "error": "production apply is already owned"}'
       exit 1
       ;;
-    control_busy|control_busy_lookalike|control_busy_compound|control_busy_with_error)
+    control_busy|control_busy_lookalike|control_busy_compound|control_busy_with_error|control_busy_invalid_ok_type)
       if [ "$target" = "${FAKE_CONTROL_BUSY_TARGET:-}" ]; then
         case "$FAKE_APPLY_MODE" in
           control_busy_lookalike)
@@ -63,6 +63,9 @@ if [ "$1" = "apply" ]; then
             ;;
           control_busy_compound)
             echo '{"ok": false, "error": "admission rebind refused: control_busy", "details": "bootstrap code 5 Input/output error"}'
+            ;;
+          control_busy_invalid_ok_type)
+            echo '{"ok": 0, "error": "admission rebind refused: control_busy"}'
             ;;
           *)
             echo '{"ok": false, "error": "admission rebind refused: control_busy"}'
@@ -130,14 +133,18 @@ if [ "$1" = "apply" ]; then
       echo '{"ok": false, "error": "boom"}'
       exit 1
       ;;
-    supersede_before_apply)
+    supersede_before_apply|supersede_before_apply_invalid_ok_type)
       if [ "$target" = "${FAKE_SUPERSEDE_LOOP_ID:-}" ] \
         && [ ! -e "$FAKE_SUPERSEDE_MARKER" ]; then
         : >"$FAKE_SUPERSEDE_MARKER"
         rm -f "$FAKE_CURRENT_LINK"
         ln -s "$FAKE_NEXT_RELEASE_ROOT" "$FAKE_CURRENT_LINK"
         if [ "${LIFE_MANAGER_APPLY_REQUIRE_CURRENT:-0}" = "1" ]; then
-          echo '{"ok": false, "error": "release is no longer current"}'
+          if [ "$FAKE_APPLY_MODE" = "supersede_before_apply_invalid_ok_type" ]; then
+            echo '{"ok": 0, "error": "release is no longer current"}'
+          else
+            echo '{"ok": false, "error": "release is no longer current"}'
+          fi
           exit 1
         fi
       fi
@@ -690,7 +697,7 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             self.assertEqual(self._state(root)["status"], "ok")
 
     def test_control_busy_lookalike_and_compound_refusals_remain_errors(self):
-        for mode in ("control_busy_lookalike", "control_busy_compound"):
+        for mode in ("control_busy_lookalike", "control_busy_compound", "control_busy_invalid_ok_type"):
             with self.subTest(mode=mode), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 repo, sha = self._make_repo(root)
@@ -1096,6 +1103,80 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             self.assertEqual(latest.returncode, 0, latest.stderr)
             self.assertEqual(self._state(root)["sha"], sha2)
             self.assertEqual(self._apply_call_count(calls_log), 3)
+
+    def test_superseded_refusal_rejects_numeric_ok(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            self._activate(root, self._make_release(root, sha, loop_ids=("loop-a", "loop-b")))
+            sha2 = self._advance_repo(repo)
+            release2 = self._make_release(root, sha2)
+            env = self._base_env(root, repo, calls_log=root / "calls.log",
+                                 apply_mode="supersede_before_apply_invalid_ok_type")
+            env["FAKE_SUPERSEDE_LOOP_ID"] = "loop-a"
+            env["FAKE_SUPERSEDE_MARKER"] = str(root / "superseded.marker")
+            env["FAKE_CURRENT_LINK"] = str(root / "loops/current")
+            env["FAKE_NEXT_RELEASE_ROOT"] = str(release2)
+
+            result = self._run(env)
+
+            self.assertNotEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(self._state(root)["errors"], 1)
+            self.assertEqual(self._owners_log(root)[-1]["skipped"], 0)
+
+    def test_self_handoff_propagates_generation_and_bootstrap_failure_in_conditional_call(self):
+        source = SCRIPT.read_text()
+        function = source[source.index("schedule_self_handoff() {"):
+                          source.index('\nif [ "${LIFE_MANAGER_RECONCILER_HANDOFF_ONLY:-0}"')]
+        for render_rc, bootstrap_rc in ((7, 0), (0, 9), (0, 0)):
+            with self.subTest(render_rc=render_rc, bootstrap_rc=bootstrap_rc), \
+                    tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                (root / "bin").mkdir()
+                renderer = root / "bin/fake-python"
+                renderer.write_text('#!/bin/sh\nexit "$FAKE_RENDER_RC"\n')
+                renderer.chmod(0o700)
+                launchctl = root / "bin/launchctl-safe"
+                launchctl.write_text('''#!/bin/sh
+printf '%s\\n' "$1" >> "$FAKE_HANDOFF_CALLS"
+if [ "$1" = "print" ]; then exit 113; fi
+if [ "$1" = "bootstrap" ]; then exit "$FAKE_BOOTSTRAP_RC"; fi
+exit 64
+''')
+                launchctl.chmod(0o700)
+                helper = root / "bin/reconcile-agent-self-handoff.sh"
+                helper.write_text("#!/bin/sh\nexit 0\n")
+                helper.chmod(0o700)
+                harness = root / "schedule-fixture.sh"
+                harness.write_text('''#!/bin/bash
+set -euo pipefail
+SCRIPT_ROOT="$FAKE_SCHEDULE_ROOT"
+runtime_python="$FAKE_SCHEDULE_ROOT/bin/fake-python"
+''' + function + '''
+fixture_status=0
+schedule_self_handoff "$FAKE_SCHEDULE_ROOT" 0123456789012345678901234567890123456789 || fixture_status=1
+exit "$fixture_status"
+''')
+                calls = root / "calls.log"
+                env = {**os.environ, "FAKE_SCHEDULE_ROOT": str(root),
+                       "FAKE_RENDER_RC": str(render_rc),
+                       "FAKE_BOOTSTRAP_RC": str(bootstrap_rc),
+                       "FAKE_HANDOFF_CALLS": str(calls),
+                       "LIFE_MANAGER_RELEASE_RECONCILER_STATE_ROOT": str(root / "state"),
+                       "LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(root / "agents")}
+
+                result = subprocess.run(["/bin/bash", str(harness)], env=env,
+                                        capture_output=True, text=True)
+
+                if render_rc or bootstrap_rc:
+                    self.assertNotEqual(result.returncode, 0, result.stderr)
+                    self.assertNotIn("scheduled release", result.stderr)
+                else:
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                if render_rc:
+                    self.assertFalse(calls.exists(), "generation failure must stop before launchd")
+                else:
+                    self.assertEqual(calls.read_text().splitlines(), ["print", "bootstrap"])
 
     def test_superseded_release_does_not_hide_prior_owner_error(self):
         with tempfile.TemporaryDirectory() as directory:
