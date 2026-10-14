@@ -218,6 +218,11 @@ def invoke_runner(
         environment.pop("JOB_SEARCH_ACTIVE_APPLICATION_PROVIDER", None)
     else:
         environment["JOB_SEARCH_ACTIVE_APPLICATION_PROVIDER"] = active_provider
+    task_class = (
+        "workday-browser-agent"
+        if active_provider == "workday"
+        else "job-hunter-agent"
+    )
     reason = None
     deadline = time.monotonic() + timeout_seconds
     for semantic_attempt in range(2):
@@ -228,7 +233,7 @@ def invoke_runner(
             python,
             str(runner),
             "--task-class",
-            "job-hunter-agent",
+            task_class,
             "--escalation-reason",
             "repeated browser form completion abandoned before provider terminal outcome",
             "--timeout-seconds",
