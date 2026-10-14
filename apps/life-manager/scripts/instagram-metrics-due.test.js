@@ -257,3 +257,41 @@ test("no metric snapshot leaves the Instagram daily digest pending without faili
   assert.equal(daily.state, "pending");
   assert.equal(daily.reason, "no_metric_snapshot");
 });
+
+test("due runner repairs a delayed 7d checkpoint from exact normalized evidence without a new provider read", async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-instagram-due-7d-correction-"));
+  const expected = { ...EXPECTED, locale: "en", account_id: "@anicca.en", native_owner: "anicca.en",
+    integration_id: "cmn8y95rg02d2qx0y09bbk5pb", provider_post_id: "cmui7zo8n0ixho80yybalkhj0",
+    shortcode: "DdvxhT1jm8F", public_url: "https://www.instagram.com/reel/DdvxhT1jm8F/",
+    published_at: "2026-09-26T10:01:00.000Z" };
+  const nowMs = Date.parse("2026-10-14T06:30:00.000Z"); const env = { LM_DATA_DIR: dataDir };
+  persistDelayedSnapshot({ dataDir, window: "7d", observedAt: "2026-10-11T05:13:08.332Z", expected });
+  const metric = {
+    observed_at: "2026-10-03T10:02:54Z", published_at: expected.published_at,
+    product_id: expected.product_id, platform: "instagram", integration_id: expected.integration_id,
+    postiz_id: expected.provider_post_id, native_post_id: "18112495088019182", native_url: expected.public_url,
+    target_age_hours: 168, observed_age_hours: 168.0317, checkpoint_status: "measured", checkpoint_sla_status: "in_window",
+    views: 2229, reach: 1610, saves: 3, likes: 1, comments: 0, shares: 0, impressions: null,
+    metric_null_reasons: { impressions: "provider_field_missing" },
+    raw_evidence_hash: "4adaa1eb4e57c8d3f6d95ef7bcd4bdaa868cd8374b0c97fbeb3f0a86a71779f5",
+    snapshot_id: "228aca83e0a54abdac63957c1c349eabc23a6147b9f0e242bea381e165c283d0",
+    source: "postiz_instagram_graph_api",
+  };
+  const identity = {
+    observed_at: "2026-10-04T09:44:01Z", publish_date: expected.published_at,
+    account_id: "instagram.anicca_en", platform: "instagram-standalone", product_id: "anicca-ios",
+    integration_id: expected.integration_id, postiz_post_id: expected.provider_post_id,
+    native_post_id: "18112495088019182", native_post_url: expected.public_url,
+    postiz_state: "PUBLISHED", identity_status: "resolved", resolution_method: "postiz_provider_native_receipt",
+  };
+  const metricsFile = path.join(dataDir, "marketing-owner-events", "state", "post-metrics.jsonl");
+  const identitiesFile = path.join(dataDir, "state", "publication-identity.jsonl");
+  fs.mkdirSync(path.dirname(metricsFile), { recursive: true }); fs.mkdirSync(path.dirname(identitiesFile), { recursive: true });
+  fs.writeFileSync(metricsFile, JSON.stringify(metric) + "\n"); fs.writeFileSync(identitiesFile, JSON.stringify(identity) + "\n");
+  const calls = [];
+  const result = await runDue(nowMs, env, [expected], { collectWindow: async (window) => { calls.push(window); return { created: false, telegram: { created: false } }; } });
+  const correctionFile = path.join(dataDir, "tenants/dais-local/marketing/metrics/anicca.en/DdvxhT1jm8F/7d.correction.json");
+  assert.equal(result.find((row) => row.window === "7d").state, "corrected");
+  assert.equal(fs.existsSync(correctionFile), true);
+  assert.deepEqual(calls, ["current"]);
+});
