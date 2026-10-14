@@ -18504,7 +18504,7 @@ Paid-orders/views is descriptive, not causal: hot `5/46 ≈ 10.9%`, search `8/79
 
 **実装互換性の確認:** `skills/earn/gig/scripts/coconala_discovery_pre_effect_migration.py`と`coconala_legacy_pre_effect_migration.py`は既存の`host_admission_deferred:resource_heartbeat_unavailable`を完全一致で読む。従ってsubcauseは補助diagnosticへ保存し、既存reason/blocker/error_classは変更しない。
 
-**現在cursor:** PR #8098は2026-10-14 21:50:35Zにmerge commit `ef37309a5f19a5620ab25f788de1052b0efc103c`でmainへ統合済み。latest main `a5ea4040f280571b5ce92cda853ac0923b03ca7b`にもruntime変更は保持される。PR exact-head 12 checksとheartbeat-focused 38 testsはpass。これはsource-level完了で、production adoption/根本原因確認の完了ではない。
+**現在cursor:** PR #8098は2026-10-14 21:50:35Zにmerge commit `ef37309a5f19a5620ab25f788de1052b0efc103c`でmainへ統合済み。latest main `ad2d2180f342fd69e643a1e3bc1975825f558f3e`にもruntime変更は保持される。PR exact-head 12 checksとheartbeat-focused 38 testsはpass。これはsource-level完了で、production adoption/根本原因確認の完了ではない。
 
 **production readback:** `capafy-loop-daily`はloaded-idleだがinstalled SHAは旧`2345448e0277242d9d71f425e2899aabd2502f09`。最新terminal `capafy-loop-daily:18de8401772b28b8-58517`（2026-10-14 21:54:05Z）はexit 78 / `entrypoint_exit_75`、effect status unknown、official readback/receiptなし。active admission fenceはfalseだが、このoccurrenceはno-effect扱いせず、counter reset・手動wake・再送をしない。
 
