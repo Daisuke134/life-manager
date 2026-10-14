@@ -6,7 +6,7 @@ const assert = require("node:assert");
 const {
   computeStage, stageMessage, isNativeStage, normalizePhone, telegramProfileName,
   applyTelegramProfileName, handleOnboardingText, handleGmailCallback, onboardNudgeAll, backfillIfCalendarCompleted,
-  linkedRows, completeTelegramHome,
+  linkedRows, completeTelegramHome, rowByChatId,
   NUDGE_COOLDOWN_MS,
 } = require("./telegram-onboard.js");
 const { startReply, tgCall } = require("./telegram.js");
@@ -16,6 +16,57 @@ const full = {
   phone: "+81", paid: true, home_address: "Tokyo home", notifications_enabled: true,
   gmail_account_id: "gmail-1", gmail_skipped: false,
 };
+
+
+test("legacy Telegram lookup resolves through channel sender key then tenant uid", async () => {
+  const previousFetch = global.fetch;
+  const requests = [];
+  global.fetch = async (input) => {
+    const url = new URL(String(input));
+    requests.push(url);
+    if (url.pathname === "/rest/v1/lm_message_channels") {
+      return new Response(JSON.stringify([{ uid: "legacy-uid", owner_kind: "legacy" }]), { status: 200 });
+    }
+    if (url.pathname === "/rest/v1/lm_users") {
+      return new Response(JSON.stringify([{ ...full, uid: "legacy-uid", telegram_chat_id: "123456789" }]), { status: 200 });
+    }
+    return new Response("not found", { status: 404 });
+  };
+  try {
+    const row = await rowByChatId("123456789", "https://fixture.supabase.co", "service-role-test");
+    assert.equal(row.uid, "legacy-uid");
+    assert.equal(requests.length, 2);
+    assert.equal(requests[0].pathname, "/rest/v1/lm_message_channels");
+    assert.equal(requests[0].searchParams.get("channel"), "eq.telegram");
+    assert.equal(requests[0].searchParams.get("sender_id"), "eq.123456789");
+    assert.equal(requests[0].searchParams.get("owner_kind"), "eq.legacy");
+    assert.equal(requests[1].pathname, "/rest/v1/lm_users");
+    assert.equal(requests[1].searchParams.get("uid"), "eq.legacy-uid");
+    assert.equal(requests[1].searchParams.has("telegram_chat_id"), false);
+  } finally {
+    global.fetch = previousFetch;
+  }
+});
+
+test("legacy Telegram lookup never resolves a web-linked channel as a legacy tenant", async () => {
+  const previousFetch = global.fetch;
+  const requests = [];
+  global.fetch = async (input) => {
+    const url = new URL(String(input));
+    requests.push(url);
+    if (url.pathname === "/rest/v1/lm_message_channels") {
+      return new Response(JSON.stringify([{ uid: "lm_12345678-1234-4234-8234-123456789abc", owner_kind: "web_link" }]), { status: 200 });
+    }
+    return new Response(JSON.stringify([{ ...full, telegram_chat_id: "123456789" }]), { status: 200 });
+  };
+  try {
+    assert.equal(await rowByChatId("123456789", "https://fixture.supabase.co", "service-role-test"), null);
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].pathname, "/rest/v1/lm_message_channels");
+  } finally {
+    global.fetch = previousFetch;
+  }
+});
 
 test("null row → calendar (name is never a blocking typed stage)", () => assert.equal(computeStage(null), "calendar"));
 test("no calendar → calendar even when name is absent", () => assert.equal(computeStage({ ...full, name: null, calendar_provider: null }), "calendar"));

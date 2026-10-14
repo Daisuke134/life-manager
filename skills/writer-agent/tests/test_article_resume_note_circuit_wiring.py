@@ -70,7 +70,16 @@ def test_note_ambiguity_recovery_uses_the_same_failure_circuit() -> None:
     assert '--circuit "$RUN_DIR/gates/resume-failure-circuit.json"' in recovery
     assert '--pair "note/ja"' in recovery
     assert '--code-file "$ARTICLE_ROOT/scripts/publication_remote.py"' in recovery
+    assert '--code-file "$ARTICLE_ROOT/scripts/publisher_cta_copy.py"' in recovery
     assert '--code-file "$ARTICLE_ROOT/scripts/publication_resume.py"' in recovery
+
+
+def test_substack_resume_hashes_the_publisher_copy_helper() -> None:
+    worker = (ROOT / "scripts/article-resume-pending.sh").read_text(
+        encoding="utf-8"
+    )
+    code_args = worker.split("SUBSTACK_CODE_ARGS=(", 1)[1].split(" )", 1)[0]
+    assert '--code-file "$ARTICLE_ROOT/scripts/publisher_cta_copy.py"' in code_args
 
 
 def test_multi_initialization_stays_in_deterministic_staging_boundary() -> None:
@@ -122,6 +131,7 @@ def test_note_resume_prioritizes_publication_and_uses_failure_circuit(
     shutil.copy(ROOT / "scripts" / "publication_contract_resolver.py", scripts)
     shutil.copy(ROOT / "scripts" / "publication_contract.py", scripts)
     shutil.copy(ROOT / "scripts" / "publication_remote.py", scripts)
+    shutil.copy(ROOT / "scripts" / "publisher_cta_copy.py", scripts)
     shutil.copy(ROOT / "scripts" / "publication_resume.py", scripts)
     shutil.copy(ROOT / "scripts" / "article_adoption_selection.py", scripts)
     shutil.copy(ROOT / "scripts" / "resume_failure_circuit.py", scripts)

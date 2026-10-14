@@ -1,4 +1,7 @@
 -- Web tenants may opt into Telegram or iMessage without changing the Web identity
+
+SET lock_timeout = '5s';
+SET statement_timeout = '120s';
 -- or lm_users.telegram_chat_id. This registry owns one sender per channel globally.
 
 CREATE TABLE IF NOT EXISTS public.lm_web_message_link_tokens (
@@ -31,6 +34,7 @@ BEGIN
     SELECT 1
       FROM public.lm_users
      WHERE telegram_chat_id IS NOT NULL AND trim(telegram_chat_id::text) <> ''
+       AND telegram_chat_id::text ~ '^-?[1-9][0-9]{0,19}$'
      GROUP BY telegram_chat_id::text
     HAVING count(DISTINCT uid) > 1
   ) THEN
@@ -43,6 +47,7 @@ INSERT INTO public.lm_message_channels(uid, channel, sender_id, owner_kind)
 SELECT uid, 'telegram', telegram_chat_id::text, 'legacy'
   FROM public.lm_users
  WHERE telegram_chat_id IS NOT NULL AND trim(telegram_chat_id::text) <> ''
+       AND telegram_chat_id::text ~ '^-?[1-9][0-9]{0,19}$'
 ON CONFLICT (channel, sender_id) DO NOTHING;
 
 DO $$
@@ -54,6 +59,7 @@ BEGIN
         ON channels.channel = 'telegram'
        AND channels.sender_id = users.telegram_chat_id::text
      WHERE users.telegram_chat_id IS NOT NULL AND trim(users.telegram_chat_id::text) <> ''
+       AND users.telegram_chat_id::text ~ '^-?[1-9][0-9]{0,19}$'
        AND (channels.uid IS DISTINCT FROM users.uid OR channels.owner_kind IS DISTINCT FROM 'legacy')
   ) THEN
     RAISE EXCEPTION 'telegram_channel_owner_conflict';
@@ -115,6 +121,9 @@ BEGIN
      AND OLD.telegram_chat_id IS NOT NULL
      AND OLD.telegram_chat_id::text IS DISTINCT FROM sender THEN
     RAISE EXCEPTION 'telegram_channel_identity_immutable';
+  END IF;
+  IF sender !~ '^-?[1-9][0-9]{0,19}$' THEN
+    RETURN NEW;
   END IF;
 
   PERFORM pg_advisory_xact_lock(hashtextextended('lm-message-channel:telegram:' || sender, 0));
@@ -214,7 +223,8 @@ BEGIN
   IF eligible_uid IS NULL THEN RETURN NULL; END IF;
 
   IF p_channel = 'telegram' AND EXISTS (
-    SELECT 1 FROM public.lm_users WHERE telegram_chat_id::text = p_sender_id
+    SELECT 1 FROM public.lm_message_channels
+     WHERE channel = 'telegram' AND sender_id = p_sender_id
   ) THEN RETURN NULL; END IF;
   IF EXISTS (
     SELECT 1 FROM public.lm_message_channels
@@ -245,3 +255,6 @@ ALTER TABLE public.lm_message_channels ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.lm_web_message_link_tokens FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON TABLE public.lm_message_channels FROM PUBLIC, anon, authenticated, service_role;
 GRANT SELECT ON TABLE public.lm_message_channels TO service_role;
+
+RESET statement_timeout;
+RESET lock_timeout;
