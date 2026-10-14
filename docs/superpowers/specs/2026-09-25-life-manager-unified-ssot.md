@@ -4001,6 +4001,14 @@ SNS ledgerは17回（ローカルpublished14／failed3）、最後の実投稿�
 
 **順序更新（2026-10-15 05:10 JST）:** 旧順序は「07:05 free article → QR確認後YouTube Short → click/sales/distribution計測」。新順序は「(1)07:05 natural articleとSKU CTA readback → (2)public analyticsの自然eventを同期間で観測し、10/16の日次gate後に公式販売・分配を照合 → (3)許可済み専用YouTube identity/profile/live leaseが実際に使える場合だけ既存Shortを投稿 → (4)Instagram/Threadsの専用ownerとexact effect fenceを解決してから既存素材を配信 → (5)無料directoryは適格routeを確認できた場合だけ提出 → (6)実測winnerへの無料枠再配分、月次gross/payout/cost照合」。理由はtracker自体は公開bundleに存在する一方、LINE記事viewsは11・CTA eventは未観測、YouTubeに使えるidentityがなく、directory候補も追加個人情報かchallengeを要求するため。現在cursorは07:05 JSTのset-019 article slot。新SKU・有料配信・personal browser・manual social replayは対象外。
 
+#### 5.L LINE公式プロモーション適格性確認 — 2026-10-15 05:47 JST（base main 235b6ef5）
+
+**既存スタンプだけで使える公式施策を調査:** LINE PRスタンプは既存の審査済みパッケージから8点を選んで配布できるが、creatorは1DLあたり¥250を前払いし、最低50DL（最低費用¥12,500）。利用者側のDLが無料でも、creator側は有料のため、Daisの「有料広告・PRなし」条件により実施しない。開始後の配布停止・返金不可の記載もある（[LINE PRスタンプの現行条件](https://line-sticker.landpress.line.me/pr_sticker)、[LINE Creators Market公式紹介](https://note.com/line_cm/n/n048756bddebb)）。
+
+LINE Creators Support Programは募集期間が未定。選抜時は支援期間中に年12セット（対象セットの売上配分なし）、終了後に年6セットの配信約束が必要。既存SKUの販促ではなく新規制作を必要とし、現在の既存SKU-only条件に合わないため応募しない（[公式プログラム条件](https://line-sticker.landpress.line.me/lcsp)）。
+
+**判断:** この2施策を無料チャネルとして扱わず、費用発生・新作制作を開始しない。対象にできるのは既存素材を使う無料の自然配信のみ。現在cursorは引き続き10/15 07:05 JSTのset-019 article slot。
+
 ## 6. 不変の制約
 
 - Ryu room `18211957` へは再送しない。正式納品ボタンは loop から押さない。Ryu は CDP :9223 での手動例外として扱う。
