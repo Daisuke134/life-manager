@@ -62,19 +62,37 @@ _PROFILE_BATCH_LABELS_BY_KIND = {
     "first_name": frozenset({"first name", "given name", "applicant first name"}),
     "middle_name": frozenset({"middle name"}),
     "last_name": frozenset({"last name", "family name", "surname"}),
-    "name": frozenset({"name", "full name", "preferred name"}),
-    "email": frozenset({"email", "email address", "e mail", "e mail address", "application email", "contact email", "candidate email", "work email", "personal email"}),
-    "phone": frozenset({"phone", "phone number", "telephone", "mobile", "mobile phone", "cell phone", "cell number", "contact phone"}),
-    "address": frozenset({"address", "street address", "mailing address", "home address", "address line 1", "address line 2", "street"}),
+    "full_name": frozenset({"name", "full name"}),
+    "preferred_name": frozenset({"preferred name"}),
+    "email": frozenset({"email", "email address", "e mail", "e mail address", "candidate email"}),
+    "application_email": frozenset({"email", "email address", "application email", "contact email", "candidate email"}),
+    "work_email": frozenset({"work email"}),
+    "personal_email": frozenset({"personal email"}),
+    "phone": frozenset({"phone", "phone number", "telephone"}),
+    "mobile_phone": frozenset({"mobile", "mobile phone", "cell phone", "cell number"}),
+    "address": frozenset({"address"}),
+    "address_street": frozenset({"street address", "street"}),
+    "address_mailing": frozenset({"mailing address"}),
+    "address_home": frozenset({"home address"}),
+    "address_line_1": frozenset({"address line 1"}),
+    "address_line_2": frozenset({"address line 2"}),
     "city": frozenset({"city", "town"}),
-    "region": frozenset({"state", "province", "region"}),
-    "postal_code": frozenset({"postal code", "zip", "zip code", "post code", "postcode"}),
+    "state": frozenset({"state"}),
+    "province": frozenset({"province"}),
+    "region": frozenset({"region"}),
+    "postal_code": frozenset({"postal code", "post code", "postcode"}),
+    "zip_code": frozenset({"zip", "zip code"}),
     "country": frozenset({"country", "country region", "country of residence"}),
-    "location": frozenset({"location", "current location"}),
-    "website": frozenset({"website", "personal website", "profile url", "url"}),
-    "linkedin": frozenset({"linkedin", "linkedin profile", "linkedin url", "linkedin profile url"}),
-    "github": frozenset({"github", "github profile", "github url", "github profile url"}),
-    "portfolio": frozenset({"portfolio", "portfolio url", "portfolio website"}),
+    "location": frozenset({"location"}),
+    "current_location": frozenset({"current location"}),
+    "website": frozenset({"website", "personal website"}),
+    "profile_url": frozenset({"profile url", "url"}),
+    "linkedin": frozenset({"linkedin", "linkedin profile"}),
+    "linkedin_url": frozenset({"linkedin url", "linkedin profile url"}),
+    "github": frozenset({"github", "github profile"}),
+    "github_url": frozenset({"github url", "github profile url"}),
+    "portfolio": frozenset({"portfolio"}),
+    "portfolio_url": frozenset({"portfolio url", "portfolio website"}),
 }
 _PROFILE_BATCH_CONCEPT_KIND = {
     "first_name": "first_name",
@@ -83,51 +101,69 @@ _PROFILE_BATCH_CONCEPT_KIND = {
     "last_name": "last_name",
     "family_name": "last_name",
     "surname": "last_name",
-    "name": "name",
-    "full_name": "name",
-    "preferred_name": "name",
+    "name": "full_name",
+    "full_name": "full_name",
+    "preferred_name": "preferred_name",
     "email": "email",
-    "application_email": "email",
-    "contact_email": "email",
-    "work_email": "email",
-    "personal_email": "email",
+    "application_email": "application_email",
+    "contact_email": "application_email",
+    "work_email": "work_email",
+    "personal_email": "personal_email",
     "phone": "phone",
     "phone_number": "phone",
     "telephone": "phone",
-    "mobile": "phone",
-    "mobile_phone": "phone",
-    "cell_phone": "phone",
+    "mobile": "mobile_phone",
+    "mobile_phone": "mobile_phone",
+    "cell_phone": "mobile_phone",
     "address": "address",
+    "street_address": "address_street",
+    "mailing_address": "address_mailing",
+    "address_line_1": "address_line_1",
+    "address_line_2": "address_line_2",
     "city": "city",
     "town": "city",
-    "state": "region",
-    "province": "region",
+    "state": "state",
+    "province": "province",
     "region": "region",
     "postal_code": "postal_code",
-    "zip": "postal_code",
-    "zip_code": "postal_code",
+    "zip": "zip_code",
+    "zip_code": "zip_code",
     "post_code": "postal_code",
     "postcode": "postal_code",
     "country": "country",
     "location": "location",
-    "current_location": "location",
+    "current_location": "current_location",
     "website": "website",
     "personal_website": "website",
-    "profile_url": "website",
+    "profile_url": "profile_url",
     "linkedin": "linkedin",
-    "linkedin_url": "linkedin",
+    "linkedin_url": "linkedin_url",
     "linkedin_profile": "linkedin",
     "github": "github",
-    "github_url": "github",
+    "github_url": "github_url",
     "github_profile": "github",
     "portfolio": "portfolio",
-    "portfolio_url": "portfolio",
-    "portfolio_website": "portfolio",
+    "portfolio_url": "portfolio_url",
+    "portfolio_website": "portfolio_url",
 }
 _PROFILE_BATCH_ALL_LABELS = frozenset(
     label for labels in _PROFILE_BATCH_LABELS_BY_KIND.values() for label in labels
 )
 _PROFILE_BATCH_LABEL_SEPARATOR = re.compile(r"[^a-z0-9]+", re.IGNORECASE)
+
+
+def _profile_batch_concept_kind(concept: str) -> str | None:
+    concept_tail = concept.casefold().rsplit(".", 1)[-1]
+    kind = _PROFILE_BATCH_CONCEPT_KIND.get(concept_tail)
+    if kind is not None:
+        return kind
+    if concept_tail.endswith("_address"):
+        qualifier = concept_tail[: -len("_address")]
+        if qualifier in {"home", "mailing", "street"}:
+            return f"address_{qualifier}"
+    if concept_tail.startswith("address_line_") and concept_tail[-1:] in {"1", "2"}:
+        return concept_tail
+    return None
 
 
 def _path_env(name: str) -> Path:
@@ -1019,16 +1055,11 @@ def _parse_profile_fill_fields(fields_json: str) -> tuple[list[dict[str, str]] |
             for part in _PROFILE_BATCH_LABEL_SEPARATOR.split(field["label"].casefold())
             if part
         )
-        concept_tail = field["candidate_concept"].casefold().rsplit(".", 1)[-1]
-        concept_kind = _PROFILE_BATCH_CONCEPT_KIND.get(concept_tail)
-        if concept_kind is None and (
-            concept_tail.endswith("_address")
-            or concept_tail.startswith("address_line_")
-        ):
-            concept_kind = "address"
+        concept_kind = _profile_batch_concept_kind(field["candidate_concept"])
         if label not in _PROFILE_BATCH_ALL_LABELS:
             return None, "profile_batch_not_profile_field"
-        if concept_kind is None or label not in _PROFILE_BATCH_LABELS_BY_KIND[concept_kind]:
+        allowed_labels = _PROFILE_BATCH_LABELS_BY_KIND.get(concept_kind or "")
+        if allowed_labels is None or label not in allowed_labels:
             return None, "profile_batch_concept_label_mismatch"
         fields.append(field)
     return fields, None
@@ -1139,12 +1170,51 @@ async def fill_profile_fields(fields_json: str) -> dict[str, Any]:
                 observation=observation,
                 reason=reason,
             )
-        result = await type_candidate(
-            label=field["label"],
-            role=field["role"],
-            stable_id=field["stable_id"],
-            candidate_concept=field["candidate_concept"],
-        )
+        try:
+            result = await type_candidate(
+                label=field["label"],
+                role=field["role"],
+                stable_id=field["stable_id"],
+                candidate_concept=field["candidate_concept"],
+            )
+        except RuntimeError as error:
+            if "action target must resolve to exactly one visible enabled control" not in str(error):
+                raise
+            try:
+                refreshed = await observe()
+            except Exception as refresh_error:
+                return {
+                    "status": "transport_failed",
+                    "error_class": "profile_batch_target_refresh_failed",
+                    "failed_field": field["label"],
+                    "completed_fields": completed_fields,
+                    "receipts": receipts,
+                    "retryable": False,
+                    "next_action": (
+                        "refresh provider state before continuing; preserve prior receipts "
+                        "and do not replay completed fields or this occurrence"
+                    ),
+                }
+            refreshed_observation = refreshed.get("observation")
+            if refreshed.get("status") != "observed" or not isinstance(refreshed_observation, dict):
+                return {
+                    "status": "transport_failed",
+                    "error_class": "profile_batch_target_refresh_unavailable",
+                    "failed_field": field["label"],
+                    "completed_fields": completed_fields,
+                    "receipts": receipts,
+                    "retryable": False,
+                    "next_action": (
+                        "refresh provider state before continuing; preserve prior receipts "
+                        "and do not replay completed fields or this occurrence"
+                    ),
+                }
+            return _profile_batch_result(
+                completed_fields=completed_fields,
+                receipts=receipts,
+                observation=refreshed_observation,
+                reason="profile_batch_target_changed",
+            )
         if result.get("status") == "transport_failed":
             failed = {
                 "status": "transport_failed",

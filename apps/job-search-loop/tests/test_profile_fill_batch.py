@@ -28,6 +28,8 @@ def _observation(controls: list[dict[str, object]]) -> dict[str, object]:
             "candidate.first_name",
             "candidate.application_email",
             "candidate.phone_number",
+            "candidate.full_name",
+            "candidate.address_line_1",
             "candidate.work_authorization",
         ],
         "observation": {"controls": controls, "content_sha256": "observation"},
@@ -40,12 +42,14 @@ class ProfileFillBatchTests(unittest.IsolatedAsyncioTestCase):
             {
                 "schema_version": 1,
                 "concepts": [
-                    {"concept": "candidate.first_name", "value": "Example"},
+                    {"concept": "candidate.first_name", "value": "first-name-value"},
                     {
                         "concept": "candidate.application_email",
-                        "value": "example@example.com",
+                        "value": "email-value",
                     },
-                    {"concept": "candidate.phone_number", "value": "+1 555 555 0100"},
+                    {"concept": "candidate.phone_number", "value": "phone-value"},
+                    {"concept": "candidate.full_name", "value": "full-name-value"},
+                    {"concept": "candidate.address_line_1", "value": "address-line1-value"},
                     {
                         "concept": "candidate.work_authorization",
                         "value": "Not stated",
@@ -61,13 +65,25 @@ class ProfileFillBatchTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(raised.exception.code, 0)
         self.assertIn("--fields-json", output.getvalue())
 
-    async def _run(self, fields: list[dict[str, str]], observation, type_candidate):
+    async def _run(
+        self,
+        fields: list[dict[str, str]],
+        observation,
+        type_candidate,
+        *,
+        observe_side_effect=None,
+    ):
+        observe = (
+            AsyncMock(side_effect=observe_side_effect)
+            if observe_side_effect is not None
+            else AsyncMock(return_value=observation)
+        )
         with (
             patch.object(runtime, "_path_env", return_value=Path("candidate-memory.json")),
             patch.object(
                 runtime.CandidateMemoryView, "load", return_value=self.memory
             ),
-            patch.object(runtime, "observe", new=AsyncMock(return_value=observation)),
+            patch.object(runtime, "observe", new=observe),
             patch.object(runtime, "type_candidate", new=type_candidate),
         ):
             return await runtime.fill_profile_fields(json.dumps(fields))
@@ -125,8 +141,8 @@ class ProfileFillBatchTests(unittest.IsolatedAsyncioTestCase):
             stable_id="id:email",
             candidate_concept="candidate.application_email",
         )
-        self.assertNotIn("Example", json.dumps(result))
-        self.assertNotIn("example@example.com", json.dumps(result))
+        self.assertNotIn("first-name-value", json.dumps(result))
+        self.assertNotIn("email-value", json.dumps(result))
 
     async def test_stops_after_rerender_invalidates_the_next_target(self):
         fields = [
@@ -162,6 +178,102 @@ class ProfileFillBatchTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["receipts"], ["c" * 64])
         self.assertEqual(type_candidate.await_count, 1)
         self.assertEqual(result["observation"], after_rerender["observation"])
+
+    async def test_target_race_refreshes_observation_and_preserves_completed_receipt(self):
+        fields = [
+            {
+                "label": "First name",
+                "role": "textbox",
+                "stable_id": "id:first-name",
+                "candidate_concept": "candidate.first_name",
+            },
+            {
+                "label": "Email",
+                "role": "textbox",
+                "stable_id": "id:email",
+                "candidate_concept": "candidate.application_email",
+            },
+        ]
+        initial = _observation(
+            [_control("First name", "id:first-name"), _control("Email", "id:email", "email")]
+        )
+        after_first = _observation([_control("Email", "id:email", "email")])
+        refreshed = _observation([_control("Email", "ref:rerendered-email", "email")])
+        type_candidate = AsyncMock(
+            side_effect=[
+                {
+                    "status": "acted",
+                    "action": {"receipt_sha256": "e" * 64},
+                    "observation": after_first["observation"],
+                },
+                RuntimeError(
+                    "action target must resolve to exactly one visible enabled control"
+                ),
+            ]
+        )
+
+        result = await self._run(
+            fields,
+            initial,
+            type_candidate,
+            observe_side_effect=[initial, refreshed],
+        )
+
+        self.assertEqual(result["status"], "batch_partial")
+        self.assertEqual(result["reason"], "profile_batch_target_changed")
+        self.assertEqual(result["completed_fields"], ["First name"])
+        self.assertEqual(result["receipts"], ["e" * 64])
+        self.assertEqual(result["observation"], refreshed["observation"])
+        self.assertEqual(type_candidate.await_count, 2)
+
+    async def test_target_race_refresh_failure_preserves_receipts_without_retry(self):
+        fields = [
+            {
+                "label": "First name",
+                "role": "textbox",
+                "stable_id": "id:first-name",
+                "candidate_concept": "candidate.first_name",
+            },
+            {
+                "label": "Email",
+                "role": "textbox",
+                "stable_id": "id:email",
+                "candidate_concept": "candidate.application_email",
+            },
+        ]
+        initial = _observation(
+            [_control("First name", "id:first-name"), _control("Email", "id:email", "email")]
+        )
+        after_first = _observation([_control("Email", "id:email", "email")])
+        type_candidate = AsyncMock(
+            side_effect=[
+                {
+                    "status": "acted",
+                    "action": {"receipt_sha256": "f" * 64},
+                    "observation": after_first["observation"],
+                },
+                RuntimeError(
+                    "action target must resolve to exactly one visible enabled control"
+                ),
+            ]
+        )
+
+        result = await self._run(
+            fields,
+            initial,
+            type_candidate,
+            observe_side_effect=[initial, RuntimeError("browser observation unavailable")],
+        )
+
+        self.assertEqual(result["status"], "transport_failed")
+        self.assertEqual(result["error_class"], "profile_batch_target_refresh_failed")
+        self.assertEqual(result["failed_field"], "Email")
+        self.assertEqual(result["completed_fields"], ["First name"])
+        self.assertEqual(result["receipts"], ["f" * 64])
+        self.assertFalse(result["retryable"])
+        self.assertNotIn("observation", result)
+        self.assertIn("do not replay", result["next_action"])
+        self.assertEqual(type_candidate.await_count, 2)
 
     async def test_does_not_batch_work_authorization_or_non_text_controls(self):
         fields = [
@@ -254,6 +366,24 @@ class ProfileFillBatchTests(unittest.IsolatedAsyncioTestCase):
                 "Candidate email",
                 "id:candidate-email",
                 "candidate.phone_number",
+                "profile_batch_concept_label_mismatch",
+            ),
+            (
+                "Work email",
+                "id:work-email",
+                "candidate.application_email",
+                "profile_batch_concept_label_mismatch",
+            ),
+            (
+                "Preferred name",
+                "id:preferred-name",
+                "candidate.full_name",
+                "profile_batch_concept_label_mismatch",
+            ),
+            (
+                "Address line 2",
+                "id:address-line2",
+                "candidate.address_line_1",
                 "profile_batch_concept_label_mismatch",
             ),
         ]
