@@ -18003,3 +18003,12 @@ Public salesVolume period/profit definition, search exposure and query volume ar
 - 最新のHostDiskGovernor receiptは20:11:38 JST、free_after=149,979,136 bytes、capacity_recovery=unmet。host-inventory-full.attemptは20:02:19 JSTに進んだがfull inventory JSONは17:45 JSTのまま。full attempt markerから1時間経過後に再試行し、fresh success receiptまで配備可能とは扱わない。
 
 **Cursor:** capacity recoveryとshallow ancestry修復が先。正確なmain-derived release後にDistributor/Factoryの登録adapter readback、goal monitorのTelegram occurrence binding/adapter、loaded-idle owner apply、自然terminalと公式readbackを確認する。理由はcapacityが依然release/artifact writeを妨げ、goal monitorの実Telegram effectがregistryで正しく表現されていないため。FROZEN sellers・価格・投稿は変更していない。
+
+### Capafy deploy readiness and current cursor — 2026-10-14 20:34 JST
+
+- `loops/current` readback points to `releases/20261014T202446-dfb8213c` (release mtime 20:26:49 JST), confirming an immutable release at `dfb8213c`. Main now includes docs-only PR #8035 at `7919bc92`; the release predates that documentation commit and no runtime difference is implied. A release cut does not prove any Capafy owner loaded it or completed a natural run.
+- Last complete owner status confirmed at 20:14 JST: `capafy-loop-daily` loaded `277c9202`, `capafy-distribute-daily` `a299acc0`, `capafy-goal-monitor-hourly` `277c9202`, and `lm-fence-reconciler` `9c71a1a`. No later complete owner status is available. `lm-loop status --explain` was interrupted after more than 50 seconds in runtime-event scanning; no status is inferred from that attempt.
+- At 20:30 JST, disk readback showed 146,496 KiB available and HostDiskGovernor `.receipt-reserve` absent. `capafy-hourly-reconcile.json` remained at mtime 16:21:58 JST with `observed_at=2026-10-14T07:12:07Z` (16:12 JST), 70 orders, `net_mrr_usd=null`, and `settled_mrr_usd=null`; this is stale and does not verify the post-2026-10-03 paid-order milestone.
+- **Deployment verdict: not ready for Capafy owner apply.** The immutable release exists, but storage preflight, current owner adoption, and exact effect-fence reconciliation are not verified. Keep held occurrences held; do not replay provider actions or close fences manually.
+
+**Cursor:** capacity/receipt-reserve recovery → exact registered adapter readbacks for factory, distributor, and goal monitor → fresh owner loaded-SHA/idle readback → apply only eligible owners → natural terminal + official provider readback → refresh order/source/MRR metrics.
