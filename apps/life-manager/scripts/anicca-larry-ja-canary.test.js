@@ -8,6 +8,7 @@ const path = require("node:path");
 const test = require("node:test");
 
 const { createContentObjectStore, importContentObject } = require("../lib/content-object-store.js");
+const { createMarketingLocalLedger } = require("../lib/marketing-local-ledger.js");
 const { createMarketingLaneManifest, writeMarketingLaneManifest } = require("../lib/marketing-lane-manifest.js");
 const {
   ACCOUNT_ID,
@@ -299,6 +300,20 @@ function providerCalls(calls, result = {}) {
       provider_effect_created: true,
       ...result,
     };
+  };
+}
+
+function failedCarouselExecutor({ unknownEffect, captureJobId }) {
+  return async (claim, context) => {
+    captureJobId(claim.job_id);
+    await context.failJob({
+      tenantId: claim.tenant_id,
+      jobId: claim.job_id,
+      attempt: claim.attempt,
+      workerId: context.workerId,
+      errorCode: unknownEffect ? "provider_unknown" : "provider_preflight",
+      unknownEffect,
+    });
   };
 }
 
@@ -724,7 +739,104 @@ test("EN affirmation restores the exact closed controls when the provider effect
     objectStore: value.objectStore,
     runDistribution: async () => { throw new Error("response lost"); },
     now: () => "2026-08-26T07:31:00.000Z",
-  }), /receipt is unavailable|response lost|unknown|provider/i);
+  }), /receipt (?:is )?unavailable|response lost|unknown|provider/i);
   assert.deepEqual(fs.readFileSync(path.join(value.dataDir, "marketing", "lane-manifest.json")), value.controlBytes.manifest);
   assert.deepEqual(fs.readFileSync(path.join(value.dataDir, "marketing", "publication-effect-fence.json")), value.controlBytes.fence);
+});
+
+test("safe failed carousel publication retries once and completes", async () => {
+  const value = enFixture();
+  const store = createMarketingLocalLedger({ dataDir: value.dataDir, env: value.env, now: () => SLOT });
+  let failedJobId;
+  await assert.rejects(runAniccaEnAffirmationInstagramCanary(["run-en-affirmation", "--slot", SLOT], {
+    env: value.env,
+    store,
+    executeCapabilityJob: failedCarouselExecutor({ unknownEffect: false, captureJobId: (jobId) => { failedJobId = jobId; } }),
+    now: () => SLOT,
+  }), /receipt (?:is )?unavailable/i);
+  const publicationCalls = [];
+  await runAniccaEnAffirmationInstagramCanary(["run-en-affirmation", "--slot", SLOT], {
+    env: value.env,
+    store,
+    runDistribution: providerCalls(publicationCalls),
+    now: () => SLOT,
+  });
+  const completed = await store.readJob({ tenantId: "dais-local", jobId: failedJobId });
+  assert.equal(publicationCalls.length, 1);
+  assert.equal(completed.status, "completed");
+  assert.equal(completed.attempt, 2);
+});
+
+test("unknown-effect carousel publication remains fenced and identifies its job", async () => {
+  const value = enFixture();
+  const store = createMarketingLocalLedger({ dataDir: value.dataDir, env: value.env, now: () => SLOT });
+  let failedJobId;
+  await assert.rejects(runAniccaEnAffirmationInstagramCanary(["run-en-affirmation", "--slot", SLOT], {
+    env: value.env,
+    store,
+    executeCapabilityJob: failedCarouselExecutor({ unknownEffect: true, captureJobId: (jobId) => { failedJobId = jobId; } }),
+    now: () => SLOT,
+  }), /receipt (?:is )?unavailable/i);
+  const publicationCalls = [];
+  await assert.rejects(runAniccaEnAffirmationInstagramCanary(["run-en-affirmation", "--slot", SLOT], {
+    env: value.env,
+    store,
+    runDistribution: providerCalls(publicationCalls),
+    now: () => SLOT,
+  }), (error) => {
+    assert.match(error.message, /Mobile marketing job is not claimable/i);
+    assert.ok(error.message.includes(failedJobId));
+    return true;
+  });
+  const failed = await store.readJob({ tenantId: "dais-local", jobId: failedJobId });
+  assert.equal(publicationCalls.length, 0);
+  assert.equal(failed.status, "failed");
+  assert.equal(failed.unknown_effect, true);
+  assert.equal(failed.attempt, 1);
+});
+
+test("carousel publication at its retry limit stays failed and identifies its job", async () => {
+  const value = enFixture();
+  const store = createMarketingLocalLedger({ dataDir: value.dataDir, env: value.env, now: () => SLOT });
+  let failedJobId;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    await assert.rejects(runAniccaEnAffirmationInstagramCanary(["run-en-affirmation", "--slot", SLOT], {
+      env: value.env,
+      store,
+      executeCapabilityJob: failedCarouselExecutor({ unknownEffect: false, captureJobId: (jobId) => { failedJobId = jobId; } }),
+      now: () => SLOT,
+    }), /receipt (?:is )?unavailable|not claimable/i);
+  }
+  const publicationCalls = [];
+  await assert.rejects(runAniccaEnAffirmationInstagramCanary(["run-en-affirmation", "--slot", SLOT], {
+    env: value.env,
+    store,
+    runDistribution: providerCalls(publicationCalls),
+    now: () => SLOT,
+  }), (error) => {
+    assert.match(error.message, /Mobile marketing job is not claimable/i);
+    assert.ok(error.message.includes(failedJobId));
+    return true;
+  });
+  const failed = await store.readJob({ tenantId: "dais-local", jobId: failedJobId });
+  assert.equal(publicationCalls.length, 0);
+  assert.equal(failed.status, "failed");
+  assert.equal(failed.unknown_effect, false);
+  assert.equal(failed.attempt, failed.max_attempts);
+});
+
+test("carousel receipt failure diagnostic names the mobile job", async () => {
+  const value = enFixture();
+  const store = createMarketingLocalLedger({ dataDir: value.dataDir, env: value.env, now: () => SLOT });
+  let failedJobId;
+  await assert.rejects(runAniccaEnAffirmationInstagramCanary(["run-en-affirmation", "--slot", SLOT], {
+    env: value.env,
+    store,
+    executeCapabilityJob: failedCarouselExecutor({ unknownEffect: false, captureJobId: (jobId) => { failedJobId = jobId; } }),
+    now: () => SLOT,
+  }), (error) => {
+    assert.match(error.message, /Mobile marketing receipt unavailable/i);
+    assert.ok(failedJobId && error.message.includes(failedJobId));
+    return true;
+  });
 });
