@@ -143,7 +143,7 @@ Gate 13 `gate_pass` means the snapshot is structurally complete, contains no fab
 
 **DD05 remains open**
 
-1. [ ] Pass exact-head checks on the latest-main-synchronized PR #8037, then merge. The preceding head `04a0b1c` passed all checks but lacked current main `3de2137`; the synchronization commit includes that main tip. The focused fence suite 24/24 is historical on merged `72ff5f9`.
+1. [x] Merge Writer DD06 source fix PR #8037 as `e0a53f101a5da13d9cb6d09d16bc80b67c7b19b2` after current-main sync; all 11 automated checks passed on head `8e7df3ce7b52d52b3eb64eb20e8ef3bc9954ef3a`. CodeRabbit skipped manual review. This source merge does not prove production release/adoption or revenue.
 2. [ ] Obtain a fresh exact release-capacity measurement for then-current `origin/main`. The requirement for `dfb8213` is unmeasured; the 252653568-byte result is historical for `49d9858` only.
 3. [ ] Recover only the newly measured shortfall through the registered cleanup owner; preserve protected and unknown paths. Do not treat a passing process terminal without a fresh receipt as capacity recovery.
 4. [ ] Cut/apply a main-derived immutable release only after the exact gate; verify installed SHA and natural owner terminal.
@@ -175,3 +175,6 @@ DD05 is shared publication-measurement infrastructure. The first agent-level EDD
 
 
 **EDD integration checkpoint, 2026-10-14T12:52Z:** Current main is `3de213777ef82996ada82ea6bbc4d898afcee7a9`. Before synchronization PR #8037 was head `04a0b1c4145e4f73d6ca6314bdb7699c2e831c0f`, based on `70a9ead`; its prior-head checks all passed, but main advanced and the branch conflicted. This update creates a non-force merge commit with the current main parent and preserves the PR four intended files. Exact-head checks rerun on the new commit. Writer source/test are unchanged by this sync. No current-main local pytest, capacity measurement, release adoption, natural outcome, or revenue is claimed. After integration, CTA lineage and destination identity are the next EDD implementation atom.
+
+
+**DD06 merge readback, 2026-10-14T13:03Z:** PR #8037 is MERGED as `e0a53f101a5da13d9cb6d09d16bc80b67c7b19b2`; its tree exactly matches tested PR head `8e7df3ce7b52d52b3eb64eb20e8ef3bc9954ef3a`. The 11 automated checks passed. Local worktree remains preserved because its lease is active and it contains user-generated `.DS_Store`; no worktree removal is claimed. Next EDD atom: CTA lineage and destination identity. Production adoption, current release capacity, natural publication outcomes, and publication-level revenue remain unverified.

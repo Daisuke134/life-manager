@@ -18090,3 +18090,11 @@ Public salesVolume period/profit definition, search exposure and query volume ar
 **未証明:** current-main release capacity、immutable release、owner adoption、自然run、publication単位の売上・コスト・人手介入。HTTP 200、CI、掲載状態は収益証拠ではない。
 
 **Cursor:** (1) 同期後headのexact checksをPASSさせPR #8037をmerge、(2) Writer CTAのproduct/run/artifact/variant/click lineageとdestination identityを既存Web funnel→first-touch→Stripe/Writer joinで保持、(3) fresh capacity gate後にDD05をregistered ownerのnatural run/24h成熟publicationまで確認、(4) outcome baselineを凍結して単一変数experiment、(5) DD07–DD12。次の実装atomはCTA lineage/destination identity。
+
+### EDD DD06 integration complete — 2026-10-14 22:03 JST
+
+**Completed:** PR #8037 is MERGED as `e0a53f101a5da13d9cb6d09d16bc80b67c7b19b2` on current main `e0a53f101a5da13d9cb6d09d16bc80b67c7b19b2`. The merge commit tree matches tested PR head `8e7df3ce7b52d52b3eb64eb20e8ef3bc9954ef3a`. All 11 automated checks passed on that exact head, including Writer EDD receipt grader, Python syntax + unittest, and Loop control contracts. CodeRabbit returned status SUCCESS but explicitly skipped manual review; the author self-review found no Critical/Important finding. DD06 source integration is complete.
+
+**Not implied by source merge:** this does not prove a new release, loaded-owner adoption, natural Writer publication, attribution, revenue, cost, or intervention. The current-main release-capacity gate and exact publication outcome remain open.
+
+**Current cursor:** implement CTA lineage and destination identity through the existing `/lm` Web funnel, authenticated first-touch, Stripe paid/refund events, and Writer artifact join. Then satisfy DD05 capacity/release/registered-owner/natural-publication gates, freeze a mature outcome baseline, run one controlled single-variable experiment, and continue DD07–DD12. Keep missing receipts and revenue as unknown.
