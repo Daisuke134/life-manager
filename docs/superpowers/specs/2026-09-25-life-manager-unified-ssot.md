@@ -3838,13 +3838,13 @@ SNS ledgerは17回（ローカルpublished14／failed3）、最後の実投稿�
 同時にfactory run 18de01620d5a98a0-35902は16:30:23 JSTにruntime capでexit124となり、effect unknown / receiptなし。set-039のlocal ID 48289209はsubmit記録済みだがofficial status/feature placementは未確認。set-040はimages stageのまま17/40 candidatesで、item IDなし。factoryを手動restartせず、公式item readbackの自然終端を待つ。
 **So What:** latest official sales snapshotは39 IDs中28 zero/11 null、positive0。landing codeにLINE click eventはあるがlive count0。Instagramはsuspended page、TikTok account/postなし。priority/preflight source fixesはmainにmerged、runtime releaseはcapacity未達、distribution fence open。次はset-011 demo、TikTok ownerとの重複なしの連携、既存blogのnext eligible slotで1件のfree post。cleanupはsafe release capacityの補助作業に限定する。
 
-#### 5.L 配信進捗更新 — 2026-10-15 01:04 JST（base main `280d966e`）
+#### 5.L 配信進捗更新 — 2026-10-15 01:04 JST（base main `80e1a62d`）
 
 **範囲:** 公式ストア掲載済み36商品を、既存素材と無料チャネルだけで販促する。新規スタンプ制作、有料広告・PR、購入依頼、ランキング操作は対象外。
 
 **現状と計測:**
 - 公開作者ページは36商品。10/14に確認した35商品の価格構成は21×¥250・14×¥190、追加商品 `37303664` は¥190。既存価格が変わっていなければ平均¥225。USD/JPYを仮に150と置くと月間購入者総額USD 10,000には約¥1,500,000、約6,667購入/月（222/日）が必要。これは規模算術で、予測・保証ではなく、分配や手取りとは別指標。
-- 記事台帳は23枠、公開19・失敗3・未完了1、公開SKUは19件。公開サイトの最新 `/api/stats`（00:01 JST、期間不明）は全体397閲覧、LINE記事7 URLで計11閲覧、`line_sticker_click` なし。閲覧はクリック・購入の証拠ではない。
+- 記事台帳は23枠、公開19・失敗3・未完了1、公開SKUは19件。`/api/stats`の最新readback（updated_at 01:01 JST、集計期間不明）は全体399閲覧、LINE記事7 URLで計11閲覧、`line_sticker_click` なし。閲覧はクリック・購入の証拠ではない。
 - `sales.json` の最後に確認したsnapshotは10/15 00:28 JST、40商品中29件¥0・11件null・正値0。これはその時点の値で、最新の公式売上を示さない。reader occurrence `line-sticker-readback-hourly:18de6ef647392a58-92546` は00:49:35 JSTに自然終了、exit 1、release `1d1c0127bca23eb344fb7a6fe388ffe907d4e72f`、`provider_receipt_id=null` / `official_readback_ref=null`。`set-038`は40枚の静止画plan（`stickers`あり、`motions`なし）で公式状態`リジェクト`。その再申請処理がmotion専用`line_sticker_planner.selector`を呼び、`KeyError('motions')`になる。`set-042/creators-item.json`は空objectで商品IDなしだが、shellの全set globが読取対象に含め、`creators_readback.py::read`が`item['url']`で`KeyError('url')`になる。readerの入力境界エラーであり、公式売上は¥0と判定しない。readerは`loaded-idle`のまま保つ。
 - 10/14 19時slot `2026-10-14@19` は `set-033` / attempts=1のままURL・commitが未記録。occurrence `line-sticker-articles:18de5fc6eed722e0-22842` は19:50:10 JST開始、exit 75 / `effect_unknown`。Landing GitHubには対応slug `line-sticker-set-033-2026-10-14-19` が19:50:51 JST、commit `e9cb5ff995985544b475d504ddee76121e20d2fb` で追加され、公開URLも取得済み。CTA `https://line.me/S/sticker/37293554` は公式商品ページの「星くずカワウソの毎日【文字入り】 vol.7」¥190と一致する。
 - installed article adapterは `unledgered_article:line-sticker-set-033-2026-10-14-19` と判定してフェンスを保持した。source候補 `fix/line-sticker-article-positive-reconcile-20261015` は、JST slot・set ID・attempts・commit時刻・記事日付・本文内の全`line.me` URLが既存 `purchase_url` 1件だけの時にpositive receiptを作る。URL/title/commitを台帳記録してから当該occurrenceを閉じる。CTA不一致、別slot、未検証の同slot記事はheld。focused test 14/14 PASS。00:40 JSTの実データread-only proofは `effected=true` / `PROOF_READY`、00:42の再読はadmission DB lockでheld。台帳・fenceは未変更。独立reviewはSHIP。再送しない。
