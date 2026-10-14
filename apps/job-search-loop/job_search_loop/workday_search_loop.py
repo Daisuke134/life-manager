@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-from .agent_runner import AgentRunner, wrap_untrusted
+from .agent_runner import AgentRunner
 from .application_reporting import deliver_fit_decision
 from .ats import detect_provider
 from .ledger import Ledger
@@ -20,7 +20,7 @@ from .workday_discovery import _fetch_jobs, discover_one
 from .workday_qualification import POLICY_VERSION, fetch_official_description, qualify_one
 from .browser_agent.workday_account import MachineWorkdayCredentialStore
 
-SHORTLIST_SIZE = 24
+PRIORITY_WINDOW_SIZE = 24
 ROLLING_APPLICATION_TARGET = 48
 
 
@@ -325,6 +325,29 @@ def interleave_companies(
     return result
 
 
+def priority_candidate_urls(
+    candidates: list[dict[str, str]],
+    company_exposure: dict[str, int],
+    *,
+    limit: int = PRIORITY_WINDOW_SIZE,
+) -> tuple[str, ...]:
+    """Prefer companies with fewer prior submit attempts, then interleave fairly."""
+    if limit < 1:
+        raise ValueError("limit must be positive")
+    exposure_by_company: Counter[str] = Counter()
+    for company, attempts in company_exposure.items():
+        if isinstance(attempts, int) and not isinstance(attempts, bool) and attempts > 0:
+            exposure_by_company[normalize_company_name(company)] += attempts
+    ordered = sorted(
+        candidates,
+        key=lambda row: exposure_by_company.get(
+            normalize_company_name(str(row.get("company") or "")), 0
+        ),
+    )
+    diversified = interleave_companies(ordered)
+    return tuple(str(row["url"]) for row in diversified[:limit])
+
+
 def company_submit_attempt_exposure(ledger_path: Path) -> dict[str, int]:
     ledger = Ledger(ledger_path)
     try:
@@ -394,54 +417,6 @@ def candidate_employer_exclusions(candidate_memory_path: Path) -> frozenset[str]
                 raise ValueError("candidate employer exclusions are invalid")
             return frozenset(item.strip() for item in exclusions)
     return frozenset()
-
-
-def validate_shortlist(
-    result: dict[str, Any], candidates: list[dict[str, str]]
-) -> tuple[str, ...]:
-    ranked_ids = result.get("ranked_candidate_ids")
-    if not isinstance(ranked_ids, list) or not ranked_ids:
-        raise ValueError("Workday shortlist must contain ranked_candidate_ids")
-    allowed = {row["candidate_id"]: row["url"] for row in candidates}
-    validated = []
-    for value in ranked_ids:
-        if not isinstance(value, str) or value not in allowed:
-            continue
-        url = allowed[value]
-        if url not in validated:
-            validated.append(url)
-    if not validated:
-        raise ValueError("Workday shortlist contains no official candidate ID")
-    return tuple(validated)
-
-
-def rank_candidates(
-    *,
-    candidates: list[dict[str, str]],
-    rank_chunk: Callable[[list[dict[str, str]]], dict[str, Any]],
-    chunk_size: int = 400,
-) -> tuple[str, ...]:
-    if chunk_size < 1:
-        raise ValueError("chunk_size must be positive")
-    def select(rows: list[dict[str, str]]) -> tuple[str, ...]:
-        presented = [
-            {**row, "candidate_id": f"c{index}"}
-            for index, row in enumerate(rows)
-        ]
-        return validate_shortlist(rank_chunk(presented), presented)
-
-    candidates = interleave_companies(candidates)
-    finalists: list[dict[str, str]] = []
-    by_url = {row["url"].casefold(): row for row in candidates}
-    for offset in range(0, len(candidates), chunk_size):
-        chunk = candidates[offset : offset + chunk_size]
-        for url in select(chunk):
-            row = by_url[url.casefold()]
-            if row not in finalists:
-                finalists.append(row)
-    if len(finalists) <= SHORTLIST_SIZE:
-        return tuple(row["url"] for row in finalists)
-    return select(finalists)
 
 
 def search_until_qualified(
@@ -521,7 +496,6 @@ def main() -> int:
     parser.add_argument("--sources", required=True, type=Path)
     parser.add_argument("--runner", required=True, type=Path)
     parser.add_argument("--schema", required=True, type=Path)
-    parser.add_argument("--shortlist-schema", required=True, type=Path)
     parser.add_argument("--workdir", required=True, type=Path)
     parser.add_argument("--evidence-root", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
@@ -574,66 +548,9 @@ def main() -> int:
     # qualification: a materials-ready row can remain blocked on a required fact.
     preferred_urls: tuple[str, ...] = ()
     if candidates:
-        candidate_memory = args.candidate_memory.read_text(encoding="utf-8")
-        def rank_chunk(chunk: list[dict[str, str]]) -> dict[str, Any]:
-            return runner.run(
-                task="improve",
-                prompt=(
-                "Rank Workday jobs primarily by evidence-backed fit between the actual "
-                "responsibilities and the candidate's demonstrated experience. "
-                "No location category outranks another: onsite or hybrid roles worldwide and "
-                "remote roles worldwide are equally eligible. No country or work arrangement "
-                "is a location-only rejection reason; this global scope supersedes narrower "
-                "stored location preferences. Do not reject or downgrade a role solely because "
-                "sponsorship is stated as unavailable or left unstated, regardless of country. "
-                "Never claim authorization or sponsorship without profile evidence; answer every "
-                "required application question truthfully and let the "
-                "employer decide whether to make an exception. "
-                "Use the candidate's USD 100,000 annual gross base target as the goal; "
-                "exclude a role only when its disclosed annualized compensation is clearly below "
-                "that target, and mark unpublished compensation uncertain without inventing a "
-                "range. Evaluate senior, lead, director, manager, and people-management roles "
-                "from their full responsibilities and the candidate's evidence, not title alone. "
-                "Exclude CEO or C-suite roles, and do not rank executive scope above a grounded "
-                "match. The goal is one qualified row followed by an immediate truthful "
-                "application in this wake, not a list of reasons to skip. Treat title, company "
-                "prestige, and source order as weak signals rather than fit proxies. Use the whole "
-                "supplied snapshot. "
-                "This is a company-wide portfolio search, not a single-company campaign. "
-                "When interview fit is comparable, prefer employers with fewer prior "
-                "submit attempts and keep credible finalists across different companies. "
-                "Company submit-attempt exposure below counts each application with a "
-                "submit attempt once; materials_ready and rejected are not counted. Do "
-                "not repeatedly choose one employer merely because it has "
-                "more postings in the snapshot. "
-                "Do not invent requirements, compensation, or candidate facts. Return up "
-                f"exactly {min(SHORTLIST_SIZE, len(chunk))} unique candidate_id values, "
-                "best first, copied exactly from the snapshot. "
-                "Return only the schema.\n\n"
-                + wrap_untrusted(
-                    "workday_snapshot",
-                    json.dumps(chunk, ensure_ascii=False),
-                )
-                + "\n\n"
-                + wrap_untrusted("candidate_memory", candidate_memory)
-                + "\n\n"
-                + wrap_untrusted(
-                    "company_submit_attempt_exposure",
-                    json.dumps(
-                        company_exposure,
-                        ensure_ascii=False,
-                        sort_keys=True,
-                    ),
-                )
-            ),
-                schema_path=args.shortlist_schema,
-                workdir=args.workdir,
-                run_id=f"workday-shortlist-{uuid.uuid4().hex}",
-            )
-
-        preferred_urls = rank_candidates(
-            candidates=candidates,
-            rank_chunk=rank_chunk,
+        preferred_urls = priority_candidate_urls(
+            candidates,
+            company_exposure,
         )
 
     def discover_next() -> dict[str, Any]:
