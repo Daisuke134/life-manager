@@ -134,6 +134,16 @@ def main() -> int:
     parser.add_argument("--item-file", type=Path, required=True)
     args = parser.parse_args()
     item = json.loads(args.item_file.read_text())
+    if not isinstance(item, dict):
+        print(json.dumps({"status": "invalid_item_manifest", "readback": "not_attempted"},
+                         ensure_ascii=False))
+        return 1
+    if not item.get("product_id") and not item.get("url"):
+        # Empty creators-item.json files are placeholders for sets that have
+        # not been submitted; they are not sales/status rows and need no browser.
+        print(json.dumps({"status": "unsubmitted_placeholder", "readback": "not_attempted"},
+                         ensure_ascii=False))
+        return 0
     acquired = acquire_when_free(
         lambda: subprocess.run(["bash", str(GUARD), "acquire", IDENTITY], capture_output=True, text=True))
     if acquired.returncode != 0:
