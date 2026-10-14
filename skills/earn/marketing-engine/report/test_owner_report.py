@@ -243,7 +243,7 @@ FIXTURES: dict[str, list[dict]] = {
     ],
     "experiment-attribution.jsonl": [
         {
-            "schema_version": "marketing.experiment-attribution.v1",
+            "schema_version": "marketing.experiment-attribution.v2",
             "product_id": "ebook-ja",
             "experiment_id": "experiment.ebook-ja.001",
             "attribution_id": "attribution.ebook-ja.001",
@@ -263,6 +263,18 @@ FIXTURES: dict[str, list[dict]] = {
                     "status": "not_mature",
                     "value": None,
                     "null_reason": "business_window_not_mature",
+                },
+                {
+                    "metric_name": "actual_cost_usd",
+                    "status": "unknown",
+                    "value": None,
+                    "null_reason": "publication_scoped_cost_evidence_unavailable",
+                },
+                {
+                    "metric_name": "human_interventions",
+                    "status": "unknown",
+                    "value": None,
+                    "null_reason": "publication_scoped_intervention_evidence_unavailable",
                 },
             ],
         }
@@ -852,6 +864,13 @@ class OwnerReportRendererTest(unittest.TestCase):
     def test_experiment_does_not_call_not_mature_winner_or_loser(self):
         event = self.event("experiment", "ebook-ja")
         text = owner_report.render_japanese(event)
+        metrics = {item["name"]: item for item in event["facts"]["metrics"]}
+        self.assertEqual(metrics["actual_cost_usd"]["status"], "unknown")
+        self.assertEqual(metrics["human_interventions"]["status"], "unknown")
+        self.assertEqual(
+            metrics["actual_cost_usd"]["null_reason"],
+            "publication_scoped_cost_evidence_unavailable",
+        )
         self.assertIn("まだ判断できる時間ではありません", text)
         self.assertNotIn("winner", text.lower())
         self.assertNotIn("loser", text.lower())

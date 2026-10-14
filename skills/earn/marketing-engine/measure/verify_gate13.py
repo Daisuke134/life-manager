@@ -34,6 +34,7 @@ def verify_gate13(ledger_path: Path, evidence_path: Path) -> dict:
     results = snapshot["results"]
     statuses = Counter(row["status"] for row in results)
     classes = Counter(row["attribution_class"] for row in results)
+    unknown = [row for row in results if row["attribution_class"] == "unknown"]
     fabricated_zero = [row["metric_name"] for row in results
                        if row["value"] == 0 and
                        (row["status"] != "observed" or
@@ -63,8 +64,10 @@ def verify_gate13(ledger_path: Path, evidence_path: Path) -> dict:
         "fabricated_zero_count": len(fabricated_zero),
         "click_query_status": click_query.get("status"),
         "qualified_clicks": click["value"],
-        "unknown_metrics": [row["metric_name"] for row in results
-                            if row["attribution_class"] == "unknown"],
+        "unknown_metrics": [row["metric_name"] for row in unknown],
+        "unknown_metric_reasons": {
+            row["metric_name"]: row["null_reason"] for row in unknown
+        },
     }
 
 
