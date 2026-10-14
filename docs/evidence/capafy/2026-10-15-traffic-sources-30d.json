@@ -1,0 +1,1104 @@
+{
+  "account": {
+    "by_source": [
+      {
+        "paid_orders": 2,
+        "sales_usd": "3.98",
+        "source_name": "direct",
+        "source_type": "direct",
+        "trial_orders": 0,
+        "unique_visitors": 1590,
+        "views": 1590
+      },
+      {
+        "paid_orders": 0,
+        "sales_usd": "0.00",
+        "source_name": "other",
+        "source_type": "other",
+        "trial_orders": 0,
+        "unique_visitors": 1282,
+        "views": 1282
+      },
+      {
+        "paid_orders": 8,
+        "sales_usd": "17.92",
+        "source_name": "search",
+        "source_type": "internal",
+        "trial_orders": 5,
+        "unique_visitors": 799,
+        "views": 799
+      },
+      {
+        "paid_orders": 0,
+        "sales_usd": "0.00",
+        "source_name": "ai_overview",
+        "source_type": "internal",
+        "trial_orders": 0,
+        "unique_visitors": 373,
+        "views": 373
+      },
+      {
+        "paid_orders": 5,
+        "sales_usd": "9.95",
+        "source_name": "hot",
+        "source_type": "internal",
+        "trial_orders": 0,
+        "unique_visitors": 46,
+        "views": 46
+      },
+      {
+        "paid_orders": 0,
+        "sales_usd": "0.00",
+        "source_name": "instagram_bio",
+        "source_type": "utm",
+        "trial_orders": 0,
+        "unique_visitors": 39,
+        "views": 39
+      },
+      {
+        "paid_orders": 1,
+        "sales_usd": "9.99",
+        "source_name": "google",
+        "source_type": "referrer",
+        "trial_orders": 0,
+        "unique_visitors": 38,
+        "views": 38
+      },
+      {
+        "paid_orders": 0,
+        "sales_usd": "0.00",
+        "source_name": "category",
+        "source_type": "internal",
+        "trial_orders": 0,
+        "unique_visitors": 36,
+        "views": 36
+      },
+      {
+        "paid_orders": 0,
+        "sales_usd": "0.00",
+        "source_name": "slides_ig",
+        "source_type": "ct",
+        "trial_orders": 0,
+        "unique_visitors": 2,
+        "views": 2
+      },
+      {
+        "paid_orders": 0,
+        "sales_usd": "0.00",
+        "source_name": "hooklab_ig",
+        "source_type": "ct",
+        "trial_orders": 0,
+        "unique_visitors": 2,
+        "views": 2
+      },
+      {
+        "paid_orders": 0,
+        "sales_usd": "0.00",
+        "source_name": "youtube_ig",
+        "source_type": "ct",
+        "trial_orders": 0,
+        "unique_visitors": 1,
+        "views": 1
+      },
+      {
+        "paid_orders": 0,
+        "sales_usd": "0.00",
+        "source_name": "tiktok_ig",
+        "source_type": "ct",
+        "trial_orders": 0,
+        "unique_visitors": 1,
+        "views": 1
+      },
+      {
+        "paid_orders": 0,
+        "sales_usd": "0.00",
+        "source_name": "tiktok_blog",
+        "source_type": "ct",
+        "trial_orders": 0,
+        "unique_visitors": 1,
+        "views": 1
+      },
+      {
+        "paid_orders": 0,
+        "sales_usd": "0.00",
+        "source_name": "hooklab_blog",
+        "source_type": "ct",
+        "trial_orders": 0,
+        "unique_visitors": 1,
+        "views": 1
+      },
+      {
+        "paid_orders": 0,
+        "sales_usd": "0.00",
+        "source_name": "chatgpt.com",
+        "source_type": "utm",
+        "trial_orders": 0,
+        "unique_visitors": 1,
+        "views": 1
+      },
+      {
+        "paid_orders": 0,
+        "sales_usd": "0.00",
+        "source_name": "facebook",
+        "source_type": "referrer",
+        "trial_orders": 0,
+        "unique_visitors": 1,
+        "views": 1
+      },
+      {
+        "paid_orders": 0,
+        "sales_usd": "0.00",
+        "source_name": "bing",
+        "source_type": "referrer",
+        "trial_orders": 0,
+        "unique_visitors": 1,
+        "views": 1
+      },
+      {
+        "paid_orders": 0,
+        "sales_usd": "0.00",
+        "source_name": "slides_x",
+        "source_type": "ct",
+        "trial_orders": 0,
+        "unique_visitors": 0,
+        "views": 0
+      },
+      {
+        "paid_orders": 0,
+        "sales_usd": "0.00",
+        "source_name": "slides_blog",
+        "source_type": "ct",
+        "trial_orders": 0,
+        "unique_visitors": 0,
+        "views": 0
+      },
+      {
+        "paid_orders": 0,
+        "sales_usd": "0.00",
+        "source_name": "youtube_x",
+        "source_type": "ct",
+        "trial_orders": 0,
+        "unique_visitors": 0,
+        "views": 0
+      },
+      {
+        "paid_orders": 0,
+        "sales_usd": "0.00",
+        "source_name": "youtube_blog",
+        "source_type": "ct",
+        "trial_orders": 0,
+        "unique_visitors": 0,
+        "views": 0
+      },
+      {
+        "paid_orders": 0,
+        "sales_usd": "0.00",
+        "source_name": "tiktok_x",
+        "source_type": "ct",
+        "trial_orders": 0,
+        "unique_visitors": 0,
+        "views": 0
+      },
+      {
+        "paid_orders": 0,
+        "sales_usd": "0.00",
+        "source_name": "hooklab_x",
+        "source_type": "ct",
+        "trial_orders": 0,
+        "unique_visitors": 0,
+        "views": 0
+      },
+      {
+        "paid_orders": 0,
+        "sales_usd": "0.00",
+        "source_name": "marke",
+        "source_type": "ct",
+        "trial_orders": 0,
+        "unique_visitors": 0,
+        "views": 0
+      },
+      {
+        "paid_orders": 0,
+        "sales_usd": "0.00",
+        "source_name": "slides_ig",
+        "source_type": "campaign",
+        "trial_orders": 0,
+        "unique_visitors": 0,
+        "views": 0
+      },
+      {
+        "paid_orders": 0,
+        "sales_usd": "0.00",
+        "source_name": "youtube_ig",
+        "source_type": "campaign",
+        "trial_orders": 0,
+        "unique_visitors": 0,
+        "views": 0
+      },
+      {
+        "paid_orders": 0,
+        "sales_usd": "0.00",
+        "source_name": "tiktok_ig",
+        "source_type": "campaign",
+        "trial_orders": 0,
+        "unique_visitors": 0,
+        "views": 0
+      },
+      {
+        "paid_orders": 0,
+        "sales_usd": "0.00",
+        "source_name": "hooklab_ig",
+        "source_type": "campaign",
+        "trial_orders": 0,
+        "unique_visitors": 0,
+        "views": 0
+      },
+      {
+        "paid_orders": 0,
+        "sales_usd": "0.00",
+        "source_name": "slides_x",
+        "source_type": "campaign",
+        "trial_orders": 0,
+        "unique_visitors": 0,
+        "views": 0
+      },
+      {
+        "paid_orders": 0,
+        "sales_usd": "0.00",
+        "source_name": "slides_blog",
+        "source_type": "campaign",
+        "trial_orders": 0,
+        "unique_visitors": 0,
+        "views": 0
+      },
+      {
+        "paid_orders": 0,
+        "sales_usd": "0.00",
+        "source_name": "youtube_x",
+        "source_type": "campaign",
+        "trial_orders": 0,
+        "unique_visitors": 0,
+        "views": 0
+      },
+      {
+        "paid_orders": 0,
+        "sales_usd": "0.00",
+        "source_name": "youtube_blog",
+        "source_type": "campaign",
+        "trial_orders": 0,
+        "unique_visitors": 0,
+        "views": 0
+      },
+      {
+        "paid_orders": 0,
+        "sales_usd": "0.00",
+        "source_name": "tiktok_x",
+        "source_type": "campaign",
+        "trial_orders": 0,
+        "unique_visitors": 0,
+        "views": 0
+      },
+      {
+        "paid_orders": 0,
+        "sales_usd": "0.00",
+        "source_name": "tiktok_blog",
+        "source_type": "campaign",
+        "trial_orders": 0,
+        "unique_visitors": 0,
+        "views": 0
+      },
+      {
+        "paid_orders": 0,
+        "sales_usd": "0.00",
+        "source_name": "hooklab_x",
+        "source_type": "campaign",
+        "trial_orders": 0,
+        "unique_visitors": 0,
+        "views": 0
+      },
+      {
+        "paid_orders": 0,
+        "sales_usd": "0.00",
+        "source_name": "hooklab_blog",
+        "source_type": "campaign",
+        "trial_orders": 0,
+        "unique_visitors": 0,
+        "views": 0
+      },
+      {
+        "paid_orders": 0,
+        "sales_usd": "0.00",
+        "source_name": "marke",
+        "source_type": "campaign",
+        "trial_orders": 0,
+        "unique_visitors": 0,
+        "views": 0
+      }
+    ],
+    "filters": {
+      "country": null,
+      "platform": null
+    },
+    "observed_at": "2026-10-14T15:23:27Z",
+    "scope": {
+      "agent_id": null,
+      "kind": "account"
+    },
+    "source_hashes": {
+      "sales": "1eccf85a35002dfb44afcf026fd114513a76b265c3da5249df2d7b2300cba6f8",
+      "visits": "a66c4352fcb239e01d129663971460ea63ed1de33e4ac17438e8a8e4d0d59ba5"
+    },
+    "source_status": {
+      "sales": "fresh",
+      "visits": "fresh"
+    },
+    "status": "fresh",
+    "totals": {
+      "paid_orders": 16,
+      "sales_usd": "41.84",
+      "trial_orders": 5,
+      "unique_visitors": 4214,
+      "views": 4214
+    },
+    "window": {
+      "display_timezone": "Asia/Tokyo",
+      "end_at_ms": 1792022399999,
+      "end_local": "2026-10-15T08:59:59.999+09:00",
+      "end_utc": "2026-10-14T23:59:59.999Z",
+      "start_at_ms": 1789430400000,
+      "start_local": "2026-09-15T09:00:00.000+09:00",
+      "start_utc": "2026-09-15T00:00:00.000Z"
+    }
+  },
+  "definition": {
+    "frozen_agents": "read-only IDs from skills/capafy/FROZEN.json",
+    "paid_orders": "source endpoint paidOrderCount merged by source",
+    "sales_usd": "source endpoint salesAmount; may include negative adjustments",
+    "views": "source endpoint views"
+  },
+  "frozen_seller_agents": {
+    "2844813315": {
+      "by_source": [
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "ai_overview",
+          "source_type": "internal",
+          "trial_orders": 0,
+          "unique_visitors": 184,
+          "views": 184
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "other",
+          "source_type": "other",
+          "trial_orders": 0,
+          "unique_visitors": 37,
+          "views": 37
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "direct",
+          "source_type": "direct",
+          "trial_orders": 0,
+          "unique_visitors": 36,
+          "views": 36
+        },
+        {
+          "paid_orders": 3,
+          "sales_usd": "5.97",
+          "source_name": "search",
+          "source_type": "internal",
+          "trial_orders": 0,
+          "unique_visitors": 10,
+          "views": 10
+        },
+        {
+          "paid_orders": 1,
+          "sales_usd": "9.99",
+          "source_name": "google",
+          "source_type": "referrer",
+          "trial_orders": 0,
+          "unique_visitors": 3,
+          "views": 3
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "tiktok_ig",
+          "source_type": "ct",
+          "trial_orders": 0,
+          "unique_visitors": 1,
+          "views": 1
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "tiktok_blog",
+          "source_type": "ct",
+          "trial_orders": 0,
+          "unique_visitors": 1,
+          "views": 1
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "category",
+          "source_type": "internal",
+          "trial_orders": 0,
+          "unique_visitors": 0,
+          "views": 0
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "hot",
+          "source_type": "internal",
+          "trial_orders": 0,
+          "unique_visitors": 0,
+          "views": 0
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "tiktok_x",
+          "source_type": "ct",
+          "trial_orders": 0,
+          "unique_visitors": 0,
+          "views": 0
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "tiktok_ig",
+          "source_type": "campaign",
+          "trial_orders": 0,
+          "unique_visitors": 0,
+          "views": 0
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "tiktok_x",
+          "source_type": "campaign",
+          "trial_orders": 0,
+          "unique_visitors": 0,
+          "views": 0
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "tiktok_blog",
+          "source_type": "campaign",
+          "trial_orders": 0,
+          "unique_visitors": 0,
+          "views": 0
+        }
+      ],
+      "filters": {
+        "country": null,
+        "platform": null
+      },
+      "observed_at": "2026-10-14T15:23:27Z",
+      "scope": {
+        "agent_id": "2844813315",
+        "kind": "agent"
+      },
+      "source_hashes": {
+        "sales": "ee5c4a3676bd569b02ff367899b7a8f945b240e93af970659c1bc4f27d35f19e",
+        "visits": "c6d790398d42b932163adf5451cf014442c2760bf50f12cfec14ba3c13dbfdd8"
+      },
+      "source_status": {
+        "sales": "fresh",
+        "visits": "fresh"
+      },
+      "status": "fresh",
+      "totals": {
+        "paid_orders": 4,
+        "sales_usd": "15.96",
+        "trial_orders": 0,
+        "unique_visitors": 272,
+        "views": 272
+      },
+      "window": {
+        "display_timezone": "Asia/Tokyo",
+        "end_at_ms": 1792022399999,
+        "end_local": "2026-10-15T08:59:59.999+09:00",
+        "end_utc": "2026-10-14T23:59:59.999Z",
+        "start_at_ms": 1789430400000,
+        "start_local": "2026-09-15T09:00:00.000+09:00",
+        "start_utc": "2026-09-15T00:00:00.000Z"
+      }
+    },
+    "7686597754": {
+      "by_source": [
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "ai_overview",
+          "source_type": "internal",
+          "trial_orders": 0,
+          "unique_visitors": 42,
+          "views": 42
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "direct",
+          "source_type": "direct",
+          "trial_orders": 0,
+          "unique_visitors": 30,
+          "views": 30
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "other",
+          "source_type": "other",
+          "trial_orders": 0,
+          "unique_visitors": 27,
+          "views": 27
+        },
+        {
+          "paid_orders": 4,
+          "sales_usd": "7.96",
+          "source_name": "search",
+          "source_type": "internal",
+          "trial_orders": 0,
+          "unique_visitors": 13,
+          "views": 13
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "google",
+          "source_type": "referrer",
+          "trial_orders": 0,
+          "unique_visitors": 5,
+          "views": 5
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "category",
+          "source_type": "internal",
+          "trial_orders": 0,
+          "unique_visitors": 4,
+          "views": 4
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "youtube_ig",
+          "source_type": "ct",
+          "trial_orders": 0,
+          "unique_visitors": 1,
+          "views": 1
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "hot",
+          "source_type": "internal",
+          "trial_orders": 0,
+          "unique_visitors": 0,
+          "views": 0
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "youtube_x",
+          "source_type": "ct",
+          "trial_orders": 0,
+          "unique_visitors": 0,
+          "views": 0
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "youtube_blog",
+          "source_type": "ct",
+          "trial_orders": 0,
+          "unique_visitors": 0,
+          "views": 0
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "youtube_ig",
+          "source_type": "campaign",
+          "trial_orders": 0,
+          "unique_visitors": 0,
+          "views": 0
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "youtube_x",
+          "source_type": "campaign",
+          "trial_orders": 0,
+          "unique_visitors": 0,
+          "views": 0
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "youtube_blog",
+          "source_type": "campaign",
+          "trial_orders": 0,
+          "unique_visitors": 0,
+          "views": 0
+        }
+      ],
+      "filters": {
+        "country": null,
+        "platform": null
+      },
+      "observed_at": "2026-10-14T15:23:27Z",
+      "scope": {
+        "agent_id": "7686597754",
+        "kind": "agent"
+      },
+      "source_hashes": {
+        "sales": "cc67883dfbe824addf965f78897b33b3b774c3229cea5bd7b7168cade5dae8db",
+        "visits": "387314e1f0c05333ca1a0b2328e99e26895f24ff9cbacd38a391f5aa95c79a3f"
+      },
+      "source_status": {
+        "sales": "fresh",
+        "visits": "fresh"
+      },
+      "status": "fresh",
+      "totals": {
+        "paid_orders": 4,
+        "sales_usd": "7.96",
+        "trial_orders": 0,
+        "unique_visitors": 122,
+        "views": 122
+      },
+      "window": {
+        "display_timezone": "Asia/Tokyo",
+        "end_at_ms": 1792022399999,
+        "end_local": "2026-10-15T08:59:59.999+09:00",
+        "end_utc": "2026-10-14T23:59:59.999Z",
+        "start_at_ms": 1789430400000,
+        "start_local": "2026-09-15T09:00:00.000+09:00",
+        "start_utc": "2026-09-15T00:00:00.000Z"
+      }
+    },
+    "8123079349": {
+      "by_source": [
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "ai_overview",
+          "source_type": "internal",
+          "trial_orders": 0,
+          "unique_visitors": 116,
+          "views": 116
+        },
+        {
+          "paid_orders": -1,
+          "sales_usd": "-9.99",
+          "source_name": "search",
+          "source_type": "internal",
+          "trial_orders": 0,
+          "unique_visitors": 111,
+          "views": 111
+        },
+        {
+          "paid_orders": 2,
+          "sales_usd": "3.98",
+          "source_name": "direct",
+          "source_type": "direct",
+          "trial_orders": 0,
+          "unique_visitors": 45,
+          "views": 45
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "other",
+          "source_type": "other",
+          "trial_orders": 0,
+          "unique_visitors": 27,
+          "views": 27
+        },
+        {
+          "paid_orders": 5,
+          "sales_usd": "9.95",
+          "source_name": "hot",
+          "source_type": "internal",
+          "trial_orders": 0,
+          "unique_visitors": 15,
+          "views": 15
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "category",
+          "source_type": "internal",
+          "trial_orders": 0,
+          "unique_visitors": 12,
+          "views": 12
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "google",
+          "source_type": "referrer",
+          "trial_orders": 0,
+          "unique_visitors": 4,
+          "views": 4
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "hooklab_ig",
+          "source_type": "ct",
+          "trial_orders": 0,
+          "unique_visitors": 2,
+          "views": 2
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "hooklab_blog",
+          "source_type": "ct",
+          "trial_orders": 0,
+          "unique_visitors": 1,
+          "views": 1
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "hooklab_x",
+          "source_type": "ct",
+          "trial_orders": 0,
+          "unique_visitors": 0,
+          "views": 0
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "hooklab_ig",
+          "source_type": "campaign",
+          "trial_orders": 0,
+          "unique_visitors": 0,
+          "views": 0
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "hooklab_x",
+          "source_type": "campaign",
+          "trial_orders": 0,
+          "unique_visitors": 0,
+          "views": 0
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "hooklab_blog",
+          "source_type": "campaign",
+          "trial_orders": 0,
+          "unique_visitors": 0,
+          "views": 0
+        }
+      ],
+      "filters": {
+        "country": null,
+        "platform": null
+      },
+      "observed_at": "2026-10-14T15:23:27Z",
+      "scope": {
+        "agent_id": "8123079349",
+        "kind": "agent"
+      },
+      "source_hashes": {
+        "sales": "07dfdf026193515f174c030bbcfaffc2591adf4871812862f616efb6dfc5ccc9",
+        "visits": "c04c42ad8533b37c00bd285e03271a1f7a2561657ed4cbe377704a371cfd7ac7"
+      },
+      "source_status": {
+        "sales": "fresh",
+        "visits": "fresh"
+      },
+      "status": "fresh",
+      "totals": {
+        "paid_orders": 6,
+        "sales_usd": "3.94",
+        "trial_orders": 0,
+        "unique_visitors": 333,
+        "views": 333
+      },
+      "window": {
+        "display_timezone": "Asia/Tokyo",
+        "end_at_ms": 1792022399999,
+        "end_local": "2026-10-15T08:59:59.999+09:00",
+        "end_utc": "2026-10-14T23:59:59.999Z",
+        "start_at_ms": 1789430400000,
+        "start_local": "2026-09-15T09:00:00.000+09:00",
+        "start_utc": "2026-09-15T00:00:00.000Z"
+      }
+    },
+    "8828622062": {
+      "by_source": [
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "other",
+          "source_type": "other",
+          "trial_orders": 0,
+          "unique_visitors": 31,
+          "views": 31
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "direct",
+          "source_type": "direct",
+          "trial_orders": 0,
+          "unique_visitors": 26,
+          "views": 26
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "search",
+          "source_type": "internal",
+          "trial_orders": 0,
+          "unique_visitors": 7,
+          "views": 7
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "slides_ig",
+          "source_type": "ct",
+          "trial_orders": 0,
+          "unique_visitors": 2,
+          "views": 2
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "category",
+          "source_type": "internal",
+          "trial_orders": 0,
+          "unique_visitors": 1,
+          "views": 1
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "hot",
+          "source_type": "internal",
+          "trial_orders": 0,
+          "unique_visitors": 1,
+          "views": 1
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "google",
+          "source_type": "referrer",
+          "trial_orders": 0,
+          "unique_visitors": 1,
+          "views": 1
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "slides_x",
+          "source_type": "ct",
+          "trial_orders": 0,
+          "unique_visitors": 0,
+          "views": 0
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "slides_blog",
+          "source_type": "ct",
+          "trial_orders": 0,
+          "unique_visitors": 0,
+          "views": 0
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "slides_ig",
+          "source_type": "campaign",
+          "trial_orders": 0,
+          "unique_visitors": 0,
+          "views": 0
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "slides_x",
+          "source_type": "campaign",
+          "trial_orders": 0,
+          "unique_visitors": 0,
+          "views": 0
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "slides_blog",
+          "source_type": "campaign",
+          "trial_orders": 0,
+          "unique_visitors": 0,
+          "views": 0
+        }
+      ],
+      "filters": {
+        "country": null,
+        "platform": null
+      },
+      "observed_at": "2026-10-14T15:23:27Z",
+      "scope": {
+        "agent_id": "8828622062",
+        "kind": "agent"
+      },
+      "source_hashes": {
+        "sales": "b075b01826c40a86176045d5f0b5c17def24582177fd37251fd23886021cf5a7",
+        "visits": "acc370ec39d5631a836d4703ec1da08ace742ccf737209e603f28b5423786fc7"
+      },
+      "source_status": {
+        "sales": "fresh",
+        "visits": "fresh"
+      },
+      "status": "fresh",
+      "totals": {
+        "paid_orders": 0,
+        "sales_usd": "0.00",
+        "trial_orders": 0,
+        "unique_visitors": 69,
+        "views": 69
+      },
+      "window": {
+        "display_timezone": "Asia/Tokyo",
+        "end_at_ms": 1792022399999,
+        "end_local": "2026-10-15T08:59:59.999+09:00",
+        "end_utc": "2026-10-14T23:59:59.999Z",
+        "start_at_ms": 1789430400000,
+        "start_local": "2026-09-15T09:00:00.000+09:00",
+        "start_utc": "2026-09-15T00:00:00.000Z"
+      }
+    },
+    "9563867391": {
+      "by_source": [
+        {
+          "paid_orders": 2,
+          "sales_usd": "13.98",
+          "source_name": "search",
+          "source_type": "internal",
+          "trial_orders": 5,
+          "unique_visitors": 93,
+          "views": 93
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "direct",
+          "source_type": "direct",
+          "trial_orders": 0,
+          "unique_visitors": 39,
+          "views": 39
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "hot",
+          "source_type": "internal",
+          "trial_orders": 0,
+          "unique_visitors": 30,
+          "views": 30
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "other",
+          "source_type": "other",
+          "trial_orders": 0,
+          "unique_visitors": 26,
+          "views": 26
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "category",
+          "source_type": "internal",
+          "trial_orders": 0,
+          "unique_visitors": 12,
+          "views": 12
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "ai_overview",
+          "source_type": "internal",
+          "trial_orders": 0,
+          "unique_visitors": 1,
+          "views": 1
+        },
+        {
+          "paid_orders": 0,
+          "sales_usd": "0.00",
+          "source_name": "bing",
+          "source_type": "referrer",
+          "trial_orders": 0,
+          "unique_visitors": 1,
+          "views": 1
+        }
+      ],
+      "filters": {
+        "country": null,
+        "platform": null
+      },
+      "observed_at": "2026-10-14T15:23:27Z",
+      "scope": {
+        "agent_id": "9563867391",
+        "kind": "agent"
+      },
+      "source_hashes": {
+        "sales": "b210dc51683aa1e33d2029d6c7e3d2e4a3c0172ae5f47a8c43ffa37f3b7247e0",
+        "visits": "6bfdc6335d6daa937a58fa2b77cfb5c169648a9b1f38391983f0c751217847b5"
+      },
+      "source_status": {
+        "sales": "fresh",
+        "visits": "fresh"
+      },
+      "status": "fresh",
+      "totals": {
+        "paid_orders": 2,
+        "sales_usd": "13.98",
+        "trial_orders": 5,
+        "unique_visitors": 202,
+        "views": 202
+      },
+      "window": {
+        "display_timezone": "Asia/Tokyo",
+        "end_at_ms": 1792022399999,
+        "end_local": "2026-10-15T08:59:59.999+09:00",
+        "end_utc": "2026-10-14T23:59:59.999Z",
+        "start_at_ms": 1789430400000,
+        "start_local": "2026-09-15T09:00:00.000+09:00",
+        "start_utc": "2026-09-15T00:00:00.000Z"
+      }
+    }
+  },
+  "kind": "capafy_distribution_source_readback",
+  "observed_at": "2026-10-14T15:23:27Z",
+  "schema_version": 1,
+  "source": "Capafy traffic-sources v2 via existing capafy_hourly_reconcile helper (undocumented endpoint)",
+  "window": {
+    "display_timezone": "Asia/Tokyo",
+    "end_at_ms": 1792022399999,
+    "end_utc": "2026-10-14T23:59:59.999Z",
+    "start_at_ms": 1789430400000,
+    "start_utc": "2026-09-15T00:00:00.000Z"
+  }
+}

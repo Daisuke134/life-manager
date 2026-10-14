@@ -18152,3 +18152,25 @@ DD06 source integration is complete. Release capacity, production owner adoption
 - Fresh seller money readbackは未取得。2026-10-14 07:12:07Zの最後の保存済み公式reconcileはorders `70`、gross `$102.75`、unit sales `101`、net/settled MRR `null`。`capafy_hourly_reconcile.py --money --json`のread-only実行は180秒timeoutとなり、stateは更新されていない。post-2026-10-03 paid-order milestoneと$10K MRRは未確認。
 
 **Cursor/order update:** PR #8051のsource、release cut、central reconciler applyは完了した。前回cursorは「main統合→release/apply→自然Factory終端とofficial readback→Distributor自然run→goal-monitor binding→fresh sales/source/MRR→query-targeted distribution」だったが、exact Factory runはno-effectではなく同一version更新後にunder_reviewへ進み、official occurrence receiptが欠けることが判明した。新順序は (1) `lm-fence-reconciler`の次の自然runがrelease `605177d4`を使い、当該occurrenceを誤ってno-effectへ閉じずHELDと記録することを確認（manual wakeなし）, (2) Run Onlineの正規provider audit/operation receiptまたはそれを安全に検証する登録済みadapter経路を調べ、得られなければこのoccurrenceをheldのまま保ち、再送しない, (3) exact effect境界が安全になった後にFactoryの次natural terminalとAgent ID/version/statusを確認し、new-Agent queueを再開, (4) money-only timeoutを避けて公式sales/orders/gross/refund/payout/active-subscription readbackを分離取得し、paid-order milestoneとMRRを判定, (5) 既存distribution計画どおりCapafy search/hotと`ai_overview` conversion、ratings/proof、keyword SEOを source別実測に沿って進め、未訪問socialへ量を足さない, (6) goal-monitorのexact Telegram occurrence bindingを別atomで修復。current cursorはitem 1の最初の自然reconciler run待ち。`effect_unknown`手動closure、DB手修正、provider resend、manual owner wakeは禁止。
+
+### Capafy distribution measurement — 2026-10-15 00:23 JST
+
+**Fresh source snapshot:** 2026-10-14 15:23:27Z、30日窓 `2026-09-15T00:00:00Z`–`2026-10-14T23:59:59.999Z`（表示TZ Asia/Tokyo）、source status `fresh/fresh`。Account totalは`4,214 views`, `16 paid_orders`, `$41.84 sales`, `5 trial_orders`。Undocumented Capafy traffic-sources v2 endpointの全source rows・source hashes・FROZEN seller別rowsは [`docs/evidence/capafy/2026-10-15-traffic-sources-30d.json`](../../evidence/capafy/2026-10-15-traffic-sources-30d.json) に保存。
+
+| Source | Views | Paid orders | Sales | Trials |
+|---|---:|---:|---:|---:|
+| Capafy search | 799 | 8 | $17.92 | 5 |
+| Capafy hot | 46 | 5 | $9.95 | 0 |
+| Google | 38 | 1 | $9.99 | 0 |
+| Direct | 1,590 | 2 | $3.98 | 0 |
+| `ai_overview` | 373 | 0 | $0.00 | 0 |
+| Instagram bio | 39 | 0 | $0.00 | 0 |
+| Category | 36 | 0 | $0.00 | 0 |
+| Other | 1,282 | 0 | $0.00 | 0 |
+| Tracked CT links | 8 | 0 | $0.00 | 0 |
+
+**FROZEN seller subset (read-only):** Hook Lab `8123079349` = 333 views / 6 paid / `$3.94`; TikTok Script Pro `2844813315` = 272 / 4 / `$15.96`; Marketing Strategist `9563867391` = 202 / 2 / `$13.98`; YouTube Script Writer `7686597754` = 122 / 4 / `$7.96`; Slide Maker `8828622062` = 69 / 0 / `$0.00`. Together these five account for 998 views and all 16 paid orders / `$41.84` in this snapshot; the 3,216-view residual has net 0 paid orders / `$0.00` by subtraction. Hook Lab's search row includes `-1` paid order / `-$9.99`; retain negative source adjustments. Do not edit or resubmit these sellers.
+
+Paid-orders/views is descriptive, not causal: hot `5/46 ≈ 10.9%`, search `8/799 ≈ 1.0%`, Google `1/38 ≈ 2.6%`, direct `2/1,590 ≈ 0.13%`. The current since-launch seller-sales endpoint independently returns tracker-defined paid orders `70` and gross `$102.75` at 2026-10-14 15:17:44Z; raw order-row sum `101` includes zero-revenue rows and is not the paid-order metric. The full `capafy_hourly_reconcile.py --money --json` read timed out at 180 seconds; active/settled MRR remains unknown.
+
+**Cursor/order update:** The first post-apply natural reconciler call ran from release `605177d4`; its exact call for `capafy-loop-daily:18de6c4535b17e60-47142` recorded `exit_code=1`, `closed=false`, `same_version_updated_after_queued_at`, and `HELD`. Thus central adoption is verified and the fence remains intentionally open. The former order was (1) wait for this natural run, (2) find provider receipt/history, (3) resume Factory, (4) refresh sales/source, (5) market. Fresh metrics justify the new parallel order: (1) keep the exact occurrence held and continue provider receipt/API-history search; (2) run one measurable SEO experiment for an existing FROZEN winner without editing its Capafy listing, because Google has 38 views / 1 paid and TikTok Script Pro itself has 3 Google views / 1 paid; (3) investigate Hook Lab's hot re-entry, where 15 views produced 5 paid orders, and improve `ai_overview` conversion, where 373 views produced 0 paid; (4) keep broad social volume unchanged because tracked CT links produced 8 views / 0 paid; (5) refresh seller-money/MRR and source snapshots; (6) reopen new-Agent shipping only after the exact fence is reconciled from supported evidence; (7) repair the separate goal-monitor Telegram binding. **Current cursor: item 1—receipt/history investigation; item 2 can progress independently.**
