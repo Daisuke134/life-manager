@@ -203,6 +203,18 @@ if [ "${WDAY:-0}" -ge "$WARMUP_DAYS_REQUIRED" ]; then
   fi
 fi
 
+# Hourly runs refresh the seller ledger before building the monitor snapshot so
+# that the persisted report refers to this same run's reconcile.
+REPORT_KIND="${CAPAFY_REPORT_KIND:-morning}"
+RECONCILE_RC=0
+if [ "$REPORT_KIND" = "hourly" ]; then
+  "$PY" "$LIFE_MANAGER_REPO/skills/earn/capafy-marketing/scripts/capafy_web_token_refresh.py" \
+    >>"$HOME/.local/state/life-manager/logs/capafy-goal-monitor-hourly.out" 2>>"$HOME/.local/state/life-manager/logs/capafy-goal-monitor-hourly.err" || true
+  "$PY" "$LIFE_MANAGER_REPO/skills/earn/capafy-marketing/scripts/capafy_hourly_reconcile.py" \
+    >>"$HOME/.local/state/life-manager/logs/capafy-goal-monitor-hourly.out" 2>>"$HOME/.local/state/life-manager/logs/capafy-goal-monitor-hourly.err"
+  RECONCILE_RC=$?
+fi
+
 # ── the rest (goal a/b/d parsing + state + telegram body) is one python pass (read+append only). ──
 DAILY_PROOF_JSON="$($PY "$DAILY_TERMINAL_TOOL" status --ledger "$DAILY_TERMINAL_LEDGER" 2>/dev/null || printf '{}')"
 $PY - "$STATE" "$EARN_LEDGER" "$WARMUP" "$KEY_GATE" "$IG_PLIST" "$IG_LABEL" "$WDAY" "$WARMUP_DAYS_REQUIRED" "$GO_LIVE_ACTION" "$IG_HANDLE" "$VERIFY_JSON" "$VERIFY_RC" "$COOKED_MARKER" "$DAILY_PROOF_JSON" <<'PY' > /tmp/capafy_goal_monitor.json
@@ -332,17 +344,10 @@ PY
 
 RC=$?
 BODY="$(cat /tmp/capafy_goal_monitor_body.txt 2>/dev/null)"
-REPORT_KIND="${CAPAFY_REPORT_KIND:-morning}"
 
-# Hourly control wakes use the unified state-change receipt. It refreshes money,
-# joins candidate/slot/post/revenue under one run_id, and dedupes through the
-# durable Telegram outbox. Never fall through to the legacy sender on this path.
+# Hourly control wakes deliver the unified state-change receipt after the monitor
+# snapshot records the reconcile above. Never fall through to the legacy sender.
 if [ "$REPORT_KIND" = "hourly" ]; then
-  "$PY" "$LIFE_MANAGER_REPO/skills/earn/capafy-marketing/scripts/capafy_web_token_refresh.py" \
-    >>"$HOME/.local/state/life-manager/logs/capafy-goal-monitor-hourly.out" 2>>"$HOME/.local/state/life-manager/logs/capafy-goal-monitor-hourly.err" || true
-  "$PY" "$LIFE_MANAGER_REPO/skills/earn/capafy-marketing/scripts/capafy_hourly_reconcile.py" \
-    >>"$HOME/.local/state/life-manager/logs/capafy-goal-monitor-hourly.out" 2>>"$HOME/.local/state/life-manager/logs/capafy-goal-monitor-hourly.err"
-  RECONCILE_RC=$?
   "$PY" "$LIFE_MANAGER_REPO/skills/earn/capafy-marketing/scripts/capafy_company_receipt.py" deliver \
     >>"$HOME/.local/state/life-manager/logs/capafy-goal-monitor-hourly.out" 2>>"$HOME/.local/state/life-manager/logs/capafy-goal-monitor-hourly.err"
   UNIFIED_RC=$?

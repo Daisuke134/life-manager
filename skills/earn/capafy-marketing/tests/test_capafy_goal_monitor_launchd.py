@@ -285,8 +285,16 @@ def _goal_monitor_fixture(tmp_path: Path) -> dict[str, Path]:
     }
 
 
-def _run_full_goal_monitor(tmp_path: Path, *, headless: bool) -> tuple[subprocess.CompletedProcess[str], dict[str, Path]]:
+def _run_full_goal_monitor(
+    tmp_path: Path,
+    *,
+    headless: bool,
+    hourly_reconcile_body: str | None = None,
+) -> tuple[subprocess.CompletedProcess[str], dict[str, Path]]:
     fixture = _goal_monitor_fixture(tmp_path)
+    if hourly_reconcile_body is not None:
+        reconcile_script = fixture["repo"] / "skills/earn/capafy-marketing/scripts/capafy_hourly_reconcile.py"
+        reconcile_script.write_text(hourly_reconcile_body, encoding="utf-8")
     env = os.environ | {
         "HOME": str(fixture["home"]),
         "LIFE_MANAGER_REPO": str(fixture["repo"]),
@@ -333,6 +341,34 @@ def test_goal_monitor_separates_reconcile_date_from_last_revenue_day(tmp_path: P
     assert goal_b["reconcile_observed_date"] == "2026-08-23"
     assert goal_b["last_positive_revenue_date_30d"] == "2026-08-20"
     assert "last_sales_date" not in goal_b
+
+
+def test_hourly_monitor_state_uses_reconcile_written_in_same_run(tmp_path: Path) -> None:
+    reconcile_body = (
+        "import json, os\n"
+        "from pathlib import Path\n"
+        "ledger = Path(os.environ['LIFE_MANAGER_STATE_HOME']) / 'state/capafy-hourly-reconcile.json'\n"
+        "data = json.loads(ledger.read_text(encoding='utf-8'))\n"
+        "data['observed_at'] = '2026-08-24T00:30:00+09:00'\n"
+        "data['orders'] = 4\n"
+        "data['money']['gross_usd'] = '8.00'\n"
+        "ledger.write_text(json.dumps(data), encoding='utf-8')\n"
+        "with open(os.environ['CAPAFY_TEST_DOWNSTREAM'], 'a', encoding='utf-8') as f:\n"
+        "    f.write('reconcile\\n')\n"
+    )
+    result, fixture = _run_full_goal_monitor(
+        tmp_path,
+        headless=True,
+        hourly_reconcile_body=reconcile_body,
+    )
+
+    assert result.returncode == 0, result.stderr
+    report = json.loads(result.stdout.strip().splitlines()[-1])
+    assert report["goal_b"]["reconcile_observed_at"] == "2026-08-24T00:30:00+09:00"
+    assert report["goal_b"]["orders"] == 4
+    assert report["goal_b"]["gross_usd"] == "8.00"
+    state = json.loads((fixture["state_home"] / "state/capafy-goal-monitor.json").read_text(encoding="utf-8"))
+    assert state["latest"] == report
 
 
 def test_real_goal_monitor_normal_mode_still_fails_closed_before_report(tmp_path: Path) -> None:
