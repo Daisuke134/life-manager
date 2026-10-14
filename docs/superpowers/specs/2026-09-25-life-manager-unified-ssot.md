@@ -18705,3 +18705,8 @@ Paid-orders/views is descriptive, not causal: hot `5/46 ≈ 10.9%`, search `8/79
 | 7 | Codex / Stripe official readback and growth | 現行trial/active/cancel/refund/invoice、gross MRR、fees・hosting・route・marketing spendをscope/time付きで確認し、345 active subscriptions = USD 10,005 gross MRRを達成。 | Fresh live Stripe readback未取得。価格は既存USD 29/月を維持。 |
 
 **現在cursor:** item 1。DB timeoutが3時間続くため、system catalog bloatを断定せず、実際のproduction接続が回復する経路を調べる。app route /auth/googleはSupabase AuthへOAuth URLを要求し失敗時にconnection errorへ戻す実装。現在Auth healthもtimeoutするが、Google login・Calendar consent・writeは今回実施していない。
+
+
+**Recovery decision update — 2026-10-15 06:32 JST:** Supabase organization project readback confirms production and staging databases are both nano / 2 GB gp3 / ACTIVE_HEALTHY; the same compute size works in staging, so a blanket compute upgrade is not evidenced. The production backup API returns no physical backups and PITR disabled; no restore is available. Supabase's official Management API OpenAPI defines POST /v1/projects/{ref}/restart with no request body and projects:write / project_admin_write authorization. Since production REST, Auth health, SQL MCP and linked CLI SQL all fail while staging and control-plane reads work, one controlled project restart is the next bounded recovery attempt, not a root-cause diagnosis. It may briefly interrupt the already-failing Cloud API. After this single attempt, read back project/database state, SELECT 1, REST and Auth; if still failing, do not restart again or upgrade compute on guesswork.
+
+**現在cursor:** item 1。spec PRをmerge後、既存のauthorized Management API tokenでproduction projectを1回restartし、上記readbackを行う。
