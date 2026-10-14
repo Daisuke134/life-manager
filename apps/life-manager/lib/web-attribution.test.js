@@ -362,3 +362,29 @@ test("carries only approved UTM values from /lm to the Google sign-in link", () 
   assert.equal(destination.searchParams.get("utm_campaign"), "travel");
   assert.equal(destination.searchParams.has("utm_id"), false);
 });
+
+test("signed first-touch cookie preserves the complete Writer CTA identity tuple", () => {
+  const identity = {
+    utm_source: "writer",
+    utm_medium: "owned-content",
+    utm_campaign: "role-map",
+    product_id: "anicca",
+    run_id: "20261014-061500",
+    artifact_id: "article-ja",
+    variant_id: "role-map",
+    click_id: "20261014-061500-article-ja-note-ja",
+  };
+  const cookie = captureWebAttribution(identity, SECRET, NOW);
+  assert.ok(cookie);
+  assert.deepEqual(consumeWebAttribution(cookie, SECRET, NOW), identity);
+  const partial = { ...identity };
+  delete partial.artifact_id;
+  const utmOnly = {
+    utm_source: identity.utm_source,
+    utm_medium: identity.utm_medium,
+    utm_campaign: identity.utm_campaign,
+  };
+  assert.deepEqual(consumeWebAttribution(captureWebAttribution(partial, SECRET, NOW), SECRET, NOW), utmOnly);
+  const unsafe = { ...identity, click_id: "not safe" };
+  assert.deepEqual(consumeWebAttribution(captureWebAttribution(unsafe, SECRET, NOW), SECRET, NOW), utmOnly);
+});

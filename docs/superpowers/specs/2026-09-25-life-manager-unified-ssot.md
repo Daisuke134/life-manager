@@ -18107,3 +18107,13 @@ PR #8037 is merged as `e0a53f1`; its tested head `8e7df3c` passed all 11 automat
 DD06 source integration is complete. Release capacity, production owner adoption, natural Writer publication, artifact-level attribution, revenue, cost, and human intervention remain unverified. The Writer focused suite 24/24 is historical on merged `72ff5f9`; do not present it as a current-main local run.
 
 **Current EDD cursor:** preserve Writer CTA product/run/artifact/variant/click lineage and destination identity through the existing `/lm` funnel → authenticated first touch → Stripe paid/refund events → Writer artifact join. Then complete DD05 capacity/release/registered-owner/natural-publication gates, freeze a mature baseline, run one controlled single-variable experiment, and continue DD07–DD12. Missing evidence remains unknown.
+
+### EDD Writer CTA lineage propagation — 2026-10-14 22:47 JST
+
+**Observed path:** web-attribution currently signs and sanitizes only UTM keys. The existing /lm request event, OAuth attribution cookie, lm_users.web_first_touch, append-only lm_web_funnel_events, and lm-web-funnel-report already form the path for landing → authenticated first touch → Stripe paid/refund UID events. The report already joins UID events to web_first_touch. Both attribution fields and first-touch are JSONB, so this atom needs no database migration or parallel tracker.
+
+**Selected atom:** carry the complete allowlisted tuple product_id, run_id, artifact_id, variant_id, click_id through the same signed cookie, first-touch record, landing/auth event, and report group. Accept the tuple only when all five IDs are present once and contain bounded safe characters; keep existing UTM handling and ignore arbitrary query fields. The report uses persisted first-touch identity for UID-bound paid/refund events and keeps raw landing requests separate from unique-user counts.
+
+**Acceptance:** cookie capture/consume and OAuth callback preserve the tuple; /lm events persist it; two distinct click IDs produce separate first-touch/paid/refund report groups; arbitrary or partial lineage does not produce an attributed group; a focused CI job runs these regressions on every PR.
+
+**Not complete in this atom:** article-ja click ID is shared by Note/JA and Substack/JA publication copies. The next atom makes CTA identity unique per exact publication destination and joins those events to the existing Writer artifact ledger before experimentation. No revenue is claimed from an ID, request, or report count.

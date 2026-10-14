@@ -211,3 +211,20 @@ test("refund webhook recording joins only the saved Web Stripe customer and retr
   });
   assert.equal(failed, false, "a failed refund receipt can be retried by Stripe");
 });
+
+test("landing event retains the complete Writer CTA identity tuple and filters unrelated query values", () => {
+  const query = new URLSearchParams({
+    utm_source: "writer", utm_medium: "owned-content", utm_campaign: "role-map",
+    product_id: "anicca", run_id: "20261014-061500", artifact_id: "article-ja",
+    variant_id: "role-map", click_id: "20261014-061500-article-ja-note-ja",
+    email: "private@example.test",
+  });
+  const event = funnelEvents.webFunnelEventForRequest("/lm?" + query);
+  const expected = {
+    utm_source: "writer", utm_medium: "owned-content", utm_campaign: "role-map",
+    product_id: "anicca", run_id: "20261014-061500", artifact_id: "article-ja",
+    variant_id: "role-map", click_id: "20261014-061500-article-ja-note-ja",
+  };
+  assert.deepEqual(event.attribution, expected);
+  assert.deepEqual(funnelEvents.normalizeWebFunnelEvent(event).attribution, expected);
+});

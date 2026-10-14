@@ -181,6 +181,16 @@ function makeRestFetch(initialRows = []) {
       if (!rows.some((row) => row.uid === inserted.uid)) rows.push({ ...inserted, telegram_chat_id: null });
       return response(201, null);
     }
+    if (method === "PATCH") {
+      const row = rows.find((candidate) => candidate.uid === uid);
+      const patch = JSON.parse(init.body || "{}");
+      if (row && row.telegram_chat_id == null && row.web_first_touch == null) {
+        Object.assign(row, patch);
+        const selected = String(url.searchParams.get("select") || "uid").split(",");
+        return response(200, [Object.fromEntries(selected.map((key) => [key, row[key]]))]);
+      }
+      return response(200, []);
+    }
     return response(405, { message: "unsupported method" });
   };
   return { fetch, rows, calls };
@@ -607,4 +617,43 @@ test("CSRF token is deterministic, uid-bound HMAC-SHA256 and requires a secret",
   assert.notEqual(token, createWebCsrfToken("lm_aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee", "secret"));
   assert.notEqual(token, createWebCsrfToken(WEB_UID, "another-secret"));
   assert.throws(() => createWebCsrfToken(WEB_UID, ""), /secret/i);
+});
+
+test("signed-out CTA handoff preserves the complete Writer identity and drops unrelated query fields", () => {
+  const location = signedOutCalendarHandoffLocation({
+    method: "GET",
+    url: "/lm?start_calendar=1&utm_source=writer&utm_medium=owned-content&utm_campaign=role-map"
+      + "&product_id=anicca&run_id=20261014-061500&artifact_id=article-ja"
+      + "&variant_id=role-map&click_id=20261014-061500-article-ja-note-ja&email=private@example.test",
+  });
+  const query = new URLSearchParams(String(location).split("?", 2)[1]);
+  assert.deepEqual(Object.fromEntries(query), {
+    utm_source: "writer", utm_medium: "owned-content", utm_campaign: "role-map",
+    product_id: "anicca", run_id: "20261014-061500", artifact_id: "article-ja",
+    variant_id: "role-map", click_id: "20261014-061500-article-ja-note-ja",
+  });
+});
+
+test("OAuth first touch stores the complete signed Writer CTA identity", async () => {
+  const { captureWebAttribution } = require("./web-attribution.js");
+  const lineage = {
+    utm_source: "writer", utm_medium: "owned-content", utm_campaign: "role-map",
+    product_id: "anicca", run_id: "20261014-061500", artifact_id: "article-ja",
+    variant_id: "role-map", click_id: "20261014-061500-article-ja-note-ja",
+  };
+  const signed = captureWebAttribution(lineage, "csrf-secret");
+  const events = [];
+  const funnelEvents = [];
+  const database = makeRestFetch();
+  const client = authClient({ events });
+  const fixture = authOptions(client, {
+    fetch: database.fetch,
+    recordWebFunnelEventImpl: async (event) => { funnelEvents.push(event); return true; },
+  });
+  const response = makeResponse();
+  await handleWebAuthRequest(callbackRequest({
+    cookie: "lm-web-attribution=" + signed + "; lm-web-auth-code-verifier=pkce-verifier",
+  }), response, fixture.options);
+  assert.deepEqual(database.rows[0].web_first_touch, lineage);
+  assert.deepEqual(funnelEvents[0].attribution, lineage);
 });

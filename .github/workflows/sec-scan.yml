@@ -69,6 +69,23 @@ jobs:
         working-directory: apps/life-manager
         run: npm run test:writer-eval
 
+  web-attribution:
+    name: Web CTA attribution contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.16.0
+      - name: Run Writer CTA first-touch and Stripe attribution tests
+        working-directory: apps/life-manager
+        run: >-
+          node --test
+          lib/web-attribution.test.js
+          lib/web-auth.test.js
+          lib/web-funnel-events.test.js
+          lib/web-funnel-report.test.js
+
   openclaw-foundation:
     name: OpenClaw offline foundations
     runs-on: ubuntu-latest

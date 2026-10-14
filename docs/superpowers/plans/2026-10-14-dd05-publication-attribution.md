@@ -178,3 +178,16 @@ DD05 is shared publication-measurement infrastructure. The first agent-level EDD
 
 
 **DD06 status update, 2026-10-14T13:13Z:** PR #8037 is merged as `e0a53f1`; its tested head `8e7df3c` passed all 11 automated checks. Current main is `6f40a0c9c96a91bfc561bbb23a6d905cfb987b93` after PR #8045. PR #8044 carries only the post-merge spec/plan update and has been synchronized with current main; its new exact-head checks are pending. Next EDD atom is CTA lineage/destination identity. Production release, adoption, natural outcome, and publication-level revenue remain unverified.
+
+### CTA lineage propagation implementation slice — 2026-10-14 22:47 JST
+
+**Files:** apps/life-manager/lib/web-attribution.js, its test, apps/life-manager/lib/web-auth.test.js, apps/life-manager/lib/web-funnel-events.test.js, apps/life-manager/lib/web-funnel-report.js and its test, plus .github/workflows/sec-scan.yml for a focused persistent evaluator.
+
+**Contract:** keep the signed first-touch cookie and existing JSONB event storage; accept only the complete five-field CTA identity tuple; group UID-bound paid/refund events by the persisted first-touch identity; preserve existing UTM report behavior and request-versus-unique-person definitions. Do not add a database table, migration, collector, or second analytics path.
+
+- [x] Add regressions for cookie, OAuth first touch, landing event, and separate paid/refund groups; add the focused PR CI job.
+- [ ] Observe the new focused check fail on missing identity propagation, not a syntax or harness error.
+- [ ] Implement the minimal all-or-nothing safe lineage allowlist and report grouping/fallback; run the focused check green.
+- [ ] Merge the exact-head CI-passing source/spec update; keep production revenue unknown until exact natural receipts arrive.
+
+**Next separate atom:** generate a distinct click ID for the same article artifact published to Note/JA and Substack/JA, without weakening frozen publication-content/readback invariants. Then join event receipts to money_artifacts and verify a mature outcome before running an experiment.
