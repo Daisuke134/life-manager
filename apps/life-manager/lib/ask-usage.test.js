@@ -1,7 +1,57 @@
 "use strict";
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { agentResolveLocation, agentSearchCandidate } = require("./ask.js");
+const { agentResolveLocation, agentResolveTravelOrigin, agentSearchCandidate } = require("./ask.js");
+
+test("travel-origin agent selects only a supplied candidate with high confidence", async () => {
+  const oldFetch = globalThis.fetch;
+  const usage = [];
+  let requestBody;
+  globalThis.fetch = async (url, init) => {
+    assert.match(String(url), /generativelanguage\.googleapis\.com/);
+    requestBody = JSON.parse(init.body);
+    return { ok: true, status: 200, json: async () => ({
+      usageMetadata: { promptTokenCount: 60, candidatesTokenCount: 10, totalTokenCount: 70 },
+      candidates: [{ content: { parts: [{ text: JSON.stringify({ candidateId: "previous-0", confidence: "high" }) }] } }],
+    }) };
+  };
+  try {
+    const result = await agentResolveTravelOrigin({
+      summary: "Dinner", location: "Venue", startIso: "2030-01-01T19:00:00+09:00", timezone: "Asia/Tokyo",
+    }, {
+      geminiKey: "fixture-gemini-key", uid: "tenant-origin",
+      candidates: [
+        { id: "home", location: "Home" },
+        { id: "previous-0", location: "Office" },
+      ],
+      scheduledEvents: [{ summary: "Work", location: "Office", startIso: "2030-01-01T09:00:00+09:00",
+        endIso: "2030-01-01T17:00:00+09:00" }],
+      recordUsageEvent: async (event) => { usage.push(event); return true; },
+    });
+    assert.deepEqual(result, { kind: "selected", candidateId: "previous-0" });
+    assert.match(requestBody.contents[0].parts[0].text, /Do not treat saved home as the user's live location/);
+    assert.match(requestBody.contents[0].parts[0].text, /repeatedly used office, 09:00–17:00/);
+    assert.ok(usage.some((event) => event.tenantId === "tenant-origin" && event.feature === "travel_origin"));
+    assert.equal(JSON.stringify(usage).includes("Office"), false, "usage metadata must not retain Calendar places");
+  } finally { globalThis.fetch = oldFetch; }
+});
+
+test("travel-origin agent abstains on low confidence or an invented candidate id", async () => {
+  const oldFetch = globalThis.fetch;
+  const answers = [
+    { candidateId: "home", confidence: "low" },
+    { candidateId: "invented", confidence: "high" },
+  ];
+  globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => ({
+    candidates: [{ content: { parts: [{ text: JSON.stringify(answers.shift()) }] } }],
+  }) });
+  try {
+    const event = { summary: "Dinner", location: "Venue", startIso: "2030-01-01T19:00:00+09:00" };
+    const options = { geminiKey: "fixture", candidates: [{ id: "home", location: "Home" }] };
+    assert.deepEqual(await agentResolveTravelOrigin(event, options), { kind: "unresolved" });
+    assert.deepEqual(await agentResolveTravelOrigin(event, options), { kind: "unresolved" });
+  } finally { globalThis.fetch = oldFetch; }
+});
 
 test("resolved-location search caps Places calls and meters each tenant request without query data", async () => {
   const usage = [];
