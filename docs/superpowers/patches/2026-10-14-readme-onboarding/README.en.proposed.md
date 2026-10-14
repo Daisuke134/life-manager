@@ -6,7 +6,11 @@
 
 [日本語](README.ja.proposed.md)
 
-Life Manager runs agent workflows for your life and work, keeps durable state, and verifies real-world results. Local and hosted runs share this repository.
+**Life Manager is an AI that manages your whole life better than you ever can.**
+
+Your proactive manager for body, mind, and money. It notices what needs attention, takes care of tasks before you have to ask, and follows through—from organizing your day and building better habits to finding and completing paid work.
+
+Less life admin. More time, calm, and income. Its mission is to make dependable care available to everyone and reduce suffering for humans and, ultimately, all living beings.
 
 ## Start
 
