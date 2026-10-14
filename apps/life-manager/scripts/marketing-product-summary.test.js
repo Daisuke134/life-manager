@@ -154,9 +154,27 @@ test("Anicca daily summary includes @anicca.en current metrics and ignores stale
   writeDaily("anicca.en", "OldReel", `${day}.json`, { observed_at: `${day}T10:00:00.000Z`, published_at: "2026-09-01T10:00:00.000Z",
     locale: "en", account_id: "@anicca.en", public_url: "https://www.instagram.com/reel/OldReel/",
     post: { views: { status: "measured", value: 999999 } }, account_metrics: { status: "unavailable", reason: "source_delayed" } });
-  writeDaily("anicca.en", "DdvxhT1jm8F", `${day}.current.correction.json`, {
+  writeDaily("anicca.en", "DdvxhT1jm8F", `${day}.historical.correction.json`, {
     observed_at: "2026-10-11T08:18:53.023Z", source_observed_at: "2026-10-11T08:18:53.023Z", published_at: "2026-09-26T10:02:41.890Z",
     historical_checkpoint: false, locale: "en", account_id: "@anicca.en", public_url: "https://www.instagram.com/reel/DdvxhT1jm8F/",
+    historical_checkpoint_correction: {
+      kind: "instagram_combined_metric_snapshot_correction", window: "7d", observed_at: "2026-10-03T10:02:54Z",
+      source_snapshot_id: "228aca83e0a54abdac63957c1c349eabc23a6147b9f0e242bea381e165c283d0",
+      post: {
+        views: { status: "measured", value: 2229, source_date: "2026-10-03" },
+        reach: { status: "measured", value: 1610, source_date: "2026-10-03" },
+        saves: { status: "measured", value: 3, source_date: "2026-10-03" },
+        likes: { status: "measured", value: 1, source_date: "2026-10-03" },
+        comments: { status: "measured", value: 0, source_date: "2026-10-03" },
+        shares: { status: "measured", value: 0, source_date: "2026-10-03" },
+        impressions: { status: "unavailable", value: null, reason: "provider_field_missing" },
+        watch_time: { status: "unavailable", value: null, reason: "metric_not_supported" },
+        average_watch_time: { status: "unavailable", value: null, reason: "metric_not_supported" },
+        completion: { status: "unavailable", value: null, reason: "metric_not_supported" },
+        engagement: { status: "derived", percent: 0.18 },
+      },
+      account_metrics: { status: "unavailable", reason: "account_metrics_not_in_post_metrics" },
+    },
     post: {
       views: { status: "measured", value: 2229 }, reach: { status: "measured", value: 1610 }, saves: { status: "measured", value: 3 },
       likes: { status: "measured", value: 1 }, comments: { status: "measured", value: 0 }, shares: { status: "measured", value: 0 },
@@ -180,12 +198,19 @@ test("Anicca daily summary includes @anicca.en current metrics and ignores stale
     public_url: "https://www.instagram.com/reel/MissingDate/", post: { views: { status: "measured", value: 888888 } } });
   writeDaily("anicca.en", "InvalidDate", `${day}.json`, { observed_at: `${day}T10:40:00.000Z`, published_at: "not-a-date", locale: "en", account_id: "@anicca.en",
     public_url: "https://www.instagram.com/reel/InvalidDate/", post: { views: { status: "measured", value: 777777 } } });
+  const currentCorrection = JSON.parse(fs.readFileSync(path.join(dataDir, "tenants/dais-local/marketing/metrics/anicca.en/DdvxhT1jm8F/daily", `${day}.historical.correction.json`), "utf8"));
+  currentCorrection.observed_at = "2026-10-11T09:18:53.023Z";
+  currentCorrection.source_observed_at = currentCorrection.observed_at;
+  currentCorrection.post.views.value = 2300;
+  writeDaily("anicca.en", "DdvxhT1jm8F", `${day}.current.correction.json`, currentCorrection);
 
   const summary = persistAniccaDaily(dataDir, day, "2026-10-11T13:00:00.000Z");
   assert.equal(summary.snapshot.source_refs.length, 3);
   assert.match(summary.snapshot.message, /@anicca\.en Instagram: 現在値/);
   assert.match(summary.snapshot.message, /過去のチェックポイント値ではありません/);
-  assert.match(summary.snapshot.message, /閲覧数 2229.*リーチ 1610.*保存数 3.*いいね 1.*コメント 0.*シェア 0.*エンゲージメント率 0\.18%/);
+  assert.match(summary.snapshot.message, /閲覧数 2300.*リーチ 1610.*保存数 3.*いいね 1.*コメント 0.*シェア 0.*エンゲージメント率 0\.18%/);
+  assert.match(summary.snapshot.message, /訂正済み7日checkpoint.*2026-10-03T10:02:54Z/);
+  assert.match(summary.snapshot.message, /過去の値.*閲覧数 2229.*2026-10-03.*リーチ 1610.*2026-10-03/);
   assert.match(summary.snapshot.message, /APIでは取得できない項目：表示回数、視聴時間、平均視聴時間、視聴完了率/);
   assert.match(summary.snapshot.message, /アカウント閲覧数 17481.*2026-10-11/);
   assert.match(summary.snapshot.message, /アカウントリーチ 2937.*2026-10-10/);

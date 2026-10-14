@@ -18091,10 +18091,10 @@ Public salesVolume period/profit definition, search exposure and query volume ar
 
 **Cursor:** (1) 同期後headのexact checksをPASSさせPR #8037をmerge、(2) Writer CTAのproduct/run/artifact/variant/click lineageとdestination identityを既存Web funnel→first-touch→Stripe/Writer joinで保持、(3) fresh capacity gate後にDD05をregistered ownerのnatural run/24h成熟publicationまで確認、(4) outcome baselineを凍結して単一変数experiment、(5) DD07–DD12。次の実装atomはCTA lineage/destination identity。
 
-### EDD DD06 integration complete — 2026-10-14 22:03 JST
+### EDD DD06 cursor after current-main sync — 2026-10-14 22:05 JST
 
-**Completed:** PR #8037 is MERGED as `e0a53f101a5da13d9cb6d09d16bc80b67c7b19b2` on current main `e0a53f101a5da13d9cb6d09d16bc80b67c7b19b2`. The merge commit tree matches tested PR head `8e7df3ce7b52d52b3eb64eb20e8ef3bc9954ef3a`. All 11 automated checks passed on that exact head, including Writer EDD receipt grader, Python syntax + unittest, and Loop control contracts. CodeRabbit returned status SUCCESS but explicitly skipped manual review; the author self-review found no Critical/Important finding. DD06 source integration is complete.
+PR #8037 source integration completed as `e0a53f101a5da13d9cb6d09d16bc80b67c7b19b2`; exact-head `8e7df3c` has all 11 automated checks PASS and its tree matches the merge tree. Main has since advanced to `c755acf78052e11bcfdcd558f4cdc66767b8eb0f` through PR #8042; that change touches seven Anicca Instagram metrics code/test files and does not overlap this SSOT or plan. PR #8044 is updated to include that current main and carries only the post-merge spec/plan cursor. Its latest-head checks are pending.
 
-**Not implied by source merge:** this does not prove a new release, loaded-owner adoption, natural Writer publication, attribution, revenue, cost, or intervention. The current-main release-capacity gate and exact publication outcome remain open.
+DD06 source integration is complete. It does not prove a new release, loaded-owner adoption, natural Writer publication, attribution, revenue, cost, or intervention. Current-main capacity and exact publication outcomes remain unknown.
 
-**Current cursor:** implement CTA lineage and destination identity through the existing `/lm` Web funnel, authenticated first-touch, Stripe paid/refund events, and Writer artifact join. Then satisfy DD05 capacity/release/registered-owner/natural-publication gates, freeze a mature outcome baseline, run one controlled single-variable experiment, and continue DD07–DD12. Keep missing receipts and revenue as unknown.
+**Current EDD cursor:** CTA lineage and destination identity through the existing `/lm` Web funnel, authenticated first-touch, Stripe paid/refund events, and Writer artifact join. Next: DD05 fresh-capacity/immutable-release/registered-owner/natural-publication gates; mature outcome baseline; one controlled single-variable experiment; DD07–DD12. Missing receipts and revenue remain unknown.

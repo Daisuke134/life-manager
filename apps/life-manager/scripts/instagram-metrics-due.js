@@ -10,7 +10,7 @@ const {
   JA_LANE,
   verifyMarketingNativeCarouselPublicationReceipt,
 } = require("../lib/marketing-native-carousel-publication-adapter.js");
-const { EXPECTED, collectWindow, currentSnapshotFile, persistDailyDigest, persistDelayedSnapshot } = require("./instagram-metrics-read.js");
+const { EXPECTED, collectWindow, currentSnapshotFile, effectiveSnapshotFile, persistDailyDigest, persistDelayedSnapshot, persistHistoricalCheckpointCorrection } = require("./instagram-metrics-read.js");
 
 const WINDOWS = Object.freeze({ "2h": 2 * 3600_000, "24h": 24 * 3600_000, "72h": 72 * 3600_000, "7d": 7 * 86400_000 });
 const GRACE_MS = 90 * 60_000;
@@ -25,7 +25,7 @@ const VIDEO_LANES = Object.freeze([
 const NATIVE_CAROUSEL_LANES = Object.freeze([EN_AFFIRMATION_LANE, JA_LANE]);
 
 function snapshotFile(dataDir, window, expected = EXPECTED) {
-  return path.join(dataDir, "tenants", expected.tenant_id, "marketing", "metrics", expected.native_owner, expected.shortcode, `${window}.combined.json`);
+  return effectiveSnapshotFile(dataDir, window, expected);
 }
 
 function discoverExpected(dataDir) {
@@ -92,10 +92,12 @@ async function runDue(nowMs = Date.now(), env = process.env, provided = null, de
   for (const expected of expecteds) {
     const publishedMs = Date.parse(expected.published_at);
     for (const [window, delay] of Object.entries(WINDOWS)) {
-      if (fs.existsSync(snapshotFile(dataDir, window, expected))) {
-        const snapshot = JSON.parse(fs.readFileSync(snapshotFile(dataDir, window, expected), "utf8"));
+      if (window === "7d") persistHistoricalCheckpointCorrection({ dataDir, expected, correctionCreatedAt: new Date(nowMs).toISOString() });
+      const existingSnapshotFile = snapshotFile(dataDir, window, expected);
+      if (fs.existsSync(existingSnapshotFile)) {
+        const snapshot = JSON.parse(fs.readFileSync(existingSnapshotFile, "utf8"));
         const missed = snapshot.sources?.postiz_post?.reason === "source_delayed";
-        results.push({ shortcode: expected.shortcode, window, state: missed ? "checkpoint_missed" : "complete" }); continue;
+        results.push({ shortcode: expected.shortcode, window, state: snapshot.correction === true ? "corrected" : missed ? "checkpoint_missed" : "complete" }); continue;
       }
       const dueMs = publishedMs + delay;
       if (nowMs < dueMs) { results.push({ shortcode: expected.shortcode, window, state: "pending", due_at: new Date(dueMs).toISOString() }); continue; }
