@@ -37,6 +37,35 @@ class ApplyReading(unittest.TestCase):
         self.assertNotIn("store_url", out)
 
 
+class UnsubmittedPlaceholder(unittest.TestCase):
+    def test_empty_creators_item_skips_browser_and_does_not_write_sales_status(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            item_file = root / "creators-item.json"
+            item_file.write_text("{}")
+            ledger = root / "readback.jsonl"
+            acquired = []
+            busy = types.SimpleNamespace(returncode=9, stdout="", stderr="BUSY")
+
+            with (
+                patch.object(MODULE, "LEDGER", ledger),
+                patch.object(MODULE, "acquire_when_free",
+                             side_effect=lambda _acquire: acquired.append(True) or busy),
+                patch.object(sys, "argv", ["creators_readback.py", "--item-file", str(item_file)]),
+            ):
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    try:
+                        result = MODULE.main()
+                    except KeyError:
+                        result = None
+
+            self.assertEqual(acquired, [], "an empty unsubmitted placeholder must not enter browser readback")
+            self.assertEqual(result, 0)
+            self.assertFalse(ledger.exists())
+            self.assertEqual(json.loads(output.getvalue())["status"], "unsubmitted_placeholder")
+
+
 
 class AcquireWaitsForABusyBrowser(unittest.TestCase):
     """2026-10-12: the factory holds the LINE Creators browser for an hour at a time (it now makes

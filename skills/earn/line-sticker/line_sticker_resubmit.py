@@ -152,6 +152,16 @@ def resubmit(set_dir: Path, item: dict, rejection_message: str) -> dict:
         return item
 
     action = decide_action(set_dir, rejection_message, item, listing)
+    if action.get("action") == "retag":
+        try:
+            plan = json.loads((set_dir / "plan.json").read_text())
+        except (OSError, json.JSONDecodeError):
+            plan = {}
+        if not isinstance(plan, dict) or not isinstance(plan.get("motions"), list) or not plan["motions"]:
+            # The selector is motion-only. Do not fail the hourly status reader
+            # or re-request an unchanged static sticker when it cannot retag.
+            action = dict(action, action="cannot_fix",
+                          reason="retag_unsupported_for_static_plan")
     item = dict(item, resubmit_decision=action["action"], resubmit_decision_reason=action.get("reason"))
     if action["action"] == "cannot_fix":
         notify(set_dir, {"status": "cannot_fix", "product_id": item.get("product_id"), "reason": action.get("reason")})
