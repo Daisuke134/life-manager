@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "scope": "shared release reconciliation only",
+  "source_base": "a91a31a9beeb61def0d522ec3e3e5e144ab1c49f",
+  "previous_repair": {
+    "pr": 8058,
+    "merged_sha": "050f768a62c3b00dbd834f0a5b7a432939d105e2",
+    "suite_passed": 39,
+    "adopted_release_sha": "c30c55275af5c950b478ca9600cd71748e2054f3",
+    "source_sha256": "ddb88bf63a5662fa1d8c26cd2c197e5897767d8576a0490b139549cefb84391e"
+  },
+  "natural_run": {
+    "run_id": "18de72dab9c1c930-37532",
+    "owner_id": "life-manager-release-reconciler",
+    "occurrence_id": "life-manager-release-reconciler:18de72dab9c1c930-37532",
+    "release_sha": "c30c55275af5c950b478ca9600cd71748e2054f3",
+    "execute_at": "2026-10-14T16:39:45.527793Z",
+    "terminal_at": "2026-10-14T16:53:13.146158Z",
+    "exit_code": 1,
+    "error_class": "entrypoint_exit_1",
+    "fleet_changed": 13,
+    "fleet_skipped": 11,
+    "fleet_errors": 1,
+    "nonzero_owner": "life-manager-anicca-affirmation-youtube",
+    "nonzero_owner_seconds": 10,
+    "nonzero_owner_result": {"ok": false, "error": "admission rebind refused: control_busy"},
+    "evidence_refs": [
+      "~/.local/state/life-manager/release-reconciler/events.jsonl",
+      "~/.local/state/life-manager/release-reconciler/fleet-apply-owners.jsonl",
+      "~/.local/state/life-manager/release-reconciler/fleet-apply-last-output.log"
+    ]
+  },
+  "source_acceptance": {
+    "red_cases": 3,
+    "red_seconds": 2.569,
+    "green_cases": 3,
+    "green_seconds": 3.727,
+    "suite_passed": 45,
+    "suite_seconds": 68.685,
+    "suite_command": "env -u LM_TELEGRAM_BOT_TOKEN -u LM_ADMIN_TELEGRAM_CHAT_ID PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s runtime/loop/tests -p test_reconcile_agent_runner_release_fleet_apply.py -v",
+    "bash_syntax": "pass",
+    "diff_check": "pass",
+    "read_only_review_before_receipt_fix": "FIX-FIRST: required state write failure can fall through to tick success",
+    "receipt_fix": {
+      "red_tests": 4,
+      "red_failure_cases": 5,
+      "red_seconds": 3.634,
+      "green_tests": 4,
+      "green_seconds": 2.806,
+      "full_suite": "pass",
+      "suite_passed": 49,
+      "suite_seconds": 68.850,
+      "merged_main_base": "6fac41444ccdf13d5f9fd819b44ef00149834b21",
+      "source_and_dependencies_unchanged_after_main_merge": true,
+      "read_only_review": "pending"
+    },
+    "type_and_handoff_fix": {
+      "red_tests": 3,
+      "red_failure_cases": 4,
+      "red_seconds": 3.510,
+      "green_tests": 3,
+      "green_seconds": 3.074,
+      "suite_passed": 51,
+      "suite_seconds": 72.624,
+      "source_sha256": "dfc3553b44730b2e6e4bd0bcb4d1aa5a4153cafeb458bde383b7ca7c2e882483",
+      "test_sha256": "f4e63c8147537d3ae302ffa5ab356d220cb1b81a25f8dbc22303039c4ea9ad4b",
+      "review_before_fix": "FIX-FIRST: JSON bool type and conditional self-handoff error propagation",
+      "review_after_fix": "pending"
+    },
+    "production_adoption": "not_yet"
+  },
+  "previous_repair_natural_acceptance": {
+    "run_id": "18de744079150de0-86096",
+    "occurrence_id": "life-manager-release-reconciler:18de744079150de0-86096",
+    "loaded_release_sha": "c30c55275af5c950b478ca9600cd71748e2054f3",
+    "terminal_at": "2026-10-14T17:13:43.967308+00:00",
+    "exit_code": 0,
+    "fleet_target_sha": "353598df28f4e7ab64e755072d826c59421f6196",
+    "fleet_status": "partial",
+    "fleet_changed": 16,
+    "fleet_errors": 0,
+    "budget_progress_continue": true
+  },
+  "interpretation": {
+    "confirmed": "one fleet apply was refused before the admission rebind transaction because the bounded control lock acquisition did not succeed",
+    "unconfirmed": "the exit and cause of each parent reconcile route; this apply refusal is not proof of the sole cause of the overall exit",
+    "provider_effect": "not established by release apply evidence"
+  }
+}
