@@ -30,6 +30,19 @@
       "~/.local/state/life-manager/release-reconciler/fleet-apply-last-output.log"
     ]
   },
+  "source_acceptance": {
+    "red_cases": 3,
+    "red_seconds": 2.569,
+    "green_cases": 3,
+    "green_seconds": 3.727,
+    "suite_passed": 45,
+    "suite_seconds": 68.685,
+    "suite_command": "env -u LM_TELEGRAM_BOT_TOKEN -u LM_ADMIN_TELEGRAM_CHAT_ID PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s runtime/loop/tests -p test_reconcile_agent_runner_release_fleet_apply.py -v",
+    "bash_syntax": "pass",
+    "diff_check": "pass",
+    "read_only_review": "pending",
+    "production_adoption": "not_yet"
+  },
   "interpretation": {
     "confirmed": "one fleet apply was refused before the admission rebind transaction because the bounded control lock acquisition did not succeed",
     "unconfirmed": "the exit and cause of each parent reconcile route; this apply refusal is not proof of the sole cause of the overall exit",

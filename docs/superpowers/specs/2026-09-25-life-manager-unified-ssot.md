@@ -121,13 +121,13 @@ R1の目的は、共有実行・資源管理の現在の故障を閉じ、条件
 
 source base=a91a31a9beeb61def0d522ec3e3e5e144ab1c49f、worktree=/Users/anicca/Projects/life-manager-main/.worktrees/shared-release-progress-result-20261015、branch=fix/shared-release-busy-defer-20261015、owner=lm-common-runtime-1015。所有sourceは同じshellと既存fleet_apply testだけ。resource_admission.py、lm_loop_run.py、admission DB、業務owner、browser/provider effectは変更しない。既存effect_unknownのexact JSON分類、already-owned延期、partial/next_retryの形を再利用する。
 
-- [ ] **R1現在cursor — 延期分類の最小差分:** rc1かつ余分なfieldのないexact control_busy拒否だけをskipped/admission-control-busyとして記録し、他ownerを続ける。errors0/timeoutなしのbusyはpartial/control_busy_continue/既存continue間隔で再確認し、last_ok_epochは更新しない。同SHAで「適用済み」へ短絡させない。新SHAのcoalescingも保存済み延期期限を使う。確認済みの別40桁SHAへのsupersededは旧owner開始を止め、partial/即時次回のままtick exit0とする。欠測/不正SHAは非0のまま。
-- [ ] **R1同修復の受入:** busy→次回適用、類似文字列/余分なfield拒否、busy+実エラー、superseded前後のguard、superseded+実エラー、current欠測/不正の最小RED→GREEN。既存budget/timeout/backoff/親失敗回帰、fresh read-only review、必要CI/main→immutable→RRC自然採用・同境界の結果を確認する。連続N回や全fleet無故障をgateにしない。
+- [x] **R1 source — 延期分類の最小差分:** rc1かつ余分なfieldのないexact control_busy拒否だけをskipped/admission-control-busyとして記録し、他ownerを続ける。errors0/timeoutなしのbusyはpartial/control_busy_continue/既存continue間隔で再確認し、last_ok_epochは更新しない。同SHAで「適用済み」へ短絡させない。新SHAのcoalescingも保存済み延期期限を使う。確認済みの別40桁SHAへのsupersededは旧owner開始を止め、partial/即時次回のままtick exit0とする。欠測/不正SHAは非0のまま。source検証は45件PASS、反映は次の項目。
+- [ ] **R1現在cursor — 同修復の受入:** busy→次回適用、類似文字列/余分なfield拒否、busy+実エラー、superseded前後のguard、superseded+実エラー、current欠測/不正のRED→GREENは確認済み。既存budget/timeout/backoffを含む45件PASS（68.685秒）、bash syntax/diff PASS。残るfresh read-only review、必要CI/main→immutable→RRC自然採用・同境界の結果を確認する。連続N回や全fleet無故障をgateにしない。
 - [ ] **R1次の境界:** この延期分類とは別に、親reconcileの実exit/最初に時間を使うreadbackを確定する。全events読取は候補だが未確定なので、timeout延長・全snapshot撤去・protected JSONL削除で代用しない。実障害が残ればその箇所だけ修復し、次にwriter/終了/保存、Capafyへ進む。
 
 差分手順と検証入力はdocs/superpowers/plans/2026-10-15-shared-release-defer-plan.md、bound本番観測はdocs/evidence/shared-release-defer-20261015.json。TODO順/状態の正本はこの節だけ。
 
-延期分類のRED: 既存fake CLI/temporary repoでbusy、owner適用後のcurrent切替、lock内のcurrent切替を実行し、3件ともexpected tick exit0に対して1を返すことを確認する（2.569秒）。busyはchanged1/errors1、両current切替はpartial/errors0。テスト入力は本番launchd/DB/providerを使わず、次はshellの計画済み最小差分を実装する。
+延期分類のRED: 既存fake CLI/temporary repoでbusy、owner適用後のcurrent切替、lock内のcurrent切替を実行し、3件ともexpected tick exit0に対して1を返すことを確認する（2.569秒）。busyはchanged1/errors1、両current切替はpartial/errors0。最小差分後は同3件がGREEN（3.727秒）。テスト入力は本番launchd/DB/providerを使わない。
 
 ## 共有資源の診断履歴
 
