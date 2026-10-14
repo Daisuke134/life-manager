@@ -100,28 +100,36 @@ Gate 13 `gate_pass` means the snapshot is structurally complete, contains no fab
 - [x] Add tests for command order, owner state paths, attention handling, and continued owner reporting.
 - [x] Run focused truth-pipeline tests, source-boundary verification, and `git diff --check` (58 tests, 31 subtests; owner-report 3 tests).
 
-### Task 5: Integrate and read the natural owner result
+### Task 5: Integrate and verify production adoption
 
-- [x] Commit and push the initial SSOT, plan, and implementation (`84714bf8cb9454deda7aa2fdb427aa77b2a0fa93`); PR #8009 is open.
-- [x] Merge latest `origin/main` (`c900bf0aa3b0d5f00ceff32d01f9d108df4c7dea`) into the DD05 branch locally (`143ff3ea743e9137f1d5de3b2397e4bc2a5d292d`); the merge adds seven upstream SSOT lines without conflicts.
-- [x] Push the latest-main merge plus the refreshed SSOT cursor and Task 5 list (`82d877ed42ec325732b50739f8c11a0db26c9b4c`); verify the remote branch and PR point to that head.
-- [x] Merge newer `origin/main` (`513704a5e0ce8a144573322a3ae17ee930d5ee21`) locally as `48031faf42f6509887c54d28a66213cf5b2c73b4`; no conflict, only the canonical SSOT auto-merged.
-- [x] Verify the preceding exact PR head `506f210403aec002f239e0fc28bdbbb5b602bbfd` passed all 11 CI jobs and CodeRabbit. This is historical evidence only; it does not cover the newer main merge.
-- [x] Merge current `origin/main` (`0a22b9f1bed2a9f7a2d9d3e24cf008521b3122b1`) locally as `7381c7de983ce766e274d18098db77cc244b9c97`; no conflict, 13 upstream SSOT lines added.
-- [x] Push the latest-main merge plus this refreshed SSOT/Task 5 cursor; confirm the remote PR head after push.
-- [x] Exact PR head `bc1803f053436d43264c83f5ad8041b98c3f67e4` passed all 11 CI jobs and CodeRabbit; PR #8009 merged at 05:33:47Z as `ec0ff40b44b6b453132d36388615277158bc5dc6`.
-- [x] Verify the current immutable release `/Users/anicca/loops/current` is `20261014T150809-87f2425e`, SHA `87f2425ed209f00a3a0174b1b798e580917752b1`, with `release_paths=ALL`; it includes the DD05 source merge.
-- [x] Merge newer `origin/main` (`9df5cb56acd9d3558355e2687402168eb29e3e9e`) into the post-merge cursor branch as `a26f8dc9259ce2aa1b9445c81b4786a928ce9fc6`; no conflict, upstream SSOT changes preserved.
-- [x] Merge the post-merge cursor PR #8016 at 05:54:13Z as `b76d6df9a49fce8c1c09a618feb6902b4678d48b`; all 11 checks and CodeRabbit passed.
-- [x] Confirm current main is `def90da4a6be9dfda6298f421e7ead7981342d0f`; the fleet-progress cursor branch is based on this latest main.
-- [x] Read fleet apply on `ec0ff40b`: 52 owner rows through 06:06Z, with no `marketing-owner-events` row; its 06:06 terminal was partial (1 changed, 27 skipped, 1 error) because `life-manager-anicca-en-card-instagram` timed out.
-- [ ] Let the active release reconciler self-handoff from old `ec0ff40b` to `87f2425e` and finish bounded owner applies. At 06:11:43Z the registered helper recorded `old_service_active_timeout` for PID 90311; `marketing-owner-events` remains on `52f33c67...` after its 05:37 natural failure. Do not manually apply, stop, or restart either owner.
-- [x] Read the 06:09Z cleanup receipt: 0 reclaimed, 13 preserved (4 probe-budget-exhausted, 7 protected descendants, 2 protected paths), `free_after=615759872`, recovery floor unmet, next action `inspect_preserved_candidates`; `df` showed 572,304 KiB at 06:12Z.
-- [ ] Let the registered cleanup owner inspect preserved candidates and restore eligible release capacity; do not delete protected paths.
-- [ ] Let the existing fence reconciler resolve `capafy-distribute-daily:18de4680b4bcfe18-18857` from exact provider evidence; do not manually wake the publisher, clear the fence, or replay the occurrence.
-- [x] Reconcile `checkpoint:anicca-ios:postiz:cmv2xvo4717ywqz0ynar3tp1r:24` through `OwnerReportStore.reconcile_delivery()` using exact Cloud-bot MTProto history: message ID `111504`, matching the unique stored event text hash. No send occurred.
-- [x] Refresh the prior four-key snapshot: that snapshot's `action:anicca-ios:18096103553103372` is absent from current canonical report/delivery ledgers; three unknown rows remained, and the exact-history reconciliation reduced the current set to two.
-- [x] Recheck both remaining keys in the verified Cloud bot's 500-message MTProto window through 05:36:18Z; neither exact text matched, so both remain `unknown`.
-- [ ] Reconcile the two remaining `delivery_unknown` keys only if exact MTProto history proves delivery; otherwise preserve `unknown` and do not resend or edit the ledger manually.
-- [ ] Verify the first natural `marketing-owner-events` pass from the new SHA and its attribution-sweep evidence. Require at least one mature (24h+) exact publication before claiming a snapshot; if none exists, report that coverage gap and keep DD05 open.
-- [ ] Keep DD05 open while attribution is absent or unverified; advance the SSOT cursor to DD06 only after natural owner readback and exact sweep evidence are verified.
+**Completed and verified**
+
+- [x] DD05 source tasks 1–4 are merged in PR #8009 (`ec0ff40b44b6b453132d36388615277158bc5dc6`); exact-head CI and CodeRabbit passed.
+- [x] Post-merge cursor PR #8016 is merged (`b76d6df9a49fce8c1c09a618feb6902b4678d48b`).
+- [x] The immutable current release is `20261014T150809-87f2425e`, SHA `87f2425ed209f00a3a0174b1b798e580917752b1`, `release_paths=ALL`; it contains DD05 source.
+- [x] `lm-loop doctor` reports 191 registry entries, with no missing, unmanaged, or installed-retired labels.
+
+**Live evidence, read-only capture `2026-10-14T06:36Z`**
+
+- `marketing-owner-events` is loaded on old SHA `52f33c67c3da765af516209e35c394b47e2e6f13`. Its last terminal is `18de4e5ed03e3068-37479` at 05:37:10Z, exit 1 in `report`; last successful terminal is 2026-10-07 22:20Z. `lm-loop health` reports failed 1 / running 0. The long-lived loaded PID is a runner, not proof of a business run.
+- `life-manager-release-reconciler` is loaded on `87f2425e`; its latest terminal is `18de51024e4b72e0-10592` at 06:26:59Z, exit 1. The recorded fleet-apply result was coalesced by the 30-minute minimum interval; no successful target-owner adoption is verified.
+- `capafy-distribute-daily` remains on `a299acc04573ab916fb261ad7ff94b1d3f79a119`. Occurrence `18de50fdaf7b1070-9928` ended at 06:19:12Z, exit 75, `host_admission_deferred:resource_effect_unknown`, with no provider receipt or official readback. The earlier effect fence remains active.
+- `life-manager-disk-cleanup` is healthy on `87f2425e`, but host storage was only `640589824` bytes free at 06:36:04Z; the 2 GiB recovery floor remains unmet.
+- The previous exact Telegram history check found no receipt for two `delivery_unknown` keys through 05:36:18Z. Their state remains unknown; they are owner-report delivery issues, not publication-attribution evidence.
+
+**Remaining DD05 acceptance, in order**
+
+1. [ ] Observe the registered release reconciler's next eligible natural terminal and capture its exact fleet-apply summary. Do not manually wake, stop, or restart it.
+2. [ ] Confirm `marketing-owner-events` adopts SHA `87f2425e` through the registered apply path and read back its loaded argv/SHA.
+3. [ ] Read the first natural owner terminal from that SHA. If it fails, diagnose the exact occurrence and pipeline stage, then fix the source cause with a focused regression check and the standard main-derived release path.
+4. [ ] Verify the owner output contains a sweep result for at least one unique, exact-identity `PUBLISHED` publication after the 24-hour maturity window. If none is eligible, record the exact coverage gap and leave DD05 open.
+5. [ ] Report publication-level orders/revenue, cost, and interventions only when their exact sources exist. Otherwise preserve each metric as `unknown`; do not convert Capafy account/agent aggregates into per-publication revenue or claim profit uplift.
+6. [ ] Close DD05 only after the natural owner result and exact sweep output are tied to the same publication identity. Then advance the SSOT cursor to DD06.
+
+**Separate operational cursors (not DD05 pass criteria)**
+
+- [ ] Resolve `capafy-distribute-daily:18de4680b4bcfe18-18857` only through the registered occurrence-bound fence reconciliation and exact official provider evidence; do not clear or replay it without that evidence.
+- [ ] Reconcile the remaining two Telegram `delivery_unknown` rows only from exact history/receipt evidence; never resend or edit the ledger manually.
+- [ ] Continue capacity diagnosis through the registered cleanup owner. Preserve open/protected/unknown paths; do not delete them to reach the recovery floor.
+
+DD05 is shared publication-measurement infrastructure. The first agent-level EDD vertical slice remains Writer as recorded in the SSOT; Capafy distribution reuses the same evidence path after exact per-publication outcome data is available.
