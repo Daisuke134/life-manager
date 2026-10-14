@@ -994,8 +994,26 @@ def _run_entrypoint(command: list[str], env: dict[str, str] | None = None, *,
         stopping = True
         if process is None:
             pending.append(signum)
-        elif process.poll() is None:
+        elif process.returncode is None:
             _forward_process_group_signal(process.pid, signum)
+
+    def live_group_children():
+        try:
+            result = subprocess.run(
+                ["ps", "-g", str(process.pid), "-o", "pid=,pgid=,stat="],
+                capture_output=True, text=True, timeout=2,
+            )
+            rows = [(int(pid), int(pgid), status) for pid, pgid, status
+                    in (row.split() for row in result.stdout.splitlines())]
+        except (OSError, ValueError, subprocess.TimeoutExpired):
+            return None
+        rows = [(pid, status) for pid, pgid, status in rows if pgid == process.pid]
+        if (result.returncode != 0 or not rows
+                or not any(pid == process.pid and status.startswith("Z")
+                           for pid, status in rows)):
+            return None
+        return any(pid != process.pid and not status.startswith("Z")
+                   for pid, status in rows)
 
     for signum in watched:
         previous[signum] = signal.signal(signum, forward)
@@ -1048,6 +1066,24 @@ def _run_entrypoint(command: list[str], env: dict[str, str] | None = None, *,
                         _forward_process_group_signal(process.pid, signal.SIGKILL)
                     process.wait()
                 return 75
+            exited = os.waitid(
+                os.P_PID, process.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT,
+            )
+            if exited is not None and exited.si_pid == process.pid:
+                # Keep our session leader waitable so its group ID cannot be reused.
+                for signum in (signal.SIGTERM, signal.SIGKILL):
+                    if live_group_children() is not True:
+                        break
+                    try:
+                        os.killpg(process.pid, signum)
+                    except (ProcessLookupError, PermissionError):
+                        break
+                    drain_deadline = time.monotonic() + max(0, termination_grace_seconds)
+                    while (time.monotonic() < drain_deadline
+                           and live_group_children() is True):
+                        time.sleep(.02)
+                return_code = process.wait()
+                break
             wait_timeout = 0.25
             if deadline is not None:
                 remaining = deadline - time.monotonic()
@@ -1061,11 +1097,7 @@ def _run_entrypoint(command: list[str], env: dict[str, str] | None = None, *,
                         process.wait()
                     return 124
                 wait_timeout = min(wait_timeout, remaining)
-            try:
-                return_code = process.wait(timeout=wait_timeout)
-                break
-            except subprocess.TimeoutExpired:
-                continue
+            time.sleep(wait_timeout)
     finally:
         for descriptor in (read_fd, write_fd):
             try:
@@ -1936,6 +1968,9 @@ def _main(argv: list[str] | None = None) -> int:
             if terminal_saved and effect_identity_status == "rejected":
                 cleanup_status = "held_effect_identity_unrecorded"
                 cleanup_operation = "persist_effect_identity"
+            elif terminal_saved and event["effect_status"] in {"unknown", "started"}:
+                cleanup_status = "held_effect_unknown"
+                cleanup_operation = "official_readback_required"
             elif terminal_saved:
                 try:
                     cleanup_operation = "unprotect_marker"

@@ -1148,6 +1148,83 @@ def test_entrypoint_cancellation_terminates_running_process_group():
     assert time.monotonic() - started < 2
 
 
+@pytest.mark.parametrize("ignore_term", [False, True])
+@pytest.mark.parametrize("group_observed", [False, True])
+def test_entrypoint_normal_exit_drains_only_verified_group_and_keeps_other_session(
+        tmp_path, ignore_term, group_observed):
+    owned = tmp_path / "owned.json"
+    detached = tmp_path / "detached.json"
+    script = (
+        "import json,os,pathlib,signal,sys,time; "
+        "from runtime.host.resource_admission import process_start; "
+        f"signal.signal(signal.SIGTERM, {'signal.SIG_IGN' if ignore_term else 'lambda *_: sys.exit(0)'}); "
+        "pathlib.Path(sys.argv[1]).write_text(json.dumps([os.getpid(),process_start(os.getpid())])); "
+        "time.sleep(60)"
+    )
+    parent = (
+        "import pathlib,subprocess,sys,time; "
+        f"subprocess.Popen([sys.executable,'-c',{script!r},{str(owned)!r}]); "
+        f"subprocess.Popen([sys.executable,'-c',{script!r},{str(detached)!r}],start_new_session=True); "
+        f"paths=[pathlib.Path({str(owned)!r}),pathlib.Path({str(detached)!r})]; "
+        "deadline=time.monotonic()+5\n"
+        "while not all(path.exists() for path in paths) and time.monotonic()<deadline: time.sleep(.01)\n"
+        "sys.exit(0 if all(path.exists() for path in paths) else 86)"
+    )
+    leader = []
+    killpg = os.killpg
+
+    def signal_owned_group(pgid, signum):
+        assert pgid == leader[0]
+        exited = os.waitid(os.P_PID, pgid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+        assert exited is not None and exited.si_pid == pgid, "group leader was already reaped"
+        return killpg(pgid, signum)
+
+    group_observation = (
+        nullcontext() if group_observed else
+        patch("runtime.loop.lm_loop_run.subprocess.run",
+              return_value=subprocess.CompletedProcess([], 1, "", ""))
+    )
+    try:
+        started = time.monotonic()
+        with (group_observation,
+              patch("runtime.loop.lm_loop_run.os.killpg", side_effect=signal_owned_group)):
+            result = _run_entrypoint(
+                [sys.executable, "-c", parent], timeout_seconds=10,
+                termination_grace_seconds=.05, on_started=leader.append,
+            )
+        assert result == 0
+        assert time.monotonic() - started < 2
+        owned_pid, owned_start = json.loads(owned.read_text())
+        detached_pid, detached_start = json.loads(detached.read_text())
+        assert owned_start is not None and detached_start is not None
+        if group_observed:
+            deadline = time.monotonic() + 1
+            while admission.process_start(owned_pid) == owned_start and time.monotonic() < deadline:
+                time.sleep(.01)
+            assert admission.process_start(owned_pid) != owned_start, "normal exit left its child live"
+        else:
+            assert admission.process_start(owned_pid) == owned_start
+        assert admission.process_start(leader[0]) is None
+        assert admission.process_start(detached_pid) == detached_start
+        assert os.getpgid(detached_pid) != leader[0]
+    finally:
+        for path in (owned, detached):
+            if path.exists():
+                pid, identity = json.loads(path.read_text())
+                if identity is not None and admission.process_start(pid) == identity:
+                    try:
+                        os.kill(pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+
+
+@pytest.mark.parametrize("timeout_seconds", [None, .2])
+def test_entrypoint_normal_exit_without_children_does_not_wait_for_grace(timeout_seconds):
+    started = time.monotonic()
+    assert _run_entrypoint([sys.executable, "-c", "pass"], timeout_seconds=timeout_seconds) == 0
+    assert time.monotonic() - started < 2
+
+
 def test_entrypoint_completes_handoff_before_effect_gate(tmp_path):
     handoff = tmp_path / "handoff"
     child = (
@@ -2407,7 +2484,7 @@ def test_cleanup_safety_owner_runs_when_bounded_log_startup_has_enospc(tmp_path)
 
 
 @pytest.mark.parametrize("identity_outcome", ["rejected", "save_exception", "persisted", "not_written"])
-def test_failed_run_cleans_scratch_only_after_effect_identity_is_safe(tmp_path, identity_outcome):
+def test_failed_run_preserves_unknown_scratch_after_effect_identity_persistence(tmp_path, identity_outcome):
     release = _write_prestart_lock_release(tmp_path)
     state = tmp_path / "state"
     scratch = state / "loop-tmp/example-publisher/run-1"
@@ -2460,13 +2537,45 @@ def test_failed_run_cleans_scratch_only_after_effect_identity_is_safe(tmp_path, 
         assert scratch_gc({state}, starts={})["removed"] == 0
         assert sidecar.read_text() == raw
     else:
-        assert not scratch.exists(), "safe completed runs must still clean their own scratch"
+        assert (scratch / ".terminal-unrecorded").is_file()
+        diagnostic = json.loads((state / "scratch-cleanup-diagnostics/run-1.json").read_text())
+        assert diagnostic["cleanup_status"] == "held_effect_unknown"
         if identity_outcome == "persisted":
             assert (state / "effect-identities/run-1.jsonl").read_text() == raw
 
 
-def test_main_records_false_terminal_scratch_cleanup_without_changing_business_result(tmp_path):
+@pytest.mark.parametrize("effect_status", ["unknown", "started", "not_applicable", "verified", "reconciled"])
+def test_main_cleans_terminal_scratch_only_after_effect_is_known(tmp_path, effect_status):
     release = _write_prestart_lock_release(tmp_path)
+    state = tmp_path / "state"
+    scratch = state / "loop-tmp/example-publisher/run-1"
+
+    def terminal_event(**kwargs):
+        return {**build_runtime_event(**kwargs), "effect_status": effect_status}
+
+    with (patch.dict(os.environ, {"LIFE_MANAGER_STATE_ROOT": str(state), "LIFE_MANAGER_RUN_ID": "run-1"}),
+          patch("runtime.loop.lm_loop_run._apply_lock", return_value=nullcontext()),
+          patch("runtime.loop.lm_loop_run.build_loop_command", return_value=["/bin/true"]),
+          patch("runtime.loop.lm_loop_run._run_admitted", return_value=0),
+          patch("runtime.loop.lm_loop_run.build_runtime_event", side_effect=terminal_event),
+          patch("runtime.loop.central_cleanup._browser_profiles_live", return_value=False)):
+        assert lm_loop_run_main(["example-publisher", str(release)]) == 0
+
+    event = json.loads((state / "events.jsonl").read_text().splitlines()[-1])
+    assert event["effect_status"] == effect_status
+    if effect_status in {"unknown", "started"}:
+        assert scratch.is_dir()
+        assert (scratch / ".terminal-unrecorded").is_file()
+        diagnostic = json.loads((state / "scratch-cleanup-diagnostics/run-1.json").read_text())
+        assert diagnostic["terminal_saved"] is True
+        assert diagnostic["cleanup_status"] == "held_effect_unknown"
+        assert diagnostic["scratch_identity"]["terminal_marker_remaining"] is True
+    else:
+        assert not scratch.exists()
+
+
+def test_main_records_false_terminal_scratch_cleanup_without_changing_business_result(tmp_path):
+    release = _write_prestart_lock_release(tmp_path, effect_class="none")
     state_root = tmp_path / "state"
     events = []
     scratch = state_root / "loop-tmp/example-publisher/run-1"
@@ -2516,7 +2625,7 @@ def test_main_records_false_terminal_scratch_cleanup_without_changing_business_r
 
 
 def test_main_preserves_terminal_scratch_while_run_owned_browser_profile_is_live(tmp_path):
-    release = _write_prestart_lock_release(tmp_path)
+    release = _write_prestart_lock_release(tmp_path, effect_class="none")
     state_root = tmp_path / "state"
     events = []
     scratch = state_root / "loop-tmp/example-publisher/run-1"
@@ -2551,7 +2660,7 @@ def test_main_preserves_terminal_scratch_while_run_owned_browser_profile_is_live
 
 
 def test_main_records_partial_cleanup_as_preserved(tmp_path):
-    release = _write_prestart_lock_release(tmp_path)
+    release = _write_prestart_lock_release(tmp_path, effect_class="none")
     state_root = tmp_path / "state"
     events = []
     def run_admitted(_command, _entry, _loop_id, _env, receipt, **_kwargs):
@@ -2575,7 +2684,7 @@ def test_main_records_partial_cleanup_as_preserved(tmp_path):
 
 
 def test_main_records_cleanup_exception_without_changing_business_result(tmp_path):
-    release = _write_prestart_lock_release(tmp_path)
+    release = _write_prestart_lock_release(tmp_path, effect_class="none")
     state_root = tmp_path / "state"
     events = []
 
@@ -2650,7 +2759,7 @@ def test_main_keeps_scratch_protected_when_terminal_event_is_not_saved(tmp_path)
 
 def test_main_reports_typed_diagnostic_when_cleanup_record_cannot_be_written(
         tmp_path, capsys):
-    release = _write_prestart_lock_release(tmp_path)
+    release = _write_prestart_lock_release(tmp_path, effect_class="none")
     state_root = tmp_path / "state"
     events = []
 
@@ -2685,7 +2794,7 @@ def test_main_reports_typed_diagnostic_when_cleanup_record_cannot_be_written(
     assert "private diagnostic path" not in captured.err
 
 
-def _write_prestart_lock_release(tmp_path):
+def _write_prestart_lock_release(tmp_path, *, effect_class="publish"):
     release = tmp_path / "release"
     (release / "config").mkdir(parents=True)
     (release / "apps/life-manager/config").mkdir(parents=True)
@@ -2695,7 +2804,7 @@ def _write_prestart_lock_release(tmp_path):
             "domain": "earn",
             "entrypoint": "bin/example-publisher",
             "provider_route": "test-provider",
-            "effect_class": "publish",
+            "effect_class": effect_class,
             "state_root": str(tmp_path / "unused-state"),
         }},
     }), encoding="utf-8")
@@ -3416,6 +3525,7 @@ def test_invalid_memory_threshold_fails_closed(tmp_path):
 def test_entrypoint_blocks_signal_until_handler_owns_child(monkeypatch):
     class Process:
         pid = 43210
+        returncode = None
         def poll(self): return None
         def wait(self, timeout=None): return 0
 
@@ -3432,6 +3542,7 @@ def test_entrypoint_blocks_signal_until_handler_owns_child(monkeypatch):
 def test_entrypoint_treats_permission_denied_signal_forward_as_already_exited(monkeypatch):
     class Process:
         pid = 43210
+        returncode = None
         def poll(self): return None
         def wait(self, timeout=None): return 0
 
