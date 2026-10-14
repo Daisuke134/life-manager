@@ -4009,6 +4009,14 @@ LINE Creators Support Programは募集期間が未定。選抜時は支援期間
 
 **判断:** この2施策を無料チャネルとして扱わず、費用発生・新作制作を開始しない。対象にできるのは既存素材を使う無料の自然配信のみ。現在cursorは引き続き10/15 07:05 JSTのset-019 article slot。
 
+#### 5.L 既存記事のsocial share preview修正 — 2026-10-15 06:06 JST（base main 2345448e）
+
+**As-Is:** 公開記事 /blog/line-sticker-set-018-2026-10-14-08 のScrapy readbackはtitle・description・canonical・robots=index,followを返すが、og:*とtwitter:* metadataがない。DDGでは同ページとLINE記事全体の検索結果が見つからない一方、公開sitemapには記事URLが掲載されrobots.txtもAllow: /。これはDuckDuckGoの検索結果がない証拠であり、他検索エンジンの非indexingを意味しない。anicca-products main 071836d0の apps/landing/app/blog/[slug]/page.tsx generateMetadata はtitle/description/canonical/robotsだけを返す。
+
+**既存画像で埋める方法:** 記事markdownには公式CTA https://line.me/S/sticker/<product_id> があり、LINE STORE公式ページのog:imageは商品ごとに https://stickershop.line-scdn.net/stickershop/v1/product/<product_id>/LINEStorePC/main.png?v=1 を返すことを、37254973・37253001・37293682の3商品で確認した。新規画像やスタンプ制作なしで、LINEスタンプ記事だけにog:title/description/url/imageとtwitter:card=summary_large_imageを付けられる。一般のblog記事は現行metadataを保つ。
+
+**To-Be / TODO順更新:** 旧cursorは「07:05 natural article → click/sales readback → 許可済みchannel」。新cursorは「(1) landingの既存dynamic article metadataに、line-sticker slugかつ正規LINE STORE CTAがある時だけproduct-specific share cardを足す（TDDでproduct ID/image/非LINE記事の不変条件を確認） → (2) 07:05 natural set-019 article slotを止めずに公開/CTA/ledgerを照合 → (3) main deploy後にScrapyで公開HTMLのOG/Twitter tagsとLINE画像URLをreadbackし、self-viewをtraffic成果に数えない → (4) 10/16 JSTの公式販売/分配readerと同期間clickを照合 → (5) owner/identity/effect gateを越えた既存Short/SNSの無料配信 → (6) actual winnerへの無料枠再配分・月間gross/payout/cost判定」。理由は、SEO indexability設定とsitemapは既にあるのに公開share cardsが欠け、既存SNS配信にも友だち/フォロワー到達の受け皿が必要だから。OG修正は07:05の自然記事をブロックしない。no paid route・no new SKU。
+
 ## 6. 不変の制約
 
 - Ryu room `18211957` へは再送しない。正式納品ボタンは loop から押さない。Ryu は CDP :9223 での手動例外として扱う。
