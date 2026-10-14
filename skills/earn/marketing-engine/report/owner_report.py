@@ -1418,14 +1418,14 @@ def render_japanese(event: dict) -> str:
                 reason = gap.get("reason") or "unknown"
                 lines.append(f"{source}は{_reason_text(reason)}。")
                 lines.append(
-                    f"次の修復: {_repair_for(str(source_key))}。"
+                    f"次の修復: {gap.get('next_repair') or _repair_for(str(source_key))}。"
                 )
         else:
             source_key = facts.get("source") or "unknown"
             source = _display_source(source_key)
             reason = facts.get("reason") or "unknown"
             lines.append(f"⚠️ {product_label}で{source}の確認が必要です。{_reason_text(reason)}。")
-            lines.append(f"次の修復: {_repair_for(str(source_key))}。")
+            lines.append(f"次の修復: {facts.get('next_repair') or _repair_for(str(source_key))}。")
     elif kind == "experiment":
         status = facts.get("status")
         if status == "not_mature":
