@@ -155,6 +155,7 @@ def _run_starts(run_dir: Path) -> list[float]:
         pass
     return starts
 
+
 def _jsonl_lines(path: Path) -> list[str] | None:
     if path.is_symlink() or not path.is_file():
         return None
