@@ -25,9 +25,14 @@ class TruthPipelineTest(unittest.TestCase):
         self.assertIn("publication_ledger.py", rendered[0])
         self.assertIn("--quality-gate-exit-code 3", rendered[0])
         self.assertIn("native_metrics.py", rendered[1])
+        self.assertIn("attribution_sweep.py", rendered[2])
         self.assertEqual(
-            [command[command.index("--kind") + 1] for command in commands[2:]],
-            ["action", "checkpoint", "incident", "experiment", "product_daily", "portfolio_weekly"],
+            [command[command.index("--kind") + 1] for command in commands[3:7]],
+            ["action", "checkpoint", "incident", "experiment"],
+        )
+        self.assertEqual(
+            [command[command.index("--kind") + 1] for command in commands[7:]],
+            ["product_daily", "portfolio_weekly"],
         )
         self.assertNotIn("apify", " ".join(rendered).lower())
 
@@ -58,14 +63,34 @@ class TruthPipelineTest(unittest.TestCase):
             commands[1][commands[1].index("--raw-evidence") + 1],
             str(state_root / "evidence/metrics/provider-responses.jsonl"),
         )
-        self.assertIn(str(state_root / "evidence/metrics/native-metrics-latest.json"), rendered)
         self.assertEqual(
-            [command[command.index("--state-root") + 1] for command in commands[2:6]],
-            [str(state_root / "state")] * 4,
+            commands[2][commands[2].index("--identity") + 1],
+            str(state_root / "state/publication-identity.jsonl"),
+        )
+        self.assertEqual(
+            commands[2][commands[2].index("--post-metrics") + 1],
+            str(state_root / "state/post-metrics.jsonl"),
         )
         metrics_state = home / ".local/state/life-manager/marketing-metrics-daily/state"
         self.assertEqual(
-            [command[command.index("--state-root") + 1] for command in commands[6:]],
+            commands[2][commands[2].index("--business") + 1],
+            str(metrics_state / "business-outcomes.jsonl"),
+        )
+        self.assertEqual(
+            commands[2][commands[2].index("--attribution") + 1],
+            str(state_root / "state/experiment-attribution.jsonl"),
+        )
+        self.assertEqual(
+            commands[2][commands[2].index("--report") + 1],
+            str(state_root / "evidence/metrics/attribution-sweep-latest.json"),
+        )
+        self.assertIn(str(state_root / "evidence/metrics/native-metrics-latest.json"), rendered)
+        self.assertEqual(
+            [command[command.index("--state-root") + 1] for command in commands[3:7]],
+            [str(state_root / "state")] * 4,
+        )
+        self.assertEqual(
+            [command[command.index("--state-root") + 1] for command in commands[7:]],
             [str(metrics_state)] * 2,
         )
         self.assertNotIn("/read-only-release/skills/earn/marketing-engine/state", rendered)
@@ -119,6 +144,27 @@ class TruthPipelineTest(unittest.TestCase):
             [
                 {"stage": "reconcile", "returncode": 3, "result": "attention"},
                 {"stage": "collect", "returncode": 0, "result": "pass"},
+            ],
+        )
+
+    def test_attribution_sweep_attention_is_not_pipeline_failure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = truth_pipeline.run_pipeline(
+                [["python", "/repo/attribution_sweep.py"], ["report"]],
+                lock_path=pathlib.Path(tmp) / "truth.lock",
+                run_command=lambda command: (
+                    3 if any("attribution_sweep.py" in part for part in command) else 0
+                ),
+            )
+
+        self.assertEqual(result["status"], "completed")
+        self.assertEqual(result["failed_stages"], [])
+        self.assertEqual(result["attention_stages"], ["attribution"])
+        self.assertEqual(
+            result["stages"],
+            [
+                {"stage": "attribution", "returncode": 3, "result": "attention"},
+                {"stage": "report", "returncode": 0, "result": "pass"},
             ],
         )
 
