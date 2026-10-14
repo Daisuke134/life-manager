@@ -983,6 +983,7 @@ def _run_entrypoint(command: list[str], env: dict[str, str] | None = None, *,
                     cancelled: Callable[[], bool] = lambda: False,
                     on_started: Callable[[int], None] = lambda _pid: None,
                     stderr_capture_fd: int | None = None) -> int:
+    waitid = getattr(os, "waitid", None)
     watched = (signal.SIGTERM, signal.SIGINT)
     previous = {}
     process = None
@@ -1066,7 +1067,7 @@ def _run_entrypoint(command: list[str], env: dict[str, str] | None = None, *,
                         _forward_process_group_signal(process.pid, signal.SIGKILL)
                     process.wait()
                 return 75
-            exited = os.waitid(
+            exited = None if waitid is None else waitid(
                 os.P_PID, process.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT,
             )
             if exited is not None and exited.si_pid == process.pid:
@@ -1097,6 +1098,12 @@ def _run_entrypoint(command: list[str], env: dict[str, str] | None = None, *,
                         process.wait()
                     return 124
                 wait_timeout = min(wait_timeout, remaining)
+            if waitid is None:
+                try:
+                    return_code = process.wait(timeout=wait_timeout)
+                    break
+                except subprocess.TimeoutExpired:
+                    continue
             time.sleep(wait_timeout)
     finally:
         for descriptor in (read_fd, write_fd):

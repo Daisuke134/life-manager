@@ -1225,6 +1225,16 @@ def test_entrypoint_normal_exit_without_children_does_not_wait_for_grace(timeout
     assert time.monotonic() - started < 2
 
 
+@pytest.mark.parametrize("exit_code", [0, 7])
+def test_entrypoint_without_waitid_preserves_exit_without_guessing_group(monkeypatch, exit_code):
+    monkeypatch.delattr(os, "waitid", raising=False)
+    with patch("runtime.loop.lm_loop_run.os.killpg",
+               side_effect=AssertionError("reaped group ownership is unavailable")):
+        assert _run_entrypoint(
+            [sys.executable, "-c", f"raise SystemExit({exit_code})"], timeout_seconds=2,
+        ) == exit_code
+
+
 def test_entrypoint_completes_handoff_before_effect_gate(tmp_path):
     handoff = tmp_path / "handoff"
     child = (
