@@ -1,10 +1,24 @@
 "use strict";
 const assert = require("node:assert/strict"); const fs = require("node:fs"); const os = require("node:os"); const path = require("node:path"); const test = require("node:test");
 const crypto = require("node:crypto");
-const { TARGETS, discoverTarget, discoverTargets, runDue } = require("./tiktok-metrics-due.js");
+const { TARGETS, discoverTarget, discoverTargets, runDue, snapshotFile } = require("./tiktok-metrics-due.js");
 const { postizAnalytics } = require("./tiktok-native-metrics-read.js");
 const { JA_JP1_TIKTOK_LANE, verifyMarketingNativeCarouselPublicationReceipt } = require("../lib/marketing-native-carousel-publication-adapter.js");
 const EXPECTED = { tenant_id: "dais-local", product_id: "anicca-ios", locale: "ja", account_id: "@anicca.jp4", native_owner: "anicca.jp4", integration_id: "cmn8x8hdv028uqx0y4gdfse5t", provider_post_id: "cmt328uot00s2qk0y23e8ptii", shortcode: "7676495865816632583", video_id: "7676495865816632583", public_url: "https://www.tiktok.com/@anicca.jp4/video/7676495865816632583", caption: "今すぐやれ", published_at: "2026-08-21T14:46:13.240Z" };
+
+test("TikTok due runner leaves no snapshot when the local Telegram credential is unavailable", async (t) => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-tiktok-no-telegram-"));
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "lm-tiktok-no-credentials-"));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+  const expected = { ...EXPECTED, published_at: "2026-10-14T22:00:00.000Z" };
+  const nowMs = Date.parse(expected.published_at) + 2 * 3600_000;
+  const results = await runDue(nowMs, { HOME: home, LM_DATA_DIR: dataDir }, [expected]);
+  const checkpoint = results.find((row) => row.video_id === expected.video_id && row.window === "2h");
+  assert.equal(checkpoint.state, "source_unavailable");
+  assert.match(checkpoint.error, /local_telegram_credential_unavailable/);
+  assert.equal(fs.existsSync(snapshotFile(dataDir, expected, "2h")), false);
+});
 
 test("missed TikTok windows and per-post daily snapshots stay local while true 24h stays pending", async (t) => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-jp4-due-")); t.after(() => fs.rmSync(dataDir, { recursive: true, force: true })); let sends = 0; const env = { LM_DATA_DIR: dataDir, LM_TELEGRAM_BOT_TOKEN: "fake", LM_TELEGRAM_ALERT_CHAT_ID: "fake" };

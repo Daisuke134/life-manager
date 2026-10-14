@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+from functools import partial
 import json
 import pathlib
 import sys
@@ -60,8 +61,8 @@ def _local_telegram_credentials() -> tuple[str, str]:
     return token, str(chat_id)
 
 
-def _send_text(text: str) -> dict:
-    token, chat_id = _local_telegram_credentials()
+def _send_text(text: str, credentials: tuple[str, str] | None = None) -> dict:
+    token, chat_id = credentials or _local_telegram_credentials()
     client = TelegramClient.from_env(
         environ={"TELEGRAM_BOT_TOKEN": token, "TELEGRAM_CHAT_ID": chat_id},
     )
@@ -121,6 +122,8 @@ def main(argv: list[str] | None = None) -> int:
             as_of=as_of,
             skip_message_keys=delivered_keys,
         )
+        credentials = _local_telegram_credentials() if not args.no_send and events else None
+        send_text = partial(_send_text, credentials=credentials) if credentials else _send_text
         store = owner_report.OwnerReportStore(report_path, delivery_path)
         failed = False
         for event in events:
@@ -129,7 +132,7 @@ def main(argv: list[str] | None = None) -> int:
             if args.no_send:
                 store.record(event)
                 continue
-            receipt = owner_report.deliver(event, store, _send_text)
+            receipt = owner_report.deliver(event, store, send_text)
             status = receipt.get("status") if isinstance(receipt, dict) else None
             if status != "delivered":
                 failed = True

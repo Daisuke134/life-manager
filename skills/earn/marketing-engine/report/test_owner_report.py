@@ -9,12 +9,14 @@ cannot make the tests pass.
 from __future__ import annotations
 
 import datetime as dt
+import io
 import json
 import os
 import tempfile
 import threading
 import time
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest import mock
@@ -1130,6 +1132,44 @@ class OwnerReportRendererTest(unittest.TestCase):
         self.assertTrue(report_path.exists())
         self.assertFalse(delivery_path.exists())
         client.from_env.assert_not_called()
+
+    def test_cli_missing_credentials_does_not_claim_and_can_deliver_after_recovery(self):
+        import owner_report_cli
+
+        state_root = self.root / "cli-retry"
+        credentials = self.root / "credentials.json"
+        event = self.event("product_daily", "anicca-ios")
+        args = [
+            "sweep", "--kind", "product_daily", "--product-id", "anicca-ios",
+            "--state-root", str(state_root), "--as-of", "2026-08-05T12:00:00Z",
+        ]
+        client = mock.Mock()
+        client.send_text.return_value = {"status": "delivered", "message_ids": [991]}
+        with (
+            mock.patch.object(owner_report_cli, "CREDENTIALS_FILE", credentials, create=True),
+            mock.patch.object(owner_report, "build_events", return_value=[event]),
+            mock.patch.object(owner_report_cli.TelegramClient, "from_env", return_value=client) as from_env,
+            redirect_stdout(io.StringIO()),
+            redirect_stderr(io.StringIO()),
+        ):
+            self.assertEqual(owner_report_cli.main(args), 1)
+            store = owner_report.OwnerReportStore(
+                state_root / "owner-reports.jsonl",
+                state_root / "owner-report-deliveries.jsonl",
+            )
+            self.assertIsNone(store.delivery_for(event["message_key"]))
+            credentials.write_text(json.dumps({"credentials": [
+                {"service": "telegram-life-manager", "bot_token": "local-token", "chat_id": "local-chat"},
+                {"service": "telegram-cloud-life-manager", "bot_token": "cloud-token", "chat_id": "cloud-chat"},
+            ]}) + "\n", encoding="utf-8")
+            self.assertEqual(owner_report_cli.main(args), 0)
+
+        self.assertEqual(store.delivery_for(event["message_key"])["status"], "delivered")
+        from_env.assert_called_once_with(environ={
+            "TELEGRAM_BOT_TOKEN": "local-token",
+            "TELEGRAM_CHAT_ID": "local-chat",
+        })
+        client.send_text.assert_called_once()
 
     def test_send_text_uses_exact_local_credential_not_hosted_alias(self):
         import owner_report_cli

@@ -168,7 +168,7 @@ async function runDue(nowMs = Date.now(), env = process.env, provided = null) {
         results.push({ video_id: expected.video_id, window, state: "pending", reason: observation.reason || "source_delayed" });
         continue;
       }
-      results.push({ video_id: expected.video_id, window, state: "measured", telegram: await sendMetricSnapshot(observation, env, dataDir) });
+      results.push({ video_id: expected.video_id, window, state: "measured", telegram: await sendMetricSnapshot(observation, env, dataDir, observation.telegramCredentials) });
     }
     const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(nowMs)).map(({ type, value }) => [type, value])); const reportDay = `${parts.year}-${parts.month}-${parts.day}`;
     if (Number(parts.hour) > 17 || (Number(parts.hour) === 17 && Number(parts.minute) >= 30)) { const digest = persistDailyDigest({ dataDir, reportDay, observedAt: new Date(nowMs).toISOString(), expected }); results.push({ video_id: expected.video_id, window: "daily", state: digest.created ? "persisted" : "complete" }); }
