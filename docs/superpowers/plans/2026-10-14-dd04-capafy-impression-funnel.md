@@ -68,6 +68,8 @@
 - [x] Update the canonical spec with reviewed source-status behavior, local acceptance, and the current DD04 cursor; remove the duplicate schema-probe paragraph.
 - [x] Commit and push the implementation, regression tests, plan, and canonical spec to PR #7976 (`292fc86a90`).
 - [x] Obtain fresh read-only review of the correction; reviewer returned SHIP for source commit `292fc86a90`.
-- [ ] Pass exact-head CI and merge through the normal PR path.
-- [ ] Refresh capacity and owner state; after source merge and release preflight, apply only the existing `capafy-goal-monitor-hourly` owner through the immutable release path. Let its natural run produce a receipt with the new sidecar. Do not force-wake it or send a separate report.
+- [x] Pass exact-head CI on head `9acbd136888804678775083fe98fcdd72fbc6e60` (run `38484484101`, 11/11 jobs) and merge PR #7976 as `32077478452505a77969ea7ca23bf767ed022792`.
+- [x] Attempt the full immutable `origin/main` release cut. The preflight deferred with `disk_headroom_low` (`available_bytes=2225684480`, `required_bytes=2399420416`); current symlink stayed on release `28614ef51d8f5be0aa82c0967d4d8562ba7f14dc`, and target apply was not attempted.
+- [ ] Diagnose the unexplained capacity drop using fresh cleanup/inventory and active-writer evidence; preserve open/protected Codex state and Git objects. Retry the full cutter only when measured available bytes meet `2399420416` and the global release-cut lock is free, then cut a complete immutable release from latest main.
+- [ ] Recheck the owner is loaded-idle and apply only `capafy-goal-monitor-hourly` through the existing owner-locked `lm-loop apply --loaded-idle-only` path. Do not force-wake it or send a separate report.
 - [ ] Read the natural production receipt and verify the new impressions sidecar is present with fresh/unknown semantics, while the legacy financial verdict and provider attribution remain unchanged. Then close DD04 and advance the canonical cursor.
