@@ -8,6 +8,7 @@ import fcntl
 from functools import wraps
 import hashlib
 import json
+import math
 import os
 import pwd
 import re
@@ -42,6 +43,7 @@ PRIORITY_AGE_SECONDS = {
 }
 OCCURRENCE_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
 DEFAULT_HEARTBEAT_TIMEOUT_SECONDS = 300
+HEARTBEAT_FUTURE_SKEW_SECONDS = 60
 CONNECTOR_OBSERVATION_OWNER = "life-manager-connector-native"
 
 
@@ -704,14 +706,35 @@ def _heartbeat_timeout_seconds() -> int:
 def _heartbeat_expired(row: dict[str, object], now: float) -> bool:
     if row.get("phase") not in {"claimed", "running"}:
         return False
+    if "heartbeat_at" not in row and "heartbeat_timeout_seconds" not in row:
+        # Legacy claims without either field remain governed by process identity
+        # until heartbeat_durable upgrades them on their first renewal.
+        return False
     heartbeat_at = row.get("heartbeat_at")
     timeout = row.get("heartbeat_timeout_seconds", DEFAULT_HEARTBEAT_TIMEOUT_SECONDS)
+    try:
+        heartbeat_timestamp = float(heartbeat_at)
+        timeout_seconds = float(timeout)
+    except (OverflowError, TypeError, ValueError):
+        return True
     if (not isinstance(heartbeat_at, (int, float)) or isinstance(heartbeat_at, bool)
-            or not isinstance(timeout, (int, float)) or isinstance(timeout, bool)):
-        # Legacy claims have no heartbeat contract and remain governed by
-        # process identity until a compatible runner rewrites them.
+            or not math.isfinite(heartbeat_timestamp)
+            or type(timeout) is not int or not 1 <= timeout <= 3600):
+        return True
+    return (heartbeat_timestamp > now + HEARTBEAT_FUTURE_SKEW_SECONDS
+            or now - heartbeat_timestamp > timeout_seconds)
+
+
+def _heartbeat_timestamp_too_far_in_future(row: dict[str, object], now: float) -> bool:
+    heartbeat_at = row.get("heartbeat_at")
+    if not isinstance(heartbeat_at, (int, float)) or isinstance(heartbeat_at, bool):
         return False
-    return now - float(heartbeat_at) > float(timeout)
+    try:
+        timestamp = float(heartbeat_at)
+    except OverflowError:
+        return False
+    return (math.isfinite(timestamp)
+            and timestamp > now + HEARTBEAT_FUTURE_SKEW_SECONDS)
 
 
 def _record_occurrence(connection: sqlite3.Connection, occurrence_id: str,
@@ -1386,11 +1409,30 @@ def _heartbeat_claim_row(claim: Path) -> dict[str, object]:
     if not isinstance(value, dict):
         raise DurableHeartbeatFailure("claim_invalid")
     phase = value.get("phase", "claimed")
-    if (type(value.get("pid")) is not int or value["pid"] <= 0
+    version = value.get("version", 1)
+    if (type(version) is not int or version not in {1, 2}
+            or type(value.get("pid")) is not int or value["pid"] <= 0
             or not isinstance(value.get("process_start"), str)
             or not value["process_start"]
             or not isinstance(phase, str) or phase not in {"claimed", "running"}):
         raise DurableHeartbeatFailure("claim_invalid")
+    has_heartbeat_contract = (
+        "heartbeat_at" in value or "heartbeat_timeout_seconds" in value
+    )
+    if version == 2 or has_heartbeat_contract:
+        heartbeat_at = value.get("heartbeat_at")
+        try:
+            heartbeat_at_valid = (
+                isinstance(heartbeat_at, (int, float))
+                and not isinstance(heartbeat_at, bool)
+                and math.isfinite(heartbeat_at)
+            )
+        except OverflowError:
+            heartbeat_at_valid = False
+        timeout = value.get("heartbeat_timeout_seconds")
+        if (not heartbeat_at_valid or type(timeout) is not int
+                or not 1 <= timeout <= 3600):
+            raise DurableHeartbeatFailure("claim_invalid")
     return value
 
 
@@ -1412,9 +1454,14 @@ def heartbeat_durable(claim: Path, *, now: float | None = None) -> bool:
         current = _heartbeat_claim_row(claim)
         if not _controlled_by(current, os.getpid(), started):
             raise DurableHeartbeatFailure("claim_ownership_lost")
+        if _heartbeat_timestamp_too_far_in_future(current, instant):
+            raise DurableHeartbeatFailure("claim_invalid")
         if _heartbeat_expired(current, instant):
             raise DurableHeartbeatFailure("claim_expired")
-        atomic_json(claim, {**current, "heartbeat_at": instant})
+        renewed = {**current, "heartbeat_at": instant}
+        if "heartbeat_at" not in current and "heartbeat_timeout_seconds" not in current:
+            renewed["heartbeat_timeout_seconds"] = _heartbeat_timeout_seconds()
+        atomic_json(claim, renewed)
         return True
     finally:
         os.close(descriptor)

@@ -2661,9 +2661,34 @@ def test_heartbeat_updates_only_the_owned_claim(tmp_path, monkeypatch):
         "agent", "heartbeat-owner", admission_class="revenue")
     assert claim is not None and reason == "acquired"
 
-    assert admission.heartbeat_durable(claim, now=123) is True
-    assert json.loads(claim.read_text())["heartbeat_at"] == 123
+    now = json.loads(claim.read_text())["heartbeat_at"] + 1
+    assert admission.heartbeat_durable(claim, now=now) is True
+    assert json.loads(claim.read_text())["heartbeat_at"] == now
     admission.release_and_reserve(claim, reserve=False)
+
+
+@pytest.mark.parametrize("version", (None, 1))
+def test_legacy_claim_can_be_renewed_twice(tmp_path, monkeypatch, version):
+    isolated(tmp_path, monkeypatch)
+    claim = tmp_path / "owners" / "legacy-heartbeat.json"
+    claim.parent.mkdir()
+    row = {
+        "pid": os.getpid(),
+        "process_start": admission.process_start(os.getpid()),
+        "phase": "running",
+    }
+    if version is not None:
+        row["version"] = version
+    admission.atomic_json(claim, row)
+
+    assert admission.heartbeat_durable(claim, now=123) is True
+    first_renewal = json.loads(claim.read_text())
+    assert first_renewal["heartbeat_at"] == 123
+    assert first_renewal["heartbeat_timeout_seconds"] == (
+        admission.DEFAULT_HEARTBEAT_TIMEOUT_SECONDS
+    )
+    assert admission.heartbeat_durable(claim, now=124) is True
+    assert json.loads(claim.read_text())["heartbeat_at"] == 124
 
 
 @pytest.mark.parametrize("case,expected", (
@@ -2711,6 +2736,71 @@ def test_heartbeat_durable_reports_the_exact_claim_failure(
     else:
         with pytest.raises(RuntimeError, match=expected):
             admission.heartbeat_durable(claim, now=20)
+
+
+@pytest.mark.parametrize("heartbeat_at,timeout", (
+    ("malformed", 300),
+    (float("nan"), 300),
+    (float("inf"), 300),
+    (10 ** 1000, 300),
+    (81, 300),
+    (1e300, 300),
+    (10, "300"),
+    (10, True),
+    (10, 0),
+    (10, 1.5),
+    (10, 3601),
+))
+def test_v2_heartbeat_rejects_malformed_or_unbounded_expiry_metadata(
+        tmp_path, monkeypatch, heartbeat_at, timeout):
+    isolated(tmp_path, monkeypatch)
+    claim = tmp_path / "owners" / "heartbeat.json"
+    claim.parent.mkdir()
+    admission.atomic_json(claim, {
+        "version": 2, "pid": os.getpid(),
+        "process_start": admission.process_start(os.getpid()),
+        "phase": "running", "heartbeat_at": heartbeat_at,
+        "heartbeat_timeout_seconds": timeout,
+    })
+
+    with pytest.raises(RuntimeError, match="heartbeat_claim_invalid"):
+        admission.heartbeat_durable(claim, now=20)
+
+
+def test_v2_heartbeat_requires_expiry_metadata(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    claim = tmp_path / "owners" / "heartbeat.json"
+    claim.parent.mkdir()
+    admission.atomic_json(claim, {
+        "version": 2, "pid": os.getpid(),
+        "process_start": admission.process_start(os.getpid()),
+        "phase": "running",
+    })
+
+    with pytest.raises(RuntimeError, match="heartbeat_claim_invalid"):
+        admission.heartbeat_durable(claim, now=20)
+
+
+def test_heartbeat_accepts_future_timestamp_within_clock_skew(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    claim = tmp_path / "owners" / "heartbeat.json"
+    claim.parent.mkdir()
+    admission.atomic_json(claim, {
+        "version": 2, "pid": os.getpid(),
+        "process_start": admission.process_start(os.getpid()),
+        "phase": "running", "heartbeat_at": 80,
+        "heartbeat_timeout_seconds": 300,
+    })
+
+    assert admission.heartbeat_durable(claim, now=20) is True
+    assert json.loads(claim.read_text())["heartbeat_at"] == 20
+
+
+def test_far_future_timestamp_is_expired_for_capacity_reconciliation():
+    assert admission._heartbeat_expired({
+        "version": 2, "phase": "running", "heartbeat_at": 81,
+        "heartbeat_timeout_seconds": 300,
+    }, now=20)
 
 
 def test_browser_resource_class_has_independent_capacity(tmp_path, monkeypatch):
@@ -3561,7 +3651,8 @@ def test_heartbeat_durable_reports_busy_control_lock_as_transient(monkeypatch, t
     import pytest
     claim = tmp_path / "claim"
     claim.write_text(json.dumps({
-        "pid": os.getpid(), "process_start": "start", "phase": "running",
+        "version": 1, "pid": os.getpid(),
+        "process_start": "start", "phase": "running",
     }), encoding="utf-8")
     monkeypatch.setattr(admission, "process_start", lambda _pid: "start")
     monkeypatch.setattr(admission, "_controlled_by", lambda *_: True)

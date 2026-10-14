@@ -63,11 +63,37 @@ EXEC_GATE = Path(__file__).resolve().parents[1] / "host/exec_gate.py"
 SAFE_RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
 SAFE_EVENT_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
 SAFE_RESULT_HINT = re.compile(r"[a-z][a-z0-9_:-]{1,99}\Z")
+HEARTBEAT_SUBCAUSES = frozenset({
+    "resource_heartbeat_claim_missing",
+    "resource_heartbeat_claim_invalid",
+    "resource_heartbeat_process_identity_unavailable",
+    "resource_heartbeat_claim_ownership_lost",
+    "resource_heartbeat_claim_expired",
+    "resource_heartbeat_control_busy_timeout",
+    "resource_heartbeat_runtime_error",
+    "resource_heartbeat_oserror",
+    "resource_heartbeat_sqlite_error",
+    "resource_heartbeat_claim_not_renewed",
+    "resource_heartbeat_unknown",
+})
 ADMISSION_CONTROL_RETRY_ATTEMPTS = 8
 ADMISSION_CONTROL_RETRY_DELAY_SECONDS = 0.25
 HEARTBEAT_INTERVAL_SECONDS = 30.0
 # Stay under resource_admission.DEFAULT_HEARTBEAT_TIMEOUT_SECONDS (300s).
 HEARTBEAT_BUSY_TOLERANCE_SECONDS = 240.0
+
+
+def _valid_heartbeat_subcause(value: object) -> bool:
+    if not isinstance(value, str) or not SAFE_RUN_ID.fullmatch(value):
+        return False
+    if value in HEARTBEAT_SUBCAUSES:
+        return True
+    prefix = "resource_heartbeat_oserror_errno_"
+    if not value.startswith(prefix):
+        return False
+    digits = value[len(prefix):]
+    return bool(re.fullmatch(r"(?:0|[1-9][0-9]{0,4})", digits)
+                and int(digits) <= 65535)
 PRE_EFFECT_HINT_ENTRYPOINTS = frozenset({
     "apps/life-manager/scripts/ebook-distribute-daily.sh",
     "apps/life-manager/scripts/mobile-app",
@@ -789,7 +815,10 @@ def _heartbeat_loop(claim: Path, stop: threading.Event,
                     failure_reason: list[str] | None = None) -> None:
     def fail(reason: str) -> None:
         if failure_reason is not None:
-            failure_reason.append(reason)
+            failure_reason.append(
+                reason if _valid_heartbeat_subcause(reason)
+                else "resource_heartbeat_unknown"
+            )
         failed.set()
 
     last_ok = time.monotonic()
@@ -849,9 +878,7 @@ def _host_admission_heartbeat_subcause(path: Path, started_ns: int) -> str | Non
             or value.get("reason") != "resource_heartbeat_unavailable"):
         return None
     subcause = value.get("heartbeat_subcause")
-    return (subcause if isinstance(subcause, str)
-            and SAFE_RUN_ID.fullmatch(subcause)
-            and subcause.startswith("resource_heartbeat_") else None)
+    return subcause if _valid_heartbeat_subcause(subcause) else None
 
 
 def _proven_pre_effect_failure(path: Path) -> bool:
