@@ -759,6 +759,10 @@ class PrepublicationAdoptionTest(unittest.TestCase):
                 repair.mark_invoking(run, ledger, owner_pid=os.getpid())
             self.assertEqual(recovery_path.read_bytes(), recovery_bytes)
 
+    @unittest.skipUnless(
+        repair._quality_self_heal_orphan_occurrence_source() is not None,
+        "legacy recovery validation applies only to the source authorized by its pin",
+    )
     def test_owner_prompt_recovery_evidence_fails_closed(self):
         cases = {
             "live prior owner": self.make_owner_recovery_live_owner,
@@ -790,6 +794,10 @@ class PrepublicationAdoptionTest(unittest.TestCase):
                     "tracked-repair-owner-prompt-source-defect",
                 )
 
+    @unittest.skipUnless(
+        repair._quality_self_heal_orphan_occurrence_source() is not None,
+        "legacy recovery validation applies only to the source authorized by its pin",
+    )
     def test_owner_prompt_recovery_crash_boundaries_resume_without_rewrite(self):
         for checkpoint in (
             "after-prompt-create",
@@ -823,6 +831,10 @@ class PrepublicationAdoptionTest(unittest.TestCase):
                     self.assertEqual(path.read_bytes(), bytes_before)
                     self.assertEqual(path.stat().st_ino, inode_before)
 
+    @unittest.skipUnless(
+        repair._quality_self_heal_orphan_occurrence_source() is not None,
+        "legacy recovery validation applies only to the source authorized by its pin",
+    )
     def test_orphaned_owner_prompt_recovery_resumes_same_attempt(self):
         with tempfile.TemporaryDirectory() as tmp:
             run, _run_id, _prompt, ledger, _old = self.owner_recovery_fixture(Path(tmp))
@@ -853,6 +865,35 @@ class PrepublicationAdoptionTest(unittest.TestCase):
             for path, (body, inode) in before.items():
                 self.assertEqual(path.read_bytes(), body)
                 self.assertEqual(path.stat().st_ino, inode)
+
+    def test_current_source_cannot_rearm_historical_owner_recovery(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run, _run_id, _prompt, ledger, old_prompt = self.owner_recovery_fixture(
+                Path(tmp)
+            )
+            gates = run / "gates"
+            state_path = gates / "quality-repair-state.json"
+            source_receipt = gates / "quality-repair-source-recovery.json"
+            owner_prompt = (
+                gates / "quality-repair/epoch-1/prompts/owner-recovery-1.txt"
+            )
+            owner_receipt = gates / "quality-repair-owner-recovery.json"
+            before = {
+                path: path.read_bytes()
+                for path in (state_path, source_receipt, old_prompt)
+            }
+
+            decision = repair.plan(run, ledger)
+
+            self.assertEqual(decision["status"], "REFUSED")
+            with self.assertRaisesRegex(
+                repair.QualityRepairError, decision["reason"]
+            ):
+                repair.mark_invoking(run, ledger, owner_pid=os.getpid())
+            for path, body in before.items():
+                self.assertEqual(path.read_bytes(), body)
+            self.assertFalse(owner_prompt.exists())
+            self.assertFalse(owner_receipt.exists())
     def test_terminal_incomplete_editorial_repair_source_evidence_is_fail_closed(self):
         cases = {
             "wrong error": lambda run, evidence: (
@@ -897,6 +938,10 @@ class PrepublicationAdoptionTest(unittest.TestCase):
                 decision = repair.plan(run, ledger)
             self.assertEqual(decision["status"], "REFUSED")
 
+    @unittest.skipUnless(
+        repair._quality_self_heal_orphan_occurrence_source() is not None,
+        "legacy recovery validation applies only to the source authorized by its pin",
+    )
     def test_terminal_incomplete_owner_prompt_recovery_rearms_once(self):
         with tempfile.TemporaryDirectory() as tmp:
             run, run_id, prompt, ledger = self.fixture(Path(tmp))
