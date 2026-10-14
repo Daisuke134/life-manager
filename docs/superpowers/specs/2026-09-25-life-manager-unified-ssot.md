@@ -3935,37 +3935,39 @@ SNS ledgerは17回（ローカルpublished14／failed3）、最後の実投稿�
 同時にfactory run 18de01620d5a98a0-35902は16:30:23 JSTにruntime capでexit124となり、effect unknown / receiptなし。set-039のlocal ID 48289209はsubmit記録済みだがofficial status/feature placementは未確認。set-040はimages stageのまま17/40 candidatesで、item IDなし。factoryを手動restartせず、公式item readbackの自然終端を待つ。
 **So What:** latest official sales snapshotは39 IDs中28 zero/11 null、positive0。landing codeにLINE click eventはあるがlive count0。Instagramはsuspended page、TikTok account/postなし。priority/preflight source fixesはmainにmerged、runtime releaseはcapacity未達、distribution fence open。次はset-011 demo、TikTok ownerとの重複なしの連携、既存blogのnext eligible slotで1件のfree post。cleanupはsafe release capacityの補助作業に限定する。
 
-#### 5.L 配信進捗更新 — 2026-10-15 02:30 JST（base main `6fac4144`）
+#### 5.L 配信進捗更新 — 2026-10-15 03:03 JST（base main `39f1bf00`）
 
 **範囲:** 公式ストア掲載済み36商品を、既存素材と無料チャネルだけで販促する。新規スタンプ制作、有料広告・PR、購入依頼、ランキング操作は対象外。
 
 **現状と計測:**
 - 公開作者ページは36商品。10/14に確認した35商品の価格構成は21×¥250・14×¥190、追加商品 `37303664` は¥190。既存価格が変わっていなければ平均¥225。USD/JPYを仮に150と置くと月間購入者総額USD 10,000には約¥1,500,000、約6,667購入/月（222/日）が必要。これは規模算術で、予測・保証ではなく、分配や手取りとは別指標。
 - 記事台帳は23枠、公開19・失敗3・未完了1、公開SKUは19件。`/api/stats`の最新readback（updated_at 01:11 JST、集計期間不明）は全体402閲覧、LINE記事7 URLで計11閲覧、`line_sticker_click` なし。閲覧はクリック・購入の証拠ではない。
-- `sales.json` の最後に確認したsnapshotは10/15 00:28 JST、40商品中29件¥0・11件null・正値0。これはその時点の値で、最新の公式売上を示さない。reader occurrence `line-sticker-readback-hourly:18de71f25e321180-87661` は01:59:57 JSTに自然終了、exit 1、release `1d1c0127bca23eb344fb7a6fe388ffe907d4e72f`、`provider_receipt_id=null` / `official_readback_ref=null`。tracebackは`KeyError('motions')`と`KeyError('url')`を再現し、保存済み入力では`set-038`が40枚の静止画plan（`stickers`あり、`motions`なし）かつ`リジェクト`、`set-042/creators-item.json`が空object・商品IDなし。readerは現在loaded-idleで、公開済み商品を0売上に変換せず、商品生成も再申請もしない。
+- `sales.json` の最後に確認したsnapshotは10/15 00:28 JST、40商品中29件¥0・11件null・正値0。これはその時点の値で、最新の公式売上を示さない。reader occurrence `line-sticker-readback-hourly:18de753b056deaf0-36710`は02:41:43 JSTに自然終了、exit 1 / `KeyError('url')` / receiptなし。前回run `18de71f25e321180-87661`では`KeyError('motions')`も再現。保存済み入力では`set-038`が40枚の静止画plan（`stickers`あり、`motions`なし）かつ`リジェクト`、`set-042/creators-item.json`が空object・商品IDなし。PR #8066のreader修正はmainへ統合済み。03:03 JSTのfresh statusでは修正版release `cc3c5a7164f40a5f4d37338862d0869ce1a5201a`・`loaded-idle`、ただし最新terminalは旧releaseの失敗で新releaseのnatural readbackは未取得。次回予定は03:23 JST。売上は現在値不明であり0とは判定しない。
 - 10/14 19時slot `2026-10-14@19` は `set-033` / attempts=1のままURL・commitが未記録。occurrence `line-sticker-articles:18de5fc6eed722e0-22842` は19:50:10 JST開始、exit 75 / `effect_unknown`。Landing GitHubには対応slug `line-sticker-set-033-2026-10-14-19` が19:50:51 JST、commit `e9cb5ff995985544b475d504ddee76121e20d2fb` で追加され、公開URLも取得済み。CTA `https://line.me/S/sticker/37293554` は公式商品ページの「星くずカワウソの毎日【文字入り】 vol.7」¥190と一致する。
-- PR #8057は01:21 JSTにmainへmerge（merge SHA `d734d7cac3e08f869680aeb3d2592aa2a51a1d5f`）。PR #8059は01:37 JSTにmainへmerge（merge SHA `8b7e9d2976ea2a781680e90220b4436d9f7ea9e9`）。両PRの必須CIは全PASS。main-derived immutable release `c30c5527`は`~/loops/current`と対象ownerにloaded、origin/mainの祖先。
+- PR #8057は01:21 JSTにmainへmerge（merge SHA `d734d7cac3e08f869680aeb3d2592aa2a51a1d5f`）。PR #8059は01:37 JSTにmainへmerge（merge SHA `8b7e9d2976ea2a781680e90220b4436d9f7ea9e9`）。PR #8066は02:53 JSTにreader fixをmainへmerge（SHA `cc3c5a7164f40a5f4d37338862d0869ce1a5201a`）。全必須CI PASS。
 - current immutable releaseの登録済み`article_fence_reconcile.py`を01:38 JSTにread-onlyで再実行し、occurrence `line-sticker-articles:18de5fc6eed722e0-22842`は`verified=true` / `effected=true` / `PROOF_READY`。01:39 JSTの`--resolve`は`closed=true` / `ledger_recorded=true`で成功。公式readbackはGitHub landing commit `e9cb5ff995985544b475d504ddee76121e20d2fb`、URL `https://aniccaai.com/blog/line-sticker-set-033-2026-10-14-19`、CTA `https://line.me/S/sticker/37293554`。receipt refは`github:e9cb5ff995985544b475d504ddee76121e20d2fb|line-sticker-article:line-sticker-set-033-2026-10-14-19`、readback refは`github:17b3db5f05dee02737cf2f2a0d6f192bf8960d75:line-sticker-set-033-2026-10-14-19`。ledger slot `2026-10-14@19`は`set-033` / attempts 1 / status published。
 - target-only applyはexit 0 / changed true。install event `fa2aca1471991dd2a0cd0acb`、loaded argvとplistはimmutable release `c30c55275af5c950b478ca9600cd71748e2054f3`およびstate path `~/.local/state/life-manager/line-sticker-articles`に一致。fresh statusはloaded-idle、`admission_effect_unknown=false`、fenced occurrences 0。配信後の自然記事terminalはまだ未観測。
 - `line-sticker-articles`の次の自然run `18de743cb7932268-85643`は02:05 JSTにrelease `c30c5527`からexit 0 / passしたが、`provider_receipt_id` / `official_readback_ref`はnullで記事公開とは確認できない。registered adapterによるexact reconcileは`occurrence is not an effect_unknown row`を返した。GitHub landingのread-only window queryでは追加記事0件。再送せず、次のcontent slotは07:05 JST。
-- readerの次自然run `line-sticker-readback-hourly:18de71f25e321180-87661`は01:59:57 JSTにexit 1で終了し、`KeyError('motions')` / `KeyError('url')`、receiptなしを再現した。`lm-loop status`は02:23 JSTに`admission_database_locked`を返した。`lsof`はrelease-reconciler run `18de7535a3326348-36187`（release `353598df`, `effect_class=none`, phase=execute）をDB open ownerとして示す。ownerを停止せず、reader applyはDB lock解消後に行う。
+- `line-sticker-readback-hourly`は03:03 JSTのfresh statusで修正版release `cc3c5a7164f40a5f4d37338862d0869ce1a5201a`をloaded-idleで使用中。今回の作業からtarget applyは不要。`lsof`/`ps`では共有admission DBのopen handleを`life-manager-disk-cleanup` (PID 42649) と `aa-release-reconciler-handoff` (PID 42999) が保持していた。両ownerを止めず、これをDB lockとは断定しない。
+- `line-sticker-articles`はrelease-reconcilerのnatural applyでrelease `353598df`へ移行済み（02:58 status: loaded-idle / effect-unknown 0）が、新しい自然run `18de750de437a628-7206`にprovider receipt/readbackはなく、記事公開とは数えない。current pointer `cc3c5a71`、記事owner `353598df`。
 - SNS台帳は17試行（公開14・失敗3）、最終公開10/10。Instagram/ThreadsはCapafy provisioning identityに結び付いており使用しない。set-011 Shortは既存assetで9秒・1080×1920、UTM付き投稿文あり。Google `line_sticker_brand` accountは`pending_signup`。free signupは「スマートフォンでQRを読み取る」確認で止まり、account/postは未作成。browser leaseは解放済みだがstatusで新holderを観測したため再取得せず、ownerのQR確認を待つ。
 
 **残りの原子的TODO（現在cursor順）:**
 
-**順序更新（2026-10-15 02:30 JST）:** 旧順序は「reader fix後すぐapply→next article」。新順序は「PR #8066のexact-head CI/merge→release-reconcilerのnatural terminal後にhost admission DB unlockを確認→loaded-idle `line-sticker-readback-hourly`だけapply→次の自然readerでofficial status/sales→07:05の無料記事枠→QR確認後にexisting set-011 Short→同期間click/sales/distribution」。理由はreaderのfailing inputが特定・最小修正済みだが、host admission DBをrelease-reconcilerが使用中で、別ownerを止めずに適用する必要があるため。現在cursorはPR #8066 CI完了、続いてDB lock解消readback。スタンプ制作、有料施策、手動wakeなし。
+**順序更新（2026-10-15 03:03 JST）:** 旧順序は「修正版readerをtarget-only apply→03:23 natural run」。新順序は「(1) fresh statusで既にloaded済みの修正版readerを確認（再applyなし）→(2)03:23 JST natural readerの公式status/sales readback→(3)07:05 JSTの無料記事枠→(4)QR確認後に既存set-011 Short→(5)同期間click/sales/distribution」。理由は`lm-loop status`が修正版SHA `cc3c5a71`と`loaded-idle`を確認したため。現在cursorは03:23 JST natural reader。共有DBを開く別ownerは停止しない。
 
 | 順 | 作業 | 完了条件 |
 |---|---|---|
 | 1 | DONE: PR #8057/#8059 merge、immutable release `c30c5527`、exact `set-033` receipt/ledger/fence resolution | main commit `8b7e9d29`とrelease `c30c5527`の祖先関係、`closed=true`、receipt refs、ledger slotを記録 |
 | 2 | DONE: `line-sticker-articles`をrelease `c30c5527`へtarget-only apply | exit 0 / changed true、install event `fa2aca1471991dd2a0cd0acb`、loaded argv/manifest SHA/state path一致、status loaded-idle、unknown fence 0 |
-| 3 | DONE: source fix + regressions。PR #8066は必須CIを実行中 | `set-042`空placeholderはreadback対象外、static `set-038`のretagはbrowser acquire/re-requestなしの`cannot_fix`。RED→GREENのfocused tests、loop contract 191/191、source-boundary PASS |
-| 4 | **現在cursor:** PR #8066 merge後、release-reconcilerのnatural terminal/host DB unlockを待ち、`line-sticker-readback-hourly`だけloaded-idle-only apply | new loaded SHA/state path/install event一致。DB lock中は別ownerを止めない。次の自然readerで提出済み商品のofficial sales/status receiptを照合し、null/placeholderを0にしない |
-| 5 | 10/15 07:05 JSTの自然記事枠で未掲載の既存SKUを1件配信する | 公開URL・正確な公式商品CTA・台帳を照合。手動wakeや再公開なし |
-| 6 | QR確認完了後、既存set-011 Shortを専用Brand channelから無料配信する | account/channel identity、public permalink、UTM付き記事CTAを公式画面で確認。paid promotionなし |
-| 7 | article URL→view→`line_sticker_click`→公式販売→確定分配をSKU・channel・同一期間で結び、無料枠を実測winnerへ配る | crawler/self-viewを売上成果に数えず、クリック・販売・分配を分離する |
-| 8 | 既存SNS/短尺素材の無料配信を、許可された専用owner・公式readback・解決済みfenceの範囲で再開する | Capafy identityを使わず、effect_unknownの手動clear/再送なし |
-| 9 | 公式の一暦月gross、確定分配、返金、全制作/配信/税/為替/送金費を同期間で照合する | 初回正値売上、累計分配>確認済み累計費用、buyer gross USD 10,000を公式証拠で達成する |
+| 3 | DONE: PR #8066 mergeとimmutable release `cc3c5a71` cut | main merge SHA `cc3c5a7164f40a5f4d37338862d0869ce1a5201a`、release manifest SHA一致、origin/main ancestor |
+| 4 | DONE: `line-sticker-readback-hourly`が修正版release `cc3c5a71`をloaded-idleで使用中とfresh statusで確認（target-only apply不要） | installed release SHA `cc3c5a7164f40a5f4d37338862d0869ce1a5201a`、`admission_effect_unknown=false`。旧releaseの失敗terminalは履歴として保持 |
+| 5 | **現在cursor:** 次の自然`line-sticker-readback-hourly` run（予定03:23 JST）で提出済み商品と公式sales readbackを確認する | 新release occurrenceのterminalと公式readbackを確認し、40管理IDを照合する。非提出placeholderやnullを0にせず、browser ownerを奪わない |
+| 6 | 10/15 07:05 JSTの自然記事枠で未掲載の既存SKUを1件配信する | 公開URL・正確な公式商品CTA・台帳を照合。手動wakeや再公開なし |
+| 7 | QR確認完了後、既存set-011 Shortを専用Brand channelから無料配信する | official channel identity・public permalink・UTM付き記事CTAを確認。paid promotionなし |
+| 8 | article URL→view→`line_sticker_click`→公式販売→確定分配をSKU・channel・同一期間で結び、無料枠を実測winnerへ配る | crawler/self-viewを売上成果に数えず、クリック・販売・分配を分離する |
+| 9 | 既存SNS/短尺素材の無料配信を、許可された専用owner・公式readback・解決済みfenceの範囲で再開する | Capafy identityを使わず、effect_unknownの手動clear/再送なし |
+| 10 | 公式の一暦月gross、確定分配、返金、全制作/配信/税/為替/送金費を同期間で照合する | 初回正値売上、累計分配>確認済み累計費用、buyer gross USD 10,000を公式証拠で達成 |
 
 ## 6. 不変の制約
 
