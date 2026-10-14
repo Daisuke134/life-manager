@@ -130,10 +130,10 @@ def test_legitimate_noop_still_marks_child_and_parent_healthy(tmp_path: Path, po
     assert parent_healthy.exists()
 
 
-def _resume_block() -> str:
+def _retry_existing_stub_block() -> str:
     source = CHILD.read_text(encoding="utf-8")
-    start = 'RESUME="$(printf'
-    return _between(source, start, "\n# PUBLISHABLE →")
+    start = "retry_existing_stub_finish() {"
+    return _between(source, start, "\n}\n") + "\n}"
 
 
 def _run_retry_existing(
@@ -144,9 +144,16 @@ def _run_retry_existing(
     manifest_version: str = "2110426515594047488",
     remote_status: int = 0,
     remote_version: str = "2110426515594047488",
+    post_remote_status: int = 1,
+    post_remote_version: str | None = None,
+    remote_ok: bool = True,
+    post_remote_ok: bool = True,
     confirmed_skills: bool = True,
     confirmed_config_keys: bool = True,
     package_uploaded: bool = True,
+    post_confirmed_skills: bool = True,
+    post_confirmed_config_keys: bool = True,
+    post_package_uploaded: bool = True,
     model_result: str = "MODEL_MATCH deepseek/deepseek-v4.1-flash",
     retry_reason: str = "retry Capafy AI-generator stub draft on the same agent_id",
 ) -> tuple[subprocess.CompletedProcess[str], Path, Path, Path, Path]:
@@ -163,6 +170,7 @@ def _run_retry_existing(
     agent_id = "7393298474"
     version_id = "2110426515594047488"
     remote_version = remote_version or version_id
+    post_remote_version = post_remote_version or remote_version
     skill_dir = tmp_path / "catalog/tiktok-comment-reply-script-pack"
     skill_dir.mkdir(parents=True)
     skill = skill_dir / "SKILL.md"
@@ -181,12 +189,29 @@ def _run_retry_existing(
     (scripts / "check_hosted_model.py").write_text(
         'import os\nprint(os.environ["MODEL_RESULT"])\n', encoding="utf-8")
     (publisher / "packager.py").write_text(
-        "import json,sys\n"
+        "import json,os,sys\n"
+        "from pathlib import Path\n"
         "agent_id=sys.argv[sys.argv.index('--agent-id')+1]\n"
-        "print(json.dumps({'agent_id':agent_id,'latest_version':{"
-        f"'agent_id':agent_id,'agent_version_id':'{remote_version}',"
-        f"'platform_status':{remote_status},'is_confirmed_skills':{confirmed_skills},"
-        f"'is_confirmed_config_keys':{confirmed_config_keys},'package_uploaded':{package_uploaded},"
+        "calls_path=Path(os.environ['REMOTE_STATUS_CALLS'])\n"
+        "calls=int(calls_path.read_text()) if calls_path.exists() else 0\n"
+        "calls_path.write_text(str(calls+1))\n"
+        f"status={remote_status}\n"
+        f"version='{remote_version}'\n"
+        f"skills={confirmed_skills}\n"
+        f"config={confirmed_config_keys}\n"
+        f"package={package_uploaded}\n"
+        f"ok={remote_ok}\n"
+        "if calls > 0:\n"
+        f" status={post_remote_status}\n"
+        f" version='{post_remote_version}'\n"
+        f" skills={post_confirmed_skills}\n"
+        f" config={post_confirmed_config_keys}\n"
+        f" package={post_package_uploaded}\n"
+        f" ok={post_remote_ok}\n"
+        "print(json.dumps({'ok':ok,'agent_id':agent_id,'latest_version':{"
+        "'agent_id':agent_id,'agent_version_id':version,"
+        "'platform_status':status,'is_confirmed_skills':skills,"
+        "'is_confirmed_config_keys':config,'package_uploaded':package,"
         "'agent_type':'run_online'}}))\n",
         encoding="utf-8",
     )
@@ -221,6 +246,7 @@ def _run_retry_existing(
         f"export CAPAFY_PUBLISHER_STATE_HOME={shlex.quote(str(publisher_state))}",
         f"export CAPAFY_STATE_DIR={shlex.quote(str(capafy_state))}",
         f"export MODEL_RESULT={shlex.quote(model_result)}",
+        f"export REMOTE_STATUS_CALLS={shlex.quote(str(tmp_path / 'remote-status-calls'))}",
         "export LIFE_MANAGER_RUN_ID=test-run-123",
         "export LIFE_MANAGER_OCCURRENCE_ID=capafy-loop-daily:test-run-123",
         "export LIFE_MANAGER_RELEASE_SHA=" + ("a" * 40),
@@ -230,7 +256,10 @@ def _run_retry_existing(
         f"MARK={shlex.quote(str(marker))}",
         "TS=test",
         f"INV={shlex.quote(json.dumps(inventory))}",
-        _resume_block(),
+        f"RESUME={shlex.quote(chr(9).join((agent_id, skill_dir.name, str(listing), str(skill_dir), str(icon))))}",
+        "RETRY_EXISTING_STUB=1",
+        _retry_existing_stub_block(),
+        "retry_existing_stub_finish",
         "echo SHOULD_NOT_REACH_DETERMINISTIC_FINISH",
         "",
     ))
@@ -266,9 +295,61 @@ def test_retry_existing_finishes_the_exact_existing_agent_version(tmp_path: Path
     assert receipt["agent_id"] == "7393298474"
     assert receipt["agent_version_id"] == "2110426515594047488"
     assert receipt["platform_status"] == 1
+    assert receipt["action_key"] == "retry:7393298474"
+    assert receipt["cp3_attempt"] == 1
     assert receipt["is_confirmed_skills"] is True
     assert receipt["is_confirmed_config_keys"] is True
     assert receipt["package_uploaded"] is True
+    assert receipt["provider_receipt_id"] == (
+        "capafy:agent/7393298474/version/2110426515594047488:platform_status=1"
+    )
+    assert receipt["verified_at"].endswith("Z")
+
+
+@pytest.mark.parametrize(
+    ("post_remote_status", "post_remote_version", "post_package_uploaded"),
+    [(0, "2110426515594047488", True),
+     (1, "different-version", True),
+     (1, "2110426515594047488", False)],
+)
+def test_retry_existing_needs_exact_final_official_receipt_before_healthy_marker(
+    tmp_path: Path,
+    post_remote_status: int,
+    post_remote_version: str,
+    post_package_uploaded: bool,
+) -> None:
+    result, finish_log, marker, _, log = _run_retry_existing(
+        tmp_path,
+        post_remote_status=post_remote_status,
+        post_remote_version=post_remote_version,
+        post_package_uploaded=post_package_uploaded,
+    )
+
+    assert result.returncode == 1
+    assert finish_log.read_text(encoding="utf-8").count("7393298474 tiktok-comment-reply-script-pack") == 1
+    assert not marker.exists()
+    assert "CAPAFY_RETRY_FINISH_RECEIPT=" not in log.read_text(encoding="utf-8")
+    assert "SHOULD_NOT_REACH_DETERMINISTIC_FINISH" not in result.stdout
+
+
+def test_retry_existing_rejects_failed_preflight_readback(tmp_path: Path) -> None:
+    result, finish_log, marker, _, log = _run_retry_existing(tmp_path, remote_ok=False)
+
+    assert result.returncode == 1
+    assert not finish_log.exists()
+    assert not marker.exists()
+    assert "CAPAFY_RETRY_FINISH_RECEIPT=" not in log.read_text(encoding="utf-8")
+    assert "SHOULD_NOT_REACH_DETERMINISTIC_FINISH" not in result.stdout
+
+
+def test_retry_existing_rejects_failed_final_readback(tmp_path: Path) -> None:
+    result, finish_log, marker, _, log = _run_retry_existing(tmp_path, post_remote_ok=False)
+
+    assert result.returncode == 1
+    assert finish_log.read_text(encoding="utf-8").count("7393298474 tiktok-comment-reply-script-pack") == 1
+    assert not marker.exists()
+    assert "CAPAFY_RETRY_FINISH_RECEIPT=" not in log.read_text(encoding="utf-8")
+    assert "SHOULD_NOT_REACH_DETERMINISTIC_FINISH" not in result.stdout
 
 
 def test_retry_existing_finish_failure_does_not_fall_back_to_agentic_submit(

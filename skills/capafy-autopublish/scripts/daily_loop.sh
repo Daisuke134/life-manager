@@ -179,7 +179,8 @@ try:
         value=latest.get(key)
         return value is True or (type(value) is int and value == 1)
     status=latest.get("platform_status")
-    ready=(isinstance(latest,dict) and payload.get("agent_id") == expected_id
+    ready=(payload.get("ok") is True and isinstance(latest,dict)
+           and payload.get("agent_id") == expected_id
            and str(latest.get("agent_version_id") or "") == expected_version
            and type(status) is int and status == 0
            and latest.get("agent_type") == "run_online"
@@ -206,6 +207,65 @@ except (KeyError, TypeError, ValueError):
   echo "AGENT_VERSION_ID=$R_VERSION" >>"$LOG"
   echo "$TS retry_existing stub $R_ID version=$R_VERSION: official identity, CP1/upload, and model preflight passed" >>"$LOG"
   if bash "$AUTO/scripts/publish_finish.sh" "$R_ID" "$R_SKILL" "$R_LISTING" "$R_VERSION" >>"$LOG" 2>&1; then
+    if ! RETRY_FINAL_STATUS="$(cd "$AUTO/vendor/capafy-publisher" && \
+        CAPAFY_PUBLISH_WORK_DIR="${R_MANIFEST%/*}" \
+        python3 packager.py publish-remote-status --agent-id "$R_ID" 2>>"$LOG")"; then
+      echo "$TS retry_existing stub $R_ID version=$R_VERSION: final official readback failed; stop without healthy marker" >>"$LOG"
+      echo "=== $TS daily_loop done rc=1 (RETRY_EXISTING_READBACK_FAILED — marker NOT touched; no fallback) ===" >>"$LOG"
+      exit 1
+    fi
+    RETRY_FINISH_RECEIPT="$(printf '%s' "$RETRY_FINAL_STATUS" | \
+      EXPECTED_AGENT_ID="$R_ID" EXPECTED_AGENT_VERSION_ID="$R_VERSION" \
+      LIFE_MANAGER_RUN_ID="${LIFE_MANAGER_RUN_ID:-}" \
+      LIFE_MANAGER_OCCURRENCE_ID="${LIFE_MANAGER_OCCURRENCE_ID:-}" \
+      LIFE_MANAGER_RELEASE_SHA="${LIFE_MANAGER_RELEASE_SHA:-}" python3 -c 'import datetime,json,os,re,sys
+try:
+    payload=json.loads(sys.stdin.read(), strict=False)
+    latest=payload.get("latest_version")
+    agent_id=os.environ["EXPECTED_AGENT_ID"]
+    version_id=os.environ["EXPECTED_AGENT_VERSION_ID"]
+    run_id=os.environ["LIFE_MANAGER_RUN_ID"]
+    occurrence_id=os.environ["LIFE_MANAGER_OCCURRENCE_ID"]
+    release_sha=os.environ["LIFE_MANAGER_RELEASE_SHA"]
+    def confirmed(key):
+        value=latest.get(key)
+        return value is True or (type(value) is int and value == 1)
+    status=latest.get("platform_status") if isinstance(latest,dict) else None
+    ready=(payload.get("ok") is True and isinstance(latest,dict)
+           and payload.get("agent_id") == agent_id
+           and str(latest.get("agent_id") or "") == agent_id
+           and str(latest.get("agent_version_id") or "") == version_id
+           and type(status) is int and status == 1
+           and latest.get("agent_type") == "run_online"
+           and all(confirmed(key) for key in (
+               "is_confirmed_skills", "is_confirmed_config_keys", "package_uploaded"))
+           and bool(run_id) and occurrence_id == f"capafy-loop-daily:{run_id}"
+           and re.fullmatch(r"[0-9a-f]{40}", release_sha))
+    if not ready:
+        raise ValueError("official final receipt did not match the exact run/Agent/version/status")
+    receipt={
+        "event":"capafy_retry_existing_finish", "owner_id":"capafy-loop-daily",
+        "run_id":run_id, "occurrence_id":occurrence_id, "release_sha":release_sha,
+        "action_key":f"retry:{agent_id}", "agent_id":agent_id,
+        "agent_version_id":version_id, "cp3_attempt":1, "platform_status":1,
+        "is_confirmed_skills":confirmed("is_confirmed_skills"),
+        "is_confirmed_config_keys":confirmed("is_confirmed_config_keys"),
+        "package_uploaded":confirmed("package_uploaded"),
+        "provider_receipt_id":f"capafy:agent/{agent_id}/version/{version_id}:platform_status=1",
+        "verified_at":datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds").replace("+00:00","Z"),
+    }
+    print("CAPAFY_RETRY_FINISH_RECEIPT="+json.dumps(receipt,sort_keys=True,separators=(",",":")))
+except (KeyError, TypeError, ValueError):
+    raise SystemExit(1)')" || RETRY_FINISH_RECEIPT=""
+    if [ -z "$RETRY_FINISH_RECEIPT" ]; then
+      echo "$TS retry_existing stub $R_ID version=$R_VERSION: final official receipt mismatch; stop without healthy marker" >>"$LOG"
+      echo "=== $TS daily_loop done rc=1 (RETRY_EXISTING_READBACK_FAILED — marker NOT touched; no fallback) ===" >>"$LOG"
+      exit 1
+    fi
+    if ! printf '%s\n' "$RETRY_FINISH_RECEIPT" >>"$LOG"; then
+      echo "=== $TS daily_loop done rc=1 (RETRY_EXISTING_RECEIPT_WRITE_FAILED — marker NOT touched; no fallback) ===" >>"$LOG"
+      exit 1
+    fi
     touch "$MARK"; echo 0 > "$CAPAFY_STATE_DIR/.maxturns-streak"
     echo "=== $TS daily_loop done rc=0 (SUBMITTED — $R_ID finished CP2/CP3 after prepare; RETRY_EXISTING version=$R_VERSION; no LLM spend) ===" >>"$LOG"
     exit 0

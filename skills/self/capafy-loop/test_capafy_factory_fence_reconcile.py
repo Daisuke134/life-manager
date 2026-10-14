@@ -1018,18 +1018,22 @@ def test_occurrence_bound_partial_retry_upload_closes_as_effected(tmp_path, monk
     assert closed_calls[0][2]["platform_status"] == 0
 
 
+@pytest.mark.parametrize("snapshot_agent_missing", [False, True])
 def test_deterministic_retry_finish_receipt_closes_same_version_after_status_one(
-    tmp_path, monkeypatch,
+    tmp_path, monkeypatch, snapshot_agent_missing,
 ):
     agent_id = "7393298474"
     version_id = "2110426515594047488"
     release_sha = "c" * 40
     parent_run_id = OCCURRENCE.split(":", 1)[1]
     checked_at = QUEUED_AT + dt.timedelta(seconds=25)
+    snapshot_versions = {agent_id: version_id}
+    if snapshot_agent_missing:
+        snapshot_versions["5555555555"] = "other-version"
     snapshot = {
         "schema_version": 1, "owner_id": OWNER, "occurrence_id": OCCURRENCE, "ok": True,
         "captured_at": (QUEUED_AT + dt.timedelta(seconds=2)).isoformat(),
-        "agent_count": 1, "latest_versions": {agent_id: version_id},
+        "agent_count": len(snapshot_versions), "latest_versions": snapshot_versions,
     }
     current_agents = [{
         "agent_id": agent_id,
@@ -1044,6 +1048,7 @@ def test_deterministic_retry_finish_receipt_closes_same_version_after_status_one
         "agent_version_id": version_id, "cp3_attempt": 1,
         "platform_status": 1, "is_confirmed_skills": True,
         "is_confirmed_config_keys": True, "package_uploaded": True,
+        "provider_receipt_id": f"capafy:agent/{agent_id}/version/{version_id}:platform_status=1",
         "verified_at": checked_at.isoformat(),
     }
     stamp = (QUEUED_AT + dt.timedelta(seconds=5)).astimezone().strftime("%Y-%m-%d %H:%M:%S")
@@ -1112,6 +1117,13 @@ def test_deterministic_retry_finish_receipt_closes_same_version_after_status_one
         run_finished_fn=lambda occurrence, queued: True,
         resolve=True,
     )
+
+    if snapshot_agent_missing:
+        assert result["verified"] is False
+        assert result["reason"] == "same_version_updated_after_queued_at"
+        assert closed_calls == []
+        assert not (tmp_path / "reconciliation-evidence").exists()
+        return
 
     assert result["verified"] is True
     assert result["effected"] is True

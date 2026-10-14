@@ -536,6 +536,28 @@ def find_hit(agents: list[dict[str, Any]], snapshot: dict[str, Any] | None,
     return None
 
 
+def _snapshot_matches_agent_set(snapshot: dict[str, Any], agents: list[dict[str, Any]]) -> bool:
+    prior_versions = snapshot.get("latest_versions")
+    snapshot_count = snapshot.get("agent_count")
+    if not isinstance(prior_versions, dict) or type(snapshot_count) is not int:
+        return False
+    snapshot_ids = list(prior_versions)
+    current_ids = []
+    for row in agents:
+        if not isinstance(row, Mapping):
+            return False
+        agent_id = str(row.get("agent_id") or "").strip()
+        if not agent_id:
+            return False
+        current_ids.append(agent_id)
+    return (
+        all(isinstance(agent_id, str) and agent_id for agent_id in snapshot_ids)
+        and len(current_ids) == snapshot_count == len(snapshot_ids)
+        and len(set(current_ids)) == len(current_ids)
+        and set(current_ids) == set(snapshot_ids)
+    )
+
+
 def read_occurrence_bound_partial_effect_receipt(
     occurrence_id: str,
     queued_at: dt.datetime,
@@ -561,20 +583,8 @@ def read_occurrence_bound_partial_effect_receipt(
     if not isinstance(prior_versions, dict):
         return None
     snapshot_at = _parse_updated_at(snapshot.get("captured_at"))
-    if snapshot_at is None or snapshot_at < queued_at - dt.timedelta(seconds=5):
-        return None
-    snapshot_ids = list(prior_versions)
-    current_ids = [str(row.get("agent_id") or "").strip()
-                   for row in agents if isinstance(row, Mapping)]
-    snapshot_count = snapshot.get("agent_count")
-    if (len(current_ids) != len(agents)
-            or any(not agent_id for agent_id in current_ids)
-            or len(set(current_ids)) != len(current_ids)
-            or any(not isinstance(agent_id, str) or not agent_id for agent_id in snapshot_ids)
-            or type(snapshot_count) is not int
-            or snapshot_count != len(snapshot_ids)
-            or len(agents) != snapshot_count
-            or set(current_ids) != set(snapshot_ids)):
+    if (snapshot_at is None or snapshot_at < queued_at - dt.timedelta(seconds=5)
+            or not _snapshot_matches_agent_set(snapshot, agents)):
         return None
 
     event_raw = _read_user_file(event_log)
@@ -777,6 +787,7 @@ def read_occurrence_bound_partial_effect_receipt(
         return None
 
     return {
+        "receipt_kind": "partial_effect",
         "agent_id": agent_id,
         "agent_version_id": prior_version,
         "updated_at": updated_at.isoformat(timespec="seconds"),
@@ -818,7 +829,8 @@ def read_occurrence_bound_deterministic_retry_finish_receipt(
             or not isinstance(snapshot.get("latest_versions"), dict)):
         return None
     snapshot_at = _parse_updated_at(snapshot.get("captured_at"))
-    if snapshot_at is None or snapshot_at < queued_at - dt.timedelta(seconds=5):
+    if (snapshot_at is None or snapshot_at < queued_at - dt.timedelta(seconds=5)
+            or not _snapshot_matches_agent_set(snapshot, agents)):
         return None
 
     event_raw = _read_user_file(event_log)
@@ -977,194 +989,6 @@ def read_occurrence_bound_deterministic_retry_finish_receipt(
     }
 
 
-def read_occurrence_bound_deterministic_retry_finish_receipt(
-    occurrence_id: str,
-    queued_at: dt.datetime,
-    window_end: dt.datetime,
-    snapshot: dict[str, Any] | None,
-    agents: list[dict[str, Any]],
-    *,
-    publisher_log: Path | None = None,
-    event_log: Path | None = None,
-) -> dict[str, Any] | None:
-    """Bind a successful deterministic retry_existing CP3 finish to its parent run."""
-    publisher_log = publisher_log or CAPAFY_DAILY_LOOP_LOG
-    event_log = event_log or RUNTIME_EVENT_LOG
-    if (not occurrence_id.startswith(f"{OWNER_ID}:")
-            or not isinstance(snapshot, dict) or snapshot.get("ok") is not True
-            or snapshot.get("owner_id") != OWNER_ID
-            or snapshot.get("occurrence_id") != occurrence_id
-            or not isinstance(snapshot.get("latest_versions"), dict)):
-        return None
-    snapshot_at = _parse_updated_at(snapshot.get("captured_at"))
-    if snapshot_at is None or snapshot_at < queued_at - dt.timedelta(seconds=5):
-        return None
-    event_raw = _read_user_file(event_log)
-    log_raw = _read_user_file(publisher_log)
-    if event_raw is None or log_raw is None:
-        return None
-    try:
-        event_rows = [(json.loads(line), line) for line in event_raw.decode("utf-8").splitlines()
-                      if occurrence_id in line]
-        log_lines = log_raw.decode("utf-8").splitlines()
-    except (UnicodeDecodeError, ValueError):
-        return None
-
-    parent_run_id = occurrence_id.rsplit(":", 1)[-1]
-    parent_events = [(row, line) for row, line in event_rows
-                     if isinstance(row, dict) and row.get("owner_id") == OWNER_ID
-                     and row.get("job_id") == OWNER_ID and row.get("run_id") == parent_run_id
-                     and row.get("occurrence_id") == occurrence_id
-                     and row.get("effect_class") == "publish"]
-    starts = [(row, line) for row, line in parent_events
-              if row.get("phase") == "execute" and row.get("status") == "running"
-              and row.get("effect_status") == "started"]
-    terminals = [(row, line) for row, line in parent_events
-                 if row.get("phase") == "report" and row.get("status") == "pass"
-                 and row.get("effect_status") == "unknown"
-                 and type(row.get("exit_code")) is int and row["exit_code"] == 0]
-    if len(starts) != 1 or len(terminals) != 1:
-        return None
-    start, start_line = starts[0]
-    terminal, terminal_line = terminals[0]
-    release_sha = start.get("release_sha")
-    start_at = _parse_updated_at(start.get("timestamp"))
-    terminal_at = _parse_updated_at(terminal.get("timestamp"))
-    if (not isinstance(release_sha, str) or not re.fullmatch(r"[0-9a-f]{40}", release_sha)
-            or terminal.get("release_sha") != release_sha or start_at is None or terminal_at is None
-            or start_at < queued_at - dt.timedelta(seconds=5)
-            or start_at > queued_at + dt.timedelta(seconds=30)
-            or terminal_at < start_at or terminal_at > window_end):
-        return None
-
-    receipt_prefix = "CAPAFY_RETRY_FINISH_RECEIPT="
-    bound_receipts = []
-    for index, line in enumerate(log_lines):
-        if not line.startswith(receipt_prefix):
-            continue
-        try:
-            payload = json.loads(line[len(receipt_prefix):])
-        except ValueError:
-            continue
-        if (isinstance(payload, dict) and payload.get("owner_id") == OWNER_ID
-                and payload.get("run_id") == parent_run_id
-                and payload.get("occurrence_id") == occurrence_id):
-            bound_receipts.append((index, line, payload))
-    if len(bound_receipts) != 1:
-        return None
-    receipt_index, receipt_line, receipt = bound_receipts[0]
-    agent_id = receipt.get("agent_id")
-    version_id = receipt.get("agent_version_id")
-    checked_at = _parse_updated_at(receipt.get("verified_at"))
-    receipt_id = f"capafy:agent/{agent_id}/version/{version_id}:platform_status=1"
-    if (receipt.get("event") != "capafy_retry_existing_finish"
-            or receipt.get("release_sha") != release_sha
-            or not isinstance(agent_id, str) or not re.fullmatch(r"[0-9]+", agent_id)
-            or not isinstance(version_id, str) or not version_id
-            or receipt.get("action_key") != f"retry:{agent_id}"
-            or type(receipt.get("cp3_attempt")) is not int or receipt["cp3_attempt"] != 1
-            or type(receipt.get("platform_status")) is not int or receipt["platform_status"] != 1
-            or receipt.get("is_confirmed_skills") is not True
-            or receipt.get("is_confirmed_config_keys") is not True
-            or receipt.get("package_uploaded") is not True
-            or receipt.get("provider_receipt_id") != receipt_id
-            or checked_at is None or checked_at < start_at or checked_at > terminal_at):
-        return None
-
-    start_index = next((index for index in range(receipt_index - 1, -1, -1)
-                        if log_lines[index].startswith("=== ")
-                        and log_lines[index].endswith(" daily_loop start ===")), None)
-    end_index = next((index for index in range(receipt_index + 1, len(log_lines))
-                      if log_lines[index].startswith("===")
-                      and " daily_loop done rc=" in log_lines[index]), None)
-    if start_index is None or end_index is None:
-        return None
-    start_stamp = log_lines[start_index][4:-len(" daily_loop start ===")]
-    end_stamp = log_lines[end_index][4:].split(" daily_loop done rc=", 1)[0]
-    if start_stamp != end_stamp:
-        return None
-    publisher_started = _parse_daily_loop_timestamp(start_stamp)
-    if publisher_started is None or publisher_started < start_at or publisher_started > checked_at:
-        return None
-    block = log_lines[start_index:end_index + 1]
-    if (\"daily_loop done rc=0\" not in log_lines[end_index]
-            or f\"SUBMITTED — {agent_id} finished CP2/CP3 after prepare\" not in log_lines[end_index]):
-        return None
-    if [line[9:] for line in block if line.startswith(\"AGENT_ID=\")] != [agent_id]:
-        return None
-    if [line[17:] for line in block if line.startswith(\"AGENT_VERSION_ID=\")] != [version_id]:
-        return None
-    attempts = [re.fullmatch(r\"CP3 submit attempt (\\d+)\", line) for line in block
-                if line.startswith(\"CP3 submit attempt \")]
-    if len(attempts) != 1 or attempts[0] is None or attempts[0].group(1) != \"1\":
-        return None
-    verification_pattern = re.compile(
-        r\"platform_status=(\\d+)\\s+skills=(\\d+)\\s+cfg=(\\d+)\\s+package_uploaded=(\\d+)\\s+audit=(\\d+)(?:\\s|$)\"
-    )
-    verifications = [verification_pattern.search(line) for line in block]
-    verifications = [match for match in verifications if match is not None]
-    ledger = [index for index, line in enumerate(block) if line == f\"ledger appended {agent_id}\"]
-    if (len(verifications) != 1 or any(value != \"1\" for value in verifications[0].groups())
-            or len(ledger) != 1 or verifications[0].start() < 0):
-        return None
-    if not any(f\"PUBLISHED + VERIFIED: agent_id={agent_id} \" in line
-               and \"status=1 under review\" in line for line in block):
-        return None
-    inventory_rows = []
-    for line in block:
-        if \" inventory verdict=\" not in line or \" :: \" not in line:
-            continue
-        try:
-            inventory_rows.append(json.loads(line.split(\" :: \", 1)[1]))
-        except ValueError:
-            continue
-    if len(inventory_rows) != 1:
-        return None
-    inventory = inventory_rows[0]
-    if (not isinstance(inventory, dict) or inventory.get(\"action\") != \"retry_existing\"
-            or inventory.get(\"action_key\") != f\"retry:{agent_id}\"
-            or str((inventory.get(\"item\") or {}).get(\"agent_id\")) != agent_id):
-        return None
-
-    prior_versions = snapshot.get(\"latest_versions\") or {}
-    if prior_versions.get(agent_id) != version_id:
-        return None
-    matches = [row for row in agents if str(row.get(\"agent_id\")) == agent_id]
-    if len(matches) != 1 or str(matches[0].get(\"latest_agent_version_id\") or \"\") != version_id:
-        return None
-    updated_at = _parse_updated_at(matches[0].get(\"updated_at\"))
-    if updated_at is None or updated_at < start_at or updated_at > terminal_at:
-        return None
-    changed_same_version = []
-    for row in agents:
-        row_id = str(row.get(\"agent_id\") or \"\")
-        if prior_versions.get(row_id) != row.get(\"latest_agent_version_id\"):
-            return None
-        row_updated = _parse_updated_at(row.get(\"updated_at\"))
-        if row_updated is None or row_updated > window_end:
-            return None
-        if queued_at <= row_updated <= window_end:
-            changed_same_version.append(row_id)
-    if changed_same_version != [agent_id]:
-        return None
-    return {
-        \"receipt_kind\": \"deterministic_retry_finish\",
-        \"owner_id\": OWNER_ID, \"occurrence_id\": occurrence_id,
-        \"parent_run_id\": parent_run_id, \"parent_release_sha\": release_sha,
-        \"parent_terminal_at\": terminal_at.isoformat(timespec=\"seconds\"),
-        \"parent_event_sha256\": hashlib.sha256(
-            (start_line + \"\\n\" + terminal_line + \"\\n\").encode(\"utf-8\")
-        ).hexdigest(),
-        \"agent_id\": agent_id, \"agent_version_id\": version_id,
-        \"updated_at\": updated_at.isoformat(timespec=\"seconds\"),
-        \"verified_at\": checked_at.isoformat(timespec=\"seconds\"),
-        \"receipt_line_sha256\": hashlib.sha256(receipt_line.encode(\"utf-8\")).hexdigest(),
-        \"publisher_log_block_sha256\": hashlib.sha256(
-            (\"\\n\".join(block) + \"\\n\").encode(\"utf-8\")
-        ).hexdigest(),
-    }
-
-
 def _append_evidence(evidence_dir: Path, occurrence_id: str, payload: dict[str, Any]) -> Path:
     path = evidence_dir / f"{OWNER_ID}-{_safe_occurrence(occurrence_id)}.json"
     _atomic_write_json(path, payload)
@@ -1221,6 +1045,52 @@ def reconcile(
                     else:
                         bound_receipt = None
         if bound_receipt is None and str(exc) == "same_version_updated_after_queued_at":
+            age_seconds = (now - queued_at).total_seconds()
+            finished = (run_finished_fn or run_finished)(occurrence_id, queued_at) \
+                if age_seconds > FINISHED_RUN_MIN_AGE_SECONDS else False
+            deterministic_receipt = (
+                read_occurrence_bound_deterministic_retry_finish_receipt(
+                    occurrence_id, queued_at, window_end, snapshot, agents,
+                ) if finished else None
+            )
+            if deterministic_receipt is not None:
+                candidate_id = deterministic_receipt["agent_id"]
+                matches = [row for row in agents
+                           if str(row.get("agent_id")) == candidate_id
+                           and str(row.get("latest_agent_version_id") or "")
+                           == deterministic_receipt["agent_version_id"]]
+                if len(matches) != 1:
+                    deterministic_receipt = None
+                else:
+                    remote = read_remote_status_fn(candidate_id)
+                    flags_confirmed = all(
+                        remote.get(field) is True
+                        or (type(remote.get(field)) is int and remote.get(field) == 1)
+                        for field in (
+                            "is_confirmed_skills",
+                            "is_confirmed_config_keys",
+                            "package_uploaded",
+                        )
+                    )
+                    if (remote.get("ok") is not True
+                            or remote.get("agent_version_id")
+                            != deterministic_receipt["agent_version_id"]
+                            or type(remote.get("platform_status")) is not int
+                            or remote.get("platform_status") != 1
+                            or remote.get("agent_type") != "run_online"
+                            or not flags_confirmed):
+                        return {
+                            "owner_id": OWNER_ID, "occurrence_id": occurrence_id,
+                            "verified": False,
+                            "reason": "deterministic_retry_official_status_mismatch",
+                            "error_class": "ambiguous_provider_readback",
+                            "admission_state": state,
+                        }
+                    hit = matches[0]
+                    same_version_remote_status = remote
+                    same_version_update = deterministic_receipt
+        if (bound_receipt is None and same_version_update is None
+                and str(exc) == "same_version_updated_after_queued_at"):
             age_seconds = (now - queued_at).total_seconds()
             finished = (run_finished_fn or run_finished)(occurrence_id, queued_at) \
                 if age_seconds > FINISHED_RUN_MIN_AGE_SECONDS else False
@@ -1307,6 +1177,30 @@ def reconcile(
                 "publish_list_sha256": publish_list.get("sha256"), "verdict": "effected",
             }
             evidence_ref = str(_append_evidence(evidence_dir, occurrence_id, evidence))
+        elif (same_version_update is not None
+              and same_version_update.get("receipt_kind") == "deterministic_retry_finish"):
+            evidence = {
+                "owner_id": OWNER_ID, "occurrence_id": occurrence_id,
+                "checked_at": now.isoformat(timespec="seconds"),
+                "source": "occurrence-bound deterministic retry_existing receipt plus official status",
+                "parent_run_id": same_version_update["parent_run_id"],
+                "parent_release_sha": same_version_update["parent_release_sha"],
+                "parent_event_sha256": same_version_update["parent_event_sha256"],
+                "parent_terminal_at": same_version_update["parent_terminal_at"],
+                "receipt_line_sha256": same_version_update["receipt_line_sha256"],
+                "publisher_log_block_sha256": same_version_update["publisher_log_block_sha256"],
+                "agent_id": agent_id, "agent_version_id": str(version_id),
+                "updated_at": same_version_update["updated_at"],
+                "verified_at": same_version_update["verified_at"],
+                "platform_status": platform_status,
+                "audit_status": remote_status.get("audit_status"),
+                "is_confirmed_skills": remote_status.get("is_confirmed_skills"),
+                "is_confirmed_config_keys": remote_status.get("is_confirmed_config_keys"),
+                "package_uploaded": remote_status.get("package_uploaded"),
+                "publish_list_sha256": publish_list.get("sha256"),
+                "verdict": "deterministic_retry_finish_confirmed",
+            }
+            evidence_ref = str(_append_evidence(evidence_dir, occurrence_id, evidence))
         elif same_version_update is not None:
             evidence = {
                 "owner_id": OWNER_ID, "occurrence_id": occurrence_id,
@@ -1335,13 +1229,17 @@ def reconcile(
             }
             evidence_ref = str(_append_evidence(evidence_dir, occurrence_id, evidence))
         receipt = f"capafy:agent/{agent_id}/version/{version_id}:platform_status={platform_status}"
-        if same_version_update is not None:
+        if (same_version_update is not None
+                and same_version_update.get("receipt_kind") == "partial_effect"):
             receipt += ":package_uploaded=1"
         proof = {
             "owner_id": OWNER_ID, "occurrence_id": occurrence_id, "verified": True,
             "effected": True, "provider_receipt_id": receipt,
             "proof_kind": ("occurrence_bound_capafy_cp3_and_remote_status"
                            if bound_receipt is not None else
+                           "occurrence_bound_capafy_deterministic_retry_finish"
+                           if (same_version_update is not None
+                               and same_version_update.get("receipt_kind") == "deterministic_retry_finish") else
                            "occurrence_bound_capafy_partial_package_upload"
                            if same_version_update is not None else
                            "official_capafy_publish_list_and_remote_status"),
@@ -1351,6 +1249,15 @@ def reconcile(
             proof.update({
                 "official_readback_ref": receipt, "child_run_id": bound_receipt["child_run_id"],
                 "parent_release_sha": bound_receipt["parent_release_sha"],
+                "agent_id": agent_id, "agent_version_id": version_id,
+                "platform_status": platform_status, "evidence_ref": evidence_ref,
+            })
+        elif (same_version_update is not None
+              and same_version_update.get("receipt_kind") == "deterministic_retry_finish"):
+            proof.update({
+                "official_readback_ref": receipt, "run_id": same_version_update["parent_run_id"],
+                "parent_release_sha": same_version_update["parent_release_sha"],
+                "receipt_line_sha256": same_version_update["receipt_line_sha256"],
                 "agent_id": agent_id, "agent_version_id": version_id,
                 "platform_status": platform_status, "evidence_ref": evidence_ref,
             })
