@@ -1,7 +1,10 @@
 import datetime as dt
 import json
+import os
 import sys
+import types
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import capafy_distribute_fence_reconcile as rec  # noqa: E402
@@ -276,3 +279,184 @@ def test_postiz_key_rejects_ambiguous_or_malformed_ssot(tmp_path, monkeypatch):
     assert rec.postiz_key(path) == ""
     path.write_text("not-json")
     assert rec.postiz_key(path) == ""
+
+
+def test_postiz_window_at_proof_row_cap_is_not_complete_evidence(monkeypatch):
+    class CappedClient:
+        def __init__(self, _api_key):
+            pass
+
+        def list_posts(self, _start, _end):
+            return [{"id": f"post-{index}", "integration": {"id": rec.X_INTEGRATION_ID}}
+                    for index in range(500)]
+
+    fake_adapter = types.ModuleType("postiz_adapter")
+    fake_adapter.HttpPostizClient = CappedClient
+    monkeypatch.setattr(rec, "postiz_key", lambda: "test-key")
+    monkeypatch.setitem(sys.modules, "postiz_adapter", fake_adapter)
+
+    result = rec.read_x_posts(Q, Q + dt.timedelta(minutes=70))
+
+    assert result == {"ok": False, "reason": "postiz_listing_exceeds_proof_row_cap"}
+
+
+def test_postiz_window_with_missing_integration_is_not_complete_evidence(monkeypatch):
+    class MissingIntegrationClient:
+        def __init__(self, _api_key):
+            pass
+
+        def list_posts(self, _start, _end):
+            return [{"id": "post-1"}]
+
+    fake_adapter = types.ModuleType("postiz_adapter")
+    fake_adapter.HttpPostizClient = MissingIntegrationClient
+    monkeypatch.setattr(rec, "postiz_key", lambda: "test-key")
+    monkeypatch.setitem(sys.modules, "postiz_adapter", fake_adapter)
+
+    result = rec.read_x_posts(Q, Q + dt.timedelta(minutes=70))
+
+    assert result == {"ok": False, "reason": "postiz_readback_malformed"}
+
+
+def test_postiz_window_with_malformed_integration_is_not_complete_evidence(monkeypatch):
+    class MalformedIntegrationClient:
+        def __init__(self, _api_key):
+            pass
+
+        def list_posts(self, _start, _end):
+            return [{"id": "post-1", "integration": "not-an-object"}]
+
+    fake_adapter = types.ModuleType("postiz_adapter")
+    fake_adapter.HttpPostizClient = MalformedIntegrationClient
+    monkeypatch.setattr(rec, "postiz_key", lambda: "test-key")
+    monkeypatch.setitem(sys.modules, "postiz_adapter", fake_adapter)
+
+    result = rec.read_x_posts(Q, Q + dt.timedelta(minutes=70))
+
+    assert result == {"ok": False, "reason": "postiz_readback_malformed"}
+
+
+def pre_effect_manifest_failure(tmp_path, monkeypatch, *, artifact=None):
+    occurrence_id = "capafy-distribute-daily:18de4680b4bcfe18-18857"
+    run_id = occurrence_id.rsplit(":", 1)[1]
+    started = dt.datetime(2026, 10, 14, 3, 7, 0, 364089, tzinfo=dt.timezone.utc)
+    release_sha = "a299acc04573ab916fb261ad7ff94b1d3f79a119"
+    events = tmp_path / "events.jsonl"
+    start = {
+        "owner_id": rec.OWNER_ID,
+        "run_id": run_id,
+        "occurrence_id": occurrence_id,
+        "phase": "execute",
+        "status": "running",
+        "timestamp": started.isoformat(),
+        "release_sha": release_sha,
+        "effect_class": "publish",
+        "effect_status": "started",
+        "provider_receipt_id": None,
+        "official_readback_ref": None,
+    }
+    failure = {
+        "owner_id": rec.OWNER_ID,
+        "run_id": run_id,
+        "occurrence_id": occurrence_id,
+        "phase": "report",
+        "status": "fail",
+        "timestamp": (started + dt.timedelta(seconds=9.2)).isoformat(),
+        "release_sha": release_sha,
+        "effect_class": "publish",
+        "effect_status": "unknown",
+        "effect_identity_status": "not_written",
+        "failure_layer": "entrypoint",
+        "error_class": "entrypoint_exit_1",
+        "error_detail": (
+            "[redacted]/skills/earn/capafy-marketing/capafy-distribute-daily.sh: "
+            "line 148: cannot create temp file for here document: No space left on device"
+        ),
+        "exit_code": 1,
+        "provider_receipt_id": None,
+        "official_readback_ref": None,
+    }
+    events.write_text(json.dumps(start) + "\n" + json.dumps(failure) + "\n", encoding="utf-8")
+
+    local_started = started.astimezone(ZoneInfo("Asia/Tokyo"))
+    slot_minute = (local_started.minute // 30) * 30
+    slot = f"{local_started:%Y-%m-%d}-h{local_started.hour:02d}m{slot_minute:02d}"
+    runs_root = tmp_path / "runs"
+    run_dir = runs_root / f"capafy-distribute-{slot}"
+    gates = run_dir / "gates"
+    gates.mkdir(parents=True)
+    if artifact is not None:
+        (run_dir / artifact).write_text("unbound output\n", encoding="utf-8")
+    run_time = started.timestamp() + 8
+    os.utime(gates, (run_time, run_time))
+    os.utime(run_dir, (run_time, run_time))
+    monkeypatch.setenv("CAPAFY_DISTRIBUTE_EVENTS_PATH", str(events))
+    monkeypatch.setenv("CAPAFY_DISTRIBUTE_RUNS_ROOT", str(runs_root))
+    return occurrence_id, started
+
+
+def test_pre_effect_enospc_manifest_failure_needs_empty_official_readbacks(tmp_path, monkeypatch):
+    occurrence_id, started = pre_effect_manifest_failure(tmp_path, monkeypatch)
+    now = started + dt.timedelta(seconds=rec.NO_EFFECT_MIN_AGE_SECONDS + 1)
+    windows = []
+
+    def commits_fn(start, end):
+        windows.append((start, end))
+        return {"ok": True, "commits": []}
+
+    result = rec.reconcile(
+        occurrence_id,
+        now=now,
+        fenced_row_fn=lambda _owner, _occurrence: ("claimed", started - dt.timedelta(seconds=1)),
+        commits_fn=commits_fn,
+        x_fn=lambda _start, _end: {"ok": True, "posts": []},
+    )
+
+    assert windows == [(started, started + dt.timedelta(seconds=rec.MAX_RUN_SECONDS))]
+    assert result["verified"] is True
+    assert result["effected"] is False
+    assert result["proof_kind"] == "official_github_postiz_empty_after_pre_effect_enospc"
+
+
+def test_pre_effect_enospc_manifest_failure_stays_fenced_if_postiz_has_a_post(tmp_path, monkeypatch):
+    occurrence_id, started = pre_effect_manifest_failure(tmp_path, monkeypatch)
+    result = rec.reconcile(
+        occurrence_id,
+        now=started + dt.timedelta(seconds=rec.NO_EFFECT_MIN_AGE_SECONDS + 1),
+        fenced_row_fn=lambda _owner, _occurrence: ("claimed", started - dt.timedelta(seconds=1)),
+        commits_fn=lambda _start, _end: {"ok": True, "commits": []},
+        x_fn=lambda _start, _end: {"ok": True, "posts": ["post-1"]},
+    )
+
+    assert result["verified"] is False
+    assert result["reason"] == "x_post_in_window_without_occurrence_manifest"
+
+
+def test_pre_effect_enospc_manifest_failure_rejects_malformed_postiz_listing(tmp_path, monkeypatch):
+    occurrence_id, started = pre_effect_manifest_failure(tmp_path, monkeypatch)
+    result = rec.reconcile(
+        occurrence_id,
+        now=started + dt.timedelta(seconds=rec.NO_EFFECT_MIN_AGE_SECONDS + 1),
+        fenced_row_fn=lambda _owner, _occurrence: ("claimed", started - dt.timedelta(seconds=1)),
+        commits_fn=lambda _start, _end: {"ok": True, "commits": []},
+        x_fn=lambda _start, _end: {"ok": True},
+    )
+
+    assert result["verified"] is False
+    assert result["reason"] == "postiz_readback_malformed"
+
+
+def test_pre_effect_enospc_manifest_failure_rejects_any_run_artifact(tmp_path, monkeypatch):
+    occurrence_id, started = pre_effect_manifest_failure(tmp_path, monkeypatch, artifact="prompt.txt")
+    try:
+        rec.reconcile(
+            occurrence_id,
+            now=started + dt.timedelta(seconds=rec.NO_EFFECT_MIN_AGE_SECONDS + 1),
+            fenced_row_fn=lambda _owner, _occurrence: ("claimed", started - dt.timedelta(seconds=1)),
+            commits_fn=lambda _start, _end: {"ok": True, "commits": []},
+            x_fn=lambda _start, _end: {"ok": True, "posts": []},
+        )
+    except ValueError as exc:
+        assert "occurrence slot manifest missing" in str(exc)
+        return
+    raise AssertionError("unbound prompt artifact was accepted as pre-effect proof")
