@@ -102,35 +102,38 @@ Gate 13 `gate_pass` means the snapshot is structurally complete, contains no fab
 
 ### Task 5: Integrate and verify production adoption
 
-**Merged source**
+**Merged source and documentation**
 
 - [x] DD05 source tasks 1–4 are merged in PR #8009 (`ec0ff40b44b6b453132d36388615277158bc5dc6`); exact-head CI and CodeRabbit passed.
 - [x] Post-merge cursor PR #8016 is merged (`b76d6df9a49fce8c1c09a618feb6902b4678d48b`).
-- [x] Main now includes PR #8022 at `8b2f8686d71b288dd8a5ea0cbe8bc132283c244a`, including occurrence-bound Capafy fence reconciliation and fail-closed Postiz readbacks.
+- [x] Capafy fence reconciliation and fail-closed Postiz readbacks are merged in PR #8022 (`8b2f8686d71b288dd8a5ea0cbe8bc132283c244a`).
+- [x] DD05 cursor cleanup is merged in PR #8020 (`6c569277bf52d25db39f36fbc1c1d5467be26688`); latest main also contains the Capafy runtime checkpoint PR #8023 (`0ecf503a7ea21913652db85d86279c76ffabc09d`).
 - [x] `lm-loop doctor` reports 191 registry entries, with no missing, unmanaged, or installed-retired labels.
 
-**Live evidence, read-only capture `2026-10-14T06:40Z`**
+**Live evidence, read-only capture `2026-10-14T06:55Z`**
 
-- `origin/main` is `8b2f8686d71b288dd8a5ea0cbe8bc132283c244a`, but `/Users/anicca/loops/current` is still immutable release `20261014T150809-87f2425e` (`87f2425ed209f00a3a0174b1b798e580917752b1`, cut 06:08:45Z). The new PR #8022 source is not in this loaded release.
-- `marketing-owner-events` remains loaded-idle on `52f33c67c3da765af516209e35c394b47e2e6f13`. Latest terminal `18de51a57c57e5a8-26311` ended 06:36:49Z, exit 1 in `report`; stage results were `reconcile=attention/3`, `collect=pass`, `report:action=fail`, `report:checkpoint=fail`, with incident/experiment/product-daily/portfolio-weekly report stages passing. Its output includes the two `delivery_unknown` keys below; neither has an exact receipt in the last verified history window. This is an old-release run, not a DD05-source result.
-- `life-manager-release-reconciler` is installed on `87f2425e`; latest terminal `18de51024e4b72e0-10592` failed at 06:26:59Z (exit 1) after fleet-apply coalescing. `lm-loop health` reports failed 1/running 0; no successful target-owner adoption is verified.
-- `capafy-distribute-daily` is safely fenced on `a299acc04573ab916fb261ad7ff94b1d3f79a119`. Occurrence `18de50fdaf7b1070-9928` ended 06:19:12Z with `effect_status=unknown`, no provider receipt, and no official readback. PR #8022 is merged source only; it has not been adopted by this owner.
-- `life-manager-disk-cleanup` is healthy, but host storage was `644583424` bytes free at 06:39:56Z; the 2 GiB recovery floor is still unmet.
-- `action:anicca-ios:7688483924871318792` and `checkpoint:anicca-ios:postiz:cmuuetw5v0cmyl60y7zstldy9:72` remain `delivery_unknown`. A prior exact history check through 05:36:18Z found no matching receipts. Do not resend or mark failed without stronger provider evidence.
+- Current main is `0ecf503a7ea21913652db85d86279c76ffabc09d`; `/Users/anicca/loops/current` remains release `20261014T150809-87f2425e`, SHA `87f2425ed209f00a3a0174b1b798e580917752b1`, cut 06:08:45Z. PR #8022 is source-only until a newer release is cut and applied.
+- `life-manager-release-reconciler` terminal `18de52ad97952188-52792` ended 06:51:24Z with exit 1. The bounded log for the same interval shows the 87f fleet pass was partial (11 changed, 11 skipped, 0 errors), followed by `cut-loop-release` failing with `release_capacity_measurement_failed`.
+- **Root-cause evidence:** the release-capacity calculator in `runtime/host/disk_admission.py::release_capacity_bytes` runs `git merge-base --is-ancestor <current-release-sha> origin/main` to validate its immutable dependency-bundle donor. The source checkout is shallow (`git rev-parse --is-shallow-repository=true`); this local ancestry check returns 1 for donor `87f2425e`. GitHub's compare of `87f2425e...0ecf503a` returns `status=ahead`, `ahead_by=17`, `behind_by=0`, with merge base `87f2425e`. Calling the measurement function directly reproduces `CalledProcessError` at that local ancestry check. **Inference:** the shallow local graph prevents proof of a valid remote ancestor; it is not evidence that the release is actually outside main.
+- Host storage was `558219264` bytes free at 06:52Z and `capacity_recovered=false`. The last exact release requirement (`2394329088` bytes, 15:30 JST) predates PR #8022; it is historical only. A fresh requirement for current main is not yet measured. The RRC log also records `scratch_enospc` while writing terminal events.
+- `marketing-owner-events` remains on old SHA `52f33c67c3da765af516209e35c394b47e2e6f13`; its latest terminal `18de51a57c57e5a8-26311` ended 06:36:49Z, exit 1 in `report` (`reconcile=attention/3`, `collect=pass`, `report:action=fail`, `report:checkpoint=fail`; remaining report stages passed). The output includes two `delivery_unknown` keys; this run is not DD05-source evidence.
+- `capafy-distribute-daily` remains safely fenced on `a299acc04573ab916fb261ad7ff94b1d3f79a119`. Latest occurrence `18de52a169f44300-51572` ended 06:49:16Z with `effect_status=unknown`, no provider receipt, and no official readback. The main fix is not deployed.
 
 **Remaining DD05 acceptance, in order**
 
-1. [ ] Run the standard fresh release preflight for current `origin/main` and restore required capacity through the registered cleanup owner. Cut a new immutable main-derived release only when its exact preflight passes; preserve open/protected/unknown paths.
-2. [ ] Let the registered release reconciler apply that release to `marketing-owner-events`; verify the exact fleet row, loaded argv, and installed SHA. Do not manually wake, stop, restart, or apply the owner.
-3. [ ] Read a natural terminal from the new SHA and inspect stage-level evidence. A separate Telegram report-stage failure does not invalidate a persisted successful attribution-sweep artifact; keep notification delivery failures as their own cursor.
-4. [ ] Verify the sweep wrote output for at least one unique, exact-identity `PUBLISHED` publication after the 24-hour maturity window. If none is eligible, record the exact coverage gap and leave DD05 open.
-5. [ ] Report publication-level orders/revenue, cost, and interventions only when exact sources exist. Otherwise preserve each metric as `unknown`; Capafy account/agent aggregates are not per-publication revenue and do not prove profit uplift.
-6. [ ] Close DD05 only when the natural owner terminal and persisted sweep output are tied to the same exact publication identity. Then advance the SSOT cursor to DD06.
+1. [ ] Add a failing regression in `runtime/loop/tests/test_cut_loop_release_pressure.py` for a shallow source checkout whose immutable donor is verified as an ancestor by the remote. Fix `runtime/host/disk_admission.py::release_capacity_bytes` so it can establish valid ancestry without weakening the non-ancestor rejection; the direct measurement for current main must return required bytes instead of `CalledProcessError`.
+2. [ ] Re-run the read-only capacity measurement for exact main SHA `0ecf503a7ea21913652db85d86279c76ffabc09d`; record its exact required bytes and the free-space readback.
+3. [ ] Recover the measured shortfall through the registered cleanup owner. Preserve open/protected/unknown paths; do not bypass the capacity gate or delete protected data.
+4. [ ] After the exact preflight passes, cut a new immutable release from current main through `bin/cut-loop-release.sh origin/main` and verify its descriptor.
+5. [ ] Let the registered release reconciler apply the new release to `marketing-owner-events`; verify the exact fleet row, loaded argv, and installed SHA. Do not manually wake, stop, restart, or apply the owner.
+6. [ ] Read the first natural terminal from the new SHA and inspect the persisted attribution-sweep stage output. A separate Telegram report-stage failure does not invalidate a persisted successful sweep artifact.
+7. [ ] Verify at least one unique exact-identity `PUBLISHED` publication has passed the 24-hour maturity window and is represented in the persisted sweep. If none is eligible, record the exact coverage gap and keep DD05 open.
+8. [ ] Keep publication-level orders/revenue, actual cost, and human interventions `unknown` without exact sources; Capafy account/agent aggregates do not prove post-level revenue or profit uplift. Close DD05 only when terminal and sweep output share the same exact identity; then advance to DD06.
 
 **Separate operational cursors**
 
-- [ ] Resolve `capafy-distribute-daily:18de4680b4bcfe18-18857` using the merged PR #8022 source only after normal release adoption, and only with occurrence-bound official evidence; do not clear or replay it.
+- [ ] Adopt the merged PR #8022 source only after the standard release gate passes, then reconcile `capafy-distribute-daily:18de4680b4bcfe18-18857` with occurrence-bound official evidence; do not clear or replay it.
 - [ ] Reconcile the two `delivery_unknown` rows only from exact history/receipt evidence; never resend or edit the ledger manually.
-- [ ] Continue capacity diagnosis through the registered cleanup owner; do not delete protected or unknown paths to force the release gate.
+- [ ] Continue capacity diagnosis through the registered cleanup owner; preserve protected and unknown paths.
 
 DD05 is shared publication-measurement infrastructure. The first agent-level EDD vertical slice remains Writer as recorded in the SSOT; Capafy distribution reuses this evidence path when exact per-publication outcomes exist.
