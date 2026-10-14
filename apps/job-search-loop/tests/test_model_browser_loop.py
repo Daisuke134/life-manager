@@ -595,6 +595,40 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
                 "observed_row_without_terminal_outcome",
             )
 
+    def test_successful_submission_does_not_hide_an_unprocessed_queue_row(self):
+        from job_search_loop.browser_agent import orchestrator
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_queue_complete_observe_fixture(root, ("queue_complete",))
+            self._write_wake_queue_evidence(
+                root, ("submitted-row", "pending-row"), ("submitted-row",)
+            )
+            result = json.loads((root / "result.json").read_text(encoding="utf-8"))
+            result["submitted"] = ["submitted-row"]
+            (root / "result.json").write_text(json.dumps(result), encoding="utf-8")
+
+            self.assertEqual(
+                orchestrator.validate_pass_result(root),
+                "observed_row_without_terminal_outcome",
+            )
+
+    def test_successful_submission_is_terminal_after_queue_is_drained(self):
+        from job_search_loop.browser_agent import orchestrator
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_queue_complete_observe_fixture(root, ("queue_complete",))
+            self._write_wake_queue_evidence(
+                root, ("submitted-row", "completed-row"),
+                ("submitted-row", "completed-row"),
+            )
+            result = json.loads((root / "result.json").read_text(encoding="utf-8"))
+            result["submitted"] = ["submitted-row"]
+            (root / "result.json").write_text(json.dumps(result), encoding="utf-8")
+
+            self.assertIsNone(orchestrator.validate_pass_result(root))
+
     def test_missing_queue_evidence_requires_semantic_retry(self):
         from job_search_loop.browser_agent import orchestrator
 
@@ -686,6 +720,7 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self._write_queue_complete_observe_fixture(root, ())
+            self._write_wake_queue_evidence(root, ("row",), ("row",))
             (root / "stdout.log").write_text(
                 "".join(json.dumps(event) + "\n" for event in events), encoding="utf-8"
             )
