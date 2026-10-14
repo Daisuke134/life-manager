@@ -5551,6 +5551,55 @@ class PreEffectForeignClaimTests(unittest.TestCase):
         self.assertIsNone(proof)
         self.assertEqual(reason, "effect_ref_present")
 
+    def test_mobile_app_preserved_run_marker_proves_exact_pre_effect(self):
+        for status in ("pass", "fail"):
+            with self.subTest(status=status), tempfile.TemporaryDirectory() as tmp:
+                owner, occurrence, entry, rows = self._mobile_startup_failure_claim(
+                    "mobile app prior-effect reconciliation could not prove an old claim",
+                )
+                entry["state_root"] = tmp
+                row = rows[0]
+                row["owner_id"] = owner
+                row["status"] = status
+                row["blocker"] = "entrypoint_exit_1" if status == "fail" else None
+                row["error_class"] = "entrypoint_exit_1" if status == "fail" else None
+                row["failure_layer"] = "entrypoint" if status == "fail" else "clean"
+                row["exit_code"] = 1 if status == "fail" else 0
+
+                marker = (
+                    Path(tmp) / "loop-tmp" / owner / row["run_id"]
+                    / "entrypoint-result.json"
+                )
+                marker.parent.mkdir(parents=True)
+                marker.write_text(
+                    '{"status":"pre_effect_failure","effect":0}\n',
+                    encoding="utf-8",
+                )
+                marker.chmod(0o600)
+
+                proof, reason = lm_loop._pre_effect_occurrence_proof(
+                    owner, entry, occurrence, "claimed", rows,
+                )
+                self.assertEqual(reason, "ok")
+                self.assertEqual(proof["proof_type"], "pre_effect")
+                self.assertEqual(proof["occurrence_id"], occurrence)
+                self.assertEqual(proof["no_effect_proof"]["kind"], "mobile_pre_effect_marker")
+                self.assertEqual(
+                    proof["no_effect_proof"]["entrypoint_result_sha256"],
+                    hashlib.sha256(marker.read_bytes()).hexdigest(),
+                )
+                self.assertIn(
+                    f"lm-loop://{owner}/{row['run_id']}/entrypoint-result.json",
+                    proof["evidence_refs"],
+                )
+
+                marker.unlink()
+                proof, reason = lm_loop._pre_effect_occurrence_proof(
+                    owner, entry, occurrence, "claimed", rows,
+                )
+                self.assertIsNone(proof)
+                self.assertEqual(reason, "no_pre_effect_terminal")
+
     def _ebook_pre_effect_claim(self, error_detail="LM_DATA_DIR is required",
                                 owner="ebook-ja-tiktok-daily"):
         occurrence = f"{owner}:slot-20261006-2000"
