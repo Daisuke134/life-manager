@@ -13,6 +13,7 @@ import datetime as dt
 import fcntl
 import hashlib
 import json
+import math
 import pathlib
 import sys
 from collections import Counter
@@ -40,6 +41,57 @@ KINDS = (
 )
 _PRODUCT_SET = frozenset(PRODUCTS)
 _KIND_SET = frozenset(KINDS)
+
+_PRODUCT_LABELS = {
+    "anicca-ios": "Anicca iOS",
+    "honne-ai": "Honne AI",
+    "breath-reset": "Breath Reset",
+    "sleep-ritual": "Sleep Ritual",
+    "desk-stretch-timer": "Desk Stretch Timer",
+    "micro-mood": "Micro-Mood",
+    "ebook-ja": "アニッチャ・リセット（日本語）",
+    "ebook-en": "The Anicca Reset（英語）",
+    "life-manager-cloud": "Life Manager Cloud",
+}
+_PLATFORM_LABELS = {
+    "instagram": "Instagram",
+    "instagram-standalone": "Instagram",
+    "tiktok": "TikTok",
+    "youtube": "YouTube",
+}
+_SOURCE_LABELS = {
+    "app_store_connect": "App Store Connect",
+    "asc": "App Store Connect",
+    "gumroad": "Gumroad",
+    "kdp": "KDP",
+    "posthog": "PostHog",
+    "product_analytics": "アプリ分析",
+    "publication": "投稿",
+    "revenuecat": "RevenueCat",
+    "social_checkpoint": "SNS計測",
+    "stripe": "Stripe",
+}
+
+
+def _display_product(value: object) -> str:
+    product_id = canonical_product_id(value)
+    if product_id is None:
+        return "ポートフォリオ"
+    if not isinstance(product_id, str):
+        return "対象アプリ"
+    return _PRODUCT_LABELS.get(product_id, "対象アプリ")
+
+
+def _display_platform(value: object) -> str:
+    if not isinstance(value, str):
+        return "SNS"
+    return _PLATFORM_LABELS.get(value.casefold(), "SNS")
+
+
+def _display_source(value: object) -> str:
+    if not isinstance(value, str):
+        return "外部データ"
+    return _SOURCE_LABELS.get(value.casefold(), "外部データ")
 
 
 class OwnerReportError(ValueError):
@@ -528,6 +580,8 @@ def _checkpoint_events(
             "platform": row.get("platform") or row.get("provider_identifier") or "unknown",
             "checkpoint_status": row.get("checkpoint_status") or ("measured" if row.get("views") is not None else "missed"),
             "target_age_hours": row.get("target_age_hours"),
+            "observed_age_hours": row.get("observed_age_hours"),
+            "checkpoint_sla_status": row.get("checkpoint_sla_status"),
             "views": row.get("views"),
             "impressions": row.get("impressions"),
             "reach": row.get("reach"),
@@ -1247,31 +1301,59 @@ def render_japanese(event: dict) -> str:
     event = _validate_event(event)
     kind = event["kind"]
     product_id = event["product_id"]
+    product_label = _display_product(product_id)
     facts = event["facts"]
     lines: list[str] = []
     if kind == "action":
-        lines.append(f"📣 {product_id}の公開を確認しました。")
-        lines.append(f"次に確認するリンク: {facts.get('native_url')}")
+        lines.append(f"📣 {product_label}の公開を確認しました。")
+        native_url = facts.get("native_url")
+        if isinstance(native_url, str) and native_url.startswith("https://"):
+            lines.append(f"次に確認するリンク: {native_url}")
+        else:
+            lines.append("公開リンクは取得できませんでした。")
     elif kind == "checkpoint":
-        platform = facts.get("platform") or "social"
+        platform_key = facts.get("platform")
+        platform = _display_platform(platform_key)
         status = facts.get("checkpoint_status")
-        age = facts.get("target_age_hours")
+        target_age = facts.get("target_age_hours")
+        observed_age = facts.get("observed_age_hours")
         if status == "measured" and facts.get("views") is not None:
-            lines.append(f"📊 {product_id}の{platform}チェックポイント（{age}時間）。")
-            lines.append(f"閲覧数 {facts.get('views')}、表示回数 {facts.get('impressions')}。")
+            target_text = (
+                f"目標{_number(target_age)}時間"
+                if target_age is not None else "目標時間は取得できませんでした"
+            )
+            if (isinstance(observed_age, (int, float))
+                    and not isinstance(observed_age, bool)
+                    and math.isfinite(observed_age)):
+                observed_text = f"実測{observed_age:.1f}時間後"
+            else:
+                observed_text = "実測時刻は取得できませんでした"
+            timing = [target_text, observed_text]
+            if facts.get("checkpoint_sla_status") == "missed":
+                timing.append("期限超過")
+            lines.append(
+                f"📊 {product_label}の{platform}投稿（{'、'.join(timing)}）。"
+            )
+            impressions = facts.get("impressions")
+            impressions_text = (
+                f"表示回数 {impressions}"
+                if impressions is not None
+                else "表示回数は取得できませんでした"
+            )
+            lines.append(f"閲覧数 {facts.get('views')}、{impressions_text}。")
         else:
             reason = facts.get("reason") or "checkpoint_missed"
             natural = _reason_text(reason)
             if natural == "取得できませんでした":
                 natural = "まだ取得できませんでした"
-            lines.append(f"📊 {product_id}の{platform}チェックポイントは{natural}。")
+            lines.append(f"📊 {product_label}の{platform}投稿の計測値は{natural}。")
         native_url = facts.get("native_url")
         if isinstance(native_url, str) and native_url.startswith("https://"):
             lines.append(f"投稿リンク: {native_url}")
         else:
             lines.append("投稿リンク: 取得できませんでした")
     elif kind == "product_daily":
-        lines.append(f"📦 {product_id}の今日の結果です。")
+        lines.append(f"📦 {product_label}の今日の結果です。")
         mrr = facts.get("mrr")
         money_buckets = facts.get("money_buckets")
         if mrr is not None:
@@ -1288,12 +1370,12 @@ def render_japanese(event: dict) -> str:
                 for bucket in money_buckets
                 if isinstance(bucket, dict)
             )
-            lines.append(f"売上の確認値は{amounts}（{facts.get('money_source')}）。")
+            lines.append(f"売上の確認値は{amounts}（{_display_source(facts.get('money_source'))}）。")
             if facts.get("paid_orders") is not None:
                 lines.append(f"注文数 {facts['paid_orders']}件。")
         elif facts.get("money_value") is not None:
             currency = facts.get("money_currency") or "通貨不明"
-            lines.append(f"売上の確認値は{_number(facts.get('money_value'))} {currency}（{facts.get('money_source')}）。")
+            lines.append(f"売上の確認値は{_number(facts.get('money_value'))} {currency}（{_display_source(facts.get('money_source'))}）。")
             if facts.get("paid_orders") is not None:
                 lines.append(f"注文数 {facts['paid_orders']}件。")
         elif facts.get("paid_orders") is not None:
@@ -1326,36 +1408,38 @@ def render_japanese(event: dict) -> str:
         if isinstance(source_gaps, list) and source_gaps:
             business_date = facts.get("business_date") or "最新"
             lines.append(
-                f"⚠️ {product_id}の{business_date}時点で、確認できないソースがあります。"
+                f"⚠️ {product_label}の{business_date}時点で、確認できないソースがあります。"
             )
             for gap in source_gaps:
                 if not isinstance(gap, dict):
                     continue
-                source = gap.get("source") or "unknown"
+                source_key = gap.get("source") or "unknown"
+                source = _display_source(source_key)
                 reason = gap.get("reason") or "unknown"
                 lines.append(f"{source}は{_reason_text(reason)}。")
                 lines.append(
-                    f"次の修復: {gap.get('next_repair') or _repair_for(source)}。"
+                    f"次の修復: {_repair_for(str(source_key))}。"
                 )
         else:
-            source = facts.get("source") or "unknown"
+            source_key = facts.get("source") or "unknown"
+            source = _display_source(source_key)
             reason = facts.get("reason") or "unknown"
-            lines.append(f"⚠️ {product_id}で{source}の確認が必要です。{_reason_text(reason)}。")
-            lines.append(f"次の修復: {facts.get('next_repair') or _repair_for(source)}。")
+            lines.append(f"⚠️ {product_label}で{source}の確認が必要です。{_reason_text(reason)}。")
+            lines.append(f"次の修復: {_repair_for(str(source_key))}。")
     elif kind == "experiment":
         status = facts.get("status")
         if status == "not_mature":
-            lines.append(f"🧪 {product_id}の実験はまだ判断できる時間ではありません。")
+            lines.append(f"🧪 {product_label}の実験はまだ判断できる時間ではありません。")
             if facts.get("reason"):
                 lines.append(f"補足: {_reason_text(facts['reason'])}。")
         elif status == "observed":
-            lines.append(f"🧪 {product_id}の実験結果を観測しました。")
+            lines.append(f"🧪 {product_label}の実験結果を観測しました。")
         else:
-            lines.append(f"🧪 {product_id}の実験状態は現在の証拠では分かりません。")
+            lines.append(f"🧪 {product_label}の実験状態は現在の証拠では分かりません。")
     else:  # portfolio_weekly
         lines.append("🗓️ 今週のポートフォリオ状況です。")
         for item in facts.get("products", []):
-            item_product = item.get("product_id")
+            item_product = _display_product(item.get("product_id"))
             mrr = item.get("mrr")
             money_buckets = item.get("money_buckets")
             if mrr is not None:
@@ -1408,29 +1492,6 @@ def render_japanese(event: dict) -> str:
                 summary.append(f"28日DL合計 {sum(install_totals)}件")
             lines.append("ポートフォリオ合計: " + "・".join(summary))
 
-    lines.extend(["", "確認情報"])
-    lines.append(f"message_key={event['message_key']}")
-    lines.append(f"product={product_id if product_id is not None else 'portfolio'}")
-    if kind == "action" and facts.get("native_url"):
-        lines.append(f"native_url={facts['native_url']}")
-    if kind == "incident":
-        source_gaps = facts.get("source_gaps")
-        if isinstance(source_gaps, list):
-            for gap in source_gaps:
-                if not isinstance(gap, dict):
-                    continue
-                lines.append(
-                    "source="
-                    + str(gap.get("source") or "unknown")
-                    + ";reason="
-                    + str(gap.get("reason") or "unknown")
-                    + ";next_repair="
-                    + str(gap.get("next_repair") or "")
-                )
-    raw_reason = facts.get("reason") or facts.get("money_reason") or facts.get("mrr_reason")
-    if raw_reason:
-        lines.append(f"reason={raw_reason}")
-    lines.append("evidence_refs=" + ",".join(event["evidence_refs"]))
     return "\n".join(lines)
 
 
