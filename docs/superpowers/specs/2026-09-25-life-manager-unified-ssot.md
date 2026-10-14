@@ -464,7 +464,7 @@ F2も未完了: factory occurrence `18de1e0534af8540-84609`はunloaded/effect un
 
 **source acceptance:** 旧sourceは固定floor由来の予算2件/128MiB freeの配布/manifest書込失敗の計4件でRED。修正後の関連3file suiteは54件と9 subtestsがPASSし、残る2件はsparse checkoutのfixture不足と同秒fixture名衝突だった。必要な既存lockfileのみをmaterializeし、immutableな旧fixtureを別名へ移して安定化後、この2件もPASS。shell syntax/diff check PASS。最初のtest開始時にはOS errno28でtmp作成不可を実測したが、その後の追加write probeは成功した。これは容量変動の診断であってF3/F5成功とはしない。
 
-所有範囲はruntime/host/disk_admission.py、bin/cut-loop-release.sh、既存の容量/cutter tests、このSSOT。branch=fix/release-staging-manifest-safe-20261014、base=5c90953c2ee785a3dcca0b20ad73a388c915c38c、worktree=/Users/anicca/Projects/life-manager-main/.worktrees/central-cleanup-process-inventory-20261014。Doneは少ない実staging容量でも修復releaseを作成できること、実容量不足/manifest書込失敗時はexport/切替を行わず旧currentを維持すること、関連検証/CI/main、main由来releaseと対象掃除役への反映。有限容量で永久無故障を保証しない。
+所有範囲はruntime/host/disk_admission.py、bin/cut-loop-release.sh、既存の容量/cutter tests、このSSOT。branch=fix/release-staging-manifest-safe-20261014、base=49103af067bec403f6f741dcac5ad4a7e6fc6065、worktree=/Users/anicca/Projects/life-manager-main/.worktrees/central-cleanup-process-inventory-20261014。Doneは少ない実staging容量でも修復releaseを作成できること、実容量不足/manifest書込失敗時はexport/切替を行わず旧currentを維持すること、関連検証/CI/main、main由来releaseと対象掃除役への反映。有限容量で永久無故障を保証しない。
 
 **EDD担当境界:** このレーンの実装cursorはE02 Writer Pilot。18製品ループの下記read-only監査は全体判断のための状況把握であり、E01 Agent Economy、F1–F5共有cleanup、18 capability修理のownerを引き受けない。Agent Economyは18製品ループの一つとして監査表に含むが、Writer作業と混同しない。
 
