@@ -4,6 +4,8 @@
 
 **正本:** `../specs/2026-09-25-life-manager-unified-ssot.md`。実行順/status/cursorは同specのF/M/H/E/I/N/O/G、Gig、Capafy、DDに置く。この資料は手順・設計・snapshotの参照である。
 
+**共有基盤の現在方針:** → spec「外部の実運用方式へ揃える」。全F完了や連続N回の自然実行を全事業の再開条件にしない。選択laneの資源/owner/effect条件を満たす仕事から進める。
+
 **source:** `c900bf0aa3b0d5f00ceff32d01f9d108df4c7dea`。source監査と隔離contract検証は`docs/evidence/readme-onboarding-meta-audit-20261014.json`。稼働中の別ownerの仕事を奪わない。暦の完了予定や新端末の実動作を推測で埋めない。
 
 ## READMEは何を残すか
@@ -97,7 +99,7 @@ flowchart TD
   E --> A[未知task・複数領域の外部再現]
 ```
 
-README/設計/評価は現在の実装から先行できる。新しい業務修復の本番再開は現Fゲートを満たす範囲に従う。市場別の反復成果は応募→交渉→funded→成果物/品質→正式納品→受入→settlement/refund/fee/実費→netで閉じる。受託の一般化可能なscope/工数/品質を共通skillへ戻し、顧客固有の本文・asset・credentialを学習素材へ流用しない。
+README/設計/評価は現在の実装から先行できる。新しい業務修復の本番再開は対象jobの資源/owner/effect条件に従い、全F完了や連続N回を待たない。市場別の反復成果は応募→交渉→funded→成果物/品質→正式納品→受入→settlement/refund/fee/実費→netで閉じる。受託の一般化可能なscope/工数/品質を共通skillへ戻し、顧客固有の本文・asset・credentialを学習素材へ流用しない。
 
 終点はF/M/H/E/I/N/O/Gとlocal/cloudの同じowner/evidence契約を閉じ、正のunit netと継続購入を確認して$10K→$100K→$1M→既存US$10M/月以上へ伸ばすこと。単発Gig受注をMRRへ加えない。収益拡大と、身体/心/ソフトウェア等の未知taskへ転移できるgeneral-agent評価は別々に測る。AGIを18 processesの起動、optimizerのscore、合成5caseのPASSで認定しない。
 

@@ -36,19 +36,21 @@ As-Is（2026-10-13 21:16 JST readback）: official origin/main=086bfed5bb0a45234
 
 To-Beは各agentがobserve→decide→act→official verify→persist→自分の不要物cleanup→次の仕事を、必要なcadence/期限で継続すること。独立する業務は並列に進み、同じidentity/投稿/決済/注文はlockとidempotencyで保護する。不明な効果は照合の仕事を継続し、独立する観測・他仕事まで無理由に永久停止させない。監督・中央cleanup・復旧は収益workerの混雑に巻き込まれず、stale owner/予約、実資源不足、provider制約を別々に診断し、自己所有修復→自然再開まで行う。正式state/receiptの成長は内容を保持した既存native管理と容量/保存先計画で扱う。最終のcloud/control plane・disposable computeは既存cloud節に従い、現時点で導入済みとはしない。外部審査/quota/障害を含む有限systemに永久ゼロ待機・ゼロ故障を保証せず、仕事の継続・障害の封じ込め・自動回復・公式収益で受け入れる。全面作り直し、FIFO一律撤去、任意の100枠化は現在の先頭taskにしない。
 
-**正本と優先範囲:** 共有資源の目的・完了条件・統括順・cursorはこの節を正本とする。旧snapshot/旧cursorの11GiB到達条件、空き容量を資源修復KPIにする記述、数値達成まで事業TODOを止める記述は撤回する。過去の容量数値は診断履歴として残し、現在の完了gateにしない。lane固有の収益目標・effect境界は変更しない。
+**正本と優先範囲:** 共有資源の実行方針はこの節と「外部の実運用方式へ揃える」で定める。旧snapshot/旧cursorの固定GiB到達、連続N回の自然実行、F1–F5全項目PASSまで全事業を止める条件は撤回する。過去の観測回数は履歴であり再実行の指示ではない。各仕事の実資源・所有者・外部effectの条件を満たしたlaneは進め、個別故障はその仕事へ隔離する。lane固有の収益目標・公式結果の照合は保持する。
 
-**資源修復の目的・完了契約:** 各agentが収益活動を継続しても、ディスク由来のENOSPC・証拠書込失敗・永久的なheadroom待ちで業務が停止せず、作業後の後始末と中央cleanupが自動で回り続ける状態を作る。空きbytes、回収bytes、内部thresholdは診断・制御値でありKPI/完了条件ではない。安全な延期、cleanup exit0、guard実装だけではDoneにしない。自然な生成・販売・記録・後始末の反復で実際の業務進捗とofficial receiptが継続し、保護データを保持し、人手による繰返し掃除を要しないことを確認する。他agentの並列作業も共有資源契約の対象とする。
+**資源修復の目的・完了契約:** 永続キュー、空き枠で動く有限worker、実資源によるbackpressure、終了時の資源返却、仕事単位の障害隔離を使う。今直す故障の再現と必要最小の回帰検証、対象への反映、実仕事が該当境界を越える事実でその修復を閉じ、次の収益作業へ進む。連続成功回数を完了条件にせず、稼働中の安定性は既存監視で継続観測する。空きbytes/回収bytesは制御・診断値で、数字到達や全fleetの無故障を待つgateにしない。
 
-**基盤Done / 18業務修理の再開ゲート:** 下のF1–F5がすべてPASSした時点を「共有基盤が修理に耐える」と判定し、primaryは18業務capabilityの個別修理を一件ずつ開始する。これは18件すべての完了条件ではない。容量GiBは一切の合否に使わない。有限の検証は永久無故障の数学的保証ではなく、容量不足を失われた仕事にせず、自動で待機・再開できることの出荷条件とする。
+**仕事の継続と共有修復:** F1–F5は既存実装と共有修復のbacklogであり、全業務再開の一括gateではない。Capafy等の選択laneは、その仕事のowner/実資源/既存effect条件が揃えば運転を進める。残るF2/F5は、それぞれ該当occurrence/producerだけを直し、無関係なlaneの開始を止めない。
 
 - [x] **F1 — 全jobの共通入口:** 最新`config/loop-registry.json`のjobを100%調査し、各jobを「容量を書き込む」「制御/cleanup」「永続書込なし」に分類する。未分類=`0`。書込jobは既存の共有capacity admissionを通り、保護対象/別ownerの保存先を使わないことをsource/fixtureで確認する。
 - [ ] **F2 — 容量失敗とeffect-recovery:** 隔離fixtureで (a) 起動前容量不足、(b) 一時書込ENOSPC、(c) 最終receipt保存ENOSPC、(d) child開始後のresource-heartbeat lossを再現する。(a)では外部action開始=`0`、(b/c/d)ではtask identityを保持し、effect unknownを`released/effect_unknown=0`へ落とさない。通常releaseも既存unknownを消さない。さらに、terminal eventがeffect unknownなのにadmission rowが既に`released/effect_unknown=0`になった場合も、登録済みreconcilerが同一occurrenceの公式readbackを照合できること。照合前はscratchを保持し、公式効果が確認できた場合だけclosure receiptを記録して中央cleanupが回収する。推測のno-effect化、DB手修正、再送は禁止。さらに、同じ未解決readbackを繰り返すだけのreconcile passはper-occurrence JSONLを毎wake追記せず、未解決状態の集約を保持する。公式closure proofは引き続きoccurrence単位で保存する。今回のlive heartbeat incident、反復ログの実測、cleanup実測で旧版F2は未達と判明したため再開。
 - [x] **F3 — 最新mainの掃除役を本番へ配布:** PR #7975/#7979/#7988は必須CIを通過してmainへ統合済み。main由来complete immutable releaseは`20261014T102033-5b566149`、SHA=`5b566149a0d7ef238745893d5b09676e6b2c558d`。watchdog/central cleanup/release reconcilerのloaded argv/SHA、state path、cadenceを確認。watchdogはStartInterval=60/RunAtLoad=true、centralはMinute=3/8/13/.../58、reconcilerはStartInterval=60。既存self-handoff watcherが引き継ぎを終え、doctorは191 job、missing/unmanaged/retiredすべて0、PASS。後続mainの共有cleanup sourceは同releaseと一致する。F3は完了し、再配布を残TODOとして繰り返さない。
-- [x] **F4 — 最新版掃除の反復:** F3のrelease `5b566149`によるwatchdog/central cleanupについて、それぞれ3回連続の自然receiptを確認済み。各receiptはerrors=0/protected_deletions=0。watchdogは01:23:49Z/PID31493→01:25:52Z/PID34898→01:27:40Z/PID38005。centralは01:43:09Z run `18de41ed67aeed80-60378`→01:48:08Z run `18de4232fff03758-66477`→01:53:08Z run `18de4278d1da9520-74381`の自然startと、それぞれ01:45:46Z/01:49:48Z/01:53:48Zのpass/exit0をeventsとbounded stdoutで照合。33分runの欠けたterminalを成功扱いせず、その後の連続3回で合格する。
-- [ ] **F5 — 大きな一時データの往復:** 一番大きいフォルダ名を推測で選ばない。同一時間窓で`owner_id + PID + 出力先path + bytes before/after`を結び、実writerを確認する。該当jobの業務判断・公開・決済は既存ownerに残す。primaryは共有資源の後片付け・保存期間だけを直し、商品や外部effectのロジックを変更しない。自然実行を3回連続で確認し、終了した親と子processがいなくなった後、次の成功したcentral sweepまでにその回だけの一時フォルダが消え、商品出力/正式receiptは残る。3回の観測window全体で未帰属の増加=`0`、capacity起因のterminal failure=`0`、次の予定wakeを越えて残るcapacity defer=`0`、lost task=`0`、duplicate effect=`0`、手動cleanup=`0`。
+- [x] **F4 — 既存の清掃動作（完了記録）:** 清掃ownerの自然動作とerrors=0/protected_deletions=0は確認済み。過去に複数回観測した記録は履歴として保持するが、同じ回数を再び要求しない。最新版への反映は対象jobの通常の運用確認だけを行う。
+- [ ] **F5 — 実writerの保存・終了・清掃:** owner_id/PID/run/path/bytesで実writerと最初の不成立境界を特定する。実測したproducerの保存量/子終了/自分のtabや一時物の後始末だけを最小修正し、正式商品・receipt・active/unknown資源は保持する。該当故障の回帰と実仕事の進行を確認したらその修復を閉じる。連続N回、全producerの無故障、全体の再開待ちは要求しない。
 
-**現在の原子的順序:** F1/F3/F4はPASS、F2/F5は未完。空き容量は書込可否の診断値であり、基盤DoneのKPIではない。直近の完了はPR #8033（source bbad660175f709695aff06872db9417348c39271、全12 checks PASS、main73594329a40e4185f3482086641f19f1d6ff4dc9）による、native maintenanceの延期前にも既存git prune-packedで安全なpacked duplicateだけを回収する2行修復。private native regressionのRED→関連7 PASS→cleanup全73 PASSを確認し、unknown lock・unique object・HEAD/ref/dirty/memoryは保持する。既存release ownerがmain dfb8213c4a51dcbc74d925d4ee8ee136a1978e64からcomplete immutable ALL release /Users/anicca/loops/releases/20261014T202446-dfb8213cを完成し、provenance=ancestor-of-origin-main、mode555、Python3.14.7、central_cleanup.py SHA256=f48cc82cc49d99df79000bf9b86ed22947952c5df43871fdc3566208ae48c4b3/source一致を確認する。UID501/Aqua/manager501/PID1/GUI preflight後、life-manager-disk-cleanupだけloaded-idle-onlyで採用済み（install26079147983000b2ac621043）。最初の新SHA自然run18de621dcf864930-89553は11:33:01.972490Zにscratch_allocation ENOSPC/exit78、eventce90289bbe5773ee2756f270。旧SHAのstdout passをこのrunへ結び付けない。続く新SHA自然run18de6264cc4677d0-4172は11:38:06.846554Zに開始し、11:39:03.474888Zにpass/exit0（terminal d585d258c814b2e45f322879）となる。PR8033のsource/main/ALL配布/対象採用/新SHA自然terminalのatomは完了。stdoutのGit bytesはまだrun bindingが無いため、このterminalへ手でjoinせず、次のbinding修復に残す。local shallow ancestryはnative fetch --deepen=32で復旧し、9c71a1a0と73594329がorigin/mainのancestorであることを再確認する。bootstrapではsutando node_modulesの生成ファイル256270336 bytesとpaired pyc151228416+302075904 bytesを回収し、source hash/dirty状態・保護subtree・未paired/unsafe411件を保持する。この手動回収はF5の安定証明へ数えない。Git maintenanceの時間切れ後始末はprivate lock残存のREDから、cleanup74/74・runner bounds180/180 PASS、diff check PASSへ進みsource受入れ済み。bindingは現main出力のkey欠落REDをfilesystem writeなしのfixtureで確認し、同一candidateのrun_binding追加1行でmanaged identityとstandalone Noneの2casesがPASSする。追加testを既存LoopCleanupTestへ保存し、現在cursorはcombined sourceのCI/main→ALL配布→対象採用→自然terminalとbound結果のjoin。localへのbinding保存とcleanup全suite再実行はENOSPCのため未実施なので、実commitのfocused CIで確認する。旧順はmaintenanceのCI/main/配布後にbindingを別配布する形だが、新順はmaintenance source受入れ→binding source受入れ→同じPR/CI/main/ALL配布とする。変更理由は独立した1行の結果識別を同じ修復に含め、CIとALL exportの回数・共有容量負荷を減らすため。進行中の業務effectは中断・重複させない。専用branch=fix/git-maintenance-owned-timeout-20261014、base7919bc92d885751cfacff65ee7e21871108937fd、worktree=/Users/anicca/Projects/life-manager-main/.worktrees/central-cleanup-process-inventory-20261014、lease owner=codex-money-printer。所有sourceはcentral_cleanup.pyとlm_loop_run.py、対応する既存test_loop_cleanup.py/test_lm_loop_run_bounds.py、このSSOTのみ。private fixtureでは旧subprocess.run timeoutがTERMによる自分のlock後始末を実行せず、既存_run_entrypointのTERM→所有group drain→reapでは後始末する。これはgeneric childの終了性であり、live native Gitのunknown lock creatorを確定した証明ではない。maintenanceだけ既存runnerへ通し、optional stdout_capture_fdを追加してstdout/stderr/CompletedProcess契約を保持する。124はdeferred/TimeoutExpired/after unknown、未知lockは自動削除しない。自然exit124と時間切れの124を既存runnerは区別しないため同じ安全な延期へ分類する。既存timeout15秒とtermination grace15秒を維持し、新しいretry/PID台帳/process frameworkは作らない。続いて既存cleanup_run_bindingのowner/run/occurrence/releaseをstdout結果へ保存し、standaloneではNoneのままとし、時刻や別runから手でidentityを作らない。最小RED→GREENと既存関連検証→必要CI/main→main由来ALL release/対象loaded-idle採用→新SHA自然terminalとbound結果を確認する。その後は生成元の後始末/保存上限の実例修復→F2旧effectの公式照合と証明済み回収→F5業務・終了・自動掃除の3自然往復。掃除自身のscratch allocation ENOSPCも共有資源の調査cursorに含める。業務effectは既存ownerに残し、LINEの商品・投稿・審査ロジックはrootで変更しない。F2/F5のDone条件は追加・削除せず、18業務agent全完了とは報告しない。
+**現在の原子的順序:** →「外部の実運用方式へ揃える」。先頭はR1の共有実行・資源管理の現在停止境界を特定し、既済修正を再実装せず必要な最小修復と仕事の再開へ結ぶ。共有の残課題は対象producer/occurrenceへ隔離する。
+
+**直前の共有修復記録（履歴、現在の順序ではない）:** F1/F3/F4はPASS、F2/F5は未完。空き容量は書込可否の診断値であり、基盤DoneのKPIではない。直近の完了はPR #8033（source bbad660175f709695aff06872db9417348c39271、全12 checks PASS、main73594329a40e4185f3482086641f19f1d6ff4dc9）による、native maintenanceの延期前にも既存git prune-packedで安全なpacked duplicateだけを回収する2行修復。private native regressionのRED→関連7 PASS→cleanup全73 PASSを確認し、unknown lock・unique object・HEAD/ref/dirty/memoryは保持する。既存release ownerがmain dfb8213c4a51dcbc74d925d4ee8ee136a1978e64からcomplete immutable ALL release /Users/anicca/loops/releases/20261014T202446-dfb8213cを完成し、provenance=ancestor-of-origin-main、mode555、Python3.14.7、central_cleanup.py SHA256=f48cc82cc49d99df79000bf9b86ed22947952c5df43871fdc3566208ae48c4b3/source一致を確認する。UID501/Aqua/manager501/PID1/GUI preflight後、life-manager-disk-cleanupだけloaded-idle-onlyで採用済み（install26079147983000b2ac621043）。最初の新SHA自然run18de621dcf864930-89553は11:33:01.972490Zにscratch_allocation ENOSPC/exit78、eventce90289bbe5773ee2756f270。旧SHAのstdout passをこのrunへ結び付けない。続く新SHA自然run18de6264cc4677d0-4172は11:38:06.846554Zに開始し、11:39:03.474888Zにpass/exit0（terminal d585d258c814b2e45f322879）となる。PR8033のsource/main/ALL配布/対象採用/新SHA自然terminalのatomは完了。stdoutのGit bytesはまだrun bindingが無いため、このterminalへ手でjoinせず、次のbinding修復に残す。local shallow ancestryはnative fetch --deepen=32で復旧し、9c71a1a0と73594329がorigin/mainのancestorであることを再確認する。bootstrapではsutando node_modulesの生成ファイル256270336 bytesとpaired pyc151228416+302075904 bytesを回収し、source hash/dirty状態・保護subtree・未paired/unsafe411件を保持する。この手動回収はF5の安定証明へ数えない。Git maintenanceの時間切れ後始末はprivate lock残存のREDから、cleanup74/74・runner bounds180/180 PASS、diff check PASSへ進みsource受入れ済み。bindingは現main出力のkey欠落REDをfilesystem writeなしのfixtureで確認し、同一candidateのrun_binding追加1行でmanaged identityとstandalone Noneの2casesがPASSする。追加testを既存LoopCleanupTestへ保存し、現在cursorはcombined sourceのCI/main→ALL配布→対象採用→自然terminalとbound結果のjoin。localへのbinding保存とcleanup全suite再実行はENOSPCのため未実施なので、実commitのfocused CIで確認する。旧順はmaintenanceのCI/main/配布後にbindingを別配布する形だが、新順はmaintenance source受入れ→binding source受入れ→同じPR/CI/main/ALL配布とする。変更理由は独立した1行の結果識別を同じ修復に含め、CIとALL exportの回数・共有容量負荷を減らすため。進行中の業務effectは中断・重複させない。専用branch=fix/git-maintenance-owned-timeout-20261014、base7919bc92d885751cfacff65ee7e21871108937fd、worktree=/Users/anicca/Projects/life-manager-main/.worktrees/central-cleanup-process-inventory-20261014、lease owner=codex-money-printer。所有sourceはcentral_cleanup.pyとlm_loop_run.py、対応する既存test_loop_cleanup.py/test_lm_loop_run_bounds.py、このSSOTのみ。private fixtureでは旧subprocess.run timeoutがTERMによる自分のlock後始末を実行せず、既存_run_entrypointのTERM→所有group drain→reapでは後始末する。これはgeneric childの終了性であり、live native Gitのunknown lock creatorを確定した証明ではない。maintenanceだけ既存runnerへ通し、optional stdout_capture_fdを追加してstdout/stderr/CompletedProcess契約を保持する。124はdeferred/TimeoutExpired/after unknown、未知lockは自動削除しない。自然exit124と時間切れの124を既存runnerは区別しないため同じ安全な延期へ分類する。既存timeout15秒とtermination grace15秒を維持し、新しいretry/PID台帳/process frameworkは作らない。続いて既存cleanup_run_bindingのowner/run/occurrence/releaseをstdout結果へ保存し、standaloneではNoneのままとし、時刻や別runから手でidentityを作らない。最小RED→GREENと既存関連検証→必要CI/main→main由来ALL release/対象loaded-idle採用→新SHA自然terminalとbound結果を確認する。その後は生成元の後始末/保存上限の実例修復→F2旧effectの公式照合と証明済み回収→F5業務・終了・自動掃除の3自然往復。掃除自身のscratch allocation ENOSPCも共有資源の調査cursorに含める。業務effectは既存ownerに残し、LINEの商品・投稿・審査ロジックはrootで変更しない。F2/F5のDone条件は追加・削除せず、18業務agent全完了とは報告しない。
 
 **F5前回snapshot（2026-10-13 21:16 JST、後続readbackで更新済み）:** main=086bfed5bb0a45234f49e0d605cbf7f6bf42cb47; `~/loops/current` was `5b90b21e6d68f0657b9dec7ac92d5898bab0775c`. The complete-release preflight was 2,394,476,544 bytes and Data-volume free was 1,790,568 KiB. These are historical diagnostics, not foundation success KPIs.
 
@@ -18178,7 +18180,7 @@ At the recorded 80% seller share, `$41.84` attributed sales imply `$33.47` selle
 |---|---|---|---|
 |0|S00 文書修正済み|README日英proposalの冒頭をwhole-life/proactive/impactへ戻す。元のNorth Star保持|意味/全18name/同command確認済み。本体短縮は後続startup範囲と一致させる|
 |1|S01 F2 / SOURCE_ACCEPTANCE|fence_reconcile.py::_lost_terminal_unknown_occurrences/_closure_proof/reconcile、central_cleanup.py::scratch_gc。既済sourceを再実装せず、同occurrenceのofficial proofを取得|自然loaded SHA→closure→参照なしclosed scratch回収、receipt保持。既存test_fence_reconcile.pyを使う。解除/再送0|
-|2|S02 F5 / EVIDENCE_FIRST|central_cleanup.py::scratch_gc/lm_loop_run.pyと実測producer。owner/PID/run/path/bytes→parent/child終了→次sweepを三自然cycle結ぶ|GC誤拒否ならscratch_gc、child残存ならそのproducer teardownへ一RED。producer名を先に推測しない。lost/duplicate/manual cleanup0|
+|2|S02 F5 / EVIDENCE_FIRST|central_cleanup.py::scratch_gc/lm_loop_run.pyと実測producer。owner/PID/run/path/bytesで最初の故障を特定し、該当修正と仕事の進行を結ぶ|GC誤拒否ならscratch_gc、child残存ならそのproducer teardownへ一RED。producer名を先に推測しない。lost/duplicate/manual cleanup0|
 |3a|S03.1 PATCH_READY|Create runtime/agent-runner/oss_config.py::build_public_config(base_config,auth_file,automation_home,model=None,effort=None)。private configへCodex/owner一profile/account_fallback_next=falseを生成|one-owner/only-Codex/no-other-account fixture。共有production configは不変更|
 |3b|S03.2 PATCH_READY|Job job_search_loop/local_setup.py::install、scripts/runtime-paths.sh、install-oss.shの読込を生成configへ。古いJob configへ単に切替えない|test_public_runtime_paths_use_generated_config。現旧configはprofile_alias不足でresolver拒否、AST probeで確認済み|
 |3c|S03.3 PATCH_READY|Gig coconala_onboarding.configure/gig_release.plist_for/launchd-jobs.jsonの既存overrideでapply/storefront/replyへ同じpublic configを渡す|同生成path/一account、quota時Claude/他profile呼出し0。既存money_loop_onboarding testを再利用|
@@ -18195,7 +18197,7 @@ At the recorded 80% seller share, `$41.84` attributed sales imply `$33.47` selle
 
 差分手順と各taskのinput/output/assert/既存testはdocs/superpowers/plans/2026-10-14-ordered-patch-execution-plan.mdを参照。この参照planに別のstatusを作らない。S03はconfig生成→Job binding→Gig binding→auth/model contractの独立patchへ分け、shared fileのwriterを重ねない。S03.P0のauth識別/model継承probeを最初に閉じ、未確定の認証fieldやmodel設定を実装者の推測へ任せない。
 
-今の着手点と並列範囲は「最新の基盤・完走cursor」を参照する。新しい本番業務修復は既存F境界へ従う。全18完了をmeta準備の開始gateにはしない。本番採用は対象ごとの自然/金銭/quality証拠後。
+今の着手点と並列範囲は「最新の基盤・完走cursor」を参照する。新しい本番業務修復は対象jobの資源/owner/effect条件へ従い、全F完了待ちを要求しない。全18完了をmeta準備の開始gateにはしない。本番採用は対象ごとの自然/金銭/quality証拠後。
 
 ChatGPT-only source監査: resolverは一profileに対応し、Codex auth alias/execは存在するので再実装不要。公開設定生成は未確認ではなくsource13fで未対応。共有configはacct1/acct2とnon-Codex候補13件、Job runtime-pathsは共有を固定。古いJob configはprofile_alias不足で失敗。sourceだけのAST probeはone-profile/false fallback PASS、実auth/inference/新端末成果は未実証。別Treg等のdata credentialをmodel契約へ混同しない。
 
@@ -18381,7 +18383,7 @@ DD06 source integration is complete. Release capacity, production owner adoption
 
 **一次根拠:** main `1d1c0127bca23eb344fb7a6fe388ffe907d4e72f`。最初のstatus取得窓は `2026-10-14T14:14:22Z–14:17:37Z`、後続の成功取得は14:34:47Zのprobe後に開始し14:35:56Zに終了（厳密な開始時刻は未記録）。両snapshotと各rowの時刻は `docs/evidence/foundation-readiness-20261014-latest.json`。statusは順次取得であり、全rowが同時点ではない。18は業務capability、191は登録jobで、status出力298行は外部/履歴を含むためagent数へ置換しない。
 
-**起動判断:** 全18を一斉に起動し、account→収益まで無人完走できる状態ではない。新端末でChatGPT契約一つから完走する経路も未実証。既存のowner/cadenceによる運転は保持し、今回追加起動しない。共通基盤はF1/F3/F4の既存acceptanceが完了、F2/F5が未完である。これは「完成率60%」という推定ではない。先に既存の基盤修復を閉じてから、新たな個別業務の本番修復へ進む。
+**起動判断:** 全18を一斉に起動し、account→収益まで無人完走できる状態ではない。新端末でChatGPT契約一つから完走する経路も未実証。既存のowner/cadenceによる運転は保持し、今回追加起動しない。共通基盤はF1/F3/F4の既存acceptanceが完了、F2/F5が未完である。これは「完成率60%」という推定ではない。現在の停止境界だけを修復し、条件を満たしたlaneから収益運転を進める。全F完了まで全業務を待たせる旧条件は撤回する。
 
 **完了済みの差分を除外する:** `dabdc40fa5001abe75161a0e572d4f73bee11b76` のGit maintenance timeout後始末と清掃stdoutの `run_binding` は上記mainに統合済み。既存共通runnerを使い、正式receipt保存までの識別を保持する修正である。production currentは旧dfb8213cから `20261014T231804-1d1c0127` へ進み、この2sourceは固定mainとbyte一致する。14:35取得ではfence ownerは1d1c0127をloaded、ただし最新PASS eventは旧dfb8213c。清掃ownerのloaded/eventはまだdfb8213c。残作業は既存ownerの対象採用と新SHAの自然terminal/bound結果の照合であり、同じsourceを再実装しない。本番の反復結果も別のacceptanceである。
 
@@ -18389,24 +18391,24 @@ DD06 source integration is complete. Release capacity, production owner adoption
 
 **追加の観測境界:** 14:29:15Zのstatus再取得は `admission_fence_read_failed / admission_database_locked`、exit1。`lm_loop.py::_read_admission_rows` のread-only SQLite照会がbusy/lockedになった境界であり、空のfleetへ置換しない。14:34:47Zに同DBへmode=ro/timeout0.2秒の独立probeを行い、journal_mode=deleteとschema6 tablesを読めた。その後のstatus取得は14:35:56Zにexit0で完了。恒常的なDB故障や破損と断定せず、どのread/query/owner/windowで競合するかを次の診断へ残す。writer停止、journal設定変更、state手修正は行わない。失敗と回復を同evidenceへ記録し、snapshotの鮮度を隠さない。
 
-### 共通基盤の先頭原子
+### 共有修復の差分参照（全体再開の一括gateではない）
 
 共有資源の既存primary/ownerを保持する。根拠は上部「統括cursor — 共有資源回復と全案件の引き継ぎ」。この表は同じ作業を最新sourceへ結ぶもので、別ownerの修復を起動しない。
 
 |順|具体的な次作業|対象と合格証拠|
 |---|---|---|
-|C1 / 現在|統合済み保守後始末・run bindingを既存ownerが本番で受け入れる|観測 `runtime/loop/central_cleanup.py::git_duplicate_cleanup/main` と `lm_loop_run.py::_run_entrypoint`。immutable/loaded SHA→新SHAの自然terminal→同run_bindingの清掃結果。旧stdoutの時刻だけでjoinしない|
+|C1 / 既済sourceの反映|統合済み保守後始末・run bindingを既存ownerが本番で受け入れる|観測 `runtime/loop/central_cleanup.py::git_duplicate_cleanup/main` と `lm_loop_run.py::_run_entrypoint`。immutable/loaded SHA→新SHAの自然terminal→同run_bindingの清掃結果。旧stdoutの時刻だけでjoinしない|
 |C2|実writerの保存と終了処理で最初に失敗する箇所を確定する|owner/PID/run/path/bytesを同じwindowで記録し、生成側の保存上限/teardownを確認。health observerは同occurrenceの出力を読む。状態取得のDB競合は `lm_loop.py::_read_admission_rows` のquery/owner/windowから狭め、unknownを空の正常状態へ落とさない。初回の不成立箇所だけ既存関連testへREDを追加し、共有入口を作り直さない|
 |C3|F2の未解決effectを公式結果で閉じる|登録済みadapterでowner/occurrence/release/provider IDを照合。公式closure前はhold、closure後だけ参照の無い終了済みscratchを中央sweepへ渡す。解除/再送/DB手修正を証拠取得の代わりにしない|
-|C4|F5の業務→終了→自動清掃を3回連続で確認する|次成功sweepまでにそのrunの一時物だけ消える。正式商品/receipt保持、lost task/duplicate effect/manual cleanup/未帰属増加は0。capacity deferは次予定wakeまでに再開する。新しい基盤Done条件は発明しない|
+|C4|F5の該当故障を修復し、仕事→終了→清掃の境界を確認する|正式商品/receiptとactive/unknownを保持する。該当故障の回帰と実仕事の進行で修復を閉じ、連続回数や全producer完走を追加gateにしない|
 
 ### 基盤の後から終点まで
 
-**順序の詳細化:** 旧表示は差分番号S01→S02→S03–05→S06–09→S10–12であり、公開起動と業務修復がすべて直列にも読めた。新しい実行順は下表とする。理由は、既存稼働accountのCapafy/Gigは公開installerの完成を待たず実収益の検証へ進め、公開導入のsource作業と評価準備は独立して進められるため。同一file/ownerは直列、進行中の外部effectは中断・重複させない。既存Capafy/Gig/DDのlane内cursorは保持する。現在cursorはC1、今回実装は開始しない。
+**順序の詳細化:** 旧表示は差分番号S01→S02→S03–05→S06–09→S10–12であり、公開起動と業務修復がすべて直列にも読めた。新しい実行順は下表とする。理由は、既存稼働accountのCapafy/Gigは公開installerの完成を待たず実収益の検証へ進め、公開導入のsource作業と評価準備は独立して進められるため。同一file/ownerは直列、進行中の外部effectは中断・重複させない。既存Capafy/Gig/DDのlane内cursorは保持する。現在cursorは「外部の実運用方式へ揃える」のR1、今回実装は開始しない。
 
 |順|残る作業と具体的な差分|進めるための証拠／終点|
 |---|---|---|
-|1|共通基盤C1→C2→C3→C4（S01/S02）|F1–F5の既存acceptanceがすべてPASS。基盤解消を全18の収益完走へ置換しない|
+|1|選択laneの現在の停止境界だけを直す（S01/S02の該当差分）|資源/owner/effect条件が揃った仕事を進める。全F完了と連続N回を再開gateにしない|
 |2|Capafyを先頭の収益laneにする（S09）。既済goal/slot/distribution adapter差分をloaded版へ照合し、未解決occurrenceを公式に閉じる。 `capafy_hourly_reconcile.py` / `inventory_status.py` / 既存distribution adapter / CFO marketplaceを使う|自然factory→公式listing、detail/paid/renewal→fee/refund/payout/同期間cost。取得日を売上日にしない。hosted商品がOpenRouterを要求する現依存はS09.P0で正式な実行契約を確定し、ChatGPT-only readyと誤表示しない|
 |3|Gigの最短のfunded案件を正式納品・精算まで通す（S06/S07）。Coconala Apply/Storefront/Replyのexact proof→account/inventory→交渉/funded→shared paid_handoff/paid_kernel→provider Submit|応募/返信/納品/受領/settlementは別receipt。Lancers/CrowdWorks/Freelancerのadapterを同kernelへ。Mercorの本人手続き/提出条件を確認前にhuman gateを削らない。相手の返信待ちは技術故障と区別する|
 |4|実証済みofferを積み、成功を共通skillへ戻す（S08/S10）| `skills/gig-work/profile/listings/catalog.json` と `buyer_outcome_ledger.py::scan`、既存CFO/品質/evalを再利用。scope/品質/工数/費用/official outcomeを共有し、private顧客本文・asset・credentialを共有素材にしない。市場ごとに業務pipelineや会計をコピーしない|
@@ -18445,3 +18447,57 @@ DD06 source integration is complete. Release capacity, production owner adoption
 **根本原因とローカル修正:** 旧 `find_hit()` はversion差分だけを比較し、同じversionで `updated_at` がoccurrence後へ動いてもno-effect branchへ進めた。また日時parserはISO文字列だけを受け、Capafyのepoch-millisecondsを無視した。TDDで4つの失敗を確認後、numeric秒/msをparseし、snapshot上の同一versionについて日時欠落・不正・queued後をambiguous/heldへ分け、snapshotなしでwindow内numeric日時をeffect候補として認識する修正を実装。異常に巨大な数値はheldへ分類して例外終了を避ける。関連suiteは16/16 PASS。fresh-context read-only final reviewもPASSし、巨大整数・NaN/Inf・window外・new/version-changed分岐を確認したが、provider・release・本番採用はreview対象外。この結果はsourceの局所検証で、main統合・release・owner採用・自然runを意味しない。
 
 **Cursor/order update:** 21:22 JSTの旧順序は (1) receipt-write capacity recovery, (2) exact Factory fence readback, (3) goal-monitor Telegram binding, (4) owner apply, (5) natural runs/readbacks, (6) sales/source/MRR refresh。capacityは回復しFactory exact fenceはno-effect closure済みだが、main/current adapterに同一version誤判定が残り、Factory自然再開と将来のclosureを誤らせ得るため順序を (1) このresolver修正をfocused acceptance・fresh read-only review・CI・PR/mainへ統合, (2) main由来immutable releaseとloaded-idle owner apply, (3) 現在runningの自然Factory runを終端まで観測し、occurrence identity確定後にofficial publish-list照合, (4) Distributor次natural runとGitHub/Postiz exact readback, (5) goal-monitorのexact Telegram occurrence binding/registered adapter修復, (6) fresh official sales/source/MRR readback, (7) query-targeted Agent shippingとsource別conversion最適化へ更新する。cursorはitem 1のlocal code/spec完成後、PR作成前。理由はfence判定の安全性が新しいFactory shipmentより先行依存であり、分配施策の結果をofficial readbackに結び付ける必要があるため。force push、manual owner wake、provider resend、DB手修正は禁止。
+
+
+## 外部の実運用方式へ揃える
+
+**目的・範囲:** 連続成功回数と全体合格待ちで修復を終えられない進め方を撤回し、実運用のキュー/worker/負荷制御/再送設計を既存Life Managerへ適用する。今回は外部調査とspec/参照plan更新だけで、実装修復・本番起動・新server導入・provider操作は行わない。
+
+**新ルール:** 「連続N回成功」「F1–F5全部PASSまで全事業再開禁止」を完了条件にしない。成功回数を別の数字へ置換もしない。既知の故障を再現する最小検証と実仕事の該当境界で修復を閉じ、安定性は既存監視で継続観測する。過去snapshotの回数は観測履歴であり、現在の実行指示ではない。
+
+**調べた一次資料と採用する方法:**
+
+|実運用の根拠|採用する方法|Life Managerでの対応|
+|---|---|---|
+|[Google SRE: Handling Overload](https://sre.google/sre-book/handling-overload/)|処理件数だけでなく実資源から容量を決め、過負荷を局所化する|既存resource admissionとdisk producer gateを使い、現在の重いwriterだけを抑える。枠待ちは永続キューへ置く|
+|[Temporal: Task Queues](https://docs.temporal.io/task-queue)|仕事を永続キューへ置き、workerが取る。worker停止でも未処理の仕事を保持する|enqueue_durable/claim_durable/heartbeat_durable/release_and_reserveを再利用。全agentを同時に重く起動しない|
+|[Inngest: Step concurrency](https://www.inngest.com/docs/durable-execution/flow-control/concurrency)|実行しているstepだけが枠を使い、待っている仕事は空き枠を占有しない。共有resourceのkeyで並列数を制御する|provider/readback待ちと実行中processを分ける。停止した一仕事のunknownを保ち、無関係なownerの実行枠を止めない|
+|[Amazon Builders' Library: Making retries safe with idempotent APIs](https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/)|同じ操作の再送をrequest IDで識別し、結果不明時の重複実行を避ける|既存occurrence/intent/hash/provider receiptを維持。providerがidempotencyを保証しない公開/応募/納品は公式結果照合を先に行う|
+
+これらは各社/公式開発者が公開した設計であり、全外部サービスの成功・収益を独立監査したという主張ではない。Mac上のsourceで実装された部分と、外部方式からの設計判断を区別する。
+
+**単一推奨:** 既存native運転を「永続キュー→空き枠の有限worker→小さいcheckpoint→終了時の資源返却→次の仕事」へ揃える。収益判断はagentが行い、実行枠/identity/金額/重複検査は既存contractで行う。受注済み納品を守り、Capafyを収益laneの優先対象にする。固定時刻のシフトはburst緩和の補助として使えるが、長い仕事と保存量の制限の代わりにしない。
+
+**既存sourceとの比較（main605177d47acdb77ded7c130f3d5d1cdeb46576b2）:** Macには永続queue/lease/priority/heartbeat/有限child/中央cleanupが既にある。Cloud appにはInngest ^4.11.0、uid単位のconcurrency、step.run、single-writer guardがあるが、Macの18業務をInngestへ接続済みとは言えない。Inngest self-hostの公式方式も確認したが、既定のqueue/stateはin-memory RedisからSQLiteへ定期snapshotするため、daemon追加だけで同じ耐久性が自動的に得られると仮定しない。今回は全体のengine移植を先頭にしない。
+
+### 実行順の変更と現在cursor
+
+**旧順:** 共有基盤C1→C2→F2公式closure→F5連続実行→全F合格→Capafy/Gig。
+
+**新順:** R1共有実行・資源管理の現在停止境界→R2最小修復/既済source反映→R3条件の整った仕事を進める→R4Gigと他lane→R5実結果を使う自己修復/自己改善。共有課題は当該producer/occurrenceごとに並行処理する。
+
+**理由:** 全体の連続合格待ちは実資源・個別故障の改善を測らず、条件が整った仕事まで止める。外部の実行枠/待機/障害隔離の設計へ合わせ、現在の収益経路を先に通す。進行中のeffectや他ownerの運転は中断・重複させない。**現在cursorはR1。今回の文書更新を本番修復済みや新方式導入済みにしない。**
+
+|順|具体的な次作業|対象file/functionと、終える事実|
+|---|---|---|
+|R1 / 現在|共有実行・資源管理の現在停止境界を絞る|該当ownerのstatus/run/loaded SHAと公式結果を読む。source済みなら既存ownerの採用へ、保留なら当該registered adapterへ、実資源ならそのwriterへ進む。古いblocked eventを現在の保留一覧と同一視しない|
+|R2|最初に不成立な境界だけ修復する|queueはresource_admission.py::claim_durable/release_and_reserve、保存はdisk_admission.py::_producer_gate、子終了はlm_loop_run.py::_run_entrypoint、後始末はcentral_cleanup.py::scratch_gc。既存回帰で足りれば増やさず、必要なREDだけ追加。修正済みsourceを再実装しない|
+|R3|Capafyの制作・公開・配信を通常の仕事として進める|登録済みownerと同operation identityで進め、実結果を記録する。故障修復と販売/入金の達成は別に測る。回数を満たすための再実行をしない|
+|R4|Gigのfunded案件と、条件が整った他laneを進める|shared Paid→正式納品→受領/精算。別laneの保留やF backlogで一括停止しない。Storefrontの展開と公開起動整備は既存差分計画へ|
+|R5|評価から自己修復・自己改善へ戻す|同taskの品質・工数・費用・official outcomeを既存eval/CFOへ戻す。全18完成を準備開始条件にせず、成功の型を共有する|
+
+**実装上の境界:** 同時実行数と時間制限は既存policyから読み、根拠なく増減しない。Macのソフト予算/観測をOSが強制するRAM/disk quotaと称さない。外部結果のunknownとprocess占有は分けるが、active child、参照中のbrowser、正式商品、未保存の証拠を安全性未確認のまま回収しない。別ownerがheldでも別の適格ownerは進める。queue/state/receipt/skillの第二正本は作らない。
+
+**他案との比較:** 全Temporal移植の強みは成熟したdurable executionを直接使えることだが、現在は新server・Mac worker・既存operation identityの移行が新たな作業となる。固定時刻だけのシフトは簡単だが、長いjobや漏れる保存量を制御しない。最善は既存部品で停止境界を閉じて直ちに仕事が進むこと、基準は一producer/adapterの最小修復、最悪は枠管理外のwriterまたは物理容量不足が見つかり、その重い仕事だけを隔離すること。推奨が誤る最有力の筋は、既存の枠管理外で動く子process/保存先があること。R1/R2でowner/PID/path/bytesを結ぶのは、その点を見分けるためである。
+
+**参照:** 外部取得の記録はdocs/evidence/external-job-operation-methods-20261015.json、具体的な差分手順はdocs/superpowers/plans/2026-10-15-external-job-operation-plan.md。これらに別のTODO順/statusを作らない。
+
+### R1の実行範囲
+
+Daisの「Let's go」「Let's continue」により、上の方式で現在の停止境界の実装修復へ進む。先頭は共有実行・資源管理のstatus/owner/loaded sourceを確認し、原因が実在する箇所だけ修復する。既済sourceは再実装せず、対象ownerの反映・既存registered readbackへ結ぶ。別のlive ownerが同対象を担当中ならagmsgで所有範囲と現在cursorを照合し、重複mutationや競合source編集をしない。
+
+source変更は最新main由来の成果専用worktreeで最小RED→修正→focused検証/CI/main→対象反映を行う。本番操作は所有者・leaseとlaunchctl-safeの前提を満たす対象限定の既存経路だけを使う。auth/browser/provider操作前は既存private credential SSOTとbrowser registryを確認し、secretを文書・log・chatへ複製しない。本文にある「今回文書のみ」は調査/計画作成時の記録であり、この実行範囲を上書きしない。
+
+R1の目的は、共有実行・資源管理の現在の故障を閉じ、条件が揃った実仕事が進むこと。Capafyの個別改善はその後へ戻す。連続回数は要求しない。収益・全18・新端末・自己改善の全体完了へ言い換えず、業務段階/公式結果と残TODOを保持する。
+
+**共通部分を先に修復する順序:** Daisの追加指示により、旧R1（Capafyの個別停止境界）から、新R1（共通の実行・資源管理）へ変更する。理由は共通修復を先頭にする明示指示であり、連続N回や全F合格待ちを復活させない。最新read-only観測では清掃/監視/効果照合は605177d版でpass、release-reconcilerのexact run18de6e58507dc040-44741はentrypoint_exit_1、配信にはresource_control_busyがある。先頭は共有release/制御の同run診断→最小修復、次にwriter/終了/保存、最後にCapafyへ戻す。

@@ -7,11 +7,11 @@
 **Tech Stack:** 既存Bash/Python/Node、stdlib、既存focused tests。追加のmodel契約/API-key transportを必須にしない。
 **Spec:** ../specs/2026-09-25-life-manager-unified-ssot.mdの「whole-life哲学と実装順」。source基準13f59bca114e48e284b3b55fee1c1f450c66b2c0。実装前に最新mainの同functionを比較し、既済修正を再実装しない。
 
-**最新の起動判断・実行順:** → spec「最新の基盤・完走cursor」。main `1d1c0127bca23eb344fb7a6fe388ffe907d4e72f` ではGit保守timeout後始末と清掃stdoutのrun_bindingがsource統合済み。S01/S02の入口は既存ownerの反映・同一runの自然結果確認であり、同じsource修正を新設しない。S番号は差分IDで、全taskを番号順に直列実行する指定ではない。
+**最新の起動判断・実行順:** → spec「外部の実運用方式へ揃える」。main `1d1c0127bca23eb344fb7a6fe388ffe907d4e72f` ではGit保守timeout後始末と清掃stdoutのrun_bindingがsource統合済み。S01/S02の入口は既存ownerの反映・同一runの自然結果確認であり、同じsource修正を新設しない。S番号は差分IDで、全taskを番号順に直列実行する指定ではない。
 
 ## Global Constraints
 
-- 現在のF2→F5、各laneのowner/lease/cursorを保持する。今回provider/auth/install/release/applyは0。
+- 各laneのowner/leaseを保持し、実行順はspec「外部の実運用方式へ揃える」を参照する。連続N回と全F完了待ちは撤回。今回provider/auth/install/release/applyは0。
 - effect unknownは公式結果を取るcursor。証拠前の解除/再送は0。
 - public profileだけを変更し、private production routingとUIのmodel選択を一括変更しない。
 - credential/session/customer assetはGitへ置かず、新userへDaisのものを移植しない。
@@ -42,9 +42,9 @@ SOURCE_ACCEPTANCE=source済み、自然採用/公式結果待ち。PATCH_READY=�
 ### S02 — F5のwriter往復（EVIDENCE_FIRST）
 
 **Files:** runtime/loop/central_cleanup.py::scratch_gc、lm_loop_run.py、実測で特定したproducer entrypoint。runtime/loop/tests/test_loop_cleanup.py / test_loop_scratch.pyの関連case。
-- [ ] 三自然cycleでowner+PID+run+path+bytes→parent/child終了→次sweep→商品/receipt保持を結ぶ。
+- [ ] owner+PID+run+path+bytesで今回の故障箇所を特定し、parent/child終了・scratch・正式商品/receiptの境界を確認する。回数による待機を設けない。
 - [ ] 閉じた参照なのにGC拒否ならscratch_gc、child残存ならそのproducer teardownへ一つのREDを置く。先にproducer名を推測しない。
-- [ ] 最初の不成立functionだけ最小修正し、同fixtureと三cycleでlost/duplicate/manual cleanup0。容量bytesだけでDoneにしない。
+- [ ] 最初の不成立functionだけ最小修正し、同fixtureと該当する実仕事で故障の解消と商品/receipt保持を確認する。容量bytesだけでDoneにしない。
 
 ### S03 — public ChatGPT-only設定と実読込（PATCH_READY、auth/model継承probeを先行条件）
 
@@ -166,4 +166,4 @@ bash -n scripts/bootstrap.sh install.sh apps/job-search-loop/scripts/install-oss
 
 ## 各patchのDone
 
-RED→最小差分→focused GREEN→review/CI/main→immutable→対象自然run/official readback。金銭/effect成果はlocal testで代用しない。既済sourceはREDを書き直さず採用と自然結果を照合する。先頭と依存関係はspec「最新の基盤・完走cursor」を参照し、shared file/ownerの書込を直列にする。S10/11の評価準備は並行可能、full採用は対象証拠後。順序/statusはspecだけへ。
+RED→最小差分→focused GREEN→review/CI/main→immutable→対象自然run/official readback。金銭/effect成果はlocal testで代用しない。既済sourceはREDを書き直さず採用と自然結果を照合する。先頭と依存関係はspec「外部の実運用方式へ揃える」を参照し、shared file/ownerの書込を直列にする。S10/11の評価準備は並行可能、full採用は対象証拠後。順序/statusはspecだけへ。

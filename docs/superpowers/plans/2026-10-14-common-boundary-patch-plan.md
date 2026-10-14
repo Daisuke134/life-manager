@@ -6,6 +6,8 @@
 
 **正本:** `../specs/2026-09-25-life-manager-unified-ssot.md` の「共通境界のpatch-level診断」。CB01–CB06の順序/status/cursorはspecだけに置く。このplanは手順と差分の参照。
 
+**現在の実行方針:** → spec「外部の実運用方式へ揃える」。このsource固定の旧差分を一括再実行しない。連続N回、全F完了まで全事業を待たせる条件は撤回し、現在の停止境界だけを最小修復する。
+
 **固定したsource:** `7018416d03a7755766df1e115e019c6f1da5c49a`。local `main`や共有rootのHEADを使わない。適用者は最新origin/mainでpatch checkと関連検証を再実行し、関係する実装が変われば差分案を更新する。別ownerの進行を巻き戻さない。
 
 **構成:** 既存release builder、resource admission、health CLI/observer、provider-owned fence adapterを使う。新scheduler・新cache・provider・model・walletを追加しない。healthの30秒、observerの180秒、fence guardを維持する。
