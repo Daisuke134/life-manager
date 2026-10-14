@@ -18492,7 +18492,7 @@ Paid-orders/views is descriptive, not causal: hot `5/46 ≈ 10.9%`, search `8/79
 1. **共通heartbeat source repair — 完了:** subcause保持とclaim検証をPR #8095/#8098でmainへ統合する。production adoptionとは分けて扱う。
 2. **容量回復 — 現cursor:** registered cleanupのfresh receiptとowner-controlled writerを照合する。current `free_after`を2 GiB recovery floor + 最新`release_capacity_bytes()`以上にし、open/protected候補を削除しない。receiptが`unmet`ならrelease cut/applyしない。
 3. **immutable releaseとadoption:** capacity preflightがpassした後、latest main由来releaseを標準cutterで作り、標準release reconciler経由でloaded-idle ownerだけに採用する。
-4. **heartbeat subcauseを一度観測:** 新SHAを読んだ後、未解決のeffect fenceがないaffected ownerの次の自然runを一度だけ確認し、subcauseとterminal boundaryを記録する。effectful runは同じoccurrenceの公式receipt/readbackを要求し、unknownを保持する。
+4. **heartbeat subcauseを一度観測:** 新SHAを読んだ後、未解決のeffect-unknown occurrence/fenceがないaffected ownerの次の自然runを一度だけ確認し、subcauseとterminal boundaryを記録する。effectful runは同じoccurrenceの公式receipt/readbackを要求し、unknownを保持する。
 5. **Capafyの保留occurrenceを先に照合:** `capafy-loop-daily:18de8401772b28b8-58517`をregistered official adapterでreadbackする。no-effectが証明された後にだけ7393298474のattempt counterを3→0へ対象限定で戻し、手動wakeなしで同Agent IDの自然runを一度だけ確認する。
 6. **revenue readback:** fresh orders/gross/settled MRRとsearch/hot/Google/ai_overview別view→paidを更新する。
 
