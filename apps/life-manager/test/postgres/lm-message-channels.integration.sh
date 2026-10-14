@@ -4,8 +4,9 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 MIGRATION="$ROOT_DIR/migrations/2026-10-08-zzz-lm-message-channels.sql"
 FORWARD_MIGRATION="$ROOT_DIR/migrations/20261014190913_lm_message_channels_guest_compat.sql"
-if [[ ! -f "$MIGRATION" || ! -f "$FORWARD_MIGRATION" ]]; then
-  printf '%s\n' 'FAIL missing tenant-safe message-channel migration' >&2
+POSTGREST_TIMEOUT_MIGRATION="$ROOT_DIR/migrations/20261014195919_lm_postgrest_authenticator_timeout.sql"
+if [[ ! -f "$MIGRATION" || ! -f "$FORWARD_MIGRATION" || ! -f "$POSTGREST_TIMEOUT_MIGRATION" ]]; then
+  printf '%s\n' 'FAIL missing required Postgres migration fixture' >&2
   exit 1
 fi
 
@@ -53,6 +54,9 @@ fi
 DO $$ BEGIN CREATE ROLE anon NOLOGIN; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE ROLE authenticated NOLOGIN; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE ROLE service_role NOLOGIN BYPASSRLS; EXCEPTION WHEN duplicate_object THEN ALTER ROLE service_role BYPASSRLS; END $$;
+DO $$ BEGIN CREATE ROLE authenticator NOLOGIN; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+ALTER ROLE authenticator SET statement_timeout = '8s';
+ALTER ROLE authenticator SET lock_timeout = '8s';
 CREATE TABLE public.lm_users (
   uid text PRIMARY KEY,
   telegram_chat_id text,
@@ -78,6 +82,20 @@ SQL
 "${PSQL[@]}" -f "$MIGRATION" >/dev/null
 "${PSQL[@]}" -f "$FORWARD_MIGRATION" >/dev/null
 "${PSQL[@]}" -f "$FORWARD_MIGRATION" >/dev/null
+"${PSQL[@]}" -f "$POSTGREST_TIMEOUT_MIGRATION" >/dev/null
+"${PSQL[@]}" -f "$POSTGREST_TIMEOUT_MIGRATION" >/dev/null
+if [[ "$("${PSQL[@]}" -Atqc "SELECT EXISTS (SELECT 1 FROM pg_roles r CROSS JOIN LATERAL unnest(r.rolconfig) c WHERE r.rolname='authenticator' AND c='statement_timeout=15s');")" != "t" ]]; then
+  printf '%s\n' 'FAIL PostgREST authenticator statement_timeout was not raised to 15s' >&2
+  exit 1
+fi
+if [[ "$("${PSQL[@]}" -Atqc "SELECT EXISTS (SELECT 1 FROM pg_roles r CROSS JOIN LATERAL unnest(r.rolconfig) c WHERE r.rolname='authenticator' AND c='statement_timeout=8s');")" == "t" ]]; then
+  printf '%s\n' 'FAIL PostgREST authenticator still has the 8s statement_timeout' >&2
+  exit 1
+fi
+if [[ "$("${PSQL[@]}" -Atqc "SELECT EXISTS (SELECT 1 FROM pg_roles r CROSS JOIN LATERAL unnest(r.rolconfig) c WHERE r.rolname='authenticator' AND c='lock_timeout=8s');")" != "t" ]]; then
+  printf '%s\n' 'FAIL PostgREST authenticator lock_timeout changed unexpectedly' >&2
+  exit 1
+fi
 "${PSQL[@]}" >/dev/null <<'SQL'
 INSERT INTO public.lm_users(uid, telegram_chat_id, name, tg_onboard_stage)
 VALUES ('webmcp-guest-0123456789abcdef01234567', 'webmcp-guest-0123456789abcdef01234567', 'WebMCP guest', 'done')
