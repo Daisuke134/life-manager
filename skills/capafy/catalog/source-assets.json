@@ -17,6 +17,11 @@
       "sha256": "5a1006789b42b933f02cbe72bd737340e120d6bb46a154066e6adbbea421c7b7"
     },
     {
+      "path": "skills/capafy/catalog/mlb-postgame-turning-point-brief/icon.png",
+      "role": "agent_icon",
+      "sha256": "c769187541390197b9a919239c8884da187531105e2ad21686836a9fb7215a4e"
+    },
+    {
       "path": "skills/capafy/catalog/nhl-goalie-matchup-brief/icon.png",
       "role": "agent_icon",
       "sha256": "1c65386cc9e69f5cd9b6f62636e2c104419062ac89f1f18ce4a43401c6264150"
