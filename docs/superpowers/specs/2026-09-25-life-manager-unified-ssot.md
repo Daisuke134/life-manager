@@ -18433,3 +18433,33 @@ Paid-orders/views is descriptive, not causal: hot `5/46 ≈ 10.9%`, search `8/79
 | 13 | Aniccaの再現可能なplaybook確立後、Life Manager/mobile-app factoryをOSS化する。 | clean computerで数コマンドから起動し、operator別credentials/stateを隔離し、provider receiptと実収益を表示する。billionaire/収益保証をしない。 |
 
 **Current cursor:** item 1。容量は回復済み。公開Instagram `/app` CT routeも本番readback済み。残る直近blockerは2件のoccurrence-bound Postiz公式readbackであり、effectを推測せず再送しない。
+
+
+### Anicca A3 no-dispatch reconciliation repair — 2026-10-15 02:50 JST
+
+**再現された原因:** occurrence `life-manager-anicca-en-widget-instagram:18de27b12ced54d0-63894` はrun `18de5af77bd0c2e8-40954`、occurrence `life-manager-anicca-en-affirmation-tiktok:18de0ea01058a060-68528` はrun `18de5af913ca1378-41042`に結び付く。両runのprivate `loop-tmp/<owner>/<run>/entrypoint-result.json` はowner所有・regular・0600・1 hard linkで、内容は正確に`{"status":"pre_effect_failure","effect":0}`。両方とも`effect-identity.jsonl`はない。TikTok stderrはadmission releaseの`unable to open database file`とcleanup診断writeの`errno=28`を記録し、host stale recovery後にeffect unknownが残った。2026-10-15 02:38 JSTの容量readbackは13,222,486,016 bytes free、capacity recovered。
+- 現行`lm-loop pre-effect-reconcile <owner> --dry-run`は両対象を`no_pre_effect_terminal`として保留する。`runtime/loop/lm_loop.py::_is_mobile_pre_effect_terminal`はmanaged runtime不足と特定object-store ENOSPCだけを認識し、mobile-appが作りprovider upload前まで保持するrun-scoped markerを見ていない。
+- Postiz公式readbackでInstagram `cmv7du7ls1guble0yownton1q`とTikTok `cmv7d79731goiqc0y78vuxucb`はPUBLISHED。ただしruntime journalでそれぞれ別 occurrence `life-manager-anicca-en-widget-instagram:18de206bf4c85fb0-12063`、`life-manager-anicca-en-affirmation-tiktok:18dddee323d032f8-83743`のprovider receiptとして既にverified。これらは対象fenceを閉じる証拠に使わない。
+- 最新main由来`lm-fence-reconciler`はloaded-idleで健全。対象2件のpre-effect proof dry-runがmarkerの不認識で閉じていない。再投稿はしない。
+
+**順序更新:** 旧cursor=`A3: 2件のunknown投稿に対するPostiz official receipt/readback`。新cursor=`A3: persisted run markerをoccurrence/run/eventに結び付けてpre-effect verifierへ渡し、既存のlm-loop pre-effect reconciliation経路で対象fenceを閉じる`。理由は、先に見つかったPostiz候補2件が別occurrenceのreceiptであり、対象runにはupload前markerが残る一方、現在のclassifierがその証拠を読まずstale claimをunknownとして保持するため。close後に限り現行publisher/metrics ownerのloaded SHA・自然post receipt・mature metricsへ進む。旧順序の残り（Instagram CT成熟値 → TikTok CT → 英語creative cohort → OpenSEO/TREG → SEO → JA/ES ASO → UX → 1,000 ASC first-time downloads/day → USD 10K Anicca MRR → Honne/他アプリUSD 10M → Postiz self-host → OSS factory）は維持。
+
+**受入条件:** pass/exit0とfail/exit1の両terminalで、exact run-private markerだけが正確なpre-effect proofを出す。marker欠落・改変・owner/run/occurrence不一致・provider receipt/effect identity存在時はproofを拒否する。RED→GREENテスト後にmain統合・immutable release・loaded-idle control owner adoptionを完了し、fresh dry-runで対象occurrenceがprovableとなり、自然`lm-fence-reconciler`またはowner-scoped `pre-effect-reconcile <owner>`がproof可能なoccurrenceだけを閉じ、pre-effect receiptを保存してunknownを0にしたことをreadbackする。Postiz投稿の再送はしない。
+
+**Current cursor:** 上記markerを`_pre_effect_occurrence_proof`へ結ぶ最小runtime fixとRED test。existing proof/resolverを使い、provider effectやoccurrence identityを推測で補わない。
+
+### Anicca A3 marker-proof source acceptance — 2026-10-15 03:00 JST
+
+- `runtime/loop/lm_loop.py` now recognizes only the private `entrypoint-result.json` for the exact `loop_id/run_id/occurrence_id`; it rejects missing/changed markers, writable or linked files, mismatched owners/runs, and any provider receipt or effect identity. The pre-effect receipt records the marker SHA and run URI. No admission state has been changed yet.
+- TDD evidence: the new pass/exit0 and fail/exit1 regression first failed with `no_pre_effect_terminal`; after the minimal source change it passes. Full `test_lm_loop_apply` passes 197/197. The read-only evaluator now returns `proof_type=pre_effect` for both target occurrences with marker SHA `bc68b6c09ee78331c4baf41981d2d5ce910f84432e5195fd19150f24074b3dcd`. Current admission rows remain `claimed/effect_unknown=1`; no resolver or provider mutation has been run.
+- Current source branch `fix/anicca-mobile-pre-effect-reconcile-20261015` is based on main `3372c363`; main advanced by five commits and must be fetched/rebased before push. The latest clean `lm-fence-reconciler` natural pass still ran the pre-fix release, so production reconciliation remains pending.
+
+**Cursor advance:** old=`add and verify the exact run-scoped no-dispatch marker proof` → new=`rebase the source/spec branch onto latest main, exact-head CI and merge, then cut the main-derived release and apply only the loaded-idle `lm-fence-reconciler`; confirm a fresh dry-run marks both occurrences provable, let the registered reconciler save receipts, and verify the two database rows reach effect_unknown=0`. Reason: the same occurrence-bound evidence now passes locally; production remains unchanged until the source is integrated and adopted. Keep all other distribution TODOs and their order unchanged.
+
+
+### Anicca A3 marker-proof adoption handoff — 2026-10-15 03:02 JST
+
+- Latest GitHub main is `cc3c5a7164f40a5f4d37338862d0869ce1a5201a` after five commits since the task branch base `3372c363eb572aedf4995319ba01d5c3f11cd66d`. Those commits modify the canonical spec and LINE Sticker code; they do not touch `runtime/loop/lm_loop.py` or its tests. Rebase before push.
+- `loops/current` points to `20261015T025403-cc3c5a71`. `lm-fence-reconciler` is loaded-idle on SHA `cc3c5a7164f40a5f4d37338862d0869ce1a5201a`. Its last natural pass (17:55:55Z) ran release `3372c363` and exited 0; the two Anicca rows remain `claimed/effect_unknown=1` in admission DB. Do not treat controller health or current symlink as adoption of this source fix.
+- The current worktree's read-only proof evaluator returns the exact marker proof for both target occurrences; the SHA-256 is `bc68b6c09ee78331c4baf41981d2d5ce910f84432e5195fd19150f24074b3dcd`. This is proof evaluation only; no admission row was resolved.
+- **Cursor:** rebase branch/spec onto `cc3c5a71` → exact-head CI and merge → cut latest-main immutable release and apply only loaded-idle `lm-fence-reconciler` → let its natural occurrence-bound reconciler write proof receipts → confirm both rows `effect_unknown=0`, then resume natural post receipts and campaign metrics. Paid spend remains zero; no post is replayed.
