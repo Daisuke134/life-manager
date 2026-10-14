@@ -18090,3 +18090,12 @@ Public salesVolume period/profit definition, search exposure and query volume ar
 **未証明:** current-main release capacity、immutable release、owner adoption、自然run、publication単位の売上・コスト・人手介入。HTTP 200、CI、掲載状態は収益証拠ではない。
 
 **Cursor:** (1) 同期後headのexact checksをPASSさせPR #8037をmerge、(2) Writer CTAのproduct/run/artifact/variant/click lineageとdestination identityを既存Web funnel→first-touch→Stripe/Writer joinで保持、(3) fresh capacity gate後にDD05をregistered ownerのnatural run/24h成熟publicationまで確認、(4) outcome baselineを凍結して単一変数experiment、(5) DD07–DD12。次の実装atomはCTA lineage/destination identity。
+## Anicca distribution checkpoint — 2026-10-14 22:04 JST
+
+**Verified progress:** PR #8042 merged as `c755acf78052e11bcfdcd558f4cdc66767b8eb0f`; the older conflicting PR #8029 is closed. The exact 168-hour Instagram checkpoint correction is now in current `main`. This is a source merge, not production adoption.
+
+**Current production state:** `loops/current` owners remain loaded on release `dfb8213c4a51dcbc74d925d4ee8ee136a1978e64`. At 22:04 JST the Instagram occurrence `life-manager-anicca-en-widget-instagram:18de27b12ced54d0-63894` and TikTok occurrence `life-manager-anicca-en-affirmation-tiktok:18de0ea01058a060-68528` are still `effect_unknown` without official receipts. TikTok metrics last failed pre-effect on `scratch_enospc`. Do not replay either post.
+
+The last observed cleanup receipt (21:38 JST) reclaimed 6,407 bytes, preserved 11 open/protected candidates, left 29 inventory gaps, and failed to recreate its receipt reserve. At 22:04 JST `df -kP /` reports 139,848 KiB available. Receipt/scratch and Anicca ledger writes still fail with ENOSPC.
+
+**Current cursor:** A3 production adoption and official readback. The prior cursor was to rebase and merge PR #8029; that source step is complete through PR #8042, so the cursor advances within A3 to safe write-headroom recovery → main-derived immutable release → loaded-idle apply → natural Instagram/TikTok runs → exact official receipts and mature metrics → occurrence-bound replay-zero. The overall TODO order remains unchanged: profile campaign links → English creative cohort → zero-cost OpenSEO/TREG → validated English SEO → JA/ES localization/ASO → paywall/notification/localization UX and RevenueCat offer readback → 1,000 ASC first-time downloads/day trailing-seven-day average → USD 10K Anicca MRR and settled economics → replicate to Honne/other apps toward USD 10M → Postiz self-hosting → OSS factory packaging.
