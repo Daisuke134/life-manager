@@ -27,7 +27,8 @@ from runtime.loop.lm_loop_run import (
     PRE_EFFECT_HINT_ENTRYPOINTS,
     PRE_EFFECT_HINT_LOOP_IDS,
     _apply_verified_effect_result,
-    _admission_class, _dispatch_reserved, _host_admission_deferred, _queue_priority,
+    _admission_class, _dispatch_reserved, _host_admission_deferred,
+    _host_admission_heartbeat_subcause, _queue_priority,
     _enqueue_recovery_intent, _persist_effect_identity, _resource_class,
     _heartbeat_loop, _run_admitted, _run_entrypoint,
     _run_entrypoint_with_stderr_capture, _runtime_limit,
@@ -1127,6 +1128,26 @@ def test_memory_deferral_requires_a_fresh_matching_receipt(tmp_path):
     assert _host_admission_deferred(receipt, started) == "unknown"
     receipt.write_text(json.dumps({"status": "pass", "effect": 0}))
     assert not _host_admission_deferred(receipt, started)
+
+
+@pytest.mark.parametrize("subcause,expected", (
+    ("resource_heartbeat_claim_missing", "resource_heartbeat_claim_missing"),
+    ("resource_heartbeat_oserror_errno_0", "resource_heartbeat_oserror_errno_0"),
+    ("resource_heartbeat_oserror_errno_65535", "resource_heartbeat_oserror_errno_65535"),
+    ("resource_heartbeat_oserror_errno_65536", None),
+    ("resource_heartbeat_oserror_errno_0001", None),
+    ("resource_heartbeat_arbitrary_payload_123", None),
+))
+def test_host_admission_heartbeat_subcause_rejects_unknown_tokens(
+        tmp_path, subcause, expected):
+    receipt = tmp_path / "host-admission.json"
+    receipt.write_text(json.dumps({
+        "status": "deferred", "effect": 0,
+        "reason": "resource_heartbeat_unavailable",
+        "heartbeat_subcause": subcause,
+    }), encoding="utf-8")
+
+    assert _host_admission_heartbeat_subcause(receipt, 0) == expected
 
 
 def test_entrypoint_timeout_terminates_its_process_group():
