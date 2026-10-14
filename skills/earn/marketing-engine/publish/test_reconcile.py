@@ -52,6 +52,11 @@ def test_published_requires_native_readback_and_writes_identity_once(tmp_path):
     rows = [json.loads(line) for line in ledger.read_text().splitlines()]
     assert len(rows) == 1
     row = rows[0]
+    for field in (
+        "publish_key", "experiment_id", "creative_id", "product_id", "account_id",
+        "hook_id", "renderer_id", "attribution_token", "scheduled_at",
+    ):
+        assert row[field] == intent[field]
     assert row["experiment_id"] == "experiment.123"
     assert row["creative_sha256"] == intent["asset_sha256"]
     assert row["native_post_id"] == "native-123"

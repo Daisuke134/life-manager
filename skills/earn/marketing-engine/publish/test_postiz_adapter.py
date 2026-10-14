@@ -1,5 +1,7 @@
 import pathlib
 import sys
+import datetime as dt
+import urllib.parse
 
 import pytest
 
@@ -7,7 +9,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 from intent_store import IntentStore, stable_id
-from postiz_adapter import PostizAdapter, unique_remote_match
+from postiz_adapter import HttpPostizClient, PostizAdapter, unique_remote_match
 from test_intent_store import fixture_intent
 
 
@@ -63,6 +65,31 @@ def setup(tmp_path):
     lease = store.acquire(intent["publish_key"], owner="worker", now="2026-08-01T00:00:00Z",
                           ttl_seconds=300)
     return store, intent, lease
+
+
+def test_list_posts_rejects_malformed_response_envelope():
+    client = HttpPostizClient("test-key")
+    client._json = lambda *_args: {"items": []}
+    start = dt.datetime(2026, 10, 14, tzinfo=dt.timezone.utc)
+
+    with pytest.raises(ValueError, match="Postiz posts response malformed"):
+        client.list_posts(start, start + dt.timedelta(hours=1))
+
+
+def test_list_posts_uses_documented_date_filters_without_unsupported_limit():
+    client = HttpPostizClient("test-key")
+    request = {}
+
+    def read(_method, path):
+        request["path"] = path
+        return {"posts": []}
+
+    client._json = read
+    start = dt.datetime(2026, 10, 14, tzinfo=dt.timezone.utc)
+
+    assert client.list_posts(start, start + dt.timedelta(hours=1)) == []
+    query = urllib.parse.parse_qs(urllib.parse.urlsplit(request["path"]).query)
+    assert set(query) == {"startDate", "endDate"}
 
 
 def test_upload_create_draft_and_promote_each_call_provider_once(tmp_path):

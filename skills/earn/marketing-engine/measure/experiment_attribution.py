@@ -16,11 +16,11 @@ import urllib.request
 from attribution import publication_campaign_token
 
 
-SCHEMA_VERSION = "marketing.experiment-attribution.v1"
+SCHEMA_VERSION = "marketing.experiment-attribution.v2"
 REQUIRED_METRICS = (
     "impressions", "views", "qualified_clicks", "first_time_downloads",
     "installs", "trials", "paid_orders", "refunds", "gross_revenue",
-    "net_revenue",
+    "net_revenue", "actual_cost_usd", "human_interventions",
 )
 ATTRIBUTION_CLASSES = {"deterministic", "apple_aggregate", "modeled", "unknown"}
 STATUSES = {"observed", "not_mature", "unavailable", "unknown"}
@@ -149,7 +149,11 @@ def _base_results(published_at: str, observed_at: str) -> dict[str, dict[str, An
     business_reason = "business_window_not_mature" if business_status == "not_mature" else "business_outcome_not_collected"
     rows: dict[str, dict[str, Any]] = {}
     for metric in REQUIRED_METRICS:
-        unit = "minor_currency_units" if metric in REVENUE_METRICS else "count"
+        unit = (
+            "minor_currency_units" if metric in REVENUE_METRICS
+            else "usd" if metric == "actual_cost_usd"
+            else "count"
+        )
         if metric in SOCIAL_METRICS:
             rows[metric] = empty_result(metric, unit, published_at, observed_at,
                                         "native_platform", status=social_status,
@@ -158,6 +162,20 @@ def _base_results(published_at: str, observed_at: str) -> dict[str, dict[str, An
             rows[metric] = empty_result(metric, unit, published_at, observed_at,
                                         "marketing_click_receipts", status="unavailable",
                                         reason="click_receipts_not_queried")
+        elif metric == "actual_cost_usd":
+            rows[metric] = empty_result(
+                metric, unit, published_at, observed_at,
+                "publication_execution_cost", status="unknown",
+                reason="publication_scoped_cost_evidence_unavailable",
+                evidence_refs=["publication_execution_cost_evidence"],
+            )
+        elif metric == "human_interventions":
+            rows[metric] = empty_result(
+                metric, unit, published_at, observed_at,
+                "publication_intervention_trace", status="unknown",
+                reason="publication_scoped_intervention_evidence_unavailable",
+                evidence_refs=["publication_intervention_evidence"],
+            )
         else:
             rows[metric] = empty_result(metric, unit, published_at, observed_at,
                                         "business_outcomes", status=business_status,
@@ -276,18 +294,40 @@ def _join_business(rows: dict[str, dict[str, Any]], intent: dict,
                 evidence_refs=evidence)
 
 
-def build_snapshot(*, intent: dict, identity: dict, post_metric: dict | None,
-                   click_query: dict | None, business_snapshot: dict | None,
-                   observed_at: str) -> dict[str, Any]:
+def validate_publication_identity(intent: dict, identity: dict) -> None:
     if intent.get("product_id") == "hook-lab":
         require(intent.get("attribution_token") == publication_campaign_token(intent),
                 "Hook Lab publication token mismatch")
-    published_at = identity.get("publish_date") or intent.get("scheduled_at")
     require(identity.get("identity_status") == "resolved", "native identity unresolved")
-    require(identity.get("experiment_id") == intent.get("experiment_id"),
-            "experiment identity mismatch")
-    require(identity.get("native_post_id") and identity.get("native_post_url"),
-            "native identity incomplete")
+    identity_bindings = {
+        "publish_key": "publish_key",
+        "experiment_id": "experiment_id",
+        "creative_id": "creative_id",
+        "creative_sha256": "asset_sha256",
+        "product_id": "product_id",
+        "account_id": "account_id",
+        "integration_id": "integration_id",
+        "platform": "platform",
+        "hook_id": "hook_id",
+        "renderer_id": "renderer_id",
+        "attribution_token": "attribution_token",
+        "scheduled_at": "scheduled_at",
+        "postiz_post_id": "postiz_post_id",
+        "native_post_id": "native_post_id",
+        "native_post_url": "native_post_url",
+    }
+    for identity_field, intent_field in identity_bindings.items():
+        expected = intent.get(intent_field)
+        require(isinstance(expected, str) and bool(expected)
+                and identity.get(identity_field) == expected,
+                f"publication identity mismatch: {identity_field}")
+
+
+def build_snapshot(*, intent: dict, identity: dict, post_metric: dict | None,
+                   click_query: dict | None, business_snapshot: dict | None,
+                   observed_at: str) -> dict[str, Any]:
+    validate_publication_identity(intent, identity)
+    published_at = identity.get("publish_date") or intent.get("scheduled_at")
     require(parse_time(published_at) <= parse_time(observed_at), "observation predates publication")
     rows = _base_results(published_at, observed_at)
     _join_social(rows, identity, post_metric, published_at, observed_at)
@@ -443,13 +483,17 @@ def _write_json(path: Path, value: dict[str, Any]) -> None:
     os.replace(temp, path)
 
 
-def _load_intent(db_path: Path, publish_key: str) -> tuple[dict[str, Any], str]:
+def _load_intent(db_path: Path, publish_key: str) -> tuple[dict[str, Any], str, str, str]:
     with sqlite3.connect(db_path) as db:
-        row = db.execute("SELECT payload_json,provider_post_id FROM intents WHERE publish_key=?",
-                         (publish_key,)).fetchone()
+        row = db.execute(
+            "SELECT payload_json,provider_post_id,native_post_id,native_post_url "
+            "FROM intents WHERE publish_key=?",
+            (publish_key,),
+        ).fetchone()
     require(row is not None, "publication intent not found")
     require(row[1], "provider post receipt missing")
-    return json.loads(row[0]), row[1]
+    require(row[2] and row[3], "native post receipt missing")
+    return json.loads(row[0]), row[1], row[2], row[3]
 
 
 def load_repo_env(repo_root: Path) -> None:
@@ -471,8 +515,17 @@ def run_attribution(*, db_path: Path, publish_key: str, identity_path: Path,
                     post_metrics_path: Path, business_path: Path,
                     business_date: str, observed_at: str, ledger_path: Path,
                     evidence_path: Path, repo_root: Path) -> dict[str, Any]:
-    intent, postiz_post_id = _load_intent(db_path, publish_key)
+    intent, postiz_post_id, native_post_id, native_post_url = _load_intent(
+        db_path, publish_key
+    )
+    intent = {
+        **intent,
+        "postiz_post_id": postiz_post_id,
+        "native_post_id": native_post_id,
+        "native_post_url": native_post_url,
+    }
     identity = select_identity(_read_jsonl(identity_path), intent, postiz_post_id)
+    validate_publication_identity(intent, identity)
     post_metric = select_latest_post_metric(_read_jsonl(post_metrics_path), identity, observed_at)
     business = select_business_snapshot(_read_jsonl(business_path), intent["product_id"],
                                         business_date)
