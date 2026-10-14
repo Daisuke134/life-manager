@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
+import json
 import os
 from pathlib import Path
+import subprocess
+import sys
 from tempfile import TemporaryDirectory
 import unittest
 
@@ -57,3 +61,99 @@ class ExecuteInitializationRebindTest(unittest.TestCase):
 
             self.assertFalse(changed)
             self.assertEqual(argv, ["bash", "/old/custom-publisher.sh"])
+
+    def test_v1_initialization_dispatch_passes_the_saved_pair_copy(self) -> None:
+        with TemporaryDirectory(prefix="writer-initialize-cta-") as tmp:
+            root = Path(tmp)
+            run_id = "daily-2026-10-15"
+            run_dir = root / "state" / "runs" / run_id
+            gates = run_dir / "gates"
+            gates.mkdir(parents=True)
+            ledger = root / "state" / "articles.jsonl"
+            state_path = gates / "publication-state.json"
+            drafts = {}
+            for lang, artifact in (("ja", "article-ja"), ("en", "article-en")):
+                source = run_dir / f"article-{lang}.md"
+                source.write_text(
+                    f"# {lang}\n\nBody\n\n"
+                    f"[Read more](https://writer.example/product?product_id=writer&run_id={run_id}"
+                    f"&artifact_id={artifact}&variant_id=fixture&click_id=base-{lang})\n",
+                    encoding="utf-8",
+                )
+                drafts[lang] = {
+                    "path": str(source),
+                    "sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+                }
+            state_path.write_text(json.dumps({
+                "version": 1,
+                "run_id": run_id,
+                "run_dir": str(run_dir),
+                "state_path": str(state_path),
+                "ledger_path": str(ledger),
+                "topic_id": "fixture-topic",
+                "drafts": drafts,
+                "pairs": {},
+            }), encoding="utf-8")
+            capture = root / "publisher-copy-path.txt"
+            child = root / "fake-publisher.py"
+            child.write_text(
+                "import json, os, pathlib, sys\n"
+                "copy = pathlib.Path(os.environ.get('ARTICLE_PUBLISH_COPY_PATH', ''))\n"
+                "if not copy.is_file(): raise SystemExit('missing publisher CTA copy')\n"
+                "pathlib.Path(os.environ['CAPTURE']).write_text(str(copy), encoding='utf-8')\n"
+                "state_path = pathlib.Path(os.environ['ARTICLE_PUBLICATION_STATE'])\n"
+                "state = json.loads(state_path.read_text(encoding='utf-8'))\n"
+                "state['pairs']['note/ja'] = {'status':'intent','target_kind':'note-key','target':'n1234567890'}\n"
+                "state_path.write_text(json.dumps(state), encoding='utf-8')\n",
+                encoding="utf-8",
+            )
+            pairs = [
+                ("note", "ja", "note/ja"),
+                ("substack-ja", "ja", "substack/ja"),
+                ("substack-en", "en", "substack/en"),
+                ("x-article", "ja", "x-article/ja"),
+            ]
+            manifest_path = gates / "platform-dispatch.jsonl"
+            rows = []
+            for platform, lang, pair in pairs:
+                rows.append({
+                    "platform": platform,
+                    "lang": lang,
+                    "argv": [sys.executable, str(child), str(run_dir / f"article-{lang}.md")],
+                    "env": {
+                        "ARTICLE_RUN_DIR": str(run_dir),
+                        "ARTICLE_PUBLICATION_STATE": str(state_path),
+                        "ARTICLE_LEDGER": str(ledger),
+                        "ARTICLE_PUBLISH_PAIR": pair,
+                        "ARTICLE_PUBLISH_CTA_V1": "1",
+                        "ARTICLE_PRODUCT_ID": "writer",
+                        "ARTICLE_PRODUCT_LANDING_URL": "https://writer.example/product",
+                        "CAPTURE": str(capture),
+                    },
+                })
+            manifest_path.write_text(
+                "".join(json.dumps(row) + "\n" for row in rows),
+                encoding="utf-8",
+            )
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    "--pair", "note/ja",
+                    "--run-dir", str(run_dir),
+                    "--state", str(state_path),
+                    "--ledger", str(ledger),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            copy_path = Path(capture.read_text(encoding="utf-8"))
+            self.assertEqual(
+                copy_path,
+                (run_dir / "gates" / "publisher-cta" / "note-ja.md").resolve(),
+            )
+            self.assertIn("click_id=base-ja-note-ja", copy_path.read_text(encoding="utf-8"))

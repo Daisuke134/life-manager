@@ -162,6 +162,45 @@ case "$PHASE" in
     fi
     fi
 
+    # A v1 per-publisher CTA is an outbound overlay, never a change to the
+    # frozen draft used by the hash-bound quality gates above.
+    PUBLISH_MD_FILE="$MD_FILE"
+    if [[ -n "${ARTICLE_PUBLISH_CTA_V1:-}" && "${ARTICLE_PUBLISH_CTA_V1}" != "1" ]]; then
+      echo "FATAL: ARTICLE_PUBLISH_CTA_V1 must be exactly 1 when present" >&2
+      exit 1
+    fi
+    if [[ "${ARTICLE_PUBLISH_CTA_V1:-}" == "1" ]]; then
+      case "$CHANNEL:${ARTICLE_PUBLISH_PAIR:-}" in
+        note:note/ja|substack-ja:substack/ja|substack-en:substack/en) ;;
+        *) echo "FATAL: publisher CTA v1 pair does not match channel=$CHANNEL" >&2; exit 1 ;;
+      esac
+      [[ -n "${ARTICLE_RUN_DIR:-}" && -n "${ARTICLE_PUBLISH_COPY_PATH:-}" ]] || {
+        echo "FATAL: publisher CTA v1 requires ARTICLE_RUN_DIR and ARTICLE_PUBLISH_COPY_PATH" >&2
+        exit 1
+      }
+      if ! python3 "$SKILL_DIR/scripts/publisher_cta_copy.py" verify-copy \
+        --run-dir "$ARTICLE_RUN_DIR" --pair "$ARTICLE_PUBLISH_PAIR" \
+        --source "$MD_FILE" --copy "$ARTICLE_PUBLISH_COPY_PATH" >/dev/null; then
+        echo "FATAL: publisher CTA copy does not match the frozen source" >&2
+        exit 1
+      fi
+      PUBLISH_MD_FILE="$ARTICLE_PUBLISH_COPY_PATH"
+    else
+      if [[ -n "${ARTICLE_PUBLISH_COPY_PATH:-}" ]]; then
+        echo "FATAL: ARTICLE_PUBLISH_COPY_PATH requires ARTICLE_PUBLISH_CTA_V1=1" >&2
+        exit 1
+      fi
+      case "$CHANNEL:${ARTICLE_PUBLISH_PAIR:-}" in
+        note:note/ja|substack-ja:substack/ja|substack-en:substack/en)
+          if [[ -n "${ARTICLE_RUN_DIR:-}" ]] && ! python3 "$SKILL_DIR/scripts/publisher_cta_copy.py" verify-legacy \
+            --run-dir "$ARTICLE_RUN_DIR" --pair "$ARTICLE_PUBLISH_PAIR" --source "$MD_FILE" >/dev/null; then
+            echo "FATAL: this publisher run has incomplete or required publisher CTA v1 artifacts" >&2
+            exit 1
+          fi
+          ;;
+      esac
+    fi
+
     # Publisher dispatch
     case "$CHANNEL" in
       zenn)
@@ -173,9 +212,9 @@ case "$PHASE" in
         # publish-substack.sh alone ships raw ```mermaid fences unrendered (Substack does not
         # render mermaid) -- publish-substack-mermaid.sh wraps it with the kroki->PNG->upload
         # step first (spec #45), draft-only by default, same as before.
-        URL="$(bash "$SKILL_DIR/scripts/_shared/publish-substack-mermaid.sh" publish "$MD_FILE" --title "$TITLE" --subtitle "${SUBTITLE:-$META}" | tail -1)" ;;
+        URL="$(bash "$SKILL_DIR/scripts/_shared/publish-substack-mermaid.sh" publish "$PUBLISH_MD_FILE" --title "$TITLE" --subtitle "${SUBTITLE:-$META}" | tail -1)" ;;
       note)
-        URL="$(bash "$SKILL_DIR/scripts/publish-note.sh" --markdown-file "$MD_FILE" --title "$TITLE" --description "$META")" ;;
+        URL="$(bash "$SKILL_DIR/scripts/publish-note.sh" --markdown-file "$PUBLISH_MD_FILE" --title "$TITLE" --description "$META")" ;;
       aniccaai-blog)
         URL="$(bash "$SKILL_DIR/scripts/publish-aniccaai-blog.sh" --markdown-file "$MD_FILE" --title "$TITLE" --meta "$META" ${SLUG:+--slug "$SLUG"})" ;;
     esac
