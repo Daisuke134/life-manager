@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import re
+from collections.abc import Awaitable, Callable
 from contextlib import contextmanager
 from datetime import datetime
 from dataclasses import asdict
@@ -49,6 +50,8 @@ _PHONE = re.compile(r"(?<!\w)(?:\+?\d[\d ()-]{7,}\d)(?!\w)")
 _WAKE_STEP_BUDGET = 100
 _PROFILE_BATCH_MAX_FIELDS = 12
 _PROFILE_BATCH_TEXT_TYPES = frozenset({"text", "email", "tel", "url"})
+_FORM_BATCH_MAX_FIELDS = 12
+_FORM_BATCH_TEXT_TYPES = frozenset({"text", "textarea"})
 _PROFILE_BATCH_SENSITIVE = re.compile(
     r"work[\s_-]?authori[sz]|visa|citizen|nationality|sponsor|immigra|salary|"
     r"compensation|base[\s_-]?pay|wage|income|bonus|social[\s_-]?security|\bssn\b|"
@@ -626,7 +629,9 @@ def _action(value: dict[str, Any]) -> VisibleActionV1:
     )
 
 
-async def _act_locked(action_path: Path) -> dict[str, Any]:
+async def _act_locked(
+    action_path: Path, *, consume_budget: bool = True
+) -> dict[str, Any]:
     row, session, checkpoints, evidence, cursor, builder = await _context()
     before = await builder.build(cursor.handle)
     action_value = _private_action(action_path)
@@ -648,7 +653,7 @@ async def _act_locked(action_path: Path) -> dict[str, Any]:
         if action.kind == "wait"
         else _reject_repeated_decision(before.content_sha256, action_bytes)
     )
-    remaining = _wake_budget(consume=True)
+    remaining = _wake_budget(consume=consume_budget)
     receipt = await ActionExecutor(session).execute(cursor.handle, action)
     after = await builder.build(cursor.handle)
     parsed_after_url = urlparse(after.url)
@@ -706,12 +711,16 @@ async def _act_locked(action_path: Path) -> dict[str, Any]:
     }
 
 
-async def act(action_path: Path) -> dict[str, Any]:
+async def act(
+    action_path: Path, *, _consume_budget: bool = True
+) -> dict[str, Any]:
     with _exclusive_action():
-        return await _act_locked(action_path)
+        return await _act_locked(action_path, consume_budget=_consume_budget)
 
 
-async def type_text(*, label: str, role: str, stable_id: str, text: str) -> dict[str, Any]:
+async def type_text(
+    *, label: str, role: str, stable_id: str, text: str, _consume_budget: bool = True
+) -> dict[str, Any]:
     """Type one model-grounded visible answer without an intermediate file."""
     scratch = _path_env("JOB_SEARCH_BROWSER_SCRATCH")
     path = scratch / "literal-action.json"
@@ -736,7 +745,7 @@ async def type_text(*, label: str, role: str, stable_id: str, text: str) -> dict
     try:
         try:
             with _exclusive_action():
-                return await _act_locked(path)
+                return await _act_locked(path, consume_budget=_consume_budget)
         except RuntimeError as error:
             if "action target must resolve to exactly one visible enabled control" in str(error):
                 reason = "observed_text_target_no_longer_visible"
@@ -982,7 +991,12 @@ async def choose(
 
 
 async def type_candidate(
-    *, label: str, role: str, stable_id: str, candidate_concept: str
+    *,
+    label: str,
+    role: str,
+    stable_id: str,
+    candidate_concept: str,
+    _consume_budget: bool = True,
 ) -> dict[str, Any]:
     if role not in {"textbox", "searchbox", "spinbutton", "combobox"}:
         result = await observe()
@@ -1005,7 +1019,7 @@ async def type_candidate(
     )
     os.chmod(path, 0o600)
     try:
-        return await act(path)
+        return await act(path, _consume_budget=_consume_budget)
     except (RuntimeError, ValueError) as error:
         if str(error) == "candidate concept is not a scalar browser value":
             reason = "candidate_concept_requires_scalar_value"
@@ -1123,6 +1137,209 @@ def _profile_batch_result(
     }
 
 
+async def _execute_text_batch(
+    fields: list[dict[str, Any]],
+    observation: dict[str, Any],
+    *,
+    fill_field: Callable[[dict[str, Any]], Awaitable[dict[str, Any]]],
+    control_reason: Callable[[dict[str, Any], dict[str, Any]], str | None],
+    target_changed_reason: str,
+    failure_prefix: str,
+) -> dict[str, Any]:
+    completed_fields: list[str] = []
+    receipts: list[str] = []
+    budget_charged = False
+    for field in fields:
+        reason = control_reason(field, observation)
+        if reason:
+            return _profile_batch_result(
+                completed_fields=completed_fields,
+                receipts=receipts,
+                observation=observation,
+                reason=reason,
+            )
+        if not budget_charged:
+            _wake_budget(consume=True)
+            budget_charged = True
+        try:
+            result = await fill_field(field)
+        except RuntimeError as error:
+            if "action target must resolve to exactly one visible enabled control" not in str(error):
+                raise
+            try:
+                refreshed = await observe()
+            except Exception:
+                return {
+                    "status": "transport_failed",
+                    "error_class": f"{failure_prefix}_batch_target_refresh_failed",
+                    "failed_field": field["label"],
+                    "completed_fields": completed_fields,
+                    "receipts": receipts,
+                    "retryable": False,
+                    "next_action": (
+                        "refresh provider state before continuing; preserve prior receipts "
+                        "and do not replay completed fields or this occurrence"
+                    ),
+                }
+            refreshed_observation = refreshed.get("observation")
+            if refreshed.get("status") != "observed" or not isinstance(refreshed_observation, dict):
+                return {
+                    "status": "transport_failed",
+                    "error_class": f"{failure_prefix}_batch_target_refresh_unavailable",
+                    "failed_field": field["label"],
+                    "completed_fields": completed_fields,
+                    "receipts": receipts,
+                    "retryable": False,
+                    "next_action": (
+                        "refresh provider state before continuing; preserve prior receipts "
+                        "and do not replay completed fields or this occurrence"
+                    ),
+                }
+            return _profile_batch_result(
+                completed_fields=completed_fields,
+                receipts=receipts,
+                observation=refreshed_observation,
+                reason=target_changed_reason,
+            )
+        if result.get("status") == "transport_failed":
+            failed = {
+                "status": "transport_failed",
+                "failed_field": field["label"],
+                "completed_fields": completed_fields,
+                "receipts": receipts,
+                "retryable": result.get("retryable") is True,
+                "next_action": result.get("next_action")
+                or "stop this row and do not replay any completed or current field",
+            }
+            for key in (
+                "error_class",
+                "action_receipt_sha256",
+                "evidence_sha256",
+                "checkpoint_sha256",
+            ):
+                value = result.get(key)
+                if isinstance(value, str) and value:
+                    failed[key] = value
+            return failed
+        next_observation = result.get("observation")
+        if result.get("status") != "acted" or not isinstance(next_observation, dict):
+            return _profile_batch_result(
+                completed_fields=completed_fields,
+                receipts=receipts,
+                observation=next_observation if isinstance(next_observation, dict) else observation,
+                reason=str(result.get("reason") or result.get("status") or "text_batch_action_failed"),
+            )
+        receipt = str((result.get("action") or {}).get("receipt_sha256") or "")
+        if not re.fullmatch(r"[0-9a-f]{64}", receipt):
+            return _profile_batch_result(
+                completed_fields=completed_fields,
+                receipts=receipts,
+                observation=next_observation,
+                reason="text_batch_action_receipt_missing",
+            )
+        completed_fields.append(field["label"])
+        receipts.append(receipt)
+        observation = next_observation
+
+    return {
+        "status": "batch_acted",
+        "completed_fields": completed_fields,
+        "receipts": receipts,
+        "observation": observation,
+    }
+
+
+def _normalize_fact_text(value: str) -> str:
+    return " ".join(value.split()).casefold()
+
+
+def _form_batch_content_reason(field: dict[str, Any]) -> str | None:
+    if _EMAIL.search(field["text"]) or _PHONE.search(field["text"]):
+        return "form_batch_sensitive_field"
+    return None
+
+
+def _parse_form_batch_fields(
+    fields_json: str,
+) -> tuple[list[dict[str, Any]] | None, str | None]:
+    try:
+        value = json.loads(fields_json)
+    except (TypeError, json.JSONDecodeError):
+        return None, "form_batch_invalid_json"
+    if not isinstance(value, list) or not 1 <= len(value) <= _FORM_BATCH_MAX_FIELDS:
+        return None, "form_batch_field_count_out_of_range"
+    expected = {"label", "role", "stable_id", "text", "fact_refs"}
+    fields: list[dict[str, Any]] = []
+    stable_ids: set[str] = set()
+    for item in value:
+        if not isinstance(item, dict) or set(item) != expected:
+            return None, "form_batch_invalid_field_shape"
+        if any(
+            not isinstance(item[key], str) or not item[key].strip()
+            for key in ("label", "role", "stable_id", "text")
+        ):
+            return None, "form_batch_invalid_field_value"
+        field = {
+            key: item[key].strip()
+            for key in ("label", "role", "stable_id", "text")
+        }
+        refs = item["fact_refs"]
+        if (
+            field["role"] != "textbox"
+            or not re.fullmatch(r"(?:id|automation|ref):[^\s]+", field["stable_id"])
+            or not isinstance(refs, list)
+            or not 1 <= len(refs) <= 4
+            or any(not isinstance(ref, str) or not ref.startswith("fact.") for ref in refs)
+            or len(set(refs)) != len(refs)
+        ):
+            return None, "form_batch_requires_visible_fact_grounded_textbox"
+        if field["stable_id"] in stable_ids:
+            return None, "form_batch_duplicate_target"
+        stable_ids.add(field["stable_id"])
+        reason = _form_batch_content_reason(field)
+        if reason:
+            return None, reason
+        field["fact_refs"] = refs
+        fields.append(field)
+    return fields, None
+
+
+def _form_batch_control_reason(
+    field: dict[str, Any], observation: dict[str, Any]
+) -> str | None:
+    controls = observation.get("controls")
+    if not isinstance(controls, list):
+        return "form_batch_observation_unavailable"
+    matches = [
+        control
+        for control in controls
+        if isinstance(control, dict)
+        and control.get("label") == field["label"]
+        and control.get("role") == field["role"]
+        and control.get("stable_id") == field["stable_id"]
+    ]
+    if len(matches) != 1:
+        return "form_batch_target_not_fresh"
+    control = matches[0]
+    if (
+        control.get("disabled") is True
+        or control.get("type") not in _FORM_BATCH_TEXT_TYPES
+        or control.get("options")
+    ):
+        return "form_batch_control_not_plain_text"
+    target_label = field["label"].casefold().strip()
+    if any(
+        isinstance(other, dict)
+        and other.get("role") == "button"
+        and isinstance(other.get("label"), str)
+        and other["label"].casefold().strip().endswith(" options")
+        and other["label"].casefold().strip()[: -len(" options")] == target_label
+        for other in controls
+    ):
+        return "form_batch_control_is_picker"
+    return _form_batch_content_reason(field)
+
+
 async def fill_profile_fields(fields_json: str) -> dict[str, Any]:
     """Fill bounded, independent profile textboxes with one typed command."""
     fields, reason = _parse_profile_fill_fields(fields_json)
@@ -1158,109 +1375,86 @@ async def fill_profile_fields(fields_json: str) -> dict[str, Any]:
             reason="candidate_concept_not_currently_grounded",
         )
 
-    completed_fields: list[str] = []
-    receipts: list[str] = []
-    observation = current.get("observation", {})
-    for field in fields:
-        reason = _profile_batch_control_reason(field, observation)
-        if reason:
-            return _profile_batch_result(
-                completed_fields=completed_fields,
-                receipts=receipts,
-                observation=observation,
-                reason=reason,
-            )
-        try:
-            result = await type_candidate(
-                label=field["label"],
-                role=field["role"],
-                stable_id=field["stable_id"],
-                candidate_concept=field["candidate_concept"],
-            )
-        except RuntimeError as error:
-            if "action target must resolve to exactly one visible enabled control" not in str(error):
-                raise
-            try:
-                refreshed = await observe()
-            except Exception as refresh_error:
-                return {
-                    "status": "transport_failed",
-                    "error_class": "profile_batch_target_refresh_failed",
-                    "failed_field": field["label"],
-                    "completed_fields": completed_fields,
-                    "receipts": receipts,
-                    "retryable": False,
-                    "next_action": (
-                        "refresh provider state before continuing; preserve prior receipts "
-                        "and do not replay completed fields or this occurrence"
-                    ),
-                }
-            refreshed_observation = refreshed.get("observation")
-            if refreshed.get("status") != "observed" or not isinstance(refreshed_observation, dict):
-                return {
-                    "status": "transport_failed",
-                    "error_class": "profile_batch_target_refresh_unavailable",
-                    "failed_field": field["label"],
-                    "completed_fields": completed_fields,
-                    "receipts": receipts,
-                    "retryable": False,
-                    "next_action": (
-                        "refresh provider state before continuing; preserve prior receipts "
-                        "and do not replay completed fields or this occurrence"
-                    ),
-                }
-            return _profile_batch_result(
-                completed_fields=completed_fields,
-                receipts=receipts,
-                observation=refreshed_observation,
-                reason="profile_batch_target_changed",
-            )
-        if result.get("status") == "transport_failed":
-            failed = {
-                "status": "transport_failed",
-                "failed_field": field["label"],
-                "completed_fields": completed_fields,
-                "receipts": receipts,
-                "retryable": result.get("retryable") is True,
-                "next_action": result.get("next_action")
-                or "stop this row and do not replay any completed or current field",
-            }
-            for key in (
-                "error_class",
-                "action_receipt_sha256",
-                "evidence_sha256",
-                "checkpoint_sha256",
-            ):
-                value = result.get(key)
-                if isinstance(value, str) and value:
-                    failed[key] = value
-            return failed
-        next_observation = result.get("observation")
-        if result.get("status") != "acted" or not isinstance(next_observation, dict):
-            return _profile_batch_result(
-                completed_fields=completed_fields,
-                receipts=receipts,
-                observation=next_observation if isinstance(next_observation, dict) else observation,
-                reason=str(result.get("reason") or result.get("status") or "profile_batch_action_failed"),
-            )
-        receipt = str((result.get("action") or {}).get("receipt_sha256") or "")
-        if not re.fullmatch(r"[0-9a-f]{64}", receipt):
-            return _profile_batch_result(
-                completed_fields=completed_fields,
-                receipts=receipts,
-                observation=next_observation,
-                reason="profile_batch_action_receipt_missing",
-            )
-        completed_fields.append(field["label"])
-        receipts.append(receipt)
-        observation = next_observation
+    async def fill_field(field: dict[str, str]) -> dict[str, Any]:
+        return await type_candidate(
+            label=field["label"],
+            role=field["role"],
+            stable_id=field["stable_id"],
+            candidate_concept=field["candidate_concept"],
+            _consume_budget=False,
+        )
 
-    return {
-        "status": "batch_acted",
-        "completed_fields": completed_fields,
-        "receipts": receipts,
-        "observation": observation,
+    return await _execute_text_batch(
+        fields,
+        current.get("observation", {}),
+        fill_field=fill_field,
+        control_reason=_profile_batch_control_reason,
+        target_changed_reason="profile_batch_target_changed",
+        failure_prefix="profile",
+    )
+
+
+async def fill_form_fields(fields_json: str) -> dict[str, Any]:
+    """Fill one bounded page batch copied verbatim from observed resume facts."""
+    fields, reason = _parse_form_batch_fields(fields_json)
+    if fields is None:
+        return {"status": "action_rejected", "reason": reason}
+    memory = CandidateMemoryView.load(_path_env("JOB_SEARCH_CANDIDATE_MEMORY"))
+    claims_by_concept = {
+        str(item["concept"]): str(item["claim"])
+        for item in memory.grounding_facts()
+        if isinstance(item.get("concept"), str) and isinstance(item.get("claim"), str)
     }
+    for field in fields:
+        claims = [claims_by_concept.get(ref) for ref in field["fact_refs"]]
+        if any(claim is None for claim in claims):
+            return {"status": "action_rejected", "reason": "form_batch_fact_not_found"}
+        value = _normalize_fact_text(field["text"])
+        if not any(value in _normalize_fact_text(claim or "") for claim in claims):
+            return {"status": "action_rejected", "reason": "form_batch_value_not_grounded"}
+
+    current = await observe()
+    if current.get("status") != "observed":
+        return current
+    observation = current.get("observation", {})
+    visible_facts = current.get("grounding_facts")
+    if not isinstance(visible_facts, (list, tuple)):
+        return _profile_batch_result(
+            completed_fields=[],
+            receipts=[],
+            observation=observation,
+            reason="form_batch_grounding_facts_unavailable",
+        )
+    visible_concepts = {
+        str(fact["concept"])
+        for fact in visible_facts
+        if isinstance(fact, dict) and isinstance(fact.get("concept"), str)
+    }
+    if any(not set(field["fact_refs"]).issubset(visible_concepts) for field in fields):
+        return _profile_batch_result(
+            completed_fields=[],
+            receipts=[],
+            observation=observation,
+            reason="form_batch_fact_not_currently_grounded",
+        )
+
+    async def fill_field(field: dict[str, Any]) -> dict[str, Any]:
+        return await type_text(
+            label=field["label"],
+            role=field["role"],
+            stable_id=field["stable_id"],
+            text=field["text"],
+            _consume_budget=False,
+        )
+
+    return await _execute_text_batch(
+        fields,
+        observation,
+        fill_field=fill_field,
+        control_reason=_form_batch_control_reason,
+        target_changed_reason="form_batch_target_not_fresh",
+        failure_prefix="form",
+    )
 
 
 async def tailor_resume(sections_json: str) -> dict[str, Any]:
@@ -1771,6 +1965,8 @@ def _run_main(argv: list[str] | None = None) -> int:
     type_text_parser.add_argument("--role", default="")
     type_text_parser.add_argument("--stable-id", default="")
     type_text_parser.add_argument("--text", required=True)
+    fill_form_parser = subparsers.add_parser("fill-form")
+    fill_form_parser.add_argument("--fields-json", required=True)
     fill_profile_parser = subparsers.add_parser("fill-profile")
     fill_profile_parser.add_argument("--fields-json", required=True)
     answer_parser = subparsers.add_parser("answer")
@@ -1802,7 +1998,12 @@ def _run_main(argv: list[str] | None = None) -> int:
     checkpoint_parser.add_argument(
         "--reason",
         required=True,
-        choices=("provider_unavailable", "visible_challenge", "email_recovery"),
+        choices=(
+            "provider_unavailable",
+            "visible_challenge",
+            "email_recovery",
+            "wake_budget_low",
+        ),
     )
     ineligible_parser = subparsers.add_parser("ineligible")
     ineligible_parser.add_argument(
@@ -1849,6 +2050,8 @@ def _run_main(argv: list[str] | None = None) -> int:
         )
     elif args.command == "fill-profile":
         operation = lambda: fill_profile_fields(args.fields_json)
+    elif args.command == "fill-form":
+        operation = lambda: fill_form_fields(args.fields_json)
     elif args.command == "answer":
         operation = lambda: resolve_saved_answer(args.question_label)
     elif args.command == "tailor":
