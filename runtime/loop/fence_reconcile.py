@@ -456,8 +456,18 @@ def reconcile(
     """Run one bounded reconciliation pass and return the summary dict."""
     loops = registry.get("loops", {}) if isinstance(registry, Mapping) else {}
     fenced = _read_with_retry(read_fenced, sleep)
-    lost_fences = _read_with_retry(
-        lambda: _lost_terminal_unknown_occurrences(loops, fenced, log_path), sleep)
+    lost_fence_scan_locked = False
+    try:
+        lost_fences = _read_with_retry(
+            lambda: _lost_terminal_unknown_occurrences(loops, fenced, log_path), sleep)
+    except sqlite3.OperationalError as error:
+        if "locked" not in str(error).lower():
+            raise
+        # This supplemental scan finds released-only candidates. Its failure must not
+        # suppress adapter readbacks for active fences already read above; keep those
+        # candidates unknown and retry their discovery on a later natural wake.
+        lost_fences = {}
+        lost_fence_scan_locked = True
     for owner_id, occurrences in lost_fences.items():
         fenced[owner_id] = tuple(sorted(set(fenced.get(owner_id, ())) | set(occurrences)))
     checked = sum(len(occurrences) for occurrences in fenced.values())
@@ -480,7 +490,7 @@ def reconcile(
     }
     closed = 0
     deferred = 0
-    locked = False
+    locked = lost_fence_scan_locked
     records: list[dict] = []
     recent_call_rows = _recent_call_rows(log_path)
     started = clock()
@@ -581,6 +591,8 @@ def reconcile(
     }
     if locked:
         summary["status"] = "partial_database_locked"
+    if lost_fence_scan_locked:
+        summary["lost_fence_scan_locked"] = True
     return summary
 
 
