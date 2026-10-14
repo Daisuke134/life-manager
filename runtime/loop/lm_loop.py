@@ -335,6 +335,71 @@ def _is_ebook_legacy_no_due_terminal(entry: dict, row: dict) -> bool:
     return _ebook_legacy_no_due_proof(entry, row) is not None
 
 
+def _mobile_pre_effect_marker_sha256(loop_id: str, entry: dict, row: dict) -> str | None:
+    """Verify the run-private marker that mobile-app clears before its first upload."""
+    if (entry.get("entrypoint") != "apps/life-manager/scripts/mobile-app"
+            or entry.get("effect_class") != "publish"
+            or row.get("loop_id") != loop_id
+            or row.get("owner_id") != loop_id
+            or row.get("status") not in {"pass", "fail"}
+            or row.get("effect_status") != "unknown"
+            or row.get("effect_identity_status") not in {None, "not_written"}
+            or row.get("provider_receipt_id") is not None
+            or row.get("official_readback_ref") is not None):
+        return None
+    occurrence_id = row.get("occurrence_id")
+    run_id = row.get("run_id")
+    state_root = entry.get("state_root")
+    if (not isinstance(occurrence_id, str)
+            or not SAFE_OCCURRENCE.fullmatch(occurrence_id)
+            or not occurrence_id.startswith(f"{loop_id}:")
+            or not isinstance(run_id, str)
+            or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", run_id)
+            or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", loop_id)
+            or not isinstance(state_root, str) or not state_root):
+        return None
+    root = Path(state_root).expanduser()
+    if not root.is_absolute():
+        return None
+    marker = root / "loop-tmp" / loop_id / run_id / "entrypoint-result.json"
+    directories = (root, root / "loop-tmp", root / "loop-tmp" / loop_id, marker.parent)
+    descriptor = -1
+    try:
+        for directory in directories:
+            info = directory.lstat()
+            if (not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid()
+                    or stat.S_IMODE(info.st_mode) & 0o022):
+                return None
+        descriptor = os.open(marker, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        info = os.fstat(descriptor)
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                or info.st_nlink != 1 or stat.S_IMODE(info.st_mode) != 0o600
+                or info.st_size > 4096):
+            return None
+        with os.fdopen(descriptor, "rb") as stream:
+            descriptor = -1
+            data = stream.read(4097)
+        if len(data) > 4096:
+            return None
+        value = json.loads(data)
+        if (not isinstance(value, dict) or set(value) != {"status", "effect"}
+                or value.get("status") != "pre_effect_failure"
+                or type(value.get("effect")) is not int or value["effect"] != 0):
+            return None
+        try:
+            (marker.parent / "effect-identity.jsonl").lstat()
+        except FileNotFoundError:
+            pass
+        else:
+            return None
+        return hashlib.sha256(data).hexdigest()
+    except (OSError, UnicodeDecodeError, ValueError, json.JSONDecodeError):
+        return None
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+
+
 def _is_mobile_pre_effect_terminal(entry: dict, row: dict) -> bool:
     """Recognize only mobile-app failures proven before its Postiz publish call."""
     detail = row.get("error_detail")
@@ -733,12 +798,21 @@ def _pre_effect_occurrence_proof(
     starts = [row for row in exact
               if row.get("phase") == "execute" and row.get("status") == "running"
               and row.get("effect_status") == "started"]
-    terminals = [row for row in exact
-                 if row.get("phase") == "report"
-                 and _is_pre_effect_terminal(entry, row)]
+    mobile_marker_hashes = {}
+    terminals = []
+    for row in exact:
+        if row.get("phase") != "report":
+            continue
+        marker_sha256 = _mobile_pre_effect_marker_sha256(loop_id, entry, row)
+        if marker_sha256 is not None:
+            mobile_marker_hashes[id(row)] = marker_sha256
+            terminals.append(row)
+        elif _is_pre_effect_terminal(entry, row):
+            terminals.append(row)
     if len(terminals) != 1:
         return None, "no_pre_effect_terminal"
     terminal = terminals[0]
+    mobile_marker_sha256 = mobile_marker_hashes.get(id(terminal))
     verified_no_effect_terminal = _is_ebook_verified_no_effect_terminal(entry, terminal)
     legacy_no_due_proof = _ebook_legacy_no_due_proof(entry, terminal)
     terminal_run_id = terminal.get("run_id")
@@ -770,7 +844,10 @@ def _pre_effect_occurrence_proof(
     elif legacy_no_due_proof is not None:
         return None, "legacy_start_missing"
     terminal_summary_ref = f"lm-loop://{loop_id}/{terminal_run_id}/summary.json"
-    mobile_pre_effect_terminal = _is_mobile_pre_effect_terminal(entry, terminal)
+    mobile_pre_effect_terminal = (
+        mobile_marker_sha256 is not None
+        or _is_mobile_pre_effect_terminal(entry, terminal)
+    )
     if (terminal.get("blocker") not in PRE_EFFECT_TERMINAL_BLOCKERS
             and not mobile_pre_effect_terminal
             and not _is_ebook_pre_effect_entrypoint_terminal(entry, terminal)
@@ -811,6 +888,16 @@ def _pre_effect_occurrence_proof(
         if start is not None:
             proof["no_effect_proof"]["start_run_id"] = start.get("run_id")
             proof["no_effect_proof"]["start_timestamp"] = start.get("timestamp")
+    elif mobile_marker_sha256 is not None:
+        proof["evidence_refs"].append(
+            f"lm-loop://{loop_id}/{terminal_run_id}/entrypoint-result.json"
+        )
+        proof["no_effect_proof"] = {
+            "kind": "mobile_pre_effect_marker",
+            "run_id": terminal_run_id,
+            "release_sha": terminal.get("release_sha"),
+            "entrypoint_result_sha256": mobile_marker_sha256,
+        }
     return proof, "ok"
 
 

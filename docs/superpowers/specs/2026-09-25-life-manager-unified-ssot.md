@@ -79,13 +79,13 @@ To-Beは各agentがobserve→decide→act→official verify→persist→自分�
 
 **新順:** R1共有実行・資源管理の現在停止境界→R2最小修復/既済source反映→R3条件の整った仕事を進める→R4Gigと他lane→R5実結果を使う自己修復/自己改善。共有課題は当該producer/occurrenceごとに並行処理する。
 
-**理由:** 全体の連続合格待ちは実資源・個別故障の改善を測らず、条件が整った仕事まで止める。外部の実行枠/待機/障害隔離の設計へ合わせ、現在の収益経路を先に通す。進行中のeffectや他ownerの運転は中断・重複させない。**現在cursorはR1。今回の文書更新を本番修復済みや新方式導入済みにしない。**
+**理由:** 全体の連続合格待ちは実資源・個別故障の改善を測らず、条件が整った仕事まで止める。外部の実行枠/待機/障害隔離の設計へ合わせ、現在の収益経路を先に通す。進行中のeffectや他ownerの運転は中断・重複させない。**現在cursorはR3（Capafyの現停止境界と実結果）。R1/R2の今回の共有release修復は、main/immutable採用と新版自然terminalで完了する。全18の事業成功・F2/F5全件完了とは別に扱う。**
 
 |順|具体的な次作業|対象file/functionと、終える事実|
 |---|---|---|
-|R1 / 現在|共有実行・資源管理の現在停止境界を絞る|該当ownerのstatus/run/loaded SHAと公式結果を読む。source済みなら既存ownerの採用へ、保留なら当該registered adapterへ、実資源ならそのwriterへ進む。古いblocked eventを現在の保留一覧と同一視しない|
-|R2|最初に不成立な境界だけ修復する|queueはresource_admission.py::claim_durable/release_and_reserve、保存はdisk_admission.py::_producer_gate、子終了はlm_loop_run.py::_run_entrypoint、後始末はcentral_cleanup.py::scratch_gc。既存回帰で足りれば増やさず、必要なREDだけ追加。修正済みsourceを再実装しない|
-|R3|Capafyの制作・公開・配信を通常の仕事として進める|登録済みownerと同operation identityで進め、実結果を記録する。故障修復と販売/入金の達成は別に測る。回数を満たすための再実行をしない|
+|R1 / 今回完了|共有release/制御の最初の失敗を確定する|正常budget・control競合/current置換の誤失敗と、条件付きBash関数内の生成/保存/handoff失敗隠蔽を特定する。境界とbound runを下の修復記録へ保存する|
+|R2 / 今回完了|既知の共有release障害を最小修復し反映する|bin/reconcile-agent-runner-release.shと既存fleet_apply test。51件PASS→review GO→CI/main→ALL immutable→新版自然run pass/exit0。未適用fleetのpartial/再確認は保持する|
+|R3 / 現在|Capafyの制作・公開・配信の現停止境界を直し実結果へ進む|config/loop-registry.jsonのownerと実entrypoint、skills/self/capafy-loop/capafy-loop-daily.sh・capafy_factory_fence_reconcile.py、skills/earn/capafy-marketing/capafy-distribute-daily.sh・scripts/capafy_distribute_fence_reconcile.pyを照合する。factory/publication/distributionの現runと公式結果を結び、同operation identityで未成立な箇所だけ直す。frozen sellerを変更せず、制作・配信・販売/入金を別々に測る|
 |R4|Gigのfunded案件と、条件が整った他laneを進める|shared Paid→正式納品→受領/精算。別laneの保留やF backlogで一括停止しない。Storefrontの展開と公開起動整備は既存差分計画へ|
 |R5|評価から自己修復・自己改善へ戻す|同taskの品質・工数・費用・official outcomeを既存eval/CFOへ戻す。全18完成を準備開始条件にせず、成功の型を共有する|
 
@@ -103,7 +103,7 @@ source変更は最新main由来の成果専用worktreeで最小RED→修正→fo
 
 R1の目的は、共有実行・資源管理の現在の故障を閉じ、条件が揃った実仕事が進むこと。Capafyの個別改善はその後へ戻す。連続回数は要求しない。収益・全18・新端末・自己改善の全体完了へ言い換えず、業務段階/公式結果と残TODOを保持する。
 
-**共通部分を先に修復する順序:** Daisの追加指示により、旧R1（Capafyの個別停止境界）から、新R1（共通の実行・資源管理）へ変更する。理由は共通修復を先頭にする明示指示であり、連続N回や全F合格待ちを復活させない。最新read-only観測では清掃/監視/効果照合は605177d版でpass、release-reconcilerのexact run18de6e58507dc040-44741はentrypoint_exit_1、配信にはresource_control_busyがある。先頭は共有release/制御の同run診断→最小修復、次にwriter/終了/保存、最後にCapafyへ戻す。
+**共通部分を先に修復する順序:** Daisの追加指示に従って共有release/制御を先頭にし、PR #8058/#8064と新版自然runで今回の既知障害を閉じる。現在はCapafyへ戻る。順序更新の理由は、共有boundaryが実際に通過し、未特定のwriter全体確認を追加gateにすると事業を再び止めるため。旧順=共有release→writer/終了/保存の一括確認→Capafy、新順=今回の共有修復完了→Capafyの現境界→Gig/公開起動→実結果の評価共有、現在cursor=R3。writer/F2/F5はfreshな具体的故障と該当ownerで並行修復し、unknown receipt/active processは保持する。連続N回や全F合格待ちは復活させない。
 
 ## 共有release進行結果の修復
 
@@ -124,8 +124,8 @@ source base=a91a31a9beeb61def0d522ec3e3e5e144ab1c49f、worktree=/Users/anicca/Pr
 - [x] **R1 source — 延期分類の最小差分:** rc1かつ余分なfieldのないexact control_busy拒否だけをskipped/admission-control-busyとして記録し、他ownerを続ける。errors0/timeoutなしのbusyはpartial/control_busy_continue/既存continue間隔で再確認し、last_ok_epochは更新しない。同SHAで「適用済み」へ短絡させない。新SHAのcoalescingも保存済み延期期限を使う。確認済みの別40桁SHAへのsupersededは旧owner開始を止め、partial/即時次回のままtick exit0とする。欠測/不正SHAは非0のまま。source検証は45件PASS、反映は次の項目。
 - [x] **R1 source — 保存失敗の明示伝播:** 初回fresh read-only reviewはFIX-FIRST。state保存先fleet-apply-state.json.tmpを隔離fixtureでdirectoryにするとIsADirectoryErrorでもtick0/stateなしになる。親のrun_fleet_apply呼出が`||`内にあり、関数内のerrexitに頼れないためである。fleetの出力/plan/owner journal/stateを必須結果とし、生成・保存の非0を明示return1で伝える。registryの欠測/不正を空台帳へ置換しない。延期が未保存なら正常tickとしない。保存/plan/outputの4 test（5失敗case）はRED（3.634秒）→GREEN（2.806秒）。resource/provider/他ownerへ変更範囲を広げない。
 - [x] **R1 source — 厳密な結果型とself-handoff失敗伝播:** Pythonのdict比較だけではok=0がok=falseに等しくなるため、busy/supersededの拒否分類はboolean Falseを明示確認する。schedule_self_handoffも親の`||`内で呼ばれるため、mkdir/chmod、plist生成、launchctl-safe bootstrapの非0を明示return1で伝え、生成失敗後にbootstrapへ進まない。sourceの実関数を隔離fixtureの同じ`||`文脈で動かし、3 test/4失敗caseのRED（3.510秒）→GREEN（3.074秒）を確認する。実launchd/owner/receiptは変更しない。
-- [ ] **R1現在cursor — 同修復の受入:** 型/self-handoff修復後の関連51件PASS（72.624秒）、bash syntax/diff/source-boundary PASS。検証済みsource SHA-256=dfc3553b44730b2e6e4bd0bcb4d1aa5a4153cafeb458bde383b7ca7c2e882483、test SHA-256=f4e63c8147537d3ae302ffa5ab356d220cb1b81a25f8dbc22303039c4ea9ad4b。独立検証の2指摘を修復し、限定した確認→必要CI/main→immutable→RRC自然採用・同境界の結果を確認する。連続N回や全fleet無故障をgateにしない。
-- [ ] **R1次の境界:** この延期分類とは別に、親reconcileの実exit/最初に時間を使うreadbackを確定する。全events読取は候補だが未確定なので、timeout延長・全snapshot撤去・protected JSONL削除で代用しない。実障害が残ればその箇所だけ修復し、次にwriter/終了/保存、Capafyへ進む。
+- [x] **R1/R2 — 同修復の本番受入:** 型/self-handoff修復後の関連51件PASS（72.624秒）、独立read-only再検証GO、exact head f60f215cのCI全PASS。PR #8064をmain39f1bf0031d15257085ba2c48f3fc83f5bf6a9b1へ統合し、ALL/mode555 release20261015T030456-39f1bf00へ反映する。main/releaseのsource SHA-256は検証済みdfc3553b44730b2e6e4bd0bcb4d1aa5a4153cafeb458bde383b7ca7c2e882483と一致する。fresh launchctl-safe前提はPASS（UID501/Aqua）。対象限定loaded-idle applyはchanged=falseで新loaded argvを確認し、既存引き継ぎが採用済み。自然run18de77b58113f5d8-62559/occurrence life-manager-release-reconciler:18de77b58113f5d8-62559は18:08:43Zに新版でexecute、18:17:02Zにreport pass/exit0。exact runに結び付くowner log29件はchanged18/skipped11/非0rc0件で、前回control_busyのYouTube ownerもrc0/changed1。fleet snapshotはpartial/errors0/next_retryを保つ。18件は更新jobであり、18収益capabilityの売上証明ではない。currentに対するtarget applyのchanged=falseを重複更新なしのreadbackとし、回数を満たす追加runはしない。
+- [x] **R1診断 — 次の実障害だけを扱う:** 親/entrypointを含む新版自然runがexit0で境界を通過する。追加snapshot profileは下記のとおりで、全events/欠測indexを300秒待機の根因とはしない。未確認の性能推測だけでtimeout延長・全snapshot撤去・protected JSONL削除をしない。今後freshな実障害が出れば当該producer/adapterで診断・修復し、事業を一括停止する追加gateにしない。
 
 差分手順と検証入力はdocs/superpowers/plans/2026-10-15-shared-release-defer-plan.md、bound本番観測はdocs/evidence/shared-release-defer-20261015.json。TODO順/状態の正本はこの節だけ。
 
@@ -18437,3 +18437,55 @@ Paid-orders/views is descriptive, not causal: hot `5/46 ≈ 10.9%`, search `8/79
 | 13 | Aniccaの再現可能なplaybook確立後、Life Manager/mobile-app factoryをOSS化する。 | clean computerで数コマンドから起動し、operator別credentials/stateを隔離し、provider receiptと実収益を表示する。billionaire/収益保証をしない。 |
 
 **Current cursor:** item 1。容量は回復済み。公開Instagram `/app` CT routeも本番readback済み。残る直近blockerは2件のoccurrence-bound Postiz公式readbackであり、effectを推測せず再送しない。
+
+
+### Anicca A3 no-dispatch reconciliation repair — 2026-10-15 02:50 JST
+
+**再現された原因:** occurrence `life-manager-anicca-en-widget-instagram:18de27b12ced54d0-63894` はrun `18de5af77bd0c2e8-40954`、occurrence `life-manager-anicca-en-affirmation-tiktok:18de0ea01058a060-68528` はrun `18de5af913ca1378-41042`に結び付く。両runのprivate `loop-tmp/<owner>/<run>/entrypoint-result.json` はowner所有・regular・0600・1 hard linkで、内容は正確に`{"status":"pre_effect_failure","effect":0}`。両方とも`effect-identity.jsonl`はない。TikTok stderrはadmission releaseの`unable to open database file`とcleanup診断writeの`errno=28`を記録し、host stale recovery後にeffect unknownが残った。2026-10-15 02:38 JSTの容量readbackは13,222,486,016 bytes free、capacity recovered。
+- 現行`lm-loop pre-effect-reconcile <owner> --dry-run`は両対象を`no_pre_effect_terminal`として保留する。`runtime/loop/lm_loop.py::_is_mobile_pre_effect_terminal`はmanaged runtime不足と特定object-store ENOSPCだけを認識し、mobile-appが作りprovider upload前まで保持するrun-scoped markerを見ていない。
+- Postiz公式readbackでInstagram `cmv7du7ls1guble0yownton1q`とTikTok `cmv7d79731goiqc0y78vuxucb`はPUBLISHED。ただしruntime journalでそれぞれ別 occurrence `life-manager-anicca-en-widget-instagram:18de206bf4c85fb0-12063`、`life-manager-anicca-en-affirmation-tiktok:18dddee323d032f8-83743`のprovider receiptとして既にverified。これらは対象fenceを閉じる証拠に使わない。
+- 最新main由来`lm-fence-reconciler`はloaded-idleで健全。対象2件のpre-effect proof dry-runがmarkerの不認識で閉じていない。再投稿はしない。
+
+**順序更新:** 旧cursor=`A3: 2件のunknown投稿に対するPostiz official receipt/readback`。新cursor=`A3: persisted run markerをoccurrence/run/eventに結び付けてpre-effect verifierへ渡し、既存のlm-loop pre-effect reconciliation経路で対象fenceを閉じる`。理由は、先に見つかったPostiz候補2件が別occurrenceのreceiptであり、対象runにはupload前markerが残る一方、現在のclassifierがその証拠を読まずstale claimをunknownとして保持するため。close後に限り現行publisher/metrics ownerのloaded SHA・自然post receipt・mature metricsへ進む。旧順序の残り（Instagram CT成熟値 → TikTok CT → 英語creative cohort → OpenSEO/TREG → SEO → JA/ES ASO → UX → 1,000 ASC first-time downloads/day → USD 10K Anicca MRR → Honne/他アプリUSD 10M → Postiz self-host → OSS factory）は維持。
+
+**受入条件:** pass/exit0とfail/exit1の両terminalで、exact run-private markerだけが正確なpre-effect proofを出す。marker欠落・改変・owner/run/occurrence不一致・provider receipt/effect identity存在時はproofを拒否する。RED→GREENテスト後にmain統合・immutable release・loaded-idle control owner adoptionを完了し、fresh dry-runで対象occurrenceがprovableとなり、自然`lm-fence-reconciler`またはowner-scoped `pre-effect-reconcile <owner>`がproof可能なoccurrenceだけを閉じ、pre-effect receiptを保存してunknownを0にしたことをreadbackする。Postiz投稿の再送はしない。
+
+**Current cursor:** 上記markerを`_pre_effect_occurrence_proof`へ結ぶ最小runtime fixとRED test。existing proof/resolverを使い、provider effectやoccurrence identityを推測で補わない。
+
+### Anicca A3 marker-proof source acceptance — 2026-10-15 03:00 JST
+
+- `runtime/loop/lm_loop.py` now recognizes only the private `entrypoint-result.json` for the exact `loop_id/run_id/occurrence_id`; it rejects missing/changed markers, writable or linked files, mismatched owners/runs, and any provider receipt or effect identity. The pre-effect receipt records the marker SHA and run URI. No admission state has been changed yet.
+- TDD evidence: the new pass/exit0 and fail/exit1 regression first failed with `no_pre_effect_terminal`; after the minimal source change it passes. Full `test_lm_loop_apply` passes 197/197. The read-only evaluator now returns `proof_type=pre_effect` for both target occurrences with marker SHA `bc68b6c09ee78331c4baf41981d2d5ce910f84432e5195fd19150f24074b3dcd`. Current admission rows remain `claimed/effect_unknown=1`; no resolver or provider mutation has been run.
+- Current source branch `fix/anicca-mobile-pre-effect-reconcile-20261015` is based on main `3372c363`; main advanced by five commits and must be fetched/rebased before push. The latest clean `lm-fence-reconciler` natural pass still ran the pre-fix release, so production reconciliation remains pending.
+
+**Cursor advance:** old=`add and verify the exact run-scoped no-dispatch marker proof` → new=`rebase the source/spec branch onto latest main, exact-head CI and merge, then cut the main-derived release and apply only the loaded-idle `lm-fence-reconciler`; confirm a fresh dry-run marks both occurrences provable, let the registered reconciler save receipts, and verify the two database rows reach effect_unknown=0`. Reason: the same occurrence-bound evidence now passes locally; production remains unchanged until the source is integrated and adopted. Keep all other distribution TODOs and their order unchanged.
+
+
+### Anicca A3 marker-proof adoption handoff — 2026-10-15 03:02 JST
+
+- Latest GitHub main is `cc3c5a7164f40a5f4d37338862d0869ce1a5201a` after five commits since the task branch base `3372c363eb572aedf4995319ba01d5c3f11cd66d`. Those commits modify the canonical spec and LINE Sticker code; they do not touch `runtime/loop/lm_loop.py` or its tests. Rebase before push.
+- `loops/current` points to `20261015T025403-cc3c5a71`. `lm-fence-reconciler` is loaded-idle on SHA `cc3c5a7164f40a5f4d37338862d0869ce1a5201a`. Its last natural pass (17:55:55Z) ran release `3372c363` and exited 0; the two Anicca rows remain `claimed/effect_unknown=1` in admission DB. Do not treat controller health or current symlink as adoption of this source fix.
+- The current worktree's read-only proof evaluator returns the exact marker proof for both target occurrences; the SHA-256 is `bc68b6c09ee78331c4baf41981d2d5ce910f84432e5195fd19150f24074b3dcd`. This is proof evaluation only; no admission row was resolved.
+- **Cursor:** rebase branch/spec onto `cc3c5a71` → exact-head CI and merge → cut latest-main immutable release and apply only loaded-idle `lm-fence-reconciler` → let its natural occurrence-bound reconciler write proof receipts → confirm both rows `effect_unknown=0`, then resume natural post receipts and campaign metrics. Paid spend remains zero; no post is replayed.
+
+
+### Anicca A3 source readiness — 2026-10-15 03:03 JST
+
+- Source/spec branch `fix/anicca-mobile-pre-effect-reconcile-20261015` is rebased onto latest main `39f1bf0031d`; HEAD is `3a3d9c7cced`. The five upstream commits touch the canonical spec and LINE Sticker code, not the runtime verifier or test file. Worktree diff is source fix, regression, and this SSOT checkpoint only; pre-existing `.DS_Store` stays untracked.
+- Post-rebase verification: `PreEffectForeignClaimTests` 25/25, publisher marker contract 2/2, and `git diff --check` pass. Full `test_lm_loop_apply` passed 197/197 before rebase; intervening main source/test changes do not overlap those files.
+- The current-source read-only evaluator returns `proof_type=pre_effect` for both exact occurrences and records marker SHA `bc68b6c09ee78331c4baf41981d2d5ce910f84432e5195fd19150f24074b3dcd`. The production admission DB still reads `state=claimed/effect_unknown=1` for both; no resolver ran.
+- Production `loops/current` remains release `20261015T025403-cc3c5a71`; `lm-fence-reconciler` is loaded-idle on SHA `cc3c5a7164f40a5f4d37338862d0869ce1a5201a`. It has not adopted this source fix.
+
+**Current cursor:** push the rebased branch and canonical spec, pass exact-head PR CI, merge, cut latest-main immutable release, and apply only the loaded-idle `lm-fence-reconciler`. Then allow its natural run and verify occurrence-bound pre-effect receipts plus `effect_unknown=0` for the two rows. Keep posting fenced from replay until that readback.
+
+
+### Anicca A3 exact-head CI unblock — 2026-10-15
+
+- The previous PR #8069 head `b626bf2625a` was based on main `442e69df4d0`. Its occurrence-bound marker test passed 1/1, `test_lm_loop_apply.py` passed 197/197, and the Postiz publisher marker contract passed 2/2.
+- Exact-head Security Scan run `38613090121` reports one OSS boundary violation: `generated_artifact` at `skills/capafy/catalog/mlb-postgame-turning-point-brief/icon.png`. The same failure appears on merged PR #8070 run `38612183060`, so the blocker entered through current main; no Anicca runtime file triggered it. Existing catalog skills declare generated icons through both a per-skill `asset-manifest.json` and `skills/capafy/catalog/source-assets.json`.
+- The remaining Anicca A3 evidence is unchanged: keep both occurrences claimed/effect-unknown until main-derived release adoption and occurrence-bound pre-effect receipts are verified. Do not repost.
+- Main advanced to `d163f3b1c39` via PR #8068; its `skills/capafy/catalog/asset-digests.json` declares the exact MLB icon digest, so no duplicate asset declarations are needed in this branch. Main then advanced to `5113cbe55fc` via PR #8072 with Cloud-only spec updates. This branch is rebased onto `5113cbe55fc`; Anicca runtime/test files are unchanged by those main commits, and the local OSS boundary, source-boundary, exact marker regression, and Postiz publisher contract pass.
+
+**TODO order update:** Old=`(1) remove the duplicate asset declaration; (2) rebase on main; (3) run local checks; (4) pass exact-head CI; (5) merge; (6) cut release and reconcile both occurrences.` New=`(1) finish the spec cursor for base `5113cbe`; (2) force-push and pass exact-head CI; (3) merge; (4) cut the latest-main immutable release and apply only the loaded-idle reconciler; (5) verify both pre-effect receipts and `effect_unknown=0` before resuming distribution.` Reason: main now includes the canonical icon digest and the source fix branch is rebased; only the new base's exact-head CI remains before merge.
+
+**Current cursor:** run source-boundary, OSS boundary, and focused Anicca tests on base `5113cbe`; amend this cursor; force-push with expected old head `d2b7e2313b3`; then verify PR base/head and wait for exact-head CI. The prior exact-head run `38614450168` passed on base `ae1d689`, but this new base requires a fresh run. Keep paid spend at zero and both uncertain posts fenced from replay. The remaining Instagram/TikTok attribution, competitor creative cohort, OpenSEO/TREG, SEO, localization/ASO, UX, 1,000 ASC first-time downloads/day, USD 10K Anicca MRR, portfolio USD 10M MRR, Postiz self-hosting, and OSS factory stay in their existing order.
