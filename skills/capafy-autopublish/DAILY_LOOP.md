@@ -100,6 +100,9 @@ monitoring/deferred work.
       until the price tab is GREEN, then 下書きを保存 → 提出を確認. Loop until server
       `publish-remote-status --agent-id <AGENT_ID>` shows
       `latest_version.is_confirmed_skills=true`.
+      Required CP1 tab order: 基本情報 → Agent ワークスペース → 価格設定 last.
+      After entering 価格設定, do not switch tabs before PRICES_MATCH, save, and confirmation.
+      If you leave 価格設定, re-enter every plan price/cap/trial and daily quota, then rerun PRICES_MATCH.
       Do NOT re-tune coordinates blindly — read the screenshot and decide each click.
    c. `scripts/publish_finish.sh <AGENT_ID> <skill-name> <LISTING.md> <AGENT_VERSION_ID>` → verify CP1 →
       ordinary `publish-submit --action prepare` and require strict same-Agent

@@ -88,13 +88,9 @@ showed).
 | Agent ワークスペース (Skill) | red after a model switch, else auto-confirmed ✓ | click the pending skill card once (see above) |
 | 価格設定 | often **red ✗** — the real work | **always open it, even when green**, and set every plan card to the TARGET values (fix until GREEN) |
 
-**An incomplete 基本情報 is work to do, never a reason to stop.** A resumed draft
-(`resume_draft`, an orphan stub) usually opens with 基本情報 red and 提出を確認
-disabled. Open 基本情報, fill every empty or red field from `<CONFIG_PATH>`, save the
-draft, and continue with the remaining tabs. Stopping there leaves the draft holding
-a review slot forever (2026-10-08: draft 9531771963 stopped twice on "基本情報 is
-incomplete" while every new Agent waited for that slot). The only exception is the
-price-only update recipe below, which leaves 基本情報 as-is.
+**Required CP1 tab order: 基本情報 → Agent ワークスペース → 価格設定 last.** Finish 基本情報 first, then Agent ワークスペース, and verify both are green before opening 価格設定. The latest resume-stub retry reported that a tab switch reset price fields, so treat unsaved pricing as lost if you leave Pricing. **After entering 価格設定, do not switch tabs before PRICES_MATCH, save, and confirmation.** If you leave 価格設定, re-enter every plan price/cap/trial and daily quota, then rerun PRICES_MATCH.
+
+**An incomplete 基本情報 is work to do, never a reason to stop.** A resumed draft or orphan stub usually opens with 基本情報 red and 提出を確認 disabled. Open 基本情報, fill every empty or red field from `CONFIG_PATH`, and verify the tab is green. Then follow the tab order above. Do not revisit completed tabs after entering plan data. Stopping before Basic Info is complete leaves the draft holding a review slot forever (2026-10-08: draft 9531771963 stopped twice on 基本情報 is incomplete while every new Agent waited for that slot). The only exception is the price-only update recipe below, which leaves 基本情報 as-is.
 
 **A green 価格設定 tab is not proof of the right price.** On 2026-09-29 the Hook Lab
 reprice (agent 8123079349, v1.0.4) was saved with a green tab still holding the OLD
@@ -116,8 +112,8 @@ needed first) and can still be fixed because the card is still editable.
 ## Fixing 価格設定 (the common breakage)
 1. Read the exact URL bytes from `EDIT_URL_FILE` emitted by `publish_prepare.sh` and
    open that value. Do not reconstruct, append query parameters, or print the URL.
-   Read the shot, then click the 価格設定 tab (find it in `buttons`/`markers`, click
-   its coords).
+   Finish and verify 基本情報 and Workspace first, then click 価格設定 last using
+   its current `buttons`/`markers` coordinates.
 2. Confirm 収益化モデル = **Capafy で実行** and Billing = **Subscription** and
    container mode = **On-Demand** are selected (orange). If not, click them.
 3. `scroll` down to reveal the plan cards. Each subscription plan card = a Period
@@ -166,11 +162,12 @@ needed first) and can still be fixed because the card is still editable.
    pack" buttons after the last plan. Always re-run `state` after the last
    plan card to see what's actually there before assuming a field from an
    older doc revision still exists; do not block on a field you cannot find.
-7. Re-read all tabs: every tab must be green (基本情報 / Agent ワークスペース /
-   価格設定 — see above if a hosted-model switch put a 4th requirement on the
-   workspace tab). The 価格設定 tab's `priceSvg` should NOT contain
-   `229, 83, 75`/`255, 106, 43` (red/orange = invalid); if it does, something
-   is still empty/invalid — screenshot, find the red field, fix it.
+7. Final price-tab check: verify 基本情報 and Agent ワークスペース were green
+   before opening 価格設定. The latest resume-stub retry reported a price reset after
+   a tab switch. After entering plan values, do not switch tabs before PRICES_MATCH,
+   save, and confirmation. If you leave 価格設定, re-enter every cycle's target
+   price, request limit, trial, and daily quota, then rerun PRICES_MATCH. The active
+   価格設定 tab's priceSvg must not show red/orange; fix it while remaining on Pricing.
 8. **Mandatory gate — run `scripts/cp1_agent.py prices <LISTING.md>` and read its
    exit line BEFORE clicking 提出を確認. Never confirm the card on a `PRICES_MISMATCH`.**
    This re-reads the plan cards exactly as they currently stand (after any period
