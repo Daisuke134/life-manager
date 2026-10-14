@@ -12,6 +12,8 @@
 
 ## 確認した入口と最初の失敗
 
+**現在の採用状態:** 下の旧5b90拒否は前回の診断snapshot。10/14の再観測ではcurrent/RRCは修正を含む完全release28614ef5に進み、fleet applyはpartial/budget exceeded。CB01のone-time construction/activationを重ねて実行せず、ownerごとの収束と自然結果を続けて確認する。最新の個別市場・Capafy境界は `2026-10-14-gig-capafy-boundary-audit.md`、状態は統合specを参照する。
+
 | 対象 | 実際の経路 | 確認した失敗 / 残る不明 |
 |---|---|---|
 | release採用 | `reconcile-agent-runner-release.sh` → `$CURRENT/bin/cut-loop-release.sh` → current版`disk_admission.release_capacity_bytes` | current5b90は新toolchainからbundle keyを再計算して正しい既存bundleを拒否。main701は同じ入力で必要容量を返す |
