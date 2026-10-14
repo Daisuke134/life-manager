@@ -3838,26 +3838,28 @@ SNS ledgerは17回（ローカルpublished14／failed3）、最後の実投稿�
 同時にfactory run 18de01620d5a98a0-35902は16:30:23 JSTにruntime capでexit124となり、effect unknown / receiptなし。set-039のlocal ID 48289209はsubmit記録済みだがofficial status/feature placementは未確認。set-040はimages stageのまま17/40 candidatesで、item IDなし。factoryを手動restartせず、公式item readbackの自然終端を待つ。
 **So What:** latest official sales snapshotは39 IDs中28 zero/11 null、positive0。landing codeにLINE click eventはあるがlive count0。Instagramはsuspended page、TikTok account/postなし。priority/preflight source fixesはmainにmerged、runtime releaseはcapacity未達、distribution fence open。次はset-011 demo、TikTok ownerとの重複なしの連携、既存blogのnext eligible slotで1件のfree post。cleanupはsafe release capacityの補助作業に限定する。
 
-#### 5.L 配信進捗更新 — 2026-10-15 00:44 JST（base main `be10731c`）
+#### 5.L 配信進捗更新 — 2026-10-15 01:01 JST（base main `be10731c`）
 
 **範囲:** 公式ストア掲載済み36商品を、既存素材と無料チャネルだけで販促する。新規スタンプ制作、有料広告・PR、購入依頼、ランキング操作は対象外。
 
 **現状と計測:**
 - 公開作者ページは36商品。10/14に確認した35商品の価格構成は21×¥250・14×¥190、追加商品 `37303664` は¥190。既存価格が変わっていなければ平均¥225。USD/JPYを仮に150と置くと月間購入者総額USD 10,000には約¥1,500,000、約6,667購入/月（222/日）が必要。これは規模算術で、予測・保証ではなく、分配や手取りとは別指標。
 - 記事台帳は23枠、公開19・失敗3・未完了1、公開SKUは19件。公開サイトの最新 `/api/stats`（00:01 JST、期間不明）は全体397閲覧、LINE記事7 URLで計11閲覧、`line_sticker_click` なし。閲覧はクリック・購入の証拠ではない。
-- `sales.json` は10/15 00:28 JSTに40商品を保存し、29件¥0・11件null・正値0。ただし00:44 JSTもreader PID 92546が実行中で、terminalとprovider receiptは未確認。00:23 occurrenceはexit 75で公式readbackなし。`lm-loop status` とadapter再読は`admission_database_locked` / `database is locked`。`control.lock` を複数のPython PIDがopenしているがwriter原因は未特定。ownerは停止せず、自然解放後に再読する。
+- `sales.json` の最後に確認したsnapshotは10/15 00:28 JST、40商品中29件¥0・11件null・正値0。これはその時点の値で、最新の公式売上を示さない。reader occurrence `line-sticker-readback-hourly:18de6ef647392a58-92546` は00:49:35 JSTに自然終了、exit 1、release `1d1c0127bca23eb344fb7a6fe388ffe907d4e72f`、`provider_receipt_id=null` / `official_readback_ref=null`。イベント記録のtracebackでは、`line_sticker_resubmit.py::_retag_item`から`line_sticker_planner.selector`へ渡った`plan`に`motions`がなく`KeyError('motions')`、`creators_readback.py::read`へ渡った`item`に`url`がなく`KeyError('url')`。どのset/itemファイルが欠損を作ったかは未確認。販売を¥0へ置換せず、readerは`loaded-idle`のまま保つ。
 - 10/14 19時slot `2026-10-14@19` は `set-033` / attempts=1のままURL・commitが未記録。occurrence `line-sticker-articles:18de5fc6eed722e0-22842` は19:50:10 JST開始、exit 75 / `effect_unknown`。Landing GitHubには対応slug `line-sticker-set-033-2026-10-14-19` が19:50:51 JST、commit `e9cb5ff995985544b475d504ddee76121e20d2fb` で追加され、公開URLも取得済み。CTA `https://line.me/S/sticker/37293554` は公式商品ページの「星くずカワウソの毎日【文字入り】 vol.7」¥190と一致する。
 - installed article adapterは `unledgered_article:line-sticker-set-033-2026-10-14-19` と判定してフェンスを保持した。source候補 `fix/line-sticker-article-positive-reconcile-20261015` は、JST slot・set ID・attempts・commit時刻・記事日付・本文内の全`line.me` URLが既存 `purchase_url` 1件だけの時にpositive receiptを作る。URL/title/commitを台帳記録してから当該occurrenceを閉じる。CTA不一致、別slot、未検証の同slot記事はheld。focused test 14/14 PASS。00:40 JSTの実データread-only proofは `effected=true` / `PROOF_READY`、00:42の再読はadmission DB lockでheld。台帳・fenceは未変更。独立reviewはSHIP。再送しない。
 - SNS台帳は17試行（公開14・失敗3）、最終公開10/10。Instagram/ThreadsはCapafy provisioning identityに結び付いており使用しない。YouTubeは `interactive:dais` 以外の専用identityが確認できるまで投稿しない。既存set-011動画は無料配信素材として維持する。
 
 **残りの原子的TODO（現在cursor順）:**
 
+**順序更新（2026-10-15 01:01 JST）:** 旧順序は「readerの公式readback完了→article PR統合/反映→次の記事枠」。新順序は「article PR統合/反映と該当公開の照合→次の自然記事枠→readerの`motions`/`url`欠損の入力経路調査・修正→SKU/channel計測」。理由はreaderの自然runがterminalしたが入力schema errorでreceiptを出せず、記事ソース修正は別ownerの無料配信を復旧し、次枠を予定どおり使えるため。売上結果は両方の公式readbackまでunknownのまま。現在cursorはPR #8057のupdated head CI完了後の統合・対象反映。
+
 | 順 | 作業 | 完了条件 |
 |---|---|---|
-| 1 | 実行中の `line-sticker-readback-hourly` PID 92546を自然終端まで待ち、00:28 sales snapshotと公式画面・readback receiptを照合する | 同一期間の40商品全件を確認。terminal前のJSONを確定値にしない。browser ownerを奪わない |
-| 2 | DONE（source candidate）。focused test 14/14 PASS。 | occurrenceは `18de5fc6eed722e0-22842`、slotは `2026-10-14@19`。正しいURL形式だけを検証し、台帳・fenceは未変更 |
-| 3 | **現在cursor:** branchをcommit/pushしPR review/CIを通しmainへ統合、main SHAのimmutable releaseを作成してloaded-idle `line-sticker-articles` だけにapplyする | ownerがloaded-idle・exact fenceがclaimedの時に、登録済みpositive adapterで一度だけresolve。台帳URL/CTA/commit、closed=true、replay zeroを確認 |
-| 4 | 10/15 07:05 JSTの次の自然記事枠で未掲載の既存SKUを1件配信する | 公開URL・正確な公式商品CTA・台帳を照合。手動wakeや再公開なし |
+| 1 | **現在cursor:** updated head CIを通しPR #8057をmainへ統合。main SHAのimmutable releaseを作成し、loaded-idleの`line-sticker-articles`だけにapplyする | release SHAがmain由来で一致し、対象loopが新SHAでloaded-idle。無関係loopは変更しない |
+| 2 | 登録adapterで公開済み`set-033`をoccurrence `18de5fc6eed722e0-22842`へ一度だけ照合・resolveする | 公開URL/CTA/commitを台帳へ記録し`closed=true`、replay zero。曖昧ならfence保持、再送なし |
+| 3 | 10/15 07:05 JSTの次の自然記事枠で未掲載の既存SKUを1件配信する | 公開URL・正確な公式商品CTA・台帳を照合。手動wakeや再公開なし |
+| 4 | `line-sticker-readback-hourly`の該当set/item入力を調べ、欠けた`motions` / `url`の生成元か読取境界を最小修正する | exact failing inputを確認してからsourceを直し、同じcaseの検証後に自然readbackで40商品と公式receiptを再確認。推測値を補完しない |
 | 5 | article URL→view→`line_sticker_click`→公式販売→確定分配をSKU・channel・同一期間で結び、無料枠を実測winnerへ配る | crawler/self-viewを売上成果に数えず、クリック・販売・分配を分離する |
 | 6 | 既存SNS/短尺素材の無料配信を、許可された専用owner・公式readback・解決済みfenceの範囲で再開する | Capafy identity・個人YouTube identityを使わず、effect_unknownの手動clear/再送なし |
 | 7 | 公式の一暦月gross、確定分配、返金、全制作/配信/税/為替/送金費を同期間で照合する | 初回正値売上、累計分配>確認済み累計費用、buyer gross USD 10,000を公式証拠で達成する |
