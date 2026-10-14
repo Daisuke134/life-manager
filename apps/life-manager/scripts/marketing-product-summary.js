@@ -18,8 +18,13 @@ function latestDaily(dataDir, owner, reportDay) {
   const reportEnd = Date.parse(`${reportDay}T23:59:59.999+09:00`); const cutoff = reportEnd - 30 * 86400_000; const candidates = [];
   for (const id of fs.readdirSync(root)) {
     const daily = path.join(root, id, "daily"); if (!fs.existsSync(daily)) continue;
-    const file = [`${reportDay}.current.correction.json`, `${reportDay}.correction.json`, `${reportDay}.json`].map((name) => path.join(daily, name)).find((candidate) => fs.existsSync(candidate)); if (!file) continue;
-    const snapshot = JSON.parse(fs.readFileSync(file, "utf8")); const publishedAt = Date.parse(snapshot.published_at || "");
+    const rows = [`${reportDay}.current.correction.json`, `${reportDay}.historical.correction.json`, `${reportDay}.correction.json`, `${reportDay}.json`]
+      .map((name) => path.join(daily, name)).filter((candidate) => fs.existsSync(candidate))
+      .map((file) => ({ file, snapshot: JSON.parse(fs.readFileSync(file, "utf8")) }))
+      .filter(({ snapshot }) => Number.isFinite(Date.parse(snapshot.observed_at || "")))
+      .sort((a, b) => Date.parse(b.snapshot.observed_at) - Date.parse(a.snapshot.observed_at));
+    const { file, snapshot } = rows[0] || {}; if (!snapshot) continue;
+    const publishedAt = Date.parse(snapshot.published_at || "");
     if (!Number.isFinite(publishedAt) || publishedAt > reportEnd || publishedAt < cutoff) continue;
     candidates.push({ file, snapshot });
   }
@@ -51,10 +56,16 @@ function metricText(snapshot) {
     }
   }
   const current = snapshot.historical_checkpoint === false ? `現在値（取得時刻: ${snapshot.source_observed_at || snapshot.observed_at}。過去のチェックポイント値ではありません）。` : "";
+  const historicalLabel = snapshot.correction === true && snapshot.source_window === "7d"
+    ? `過去の値・訂正済み7日checkpoint（実測日時: ${snapshot.source_observed_at || snapshot.observed_at}）。`
+    : "";
+  const historicalCorrection = snapshot.historical_checkpoint_correction && snapshot.source_window !== "7d"
+    ? `過去の値・訂正済み7日checkpoint（実測日時: ${snapshot.historical_checkpoint_correction.observed_at}）。${metricText(snapshot.historical_checkpoint_correction)}`
+    : "";
   const measuredText = measured.length ? `${measured.join("、")}。` : "";
   const unavailableText = `取得できない項目：${unavailable.length ? unavailable.join("、") : "なし"}`;
   const unsupportedText = unsupported.length ? `。APIでは取得できない項目：${unsupported.join("、")}` : "";
-  return `${current}${measuredText}${unavailableText}${unsupportedText}`;
+  return `${current}${historicalLabel}${measuredText}${unavailableText}${unsupportedText}${historicalCorrection}`;
 }
 
 const FUNNEL_PRODUCTS = Object.freeze([["anicca-ios", "Anicca iOS"], ["honne-ai", "Honne AI"]]);

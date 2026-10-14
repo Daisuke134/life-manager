@@ -519,6 +519,42 @@ def test_a_resumed_run_pairs_through_its_attempt_start(tmp_path):
     assert result["status"] == "inconclusive" and result["reason"] == "run_reached_publication" and closed == []
 
 
+def test_resumed_live_publication_pairs_using_attempt_start(tmp_path):
+    # The run directory name predates the fence, but this same run was resumed
+    # inside the pairing window and its exact public article URL is in the ledger.
+    m = _load()
+    runs = tmp_path / "runs"
+    run_id = "20261008-120000"
+    d = _run_dir(runs, run_id, [
+        "git-hash.txt", "article-daily-prompt.txt", "gates/publication-state.json",
+    ])
+    attempt = datetime.fromtimestamp(GATE_QUEUED, timezone.utc) + timedelta(minutes=4)
+    (d / "gates" / "generation-state.json").write_text(json.dumps({
+        "attempts": [{"attempt": 1, "started_at": attempt.isoformat().replace("+00:00", "Z")}],
+    }))
+    live_url = "https://note.com/anicca123/n/resumed-live"
+    articles = _articles(tmp_path, [_row(run_id, "2026-10-09T01:23:00Z", live_url)])
+    resolved = []
+
+    def resolve_effect(owner, occurrence, *, official_readback, expected_state):
+        proof = official_readback()
+        resolved.append((owner, occurrence, proof, expected_state))
+        return True
+
+    result = m.reconcile(
+        GATE_OCC, queued_at=GATE_QUEUED, state="claimed", articles_path=articles,
+        fetch_status=lambda url: 200 if url == live_url else 404,
+        resolver=resolve_effect, resolve=True, now=GATE_QUEUED + 3600, runs_root=runs,
+    )
+
+    assert result["status"] == "effected" and result["closed"] is True, result
+    assert result["provider_receipt_id"] == live_url
+    assert resolved == [(OWNER, GATE_OCC, {
+        "owner_id": OWNER, "occurrence_id": GATE_OCC, "verified": True,
+        "provider_receipt_id": live_url,
+    }, "claimed")]
+
+
 START_BLOCK_OCCURRENCE = "article-daily:18dd0bf091a5d3d0-57499"
 START_BLOCK_QUEUED_AT = 1791601208.371748
 

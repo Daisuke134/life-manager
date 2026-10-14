@@ -106,7 +106,7 @@ function createFixture() {
       shares: { status: "unavailable", value: null, reason: "metric_not_supported" },
     },
   });
-  return { dataDir };
+  return { dataDir, captionSha };
 }
 
 function runJoin(dataDir) {
@@ -167,4 +167,32 @@ test("creative metrics CLI fails closed on a snapshot from another account", (t)
   const result = runJoin(dataDir);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /metric snapshot identity mismatch/i);
+});
+
+test("creative metrics join prefers an exact 7d correction over its source-delayed snapshot", (t) => {
+  const { dataDir, captionSha } = createFixture();
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const directory = path.join(dataDir, "tenants/dais-local/marketing/metrics/anicca.en/IgCreative1");
+  const base = {
+    schema_version: 1, kind: "instagram_combined_metric_snapshot", product_id: "anicca-ios", locale: "en",
+    account_id: "@anicca.en", integration_id: "cmn8y95rg02d2qx0y09bbk5pb", provider_post_id: "cmtigcreative1", shortcode: "IgCreative1",
+    caption_sha256: captionSha,
+    public_url: "https://www.instagram.com/reel/IgCreative1/", published_at: "2026-10-11T23:45:00.000Z", window: "7d",
+    sources: { postiz_post: { status: "unavailable", reason: "source_delayed" } },
+    post: { views: { status: "unavailable", value: null, reason: "source_delayed" } },
+  };
+  writeJson(path.join(directory, "7d.combined.json"), base);
+  writeJson(path.join(directory, "7d.correction.json"), {
+    ...base, kind: "instagram_combined_metric_snapshot_correction", correction: true,
+    observed_at: "2026-10-13T23:45:00.000Z", source_snapshot_id: "a".repeat(64),
+    post: { views: { status: "measured", value: 2229, source_date: "2026-10-13" } },
+  });
+
+  const result = runJoin(dataDir);
+  assert.equal(result.status, 0, result.stderr);
+  const report = JSON.parse(result.stdout);
+  const ig7 = report.rows.find((row) => row.account_id === "@anicca.en" && row.provider_post_id === "cmtigcreative1" && row.window === "7d");
+  assert.equal(ig7.status, "observed");
+  assert.equal(ig7.metrics.views.status, "measured");
+  assert.equal(ig7.metrics.views.value, 2229);
 });
