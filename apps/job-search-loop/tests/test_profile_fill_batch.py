@@ -5,7 +5,7 @@ import io
 from pathlib import Path
 import unittest
 from contextlib import redirect_stdout
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 from job_search_loop.browser_agent import runtime
 from job_search_loop.browser_agent.candidate_memory import CandidateMemoryView
@@ -72,6 +72,7 @@ class ProfileFillBatchTests(unittest.IsolatedAsyncioTestCase):
         type_candidate,
         *,
         observe_side_effect=None,
+        wake_budget=None,
     ):
         observe = (
             AsyncMock(side_effect=observe_side_effect)
@@ -85,6 +86,11 @@ class ProfileFillBatchTests(unittest.IsolatedAsyncioTestCase):
             ),
             patch.object(runtime, "observe", new=observe),
             patch.object(runtime, "type_candidate", new=type_candidate),
+            patch.object(
+                runtime,
+                "_wake_budget",
+                new=wake_budget or Mock(return_value=99),
+            ),
         ):
             return await runtime.fill_profile_fields(json.dumps(fields))
 
@@ -134,15 +140,61 @@ class ProfileFillBatchTests(unittest.IsolatedAsyncioTestCase):
             role="textbox",
             stable_id="id:first-name",
             candidate_concept="candidate.first_name",
+            _consume_budget=False,
         )
         type_candidate.assert_any_await(
             label="Email",
             role="textbox",
             stable_id="id:email",
             candidate_concept="candidate.application_email",
+            _consume_budget=False,
         )
         self.assertNotIn("first-name-value", json.dumps(result))
         self.assertNotIn("email-value", json.dumps(result))
+
+    async def test_profile_batch_consumes_one_wake_step_for_the_bounded_batch(self):
+        fields = [
+            {
+                "label": "First name",
+                "role": "textbox",
+                "stable_id": "id:first-name",
+                "candidate_concept": "candidate.first_name",
+            },
+            {
+                "label": "Email",
+                "role": "textbox",
+                "stable_id": "id:email",
+                "candidate_concept": "candidate.application_email",
+            },
+        ]
+        initial = _observation(
+            [_control("First name", "id:first-name"), _control("Email", "id:email", "email")]
+        )
+        after_first = _observation([_control("Email", "id:email", "email")])
+        after_second = _observation([])
+        type_candidate = AsyncMock(
+            side_effect=[
+                {
+                    "status": "acted",
+                    "action": {"receipt_sha256": "a" * 64},
+                    "observation": after_first["observation"],
+                },
+                {
+                    "status": "acted",
+                    "action": {"receipt_sha256": "b" * 64},
+                    "observation": after_second["observation"],
+                },
+            ]
+        )
+        wake_budget = Mock(return_value=98)
+
+        result = await self._run(
+            fields, initial, type_candidate, wake_budget=wake_budget
+        )
+
+        self.assertEqual(result["status"], "batch_acted")
+        wake_budget.assert_called_once_with(consume=True)
+        self.assertEqual(type_candidate.await_count, 2)
 
     async def test_stops_after_rerender_invalidates_the_next_target(self):
         fields = [
