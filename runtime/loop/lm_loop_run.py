@@ -1016,6 +1016,44 @@ def _run_entrypoint(command: list[str], env: dict[str, str] | None = None, *,
         return any(pid != process.pid and not status.startswith("Z")
                    for pid, status in rows)
 
+    def drain_group():
+        # Keep our session leader waitable so its group ID cannot be reused.
+        for signum in (signal.SIGTERM, signal.SIGKILL):
+            if live_group_children() is not True:
+                break
+            try:
+                os.killpg(process.pid, signum)
+            except (ProcessLookupError, PermissionError):
+                break
+            drain_deadline = time.monotonic() + max(0, termination_grace_seconds)
+            while (time.monotonic() < drain_deadline
+                   and live_group_children() is True):
+                time.sleep(.02)
+
+    def terminate(return_code):
+        forward(signal.SIGTERM, None)
+        if waitid is None:
+            try:
+                process.wait(timeout=termination_grace_seconds)
+            except subprocess.TimeoutExpired:
+                if process.poll() is None:
+                    _forward_process_group_signal(process.pid, signal.SIGKILL)
+                process.wait()
+        else:
+            stop_deadline = time.monotonic() + max(0, termination_grace_seconds)
+            exited = waitid(os.P_PID, process.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+            while exited is None:
+                if time.monotonic() >= stop_deadline:
+                    _forward_process_group_signal(process.pid, signal.SIGKILL)
+                    exited = waitid(os.P_PID, process.pid, os.WEXITED | os.WNOWAIT)
+                else:
+                    time.sleep(.02)
+                    exited = waitid(os.P_PID, process.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+            if exited.si_pid == process.pid:
+                drain_group()
+            process.wait()
+        return return_code
+
     for signum in watched:
         previous[signum] = signal.signal(signum, forward)
     if cancelled() or pending:
@@ -1059,44 +1097,19 @@ def _run_entrypoint(command: list[str], env: dict[str, str] | None = None, *,
                     else time.monotonic() + max(0, timeout_seconds))
         while True:
             if cancelled() or pending or stopping:
-                forward(signal.SIGTERM, None)
-                try:
-                    process.wait(timeout=termination_grace_seconds)
-                except subprocess.TimeoutExpired:
-                    if process.poll() is None:
-                        _forward_process_group_signal(process.pid, signal.SIGKILL)
-                    process.wait()
-                return 75
+                return terminate(75)
             exited = None if waitid is None else waitid(
                 os.P_PID, process.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT,
             )
             if exited is not None and exited.si_pid == process.pid:
-                # Keep our session leader waitable so its group ID cannot be reused.
-                for signum in (signal.SIGTERM, signal.SIGKILL):
-                    if live_group_children() is not True:
-                        break
-                    try:
-                        os.killpg(process.pid, signum)
-                    except (ProcessLookupError, PermissionError):
-                        break
-                    drain_deadline = time.monotonic() + max(0, termination_grace_seconds)
-                    while (time.monotonic() < drain_deadline
-                           and live_group_children() is True):
-                        time.sleep(.02)
+                drain_group()
                 return_code = process.wait()
                 break
             wait_timeout = 0.25
             if deadline is not None:
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
-                    forward(signal.SIGTERM, None)
-                    try:
-                        process.wait(timeout=termination_grace_seconds)
-                    except subprocess.TimeoutExpired:
-                        if process.poll() is None:
-                            _forward_process_group_signal(process.pid, signal.SIGKILL)
-                        process.wait()
-                    return 124
+                    return terminate(124)
                 wait_timeout = min(wait_timeout, remaining)
             if waitid is None:
                 try:

@@ -1150,10 +1150,12 @@ def test_entrypoint_cancellation_terminates_running_process_group():
 
 @pytest.mark.parametrize("ignore_term", [False, True])
 @pytest.mark.parametrize("group_observed", [False, True])
-def test_entrypoint_normal_exit_drains_only_verified_group_and_keeps_other_session(
-        tmp_path, ignore_term, group_observed):
+@pytest.mark.parametrize("terminal_kind", ["normal", "timeout", "cancel"])
+def test_entrypoint_terminal_exit_drains_only_verified_group_and_keeps_other_session(
+        tmp_path, ignore_term, group_observed, terminal_kind):
     owned = tmp_path / "owned.json"
     detached = tmp_path / "detached.json"
+    parent_terminated = tmp_path / "parent-terminated"
     script = (
         "import json,os,pathlib,signal,sys,time; "
         "from runtime.host.resource_admission import process_start; "
@@ -1162,13 +1164,15 @@ def test_entrypoint_normal_exit_drains_only_verified_group_and_keeps_other_sessi
         "time.sleep(60)"
     )
     parent = (
-        "import pathlib,subprocess,sys,time; "
+        "import pathlib,signal,subprocess,sys,time; "
+        f"signal.signal(signal.SIGTERM, lambda *_: (pathlib.Path({str(parent_terminated)!r}).write_text('TERM'), sys.exit(0))); "
         f"subprocess.Popen([sys.executable,'-c',{script!r},{str(owned)!r}]); "
         f"subprocess.Popen([sys.executable,'-c',{script!r},{str(detached)!r}],start_new_session=True); "
         f"paths=[pathlib.Path({str(owned)!r}),pathlib.Path({str(detached)!r})]; "
         "deadline=time.monotonic()+5\n"
         "while not all(path.exists() for path in paths) and time.monotonic()<deadline: time.sleep(.01)\n"
-        "sys.exit(0 if all(path.exists() for path in paths) else 86)"
+        "if not all(path.exists() for path in paths): sys.exit(86)\n"
+        + ("sys.exit(0)" if terminal_kind == "normal" else "time.sleep(60)")
     )
     leader = []
     killpg = os.killpg
@@ -1176,7 +1180,9 @@ def test_entrypoint_normal_exit_drains_only_verified_group_and_keeps_other_sessi
     def signal_owned_group(pgid, signum):
         assert pgid == leader[0]
         exited = os.waitid(os.P_PID, pgid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
-        assert exited is not None and exited.si_pid == pgid, "group leader was already reaped"
+        if terminal_kind == "normal":
+            assert exited is not None
+        assert exited is None or exited.si_pid == pgid, "group leader was already reaped"
         return killpg(pgid, signum)
 
     group_observation = (
@@ -1189,19 +1195,23 @@ def test_entrypoint_normal_exit_drains_only_verified_group_and_keeps_other_sessi
         with (group_observation,
               patch("runtime.loop.lm_loop_run.os.killpg", side_effect=signal_owned_group)):
             result = _run_entrypoint(
-                [sys.executable, "-c", parent], timeout_seconds=10,
+                [sys.executable, "-c", parent],
+                timeout_seconds=1 if terminal_kind == "timeout" else 10,
                 termination_grace_seconds=.05, on_started=leader.append,
+                cancelled=lambda: terminal_kind == "cancel" and owned.exists() and detached.exists(),
             )
-        assert result == 0
+        assert result == {"normal": 0, "timeout": 124, "cancel": 75}[terminal_kind]
         assert time.monotonic() - started < 2
+        if terminal_kind != "normal":
+            assert parent_terminated.read_text() == "TERM"
         owned_pid, owned_start = json.loads(owned.read_text())
         detached_pid, detached_start = json.loads(detached.read_text())
         assert owned_start is not None and detached_start is not None
-        if group_observed:
+        if group_observed or (terminal_kind != "normal" and not ignore_term):
             deadline = time.monotonic() + 1
             while admission.process_start(owned_pid) == owned_start and time.monotonic() < deadline:
                 time.sleep(.01)
-            assert admission.process_start(owned_pid) != owned_start, "normal exit left its child live"
+            assert admission.process_start(owned_pid) != owned_start, "terminal exit left its child live"
         else:
             assert admission.process_start(owned_pid) == owned_start
         assert admission.process_start(leader[0]) is None
