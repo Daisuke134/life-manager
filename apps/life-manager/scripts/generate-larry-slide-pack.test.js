@@ -17,6 +17,7 @@ const {
   MIN_POOL_SIZE,
   poolPath,
   readPostedHistory,
+  readCreativeMetricsForFamilies,
   resolveLarryJaSlot,
 } = require("./generate-larry-slide-pack.js");
 
@@ -632,6 +633,69 @@ test("readPostedHistory maps carousel distribution receipts to packRef/postedAt"
     slotHash,
     providerPostId: "postiz-history-1",
   }]);
+});
+
+test("readCreativeMetricsForFamilies uses exact in-window 24h views and requires three posts", (t) => {
+  const dataDir = tempDataDir(t);
+  const lane = EN_AFFIRMATION_TIKTOK_LANE;
+  const candidates = [
+    { packRef: `object://sha256/${"a".repeat(64)}`, familyId: "question-hook" },
+    { packRef: `object://sha256/${"b".repeat(64)}`, familyId: "myth-vs-fact" },
+    { packRef: `object://sha256/${"c".repeat(64)}`, familyId: "listicle" },
+  ];
+  const postedHistory = [];
+  const metricRows = [];
+  const addPosts = (prefix, candidate, views) => {
+    for (const [index, viewCount] of views.entries()) {
+      const providerPostId = `${prefix}-${index + 1}`;
+      const publishedAt = `2026-10-01T0${index}:00:00.000Z`;
+      postedHistory.push({ packRef: candidate.packRef, postedAt: publishedAt,
+        integrationRef: lane.integrationRef, providerPostId });
+      metricRows.push({
+        product_id: lane.productId,
+        platform: lane.platform,
+        locale: lane.locale,
+        integration_id: lane.integrationId,
+        postiz_id: providerPostId,
+        published_at: publishedAt,
+        observed_at: `2026-10-02T0${index}:00:00.000Z`,
+        target_age_hours: 24,
+        checkpoint_status: "measured",
+        checkpoint_sla_status: "in_window",
+        views: viewCount,
+      });
+    }
+  };
+  addPosts("question", candidates[0], [100, 200, 300]);
+  addPosts("myth", candidates[1], [400, 500, 600]);
+  addPosts("listicle", candidates[2], [900, 1000]);
+  metricRows.find((row) => row.postiz_id === "question-1").published_at = "2026-10-01T00:00:09.056Z";
+  postedHistory.push(
+    { packRef: candidates[2].packRef, postedAt: "2026-10-01T03:00:00.000Z",
+      integrationRef: lane.integrationRef, providerPostId: "listicle-late" },
+    { packRef: candidates[2].packRef, postedAt: "2026-10-01T04:00:00.000Z",
+      integrationRef: lane.integrationRef, providerPostId: "listicle-skew" },
+  );
+  metricRows.push(
+    { ...metricRows[0], integration_id: "another-account", views: 99_999, observed_at: "2026-10-03T00:00:00.000Z" },
+    { ...metricRows[1], target_age_hours: 72, views: 88_888, observed_at: "2026-10-03T00:00:00.000Z" },
+    { ...metricRows.at(-1), postiz_id: "listicle-late", published_at: "2026-10-01T03:00:00.000Z",
+      target_age_hours: 24, checkpoint_status: "measured", checkpoint_sla_status: "missed", views: 77_777 },
+    { ...metricRows.at(-1), postiz_id: "listicle-skew", published_at: "2026-10-01T04:03:01.000Z",
+      observed_at: "2026-10-02T04:00:00.000Z", target_age_hours: 24,
+      checkpoint_status: "measured", checkpoint_sla_status: "in_window", views: 66_666 },
+  );
+  const metricsFile = path.join(dataDir, "marketing-owner-events", "state", "post-metrics.jsonl");
+  fs.mkdirSync(path.dirname(metricsFile), { recursive: true });
+  fs.writeFileSync(metricsFile, `${metricRows.map((row) => JSON.stringify(row)).join("\n")}\n`);
+
+  const scores = typeof readCreativeMetricsForFamilies === "function"
+    ? readCreativeMetricsForFamilies(dataDir, candidates, lane, postedHistory)
+    : [];
+  assert.deepEqual(scores.sort((a, b) => a.familyId.localeCompare(b.familyId)), [
+    { familyId: "myth-vs-fact", score: 500, samples: 3 },
+    { familyId: "question-hook", score: 200, samples: 3 },
+  ]);
 });
 
 test("MIN_DAYS_BETWEEN_REPEAT is at least a week (per spec: never repeat within N days)", () => {
