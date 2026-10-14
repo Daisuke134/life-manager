@@ -1,0 +1,113 @@
+{
+  "schema_version": "life-manager.external-operation-methods.v1",
+  "observed_at": "2026-10-14T15:21:49.750471+00:00",
+  "source_sha": "605177d47acdb77ded7c130f3d5d1cdeb46576b2",
+  "scope": "external primary-source research, local source comparison and spec/plan correction",
+  "sources": [
+    {
+      "title": "Google SRE: Handling Overload",
+      "url": "https://sre.google/sre-book/handling-overload/",
+      "principle": "実資源に基づく容量・過負荷制御",
+      "retrieved_content_sha256": "35b3806a3fd074483279b9fc4e6e868942e28f020894d59db1498dde4ac9c208",
+      "content_bytes": 33078,
+      "content_nonempty": true,
+      "retrieval": "anonymous crwl crawl -o markdown-fit; no account/auth",
+      "use": "primary-source design, not independently audited financial results"
+    },
+    {
+      "title": "Temporal: Task Queues",
+      "url": "https://docs.temporal.io/task-queue",
+      "principle": "workerが永続task queueをpollする",
+      "retrieved_content_sha256": "ec48db172e957851c4cb75b986de31a3b9a4a2d25432672b8740302f3a4daeea",
+      "content_bytes": 12151,
+      "content_nonempty": true,
+      "retrieval": "anonymous crwl crawl -o markdown-fit; no account/auth",
+      "use": "primary-source design, not independently audited financial results"
+    },
+    {
+      "title": "Inngest: Step concurrency",
+      "url": "https://www.inngest.com/docs/durable-execution/flow-control/concurrency",
+      "principle": "実行stepだけが枠を消費し、paused runは空き枠を占有しない",
+      "retrieved_content_sha256": "136fe4f2ef995b8cd3d972ce5fb97415d4732ce2a7939b622e6a26ddba070021",
+      "content_bytes": 17686,
+      "content_nonempty": true,
+      "retrieval": "anonymous crwl crawl -o markdown-fit; no account/auth",
+      "use": "primary-source design, not independently audited financial results"
+    },
+    {
+      "title": "Amazon Builders' Library: Making retries safe with idempotent APIs",
+      "url": "https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/",
+      "principle": "client request IDで再送を識別する。providerの保証または結果照合が必要",
+      "retrieved_content_sha256": "4e649ca939e4711ce726c839c132f659eecdd54b1af3aea2eecc5438f85445f6",
+      "content_bytes": 37619,
+      "content_nonempty": true,
+      "retrieval": "anonymous crwl crawl -o markdown-fit; no account/auth",
+      "use": "primary-source design, not independently audited financial results"
+    },
+    {
+      "title": "Inngest: Self-hosting",
+      "url": "https://www.inngest.com/docs/self-hosting",
+      "principle": "単一binary self-host。既定queue/stateはin-memory RedisとSQLite snapshot",
+      "retrieved_content_sha256": "69592ed6d52741f2adbec8daab4ee1cc43a3b5103b91a97debe3396036b179a9",
+      "content_bytes": 19421,
+      "content_nonempty": true,
+      "retrieval": "anonymous crwl crawl -o markdown-fit; no account/auth",
+      "use": "primary-source design, not independently audited financial results"
+    }
+  ],
+  "rejected_source_reads": [
+    {
+      "url": "https://www.uber.com/blog/cadence/",
+      "reason": "404-style page; not used"
+    },
+    {
+      "url": "https://temporal.io/resources/case-studies/replit",
+      "reason": "crwl and scrapy did not provide substantive case content; not used"
+    },
+    {
+      "url": "https://docs.temporal.io/worker-performance",
+      "reason": "non-substantive response; official workers page used as fallback"
+    }
+  ],
+  "source_paths_checked": [
+    "runtime/host/resource_admission.py",
+    "runtime/host/disk_admission.py",
+    "runtime/loop/lm_loop_run.py",
+    "runtime/loop/central_cleanup.py",
+    "apps/life-manager/inngest/client.js",
+    "apps/life-manager/inngest/functions.js",
+    "apps/life-manager/lib/maybe-start-loops.js",
+    "apps/life-manager/server.js",
+    "apps/life-manager/package.json"
+  ],
+  "native_reuse": [
+    "enqueue_durable",
+    "claim_durable",
+    "heartbeat_durable",
+    "release_and_reserve",
+    "_producer_gate",
+    "_run_entrypoint",
+    "scratch_gc"
+  ],
+  "inngest_existing_scope": "Cloud wake/travel/ask functions, per-uid concurrency and single-writer; no Mac18 migration claimed",
+  "inngest_selfhost_limit": "default queue/state uses in-memory Redis plus periodic SQLite snapshots; adding daemon alone is not proof of crash durability",
+  "decision": "reuse native finite-worker path, adopt documented queue/backpressure/isolated-recovery/idempotency methods; do not make whole engine migration prerequisite",
+  "policy": {
+    "consecutive_success_gate": false,
+    "all_foundation_items_before_any_lane": false,
+    "active_effect_fences_preserved": true,
+    "runtime_stability_monitored_continuously": true,
+    "diagnosis_current_cursor": "R1 shared execution/resource management, then Capafy; latest user instruction"
+  },
+  "production_mutations": 0,
+  "provider_calls": 0,
+  "auth_calls": 0,
+  "installed_new_servers": 0,
+  "implementation_changes": 0,
+  "independent_read_only_review": {
+    "status": "PASS",
+    "critical_or_important_findings": 0,
+    "scope": "five source content hashes; native/Cloud source distinction; repeated/global gate removal; effect protection; proposal not deployment proof",
+    "production_behavior_verified": false
+  }
+}
