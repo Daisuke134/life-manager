@@ -44,7 +44,7 @@ To-Beは各agentがobserve→decide→act→official verify→persist→自分�
 
 - [x] **F1 — 全jobの共通入口:** 最新`config/loop-registry.json`のjobを100%調査し、各jobを「容量を書き込む」「制御/cleanup」「永続書込なし」に分類する。未分類=`0`。書込jobは既存の共有capacity admissionを通り、保護対象/別ownerの保存先を使わないことをsource/fixtureで確認する。
 - [ ] **F2 — 容量失敗とeffect-recovery:** 隔離fixtureで (a) 起動前容量不足、(b) 一時書込ENOSPC、(c) 最終receipt保存ENOSPC、(d) child開始後のresource-heartbeat lossを再現する。(a)では外部action開始=`0`、(b/c/d)ではtask identityを保持し、effect unknownを`released/effect_unknown=0`へ落とさない。通常releaseも既存unknownを消さない。さらに、terminal eventがeffect unknownなのにadmission rowが既に`released/effect_unknown=0`になった場合も、登録済みreconcilerが同一occurrenceの公式readbackを照合できること。照合前はscratchを保持し、公式効果が確認できた場合だけclosure receiptを記録して中央cleanupが回収する。推測のno-effect化、DB手修正、再送は禁止。さらに、同じ未解決readbackを繰り返すだけのreconcile passはper-occurrence JSONLを毎wake追記せず、未解決状態の集約を保持する。公式closure proofは引き続きoccurrence単位で保存する。今回のlive heartbeat incident、反復ログの実測、cleanup実測で旧版F2は未達と判明したため再開。
-- [ ] **F3 — 最新mainの掃除役を本番へ配布:** PR #7975はmain `c32c5c60a02690afca01a8f811601d5afbe46caa`へ統合済み。08:24のdoctorはPASS（missing/unmanaged/retired labelsはいずれも0）。一時的なself-handoff helperは既存watcherで自然終了したため追加patchは不要。current/reconcilerは`28614ef5`だが、central cleanupは`6dfec005`、watchdogは`22924a4f`で、統合済みtimeout修正の採用はまだない。既存fleet applyはsystem/control担当を収益・投稿担当の後に置くため、bounded budget内で共有基盤が取り残される。現在cursorは既存registryの`domain=system`かつ`system_role=control`を先に反映する最小修正。source acceptance/CI/main後、fresh release preflight/cut、対象cleanup ownerのloaded SHA/argv/state path/cadence、同releaseのdoctor PASSまで確認してF3を閉じる。
+- [ ] **F3 — 最新mainの掃除役を本番へ配布:** source修正は完了。PR #7975（process inventoryの有限timeout）はmain `c32c5c60`、PR #7979（system/controlの反映優先）はmain `62bd3b8d`へ必須CI全PASS後に統合済み。doctorの一時self-handoff labelは既存watcherで自然終了しPASSを確認した。残るatomは容量の安全な回復→main由来immutable release作成→watchdog/central cleanup/reconcilerのloaded SHA/argv/state path/cadence readback→同releaseのdoctor。09:37時点のcurrent/reconcilerは`28614ef5`で新修正の採用は未完。最新版cutterは08:56にavailable 603,054,080 bytes / required 2,399,432,704 bytes / exit75 / effect0 / readback0で安全にdeferした。容量値は制御の診断値でKPIではない。
 - [ ] **F4 — 最新版掃除の反復:** F3で配布した現行版のwatchdogとcentral cleanupについて、それぞれ自然実行receiptを3回連続で取得する。各receiptは `errors=0`、`protected_deletions=0` を示す。旧releaseの成功や単なるexit 0は新しい版の合格証拠にしない。
 - [ ] **F5 — 大きな一時データの往復:** 一番大きいフォルダ名を推測で選ばない。同一時間窓で`owner_id + PID + 出力先path + bytes before/after`を結び、実writerを確認する。該当jobの業務判断・公開・決済は既存ownerに残す。primaryは共有資源の後片付け・保存期間だけを直し、商品や外部effectのロジックを変更しない。自然実行を3回連続で確認し、終了した親と子processがいなくなった後、次の成功したcentral sweepまでにその回だけの一時フォルダが消え、商品出力/正式receiptは残る。3回の観測window全体で未帰属の増加=`0`、capacity起因のterminal failure=`0`、次の予定wakeを越えて残るcapacity defer=`0`、lost task=`0`、duplicate effect=`0`、手動cleanup=`0`。
 
@@ -441,6 +441,24 @@ F2も未完了: factory occurrence `18de1e0534af8540-84609`はunloaded/effect un
 **source acceptance:** 既存priority fixtureへsystem/control cleanupを加えると、旧sourceは「cleanupがmobileより後」でRED。sort keyを追加後、関連fleet-apply suite 39/39 PASS、shell syntaxとdiff check PASS。registry/catalogは変更しておらず、既存complete releaseのstructural contractも18 product loops / 191 jobs / errors 0。これはsource acceptanceで、本番の新priority採用・F3完了ではない。
 
 **現在順:** PR #7975 merge（完了）→system/control apply priority修正（現在）→F3 release/adoption→F4各3自然receipt→既存LINE ownerの公式照合でF2→F5の3自然生成/teardown/sweep cycle。旧順はbusiness-first fleet apply待ち。変更理由は共有cleanup/recoveryの更新が、その基盤を使う業務の反映時間に巻き込まれる実経路を閉じるため。AGMSGでLINE既存担当とresource統括へ証拠/所有範囲を送信したが、返信や稼働はまだ未確認。
+
+### 2026-10-14 09:37 JST — two shared fixes merged; foundation remains 1/5
+
+**このsessionで完了したatom:**
+- [x] PR #7975をhead `40c2ebf7`の全required checks PASS後、main `c32c5c60`へ統合。関連検証91 passed / 13 subtests passed。
+- [x] PR #7979をhead `454a571b`の全required checks PASS後、main `62bd3b8d`へ統合。既存priority regressionは旧sourceでRED、修正後fleet-apply suite 39/39、shell syntax/diff check、既存structural contract 18 loops/191 jobs/errors0 PASS。
+- [x] doctorの一時self-handoff labelは既存watcherによる自然終了を確認。8:24 doctorはPASS。labelを追加登録したり、強制停止したりしない。
+- [x] Git標準の既存maintenanceでpack内と重複するloose objectsを18→0へ回収。errors0。前後のfreeは同時の容量変動で減ったため、物理容量回復の証明とはしない。
+
+**5 gateの判定:** F1=PASS、F2=未完、F3=source完了/production adoption未完、F4=未完、F5=未完。09:10 central cleanupは`28614ef5`でloaded-idle、最新自然run `18de3cbe30df6a48-44615`は09:08 exit0。09:37 reconcilerも`28614ef5`でrunning、最新terminalはexit75。これは今回の2修正を含むreleaseからの自然receiptではない。watchdogの最後に確認したargvは`20261014T031532-22924a4f/bin/disk-watchdog.sh`、StartInterval=60。F3/F4へ合格を付けない。
+
+**capacity readbackと不足観測:** 08:56の最新版cutterはsafe GCを通過し、`disk_headroom_low` / exit75 / effect0 / readback0でexport前に延期した。08:45 JSTの20秒write-FD観測はfree 483,332,096→482,684,928 bytes、1MiB超の同一file増加なし。08:49の20秒native PID I/O観測はfree 311,185,408→1,997,799,424 bytes、観測した同一UID processではCodex PID30598のwrite 1,937,408 bytesのみ。09:05には298,240 KiB、09:37には1,283,004 KiBへ再変動した。swap totalは08:43の9GiBから08:56の10GiBへ増えたが、全変動を同じ時間窓で説明した証拠はない。F5のunattributed growth=0は未達のまま。
+
+**storage inventoryの限界:** Libraryは6,297,692 KiB、loop dependency bundlesは5,124,396 KiBで現存release参照を持つ。Git native packagesやcargo cacheに巨大な未使用cacheは確認できなかった。home/Projectsの全量duは時間上限でpartialとなり、108GB分類から80GBが削除可能という証明はない。参照release、browser identity、active/unknown scratch、Codex SQLite/session、credentials、memory/state、Simulatorは保持する。
+
+**LINE owner境界:** 9231 identityはreachableだが、legacy leaseは共通app-server PID85491をholderとし、context/thread IDを含まない。自sessionの記録から現在leaseの所有を証明できないため、release/takeover/closeを行わない。AGMSGへ既存LINE担当とresource統括の連絡は保存済みだが、09:10までのinboxでは返信/着手を確認していない。公式LINE receiptの代わりにローカルstateやmessage登録を使わない。
+
+**残りの実行順:** (1) F3に必要なsafe capacity recoveryと増加源の同一時間窓の確定。 (2) fresh mainのimmutable release作成、既存の対象限定/loaded-idle applyとwatchdog installerで3掃除担当を反映、loaded SHA/argv/state paths/cadence/doctorを確認。 (3) F4: 新releaseのwatchdog/central cleanup各3自然receiptでerrors0/protected0。 (4) F2: 既存LINE ownerの公式same-occurrence readbackでunknownを照合し、証明されたclosed scratchだけ回収。 (5) F5: 生成→親/子終了→次central sweepの3自然cycleで正式出力/receipt保持、lost/duplicate/manual cleanupなしを確認。F1–F5すべてのPASS前に基盤Doneや全18修理済みとしない。コード修正の完了は残TODOから外した。
 
 **EDD担当境界:** このレーンの実装cursorはE02 Writer Pilot。18製品ループの下記read-only監査は全体判断のための状況把握であり、E01 Agent Economy、F1–F5共有cleanup、18 capability修理のownerを引き受けない。Agent Economyは18製品ループの一つとして監査表に含むが、Writer作業と混同しない。
 
