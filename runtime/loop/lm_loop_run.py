@@ -982,6 +982,7 @@ def _run_entrypoint(command: list[str], env: dict[str, str] | None = None, *,
                     termination_grace_seconds: float = 15,
                     cancelled: Callable[[], bool] = lambda: False,
                     on_started: Callable[[int], None] = lambda _pid: None,
+                    stdout_capture_fd: int | None = None,
                     stderr_capture_fd: int | None = None) -> int:
     waitid = getattr(os, "waitid", None)
     watched = (signal.SIGTERM, signal.SIGINT)
@@ -1065,7 +1066,7 @@ def _run_entrypoint(command: list[str], env: dict[str, str] | None = None, *,
         process = subprocess.Popen(
             [sys.executable, str(EXEC_GATE), str(read_fd), *command],
             start_new_session=True, env=env, pass_fds=(read_fd,),
-            stderr=stderr_capture_fd)
+            stdout=stdout_capture_fd, stderr=stderr_capture_fd)
         os.close(read_fd)
         if cancelled() or pending or stopping:
             os.close(write_fd)
