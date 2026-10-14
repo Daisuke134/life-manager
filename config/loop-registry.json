@@ -994,7 +994,23 @@
       "coalesce_reserved_wakes": true,
       "coalesce_queued_wakes": true,
       "cadence": {
-        "start_interval_seconds": 900
+        "calendar_interval": [
+          {"Hour": 7, "Minute": 5},
+          {"Hour": 8, "Minute": 5},
+          {"Hour": 9, "Minute": 5},
+          {"Hour": 11, "Minute": 5},
+          {"Hour": 12, "Minute": 5},
+          {"Hour": 14, "Minute": 5},
+          {"Hour": 15, "Minute": 5},
+          {"Hour": 16, "Minute": 5},
+          {"Hour": 17, "Minute": 5},
+          {"Hour": 18, "Minute": 5},
+          {"Hour": 19, "Minute": 5},
+          {"Hour": 20, "Minute": 5},
+          {"Hour": 21, "Minute": 5},
+          {"Hour": 22, "Minute": 5},
+          {"Hour": 23, "Minute": 5}
+        ]
       },
       "cleanup": {
         "max_age_days": 14,
