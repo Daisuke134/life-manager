@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "scope": "shared release reconciliation only",
+  "source_base": "a91a31a9beeb61def0d522ec3e3e5e144ab1c49f",
+  "previous_repair": {
+    "pr": 8058,
+    "merged_sha": "050f768a62c3b00dbd834f0a5b7a432939d105e2",
+    "suite_passed": 39,
+    "adopted_release_sha": "c30c55275af5c950b478ca9600cd71748e2054f3",
+    "source_sha256": "ddb88bf63a5662fa1d8c26cd2c197e5897767d8576a0490b139549cefb84391e"
+  },
+  "natural_run": {
+    "run_id": "18de72dab9c1c930-37532",
+    "owner_id": "life-manager-release-reconciler",
+    "occurrence_id": "life-manager-release-reconciler:18de72dab9c1c930-37532",
+    "release_sha": "c30c55275af5c950b478ca9600cd71748e2054f3",
+    "execute_at": "2026-10-14T16:39:45.527793Z",
+    "terminal_at": "2026-10-14T16:53:13.146158Z",
+    "exit_code": 1,
+    "error_class": "entrypoint_exit_1",
+    "fleet_changed": 13,
+    "fleet_skipped": 11,
+    "fleet_errors": 1,
+    "nonzero_owner": "life-manager-anicca-affirmation-youtube",
+    "nonzero_owner_seconds": 10,
+    "nonzero_owner_result": {"ok": false, "error": "admission rebind refused: control_busy"},
+    "evidence_refs": [
+      "~/.local/state/life-manager/release-reconciler/events.jsonl",
+      "~/.local/state/life-manager/release-reconciler/fleet-apply-owners.jsonl",
+      "~/.local/state/life-manager/release-reconciler/fleet-apply-last-output.log"
+    ]
+  },
+  "interpretation": {
+    "confirmed": "one fleet apply was refused before the admission rebind transaction because the bounded control lock acquisition did not succeed",
+    "unconfirmed": "the exit and cause of each parent reconcile route; this apply refusal is not proof of the sole cause of the overall exit",
+    "provider_effect": "not established by release apply evidence"
+  }
+}

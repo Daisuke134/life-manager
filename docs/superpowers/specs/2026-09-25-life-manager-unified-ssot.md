@@ -111,11 +111,21 @@ R1の目的は、共有実行・資源管理の現在の故障を閉じ、条件
 
 所有sourceはbin/reconcile-agent-runner-release.sh::run_fleet_apply末尾とruntime/loop/tests/test_reconcile_agent_runner_release_fleet_apply.pyだけ。既存budget_progress_continue=1の分岐を終了コードへ反映する最小修正。既存正常budget caseでexpected parent exit0をREDとして確認し、同一入力のstate partial/changed1/errors0/継続flag/second-owner未開始を保持。失敗・timeout・混在・backoffの既存回帰も確認する。全fleet適用完了や収益成功とは報告しない。
 
-source base=be10731c00a326fdf9ebaf071391cb73efeae522、worktree=/Users/anicca/Projects/life-manager-main/.worktrees/shared-release-progress-result-20261015、branch=fix/shared-release-progress-result-20261015、owner=lm-common-runtime-1015。現在cursorはこの最小RED→GREEN→CI/main→対象owner反映。連続N回は要求しない。
+正常budget継続の修復は、既存fixtureのRED→GREEN、関連39件PASS、fresh read-only review GO、exact-head CI全PASSを経てPR #8058/main 050f768a62c3b00dbd834f0a5b7a432939d105e2へ統合する。完全なmain由来immutable releaseを作成し、既存RRC self-handoffが修正を含むc30c55275af5c950b478ca9600cd71748e2054f3を自然採用する。先の適用操作はcurrent切替を検知して旧targetを拒否し、稼働中ownerを止めない。修正source SHA-256はddb88bf63a5662fa1d8c26cd2c197e5897767d8576a0490b139549cefb84391e。
 
-共有release修復のsource進捗: 正常budget継続の既存fixtureをexpected exit0へ変更し、修正前はparent exit1/status partial/changed1/errors0でRED。既存budget_progress_continue=1を終了判定へ反映する最小差分後、同testはGREEN。state partial/last_ok_epoch0/next_retry/second-owner未開始を保持する。独立fresh read-only code reviewはGO（実失敗/timeout/親reconcile/self-handoffの非0保持、guard不変更）。最初の全suiteは38 PASS/1 FAILで、FAILは疎checkoutにdisk_admission.pyが無いENＯENT。source欠陥とせずその既存fileを追加して同suiteを再実行中。CI/main/本番採用は未完。
+本番run 18de72dab9c1c930-37532/occurrence life-manager-release-reconciler:18de72dab9c1c930-37532は16:39:45Zにexecute、16:53:13Zにexit1。bound owner logとfleet出力はchanged13/skipped11/errors1を示し、唯一の非0 applyはlife-manager-anicca-affirmation-youtubeのexact JSON {"ok":false,"error":"admission rebind refused: control_busy"}。これはrebindのcontrol.lock取得拒否であり、provider送信失敗の証明ではない。親reconcileの300秒待機の原因は未確定で、このownerエラーだけを全runの唯一の原因とは断定しない。正常budget修復の本番採用と、共通修復全体の完了を区別する。
 
-共有release修復のsource検証完了: 疎checkoutの既存disk_admission.pyを追加した同suiteは39/39 PASS（93.886秒）。新規の本番検証条件は追加しない。bash syntax/diff check PASS、fresh read-only code review GO。現在cursorは専用branchへのsource保存→exact-head CI/main→対象RRCのidle反映と自然結果。実apply失敗/timeout/混在/backoffの既存caseを保持。
+### 共有releaseの安全な延期を未完・再試行として保存する
+
+目的: 既存の有限tickと個別owner隔離を保ち、control.lockの競合と確認済みcurrent切替をfleet全体の実障害へ変換しない。延期したownerは旧release/queue/occurrence/lockを保持し、fleetはpartial、次回確認時刻を保存する。実apply失敗、timeout、混在失敗、current証拠の欠測、親reconcile/self-handoff失敗は非0を保つ。
+
+source base=a91a31a9beeb61def0d522ec3e3e5e144ab1c49f、worktree=/Users/anicca/Projects/life-manager-main/.worktrees/shared-release-progress-result-20261015、branch=fix/shared-release-busy-defer-20261015、owner=lm-common-runtime-1015。所有sourceは同じshellと既存fleet_apply testだけ。resource_admission.py、lm_loop_run.py、admission DB、業務owner、browser/provider effectは変更しない。既存effect_unknownのexact JSON分類、already-owned延期、partial/next_retryの形を再利用する。
+
+- [ ] **R1現在cursor — 延期分類の最小差分:** rc1かつ余分なfieldのないexact control_busy拒否だけをskipped/admission-control-busyとして記録し、他ownerを続ける。errors0/timeoutなしのbusyはpartial/control_busy_continue/既存continue間隔で再確認し、last_ok_epochは更新しない。同SHAで「適用済み」へ短絡させない。新SHAのcoalescingも保存済み延期期限を使う。確認済みの別40桁SHAへのsupersededは旧owner開始を止め、partial/即時次回のままtick exit0とする。欠測/不正SHAは非0のまま。
+- [ ] **R1同修復の受入:** busy→次回適用、類似文字列/余分なfield拒否、busy+実エラー、superseded前後のguard、superseded+実エラー、current欠測/不正の最小RED→GREEN。既存budget/timeout/backoff/親失敗回帰、fresh read-only review、必要CI/main→immutable→RRC自然採用・同境界の結果を確認する。連続N回や全fleet無故障をgateにしない。
+- [ ] **R1次の境界:** この延期分類とは別に、親reconcileの実exit/最初に時間を使うreadbackを確定する。全events読取は候補だが未確定なので、timeout延長・全snapshot撤去・protected JSONL削除で代用しない。実障害が残ればその箇所だけ修復し、次にwriter/終了/保存、Capafyへ進む。
+
+差分手順と検証入力はdocs/superpowers/plans/2026-10-15-shared-release-defer-plan.md、bound本番観測はdocs/evidence/shared-release-defer-20261015.json。TODO順/状態の正本はこの節だけ。
 
 ## 共有資源の診断履歴
 
