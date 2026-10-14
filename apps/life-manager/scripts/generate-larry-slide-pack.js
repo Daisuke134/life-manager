@@ -21,7 +21,6 @@ const path = require("node:path");
 
 const { createContentObjectStore } = require("../lib/content-object-store.js");
 const { createMarketingLocalLedger } = require("../lib/marketing-local-ledger.js");
-const { readCreativeMetrics } = require("../lib/marketing-creative-metrics.js");
 const { generateSlidePackCandidates } = require("../lib/marketing-slide-pack-factory.js");
 const { selectSlidePack } = require("../lib/marketing-slide-pack-rotation.js");
 const { marketingVideoDaySlots, marketingVideoDueSlots } = require("../lib/honne-ja-shadow-schedule.js");
@@ -30,6 +29,8 @@ const { JA_LARRY_PRODUCTION_SLOTS } = require("./anicca-larry-ja-canary.js");
 
 const MIN_POOL_SIZE = 4;
 const MIN_DAYS_BETWEEN_REPEAT = 7;
+const MIN_FAMILY_METRIC_POSTS = 3;
+const MAX_PUBLICATION_TIME_SKEW_MS = 180_000;
 const MAX_SLOT_LATE_MS = 15 * 60 * 1000;
 
 function required(value, label) {
@@ -110,11 +111,89 @@ function filterCandidatesForLane(candidates, lane, objectStore) {
   });
 }
 
-function readCreativeMetricsForFamilies(dataDir, candidates) {
-  const familyByPackRef = new Map(candidates.map((c) => [c.packRef, c.familyId]));
-  return readCreativeMetrics(dataDir)
-    .filter((row) => familyByPackRef.has(`object://sha256/${row.hook_id}`))
-    .map((row) => ({ familyId: familyByPackRef.get(`object://sha256/${row.hook_id}`), score: row.score }));
+function readCreativeMetricsForFamilies(dataDir, candidates, lane, postedHistory = []) {
+  const familyByPackRef = new Map();
+  const ambiguousPacks = new Set();
+  for (const candidate of candidates) {
+    if (!candidate || typeof candidate.packRef !== "string" || typeof candidate.familyId !== "string") continue;
+    const existing = familyByPackRef.get(candidate.packRef);
+    if (existing && existing !== candidate.familyId) ambiguousPacks.add(candidate.packRef);
+    else familyByPackRef.set(candidate.packRef, candidate.familyId);
+  }
+  for (const packRef of ambiguousPacks) familyByPackRef.delete(packRef);
+  if (!lane?.integrationRef || !lane.integrationId || !lane.productId || !lane.locale) return [];
+
+  const publicationsByPostId = new Map();
+  const ambiguousPosts = new Set();
+  for (const publication of postedHistory) {
+    if (publication?.integrationRef !== lane.integrationRef
+        || !familyByPackRef.has(publication.packRef)
+        || typeof publication.providerPostId !== "string"
+        || !Number.isFinite(Date.parse(publication.postedAt || ""))) continue;
+    const identity = {
+      familyId: familyByPackRef.get(publication.packRef),
+      packRef: publication.packRef,
+      publishedAt: publication.postedAt,
+    };
+    const existing = publicationsByPostId.get(publication.providerPostId);
+    if (existing && (existing.familyId !== identity.familyId
+        || existing.packRef !== identity.packRef
+        || existing.publishedAt !== identity.publishedAt)) {
+      ambiguousPosts.add(publication.providerPostId);
+    } else publicationsByPostId.set(publication.providerPostId, identity);
+  }
+  for (const postId of ambiguousPosts) publicationsByPostId.delete(postId);
+  if (!publicationsByPostId.size) return [];
+
+  const metricFile = path.join(dataDir, "marketing-owner-events", "state", "post-metrics.jsonl");
+  let metricLines;
+  try { metricLines = fs.readFileSync(metricFile, "utf8").split(/\r?\n/).filter(Boolean); }
+  catch (error) { if (error.code === "ENOENT") return []; throw error; }
+  const metricsByPostId = new Map();
+  const ambiguousMetrics = new Set();
+  for (const line of metricLines) {
+    let metric;
+    try { metric = JSON.parse(line); } catch { continue; }
+    const providerPostId = metric?.postiz_id;
+    const publication = publicationsByPostId.get(providerPostId);
+    if (!publication
+        || metric.product_id !== lane.productId
+        || metric.platform !== lane.platform
+        || metric.locale !== lane.locale
+        || metric.integration_id !== lane.integrationId
+        || metric.target_age_hours !== 24
+        || metric.checkpoint_status !== "measured"
+        || metric.checkpoint_sla_status !== "in_window"
+        || !Number.isSafeInteger(metric.views) || metric.views < 0
+        || !Number.isFinite(Date.parse(metric.observed_at || ""))) continue;
+    const metricPublishedAt = Date.parse(metric.published_at || "");
+    if (!Number.isFinite(metricPublishedAt)
+        || Math.abs(metricPublishedAt - Date.parse(publication.publishedAt)) > MAX_PUBLICATION_TIME_SKEW_MS) continue;
+    const existing = metricsByPostId.get(providerPostId);
+    if (!existing || Date.parse(existing.observed_at) < Date.parse(metric.observed_at)) {
+      metricsByPostId.set(providerPostId, metric);
+      ambiguousMetrics.delete(providerPostId);
+    } else if (existing.observed_at === metric.observed_at && existing.views !== metric.views) {
+      ambiguousMetrics.add(providerPostId);
+    }
+  }
+  for (const postId of ambiguousMetrics) metricsByPostId.delete(postId);
+
+  const viewsByFamily = new Map();
+  for (const [providerPostId, metric] of metricsByPostId) {
+    const publication = publicationsByPostId.get(providerPostId);
+    const samples = viewsByFamily.get(publication.familyId) || new Map();
+    samples.set(providerPostId, metric.views);
+    viewsByFamily.set(publication.familyId, samples);
+  }
+  return [...viewsByFamily.entries()]
+    .filter(([, samples]) => samples.size >= MIN_FAMILY_METRIC_POSTS)
+    .map(([familyId, samples]) => ({
+      familyId,
+      score: [...samples.values()].reduce((sum, views) => sum + views, 0) / samples.size,
+      samples: samples.size,
+    }))
+    .sort((left, right) => left.familyId.localeCompare(right.familyId));
 }
 
 // `lane` is any of the lane objects exported by
@@ -271,7 +350,7 @@ async function resolveLarryJaSlot({ env = process.env, now = () => new Date().to
   if (slotReceipt) {
     return { slot: dueSlot, selected: null, alreadyPublished: true, providerPostId: slotReceipt.providerPostId };
   }
-  const metrics = readCreativeMetricsForFamilies(dataDir, selectable);
+  const metrics = readCreativeMetricsForFamilies(dataDir, selectable, lane, postedHistory);
   const selected = selectSlidePack({
     candidates: addCandidateCopyHashes(selectable, objectStore),
     postedHistory,
@@ -307,4 +386,13 @@ if (require.main === module) {
   });
 }
 
-module.exports = { MIN_DAYS_BETWEEN_REPEAT, MIN_POOL_SIZE, poolPath, readPool, readPostedHistory, resolveLarryJaSlot };
+module.exports = {
+  MIN_DAYS_BETWEEN_REPEAT,
+  MIN_FAMILY_METRIC_POSTS,
+  MIN_POOL_SIZE,
+  poolPath,
+  readCreativeMetricsForFamilies,
+  readPool,
+  readPostedHistory,
+  resolveLarryJaSlot,
+};
