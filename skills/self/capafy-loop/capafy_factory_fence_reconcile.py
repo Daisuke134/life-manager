@@ -55,7 +55,9 @@ import hashlib
 import json
 import math
 import os
+import re
 import sqlite3
+import stat
 import subprocess
 import sys
 from pathlib import Path
@@ -114,6 +116,13 @@ PUBLISHER_DIR = REPO_ROOT / "skills/capafy-autopublish/vendor/capafy-publisher"
 SNAPSHOT_DIR = Path(
     "~/.local/state/life-manager/state/capafy-loop-daily-snapshots"
 ).expanduser()
+CAPAFY_DRAINER_EVIDENCE_ROOT = Path(
+    "~/.local/state/life-manager/state/agent-runner-evidence/capafy-drainer"
+).expanduser()
+CAPAFY_DAILY_LOOP_LOG = Path(
+    "~/.local/state/life-manager/state/capafy-autopublish/daily_loop.log"
+).expanduser()
+RUNTIME_EVENT_LOG = Path("~/.local/state/life-manager/events.jsonl").expanduser()
 EVIDENCE_DIR = Path(
     "~/.local/state/life-manager/reconciliation/evidence"
 ).expanduser()
@@ -256,6 +265,209 @@ def load_snapshot(occurrence_id: str, *,
     return value if isinstance(value, dict) else None
 
 
+def _read_user_file(path: Path, *, private: bool = False) -> bytes | None:
+    try:
+        info = path.stat(follow_symlinks=False)
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                or info.st_nlink != 1 or info.st_mode & 0o022
+                or (private and info.st_mode & 0o077)):
+            return None
+        return path.read_bytes()
+    except OSError:
+        return None
+
+
+def _parse_daily_loop_timestamp(value: str) -> dt.datetime | None:
+    try:
+        return dt.datetime.strptime(value, "%Y-%m-%d %H:%M:%S").astimezone(dt.timezone.utc)
+    except (OverflowError, ValueError):
+        return None
+
+
+def read_occurrence_bound_cp3_receipt(
+    occurrence_id: str, queued_at: dt.datetime, window_end: dt.datetime, *,
+    evidence_root: Path | None = None, publisher_log: Path | None = None,
+    event_log: Path | None = None,
+) -> dict[str, Any] | None:
+    """Read an exact parent event, child summary and successful CP3 block."""
+    evidence_root = evidence_root or CAPAFY_DRAINER_EVIDENCE_ROOT
+    publisher_log = publisher_log or CAPAFY_DAILY_LOOP_LOG
+    event_log = event_log or RUNTIME_EVENT_LOG
+    if not occurrence_id.startswith(f"{OWNER_ID}:"):
+        return None
+    try:
+        events = [(json.loads(line), line) for line in
+                  _read_user_file(event_log).decode("utf-8").splitlines()
+                  if occurrence_id in line]
+        root_info = evidence_root.stat(follow_symlinks=False)
+        if not stat.S_ISDIR(root_info.st_mode) or evidence_root.is_symlink():
+            return None
+    except (AttributeError, OSError, UnicodeDecodeError, ValueError):
+        return None
+    parent_run_id = occurrence_id.rsplit(":", 1)[-1]
+    bound_events = [(row, line) for row, line in events
+                    if isinstance(row, dict) and row.get("owner_id") == OWNER_ID
+                    and row.get("job_id") == OWNER_ID and row.get("run_id") == parent_run_id
+                    and row.get("occurrence_id") == occurrence_id
+                    and row.get("effect_class") == "publish"]
+    starts = [(row, line) for row, line in bound_events
+              if row.get("phase") == "execute" and row.get("status") == "running"
+              and row.get("effect_status") == "started"]
+    terminals = [(row, line) for row, line in bound_events
+                 if row.get("phase") == "report" and row.get("status") == "pass"
+                 and row.get("effect_status") == "unknown"
+                 and type(row.get("exit_code")) is int and row["exit_code"] == 0]
+    if len(starts) != 1 or len(terminals) != 1:
+        return None
+    start, start_line = starts[0]
+    terminal, terminal_line = terminals[0]
+    parent_release = start.get("release_sha")
+    start_at = _parse_updated_at(start.get("timestamp"))
+    terminal_at = _parse_updated_at(terminal.get("timestamp"))
+    if (not isinstance(parent_release, str) or not re.fullmatch(r"[0-9a-f]{40}", parent_release)
+            or terminal.get("release_sha") != parent_release or start_at is None or terminal_at is None
+            or start_at < queued_at - dt.timedelta(seconds=5)
+            or start_at > queued_at + dt.timedelta(seconds=30)
+            or terminal_at < start_at or terminal_at > window_end):
+        return None
+
+    candidates = []
+    for run_dir in evidence_root.iterdir():
+        epoch = run_dir.name.partition("-")[0]
+        if (run_dir.is_symlink() or not run_dir.is_dir() or not epoch.isdigit()
+                or not int(queued_at.timestamp()) - 120 <= int(epoch) <= int(window_end.timestamp()) + 1):
+            continue
+        summary_path = run_dir / "summary.json"
+        summary_raw = _read_user_file(summary_path, private=True)
+        if summary_raw is None:
+            continue
+        try:
+            summary = json.loads(summary_raw)
+        except (UnicodeDecodeError, ValueError):
+            continue
+        if isinstance(summary, dict) and summary.get("parent_lifecycle_occurrence_id") == occurrence_id:
+            candidates.append((summary_path, summary, summary_raw))
+    # Multiple child runs for one parent are ambiguous; do not choose one.
+    if len(candidates) != 1:
+        return None
+    summary_path, summary, summary_raw = candidates[0]
+    started_at = _parse_updated_at(summary.get("started_at"))
+    finished_at = _parse_updated_at(summary.get("finished_at"))
+    release_sha = summary.get("release_sha")
+    child_run_id = summary.get("run_id")
+    if (summary.get("owner_id") != OWNER_ID
+            or summary.get("loop") != "capafy"
+            or summary.get("task_label") != "capafy-drainer"
+            or summary.get("task_class") != "application-lane-agent"
+            or summary.get("status") != "success"
+            or summary.get("parent_lifecycle_run_id") != parent_run_id
+            or not isinstance(child_run_id, str) or not child_run_id
+            or not isinstance(release_sha, str) or not re.fullmatch(r"[0-9a-f]{40}", release_sha)
+            or release_sha != parent_release
+            or started_at is None or finished_at is None
+            or started_at < queued_at or finished_at < started_at
+            or finished_at > terminal_at or finished_at > window_end):
+        return None
+
+    try:
+        lines = _read_user_file(publisher_log).decode("utf-8").splitlines()
+    except (AttributeError, OSError, UnicodeDecodeError):
+        return None
+    summary_rows = []
+    for index, line in enumerate(lines):
+        if not line.startswith("{"):
+            continue
+        try:
+            row = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(row, dict) and row.get("run_id") == child_run_id:
+            summary_rows.append((index, row))
+    if len(summary_rows) != 1:
+        return None
+
+    summary_index, logged_summary = summary_rows[0]
+    bound_summary_fields = (
+        "owner_id", "loop", "run_id", "occurrence_id", "parent_lifecycle_run_id",
+        "parent_lifecycle_occurrence_id", "release_sha", "started_at", "finished_at",
+        "task_label", "task_class", "status",
+    )
+    if any(logged_summary.get(key) != summary.get(key) for key in bound_summary_fields):
+        return None
+
+    start_index = next((index for index in range(summary_index - 1, -1, -1)
+                        if lines[index].startswith("=== ") and lines[index].endswith(" daily_loop start ===")), None)
+    if start_index is None:
+        return None
+    if any(" daily_loop done rc=" in line for line in lines[start_index + 1:summary_index]):
+        return None
+    end_index = next((index for index in range(summary_index + 1, len(lines))
+                      if lines[index].startswith("=== ") and " daily_loop done rc=" in lines[index]), None)
+    if end_index is None:
+        return None
+    start_stamp = lines[start_index][4:-len(" daily_loop start ===")]
+    end_stamp = lines[end_index][4:].split(" daily_loop done rc=", 1)[0]
+    if start_stamp != end_stamp or any(line.startswith("=== ") and line.endswith(" daily_loop start ===")
+                                       for line in lines[summary_index + 1:end_index]):
+        return None
+    publisher_started_at = _parse_daily_loop_timestamp(start_stamp)
+    if (publisher_started_at is None or publisher_started_at < start_at
+            or publisher_started_at > started_at):
+        return None
+    block = lines[start_index:end_index + 1]
+    agent_ids = [line[9:] for line in block if line.startswith("AGENT_ID=")]
+    version_ids = [line[17:] for line in block if line.startswith("AGENT_VERSION_ID=")]
+    attempts = [(index, re.fullmatch(r"CP3 submit attempt (\d+)", line))
+                for index, line in enumerate(block) if line.startswith("CP3 submit attempt ")]
+    if (len(agent_ids) != 1 or not re.fullmatch(r"\d+", agent_ids[0])
+            or len(version_ids) != 1 or not version_ids[0]
+            or len(attempts) != 1 or attempts[0][1] is None or attempts[0][1].group(1) != "1"):
+        return None
+    agent_id, version_id = agent_ids[0], version_ids[0]
+    verify_pattern = re.compile(
+        r"platform_status=(\d+)\s+skills=(\d+)\s+cfg=(\d+)\s+package_uploaded=(\d+)\s+audit=(\d+)(?:\s|$)"
+    )
+    verifications = [(index, verify_pattern.search(line))
+                     for index, line in enumerate(block) if verify_pattern.search(line)]
+    ledger_positions = [index for index, line in enumerate(block)
+                        if line == f"ledger appended {agent_id}"]
+    final_verify = (
+        len(verifications) == 1
+        and all(value == "1" for value in verifications[0][1].groups())
+        and verifications[0][0] > attempts[0][0]
+        and len(ledger_positions) == 1
+        and verifications[0][0] < ledger_positions[0]
+    )
+    ledger_appended = len(ledger_positions) == 1
+    published = any(
+        f"PUBLISHED + VERIFIED: agent_id={agent_id} " in line
+        and "status=1 under review" in line for line in block
+    )
+    success_terminal = ("daily_loop done rc=0" in lines[end_index]
+                        and f"SUBMITTED — {agent_id} finished CP2/CP3 after prepare" in lines[end_index])
+    if not (final_verify and ledger_appended and published and success_terminal):
+        return None
+
+    block_raw = ("\n".join(block) + "\n").encode("utf-8")
+    return {
+        "occurrence_id": occurrence_id,
+        "parent_release_sha": parent_release,
+        "parent_terminal_at": terminal_at.isoformat(timespec="seconds"),
+        "parent_event_sha256": hashlib.sha256(
+            (start_line + "\n" + terminal_line + "\n").encode("utf-8")
+        ).hexdigest(),
+        "child_run_id": child_run_id,
+        "release_sha": release_sha,
+        "child_started_at": started_at.isoformat(timespec="seconds"),
+        "child_finished_at": finished_at.isoformat(timespec="seconds"),
+        "agent_id": agent_id,
+        "agent_version_id": version_id,
+        "child_summary_sha256": hashlib.sha256(summary_raw).hexdigest(),
+        "publisher_log_block_sha256": hashlib.sha256(block_raw).hexdigest(),
+        "summary_ref": str(summary_path),
+    }
+
+
 def _parse_updated_at(value: Any) -> dt.datetime | None:
     if isinstance(value, bool):
         return None
@@ -348,14 +560,32 @@ def reconcile(
 
     snapshot = load_snapshot_fn(occurrence_id)
     agents = publish_list.get("agents") or []
+    bound_receipt = None
     try:
         hit = find_hit(agents, snapshot, queued_at, window_end)
     except InconclusiveReadback as exc:
-        return {
-            "owner_id": OWNER_ID, "occurrence_id": occurrence_id, "verified": False,
-            "reason": str(exc), "error_class": "ambiguous_provider_readback",
-            "admission_state": state,
-        }
+        if str(exc) == "same_version_updated_after_queued_at" and state == "released":
+            age_seconds = (now - queued_at).total_seconds()
+            finished = (run_finished_fn or run_finished)(occurrence_id, queued_at) \
+                if age_seconds > FINISHED_RUN_MIN_AGE_SECONDS else False
+            if finished and snapshot is not None and snapshot.get("ok"):
+                bound_receipt = read_occurrence_bound_cp3_receipt(occurrence_id, queued_at, window_end)
+                if bound_receipt is not None:
+                    agent_id = bound_receipt["agent_id"]
+                    version_id = bound_receipt["agent_version_id"]
+                    prior = (snapshot.get("latest_versions") or {}).get(agent_id)
+                    matches = [row for row in agents if str(row.get("agent_id")) == agent_id]
+                    if (prior == version_id and len(matches) == 1
+                            and str(matches[0].get("latest_agent_version_id")) == version_id):
+                        hit = matches[0]
+                    else:
+                        bound_receipt = None
+        if bound_receipt is None:
+            return {
+                "owner_id": OWNER_ID, "occurrence_id": occurrence_id, "verified": False,
+                "reason": str(exc), "error_class": "ambiguous_provider_readback",
+                "admission_state": state,
+            }
 
     if hit is not None:
         agent_id = str(hit["agent_id"])
@@ -368,13 +598,48 @@ def reconcile(
             }
         version_id = remote_status["agent_version_id"]
         platform_status = remote_status["platform_status"]
+        evidence_ref = None
+        if bound_receipt is not None:
+            if (str(version_id) != bound_receipt["agent_version_id"]
+                    or type(platform_status) is not int or platform_status <= 0):
+                return {
+                    "owner_id": OWNER_ID, "occurrence_id": occurrence_id, "verified": False,
+                    "reason": "occurrence_bound_remote_status_mismatch",
+                    "error_class": "ambiguous_provider_readback", "admission_state": state,
+                }
+            evidence = {
+                "owner_id": OWNER_ID, "occurrence_id": occurrence_id,
+                "checked_at": now.isoformat(timespec="seconds"),
+                "source": "occurrence-bound Capafy drainer summary and CP3 log plus official readback",
+                "child_run_id": bound_receipt["child_run_id"],
+                "child_release_sha": bound_receipt["release_sha"],
+                "parent_release_sha": bound_receipt["parent_release_sha"],
+                "parent_event_sha256": bound_receipt["parent_event_sha256"],
+                "parent_terminal_at": bound_receipt["parent_terminal_at"],
+                "child_summary_ref": bound_receipt["summary_ref"],
+                "child_summary_sha256": bound_receipt["child_summary_sha256"],
+                "publisher_log_block_sha256": bound_receipt["publisher_log_block_sha256"],
+                "agent_id": agent_id, "agent_version_id": version_id,
+                "platform_status": platform_status,
+                "publish_list_sha256": publish_list.get("sha256"), "verdict": "effected",
+            }
+            evidence_ref = str(_append_evidence(evidence_dir, occurrence_id, evidence))
         receipt = f"capafy:agent/{agent_id}/version/{version_id}:platform_status={platform_status}"
         proof = {
             "owner_id": OWNER_ID, "occurrence_id": occurrence_id, "verified": True,
             "effected": True, "provider_receipt_id": receipt,
-            "proof_kind": "official_capafy_publish_list_and_remote_status",
+            "proof_kind": ("occurrence_bound_capafy_cp3_and_remote_status"
+                           if bound_receipt is not None
+                           else "official_capafy_publish_list_and_remote_status"),
             "checked_at": now.isoformat(timespec="seconds"),
         }
+        if bound_receipt is not None:
+            proof.update({
+                "official_readback_ref": receipt, "child_run_id": bound_receipt["child_run_id"],
+                "parent_release_sha": bound_receipt["parent_release_sha"],
+                "agent_id": agent_id, "agent_version_id": version_id,
+                "platform_status": platform_status, "evidence_ref": evidence_ref,
+            })
         result: dict[str, Any] = {**proof, "admission_state": state}
         if not resolve:
             return result
