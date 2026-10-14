@@ -22,19 +22,23 @@ Precision: ``capafy-loop-daily.sh`` writes a durable pre-dispatch snapshot
 mutation, capturing each known agent's ``latest_agent_version_id``. The
 reconciler diffs the live publish-list against that snapshot: any agent
 whose id is new or whose latest version changed proves this run (or a
-still-fenced predecessor) had an effect. When no snapshot exists (e.g. runs
-before this feature shipped), it falls back to an ``updated_at`` window
-check against ``[queued_at, queued_at + MAX_RUN_SECONDS]``, the same
-approach ``capafy_ig_fence_reconcile.py`` uses for Instagram.
+still-fenced predecessor) had an effect. If the version is unchanged, its
+``updated_at`` must be verifiably before ``queued_at`` to prove no effect;
+missing, malformed, or newer timestamps stay inconclusive. When no snapshot
+exists (e.g. runs before this feature shipped), numeric epoch seconds or
+milliseconds and ISO timestamps inside
+``[queued_at, queued_at + MAX_RUN_SECONDS]`` can prove an effect; missing or
+out-of-window timestamps stay inconclusive.
 
 Decision:
   - effected: a hit (new/updated agent) proves the effect happened -> read
     ``publish-remote-status`` for that agent's ``platform_status`` and close
     via ``resolve_unknown_occurrence`` with receipt
     ``capafy:agent/<id>/version/<vid>:platform_status=<n>``.
-  - no-effect: a complete publish-list readback shows nothing changed and
-    enough time has passed (> MAX_RUN_SECONDS + a processing buffer) -> write
-    an evidence JSON file and close via ``resolve_pre_effect_occurrence``.
+  - no-effect: a complete publish-list readback shows every unchanged agent
+    has a verifiable timestamp before ``queued_at`` and enough time has passed
+    (> MAX_RUN_SECONDS + a processing buffer) -> write an evidence JSON file
+    and close via ``resolve_pre_effect_occurrence``.
   - inconclusive (read failure, remote-status read failure, or not enough
     time passed yet): stays fenced; the result records ``reason`` and
     ``error_class`` for the next wake to retry.
@@ -49,6 +53,7 @@ import argparse
 import datetime as dt
 import hashlib
 import json
+import math
 import os
 import sqlite3
 import subprocess
@@ -76,6 +81,10 @@ NO_EFFECT_MIN_AGE_SECONDS = MAX_RUN_SECONDS + POST_PROCESSING_DELAY_SECONDS
 # process is provably gone, an hour of waiting adds nothing: 2026-10-08 a PREPARE_FAILED run
 # (no agent spend) fenced the factory for an hour, twice in one day.
 FINISHED_RUN_MIN_AGE_SECONDS = 60
+
+
+class InconclusiveReadback(Exception):
+    """The official listing cannot safely prove either effect or no-effect."""
 
 
 def run_finished(occurrence_id: str, queued_at: dt.datetime, *, process_start_fn=None) -> bool:
@@ -248,6 +257,16 @@ def load_snapshot(occurrence_id: str, *,
 
 
 def _parse_updated_at(value: Any) -> dt.datetime | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        if isinstance(value, float) and not math.isfinite(value):
+            return None
+        try:
+            timestamp = value / 1000 if abs(value) >= 100_000_000_000 else value
+            return dt.datetime.fromtimestamp(timestamp, dt.timezone.utc)
+        except (OverflowError, OSError, ValueError):
+            return None
     if not isinstance(value, str) or not value.strip():
         return None
     try:
@@ -261,9 +280,10 @@ def _parse_updated_at(value: Any) -> dt.datetime | None:
 
 def find_hit(agents: list[dict[str, Any]], snapshot: dict[str, Any] | None,
              queued_at: dt.datetime, window_end: dt.datetime) -> dict[str, Any] | None:
-    """Return the first agent proving a Capafy effect happened, or None."""
+    """Return a proven effect; raise when the listing cannot prove no-effect."""
     if snapshot is not None and snapshot.get("ok"):
         prior_versions = snapshot.get("latest_versions") or {}
+        unchanged = []
         for agent in agents:
             agent_id = agent.get("agent_id")
             if not agent_id:
@@ -272,11 +292,26 @@ def find_hit(agents: list[dict[str, Any]], snapshot: dict[str, Any] | None,
             current = agent.get("latest_agent_version_id")
             if prior is None or prior != current:
                 return agent
+            unchanged.append(agent)
+        for agent in unchanged:
+            updated_at = _parse_updated_at(agent.get("updated_at"))
+            if updated_at is None:
+                raise InconclusiveReadback("same_version_updated_at_missing_or_malformed")
+            if updated_at >= queued_at:
+                raise InconclusiveReadback("same_version_updated_after_queued_at")
         return None
+    possible_hit = None
+    ambiguous_timestamp = False
     for agent in agents:
         updated_at = _parse_updated_at(agent.get("updated_at"))
-        if updated_at is not None and queued_at <= updated_at <= window_end:
-            return agent
+        if updated_at is None or updated_at > window_end:
+            ambiguous_timestamp = True
+        elif queued_at <= updated_at <= window_end:
+            possible_hit = possible_hit or agent
+    if possible_hit is not None:
+        return possible_hit
+    if ambiguous_timestamp:
+        raise InconclusiveReadback("updated_at_missing_or_outside_occurrence_window")
     return None
 
 
@@ -313,7 +348,14 @@ def reconcile(
 
     snapshot = load_snapshot_fn(occurrence_id)
     agents = publish_list.get("agents") or []
-    hit = find_hit(agents, snapshot, queued_at, window_end)
+    try:
+        hit = find_hit(agents, snapshot, queued_at, window_end)
+    except InconclusiveReadback as exc:
+        return {
+            "owner_id": OWNER_ID, "occurrence_id": occurrence_id, "verified": False,
+            "reason": str(exc), "error_class": "ambiguous_provider_readback",
+            "admission_state": state,
+        }
 
     if hit is not None:
         agent_id = str(hit["agent_id"])
