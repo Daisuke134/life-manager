@@ -119,16 +119,37 @@ Gate 13 `gate_pass` means the snapshot is structurally complete, contains no fab
 - `marketing-owner-events` remains on old SHA `52f33c67c3da765af516209e35c394b47e2e6f13`; its latest terminal `18de51a57c57e5a8-26311` ended 06:36:49Z, exit 1 in `report` (`reconcile=attention/3`, `collect=pass`, `report:action=fail`, `report:checkpoint=fail`; remaining report stages passed). The output includes two `delivery_unknown` keys; this run is not DD05-source evidence.
 - `capafy-distribute-daily` remains safely fenced on `a299acc04573ab916fb261ad7ff94b1d3f79a119`. Latest occurrence `18de52a169f44300-51572` ended 06:49:16Z with `effect_status=unknown`, no provider receipt, and no official readback. The main fix is not deployed.
 
-**Remaining DD05 acceptance, in order**
+**Cursor reorder, 2026-10-14T10:43Z:** Old: DD05 production adoption, then DD06 Writer. New: finish Writer fence integration; add CTA-lineage-to-paid measurement; resume DD05 after current-main capacity recovery; then run a controlled Writer experiment and DD07–DD12. The local capacity check fails because the checkout is shallow; GitHub compare verifies donor 9c71a1a is a 49d9858 ancestor. The verified read-only requirement is 252653568 bytes, with 141164 KiB free at 10:43Z. The cleanup owner passed at 10:39Z but no fresh receipt is persisted; release reconciliation failed at 10:41Z.
 
-1. [ ] Add a failing regression in `runtime/loop/tests/test_cut_loop_release_pressure.py` for a shallow source checkout whose immutable donor is verified as an ancestor by the remote. Fix `runtime/host/disk_admission.py::release_capacity_bytes` so it can establish valid ancestry without weakening the non-ancestor rejection; the direct measurement for current main must return required bytes instead of `CalledProcessError`.
-2. [ ] Re-run the read-only capacity measurement for exact main SHA `0ecf503a7ea21913652db85d86279c76ffabc09d`; record its exact required bytes and the free-space readback.
-3. [ ] Recover the measured shortfall through the registered cleanup owner. Preserve open/protected/unknown paths; do not bypass the capacity gate or delete protected data.
-4. [ ] After the exact preflight passes, cut a new immutable release from current main through `bin/cut-loop-release.sh origin/main` and verify its descriptor.
-5. [ ] Let the registered release reconciler apply the new release to `marketing-owner-events`; verify the exact fleet row, loaded argv, and installed SHA. Do not manually wake, stop, restart, or apply the owner.
-6. [ ] Read the first natural terminal from the new SHA and inspect the persisted attribution-sweep stage output. A separate Telegram report-stage failure does not invalidate a persisted successful sweep artifact.
-7. [ ] Verify at least one unique exact-identity `PUBLISHED` publication has passed the 24-hour maturity window and is represented in the persisted sweep. If none is eligible, record the exact coverage gap and keep DD05 open.
-8. [ ] Keep publication-level orders/revenue, actual cost, and human interventions `unknown` without exact sources; Capafy account/agent aggregates do not prove post-level revenue or profit uplift. Close DD05 only when terminal and sweep output share the same exact identity; then advance to DD06.
+**Current cursor readback, 2026-10-14T11:08Z (supersedes prior capacity numbers):** Current remote/local `origin/main` is `dfb8213c4a51dcbc74d925d4ee8ee136a1978e64`; the task worktree is at `7e8e37f39a886801ac2e4bddb76026c5e64d5b33`, based on `13f59bca114e48e284b3b55fee1c1f450c66b2c0` (current main is 15 commits ahead, 0 behind that base). `df` reports 168508 KiB available at 11:08Z; a 2-byte scratch-file write now succeeds, but the volume still reports 100% full. The cleanup owner failed at 11:08:06Z (`life-manager-disk-cleanup:18de60c1a2f71ed8-55795`, `storage_write_failed_pre_effect` / `scratch_enospc`, no evidence refs); its last successful terminal was 10:58:44Z and there is no fresh receipt. The capacity requirement for `dfb8213` is unmeasured; do not reuse the 252653568-byte figure measured for `49d9858`. The dirty worktree still has four tracked edits; preserve its untracked `.DS_Store`.
+
+**Cursor/order change, 2026-10-14T11:08Z:** Old cursor: integrate the Writer fence patch, then build CTA-to-paid measurement. New order: (1) restore scratch writes through the registered cleanup owner and synchronize the task branch to current main; (2) rerun fence tests and complete review/CI/integration; (3) implement CTA lineage and destination identity using the existing Web funnel/Writer join; (4) resume DD05 release adoption after a fresh capacity gate; (5) establish a mature outcome baseline, then run a controlled experiment; (6) continue DD07–DD12. Reason: current main advanced beyond the branch base and the cleanup receipt remains stale. Do not manually clear the active cleanup owner or any effect fence.
+
+**Writer cursor**
+
+1. [x] Add resumed-run RED case; expected inconclusive/run_reached_publication was observed.
+2. [x] Pair publication rows with attempt starts from valid run directories; validate IDs and refuse symlink paths. AST and diff checks pass.
+3. [x] Real read-only reconcile returns effected with 4 HTTP 200 URLs and closed=false; resolver test double passes without production mutation.
+4. [x] Run the focused fence suite (24 passed); real read-only reconcile returns four HTTP 200 URLs, effected/closed=false; injected resolver test did not mutate the fence.
+5. [ ] Integrate on latest main through review/CI/release; only the registered reconciler may close receipt-backed proof. Never resolve manually or replay.
+6. [x] Classify all 8 retained runs; 14/439 ledger rows join. Dispatch, prepublication ambiguity, identity-gate block, pending run state, and outcome-coverage gap are distinct.
+
+**Writer CTA outcome measurement — required before experimentation**
+
+1. [ ] Preserve product_id, run_id, artifact_id, variant_id, and click_id from the /lm landing request through authenticated first-touch and Stripe paid/refund events. The current UTM-only sanitizer and sign-in forwarding drop these fields.
+2. [ ] Reuse lm_web_funnel_events, lm_users.web_first_touch, lm-web-funnel-report, and the Writer artifact join; keep request counts separate from unique people.
+3. [ ] Bind each publication destination to a distinct attribution identity. A single article-ja click_id is reused across published copies, so it cannot compare destinations.
+4. [ ] Verify per-artifact views/landing requests, activation, paid invoices, refunds/net, production cost, and intervention from exact receipts. Keep missing values unknown and do not run an experiment before the join works.
+
+**DD05 remains open**
+
+1. [ ] Restore scratch-write capacity through the registered cleanup owner, then synchronize to current `origin/main` and measure exact release capacity for that SHA. The requirement for `dfb8213` is unmeasured; the 252653568-byte result is historical for `49d9858` only.
+2. [ ] Recover only the newly measured shortfall through the registered cleanup owner; preserve protected and unknown paths. Do not treat a passing process terminal without a fresh receipt as capacity recovery.
+3. [ ] Cut/apply a main-derived immutable release only after the exact gate; verify installed SHA and natural owner terminal.
+4. [ ] Inspect the persisted attribution sweep. The 08:36Z artifact has 0 eligible rows, 0 snapshots, 1323 legacy-uninstrumented and 31 unpublished rows.
+5. [ ] Verify a unique exact-identity publication after 24h maturity or keep DD05 open. Revenue/cost/intervention remain unknown without exact sources.
+
+HTTP 200 proves publication only; resolver test double left fence open.
 
 **Separate operational cursors**
 
@@ -137,3 +158,11 @@ Gate 13 `gate_pass` means the snapshot is structurally complete, contains no fab
 - [ ] Continue capacity diagnosis through the registered cleanup owner; preserve protected and unknown paths.
 
 DD05 is shared publication-measurement infrastructure. The first agent-level EDD vertical slice remains Writer as recorded in the SSOT; Capafy distribution reuses this evidence path when exact per-publication outcomes exist.
+
+
+**Verification attempt, 2026-10-14T11:11Z:** The focused Writer command `PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q -p no:cacheprovider skills/writer-agent/tests/test_article_fence_reconcile.py` exited 1 before collection: pytest reported no usable temporary directory while creating capture files. This is not a test failure or pass. The 11:08 two-byte scratch probe did not restore pytest temp-file capability; DD06 verification remains open, and no current-main test result is claimed.
+
+
+**Verification update, 2026-10-14T11:15Z:** `PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q -p no:cacheprovider skills/writer-agent/tests/test_article_fence_reconcile.py` passed 24/24 on worktree HEAD `7e8e37f`; AST and `git diff --check` also pass. This is source-only; latest-main sync, CI/review, integration, release, and natural readback remain open. Git-reported orphan packs totaling 15990784 bytes were reclaimed after confirming no open handles. The cleanup owner still has no receipt after its 11:08Z `scratch_enospc` failure; exact capacity for `dfb8213` remains unmeasured. The current pytest temp `pytest-505` was removed; older temp dirs were preserved.
+
+**Current branch blocker, 2026-10-14T11:16Z:** GitHub `main` is `dfb8213`; GitHub compare verifies base `13f` is its ancestor, but the shallow local graph has no `merge-base`. `git fetch --deepen=15 --filter=blob:none origin main` failed creating `shallow.lock` with `ENOSPC`. All four task files are staged; `git commit` then failed writing the worktree `index.lock` with `ENOSPC`, and no lock file remains. The focused Writer suite passed 24/24 on local HEAD `7e8e37f`, but it has not run on current main. The `dfb8213` release-capacity requirement remains unmeasured; no PR, release, or natural readback exists.
