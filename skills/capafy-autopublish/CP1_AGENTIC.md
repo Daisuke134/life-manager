@@ -140,7 +140,9 @@ needed first) and can still be fixed because the card is still editable.
    for a Week / Month / Year listing, the final cards must be exactly Weekly,
    Monthly, and Yearly — completing Week and Month alone is not enough. Re-read every
    card's Period, Price, Request-Limit, and trial after adding or switching a card,
-   since cards can re-sort when a period changes. Run the mandatory `PRICES_MATCH`
+   since cards can re-sort when a period changes. After each Add Plan or period
+   change, re-read state and match the card by its visible Period label; never reuse
+   a positional index. Run the mandatory `PRICES_MATCH`
    gate below and do not save/submit while any LISTING cycle is missing or mismatched.
 5. Each plan needs a trial choice (required). Read the TARGET line printed by
    `publish_prepare.sh` for that plan's `trial=` value:
