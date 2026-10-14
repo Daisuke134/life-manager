@@ -131,7 +131,7 @@ Gate 13 `gate_pass` means the snapshot is structurally complete, contains no fab
 2. [x] Pair publication rows with attempt starts from valid run directories; validate IDs and refuse symlink paths. AST and diff checks pass.
 3. [x] Real read-only reconcile returns effected with 4 HTTP 200 URLs and closed=false; resolver test double passes without production mutation.
 4. [x] Run the focused fence suite (24 passed); real read-only reconcile returns four HTTP 200 URLs, effected/closed=false; injected resolver test did not mutate the fence.
-5. [ ] Push a dedicated latest-main branch and open a focused PR; pass exact-head CI/review and merge. Production release/apply is a separate DD05 gate; only the registered reconciler may close receipt-backed proof. Never resolve manually or replay.
+5. [x] Push dedicated PR #8037, synchronize it with latest main, pass all 11 automated checks on exact head `8e7df3c`, and merge as `e0a53f1`. The post-merge spec/plan cursor PR #8044 also merged as `1d1c012` after all 11 automated checks passed. This completes source integration only; production release/apply remains a separate DD05 gate. Never resolve manually or replay.
 6. [x] Classify all 8 retained runs; 14/439 ledger rows join. Dispatch, prepublication ambiguity, identity-gate block, pending run state, and outcome-coverage gap are distinct.
 
 **Writer CTA outcome measurement — required before experimentation**
@@ -172,6 +172,9 @@ DD05 is shared publication-measurement infrastructure. The first agent-level EDD
 **PR readback, 2026-10-14T12:12Z:** PR #8037 is OPEN and CLEAN on `main=72ff5f9`, head `553e882`; all automated checks pass. CodeRabbit skipped manual review, and self-review found no Critical or Important issue. The merged-main Writer suite is 24/24. This doc update creates a new head and requires fresh exact-head checks. After checks pass, merge using the authorized no-human-loop path; CTA lineage, DD05 production adoption, baseline/experiment, and DD07–DD12 remain open. Exact release capacity and natural business outcome remain unverified.
 
 **Latest-main synchronization, 2026-10-14T21:32Z:** main `70a9ead` is integrated with a non-force merge commit whose parents are the prior PR head `10301b7` and current main. The local fetch failed with ENOSPC; this server-side Git Data merge preserves the latest main tree and the four intended PR files. The new head reruns CI. Exact release capacity remains unmeasured; no production apply or provider effect is claimed.
+
+
+**DD06 closeout, 2026-10-14T14:15Z:** PR #8037 merged as `e0a53f1`; tested head `8e7df3c` passed all 11 automated checks. PR #8044 merged the post-merge cursor update as `1d1c012`; its tested head `f281cdb` also passed all 11 automated checks. Writer source integration and its status update are complete. Next EDD atom: preserve Writer CTA lineage and destination identity through the existing funnel. Production release/adoption, natural publication, per-artifact outcomes, revenue, cost, and intervention remain unverified.
 
 
 **EDD integration checkpoint, 2026-10-14T12:52Z:** Current main is `3de213777ef82996ada82ea6bbc4d898afcee7a9`. Before synchronization PR #8037 was head `04a0b1c4145e4f73d6ca6314bdb7699c2e831c0f`, based on `70a9ead`; its prior-head checks all passed, but main advanced and the branch conflicted. This update creates a non-force merge commit with the current main parent and preserves the PR four intended files. Exact-head checks rerun on the new commit. Writer source/test are unchanged by this sync. No current-main local pytest, capacity measurement, release adoption, natural outcome, or revenue is claimed. After integration, CTA lineage and destination identity are the next EDD implementation atom.

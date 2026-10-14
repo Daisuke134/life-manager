@@ -18107,3 +18107,12 @@ PR #8037 is merged as `e0a53f1`; its tested head `8e7df3c` passed all 11 automat
 DD06 source integration is complete. Release capacity, production owner adoption, natural Writer publication, artifact-level attribution, revenue, cost, and human intervention remain unverified. The Writer focused suite 24/24 is historical on merged `72ff5f9`; do not present it as a current-main local run.
 
 **Current EDD cursor:** preserve Writer CTA product/run/artifact/variant/click lineage and destination identity through the existing `/lm` funnel → authenticated first touch → Stripe paid/refund events → Writer artifact join. Then complete DD05 capacity/release/registered-owner/natural-publication gates, freeze a mature baseline, run one controlled single-variable experiment, and continue DD07–DD12. Missing evidence remains unknown.
+
+
+### EDD DD06 closeout and current cursor — 2026-10-14 23:15 JST
+
+**DD06 source integration is complete:** PR #8037 merged as `e0a53f101a5da13d9cb6d09d16bc80b67c7b19b2`; tested head `8e7df3ce7b52d52b3eb64eb20e8ef3bc9954ef3a` passed all 11 automated checks. PR #8044 merged the canonical post-merge spec/plan update as `1d1c0127bca23eb344fb7a6fe388ffe907d4e72f`; tested head `f281cdb29f59fd02e0790158a842274ef3f88959` also passed all 11 automated checks. Writer cursor step 5 is now marked complete in the plan. CodeRabbit reported pass while skipping manual review.
+
+**Still unverified:** latest-main release capacity, immutable release, production owner adoption, a natural Writer publication, artifact-level engagement and paid/refund outcomes, production cost, and human intervention. The 24/24 local focused suite is historical on `72ff5f9`; current-main verification is the exact-head CI above. These source/CI results do not establish publication or revenue.
+
+**Current EDD cursor:** preserve `product_id`, `run_id`, `artifact_id`, `variant_id`, and `click_id` from the `/lm` landing request through authenticated first touch and Stripe paid/refund events, reusing the existing funnel and Writer artifact join. Give each publication destination a distinct attribution identity. Then verify per-artifact outcome receipts, complete DD05 capacity/release/registered-owner/natural-publication gates, freeze a mature baseline, run one controlled single-variable experiment, and continue DD07–DD12. Keep missing revenue, cost, and intervention evidence unknown.
