@@ -18170,11 +18170,11 @@ At the recorded 80% seller share, `$41.84` attributed sales imply `$33.47` selle
 
 既存部品の再利用を固定する: Codex resolve_provider_profiles/provider_process_env/command_for/run、product catalog/planner、marketplace-core contracts/application/reply/paid/paid_handoff、CFO marketplace adapter、recovery、Writer/DD/EAB evaluator。新harness/scheduler/victory ledgerを作らず、provider差分はthin adapter。
 
-## 実装修復の順序と具体差分
+## 修復差分一覧
 
-この表が今回詳細化する実装cursor。既存F2→F5、Gig/Capafy/DDのownerを引き継がず、同じ先頭作業を参照する。SOURCE_ACCEPTANCE=source済み、自然/公式受入待ち。PATCH_READY=差分とREDを定義した設計。EVIDENCE_FIRST=次probeまで明確、原因未確定のsource変更を開始しない。
+この表は差分IDと実装契約の対応で、実行順/status/cursorは「最新の基盤・完走cursor」を参照する。既存Gig/Capafy/DDのownerを引き継がない。SOURCE_ACCEPTANCE=source済み、自然/公式受入待ち。PATCH_READY=差分とREDを定義した設計。EVIDENCE_FIRST=次probeまで明確、原因未確定のsource変更を開始しない。
 
-|順|Task/状態|file/functionと変更|REDまたは完了証拠|
+|差分ID|Task/状態|file/functionと変更|REDまたは完了証拠|
 |---|---|---|---|
 |0|S00 文書修正済み|README日英proposalの冒頭をwhole-life/proactive/impactへ戻す。元のNorth Star保持|意味/全18name/同command確認済み。本体短縮は後続startup範囲と一致させる|
 |1|S01 F2 / SOURCE_ACCEPTANCE|fence_reconcile.py::_lost_terminal_unknown_occurrences/_closure_proof/reconcile、central_cleanup.py::scratch_gc。既済sourceを再実装せず、同occurrenceのofficial proofを取得|自然loaded SHA→closure→参照なしclosed scratch回収、receipt保持。既存test_fence_reconcile.pyを使う。解除/再送0|
@@ -18195,7 +18195,7 @@ At the recorded 80% seller share, `$41.84` attributed sales imply `$33.47` selle
 
 差分手順と各taskのinput/output/assert/既存testはdocs/superpowers/plans/2026-10-14-ordered-patch-execution-plan.mdを参照。この参照planに別のstatusを作らない。S03はconfig生成→Job binding→Gig binding→auth/model contractの独立patchへ分け、shared fileのwriterを重ねない。S03.P0のauth識別/model継承probeを最初に閉じ、未確定の認証fieldやmodel設定を実装者の推測へ任せない。
 
-今の着手点はS01/F2、その後S02/F5。S03–05のOSS設計/fixture、S06–09の観測、S10/11の評価準備は依存のない範囲で並行可能。新しい本番業務修復は既存F境界へ従う。全18完了をmeta準備の開始gateにはしない。本番採用は対象ごとの自然/金銭/quality証拠後。
+今の着手点と並列範囲は「最新の基盤・完走cursor」を参照する。新しい本番業務修復は既存F境界へ従う。全18完了をmeta準備の開始gateにはしない。本番採用は対象ごとの自然/金銭/quality証拠後。
 
 ChatGPT-only source監査: resolverは一profileに対応し、Codex auth alias/execは存在するので再実装不要。公開設定生成は未確認ではなくsource13fで未対応。共有configはacct1/acct2とnon-Codex候補13件、Job runtime-pathsは共有を固定。古いJob configはprofile_alias不足で失敗。sourceだけのAST probeはone-profile/false fallback PASS、実auth/inference/新端末成果は未実証。別Treg等のdata credentialをmodel契約へ混同しない。
 
@@ -18373,3 +18373,48 @@ PR #8037 is merged as `e0a53f1`; its tested head `8e7df3c` passed all 11 automat
 DD06 source integration is complete. Release capacity, production owner adoption, natural Writer publication, artifact-level attribution, revenue, cost, and human intervention remain unverified. The Writer focused suite 24/24 is historical on merged `72ff5f9`; do not present it as a current-main local run.
 
 **Current EDD cursor:** preserve Writer CTA product/run/artifact/variant/click lineage and destination identity through the existing `/lm` funnel → authenticated first touch → Stripe paid/refund events → Writer artifact join. Then complete DD05 capacity/release/registered-owner/natural-publication gates, freeze a mature baseline, run one controlled single-variable experiment, and continue DD07–DD12. Missing evidence remains unknown.
+
+
+## 最新の基盤・完走cursor
+
+**目的・範囲:** 最新のmain・loaded release・自然terminalを照合し、「今、何を起動できるか」と終点までの順序を確定する。今回の変更は監査証拠・spec・参照planと、既存README差分の日英整合。実装修復、手動wake、installer、認証、provider送信、fence解除、本番applyは行わない。
+
+**一次根拠:** main `1d1c0127bca23eb344fb7a6fe388ffe907d4e72f`。最初のstatus取得窓は `2026-10-14T14:14:22Z–14:17:37Z`、後続の成功取得は14:34:47Zのprobe後に開始し14:35:56Zに終了（厳密な開始時刻は未記録）。両snapshotと各rowの時刻は `docs/evidence/foundation-readiness-20261014-latest.json`。statusは順次取得であり、全rowが同時点ではない。18は業務capability、191は登録jobで、status出力298行は外部/履歴を含むためagent数へ置換しない。
+
+**起動判断:** 全18を一斉に起動し、account→収益まで無人完走できる状態ではない。新端末でChatGPT契約一つから完走する経路も未実証。既存のowner/cadenceによる運転は保持し、今回追加起動しない。共通基盤はF1/F3/F4の既存acceptanceが完了、F2/F5が未完である。これは「完成率60%」という推定ではない。先に既存の基盤修復を閉じてから、新たな個別業務の本番修復へ進む。
+
+**完了済みの差分を除外する:** `dabdc40fa5001abe75161a0e572d4f73bee11b76` のGit maintenance timeout後始末と清掃stdoutの `run_binding` は上記mainに統合済み。既存共通runnerを使い、正式receipt保存までの識別を保持する修正である。production currentは旧dfb8213cから `20261014T231804-1d1c0127` へ進み、この2sourceは固定mainとbyte一致する。14:35取得ではfence ownerは1d1c0127をloaded、ただし最新PASS eventは旧dfb8213c。清掃ownerのloaded/eventはまだdfb8213c。残作業は既存ownerの対象採用と新SHAの自然terminal/bound結果の照合であり、同じsourceを再実装しない。本番の反復結果も別のacceptanceである。
+
+**観測と限界:** 容量はこの監査中に回復するが、回復主体/原因は未帰属で、空きGiBをDoneに使わない。初回の清掃/効果照合保存失敗と監視exit1は履歴へ移し、後続の清掃/監視/効果照合（lm-fence-reconciler）PASSを記録する。release同期役（life-manager-release-reconciler）の最後のterminalはstorage_write_failed_pre_effectのままで、後続成功は未確認。照合全体が回復したとはしない。現在PIDと最新terminalを同run扱いしない。Gig Apply/Storefrontは過去occurrenceの保留が残り、Paidにはcapacity deferもある。Capafy2ownerは現在admission_effect_unknown=false/list=[]だが、業務ownerの最新terminalはresource_effect_unknownでblocked、その後の新しい制作/配信成功は未観測。過去のunbound stdoutにある別releaseのNode commandを最新runの原因とせず、監視exit1が恒常的に続くとも断定しない。recovery supervisorのpassも業務納品/収益や自己修復一周の証拠ではない。
+
+**追加の観測境界:** 14:29:15Zのstatus再取得は `admission_fence_read_failed / admission_database_locked`、exit1。`lm_loop.py::_read_admission_rows` のread-only SQLite照会がbusy/lockedになった境界であり、空のfleetへ置換しない。14:34:47Zに同DBへmode=ro/timeout0.2秒の独立probeを行い、journal_mode=deleteとschema6 tablesを読めた。その後のstatus取得は14:35:56Zにexit0で完了。恒常的なDB故障や破損と断定せず、どのread/query/owner/windowで競合するかを次の診断へ残す。writer停止、journal設定変更、state手修正は行わない。失敗と回復を同evidenceへ記録し、snapshotの鮮度を隠さない。
+
+### 共通基盤の先頭原子
+
+共有資源の既存primary/ownerを保持する。根拠は上部「統括cursor — 共有資源回復と全案件の引き継ぎ」。この表は同じ作業を最新sourceへ結ぶもので、別ownerの修復を起動しない。
+
+|順|具体的な次作業|対象と合格証拠|
+|---|---|---|
+|C1 / 現在|統合済み保守後始末・run bindingを既存ownerが本番で受け入れる|観測 `runtime/loop/central_cleanup.py::git_duplicate_cleanup/main` と `lm_loop_run.py::_run_entrypoint`。immutable/loaded SHA→新SHAの自然terminal→同run_bindingの清掃結果。旧stdoutの時刻だけでjoinしない|
+|C2|実writerの保存と終了処理で最初に失敗する箇所を確定する|owner/PID/run/path/bytesを同じwindowで記録し、生成側の保存上限/teardownを確認。health observerは同occurrenceの出力を読む。状態取得のDB競合は `lm_loop.py::_read_admission_rows` のquery/owner/windowから狭め、unknownを空の正常状態へ落とさない。初回の不成立箇所だけ既存関連testへREDを追加し、共有入口を作り直さない|
+|C3|F2の未解決effectを公式結果で閉じる|登録済みadapterでowner/occurrence/release/provider IDを照合。公式closure前はhold、closure後だけ参照の無い終了済みscratchを中央sweepへ渡す。解除/再送/DB手修正を証拠取得の代わりにしない|
+|C4|F5の業務→終了→自動清掃を3回連続で確認する|次成功sweepまでにそのrunの一時物だけ消える。正式商品/receipt保持、lost task/duplicate effect/manual cleanup/未帰属増加は0。capacity deferは次予定wakeまでに再開する。新しい基盤Done条件は発明しない|
+
+### 基盤の後から終点まで
+
+**順序の詳細化:** 旧表示は差分番号S01→S02→S03–05→S06–09→S10–12であり、公開起動と業務修復がすべて直列にも読めた。新しい実行順は下表とする。理由は、既存稼働accountのCapafy/Gigは公開installerの完成を待たず実収益の検証へ進め、公開導入のsource作業と評価準備は独立して進められるため。同一file/ownerは直列、進行中の外部effectは中断・重複させない。既存Capafy/Gig/DDのlane内cursorは保持する。現在cursorはC1、今回実装は開始しない。
+
+|順|残る作業と具体的な差分|進めるための証拠／終点|
+|---|---|---|
+|1|共通基盤C1→C2→C3→C4（S01/S02）|F1–F5の既存acceptanceがすべてPASS。基盤解消を全18の収益完走へ置換しない|
+|2|Capafyを先頭の収益laneにする（S09）。既済goal/slot/distribution adapter差分をloaded版へ照合し、未解決occurrenceを公式に閉じる。 `capafy_hourly_reconcile.py` / `inventory_status.py` / 既存distribution adapter / CFO marketplaceを使う|自然factory→公式listing、detail/paid/renewal→fee/refund/payout/同期間cost。取得日を売上日にしない。hosted商品がOpenRouterを要求する現依存はS09.P0で正式な実行契約を確定し、ChatGPT-only readyと誤表示しない|
+|3|Gigの最短のfunded案件を正式納品・精算まで通す（S06/S07）。Coconala Apply/Storefront/Replyのexact proof→account/inventory→交渉/funded→shared paid_handoff/paid_kernel→provider Submit|応募/返信/納品/受領/settlementは別receipt。Lancers/CrowdWorks/Freelancerのadapterを同kernelへ。Mercorの本人手続き/提出条件を確認前にhuman gateを削らない。相手の返信待ちは技術故障と区別する|
+|4|実証済みofferを積み、成功を共通skillへ戻す（S08/S10）| `skills/gig-work/profile/listings/catalog.json` と `buyer_outcome_ledger.py::scan`、既存CFO/品質/evalを再利用。scope/品質/工数/費用/official outcomeを共有し、private顧客本文・asset・credentialを共有素材にしない。市場ごとに業務pipelineや会計をコピーしない|
+|並行O|新利用者の公開起動を閉じる（S03→S04→S05）。 `oss_config.py::build_public_config` の一owner/Codexのみ生成→Job/Gig実childの同config読込→ `bootstrap.sh --loop` / `install.sh` の選択dispatch→catalog/own identity/persistent owner|auth/model継承の契約probeを先行。追加model API契約・Daisのsession借用なし。最初のsupported新端末で同一command→本人account setup→自然仕事→公式結果→実収入→停止/再開。未実証packageは具体的stageをsetup_requiredへ。日英README案のwhole-life哲学と79行の短さを保つ|
+|5|評価→自己修復H→自己改善I→meta市場拡張Nを一周ずつ閉じる（S11、既存E/DD）|DD06 source統合済みの最新cursorはCTA product/run/artifact/variant/click lineage→既存funnel/Stripe join、DD05の自然/成熟結果、frozen baselineと一変数experiment。Hは同障害の検知→修復→採用→自然成功、Iは同条件/全費用の改善→canary→採用、Nは候補発見→owner→公式settlement→feedback。全18完成を準備開始gateにしない|
+|6|残capabilityとOSS coverageを同じ契約で増やす（S12）|Writer/Affiliate/Mobile/eBook/LINE/Investment/Agent Economy/Job Hunter/Fundraiser/Connector/SelfBuild/CFO等の既存cursorを一件ずつ閉じる。未掲載市場はcatalogの受入条件と登録経路で追加し、READMEへ第二の一覧を手維持しない。native/local/Cloudでown identityとreceiptの契約を保つ|
+|7|実利益・継続購入を保ってUS$10M/月以上へ拡大する|仕事量だけでなく品質/納期/継続率/粗利/全費用/確定netを測る。単発Gigや給与をMRRにしない。身体/心/生活/未知taskへの一般化と外部再現は別評価で、process数や合成scoreをAGI達成の証拠にしない|
+
+**共通障害だけで全部解決するか:** しない。共通基盤は複数laneの起動・保存・照合を回復するが、公開ChatGPT-only設定、provider account/本人条件、正式納品surface、Capafy hosted実行契約、需要/継続購入、全費用会計は別の境界である。まず共通部分を一度修復し、残りは実測した最初の不成立adapter/functionだけを直す。
+
+**差分の明確さ:** exact file/function、input/output、RED名/最小commandは `docs/superpowers/plans/2026-10-14-ordered-patch-execution-plan.md`。原因が確定したものはPATCH_READY、既済sourceはSOURCE_ACCEPTANCE、未確定のものはEVIDENCE_FIRSTで次probeを指定する。未観測の原因に仮のdiffを作って「実装可能」としない。

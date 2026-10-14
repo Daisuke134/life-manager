@@ -41,7 +41,7 @@ an interview, approval, or final delivery.
 |---:|---|---|---|
 | 1 | Gig — Coconala | `hf-gig-apply-direct`, `hf-gig-reply-detector`, `hf-gig-storefront-direct`, `hf-gig-paid-direct` | Finds suitable work, applies, negotiates, delivers, and verifies provider outcomes |
 | 2 | Gig — Lancers | `lancers-revenue-application`, `lancers-revenue-negotiate`, `lancers-revenue-storefront`, `lancers-revenue-paid`, `lancers-revenue-work-sync`, `lancers-revenue-telegram-report` | Runs the same earning lifecycle for Lancers and keeps applications, paid work, delivery, and reporting state consistent |
-| 3 | Gig — CrowdWorks | `crowdworks-revenue-application`, `crowdworks-revenue-reply`, `crowdworks-revenue-paid`, `crowdworks-revenue-report` | 適格案件への応募、返信、有償案件の処理と結果照合を行う。納品・精算は別のreceiptで確認する |
+| 3 | Gig — CrowdWorks | `crowdworks-revenue-application`, `crowdworks-revenue-reply`, `crowdworks-revenue-paid`, `crowdworks-revenue-report` | Applies to suitable work, answers replies, handles paid work, and reconciles outcomes; delivery and settlement require separate receipts |
 | 4 | Gig — Mercor | `mercor-revenue-application`, `mercor-revenue-reply`, `mercor-revenue-paid` | Applies to suitable Mercor contract work, answers replies, and records paid outcomes |
 | 5 | PromptBase | `promptbase-loop-daily` | Builds and publishes prompt listings on PromptBase with real examples and reads sales back |
 | 6 | Writer | `writer-opportunity-discovery`, `writer-opportunity-response`, `writer-money-sync`, `writer-report` | Finds paid writing work, responds, and records publisher and payment receipts |
@@ -54,24 +54,24 @@ an interview, approval, or final delivery.
 | 13 | Self-Build / Product Improvement | `life-manager-selfbuild`, `life-manager-dev` | Turns verified user feedback and product evidence into reviewed Life Manager improvements; Cloud is a host for loops, not a separate Product Loop |
 | 14 | Mobile App Loops | Anicca iOS, Honne, and the other `life-manager-anicca-*` / `life-manager-honne-*` product jobs | Runs the owned mobile-app lifecycle: create the product account and app, build and sign releases, publish them, continuously improve the apps, distribute marketing content through Postiz or a native provider adapter, measure outcomes, and feed verified revenue back into CFO. Today the repository owns the shared product-aware marketing, distribution, measurement, and receipt path; app creation, signing, release, and iteration are still being unified into the same end-to-end loop. |
 | 15 | eBook | `ebook-en-tiktok-daily`, `ebook-ja-tiktok-daily`, `ebook-ja-instagram-daily` | Publishes attributed English and Japanese eBook campaigns through the existing Monk TikTok and Japanese accounts; checkout and delivery remain distinct receipts |
-| 16 | Capafy | `capafy-loop-daily`, `capafy-distribute-daily`, `capafy-outcome-monitor`, `capafy-ig-account-manager`, `capafy-ig-marketing-daily` | 新商品制作、既存sellerへの無料配信、結果照合と集客を行う。実行成功・公開・購入・利益は別々に確認する |
+| 16 | Capafy | `capafy-loop-daily`, `capafy-distribute-daily`, `capafy-outcome-monitor`, `capafy-ig-account-manager`, `capafy-ig-marketing-daily` | Creates products, distributes existing sellers without paid advertising, and reconciles sales and audience growth; execution, publication, purchase, and profit are separate outcomes |
 | 17 | LINE Sticker | `line-sticker-factory-hourly`, `line-sticker-readback-hourly`, `line-creators-browser` | Designs original animated LINE sticker sets end to end (character, motions, video, APNG, selection, tags), submits a finished set to LINE Creators Market about every hour, and reads review and sales status back |
 | 18 | CFO | `life-manager-cfo-hourly` | Reconciles verified revenue, cash flow, balances, payouts, and financial reports across the earning loops |
 
-### Gigの市場別対応範囲
+### Gig marketplace coverage
 
-製品の宣言は[`product-loop-catalog.json`](apps/life-manager/config/product-loop-catalog.json)、実行ownerの宣言は[`loop-registry.json`](config/loop-registry.json)を使う。README掲載、source実装、owner登録、自然実行、納品・入金の完了を同じ状態として扱わない。
+Product declarations live in [`product-loop-catalog.json`](apps/life-manager/config/product-loop-catalog.json); runtime owners live in [`loop-registry.json`](config/loop-registry.json). README coverage, implemented source, registered owners, natural runs, delivery, and settlement are separate states.
 
-| 市場 | 登録と実装の範囲 | 自律運転について残る条件 |
+| Marketplace | Registered or implemented coverage | Remaining conditions for autonomous operation |
 |---|---|---|
-| Coconala | Storefront / Apply / Reply / Paidのmanaged owner | 過去effectの照合、実行枠、注文ごとの制作・正式納品・精算receipt |
-| Lancers | Storefront / Apply / Negotiate / Paid / Work Syncのmanaged owner | account/inventoryの正常読取、過去effectの照合、正式納品の自然receipt |
-| CrowdWorks | Apply / Reply / Paid / Reportのmanaged owner。専用Storefront ownerはない | account readiness、過去effectの照合、有償案件ごとの正式納品・精算 |
-| Mercor | Apply / Reply / Paidのmanaged owner | Paidは現在human submission待ちの実装。無人提出の完了を表明しない |
-| Freelancer | readiness / transport / Paid adapterのsource。旧jobsはretired | managed production ownerは未登録。account/action許可と適格な契約・納品経路の受入 |
-| Upwork | account / proposal / message / offer / delivery adapterのsource。旧jobsはretired | managed production ownerは未登録。account/action許可と契約・納品経路の受入 |
+| Coconala | Managed Storefront / Apply / Reply / Paid owners | Reconcile earlier effects, obtain execution capacity, and verify production, formal delivery, and settlement per order |
+| Lancers | Managed Storefront / Apply / Negotiate / Paid / Work Sync owners | Read account and work inventory successfully, reconcile earlier effects, and verify natural formal-delivery receipts |
+| CrowdWorks | Managed Apply / Reply / Paid / Report owners; no dedicated Storefront owner | Account readiness, reconciliation of earlier effects, and formal delivery and settlement per paid assignment |
+| Mercor | Managed Apply / Reply / Paid owners | The current Paid implementation waits for human submission; unattended submission is unproven |
+| Freelancer | Readiness / transport / Paid adapter source; earlier jobs retired | No managed production owner registered; account and action eligibility and an accepted contract/delivery path |
+| Upwork | Account / proposal / message / offer / delivery adapter source; earlier jobs retired | No managed production owner registered; account and action eligibility and an accepted contract/delivery path |
 
-現在の工程別診断は[Gig・Capafyの監査資料](docs/superpowers/plans/2026-10-14-gig-capafy-boundary-audit.md)、修復順と状態は[統合spec](docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md)を参照する。新しい市場・ownerを追加する時はcatalog/registry/READMEを同じsource変更で照合する。既存testは全製品名が両言語READMEにあることを検査する。READMEの自動生成とjob/工程の完全対応検査は未実装要件であり、READMEへの追加でownerを自動起動しない。
+See the [Gig and Capafy audit](docs/superpowers/plans/2026-10-14-gig-capafy-boundary-audit.md) for stage-level findings and the [unified spec](docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md) for repair order and status. Add a marketplace or owner by checking the catalog, registry, and README in the same source change. Existing tests check that every product name appears in both READMEs. Automatic README generation and complete job/stage coverage checks remain unimplemented; adding a README row does not start an owner.
 
 ### Setup and start truth
 

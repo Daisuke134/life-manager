@@ -439,6 +439,42 @@
   "ordered_patch_plan": {
     "source_sha": "13f59bca114e48e284b3b55fee1c1f450c66b2c0",
     "path": "docs/superpowers/plans/2026-10-14-ordered-patch-execution-plan.md",
+    "lines": 169,
+    "current_cursor": "SSOT latest: C1 target adoption and same-run natural result, then measured producer lifecycle -> F2 official closure -> F5 three roundtrips",
+    "source_paths_checked": {
+      "checked": 42,
+      "missing": []
+    },
+    "source_classifications": [
+      "SOURCE_ACCEPTANCE",
+      "PATCH_READY",
+      "EVIDENCE_FIRST"
+    ],
+    "auth_model_probe_is_prerequisite": true,
+    "runtime_repairs": 0,
+    "new_device_e2e": "not_executed",
+    "independent_fresh_review": {
+      "status": "not_executed",
+      "error_class": "ENOSPC",
+      "first_failing_boundary": "thread_writer_lock_creation"
+    },
+    "readiness_source_sha": "1d1c0127bca23eb344fb7a6fe388ffe907d4e72f",
+    "readiness_evidence": "docs/evidence/foundation-readiness-20261014-latest.json"
+  },
+  "capafy_hosted_inference_source_audit": {
+    "source_sha": "13f59bca114e48e284b3b55fee1c1f450c66b2c0",
+    "entrypoint": "skills/capafy-autopublish/scripts/drive_checkpoint2.py",
+    "config_builder": "skills/capafy-autopublish/scripts/build_config.py",
+    "current_host": "openrouter.ai",
+    "key_required": "CAPAFY_HOST_OPENROUTER_KEY",
+    "chatgpt_only_hosted_support": "not_proven",
+    "next_action": "S09.P0 HOSTED_INFERENCE_CONTRACT_REQUIRED",
+    "account_and_key_read": false,
+    "provider_calls": 0
+  },
+  "ordered_patch_plan_previous": {
+    "source_sha": "13f59bca114e48e284b3b55fee1c1f450c66b2c0",
+    "path": "docs/superpowers/plans/2026-10-14-ordered-patch-execution-plan.md",
     "lines": 168,
     "current_cursor": "S01/F2 -> S02/F5",
     "source_paths_checked": {
@@ -459,15 +495,9 @@
       "first_failing_boundary": "thread_writer_lock_creation"
     }
   },
-  "capafy_hosted_inference_source_audit": {
-    "source_sha": "13f59bca114e48e284b3b55fee1c1f450c66b2c0",
-    "entrypoint": "skills/capafy-autopublish/scripts/drive_checkpoint2.py",
-    "config_builder": "skills/capafy-autopublish/scripts/build_config.py",
-    "current_host": "openrouter.ai",
-    "key_required": "CAPAFY_HOST_OPENROUTER_KEY",
-    "chatgpt_only_hosted_support": "not_proven",
-    "next_action": "S09.P0 HOSTED_INFERENCE_CONTRACT_REQUIRED",
-    "account_and_key_read": false,
-    "provider_calls": 0
+  "latest_foundation_fact_review": {
+    "status": "PASS",
+    "scope": "foundation readiness facts, two status snapshots and changed common source adoption; not a whole-plan review",
+    "provider_or_auth_calls": 0
   }
 }
