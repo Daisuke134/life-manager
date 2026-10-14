@@ -1020,8 +1020,20 @@ class OwnerReportRendererTest(unittest.TestCase):
     def test_portfolio_weekly_contains_each_product_once(self):
         event = self.event("portfolio_weekly")
         text = owner_report.render_japanese(event)
+        expected_labels = (
+            "Anicca iOS",
+            "Honne AI",
+            "Breath Reset",
+            "Sleep Ritual",
+            "Desk Stretch Timer",
+            "Micro-Mood",
+            "アニッチャ・リセット（日本語）",
+            "The Anicca Reset（英語）",
+        )
+        for label in expected_labels:
+            self.assertEqual(text.count(label), 1, label)
         for product_id in PRODUCTS:
-            self.assertEqual(text.count(product_id), 1, product_id)
+            self.assertNotIn(product_id, text)
 
     def test_portfolio_weekly_sums_revenue_28d_and_installs_28d_across_products(self):
         event = self.event("portfolio_weekly")
