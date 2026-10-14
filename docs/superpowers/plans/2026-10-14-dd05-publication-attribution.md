@@ -95,10 +95,10 @@ Gate 13 `gate_pass` means the snapshot is structurally complete, contains no fab
 - Modify: `skills/earn/marketing-engine/report/truth_pipeline.py`
 - Test: `skills/earn/marketing-engine/report/test_truth_pipeline.py`
 
-- [ ] Add the attribution sweep after publication identity reconciliation and native metric collection, using only `marketing-owner-events` state plus the existing read-only business-outcomes source.
-- [ ] Treat sweep return code 3 as `attention`, like a publication-identity coverage gap; hard errors remain pipeline failures.
-- [ ] Add tests for command order, owner state paths, attention handling, and continued owner reporting.
-- [ ] Run focused truth-pipeline tests, source-boundary verification, and `git diff --check`.
+- [x] Add the attribution sweep after publication identity reconciliation and native metric collection, using only `marketing-owner-events` state plus the existing read-only business-outcomes source.
+- [x] Treat sweep return code 3 as `attention`, like a publication-identity coverage gap; hard errors remain pipeline failures.
+- [x] Add tests for command order, owner state paths, attention handling, and continued owner reporting.
+- [x] Run focused truth-pipeline tests, source-boundary verification, and `git diff --check` (58 tests, 31 subtests; owner-report 3 tests).
 
 ### Task 5: Integrate and read the natural owner result
 
