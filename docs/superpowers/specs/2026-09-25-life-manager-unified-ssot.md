@@ -18044,10 +18044,10 @@ Current GitHub `main` is `7919bc92d885751cfacff65ee7e21871108937fd`, integrated 
 <!-- main Capafy follow-up retained   -->
 
 
-### EDD current cursor — 2026-10-14 20:54 JST
+### EDD current cursor — 2026-10-14 20:56 JST
 
-PR #8037 is OPEN (`head=1c9c553`, `base=72ff5f9`, `mergeable=CONFLICTING`). Main adds a 20:34 SSOT checkpoint; `gh pr update-branch` was rejected. Local merge is in progress with only the SSOT conflicted. CodeRabbit passed but skipped manual review; no suite CI result is recorded. Writer focused suite passed 24/24 on 7919 and must rerun after this merge.
+Current main `72ff5f996ff8c9ee4a4ac5900ab5554654198b6e` is merged locally by commit `6418770`. `git diff origin/main...HEAD` contains only the four task files. PR #8037 remains OPEN with remote head `1c9c553` and base `72ff5f9`; its previous merge conflict is resolved locally but the new head is not pushed yet. The focused Writer suite passes 24/24 on the merged 72ff tree. CodeRabbit passed on the previous head but skipped manual review; exact-head checks for the new head are pending.
 
-At 11:50Z, `df` showed 197740 KiB free. The cleanup owner passed at 11:45Z, but `last-receipt.json` is still dated 2026-10-10; exact capacity for `72ff5f9` is unmeasured.
+At 11:56Z, `df` showed 184236 KiB free. The cleanup owner passed at 11:45Z, but `last-receipt.json` is still dated 2026-10-10; exact capacity for `72ff5f9` is unmeasured. No immutable release, owner adoption, natural attribution sweep, or publication-level revenue is verified.
 
-**Next:** resolve SSOT preserving main and EDD notes; rerun the focused test and push the updated branch; pass PR checks/review; then continue CTA lineage, DD05 exact release/natural publication, baseline/experiment, and DD07–DD12. No provider effect is claimed.
+**Next:** push merge `6418770` to PR #8037 and verify current-head CI/review and mergeability; then preserve CTA lineage and destination identity through the existing Web funnel/OAuth/Stripe path; measure fresh release capacity and adopt DD05 through the registered owner with a 24h-mature exact publication; freeze an outcome baseline and run one controlled experiment; continue DD07–DD12. No provider effect is claimed.
