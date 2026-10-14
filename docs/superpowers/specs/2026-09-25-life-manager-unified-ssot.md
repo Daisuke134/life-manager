@@ -3514,9 +3514,9 @@ social ledgerは17 attempts（14 local published / 3 failed）、最後の記録
 
 | ID | 状態 / 作業 | 完了条件 |
 |---|---|---|
-| D30.1 | **次:** 09:05 JSTの自然eligible slotで未掲載SKUを1件紹介 | slot直前に公開ブログ一覧/ledgerを再確認し、08:51と同じ効果を再送しない。新規の公開URL・ledger・SKUが一致し、CTAが該当SKUの公式`purchase_url`と一致。手動wakeなし |
+| D30.1 | **次:** 09:05 JSTの自然枠で選ばれたset-016のeffectを先に照合 | as-of 09:06ではledger row `2026-10-14@09` は`attempts=1` / set-016 / URL・statusなし、公開ブログ一覧にも新規記事なし。natural ownerを止めず、URL/CTA/ledgerまたはno-effect evidenceを確認するまで同slot/setを再送しない。確定後、次のeligible natural slot（11:05 JST）で未掲載SKUを1件紹介 |
 | D30.2 | その自然occurrenceのterminalと公開結果をreadback | provider pageとledgerを確認。exit 0だけで公開成功にしない |
-| D30.3 | 08:05〜08:51 JSTの既知8 article occurrencesを、各run開始から4,500秒経過後に登録済みremote/ledger reconcilerで一件ずつ照合 | occurrences `18de394ef15676e0-80263`, `18de3952ba3c5a18-81831`, `18de396d02cd90e8-85398`, `18de3a1ff5a39df0-13069`, `18de3a2186c71590-13548`, `18de3af166edbd70-93951`, `18de3b3440362ad0-2892`, `18de3bceb57c40c8-20180`。remote additionsがexact ledgerと一致する場合だけresolve。最初のeligible時刻は09:20:12 JST、最後は10:06:00 JST以降。unknownは再送せず保持 |
+| D30.3 | 08:05〜09:05 JSTの既知9 article occurrencesを、各run開始から4,500秒経過後に登録済みremote/ledger reconcilerで一件ずつ照合 | IDs: `18de394ef15676e0-80263`, `18de3952ba3c5a18-81831`, `18de396d02cd90e8-85398`, `18de3a1ff5a39df0-13069`, `18de3a2186c71590-13548`, `18de3af166edbd70-93951`, `18de3b3440362ad0-2892`, `18de3bceb57c40c8-20180`, `f3eec041c463788580620f29` (owner app log start 09:05:20 JST). remote additionsがexact ledgerと一致する場合だけresolve。成熟windowは09:20:12〜10:20:20 JST以降。unknownは再送せず保持 |
 | D11.1 | set-011の既存9秒Shortを基準に、既存スタンプの用途を見せる縦動画をローカル準備 | 既存SKUの無料distribution assetとして完成し、Creators Marketへの新規SKU submitを含まない |
 | D09.1 | 次の自然`line-sticker-readback-hourly` slot（毎時23分）で公式売上・分配・全item statusを読む | `sales.json`に観測時刻、対象期間、40 item IDsを公式画面と一致して保存。別owner browserを奪わない |
 | D09.2 | 40 cache IDsと38 factory submitted IDsを照合 | set-002 / set-005の差分を公式ID/statusに結び、未確認を0や公開済みと推測しない |
@@ -3529,6 +3529,8 @@ social ledgerは17 attempts（14 local published / 3 failed）、最後の記録
 | D21 | production・distribution・tax/FX/transferを含む費用と公式分配を同期間で照合 | all-in costと確定creator distributionのsource/periodを揃え、推定値を実績と混ぜない |
 | D22 | 初回positive sale、累計creator distribution > verified cumulative cost、一暦月buyer gross USD 10,000を確認 | 公式readbackと対象期間を保存。達成前に到達を予測/主張しない |
 | D-clean | 容量または実ENOSPCがdistribution操作を具体的に妨げる時だけ登録cleanup ownerで評価 | closed/open-path proofのある再生成可能物だけ回収。unknown/open/protected dataには触れず、容量原因を別resource blockerへ誤帰属しない |
+
+**09:06 JST natural-slot delta:** 記事ledgerに`2026-10-14@09` rowが作成され、`attempts=1` / `set_id=set-016`だがstatus/URL未記録。公開ブログ一覧は引き続きset-022（07時）とset-018（08時）を示し、09時記事は見つからない。article app logは09:05:20にrun開始を記録。occurrence `f3eec041c463788580620f29` は09:05:56にexit 0だがruntime effectはunknown、provider receiptなし。09:06:54のowner readbackはrelease `2275018c` / loaded-running / PID 40226。完了・公開・no-effectのいずれも未確認なので、同じset/slotを再送しない。次の自然eligible slotは11:05 JST。
 
 ## 5.5 投資OSS検証の再確認（2026-09-29）
 
