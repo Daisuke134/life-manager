@@ -1,10 +1,24 @@
 "use strict";
 const assert = require("node:assert/strict"); const fs = require("node:fs"); const os = require("node:os"); const path = require("node:path"); const test = require("node:test");
 const crypto = require("node:crypto");
-const { TARGETS, discoverTarget, discoverTargets, runDue } = require("./tiktok-metrics-due.js");
+const { TARGETS, discoverTarget, discoverTargets, runDue, snapshotFile } = require("./tiktok-metrics-due.js");
 const { postizAnalytics } = require("./tiktok-native-metrics-read.js");
 const { JA_JP1_TIKTOK_LANE, verifyMarketingNativeCarouselPublicationReceipt } = require("../lib/marketing-native-carousel-publication-adapter.js");
 const EXPECTED = { tenant_id: "dais-local", product_id: "anicca-ios", locale: "ja", account_id: "@anicca.jp4", native_owner: "anicca.jp4", integration_id: "cmn8x8hdv028uqx0y4gdfse5t", provider_post_id: "cmt328uot00s2qk0y23e8ptii", shortcode: "7676495865816632583", video_id: "7676495865816632583", public_url: "https://www.tiktok.com/@anicca.jp4/video/7676495865816632583", caption: "今すぐやれ", published_at: "2026-08-21T14:46:13.240Z" };
+
+test("TikTok due runner leaves no snapshot when the local Telegram credential is unavailable", async (t) => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-tiktok-no-telegram-"));
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "lm-tiktok-no-credentials-"));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+  const expected = { ...EXPECTED, published_at: "2026-10-14T22:00:00.000Z" };
+  const nowMs = Date.parse(expected.published_at) + 2 * 3600_000;
+  const results = await runDue(nowMs, { HOME: home, LM_DATA_DIR: dataDir }, [expected]);
+  const checkpoint = results.find((row) => row.video_id === expected.video_id && row.window === "2h");
+  assert.equal(checkpoint.state, "source_unavailable");
+  assert.match(checkpoint.error, /local_telegram_credential_unavailable/);
+  assert.equal(fs.existsSync(snapshotFile(dataDir, expected, "2h")), false);
+});
 
 test("missed TikTok windows and per-post daily snapshots stay local while true 24h stays pending", async (t) => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-jp4-due-")); t.after(() => fs.rmSync(dataDir, { recursive: true, force: true })); let sends = 0; const env = { LM_DATA_DIR: dataDir, LM_TELEGRAM_BOT_TOKEN: "fake", LM_TELEGRAM_ALERT_CHAT_ID: "fake" };
@@ -190,6 +204,12 @@ test("Postiz-only carousel metrics stay pending when the API has not populated p
 test("Postiz carousel metrics use the exact published permalink in the snapshot and Telegram report", async (t) => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-tiktok-photo-permalink-"));
   t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const home = path.join(dataDir, "test-home");
+  const credentialsFile = path.join(home, ".local", "share", "anicca", "credentials.json");
+  fs.mkdirSync(path.dirname(credentialsFile), { recursive: true });
+  fs.writeFileSync(credentialsFile, JSON.stringify({ credentials: [
+    { service: "telegram-life-manager", bot_token: "local-token-fixture", chat_id: "local-chat-fixture" },
+  ] }));
   const photoUrl = "https://www.tiktok.com/@anicca.jpx/photo/7695154487559851270";
   const expected = {
     ...EXPECTED,
@@ -217,12 +237,14 @@ test("Postiz carousel metrics use the exact published permalink in the snapshot 
   ];
   const originalFetch = global.fetch;
   let telegramText = "";
+  let telegramBotUrl = "";
   global.fetch = async (url, init = {}) => {
     const address = String(url);
     if (address.includes("/analytics/post/")) return { ok: true, json: async () => postRows };
     if (address.includes("/analytics/")) return { ok: true, json: async () => accountRows };
     if (address.includes("/posts?")) return { ok: true, json: async () => listedPosts };
     if (address.includes("api.telegram.org") && address.includes("/sendMessage")) {
+      telegramBotUrl = address;
       telegramText = JSON.parse(init.body).text;
       return { ok: true, json: async () => ({ ok: true, result: { message_id: 2 } }) };
     }
@@ -231,15 +253,18 @@ test("Postiz carousel metrics use the exact published permalink in the snapshot 
   try {
     const now = Date.parse("2026-10-10T23:45:00.000Z");
     const result = await runDue(now, {
+      HOME: home,
       LM_DATA_DIR: dataDir,
       LM_POSTIZ_API_KEY: "test-only",
-      LM_TELEGRAM_BOT_TOKEN: "fake",
-      LM_TELEGRAM_ALERT_CHAT_ID: "fake",
+      LM_TELEGRAM_BOT_TOKEN: "cloud-token-fixture",
+      LM_TELEGRAM_ALERT_CHAT_ID: "cloud-chat-fixture",
     }, [expected]);
     const twoHour = result.find((row) => row.window === "2h");
     assert.equal(twoHour.state, "measured");
     const snapshot = JSON.parse(fs.readFileSync(path.join(dataDir, "tenants", expected.tenant_id, "marketing", "metrics", expected.native_owner, expected.shortcode, "2h.combined.json"), "utf8"));
     assert.equal(snapshot.public_url, photoUrl);
+    assert.match(telegramBotUrl, /local-token-fixture/);
+    assert.equal(telegramBotUrl.includes("cloud-token-fixture"), false);
     assert.match(telegramText, new RegExp(photoUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 
     const profileOnlyURL = "https://www.tiktok.com/@anicca_buddha";
@@ -255,15 +280,18 @@ test("Postiz carousel metrics use the exact published permalink in the snapshot 
     listedPosts = [{ id: profileExpected.provider_post_id, state: "PUBLISHED", integration: { id: profileExpected.integration_id }, releaseURL: profileOnlyURL }];
     telegramText = "";
     await runDue(now, {
+      HOME: home,
       LM_DATA_DIR: dataDir,
       LM_POSTIZ_API_KEY: "test-only",
-      LM_TELEGRAM_BOT_TOKEN: "fake",
-      LM_TELEGRAM_ALERT_CHAT_ID: "fake",
+      LM_TELEGRAM_BOT_TOKEN: "cloud-token-fixture",
+      LM_TELEGRAM_ALERT_CHAT_ID: "cloud-chat-fixture",
     }, [profileExpected]);
     const profileSnapshot = JSON.parse(fs.readFileSync(path.join(dataDir, "tenants", profileExpected.tenant_id, "marketing", "metrics", profileExpected.native_owner, profileExpected.shortcode, "2h.combined.json"), "utf8"));
     assert.equal(profileSnapshot.public_url, "unavailable");
-    assert.match(telegramText, /投稿リンク未取得/);
+    assert.match(telegramText, /投稿リンクは取得できませんでした/);
     assert.equal(telegramText.includes(profileOnlyURL), false);
+    assert.match(telegramBotUrl, /local-token-fixture/);
+    assert.equal(telegramBotUrl.includes("cloud-token-fixture"), false);
   } finally {
     global.fetch = originalFetch;
   }

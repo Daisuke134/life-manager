@@ -305,8 +305,30 @@ function persistDailyDigest({ dataDir, reportDay, observedAt, expected = EXPECTE
   return { created: true, file, snapshot };
 }
 
-async function sendMetricSnapshot(result, env, dataDir) {
+function loadLocalTelegramCredentials(env = process.env) {
+  const home = String(env.HOME || "").trim();
+  if (!home) throw new Error("local_telegram_credential_unavailable");
+  let credentials;
+  try {
+    credentials = JSON.parse(fs.readFileSync(path.join(home, ".local", "share", "anicca", "credentials.json"), "utf8")).credentials;
+  } catch {
+    throw new Error("local_telegram_credential_unavailable");
+  }
+  const matches = Array.isArray(credentials)
+    ? credentials.filter((row) => row && row.service === "telegram-life-manager")
+    : [];
+  if (matches.length !== 1) throw new Error("local_telegram_credential_unavailable");
+  const row = matches[0];
+  if (typeof row.bot_token !== "string" || !row.bot_token.trim()
+    || row.chat_id == null || !String(row.chat_id).trim()) {
+    throw new Error("local_telegram_credential_unavailable");
+  }
+  return { botToken: row.bot_token, chatId: String(row.chat_id) };
+}
+
+async function sendMetricSnapshot(result, env, dataDir, telegramCredentials = null) {
   if (!result.created) return { created: false, reason: "snapshot_replay" };
+  const telegram = telegramCredentials || loadLocalTelegramCredentials(env);
   const expected = result.snapshot;
   const platform = metricPlatform(expected);
   const lane = platform === "tiktok" ? `tiktok-metrics-${String(expected.account_id).replace(/^@/, "").replace(/[^A-Za-z0-9._-]/g, "-")}` : "anicca-main-ja-instagram";
@@ -325,7 +347,14 @@ async function sendMetricSnapshot(result, env, dataDir) {
   const claim = await store.claimJob({ tenantId: job.tenant_id, jobId: job.job_id, capability: job.capability, workerId: "instagram-metrics-read", leaseSeconds: 120 });
   if (!claim) throw new Error("Instagram metric Telegram job is not claimable");
   await executeCapabilityJob(claim, { workerId: "instagram-metrics-read", handlers: { [job.capability]: (claimed) => executeMarketingLivenessJob(claimed, {
-    secretProvider: { get: async () => env.LM_TELEGRAM_BOT_TOKEN }, chatProvider: { get: async () => env.LM_TELEGRAM_ALERT_CHAT_ID },
+    secretProvider: { get: async (tenantId, ref) => {
+      if (tenantId !== expected.tenant_id || ref !== "secret://telegram/bot-token") throw new Error("local Telegram secret scope mismatch");
+      return telegram.botToken;
+    } },
+    chatProvider: { get: async (tenantId, ref) => {
+      if (tenantId !== expected.tenant_id || ref !== "telegram-chat://owner") throw new Error("local Telegram chat scope mismatch");
+      return telegram.chatId;
+    } },
     snapshotProvider: { get: async (_tenantId, ref) => JSON.parse(fs.readFileSync(objectStore.resolve(ref), "utf8")) },
   }) }, heartbeatJob: (input) => store.heartbeatJob(input), completeJob: (input) => store.completeJob(input), failJob: (input) => store.failJob(input), leaseSeconds: 120 });
   const receipt = await store.readReceipt({ tenantId: job.tenant_id, jobId: job.job_id });
@@ -344,10 +373,11 @@ async function collectWindow(window, env = process.env, observedAt = new Date().
     get(`https://api.postiz.com/public/v1/analytics/post/${expected.provider_post_id}?date=${days}`, { Authorization: key }).then((response) => response.json()),
   ]);
   const dataDir = resolveDataRoot(env);
+  const telegramCredentials = window === "current" ? null : loadLocalTelegramCredentials(env);
   const result = persistSnapshot({ dataDir, window, observedAt, html: page, accountRows: account, postRows: post, expected });
-  const telegram = window === "current" ? { created: false, reason: "current_observation_for_daily_report" } : await sendMetricSnapshot(result, env, dataDir);
+  const telegram = window === "current" ? { created: false, reason: "current_observation_for_daily_report" } : await sendMetricSnapshot(result, env, dataDir, telegramCredentials);
   return { created: result.created, file: result.file, post: result.snapshot.post, account: result.snapshot.account_metrics, telegram };
 }
 
 if (require.main === module) collectWindow(process.argv[2] || "24h").then((result) => process.stdout.write(`${JSON.stringify(result)}\n`)).catch((error) => { process.stderr.write(`${error.message}\n`); process.exitCode = 1; });
-module.exports = { EXPECTED, collectWindow, currentSnapshotFile, effectiveSnapshotFile, historicalCorrectionFile, metricPlatform, persistDailyDigest, persistDelayedSnapshot, persistHistoricalCheckpointCorrection, persistSnapshot, postMetrics, sendMetricSnapshot, verifyNativeHtml };
+module.exports = { EXPECTED, collectWindow, currentSnapshotFile, effectiveSnapshotFile, historicalCorrectionFile, loadLocalTelegramCredentials, metricPlatform, persistDailyDigest, persistDelayedSnapshot, persistHistoricalCheckpointCorrection, persistSnapshot, postMetrics, sendMetricSnapshot, verifyNativeHtml };
