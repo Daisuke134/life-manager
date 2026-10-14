@@ -246,6 +246,50 @@ class LoopCleanupTest(unittest.TestCase):
             self.assertEqual(git("count-objects", "-v"), counts)
             self.assertEqual(git("cat-file", "blob", oid), "retained unreachable blob")
 
+    def test_native_git_cleanup_prunes_packed_duplicates_before_deferred_maintenance(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            def git(*args, **kwargs):
+                return subprocess.run(["git", "-C", str(repo), *args],
+                    check=True, capture_output=True, text=True, **kwargs).stdout.strip()
+            git("init", "-q")
+            source = repo / "source.txt"
+            source.write_text("committed source\n")
+            git("add", "source.txt")
+            git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+                "commit", "-qm", "source")
+            head, refs = git("rev-parse", "HEAD"), git("show-ref")
+            git("pack-objects", "--all", str(repo / ".git/objects/pack/pack"))
+            unique = git("hash-object", "-w", "--stdin", input="retained unreachable blob\n")
+            source.write_text("active source change\n")
+            (repo / "memory").mkdir()
+            (repo / "memory/keep.txt").write_text("retained memory\n")
+            dirty = git("status", "--porcelain")
+            lock = repo / ".git/objects/maintenance.lock"
+            lock.write_text("unknown owner\n")
+            identity = lock.stat().st_ino
+
+            result = central_cleanup.git_duplicate_cleanup(repo)
+            counts = dict(line.split(": ", 1) for line in git("count-objects", "-v").splitlines())
+            self.assertGreater(result["prune_packable_before"], 0)
+            self.assertEqual(int(counts["prune-packable"]), 0)
+            self.assertEqual(int(counts["count"]), 1)
+            self.assertEqual(result["status"], "deferred")
+            self.assertEqual(result["errors"], 0)
+            self.assertEqual(result["error_class"], "NativeMaintenanceSkipped")
+            self.assertTrue(result["retryable"])
+            self.assertEqual(result["next_action"], "retry_next_natural_pass")
+            self.assertIsNone(result["prune_packable_after"])
+            self.assertIsNone(result["loose_bytes_after"])
+            self.assertEqual(lock.stat().st_ino, identity)
+            self.assertEqual(lock.read_text(), "unknown owner\n")
+            self.assertEqual(git("cat-file", "blob", unique), "retained unreachable blob")
+            self.assertEqual(git("rev-parse", "HEAD"), head)
+            self.assertEqual(git("show-ref"), refs)
+            self.assertEqual(git("status", "--porcelain"), dirty)
+            self.assertEqual(source.read_text(), "active source change\n")
+            self.assertEqual((repo / "memory/keep.txt").read_text(), "retained memory\n")
+
     def test_native_git_duplicate_cleanup_preserves_unknown_after_timeout(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
@@ -253,7 +297,7 @@ class LoopCleanupTest(unittest.TestCase):
             count = subprocess.CompletedProcess([], 0, "prune-packable: 3\nsize: 0\n", "")
             lock_path = subprocess.CompletedProcess([], 0, str(repo / ".git/objects/maintenance.lock"), "")
             with mock.patch.object(central_cleanup.subprocess, "run", side_effect=(
-                    count, lock_path, subprocess.TimeoutExpired(
+                    count, subprocess.CompletedProcess([], 0, "", ""), lock_path, subprocess.TimeoutExpired(
                         ["git", "maintenance", "run", "--no-quiet", "--auto", "--task=loose-objects"], 15))):
                 result = central_cleanup.git_duplicate_cleanup(repo)
             self.assertEqual(result["errors"], 0)

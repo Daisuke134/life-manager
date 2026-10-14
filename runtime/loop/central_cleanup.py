@@ -694,6 +694,8 @@ def git_duplicate_cleanup(source_repo: Path) -> dict:
         before = count()
         result["prune_packable_before"] = before["prune-packable"]
         result["loose_bytes_before"] = before["size"] * 1024
+        if before["prune-packable"]:
+            git("prune-packed")
         # Byte pressure bypasses only the count threshold; Git keeps its batch and lock.
         auto = ("--auto",) if before["size"] < 128 * 1024 else ()
         lock = Path(git("rev-parse", "--git-path", "objects/maintenance.lock").stdout.strip())
