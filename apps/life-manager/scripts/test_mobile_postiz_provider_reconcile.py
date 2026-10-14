@@ -933,6 +933,33 @@ def test_remote_anicca_video_receipt_rejects_conflicting_hash_on_competing_capti
         )
 
 
+def test_remote_anicca_video_receipt_rejects_same_id_at_multiple_publish_times(
+    tmp_path, monkeypatch,
+):
+    identity, ledger, identity_dir, provider_row, provider_id = _anicca_remote_video_case(
+        tmp_path, monkeypatch,
+    )
+    request = reconcile._request_json
+    repeated_publish_date = "2026-10-15T00:39:00.000Z"
+
+    def recurring_post_request(url, api_key):
+        if url.startswith(f"{reconcile.POSTIZ_V1}/posts?"):
+            payload = dict(request(url, api_key))
+            repeated = {**provider_row, "publishDate": repeated_publish_date}
+            payload["posts"] = [*payload["posts"], repeated]
+            return payload
+        if url == f"{reconcile.POSTIZ_DETAILS}/{provider_id}":
+            return {**provider_row, "publishDate": repeated_publish_date}
+        return request(url, api_key)
+
+    monkeypatch.setattr(reconcile, "_request_json", recurring_post_request)
+
+    with pytest.raises(ValueError, match="receipt_missing_or_ambiguous"):
+        reconcile.build_official_proof(
+            identity, ledger, "test-only", identity_dir=identity_dir,
+        )
+
+
 def test_remote_anicca_video_receipt_rejects_conflicting_list_integration_aliases(
     tmp_path, monkeypatch,
 ):

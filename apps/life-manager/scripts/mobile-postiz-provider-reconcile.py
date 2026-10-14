@@ -532,10 +532,14 @@ def _remote_video_receipt(
         if (state.get("state") != "PUBLISHED"
                 or not adapter._valid_public_url(identity["platform"], state.get("post_url"))):
             return None
-        matches[provider_id] = (
+        match = (
             row, caption_normalization, provider_caption_sha256,
             published_at.astimezone(timezone.utc),
         )
+        previous = matches.get(provider_id)
+        if previous is not None and previous[3] != match[3]:
+            return None
+        matches[provider_id] = match
     if len(matches) != 1:
         return None
     provider_id, (
