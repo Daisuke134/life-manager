@@ -626,6 +626,47 @@ def test_remote_anicca_video_receipt_recovers_unique_exact_post_without_local_ro
     )
 
 
+def test_legacy_local_anicca_video_receipt_without_publish_time_still_reads_back(
+    tmp_path, monkeypatch,
+):
+    identity, ledger, identity_dir, _provider_row, provider_id = _anicca_remote_video_case(
+        tmp_path, monkeypatch,
+    )
+    receipt = {
+        "schema_version": 1,
+        "kind": "marketing_video_distribution",
+        "status": "published",
+        "product_id": identity["product_id"],
+        "format_id": identity["format_id"],
+        "form": identity["form"],
+        "locale": identity["locale"],
+        "creative_id": identity["creative_id"],
+        "platform": identity["platform"],
+        "account_id": identity["account_id"],
+        "integration_ref": identity["integration_ref"],
+        "slot": identity["slot"],
+        "caption_sha256": identity["caption_sha256"],
+        "video_sha256": identity["video_sha256"],
+        "provider_post_id": provider_id,
+        "provider_reconciled": True,
+        "remote_effect_locator": {
+            "source": "postiz_public_v1_posts",
+            "post_id": provider_id,
+            "integration_id": identity["integration_ref"].rsplit("/", 1)[-1],
+            "caption_sha256": identity["caption_sha256"],
+            "slot": identity["slot"],
+        },
+    }
+    ledger.write_text(json.dumps({"effect_key": identity["effect_key"], "job_id": identity["job_id"], "receipt": receipt}) + "\n", encoding="utf-8")
+
+    proof = reconcile.build_official_proof(
+        identity, ledger, "test-only", identity_dir=identity_dir,
+    )
+
+    assert proof["provider_receipt_id"] == provider_id
+    assert proof["provider_readback"]["state"] == "PUBLISHED"
+
+
 @pytest.mark.parametrize("entrypoint", ["pending_owner", "current_occurrence"])
 def test_anicca_video_receipt_recovery_is_reached_from_reconciler_entrypoints(
     tmp_path, monkeypatch, entrypoint,
@@ -857,6 +898,34 @@ def test_remote_anicca_video_receipt_rejects_conflicting_video_hash_fields(tmp_p
     )
     provider_row["lifeManagerVideoSha256"] = identity["video_sha256"]
     provider_row["video_sha256"] = "b" * 64
+
+    with pytest.raises(ValueError, match="receipt_missing_or_ambiguous"):
+        reconcile.build_official_proof(
+            identity, ledger, "test-only", identity_dir=identity_dir,
+        )
+
+
+def test_remote_anicca_video_receipt_rejects_conflicting_hash_on_competing_caption(
+    tmp_path, monkeypatch,
+):
+    identity, ledger, identity_dir, provider_row, _provider_id = _anicca_remote_video_case(
+        tmp_path, monkeypatch,
+    )
+    request = reconcile._request_json
+
+    def competing_hash_request(url, api_key):
+        payload = request(url, api_key)
+        if url.startswith(f"{reconcile.POSTIZ_V1}/posts?"):
+            payload = dict(payload)
+            conflicting = {
+                **provider_row,
+                "id": "anicca-reel-conflicting-hash",
+                "lifeManagerVideoSha256": "b" * 64,
+            }
+            payload["posts"] = [*payload["posts"], conflicting]
+        return payload
+
+    monkeypatch.setattr(reconcile, "_request_json", competing_hash_request)
 
     with pytest.raises(ValueError, match="receipt_missing_or_ambiguous"):
         reconcile.build_official_proof(

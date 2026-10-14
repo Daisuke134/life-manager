@@ -504,12 +504,6 @@ def _remote_video_receipt(
             return None
         if not slot_start <= published_at.astimezone(timezone.utc) <= slot_end:
             continue
-        row_video_hashes = (
-            row.get("lifeManagerVideoSha256"), row.get("video_sha256"),
-        )
-        if any(value is not None and value != identity.get("video_sha256")
-               for value in row_video_hashes):
-            continue
         provider_id = row.get("id")
         if (not isinstance(provider_id, str)
                 or not PROVIDER_ID.fullmatch(provider_id)):
@@ -522,6 +516,14 @@ def _remote_video_receipt(
         caption_normalization = _video_caption_normalization(identity, caption, row_caption)
         if (provider_caption_sha256 != identity.get("caption_sha256")
                 and caption_normalization is None):
+            continue
+        row_video_hashes = (
+            row.get("lifeManagerVideoSha256"), row.get("video_sha256"),
+        )
+        if any(value is not None and value != identity.get("video_sha256")
+               for value in row_video_hashes):
+            if product_id == "anicca-ios":
+                return None
             continue
         try:
             state = adapter.find_post([row], provider_id, identity["platform"])
@@ -986,6 +988,7 @@ def build_official_proof(
         raise ValueError("identity_missing_or_invalid")
     native_carousel = _is_native_carousel_identity(identity)
     expected_pack_title = _native_carousel_pack_title(identity, ledger) if native_carousel else None
+    recovered_remote_video = False
     local = _local_receipt(identity, ledger)
     if local is None:
         if native_carousel:
@@ -994,12 +997,14 @@ def build_official_proof(
             local = _remote_video_receipt(
                 identity, ledger, api_key, identity_dir=identity_dir,
             )
+            recovered_remote_video = local is not None
     if local is None:
         raise ValueError("receipt_missing_or_ambiguous")
     receipt, provider_id = local
     remote_locator = receipt.get("remote_effect_locator")
     expected_published_at = None
-    if identity.get("video_sha256") is not None and remote_locator is not None:
+    if (recovered_remote_video and identity.get("video_sha256") is not None
+            and remote_locator is not None):
         expected_published_at = (
             remote_locator.get("published_at") if isinstance(remote_locator, dict) else None
         )
