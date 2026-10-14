@@ -436,7 +436,7 @@ async function transitFetchPlan(srcGeo, dstGeo, query = {}, diagnostics = {}) {
       date: String(query.date || ""),
       time: String(query.time || ""),
       type: String(query.type || "arrival"),
-      numItineraries: "3",
+      numItineraries: String(query.numItineraries || 1),
     });
     const request = query.signal ? { signal: query.signal } : undefined;
     const response = await fetch(`https://api.transit.ls8h.com/api/v1/plan?${p}`, request);
@@ -575,7 +575,7 @@ function wallAnchor(epochMs, timezone, nowMs, departureMode) {
     anchorSecs,
     anchorAtMs: requested,
     type: departureMode ? "departure" : "arrival",
-    numItineraries: 3,
+    numItineraries: 1,
   };
 }
 
