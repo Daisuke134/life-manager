@@ -98,11 +98,6 @@ _PROFILE_BATCH_CONCEPT_KIND = {
     "mobile_phone": "phone",
     "cell_phone": "phone",
     "address": "address",
-    "street_address": "address",
-    "mailing_address": "address",
-    "home_address": "address",
-    "address_line_1": "address",
-    "address_line_2": "address",
     "city": "city",
     "town": "city",
     "state": "region",
@@ -1026,6 +1021,11 @@ def _parse_profile_fill_fields(fields_json: str) -> tuple[list[dict[str, str]] |
         )
         concept_tail = field["candidate_concept"].casefold().rsplit(".", 1)[-1]
         concept_kind = _PROFILE_BATCH_CONCEPT_KIND.get(concept_tail)
+        if concept_kind is None and (
+            concept_tail.endswith("_address")
+            or concept_tail.startswith("address_line_")
+        ):
+            concept_kind = "address"
         if label not in _PROFILE_BATCH_ALL_LABELS:
             return None, "profile_batch_not_profile_field"
         if concept_kind is None or label not in _PROFILE_BATCH_LABELS_BY_KIND[concept_kind]:
