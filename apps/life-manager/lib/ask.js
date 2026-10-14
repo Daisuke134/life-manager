@@ -441,8 +441,8 @@ async function askedSet(uid, supaUrl, supaKey, fetchImpl = fetch) {
   }
   return result;
 }
-// ATOMIC claim of an ask (C-H1) — mirrors claimWake. INSERT relies on lm_ask_log UNIQUE(uid,event_id):
-// 201 = first claimer (proceed to send); 409 = already asked (skip). Race-safe; no SELECT-then-POST window.
+// ATOMIC claim of an ask (C-H1) — mirrors claimWake. INSERT relies on lm_ask_log UNIQUE(uid,event_id)
+// and, when set, UNIQUE(uid,semantic_key): 201 = first claimer; duplicate = skip, with no SELECT-then-POST window.
 // If supa is unconfigured, return true (don't block) — matches the pre-ledger best-effort behaviour.
 async function claimAsk(uid, eventId, supaUrl, supaKey, replyToken, metadata = {}, fetchImpl = fetch) {
   if (!supaUrl || !supaKey) return true;
@@ -483,7 +483,8 @@ async function recordResolution(uid, eventId, source, supaUrl, supaKey) {
 }
 
 // Keep the Calendar event's earlier location question intact while deduping a second question type.
-// `event_id` is the ask key for this row; the real Calendar identity is stored in question_context.
+// The colon prefix is outside Google Calendar's allowed base32hex event-ID alphabet; the real event key
+// is stored in question_context.calendarEventKey.
 function travelOriginAskKey(eventKey) {
   return `travel-origin:${String(eventKey || "")}`;
 }
@@ -525,7 +526,9 @@ async function pendingTravelOriginAsks(uid, channel, opts = {}) {
   url.searchParams.set("answered_at", "is.null");
   url.searchParams.set("question_context->>replyChannel", `eq.${channel}`);
   url.searchParams.set("select", "uid,event_id,reply_token,question_type,question_context,answer_value,answered_at");
-  url.searchParams.set("limit", "20");
+  // A semantic-key claim permits only one outstanding origin question per user; read two to fail closed
+  // if historical data violates that invariant instead of silently truncating a larger set.
+  url.searchParams.set("limit", "2");
   const response = await (opts.fetchImpl || fetch)(url.toString(), {
     headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}` },
   });
@@ -616,6 +619,7 @@ async function answerTravelOriginAsk(uid, row, replyText, opts = {}) {
       answer_source: channel,
       answer_provenance: { kind: `${channel}_stream`, ...(messageId ? { message_id: messageId } : {}) },
       candidate_location: selectedLocation,
+      semantic_key: null,
       question_context: questionContext,
       resolved_from: "user_answer",
     }),
@@ -640,8 +644,7 @@ async function askTravelOriginOnce(uid, event, eventKey, candidates, opts = {}) 
   if (!safeCandidates.length) return { kind: "unavailable", sent: false };
   const fetchImpl = opts.fetchImpl || fetch;
   const already = await askedSet(uid, supaUrl, supaKey, fetchImpl);
-  if ((channel === "telegram" && already.pendingTelegram)
-    || (channel === "imessage" && already.pendingIMessage)) return { kind: "pending", sent: false };
+  if (already.pendingTelegram || already.pendingIMessage) return { kind: "pending", sent: false };
   const askKey = travelOriginAskKey(eventKey);
   const replyToken = newReplyToken();
   const questionContext = {
@@ -653,7 +656,7 @@ async function askTravelOriginOnce(uid, event, eventKey, candidates, opts = {}) 
     candidates: safeCandidates.map(({ id, location, source }) => ({ id, location, source })),
   };
   const claimed = await claimAsk(uid, askKey, supaUrl, supaKey, replyToken, {
-    semanticKey: askKey,
+    semanticKey: "travel-origin-pending",
     questionType: "travel_origin",
     questionContext,
     telegramChatId: channel === "telegram" ? telegramChatId : null,

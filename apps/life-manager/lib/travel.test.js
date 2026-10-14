@@ -399,7 +399,7 @@ test("unreadable origin ask state fails closed before outbound routing", async (
       async listEventsRaw() { return sourceRows; },
       async createEvent() { return { successful: true }; },
     };
-    await fillTravel("tenant-origin-ledger-down", {
+    const options = {
       home: HOME,
       geminiKey: "fixture-gemini-key",
       timezone: "Asia/Tokyo",
@@ -414,6 +414,13 @@ test("unreadable origin ask state fails closed before outbound routing", async (
       _readTravelOriginAskState: async () => { throw new Error("ledger unavailable"); },
       _agentResolveTravelOrigin: async () => ({ kind: "selected", candidateId: "home" }),
       _askTravelOrigin: async () => assert.fail("do not send when ask-state read failed"),
+    };
+    await fillTravel("tenant-origin-ledger-down", options);
+    await fillTravel("tenant-origin-ledger-unconfigured", {
+      ...options,
+      supaUrl: undefined,
+      supaKey: undefined,
+      _readTravelOriginAskState: undefined,
     });
     assert.deepEqual(outboundOrigins, []);
   });

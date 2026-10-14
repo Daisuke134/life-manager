@@ -50,7 +50,8 @@ function makeAskStore() {
     if (method === "GET") return response(200, rows.filter((row) => matches(row, url.searchParams)));
     if (method === "POST") {
       const row = JSON.parse(init.body);
-      if (rows.some((old) => old.uid === row.uid && old.event_id === row.event_id)) return response(409);
+      if (rows.some((old) => old.uid === row.uid && old.event_id === row.event_id
+        || row.semantic_key && old.uid === row.uid && old.semantic_key === row.semantic_key)) return response(409);
       rows.push({ asked_at: "2030-01-01T00:00:00Z", answered_at: null, ...row });
       return response(201);
     }
@@ -97,6 +98,7 @@ test("travel-origin ask is event-scoped, typed, and sent once on Telegram", asyn
   assert.equal(store.rows[0].event_id, travelOriginAskKey(EVENT.id));
   assert.notEqual(store.rows[0].event_id, EVENT.id, "the earlier Calendar-location ask row must remain intact");
   assert.equal(store.rows[0].question_type, "travel_origin");
+  assert.equal(store.rows[0].semantic_key, "travel-origin-pending");
   assert.equal(store.rows[0].question_context.calendarEventId, EVENT.id);
   assert.equal(store.rows[0].question_context.replyChannel, "telegram");
   assert.equal(store.rows[0].question_context.candidates.length, 2);
@@ -131,6 +133,7 @@ test("travel-origin reply stores only a whitelisted candidate for the next trave
   assert.equal(row.answered_at, "2030-01-01T08:40:00.000Z");
   assert.equal(row.answer_value, "MUIT 生駒");
   assert.equal(row.answer_source, "telegram");
+  assert.equal(row.semantic_key, null, "answering releases the one-pending-origin lock for the tenant");
   assert.deepEqual(await readTravelOriginAskState(UID, EVENT.id, {
     supaUrl: SUPA_URL, supaKey: SUPA_KEY, fetchImpl: store.fetchImpl,
   }), { kind: "answered", location: "MUIT 生駒" });
@@ -143,7 +146,7 @@ test("ambiguous iMessage send stays claimed and blocks a second travel-origin as
     supaUrl: SUPA_URL,
     supaKey: SUPA_KEY,
     fetchImpl: store.fetchImpl,
-    imessageSenderId: "+819012345678",
+    imessageSenderId: "fixture-imessage-sender",
     imessageSend: async (_sender, text) => {
       sends.push(text);
       return { ok: false, effectUnknown: true, reason: "timeout_after_send" };
@@ -151,12 +154,40 @@ test("ambiguous iMessage send stays claimed and blocks a second travel-origin as
   };
   const first = await askTravelOriginOnce(UID, EVENT, EVENT.id, CANDIDATES, options);
   const next = { ...EVENT, id: "calendar-event-2", summary: "Another dinner" };
-  const result = await askTravelOriginOnce(UID, next, next.id, CANDIDATES, options);
+  const result = await askTravelOriginOnce(UID, next, next.id, CANDIDATES, {
+    ...options,
+    telegramChatId: "12345",
+    telegramToken: "fixture-bot-token",
+    sendTelegram: async () => { sends.push("telegram"); return { ok: true }; },
+  });
 
   assert.deepEqual(first, { kind: "pending", sent: false });
   assert.deepEqual(result, { kind: "pending", sent: false });
   assert.equal(sends.length, 1);
   assert.equal(store.rows.length, 1);
+});
+
+test("concurrent origin questions for separate events are globally deduped per tenant", async () => {
+  const store = makeAskStore();
+  const sends = [];
+  const options = {
+    supaUrl: SUPA_URL,
+    supaKey: SUPA_KEY,
+    fetchImpl: store.fetchImpl,
+    telegramChatId: "12345",
+    telegramToken: "fixture-bot-token",
+    sendTelegram: async (_token, _chatId, text) => { sends.push(text); return { ok: true }; },
+  };
+  const second = { ...EVENT, id: "calendar-event-2", summary: "Another dinner" };
+  const results = await Promise.all([
+    askTravelOriginOnce(UID, EVENT, EVENT.id, CANDIDATES, options),
+    askTravelOriginOnce(UID, second, second.id, CANDIDATES, options),
+  ]);
+
+  assert.equal(results.filter((result) => result.sent).length, 1);
+  assert.equal(sends.length, 1);
+  assert.equal(store.rows.length, 1);
+  assert.equal(store.rows[0].semantic_key, "travel-origin-pending");
 });
 
 test("readTravelOriginAskState distinguishes no question, pending, and answered", async () => {

@@ -944,8 +944,8 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
           originOverride = askState.location;
         } else if (askState && askState.kind === "pending") {
           originQuestionPending = true;
-        } else if (askState && askState.kind === "unavailable" && (supaUrl || supaKey)) {
-          // A configured but unreadable ask ledger cannot prove that an earlier question has no reply.
+        } else if (askState && askState.kind === "unavailable") {
+          // Without a durable ask state, we cannot prove that there is no answer to use.
           originQuestionPending = true;
         } else {
           if (geminiKey) {
