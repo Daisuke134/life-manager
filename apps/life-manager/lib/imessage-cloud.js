@@ -42,6 +42,11 @@ function messageText(message) {
 }
 
 function linkedReplyText(reply) {
+  if (reply && reply.originSet) {
+    return reply.travelResult
+      ? `✅ ${reply.event}の出発元を「${reply.location}」に設定し、Calendarの移動時間を再計算しました。`
+      : `✅ ${reply.event}の出発元を「${reply.location}」に記録しました。次回の自動確認で使います。`;
+  }
   if (reply && reply.needsLocation) return "場所はどこですか？住所か、お店・会社の名前を送ってください。";
   if (reply && reply.online === true) return "オンラインの予定として記録しました。移動時間は追加しません。";
   if (reply && reply.filled) return `✅ ${reply.event}の場所を${reply.location}に更新しました。`;
@@ -88,11 +93,15 @@ async function handleIMessageStreamMessage(space, message, opts = {}) {
     || require("./telegram-reply.js").resolveIMessageReply;
   if (typeof resolveReply !== "function") return { handled: true, action: "reply_handler_unavailable" };
   const reply = await resolveReply(user.uid, senderId, text, { ...opts, messageId });
-  if (!reply || (!reply.filled && !reply.needsLocation && reply.online !== true)) {
+  if (!reply || (!reply.filled && !reply.needsLocation && reply.online !== true && !reply.originSet)) {
     return { handled: true, action: "no_pending_reply" };
   }
+  if (reply.originSet && typeof opts.afterTravelOriginAnswer === "function") {
+    reply.travelResult = await Promise.resolve().then(() => opts.afterTravelOriginAnswer(user.uid)).catch(() => null);
+  }
   await space.send(linkedReplyText(reply));
-  return { handled: true, action: reply.filled ? "location_updated" : reply.online ? "online_recorded" : "location_requested", uid: user.uid };
+  return { handled: true, action: reply.originSet ? "travel_origin_set"
+    : reply.filled ? "location_updated" : reply.online ? "online_recorded" : "location_requested", uid: user.uid };
 }
 
 async function importSpectrumRuntime() {
