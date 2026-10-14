@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 from job_search_loop import application_reporting
 from job_search_loop.email_reporting import send_email_once
@@ -45,22 +46,26 @@ class EmailReportingTests(unittest.TestCase):
             ),
             encoding="utf-8",
         )
-        intent = ledger.claim_submission(
-            application_id,
-            "2026-10-13",
-            company,
-            resume_path=resume,
-            resume_sha256=hashlib.sha256(resume.read_bytes()).hexdigest(),
-            ats_snapshot_path=snapshot,
-            ats_snapshot_sha256=hashlib.sha256(snapshot.read_bytes()).hexdigest(),
-        )
-        ledger.complete_submission_verified(
-            intent.intent_id,
-            intent.fence,
-            outcome="submit_unknown",
-            evidence_sha256=hashlib.sha256(company.encode()).hexdigest(),
-            evidence_class="no_authoritative_completion_ui",
-        )
+        intent_created_at = (
+            datetime.fromisoformat(received_at) - timedelta(seconds=1)
+        ).isoformat()
+        with patch("job_search_loop.ledger._now", return_value=intent_created_at):
+            intent = ledger.claim_submission(
+                application_id,
+                "2026-10-13",
+                company,
+                resume_path=resume,
+                resume_sha256=hashlib.sha256(resume.read_bytes()).hexdigest(),
+                ats_snapshot_path=snapshot,
+                ats_snapshot_sha256=hashlib.sha256(snapshot.read_bytes()).hexdigest(),
+            )
+            ledger.complete_submission_verified(
+                intent.intent_id,
+                intent.fence,
+                outcome="submit_unknown",
+                evidence_sha256=hashlib.sha256(company.encode()).hexdigest(),
+                evidence_class="no_authoritative_completion_ui",
+            )
         receipt_id = f"receipt-{company.casefold().replace(' ', '-')}"
         ledger.reconcile_submission_confirmation(
             intent_id=intent.intent_id,

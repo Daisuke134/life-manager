@@ -1,0 +1,63 @@
+{
+  "schema_version": "life-manager.shared-release-progress-repair.v1",
+  "source_base": "be10731c00a326fdf9ebaf071391cb73efeae522",
+  "recorded_at": "2026-10-14T16:05:21.090189+00:00",
+  "owned_source_files": [
+    "bin/reconcile-agent-runner-release.sh",
+    "runtime/loop/tests/test_reconcile_agent_runner_release_fleet_apply.py"
+  ],
+  "root_cause": "run_fleet_apply already identifies error-free bounded progress via budget_progress_continue=1, but partial was unconditionally returned as error to main",
+  "production_state_observation": {
+    "source_sha": "605177d47acdb77ded7c130f3d5d1cdeb46576b2",
+    "at": "2026-10-14T15:33:37Z",
+    "status": "partial",
+    "changed": 11,
+    "skipped": 66,
+    "errors": 0,
+    "budget_progress_continue": true,
+    "message": "timed out owners: none; budget exceeded",
+    "not_joined_to_prior_terminal_by_timestamp": true
+  },
+  "red": {
+    "test": "test_owner_is_not_started_when_remaining_budget_is_less_than_per_owner_timeout",
+    "observed_parent_exit": 1,
+    "expected_parent_exit": 0,
+    "journal_status": "partial",
+    "changed": 1,
+    "errors": 0,
+    "provider_calls": 0
+  },
+  "green": {
+    "same_focused_test": "PASS",
+    "full_related_suite": {
+      "tests": 39,
+      "failures": 0,
+      "errors": 0,
+      "seconds": 93.886,
+      "result": "PASS"
+    },
+    "bash_syntax": "PASS",
+    "diff_check": "PASS"
+  },
+  "source_change": "only existing budget_progress_continue=1 makes partial return0; all other partial/error conditions retain nonzero",
+  "preserved": [
+    "partial journal",
+    "next_retry",
+    "last_ok_epoch",
+    "second owner not started over budget",
+    "apply failure",
+    "owner timeout",
+    "mixed error plus budget",
+    "reconcile and self-handoff failure aggregation",
+    "current/owner/effect guards"
+  ],
+  "independent_fresh_code_review": {
+    "status": "GO",
+    "critical_or_important": 0,
+    "production_verified": false
+  },
+  "scope": "shared control execution first; no Capafy individual logic changes",
+  "production_mutations": 0,
+  "provider_calls": 0,
+  "deploy_status": "not_yet_deployed"
+}
