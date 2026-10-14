@@ -27,6 +27,7 @@ def _observation(controls: list[dict[str, object]]) -> dict[str, object]:
         "candidate_concepts": [
             "candidate.first_name",
             "candidate.application_email",
+            "candidate.phone_number",
             "candidate.work_authorization",
         ],
         "observation": {"controls": controls, "content_sha256": "observation"},
@@ -44,6 +45,7 @@ class ProfileFillBatchTests(unittest.IsolatedAsyncioTestCase):
                         "concept": "candidate.application_email",
                         "value": "example@example.com",
                     },
+                    {"concept": "candidate.phone_number", "value": "+1 555 555 0100"},
                     {
                         "concept": "candidate.work_authorization",
                         "value": "Not stated",
@@ -239,6 +241,97 @@ class ProfileFillBatchTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["status"], "action_rejected")
         self.assertEqual(result["reason"], "profile_batch_not_profile_field")
         type_candidate.assert_not_awaited()
+
+    async def test_rejects_generic_name_token_and_wrong_contact_field_kind(self):
+        cases = [
+            (
+                "Name a recent accomplishment",
+                "id:accomplishment",
+                "candidate.first_name",
+                "profile_batch_not_profile_field",
+            ),
+            (
+                "Candidate email",
+                "id:candidate-email",
+                "candidate.phone_number",
+                "profile_batch_concept_label_mismatch",
+            ),
+        ]
+        for label, stable_id, concept, reason in cases:
+            with self.subTest(label=label, concept=concept):
+                fields = [
+                    {
+                        "label": label,
+                        "role": "textbox",
+                        "stable_id": stable_id,
+                        "candidate_concept": concept,
+                    }
+                ]
+                initial = _observation([_control(label, stable_id)])
+                type_candidate = AsyncMock(
+                    return_value={
+                        "status": "acted",
+                        "action": {"receipt_sha256": "d" * 64},
+                        "observation": {"controls": []},
+                    }
+                )
+
+                result = await self._run(fields, initial, type_candidate)
+
+                self.assertEqual(result["status"], "action_rejected")
+                self.assertEqual(result["reason"], reason)
+                type_candidate.assert_not_awaited()
+
+    async def test_profile_batch_preserves_post_action_failure_receipt_and_stops(self):
+        fields = [
+            {
+                "label": "First name",
+                "role": "textbox",
+                "stable_id": "id:first-name",
+                "candidate_concept": "candidate.first_name",
+            },
+            {
+                "label": "Email",
+                "role": "textbox",
+                "stable_id": "id:email",
+                "candidate_concept": "candidate.application_email",
+            },
+        ]
+        initial = _observation(
+            [_control("First name", "id:first-name"), _control("Email", "id:email", "email")]
+        )
+        after_first = _observation([_control("Email", "id:email", "email")])
+        type_candidate = AsyncMock(
+            side_effect=[
+                {
+                    "status": "acted",
+                    "action": {"receipt_sha256": "a" * 64},
+                    "observation": after_first["observation"],
+                },
+                {
+                    "status": "transport_failed",
+                    "error_class": "post_action_context_unavailable",
+                    "retryable": False,
+                    "next_action": "preserve evidence and do not replay this target",
+                    "action_receipt_sha256": "b" * 64,
+                    "evidence_sha256": "c" * 64,
+                    "checkpoint_sha256": "d" * 64,
+                },
+            ]
+        )
+
+        result = await self._run(fields, initial, type_candidate)
+
+        self.assertEqual(result["status"], "transport_failed")
+        self.assertEqual(result["completed_fields"], ["First name"])
+        self.assertEqual(result["receipts"], ["a" * 64])
+        self.assertEqual(result["failed_field"], "Email")
+        self.assertEqual(result["action_receipt_sha256"], "b" * 64)
+        self.assertEqual(result["evidence_sha256"], "c" * 64)
+        self.assertEqual(result["checkpoint_sha256"], "d" * 64)
+        self.assertFalse(result["retryable"])
+        self.assertNotIn("observation", result)
+        self.assertIn("do not replay", result["next_action"])
 
 
 if __name__ == "__main__":

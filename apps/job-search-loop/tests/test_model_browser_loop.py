@@ -730,6 +730,15 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
         self.assertIn("`batch_partial`", prompt)
         self.assertIn("never return `transport_failed` for them", prompt)
 
+    def test_daily_prompt_stops_after_profile_batch_post_action_failure(self):
+        prompt = " ".join(
+            (APP_ROOT / "prompts" / "daily-pass.md").read_text(encoding="utf-8").split()
+        )
+        self.assertIn("nested `fill-profile` result has `status: transport_failed`", prompt)
+        self.assertIn("its `action_receipt_sha256`", prompt)
+        self.assertIn("Do not issue another runtime command", prompt)
+        self.assertIn("return a valid pass result with the current row in `blocked`", prompt)
+
     def test_daily_prompt_searches_for_grounded_picker_value_before_continuing(self):
         prompt = (APP_ROOT / "prompts" / "daily-pass.md").read_text(encoding="utf-8")
         normalized = " ".join(prompt.split())

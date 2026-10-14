@@ -76,6 +76,13 @@ These are successful runtime commands, not transport failures; never return
 `transport_failed` for them. For `batch_partial`, do not replay completed
 fields or receipts; continue only with still-visible exact targets from the returned
 observation.
+If a nested `fill-profile` result has `status: transport_failed` even though its
+command exited zero, the current field action may already have happened. Preserve
+its `action_receipt_sha256`, `evidence_sha256`, `checkpoint_sha256`, and all earlier
+field receipts from the returned JSON. Do not issue another runtime command or
+replay any completed or current field. Stop this browser pass and return a valid
+pass result with the current row in `blocked`, `status: partial`, and no claim that
+it was submitted. This nested status is not the top-level `transport_failed` result.
 If the shell parser rejects malformed quoting before Python starts, no runtime command
 or external effect occurred. Correct the quoting and issue that intended command once
 with the same fresh target. A shell parse error is not `transport_failed`; only a

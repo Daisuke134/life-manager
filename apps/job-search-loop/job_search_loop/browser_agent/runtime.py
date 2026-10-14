@@ -58,13 +58,81 @@ _PROFILE_BATCH_SENSITIVE = re.compile(
     r"password|credential|token",
     re.IGNORECASE,
 )
-_PROFILE_BATCH_PROFILE_LABEL = re.compile(
-    r"\b(first|last|middle|preferred|full|given|family|name|email|phone|mobile|cell|"
-    r"address|street|postal|zip|city|state|province|country|website|url|linkedin|"
-    r"github|portfolio|contact|location)\b",
-    re.IGNORECASE,
+_PROFILE_BATCH_LABELS_BY_KIND = {
+    "first_name": frozenset({"first name", "given name", "applicant first name"}),
+    "middle_name": frozenset({"middle name"}),
+    "last_name": frozenset({"last name", "family name", "surname"}),
+    "name": frozenset({"name", "full name", "preferred name"}),
+    "email": frozenset({"email", "email address", "e mail", "e mail address", "application email", "contact email", "candidate email", "work email", "personal email"}),
+    "phone": frozenset({"phone", "phone number", "telephone", "mobile", "mobile phone", "cell phone", "cell number", "contact phone"}),
+    "address": frozenset({"address", "street address", "mailing address", "home address", "address line 1", "address line 2", "street"}),
+    "city": frozenset({"city", "town"}),
+    "region": frozenset({"state", "province", "region"}),
+    "postal_code": frozenset({"postal code", "zip", "zip code", "post code", "postcode"}),
+    "country": frozenset({"country", "country region", "country of residence"}),
+    "location": frozenset({"location", "current location"}),
+    "website": frozenset({"website", "personal website", "profile url", "url"}),
+    "linkedin": frozenset({"linkedin", "linkedin profile", "linkedin url", "linkedin profile url"}),
+    "github": frozenset({"github", "github profile", "github url", "github profile url"}),
+    "portfolio": frozenset({"portfolio", "portfolio url", "portfolio website"}),
+}
+_PROFILE_BATCH_CONCEPT_KIND = {
+    "first_name": "first_name",
+    "given_name": "first_name",
+    "middle_name": "middle_name",
+    "last_name": "last_name",
+    "family_name": "last_name",
+    "surname": "last_name",
+    "name": "name",
+    "full_name": "name",
+    "preferred_name": "name",
+    "email": "email",
+    "application_email": "email",
+    "contact_email": "email",
+    "work_email": "email",
+    "personal_email": "email",
+    "phone": "phone",
+    "phone_number": "phone",
+    "telephone": "phone",
+    "mobile": "phone",
+    "mobile_phone": "phone",
+    "cell_phone": "phone",
+    "address": "address",
+    "street_address": "address",
+    "mailing_address": "address",
+    "home_address": "address",
+    "address_line_1": "address",
+    "address_line_2": "address",
+    "city": "city",
+    "town": "city",
+    "state": "region",
+    "province": "region",
+    "region": "region",
+    "postal_code": "postal_code",
+    "zip": "postal_code",
+    "zip_code": "postal_code",
+    "post_code": "postal_code",
+    "postcode": "postal_code",
+    "country": "country",
+    "location": "location",
+    "current_location": "location",
+    "website": "website",
+    "personal_website": "website",
+    "profile_url": "website",
+    "linkedin": "linkedin",
+    "linkedin_url": "linkedin",
+    "linkedin_profile": "linkedin",
+    "github": "github",
+    "github_url": "github",
+    "github_profile": "github",
+    "portfolio": "portfolio",
+    "portfolio_url": "portfolio",
+    "portfolio_website": "portfolio",
+}
+_PROFILE_BATCH_ALL_LABELS = frozenset(
+    label for labels in _PROFILE_BATCH_LABELS_BY_KIND.values() for label in labels
 )
-_PROFILE_BATCH_WORD = re.compile(r"[a-z0-9]+", re.IGNORECASE)
+_PROFILE_BATCH_LABEL_SEPARATOR = re.compile(r"[^a-z0-9]+", re.IGNORECASE)
 
 
 def _path_env(name: str) -> Path:
@@ -951,13 +1019,16 @@ def _parse_profile_fill_fields(fields_json: str) -> tuple[list[dict[str, str]] |
             f"{field['label']} {field['candidate_concept']}"
         ):
             return None, "profile_batch_sensitive_field"
-        if not _PROFILE_BATCH_PROFILE_LABEL.search(field["label"]):
-            return None, "profile_batch_not_profile_field"
-        label_words = set(_PROFILE_BATCH_WORD.findall(field["label"].casefold()))
-        concept_words = set(
-            _PROFILE_BATCH_WORD.findall(field["candidate_concept"].casefold())
+        label = " ".join(
+            part
+            for part in _PROFILE_BATCH_LABEL_SEPARATOR.split(field["label"].casefold())
+            if part
         )
-        if not label_words.intersection(concept_words):
+        concept_tail = field["candidate_concept"].casefold().rsplit(".", 1)[-1]
+        concept_kind = _PROFILE_BATCH_CONCEPT_KIND.get(concept_tail)
+        if label not in _PROFILE_BATCH_ALL_LABELS:
+            return None, "profile_batch_not_profile_field"
+        if concept_kind is None or label not in _PROFILE_BATCH_LABELS_BY_KIND[concept_kind]:
             return None, "profile_batch_concept_label_mismatch"
         fields.append(field)
     return fields, None
@@ -1074,6 +1145,26 @@ async def fill_profile_fields(fields_json: str) -> dict[str, Any]:
             stable_id=field["stable_id"],
             candidate_concept=field["candidate_concept"],
         )
+        if result.get("status") == "transport_failed":
+            failed = {
+                "status": "transport_failed",
+                "failed_field": field["label"],
+                "completed_fields": completed_fields,
+                "receipts": receipts,
+                "retryable": result.get("retryable") is True,
+                "next_action": result.get("next_action")
+                or "stop this row and do not replay any completed or current field",
+            }
+            for key in (
+                "error_class",
+                "action_receipt_sha256",
+                "evidence_sha256",
+                "checkpoint_sha256",
+            ):
+                value = result.get(key)
+                if isinstance(value, str) and value:
+                    failed[key] = value
+            return failed
         next_observation = result.get("observation")
         if result.get("status") != "acted" or not isinstance(next_observation, dict):
             return _profile_batch_result(
