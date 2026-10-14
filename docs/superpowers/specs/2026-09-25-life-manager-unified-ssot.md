@@ -18051,3 +18051,7 @@ Current main `72ff5f996ff8c9ee4a4ac5900ab5554654198b6e` is merged locally by com
 At 11:56Z, `df` showed 184236 KiB free. The cleanup owner passed at 11:45Z, but `last-receipt.json` is still dated 2026-10-10; exact capacity for `72ff5f9` is unmeasured. No immutable release, owner adoption, natural attribution sweep, or publication-level revenue is verified.
 
 **Next:** push merge `6418770` to PR #8037 and verify current-head CI/review and mergeability; then preserve CTA lineage and destination identity through the existing Web funnel/OAuth/Stripe path; measure fresh release capacity and adopt DD05 through the registered owner with a 24h-mature exact publication; freeze an outcome baseline and run one controlled experiment; continue DD07–DD12. No provider effect is claimed.
+
+
+### EDD PR/CI readback — 2026-10-14 21:12 JST
+PR #8037 is OPEN, head `553e882`, base `72ff5f9`, and `mergeable=CLEAN`. All automated status checks on head553e pass. CodeRabbit passes but explicitly skipped manual review; the author self-review found no Critical or Important issue. The Writer focused suite passes 24/24 on merged 72ff. This documentation update will create a new PR head, so exact-head checks rerun. Current-main capacity is unmeasured; no production release, owner adoption, natural attribution sweep, or revenue outcome is claimed.
