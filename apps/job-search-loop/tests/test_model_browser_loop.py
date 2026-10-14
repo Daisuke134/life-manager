@@ -548,17 +548,102 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
             encoding="utf-8",
         )
 
+    def _write_wake_queue_evidence(
+        self, root: Path, queued: tuple[str, ...], completed: tuple[str, ...]
+    ) -> None:
+        (root / "workday-discovery.json").write_text(
+            json.dumps({"queued_application_ids": list(queued)}),
+            encoding="utf-8",
+        )
+        scratch = root / "scratch"
+        scratch.mkdir(exist_ok=True)
+        (scratch / "completed-rows.json").write_text(
+            json.dumps({"application_ids": list(completed)}),
+            encoding="utf-8",
+        )
+
     def test_queue_complete_after_observed_row_requires_semantic_retry(self):
         from job_search_loop.browser_agent import orchestrator
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self._write_queue_complete_observe_fixture(root, ("observed", "observed"))
+            self._write_wake_queue_evidence(root, ("observed-row",), ())
 
             self.assertEqual(
                 orchestrator.validate_pass_result(root),
                 "observed_row_without_terminal_outcome",
             )
+
+    def test_blocked_rows_do_not_hide_an_unprocessed_observed_row(self):
+        from job_search_loop.browser_agent import orchestrator
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_queue_complete_observe_fixture(root, ("queue_complete",))
+            self._write_wake_queue_evidence(
+                root, ("new-row", "older-row"), ("older-row",)
+            )
+            result = json.loads((root / "result.json").read_text(encoding="utf-8"))
+            result["blocked"] = ["an older row was truthfully blocked"]
+            (root / "result.json").write_text(
+                json.dumps(result), encoding="utf-8"
+            )
+
+            self.assertEqual(
+                orchestrator.validate_pass_result(root),
+                "observed_row_without_terminal_outcome",
+            )
+
+    def test_missing_queue_evidence_requires_semantic_retry(self):
+        from job_search_loop.browser_agent import orchestrator
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_queue_complete_observe_fixture(root, ("queue_complete",))
+            result = json.loads((root / "result.json").read_text(encoding="utf-8"))
+            result["blocked"] = ["an older row was truthfully blocked"]
+            (root / "result.json").write_text(
+                json.dumps(result), encoding="utf-8"
+            )
+
+            self.assertEqual(
+                orchestrator.validate_pass_result(root),
+                "observed_row_without_terminal_outcome",
+            )
+
+    def test_malformed_queue_evidence_requires_semantic_retry(self):
+        from job_search_loop.browser_agent import orchestrator
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_queue_complete_observe_fixture(root, ("queue_complete",))
+            self._write_wake_queue_evidence(root, (), ())
+            (root / "workday-discovery.json").write_text("{broken", encoding="utf-8")
+
+            self.assertEqual(
+                orchestrator.validate_pass_result(root),
+                "observed_row_without_terminal_outcome",
+            )
+
+    def test_blocked_rows_are_terminal_after_completed_ids_drain_discovery_queue(self):
+        from job_search_loop.browser_agent import orchestrator
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_queue_complete_observe_fixture(
+                root, ("observed", "queue_complete")
+            )
+            self._write_wake_queue_evidence(
+                root, ("row-one", "row-two"), ("row-one", "row-two")
+            )
+            result = json.loads((root / "result.json").read_text(encoding="utf-8"))
+            result["blocked"] = ["an older row was truthfully blocked"]
+            (root / "result.json").write_text(
+                json.dumps(result), encoding="utf-8"
+            )
+
+            self.assertIsNone(orchestrator.validate_pass_result(root))
 
     def test_latest_successful_queue_complete_observe_remains_accepted(self):
         from job_search_loop.browser_agent import orchestrator
@@ -568,6 +653,7 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
             self._write_queue_complete_observe_fixture(
                 root, ("observed", "queue_complete")
             )
+            self._write_wake_queue_evidence(root, (), ())
 
             self.assertIsNone(orchestrator.validate_pass_result(root))
 
@@ -603,22 +689,26 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
                 ],
             )
 
-    def test_validator_accepts_event_overlap_when_runtime_commands_both_succeed(self):
+    def test_validator_accepts_overlapping_actions_after_queue_complete_observe(self):
         from job_search_loop.browser_agent import orchestrator
 
         command = "/bin/zsh -lc '/opt/homebrew/bin/python3 -m job_search_loop.browser_agent.runtime "
         event = lambda kind, item_id, command, **fields: {"type": f"item.{kind}", "item": {"id": item_id, "type": "command_execution", "command": command, **fields}}
         click = command + "click --label Continue --role button --stable-id ref:e1'"
         wait = command + "wait --milliseconds 6000'"
+        observe = command + "observe'"
         events = [
             event("started", "click-1", click),
             event("started", "wait-1", wait),
             event("completed", "click-1", click, exit_code=0, aggregated_output=json.dumps({"status": "acted"})),
             event("completed", "wait-1", wait, exit_code=0, aggregated_output=json.dumps({"status": "acted"})),
+            event("started", "observe-1", observe),
+            event("completed", "observe-1", observe, exit_code=0, aggregated_output=json.dumps({"status": "queue_complete"})),
         ]
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self._write_queue_complete_observe_fixture(root, ())
+            self._write_wake_queue_evidence(root, (), ())
             (root / "result.json").write_text(
                 json.dumps(
                     {
@@ -653,6 +743,7 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self._write_queue_complete_observe_fixture(root, ())
+            self._write_wake_queue_evidence(root, (), ())
             (root / "result.json").write_text(
                 json.dumps({"status": "transport_failed", "submitted": [], "submit_unknown": [], "blocked": []}),
                 encoding="utf-8",
