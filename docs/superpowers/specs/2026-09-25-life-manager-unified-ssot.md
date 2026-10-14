@@ -17709,3 +17709,10 @@ Sales/rating values above are the buyer-search `salesVolume`/rating display, not
 | 11 | Verify first paid milestone, then scale to $10K active MRR and later $100K. | First milestone: post-2026-10-03 paid order with orders >70 and gross >$102.75. Verify active subscriptions and renewal state from an official source; separate gross, creator earnings, platform share, model cost, and settlement. At $19.99/month and an 80% share, approximately 626 active subscriber equivalents yield $10K before model cost; approximately 6,254 yield $100K. Arithmetic only, not a forecast. | First milestone unmet; true MRR unknown. |
 
 **Current cursor:** 1 → 2, with 3 continuing in parallel. Distribution growth is measured as more qualified Capafy search/hot/ai_overview exposure that becomes detail visits, paid orders, renewals, and positive cost-adjusted contribution; external post volume alone is not a success metric. No seller, price, trial, or listing was changed in this checkpoint.
+
+### Runtime follow-up — 2026-10-14 13:42 JST
+
+- After the 13:32 checkpoint, capafy-loop-daily naturally passed CAP_FULL at 13:40:39 JST on loaded SHA 52f33c67. The 13:39:26 pre-dispatch snapshot had 70 Agents; a subsequent official Capafy publish-list readback still had 70 Agents, with no new ID or changed version (SHA-256 a2f19a2995f6dce0d72ded90ec8b133f962bec984e432bcf95696d22df0aadf8). No additional Agent shipped.
+- Candidate backlog refreshed at 13:40:38 JST and remains 47 total: 28 listed, 10 ready, 1 retry, and 8 submitted. Its current submitted rows still show 3 under_review and 5 drafts of existing listings. Capacity readbacks still agree that free slots are 0; their occupied counts remain inconsistent (5 versus 8), so keep the slot definition open.
+- Seller money/traffic reconciliation remains observed at 13:11 JST, and goal-monitor JSON remains at 11:07 JST. No new paid-order or MRR evidence arrived in this follow-up.
+- PR #8006 merged at 13:41:23 JST as 11553c5640bd1dd0d01d3242bcd4a0cff634f1d5. The goal-monitor freshness issue, factory slot-definition discrepancy, and distributor/outcome/IG held effects remain the active cursors.
