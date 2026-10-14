@@ -41,6 +41,7 @@ from runtime.host.storage_policy import load_storage_policy
 from runtime.host.storage_failure import classify_storage_failure
 from runtime.host.bounded_output import start_stderr_relay, read_relay_snapshot, bounded_launchd_output
 from runtime.host.resource_admission import (
+    DurableHeartbeatFailure,
     OCCURRENCE_ID_PATTERN,
     cancel_durable as cancel_durable_resource,
     claim_durable as claim_durable_resource,
@@ -784,22 +785,38 @@ def _release_with_retry(operation: Callable[[], list[str]]) -> list[str]:
 
 
 def _heartbeat_loop(claim: Path, stop: threading.Event,
-                    failed: threading.Event) -> None:
+                    failed: threading.Event,
+                    failure_reason: list[str] | None = None) -> None:
+    def fail(reason: str) -> None:
+        if failure_reason is not None:
+            failure_reason.append(reason)
+        failed.set()
+
     last_ok = time.monotonic()
     while not stop.wait(HEARTBEAT_INTERVAL_SECONDS):
         try:
             healthy = heartbeat_durable_resource(claim)
+        except DurableHeartbeatFailure as error:
+            fail(f"resource_heartbeat_{error.reason}")
+            return
         except RuntimeError as error:
             if (str(error) == "control_busy"
                     and time.monotonic() - last_ok < HEARTBEAT_BUSY_TOLERANCE_SECONDS):
                 continue
-            failed.set()
+            fail("resource_heartbeat_control_busy_timeout" if str(error) == "control_busy"
+                 else "resource_heartbeat_runtime_error")
             return
-        except (OSError, sqlite3.Error):
-            failed.set()
+        except OSError as error:
+            reason = "resource_heartbeat_oserror"
+            if type(error.errno) is int and 0 <= error.errno <= 65535:
+                reason += f"_errno_{error.errno}"
+            fail(reason)
+            return
+        except sqlite3.Error:
+            fail("resource_heartbeat_sqlite_error")
             return
         if not healthy:
-            failed.set()
+            fail("resource_heartbeat_claim_not_renewed")
             return
         last_ok = time.monotonic()
 
@@ -817,6 +834,24 @@ def _host_admission_deferred(path: Path, started_ns: int) -> str | None:
     prefix = "host_admission_deferred:"
     return (reason if isinstance(reason, str) and SAFE_RUN_ID.fullmatch(reason)
             and len(prefix) + len(reason) <= 128 else "unknown")
+
+
+def _host_admission_heartbeat_subcause(path: Path, started_ns: int) -> str | None:
+    try:
+        if path.stat().st_mtime_ns < started_ns:
+            return None
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, TypeError, ValueError, json.JSONDecodeError):
+        return None
+    if not isinstance(value, dict):
+        return None
+    if (value.get("status") != "deferred" or value.get("effect") != 0
+            or value.get("reason") != "resource_heartbeat_unavailable"):
+        return None
+    subcause = value.get("heartbeat_subcause")
+    return (subcause if isinstance(subcause, str)
+            and SAFE_RUN_ID.fullmatch(subcause)
+            and subcause.startswith("resource_heartbeat_") else None)
 
 
 def _proven_pre_effect_failure(path: Path) -> bool:
@@ -1418,6 +1453,7 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
     claim_started_child = False
     heartbeat_stop = threading.Event()
     heartbeat_failed = threading.Event()
+    heartbeat_failure_reason: list[str] = []
     heartbeat_thread: threading.Thread | None = None
     durable = False
     dispatch_after_release: list[str] = []
@@ -1618,7 +1654,8 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             if durable:
                 heartbeat_thread = threading.Thread(
                     target=_heartbeat_loop,
-                    args=(claim, heartbeat_stop, heartbeat_failed),
+                    args=(claim, heartbeat_stop, heartbeat_failed,
+                          heartbeat_failure_reason),
                     name=f"lm-heartbeat-{loop_id}", daemon=True,
                 )
                 heartbeat_thread.start()
@@ -1654,6 +1691,9 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                 _atomic_json(receipt, {
                     "status": "deferred", "effect": 0,
                     "reason": "resource_heartbeat_unavailable",
+                    "heartbeat_subcause": (heartbeat_failure_reason[0]
+                                            if heartbeat_failure_reason
+                                            else "resource_heartbeat_unknown"),
                 })
             except OSError:
                 pass
@@ -1898,6 +1938,9 @@ def _main(argv: list[str] | None = None) -> int:
                 claimed_occurrence_id = terminal_occurrence_id
             entrypoint_stderr_tail = stderr_tail
             host_deferred = _host_admission_deferred(host_receipt, started_ns)
+            heartbeat_subcause = _host_admission_heartbeat_subcause(
+                host_receipt, started_ns,
+            )
             effect_result = None
             if (child_return_code == 0
                     and _effect_result_hint_allowed(loop_id, entry.get("entrypoint"))
@@ -1933,6 +1976,15 @@ def _main(argv: list[str] | None = None) -> int:
                     stderr_tail.decode("utf-8", errors="replace")
                     if not succeeded and stderr_tail else None
                 )
+                heartbeat_effect_unknown = (
+                    child_return_code != 0
+                    and entry.get("effect_class") != "none"
+                    and heartbeat_subcause is not None
+                )
+                if heartbeat_subcause is not None:
+                    subcause_detail = f"heartbeat_subcause={heartbeat_subcause}"
+                    error_detail = (subcause_detail if not error_detail
+                                    else f"{subcause_detail}\n{error_detail}")
                 event = build_runtime_event(
                     loop_id=loop_id, domain=entry["domain"], run_id=run_id,
                     release_sha=manifest["sha"], provider=entry["provider_route"],
@@ -1951,6 +2003,9 @@ def _main(argv: list[str] | None = None) -> int:
                         "release_sha": manifest["sha"],
                     }),
                     exit_code=child_return_code, error_detail=error_detail,
+                    retryable=False if heartbeat_effect_unknown else None,
+                    next_action=("official_readback_required"
+                                 if heartbeat_effect_unknown else None),
                     storage_failure=(entrypoint_storage_failure["storage_failure"]
                                      if entrypoint_storage_failure else None),
                 )

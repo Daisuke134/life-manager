@@ -2666,6 +2666,53 @@ def test_heartbeat_updates_only_the_owned_claim(tmp_path, monkeypatch):
     admission.release_and_reserve(claim, reserve=False)
 
 
+@pytest.mark.parametrize("case,expected", (
+    ("missing", "heartbeat_claim_missing"),
+    ("invalid", "heartbeat_claim_invalid"),
+    ("invalid_shape", "heartbeat_claim_invalid"),
+    ("invalid_phase", "heartbeat_claim_invalid"),
+    ("ownership", "heartbeat_claim_ownership_lost"),
+    ("expired", "heartbeat_claim_expired"),
+    ("process_identity", "heartbeat_process_identity_unavailable"),
+))
+def test_heartbeat_durable_reports_the_exact_claim_failure(
+        tmp_path, monkeypatch, case, expected):
+    isolated(tmp_path, monkeypatch)
+    claim = tmp_path / "owners" / "heartbeat.json"
+    claim.parent.mkdir()
+    if case == "invalid":
+        claim.write_text("{", encoding="utf-8")
+    elif case == "invalid_shape":
+        admission.atomic_json(claim, {"phase": "running"})
+    elif case == "invalid_phase":
+        admission.atomic_json(claim, {
+            "pid": os.getpid(), "process_start": admission.process_start(os.getpid()),
+            "phase": [],
+        })
+    elif case == "ownership":
+        admission.atomic_json(claim, {
+            "pid": 999_999_999, "process_start": "dead", "phase": "running",
+        })
+    elif case == "expired":
+        admission.atomic_json(claim, {
+            "pid": os.getpid(), "process_start": admission.process_start(os.getpid()),
+            "phase": "running", "heartbeat_at": 1,
+            "heartbeat_timeout_seconds": 10,
+        })
+    elif case == "process_identity":
+        admission.atomic_json(claim, {
+            "pid": os.getpid(), "process_start": "current", "phase": "running",
+        })
+
+    if case == "process_identity":
+        with patch.object(admission, "process_start", return_value=None):
+            with pytest.raises(RuntimeError, match=expected):
+                admission.heartbeat_durable(claim, now=20)
+    else:
+        with pytest.raises(RuntimeError, match=expected):
+            admission.heartbeat_durable(claim, now=20)
+
+
 def test_browser_resource_class_has_independent_capacity(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="3")
     monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_AGENT_RUNS", "1")
@@ -3512,13 +3559,16 @@ def test_simultaneous_durable_waiters_all_persist(tmp_path, monkeypatch):
 
 def test_heartbeat_durable_reports_busy_control_lock_as_transient(monkeypatch, tmp_path):
     import pytest
-    monkeypatch.setattr(admission, "_row", lambda _claim: {"phase": "running"})
+    claim = tmp_path / "claim"
+    claim.write_text(json.dumps({
+        "pid": os.getpid(), "process_start": "start", "phase": "running",
+    }), encoding="utf-8")
     monkeypatch.setattr(admission, "process_start", lambda _pid: "start")
     monkeypatch.setattr(admission, "_controlled_by", lambda *_: True)
     monkeypatch.setattr(admission, "_durable_paths", lambda: (tmp_path, None, None, None))
     monkeypatch.setattr(admission, "_acquire_bounded", lambda *_a, **_k: False)
     with pytest.raises(RuntimeError, match="control_busy"):
-        admission.heartbeat_durable(tmp_path / "claim", now=1)
+        admission.heartbeat_durable(claim, now=1)
 
 
 def test_effect_fence_lookup_uses_ordered_partial_index(tmp_path):
