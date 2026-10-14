@@ -2,6 +2,12 @@ import re
 from pathlib import Path
 
 SRC = (Path(__file__).resolve().parents[1] / "scripts" / "daily_loop.sh").read_text()
+AUTO = Path(__file__).resolve().parents[1]
+CP1_ORDER = "Required CP1 tab order: 基本情報 → Agent ワークスペース → 価格設定 last."
+CP1_STAY_ON_PRICING = "After entering 価格設定, do not switch tabs before PRICES_MATCH, save, and confirmation."
+CP1_RESTORE_AFTER_SWITCH = "If you leave 価格設定, re-enter every plan price/cap/trial and daily quota, then rerun PRICES_MATCH."
+CP1_REANCHOR_AFTER_CARD_CHANGE = "After each Add Plan or period change, re-read state and match the card by its visible Period label; never reuse a positional index."
+CP1_TRIAL_TARGET = "If the LISTING trial target is not matched, do not save or submit; never replace a Free Trial target with No Free Trial."
 
 
 def _pattern():
@@ -55,3 +61,21 @@ def test_same_agent_reprepare_prompt_completes_all_cp1_tabs_before_finish():
         assert required in prompt
 
     assert "Do only step 5b" not in prompt
+
+
+def test_cp1_tab_order_is_consistent_across_every_instruction_surface():
+    surfaces = {
+        "CP1_AGENTIC.md": (AUTO / "CP1_AGENTIC.md").read_text(),
+        "DAILY_LOOP.md": (AUTO / "DAILY_LOOP.md").read_text(),
+        "PUBLISHING_RUNBOOK.md": (AUTO / "PUBLISHING_RUNBOOK.md").read_text(),
+    }
+    for name, text in surfaces.items():
+        normalized = " ".join(text.split())
+        for contract in (CP1_ORDER, CP1_STAY_ON_PRICING, CP1_RESTORE_AFTER_SWITCH, CP1_REANCHOR_AFTER_CARD_CHANGE, CP1_TRIAL_TARGET):
+            assert " ".join(contract.split()) in normalized, f"{name} missing CP1 contract: {contract}"
+
+    # daily_loop.sh injects two distinct prompts: new-version re-prepare and
+    # ordinary step 5b. Both must carry the same safe tab-order contract.
+    normalized_src = " ".join(SRC.split())
+    for contract in (CP1_ORDER, CP1_STAY_ON_PRICING, CP1_RESTORE_AFTER_SWITCH, CP1_REANCHOR_AFTER_CARD_CHANGE, CP1_TRIAL_TARGET):
+        assert normalized_src.count(" ".join(contract.split())) == 2, f"daily_loop.sh must include twice: {contract}"

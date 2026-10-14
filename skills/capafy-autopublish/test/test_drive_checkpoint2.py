@@ -616,7 +616,7 @@ def test_provider_section_missing_times_out_and_ambiguous_path_fails_immediately
         def call(self, *_args, **_kwargs):
             pytest.fail("missing hydration must not click")
 
-    with pytest.raises(RuntimeError, match="did not hydrate"):
+    with pytest.raises(RuntimeError, match="did not hydrate|provider section deadline exhausted"):
         module._ensure_raw_provider_section(_Missing())
 
     class _Ambiguous:
