@@ -40,8 +40,20 @@
     "suite_command": "env -u LM_TELEGRAM_BOT_TOKEN -u LM_ADMIN_TELEGRAM_CHAT_ID PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s runtime/loop/tests -p test_reconcile_agent_runner_release_fleet_apply.py -v",
     "bash_syntax": "pass",
     "diff_check": "pass",
-    "read_only_review": "pending",
+    "read_only_review": "FIX-FIRST: required state write failure can fall through to tick success",
     "production_adoption": "not_yet"
+  },
+  "previous_repair_natural_acceptance": {
+    "run_id": "18de744079150de0-86096",
+    "occurrence_id": "life-manager-release-reconciler:18de744079150de0-86096",
+    "loaded_release_sha": "c30c55275af5c950b478ca9600cd71748e2054f3",
+    "terminal_at": "2026-10-14T17:13:43.967308+00:00",
+    "exit_code": 0,
+    "fleet_target_sha": "353598df28f4e7ab64e755072d826c59421f6196",
+    "fleet_status": "partial",
+    "fleet_changed": 16,
+    "fleet_errors": 0,
+    "budget_progress_continue": true
   },
   "interpretation": {
     "confirmed": "one fleet apply was refused before the admission rebind transaction because the bounded control lock acquisition did not succeed",

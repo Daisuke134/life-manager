@@ -122,12 +122,17 @@ R1の目的は、共有実行・資源管理の現在の故障を閉じ、条件
 source base=a91a31a9beeb61def0d522ec3e3e5e144ab1c49f、worktree=/Users/anicca/Projects/life-manager-main/.worktrees/shared-release-progress-result-20261015、branch=fix/shared-release-busy-defer-20261015、owner=lm-common-runtime-1015。所有sourceは同じshellと既存fleet_apply testだけ。resource_admission.py、lm_loop_run.py、admission DB、業務owner、browser/provider effectは変更しない。既存effect_unknownのexact JSON分類、already-owned延期、partial/next_retryの形を再利用する。
 
 - [x] **R1 source — 延期分類の最小差分:** rc1かつ余分なfieldのないexact control_busy拒否だけをskipped/admission-control-busyとして記録し、他ownerを続ける。errors0/timeoutなしのbusyはpartial/control_busy_continue/既存continue間隔で再確認し、last_ok_epochは更新しない。同SHAで「適用済み」へ短絡させない。新SHAのcoalescingも保存済み延期期限を使う。確認済みの別40桁SHAへのsupersededは旧owner開始を止め、partial/即時次回のままtick exit0とする。欠測/不正SHAは非0のまま。source検証は45件PASS、反映は次の項目。
-- [ ] **R1現在cursor — 同修復の受入:** busy→次回適用、類似文字列/余分なfield拒否、busy+実エラー、superseded前後のguard、superseded+実エラー、current欠測/不正のRED→GREENは確認済み。既存budget/timeout/backoffを含む45件PASS（68.685秒）、bash syntax/diff PASS。残るfresh read-only review、必要CI/main→immutable→RRC自然採用・同境界の結果を確認する。連続N回や全fleet無故障をgateにしない。
+- [ ] **R1現在cursor — 保存失敗の明示伝播:** fresh read-only reviewはFIX-FIRST。state保存先fleet-apply-state.json.tmpを隔離fixtureでdirectoryにするとIsADirectoryErrorでもtick0/stateなしになる。親のrun_fleet_apply呼出が`||`内にあり、関数内のerrexitに頼れないためである。fleetの出力/plan/owner journal/stateを必須結果とし、生成・保存の非0を明示return1で伝える。延期が未保存なら正常tickとしない。既存private fixtureで保存失敗のRED→GREENを追加する。resource/provider/他ownerへ変更範囲を広げない。
+- [ ] **R1同修復の受入:** busy→次回適用、類似文字列/余分なfield拒否、busy+実エラー、superseded前後のguard、superseded+実エラー、current欠測/不正のRED→GREENは確認済み。初回の既存budget/timeout/backoffを含む45件PASS（68.685秒）。保存失敗修復後の関連検証/fresh read-only review、必要CI/main→immutable→RRC自然採用・同境界の結果を確認する。連続N回や全fleet無故障をgateにしない。
 - [ ] **R1次の境界:** この延期分類とは別に、親reconcileの実exit/最初に時間を使うreadbackを確定する。全events読取は候補だが未確定なので、timeout延長・全snapshot撤去・protected JSONL削除で代用しない。実障害が残ればその箇所だけ修復し、次にwriter/終了/保存、Capafyへ進む。
 
 差分手順と検証入力はdocs/superpowers/plans/2026-10-15-shared-release-defer-plan.md、bound本番観測はdocs/evidence/shared-release-defer-20261015.json。TODO順/状態の正本はこの節だけ。
 
 延期分類のRED: 既存fake CLI/temporary repoでbusy、owner適用後のcurrent切替、lock内のcurrent切替を実行し、3件ともexpected tick exit0に対して1を返すことを確認する（2.569秒）。busyはchanged1/errors1、両current切替はpartial/errors0。最小差分後は同3件がGREEN（3.727秒）。テスト入力は本番launchd/DB/providerを使わない。
+
+現在cursorの変更理由は、独立reviewが保存失敗のfalse successを実証したこと。旧cursor=review/CI/main、新cursor=必須保存の非0伝播→関連検証/再review→CI/main。元の延期分類は保持し、追加frameworkや回数gateを作らない。
+
+共有readbackの追加観測: 本番run18de744079150de0-86096はc30c5527版で17:13:43Zにexit0、同tickのfleet stateはsha353598df/partial/changed16/errors0/budget_progress_continue=true。正常budget修復が本番境界を越える。read-only snapshot profileは298行/19.328秒、effect fence DB読取14.802秒、collect_live4.322秒、うち191回の_last_event4.145秒。live DBの必要3indexは存在し、fence queryはcovering indexを使う。欠測indexや全JSONL読取を300秒待機の根因とは断定しない。保護データを削除せず、実失敗が残る場合だけ次の境界修復へ進む。
 
 ## 共有資源の診断履歴
 
