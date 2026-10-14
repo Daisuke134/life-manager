@@ -17266,3 +17266,97 @@ Order of preference (Ponytail): existing `apps/life-manager/eval/` runner and pl
 - Old Capafy order: T0 → T1 → T2 → T3 → T4 → T5 → … → T14.
 - New Capafy order: T0 → CD1 → CD2/CD3/CD4/CD5 (parallel, separate owners) → T2 → T3 → T4 remainder → CD6/CD7 → CD8 → CD9 → CD10. T1 fence/receipt proofs continue in parallel and no longer gate distribution work.
 - Current cursor: CD1 (claude-evo-eval-1012). No seller, price, trial or live listing was changed by this entry.
+
+## Capafy verified state, winner benchmark, and execution cursor — 2026-10-14 10:02 JST
+
+This checkpoint supersedes the older Capafy numbers and cursor above. Current GitHub `main` is `5c90953c2ee785a3dcca0b20ad73a388c915c38c`. Metric source timestamps are retained below; owner status reads are occurrence-bound snapshots, not proof of a provider effect.
+
+### Goal and current money state
+
+| Metric | Current readback | Target / interpretation |
+|---|---:|---|
+| All-time orders | 70 | First milestone requires `>70`; unmet. |
+| All-time gross | $102.75 | First milestone requires `>$102.75`; unmet. |
+| Creator earnings | $76.18 | Seller-console earnings; not realized bank cash. |
+| Unit sales | 101 (69 trial, 32 non-trial) | Units are not order count. |
+| Last 30 days | 21 orders, $41.84 gross | Source attribution is 16 paid orders + 5 trial orders. |
+| 30-day model cost | $21.16 actual account spend | Per-Agent allocation is apportioned by estimated model use; it is not exact per-order cost. |
+| 30-day net before model cost | $33.47 | After Capafy share, before model spend. |
+| 30-day actual-cost profit | $12.31 | Account figure, not MRR or payout. |
+| Payout balance / confirmed / pending / paid out / realized | $59.00 / $17.18 / $0 / $0 / $0 | Keep earnings, payout balance, settled cash, and bank receipts separate. |
+| Active subscriptions / true MRR | Unknown | Capafy readback exposes no active/canceled subscription count; do not infer MRR from 30-day subscription revenue. |
+
+The active `/goal` is **$10,000 recurring monthly revenue on the Anicca seller account**, verified from Capafy seller readback. The older recipe's `$10,000 bank net profit` calculation is not the current completion gate. `$100,000 MRR` is a scale aspiration, not a verified forecast. At a hypothetical $19.99 monthly plan, 501 active subscribers produce about $10,015 gross MRR and 5,003 produce about $100,010; this arithmetic excludes churn, plan mix, fees, refunds, and model cost.
+
+The first paid-order milestone is still unmet. `daily_revenue_trend_last_30d` has its last positive-revenue day on 2026-09-29 and zero revenue from 2026-09-30 through 2026-10-14. `capafy-goal-monitor.sh` currently assigns `goal_b.last_sales_date` from the reconciliation file's `observed_at` (line 241), so its displayed `2026-10-13` is a **readback date**, not an order date. Do not use that field as order evidence; fix the label/source before it drives milestone reporting.
+
+### Acquisition funnel and source performance
+
+`capafy-hourly-reconcile.json` and `capafy-skill-analytics.json` both have `observed_at=2026-10-14T00:07:24Z` (09:07 JST). `views` below are Capafy source-attributed Agent detail visits, not marketplace impressions and not unique buyers.
+
+| Source | Last 30d views | Paid / trial | Gross attributed | Last 7d views | Last 7d paid | Read |
+|---|---:|---:|---:|---:|---:|---|
+| Capafy search | 736 | 8 / 5 | $17.92 | 345 | 0 | Largest paid source; paid-per-view 1.09% over 30d, observational. |
+| Capafy hot | 46 | 5 / 0 | $9.95 | 1 | 0 | 10.87% paid-per-view over 30d, only five paid orders; small sample. |
+| Direct | 1,535 | 2 / 0 | $3.98 | 138 | 0 | High volume, low paid-per-view (0.13%). |
+| Google | 37 | 1 / 0 | $9.99 | 10 | 0 | One paid order; sample is too small for a stable rate. |
+| `ai_overview` | 368 | 0 / 0 | $0 | 46 | 0 | Views do not currently convert. TikTok Script Pro alone had 182/30d and 25/7d with zero paid. |
+| `instagram_bio` | 39 | 0 / 0 | $0 | 0 | 0 | No paid order in the readback. |
+| Registered own-channel CT links | 8 | 0 / 0 | $0 | 8 | 0 | Blog/IG/X CT visits combined; X CT rows are zero. |
+
+Every source in the last-7-day readback has zero paid orders. The prior seller-dashboard screenshot supplied in chat covers 2026-09-12–2026-10-11 and shows 79.2K impressions, 4.9K detail views, and 0.22% conversion. Those are a separate, older UI window; automated source reconciliation does not currently carry daily impressions or a creative-slot-to-paid-order join. Do not merge the screenshot and API windows into one rate.
+
+Fresh per-Agent 30-day performance ranks these existing sellers by allocated actual-cost profit: TikTok Script Pro 4 paid / $15.96 gross / $0.12 model cost / $12.65 profit; Marketing Strategist 2 / $13.98 / $0.31 / $10.87; YouTube Script Writer 4 / $7.96 / $0.08 / $6.29; Hook Lab 6 / $3.94 / $0.12 / $3.03. These five sellers are in `skills/capafy/FROZEN.json`; market them, do not edit or resubmit them. `capafy-sales-ranking.json` has no `observed_at` and reports TikTok Script Pro profit as $12.74, so the timestamped hourly analytics row is the current figure and the ranking file needs freshness/version binding.
+
+### What top paid-selling listings show
+
+The marketplace snapshot `capafy-market-agents-20261013.json` observed 861 listings on 2026-10-13. Public Capafy pages were re-read on 2026-10-14 where available:
+
+| Listing | Sold / rating shown | Model | Paid plan structure (price / request cap) | Trial | Product pattern |
+|---|---:|---|---|---|---|
+| [Ocup Football Analysis](https://capafy.ai/agent/ocup-football-analysis/2553639947) | 3,110 / 4.6 | Claude Sonnet 4.6 | week $14.99/9; month $29.99/27; year $99.99/324 | No | One match in → W/D/L outlook, five score scenarios, xG, tactical factors, uncertainty; explicitly says no betting advice. |
+| [Serenity Stock Tracker](https://capafy.ai/agent/serenity-stock-tracker/2521387714) | 1,957 / 4.8 | DeepSeek V4.1 Flash | week $9.99/20; month $19.99/40; year $99.99/480 | No | Public X posts become hourly updated, source-linked stance history and four time views; clearly discloses fan-built/non-affiliation and limits. |
+| [HookAce](https://capafy.ai/agent/3264203863) | 1,015 / 4.3 | Claude Sonnet 5 | week $9.99/10; month $19.99/25; year $239.88/360 | No | One video or script in → first-six-second retention diagnosis, reasons, and actionable hook fixes; separates video-based analysis from the more uncertain script-only estimate. |
+
+**Evidence boundary:** competitor `salesVolume`, listed price, and rating are demand/price/social-proof signals, not competitor profit, active MRR, renewal, refund, or settlement. Those amounts are not public. Do not label these accounts “most profitable” without their economic readback. Their common product strategy is narrow buyer intent, a visible input→specific output, explicit coverage/limits, recurring plans with usage caps, no free trial, and provenance/disclaimers. This is a pattern to adapt to new/non-frozen products; it is not proof that no-trial pricing caused sales.
+
+The uncovered Analysis shelf snapshot had 3,189 sold, with Ocup at 3,109. The queued `Football Scoreline Scenario Card` is a differentiated adaptation: one buyer-pasted match and evidence → conditional scenarios, assumptions, and falsifiers; week $14.99/9, month $29.99/27, year $99.99/324, no trial. Its `LISTING.md` estimates $0.12/request and caps full-plan cost below 60% of plan net after the 20% fee. It remains a draft and has no sales proof.
+
+### Creative and visual comparison
+
+`capafy-creative-source-index-20261012T142929Z.json` contains 14 public video URLs; 3 are downloaded and visually inspected, 11 remain uninspected/download-pending. Current host free space is 591,372 KiB at 2026-10-14T01:02:41Z, below the established 2 GiB media/release floor. Do not add video bytes until the cleanup owner produces a fresh receipt and the floor is met.
+
+- HookAce TikTok, 43.5 seconds: a split-screen contrast is visible at 0.5s; the creator explains it on camera, shows a Capafy search, then a real-looking diagnosis screen. Public snapshot 2026-10-12T13:05:39Z: 353,700 views, 5,035 likes, 50 comments, 601 reposts (reposts are only a share proxy). CTA asks for the keyword “HookAce.” No Capafy CT-to-order join exists. The “154 vs 15.2M” comparison in the creative is unverified.
+- Yeye Reel, 51.8 seconds: opens “Claude + Capafy = $16,832/month,” shows a $4,208.24 dashboard screenshot, then the Ocup listing and create-agent flow. Hackwithsim Reel, 50.5 seconds: opens “$20K/month,” shows the same seller dashboard and TikTok examples. These are creator/platform marketing claims from June 30 data, not verified active MRR or settled profit.
+- The HookAce output sample uses a clear on-screen diagnosis and retention figures. Our stored TikTok Script Pro visual example is a square play/script icon; the current comparison does not yet have an occurrence-fresh live listing screenshot or a unique published output-demo asset.
+
+Copy the **format**—immediate contrast, facecam explanation, actual input→output proof, one CTA with a unique CT—using our own assets and verified metrics only. Do not reuse competitors’ footage, music, screenshots, wording, seller-dashboard claims, or view counts. No inspected competitor video is attributed to a paid Capafy order.
+
+### Factory, release, and monitoring state
+
+- PRs #7722, #7726, #7730, #7731, #7830, and #7839 are merged. Loaded `capafy-loop-daily` release `28614ef51d8f5be0aa82c0967d4d8562ba7f14dc` is a descendant of #7722/#7726/#7730 and contains the CP1 selection `毎日の無料クォータなし`. The fresh seller readback has Agent `8767154808` version `2109463185447604224` at `status=online`; it is beyond `under_review`.
+- The last natural `capafy-loop-daily` terminal was `2026-10-14T00:39:54Z` (09:39 JST), `CAP_FULL`, exit 0. Current unlisted occupancy is 3 under_review + 1 draft + 1 review_rejected = 5; the draft next versions of already-live FROZEN sellers do not consume new-Agent slots. The candidate backlog at `2026-10-14T00:56:09Z` has 10 ready and 1 ready-retry item. Keep the queue; do not create a sixth unpublished Agent.
+- `capafy-distribute-daily` is loaded on release `a299acc04573ab916fb261ad7ff94b1d3f79a119`, which contains #7830’s exact occurrence-binding fix. Its last natural pass was `2026-10-14T00:34:10Z`; `provider_receipt_id` and `official_readback_ref` are null, so that pass is not a post or view receipt. There is no active distributor admission fence, but the historical X outcome for `18ddcfb8bf34dff8-16076` remains unknown and must not be replayed.
+- `lm-fence-reconciler` is loaded-running on `2275018c6fc11606aa925f711727c520cab79ef3`; it includes #7830, so no source reapply is needed while it is running. `capafy-outcome-monitor` is currently blocked by claimed occurrence `capafy-outcome-monitor:18d93d85d8100cb0-92182` (`cause_event_not_in_current_journal`, no registered adapter). Keep it held until exact official receipt/reconcile exists; do not resend.
+- `capafy-ig-marketing-daily` is disabled and has an unknown publication occurrence held with `active_ig_handle_unresolvable`; `life-manager-capafy-ig` is also disabled. Do not infer that IG publishing is active. Continue public/read-only diagnosis without `interactive:dais`, iPhone, tokens, or `~/.cloak`.
+- `capafy-goal-monitor-hourly` is scheduled at minute 7; its last pass was `2026-10-14T00:16:39Z`. The daily JSONL scoreboard exists (per Agent search views/paid, total views, orders, revenue), and daily close calls the shared Telegram sender best-effort at 23:50 JST. No delivery receipt appears in the current `lm-loop status` readback; keep delivery unconfirmed. The automated reconciliation does not expose impressions, active-subscription retention, or per-post paid joins.
+
+### Atomic TODO and revised order
+
+**Order change:** old `T0 → CD1 → CD2/CD3/CD4/CD5 in parallel → T2 → T3 → T4 → CD6/CD7 → CD8–CD10`. New `T0a date/goal metric correction → T1 held-effect readbacks in parallel → CD1 report completeness → T2 Capafy search → T3 ai_overview conversion → T5 hot-surface diagnosis → review readback → T4 creative coverage → CD2–CD5 channel work → CD6/CD7 new listings as slots free → CD8–CD10`. Reason: 30-day paid orders came from search/hot/direct/Google while own-channel CT recorded 8 visits/0 paid; last 7 days had 0 paid across sources; the monitor mislabels reconciliation date as sales date. Keep all existing channels; expand their posting volume only when source visits are measured. Frozen sellers remain read-only. T1 effect reconciliation continues in parallel and never permits replay without the registered adapter.
+
+| Order | Atomic action | Evidence / owner / cadence | Done when | State |
+|---:|---|---|---|---|
+| 1 | Split `reconcile_observed_date` from `last_paid_revenue_date`; stop emitting `observed_at` as a sale date. | `skills/earn/capafy-marketing/capafy-goal-monitor.sh`; `daily_revenue_trend_last_30d`; hourly goal-monitor owner. | Fresh output shows last positive paid-revenue date (currently 2026-09-29) or explicit unknown, and first-order-after-2026-10-03 is false until a provider order row proves it. | Open source fix. |
+| 2 | Reconcile `capafy-outcome-monitor:18d93d85d8100cb0-92182` and the held IG publication occurrence using exact provider evidence and their registered adapters. | `lm-loop status`; admission ledger; provider/Telegram/IG history. No new send or replay. | Each exact occurrence has a provider receipt or remains explicitly held with a concrete missing field; no manual fence edits. | Held / active unknowns. |
+| 3 | Complete daily channel funnel reporting: impression (if provider exposes it), detail views, trial, paid, gross, platform fee, allocated model cost, profit, payout/settlement; preserve unknown MRR/retention and window. | `capafy-hourly-reconcile.json`, `capafy-skill-analytics.json`, `capafy-scoreboard-daily.jsonl`; hourly readback + 23:50 daily close. | Timestamped source table is readable in the dashboard/report, and Telegram delivery is receipt-backed; no view is called an impression or MRR. | Partial; files exist, delivery and impressions unverified. |
+| 4 | Refresh buyer-query rankings and join them to source views and paid orders. | `capafy-public-search-ranks.json`; source currently observed 2026-10-12T08:40:07Z; daily snapshot. | Current ranks, title/tags, views, paid, trials, and conversion are recorded per query; changes target non-FROZEN/new Agents. | Stale snapshot; refresh pending. |
+| 5 | Improve `ai_overview` conversion on non-FROZEN/new listings using HookAce’s specific input→output, proof, limitations, and original example format. | Per-Agent traffic: TikTok Script Pro 25/7d and 182/30d `ai_overview` views, 0 paid; do not edit its frozen listing. | One changed non-FROZEN listing has a timestamped before/after source funnel; no competitor claims/assets copied. | Open; current paid conversion 0. |
+| 6 | Find what precedes `hot` exposure; record each Agent’s hot visits, placement, rank, rating, and paid orders. | Capafy source attribution daily; 30d baseline 5/46 paid, last 7d 0/1. | A repeated, timestamped association is documented without claiming causality from the five-order sample. | Open; small sample. |
+| 7 | Record authentic rating/review state and retain only optional, honest feedback requests. | Current seller analytics shows our sellers `rating=null/0`, `review_count=null/0`; 2026-10-12 prompt readback requested an optional rating, not a written review or target score. | Review-list/provider readback confirms counts/text where available; no evidence of a one-star review is treated as “none.” | No one-star evidence; counts mostly unavailable. |
+| 8 | Finish the competitor creative set and per-asset visual notes. | Creative index: 14 URLs, 3 downloaded/inspected, 11 pending; free-space receipt must meet the 2 GiB floor before adding video bytes. | Every available asset has URL, observed time, format, hook/proof/demo/CTA, public metrics, download state, and Capafy CT/paid join or `unknown`. | 3/14 inspected; 11 pending headroom. |
+| 9 | Keep X, blog, IG, and free short-video distribution measurable with unique CTs; continue existing planned channels and only scale volume after tracked visits. | Current owned CT 8/30d and 0 paid; X CT 0; distributor’s last pass has no provider receipt; IG publisher disabled/held. | Each published slot maps to one reachable CT and provider post receipt; channel views and paid orders are reported separately. | Open; do not claim current IG activity. |
+| 10 | Drain the existing new-Agent queue when Capafy frees a slot; finish pending review/draft items first and rank candidates by buyer query plus unit economics. | Current cap full: 3 under_review, 1 draft, 1 rejected; backlog 10 ready + 1 retry; never alter five FROZEN sellers. | Natural run uses a freed slot; provider readback confirms `under_review` then `online`; no duplicate/near-identical listing. | Wait for free slot; Football Scoreline is one evidence-backed queued candidate. |
+| 11 | Obtain official active-subscription, renewal, refund, payout, and settled-balance series; compute gross MRR and net after fees/model cost separately. | Capafy seller console / official endpoints; current active-subscription and churn data are missing. | $10K active gross MRR is provider-verified, cost/net/settlement are separately reconciled; only then scale the same portfolio toward $100K. | Open; current true MRR unknown. |
+
+Current cursor: **1 (goal-monitor date field)**; **2 (held provider-effect readbacks)** continue independently. Do not count an Agent build, rank, view, `pass`, or creator income claim as paid revenue. No FROZEN seller, price, trial, or live listing was changed in this checkpoint.
