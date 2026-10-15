@@ -53,6 +53,15 @@
 
 **後続（Doneのgateではない）:** 掃除役5本を `com.anicca.disk-watchdog` 1本へ統合し他4本をunload。Codex純正圧縮 `central_cleanup.py:codex_history_cleanup` は `0.160.0` 完全一致pinと「上位2ファイル分の空き」要求があり、満杯時に動かないため、D2/D4で空きが戻った後に効く。内蔵228GBが恒常的に足りない場合は外付けSSDへ `~/loops/releases` と Codex archive を移す案を別途比較する。
 
+### 2026-10-15 夕方の進捗（18:30 JST）
+- **売上の事実:** Coconala 検収 7月¥63,960・8月¥62,478・9月¥39,000・10月¥0（`~/gig/earnings.jsonl`）。稼ぎ頭はCoconalaで、10/03のapply fenceで応募が止まっていた。Capafy累計gross $102.75、PromptBase 0件、CFOは大半の事業を「未確認」。
+- **Coconala apply fence 解除:** PR #8131。intentはprovider confirmed / versioned pre_effect / 公式応募履歴に掲載 / 依頼ページが「募集終了」or 完全一致URLで404 のいずれかでのみ確定。screenshot由来retired_absentは単独では不可、metadataは名前指定で除外、CLI confirmは不可逆attempt後を拒否。read-only `coconala_request_closed_readback.py`（with-browser coconala:kosuke）で119件全て募集終了。独立review 2回（FIX-FIRST指摘を全修正）。登録adapterを1回実行し `hf-gig-apply-direct:18dadcd76d9c61b0-37711` → released/0。**18:13に12日ぶりの応募2件（¥45,000・¥30,000）、intentはconfirmed。**
+- **土台:** producer floor 15→12GiB（PR #8147、空き13.7GiBで全earning loopが停止していたため）。host agent枠 2→3（PR #8150、10CPU/16GB・空きメモリ66%）。geocode結果のcache（PR #8148、9月請求 Geocoding ¥7,493≒5分毎lateness 8,640回/月）。私の変更で壊したgigテスト3件を修正（PR #8143、gig suiteはCIに無い）。
+- **admission DBのWAL:** `journal_mode=WAL`に切替後、9/17〜9/19の旧release（12個）が開くたび`PRAGMA journal_mode=DELETE`を強制して戻る。その旧releaseに23 label（pm-live-trade, agentmail-replier, x-repost系, reinvest, ubi-watcher, life-manager-daily, marketing-mine-daily 等）。大半が9月からの effect_unknown fence を持ち、pending-admissionのため移行不可（release-reconcilerも移せない）。effect none の2本（article-learn-whitelist/article-audit-7day）だけ fence解除→移行済み。
+- **Lancers応募405:** loginは復旧、work-syncは200 dashboard。応募はpending 95件の照合が案件ページを`status.py`のurllibで取得しAWS WAFに405、新規discoveryへ進めない。修正=照合のdetail取得をleased browser経由に。Lancers生涯¥0のためCoconala/CrowdWorksより後。
+
+**残TODO（更新、お金に近い順）:** ①Coconala: reply fence(10/12)・storefront fence(09/26)を同型の公式readbackで解除、受注→納品→入金までを観測 ②CrowdWorks: 応募は稼働、¥5,000未満契約は承諾しない。単価の高い案件を取れているか確認 ③A1: 旧release 23 labelのeffect_unknown fenceをowner別公式readbackで閉じ、現行releaseへ移す（WAL定着の前提） ④Lancers: pending照合のbrowser化 ⑤Mercor fence 3件 ⑥disk: 25GiB回復（外付けSSD or Codexログ）、ballast武装、`storage_growth`が測れていない穴 ⑦CFOの「未確認」をprovider readbackで埋める。
+
 ### 全19 agentの状況と残TODO（2026-10-15 15:00 JST、`lm-loop status` readback）
 README は「ユーザー向け18 + system agent 1」= 19 agent。19 = Host Steward（cleanup: disk-watchdog / central cleanup / 15d / fence-reconciler / release-reconciler）。商品catalogue（`product-onboarding.js` の18）は変えない。
 
