@@ -17,6 +17,9 @@ def _load_wrapper():
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
+    # Never read the live ~/gig evidence from a test.
+    module.EVIDENCE_DIR = Path("/nonexistent-evidence")
+    module.CLOSED_READBACK = Path("/nonexistent-evidence/request-closed-readback.json")
     return module
 
 
@@ -127,7 +130,7 @@ def test_settled_write_ahead_store_closes_unbound_fences(tmp_path, monkeypatch, 
     monkeypatch.setattr(wrapper.reconciler, "discover_single_target",
                         lambda *, owner_id, intent_root: None)
     _intent(tmp_path, "1", "confirmed", "irreversible_attempt_started")
-    _intent(tmp_path, "2", "retired_absent", "irreversible_attempt_started")
+    _intent(tmp_path, "2", "retired_absent", None)
     _intent(tmp_path, "3", "prepared", "pre_effect")
     monkeypatch.setattr(wrapper, "_fenced_occurrences",
                         lambda owner_id: ["hf-gig-apply-direct:old-1"])
@@ -228,6 +231,9 @@ def test_request_page_closed_parser() -> None:
     assert module.request_closed("納品希望日 2026年9月30日 募集期限 募集終了 締切日 2026年8月10日") is True
     assert module.request_closed("募集期限\n あと3日 締切日 2026年10月20日") is False
     assert module.request_closed("ページが見つかりません") is None
+    assert module.request_closed("assist.coconala.com/ 募集終了 ブックマーク 募集者情報") is True
+    assert module.request_closed("応募する ブックマーク 募集者情報") is False
+    assert module.request_closed("■募集内容 時間単価：2,000円 募集終了後に連絡") is None
 
 
 def test_non_intent_metadata_files_are_ignored_and_gone_requests_settle(tmp_path) -> None:
@@ -242,3 +248,12 @@ def test_non_intent_metadata_files_are_ignored_and_gone_requests_settle(tmp_path
         "21": {"closed": True, "gone": True, "http_status": 404}}}))
     scan = wrapper._settled_scan(intents, roster_path=tmp_path / "none.json", closed_path=closed)
     assert (scan["scanned_intents"], scan["unresolved_irreversible"]) == (1, 0)
+
+
+def test_screenshot_retired_irreversible_and_unknown_shapes_stay_unresolved(tmp_path) -> None:
+    wrapper = _load_wrapper()
+    _intent(tmp_path, "31", "retired_absent", "irreversible_attempt_started")
+    (tmp_path / "32.json").write_text(json.dumps({"status": "prepared", "irreversible": True}))
+    (tmp_path / "wedge-quarantine.json").write_text("{}")
+    scan = wrapper._settled_scan(tmp_path, roster_path=tmp_path / "none", closed_path=tmp_path / "none")
+    assert (scan["scanned_intents"], scan["unresolved_irreversible"]) == (2, 2)

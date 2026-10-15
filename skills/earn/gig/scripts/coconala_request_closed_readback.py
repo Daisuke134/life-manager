@@ -24,30 +24,32 @@ sys.path.insert(0, str(SCRIPT_DIR))
 import coconala_application_effect_reconcile as adapter  # noqa: E402
 
 _REQUEST_ID = re.compile(r"[0-9]{4,10}")
+_RETAINER_ID = re.compile(r"[0-9A-HJKMNP-TV-Z]{26}")  # ULID retainer (継続) requests
 
 
 def request_closed(body_text: str) -> bool | None:
     """True for 募集終了, False for an open request, None when the page is unrecognised."""
     text = re.sub(r"\s+", " ", body_text or "")
     match = re.search(r"募集期限 (\S+)", text)
-    if match is None:
-        return None
-    return match.group(1) == "募集終了"
+    if match is not None:
+        return match.group(1) == "募集終了"
+    # Retainer (継続) pages show the state where the apply button would be.
+    if re.search(r"(^| )募集終了 ブックマーク( |$)", text):
+        return True
+    if re.search(r"(^| )応募する ブックマーク( |$)", text):
+        return False
+    return None
 
 
 def unresolved_request_ids(intent_root: Path) -> list[str]:
+    """Requests of intents not settled without a closed-page readback."""
     applied = adapter._roster_ids(adapter._latest_roster())
     ids = []
-    for path in sorted(intent_root.glob("*.json")):
-        try:
-            value = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
+    for _path, value in adapter._store_intents(intent_root):
+        if value is None or adapter._intent_settled(value, applied, set()):
             continue
-        rid = str(value.get("request_id") or path.stem)
-        if (value.get("state") in adapter.SETTLED_STATES or value.get("effect_phase") == "pre_effect"
-                or rid in applied or not _REQUEST_ID.fullmatch(rid)):
-            continue
-        ids.append(rid)
+        if _REQUEST_ID.fullmatch(value["request_id"]) or _RETAINER_ID.fullmatch(value["request_id"]):
+            ids.append(value["request_id"])
     return ids
 
 
@@ -79,12 +81,15 @@ def main(argv: list[str] | None = None) -> int:
         page = browser.contexts[0].new_page()
         try:
             for rid in unresolved_request_ids(args.intent_root):
-                url = f"https://coconala.com/requests/{rid}"
+                url = (f"https://coconala.com/job_matching/outsources/{rid}" if _RETAINER_ID.fullmatch(rid)
+                       else f"https://coconala.com/requests/{rid}")
                 response = page.goto(url, wait_until="domcontentloaded", timeout=45_000)
                 page.wait_for_timeout(1_500)
                 status = response.status if response is not None else None
-                gone = status == 404 and page.url == url  # the request itself no longer exists
-                closed = True if gone else (request_closed(page.inner_text("body")) if status == 200 else None)
+                exact = page.url == url  # a redirect is never evidence about this request
+                gone = exact and status == 404
+                closed = True if gone else (
+                    request_closed(page.inner_text("body")) if exact and status == 200 else None)
                 requests[rid] = {"closed": closed, "gone": gone, "http_status": status,
                                  "url": url, "final_url": page.url,
                                  "observed_at": datetime.now(timezone.utc).isoformat()}

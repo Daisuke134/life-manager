@@ -28,6 +28,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 import application_occurrence_reconcile as reconciler  # noqa: E402
+import application_effect_fence as fence  # noqa: E402
 from runtime.host import resource_admission  # noqa: E402
 
 
@@ -112,7 +113,7 @@ CLOSED_READBACK = EVIDENCE_DIR / "request-closed-readback.json"
 
 
 def _latest_roster() -> Path:
-    found = sorted(EVIDENCE_DIR.glob("coconala-applied-history-*.json"))
+    found = sorted(EVIDENCE_DIR.glob("coconala-applied-history-*.json"), key=lambda path: path.stat().st_mtime)
     return found[-1] if found else EVIDENCE_DIR / "coconala-applied-history-missing.json"
 
 
@@ -143,35 +144,56 @@ def _closed_ids(path: Path) -> set[str]:
         return set()
 
 
+STORE_METADATA = frozenset({"wedge-quarantine.json", "full-history-scan-state.json"})
+
+
+def _intent_settled(value: dict, applied: set[str], closed: set[str]) -> bool:
+    """Whether an intent can no longer hide a duplicable application.
+
+    Provider-confirmed, a versioned pre_effect intent, a request listed in the
+    official applied history, or a request whose own official page is 募集終了 /
+    gone. retired_absent counts only when no irreversible attempt started: the
+    screenshot-based retire path is not a provider readback.
+    """
+    request_id = str(value.get("request_id") or "")
+    if request_id and (request_id in applied or request_id in closed):
+        return True
+    if value.get("state") == "confirmed" or fence.is_pre_effect(value):
+        return True
+    return (value.get("state") == "retired_absent"
+            and value.get("effect_phase") != fence.IRREVERSIBLE_ATTEMPT_STARTED)
+
+
+def _store_intents(intent_root: Path):
+    """Yield (path, intent-or-None); None means unreadable or not an intent object."""
+    for path in sorted(intent_root.glob("*.json")):
+        if path.name in STORE_METADATA:
+            continue
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            value = None
+        if not isinstance(value, dict) or not value.get("state"):
+            value = None
+        else:
+            value = {**value, "request_id": str(value.get("request_id") or path.stem)}
+        yield path, value
+
+
 def _settled_scan(intent_root: Path, *, roster_path: Path | None = None,
                   closed_path: Path | None = None) -> dict[str, object]:
-    """Count intents that may hold an application effect that could still be duplicated.
-
-    Settled: confirmed/retired_absent (provider readback), an explicit pre_effect
-    phase, a request listed in the official applied history, or a request whose
-    official page reads 募集終了 (a duplicate application is impossible).
-    Legacy, state-less and unreadable intents are otherwise unresolved.
-    """
+    """Count store entries that may still hide a duplicable application (fail closed)."""
     applied = _roster_ids(roster_path or _latest_roster())
     closed = _closed_ids(closed_path or CLOSED_READBACK)
     digest = hashlib.sha256()
     scanned = unresolved = 0
-    for path in sorted(intent_root.glob("*.json")):
-        try:
-            value = json.loads(path.read_text(encoding="utf-8"))
-            if not isinstance(value, dict):
-                raise ValueError("intent is not an object")
-            if not {"state", "request_id", "effect_phase"} & value.keys():
-                continue  # store metadata (wedge-quarantine, scan cursors), not an intent
-            state, phase = value.get("state"), value.get("effect_phase")
-            request_id = str(value.get("request_id") or path.stem)
-        except (OSError, ValueError, AttributeError):
-            state, phase, request_id = "unreadable", "unreadable", None
+    for path, value in _store_intents(intent_root):
         scanned += 1
-        settled = (state in SETTLED_STATES or phase == "pre_effect"
-                   or (request_id is not None and (request_id in applied or request_id in closed)))
+        settled = value is not None and _intent_settled(value, applied, closed)
         if not settled:
             unresolved += 1
+        state = value.get("state") if value else "unreadable"
+        phase = value.get("effect_phase") if value else "unreadable"
         digest.update(f"{path.name}\0{state}\0{phase}\0{settled}\n".encode("utf-8"))
     return {"scanned_intents": scanned, "unresolved_irreversible": unresolved,
             "evidence_ref": f"gig-intents://sha256/{digest.hexdigest()}"}
@@ -183,7 +205,7 @@ def _fenced_occurrences(owner_id: str) -> list[str]:
     with sqlite3.connect(f"file:{database}?mode=ro", uri=True, timeout=30) as connection:
         rows = connection.execute(
             "SELECT occurrence_id FROM occurrences WHERE owner_id=? AND effect_unknown=1"
-            " AND state IN ('claimed','released') ORDER BY sequence", (owner_id,)).fetchall()
+            " AND state='claimed' ORDER BY queued_at", (owner_id,)).fetchall()
     return [row[0] for row in rows]
 
 

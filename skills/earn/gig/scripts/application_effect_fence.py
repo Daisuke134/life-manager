@@ -617,6 +617,11 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "status":
             _json_output({"ok": True, "intent": store.read(args.request_id)})
             return 0
+        current = store.read(args.request_id) or {}
+        if current.get("effect_phase") == IRREVERSIBLE_ATTEMPT_STARTED:
+            # Only a provider readback may confirm an attempt that crossed the boundary.
+            _json_output({"ok": False, "error": "cli_confirm_requires_provider_readback"})
+            return 2
         intent = store.confirm(args.request_id, expected_cas=args.expected_cas)
         _json_output({"ok": True, "state": intent["state"], "cas": intent["cas"]})
         return 0
