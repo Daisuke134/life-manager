@@ -27,16 +27,21 @@ def _lines(path: Path) -> list[str]:
     return [x.strip() for x in html.unescape(re.sub(r"<[^>]+>", "\n", t)).split("\n") if x.strip()]
 
 
-def narration(hook: list[str], cards: list[str]) -> str:
-    """Spoken script from the reel's own copy: hook, the three hooks, one CTA."""
-    topic = cards[0].split(":")[0].strip()
+def narration(hook: list[str], cards: list[str], cta: list[str]) -> str:
+    """Spoken script from the reel's own copy: hook, the three quoted lines, the on-screen CTA."""
+    product = cta[0].removeprefix("Search ").strip()
+    tagline = cta[2].strip() if len(cta) > 2 else ""
+    title = cards[0]
+    topic = title.split(":")[0].strip()
     quotes = [c.strip("“”\"") for c in cards if c.startswith("“")][:3]
-    if len(hook) < 2 or len(quotes) != 3:
-        raise ValueError(f"unexpected reel copy: hook={hook} quotes={quotes}")
-    parts = [hook[0], hook[1], f"Here are three hooks Hook Lab wrote for a {topic[0].lower() + topic[1:]}."]
+    if len(hook) < 2 or len(quotes) != 3 or not product:
+        raise ValueError(f"unexpected reel copy: hook={hook} quotes={quotes} cta={cta}")
+    what = "three hooks" if "hook" in title.split(":")[-1].lower() else "the script"
+    verb = "are" if what == "three hooks" else "is"
+    parts = [hook[0], hook[1], f"Here {verb} {what} {product} wrote for a {topic[0].lower() + topic[1:]}."]
     parts += [f"{n}. {q}" for n, q in zip(("One", "Two", "Three"), quotes)]
-    parts.append("Search Hook Lab on Capafy, and win the first three seconds.")
-    return " ".join(parts).replace(" 3 ", " three ")
+    parts.append(f"Search {product} on Capafy. {tagline}".strip())
+    return " ".join(parts).replace(" 3 ", " three ").replace("first 3 seconds", "first three seconds")
 
 
 def _run(*cmd: str) -> None:
@@ -52,7 +57,8 @@ def build(slug: str) -> dict:
     d = BASE / slug
     src, out = d / "renders/video.mp4", d / "renders-v2"
     out.mkdir(exist_ok=True)
-    text = narration(_lines(d / "compositions/hook.html"), _lines(d / "compositions/cards.html"))
+    text = narration(_lines(d / "compositions/hook.html"), _lines(d / "compositions/cards.html"),
+                     _lines(d / "compositions/cta.html"))
     (out / "narration.txt").write_text(text + "\n")
     _run("edge-tts", "--voice", VOICE, "--rate=+6%", "--file", str(out / "narration.txt"),
          "--write-media", str(out / "voice.mp3"))
