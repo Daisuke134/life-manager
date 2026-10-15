@@ -3810,3 +3810,30 @@ def test_critical_paid_waiting_past_its_age_limit_outranks_fresh_distribution(
     )
 
     assert admission.reserve_available(now=2001, lease_seconds=30) == ["article-daily"]
+
+
+def test_stale_queued_duplicates_are_cancelled_but_newest_wake_is_kept(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    owner = "affiliate-composition"
+    for index, at in enumerate((100, 200, 90_000)):
+        admission.enqueue_durable("deterministic", owner, admission_class="borrow",
+                                  occurrence_id=f"{owner}:wake-{index}", now=at)
+
+    cancelled = admission.cancel_stale_queued_occurrences(older_than_seconds=86_400, now=100_000)
+
+    states = {row["occurrence_id"]: row["state"] for row in durable_rows(tmp_path, "occurrences")}
+    assert cancelled == 2
+    assert states == {f"{owner}:wake-0": "cancelled", f"{owner}:wake-1": "cancelled",
+                      f"{owner}:wake-2": "queued"}
+    assert admission.cancel_stale_queued_occurrences(older_than_seconds=86_400, now=100_000) == 0
+
+
+def test_stale_sweep_keeps_a_lone_old_wake_and_unknown_effects(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    admission.enqueue_durable("deterministic", "lone-owner", admission_class="borrow",
+                              occurrence_id="lone-owner:only", now=100)
+    assert admission.cancel_stale_queued_occurrences(older_than_seconds=86_400, now=1_000_000) == 0
+    states = {row["occurrence_id"]: row["state"] for row in durable_rows(tmp_path, "occurrences")}
+    assert states["lone-owner:only"] == "queued"

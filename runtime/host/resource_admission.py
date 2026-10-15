@@ -1624,6 +1624,40 @@ def cancel_effect_free_queued_owner(owner_id: str) -> str:
         os.close(descriptor)
 
 
+def cancel_stale_queued_occurrences(*, older_than_seconds: float = 86_400,
+                                    now: float | None = None, limit: int = 5_000) -> int:
+    """Cancel never-started queued duplicates; each owner keeps its newest queued wake.
+
+    18,238 queued rows (7,066 older than a week) made the ordered queue scan take
+    1.2s under control.lock, so other owners timed out with control_busy. A queued
+    row has not crossed any effect boundary, and the newest wake per owner stays,
+    so the owner still runs on its next claim. Returns rows cancelled (0 when busy).
+    """
+    _root, _owners, _tickets, database = _durable_paths()
+    if not database.exists():
+        return 0
+    cutoff = (time.time() if now is None else now) - older_than_seconds
+    descriptor = os.open(_root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        if not _acquire_bounded(descriptor, timeout_seconds=0.5):
+            return 0
+        with _database(database) as connection:
+            return connection.execute(
+                """UPDATE occurrences SET state='cancelled'
+                     WHERE rowid IN (
+                       SELECT stale.rowid FROM occurrences AS stale
+                        WHERE stale.state='queued' AND stale.effect_unknown=0
+                          AND stale.queued_at < ?
+                          AND stale.queued_at < (
+                            SELECT max(newest.queued_at) FROM occurrences AS newest
+                             WHERE newest.owner_id=stale.owner_id AND newest.state='queued')
+                        LIMIT ?)""",
+                (cutoff, limit),
+            ).rowcount
+    finally:
+        os.close(descriptor)
+
+
 def _expire_leaked_reservations(connection: sqlite3.Connection, instant: float) -> None:
     """Delete reservations nobody claimed in time, and cool the owner down.
 

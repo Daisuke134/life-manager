@@ -28,6 +28,7 @@ from runtime.loop.loop_cleanup import (
     gc_releases, remove_owned_tree, reclaim_release_source, release_is_reclaimed,
     RELEASE_NAME, _release_immutable_store_probe,
 )
+from runtime.host import resource_admission
 from runtime.host.resource_admission import process_starts
 
 
@@ -858,6 +859,10 @@ def main() -> int:
     binding = cleanup_run_binding(dict(os.environ), ROOT)
     codex_result = (codex_history_cleanup(home) if binding and
         binding.get("owner_id") == "life-manager-disk-cleanup" else {"status": "unbound_owner"})
+    try:
+        queue_result = {"cancelled": resource_admission.cancel_stale_queued_occurrences()}
+    except Exception as error:  # admission maintenance never fails the cleanup run
+        queue_result = {"error_class": type(error).__name__}
     # The 60-second watchdog is the sole HostDiskGovernor owner. This five-minute
     # service performs maintenance and release/scratch GC without contending on
     # the watchdog's host-sweep lock.
@@ -880,6 +885,7 @@ def main() -> int:
     result.update({"ok": result["errors"] == 0 and host_ok and scratch_result["errors"] == 0,
                    "git_cleanup": git_result,
                    "codex_storage": codex_result,
+                   "admission_queue": queue_result,
                    "host_cleanup": host_result,
                    "scratch_cleanup": scratch_result,
                    "run_binding": binding,
