@@ -365,3 +365,13 @@ def test_release_capacity_reuses_locked_bundle_for_script_and_toolchain_change(t
     finally:
         donor.chmod(0o755)
         bundle.chmod(0o755)
+
+
+def test_producer_floor_can_be_calibrated_for_isolated_hosts(monkeypatch):
+    guard = load_guard()
+    monkeypatch.setenv("LIFE_MANAGER_LOOP_ID", "line-sticker-factory-hourly")
+    monkeypatch.setenv("LIFE_MANAGER_PRODUCER_FLOOR_BYTES", "0")
+    monkeypatch.setattr(guard, "disk_free_bytes", lambda _path: 1)
+    calls = []
+    monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
+    assert guard.main(["/bin/true"]) == 0

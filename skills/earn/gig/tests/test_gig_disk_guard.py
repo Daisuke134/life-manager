@@ -527,6 +527,8 @@ def test_self_build_cleanup_stop_signal_does_not_block_dependency_and_cli_effect
         "GIG_DISK_HEADROOM_KIB": "0",
         "GIG_IGNORE_DISK_PRESSURE_BLOCK": "1",
         "GIG_IGNORE_DISK_WRITERS_STOP": "1",
+        # Isolate from this host's real free space (the producer floor reads the live volume).
+        "LIFE_MANAGER_PRODUCER_FLOOR_BYTES": "0",
         "LIFE_MANAGER_ENV_FILE": str(env_file),
         "LM_SELFBUILD_LOG": str(explicit_log),
         "GIG_HOST_STATE_DIR": str(hostile_state),
