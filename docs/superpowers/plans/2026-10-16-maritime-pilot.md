@@ -75,6 +75,7 @@
 - [x] Run git diff --check and the focused transport, slash-command and Telegram HTTP contract tests.
 - [x] Confirm no message body, provider response, API key, or participant UID is present in logs/diff.
 - [x] Confirm no loop registry, database schema, schedule, or production env changed.
+- [x] Resolve the inherited OSS boundary check failure for the existing MLB catalog icon by adding its exact SHA-256 asset manifest; local `verify-oss-self-contained.mjs` passes.
 - [x] Push the branch and open [PR #8168](https://github.com/Daisuke134/life-manager/pull/8168) against the fetched origin/main. Focused source checks pass; independent read-only review says ready to merge.
 
 ### Separate external gate: not authorized by current goal
