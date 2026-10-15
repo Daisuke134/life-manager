@@ -93,27 +93,62 @@ class MarketplaceAttributionTest(unittest.TestCase):
         for row in rows:
             self.assertEqual(row, contract.validate_record(row))
 
-    def test_recent_official_readback_before_snapshot_is_fresh_within_daily_window(self):
+    def test_recent_complete_readback_before_snapshot_covers_every_owned_category(self):
         payload = self.reobserve(self.fixture("marketplace-settled.json"), "2026-09-30T12:00:00Z")
         rows = self.require_adapter().adapt(
             payload, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
         )
         self.assertTrue(any(row["record_type"] == "receipt" for row in rows))
-        self.assertFalse(any(
-            row["record_type"] == "coverage" and row["reason"] == "stale_readback"
-            for row in rows
-        ))
         coverage = {
             row["projection"]: row for row in rows if row["record_type"] == "coverage"
         }
-        self.assertEqual(
-            (coverage["historical"]["coverage_state"], coverage["historical"]["reason"]),
-            ("gap", "missing_coverage"),
+        for projection in ("historical", "trailing"):
+            self.assertEqual(
+                (coverage[projection]["coverage_state"], coverage[projection]["reason"],
+                 coverage[projection]["covered_categories"]),
+                ("complete", None, sorted(adapter.OWNED_CATEGORIES)),
+            )
+
+    def test_complete_receipt_map_without_fee_or_refund_itemization_reports_revenue_only(self):
+        payload = self.fixture("marketplace-settled.json")
+        for window in payload["coverage"].values():
+            window["complete"] = False
+        payload = self.reobserve(payload, "2026-09-30T12:00:00Z")
+        rows = self.require_adapter().adapt(
+            payload, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
         )
-        self.assertEqual(
-            (coverage["trailing"]["coverage_state"], coverage["trailing"]["reason"]),
-            ("gap", "missing_coverage"),
+        coverage = {
+            row["projection"]: row for row in rows if row["record_type"] == "coverage"
+        }
+        for projection in ("historical", "trailing"):
+            self.assertEqual(
+                (coverage[projection]["coverage_state"], coverage[projection]["reason"],
+                 coverage[projection]["covered_categories"]),
+                ("complete", None, [contract.REVENUE]),
+            )
+        projected = contract.project(rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START)
+        for window in ("historical", "trailing"):
+            loop = projected[window]["loops"]["gig-lancers"]
+            jpy = loop["currencies"]["JPY"]
+            self.assertEqual(loop["status"], "unknown")
+            self.assertEqual(jpy["settled_external_revenue"], "55000")
+            self.assertNotIn(contract.REVENUE, jpy["unknown_categories"])
+            for unknown in ("refund", "provider_fee", "payment_fee", "total_cost", "net"):
+                self.assertIsNone(jpy[unknown], unknown)
+
+    def test_readback_older_than_freshness_bound_never_reports_revenue_only(self):
+        payload = self.fixture("marketplace-settled.json")
+        for window in payload["coverage"].values():
+            window["complete"] = False
+        payload = self.reobserve(payload, "2026-09-30T00:00:00Z")  # exactly 24h old
+        rows = self.require_adapter().adapt(
+            payload, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
         )
+        self.assertFalse(any(row["record_type"] == "receipt" for row in rows))
+        self.assertFalse(any(
+            row["record_type"] == "coverage" and row["coverage_state"] == "complete"
+            for row in rows
+        ))
 
     def test_readback_window_may_start_before_requested_window(self):
         payload = self.reobserve(self.fixture("marketplace-settled.json"), "2026-09-30T12:00:00Z")
@@ -289,7 +324,7 @@ class MarketplaceAttributionTest(unittest.TestCase):
             {"unverified_receipt"},
         )
 
-    def test_incomplete_trailing_coverage_keeps_receipts_but_marks_trailing_unknown(self):
+    def test_incomplete_trailing_coverage_keeps_trailing_revenue_but_not_fees_or_refunds(self):
         payload = self.fixture("marketplace-settled.json")
         payload["coverage"]["trailing"]["complete"] = False
         self.bind(payload)
@@ -304,10 +339,12 @@ class MarketplaceAttributionTest(unittest.TestCase):
             for row in rows
             if row["record_type"] == "coverage"
         }
-        self.assertEqual((coverage["historical"]["coverage_state"], coverage["historical"]["reason"]),
-                         ("complete", None))
-        self.assertEqual((coverage["trailing"]["coverage_state"], coverage["trailing"]["reason"]),
-                         ("gap", "missing_coverage"))
+        self.assertEqual((coverage["historical"]["coverage_state"], coverage["historical"]["reason"],
+                          coverage["historical"]["covered_categories"]),
+                         ("complete", None, sorted(adapter.OWNED_CATEGORIES)))
+        self.assertEqual((coverage["trailing"]["coverage_state"], coverage["trailing"]["reason"],
+                          coverage["trailing"]["covered_categories"]),
+                         ("complete", None, [contract.REVENUE]))
 
     def test_stale_readback_emits_no_receipts(self):
         payload = self.fixture("marketplace-settled.json")

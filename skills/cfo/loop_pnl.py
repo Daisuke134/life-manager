@@ -228,12 +228,32 @@ def _safe_b7_adapter(call, *, source_id: str, loop_ids: tuple[str, ...],
     )
 
 
+def _marketplace_records(path: Path, revenue_as_of: dict[str, str] | None,
+                         **kwargs) -> list[dict]:
+    """Adapt one captured readback and note when the revenue it covers was observed."""
+    payload = json.loads(path.read_text())
+    rows = marketplace.adapt(payload, **kwargs)
+    if revenue_as_of is not None:
+        for row in rows:
+            if (row["record_type"] == "coverage" and row["coverage_state"] == "complete"
+                    and contract.REVENUE in row["covered_categories"]):
+                revenue_as_of[row["product_loop_id"]] = _utc_text(
+                    datetime.fromisoformat(payload["observed_at"].replace("Z", "+00:00"))
+                )
+    return rows
+
+
 def collect_b7_records(*, snapshot_at: str, trailing_start: str,
                        adapter_records: dict[str, list[dict]] | None = None,
                        mobile_readback: dict | None = None,
                        mobile_readback_reason: str | None = None,
-                       env: dict[str, str] | None = None) -> list[dict]:
-    """Read only already-captured B1-B6 artifacts and return one joined record array."""
+                       env: dict[str, str] | None = None,
+                       revenue_as_of: dict[str, str] | None = None) -> list[dict]:
+    """Read only already-captured B1-B6 artifacts and return one joined record array.
+
+    ``revenue_as_of`` receives each loop whose revenue comes from an earlier
+    marketplace readback, mapped to that readback's observed_at.
+    """
     if adapter_records is not None:
         return join_adapter_records(adapter_records)
     env = os.environ if env is None else env
@@ -380,9 +400,9 @@ def collect_b7_records(*, snapshot_at: str, trailing_start: str,
         for source_path, platform, loop_id in explicit_marketplace_paths:
             configured_loops.add(loop_id)
             sources["b4-marketplace"].extend(_safe_b7_adapter(
-                lambda source_path=source_path, platform=platform, loop_id=loop_id: marketplace.adapt_path(
-                    source_path, snapshot_at=snapshot_at, trailing_start=trailing_start,
-                    platform=platform, product_loop_id=loop_id,
+                lambda source_path=source_path, platform=platform, loop_id=loop_id: _marketplace_records(
+                    source_path, revenue_as_of, snapshot_at=snapshot_at,
+                    trailing_start=trailing_start, platform=platform, product_loop_id=loop_id,
                 ),
                 source_id="marketplace-financial-record", loop_ids=(loop_id,),
                 snapshot_at=snapshot_at, trailing_start=trailing_start,
@@ -397,8 +417,9 @@ def collect_b7_records(*, snapshot_at: str, trailing_start: str,
         sources["b4-marketplace"] = []
         for source_path in marketplace_paths:
             sources["b4-marketplace"].extend(_safe_b7_adapter(
-                lambda source_path=source_path: marketplace.adapt_path(
-                    source_path, snapshot_at=snapshot_at, trailing_start=trailing_start,
+                lambda source_path=source_path: _marketplace_records(
+                    source_path, revenue_as_of, snapshot_at=snapshot_at,
+                    trailing_start=trailing_start,
                 ),
                 source_id="marketplace-financial-record",
                 loop_ids=B7_SOURCE_LOOPS["b4-marketplace"],
@@ -652,14 +673,17 @@ def build_b7_projection(*, snapshot_at: str, trailing_start: str,
                             trailing_start.replace("Z", "+00:00")
                         ) + delta
                         trailing_start = _utc_text(trailing_end)
+    revenue_as_of: dict[str, str] = {}
     records = collect_b7_records(
         snapshot_at=snapshot_at, trailing_start=trailing_start,
         adapter_records=adapter_records, mobile_readback=mobile_readback,
         mobile_readback_reason=mobile_readback_reason, env=env,
+        revenue_as_of=revenue_as_of,
     )
     projection = project_records(
         records, snapshot_at=snapshot_at, trailing_start=trailing_start,
     )
+    projection["revenue_as_of"] = dict(sorted(revenue_as_of.items()))
     if adapter_records is None and mobile_context is not None and mobile_readback is not None:
         _persist_mobile_natural_evidence(
             mobile_readback=mobile_readback, records=records,

@@ -4,6 +4,13 @@ The adapter consumes an already captured readback envelope.  It never imports a
 provider client, opens a network connection, or infers revenue from an
 aggregate.  A complete immutable receipt map is required before any receipt is
 emitted; aggregate-only readbacks become B0 coverage gaps instead of zeroes.
+
+Coverage contract: a readback observed less than ``FRESHNESS_MAX_AGE`` before the
+snapshot vouches for the snapshot window as of its ``observed_at``.  Complete
+pagination plus a complete receipt map attest every settled sale, so revenue is
+covered; ``coverage.<window>.complete`` additionally attests that refunds and fees
+are itemized.  Without it only revenue is covered and fees, refunds and net stay
+unknown.
 """
 
 from __future__ import annotations
@@ -1098,7 +1105,8 @@ def _coverage_rows(
     evidence: str,
     historical_reason: str | None,
     trailing_reason: str | None,
-    categories: list[str],
+    historical_categories: list[str],
+    trailing_categories: list[str],
 ) -> list[dict]:
     rows = [
         _coverage(
@@ -1109,7 +1117,7 @@ def _coverage_rows(
             observed_at=snapshot_at,
             state="complete" if historical_reason is None else "gap",
             reason=historical_reason,
-            categories=categories if historical_reason is None else [],
+            categories=historical_categories if historical_reason is None else [],
             evidence=evidence,
         ),
         _coverage(
@@ -1120,7 +1128,7 @@ def _coverage_rows(
             observed_at=snapshot_at,
             state="complete" if trailing_reason is None else "gap",
             reason=trailing_reason,
-            categories=categories if trailing_reason is None else [],
+            categories=trailing_categories if trailing_reason is None else [],
             evidence=evidence,
         ),
         _coverage(
@@ -1177,7 +1185,8 @@ def _aggregate_only(
         evidence=evidence,
         historical_reason=reason,
         trailing_reason=reason,
-        categories=[],
+        historical_categories=[],
+        trailing_categories=[],
     )
 
 
@@ -1217,7 +1226,10 @@ def _envelope(
             if (window_start is None or window_start > trailing_start
                     or window_start >= window_end):
                 _fail("stale_readback")
-        coverage_windows[projection] = window["complete"] and window_end >= snapshot_at
+        # Fresh by the checks above: window_end == observed_at, under 24h before snapshot.
+        coverage_windows[projection] = (
+            list(OWNED_CATEGORIES) if window["complete"] else [contract.REVENUE]
+        )
 
     pagination = payload["pagination"]
     _exact_keys(pagination, PAGINATION_KEYS)
@@ -1249,8 +1261,6 @@ def _envelope(
         context["platform"],
         converted["source_rows"],
     )
-    historical_reason = None if coverage_windows["historical"] else "missing_coverage"
-    trailing_reason = None if coverage_windows["trailing"] else "missing_coverage"
     return [
         *receipts,
         *_coverage_rows(
@@ -1258,9 +1268,10 @@ def _envelope(
             snapshot_at=snapshot_at,
             trailing_start=trailing_start,
             evidence=evidence,
-            historical_reason=historical_reason,
-            trailing_reason=trailing_reason,
-            categories=list(OWNED_CATEGORIES),
+            historical_reason=None,
+            trailing_reason=None,
+            historical_categories=coverage_windows["historical"],
+            trailing_categories=coverage_windows["trailing"],
         ),
     ]
 
@@ -1354,7 +1365,8 @@ def adapt(
             evidence=evidence,
             historical_reason=reason,
             trailing_reason=reason,
-            categories=[],
+            historical_categories=[],
+            trailing_categories=[],
         )
 
 

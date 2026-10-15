@@ -9,7 +9,8 @@ amount is recorded as the sale and no fee is invented.
 Honesty rules for skills/cfo/adapters/marketplace.py:
 - pagination/receipt_map are complete only when the rows sum exactly to the page's own
   累積売上; otherwise the adapter emits no revenue (unknown, never zero).
-- coverage stays incomplete: the page itemizes neither fees nor refunds.
+- coverage.complete stays false: the page itemizes neither fees nor refunds, so the
+  CFO reports this credited 売上 as revenue only and keeps refunds, fees and net unknown.
 
 Usage:
   coconala_cfo_financial_readback.py --output PATH [--cdp URL]          # live read, write
