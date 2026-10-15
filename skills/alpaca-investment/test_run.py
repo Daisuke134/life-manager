@@ -31,6 +31,19 @@ def _publisher_probe(root: Path) -> tuple[Path, Path]:
 
 
 class DeploymentProfileTest(unittest.TestCase):
+    def test_paper_etf_effect_carries_execution_quote_and_zero_model_cost_evidence(self):
+        decision = {"strategy_id": "alpaca-etf-126d-momentum-v1", "approved": True}
+        order = {"asset_class": "us_equity", "symbol": "QQQ", "side": "buy"}
+        result = MODULE._paper_etf_cost_evidence(
+            decision, order, {"qqq_quote": {"bid": "399", "ask": "400", "quote_at": "now"}},
+        )
+
+        self.assertEqual(result["execution_quote"], {
+            "bid": "399", "ask": "400", "quote_at": "now",
+        })
+        self.assertEqual(result["model_cost_usd"], "0.00")
+        self.assertEqual(result["model_cost_source"], "deterministic_etf_policy")
+
     def test_reconciliation_pending_is_a_hold_not_a_generic_failure(self):
         self.assertTrue(MODULE._reconciliation_is_pending({
             "pending": 1, "reconciled": 0, "unresolved": 1, "deferred": 1,
