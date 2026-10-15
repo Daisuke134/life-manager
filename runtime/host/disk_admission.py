@@ -27,6 +27,14 @@ _DISK_RECOVERY_REASON = "disk_headroom_low"
 RECOVERY_FLOOR_BYTES = 2 * 1024**3
 # Swap lives on the Data volume; below this floor the Mac froze (2026-10-14).
 PRODUCER_FLOOR_BYTES = 15 * 1024**3
+
+
+def _producer_floor_bytes() -> int:
+    """Calibration knob for isolated tests and smaller hosts; production uses the default."""
+    try:
+        return max(0, int(os.environ.get("LIFE_MANAGER_PRODUCER_FLOOR_BYTES", PRODUCER_FLOOR_BYTES)))
+    except ValueError:
+        return PRODUCER_FLOOR_BYTES
 _PRODUCER_FLOOR_REASON = "disk_floor_low"
 # Cleanup, reconcile and health owners must keep running to recover space.
 _CONTROL_PLANE_LOOPS = frozenset({
@@ -251,7 +259,7 @@ def _producer_gate(
             return reason, flag
     if check_capacity and loop_id not in _CONTROL_PLANE_LOOPS:
         available = disk_free_bytes(configured)
-        if available is not None and available < PRODUCER_FLOOR_BYTES:
+        if available is not None and available < _producer_floor_bytes():
             return _PRODUCER_FLOOR_REASON, configured
     return None
 
