@@ -39,3 +39,25 @@ def test_validate_spec_accepts_layout_safe_copy_and_rejects_overflow():
         validate_spec(long)
     with pytest.raises(ValueError):
         validate_spec({**SPEC, "cards": SPEC["cards"][:2]})
+
+
+def test_schedule_writes_dispatch_marker_before_upload_and_skips_existing(tmp_path, monkeypatch):
+    import capafy_reel_daily as m
+    monkeypatch.setattr(m, "BASE", tmp_path)
+    (tmp_path / "s" / "renders-v2").mkdir(parents=True)
+    (tmp_path / "s" / "renders-v2" / "video.mp4").write_bytes(b"x")
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    seen = []
+
+    def fake_req(key, url, *a, **k):
+        seen.append(("req", url, sorted(p.name for p in run_dir.iterdir())))
+        raise RuntimeError("stop after first provider call")
+
+    monkeypatch.setattr(m, "_req", fake_req)
+    existing = {"ig": "ig-already", "x": None}
+    with pytest.raises(RuntimeError):
+        m.schedule("s", SPEC, dt.date(2026, 10, 29), "k", run_dir=run_dir, existing_fn=lambda net, slot: existing[net])
+    assert (tmp_path / "s" / "ig-receipts-v3.jsonl").exists()  # existing post recorded, not re-created
+    assert not (run_dir / "dispatch-ig.json").exists()
+    assert seen and seen[0][2] == ["dispatch-x.json"]  # marker on disk before the first provider call
