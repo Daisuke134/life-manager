@@ -401,3 +401,27 @@ def test_gmail_search_is_read_only_and_bound_to_the_application_account(tmp_path
     argv = seen[0]
     assert argv[argv.index("--account") + 1] == "a@example.com"
     assert "--gmail-no-send" in argv and argv[4] == "in:anywhere from:me"
+
+
+def test_gmail_search_loads_keyring_password_from_job_search_private_env(tmp_path, monkeypatch):
+    # launchd has no TTY, so gog needs GOG_KEYRING_PASSWORD; the reconciler's env lacks it.
+    module = load()
+    profile = tmp_path / "profile.json"
+    profile.write_text(json.dumps({"candidate": {"application_email": "a@example.com"}}),
+                       encoding="utf-8")
+    private = tmp_path / "private.env"
+    private.write_text("# x\nexport GOG_KEYRING_PASSWORD='s3 cret'\n", encoding="utf-8")
+    monkeypatch.setattr(module, "PROFILE", profile)
+    monkeypatch.setattr(module, "PRIVATE_ENV", private)
+    monkeypatch.delenv("GOG_KEYRING_PASSWORD", raising=False)
+    envs = []
+
+    class Done:
+        returncode = 0
+        stdout = json.dumps(GOG_EMPTY)
+
+    monkeypatch.setattr(module.subprocess, "run",
+                        lambda argv, **kwargs: envs.append(kwargs.get("env")) or Done())
+
+    assert module.gmail_search("in:anywhere from:me") == GOG_EMPTY
+    assert envs[0]["GOG_KEYRING_PASSWORD"] == "s3 cret"
