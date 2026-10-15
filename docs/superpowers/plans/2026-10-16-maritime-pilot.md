@@ -14,6 +14,7 @@
 
 - feature flag、API key、3名以下のUID allowlistのどれかが無効ならprovider callをしない。
 - `MARITIME_PILOT_DATA_APPROVED=1` がない時もprovider callをしない。これはsource guardであり、法的同意や参加者同意を代替しない。
+- `MARITIME_PILOT_TOOL_POLICY_VERIFIED=1` がない時もprovider callをしない。OpenClawのtools/skillsは公式docsで確認済みで、promptだけでは無効化を保証しない。
 - API keyはserver環境だけに置き、browser、Telegram、logs、Gitに出さない。
 - `LM_UID_SECRET`によるHMACからstable externalId/conversationIdを導出し、PIIはagent metadataへ送らない。
 - Telegram updateごとに既存`lm_panel_command_receipts`でprovider前のdurable claimを行う。request hashのみHMAC保存し、重複updateでは再chatも返信もしない。pending/failed receiptは解放しない。
@@ -30,6 +31,7 @@
 4. SDKの非throwing errorやmissing responseを成功扱いせず、chatを再送しない。
 5. Telegram HTML出力をescapeし、本文やsecretをlogsへ出さない。
 6. 同じTelegram `update_id` の再配信で2回目のprovider callや返信を行わず、receiptに本文やresponseを保存しない。
+7. OpenClaw tool capabilitiesの実制限を確認するまでtool-policy gateを通さない。
 
 ---
 
@@ -64,10 +66,10 @@
 - server injects chatForUser only; slash-command owns validation, allowlist gate, safe Telegram output and truthful status.
 - No database migration, scheduler, loop registry row or background provisioning.
 
-- [x] Step 1: Write failing tests for flag-off, missing data gate, no key, invalid allowlist, unlinked user, disallowed UID, missing/oversized message, provider error, safe response escaping/truncation, enabled-only `/help` visibility, and duplicate Telegram update suppression.
-- [x] Step 2: Run focused slash tests; the new help case fails before its visibility gate and the fake HTTP test proves a redelivered update causes a second Maritime chat.
-- [x] Step 3: Add the disabled-by-default branch; pass uid/message only after every gate, list `/pilot` only for enabled users, and claim a durable HMAC receipt before a provider call.
-- [x] Step 4: Re-run 55 focused unit tests plus the Telegram HTTP contract test; verify one fake Maritime chat for a duplicate Telegram update and update its stale `lm_message_channels` fixture.
+- [x] Step 1: Write failing node:test cases for missing tool-policy verification as well as disabled configuration/data gate, invalid UID allowlist, HMAC IDs, provider errors, input bounds, help visibility, and duplicate-update suppression.
+- [x] Step 2: Run focused transport tests; they fail when tool-policy verification is missing because the transport still accepts the request.
+- [ ] Step 3: Require the verified tool-policy gate before SDK load, use truthful agent instructions, and retain the durable HMAC receipt fence.
+- [ ] Step 4: Re-run focused tests; verify zero provider calls when tool-policy verification is missing and one fake chat for duplicate Telegram updates.
 - [x] Step 5: Commit and push the command integration.
 
 ### Task 3: source acceptance

@@ -41,6 +41,7 @@ test("POST /telegram routes the legacy-parity slash surface without disturbing e
   process.env.LM_BROWSER_TASKS_ENABLED = "1";
   process.env.MARITIME_PILOT_ENABLED = "1";
   process.env.MARITIME_PILOT_DATA_APPROVED = "1";
+  process.env.MARITIME_PILOT_TOOL_POLICY_VERIFIED = "1";
   process.env.MARITIME_API_KEY = "mk_test_fixture";
   process.env.MARITIME_PILOT_UID_ALLOWLIST = "u1";
   process.env.LM_UID_SECRET = "fixture-uid-secret";
@@ -595,6 +596,7 @@ test("POST /telegram routes the legacy-parity slash surface without disturbing e
     delete process.env.LM_PANEL_BASE_URL;
     delete process.env.MARITIME_PILOT_ENABLED;
     delete process.env.MARITIME_PILOT_DATA_APPROVED;
+    delete process.env.MARITIME_PILOT_TOOL_POLICY_VERIFIED;
     delete process.env.MARITIME_API_KEY;
     delete process.env.MARITIME_PILOT_UID_ALLOWLIST;
     delete process.env.LM_UID_SECRET;

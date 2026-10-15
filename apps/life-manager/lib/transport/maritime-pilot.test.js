@@ -7,6 +7,7 @@ const { createMaritimePilotTransport } = require("./maritime-pilot.js");
 const ENV = Object.freeze({
   MARITIME_PILOT_ENABLED: "1",
   MARITIME_PILOT_DATA_APPROVED: "1",
+  MARITIME_PILOT_TOOL_POLICY_VERIFIED: "1",
   MARITIME_API_KEY: "mk_test_only",
   MARITIME_PILOT_UID_ALLOWLIST: "uid-a,uid-b,uid-c",
   LM_UID_SECRET: "test-secret",
@@ -34,6 +35,8 @@ test("disabled, unapproved, incomplete, or invalid config makes no Maritime call
   const invalidEnvs = [
     { ...ENV, MARITIME_PILOT_ENABLED: "0" },
     { ...ENV, MARITIME_PILOT_DATA_APPROVED: "0" },
+    { ...ENV, MARITIME_PILOT_TOOL_POLICY_VERIFIED: "0" },
+    Object.fromEntries(Object.entries(ENV).filter(([key]) => key !== "MARITIME_PILOT_TOOL_POLICY_VERIFIED")),
     { ...ENV, MARITIME_API_KEY: "" },
     { ...ENV, LM_UID_SECRET: "" },
     { ...ENV, MARITIME_PILOT_UID_ALLOWLIST: "uid-a,uid-b,uid-c,uid-d" },

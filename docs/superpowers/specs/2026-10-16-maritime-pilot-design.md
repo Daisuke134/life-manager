@@ -15,6 +15,7 @@ Life ManagerのTelegram利用者3人に、各自専用のMaritime agentとmicro-
 - API keyは`provision`と`deploy` scopeに限定できる。BYOK env登録には別途`secrets` scopeが必要。https://maritime.sh/docs/sdk/authentication.md
 - Free planは3 agent、同時起動1体、$0で期限なし。現行list priceで1,000 machineはScaleの500台$500/月 + 追加500台×$1/月で、host費用は約$1,000/月。model callsは別料金。大会free accessの範囲・期間は未確定。https://maritime.sh/docs/billing.md https://competition.maritime.sh/terms
 - Maritime AI-credit model callsはfull prompt/responseを無期限保存。BYOK callsはMaritimeに保存されないが、agentへkeyを登録する必要がある。どちらもこのpilotでは未使用。https://maritime.sh/privacy https://maritime.sh/docs/sdk/agents.md
+- MaritimeのOpenClaw frameworkは100+ built-in skills（web browsing、code execution、file management等）を持つautonomous agent。prompt指示だけではこれらを無効化できた証明にならない。制限済みtool policyかchat-only custom imageを確認するまで有効化しない。https://maritime.sh/docs/frameworks/openclaw
 - 現行apps/life-managerにMaritime SDK呼び出しやユーザー別継続chat経路はない。Telegram slash-command routerは既存の明示的なuser command境界。
 - YC公式profileでMaritimeはFall 2026 companyと確認。創業者への接点があることはYC紹介やWinter 2027採択の保証ではない。https://www.ycombinator.com/companies/maritime
 
@@ -26,7 +27,7 @@ Life ManagerのTelegram利用者3人に、各自専用のMaritime agentとmicro-
 
 ## データフローと境界
 
-Telegram webhookが既存のlm_users.uidを解決する。/pilot commandを受けた場合だけ、feature flag、server-side MARITIME_API_KEY、重複なしの最大3 UID allowlistを検証する。どれかが不足・不正ならSDKをimportせず外部callを行わない。
+Telegram webhookが既存のlm_users.uidを解決する。/pilot commandを受けた場合だけ、feature flag、data approval、tool-policy verification、server-side MARITIME_API_KEY、重複なしの最大3 UID allowlistを検証する。どれかが不足・不正ならSDKをimportせず外部callを行わない。`MARITIME_PILOT_TOOL_POLICY_VERIFIED=1`は実際にtool制限を確認した後だけ設定し、OpenClawのprompt指示だけでpassさせない。
 
 有効なpilot userではprovider callより前に、既存の`lm_panel_command_receipts`へ`telegram-maritime-pilot:<update_id>`をclaimする。request hashはLM_UID_SECRETでHMAC化し、メッセージ本文をreceiptへ保存しない。同じupdate_idの再配信はclaim conflictでprovider callも返信も行わずHTTP 200で終える。pending/failed receiptは自動解放しないため、claim後のcrashで依頼が未完了になる場合はあるが、有料provider callの重複を優先して防ぐ。新しいTelegram updateでの明示再依頼は別のreceiptとなる。
 
@@ -44,6 +45,7 @@ pilotはchat-onlyとし、Calendar書込み、メール送信、購入、browser
 
 - 本作業ではMaritime account作成、ToS同意、API key発行、VM作成、実ユーザーの入力送信、paid plan、AI-credit購入、旅行予約を行わない。
 - 現行goalの制約では、Maritimeの法的拘束力あるToSとAI-credit利用時の無期限prompt retentionを含むdata handling条件が未承認なのでpilot routeを有効化しない。
+- OpenClawのbrowser/code/file capabilitiesを限定するruntime設定は未確認なので、tool-policy verification gateを通すまではpilot routeを有効化しない。
 - BYOKはretentionを避ける候補だが、第三者agentへcredentialを登録する追加データ条件が発生するため、本作業では使わない。
 - 実pilotの成功条件は、参加者同意の証跡、3 UID→3 external ID→3 agent/VMのofficial readback、3人の実利用、error/retention条件確認、7日利用指標、Billingの実費readback。これらが揃う前に10→100→1,000へ拡大しない。
 
