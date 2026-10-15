@@ -19129,3 +19129,18 @@ A direct RevenueCat V2 read observed at 2026-10-14T22:25Z reports latest complet
 - **D8 started (2026-10-15 16:40 JST):** public mention to Capafy official `@capafyai` from @selawmqt with the honest story (agent writes, ships and markets Hook Lab; 70 orders) and the `hooklab_x` ct link: https://x.com/selawmqt/status/2110607335442067635. Capafy official channels: X `@capafyai`, TikTok `@capafy_`, Instagram `capafy_official`, YouTube `@Capafy`, Discord `discord.gg/kJnCxQrmDj`.
 - **Instagram `capafy.hooklab`:** Postiz integration "Hook Lab by Anicca" is this account and published daily through 10/14 (public profile and latest reel return 200). The web session in `instagram:capafy-provision` is at a phone checkpoint (6-digit code sent by WhatsApp to Dais's number), so the bio ct link cannot be set from the browser; Postiz API posting is unaffected.
 - **TikTok warm-up:** first passive For You session run (~6 min, no posts/follows/likes).
+
+### Capafy factory unblock + hot-list diagnosis — 2026-10-15 19:30 JST (claude-evo-eval-1012)
+
+**Money (official reconcile 09:11Z):** 70 orders / $102.75; no paid order since 9/29. 30d paid 14 = search 7, hot 4, direct 2, google 1; external ct routes have never produced a paid order. 7d views 905: search 521, direct 253, ai_overview 43, hooklab_x 2, hooklab_ig 2, hooklab_blog 1, hooklab_free 0.
+
+**Why sales stopped (measured):** Hook Lab hot impressions 6,006/30d -> 311/7d (about -78% weekly), category 2,165 -> 65. Public `POST https://api.capafy.ai/public/agents/get-hot` `{"type":"a"}` (70 rows) contains no agent of ours; Hook Lab is #38 in Marketing (`/public/category/hot` categoryId 7). Order is server-side (`index`; `score`/`compositeScore`/`pageStatsScore` are null publicly). Inference: recent sales/visit momentum drives hot, so no sales -> no hot -> no sales. New listings do get exposure: the free clip-map agent got 3,064 search impressions / 423 visits in its first week. Top competitors set primary category Video (5) + secondary Social Media (10); Hook Lab has no secondary category.
+
+**Factory was fenced 07:32-19:12 JST:** occurrence `capafy-loop-daily:18de84d37d8627d0-93465` stayed `claimed/effect_unknown=1`; every wake exit 75 `host_admission_deferred:resource_effect_unknown`. Cause in `read_occurrence_bound_partial_effect_receipt`: drainer results are 0644 (76/76 on host) but were read with `private=True`, and a same-version update on another Agent 8 h after the run voided the proof. #8151 (`a94929fa`) fixed both; release `20261015T191010-a94929fa`; target-only apply `lm-fence-reconciler`; `--resolve` closed the fence as effected (`capafy:agent/7393298474/version/2110426515594047488:platform_status=0:package_uploaded=1`, row `released/0`). Next factory run 19:14 JST submitted **TikTok Comment Reply Script Pack (7393298474)**, official `platform_status=1 audit=1`. Its yearly usage cap was saved as 5,760 vs LISTING 480; price $9.99/$24.99/$149.99 is in band and DeepSeek cost stays far below price.
+
+**Open:**
+- `capafy-distribute-daily` 24h: 7 pass, 22 blocked `resource_capacity_busy` (agent class), 15 `resource_effect_unknown`, 9 `disk_floor_low`; last pass 05:20Z.
+- Disk 13 GB free after clearing HTTP caches of non-running profiles x-diceai0, gig-upwork, job-search-daily (about 1.95 GB); producer floor is 15 GiB.
+- Free clip-map update (#8146) is queued as `update_existing`, which ships only when no new Agent can be created or finished.
+
+**Cursor:** watch the review of 7393298474 -> new creator-tool listings with primary Video + secondary Social Media, each linking to Hook Lab by ct -> concentrate Hook Lab traffic into the same few days -> distribute starvation on the agent class.
