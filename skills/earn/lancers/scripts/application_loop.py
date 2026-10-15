@@ -275,6 +275,24 @@ def _discovery_query(value: object) -> str:
     except (TypeError, ValueError, OverflowError, OSError):
         return DEFAULT_DISCOVERY_QUERY
 
+def _discovery_source(value: object) -> dict[str, Optional[str]]:
+    """One request per wake: every category page first, then the catalogue keywords.
+
+    Measured 2026-10-16 through the leased browser: /system 19, /web 20, /writing 20, /task 20
+    postings against 1 for 「業務自動化」 or 「Python」. The default path read only keywords, so
+    the lane judged 0-4 rows a wake and applied to nothing for two days.
+    """
+    sources = [{"query": None, "category": c} for c in DISCOVERY_CATEGORIES]
+    sources += [{"query": q} for q in DISCOVERY_QUERIES]
+    try:
+        if isinstance(value, str):
+            value = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+        if not isinstance(value, datetime) or value.utcoffset() is None:
+            return sources[0]
+        return sources[int(value.astimezone(timezone.utc).timestamp() // WAKE_INTERVAL_SECONDS) % len(sources)]
+    except (TypeError, ValueError, OverflowError, OSError):
+        return sources[0]
+
 def _observed_after(candidate: Mapping[str, object], incumbent: Mapping[str, object]) -> bool:
     """True when candidate carries a strictly later `observed_at` than incumbent."""
     def parsed(row: Mapping[str, object]) -> Optional[datetime]:
@@ -370,8 +388,8 @@ def _run_default_discovery(tick_value: object, timeout: float, state_path: Path,
     ``_discovery_query`` rotating on the next wake; a selected slice must be judged now rather
     than waiting for an exhaustive union.
     """
-    query = _discovery_query(tick_value)
-    last = status.run_discovery(query=query, limit=MAX_OPPORTUNITIES, timeout=timeout, **({"page": page} if page is not None else {}))
+    source = _discovery_source(tick_value)
+    last = status.run_discovery(**source, limit=MAX_OPPORTUNITIES, timeout=timeout, **({"page": page} if page is not None else {}))
     error = last.get("error")
     if last.get("ok") is not True:
         if error == "no_normalized_opportunities":
