@@ -7,6 +7,7 @@ Unknown paths, sessions, state, credentials, source, and probe failures remain.
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import argparse
 from contextlib import contextmanager, suppress
 import errno
@@ -521,6 +522,39 @@ def _run_git(path: Path, *arguments: str, timeout: float = 5) -> subprocess.Comp
     except (OSError, subprocess.SubprocessError):
         return None
     return result if result.returncode == 0 and not result.stderr.strip() else None
+
+
+_REGENERABLE_IGNORED_PARTS = frozenset({"node_modules", "__pycache__", ".next", ".pytest_cache", ".turbo"})
+
+
+def _lease_expired(lease: Path) -> bool:
+    """A lease whose expires_at is in the past no longer protects its worktree."""
+    try:
+        value = json.loads(lease.read_text(encoding="utf-8"))
+        expires = datetime.fromisoformat(str(value["expires_at"]).replace("Z", "+00:00"))
+    except (OSError, ValueError, KeyError, TypeError):
+        return False
+    return expires.tzinfo is not None and expires < datetime.now(timezone.utc)
+
+
+def _expired_managed_lock(reason: object) -> Path | None:
+    if not isinstance(reason, str) or not reason.startswith("managed-lease:"):
+        return None
+    lease = Path(reason.split(":", 1)[1])
+    return lease if _lease_expired(lease) else None
+
+
+def _only_regenerable_status(output: str) -> bool:
+    """Allow ignored dependency caches and untracked .DS_Store; anything else is work."""
+    for line in output.splitlines():
+        code, _, name = line.partition(" ")
+        parts = Path(name.strip().strip('"').rstrip("/")).parts
+        if code == "!!" and (_REGENERABLE_IGNORED_PARTS.intersection(parts) or parts[-1:] == (".DS_Store",)):
+            continue
+        if code == "??" and parts[-1:] == (".DS_Store",):
+            continue
+        return False
+    return True
 
 
 def _worktree_records(repository: Path) -> list[dict[str, str | bool]] | None:
@@ -1210,7 +1244,7 @@ class HostDiskGovernor:
         )
         if (
             record is None
-            or record.get("locked")
+            or (record.get("locked") and _expired_managed_lock(record.get("locked")) is None)
             or record.get("prunable")
             or not isinstance(record.get("HEAD"), str)
         ):
@@ -1248,7 +1282,8 @@ class HostDiskGovernor:
         except OSError:
             return None
         else:
-            return None
+            if not _lease_expired(lease):
+                return None
         remote_head = remote_result.stdout.strip()
         if re.fullmatch(r"[0-9a-f]{40,64}", remote_head) is None:
             return None
@@ -1275,7 +1310,7 @@ class HostDiskGovernor:
             "--untracked-files=all",
             "--ignored=no" if dependency_cache else "--ignored=matching",
         )
-        if status is None or status.stdout:
+        if status is None or not _only_regenerable_status(status.stdout):
             return None
         if not dependency_cache:
             if _release_immutable_store_probe(path, deadline=deadline, clock=self.clock) is not None:
@@ -1984,6 +2019,15 @@ class HostDiskGovernor:
                         preserve("probe-budget-exhausted")
                         continue
                     repository = self.home / WORKTREE_REPOSITORY_RELATIVE
+                    records = _worktree_records(repository) or []
+                    record = next((r for r in records if r.get("worktree") == str(path)), {})
+                    expired_lease = _expired_managed_lock(record.get("locked"))
+                    if expired_lease is not None:
+                        subprocess.run(["git", "-C", str(repository), "worktree", "unlock", str(path)],
+                                       capture_output=True, text=True, check=False, timeout=15.0)
+                    for current, _dirs, files in os.walk(path, followlinks=False):
+                        if ".DS_Store" in files:
+                            Path(current, ".DS_Store").unlink()
                     removed = subprocess.run(
                         ["git", "-C", str(repository), "worktree", "remove", str(path)],
                         capture_output=True,
@@ -1994,6 +2038,11 @@ class HostDiskGovernor:
                     )
                     if removed.returncode != 0 or removed.stderr.strip():
                         raise OSError(errno.EIO, "ordinary git worktree remove failed")
+                    common = Path(identity[3])
+                    for lease in (expired_lease, common / "worktree-leases" / (
+                            hashlib.sha256(str(path).encode("utf-8")).hexdigest() + ".json")):
+                        if lease is not None and _lease_expired(lease):
+                            lease.unlink(missing_ok=True)
                 elif item.get("owner") == "worktree-dependencies":
                     identity = item["dependency_identity"]
                     if self._worktree_dependency_identity(path, deadline=deadline) != identity:
