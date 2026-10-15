@@ -4,7 +4,7 @@ agentType: run_online · Primary Model: Claude Sonnet 5 · category: マーケ�
 LLM Config (CP2): OpenRouter, anthropic/claude-sonnet-5, openai-responses, CAPAFY_HOST_OPENROUTER_KEY
 WHY: 2026-09-28 OpenRouter activity (management key, 28d): claude-sonnet-4.6 $42.87 of $43.6 total; Hook Lab 30d est. cost $20.31 vs net $19.91. v1.0.3 (DeepSeek) approved 2026-09-29. 2026-09-29 reprice: copy HookAce (868 sold, week $9.99 / month $19.99) per the Capafy market sweep; day $3.99 matches TikTok Scripts / SEO Content Writer day band. 2026-09-29: added a required yearly plan (policy: always a year row, no free trial) at $99.99, matching "SEO Audit Pro" (agent `7414412165`, category 7, 9 sales) — this UPDATE is still in draft (status=0, not yet submitted), so the pricing table is safe to extend.
 
-## 2026-10-08: welcome message completed and FAQ matched to the day/week/month plans. Frozen in skills/capafy/FROZEN.json; do not reprice.
+## 2026-10-16: Dais ordered the September prices back (all 12 paid orders were at day $1.99 / week $4.99 / month $9.99; zero since the 9/29 raise). Same three plans as the September sales; the existing restore draft v1.0.8 already carries them. Re-freeze after submission.
 
 ## Pricing
 | cycle | price | cap | trial |

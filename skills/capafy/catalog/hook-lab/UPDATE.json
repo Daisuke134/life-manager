@@ -1,0 +1,7 @@
+{
+  "agent_id": "8123079349",
+  "from_version_id": "2108043821790818304",
+  "target_model_id": "anthropic/claude-sonnet-5",
+  "reason": "restore_the_price_that_sold_2026_09",
+  "dais_approved_exception": "Dais 2026-10-16: lower Hook Lab back to the prices it sold at (day $1.99 / week $4.99 / month $9.99) as long as it stays profitable. Worst case at full cap on Sonnet 5 (~$0.085/request, 73% net): day +$0.60, week +$1.09, month +$3.04. Same model, copy unchanged."
+}
