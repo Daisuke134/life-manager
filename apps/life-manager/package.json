@@ -51,6 +51,7 @@
     "canonicalize": "^1.0.8",
     "inngest": "^4.11.0",
     "jsqr": "1.4.0",
+    "maritime-sdk": "0.9.0",
     "pg": "8.22.0",
     "playwright-core": "1.55.1",
     "pngjs": "7.0.0",

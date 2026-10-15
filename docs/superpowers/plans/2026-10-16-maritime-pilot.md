@@ -46,9 +46,9 @@
 
 - [x] Step 1: Write failing node:test cases for disabled configuration/data gate, invalid UID allowlist, stable HMAC externalId, provision failure, chat error, empty response and successful response.
 - [x] Step 2: Run only node --test apps/life-manager/lib/transport/maritime-pilot.test.js; it fails because the transport module is not implemented yet.
-- [ ] Step 3: Add exact maritime-sdk 0.9.0 dependency and implement lazy ESM import, `new Maritime({ apiKey, maxRetries: 0 })`, HMAC identifiers, object-form `provision`, chat error checking and no retries.
-- [ ] Step 4: Re-run the focused transport tests and confirm they pass.
-- [ ] Step 5: Commit the transport and lockfile change.
+- [x] Step 3: Add exact maritime-sdk 0.9.0 dependency and implement lazy ESM import, `new Maritime({ apiKey, maxRetries: 0 })`, HMAC identifiers, object-form `provision`, chat error checking and no retries.
+- [x] Step 4: Re-run the focused transport tests and confirm they pass.
+- [x] Step 5: Commit and push the transport and lockfile change.
 
 ### Task 2: explicit Telegram pilot command
 
