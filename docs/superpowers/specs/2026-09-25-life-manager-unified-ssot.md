@@ -64,6 +64,14 @@
 
 共通: host全体のagent枠は2（`LIFE_MANAGER_HOST_MAX_AGENT_TOTAL_RUNS`）。24hのagent occurrenceはlancers-paid 257・crowdworks-paid 229・hf-gig-paid 194が上位で、入金確認pollingが応募より多く枠を使う。admission DBは396,519 occurrence（claimed放置38,583、effect_unknown約5万）・164MB。`gig-outcome-watch` はpassだがreleaseに`outcome_watch.py`が無く何も測っていない。
 
+**Gig 進捗（2026-10-15 14:45 JST）:**
+- Lancers: ログアウトを解消（credential SSOT＋メール認証コード、lease `lancers:dais`）。session を `~/.cloak/vault/lancers-dais/auth-state.json`（cookie 42）へ保存。14:00 work-sync 自然runで `final_route_category=dashboard`/`ready`。応募は pending 照合が 405（AWS WAF、`aws-waf-solver.json` が古い task を `pending` のまま保持）で止まっており未解決。作業中に私が lease を返さず13:11–13:41の30分 Lancers lane を止めた（再発防止: lease は同一コマンド内で release）。
+- CrowdWorks: 返信laneが金額確認なしで契約を自動承諾していた（12円×11・110円・165円、勧誘型求人）。PR #8132 で固定5,000円未満/時給1,500円未満/金額不明は承諾しない。release 0ff2e33d を `crowdworks-revenue-reply` へ適用済み。
+- 入金確認3本を15分毎、Lancers応募を5分毎に（PR #8133、plistで4回/時・12回/時を確認）。
+- Admission: 待ち occurrence 18,238件（7日超7,066）でキュー走査1.23秒→ `resource_control_busy`。PR #8136 で各ownerの最新待ちを残し24時間超の重複待ちを取消（5,000件/回、central cleanup）。本番readback: queued 18,238→2,441、走査1,230ms→70ms、Gigの `control_busy` 5→1。
+- Coconala apply fence: 全intent確定の証明で閉じる案はreview FIX-FIRST。v1 `prepared` 117件と状態なし2件が未確定（2026-09-25応募履歴で59件は応募済み、60件は履歴が不完全＝確定776件中38件が履歴に無いため証明不能）。draft PR #8131 は保留。残る案=依頼ページの「募集終了」公式readbackで重複不能を証明する新proof型（Dais判断待ち）。
+- 新しい穴: governor の `storage_growth` は全root `delta_bytes=None` で増加犯を測れていない（#4通知は容量の大きい順へ縮退）。空きは worktree 退役後 15.2GiB で下限付近、swap 4GiB。
+
 **Gig修理の順（お金に近い順）:** G-a Coconala apply fence → G-b Lancers session復元 → G-c CrowdWorks 単価filterと枠配分 → G-d Mercor fence → G-e admission DBの肥大(放置claimed/unknown)とpaid pollingの枠消費。
 
 ### 実行計画と期限（2026-10-15 確定、Daisの実施指示あり）
