@@ -54,13 +54,14 @@ SETTLED_STATUS = "検収完了"
 #   マインクラフト統合版の銃アドオンのバグ修正
 #   buyer_handle_c
 #   13,260 円
-# with an optional 申請済み line before the amount once a payout is requested.
+# with an optional 申請済み line before the amount once a payout is requested, which
+# becomes 振込済み once it is paid out (the row is still the same settled sale).
 ROW_RE = re.compile(
     r"(?P<ts>\d{4}/\d{2}/\d{2}\s+\d{2}:\d{2})\s*\n"
     r"トークルームNo：(?P<room>\d+)\s*\n"
     r"(?P<title>.+?)\n"
     r"(?P<buyer>.+?)\n"
-    r"(?:(?P<requested>申請済み)\s*\n)?"
+    r"(?:(?P<requested>申請済み|振込済み)\s*\n)?"
     r"(?P<amount>[\d,]+)\s*円",
     re.MULTILINE,
 )
@@ -211,8 +212,8 @@ def append_new(parsed: dict, source_url: str, dry_run: bool = False) -> list[dic
     return fresh
 
 
-def scrape(cdp_url: str) -> str:
-    """Read the revenue page over an EXISTING browser. Never launches one."""
+def scrape(cdp_url: str, url: str = REVENUE_URL) -> str:
+    """Read one revenue page over an EXISTING browser. Never launches one."""
     import inspect
 
     from playwright.sync_api import sync_playwright
@@ -224,7 +225,7 @@ def scrape(cdp_url: str) -> str:
         browser = p.chromium.connect_over_cdp(cdp_url, **kwargs)
         page = browser.contexts[0].new_page()  # never touch pages we do not own
         try:
-            page.goto(REVENUE_URL, wait_until="domcontentloaded", timeout=60000)
+            page.goto(url, wait_until="domcontentloaded", timeout=60000)
             page.wait_for_timeout(8000)
             if "見つかりませんでした" in page.evaluate("document.body.innerText"):
                 raise RuntimeError("revenue page not reachable (login lost?)")
