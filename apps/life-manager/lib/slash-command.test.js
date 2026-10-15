@@ -197,6 +197,17 @@ test("/pilot provider failures do not expose provider details or claim success",
   assert.doesNotMatch(sent[0].text, /secret provider detail/);
 });
 
+test("/pilot bounds long escaped replies without cutting an HTML entity", async () => {
+  const { sent, deps } = harness({
+    isMaritimePilotEnabled: () => true,
+    chatWithMaritimePilot: async () => ({ ok: true, response: "<".repeat(2000) }),
+  });
+  const outcome = await handleSlashCommand(parseSlashCommand("/pilot hello"), ROW, deps);
+  assert.equal(outcome.ok, true);
+  assert.ok(sent[0].text.length <= 3500);
+  assert.match(sent[0].text, /(?:&lt;)+…$/);
+});
+
 test("/gig sends the Coconala setup-required reply with its signup button", async () => {
   const snapshot = { lifecycle: "setup_required" };
   const expected = buildGigReply("coconala", snapshot);

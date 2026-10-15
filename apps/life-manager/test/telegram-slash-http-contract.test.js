@@ -139,6 +139,14 @@ test("POST /telegram routes the legacy-parity slash surface without disturbing e
       }
       throw new Error(`unexpected telegram call ${url.pathname}`);
     }
+    if (url.pathname === "/rest/v1/lm_message_channels" && method === "GET") {
+      const senderId = String(url.searchParams.get("sender_id") || "").replace(/^eq\./, "");
+      if (senderId === "100") return response(200, [{ uid: "u1", owner_kind: "legacy" }]);
+      if (startedRow && senderId === String(startedRow.telegram_chat_id)) {
+        return response(200, [{ uid: startedRow.uid, owner_kind: "legacy" }]);
+      }
+      return response(200, []);
+    }
     if (url.pathname === "/rest/v1/lm_users" && method === "GET") {
       const uid = String(url.searchParams.get("uid") || "").replace(/^eq\./, "");
       if (uid) {
@@ -326,6 +334,13 @@ test("POST /telegram routes the legacy-parity slash surface without disturbing e
       assert.ok(lastSent().text.includes(expected), `/help must list ${expected}`);
     }
 
+    // 2a. /pilot is an explicit route but remains disabled by default. It must not reach the
+    //     Maritime SDK or fall through to browser-task classification.
+    const beforePilot = sent.length;
+    assert.equal(await message("100", "/pilot plan my day"), 200);
+    assert.equal(sent.length, beforePilot + 1);
+    assert.match(lastSent().text, /Maritime pilot.*利用できません/);
+
     // 2b. /invest crosses the real authenticated webhook + tenant lookup + shared renderer +
     //     Telegram transport. It reads this exact tenant's Cloud Investment state and records the
     //     provider's message id. The fake fetch
@@ -374,6 +389,7 @@ test("POST /telegram routes the legacy-parity slash surface without disturbing e
     //    core.telegram.org/bots/features → Deep Linking says "https://t.me/your_bot?start=airplane"
     //    delivers "/start airplane" (groups deliver "/start@your_bot spaceship"), i.e. the payload
     //    is always space-separated. The production branch must not fall back to the legacy ?tg= URL.
+    const firstStartUpdateId = updateId + 1;
     assert.equal(await message("300", "/start"), 200);
     assert.match(lastSent().text, /ライフマネージャー/);
     const onboardingButton = lastSent().reply_markup.inline_keyboard[0][0];
@@ -382,7 +398,7 @@ test("POST /telegram routes the legacy-parity slash surface without disturbing e
     assert.doesNotMatch(JSON.stringify(onboardingButton), /\?tg=|300|token/i);
     assert.equal(actorClaims, 1);
     const sentBeforeReplay = sent.length;
-    assert.equal(await exactMessage(9108, "300", "/start"), 200);
+    assert.equal(await exactMessage(firstStartUpdateId, "300", "/start"), 200);
     assert.equal(sent.length, sentBeforeReplay, "the same Telegram update never sends twice");
     // A previously queued economy job can have older retry metadata. That additive subsystem must
     // not suppress a fresh Calendar consent link for the primary onboarding path.

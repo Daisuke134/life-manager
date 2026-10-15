@@ -70,6 +70,7 @@ const { createSupabaseCommandStore } = require("./lib/panel-api.js");
 const { handleCalendarOnboardRequest } = require("./lib/calendar-onboard.js");
 const { parseUserCommand, dispatchParsedControl, executeUserCommand } = require("./lib/user-command.js");
 const { parseSlashCommand, slashAliasText, handleSlashCommand } = require("./lib/slash-command.js");
+const { createMaritimePilotTransport } = require("./lib/transport/maritime-pilot.js");
 const { createInvestmentStateStore } = require("./lib/investment-state-store.js");
 const { handleFeedbackMessage, createPostgresFeedbackStore } = require("./lib/feedback-intake.js");
 const { handleMentalCorrectionMessage } = require("./lib/mental-correction.js");
@@ -118,6 +119,7 @@ const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY || "sk_test_place
 }); // apiKey unused by constructEvent
 const SUPA_URL = process.env.SUPABASE_URL, SUPA_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const COMPOSIO_KEY = process.env.COMPOSIO_API_KEY;
+const maritimePilotTransport = createMaritimePilotTransport({ env: process.env });
 let moneyPrinterSource, moneyPrinterRuntimePool, moneyPrinterRuntimeStore, investmentStateStore, cloudCitizenStore, agentEconomyControlStore;
 let imessageCloudClient = null;
 let imessageCloudStartup = null;
@@ -1615,6 +1617,8 @@ const server = http.createServer(async (req, res) => {
                 return getInvestmentStateStore().read(uid);
               },
               getEconomyState: (uid) => getAgentEconomyControlStore().read(uid),
+              isMaritimePilotEnabled: maritimePilotTransport.isEnabledFor,
+              chatWithMaritimePilot: maritimePilotTransport.chatForUser,
             });
             if (outcome.handled) {
               console.log(`[slash] command=${slash.name} action=${outcome.action}${outcome.ok === false ? ` reason=${outcome.reason || "failed"}` : ""}${outcome.providerMessageId == null ? "" : ` provider_message_id=${outcome.providerMessageId}`}`);
