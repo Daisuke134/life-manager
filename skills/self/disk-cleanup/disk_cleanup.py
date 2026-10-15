@@ -565,6 +565,23 @@ def _hard_protected_tracked(relative: Path) -> bool:
             or name == ".env" or name.startswith(".env."))
 
 
+def _content_in_main(repository: Path, head: str, remote_head: str) -> bool:
+    """True when merging ``head`` into main would change nothing.
+
+    PRs land as squash commits, so a merged branch head is never an ancestor of main and the
+    ancestry proof alone left every merged worktree on disk (126 of them, ~15 GiB, 2026-10-15).
+    A conflict or any git failure reads as "not merged" and keeps the worktree.
+    """
+    # ponytail: once main re-edits the same lines the merge conflicts and the worktree stays;
+    # the hourly sweep usually runs before that. Add a merged-PR readback if they pile up again.
+    merged = _run_git(repository, "merge-tree", "--write-tree", remote_head, head)
+    main_tree = _run_git(repository, "rev-parse", f"{remote_head}^{{tree}}")
+    if merged is None or main_tree is None:
+        return False
+    lines = merged.stdout.splitlines()
+    return bool(lines) and lines[0].strip() == main_tree.stdout.strip()
+
+
 def _tracked_paths(worktree: Path) -> frozenset[str] | None:
     result = _run_git(worktree, "ls-files", "-z")
     if result is None:
@@ -1333,7 +1350,8 @@ class HostDiskGovernor:
             )
         except (OSError, subprocess.SubprocessError):
             return None
-        if ancestry.returncode != 0 or ancestry.stderr.strip():
+        if ancestry.stderr.strip() or (
+                ancestry.returncode != 0 and not _content_in_main(repository, head, remote_head)):
             return None
         if deadline is not None and self.clock() >= deadline:
             return None
