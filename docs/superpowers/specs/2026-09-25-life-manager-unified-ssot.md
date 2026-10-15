@@ -53,6 +53,19 @@
 
 **後続（Doneのgateではない）:** 掃除役5本を `com.anicca.disk-watchdog` 1本へ統合し他4本をunload。Codex純正圧縮 `central_cleanup.py:codex_history_cleanup` は `0.160.0` 完全一致pinと「上位2ファイル分の空き」要求があり、満杯時に動かないため、D2/D4で空きが戻った後に効く。内蔵228GBが恒常的に足りない場合は外付けSSDへ `~/loops/releases` と Codex archive を移す案を別途比較する。
 
+### Gig G0 証拠表（2026-10-15、read-only調査。数値は各ledger/receiptのreadback）
+|provider|14日の実成果|最初の失敗境界|次の1手|
+|---|---|---|---|
+|Coconala (`hf-gig-*`, ledger `~/gig`)|応募verified 13件(10/02-03)。¥39,000検収分は10/15出金予定、累計¥231,654。storefront公開20件・販売0|apply fence `18dadcd76d9c61b0-37711`(10/03〜、48hでdeferred 470/pass 0)。reconcileが`applied.jsonl`のpass_idをoccurrenceへ対応づけられず `exact_occurrence_request_set_not_present`。reply fence 10/12、storefront fence 09/26|apply-reconcileがpass_id→occurrenceを結ぶ修正で公式readback済み応募のfenceを閉じる|
+|CrowdWorks (`crowdworks-revenue-*`)|応募verified 129件、契約承諾13件（¥12×11・¥110・¥165）、入金receipt 0|agent 2枠の取り合い（48h deferred 394/pass 133）。paid/reply pollingもagent枠を消費|極小単価案件の除外と、収益laneの枠配分|
+|Lancers (`lancers-revenue-*`)|生涯¥0・契約0|ログアウト：work-syncの1,001回が `final_route_category=login`。applicationは405(AWS WAF)174回|session_vaultから本番profileのsessionを復元→405確認|
+|Mercor|09/20以降0件|fence 09/18・09/20・10/04|公式readbackでfenceを閉じる|
+|Freelancer|0件（未登録）|loop未登録|登録まで対象外|
+
+共通: host全体のagent枠は2（`LIFE_MANAGER_HOST_MAX_AGENT_TOTAL_RUNS`）。24hのagent occurrenceはlancers-paid 257・crowdworks-paid 229・hf-gig-paid 194が上位で、入金確認pollingが応募より多く枠を使う。admission DBは396,519 occurrence（claimed放置38,583、effect_unknown約5万）・164MB。`gig-outcome-watch` はpassだがreleaseに`outcome_watch.py`が無く何も測っていない。
+
+**Gig修理の順（お金に近い順）:** G-a Coconala apply fence → G-b Lancers session復元 → G-c CrowdWorks 単価filterと枠配分 → G-d Mercor fence → G-e admission DBの肥大(放置claimed/unknown)とpaid pollingの枠消費。
+
 ### 実行計画と期限（2026-10-15 確定、Daisの実施指示あり）
 写した外部実装（コードを読んで確認）: Kubernetes kubelet `pkg/kubelet/images/image_gc_manager.go`（使用率がHighThresholdPercent既定85%以上でLowThresholdPercent既定80%まで最終使用が古い順に削除、使用中は除外、回収不足は`FreeDiskSpaceFailed`警告）と `pkg/kubelet/eviction/defaults_linux.go`（`nodefs.available<10%`で猶予0の停止）、systemd `src/journal/journald-manager.c`（書き手ごとに`max_use`と`keep_free`）、Elasticsearch `DiskThresholdSettings.java`（low 85%/high 90%/flood_stage 95%で書込禁止、回復で自動解除）。共通の型=「水位で自動掃除」「危険水位で新規書込停止」「回収不足は叫ぶ」「書き手ごとの上限」。出所の1ファイル単位証明はしない。
 
@@ -61,10 +74,10 @@
 |1|kubelet hard eviction / ES flood_stage|`runtime/host/disk_admission.py` `_producer_gate`|空き15GiB未満で control plane 6 loop以外の新規runを`disk_floor_low`でdefer（測定不能は通す）|10/16 本番|PR #8115 main・release `20261015T105345-e9ba318c`。release-reconcilerが順次移行中（10/15 11:15時点 63/192 label）|
 |2|（ballast）|`bin/disk-watchdog.sh`|8GiB ballastを保持、空き3GiB未満で即削除、25GiB超で再作成。サイズはinstall済みplistの`LIFE_MANAGER_BALLAST_SIZE=8g`だけが与える|10/16 本番|PR #8115 main、watchdogをe9ba318cでinstall済み（plist readback）。空き15.3GiBのためballast未作成＝25GiB到達まで未武装|
 |3|kubelet image GC|`skills/self/disk-cleanup/disk_cleanup.py`|worktree退役の4つの永久ブロックを除去: 期限切れlease/lock、再生成可能ignored、`.DS_Store`（PR #8117 main・release済み）、tracked sourceの名前語判定（PR #8121 review中）。実機trace: merged 25件の残りは有効lock10・`.anicca-keep`10・非再生成物4で正しく保持|10/17|一部本番|
-|4|kubelet FreeDiskSpaceFailed|同上|回収不足時、直近1時間の増加上位5 dirをTelegram通知|10/17|未着手|
+|4|kubelet FreeDiskSpaceFailed|同上|空き25GiB未満で増加(不明時は容量)上位5 rootをTelegram通知、6時間に1回、失敗は非致命|10/17|PR #8125 main・release `20261015T114941-affe5fa3`。watchdog再install後 11:51:00 JST に `low_disk_alert.status=sent`（marker `state/low-disk-alert.at`）|
 |5|journald max_use|`runtime/loop/lm_loop_run.py` `held_effect_unknown`|証拠(json/jsonl/log/txt 各≤1MiB・計≤8MiB)とmarkerだけ保持、生成物は削除。fence不変。30日TTLは#3で追加|10/17|PR #8116 main・release済み、`line-sticker-factory-hourly`をe9ba318cへtarget apply済み|
 |6|journald max_use|`config/loop-registry.json` `cleanup.max_bytes` + `bin/lm-loop-contract`|全loopに出力上限を必須化、無ければCI失敗|10/18|未着手|
-|7|—|重複掃除役4本|`com.anicca.disk-watchdog`+central cleanupへ統合しunload|10/18|未着手|
+|7|—|重複掃除役|repo外の野良 `com.anicca.disk-cleanup-15d`（古い `~/.local/bin/disk-watchdog.sh` を15日毎に実行）を `launchctl-safe bootout` し plist を `~/.local/state/life-manager/retired-launchd/` へ退避。`local.phone-cleanup` はOpenClaw用途で対象外。watchdog(60s host governor)・central cleanup(5min)・registry 15d は役割が別なので維持|10/18|完了（unloaded readback）|
 
 **凍結しない論理:** 凍結条件=swap作成不能（10-14 kernel log）。(a) 空き<3GiBで8GiB ballast解放→誰が書いても空き≥11GiBへ戻る。(b) 空き<15GiBで新規producer停止→増加は実行中runのみ（finite上限10×#6の上限）。(c) 通常は25GiBで掃除が35GiBまで戻すので(a)(b)は異常時のみ。(d) 回収不足は#4が書き手を名指し。外部最大書き手（Codex会話ログ実測0.1〜3GB/日）に対しballastだけで約3日の猶予。限界: 必要データで228GBが埋まる場合は外付けSSDが必要（#4で事前に判明）。
 
