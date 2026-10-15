@@ -37,4 +37,7 @@ with open(sys.argv[1], "w") as fh:
     fh.flush(); os.fsync(fh.fileno())
 PY
 export CAPAFY_REEL_RUN_DIR="$RUN_DIR"
-exec python3 "$SCRIPT_DIR/scripts/capafy_reel_daily.py" "$TARGET_DATE"
+python3 "$SCRIPT_DIR/scripts/capafy_reel_daily.py" "$TARGET_DATE"; rc1=$?
+# Slot 2 (different niche, IG 23:00Z / X 11:00Z) doubles daily reel volume (Dais 2026-10-15: max distribution).
+python3 "$SCRIPT_DIR/scripts/capafy_reel_daily.py" "$TARGET_DATE" --slot 2; rc2=$?
+[ "$rc1" -eq 0 ] && [ "$rc2" -eq 0 ] || exit 1

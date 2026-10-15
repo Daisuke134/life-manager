@@ -61,3 +61,9 @@ def test_schedule_writes_dispatch_marker_before_upload_and_skips_existing(tmp_pa
     assert (tmp_path / "s" / "ig-receipts-v3.jsonl").exists()  # existing post recorded, not re-created
     assert not (run_dir / "dispatch-ig.json").exists()
     assert seen and seen[0][2] == ["dispatch-x.json"]  # marker on disk before the first provider call
+
+
+def test_second_slot_uses_other_times_and_a_different_niche():
+    day = dt.date(2026, 10, 23)
+    assert slots(day, slot=2) == {"ig": "2026-10-23T23:00:00.000Z", "x": "2026-10-23T11:00:00.000Z"}
+    assert pick_niche(day, slot=2)["key"] != pick_niche(day)["key"]
