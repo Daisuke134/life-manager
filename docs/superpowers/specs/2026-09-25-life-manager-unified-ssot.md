@@ -35,13 +35,15 @@
 ### 原因（一行）
 「書く側に上限がなく、消す側は証明できない物を消さない」。安全規則（effect_unknownは保持、不明は保持、floorは診断のみ）が、全て“増える方向”にしか働いていない。
 
-### 基盤のDone（結果で判定、これ以外のgateを置かない）
-1. Data volumeの空きが、既存disk-watchdog receiptの毎時sampleで **7日連続 25GiB以上**。
-2. 同7日間、kernel logに `No space left on device` と `low swap` が0件、強制リセット（ResetCounter）0件。
-Done判定はこの2つの機械的readbackだけ。3回連続cycle、F2/F5の個別occurrence照合、P0/P1の完了はgateにしない。
+### 基盤のDone（7日待機なし。実装・検証・反映で同日に判定）
+次を満たした時点でD1–D4をDoneとし、7日間の自然観測は要求しない。
+1. D1–D4のsourceがmainに統合され、各focused testがPASSする。D2は低容量・測定不能で通常producerを起動せず、待ち仕事を保持し、cleanup/control planeを通す。D3は期限切れ・merged・clean・未使用だけを回収し、D4はfixtureで実確保領域の作成・解放・再作成を通す。
+2. main由来releaseを対象のdisk-watchdogとlife-manager-disk-cleanupへ反映し、loaded argv/SHAをreadbackする。
+3. 反映後の自然実行を各1回だけ確認する。disk-watchdogのreceiptがowner・release・ballast状態を記録し、life-manager-disk-cleanupがreceiptを書いてcleanup本体へ到達すること。実ディスクを満杯にする試験や連続run待ちはしない。
+4. この時点で次のagent修復へ進む。7日分の容量維持や25GiB到達はDone条件にしない。15GiBのproducer停止、3GiB/25GiBのballast制御値は運用しきい値であり、成果KPIではない。
 
 ### 直すファイルと順序
-**D1 — effect_unknownでも保持するのは「証拠」だけ（最大の漏れを止める）。** `runtime/loop/lm_loop_run.py` の terminal cleanup で `held_effect_unknown` の時、作業dirから証拠（`*.json` / `*.jsonl` / `*.log` で各1MiB以下、合計8MiB上限）だけを `state_root/effect-evidence/<run_id>/` へ移し、残り（画像・browser profile・生成物）は既存 `remove_owned_tree` で削除する。effect fence・runtime event・admission rowは変更しない。テスト: `runtime/loop/tests/test_lm_loop_run_bounds.py` に「unknown run後、証拠jsonは残り、大きい生成物は消え、fenceは残る」を1件追加（RED→GREEN）。
+**D1 — effect_unknownのfenceを保ったまま、所有済み一時物だけ回収する。** `runtime/loop/lm_loop_run.py` のterminal cleanupで `held_effect_unknown` の時、最大8MiBの小さな証拠を `state_root/effect-evidence/<run_id>/` に保全する。削除対象はそのoccurrence専用で、entrypointが再生成可能と明示した中間生成物だけに限定する。browser profile、credentials、`~/.cloak`、memory/state、release、公式照合に必要な最終payload、分類できないデータは保持する。証拠保存に失敗した場合は元データを消さない。effect fence・runtime event・admission rowは変更しない。テスト: `runtime/loop/tests/test_lm_loop_run_bounds.py` で再生成可能な中間物だけの回収、証拠・browser profile・unknown artifact・fenceの保持を確認する（RED→GREEN）。
 
 **D2 — 空き容量floorを実際に止めるgateへ。** `runtime/host/disk_admission.py` の `_producer_gate` は現在 `free-space floors are diagnostic only`。空き15GiB未満では、control plane（disk-watchdog、central cleanup、fence reconciler、health）以外の新規producer runを `host_admission_deferred:disk_floor` でdeferする（既存のdefer経路 `lm_loop_run.py` をそのまま使う）。実行中のchildはkillしない。テスト: `runtime/host/tests/test_disk_admission.py` に floor未満=defer / control plane=通過 / 測定不能=通過しない の3件。
 
