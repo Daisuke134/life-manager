@@ -15,8 +15,8 @@ function decimalText(value) {
   const fraction = String(amount % (10n ** 18n)).padStart(18, "0").replace(/0+$/, "");
   return `${negative ? "-" : ""}${amount / (10n ** 18n)}${fraction ? `.${fraction}` : ""}`;
 }
-function economicField(scope, field) {
-  if (!scope || scope.status !== "verified" || !scope.currencies || typeof scope.currencies !== "object") return null;
+function economicField(scope, field, statuses = ["verified"]) {
+  if (!scope || !statuses.includes(scope.status) || !scope.currencies || typeof scope.currencies !== "object") return null;
   const entries = [];
   for (const [currency, value] of Object.entries(scope.currencies).sort(([a], [b]) => a.localeCompare(b))) {
     const amount = value && typeof value === "object" ? value[field] : value;
@@ -235,6 +235,22 @@ function renderEconomicSummary(table, projection) {
     const amount = economicField(scope, "monthly");
     return amount ? `${loopId} ${amount}` : null;
   }).filter(Boolean);
+  // B0 keeps a loop's revenue non-null only when its revenue coverage is complete;
+  // a marketplace readback vouches for it as of its own observation time.
+  const revenueAsOf = projection.revenue_as_of && typeof projection.revenue_as_of === "object"
+    ? projection.revenue_as_of : {};
+  const readbackRevenue = window => Object.entries(revenueAsOf)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([loopId, observedAt]) => {
+      if (typeof observedAt !== "string" || !/^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/.test(observedAt)) return null;
+      const amount = economicField(economicLoops(projection, window)[loopId],
+        "settled_external_revenue", ["verified", "unknown"]);
+      return amount ? `${loopId} ${amount} (as of ${observedAt})` : null;
+    }).filter(Boolean);
+  const readbackLines = ["historical", "trailing"].flatMap(window => {
+    const values = readbackRevenue(window);
+    return values.length ? [`${window} readback revenue: ${values.join(" / ")}`] : [];
+  });
   const runway = [];
   if (["verified", "positive_cashflow"].includes(projection.runway.status) && projection.runway.currencies) {
     for (const [currency, value] of Object.entries(projection.runway.currencies).sort(([a], [b]) => a.localeCompare(b))) {
@@ -252,6 +268,7 @@ function renderEconomicSummary(table, projection) {
     `trailing revenue: ${trailingRevenue || "未確認"}`,
     `trailing cost-complete cost: ${trailingCost || "未確認"}`,
     `trailing cost-complete net: ${trailingNet || "未確認"}`,
+    ...readbackLines,
     `MRR: ${mrr || "未確認"}`,
     `確認済みloop MRR: ${loopMrr.join(" / ") || "未確認"}`,
     `runway: ${runway.join(" / ") || "未確認"}`,

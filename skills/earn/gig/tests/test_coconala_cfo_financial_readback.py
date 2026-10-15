@@ -19,6 +19,7 @@ if str(ROOT) not in sys.path:
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
+from skills.cfo import economic_attribution as contract  # noqa: E402
 from skills.cfo.adapters import marketplace  # noqa: E402
 
 OBSERVED = "2026-10-12T03:36:46.968670Z"
@@ -118,10 +119,18 @@ def test_every_history_row_becomes_one_settled_receipt_the_adapter_accepts() -> 
     assert first["verification_state"] == "verified"
     assert first["occurred_at"] == "2026-10-12T01:00:00.000000Z"  # JST page time -> UTC
     assert first["components"] == [{"category": "settled_external_revenue", "amount": "18720"}]
-    gaps = [row for row in rows if row["record_type"] == "coverage"]
-    # The page shows credited sales only (no itemized fee/refund), so coverage stays a gap.
-    assert {row["reason"] for row in gaps} == {"missing_coverage", "missing_category"}
-    assert all(row["coverage_state"] == "gap" for row in gaps)
+    coverage = {row["projection"]: row for row in rows if row["record_type"] == "coverage"}
+    # The page lists every credited sale but itemizes no fee/refund: revenue only.
+    assert payload["coverage"]["historical"]["complete"] is False
+    for projection in ("historical", "trailing"):
+        assert coverage[projection]["coverage_state"] == "complete"
+        assert coverage[projection]["covered_categories"] == ["settled_external_revenue"]
+    assert coverage["as_of"]["reason"] == "missing_category"
+
+    projected = contract.project(rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING)
+    jpy = projected["historical"]["loops"]["gig-coconala"]["currencies"]["JPY"]
+    assert jpy["settled_external_revenue"] == "42198"
+    assert jpy["refund"] is None and jpy["provider_fee"] is None and jpy["net"] is None
 
 
 def test_rows_that_do_not_reconcile_to_cumulative_sales_emit_no_revenue() -> None:

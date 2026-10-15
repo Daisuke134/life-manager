@@ -473,6 +473,47 @@ class B7IntegrationTest(unittest.TestCase):
         self.assertIn(("gig-coconala", "source_unconnected"), gaps)
         self.assertIn(("gig-crowdworks", "source_unconnected"), gaps)
 
+    def test_fresh_marketplace_readback_projects_revenue_labeled_with_its_observation(self):
+        import hashlib
+        observed = "2026-09-30T22:00:00.000000Z"  # two hours before SNAPSHOT
+        payload = {
+            "schema_version": 1,
+            "record_type": "marketplace_financial_readback",
+            "platform": "coconala",
+            "product_loop_id": "gig-coconala",
+            "observed_at": observed,
+            "coverage": {
+                "historical": {"complete": False, "window_start": None, "window_end": observed},
+                "trailing": {"complete": False, "window_start": TRAILING_START, "window_end": observed},
+            },
+            "pagination": {"complete": True, "pages_fetched": 1, "records_fetched": 1, "next_cursor": None},
+            "receipt_map": {"complete": True, "records": [{
+                "schema_version": 1, "record_type": "payment_receipt", "platform": "coconala",
+                "work_external_id": "talkroom-1", "payment_external_id": "coconala-talkroom-1-0",
+                "receipt_id": "coconala-revenue-1-0", "gross_amount_minor": 1000,
+                "fee_amount_minor": 0, "cost_amount_minor": 0, "net_amount_minor": 1000,
+                "currency": "JPY", "status": "settled",
+                "occurred_at": "2026-09-30T01:00:00.000000Z", "observed_at": observed,
+            }]},
+            "aggregate": {"currency": "JPY", "sales_count": 1, "net_amount_minor": 1000},
+        }
+        unsigned = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+        digest = hashlib.sha256(unsigned).hexdigest()
+        payload["content_sha256"] = digest
+        payload["evidence_ref"] = f"marketplace://coconala/financial-readback/sha256/{digest}"
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "coconala.json"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            projection = m.build_b7_projection(
+                snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+                env={"LM_CFO_MARKETPLACE_COCONALA_READBACK": str(path)},
+            )
+        self.assertEqual(projection["revenue_as_of"], {"gig-coconala": observed})
+        for window in ("historical", "trailing"):
+            jpy = projection[window]["loops"]["gig-coconala"]["currencies"]["JPY"]
+            self.assertEqual(jpy["settled_external_revenue"], "1000")
+            self.assertIsNone(jpy["net"])
+
     def test_platform_specific_path_rejects_mismatched_envelope_on_expected_lane(self):
         import hashlib
         payload = {
