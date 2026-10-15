@@ -44,14 +44,16 @@ _ADAPTER_MODULE_NAME = "_anicca_lancers_adapter_status_v1"
 class LancersProviderError(RuntimeError):
     """Stable provider failure with no URL, body, or credential detail."""
 
-    def __init__(self, code: str, *, http_status: Optional[int] = None):
+    def __init__(self, code: str, *, http_status: Optional[int] = None, http_method: Optional[str] = None, endpoint_category: Optional[str] = None):
         self.code = code
         self.http_status = http_status if type(http_status) is int and 100 <= http_status <= 599 else None
+        self.http_method = http_method if http_method == "GET" else None
+        self.endpoint_category = endpoint_category if endpoint_category in ("public_search", "public_category_search", "public_project_detail", "public_client") else None
         super().__init__(code)
 
 
-def _fail(code: str, *, http_status: Optional[int] = None) -> None:
-    raise LancersProviderError(code, http_status=http_status) from None
+def _fail(code: str, *, http_status: Optional[int] = None, http_method: Optional[str] = None, endpoint_category: Optional[str] = None) -> None:
+    raise LancersProviderError(code, http_status=http_status, http_method=http_method, endpoint_category=endpoint_category) from None
 
 
 def _clean_text(value: str) -> str:
@@ -447,6 +449,10 @@ def fetch_public_html(*, query: Optional[str], limit: int, timeout: float, categ
     category = _category(category)
     endpoint = _ENDPOINT + ("/" + category if category else "")
     url = _detail_url or client_url or endpoint + "?" + encoded
+    # Fixed labels describe the initiating public request, never a URL or query.
+    endpoint_category = ("public_project_detail" if _detail_url is not None else
+                         "public_client" if client_url is not None else
+                         "public_category_search" if category else "public_search")
     request = urllib.request.Request(
         url,
         headers={"User-Agent": _USER_AGENT, "Accept": "text/html,application/xhtml+xml"},
@@ -458,15 +464,15 @@ def fetch_public_html(*, query: Optional[str], limit: int, timeout: float, categ
             status = getattr(response, "status", 200)
             final_url = getattr(response, "geturl", lambda: url)()
             if isinstance(final_url, str) and "/user/login" in final_url:
-                _fail("lancers_provider_blocked", http_status=observed_status)
+                _fail("lancers_provider_blocked", http_status=observed_status, http_method="GET", endpoint_category=endpoint_category)
             if _detail_url is not None and _canonical_detail_url(final_url) != _detail_url:
-                _fail("lancers_http_error", http_status=observed_status)
+                _fail("lancers_http_error", http_status=observed_status, http_method="GET", endpoint_category=endpoint_category)
             if client_url is not None and final_url != client_url:
-                _fail("lancers_http_error", http_status=observed_status)
+                _fail("lancers_http_error", http_status=observed_status, http_method="GET", endpoint_category=endpoint_category)
             if status in {401, 403, 429}:
-                _fail("lancers_provider_blocked", http_status=observed_status)
+                _fail("lancers_provider_blocked", http_status=observed_status, http_method="GET", endpoint_category=endpoint_category)
             if not isinstance(status, int) or status < 200 or status >= 300:
-                _fail("lancers_http_error", http_status=observed_status)
+                _fail("lancers_http_error", http_status=observed_status, http_method="GET", endpoint_category=endpoint_category)
             chunks: List[bytes] = []
             total = 0
             while total <= _MAX_BODY_BYTES:
@@ -482,8 +488,8 @@ def fetch_public_html(*, query: Optional[str], limit: int, timeout: float, categ
         raise
     except urllib.error.HTTPError as error:
         if error.code in {401, 403, 429}:
-            _fail("lancers_provider_blocked", http_status=error.code)
-        _fail("lancers_http_error", http_status=error.code)
+            _fail("lancers_provider_blocked", http_status=error.code, http_method="GET", endpoint_category=endpoint_category)
+        _fail("lancers_http_error", http_status=error.code, http_method="GET", endpoint_category=endpoint_category)
     except (urllib.error.URLError, TimeoutError, OSError):
         _fail("lancers_network_error")
     try:
@@ -604,6 +610,10 @@ def run_discovery(
         }
         if error.code in {"lancers_http_error", "lancers_provider_blocked"} and error.http_status is not None:
             result["http_status"] = error.http_status
+            if error.http_method is not None:
+                result["http_method"] = error.http_method
+            if error.endpoint_category is not None:
+                result["endpoint_category"] = error.endpoint_category
         return result
     except Exception:
         return {
