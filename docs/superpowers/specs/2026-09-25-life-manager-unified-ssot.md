@@ -190,6 +190,11 @@ README は「ユーザー向け18 + system agent 1」= 19 agent。19 = Host Stew
 - Coconala apply fence: 全intent確定の証明で閉じる案はreview FIX-FIRST。v1 `prepared` 117件と状態なし2件が未確定（2026-09-25応募履歴で59件は応募済み、60件は履歴が不完全＝確定776件中38件が履歴に無いため証明不能）。draft PR #8131 は保留。残る案=依頼ページの「募集終了」公式readbackで重複不能を証明する新proof型（Dais判断待ち）。
 - 新しい穴: governor の `storage_growth` は全root `delta_bytes=None` で増加犯を測れていない（#4通知は容量の大きい順へ縮退）。空きは worktree 退役後 15.2GiB で下限付近、swap 4GiB。
 
+**夜の追記（2026-10-15 21:00–22:00 JST）:**
+- 空き容量が 10GiB（下限12GiB未満）まで減り、lancers-revenue-application は直近300回中74回が `disk_floor_low` で止まっていた。原因は worktree 126個（約15GiB）。Host Steward の zombie-worktree 判定は `merge-base --is-ancestor` が条件で、squash merge の PR では成り立たない。そのため merge 済みの worktree を一度も回収できていなかった。対処：merge 済み・clean・lock なしの17個と、lease 期限切れの23個を手順どおり外し、空きは16GiBに回復。再発防止は PR #8165（`git merge-tree --write-tree` の結果が main の tree と同一なら回収、衝突時は残す）。
+- Lancers: browser 経由の discovery は正常（データ入力20件、記事作成20件で正規化9件、業務自動化・Pythonは各1件）。21:00 の observed 0 は query の巡回で「件数の少ないキーワード」に当たった1回。現在の待ちは agent 枠3の順番待ち（revenue が優先されている）で、故障ではない。
+- Mercor fence adapter PR #8163：独立レビューを2回受け、指摘をすべて修正（window が閉じた後の時刻ガード、queued_at 不明時は fail-closed）。CI 待ち。
+
 **Gig修理の順（お金に近い順）:** G-a Coconala apply fence → G-b Lancers session復元 → G-c CrowdWorks 単価filterと枠配分 → G-d Mercor fence → G-e admission DBの肥大(放置claimed/unknown)とpaid pollingの枠消費。
 
 ### 実行計画と期限（2026-10-15 確定、Daisの実施指示あり）
