@@ -66,8 +66,8 @@
 
 - [x] Step 1: Write failing tests for flag-off, missing data gate, no key, invalid allowlist, unlinked user, disallowed UID, missing/oversized message, provider error, safe response escaping/truncation, enabled-only `/help` visibility, and duplicate Telegram update suppression.
 - [x] Step 2: Run focused slash tests; the new help case fails before its visibility gate and the fake HTTP test proves a redelivered update causes a second Maritime chat.
-- [ ] Step 3: Add the disabled-by-default branch; pass uid/message only after every gate, list `/pilot` only for enabled users, and claim a durable HMAC receipt before a provider call.
-- [ ] Step 4: Re-run 55 focused unit tests plus the Telegram HTTP contract test; verify one fake Maritime chat for a duplicate Telegram update and update its stale `lm_message_channels` fixture.
+- [x] Step 3: Add the disabled-by-default branch; pass uid/message only after every gate, list `/pilot` only for enabled users, and claim a durable HMAC receipt before a provider call.
+- [x] Step 4: Re-run 55 focused unit tests plus the Telegram HTTP contract test; verify one fake Maritime chat for a duplicate Telegram update and update its stale `lm_message_channels` fixture.
 - [x] Step 5: Commit and push the command integration.
 
 ### Task 3: source acceptance

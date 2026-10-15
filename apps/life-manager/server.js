@@ -1608,6 +1608,26 @@ const server = http.createServer(async (req, res) => {
           // and /panel return handled:false (their existing branches above/below stay the owner),
           // and an unknown /command gets an honest "unknown command + /help" reply.
           if (slash && !slashAlias) {
+            let maritimePilotReceipt = null;
+            if (slash.name === "pilot" && row && row.uid && maritimePilotTransport.isEnabledFor(row.uid)) {
+              const updateId = update.update_id;
+              if (!Number.isSafeInteger(updateId) || updateId < 0) throw new Error("maritime_pilot_update_id_invalid");
+              const scope = { uid: String(row.uid), chatId: String(u.chatId) };
+              const idempotencyKey = `telegram-maritime-pilot:${updateId}`;
+              const requestHash = crypto.createHmac("sha256", LM_UID_SECRET)
+                .update(JSON.stringify({ uid: scope.uid, chatId: scope.chatId, updateId, message: slash.args }))
+                .digest("hex");
+              const commandStore = createSupabaseCommandStore({ supaUrl: SUPA_URL, supaKey: SUPA_KEY });
+              const claimed = await commandStore.claimReceipt(scope, idempotencyKey, {
+                requestHash, commandType: "maritime.pilot.chat", status: "pending",
+              });
+              if (!claimed) {
+                console.log("[slash] command=pilot action=duplicate");
+                res.writeHead(200); res.end("ok");
+                return;
+              }
+              maritimePilotReceipt = { store: commandStore, scope, idempotencyKey };
+            }
             const outcome = await handleSlashCommand(slash, row, {
               token: LM_TG_TOKEN, chatId: u.chatId, base: PUBLIC_BASE,
               supaUrl: SUPA_URL, supaKey: SUPA_KEY,
@@ -1620,6 +1640,13 @@ const server = http.createServer(async (req, res) => {
               isMaritimePilotEnabled: maritimePilotTransport.isEnabledFor,
               chatWithMaritimePilot: maritimePilotTransport.chatForUser,
             });
+            if (maritimePilotReceipt) {
+              await maritimePilotReceipt.store.finishReceipt(
+                maritimePilotReceipt.scope,
+                maritimePilotReceipt.idempotencyKey,
+                { status: outcome.ok === true ? "succeeded" : "failed", result: null },
+              );
+            }
             if (outcome.handled) {
               console.log(`[slash] command=${slash.name} action=${outcome.action}${outcome.ok === false ? ` reason=${outcome.reason || "failed"}` : ""}${outcome.providerMessageId == null ? "" : ` provider_message_id=${outcome.providerMessageId}`}`);
               res.writeHead(200); res.end("ok");
