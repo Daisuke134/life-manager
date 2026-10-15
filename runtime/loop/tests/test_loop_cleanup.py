@@ -1854,3 +1854,48 @@ class LoopCleanupTest(unittest.TestCase):
 
 
 if __name__ == "__main__": unittest.main()
+
+
+class PruneToEvidenceTest(unittest.TestCase):
+    def test_keeps_small_evidence_and_removes_bulk_artifacts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "run"
+            (root / "set-001" / "images").mkdir(parents=True)
+            (root / "profile" / "Default").mkdir(parents=True)
+            (root / "effect-identity.jsonl").write_text('{"id":"x"}\n')
+            (root / "set-001" / "submit-response.json").write_text("{}")
+            (root / "set-001" / "images" / "01.png").write_bytes(b"p" * 4096)
+            (root / "profile" / "Default" / "Cookies").write_bytes(b"c" * 128)
+            (root / "huge.log").write_bytes(b"l" * (1024 * 1024 + 1))
+            (root / "link.json").symlink_to(root / "effect-identity.jsonl")
+
+            removed = loop_cleanup.prune_to_evidence(root)
+
+            self.assertTrue((root / "effect-identity.jsonl").exists())
+            self.assertTrue((root / "set-001" / "submit-response.json").exists())
+            self.assertFalse((root / "set-001" / "images").exists())
+            self.assertFalse((root / "profile").exists())
+            self.assertFalse((root / "huge.log").exists())
+            self.assertFalse((root / "link.json").is_symlink())
+            self.assertGreaterEqual(removed, 4096 + 128 + 1024 * 1024 + 1)
+
+    def test_total_evidence_budget_keeps_smallest_first(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "run"
+            root.mkdir()
+            for index in range(10):
+                (root / f"e{index}.json").write_bytes(b"j" * (1024 * 1024 - 10 + index))
+            loop_cleanup.prune_to_evidence(root)
+            kept = sorted(p.name for p in root.iterdir())
+            self.assertEqual(kept, [f"e{index}.json" for index in range(8)])
+
+    def test_preserves_markers_and_protected_subtrees(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "run"
+            (root / "keep").mkdir(parents=True)
+            (root / ".terminal-unrecorded").write_bytes(b"")
+            (root / "keep" / ".lm-protected").write_bytes(b"")
+            (root / "keep" / "asset.png").write_bytes(b"p" * 64)
+            loop_cleanup.prune_to_evidence(root)
+            self.assertTrue((root / ".terminal-unrecorded").exists())
+            self.assertTrue((root / "keep" / "asset.png").exists())

@@ -25,7 +25,7 @@ from typing import Callable, NamedTuple
 
 from runtime.loop.lm_loop import _apply_lock, _label_apply_lock_path, _loaded_v2_release
 from runtime.loop.lm_loop_apply import _loaded_arguments
-from runtime.loop.loop_cleanup import remove_owned_tree
+from runtime.loop.loop_cleanup import prune_to_evidence, remove_owned_tree
 from runtime.loop.macos_loop_registry import (
     CONTROL_PLANE_SAFETY_LOOPS, admission_effect_scope, validate_registry,
 )
@@ -2074,6 +2074,18 @@ def _main(argv: list[str] | None = None) -> int:
             elif terminal_saved and event["effect_status"] in {"unknown", "started"}:
                 cleanup_status = "held_effect_unknown"
                 cleanup_operation = "official_readback_required"
+                # Keep the readback evidence, not the run's bulk artifacts (journald-style cap).
+                try:
+                    from runtime.loop.central_cleanup import (
+                        _browser_profiles_live, _diagnostic_relay_live,
+                    )
+                    from runtime.host.resource_admission import process_starts
+                    if (not _diagnostic_relay_live(scratch_fd, process_starts(), loop_id, run_id)
+                            and _browser_profiles_live(scratch) is False):
+                        prune_to_evidence(scratch)
+                        cleanup_operation = "official_readback_required_evidence_only"
+                except Exception as error:
+                    cleanup_error = error
             elif terminal_saved:
                 try:
                     cleanup_operation = "unprotect_marker"

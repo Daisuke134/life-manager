@@ -2668,10 +2668,16 @@ def test_main_cleans_terminal_scratch_only_after_effect_is_known(tmp_path, effec
     def terminal_event(**kwargs):
         return {**build_runtime_event(**kwargs), "effect_status": effect_status}
 
+    def run_admitted(*_args, **_kwargs):
+        (scratch / "set-001").mkdir()
+        (scratch / "set-001" / "01.png").write_bytes(b"p" * 4096)
+        (scratch / "set-001" / "submit-response.json").write_text("{}")
+        return 0
+
     with (patch.dict(os.environ, {"LIFE_MANAGER_STATE_ROOT": str(state), "LIFE_MANAGER_RUN_ID": "run-1"}),
           patch("runtime.loop.lm_loop_run._apply_lock", return_value=nullcontext()),
           patch("runtime.loop.lm_loop_run.build_loop_command", return_value=["/bin/true"]),
-          patch("runtime.loop.lm_loop_run._run_admitted", return_value=0),
+          patch("runtime.loop.lm_loop_run._run_admitted", side_effect=run_admitted),
           patch("runtime.loop.lm_loop_run.build_runtime_event", side_effect=terminal_event),
           patch("runtime.loop.central_cleanup._browser_profiles_live", return_value=False)):
         assert lm_loop_run_main(["example-publisher", str(release)]) == 0
@@ -2684,7 +2690,10 @@ def test_main_cleans_terminal_scratch_only_after_effect_is_known(tmp_path, effec
         diagnostic = json.loads((state / "scratch-cleanup-diagnostics/run-1.json").read_text())
         assert diagnostic["terminal_saved"] is True
         assert diagnostic["cleanup_status"] == "held_effect_unknown"
+        assert diagnostic["cleanup_operation"] == "official_readback_required_evidence_only"
         assert diagnostic["scratch_identity"]["terminal_marker_remaining"] is True
+        assert (scratch / "set-001" / "submit-response.json").is_file()
+        assert not (scratch / "set-001" / "01.png").exists()
     else:
         assert not scratch.exists()
 

@@ -88,6 +88,58 @@ def remove_owned_tree(parent_fd: int, opened_fd: int, name: str) -> bool | Liter
         os.close(trash_fd)
 
 
+EVIDENCE_SUFFIXES = (".json", ".jsonl", ".log", ".txt")
+EVIDENCE_FILE_MAX_BYTES = 1024 * 1024
+EVIDENCE_TOTAL_MAX_BYTES = 8 * 1024 * 1024
+_SCRATCH_MARKERS = frozenset({".terminal-unrecorded", ".lm-protected"})
+
+
+def prune_to_evidence(root: Path) -> int:
+    """Keep small text evidence of an unknown-effect run; delete bulk artifacts.
+
+    Copies journald's per-writer cap: an unreconciled run may hold at most
+    EVIDENCE_TOTAL_MAX_BYTES, smallest evidence first. Symlinks are unlinked,
+    never followed. Returns bytes removed.
+    """
+    removed = 0
+    evidence: list[tuple[int, Path]] = []
+    for current, dirs, files in os.walk(root, topdown=True, followlinks=False):
+        base = Path(current)
+        if ".lm-protected" in files:
+            dirs.clear()
+            continue
+        for name in list(dirs):
+            path = base / name
+            if path.is_symlink():
+                path.unlink()
+                dirs.remove(name)
+        for name in files:
+            path = base / name
+            if name in _SCRATCH_MARKERS:
+                continue
+            info = path.lstat()
+            if (stat.S_ISREG(info.st_mode) and path.suffix in EVIDENCE_SUFFIXES
+                    and info.st_size <= EVIDENCE_FILE_MAX_BYTES):
+                evidence.append((info.st_size, path))
+                continue
+            removed += info.st_size if stat.S_ISREG(info.st_mode) else 0
+            path.unlink()
+    budget = EVIDENCE_TOTAL_MAX_BYTES
+    for size, path in sorted(evidence, key=lambda item: (item[0], str(item[1]))):
+        if size <= budget:
+            budget -= size
+        else:
+            path.unlink()
+            removed += size
+    for current, dirs, _files in os.walk(root, topdown=False, followlinks=False):
+        for name in dirs:
+            try:
+                (Path(current) / name).rmdir()
+            except OSError:
+                pass
+    return removed
+
+
 def _tree_bytes(path: Path, *, prepare_delete: bool = True) -> int:
     total = 0
     for current, directories, files in os.walk(path, followlinks=False):
