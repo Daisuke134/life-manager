@@ -2694,6 +2694,49 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+LOW_DISK_ALERT_BYTES = 25 * GiB
+LOW_DISK_ALERT_INTERVAL_SECONDS = 6 * 3600
+
+
+def _telegram_send(text: str) -> None:
+    from skills._shared.telegram import TelegramClient
+    TelegramClient.from_env().send_text(text)
+
+
+def _low_disk_alert(result: dict, state_dir: Path, *, send=None, now: float | None = None) -> dict:
+    """Name the biggest writers when free space drops below 25GiB (kubelet FreeDiskSpaceFailed)."""
+    free = result.get("free_after")
+    if type(free) is not int or free >= LOW_DISK_ALERT_BYTES:
+        return {"status": "healthy"}
+    now = time.time() if now is None else now
+    marker = state_dir / "low-disk-alert.at"
+    try:
+        if now - float(marker.read_text(encoding="utf-8")) < LOW_DISK_ALERT_INTERVAL_SECONDS:
+            return {"status": "skipped"}
+    except (OSError, ValueError):
+        pass
+    roots = [r for r in (result.get("storage_growth") or {}).get("roots", []) if isinstance(r, dict)]
+    def size(value: object) -> int:
+        return value if type(value) is int else -1
+    ranked = sorted(roots, key=lambda r: (size(r.get("delta_bytes")), size(r.get("size_bytes"))), reverse=True)
+    lines = [f"ディスク空き {free / GiB:.1f}GB（25GB未満）。増加/容量の上位:"]
+    for root in ranked[:5]:
+        delta, total = root.get("delta_bytes"), root.get("size_bytes")
+        lines.append(f"- {root.get('path')}: 増加 {delta / GiB:.1f}GB" if type(delta) is int
+                     else f"- {root.get('path')}: 合計 {total / GiB:.1f}GB" if type(total) is int
+                     else f"- {root.get('path')}: 測定不可")
+    try:
+        (send or _telegram_send)("\n".join(lines))
+    except Exception as error:
+        return {"status": "failed", "error_class": type(error).__name__}
+    try:
+        state_dir.mkdir(parents=True, exist_ok=True)
+        marker.write_text(str(now), encoding="utf-8")
+    except OSError:
+        pass
+    return {"status": "sent"}
+
+
 def main() -> int:
     args = _parse_args()
     if args.candidate and args.canary:
@@ -2725,6 +2768,7 @@ def main() -> int:
         result = governor.run_once()
         result["capacity_recovery"] = _capacity_recovery(result)
         result["ok"] = _cleanup_terminal_ok(result)
+        result["low_disk_alert"] = _low_disk_alert(result, args.state_dir)
         print(json.dumps(result, sort_keys=True))
         return 0 if result["ok"] else 1
     finally:
