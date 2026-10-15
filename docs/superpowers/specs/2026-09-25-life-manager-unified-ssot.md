@@ -18968,3 +18968,15 @@ A direct RevenueCat V2 read observed at 2026-10-14T22:25Z reports latest complet
 **Order and cursor:** D1 → D2 → D3 → D4 → D5 → D6 → D7 → D8 → D9. Replaces the CD order from 2026-10-13 for the distribution lane (CD1=D1, CD3+CD4=D2, CD6+CD7=D3+D4, CD2=D5, CD5=D6, CD8=D8, CD9=D9; CD10 benchmark stays with the eval lane after D9). Reason: visits doubled with 0 conversion, so proof and niche come right after the first video. Current cursor: **D1**.
 
 **Goal check:** first paid order after 2026-09-29 (orders > 70, gross > $102.75) attributed to a source or ct, then $10K MRR.
+
+### Capafy distribution lane progress — 2026-10-15 15:30 JST (claude-evo-eval-1012)
+
+| Atom | State | Evidence |
+|---|---|---|
+| D1 per-channel eval table | Source merged; needs release of the reconcile owner | #8120 `4c29c0821e`: scoreboard `funnel_7d` / `ct_7d` reach+convert verdicts. Root-cause fix: per-agent cap 60 of 70 dropped Hook Lab from traffic/ct/stats; FROZEN sellers now fetched first. Live 7d: every ct reach=fail. |
+| D2 daily voiced reel | Queue filled 10/15–10/22 on X and IG; loop merged; needs release + apply | 10/11 batch was silent with a black first frame. #8123/#8124 `capafy_reel_voice.py` (edge-tts, synthesized bed ~-36 dB, hook frame first 0.6 s, product read from the CTA). 7 X + 5 IG queued posts re-created voiced, old silent posts deleted by id; receipts `capafy-videos/<slug>/{x,ig}-receipts-v3.jsonl`. #8127 `capafy_reel_daily.py` + #8128 loop `capafy-reel-daily` (09:41 JST, schedules today+7, fsynced dispatch markers, registered `capafy_reel_fence_reconcile.py`). Postiz readback: X and IG each exactly one post per day 10/15–10/22. First natural run must be on or before 10/16 09:41 JST. HeyGen not used (wallet billing violates rule 11). |
+| D3 factory order | Already in place | `podcast-clip-hook-lab` Demand rank 0 and `tiktok-comment-reply-script-pack` Demand rank 1 lead `inventory_status` ordering; B2B decks are unranked. Their non-shipment comes from retries/recoveries and CAP_FULL, owned by the factory. |
+| D4 output images | Needs factory integration (Codex) | Winners embed `<img src="https://files.capafy.ai/public/agent/detail/...">` in `detailedDescription` (HookAce: 6). Upload = `POST https://api.capafy.ai/agent/file/presign/upload` `{contentType, fileName, bizType:"agent_detail", agentVersionId}` with the publisher token (web token returns 401; missing `agentVersionId` returns 400). `build_config.py` sends LISTING `detailedDescription` by API, so the factory must upload after draft creation and append the `<img>` tags before submit. |
+| D5 X reach | Blocked in this session | `x:anicca` (@selawmqt, profile `x-repost-daily`) has no CDP endpoint and `ensure_provision_browser.sh x:anicca` failed: `launchctl could not submit ai.anicca.provision-browser.x.anicca`. Needs an Aqua-context owner to start the profile; then set the X website to `https://capafy.ai/agent/8123079349?ct=hooklab_x`. |
+
+**Cursor:** D2 release/apply (Codex) → D4 factory image step (Codex) → D5 after the x:anicca browser is up → D6.
