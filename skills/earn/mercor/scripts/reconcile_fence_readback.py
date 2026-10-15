@@ -40,6 +40,7 @@ import math
 import os
 from pathlib import Path
 import re
+import shlex
 import sqlite3
 import stat
 import subprocess
@@ -67,6 +68,9 @@ QUERIES = {
 }
 GOG = "/opt/homebrew/bin/gog"
 PROFILE = Path("~/.config/anicca/job-search/profile.json").expanduser()
+# Same file apps/job-search-loop/scripts/private-env.sh reads; under launchd gog has no TTY
+# for its keyring prompt and every search failed (official_readback_not_absent, 2026-10-15).
+PRIVATE_ENV = Path("~/.config/anicca/job-search/private.env").expanduser()
 
 
 def _epoch(value: Any) -> float | None:
@@ -144,15 +148,43 @@ def _account() -> str:
     return account.strip()
 
 
+def _gog_env() -> dict[str, str]:
+    """Copy of job_search_load_private_env for GOG_KEYRING_PASSWORD; a set value wins."""
+    env = dict(os.environ)
+    if env.get("GOG_KEYRING_PASSWORD"):
+        return env
+    try:
+        lines = PRIVATE_ENV.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return env
+    for raw in lines:
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[7:].lstrip()
+        name, separator, encoded = line.partition("=")
+        if separator and name.strip() == "GOG_KEYRING_PASSWORD":
+            try:
+                values = shlex.split(encoded, comments=True, posix=True)
+            except ValueError:
+                return env
+            if len(values) == 1:
+                env["GOG_KEYRING_PASSWORD"] = values[0]
+            return env
+    return env
+
+
 def gmail_search(query: str) -> dict[str, Any] | None:
     """Same read-only gog call the Reply snapshot already uses."""
     argv = [GOG, "gmail", "messages", "search", query, "--max", "100",
             "--account", _account(), "--json", "--no-input", "--gmail-no-send"]
+    env = _gog_env()
     for attempt in range(2):
         if attempt:
             time.sleep(1)
         try:
-            done = subprocess.run(argv, capture_output=True, text=True, check=False, timeout=30)
+            done = subprocess.run(argv, capture_output=True, text=True, check=False, timeout=30, env=env)
         except subprocess.TimeoutExpired:
             continue
         if done.returncode == 0:
