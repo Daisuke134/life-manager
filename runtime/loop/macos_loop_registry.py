@@ -46,6 +46,9 @@ OCCURRENCE_SCOPED_ENTRYPOINTS = {
     "skills/earn/crowdworks/scripts/application-owner",
     "skills/earn/crowdworks/scripts/paid-owner",
     "skills/earn/crowdworks/scripts/reply-owner",
+    # Same marketplace-core reply_kernel: a thread whose send is reconcile_unknown stays
+    # pending until official readback, so one unknown thread need not fence every thread.
+    "skills/earn/gig/scripts/coconala-reply-owner",
     "skills/earn/lancers/scripts/application-owner",
     "skills/earn/lancers/scripts/negotiate-owner",
     "skills/earn/lancers/scripts/paid-owner",
