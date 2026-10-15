@@ -158,3 +158,25 @@ if __name__ == "__main__":
     test_compare_changes_marks_pending_when_snapshot_missing_not_zero()
     test_compare_changes_skips_not_yet_due()
     print("OK")
+
+
+# D1 (SSOT 2026-10-15): the same funnel and ct merge over the 7-day window, plus a binary
+# verdict per ct token: reach = at least one tracked view, convert = at least one paid order.
+WEEK_RECONCILE = {"traffic_sources": {"by_agent": {"1": {
+    "last_30d": {"by_source": [{"source_type": "search", "views": 900, "paid_orders": 9, "sales_usd": "20.00"}]},
+    "last_7d": {"by_source": [
+        {"source_type": "internal", "source_name": "search", "views": 478, "paid_orders": 0, "sales_usd": "0.00"},
+        {"source_type": "ct", "source_name": "hooklab_blog", "views": 1, "paid_orders": 0, "sales_usd": "0.00"},
+        {"source_type": "ct", "source_name": "hooklab_x", "views": 0, "paid_orders": 0, "sales_usd": "0.00"},
+    ]},
+}}}}
+
+
+def test_scoreboard_reports_7d_window_and_ct_verdicts():
+    b = build_scoreboard(ANALYTICS, WEEK_RECONCILE)
+    assert b["funnel_7d"]["internal"] == {"views": 478, "paid_orders": 0, "sales_usd": "0.00"}
+    assert b["funnel"]["search"]["views"] == 900  # 30d unchanged
+    assert b["ct_7d"]["hooklab_blog"]["reach"] == "pass" and b["ct_7d"]["hooklab_blog"]["convert"] == "fail"
+    assert b["ct_7d"]["hooklab_x"]["reach"] == "fail"
+    text = render_text(b)
+    assert "7日 ct hooklab_x: 0 view → 0 件 届く=fail 売れる=fail" in text
