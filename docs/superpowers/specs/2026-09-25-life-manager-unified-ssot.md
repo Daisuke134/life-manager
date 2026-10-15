@@ -119,6 +119,12 @@ flowchart LR
 
 **後続（Doneのgateではない）:** 掃除役5本を `com.anicca.disk-watchdog` 1本へ統合し他4本をunload。Codex純正圧縮 `central_cleanup.py:codex_history_cleanup` は `0.160.0` 完全一致pinと「上位2ファイル分の空き」要求があり、満杯時に動かないため、D2/D4で空きが戻った後に効く。内蔵228GBが恒常的に足りない場合は外付けSSDへ `~/loops/releases` と Codex archive を移す案を別途比較する。
 
+### 2026-10-15 夜の進捗（20:00 JST）
+- **Coconala返信:** reply fence（10/06〜）が閉じなかった原因3つ: ①`lm-fence-reconciler`のlaunchd envにCoconala session vault/ownerが無く、adapterのleased contextが個人vaultで`/login`へ ②Coconala DMはnative message id無し（collectorは本文sha256 id、buyer idは添付変化でdrift）で受領を拒否 ③1 occurrenceが3 threadに返信。PR #8154/#8157で gig vault/owner注入、verified stateの受付、cache bypass、公式threadで本文完全一致ちょうど1件、全bound返信の確認を必須化。2件(10035535,10255607)は公式readbackでverified、10107358は未送信。PR #8158で `hf-gig-reply-detector` を `admission_effect_scope: occurrence`（CrowdWorks reply-owner / Lancers negotiate-ownerと同型、`reply_kernel.py:578-582`がreconcile_unknown threadをreadbackまで保留）。release f1b07ae6適用後、blockerはeffect_unknown→capacity_busyへ。
+- **顧客待ち:** 入金済み継続案件 thread 10107358 の最後はbuyer「ここが相変わらず変わっていません。」で未返信（reply loop停止中に発生）。threadはreconcile_unknownで保留されるためloopでは自動再開しない。保留中reply thread 9件はbuyer本文が未保存でid再特定不可。
+- **CFO:** `LM_CFO_MARKETPLACE_*`はCrowdWorks/Lancersのみ（10/03手作業のreadbackでstale）、Coconalaは未設定。producerがgit履歴に存在しない＝money readback loopの欠落。CFO報告は全gigを「未確認」。
+- **並行worker（PR作成まで、merge/適用はprimary）:** Lancers応募405（pending照合をleased browser経由に、discovery飢餓防止）、Mercor fence 3件（公式readback adapter）、CFO marketplace readback producer（Coconala→CFO）。
+
 ### 2026-10-15 夕方の進捗（18:30 JST）
 - **売上の事実:** Coconala 検収 7月¥63,960・8月¥62,478・9月¥39,000・10月¥0（`~/gig/earnings.jsonl`）。稼ぎ頭はCoconalaで、10/03のapply fenceで応募が止まっていた。Capafy累計gross $102.75、PromptBase 0件、CFOは大半の事業を「未確認」。
 - **Coconala apply fence 解除:** PR #8131。intentはprovider confirmed / versioned pre_effect / 公式応募履歴に掲載 / 依頼ページが「募集終了」or 完全一致URLで404 のいずれかでのみ確定。screenshot由来retired_absentは単独では不可、metadataは名前指定で除外、CLI confirmは不可逆attempt後を拒否。read-only `coconala_request_closed_readback.py`（with-browser coconala:kosuke）で119件全て募集終了。独立review 2回（FIX-FIRST指摘を全修正）。登録adapterを1回実行し `hf-gig-apply-direct:18dadcd76d9c61b0-37711` → released/0。**18:13に12日ぶりの応募2件（¥45,000・¥30,000）、intentはconfirmed。**
