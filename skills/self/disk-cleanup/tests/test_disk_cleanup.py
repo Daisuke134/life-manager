@@ -4339,3 +4339,39 @@ def test_sweep_retires_expired_lease_worktree_with_regenerable_ignored_files(tmp
     assert not expired.exists()
     assert not expired_lease.exists()
     assert future.exists() and mystery.exists() and other_lock.exists()
+
+
+def test_sweep_retires_merged_worktree_whose_tracked_sources_have_protected_words(tmp_path: Path) -> None:
+    home = tmp_path / "home"
+    repo = home / "Projects" / "life-manager-main"
+    repo.mkdir(parents=True)
+
+    def git(cwd: Path, *args: str) -> str:
+        return subprocess.run(["git", "-C", str(cwd), *args], check=True,
+                              capture_output=True, text=True).stdout.strip()
+
+    subprocess.run(["git", "init", "-b", "main", str(repo)], check=True, capture_output=True)
+    git(repo, "config", "user.name", "Disk Cleanup Test")
+    git(repo, "config", "user.email", "disk-cleanup-test@example.invalid")
+    (repo / ".gitignore").write_text("node_modules/\n")
+    (repo / "lib").mkdir()
+    (repo / "lib" / "recovery-supervisor.js").write_text("module.exports = 1\n")
+    (repo / ".claude" / "handovers").mkdir(parents=True)
+    (repo / ".claude" / "handovers" / "goal.md").write_text("handover\n")
+    git(repo, "add", ".")
+    git(repo, "commit", "-m", "base")
+    head = git(repo, "rev-parse", "HEAD")
+    git(repo, "update-ref", "refs/remotes/origin/main", head)
+    git(repo, "remote", "add", "origin", str(repo))
+    worktree = repo / ".worktrees" / "merged"
+    git(repo, "worktree", "add", "--detach", str(worktree), head)
+    (worktree / "node_modules" / "cookie").mkdir(parents=True)
+    (worktree / "node_modules" / "cookie" / "index.js").write_text("x")
+
+    governor = HostDiskGovernor(home=home, state_dir=home / "state",
+                                lsof=lambda _path: "confirmed-closed", usage=lambda: (0, 1))
+    candidates = [item for item in governor.discover_candidates()
+                  if item.get("owner") == "zombie-worktree"]
+    assert [Path(item["path"]) for item in candidates] == [worktree]
+    governor.sweep(candidates)
+    assert not worktree.exists()
