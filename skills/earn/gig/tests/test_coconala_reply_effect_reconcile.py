@@ -260,3 +260,41 @@ def test_browser_readback_carries_the_coconala_session_env(tmp_path, monkeypatch
     reconcile._browser_readback(tmp_path / "s.json", tmp_path, OCCURRENCE, runner=fake_run)
     assert seen["CLOAK_SESSION_VAULT_FILE"].endswith(".cloak/vault/gig-daily-driver/auth-state.json")
     assert seen["CLOAK_BROWSER_OWNER"] == "gig-reply-reconcile"
+
+
+def test_every_reply_bound_to_the_occurrence_must_verify(tmp_path, monkeypatch, capsys):
+    kernel_root = tmp_path / "kernel"
+    first = _verified_state(kernel_root)
+    second = kernel_root / "threads" / "thread-two" / "state.json"
+    second.parent.mkdir(parents=True)
+    second.write_text(first.read_text(encoding="utf-8"), encoding="utf-8")
+    assert reconcile._find_targets(kernel_root, OCCURRENCE) == sorted([first, second])
+    answers = iter([{"status": "verified", "provider_receipt_id": "r1"}, {"status": "unknown"}])
+    monkeypatch.setattr(reconcile, "_browser_readback", lambda *a, **k: next(answers))
+
+    def resolve(owner_id, occurrence_id, *, official_readback, expected_state):
+        return official_readback()["verified"]
+
+    monkeypatch.setattr(reconcile.resource_admission, "resolve_unknown_occurrence", resolve)
+    assert reconcile.main(["--occurrence", OCCURRENCE, "--resolve", "--kernel-root", str(kernel_root)]) == 0
+    assert json.loads(capsys.readouterr().out)["resolved"] is False
+
+
+def test_attachment_identity_drift_uses_text_only_thread(tmp_path, monkeypatch):
+    kernel_root = tmp_path / "kernel"
+    path = _verified_state(kernel_root)
+
+    class Adapter:
+        def __init__(self, state_root):
+            self._receipts = {}
+        def readback(self, intent):
+            return {"authoritative_absent": False}
+        def _thread_reader(self, thread_id):
+            raise RuntimeError("collector_unhealthy:dm_attachment_message_identity_changed")
+        def _read_thread_text_only(self, thread_id):
+            return {"conversation": [{"side": "seller", "message_id": "sha256_t", "body": "回答"}]}, {}
+
+    monkeypatch.setattr(reconcile, "_load_adapter", lambda: type("M", (), {
+        "CoconalaReplyAdapter": Adapter,
+        "reply_browser": type("RB", (), {"outgoing_sha256": staticmethod(lambda b: b.strip())})}))
+    assert reconcile._child_readback(path, kernel_root, OCCURRENCE)["status"] == "verified"
