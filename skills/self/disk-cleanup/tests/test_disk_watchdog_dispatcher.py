@@ -333,3 +333,36 @@ def test_installer_updates_only_stable_watchdog_label(tmp_path: Path) -> None:
     assert readback_calls.read_text(encoding="utf-8").splitlines()[-1] == (
         f"print {domain}/com.anicca.disk-watchdog"
     )
+
+
+def _run_ballast(tmp_path: Path, free_kb: int, *, existing: bool) -> Path:
+    home = tmp_path / "home"
+    release = home / "loops/releases/fixture-main"
+    (release / "skills/self/disk-cleanup").mkdir(parents=True)
+    (release / "skills/self/disk-cleanup/disk_cleanup.py").write_text("# fake\n", encoding="utf-8")
+    (release / "bin").mkdir()
+    shutil.copy2(WATCHDOG, release / "bin/disk-watchdog.sh")
+    ballast = home / ".local/state/life-manager/disk-ballast"
+    ballast.parent.mkdir(parents=True)
+    if existing:
+        ballast.write_bytes(b"x")
+    fake_python = tmp_path / "python-noop"
+    fake_python.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    fake_python.chmod(0o755)
+    env = {"HOME": str(home), "LIFE_MANAGER_RUNTIME_PYTHON": str(fake_python),
+           "LIFE_MANAGER_DISK_FREE_KB": str(free_kb), "LIFE_MANAGER_BALLAST_SIZE": "4k"}
+    subprocess.run(["/bin/sh", str(release / "bin/disk-watchdog.sh")], env=env, check=True)
+    return ballast
+
+
+def test_ballast_is_released_when_free_space_is_critical(tmp_path: Path) -> None:
+    assert not _run_ballast(tmp_path, 3 * 1024 * 1024 - 1, existing=True).exists()
+
+
+def test_ballast_is_kept_between_floor_and_recreate_threshold(tmp_path: Path) -> None:
+    assert _run_ballast(tmp_path, 10 * 1024 * 1024, existing=True).exists()
+    assert not _run_ballast(tmp_path / "b", 10 * 1024 * 1024, existing=False).exists()
+
+
+def test_ballast_is_recreated_when_free_space_is_ample(tmp_path: Path) -> None:
+    assert _run_ballast(tmp_path, 25 * 1024 * 1024 + 1, existing=False).stat().st_size == 4096

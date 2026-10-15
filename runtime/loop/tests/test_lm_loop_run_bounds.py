@@ -3820,6 +3820,22 @@ def test_explicit_operator_disk_stop_still_defers_before_queue_and_provider_chil
     assert result["flag_path"] == str(stop)
 
 
+def test_disk_floor_defers_before_queue_and_provider_child(tmp_path):
+    entry = {"cadence": {"start_interval_seconds": 60},
+             "provider_route": "shared-agent-runner", "effect_class": "application"}
+    receipt = tmp_path / "host-admission.json"
+    with (patch("runtime.loop.lm_loop_run._producer_gate", return_value=("disk_floor_low", tmp_path), create=True),
+          patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource", return_value=(tmp_path / "ticket", "ready")) as enqueue,
+          patch("runtime.loop.lm_loop_run.claim_durable_resource", return_value=(tmp_path / "claim", "acquired")),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource", return_value=[]),
+          patch("runtime.loop.lm_loop_run.defer_durable_resource"),
+          patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture", return_value=(0,b"")) as child):
+        assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 75
+    enqueue.assert_not_called(); child.assert_not_called()
+    assert json.loads(receipt.read_text())["reason"] == "disk_floor_low"
+
+
 def test_healthy_disk_boundary_keeps_finite_dispatch_without_numeric_probe(tmp_path):
     entry = {"cadence": {"start_interval_seconds": 60},
              "provider_route": "shared-agent-runner", "effect_class": "application"}

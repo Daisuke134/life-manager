@@ -106,17 +106,48 @@ def test_disk_free_bytes_measures_the_requested_receipt_volume(
     assert calls == [path]
 
 
-@pytest.mark.parametrize("free_bytes", (0, 2 * 1024**3 - 1, None))
-def test_regular_producer_does_not_defer_for_low_or_unknown_free_space(
+@pytest.mark.parametrize("free_bytes", (0, 15 * 1024**3 - 1))
+def test_regular_producer_defers_below_disk_floor(
+    tmp_path, monkeypatch, capsys, free_bytes,
+):
+    guard = load_guard()
+    monkeypatch.setenv("LIFE_MANAGER_LOOP_ID", "line-sticker-factory-hourly")
+    monkeypatch.setattr(guard, "disk_free_bytes", lambda _path: free_bytes)
+    calls = []
+    monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
+
+    assert guard.main(["/bin/true"]) == 75
+    assert calls == []
+    receipt = json.loads(capsys.readouterr().out.strip())
+    assert receipt["status"] == "deferred"
+    assert receipt["reason"] == "disk_floor_low"
+    assert receipt["required_bytes"] == guard.PRODUCER_FLOOR_BYTES
+
+
+@pytest.mark.parametrize("free_bytes", (15 * 1024**3, None))
+def test_regular_producer_runs_at_floor_or_unknown_free_space(
     tmp_path, monkeypatch, free_bytes,
 ):
     guard = load_guard()
+    monkeypatch.setenv("LIFE_MANAGER_LOOP_ID", "line-sticker-factory-hourly")
     monkeypatch.setattr(guard, "disk_free_bytes", lambda _path: free_bytes)
     calls = []
     monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
 
     assert guard.main(["/bin/true"]) == 0
     assert calls and calls[0][1] == ["/bin/true"]
+
+
+@pytest.mark.parametrize("loop_id", ("life-manager-disk-cleanup", "lm-fence-reconciler"))
+def test_control_plane_runs_below_disk_floor(monkeypatch, loop_id):
+    guard = load_guard()
+    monkeypatch.setenv("LIFE_MANAGER_LOOP_ID", loop_id)
+    monkeypatch.setattr(guard, "disk_free_bytes", lambda _path: 0)
+    calls = []
+    monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
+
+    assert guard.main(["/bin/true"]) == 0
+    assert calls
 
 
 @pytest.mark.parametrize("free_bytes", (None, -1, True, "unknown", "missing"))
@@ -154,7 +185,7 @@ def test_cleanup_recovery_signal_does_not_defer_regular_producer(monkeypatch: py
     _write_cleanup_recovery_signal(host_state / "disk-writers.stop")
     guard = load_guard()
     monkeypatch.setenv("LIFE_MANAGER_LOOP_ID", "job-search-daily")
-    monkeypatch.setattr(guard, "disk_free_bytes", lambda _path: 0)
+    monkeypatch.setattr(guard, "disk_free_bytes", lambda _path: 20 * 1024**3)
     calls = []
     monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
 
