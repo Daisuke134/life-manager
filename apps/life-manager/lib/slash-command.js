@@ -36,6 +36,7 @@ const { economyReply } = require("./agent-economy-control.js");
 const KNOWN_COMMANDS = Object.freeze([
   "start", "panel", "help", "status", "where", "stop", "subscribe", "connect", "payout", "reset", "invest",
   "gig", "crowd", "economy",
+  "pilot",
 ]);
 // /gig and /crowd share one handler shape (read state, build a platform reply, send, report the same
 // result contract as /invest) but each is pinned to exactly one marketplace platform — never guessed
@@ -70,7 +71,7 @@ function slashAliasText(parsed) {
   return NL_ALIASES[parsed.name];
 }
 
-function helpMessage() {
+function helpMessage(options = {}) {
   // kind:"help" wiring: parseUserCommand computes availableActions for unrecognised text; server.js
   // used to drop them. /help is where that computation finally reaches the user.
   const help = parseUserCommand("");
@@ -90,6 +91,7 @@ function helpMessage() {
     "  /gig — open the Coconala gig lane",
     "  /crowd — open the CrowdWorks gig lane",
     "  /economy — Agent Economy status and emergency control",
+    ...(options.includePilot ? ["  /pilot — message your personal agent (pilot group only)"] : []),
     "",
     "You can also type:",
     ...help.availableActions.map((action) => `  ${action}`),
@@ -98,6 +100,21 @@ function helpMessage() {
 
 function setupFirstMessage(name) {
   return `Complete Life Manager setup with /start before using /${name}.`;
+}
+
+function escapeTelegramHtml(value) {
+  let output = "";
+  for (const character of String(value || "")) {
+    const escaped = character === "&" ? "&amp;"
+      : character === "<" ? "&lt;"
+        : character === ">" ? "&gt;"
+          : character;
+    if (output.length + escaped.length > 3499) {
+      return `${output}…`;
+    }
+    output += escaped;
+  }
+  return output;
 }
 
 function coarseCoord(value) {
@@ -187,7 +204,10 @@ async function handleSlashCommand(parsed, row, deps = {}) {
   }
 
   if (name === "help") {
-    await send(deps.token, chatId, helpMessage());
+    const includePilot = Boolean(row && row.uid
+      && typeof deps.isMaritimePilotEnabled === "function"
+      && deps.isMaritimePilotEnabled(row.uid));
+    await send(deps.token, chatId, helpMessage({ includePilot }));
     return { handled: true, action: "help" };
   }
 
@@ -226,6 +246,47 @@ async function handleSlashCommand(parsed, row, deps = {}) {
   if (!row || !row.uid) {
     await send(deps.token, chatId, setupFirstMessage(name));
     return { handled: true, action: name, ok: false, reason: "unlinked" };
+  }
+
+  if (name === "pilot") {
+    if (typeof deps.isMaritimePilotEnabled !== "function" || !deps.isMaritimePilotEnabled(row.uid)) {
+      await send(deps.token, chatId, "Maritime pilotは現在利用できません。");
+      return { handled: true, action: "pilot", ok: false, reason: "disabled" };
+    }
+    const message = String(parsed.args || "").trim();
+    if (!message) {
+      await send(deps.token, chatId, "使い方: /pilot <メッセージ>。短い計画依頼を送ってください。");
+      return { handled: true, action: "pilot", ok: false, reason: "missing_message" };
+    }
+    if (message.length > 2000) {
+      await send(deps.token, chatId, "メッセージが長すぎます。2,000文字以内で送ってください。");
+      return { handled: true, action: "pilot", ok: false, reason: "invalid_message" };
+    }
+
+    let result = null;
+    try {
+      if (typeof deps.chatWithMaritimePilot === "function") {
+        result = await deps.chatWithMaritimePilot(row.uid, message);
+      }
+    } catch {
+      result = null;
+    }
+    if (result?.ok !== true || typeof result.response !== "string" || !result.response.trim()) {
+      await send(deps.token, chatId, "Maritimeから応答を確認できませんでした。自動再送はしていません。");
+      return { handled: true, action: "pilot", ok: false, reason: "provider_error" };
+    }
+
+    const delivery = await send(deps.token, chatId, escapeTelegramHtml(result.response));
+    const providerMessageId = delivery && delivery.ok === true
+      && Number.isSafeInteger(delivery.result?.message_id) && delivery.result.message_id > 0
+      ? delivery.result.message_id : null;
+    if (!providerMessageId) {
+      return {
+        handled: true, action: "pilot", ok: false,
+        reason: delivery?.ok === false ? "delivery_failed" : "delivery_unconfirmed",
+      };
+    }
+    return { handled: true, action: "pilot", ok: true, providerMessageId };
   }
 
   if (name === "invest") {
