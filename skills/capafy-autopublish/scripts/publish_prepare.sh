@@ -123,6 +123,11 @@ mkdir -p "$CAPAFY_PUBLISH_HOME" || die "could not create publisher HOME"
 # Agent could not overwrite its own copy (live 2026-09-29, 1037238583). Replace it.
 cp -f "$ICON" "$ICON_COPY" && chmod 600 "$ICON_COPY" || die "icon copy failed"
 ICON="$ICON_COPY"
+# D4 (SSOT 2026-10-15): real-output proof cards for the listing description; optional.
+PROOF_DIR="$CAPAFY_PUBLISH_HOME/proof"
+mkdir -p "$PROOF_DIR" && /usr/bin/find "${PROOF_DIR:?}" -maxdepth 1 -name 'proof-*.png' -delete
+python3 "$AUTO/scripts/proof_images.py" "$SKILL_DIR" "$PROOF_DIR" >/dev/null 2>&1 || true
+export CAPAFY_PROOF_DIR="$PROOF_DIR"
 python3 "$AUTO/scripts/build_config.py" "$LISTING" "$ICON" "$CFG_ONE" >/dev/null \
   || die "build_config failed"
 if [ -f "$SKILL_DIR/UPDATE.json" ] && [ -z "$REUSE_AGENT_ID" ]; then
