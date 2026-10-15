@@ -20,96 +20,78 @@
 
 **E01最新readback（2026-10-13T02:04:44Z）:** 最新main/immutable `current` releaseは`e4754bc9687cec670292a89c740a95f5770afc5d`で、`runtime/loop/self-eval.mjs`のSHA-256はmainとreleaseで一致（`75b050c7a9b060a332854b1d9994365bf8f7fa6061ca5b14c8b777574c97b897`）。既存回帰testは8/8 PASS。`df -k /`は空き2,826,744 KiB（2,894,585,856 bytes）、release要件2,393,772,032 bytesを500,813,824 bytes上回る。これは時点の容量readbackで、適用直前にも再確認する。`agent-economy-loop`はPID 3136で旧release `dd6f0ee51266dda30b84b054f6c72d3771badf7b`をloaded-runningし、run `18dda725e96ec240-3136` / occurrence `agent-economy-loop:18dda725e96ec240-3136`を実行中。`lm-loop status --explain`のdiagnosticはcomplete、`next_action=monitor_running`、effectは`none/not_applicable`、`admission_effect_unknown.current=false`。旧loaded ownerがliveのためE01は未完で、停止・再起動・release apply・effect fence変更はしない。次は同occurrenceの終端をread-onlyで確認し、loaded-idle後にfresh capacity/release readbackを取り、既存のowner-controlled reconcileと次の自然runで採用を検証する。
 
-## 統括cursor — 共有資源回復と全案件の引き継ぎ
+## 統括cursor — 共通資源制御を閉じてからGigを進める
 
-**目的:** ディスク不足と実行枠の共有障害を先に修復し、READMEの18 agentとCloud・CFO・LINE・Mobile・Gig・eBook・Job Hunter・投資の既存目標を、自然実行と公式readbackまで一件ずつ進める。24時間の監督・自己修復・評価付き自己改善・利用可能なOSSを成立させ、会社全体のUS$10,000,000 MRRまで継続する。各laneの元の売上/MRR/net目標を縮小せず、source/CI成功を本番成果と扱わない。
+**目的:** 複数の業務agentが同じMacのCPU・メモリ・ディスク・制御receiptを共有しても、負荷を検知して新規実行を調整でき、容量不足時にもcleanupと診断が動ける共通実行基盤にする。その完了後、GigのStorefront・Apply・Negotiate・Submit・Paidをproviderごとに直す。US$10M以上の月次売上は長期目標であり、source/CI成功や掲載数を売上達成とは扱わない。
 
-**基盤の完成度と開発agent再開の判断:** 既存architectureはdurable state/receipt、独立owner、有限worker、監督/復旧、自己/中央cleanupという妥当な土台を持つが、全体の継続稼働は未完成。残件は美容的な小修正ではなく、共通の資源配分・保存/回収・復旧/効果照合の穴を閉じる根本修復である。自己掃除は使用後の資源を戻し、同時実行中のRAM peakを消さない。headlessはbrowserlessではなく、headless化だけを無限並列/無故障の根拠にしない。開始時刻分散は補助とする。
+**今回の範囲:** 本節を共有障害とGigの唯一の現在cursorとする。今回は外部実装との比較を含む仕様・パッチ計画の更新まで。runtime、provider、公開・応募・送信は変更しない。Capafyは別ownerが進めるためこの順序のgateにしない。旧F2/F5の反復checklist、3回連続、数日待機は完了条件から外す。
 
-原則を一次資料で照合済み: Chrome headlessは通常Chromeと機能を共有（https://developer.chrome.com/docs/automation-and-testing/headless）、Playwright BrowserContextは互換なbrowser内で隔離再利用可能（https://playwright.dev/docs/browser-contexts）、Temporalは負荷別分離・実資源に合わせたworker調整/scaleを推奨（https://docs.temporal.io/best-practices/worker）。これを既存Life Managerへ適用し、Temporal/Kubernetes等の新基盤導入を現在の追加gateにしない。全実装がbest practiceに完全一致したという認証や、有限hardware/外部providerを含む永久ゼロ故障は主張しない。
+### 結論と実証済みの現状
 
-primaryは全体TODO/SSOT/共有cleanupとreleaseの統括・acceptance・integrationを持ち、同じsource fileのwriterは一人にする。AGMSG team `lm` は通信路で、登録だけでは稼働証明にならない。`lm-agent-economy-repair-1012` はTaskMarket awards/cost testを作業中で、Evo担当ではない。read-onlyのEvo状況監査は完了し、専任のEAB/Eval/Evo稼働席は確認できなかった。既存Job Hunter/LINE/Capafy等のowner・leaseは重複させず、team/peekと成果物で確認する。
+foundationは未完了。土台の一部は既にあるが、今回の失敗境界まで閉じていない。
 
-**全体architectureの判断とAs-Is/To-Be:** 18 agentは18業務capabilityであり、191の小さいjobがそれぞれのcadenceで実装する。最善の進め方は既存のdurable state/effect/receiptと、常時監督＋有限worker＋優先度/経過時間を扱うadmissionを土台に、実資源・業務進行から配分を調整することである。FIFOは同優先度の順序補助として使え、先頭の不適合/古い予約が全業務を止めるgateにしない。固定2/5/10は現設定であり、達成目標や永久の適正値ではない。開始時刻/時差/周期の分散はburstを減らすが、仕事の長期化/再試行/保存先共有があるため衝突や容量問題が無い証明にならない。
+- 最新確認mainは 43ec2fbdb42a675fc49812ec776adae2b6c51f16。config/loop-registry.jsonには191 loop定義がある。これは191個の独立agentでも同時実行数でもない。ID/entrypointにGig等の語を含む定義は25件で、browser、report、監視、reconcileも含む。
+- launchdの300〜3599秒cadenceは、lm_loop_apply.py の _plist がloop IDのhashで起動minuteを分散する。すでに開始時刻のstaggerはある。これは起動burstを弱めるが、実行時間の重なりやkeep_aliveの常駐負荷、累積ディスク量を制御しない。
+- resource_admission.py はdurable SQLite queue、atomic claim、heartbeat、lease、priority/aging、revenue floorを持つ。一方、_limits と _capacity_available は環境設定による固定上限で、標準agent総数は2、finite run全体は10。実測CPU/RAMに応じて許可枠を上下させる共通controllerはない。
+- lm_loop_run.py はqueueに積んだ後、claim前にmemory_pressureの一回の値を読み、標準の空きメモリ下限15%でdeferする。これは安全な単発gateだが、枠数の適応制御ではない。keep_aliveはfinite claimを通らず、常駐processとしてシステム全体の測定値には含める必要がある。
+- runtime/host/disk_admission.py の _producer_gate はfree-space floorをdiagnostic onlyとして無視する。これは2GiBを全producerの新しい停止gateにしない現在の契約であり、維持する。
+- disk-cleanup側にはすでに1MiBの事前確保receipt reserve、64KiB payload上限、ENOSPC時の一度だけのretry、旧receipt保全とreserve検証がある。skills/self/disk-cleanup/disk_cleanup.py の仕組みとテストは存在する。
+- 共通preflightはそのreserveを使わない。skills/_shared/lib/launchd_preflight.py の write_atomic は同じvolumeでmkstemp/fsync/replaceを行い、書けない場合mainがreceipt_write_failedとしてexit 75を返す。bin/launchctl-safeはpreflight失敗時にlaunchd操作を止める。したがって空き不足時にcleanupを起動しようとしても、cleanup本体の既存reserveより先にlaunchctl用receiptが詰まる経路がある。
+- 直近のread-only証拠では、2026-10-14T23:45:40Zのhealth snapshotがfree_bytes=369451008、capacity_recovered=falseを記録した。2026-10-15T00:08:27Zのcleanup起動要求はlaunchctl-safe preflightのreceipt_write_failed、errno=28で止まり、launchd mutationもcleanup実行も起きていない。これはその時点の記録であり、現在の容量値とは扱わない。
 
-As-Is（2026-10-13 21:16 JST readback）: official origin/main=086bfed5bb0a45234f49e0d605cbf7f6bf42cb47; ~/loops/current is old release 5b90b21e6d68f0657b9dec7ac92d5898bab0775c. At 21:16:53 JST Data-volume free is 1,790,568 KiB; the latest-main complete-release preflight is 2,394,476,544 bytes. That is only a release-cut precondition, not a resource-success KPI. life-manager-disk-cleanup is loaded-idle; its last event at 21:13:40Z exited 78 storage_write_failed_pre_effect. life-manager-release-reconciler is loaded-idle; its last event at 21:16:23Z exited 1 entrypoint_exit_1. Both still use 5b90. The 60-second watchdog currently runs from release 418b984c with script SHA-256 d5d5255db66cda06dd000fbc8d5c42ecfae4b1cfd475dfeaae5d9d27cb0d5ac6; its last readback showed 60-second cadence and exit 0, but it is not on current main.
+**原因の判定:** 「191 jobを一度に起動した」が原因だという証拠はない。時刻分散と低い固定上限は既にあり、同時数を抑える仕組みもある。確認できる共通欠陥は (1) 固定枠が実測圧力に追従しないこと、(2) cleanup側にある緊急receipt reserveがlaunchd preflightとの共通部品になっておらず、制御planeが容量不足で自分自身を起動できないこと。Gigの個別provider経路や未登録providerまで、この2修正だけで成功するとは判定しない。
 
-To-Beは各agentがobserve→decide→act→official verify→persist→自分の不要物cleanup→次の仕事を、必要なcadence/期限で継続すること。独立する業務は並列に進み、同じidentity/投稿/決済/注文はlockとidempotencyで保護する。不明な効果は照合の仕事を継続し、独立する観測・他仕事まで無理由に永久停止させない。監督・中央cleanup・復旧は収益workerの混雑に巻き込まれず、stale owner/予約、実資源不足、provider制約を別々に診断し、自己所有修復→自然再開まで行う。正式state/receiptの成長は内容を保持した既存native管理と容量/保存先計画で扱う。最終のcloud/control plane・disposable computeは既存cloud節に従い、現時点で導入済みとはしない。外部審査/quota/障害を含む有限systemに永久ゼロ待機・ゼロ故障を保証せず、仕事の継続・障害の封じ込め・自動回復・公式収益で受け入れる。全面作り直し、FIFO一律撤去、任意の100枠化は現在の先頭taskにしない。
+### 外部コードから採る設計
 
-**正本と優先範囲:** 共有資源の実行方針はこの節と「外部の実運用方式へ揃える」で定める。旧snapshot/旧cursorの固定GiB到達、連続N回の自然実行、F1–F5全項目PASSまで全事業を止める条件は撤回する。過去の観測回数は履歴であり再実行の指示ではない。各仕事の実資源・所有者・外部effectの条件を満たしたlaneは進め、個別故障はその仕事へ隔離する。lane固有の収益目標・公式結果の照合は保持する。
-
-**資源修復の目的・完了契約:** 永続キュー、空き枠で動く有限worker、実資源によるbackpressure、終了時の資源返却、仕事単位の障害隔離を使う。今直す故障の再現と必要最小の回帰検証、対象への反映、実仕事が該当境界を越える事実でその修復を閉じ、次の収益作業へ進む。連続成功回数を完了条件にせず、稼働中の安定性は既存監視で継続観測する。空きbytes/回収bytesは制御・診断値で、数字到達や全fleetの無故障を待つgateにしない。
-
-**仕事の継続と共有修復:** F1–F5は既存実装と共有修復のbacklogであり、全業務再開の一括gateではない。Capafy等の選択laneは、その仕事のowner/実資源/既存effect条件が揃えば運転を進める。残るF2/F5は、それぞれ該当occurrence/producerだけを直し、無関係なlaneの開始を止めない。
-
-- [x] **F1 — 全jobの共通入口:** 最新`config/loop-registry.json`のjobを100%調査し、各jobを「容量を書き込む」「制御/cleanup」「永続書込なし」に分類する。未分類=`0`。書込jobは既存の共有capacity admissionを通り、保護対象/別ownerの保存先を使わないことをsource/fixtureで確認する。
-- [ ] **F2 — 容量失敗とeffect-recovery:** 隔離fixtureで (a) 起動前容量不足、(b) 一時書込ENOSPC、(c) 最終receipt保存ENOSPC、(d) child開始後のresource-heartbeat lossを再現する。(a)では外部action開始=`0`、(b/c/d)ではtask identityを保持し、effect unknownを`released/effect_unknown=0`へ落とさない。通常releaseも既存unknownを消さない。さらに、terminal eventがeffect unknownなのにadmission rowが既に`released/effect_unknown=0`になった場合も、登録済みreconcilerが同一occurrenceの公式readbackを照合できること。照合前はscratchを保持し、公式効果が確認できた場合だけclosure receiptを記録して中央cleanupが回収する。推測のno-effect化、DB手修正、再送は禁止。さらに、同じ未解決readbackを繰り返すだけのreconcile passはper-occurrence JSONLを毎wake追記せず、未解決状態の集約を保持する。公式closure proofは引き続きoccurrence単位で保存する。今回のlive heartbeat incident、反復ログの実測、cleanup実測で旧版F2は未達と判明したため再開。
-- [x] **F3 — 最新mainの掃除役を本番へ配布:** PR #7975/#7979/#7988は必須CIを通過してmainへ統合済み。main由来complete immutable releaseは`20261014T102033-5b566149`、SHA=`5b566149a0d7ef238745893d5b09676e6b2c558d`。watchdog/central cleanup/release reconcilerのloaded argv/SHA、state path、cadenceを確認。watchdogはStartInterval=60/RunAtLoad=true、centralはMinute=3/8/13/.../58、reconcilerはStartInterval=60。既存self-handoff watcherが引き継ぎを終え、doctorは191 job、missing/unmanaged/retiredすべて0、PASS。後続mainの共有cleanup sourceは同releaseと一致する。F3は完了し、再配布を残TODOとして繰り返さない。
-- [x] **F4 — 既存の清掃動作（完了記録）:** 清掃ownerの自然動作とerrors=0/protected_deletions=0は確認済み。過去に複数回観測した記録は履歴として保持するが、同じ回数を再び要求しない。最新版への反映は対象jobの通常の運用確認だけを行う。
-- [ ] **F5 — 実writerの保存・終了・清掃:** owner_id/PID/run/path/bytesで実writerと最初の不成立境界を特定する。実測したproducerの保存量/子終了/自分のtabや一時物の後始末だけを最小修正し、正式商品・receipt・active/unknown資源は保持する。該当故障の回帰と実仕事の進行を確認したらその修復を閉じる。連続N回、全producerの無故障、全体の再開待ちは要求しない。
-
-**現在の原子的順序:** →「共有release進行結果の修復」。正常budget継続が失敗になる共有境界を先に修復し、対象反映後に条件の整った仕事へ進む。連続N回と全F合格待ちは撤回する。
-
-**Cursor/order update:** The first post-apply natural reconciler call ran from release `605177d4`; its exact call for `capafy-loop-daily:18de6c4535b17e60-47142` recorded `exit_code=1`, `closed=false`, `same_version_updated_after_queued_at`, and `HELD`. Thus central adoption is verified and the fence remains intentionally open. The former order was (1) wait for this natural run, (2) find provider receipt/history, (3) resume Factory, (4) refresh sales/source, (5) market. Fresh metrics justify the new parallel order: (1) keep the exact occurrence held and continue provider receipt/API-history search; (2) run one measurable SEO experiment for an existing FROZEN winner without editing its Capafy listing, because Google has 38 views / 1 paid and TikTok Script Pro itself has 3 Google views / 1 paid; (3) investigate Hook Lab's hot re-entry, where 15 views produced 5 paid orders, and improve `ai_overview` conversion, where 373 views produced 0 paid; (4) keep broad social volume unchanged because tracked CT links produced 8 views / 0 paid; (5) refresh seller-money/MRR and source snapshots; (6) reopen new-Agent shipping only after the exact fence is reconciled from supported evidence; (7) repair the separate goal-monitor Telegram binding. **Current cursor: item 1—receipt/history investigation; item 2 can progress independently.**
-
-## 外部の実運用方式へ揃える
-
-**目的・範囲:** 連続成功回数と全体合格待ちで修復を終えられない進め方を撤回し、実運用のキュー/worker/負荷制御/再送設計を既存Life Managerへ適用する。今回は外部調査とspec/参照plan更新だけで、実装修復・本番起動・新server導入・provider操作は行わない。
-
-**新ルール:** 「連続N回成功」「F1–F5全部PASSまで全事業再開禁止」を完了条件にしない。成功回数を別の数字へ置換もしない。既知の故障を再現する最小検証と実仕事の該当境界で修復を閉じ、安定性は既存監視で継続観測する。過去snapshotの回数は観測履歴であり、現在の実行指示ではない。
-
-**調べた一次資料と採用する方法:**
-
-|実運用の根拠|採用する方法|Life Managerでの対応|
+|実装と読んだ箇所|コードで確認した方法|Life Managerへ持ち込むもの|
 |---|---|---|
-|[Google SRE: Handling Overload](https://sre.google/sre-book/handling-overload/)|処理件数だけでなく実資源から容量を決め、過負荷を局所化する|既存resource admissionとdisk producer gateを使い、現在の重いwriterだけを抑える。枠待ちは永続キューへ置く|
-|[Temporal: Task Queues](https://docs.temporal.io/task-queue)|仕事を永続キューへ置き、workerが取る。worker停止でも未処理の仕事を保持する|enqueue_durable/claim_durable/heartbeat_durable/release_and_reserveを再利用。全agentを同時に重く起動しない|
-|[Inngest: Step concurrency](https://www.inngest.com/docs/durable-execution/flow-control/concurrency)|実行しているstepだけが枠を使い、待っている仕事は空き枠を占有しない。共有resourceのkeyで並列数を制御する|provider/readback待ちと実行中processを分ける。停止した一仕事のunknownを保ち、無関係なownerの実行枠を止めない|
-|[Amazon Builders' Library: Making retries safe with idempotent APIs](https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/)|同じ操作の再送をrequest IDで識別し、結果不明時の重複実行を避ける|既存occurrence/intent/hash/provider receiptを維持。providerがidempotencyを保証しない公開/応募/納品は公式結果照合を先に行う|
+|[Temporal Rust resource tuner](https://github.com/temporalio/sdk-rust/blob/165a0e607b60b825e576fd72201126fa2872cd59/crates/sdk-core/src/worker/tuner/resource_based.rs#L153-L159) と [slot reservation/ramp](https://github.com/temporalio/sdk-rust/blob/165a0e607b60b825e576fd72201126fa2872cd59/crates/sdk-core/src/worker/tuner/resource_based.rs#L284-L335)、[Python options](https://github.com/temporalio/sdk-python/blob/482e933f29fe670eec99e2a3b53418f68566c562/temporalio/worker/_tuning.py#L29-L55)|CPUとmemoryを別controllerで測り、両方がpermitした時だけslotを出す。min/maxとramp throttleを持ち、taskの使用量が観測できるまで次slotを急いで出さない。memory targetは80%より上を勧めない。|固定上限をhard ceilingとして残し、観測値に応じてagent枠を0..ceilingで動かす。新daemonではなくLife Managerの既存SQLite状態に1つだけcontroller状態を保存し、同時に起きた短命processが別々の判断をしない。徐々に増やし、高圧力では新規claimを止める。|
+|[Inngest concurrency contract](https://github.com/inngest/inngest/blob/5bfb55256528292076c5d04bbe46d6fcc3ae764a/pkg/execution/concurrency/concurrency.go#L28-L41)、[queue capacity lease](https://github.com/inngest/inngest/blob/5bfb55256528292076c5d04bbe46d6fcc3ae764a/pkg/execution/queue/constraints.go#L289-L305)、[lease renewal](https://github.com/inngest/inngest/blob/5bfb55256528292076c5d04bbe46d6fcc3ae764a/pkg/execution/queue/process.go#L121-L162)|Checkだけでは競合して上限を越えるため、処理開始時にatomic Add/Acquireする。Acquireにはidempotency key、run ID、期限があり、実行中にleaseを更新し、更新できないjobは処理を止める。|既存のclaim/heartbeat/occurrence fenceを再利用する。pressure判断とclaimを同じcontrol.lock/SQLite transactionで確定し、外部effect unknownはcompute slotを解放した後もreadbackまでfenceとして残す。|
+|[Kueue fair-sharing iterator](https://github.com/kubernetes-sigs/kueue/blob/336394d65d040d89a65614e4bec0a5c1a62cd44a/pkg/scheduler/fair_sharing_iterator.go#L186-L229)|候補をnon-borrowing、dominant resource share、effective priority、FIFOの順で比較する。|現在のrevenue floor、priority aging、owner隔離、同順位FIFOを保持する。Kubernetes/Kueueへの移行や別scheduler導入はしない。|
 
-これらは各社/公式開発者が公開した設計であり、全外部サービスの成功・収益を独立監査したという主張ではない。Mac上のsourceで実装された部分と、外部方式からの設計判断を区別する。
+この調査では各リポジトリをpinned commitの実装とテストまで読んだ。選択理由は、Temporalがresource-based slotとrampを実装し、Inngestが原子的なactive capacity leaseを実装し、Kueueが公平な待ち順を実装しているため。Life Managerのlaunchd＋durable SQLiteとは実行モデルが異なるので、依存追加や丸ごとの移植ではなく上記の小さな契約だけを合わせる。
 
-**単一推奨:** 既存native運転を「永続キュー→空き枠の有限worker→小さいcheckpoint→終了時の資源返却→次の仕事」へ揃える。収益判断はagentが行い、実行枠/identity/金額/重複検査は既存contractで行う。受注済み納品を守り、Capafyを収益laneの優先対象にする。固定時刻のシフトはburst緩和の補助として使えるが、長い仕事と保存量の制限の代わりにしない。
+### 共通基盤の確定パッチ
 
-**既存sourceとの比較（main605177d47acdb77ded7c130f3d5d1cdeb46576b2）:** Macには永続queue/lease/priority/heartbeat/有限child/中央cleanupが既にある。Cloud appにはInngest ^4.11.0、uid単位のconcurrency、step.run、single-writer guardがあるが、Macの18業務をInngestへ接続済みとは言えない。Inngest self-hostの公式方式も確認したが、既定のqueue/stateはin-memory RedisからSQLiteへ定期snapshotするため、daemon追加だけで同じ耐久性が自動的に得られると仮定しない。今回は全体のengine移植を先頭にしない。
+**P0 — 既存receipt reserveを共通化し、launchd preflightのENOSPC境界を閉じる。**
 
-### 実行順の変更と現在cursor
+1. 新規 skills/_shared/lib/receipt_reserve.py を作り、disk_cleanup.py の _receipt_reserve_valid、_staged_receipt_file、_receipt_reserve、_consume_receipt_reserve とatomic receipt writeを共通helperへ移す。既存契約の1MiB事前確保・64KiB payload上限・0600 regular file・allocated-block検証・fsync/atomic replace・一回だけのENOSPC retry・二度目失敗時の旧receipt保全を維持する。
+2. skills/self/disk-cleanup/disk_cleanup.py は既存のowner/occurrence/release identity組立てとreceipt保存先を維持し、書込部分だけを新helperへ委譲する。cleanup専用の.reserveとlaunchd専用のreserveは別pathにし、同じreserveを二ownerが同時消費しない。
+3. skills/_shared/lib/launchd_preflight.py のwrite_atomic/mainを新helperへ接続する。preflight receiptと同じstate directoryに専用reserveを先に確保し、正常な初回実行時にreadback検証する。errno=ENOSPCだけで自分のreserveを消費して1回retryし、成功すれば通常のprobe結果を保存する。reserve欠落/不正、retry後も失敗、EIO等の別エラーでは従来どおりmutation_allowed=false・型付きreceipt_write_failedで止める。既知ownerのallow-list cleanup以外のpathは削除しない。
+4. bin/launchctl-safeはpreflightを強制する現状を維持する。preflightを迂回したlaunchctlや別起動経路は追加しない。
+5. 回帰テストはskills/_shared/lib/__tests__/test_launchd_preflight.pyに (a) reserveからのENOSPC recoveryでreceiptが読め、probeのmutation_allowedを正しく返す、(b)二度目のENOSPCでは旧receiptを保ちlaunchd操作を拒否、(c)reserveが不正なら閉じる、を追加する。skills/self/disk-cleanup/tests/test_disk_cleanup.pyの既存receipt-reserve testsをhelperの同一契約に移し、既存のcleanup保護テストを維持する。
 
-**旧順:** 共有基盤C1→C2→F2公式closure→F5連続実行→全F合格→Capafy/Gig。
+**P1 — 固定上限を実測pressureに連動させる。**
 
-**新順:** R1共有実行・資源管理の現在停止境界→R2最小修復/既済source反映→R3条件の整った仕事を進める→R4Gigと他lane→R5実結果を使う自己修復/自己改善。共有課題は当該producer/occurrenceごとに並行処理する。
+1. runtime/host/resource_pressure.pyを追加する。副作用なしのsnapshotにsampled_at、memory_free_percent（既存memory_pressure -Q）、normalized_load_1m（os.getloadavg()[0] / cpu_count、CPU使用率%ではなくrunnable-load/coreと明記）、各sourceのavailable/errorを返す。測定不能を0や正常値へ変換しない。scratch/ログ/ブラウザの常駐負荷はhost全体測定に含める。
+2. runtime/host/resource_admission.pyのSQLite schemaをv2からv3へ一段だけ上げる。既存queue/reservations/priorities/occurrencesを変更・再生成せず、singleton resource_controller_stateを追加する。effective_agent_slots、最後のsample/decision、last_step_atを保存し、_database_schema_is_current、_database migration、schema検証を更新する。v2 migration後もqueued/claimed/effect_unknown/lease/sequenceの値が同一であることをtestで証明する。
+3. resource_admission.pyの_limits/_capacity_available/claim_durable/reserve_available/release_and_reserveにshared effective slotを組み込む。既存env hard capとrevenue floorは上限として残し、agent枠だけを現在の上限内で調整する。browser上限1、deterministic上限、cleanup/control-plane safety laneの既存例外は変更しない。queue order、idempotency、heartbeat、effect_unknown、occurrence readback fenceは変えない。
+4. 制御則を定数とテストで固定する。空きmemory 20%以上かつnormalized_load_1mが1.0以下の正常sampleが続く場合、60秒以上のramp間隔ごとにagent枠を1つ増やす。memory 15%未満またはmemory sample unavailableなら新規agent slotを0にする。15〜20%またはload/coreが1.0超なら増枠せず、現在枠を1つ下げる。CPU sample unavailableなら増枠しない。既に動くchildはkillせず完了を待ち、hard cap超過になったらoccupiedが下がるまで新規claimを止める。60秒は既存host watchdog cadenceに揃える。対象taskの平均所要時間が短くても50ms rampを使わない。
+5. runtime/loop/lm_loop_run.pyの既存memory sample/claim境界（memory checkからclaim_durable_resource呼出しまで）でsnapshotを一度取り、durable claimに渡す。pressure拒否はownerとoccurrenceをdurable queueに残し、processを待機させずdeferredとして終了する。runtime/loop/runtime_event.pyのbuild_runtime_eventにはsnapshot、effective cap、decision、reasonを小さいallow-listで追加し、run_id/owner_id/occurrence_id/release_shaとの対応を保つ。
+6. テスト: runtime/host/tests/test_resource_pressure.pyを追加。runtime/host/tests/test_resource_admission.pyでv2→v3保持、safe ramp、high-pressure decrease、critical-memory zero, unknown sample no-increase、同時claim時の上限、固定hard cap、revenue floor、queue aging、effect_unknown fence維持を検証する。runtime/loop/tests/test_lm_loop_run_bounds.pyとruntime/loop/tests/test_runtime_event.pyでpressure deferがchildを起動せずdurable occurrenceを保つこととevent schemaを検証する。
 
-**理由:** 全体の連続合格待ちは実資源・個別故障の改善を測らず、条件が整った仕事まで止める。外部の実行枠/待機/障害隔離の設計へ合わせ、現在の収益経路を先に通す。進行中のeffectや他ownerの運転は中断・重複させない。**現在cursorはR3（Capafyの現停止境界と実結果）。R1/R2の今回の共有release修復は、main/immutable採用と新版自然terminalで完了する。全18の事業成功・F2/F5全件完了とは別に扱う。**
+**foundation完了ライン:** P0とP1がmainに入り、focused testsとbin/lm-loop-contractがPASSし、main由来immutable releaseでdoctorが登録loop定義を全て認識する。自然実行は、(a) disk-cleanupの1 occurrenceがlaunchctl preflight receiptを書いてcleanup本体に到達すること、(b) finite agentの1 occurrenceがpressure decision/slot releaseを記録しqueue/fenceを壊さないことを各1回確認する。連続3回、F2/F5再実行、空き容量の特定GiB到達、全provider成功はgateにしない。ここまでで「共通host資源・制御receipt修復」を完了し、cursorをGigへ移す。
 
-|順|具体的な次作業|対象file/functionと、終える事実|
-|---|---|---|
-|R1 / 今回完了|共有release/制御の最初の失敗を確定する|正常budget・control競合/current置換の誤失敗と、条件付きBash関数内の生成/保存/handoff失敗隠蔽を特定する。境界とbound runを下の修復記録へ保存する|
-|R2 / 今回完了|既知の共有release障害を最小修復し反映する|bin/reconcile-agent-runner-release.shと既存fleet_apply test。51件PASS→review GO→CI/main→ALL immutable→新版自然run pass/exit0。未適用fleetのpartial/再確認は保持する|
-|R3 / 現在|Capafyの制作・公開・配信の現停止境界を直し実結果へ進む|config/loop-registry.jsonのownerと実entrypoint、skills/self/capafy-loop/capafy-loop-daily.sh・capafy_factory_fence_reconcile.py、skills/earn/capafy-marketing/capafy-distribute-daily.sh・scripts/capafy_distribute_fence_reconcile.pyを照合する。factory/publication/distributionの現runと公式結果を結び、同operation identityで未成立な箇所だけ直す。frozen sellerを変更せず、制作・配信・販売/入金を別々に測る|
-|R4|Gigのfunded案件と、条件が整った他laneを進める|shared Paid→正式納品→受領/精算。別laneの保留やF backlogで一括停止しない。Storefrontの展開と公開起動整備は既存差分計画へ|
-|R5|評価から自己修復・自己改善へ戻す|同taskの品質・工数・費用・official outcomeを既存eval/CFOへ戻す。全18完成を準備開始条件にせず、成功の型を共有する|
+**完了が意味しないこと:** これだけでGigの応募・交渉・出品・契約・入金が全て成功するわけではない。provider auth、フォーム変更、候補品質、platform readback、契約、settlementには別々の故障境界がある。共有foundation完了後はGigの各境界だけを観測して直す。
 
-**R3の最初のsource境界 — false healthy terminal:** 2026-10-14T19:24:57Zのread-only statusで`capafy-loop-daily`は旧release `5113cbe55fca411b86a9f48b4102956a79481494`、自然run `18de7bd2cb378c80-96887`、pass/exit 0だがpublisher receipt/readbackなし・effect `unknown`、ownerはloaded-idle。別の観測済み自然runでは`daily_loop.sh`が`POST=PUBLISHABLE`のまま`BLOCKED`を記録し、`rc=0`・marker未更新で終了した。親`capafy-loop-daily.sh`はbounded drainerのrc 0を`DRAINER_RC_0`として受け、正常guardを通って`mark_healthy`する。原因は共通runtimeではなく、子`daily_loop.sh`の`MAXTURNS-STUCK`と最終`BLOCKED`分岐が失敗状態を`RC`へ反映せず、最後に`exit $RC`すること。別ownerのdistribution最新run `18de7b8ca8f06db8-76917`は19:19:06Zにexit 75で同じ旧fence `capafy-distribute-daily:18de7718a9089ed8-27714`を保持している。R1/R2の共有release/制御修復は完了済みで、このCapafy固有境界を全agent共通障害として扱わない。
+### 次のcursor — GigをStorefrontからsettled netまで進める
 
-**R3 patch contract:** `skills/capafy-autopublish/scripts/daily_loop.sh`の`MAXTURNS-STUCK`と最終`BLOCKED`分岐だけで、terminal logより前に`RC=0`を`1`へ昇格し、既存非0（例:`124`）を保持する。markerは更新しない。親`skills/self/capafy-loop/capafy-loop-daily.sh`の既存「子rc非0ならexit、rc 0だけ`mark_healthy`」契約は変更しない。`skills/capafy-autopublish/test/test_daily_loop_terminal.py`を追加し、実際の親child-dispatch blockと子terminal blockを隔離shell fixtureで実行する。RED/GREEN受入は (a)`PUBLISHABLE`・runner rc 0の`BLOCKED`→親exit 1、親/子marker未更新、(b)`Reached max turns` streak 3回目→同じくexit 1/marker未更新、(c)両failure pathのrunner rc 124→親まで124を保持、(d)`DRAINED`と`CAP_FULL`・rc 0→exit 0/各marker更新。追加fixtureはportable OSS sourceなので、`docs/manifests/oss-merge-1-sources.json`のCapafy autopublish root file count/inventory SHAを更新し、`node scripts/verify-oss-self-contained.mjs`を通す。browser/provider/launchd/live stateはfixtureから呼ばない。focused Capafy tests、shell syntax、`./bin/lm-loop-contract`、OSS verifier、PR CIを通し、main統合後はimmutable releaseへ反映し、対象ownerがloaded-idleの時だけ適用する。自然terminalの失敗が非0で記録され、self-healへ渡ることを確認する。distribution occurrence `capafy-distribute-daily:18de7718a9089ed8-27714`のeffect-unknown fenceは別のreadback taskとして保持し、再送・解除しない。
+config/loop-registry.jsonには現在、Coconala機能がhf-gig-*の8定義、Lancersが7、CrowdWorksが5、Mercorが3登録されている。Freelancer用コードはskills/earn/gig/scripts/freelancer_bid_watch.pyとfreelancer_readiness.pyにあるが、config/loop-registry.jsonにFreelancer ownerはなく、skills/earn/freelancer/もない。ファイルがあることを稼働や登録の証明にしない。skills/earn/gig/TODO.mdは参照用であり、順序・状態の正本は本SSOTだけ。
 
-**R3 TODO順序更新:** 旧cursor=`CP1 Year planのcycle集合修正を先にPR/反映する`。新順=`(1) false healthy terminalを最小修正してsource acceptance — 完了、commit/push a131e31 → (2) fresh whole-branch code review — 完了、Ready to merge / Critical 0 / Important 0 → (3) CIで検出されたportable testのOSS inventoryを同期 — 現在、249 files / digest 378e6e6d…を登録済み、local verifier再実行待ち → (4) PR #8080の新head exact CI・main統合 → (5) loaded-idleのcapafy-loop-dailyへmain由来immutable releaseを適用し、新版の自然terminalをreadback → (6) Agent 7393298474の同一ID retryでWeek/Month/Year・PRICES_MATCH・保存/公式confirmationを完了 → (7) held distribution occurrenceの公式readback → (8) Capafy収益/精算のreadback`。理由は、子が未完了を`BLOCKED`と明記しているのに親が正常扱いするため、CP1再開より先に失敗の伝播と自己修復を成立させる必要がある。source acceptanceはbase `5c83b1f`からREDで失敗2件、修正後focused 6/6、関連回帰25/25、shell syntax/diff check PASS、loop contract `18/191` PASS。CIで当該test追加によるinventory mismatchを再現し、canonical verifierと同じpath ordering/sha計算でmanifest値を更新した。reviewのMinor（`MAXTURNS-CONTINUE` 1/2回目の直接テスト不足）はその分岐を変更していないためdeferし、分岐自体を変更する時に追加する。provider/launchd操作は未実施。現在cursor=`OSS verifierをPASSさせてmanifest follow-upをpush`。
+Gigの標準経路はMarketplace Coreの①find→②fit→③proposal→④submit→⑤provider readback→⑥report→⑦rememberに合わせる。各providerの状態表はStorefront / Apply-eligible / Submitted receipt / Negotiation reply / Work accepted / Paid / Settled / netを別々に持ち、公式画面・API receiptがない項目はunknownのままにする。
 
-**実装上の境界:** 同時実行数と時間制限は既存policyから読み、根拠なく増減しない。Macのソフト予算/観測をOSが強制するRAM/disk quotaと称さない。外部結果のunknownとprocess占有は分けるが、active child、参照中のbrowser、正式商品、未保存の証拠を安全性未確認のまま回収しない。別ownerがheldでも別の適格ownerは進める。queue/state/receipt/skillの第二正本は作らない。
+1. **G0 — ownerと最初の失敗境界を1枚にする。** config/loop-registry.json、runtime/loop/entry_dispatch.py、各provider entrypoint、last natural terminal、provider readbackを照合し、Coconala/Lancers/CrowdWorks/Mercor/FreelancerごとにStorefront・Apply・Negotiate・Submit・Paidのowner、呼出し元、入力、出力receipt、既知blockerを記録する。現在の主な入口は Coconala=hf-gig-storefront-direct/hf-gig-apply-direct/hf-gig-apply-reconcile/hf-gig-reply-detector/hf-gig-paid-direct、Lancers=lancers-revenue-*、CrowdWorks=crowdworks-revenue-*、Mercor=mercor-revenue-*。Freelancerは既存watch/readinessからprovider応募・receipt readbackまでの不足を特定する。新adapterを追加するPRは同じ差分でconfig/loop-registry.jsonとregistry validation/testを追加し、コードだけ存在してREADME/doctorに漏れる状態を作らない。
+2. **G1 — 共通Marketplace Coreを先に照合する。** skills/_shared/marketplace-core/SKILL.mdとscripts/{listing_catalog.py,work_fit.py,application_transaction.py,reply_kernel.py,reply_grounding.py,paid_kernel.py,financial_record.py}の実契約を各provider呼出しへ対応づける。二重の拒否判定・submit fence・reply policyを各adapterへ複製しない。既存tests/test_listing_catalog.py、test_work_fit.py、test_application_transaction.py、test_reply_kernel.py、test_reply_grounding.py、test_paid_kernel.py、test_financial_record.pyを契約表に結ぶ。
+3. **G2 — Coconala Storefront/Apply/Submit。** skills/earn/gig/scripts/storefront_kernel.py、application_parent.py、application_occurrence_reconcile.py、application_direct.py、coconala_product_adapter.pyの実call chainを読む。Storefrontは公開状態・商品ID・価格・公式sales readbackを照合。Applyはeligible判定→occurrence claim→submit→同じIDのprovider applied readbackを結び、pre-effect retryとeffect_unknownを分離する。返信/支払いは同じPRに混ぜず次段で行う。
+4. **G3 — Lancers Storefront/Apply/Negotiate/Paid。** skills/earn/lancers/scripts/{storefront_offer.py,application_loop.py,application_tick.py,lancers_adapter.py,reply_adapter.py,paid_adapter.py,work_sync.py}を入口から呼び、catalogue facet、fit、proposal、submit receipt、reply readback、accepted work、paid readbackを段階別に検証する。対応するskills/earn/lancers/testsを先に再現テストとして使う。
+5. **G4 — CrowdWorks Apply/Negotiate/Paid。** skills/earn/crowdworks/scripts/{application_owner.py,application_tick.py,reply_adapter.py,paid_adapter.py,reconcile_application_no_submit.py,reconcile_reply_no_send.py,reconcile_reply_accept_contract.py}を確認し、inspect countが全て終端理由に分類されること、submit/no-submit判定がofficial DOM/APIに結びつくこと、reply後のcontractとpaid stateを別receiptで記録することを直す。既存apps/crowdworks-revenueは補助/旧経路かを呼出し元で確認し、現registryのskills/earn/crowdworksを無断で置き換えない。
+6. **G5 — Mercor Apply/Negotiate/Paid。** skills/earn/mercor/scripts/{application-owner,reply-owner,reply_adapter.py,paid-owner,paid_adapter.py}とmercor-revenue-*のentrypointを照合する。apps/job-search-loop/job_search_loop/mercor_*はJob Hunter機能なので、Gig ownerとの同一視や二重submitをしない。job receipt、reply receipt、earning/paid settlementを別々に読む。
+7. **G6 — Freelancerを正式登録する。** freelancer_bid_watch.py/freelancer_readiness.pyがwatch-onlyか応募可能かをtestと呼出し元で確定する。submit adapter、idempotency key、official application receipt/readback、browser identity/ownerが揃った後、同じ変更にloop-registry entry、dispatcher route、registry/testを追加する。そこまでloop数や収益を捏造しない。
+8. **G7 — 契約・settlement・netを学習へ戻す。** 各laneでprovider acceptance、settled payment、platform fee、AI/browser/tool cost、返金をoccurrence単位でfinancial_record.pyへ結ぶ。売上はsettled gross、利益はsettled receipts minus fees/cost/refundとして分ける。verified outcomeのみをevaluation/self-improveへ渡し、judgment変更はgolden failure caseを通す。source/test/listing/impressionは売上証明にしない。
 
-**他案との比較:** 全Temporal移植の強みは成熟したdurable executionを直接使えることだが、現在は新server・Mac worker・既存operation identityの移行が新たな作業となる。固定時刻だけのシフトは簡単だが、長いjobや漏れる保存量を制御しない。最善は既存部品で停止境界を閉じて直ちに仕事が進むこと、基準は一producer/adapterの最小修復、最悪は枠管理外のwriterまたは物理容量不足が見つかり、その重い仕事だけを隔離すること。推奨が誤る最有力の筋は、既存の枠管理外で動く子process/保存先があること。R1/R2でowner/PID/path/bytesを結ぶのは、その点を見分けるためである。
+**Gigの現在判定:** 登録とコードの存在は静的に確認したが、各providerの最新natural run、provider receipt、settlementを今回再読していない。したがって「各lane稼働中」「基盤を直せば全て復旧」とはまだ言わない。G0の証拠表を最初に作り、共有障害で説明できる失敗とprovider固有の失敗を分ける。
 
-**参照:** 外部取得の記録はdocs/evidence/external-job-operation-methods-20261015.json、具体的な差分手順はdocs/superpowers/plans/2026-10-15-external-job-operation-plan.md。これらに別のTODO順/statusを作らない。
-
-### R1/R2完了からR3へのhandoff
-
-共有実行・資源管理のR1/R2はPR #8058/#8064とmain由来releaseの自然terminalで完了した。現在cursorはR3のCapafy source境界である。古い共有障害の履歴を再実行条件へ戻さず、freshな具体的故障が別ownerで見つかった場合はそのoccurrenceだけを修復する。
-
-R3 source変更は最新main由来の成果専用worktreeで最小RED→修正→focused検証/CI/main→対象反映を行う。本番操作は所有者・leaseとlaunchctl-safeの前提を満たす対象限定の既存経路だけを使う。auth/browser/provider操作前は既存private credential SSOTとbrowser registryを確認し、secretを文書・log・chatへ複製しない。外部effectがunknownなら、そのoccurrenceの公式readbackを継続し、再送・推測解放をしない。
-
-R1/R2の目的は共有実行・資源管理の停止境界を閉じることであり、既定の受け入れ条件を完了した。F2/F5全件、連続成功数、全18事業成功は今回のR3・R4の開始gateにしない。収益・新端末・自己改善の全体完了へ言い換えず、業務段階/公式結果と残TODOを保持する。
-
-**共通部分を先に修復する順序:** Daisの追加指示に従って共有release/制御を先頭にし、PR #8058/#8064と新版自然runで今回の既知障害を閉じる。現在はCapafyへ戻る。順序更新の理由は、共有boundaryが実際に通過し、未特定のwriter全体確認を追加gateにすると事業を再び止めるため。旧順=共有release→writer/終了/保存の一括確認→Capafy、新順=今回の共有修復完了→Capafyの現境界→Gig/公開起動→実結果の評価共有、現在cursor=R3。writer/F2/F5はfreshな具体的故障と該当ownerで並行修復し、unknown receipt/active processは保持する。連続N回や全F合格待ちは復活させない。
+**順序:** P0 receipt reserve共有 → P1 pressure-aware admission → immutable releaseと各1回のnatural boundary readback → G0 provider/owner/effect matrix → G1 shared core → G2 Coconala → G3 Lancers → G4 CrowdWorks → G5 Mercor → G6 Freelancer登録 → G7 settled economics/evaluation。
 
 ## 共有release進行結果の修復
 
