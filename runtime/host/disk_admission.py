@@ -25,6 +25,14 @@ _DISK_STOP_FLAGS = (("disk-writers.stop", "disk_writers_stop"),)
 _DISK_RECOVERY_OWNER = "host-disk-recovery"
 _DISK_RECOVERY_REASON = "disk_headroom_low"
 RECOVERY_FLOOR_BYTES = 2 * 1024**3
+# Swap lives on the Data volume; below this floor the Mac froze (2026-10-14).
+PRODUCER_FLOOR_BYTES = 15 * 1024**3
+_PRODUCER_FLOOR_REASON = "disk_floor_low"
+# Cleanup, reconcile and health owners must keep running to recover space.
+_CONTROL_PLANE_LOOPS = frozenset({
+    "life-manager-disk-cleanup", "life-manager-disk-cleanup-15d", "lm-fence-reconciler",
+    "life-manager-health-observer", "life-manager-release-reconciler", "boot-panic-evidence",
+})
 _DISK_RECOVERY_ACTION = "restore_capacity_and_install_shared_disk_gate"
 
 
@@ -197,7 +205,6 @@ def _failure(
 def _producer_gate(
     loop_id: str | None = None, *, check_capacity: bool = True,
 ) -> tuple[str, Path] | None:
-    del loop_id, check_capacity  # Retained for callers; free-space floors are diagnostic only.
     try:
         configured = _host_state_dir()
         candidates = (*_canonical_host_state_dirs(), configured)
@@ -242,6 +249,10 @@ def _producer_gate(
             if is_cleanup_disk_recovery_signal(flag):
                 continue
             return reason, flag
+    if check_capacity and loop_id not in _CONTROL_PLANE_LOOPS:
+        available = disk_free_bytes(configured)
+        if available is not None and available < PRODUCER_FLOOR_BYTES:
+            return _PRODUCER_FLOOR_REASON, configured
     return None
 
 
@@ -257,10 +268,11 @@ def _producer_preflight(loop_id: str | None = None) -> int:
     if gate is not None:
         reason, flag = gate
         available_bytes = disk_free_bytes(state_dir)
-        if reason in {"disk_headroom_low", "disk_headroom_unknown"}:
+        if reason in {"disk_headroom_low", "disk_headroom_unknown", _PRODUCER_FLOOR_REASON}:
             receipt = {
                 "status": "deferred", "effect": 0, "readback": 0,
-                "reason": reason, "required_bytes": RECOVERY_FLOOR_BYTES,
+                "reason": reason, "required_bytes": (
+                    PRODUCER_FLOOR_BYTES if reason == _PRODUCER_FLOOR_REASON else RECOVERY_FLOOR_BYTES),
                 "gate": _PRODUCER_GATE, "flag_path": str(flag),
             }
             if available_bytes is not None:
@@ -278,7 +290,7 @@ def _producer_preflight(loop_id: str | None = None) -> int:
 
 
 def disk_headroom_ok() -> bool:
-    """Return whether producer control state permits work; free space is diagnostic only."""
+    """Return whether producer control state and the free-space floor permit work."""
     return _producer_preflight(os.environ.get("LIFE_MANAGER_LOOP_ID")) == 0
 
 

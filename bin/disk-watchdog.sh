@@ -15,6 +15,21 @@ fi
 if [ -z "$PYTHON_BIN" ] || [ ! -x "$PYTHON_BIN" ]; then
   PYTHON_BIN=$(command -v python3 || true)
 fi
+# Ballast: swap lives on the Data volume, so a full disk froze the Mac (2026-10-14).
+# Hold real allocated space while healthy and release it the moment free space is critical.
+# Only the installed launchd job sets LIFE_MANAGER_BALLAST_SIZE; ad-hoc runs never allocate.
+BALLAST="$HOME/.local/state/life-manager/disk-ballast"
+FREE_KB=${LIFE_MANAGER_DISK_FREE_KB:-$(df -k "$HOME" 2>/dev/null | awk 'NR==2 {print $4}')}
+case "$FREE_KB" in
+  ''|*[!0-9]*) ;;
+  *)
+    if [ -f "$BALLAST" ] && [ "$FREE_KB" -lt 3145728 ]; then
+      rm -f "$BALLAST" && printf '%s\n' "disk-watchdog: ballast released free_kb=$FREE_KB" >&2
+    elif [ -n "${LIFE_MANAGER_BALLAST_SIZE:-}" ] && [ ! -e "$BALLAST" ] && [ "$FREE_KB" -gt 26214400 ] && [ -d "${BALLAST%/*}" ]; then
+      /usr/sbin/mkfile "$LIFE_MANAGER_BALLAST_SIZE" "$BALLAST" || rm -f "$BALLAST"
+    fi ;;
+esac
+
 [ -x "$PYTHON_BIN" ] || { printf '%s\n' "Life Manager runtime Python is unavailable" >&2; exit 69; }
 [ -f "$GOVERNOR" ] || { printf '%s\n' "Life Manager disk cleanup governor is unavailable" >&2; exit 69; }
 

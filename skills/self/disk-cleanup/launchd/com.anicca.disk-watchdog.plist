@@ -6,6 +6,8 @@
   <array>
     <string>__WATCHDOG_SCRIPT__</string>
   </array>
+  <key>EnvironmentVariables</key>
+  <dict><key>LIFE_MANAGER_BALLAST_SIZE</key><string>8g</string></dict>
   <key>StartInterval</key><integer>60</integer>
   <key>RunAtLoad</key><true/>
   <key>ThrottleInterval</key><integer>60</integer>
