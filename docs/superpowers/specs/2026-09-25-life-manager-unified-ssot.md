@@ -12,6 +12,72 @@
 
 所有: Codex primary が全体の統括・このSSOT・受入・統合・release順を所有する。開発writerは原則primary一名。Life Manager自身のloopは本番stateと外部effectのownerを維持し、他者のdirty/leased worktreeを上書きしない。Ryu room `18211957`への再送禁止と正式納品ボタン非押下は維持する。
 
+## OpenClaw 現況監査と移行の再開条件
+
+目的: 現在の修正を再実装せず、local Life ManagerをOpenClawベースへ移す残作業を確定する。今回の範囲は読み取り監査と文書更新だけ。コード修正、cleanup、モデル実行、設定変更、apply/restart、effect解除・再送は行わない。クラウドWeb `/lm` は対象外。
+
+### 確認した現在地
+
+観測日: 2026-10-15。各receiptの観測時刻は下表に記載。source基準はmain `a4aac13fe87bbe4133b257db4f4e45c475c9fd6a`。過去の容量・owner数・DS未完記録は歴史であり、この窓の現在値ではない。
+
+| 対象 | 確認した事実 | 意味・残る限界 |
+|---|---|---|
+| 製品構成 | READMEは18業務agent＋Host Steward。catalogは18件/114 job、registryは192 job | 15/16 agentや113 job固定の移行展開を流用しない |
+| 容量 | Data volumeの`df -h`は空き約14GiB/使用率94%。最新healthのhost_storageは10:22:08Z、free_bytes=13,215,821,824、execution_ok=true、capacity_recovered=true | 2GiB回復判定と12GiB producer下限と25GiB ballast再作成条件は別。無期限の容量維持を証明しない |
+| 追加済み対策 | `runtime/host/disk_admission.py` producer下限12GiB、control-plane除外。bounded_output/storage_policy、既存cleanupとscratch保護、`bin/disk-watchdog.sh` ballast作成/解放あり | DS01–17を最初から作り直す計画を廃止。低容量対策自体は既に存在する |
+| 予約領域 | `~/.local/state/life-manager/disk-ballast`は存在しない | 8GiBの緊急解放余地が現在あるとは言わない。空き25GiB超でのみ再作成する実装なので、現在の空きでは自動作成されない |
+| 同時実行 | `resource_admission.py`のDEFAULT_AGENT_TOTAL_RUNS=3、finite全体既定10、browser既定1、deterministic/revenue既定5 | 3は推論agent枠のsource既定。18 agentのうち3種類しか使えない意味ではない。loaded release/env別の実効枠は別途照合が必要 |
+| DB | `admission-v2.sqlite3`をread-only接続した`PRAGMA journal_mode`は`delete` | WAL定着は未達。既存SSOTの旧release owner移行を再利用する。DB強制変更やunknown解除はしない |
+| 観測 | health-observer latest生成10:22:48Z、total192/telemetry_gap192。sample error_class=`health_projection_timeout` | agentが192件失敗した証拠でも、全正常の証拠でもない。fleet projectionの欠測を正常値に変換しない |
+| release | current manifestはmain `a4aac13f`。ディスク上plistはcleanup=`f94fdd77`、watchdog=`affe5fa3`、Capafy factory=`ea5bc84b` | current一つでは全owner採用を示さない。これはplistファイル観測であり、launchd loaded argvの確認ではない |
+| OpenClaw | `runtime/openclaw/`にpaths/protocol/dispatch_store/environment/gateway-clientとtestsあり。pinはOpenClaw/Codex/OTel2026.9.8、SDK/protocol2026.8.1。runnerにOpenClaw参照なし | 基礎コードあり、本番runner移行は未完。既存Gatewayを停止・置換しない。packageの存在だけでnative Codex/tool/停止契約の適合を断定しない |
+
+一次資料: [固定版Gateway architecture](https://github.com/openclaw/openclaw/blob/v2026.9.8/docs/concepts/architecture.md)をGitHub APIで確認。tag object=`b1c1c6d3af1f68bc82efbb6c92fb224c36df8683`。公式Gatewayはtyped WebSocket/event境界を提供する。メモリやディスクを無限に増やせる機構ではなく、外部投稿のexactly-onceを保証する証拠でもない。実行停止・Codex制限・OTelの実配布版契約は既存OC-012/NC系acceptanceで検証する。
+
+### To-Beと操作体験
+
+local端末のOS supervisorが専用OpenClaw Gatewayを起動し、OpenClawがsession・実行・移管済みcron・harness recovery・traceを担当する。Managerの推論は既存ChatGPT account接続native Codexだけ。既存CLI/Telegramを入口に保ち、業務worker、browser lease、予算、effect fence、provider公式readback、CFOをそのままtoolsとして呼ぶ。これは業務機能の再利用であり、第二のharnessを作る意味ではない。OpenClawの公開SDK/pluginで実現できる機能に独自daemon/queue/session storeを追加しない。
+
+```mermaid
+flowchart LR
+  U[既存CLI・Telegram] --> G[local OpenClaw Gateway]
+  G --> C[既存ChatGPT accountのnative Codex]
+  G --> T[既存Life Manager業務tools]
+  T --> A[共有資源・予算・browser lease]
+  A --> P[既存provider・公式readback・CFO]
+  H[Host Steward・OS supervisor] --> G
+  H --> A
+```
+
+ユーザーは今のagent名とCLIを使い続ける。実行中/待機理由/次回実行/最終公式receiptを同じ入口で見る。OpenClawのsession/trace IDは既存run/owner/occurrence/releaseへjoinする。cloud化は将来同Gatewayと業務toolsを別hostへ置く選択であり、今回cloudページや業務実装を作り直さない。
+
+### 実行順とatomic TODO
+
+状態の正本は本節と既存OpenClaw source節。全file/function/契約/testの展開は `docs/research/openclaw-remaining-atoms.json` と `docs/superpowers/plans/2026-10-09-openclaw-remaining.md` を参照する。233 atomは旧scopeの展開数であり、現在の未完総数として宣伝しない。
+
+順序変更: 旧=DS01–17全完了→OC012。新=既存の収益/共有資源cursorを維持し、OpenClaw sourceはOC-012→既存依存順で進める。本番cutoverだけ対象ownerの容量・旧effect・観測の受入を要求する。理由: D1–D4等の後続修正がmainへ入り、古いstorage待機をsource-only作業の前提にすると重複実装と不要な停止を生む。今回のcursorは文書監査完了までで、以下の実行は未着手。
+
+| 順 | ID・具体的変更 | 検証・完了条件 |
+|---|---|---|
+| 1 | OC-012: `runtime/openclaw/tests/release-contract.test.mjs`の`testPinnedGatewayContract()`と`fixtures/rpc-contract.json`を追加 | Node24.16.0/固定lock、private fake modelでhello/agent.wait/abortの実payload保存。課金・業務effect0 |
+| 2 | OC-011: `gateway-client.mjs::readSession()`を1の公開lifecycle契約へ接続 | foreign/stale/abort ACKだけでは停止証明を返さない |
+| 3 | NC-01: `profile.mjs::validate_codex_only_config()`を追加 | API-key/別provider fallback拒否、既存native Codexだけ通過 |
+| 4 | NC-04: `codex-endpoint.mjs::resolveNativeCodexEndpoint()`を追加 | 既存endpointはattachのみ、個人daemon停止/認証コピー0 |
+| 5 | OC-014: `profile.mjs::buildGatewayConfig()`を追加 | private instance、cron全disabled、restricted tools、content非収集のOTel設定。公式config validate |
+| 6 | OC-015: `supervisor.mjs::gatewayCommand()`を追加 | 既存OS supervisor用argv/envだけ返す。独自daemon0 |
+| 7 | OC-016: `supervisor.mjs::stopGateway()`を追加 | 他owner実行中は停止defer。個別timeoutでGateway全体停止0 |
+| 8 | OC-017: `admission.py::claim_model()`を追加 | 既存共有admissionを再利用し、agent枠の二重取得/無断borrow0 |
+| 9 | OC-018: 同`bind_execution()`を追加 | claimをexact run/session/Gateway identityへ結合 |
+| 10 | OC-019: 同`heartbeat_model()`を追加 | 既存lease更新、foreign identity拒否 |
+| 11 | OC-020: 同`release_model()`を追加 | 停止証明とeffect状態が揃うまでclaimを保持 |
+| 12 | OC-021: `lm_loop_run.py::_run_admitted()`のfinallyを接続 | 親終了だけで実行中model枠を解放しない |
+
+13以降も新しい大phaseにまとめず、既存manifestのOC-022→plugin manifest、OC-023→plugin register、OC-024→invoke_read、OC-025→invoke_effect、OC-026→write_artifact、OC-027→broker main、OC-028→native境界test、OC-029→schema_validate、OC-030→result、OC-031/032/042→usage/event/trace各関数、NC-02/03→account readback/tool制限、OC-033以降→CLI/runnerのdisabled route・各caller/artifact契約を一atomずつ実施する。先行依存はmanifestに従い、表の順番だけで依存を飛ばさない。既存JSONL/receiptを別ledgerへ複製しない。
+
+本番への最終手順もowner単位の既存A/S/V/F atomsを使う: (a)現catalog/registryの114対象jobとのbinding差分を該当atomへ反映、(b)main由来releaseを対象idle ownerへ採用、(c)engineだけOpenClawへ切替し既存scheduleを維持、(d)次の自然run/公式receipt/replay-zeroを確認、(e)そのownerだけ旧scheduleをdisableしてOpenClaw cronをenable、(f)次の自然wakeで単一起動確認、(g)全対象完了後に旧harness参照を除去する。active ownerは触らず他ownerへ進む。unknown effectは公式照合まで移行対象にしない。切戻しは旧engine/同じscheduleへ戻すだけで再送しない。
+
+共有基盤の未完は既存cursorを参照（23 labelは既存SSOT記録数で今回の再集計ではない）: A1旧release ownerの個別readback/移行、ballast未武装、storage_growth欠測、health projection timeout。これらを「OpenClawにすれば消える」と扱わない。今回、loaded argv・全ownerの公式業務receipt・native Codex/Gateway実接続は未検証であり、無停止移行保証/永続容量保証は出さない。
+
 ### E01 — 自己評価の欠測利益をゼロへ変換しない
 
 目的: runtime/loop/index.mjs が selfEval の steer を実判断へ渡す経路で、欠測/不正netをゼロ損益・DEAD・WORKSへ変換しない。範囲は self-eval.mjs と既存test。数値と非空の有限numeric stringだけを受け、net_usdcが存在する場合は代替netで欠測を隠さない。slot内に未知行が一つでもあれば合計net=null、unknownCountを表示しDEAD/WORKSを抑制する。明示ゼロ/既知正負の既存判定は保持する。
@@ -7135,7 +7201,7 @@ retry0 privateglobalinstance + projectSettingsPolicy=ignoreの追加fake2cases�
 目的: 既存agentを止めず、専用worktreeで移行接続を実装する。完了条件: 関連テスト、read-only review、commit/push、PRのsource証拠。自然仕事・公式receiptを確認するまで本番移行完了としない。
 範囲: `runtime/openclaw/` のportable paths、closed request、stable identity、排他的dispatch保存、private Gateway境界。既存runner/registry/auth/launchd/注文stateへ未接続。
 設計参照: docs/main-agents-readiness branchの `2026-10-07-main-agents-readiness.md` OC/NC/MI atoms。
-順序変更: 旧=OC001/014/NC02→Gateway。新=OC001–006→OC007–013→profile/native fence→domain/admission接続→owner移行。理由: profileを本番検証する前に、再送防止とsecret境界をsourceで成立させる。OpenClaw内cursor=OC012（storage DS01–17完了後に再開）。
+順序変更: 旧=OC001/014/NC02→Gateway。新=OC001–006→OC007–013→profile/native fence→domain/admission接続→owner移行。理由: profileを本番検証する前に、再送防止とsecret境界をsourceで成立させる。OpenClaw内cursor=OC012。開始条件は本書「OpenClaw 現況監査と移行の再開条件」を参照（旧DS01–17一括待機を置換）。
 - [x] OC001 lock: `runtime/openclaw/package.json`/lockに公開5package exact version/integrity。既存probe lock再利用、package-lock-only/ignore-scripts完了。公開runtime conformanceはOC012へ未完として分離。
 - [x] OC002: `paths.mjs::resolveHarnessPaths` 既存data root再利用。
 - [x] OC003/004: `protocol.mjs::validateRunRequest/buildRunIdentity` closed v2、同task stable key、fresh task session。
@@ -7159,7 +7225,7 @@ Independent review: 3件の実不具合（再接続readiness、digest型coercion
 
 全file/function/contract/testは `docs/superpowers/plans/2026-10-09-openclaw-remaining.md`、機械展開は `docs/research/openclaw-remaining-atoms.json`。baseline `c7b1e491bd9fb6a212dd1c8a5f05ccd9ffef70f4`、最新catalog 18分類/113job（finite 95、continuous 18）。残233atomはsource/native/caller/product binding/idle cutover/schedule自然確認/退役をすべて含む。旧111jobからebook-en-instagram-dailyとlife-manager-anicca-en2-affirmation-tiktokが追加。engine自然確認はE-productの18atomとしてS前提へ分離する。OC048は現行 `_dispatch_reserved` が対象。OC008はtext境界済みだが画像/continuation接続をfollow-up未完として明示する。
 
-順序更新: 旧=V全完了後にF installer/docs、新=F01/02/03/05/06のsource+isolated fixtureを本番移管前に完了し、A/S/V後にF04退役/F07最終。理由=現在の本番を維持したまま実装できる仕事を先に終える。既存の外部effectは中断/重複しない。OpenClaw内cursor=OC012（storage DS01–17完了後に再開）。既存loopを永久に一切変更しない条件では本番移行完了は成立しないため、進行中runを止めずidle ownerの次の仕事だけ移す。
+順序更新: 旧=V全完了後にF installer/docs、新=F01/02/03/05/06のsource+isolated fixtureを本番移管前に完了し、A/S/V後にF04退役/F07最終。理由=現在の本番を維持したまま実装できる仕事を先に終える。既存の外部effectは中断/重複しない。OpenClaw内cursor=OC012。開始条件は本書「OpenClaw 現況監査と移行の再開条件」を参照（旧DS01–17一括待機を置換）。既存loopを永久に一切変更しない条件では本番移行完了は成立しないため、進行中runを止めずidle ownerの次の仕事だけ移す。
 
 ## Host disk recovery incident
 
