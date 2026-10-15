@@ -454,7 +454,9 @@ class ApplicationLoopHolTests(unittest.TestCase):
                  "provider_count": 0, "opportunities": []}
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            # The default wake reads through the leased browser; never attach to the real one here.
             with (patch.object(application_loop, "_capacity_reason", return_value=None),
+                  patch.object(application_loop, "_browser_discovery", side_effect=lambda _state, discover: discover(None)),
                   patch.object(application_loop.status, "run_discovery", return_value=empty) as search):
                 result = application_loop.run_loop(
                     state_path=root / "application.json", evidence_root=root / "evidence",
