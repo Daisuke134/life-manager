@@ -51,6 +51,25 @@ Done判定はこの2つの機械的readbackだけ。3回連続cycle、F2/F5の�
 
 **後続（Doneのgateではない）:** 掃除役5本を `com.anicca.disk-watchdog` 1本へ統合し他4本をunload。Codex純正圧縮 `central_cleanup.py:codex_history_cleanup` は `0.160.0` 完全一致pinと「上位2ファイル分の空き」要求があり、満杯時に動かないため、D2/D4で空きが戻った後に効く。内蔵228GBが恒常的に足りない場合は外付けSSDへ `~/loops/releases` と Codex archive を移す案を別途比較する。
 
+### 実行計画と期限（2026-10-15 確定、Daisの実施指示あり）
+写した外部実装（コードを読んで確認）: Kubernetes kubelet `pkg/kubelet/images/image_gc_manager.go`（使用率がHighThresholdPercent既定85%以上でLowThresholdPercent既定80%まで最終使用が古い順に削除、使用中は除外、回収不足は`FreeDiskSpaceFailed`警告）と `pkg/kubelet/eviction/defaults_linux.go`（`nodefs.available<10%`で猶予0の停止）、systemd `src/journal/journald-manager.c`（書き手ごとに`max_use`と`keep_free`）、Elasticsearch `DiskThresholdSettings.java`（low 85%/high 90%/flood_stage 95%で書込禁止、回復で自動解除）。共通の型=「水位で自動掃除」「危険水位で新規書込停止」「回収不足は叫ぶ」「書き手ごとの上限」。出所の1ファイル単位証明はしない。
+
+|#|写す元|ファイル|変更|期限|状態|
+|---|---|---|---|---|---|
+|1|kubelet hard eviction / ES flood_stage|`runtime/host/disk_admission.py` `_producer_gate`|空き15GiB未満で control plane 6 loop以外の新規runを`disk_floor_low`でdefer（測定不能は通す）|10/16 本番|source+test済み|
+|2|（ballast）|`bin/disk-watchdog.sh`|8GiB ballastを保持、空き3GiB未満で即削除、25GiB超で再作成|10/16 本番|source+test済み|
+|3|kubelet image GC|`skills/self/disk-cleanup/disk_cleanup.py`|空き25GiB未満で削除可能class（2h超のloop-tmp→merged/clean/期限切れlease worktree→idle worktreeのnode_modules等→未参照release、最新3保持）を古い順・使用中除外で35GiBまで回収|10/17|未着手|
+|4|kubelet FreeDiskSpaceFailed|同上|回収不足時、直近1時間の増加上位5 dirをTelegram通知|10/17|未着手|
+|5|journald max_use|`runtime/loop/lm_loop_run.py` `held_effect_unknown`|証拠json(≤8MiB, 30日TTL)だけ保持、生成物は削除。fence不変|10/17|未着手|
+|6|journald max_use|`config/loop-registry.json` `cleanup.max_bytes` + `bin/lm-loop-contract`|全loopに出力上限を必須化、無ければCI失敗|10/18|未着手|
+|7|—|重複掃除役4本|`com.anicca.disk-watchdog`+central cleanupへ統合しunload|10/18|未着手|
+
+**凍結しない論理:** 凍結条件=swap作成不能（10-14 kernel log）。(a) 空き<3GiBで8GiB ballast解放→誰が書いても空き≥11GiBへ戻る。(b) 空き<15GiBで新規producer停止→増加は実行中runのみ（finite上限10×#6の上限）。(c) 通常は25GiBで掃除が35GiBまで戻すので(a)(b)は異常時のみ。(d) 回収不足は#4が書き手を名指し。外部最大書き手（Codex会話ログ実測0.1〜3GB/日）に対しballastだけで約3日の猶予。限界: 必要データで228GBが埋まる場合は外付けSSDが必要（#4で事前に判明）。
+
+**Done判定（これのみ）:** `df -h /System/Volumes/Data` の毎時sampleが10/17〜10/24の7日間で99%以上25GiB以上、かつ `log show --last 7d --predicate 'eventMessage CONTAINS "low swap"'` が0件、ResetCounter 0件。判定日10/24。
+
+**agent修理の解禁:** #1 #2が本番反映された時点（10/16予定）で、F1–F5による18 capability修理のgateを撤廃する。以後の基盤作業は#4通知で名指しされた書き手1つの修正だけで、基盤全体をやり直さない。
+
 ### 2026-10-14〜15 の手動回収（記録）
 - 統合済み・未変更・未push差分なし・lease期限切れの life-manager-main worktree 66個を `git worktree remove`（forceなし）で退役。
 - `anicca-project/.worktrees/line-sticker-og-share-card-20261015/apps/landing/.next/cache`（再生成可能）を削除。
@@ -201,7 +220,7 @@ macOSにはinode条件付きatomic unlinkがなく、最終inode照合と`unlink
 
 同時点の業務owner readback: `line-sticker-factory-hourly`は10:30:14Zに`resource_fifo_wait`/exit 75で延期、loaded-idle、旧release `cb530368`。`line-sticker-readback-hourly`はPID 96242でloaded-running、最後のterminal occurrenceは18de0c71beb62168-7532 / exit 1 / effect unknown / provider receiptなし。これを停止・再送・手動解除しない。global `imagegen` sessionやactive browser profileは閉じない。F5のproducer→teardown→central sweep自然往復は未証明。
 
-**共有資源gate:** F1→F2→F3→F4→F5は、shared-capacity recoveryと18 capability修理の完了判定に引き続き必要。Daisの明示したEDD優先により、独立したWriter E02 A3b/A3c→A8–A14とE03–E06 benchmark作業は、F1–F5が未完でも先行できる。これはcleanupのgateを満たした扱いにせず、既存cleanup owner/stateも変更しない。
+**共有資源gate（2026-10-15に撤廃予定）:** 旧: F1→F5は18 capability修理の前提。新: 上の「agent修理の解禁」に従い、#1 #2本番反映でgateを撤廃する。Daisの明示したEDD優先により、独立したWriter E02 A3b/A3c→A8–A14とE03–E06 benchmark作業は、F1–F5が未完でも先行できる。これはcleanupのgateを満たした扱いにせず、既存cleanup owner/stateも変更しない。
 
 **前回の順序変更（共有資源）:** 旧順序は各laneを並列再開し、それぞれ容量/release/admissionを解決する方式。新順序はP0共有ディスク → P1実行枠 → 各laneの安全な先頭atom。理由は同じ容量不足が既存の正常loopとcleanup自身を止め、複数writer/releaseが共有資源を競合させるため。実行中の外部effectを中断・重複させず、独立した読み取りは進められる。
 
