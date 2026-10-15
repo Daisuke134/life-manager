@@ -54,8 +54,11 @@ Long videos hide their best shorts. Paste a transcript and get a ranked map of t
 
 Podcasters, YouTubers, course creators, and editors who have a long transcript and want a fast, free starting point for shorts.
 
+🚀 **Next: make the clip stop the scroll**
+Picked a moment? Hook Lab turns it into 5+ first-3-second hooks, a timed script and a caption: https://capafy.ai/agent/8123079349?ct=hooklab_free
+
 ❓ **FAQ**
 
 **Does it need timestamps?** No. With them, boundaries include times. Without them, boundaries are quoted lines.
 
-**Does it write the hook or script?** No. It only maps moments. Hook Lab on Capafy writes hooks and scripts for a moment you choose.
+**Does it write the hook or script?** No. It only maps moments. For hooks and a timed script for the moment you pick, use Hook Lab: https://capafy.ai/agent/8123079349?ct=hooklab_free

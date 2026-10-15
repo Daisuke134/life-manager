@@ -31,7 +31,7 @@ Turn one pasted transcript into a ranked map of standalone short-form moments.
 
 ## Notes
 - Moments returned: N of 10 (and why fewer, if so)
-- Next step: for hooks and a script for any moment, Hook Lab on Capafy.
+- Next step: turn any moment into 5+ first-3-second hooks and a timed script with Hook Lab: https://capafy.ai/agent/8123079349?ct=hooklab_free
 ```
 
 ## Rules
