@@ -56,6 +56,14 @@ Done判定はこの2つの機械的readbackだけ。3回連続cycle、F2/F5の�
 - `anicca-project/.worktrees/line-sticker-og-share-card-20261015/apps/landing/.next/cache`（再生成可能）を削除。
 - line-sticker の2時間以上前の `loop-tmp` run dir 64個を削除。diagnostics json 48件と `readback.jsonl` / `events.jsonl` は保持。dfはほぼ不変だったため、中身の大半はAPFS clone（他の場所とブロック共有）だった可能性が高い。実容量の増加源は引き続きD2/D4で抑える。
 
+### ホーム全体の棚卸し（2026-10-15 実測）
+- 判定方法: ホーム直下220個を「launchd plist/crontab参照」「実行中processのargv/cwd」「現行release内のコード参照」「14日以内の書込」「git dirty/未push」で分類。
+- 4条件すべて無しの“死んだ”dirは120個だが合計約0.7GBのみ（`.private_keys`等の認証系を含むため一括削除しない）。
+- 大きいdir（Projects 21.5G、anicca-project 8.5G、gig 6.9G、anicca 3.5G、anicca-monk-factory 2.2G、profitable-claude 0.8G、actions-runner 0.5G）は全て参照あり・14日以内書込あり。anicca-projectは未push 2288 commit、gigはdirty 3653件で丸ごと削除不可。無駄は中身（古いworktree、再生成可能物）にある。
+- 再生成可能物（node_modules/__pycache__/.next等）は計約4.7GB。idleなworktree内の分だけ削除。immutable release内は権限で保護され削除されない（正常）。
+- iOS 26.5 Simulator runtimeを `xcrun simctl runtime delete` で削除（booted device 0、loop参照なし、再DL可能）。Data free 2.7GB→12GB。worktree内生成物削除後に約16GB。
+- 結論: 「不要フォルダを消す」だけでは25GiB Doneに届かない。D1（unknown runは証拠だけ保持）とD2（floorでproducer停止）が増加を止める本体。
+
 ## 旧統括cursor（2026-10-15に上記で置換、参照のみ） — 共通資源制御を閉じてからGigを進める
 
 **目的:** 複数の業務agentが同じMacのCPU・メモリ・ディスク・制御receiptを共有しても、負荷を検知して新規実行を調整でき、容量不足時にもcleanupと診断が動ける共通実行基盤にする。その完了後、GigのStorefront・Apply・Negotiate・Submit・Paidをproviderごとに直す。US$10M以上の月次売上は長期目標であり、source/CI成功や掲載数を売上達成とは扱わない。
