@@ -166,3 +166,97 @@ def test_missing_provider_receipt_keeps_exact_occurrence_fenced(
         "owner_id": "hf-gig-reply-detector", "occurrence_id": OCCURRENCE,
         "verified": False,
     }]
+
+
+def _verified_state(kernel_root: Path, occurrence: str = OCCURRENCE) -> Path:
+    path = _state(kernel_root, occurrence)
+    value = json.loads(path.read_text(encoding="utf-8"))
+    value.pop("send_diagnostic")
+    value.update({"status": "verified", "occurrence_id": occurrence,
+                  "receipt": {"provider_receipt_id": "sha256_cached", "effect_key": value["intent"]["effect_key"]}})
+    path.write_text(json.dumps(value), encoding="utf-8")
+    return path
+
+
+def test_verified_state_of_the_same_occurrence_is_a_reconcile_target(tmp_path):
+    kernel_root = tmp_path / "kernel"
+    path = _verified_state(kernel_root)
+    target = reconcile._find_target(kernel_root, OCCURRENCE)
+    assert target is not None and target[0] == path
+    assert reconcile._find_target(kernel_root, "hf-gig-reply-detector:other") is None
+
+
+def test_verified_state_with_tampered_payload_is_rejected(tmp_path):
+    kernel_root = tmp_path / "kernel"
+    path = _verified_state(kernel_root)
+    value = json.loads(path.read_text(encoding="utf-8"))
+    value["intent"]["payload"]["body"] = "別の回答"
+    path.write_text(json.dumps(value), encoding="utf-8")
+    assert reconcile._find_target(kernel_root, OCCURRENCE) is None
+
+
+def test_child_readback_ignores_synthetic_cached_receipt(tmp_path, monkeypatch):
+    kernel_root = tmp_path / "kernel"
+    path = _verified_state(kernel_root)
+    seen = {}
+
+    class Adapter:
+        def __init__(self, state_root):
+            self._receipts = {"x": {"provider_receipt_id": "sha256_cached"}}
+        def readback(self, intent):
+            seen["cache"] = dict(self._receipts)
+            return {"verified": True, "provider_receipt_id": "msg-123", "observed_at": "2026-10-15T00:00:00Z"}
+
+    monkeypatch.setattr(reconcile, "_load_adapter", lambda: type("M", (), {"CoconalaReplyAdapter": Adapter}))
+    result = reconcile._child_readback(path, kernel_root, OCCURRENCE)
+    assert seen["cache"] == {}
+    assert result == {"status": "verified", "provider_receipt_id": "msg-123", "observed_at": "2026-10-15T00:00:00Z"}
+
+
+def _thread_adapter(rows):
+    class Adapter:
+        def __init__(self, state_root):
+            self._receipts = {}
+        def readback(self, intent):
+            return {"authoritative_absent": False}
+        def _thread_reader(self, thread_id):
+            return {"conversation": rows}, {}
+    return lambda: type("M", (), {"CoconalaReplyAdapter": Adapter,
+                                  "reply_browser": type("RB", (), {"outgoing_sha256": staticmethod(lambda body: body.strip())})})
+
+
+def test_unique_exact_seller_text_in_official_thread_verifies_reply(tmp_path, monkeypatch):
+    kernel_root = tmp_path / "kernel"
+    path = _verified_state(kernel_root)
+    monkeypatch.setattr(reconcile, "_load_adapter", _thread_adapter([
+        {"side": "buyer", "message_id": "sha256_b", "body": "依頼です"},
+        {"side": "seller", "message_id": "sha256_s", "body": "回答"},
+    ]))
+    result = reconcile._child_readback(path, kernel_root, OCCURRENCE)
+    assert result["status"] == "verified"
+    assert result["provider_receipt_id"] == "coconala-dm-12-sha256_s"
+
+
+def test_absent_or_duplicated_seller_text_keeps_fence(tmp_path, monkeypatch):
+    kernel_root = tmp_path / "kernel"
+    path = _verified_state(kernel_root)
+    for rows in ([{"side": "seller", "message_id": "sha256_x", "body": "別"}],
+                 [{"side": "seller", "message_id": "sha256_1", "body": "回答"},
+                  {"side": "seller", "message_id": "sha256_2", "body": "回答"}],
+                 [{"side": "buyer", "message_id": "sha256_b", "body": "回答"}]):
+        monkeypatch.setattr(reconcile, "_load_adapter", _thread_adapter(rows))
+        assert reconcile._child_readback(path, kernel_root, OCCURRENCE)["status"] == "unknown"
+
+
+def test_browser_readback_carries_the_coconala_session_env(tmp_path, monkeypatch):
+    monkeypatch.delenv("CLOAK_SESSION_VAULT_FILE", raising=False)
+    monkeypatch.delenv("CLOAK_BROWSER_OWNER", raising=False)
+    seen = {}
+
+    def fake_run(argv, **kwargs):
+        seen.update(kwargs["env"])
+        return subprocess.CompletedProcess(argv, 0, stdout="", stderr="")
+
+    reconcile._browser_readback(tmp_path / "s.json", tmp_path, OCCURRENCE, runner=fake_run)
+    assert seen["CLOAK_SESSION_VAULT_FILE"].endswith(".cloak/vault/gig-daily-driver/auth-state.json")
+    assert seen["CLOAK_BROWSER_OWNER"] == "gig-reply-reconcile"

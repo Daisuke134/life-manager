@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
 import hashlib
 import importlib.util
 import json
@@ -28,11 +29,32 @@ WITH_BROWSER = ROOT / "skills/browser/with-browser.sh"
 REPLY_ROOT = Path.home() / ".local/state/life-manager/coconala/reply"
 DEFAULT_KERNEL_ROOT = REPLY_ROOT / "kernel"
 READBACK_MARKER = "COCONALA_READBACK "
+GIG_VAULT = Path.home() / ".cloak/vault/gig-daily-driver/auth-state.json"
 
 
 def _json_sha256(value: object) -> str:
     payload = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(payload.encode()).hexdigest()
+
+
+def _intent_intact(intent: dict) -> bool:
+    """The reply intent still hashes to its own effect key and content digest."""
+    thread_id, latest_event_id = intent.get("thread_id"), intent.get("latest_event_id")
+    payload, effect_key = intent.get("payload"), intent.get("effect_key")
+    content_sha256 = intent.get("content_sha256")
+    return (
+        intent.get("provider") == "coconala" and intent.get("version") == 1
+        and intent.get("account_id") == "default" and intent.get("action") == "reply"
+        and isinstance(thread_id, str) and re.fullmatch(r"[A-Za-z0-9_-]{1,128}", thread_id) is not None
+        and isinstance(latest_event_id, str) and bool(latest_event_id)
+        and isinstance(payload, dict) and isinstance(payload.get("body"), str)
+        and isinstance(content_sha256, str) and content_sha256 == _json_sha256(payload)
+        and effect_key == _json_sha256({
+            "version": 1, "provider": "coconala", "account_id": "default",
+            "thread_id": thread_id, "latest_event_id": latest_event_id,
+            "action": "reply", "payload": payload, "content_sha256": content_sha256,
+        })
+    )
 
 
 def _load_state(path: Path, kernel_root: Path, occurrence_id: str) -> tuple[dict, dict] | None:
@@ -46,9 +68,16 @@ def _load_state(path: Path, kernel_root: Path, occurrence_id: str) -> tuple[dict
         state = json.loads(resolved.read_text(encoding="utf-8"))
     except (OSError, ValueError, json.JSONDecodeError):
         return None
-    if not isinstance(state, dict) or state.get("status") != "reconcile_unknown":
+    if not isinstance(state, dict):
         return None
     intent = state.get("intent")
+    if (state.get("status") == "verified" and state.get("occurrence_id") == occurrence_id
+            and isinstance(intent, dict) and _intent_intact(intent)):
+        # The owner later recorded this exact reply as sent, but only with a local hash
+        # receipt; the fence still needs a live provider message id (see _child_readback).
+        return state, intent
+    if state.get("status") != "reconcile_unknown":
+        return None
     diagnostic = state.get("send_diagnostic")
     if not isinstance(intent, dict) or not isinstance(diagnostic, dict):
         return None
@@ -114,6 +143,9 @@ def _find_target(kernel_root: Path, occurrence_id: str) -> tuple[Path, dict] | N
         diagnostic = raw.get("send_diagnostic") if isinstance(raw, dict) else None
         if isinstance(diagnostic, dict) and diagnostic.get("current_claimed_occurrence_id") == occurrence_id:
             matches.append(path)
+        elif (isinstance(raw, dict) and raw.get("status") == "verified"
+              and raw.get("occurrence_id") == occurrence_id):
+            matches.append(path)
     if len(matches) != 1:
         return None
     loaded = _load_state(matches[0], kernel_root, occurrence_id)
@@ -135,10 +167,13 @@ def _child_readback(state_path: Path, kernel_root: Path, occurrence_id: str) -> 
     if loaded is None:
         return {"status": "unknown", "reason": "exact_reply_state_changed"}
     _state, intent = loaded
-    result = _load_adapter().CoconalaReplyAdapter(state_root=REPLY_ROOT).readback(intent)
+    module = _load_adapter()
+    adapter = module.CoconalaReplyAdapter(state_root=REPLY_ROOT)
+    adapter._receipts = {}  # a cached sha256_ receipt is local; force the live thread read
+    result = adapter.readback(intent)
     receipt_id = result.get("provider_receipt_id")
     if result.get("verified") is not True or not isinstance(receipt_id, str):
-        return {"status": "unknown", "reason": "exact_provider_message_missing"}
+        return _unique_thread_text(module, adapter, intent)
     if re.fullmatch(r"[A-Za-z0-9._-]{1,128}", receipt_id) is None or receipt_id.startswith("sha256_"):
         return {"status": "unknown", "reason": "provider_receipt_id_invalid"}
     observed_at = result.get("observed_at")
@@ -148,6 +183,34 @@ def _child_readback(state_path: Path, kernel_root: Path, occurrence_id: str) -> 
         "status": "verified", "provider_receipt_id": receipt_id,
         "observed_at": observed_at,
     }
+
+
+def _unique_thread_text(module, adapter, intent: dict) -> dict:
+    """Coconala DMs carry no native message id, so the collector ids are text hashes and
+    buyer ids drift when attachments change. The official thread is still authoritative:
+    exactly one seller message whose body equals the intended reply proves it was sent
+    once. Zero or several matches stay unknown."""
+    try:
+        context, _bounded = adapter._thread_reader(intent["thread_id"])
+    except Exception:
+        return {"status": "unknown", "reason": "official_thread_unreadable"}
+    conversation = context.get("conversation") if isinstance(context, dict) else None
+    if not isinstance(conversation, list):
+        return {"status": "unknown", "reason": "official_thread_unreadable"}
+    wanted = module.reply_browser.outgoing_sha256(intent["payload"]["body"])
+    matching = [
+        row for row in conversation
+        if isinstance(row, dict) and row.get("side") == "seller"
+        and module.reply_browser.outgoing_sha256(str(row.get("body") or "")) == wanted
+    ]
+    if len(matching) != 1:
+        return {"status": "unknown", "reason": "exact_provider_message_missing"}
+    message_id = str(matching[0].get("message_id") or "")
+    if re.fullmatch(r"[A-Za-z0-9._-]{1,120}", message_id) is None:
+        return {"status": "unknown", "reason": "provider_receipt_id_invalid"}
+    return {"status": "verified",
+            "provider_receipt_id": f"coconala-dm-{intent['thread_id']}-{message_id}",
+            "observed_at": datetime.now(timezone.utc).isoformat()}
 
 
 def _parse_child_output(stdout: str) -> dict | None:
@@ -177,6 +240,10 @@ def _browser_readback(
     environment["BROWSER_WAIT_SECONDS"] = "0"
     environment["AI_ENSURE_PROVISION_BROWSER"] = "/dev/null"
     environment["AI_ENSURE_BROWSER"] = "/dev/null"
+    # The fence reconciler has no Coconala session env; without it the leased context
+    # is seeded from the personal vault and lands on /login (2026-10-15).
+    environment.setdefault("CLOAK_SESSION_VAULT_FILE", str(GIG_VAULT))
+    environment.setdefault("CLOAK_BROWSER_OWNER", "gig-reply-reconcile")
     completed = (runner or subprocess.run)(
         command, cwd=ROOT, env=environment, capture_output=True,
         text=True, timeout=150, check=False,
