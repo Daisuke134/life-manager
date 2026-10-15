@@ -71,7 +71,7 @@ function slashAliasText(parsed) {
   return NL_ALIASES[parsed.name];
 }
 
-function helpMessage() {
+function helpMessage(options = {}) {
   // kind:"help" wiring: parseUserCommand computes availableActions for unrecognised text; server.js
   // used to drop them. /help is where that computation finally reaches the user.
   const help = parseUserCommand("");
@@ -91,7 +91,7 @@ function helpMessage() {
     "  /gig — open the Coconala gig lane",
     "  /crowd — open the CrowdWorks gig lane",
     "  /economy — Agent Economy status and emergency control",
-    "  /pilot — message your personal agent (pilot group only)",
+    ...(options.includePilot ? ["  /pilot — message your personal agent (pilot group only)"] : []),
     "",
     "You can also type:",
     ...help.availableActions.map((action) => `  ${action}`),
@@ -204,7 +204,10 @@ async function handleSlashCommand(parsed, row, deps = {}) {
   }
 
   if (name === "help") {
-    await send(deps.token, chatId, helpMessage());
+    const includePilot = Boolean(row && row.uid
+      && typeof deps.isMaritimePilotEnabled === "function"
+      && deps.isMaritimePilotEnabled(row.uid));
+    await send(deps.token, chatId, helpMessage({ includePilot }));
     return { handled: true, action: "help" };
   }
 
