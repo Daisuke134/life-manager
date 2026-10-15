@@ -132,8 +132,9 @@ def test_legitimate_noop_still_marks_child_and_parent_healthy(tmp_path: Path, po
 
 def _retry_existing_stub_block() -> str:
     source = CHILD.read_text(encoding="utf-8")
+    receipt = _between(source, "finish_receipt() {", "\n}\n") + "\n}"
     start = "retry_existing_stub_finish() {"
-    return _between(source, start, "\n}\n") + "\n}"
+    return receipt + "\n" + _between(source, start, "\n}\n") + "\n}"
 
 
 def _run_retry_existing(
@@ -414,3 +415,35 @@ def test_rejected_retry_existing_falls_back_without_deterministic_finish(tmp_pat
     assert result.stdout.strip() == "SHOULD_NOT_REACH_DETERMINISTIC_FINISH"
     assert not finish_log.exists()
     assert not marker.exists()
+
+
+def test_resume_draft_finish_writes_a_bound_resume_receipt(tmp_path: Path) -> None:
+    # 2026-10-15: a resume_draft submission left no receipt, so every successful
+    # resume fenced the factory until a human proved the effect.
+    _, _, _, _, log = _run_retry_existing(tmp_path, retry_reason="resume exact-title repository draft")
+    log.write_text("", encoding="utf-8")
+    calls = tmp_path / "remote-status-calls"
+    calls.write_text("1", encoding="utf-8")
+    script = "\n".join((
+        "set -uo pipefail",
+        f"export AUTO={shlex.quote(str(tmp_path / 'release/skills/capafy-autopublish'))}",
+        f"export LIFE_MANAGER_STATE_HOME={shlex.quote(str(tmp_path / 'state'))}",
+        f"export CAPAFY_PUBLISHER_STATE_HOME={shlex.quote(str(tmp_path / 'state/runtime/capafy-publisher'))}",
+        f"export REMOTE_STATUS_CALLS={shlex.quote(str(calls))}",
+        "export LIFE_MANAGER_RUN_ID=test-run-123",
+        "export LIFE_MANAGER_OCCURRENCE_ID=capafy-loop-daily:test-run-123",
+        "export LIFE_MANAGER_RELEASE_SHA=" + ("a" * 40),
+        f"LOG={shlex.quote(str(log))}",
+        _retry_existing_stub_block(),
+        "finish_receipt 7393298474 2110426515594047488 capafy_resume_draft_finish resume",
+        "",
+    ))
+    result = subprocess.run(["bash", "-c", script], capture_output=True, text=True, check=False)
+    assert result.returncode == 0, result.stderr
+    lines = [line.split("=", 1)[1] for line in log.read_text(encoding="utf-8").splitlines()
+             if line.startswith("CAPAFY_RETRY_FINISH_RECEIPT=")]
+    assert len(lines) == 1
+    receipt = json.loads(lines[0])
+    assert receipt["event"] == "capafy_resume_draft_finish"
+    assert receipt["action_key"] == "resume:7393298474"
+    assert receipt["platform_status"] == 1
