@@ -4377,6 +4377,56 @@ def test_sweep_retires_merged_worktree_whose_tracked_sources_have_protected_word
     assert not worktree.exists()
 
 
+def test_sweep_retires_squash_merged_worktree_and_keeps_unmerged(tmp_path: Path) -> None:
+    # PRs land as squash commits, so a merged branch head is never an ancestor of main.
+    home = tmp_path / "home"
+    repo = home / "Projects" / "life-manager-main"
+    repo.mkdir(parents=True)
+
+    def git(cwd: Path, *args: str) -> str:
+        return subprocess.run(["git", "-C", str(cwd), *args], check=True,
+                              capture_output=True, text=True).stdout.strip()
+
+    subprocess.run(["git", "init", "-b", "main", str(repo)], check=True, capture_output=True)
+    git(repo, "config", "user.name", "Disk Cleanup Test")
+    git(repo, "config", "user.email", "disk-cleanup-test@example.invalid")
+    (repo / "a.txt").write_text("base\n")
+    git(repo, "add", ".")
+    git(repo, "commit", "-m", "base")
+    base = git(repo, "rev-parse", "HEAD")
+
+    def branch(name: str, content: str) -> Path:
+        path = repo / ".worktrees" / name
+        git(repo, "worktree", "add", "-b", name, str(path), base)
+        git(path, "config", "user.name", "Disk Cleanup Test")
+        git(path, "config", "user.email", "disk-cleanup-test@example.invalid")
+        (path / f"{name}.txt").write_text(content)
+        git(path, "add", ".")
+        git(path, "commit", "-m", f"{name} one")
+        (path / f"{name}.txt").write_text(content + "more\n")
+        git(path, "commit", "-am", f"{name} two")
+        return path
+
+    squashed = branch("squashed", "squashed\n")
+    unmerged = branch("unmerged", "unmerged\n")
+    git(repo, "merge", "--squash", "squashed")
+    git(repo, "commit", "-m", "squash merge")
+    (repo / "later.txt").write_text("later main work\n")
+    git(repo, "add", ".")
+    git(repo, "commit", "-m", "later")
+    git(repo, "update-ref", "refs/remotes/origin/main", git(repo, "rev-parse", "HEAD"))
+    git(repo, "remote", "add", "origin", str(repo))
+
+    governor = HostDiskGovernor(home=home, state_dir=home / "state",
+                                lsof=lambda _path: "confirmed-closed", usage=lambda: (0, 1))
+    candidates = [item for item in governor.discover_candidates()
+                  if item.get("owner") == "zombie-worktree"]
+    assert [Path(item["path"]) for item in candidates] == [squashed]
+    governor.sweep(candidates)
+    assert not squashed.exists()
+    assert unmerged.exists()
+
+
 def _alert_result(free_gib: float) -> dict:
     return {
         "free_after": int(free_gib * 1024**3),
