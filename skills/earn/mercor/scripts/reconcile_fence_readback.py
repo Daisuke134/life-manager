@@ -1,30 +1,37 @@
 #!/usr/bin/env python3
 """Close one Mercor effect_unknown fence only from occurrence-bound readback.
 
-The window is the run whose terminal claims the occurrence: a report event
-whose ``occurrence_id`` is the occurrence or that carries
-``lm-occurrence://<owner>/<run>/claim``.  Journals written before terminals
-recorded that binding fall back to the occurrence's own wake start with an
-open end, so every run that could have claimed it is covered.
+Binding copies the host pre-effect proof (``runtime/loop/lm_loop.py``): the
+claim run is the one run whose terminal carries
+``lm-occurrence://<owner>/<suffix>/claim``, else the occurrence's own wake.
+The window spans every row tagged with the occurrence (nested runners
+included) plus every row of the claim run.  Journals written before rows
+carried an occurrence keep the suffix run with an open end.  A journal whose
+oldest row is newer than the occurrence's ``queued_at`` fails closed.
 
-* application: Mercor mails "Application Submitted - <title> on Mercor" within
-  0-2 s of every submission (4/4 matched to official ``appliedAt``).  Zero such
-  mails in the window, read from the application Gmail account, proves no
-  submission.
-* reply: the only provider effect is ``gog gmail send``.  Zero sent mails in
-  the window proves no reply.
+* application: Mercor mails "Application Submitted - <title> on Mercor" from
+  team@mercor.com 0-4 s after every submission (92/92 official ``appliedAt``,
+  docs/evidence/job-search-loop/2026-10-15-mercor-fence-readback.json).  Zero
+  such mails anywhere in Gmail (spam/trash included) proves no submission.
+  The host's pre-spawn hint is not used: it predates the agent's clicks.
+  Scope: submissions only; the pass's per-run Telegram report is not covered.
+* reply: provider effect is ``gog gmail send``; owner notification goes
+  through ``telegram-outbox.sqlite3`` whose ``claimed_at`` is stamped right
+  before each send.  Zero mails from the account and zero outbox claims in
+  the window prove neither happened.
 * paid: ``paid-owner`` execs the paid kernel only after
   ``mercor_paid_snapshot`` rewrites ``paid-official-snapshot.json`` (releases
-  before that gate did not).  A snapshot older than the window start, written
-  by an earlier run on the claim run's own release, with no kernel run marker,
+  before that gate did not).  A snapshot older than the window, written by
+  an earlier run on the claim run's own release, with no kernel run marker,
   proves the kernel never started.
 
-Existing pre-effect markers still close first.  Any hit, incomplete search,
-ambiguous claim or missing input keeps the fence; nothing is retried.
+Any hit, page token, ambiguous claim or missing input keeps the fence; nothing
+is retried and no provider is mutated (gog runs with ``--gmail-no-send``).
 """
 from __future__ import annotations
 
 import argparse
+from contextlib import closing
 from datetime import datetime
 import gzip
 import hashlib
@@ -33,6 +40,7 @@ import math
 import os
 from pathlib import Path
 import re
+import sqlite3
 import stat
 import subprocess
 import sys
@@ -42,7 +50,8 @@ from typing import Any, Callable
 SHARED = Path(__file__).resolve().parents[3] / "_shared/marketplace-core/scripts"
 sys.path.insert(0, str(SHARED))
 sys.path.insert(0, str(Path(__file__).resolve().parents[4]))
-from runtime.host.resource_admission import resolve_pre_effect_occurrence  # noqa: E402
+from runtime.host.resource_admission import (  # noqa: E402
+    resolve_pre_effect_occurrence, state_root as admission_state_root)
 from reconcile_paid_no_effect import find_paid_no_effect_proof, run_marker_path  # noqa: E402
 from reconcile_pre_effect_hint import find_pre_effect_proof  # noqa: E402
 
@@ -51,10 +60,10 @@ REPLY = "mercor-revenue-reply"
 PAID = "mercor-revenue-paid"
 SAFE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
 SLACK = 60  # host/provider clock skew
-TAIL = 600  # measured Mercor confirmation lag is 0-2 s
+TAIL = 600  # measured Mercor confirmation lag is 0-4 s
 QUERIES = {
-    APP: 'from:mercor.com subject:"Application Submitted"',
-    REPLY: "in:sent",
+    APP: 'in:anywhere from:mercor.com subject:"Application Submitted"',
+    REPLY: "in:anywhere from:me",
 }
 GOG = "/opt/homebrew/bin/gog"
 PROFILE = Path("~/.config/anicca/job-search/profile.json").expanduser()
@@ -85,32 +94,48 @@ def _events(state_root: Path, owner: str) -> list[dict[str, Any]]:
     return rows
 
 
+def _queued_at(occurrence: str) -> float | None:
+    database = admission_state_root() / "admission-v2.sqlite3"
+    if not database.is_file():
+        return None
+    with closing(sqlite3.connect(f"file:{database}?mode=ro", uri=True, timeout=0.5)) as db:
+        row = db.execute("SELECT queued_at FROM occurrences WHERE occurrence_id=?",
+                         (occurrence,)).fetchone()
+    return float(row[0]) if row else None
+
+
 def claim_window(rows: list[dict[str, Any]], owner: str, occurrence: str
                  ) -> tuple[tuple[float, float | None, dict[str, Any]] | None, str]:
-    run_id = occurrence[len(owner) + 1:]
-    claim_ref = f"lm-occurrence://{owner}/{run_id}/claim"
-    bound = [r for r in rows if r.get("phase") == "report"
-             and (r.get("occurrence_id") == occurrence
-                  or claim_ref in (r.get("evidence_refs") or []))]
-    if len(bound) > 1:
-        return None, "claim_run_ambiguous"
-    if bound:
-        executor, terminal = bound[0].get("run_id"), bound[0]
-        end = _epoch(terminal.get("timestamp"))
-    else:
-        own = [r for r in rows if r.get("run_id") == run_id]
-        if not own or any("occurrence_id" in r for r in own):
-            return None, "claim_run_unavailable"
-        executor, terminal, end = run_id, {}, None
-    starts = [_epoch(r.get("timestamp")) for r in rows if r.get("run_id") == executor
-              and r.get("phase") == "execute" and r.get("status") == "running"]
-    if (len(starts) != 1 or starts[0] is None or (bound and end is None)
-            or (end is not None and end < starts[0])):
+    suffix = occurrence[len(owner) + 1:]
+    claim_ref = f"lm-occurrence://{owner}/{suffix}/claim"
+    tagged = [r for r in rows if r.get("occurrence_id") == occurrence]
+    claims = [r for r in rows if claim_ref in (r.get("evidence_refs") or [])]
+    if any(r.get("occurrence_id") not in (None, occurrence) for r in claims):
+        return None, "claim_occurrence_mismatch"
+    claim_runs = {r.get("run_id") for r in claims}
+    if len(claim_runs) > 1:
+        return None, "claimed_by_multiple_runs"
+    claim_run = claim_runs.pop() if claim_runs else suffix
+    run_rows = [r for r in rows if r.get("run_id") == claim_run]
+    if any(r.get("phase") == "report" and r.get("occurrence_id") not in (None, occurrence)
+           for r in run_rows):
+        return None, "claimed_by_other_run"
+    legacy = not tagged and not claims
+    if legacy and any("occurrence_id" in r for r in run_rows):
         return None, "claim_run_unavailable"
-    return (starts[0], end, terminal), "ok"
+    members = {id(r): r for r in [*tagged, *claims, *run_rows]}.values()
+    stamps = [_epoch(r.get("timestamp")) for r in members]
+    terminals = sorted((r for r in run_rows if r.get("phase") == "report"),
+                       key=lambda r: str(r.get("timestamp")))
+    if (not terminals or None in stamps
+            or not any(r.get("phase") == "execute" and r.get("status") == "running"
+                       for r in run_rows)):
+        return None, "claim_run_unavailable"
+    return (min(stamps), None if legacy else max(stamps), terminals[-1]), "ok"
 
 
 def _account() -> str:
+    """The Mercor login identity: paid snapshot and auth readback match it."""
     profile = json.loads(PROFILE.read_text(encoding="utf-8"))
     account = ((profile.get("candidate") or {}).get("application_email")
                or profile.get("application_email") or profile.get("email"))
@@ -122,7 +147,7 @@ def _account() -> str:
 def gmail_search(query: str) -> dict[str, Any] | None:
     """Same read-only gog call the Reply snapshot already uses."""
     argv = [GOG, "gmail", "messages", "search", query, "--max", "100",
-            "--account", _account(), "--json", "--no-input"]
+            "--account", _account(), "--json", "--no-input", "--gmail-no-send"]
     for attempt in range(2):
         if attempt:
             time.sleep(1)
@@ -137,6 +162,22 @@ def gmail_search(query: str) -> dict[str, Any] | None:
                 return None
             return value if isinstance(value, dict) else None
     return None
+
+
+def _outbox_claims(state_root: Path, start: float, end: float | None) -> int | None:
+    database = state_root / "telegram-outbox.sqlite3"
+    if not database.is_file():
+        return None
+    try:
+        with closing(sqlite3.connect(f"file:{database}?mode=ro", uri=True, timeout=0.5)) as db:
+            claimed = [_epoch(row[0]) for row in db.execute(
+                "SELECT claimed_at FROM telegram_outbox WHERE claimed_at IS NOT NULL")]
+    except sqlite3.Error:
+        return None
+    if None in claimed:
+        return None
+    upper = math.inf if end is None else end + TAIL
+    return sum(1 for value in claimed if start - SLACK <= value <= upper)
 
 
 def _paid_proof(state_root: Path, occurrence: str, start: float, release: Any,
@@ -178,14 +219,20 @@ def find_proof(state_root: Path, owner: str, occurrence: str, *,
     if (owner not in {APP, REPLY, PAID} or not SAFE_ID.fullmatch(occurrence)
             or not occurrence.startswith(f"{owner}:")):
         return None, "invalid_occurrence"
-    local = (find_paid_no_effect_proof if owner == PAID else find_pre_effect_proof)(
-        state_root, owner, occurrence)
-    if local is not None:
-        return local, "ok"
+    # Application-owner never cleared the host hint before its pass, so a
+    # leftover hint there proves nothing; Reply and Paid clear theirs.
+    local = {REPLY: find_pre_effect_proof, PAID: find_paid_no_effect_proof}.get(owner)
+    if local is not None and (proof := local(state_root, owner, occurrence)) is not None:
+        return proof, "ok"
     rows = _events(state_root, owner)
     window, reason = claim_window(rows, owner, occurrence)
     if window is None:
         return None, reason
+    queued_at = _queued_at(occurrence)
+    history = [stamp for r in rows if (stamp := _epoch(r.get("timestamp"))) is not None]
+    if queued_at is not None and (not history or min(history) > queued_at):
+        # Rotated-out journals could hide a foreign claim (lm_loop.py).
+        return None, "history_incomplete"
     start, end, terminal = window
     if owner == PAID:
         proof, reason = _paid_proof(state_root, occurrence, start,
@@ -203,9 +250,14 @@ def find_proof(state_root: Path, owner: str, occurrence: str, *,
         digest = hashlib.sha256(query.encode()).hexdigest()[:16]
         proof = {"proof_type": "pre_effect", "evidence_ref": f"gmail-search://{owner}/{digest}",
                  "query": query, "message_count": 0}
+        if owner == REPLY:
+            claimed = _outbox_claims(state_root, start, end)
+            if claimed != 0:
+                return None, "telegram_outbox_not_quiet"
+            proof["telegram_outbox_claims_in_window"] = 0
     return {"owner_id": owner, "occurrence_id": occurrence, "verified": True,
             "window": [start, end], "release_sha": terminal.get("release_sha"),
-            "claim_run_id": terminal.get("run_id"), **proof}, "ok"
+            "claim_run_id": terminal.get("run_id"), "queued_at": queued_at, **proof}, "ok"
 
 
 def reconcile(*, state_root: Path, owner: str, occurrence: str, resolve: bool = False,
@@ -235,7 +287,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         result = reconcile(state_root=state_root, owner=args.owner,
                            occurrence=args.occurrence, resolve=args.resolve)
-    except (RuntimeError, OSError, ValueError) as error:
+    except (RuntimeError, OSError, ValueError, sqlite3.Error) as error:
         print(json.dumps({
             "version": 1, "owner_id": args.owner, "occurrence_id": args.occurrence,
             "phase": "reconcile", "command": "mercor_reconcile_fence_readback",
