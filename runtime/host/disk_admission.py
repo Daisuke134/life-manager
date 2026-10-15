@@ -26,7 +26,7 @@ _DISK_RECOVERY_OWNER = "host-disk-recovery"
 _DISK_RECOVERY_REASON = "disk_headroom_low"
 RECOVERY_FLOOR_BYTES = 2 * 1024**3
 # Swap lives on the Data volume; below this floor the Mac froze (2026-10-14).
-PRODUCER_FLOOR_BYTES = 15 * 1024**3
+PRODUCER_FLOOR_BYTES = 12 * 1024**3
 
 
 def _producer_floor_bytes() -> int:

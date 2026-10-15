@@ -106,7 +106,7 @@ def test_disk_free_bytes_measures_the_requested_receipt_volume(
     assert calls == [path]
 
 
-@pytest.mark.parametrize("free_bytes", (0, 15 * 1024**3 - 1))
+@pytest.mark.parametrize("free_bytes", (0, 12 * 1024**3 - 1))
 def test_regular_producer_defers_below_disk_floor(
     tmp_path, monkeypatch, capsys, free_bytes,
 ):
@@ -124,7 +124,7 @@ def test_regular_producer_defers_below_disk_floor(
     assert receipt["required_bytes"] == guard.PRODUCER_FLOOR_BYTES
 
 
-@pytest.mark.parametrize("free_bytes", (15 * 1024**3, None))
+@pytest.mark.parametrize("free_bytes", (12 * 1024**3, None))
 def test_regular_producer_runs_at_floor_or_unknown_free_space(
     tmp_path, monkeypatch, free_bytes,
 ):
