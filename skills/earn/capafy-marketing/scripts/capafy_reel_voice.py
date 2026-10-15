@@ -19,6 +19,7 @@ from pathlib import Path
 BASE = Path.home() / ".local/state/life-manager/marketing/capafy-videos"
 VOICE = "en-US-AndrewMultilingualNeural"
 HOOK_FRAME_AT = 2.2  # seconds into the render where the hook line is fully visible
+PROPER = {"Instagram", "TikTok", "YouTube", "Reels", "Shorts", "X"}
 LEAD = 0.6           # seconds the hook frame is held before the render starts
 
 
@@ -38,7 +39,10 @@ def narration(hook: list[str], cards: list[str], cta: list[str]) -> str:
         raise ValueError(f"unexpected reel copy: hook={hook} quotes={quotes} cta={cta}")
     what = "three hooks" if "hook" in title.split(":")[-1].lower() else "the script"
     verb = "are" if what == "three hooks" else "is"
-    parts = [hook[0], hook[1], f"Here {verb} {what} {product} wrote for a {topic[0].lower() + topic[1:]}."]
+    first = topic.split()[0]
+    topic = topic if first in PROPER else topic[0].lower() + topic[1:]
+    article = "an" if topic[0].lower() in "aeiou" else "a"
+    parts = [hook[0], hook[1], f"Here {verb} {what} {product} wrote for {article} {topic}."]
     parts += [f"{n}. {q}" for n, q in zip(("One", "Two", "Three"), quotes)]
     parts.append(f"Search {product} on Capafy. {tagline}".strip())
     return " ".join(parts).replace(" 3 ", " three ").replace("first 3 seconds", "first three seconds")
