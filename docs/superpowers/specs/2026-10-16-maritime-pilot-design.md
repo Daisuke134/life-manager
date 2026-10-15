@@ -28,6 +28,8 @@ Life ManagerのTelegram利用者3人に、各自専用のMaritime agentとmicro-
 
 Telegram webhookが既存のlm_users.uidを解決する。/pilot commandを受けた場合だけ、feature flag、server-side MARITIME_API_KEY、重複なしの最大3 UID allowlistを検証する。どれかが不足・不正ならSDKをimportせず外部callを行わない。
 
+有効なpilot userではprovider callより前に、既存の`lm_panel_command_receipts`へ`telegram-maritime-pilot:<update_id>`をclaimする。request hashはLM_UID_SECRETでHMAC化し、メッセージ本文をreceiptへ保存しない。同じupdate_idの再配信はclaim conflictでprovider callも返信も行わずHTTP 200で終える。pending/failed receiptは自動解放しないため、claim後のcrashで依頼が未完了になる場合はあるが、有料provider callの重複を優先して防ぐ。新しいTelegram updateでの明示再依頼は別のreceiptとなる。
+
 有効時は、CommonJS appからmaritime-sdkをdynamic importする。UIDからPIIを含まない安定external IDとconversation IDを導出し、agents.provisionを呼ぶ。agent IDはprovider側externalIdの冪等性で再取得し、Life ManagerのDBに保存しない。agents.chatはresponse.errorを必ず検査し、errorまたは不明応答では成功表示せず、自動再送しない。
 
 pilotはchat-onlyとし、Calendar書込み、メール送信、購入、browser actionは接続しない。prompt、response、email、phone、user name、API keyはLife Managerのログへ記録しない。Telegramへ返す文はHTML escapeし、長さを制限する。
