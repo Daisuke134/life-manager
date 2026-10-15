@@ -178,6 +178,9 @@ if [ "${CAPAFY_DISTRIBUTE_DRY_RUN:-0}" = "1" ]; then
   exit 0
 fi
 
+# D7 (SSOT 2026-10-15): one real output image for Hook Lab articles; optional, never blocks.
+python3 "$SELF_DIR/capafy_article_image.py" "$RUN_DIR" "$CAPAFY_SKILL_SLUG" >>"$LOG" 2>&1 || true
+
 # aniccaai.com is the live publish target below; the base URL is a pure
 # operator/dotenv value (see .env.example) required only once we are past
 # the dry-run short-circuit above.
