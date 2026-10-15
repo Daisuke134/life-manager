@@ -4,6 +4,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
+  KNOWN_COMMANDS,
   parseSlashCommand,
   slashAliasText,
   helpMessage,
@@ -130,6 +131,70 @@ test("helpMessage lists /gig and /crowd", () => {
   const text = helpMessage();
   assert.ok(text.includes("/gig"), "help must list /gig");
   assert.ok(text.includes("/crowd"), "help must list /crowd");
+});
+
+test("/pilot is a known explicit command and appears in help", () => {
+  assert.ok(KNOWN_COMMANDS.includes("pilot"));
+  assert.ok(parseSlashCommand("/pilot plan my day"));
+  assert.match(helpMessage(), /\/pilot/);
+});
+
+test("/pilot disabled or unlinked users never reach the provider", async () => {
+  let providerCalls = 0;
+  const disabled = harness({
+    isMaritimePilotEnabled: () => false,
+    chatWithMaritimePilot: async () => { providerCalls++; return { ok: true, response: "unexpected" }; },
+  });
+  const disabledResult = await handleSlashCommand(parseSlashCommand("/pilot hello"), ROW, disabled.deps);
+  assert.equal(disabledResult.reason, "disabled");
+  assert.equal(providerCalls, 0);
+
+  const unlinked = await handleSlashCommand(parseSlashCommand("/pilot hello"), null, disabled.deps);
+  assert.equal(unlinked.reason, "unlinked");
+  assert.equal(providerCalls, 0);
+});
+
+test("/pilot validates the message before provider dispatch", async () => {
+  let providerCalls = 0;
+  const { sent, deps } = harness({
+    isMaritimePilotEnabled: () => true,
+    chatWithMaritimePilot: async () => { providerCalls++; return { ok: true, response: "unused" }; },
+  });
+
+  const missing = await handleSlashCommand(parseSlashCommand("/pilot"), ROW, deps);
+  assert.equal(missing.reason, "missing_message");
+  const oversized = await handleSlashCommand(parseSlashCommand(`/pilot ${"x".repeat(2001)}`), ROW, deps);
+  assert.equal(oversized.reason, "invalid_message");
+  assert.equal(providerCalls, 0);
+  assert.equal(sent.length, 2);
+});
+
+test("/pilot sends only an explicit message and safely escapes the reply", async () => {
+  const calls = [];
+  const { sent, logs, deps } = harness({
+    isMaritimePilotEnabled: (uid) => uid === "u1",
+    chatWithMaritimePilot: async (uid, message) => {
+      calls.push({ uid, message });
+      return { ok: true, response: '<b>Safe & "useful"</b>' };
+    },
+  });
+
+  const outcome = await handleSlashCommand(parseSlashCommand("/pilot plan my day"), ROW, deps);
+  assert.deepEqual(outcome, { handled: true, action: "pilot", ok: true, providerMessageId: 1 });
+  assert.deepEqual(calls, [{ uid: "u1", message: "plan my day" }]);
+  assert.equal(sent[0].text, "&lt;b&gt;Safe &amp; \"useful\"&lt;/b&gt;");
+  assert.deepEqual(logs, [], "prompt and response are never logged");
+});
+
+test("/pilot provider failures do not expose provider details or claim success", async () => {
+  const { sent, deps } = harness({
+    isMaritimePilotEnabled: () => true,
+    chatWithMaritimePilot: async () => ({ ok: false, reason: "provider_error", detail: "secret provider detail" }),
+  });
+  const outcome = await handleSlashCommand(parseSlashCommand("/pilot hello"), ROW, deps);
+  assert.equal(outcome.ok, false);
+  assert.equal(outcome.reason, "provider_error");
+  assert.doesNotMatch(sent[0].text, /secret provider detail/);
 });
 
 test("/gig sends the Coconala setup-required reply with its signup button", async () => {
