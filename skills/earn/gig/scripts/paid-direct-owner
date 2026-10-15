@@ -17,6 +17,17 @@ COMMAND=("$PYTHON" "$ROOT/skills/earn/gig/scripts/gig_disk_guard.py" \
   --cdp-lock-dir "$GIG_ROOT/.cdp-gig.lock")
 
 if [[ -n "${LIFE_MANAGER_BROWSER_IDENTITY:-}" ]]; then
+  # CFO money readback (A8.7): this owner already holds Coconala's browser identity and a
+  # 15-minute cadence, so it refreshes the official revenue history at most hourly under a
+  # short lease of its own.  It never delays Paid work past 30s and never changes its result.
+  READBACK=("$PYTHON" "$ROOT/skills/earn/gig/scripts/coconala_cfo_financial_readback.py" \
+    --output "${COCONALA_CFO_READBACK:-$HOME/.local/state/life-manager/coconala/cfo-financial-readback.json}" \
+    --min-interval-seconds 3600)
+  if "${READBACK[@]}" --check-due >/dev/null 2>&1; then
+    BROWSER_WAIT_SECONDS=30 "$ROOT/skills/browser/with-browser.sh" \
+      "$LIFE_MANAGER_BROWSER_IDENTITY" -- "${READBACK[@]}" >&2 \
+      || echo "paid-direct-owner: coconala CFO readback not refreshed" >&2
+  fi
   exec "$ROOT/skills/browser/with-browser.sh" \
     "$LIFE_MANAGER_BROWSER_IDENTITY" -- "${COMMAND[@]}" "$@"
 fi
