@@ -4283,3 +4283,59 @@ def test_governor_reports_growth_and_preservation_reason_without_false_recovery(
     assert result["capacity_recovery"]["status"] == "unmet"
     assert result["storage_next_action"] == "inspect_unattributed_writer"
     assert result["protected_deletions"] == 0
+
+
+def test_sweep_retires_expired_lease_worktree_with_regenerable_ignored_files(tmp_path: Path) -> None:
+    home = tmp_path / "home"
+    repo = home / "Projects" / "life-manager-main"
+    repo.mkdir(parents=True)
+
+    def git(cwd: Path, *args: str) -> str:
+        return subprocess.run(["git", "-C", str(cwd), *args], check=True,
+                              capture_output=True, text=True).stdout.strip()
+
+    subprocess.run(["git", "init", "-b", "main", str(repo)], check=True, capture_output=True)
+    git(repo, "config", "user.name", "Disk Cleanup Test")
+    git(repo, "config", "user.email", "disk-cleanup-test@example.invalid")
+    (repo / ".gitignore").write_text("node_modules/\n__pycache__/\nmystery.bin\n")
+    git(repo, "add", ".gitignore")
+    git(repo, "commit", "-m", "base")
+    head = git(repo, "rev-parse", "HEAD")
+    git(repo, "update-ref", "refs/remotes/origin/main", head)
+    git(repo, "remote", "add", "origin", str(repo))
+    common = Path(git(repo, "rev-parse", "--git-common-dir"))
+    common = common if common.is_absolute() else (repo / common).resolve()
+    (common / "worktree-leases").mkdir()
+
+    def leased(name: str, expires: str, *, lock: bool = True) -> tuple[Path, Path]:
+        path = repo / ".worktrees" / name
+        git(repo, "worktree", "add", "--detach", str(path), head)
+        lease = common / "worktree-leases" / (
+            hashlib.sha256(str(path.resolve()).encode("utf-8")).hexdigest() + ".json")
+        lease.write_text(json.dumps({"expires_at": expires, "worktree": str(path)}))
+        if lock:
+            git(repo, "worktree", "lock", "--reason", f"managed-lease:{lease}", str(path))
+        (path / "node_modules" / "pkg").mkdir(parents=True)
+        (path / "node_modules" / "pkg" / "index.js").write_text("x")
+        (path / ".DS_Store").write_bytes(b"\0")
+        return path, lease
+
+    expired, expired_lease = leased("expired", "2026-01-01T00:00:00Z")
+    future, _ = leased("future", "2999-01-01T00:00:00Z")
+    mystery, _ = leased("mystery", "2026-01-01T00:00:00Z")
+    (mystery / "mystery.bin").write_text("unknown ignored work")
+    other_lock = repo / ".worktrees" / "other-lock"
+    git(repo, "worktree", "add", "--detach", str(other_lock), head)
+    git(repo, "worktree", "lock", "--reason", "active owner", str(other_lock))
+
+    governor = HostDiskGovernor(home=home, state_dir=home / "state",
+                                lsof=lambda _path: "confirmed-closed", usage=lambda: (0, 1))
+    candidates = [item for item in governor.discover_candidates()
+                  if item.get("owner") == "zombie-worktree"]
+    assert [Path(item["path"]) for item in candidates] == [expired]
+
+    governor.sweep(candidates)
+
+    assert not expired.exists()
+    assert not expired_lease.exists()
+    assert future.exists() and mystery.exists() and other_lock.exists()
