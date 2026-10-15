@@ -18993,3 +18993,15 @@ A direct RevenueCat V2 read observed at 2026-10-14T22:25Z reports latest complet
 | D5 X reach | Blocked in this session | `x:anicca` (@selawmqt, profile `x-repost-daily`) has no CDP endpoint and `ensure_provision_browser.sh x:anicca` failed: `launchctl could not submit ai.anicca.provision-browser.x.anicca`. Needs an Aqua-context owner to start the profile; then set the X website to `https://capafy.ai/agent/8123079349?ct=hooklab_x`. |
 
 **Cursor:** D2 release/apply (Codex) → D4 factory image step (Codex) → D5 after the x:anicca browser is up → D6.
+
+### Capafy distribution lane progress — 2026-10-15 16:00 JST (claude-evo-eval-1012)
+
+- **Disk floor unblocked:** producer preflight requires 15.00 GiB free (`life-manager-producer-preflight`, `disk_floor_low`); host had 14.70 GiB. Deleted only regenerable HTTP/code caches of the non-live `~/.local/state/anicca/{crowdworks,lancers}/browser-profile` (1.3 GB) → 15.98 GiB.
+- **D2:** `capafy-reel-daily` applied from release `20261015T122733-dbd59860` (install event `6b0f52ef05e29d7b287bf499`). Kickstart passed the disk floor and queued at agent FIFO (`resource_fifo_wait`, occurrence `capafy-reel-daily:18de96f68f9a1c58-53651`); target date 10/22 is already scheduled, so no effect is due until the 10/16 09:41 run (10/23).
+- **D7:** #8130 `76ae047541` merged; release `20261015T125703-76ae0475` applied to `capafy-distribute-daily` (loaded-idle). Hook Lab articles get one hook-card image from the newest voiced reel.
+- **D1 live:** reconcile on `affe5fa3` now measures Hook Lab: 7d views ai_overview 10 / search 7 / direct 5 / hooklab_ig 2 / hot 1 / hooklab_blog 1 / hooklab_x 0, paid 0.
+- **D5 done:** @selawmqt (x:anicca) profile website = `https://capafy.ai/agent/8123079349?ct=hooklab_x` (settings readback).
+- **TikTok:** created `@hooklab.capafy` (identity `tiktok:hooklab`, credential `tiktok-hooklab`, email daisukenarita53 because TikTok normalizes Gmail plus aliases and the keiodaisuke base is taken). First Studio upload ~20 min after signup was rejected: "Post not created — Spam and Deceptive Account Behaviours". Next: warm-up (copy `ig-account-warmer`) for several days, then one post with URL readback; then connect to Postiz via `x:diceai0` (holds the Postiz session).
+- **Instagram:** `capafy.hooklab` credential exists (`instagram-capafy-hooklab`) but no browser identity; its bio link (ct) is still open.
+
+**Cursor:** D4 (factory images, Codex) · TikTok warm-up · IG `capafy.hooklab` bio ct link · D8 outreach · D6 when a factory slot is free.
