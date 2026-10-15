@@ -44,8 +44,8 @@
 - chatForUser returns a typed success/error result, not provider objects or secret data.
 - Tests inject a fake client; no real API key or network call is used.
 
-- [ ] Step 1: Write failing node:test cases for disabled configuration/data gate, invalid UID allowlist, stable HMAC externalId, provision failure, chat error, empty response and successful response.
-- [ ] Step 2: Run only node --test apps/life-manager/lib/transport/maritime-pilot.test.js and confirm the expected failures.
+- [x] Step 1: Write failing node:test cases for disabled configuration/data gate, invalid UID allowlist, stable HMAC externalId, provision failure, chat error, empty response and successful response.
+- [x] Step 2: Run only node --test apps/life-manager/lib/transport/maritime-pilot.test.js; it fails because the transport module is not implemented yet.
 - [ ] Step 3: Add exact maritime-sdk 0.9.0 dependency and implement lazy ESM import, `new Maritime({ apiKey, maxRetries: 0 })`, HMAC identifiers, object-form `provision`, chat error checking and no retries.
 - [ ] Step 4: Re-run the focused transport tests and confirm they pass.
 - [ ] Step 5: Commit the transport and lockfile change.
