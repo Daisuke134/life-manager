@@ -613,6 +613,11 @@ def _database(path: Path) -> sqlite3.Connection:
     return connection
 
 
+# 10 CPUs / 16GB: two host agent slots left Gig revenue lanes queued behind support
+# agents with 66% memory free (2026-10-15). lm_loop_run still defers below 15% free memory.
+DEFAULT_AGENT_TOTAL_RUNS = 3
+
+
 def _limits(resource_class: str, admission_class: str = "borrow") -> tuple[int, int]:
     total = _capacity("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", 10)
     if admission_class == "revenue":
@@ -869,7 +874,7 @@ def _capacity_available(occupied: list[dict[str, object]],
         return False
     if (resource_class == "agent"
             and sum(row.get("resource_class") == "agent" for row in occupied)
-            >= _capacity("LIFE_MANAGER_HOST_MAX_AGENT_TOTAL_RUNS", 2)):
+            >= _capacity("LIFE_MANAGER_HOST_MAX_AGENT_TOTAL_RUNS", DEFAULT_AGENT_TOTAL_RUNS)):
         return False
     if (admission_class == "revenue" and _revenue_floor(total)
             and _legacy_owner_present(occupied)):
@@ -894,7 +899,7 @@ def _capacity_overflow(occupied: list[dict[str, object]],
         return True
     if (resource_class == "agent"
             and sum(row.get("resource_class") == "agent" for row in occupied)
-            > _capacity("LIFE_MANAGER_HOST_MAX_AGENT_TOTAL_RUNS", 2)):
+            > _capacity("LIFE_MANAGER_HOST_MAX_AGENT_TOTAL_RUNS", DEFAULT_AGENT_TOTAL_RUNS)):
         return True
     if sum(_uses_limited_capacity(row, resource_class, admission_class)
            for row in occupied) > per_class:

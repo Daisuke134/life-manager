@@ -3002,7 +3002,7 @@ def test_default_agent_total_capacity_spans_revenue_and_borrow_claims(
 
     claims = []
     for owner, admission_class in (
-        ("agent-revenue", "revenue"), ("agent-support", "borrow"),
+        ("agent-revenue", "revenue"), ("agent-support", "borrow"), ("agent-revenue-2", "revenue"),
     ):
         ticket, _ = admission.enqueue_durable(
             "agent", owner, admission_class=admission_class,
