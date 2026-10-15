@@ -152,6 +152,35 @@ def _find_target(kernel_root: Path, occurrence_id: str) -> tuple[Path, dict] | N
     return (matches[0], loaded[1]) if loaded is not None else None
 
 
+def _find_targets(kernel_root: Path, occurrence_id: str) -> list[Path] | None:
+    """Every reply state bound to this occurrence; one run may answer several threads.
+
+    The fence covers all of them, so every one must load intact (None otherwise)."""
+    threads = kernel_root / "threads"
+    if threads.is_symlink() or not threads.is_dir():
+        return None
+    matches = []
+    for directory in sorted(threads.iterdir()):
+        path = directory / "state.json"
+        if directory.is_symlink() or path.is_symlink() or not path.is_file():
+            continue
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError, json.JSONDecodeError):
+            continue
+        if not isinstance(raw, dict):
+            continue
+        diagnostic = raw.get("send_diagnostic")
+        bound = ((isinstance(diagnostic, dict)
+                  and diagnostic.get("current_claimed_occurrence_id") == occurrence_id)
+                 or (raw.get("status") == "verified" and raw.get("occurrence_id") == occurrence_id))
+        if bound:
+            if _load_state(path, kernel_root, occurrence_id) is None:
+                return None
+            matches.append(path)
+    return matches or None
+
+
 def _load_adapter():
     path = ROOT / "skills/earn/gig/scripts/coconala_reply_adapter.py"
     spec = importlib.util.spec_from_file_location("coconala_reply_effect_adapter", path)
@@ -192,6 +221,14 @@ def _unique_thread_text(module, adapter, intent: dict) -> dict:
     once. Zero or several matches stay unknown."""
     try:
         context, _bounded = adapter._thread_reader(intent["thread_id"])
+    except RuntimeError as error:
+        # Same text-only fallback the owner's own readback uses when attachment ids drift.
+        if str(error) != "collector_unhealthy:dm_attachment_message_identity_changed":
+            return {"status": "unknown", "reason": "official_thread_unreadable"}
+        try:
+            context, _bounded = adapter._read_thread_text_only(intent["thread_id"])
+        except Exception:
+            return {"status": "unknown", "reason": "official_thread_unreadable"}
     except Exception:
         return {"status": "unknown", "reason": "official_thread_unreadable"}
     conversation = context.get("conversation") if isinstance(context, dict) else None
@@ -276,8 +313,8 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
         print(READBACK_MARKER + json.dumps(result, ensure_ascii=False, separators=(",", ":")))
         return 0
 
-    target = _find_target(args.kernel_root, args.occurrence)
-    if target is None:
+    targets = _find_targets(args.kernel_root, args.occurrence)
+    if targets is None:
         _print({
             "owner_id": OWNER_ID, "occurrence_id": args.occurrence,
             "status": "unresolved", "verified": False,
@@ -285,21 +322,23 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
         })
         return 0
 
-    state_path, _intent = target
     readback_proof: dict = {}
 
     def official_readback() -> dict:
-        result = _browser_readback(
-            state_path, args.kernel_root, args.occurrence, runner=runner,
-        )
-        if result.get("status") != "verified":
-            return {
-                "owner_id": OWNER_ID, "occurrence_id": args.occurrence,
-                "verified": False,
-            }
+        receipts = []
+        for state_path in targets:
+            result = _browser_readback(
+                state_path, args.kernel_root, args.occurrence, runner=runner,
+            )
+            if result.get("status") != "verified":
+                return {
+                    "owner_id": OWNER_ID, "occurrence_id": args.occurrence,
+                    "verified": False,
+                }
+            receipts.append(result["provider_receipt_id"])
         proof = {
             "owner_id": OWNER_ID, "occurrence_id": args.occurrence,
-            "verified": True, "provider_receipt_id": result["provider_receipt_id"],
+            "verified": True, "provider_receipt_id": ",".join(receipts),
         }
         readback_proof.update(proof)
         return proof
