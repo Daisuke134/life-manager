@@ -19005,3 +19005,7 @@ A direct RevenueCat V2 read observed at 2026-10-14T22:25Z reports latest complet
 - **Instagram:** `capafy.hooklab` credential exists (`instagram-capafy-hooklab`) but no browser identity; its bio link (ct) is still open.
 
 **Cursor:** D4 (factory images, Codex) · TikTok warm-up · IG `capafy.hooklab` bio ct link · D8 outreach · D6 when a factory slot is free.
+
+- **D8 started (2026-10-15 16:40 JST):** public mention to Capafy official `@capafyai` from @selawmqt with the honest story (agent writes, ships and markets Hook Lab; 70 orders) and the `hooklab_x` ct link: https://x.com/selawmqt/status/2110607335442067635. Capafy official channels: X `@capafyai`, TikTok `@capafy_`, Instagram `capafy_official`, YouTube `@Capafy`, Discord `discord.gg/kJnCxQrmDj`.
+- **Instagram `capafy.hooklab`:** Postiz integration "Hook Lab by Anicca" is this account and published daily through 10/14 (public profile and latest reel return 200). The web session in `instagram:capafy-provision` is at a phone checkpoint (6-digit code sent by WhatsApp to Dais's number), so the bio ct link cannot be set from the browser; Postiz API posting is unaffected.
+- **TikTok warm-up:** first passive For You session run (~6 min, no posts/follows/likes).
