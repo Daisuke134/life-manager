@@ -113,3 +113,54 @@ def test_application_reconcile_does_not_touch_browser_without_exact_target(
     assert wrapper.main(["--intent-root", str(tmp_path)]) == 0
     result = json.loads(capsys.readouterr().out)
     assert result["status"] == "nothing_to_reconcile"
+
+
+def _intent(root: Path, request_id: str, state: str, phase: str | None) -> None:
+    value = {"request_id": request_id, "state": state, "version": 2}
+    if phase is not None:
+        value["effect_phase"] = phase
+    (root / f"{request_id}.json").write_text(json.dumps(value), encoding="utf-8")
+
+
+def test_settled_write_ahead_store_closes_unbound_fences(tmp_path, monkeypatch, capsys) -> None:
+    wrapper = _load_wrapper()
+    monkeypatch.setattr(wrapper.reconciler, "discover_single_target",
+                        lambda *, owner_id, intent_root: None)
+    _intent(tmp_path, "1", "confirmed", "irreversible_attempt_started")
+    _intent(tmp_path, "2", "retired_absent", "irreversible_attempt_started")
+    _intent(tmp_path, "3", "prepared", None)
+    monkeypatch.setattr(wrapper, "_fenced_occurrences",
+                        lambda owner_id: ["hf-gig-apply-direct:old-1"])
+    proofs = []
+
+    def resolver(owner_id, occurrence_id, *, settled_proof):
+        proofs.append(settled_proof())
+        return True
+
+    monkeypatch.setattr(wrapper, "_resolve_settled", resolver)
+    assert wrapper.main(["--intent-root", str(tmp_path)]) == 0
+
+    assert proofs[0]["unresolved_irreversible"] == 0 and proofs[0]["scanned_intents"] == 3
+    closure = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert closure["owner_id"] == "hf-gig-apply-direct"
+    assert closure["occurrence_id"] == "hf-gig-apply-direct:old-1"
+    assert closure["verified"] is True and closure["evidence_ref"].startswith("gig-intents://sha256/")
+
+
+def test_unresolved_or_unreadable_intent_keeps_every_fence(tmp_path, monkeypatch, capsys) -> None:
+    wrapper = _load_wrapper()
+    monkeypatch.setattr(wrapper.reconciler, "discover_single_target",
+                        lambda *, owner_id, intent_root: None)
+    _intent(tmp_path, "1", "confirmed", "irreversible_attempt_started")
+    _intent(tmp_path, "2", "prepared", "irreversible_attempt_started")
+    (tmp_path / "3.json").write_text("{broken", encoding="utf-8")
+
+    def never(*_args, **_kwargs):
+        raise AssertionError("unsettled store must not read or release fences")
+
+    monkeypatch.setattr(wrapper, "_fenced_occurrences", never)
+    monkeypatch.setattr(wrapper, "_resolve_settled", never)
+    assert wrapper.main(["--intent-root", str(tmp_path)]) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["status"] == "nothing_to_reconcile"
+    assert result["unresolved_irreversible"] == 2

@@ -1964,6 +1964,41 @@ def resolve_historical_no_dispatch_occurrence(
     )
 
 
+def resolve_settled_write_ahead_occurrence(
+        owner_id: str, occurrence_id: str, *,
+        settled_proof: Callable[[], Mapping[str, object]],
+        expected_state: str = "claimed") -> bool:
+    """Close an unknown occurrence whose owner's write-ahead effect store is fully settled.
+
+    For owners that write an ``irreversible_attempt_started`` marker before every
+    provider effect, an occurrence that cannot be bound to its own intents is still
+    safe to release when the owner's complete store holds zero attempts that lack a
+    terminal provider readback. The callback scans that store and runs inside the
+    control lock, so an attempt started concurrently counts as unresolved.
+    """
+    if (not owner_id or not _normalize_occurrence_id(occurrence_id)
+            or expected_state not in {"claimed", "released"}):
+        raise RuntimeError("invalid occurrence identity")
+
+    def proof_check() -> bool:
+        proof = settled_proof()
+        return (isinstance(proof, Mapping)
+                and proof.get("owner_id") == owner_id
+                and proof.get("occurrence_id") == occurrence_id
+                and proof.get("verified") is True
+                and proof.get("proof_type") == "write_ahead_store_settled.v1"
+                and type(proof.get("unresolved_irreversible")) is int
+                and proof["unresolved_irreversible"] == 0
+                and type(proof.get("scanned_intents")) is int
+                and proof["scanned_intents"] > 0
+                and isinstance(proof.get("evidence_ref"), str)
+                and bool(proof["evidence_ref"].strip()))
+
+    return _close_unknown_occurrence(
+        owner_id, occurrence_id, expected_state, proof_check=proof_check
+    )
+
+
 def clear_no_effect_unknown(owner_id: str) -> int:
     """Release stale fences for an owner whose registry contract has no effect."""
     if not owner_id:

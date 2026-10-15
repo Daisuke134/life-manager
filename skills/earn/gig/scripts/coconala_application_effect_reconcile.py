@@ -11,6 +11,7 @@ identity with another loop.  It never opens an application form or clicks submit
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import subprocess
@@ -27,6 +28,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 import application_occurrence_reconcile as reconciler  # noqa: E402
+from runtime.host import resource_admission  # noqa: E402
 
 
 OWNER_ID = "hf-gig-apply-direct"
@@ -102,6 +104,63 @@ def run_browser_reconcile(
     return int(completed.returncode)
 
 
+SETTLED_STATES = frozenset({"confirmed", "retired_absent"})
+
+
+def _settled_scan(intent_root: Path) -> dict[str, object]:
+    """Count write-ahead attempts that still lack a terminal provider readback.
+
+    Every submit writes ``irreversible_attempt_started`` before it clicks; an
+    unreadable intent is counted as unresolved so the scan fails closed.
+    """
+    digest = hashlib.sha256()
+    scanned = unresolved = 0
+    for path in sorted(intent_root.glob("*.json")):
+        scanned += 1
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+            state, phase = value.get("state"), value.get("effect_phase")
+        except (OSError, ValueError, AttributeError):
+            state, phase = "unreadable", "unreadable"
+        if phase is not None and state not in SETTLED_STATES:
+            unresolved += 1
+        digest.update(f"{path.name}\0{state}\0{phase}\n".encode("utf-8"))
+    return {"scanned_intents": scanned, "unresolved_irreversible": unresolved,
+            "evidence_ref": f"gig-intents://sha256/{digest.hexdigest()}"}
+
+
+def _fenced_occurrences(owner_id: str) -> list[str]:
+    _root, _owners, _tickets, database = resource_admission._durable_paths()
+    import sqlite3
+    with sqlite3.connect(f"file:{database}?mode=ro", uri=True, timeout=30) as connection:
+        rows = connection.execute(
+            "SELECT occurrence_id FROM occurrences WHERE owner_id=? AND effect_unknown=1"
+            " AND state IN ('claimed','released') ORDER BY sequence", (owner_id,)).fetchall()
+    return [row[0] for row in rows]
+
+
+def _resolve_settled(owner_id, occurrence_id, *, settled_proof):
+    return resource_admission.resolve_settled_write_ahead_occurrence(
+        owner_id, occurrence_id, settled_proof=settled_proof)
+
+
+def _close_settled_fences(owner_id: str, intent_root: Path) -> tuple[dict[str, object], list[dict]]:
+    scan = _settled_scan(intent_root)
+    if scan["scanned_intents"] == 0 or scan["unresolved_irreversible"] != 0:
+        return scan, []
+    closed = []
+    for occurrence_id in _fenced_occurrences(owner_id):
+        def proof(occurrence_id=occurrence_id):
+            fresh = _settled_scan(intent_root)
+            return {"owner_id": owner_id, "occurrence_id": occurrence_id, "verified": True,
+                    "proof_type": "write_ahead_store_settled.v1", **fresh}
+        if _resolve_settled(owner_id, occurrence_id, settled_proof=proof):
+            closed.append({"owner_id": owner_id, "occurrence_id": occurrence_id, "verified": True,
+                           "proof_type": "write_ahead_store_settled.v1",
+                           "evidence_ref": scan["evidence_ref"]})
+    return scan, closed
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--owner-id", default=OWNER_ID)
@@ -153,6 +212,16 @@ def main(
         return 0
 
     if target is None:
+        scan, closed = _close_settled_fences(args.owner_id, args.intent_root)
+        if closed:
+            _write_scan_result(_scan_result_path(args.result), {
+                "status": "reconciled", "reason": "write_ahead_store_settled",
+                "retryable": False, "effect": 0, "readback": 1, **scan,
+                "closed_occurrences": [item["occurrence_id"] for item in closed],
+            })
+            for item in closed:
+                print(json.dumps(item, sort_keys=True, separators=(",", ":")))
+            return 0
         _write_scan_result(
             _scan_result_path(args.result),
             {
@@ -162,6 +231,7 @@ def main(
                 "effect": 0,
                 "readback": 0,
                 "next_action": "wait for exact run/occurrence-bound intents; do not replay",
+                **scan,
             },
         )
         return 0
