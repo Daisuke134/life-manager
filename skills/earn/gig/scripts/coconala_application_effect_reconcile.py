@@ -108,10 +108,10 @@ SETTLED_STATES = frozenset({"confirmed", "retired_absent"})
 
 
 def _settled_scan(intent_root: Path) -> dict[str, object]:
-    """Count write-ahead attempts that still lack a terminal provider readback.
+    """Count intents that may hold an application effect without terminal readback.
 
-    Every submit writes ``irreversible_attempt_started`` before it clicks; an
-    unreadable intent is counted as unresolved so the scan fails closed.
+    Only confirmed/retired_absent (provider readback) or an explicit pre_effect
+    phase count as settled; legacy, state-less and unreadable intents do not.
     """
     digest = hashlib.sha256()
     scanned = unresolved = 0
@@ -122,7 +122,9 @@ def _settled_scan(intent_root: Path) -> dict[str, object]:
             state, phase = value.get("state"), value.get("effect_phase")
         except (OSError, ValueError, AttributeError):
             state, phase = "unreadable", "unreadable"
-        if phase is not None and state not in SETTLED_STATES:
+        # Fail closed: only a v2 intent still in pre_effect is provably unclicked; a
+        # legacy (v1) prepared intent may already have crossed the boundary.
+        if state not in SETTLED_STATES and phase != "pre_effect":
             unresolved += 1
         digest.update(f"{path.name}\0{state}\0{phase}\n".encode("utf-8"))
     return {"scanned_intents": scanned, "unresolved_irreversible": unresolved,
@@ -150,14 +152,15 @@ def _close_settled_fences(owner_id: str, intent_root: Path) -> tuple[dict[str, o
         return scan, []
     closed = []
     for occurrence_id in _fenced_occurrences(owner_id):
-        def proof(occurrence_id=occurrence_id):
-            fresh = _settled_scan(intent_root)
+        checked: dict[str, object] = {}
+        def proof(occurrence_id=occurrence_id, checked=checked):
+            checked.update(_settled_scan(intent_root))
             return {"owner_id": owner_id, "occurrence_id": occurrence_id, "verified": True,
-                    "proof_type": "write_ahead_store_settled.v1", **fresh}
+                    "proof_type": "write_ahead_store_settled.v1", **checked}
         if _resolve_settled(owner_id, occurrence_id, settled_proof=proof):
             closed.append({"owner_id": owner_id, "occurrence_id": occurrence_id, "verified": True,
                            "proof_type": "write_ahead_store_settled.v1",
-                           "evidence_ref": scan["evidence_ref"]})
+                           "evidence_ref": checked.get("evidence_ref", scan["evidence_ref"])})
     return scan, closed
 
 

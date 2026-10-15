@@ -128,7 +128,7 @@ def test_settled_write_ahead_store_closes_unbound_fences(tmp_path, monkeypatch, 
                         lambda *, owner_id, intent_root: None)
     _intent(tmp_path, "1", "confirmed", "irreversible_attempt_started")
     _intent(tmp_path, "2", "retired_absent", "irreversible_attempt_started")
-    _intent(tmp_path, "3", "prepared", None)
+    _intent(tmp_path, "3", "prepared", "pre_effect")
     monkeypatch.setattr(wrapper, "_fenced_occurrences",
                         lambda owner_id: ["hf-gig-apply-direct:old-1"])
     proofs = []
@@ -164,3 +164,20 @@ def test_unresolved_or_unreadable_intent_keeps_every_fence(tmp_path, monkeypatch
     result = json.loads(capsys.readouterr().out)
     assert result["status"] == "nothing_to_reconcile"
     assert result["unresolved_irreversible"] == 2
+
+
+def test_legacy_prepared_or_stateless_intent_keeps_every_fence(tmp_path, monkeypatch, capsys) -> None:
+    wrapper = _load_wrapper()
+    monkeypatch.setattr(wrapper.reconciler, "discover_single_target",
+                        lambda *, owner_id, intent_root: None)
+    _intent(tmp_path, "1", "confirmed", "irreversible_attempt_started")
+    (tmp_path / "2.json").write_text(json.dumps({"request_id": "2", "state": "prepared", "version": 1}))
+    (tmp_path / "3.json").write_text(json.dumps({"request_id": "3"}))
+
+    def never(*_args, **_kwargs):
+        raise AssertionError("legacy prepared intents may have crossed the boundary")
+
+    monkeypatch.setattr(wrapper, "_fenced_occurrences", never)
+    monkeypatch.setattr(wrapper, "_resolve_settled", never)
+    assert wrapper.main(["--intent-root", str(tmp_path)]) == 0
+    assert json.loads(capsys.readouterr().out)["unresolved_irreversible"] == 2
