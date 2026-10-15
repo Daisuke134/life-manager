@@ -11,6 +11,7 @@ identity with another loop.  It never opens an application form or clicks submit
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import subprocess
@@ -27,6 +28,8 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 import application_occurrence_reconcile as reconciler  # noqa: E402
+import application_effect_fence as fence  # noqa: E402
+from runtime.host import resource_admission  # noqa: E402
 
 
 OWNER_ID = "hf-gig-apply-direct"
@@ -102,6 +105,133 @@ def run_browser_reconcile(
     return int(completed.returncode)
 
 
+SETTLED_STATES = frozenset({"confirmed", "retired_absent"})
+
+
+EVIDENCE_DIR = Path.home() / "gig" / "apply-direct" / "evidence"
+CLOSED_READBACK = EVIDENCE_DIR / "request-closed-readback.json"
+
+
+def _latest_roster() -> Path:
+    found = sorted(EVIDENCE_DIR.glob("coconala-applied-history-*.json"), key=lambda path: path.stat().st_mtime)
+    return found[-1] if found else EVIDENCE_DIR / "coconala-applied-history-missing.json"
+
+
+def _roster_ids(path: Path) -> set[str]:
+    """Requests the official applied-history readback lists (an application exists)."""
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+        value = value.get("official_readback", value)
+        if (value.get("source") != "code_owned_cdp_readback" or value.get("observed") is not True
+                or value.get("truncated") is not False):
+            return set()
+        return {str(item) for item in value.get("request_ids") or []}
+    except (OSError, ValueError, AttributeError):
+        return set()
+
+
+def _closed_ids(path: Path) -> set[str]:
+    """Requests whose official page read back as 募集終了: no further application is possible."""
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+        if value.get("source") != "code_owned_cdp_readback":
+            return set()
+        return {str(rid) for rid, row in (value.get("requests") or {}).items()
+                if isinstance(row, dict) and row.get("closed") is True
+                and (row.get("http_status") == 200
+                     or (row.get("gone") is True and row.get("http_status") == 404))}
+    except (OSError, ValueError, AttributeError):
+        return set()
+
+
+STORE_METADATA = frozenset({"wedge-quarantine.json", "full-history-scan-state.json"})
+
+
+def _intent_settled(value: dict, applied: set[str], closed: set[str]) -> bool:
+    """Whether an intent can no longer hide a duplicable application.
+
+    Provider-confirmed, a versioned pre_effect intent, a request listed in the
+    official applied history, or a request whose own official page is 募集終了 /
+    gone. retired_absent counts only when no irreversible attempt started: the
+    screenshot-based retire path is not a provider readback.
+    """
+    request_id = str(value.get("request_id") or "")
+    if request_id and (request_id in applied or request_id in closed):
+        return True
+    if value.get("state") == "confirmed" or fence.is_pre_effect(value):
+        return True
+    return (value.get("state") == "retired_absent"
+            and value.get("effect_phase") != fence.IRREVERSIBLE_ATTEMPT_STARTED)
+
+
+def _store_intents(intent_root: Path):
+    """Yield (path, intent-or-None); None means unreadable or not an intent object."""
+    for path in sorted(intent_root.glob("*.json")):
+        if path.name in STORE_METADATA:
+            continue
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            value = None
+        if not isinstance(value, dict) or not value.get("state"):
+            value = None
+        else:
+            value = {**value, "request_id": str(value.get("request_id") or path.stem)}
+        yield path, value
+
+
+def _settled_scan(intent_root: Path, *, roster_path: Path | None = None,
+                  closed_path: Path | None = None) -> dict[str, object]:
+    """Count store entries that may still hide a duplicable application (fail closed)."""
+    applied = _roster_ids(roster_path or _latest_roster())
+    closed = _closed_ids(closed_path or CLOSED_READBACK)
+    digest = hashlib.sha256()
+    scanned = unresolved = 0
+    for path, value in _store_intents(intent_root):
+        scanned += 1
+        settled = value is not None and _intent_settled(value, applied, closed)
+        if not settled:
+            unresolved += 1
+        state = value.get("state") if value else "unreadable"
+        phase = value.get("effect_phase") if value else "unreadable"
+        digest.update(f"{path.name}\0{state}\0{phase}\0{settled}\n".encode("utf-8"))
+    return {"scanned_intents": scanned, "unresolved_irreversible": unresolved,
+            "evidence_ref": f"gig-intents://sha256/{digest.hexdigest()}"}
+
+
+def _fenced_occurrences(owner_id: str) -> list[str]:
+    _root, _owners, _tickets, database = resource_admission._durable_paths()
+    import sqlite3
+    with sqlite3.connect(f"file:{database}?mode=ro", uri=True, timeout=30) as connection:
+        rows = connection.execute(
+            "SELECT occurrence_id FROM occurrences WHERE owner_id=? AND effect_unknown=1"
+            " AND state='claimed' ORDER BY queued_at", (owner_id,)).fetchall()
+    return [row[0] for row in rows]
+
+
+def _resolve_settled(owner_id, occurrence_id, *, settled_proof):
+    return resource_admission.resolve_settled_write_ahead_occurrence(
+        owner_id, occurrence_id, settled_proof=settled_proof)
+
+
+def _close_settled_fences(owner_id: str, intent_root: Path) -> tuple[dict[str, object], list[dict]]:
+    scan = _settled_scan(intent_root)
+    if scan["scanned_intents"] == 0 or scan["unresolved_irreversible"] != 0:
+        return scan, []
+    closed = []
+    for occurrence_id in _fenced_occurrences(owner_id):
+        checked: dict[str, object] = {}
+        def proof(occurrence_id=occurrence_id, checked=checked):
+            checked.update(_settled_scan(intent_root))
+            return {"owner_id": owner_id, "occurrence_id": occurrence_id, "verified": True,
+                    "proof_type": "write_ahead_store_settled.v1", **checked}
+        if _resolve_settled(owner_id, occurrence_id, settled_proof=proof):
+            closed.append({"owner_id": owner_id, "occurrence_id": occurrence_id, "verified": True,
+                           "proof_type": "write_ahead_store_settled.v1",
+                           "evidence_ref": checked.get("evidence_ref", scan["evidence_ref"])})
+    return scan, closed
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--owner-id", default=OWNER_ID)
@@ -153,6 +283,16 @@ def main(
         return 0
 
     if target is None:
+        scan, closed = _close_settled_fences(args.owner_id, args.intent_root)
+        if closed:
+            _write_scan_result(_scan_result_path(args.result), {
+                "status": "reconciled", "reason": "write_ahead_store_settled",
+                "retryable": False, "effect": 0, "readback": 1, **scan,
+                "closed_occurrences": [item["occurrence_id"] for item in closed],
+            })
+            for item in closed:
+                print(json.dumps(item, sort_keys=True, separators=(",", ":")))
+            return 0
         _write_scan_result(
             _scan_result_path(args.result),
             {
@@ -162,6 +302,7 @@ def main(
                 "effect": 0,
                 "readback": 0,
                 "next_action": "wait for exact run/occurrence-bound intents; do not replay",
+                **scan,
             },
         )
         return 0

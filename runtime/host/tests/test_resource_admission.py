@@ -3812,6 +3812,58 @@ def test_critical_paid_waiting_past_its_age_limit_outranks_fresh_distribution(
     assert admission.reserve_available(now=2001, lease_seconds=30) == ["article-daily"]
 
 
+def _fenced(tmp_path, monkeypatch, occurrence):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    owner = occurrence.split(":", 1)[0]
+    admission.enqueue_durable("browser", owner, admission_class="revenue",
+                              occurrence_id=occurrence, now=100)
+    claim, reason = admission.claim_durable(
+        "browser", owner, admission_class="revenue", now=101)
+    assert claim is not None and reason == "acquired"
+    admission.release_and_reserve(claim, effect_unknown=True, reserve=False, now=102)
+    return owner
+
+
+def _settled(owner, occurrence, **changes):
+    proof = {"owner_id": owner, "occurrence_id": occurrence, "verified": True,
+             "proof_type": "write_ahead_store_settled.v1",
+             "unresolved_irreversible": 0, "scanned_intents": 12,
+             "evidence_ref": "gig-intents://sha256/abc"}
+    proof.update(changes)
+    return lambda: proof
+
+
+def _row_state(tmp_path, occurrence):
+    row = next(item for item in durable_rows(tmp_path, "occurrences")
+               if item["occurrence_id"] == occurrence)
+    return row["state"], row["effect_unknown"]
+
+
+def test_settled_write_ahead_store_closes_unbound_fence(tmp_path, monkeypatch):
+    occurrence = "hf-gig-apply-direct:unbound-old"
+    owner = _fenced(tmp_path, monkeypatch, occurrence)
+    assert admission.resolve_settled_write_ahead_occurrence(
+        owner, occurrence, settled_proof=_settled(owner, occurrence)) is True
+    assert _row_state(tmp_path, occurrence) == ("released", 0)
+
+
+@pytest.mark.parametrize("changes", [
+    {"unresolved_irreversible": 1},
+    {"unresolved_irreversible": True},
+    {"scanned_intents": 0},
+    {"verified": False},
+    {"proof_type": "provider_official_readback_exact_id"},
+    {"evidence_ref": " "},
+    {"occurrence_id": "hf-gig-apply-direct:other"},
+])
+def test_settled_write_ahead_store_rejects_incomplete_proof(tmp_path, monkeypatch, changes):
+    occurrence = "hf-gig-apply-direct:unbound-reject"
+    owner = _fenced(tmp_path, monkeypatch, occurrence)
+    assert admission.resolve_settled_write_ahead_occurrence(
+        owner, occurrence, settled_proof=_settled(owner, occurrence, **changes)) is False
+    assert _row_state(tmp_path, occurrence) == ("claimed", 1)
+
 def test_stale_queued_duplicates_are_cancelled_but_newest_wake_is_kept(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="1")
     admission.activate_durable_v2()
