@@ -1891,6 +1891,7 @@
       "state_root": "~/.local/state/life-manager/coconala/paid"
     },
     "hf-gig-reply-detector": {
+      "admission_effect_scope": "occurrence",
       "admission_class": "revenue",
       "adapter": "exec",
       "browser_identity": "coconala:kosuke",

@@ -3578,10 +3578,15 @@ def test_all_coconala_lanes_enter_revenue_admission(tmp_path):
             kwargs["allow_no_effect_recovery"] = True
         if registry[loop_id].get("coalesce_queued_wakes") is True:
             kwargs["coalesce_reserved"] = True
+        if registry[loop_id].get("admission_effect_scope") == "occurrence":
+            kwargs["effect_scope"] = "occurrence"
         expected_enqueue.append(call("agent", loop_id, **kwargs))
     assert enqueue.call_args_list == expected_enqueue
     assert claim.call_args_list == [
-        call("agent", loop_id, admission_class="revenue") for loop_id in loop_ids
+        call("agent", loop_id, admission_class="revenue",
+             **({"effect_scope": "occurrence"}
+                if registry[loop_id].get("admission_effect_scope") == "occurrence" else {}))
+        for loop_id in loop_ids
     ]
     run.assert_not_called()
 
