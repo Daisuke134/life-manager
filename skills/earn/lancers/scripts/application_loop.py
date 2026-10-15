@@ -108,7 +108,7 @@ DISCOVERY_WINDOW = 6
 DISCOVERY_CATEGORIES = ("system", "web", "business", "writing", "design",
                         "translation", "salesmarketing", "multimedia", "task")
 # The lane wakes every 60 seconds (config/loop-registry.json), and the window steps by one query
-# per wake, so the whole vocabulary is read inside half an hour instead of over fourteen hours.
+# per admitted wake; _discovery_source cycles every category page before the keywords.
 WAKE_INTERVAL_SECONDS = 60
 PUBLIC_SOFTWARE_PROOF = {
     "source_url": "https://github.com/Daisuke134/life-manager", "title": "Life Manager", "license": "MIT",
@@ -385,7 +385,7 @@ def _run_default_discovery(tick_value: object, timeout: float, state_path: Path,
     The old implementation kept fetching queries until it had a forty-row pool.  Each query also
     enriched up to twenty detail pages, so a single 60-second wake could hold the revenue slot for
     many minutes before the planner or browser was reached.  Coverage comes from
-    ``_discovery_query`` rotating on the next wake; a selected slice must be judged now rather
+    ``_discovery_source`` (categories, then keywords) rotating on the next wake; a selected slice must be judged now rather
     than waiting for an exhaustive union.
     """
     source = _discovery_source(tick_value)
