@@ -420,8 +420,41 @@ def _category(value: object) -> Optional[str]:
     return value.strip()
 
 
-def fetch_public_html(*, query: Optional[str], limit: int, timeout: float, category: Optional[str] = None, _detail_url: Optional[str] = None, _client_id: Optional[str] = None) -> str:
-    """Fetch one bounded public page with no cookies or auth headers."""
+def _check_response(status: object, observed_status: Optional[int], final_url: object, detail_url: Optional[str], client_url: Optional[str]) -> None:
+    if isinstance(final_url, str) and "/user/login" in final_url:
+        _fail("lancers_provider_blocked", http_status=observed_status)
+    if detail_url is not None and _canonical_detail_url(final_url) != detail_url:
+        _fail("lancers_http_error", http_status=observed_status)
+    if client_url is not None and final_url != client_url:
+        _fail("lancers_http_error", http_status=observed_status)
+    if status in {401, 403, 429}:
+        _fail("lancers_provider_blocked", http_status=observed_status)
+    if not isinstance(status, int) or status < 200 or status >= 300:
+        _fail("lancers_http_error", http_status=observed_status)
+
+
+def _page_get(page: Any, url: str, timeout: float) -> tuple[Optional[int], object, bytes]:
+    """GET same-origin from the leased logged-in Lancers page, as work_sync._fetch does.
+
+    Lancers' AWS WAF answers the cookieless urllib GET with 405 and x-amzn-waf-action: captcha
+    (measured 2026-10-15) while the same browser, which carries its aws-waf-token, reads /mypage
+    with 200.
+    """
+    try:
+        value = page.evaluate(
+            """async ([url, ms]) => { const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), ms); try { const response = await fetch(url, {method: "GET", credentials: "same-origin", headers: {Accept: "text/html,application/xhtml+xml"}, signal: controller.signal}); return {status: response.status, url: response.url, body: await response.text()}; } catch (_) { return null; } finally { clearTimeout(timer); } }""",
+            [url, int(timeout * 1000)],
+        )
+    except Exception:
+        value = None
+    if not isinstance(value, Mapping) or not isinstance(value.get("body"), str):
+        _fail("lancers_network_error")
+    status = value.get("status")
+    return (status if type(status) is int else None), value.get("url"), value["body"].encode("utf-8")
+
+
+def fetch_public_html(*, query: Optional[str], limit: int, timeout: float, category: Optional[str] = None, _detail_url: Optional[str] = None, _client_id: Optional[str] = None, page: Any = None) -> str:
+    """Fetch one bounded public page: through ``page`` when given, else with no cookies or auth headers."""
 
     query = _query(query)
     limit = _limit(limit)
@@ -452,21 +485,18 @@ def fetch_public_html(*, query: Optional[str], limit: int, timeout: float, categ
         headers={"User-Agent": _USER_AGENT, "Accept": "text/html,application/xhtml+xml"},
         method="GET",
     )
+    if page is not None:
+        observed_status, final_url, body = _page_get(page, url, timeout)
+        _check_response(observed_status, observed_status, final_url, _detail_url, client_url)
+        if len(body) > _MAX_BODY_BYTES:
+            _fail("lancers_response_too_large")
+        return body.decode("utf-8")
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
             observed_status = getattr(response, "status", None)
             status = getattr(response, "status", 200)
             final_url = getattr(response, "geturl", lambda: url)()
-            if isinstance(final_url, str) and "/user/login" in final_url:
-                _fail("lancers_provider_blocked", http_status=observed_status)
-            if _detail_url is not None and _canonical_detail_url(final_url) != _detail_url:
-                _fail("lancers_http_error", http_status=observed_status)
-            if client_url is not None and final_url != client_url:
-                _fail("lancers_http_error", http_status=observed_status)
-            if status in {401, 403, 429}:
-                _fail("lancers_provider_blocked", http_status=observed_status)
-            if not isinstance(status, int) or status < 200 or status >= 300:
-                _fail("lancers_http_error", http_status=observed_status)
+            _check_response(status, observed_status, final_url, _detail_url, client_url)
             chunks: List[bytes] = []
             total = 0
             while total <= _MAX_BODY_BYTES:
@@ -500,11 +530,11 @@ def fetch_public_client_order_rate(buyer_external_id: object, timeout: float = 2
     return parse_client_order_rate(html)
 
 
-def _enrich_cards(cards: Sequence[Dict[str, object]], timeout: float) -> tuple[int, int]:
+def _enrich_cards(cards: Sequence[Dict[str, object]], timeout: float, page: Any = None) -> tuple[int, int]:
     enriched = failed = 0
     for card in cards:
         try:
-            fields = parse_detail_html(fetch_public_html(query=None, limit=1, timeout=timeout, _detail_url=_canonical_detail_url(card.get("url"))))
+            fields = parse_detail_html(fetch_public_html(query=None, limit=1, timeout=timeout, _detail_url=_canonical_detail_url(card.get("url")), **({"page": page} if page is not None else {})))
             if not fields:
                 raise ValueError
             text = "\n".join(f"{label}: {value}" for label, value in fields.items())
@@ -558,14 +588,19 @@ def run_discovery(
     category: Optional[str] = None,
     fetcher: Optional[Callable[..., str]] = None,
     observed_at: Optional[Callable[[], object] | str] = None,
+    page: Any = None,
 ) -> Dict[str, object]:
-    """Run one discovery observation and return a redacted result envelope."""
+    """Run one discovery observation and return a redacted result envelope.
+
+    ``page`` is a logged-in Lancers page; when given, the search and every detail page are read
+    through it instead of the cookieless urllib request the AWS WAF refuses.
+    """
 
     try:
         query = _query(query)
         limit = _limit(limit)
         timeout = _timeout(timeout)
-        acquire = fetch_public_html if fetcher is None else fetcher
+        acquire = fetcher if fetcher is not None else (lambda **kwargs: fetch_public_html(page=page, **kwargs)) if page is not None else fetch_public_html
         # A fetcher injected by a test may predate the category argument, so only pass it when
         # there is one to pass. A discovery that crashed on its own test double would be worse
         # than one that cannot browse categories.
@@ -575,7 +610,7 @@ def run_discovery(
         # returned observation bounded even when the provider sends a larger
         # page than requested.
         cards = cards[:limit]
-        enriched, failed = _enrich_cards(cards, timeout)
+        enriched, failed = _enrich_cards(cards, timeout, page)
         observation = _now() if observed_at is None else observed_at() if callable(observed_at) else observed_at
         observation = _validate_observed_at(observation)
         adapter = _load_adapter()
