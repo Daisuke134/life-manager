@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import tempfile
 import sys
 import importlib.util
 from pathlib import Path
@@ -20,6 +21,8 @@ def _load_wrapper():
     # Never read the live ~/gig evidence from a test.
     module.EVIDENCE_DIR = Path("/nonexistent-evidence")
     module.CLOSED_READBACK = Path("/nonexistent-evidence/request-closed-readback.json")
+    scratch = Path(tempfile.mkdtemp(prefix="coconala-fence-test-"))
+    module._scan_result_path = lambda result: result or scratch / "scan.json"
     return module
 
 
