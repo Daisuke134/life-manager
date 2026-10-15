@@ -47,3 +47,12 @@ def test_marker_without_readback_stays_held(tmp_path):
 def test_missing_manifest_raises(tmp_path):
     with pytest.raises(ValueError):
         build_proof(OCC, tmp_path / "runs" / "nope", posts_fn=lambda net, slot: None)
+
+
+def test_second_slot_marker_reads_back_at_second_slot_time(tmp_path):
+    d = _run_dir(tmp_path, ("x",))
+    (d / "dispatch-ig-s2.json").write_text("{}")
+    seen = []
+    proof = build_proof(OCC, d, posts_fn=lambda net, slot: seen.append((net, slot)) or f"{net}-1")
+    assert ("ig", "2026-10-29T23:00:00.000Z") in seen and ("x", "2026-10-29T17:00:00.000Z") in seen
+    assert proof["verified"] is True

@@ -58,11 +58,14 @@ def build_proof(occurrence_id: str, run_dir: Path, *, posts_fn: Callable[[str, s
         raise ValueError("occurrence manifest is bound to another occurrence")
     day = dt.date.fromisoformat(manifest["target_date"])
     base = {"owner_id": OWNER_ID, "occurrence_id": occurrence_id, "target_date": day.isoformat()}
-    dispatched = sorted(p.stem.removeprefix("dispatch-") for p in run_dir.glob("dispatch-*.json"))
+    dispatched = sorted(p.stem.removeprefix("dispatch-") for p in run_dir.glob("dispatch-*.json"))  # "x", "ig-s2", ...
     if not dispatched:
         return {**base, "verified": True, "proof_type": "pre_effect", "outcome": "no_dispatch",
                 "evidence_ref": str(manifest_path)}
-    found = {net: posts_fn(net, slots(day)[net]) for net in dispatched}
+    def at(marker: str) -> tuple[str, str]:
+        net, _, slot = marker.partition("-s")
+        return net, slots(day, int(slot) if slot else 1)[net]
+    found = {m: posts_fn(*at(m)) for m in dispatched}
     if all(found.values()):
         return {**base, "verified": True, "outcome": "effected",
                 "provider_receipt_id": ",".join(f"{n}:{found[n]}" for n in dispatched)}

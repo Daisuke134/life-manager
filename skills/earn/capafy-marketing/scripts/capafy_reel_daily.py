@@ -45,12 +45,16 @@ NICHES = [
 LIMITS = {"hook_a": 40, "hook_b": 40, "title": 34, "label": 14, "quote": 80, "onscreen": 36}
 
 
-def pick_niche(day: dt.date) -> dict:
-    return NICHES[day.toordinal() % len(NICHES)]
+SLOT_TIMES = {1: ("13:00", "17:00"), 2: ("23:00", "11:00")}  # (ig, x) UTC; slot 2 doubles daily volume
 
 
-def slots(day: dt.date) -> dict:
-    return {"ig": f"{day.isoformat()}T13:00:00.000Z", "x": f"{day.isoformat()}T17:00:00.000Z"}
+def pick_niche(day: dt.date, slot: int = 1) -> dict:
+    return NICHES[(day.toordinal() + 7 * (slot - 1)) % len(NICHES)]
+
+
+def slots(day: dt.date, slot: int = 1) -> dict:
+    ig, x = SLOT_TIMES[slot]
+    return {"ig": f"{day.isoformat()}T{ig}:00.000Z", "x": f"{day.isoformat()}T{x}:00.000Z"}
 
 
 def caption(spec: dict) -> str:
@@ -121,7 +125,7 @@ def _durable_write(path: Path, text: str) -> None:
 
 
 def schedule(slug: str, spec: dict, day: dt.date, key: str, nets: tuple = ("ig", "x"), *,
-             run_dir: Path | None = None, existing_fn=None) -> dict:
+             run_dir: Path | None = None, existing_fn=None, slot: int = 1) -> dict:
     mp4 = BASE / slug / "renders-v2" / "video.mp4"
     out = {}
     for net, integration in (("ig", IG_ID), ("x", X_ID)):
@@ -131,33 +135,34 @@ def schedule(slug: str, spec: dict, day: dt.date, key: str, nets: tuple = ("ig",
         if receipt.exists():
             out[net] = "already_scheduled"
             continue
-        found = existing_fn(net, slots(day)[net]) if existing_fn else None
+        found = existing_fn(net, slots(day, slot)[net]) if existing_fn else None
         if found:  # provider already has this slot (earlier crash after create): record, never re-create
             receipt.write_text(json.dumps({"at": dt.datetime.now(dt.timezone.utc).isoformat(), "slug": slug,
-                                           "readback_existing_post": found, "scheduled_for": slots(day)[net]}) + "\n")
+                                           "readback_existing_post": found, "scheduled_for": slots(day, slot)[net]}) + "\n")
             out[net] = {"existing": found}
             continue
         if run_dir is not None:  # durable pre-dispatch marker for capafy_reel_fence_reconcile
-            _durable_write(run_dir / f"dispatch-{net}.json",
-                           json.dumps({"slug": slug, "net": net, "slot": slots(day)[net]}) + "\n")
+            _durable_write(run_dir / f"dispatch-{net}{'' if slot == 1 else f'-s{slot}'}.json",
+                           json.dumps({"slug": slug, "net": net, "slot": slots(day, slot)[net]}) + "\n")
         bnd = uuid.uuid4().hex
         data = (f"--{bnd}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{slug}.mp4\"\r\n"
                 f"Content-Type: video/mp4\r\n\r\n").encode() + mp4.read_bytes() + f"\r\n--{bnd}--\r\n".encode()
         up = _req(key, f"{API}/upload", data, {"Content-Type": f"multipart/form-data; boundary={bnd}"}, "POST")
-        payload = {"type": "schedule", "date": slots(day)[net], "shortLink": False, "tags": [],
+        payload = {"type": "schedule", "date": slots(day, slot)[net], "shortLink": False, "tags": [],
                    "posts": [{"integration": {"id": integration},
                               "value": [{"content": caption(spec), "image": [{"id": up["id"], "path": up["path"]}]}],
                               "settings": SETTINGS[net]}]}
         cr = _req(key, f"{API}/posts", json.dumps(payload).encode(), {"Content-Type": "application/json"}, "POST")
         rec = {"at": dt.datetime.now(dt.timezone.utc).isoformat(), "slug": slug, "asset": str(mp4), "upload": up,
-               "create": cr, "scheduled_for": slots(day)[net], "integration": integration}
+               "create": cr, "scheduled_for": slots(day, slot)[net], "integration": integration}
         receipt.write_text(json.dumps(rec) + "\n")
         out[net] = cr
     return out
 
 
-def run(day: dt.date, dry_run: bool = False, nets: tuple = ("ig", "x"), run_dir: Path | None = None) -> dict:
-    niche = pick_niche(day)
+def run(day: dt.date, dry_run: bool = False, nets: tuple = ("ig", "x"), run_dir: Path | None = None,
+        slot: int = 1) -> dict:
+    niche = pick_niche(day, slot)
     slug = f"hooklab-d{day:%Y%m%d}-{niche['key']}"
     d = BASE / slug
     if not d.exists():
@@ -173,15 +178,16 @@ def run(day: dt.date, dry_run: bool = False, nets: tuple = ("ig", "x"), run_dir:
                        check=True, capture_output=True, timeout=1200)
     if not (d / "renders-v2" / "video.mp4").exists():
         capafy_reel_voice.build(slug)
-    result = {"slug": slug, "niche": niche["key"], "slots": slots(day)}
+    result = {"slug": slug, "niche": niche["key"], "slots": slots(day, slot)}
     if not dry_run:
         from capafy_reel_fence_reconcile import postiz_post_at  # noqa: PLC0415
         result["scheduled"] = schedule(slug, spec, day, os.environ["LM_POSTIZ_API_KEY"], nets,
-                                       run_dir=run_dir, existing_fn=postiz_post_at)
+                                       run_dir=run_dir, existing_fn=postiz_post_at, slot=slot)
     return result
 
 
 if __name__ == "__main__":
     nets = tuple(sys.argv[sys.argv.index("--only") + 1].split(",")) if "--only" in sys.argv else ("ig", "x")
     run_dir = Path(os.environ["CAPAFY_REEL_RUN_DIR"]) if os.environ.get("CAPAFY_REEL_RUN_DIR") else None
-    print(json.dumps(run(dt.date.fromisoformat(sys.argv[1]), "--dry-run" in sys.argv, nets, run_dir), default=str))
+    slot = int(sys.argv[sys.argv.index("--slot") + 1]) if "--slot" in sys.argv else 1
+    print(json.dumps(run(dt.date.fromisoformat(sys.argv[1]), "--dry-run" in sys.argv, nets, run_dir, slot), default=str))
