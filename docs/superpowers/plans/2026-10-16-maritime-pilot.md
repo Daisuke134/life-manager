@@ -62,8 +62,8 @@
 - server injects chatForUser only; slash-command owns validation, allowlist gate, safe Telegram output and truthful status.
 - No database migration, scheduler, loop registry row or background provisioning.
 
-- [x] Step 1: Write failing tests for flag-off, missing data gate, no key, invalid allowlist, unlinked user, disallowed UID, missing/oversized message, provider error and safe response escaping/truncation.
-- [x] Step 2: Run only the focused slash-command test file; the new cases fail because `/pilot` is not implemented yet.
+- [x] Step 1: Write failing tests for flag-off, missing data gate, no key, invalid allowlist, unlinked user, disallowed UID, missing/oversized message, provider error, safe response escaping/truncation, and enabled-only `/help` visibility.
+- [x] Step 2: Run only the focused slash-command test file; new cases fail because `/pilot` is listed for every user before the visibility gate exists.
 - [x] Step 3: Add the disabled-by-default branch and pass existing uid/message arguments to the provider transport only after every gate passes.
 - [x] Step 4: Run the slash-command and transport unit tests plus Telegram HTTP contract test; update its stale fixture for the current `lm_message_channels` tenant lookup.
 - [x] Step 5: Commit and push the command integration.

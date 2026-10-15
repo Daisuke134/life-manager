@@ -133,10 +133,19 @@ test("helpMessage lists /gig and /crowd", () => {
   assert.ok(text.includes("/crowd"), "help must list /crowd");
 });
 
-test("/pilot is a known explicit command and appears in help", () => {
+test("/pilot is known but appears in help only for an enabled pilot user", async () => {
   assert.ok(KNOWN_COMMANDS.includes("pilot"));
   assert.ok(parseSlashCommand("/pilot plan my day"));
-  assert.match(helpMessage(), /\/pilot/);
+  assert.doesNotMatch(helpMessage(), /\/pilot/);
+  assert.match(helpMessage({ includePilot: true }), /\/pilot/);
+
+  const enabled = harness({ isMaritimePilotEnabled: (uid) => uid === "u1" });
+  await handleSlashCommand(parseSlashCommand("/help"), ROW, enabled.deps);
+  assert.match(enabled.sent[0].text, /\/pilot/);
+
+  const disabled = harness({ isMaritimePilotEnabled: () => false });
+  await handleSlashCommand(parseSlashCommand("/help"), ROW, disabled.deps);
+  assert.doesNotMatch(disabled.sent[0].text, /\/pilot/);
 });
 
 test("/pilot disabled or unlinked users never reach the provider", async () => {
