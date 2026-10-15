@@ -4375,3 +4375,38 @@ def test_sweep_retires_merged_worktree_whose_tracked_sources_have_protected_word
     assert [Path(item["path"]) for item in candidates] == [worktree]
     governor.sweep(candidates)
     assert not worktree.exists()
+
+
+def _alert_result(free_gib: float) -> dict:
+    return {
+        "free_after": int(free_gib * 1024**3),
+        "storage_growth": {"roots": [
+            {"path": "/h/a", "delta_bytes": 5 * 1024**3, "size_bytes": 9 * 1024**3},
+            {"path": "/h/b", "delta_bytes": None, "size_bytes": 30 * 1024**3},
+            {"path": "/h/c", "delta_bytes": 1 * 1024**3, "size_bytes": 2 * 1024**3},
+        ]},
+    }
+
+
+def test_low_disk_alert_names_top_writers_once_per_window(tmp_path: Path) -> None:
+    sent: list[str] = []
+    first = disk_cleanup._low_disk_alert(_alert_result(12.4), tmp_path, send=sent.append, now=1000.0)
+    second = disk_cleanup._low_disk_alert(_alert_result(12.0), tmp_path, send=sent.append, now=1000.0 + 3600)
+    third = disk_cleanup._low_disk_alert(_alert_result(11.0), tmp_path, send=sent.append, now=1000.0 + 7 * 3600)
+    assert (first["status"], second["status"], third["status"]) == ("sent", "skipped", "sent")
+    assert len(sent) == 2
+    assert "12.4" in sent[0]
+    assert sent[0].index("/h/a") < sent[0].index("/h/c")
+    assert "/h/b" in sent[0]
+
+
+def test_low_disk_alert_is_silent_when_free_is_healthy(tmp_path: Path) -> None:
+    sent: list[str] = []
+    assert disk_cleanup._low_disk_alert(_alert_result(25.1), tmp_path, send=sent.append, now=1.0)["status"] == "healthy"
+    assert sent == []
+
+
+def test_low_disk_alert_failure_never_raises(tmp_path: Path) -> None:
+    def broken(_text: str) -> None:
+        raise OSError("network down")
+    assert disk_cleanup._low_disk_alert(_alert_result(5.0), tmp_path, send=broken, now=1.0)["status"] == "failed"
