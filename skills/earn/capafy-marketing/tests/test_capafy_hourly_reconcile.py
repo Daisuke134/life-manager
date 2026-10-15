@@ -1193,3 +1193,15 @@ def test_inventory_counts_delisted_agents_instead_of_giving_up() -> None:
     assert inventory["status"] == "normalized"
     assert inventory["delisted"] == 2
     assert inventory["free"] == 2  # 5 - (2 under_review/draft + 1 review_rejected)
+
+
+def test_sellers_first_keeps_frozen_sellers_inside_the_per_agent_cap() -> None:
+    # 2026-10-15: inventory listed 70 Agents, the per-agent cap is 60, and Hook Lab
+    # (the top seller with half of all distribution slots) fell past the cap, so its
+    # traffic and ct rows were never fetched. Sellers must be measured first.
+    module = load_module()
+    ids = [str(n) for n in range(1000, 1065)] + ["8123079349", "2844813315"]
+    ordered = module._sellers_first(ids)
+    assert ordered[:2] == ["8123079349", "2844813315"]
+    assert ordered[2:] == [str(n) for n in range(1000, 1065)]
+    assert "8123079349" in ordered[: module.TRAFFIC_AGENT_CAP]

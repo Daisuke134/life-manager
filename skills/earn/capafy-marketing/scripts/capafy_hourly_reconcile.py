@@ -32,6 +32,19 @@ SKILL_STATS_DELAY_SECONDS = 0.15
 TRAFFIC_SOURCES_BASE = "/app/developer/traffic-sources"
 TRAFFIC_AGENT_CAP = SKILL_STATS_CAP  # ponytail: same bound as the per-agent stats loop above
 TRAFFIC_AGENT_DELAY_SECONDS = SKILL_STATS_DELAY_SECONDS
+
+
+FROZEN_PATH = Path(__file__).resolve().parents[3] / "capafy" / "FROZEN.json"
+
+
+def _sellers_first(agent_ids: list[str]) -> list[str]:
+    """FROZEN sellers first so the per-agent caps above never drop them (Hook Lab fell past
+    60 of 70 on 2026-10-15). Unreadable file = original order."""
+    try:
+        sellers = [str(a) for a in json.loads(FROZEN_PATH.read_text()).get("agent_ids") or []]
+    except Exception:
+        return list(agent_ids)
+    return [a for a in sellers if a in agent_ids] + [a for a in agent_ids if a not in sellers]
 TRAFFIC_DISPLAY_TIMEZONE = ZoneInfo("Asia/Tokyo")
 
 
@@ -1290,8 +1303,8 @@ def _live_payloads(repo_root: Path, observed: dt.datetime,
         "unit_sales": _post("/app/unit-sales/clickhouse/trend", web_token, period),
         "statements": _get("/app/developer/settlement-statement/list?page=1&size=20", web_token),
     })
-    inventory_agent_ids = [str(row["agentId"]) for row in (_inventory_rows(payloads.get("inventory", {})) or [])
-                           if row.get("agentId")]
+    inventory_agent_ids = _sellers_first([str(row["agentId"]) for row in (_inventory_rows(payloads.get("inventory", {})) or [])
+                                          if row.get("agentId")])
     traffic_observed_at = observed.astimezone(dt.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     payloads["traffic_sources"] = build_traffic_sources(
         web_token, observed.date(), inventory_agent_ids, observed_at=traffic_observed_at)
@@ -1458,8 +1471,8 @@ def main(argv: list[str] | None = None) -> int:
         stats_path = args.fixture_dir / "agent_stats.json"
         agent_stats = json.loads(stats_path.read_text()) if stats_path.exists() else {}
     else:
-        agent_ids = [str(row["agentId"]) for row in (_inventory_rows(payloads.get("inventory", {})) or [])
-                     if row.get("agentId")]
+        agent_ids = _sellers_first([str(row["agentId"]) for row in (_inventory_rows(payloads.get("inventory", {})) or [])
+                                    if row.get("agentId")])
         token = _token(repo_root)
         agent_stats = _fetch_agent_stats_windows(token, agent_ids, observed.date()) if token else {}
     analytics = build_skill_analytics(payloads, agent_stats, _catalog_models(repo_root), observed_at)
