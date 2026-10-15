@@ -58,17 +58,19 @@
 
 |#|写す元|ファイル|変更|期限|状態|
 |---|---|---|---|---|---|
-|1|kubelet hard eviction / ES flood_stage|`runtime/host/disk_admission.py` `_producer_gate`|空き15GiB未満で control plane 6 loop以外の新規runを`disk_floor_low`でdefer（測定不能は通す）|10/16 本番|source+test済み|
-|2|（ballast）|`bin/disk-watchdog.sh`|8GiB ballastを保持、空き3GiB未満で即削除、25GiB超で再作成|10/16 本番|source+test済み|
-|3|kubelet image GC|`skills/self/disk-cleanup/disk_cleanup.py`|空き25GiB未満で削除可能class（2h超のloop-tmp→merged/clean/期限切れlease worktree→idle worktreeのnode_modules等→未参照release、最新3保持）を古い順・使用中除外で35GiBまで回収|10/17|未着手|
+|1|kubelet hard eviction / ES flood_stage|`runtime/host/disk_admission.py` `_producer_gate`|空き15GiB未満で control plane 6 loop以外の新規runを`disk_floor_low`でdefer（測定不能は通す）|10/16 本番|PR #8115 main・release `20261015T105345-e9ba318c`。release-reconcilerが順次移行中（10/15 11:15時点 63/192 label）|
+|2|（ballast）|`bin/disk-watchdog.sh`|8GiB ballastを保持、空き3GiB未満で即削除、25GiB超で再作成。サイズはinstall済みplistの`LIFE_MANAGER_BALLAST_SIZE=8g`だけが与える|10/16 本番|PR #8115 main、watchdogをe9ba318cでinstall済み（plist readback）。空き15.3GiBのためballast未作成＝25GiB到達まで未武装|
+|3|kubelet image GC|`skills/self/disk-cleanup/disk_cleanup.py`|worktree退役の4つの永久ブロックを除去: 期限切れlease/lock、再生成可能ignored、`.DS_Store`（PR #8117 main・release済み）、tracked sourceの名前語判定（PR #8121 review中）。実機trace: merged 25件の残りは有効lock10・`.anicca-keep`10・非再生成物4で正しく保持|10/17|一部本番|
 |4|kubelet FreeDiskSpaceFailed|同上|回収不足時、直近1時間の増加上位5 dirをTelegram通知|10/17|未着手|
-|5|journald max_use|`runtime/loop/lm_loop_run.py` `held_effect_unknown`|証拠json(≤8MiB, 30日TTL)だけ保持、生成物は削除。fence不変|10/17|未着手|
+|5|journald max_use|`runtime/loop/lm_loop_run.py` `held_effect_unknown`|証拠(json/jsonl/log/txt 各≤1MiB・計≤8MiB)とmarkerだけ保持、生成物は削除。fence不変。30日TTLは#3で追加|10/17|PR #8116 main・release済み、`line-sticker-factory-hourly`をe9ba318cへtarget apply済み|
 |6|journald max_use|`config/loop-registry.json` `cleanup.max_bytes` + `bin/lm-loop-contract`|全loopに出力上限を必須化、無ければCI失敗|10/18|未着手|
 |7|—|重複掃除役4本|`com.anicca.disk-watchdog`+central cleanupへ統合しunload|10/18|未着手|
 
 **凍結しない論理:** 凍結条件=swap作成不能（10-14 kernel log）。(a) 空き<3GiBで8GiB ballast解放→誰が書いても空き≥11GiBへ戻る。(b) 空き<15GiBで新規producer停止→増加は実行中runのみ（finite上限10×#6の上限）。(c) 通常は25GiBで掃除が35GiBまで戻すので(a)(b)は異常時のみ。(d) 回収不足は#4が書き手を名指し。外部最大書き手（Codex会話ログ実測0.1〜3GB/日）に対しballastだけで約3日の猶予。限界: 必要データで228GBが埋まる場合は外付けSSDが必要（#4で事前に判明）。
 
 **Done判定（これのみ）:** `df -h /System/Volumes/Data` の毎時sampleが10/17〜10/24の7日間で99%以上25GiB以上、かつ `log show --last 7d --predicate 'eventMessage CONTAINS "low swap"'` が0件、ResetCounter 0件。判定日10/24。
+
+**10/15 11:15 実測と次の手:** main `e9ba318c`（#8115 #8116 #8117）でimmutable release作成、`current`更新。`lm-loop apply --all --loaded-idle-only`は稼働中のrelease-reconcilerとadmission DB（164MB、rollback journal）を取り合い`database is locked`で2回停止したため中止し、正規ownerのreconcilerに移行を任せた（競合ownerを作らない）。central cleanupはe9ba318cで自然pass（exit 0）。governor receiptはstdoutのbounded logに出ており、`state/last-receipt.json`は10-14 23:11以降更新なし（診断の読み先として記録）。次: Codex純正rollout圧縮（7日超）と未参照release回収で空き25GiB超→ballast武装を確認、#4 #6 #7。
 
 **agent修理の解禁:** #1 #2が本番反映された時点（10/16予定）で、F1–F5による18 capability修理のgateを撤廃する。以後の基盤作業は#4通知で名指しされた書き手1つの修正だけで、基盤全体をやり直さない。
 
