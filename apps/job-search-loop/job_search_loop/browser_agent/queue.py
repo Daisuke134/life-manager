@@ -39,7 +39,12 @@ class RowQueueSupervisor:
 
     @staticmethod
     def collect(
-        ledger: Any, active_provider: str | None = None
+        ledger: Any,
+        active_provider: str | None = None,
+        *,
+        cursor_after: tuple[str, str] | None = None,
+        in_progress_application_id: str | None = None,
+        resume_application_ids: Iterable[str] = (),
     ) -> tuple[dict[str, Any], ...]:
         provider = active_provider or os.environ.get(
             "JOB_SEARCH_ACTIVE_APPLICATION_PROVIDER"
@@ -77,12 +82,84 @@ class RowQueueSupervisor:
                 continue
             seen.add(identity)
             rows.append(row)
-        rows.sort(
-            key=lambda row: detect_provider(str(row["canonical_url"])) != "workday"
+        if cursor_after is not None and rows:
+            missing_keys = [
+                row
+                for row in rows
+                if not isinstance(row.get("_queue_created_at"), str)
+            ]
+            if missing_keys:
+                application_ids = [str(row["application_id"]) for row in missing_keys]
+                placeholders = ",".join("?" for _ in application_ids)
+                records = ledger.connection.execute(
+                    f"SELECT id, created_at FROM applications WHERE id IN ({placeholders})",
+                    application_ids,
+                ).fetchall()
+                created_at_by_id = {str(record[0]): str(record[1]) for record in records}
+                for row in missing_keys:
+                    created_at = created_at_by_id.get(str(row["application_id"]))
+                    if not created_at:
+                        raise RuntimeError("queued application is missing its durable order key")
+                    row["_queue_created_at"] = created_at
+            rows.sort(
+                key=lambda row: (
+                    detect_provider(str(row["canonical_url"])) != "workday",
+                    str(row["_queue_created_at"]),
+                    str(row["application_id"]),
+                )
+            )
+            start = next(
+                (
+                    index
+                    for index, row in enumerate(rows)
+                    if (
+                        str(row["_queue_created_at"]),
+                        str(row["application_id"]),
+                    )
+                    > cursor_after
+                ),
+                0,
+            )
+            rows = rows[start:] + rows[:start]
+        else:
+            rows.sort(
+                key=lambda row: detect_provider(str(row["canonical_url"])) != "workday"
+            )
+
+        priority_ids = tuple(
+            dict.fromkeys(
+                value
+                for value in (in_progress_application_id, *resume_application_ids)
+                if isinstance(value, str) and value
+            )
         )
+        if priority_ids:
+            by_id = {str(row["application_id"]): row for row in rows}
+            prioritized = [by_id[value] for value in priority_ids if value in by_id]
+            prioritized_ids = {str(row["application_id"]) for row in prioritized}
+            rows = prioritized + [
+                row for row in rows if str(row["application_id"]) not in prioritized_ids
+            ]
         preferred = os.environ.get("JOB_SEARCH_PREFERRED_APPLICATION_ID", "").strip()
-        if preferred:
-            rows.sort(key=lambda row: str(row["application_id"]) != preferred)
+        if preferred and not priority_ids:
+            preferred_row = next(
+                (row for row in rows if str(row["application_id"]) == preferred),
+                None,
+            )
+            preferred_is_ahead = (
+                preferred_row is not None
+                and (
+                    cursor_after is None
+                    or (
+                        str(preferred_row.get("_queue_created_at", "")),
+                        str(preferred_row["application_id"]),
+                    )
+                    > cursor_after
+                )
+            )
+            if preferred_is_ahead:
+                rows.remove(preferred_row)
+                rows.insert(0, preferred_row)
         limit = _application_limit()
         if limit == 0:
             return ()

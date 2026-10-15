@@ -140,7 +140,9 @@ class DirectCDPTypeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["application_id"], row["application_id"])
         self.assertEqual(result["report_message_id"], "recovery-1")
         sender.assert_called_once()
-        completed.assert_called_once_with(row["application_id"])
+        completed.assert_called_once_with(
+            row["application_id"], resume_next_wake=False
+        )
         store.mark_account_status.assert_called_once_with(
             row["canonical_url"], "recovery_requested"
         )
@@ -975,7 +977,7 @@ class DirectCDPTypeTests(unittest.IsolatedAsyncioTestCase):
             ), patch.object(
                 runtime, "_mark_wake_completed", completed
             ):
-                result = await runtime.checkpoint("visible_challenge")
+                result = await runtime.checkpoint("wake_budget_low")
 
         self.assertEqual(result.get("application_id"), "application-checkpoint-a")
         self.assertEqual(result.get("report_message_id"), "checkpoint-1")
@@ -989,7 +991,9 @@ class DirectCDPTypeTests(unittest.IsolatedAsyncioTestCase):
             ),
             evidence_classes={},
         )
-        completed.assert_called_once_with("application-checkpoint-a")
+        completed.assert_called_once_with(
+            "application-checkpoint-a", resume_next_wake=True
+        )
         session.close_owned.assert_awaited_once_with(cursor.handle)
 
     async def test_answer_memory_resolves_an_exact_private_question(self):

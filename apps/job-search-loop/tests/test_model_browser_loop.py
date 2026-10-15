@@ -214,6 +214,216 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
             ["old-rakuten", "new-company"],
         )
 
+    def test_workday_queue_rotates_after_last_completed_application(self):
+        from job_search_loop.browser_agent.queue import RowQueueSupervisor
+
+        rows = [
+            {
+                "application_id": f"workday-{number}",
+                "company": f"Company {number}",
+                "title": "AI Role",
+                "canonical_url": f"https://company{number}.wd1.myworkdayjobs.com/job/role",
+                "_queue_created_at": (
+                    f"2026-10-15T{number // 3600:02d}:"
+                    f"{(number // 60) % 60:02d}:{number % 60:02d}Z"
+                ),
+            }
+            for number in range(1, 303)
+        ]
+        ledger = Mock()
+        ledger.pending_materials_ready_applications.return_value = rows
+        ledger.retryable_applications.return_value = []
+        ledger.workday_fit_qualified.return_value = True
+
+        with patch.dict(os.environ, {"JOB_SEARCH_APPLICATION_LIMIT": "48"}):
+            collected = RowQueueSupervisor.collect(
+                ledger,
+                active_provider="workday",
+                cursor_after=("2026-10-15T00:02:00Z", "workday-120"),
+            )
+
+        self.assertEqual(len(collected), 302)
+        self.assertEqual(collected[0]["application_id"], "workday-121")
+        self.assertEqual(collected[-1]["application_id"], "workday-120")
+
+    def test_in_progress_row_precedes_new_candidate_after_restart(self):
+        from job_search_loop.browser_agent.queue import RowQueueSupervisor
+
+        rows = [
+            {
+                "application_id": name,
+                "company": name,
+                "title": "AI Role",
+                "canonical_url": f"https://{name}.wd1.myworkdayjobs.com/job/role",
+                "_queue_created_at": f"2026-10-15T00:00:0{rowid}Z",
+            }
+            for name, rowid in (("wrapped-row", 1), ("cursor-row", 2), ("resume-row", 3), ("fresh-row", 4))
+        ]
+        ledger = Mock()
+        ledger.pending_materials_ready_applications.return_value = rows
+        ledger.retryable_applications.return_value = []
+        ledger.workday_fit_qualified.return_value = True
+        with patch.dict(
+            os.environ, {"JOB_SEARCH_PREFERRED_APPLICATION_ID": "fresh-row"}
+        ):
+            collected = RowQueueSupervisor.collect(
+                ledger,
+                active_provider="workday",
+                cursor_after=("2026-10-15T00:00:02Z", "cursor-row"),
+                in_progress_application_id="resume-row",
+            )
+
+        self.assertEqual(collected[0]["application_id"], "resume-row")
+
+    def test_wake_budget_resume_precedes_new_candidate(self):
+        from job_search_loop.browser_agent.queue import RowQueueSupervisor
+
+        rows = [
+            {
+                "application_id": name,
+                "company": name,
+                "title": "AI Role",
+                "canonical_url": f"https://{name}.wd1.myworkdayjobs.com/job/role",
+                "_queue_created_at": f"2026-10-15T00:00:0{rowid}Z",
+            }
+            for name, rowid in (("old-row", 1), ("cursor-row", 2), ("resume-row", 3), ("fresh-row", 4))
+        ]
+        ledger = Mock()
+        ledger.pending_materials_ready_applications.return_value = rows
+        ledger.retryable_applications.return_value = []
+        ledger.workday_fit_qualified.return_value = True
+        with patch.dict(
+            os.environ, {"JOB_SEARCH_PREFERRED_APPLICATION_ID": "fresh-row"}
+        ):
+            collected = RowQueueSupervisor.collect(
+                ledger,
+                active_provider="workday",
+                cursor_after=("2026-10-15T00:00:02Z", "cursor-row"),
+                resume_application_ids=("resume-row",),
+            )
+
+        self.assertEqual(collected[0]["application_id"], "resume-row")
+
+    def test_old_preferred_row_cannot_reset_a_workday_queue_cursor(self):
+        from job_search_loop.browser_agent.queue import RowQueueSupervisor
+
+        rows = [
+            {
+                "application_id": name,
+                "company": name,
+                "title": "AI Role",
+                "canonical_url": f"https://{name}.wd1.myworkdayjobs.com/job/role",
+                "_queue_created_at": f"2026-10-15T00:00:0{rowid}Z",
+            }
+            for name, rowid in (("old-preferred", 1), ("cursor", 2), ("next", 3), ("later", 4))
+        ]
+        ledger = Mock()
+        ledger.pending_materials_ready_applications.return_value = rows
+        ledger.retryable_applications.return_value = []
+        ledger.workday_fit_qualified.return_value = True
+        with patch.dict(
+            os.environ,
+            {"JOB_SEARCH_PREFERRED_APPLICATION_ID": "old-preferred"},
+        ):
+            collected = RowQueueSupervisor.collect(
+                ledger,
+                active_provider="workday",
+                cursor_after=("2026-10-15T00:00:02Z", "cursor"),
+            )
+
+        self.assertEqual(collected[0]["application_id"], "next")
+
+    def test_wake_completion_persists_private_queue_cursor(self):
+        from job_search_loop.browser_agent import runtime
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            scratch = root / "scratch"
+            state = root / "browser-state"
+            scratch.mkdir(mode=0o700)
+            state.mkdir(mode=0o700)
+            ledger = Mock()
+            ledger.connection.execute.return_value.fetchone.return_value = (
+                "2026-10-15T00:00:41Z",
+            )
+            with patch.dict(
+                os.environ,
+                {
+                    "JOB_SEARCH_BROWSER_SCRATCH": str(scratch),
+                    "JOB_SEARCH_BROWSER_STATE_ROOT": str(state),
+                    "JOB_SEARCH_STATE_ROOT": str(root),
+                },
+            ), patch.object(runtime, "Ledger", return_value=ledger):
+                runtime._mark_wake_completed("workday-41")
+
+            cursor = state / "application-queue-cursor.v1.json"
+            self.assertEqual(
+                json.loads(cursor.read_text(encoding="utf-8")),
+                {
+                    "schema_version": 1,
+                    "last_application_id": "workday-41",
+                    "last_created_at": "2026-10-15T00:00:41Z",
+                    "in_progress_application_id": None,
+                    "resume_application_ids": [],
+                },
+            )
+            self.assertEqual(cursor.stat().st_mode & 0o077, 0)
+
+    def test_wake_budget_checkpoint_keeps_row_in_resume_queue(self):
+        from job_search_loop.browser_agent import runtime
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            scratch = root / "scratch"
+            state = root / "browser-state"
+            scratch.mkdir(mode=0o700)
+            state.mkdir(mode=0o700)
+            ledger = Mock()
+            ledger.connection.execute.return_value.fetchone.return_value = (
+                "2026-10-15T00:00:41Z",
+            )
+            with patch.dict(
+                os.environ,
+                {
+                    "JOB_SEARCH_BROWSER_SCRATCH": str(scratch),
+                    "JOB_SEARCH_BROWSER_STATE_ROOT": str(state),
+                    "JOB_SEARCH_STATE_ROOT": str(root),
+                },
+            ), patch.object(runtime, "Ledger", return_value=ledger):
+                runtime._mark_wake_completed(
+                    "workday-41", resume_next_wake=True
+                )
+
+            cursor = json.loads(
+                (state / "application-queue-cursor.v1.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertEqual(cursor["resume_application_ids"], ["workday-41"])
+
+    def test_not_submitted_report_delivery_failure_still_advances_queue(self):
+        from job_search_loop.browser_agent import runtime
+
+        row = {
+            "application_id": "workday-blocked",
+            "company": "Example",
+            "title": "AI Role",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            owner_evidence = Path(directory) / "browser-owner.json"
+            with patch.dict(
+                os.environ,
+                {"JOB_SEARCH_BROWSER_OWNER_EVIDENCE": str(owner_evidence)},
+            ), patch.object(runtime, "_row", return_value=row), patch.object(
+                runtime,
+                "send_hourly_outcomes",
+                side_effect=RuntimeError("optional Telegram transport unavailable"),
+            ), patch.object(runtime, "_mark_wake_completed") as mark_completed:
+                result = runtime.report("not_submitted")
+
+        self.assertEqual(result["status"], "delivery_failed")
+        mark_completed.assert_called_once_with("workday-blocked")
+
     def test_browser_queue_omits_recovery_requested_workday_tenant(self):
         from job_search_loop.browser_agent.queue import RowQueueSupervisor
 
@@ -954,6 +1164,15 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
         self.assertNotIn(
             "`ineligible` and then `report --status not_submitted`", normalized
         )
+
+    def test_daily_prompt_skips_only_the_row_with_an_unsupported_required_fact(self):
+        prompt = (APP_ROOT / "prompts" / "daily-pass.md").read_text(encoding="utf-8")
+        normalized = " ".join(prompt.split())
+
+        self.assertIn("do not invent it", normalized)
+        self.assertIn("Call `runtime report --status not_submitted` once", normalized)
+        self.assertIn("continue to the next `observe`", normalized)
+        self.assertIn("Do not mark a role generally ineligible only because that one fact is missing", normalized)
 
     def test_daily_prompt_uses_saved_answer_memory_for_prior_employment(self):
         prompt = (APP_ROOT / "prompts" / "daily-pass.md").read_text(encoding="utf-8")

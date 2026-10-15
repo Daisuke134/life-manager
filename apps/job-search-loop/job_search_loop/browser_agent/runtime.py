@@ -25,7 +25,7 @@ from ..workday_credentials import tenant_key
 from .actions import ActionExecutor
 from .answer_memory import AnswerMemory
 from .candidate_memory import CandidateMemoryView
-from .checkpoint import CheckpointStore, EvidenceStore
+from .checkpoint import CheckpointStore, EvidenceStore, _atomic_private
 from .completion import record_completion_evidence, verify_completion_ui
 from .contracts import (
     ActionTargetV1,
@@ -292,6 +292,59 @@ def _wake_completed_path() -> Path:
     return _path_env("JOB_SEARCH_BROWSER_SCRATCH") / "completed-rows.json"
 
 
+def _queue_cursor_path() -> Path:
+    return _path_env("JOB_SEARCH_BROWSER_STATE_ROOT") / "application-queue-cursor.v1.json"
+
+
+def _queue_cursor() -> dict[str, Any]:
+    path = _queue_cursor_path()
+    if not path.exists():
+        return {
+            "schema_version": 1,
+            "last_application_id": None,
+            "last_created_at": None,
+            "in_progress_application_id": None,
+            "resume_application_ids": [],
+        }
+    if path.stat().st_mode & 0o077:
+        raise RuntimeError("application queue cursor must be private")
+    value = json.loads(path.read_text(encoding="utf-8"))
+    last_application_id = value.get("last_application_id")
+    last_created_at = value.get("last_created_at")
+    in_progress_application_id = value.get("in_progress_application_id")
+    resume_application_ids = value.get("resume_application_ids")
+    if (
+        type(value.get("schema_version")) is not int
+        or value["schema_version"] != 1
+        or (last_application_id is None) != (last_created_at is None)
+        or last_application_id is not None
+        and (not isinstance(last_application_id, str) or not last_application_id)
+        or last_created_at is not None
+        and (not isinstance(last_created_at, str) or not last_created_at)
+        or in_progress_application_id is not None
+        and (
+            not isinstance(in_progress_application_id, str)
+            or not in_progress_application_id
+        )
+        or not isinstance(resume_application_ids, list)
+        or any(not isinstance(item, str) or not item for item in resume_application_ids)
+    ):
+        raise RuntimeError("application queue cursor is invalid")
+    return value
+
+
+def _save_queue_cursor(value: dict[str, Any]) -> None:
+    path = _queue_cursor_path()
+    payload = (json.dumps(value, sort_keys=True) + "\n").encode("utf-8")
+    _atomic_private(path, payload)
+
+
+def _set_queue_row_in_progress(application_id: str) -> None:
+    cursor = _queue_cursor()
+    cursor["in_progress_application_id"] = application_id
+    _save_queue_cursor(cursor)
+
+
 def _wake_completed() -> set[str]:
     path = _wake_completed_path()
     if not path.exists():
@@ -302,15 +355,41 @@ def _wake_completed() -> set[str]:
     return {str(item) for item in value.get("application_ids", [])}
 
 
-def _mark_wake_completed(application_id: str) -> None:
+def _mark_wake_completed(
+    application_id: str, *, resume_next_wake: bool = False
+) -> None:
     path = _wake_completed_path()
     completed = _wake_completed()
     completed.add(application_id)
-    path.write_text(
-        json.dumps({"application_ids": sorted(completed)}, sort_keys=True) + "\n",
-        encoding="utf-8",
+    _atomic_private(
+        path,
+        (json.dumps({"application_ids": sorted(completed)}, sort_keys=True) + "\n").encode(
+            "utf-8"
+        ),
     )
-    os.chmod(path, 0o600)
+    ledger = Ledger(_path_env("JOB_SEARCH_STATE_ROOT") / "ledger.sqlite3")
+    try:
+        record = ledger.connection.execute(
+            "SELECT created_at FROM applications WHERE id = ?", (application_id,)
+        ).fetchone()
+    finally:
+        ledger.close()
+    if record is None:
+        raise RuntimeError("completed application is missing from the ledger")
+    cursor = _queue_cursor()
+    cursor["last_application_id"] = application_id
+    cursor["last_created_at"] = str(record[0])
+    if cursor.get("in_progress_application_id") == application_id:
+        cursor["in_progress_application_id"] = None
+    resume_ids = [
+        item
+        for item in cursor["resume_application_ids"]
+        if item != application_id
+    ]
+    if resume_next_wake:
+        resume_ids.append(application_id)
+    cursor["resume_application_ids"] = resume_ids
+    _save_queue_cursor(cursor)
 
 
 def _decision_signature(observation_sha256: str, action_bytes: bytes) -> str:
@@ -363,23 +442,33 @@ def _wake_budget(*, consume: bool = False) -> int:
 def _row() -> dict[str, Any]:
     ledger = Ledger(_path_env("JOB_SEARCH_STATE_ROOT") / "ledger.sqlite3")
     try:
+        cursor = _queue_cursor()
         completed = _wake_completed()
-        rows = [
-            row
-            for row in RowQueueSupervisor.collect(ledger)
-            if row["application_id"] not in completed
-        ]
+        def collect_current_cursor() -> tuple[dict[str, Any], ...]:
+            cursor_after = (
+                (cursor["last_created_at"], cursor["last_application_id"])
+                if cursor["last_created_at"] and cursor["last_application_id"]
+                else None
+            )
+            return RowQueueSupervisor.collect(
+                ledger,
+                cursor_after=cursor_after,
+                in_progress_application_id=cursor["in_progress_application_id"],
+                resume_application_ids=cursor["resume_application_ids"],
+            )
+
+        available = collect_current_cursor()
+        rows = [row for row in available if row["application_id"] not in completed]
         if not rows and RowQueueSupervisor.admit_next_discovered_workday(ledger):
-            rows = [
-                row
-                for row in RowQueueSupervisor.collect(ledger)
-                if row["application_id"] not in completed
-            ]
+            available = collect_current_cursor()
+            rows = [row for row in available if row["application_id"] not in completed]
     finally:
         ledger.close()
     if not rows:
         raise RuntimeError("no eligible active-provider row")
-    return rows[0]
+    row = rows[0]
+    _set_queue_row_in_progress(str(row["application_id"]))
+    return row
 
 
 def _role_family(title: str) -> str:
@@ -1600,8 +1689,10 @@ async def checkpoint(reason: str) -> dict[str, Any]:
             recovery_url,
         )
     )
-    _mark_wake_completed(row["application_id"])
     await session.close_owned(cursor.handle)
+    _mark_wake_completed(
+        row["application_id"], resume_next_wake=reason == "wake_budget_low"
+    )
     wake_id = _path_env("JOB_SEARCH_BROWSER_OWNER_EVIDENCE").parent.name
     report_status = "delivery_failed"
     report_message_id = None
@@ -1662,8 +1753,8 @@ async def ineligible(reason: str) -> dict[str, Any]:
     if blocked_state is not None:
         # A claimed/submitted row must retain its effect fence; skip it only for
         # this wake so the queue can continue with independent applications.
-        _mark_wake_completed(row["application_id"])
         await session.close_owned(cursor.handle)
+        _mark_wake_completed(row["application_id"])
         return {
             "status": "action_rejected",
             "reason": "application_state_prevents_rejection",
@@ -1672,19 +1763,24 @@ async def ineligible(reason: str) -> dict[str, Any]:
             "observation_sha256": observation.content_sha256,
             "instruction": "preserve the existing submission intent; do not submit or mark this row ineligible; continue with another row",
         }
-    wake_id = _path_env("JOB_SEARCH_BROWSER_OWNER_EVIDENCE").parent.name
-    report_receipt = send_hourly_outcomes(
-        database=_path_env("JOB_SEARCH_STATE_ROOT") / "telegram-outbox.sqlite3",
-        wake_id=wake_id,
-        receipts=(
-            QueueRowReceiptV1(
-                row["application_id"], row["company"], row["title"], "ineligible"
-            ),
-        ),
-        evidence_classes={},
-    )
-    _mark_wake_completed(row["application_id"])
     await session.close_owned(cursor.handle)
+    wake_id = _path_env("JOB_SEARCH_BROWSER_OWNER_EVIDENCE").parent.name
+    report_receipt = {"status": "delivery_failed", "message_id": None}
+    try:
+        report_receipt = send_hourly_outcomes(
+            database=_path_env("JOB_SEARCH_STATE_ROOT") / "telegram-outbox.sqlite3",
+            wake_id=wake_id,
+            receipts=(
+                QueueRowReceiptV1(
+                    row["application_id"], row["company"], row["title"], "ineligible"
+                ),
+            ),
+            evidence_classes={},
+        )
+    except Exception:
+        pass
+    finally:
+        _mark_wake_completed(row["application_id"])
     return {
         "status": "ineligible",
         "reason": reason,
@@ -1887,17 +1983,22 @@ async def finalize() -> dict[str, Any]:
         else completion.outcome
     )
     wake_id = _path_env("JOB_SEARCH_BROWSER_OWNER_EVIDENCE").parent.name
-    telegram = send_hourly_outcomes(
-        database=_path_env("JOB_SEARCH_STATE_ROOT") / "telegram-outbox.sqlite3",
-        wake_id=wake_id,
-        receipts=(
-            QueueRowReceiptV1(
-                row["application_id"], row["company"], row["title"], report_status
+    telegram = {"status": "delivery_failed", "message_id": None}
+    try:
+        telegram = send_hourly_outcomes(
+            database=_path_env("JOB_SEARCH_STATE_ROOT") / "telegram-outbox.sqlite3",
+            wake_id=wake_id,
+            receipts=(
+                QueueRowReceiptV1(
+                    row["application_id"], row["company"], row["title"], report_status
+                ),
             ),
-        ),
-        evidence_classes={row["application_id"]: completion.evidence_class},
-    )
-    _mark_wake_completed(row["application_id"])
+            evidence_classes={row["application_id"]: completion.evidence_class},
+        )
+    except Exception:
+        pass
+    finally:
+        _mark_wake_completed(row["application_id"])
     return {
         "status": report_status,
         "application_id": row["application_id"],
@@ -1906,6 +2007,7 @@ async def finalize() -> dict[str, Any]:
         "step_evidence_sha256": step.evidence_sha256,
         "checkpoint_sha256": checkpoint_receipt.checkpoint_sha256,
         "report_message_id": telegram["message_id"],
+        "report_status": telegram.get("status"),
     }
 
 
@@ -1917,17 +2019,21 @@ def report(status: str) -> dict[str, Any]:
         }
     row = _row()
     wake_id = _path_env("JOB_SEARCH_BROWSER_OWNER_EVIDENCE").parent.name
-    result = send_hourly_outcomes(
-        database=_path_env("JOB_SEARCH_STATE_ROOT") / "telegram-outbox.sqlite3",
-        wake_id=wake_id,
-        receipts=(
-            QueueRowReceiptV1(
-                row["application_id"], row["company"], row["title"], status
+    result = {"status": "delivery_failed", "message_id": None}
+    try:
+        result = send_hourly_outcomes(
+            database=_path_env("JOB_SEARCH_STATE_ROOT") / "telegram-outbox.sqlite3",
+            wake_id=wake_id,
+            receipts=(
+                QueueRowReceiptV1(
+                    row["application_id"], row["company"], row["title"], status
+                ),
             ),
-        ),
-        evidence_classes={},
-    )
-    if result.get("status") == "sent" and result.get("message_id"):
+            evidence_classes={},
+        )
+    except Exception:
+        pass
+    finally:
         _mark_wake_completed(row["application_id"])
     return {
         "status": result.get("status"),
