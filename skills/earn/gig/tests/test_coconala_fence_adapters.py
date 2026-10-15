@@ -181,3 +181,64 @@ def test_legacy_prepared_or_stateless_intent_keeps_every_fence(tmp_path, monkeyp
     monkeypatch.setattr(wrapper, "_resolve_settled", never)
     assert wrapper.main(["--intent-root", str(tmp_path)]) == 0
     assert json.loads(capsys.readouterr().out)["unresolved_irreversible"] == 2
+
+
+def test_legacy_intent_is_settled_by_applied_roster_or_closed_request(tmp_path, monkeypatch) -> None:
+    wrapper = _load_wrapper()
+    intents = tmp_path / "intents"
+    intents.mkdir()
+    for rid in ("10", "11", "12"):
+        (intents / f"{rid}.json").write_text(json.dumps({"request_id": rid, "state": "prepared", "version": 1}))
+    roster = tmp_path / "roster.json"
+    roster.write_text(json.dumps({"official_readback": {"source": "code_owned_cdp_readback",
+        "observed": True, "truncated": False, "request_ids": ["10"]}}))
+    closed = tmp_path / "closed.json"
+    closed.write_text(json.dumps({"source": "code_owned_cdp_readback", "requests": {
+        "11": {"closed": True, "http_status": 200}, "12": {"closed": False, "http_status": 200}}}))
+
+    scan = wrapper._settled_scan(intents, roster_path=roster, closed_path=closed)
+    assert scan["unresolved_irreversible"] == 1          # 12 is still open
+
+    closed.write_text(json.dumps({"source": "code_owned_cdp_readback", "requests": {
+        "11": {"closed": True, "http_status": 200}, "12": {"closed": True, "http_status": 200}}}))
+    assert wrapper._settled_scan(intents, roster_path=roster, closed_path=closed)["unresolved_irreversible"] == 0
+
+
+def test_unreadable_closure_evidence_settles_nothing(tmp_path) -> None:
+    wrapper = _load_wrapper()
+    intents = tmp_path / "intents"
+    intents.mkdir()
+    (intents / "11.json").write_text(json.dumps({"request_id": "11", "state": "prepared", "version": 1}))
+    bad = tmp_path / "closed.json"
+    bad.write_text("{broken")
+    assert wrapper._settled_scan(intents, roster_path=tmp_path / "missing.json",
+                                 closed_path=bad)["unresolved_irreversible"] == 1
+
+
+def _readback_module():
+    path = ROOT / "skills" / "earn" / "gig" / "scripts" / "coconala_request_closed_readback.py"
+    spec = importlib.util.spec_from_file_location("coconala_request_closed_readback_test", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_request_page_closed_parser() -> None:
+    module = _readback_module()
+    assert module.request_closed("納品希望日 2026年9月30日 募集期限 募集終了 締切日 2026年8月10日") is True
+    assert module.request_closed("募集期限\n あと3日 締切日 2026年10月20日") is False
+    assert module.request_closed("ページが見つかりません") is None
+
+
+def test_non_intent_metadata_files_are_ignored_and_gone_requests_settle(tmp_path) -> None:
+    wrapper = _load_wrapper()
+    intents = tmp_path / "intents"
+    intents.mkdir()
+    (intents / "wedge-quarantine.json").write_text("{}")
+    (intents / "full-history-scan-state.json").write_text(json.dumps({"pages_walked": 20}))
+    (intents / "21.json").write_text(json.dumps({"request_id": "21", "state": "prepared", "version": 1}))
+    closed = tmp_path / "closed.json"
+    closed.write_text(json.dumps({"source": "code_owned_cdp_readback", "requests": {
+        "21": {"closed": True, "gone": True, "http_status": 404}}}))
+    scan = wrapper._settled_scan(intents, roster_path=tmp_path / "none.json", closed_path=closed)
+    assert (scan["scanned_intents"], scan["unresolved_irreversible"]) == (1, 0)

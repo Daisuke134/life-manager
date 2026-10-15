@@ -107,26 +107,72 @@ def run_browser_reconcile(
 SETTLED_STATES = frozenset({"confirmed", "retired_absent"})
 
 
-def _settled_scan(intent_root: Path) -> dict[str, object]:
-    """Count intents that may hold an application effect without terminal readback.
+EVIDENCE_DIR = Path.home() / "gig" / "apply-direct" / "evidence"
+CLOSED_READBACK = EVIDENCE_DIR / "request-closed-readback.json"
 
-    Only confirmed/retired_absent (provider readback) or an explicit pre_effect
-    phase count as settled; legacy, state-less and unreadable intents do not.
+
+def _latest_roster() -> Path:
+    found = sorted(EVIDENCE_DIR.glob("coconala-applied-history-*.json"))
+    return found[-1] if found else EVIDENCE_DIR / "coconala-applied-history-missing.json"
+
+
+def _roster_ids(path: Path) -> set[str]:
+    """Requests the official applied-history readback lists (an application exists)."""
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+        value = value.get("official_readback", value)
+        if (value.get("source") != "code_owned_cdp_readback" or value.get("observed") is not True
+                or value.get("truncated") is not False):
+            return set()
+        return {str(item) for item in value.get("request_ids") or []}
+    except (OSError, ValueError, AttributeError):
+        return set()
+
+
+def _closed_ids(path: Path) -> set[str]:
+    """Requests whose official page read back as 募集終了: no further application is possible."""
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+        if value.get("source") != "code_owned_cdp_readback":
+            return set()
+        return {str(rid) for rid, row in (value.get("requests") or {}).items()
+                if isinstance(row, dict) and row.get("closed") is True
+                and (row.get("http_status") == 200
+                     or (row.get("gone") is True and row.get("http_status") == 404))}
+    except (OSError, ValueError, AttributeError):
+        return set()
+
+
+def _settled_scan(intent_root: Path, *, roster_path: Path | None = None,
+                  closed_path: Path | None = None) -> dict[str, object]:
+    """Count intents that may hold an application effect that could still be duplicated.
+
+    Settled: confirmed/retired_absent (provider readback), an explicit pre_effect
+    phase, a request listed in the official applied history, or a request whose
+    official page reads 募集終了 (a duplicate application is impossible).
+    Legacy, state-less and unreadable intents are otherwise unresolved.
     """
+    applied = _roster_ids(roster_path or _latest_roster())
+    closed = _closed_ids(closed_path or CLOSED_READBACK)
     digest = hashlib.sha256()
     scanned = unresolved = 0
     for path in sorted(intent_root.glob("*.json")):
-        scanned += 1
         try:
             value = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(value, dict):
+                raise ValueError("intent is not an object")
+            if not {"state", "request_id", "effect_phase"} & value.keys():
+                continue  # store metadata (wedge-quarantine, scan cursors), not an intent
             state, phase = value.get("state"), value.get("effect_phase")
+            request_id = str(value.get("request_id") or path.stem)
         except (OSError, ValueError, AttributeError):
-            state, phase = "unreadable", "unreadable"
-        # Fail closed: only a v2 intent still in pre_effect is provably unclicked; a
-        # legacy (v1) prepared intent may already have crossed the boundary.
-        if state not in SETTLED_STATES and phase != "pre_effect":
+            state, phase, request_id = "unreadable", "unreadable", None
+        scanned += 1
+        settled = (state in SETTLED_STATES or phase == "pre_effect"
+                   or (request_id is not None and (request_id in applied or request_id in closed)))
+        if not settled:
             unresolved += 1
-        digest.update(f"{path.name}\0{state}\0{phase}\n".encode("utf-8"))
+        digest.update(f"{path.name}\0{state}\0{phase}\0{settled}\n".encode("utf-8"))
     return {"scanned_intents": scanned, "unresolved_irreversible": unresolved,
             "evidence_ref": f"gig-intents://sha256/{digest.hexdigest()}"}
 
