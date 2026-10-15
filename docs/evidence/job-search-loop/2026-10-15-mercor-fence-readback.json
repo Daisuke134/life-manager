@@ -1,0 +1,676 @@
+{
+  "schema": "life-manager.mercor-fence-readback-evidence.v1",
+  "purpose": "Ground the Gmail and local readbacks used by skills/earn/mercor/scripts/reconcile_fence_readback.py before it releases any Mercor effect_unknown fence.",
+  "collected_at": "2026-10-15T12:04:45Z",
+  "privacy": "No account address, message id or thread id. Listing titles are sha256[:12] so pairs stay checkable against the private official snapshot.",
+  "application_confirmation_lag": {
+    "gmail_query": "in:anywhere from:mercor.com subject:\"Application Submitted\" (all pages via gog --all)",
+    "official_applications_source": {
+      "path": "~/.local/state/anicca/job-search/mercor/reply/official-snapshot.json",
+      "observed_at": "2026-10-03T15:16:44.221802Z",
+      "applications": 100,
+      "with_applied_at": 92
+    },
+    "confirmation_mails": 93,
+    "senders": [
+      "Mercor <team@mercor.com>"
+    ],
+    "subject_template": "Application Submitted - <listing title> on Mercor",
+    "subject_template_matches": 93,
+    "matched_pairs": 92,
+    "official_applications_without_mail": 0,
+    "mails_without_official_application": [
+      {
+        "title_sha256_12": "d61a1ed4c1e1",
+        "mail_internal_at": "2026-09-09T22:50:23Z"
+      }
+    ],
+    "mails_without_official_application_note": "Before every fenced window. The applications API stays at exactly 100 rows, so mail is the more complete inventory.",
+    "lag_seconds": {
+      "min": 0.0,
+      "max": 4.0,
+      "median": 1.0
+    },
+    "lag_rule": "mail internalDate minus official appliedAt; adapter allows SLACK 60 s before and TAIL 600 s after the window",
+    "pairs": [
+      {
+        "title_sha256_12": "ffa219e8fd2f",
+        "official_applied_at": "2026-08-22T10:01:45Z",
+        "mail_internal_at": "2026-08-22T10:01:47Z",
+        "lag_seconds": 2.0
+      },
+      {
+        "title_sha256_12": "67f9b69ba3aa",
+        "official_applied_at": "2026-08-22T10:27:35Z",
+        "mail_internal_at": "2026-08-22T10:27:37Z",
+        "lag_seconds": 2.0
+      },
+      {
+        "title_sha256_12": "8882648a3008",
+        "official_applied_at": "2026-08-22T11:04:03Z",
+        "mail_internal_at": "2026-08-22T11:04:04Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "e4ecae479553",
+        "official_applied_at": "2026-08-26T07:43:49Z",
+        "mail_internal_at": "2026-08-26T07:43:50Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "56f2f92afe45",
+        "official_applied_at": "2026-08-26T08:18:30Z",
+        "mail_internal_at": "2026-08-26T08:18:33Z",
+        "lag_seconds": 3.0
+      },
+      {
+        "title_sha256_12": "b64bfc77c1b4",
+        "official_applied_at": "2026-08-26T08:19:28Z",
+        "mail_internal_at": "2026-08-26T08:19:30Z",
+        "lag_seconds": 2.0
+      },
+      {
+        "title_sha256_12": "fd545383a46e",
+        "official_applied_at": "2026-08-26T08:21:21Z",
+        "mail_internal_at": "2026-08-26T08:21:22Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "f575b096578a",
+        "official_applied_at": "2026-08-26T08:22:04Z",
+        "mail_internal_at": "2026-08-26T08:22:04Z",
+        "lag_seconds": 0.0
+      },
+      {
+        "title_sha256_12": "3da98e61853f",
+        "official_applied_at": "2026-08-26T08:23:45Z",
+        "mail_internal_at": "2026-08-26T08:23:46Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "f926dd278210",
+        "official_applied_at": "2026-08-26T08:25:17Z",
+        "mail_internal_at": "2026-08-26T08:25:19Z",
+        "lag_seconds": 2.0
+      },
+      {
+        "title_sha256_12": "2404190fac13",
+        "official_applied_at": "2026-08-26T12:33:04Z",
+        "mail_internal_at": "2026-08-26T12:33:05Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "60bfc91a9e28",
+        "official_applied_at": "2026-08-26T12:34:31Z",
+        "mail_internal_at": "2026-08-26T12:34:34Z",
+        "lag_seconds": 3.0
+      },
+      {
+        "title_sha256_12": "da08b3431ae1",
+        "official_applied_at": "2026-08-26T12:36:01Z",
+        "mail_internal_at": "2026-08-26T12:36:02Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "80425a8c7c5c",
+        "official_applied_at": "2026-08-26T12:37:15Z",
+        "mail_internal_at": "2026-08-26T12:37:16Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "555a169cbaab",
+        "official_applied_at": "2026-08-26T12:38:28Z",
+        "mail_internal_at": "2026-08-26T12:38:30Z",
+        "lag_seconds": 2.0
+      },
+      {
+        "title_sha256_12": "7b57bf6fe279",
+        "official_applied_at": "2026-08-26T12:39:36Z",
+        "mail_internal_at": "2026-08-26T12:39:38Z",
+        "lag_seconds": 2.0
+      },
+      {
+        "title_sha256_12": "ee6370aab680",
+        "official_applied_at": "2026-08-26T19:57:35Z",
+        "mail_internal_at": "2026-08-26T19:57:35Z",
+        "lag_seconds": 0.0
+      },
+      {
+        "title_sha256_12": "6f10d5652962",
+        "official_applied_at": "2026-08-27T06:07:22Z",
+        "mail_internal_at": "2026-08-27T06:07:22Z",
+        "lag_seconds": 0.0
+      },
+      {
+        "title_sha256_12": "8f6b7557e310",
+        "official_applied_at": "2026-08-27T08:41:03Z",
+        "mail_internal_at": "2026-08-27T08:41:04Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "c44220634053",
+        "official_applied_at": "2026-08-27T16:50:52Z",
+        "mail_internal_at": "2026-08-27T16:50:54Z",
+        "lag_seconds": 2.0
+      },
+      {
+        "title_sha256_12": "c774a4c1fe8d",
+        "official_applied_at": "2026-09-07T09:07:10Z",
+        "mail_internal_at": "2026-09-07T09:07:11Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "2a6145591f17",
+        "official_applied_at": "2026-09-07T09:09:48Z",
+        "mail_internal_at": "2026-09-07T09:09:48Z",
+        "lag_seconds": 0.0
+      },
+      {
+        "title_sha256_12": "d41a786b12ff",
+        "official_applied_at": "2026-09-07T09:11:56Z",
+        "mail_internal_at": "2026-09-07T09:11:57Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "39ed7210a2fe",
+        "official_applied_at": "2026-09-07T11:31:16Z",
+        "mail_internal_at": "2026-09-07T11:31:17Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "ede044a5e786",
+        "official_applied_at": "2026-09-07T11:45:33Z",
+        "mail_internal_at": "2026-09-07T11:45:37Z",
+        "lag_seconds": 4.0
+      },
+      {
+        "title_sha256_12": "6af91c1529ef",
+        "official_applied_at": "2026-09-07T12:23:49Z",
+        "mail_internal_at": "2026-09-07T12:23:50Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "ea91de73107d",
+        "official_applied_at": "2026-09-07T13:03:29Z",
+        "mail_internal_at": "2026-09-07T13:03:32Z",
+        "lag_seconds": 3.0
+      },
+      {
+        "title_sha256_12": "cda6c31f45f6",
+        "official_applied_at": "2026-09-07T13:41:55Z",
+        "mail_internal_at": "2026-09-07T13:41:57Z",
+        "lag_seconds": 2.0
+      },
+      {
+        "title_sha256_12": "f284aeb0a395",
+        "official_applied_at": "2026-09-07T14:16:41Z",
+        "mail_internal_at": "2026-09-07T14:16:42Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "bbd04fff4888",
+        "official_applied_at": "2026-09-07T15:37:00Z",
+        "mail_internal_at": "2026-09-07T15:37:02Z",
+        "lag_seconds": 2.0
+      },
+      {
+        "title_sha256_12": "242ea26ace69",
+        "official_applied_at": "2026-09-07T16:14:34Z",
+        "mail_internal_at": "2026-09-07T16:14:35Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "08966c683062",
+        "official_applied_at": "2026-09-07T16:53:25Z",
+        "mail_internal_at": "2026-09-07T16:53:26Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "f2c044c52f0c",
+        "official_applied_at": "2026-09-07T17:30:04Z",
+        "mail_internal_at": "2026-09-07T17:30:05Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "2e08be178631",
+        "official_applied_at": "2026-09-07T18:52:10Z",
+        "mail_internal_at": "2026-09-07T18:52:11Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "c6e1401de62b",
+        "official_applied_at": "2026-09-07T20:15:31Z",
+        "mail_internal_at": "2026-09-07T20:15:33Z",
+        "lag_seconds": 2.0
+      },
+      {
+        "title_sha256_12": "61280a558606",
+        "official_applied_at": "2026-09-07T20:54:27Z",
+        "mail_internal_at": "2026-09-07T20:54:29Z",
+        "lag_seconds": 2.0
+      },
+      {
+        "title_sha256_12": "93ae2a41b5b5",
+        "official_applied_at": "2026-09-07T21:31:51Z",
+        "mail_internal_at": "2026-09-07T21:31:51Z",
+        "lag_seconds": 0.0
+      },
+      {
+        "title_sha256_12": "1f0e978ea192",
+        "official_applied_at": "2026-09-07T22:07:48Z",
+        "mail_internal_at": "2026-09-07T22:07:50Z",
+        "lag_seconds": 2.0
+      },
+      {
+        "title_sha256_12": "c16a5026d6b6",
+        "official_applied_at": "2026-09-07T22:45:53Z",
+        "mail_internal_at": "2026-09-07T22:45:54Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "ca363b9138f9",
+        "official_applied_at": "2026-09-07T23:26:05Z",
+        "mail_internal_at": "2026-09-07T23:26:07Z",
+        "lag_seconds": 2.0
+      },
+      {
+        "title_sha256_12": "b27bdbc4f62c",
+        "official_applied_at": "2026-09-08T00:06:20Z",
+        "mail_internal_at": "2026-09-08T00:06:21Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "9667fa17f9a4",
+        "official_applied_at": "2026-09-08T00:42:56Z",
+        "mail_internal_at": "2026-09-08T00:42:57Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "ddfcf052579b",
+        "official_applied_at": "2026-09-08T01:19:57Z",
+        "mail_internal_at": "2026-09-08T01:20:01Z",
+        "lag_seconds": 4.0
+      },
+      {
+        "title_sha256_12": "0cad8fb8b8ce",
+        "official_applied_at": "2026-09-08T02:37:58Z",
+        "mail_internal_at": "2026-09-08T02:37:59Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "c53a5ec703ef",
+        "official_applied_at": "2026-09-08T03:14:54Z",
+        "mail_internal_at": "2026-09-08T03:14:55Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "72c6feb83226",
+        "official_applied_at": "2026-09-08T03:50:02Z",
+        "mail_internal_at": "2026-09-08T03:50:03Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "0cff8c4f5c36",
+        "official_applied_at": "2026-09-08T04:25:59Z",
+        "mail_internal_at": "2026-09-08T04:26:00Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "e35a3ef424fb",
+        "official_applied_at": "2026-09-08T05:03:33Z",
+        "mail_internal_at": "2026-09-08T05:03:35Z",
+        "lag_seconds": 2.0
+      },
+      {
+        "title_sha256_12": "2f50da4bac98",
+        "official_applied_at": "2026-09-08T05:43:13Z",
+        "mail_internal_at": "2026-09-08T05:43:14Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "9f6b97b9e81d",
+        "official_applied_at": "2026-09-08T06:20:30Z",
+        "mail_internal_at": "2026-09-08T06:20:31Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "ff5615a7d462",
+        "official_applied_at": "2026-09-08T08:15:15Z",
+        "mail_internal_at": "2026-09-08T08:15:16Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "82526f45894b",
+        "official_applied_at": "2026-09-08T08:53:47Z",
+        "mail_internal_at": "2026-09-08T08:53:51Z",
+        "lag_seconds": 4.0
+      },
+      {
+        "title_sha256_12": "edf55751f139",
+        "official_applied_at": "2026-09-08T09:32:45Z",
+        "mail_internal_at": "2026-09-08T09:32:49Z",
+        "lag_seconds": 4.0
+      },
+      {
+        "title_sha256_12": "db31e5e36ab0",
+        "official_applied_at": "2026-09-08T10:11:50Z",
+        "mail_internal_at": "2026-09-08T10:11:52Z",
+        "lag_seconds": 2.0
+      },
+      {
+        "title_sha256_12": "8713be4c18d6",
+        "official_applied_at": "2026-09-08T10:50:22Z",
+        "mail_internal_at": "2026-09-08T10:50:23Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "51f71e15300f",
+        "official_applied_at": "2026-09-08T11:29:45Z",
+        "mail_internal_at": "2026-09-08T11:29:46Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "4d99b445b887",
+        "official_applied_at": "2026-09-08T12:51:46Z",
+        "mail_internal_at": "2026-09-08T12:51:48Z",
+        "lag_seconds": 2.0
+      },
+      {
+        "title_sha256_12": "469493ecec31",
+        "official_applied_at": "2026-09-08T13:31:37Z",
+        "mail_internal_at": "2026-09-08T13:31:38Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "f6cd10b0bc4a",
+        "official_applied_at": "2026-09-08T14:13:29Z",
+        "mail_internal_at": "2026-09-08T14:13:29Z",
+        "lag_seconds": 0.0
+      },
+      {
+        "title_sha256_12": "4a088a961871",
+        "official_applied_at": "2026-09-08T16:41:07Z",
+        "mail_internal_at": "2026-09-08T16:41:08Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "bddb7ec6b582",
+        "official_applied_at": "2026-09-08T17:50:33Z",
+        "mail_internal_at": "2026-09-08T17:50:35Z",
+        "lag_seconds": 2.0
+      },
+      {
+        "title_sha256_12": "3df56bdb9749",
+        "official_applied_at": "2026-09-08T22:02:42Z",
+        "mail_internal_at": "2026-09-08T22:02:43Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "586d13bf16db",
+        "official_applied_at": "2026-09-08T22:38:42Z",
+        "mail_internal_at": "2026-09-08T22:38:44Z",
+        "lag_seconds": 2.0
+      },
+      {
+        "title_sha256_12": "630a3159cd2f",
+        "official_applied_at": "2026-09-08T23:16:47Z",
+        "mail_internal_at": "2026-09-08T23:16:48Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "fc0e36dc33be",
+        "official_applied_at": "2026-09-08T23:57:18Z",
+        "mail_internal_at": "2026-09-08T23:57:20Z",
+        "lag_seconds": 2.0
+      },
+      {
+        "title_sha256_12": "8aebc3cc5f4c",
+        "official_applied_at": "2026-09-09T00:35:17Z",
+        "mail_internal_at": "2026-09-09T00:35:18Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "285309b55236",
+        "official_applied_at": "2026-09-09T01:41:16Z",
+        "mail_internal_at": "2026-09-09T01:41:17Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "f13118f58370",
+        "official_applied_at": "2026-09-09T05:39:42Z",
+        "mail_internal_at": "2026-09-09T05:39:43Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "89e09e1e6360",
+        "official_applied_at": "2026-09-09T06:54:53Z",
+        "mail_internal_at": "2026-09-09T06:54:53Z",
+        "lag_seconds": 0.0
+      },
+      {
+        "title_sha256_12": "35e82701f508",
+        "official_applied_at": "2026-09-09T08:13:54Z",
+        "mail_internal_at": "2026-09-09T08:13:55Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "17881fa3c654",
+        "official_applied_at": "2026-09-09T08:59:06Z",
+        "mail_internal_at": "2026-09-09T08:59:06Z",
+        "lag_seconds": 0.0
+      },
+      {
+        "title_sha256_12": "d2f416501a17",
+        "official_applied_at": "2026-09-09T09:40:35Z",
+        "mail_internal_at": "2026-09-09T09:40:38Z",
+        "lag_seconds": 3.0
+      },
+      {
+        "title_sha256_12": "ea297247ae4b",
+        "official_applied_at": "2026-09-09T10:55:31Z",
+        "mail_internal_at": "2026-09-09T10:55:32Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "330bbc6a0d23",
+        "official_applied_at": "2026-09-09T12:26:22Z",
+        "mail_internal_at": "2026-09-09T12:26:23Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "9956e08ce276",
+        "official_applied_at": "2026-09-10T15:51:54Z",
+        "mail_internal_at": "2026-09-10T15:51:54Z",
+        "lag_seconds": 0.0
+      },
+      {
+        "title_sha256_12": "d6404294b6eb",
+        "official_applied_at": "2026-09-10T17:53:44Z",
+        "mail_internal_at": "2026-09-10T17:53:45Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "236e1ad2e459",
+        "official_applied_at": "2026-09-10T18:36:11Z",
+        "mail_internal_at": "2026-09-10T18:36:12Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "d594173b68a8",
+        "official_applied_at": "2026-09-10T21:12:03Z",
+        "mail_internal_at": "2026-09-10T21:12:05Z",
+        "lag_seconds": 2.0
+      },
+      {
+        "title_sha256_12": "7b9164fece2a",
+        "official_applied_at": "2026-09-10T22:38:37Z",
+        "mail_internal_at": "2026-09-10T22:38:37Z",
+        "lag_seconds": 0.0
+      },
+      {
+        "title_sha256_12": "fb2d5c7429fe",
+        "official_applied_at": "2026-09-11T02:49:45Z",
+        "mail_internal_at": "2026-09-11T02:49:47Z",
+        "lag_seconds": 2.0
+      },
+      {
+        "title_sha256_12": "7740d2320724",
+        "official_applied_at": "2026-09-11T03:30:18Z",
+        "mail_internal_at": "2026-09-11T03:30:22Z",
+        "lag_seconds": 4.0
+      },
+      {
+        "title_sha256_12": "78e8dbe87ea4",
+        "official_applied_at": "2026-09-11T08:06:32Z",
+        "mail_internal_at": "2026-09-11T08:06:33Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "1e874fa7bc7e",
+        "official_applied_at": "2026-09-11T13:27:43Z",
+        "mail_internal_at": "2026-09-11T13:27:43Z",
+        "lag_seconds": 0.0
+      },
+      {
+        "title_sha256_12": "ff1f057bb7a6",
+        "official_applied_at": "2026-09-12T04:27:43Z",
+        "mail_internal_at": "2026-09-12T04:27:44Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "068b2453ceb8",
+        "official_applied_at": "2026-09-12T07:46:23Z",
+        "mail_internal_at": "2026-09-12T07:46:24Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "e9e078a7da8c",
+        "official_applied_at": "2026-09-12T17:05:24Z",
+        "mail_internal_at": "2026-09-12T17:05:25Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "51a51e088831",
+        "official_applied_at": "2026-09-15T21:45:21Z",
+        "mail_internal_at": "2026-09-15T21:45:22Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "c2bae5165f7d",
+        "official_applied_at": "2026-09-16T05:21:14Z",
+        "mail_internal_at": "2026-09-16T05:21:15Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "40b3b8855b93",
+        "official_applied_at": "2026-09-16T08:56:49Z",
+        "mail_internal_at": "2026-09-16T08:56:51Z",
+        "lag_seconds": 2.0
+      },
+      {
+        "title_sha256_12": "6a50d1018d76",
+        "official_applied_at": "2026-09-18T00:01:44Z",
+        "mail_internal_at": "2026-09-18T00:01:44Z",
+        "lag_seconds": 0.0
+      },
+      {
+        "title_sha256_12": "9c59ece06bb4",
+        "official_applied_at": "2026-09-19T06:18:03Z",
+        "mail_internal_at": "2026-09-19T06:18:04Z",
+        "lag_seconds": 1.0
+      },
+      {
+        "title_sha256_12": "7cdee205e224",
+        "official_applied_at": "2026-09-19T06:37:56Z",
+        "mail_internal_at": "2026-09-19T06:37:57Z",
+        "lag_seconds": 1.0
+      }
+    ]
+  },
+  "gog_behavior": {
+    "version": "gog 0.17.0 (Homebrew)",
+    "empty_result_json": {
+      "messages": [],
+      "nextPageToken": ""
+    },
+    "hit_message_keys": [
+      "date",
+      "from",
+      "id",
+      "labels",
+      "subject",
+      "threadId"
+    ],
+    "date_field_resolution": "minute, local timezone; internalDate needs gog gmail get --format metadata",
+    "in_anywhere_passthrough_test": {
+      "sample": "one TRASH-labelled message from 2026-09-27 01:50Z",
+      "after:1790473680 before:1790473980": {
+        "n": 3,
+        "trash_sample_present": false
+      },
+      "in:anywhere after:1790473680 before:1790473980": {
+        "n": 4,
+        "trash_sample_present": true
+      },
+      "conclusion": "gog forwards the query unchanged; in:anywhere adds spam/trash"
+    },
+    "positive_controls": {
+      "in:anywhere from:mercor.com subject:\"Application Submitted\" after:1789797600 before:1789801200": 2,
+      "in:anywhere from:me mercor newer_than:60d": 2,
+      "in:sent mercor newer_than:60d": 2
+    },
+    "read_only_guard": "every adapter search passes --gmail-no-send"
+  },
+  "account_identity": {
+    "gmail_account": "candidate.application_email from ~/.config/anicca/job-search/profile.json, passed explicitly as gog --account",
+    "mercor_login_identity": "mercor_paid_snapshot uses the same expression as expected_email; ~/.local/state/anicca/job-search/mercor/paid-official-snapshot.json authentication.identity_matched=true (observed 2026-10-04T19:16:37Z)"
+  },
+  "reply_telegram_outbox": {
+    "path": "~/.local/state/anicca/job-search/mercor/reply/telegram-outbox.sqlite3",
+    "write_order": "reply_kernel notify -> effect_notification.notify_effect -> telegram_outbox.enqueue, then claim_next stamps claimed_at=_utc_now() and status=sending before delivery",
+    "rows": 11,
+    "statuses": [
+      "delivered"
+    ],
+    "last_claimed_at": "2026-10-03T15:04:02.326594Z",
+    "claims_in_claim_window": 0
+  },
+  "reply_send_lag": "not measured: reply-owner has 0 historical Gmail sends (0 receipts in shared-reply/threads); the window is checked on the claim run plus TAIL 600 s, and the whole UTC day 2026-10-03 also had 0 mails from the account",
+  "production_dry_run_without_resolve": {
+    "mercor-revenue-application:18d6f9cb5bdaef98-33812": {
+      "binding": "legacy journal (rows carry no occurrence_id); open end from the suffix run start",
+      "window": [
+        1789892553.742812,
+        null
+      ],
+      "queued_at": 1789892553.771461,
+      "query": "in:anywhere from:mercor.com subject:\"Application Submitted\" after:1789892493",
+      "messages": 0,
+      "verified": true
+    },
+    "mercor-revenue-reply:18d668a6643dc360-61324": {
+      "binding": "claim ref on run 18db0e14054c9580-66602 (release 80cccc6f)",
+      "window": [
+        1791040755.968773,
+        1791040759.996476
+      ],
+      "queued_at": 1789732966.5762382,
+      "query": "in:anywhere from:me after:1791040695 before:1791041360",
+      "messages": 0,
+      "telegram_outbox_claims_in_window": 0,
+      "verified": true
+    },
+    "mercor-revenue-paid:18db69e6a498b168-26587": {
+      "binding": "self-claimed (release 82d31995)",
+      "window": [
+        1791141716.139516,
+        1791141727.45603
+      ],
+      "queued_at": 1791141705.00802,
+      "snapshot_observed_at": 1791141397.641067,
+      "snapshot_writer_run_id": "18db699a35ad6808-20050",
+      "paid_adapter_mutate": "raises mercor_human_submission_required unconditionally at f3e51868, 80cccc6f and 82d31995",
+      "verified": true
+    }
+  }
+}

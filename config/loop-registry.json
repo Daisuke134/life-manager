@@ -3749,13 +3749,13 @@
       "effect_class": "application",
       "effect_reconcile": {
         "argv": [
-          "skills/_shared/marketplace-core/scripts/reconcile_pre_effect_hint.py",
+          "skills/earn/mercor/scripts/reconcile_fence_readback.py",
           "--state-root", "~/.local/state/anicca/job-search/mercor/application",
           "--owner", "mercor-revenue-application"
         ],
         "occurrence_flag": "--occurrence",
         "resolve_flag": "--resolve",
-        "timeout_seconds": 900
+        "timeout_seconds": 120
       },
       "coalesce_queued_wakes": true,
       "coalesce_reserved_wakes": true,
@@ -3784,7 +3784,7 @@
       "effect_class": "money",
       "effect_reconcile": {
         "argv": [
-          "skills/_shared/marketplace-core/scripts/reconcile_paid_no_effect.py",
+          "skills/earn/mercor/scripts/reconcile_fence_readback.py",
           "--state-root", "~/.local/state/anicca/job-search/mercor",
           "--owner", "mercor-revenue-paid"
         ],
@@ -3816,13 +3816,13 @@
       "effect_class": "message",
       "effect_reconcile": {
         "argv": [
-          "skills/_shared/marketplace-core/scripts/reconcile_pre_effect_hint.py",
+          "skills/earn/mercor/scripts/reconcile_fence_readback.py",
           "--state-root", "~/.local/state/anicca/job-search/mercor/reply",
           "--owner", "mercor-revenue-reply"
         ],
         "occurrence_flag": "--occurrence",
         "resolve_flag": "--resolve",
-        "timeout_seconds": 900
+        "timeout_seconds": 120
       },
       "resource_class": "agent",
       "admission_class": "revenue",
