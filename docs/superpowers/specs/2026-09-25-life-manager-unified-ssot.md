@@ -20,7 +20,51 @@
 
 **E01最新readback（2026-10-13T02:04:44Z）:** 最新main/immutable `current` releaseは`e4754bc9687cec670292a89c740a95f5770afc5d`で、`runtime/loop/self-eval.mjs`のSHA-256はmainとreleaseで一致（`75b050c7a9b060a332854b1d9994365bf8f7fa6061ca5b14c8b777574c97b897`）。既存回帰testは8/8 PASS。`df -k /`は空き2,826,744 KiB（2,894,585,856 bytes）、release要件2,393,772,032 bytesを500,813,824 bytes上回る。これは時点の容量readbackで、適用直前にも再確認する。`agent-economy-loop`はPID 3136で旧release `dd6f0ee51266dda30b84b054f6c72d3771badf7b`をloaded-runningし、run `18dda725e96ec240-3136` / occurrence `agent-economy-loop:18dda725e96ec240-3136`を実行中。`lm-loop status --explain`のdiagnosticはcomplete、`next_action=monitor_running`、effectは`none/not_applicable`、`admission_effect_unknown.current=false`。旧loaded ownerがliveのためE01は未完で、停止・再起動・release apply・effect fence変更はしない。次は同occurrenceの終端をread-onlyで確認し、loaded-idle後にfresh capacity/release readbackを取り、既存のowner-controlled reconcileと次の自然runで採用を検証する。
 
-## 統括cursor — 共通資源制御を閉じてからGigを進める
+## 統括cursor（2026-10-15 置換）— 基盤を「空き容量という結果」で定義し直す
+
+**順序変更の記録:** 旧cursor=「P0 receipt reserve → P1 pressure controller → F1–F5 の自然cycle」。新cursor=下記 D1→D2→D3→D4、その後Gig。変更理由: 2026-10-14 23:03 JST にData volumeが残り約117MBとなり `low swap: failed to create swapfile` / `no paging space action` でMac全体が凍結し、23:09に強制リセット（ResetCounter `btn_rst`、panicではない）。翌10-15 09:44にも残り231MBへ再到達。旧F1–F5とP0/P1は「空き容量はKPIではない」「free-space floorはdiagnostic only」を前提にしており、ディスクを満たす原因を一つも止めないため、何週続けても完了しない。旧節は参照として下に残す。進行中の外部effectは変更しない。
+
+### 実測（2026-10-14〜15、read-only観測と手動回収）
+- 物理: 内蔵228GB、Data volume 95–100%使用、RAM 16GB。swapはData volume上に作られるため、空きが約10GB未満になるとメモリ逃げ場が消え凍結する。再起動直後の「空き11GB」はswap消滅分にすぎない。
+- 増加: 10-14 23:20→10-15 09:44の約10時間でData使用が約12GB増加。単一犯ではなく多数の書き手の合算。
+- 最大の漏れ: `~/.local/state/life-manager/line-sticker/loop-tmp/line-sticker-factory-hourly/` に1 run約120MBの作業dirが69個（計8.5GB、du値）。毎runが `effect_unknown` で終わり、`runtime/loop/lm_loop_run.py` terminal cleanup（`cleanup_status = "held_effect_unknown"` 分岐）が作業dir全体を `official_readback_required` として保持し、readbackが来ないので永久に残る。48件の `scratch-cleanup-diagnostics/*.json` は全て同じ理由。
+- 他: Codex会話ログ `~/.codex-acct2/sessions` 12.4GB＋`thread_history_1.sqlite` 6.5GB（主にDaisのiOS/Desktop長期スレッド、1本最大1.26GB）。life-manager-main `.worktrees` 162個/12.6GB（10-14に統合済み・未変更・lease期限切れ66個を退役し約5GB回収）。iOS Simulator image 17.6GB（disk-cleanup SKILLにより保持）。
+- 掃除役は5本（`com.anicca.disk-watchdog`、`ai.anicca.life-manager-disk-cleanup`、`ai.anicca.life-manager-disk-cleanup-15d`、`com.anicca.disk-cleanup-15d`、`local.phone-cleanup`）。最新receipt（10-10）は free 137MB / tier ULTRA / reclaimed 0 / 32候補全てpreserved。原則が「不明なら残す」のため、満杯時ほど何も消さない。
+- 起動集中: launchd 221 plist（registry 191＋外30）。毎時:00固定は15本で、interval系は既にhash分散済み。CPU/RAM負荷は凍結の主因ではない（凍結はswapを作れないディスク側で起きた）。
+
+### 原因（一行）
+「書く側に上限がなく、消す側は証明できない物を消さない」。安全規則（effect_unknownは保持、不明は保持、floorは診断のみ）が、全て“増える方向”にしか働いていない。
+
+### 基盤のDone（結果で判定、これ以外のgateを置かない）
+1. Data volumeの空きが、既存disk-watchdog receiptの毎時sampleで **7日連続 25GiB以上**。
+2. 同7日間、kernel logに `No space left on device` と `low swap` が0件、強制リセット（ResetCounter）0件。
+Done判定はこの2つの機械的readbackだけ。3回連続cycle、F2/F5の個別occurrence照合、P0/P1の完了はgateにしない。
+
+### 直すファイルと順序
+**D1 — effect_unknownでも保持するのは「証拠」だけ（最大の漏れを止める）。** `runtime/loop/lm_loop_run.py` の terminal cleanup で `held_effect_unknown` の時、作業dirから証拠（`*.json` / `*.jsonl` / `*.log` で各1MiB以下、合計8MiB上限）だけを `state_root/effect-evidence/<run_id>/` へ移し、残り（画像・browser profile・生成物）は既存 `remove_owned_tree` で削除する。effect fence・runtime event・admission rowは変更しない。テスト: `runtime/loop/tests/test_lm_loop_run_bounds.py` に「unknown run後、証拠jsonは残り、大きい生成物は消え、fenceは残る」を1件追加（RED→GREEN）。
+
+**D2 — 空き容量floorを実際に止めるgateへ。** `runtime/host/disk_admission.py` の `_producer_gate` は現在 `free-space floors are diagnostic only`。空き15GiB未満では、control plane（disk-watchdog、central cleanup、fence reconciler、health）以外の新規producer runを `host_admission_deferred:disk_floor` でdeferする（既存のdefer経路 `lm_loop_run.py` をそのまま使う）。実行中のchildはkillしない。テスト: `runtime/host/tests/test_disk_admission.py` に floor未満=defer / control plane=通過 / 測定不能=通過しない の3件。
+
+**D3 — 期限切れleaseのworktreeを自動退役。** `bin/disk-watchdog.sh` の既存「clean+merged+unused worktree削除」は `locked managed-lease:` を全てskipする。leaseの `expires_at` が過去、PR merged、`git status --porcelain` が `.DS_Store` 以外空、upstream差分0、cwd使用processなしの時だけ unlock→`git worktree remove`（forceなし）→lease file削除。`skills/self/disk-cleanup/SKILL.md` の「Never unlock」は「期限切れleaseは解放済みとみなす」に改める。テスト: `skills/self/disk-cleanup/tests/test_disk_watchdog_dispatcher.py` に 期限切れ=退役 / 期限内=保持 / dirty=保持。
+
+**D4 — 凍結を物理的に防ぐ予備領域（ballast）。** disk-watchdog（60秒周期の既存owner）が `~/.local/state/life-manager/disk-ballast`（8GiB、`mkfile -n`ではなく実確保）を保持し、空き3GiB未満で即削除してTelegram警告、空き25GiB超で再作成。Life Manager外の書き手（Codex app、Spotlight、iCloud）で満杯になってもswap用の逃げ場を一度だけ取り戻せる。テストは同dispatcher testに 作成/削除/再作成 の3件。
+
+**後続（Doneのgateではない）:** 掃除役5本を `com.anicca.disk-watchdog` 1本へ統合し他4本をunload。Codex純正圧縮 `central_cleanup.py:codex_history_cleanup` は `0.160.0` 完全一致pinと「上位2ファイル分の空き」要求があり、満杯時に動かないため、D2/D4で空きが戻った後に効く。内蔵228GBが恒常的に足りない場合は外付けSSDへ `~/loops/releases` と Codex archive を移す案を別途比較する。
+
+### 2026-10-14〜15 の手動回収（記録）
+- 統合済み・未変更・未push差分なし・lease期限切れの life-manager-main worktree 66個を `git worktree remove`（forceなし）で退役。
+- `anicca-project/.worktrees/line-sticker-og-share-card-20261015/apps/landing/.next/cache`（再生成可能）を削除。
+- line-sticker の2時間以上前の `loop-tmp` run dir 64個を削除。diagnostics json 48件と `readback.jsonl` / `events.jsonl` は保持。dfはほぼ不変だったため、中身の大半はAPFS clone（他の場所とブロック共有）だった可能性が高い。実容量の増加源は引き続きD2/D4で抑える。
+
+### ホーム全体の棚卸し（2026-10-15 実測）
+- 判定方法: ホーム直下220個を「launchd plist/crontab参照」「実行中processのargv/cwd」「現行release内のコード参照」「14日以内の書込」「git dirty/未push」で分類。
+- 4条件すべて無しの“死んだ”dirは120個だが合計約0.7GBのみ（`.private_keys`等の認証系を含むため一括削除しない）。
+- 大きいdir（Projects 21.5G、anicca-project 8.5G、gig 6.9G、anicca 3.5G、anicca-monk-factory 2.2G、profitable-claude 0.8G、actions-runner 0.5G）は全て参照あり・14日以内書込あり。anicca-projectは未push 2288 commit、gigはdirty 3653件で丸ごと削除不可。無駄は中身（古いworktree、再生成可能物）にある。
+- 再生成可能物（node_modules/__pycache__/.next等）は計約4.7GB。idleなworktree内の分だけ削除。immutable release内は権限で保護され削除されない（正常）。
+- iOS 26.5 Simulator runtimeを `xcrun simctl runtime delete` で削除（booted device 0、loop参照なし、再DL可能）。Data free 2.7GB→12GB。worktree内生成物削除後に約16GB。
+- 結論: 「不要フォルダを消す」だけでは25GiB Doneに届かない。D1（unknown runは証拠だけ保持）とD2（floorでproducer停止）が増加を止める本体。
+
+## 旧統括cursor（2026-10-15に上記で置換、参照のみ） — 共通資源制御を閉じてからGigを進める
 
 **目的:** 複数の業務agentが同じMacのCPU・メモリ・ディスク・制御receiptを共有しても、負荷を検知して新規実行を調整でき、容量不足時にもcleanupと診断が動ける共通実行基盤にする。その完了後、GigのStorefront・Apply・Negotiate・Submit・Paidをproviderごとに直す。US$10M以上の月次売上は長期目標であり、source/CI成功や掲載数を売上達成とは扱わない。
 
