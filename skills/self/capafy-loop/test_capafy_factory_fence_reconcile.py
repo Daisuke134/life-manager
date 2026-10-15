@@ -1031,10 +1031,16 @@ def test_occurrence_bound_partial_retry_upload_closes_as_effected(tmp_path, monk
     assert closed_calls[0][2]["platform_status"] == 0
 
 
+@pytest.mark.parametrize("later_other_update", [False, True])
+@pytest.mark.parametrize("action", ["retry_existing", "resume_draft"])
+@pytest.mark.parametrize("admission_wait_seconds", [0, 59])
 @pytest.mark.parametrize("snapshot_agent_missing", [False, True])
 def test_deterministic_retry_finish_receipt_closes_same_version_after_status_one(
-    tmp_path, monkeypatch, snapshot_agent_missing,
+    tmp_path, monkeypatch, snapshot_agent_missing, admission_wait_seconds, action,
+    later_other_update,
 ):
+    # A kickstarted occurrence can wait in the admission FIFO before it starts
+    # (2026-10-15: queued 10:12:39Z, started 10:13:38Z).
     agent_id = "7393298474"
     version_id = "2110426515594047488"
     release_sha = "c" * 40
@@ -1053,11 +1059,22 @@ def test_deterministic_retry_finish_receipt_closes_same_version_after_status_one
         "updated_at": int(checked_at.timestamp() * 1000),
         "latest_agent_version_id": version_id,
     }]
+    if later_other_update:
+        # Another Agent's review status changed hours after this run (2026-10-15 NHL).
+        snapshot_versions["8354665033"] = "2110259929315954688"
+        snapshot["agent_count"] = len(snapshot_versions)
+        current_agents.append({
+            "agent_id": "8354665033",
+            "updated_at": int((QUEUED_AT + dt.timedelta(hours=8)).timestamp() * 1000),
+            "latest_agent_version_id": "2110259929315954688",
+        })
+    resume = action == "resume_draft"
+    action_key = f"{'resume' if resume else 'retry'}:{agent_id}"
     receipt = {
-        "event": "capafy_retry_existing_finish",
+        "event": "capafy_resume_draft_finish" if resume else "capafy_retry_existing_finish",
         "owner_id": OWNER, "run_id": parent_run_id,
         "occurrence_id": OCCURRENCE, "release_sha": release_sha,
-        "action_key": f"retry:{agent_id}", "agent_id": agent_id,
+        "action_key": action_key, "agent_id": agent_id,
         "agent_version_id": version_id, "cp3_attempt": 1,
         "platform_status": 1, "is_confirmed_skills": True,
         "is_confirmed_config_keys": True, "package_uploaded": True,
@@ -1066,8 +1083,8 @@ def test_deterministic_retry_finish_receipt_closes_same_version_after_status_one
     }
     stamp = (QUEUED_AT + dt.timedelta(seconds=5)).astimezone().strftime("%Y-%m-%d %H:%M:%S")
     inventory = {
-        "verdict": "PUBLISHABLE", "action": "retry_existing",
-        "action_key": f"retry:{agent_id}",
+        "verdict": "PUBLISHABLE", "action": action,
+        "action_key": action_key,
         "item": {"agent_id": agent_id, "title": "TikTok Comment Reply Script Pack"},
     }
     publisher_log = tmp_path / "daily_loop.log"
@@ -1081,7 +1098,9 @@ def test_deterministic_retry_finish_receipt_closes_same_version_after_status_one
         "platform_status=1 skills=1 cfg=1 package_uploaded=1 audit=1 title=Test Agent",
         f"ledger appended {agent_id}",
         f"PUBLISHED + VERIFIED: agent_id={agent_id} (test) — status=1 under review.",
-        f"=== {stamp} daily_loop done rc=0 (SUBMITTED — {agent_id} finished CP2/CP3 after prepare) ===",
+        (f"=== {stamp} daily_loop done rc=0 (RESUMED — {agent_id} finished CP2/CP3 deterministically; no LLM spend) ==="
+         if resume else
+         f"=== {stamp} daily_loop done rc=0 (SUBMITTED — {agent_id} finished CP2/CP3 after prepare) ==="),
         "",
     )), encoding="utf-8")
     publisher_log.chmod(0o600)
@@ -1120,7 +1139,9 @@ def test_deterministic_retry_finish_receipt_closes_same_version_after_status_one
 
     result = reconciler.reconcile(
         OCCURRENCE,
-        fenced_row_fn=_fenced_row_fn(state="claimed"),
+        fenced_row_fn=_fenced_row_fn(
+            state="claimed",
+            queued_at=QUEUED_AT - dt.timedelta(seconds=admission_wait_seconds)),
         load_snapshot_fn=lambda occurrence: snapshot,
         read_publish_list_fn=lambda: _publish_list(current_agents),
         read_remote_status_fn=lambda got_id: remote if got_id == agent_id else {"ok": False},

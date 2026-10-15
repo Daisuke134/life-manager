@@ -74,6 +74,16 @@ OWNER_ID = "capafy-loop-daily"
 # falls back to 3600) -- the actual wall-clock bound the admission layer enforces,
 # regardless of what the in-run prompt claims about "no wall-clock limit".
 MAX_RUN_SECONDS = 3600
+FINISH_RECEIPT_KINDS = {
+    "capafy_retry_existing_finish": {
+        "action": "retry_existing", "key": "retry",
+        "terminal": "SUBMITTED — {agent_id} finished CP2/CP3 after prepare",
+    },
+    "capafy_resume_draft_finish": {
+        "action": "resume_draft", "key": "resume",
+        "terminal": "RESUMED — {agent_id} finished CP2/CP3 deterministically",
+    },
+}
 # Capafy's own API is a synchronous read (not an eventually-consistent listing
 # like Instagram's), so this buffer only covers clock skew and admission-layer
 # release latency, not provider propagation delay.
@@ -336,7 +346,7 @@ def read_occurrence_bound_cp3_receipt(
     if (not isinstance(parent_release, str) or not re.fullmatch(r"[0-9a-f]{40}", parent_release)
             or terminal.get("release_sha") != parent_release or start_at is None or terminal_at is None
             or start_at < queued_at - dt.timedelta(seconds=5)
-            or start_at > queued_at + dt.timedelta(seconds=30)
+            or start_at > window_end
             or terminal_at < start_at or terminal_at > window_end):
         return None
 
@@ -623,7 +633,7 @@ def read_occurrence_bound_partial_effect_receipt(
     if (not isinstance(parent_release, str) or not re.fullmatch(r"[0-9a-f]{40}", parent_release)
             or terminal.get("release_sha") != parent_release or start_at is None or terminal_at is None
             or start_at < queued_at - dt.timedelta(seconds=5)
-            or start_at > queued_at + dt.timedelta(seconds=30)
+            or start_at > window_end
             or terminal_at < start_at or terminal_at > window_end):
         return None
 
@@ -868,7 +878,7 @@ def read_occurrence_bound_deterministic_retry_finish_receipt(
     if (not isinstance(release_sha, str) or not re.fullmatch(r"[0-9a-f]{40}", release_sha)
             or terminal.get("release_sha") != release_sha or start_at is None or terminal_at is None
             or start_at < queued_at - dt.timedelta(seconds=5)
-            or start_at > queued_at + dt.timedelta(seconds=30)
+            or start_at > window_end
             or terminal_at < start_at or terminal_at > window_end):
         return None
 
@@ -892,11 +902,13 @@ def read_occurrence_bound_deterministic_retry_finish_receipt(
     version_id = receipt.get("agent_version_id")
     checked_at = _parse_updated_at(receipt.get("verified_at"))
     expected_receipt_id = f"capafy:agent/{agent_id}/version/{version_id}:platform_status=1"
-    if (receipt.get("event") != "capafy_retry_existing_finish"
+    # retry_existing and resume_draft both finish an existing draft through publish_finish.sh.
+    kind = FINISH_RECEIPT_KINDS.get(receipt.get("event"))
+    if (kind is None
             or receipt.get("release_sha") != release_sha
             or not isinstance(agent_id, str) or not re.fullmatch(r"[0-9]+", agent_id)
             or not isinstance(version_id, str) or not version_id
-            or receipt.get("action_key") != f"retry:{agent_id}"
+            or receipt.get("action_key") != f"{kind['key']}:{agent_id}"
             or type(receipt.get("cp3_attempt")) is not int or receipt["cp3_attempt"] != 1
             or type(receipt.get("platform_status")) is not int or receipt["platform_status"] != 1
             or receipt.get("is_confirmed_skills") is not True
@@ -923,7 +935,7 @@ def read_occurrence_bound_deterministic_retry_finish_receipt(
         return None
     block = log_lines[start_index:end_index + 1]
     if ("daily_loop done rc=0" not in log_lines[end_index]
-            or f"SUBMITTED — {agent_id} finished CP2/CP3 after prepare" not in log_lines[end_index]):
+            or kind["terminal"].format(agent_id=agent_id) not in log_lines[end_index]):
         return None
     if [line[9:] for line in block if line.startswith("AGENT_ID=")] != [agent_id]:
         return None
@@ -947,8 +959,8 @@ def read_occurrence_bound_deterministic_retry_finish_receipt(
         return None
     if not any("inventory verdict=" in line and " :: " in line
                and (lambda row: isinstance(row, dict)
-                    and row.get("action") == "retry_existing"
-                    and row.get("action_key") == f"retry:{agent_id}")(json.loads(line.split(" :: ", 1)[1]))
+                    and row.get("action") == kind["action"]
+                    and row.get("action_key") == f"{kind['key']}:{agent_id}")(json.loads(line.split(" :: ", 1)[1]))
                for line in block if line.startswith(tuple(str(i) for i in range(10)))):
         return None
 
@@ -967,8 +979,9 @@ def read_occurrence_bound_deterministic_retry_finish_receipt(
         if prior_versions.get(row_id) != row.get("latest_agent_version_id"):
             return None
         row_updated = _parse_updated_at(row.get("updated_at"))
-        if row_updated is None or row_updated > window_end:
+        if row_updated is None:
             return None
+        # A change after the window belongs to a later actor; it cannot undo this effect.
         if queued_at <= row_updated <= window_end:
             same_version_updates.append(row_id)
     if same_version_updates != [agent_id]:
