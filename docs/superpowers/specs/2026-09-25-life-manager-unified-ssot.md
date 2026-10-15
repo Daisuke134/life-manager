@@ -18929,3 +18929,40 @@ A direct RevenueCat V2 read observed at 2026-10-14T22:25Z reports latest complet
 11. **Replicate winners and open-source the factory.** Reuse only Anicca cohorts with measured acquisition/conversion results for Honne and other iOS apps; measure each product separately while working toward USD 10M portfolio MRR. Then ship the self-hosted Postiz path and a few-command OSS agent/factory with documented prerequisites, secrets kept in local user storage, dry-run/receipt semantics, and a free route that does not require paid APIs.
 
 **Current cursor (2026-10-15 08:42 JST):** PR #8108 remains open on `fix/anicca-local-metrics-report-20261015`; its latest base is `origin/main` `6c9766be20c384ea361baa8e80683206bfe62051` (Writer documentation PR #8109), now merged locally without conflicts. The full code diff has been reviewed as Ship after fixing the TikTok snapshot and owner-report claim recovery gaps. Focused local checks pass: metrics/due Node 39/39, owner-report Python 49/49, shared Telegram transport 3/3, and `git diff --check`. Required PR workflows and read-only review passed on code head `b0711bf07b946797f1ca83c357d1dadb1ed61e03`; this latest base-merge commit has not yet been pushed or revalidated, so do not use those checks as proof for the new head. Next: push this main-derived branch state, verify both required workflows on its exact new SHA, then merge with the prescribed admin path. Production release/report adoption and the next approved-post receipt plus 24-hour metric remain unverified; do not manually publish or replay any unknown occurrence.
+
+## Capafy distribution + conversion ownership — 2026-10-15 10:30 JST (owner: claude-evo-eval-1012, Dais directive)
+
+**Ownership (Dais 2026-10-15: "you take ownership from here"):** `claude-evo-eval-1012` owns Capafy distribution, marketing, listing conversion for non-FROZEN listings, and the distribution evals (ED1–ED6). `codex-money-printer` keeps the factory runtime, money reconcile, fences, releases and integration. Codex Capafy TODO rows 5 (search/hot) and 9 (external channels) move into this section; its other rows keep their order. FROZEN sellers stay untouched (AGENTS.md rule 10). Expense stays $0 on every channel (rule 11).
+
+**Fresh evidence (read-only, 2026-10-15 10:07 JST):**
+
+| Item | Value | Source |
+|---|---|---|
+| Lifetime | 70 orders, $102.75 gross | `capafy-hourly-reconcile.json` 01:07Z |
+| Last paid day | 2026-09-29; 2026-10-14 shows 1 order at $0 (free download or trial) | `capafy-skill-analytics.json` |
+| Detail visits 7d | 801 (search 478, direct 217, other 78, google 13, ai_overview 12), paid 0 | reconcile `traffic_sources` |
+| Detail visits 7d on 2026-10-11 | 388 | same file, earlier read |
+| Search 30d before the stall | ~90 visits per paid order | Codex 2026-10-14 13:32 checkpoint (750 visits / 8 paid) |
+| Newest factory listings | Security Exception Decision Deck, Sustainability Disclosure Evidence Deck, Vendor Evaluation Evidence Scorecard, NHL Goalie Matchup Brief | `published.jsonl` |
+| Last TikTok video | 2026-09-17 | `state/lm-video/distribution.jsonl` |
+| capafy-distribute last 24 h | 7 pass, 38 blocked, 16 fail | `writer/capafy-distribute/events.jsonl` |
+
+**Diagnosis:** the problem moved. Capafy search now sends twice the visits, and nobody buys. Two causes, in order: (1) **conversion** — new listings sit in low-demand B2B and sports niches and show text instead of output proof; (2) **external reach** — no video since 9/17 and X/articles reach almost nobody. Winners sell creator/short-video tools, show 3–6 output images, price week/month/year, and get outside demand from short vertical video.
+
+**How we fix it (all $0, every step gated by a binary eval):**
+
+| # | Atom | Copies | Eval / done when |
+|---|---|---|---|
+| D1 | Weekly per-channel table: visits, trials, paid, per ct and per source, from the existing reconcile data (CD1, ED1–ED3) | evals-skills write-code-eval | table from real data; RED test for a link-stripped slot |
+| D2 | Hook Lab vertical video every day on TikTok, IG Reels and YouTube Shorts, reusing the existing `lm-video` TikTok pipeline; winner timing (result 0.5 s, proof 3 s, real demo, one CTA to the ct link in bio) | Ocup creator videos; downloaded Hackwithsim/Yeye reels | ED4 pass; first ct visit from video within 72 h |
+| D3 | Factory candidate order: creator/short-video tools next to Hook Lab first (scripts, clip maps, caption lines, thumbnail text); B2B decks drop to the back of the queue | category demand 77 units/agent vs 0.5–6.6 for B2B decks | next 3 submissions are creator tools |
+| D4 | Every new listing ships 4–6 real output images and week/month/year plans | HookAce 6 assets, top-4 pricing | prepare-time check passes; visit→paid on new listings > 0 |
+| D5 | X reach: ct link in the first reply and the bio, image threads, replies to large creator-niche accounts | indie-hacker reply pattern | ED1 pass on X; ≥1 ct visit from X |
+| D6 | `transcript-clip-map-free` routes to Hook Lab through a registered ct link | Free Transcript → Transcript Studio funnel | ct visits from the free agent > 0 |
+| D7 | Articles continue; each carries a ct link and one output image | — | ED1 pass |
+| D8 | Free outreach to Capafy official and Capafy money-content creators with the "agent that sells by itself" story | Capafy official TikTok features sellers | one reply or feature |
+| D9 | OSS repo of the factory after the first post-9/29 paid order (CD9) | — | public repo, clean-machine install readback |
+
+**Order and cursor:** D1 → D2 → D3 → D4 → D5 → D6 → D7 → D8 → D9. Replaces the CD order from 2026-10-13 for the distribution lane (CD1=D1, CD3+CD4=D2, CD6+CD7=D3+D4, CD2=D5, CD5=D6, CD8=D8, CD9=D9; CD10 benchmark stays with the eval lane after D9). Reason: visits doubled with 0 conversion, so proof and niche come right after the first video. Current cursor: **D1**.
+
+**Goal check:** first paid order after 2026-09-29 (orders > 70, gross > $102.75) attributed to a source or ct, then $10K MRR.
