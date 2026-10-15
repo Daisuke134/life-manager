@@ -284,7 +284,8 @@ def _write_bound_partial_retry_run(tmp_path, *, agent_id="7393298474",
         ],
     }
     result_path.write_text(json.dumps(result), encoding="utf-8")
-    result_path.chmod(0o600)
+    # agent_runner writes attempt results 0644 in production (all observed runs).
+    result_path.chmod(0o644)
     summary = {
         "version": 1,
         "owner_id": OWNER,
@@ -963,7 +964,9 @@ def test_same_version_update_without_bound_retry_evidence_stays_held(tmp_path):
     assert closed_calls == []
 
 
-def test_occurrence_bound_partial_retry_upload_closes_as_effected(tmp_path, monkeypatch):
+@pytest.mark.parametrize("later_other_update", [False, True])
+def test_occurrence_bound_partial_retry_upload_closes_as_effected(tmp_path, monkeypatch,
+                                                                  later_other_update):
     agent_id = "7393298474"
     version_id = "2110426515594047488"
     snapshot = {
@@ -976,6 +979,16 @@ def test_occurrence_bound_partial_retry_upload_closes_as_effected(tmp_path, monk
         "updated_at": int((QUEUED_AT + dt.timedelta(seconds=15)).timestamp() * 1000),
         "latest_agent_version_id": version_id,
     }]
+    if later_other_update:
+        # Another Agent changed hours after this run ended (e.g. its review status);
+        # it cannot undo the proven in-window effect on agent_id.
+        snapshot["agent_count"] = 2
+        snapshot["latest_versions"]["8354665033"] = "2110259929315954688"
+        current_agents.append({
+            "agent_id": "8354665033",
+            "updated_at": int((QUEUED_AT + dt.timedelta(hours=8)).timestamp() * 1000),
+            "latest_agent_version_id": "2110259929315954688",
+        })
     remote = {
         "ok": True, "agent_version_id": version_id, "platform_status": 0,
         "audit_status": 0, "is_confirmed_skills": True,

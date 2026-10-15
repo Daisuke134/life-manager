@@ -669,7 +669,8 @@ def read_occurrence_bound_partial_effect_receipt(
     if (result_path.parent != run_dir or result_path.is_symlink()
             or result_path.name != "attempt-01.result.json"):
         return None
-    result_raw = _read_user_file(result_path, private=True)
+    # agent_runner writes attempt results 0644; owner, nlink and no-write checks still apply.
+    result_raw = _read_user_file(result_path)
     if result_raw is None:
         return None
     try:
@@ -779,8 +780,9 @@ def read_occurrence_bound_partial_effect_receipt(
         if prior_versions.get(row_id) != row.get("latest_agent_version_id"):
             return None
         row_updated = _parse_updated_at(row.get("updated_at"))
-        if row_updated is None or row_updated > window_end:
+        if row_updated is None:
             return None
+        # A change after the window belongs to a later actor; it cannot undo this effect.
         if queued_at <= row_updated <= window_end:
             same_version_updates.append(row_id)
     if same_version_updates != [agent_id]:
