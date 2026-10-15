@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 import hashlib
 import importlib.util
 import json
@@ -31,7 +32,8 @@ def load():
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
-    module._queued_at = lambda occurrence: None  # never read the production DB
+    # Never read the production DB; a late queued_at keeps the history check satisfied.
+    module._queued_at = lambda occurrence: float(T0 + 10**6)
     return module
 
 
@@ -255,6 +257,39 @@ def test_journal_newer_than_queued_at_keeps_fenced(tmp_path):
     assert module.find_proof(app_root(tmp_path), APP, f"{APP}:run-a", search=search) == (
         None, "history_incomplete")
     assert search.queries == []
+
+
+def test_unknown_queued_at_keeps_fenced(tmp_path):
+    module = load()
+    module._queued_at = lambda occurrence: None
+    search = Search(GOG_EMPTY)
+
+    assert module.find_proof(app_root(tmp_path), APP, f"{APP}:run-a", search=search) == (
+        None, "history_incomplete")
+    assert search.queries == []
+
+
+def test_window_younger_than_the_mail_tail_keeps_fenced(tmp_path):
+    # A confirmation mail can still arrive up to TAIL after the window closes.
+    module = load()
+    occurrence = f"{APP}:run-a"
+    now = datetime.now(timezone.utc)
+    module._queued_at = lambda occurrence: now.timestamp()
+    bound = write_events(tmp_path / "bound", [
+        event(APP, "run-a", "execute", (now - timedelta(seconds=30)).isoformat(),
+              occurrence_id=occurrence),
+        event(APP, "run-a", "report", (now - timedelta(seconds=10)).isoformat(),
+              occurrence_id=occurrence),
+    ])
+    legacy = write_events(tmp_path / "legacy", [
+        event(APP, "run-a", "execute", (now - timedelta(seconds=30)).isoformat()),
+        event(APP, "run-a", "report", (now - timedelta(seconds=10)).isoformat()),
+    ])
+    for root in (bound, legacy):
+        search = Search(GOG_EMPTY)
+        assert module.find_proof(root, APP, occurrence, search=search) == (
+            None, "window_not_settled")
+        assert search.queries == []
 
 
 def write_snapshot(root: Path, observed_at: str, mtime: float) -> None:

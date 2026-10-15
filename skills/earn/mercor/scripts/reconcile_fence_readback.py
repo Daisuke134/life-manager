@@ -230,10 +230,15 @@ def find_proof(state_root: Path, owner: str, occurrence: str, *,
         return None, reason
     queued_at = _queued_at(occurrence)
     history = [stamp for r in rows if (stamp := _epoch(r.get("timestamp"))) is not None]
-    if queued_at is not None and (not history or min(history) > queued_at):
-        # Rotated-out journals could hide a foreign claim (lm_loop.py).
+    if queued_at is None or not history or min(history) > queued_at:
+        # Rotated-out journals could hide a foreign claim (lm_loop.py); an
+        # occurrence missing from admission cannot be bound to its history.
         return None, "history_incomplete"
     start, end, terminal = window
+    # A confirmation mail or outbox claim may still land up to TAIL after the
+    # window closes; an open legacy window must at least be TAIL old.
+    if time.time() < (start if end is None else end) + TAIL:
+        return None, "window_not_settled"
     if owner == PAID:
         proof, reason = _paid_proof(state_root, occurrence, start,
                                     terminal.get("release_sha"), rows)
