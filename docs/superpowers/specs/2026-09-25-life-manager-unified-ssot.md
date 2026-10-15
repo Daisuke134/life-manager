@@ -53,6 +53,19 @@
 
 **後続（Doneのgateではない）:** 掃除役5本を `com.anicca.disk-watchdog` 1本へ統合し他4本をunload。Codex純正圧縮 `central_cleanup.py:codex_history_cleanup` は `0.160.0` 完全一致pinと「上位2ファイル分の空き」要求があり、満杯時に動かないため、D2/D4で空きが戻った後に効く。内蔵228GBが恒常的に足りない場合は外付けSSDへ `~/loops/releases` と Codex archive を移す案を別途比較する。
 
+### Gig G0 証拠表（2026-10-15、read-only調査。数値は各ledger/receiptのreadback）
+|provider|14日の実成果|最初の失敗境界|次の1手|
+|---|---|---|---|
+|Coconala (`hf-gig-*`, ledger `~/gig`)|応募verified 13件(10/02-03)。¥39,000検収分は10/15出金予定、累計¥231,654。storefront公開20件・販売0|apply fence `18dadcd76d9c61b0-37711`(10/03〜、48hでdeferred 470/pass 0)。reconcileが`applied.jsonl`のpass_idをoccurrenceへ対応づけられず `exact_occurrence_request_set_not_present`。reply fence 10/12、storefront fence 09/26|apply-reconcileがpass_id→occurrenceを結ぶ修正で公式readback済み応募のfenceを閉じる|
+|CrowdWorks (`crowdworks-revenue-*`)|応募verified 129件、契約承諾13件（¥12×11・¥110・¥165）、入金receipt 0|agent 2枠の取り合い（48h deferred 394/pass 133）。paid/reply pollingもagent枠を消費|極小単価案件の除外と、収益laneの枠配分|
+|Lancers (`lancers-revenue-*`)|生涯¥0・契約0|ログアウト：work-syncの1,001回が `final_route_category=login`。applicationは405(AWS WAF)174回|session_vaultから本番profileのsessionを復元→405確認|
+|Mercor|09/20以降0件|fence 09/18・09/20・10/04|公式readbackでfenceを閉じる|
+|Freelancer|0件（未登録）|loop未登録|登録まで対象外|
+
+共通: host全体のagent枠は2（`LIFE_MANAGER_HOST_MAX_AGENT_TOTAL_RUNS`）。24hのagent occurrenceはlancers-paid 257・crowdworks-paid 229・hf-gig-paid 194が上位で、入金確認pollingが応募より多く枠を使う。admission DBは396,519 occurrence（claimed放置38,583、effect_unknown約5万）・164MB。`gig-outcome-watch` はpassだがreleaseに`outcome_watch.py`が無く何も測っていない。
+
+**Gig修理の順（お金に近い順）:** G-a Coconala apply fence → G-b Lancers session復元 → G-c CrowdWorks 単価filterと枠配分 → G-d Mercor fence → G-e admission DBの肥大(放置claimed/unknown)とpaid pollingの枠消費。
+
 ### 実行計画と期限（2026-10-15 確定、Daisの実施指示あり）
 写した外部実装（コードを読んで確認）: Kubernetes kubelet `pkg/kubelet/images/image_gc_manager.go`（使用率がHighThresholdPercent既定85%以上でLowThresholdPercent既定80%まで最終使用が古い順に削除、使用中は除外、回収不足は`FreeDiskSpaceFailed`警告）と `pkg/kubelet/eviction/defaults_linux.go`（`nodefs.available<10%`で猶予0の停止）、systemd `src/journal/journald-manager.c`（書き手ごとに`max_use`と`keep_free`）、Elasticsearch `DiskThresholdSettings.java`（low 85%/high 90%/flood_stage 95%で書込禁止、回復で自動解除）。共通の型=「水位で自動掃除」「危険水位で新規書込停止」「回収不足は叫ぶ」「書き手ごとの上限」。出所の1ファイル単位証明はしない。
 
@@ -61,10 +74,10 @@
 |1|kubelet hard eviction / ES flood_stage|`runtime/host/disk_admission.py` `_producer_gate`|空き15GiB未満で control plane 6 loop以外の新規runを`disk_floor_low`でdefer（測定不能は通す）|10/16 本番|PR #8115 main・release `20261015T105345-e9ba318c`。release-reconcilerが順次移行中（10/15 11:15時点 63/192 label）|
 |2|（ballast）|`bin/disk-watchdog.sh`|8GiB ballastを保持、空き3GiB未満で即削除、25GiB超で再作成。サイズはinstall済みplistの`LIFE_MANAGER_BALLAST_SIZE=8g`だけが与える|10/16 本番|PR #8115 main、watchdogをe9ba318cでinstall済み（plist readback）。空き15.3GiBのためballast未作成＝25GiB到達まで未武装|
 |3|kubelet image GC|`skills/self/disk-cleanup/disk_cleanup.py`|worktree退役の4つの永久ブロックを除去: 期限切れlease/lock、再生成可能ignored、`.DS_Store`（PR #8117 main・release済み）、tracked sourceの名前語判定（PR #8121 review中）。実機trace: merged 25件の残りは有効lock10・`.anicca-keep`10・非再生成物4で正しく保持|10/17|一部本番|
-|4|kubelet FreeDiskSpaceFailed|同上|回収不足時、直近1時間の増加上位5 dirをTelegram通知|10/17|未着手|
+|4|kubelet FreeDiskSpaceFailed|同上|空き25GiB未満で増加(不明時は容量)上位5 rootをTelegram通知、6時間に1回、失敗は非致命|10/17|PR #8125 main・release `20261015T114941-affe5fa3`。watchdog再install後 11:51:00 JST に `low_disk_alert.status=sent`（marker `state/low-disk-alert.at`）|
 |5|journald max_use|`runtime/loop/lm_loop_run.py` `held_effect_unknown`|証拠(json/jsonl/log/txt 各≤1MiB・計≤8MiB)とmarkerだけ保持、生成物は削除。fence不変。30日TTLは#3で追加|10/17|PR #8116 main・release済み、`line-sticker-factory-hourly`をe9ba318cへtarget apply済み|
 |6|journald max_use|`config/loop-registry.json` `cleanup.max_bytes` + `bin/lm-loop-contract`|全loopに出力上限を必須化、無ければCI失敗|10/18|未着手|
-|7|—|重複掃除役4本|`com.anicca.disk-watchdog`+central cleanupへ統合しunload|10/18|未着手|
+|7|—|重複掃除役|repo外の野良 `com.anicca.disk-cleanup-15d`（古い `~/.local/bin/disk-watchdog.sh` を15日毎に実行）を `launchctl-safe bootout` し plist を `~/.local/state/life-manager/retired-launchd/` へ退避。`local.phone-cleanup` はOpenClaw用途で対象外。watchdog(60s host governor)・central cleanup(5min)・registry 15d は役割が別なので維持|10/18|完了（unloaded readback）|
 
 **凍結しない論理:** 凍結条件=swap作成不能（10-14 kernel log）。(a) 空き<3GiBで8GiB ballast解放→誰が書いても空き≥11GiBへ戻る。(b) 空き<15GiBで新規producer停止→増加は実行中runのみ（finite上限10×#6の上限）。(c) 通常は25GiBで掃除が35GiBまで戻すので(a)(b)は異常時のみ。(d) 回収不足は#4が書き手を名指し。外部最大書き手（Codex会話ログ実測0.1〜3GB/日）に対しballastだけで約3日の猶予。限界: 必要データで228GBが埋まる場合は外付けSSDが必要（#4で事前に判明）。
 
@@ -18968,3 +18981,31 @@ A direct RevenueCat V2 read observed at 2026-10-14T22:25Z reports latest complet
 **Order and cursor:** D1 → D2 → D3 → D4 → D5 → D6 → D7 → D8 → D9. Replaces the CD order from 2026-10-13 for the distribution lane (CD1=D1, CD3+CD4=D2, CD6+CD7=D3+D4, CD2=D5, CD5=D6, CD8=D8, CD9=D9; CD10 benchmark stays with the eval lane after D9). Reason: visits doubled with 0 conversion, so proof and niche come right after the first video. Current cursor: **D1**.
 
 **Goal check:** first paid order after 2026-09-29 (orders > 70, gross > $102.75) attributed to a source or ct, then $10K MRR.
+
+### Capafy distribution lane progress — 2026-10-15 15:30 JST (claude-evo-eval-1012)
+
+| Atom | State | Evidence |
+|---|---|---|
+| D1 per-channel eval table | Source merged; needs release of the reconcile owner | #8120 `4c29c0821e`: scoreboard `funnel_7d` / `ct_7d` reach+convert verdicts. Root-cause fix: per-agent cap 60 of 70 dropped Hook Lab from traffic/ct/stats; FROZEN sellers now fetched first. Live 7d: every ct reach=fail. |
+| D2 daily voiced reel | Queue filled 10/15–10/22 on X and IG; loop merged; needs release + apply | 10/11 batch was silent with a black first frame. #8123/#8124 `capafy_reel_voice.py` (edge-tts, synthesized bed ~-36 dB, hook frame first 0.6 s, product read from the CTA). 7 X + 5 IG queued posts re-created voiced, old silent posts deleted by id; receipts `capafy-videos/<slug>/{x,ig}-receipts-v3.jsonl`. #8127 `capafy_reel_daily.py` + #8128 loop `capafy-reel-daily` (09:41 JST, schedules today+7, fsynced dispatch markers, registered `capafy_reel_fence_reconcile.py`). Postiz readback: X and IG each exactly one post per day 10/15–10/22. First natural run must be on or before 10/16 09:41 JST. HeyGen not used (wallet billing violates rule 11). |
+| D3 factory order | Already in place | `podcast-clip-hook-lab` Demand rank 0 and `tiktok-comment-reply-script-pack` Demand rank 1 lead `inventory_status` ordering; B2B decks are unranked. Their non-shipment comes from retries/recoveries and CAP_FULL, owned by the factory. |
+| D4 output images | Needs factory integration (Codex) | Winners embed `<img src="https://files.capafy.ai/public/agent/detail/...">` in `detailedDescription` (HookAce: 6). Upload = `POST https://api.capafy.ai/agent/file/presign/upload` `{contentType, fileName, bizType:"agent_detail", agentVersionId}` with the publisher token (web token returns 401; missing `agentVersionId` returns 400). `build_config.py` sends LISTING `detailedDescription` by API, so the factory must upload after draft creation and append the `<img>` tags before submit. |
+| D5 X reach | Blocked in this session | `x:anicca` (@selawmqt, profile `x-repost-daily`) has no CDP endpoint and `ensure_provision_browser.sh x:anicca` failed: `launchctl could not submit ai.anicca.provision-browser.x.anicca`. Needs an Aqua-context owner to start the profile; then set the X website to `https://capafy.ai/agent/8123079349?ct=hooklab_x`. |
+
+**Cursor:** D2 release/apply (Codex) → D4 factory image step (Codex) → D5 after the x:anicca browser is up → D6.
+
+### Capafy distribution lane progress — 2026-10-15 16:00 JST (claude-evo-eval-1012)
+
+- **Disk floor unblocked:** producer preflight requires 15.00 GiB free (`life-manager-producer-preflight`, `disk_floor_low`); host had 14.70 GiB. Deleted only regenerable HTTP/code caches of the non-live `~/.local/state/anicca/{crowdworks,lancers}/browser-profile` (1.3 GB) → 15.98 GiB.
+- **D2:** `capafy-reel-daily` applied from release `20261015T122733-dbd59860` (install event `6b0f52ef05e29d7b287bf499`). Kickstart passed the disk floor and queued at agent FIFO (`resource_fifo_wait`, occurrence `capafy-reel-daily:18de96f68f9a1c58-53651`); target date 10/22 is already scheduled, so no effect is due until the 10/16 09:41 run (10/23).
+- **D7:** #8130 `76ae047541` merged; release `20261015T125703-76ae0475` applied to `capafy-distribute-daily` (loaded-idle). Hook Lab articles get one hook-card image from the newest voiced reel.
+- **D1 live:** reconcile on `affe5fa3` now measures Hook Lab: 7d views ai_overview 10 / search 7 / direct 5 / hooklab_ig 2 / hot 1 / hooklab_blog 1 / hooklab_x 0, paid 0.
+- **D5 done:** @selawmqt (x:anicca) profile website = `https://capafy.ai/agent/8123079349?ct=hooklab_x` (settings readback).
+- **TikTok:** created `@hooklab.capafy` (identity `tiktok:hooklab`, credential `tiktok-hooklab`, email daisukenarita53 because TikTok normalizes Gmail plus aliases and the keiodaisuke base is taken). First Studio upload ~20 min after signup was rejected: "Post not created — Spam and Deceptive Account Behaviours". Next: warm-up (copy `ig-account-warmer`) for several days, then one post with URL readback; then connect to Postiz via `x:diceai0` (holds the Postiz session).
+- **Instagram:** `capafy.hooklab` credential exists (`instagram-capafy-hooklab`) but no browser identity; its bio link (ct) is still open.
+
+**Cursor:** D4 (factory images, Codex) · TikTok warm-up · IG `capafy.hooklab` bio ct link · D8 outreach · D6 when a factory slot is free.
+
+- **D8 started (2026-10-15 16:40 JST):** public mention to Capafy official `@capafyai` from @selawmqt with the honest story (agent writes, ships and markets Hook Lab; 70 orders) and the `hooklab_x` ct link: https://x.com/selawmqt/status/2110607335442067635. Capafy official channels: X `@capafyai`, TikTok `@capafy_`, Instagram `capafy_official`, YouTube `@Capafy`, Discord `discord.gg/kJnCxQrmDj`.
+- **Instagram `capafy.hooklab`:** Postiz integration "Hook Lab by Anicca" is this account and published daily through 10/14 (public profile and latest reel return 200). The web session in `instagram:capafy-provision` is at a phone checkpoint (6-digit code sent by WhatsApp to Dais's number), so the bio ct link cannot be set from the browser; Postiz API posting is unaffected.
+- **TikTok warm-up:** first passive For You session run (~6 min, no posts/follows/likes).

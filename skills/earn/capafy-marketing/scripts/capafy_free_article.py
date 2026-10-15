@@ -55,6 +55,29 @@ def _load_self_owned_module():
     return self_owned_article
 
 
+IMAGE_ALT = "Three Hook Lab hooks for one video"
+
+
+def with_image(markdown_text: str, url: str, alt: str = IMAGE_ALT) -> str:
+    """Insert one output image after the first body paragraph (once, https only)."""
+    url = url.strip()
+    if not re.fullmatch(r"https://[^\s()<>\"']+", url) or f"]({url})" in markdown_text:
+        return markdown_text
+    blocks = markdown_text.split("\n\n")
+    first_body = next((i for i, b in enumerate(blocks) if b.strip() and not b.lstrip().startswith("#")), None)
+    if first_body is None:
+        return markdown_text
+    blocks.insert(first_body + 1, f"![{alt}]({url})")
+    return "\n\n".join(blocks)
+
+
+def load_draft(draft_path: Path) -> str:
+    """Draft text plus the run's optional article-image.url (written by capafy_article_image.py)."""
+    text = Path(draft_path).read_text(encoding="utf-8")
+    image = Path(draft_path).parent / "article-image.url"
+    return with_image(text, image.read_text(encoding="utf-8")) if image.exists() else text
+
+
 def build_free_article(markdown_text: str, *, slug: str, date: str, cta_url: str) -> dict:
     """Pure: parse the draft, require the Capafy CTA link, return the exact
     plain public JSON body this loop writes to data/research/<slug>.json.
@@ -162,7 +185,7 @@ def publish(
     base_url: str, date: str | None = None, retries: int = 60, retry_interval_seconds: float = 15.0,
     fetch=None,
 ) -> dict:
-    markdown_text = Path(draft_path).read_text(encoding="utf-8")
+    markdown_text = load_draft(draft_path)
     date = date or dt.datetime.now(dt.timezone.utc).date().isoformat()
     article = build_free_article(markdown_text, slug=slug, date=date, cta_url=cta_url)
     write_result = write_free_article(landing_root, article)

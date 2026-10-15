@@ -121,6 +121,9 @@ def main():
         "test_input": test_input, "plans": plans,
         "pricing_mode": "download" if download_m else "subscription",
         "one_time_fee": one_time_fee,
+        # D4 (SSOT 2026-10-15): real-output proof cards for the description editor (CP1 Basic Info).
+        "proof_images": sorted(str(p) for p in Path(os.environ["CAPAFY_PROOF_DIR"]).glob("proof-*.png"))
+                        if os.environ.get("CAPAFY_PROOF_DIR") else [],
     }
     js = json.dumps(cfg, ensure_ascii=False)
     if out:

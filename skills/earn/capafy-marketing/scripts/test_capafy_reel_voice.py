@@ -43,3 +43,10 @@ def test_narration_names_the_product_on_the_cta_and_reads_a_script_reel():
     assert "Hook Lab" not in text
     assert "Here is the script TikTok Script Pro wrote for a home-workout TikTok." in text
     assert text.endswith("Search TikTok Script Pro on Capafy. Hook-first scripts, timed.")
+
+
+def test_narration_keeps_platform_names_and_uses_an_before_vowels():
+    cards = ["Instagram small business: 3 hooks", "“A.”", "“B.”", "“C.”"]
+    assert "for an Instagram small business." in narration(HOOK, cards, CTA_HOOKLAB)
+    cards = ["Learn-to-code TikTok: 3 hooks", "“A.”", "“B.”", "“C.”"]
+    assert "for a learn-to-code TikTok." in narration(HOOK, cards, CTA_HOOKLAB)

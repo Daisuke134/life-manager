@@ -293,3 +293,31 @@ def test_publish_pushes_when_remote_moved_ahead(tmp_path: Path) -> None:
                          text=True, capture_output=True).stdout
     assert "other writer" in log
     assert "publish free article capafy-slide-maker-2026-10-04" in log
+
+
+# D7 (SSOT 2026-10-15): one real output image per article when the run directory has one.
+IMG = "https://uploads.postiz.com/abc123.png"
+
+
+def test_with_image_inserts_after_the_first_paragraph_once():
+    m = load()
+    md = "# Title\n\nFirst paragraph.\n\n## Section\n\nMore."
+    out = m.with_image(md, IMG, "Three Hook Lab hooks for one video")
+    assert out == ("# Title\n\nFirst paragraph.\n\n![Three Hook Lab hooks for one video](" + IMG + ")\n\n"
+                   "## Section\n\nMore.")
+    assert m.with_image(out, IMG, "x") == out
+
+
+def test_with_image_ignores_non_https_urls():
+    m = load()
+    md = "# Title\n\nFirst."
+    assert m.with_image(md, "javascript:alert(1)", "x") == md
+
+
+def test_load_draft_applies_image_file_next_to_the_draft(tmp_path):
+    m = load()
+    draft = tmp_path / "article-en.md"
+    draft.write_text("# Title\n\nFirst.\n\nSecond.", encoding="utf-8")
+    assert m.load_draft(draft) == "# Title\n\nFirst.\n\nSecond."
+    (tmp_path / "article-image.url").write_text(IMG + "\n", encoding="utf-8")
+    assert f"]({IMG})" in m.load_draft(draft)

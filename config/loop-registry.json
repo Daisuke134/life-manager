@@ -259,7 +259,7 @@
       "adapter": "exec",
       "browser_identity": "crowdworks:dais",
       "browser_target_owner": "crowdworks-revenue-browser",
-      "cadence": {"start_interval_seconds": 300},
+      "cadence": {"start_interval_seconds": 900},
       "runtime_timeout_seconds": 900,
       "cleanup": {"max_age_days": 14, "max_runs": 100},
       "coalesce_queued_wakes": true,
@@ -1261,6 +1261,39 @@
       "resource_class": "deterministic",
       "state_root": "~/.local/state/life-manager"
     },
+    "capafy-reel-daily": {
+      "admission_class": "revenue",
+      "cadence": {
+        "calendar_interval": {
+          "Hour": 9,
+          "Minute": 41
+        }
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "domain": "growth",
+      "effect_class": "publish",
+      "effect_reconcile": {
+        "argv": [
+          "skills/earn/capafy-marketing/scripts/capafy_reel_fence_reconcile.py"
+        ],
+        "occurrence_flag": "--occurrence",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 120
+      },
+      "entrypoint": "skills/earn/capafy-marketing/capafy-reel-daily.sh",
+      "label": "ai.anicca.capafy-reel-daily",
+      "log_root": "~/.local/state/life-manager/logs",
+      "priority": "distribution",
+      "provider_route": "shared-agent-runner",
+      "resource_class": "agent",
+      "runtime_timeout_seconds": 2400,
+      "state_root": "~/.local/state/life-manager/capafy-reel"
+    },
     "capafy-outcome-monitor": {
       "reconcile_queued_release": true,
       "cadence": {
@@ -1838,7 +1871,7 @@
       "browser_identity": "coconala:kosuke",
       "browser_target_owner": "hf-gig-browser",
       "cadence": {
-        "start_interval_seconds": 300
+        "start_interval_seconds": 900
       },
       "coalesce_queued_wakes": true,
       "coalesce_reserved_wakes": true,
@@ -2110,7 +2143,7 @@
       "browser_identity": "lancers:dais",
       "browser_target_owner": "lancers-revenue-browser",
       "cadence": {
-        "start_interval_seconds": 60
+        "start_interval_seconds": 300
       },
       "cleanup": {
         "max_age_days": 14,
@@ -2266,7 +2299,7 @@
       "browser_identity": "lancers:dais",
       "browser_target_owner": "lancers-revenue-browser",
       "cadence": {
-        "start_interval_seconds": 300
+        "start_interval_seconds": 900
       },
       "coalesce_queued_wakes": true,
       "coalesce_reserved_wakes": true,
