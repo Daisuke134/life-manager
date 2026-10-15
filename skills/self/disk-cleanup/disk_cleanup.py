@@ -557,6 +557,28 @@ def _only_regenerable_status(output: str) -> bool:
     return True
 
 
+def _hard_protected_tracked(relative: Path) -> bool:
+    """Memory stores and credential/env files stay protected even when committed."""
+    name = relative.name.lower()
+    return ("memory" in {part.lower() for part in relative.parts}
+            or "credential" in name or "passkey" in name
+            or name == ".env" or name.startswith(".env."))
+
+
+def _tracked_paths(worktree: Path) -> frozenset[str] | None:
+    result = _run_git(worktree, "ls-files", "-z")
+    if result is None:
+        return None
+    files = [item for item in result.stdout.split("\0") if item]
+    tracked = set(files)
+    for item in files:
+        parent = Path(item).parent
+        while parent != Path("."):
+            tracked.add(parent.as_posix())
+            parent = parent.parent
+    return frozenset(tracked)
+
+
 def _worktree_records(repository: Path) -> list[dict[str, str | bool]] | None:
     result = _run_git(repository, "worktree", "list", "--porcelain")
     if result is None:
@@ -1138,6 +1160,7 @@ class HostDiskGovernor:
         allow_worktree_sources: bool = False,
         dependency_packages: frozenset[Path] | None = None,
         on_probe_error: Callable[[Path, OSError], None] | None = None,
+        tracked_paths: frozenset[str] | None = None,
     ) -> str | None:
         errors: list[OSError] = []
 
@@ -1155,11 +1178,22 @@ class HostDiskGovernor:
         ):
             if errors:
                 return "descendant_probe_error"
+            if tracked_paths is not None:
+                base = Path(root).relative_to(path)
+                directories[:] = [
+                    name for name in directories
+                    if name not in _REGENERABLE_IGNORED_PARTS or (base / name).as_posix() in tracked_paths
+                ]
             for name in directories + files:
                 if deadline is not None and self.clock() >= deadline:
                     return "probe-budget-exhausted"
                 descendant = Path(root) / name
                 try:
+                    if (tracked_paths is not None
+                            and descendant.relative_to(path).as_posix() in tracked_paths
+                            and not _hard_protected_tracked(descendant.relative_to(path))):
+                        # Committed and merged: the content survives in origin/main.
+                        continue
                     if dependency_packages is not None:
                         parts = tuple(part.lower() for part in descendant.parts)
                         if (descendant.lstat().st_uid != os.getuid()
@@ -1315,7 +1349,9 @@ class HostDiskGovernor:
         if not dependency_cache:
             if _release_immutable_store_probe(path, deadline=deadline, clock=self.clock) is not None:
                 return None
-            if self._protected_descendant(path, deadline=deadline, allow_worktree_sources=True) is not None:
+            tracked = _tracked_paths(lexical)
+            if tracked is None or self._protected_descendant(
+                    path, deadline=deadline, allow_worktree_sources=True, tracked_paths=tracked) is not None:
                 return None
         fresh_main = _run_git(repository, "ls-remote", "--exit-code", "origin", "refs/heads/main")
         if fresh_main is None or fresh_main.stdout.split() != [remote_head, "refs/heads/main"]:
