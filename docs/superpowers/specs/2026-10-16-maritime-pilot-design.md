@@ -33,7 +33,7 @@ Telegram webhookが既存のlm_users.uidを解決する。/pilot commandを受�
 
 有効時は、CommonJS appからmaritime-sdkをdynamic importする。UIDからPIIを含まない安定external IDとconversation IDを導出し、agents.provisionを呼ぶ。agent IDはprovider側externalIdの冪等性で再取得し、Life ManagerのDBに保存しない。agents.chatはresponse.errorを必ず検査し、errorまたは不明応答では成功表示せず、自動再送しない。
 
-pilotはchat-onlyとし、Calendar書込み、メール送信、購入、browser actionは接続しない。prompt、response、email、phone、user name、API keyはLife Managerのログへ記録しない。Telegramへ返す文はHTML escapeし、長さを制限する。
+Life Manager側ではCalendar書込み、メール送信、購入、browser actionを接続しない。OpenClaw自身のbrowser/code/file toolsは別に存在し、prompt文だけで禁止を保証しないため、tool-policy verification前はpilot routeをoffにする。prompt、response、email、phone、user name、API keyはLife Managerのログへ記録しない。Telegramへ返す文はHTML escapeし、長さを制限する。
 
 ## pilot測定・counting
 

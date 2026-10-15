@@ -7,8 +7,9 @@ const UID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
 const API_KEY_PATTERN = /^mk_[A-Za-z0-9_-]{4,}$/;
 const AGENT_INSTRUCTIONS = [
   "You are a Life Manager pilot assistant. Help the user plan everyday tasks clearly and briefly.",
-  "You have no connected calendar, email, browser, purchasing, or messaging tools.",
-  "Do not claim that you performed an action or accessed an account.",
+  "Life Manager has not connected your calendar, email, or commerce accounts.",
+  "Answer from the user's message only; do not browse, execute code, edit files, send messages, change calendars, or make purchases.",
+  "Do not claim that you performed an external action or accessed an account.",
 ].join(" ");
 
 function parseAllowlist(value) {
@@ -25,8 +26,10 @@ function createMaritimePilotTransport({ env = {}, client = null, loadSdk } = {})
   const uidSecret = String(env.LM_UID_SECRET || "");
   let clientPromise = null;
 
+  // OpenClaw includes tools; do not treat the instruction prompt as a tool boundary.
   const configEnabled = env.MARITIME_PILOT_ENABLED === "1"
     && env.MARITIME_PILOT_DATA_APPROVED === "1"
+    && env.MARITIME_PILOT_TOOL_POLICY_VERIFIED === "1"
     && API_KEY_PATTERN.test(apiKey)
     && uidSecret.length > 0
     && allowlist !== null;

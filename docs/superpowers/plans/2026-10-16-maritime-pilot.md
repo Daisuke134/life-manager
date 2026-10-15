@@ -68,8 +68,8 @@
 
 - [x] Step 1: Write failing node:test cases for missing tool-policy verification as well as disabled configuration/data gate, invalid UID allowlist, HMAC IDs, provider errors, input bounds, help visibility, and duplicate-update suppression.
 - [x] Step 2: Run focused transport tests; they fail when tool-policy verification is missing because the transport still accepts the request.
-- [ ] Step 3: Require the verified tool-policy gate before SDK load, use truthful agent instructions, and retain the durable HMAC receipt fence.
-- [ ] Step 4: Re-run focused tests; verify zero provider calls when tool-policy verification is missing and one fake chat for duplicate Telegram updates.
+- [x] Step 3: Require the verified tool-policy gate before SDK load, use truthful agent instructions, and retain the durable HMAC receipt fence.
+- [x] Step 4: Re-run focused tests; verify zero provider calls when tool-policy verification is missing and one fake chat for duplicate Telegram updates.
 - [x] Step 5: Commit and push the command integration.
 
 ### Task 3: source acceptance
