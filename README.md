@@ -25,9 +25,9 @@ without a receipt.
 
 Reproduce the offline economic/autonomy checks with the [LM-EAB guide](docs/evals/lm-economic-autonomy.md). Its synthetic fixtures test accounting and evidence contracts; live agent outcomes remain separate.
 
-## The 18 main agents
+## The 19 agents
 
-Life Manager has eighteen user-facing agents. An agent is a capability, not
+Life Manager has eighteen user-facing agents plus one system agent (19, Host Steward) that keeps the shared machine able to run them. An agent is a capability, not
 necessarily one process: the lifecycle registry contains the smaller application,
 browser-owner, reporting, healthcheck, and reconciliation jobs (loops) that
 implement and support these 18 agents.
@@ -57,6 +57,7 @@ an interview, approval, or final delivery.
 | 16 | Capafy | `capafy-loop-daily`, `capafy-outcome-monitor`, `capafy-ig-account-manager`, `capafy-ig-marketing-daily` | Operates Capafy's separate product, sales, outcome, and audience-growth workflows |
 | 17 | LINE Sticker | `line-sticker-factory-hourly`, `line-sticker-readback-hourly`, `line-creators-browser` | Designs original animated LINE sticker sets end to end (character, motions, video, APNG, selection, tags), submits a finished set to LINE Creators Market about every hour, and reads review and sales status back |
 | 18 | CFO | `life-manager-cfo-hourly` | Reconciles verified revenue, cash flow, balances, payouts, and financial reports across the earning loops |
+| 19 | Host Steward (cleanup) — system agent | `com.anicca.disk-watchdog`, `life-manager-disk-cleanup`, `life-manager-disk-cleanup-15d`, `lm-fence-reconciler`, `life-manager-release-reconciler` | Keeps the shared Mac able to run agents 1–18: 15GiB producer floor, 8GiB ballast, kubelet-style worktree/scratch/release reclaim, stale admission-queue cancellation, effect-unknown fence reconciliation, release rollout, and a Telegram alert naming the largest writers below 25GiB free. It is not a user-facing product loop, so the product catalogue stays at 18 |
 
 ### Setup and start truth
 

@@ -53,6 +53,43 @@
 
 **後続（Doneのgateではない）:** 掃除役5本を `com.anicca.disk-watchdog` 1本へ統合し他4本をunload。Codex純正圧縮 `central_cleanup.py:codex_history_cleanup` は `0.160.0` 完全一致pinと「上位2ファイル分の空き」要求があり、満杯時に動かないため、D2/D4で空きが戻った後に効く。内蔵228GBが恒常的に足りない場合は外付けSSDへ `~/loops/releases` と Codex archive を移す案を別途比較する。
 
+### 全19 agentの状況と残TODO（2026-10-15 15:00 JST、`lm-loop status` readback）
+README は「ユーザー向け18 + system agent 1」= 19 agent。19 = Host Steward（cleanup: disk-watchdog / central cleanup / 15d / fence-reconciler / release-reconciler）。商品catalogue（`product-onboarding.js` の18）は変えない。
+
+|#|agent|loop数|最終結果|主なblocker|
+|---|---|---|---|---|
+|1|Coconala|8|blocked6 running1 fail1|effect_unknown3・capacity2・disk_floor1|
+|2|Lancers|7|blocked4 pass2 running1|capacity2・effect_unknown2（ログインは復旧済み）|
+|3|CrowdWorks|5|blocked4 running1|capacity・disk_floor・control各1|
+|4|Mercor|3|blocked3|effect_unknown3|
+|5|PromptBase|1|blocked1|effect_unknown|
+|6|Writer|15|blocked9 pass4|capacity5・effect_unknown4|
+|7|Affiliate|6|running3 blocked3|capacity2・effect_unknown1|
+|8|Investment|2|blocked2|effect_unknown2|
+|9|Agent Economy|15|blocked9 running6|capacity4・control4|
+|10|Job Hunter|4|blocked4|disk_floor2・capacity1・effect_unknown1|
+|11|Fundraiser|1|fail1|entrypoint_exit_75|
+|12|Connector|1|blocked1|capacity|
+|13|Self-Build|2|pass2|—|
+|14|Mobile Apps|18|blocked9 fail4 pass5|disk_floor5・entrypoint_exit_1 4・control2|
+|15|eBook|4|blocked3 pass1|effect_unknown3|
+|16|Capafy|11|pass4 blocked4 fail1 running1|effect_unknown2|
+|17|LINE Sticker|5|blocked4 running1|control3・effect_unknown1|
+|18|CFO|1|pass1|—|
+|19|Host Steward|4|pass2 fail2|`life-manager-disk-cleanup-15d`（旧release 7c20304d）と `life-manager-release-reconciler` が exit 1|
+
+**判定:** 個別agentより先に、全agent共通のadmission層（第2の土台）が仕事を止めている。①effect_unknown fenceを閉じる経路が無いowner（14 agentに出現、claimed+unknown 38,583件、大半は投稿lane）②host全体agent枠2（`LIFE_MANAGER_HOST_MAX_AGENT_TOTAL_RUNS`）③control_busy（stale queue修正で改善中）④disk_floor（空き15.2GiB、下限付近）。
+
+**Codex readback（同日）との照合:** (a)「容量測定不能ならproducerを通す」は事実。決定: fail-open を維持し本節D2の「測定不能=通過しない」を撤回する（測定障害1つで全producerを止めない。control planeは免除済み、#4通知が低容量を名指しする）。(b) ballast不在は事実（空き<25GiB）。(c) LINE工場のeffect_unknownは事実、disk修正とは別。(d)「#8136が稼働releaseに無い」は14:23以前の状態で、現 `~/loops/current`=`20261015T142342-c2e509a0` は #8136 を含む（`cancel_stale_queued_occurrences` 存在、queued 18,238→2,418）。
+
+**残TODO（順）:**
+1. A1 effect_unknown fence: ownerごとの公式readback adapterを持たない柵の一覧化と、閉じる経路の追加（Coconala applyは「募集終了」readback案をDais判断待ち。Mercor 3、Lancers storefront/report、CrowdWorks report、Investment、eBook、PromptBase）。
+2. A2 agent枠: 実測RAM/負荷に応じて2→Nへ（SSOT P1案：Temporal resource tuner型）。投稿laneが枠を食う構造の確認。
+3. A3 disk: 空き25GiB回復とballast武装（Codex会話ログ19GBの扱い、または外付けSSD）。governorの`storage_growth`が全root `None`で増加犯を測れていない穴を修正。
+4. A4 Host Steward: 15d jobを新releaseへ、release-reconcilerのexit 1原因（DB lock推定、未確定）。
+5. Gig: Lancers応募405（AWS WAF、古い`pending` task）→ CrowdWorks枠配分 → Coconala storefront/reply fence → Mercor。
+6. 個別fail: Fundraiser exit 75、Mobile Apps entrypoint_exit_1 ×4、Capafy fail1。
+
 ### Gig G0 証拠表（2026-10-15、read-only調査。数値は各ledger/receiptのreadback）
 |provider|14日の実成果|最初の失敗境界|次の1手|
 |---|---|---|---|
