@@ -1165,13 +1165,14 @@ def _carry_over_without_dispatch(run_dir: Path, rows: list[dict[str, Any]], run_
     """A run that stopped before any destination was dispatched cannot have published.
 
     2026-10-16: run 20261016-014724 wrote drafts, the conscience gate stopped it, and its only
-    ledger row was carry-over (published=false, draft_url=null). Publication goes only through
+    ledger row was carry-over (published=false, draft_url=null); the 22:43 run left pending
+    media rows of the same shape. Any row kind counts. Publication goes only through
     publication-state + platform-dispatch, so with neither present nothing left the machine.
     """
     own = [row for row in rows if row.get("run_id") == run_id]
     if not own or any(
-        row.get("platform") != "carry-over" or row.get("published") is not False
-        or row.get("draft_url") not in (None, "")
+        row.get("published") is not False
+        or any(row.get(key) not in (None, "") for key in ("draft_url", "live_url", "url", "stable_target"))
         for row in own
     ):
         return False
