@@ -142,7 +142,7 @@
     },
     {
       "id": "fundraiser",
-      "job_ids": ["fundraiser"],
+      "job_ids": ["fundraiser", "fundraiser-browser"],
       "name": "Fundraiser",
       "description": "Find eligible accelerators, fellowships, grants, and investor intakes and apply with verified product context.",
       "recovery_classes": ["external_effect_owner"],
