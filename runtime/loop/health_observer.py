@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import json
 import os
@@ -17,12 +18,15 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from runtime.loop.health import validate_health_document
+from runtime.loop.runtime_event import rotate_jsonl_locked
 
 
 PROBLEM_STATES = frozenset({
     "safely_fenced", "effect_unknown", "telemetry_gap", "human_required", "failed",
 })
 SAFE_ID = re.compile(r"[^A-Za-z0-9._:-]")
+# history/alerts grew ~190 MB each; readers only need the last row (_last_jsonl).
+JSONL_MAX_BYTES = 32 * 1024 * 1024
 
 
 def _private_directory(path: Path) -> None:
@@ -62,12 +66,14 @@ def write_latest(path: Path, value: object) -> None:
 
 def _append_jsonl(path: Path, value: object) -> None:
     _private_directory(path.parent)
-    flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT
+    flags = os.O_RDWR | os.O_APPEND | os.O_CREAT
     if hasattr(os, "O_NOFOLLOW"):
         flags |= os.O_NOFOLLOW
     descriptor = os.open(path, flags, 0o600)
     try:
         os.fchmod(descriptor, 0o600)
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        rotate_jsonl_locked(descriptor, path, JSONL_MAX_BYTES, keep_archives=1)
         os.write(descriptor, _encoded(value))
         os.fsync(descriptor)
     finally:

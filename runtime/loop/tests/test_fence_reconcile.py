@@ -777,3 +777,20 @@ class SurvivesLockedDatabaseTest(unittest.TestCase):
             rows = [json.loads(l) for l in log.read_text().splitlines()]
         self.assertTrue(rows, "calls made before the lock must still be recorded")
         self.assertEqual(summary["status"], "partial_database_locked")
+
+
+class CallLogBoundTest(unittest.TestCase):
+    def test_call_log_rotates_but_keeps_the_recent_window_readers_use(self):
+        from runtime.loop import fence_reconcile
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "reconcile-calls.jsonl"
+            old = [{"owner_id": "a", "occurrence_id": f"a:{i}", "pad": "x" * 64} for i in range(50)]
+            with patch.object(fence_reconcile, "CALL_LOG_MAX_BYTES", 1024), \
+                    patch.object(fence_reconcile, "CALL_LOG_TAIL_BYTES", 512):
+                fence_reconcile._append_jsonl(log, old)
+                fence_reconcile._append_jsonl(log, [{"owner_id": "b", "occurrence_id": "b:1"}])
+            self.assertLessEqual(log.stat().st_size, 1024)
+            recent = fence_reconcile._recent_call_rows(log)
+            self.assertIn(("a", "a:49"), recent)
+            self.assertIn(("b", "b:1"), recent)
+            self.assertEqual(len(list(log.parent.glob("reconcile-calls-*.jsonl.gz"))), 1)

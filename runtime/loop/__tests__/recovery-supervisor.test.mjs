@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { mkdtemp, writeFile, readFile } from 'node:fs/promises';
+import { mkdtemp, readdir, writeFile, readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -322,4 +322,28 @@ test('closes every superseded-release intent in one wake, then executes one curr
   const superseded = outcomes.filter((row) => row.reason === 'release_sha_mismatch');
   assert.deepEqual(superseded.map((row) => [row.intent_id, row.state, row.next_action]),
     [['old-1', 'blocked', 'none'], ['old-2', 'blocked', 'none']]);
+});
+
+test('oversized queue and journal compact to non-terminal intents without replay or lost budget', async () => {
+  const { queue, journal } = await files([intent('done'), { junk: true }, intent('pending')]);
+  await writeFile(journal, [
+    { schema_version: 1, record_type: 'recovery_outcome', intent_id: 'done', state: 'repaired',
+      attempt: 1, budget_consumed: true },
+    { schema_version: 1, record_type: 'recovery_outcome', intent_id: 'pending', state: 'queued',
+      attempt: 1, budget_consumed: true, next_eligible_at: '2026-10-16T00:00:00.000Z' },
+  ].map((row) => `${JSON.stringify(row)}\n`).join(''));
+  const calls = [];
+  const result = await consumeRecoveryIntentQueue({
+    queuePath: queue, journalPath: journal, maxBytes: 1, now: '2026-10-16T01:00:00.000Z',
+    executeIntent: async (value) => { calls.push(value.intent_id); return { ok: true, state: 'repaired' }; },
+  });
+  assert.deepEqual(calls, ['pending']);
+  assert.equal(result.attempt, 2);
+  const queued = (await readFile(queue, 'utf8')).trim().split('\n').map(JSON.parse);
+  assert.deepEqual(queued.map((row) => row.intent_id), ['pending']);
+  const rows = await journalRows(journal);
+  assert.ok(rows.every((row) => row.intent_id === 'pending'));
+  const names = await readdir(path.dirname(queue));
+  assert.equal(names.filter((name) => /^intents-.*\.jsonl\.gz$/u.test(name)).length, 1);
+  assert.equal(names.filter((name) => /^supervisor-.*\.jsonl\.gz$/u.test(name)).length, 1);
 });

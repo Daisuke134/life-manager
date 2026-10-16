@@ -1,11 +1,14 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import { gzipSync } from 'node:zlib';
 
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u;
 const RELEASE_SHA = /^[0-9a-f]{40}$/u;
 const SAFE_REF = /^[a-z][a-z0-9+.-]*:\/\/[A-Za-z0-9._:/-]{1,512}$/u;
 const TERMINAL_STATES = new Set(['repaired', 'held', 'skipped', 'blocked', 'escalated']);
 const OUTCOME_STATES = new Set(['queued', 'repaired', 'held', 'skipped', 'blocked', 'escalated']);
+// Both files grew past 150 MB (195k intents, 8 non-terminal) and are re-read every wake.
+const DEFAULT_MAX_BYTES = 32 * 1024 * 1024;
 
 async function readJsonLines(file) {
   try {
@@ -28,6 +31,60 @@ async function appendJsonLine(file, value) {
   } finally {
     await handle.close();
   }
+}
+
+async function fileSize(file) {
+  try { return (await fs.stat(file)).size; } catch (error) {
+    if (error?.code === 'ENOENT') return 0;
+    throw error;
+  }
+}
+
+function unwrapIntent(row) {
+  return row?.recovery_intent && typeof row.recovery_intent === 'object' ? row.recovery_intent : row;
+}
+
+/**
+ * Archive one JSONL to <stem>-<stamp>.jsonl.gz (one generation, same naming as
+ * runtime_event.rotate_jsonl_locked) and replace it with the rows `keep` accepts.
+ */
+async function compactJsonLines(file, keep) {
+  if (!await fileSize(file)) return;
+  const original = await fs.readFile(file);
+  const rows = original.toString('utf8').split('\n').filter(Boolean).map((line) => {
+    try { return JSON.parse(line); } catch { return null; }
+  });
+  const stem = path.basename(file, '.jsonl');
+  const stamp = new Date().toISOString().replace(/[-:.]/gu, '');
+  const archive = path.join(path.dirname(file), `${stem}-${stamp}.jsonl.gz`);
+  for (const name of await fs.readdir(path.dirname(file))) {
+    if (name.startsWith(`${stem}-`) && name.endsWith('.jsonl.gz')) {
+      await fs.unlink(path.join(path.dirname(file), name));
+    }
+  }
+  await fs.writeFile(archive, gzipSync(original), { mode: 0o600 });
+  const temporary = `${file}.compact.${process.pid}`;
+  await fs.writeFile(temporary, rows.filter((row) => row && keep(row))
+    .map((row) => `${JSON.stringify(row)}\n`).join(''), { mode: 0o600 });
+  // ponytail: writers append without a shared lock; copying the bytes that landed
+  // since the read narrows the lost-append window to the rename itself.
+  const late = (await fs.readFile(file)).subarray(original.length);
+  if (late.length) await fs.appendFile(temporary, late);
+  await fs.rename(temporary, file);
+}
+
+/** Keep only non-terminal intents and their journal rows once either file is oversized. */
+async function compactRecoveryFiles(queuePath, journalPath, maxBytes) {
+  if (await fileSize(queuePath) <= maxBytes && await fileSize(journalPath) <= maxBytes) return;
+  const history = journalState(await readJsonLines(journalPath));
+  const live = new Set();
+  await compactJsonLines(queuePath, (row) => {
+    const intent = unwrapIntent(row);
+    if (!validIntent(intent) || history.get(intent.intent_id)?.terminal) return false;
+    live.add(intent.intent_id);
+    return true;
+  });
+  await compactJsonLines(journalPath, (row) => live.has(row.intent_id));
 }
 
 function validIntent(value) {
@@ -150,6 +207,7 @@ export async function consumeRecoveryIntentQueue({
   maxAttempts = 3,
   now = new Date().toISOString(),
   cooldownSeconds = 300,
+  maxBytes = DEFAULT_MAX_BYTES,
 } = {}) {
   if (typeof queuePath !== 'string' || !queuePath) throw new Error('recovery queue path required');
   if (typeof journalPath !== 'string' || !journalPath) throw new Error('recovery journal path required');
@@ -166,6 +224,7 @@ export async function consumeRecoveryIntentQueue({
   const nowMs = Date.parse(now);
   if (!Number.isFinite(nowMs)) throw new Error('recovery now invalid');
 
+  await compactRecoveryFiles(queuePath, journalPath, maxBytes);
   const [queueRows, historyRows] = await Promise.all([
     readJsonLines(queuePath),
     readJsonLines(journalPath),
@@ -175,8 +234,7 @@ export async function consumeRecoveryIntentQueue({
   let attempt = 0;
   let cooldownActive = false;
   for (const candidate of queueRows) {
-    const intent = candidate?.recovery_intent && typeof candidate.recovery_intent === 'object'
-      ? candidate.recovery_intent : candidate;
+    const intent = unwrapIntent(candidate);
     if (!validIntent(intent)) continue;
     const state = history.get(intent.intent_id) || {
       attempts: 0, terminal: false, nextEligibleAt: null,

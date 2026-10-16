@@ -339,12 +339,24 @@ PY
   plan_path="$(mktemp "$state_dir/.fleet-apply-plan.XXXXXX")" || return 1
   FLEET_APPLY_REGISTRY_PATH="$registry_path" FLEET_APPLY_OWNERS_LOG_PATH="$owners_log_path" \
     FLEET_APPLY_OWN_LOOP_ID="$own_loop_id" FLEET_APPLY_SHA="$release_sha" \
+    PYTHONPATH="$SCRIPT_ROOT" \
     "$runtime_python" - >"$plan_path" <<'PY' || { rm -f "$plan_path"; return 1; }
-import json, os, plistlib
+import fcntl, json, os, plistlib
 from pathlib import Path
+from runtime.loop.runtime_event import rotate_jsonl_locked
 
 registry_path = os.environ["FLEET_APPLY_REGISTRY_PATH"]
 owners_log_path = os.environ["FLEET_APPLY_OWNERS_LOG_PATH"]
+# Only rows for the sha being applied matter below; this single writer (the reconciler, under
+# its fleet lock) bounds the log before reading it. It had grown to 30 MB.
+if os.path.isfile(owners_log_path):
+    descriptor = os.open(owners_log_path, os.O_RDWR | os.O_APPEND)
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        rotate_jsonl_locked(descriptor, Path(owners_log_path), int(os.environ.get(
+            "LIFE_MANAGER_FLEET_APPLY_OWNERS_MAX_BYTES", 32 * 1024 * 1024)), keep_archives=1)
+    finally:
+        os.close(descriptor)
 own_loop_id = os.environ.get("FLEET_APPLY_OWN_LOOP_ID", "")
 release_sha = os.environ["FLEET_APPLY_SHA"]
 agents_dir = Path(os.environ.get(

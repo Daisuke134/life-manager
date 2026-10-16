@@ -20,6 +20,7 @@ must add their adapter.
 from __future__ import annotations
 
 import argparse
+import fcntl
 import hashlib
 import json
 import os
@@ -36,6 +37,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from runtime.loop.lm_loop import _admission_effect_unknown_occurrences  # noqa: E402
+from runtime.loop.runtime_event import rotate_jsonl_locked  # noqa: E402
 from runtime.loop.macos_loop_registry import validate_registry  # noqa: E402
 
 DEFAULT_REGISTRY = ROOT / "config/loop-registry.json"
@@ -51,6 +53,10 @@ DEFAULT_LOG = Path(
     "~/.local/state/life-manager/lm-fence-reconciler/reconcile-calls.jsonl"
 ).expanduser()
 CALL_LOG_TAIL_BYTES = 4 * 1024 * 1024
+# Every reader (here, lm_loop._last_adapter_calls, central_cleanup.closed_reconcile_occurrences)
+# reads at most the last 4 MiB, so rotation carries that tail forward. Archives hold closure
+# proofs, so they are compressed (~30x) and never pruned.
+CALL_LOG_MAX_BYTES = 32 * 1024 * 1024
 
 
 def run_call(argv: list[str], timeout: float = CALL_TIMEOUT_SECONDS) -> tuple[int, str]:
@@ -326,7 +332,10 @@ def _append_jsonl(path: Path, rows: list[dict]) -> None:
     if not rows:
         return
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+    descriptor = os.open(path, os.O_RDWR | os.O_CREAT | os.O_APPEND, 0o600)
+    fcntl.flock(descriptor, fcntl.LOCK_EX)
+    rotate_jsonl_locked(descriptor, path, CALL_LOG_MAX_BYTES,
+                        keep_tail_bytes=CALL_LOG_TAIL_BYTES)
     with os.fdopen(descriptor, "a", encoding="utf-8") as handle:
         for row in rows:
             handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")

@@ -177,6 +177,19 @@ class RuntimeEventTest(unittest.TestCase):
             with gzip.open(archives[0], "rt", encoding="utf-8") as handle:
                 self.assertEqual(handle.read(), '{"index":1}\n')
 
+    def test_rotation_can_carry_a_line_aligned_tail_for_window_readers(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "calls.jsonl"
+            rows = "".join(f'{{"index":{index}}}\n' for index in range(10))
+            path.write_text(rows, encoding="utf-8")
+            with path.open("r+") as handle:
+                rotate_jsonl_locked(handle.fileno(), path, 1, keep_archives=1,
+                                    keep_tail_bytes=40)
+            self.assertEqual(path.read_text(), '{"index":7}\n{"index":8}\n{"index":9}\n')
+            (archive,) = path.parent.glob("calls-*.jsonl.gz")
+            with gzip.open(archive, "rt", encoding="utf-8") as handle:
+                self.assertEqual(handle.read(), rows)
+
     def test_unknown_and_secret_values_are_rejected(self):
         with self.assertRaisesRegex(ValueError, "unknown fields"):
             validate_runtime_event({**BASE, "model": "gpt"})
