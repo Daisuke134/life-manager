@@ -81,6 +81,13 @@ EVIDENCE_DIR = Path("~/.local/state/life-manager/reconciliation/evidence").expan
 BROWSER_GUARD = Path(
     os.environ.get("AI_BROWSER_GUARD", str(REPO_ROOT / "skills/browser/browser-guard.sh"))
 )
+# Same launcher daily.sh uses: promptbase:dais is an on-demand browser with no
+# keep_alive owner, so while the lane is fenced nothing else ever starts it and a
+# bare guard acquire fails with rc 10 forever (2026-10-16).
+BROWSER_PROVISIONER = Path(os.environ.get(
+    "AI_ENSURE_PROVISION_BROWSER", str(REPO_ROOT / "skills/browser/ensure_provision_browser.sh"),
+))
+PROVISION_WAIT_SECONDS = 60  # registry effect_reconcile timeout is 120s
 BROWSER_IDENTITY = "promptbase:dais"
 SNAPSHOT_FIELDS = frozenset({
     "schema_version", "owner_id", "occurrence_id", "slug", "title", "captured_at",
@@ -399,17 +406,37 @@ def load_snapshot(occurrence_id: str, *, snapshot_dir: Path = SNAPSHOT_DIR) -> d
 
 
 def read_dashboard_text(
-    *, browser_guard: Path = BROWSER_GUARD, identity: str = BROWSER_IDENTITY, timeout: float = 30,
+    *, browser_guard: Path = BROWSER_GUARD, provisioner: Path = BROWSER_PROVISIONER,
+    identity: str = BROWSER_IDENTITY, timeout: float = 30,
 ) -> dict:
     """Read-only account?view=prompts text over the leased PromptBase CDP
     endpoint. Never clicks anything, never submits. BUSY/unreachable is
     inconclusive, not a failure to escalate."""
-    endpoint_result = subprocess.run(
-        [str(browser_guard), "acquire", identity], capture_output=True, text=True, timeout=timeout,
-    )
-    if endpoint_result.returncode != 0:
-        return {"ok": False, "reason": f"browser_lease_rc_{endpoint_result.returncode}"}
-    endpoint = endpoint_result.stdout.strip()
+    lease_env = {
+        **os.environ, "AI_BROWSER_HOLDER_PID": str(os.getpid()),
+        "AI_BROWSER_GUARD": str(browser_guard),
+        "PROVISION_BROWSER_WAIT": str(PROVISION_WAIT_SECONDS),
+    }
+    try:
+        try:
+            endpoint_result = subprocess.run(
+                ["bash", str(provisioner), identity], capture_output=True, text=True,
+                env=lease_env, timeout=PROVISION_WAIT_SECONDS + 15,
+            )
+        except subprocess.TimeoutExpired:
+            return {"ok": False, "reason": "browser_lease_timeout"}
+        if endpoint_result.returncode != 0:
+            return {"ok": False, "reason": f"browser_lease_rc_{endpoint_result.returncode}"}
+        endpoint = endpoint_result.stdout.strip()
+        return _read_dashboard_at(endpoint)
+    finally:
+        subprocess.run(
+            [str(browser_guard), "release", identity], capture_output=True, text=True,
+            env=lease_env, timeout=timeout,
+        )
+
+
+def _read_dashboard_at(endpoint: str) -> dict:
     try:
         from playwright.sync_api import sync_playwright
 
@@ -429,10 +456,6 @@ def read_dashboard_text(
         return {"ok": True, "url": page.url, "text": text}
     except Exception as exc:  # fail closed -> inconclusive, never guessed
         return {"ok": False, "reason": f"dashboard_read_failed:{type(exc).__name__}:{exc}"}
-    finally:
-        subprocess.run(
-            [str(browser_guard), "release", identity], capture_output=True, text=True, timeout=timeout,
-        )
 
 
 def _append_evidence(evidence_dir: Path, occurrence_id: str, payload: dict) -> Path:
