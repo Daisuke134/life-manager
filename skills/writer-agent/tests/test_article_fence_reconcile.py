@@ -956,3 +956,14 @@ def test_a_run_that_reached_publication_never_uses_the_absence_readback(tmp_path
         root, arts = _carry_fixture(case, **kwargs)
         result, calls, closed = _carry_reconcile(m, root, arts, {"destinations": ABSENT})
         assert result["status"] == "inconclusive" and calls == [] and closed == [], kwargs
+
+
+def test_held_reason_names_each_destination_failure(tmp_path):
+    m = _load()
+    root, arts = _carry_fixture(tmp_path)
+    readback = {"destinations": {**ABSENT, "note/ja": {"status": "unreadable", "reason": "HTTPError: 429"},
+                                 "x-article/ja": {"status": "present", "reason": "title_match"}}}
+    result, _, closed = _carry_reconcile(m, root, arts, readback)
+    assert closed == [] and result["status"] == "inconclusive"
+    assert result["reason"].startswith("destination_not_proven_absent:note/ja,x-article/ja")
+    assert result["destinations"]["note/ja"] == {"status": "unreadable", "reason": "HTTPError: 429"}

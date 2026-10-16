@@ -84,19 +84,61 @@ def test_substack_complete_only_when_every_post_of_every_listing_was_read():
         mod.parse_substack({"drafts": [{"posts": [_post(2, "t", "2026-10-11T19:20:03", None)], "total": 1}]})
 
 
-def test_x_needs_identity_titled_rows_and_the_ledger_edit_anchor():
-    data = {"url": "https://x.com/compose/articles", "identity": "diceai0", "expected": "diceai0",
-            "rows": [{"href": "/compose/articles/edit/2101130889136832512", "text": "Xの投稿を売り込みにしない\nPublished"},
-                     {"href": "/compose/articles/edit/2101108578518175744", "text": "古い記事"}]}
-    items, complete = mod.parse_x(data, "2101130889136832512")
-    assert complete is True and items[0]["title"].startswith("Xの投稿を売り込みにしない")
-    assert mod.parse_x(data, "999")[1] is False
-    assert mod.parse_x(data, "")[1] is False
-    for bad in ({**data, "rows": data["rows"] + [{"href": "/compose/articles/edit/1", "text": " \n"}]},
-                {**data, "identity": "someoneelse"},
-                {**data, "url": "https://x.com/i/flow/login"}):
+X_SINCE = mod._epoch("2026-10-16T04:57:53Z")   # 13:57 JST
+X_UNTIL = mod._epoch("2026-10-16T05:16:15Z")
+
+
+def _xrow(tab, edit_id, date, title, saved=True):
+    head = "Draft\n·\nLast saved \n" if tab == "drafts" else "Published\n·\n"
+    return {"tab": tab, "href": f"/compose/articles/edit/{edit_id}",
+            "text": f"{head}{date}\n{title}\n本文の抜粋がここに続く"}
+
+
+X_DATA = {"url": "https://x.com/compose/articles", "identity": "diceai0", "expected": "diceai0",
+          "rows": [_xrow("drafts", "2101148453665656832", "Sep 19", "「量産」が売上を増やすわけではない"),
+                   _xrow("drafts", "2090757937904152576", "Aug 21", "(Needs title)"),
+                   _xrow("published", "2101130889136832512", "Sep 19", "Xの投稿を売り込みにしない"),
+                   _xrow("published", "2101108578518175744", "Sep 19", "Xから有料ガイドへ送るなら")]}
+
+
+def _x(data, anchor="2101130889136832512"):
+    return mod.parse_x(data, anchor, since=X_SINCE, until=X_UNTIL)
+
+
+def test_x_rows_parse_title_and_date_and_need_both_tabs_and_the_published_anchor():
+    items, complete = _x(X_DATA)
+    assert complete is True
+    assert [i["title"] for i in items][:2] == ["「量産」が売上を増やすわけではない", "(Needs title)"]
+    assert mod.judge(items, since=X_SINCE, until=X_UNTIL, titles=TITLES, complete=complete)["status"] == "absent"
+    assert _x(X_DATA, anchor="999")[1] is False
+    assert _x(X_DATA, anchor="")[1] is False
+    no_drafts = {**X_DATA, "rows": [r for r in X_DATA["rows"] if r["tab"] == "published"]}
+    assert _x(no_drafts)[1] is False
+
+
+def test_x_run_day_or_relative_date_or_title_is_present():
+    for date, title in (("Oct 16", "別の記事"), ("5h", "別の記事"), ("Sep 19", TITLES[0])):
+        data = {**X_DATA, "rows": [_xrow("drafts", "1", date, title)] + X_DATA["rows"]}
+        items, complete = _x(data)
+        assert mod.judge(items, since=X_SINCE, until=X_UNTIL, titles=TITLES, complete=complete)["status"] == "present"
+
+
+def test_x_unparseable_rows_identity_or_order_are_unreadable():
+    bad_rows = [
+        {"tab": "drafts", "href": "/compose/articles/edit/1", "text": " \n"},
+        {"tab": "drafts", "href": "/compose/articles/edit/1", "text": "Draft\n·\nLast saved \nSep 19\n"},
+        {"tab": "drafts", "href": "/compose/articles/edit/1", "text": "Draft\n·\nsomeday\nTitle"},
+    ]
+    for row in bad_rows:
         with pytest.raises(ValueError):
-            mod.parse_x(bad, "2101130889136832512")
+            _x({**X_DATA, "rows": [row] + X_DATA["rows"]})
+    with pytest.raises(ValueError):
+        _x({**X_DATA, "identity": "someoneelse"})
+    with pytest.raises(ValueError):
+        _x({**X_DATA, "url": "https://x.com/i/jf/onboarding/web?mode=login"})
+    older_first = {**X_DATA, "rows": [_xrow("drafts", "3", "Aug 1", "a"), _xrow("drafts", "4", "Sep 1", "b")]
+                   + X_DATA["rows"][2:]}
+    assert _x(older_first)[1] is False
 
 
 def test_ledger_anchor_takes_the_newest_publication_before_the_window():

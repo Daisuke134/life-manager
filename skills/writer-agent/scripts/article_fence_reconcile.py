@@ -618,7 +618,11 @@ def _carry_over_absence(occurrence_id: str, queued_at: float, state: str, rows: 
     not_absent = [pair for pair in ABSENCE_DESTINATIONS
                   if (destinations.get(pair) or {}).get("status") != "absent"]
     if not_absent:
-        return _inconclusive(occurrence_id, "destination_not_proven_absent:" + ",".join(not_absent))
+        held = _inconclusive(occurrence_id, "destination_not_proven_absent:" + ",".join(not_absent))
+        # Keep each destination's own reason in the reconciler call log (readers never echo credentials).
+        held["destinations"] = {pair: {key: (destinations.get(pair) or {}).get(key) for key in ("status", "reason")}
+                                for pair in not_absent}
+        return held
     runtime_run_id = occurrence_id.split(":", 1)[1]
     proof = {
         "owner_id": OWNER_ID, "occurrence_id": occurrence_id, "verified": True,
