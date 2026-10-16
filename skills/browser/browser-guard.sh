@@ -192,7 +192,8 @@ if held:
         try:
             import subprocess
             started = subprocess.run(["ps", "-o", "lstart=", "-p", str(int(held["pid"]))],
-                                     capture_output=True, text=True, timeout=5).stdout.strip()
+                                     capture_output=True, text=True, timeout=5,
+                                     env={**os.environ, "LC_ALL": "C"}).stdout.strip()
             started_at = time.mktime(time.strptime(" ".join(started.split()), "%a %b %d %H:%M:%S %Y"))
             if started_at < float(held.get("acquired_at") or 0) - stale:
                 live = False
