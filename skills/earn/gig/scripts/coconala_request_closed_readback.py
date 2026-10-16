@@ -2,9 +2,11 @@
 """Read Coconala request pages for unresolved legacy intents and record 募集終了.
 
 Read-only: it opens https://coconala.com/requests/<id> in the leased registered
-browser (run under ``with-browser.sh coconala:kosuke``) and never clicks. A request
+browser (run under ``with-browser.sh coconala:kosuke``). Its only click is the
+applicant list's もっと見る expander; it never touches an application form. A request
 whose official page reads 募集期限 募集終了 can no longer receive an application,
-so a fence that only guards against a duplicate application to it is moot.
+so a fence that only guards against a duplicate application to it is moot. The
+recorded applicant roster lets the adapter prove a post-marker attempt left none.
 """
 
 from __future__ import annotations
@@ -53,6 +55,34 @@ def unresolved_request_ids(intent_root: Path) -> list[str]:
     return ids
 
 
+# Applicant user IDs listed under 応募者一覧 and the 応募人数/契約人数 counters.
+_ROSTER_JS = r"""() => {
+  const head = [...document.querySelectorAll('*')].find(e => e.children.length === 0
+    && (e.innerText || '').trim() === '応募者一覧');
+  let section = head || null;
+  for (let i = 0; section && i < 6 && !section.querySelector('a[href*="/users/"]'); i++)
+    section = section.parentElement;
+  const hrefs = section ? [...section.querySelectorAll('a[href*="/users/"]')].map(a => a.getAttribute('href')) : [];
+  const ids = [...new Set(hrefs.map(h => (h.match(/\/users\/(\d+)/) || [])[1]).filter(Boolean))];
+  const m = document.body.innerText.replace(/\s+/g, ' ').match(/応募人数 (\d+) 契約人数 (\d+)/);
+  return {applicant_ids: ids, applicants_count: m ? +m[1] : null, contracted_count: m ? +m[2] : null};
+}"""
+
+
+def read_roster(page) -> dict:
+    """Expand 応募者一覧 until every counted applicant is listed (or no expander remains)."""
+    roster = page.evaluate(_ROSTER_JS)
+    for _ in range(30):
+        more = page.get_by_text("もっと見る", exact=True)
+        if roster["applicants_count"] is None or len(roster["applicant_ids"]) >= roster["applicants_count"] \
+                or more.count() != 1:
+            break
+        more.first.click()
+        page.wait_for_timeout(1_200)
+        roster = page.evaluate(_ROSTER_JS)
+    return roster
+
+
 def _atomic_write(path: Path, value: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
@@ -90,8 +120,9 @@ def main(argv: list[str] | None = None) -> int:
                 gone = exact and status == 404
                 closed = True if gone else (
                     request_closed(page.inner_text("body")) if exact and status == 200 else None)
+                roster = read_roster(page) if exact and status == 200 and closed is False else {}
                 requests[rid] = {"closed": closed, "gone": gone, "http_status": status,
-                                 "url": url, "final_url": page.url,
+                                 "url": url, "final_url": page.url, **roster,
                                  "observed_at": datetime.now(timezone.utc).isoformat()}
         finally:
             page.close()
