@@ -1161,19 +1161,40 @@ def terminal_quality_finished_at(
 
 
 
+# Keys seen on effect-free Writer rows (carry-over, pending, quality stops). Any other key -- e.g.
+# public_id, status_id, edit_id, provider_receipt_id, live_url -- may hold an external identifier,
+# so such a row is never treated as effect-free (same allowlist idea as publication_resume.py).
+_NO_EFFECT_ROW_KEYS = frozenset({
+    "attempts_by_lang", "attempts_en", "attempts_en_reader", "attempts_en_rubric", "attempts_ja",
+    "attempts_ja_reader", "attempts_ja_rubric", "carry_over_card", "carry_over_source_card",
+    "draft_url", "editorial_form", "failure_reason", "lane", "lang", "localized_topic", "note",
+    "pair", "platform", "published", "reader_attempts", "reason", "recorded_at", "run_id",
+    "run_record", "source_mutated", "state", "telegram_message_id", "token_budget_usd", "topic",
+    "topic_id", "topic_source", "total_revise_attempts_en", "total_revise_attempts_ja", "ts",
+    "verified_logged_in", "verified_note",
+})
+_NO_EFFECT_TEXT_FORBIDDEN = ("http", "key=", "live", "receipt", "published")
+
+
+def _no_effect_row(row: dict[str, Any]) -> bool:
+    if set(row) - _NO_EFFECT_ROW_KEYS or row.get("published") is not False:
+        return False
+    if row.get("draft_url") not in (None, "") or row.get("verified_logged_in") is True:
+        return False
+    text = " ".join(str(row.get(key) or "") for key in ("state", "note", "reason", "failure_reason")).lower()
+    return not any(token in text for token in _NO_EFFECT_TEXT_FORBIDDEN)
+
+
 def _carry_over_without_dispatch(run_dir: Path, rows: list[dict[str, Any]], run_id: str) -> bool:
     """A run that stopped before any destination was dispatched cannot have published.
 
     2026-10-16: run 20261016-014724 wrote drafts, the conscience gate stopped it, and its only
-    ledger row was carry-over (published=false, draft_url=null). Publication goes only through
+    ledger row was carry-over (published=false, draft_url=null); the 22:43 run left pending
+    media rows of the same shape. Any row kind counts. Publication goes only through
     publication-state + platform-dispatch, so with neither present nothing left the machine.
     """
     own = [row for row in rows if row.get("run_id") == run_id]
-    if not own or any(
-        row.get("platform") != "carry-over" or row.get("published") is not False
-        or row.get("draft_url") not in (None, "")
-        for row in own
-    ):
+    if not own or not all(_no_effect_row(row) for row in own):
         return False
     gates = run_dir / "gates"
     if (gates / "publication-state.json").exists() or (gates / "publication-state.json").is_symlink():

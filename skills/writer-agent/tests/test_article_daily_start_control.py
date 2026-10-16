@@ -1317,3 +1317,51 @@ class CarryOverWithoutDispatchDoesNotBlockTheDayTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             decision = self._run(Path(tmp), publication_state=True)
         self.assertNotEqual(decision["action"], "new")
+
+
+class PendingRowsWithoutDispatchDoNotBlockTheDayTest(unittest.TestCase):
+    """2026-10-16 22:43: run 20261016-134344 wrote rows note/substack/x-article with
+    state pending:media-renderer-unavailable (publication state never initialized). Any row kind
+    with nothing published, no draft URL and no dispatch must not block the day."""
+
+    def test_pending_media_rows_without_dispatch_start_a_new_run(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            run_id = "20261016-134344"
+            run_dir = root / "runs" / run_id
+            (run_dir / "gates").mkdir(parents=True)
+            (run_dir / "git-hash.txt").write_text("abc\n")
+            (run_dir / "article-ja.md").write_text("# ja\n")
+            state = "pending:media-renderer-unavailable:body-diagram candidate was not produced"
+            rows = [{"ts": "2026-10-16T13:43:00+00:00", "run_id": run_id, "platform": p, "lang": l,
+                     "published": False, "draft_url": None, "state": state}
+                    for p, l in (("note", "ja"), ("substack", "ja"), ("substack", "en"), ("x-article", "ja"))]
+            (root / "articles.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+            decision = START.decide(root, "2026-10-16")
+        self.assertEqual(decision["action"], "new")
+        self.assertEqual(decision["reason"], "same-jst-day-carry-over-no-dispatch")
+
+    def test_a_row_with_a_live_url_still_blocks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            run_id = "20261016-134344"
+            (root / "runs" / run_id / "gates").mkdir(parents=True)
+            row = {"run_id": run_id, "platform": "note", "lang": "ja", "published": False,
+                   "draft_url": None, "live_url": "https://note.com/x/n/abc", "state": "pending:x"}
+            (root / "articles.jsonl").write_text(json.dumps(row) + "\n")
+            decision = START.decide(root, "2026-10-16")
+        self.assertNotEqual(decision["action"], "new")
+
+
+class ExternalIdentifierKeysKeepTheDayBlockedTest(unittest.TestCase):
+    def test_unknown_identifier_key_or_url_in_state_blocks(self):
+        for row_extra in ({"public_id": "n123"}, {"edit_id": "99"}, {"state": "pending:key=nabc"}):
+            with tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                run_id = "20261016-134344"
+                (root / "runs" / run_id / "gates").mkdir(parents=True)
+                row = {"run_id": run_id, "platform": "note", "lang": "ja", "published": False,
+                       "draft_url": None, "state": "pending:x"} | row_extra
+                (root / "articles.jsonl").write_text(json.dumps(row) + "\n")
+                decision = START.decide(root, "2026-10-16")
+            self.assertNotEqual(decision["action"], "new", row_extra)
