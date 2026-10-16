@@ -6,7 +6,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from capafy_reel_voice import narration
+import capafy_reel_voice
+from capafy_reel_voice import CONFESSION, narration
 
 CTA_HOOKLAB = ["Search Hook Lab", "on Capafy", "Win the first 3 seconds.", "Open Capafy →", "CAPAFY.AI"]
 
@@ -20,8 +21,9 @@ CARDS = ["Learn-to-code TikTok: 3 hooks", "Contrarian",
 
 def test_narration_reads_hook_three_quotes_and_one_cta():
     assert narration(HOOK, CARDS, CTA_HOOKLAB) == (
+        "I have a confession. I used to spend an hour on the first line of every video. "
         "Your coding video is good. They swipe in three seconds. "
-        "Here are three hooks Hook Lab wrote for a learn-to-code TikTok. "
+        "The solution? Hook Lab. Here are three hooks it wrote for a learn-to-code TikTok. "
         "One. AI didn't kill learning to code. It killed learning it badly. "
         "Two. If you quit at month three, this is probably why. "
         "Three. You don't need a bootcamp. You need what bootcamps secretly sell. "
@@ -41,7 +43,7 @@ def test_narration_names_the_product_on_the_cta_and_reads_a_script_reel():
     cta = ["Search TikTok Script Pro", "on Capafy", "Hook-first scripts, timed.", "Open Capafy →", "CAPAFY.AI"]
     text = narration(hook, cards, cta)
     assert "Hook Lab" not in text
-    assert "Here is the script TikTok Script Pro wrote for a home-workout TikTok." in text
+    assert "The solution? TikTok Script Pro. Here is the script it wrote for a home-workout TikTok." in text
     assert text.endswith("Search TikTok Script Pro on Capafy. Hook-first scripts, timed.")
 
 
@@ -50,3 +52,23 @@ def test_narration_keeps_platform_names_and_uses_an_before_vowels():
     assert "for an Instagram small business." in narration(HOOK, cards, CTA_HOOKLAB)
     cards = ["Learn-to-code TikTok: 3 hooks", "“A.”", "“B.”", "“C.”"]
     assert "for a learn-to-code TikTok." in narration(HOOK, cards, CTA_HOOKLAB)
+
+
+def test_narration_opens_with_the_confession_winners_use():
+    assert narration(HOOK, CARDS, CTA_HOOKLAB).startswith(CONFESSION)
+
+
+def test_tts_falls_back_to_macos_say_when_edge_tts_is_refused(tmp_path, monkeypatch):
+    calls = []
+
+    def fake_run(*cmd):
+        calls.append(cmd[0])
+        if cmd[0] == "edge-tts":
+            raise capafy_reel_voice.subprocess.CalledProcessError(1, cmd, stderr=b"403")
+        if cmd[0] == "ffmpeg":
+            Path(cmd[-1]).write_bytes(b"mp3")
+
+    monkeypatch.setattr(capafy_reel_voice, "_run", fake_run)
+    (tmp_path / "n.txt").write_text("hi")
+    assert capafy_reel_voice.tts(tmp_path / "n.txt", tmp_path / "v.mp3") == capafy_reel_voice.FALLBACK_VOICE
+    assert calls == ["edge-tts", "say", "ffmpeg"]
