@@ -1,0 +1,7 @@
+{
+  "agent_id": "2455220100",
+  "from_version_id": "2108224962423574528",
+  "target_one_time_fee": "0.00",
+  "reason": "free_funnel_to_hook_lab_2026_10_16",
+  "dais_approved_exception": "No agent-specific approval. Basis: AGENTS.md rule 10 allows iterating a non-selling Agent's description when no new Agent can ship (factory CAP_FULL on 2026-10-16), and Dais's 2026-10-16 directive to max distribution. Evidence: the same change on the free clip-map agent (7095835081, #8146) produced the first hooklab_free visit within hours of going online. Hook Grader gets 52 weekly detail visits and named Hook Lab in plain text only. Change: add the registered hooklab_free ct link; price stays $0."
+}
