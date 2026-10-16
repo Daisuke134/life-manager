@@ -190,6 +190,26 @@ README は「ユーザー向け18 + system agent 1」= 19 agent。19 = Host Stew
 - Coconala apply fence: 全intent確定の証明で閉じる案はreview FIX-FIRST。v1 `prepared` 117件と状態なし2件が未確定（2026-09-25応募履歴で59件は応募済み、60件は履歴が不完全＝確定776件中38件が履歴に無いため証明不能）。draft PR #8131 は保留。残る案=依頼ページの「募集終了」公式readbackで重複不能を証明する新proof型（Dais判断待ち）。
 - 新しい穴: governor の `storage_growth` は全root `delta_bytes=None` で増加犯を測れていない（#4通知は容量の大きい順へ縮退）。空きは worktree 退役後 15.2GiB で下限付近、swap 4GiB。
 
+**土台の訂正（2026-10-16 10:00 JST）:** 10/15 に「土台は直った」と報告したが誤りだった。直したのは「空き0で Mac が固まる」ことだけで、普段の空きは11〜12GiB で producer 下限 12GiB に張り付いていた。そのため 10/16 05:30 頃から応募・返信系の revenue lane がほぼ全停止し、Lancers は夜間だけで29回 `disk_floor_low` になった。完了の判定は「lane が実際に走って行動を出しているか」で行う（merge・release だけでは完了としない）。
+- 10/16 の修正（すべて merge・release 済み）
+  - #8175: 依存パッケージの変更で release が作れなかった問題を修正（#8168 以降は release が作れていなかった）。
+  - #8176: revenue lane の下限を 10GiB にした。borrow は 12GiB のまま（Kubernetes の優先度別 eviction と同じ考え方）。release 65f47b27 を revenue 55 label に適用。
+  - #8172: Mercor の gog keyring を修正し、Mercor の fence 3件を自然実行で解除（released）。
+  - #8173: Lancers の探索をカテゴリ優先に変更（キーワード1件 → カテゴリ約20件）。
+- 原因を特定して対処したもの
+  - corespotlightd が 5.8GB のメモリを使い swap を押し上げていた → 再起動。
+  - Sparkle の更新キャッシュ 1.6GB → 削除。
+  - merge 済み worktree 13個 → retire。
+- 残る土台の課題（順）
+  1. ballast は空き25GiB 超でしか作られず、現状では永久に作動しない。
+  2. 古い release に残った label 約26個が release と dependency bundle の約5GB を抱え込んでいる。原因は pending-admission 8個、registry から消えた孤児 label 2個（x-tweeter-pass、job-search-mercor-browser）、fence。
+  3. governor の `storage_growth` が null のままで、増加犯を測れていない。
+- revenue lane が1件の fence だけで止まっている（20個以上）。修正 PR は #8177 PromptBase、#8178 LINE factory、#8179 Writer、#8180 affiliate、#8181 fundraiser、#8182 eBook ja（独立レビュー中）。次のブロッカーは残る。
+  - LINE distribute: IG（stardust_doubutsu）が凍結されていて、WhatsApp 認証が必要。
+  - eBook en-instagram: Postiz 未接続。
+  - fundraiser 87933: 公式 readback が無い。
+  - storefront 系: 調査中。
+
 **夜の追記（2026-10-15 21:00–22:00 JST）:**
 - 空き容量が 10GiB（下限12GiB未満）まで減り、lancers-revenue-application は直近300回中74回が `disk_floor_low` で止まっていた。原因は worktree 126個（約15GiB）。Host Steward の zombie-worktree 判定は `merge-base --is-ancestor` が条件で、squash merge の PR では成り立たない。そのため merge 済みの worktree を一度も回収できていなかった。対処：merge 済み・clean・lock なしの17個と、lease 期限切れの23個を手順どおり外し、空きは16GiBに回復。再発防止は PR #8165（merge 済み。`git merge-tree --write-tree` の結果が main の tree と同一なら回収、衝突時は残す）。
 - Lancers: browser 経由の discovery は正常（データ入力20件、記事作成20件で正規化9件、業務自動化・Pythonは各1件）。21:00 の observed 0 は query の巡回で「件数の少ないキーワード」に当たった1回。現在の待ちは agent 枠3の順番待ち（revenue が優先されている）で、故障ではない。
