@@ -794,3 +794,80 @@ class CallLogBoundTest(unittest.TestCase):
             self.assertIn(("a", "a:49"), recent)
             self.assertIn(("b", "b:1"), recent)
             self.assertEqual(len(list(log.parent.glob("reconcile-calls-*.jsonl.gz"))), 1)
+
+
+class RevenueOutagePriorityTest(unittest.TestCase):
+    """SH2a: owners the health observer marks revenue_outage are reconciled first."""
+
+    def _health(self, tmp: str, blocked: list[str], age_seconds: float = 0) -> Path:
+        import time as _time
+        from datetime import datetime, timezone
+        path = Path(tmp) / "latest.json"
+        generated = datetime.fromtimestamp(_time.time() - age_seconds, timezone.utc).isoformat()
+        path.write_text(json.dumps({"generated_at": generated, "jobs": [
+            {"job_id": job, "facets": {"revenue": {"status": "blocked", "reason": "revenue_outage"}}}
+            for job in blocked
+        ] + [{"job_id": "a", "facets": {"revenue": {"status": "ok", "reason": None}}}]}))
+        return path
+
+    def test_revenue_outage_owner_is_called_first_despite_rotation(self):
+        loops = {name: {"effect_reconcile": {"argv": ["x.py"], "occurrence_flag": "--occurrence"}}
+                 for name in ("a", "b", "c", "zz-rev")}
+        fenced = {name: (f"{name}:1", f"{name}:2") for name in loops}
+        calls = []
+
+        def run_call(argv, timeout):
+            calls.append(argv[-1])
+            return 1, ""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            reconcile(registry=_registry(loops), root=Path("/r"), cap=1,
+                      run_call=run_call, read_fenced=lambda: fenced, log_path=None,
+                      wake_epoch=0, health_latest=self._health(tmp, ["zz-rev"]))
+        self.assertEqual(calls, ["zz-rev:1"])
+
+    def test_revenue_outage_batch_failure_is_logged_every_wake_with_error_class(self):
+        loops = {"rev": {"effect_reconcile": {"argv": ["x.py"], "occurrence_flag": None}}}
+        fenced = {"rev": ("rev:1",)}
+        tail = json.dumps({"error_class": "provider_readback_timeout", "reason": "login wall"})
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp) / "calls.jsonl"
+            for _ in range(2):
+                reconcile(registry=_registry(loops), root=Path("/r"),
+                          run_call=lambda argv, timeout: (2, tail),
+                          read_fenced=lambda: fenced, log_path=log,
+                          health_latest=self._health(tmp, ["rev"]))
+            rows = [json.loads(line) for line in log.read_text().splitlines()]
+        self.assertEqual(len(rows), 2)
+        for row in rows:
+            self.assertEqual(row["error_class"], "provider_readback_timeout")
+            self.assertEqual(row["reason"], "login wall")
+            self.assertEqual(row["exit_code"], 2)
+
+    def test_financial_owner_is_called_before_a_slow_outage_owner(self):
+        loops = {
+            "a-rev": {"effect_reconcile": {"argv": ["slow.py"], "occurrence_flag": "--occurrence",
+                                           "timeout_seconds": 900}},
+            "z-fin": {"domain": "financial", "effect_reconcile": {
+                "argv": ["fin.py"], "occurrence_flag": "--occurrence"}},
+        }
+        fenced = {"a-rev": ("a-rev:1",), "z-fin": ("z-fin:1",)}
+        calls = []
+
+        def run_call(argv, timeout):
+            calls.append(argv[-1])
+            return 1, ""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            reconcile(registry=_registry(loops), root=Path("/r"), cap=1,
+                      run_call=run_call, read_fenced=lambda: fenced, log_path=None,
+                      wake_epoch=0, health_latest=self._health(tmp, ["a-rev"]))
+        self.assertEqual(calls, ["z-fin:1"])
+
+    def test_stale_health_snapshot_gives_no_outage_priority(self):
+        from runtime.loop.fence_reconcile import revenue_outage_owners
+        with tempfile.TemporaryDirectory() as tmp:
+            fresh = revenue_outage_owners(self._health(tmp, ["rev"], age_seconds=60))
+            stale = revenue_outage_owners(self._health(tmp, ["rev"], age_seconds=31 * 60))
+        self.assertEqual(fresh, {"rev"})
+        self.assertEqual(stale, frozenset())

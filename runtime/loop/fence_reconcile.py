@@ -27,6 +27,7 @@ import os
 import re
 import subprocess
 import time
+from datetime import datetime
 import sqlite3
 import sys
 from pathlib import Path
@@ -57,6 +58,45 @@ CALL_LOG_TAIL_BYTES = 4 * 1024 * 1024
 # reads at most the last 4 MiB, so rotation carries that tail forward. Archives hold closure
 # proofs, so they are compressed (~30x) and never pruned.
 CALL_LOG_MAX_BYTES = 32 * 1024 * 1024
+# SH2a: the health observer's latest snapshot names revenue lanes in revenue_outage.
+DEFAULT_HEALTH_LATEST = Path(
+    "~/.local/state/life-manager/health-observer/latest.json"
+).expanduser()
+
+
+HEALTH_MAX_AGE_SECONDS = 30 * 60
+
+
+def revenue_outage_owners(path: Path | None, now: float | None = None) -> frozenset[str]:
+    """Jobs whose ``facets.revenue.status`` is ``blocked`` in the latest health snapshot.
+
+    An unreadable or stale (> 30 min) snapshot yields no extra priority."""
+    if path is None:
+        return frozenset()
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+        generated = datetime.fromisoformat(document["generated_at"].replace("Z", "+00:00"))
+        age = (time.time() if now is None else now) - generated.timestamp()
+        jobs = document.get("jobs") or []
+    except (OSError, ValueError, AttributeError, KeyError, TypeError):
+        return frozenset()
+    if not -60 <= age <= HEALTH_MAX_AGE_SECONDS:  # small clock skew tolerated
+        return frozenset()
+    return frozenset(
+        job["job_id"] for job in jobs
+        if isinstance(job, dict) and isinstance(job.get("job_id"), str)
+        and ((job.get("facets") or {}).get("revenue") or {}).get("status") == "blocked"
+    )
+
+
+def _failure_fields(stdout_tail: str) -> dict:
+    """The last error_class/reason an adapter printed as JSON, so a repeated failure is visible."""
+    fields: dict = {}
+    for record in _json_output_records(stdout_tail):
+        for key in ("error_class", "reason"):
+            if isinstance(record.get(key), str):
+                fields[key] = record[key][:240]
+    return fields
 
 
 def run_call(argv: list[str], timeout: float = CALL_TIMEOUT_SECONDS) -> tuple[int, str]:
@@ -304,6 +344,7 @@ def plan_targets(
 def round_robin(
     targets: Mapping[str, list[str | None]], cap: int, *,
     priority_owners: set[str] | frozenset[str] = frozenset(), start: int = 0,
+    outage_owners: set[str] | frozenset[str] = frozenset(),
 ) -> list[tuple[str, str | None]]:
     """Interleave owners fairly, serving explicit safety priorities first.
 
@@ -311,8 +352,12 @@ def round_robin(
     owners at the back when ``cap`` is smaller than the number of owners (2026-10-09: 41 owners,
     20 calls per wake, Anicca/Honne sat at positions 18+ and 16 of them were never called).
     """
+    # Order: financial (safety) -> revenue_outage (SH2a) -> rotating rest.
     priority = sorted(owner for owner in targets if owner in priority_owners)
-    rest = sorted(owner for owner in targets if owner not in priority_owners)
+    priority += sorted(owner for owner in targets
+                       if owner in outage_owners and owner not in priority_owners)
+    rest = sorted(owner for owner in targets
+                  if owner not in priority_owners and owner not in outage_owners)
     if rest:
         offset = start % len(rest)
         rest = rest[offset:] + rest[:offset]
@@ -461,6 +506,7 @@ def reconcile(
     log_path: Path | None = DEFAULT_LOG,
     wake_epoch: float | None = None,
     sleep: Callable[[float], None] = time.sleep,
+    health_latest: Path | None = None,
 ) -> dict:
     """Run one bounded reconciliation pass and return the summary dict."""
     loops = registry.get("loops", {}) if isinstance(registry, Mapping) else {}
@@ -482,16 +528,18 @@ def reconcile(
     checked = sum(len(occurrences) for occurrences in fenced.values())
     targets, needs_adapter = plan_targets(fenced, loops)
     _rotate_occurrences_from_log(targets, log_path)
-    priority_owners = frozenset(
+    financial = frozenset(
         owner_id for owner_id in targets
         if isinstance(loops.get(owner_id), Mapping)
         and loops[owner_id].get("domain") == "financial"
         and isinstance(loops[owner_id].get("effect_reconcile"), Mapping)
     )
+    outage = revenue_outage_owners(health_latest) & set(targets)
     # The rotation comes from the wall clock (one step of ``cap`` owners per wake): no state file.
     wake = time.time() if wake_epoch is None else wake_epoch
     start = int(wake // WAKE_PERIOD_SECONDS) * cap
-    calls = round_robin(targets, cap, priority_owners=priority_owners, start=start)
+    calls = round_robin(targets, cap, priority_owners=financial, start=start,
+                        outage_owners=outage)
     target_owners = {owner_id for owner_id, _ in calls}
     event_release_shas = {
         owner_id: _runtime_release_shas(owner_id, set(fenced.get(owner_id, ())), loops)
@@ -556,7 +604,10 @@ def reconcile(
                     owner_id, set(before), still_fenced, exit_code,
                 )
                 previous = recent_call_rows.get((owner_id, record["occurrence_id"]))
-                if _batch_summary_changed(previous, record):
+                if owner_id in outage:
+                    record.update(_failure_fields(tail))
+                    records.append(record)
+                elif _batch_summary_changed(previous, record):
                     records.append(record)
         else:
             proof = _closure_proof(
@@ -573,8 +624,10 @@ def reconcile(
                 "owner_id": owner_id, "occurrence_id": occurrence,
                 "exit_code": exit_code, "closed": occ_closed, "stdout_tail": tail,
             }
+            if not occ_closed:
+                record.update(_failure_fields(tail))
             previous = recent_call_rows.get((owner_id, occurrence))
-            if (not lost or occ_closed or previous is None or previous.get("closed")
+            if (not lost or occ_closed or owner_id in outage or previous is None or previous.get("closed")
                     or previous.get("exit_code") != exit_code):
                 records.append(record)
             elif len(targets.get(owner_id, ())) > 1:
@@ -625,7 +678,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     summary = reconcile(
         registry=registry, root=args.root.resolve(), cap=args.max_calls,
-        log_path=args.log.expanduser(),
+        log_path=args.log.expanduser(), health_latest=DEFAULT_HEALTH_LATEST,
     )
     print(json.dumps(summary, ensure_ascii=False, sort_keys=True))
     return 0
