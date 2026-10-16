@@ -1268,11 +1268,15 @@ def _owner_integration_id(owner_id: str, identity_dir: Path) -> str | None:
     return next(iter(found)) if len(found) == 1 else None
 
 
+class PostizPageLimit(ValueError):
+    """A read that filled a page; the caller must split the window, never trust it."""
+
+
 def _postiz_posts_between(integration_id: str, start: str, end: str, api_key: str) -> list[dict[str, Any]]:
     query = urllib.parse.urlencode({"startDate": start, "endDate": end, "limit": str(_POSTS_LIMIT)})
     rows = _rows(_request_json(f"{POSTIZ_V1}/posts?{query}", api_key))
     if len(rows) >= _POSTS_LIMIT:
-        raise ValueError("Postiz readback hit the page limit; the window is not fully read")
+        raise PostizPageLimit("Postiz readback hit the page limit; the window is not fully read")
     return [row for row in rows
             if str((row.get("integration") or {}).get("id", "")) == integration_id]
 
@@ -1482,7 +1486,20 @@ def _identity_for_occurrence(identity_dir: Path, owner_id: str,
 
 CLAIM_RUN_SLACK_SECONDS = 300
 CLAIM_RUN_LOOKAHEAD_SECONDS = 7 * 86400
-_DAY = 86400
+MAX_POSTIZ_READS = 16
+LAUNCH_AGENTS = Path.home() / "Library/LaunchAgents"
+EBOOK_TENANT = "dais-local"
+# ponytail: eBook owners only; widen per owner family in its own change once its route is proven.
+IDENTITYLESS_POSTIZ_OWNERS = {
+    "ebook-en-instagram-daily": ("ebook-en", "instagram"),
+    "ebook-ja-instagram-daily": ("ebook-ja", "instagram"),
+    "ebook-ja-tiktok-daily": ("ebook-ja", "tiktok"),
+}
+_DIRECT_MIGRATION_LINE = re.compile(r"^(?:export\s+)?LM_TIKTOK_DIRECT_MIGRATION=['\"]?1['\"]?\s*$")
+
+
+def _iso_ts(value: Any) -> float:
+    return datetime.fromisoformat(str(value).replace("Z", "+00:00")).timestamp()
 
 
 def _claim_run(events: Path, owner_id: str, occurrence_id: str) -> tuple[str, float, float] | None:
@@ -1497,8 +1514,7 @@ def _claim_run(events: Path, owner_id: str, occurrence_id: str) -> tuple[str, fl
         if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
                 or info.st_mode & 0o077):
             return None
-        lines = events.read_bytes().splitlines()
-        rows = [json.loads(raw) for raw in lines if raw.strip()]
+        rows = [json.loads(raw) for raw in events.read_bytes().splitlines() if raw.strip()]
     except (OSError, ValueError):
         return None
     reports, starts = [], {}
@@ -1513,8 +1529,7 @@ def _claim_run(events: Path, owner_id: str, occurrence_id: str) -> tuple[str, fl
         return None
     run_id = reports[0].get("run_id")
     try:
-        started = datetime.fromisoformat(str(starts.get(run_id))).timestamp()
-        reported = datetime.fromisoformat(str(reports[0].get("timestamp"))).timestamp()
+        started, reported = _iso_ts(starts.get(run_id)), _iso_ts(reports[0].get("timestamp"))
     except ValueError:
         return None
     if not isinstance(run_id, str) or started > reported:
@@ -1522,66 +1537,119 @@ def _claim_run(events: Path, owner_id: str, occurrence_id: str) -> tuple[str, fl
     return run_id, started, reported
 
 
-def build_claim_run_no_dispatch_proof(
-    owner_id: str, occurrence_id: str, *, events: Path, identity_dir: Path, api_key: str,
-    list_posts: Callable[[str, str, str, str], list[dict[str, Any]]] | None = None,
-) -> dict[str, Any] | None:
-    """Prove an identity-less fenced occurrence never posted.
+def _postiz_route_proven(owner_id: str, since: float, data_dir: Path) -> bool:
+    """True only when a run of this owner since ``since`` could have published only via Postiz.
 
-    Bound to the occurrence through the one run that claimed it: the owner's single Postiz
-    integration has zero posts from that run's start until a week past now, read in full.
-    Unlike a +-30 min window around queued_at, this covers every publish lag after the
-    only process that could have acted.  Returns None (keep the fence) otherwise.
+    TikTok leaves Postiz when LM_TIKTOK_DIRECT_MIGRATION=1 (distribute.py), and any ledger
+    row on another route after the claim means a non-Postiz effect the readback cannot see.
     """
+    product, platform = IDENTITYLESS_POSTIZ_OWNERS[owner_id]
+    if os.environ.get("LM_TIKTOK_DIRECT_MIGRATION", "").strip() == "1":
+        return False
+    try:
+        import plistlib
+        with (LAUNCH_AGENTS / f"ai.anicca.life-manager-{owner_id}.plist").open("rb") as handle:
+            agent_env = plistlib.load(handle).get("EnvironmentVariables") or {}
+        marketing = (DEFAULT_MARKETING_ENV.read_text(encoding="utf-8").splitlines()
+                     if DEFAULT_MARKETING_ENV.exists() else [])
+    except (OSError, ValueError, AttributeError):
+        return False
+    if (str(agent_env.get("LM_TIKTOK_DIRECT_MIGRATION", "")).strip() == "1"
+            or any(_DIRECT_MIGRATION_LINE.match(line.strip()) for line in marketing)):
+        return False
+    ledger = (Path(data_dir).expanduser() / "tenants" / EBOOK_TENANT / "marketing"
+              / "video-publication" / product / "distribution.jsonl")
+    if not ledger.exists():
+        return True
+    rows = _safe_jsonl(ledger)
+    if rows is None:
+        return False
+    try:
+        return not any(row.get("platform") == platform and row.get("route") != "postiz"
+                       and _iso_ts(row.get("ts")) >= since for row in rows)
+    except ValueError:
+        return False
+
+
+def _postiz_posts_in(integration_id: str, start: float, end: float, api_key: str,
+                     list_posts: Callable[..., list[dict[str, Any]]], budget: list[int]) -> list[dict[str, Any]]:
+    """Every post in [start, end]: one read, halved only when a page fills, within a read budget."""
+    if budget[0] <= 0:
+        raise ValueError("Postiz read budget exhausted")
+    budget[0] -= 1
+    fmt = "%Y-%m-%dT%H:%M:%SZ"
+    stamp = lambda value: datetime.fromtimestamp(value, timezone.utc).strftime(fmt)
+    try:
+        return list_posts(integration_id, stamp(start), stamp(end), api_key)
+    except PostizPageLimit:
+        middle = float(int((start + end) / 2))
+        if middle <= start:
+            raise
+        return (_postiz_posts_in(integration_id, start, middle, api_key, list_posts, budget)
+                + _postiz_posts_in(integration_id, middle, end, api_key, list_posts, budget))
+
+
+def build_claim_run_no_dispatch_proof(
+    owner_id: str, occurrence_id: str, *, events: Path, identity_dir: Path, data_dir: Path,
+    api_key: str, list_posts: Callable[[str, str, str, str], list[dict[str, Any]]] | None = None,
+) -> dict[str, Any] | None:
+    """Prove an identity-less fenced eBook occurrence never posted.
+
+    Bound to the occurrence through the one run that claimed it: that run could publish only
+    via Postiz, and the owner's single Postiz integration has zero posts (deleted ones count)
+    from that run's start until a week past now.  Unlike a +-30 min window around queued_at,
+    this covers every publish lag after the only process that could have acted.
+    Returns None (keep the fence) otherwise.
+    """
+    if owner_id not in IDENTITYLESS_POSTIZ_OWNERS:
+        return None
     list_posts = list_posts or _postiz_posts_between
     run = _claim_run(events, owner_id, occurrence_id)
     integration_id = _owner_integration_id(owner_id, identity_dir)
     now = time.time()
     if run is None or integration_id is None or now - run[2] < HISTORICAL_MIN_AGE_SECONDS:
         return None
-    fmt = "%Y-%m-%dT%H:%M:%SZ"
-    stamp = lambda value: datetime.fromtimestamp(value, timezone.utc).strftime(fmt)
     start, end = run[1] - CLAIM_RUN_SLACK_SECONDS, now + CLAIM_RUN_LOOKAHEAD_SECONDS
-    cursor = start
+    if not _postiz_route_proven(owner_id, start, data_dir):
+        return None
     try:
-        while cursor < end:
-            # One day per read keeps each page under the truncation guard.
-            if list_posts(integration_id, stamp(cursor), stamp(min(cursor + _DAY, end)), api_key):
-                return None
-            cursor += _DAY
+        posts = _postiz_posts_in(integration_id, start, end, api_key, list_posts, [MAX_POSTIZ_READS])
     except (OSError, ValueError):
         return None
+    if posts:  # any row, including a deleted one, is an effect this proof cannot rule out
+        return None
+    fmt = "%Y-%m-%dT%H:%M:%SZ"
+    window = (f"{datetime.fromtimestamp(start, timezone.utc).strftime(fmt)}.."
+              f"{datetime.fromtimestamp(end, timezone.utc).strftime(fmt)}")
     return {
         "owner_id": owner_id, "occurrence_id": occurrence_id, "verified": True,
         "proof_type": "historical_integration_bound_no_dispatch", "provider": "postiz",
         "historical_integration_id": integration_id, "claim_run_id": run[0],
-        "evidence_ref": (f"postiz://posts?window={stamp(start)}..{stamp(end)}"
-                         f"&integration={integration_id}&count=0&claim_run={run[0]}"),
+        "evidence_ref": (f"postiz://posts?window={window}&integration={integration_id}"
+                         f"&count=0&claim_run={run[0]}"),
     }
 
 
 def _reconcile_identityless_occurrence(
-    owner_id: str, occurrence_id: str, *, state: str, identity_dir: Path,
+    owner_id: str, occurrence_id: str, *, state: str, identity_dir: Path, data_dir: Path,
     admission_db: Path, api_key: str, apply: bool,
 ) -> dict[str, Any]:
-    reason = "identity_missing_and_no_dispatch_unproven"
-    events = identity_dir.expanduser().parent / "events.jsonl"
-    build = lambda: build_claim_run_no_dispatch_proof(
-        owner_id, occurrence_id, events=events, identity_dir=identity_dir, api_key=api_key)
     if not api_key.strip():
         return _inconclusive(owner_id, occurrence_id, "provider_token_unavailable")
-    proof = build()
+    proof = build_claim_run_no_dispatch_proof(
+        owner_id, occurrence_id, events=identity_dir.expanduser().parent / "events.jsonl",
+        identity_dir=identity_dir, data_dir=data_dir, api_key=api_key)
     if proof is None:
-        return _inconclusive(owner_id, occurrence_id, reason)
+        return _inconclusive(owner_id, occurrence_id, "identity_missing_and_no_dispatch_unproven")
     if not apply:
         return {"status": "ready", **proof}
     try:
         if _authoritative_admission_db() != admission_db.expanduser().resolve():
             return _inconclusive(owner_id, occurrence_id, "admission_db_mismatch")
-        # The resolver re-runs the full readback right before it writes.
+        # Reuse the proof just read (as the historical sweep does): a second full readback
+        # inside the resolver would double the Postiz reads for no new evidence.
         changed = _resource_admission.resolve_historical_no_dispatch_occurrence(
-            owner_id, occurrence_id, no_dispatch_proof=lambda: build() or {},
-            expected_state=state)
+            owner_id, occurrence_id, no_dispatch_proof=lambda: proof, expected_state=state)
     except (OSError, RuntimeError, ValueError, sqlite3.Error):
         changed = False
     if not changed:
@@ -1616,8 +1684,10 @@ def reconcile_current_occurrence(
 
     identity = _identity_for_occurrence(identity_dir, owner_id, occurrence_id)
     if identity is None:
+        if owner_id not in IDENTITYLESS_POSTIZ_OWNERS:
+            return _inconclusive(owner_id, occurrence_id, "identity_missing_or_invalid")
         return _reconcile_identityless_occurrence(
-            owner_id, occurrence_id, state=state, identity_dir=identity_dir,
+            owner_id, occurrence_id, state=state, identity_dir=identity_dir, data_dir=data_dir,
             admission_db=admission_db, api_key=api_key, apply=apply)
     ledger = _ledger_for_identity(identity, data_dir, tenant_id)
     if ledger is None:
