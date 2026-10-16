@@ -732,7 +732,8 @@ def _resume(m, tmp_path, *, fetch_json=None, ledger=None, now=RESUME_NOW, resolv
     result = m.reconcile(RESUME_OCC, queued_at=RESUME_QUEUED, state="claimed",
                          articles_path=ledger or _resume_ledger(tmp_path),
                          fetch_json=fetch_json or _readbacks(), resolver=resolver,
-                         resolve=resolve, now=now, writer_root=tmp_path / "writer")
+                         resolve=resolve, now=now, writer_root=tmp_path / "writer",
+                         runs_root=tmp_path / "no-runs")
     return result, calls
 
 
@@ -1011,3 +1012,87 @@ def test_unpublished_row_with_an_external_identifier_never_takes_the_absence_pat
         root, arts = _carry_fixture(sub, ledger=row)
         result, calls, closed = _carry_reconcile(m, root, arts, {"destinations": ABSENT})
         assert not calls and not closed, extra
+
+
+# article-resume execs article-daily.sh on a missed schedule (article-resume-pending.sh), so its fence
+# pairs with the one Writer run that started right after it. A later unrelated publication by another
+# run (the old ledger-wide proof) must not keep this fence forever (2026-10-12 fence, held 5 days).
+BOUND_RUN = "20261011-210544"
+BOUND_OCC = "article-resume:18dd959f92920ff0-56630"
+BOUND_QUEUED = datetime(2026, 10, 11, 21, 5, 39, tzinfo=timezone.utc).timestamp()
+
+
+def _bound_fixture(tmp_path, *, publication_state=False, run_row=False, second_run=False):
+    root = tmp_path / "writer"
+    run = root / "runs" / BOUND_RUN
+    (run / "gates").mkdir(parents=True)
+    (run / "article-ja.md").write_text("# 記事\n")
+    (run / "article-en.md").write_text("# Article\n")
+    (run / "gates" / "generation-state.json").write_text(json.dumps(
+        {"status": "provider-failed-ambiguous", "attempts": [{"started_at": "2026-10-11T21:05:50Z"}]}))
+    if publication_state:
+        (run / "gates" / "publication-state.json").write_text("{}")
+    if second_run:
+        (root / "runs" / "20261011-211000").mkdir(parents=True)
+    rows = [_row("20261016-152709", "2026-10-16T15:40:00Z", "https://x.substack.com/p/later", "substack")]
+    if run_row:
+        rows.append({"ts": "2026-10-11T21:30:00Z", "run_id": BOUND_RUN, "platform": "note", "published": False})
+    return root, _articles(tmp_path, rows)
+
+
+def _bound(m, root, arts, readback, *, now=BOUND_QUEUED + 5 * 86400, resolve=True):
+    calls, closed = [], []
+
+    def fake_readback(run_dir, since, until):
+        calls.append((run_dir.name, since, until))
+        return readback
+
+    result = m.reconcile(BOUND_OCC, queued_at=BOUND_QUEUED, state="claimed", articles_path=arts,
+                         runs_root=root / "runs", writer_root=root, now=now,
+                         fetch_json=lambda url: None, absence_readback=fake_readback,
+                         resolver=lambda o, occ, **k: closed.append((o, k["no_dispatch_proof"]())) or True,
+                         resolve=resolve)
+    return result, calls, closed
+
+
+def test_resume_fence_closes_on_its_own_run_reading_absent_everywhere(tmp_path):
+    m = _load()
+    root, arts = _bound_fixture(tmp_path)
+    now = BOUND_QUEUED + 5 * 86400
+    result, calls, closed = _bound(m, root, arts, {"destinations": ABSENT}, now=now)
+    assert calls == [(BOUND_RUN, BOUND_QUEUED, now)]
+    assert result["status"] == "no_dispatch_proven" and result["closed"] is True
+    assert result["owner_id"] == "article-resume" and result["writer_run_id"] == BOUND_RUN
+    owner, proof = closed[0]
+    assert owner == "article-resume"
+    assert proof["proof_type"] == "historical_writer_resume_no_dispatch" and proof["provider"] == "writer"
+    assert proof["runtime_run_id"] == "18dd959f92920ff0-56630" and proof["writer_run_id"] == BOUND_RUN
+    assert proof["destinations"] == ABSENT
+    assert (root / "fence-reconciliation" / "article-resume-18dd959f92920ff0-56630.json").exists()
+
+
+def test_resume_bound_run_stays_held_without_full_absence_or_with_any_effect_trace(tmp_path):
+    m = _load()
+    root, arts = _bound_fixture(tmp_path / "a")
+    partial = dict(ABSENT, **{"x-article/ja": {"status": "unreadable"}})
+    result, _, closed = _bound(m, root, arts, {"destinations": partial})
+    assert result["closed"] is False and closed == []
+    assert result["reason"] == "destination_not_proven_absent:x-article/ja"
+    for case in ({"publication_state": True}, {"run_row": True}):
+        root, arts = _bound_fixture(tmp_path / str(len(case)) / next(iter(case)), **case)
+        result, calls, closed = _bound(m, root, arts, {"destinations": ABSENT})
+        assert result["closed"] is False and closed == [] and calls == []
+
+
+def test_resume_bound_path_needs_the_publish_lag_to_have_passed(tmp_path):
+    m = _load()
+    root, arts = _bound_fixture(tmp_path)
+    result, calls, closed = _bound(m, root, arts, {"destinations": ABSENT}, now=BOUND_QUEUED + 20 * 3600)
+    assert result["reason"] == "fence_too_young" and calls == [] and closed == []
+
+
+def test_resume_bound_path_does_not_guess_between_two_paired_runs(tmp_path):
+    m = _load()
+    root, arts = _bound_fixture(tmp_path, second_run=True)
+    result, calls, closed = _bound(m, root, arts, {"destinations": ABSENT})
+    assert calls == [] and closed == [] and result["closed"] is False

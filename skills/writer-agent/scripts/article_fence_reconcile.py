@@ -37,6 +37,7 @@ RESUME_OWNER_ID = "article-resume"
 PAIR_WINDOW_SECONDS = 1800        # a Writer run starts within 30 min after the admission claim
 MIN_AGE_SECONDS = 3600            # never touch a fence whose run may still be going
 RESUME_MIN_AGE_SECONDS = 7 * 86400   # measured publish lag 25 min-30 h, with margin
+RESUME_BOUND_MIN_AGE_SECONDS = 30 * 3600   # run-bound proof: past the measured 30 h publish lag
 RESUME_READBACKS = {             # official public readbacks of every active Writer destination
     "note:anicca123": "https://note.com/api/v2/creators/anicca123/contents?kind=note&page=1",
     "substack:aniccabuddha": "https://aniccabuddha.substack.com/api/v1/posts?limit=3",
@@ -417,10 +418,72 @@ def _ledger_row_epoch(row: dict) -> float | None:
     return _run_start_epoch(str(row.get("run_id", "")))
 
 
+def _resume_bound_run(occurrence_id: str, *, queued_at: float, state: str, articles_path: Path,
+                      runs_root: Path, absence_readback: Callable[..., dict | None],
+                      resolver: Callable[..., bool] | None, resolve: bool, now: float,
+                      writer_root: Path) -> dict | None:
+    """article-resume execs article-daily.sh, so its fence pairs with exactly one Writer run.
+
+    Close only when that run left no ledger row, no dispatch file, and every active destination's
+    authenticated owner listing reads its article absent from the fence until now.  Returns None
+    when no single run pairs with the fence (the ledger-wide proof below then applies).
+    """
+    try:
+        paired = [d for d in runs_root.iterdir()
+                  if d.is_dir() and any(0 <= s - queued_at <= PAIR_WINDOW_SECONDS for s in _run_starts(d))]
+        rows = [json.loads(line) for line in articles_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    except (OSError, ValueError):
+        return None
+    if len(paired) != 1:
+        return None
+    run_dir = paired[0]
+    if (any(str(row.get("run_id", "")) == run_dir.name for row in rows if isinstance(row, dict))
+            or any(os.path.lexists(run_dir / name) for name in DISPATCH_FILES)):
+        return _inconclusive(occurrence_id, "paired_run_reached_publication")
+    readback = absence_readback(run_dir, queued_at, now)
+    destinations = (readback or {}).get("destinations") or {}
+    not_absent = [pair for pair in ABSENCE_DESTINATIONS
+                  if (destinations.get(pair) or {}).get("status") != "absent"]
+    if not_absent:
+        return _inconclusive(occurrence_id, "destination_not_proven_absent:" + ",".join(not_absent))
+    runtime_run_id = occurrence_id.split(":", 1)[1]
+    proof = {
+        "owner_id": RESUME_OWNER_ID, "occurrence_id": occurrence_id, "verified": True,
+        "proof_type": "historical_writer_resume_no_dispatch", "provider": "writer",
+        "runtime_run_id": runtime_run_id, "writer_run_id": run_dir.name,
+        "window": {"since": _iso(queued_at), "until": _iso(now)},
+        "article_sha256": {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+                           for p in sorted(run_dir.glob("article-*.md")) if p.is_file()},
+        "destinations": {pair: destinations[pair] for pair in ABSENCE_DESTINATIONS},
+        "evidence_ref": f"writer://fence-reconciliation/article-resume-{runtime_run_id}.json",
+    }
+    result = {"status": "no_dispatch_proven", "occurrence_id": occurrence_id, "closed": False,
+              "writer_run_id": run_dir.name, "proof_ref": proof["evidence_ref"]}
+    if not resolve:
+        return result
+    if not _persist_historical_gate_stop_proof(writer_root, proof):
+        return _inconclusive(occurrence_id, "historical_proof_receipt_conflict")
+    if resolver is None:
+        from runtime.host.resource_admission import resolve_historical_no_dispatch_occurrence
+        resolver = resolve_historical_no_dispatch_occurrence
+    result["closed"] = bool(resolver(RESUME_OWNER_ID, occurrence_id,
+                                     no_dispatch_proof=lambda: proof, expected_state=state))
+    return result
+
+
 def _reconcile_resume(occurrence_id: str, *, queued_at: float, state: str, articles_path: Path,
                       fetch_json: Callable[[str], object], resolver: Callable[..., bool] | None,
-                      resolve: bool, now: float, writer_root: Path) -> dict:
+                      resolve: bool, now: float, writer_root: Path, runs_root: Path = RUNS_ROOT,
+                      absence_readback: Callable[..., dict | None] = None) -> dict:
     """Prove no article-resume publication happened after the fence from official readbacks only."""
+    if now - queued_at < RESUME_BOUND_MIN_AGE_SECONDS:
+        return _inconclusive(occurrence_id, "fence_too_young")
+    bound = _resume_bound_run(occurrence_id, queued_at=queued_at, state=state,
+                              articles_path=articles_path, runs_root=runs_root,
+                              absence_readback=absence_readback or _official_absence_readback,
+                              resolver=resolver, resolve=resolve, now=now, writer_root=writer_root)
+    if bound is not None:
+        return bound
     if now - queued_at < RESUME_MIN_AGE_SECONDS:
         return _inconclusive(occurrence_id, "fence_too_young")
     lines = _jsonl_lines(articles_path)
@@ -679,7 +742,8 @@ def reconcile(occurrence_id: str, *, queued_at: float, state: str, articles_path
     if occurrence_id.startswith(f"{RESUME_OWNER_ID}:"):
         result = _reconcile_resume(occurrence_id, queued_at=queued_at, state=state,
                                    articles_path=articles_path, fetch_json=fetch_json,
-                                   resolver=resolver, resolve=resolve, now=now, writer_root=writer_root)
+                                   resolver=resolver, resolve=resolve, now=now, writer_root=writer_root,
+                                   runs_root=runs_root, absence_readback=absence_readback)
         return _central_closure_result(RESUME_OWNER_ID, result)
     if not occurrence_id.startswith(f"{OWNER_ID}:"):
         return _inconclusive(occurrence_id, "owner_not_allowlisted")
