@@ -1480,6 +1480,115 @@ def _identity_for_occurrence(identity_dir: Path, owner_id: str,
     return match
 
 
+CLAIM_RUN_SLACK_SECONDS = 300
+CLAIM_RUN_LOOKAHEAD_SECONDS = 7 * 86400
+_DAY = 86400
+
+
+def _claim_run(events: Path, owner_id: str, occurrence_id: str) -> tuple[str, float, float] | None:
+    """(run_id, started, reported) of the one run whose terminal event holds this claim.
+
+    A later run's report names the earlier occurrence it claimed, so the run that could have
+    acted for the occurrence is found by its report, and its start by that run's execute
+    event.  Two claims, a missing start, or any unreadable line keep the fence.
+    """
+    try:
+        info = events.lstat()
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                or info.st_mode & 0o077):
+            return None
+        lines = events.read_bytes().splitlines()
+        rows = [json.loads(raw) for raw in lines if raw.strip()]
+    except (OSError, ValueError):
+        return None
+    reports, starts = [], {}
+    for row in rows:
+        if not isinstance(row, dict) or row.get("owner_id") != owner_id:
+            continue
+        if row.get("phase") == "report" and row.get("occurrence_id") == occurrence_id:
+            reports.append(row)
+        elif row.get("phase") == "execute":
+            starts[row.get("run_id")] = row.get("timestamp")
+    if len(reports) != 1:
+        return None
+    run_id = reports[0].get("run_id")
+    try:
+        started = datetime.fromisoformat(str(starts.get(run_id))).timestamp()
+        reported = datetime.fromisoformat(str(reports[0].get("timestamp"))).timestamp()
+    except ValueError:
+        return None
+    if not isinstance(run_id, str) or started > reported:
+        return None
+    return run_id, started, reported
+
+
+def build_claim_run_no_dispatch_proof(
+    owner_id: str, occurrence_id: str, *, events: Path, identity_dir: Path, api_key: str,
+    list_posts: Callable[[str, str, str, str], list[dict[str, Any]]] | None = None,
+) -> dict[str, Any] | None:
+    """Prove an identity-less fenced occurrence never posted.
+
+    Bound to the occurrence through the one run that claimed it: the owner's single Postiz
+    integration has zero posts from that run's start until a week past now, read in full.
+    Unlike a +-30 min window around queued_at, this covers every publish lag after the
+    only process that could have acted.  Returns None (keep the fence) otherwise.
+    """
+    list_posts = list_posts or _postiz_posts_between
+    run = _claim_run(events, owner_id, occurrence_id)
+    integration_id = _owner_integration_id(owner_id, identity_dir)
+    now = time.time()
+    if run is None or integration_id is None or now - run[2] < HISTORICAL_MIN_AGE_SECONDS:
+        return None
+    fmt = "%Y-%m-%dT%H:%M:%SZ"
+    stamp = lambda value: datetime.fromtimestamp(value, timezone.utc).strftime(fmt)
+    start, end = run[1] - CLAIM_RUN_SLACK_SECONDS, now + CLAIM_RUN_LOOKAHEAD_SECONDS
+    cursor = start
+    try:
+        while cursor < end:
+            # One day per read keeps each page under the truncation guard.
+            if list_posts(integration_id, stamp(cursor), stamp(min(cursor + _DAY, end)), api_key):
+                return None
+            cursor += _DAY
+    except (OSError, ValueError):
+        return None
+    return {
+        "owner_id": owner_id, "occurrence_id": occurrence_id, "verified": True,
+        "proof_type": "historical_integration_bound_no_dispatch", "provider": "postiz",
+        "historical_integration_id": integration_id, "claim_run_id": run[0],
+        "evidence_ref": (f"postiz://posts?window={stamp(start)}..{stamp(end)}"
+                         f"&integration={integration_id}&count=0&claim_run={run[0]}"),
+    }
+
+
+def _reconcile_identityless_occurrence(
+    owner_id: str, occurrence_id: str, *, state: str, identity_dir: Path,
+    admission_db: Path, api_key: str, apply: bool,
+) -> dict[str, Any]:
+    reason = "identity_missing_and_no_dispatch_unproven"
+    events = identity_dir.expanduser().parent / "events.jsonl"
+    build = lambda: build_claim_run_no_dispatch_proof(
+        owner_id, occurrence_id, events=events, identity_dir=identity_dir, api_key=api_key)
+    if not api_key.strip():
+        return _inconclusive(owner_id, occurrence_id, "provider_token_unavailable")
+    proof = build()
+    if proof is None:
+        return _inconclusive(owner_id, occurrence_id, reason)
+    if not apply:
+        return {"status": "ready", **proof}
+    try:
+        if _authoritative_admission_db() != admission_db.expanduser().resolve():
+            return _inconclusive(owner_id, occurrence_id, "admission_db_mismatch")
+        # The resolver re-runs the full readback right before it writes.
+        changed = _resource_admission.resolve_historical_no_dispatch_occurrence(
+            owner_id, occurrence_id, no_dispatch_proof=lambda: build() or {},
+            expected_state=state)
+    except (OSError, RuntimeError, ValueError, sqlite3.Error):
+        changed = False
+    if not changed:
+        return {**_inconclusive(owner_id, occurrence_id, "resolve_rejected"), "resolution_attempted": True}
+    return {"status": "resolved", **proof}
+
+
 def reconcile_current_occurrence(
     *, owner_id: str, occurrence_id: str, identity_dir: Path, data_dir: Path,
     tenant_id: str, admission_db: Path, api_key: str, apply: bool,
@@ -1507,7 +1616,9 @@ def reconcile_current_occurrence(
 
     identity = _identity_for_occurrence(identity_dir, owner_id, occurrence_id)
     if identity is None:
-        return _inconclusive(owner_id, occurrence_id, "identity_missing_or_invalid")
+        return _reconcile_identityless_occurrence(
+            owner_id, occurrence_id, state=state, identity_dir=identity_dir,
+            admission_db=admission_db, api_key=api_key, apply=apply)
     ledger = _ledger_for_identity(identity, data_dir, tenant_id)
     if ledger is None:
         return _inconclusive(owner_id, occurrence_id, "distribution_ledger_path_invalid")

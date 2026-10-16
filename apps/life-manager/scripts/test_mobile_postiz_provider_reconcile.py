@@ -187,7 +187,7 @@ def test_runtime_auto_owner_does_not_substitute_an_older_identity_for_current_un
     assert result_code == 1, result
     assert result["status"] == "inconclusive"
     assert result["occurrence_id"] == current_occurrence
-    assert result["reason"] == "identity_missing_or_invalid"
+    assert result["reason"] in {"identity_missing_and_no_dispatch_unproven", "provider_token_unavailable"}
     assert old_sidecar.read_text(encoding="utf-8") == json.dumps({"occurrence_id": old_occurrence}) + "\n"
 
 
@@ -2108,3 +2108,67 @@ def test_native_carousel_late_publish_matches_only_the_same_jst_day():
     assert not reconcile._native_carousel_publish_time_matches_slot(
         slot, reconcile.datetime.fromisoformat("2026-10-07T08:44:00.000Z"),
     )
+
+
+def _claim_run_events(tmp_path, owner, occurrence, *, run="18dd-run", start="2026-10-09T03:55:50+00:00",
+                      reports=1):
+    events = tmp_path / "events.jsonl"
+    rows = [{"owner_id": owner, "phase": "execute", "run_id": run,
+             "occurrence_id": f"{owner}:{run}", "timestamp": start}]
+    rows += [{"owner_id": owner, "phase": "report", "run_id": run, "occurrence_id": occurrence,
+              "exit_code": 1, "effect_status": "unknown", "timestamp": start}] * reports
+    events.write_text("".join(json.dumps(row) + "\n" for row in rows))
+    events.chmod(0o600)
+    return events
+
+
+def test_identityless_fence_closes_only_on_zero_posts_since_its_claim_run_started(tmp_path, monkeypatch):
+    owner = "ebook-ja-instagram-daily"
+    occurrence = f"{owner}:18dc64be2b4087e0-5330"
+    idir = _hist_identity_dir(tmp_path, owner, ["integration://postiz/instagram/cmig"])
+    _claim_run_events(tmp_path, owner, occurrence)
+    now = 1_791_600_000.0  # days after the claim run
+    calls = []
+    monkeypatch.setattr(reconcile, "_postiz_posts_between",
+                        lambda *a: calls.append(a) or [])
+    monkeypatch.setattr(reconcile, "_admission_state", lambda *_a: ("claimed", 1))
+    monkeypatch.setattr(reconcile.time, "time", lambda: now)
+    kw = dict(owner_id=owner, occurrence_id=occurrence, identity_dir=idir, data_dir=tmp_path,
+              tenant_id="dais-local", admission_db=tmp_path / "a.sqlite3", api_key="k")
+
+    result = reconcile.reconcile_current_occurrence(apply=False, **kw)
+    assert result["status"] == "ready"
+    assert result["proof_type"] == "historical_integration_bound_no_dispatch"
+    assert result["historical_integration_id"] == "cmig" and result["claim_run_id"] == "18dd-run"
+    # The read starts at the claim run (minus slack), runs past now, in sub-100-row daily chunks.
+    assert calls[0][1] == "2026-10-09T03:50:50Z" and all(c[0] == "cmig" for c in calls)
+    assert calls[-1][2] > "2026-10-16"
+
+    seen = {}
+    monkeypatch.setattr(reconcile, "_authoritative_admission_db", lambda: (tmp_path / "a.sqlite3").resolve())
+    monkeypatch.setattr(reconcile._resource_admission, "resolve_historical_no_dispatch_occurrence",
+                        lambda o, occ, *, no_dispatch_proof, expected_state:
+                        seen.update(proof=no_dispatch_proof(), state=expected_state) or True)
+    result = reconcile.reconcile_current_occurrence(apply=True, **kw)
+    assert result["status"] == "resolved" and seen["state"] == "claimed"
+    assert seen["proof"]["occurrence_id"] == occurrence and seen["proof"]["verified"] is True
+
+
+@pytest.mark.parametrize("case", ["post_after_claim", "two_claims", "too_recent", "no_integration", "no_run"])
+def test_identityless_fence_stays_fenced_without_an_occurrence_bound_zero_post_proof(tmp_path, monkeypatch, case):
+    owner = "ebook-en-instagram-daily"
+    occurrence = f"{owner}:18dcc929a20914a8-33411"
+    refs = [] if case == "no_integration" else ["integration://postiz/instagram/cmig"]
+    idir = _hist_identity_dir(tmp_path, owner, refs)
+    if case != "no_run":
+        _claim_run_events(tmp_path, owner, occurrence, reports=2 if case == "two_claims" else 1)
+    now = 1_791_530_000.0 if case == "too_recent" else 1_791_600_000.0
+    monkeypatch.setattr(reconcile, "_postiz_posts_between",
+                        lambda *a: [{"id": "p"}] if case == "post_after_claim" else [])
+    monkeypatch.setattr(reconcile, "_admission_state", lambda *_a: ("claimed", 1))
+    monkeypatch.setattr(reconcile.time, "time", lambda: now)
+    result = reconcile.reconcile_current_occurrence(
+        owner_id=owner, occurrence_id=occurrence, identity_dir=idir, data_dir=tmp_path,
+        tenant_id="dais-local", admission_db=tmp_path / "a.sqlite3", api_key="k", apply=True)
+    assert result["status"] == "inconclusive"
+    assert result["reason"] == "identity_missing_and_no_dispatch_unproven"
