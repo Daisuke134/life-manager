@@ -142,3 +142,21 @@ def test_buyer_visible_hook_lab_keeps_half_the_slots_while_next_version_is_draft
     assert picks.count("hook-lab") == 24
     assert picks.count("slide-maker") == 24
     assert "tiktok-script-pro" not in picks
+
+
+def test_buyer_visible_hook_lab_keeps_half_even_when_its_30d_profit_is_negative() -> None:
+    # 2026-10-16: Hook Lab (30d profit -2.43 after its price restore) fell out of the
+    # earner set, so it got 0 of 48 slots while two other sellers alternated. AGENTS.md
+    # rule 10: the top seller takes half of all distribution slots.
+    module = load_module()
+    analytics = analytics_with({
+        "111": {"profit_30d_actual_usd": "-2.43", "status": "online", "has_online_version": True},
+        "222": {"profit_30d_actual_usd": "20.00", "status": "online", "has_online_version": True},
+        "333": {"profit_30d_actual_usd": "12.00", "status": "online", "has_online_version": True},
+    })
+
+    picks = [module.select_for_date(PRODUCTS, analytics, dt.date(2026, 10, 16), slot=s)["capafy_skill"]
+             for s in range(48)]
+
+    assert picks.count("hook-lab") == 24
+    assert set(picks) == {"hook-lab", "slide-maker", "tiktok-script-pro"}
