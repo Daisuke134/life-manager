@@ -1489,11 +1489,15 @@ CLAIM_RUN_LOOKAHEAD_SECONDS = 7 * 86400
 MAX_POSTIZ_READS = 16
 LAUNCH_AGENTS = Path.home() / "Library/LaunchAgents"
 EBOOK_TENANT = "dais-local"
-# ponytail: only owners whose every publish route is Postiz.  Instagram falls back to
-# instagram_file_script when its integration is empty (distribute.py), which a Postiz read
-# cannot see, so the eBook Instagram owners stay out until that route has its own readback.
+# ponytail: only owners whose every publish route is Postiz.  distribute.py falls back to
+# instagram_file_script only when the Instagram integration is empty, but the eBook job always
+# pins its pack's Postiz integration ref and the publication adapter rejects a job without one,
+# so eBook Instagram publishes only via Postiz.  A ledger row on any other route after the
+# claim still keeps the fence (_postiz_route_proven).
 IDENTITYLESS_POSTIZ_OWNERS = {
     "ebook-ja-tiktok-daily": ("ebook-ja", "tiktok"),
+    "ebook-ja-instagram-daily": ("ebook-ja", "instagram"),
+    "ebook-en-instagram-daily": ("ebook-en", "instagram"),
 }
 _DIRECT_MIGRATION_LINE = re.compile(r"^(?:export\s+)?LM_TIKTOK_DIRECT_MIGRATION=['\"]?1['\"]?\s*$")
 
