@@ -2108,3 +2108,154 @@ def test_native_carousel_late_publish_matches_only_the_same_jst_day():
     assert not reconcile._native_carousel_publish_time_matches_slot(
         slot, reconcile.datetime.fromisoformat("2026-10-07T08:44:00.000Z"),
     )
+
+
+
+def _claim_run_events(tmp_path, owner, occurrence, *, run="18dd-run", start="2026-10-09T03:55:50+00:00",
+                      reports=1):
+    events = tmp_path / "events.jsonl"
+    rows = [{"owner_id": owner, "phase": "execute", "run_id": run,
+             "occurrence_id": f"{owner}:{run}", "timestamp": start}]
+    rows += [{"owner_id": owner, "phase": "report", "run_id": run, "occurrence_id": occurrence,
+              "exit_code": 1, "effect_status": "unknown", "timestamp": start}] * reports
+    events.write_text("".join(json.dumps(row) + "\n" for row in rows))
+    events.chmod(0o600)
+    return events
+
+
+def _postiz_route_env(tmp_path, monkeypatch, owner, *, plist_env=None, ledger_rows=None, product="ebook-ja"):
+    """Owner LaunchAgent, marketing.env and distribution ledger the route check reads."""
+    import plistlib
+    agents = tmp_path / "LaunchAgents"
+    agents.mkdir(exist_ok=True)
+    (agents / f"ai.anicca.life-manager-{owner}.plist").write_bytes(
+        plistlib.dumps({"EnvironmentVariables": plist_env or {}}))
+    marketing_env = tmp_path / "marketing.env"
+    marketing_env.write_text("LM_POSTIZ_API_KEY=k\n")
+    marketing_env.chmod(0o600)
+    monkeypatch.setattr(reconcile, "LAUNCH_AGENTS", agents)
+    monkeypatch.setattr(reconcile, "DEFAULT_MARKETING_ENV", marketing_env)
+    monkeypatch.delenv("LM_TIKTOK_DIRECT_MIGRATION", raising=False)
+    if ledger_rows is not None:
+        ledger = (tmp_path / "tenants/dais-local/marketing/video-publication" / product
+                  / "distribution.jsonl")
+        ledger.parent.mkdir(parents=True)
+        ledger.write_text("".join(json.dumps(row) + "\n" for row in ledger_rows))
+        ledger.chmod(0o600)
+
+
+def _identityless_kw(tmp_path, owner, occurrence, idir):
+    return dict(owner_id=owner, occurrence_id=occurrence, identity_dir=idir, data_dir=tmp_path,
+                tenant_id="dais-local", admission_db=tmp_path / "a.sqlite3", api_key="k")
+
+
+def test_identityless_fence_closes_only_on_zero_posts_since_its_claim_run_started(tmp_path, monkeypatch):
+    owner = "ebook-ja-tiktok-daily"
+    occurrence = f"{owner}:18dc5e822e430b80-45345"
+    idir = _hist_identity_dir(tmp_path, owner, ["integration://postiz/tiktok/cmig"])
+    _claim_run_events(tmp_path, owner, occurrence)
+    _postiz_route_env(tmp_path, monkeypatch, owner, ledger_rows=[
+        {"platform": "tiktok", "route": "tiktok_direct", "ts": "2026-10-07T07:03:41Z"},
+        {"platform": "instagram", "route": "instagram_file_script", "ts": "2026-10-09T07:03:41Z"}])
+    now = 1_791_600_000.0  # days after the claim run
+    calls = []
+
+    def posts(integration_id, start, end, api_key):
+        calls.append((integration_id, start, end))
+        if len(calls) == 1:  # the whole range overflows one page once: bisect, never day-by-day
+            raise reconcile.PostizPageLimit("page limit")
+        return []
+    monkeypatch.setattr(reconcile, "_postiz_posts_between", posts)
+    monkeypatch.setattr(reconcile, "_admission_state", lambda *_a: ("claimed", 1))
+    monkeypatch.setattr(reconcile.time, "time", lambda: now)
+    kw = _identityless_kw(tmp_path, owner, occurrence, idir)
+
+    result = reconcile.reconcile_current_occurrence(apply=False, **kw)
+    assert result["status"] == "ready"
+    assert result["proof_type"] == "historical_integration_bound_no_dispatch"
+    assert result["historical_integration_id"] == "cmig" and result["claim_run_id"] == "18dd-run"
+    assert len(calls) == 3 and all(c[0] == "cmig" for c in calls)
+    assert calls[0][1] == "2026-10-09T03:50:50Z" and calls[0][2] > "2026-10-16"
+    assert calls[1][1] == calls[0][1] and calls[2][2] == calls[0][2] and calls[1][2] == calls[2][1]
+
+    calls.clear()
+    seen = {}
+    monkeypatch.setattr(reconcile, "_authoritative_admission_db", lambda: (tmp_path / "a.sqlite3").resolve())
+    monkeypatch.setattr(reconcile._resource_admission, "resolve_historical_no_dispatch_occurrence",
+                        lambda o, occ, *, no_dispatch_proof, expected_state:
+                        seen.update(proof=no_dispatch_proof(), state=expected_state) or True)
+    result = reconcile.reconcile_current_occurrence(apply=True, **kw)
+    assert result["status"] == "resolved" and seen["state"] == "claimed"
+    assert seen["proof"]["occurrence_id"] == occurrence and seen["proof"]["verified"] is True
+    assert len(calls) == 3  # the resolver reuses the proof; no second readback
+
+
+def test_identityless_postiz_read_is_capped(tmp_path, monkeypatch):
+    owner = "ebook-ja-tiktok-daily"
+    occurrence = f"{owner}:18dc5e822e430b80-45345"
+    idir = _hist_identity_dir(tmp_path, owner, ["integration://postiz/tiktok/cmtt"])
+    _claim_run_events(tmp_path, owner, occurrence)
+    _postiz_route_env(tmp_path, monkeypatch, owner)
+    calls = []
+
+    def always_full(*a):
+        calls.append(a)
+        raise reconcile.PostizPageLimit("page limit")
+    monkeypatch.setattr(reconcile, "_postiz_posts_between", always_full)
+    monkeypatch.setattr(reconcile, "_admission_state", lambda *_a: ("claimed", 1))
+    monkeypatch.setattr(reconcile.time, "time", lambda: 1_791_600_000.0)
+    result = reconcile.reconcile_current_occurrence(apply=False, **_identityless_kw(tmp_path, owner, occurrence, idir))
+    assert result["reason"] == "identity_missing_and_no_dispatch_unproven"
+    assert len(calls) == reconcile.MAX_POSTIZ_READS
+
+
+@pytest.mark.parametrize("case", [
+    "post_after_claim", "deleted_post_listed_after_claim", "two_claims", "too_recent", "no_integration",
+    "no_run", "direct_migration_plist", "direct_migration_env", "direct_migration_marketing_env",
+    "non_postiz_route_after_claim", "no_launch_agent",
+])
+def test_identityless_fence_stays_fenced_without_an_occurrence_bound_zero_post_proof(tmp_path, monkeypatch, case):
+    owner = "ebook-ja-tiktok-daily"
+    occurrence = f"{owner}:18dc5e822e430b80-45345"
+    refs = [] if case == "no_integration" else ["integration://postiz/tiktok/cmtt"]
+    idir = _hist_identity_dir(tmp_path, owner, refs)
+    if case != "no_run":
+        _claim_run_events(tmp_path, owner, occurrence, reports=2 if case == "two_claims" else 1)
+    _postiz_route_env(
+        tmp_path, monkeypatch, owner,
+        plist_env={"LM_TIKTOK_DIRECT_MIGRATION": "1"} if case == "direct_migration_plist" else None,
+        ledger_rows=[{"platform": "tiktok", "route": "tiktok_direct", "ts": "2026-10-09T04:00:00Z"}]
+        if case == "non_postiz_route_after_claim" else None)
+    if case == "direct_migration_env":
+        monkeypatch.setenv("LM_TIKTOK_DIRECT_MIGRATION", "1")
+    if case == "direct_migration_marketing_env":
+        reconcile.DEFAULT_MARKETING_ENV.write_text("LM_POSTIZ_API_KEY=k\nexport LM_TIKTOK_DIRECT_MIGRATION=1\n")
+    if case == "no_launch_agent":
+        for plist in reconcile.LAUNCH_AGENTS.iterdir():
+            plist.unlink()
+    now = 1_791_530_000.0 if case == "too_recent" else 1_791_600_000.0
+    rows = {"post_after_claim": [{"id": "p"}],
+            "deleted_post_listed_after_claim": [{"id": "p", "deletedAt": "2026-10-09T05:00:00Z"}]}.get(case, [])
+    monkeypatch.setattr(reconcile, "_postiz_posts_between", lambda *a: rows)
+    monkeypatch.setattr(reconcile, "_admission_state", lambda *_a: ("claimed", 1))
+    monkeypatch.setattr(reconcile.time, "time", lambda: now)
+    result = reconcile.reconcile_current_occurrence(
+        apply=True, **_identityless_kw(tmp_path, owner, occurrence, idir))
+    assert result["status"] == "inconclusive"
+    assert result["reason"] == "identity_missing_and_no_dispatch_unproven"
+
+
+@pytest.mark.parametrize("owner", ["life-manager-anicca-main-tiktok", "ebook-ja-instagram-daily",
+                                   "ebook-en-instagram-daily"])
+def test_identityless_path_is_limited_to_postiz_only_ebook_tiktok(tmp_path, monkeypatch, owner):
+    occurrence = f"{owner}:run-x"
+    idir = _hist_identity_dir(tmp_path, owner, ["integration://postiz/tiktok/cmtt"])
+    _claim_run_events(tmp_path, owner, occurrence)
+    _postiz_route_env(tmp_path, monkeypatch, owner)
+    monkeypatch.setattr(reconcile, "_postiz_posts_between", lambda *a: pytest.fail("no Postiz read"))
+    monkeypatch.setattr(reconcile, "_admission_state", lambda *_a: ("claimed", 1))
+    monkeypatch.setattr(reconcile.time, "time", lambda: 1_791_600_000.0)
+    result = reconcile.reconcile_current_occurrence(
+        apply=False, **_identityless_kw(tmp_path, owner, occurrence, idir))
+    assert result["reason"] == "identity_missing_or_invalid"
+    assert set(reconcile.IDENTITYLESS_POSTIZ_OWNERS) == {"ebook-ja-tiktok-daily"}
