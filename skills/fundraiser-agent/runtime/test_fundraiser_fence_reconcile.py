@@ -304,6 +304,7 @@ def _receipts(path: Path, occurrence_id: str, *extra: dict) -> None:
         {"occurrence_id": occurrence_id, "status": "verified_pre_effect_failure", "effect": 0,
          "official_url": "https://nvidia.example/apply"},
         {"occurrence_id": occurrence_id, "status": "submitted_verified",
+         "organization": "FoundersEdge", "program": "AI-native software pitch",
          "official_url": "https://apply.foundersedge.com/", "utc_timestamp": "2026-10-08T09:00:52Z",
          "application_record_path": str(record)},
         *extra,
@@ -333,7 +334,8 @@ def test_post_effect_closes_from_provider_mail_after_submission(tmp_path):
     def search(account, query):
         seen.append((account, query))
         return {"messages": [{"id": "m1", "date": "2026-10-09 22:35",
-                              "from": "Team <team@foundersedge.com>"}]}
+                              "from": "Team <team@foundersedge.com>",
+                              "subject": "Update to your FoundersEdge submission"}]}
 
     result, calls = _post_effect(tmp_path, "fundraiser:fe-1", search)
 
@@ -369,3 +371,33 @@ def test_post_effect_with_another_submission_to_the_same_domain_stays_fenced(tmp
     )
     assert result["verified"] is False and calls == []
     assert result["reason"] == "provider_readback_ambiguous:foundersedge.com"
+
+
+def test_post_effect_on_a_shared_form_host_fails_closed(tmp_path):
+    import fundraiser_fence_reconcile as module
+    seen = []
+    receipts = tmp_path / "application-receipts.jsonl"
+    receipts.write_text(json.dumps({
+        "occurrence_id": "fundraiser:fe-5", "status": "submitted_verified",
+        "organization": "Acme Ventures", "program": "Pitch",
+        "official_url": "https://app.notion.com/acme-apply", "utc_timestamp": "2026-10-08T09:00:52Z",
+    }) + "\n")
+    for url in ("https://app.notion.com/x", "https://tally.so/r/x", "https://form.fillout.com/t/x",
+                "https://airtable.com/app/x", "https://acme.decilehub.com/apply"):
+        assert module._mail_domain(url) is None
+
+    result = module.post_effect_readback(
+        "fundraiser:fe-5", receipts_path=receipts,
+        search=lambda a, q: seen.append(q) or {"messages": [{"id": "m1", "date": "2026-10-09 22:35"}]})
+
+    assert result["verified"] is False and seen == []
+    assert result["reason"] == "provider_readback_unbindable"
+
+
+def test_post_effect_mail_without_org_or_program_in_subject_is_not_a_receipt(tmp_path):
+    result, calls = _post_effect(
+        tmp_path, "fundraiser:fe-6",
+        lambda a, q: {"messages": [{"id": "m1", "date": "2026-10-09 22:35",
+                                    "subject": "Your weekly digest"}]})
+    assert result["verified"] is False and calls == []
+    assert result["reason"] == "provider_readback_absent:foundersedge.com"

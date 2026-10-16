@@ -26,7 +26,8 @@ closes a fence, never a guess):
     message ID as the application provider receipt.
   - A post_effect_verified marker closes as effected only when every
     submitted_verified receipt of the occurrence has provider-owned mail
-    (Gmail, from the official URL's domain, after submission) and every other
+    (Gmail, from the official URL's domain, after submission, subject naming
+    the organization or program; shared form hosts fail closed) and every other
     receipt is an explicit effect-0 pre-effect failure; mail absence, another
     submission to the same domain, or any unresolved receipt keeps the fence.
   - A lost terminal (row already released by the host, terminal report still
@@ -69,6 +70,15 @@ MARKERS_ROOT = STATE_ROOT / "effect-markers"
 RECONCILIATION_ROOT = STATE_ROOT / "reconciliation"
 EMAIL = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+\Z")
 MAIL_SLACK_SECONDS = 60
+# Hosted form/workspace platforms: their mail is not the applicant's provider,
+# so a submission hosted there has no domain-bound readback (fail closed).
+SHARED_FORM_DOMAINS = frozenset({
+    "notion.com", "notion.site", "tally.so", "fillout.com", "airtable.com",
+    "decilehub.com", "typeform.com", "google.com", "forms.gle", "jotform.com",
+    "hsforms.com", "hubspot.com", "wufoo.com", "formstack.com", "surveymonkey.com",
+    "office.com", "microsoft.com", "docsend.com", "gust.com", "f6s.com",
+    "paperform.co", "formspree.io", "zohopublic.com", "zoho.com", "cognitoforms.com",
+})
 SAFE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
 MARKER_PHASES = frozenset({"pre_effect", "effect_attempted", "human_required", "post_effect_verified"})
 # run.sh: RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)-$$" and EVIDENCE_DIR="evidence/$RUN_ID".
@@ -311,7 +321,15 @@ def _mail_domain(url: object) -> str | None:
     # ponytail: tiny public-suffix rule (example.co.jp); use a PSL if a ccTLD slips through.
     keep = 3 if len(labels) >= 3 and len(labels[-1]) == 2 and labels[-2] in {
         "co", "com", "ac", "or", "go", "ne", "lg", "gov", "org", "net", "edu"} else 2
-    return ".".join(labels[-keep:])
+    domain = ".".join(labels[-keep:])
+    return None if domain in SHARED_FORM_DOMAINS else domain
+
+
+def _names_target(message: Mapping[str, Any], row: Mapping[str, Any]) -> bool:
+    subject = str(message.get("subject") or "").casefold()
+    return any(len(str(row.get(key) or "").strip()) >= 3
+               and str(row[key]).strip().casefold() in subject
+               for key in ("organization", "program"))
 
 
 def _contact_email(record_path: object) -> str | None:
@@ -392,7 +410,7 @@ def post_effect_readback(
         floor = sent.timestamp() - MAIL_SLACK_SECONDS
         hits = [str(message["id"]) for message in value.get("messages") or []
                 if isinstance(message, dict) and message.get("id")
-                and (_mail_epoch(message) or 0) >= floor]
+                and (_mail_epoch(message) or 0) >= floor and _names_target(message, row)]
         if not hits:
             return held(f"provider_readback_absent:{domain}")
         message_ids.append(hits[0])
