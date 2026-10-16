@@ -1680,6 +1680,7 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
             "event_release_sha": event.get("release_sha"),
             "registered_cadence": entry.get("cadence"),
             "next_eligible_run": _next_eligible(entry["cadence"]),
+            "admission_class": entry.get("admission_class"),
             "blocker": blocker,
             "admission_effect_unknown": current_effect_unknown,
             "admission_effect_unknown_occurrences": list(
@@ -1945,6 +1946,8 @@ def _health_snapshot_failure_rows(registry: dict, target: str | None, *,
         "effect_class": registry["loops"][loop_id]["effect_class"],
         "effect_status": "unknown",
         "diagnostic_complete": False,
+        "admission_class": registry["loops"][loop_id].get("admission_class"),
+        "registered_cadence": registry["loops"][loop_id].get("cadence"),
         "health_adapter_status": "timeout" if error_class.endswith("timeout") else "error",
         "error_class": error_class,
         "retryable": True,
@@ -2114,6 +2117,9 @@ def _health_event_projection(
             "last_success": None,
             "last_effect": None,
             "last_receipt": None,
+            # execute/started is written by every wake, even one an admission
+            # fence defers; revenue outage needs an effect that actually landed.
+            "last_verified_effect": None,
         })
         is_latest = value.get("phase") == "report" and loop_id not in reports
         running_key = (loop_id, str(value.get("run_id", "")).rsplit("-", 1)[-1])
@@ -2137,13 +2143,19 @@ def _health_event_projection(
                 "started", "verified", "failed", "reconciled",
             }
         )
+        records_verified_effect = (
+            clocks["last_verified_effect"] is None
+            and value.get("phase") == "report"
+            and value.get("effect_class") != "none"
+            and value.get("effect_status") in {"verified", "reconciled"}
+        )
         records_receipt = (
             clocks["last_receipt"] is None
             and (value.get("provider_receipt_id")
                  or value.get("official_readback_ref"))
         )
         if not (is_latest or is_pid_bound_running or records_attempt or records_success
-                or records_effect or records_receipt):
+                or records_effect or records_receipt or records_verified_effect):
             continue
         try:
             validate_runtime_event(value)
@@ -2161,6 +2173,8 @@ def _health_event_projection(
             clocks["last_effect"] = timestamp
         if records_receipt:
             clocks["last_receipt"] = timestamp
+        if records_verified_effect:
+            clocks["last_verified_effect"] = timestamp
     projected_reports = {
         loop_id: {**event, "_health_clocks": clocks_by_loop[loop_id]}
         for loop_id, event in reports.items()

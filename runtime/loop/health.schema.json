@@ -205,6 +205,9 @@
             "recovery": {
               "$ref": "#/$defs/facet"
             },
+            "revenue": {
+              "$ref": "#/$defs/facet"
+            },
             "runtime": {
               "$ref": "#/$defs/facet"
             }
@@ -214,7 +217,8 @@
             "productivity",
             "effect_safety",
             "business",
-            "recovery"
+            "recovery",
+            "revenue"
           ],
           "type": "object"
         },

@@ -297,7 +297,7 @@ class LmLoopHealthTest(unittest.TestCase):
         )
         self.assertEqual(
             set(payload["jobs"][0]["facets"]),
-            {"runtime", "productivity", "effect_safety", "business", "recovery"},
+            {"runtime", "productivity", "effect_safety", "business", "recovery", "revenue"},
         )
 
     def test_health_clocks_survive_a_newer_failed_runtime_event(self):
@@ -919,6 +919,125 @@ class LmLoopHealthTest(unittest.TestCase):
                 except ValueError:
                     accepted = False
                 self.assertFalse(accepted)
+
+
+
+class RevenueOutageTest(unittest.TestCase):
+    """SH1: a revenue lane idle for >2x its cadence is an outage even when fenced."""
+
+    @staticmethod
+    def ago(hours):
+        from datetime import datetime, timedelta, timezone
+        return (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+
+    def row(self, loop_id="lane", *, idle_hours=1.0, cadence=None, **overrides):
+        row = LmLoopHealthTest.status_row(
+            loop_id, product_loop_id=loop_id, system_role=None,
+            effect_class="publish", effect_status="verified",
+            admission_class="revenue",
+            registered_cadence=cadence or {"start_interval_seconds": 300},
+            health_clocks={"last_attempt": self.ago(0.1), "last_success": None,
+                           "last_effect": self.ago(0.1), "last_receipt": None,
+                           "last_verified_effect": self.ago(idle_hours)},
+        )
+        row.update(overrides)
+        return row
+
+    def revenue(self, row):
+        return health.project_health([row])["jobs"][0]["facets"]["revenue"]
+
+    def test_fenced_revenue_lane_idle_past_twice_cadence_is_outage_with_occurrences(self):
+        value = health.project_health([self.row(
+            "writer", idle_hours=36, admission_effect_unknown=True,
+            admission_effect_unknown_occurrences=["writer:occ-1", "writer:occ-2"],
+        )])
+        job = value["jobs"][0]
+        self.assertEqual(job["state"], "safely_fenced")
+        self.assertEqual(job["facets"]["revenue"]["status"], "blocked")
+        reason = job["facets"]["revenue"]["reason"]
+        self.assertTrue(reason.startswith("revenue_outage"))
+        self.assertIn("resource_effect_unknown", reason)
+        self.assertIn("writer:occ-1", reason)
+
+    def test_healthy_state_revenue_outage_names_blocker_and_exits_nonzero(self):
+        value = health.project_health([self.row(
+            "lancers", idle_hours=5, error_class="disk_floor_low",
+        )])
+        job = value["jobs"][0]
+        self.assertEqual(job["facets"]["revenue"]["status"], "blocked")
+        self.assertIn("disk_floor_low", job["facets"]["revenue"]["reason"])
+        self.assertEqual(health.health_exit_code(value), 1)
+
+    def test_fresh_revenue_lane_is_ok_and_non_revenue_is_not_applicable(self):
+        self.assertEqual(self.revenue(self.row(idle_hours=1.5))["status"], "ok")
+        self.assertEqual(
+            self.revenue(self.row(admission_class="borrow", idle_hours=99))["status"],
+            "not_applicable")
+        value = health.project_health([self.row(idle_hours=1.5)])
+        self.assertEqual(health.health_exit_code(value), 0)
+
+    def test_started_only_effect_clock_does_not_hide_outage(self):
+        # A fenced wake writes execute/effect_status=started every few minutes;
+        # that is not an effect, so it must not refresh the revenue clock.
+        clocks = {"last_attempt": self.ago(0.1), "last_success": self.ago(40),
+                  "last_effect": self.ago(0.1), "last_receipt": None}
+        self.assertEqual(self.revenue(self.row(health_clocks=clocks))["status"], "blocked")
+
+    def test_projection_records_verified_effect_only_from_reports(self):
+        def event(ts, phase, status, effect_status):
+            return json.dumps({"loop_id": "lane", "timestamp": ts, "phase": phase,
+                               "status": status, "effect_class": "publish",
+                               "effect_status": effect_status})
+        lines = [
+            event("2026-10-16T01:00:00+00:00", "report", "pass", "verified"),
+            event("2026-10-16T02:00:00+00:00", "execute", "running", "started"),
+            event("2026-10-16T02:00:01+00:00", "report", "blocked", "unknown"),
+        ]
+        with patch.object(lm_loop, "validate_runtime_event", return_value=None):
+            reports, _ = lm_loop._health_event_projection(lines)
+        clocks = reports["lane"]["_health_clocks"]
+        self.assertEqual(clocks["last_effect"], "2026-10-16T02:00:00+00:00")
+        self.assertEqual(clocks["last_verified_effect"], "2026-10-16T01:00:00+00:00")
+
+    def test_falls_back_to_last_success_when_no_effect_clock(self):
+        clocks = {"last_attempt": None, "last_success": self.ago(3),
+                  "last_effect": None, "last_receipt": None}
+        self.assertEqual(self.revenue(self.row(health_clocks=clocks))["status"], "blocked")
+
+    def test_calendar_cadence_uses_largest_gap_and_daily_lane_waits_two_days(self):
+        daily = {"calendar_interval": {"Hour": 4, "Minute": 20}}
+        self.assertEqual(self.revenue(self.row(cadence=daily, idle_hours=30))["status"], "ok")
+        self.assertEqual(self.revenue(self.row(cadence=daily, idle_hours=49))["status"], "blocked")
+        three = {"calendar_interval": [{"Hour": 8, "Minute": 0}, {"Hour": 12, "Minute": 0},
+                                        {"Hour": 16, "Minute": 0}]}
+        # largest gap is 16:00 -> 08:00 = 16h, threshold 32h
+        self.assertEqual(self.revenue(self.row(cadence=three, idle_hours=30))["status"], "ok")
+        self.assertEqual(self.revenue(self.row(cadence=three, idle_hours=33))["status"], "blocked")
+        hourly = {"calendar_interval": {"Minute": 7}}
+        self.assertEqual(self.revenue(self.row(cadence=hourly, idle_hours=1.9))["status"], "ok")
+        self.assertEqual(self.revenue(self.row(cadence=hourly, idle_hours=2.1))["status"], "blocked")
+
+    def test_unreadable_revenue_data_is_telemetry_gap_not_healthy(self):
+        no_clock = {"last_attempt": None, "last_success": None,
+                    "last_effect": None, "last_receipt": None}
+        for overrides in ({"health_clocks": no_clock, "last_pass": None},
+                          {"registered_cadence": {"keep_alive": "weird"}},
+                          {"health_clocks": {**no_clock, "last_verified_effect": "garbage"}}):
+            facet = self.revenue(self.row(**overrides))
+            self.assertEqual(facet["status"], "unknown", overrides)
+            self.assertTrue(facet["reason"].startswith("telemetry_gap"), overrides)
+        value = health.project_health([self.row(health_clocks=no_clock, last_pass=None)])
+        self.assertEqual(health.health_exit_code(value), 1)
+
+    def test_status_rows_carry_admission_class_for_health(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        loop_id = next(k for k, v in registry["loops"].items()
+                       if v.get("admission_class") == "revenue")
+        rows = lm_loop.status_rows(
+            {**registry, "loops": {loop_id: registry["loops"][loop_id]}},
+            loaded={}, disabled={}, events={}, installed_releases={},
+            product_by_job={})
+        self.assertEqual(rows[0]["admission_class"], "revenue")
 
 
 if __name__ == "__main__":
