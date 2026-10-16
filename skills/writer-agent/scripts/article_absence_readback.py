@@ -9,7 +9,7 @@ timezone failure is "unreadable" -- never absence.
 
     python3 article_absence_readback.py --run-dir DIR --since EPOCH --until EPOCH
 Run it under writer-runtime-env.sh (credentials) with the Writer managed Python.  The X reader
-re-invokes this file under skills/browser/with-browser.sh interactive:dais (no wait; the lease
+re-invokes this file under skills/browser/with-browser.sh x:diceai0 (no wait; the lease
 is released when that one command exits).
 """
 from __future__ import annotations
@@ -19,9 +19,10 @@ import json
 import os
 import re
 import subprocess
+import time
 import sys
 import unicodedata
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable
 
@@ -33,6 +34,9 @@ GRACE_SECONDS = 1800          # a killed model pass cannot act after its termina
 TITLE_PREFIX = 20             # titles may be truncated in owner listings
 MAX_PAGES = 40
 SUBSTACK_PAGE = 25
+# The Writer X Article account (X_ACCOUNT_HANDLE) lives in its own registered browser; the
+# interactive daily-driver holds no x.com session (login redirect measured 2026-10-16).
+X_BROWSER_IDENTITY = "x:diceai0"
 
 
 def _epoch(value: object) -> float | None:
@@ -82,6 +86,8 @@ def judge(items: list[dict], *, since: float, until: float, titles: list[str], c
         return {"status": "unreadable", "reason": "listing_incomplete"}
     for item in items:
         if any(since <= t <= until + GRACE_SECONDS for t in item.get("times", []) if t is not None):
+            return {"status": "present", "reason": "item_in_run_window", "title": item.get("title", "")}
+        if item.get("in_window"):
             return {"status": "present", "reason": "item_in_run_window", "title": item.get("title", "")}
         if _title_matches(str(item.get("title") or ""), titles):
             return {"status": "present", "reason": "title_match", "title": item.get("title", "")}
@@ -133,25 +139,57 @@ def parse_substack(listings: dict[str, list[dict]]) -> tuple[list[dict], bool]:
     return items, complete
 
 
-def parse_x(data: dict, anchor_edit_id: str) -> tuple[list[dict], bool]:
-    """data = x_list_in_leased_browser() output; rows carry no timestamps.
+def _x_row(text: str, reference: datetime) -> tuple[str, str, object, bool]:
+    """'Draft · Last saved <date>' / 'Published · <date>', then the title line."""
+    lines = [line.strip() for line in str(text or "").splitlines() if line.strip()]
+    if not lines or lines[0] not in {"Draft", "Published", "Scheduled"}:
+        raise ValueError("x article row status unreadable")
+    rest = [line for line in lines[1:] if line not in {"·", "Last saved"}]
+    if len(rest) < 2:
+        raise ValueError("x article row without date and title")
+    label, title = rest[0], rest[1]
+    if re.fullmatch(r"\d+[smh]", label):
+        return lines[0], title, reference.date(), True
+    for value, fmt in ((label, "%b %d, %Y"), (f"{label} {reference.year}", "%b %d %Y")):
+        try:
+            parsed = datetime.strptime(value, fmt).date()
+        except ValueError:
+            continue
+        if fmt == "%b %d %Y" and parsed > reference.date():
+            parsed = parsed.replace(year=reference.year - 1)
+        return lines[0], title, parsed, False
+    raise ValueError("x article row date unreadable")
 
-    The ledger's newest earlier X Article (by its edit id) must be a parsed, titled row: that
-    proves the row parse works and the newest-first list reaches back before the window.
+
+def parse_x(data: dict, anchor_edit_id: str, *, since: float, until: float,
+            now: float | None = None) -> tuple[list[dict], bool]:
+    """data = x_list_in_leased_browser() output: Drafts and Published tab rows, newest first.
+
+    Rows show day-granular dates in the browser's JST.  The run's draft can be reopened and
+    re-saved later (same edit id), so any row dated on or after the run's first day, or with a
+    relative age, counts as in the window; years are inferred from the read time.  Each tab must be newest-first and reach back before the
+    window, and the ledger's newest earlier X Article (edit id) must be a parsed Published row.
     """
     if not data.get("expected") or str(data.get("identity", "")).casefold() != data["expected"].casefold():
         raise ValueError("x authenticated identity mismatch")
-    if "/compose/articles" not in str(data.get("url", "")):
+    if not str(data.get("url", "")).startswith("https://x.com/compose/articles"):
         raise ValueError("x articles list did not render")
-    items, anchored = [], False
+    jst = timezone(timedelta(hours=9))   # ponytail: the leased browsers run in JST; read tz from the page if that changes
+    reference = datetime.fromtimestamp(time.time() if now is None else now, jst)
+    first_day = datetime.fromtimestamp(since, jst).date()
+    items, dates, anchored = [], {"drafts": [], "published": []}, False
     for row in data.get("rows") or []:
-        text = re.sub(r"\s+", " ", str(row.get("text") or "")).strip()
-        if not text:
-            raise ValueError("x article row without title text")
-        items.append({"title": text, "times": []})
-        anchored = anchored or (bool(anchor_edit_id) and str(row.get("href", "")).rstrip("/").endswith(
-            f"/compose/articles/edit/{anchor_edit_id}"))
-    return items, anchored
+        status, title, day, relative = _x_row(row.get("text"), reference)
+        tab = row.get("tab")
+        if tab not in dates or {"drafts": "Draft", "published": "Published"}[tab] != status:
+            raise ValueError("x article row status does not match its tab")
+        dates[tab].append(day)
+        items.append({"title": title, "times": [], "in_window": relative or day >= first_day})
+        anchored = anchored or (tab == "published" and bool(anchor_edit_id) and str(row.get("href", "")).rstrip("/")
+                                .endswith(f"/compose/articles/edit/{anchor_edit_id}"))
+    complete = anchored and all(
+        days and days == sorted(days, reverse=True) and days[-1] < first_day for days in dates.values())
+    return items, complete
 
 
 def note_reader(since: float, rows: list[dict]) -> tuple[list[dict], bool, dict]:
@@ -198,9 +236,10 @@ def substack_reader(pair: str, since: float, rows: list[dict]) -> tuple[list[dic
 
 
 def x_list_in_leased_browser() -> dict:
-    """Runs inside with-browser.sh: read the authenticated X Articles list (drafts and published)."""
+    """Runs inside with-browser.sh: read the authenticated X Articles Drafts and Published tabs."""
     from playwright.sync_api import sync_playwright
     expected = os.environ.get("X_ACCOUNT_HANDLE", "").strip().lstrip("@")
+    rows_js = "els => els.map(e => ({href: e.getAttribute('href'), text: e.innerText}))"
     playwright = sync_playwright().start()
     try:
         browser = playwright.chromium.connect_over_cdp(os.environ["CDP"])
@@ -209,9 +248,16 @@ def x_list_in_leased_browser() -> dict:
             page.goto("https://x.com/compose/articles", wait_until="domcontentloaded", timeout=45000)
             page.wait_for_timeout(6000)
             href = page.locator('a[data-testid="AppTabBar_Profile_Link"]').first.get_attribute("href", timeout=10000)
-            rows = page.eval_on_selector_all(
-                'a[href*="/compose/articles/edit/"]',
-                "els => els.map(e => ({href: e.getAttribute('href'), text: e.innerText}))")
+            rows = []
+            for tab in ("Drafts", "Published"):
+                control = page.get_by_role("tab", name=tab)
+                if control.get_attribute("aria-selected", timeout=10000) != "true":
+                    control.click(timeout=10000)
+                    page.wait_for_timeout(5000)
+                if control.get_attribute("aria-selected", timeout=10000) != "true":
+                    raise RuntimeError(f"x {tab} tab not selected")
+                rows += [{**row, "tab": tab.lower()} for row in
+                         page.eval_on_selector_all('a[href*="/compose/articles/edit/"]', rows_js)]
             return {"url": page.url, "identity": str(href or "").strip("/"), "expected": expected, "rows": rows}
         finally:
             page.close()
@@ -219,20 +265,21 @@ def x_list_in_leased_browser() -> dict:
         playwright.stop()
 
 
-def x_reader(since: float, rows: list[dict]) -> tuple[list[dict], bool, dict]:
+def x_reader(since: float, rows: list[dict], until: float) -> tuple[list[dict], bool, dict]:
     env = {**os.environ, "BROWSER_WAIT_SECONDS": "0"}
     completed = subprocess.run(
-        ["bash", str(REPO_ROOT / "skills/browser/with-browser.sh"), "interactive:dais", "--",
+        ["bash", str(REPO_ROOT / "skills/browser/with-browser.sh"), X_BROWSER_IDENTITY, "--",
          sys.executable, str(Path(__file__).resolve()), "--x-list"],
         capture_output=True, text=True, timeout=240, env=env, check=False)
     if completed.returncode != 0:
-        raise ValueError(f"x leased read failed rc={completed.returncode}")
+        tail = (completed.stderr or "").strip().splitlines()[-1:] or [""]
+        raise ValueError(f"x leased read failed rc={completed.returncode} {tail[0][:100]}")
     data = json.loads(completed.stdout.strip().splitlines()[-1])
     target = ledger_anchor(rows, "x-article", since, "stable_target")
     anchor = target.rstrip("/").rsplit("/", 1)[-1] if "/compose/articles/edit/" in target else ""
-    items, complete = parse_x(data, anchor)
+    items, complete = parse_x(data, anchor, since=since, until=until)
     return items, complete, {"readback_url": "https://x.com/compose/articles", "identity": data["identity"],
-                             "rows": len(items), "anchor_edit_id": anchor}
+                             "browser_identity": X_BROWSER_IDENTITY, "rows": len(items), "anchor_edit_id": anchor}
 
 
 def collect(run_dir: Path, since: float, until: float,
@@ -242,7 +289,7 @@ def collect(run_dir: Path, since: float, until: float,
         "note/ja": note_reader,
         "substack/ja": lambda s, r: substack_reader("substack/ja", s, r),
         "substack/en": lambda s, r: substack_reader("substack/en", s, r),
-        "x-article/ja": x_reader,
+        "x-article/ja": lambda s, r: x_reader(s, r, until),
     }
     if ledger_rows is None:
         ledger_rows = [json.loads(line) for line in ARTICLES.read_text(encoding="utf-8").splitlines() if line.strip()]
