@@ -19155,3 +19155,23 @@ A direct RevenueCat V2 read observed at 2026-10-14T22:25Z reports latest complet
 - Free clip-map update (#8146) is queued as `update_existing`, which ships only when no new Agent can be created or finished.
 
 **Cursor:** watch the review of 7393298474 -> new creator-tool listings with primary Video + secondary Social Media, each linking to Hook Lab by ct -> concentrate Hook Lab traffic into the same few days -> distribute starvation on the agent class.
+
+### Capafy distribution lane day-2 readback — 2026-10-16 10:00 JST (claude-evo-eval-1012)
+
+| Item | Value | Source |
+|---|---|---|
+| Lifetime | 70 orders, $102.75 (unchanged; 10/15 one $0 order = free download) | reconcile 00:32Z, analytics |
+| 7d detail visits | 1,058, paid 0 | reconcile `traffic_sources` |
+| Free Clip Map 7095835081 7d | search 566, direct 22, google 5, paid 0 | same |
+| Hook Lab 8123079349 7d | ai_overview 12, search 8, direct 5, hooklab_x 2, hooklab_blog 1, paid 0 | same |
+| Free agent update (hooklab_free CTA, #8146) | v1.0.1 platform_status 1 / audit 2 (under review); hooklab_free 0 visits yet | `publish-remote-status` |
+| Voiced X post (now) | https://twitter.com/selawmqt/status/2110637741117735181 — 8 views | x.com readback |
+| Voiced IG reel (now) | https://www.instagram.com/reel/DegctrvAcPq/ | Postiz PUBLISHED |
+| @capafyai mention | 16 views, no reply | x.com readback |
+| capafy-reel-daily 09:41 | blocked `host_admission_deferred:disk_floor_low` (10/23 not produced) | events.jsonl |
+| Host disk | 10.55 GiB free vs 15 GiB producer floor (was 15.98 GiB at 10/15 15:00 after cache cleanup) | df |
+| TikTok warm-up day 2 | not run: `tiktok:hooklab` browser down; relaunch refused by the same disk floor | browser-guard |
+
+**Read:** the free agent is the real top of funnel (566 search visits/7d, 53% of all visits); conversion depends on #8146 passing review. Own-channel reach is still single-digit (X 8 views per video, 2 ct visits). Host disk loss of ~5 GB overnight blocks every producer loop and browser launch.
+
+**Cursor:** host disk floor (owner: host/disk lane) → rerun capafy-reel-daily for 10/23 → hooklab_free visits after #8146 approval → TikTok warm-up.
