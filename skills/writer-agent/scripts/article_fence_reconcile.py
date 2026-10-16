@@ -556,6 +556,95 @@ def _host_pre_effect_marker_sha256(occurrence_id: str, writer_root: Path) -> str
     return hashlib.sha256(data).hexdigest()
 
 
+DISPATCH_FILES = (PUBLICATION_STATE, "gates/platform-dispatch.jsonl", "gates/platform-dispatch-results.jsonl")
+ABSENCE_DESTINATIONS = ("note/ja", "substack/ja", "substack/en", "x-article/ja")
+
+
+def _official_absence_readback(run_dir: Path, since: float, until: float) -> dict | None:
+    """Run the owner listings under the Writer env (credentials) with the managed Python."""
+    scripts = REPO_ROOT / "skills/writer-agent/scripts"
+    try:
+        completed = subprocess.run(
+            ["bash", "-c", 'source "$0" >/dev/null 2>&1 || exit 69; exec "$LIFE_MANAGER_PYTHON" "$@"',
+             str(scripts / "writer-runtime-env.sh"), str(scripts / "article_absence_readback.py"),
+             "--run-dir", str(run_dir), "--since", repr(since), "--until", repr(until)],
+            capture_output=True, text=True, timeout=600, check=False)
+        return json.loads(completed.stdout.strip().splitlines()[-1]) if completed.returncode == 0 else None
+    except (OSError, subprocess.SubprocessError, ValueError, IndexError):
+        return None
+
+
+def _terminal_epoch(writer_root: Path, occurrence_id: str) -> float | None:
+    times = []
+    for line in _jsonl_lines(writer_root / "events.jsonl") or []:
+        if occurrence_id not in line:
+            continue
+        try:
+            event = json.loads(line)
+        except ValueError:
+            return None
+        if event.get("occurrence_id") == occurrence_id and event.get("phase") == "report":
+            times.append(_epoch(event.get("timestamp")))
+    return times[0] if len(times) == 1 else None
+
+
+def _carry_over_absence(occurrence_id: str, queued_at: float, state: str, rows: list, runs_root: Path,
+                        writer_root: Path, absence_readback: Callable[..., dict | None],
+                        resolver: Callable[..., bool] | None, resolve: bool) -> dict | None:
+    """A run whose only ledger trace is an unpublished carry-over row: prove absence officially.
+
+    The model pass ran, so missing local dispatch files are not proof. Every active destination's
+    authenticated owner listing must read the run's article absent; one unreadable keeps the fence.
+    Returns None when this path does not apply.
+    """
+    try:
+        paired = [d for d in runs_root.iterdir()
+                  if d.is_dir() and any(0 <= s - queued_at <= PAIR_WINDOW_SECONDS for s in _run_starts(d))]
+    except OSError:
+        return None
+    if len(paired) != 1:
+        return None
+    run_dir = paired[0]
+    run_rows = [row for row in rows if str(row.get("run_id", "")) == run_dir.name]
+    if (not run_rows or any(row.get("published") is not False or row.get("live_url") or row.get("draft_url")
+                            or not str(row.get("state", "")).startswith("carry-over") for row in run_rows)
+            or any(os.path.lexists(run_dir / name) for name in DISPATCH_FILES)):
+        return None
+    until = _terminal_epoch(writer_root, occurrence_id)
+    if until is None:
+        return _inconclusive(occurrence_id, "carry_over_terminal_unreadable")
+    readback = absence_readback(run_dir, queued_at, until)
+    destinations = (readback or {}).get("destinations") or {}
+    not_absent = [pair for pair in ABSENCE_DESTINATIONS
+                  if (destinations.get(pair) or {}).get("status") != "absent"]
+    if not_absent:
+        return _inconclusive(occurrence_id, "destination_not_proven_absent:" + ",".join(not_absent))
+    runtime_run_id = occurrence_id.split(":", 1)[1]
+    proof = {
+        "owner_id": OWNER_ID, "occurrence_id": occurrence_id, "verified": True,
+        "proof_type": "historical_writer_gate_stop_no_dispatch", "provider": "writer",
+        "runtime_run_id": runtime_run_id, "writer_run_id": run_dir.name,
+        "window": {"since": _iso(queued_at), "until": _iso(until)},
+        "article_sha256": {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+                           for p in sorted(run_dir.glob("article-*.md")) if p.is_file()},
+        "destinations": {pair: destinations[pair] for pair in ABSENCE_DESTINATIONS},
+        "evidence_ref": f"writer://fence-reconciliation/article-daily-{runtime_run_id}.json",
+    }
+    result = {"status": "no_dispatch_proven", "occurrence_id": occurrence_id, "closed": False,
+              "writer_run_id": run_dir.name, "proof_ref": proof["evidence_ref"],
+              "destinations": {pair: destinations[pair].get("status") for pair in ABSENCE_DESTINATIONS}}
+    if not resolve:
+        return result
+    if not _persist_historical_gate_stop_proof(writer_root, proof):
+        return _inconclusive(occurrence_id, "historical_proof_receipt_conflict")
+    if resolver is None:
+        from runtime.host.resource_admission import resolve_historical_no_dispatch_occurrence
+        resolver = resolve_historical_no_dispatch_occurrence
+    result["closed"] = bool(resolver(OWNER_ID, occurrence_id, no_dispatch_proof=lambda: proof,
+                                     expected_state=state))
+    return result
+
+
 def _central_closure_result(owner_id: str, result: dict) -> dict:
     """Expose the exact proof contract consumed by lm-fence-reconciler."""
     if result.get("closed") is True:
@@ -573,7 +662,8 @@ def reconcile(occurrence_id: str, *, queued_at: float, state: str, articles_path
               pre_effect_resolver: Callable[..., bool] | None = None,
               writer_root: Path = WRITER_STATE_ROOT,
               source_repo: Path = SOURCE_REPO,
-              fetch_json: Callable[[str], object] = _fetch_json) -> dict:
+              fetch_json: Callable[[str], object] = _fetch_json,
+              absence_readback: Callable[..., dict | None] = _official_absence_readback) -> dict:
     now = datetime.now(timezone.utc).timestamp() if now is None else now
     if occurrence_id.startswith(f"{RESUME_OWNER_ID}:"):
         result = _reconcile_resume(occurrence_id, queued_at=queued_at, state=state,
@@ -645,6 +735,11 @@ def reconcile(occurrence_id: str, *, queued_at: float, state: str, articles_path
                                                     pre_effect_readback=lambda: proof,
                                                     expected_state=state))
             return _central_closure_result(OWNER_ID, result)
+        carry_over = None if candidates else _carry_over_absence(
+            occurrence_id, queued_at, state, rows, runs_root, writer_root,
+            absence_readback, resolver, resolve)
+        if carry_over is not None:
+            return _central_closure_result(OWNER_ID, carry_over)
         result = _pre_effect(occurrence_id, queued_at, state, rows, runs_root,
                              pre_effect_resolver, resolve)
         return _central_closure_result(OWNER_ID, result)

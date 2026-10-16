@@ -859,3 +859,100 @@ def test_host_marker_proof_refuses_any_sign_of_a_crossed_boundary(tmp_path):
     rows = [_row("20261014-232000", "2026-10-14T23:40:00Z", "https://note.com/x/n/2")]
     result, closed = _marker_reconcile(m, case, _marker_fixture(case), rows=rows)
     assert result["status"] == "inconclusive" and closed == []
+
+
+CARRY_RUN = "20261016-014724"
+CARRY_RUNTIME = "18dee9fd8809c358-44131"
+CARRY_OCC = f"{OWNER}:{CARRY_RUNTIME}"
+CARRY_QUEUED = datetime(2026, 10, 16, 4, 57, 53, tzinfo=timezone.utc).timestamp()
+ABSENT = {pair: {"status": "absent"} for pair in ("note/ja", "substack/ja", "substack/en", "x-article/ja")}
+
+
+def _carry_fixture(tmp_path, *, ledger=None, publication_state=False, dispatch=False):
+    """Conscience BLOCK after the model pass started: a carry-over ledger row, no dispatch files."""
+    root = tmp_path / "writer"
+    run = root / "runs" / CARRY_RUN
+    (run / "gates").mkdir(parents=True)
+    (run / "article-ja.md").write_text("# 記事\n")
+    (run / "article-en.md").write_text("# Article\n")
+    (run / "gates" / "generation-state.json").write_text(json.dumps(
+        {"attempts": [{"started_at": "2026-10-16T05:03:05.326244Z"}]}))
+    if publication_state:
+        (run / "gates" / "publication-state.json").write_text("{}")
+    if dispatch:
+        (run / "gates" / "platform-dispatch.jsonl").write_text("{}\n")
+    row = {"ts": "2026-10-16T05:15:43Z", "run_id": CARRY_RUN, "platform": "carry-over",
+           "draft_url": None, "published": False, "state": "carry-over:conscience-block"}
+    terminal = {"occurrence_id": CARRY_OCC, "phase": "report", "status": "fail", "exit_code": 1,
+                "timestamp": "2026-10-16T05:16:15.083428+00:00"}
+    (root / "events.jsonl").write_text(json.dumps(terminal) + "\n")
+    return root, _articles(tmp_path, [ledger or row])
+
+
+def _carry_reconcile(m, root, arts, readback, resolve=True):
+    calls, closed = [], []
+
+    def fake_readback(run_dir, since, until):
+        calls.append((run_dir.name, since, until))
+        return readback
+
+    result = m.reconcile(CARRY_OCC, queued_at=CARRY_QUEUED, state="claimed", articles_path=arts,
+                         runs_root=root / "runs", writer_root=root, fetch_status=lambda u: 404,
+                         now=CARRY_QUEUED + 7200, absence_readback=fake_readback,
+                         resolver=lambda o, occ, **k: closed.append(k["no_dispatch_proof"]()) or True,
+                         pre_effect_resolver=lambda *a, **k: closed.append("pre_effect") or True,
+                         resolve=resolve)
+    return result, calls, closed
+
+
+def test_carry_over_run_closes_only_after_every_destination_reads_absent(tmp_path):
+    m = _load()
+    root, arts = _carry_fixture(tmp_path)
+    result, calls, closed = _carry_reconcile(m, root, arts, {"destinations": ABSENT})
+    assert calls == [(CARRY_RUN, CARRY_QUEUED,
+                      datetime(2026, 10, 16, 5, 16, 15, 83428, tzinfo=timezone.utc).timestamp())]
+    assert result["status"] == "no_dispatch_proven" and result["closed"] is True
+    proof = closed[0]
+    assert proof["proof_type"] == "historical_writer_gate_stop_no_dispatch"
+    assert proof["provider"] == "writer" and proof["runtime_run_id"] == CARRY_RUNTIME
+    assert proof["destinations"] == ABSENT and set(proof["article_sha256"]) == {"article-ja.md", "article-en.md"}
+    assert (root / "fence-reconciliation" / f"article-daily-{CARRY_RUNTIME}.json").exists()
+
+
+def test_carry_over_dry_run_writes_nothing(tmp_path):
+    m = _load()
+    root, arts = _carry_fixture(tmp_path)
+    result, _, closed = _carry_reconcile(m, root, arts, {"destinations": ABSENT}, resolve=False)
+    assert result["status"] == "no_dispatch_proven" and result["closed"] is False and closed == []
+    assert not (root / "fence-reconciliation").exists()
+
+
+def test_carry_over_stays_held_when_any_destination_is_not_proven_absent(tmp_path):
+    m = _load()
+    for index, bad in enumerate(({"status": "unreadable", "reason": "browser_busy"},
+                                 {"status": "present", "reason": "title_match"})):
+        case = tmp_path / str(index)
+        case.mkdir()
+        root, arts = _carry_fixture(case)
+        result, _, closed = _carry_reconcile(
+            m, root, arts, {"destinations": {**ABSENT, "x-article/ja": bad}})
+        assert result["status"] == "inconclusive" and closed == []
+    case = tmp_path / "missing"
+    case.mkdir()
+    root, arts = _carry_fixture(case)
+    partial = {k: v for k, v in ABSENT.items() if k != "substack/en"}
+    result, _, closed = _carry_reconcile(m, root, arts, {"destinations": partial})
+    assert result["status"] == "inconclusive" and closed == []
+
+
+def test_a_run_that_reached_publication_never_uses_the_absence_readback(tmp_path):
+    m = _load()
+    published = {"ts": "2026-10-16T05:15:43Z", "run_id": CARRY_RUN, "platform": "note",
+                 "published": True, "live_url": "https://note.com/x/n/1"}
+    for index, kwargs in enumerate((dict(ledger=published), dict(publication_state=True),
+                                    dict(dispatch=True))):
+        case = tmp_path / str(index)
+        case.mkdir()
+        root, arts = _carry_fixture(case, **kwargs)
+        result, calls, closed = _carry_reconcile(m, root, arts, {"destinations": ABSENT})
+        assert result["status"] == "inconclusive" and calls == [] and closed == [], kwargs
