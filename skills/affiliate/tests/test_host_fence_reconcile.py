@@ -256,3 +256,44 @@ def test_registry_enables_existing_atomic_wake_coalescing():
     registry = json.loads((Path(__file__).parents[3] / "config/loop-registry.json").read_text())
     assert registry["loops"]["affiliate-loop"]["coalesce_reserved_wakes"] is True
     assert registry["loops"]["affiliate-loop"]["coalesce_queued_wakes"] is True
+
+
+def _break_predecessor_and_write_hint(loop_state: Path, content: dict) -> None:
+    events_path = loop_state / "events.jsonl"
+    rows = [json.loads(line) for line in events_path.read_text().splitlines()]
+    rows[0]["status"] = "fail"
+    write_jsonl(events_path, rows)
+    hint = loop_state / "loop-tmp" / "affiliate-loop" / "target" / "entrypoint-result.json"
+    hint.parent.mkdir(parents=True)
+    hint.write_text(json.dumps(content), encoding="utf-8")
+    hint.chmod(0o600)
+
+
+def test_lost_terminal_falls_back_to_exact_host_pre_effect_hint(tmp_path):
+    module = load_module()
+    database, loop_state, affiliate_state, target = fixture(tmp_path)
+    _break_predecessor_and_write_hint(loop_state, {"status": "pre_effect_failure", "effect": 0})
+    resolver = Mock(return_value=True)
+
+    proof = module.reconcile_host_fence(
+        database, loop_state, affiliate_state, occurrence_id=target)
+    closed = module.reconcile_host_fence(
+        database, loop_state, affiliate_state, occurrence_id=target,
+        resolve=True, resolver=resolver)
+
+    assert proof["state"] == "PROOF_READY"
+    assert proof["evidence_ref"] == "lm-pre-effect://affiliate-loop/target/entrypoint-result.json"
+    assert closed["state"] == "RECONCILED"
+    assert resolver.call_args.kwargs["expected_state"] == "claimed"
+    assert resolver.call_args.kwargs["pre_effect_readback"]()["verified"] is True
+
+
+def test_cleared_hint_keeps_fifo_reason_and_fence(tmp_path):
+    module = load_module()
+    database, loop_state, affiliate_state, target = fixture(tmp_path)
+    _break_predecessor_and_write_hint(loop_state, {"status": "pass", "effect": 1})
+
+    result = module.reconcile_host_fence(
+        database, loop_state, affiliate_state, occurrence_id=target)
+
+    assert result == {"state": "HELD", "reason": "predecessor_report_not_pass"}
