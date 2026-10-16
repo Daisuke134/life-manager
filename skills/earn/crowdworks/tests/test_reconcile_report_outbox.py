@@ -101,3 +101,49 @@ def test_resolve_uses_receipt_resolver_with_exact_state(tmp_path):
                                resolve=True, resolver=resolver)
     assert result["resolved"] is True
     assert calls == [(OWNER, OCC, "telegram:97503", "released")]
+
+
+def _outbox_created(root: Path, rows: list[tuple]) -> None:
+    """Rows as (event_key, status, provider_id, created_at, claimed_at)."""
+    with sqlite3.connect(root / "telegram-outbox.sqlite3") as db:
+        db.execute("""CREATE TABLE telegram_outbox (event_key TEXT PRIMARY KEY, message_sha256 TEXT,
+            message TEXT, status TEXT, attempt_count INTEGER, provider_message_id TEXT UNIQUE,
+            created_at TEXT, claimed_at TEXT, delivered_at TEXT, last_error_code TEXT)""")
+        db.executemany("INSERT INTO telegram_outbox VALUES (?,'x','m',?,1,?,?,?,'d',NULL)", rows)
+
+
+def test_run_that_never_touched_outbox_is_pre_effect(tmp_path):
+    _events(tmp_path)
+    _outbox_created(tmp_path, [("crowdworks:wake:other:x", "delivered", "97497",
+                                "2026-09-27T07:20:00Z", "2026-09-27T07:20:01Z")])
+    proof = adapter.find_proof(tmp_path, OCC, _admission(tmp_path))
+    assert proof["proof_type"] == "pre_effect" and proof["verified"] is True
+    assert proof["evidence_ref"] == f"telegram-outbox-no-claim://{OWNER}/{OCC}"
+    assert "provider_receipt_id" not in proof
+
+
+def test_row_created_in_run_but_unsent_keeps_fence(tmp_path):
+    _events(tmp_path)
+    _outbox_created(tmp_path, [("crowdworks:application:1", "pending", None,
+                                "2026-09-27T08:21:54Z", None)])
+    with pytest.raises(RuntimeError, match="bound_receipt_unavailable"):
+        adapter.find_proof(tmp_path, OCC, _admission(tmp_path))
+
+
+def test_resolve_pre_effect_uses_pre_effect_resolver(tmp_path):
+    _events(tmp_path)
+    _outbox_created(tmp_path, [])
+    calls = []
+
+    def receipt_resolver(*_a, **_k):
+        raise AssertionError("no-dispatch proof must not use the receipt resolver")
+
+    def pre_effect_resolver(owner, occurrence, *, pre_effect_readback, expected_state):
+        calls.append((owner, occurrence, pre_effect_readback()["proof_type"], expected_state))
+        return True
+
+    result = adapter.reconcile(state_root=tmp_path, occurrence=OCC,
+                               admission_db=_admission(tmp_path), resolve=True,
+                               resolver=receipt_resolver, pre_effect_resolver=pre_effect_resolver)
+    assert result["resolved"] is True
+    assert calls == [(OWNER, OCC, "pre_effect", "claimed")]

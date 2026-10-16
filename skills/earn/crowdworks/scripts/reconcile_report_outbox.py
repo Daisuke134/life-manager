@@ -16,6 +16,13 @@ Proof, all required:
 * every other row claimed inside the run is also ``delivered`` with an id, so
   no send of this occurrence remains uncertain.
 
+No-dispatch proof (``pre_effect``), all required instead of the receipt:
+* the same journal-bound run window (the occurrence's own execute start and
+  report terminal, i.e. its process lifetime, not a guessed time range);
+* no outbox row was created or claimed inside that window and no row anywhere is
+  keyed to the occurrence.  ``claim_next`` commits ``claimed_at`` before every
+  send, so a run that never wrote a claim never reached Telegram.
+
 Anything else keeps the fence.  Nothing is sent or retried.
 """
 from __future__ import annotations
@@ -33,7 +40,7 @@ from typing import Any, Callable
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[4]))
 from runtime.host.resource_admission import (  # noqa: E402
-    resolve_unknown_occurrence, state_root as admission_state_root)
+    resolve_pre_effect_occurrence, resolve_unknown_occurrence, state_root as admission_state_root)
 
 OWNER = "crowdworks-revenue-report"
 SAFE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
@@ -99,13 +106,24 @@ def find_proof(state_root: Path, occurrence: str, admission_db: Path) -> dict[st
     start, end, release = _run_window(_events(state_root), occurrence)
     with closing(sqlite3.connect(f"file:{state_root / 'telegram-outbox.sqlite3'}?mode=ro",
                                  uri=True, timeout=0.5)) as db:
-        outbox = db.execute("SELECT event_key,status,provider_message_id,claimed_at "
-                            "FROM telegram_outbox WHERE claimed_at IS NOT NULL").fetchall()
-    in_run = [row for row in outbox
-              if (stamp := _epoch(row[3])) is not None and start - SLACK <= stamp <= end + SLACK]
+        rows = db.execute("SELECT event_key,status,provider_message_id,claimed_at,created_at "
+                          "FROM telegram_outbox").fetchall()
+    def inside(value: Any) -> bool:
+        stamp = _epoch(value)
+        return stamp is not None and start - SLACK <= stamp <= end + SLACK
+    outbox = [row[:4] for row in rows if row[3] is not None]
+    in_run = [row for row in outbox if inside(row[3])]
+    wake_prefix = f"crowdworks:wake:{occurrence}:"
+    if (not in_run and not any(inside(row[4]) for row in rows)
+            and not any(row[0].startswith(wake_prefix) for row in rows)):
+        return {"owner_id": OWNER, "occurrence_id": occurrence, "verified": True,
+                "proof_type": "pre_effect",
+                "evidence_ref": f"telegram-outbox-no-claim://{OWNER}/{occurrence}",
+                "window": [start, end], "release_sha": release or None,
+                "occurrence_state": state}
     if any(status != "delivered" or not provider_id for _, status, provider_id, _ in in_run):
         raise RuntimeError("outbox_window_not_settled")
-    bound = [row for row in in_run if row[0].startswith(f"crowdworks:wake:{occurrence}:")]
+    bound = [row for row in in_run if row[0].startswith(wake_prefix)]
     if len(bound) != 1:
         raise RuntimeError("bound_receipt_unavailable")
     event_key, _, provider_id, claimed_at = bound[0]
@@ -119,10 +137,16 @@ def find_proof(state_root: Path, occurrence: str, admission_db: Path) -> dict[st
 
 
 def reconcile(*, state_root: Path, occurrence: str, admission_db: Path, resolve: bool = False,
-              resolver: Callable[..., bool] = resolve_unknown_occurrence) -> dict[str, Any]:
+              resolver: Callable[..., bool] = resolve_unknown_occurrence,
+              pre_effect_resolver: Callable[..., bool] = resolve_pre_effect_occurrence) -> dict[str, Any]:
     proof = find_proof(state_root, occurrence, admission_db)
-    resolved = bool(resolve and resolver(OWNER, occurrence, official_readback=lambda: proof,
-                                         expected_state=proof["occurrence_state"]))
+    if proof["proof_type"] == "pre_effect":
+        resolved = bool(resolve and pre_effect_resolver(
+            OWNER, occurrence, pre_effect_readback=lambda: proof,
+            expected_state=proof["occurrence_state"]))
+    else:
+        resolved = bool(resolve and resolver(OWNER, occurrence, official_readback=lambda: proof,
+                                             expected_state=proof["occurrence_state"]))
     return {**proof, "resolved": resolved}
 
 
