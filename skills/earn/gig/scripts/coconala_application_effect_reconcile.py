@@ -206,7 +206,8 @@ def _roster_proves_no_dispatch(value: dict, intent_root: Path, apply_root: Path,
             and row.get("url") == url and row.get("final_url") == url
             and isinstance(ids, list) and all(isinstance(item, str) for item in ids)
             and type(row.get("applicants_count")) is int and row["applicants_count"] == len(set(ids)) == len(ids)
-            and row.get("contracted_count") == 0 and account not in ids)
+            and row.get("contracted_count") == 0 and row.get("expander_remaining") is False
+            and account not in ids and account not in (row.get("requester_ids") or []))
 
 
 def _closed_ids(path: Path) -> set[str]:
@@ -313,9 +314,9 @@ def _needs_roster_readback(intent_root: Path) -> bool:
 def _close_settled_fences(owner_id: str, intent_root: Path, runner=None) -> tuple[dict[str, object], list[dict]]:
     scan = _settled_scan(intent_root)
     if scan["unresolved_irreversible"] and _needs_roster_readback(intent_root):
-        run_browser_reconcile(["bash", str(WITH_BROWSER), BROWSER_IDENTITY, "--",
-                               sys.executable, str(CLOSED_READBACK_SCRIPT)], runner=runner)
-        scan = _settled_scan(intent_root)
+        exit_code = run_browser_reconcile(["bash", str(WITH_BROWSER), BROWSER_IDENTITY, "--",
+                                           sys.executable, str(CLOSED_READBACK_SCRIPT)], runner=runner)
+        scan = {**_settled_scan(intent_root), "roster_readback_exit_code": exit_code}
     if scan["scanned_intents"] == 0 or scan["unresolved_irreversible"] != 0:
         return scan, []
     closed = []

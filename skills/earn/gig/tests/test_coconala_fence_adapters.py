@@ -296,13 +296,14 @@ def _aborted_intent(tmp_path: Path, rid: str = "5324400", reason: str | None = N
 
 
 def _roster(tmp_path: Path, rid: str = "5324400", ids=("111", "222"), count=None,
-            contracted=0, observed_at="2099-01-01T00:00:00+00:00") -> Path:
+            contracted=0, observed_at="2099-01-01T00:00:00+00:00", expander_remaining=False) -> Path:
     closed = tmp_path / "closed.json"
     closed.write_text(json.dumps({"source": "code_owned_cdp_readback", "requests": {rid: {
         "closed": False, "gone": False, "http_status": 200,
         "url": f"https://coconala.com/requests/{rid}", "final_url": f"https://coconala.com/requests/{rid}",
         "applicant_ids": list(ids), "applicants_count": len(ids) if count is None else count,
-        "contracted_count": contracted, "observed_at": observed_at}}}))
+        "contracted_count": contracted, "observed_at": observed_at,
+        "requester_ids": ["999"], "expander_remaining": expander_remaining}}}))
     return closed
 
 
@@ -326,6 +327,12 @@ def test_pre_submit_aborted_intent_stays_fenced_without_complete_absent_roster(t
     assert _scan(wrapper, tmp_path, intents, apply_root,
                  _roster(tmp_path, observed_at="2000-01-01T00:00:00+00:00")) == 1
     assert _scan(wrapper, tmp_path, intents, apply_root, tmp_path / "missing.json") == 1
+    # Counts can coincide before the list is fully expanded; an expander left means partial.
+    assert _scan(wrapper, tmp_path, intents, apply_root, _roster(tmp_path, expander_remaining=True)) == 1
+    missing_flag = json.loads((tmp_path / "closed.json").read_text())
+    del missing_flag["requests"]["5324400"]["expander_remaining"]
+    (tmp_path / "closed.json").write_text(json.dumps(missing_flag))
+    assert _scan(wrapper, tmp_path, intents, apply_root, tmp_path / "closed.json") == 1
 
 
 def test_other_retire_reasons_or_unbound_identity_stay_fenced(tmp_path) -> None:
@@ -363,3 +370,18 @@ def test_adapter_reads_roster_through_registered_browser_then_closes(tmp_path, m
     assert commands[0][-1].endswith("coconala_request_closed_readback.py")
     assert proofs and proofs[0]["unresolved_irreversible"] == 0
     assert proofs[0]["occurrence_id"] == "hf-gig-apply-direct:18dea9626ade1eb8-21113"
+    scan = json.loads(capsys.readouterr().out.strip().splitlines()[0])
+    assert scan["roster_readback_exit_code"] == 0
+
+
+def test_roster_counts_only_dated_applicant_rows_never_the_requester() -> None:
+    module = _readback_module()
+    raw = {"applicants_count": 2, "contracted_count": 0, "requester_ids": ["999"], "entries": [
+        {"id": "111", "row": "Yunamito 2026/10/14 12:29"},
+        {"id": "999", "row": "募集者情報 nakaji7307 2026/10/14 12:29"},  # requester leak
+        {"id": "333", "row": "関連する仕事 BAMGHA"},                     # no 応募日時
+        {"id": "111", "row": "Yunamito 2026/10/14 12:29"}]}
+    roster = module.roster_from_page(raw, expander_remaining=False)
+    # Two counted but one real applicant listed: the count no longer matches by accident.
+    assert roster["applicant_ids"] == ["111"]
+    assert roster["requester_ids"] == ["999"] and roster["expander_remaining"] is False
