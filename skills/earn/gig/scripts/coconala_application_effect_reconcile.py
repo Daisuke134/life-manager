@@ -14,7 +14,9 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import subprocess
+from datetime import datetime
 import sys
 from pathlib import Path
 from typing import Callable, Mapping, Sequence
@@ -108,8 +110,13 @@ def run_browser_reconcile(
 SETTLED_STATES = frozenset({"confirmed", "retired_absent"})
 
 
-EVIDENCE_DIR = Path.home() / "gig" / "apply-direct" / "evidence"
+APPLY_ROOT = Path.home() / "gig" / "apply-direct"
+EVIDENCE_DIR = APPLY_ROOT / "evidence"
 CLOSED_READBACK = EVIDENCE_DIR / "request-closed-readback.json"
+CLOSED_READBACK_SCRIPT = SCRIPT_DIR / "coconala_request_closed_readback.py"
+# application_parent raises application_応募する_button_missing before it dispatches any
+# mouse event, and only that error retires an intent after the irreversible marker.
+PRE_DISPATCH_ABORT = "pre_submit_effect_not_started:click_submit_control:"
 
 
 def _latest_roster() -> Path:
@@ -130,6 +137,79 @@ def _roster_ids(path: Path) -> set[str]:
         return set()
 
 
+def _closed_rows(path: Path) -> dict:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+        if value.get("source") != "code_owned_cdp_readback":
+            return {}
+        return {str(rid): row for rid, row in (value.get("requests") or {}).items() if isinstance(row, dict)}
+    except (OSError, ValueError, AttributeError):
+        return {}
+
+
+def _identity_account(value: dict, apply_root: Path) -> str | None:
+    """Account captured before the marker by the same commit pass that wrote the intent."""
+    rid = value["request_id"]
+    task = str((value.get("lease_fence") or {}).get("task") or "")
+    match = re.fullmatch(r"gig-apply-direct-((gig-apply-direct-[0-9]+-[0-9]+)-commit-([0-9]+))", task)
+    if match is None or match.group(3) != rid:
+        return None
+    found = list((apply_root / match.group(2)).glob(
+        f"*/commit-workers/{rid}/gig-{match.group(1)}-B2-{rid}-identity.json"))
+    try:
+        identity = json.loads(found[0].read_text(encoding="utf-8")) if len(found) == 1 else {}
+    except (OSError, ValueError):
+        return None
+    account = str(identity.get("account_id") or "")
+    if (identity.get("source") != "code_owned_cdp_authenticated_identity"
+            or identity.get("request_id") != rid or not account.isdigit()):
+        return None
+    return account
+
+
+def _pre_dispatch_abort_archive(value: dict, intent_root: Path) -> Path | None:
+    cas = str(value.get("cas") or "")
+    path = (intent_root / "recovery-history" / value["request_id"]
+            / f"{hashlib.sha256(cas.encode('utf-8')).hexdigest()}.json")
+    try:
+        archive = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    archived = archive.get("intent") if isinstance(archive, dict) else None
+    if (archive.get("event") != "prepared_reconciled_absent"
+            or not str(archive.get("reason") or "").startswith(PRE_DISPATCH_ABORT)
+            or not isinstance(archived, dict) or not cas or archived.get("cas") != cas
+            or archived.get("runtime_occurrence_id") != value.get("runtime_occurrence_id")):
+        return None
+    return path
+
+
+def _roster_proves_no_dispatch(value: dict, intent_root: Path, apply_root: Path, rows: dict) -> bool:
+    """Post-marker retire without a click, plus the official roster lacking our account.
+
+    The request page lists every applicant; a complete list (count matches, nobody
+    contracted) read after the retire that excludes the account captured before the
+    marker proves this attempt left no application.
+    """
+    archive = _pre_dispatch_abort_archive(value, intent_root)
+    account = _identity_account(value, apply_root) if archive else None
+    row = rows.get(value["request_id"])
+    if account is None or not isinstance(row, dict):
+        return False
+    url = f"https://coconala.com/requests/{value['request_id']}"
+    ids = row.get("applicant_ids")
+    try:
+        after_retire = datetime.fromisoformat(str(row.get("observed_at"))).timestamp() > archive.stat().st_mtime
+    except (OSError, ValueError, TypeError):
+        return False
+    return (after_retire and row.get("http_status") == 200
+            and row.get("url") == url and row.get("final_url") == url
+            and isinstance(ids, list) and all(isinstance(item, str) for item in ids)
+            and type(row.get("applicants_count")) is int and row["applicants_count"] == len(set(ids)) == len(ids)
+            and row.get("contracted_count") == 0 and row.get("expander_remaining") is False
+            and account not in ids and account not in (row.get("requester_ids") or []))
+
+
 def _closed_ids(path: Path) -> set[str]:
     """Requests whose official page read back as 募集終了: no further application is possible."""
     try:
@@ -147,21 +227,24 @@ def _closed_ids(path: Path) -> set[str]:
 STORE_METADATA = frozenset({"wedge-quarantine.json", "full-history-scan-state.json"})
 
 
-def _intent_settled(value: dict, applied: set[str], closed: set[str]) -> bool:
+def _intent_settled(value: dict, applied: set[str], closed: set[str],
+                    no_dispatch: Callable[[dict], bool] = lambda _value: False) -> bool:
     """Whether an intent can no longer hide a duplicable application.
 
     Provider-confirmed, a versioned pre_effect intent, a request listed in the
     official applied history, or a request whose own official page is 募集終了 /
     gone. retired_absent counts only when no irreversible attempt started: the
-    screenshot-based retire path is not a provider readback.
+    screenshot-based retire path is not a provider readback; after the marker it
+    also needs ``no_dispatch`` (pre-dispatch abort plus the official applicant roster).
     """
     request_id = str(value.get("request_id") or "")
     if request_id and (request_id in applied or request_id in closed):
         return True
     if value.get("state") == "confirmed" or fence.is_pre_effect(value):
         return True
-    return (value.get("state") == "retired_absent"
-            and value.get("effect_phase") != fence.IRREVERSIBLE_ATTEMPT_STARTED)
+    if value.get("state") != "retired_absent":
+        return False
+    return value.get("effect_phase") != fence.IRREVERSIBLE_ATTEMPT_STARTED or no_dispatch(value)
 
 
 def _store_intents(intent_root: Path):
@@ -181,15 +264,21 @@ def _store_intents(intent_root: Path):
 
 
 def _settled_scan(intent_root: Path, *, roster_path: Path | None = None,
-                  closed_path: Path | None = None) -> dict[str, object]:
+                  closed_path: Path | None = None, apply_root: Path | None = None) -> dict[str, object]:
     """Count store entries that may still hide a duplicable application (fail closed)."""
     applied = _roster_ids(roster_path or _latest_roster())
-    closed = _closed_ids(closed_path or CLOSED_READBACK)
+    closed_path = closed_path or CLOSED_READBACK
+    closed = _closed_ids(closed_path)
+    rows = _closed_rows(closed_path)
+
+    def no_dispatch(value: dict) -> bool:
+        return _roster_proves_no_dispatch(value, intent_root, apply_root or APPLY_ROOT, rows)
+
     digest = hashlib.sha256()
     scanned = unresolved = 0
     for path, value in _store_intents(intent_root):
         scanned += 1
-        settled = value is not None and _intent_settled(value, applied, closed)
+        settled = value is not None and _intent_settled(value, applied, closed, no_dispatch)
         if not settled:
             unresolved += 1
         state = value.get("state") if value else "unreadable"
@@ -214,8 +303,20 @@ def _resolve_settled(owner_id, occurrence_id, *, settled_proof):
         owner_id, occurrence_id, settled_proof=settled_proof)
 
 
-def _close_settled_fences(owner_id: str, intent_root: Path) -> tuple[dict[str, object], list[dict]]:
+def _needs_roster_readback(intent_root: Path) -> bool:
+    """Read the official roster only for post-marker intents retired before any click."""
+    return any(value is not None and value.get("state") == "retired_absent"
+               and value.get("effect_phase") == fence.IRREVERSIBLE_ATTEMPT_STARTED
+               and _pre_dispatch_abort_archive(value, intent_root) is not None
+               for _path, value in _store_intents(intent_root))
+
+
+def _close_settled_fences(owner_id: str, intent_root: Path, runner=None) -> tuple[dict[str, object], list[dict]]:
     scan = _settled_scan(intent_root)
+    if scan["unresolved_irreversible"] and _needs_roster_readback(intent_root):
+        exit_code = run_browser_reconcile(["bash", str(WITH_BROWSER), BROWSER_IDENTITY, "--",
+                                           sys.executable, str(CLOSED_READBACK_SCRIPT)], runner=runner)
+        scan = {**_settled_scan(intent_root), "roster_readback_exit_code": exit_code}
     if scan["scanned_intents"] == 0 or scan["unresolved_irreversible"] != 0:
         return scan, []
     closed = []
@@ -283,7 +384,7 @@ def main(
         return 0
 
     if target is None:
-        scan, closed = _close_settled_fences(args.owner_id, args.intent_root)
+        scan, closed = _close_settled_fences(args.owner_id, args.intent_root, runner)
         if closed:
             _write_scan_result(_scan_result_path(args.result), {
                 "status": "reconciled", "reason": "write_ahead_store_settled",

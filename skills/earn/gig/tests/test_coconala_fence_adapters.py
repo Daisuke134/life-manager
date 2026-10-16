@@ -260,3 +260,128 @@ def test_screenshot_retired_irreversible_and_unknown_shapes_stay_unresolved(tmp_
     (tmp_path / "wedge-quarantine.json").write_text("{}")
     scan = wrapper._settled_scan(tmp_path, roster_path=tmp_path / "none", closed_path=tmp_path / "none")
     assert (scan["scanned_intents"], scan["unresolved_irreversible"]) == (2, 2)
+
+
+# A post-marker intent retired because the 応募する control was never located (the
+# parent raises before Input.dispatchMouseEvent). It settles only with the official
+# applicant roster of its own request, read after the retire, excluding the account
+# captured before the marker in the same pass (hf-gig-apply-direct:18dea9626ade1eb8-21113).
+_PASS = "gig-apply-direct-1792093310697104000-319"
+
+
+def _aborted_intent(tmp_path: Path, rid: str = "5324400", reason: str | None = None,
+                    account: str = "2564121") -> tuple[Path, Path]:
+    import hashlib
+    intents, apply_root = tmp_path / "intents", tmp_path / "apply-direct"
+    intents.mkdir(parents=True, exist_ok=True)
+    cas = f"{rid}:snap:prop:40000:2027-02-28"
+    intent = {"request_id": rid, "state": "retired_absent", "version": 5, "cas": cas,
+              "effect_phase": "irreversible_attempt_started",
+              "runtime_occurrence_id": "hf-gig-apply-direct:18dea9626ade1eb8-21113",
+              "runtime_run_id": "18decb5dc0974808-99454",
+              "lease_fence": {"task": f"gig-apply-direct-{_PASS}-commit-{rid}"}}
+    (intents / f"{rid}.json").write_text(json.dumps(intent))
+    archive = intents / "recovery-history" / rid / f"{hashlib.sha256(cas.encode()).hexdigest()}.json"
+    archive.parent.mkdir(parents=True)
+    archive.write_text(json.dumps({
+        "event": "prepared_reconciled_absent",
+        "reason": reason or "pre_submit_effect_not_started:click_submit_control:ParentContractError",
+        "intent": {**intent, "state": "prepared"}}))
+    worker = apply_root / _PASS / "refresh-evidence" / "commit-workers" / rid
+    worker.mkdir(parents=True)
+    (worker / f"gig-{_PASS}-commit-{rid}-B2-{rid}-identity.json").write_text(json.dumps({
+        "source": "code_owned_cdp_authenticated_identity", "provider": "coconala",
+        "request_id": rid, "account_id": account}))
+    return intents, apply_root
+
+
+def _roster(tmp_path: Path, rid: str = "5324400", ids=("111", "222"), count=None,
+            contracted=0, observed_at="2099-01-01T00:00:00+00:00", expander_remaining=False) -> Path:
+    closed = tmp_path / "closed.json"
+    closed.write_text(json.dumps({"source": "code_owned_cdp_readback", "requests": {rid: {
+        "closed": False, "gone": False, "http_status": 200,
+        "url": f"https://coconala.com/requests/{rid}", "final_url": f"https://coconala.com/requests/{rid}",
+        "applicant_ids": list(ids), "applicants_count": len(ids) if count is None else count,
+        "contracted_count": contracted, "observed_at": observed_at,
+        "requester_ids": ["999"], "expander_remaining": expander_remaining}}}))
+    return closed
+
+
+def _scan(wrapper, tmp_path, intents, apply_root, closed):
+    return wrapper._settled_scan(intents, roster_path=tmp_path / "none.json", closed_path=closed,
+                                 apply_root=apply_root)["unresolved_irreversible"]
+
+
+def test_pre_submit_aborted_intent_settles_by_account_absent_applicant_roster(tmp_path) -> None:
+    wrapper = _load_wrapper()
+    intents, apply_root = _aborted_intent(tmp_path)
+    assert _scan(wrapper, tmp_path, intents, apply_root, _roster(tmp_path)) == 0
+
+
+def test_pre_submit_aborted_intent_stays_fenced_without_complete_absent_roster(tmp_path) -> None:
+    wrapper = _load_wrapper()
+    intents, apply_root = _aborted_intent(tmp_path)
+    assert _scan(wrapper, tmp_path, intents, apply_root, _roster(tmp_path, ids=("111", "2564121"))) == 1
+    assert _scan(wrapper, tmp_path, intents, apply_root, _roster(tmp_path, count=3)) == 1
+    assert _scan(wrapper, tmp_path, intents, apply_root, _roster(tmp_path, contracted=1)) == 1
+    assert _scan(wrapper, tmp_path, intents, apply_root,
+                 _roster(tmp_path, observed_at="2000-01-01T00:00:00+00:00")) == 1
+    assert _scan(wrapper, tmp_path, intents, apply_root, tmp_path / "missing.json") == 1
+    # Counts can coincide before the list is fully expanded; an expander left means partial.
+    assert _scan(wrapper, tmp_path, intents, apply_root, _roster(tmp_path, expander_remaining=True)) == 1
+    missing_flag = json.loads((tmp_path / "closed.json").read_text())
+    del missing_flag["requests"]["5324400"]["expander_remaining"]
+    (tmp_path / "closed.json").write_text(json.dumps(missing_flag))
+    assert _scan(wrapper, tmp_path, intents, apply_root, tmp_path / "closed.json") == 1
+
+
+def test_other_retire_reasons_or_unbound_identity_stay_fenced(tmp_path) -> None:
+    wrapper = _load_wrapper()
+    intents, apply_root = _aborted_intent(tmp_path / "a", reason="screenshot_absent")
+    assert _scan(wrapper, tmp_path / "a", intents, apply_root, _roster(tmp_path / "a")) == 1
+    intents, apply_root = _aborted_intent(tmp_path / "b")
+    for path in apply_root.rglob("*-identity.json"):
+        path.unlink()
+    assert _scan(wrapper, tmp_path / "b", intents, apply_root, _roster(tmp_path / "b")) == 1
+
+
+def test_adapter_reads_roster_through_registered_browser_then_closes(tmp_path, monkeypatch, capsys) -> None:
+    wrapper = _load_wrapper()
+    intents, apply_root = _aborted_intent(tmp_path)
+    closed = tmp_path / "closed.json"
+    monkeypatch.setattr(wrapper, "CLOSED_READBACK", closed)
+    monkeypatch.setattr(wrapper, "APPLY_ROOT", apply_root)
+    monkeypatch.setattr(wrapper.reconciler, "discover_single_target",
+                        lambda *, owner_id, intent_root: None)
+    monkeypatch.setattr(wrapper, "_fenced_occurrences",
+                        lambda owner_id: ["hf-gig-apply-direct:18dea9626ade1eb8-21113"])
+    commands = []
+
+    def runner(command, **_kwargs):
+        commands.append(command)
+        _roster(tmp_path)
+        return subprocess.CompletedProcess(command, 0)
+
+    proofs = []
+    monkeypatch.setattr(wrapper, "_resolve_settled",
+                        lambda owner_id, occurrence_id, *, settled_proof: proofs.append(settled_proof()) or True)
+    assert wrapper.main(["--intent-root", str(intents)], runner=runner) == 0
+    assert commands and commands[0][:4] == ["bash", str(wrapper.WITH_BROWSER), "coconala:kosuke", "--"]
+    assert commands[0][-1].endswith("coconala_request_closed_readback.py")
+    assert proofs and proofs[0]["unresolved_irreversible"] == 0
+    assert proofs[0]["occurrence_id"] == "hf-gig-apply-direct:18dea9626ade1eb8-21113"
+    scan = json.loads(capsys.readouterr().out.strip().splitlines()[0])
+    assert scan["roster_readback_exit_code"] == 0
+
+
+def test_roster_counts_only_dated_applicant_rows_never_the_requester() -> None:
+    module = _readback_module()
+    raw = {"applicants_count": 2, "contracted_count": 0, "requester_ids": ["999"], "entries": [
+        {"id": "111", "row": "Yunamito 2026/10/14 12:29"},
+        {"id": "999", "row": "募集者情報 nakaji7307 2026/10/14 12:29"},  # requester leak
+        {"id": "333", "row": "関連する仕事 BAMGHA"},                     # no 応募日時
+        {"id": "111", "row": "Yunamito 2026/10/14 12:29"}]}
+    roster = module.roster_from_page(raw, expander_remaining=False)
+    # Two counted but one real applicant listed: the count no longer matches by accident.
+    assert roster["applicant_ids"] == ["111"]
+    assert roster["requester_ids"] == ["999"] and roster["expander_remaining"] is False
