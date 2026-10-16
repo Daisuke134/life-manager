@@ -1365,3 +1365,36 @@ class ExternalIdentifierKeysKeepTheDayBlockedTest(unittest.TestCase):
                 (root / "articles.jsonl").write_text(json.dumps(row) + "\n")
                 decision = START.decide(root, "2026-10-16")
             self.assertNotEqual(decision["action"], "new", row_extra)
+
+
+class AmbiguousPrepublicationFailureDoesNotBlockTheDayTest(unittest.TestCase):
+    """2026-10-17 00:27: run 20261016-152709 staged drafts, the provider failed (session limit),
+    generation-state = provider-failed-ambiguous, no ledger row, no publication-state, no dispatch.
+    06:05 and 07:05 then blocked as same-jst-day-unclassified-run and no article shipped."""
+
+    def _run(self, root: Path, status: str = "provider-failed-ambiguous", return_code=1,
+             publication_state: bool = False):
+        run_id = "20261016-152709"
+        run_dir = root / "runs" / run_id
+        (run_dir / "gates").mkdir(parents=True)
+        (run_dir / "git-hash.txt").write_text("abc\n")
+        (run_dir / "article-ja.md").write_text("# ja\n")
+        (run_dir / "gates" / "generation-state.json").write_text(json.dumps(
+            {"status": status, "attempts": [{"status": status, "return_code": return_code}]}))
+        if publication_state:
+            (run_dir / "gates" / "publication-state.json").write_text("{}")
+        (root / "articles.jsonl").write_text("")
+        return START.decide(root, "2026-10-17")
+
+    def test_failed_provider_without_dispatch_starts_a_new_run(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            decision = self._run(Path(tmp))
+        self.assertEqual(decision["action"], "new")
+        self.assertEqual(decision["reason"], "same-jst-day-carry-over-no-dispatch")
+        self.assertEqual(decision["previous_run_id"], "20261016-152709")
+
+    def test_publication_state_or_a_live_attempt_still_blocks(self):
+        for kwargs in ({"publication_state": True}, {"status": "invoking", "return_code": None}):
+            with tempfile.TemporaryDirectory() as tmp:
+                decision = self._run(Path(tmp), **kwargs)
+            self.assertNotEqual(decision["action"], "new", kwargs)

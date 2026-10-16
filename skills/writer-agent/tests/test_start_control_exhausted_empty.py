@@ -37,8 +37,12 @@ class ExhaustedEmptyProviderFailureTest(unittest.TestCase):
         self.assertEqual(result["action"], "new")
         self.assertEqual(result["reason"], "same-jst-day-exhausted-empty-provider-failure")
 
-    def test_run_with_a_draft_stays_blocked(self):
-        self.assertNotEqual(self._decide(3, "article-ja.md")["action"], "new")
+    def test_run_with_a_draft_but_no_dispatch_releases_a_new_run(self):
+        # 2026-10-17: a draft without publication-state or dispatch never left the machine.
+        self.assertEqual(self._decide(3, "article-ja.md")["action"], "new")
+
+    def test_run_with_publication_state_stays_blocked(self):
+        self.assertNotEqual(self._decide(3, "gates/publication-state.json")["action"], "new")
 
 
 if __name__ == "__main__":
