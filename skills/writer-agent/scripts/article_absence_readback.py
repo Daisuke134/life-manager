@@ -19,6 +19,7 @@ import json
 import os
 import re
 import subprocess
+import time
 import sys
 import unicodedata
 from datetime import datetime, timedelta, timezone
@@ -160,11 +161,13 @@ def _x_row(text: str, reference: datetime) -> tuple[str, str, object, bool]:
     raise ValueError("x article row date unreadable")
 
 
-def parse_x(data: dict, anchor_edit_id: str, *, since: float, until: float) -> tuple[list[dict], bool]:
+def parse_x(data: dict, anchor_edit_id: str, *, since: float, until: float,
+            now: float | None = None) -> tuple[list[dict], bool]:
     """data = x_list_in_leased_browser() output: Drafts and Published tab rows, newest first.
 
-    Rows show day-granular dates in the browser's JST; a row dated on any run-window day (or with
-    a relative age) is in the window.  Each tab must be newest-first and reach back before the
+    Rows show day-granular dates in the browser's JST.  The run's draft can be reopened and
+    re-saved later (same edit id), so any row dated on or after the run's first day, or with a
+    relative age, counts as in the window; years are inferred from the read time.  Each tab must be newest-first and reach back before the
     window, and the ledger's newest earlier X Article (edit id) must be a parsed Published row.
     """
     if not data.get("expected") or str(data.get("identity", "")).casefold() != data["expected"].casefold():
@@ -172,17 +175,16 @@ def parse_x(data: dict, anchor_edit_id: str, *, since: float, until: float) -> t
     if not str(data.get("url", "")).startswith("https://x.com/compose/articles"):
         raise ValueError("x articles list did not render")
     jst = timezone(timedelta(hours=9))   # ponytail: the leased browsers run in JST; read tz from the page if that changes
-    reference = datetime.fromtimestamp(until + GRACE_SECONDS, jst)
+    reference = datetime.fromtimestamp(time.time() if now is None else now, jst)
     first_day = datetime.fromtimestamp(since, jst).date()
-    window_days = {first_day + timedelta(days=n) for n in range((reference.date() - first_day).days + 1)}
     items, dates, anchored = [], {"drafts": [], "published": []}, False
     for row in data.get("rows") or []:
-        _, title, day, relative = _x_row(row.get("text"), reference)
+        status, title, day, relative = _x_row(row.get("text"), reference)
         tab = row.get("tab")
-        if tab not in dates:
-            raise ValueError("x article row tab unknown")
+        if tab not in dates or {"drafts": "Draft", "published": "Published"}[tab] != status:
+            raise ValueError("x article row status does not match its tab")
         dates[tab].append(day)
-        items.append({"title": title, "times": [], "in_window": relative or day in window_days})
+        items.append({"title": title, "times": [], "in_window": relative or day >= first_day})
         anchored = anchored or (tab == "published" and bool(anchor_edit_id) and str(row.get("href", "")).rstrip("/")
                                 .endswith(f"/compose/articles/edit/{anchor_edit_id}"))
     complete = anchored and all(

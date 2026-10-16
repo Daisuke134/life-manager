@@ -158,3 +158,26 @@ def test_collect_turns_any_reader_error_into_unreadable(tmp_path):
                                                        "substack/en": ok, "x-article/ja": boom}, ledger_rows=[])
     assert out["destinations"]["note/ja"]["status"] == "absent"
     assert out["destinations"]["x-article/ja"]["status"] == "unreadable"
+
+
+def test_x_row_dated_after_the_run_is_still_in_window_when_read_days_later():
+    """STEP18 may reopen the run's edit id later; a later date must never read as absent."""
+    now = mod._epoch("2026-10-20T03:00:00Z")
+    for date in ("Oct 18", "Oct 20"):
+        data = {**X_DATA, "rows": [_xrow("drafts", "1", date, "タイトルを変えた記事")] + X_DATA["rows"]}
+        items, complete = mod.parse_x(data, "2101130889136832512", since=X_SINCE, until=X_UNTIL, now=now)
+        assert complete is True
+        assert mod.judge(items, since=X_SINCE, until=X_UNTIL, titles=TITLES, complete=True)["status"] == "present"
+
+
+def test_x_year_is_inferred_from_read_time_not_run_end():
+    now = mod._epoch("2027-01-05T03:00:00Z")
+    data = {**X_DATA, "rows": [_xrow("drafts", "1", "Jan 3", "別の記事")] + X_DATA["rows"]}
+    items, _ = mod.parse_x(data, "2101130889136832512", since=X_SINCE, until=X_UNTIL, now=now)
+    assert items[0]["in_window"] is True       # Jan 3 2027, after the run, not Jan 3 2026
+
+
+def test_x_row_status_must_match_its_tab():
+    swapped = {**_xrow("published", "1", "Sep 19", "a"), "tab": "drafts"}
+    with pytest.raises(ValueError):
+        _x({**X_DATA, "rows": [swapped] + X_DATA["rows"]})
