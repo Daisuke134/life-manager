@@ -19175,3 +19175,22 @@ A direct RevenueCat V2 read observed at 2026-10-14T22:25Z reports latest complet
 **Read:** the free agent is the real top of funnel (566 search visits/7d, 53% of all visits); conversion depends on #8146 passing review. Own-channel reach is still single-digit (X 8 views per video, 2 ct visits). Host disk loss of ~5 GB overnight blocks every producer loop and browser launch.
 
 **Cursor:** host disk floor (owner: host/disk lane) → rerun capafy-reel-daily for 10/23 → hooklab_free visits after #8146 approval → TikTok warm-up.
+
+### Human-free reroute of the blocked sticker / eBook Instagram lanes — 2026-10-16 (claude subagent)
+
+**Goal (Dais 2026-10-16):** money with no human in the loop; `line-sticker-distribute` and `ebook-*-instagram-daily` were blocked by things only a human could fix.
+
+**Measured (2026-10-16):**
+- Postiz `GET /public/v1/integrations`: 31 integrations, no English Monk Instagram; adding a channel returns 402 (SSOT 2026-10-10), so no $0 Postiz route exists for it. All connected Postiz channels belong to Anicca/Honne/Hook Lab brands; the sticker audience must never use them (Dais 2026-10-07).
+- `instagram:capafy-provision` (lease free, read-only probe): instagram.com -> `/accounts/suspended/`; threads.com shows a login wall (no composer), so the Threads profile made from that session cannot post either. Public `threads.com/@stardust_doubutsu` still lists the old posts.
+- Admission fences (`effect_unknown=1`): `line-sticker-distribute` since 2026-10-10 04:21Z (an IG Reel that reached `shared-unconfirmed`; unprovable while IG is suspended), `ebook-en-instagram-daily` since 10-09 (`identity_missing_or_invalid`), `ebook-ja-instagram-daily` 10-07, `ebook-ja-tiktok-daily` 10-07, `ebook-en-tiktok-daily` 10-09/10-12, `line-sticker-articles` 10-15 (its reconciler already returns `PROOF_READY`, effected=false).
+- Free-buyer research: LINE sticker sellers use X, Instagram, TikTok, LINE VOOM and their own blog/note (https://note.com/syuho/n/n685cfaf21825, https://unicorn-blog.jp/archives/5030); indie ebook authors use TikTok/YouTube Shorts and search-indexed content (https://www.editionguard.com/learn/increase-your-reach-with-youtube/, https://www.publishingxpress.com/blog/how-to-build-a-tiktok-following-as-a-self-published-author/).
+
+**Change (branch `feat/autonomous-distribution-reroute-20261016`):**
+1. `line_sticker_distribute.load_accounts` drops accounts with `paused_reason`; both stardust accounts carry `instagram_account_suspended` (kept for recovery). Post, engagement and bio-link passes stop touching the suspended session. The account-free sticker lane is `line-sticker-articles` (15 aniccaai.com articles/day, own owner).
+2. New owner `ebook-articles` (copy of `line-sticker-articles`): free aniccaai.com articles with one code-appended checkout link (`aniccaai.com/monk` EN at 01:05/04:05 JST, `aniccaai.com/achan` JA at 02:05/05:05 JST — hours no other landing writer uses), own GitHub-readback fence reconciler, mapped to the `ebook` product loop. Instagram lanes are unchanged and stay for later recovery.
+
+**TODO (cursor = 1):**
+1. PR review/merge -> release -> targeted apply of `ebook-articles` and `line-sticker-distribute`; prove with the first natural `ebook-articles` run (aniccaai.com/blog/ebook-en-<date>-01 live, ledger `published`).
+2. Sticker video channel: create a dedicated sticker TikTok in its own browser identity (email signup as `tiktok:hooklab`, 2026-10-15), warm up several days (fresh-account posting was rejected as spam), then add a `browser_tiktok` transport over `skills/video/lm-distribution/tiktok_direct.mjs` as its own owner so the unprovable IG fence cannot block it.
+3. Close `line-sticker-articles` 10-15 fence via its reconciler (`--resolve`; proof already verified).

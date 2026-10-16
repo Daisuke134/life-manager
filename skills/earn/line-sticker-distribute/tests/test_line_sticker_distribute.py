@@ -328,3 +328,36 @@ class DueSlotTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PausedAccountTest(unittest.TestCase):
+    """2026-10-16: @stardust_doubutsu Instagram redirects to /accounts/suspended/ and the Threads
+    profile made from that session shows a login wall. A dead account stays in the config (for
+    recovery) but no caller may post, engage or set a bio link on it."""
+
+    def _config(self, tmp: str, accounts: list[dict]) -> Path:
+        path = Path(tmp) / "accounts.json"
+        path.write_text(json.dumps({"accounts": accounts}), encoding="utf-8")
+        return path
+
+    def test_paused_account_is_kept_in_config_but_never_loaded(self):
+        live = {"lane_id": "live", "platform": "threads", "transport": "browser_threads",
+                "handle": "h", "browser_identity": "i", "cadence_jst": ["08:15"]}
+        paused = {**live, "lane_id": "paused", "paused_reason": "instagram_account_suspended"}
+        with tempfile.TemporaryDirectory() as tmp:
+            loaded = distribute.load_accounts(self._config(tmp, [paused, live]))
+        self.assertEqual([a["lane_id"] for a in loaded], ["live"])
+
+    def test_paused_reason_must_be_a_non_empty_string(self):
+        bad = {"lane_id": "x", "platform": "threads", "transport": "browser_threads",
+               "handle": "h", "browser_identity": "i", "cadence_jst": ["08:15"], "paused_reason": True}
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaises(RuntimeError):
+                distribute.load_accounts(self._config(tmp, [bad]))
+
+    def test_the_real_config_pauses_both_suspended_stardust_accounts(self):
+        config = json.loads((distribute.DEFAULT_ACCOUNTS_CONFIG).read_text(encoding="utf-8"))
+        reasons = {a["lane_id"]: a.get("paused_reason") for a in config["accounts"]}
+        self.assertEqual(reasons["stardust-doubutsu-instagram"], "instagram_account_suspended")
+        self.assertEqual(reasons["stardust-doubutsu-threads"], "instagram_account_suspended")
+        self.assertEqual(distribute.load_accounts(distribute.DEFAULT_ACCOUNTS_CONFIG), [])

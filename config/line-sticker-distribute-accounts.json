@@ -1,12 +1,13 @@
 {
   "schema_version": 1,
   "timezone": "Asia/Tokyo",
-  "_comment": "line-sticker-distribute sell loop targets. ONLY dedicated sticker-character accounts belong here (never an existing Anicca/Honne/eBook brand integration -- Dais 2026-10-07). transport defaults to 'postiz' (integration_id required); 'browser_threads' posts the same video to the Threads profile made from that Instagram session (threads_publish.py, clickable link in the caption); 'browser_reel' drives ~/.agents/skills/ig-reels-poster over CloakBrowser directly for an account whose Postiz channel slot is unavailable (handle + browser_identity required). link_in_caption_from/bio_link_from (ISO date, account timezone): before that date no store link appears anywhere (brand-new account); from that date the caption carries the store URL again and the bio gets the author_url once. engagement_daily_likes_cap/engagement_daily_follows_cap/engagement_niche_terms configure the day-3+ capped engagement step (SSOT L17 gap #2); omit to use engagement_daily.py's defaults (15/5/LINEスタンプ,イラスト,かわいい).",
+  "_comment": "line-sticker-distribute sell loop targets. ONLY dedicated sticker-character accounts belong here (never an existing Anicca/Honne/eBook brand integration -- Dais 2026-10-07). transport defaults to 'postiz' (integration_id required); 'browser_threads' posts the same video to the Threads profile made from that Instagram session (threads_publish.py, clickable link in the caption); 'browser_reel' drives ~/.agents/skills/ig-reels-poster over CloakBrowser directly for an account whose Postiz channel slot is unavailable (handle + browser_identity required). link_in_caption_from/bio_link_from (ISO date, account timezone): before that date no store link appears anywhere (brand-new account); from that date the caption carries the store URL again and the bio gets the author_url once. engagement_daily_likes_cap/engagement_daily_follows_cap/engagement_niche_terms configure the day-3+ capped engagement step (SSOT L17 gap #2); omit to use engagement_daily.py's defaults (15/5/LINEスタンプ,イラスト,かわいい). paused_reason (non-empty string) keeps a dead account here for recovery while every caller skips it; 2026-10-16 both stardust_doubutsu accounts are paused: Instagram redirects to /accounts/suspended/ (WhatsApp code to Dais's number) and the Threads profile made from that session shows a login wall. The free aniccaai.com articles (line-sticker-articles) are the account-free lane that keeps running.",
   "accounts": [
     {
       "lane_id": "stardust-doubutsu-instagram",
       "platform": "instagram",
       "transport": "browser_reel",
+      "paused_reason": "instagram_account_suspended",
       "handle": "stardust_doubutsu",
       "browser_identity": "instagram:capafy-provision",
       "created_at": "2026-10-07",
@@ -22,6 +23,7 @@
       "lane_id": "stardust-doubutsu-threads",
       "platform": "threads",
       "transport": "browser_threads",
+      "paused_reason": "instagram_account_suspended",
       "handle": "stardust_doubutsu",
       "browser_identity": "instagram:capafy-provision",
       "created_at": "2026-10-09",
