@@ -308,7 +308,7 @@ def test_release_capacity_measurement_failure_fails_closed(
 ):
     guard = load_guard()
     monkeypatch.setattr(
-        guard, "release_capacity_bytes",
+        guard, "release_capacity",
         lambda *_args: (_ for _ in ()).throw(ValueError("fixture measurement failure")),
     )
 
