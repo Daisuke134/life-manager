@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Official owner readbacks: is one Writer run's article absent from every active destination?
 
-Each reader lists the authenticated owner's drafts and published items, newest first.  A
-destination is "absent" only when its listing is complete back to the window start, no item was
-created/updated/published in the run window (plus grace), and no item carries the run's title.
-Any read, identity or completeness failure is "unreadable" -- never absence.
+Each reader reads the authenticated owner's complete drafts+published roster.  A destination is
+"absent" only when the roster is complete (every page read, or anchored by a known earlier
+publication from the Writer ledger), no item was created/updated/published in the run window
+(plus grace), and no item carries the run's title.  Any read, identity, completeness, anchor or
+timezone failure is "unreadable" -- never absence.
 
     python3 article_absence_readback.py --run-dir DIR --since EPOCH --until EPOCH
 Run it under writer-runtime-env.sh (credentials) with the Writer managed Python.  The X reader
@@ -26,19 +27,22 @@ from typing import Callable
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parents[2]
+ARTICLES = Path.home() / ".local/state/life-manager/writer/articles.jsonl"
 ACTIVE_DESTINATIONS = ("note/ja", "substack/ja", "substack/en", "x-article/ja")
 GRACE_SECONDS = 1800          # a killed model pass cannot act after its terminal; margin anyway
 TITLE_PREFIX = 20             # titles may be truncated in owner listings
+MAX_PAGES = 40
+SUBSTACK_PAGE = 25
 
 
 def _epoch(value: object) -> float | None:
-    if not value:
+    """Empty -> None.  A naive or unparseable time cannot be placed in the window: refuse."""
+    if value in (None, ""):
         return None
-    try:
-        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    return parsed.timestamp() if parsed.tzinfo is not None else None
+    parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        raise ValueError("timezone-naive timestamp")
+    return parsed.timestamp()
 
 
 def _norm(value: str) -> str:
@@ -85,13 +89,72 @@ def judge(items: list[dict], *, since: float, until: float, titles: list[str], c
     return {"status": "absent", "items_read": len(items), "newest_item_epoch": newest}
 
 
-def _complete(times: list[float | None], since: float, final_page: bool) -> bool:
-    """Newest-first listing reaches back past the window, or it is the whole roster."""
-    known = [t for t in times if t is not None]
-    return final_page or (bool(known) and min(known) < since)
+def ledger_anchor(rows: list[dict], platform: str, since: float, field: str) -> str:
+    """Newest Writer-ledger publication on this platform before the window: a parse/reach anchor."""
+    best, best_time = "", None
+    for row in rows:
+        if row.get("platform") != platform or row.get("published") is not True:
+            continue
+        try:
+            stamp = _epoch(row.get("published_at") or row.get("ts"))
+        except ValueError:
+            continue
+        if stamp is not None and stamp < since and (best_time is None or stamp > best_time) and row.get(field):
+            best, best_time = str(row[field]), stamp
+    return best
 
 
-def note_reader(since: float) -> tuple[list[dict], bool, dict]:
+def parse_note(pages: list[dict], expected: str, anchor_key: str) -> tuple[list[dict], bool]:
+    """pages = successive `data` objects of api/v2/note_list/contents (drafts and published)."""
+    items, keys = [], set()
+    for data in pages:
+        for note in data["notes"]:
+            if (note.get("user") or {}).get("urlname") != expected:
+                raise ValueError("note listing contains another owner")
+            keys.add(note.get("key"))
+            draft = note.get("noteDraft") if isinstance(note.get("noteDraft"), dict) else {}
+            times = [_epoch(note.get(k)) for k in ("createdAt", "publishAt", "updatedAt")]
+            for title in {note.get("name") or "", draft.get("name") or ""}:
+                items.append({"title": title, "times": times})
+    complete = bool(pages) and pages[-1].get("isLastPage") is True and bool(anchor_key) and anchor_key in keys
+    return items, complete
+
+
+def parse_substack(listings: dict[str, list[dict]]) -> tuple[list[dict], bool]:
+    """listings[kind] = successive post_management pages; complete only when every post was read."""
+    items, complete = [], True
+    for pages in listings.values():
+        posts = [post for page in pages for post in page["posts"]]
+        complete = complete and bool(pages) and len(posts) >= int(pages[0]["total"])
+        for post in posts:
+            times = [_epoch(post.get(k)) for k in ("draft_updated_at", "draft_created_at", "post_date")]
+            for title in {post.get("draft_title") or "", post.get("title") or ""}:
+                items.append({"title": title, "times": times})
+    return items, complete
+
+
+def parse_x(data: dict, anchor_edit_id: str) -> tuple[list[dict], bool]:
+    """data = x_list_in_leased_browser() output; rows carry no timestamps.
+
+    The ledger's newest earlier X Article (by its edit id) must be a parsed, titled row: that
+    proves the row parse works and the newest-first list reaches back before the window.
+    """
+    if not data.get("expected") or str(data.get("identity", "")).casefold() != data["expected"].casefold():
+        raise ValueError("x authenticated identity mismatch")
+    if "/compose/articles" not in str(data.get("url", "")):
+        raise ValueError("x articles list did not render")
+    items, anchored = [], False
+    for row in data.get("rows") or []:
+        text = re.sub(r"\s+", " ", str(row.get("text") or "")).strip()
+        if not text:
+            raise ValueError("x article row without title text")
+        items.append({"title": text, "times": []})
+        anchored = anchored or (bool(anchor_edit_id) and str(row.get("href", "")).rstrip("/").endswith(
+            f"/compose/articles/edit/{anchor_edit_id}"))
+    return items, anchored
+
+
+def note_reader(since: float, rows: list[dict]) -> tuple[list[dict], bool, dict]:
     from publication_remote import get_json
     from writer_runtime_paths import note_work_dir
     cookies = json.loads((note_work_dir() / "note-cookies.json").read_text(encoding="utf-8"))
@@ -100,20 +163,18 @@ def note_reader(since: float) -> tuple[list[dict], bool, dict]:
     identity = get_json("https://note.com/api/v2/current_user", headers)["data"]["urlname"]
     if not expected or identity != expected:
         raise ValueError("note authenticated identity mismatch")
-    url = "https://note.com/api/v2/note_list/contents?page=1"
-    data = get_json(url, headers)["data"]
-    items = []
-    for note in data["notes"]:
-        if (note.get("user") or {}).get("urlname") != expected:
-            raise ValueError("note listing contains another owner")
-        draft = note.get("noteDraft") if isinstance(note.get("noteDraft"), dict) else {}
-        for title in {note.get("name") or "", draft.get("name") or ""}:
-            items.append({"title": title, "times": [_epoch(note.get("createdAt")), _epoch(note.get("publishAt"))]})
-    complete = _complete([t for i in items for t in i["times"]], since, data.get("isLastPage") is True)
-    return items, complete, {"readback_url": url, "identity": identity}
+    pages = []
+    for page in range(1, MAX_PAGES + 1):
+        pages.append(get_json(f"https://note.com/api/v2/note_list/contents?page={page}", headers)["data"])
+        if pages[-1].get("isLastPage") is True:
+            break
+    anchor = ledger_anchor(rows, "note", since, "public_id")
+    items, complete = parse_note(pages, expected, anchor)
+    return items, complete, {"readback_url": "https://note.com/api/v2/note_list/contents",
+                             "identity": identity, "pages": len(pages), "anchor": anchor}
 
 
-def substack_reader(pair: str, since: float) -> tuple[list[dict], bool, dict]:
+def substack_reader(pair: str, since: float, rows: list[dict]) -> tuple[list[dict], bool, dict]:
     from publication_remote import get_json
     publication = os.environ.get("SUBSTACK_PUBLICATION_EN" if pair == "substack/en" else "SUBSTACK_PUBLICATION_JA", "")
     cookie = os.environ.get("SUBSTACK_SESSION_COOKIE_EN" if pair == "substack/en" else "SUBSTACK_SESSION_COOKIE_JA", "") \
@@ -121,21 +182,19 @@ def substack_reader(pair: str, since: float) -> tuple[list[dict], bool, dict]:
     if not publication or not cookie:
         raise ValueError("substack identity or cookie missing")
     headers = {"Cookie": cookie, "User-Agent": "Mozilla/5.0", "Accept": "application/json"}
-    items, complete, urls = [], True, []
+    listings: dict[str, list[dict]] = {}
     for kind in ("drafts", "scheduled", "published"):
-        url = (f"https://{publication}/api/v1/post_management/{kind}"
-               "?offset=0&limit=25&order_by=draft_updated_at&order_direction=desc")
-        urls.append(url)
-        data = get_json(url, headers)
-        posts = data["posts"]
-        times = []
-        for post in posts:
-            stamps = [_epoch(post.get(k)) for k in ("draft_updated_at", "draft_created_at", "post_date")]
-            times.extend(stamps)
-            for title in {post.get("draft_title") or "", post.get("title") or ""}:
-                items.append({"title": title, "times": stamps})
-        complete = complete and _complete(times, since, int(data["total"]) <= len(posts))
-    return items, complete, {"readback_urls": urls, "identity": publication}
+        pages = listings.setdefault(kind, [])
+        for index in range(MAX_PAGES):
+            pages.append(get_json(
+                f"https://{publication}/api/v1/post_management/{kind}?offset={index * SUBSTACK_PAGE}"
+                f"&limit={SUBSTACK_PAGE}&order_by=draft_updated_at&order_direction=desc", headers))
+            if not pages[-1]["posts"] or (index + 1) * SUBSTACK_PAGE >= int(pages[0]["total"]):
+                break
+    items, complete = parse_substack(listings)
+    return items, complete, {"readback_url": f"https://{publication}/api/v1/post_management/{{drafts,scheduled,published}}",
+                             "identity": publication,
+                             "totals": {kind: int(pages[0]["total"]) for kind, pages in listings.items()}}
 
 
 def x_list_in_leased_browser() -> dict:
@@ -150,17 +209,17 @@ def x_list_in_leased_browser() -> dict:
             page.goto("https://x.com/compose/articles", wait_until="domcontentloaded", timeout=45000)
             page.wait_for_timeout(6000)
             href = page.locator('a[data-testid="AppTabBar_Profile_Link"]').first.get_attribute("href", timeout=10000)
-            identity = str(href or "").strip("/")
             rows = page.eval_on_selector_all(
-                'a[href*="/compose/articles/edit/"]', "els => els.map(e => e.innerText)")
-            return {"url": page.url, "identity": identity, "expected": expected, "rows": rows}
+                'a[href*="/compose/articles/edit/"]',
+                "els => els.map(e => ({href: e.getAttribute('href'), text: e.innerText}))")
+            return {"url": page.url, "identity": str(href or "").strip("/"), "expected": expected, "rows": rows}
         finally:
             page.close()
     finally:
         playwright.stop()
 
 
-def x_reader(since: float) -> tuple[list[dict], bool, dict]:
+def x_reader(since: float, rows: list[dict]) -> tuple[list[dict], bool, dict]:
     env = {**os.environ, "BROWSER_WAIT_SECONDS": "0"}
     completed = subprocess.run(
         ["bash", str(REPO_ROOT / "skills/browser/with-browser.sh"), "interactive:dais", "--",
@@ -169,24 +228,24 @@ def x_reader(since: float) -> tuple[list[dict], bool, dict]:
     if completed.returncode != 0:
         raise ValueError(f"x leased read failed rc={completed.returncode}")
     data = json.loads(completed.stdout.strip().splitlines()[-1])
-    if not data["expected"] or data["identity"].casefold() != data["expected"].casefold():
-        raise ValueError("x authenticated identity mismatch")
-    if "/compose/articles" not in data["url"] or not data["rows"]:
-        raise ValueError("x articles list did not render")
-    # ponytail: the X list exposes no timestamps; a run's article is the newest row, so the title
-    # check over the first rendered page carries the proof. Add dates if X exposes them.
-    items = [{"title": row.strip().splitlines()[0] if row.strip() else "", "times": []} for row in data["rows"]]
-    return items, True, {"readback_url": "https://x.com/compose/articles", "identity": data["identity"]}
+    target = ledger_anchor(rows, "x-article", since, "stable_target")
+    anchor = target.rstrip("/").rsplit("/", 1)[-1] if "/compose/articles/edit/" in target else ""
+    items, complete = parse_x(data, anchor)
+    return items, complete, {"readback_url": "https://x.com/compose/articles", "identity": data["identity"],
+                             "rows": len(items), "anchor_edit_id": anchor}
 
 
 def collect(run_dir: Path, since: float, until: float,
-            readers: dict[str, Callable[[float], tuple[list[dict], bool, dict]]] | None = None) -> dict:
+            readers: dict[str, Callable[[float, list[dict]], tuple[list[dict], bool, dict]]] | None = None,
+            ledger_rows: list[dict] | None = None) -> dict:
     readers = readers or {
         "note/ja": note_reader,
-        "substack/ja": lambda s: substack_reader("substack/ja", s),
-        "substack/en": lambda s: substack_reader("substack/en", s),
+        "substack/ja": lambda s, r: substack_reader("substack/ja", s, r),
+        "substack/en": lambda s, r: substack_reader("substack/en", s, r),
         "x-article/ja": x_reader,
     }
+    if ledger_rows is None:
+        ledger_rows = [json.loads(line) for line in ARTICLES.read_text(encoding="utf-8").splitlines() if line.strip()]
     titles = run_titles(run_dir)
     destinations = {}
     for pair in ACTIVE_DESTINATIONS:
@@ -194,7 +253,7 @@ def collect(run_dir: Path, since: float, until: float,
             destinations[pair] = {"status": "unreadable", "reason": "run_title_missing"}
             continue
         try:
-            items, complete, meta = readers[pair](since)
+            items, complete, meta = readers[pair](since, ledger_rows)
             destinations[pair] = {**judge(items, since=since, until=until, titles=titles, complete=complete), **meta}
         except Exception as error:   # any read failure keeps the fence
             destinations[pair] = {"status": "unreadable", "reason": f"{type(error).__name__}: {str(error)[:120]}"}
