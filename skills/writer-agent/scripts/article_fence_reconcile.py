@@ -568,7 +568,11 @@ def _official_absence_readback(run_dir: Path, since: float, until: float) -> dic
             ["bash", "-c", 'source "$0" >/dev/null 2>&1 || exit 69; exec "$LIFE_MANAGER_PYTHON" "$@"',
              str(scripts / "writer-runtime-env.sh"), str(scripts / "article_absence_readback.py"),
              "--run-dir", str(run_dir), "--since", repr(since), "--until", repr(until)],
-            capture_output=True, text=True, timeout=600, check=False)
+            capture_output=True, text=True, timeout=600, check=False,
+            # Under lm-fence-reconciler LIFE_MANAGER_STATE_ROOT is the reconciler's own root, and
+            # writer-runtime-env.sh falls back to it: note cookies were looked up there (2026-10-16).
+            env={**os.environ, "WRITER_STATE_DIR": str(run_dir.parents[1]),
+                 "ARTICLE_STATE_DIR": str(run_dir.parents[1])})
         return json.loads(completed.stdout.strip().splitlines()[-1]) if completed.returncode == 0 else None
     except (OSError, subprocess.SubprocessError, ValueError, IndexError):
         return None
