@@ -37,9 +37,9 @@ def _producer_floor_bytes() -> int:
         return PRODUCER_FLOOR_BYTES
 _PRODUCER_FLOOR_REASON = "disk_floor_low"
 # Revenue lanes keep running down to this lower floor, like Kubernetes evicting low-priority
-# pods first: a flat 12 GiB floor stopped every revenue lane at 11 GiB (2026-10-16) while the
-# ballast still released at 3 GiB. Borrow and unclassified producers stop at the higher floor.
-REVENUE_FLOOR_BYTES = 8 * 1024**3
+# pods first: a flat 12 GiB floor stopped every revenue lane at 11 GiB (2026-10-16). 10 GiB still
+# leaves the unarmed 8 GiB ballast plus the 2 GiB recovery floor as headroom for swap growth.
+REVENUE_FLOOR_BYTES = 10 * 1024**3
 
 
 def _is_revenue_loop(loop_id: str | None) -> bool:
@@ -225,6 +225,11 @@ def _failure(
     return 1
 
 
+def _floor_bytes(loop_id: str | None) -> int:
+    floor = _producer_floor_bytes()
+    return min(floor, REVENUE_FLOOR_BYTES) if _is_revenue_loop(loop_id) else floor
+
+
 def _producer_gate(
     loop_id: str | None = None, *, check_capacity: bool = True,
 ) -> tuple[str, Path] | None:
@@ -274,9 +279,7 @@ def _producer_gate(
             return reason, flag
     if check_capacity and loop_id not in _CONTROL_PLANE_LOOPS:
         available = disk_free_bytes(configured)
-        floor = _producer_floor_bytes()
-        if _is_revenue_loop(loop_id):
-            floor = min(floor, REVENUE_FLOOR_BYTES)
+        floor = _floor_bytes(loop_id)
         if available is not None and available < floor:
             return _PRODUCER_FLOOR_REASON, configured
     return None
@@ -298,7 +301,7 @@ def _producer_preflight(loop_id: str | None = None) -> int:
             receipt = {
                 "status": "deferred", "effect": 0, "readback": 0,
                 "reason": reason, "required_bytes": (
-                    PRODUCER_FLOOR_BYTES if reason == _PRODUCER_FLOOR_REASON else RECOVERY_FLOOR_BYTES),
+                    _floor_bytes(loop_id) if reason == _PRODUCER_FLOOR_REASON else RECOVERY_FLOOR_BYTES),
                 "gate": _PRODUCER_GATE, "flag_path": str(flag),
             }
             if available_bytes is not None:
