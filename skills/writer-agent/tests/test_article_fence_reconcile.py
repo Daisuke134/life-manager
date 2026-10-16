@@ -795,3 +795,67 @@ def test_resume_without_resolve_writes_nothing(tmp_path):
     result, calls = _resume(m, tmp_path, resolve=False)
     assert result["status"] == "no_dispatch_proven" and result["closed"] is False and calls == []
     assert not (tmp_path / "writer").exists()
+
+
+MARKER_RUN = "18de88fef43e89b0-51032"
+MARKER_OCC = f"{OWNER}:{MARKER_RUN}"
+MARKER_QUEUED = datetime(2026, 10, 14, 23, 18, 2, tzinfo=timezone.utc).timestamp()   # 08:18 JST
+
+
+def _marker_fixture(tmp_path, *, marker='{"effect":0,"status":"pre_effect_failure"}', mode=0o600,
+                    identity=False, terminal=None):
+    """Start control BLOCK before any run dir: the host marker is the only no-dispatch evidence."""
+    root = tmp_path / "writer"
+    scratch = root / "loop-tmp" / OWNER / MARKER_RUN
+    scratch.mkdir(parents=True)
+    for d in (root, root / "loop-tmp", root / "loop-tmp" / OWNER, scratch):
+        d.chmod(0o700)
+    if marker is not None:
+        (scratch / "entrypoint-result.json").write_text(marker)
+        (scratch / "entrypoint-result.json").chmod(mode)
+    if identity:
+        (scratch / "effect-identity.jsonl").write_text("{}\n")
+    terminal = {"occurrence_id": MARKER_OCC, "owner_id": OWNER, "phase": "report", "status": "fail",
+                "exit_code": 75, "effect_status": "unknown", "effect_identity_status": "not_written",
+                "provider_receipt_id": None, "official_readback_ref": None} if terminal is None else terminal
+    start = {"occurrence_id": MARKER_OCC, "owner_id": OWNER, "phase": "execute", "status": "running"}
+    (root / "events.jsonl").write_text(json.dumps(start) + "\n" + json.dumps(terminal) + "\n")
+    (tmp_path / "runs").mkdir()
+    return root
+
+
+def _marker_reconcile(m, tmp_path, root, rows=()):
+    closed = []
+    result = m.reconcile(MARKER_OCC, queued_at=MARKER_QUEUED, state="claimed",
+                         articles_path=_articles(tmp_path, list(rows)), runs_root=tmp_path / "runs",
+                         fetch_status=lambda u: 404, writer_root=root, now=MARKER_QUEUED + 86400,
+                         pre_effect_resolver=lambda o, occ, **k: closed.append(k["pre_effect_readback"]()) or True,
+                         resolve=True)
+    return result, closed
+
+
+def test_start_control_block_closes_from_the_surviving_host_pre_effect_marker(tmp_path):
+    m = _load()
+    result, closed = _marker_reconcile(m, tmp_path, _marker_fixture(tmp_path))
+    assert result["status"] == "pre_effect" and result["closed"] is True and result["verified"] is True
+    assert closed[0]["proof_type"] == "pre_effect" and closed[0]["occurrence_id"] == MARKER_OCC
+    assert closed[0]["evidence_ref"] == f"lm-loop://{OWNER}/{MARKER_RUN}/entrypoint-result.json"
+
+
+def test_host_marker_proof_refuses_any_sign_of_a_crossed_boundary(tmp_path):
+    m = _load()
+    bad_terminal = {"occurrence_id": MARKER_OCC, "owner_id": OWNER, "phase": "report", "status": "fail",
+                    "exit_code": 75, "effect_identity_status": "persisted"}
+    cases = [dict(marker=None), dict(marker='{"effect":1,"status":"pre_effect_failure"}'),
+             dict(mode=0o644), dict(identity=True), dict(terminal=bad_terminal)]
+    for index, kwargs in enumerate(cases):
+        case = tmp_path / str(index)
+        case.mkdir()
+        result, closed = _marker_reconcile(m, case, _marker_fixture(case, **kwargs))
+        assert result["status"] == "inconclusive" and closed == [], kwargs
+    # A ledger row in the pairing window means publication was reached: the marker is not consulted.
+    case = tmp_path / "ledger"
+    case.mkdir()
+    rows = [_row("20261014-232000", "2026-10-14T23:40:00Z", "https://note.com/x/n/2")]
+    result, closed = _marker_reconcile(m, case, _marker_fixture(case), rows=rows)
+    assert result["status"] == "inconclusive" and closed == []
