@@ -32,11 +32,12 @@ from typing import Any
 
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parents[3]
-for path in (REPO_ROOT, HERE):  # `python3 -I` puts neither on sys.path
+for path in (REPO_ROOT, HERE, REPO_ROOT / "skills/earn/line-sticker"):  # `python3 -I` puts none on sys.path
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
 import threads_publish  # noqa: E402
+from factory_fence_reconcile import _terminal_unknown_release_sha  # noqa: E402
 
 OWNER_ID = "line-sticker-distribute"
 # caption (<= 90 s) + render + browser upload/share readback; the poster gives up well inside this.
@@ -50,17 +51,23 @@ POST_COUNT_RE = re.compile(r"投稿\s*([\d,]+)\s*件|([\d,]+)\s*件の投稿|([\
 
 
 def fenced_row(owner_id: str, occurrence_id: str) -> tuple[str, dt.datetime]:
-    """Read (state, queued_at) of the fenced row without mutating the ledger."""
+    """Read (state, queued_at) of the fenced row without mutating the ledger.
+
+    A released row (effect_unknown=0) whose run's own terminal report said effect unknown is the
+    reconciler's lost-fence candidate: accepted only with that exact event (as the factory does)."""
     from runtime.host import resource_admission
 
     database = resource_admission.state_root() / "admission-v2.sqlite3"
     with sqlite3.connect(f"file:{database}?mode=ro", uri=True) as connection:
         row = connection.execute(
-            """SELECT state, queued_at FROM occurrences
-                 WHERE owner_id=? AND occurrence_id=? AND effect_unknown=1""",
+            """SELECT state, queued_at, effect_unknown FROM occurrences
+                 WHERE owner_id=? AND occurrence_id=?""",
             (owner_id, occurrence_id),
         ).fetchone()
     if row is None or row[1] is None:
+        raise ValueError("occurrence is not an effect_unknown row")
+    lost = str(row[0]) == "released" and row[2] == 0
+    if row[2] != 1 and not (lost and _terminal_unknown_release_sha(STATE_ROOT, occurrence_id, owner_id)):
         raise ValueError("occurrence is not an effect_unknown row")
     return str(row[0]), dt.datetime.fromtimestamp(float(row[1]), dt.timezone.utc)
 
