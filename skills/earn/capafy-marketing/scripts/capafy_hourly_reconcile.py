@@ -41,7 +41,9 @@ def _sellers_first(agent_ids: list[str]) -> list[str]:
     """FROZEN sellers first so the per-agent caps above never drop them (Hook Lab fell past
     60 of 70 on 2026-10-15). Unreadable file = original order."""
     try:
-        sellers = [str(a) for a in json.loads(FROZEN_PATH.read_text()).get("agent_ids") or []]
+        frozen = json.loads(FROZEN_PATH.read_text())
+        # "sellers" outlives a temporary unfreeze (Hook Lab price restore 2026-10-16).
+        sellers = [str(a) for a in frozen.get("sellers") or frozen.get("agent_ids") or []]
     except Exception:
         return list(agent_ids)
     return [a for a in sellers if a in agent_ids] + [a for a in agent_ids if a not in sellers]
