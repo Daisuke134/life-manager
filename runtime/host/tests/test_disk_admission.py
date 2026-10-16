@@ -372,6 +372,22 @@ def test_release_capacity_reuses_locked_bundle_for_script_and_toolchain_change(t
         bundle.chmod(0o755)
 
 
+def test_revenue_producer_runs_down_to_the_lower_revenue_floor(tmp_path, monkeypatch):
+    # Kubernetes evicts low-priority pods first; a flat 12 GiB floor stopped every revenue lane
+    # at 11 GiB while background batches kept the same rights (2026-10-16).
+    guard = load_guard()
+    registry = tmp_path / "config" / "loop-registry.json"
+    registry.parent.mkdir()
+    registry.write_text(json.dumps({"loops": {
+        "earner": {"admission_class": "revenue"}, "batch": {"admission_class": "borrow"}}}))
+    monkeypatch.setenv("LIFE_MANAGER_REPO", str(tmp_path))
+    monkeypatch.setattr(guard, "disk_free_bytes", lambda _path: 10 * 1024**3)
+    assert guard._producer_gate("earner") is None
+    assert guard._producer_gate("batch")[0] == "disk_floor_low"
+    monkeypatch.setattr(guard, "disk_free_bytes", lambda _path: guard.REVENUE_FLOOR_BYTES - 1)
+    assert guard._producer_gate("earner")[0] == "disk_floor_low"
+
+
 def test_producer_floor_can_be_calibrated_for_isolated_hosts(monkeypatch):
     guard = load_guard()
     monkeypatch.setenv("LIFE_MANAGER_LOOP_ID", "line-sticker-factory-hourly")

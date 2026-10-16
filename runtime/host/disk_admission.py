@@ -36,6 +36,21 @@ def _producer_floor_bytes() -> int:
     except ValueError:
         return PRODUCER_FLOOR_BYTES
 _PRODUCER_FLOOR_REASON = "disk_floor_low"
+# Revenue lanes keep running down to this lower floor, like Kubernetes evicting low-priority
+# pods first: a flat 12 GiB floor stopped every revenue lane at 11 GiB (2026-10-16) while the
+# ballast still released at 3 GiB. Borrow and unclassified producers stop at the higher floor.
+REVENUE_FLOOR_BYTES = 8 * 1024**3
+
+
+def _is_revenue_loop(loop_id: str | None) -> bool:
+    """Read the loop's admission_class from the release registry; unknown reads as not revenue."""
+    if not loop_id:
+        return False
+    try:
+        registry = json.loads((Path(os.environ["LIFE_MANAGER_REPO"]) / "config" / "loop-registry.json").read_text())
+        return registry["loops"][loop_id].get("admission_class") == "revenue"
+    except (KeyError, OSError, ValueError, TypeError, AttributeError):
+        return False
 # Cleanup, reconcile and health owners must keep running to recover space.
 _CONTROL_PLANE_LOOPS = frozenset({
     "life-manager-disk-cleanup", "life-manager-disk-cleanup-15d", "lm-fence-reconciler",
@@ -259,7 +274,10 @@ def _producer_gate(
             return reason, flag
     if check_capacity and loop_id not in _CONTROL_PLANE_LOOPS:
         available = disk_free_bytes(configured)
-        if available is not None and available < _producer_floor_bytes():
+        floor = _producer_floor_bytes()
+        if _is_revenue_loop(loop_id):
+            floor = min(floor, REVENUE_FLOOR_BYTES)
+        if available is not None and available < floor:
             return _PRODUCER_FLOOR_REASON, configured
     return None
 
