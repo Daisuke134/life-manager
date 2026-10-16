@@ -967,3 +967,24 @@ def test_held_reason_names_each_destination_failure(tmp_path):
     assert closed == [] and result["status"] == "inconclusive"
     assert result["reason"].startswith("destination_not_proven_absent:note/ja,x-article/ja")
     assert result["destinations"]["note/ja"] == {"status": "unreadable", "reason": "HTTPError: 429"}
+
+
+def test_absence_readback_runs_with_the_writer_state_dir_not_the_reconciler_root(tmp_path, monkeypatch):
+    # 2026-10-16: under lm-fence-reconciler LIFE_MANAGER_STATE_ROOT is the reconciler's root and
+    # writer-runtime-env.sh fell back to it, so note cookies were looked up in the wrong place.
+    m = _load()
+    writer_root = tmp_path / "writer"
+    run_dir = writer_root / "runs" / "20261016-014724"
+    run_dir.mkdir(parents=True)
+    monkeypatch.setenv("LIFE_MANAGER_STATE_ROOT", str(tmp_path / "lm-fence-reconciler"))
+    monkeypatch.delenv("WRITER_STATE_DIR", raising=False)
+    seen = {}
+
+    class Done:
+        returncode = 0
+        stdout = '{"ok": true}\n'
+
+    monkeypatch.setattr(m.subprocess, "run", lambda argv, **kw: seen.update(kw) or Done())
+    assert m._official_absence_readback(run_dir, 0.0, 1.0) == {"ok": True}
+    assert seen["env"]["WRITER_STATE_DIR"] == str(writer_root)
+    assert seen["env"]["ARTICLE_STATE_DIR"] == str(writer_root)
