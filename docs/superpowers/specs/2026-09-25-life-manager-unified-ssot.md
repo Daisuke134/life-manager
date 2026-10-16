@@ -19215,3 +19215,41 @@ All nine are live with the ct, and IndexNow returned 200. Google Search Console 
 **Disk:** recovered 11 -> 18 GB (9 merged clean worktrees, npx cache, DerivedData). Swap 8 -> 4 GB. 45 expired-lease worktrees are kept because they are dirty or unmerged.
 
 **Cursor:** read hooklab_blog / hooklab_x / tiktok_x views hourly -> more keyword pages in the language that moves -> daily Larry-style 6-slide carousel -> GSC/Bing sitemap after a Google login.
+
+### Capafy status, target and path — 2026-10-16 17:50 JST (claude-evo-eval-1012, Dais ask: "where we are, where we must get, how")
+
+**Money (official reconcile 07:08Z):** lifetime 70 orders, $102.75 gross, creator earnings $76.18, pending payout $59.00, paid out $0. The last paid order was 2026-09-29; there are 0 paid orders since then. OpenRouter cost over 30 days was $11.03. Hook Lab now serves on DeepSeek (~$0 per request), so the restored prices are profitable.
+
+**Traction:**
+
+| Window | Detail views | Paid | Top sources |
+|---|---:|---:|---|
+| 7d | 1,139 | 0 | search 706, direct 273, other 81, ai_overview 47, google 20 |
+| 30d | 3,654 | 11 | direct 1,369, other 946, search 887, ai_overview 276 |
+
+- 57% of 7d views (644) land on the free Clip Map 7095835081. Hook Lab gets only 31.
+- Account impressions over 7d: search 8,260, category 706, hot 91. Over 30d: hot 9,780.
+- Hook Lab hot impressions: 5,268 over 30d, but only 91 over 7d (it fell off the hot list).
+- External ct routes are almost zero: hooklab_x 2, hooklab_free 1, hooklab_blog 1, hooklab_ig 0.
+
+**The truth:** every paid order came from Capafy's own hot list and search, at day $1.99 / week $4.99 / month $9.99. The 9/29 raise to $3.99/$9.99/$19.99 stopped sales, and Hook Lab then dropped off the hot list (no sales, no exposure). External distribution has not yet produced a single paid order. Historical conversion is about 0.3% (11 paid / 3,654 views over 30d).
+
+**Where we must get:**
+1. First paid order after 9/29 (orders > 70, gross > $102.75).
+2. $10K MRR. At about $8 net per subscription that is roughly 1,250 active subscriptions. At 0.3% conversion that needs on the order of 400k detail views a month, against today's ~4.8k: about 80x.
+3. That needs (a) several sellers rather than one, (b) Hook Lab back in hot, and (c) external traffic that converts.
+
+**Path (ordered, all $0):**
+1. **Convert the traffic we already have.** Hook Lab is back at its selling prices (v1.0.8 online 10/16). The free Clip Map v1.0.1 routes to Hook Lab via hooklab_free and is online; the first hooklab_free visit appeared within hours. The Hook Grader update (2455220100 v1.0.1) is under review. Measure free->Hook Lab clicks and Hook Lab view->paid hourly.
+2. **Get Hook Lab back into hot.** Hot follows recent sales and visit momentum (inference from get-hot data). Concentrate traffic into the same days: price-drop posts, daily reels (X 16 and IG 14 queued to 10/22), carousels, and ct self-replies on every X post (#8186/#8203).
+3. **More sellers from the factory.** Ship creator tools under primary Video + secondary Social Media (the HookAce pattern), each linking to Hook Lab. Blocked now:
+   - CAP_FULL (4-5 slots occupied).
+   - Two rejections (7393298474 and 2019103537, "2.2 Information accuracy"; the TikTok stub kept Capafy's placeholder title). Policy forbids retrying them, so rebuild them as new listings when a slot frees.
+4. **External compounding.** 21 SEO pages in EN/JA/ES with the hooklab_blog ct, plus IndexNow. Expect weeks, not hours. Next: GSC/Bing sitemap after a Google login, TikTok warm-up, then the first post.
+5. **Keep it profitable.** Before any price change, compute break-even per request: day $0.147, week $0.123, month $0.148. Prompt caching of the fixed ~30k system prompt would allow lower prices.
+
+**Blockers outside this lane:**
+- Shared runtime: swap up to 8 GB repeatedly drops free disk under the 15 GiB producer floor; capacity-busy admission.
+- lm-fence-reconciler skipped the distribute fence for 15 h (reported to Codex).
+- The x:anicca browser is shared with x-repost.
+- The IG bio link needs Dais's WhatsApp code.
