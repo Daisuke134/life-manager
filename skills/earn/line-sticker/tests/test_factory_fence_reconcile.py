@@ -1,6 +1,8 @@
 import datetime as dt
 import json
+import os
 import sqlite3
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -198,6 +200,28 @@ class OfficialCreatorsListing(unittest.TestCase):
         self.assertEqual(MODULE.collect_listing(pages.__getitem__),
                          {"ok": True, "ids": ["48299386", "48292978", "42100028"], "total": 3})
         self.assertEqual(MODULE.collect_listing(lambda n: {"items": "x"})["ok"], False)
+
+
+class BrowserLeaseHolder(unittest.TestCase):
+    def test_acquire_and_release_carry_this_process_pid(self) -> None:
+        calls = []
+
+        def fake_run(argv, **kwargs):
+            calls.append((argv[2], (kwargs.get("env") or {}).get("AI_BROWSER_HOLDER_PID")))
+            return subprocess.CompletedProcess(argv, 9, "", "busy")
+
+        with patch.object(MODULE.subprocess, "run", side_effect=fake_run):
+            self.assertEqual(MODULE.read_creators_items()["reason"], "browser_unavailable")
+        self.assertEqual(calls, [("acquire", str(os.getpid()))])
+        calls.clear()
+
+        def fake_run_ok(argv, **kwargs):
+            calls.append((argv[2], (kwargs.get("env") or {}).get("AI_BROWSER_HOLDER_PID")))
+            return subprocess.CompletedProcess(argv, 0, "not-a-cdp-url\n", "")
+
+        with patch.object(MODULE.subprocess, "run", side_effect=fake_run_ok):
+            self.assertFalse(MODULE.read_creators_items()["ok"])
+        self.assertEqual(calls, [("acquire", str(os.getpid())), ("release", str(os.getpid()))])
 
 
 class ReleasedFenceRecovery(unittest.TestCase):

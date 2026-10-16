@@ -36,6 +36,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import os
 import re
 import sqlite3
 import subprocess
@@ -192,7 +193,9 @@ def collect_listing(get_page) -> dict[str, Any]:
 
 
 def read_creators_items() -> dict[str, Any]:
-    acquired = subprocess.run(["bash", str(GUARD), "acquire", IDENTITY], capture_output=True, text=True)
+    # The guard matches the lease to this pid on release; without it release is an unconditional rm.
+    env = {**os.environ, "AI_BROWSER_HOLDER_PID": str(os.getpid())}
+    acquired = subprocess.run(["bash", str(GUARD), "acquire", IDENTITY], capture_output=True, text=True, env=env)
     if acquired.returncode != 0:
         return {"ok": False, "reason": "browser_unavailable"}
     try:
@@ -213,7 +216,7 @@ def read_creators_items() -> dict[str, Any]:
     except Exception as exc:  # noqa: BLE001 -- any failure is inconclusive
         return {"ok": False, "reason": f"creators_readback_failed:{type(exc).__name__}"}
     finally:
-        subprocess.run(["bash", str(GUARD), "release", IDENTITY], capture_output=True)
+        subprocess.run(["bash", str(GUARD), "release", IDENTITY], capture_output=True, env=env)
 
 
 def _recorded_items(state_root: Path) -> list[dict[str, Any]]:
