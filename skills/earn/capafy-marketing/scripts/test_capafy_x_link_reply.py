@@ -32,3 +32,26 @@ def test_pending_is_newest_first_and_capped():
 def test_reply_text_carries_the_registered_ct_link():
     assert reply_text("https://capafy.ai/agent/2844813315?ct=tiktok_x") == (
         "Try it on Capafy: https://capafy.ai/agent/2844813315?ct=tiktok_x")
+
+
+def test_postiz_posts_outside_the_ledger_get_the_hook_lab_link():
+    # Daily Hook Lab reels and manual carousels are posted through Postiz, not the
+    # distribute ledger, so they had no reply route (2026-10-16).
+    from capafy_x_link_reply import HOOKLAB_X, postiz_pending
+
+    posts = [
+        {"releaseURL": "https://twitter.com/selawmqt/status/11", "state": "PUBLISHED",
+         "publishDate": "2026-10-16T00:00:00.000Z", "content": "Your video is good. Hook Lab writes hooks."},
+        {"releaseURL": "https://twitter.com/selawmqt/status/13", "state": "PUBLISHED",
+         "publishDate": "2026-10-16T00:10:00.000Z", "content": "会議の前に最初の一文だけ決めておく。"},
+        {"releaseURL": "https://twitter.com/selawmqt/status/12", "state": "PUBLISHED",
+         "publishDate": "2026-10-13T00:00:00.000Z", "content": "hook"},
+        {"releaseURL": None, "state": "QUEUE", "publishDate": "2026-10-16T00:30:00.000Z"},
+        {"releaseURL": "https://twitter.com/selawmqt/status/2", "state": "PUBLISHED",
+         "publishDate": "2026-10-15T23:00:00.000Z"},
+    ]
+    ledger_urls = {"https://twitter.com/selawmqt/status/2"}
+    done = set()
+    assert postiz_pending(posts, ledger_urls, done, NOW, hours=48) == [
+        ("https://twitter.com/selawmqt/status/11", HOOKLAB_X),
+    ]
