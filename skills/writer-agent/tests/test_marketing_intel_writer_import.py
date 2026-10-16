@@ -188,6 +188,7 @@ class ArticleDailyPreEffectMarkerTests(unittest.TestCase):
         self.assertLess(prompt, clear)
         self.assertLess(init, clear)
         self.assertLess(function, clear)
+        self.assertIn('rm -f -- "$LIFE_MANAGER_RESULT_HINT_PATH" || exit 1', daily)
         self.assertLess(clear, function_end)
         self.assertLess(clear, dispatch)
         self.assertLess(dispatch, run)

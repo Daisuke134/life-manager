@@ -19,6 +19,7 @@ import json
 import math
 import os
 import sqlite3
+import stat
 import subprocess
 import sys
 import urllib.error
@@ -503,6 +504,58 @@ def _pre_effect(occurrence_id: str, queued_at: float, state: str, rows: list, ru
     return result
 
 
+def _host_pre_effect_marker_sha256(occurrence_id: str, writer_root: Path) -> str | None:
+    """Verify the host's pre-effect marker survived this occurrence (lm_loop mobile marker shape).
+
+    lm-loop-run writes {"status":"pre_effect_failure","effect":0} before spawning article-daily.sh,
+    which deletes it only immediately before the foreground model pass. A start-control BLOCK exits
+    75 before that, without a run dir, so the surviving marker is the run's no-dispatch evidence.
+    """
+    run_id = occurrence_id.split(":", 1)[1]
+    if not run_id or not run_id.replace("-", "").isalnum():
+        return None
+    scratch = writer_root / "loop-tmp" / OWNER_ID / run_id
+    marker = scratch / "entrypoint-result.json"
+    descriptor = -1
+    try:
+        for directory in (writer_root, writer_root / "loop-tmp", scratch.parent, scratch):
+            info = directory.lstat()
+            if (not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid()
+                    or stat.S_IMODE(info.st_mode) & 0o022):
+                return None
+        descriptor = os.open(marker, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        info = os.fstat(descriptor)
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_nlink != 1
+                or stat.S_IMODE(info.st_mode) != 0o600 or info.st_size > 4096):
+            return None
+        with os.fdopen(descriptor, "rb") as stream:
+            descriptor = -1
+            data = stream.read(4097)
+        if json.loads(data) != {"status": "pre_effect_failure", "effect": 0}:
+            return None
+        if os.path.lexists(scratch / "effect-identity.jsonl"):
+            return None
+    except (OSError, ValueError):
+        return None
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+    lines = _jsonl_lines(writer_root / "events.jsonl")
+    try:
+        events = [json.loads(line) for line in lines or [] if occurrence_id in line]
+    except ValueError:
+        return None
+    terminals = [event for event in events if event.get("occurrence_id") == occurrence_id
+                 and event.get("phase") == "report"]
+    if (len(terminals) != 1 or type(terminals[0].get("exit_code")) is not int
+            or terminals[0]["exit_code"] == 0
+            or terminals[0].get("effect_identity_status") not in {None, "not_written"}
+            or terminals[0].get("provider_receipt_id") is not None
+            or terminals[0].get("official_readback_ref") is not None):
+        return None
+    return hashlib.sha256(data).hexdigest()
+
+
 def _central_closure_result(owner_id: str, result: dict) -> dict:
     """Expose the exact proof contract consumed by lm-fence-reconciler."""
     if result.get("closed") is True:
@@ -573,6 +626,24 @@ def reconcile(occurrence_id: str, *, queued_at: float, state: str, articles_path
                 no_dispatch_proof=lambda: no_dispatch,
                 expected_state=state,
             ))
+            return _central_closure_result(OWNER_ID, result)
+        marker_sha256 = None if candidates else _host_pre_effect_marker_sha256(occurrence_id, writer_root)
+        if marker_sha256 is not None:
+            run_id = occurrence_id.split(":", 1)[1]
+            proof = {"owner_id": OWNER_ID, "occurrence_id": occurrence_id, "verified": True,
+                     "proof_type": "pre_effect",
+                     "evidence_ref": f"lm-loop://{OWNER_ID}/{run_id}/entrypoint-result.json",
+                     "entrypoint_result_sha256": marker_sha256}
+            result = {"status": "pre_effect", "occurrence_id": occurrence_id, "closed": False,
+                      "evidence_ref": proof["evidence_ref"]}
+            if resolve:
+                resolver_fn = pre_effect_resolver
+                if resolver_fn is None:
+                    from runtime.host.resource_admission import resolve_pre_effect_occurrence
+                    resolver_fn = resolve_pre_effect_occurrence
+                result["closed"] = bool(resolver_fn(OWNER_ID, occurrence_id,
+                                                    pre_effect_readback=lambda: proof,
+                                                    expected_state=state))
             return _central_closure_result(OWNER_ID, result)
         result = _pre_effect(occurrence_id, queued_at, state, rows, runs_root,
                              pre_effect_resolver, resolve)
