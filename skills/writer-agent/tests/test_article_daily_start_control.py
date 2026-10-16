@@ -1351,3 +1351,17 @@ class PendingRowsWithoutDispatchDoNotBlockTheDayTest(unittest.TestCase):
             (root / "articles.jsonl").write_text(json.dumps(row) + "\n")
             decision = START.decide(root, "2026-10-16")
         self.assertNotEqual(decision["action"], "new")
+
+
+class ExternalIdentifierKeysKeepTheDayBlockedTest(unittest.TestCase):
+    def test_unknown_identifier_key_or_url_in_state_blocks(self):
+        for row_extra in ({"public_id": "n123"}, {"edit_id": "99"}, {"state": "pending:key=nabc"}):
+            with tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                run_id = "20261016-134344"
+                (root / "runs" / run_id / "gates").mkdir(parents=True)
+                row = {"run_id": run_id, "platform": "note", "lang": "ja", "published": False,
+                       "draft_url": None, "state": "pending:x"} | row_extra
+                (root / "articles.jsonl").write_text(json.dumps(row) + "\n")
+                decision = START.decide(root, "2026-10-16")
+            self.assertNotEqual(decision["action"], "new", row_extra)
