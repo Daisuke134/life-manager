@@ -56,16 +56,55 @@ def _read_occurrence(database: Path, occurrence_id: str) -> dict[str, Any]:
     return result
 
 
+def _run_window(state_dir: Path, occurrence_id: str) -> tuple[datetime, datetime] | None:
+    """The occurrence's own execute..report span from the lane events, else None."""
+    spans: dict[str, list[datetime]] = {"execute": [], "report": []}
+    try:
+        with (state_dir / "events.jsonl").open(encoding="utf-8") as handle:
+            for line in handle:
+                if occurrence_id not in line:
+                    continue
+                row = json.loads(line)
+                if row.get("occurrence_id") == occurrence_id and row.get("phase") in spans:
+                    spans[row["phase"]].append(datetime.fromisoformat(row["timestamp"]))
+    except (OSError, ValueError, TypeError, KeyError, AttributeError):
+        return None
+    if len(spans["execute"]) != 1 or len(spans["report"]) != 1:
+        return None
+    # receipts stamp observed_at truncated to the second
+    return spans["execute"][0].replace(microsecond=0), spans["report"][0]
+
+
 def _daily_receipt(state_dir: Path, occurrence_id: str) -> dict[str, Any]:
     matches: list[dict[str, Any]] = []
+    legacy: list[dict[str, Any]] = []
     for path in sorted(state_dir.glob("cross-venue-*.json")):
         try:
             value = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             continue
-        if isinstance(value, dict) and value.get("occurrence_id") == occurrence_id:
-            value["_path"] = path
+        if not isinstance(value, dict):
+            continue
+        value["_path"] = path
+        if value.get("occurrence_id") == occurrence_id:
             matches.append(value)
+        elif "occurrence_id" not in value:
+            legacy.append(value)
+    if not matches and legacy:
+        # Releases before occurrence_id was stamped (e.g. ac0e3a5) wrote no binding;
+        # bind only a receipt observed inside this occurrence's own run.
+        window = _run_window(state_dir, occurrence_id)
+        for value in legacy:
+            aggregate = value.get("aggregate")
+            try:
+                observed = datetime.fromisoformat(str(aggregate["observed_at"]))
+                bound = bool(window) and window[0] <= observed <= window[1]
+            except (TypeError, KeyError, ValueError):
+                continue
+            if bound:
+                matches.append(value)
+    if not matches:
+        raise ValueError("daily_receipt_occurrence_missing")
     if len(matches) != 1:
         raise ValueError("daily_receipt_occurrence_not_unique")
     receipt = matches[0]
