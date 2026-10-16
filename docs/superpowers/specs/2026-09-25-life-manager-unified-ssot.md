@@ -207,15 +207,23 @@ README は「ユーザー向け18 + system agent 1」= 19 agent。19 = Host Stew
 **卒業の判定:** Claude が何もしない状態で7日連続、稼ぎ系 lane の赤が0、disk_floor_low が0、新しい事故は自己修復 agent が自分で閉じる。
 
 **TODO（この順）**
-- [ ] SH1 見張り: 稼ぎ系 lane（registry の admission_class=revenue）ごとに、期待される行動間隔（cadence）と last_effect を比べる。2倍を超えたら、停止印があっても `revenue_outage` として扱い、recovery intent を出す（health.py / health_observer.py）。
+- [x] SH1 見張り（#8221、10/16 本番）: 稼ぎ系 lane（registry の admission_class=revenue）ごとに、期待される行動間隔（cadence）と last_effect を比べる。2倍を超えたら、停止印があっても `revenue_outage` として扱い、recovery intent を出す（health.py / health_observer.py）。
 - [ ] SH2 型ごとの自動処方: 6つの型それぞれに既知の処方を当てる（掃除、停止印の照合、lease の回収、再ログイン、やり直し）。
 - [ ] SH3 毎日の試運転: 全 effect_reconcile adapter とログイン状態を、reconciler と同じ環境で dry-run する。失敗は事故として扱う。
+- 順序変更（10/17）: 旧順 SH2→SH3→SH4→SH5、新順 SH2→SH4→SH3→SH5、cursor = SH2。理由: 10/17 時点の収益停止11件中8件が `resource_effect_unknown` の停止印で、SH2 の方が売上停止に直結する。SH4 の自動昇格は下記の設計制約があり、拡張は SH2 の後に行う。
+- SH4 の実測（10/17）: 自己修復 PR が merge されないのは、merge guard（`apps/life-manager/lib/dev-merge-guard.js` → `runtime/loop/recovery-class.cjs` の `evaluateRecoveryPromotion`）が `deterministic` かつ `effect_class: none` の owner だけを自動昇格させる設計だから。稼ぎ系 lane はすべて `external_effect_owner` なので、#8215/#8191 などは永久に `recovery_promotion_hooks_incomplete` になる。昇格の本体（`runtime/loop/recovery-promotion.mjs`）は汎用的に作られている（release → その owner だけに canary 適用 → 次の自然実行で health → 失敗なら rollback）。ただし health の期限が45分で、待つ間は fleet 全体の `current` を凍結する。このため、次の自然実行が45分以内に終わらない日次 lane はほぼ必ず timeout → rollback になる。拡張するには、cadence に合わせた非同期の health 判定（凍結しない）が必要。#8215/#8191 の対象 owner は10/16に revenue ok へ戻っており、PR は古い。
 - [ ] SH4 自己修復 agent: 未知の故障を調査 → 修正 PR → 独立レビュー → merge → release → 自然実行で行動が出たか確認、まで行う（既存の self-heal-code-agent task class を使う）。
 - [ ] SH5 安全網: CI で repo 全体の bash -n を回す。ballast が作られる条件を見直す（今は空き25GiB 超で、満たされない）。
 - [ ] P2 全 agent が行動: 69 lane の毎日の表で赤が0。
 - [ ] P3 お金を測る: agent ごとの売上を公式 readback で取る（Coconala は済み。CrowdWorks、Lancers、Writer、Capafy、PromptBase、eBook が残り）。
 - [ ] P4 評価駆動の開発: 記事・応募・投稿・商品ごとに評価（クリック・返信・契約・購入）を取り、勝つ型を残し、負ける型を止める。
 - [ ] P5 最大化: 売れている agent に作業枠と配信を寄せる。売れていない agent は、成功している売り手の型をコピーして作り直す。
+
+**10/17 の Writer 停止と修正:** 00:27 の run 20261016-152709 で、Claude の session 上限（2時リセット）のため provider が失敗し、`provider-failed-ambiguous` になった。台帳行・publication-state・dispatch はいずれも無かった。start control はこの run を `same-jst-day-unclassified-run` と判定し、06:05 と 07:05 の起動を止めた。この run を adopt する担当は article-resume だが、article-resume 自体が 10/12 の fence（`18dd959f92920ff0-56630`）で止まっている。この fence の証明は「fence 以降に Writer の公開が一切ない」ことを要求するため、永久に閉じない。
+- #8230（resume fence を exec 先の run に紐付ける案）は独立 review で FIX-FIRST となり、close した。理由: occurrence と run を結ぶ記録が存在しない。さらに resume は devto や x-post にも公開する。
+- #8231: 台帳行0件で、ambiguous・非0終了・publication-state なし・dispatch なしの run は、新しい run を許可する。release d2e45ad2 を article-daily に適用した。
+- #8232: Capafy の icon digest が未登録で、main の OSS 境界 CI が落ちていたのを修正した。
+- 残り: article-resume の fence。正しい証明を作るには、resume の occurrence ごとに「どの run を処理したか」を記録する必要がある。
 
 **10/16 に本番へ出した修正:**
 - #8165 squash-merge 済み worktree の回収
