@@ -27,6 +27,7 @@ import os
 import re
 import subprocess
 import time
+from datetime import datetime
 import sqlite3
 import sys
 from pathlib import Path
@@ -63,15 +64,23 @@ DEFAULT_HEALTH_LATEST = Path(
 ).expanduser()
 
 
-def revenue_outage_owners(path: Path | None) -> frozenset[str]:
+HEALTH_MAX_AGE_SECONDS = 30 * 60
+
+
+def revenue_outage_owners(path: Path | None, now: float | None = None) -> frozenset[str]:
     """Jobs whose ``facets.revenue.status`` is ``blocked`` in the latest health snapshot.
 
-    An unreadable snapshot yields no extra priority (fairness stays as before)."""
+    An unreadable or stale (> 30 min) snapshot yields no extra priority."""
     if path is None:
         return frozenset()
     try:
-        jobs = json.loads(path.read_text(encoding="utf-8")).get("jobs") or []
-    except (OSError, ValueError, AttributeError):
+        document = json.loads(path.read_text(encoding="utf-8"))
+        generated = datetime.fromisoformat(document["generated_at"].replace("Z", "+00:00"))
+        age = (time.time() if now is None else now) - generated.timestamp()
+        jobs = document.get("jobs") or []
+    except (OSError, ValueError, AttributeError, KeyError, TypeError):
+        return frozenset()
+    if not -60 <= age <= HEALTH_MAX_AGE_SECONDS:  # small clock skew tolerated
         return frozenset()
     return frozenset(
         job["job_id"] for job in jobs
@@ -335,6 +344,7 @@ def plan_targets(
 def round_robin(
     targets: Mapping[str, list[str | None]], cap: int, *,
     priority_owners: set[str] | frozenset[str] = frozenset(), start: int = 0,
+    outage_owners: set[str] | frozenset[str] = frozenset(),
 ) -> list[tuple[str, str | None]]:
     """Interleave owners fairly, serving explicit safety priorities first.
 
@@ -342,8 +352,12 @@ def round_robin(
     owners at the back when ``cap`` is smaller than the number of owners (2026-10-09: 41 owners,
     20 calls per wake, Anicca/Honne sat at positions 18+ and 16 of them were never called).
     """
+    # Order: financial (safety) -> revenue_outage (SH2a) -> rotating rest.
     priority = sorted(owner for owner in targets if owner in priority_owners)
-    rest = sorted(owner for owner in targets if owner not in priority_owners)
+    priority += sorted(owner for owner in targets
+                       if owner in outage_owners and owner not in priority_owners)
+    rest = sorted(owner for owner in targets
+                  if owner not in priority_owners and owner not in outage_owners)
     if rest:
         offset = start % len(rest)
         rest = rest[offset:] + rest[:offset]
@@ -521,11 +535,11 @@ def reconcile(
         and isinstance(loops[owner_id].get("effect_reconcile"), Mapping)
     )
     outage = revenue_outage_owners(health_latest) & set(targets)
-    priority_owners = financial | outage
     # The rotation comes from the wall clock (one step of ``cap`` owners per wake): no state file.
     wake = time.time() if wake_epoch is None else wake_epoch
     start = int(wake // WAKE_PERIOD_SECONDS) * cap
-    calls = round_robin(targets, cap, priority_owners=priority_owners, start=start)
+    calls = round_robin(targets, cap, priority_owners=financial, start=start,
+                        outage_owners=outage)
     target_owners = {owner_id for owner_id, _ in calls}
     event_release_shas = {
         owner_id: _runtime_release_shas(owner_id, set(fenced.get(owner_id, ())), loops)

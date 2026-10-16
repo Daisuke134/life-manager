@@ -799,9 +799,12 @@ class CallLogBoundTest(unittest.TestCase):
 class RevenueOutagePriorityTest(unittest.TestCase):
     """SH2a: owners the health observer marks revenue_outage are reconciled first."""
 
-    def _health(self, tmp: str, blocked: list[str]) -> Path:
+    def _health(self, tmp: str, blocked: list[str], age_seconds: float = 0) -> Path:
+        import time as _time
+        from datetime import datetime, timezone
         path = Path(tmp) / "latest.json"
-        path.write_text(json.dumps({"jobs": [
+        generated = datetime.fromtimestamp(_time.time() - age_seconds, timezone.utc).isoformat()
+        path.write_text(json.dumps({"generated_at": generated, "jobs": [
             {"job_id": job, "facets": {"revenue": {"status": "blocked", "reason": "revenue_outage"}}}
             for job in blocked
         ] + [{"job_id": "a", "facets": {"revenue": {"status": "ok", "reason": None}}}]}))
@@ -840,3 +843,31 @@ class RevenueOutagePriorityTest(unittest.TestCase):
             self.assertEqual(row["error_class"], "provider_readback_timeout")
             self.assertEqual(row["reason"], "login wall")
             self.assertEqual(row["exit_code"], 2)
+
+    def test_financial_owner_is_called_before_a_slow_outage_owner(self):
+        loops = {
+            "a-rev": {"effect_reconcile": {"argv": ["slow.py"], "occurrence_flag": "--occurrence",
+                                           "timeout_seconds": 900}},
+            "z-fin": {"domain": "financial", "effect_reconcile": {
+                "argv": ["fin.py"], "occurrence_flag": "--occurrence"}},
+        }
+        fenced = {"a-rev": ("a-rev:1",), "z-fin": ("z-fin:1",)}
+        calls = []
+
+        def run_call(argv, timeout):
+            calls.append(argv[-1])
+            return 1, ""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            reconcile(registry=_registry(loops), root=Path("/r"), cap=1,
+                      run_call=run_call, read_fenced=lambda: fenced, log_path=None,
+                      wake_epoch=0, health_latest=self._health(tmp, ["a-rev"]))
+        self.assertEqual(calls, ["z-fin:1"])
+
+    def test_stale_health_snapshot_gives_no_outage_priority(self):
+        from runtime.loop.fence_reconcile import revenue_outage_owners
+        with tempfile.TemporaryDirectory() as tmp:
+            fresh = revenue_outage_owners(self._health(tmp, ["rev"], age_seconds=60))
+            stale = revenue_outage_owners(self._health(tmp, ["rev"], age_seconds=31 * 60))
+        self.assertEqual(fresh, {"rev"})
+        self.assertEqual(stale, frozenset())
