@@ -33,8 +33,9 @@ def _acquire(env):
 
 def test_legacy_lease_held_by_live_daemon_past_stale_window_is_reclaimed(tmp_path):
     lease, env = _setup(tmp_path)
-    lease.write_text(json.dumps({"identity": "test:dais", "pid": os.getpid(), "host": os.uname().nodename.split(".")[0],
-                                 "port": 1, "uuid": "u1", "acquired_at": int(time.time()) - 3600}) + "\n")
+    # pid 1 has run since boot, long before this lease: the shape of the Codex daemon holder.
+    lease.write_text(json.dumps({"identity": "test:dais", "pid": 1, "host": os.uname().nodename.split(".")[0],
+                                 "port": 1, "uuid": "u1", "acquired_at": int(time.time()) - 120}) + "\n")
     result = _acquire(env)
     assert result.returncode == 0, result.stderr
     assert "holder_start" in json.loads(lease.read_text().strip().splitlines()[-1])
@@ -47,3 +48,19 @@ def test_current_format_lease_with_live_holder_stays_busy(tmp_path):
                                  "port": 1, "uuid": "u1", "holder_start": " ".join(start.split()),
                                  "acquired_at": int(time.time()) - 3600}) + "\n")
     assert _acquire(env).returncode == 9
+
+
+def test_legacy_lease_whose_holder_started_just_before_acquiring_stays_busy(tmp_path):
+    # ~/.config/ai/bin/with-browser.sh writes legacy leases with its own shell pid and never
+    # beats; a long job there must not be robbed after 30 minutes.
+    lease, env = _setup(tmp_path)
+    holder = subprocess.Popen(["sleep", "30"])
+    try:
+        lease.write_text(json.dumps({"identity": "test:dais", "pid": holder.pid,
+                                     "host": os.uname().nodename.split(".")[0], "port": 1, "uuid": "u1",
+                                     "acquired_at": int(time.time())}) + "\n")
+        env["AI_BROWSER_STALE_SECONDS"] = "1"
+        time.sleep(2)                    # past the stale window, holder started with the lease
+        assert _acquire(env).returncode == 9
+    finally:
+        holder.kill()

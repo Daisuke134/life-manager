@@ -185,7 +185,19 @@ if held:
     # A lease without holder_start predates holder identity. Its pid may be a long-lived parent
     # (2026-10-16: the Codex app-server daemon held interactive:dais for 8h after its caller
     # exited), so past the stale window only the timestamp counts. Current leases keep the pid rule.
-    live = pid_alive(held.get("pid"), held.get("host", host)) and "holder_start" in held
+    live = pid_alive(held.get("pid"), held.get("host", host))
+    if live and "holder_start" not in held and age >= stale and held.get("host", host) == host:
+        # Only a pid that was already running long before it took the lease is a parent
+        # daemon rather than the job itself (with-browser.sh's shell starts seconds before).
+        try:
+            import subprocess
+            started = subprocess.run(["ps", "-o", "lstart=", "-p", str(int(held["pid"]))],
+                                     capture_output=True, text=True, timeout=5).stdout.strip()
+            started_at = time.mktime(time.strptime(" ".join(started.split()), "%a %b %d %H:%M:%S %Y"))
+            if started_at < float(held.get("acquired_at") or 0) - stale:
+                live = False
+        except Exception:
+            pass                         # unknown start: keep respecting the live pid
     if live or age < stale:
         print(json.dumps(held, ensure_ascii=False), file=sys.stderr)
         raise SystemExit(1)
