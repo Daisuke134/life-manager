@@ -610,8 +610,10 @@ def _carry_over_absence(occurrence_id: str, queued_at: float, state: str, rows: 
         return None
     run_dir = paired[0]
     run_rows = [row for row in rows if str(row.get("run_id", "")) == run_dir.name]
+    # Any unpublished row kind qualifies (2026-10-16 22:43: pending:media-renderer-unavailable rows);
+    # the proof is the four official owner listings below, not the row's state name.
     if (not run_rows or any(row.get("published") is not False or row.get("live_url") or row.get("draft_url")
-                            or not str(row.get("state", "")).startswith("carry-over") for row in run_rows)
+                            for row in run_rows)
             or any(os.path.lexists(run_dir / name) for name in DISPATCH_FILES)):
         return None
     until = _terminal_epoch(writer_root, occurrence_id)

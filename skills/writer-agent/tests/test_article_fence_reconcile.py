@@ -988,3 +988,14 @@ def test_absence_readback_runs_with_the_writer_state_dir_not_the_reconciler_root
     assert m._official_absence_readback(run_dir, 0.0, 1.0) == {"ok": True}
     assert seen["env"]["WRITER_STATE_DIR"] == str(writer_root)
     assert seen["env"]["ARTICLE_STATE_DIR"] == str(writer_root)
+
+
+def test_pending_media_rows_take_the_official_absence_path(tmp_path):
+    # 2026-10-16 22:43: run rows were pending:media-renderer-unavailable, not carry-over.
+    m = _load()
+    pending = {"ts": "2026-10-16T05:15:43Z", "run_id": CARRY_RUN, "platform": "note", "lang": "ja",
+               "draft_url": None, "published": False,
+               "state": "pending:media-renderer-unavailable:body-diagram candidate was not produced"}
+    root, arts = _carry_fixture(tmp_path, ledger=pending)
+    result, calls, closed = _carry_reconcile(m, root, arts, {"destinations": ABSENT})
+    assert calls and result["status"] == "no_dispatch_proven" and result["closed"] is True
