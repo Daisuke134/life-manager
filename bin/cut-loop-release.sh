@@ -150,8 +150,10 @@ if [ -z "${ARCHIVE_PATHS[*]:-}" ]; then
     CAPACITY_NODE="${NPM_NODE_VERSION:-$(node --version 2>/dev/null)}"
     CAPACITY_NPM="${NPM_VERSION:-$("$NPM_BIN" --version 2>/dev/null)}"
   fi
-  RELEASE_REQUIRED_BYTES="$("$RUNTIME_PYTHON" -B "$SCRIPT_ROOT/runtime/host/disk_admission.py" \
+  RELEASE_CAPACITY="$("$RUNTIME_PYTHON" -B "$SCRIPT_ROOT/runtime/host/disk_admission.py" \
     --release-capacity "$REPO_ROOT" "$SHA" "$LOOPS_ROOT" "$CAPACITY_NODE" "$CAPACITY_NPM")" || die "release capacity measurement failed"
+  # "<bytes> install" means the measurement budgeted a fresh npm ci for a changed lock.
+  read -r RELEASE_REQUIRED_BYTES RELEASE_INSTALL_BUDGETED <<<"$RELEASE_CAPACITY"
   "$RUNTIME_PYTHON" "$SCRIPT_ROOT/runtime/host/disk_admission.py" \
     --check-free-space "$LOOPS_ROOT" "$RELEASE_REQUIRED_BYTES" || exit "$?"
 fi
@@ -304,8 +306,8 @@ link_locked_dependencies() {
     donor_modules=""
     if donor_modules="$(matching_locked_dependencies "$package_dir")"; then
       : # A compatible locked bundle can be re-keyed without installing dependencies.
-    elif [ "${RELEASE_REQUIRED_BYTES:-2147483648}" != 2147483648 ]; then
-      return 1 # Measured source-only admission never permits dependency installation.
+    elif [ "${RELEASE_REQUIRED_BYTES:-2147483648}" != 2147483648 ] && [ "${RELEASE_INSTALL_BUDGETED:-}" != install ]; then
+      return 1 # Measured admission permits npm ci only when it budgeted the install.
     fi
     if [ -e "$bundle" ]; then
       find "$bundle" -type d -exec chmod u+w {} + 2>/dev/null || return 1
