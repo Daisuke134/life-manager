@@ -1025,6 +1025,25 @@
       "state_root": "~/.local/state/life-manager/line-sticker-articles",
       "system_role": "shared"
     },
+    "ebook-articles": {
+      "priority": "distribution",
+      "resource_class": "deterministic",
+      "admission_class": "revenue",
+      "coalesce_reserved_wakes": true,
+      "coalesce_queued_wakes": true,
+      "cadence": {"calendar_interval": [{"Hour": 1, "Minute": 5}, {"Hour": 2, "Minute": 5}, {"Hour": 4, "Minute": 5}, {"Hour": 5, "Minute": 5}]},
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "domain": "earn",
+      "effect_class": "publish",
+      "effect_reconcile": {"argv": ["skills/earn/ebook-articles/scripts/ebook_article_fence_reconcile.py"], "occurrence_flag": "--occurrence", "resolve_flag": "--resolve", "timeout_seconds": 180}, "entrypoint": "skills/earn/ebook-articles/ebook-articles.sh",
+      "label": "ai.anicca.ebook-articles",
+      "log_root": "~/.local/state/life-manager/ebook-articles/logs",
+      "provider_route": "deterministic",
+      "state_root": "~/.local/state/life-manager/ebook-articles"
+    },
     "line-creators-browser": {
       "adapter": "exec",
       "browser_owner": {
