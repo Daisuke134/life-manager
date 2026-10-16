@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Resolve one Affiliate host fence only from an exact FIFO pre-effect window."""
+"""Resolve one Affiliate host fence only from exact pre-effect proof.
+
+Primary proof is the exact FIFO pre-effect window. A run that started but lost
+its terminal report (e.g. ENOSPC, 2026-10-09) has no such window; it falls back
+to the host pre-effect hint that local_loop.run_effect_guarded deletes right
+before the first external call (shared lancers adapter reconcile_pre_effect_hint).
+"""
 
 from __future__ import annotations
 
@@ -20,12 +26,14 @@ from typing import Callable, Mapping
 REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
+sys.path.insert(0, str(REPO_ROOT / "skills/_shared/marketplace-core/scripts"))
 
 from runtime.host.resource_admission import (  # noqa: E402
     resolve_pre_effect_occurrence,
     state_root as admission_root,
 )
 from runtime.loop.runtime_event import validate_runtime_event  # noqa: E402
+from reconcile_pre_effect_hint import find_pre_effect_proof  # noqa: E402
 
 
 OWNER_ID = "affiliate-loop"
@@ -250,6 +258,23 @@ def _build_evidence(database: Path, loop_state: Path, affiliate_state: Path,
     return target, evidence
 
 
+def _hint_fallback(database: Path, loop_state: Path,
+                   occurrence_id: str | None) -> tuple[dict, str] | None:
+    if occurrence_id is None:
+        return None
+    with sqlite3.connect(f"{database.resolve().as_uri()}?mode=ro", uri=True) as connection:
+        row = connection.execute(
+            """SELECT occurrence_id,state FROM occurrences
+                WHERE owner_id=? AND occurrence_id=? AND effect_unknown=1
+                  AND state IN ('claimed','released')""",
+            (OWNER_ID, occurrence_id),
+        ).fetchone()
+    proof = row and find_pre_effect_proof(loop_state, OWNER_ID, occurrence_id)
+    if not proof:
+        return None
+    return {"occurrence_id": row[0], "state": row[1]}, str(proof["evidence_ref"])
+
+
 def reconcile_host_fence(
     database: Path,
     loop_state: Path,
@@ -260,21 +285,30 @@ def reconcile_host_fence(
     resolver: Callable[..., bool] = resolve_pre_effect_occurrence,
 ) -> dict:
     """Return exact proof, or resolve only the occurrence proven pre-effect."""
+    evidence_ref = None
     try:
         target, evidence = _build_evidence(
             database, loop_state, affiliate_state, occurrence_id,
         )
     except (EvidenceError, OSError, sqlite3.Error) as error:
-        return {"state": "HELD", "reason": str(error)}
-    proof_identity = {
-        "owner_id": OWNER_ID,
-        "occurrence_id": target["occurrence_id"],
-        "evidence": evidence,
-    }
-    evidence_key = hashlib.sha256(json.dumps(
-        proof_identity, sort_keys=True, separators=(",", ":"),
-    ).encode()).hexdigest()
-    evidence_ref = f"affiliate-pre-effect://{evidence_key}"
+        try:
+            hint = _hint_fallback(database, loop_state, occurrence_id)
+        except sqlite3.Error:
+            hint = None
+        if hint is None:
+            return {"state": "HELD", "reason": str(error)}
+        target, evidence_ref = hint
+        evidence = {"fifo_window": str(error), "pre_effect_hint": evidence_ref}
+    if evidence_ref is None:
+        proof_identity = {
+            "owner_id": OWNER_ID,
+            "occurrence_id": target["occurrence_id"],
+            "evidence": evidence,
+        }
+        evidence_key = hashlib.sha256(json.dumps(
+            proof_identity, sort_keys=True, separators=(",", ":"),
+        ).encode()).hexdigest()
+        evidence_ref = f"affiliate-pre-effect://{evidence_key}"
     if not resolve:
         return {
             "state": "PROOF_READY",
