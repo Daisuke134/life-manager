@@ -51,6 +51,41 @@ def pending(ledger: dict, done: set, now: dt.datetime, *, hours: int, limit: int
     return [(url, cta) for _, url, cta in rows[:limit]]
 
 
+HOOKLAB_X = "https://capafy.ai/agent/8123079349?ct=hooklab_x"
+X_INTEGRATION = "cmt4l2jld031tqp0y8qtyo983"
+
+
+def postiz_pending(posts: list, ledger_urls: set, done: set, now: dt.datetime, *, hours: int) -> list[tuple[str, str]]:
+    """Published @selawmqt Postiz posts outside the distribute ledger (daily Hook Lab
+    reels, carousels) get the Hook Lab link; ledger posts keep their own x_cta_url."""
+    rows = []
+    for post in posts:
+        url = post.get("releaseURL")
+        try:
+            at = dt.datetime.fromisoformat(str(post.get("publishDate")).replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        if (post.get("state") != "PUBLISHED" or not url or url in ledger_urls or url in done
+                or "hook" not in str(post.get("content") or "").lower()  # other lanes share this account
+                or now - at > dt.timedelta(hours=hours)):
+            continue
+        rows.append((at, url))
+    rows.sort(reverse=True)
+    return [(url, HOOKLAB_X) for _, url in rows]
+
+
+def _postiz_x_posts(now: dt.datetime, hours: int) -> list:
+    rows = json.load(open(os.path.expanduser("~/.local/share/anicca/credentials.json")))["credentials"]
+    key = next(r["api_key"] for r in rows if r.get("service") == "postiz")
+    start = (now - dt.timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    end = now.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    req = urllib.request.Request(f"https://api.postiz.com/public/v1/posts?startDate={start}&endDate={end}",
+                                 headers={"Authorization": key})
+    data = json.loads(urllib.request.urlopen(req, timeout=60).read())
+    posts = data.get("posts") if isinstance(data, dict) else data
+    return [p for p in posts if ((p.get("integration") or {}).get("id") or p.get("integrationId")) == X_INTEGRATION]
+
+
 def _status_id(url: str) -> str:
     return url.rstrip("/").rsplit("/", 1)[-1]
 
@@ -103,8 +138,16 @@ def main(argv: list[str] | None = None) -> int:
     done = set()
     if STATE.exists():
         done = {json.loads(line)["source_url"] for line in STATE.read_text().splitlines() if line.strip()}
-    todo = pending(json.loads(LEDGER.read_text()), done, dt.datetime.now(dt.timezone.utc),
-                   hours=args.hours, limit=args.limit)
+    now = dt.datetime.now(dt.timezone.utc)
+    ledger = json.loads(LEDGER.read_text())
+    todo = pending(ledger, done, now, hours=args.hours, limit=args.limit)
+    if len(todo) < args.limit:
+        try:
+            ledger_urls = {((e.get("destinations") or {}).get("x") or {}).get("url") for e in ledger.values()}
+            todo += postiz_pending(_postiz_x_posts(now, args.hours), ledger_urls, done | {u for u, _ in todo},
+                                   now, hours=args.hours)[: args.limit - len(todo)]
+        except Exception as exc:  # Postiz read failure must not stop ledger replies
+            print(json.dumps({"postiz_read": "failed", "error": type(exc).__name__}))
     if args.dry_run or not todo:
         print(json.dumps({"pending": todo}))
         return 0
