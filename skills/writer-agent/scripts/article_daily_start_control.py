@@ -636,7 +636,12 @@ def _preflight_only_run(run_dir: Path, rows: list[dict[str, Any]], run_id: str) 
     selection = gates / "product-selection.json"
     if "product-selection.json" in names and (selection.is_symlink() or not selection.is_file()):
         return False
-    return names - {"product-selection.json"} == {"strategy-consumption.json"}
+    # seo-keyword.json is the same kind of frozen pre-generation pick (seo_keyword_seed.py, written
+    # before run_model_pass). Missing it blocked every wake on 2026-10-16 (run 20261016-014724).
+    seo = gates / "seo-keyword.json"
+    if "seo-keyword.json" in names and (seo.is_symlink() or not seo.is_file()):
+        return False
+    return names - {"product-selection.json", "seo-keyword.json"} == {"strategy-consumption.json"}
 
 
 def _exhausted_empty_provider_failure(
