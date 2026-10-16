@@ -1267,7 +1267,9 @@ run_model_pass() {
   local active_prompt_file="${1:-$PROMPT_FILE}" rc
   # Keep the host's pre-effect result through local gates and generation initialization.
   # Clear it only immediately before starting the foreground model pass.
-  if [ -n "${LIFE_MANAGER_RESULT_HINT_PATH:-}" ]; then rm -f -- "$LIFE_MANAGER_RESULT_HINT_PATH"; fi
+  # Fail closed: a marker that survives the model pass would let the fence reconciler call a
+  # published run pre-effect, so stop here if it cannot be removed.
+  if [ -n "${LIFE_MANAGER_RESULT_HINT_PATH:-}" ]; then rm -f -- "$LIFE_MANAGER_RESULT_HINT_PATH" || exit 1; fi
   BOUNDED_EXEC_STOP_PATHS="$WRITER_DISK_CONTROL_DIR/disk-writers.stop" \
   ARTICLE_RUN_ID="$RUN_TS" ARTICLE_MODEL_LOG="$LOG" \
     python3 "$ARTICLE_ROOT/../../runtime/loop/bounded-exec.py" \
