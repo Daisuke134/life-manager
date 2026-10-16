@@ -235,3 +235,137 @@ def test_readonly_replay_keeps_human_required_marker_separate_from_effect_fence(
     assert proof["verified"] is False
     assert proof["classification"] == "human_required"
     assert proof["reason"] == "human_required"
+
+
+def _lost_terminal_events(path: Path, occurrence_id: str) -> None:
+    _write_events(path, [{
+        "loop_id": "fundraiser", "owner_id": "fundraiser", "occurrence_id": occurrence_id,
+        "phase": "report", "status": "fail", "effect_status": "unknown",
+        "effect_class": "application", "exit_code": 75, "release_sha": "a" * 40,
+        "timestamp": "2026-10-10T18:48:24+00:00",
+    }])
+
+
+def test_lost_terminal_row_is_accepted_and_proved_by_its_pre_effect_marker(tmp_path, monkeypatch):
+    import fundraiser_fence_reconcile as module
+    occurrence_id = "fundraiser:lost-1"
+    events_path = tmp_path / "events.jsonl"
+    _lost_terminal_events(events_path, occurrence_id)
+    markers_root = tmp_path / "effect-markers"
+    _write_marker(markers_root, occurrence_id, "pre_effect")
+    calls = []
+
+    result = reconcile(
+        occurrence_id, events_path=events_path, evidence_root=tmp_path / "evidence",
+        markers_root=markers_root,
+        fenced_row_fn=lambda owner, occ: module.lost_or_fenced_row(
+            owner, occ, row=("released", 1760000000.0, 0), events_path=events_path),
+        resolve_fn=lambda *args, **kwargs: calls.append(kwargs) or True,
+        resolve=True,
+    )
+
+    assert result["verified"] is True and result["closed"] is True
+    assert calls[0]["expected_state"] == "released"
+
+
+def test_released_row_without_terminal_unknown_is_still_rejected(tmp_path):
+    import pytest
+    import fundraiser_fence_reconcile as module
+    with pytest.raises(ValueError):
+        module.lost_or_fenced_row("fundraiser", "fundraiser:lost-2", row=("released", 1.0, 0),
+                                  events_path=tmp_path / "events.jsonl")
+
+
+def test_lost_row_accepts_exact_host_pre_effect_receipt(tmp_path):
+    import fundraiser_fence_reconcile as module
+    occurrence_id = "fundraiser:lost-3"
+    receipt_root = tmp_path / "reconciliation"
+    receipt_root.mkdir()
+    path = receipt_root / "pre-effect-lost-3.json"
+    path.write_text(json.dumps({
+        "receipt_type": "HOST_PRE_EFFECT_RECONCILIATION", "resolution": "RESOLVED",
+        "owner_id": "fundraiser", "occurrence_id": occurrence_id, "verified": True,
+        "proof_type": "pre_effect", "evidence_ref": "lm-event://fundraiser/lost-3/x",
+    }))
+    path.chmod(0o600)
+
+    proof = module.host_pre_effect_receipt_proof(occurrence_id, reconciliation_root=receipt_root)
+
+    assert proof["verified"] is True
+    assert proof["evidence_ref"] == "lm-event://fundraiser/lost-3/x"
+    assert module.host_pre_effect_receipt_proof("fundraiser:other", reconciliation_root=receipt_root) is None
+
+
+def _receipts(path: Path, occurrence_id: str, *extra: dict) -> None:
+    record = path.parent / "app.json"
+    record.write_text(json.dumps({"question_answers": [
+        {"question": "Contact email", "answer": "founder@example.com"}]}))
+    rows = [
+        {"occurrence_id": occurrence_id, "status": "verified_pre_effect_failure", "effect": 0,
+         "official_url": "https://nvidia.example/apply"},
+        {"occurrence_id": occurrence_id, "status": "submitted_verified",
+         "official_url": "https://apply.foundersedge.com/", "utc_timestamp": "2026-10-08T09:00:52Z",
+         "application_record_path": str(record)},
+        *extra,
+    ]
+    path.write_text("".join(json.dumps(row) + "\n" for row in rows))
+
+
+def _post_effect(tmp_path, occurrence_id, search, *extra):
+    markers_root = tmp_path / "effect-markers"
+    _write_marker(markers_root, occurrence_id, "post_effect_verified")
+    receipts = tmp_path / "application-receipts.jsonl"
+    _receipts(receipts, occurrence_id, *extra)
+    calls = []
+    result = reconcile(
+        occurrence_id, events_path=tmp_path / "events.jsonl", evidence_root=tmp_path / "evidence",
+        markers_root=markers_root, receipts_path=receipts, gmail_search=search,
+        fenced_row_fn=lambda _o, _c: ("claimed", dt.datetime(2026, 10, 8, 8, 3, tzinfo=dt.timezone.utc)),
+        resolve_fn=lambda *args, **kwargs: calls.append(kwargs) or True,
+        resolve=True,
+    )
+    return result, calls
+
+
+def test_post_effect_closes_from_provider_mail_after_submission(tmp_path):
+    seen = []
+
+    def search(account, query):
+        seen.append((account, query))
+        return {"messages": [{"id": "m1", "date": "2026-10-09 22:35",
+                              "from": "Team <team@foundersedge.com>"}]}
+
+    result, calls = _post_effect(tmp_path, "fundraiser:fe-1", search)
+
+    assert result["verified"] is True and result["closed"] is True
+    assert result["provider_receipt_id"] == "gmail:m1"
+    assert seen == [("founder@example.com", "in:anywhere from:foundersedge.com after:2026/10/08")]
+    assert calls[0]["official_readback"]()["provider_receipt_id"] == "gmail:m1"
+
+
+def test_post_effect_without_provider_mail_stays_fenced(tmp_path):
+    result, calls = _post_effect(tmp_path, "fundraiser:fe-2", lambda a, q: {"messages": []})
+    assert result["verified"] is False and calls == []
+    assert result["reason"] == "provider_readback_absent:foundersedge.com"
+
+
+def test_post_effect_with_unresolved_sibling_receipt_stays_fenced(tmp_path):
+    result, calls = _post_effect(
+        tmp_path, "fundraiser:fe-3",
+        lambda a, q: {"messages": [{"id": "m1", "date": "2026-10-09 22:35"}]},
+        {"occurrence_id": "fundraiser:fe-3", "status": "submit_unknown", "effect": 1,
+         "official_url": "https://a16z.com/"},
+    )
+    assert result["verified"] is False and calls == []
+    assert result["reason"] == "receipt_effect_unresolved:submit_unknown"
+
+
+def test_post_effect_with_another_submission_to_the_same_domain_stays_fenced(tmp_path):
+    result, calls = _post_effect(
+        tmp_path, "fundraiser:fe-4",
+        lambda a, q: {"messages": [{"id": "m1", "date": "2026-10-09 22:35"}]},
+        {"occurrence_id": "fundraiser:older", "status": "submitted_verified",
+         "official_url": "https://www.foundersedge.com/apply"},
+    )
+    assert result["verified"] is False and calls == []
+    assert result["reason"] == "provider_readback_ambiguous:foundersedge.com"

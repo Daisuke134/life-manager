@@ -24,6 +24,15 @@ closes a fence, never a guess):
     provider or supply a provider receipt ID. Keep that occurrence fenced until
     an exact provider-owned readback can be performed; do not use the Telegram
     message ID as the application provider receipt.
+  - A post_effect_verified marker closes as effected only when every
+    submitted_verified receipt of the occurrence has provider-owned mail
+    (Gmail, from the official URL's domain, after submission) and every other
+    receipt is an explicit effect-0 pre-effect failure; mail absence, another
+    submission to the same domain, or any unresolved receipt keeps the fence.
+  - A lost terminal (row already released by the host, terminal report still
+    fail/unknown) is re-proved read-only from its own marker or the host's
+    exact HOST_PRE_EFFECT_RECONCILIATION receipt so the fence loop can log
+    its closure (copy of line-sticker factory_fence_reconcile.py).
   - Anything else (an evidence directory exists but its outcome cannot be
     read back cleanly, or the admission-layer event does not show the
     entrypoint-preflight signature) is inconclusive: stays fenced.
@@ -40,9 +49,11 @@ import os
 import re
 import sqlite3
 import stat
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Callable, Mapping
+from urllib.parse import urlsplit
 
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parents[2]
@@ -55,6 +66,9 @@ EVENTS_PATH = STATE_ROOT / "events.jsonl"
 EVIDENCE_ROOT = STATE_ROOT / "evidence"
 RECEIPTS_PATH = STATE_ROOT / "application-receipts.jsonl"
 MARKERS_ROOT = STATE_ROOT / "effect-markers"
+RECONCILIATION_ROOT = STATE_ROOT / "reconciliation"
+EMAIL = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+\Z")
+MAIL_SLACK_SECONDS = 60
 SAFE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
 MARKER_PHASES = frozenset({"pre_effect", "effect_attempted", "human_required", "post_effect_verified"})
 # run.sh: RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)-$$" and EVIDENCE_DIR="evidence/$RUN_ID".
@@ -90,21 +104,38 @@ def _read_jsonl(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
-def fenced_row(owner_id: str, occurrence_id: str) -> tuple[str, dt.datetime]:
-    """Read (state, queued_at) of the fenced row without mutating the ledger."""
-    from runtime.host import resource_admission
+def _terminal_unknown(occurrence_id: str, events_path: Path) -> bool:
+    return any(
+        row.get("phase") == "report" and row.get("status") in {"blocked", "fail"}
+        and row.get("effect_status") == "unknown"
+        and re.fullmatch(r"[a-f0-9]{40}", str(row.get("release_sha") or "")) is not None
+        for row in _occurrence_events(occurrence_id, events_path)
+    )
 
-    database = resource_admission.state_root() / "admission-v2.sqlite3"
-    with sqlite3.connect(f"file:{database}?mode=ro", uri=True) as connection:
-        row = connection.execute(
-            """SELECT state, queued_at FROM occurrences
-                 WHERE owner_id=? AND occurrence_id=? AND effect_unknown=1""",
-            (owner_id, occurrence_id),
-        ).fetchone()
+
+def lost_or_fenced_row(owner_id: str, occurrence_id: str, *, row: tuple | None = None,
+                       events_path: Path = EVENTS_PATH) -> tuple[str, dt.datetime]:
+    """Read (state, queued_at) of a fenced row, or of a lost-terminal released row."""
+    if row is None:
+        from runtime.host import resource_admission
+
+        database = resource_admission.state_root() / "admission-v2.sqlite3"
+        with sqlite3.connect(f"file:{database}?mode=ro", uri=True) as connection:
+            row = connection.execute(
+                """SELECT state, queued_at, effect_unknown FROM occurrences
+                     WHERE owner_id=? AND occurrence_id=?""",
+                (owner_id, occurrence_id),
+            ).fetchone()
     if row is None or row[1] is None:
         raise ValueError("occurrence is not an effect_unknown row")
-    queued = dt.datetime.fromtimestamp(float(row[1]), dt.timezone.utc)
-    return str(row[0]), queued
+    lost = row[0] == "released" and row[2] == 0 and _terminal_unknown(occurrence_id, events_path)
+    if row[2] != 1 and not lost:
+        raise ValueError("occurrence is not an effect_unknown row")
+    return str(row[0]), dt.datetime.fromtimestamp(float(row[1]), dt.timezone.utc)
+
+
+def fenced_row(owner_id: str, occurrence_id: str) -> tuple[str, dt.datetime]:
+    return lost_or_fenced_row(owner_id, occurrence_id)
 
 
 def _occurrence_events(occurrence_id: str, events_path: Path) -> list[dict[str, Any]]:
@@ -121,7 +152,7 @@ def _marker_path(markers_root: Path, owner_id: str, occurrence_id: str) -> Path 
     return markers_root / f"{run_id}.json"
 
 
-def _read_marker(path: Path | None, owner_id: str, occurrence_id: str) -> dict[str, Any] | None:
+def _read_private_json(path: Path | None) -> Any:
     if path is None:
         return None
     descriptor = -1
@@ -133,12 +164,16 @@ def _read_marker(path: Path | None, owner_id: str, occurrence_id: str) -> dict[s
             return None
         with os.fdopen(descriptor, "r", encoding="utf-8") as source:
             descriptor = -1
-            marker = json.load(source)
+            return json.load(source)
     except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
         return None
     finally:
         if descriptor >= 0:
             os.close(descriptor)
+
+
+def _read_marker(path: Path | None, owner_id: str, occurrence_id: str) -> dict[str, Any] | None:
+    marker = _read_private_json(path)
     if (
         not isinstance(marker, dict)
         or marker.get("schema_version") != 1
@@ -205,6 +240,7 @@ def pre_effect_proof(
             "occurrence_id": occurrence_id,
             "verified": False,
             "classification": "post_effect",
+            "marker_phase": phase,
             "reason": "post_effect_readback_required",
         }
     events = _occurrence_events(occurrence_id, events_path)
@@ -242,11 +278,141 @@ def pre_effect_proof(
     }
 
 
+def host_pre_effect_receipt_proof(
+    occurrence_id: str, *, reconciliation_root: Path = RECONCILIATION_ROOT,
+) -> dict[str, Any] | None:
+    """The host's own RESOLVED pre-effect receipt for this exact occurrence."""
+    run_id = occurrence_id[len(OWNER_ID) + 1:]
+    if not occurrence_id.startswith(f"{OWNER_ID}:") or not SAFE_ID.fullmatch(run_id):
+        return None
+    receipt = _read_private_json(reconciliation_root / f"pre-effect-{run_id}.json")
+    if (not isinstance(receipt, dict)
+            or receipt.get("receipt_type") != "HOST_PRE_EFFECT_RECONCILIATION"
+            or receipt.get("resolution") != "RESOLVED"
+            or receipt.get("owner_id") != OWNER_ID
+            or receipt.get("occurrence_id") != occurrence_id
+            or receipt.get("verified") is not True
+            or receipt.get("proof_type") != "pre_effect"
+            or not isinstance(receipt.get("evidence_ref"), str)
+            or not receipt["evidence_ref"].strip()):
+        return None
+    return {
+        "owner_id": OWNER_ID, "occurrence_id": occurrence_id, "verified": True,
+        "proof_type": "pre_effect", "classification": "pre_effect",
+        "evidence_ref": receipt["evidence_ref"],
+    }
+
+
+def _mail_domain(url: object) -> str | None:
+    host = urlsplit(str(url or "")).hostname
+    labels = host.split(".") if host else []
+    if len(labels) < 2:
+        return None
+    # ponytail: tiny public-suffix rule (example.co.jp); use a PSL if a ccTLD slips through.
+    keep = 3 if len(labels) >= 3 and len(labels[-1]) == 2 and labels[-2] in {
+        "co", "com", "ac", "or", "go", "ne", "lg", "gov", "org", "net", "edu"} else 2
+    return ".".join(labels[-keep:])
+
+
+def _contact_email(record_path: object) -> str | None:
+    try:
+        record = json.loads(Path(str(record_path)).read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return None
+    emails = {
+        str(item.get("answer")).strip() for item in record.get("question_answers") or []
+        if isinstance(item, dict) and EMAIL.fullmatch(str(item.get("answer")).strip())
+    } if isinstance(record, dict) else set()
+    return next(iter(emails)) if len(emails) == 1 else None
+
+
+def _mail_epoch(message: Mapping[str, Any]) -> float | None:
+    try:  # gog prints the local wall clock, minute precision
+        return dt.datetime.strptime(str(message.get("date")), "%Y-%m-%d %H:%M").astimezone().timestamp()
+    except ValueError:
+        return None
+
+
+def gmail_search(account: str, query: str) -> dict[str, Any] | None:
+    """Read-only gog search; same binary and keyring env as the Mercor readback."""
+    mercor = str(REPO_ROOT / "skills/earn/mercor/scripts")
+    if mercor not in sys.path:
+        sys.path.insert(0, mercor)
+    from reconcile_fence_readback import GOG, _gog_env
+
+    argv = [GOG, "gmail", "messages", "search", query, "--max", "20", "--account", account,
+            "--json", "--no-input", "--gmail-no-send"]
+    try:
+        done = subprocess.run(argv, capture_output=True, text=True, check=False,
+                              timeout=30, env=_gog_env())
+        value = json.loads(done.stdout) if done.returncode == 0 else None
+    except (OSError, subprocess.TimeoutExpired, ValueError):
+        return None
+    return value if isinstance(value, dict) else None
+
+
+def post_effect_readback(
+    occurrence_id: str, *, receipts_path: Path = RECEIPTS_PATH,
+    search: Callable[[str, str], dict[str, Any] | None] = gmail_search,
+    now: dt.datetime | None = None,
+) -> dict[str, Any]:
+    """Provider-mail readback for every submission recorded under this occurrence."""
+    def held(reason: str) -> dict[str, Any]:
+        return {"owner_id": OWNER_ID, "occurrence_id": occurrence_id, "verified": False,
+                "classification": "post_effect", "reason": reason}
+
+    ledger = _read_jsonl(receipts_path)
+    rows = [row for row in ledger if row.get("occurrence_id") == occurrence_id]
+    submitted = []
+    for row in rows:
+        status = row.get("status")
+        if status == "submitted_verified":
+            submitted.append(row)
+        elif not (status == "verified_pre_effect_failure" and row.get("effect") == 0):
+            return held(f"receipt_effect_unresolved:{status}")
+    if not submitted:
+        return held("post_effect_readback_required")
+    message_ids = []
+    for row in submitted:
+        domain = _mail_domain(row.get("official_url"))
+        account = _contact_email(row.get("application_record_path"))
+        try:
+            sent = dt.datetime.fromisoformat(str(row.get("utc_timestamp")).replace("Z", "+00:00"))
+        except ValueError:
+            sent = None
+        if not domain or not account or sent is None:
+            return held("provider_readback_unbindable")
+        if any(other.get("occurrence_id") != occurrence_id
+               and other.get("status") in {"submitted_verified", "submit_unknown"}
+               and _mail_domain(other.get("official_url")) == domain for other in ledger):
+            return held(f"provider_readback_ambiguous:{domain}")
+        value = search(account, f"in:anywhere from:{domain} after:{sent:%Y/%m/%d}")
+        if value is None:
+            return held("provider_readback_unavailable")
+        floor = sent.timestamp() - MAIL_SLACK_SECONDS
+        hits = [str(message["id"]) for message in value.get("messages") or []
+                if isinstance(message, dict) and message.get("id")
+                and (_mail_epoch(message) or 0) >= floor]
+        if not hits:
+            return held(f"provider_readback_absent:{domain}")
+        message_ids.append(hits[0])
+    receipt = "gmail:" + ",".join(message_ids)
+    return {
+        "owner_id": OWNER_ID, "occurrence_id": occurrence_id, "verified": True,
+        "proof_type": "post_effect", "classification": "post_effect",
+        "provider_receipt_id": receipt, "evidence_ref": receipt,
+        "checked_at": (now or dt.datetime.now(dt.timezone.utc)).isoformat(timespec="seconds"),
+    }
+
+
 def reconcile(
     occurrence_id: str, *,
     events_path: Path = EVENTS_PATH,
     evidence_root: Path = EVIDENCE_ROOT,
     markers_root: Path = MARKERS_ROOT,
+    receipts_path: Path = RECEIPTS_PATH,
+    reconciliation_root: Path = RECONCILIATION_ROOT,
+    gmail_search: Callable[[str, str], dict[str, Any] | None] = gmail_search,
     fenced_row_fn: Callable[[str, str], tuple[str, dt.datetime]] = fenced_row,
     resolve_fn: Callable[..., bool] | None = None,
     now: dt.datetime | None = None,
@@ -257,8 +423,21 @@ def reconcile(
         OWNER_ID, occurrence_id, events_path=events_path, evidence_root=evidence_root,
         markers_root=markers_root, now=now,
     )
+    if state == "released" and not proof.get("verified"):
+        proof = host_pre_effect_receipt_proof(
+            occurrence_id, reconciliation_root=reconciliation_root) or proof
+    if proof.get("marker_phase") == "post_effect_verified":
+        proof = post_effect_readback(
+            occurrence_id, receipts_path=receipts_path, search=gmail_search, now=now)
     result: dict[str, Any] = {**proof, "admission_state": state}
     if not proof.get("verified") or not resolve:
+        return result
+    if proof.get("proof_type") == "post_effect":
+        if resolve_fn is None:
+            from runtime.host.resource_admission import resolve_unknown_occurrence as resolve_fn
+        result["closed"] = resolve_fn(
+            OWNER_ID, occurrence_id, official_readback=lambda: proof, expected_state=state,
+        )
         return result
     if resolve_fn is None:
         from runtime.host.resource_admission import resolve_pre_effect_occurrence
