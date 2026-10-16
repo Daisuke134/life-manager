@@ -1581,6 +1581,8 @@
     "fundraiser": {
       "admission_class": "revenue",
       "admission_effect_scope": "occurrence",
+      "browser_identity": "fundraiser:dais",
+      "browser_target_owner": "fundraiser-browser",
       "cadence": {
         "start_interval_seconds": 3600
       },
@@ -1605,6 +1607,28 @@
         "resolve_flag": "--resolve",
         "timeout_seconds": 60
       }
+    },
+    "fundraiser-browser": {
+      "adapter": "exec",
+      "browser_owner": {
+        "cdp_port": 9336,
+        "profile": "~/.cloak/profiles/fundraiser"
+      },
+      "cadence": {
+        "keep_alive": true
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "command": [],
+      "domain": "earn",
+      "effect_class": "none",
+      "entrypoint": "skills/browser/owned-persistent-context",
+      "label": "ai.anicca.fundraiser-browser",
+      "log_root": "~/.local/state/life-manager/fundraiser-browser/logs",
+      "provider_route": "shared-agent-runner",
+      "state_root": "~/.local/state/life-manager/fundraiser-browser"
     },
     "gig-outcome-watch": {
       "adapter": "exec",

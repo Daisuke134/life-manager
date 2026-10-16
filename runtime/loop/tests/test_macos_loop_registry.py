@@ -1602,7 +1602,14 @@ class MacosLoopRegistryTest(unittest.TestCase):
         expected.update({
             "mercor-revenue-application": ("mercor:dais", "mercor-revenue-browser"),
             "mercor-revenue-reply": ("mercor:dais", "mercor-revenue-browser"),
+            # run.sh defers every pass without a permitted identity (5bce743a50).
+            "fundraiser": ("fundraiser:dais", "fundraiser-browser"),
         })
+        browser = registry["loops"]["fundraiser-browser"]
+        self.assertEqual(browser["cadence"], {"keep_alive": True})
+        self.assertEqual(browser["entrypoint"], "skills/browser/owned-persistent-context")
+        self.assertEqual(browser["browser_owner"],
+                         {"cdp_port": 9336, "profile": "~/.cloak/profiles/fundraiser"})
         for loop_id, (identity, owner) in expected.items():
             with self.subTest(loop_id=loop_id):
                 row = registry["loops"][loop_id]

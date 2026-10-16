@@ -45,6 +45,8 @@ is the target-level replay fence, not a new owner or scheduler.
 - Require an explicitly configured, permitted registered browser identity; never
   use `interactive:dais`. Identity or transport failure defers the application
   pass; only the registered browser owner performs browser recovery.
+  The permitted identity is `fundraiser:dais` (registry join to the
+  `fundraiser-browser` keep-alive owner, CDP 9336, `~/.cloak/profiles/fundraiser`).
 
 ## Continuous behavior
 
