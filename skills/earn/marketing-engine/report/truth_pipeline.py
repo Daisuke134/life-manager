@@ -171,6 +171,23 @@ def run_pipeline(
         }
 
 
+OPEN_UNKNOWN_EXIT = 3
+
+
+def exit_code(result: dict) -> int:
+    """1 = a stage failed; 3 = an owner-report key is still delivery_unknown.
+
+    The loop runtime has no "pass with open unknowns" terminal, so an unresolved delivery
+    must stay a non-pass (``entrypoint_exit_3``) rather than read as success.  Its keys are
+    named on stderr by the report stage and summarized below for the terminal error tail.
+    """
+    if result["status"] == "failed":
+        return 1
+    if any(stage.startswith("report:") for stage in result["attention_stages"]):
+        return OPEN_UNKNOWN_EXIT
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo-root", type=pathlib.Path, default=REPO_ROOT)
@@ -190,7 +207,11 @@ def main(argv: list[str] | None = None) -> int:
         lock_path=lock_path,
     )
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-    return 1 if result["status"] == "failed" else 0
+    code = exit_code(result)
+    if code == OPEN_UNKNOWN_EXIT:
+        stages = [stage for stage in result["attention_stages"] if stage.startswith("report:")]
+        print(f"truth pipeline: open owner-report delivery_unknown in {stages}", file=sys.stderr)
+    return code
 
 
 if __name__ == "__main__":
