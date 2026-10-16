@@ -364,6 +364,10 @@ PY
     fi
   fi
 fi
+# Postiz strips links from X posts; reply to our own recent posts with their ct link (non-fatal).
+if [ "${CAPAFY_DISTRIBUTE_DRY_RUN:-0}" != "1" ]; then
+  python3 "$SELF_DIR/capafy_x_link_reply.py" --limit 4 >>"$LOG" 2>&1 || true
+fi
 POST_RC=0
 python3 "$SELF_DIR/capafy_distribute_ledger.py" check --ledger "$LEDGER" --date "$SLOT" >>"$LOG" 2>&1 || POST_RC=$?
 [ "$POST_RC" -eq 10 ] && exit 0
