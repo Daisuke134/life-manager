@@ -1194,7 +1194,17 @@ def _carry_over_without_dispatch(run_dir: Path, rows: list[dict[str, Any]], run_
     publication-state + platform-dispatch, so with neither present nothing left the machine.
     """
     own = [row for row in rows if row.get("run_id") == run_id]
-    if not own or not all(_no_effect_row(row) for row in own):
+    if not own:
+        # 2026-10-17 00:27: run 20261016-152709 staged drafts and the provider failed (exit 1)
+        # before writing any row; a finished failed attempt with no dispatch is the same case.
+        state = _regular_json(run_dir / "gates" / "generation-state.json") or {}
+        attempts = state.get("attempts")
+        last = attempts[-1] if isinstance(attempts, list) and attempts and isinstance(attempts[-1], dict) else {}
+        code = last.get("return_code")
+        if not (state.get("status") == "provider-failed-ambiguous"
+                and type(code) is int and code != 0):
+            return False
+    elif not all(_no_effect_row(row) for row in own):
         return False
     gates = run_dir / "gates"
     if (gates / "publication-state.json").exists() or (gates / "publication-state.json").is_symlink():
