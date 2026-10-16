@@ -147,6 +147,19 @@ class TruthPipelineTest(unittest.TestCase):
             ],
         )
 
+    def test_report_inherited_unknown_is_attention_not_pipeline_failure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = truth_pipeline.run_pipeline(
+                [["owner_report_cli.py", "sweep", "--kind", "checkpoint"],
+                 ["owner_report_cli.py", "sweep", "--kind", "action"]],
+                lock_path=pathlib.Path(tmp) / "truth.lock",
+                run_command=lambda command: 3 if "checkpoint" in command else 1,
+            )
+
+        self.assertEqual(result["status"], "failed")
+        self.assertEqual(result["attention_stages"], ["report:checkpoint"])
+        self.assertEqual(result["failed_stages"], ["report:action"])
+
     def test_attribution_sweep_attention_is_not_pipeline_failure(self):
         with tempfile.TemporaryDirectory() as tmp:
             result = truth_pipeline.run_pipeline(

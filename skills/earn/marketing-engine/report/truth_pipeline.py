@@ -152,7 +152,7 @@ def run_pipeline(
         for command in commands:
             stage = _stage_name(command)
             returncode = int(run_command(command))
-            if stage in {"reconcile", "attribution"} and returncode == 3:
+            if (stage in {"reconcile", "attribution"} or stage.startswith("report:")) and returncode == 3:
                 result = "attention"
                 attention.append(stage)
             elif returncode != 0:
