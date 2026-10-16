@@ -33,7 +33,7 @@ def _outbox(root: Path, rows: list[tuple]) -> None:
         db.execute("""CREATE TABLE telegram_outbox (event_key TEXT PRIMARY KEY, message_sha256 TEXT,
             message TEXT, status TEXT, attempt_count INTEGER, provider_message_id TEXT UNIQUE,
             created_at TEXT, claimed_at TEXT, delivered_at TEXT, last_error_code TEXT)""")
-        db.executemany("INSERT INTO telegram_outbox VALUES (?,'x','m',?,1,?,'c',?,'d',NULL)", rows)
+        db.executemany("INSERT INTO telegram_outbox VALUES (?,'x','m',?,1,?,'2026-09-27T07:00:00Z',?,'d',NULL)", rows)
 
 
 def _admission(root: Path, state: str = "claimed", unknown: int = 1) -> Path:
@@ -147,3 +147,14 @@ def test_resolve_pre_effect_uses_pre_effect_resolver(tmp_path):
                                resolver=receipt_resolver, pre_effect_resolver=pre_effect_resolver)
     assert result["resolved"] is True
     assert calls == [(OWNER, OCC, "pre_effect", "claimed")]
+
+
+@pytest.mark.parametrize("created_at,claimed_at", [("garbage", None),
+                                                   ("2026-09-27T07:00:00Z", "garbage"),
+                                                   ("2026-09-27T08:21:54", None)])
+def test_unparseable_outbox_stamp_keeps_fence(tmp_path, created_at, claimed_at):
+    _events(tmp_path)
+    _outbox_created(tmp_path, [("crowdworks:application:1", "delivered", "1",
+                                created_at, claimed_at)])
+    with pytest.raises(RuntimeError, match="outbox_stamp_unreadable"):
+        adapter.find_proof(tmp_path, OCC, _admission(tmp_path))

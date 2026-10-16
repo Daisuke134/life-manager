@@ -108,9 +108,12 @@ def find_proof(state_root: Path, occurrence: str, admission_db: Path) -> dict[st
                                  uri=True, timeout=0.5)) as db:
         rows = db.execute("SELECT event_key,status,provider_message_id,claimed_at,created_at "
                           "FROM telegram_outbox").fetchall()
+    # Fail closed: a stamp we cannot place could be inside the window.
+    if any(_epoch(row[4]) is None or (row[3] is not None and _epoch(row[3]) is None)
+           for row in rows):
+        raise RuntimeError("outbox_stamp_unreadable")
     def inside(value: Any) -> bool:
-        stamp = _epoch(value)
-        return stamp is not None and start - SLACK <= stamp <= end + SLACK
+        return start - SLACK <= _epoch(value) <= end + SLACK
     outbox = [row[:4] for row in rows if row[3] is not None]
     in_run = [row for row in outbox if inside(row[3])]
     wake_prefix = f"crowdworks:wake:{occurrence}:"
