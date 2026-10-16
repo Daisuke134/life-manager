@@ -2245,9 +2245,8 @@ def test_identityless_fence_stays_fenced_without_an_occurrence_bound_zero_post_p
     assert result["reason"] == "identity_missing_and_no_dispatch_unproven"
 
 
-@pytest.mark.parametrize("owner", ["life-manager-anicca-main-tiktok", "ebook-ja-instagram-daily",
-                                   "ebook-en-instagram-daily"])
-def test_identityless_path_is_limited_to_postiz_only_ebook_tiktok(tmp_path, monkeypatch, owner):
+@pytest.mark.parametrize("owner", ["life-manager-anicca-main-tiktok", "ebook-en-tiktok-daily"])
+def test_identityless_path_is_limited_to_postiz_only_ebook_owners(tmp_path, monkeypatch, owner):
     occurrence = f"{owner}:run-x"
     idir = _hist_identity_dir(tmp_path, owner, ["integration://postiz/tiktok/cmtt"])
     _claim_run_events(tmp_path, owner, occurrence)
@@ -2258,4 +2257,35 @@ def test_identityless_path_is_limited_to_postiz_only_ebook_tiktok(tmp_path, monk
     result = reconcile.reconcile_current_occurrence(
         apply=False, **_identityless_kw(tmp_path, owner, occurrence, idir))
     assert result["reason"] == "identity_missing_or_invalid"
-    assert set(reconcile.IDENTITYLESS_POSTIZ_OWNERS) == {"ebook-ja-tiktok-daily"}
+    assert set(reconcile.IDENTITYLESS_POSTIZ_OWNERS) == {
+        "ebook-ja-tiktok-daily", "ebook-ja-instagram-daily", "ebook-en-instagram-daily"}
+
+
+@pytest.mark.parametrize("case", ["zero_posts", "post_after_claim", "file_script_after_claim"])
+def test_identityless_ebook_instagram_fence_needs_zero_posts_on_its_own_integration(
+        tmp_path, monkeypatch, case):
+    # The eBook Instagram job always carries a Postiz integration ref (the adapter rejects a
+    # job without one), so the file-script fallback is unreachable; a ledger row on any other
+    # route after the claim still keeps the fence.
+    owner = "ebook-ja-instagram-daily"
+    occurrence = f"{owner}:18dc64be2b4087e0-5330"
+    idir = _hist_identity_dir(tmp_path, owner, ["integration://postiz/instagram/cmig"])
+    _claim_run_events(tmp_path, owner, occurrence, run="18dcc04408f9cac0-33517")
+    rows = [{"platform": "instagram", "route": "instagram_file_script", "ts": "2026-10-07T07:03:41Z"}]
+    if case == "file_script_after_claim":
+        rows.append({"platform": "instagram", "route": "instagram_file_script", "ts": "2026-10-09T04:00:00Z"})
+    _postiz_route_env(tmp_path, monkeypatch, owner, ledger_rows=rows)
+    calls = []
+    monkeypatch.setattr(reconcile, "_postiz_posts_between", lambda i, s, e, k: calls.append(i) or (
+        [{"id": "p"}] if case == "post_after_claim" else []))
+    monkeypatch.setattr(reconcile, "_admission_state", lambda *_a: ("claimed", 1))
+    monkeypatch.setattr(reconcile.time, "time", lambda: 1_791_600_000.0)
+    result = reconcile.reconcile_current_occurrence(
+        apply=False, **_identityless_kw(tmp_path, owner, occurrence, idir))
+    if case == "zero_posts":
+        assert result["status"] == "ready" and result["occurrence_id"] == occurrence
+        assert result["historical_integration_id"] == "cmig"
+        assert result["claim_run_id"] == "18dcc04408f9cac0-33517" and calls == ["cmig"]
+    else:
+        assert result["status"] == "inconclusive"
+        assert result["reason"] == "identity_missing_and_no_dispatch_unproven"
