@@ -999,3 +999,15 @@ def test_pending_media_rows_take_the_official_absence_path(tmp_path):
     root, arts = _carry_fixture(tmp_path, ledger=pending)
     result, calls, closed = _carry_reconcile(m, root, arts, {"destinations": ABSENT})
     assert calls and result["status"] == "no_dispatch_proven" and result["closed"] is True
+
+
+def test_unpublished_row_with_an_external_identifier_never_takes_the_absence_path(tmp_path):
+    m = _load()
+    for extra in ({"public_id": "n123"}, {"status_id": "199"}, {"edit_id": "77"}):
+        row = {"ts": "2026-10-16T05:15:43Z", "run_id": CARRY_RUN, "platform": "note", "lang": "ja",
+               "draft_url": None, "published": False, "state": "pending:x"} | extra
+        sub = tmp_path / next(iter(extra))
+        sub.mkdir()
+        root, arts = _carry_fixture(sub, ledger=row)
+        result, calls, closed = _carry_reconcile(m, root, arts, {"destinations": ABSENT})
+        assert not calls and not closed, extra
