@@ -17,10 +17,12 @@ Any mismatch or unreadable readback leaves the occurrence fenced.
 
 from __future__ import annotations
 
+from contextlib import closing
 import argparse
 import hashlib
 import json
 import os
+import sqlite3
 import subprocess
 import sys
 from pathlib import Path
@@ -32,7 +34,8 @@ ROOT = SCRIPT.parents[4]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from runtime.host.resource_admission import resolve_unknown_occurrence  # noqa: E402
+from runtime.host.resource_admission import (  # noqa: E402
+    resolve_unknown_occurrence, state_root as admission_state_root)
 
 
 OWNER_ID = "lancers-revenue-storefront"
@@ -46,6 +49,19 @@ PORTFOLIO_KEYS = ("portfolio", "software_portfolio")
 
 class Held(RuntimeError):
     pass
+
+
+def occurrence_state(database: Path, occurrence_id: str) -> str:
+    """The fenced row's real state; a released row with effect_unknown=1 is still fenced."""
+    try:
+        with closing(sqlite3.connect(f"file:{database}?mode=ro", uri=True, timeout=5)) as db:
+            row = db.execute("SELECT owner_id,state,effect_unknown FROM occurrences "
+                             "WHERE occurrence_id=?", (occurrence_id,)).fetchone()
+    except sqlite3.Error as error:
+        raise Held("admission_state_unavailable") from error
+    if not row or row[0] != OWNER_ID or row[1] not in {"claimed", "released"} or row[2] != 1:
+        raise Held("occurrence_not_effect_unknown")
+    return row[1]
 
 
 def browser_readback(state_root: Path, product: Path, *,
@@ -120,11 +136,14 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
     parser.add_argument("--resolve", action="store_true")
     parser.add_argument("--state-root", type=Path, default=Path("~/.local/state/anicca/lancers"))
     parser.add_argument("--product", type=Path, default=DEFAULT_PRODUCT)
+    parser.add_argument("--admission-db", type=Path, default=None)
     args = parser.parse_args(argv)
     base = {"owner_id": OWNER_ID, "occurrence_id": args.occurrence}
     try:
         if not args.occurrence.startswith(f"{OWNER_ID}:"):
             raise Held("occurrence_owner_mismatch")
+        database = args.admission_db or admission_state_root() / "admission-v2.sqlite3"
+        expected_state = occurrence_state(database.expanduser(), args.occurrence)
         proof = official_proof(args.occurrence, args.state_root.expanduser().resolve(),
                                args.product, runner=runner)
     except Held as error:
@@ -133,7 +152,7 @@ def main(argv: list[str] | None = None, *, runner=None) -> int:
                          sort_keys=True))
         return 1
     resolved = args.resolve and resolve_unknown_occurrence(
-        OWNER_ID, args.occurrence, official_readback=lambda: proof, expected_state="claimed")
+        OWNER_ID, args.occurrence, official_readback=lambda: proof, expected_state=expected_state)
     state = "RECONCILED" if resolved else ("HELD" if args.resolve else "PROOF_READY")
     print(json.dumps({**proof, "verified": state != "HELD", "state": state,
                       "resolved": bool(resolved)}, sort_keys=True))

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import sqlite3
 import subprocess
 from pathlib import Path
 from unittest.mock import Mock
@@ -51,9 +52,21 @@ def runner_for(value: dict, returncode: int = 0) -> Mock:
     return Mock(return_value=subprocess.CompletedProcess([], returncode, stdout, ""))
 
 
-def call(module, state, product, runner, *extra):
+def admission(root: Path, state: str = "claimed", unknown: int = 1) -> Path:
+    path = root / "admission-v2.sqlite3"
+    with sqlite3.connect(path) as db:
+        db.execute("CREATE TABLE IF NOT EXISTS occurrences "
+                   "(occurrence_id TEXT, owner_id TEXT, state TEXT, effect_unknown INTEGER)")
+        db.execute("DELETE FROM occurrences")
+        db.execute("INSERT INTO occurrences VALUES (?,?,?,?)", (OCCURRENCE, OWNER, state, unknown))
+    return path
+
+
+def call(module, state, product, runner, *extra, database=None):
+    database = database or admission(state.parent)
     return module.main(["--occurrence", OCCURRENCE, "--state-root", str(state),
-                        "--product", str(product), *extra], runner=runner)
+                        "--product", str(product), "--admission-db", str(database), *extra],
+                       runner=runner)
 
 
 def test_roster_matching_owner_ledger_resolves_through_official_readback(
@@ -147,4 +160,31 @@ def test_other_owner_occurrence_is_refused(tmp_path, capsys):
     code = module.main(["--occurrence", "lancers-revenue-application:x", "--state-root",
                         str(state), "--product", str(product)], runner=runner)
     assert code == 1 and json.loads(capsys.readouterr().out)["reason"] == "occurrence_owner_mismatch"
+    runner.assert_not_called()
+
+
+def test_released_effect_unknown_occurrence_resolves_with_its_real_state(
+        tmp_path, monkeypatch, capsys):
+    # Production row 18dee27f88679da0-92746 is state=released, effect_unknown=1. A hard-coded
+    # expected_state="claimed" matched zero rows, so a verified roster proof still printed HELD.
+    module = load_module()
+    state, product = setup(tmp_path)
+    resolver = Mock(return_value=True)
+    monkeypatch.setattr(module, "resolve_unknown_occurrence", resolver)
+
+    code = call(module, state, product, runner_for(roster()), "--resolve",
+                database=admission(tmp_path, state="released"))
+
+    assert code == 0 and json.loads(capsys.readouterr().out)["state"] == "RECONCILED"
+    assert resolver.call_args.kwargs["expected_state"] == "released"
+
+
+def test_occurrence_not_effect_unknown_is_held_before_browser(tmp_path, monkeypatch, capsys):
+    module = load_module()
+    state, product = setup(tmp_path)
+    monkeypatch.setattr(module, "resolve_unknown_occurrence", Mock(side_effect=AssertionError))
+    runner = runner_for(roster())
+    code = call(module, state, product, runner, "--resolve",
+                database=admission(tmp_path, unknown=0))
+    assert code == 1 and json.loads(capsys.readouterr().out)["reason"] == "occurrence_not_effect_unknown"
     runner.assert_not_called()
