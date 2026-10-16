@@ -1489,10 +1489,10 @@ CLAIM_RUN_LOOKAHEAD_SECONDS = 7 * 86400
 MAX_POSTIZ_READS = 16
 LAUNCH_AGENTS = Path.home() / "Library/LaunchAgents"
 EBOOK_TENANT = "dais-local"
-# ponytail: eBook owners only; widen per owner family in its own change once its route is proven.
+# ponytail: only owners whose every publish route is Postiz.  Instagram falls back to
+# instagram_file_script when its integration is empty (distribute.py), which a Postiz read
+# cannot see, so the eBook Instagram owners stay out until that route has its own readback.
 IDENTITYLESS_POSTIZ_OWNERS = {
-    "ebook-en-instagram-daily": ("ebook-en", "instagram"),
-    "ebook-ja-instagram-daily": ("ebook-ja", "instagram"),
     "ebook-ja-tiktok-daily": ("ebook-ja", "tiktok"),
 }
 _DIRECT_MIGRATION_LINE = re.compile(r"^(?:export\s+)?LM_TIKTOK_DIRECT_MIGRATION=['\"]?1['\"]?\s*$")
@@ -1542,6 +1542,8 @@ def _postiz_route_proven(owner_id: str, since: float, data_dir: Path) -> bool:
 
     TikTok leaves Postiz when LM_TIKTOK_DIRECT_MIGRATION=1 (distribute.py), and any ledger
     row on another route after the claim means a non-Postiz effect the readback cannot see.
+    Limit: the claim run's own environment is recorded only as loaded_env_sha256, so the flag
+    is read from the owner's current LaunchAgent, marketing.env and this process instead.
     """
     product, platform = IDENTITYLESS_POSTIZ_OWNERS[owner_id]
     if os.environ.get("LM_TIKTOK_DIRECT_MIGRATION", "").strip() == "1":
@@ -1596,8 +1598,9 @@ def build_claim_run_no_dispatch_proof(
     """Prove an identity-less fenced eBook occurrence never posted.
 
     Bound to the occurrence through the one run that claimed it: that run could publish only
-    via Postiz, and the owner's single Postiz integration has zero posts (deleted ones count)
-    from that run's start until a week past now.  Unlike a +-30 min window around queued_at,
+    via Postiz, and the owner's single Postiz integration lists zero posts from that run's
+    start until a week past now.  Whether Postiz lists deleted posts is unverified, so a post
+    deleted in Postiz may be invisible here; the proof does not claim otherwise.  Unlike a +-30 min window around queued_at,
     this covers every publish lag after the only process that could have acted.
     Returns None (keep the fence) otherwise.
     """
@@ -1616,7 +1619,7 @@ def build_claim_run_no_dispatch_proof(
         posts = _postiz_posts_in(integration_id, start, end, api_key, list_posts, [MAX_POSTIZ_READS])
     except (OSError, ValueError):
         return None
-    if posts:  # any row, including a deleted one, is an effect this proof cannot rule out
+    if posts:  # any listed row keeps the fence
         return None
     fmt = "%Y-%m-%dT%H:%M:%SZ"
     window = (f"{datetime.fromtimestamp(start, timezone.utc).strftime(fmt)}.."

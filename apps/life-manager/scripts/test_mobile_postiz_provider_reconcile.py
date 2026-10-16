@@ -2150,12 +2150,13 @@ def _identityless_kw(tmp_path, owner, occurrence, idir):
 
 
 def test_identityless_fence_closes_only_on_zero_posts_since_its_claim_run_started(tmp_path, monkeypatch):
-    owner = "ebook-ja-instagram-daily"
-    occurrence = f"{owner}:18dc64be2b4087e0-5330"
-    idir = _hist_identity_dir(tmp_path, owner, ["integration://postiz/instagram/cmig"])
+    owner = "ebook-ja-tiktok-daily"
+    occurrence = f"{owner}:18dc5e822e430b80-45345"
+    idir = _hist_identity_dir(tmp_path, owner, ["integration://postiz/tiktok/cmig"])
     _claim_run_events(tmp_path, owner, occurrence)
     _postiz_route_env(tmp_path, monkeypatch, owner, ledger_rows=[
-        {"platform": "instagram", "route": "instagram_file_script", "ts": "2026-10-07T07:03:41Z"}])
+        {"platform": "tiktok", "route": "tiktok_direct", "ts": "2026-10-07T07:03:41Z"},
+        {"platform": "instagram", "route": "instagram_file_script", "ts": "2026-10-09T07:03:41Z"}])
     now = 1_791_600_000.0  # days after the claim run
     calls = []
 
@@ -2209,7 +2210,7 @@ def test_identityless_postiz_read_is_capped(tmp_path, monkeypatch):
 
 
 @pytest.mark.parametrize("case", [
-    "post_after_claim", "deleted_post_after_claim", "two_claims", "too_recent", "no_integration",
+    "post_after_claim", "deleted_post_listed_after_claim", "two_claims", "too_recent", "no_integration",
     "no_run", "direct_migration_plist", "direct_migration_env", "direct_migration_marketing_env",
     "non_postiz_route_after_claim", "no_launch_agent",
 ])
@@ -2234,7 +2235,7 @@ def test_identityless_fence_stays_fenced_without_an_occurrence_bound_zero_post_p
             plist.unlink()
     now = 1_791_530_000.0 if case == "too_recent" else 1_791_600_000.0
     rows = {"post_after_claim": [{"id": "p"}],
-            "deleted_post_after_claim": [{"id": "p", "deletedAt": "2026-10-09T05:00:00Z"}]}.get(case, [])
+            "deleted_post_listed_after_claim": [{"id": "p", "deletedAt": "2026-10-09T05:00:00Z"}]}.get(case, [])
     monkeypatch.setattr(reconcile, "_postiz_posts_between", lambda *a: rows)
     monkeypatch.setattr(reconcile, "_admission_state", lambda *_a: ("claimed", 1))
     monkeypatch.setattr(reconcile.time, "time", lambda: now)
@@ -2244,8 +2245,9 @@ def test_identityless_fence_stays_fenced_without_an_occurrence_bound_zero_post_p
     assert result["reason"] == "identity_missing_and_no_dispatch_unproven"
 
 
-def test_identityless_path_is_limited_to_the_three_ebook_owners(tmp_path, monkeypatch):
-    owner = "life-manager-anicca-main-tiktok"
+@pytest.mark.parametrize("owner", ["life-manager-anicca-main-tiktok", "ebook-ja-instagram-daily",
+                                   "ebook-en-instagram-daily"])
+def test_identityless_path_is_limited_to_postiz_only_ebook_tiktok(tmp_path, monkeypatch, owner):
     occurrence = f"{owner}:run-x"
     idir = _hist_identity_dir(tmp_path, owner, ["integration://postiz/tiktok/cmtt"])
     _claim_run_events(tmp_path, owner, occurrence)
@@ -2256,5 +2258,4 @@ def test_identityless_path_is_limited_to_the_three_ebook_owners(tmp_path, monkey
     result = reconcile.reconcile_current_occurrence(
         apply=False, **_identityless_kw(tmp_path, owner, occurrence, idir))
     assert result["reason"] == "identity_missing_or_invalid"
-    assert set(reconcile.IDENTITYLESS_POSTIZ_OWNERS) == {
-        "ebook-en-instagram-daily", "ebook-ja-instagram-daily", "ebook-ja-tiktok-daily"}
+    assert set(reconcile.IDENTITYLESS_POSTIZ_OWNERS) == {"ebook-ja-tiktok-daily"}
