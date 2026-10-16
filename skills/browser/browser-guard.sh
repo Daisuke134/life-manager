@@ -182,7 +182,11 @@ if held:
     #   * a fresh timestamp covers the agent case, where the acquiring shell exits
     #     immediately and its pid is dead within milliseconds. gig_single_instance.sh
     #     hit exactly this and chose timestamps for the same reason.
-    if pid_alive(held.get("pid"), held.get("host", host)) or age < stale:
+    # A lease without holder_start predates holder identity. Its pid may be a long-lived parent
+    # (2026-10-16: the Codex app-server daemon held interactive:dais for 8h after its caller
+    # exited), so past the stale window only the timestamp counts. Current leases keep the pid rule.
+    live = pid_alive(held.get("pid"), held.get("host", host)) and "holder_start" in held
+    if live or age < stale:
         print(json.dumps(held, ensure_ascii=False), file=sys.stderr)
         raise SystemExit(1)
 
