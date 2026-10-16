@@ -246,6 +246,15 @@
       "command": [],
       "domain": "earn",
       "effect_class": "message",
+      "effect_reconcile": {
+        "argv": [
+          "skills/earn/crowdworks/scripts/reconcile_report_outbox.py",
+          "--state-root", "~/.local/state/anicca/crowdworks"
+        ],
+        "occurrence_flag": "--occurrence",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 60
+      },
       "entrypoint": "skills/earn/crowdworks/scripts/report-owner",
       "label": "ai.anicca.crowdworks-revenue-report",
       "log_root": "~/.local/state/anicca/crowdworks/logs",
