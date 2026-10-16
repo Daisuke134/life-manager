@@ -84,3 +84,4 @@ skills/capafy-autopublish/vendor/capafy-user/config.json
 skills/capafy-autopublish/vendor/capafy-publisher/.temp/
 skills/capafy-autopublish/vendor/capafy-user/.temp/
 runtime/openclaw/.sdk-inspect/
+.DS_Store
