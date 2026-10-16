@@ -1731,7 +1731,21 @@ def ensure_profile(product_path: Path, state_path: Path) -> dict[str, Any]:
     return result
 
 
-def run(apply: bool, product_path: Path, state_path: Path) -> dict[str, Any]:
+def _roster(page: Any, product: Mapping[str, Any]) -> dict[str, Any]:
+    """Read-only official roster for fence reconciliation; never clicks a control."""
+    page.goto(f"{ORIGIN}/myplan", wait_until="domcontentloaded", timeout=20_000)
+    if urlsplit(str(page.url)).path != "/myplan": raise OfferError("roster_readback_invalid")
+    listing_ids = []
+    for link in page.locator(".p-project-plan-myplan__store-content-over-title-link").all():
+        found = re.fullmatch(r"/menu/detail/([0-9]+)", link.get_attribute("href") or "")
+        if found is None: raise OfferError("roster_readback_invalid")
+        listing_ids.append(found.group(1))
+    superseded = {listing_id: _setting_status(page, listing_id) for listing_id in product["superseded_listing_ids"]}
+    portfolios = {key: (_portfolio(page, product[key]) or {}).get("portfolio_external_id") for key in ("portfolio", "software_portfolio")}
+    return {"action": "roster_readback", "listing_ids": listing_ids, "superseded_status": superseded, "portfolio_external_ids": portfolios}
+
+
+def run(apply: bool, product_path: Path, state_path: Path, *, roster: bool = False) -> dict[str, Any]:
     tick = browser = page = None; logged_in = False; result: dict[str, Any] = {"ok": False, "error": "offer_unavailable"}
     try:
         product, image, avatar = _product(product_path); tick = _load("lancers_storefront_offer_tick", HERE / "application_tick.py")
@@ -1739,6 +1753,7 @@ def run(apply: bool, product_path: Path, state_path: Path) -> dict[str, Any]:
             browser = tick._default_browser_factory(tick.CDP_URL); page = tick._new_owned_page(browser)
             if not tick._production_account_ready(page): raise OfferError("account_unavailable")
             logged_in = True; result = _apply(page, product, image) if apply else _public(page, product) | {"action": "inspect"}
+            if roster and not apply: result |= _roster(page, product)
             if apply and result.get("action") == "unchanged":
                 for key in ("portfolio", "software_portfolio"):
                     portfolio = _ensure_portfolio(page, product, image, key)
@@ -1775,6 +1790,7 @@ def run(apply: bool, product_path: Path, state_path: Path) -> dict[str, Any]:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(); mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--inspect", action="store_true"); mode.add_argument("--apply", action="store_true")
+    mode.add_argument("--roster-readback", action="store_true", dest="roster_readback")
     # Separate top-level mode, not a modifier of --apply: create_package() must never fire as a
     # side effect of the existing edit-in-place flow (see create_package()'s own docstring).
     mode.add_argument("--create-package", action="store_true", dest="create_package")
@@ -1784,7 +1800,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         result = run_create(args.product, args.state_path)
         print(json.dumps(result, ensure_ascii=False, sort_keys=True, separators=(",", ":")), flush=True)
         return 0 if result.get("ok") is True else 1
-    result = run(args.apply, args.product, args.state_path)
+    result = (run(args.apply, args.product, args.state_path, roster=True) if args.roster_readback
+              else run(args.apply, args.product, args.state_path))
     # The wake's fallback effect: only when the single-offer chain above left nothing to do
     # (result["action"] == "unchanged" -- no status pause, no field alignment, no portfolio, no
     # profile update) does the wake get a second, independent chance to create one new listing
