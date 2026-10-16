@@ -308,7 +308,7 @@ def test_release_capacity_measurement_failure_fails_closed(
 ):
     guard = load_guard()
     monkeypatch.setattr(
-        guard, "release_capacity_bytes",
+        guard, "release_capacity",
         lambda *_args: (_ for _ in ()).throw(ValueError("fixture measurement failure")),
     )
 
@@ -358,10 +358,15 @@ def test_release_capacity_reuses_locked_bundle_for_script_and_toolchain_change(t
         assert 64 * 1024**2 < required < guard.RECOVERY_FLOOR_BYTES
         assert list((loops / "dependency-bundles").iterdir()) == [bundle]
         assert (donor / "package.json").read_bytes() == old
+        # A dependency change used to raise here and block every release on main (2026-10-16,
+        # #8168 added one package). Budget a fresh install the size of the donor's tree instead.
+        bundle.chmod(0o755)
+        (bundle / "node_modules" / "big.bin").write_bytes(b"\0" * (8 * 1024**2))
+        bundle.chmod(0o555)
         package["dependencies"] = {"changed": "1.0.0"}
         changed_sha = commit_package(package)
-        with pytest.raises(ValueError, match="dependency manifests changed"):
-            guard.release_capacity_bytes(repo, changed_sha, loops, "node", "npm")
+        changed = guard.release_capacity_bytes(repo, changed_sha, loops, "node", "npm")
+        assert changed >= required + 8 * 1024**2
     finally:
         donor.chmod(0o755)
         bundle.chmod(0o755)

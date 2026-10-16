@@ -122,15 +122,18 @@ class CutLoopReleasePressureTest(unittest.TestCase):
             required = json.loads((newest / "RELEASE.json").read_text())["capacity_required_bytes"]
             self.assertGreaterEqual(required, 64 * 1024**2 + 24 * 1024**2)
             self.assertLess(required, 128 * 1024**2)
-            # Dependency changes require the ordinary budget before extraction.
+            # A dependency change is measured with a fresh-install budget and reaches npm ci
+            # (2026-10-16: refusing it blocked every release on main). This fixture has no npm,
+            # so the install fails there and leaves no partial release behind.
             (repo / "package.json").write_text("{}")
             (repo / "package-lock.json").write_text("{}")
             subprocess.run(["git","add","."],cwd=repo,check=True)
             subprocess.run(["git","commit","-m","dependency change"],cwd=repo,check=True,capture_output=True)
             subprocess.run(["git","update-ref","refs/remotes/origin/main","HEAD"],cwd=repo,check=True)
-            result, _ = self.run_cut(repo, home, "", LOOPS_ACTIVATE_CURRENT="0", PYTHONPATH=str(probe), NPM_NODE_VERSION="v-test", NPM_VERSION="test", LOOPS_RUNTIME_PYTHON=sys.executable)
+            result, _ = self.run_cut(repo, home, "", LOOPS_ACTIVATE_CURRENT="0", PYTHONPATH=str(probe), NPM_NODE_VERSION="v-test", NPM_VERSION="test", LOOPS_RUNTIME_PYTHON=sys.executable, NPM_BIN="")
             self.assertEqual(result.returncode,1,result.stderr + result.stdout)
-            self.assertIn("release_capacity_measurement_failed", result.stderr)
+            self.assertNotIn("release_capacity_measurement_failed", result.stderr)
+            self.assertIn("locked dependency bundle failed", result.stderr)
             self.assertEqual(len(list((loops / "releases").iterdir())),3)
 
     def test_manifest_write_failure_removes_partial_release_and_keeps_current(self):

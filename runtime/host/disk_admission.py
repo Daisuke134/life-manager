@@ -343,6 +343,11 @@ def dependency_bundle_is_reusable(node_modules: Path, bundle_root: Path) -> bool
 
 def release_capacity_bytes(repo: Path, sha: str, loops: Path, node: str, npm: str) -> int:
     """Measure the source export, bytecode, and serial temporary write budget."""
+    return release_capacity(repo, sha, loops, node, npm)[0]
+
+
+def release_capacity(repo: Path, sha: str, loops: Path, node: str, npm: str) -> tuple[int, bool]:
+    """Return (bytes, fresh_install_budgeted); the flag lets cut-loop-release run npm ci."""
     roots = ("", "runtime/compute-proxy", "runtime/agentmail", "apps/life-manager",
              "skills/earn/taskmarket", "skills/earn/x402-sell", "services/x402-endpoint")
     package_manifests = []
@@ -368,13 +373,27 @@ def release_capacity_bytes(repo: Path, sha: str, loops: Path, node: str, npm: st
                 or os.path.lexists(donor / "RECLAIMED-RELEASE.json")):
             raise ValueError("donor is not a complete immutable runtime")
         subprocess.run(["git","-C",str(repo),"merge-base","--is-ancestor",descriptor["sha"],"origin/main"],check=True,capture_output=True)
+    fresh_install = 0
     for relative, manifests in package_manifests:
         directory = donor / relative
         donor_manifests = [(directory / name).read_bytes()
                            for name in ("package.json", "package-lock.json")]
         if (donor_manifests[1] != manifests[1]
                 or not dependency_manifest_matches(donor_manifests[0], manifests[0])):
-            raise ValueError("dependency manifests changed")
+            # cut-loop-release builds a fresh bundle when no donor matches; budget one the
+            # size of the donor's tree instead of refusing every release (2026-10-16, #8168).
+            # ponytail: assumes a changed lock installs about as much as the old one (+50%).
+            tree = 0
+            for root, _dirs, files in os.walk((directory / "node_modules").resolve()):
+                for name in files:
+                    try:
+                        tree += os.lstat(os.path.join(root, name)).st_size + 4096
+                    except OSError:
+                        pass
+            if tree <= 0:
+                raise ValueError("dependency install size unknown")
+            fresh_install += tree + tree // 2  # npm ci cache and temporaries
+            continue
         # The bundle was built from the donor's bytes, including its old script aliases.
         manifests = donor_manifests
         # cut-loop-release can hardlink a dependency-compatible donor bundle into a
@@ -400,7 +419,7 @@ def release_capacity_bytes(repo: Path, sha: str, loops: Path, node: str, npm: st
                     budget += 2 * (block + rounded(16 + len(marshal.dumps(code))))
         if archive.wait() != 0:
             raise ValueError("Git export measurement failed")
-    return budget + largest_temporary
+    return budget + largest_temporary + fresh_install, fresh_install > 0
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -409,7 +428,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if len(remaining) != 6:
             return 2
         try:
-            required = release_capacity_bytes(Path(remaining[1]),remaining[2],Path(remaining[3]),remaining[4],remaining[5])
+            required, install = release_capacity(Path(remaining[1]),remaining[2],Path(remaining[3]),remaining[4],remaining[5])
         except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError, tarfile.TarError, SyntaxError) as exc:
             print(json.dumps({
                 "status": "failed",
@@ -419,7 +438,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "error_class": type(exc).__name__,
             }, sort_keys=True, separators=(",", ":")), file=sys.stderr)
             return 1
-        print(required)
+        print(f"{required} install" if install else required)
         return 0
     if remaining[:1] == ["--check-free-space"]:
         if len(remaining) not in (2,3):
