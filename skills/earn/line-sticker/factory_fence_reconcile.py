@@ -170,10 +170,16 @@ def touched_since(state_root: Path, since: dt.datetime, until: dt.datetime | Non
         except (OSError, ValueError):
             hits.append(label)
             continue
-        if item.get("state") in MID_SUBMISSION_STATES or any(
-                _at_or_after(item.get(field), since)
-                and (until is None or not _at_or_after(item.get(field), until + dt.timedelta(microseconds=1)))
-                for field in FACTORY_TIME_FIELDS):
+        if until is None:
+            touched = any(_at_or_after(item.get(field), since) for field in FACTORY_TIME_FIELDS)
+        else:
+            # Upload/tag leave no timestamp and one item spans several runs, so any item alive during
+            # the run (created by its end, review not requested before its start) may be its effect.
+            created, requested = item.get("created_at"), item.get("review_requested_at")
+            touched = (isinstance(created, str) and bool(created)
+                       and not _at_or_after(created, until + dt.timedelta(microseconds=1))
+                       and (not requested or _at_or_after(requested, since)))
+        if item.get("state") in MID_SUBMISSION_STATES or touched:
             hits.append(label)
     return hits
 

@@ -370,12 +370,37 @@ class RunWindow(unittest.TestCase):
                                                 "created_at": _iso(Q + dt.timedelta(minutes=5))})
             self.assertEqual(MODULE.touched_since(root, Q, until=self.END), ["set-031/creators-item.json"])
 
+    def test_an_item_created_before_and_review_requested_after_the_run_is_a_hit(self) -> None:
+        # Upload/tag leave no timestamp and one item spans several runs (set-035: created 14:30,
+        # review requested 15:48): a run in between may have uploaded or tagged it on LINE.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _set(root, "set-035", "submitted", {
+                "product_id": "48275164", "state": "review_requested", "state_observed": "販売中",
+                "created_at": _iso(Q - dt.timedelta(hours=1)),
+                "review_requested_at": _iso(self.END + dt.timedelta(hours=1))})
+            self.assertEqual(MODULE.touched_since(root, Q, until=self.END), ["set-035/creators-item.json"])
+            proof = MODULE.build_proof(f"{MODULE.OWNER_ID}:mid-run", Q, now=LATE, state_root=root,
+                                       expected_binding=(MODULE.OWNER_ID, f"{MODULE.OWNER_ID}:mid-run", "a" * 40),
+                                       until=self.END)
+            self.assertFalse(proof["verified"])
+
+    def test_an_item_review_requested_before_the_run_is_not_a_hit(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _set(root, "set-030", "submitted", {"product_id": "1", "state": "review_requested",
+                                                "created_at": _iso(Q - dt.timedelta(hours=2)),
+                                                "review_requested_at": _iso(Q - dt.timedelta(hours=1))})
+            _set(root, "set-042", "init", {})
+            self.assertEqual(MODULE.touched_since(root, Q, until=self.END), [])
+
     def test_lost_fence_with_only_later_items_goes_to_the_official_list(self) -> None:
         occurrence = f"{MODULE.OWNER_ID}:old-run"
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             _set(root, "set-020", "submitted", {"product_id": "100", "state": "review_requested",
-                                                "created_at": _iso(Q - dt.timedelta(days=1))})
+                                                "created_at": _iso(Q - dt.timedelta(days=1)),
+                                                "review_requested_at": _iso(Q - dt.timedelta(hours=20))})
             _set(root, "set-031", "submitted", {"product_id": "200", "state": "review_requested",
                                                 "state_observed": "販売中",
                                                 "created_at": _iso(Q + dt.timedelta(days=4))})
@@ -395,7 +420,8 @@ class RunWindow(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             _set(root, "set-020", "submitted", {"product_id": "100", "state": "review_requested",
-                                                "created_at": _iso(Q - dt.timedelta(days=1))})
+                                                "created_at": _iso(Q - dt.timedelta(days=1)),
+                                                "review_requested_at": _iso(Q - dt.timedelta(hours=20))})
             self._report(root, occurrence, self.END.isoformat())
             listing = {"ok": True, "ids": ["100", "150"], "total": 2}
             with patch.object(MODULE, "STATE_ROOT", root), \
