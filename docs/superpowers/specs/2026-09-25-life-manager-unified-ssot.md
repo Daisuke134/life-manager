@@ -190,6 +190,54 @@ README は「ユーザー向け18 + system agent 1」= 19 agent。19 = Host Stew
 - Coconala apply fence: 全intent確定の証明で閉じる案はreview FIX-FIRST。v1 `prepared` 117件と状態なし2件が未確定（2026-09-25応募履歴で59件は応募済み、60件は履歴が不完全＝確定776件中38件が履歴に無いため証明不能）。draft PR #8131 は保留。残る案=依頼ページの「募集終了」公式readbackで重複不能を証明する新proof型（Dais判断待ち）。
 - 新しい穴: governor の `storage_growth` は全root `delta_bytes=None` で増加犯を測れていない（#4通知は容量の大きい順へ縮退）。空きは worktree 退役後 15.2GiB で下限付近、swap 4GiB。
 
+### 自己修復の土台（ベビーシッター卒業）— 2026-10-16 確定、実行順の正本
+
+**10/15 の「土台は直った」は誤りだった。** 直していたのは Mac のフリーズ防止だけで、稼ぎ系 lane は 12GiB の下限に張り付いて停止し、Dais の指摘まで誰も気づかなかった。10/16 は Writer（36時間停止）、fundraiser（6日停止）、PromptBase（ログイン切れ）を含め、壊れる → Claude が見つける → Claude が直す、を十数回繰り返した。
+
+**根本原因:** health は停止印で止まった lane を `safely_fenced`（73件）として扱い、障害とみなしていなかった。稼ぎが止まっても復旧が動かない。
+
+**10/16 の故障は6つの型:**
+1. 安全装置が常時作動している（ディスク下限）。
+2. 変更が本番を壊す（article-daily.sh のアポストロフィ1文字）。
+3. 想定外の状態で止まる（start control の unclassified run）。
+4. adapter が本番の環境でだけ失敗する（gog keyring・cookie・state dir・browser identity）。
+5. 資源を取ったまま放さない（lease）。
+6. ログイン切れ。
+
+**卒業の判定:** Claude が何もしない状態で7日連続、稼ぎ系 lane の赤が0、disk_floor_low が0、新しい事故は自己修復 agent が自分で閉じる。
+
+**TODO（この順）**
+- [ ] SH1 見張り: 稼ぎ系 lane（registry の admission_class=revenue）ごとに、期待される行動間隔（cadence）と last_effect を比べる。2倍を超えたら、停止印があっても `revenue_outage` として扱い、recovery intent を出す（health.py / health_observer.py）。
+- [ ] SH2 型ごとの自動処方: 6つの型それぞれに既知の処方を当てる（掃除、停止印の照合、lease の回収、再ログイン、やり直し）。
+- [ ] SH3 毎日の試運転: 全 effect_reconcile adapter とログイン状態を、reconciler と同じ環境で dry-run する。失敗は事故として扱う。
+- [ ] SH4 自己修復 agent: 未知の故障を調査 → 修正 PR → 独立レビュー → merge → release → 自然実行で行動が出たか確認、まで行う（既存の self-heal-code-agent task class を使う）。
+- [ ] SH5 安全網: CI で repo 全体の bash -n を回す。ballast が作られる条件を見直す（今は空き25GiB 超で、満たされない）。
+- [ ] P2 全 agent が行動: 69 lane の毎日の表で赤が0。
+- [ ] P3 お金を測る: agent ごとの売上を公式 readback で取る（Coconala は済み。CrowdWorks、Lancers、Writer、Capafy、PromptBase、eBook が残り）。
+- [ ] P4 評価駆動の開発: 記事・応募・投稿・商品ごとに評価（クリック・返信・契約・購入）を取り、勝つ型を残し、負ける型を止める。
+- [ ] P5 最大化: 売れている agent に作業枠と配信を寄せる。売れていない agent は、成功している売り手の型をコピーして作り直す。
+
+**10/16 に本番へ出した修正:**
+- #8165 squash-merge 済み worktree の回収
+- #8172 Mercor の gog keyring
+- #8173 Lancers のカテゴリ探索
+- #8175 依存変更でも release を作れるようにした
+- #8176 revenue 用の 10GiB floor
+- #8177–#8182、#8185 停止印の adapter
+- #8187 JSONL の上限化
+- #8192 eBook の記事 lane
+- #8196 CrowdWorks の報告
+- #8197 Coconala の応募
+- #8198、#8199、#8202、#8207 Writer の開始判定・文法・良心チェック・持ち越し
+- #8205 fundraiser のブラウザ
+- #8206、#8216、#8218 Writer の absence readback
+- #8208 lease の回収
+
+**10/16 の実測:**
+- 19:00 以降の disk_floor_low は0件。
+- 直近12時間に走った稼ぎ系 lane は 49/69。
+- 実際の成果: Lancers の応募1件（提案ID 28044353）、fundraiser のメール1件（Gmail の記録で確認）。
+
 **夜の追記（2026-10-15 21:00–22:00 JST）:**
 - 空き容量が 10GiB（下限12GiB未満）まで減り、lancers-revenue-application は直近300回中74回が `disk_floor_low` で止まっていた。原因は worktree 126個（約15GiB）。Host Steward の zombie-worktree 判定は `merge-base --is-ancestor` が条件で、squash merge の PR では成り立たない。そのため merge 済みの worktree を一度も回収できていなかった。対処：merge 済み・clean・lock なしの17個と、lease 期限切れの23個を手順どおり外し、空きは16GiBに回復。再発防止は PR #8165（merge 済み。`git merge-tree --write-tree` の結果が main の tree と同一なら回収、衝突時は残す）。
 - Lancers: browser 経由の discovery は正常（データ入力20件、記事作成20件で正規化9件、業務自動化・Pythonは各1件）。21:00 の observed 0 は query の巡回で「件数の少ないキーワード」に当たった1回。現在の待ちは agent 枠3の順番待ち（revenue が優先されている）で、故障ではない。
