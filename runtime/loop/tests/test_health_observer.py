@@ -1,3 +1,4 @@
+import gzip
 import json
 import unittest
 from pathlib import Path
@@ -255,6 +256,23 @@ class HealthObserverTest(unittest.TestCase):
         self.assertTrue(argv[1].endswith("runtime/loop/recovery-intent-cli.mjs"))
         self.assertEqual(argv[2], "--input")
         self.assertFalse(intent["mutates_external_effect"])
+
+class HealthObserverJournalBoundTest(unittest.TestCase):
+    def test_history_and_alerts_rotate_and_alert_dedupe_survives(self):
+        with TemporaryDirectory() as directory, patch(
+                "runtime.loop.health_observer.JSONL_MAX_BYTES", 1):
+            root = Path(directory)
+            observe_health(health_document(generated_at="2026-10-01T00:00:00+00:00"), root)
+            observe_health(health_document(state="healthy", generated_at="2026-10-01T00:01:00+00:00"), root)
+            observe_health(health_document(generated_at="2026-10-01T00:02:00+00:00"), root)
+            result = observe_health(health_document(generated_at="2026-10-01T00:03:00+00:00"), root)
+            self.assertFalse(result["alert_emitted"])
+            for name in ("history", "alerts"):
+                self.assertEqual(len((root / f"{name}.jsonl").read_text().splitlines()), 1)
+                archives = list(root.glob(f"{name}-*.jsonl.gz"))
+                self.assertEqual(len(archives), 1)
+                with gzip.open(archives[0], "rt") as handle:
+                    json.loads(handle.readline())
 
 
 if __name__ == "__main__":

@@ -83,7 +83,10 @@ def rotate_jsonl_locked(
     path: Path,
     max_bytes: int | None = None,
     keep_archives: int | None = None,
+    keep_tail_bytes: int = 0,
 ) -> None:
+    """Archive an oversized locked JSONL to .gz; optionally carry its last whole lines
+    (at most ``keep_tail_bytes``) into the fresh file for bounded-tail readers."""
     if keep_archives is not None and keep_archives < 0:
         raise ValueError("keep_archives must be non-negative")
     if os.fstat(fd).st_size <= (max_bytes or _max_bytes()):
@@ -99,7 +102,18 @@ def rotate_jsonl_locked(
             os.fsync(raw.fileno())
         os.chmod(temporary, 0o600)
         os.replace(temporary, archive)
+        tail = b""
+        if keep_tail_bytes > 0:
+            size = os.fstat(fd).st_size
+            os.lseek(fd, max(0, size - keep_tail_bytes), os.SEEK_SET)
+            tail = os.read(fd, keep_tail_bytes)
+            if size > keep_tail_bytes:
+                tail = tail.partition(b"\n")[2]  # drop the partial first line
+            tail = tail[:tail.rfind(b"\n") + 1]  # drop an unterminated last line
         os.ftruncate(fd, 0)
+        if tail:
+            os.lseek(fd, 0, os.SEEK_SET)  # non-O_APPEND fds would otherwise leave a hole
+            _write_complete(fd, tail)
         os.fsync(fd)
         if keep_archives is not None:
             archives = sorted(path.parent.glob(f"{path.stem}-*{path.suffix}.gz"))

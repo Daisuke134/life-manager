@@ -1222,6 +1222,25 @@ exit "$fixture_status"
                 self.assertEqual(self._state(root)["last_ok_epoch"], 0)
                 self.assertNotIn("target=loop-b", calls_log.read_text())
 
+    def test_oversized_owners_log_rotates_to_one_gz_before_the_plan_reads_it(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            release_dir = self._make_release(root, sha)
+            self._activate(root, release_dir)
+            state_dir = root / "reconciler-state"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            (state_dir / "fleet-apply-owners.jsonl").write_text(
+                json.dumps({"sha": "0" * 40, "loop_id": "old", "rc": 1}) + "\n")
+            env = self._base_env(root, repo, calls_log=root / "calls.log")
+            env["LIFE_MANAGER_FLEET_APPLY_OWNERS_MAX_BYTES"] = "1"
+
+            result = self._run(env)
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(len(list(state_dir.glob("fleet-apply-owners-*.jsonl.gz"))), 1)
+            self.assertNotIn("old", [row["loop_id"] for row in self._owners_log(root)])
+
     def _owners_log(self, root):
         path = root / "reconciler-state" / "fleet-apply-owners.jsonl"
         if not path.exists():
