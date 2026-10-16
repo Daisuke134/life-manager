@@ -36,7 +36,7 @@ BLOCK publication when the article creates a material gray-zone exposure in any 
 4. LEGAL RISK: defamation, privacy invasion, breach of confidence, unlawful disclosure, or instructions whose publication would create a concrete legal risk.
 5. TARGETED ACCUSATION: identifying a real person or organization in order to blame, shame, or accuse them, rather than neutrally documenting well-sourced public facts.
 
-Do not BLOCK ordinary critical analysis of public products, public documentation, public conduct, or well-sourced public facts merely because it is negative. Do not infer hidden context. Judge only the article below. When uncertain about a material gray-zone exposure, fail closed with BLOCK and explain the uncertainty.
+Do not BLOCK ordinary critical analysis of public products, public documentation, public conduct, or well-sourced public facts merely because it is negative. Query parameters on the article's own product or call-to-action link (product_id, run_id, artifact_id, variant_id, click_id, ct, utm_*) are standard marketing attribution that every publisher uses; they are not credentials, private access details, or a security or privacy exposure, so never BLOCK for them. Do not infer hidden context. Judge only the article below. When uncertain about a material gray-zone exposure, fail closed with BLOCK and explain the uncertainty.
 
 Output the FINAL LINE as pure JSON exactly:
 {\"verdict\":\"ALLOW\"|\"BLOCK\",\"reasons\":[\"<specific reason quoting or identifying the risky passage>\", ...]}
