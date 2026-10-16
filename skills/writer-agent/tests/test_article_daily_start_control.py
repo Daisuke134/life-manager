@@ -1266,6 +1266,17 @@ class GateStoppedRunDoesNotBlockTheDayTest(unittest.TestCase):
         self.assertEqual(decision["action"], "new")
         self.assertEqual(decision["reason"], "same-jst-day-preflight-only-run")
 
+    def test_a_gate_stopped_run_with_a_frozen_seo_keyword_is_reused(self):
+        # 2026-10-16: run 20261016-014724 stopped after writing product-selection.json and
+        # seo-keyword.json (both frozen before generation) and blocked the whole day.
+        with tempfile.TemporaryDirectory() as tmp:
+            decision = self._run(Path(tmp), {
+                "product-selection.json": '{"product_id": "capafy-skills"}',
+                "seo-keyword.json": '{"keyword": "hook"}',
+            })
+        self.assertEqual(decision["action"], "new")
+        self.assertEqual(decision["reason"], "same-jst-day-preflight-only-run")
+
     def test_any_other_gate_file_still_fails_closed(self):
         with tempfile.TemporaryDirectory() as tmp:
             decision = self._run(Path(tmp), {"product-selection.json": "{}", "topic-route.json": "{}"})
