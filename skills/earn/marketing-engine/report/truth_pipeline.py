@@ -152,7 +152,7 @@ def run_pipeline(
         for command in commands:
             stage = _stage_name(command)
             returncode = int(run_command(command))
-            if stage in {"reconcile", "attribution"} and returncode == 3:
+            if (stage in {"reconcile", "attribution"} or stage.startswith("report:")) and returncode == 3:
                 result = "attention"
                 attention.append(stage)
             elif returncode != 0:
@@ -169,6 +169,23 @@ def run_pipeline(
             "attention_stages": attention,
             "stages": stages,
         }
+
+
+OPEN_UNKNOWN_EXIT = 3
+
+
+def exit_code(result: dict) -> int:
+    """1 = a stage failed; 3 = an owner-report key is still delivery_unknown.
+
+    The loop runtime has no "pass with open unknowns" terminal, so an unresolved delivery
+    must stay a non-pass (``entrypoint_exit_3``) rather than read as success.  Its keys are
+    named on stderr by the report stage and summarized below for the terminal error tail.
+    """
+    if result["status"] == "failed":
+        return 1
+    if any(stage.startswith("report:") for stage in result["attention_stages"]):
+        return OPEN_UNKNOWN_EXIT
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -190,7 +207,11 @@ def main(argv: list[str] | None = None) -> int:
         lock_path=lock_path,
     )
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-    return 1 if result["status"] == "failed" else 0
+    code = exit_code(result)
+    if code == OPEN_UNKNOWN_EXIT:
+        stages = [stage for stage in result["attention_stages"] if stage.startswith("report:")]
+        print(f"truth pipeline: open owner-report delivery_unknown in {stages}", file=sys.stderr)
+    return code
 
 
 if __name__ == "__main__":

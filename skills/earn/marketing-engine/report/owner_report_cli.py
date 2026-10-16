@@ -126,19 +126,28 @@ def main(argv: list[str] | None = None) -> int:
         send_text = partial(_send_text, credentials=credentials) if credentials else _send_text
         store = owner_report.OwnerReportStore(report_path, delivery_path)
         failed = False
+        inherited = []
         for event in events:
             text = owner_report.render_japanese(event)
             print(text)
             if args.no_send:
                 store.record(event)
                 continue
+            # A key already claimed by an earlier run is never resent; its unresolved state is
+            # that run's open receipt, not this run's failure.
+            prior = store.delivery_for(event["message_key"])
             receipt = owner_report.deliver(event, store, send_text)
             status = receipt.get("status") if isinstance(receipt, dict) else None
             if status != "delivered":
-                failed = True
+                if prior is None:
+                    failed = True
+                else:
+                    inherited.append(event["message_key"])
             elif receipt.get("message_ids"):
                 print(f"telegram_message_ids={receipt['message_ids']}")
-        return 1 if failed else 0
+        if inherited:
+            print(f"owner report attention: unresolved earlier deliveries {inherited}", file=sys.stderr)
+        return 1 if failed else 3 if inherited else 0
     except (owner_report.OwnerReportError, OSError, TelegramError, argparse.ArgumentTypeError) as exc:
         print(f"owner report failed: {exc}", file=sys.stderr)
         return 1

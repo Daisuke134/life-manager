@@ -147,6 +147,30 @@ class TruthPipelineTest(unittest.TestCase):
             ],
         )
 
+    def test_report_inherited_unknown_is_attention_not_pipeline_failure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = truth_pipeline.run_pipeline(
+                [["owner_report_cli.py", "sweep", "--kind", "checkpoint"],
+                 ["owner_report_cli.py", "sweep", "--kind", "action"]],
+                lock_path=pathlib.Path(tmp) / "truth.lock",
+                run_command=lambda command: 3 if "checkpoint" in command else 1,
+            )
+
+        self.assertEqual(result["status"], "failed")
+        self.assertEqual(result["attention_stages"], ["report:checkpoint"])
+        self.assertEqual(result["failed_stages"], ["report:action"])
+
+    def test_open_delivery_unknown_is_a_distinct_non_pass_exit(self):
+        # The runtime has no "pass with open unknowns" status (any non-zero exit is a
+        # non-pass terminal), so an inherited delivery_unknown must not exit 0.
+        report_attention = {"status": "completed", "failed_stages": [],
+                            "attention_stages": ["reconcile", "report:checkpoint"]}
+        self.assertEqual(truth_pipeline.exit_code(report_attention), 3)
+        self.assertEqual(truth_pipeline.exit_code(
+            {**report_attention, "attention_stages": ["reconcile", "attribution"]}), 0)
+        self.assertEqual(truth_pipeline.exit_code(
+            {**report_attention, "status": "failed", "failed_stages": ["collect"]}), 1)
+
     def test_attribution_sweep_attention_is_not_pipeline_failure(self):
         with tempfile.TemporaryDirectory() as tmp:
             result = truth_pipeline.run_pipeline(

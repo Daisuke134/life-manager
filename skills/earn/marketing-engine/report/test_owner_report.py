@@ -1243,6 +1243,49 @@ class OwnerReportRendererTest(unittest.TestCase):
         render.assert_not_called()
         sender.assert_not_called()
 
+    def _unknown_cli_run(self, prior_status):
+        import owner_report_cli
+
+        event = self.event("action", "anicca-ios")
+        store = owner_report.OwnerReportStore(
+            self.root / "owner-reports.jsonl",
+            self.root / "owner-report-deliveries.jsonl",
+        )
+        if prior_status is not None:
+            store.record(event)
+            store.claim_delivery(event["message_key"])
+            if prior_status != "sending":
+                store.record_delivery(event["message_key"], {"status": prior_status, "message_ids": []})
+        stderr = io.StringIO()
+        with (
+            mock.patch.object(owner_report, "build_events", return_value=[event]),
+            mock.patch.object(owner_report_cli, "_local_telegram_credentials", return_value=("t", "c")),
+            mock.patch.object(owner_report_cli, "_send_text", side_effect=TimeoutError("read timed out")) as sender,
+            redirect_stdout(io.StringIO()),
+            redirect_stderr(stderr),
+        ):
+            rc = owner_report_cli.main(["sweep", "--kind", "action", "--state-root", str(self.root)])
+        return rc, sender, stderr.getvalue(), store.delivery_for(event["message_key"]), event
+
+    def test_cli_inherited_unknown_delivery_is_attention_not_failure(self):
+        # 2026-10-07..10-17: two delivery_unknown keys from earlier runs failed every hourly
+        # sweep with exit 1, so marketing-owner-events sat at entrypoint_exit_1 for 209 h.
+        for prior in ("delivery_unknown", "sending"):
+            with self.subTest(prior=prior):
+                for path in self.root.glob("owner-report*.jsonl"):
+                    path.unlink()
+                rc, sender, stderr, latest, event = self._unknown_cli_run(prior)
+                self.assertEqual(rc, 3)
+                sender.assert_not_called()
+                self.assertEqual(latest["status"], prior)
+                self.assertIn(event["message_key"], stderr)
+
+    def test_cli_fresh_unknown_delivery_still_fails(self):
+        rc, sender, _, latest, _ = self._unknown_cli_run(None)
+        self.assertEqual(rc, 1)
+        sender.assert_called_once()
+        self.assertEqual(latest["status"], "delivery_unknown")
+
     def test_replay_different_as_of_keeps_semantic_key_and_sends_once(self):
         first_event = self.event("product_daily", "anicca-ios")
         later = AS_OF + dt.timedelta(days=1)
