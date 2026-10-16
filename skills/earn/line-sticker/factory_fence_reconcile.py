@@ -65,7 +65,7 @@ CREATOR_BASE = "https://creator.line.me/my/cCX4POFknN2lhLJE"
 MAX_LIST_PAGES = 50
 
 
-def _terminal_unknown_release_sha(state_root: Path, occurrence_id: str) -> str | None:
+def _terminal_events(state_root: Path) -> list[dict]:
     path = state_root / "events.jsonl"
     try:
         size = path.stat().st_size
@@ -74,19 +74,27 @@ def _terminal_unknown_release_sha(state_root: Path, occurrence_id: str) -> str |
             handle.seek(offset)
             payload = handle.read(4 * 1024 * 1024)
     except OSError:
-        return None
+        return []
     lines = payload.splitlines()
     if offset and lines:
         lines = lines[1:]
-    releases = set()
+    events = []
     for line in lines:
         try:
             event = json.loads(line)
         except (UnicodeError, json.JSONDecodeError):
             continue
-        if (not isinstance(event, dict)
-                or event.get("loop_id") != OWNER_ID
-                or event.get("owner_id") != OWNER_ID
+        if isinstance(event, dict) and event.get("phase") == "report":
+            events.append(event)
+    return events
+
+
+def _terminal_unknown_release_sha(state_root: Path, occurrence_id: str,
+                                  owner_id: str = OWNER_ID) -> str | None:
+    releases = set()
+    for event in _terminal_events(state_root):
+        if (event.get("loop_id") != owner_id
+                or event.get("owner_id") != owner_id
                 or event.get("occurrence_id") != occurrence_id
                 or event.get("phase") != "report"
                 or event.get("status") not in {"blocked", "fail"}
@@ -100,6 +108,20 @@ def _terminal_unknown_release_sha(state_root: Path, occurrence_id: str) -> str |
         else:
             return None
     return next(iter(releases)) if len(releases) == 1 else None
+
+
+def run_ended_at(state_root: Path, occurrence_id: str) -> dt.datetime | None:
+    """The run's exact terminal report time. lm_loop_run writes it only after the entrypoint's whole
+    process group has exited, so nothing this run did can carry a later factory timestamp."""
+    stamps = {event.get("timestamp") for event in _terminal_events(state_root)
+              if event.get("owner_id") == OWNER_ID and event.get("occurrence_id") == occurrence_id}
+    if len(stamps) != 1:
+        return None
+    try:
+        ended = dt.datetime.fromisoformat(str(next(iter(stamps))).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return ended if ended.tzinfo is not None else None
 
 
 def fenced_row(owner_id: str, occurrence_id: str) -> tuple[str, dt.datetime, bool]:
@@ -132,7 +154,9 @@ def _at_or_after(value: Any, since: dt.datetime) -> bool:
     return stamp >= since
 
 
-def touched_since(state_root: Path, since: dt.datetime) -> list[str]:
+def touched_since(state_root: Path, since: dt.datetime, until: dt.datetime | None = None) -> list[str]:
+    """Sets the run may have touched. ``until`` (the run's terminal report) excludes items later
+    runs created: without it every newer set counted against every older fence."""
     hits = []
     for set_dir in sorted(state_root.glob("set-*")):
         path = set_dir / "creators-item.json"
@@ -147,7 +171,9 @@ def touched_since(state_root: Path, since: dt.datetime) -> list[str]:
             hits.append(label)
             continue
         if item.get("state") in MID_SUBMISSION_STATES or any(
-                _at_or_after(item.get(field), since) for field in FACTORY_TIME_FIELDS):
+                _at_or_after(item.get(field), since)
+                and (until is None or not _at_or_after(item.get(field), until + dt.timedelta(microseconds=1)))
+                for field in FACTORY_TIME_FIELDS):
             hits.append(label)
     return hits
 
@@ -263,10 +289,10 @@ def no_effect_proof(proof: dict[str, Any], queued_at: dt.datetime, *, now: dt.da
 
 def build_proof(occurrence_id: str, queued_at: dt.datetime, *, now: dt.datetime,
                 state_root: Path, expected_binding: tuple[str, str, str] | None = None,
-                creators: dict[str, Any] | None = None) -> dict[str, Any]:
+                creators: dict[str, Any] | None = None, until: dt.datetime | None = None) -> dict[str, Any]:
     proof: dict[str, Any] = {"owner_id": OWNER_ID, "occurrence_id": occurrence_id,
                              "verified": False, "queued_at": queued_at.isoformat()}
-    hits = touched_since(state_root, queued_at)
+    hits = touched_since(state_root, queued_at, until)
     if hits:
         confirmed = [confirmed_submission(state_root / label, expected_binding=expected_binding)
                      for label in hits]
@@ -297,9 +323,10 @@ def reconcile(occurrence_id: str, *, resolve: bool = False) -> dict[str, Any]:
         if release_sha is None:
             raise ValueError("exact terminal unknown release is unavailable")
         binding = (OWNER_ID, occurrence_id, release_sha)
-    creators = None if touched_since(STATE_ROOT, queued_at) else read_creators_items()
+    until = run_ended_at(STATE_ROOT, occurrence_id)
+    creators = None if touched_since(STATE_ROOT, queued_at, until) else read_creators_items()
     proof = build_proof(occurrence_id, queued_at, now=now, state_root=STATE_ROOT,
-                        expected_binding=binding, creators=creators)
+                        expected_binding=binding, creators=creators, until=until)
     result = {**proof, "admission_state": state}
     if not proof.get("verified") or not resolve:
         return result

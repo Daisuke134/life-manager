@@ -93,6 +93,57 @@ class ThreadsLane(unittest.TestCase):
 
 
 
+class LostTerminalFence(unittest.TestCase):
+    """2026-10-17: the reconciler hands over runs whose report said effect unknown but whose admission
+    row is already released (effect_unknown=0); fenced_row rejected every one of them."""
+
+    def _fixture(self, root: Path, *, state: str, effect_unknown: int, event_occurrence: str) -> str:
+        import json
+        import sqlite3
+        occurrence = f"{MODULE.OWNER_ID}:run-1"
+        with sqlite3.connect(root / "admission-v2.sqlite3") as connection:
+            connection.execute("CREATE TABLE occurrences(owner_id TEXT, occurrence_id TEXT, state TEXT, "
+                               "queued_at REAL, effect_unknown INTEGER)")
+            connection.execute("INSERT INTO occurrences VALUES(?,?,?,?,?)",
+                               (MODULE.OWNER_ID, occurrence, state, Q.timestamp(), effect_unknown))
+        (root / "events.jsonl").write_text(json.dumps({
+            "loop_id": MODULE.OWNER_ID, "owner_id": MODULE.OWNER_ID, "occurrence_id": event_occurrence,
+            "release_sha": "a" * 40, "phase": "report", "status": "fail", "effect_class": "publish",
+            "effect_status": "unknown"}) + "\n")
+        return occurrence
+
+    def _read(self, root: Path, occurrence: str):
+        from unittest.mock import patch
+        with patch("runtime.host.resource_admission.state_root", return_value=root), \
+                patch.object(MODULE, "STATE_ROOT", root):
+            return MODULE.fenced_row(MODULE.OWNER_ID, occurrence)
+
+    def test_released_row_with_exact_terminal_unknown_event_is_accepted(self) -> None:
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            occurrence = self._fixture(root, state="released", effect_unknown=0,
+                                       event_occurrence=f"{MODULE.OWNER_ID}:run-1")
+            self.assertEqual(self._read(root, occurrence), ("released", Q))
+
+    def test_released_row_without_its_own_unknown_event_is_rejected(self) -> None:
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            occurrence = self._fixture(root, state="released", effect_unknown=0,
+                                       event_occurrence=f"{MODULE.OWNER_ID}:other-run")
+            with self.assertRaises(ValueError):
+                self._read(root, occurrence)
+
+    def test_active_fence_is_still_accepted(self) -> None:
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            occurrence = self._fixture(root, state="claimed", effect_unknown=1,
+                                       event_occurrence=f"{MODULE.OWNER_ID}:other-run")
+            self.assertEqual(self._read(root, occurrence), ("claimed", Q))
+
+
 class RunsInIsolatedMode(unittest.TestCase):
     def test_the_script_starts_under_python_dash_I(self) -> None:
         # 2026-10-09: `import threads_publish` ran before the script dir was on sys.path, so every

@@ -334,5 +334,77 @@ class ReleasedFenceRecovery(unittest.TestCase):
                     MODULE.fenced_row(owner, occurrence)
 
 
+class RunWindow(unittest.TestCase):
+    """2026-10-17: an old lost fence (run 10/07 12:32-12:43) listed set-031..041 as its hits, all
+    created 10/12-10/13 by later runs, and demanded a binding the submitter never writes."""
+
+    END = Q + dt.timedelta(minutes=10)
+
+    def _report(self, root: Path, occurrence: str, timestamp: str) -> None:
+        (root / "events.jsonl").write_text(json.dumps({
+            "loop_id": MODULE.OWNER_ID, "owner_id": MODULE.OWNER_ID, "occurrence_id": occurrence,
+            "release_sha": "a" * 40, "phase": "report", "status": "fail", "effect_class": "publish",
+            "effect_status": "unknown", "timestamp": timestamp}) + "\n")
+
+    def test_run_end_is_the_exact_terminal_report_timestamp(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._report(root, "line-sticker-factory-hourly:r", self.END.isoformat())
+            self.assertEqual(MODULE.run_ended_at(root, "line-sticker-factory-hourly:r"), self.END)
+            self.assertIsNone(MODULE.run_ended_at(root, "line-sticker-factory-hourly:other"))
+
+    def test_an_item_created_after_the_run_ended_is_not_its_hit(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _set(root, "set-031", "submitted", {
+                "product_id": "48254786", "state": "review_requested", "state_observed": "審査中",
+                "created_at": _iso(Q + dt.timedelta(days=4)),
+                "review_requested_at": _iso(Q + dt.timedelta(days=4))})
+            self.assertEqual(MODULE.touched_since(root, Q, until=self.END), [])
+            self.assertEqual(MODULE.touched_since(root, Q), ["set-031/creators-item.json"])
+
+    def test_an_item_inside_the_run_window_is_still_a_hit(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _set(root, "set-031", "submitted", {"product_id": "1", "state": "review_requested",
+                                                "created_at": _iso(Q + dt.timedelta(minutes=5))})
+            self.assertEqual(MODULE.touched_since(root, Q, until=self.END), ["set-031/creators-item.json"])
+
+    def test_lost_fence_with_only_later_items_goes_to_the_official_list(self) -> None:
+        occurrence = f"{MODULE.OWNER_ID}:old-run"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _set(root, "set-020", "submitted", {"product_id": "100", "state": "review_requested",
+                                                "created_at": _iso(Q - dt.timedelta(days=1))})
+            _set(root, "set-031", "submitted", {"product_id": "200", "state": "review_requested",
+                                                "state_observed": "販売中",
+                                                "created_at": _iso(Q + dt.timedelta(days=4))})
+            self._report(root, occurrence, self.END.isoformat())
+            listing = {"ok": True, "ids": ["100", "200"], "total": 2}
+            with patch.object(MODULE, "STATE_ROOT", root), \
+                    patch.object(MODULE, "fenced_row", return_value=("released", Q, True)), \
+                    patch.object(MODULE, "read_creators_items", return_value=listing) as read:
+                proof = MODULE.reconcile(occurrence)
+            read.assert_called_once()
+            self.assertTrue(proof["verified"])
+            self.assertFalse(proof["effected"])
+            self.assertTrue(proof["provider_receipt_id"].startswith("creators-market-item-list:2:200:"))
+
+    def test_lost_fence_with_an_unrecorded_newer_item_stays_fenced(self) -> None:
+        occurrence = f"{MODULE.OWNER_ID}:old-run"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _set(root, "set-020", "submitted", {"product_id": "100", "state": "review_requested",
+                                                "created_at": _iso(Q - dt.timedelta(days=1))})
+            self._report(root, occurrence, self.END.isoformat())
+            listing = {"ok": True, "ids": ["100", "150"], "total": 2}
+            with patch.object(MODULE, "STATE_ROOT", root), \
+                    patch.object(MODULE, "fenced_row", return_value=("released", Q, True)), \
+                    patch.object(MODULE, "read_creators_items", return_value=listing):
+                proof = MODULE.reconcile(occurrence)
+            self.assertFalse(proof["verified"])
+            self.assertEqual(proof["reason"], "unrecorded_creators_item:150")
+
+
 if __name__ == "__main__":
     unittest.main()
