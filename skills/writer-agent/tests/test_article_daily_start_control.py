@@ -1281,3 +1281,39 @@ class GateStoppedRunDoesNotBlockTheDayTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             decision = self._run(Path(tmp), {"product-selection.json": "{}", "topic-route.json": "{}"})
         self.assertEqual(decision["action"], "block-incomplete")
+
+
+class CarryOverWithoutDispatchDoesNotBlockTheDayTest(unittest.TestCase):
+    """2026-10-16: run 20261016-014724 wrote drafts, was stopped by the conscience gate before any
+    dispatch (ledger: one carry-over row, published=false, draft_url=null), and blocked the day as
+    `same-jst-day-unclassified-run`. Nothing left the machine, so a fresh run is safe."""
+
+    def _run(self, root: Path, run_id: str = "20261016-014724", publication_state: bool = False,
+             extra_runs: tuple = ()):
+        run_dir = root / "runs" / run_id
+        (run_dir / "gates").mkdir(parents=True)
+        (run_dir / "git-hash.txt").write_text("abc\n")
+        (run_dir / "article-ja.md").write_text("# ja\n")
+        (run_dir / "article-en.md").write_text("# en\n")
+        (run_dir / "gates" / "generation-state.json").write_text('{"status":"provider-failed-ambiguous"}')
+        if publication_state:
+            (run_dir / "gates" / "publication-state.json").write_text("{}")
+        for other in extra_runs:
+            (root / "runs" / other / "gates").mkdir(parents=True)
+        row = {"ts": "2026-10-16T05:15:43+00:00", "run_id": run_id, "platform": "carry-over",
+               "lang": "ja,en", "draft_url": None, "published": False,
+               "state": "carry-over:conscience-block:reader-visible-cta-identifiers"}
+        (root / "articles.jsonl").write_text(json.dumps(row) + "\n")
+        return START.decide(root, "2026-10-16")
+
+    def test_carry_over_run_with_no_dispatch_starts_a_new_run(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            decision = self._run(Path(tmp))
+        self.assertEqual(decision["action"], "new")
+        self.assertEqual(decision["reason"], "same-jst-day-carry-over-no-dispatch")
+        self.assertEqual(decision["previous_run_id"], "20261016-014724")
+
+    def test_publication_state_still_fails_closed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            decision = self._run(Path(tmp), publication_state=True)
+        self.assertNotEqual(decision["action"], "new")

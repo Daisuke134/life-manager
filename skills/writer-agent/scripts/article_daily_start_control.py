@@ -1160,6 +1160,26 @@ def terminal_quality_finished_at(
     )
 
 
+
+def _carry_over_without_dispatch(run_dir: Path, rows: list[dict[str, Any]], run_id: str) -> bool:
+    """A run that stopped before any destination was dispatched cannot have published.
+
+    2026-10-16: run 20261016-014724 wrote drafts, the conscience gate stopped it, and its only
+    ledger row was carry-over (published=false, draft_url=null). Publication goes only through
+    publication-state + platform-dispatch, so with neither present nothing left the machine.
+    """
+    own = [row for row in rows if row.get("run_id") == run_id]
+    if not own or any(
+        row.get("platform") != "carry-over" or row.get("published") is not False
+        or row.get("draft_url") not in (None, "")
+        for row in own
+    ):
+        return False
+    gates = run_dir / "gates"
+    if (gates / "publication-state.json").exists() or (gates / "publication-state.json").is_symlink():
+        return False
+    return not any(child.name.startswith("platform-dispatch") for child in gates.iterdir()) if gates.is_dir() else False
+
 def decide(state_dir: Path | str, local_date: str) -> dict[str, str]:
     state_dir = Path(state_dir)
     runs_dir = state_dir / "runs"
@@ -1367,6 +1387,19 @@ def decide(state_dir: Path | str, local_date: str) -> dict[str, str]:
             "forbidden_editorial_form": forbidden_editorial_form,
             "quality_failure_feedback": quality_failure_feedback,
             "reason": "same-jst-day-terminal-quality-block",
+        }
+    if _carry_over_without_dispatch(run_dir, rows, run_id):
+        if len(run_ids) >= 2:
+            return {
+                "action": "skip-quality-miss",
+                "run_id": run_id,
+                "reason": "same-jst-day-carry-over-replacement-limit",
+            }
+        return {
+            "action": "new",
+            "run_id": "",
+            "previous_run_id": run_id,
+            "reason": "same-jst-day-carry-over-no-dispatch",
         }
     return {"action": "block-incomplete", "run_id": run_id, "reason": "same-jst-day-unclassified-run"}
 
