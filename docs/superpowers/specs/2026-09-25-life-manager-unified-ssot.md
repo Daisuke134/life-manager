@@ -19194,3 +19194,24 @@ A direct RevenueCat V2 read observed at 2026-10-14T22:25Z reports latest complet
 1. PR review/merge -> release -> targeted apply of `ebook-articles` and `line-sticker-distribute`; prove with the first natural `ebook-articles` run (aniccaai.com/blog/ebook-en-<date>-01 live, ledger `published`).
 2. Sticker video channel: create a dedicated sticker TikTok in its own browser identity (email signup as `tiktok:hooklab`, 2026-10-15), warm up several days (fresh-account posting was rejected as spam), then add a `browser_tiktok` transport over `skills/video/lm-distribution/tiktok_direct.mjs` as its own owner so the unprovable IG fence cannot block it.
 3. Close `line-sticker-articles` 10-15 fence via its reconciler (`--resolve`; proof already verified).
+
+### Capafy distribution + Hook Lab price restore — 2026-10-16 12:00 JST (claude-evo-eval-1012)
+
+**Money (reconcile 01:34Z):** 70 orders / $102.75, no paid order since 9/29.
+
+**Hook Lab price restore (Dais 2026-10-16):** all 12 paid Hook Lab orders were at day $1.99 / week $4.99 / month $9.99, and there were 0 paid orders after the 9/29 raise to $3.99/$9.99/$19.99. The 10/10 restore draft v1.0.8 never reached review, so it did not stop sales. Worst case at full cap on Sonnet 5 (~$0.085/request, 73% net) stays profitable: +$0.60 per day plan, +$1.09 per week plan, +$3.04 per month plan. #8174 unfroze Hook Lab for one update, and the draft attempt counter was reset 3->0 (logged). v1.0.8 was submitted 10:32 JST (official platform_status=1 audit=2). #8188 re-froze it. Price readback is pending until approval (public billings).
+
+**X links:** Postiz strips every link from X posts (tweet 2110896208625676510 published as "Try it:"). A self-reply from the leased @selawmqt browser keeps the link. #8186 `capafy_x_link_reply.py` runs in capafy-distribute-daily, reads back each reply from the public tweet, never replies twice, and records to `writer/capafy-distribute/x-link-replies.jsonl`. About 15 replies were verified today. #8186 also adds FROZEN `sellers` so the reconcile keeps Hook Lab first while it is unfrozen.
+
+**Free SEO:** the IndexNow key `92ec974b...` was already live on aniccaai.com but unused. Submitted all 278 sitemap URLs (200). Nine keyword pages, each with 60 real Hook Lab examples and the `hooklab_blog` ct:
+- EN: tiktok-hook-examples, hook-generator-for-reels, viral-hooks-for-youtube-shorts
+- JA: short-video-hook-examples-ja, reels-video-hook-ja, video-opening-how-to-ja
+- ES: ganchos-para-tiktok, ganchos-para-reels-de-instagram, frases-hook-para-videos
+
+All nine are live with the ct, and IndexNow returned 200. Google Search Console is not connected (it needs a Google login).
+
+**Slideshow:** a first 7-slide carousel built from real Hook Lab output: IG https://www.instagram.com/p/DeidMjemxlM/ and X 2110920235478032424 (with ct reply). yt-dlp cannot download TikTok photo posts (audio only, issue #6217), so gallery-dl is needed. TikTok also IP-blocks this host.
+
+**Disk:** recovered 11 -> 18 GB (9 merged clean worktrees, npx cache, DerivedData). Swap 8 -> 4 GB. 45 expired-lease worktrees are kept because they are dirty or unmerged.
+
+**Cursor:** read hooklab_blog / hooklab_x / tiktok_x views hourly -> more keyword pages in the language that moves -> daily Larry-style 6-slide carousel -> GSC/Bing sitemap after a Google login.
