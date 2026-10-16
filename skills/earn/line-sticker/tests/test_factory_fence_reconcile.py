@@ -1,6 +1,8 @@
 import datetime as dt
 import json
+import os
 import sqlite3
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -134,6 +136,92 @@ class BuildProof(unittest.TestCase):
             proof = self.proof(root, now=LATE)
             self.assertFalse(proof["verified"])
             self.assertEqual(proof["reason"], "official_line_no_effect_readback_required")
+
+
+class OfficialCreatorsListing(unittest.TestCase):
+    """No local hit: the account's own Creators Market item list (api/v2/sticker) is the receipt."""
+    AGED = Q + dt.timedelta(seconds=MODULE.NO_EFFECT_MIN_AGE_SECONDS + 1)
+
+    def root(self, tmp: str) -> Path:
+        root = Path(tmp)
+        _set(root, "set-041", "submitted", {"product_id": "48299386", "state": "review_requested",
+                                            "state_observed": "販売中",
+                                            "created_at": _iso(Q - dt.timedelta(days=1))})
+        _set(root, "set-042", "submit", {})
+        return root
+
+    def proof(self, root: Path, creators: dict, now: dt.datetime = AGED) -> dict:
+        return MODULE.build_proof("line-sticker-factory-hourly:x", Q, now=now, state_root=root,
+                                  creators=creators)
+
+    def test_complete_listing_with_no_new_unrecorded_item_proves_no_effect(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            # 42100028 is a pre-loop item: older than every item recorded before the run.
+            p = self.proof(self.root(tmp), {"ok": True, "ids": ["48299386", "42100028"], "total": 2})
+            self.assertTrue(p["verified"])
+            self.assertFalse(p["effected"])
+            self.assertTrue(p["provider_receipt_id"].startswith("creators-market-item-list:2:"))
+
+    def test_an_unrecorded_item_newer_than_the_run_baseline_stays_fenced(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            p = self.proof(self.root(tmp), {"ok": True, "ids": ["48300001", "48299386"], "total": 2})
+            self.assertFalse(p["verified"])
+            self.assertEqual(p["reason"], "unrecorded_creators_item:48300001")
+
+    def test_an_incomplete_listing_stays_fenced(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            p = self.proof(self.root(tmp), {"ok": True, "ids": ["48299386"], "total": 2})
+            self.assertFalse(p["verified"])
+            self.assertEqual(p["reason"], "incomplete_creators_listing:1<2")
+
+    def test_readback_failure_stays_fenced(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            p = self.proof(self.root(tmp), {"ok": False, "reason": "browser_unavailable"})
+            self.assertFalse(p["verified"])
+            self.assertEqual(p["reason"], "browser_unavailable")
+
+    def test_too_recent_stays_fenced(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            p = self.proof(self.root(tmp), {"ok": True, "ids": ["48299386"], "total": 1}, now=LATE)
+            self.assertFalse(p["verified"])
+            self.assertTrue(p["reason"].startswith("too_recent:"))
+
+    def test_without_any_item_recorded_before_the_run_an_unrecorded_item_stays_fenced(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _set(root, "set-042", "submit", {})
+            p = self.proof(root, {"ok": True, "ids": ["42100028"], "total": 1})
+            self.assertFalse(p["verified"])
+            self.assertEqual(p["reason"], "unrecorded_creators_item:42100028")
+
+    def test_list_pages_parse_into_ids_and_total(self) -> None:
+        pages = {1: {"items": [{"id": 48299386}, {"id": 48292978}], "pager": {"maxPage": 2, "totalEntries": 3}},
+                 2: {"items": [{"id": 42100028}], "pager": {"maxPage": 2, "totalEntries": 3}}}
+        self.assertEqual(MODULE.collect_listing(pages.__getitem__),
+                         {"ok": True, "ids": ["48299386", "48292978", "42100028"], "total": 3})
+        self.assertEqual(MODULE.collect_listing(lambda n: {"items": "x"})["ok"], False)
+
+
+class BrowserLeaseHolder(unittest.TestCase):
+    def test_acquire_and_release_carry_this_process_pid(self) -> None:
+        calls = []
+
+        def fake_run(argv, **kwargs):
+            calls.append((argv[2], (kwargs.get("env") or {}).get("AI_BROWSER_HOLDER_PID")))
+            return subprocess.CompletedProcess(argv, 9, "", "busy")
+
+        with patch.object(MODULE.subprocess, "run", side_effect=fake_run):
+            self.assertEqual(MODULE.read_creators_items()["reason"], "browser_unavailable")
+        self.assertEqual(calls, [("acquire", str(os.getpid()))])
+        calls.clear()
+
+        def fake_run_ok(argv, **kwargs):
+            calls.append((argv[2], (kwargs.get("env") or {}).get("AI_BROWSER_HOLDER_PID")))
+            return subprocess.CompletedProcess(argv, 0, "not-a-cdp-url\n", "")
+
+        with patch.object(MODULE.subprocess, "run", side_effect=fake_run_ok):
+            self.assertFalse(MODULE.read_creators_items()["ok"])
+        self.assertEqual(calls, [("acquire", str(os.getpid())), ("release", str(os.getpid()))])
 
 
 class ReleasedFenceRecovery(unittest.TestCase):

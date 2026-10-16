@@ -15,8 +15,14 @@ images, set tags, request review). ``factory._submit`` records those steps in th
   - ``state_observed`` / ``purchase_url`` / ``store_public`` / ``last_auto_resubmit_at`` are written
     by readback and are never evidence.
 
-  - No hit: local absence is not proof that LINE saw no effect; keep the occurrence fenced until an
-    exact official no-effect readback is available.
+  - No hit: local absence is not proof that LINE saw no effect (``_create_item`` saves on LINE
+    before the factory writes creators-item.json). The official readback is the account's own
+    Creators Market item list (``api/v2/sticker``, every status incl. 編集中), read through the
+    same browser identity the submitter uses. The list is complete (as many ids as its
+    ``totalEntries``), every item missing from the sets' creators-item.json is older than the
+    newest item recorded before the run (item ids only grow), and the run's time cap has passed:
+    the run created nothing, close as no-effect citing the list. Any newer unrecorded item, an
+    incomplete list or a readback failure stays fenced.
   - Every hit an item with a product_id that readback has seen on Creators Market: a finished
     submission (review_requested, official status) or one stopped mid-flight that LINE lists as 編集中
     (submit resumes from the recorded item): close as effected, citing those.
@@ -30,8 +36,10 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import os
 import re
 import sqlite3
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -49,6 +57,12 @@ FACTORY_TIME_FIELDS = ("created_at", "review_requested_at")
 OFFICIAL_STATUSES = frozenset({"審査待ち", "審査中", "承認", "販売中", "リジェクト", "販売停止"})
 # An item created but not yet sent to review; submit resumes from it (creators-item.json sub-state).
 DRAFT_STATUS = "編集中"
+# The registry's runtime_timeout_seconds for line-sticker-factory-hourly, plus slack.
+NO_EFFECT_MIN_AGE_SECONDS = 5400 + 900
+GUARD = REPO_ROOT / "skills/browser/browser-guard.sh"
+IDENTITY = "line-creators:dais"  # the submitter's identity (line_sticker_submit.IDENTITY)
+CREATOR_BASE = "https://creator.line.me/my/cCX4POFknN2lhLJE"
+MAX_LIST_PAGES = 50
 
 
 def _terminal_unknown_release_sha(state_root: Path, occurrence_id: str) -> str | None:
@@ -159,8 +173,97 @@ def confirmed_submission(path: Path, *, expected_binding: tuple[str, str, str] |
     return None
 
 
+def collect_listing(get_page) -> dict[str, Any]:
+    """Every page of the official item list -> {"ok", "ids", "total"}; any malformed page fails."""
+    ids: list[str] = []
+    total = None
+    try:
+        page_number, max_page = 1, 1
+        while page_number <= max_page:
+            payload = get_page(page_number)
+            pager = payload["pager"]
+            max_page, total = int(pager["maxPage"]), int(pager["totalEntries"])
+            if max_page > MAX_LIST_PAGES:
+                return {"ok": False, "reason": "creators_listing_too_many_pages"}
+            ids.extend(str(int(item["id"])) for item in payload["items"])
+            page_number += 1
+    except (KeyError, TypeError, ValueError):
+        return {"ok": False, "reason": "creators_listing_malformed"}
+    return {"ok": True, "ids": ids, "total": total}
+
+
+def read_creators_items() -> dict[str, Any]:
+    # The guard matches the lease to this pid on release; without it release is an unconditional rm.
+    env = {**os.environ, "AI_BROWSER_HOLDER_PID": str(os.getpid())}
+    acquired = subprocess.run(["bash", str(GUARD), "acquire", IDENTITY], capture_output=True, text=True, env=env)
+    if acquired.returncode != 0:
+        return {"ok": False, "reason": "browser_unavailable"}
+    try:
+        from playwright.sync_api import sync_playwright
+
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.connect_over_cdp(acquired.stdout.strip().splitlines()[-1])
+            request = browser.contexts[0].request
+
+            def get_page(number: int) -> Any:
+                response = request.get(f"{CREATOR_BASE}/api/v2/sticker?page={number}", timeout=60000,
+                                       max_redirects=0)
+                if response.status != 200:
+                    raise ValueError(f"status_{response.status}")
+                return response.json()
+
+            return collect_listing(get_page)
+    except Exception as exc:  # noqa: BLE001 -- any failure is inconclusive
+        return {"ok": False, "reason": f"creators_readback_failed:{type(exc).__name__}"}
+    finally:
+        subprocess.run(["bash", str(GUARD), "release", IDENTITY], capture_output=True, env=env)
+
+
+def _recorded_items(state_root: Path) -> list[dict[str, Any]]:
+    items = []
+    for path in sorted(state_root.glob("set-*/creators-item.json")):
+        try:
+            item = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue  # an unreadable item is already a touched_since hit
+        if isinstance(item, dict) and str(item.get("product_id") or "").isdigit():
+            items.append(item)
+    return items
+
+
+def no_effect_proof(proof: dict[str, Any], queued_at: dt.datetime, *, now: dt.datetime,
+                    state_root: Path, creators: dict[str, Any]) -> dict[str, Any]:
+    if not creators.get("ok"):
+        proof["reason"] = creators.get("reason")
+        return proof
+    ids = creators["ids"]
+    if len(set(ids)) != len(ids) or len(ids) < creators["total"]:
+        proof["reason"] = f"incomplete_creators_listing:{len(set(ids))}<{creators['total']}"
+        return proof
+    recorded = _recorded_items(state_root)
+    known = {str(item["product_id"]) for item in recorded}
+    before_run = [int(item["product_id"]) for item in recorded
+                  if isinstance(item.get("created_at"), str) and not _at_or_after(item["created_at"], queued_at)]
+    baseline = max(before_run, default=None)
+    unrecorded = sorted(i for i in ids if i not in known and (baseline is None or int(i) > baseline))
+    if unrecorded:  # may be the item this run created before it could record it
+        proof["reason"] = "unrecorded_creators_item:" + ",".join(unrecorded)
+        return proof
+    age = (now - queued_at).total_seconds()
+    if age <= NO_EFFECT_MIN_AGE_SECONDS:
+        proof["reason"] = f"too_recent:{int(age)}s<={NO_EFFECT_MIN_AGE_SECONDS}s"
+        return proof
+    proof.update(verified=True, effected=False,
+                 provider_receipt_id=(f"creators-market-item-list:{len(ids)}:{max(map(int, ids), default=0)}:"
+                                      f"{now.isoformat(timespec='seconds')}"),
+                 proof_kind="official_creators_item_list_vs_recorded_items",
+                 checked_at=now.isoformat(timespec="seconds"))
+    return proof
+
+
 def build_proof(occurrence_id: str, queued_at: dt.datetime, *, now: dt.datetime,
-                state_root: Path, expected_binding: tuple[str, str, str] | None = None) -> dict[str, Any]:
+                state_root: Path, expected_binding: tuple[str, str, str] | None = None,
+                creators: dict[str, Any] | None = None) -> dict[str, Any]:
     proof: dict[str, Any] = {"owner_id": OWNER_ID, "occurrence_id": occurrence_id,
                              "verified": False, "queued_at": queued_at.isoformat()}
     hits = touched_since(state_root, queued_at)
@@ -177,6 +280,8 @@ def build_proof(occurrence_id: str, queued_at: dt.datetime, *, now: dt.datetime,
                   else "state_touched_after_run_start")
         proof["reason"] = reason + ":" + ",".join(hits)
         return proof
+    if creators is not None:
+        return no_effect_proof(proof, queued_at, now=now, state_root=state_root, creators=creators)
     age = (now - queued_at).total_seconds()
     proof.update(reason="official_line_no_effect_readback_required",
                  elapsed_seconds=max(0, int(age)))
@@ -192,8 +297,9 @@ def reconcile(occurrence_id: str, *, resolve: bool = False) -> dict[str, Any]:
         if release_sha is None:
             raise ValueError("exact terminal unknown release is unavailable")
         binding = (OWNER_ID, occurrence_id, release_sha)
+    creators = None if touched_since(STATE_ROOT, queued_at) else read_creators_items()
     proof = build_proof(occurrence_id, queued_at, now=now, state_root=STATE_ROOT,
-                        expected_binding=binding)
+                        expected_binding=binding, creators=creators)
     result = {**proof, "admission_state": state}
     if not proof.get("verified") or not resolve:
         return result

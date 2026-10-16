@@ -70,6 +70,18 @@ def ledger_codes(rows: dict) -> set[str]:
             for m in [CODE_RE.search(str(row.get("post_url") or ""))] if m}
 
 
+def account_gate(url: str) -> str | None:
+    """Instagram redirects a locked session away from the profile; name that, not the count.
+    2026-10-16: /accounts/suspended/ (WhatsApp code) read as post_count_unreadable for days."""
+    path = url.split("instagram.com", 1)[-1]
+    for prefix, reason in (("/accounts/suspended", "instagram_account_suspended"),
+                           ("/challenge", "instagram_account_challenge"),
+                           ("/accounts/login", "instagram_needs_login")):
+        if path.startswith(prefix):
+            return reason
+    return None
+
+
 def read_reels(handle: str, identity: str, known: set[str] = frozenset()) -> dict[str, Any]:
     acquired = subprocess.run(["bash", str(GUARD), "acquire", identity], capture_output=True, text=True)
     if acquired.returncode != 0:
@@ -83,6 +95,9 @@ def read_reels(handle: str, identity: str, known: set[str] = frozenset()) -> dic
             try:
                 page.goto(f"https://www.instagram.com/{handle}/", timeout=60000)
                 page.wait_for_timeout(5000)
+                gate = account_gate(page.url)
+                if gate:
+                    return {"ok": False, "reason": gate}
                 match = POST_COUNT_RE.search(page.inner_text("body"))
                 page.goto(f"https://www.instagram.com/{handle}/reels/", timeout=60000)
                 page.wait_for_timeout(5000)

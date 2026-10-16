@@ -53,6 +53,18 @@ class BuildProof(unittest.TestCase):
 
 
 
+class AccountGate(unittest.TestCase):
+    def test_suspended_or_checkpoint_redirect_is_a_typed_reason_not_post_count_unreadable(self) -> None:
+        self.assertEqual(MODULE.account_gate(
+            "https://www.instagram.com/accounts/suspended/?next=https%3A%2F%2Fwww.instagram.com%2Fx%2F"),
+            "instagram_account_suspended")
+        self.assertEqual(MODULE.account_gate("https://www.instagram.com/challenge/abc/"),
+                         "instagram_account_challenge")
+        self.assertEqual(MODULE.account_gate("https://www.instagram.com/accounts/login/?next=/x/"),
+                         "instagram_needs_login")
+        self.assertIsNone(MODULE.account_gate("https://www.instagram.com/stardust_doubutsu/"))
+
+
 class ThreadsLane(unittest.TestCase):
     """A Threads post is the same loop's effect: a fence closes only when Threads is all ledgered too."""
 
