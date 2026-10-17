@@ -137,21 +137,22 @@ X_CTA_URL="${CAPAFY_LANDING_URL}${CT_SEP}ct=${X_CT}"
 # a retry on the same JST date always resolves to the exact same page
 # instead of depending on model-chosen title text for idempotency.
 FREE_ARTICLE_SLUG="capafy-${CAPAFY_SKILL_SLUG}-${SLOT}"
-# Hook Lab slots write a keyword-targeted page instead (SSOT 2026-10-17): the 16
+# Seller slots with seo/<skill>-keywords.json write a keyword-targeted page instead (SSOT 2026-10-17): the 16
 # keyword pages became Hook Lab's top traffic source via Google AI Overview, while
 # dated capafy-hook-lab-<slot> pages drew ~1 view a week. Falls back to the dated
 # slug when every keyword already has a page.
 SEO_KEYWORD_JSON=""
 SEO_BRIEF=""
-if [ "$CAPAFY_SKILL_SLUG" = "hook-lab" ] && [ -n "${ARTICLE_SELF_OWNED_LANDING_ROOT:-}" ]; then
-  SEO_KEYWORD_JSON="$(python3 "$SELF_DIR/pick_seo_keyword.py" "$SELF_DIR/../seo/hook-lab-keywords.json" \
+SEO_KEYWORDS_FILE="$SELF_DIR/../seo/${CAPAFY_SKILL_SLUG}-keywords.json"
+if [ -f "$SEO_KEYWORDS_FILE" ] && [ -n "${ARTICLE_SELF_OWNED_LANDING_ROOT:-}" ]; then
+  SEO_KEYWORD_JSON="$(python3 "$SELF_DIR/pick_seo_keyword.py" "$SEO_KEYWORDS_FILE" \
     "$ARTICLE_SELF_OWNED_LANDING_ROOT/apps/landing/data/research" 2>>"$LOG" || true)"
 fi
 if [ -n "$SEO_KEYWORD_JSON" ]; then
   FREE_ARTICLE_SLUG="$(printf '%s' "$SEO_KEYWORD_JSON" | python3 -c 'import json,sys;print(json.load(sys.stdin)["slug"])')"
   SEO_BRIEF="$(printf '%s' "$SEO_KEYWORD_JSON" | python3 -c 'import json,sys
 k=json.load(sys.stdin)
-print(f"SEARCH TARGET (overrides the English-only GOAL line): write this page for the search query \"{k[\"query\"]}\" in language \"{k[\"lang\"]}\", natively. The H1 must contain the query. Copy the structure, length and tone of the template pages apps/landing/data/research/hook-generator-for-tiktok.json (en), ganchos-para-tiktok.json (es) and reels-video-hook-ja.json (ja) in the landing checkout: a short search-intent intro, about 50 concrete ready-to-film hooks grouped by niche or hook type (spoken line plus on-screen text), how to pick and test them, a short FAQ, then the CTA. Where a hook needs a real figure, write a fill-in blank such as [ADD: your number]; never invent statistics. No notes to the editor in the body.")')"
+print(f"SEARCH TARGET (overrides the English-only GOAL line): write this page for the search query \"{k[\"query\"]}\" in language \"{k[\"lang\"]}\", natively. The H1 must contain the query. Copy the structure, length and tone of the template pages apps/landing/data/research/hook-generator-for-tiktok.json (en), ganchos-para-tiktok.json (es) and reels-video-hook-ja.json (ja) in the landing checkout: a short search-intent intro, 30-50 concrete ready-to-use examples of what the promoted product makes (hooks, script beats or titles, matching the query) grouped by niche or type, how to pick and test them, a short FAQ, then the CTA. Where an example needs a real figure, write a fill-in blank such as [ADD: your number]; never invent statistics. No notes to the editor in the body.")')"
   SEO_QUERY="$(printf '%s' "$SEO_KEYWORD_JSON" | python3 -c 'import json,sys;print(json.load(sys.stdin)["query"])')"
   echo "capafy-distribute-daily: seo keyword=$SEO_KEYWORD_JSON" >>"$LOG"
 fi

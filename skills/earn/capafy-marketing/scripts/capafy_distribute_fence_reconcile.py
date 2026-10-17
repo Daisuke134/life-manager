@@ -148,12 +148,14 @@ def _validate_slot_article(slot: Any, article_slug: Any) -> tuple[str, str]:
 
 
 def _seo_keyword_slugs() -> set[str]:
-    """Hook Lab slots publish a keyword page from this list instead of a dated slug."""
-    path = Path(__file__).resolve().parents[1] / "seo" / "hook-lab-keywords.json"
-    try:
-        return {k["slug"] for k in json.loads(path.read_text(encoding="utf-8"))}
-    except (OSError, ValueError, KeyError, TypeError):
-        return set()
+    """Seller slots publish a keyword page from seo/<skill>-keywords.json instead of a dated slug."""
+    slugs: set[str] = set()
+    for path in (Path(__file__).resolve().parents[1] / "seo").glob("*-keywords.json"):
+        try:
+            slugs |= {k["slug"] for k in json.loads(path.read_text(encoding="utf-8"))}
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
+    return slugs
 
 
 def record_occurrence_manifest(path: Path, *, owner_id: str, run_id: str,
