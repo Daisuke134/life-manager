@@ -315,6 +315,20 @@ def build_argv(reconcile_cfg: Mapping[str, object], root: Path,
     return argv
 
 
+def prioritize_admission_fences(targets: dict[str, list[str | None]],
+                                admission: Mapping[str, tuple[str, ...]]) -> None:
+    """Call live admission fences before released "lost fence" leftovers, per owner.
+
+    Leftovers that an adapter refuses stay in the queue forever; mixed in sorted order and
+    rotated one call per wake, they kept capafy-distribute's single real fence unserved for
+    hours (2026-10-17) while the loop sat blocked. Stable: rotation order is kept inside
+    each group, so live fences still take turns among themselves."""
+    for owner, values in targets.items():
+        live = set(admission.get(owner, ()))
+        if live:
+            targets[owner] = [v for v in values if v in live] + [v for v in values if v not in live]
+
+
 def plan_targets(
     fenced: Mapping[str, tuple[str, ...]],
     loops: Mapping[str, Mapping[str, object]],
@@ -511,6 +525,7 @@ def reconcile(
     """Run one bounded reconciliation pass and return the summary dict."""
     loops = registry.get("loops", {}) if isinstance(registry, Mapping) else {}
     fenced = _read_with_retry(read_fenced, sleep)
+    admission_fenced = dict(fenced)
     lost_fence_scan_locked = False
     try:
         lost_fences = _read_with_retry(
@@ -528,6 +543,7 @@ def reconcile(
     checked = sum(len(occurrences) for occurrences in fenced.values())
     targets, needs_adapter = plan_targets(fenced, loops)
     _rotate_occurrences_from_log(targets, log_path)
+    prioritize_admission_fences(targets, admission_fenced)
     financial = frozenset(
         owner_id for owner_id in targets
         if isinstance(loops.get(owner_id), Mapping)
