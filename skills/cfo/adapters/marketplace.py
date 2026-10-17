@@ -1162,7 +1162,7 @@ def _aggregate_only(
         platform=platform,
     )
     observed_at = _instant(payload["observed_at"])
-    if observed_at != snapshot_at:
+    if _stale_observation(observed_at, snapshot_at):
         reason = "stale_readback"
     else:
         source = payload["source"]

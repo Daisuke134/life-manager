@@ -514,6 +514,37 @@ class B7IntegrationTest(unittest.TestCase):
             self.assertEqual(jpy["settled_external_revenue"], "1000")
             self.assertIsNone(jpy["net"])
 
+    def _promptbase_gaps(self, observed: str) -> set:
+        payload = {
+            "observed_at": observed,
+            "source": "https://promptbase.com/account?view=sales",
+            "sales_count": 0, "net_usd": 0.0, "by_item": {},
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "promptbase-sales.json"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            records = m.collect_b7_records(
+                snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+                env={"LM_CFO_MARKETPLACE_PROMPTBASE_READBACK": str(path)},
+            )
+        self.assertFalse(any(row.get("record_type") == "receipt" for row in records))
+        return {
+            (row.get("product_loop_id"), row.get("projection"), row.get("reason"))
+            for row in records if row.get("record_type") == "coverage"
+            and "promptbase" in row.get("source_id", "")
+        }
+
+    def test_promptbase_sales_readback_is_wired_to_the_promptbase_loop(self):
+        gaps = self._promptbase_gaps("2026-09-30T22:00:00.000000Z")  # 2h old
+        # An aggregate without a receipt map stays a gap (never zero), but on its own loop.
+        self.assertIn(("promptbase", "historical", "missing_coverage"), gaps)
+        self.assertIn(("promptbase", "trailing", "missing_coverage"), gaps)
+        self.assertFalse(any(loop == "writer" for loop, _, _ in gaps))
+
+    def test_promptbase_sales_readback_older_than_a_day_is_stale(self):
+        gaps = self._promptbase_gaps("2026-09-29T23:00:00.000000Z")  # 25h old
+        self.assertIn(("promptbase", "trailing", "stale_readback"), gaps)
+
     def test_platform_specific_path_rejects_mismatched_envelope_on_expected_lane(self):
         import hashlib
         payload = {
