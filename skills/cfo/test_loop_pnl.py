@@ -423,6 +423,32 @@ class WriterMoneyTest(unittest.TestCase):
         )
 
 
+    def _ledger_gap_reasons(self, age_seconds: int) -> set[str]:
+        import os
+        with tempfile.TemporaryDirectory() as tmp:
+            database = Path(tmp) / "money.sqlite3"
+            db = sqlite3.connect(database)
+            db.execute("CREATE TABLE money_events (event_id TEXT, kind TEXT, amount REAL, currency TEXT, status TEXT, external_receipt_id TEXT, occurred_at TEXT)")
+            db.execute("CREATE TABLE money_fees (fee_id TEXT, fee_kind TEXT, amount REAL, currency TEXT, status TEXT, external_receipt_id TEXT, observed_at TEXT)")
+            db.commit()
+            db.close()
+            snapshot = datetime.fromisoformat(SNAPSHOT.replace("Z", "+00:00")).timestamp()
+            os.utime(database, (snapshot - age_seconds, snapshot - age_seconds))
+            records = writer_adapter.adapt_path(
+                database, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+            )
+        projected = contract.project(records, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START)
+        return {gap["reason"] for gap in projected["trailing"]["loops"]["writer"]["coverage_gaps"]}
+
+    def test_ledger_synced_within_a_day_is_not_stale(self):
+        reasons = self._ledger_gap_reasons(3600)
+        self.assertNotIn("stale_readback", reasons)
+        self.assertIn("missing_category", reasons)
+
+    def test_ledger_older_than_a_day_is_stale(self):
+        self.assertIn("stale_readback", self._ledger_gap_reasons(25 * 3600))
+
+
 class UsageTest(unittest.TestCase):
     def test_dedupe_map_missing_and_unattributed(self):
         notes = {}
