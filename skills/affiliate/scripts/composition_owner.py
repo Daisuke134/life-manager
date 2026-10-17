@@ -204,6 +204,50 @@ def source_text(state_root: Path, bundle: dict) -> str:
     return "\n\n".join(sections)
 
 
+PRICING_URL = "https://elevenlabs.io/pricing"
+PRICING_TABLE = "{{PRICING_TABLE}}"
+
+
+def pricing_table(raw: str) -> str:
+    """Plan table from the official pricing page's own plan summary (FAQ)."""
+    summary = re.search(r"Monthly price and included credits per plan: ([^\n]+)", raw)
+    plans = re.findall(
+        r"(\w+) \$([\d,.]+) \(([\d,]+) credits(?:, ([^)]*))?\)",
+        summary.group(1) if summary else "",
+    )
+    if len(plans) < 4:
+        raise CompositionError
+    annual_text = re.search(r"equivalent monthly price on an annual plan is ([^\n]+)", raw)
+    annual = dict((name, price) for price, name in re.findall(
+        r"\$([\d,.]+) for (\w+)", annual_text.group(1) if annual_text else "",
+    ))
+    rows = [
+        "| Plan | Monthly price | Credits per month | Monthly price, billed yearly | Notes |",
+        "|---|---|---|---|---|",
+    ]
+    for name, price, credits, notes in plans:
+        yearly = f"${annual[name]}" if name in annual else "-"
+        rows.append(f"| {name} | ${price} | {credits} | {yearly} | {notes or '-'} |")
+    if re.search(r"Enterprise is custom", summary.group(1)):
+        rows.append("| Enterprise | Custom | Custom | - | - |")
+    return "\n".join(rows) + (
+        f"\n\nPlan prices and credits from the [official pricing page]({PRICING_URL}),"
+        " fetched when this page was built. Prices exclude taxes."
+    )
+
+
+def pricing_table_for(state_root: Path, bundle: dict) -> str:
+    row = next((
+        row for row in bundle["sources"] if row.get("locator") == PRICING_URL
+    ), None)
+    if row is None:
+        raise CompositionError
+    matches = sorted((state_root / "sources" / row["source_id"]).glob(f"{row['raw_sha256']}.*"))
+    if len(matches) != 1:
+        raise CompositionError
+    return pricing_table(matches[0].read_text(encoding="utf-8"))
+
+
 def prompt_for(state_root: Path, bundle: dict) -> str:
     experiment = bundle.get("experiment")
     language_prompt = ""
@@ -228,6 +272,24 @@ include the steps, trade-offs, and fit information a buyer needs to use the work
 For a baseline, put one clear, disclosed, benefit-led CTA above the fold after a
 short intro and before extended details. For an experiment, preserve the control
 and apply this pattern only within the selected variable.
+"""
+    if bundle["locale"] == "en" and bundle.get("page_brief"):
+        strategy_prompt = f"""
+This is a `{bundle.get('page_type')}` page for the search query "{bundle.get('page_query')}".
+Follow the structure that ranks for this query: {bundle['page_brief']}
+Answer the query in the title and first paragraph. Aim for 800–1,200 English words
+when source evidence supports that depth; never pad or invent to hit a length target.
+Put one clear, disclosed, benefit-led CTA above the fold after a short intro.
+Cite {bundle['sources'][0]['locator']} at least once where you introduce the product.
+Make no claim about any company except from that company's own page below.
+Never put a brand name in image alt text.
+"""
+        if bundle.get("pricing_table"):
+            strategy_prompt += f"""
+Put the literal line {PRICING_TABLE} exactly once where the plan table belongs. It is
+replaced at build time by this table from the official pricing page; do not restate it
+as your own table and do not contradict it:
+{pricing_table_for(state_root, bundle)}
 """
     case_study_prompt = ""
     if any(
@@ -354,6 +416,14 @@ def build_handoff(skill_root: Path, state_root: Path, bundle: dict, receipt: dic
         OSError, TypeError, ValueError, KeyError, json.JSONDecodeError,
         agent_runner.EvidenceError,
     ):
+        raise CompositionError
+    if plan.get("pricing_table"):
+        if markdown.count(PRICING_TABLE) != 1:
+            raise CompositionError
+        markdown = markdown.replace(PRICING_TABLE, pricing_table_for(state_root, bundle))
+    if plan.get("page_type") and plan["sources"][0]["url"] not in markdown:
+        # The first cited elevenlabs.io source is the tracked CTA destination;
+        # without it the pricing citation would be retargeted (#8278).
         raise CompositionError
     locators = {row["locator"]: row for row in bundle["sources"]}
     cited = [
