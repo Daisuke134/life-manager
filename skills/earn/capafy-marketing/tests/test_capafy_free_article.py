@@ -321,3 +321,34 @@ def test_load_draft_applies_image_file_next_to_the_draft(tmp_path):
     assert m.load_draft(draft) == "# Title\n\nFirst.\n\nSecond."
     (tmp_path / "article-image.url").write_text(IMG + "\n", encoding="utf-8")
     assert f"]({IMG})" in m.load_draft(draft)
+
+
+def test_build_free_article_requires_every_query_word_in_the_title() -> None:
+    module = load()
+    ok = module.build_free_article(_draft(title="Free TikTok Hook Generator: 50 hooks"), slug="tiktok-hook-generator-free",
+                                   date="2026-10-17", cta_url=CTA_URL, title_must_contain="tiktok hook generator free")
+    assert ok["title"] == "Free TikTok Hook Generator: 50 hooks"
+    with pytest.raises(ValueError, match="search query"):
+        module.build_free_article(_draft(title="Your video needs a better first three seconds"),
+                                  slug="tiktok-hook-generator-free", date="2026-10-17", cta_url=CTA_URL,
+                                  title_must_contain="tiktok hook generator free")
+
+
+def test_publish_pings_indexnow_after_the_live_readback(tmp_path: Path) -> None:
+    module = load()
+    remote = tmp_path / "remote.git"
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(remote)], check=True)
+    landing = tmp_path / "landing"
+    _init_repo(landing)
+    subprocess.run(["git", "remote", "add", "origin", str(remote)], cwd=landing, check=True)
+    subprocess.run(["git", "push", "-q", "origin", "main"], cwd=landing, check=True)
+    draft = tmp_path / "article-en.md"
+    draft.write_text(_draft(), encoding="utf-8")
+    pings = []
+    result = module.publish(
+        draft_path=draft, slug="slide-deck-maker", cta_url=CTA_URL, landing_root=landing, remote="origin",
+        branch="main", base_url="https://aniccaai.com", date="2026-10-17", retries=1,
+        fetch=lambda url: f"<h1>Slide Maker turns any outline into a deck</h1> {CTA_URL}",
+        indexnow_key="k123", indexnow=lambda url, key: pings.append((url, key)) or 200)
+    assert pings == [("https://aniccaai.com/blog/slide-deck-maker", "k123")]
+    assert result["indexnow"] == 200
