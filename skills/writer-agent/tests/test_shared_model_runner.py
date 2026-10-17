@@ -55,6 +55,59 @@ r=e/'result.json'; r.write_text('I checked the article.\\n{"verdict":"PASS","vio
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(json.loads(result.stdout), {"verdict": "PASS", "violations": []})
 
+    def test_agent_report_uses_text_envelope_and_unwraps_it(self):
+        # 2026-10-17 run 20261017-033711: the schema {} is falsy in agent_runner,
+        # so Codex got no --output-schema, answered in prose, and the pass
+        # exited rc=1 with empty stdout/stderr after a completed provider rc=0.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            fake = root / "agent-runner.py"
+            fake.write_text("""#!/usr/bin/env python3
+import json,pathlib,sys
+a=sys.argv[1:]; e=pathlib.Path(a[a.index('--evidence-dir')+1]); e.mkdir(parents=True)
+schema=json.loads(pathlib.Path(a[a.index('--schema')+1]).read_text())
+assert schema['required']==['text'] and schema['properties']['text']=={'type':'string'}, schema
+r=e/'result.json'; r.write_text('{"text":"Drafts created; publication pending."}')
+(e/'summary.json').write_text(json.dumps({'result_path':str(r)}))
+""")
+            fake.chmod(0o755)
+            prompt = root / "prompt.txt"; prompt.write_text("write today's article")
+            env = {**os.environ, "AGENT_RUNNER_BIN": str(fake),
+                   "WRITER_SHARED_RUNNER_STATE": str(root / "state")}
+            env.pop("ARTICLE_CODEX_OUTPUT_SCHEMA", None)
+            result = subprocess.run(
+                [sys.executable, str(ADAPTER), "agent", "--prompt-file", str(prompt)],
+                env=env, capture_output=True, text=True, check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.strip(), "Drafts created; publication pending.")
+
+    def test_runner_failure_reason_reaches_stderr(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            fake = root / "agent-runner.py"
+            fake.write_text("""#!/usr/bin/env python3
+import json,pathlib,sys
+a=sys.argv[1:]; e=pathlib.Path(a[a.index('--evidence-dir')+1]); e.mkdir(parents=True)
+(e/'attempts.jsonl').write_text(json.dumps({'attempt':1,'provider':'codex','rc':0,
+  'error_class':'validation_or_task_failure',
+  'schema_errors':['result parse failed: no JSON object in provider result']})+'\\n')
+print(json.dumps({'status':'failed'}))
+sys.exit(1)
+""")
+            fake.chmod(0o755)
+            prompt = root / "prompt.txt"; prompt.write_text("write today's article")
+            env = {**os.environ, "AGENT_RUNNER_BIN": str(fake),
+                   "WRITER_SHARED_RUNNER_STATE": str(root / "state")}
+            result = subprocess.run(
+                [sys.executable, str(ADAPTER), "agent", "--prompt-file", str(prompt)],
+                env=env, capture_output=True, text=True, check=False,
+            )
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("validation_or_task_failure", result.stderr)
+            self.assertIn("no JSON object", result.stderr)
+            self.assertIn(str(root / "state"), result.stderr)
+
     def test_adapter_contains_no_direct_provider_or_auth_selection(self):
         source = ADAPTER.read_text(encoding="utf-8")
         for forbidden in ("CODEX_HOME", "auth.json", "codex exec", "ARTICLE_PROVIDER"):
