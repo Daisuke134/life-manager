@@ -118,7 +118,13 @@ EFFECT_RESULT_HINT_ENTRYPOINTS = frozenset({
 EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS = {
     "life-manager-cfo-hourly": "skills/cfo/run.sh",
     "marketing-treg-lead-signals-weekly": "skills/earn/marketing-engine/intel/treg-lead-signals-weekly",
+    "article-daily": "skills/writer-agent/article-daily.sh",
 }
+# Provider each owner above reports; owners not listed report Telegram messages.
+# Writer's receipt is its run ID, read back from the reality-PASS ledger rows of
+# every active destination (skills/writer-agent/scripts/article-run-complete.py).
+EFFECT_RESULT_HINT_LOOP_PROVIDERS = {"article-daily": "writer"}
+WRITER_LIVE_URL = re.compile(r"https://[A-Za-z0-9._:/-]{1,504}\Z")
 NO_EFFECT_RESULT_HINT_ENTRYPOINTS = frozenset({
     "apps/life-manager/scripts/ebook-distribute-daily.sh",
     "apps/life-manager/scripts/mobile-app",
@@ -923,11 +929,11 @@ def _read_private_result_hint(path: Path) -> dict | None:
 
 def _verified_effect_result(path: Path, loop_id: str,
                             occurrence_id: str, *,
-                            entrypoint: str | None = None) -> tuple[str, str] | None:
+                            entrypoint: str | None = None) -> tuple[str, ...] | None:
     if loop_id in EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS:
         if entrypoint != EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS[loop_id]:
             return None
-        expected_provider = "telegram"
+        expected_provider = EFFECT_RESULT_HINT_LOOP_PROVIDERS.get(loop_id, "telegram")
     else:
         if entrypoint is not None and entrypoint not in EFFECT_RESULT_HINT_ENTRYPOINTS:
             return None
@@ -937,6 +943,8 @@ def _verified_effect_result(path: Path, loop_id: str,
         "schema_version", "kind", "status", "effect", "owner_id",
         "occurrence_id", "provider", "provider_receipt_id", "effect_status",
     }
+    if expected_provider == "writer":
+        expected_fields.add("live_urls")
     if (not isinstance(value, dict) or set(value) != expected_fields
             or type(value.get("schema_version")) is not int
             or value.get("schema_version") != 1
@@ -952,6 +960,13 @@ def _verified_effect_result(path: Path, loop_id: str,
     receipt_id = value.get("provider_receipt_id")
     if not isinstance(receipt_id, str) or not SAFE_RUN_ID.fullmatch(receipt_id):
         return None
+    if expected_provider == "writer":
+        urls = value["live_urls"]
+        if (not isinstance(urls, list) or not 1 <= len(urls) <= 8
+                or any(not isinstance(url, str) or not WRITER_LIVE_URL.fullmatch(url)
+                       for url in urls)):
+            return None
+        return (value["effect_status"], f"writer://runs/{receipt_id}", *urls)
     if expected_provider == "telegram":
         return value["effect_status"], f"telegram://messages/{receipt_id}"
     return value["effect_status"], f"postiz://posts/{receipt_id}"
@@ -995,7 +1010,7 @@ def _verified_no_effect_result(path: Path, loop_id: str, occurrence_id: str,
 
 
 def _apply_verified_effect_result(
-        event: dict, result: tuple[str, str] | None) -> dict:
+        event: dict, result: tuple[str, ...] | None) -> dict:
     updated = dict(event)
     updated["evidence_refs"] = list(event.get("evidence_refs", []))
     if result is not None and updated.get("status") == "pass":
@@ -1005,14 +1020,15 @@ def _apply_verified_effect_result(
         else:
             updated["effect_status"] = result[0]
             provider = result[1].partition("://")[0]
-            if provider in {"postiz", "telegram"}:
+            if provider in {"postiz", "telegram", "writer"}:
                 updated["provider"] = provider
             receipt_id = result[1].rsplit("/", 1)[-1]
             if "provider_receipt_id" in updated:
                 updated["provider_receipt_id"] = receipt_id
                 updated["official_readback_ref"] = result[1]
-        if result[1] not in updated["evidence_refs"]:
-            updated["evidence_refs"].append(result[1])
+        for ref in result[1:]:
+            if ref not in updated["evidence_refs"]:
+                updated["evidence_refs"].append(ref)
     return validate_runtime_event(updated)
 
 

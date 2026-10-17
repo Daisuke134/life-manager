@@ -1402,5 +1402,23 @@ if pass_is_complete; then
     --target "$TELEGRAM_TARGET_ID" >>"$LOG" 2>&1 || \
     echo "=== article-daily: active-four completion notification remains pending $(date '+%F %T %Z') ===" >>"$LOG"
   touch "$STATE_DIR/.article-loop-last-pass" 2>/dev/null || true
+  # VERIFIED EFFECT: the hint path's pre-effect marker was removed before the model pass, so
+  # only this proof can be read back. article-run-complete.py re-validates every active
+  # destination's live reality-PASS row and writes the private hint exclusively; the runtime
+  # then records verified instead of an effect_unknown fence. If the hint cannot be written,
+  # keep the model's exit code so the fence reconciler still owns the readback.
+  if [ "${LIFE_MANAGER_LOOP_ID:-}" = "article-daily" ] \
+    && [ -n "${LIFE_MANAGER_RESULT_HINT_PATH:-}" ] && [ -n "${LIFE_MANAGER_OCCURRENCE_ID:-}" ]; then
+    if python3 "$ARTICLE_ROOT/scripts/article-run-complete.py" \
+      --ledger "$LEDGER" --run-id "$RUN_TS" --armed "$AUTOPUBLISH" \
+      --publication-state "$RUN_DIR/gates/publication-state.json" \
+      --effect-result-hint "$LIFE_MANAGER_RESULT_HINT_PATH" \
+      --occurrence-id "$LIFE_MANAGER_OCCURRENCE_ID" >>"$LOG" 2>&1; then
+      echo "=== article-daily: verified effect hint written run=$RUN_TS model_rc=$RC $(date '+%F %T %Z') ===" >>"$LOG"
+      RC=0
+    else
+      echo "=== article-daily: verified effect hint not written; effect stays unknown run=$RUN_TS $(date '+%F %T %Z') ===" >>"$LOG"
+    fi
+  fi
 fi
 exit "$RC"
