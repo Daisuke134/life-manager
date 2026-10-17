@@ -2051,6 +2051,7 @@ def test_owner_effect_result_hint_requires_exact_loop_and_entrypoint(tmp_path):
     assert EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS == {
         "life-manager-cfo-hourly": "skills/cfo/run.sh",
         "marketing-treg-lead-signals-weekly": "skills/earn/marketing-engine/intel/treg-lead-signals-weekly",
+        "article-daily": "skills/writer-agent/article-daily.sh",
     }
 
     treg = observed_env(
@@ -2263,6 +2264,72 @@ def test_verified_cfo_telegram_effect_result_uses_message_receipt_ref(tmp_path):
         hint, "life-manager-cfo-hourly", "life-manager-cfo-hourly:telegram-run-1",
         entrypoint="skills/cfo/run.sh",
     ) is None
+WRITER_LIVE_URLS = [
+    "https://note.com/anicca123/n/n0123456789ab",
+    "https://aniccabuddha.substack.com/p/one-run",
+    "https://aniccaai2026.substack.com/p/one-run",
+]
+
+
+def _write_writer_effect_result(path, **overrides):
+    return _write_effect_result(path, **{
+        "owner_id": "article-daily",
+        "occurrence_id": "article-daily:writer-run-1",
+        "provider": "writer",
+        "provider_receipt_id": "20261017-001933",
+        "effect_status": "verified",
+        "live_urls": WRITER_LIVE_URLS,
+        **overrides,
+    })
+
+
+def test_verified_writer_effect_result_carries_run_receipt_and_live_urls(tmp_path):
+    hint = tmp_path / "entrypoint-result.json"
+    _write_writer_effect_result(hint)
+    entrypoint = "skills/writer-agent/article-daily.sh"
+    result = _verified_effect_result(
+        hint, "article-daily", "article-daily:writer-run-1", entrypoint=entrypoint)
+    assert result == ("verified", "writer://runs/20261017-001933", *WRITER_LIVE_URLS)
+
+    event = build_runtime_event(
+        loop_id="article-daily", domain="earn", run_id="writer-run-1",
+        release_sha="a" * 40, provider="shared-agent-runner", profile_alias=None,
+        effect_class="publish", succeeded=True, blocker=None,
+        claimed_occurrence_id="article-daily:writer-run-1",
+    )
+    upgraded = _apply_verified_effect_result(event, result)
+    assert upgraded["effect_status"] == "verified"
+    assert upgraded["provider"] == "writer"
+    assert upgraded["provider_receipt_id"] == "20261017-001933"
+    assert upgraded["official_readback_ref"] == "writer://runs/20261017-001933"
+    assert set(WRITER_LIVE_URLS) <= set(upgraded["evidence_refs"])
+
+    # Only the article-daily owner/entrypoint pair may report a Writer effect.
+    assert _verified_effect_result(
+        hint, "article-daily", "article-daily:writer-run-1",
+        entrypoint="skills/writer-agent/scripts/article-resume-pending.sh") is None
+    assert _verified_effect_result(
+        hint, "article-daily", "article-daily:other-run", entrypoint=entrypoint) is None
+    for overrides in (
+        {"provider": "telegram"},
+        {"live_urls": []},
+        {"live_urls": ["http://note.com/anicca123/n/x"]},
+        {"live_urls": ["https://note.com/n/x?utm=1"]},
+        {"live_urls": "https://note.com/anicca123/n/x"},
+        {"live_urls": WRITER_LIVE_URLS * 3},
+        {"effect_status": "unknown"},
+    ):
+        _write_writer_effect_result(hint, **overrides)
+        assert _verified_effect_result(
+            hint, "article-daily", "article-daily:writer-run-1",
+            entrypoint=entrypoint) is None, overrides
+    # The pre-effect marker left by a wake that never reached the model pass is not an effect.
+    hint.write_text(json.dumps({"status": "pre_effect_failure", "effect": 0}))
+    hint.chmod(0o600)
+    assert _verified_effect_result(
+        hint, "article-daily", "article-daily:writer-run-1", entrypoint=entrypoint) is None
+
+
 def _write_no_effect_result(path, **overrides):
     value = {
         'schema_version': 1,
