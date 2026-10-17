@@ -313,6 +313,35 @@ def _nonnegative_count(value, label):
     return value
 
 
+CONVERSION_FIELDS = (
+    "customer_count", "paid_customer", "transaction_count",
+    "total_rewards", "unpaid_rewards",
+)
+
+
+def _sum_or_none(rows, field):
+    values = [row.get(field) for row in rows]
+    if not values or not all(
+        isinstance(value, int) and not isinstance(value, bool) and value >= 0
+        for value in values
+    ):
+        return None
+    return sum(values)
+
+
+def conversion_deltas(current, previous, current_window, previous_window):
+    """Per-field delta; null unless both readbacks are comparable ints."""
+    comparable = isinstance(previous, dict) and current_window == previous_window
+    return {
+        field: (
+            value - previous[field]
+            if comparable and isinstance(value, int)
+            and isinstance(previous.get(field), int) else None
+        )
+        for field, value in current.items()
+    }
+
+
 def aggregate_link_rows(rows, candidate, secondary_grouping):
     matches = [
         row for row in rows
@@ -329,6 +358,7 @@ def aggregate_link_rows(rows, candidate, secondary_grouping):
             "link_path_sha256": None,
             "row_count": 0,
             "aggregation_state": "NO_MATCH",
+            "conversions": {field: None for field in CONVERSION_FIELDS},
         }
     row_fingerprints = [link_fingerprints(row.get("link_path")) for row in matches]
     common_fingerprints = set.intersection(*row_fingerprints)
@@ -362,6 +392,9 @@ def aggregate_link_rows(rows, candidate, secondary_grouping):
         "aggregation_state": (
             "MONTH_BUCKETS_AGGREGATED" if len(matches) > 1 else "SINGLE_ROW"
         ),
+        "conversions": {
+            field: _sum_or_none(matches, field) for field in CONVERSION_FIELDS
+        },
     }
 
 
@@ -528,6 +561,14 @@ def build_placement_ledger(state):
             and not isinstance(row.get("provider_cost_usd"), bool)
         ]
         page_views = dev.get("page_views_count")
+        conversions = link.get("conversions") or {}
+        clicks = link.get("current_click_count")
+        has_clicks = isinstance(clicks, int) and not isinstance(clicks, bool) and clicks > 0
+
+        def per_click(field, scale=1):
+            value = conversions.get(field)
+            return round(value * scale / clicks, 6) if has_clicks and isinstance(value, int) else None
+
         per_thousand = (
             {
                 currency: round(minor * 1000 / page_views)
@@ -560,6 +601,15 @@ def build_placement_ledger(state):
                 "unique_state": link.get("unique_click_count_state", "UNKNOWN"),
                 "observed_at": link_report.get("observed_at") if link else None,
             },
+            "provider_conversions": {
+                **{field: conversions.get(field) for field in CONVERSION_FIELDS},
+                "deltas": {
+                    field: (link.get("conversion_deltas") or {}).get(field)
+                    for field in CONVERSION_FIELDS
+                },
+                "rewards_basis": "PARTNERSTACK_LINK_REPORT_RAW_INT",
+                "observed_at": link_report.get("observed_at") if conversions else None,
+            },
             "commission": {
                 "transaction_count": len(transactions),
                 "status_counts": {
@@ -591,6 +641,9 @@ def build_placement_ledger(state):
                 },
             },
             "unit_economics": {
+                "customers_per_provider_click": per_click("customer_count"),
+                "paid_customers_per_provider_click": per_click("paid_customer"),
+                "total_rewards_per_1000_provider_clicks": per_click("total_rewards", 1000),
                 "approved_or_paid_net_per_1000_devto_views_minor_by_currency": per_thousand,
                 "exposure_denominator_state": (
                     "OBSERVED" if isinstance(page_views, int) and page_views > 0
@@ -926,6 +979,11 @@ def capture_link_performance(args):
         for row in previous.get("placements", []) if isinstance(row, dict)
         and row.get("placement_id")
     }
+    previous_conversions = {
+        row.get("placement_id"): row.get("conversions")
+        for row in previous.get("placements", []) if isinstance(row, dict)
+        and row.get("placement_id")
+    }
     candidates = [
         candidate for candidate in placement_candidates(state)
         if candidate.get("provider_link_key")
@@ -971,6 +1029,12 @@ def capture_link_performance(args):
             "unique_click_count_state": aggregate["unique_click_count_state"],
             "provider_row_count": aggregate["row_count"],
             "aggregation_state": aggregate["aggregation_state"],
+            "conversions": aggregate["conversions"],
+            "conversion_deltas": conversion_deltas(
+                aggregate["conversions"],
+                previous_conversions.get(candidate["placement_id"]),
+                window, previous.get("window"),
+            ),
         }
         placements.append(row)
         if (
