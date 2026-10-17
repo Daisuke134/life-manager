@@ -592,6 +592,45 @@ def _terminal_epoch(writer_root: Path, occurrence_id: str) -> float | None:
     return times[0] if len(times) == 1 else None
 
 
+_KILLED_EXIT_CODES = {75, 124}   # plus 128+N signals
+
+
+def _killed(code: object) -> bool:
+    return type(code) is not int or code in _KILLED_EXIT_CODES or code >= 128
+
+
+def _ended_naturally(writer_root: Path, occurrence_id: str, queued_at: float, runs_root: Path) -> bool:
+    """The runner writes the single report event only after reaping the run's process group, so a
+    reported run is over. A killed run (timeout/cancel) or a killed model pass can leave detached
+    tool shells alive past the report, so those still wait out the hour (2026-10-17 review)."""
+    reports = []
+    for line in _jsonl_lines(writer_root / "events.jsonl") or []:
+        if occurrence_id not in line:
+            continue
+        try:
+            event = json.loads(line)
+        except ValueError:
+            return False
+        if event.get("occurrence_id") == occurrence_id and event.get("phase") == "report":
+            reports.append(event)
+    if len(reports) != 1 or _killed(reports[0].get("exit_code")):
+        return False
+    try:
+        paired = [d for d in runs_root.iterdir()
+                  if d.is_dir() and any(0 <= s - queued_at <= PAIR_WINDOW_SECONDS for s in _run_starts(d))]
+    except OSError:
+        paired = []
+    for run_dir in paired:
+        try:
+            attempts = json.loads((run_dir / "gates" / "generation-state.json").read_text(encoding="utf-8")).get("attempts")
+        except (OSError, ValueError, AttributeError):
+            continue
+        if isinstance(attempts, list) and attempts and isinstance(attempts[-1], dict) \
+                and "return_code" in attempts[-1] and _killed(attempts[-1]["return_code"]):
+            return False
+    return True
+
+
 def _carry_over_absence(occurrence_id: str, queued_at: float, state: str, rows: list, runs_root: Path,
                         writer_root: Path, absence_readback: Callable[..., dict | None],
                         resolver: Callable[..., bool] | None, resolve: bool) -> dict | None:
@@ -683,7 +722,8 @@ def reconcile(occurrence_id: str, *, queued_at: float, state: str, articles_path
         return _central_closure_result(RESUME_OWNER_ID, result)
     if not occurrence_id.startswith(f"{OWNER_ID}:"):
         return _inconclusive(occurrence_id, "owner_not_allowlisted")
-    if now - queued_at < MIN_AGE_SECONDS:
+    if now - queued_at < MIN_AGE_SECONDS and not _ended_naturally(writer_root, occurrence_id,
+                                                                     queued_at, runs_root):
         return _inconclusive(occurrence_id, "fence_too_young")
     try:
         rows = [json.loads(line) for line in articles_path.read_text(encoding="utf-8").splitlines() if line.strip()]
