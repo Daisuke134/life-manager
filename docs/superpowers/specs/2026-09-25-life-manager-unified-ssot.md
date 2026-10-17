@@ -19526,3 +19526,23 @@ Top 10 by sales: 0/10 with a trial (Ocup 3,111, Serenity 2,002, HookAce 1,044, V
 6. Recover the 10/23 organize reel (occurrence cancelled before scheduling); daily reels now open with the winner confession (#8222).
 
 **Factory unblock found while fixing trials (2026-10-17 14:30 JST):** the five review slots were held by stale empty draft versions on three FROZEN sellers — 7686597754 YouTube Script Writer v1.0.6 (created 2026-10-11 05:27), 8828622062 Slide Maker v1.0.4, 2844813315 TikTok Script Pro v1.0.5 — plus 2781635836 (new-Agent draft) and 2455220100 Hook Grader (under review). Because sellers are frozen, no loop would ever finish or remove those drafts, so the factory stayed CAP_FULL and nothing new (and no trial removal) could ship. Deleted the three drafts in the seller console (`下書きを削除`); each Agent read back as `公開中` on its unchanged live version (v1.0.5 / v1.0.3 / v1.0.4). Live listings untouched. Capafy free trials auto-charge at trial end unless cancelled (month plan 3 days, week plan 1 day; console 価格設定), so the 4 current trials can still convert. Editing a published Agent creates a draft that itself holds a slot, so trial removal (TODO 1) runs only through a real version submission, after new Agents per AGENTS rule 10. New TODO 0 (first): add a check that flags any FROZEN seller whose console status is `draft`, so a stale seller draft never again holds a slot unseen.
+
+### Capafy distribution maxing + $10K MRR path — 2026-10-17 22:45 JST (claude-evo-eval-1012, Dais: "distribution first, track metrics always, go")
+
+**Math (inference):** $10K MRR at Hook Lab $9.99/month ≈ 1,000 paid monthly subscribers; at 2% detail-view→paid that needs ~50,000 views/month. Now: ~6,000 views/month (7d: 10,447 impressions → 1,414 views → 4 trials → 0 paid). Gap = ~8× reach and 0%→2% conversion.
+
+**Measured channel reach (Postiz analytics, 7d, 2026-10-17):** X selawmqt 6 followers, ~4 views/post (10 posts = 35); IG capafy.hooklab reach 83; TikTok reaches non-followers (anicca_slideshow 1 follower → 3,158 views; anicca.jpx 66 followers → 9,210). Capafy internal: Free Transcript Clip Map 7095835081 = 61% of impressions (6,367) and 860 views, but only ~1% reach Hook Lab (hooklab_free 10).
+
+**Done today:** keyword SEO pages on Hook Lab slots (#8263; first page `tiktok-hook-generator-free` HTTP 200) + H1-must-contain-query and IndexNow ping (#8275); TikTok @hooklab.capafy connected to Postiz (`cmvc98itr1d3clu0yf8vy3dgx`; freed by removing idle aniccajp + disabled anicca.jp8), warm-up registered (live 2026-10-24); reels scheduled to TikTok after warm-up (#8266); reel fence closed by official readback and loop restarted; winner confession opener + say fallback (#8222); factory unblocked (3 stale seller drafts + 2 unretryable rejected deleted) → 2 new Agents under review; hourly distribution-metrics routine `trig_01WPC9rtox5AN1mF815ab4tY`.
+
+**Remaining TODO (order; cursor = 1):**
+1. TikTok warm-up through 2026-10-24 (passive For You only, no search — search triggered a CAPTCHA on day 2); then read back the first DIRECT_POST reels.
+2. Confirm the next keyword page carries its query in the title and an IndexNow status; extend `seo/hook-lab-keywords.json` in the language that moves before the 50 run out.
+3. Free Clip Map → Hook Lab leak (~1%): ship a NEW free Agent that hands off to Hook Lab (the free agent itself is a top-10 seller by units — do not touch it).
+4. X selawmqt English-only: an unidentified poster publishes Anicca affirmation JA/ES posts there via the Postiz API (4/163 in 7d; text matches apps/landing es-affirmation-problems). Identify and re-route; cut posting volume and move effort to value replies on large accounts.
+5. Daily 6-slide carousel to TikTok (slideshow format reaches non-followers).
+6. Weekly winner-creative research loop (yt-dlp → transcript/frames → creative/winner-patterns.md).
+7. Hook Lab page conversion (476 impressions → 42 views, 8.8%): show real output on an external landing before the Capafy click; never edit the seller.
+8. Factory: detector for any FROZEN seller showing console status `draft`; keep shipping NEW winner-category Agents.
+9. Host memory pressure (swap 6–10 GB) defers distribute runs (`host_admission_deferred:resource_capacity_busy`); find and cut the top memory consumers.
+10. Free trial removal on 13 legacy Agents (Dais: later).
