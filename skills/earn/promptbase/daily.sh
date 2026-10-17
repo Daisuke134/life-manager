@@ -58,10 +58,13 @@ cleanup() {
 trap cleanup EXIT
 
 # 1. Readback first: refresh ledger status/sales for every tracked row from
-#    the PromptBase seller dashboard. Non-fatal -- a stale ledger just means
-#    selection below works off slightly older status data.
+#    the PromptBase seller dashboard. Without an official readback, stale
+#    listing state cannot authorize candidate selection or a new submission.
 log "readback: refreshing ledger from PromptBase dashboard"
-"$PY" "$SCRIPTS/readback.py" --endpoint "$ENDPOINT" || log "readback failed (non-fatal, continuing)"
+if ! "$PY" "$SCRIPTS/readback.py" --endpoint "$ENDPOINT"; then
+  log "readback failed (unverified) -- skip selection and publish; next wake retries"
+  exit 0
+fi
 
 # 2. Authoritative Capafy online/shipped state.
 log "reading Capafy publish-list"
