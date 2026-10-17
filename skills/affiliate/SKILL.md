@@ -262,6 +262,30 @@ owned/X publication, and DEV/Substack receipts. Composition receives the prior
 sealed campaign as the control and may change only the Agent-selected variable;
 missing control evidence fails closed before any public effect.
 
+High-demand search pages come first. `config/demand-pages.json` lists, in order,
+a pricing explainer, best AI voice generator, "is ElevenLabs free", alternatives,
+ElevenLabs vs Murf, ElevenLabs vs Speechify, and a how-to guide, each with the
+ranking page structure it copies and only official sources (competitor facts from
+the competitor's own pricing page). Discovery opens the next unopened page as a
+normal discovered plan, at most one per UTC day and ahead of experiments and
+sitemap families; it then flows through the same capture, sealed composition,
+policy, and owned/X publication as every campaign. Demand pages bypass the
+focused-cohort pause (their handoff carries `page_type`); they are not cohort
+variants. A focus pauses other new placements for at most `FOCUS_TTL_SECONDS`
+(7 days from its `created_at`, `local_loop.py`); after that the gate opens, the
+focus file is kept, and the wake reports `focused_cohort_expired: true`. On expiry, unstarted
+experiment variants of the expired focus lineage are recorded under
+`campaign-archive/` as `ARCHIVED_FOCUS_EXPIRED` (receipts kept, never published),
+and other new non-demand campaigns start at most `POST_FOCUS_GENERIC_DAILY_CAP`
+(1) per UTC day, reported in the wake output. Only a handoff whose `plan_id` and
+`page_type` match `config/demand-pages.json` bypasses the focus. The first
+source is the tracked CTA destination and is never a pricing or docs page, so
+those citations stay direct. Pricing and free-plan pages carry a
+`{{PRICING_TABLE}}` line that `build_handoff` replaces with the plan table parsed
+from the official pricing page captured for that build; an unparseable page or a
+draft without the CTA-destination citation fails closed. Play.ht is excluded: its
+domain had no DNS A record on 2026-10-18, so no official page can be cited.
+
 Every ElevenLabs English composition bundle includes fresh, hash-verified official Alec
 Wilcock and Greg Preece affiliate case studies, including when its immutable
 product plan predates those sources. The source refresher reuses a valid capture
