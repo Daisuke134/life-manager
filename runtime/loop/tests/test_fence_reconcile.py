@@ -18,6 +18,7 @@ from unittest.mock import MagicMock, patch
 from runtime.loop.fence_reconcile import (
     build_argv,
     plan_targets,
+    prioritize_admission_fences,
     reconcile,
     round_robin,
 )
@@ -871,3 +872,14 @@ class RevenueOutagePriorityTest(unittest.TestCase):
             stale = revenue_outage_owners(self._health(tmp, ["rev"], age_seconds=31 * 60))
         self.assertEqual(fresh, {"rev"})
         self.assertEqual(stale, frozenset())
+
+
+def test_admission_fences_are_called_before_lost_fence_leftovers():
+    # 2026-10-17: capafy-distribute had dozens of released "lost fence" leftovers sorted
+    # ahead of its one real effect_unknown fence; the adapter refused every leftover and the
+    # per-owner rotation reached the real fence only after hours, so the loop sat fenced.
+    targets = {"capafy-distribute-daily": ["o:18dd1", "o:18dd2", "o:18df9", "o:18dd3"],
+               "other": [None]}
+    prioritize_admission_fences(targets, {"capafy-distribute-daily": ("o:18df9",)})
+    assert targets["capafy-distribute-daily"] == ["o:18df9", "o:18dd1", "o:18dd2", "o:18dd3"]
+    assert targets["other"] == [None]
