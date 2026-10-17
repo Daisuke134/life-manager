@@ -142,7 +142,7 @@ def main(argv: list[str] | None = None) -> int:
             # elsewhere without --remote-allow-origins (raw CDP 403). The
             # default loopback bind is reached via "localhost" by every probe.
             "--remote-allow-origins=*",
-            "--disable-features=MacAppCodeSignClone",
+            "--disable-features=MacAppCodeSignClone,SpareRendererForSitePerProcess",
             f"--renderer-process-limit={renderer_limit}",
             "--disk-cache-size=67108864",
             "--media-cache-size=33554432",

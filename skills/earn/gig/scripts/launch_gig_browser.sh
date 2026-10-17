@@ -103,7 +103,7 @@ esac
   --password-store=basic \
   --use-mock-keychain \
   --disable-sync \
-  --disable-features=MacAppCodeSignClone \
+  --disable-features=MacAppCodeSignClone,SpareRendererForSitePerProcess \
   --no-sandbox \
   --fingerprint="$GIG_BROWSER_FINGERPRINT" \
   --fingerprint-platform=macos \
