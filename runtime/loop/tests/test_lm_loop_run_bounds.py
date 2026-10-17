@@ -4662,3 +4662,19 @@ def test_terminal_event_enospc_fences_effectful_owner_before_next_wake(
     if next_claim is not None:
         admission.release_and_reserve(next_claim, effect_unknown=True, reserve=False)
     assert next_claim is None and reason == "effect_unknown"
+
+
+def test_ebook_publish_flag_defaults_open_when_launchd_lost_it(tmp_path):
+    # `launchctl setenv` does not survive a reboot; an unset flag must not stop
+    # the eBook owners. An explicit non-"true" value still closes publishing.
+    base = {"PATH": "/usr/bin:/bin"}
+    for owner in sorted(loop_runner.EBOOK_POSTIZ_LOOP_IDS):
+        child = loop_runner._child_environment_for_owner(owner, base, home=tmp_path)
+        assert child["LM_EBOOK_PUBLISHING_ENABLED"] == "true"
+    closed = loop_runner._child_environment_for_owner(
+        "ebook-ja-tiktok-daily", {**base, "LM_EBOOK_PUBLISHING_ENABLED": "false"}, home=tmp_path)
+    assert closed["LM_EBOOK_PUBLISHING_ENABLED"] == "false"
+    assert "LM_POSTIZ_API_KEY" not in closed
+    assert "LM_EBOOK_PUBLISHING_ENABLED" not in loop_runner._child_environment_for_owner(
+        "article-daily", base, home=tmp_path)
+    assert "LM_EBOOK_PUBLISHING_ENABLED" not in base
