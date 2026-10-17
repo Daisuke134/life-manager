@@ -494,6 +494,15 @@ function runPostizCarouselProcess(input) {
   try { return JSON.parse(lines[0]); } catch { const error = new Error("marketing native carousel Postiz returned invalid JSON"); error.unknownEffect = true; throw error; }
 }
 
+function tiktokPhotoReleaseId(lane, value) {
+  const match = /^https:\/\/www\.tiktok\.com\/(@[A-Za-z0-9._-]+)\/photo\/([0-9]+)\/?$/.exec(String(value || ""));
+  if (!match) return null;
+  const accounts = [lane.accountId, lane.nativeOwner, lane.manifestProfile]
+    .filter((account) => typeof account === "string")
+    .map((account) => account.toLowerCase());
+  return accounts.includes(match[1].toLowerCase()) ? match[2] : null;
+}
+
 function provider(result, lane, expectedContentSha256, expectedTitle) {
   const state = result && (result.state || result.status);
   const postId = result && (result.provider_post_id || result.post_id);
@@ -509,12 +518,15 @@ function provider(result, lane, expectedContentSha256, expectedTitle) {
   // (the pack's own slide 1 text, passed in as expectedTitle) is what must be
   // echoed back -- not a lane-wide constant.
   const titleOk = lane.rotationEnabled ? result.title === expectedTitle : result.title === lane.title;
-  const photoProof = lane.platform === "tiktok" && url == null
+  const releaseId = String(result?.release_id || "");
+  const photoIdentity = lane.platform === "tiktok"
     && result.integration_id === lane.integrationId && result.content_sha256 === expectedContentSha256
-    && titleOk && result.posting_method === "DIRECT_POST"
-    && /^p_pub_url~v2\.[0-9]+$/.test(String(result.release_id || ""));
+    && titleOk && result.posting_method === "DIRECT_POST";
+  const legacyPhotoProof = url == null && /^p_pub_url~v2\.[0-9]+$/.test(releaseId);
+  const directPhotoProof = url != null && tiktokPhotoReleaseId(lane, url) === releaseId;
+  const photoProof = photoIdentity && (legacyPhotoProof || directPhotoProof);
   if (!result || state !== "PUBLISHED" || reconciled !== true || !PROVIDER_ID.test(String(postId || "")) || (!direct && !photoProof)) { const error = new Error("marketing native carousel provider result contract mismatch"); error.unknownEffect = true; throw error; }
-  return { postId: String(postId), url: direct ? String(url) : null, ...(typeof result.provider_effect_created === "boolean" ? { providerEffectCreated: result.provider_effect_created } : {}), ...(photoProof ? { state, integrationId: result.integration_id, contentSha256: result.content_sha256, title: result.title, postingMethod: result.posting_method, releaseId: result.release_id } : {}) };
+  return { postId: String(postId), url: direct ? String(url) : null, directPhotoUrl: directPhotoProof ? String(url) : null, photoProof, ...(typeof result.provider_effect_created === "boolean" ? { providerEffectCreated: result.provider_effect_created } : {}), ...(photoProof ? { state, integrationId: result.integration_id, contentSha256: result.content_sha256, title: result.title, postingMethod: result.posting_method, releaseId: result.release_id } : {}) };
 }
 function laneForReceipt(receipt) {
   try {
@@ -542,8 +554,11 @@ function verifyMarketingNativeCarouselPublicationReceipt(receipt) {
   const lane = laneForReceipt(receipt);
   if (!lane || receipt.product_id !== lane.productId || receipt.format_id !== lane.formatId || receipt.form !== lane.form || receipt.locale !== lane.locale || receipt.account_id !== lane.accountId || receipt.integration_ref !== lane.integrationRef) return false;
   const direct = lane.platform === "instagram" && directPostPattern(lane).test(String(receipt.public_url || ""));
+  const releaseId = String(receipt.provider_release_id || "");
+  const legacyPhotoProof = receipt.public_url == null && /^p_pub_url~v2\.[0-9]+$/.test(releaseId);
+  const directPhotoProof = receipt.public_url != null
+    && tiktokPhotoReleaseId(lane, receipt.public_url) === releaseId;
   const photoApiProof = lane.platform === "tiktok"
-    && receipt.public_url == null
     && receipt.provider_state === "PUBLISHED"
     && receipt.provider_integration_id === lane.integrationId
     && HASH.test(String(receipt.caption_with_cta_sha256 || ""))
@@ -552,7 +567,7 @@ function verifyMarketingNativeCarouselPublicationReceipt(receipt) {
       ? typeof receipt.provider_title === "string" && receipt.provider_title.trim() !== ""
       : receipt.provider_title === lane.title)
     && receipt.provider_posting_method === "DIRECT_POST"
-    && /^p_pub_url~v2\.[0-9]+$/.test(String(receipt.provider_release_id || ""));
+    && (legacyPhotoProof || directPhotoProof);
   if (!direct && !photoApiProof) return false;
   try { instant(receipt.published_at, "marketing native carousel receipt published_at"); return true; } catch { return false; }
 }
@@ -670,6 +685,7 @@ async function executeMarketingNativeCarouselPublicationJob(job, deps = {}) {
   }
   const published = provider(result, lane, ctaCaptionSha256, pack.slides[0].text);
   const receipt = { schema_version: 1, kind: "marketing_native_carousel_distribution", status: "published", product_id: lane.productId, format_id: lane.formatId, form: lane.form, locale: lane.locale, platform: lane.platform, account_id: lane.accountId, integration_ref: contract.integrationRef, creative_id: contract.creativeId, pack_sha256: contract.packHash, media_sha256: [...contract.mediaHashes], media_order_sha256: mediaOrderHash(contract.mediaHashes), caption_sha256: contract.captionHash, caption_with_cta_sha256: ctaCaptionSha256, text_sha256: textSha256, provider_post_id: published.postId, provider_reconciled: true, ...providerEffectProvenance(published.providerEffectCreated), public_url: published.url, ...(published.url == null ? { provider_state: published.state, provider_integration_id: published.integrationId, provider_content_sha256: published.contentSha256, provider_title: published.title, provider_posting_method: published.postingMethod, provider_release_id: published.releaseId } : {}), published_at: instant(s.now(), "marketing native carousel publication time") };
+  if (published.directPhotoUrl) receipt.public_url = published.directPhotoUrl;
   if (!verifyMarketingNativeCarouselPublicationReceipt(receipt)) { const error = new Error("marketing native carousel publication receipt verification failed"); error.unknownEffect = true; throw error; }
   const ledgerReceipt = { ...receipt };
   delete ledgerReceipt.provider_effect_created;

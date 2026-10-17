@@ -801,6 +801,22 @@ def _expected_postiz_profile(identity: dict[str, Any]) -> str:
     return profile
 
 
+def _direct_tiktok_photo_release_url(
+    identity: dict[str, Any], public_url: Any, release_id: Any,
+) -> bool:
+    match = re.fullmatch(
+        r"https://www\.tiktok\.com/(@[A-Za-z0-9._-]+)/photo/([0-9]+)/?",
+        str(public_url or ""),
+    )
+    if match is None or str(release_id or "") != match.group(2):
+        return False
+    allowed_profiles = {
+        _account(_expected_postiz_profile(identity)),
+        _account(identity.get("account_id")),
+    }
+    return _account(match.group(1)) in allowed_profiles
+
+
 def _caption(row: dict[str, Any]) -> str:
     value = row.get("content")
     if not isinstance(value, str):
@@ -929,11 +945,18 @@ def _provider_readback(identity: dict[str, Any], provider_id: str, api_key: str,
         settings = row.get("settings")
         if isinstance(settings, str):
             settings = json.loads(settings)
+        release_id = str(row.get("releaseId") or "")
+        legacy_photo_release = (
+            state.get("post_url") is None
+            and re.fullmatch(r"p_pub_url~v2\.[0-9]+", release_id) is not None
+        )
+        direct_photo_release = _direct_tiktok_photo_release_url(
+            identity, state.get("post_url"), release_id,
+        )
         if (not isinstance(settings, dict) or not isinstance(expected_pack_title, str)
                 or settings.get("title") != expected_pack_title
                 or settings.get("content_posting_method") != "DIRECT_POST"
-                or not re.fullmatch(r"p_pub_url~v2\.[0-9]+", str(row.get("releaseId", "")))
-                or state.get("post_url") is not None):
+                or not (legacy_photo_release or direct_photo_release)):
             raise ValueError("Postiz native carousel publication metadata mismatch")
         remote_media = _native_carousel_image_hashes(row, identity)
         provider_content["media_sha256"] = remote_media
@@ -952,7 +975,7 @@ def _provider_readback(identity: dict[str, Any], provider_id: str, api_key: str,
             "provider_caption_sha256": caption_sha,
             "provider_title": settings["title"],
             "provider_posting_method": settings["content_posting_method"],
-            "provider_release_id": row["releaseId"],
+            "provider_release_id": release_id,
             "published_at": published_at.astimezone(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
             "_verified_caption_text": caption,
         }
@@ -1163,7 +1186,15 @@ def _recovered_distribution_row(identity: dict[str, Any], proof: dict[str, Any],
         raise ValueError("recovered Postiz receipt does not match the exact identity")
     if _is_native_carousel_identity(identity):
         content = readback.get("content")
-        if (readback.get("public_url") is not None
+        release_id = str(readback.get("provider_release_id") or "")
+        legacy_photo_release = (
+            readback.get("public_url") is None
+            and re.fullmatch(r"p_pub_url~v2\.[0-9]+", release_id) is not None
+        )
+        direct_photo_release = _direct_tiktok_photo_release_url(
+            identity, readback.get("public_url"), release_id,
+        )
+        if (not (legacy_photo_release or direct_photo_release)
                 or readback.get("local_content", {}).get("pack_sha256") != identity.get("pack_sha256")
                 or readback.get("local_content", {}).get("media_sha256") != identity.get("media_sha256")
                 or readback.get("local_content", {}).get("media_order_sha256") != identity.get("media_order_sha256")
@@ -1174,8 +1205,7 @@ def _recovered_distribution_row(identity: dict[str, Any], proof: dict[str, Any],
                 or readback.get("provider_integration_id") != identity["integration_ref"].rsplit("/", 1)[-1]
                 or readback.get("provider_caption_sha256") != readback.get("provider_content_sha256")
                 or not isinstance(readback.get("provider_title"), str)
-                or readback.get("provider_posting_method") != "DIRECT_POST"
-                or not re.fullmatch(r"p_pub_url~v2\.[0-9]+", str(readback.get("provider_release_id", "")))):
+                or readback.get("provider_posting_method") != "DIRECT_POST"):
             raise ValueError("recovered native carousel receipt does not match the exact identity")
         receipt = {
             "schema_version": 1,
@@ -1196,7 +1226,7 @@ def _recovered_distribution_row(identity: dict[str, Any], proof: dict[str, Any],
             "caption_with_cta_sha256": readback["provider_caption_sha256"],
             "provider_post_id": provider_id,
             "provider_reconciled": True,
-            "public_url": None,
+            "public_url": readback.get("public_url"),
             "provider_state": readback["provider_state"],
             "provider_integration_id": readback["provider_integration_id"],
             "provider_content_sha256": readback["provider_content_sha256"],

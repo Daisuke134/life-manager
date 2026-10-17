@@ -155,6 +155,182 @@ test(`the mobile wrapper preserves ${binding.name} release binding but does not 
 });
 }
 
+test("the mobile wrapper preserves harness identity and result paths across marketing env load", (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "lm-mobile-runtime-identity-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const calls = path.join(directory, "python-calls.txt");
+  const python = path.join(directory, "python");
+  const envFile = path.join(directory, "marketing.env");
+  const resultHint = path.join(directory, "runtime-effect-result.json");
+  const spoofHint = path.join(directory, "env-effect-result.json");
+  const effectIdentityPath = path.join(directory, "runtime-effect-identity.jsonl");
+  const spoofIdentityPath = path.join(directory, "env-effect-identity.jsonl");
+  const loopId = "life-manager-honne-ja";
+  const occurrenceId = `${loopId}:run-1`;
+  const releaseSha = "a".repeat(40);
+  fs.writeFileSync(
+    python,
+    `#!/bin/sh\nprintf '%s|loop=%s|owner=%s|run=%s|wake=%s|occ=%s|hint=%s|identity=%s|release=%s\\n' "$*" "\${LIFE_MANAGER_LOOP_ID-unset}" "\${LIFE_MANAGER_OWNER_ID-unset}" "\${LIFE_MANAGER_RUN_ID-unset}" "\${LIFE_MANAGER_WAKE_ID-unset}" "\${LIFE_MANAGER_OCCURRENCE_ID-unset}" "\${LIFE_MANAGER_RESULT_HINT_PATH-unset}" "\${LIFE_MANAGER_EFFECT_IDENTITY_PATH-unset}" "\${LIFE_MANAGER_RELEASE_SHA-unset}" >> "${calls}"\ncase "$1" in\n  *run-with-timeout.py) printf '%s\\n' '{"publication":{"created":true,"provider_effect_created":true,"origin_occurrence_id":"${occurrenceId}","provider_post_id":"postiz-proven-1"}}' ;;\n  *) printf '%s\\n' '{"status":"no_match"}'; exit 1 ;;\nesac\nexit 0\n`,
+    { mode: 0o700 },
+  );
+  fs.writeFileSync(envFile, [
+    "LM_POSTIZ_API_KEY=test-token",
+    `LM_DATA_DIR=${directory}/data`,
+    "LM_RUNTIME_TENANT_ID=dais-local",
+    "LIFE_MANAGER_LOOP_ID=life-manager-env-spoof",
+    "LIFE_MANAGER_OWNER_ID=life-manager-env-spoof",
+    "LIFE_MANAGER_RUN_ID=env-spoof-run",
+    "LIFE_MANAGER_WAKE_ID=env-spoof-wake",
+    "LIFE_MANAGER_OCCURRENCE_ID=life-manager-honne-ja:env-spoof-run",
+    `LIFE_MANAGER_RESULT_HINT_PATH=${spoofHint}`,
+    `LIFE_MANAGER_EFFECT_IDENTITY_PATH=${spoofIdentityPath}`,
+    `LIFE_MANAGER_RELEASE_SHA=${"b".repeat(40)}`,
+    "",
+  ].join("\n"), { mode: 0o600 });
+
+  const result = spawnSync(path.join(root, "apps/life-manager/scripts/mobile-app"), [loopId], {
+    cwd: root,
+    env: {
+      ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("LIFE_MANAGER_"))),
+      LIFE_MANAGER_MARKETING_ENV_FILE: envFile,
+      LIFE_MANAGER_NODE: process.execPath,
+      LIFE_MANAGER_PYTHON: python,
+      LIFE_MANAGER_LOOP_ID: loopId,
+      LIFE_MANAGER_OWNER_ID: loopId,
+      LIFE_MANAGER_RUN_ID: "run-1",
+      LIFE_MANAGER_WAKE_ID: "wake-1",
+      LIFE_MANAGER_OCCURRENCE_ID: occurrenceId,
+      LIFE_MANAGER_RESULT_HINT_PATH: resultHint,
+      LIFE_MANAGER_EFFECT_IDENTITY_PATH: effectIdentityPath,
+      LIFE_MANAGER_RELEASE_SHA: releaseSha,
+    },
+    encoding: "utf8",
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(fs.readFileSync(calls, "utf8").trim().split("\n"), [
+    `${path.join(root, "apps/life-manager/scripts/mobile-postiz-provider-reconcile.py")} --auto-owner ${loopId} --resolve|loop=${loopId}|owner=${loopId}|run=run-1|wake=wake-1|occ=${occurrenceId}|hint=${resultHint}|identity=${effectIdentityPath}|release=${releaseSha}`,
+    `${path.join(root, "runtime/run-with-timeout.py")} --grace-seconds 10 1200 ${process.execPath} ${path.join(root, "apps/life-manager/scripts/honne-ja-cycle.js")} run|loop=${loopId}|owner=${loopId}|run=run-1|wake=wake-1|occ=${occurrenceId}|hint=${resultHint}|identity=${effectIdentityPath}|release=${releaseSha}`,
+  ]);
+  assert.deepEqual(JSON.parse(fs.readFileSync(resultHint, "utf8")), {
+    schema_version: 1,
+    kind: "life_manager_effect_result",
+    status: "verified_effect",
+    effect: 1,
+    owner_id: loopId,
+    occurrence_id: occurrenceId,
+    provider: "postiz",
+    provider_receipt_id: "postiz-proven-1",
+    effect_status: "verified",
+  });
+  assert.equal(fs.existsSync(spoofHint), false);
+  assert.equal(fs.existsSync(spoofIdentityPath), false);
+});
+
+test("the mobile wrapper refuses a harness loop id that differs from its command", (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "lm-mobile-loop-mismatch-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const calls = path.join(directory, "python-calls.txt");
+  const python = path.join(directory, "python");
+  const envFile = path.join(directory, "marketing.env");
+  const resultHint = path.join(directory, "effect-result.json");
+  fs.writeFileSync(
+    python,
+    `#!/bin/sh\nprintf '%s\\n' "$*" >> "${calls}"\nprintf '%s\\n' '{"status":"no_match"}'\nexit 0\n`,
+    { mode: 0o700 },
+  );
+  fs.writeFileSync(envFile, "LM_POSTIZ_API_KEY=test-token\n", { mode: 0o600 });
+  const result = spawnSync(path.join(root, "apps/life-manager/scripts/mobile-app"), ["life-manager-honne-ja"], {
+    cwd: root,
+    env: {
+      ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("LIFE_MANAGER_"))),
+      LIFE_MANAGER_MARKETING_ENV_FILE: envFile,
+      LIFE_MANAGER_NODE: process.execPath,
+      LIFE_MANAGER_PYTHON: python,
+      LIFE_MANAGER_LOOP_ID: "life-manager-honne-en",
+      LIFE_MANAGER_OCCURRENCE_ID: "life-manager-honne-en:run-1",
+      LIFE_MANAGER_RESULT_HINT_PATH: resultHint,
+    },
+    encoding: "utf8",
+  });
+  assert.equal(result.status, 75, result.stderr);
+  assert.match(result.stderr, /runtime loop identity does not match command/);
+  assert.equal(fs.existsSync(calls), false);
+  assert.equal(fs.existsSync(resultHint), false);
+});
+
+test("the mobile wrapper fails closed if marketing env overwrites its saved runtime binding", (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "lm-mobile-binding-spoof-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const calls = path.join(directory, "python-calls.txt");
+  const python = path.join(directory, "python");
+  const envFile = path.join(directory, "marketing.env");
+  const resultHint = path.join(directory, "runtime-effect-result.json");
+  const spoofHint = path.join(directory, "env-effect-result.json");
+  fs.writeFileSync(
+    python,
+    `#!/bin/sh\nprintf '%s\\n' "$*" >> "${calls}"\ncase "$1" in\n  *mobile-postiz-provider-reconcile.py) exit 0 ;;\n  *run-with-timeout.py) printf '%s\\n' '{"publication":{"created":false,"provider_post_id":"postiz-existing-1"}}'; exit 0 ;;\n  *) exit 0 ;;\nesac\n`,
+    { mode: 0o700 },
+  );
+  fs.writeFileSync(envFile, [
+    "LM_POSTIZ_API_KEY=test-token",
+    `MOBILE_RESULT_HINT_PATH_VALUE=${spoofHint}`,
+    "",
+  ].join("\n"), { mode: 0o600 });
+  const result = spawnSync(path.join(root, "apps/life-manager/scripts/mobile-app"), ["life-manager-honne-ja"], {
+    cwd: root,
+    env: {
+      ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("LIFE_MANAGER_"))),
+      LIFE_MANAGER_MARKETING_ENV_FILE: envFile,
+      LIFE_MANAGER_NODE: process.execPath,
+      LIFE_MANAGER_PYTHON: python,
+      LIFE_MANAGER_LOOP_ID: "life-manager-honne-ja",
+      LIFE_MANAGER_OCCURRENCE_ID: "life-manager-honne-ja:run-1",
+      LIFE_MANAGER_RESULT_HINT_PATH: resultHint,
+    },
+    encoding: "utf8",
+  });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /readonly|read-only/i);
+  assert.equal(fs.existsSync(calls), false);
+  assert.equal(fs.existsSync(resultHint), false);
+  assert.equal(fs.existsSync(spoofHint), false);
+});
+
+test("the mobile wrapper stops before publishing when occurrence is not bound to its owner", (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "lm-mobile-occurrence-mismatch-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const calls = path.join(directory, "python-calls.txt");
+  const runnerCalled = path.join(directory, "runner-called");
+  const python = path.join(directory, "python");
+  const envFile = path.join(directory, "marketing.env");
+  const resultHint = path.join(directory, "effect-result.json");
+  fs.writeFileSync(
+    python,
+    `#!/bin/sh\nprintf '%s\\n' "$*" >> "${calls}"\ncase "$1" in\n  *mobile-postiz-provider-reconcile.py) printf '%s\\n' '{"status":"no_match","inspected":0}'; exit 0 ;;\n  *run-with-timeout.py) touch "${runnerCalled}"; printf '%s\\n' '{"publication":{"created":true,"provider_effect_created":true,"origin_occurrence_id":"life-manager-honne-ja:run-1","provider_post_id":"postiz-should-not-run"}}'; exit 0 ;;\n  *) exit 0 ;;\nesac\n`,
+    { mode: 0o700 },
+  );
+  fs.writeFileSync(envFile, "LM_POSTIZ_API_KEY=test-token\n", { mode: 0o600 });
+  const result = spawnSync(path.join(root, "apps/life-manager/scripts/mobile-app"), ["life-manager-honne-ja"], {
+    cwd: root,
+    env: {
+      ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("LIFE_MANAGER_"))),
+      LIFE_MANAGER_MARKETING_ENV_FILE: envFile,
+      LIFE_MANAGER_NODE: process.execPath,
+      LIFE_MANAGER_PYTHON: python,
+      LIFE_MANAGER_LOOP_ID: "life-manager-honne-ja",
+      LIFE_MANAGER_OCCURRENCE_ID: "life-manager-other-owner:run-1",
+      LIFE_MANAGER_RESULT_HINT_PATH: resultHint,
+    },
+    encoding: "utf8",
+  });
+  assert.equal(result.status, 75, result.stderr);
+  assert.match(result.stderr, /runtime occurrence does not match command owner/);
+  assert.equal(fs.readFileSync(calls, "utf8").trim().split("\n").length, 1);
+  assert.equal(fs.existsSync(runnerCalled), false);
+  assert.equal(fs.existsSync(resultHint), false);
+});
+
 test("mobile reconciled receipts require their origin occurrence to match", () => {
   const occurrenceId = "life-manager-honne-en:run-1";
   const options = { occurrenceId, requireOriginOccurrence: true };
@@ -482,6 +658,8 @@ test("the mobile wrapper uses managed Node and Python when launchd PATH has neit
       LIFE_MANAGER_MARKETING_ENV_FILE: envFile,
       LIFE_MANAGER_RUNTIME_NODE: managedNode,
       LIFE_MANAGER_RUNTIME_PYTHON: managedPython,
+      LIFE_MANAGER_LOOP_ID: "life-manager-anicca-en2-affirmation-tiktok",
+      LIFE_MANAGER_OCCURRENCE_ID: "life-manager-anicca-en2-affirmation-tiktok:managed-run-1",
     },
     encoding: "utf8",
   });
