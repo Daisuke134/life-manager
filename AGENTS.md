@@ -51,6 +51,8 @@ This repository is the source authority for Life Manager. The canonical remote i
 - Runtime state, credentials, browser profiles, logs, receipts, ledgers, and immutable releases stay outside Git in their existing owner-controlled stores. They are not alternate source repositories.
 - Local and cloud are host adapters for one implementation. Do not create a second loop implementation in another checkout or home-directory skill tree.
 
+- Reviews follow `REVIEW.md` (failure definitions from real incidents, finding rules, convergence cap, risk tiers). Merge with `bin/merge-when-green <pr>` so nothing merges while a check is pending or failed.
+
 ## Finish and cleanup
 
 - Before integrating, verify the tests on the tree being integrated and confirm the base branch. Push the named branch and use the repository's normal PR or merge path.
