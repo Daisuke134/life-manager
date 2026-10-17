@@ -242,6 +242,7 @@ README は「ユーザー向け18 + system agent 1」= 19 agent。19 = Host Stew
 - 2 GCP 費用: #8257 本番（Railway life-call 7f6daacab6 SUCCESS）。見込み月 ¥16.5–17k 削減、10 月請求で確認。後続: 空応答・ターン切れの短い TTL。
 
 **残りTODO（10/17 14:50 実測、この順）**
+- R1 レビュー改善（claude.dev「How the Claude Code team does code review」2026-10-15 を写す）: 済 = `REVIEW.md`（事故由来の失敗定義・指摘ルール・3往復上限・危険度別の深さ）と `bin/merge-when-green`。残 = 事故を評価セットにしてレビュアーを毎日採点（#8230/#8247/#8251/#8257/#8278 の初版を固定ケース化し、検出できたかを記録）、レビュー指摘への対応結果（修正/誤り/意図どおり）の集計、self-build merge guard への REVIEW.md 読み込み。
 1. Writer 今日の公開: #8251（公開前の決定的 finisher）を 13:58 本番化。14:04 run の結果で公開 URL を確認。残り: article-resume の 10/12 fence（occurrence→run 記録が無い）、prompt と `ABSENCE_DESTINATIONS` の x-article/ja が契約（dormant）と不一致、Firecrawl token 無効。
 2. 費用の漏れ: Google Cloud 2026-09 請求 JPY 27,889（Places 9,420 / Geocoding 7,493 / Gemini 5,161 / Directions 3,271）。呼び出し元を特定して止める。
 3. お金の計測（P3）: CFO の確認済み MRR は mobile-apps USD 20.34 のみ。他 16 loop は「未確認」（stale_readback / missing_category）。各 loop の公式 readback を CFO に接続する。
