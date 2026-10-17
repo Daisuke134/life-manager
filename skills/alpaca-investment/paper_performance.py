@@ -702,6 +702,13 @@ def _operating_charge_key(component: Mapping[str, Any]) -> tuple[str, ...]:
     return tuple(key)
 
 
+def _operating_identity_keys(component: Mapping[str, Any]) -> set[tuple[str, ...]]:
+    receipt_id = component.get("receipt_id")
+    if not isinstance(receipt_id, str) or not receipt_id:
+        raise ValueError("paper_operating_cost_binding_invalid")
+    return {("charge", *_operating_charge_key(component)), ("receipt", receipt_id)}
+
+
 def _bind_operating_costs(state: Path, completed, summary):
     """Keep one paid allocation bound to one trade across readback snapshots."""
     def binding(component):
@@ -730,24 +737,25 @@ def _bind_operating_costs(state: Path, completed, summary):
                     or not isinstance(ids, list)):
                 raise ValueError("paper_operating_cost_binding_invalid")
             for component in components:
-                key, trade = _operating_charge_key(component), binding(component)
+                keys, trade = _operating_identity_keys(component), binding(component)
                 trip = expected.get(trade)
                 if (trip is None or _utc_day(component["period_end"]) != day
                         or component.get("receipt_id") not in ids
                         or not set(trip["source_receipt_ids"]) <= set(ids)
-                        or key in bindings and bindings[key] != trade):
+                        or any(key in bindings and bindings[key] != trade for key in keys)):
                     raise ValueError("paper_operating_cost_binding_invalid")
-                bindings[key] = trade
-                day_keys.setdefault(day, set()).add(key)
+                for key in keys:
+                    bindings[key] = trade
+                day_keys.setdefault(day, []).append(keys)
         components = summary["operating_cost_components"]
         eligible = [row for row in components
-                    if _operating_charge_key(row) not in bindings
-                    or bindings[_operating_charge_key(row)] == binding(row)]
+                    if all(key not in bindings or bindings[key] == binding(row)
+                           for key in _operating_identity_keys(row))]
         value = {**summary, "operating_cost_components": eligible}
         if len(eligible) != len(components):
             value["operating_costs_reason"] = "operating_cost_receipt_reassigned"
         return select_components(value, completed), day_keys
-    except (OSError, KeyError, AttributeError, TypeError, ValueError, RecursionError) as error:
+    except (OSError, KeyError, AttributeError, TypeError, ValueError, ArithmeticError, RecursionError) as error:
         raise ValueError("paper_operating_cost_binding_unavailable") from error
 
 
@@ -795,11 +803,12 @@ def _refresh_historical_costs(
                     or not isinstance(old_operating_ids, list)
                     or any(not isinstance(value, str) for value in old_operating_ids)):
                 raise ValueError("paper_historical_performance_mismatch")
-            old_operating_keys = {_operating_charge_key(row)
-                                  for row in previous.get("operating_cost_components", [])}
-            new_operating_keys = {_operating_charge_key(row)
-                                  for row in day_operating_costs["operating_cost_components"]}
-            operating_available = operating_available and old_operating_keys <= new_operating_keys
+            old_operating_keys = [_operating_identity_keys(row)
+                                  for row in previous.get("operating_cost_components", [])]
+            new_operating_keys = {key for row in day_operating_costs["operating_cost_components"]
+                                  for key in _operating_identity_keys(row)}
+            operating_available = operating_available and all(keys & new_operating_keys
+                                                              for keys in old_operating_keys)
             replaced_ids = set((old_cost_ids if broker_available else [])
                                + (old_operating_ids if operating_available else []))
             updated = {
@@ -882,9 +891,9 @@ def write_paper_performance(
         ]
         daily_broker_costs = _broker_cost_summary(daily_rounds, daily_cost_evidence)
         daily_operating_costs = select_components(result, daily_rounds)
-        incoming_keys = {_operating_charge_key(row)
-                         for row in daily_operating_costs["operating_cost_components"]}
-        if not previous_cost_keys.get(observation_day, set()) <= incoming_keys:
+        incoming_keys = {key for row in daily_operating_costs["operating_cost_components"]
+                         for key in _operating_identity_keys(row)}
+        if any(not keys & incoming_keys for keys in previous_cost_keys.get(observation_day, [])):
             return _unknown("paper_operating_cost_readback_incomplete")
         daily_cost_source_ids = daily_broker_costs["broker_cost_source_receipt_ids"]
         daily_cost_errors = [

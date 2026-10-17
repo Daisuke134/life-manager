@@ -14648,6 +14648,8 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **IN-COST-02独立レビューの追加受入:** head `9f02b1ddc8`はfix-first。公式invoiceとそれを参照するpaid_receiptを同時に入れると部分計が2倍になり、別snapshotで同じallocationを別tradeへjoinし直すと両日に残る2件を独立probeで再現する。underlying invoice/line/allocation identityを共通化して一度だけ数え、既存dailyのcharge→trade bindingと照合する。過去と矛盾する再配賦は拒否し、証拠が減った入力で既知のbindingを削除しない。不正/読めない履歴を無いものと扱わない。新台帳・中央CFO変更・金額比率推定は追加しない。各最小RED→GREENと修正headの再レビューが完了するまでmergeしない。
 
+**IN-COST-02再レビュー修正:** alias追加とUTC変換overflowを`e55fa3ff42`のREDでremote保存し、元receipt_idとcharge identityの両方で過去bindingを照合する。同じtradeへの情報追加はどちらかの識別子が対応すれば同一費用とみなす。UTC変換のArithmeticErrorをreport境界でunknownへ戻す。Alpaca 298 tests、core 137 tests、loop契約18/194、diff checkはPASS。現在cursorは最新修正headの独立再レビュー・CIで、旧headの結果は流用しない。
+
 **IN-COST-02再レビューの追加受入:** head `5ac759ee8b`で、同じpaid_receiptへ後からinvoice_idを付けるとcharge identityが変わり別tradeへの再利用が通るケース、不正なyear-1/UTC offsetの過去観測日時でOverflowErrorがreport境界から流出するケースを再現する。charge identityと元receipt_idの双方で永続bindingを照合し、同じtradeの証拠追加は同一費用として保持する。履歴検証のArithmeticErrorもunknownとして捕捉する。追加2ケースのREDは15 tests中1 failure / 1 error。修正headの再レビュー・CI完了までmergeしない。
 
 **IN-COST-02レビュー修正:** 2件を`04f95c395f`のREDでremote保存した後、paid_receiptのinvoice参照を共通charge identityへ結び、同じ明細配賦を一度だけ数える。過去dailyのcharge→trade bindingと矛盾する再配賦を拒否する。同日readbackの欠落で既知bindingを消す更新、読めない過去履歴を無視する更新も行わない。修正後はAlpaca 296 tests、core 137 tests、loop契約18/194、diff checkがPASS。現在cursorは修正headの独立再レビュー・CI。前headのPASSや指摘を新headの証明に使わない。
