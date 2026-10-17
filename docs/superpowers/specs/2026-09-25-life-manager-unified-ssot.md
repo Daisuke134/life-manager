@@ -225,6 +225,18 @@ README は「ユーザー向け18 + system agent 1」= 19 agent。19 = Host Stew
 - #8232: Capafy の icon digest が未登録で、main の OSS 境界 CI が落ちていたのを修正した。
 - 残り: article-resume の fence。正しい証明を作るには、resume の occurrence ごとに「どの run を処理したか」を記録する必要がある。
 
+**10/17 午後の Writer 修正と実測**
+- 08:05 run: conscience ALLOW まで 14.6 分、900 s で強制終了。#8239 で 2700 s に変更。
+- 11:05 再開: reader terminal にモデルが stdout をコピーし、traceback が証跡ファイルに入って publication init が拒否された。#8241 で修正（非正規の terminal を退避して上限内で再評価）。
+- `pending:publication-init-refused:` 行の "receipt" の語で日中ブロック → #8242。
+- 自然終了した run の fence が 1 時間待っていた → #8243（強制終了 75/124/128+ は従来どおり待つ）。
+- 根本: article-daily の report は公開した日も `effect_status=verified` が一度も無かった（pass/unknown 45、blocked/unknown 85、fail/unknown 41）。このため公開ごとに fence が立ち、health の revenue facet は last_success（停止印で止まっただけの起動）に頼って「ok」を表示し、reconciler の revenue_outage 優先から外れていた。#8247 で、3 つの有効宛先（note/ja・substack/ja・substack/en、x-article/ja は契約上 dormant）の live reality-PASS がそろった時だけ verified hint を書く。モデル実行には hint の環境変数を渡さず、後で消す（偽造防止）。
+- 未対応: article-daily の prompt と `article_fence_reconcile.py` の `ABSENCE_DESTINATIONS` が x-article/ja を active 扱いのまま（契約と不一致）。health の revenue facet が verified 無しの owner で last_success に頼る問題（他 lane も同型の誤 ok の可能性）。
+
+**10/17 の SH2 fence 閉鎖（公式証明付き、本番で閉鎖確認）**: CrowdWorks report（#8234）、Lancers storefront（#8235）、eBook ja-instagram（#8236）。release 済みで reconciler の自然巡回待ち: hf-gig storefront（#8244）、eBook en-tiktok 2 件（#8246）、LINE スタンプ（#8237、Instagram 凍結と lease 取得失敗で保留中）。#8245 で eBook 3 owner の `LM_EBOOK_PUBLISHING_ENABLED` が再起動で消えないようにした。#8238 で marketing-owner-events が前回 run の未確認送信を exit 3（非 pass）で表示し続ける。
+- 閉じられないもの: `life-manager-daily:tiktok-retry-20260918-3`（Reddit アカウント `anicca_sao` が ban、公式 readback が取れない）。`fundraiser:18d9b0b6311a2018-87933`（marker 導入前の run、公式 readback 無し）。
+- 規模: reconciler の 1 回の巡回で fenced occurrence は約 3.9 万件、判定は 20 件／10 分。
+
 **10/16 に本番へ出した修正:**
 - #8165 squash-merge 済み worktree の回収
 - #8172 Mercor の gog keyring
