@@ -1020,13 +1020,33 @@ def test_a_young_fence_whose_run_already_reported_is_judged_now(tmp_path):
     arts = _articles(tmp_path, [_row("20260929-010128", "2026-09-29T02:44:15Z", "https://note.com/x/n/1")])
     root = tmp_path / "writer"
     root.mkdir()
-    report = {"occurrence_id": OCC, "phase": "report", "status": "fail",
+    report = {"occurrence_id": OCC, "phase": "report", "status": "fail", "exit_code": 1,
               "timestamp": datetime.fromtimestamp(QUEUED + 300, timezone.utc).isoformat()}
     (root / "events.jsonl").write_text(json.dumps(report) + "\n")
     result = m.reconcile(OCC, queued_at=QUEUED, state="claimed", articles_path=arts, writer_root=root,
+                         runs_root=tmp_path / "no-runs",
                          fetch_status=lambda u: 200, resolver=lambda *a, **k: True, resolve=False,
                          now=QUEUED + 600)
     assert result["status"] == "effected"
+    # A killed run (timeout/cancel) can leave detached tool shells alive past the report: wait.
+    for code in (75, 124, 143):
+        (root / "events.jsonl").write_text(json.dumps(dict(report, exit_code=code)) + "\n")
+        result = m.reconcile(OCC, queued_at=QUEUED, state="claimed", articles_path=arts, writer_root=root,
+                             runs_root=tmp_path / "no-runs",
+                             fetch_status=lambda u: 200, resolver=lambda *a, **k: True, resolve=False,
+                             now=QUEUED + 600)
+        assert result["reason"] == "fence_too_young", code
+    # The entrypoint exited 1 but its model pass was killed by the bounded timeout: wait.
+    (root / "events.jsonl").write_text(json.dumps(report) + "\n")
+    run = tmp_path / "runs" / "20260929-010128" / "gates"
+    run.mkdir(parents=True)
+    (run / "generation-state.json").write_text(json.dumps(
+        {"attempts": [{"started_at": "2026-09-29T01:01:30Z", "return_code": 124}]}))
+    result = m.reconcile(OCC, queued_at=QUEUED, state="claimed", articles_path=arts, writer_root=root,
+                         runs_root=tmp_path / "runs",
+                         fetch_status=lambda u: 200, resolver=lambda *a, **k: True, resolve=False,
+                         now=QUEUED + 600)
+    assert result["reason"] == "fence_too_young"
     (root / "events.jsonl").write_text("")
     result = m.reconcile(OCC, queued_at=QUEUED, state="claimed", articles_path=arts, writer_root=root,
                          fetch_status=lambda u: 200, resolver=lambda *a, **k: True, resolve=False,
