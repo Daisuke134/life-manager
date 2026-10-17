@@ -53,7 +53,7 @@ from runtime.host.resource_admission import (
     process_start,
     release as release_resource,
     release_and_reserve as release_and_reserve_resource,
-    resolve_pre_effect_occurrence as resolve_pre_effect_occurrence_resource,
+    resolve_verified_no_effect_occurrence as resolve_verified_no_effect_occurrence_resource,
     reserve_available as reserve_available_resource,
     transfer_durable as transfer_durable_resource,
     try_acquire as try_acquire_resource,
@@ -1047,18 +1047,20 @@ def _resolve_verified_alpaca_no_effect_fence(
         "owner_id": loop_id,
         "occurrence_id": occurrence_id,
         "verified": True,
-        "proof_type": "pre_effect",
+        "proof_type": "verified_no_effect",
+        "effect": 0,
+        "reason": "no_broker_order_submitted",
         "evidence_ref": effect_result[1],
     }
     readback = lambda: proof
     return (
-        resolve_pre_effect_occurrence_resource(
-            loop_id, occurrence_id, pre_effect_readback=readback,
-            expected_state="released",
+        resolve_verified_no_effect_occurrence_resource(
+            loop_id, occurrence_id, expected_reason="no_broker_order_submitted",
+            no_effect_readback=readback, expected_state="released",
         )
-        or resolve_pre_effect_occurrence_resource(
-            loop_id, occurrence_id, pre_effect_readback=readback,
-            expected_state="claimed",
+        or resolve_verified_no_effect_occurrence_resource(
+            loop_id, occurrence_id, expected_reason="no_broker_order_submitted",
+            no_effect_readback=readback, expected_state="claimed",
         )
     )
 

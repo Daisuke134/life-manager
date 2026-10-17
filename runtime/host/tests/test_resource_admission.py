@@ -1968,6 +1968,62 @@ def test_unknown_occurrence_can_close_with_explicit_pre_effect_proof(
     assert (row["state"], row["effect_unknown"]) == ("released", 0)
 
 
+def test_verified_no_effect_occurrence_requires_its_own_exact_proof_type(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    owner = "alpaca-investment-paper"
+    occurrence = f"{owner}:no-effect"
+    reason = "no_broker_order_submitted"
+    evidence_ref = f"lm-no-effect://{owner}/{occurrence}/{reason}"
+    admission.enqueue_durable("deterministic", owner, admission_class="revenue",
+                              occurrence_id=occurrence, now=100)
+    claim, claim_reason = admission.claim_durable(
+        "deterministic", owner, admission_class="revenue", now=101)
+    assert claim is not None and claim_reason == "acquired"
+    admission.release_and_reserve(claim, effect_unknown=True, reserve=False, now=102)
+
+    rejected = (
+        {"owner_id": owner, "occurrence_id": occurrence, "verified": True,
+         "proof_type": "pre_effect", "evidence_ref": evidence_ref},
+        {"owner_id": "other", "occurrence_id": occurrence, "verified": True,
+         "proof_type": "verified_no_effect", "effect": 0, "reason": reason,
+         "evidence_ref": evidence_ref},
+        {"owner_id": owner, "occurrence_id": f"{owner}:other", "verified": True,
+         "proof_type": "verified_no_effect", "effect": 0, "reason": reason,
+         "evidence_ref": evidence_ref},
+        {"owner_id": owner, "occurrence_id": occurrence, "verified": True,
+         "proof_type": "verified_no_effect", "effect": 1, "reason": reason,
+         "evidence_ref": evidence_ref},
+        {"owner_id": owner, "occurrence_id": occurrence, "verified": True,
+         "proof_type": "verified_no_effect", "effect": 0, "reason": "other_reason",
+         "evidence_ref": evidence_ref},
+        {"owner_id": owner, "occurrence_id": occurrence, "verified": True,
+         "proof_type": "verified_no_effect", "effect": 0, "reason": reason,
+         "evidence_ref": "lm-no-effect://other/occurrence/no_broker_order_submitted"},
+    )
+    for proof in rejected:
+        assert admission.resolve_verified_no_effect_occurrence(
+            owner, occurrence, expected_reason=reason, expected_state="claimed",
+            no_effect_readback=lambda proof=proof: proof,
+        ) is False
+
+    row = next(row for row in durable_rows(tmp_path, "occurrences")
+               if row["occurrence_id"] == occurrence)
+    assert (row["state"], row["effect_unknown"]) == ("claimed", 1)
+    assert admission.resolve_verified_no_effect_occurrence(
+        owner, occurrence, expected_reason=reason, expected_state="claimed",
+        no_effect_readback=lambda: {
+            "owner_id": owner, "occurrence_id": occurrence,
+            "verified": True, "proof_type": "verified_no_effect", "effect": 0,
+            "reason": reason, "evidence_ref": evidence_ref,
+        },
+    ) is True
+    row = next(row for row in durable_rows(tmp_path, "occurrences")
+               if row["occurrence_id"] == occurrence)
+    assert (row["state"], row["effect_unknown"]) == ("released", 0)
+
+
 def test_pre_effect_reconcile_is_idempotent_after_prior_release(
         tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="1")
