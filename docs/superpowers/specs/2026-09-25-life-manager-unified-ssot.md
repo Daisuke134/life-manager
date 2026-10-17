@@ -14638,6 +14638,16 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **戦略検証の診断:** 最後の失敗は10月14日の`ENOSPC`で、`reviewed-validation-reports.json`のatomic writeに失敗したもの。現在の選択戦略は10月21日05:47Zまで有効。loaded plistは`Weekday=2 / 14:30`を保持し、macOSの`launchd.plist`定義（0と7が日曜）により次の火曜の自然実行を待つ。手動の戦略再実行や注文は行わない。
 
+**IN-COST-02 — 支払済み費用の取引別接続（設計・現在cursor）:** 目的は、既存CFOの公式支払済み請求書検証を再利用し、Local paperのclosed order pairへ証拠で対応できる実費componentを表示すること。全費用を把握したと誤認しないよう、受理額は`verified_model_cost_subtotal_usd` / `verified_system_cost_subtotal_usd`という部分計に限定する。`model_cost_usd` / `system_cost_usd` / netは完全な取引別coverageが未証明の間null、未知費用categoryとLIVE gateを維持する。system部分計は既存CFO categoryのtool/browser/infraを合算し、modelとは分離する。月額総額のtoken比率按分、API換算、欠測の0化は行わない。
+
+- **診断:** `run.py`からpaper writerへはbroker readerしか渡らず、model/system入力口がない。既存`LM_CFO_ACTUAL_COST_READBACK` / `LM_CFO_ACTUAL_COST`は未設定。保存済みAnthropicの7–8月receiptとGoogleのbilling-account scopeには当該paper owner/order pairの明示配賦がなく、現在の投資実費として使えない。既存`allocate_actual_invoice.py`は依存module欠落だが当該callerから使われておらず、その復活や新たな比率配賦器は作らない。
+- **最小契約:** 同じCFO readback JSONをread-onlyで受け取り、元payload全体を変更せず`actual_cost.adapt`へ渡す。billing自身の`observed_at`とquery windowを使用し、後払い費用の時刻をtrade終了へ戻さない。受理対象はUSDのverified paid allocationと、そのproviderのhistorical complete coverage。元provider/document type/document ID/line ID/allocation IDへ一意に戻せるreceiptだけを採る。
+- **取引とのjoin:** 既存`job_joins`を使い、allocationの`job_id`、provider、document type/ID、line ID、allocation IDを一致させる。joinは`product_loop_id=investment`、`owner_id=alpaca-investment-paper`、`mode=paper`、`paper=true`、completed/settled/paid status、exact order pair、初回intent〜closeのexact economic period、元取引のsource receipt IDsを持つ。lineの費用発生日時も当該economic period内にあること。familyだけ・月次billing periodだけ・別owner/mode/pairのデータは使わない。重複receiptは一度だけ、矛盾するidentity/joinは拒否し、同じallocationを複数tradeへ配らない。
+- **writer:** 既存CFO環境変数の任意pathをpaper callerだけで渡す。未設定/読めない/不正JSONはunknownで、注文を発行しない。現在日のclosed subsetに対応する部分計だけを当日に出す。後日費用は既存historical経路で元の日へ付け、元のaccount観測時刻・gross・riskを保持する。元dailyが不正/欠落なら作り直さずunknownを記録する。
+- **原子的TODO:** A この設計をcommit/push → B 有効paid component・scope違い・重複・daily/late readback・不正入力・実callerの最小RED → C 投資側だけの最小実装と関連GREEN → D fresh金融read-only review、対象head CI、main統合 → E main由来ALL releaseとpaper ownerだけの安全な採用・loaded SHA → F 自然paper終端と実データの状態をreadback。現在cursorはA。CFO adapter/B0契約・他owner・取引判断・21-session hold・Cloud switch・live/fenceは変更しない。
+
+**実行順更新:** 旧cursorはIN-EDD-02 Fを待ちながらactual-cost帰属を診断。診断により入力不足と投資側の接続不足を分離したため、新cursorはIN-COST-02 A→Fを先に進める。IN-EDD-02 Fと自然qualified exitは予定どおり並行待機する。実請求の取引別joinがないことは技術的な入力不足として残し、fixtureやsource採用を実費取得・利益の証明に置き換えない。
+
 ### 2026-10-09 13:18 JST — Job Hunter Dreamwork cutover and updated user criteria
 
 この追記は11:50 JST snapshot後のJob Hunter readbackとユーザーの最新指示を記録する。個別の勤務地・住所などの私的値はprivate profileのみを正本とし、このspecには複製しない。
