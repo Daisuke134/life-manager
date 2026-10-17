@@ -252,7 +252,12 @@ test("a persisted deterministic failure suppresses paid replay after a process r
     async () => { providerCalls += 1; return { durationSeconds: 600 }; }, context), null);
   assert.equal(providerCalls, 1);
 
-  now += 30 * 60_000 + 1;
+  now += 30 * 60_000 + 1; // the 30-min travel tick must not re-bill a deterministic no-route
+  assert.equal(await restartedProcess.getOrCompute(...args,
+    async () => { providerCalls += 1; return { durationSeconds: 600 }; }, context), null);
+  assert.equal(providerCalls, 1);
+
+  now += 24 * 3600_000;
   assert.deepEqual(await restartedProcess.getOrCompute(...args,
     async () => { providerCalls += 1; return { durationSeconds: 600 }; }, context), { durationSeconds: 600 });
   assert.equal(providerCalls, 2);
