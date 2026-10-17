@@ -431,6 +431,21 @@ def collect_b7_records(*, snapshot_at: str, trailing_start: str,
             reason="source_unconnected", snapshot_at=snapshot_at, trailing_start=trailing_start,
         )
 
+    # PromptBase Sales-tab readback (skills/earn/promptbase/scripts/readback.py).
+    promptbase_path = Path(
+        env.get("LM_CFO_MARKETPLACE_PROMPTBASE_READBACK")
+        or STATE / "state" / "promptbase-sales.json"
+    )
+    sources["b4-marketplace"].extend(_safe_b7_adapter(
+        lambda: _marketplace_records(
+            promptbase_path, revenue_as_of, snapshot_at=snapshot_at,
+            trailing_start=trailing_start, platform="promptbase",
+            product_loop_id="promptbase",
+        ),
+        source_id="marketplace-financial-record", loop_ids=("promptbase",),
+        snapshot_at=snapshot_at, trailing_start=trailing_start,
+    ))
+
     b5_paths = _paths(
         env.get("LM_CFO_B5_READBACK")
         or env.get("LM_CFO_AGENT_ECONOMY_READBACK")
