@@ -570,6 +570,9 @@ def fetch_readback(artifact, base_url):
     for link in artifact.get("readback_links", []):
         parsed = urlsplit(link)
         placement = parsed.path.strip("/")
+        forms = {link}
+        # The site redirects only placements matching its affiliate-placement.js
+        # pattern; other ids (elevenlabs-dubbing-en-1, ...) keep the direct link.
         if (
             parsed.scheme == "https"
             and parsed.hostname == "try.elevenlabs.io"
@@ -577,13 +580,16 @@ def fetch_readback(artifact, base_url):
             and not parsed.fragment
             and re.fullmatch(r"[a-z0-9][a-z0-9-]{2,100}", placement)
         ):
-            expected_links.append(f"/go/af_{placement}")
-        else:
-            expected_links.append(link)
+            forms.add(f"/go/af_{placement}")
+        expected_links.append(forms)
+    # A revision must prove the new body is served, not the previous deploy:
+    # rendered pages end with the attribution, which pre-render pages lack.
+    fresh = ATTRIBUTION not in artifact.get("markdown", "") or ATTRIBUTION in " ".join(visible.split())
     if (
         artifact["title"] not in visible
         or any(marker not in visible for marker in artifact["readback_markers"])
-        or any(link not in decoded_markup for link in expected_links)
+        or any(not any(form in decoded_markup for form in forms) for forms in expected_links)
+        or not fresh
     ):
         return None
     return {
