@@ -78,7 +78,8 @@ def load_draft(draft_path: Path) -> str:
     return with_image(text, image.read_text(encoding="utf-8")) if image.exists() else text
 
 
-def build_free_article(markdown_text: str, *, slug: str, date: str, cta_url: str) -> dict:
+def build_free_article(markdown_text: str, *, slug: str, date: str, cta_url: str,
+                       title_must_contain: str | None = None) -> dict:
     """Pure: parse the draft, require the Capafy CTA link, return the exact
     plain public JSON body this loop writes to data/research/<slug>.json.
     """
@@ -89,6 +90,10 @@ def build_free_article(markdown_text: str, *, slug: str, date: str, cta_url: str
     if cta_url not in source:
         raise ValueError("draft is missing the required Capafy CTA link")
     title = soa._title(source, soa._frontmatter_title(markdown_text))  # noqa: SLF001
+    # Keyword pages rank on their title: every word of the target query must be in the H1.
+    missing = [w for w in (title_must_contain or "").lower().split() if w not in title.lower()]
+    if missing:
+        raise ValueError(f"title must contain the search query {title_must_contain!r}; missing {missing}")
     return {
         "slug": slug,
         "title": title,
@@ -180,14 +185,27 @@ def _default_fetch(url: str) -> str:
         return response.read().decode("utf-8")
 
 
+def _indexnow(url: str, key: str):
+    """Tell Bing/Yandex/IndexNow engines the page exists; never fails the publish."""
+    host = url.split("/")[2]
+    body = json.dumps({"host": host, "key": key, "keyLocation": f"https://{host}/{key}.txt", "urlList": [url]}).encode()
+    try:
+        req = urllib.request.Request("https://api.indexnow.org/indexnow", data=body, method="POST",
+                                     headers={"Content-Type": "application/json; charset=utf-8"})
+        return urllib.request.urlopen(req, timeout=30).status
+    except Exception as error:  # noqa: BLE001 -- discovery ping is best-effort
+        return f"{type(error).__name__}: {error}"
+
+
 def publish(
     *, draft_path: Path, slug: str, cta_url: str, landing_root: Path, remote: str, branch: str,
     base_url: str, date: str | None = None, retries: int = 60, retry_interval_seconds: float = 15.0,
-    fetch=None,
+    fetch=None, title_must_contain: str | None = None, indexnow_key: str | None = None, indexnow=None,
 ) -> dict:
     markdown_text = load_draft(draft_path)
     date = date or dt.datetime.now(dt.timezone.utc).date().isoformat()
-    article = build_free_article(markdown_text, slug=slug, date=date, cta_url=cta_url)
+    article = build_free_article(markdown_text, slug=slug, date=date, cta_url=cta_url,
+                                 title_must_contain=title_must_contain)
     write_result = write_free_article(landing_root, article)
     soa = _load_self_owned_module()
     root = Path(landing_root).resolve()
@@ -210,7 +228,9 @@ def publish(
         try:
             markup = fetch(live_url)
             verify_live(markup, title=article["title"], cta_url=cta_url)
+            pinged = (indexnow or _indexnow)(live_url, indexnow_key) if indexnow_key else None
             return {
+                "indexnow": pinged,
                 "status": "published",
                 "slug": slug,
                 "url": live_url,
@@ -239,6 +259,8 @@ def main(argv: list[str] | None = None) -> int:
     publish_p.add_argument("--date", default=None)
     publish_p.add_argument("--retries", type=int, default=60)  # GitHub Actions deploy takes ~5 min; 15 s polls cover 15 min
     publish_p.add_argument("--retry-interval-seconds", type=float, default=15.0)
+    publish_p.add_argument("--title-must-contain", default=None)
+    publish_p.add_argument("--indexnow-key", default=None)
     args = parser.parse_args(argv)
 
     result = publish(
@@ -252,6 +274,8 @@ def main(argv: list[str] | None = None) -> int:
         date=args.date,
         retries=args.retries,
         retry_interval_seconds=args.retry_interval_seconds,
+        title_must_contain=args.title_must_contain,
+        indexnow_key=args.indexnow_key,
     )
     print(json.dumps(result, ensure_ascii=False))
     return 0

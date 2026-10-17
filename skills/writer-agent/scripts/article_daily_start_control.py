@@ -1221,6 +1221,41 @@ def _carry_over_without_dispatch(run_dir: Path, rows: list[dict[str, Any]], run_
         return False
     return not any(child.name.startswith("platform-dispatch") for child in gates.iterdir()) if gates.is_dir() else False
 
+_UNAVAILABLE_NO_INTENT_KEYS = frozenset({"platform", "lang", "status", "error", "unavailable_at", "skip_receipt"})
+
+
+def _all_active_unavailable_no_effect(
+    state_path: Path, rows: list[dict[str, Any]], run_id: str
+) -> bool:
+    """Every active pair went unavailable before any intent, so nothing left the machine.
+
+    2026-10-18: run 20261017-150256 froze, the publisher CTA refused every pair before
+    staging, and the day blocked. mark_unavailable keeps intent keys (target, intent_at),
+    so an entry without them never registered a target; the ledger rows must be the
+    no-effect carry-over shape. Same release + replacement limit as the carry-over path.
+    """
+    state = _regular_json(state_path)
+    pairs = state.get("pairs") if state else None
+    if not (
+        isinstance(pairs, dict)
+        and state.get("publication_contract") == "active-four"
+        and state.get("run_id") == run_id
+    ):
+        return False
+    for pair, entry in pairs.items():
+        if not isinstance(entry, dict):
+            return False
+        if pair in ACTIVE_PAIRS:
+            if entry.get("status") != "unavailable" or set(entry) - _UNAVAILABLE_NO_INTENT_KEYS:
+                return False
+        elif entry.get("status") != "skipped" or set(entry) - {"platform", "lang", "status", "skip_receipt"}:
+            return False
+    if not set(ACTIVE_PAIRS) <= set(pairs):
+        return False
+    own = [row for row in rows if row.get("run_id") == run_id]
+    return bool(own) and all(_no_effect_row(row) for row in own)
+
+
 def decide(state_dir: Path | str, local_date: str) -> dict[str, str]:
     state_dir = Path(state_dir)
     runs_dir = state_dir / "runs"
@@ -1313,6 +1348,21 @@ def decide(state_dir: Path | str, local_date: str) -> dict[str, str]:
                 "action": "skip-pending-worker",
                 "run_id": run_id,
                 "reason": "same-jst-day-owned-by-pending-worker",
+            }
+        if plan.get("reason") == "frozen-incomplete-pairs" and _all_active_unavailable_no_effect(
+            state_path, rows, run_id
+        ):
+            if len(run_ids) >= 2:
+                return {
+                    "action": "skip-quality-miss",
+                    "run_id": run_id,
+                    "reason": "same-jst-day-all-active-unavailable-replacement-limit",
+                }
+            return {
+                "action": "new",
+                "run_id": "",
+                "previous_run_id": run_id,
+                "reason": "same-jst-day-all-active-unavailable-no-effect",
             }
         return {
             "action": "block-incomplete",

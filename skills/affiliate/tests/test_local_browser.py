@@ -81,7 +81,7 @@ class LocalBrowserPreflightTest(unittest.TestCase):
 
     def test_browser_disables_code_sign_clone(self) -> None:
         self.assertIn(
-            '"--disable-features=MacAppCodeSignClone"',
+            '"--disable-features=MacAppCodeSignClone,SpareRendererForSitePerProcess"',
             SCRIPT.read_text(encoding="utf-8"),
         )
 

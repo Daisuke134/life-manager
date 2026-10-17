@@ -33,6 +33,94 @@ class PublishError(Exception):
 
 DEFAULT_SITE_REPOSITORY = "https://github.com/Daisuke134/anicca-products.git"
 
+# Affiliate page rendering. ElevenLabs Creator Affiliate Program terms
+# (https://elevenlabs.io/affiliates/terms): disclosure next to the link, the
+# attribution statement, and no ElevenLabs Mark in meta/alt/schema fields.
+# ponytail: one merchant; key this copy by tracked host when a second program ships.
+TRACKED_HOST = "try.elevenlabs.io"
+MERCHANT_HOST = re.compile(r"^(?:[a-z0-9-]+\.)*elevenlabs\.io$")
+LEGACY_DISCLOSURE = "Disclosure: This article contains an affiliate link."
+FULL_DISCLOSURE = (
+    f"{LEGACY_DISCLOSURE} Anicca is an independent ElevenLabs affiliate and may earn "
+    "a commission if you subscribe through it, at no extra cost to you."
+)
+CTA_TOP_MARKER = "Try ElevenLabs free"
+# Pricing facts from https://elevenlabs.io/pricing (2026-10-17): Free has a
+# monthly credit allowance and no commercial license; Starter adds it.
+CTA_TOP = (
+    "[" + CTA_TOP_MARKER + "]({link}) on your own material before you pay. The Free plan "
+    "has a small monthly credit allowance and no commercial license, so if you publish "
+    "or monetize the output, compare the Starter and Creator plans first."
+)
+CTA_END = "Ready to test it? [Start with the ElevenLabs Free plan]({link}) and upgrade only when your real usage needs it."
+BARE_LINK_LABEL = "Start free on ElevenLabs"
+ATTRIBUTION = (
+    "ElevenLabs and the ElevenLabs logo are registered trademarks or trademarks of "
+    "ElevenLabs, Inc. Used with permission. Anicca is not sponsored by, endorsed by, "
+    "or affiliated with ElevenLabs except as an independent participant in the "
+    "ElevenLabs Creator Affiliate Program."
+)
+MARKDOWN_LINK = re.compile(r"(?<!!)\[([^\]]+)\]\((https?://[^)\s]+)\)")
+
+
+def render_affiliate_markdown(markdown, link, destination_sha256=None):
+    """Deterministically turn a composed affiliate article into its public page.
+
+    A bare tracked URL becomes a real link, the citation of the tracked link's
+    own destination becomes the tracked link (other merchant citations stay
+    direct so link text and target agree), a full disclosure sits directly
+    before a CTA at the top and the end, and the terms-required attribution
+    closes the page. Idempotent.
+    """
+    if urlsplit(link).hostname != TRACKED_HOST:
+        return markdown
+
+    def retarget(match):
+        url = match.group(2)
+        if destination_sha256 and hashlib.sha256(url.encode()).hexdigest() == destination_sha256:
+            return f"[{match.group(1)}]({link})"
+        return match.group(0)
+
+    text = MARKDOWN_LINK.sub(retarget, markdown)
+    text = re.sub(
+        r"(?<!\]\()" + re.escape(link) + r"(?![\w/-])",
+        f"[{BARE_LINK_LABEL}]({link})", text,
+    )
+    blocks = [
+        FULL_DISCLOSURE if block.strip() == LEGACY_DISCLOSURE else block
+        for block in text.strip("\n").split("\n\n")
+    ]
+    if CTA_TOP_MARKER not in text:
+        at = 1 if blocks and blocks[0].startswith("# ") else 0
+        if at < len(blocks) and blocks[at].lstrip("*_").startswith("Disclosure"):
+            blocks[at] = FULL_DISCLOSURE  # replace, never stack a second disclosure
+            at += 1
+        else:
+            blocks.insert(at, FULL_DISCLOSURE)
+            at += 1
+        blocks.insert(at, CTA_TOP.format(link=link))
+    if ATTRIBUTION not in text:
+        if f"]({link})" not in blocks[-1]:
+            blocks += [FULL_DISCLOSURE, CTA_END.format(link=link)]
+        elif len(blocks) < 2 or "Disclosure" not in blocks[-2]:
+            blocks.insert(len(blocks) - 1, FULL_DISCLOSURE)
+        blocks.append(ATTRIBUTION)
+    return "\n\n".join(blocks)
+
+
+def merchant_free_description(markdown):
+    """Meta description without any ElevenLabs Mark (terms: Background Uses)."""
+    for block in markdown.split("\n\n"):
+        if block.startswith(("#", "Disclosure", "*Disclosure", "- ")) or CTA_TOP_MARKER in block:
+            continue
+        text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", block)
+        text = re.sub(r"(?i)\beleven[a-z]*(?:['’]s?)?\s*", "", text)
+        text = " ".join(re.sub(r"[#*`_]", "", text).split())
+        if text:
+            text = text[0].upper() + text[1:]
+            return text if len(text) <= 160 else text[:157].rsplit(" ", 1)[0] + "…"
+    return ""
+
 
 def git(root, *args):
     result = subprocess.run(["git", *args], cwd=root, text=True, capture_output=True, check=False)
@@ -408,7 +496,7 @@ def load_artifact(state, slug):
 def public_row(artifact):
     markdown = artifact["markdown"]
     published_date = datetime.fromisoformat(artifact["built_at"]).date().isoformat()
-    return {
+    row = {
         "slug": artifact["slug"],
         "title": artifact["title"],
         "date": published_date,
@@ -418,6 +506,10 @@ def public_row(artifact):
         "markdown": markdown,
         "mirrors": {},
     }
+    # Only rendered pages carry it, so an unchanged legacy row stays byte-identical.
+    if ATTRIBUTION in markdown:
+        row["description"] = merchant_free_description(markdown)
+    return row
 
 
 def _read_public_markup(url):
@@ -478,6 +570,9 @@ def fetch_readback(artifact, base_url):
     for link in artifact.get("readback_links", []):
         parsed = urlsplit(link)
         placement = parsed.path.strip("/")
+        forms = {link}
+        # The site redirects only placements matching its affiliate-placement.js
+        # pattern; other ids (elevenlabs-dubbing-en-1, ...) keep the direct link.
         if (
             parsed.scheme == "https"
             and parsed.hostname == "try.elevenlabs.io"
@@ -485,13 +580,16 @@ def fetch_readback(artifact, base_url):
             and not parsed.fragment
             and re.fullmatch(r"[a-z0-9][a-z0-9-]{2,100}", placement)
         ):
-            expected_links.append(f"/go/af_{placement}")
-        else:
-            expected_links.append(link)
+            forms.add(f"/go/af_{placement}")
+        expected_links.append(forms)
+    # A revision must prove the new body is served, not the previous deploy:
+    # rendered pages end with the attribution, which pre-render pages lack.
+    fresh = ATTRIBUTION not in artifact.get("markdown", "") or ATTRIBUTION in " ".join(visible.split())
     if (
         artifact["title"] not in visible
         or any(marker not in visible for marker in artifact["readback_markers"])
-        or any(link not in decoded_markup for link in expected_links)
+        or any(not any(form in decoded_markup for form in forms) for forms in expected_links)
+        or not fresh
     ):
         return None
     return {
@@ -727,10 +825,111 @@ def publish(args):
     return receipt
 
 
+def page_link_stats(markdown, link):
+    return {
+        "tracked_anchors": markdown.count(f"]({link})"),
+        "bare_tracked_urls": len(re.findall(r"(?<!\]\()" + re.escape(link) + r"(?![\w/-])", markdown)),
+        "direct_merchant_links": sum(
+            1 for _, url in MARKDOWN_LINK.findall(markdown)
+            if (urlsplit(url).hostname or "") != TRACKED_HOST
+            and MERCHANT_HOST.match(urlsplit(url).hostname or "")
+        ),
+        "top_cta": CTA_TOP_MARKER in markdown,
+        "attribution": ATTRIBUTION in markdown,
+    }
+
+
+def rerender(args, publisher=None):
+    """Re-render every LIVE affiliate page and republish it through `publish`.
+
+    Dry-run unless `args.apply`. Uses the existing same-slug revision path:
+    a new artifact hash plus a matching PASS policy receipt, then `publish`.
+    A page whose rewritten artifact is not yet live is PENDING_REPUBLISH and
+    is retried; `previous_markdown` keeps the pre-render body for rollback.
+    """
+    publisher = publisher or publish
+    state = args.state.expanduser()
+    pages = []
+    for receipt_path in sorted((state / "owned-publications").glob("*.json")):
+        slug = receipt_path.stem
+        if args.slug and slug != args.slug:
+            continue
+        try:
+            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+            artifact_path = state / "content" / f"{slug}.json"
+            artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        links = artifact.get("readback_links") or []
+        if artifact.get("disclosure") != "affiliate_link" or len(links) != 1:
+            continue
+        link = links[0]
+        try:
+            program_link = json.loads((
+                state / "program-links" / f"{urlsplit(link).path.strip('/')}.json"
+            ).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            program_link = {}
+        markdown = artifact.get("markdown", "")
+        rendered = render_affiliate_markdown(
+            markdown, link, program_link.get("destination_sha256"),
+        )
+        live_current = (
+            receipt.get("state") == "LIVE"
+            and receipt.get("content_sha256") == artifact.get("content_sha256")
+        )
+        pending = rendered == markdown and "previous_markdown" in artifact and not live_current
+        row = {"slug": slug}
+        if not live_current and not pending:
+            row["state"] = "SKIPPED_NOT_LIVE"
+            pages.append(row)
+            continue
+        original = artifact.get("previous_markdown", markdown)
+        row["before"] = page_link_stats(original, link)
+        row["after"] = page_link_stats(rendered, link)
+        if rendered == markdown and not pending:
+            row["state"] = "CURRENT"
+        elif not args.apply:
+            row["state"] = "PENDING_REPUBLISH" if pending else "WOULD_REPUBLISH"
+        else:
+            try:
+                if rendered != markdown:
+                    policy_path = state / "policy" / f"{slug}.json"
+                    policy = json.loads(policy_path.read_text(encoding="utf-8"))
+                    old_sha256 = artifact["content_sha256"]
+                    if policy.get("decision") != "PASS" or policy.get("content_sha256") != old_sha256:
+                        row["state"] = "POLICY_RECEIPT_MISMATCH"
+                        pages.append(row)
+                        continue
+                    new_sha256 = hashlib.sha256(rendered.encode()).hexdigest()
+                    atomic_write(artifact_path, {
+                        **artifact, "markdown": rendered, "content_sha256": new_sha256,
+                        "previous_markdown": markdown,
+                        "rendered_from_content_sha256": old_sha256,
+                    })
+                    atomic_write(policy_path, {
+                        **policy, "content_sha256": new_sha256,
+                        "rendered_from_content_sha256": old_sha256,
+                        "render": "AFFILIATE_PAGE_RENDER_V1",
+                    })
+                result = publisher(argparse.Namespace(
+                    state=state, landing_root=args.landing_root, slug=slug,
+                    remote=args.remote, branch=args.branch,
+                    repository=args.repository, base_url=args.base_url,
+                ))
+                row["state"] = result.get("state")
+            except Exception as error:  # one page never blocks the rest
+                row["state"] = "PUBLISH_FAILED"
+                row["failure_type"] = type(error).__name__
+        pages.append(row)
+    return {"apply": bool(args.apply), "pages": pages}
+
+
 def main():
     parser = argparse.ArgumentParser(prog="affiliate owned")
-    parser.add_argument("command", choices=("publish",))
-    parser.add_argument("--slug", required=True)
+    parser.add_argument("command", choices=("publish", "rerender"))
+    parser.add_argument("--slug")
+    parser.add_argument("--apply", action="store_true")
     parser.add_argument("--landing-root", type=Path, required=True)
     parser.add_argument("--remote", default="origin")
     parser.add_argument("--branch", default="main")
@@ -738,6 +937,11 @@ def main():
     parser.add_argument("--base-url", default="https://aniccaai.com")
     parser.add_argument("--state", type=Path, default=Path("~/.local/state/life-manager/affiliate"))
     args = parser.parse_args()
+    if args.command == "rerender":
+        print(json.dumps(rerender(args), sort_keys=True, separators=(",", ":")))
+        return 0
+    if not args.slug:
+        parser.error("--slug is required for publish")
     result = publish(args)
     print(json.dumps({key: result.get(key) for key in ("slug", "state", "commit", "public_url", "rendered_sha256")}, sort_keys=True, separators=(",", ":")))
     return 0

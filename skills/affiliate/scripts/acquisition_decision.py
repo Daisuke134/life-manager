@@ -103,7 +103,8 @@ def _economics(state: Path, placement_id: str) -> tuple[dict, str | None]:
     safe_exact = {
         key: exact.get(key) for key in (
             "placement_id", "plan_id", "public_url", "exposure",
-            "provider_clicks", "commission", "cost", "unit_economics", "experiment",
+            "provider_clicks", "provider_conversions", "commission", "cost",
+            "unit_economics", "experiment",
         )
     } if exact else {
         "state": "UNKNOWN", "reason": "no exact placement economics row",

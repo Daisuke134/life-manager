@@ -423,6 +423,32 @@ class WriterMoneyTest(unittest.TestCase):
         )
 
 
+    def _ledger_gap_reasons(self, age_seconds: int) -> set[str]:
+        import os
+        with tempfile.TemporaryDirectory() as tmp:
+            database = Path(tmp) / "money.sqlite3"
+            db = sqlite3.connect(database)
+            db.execute("CREATE TABLE money_events (event_id TEXT, kind TEXT, amount REAL, currency TEXT, status TEXT, external_receipt_id TEXT, occurred_at TEXT)")
+            db.execute("CREATE TABLE money_fees (fee_id TEXT, fee_kind TEXT, amount REAL, currency TEXT, status TEXT, external_receipt_id TEXT, observed_at TEXT)")
+            db.commit()
+            db.close()
+            snapshot = datetime.fromisoformat(SNAPSHOT.replace("Z", "+00:00")).timestamp()
+            os.utime(database, (snapshot - age_seconds, snapshot - age_seconds))
+            records = writer_adapter.adapt_path(
+                database, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+            )
+        projected = contract.project(records, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START)
+        return {gap["reason"] for gap in projected["trailing"]["loops"]["writer"]["coverage_gaps"]}
+
+    def test_ledger_synced_within_a_day_is_not_stale(self):
+        reasons = self._ledger_gap_reasons(3600)
+        self.assertNotIn("stale_readback", reasons)
+        self.assertIn("missing_category", reasons)
+
+    def test_ledger_older_than_a_day_is_stale(self):
+        self.assertIn("stale_readback", self._ledger_gap_reasons(25 * 3600))
+
+
 class UsageTest(unittest.TestCase):
     def test_dedupe_map_missing_and_unattributed(self):
         notes = {}
@@ -513,6 +539,37 @@ class B7IntegrationTest(unittest.TestCase):
             jpy = projection[window]["loops"]["gig-coconala"]["currencies"]["JPY"]
             self.assertEqual(jpy["settled_external_revenue"], "1000")
             self.assertIsNone(jpy["net"])
+
+    def _promptbase_gaps(self, observed: str) -> set:
+        payload = {
+            "observed_at": observed,
+            "source": "https://promptbase.com/account?view=sales",
+            "sales_count": 0, "net_usd": 0.0, "by_item": {},
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "promptbase-sales.json"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            records = m.collect_b7_records(
+                snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+                env={"LM_CFO_MARKETPLACE_PROMPTBASE_READBACK": str(path)},
+            )
+        self.assertFalse(any(row.get("record_type") == "receipt" for row in records))
+        return {
+            (row.get("product_loop_id"), row.get("projection"), row.get("reason"))
+            for row in records if row.get("record_type") == "coverage"
+            and "promptbase" in row.get("source_id", "")
+        }
+
+    def test_promptbase_sales_readback_is_wired_to_the_promptbase_loop(self):
+        gaps = self._promptbase_gaps("2026-09-30T22:00:00.000000Z")  # 2h old
+        # An aggregate without a receipt map stays a gap (never zero), but on its own loop.
+        self.assertIn(("promptbase", "historical", "missing_coverage"), gaps)
+        self.assertIn(("promptbase", "trailing", "missing_coverage"), gaps)
+        self.assertFalse(any(loop == "writer" for loop, _, _ in gaps))
+
+    def test_promptbase_sales_readback_older_than_a_day_is_stale(self):
+        gaps = self._promptbase_gaps("2026-09-29T23:00:00.000000Z")  # 25h old
+        self.assertIn(("promptbase", "trailing", "stale_readback"), gaps)
 
     def test_platform_specific_path_rejects_mismatched_envelope_on_expected_lane(self):
         import hashlib

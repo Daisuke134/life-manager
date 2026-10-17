@@ -326,3 +326,40 @@ class PublisherCTACopyTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class UnicodeVariantIdTests(unittest.TestCase):
+    """2026-10-18 run 20261017-150256: the model derived variant_id from a Japanese
+    title, prepare_all refused every pair, and the day published nothing."""
+
+    def test_unicode_variant_id_becomes_a_stable_ascii_id_in_every_copy(self) -> None:
+        from urllib.parse import quote
+
+        variant = "aiに記事を書かせるだけでは売れない"
+        ja = BASE_JA.replace("variant_id=role-map", f"variant_id={quote(variant)}")
+        with tempfile.TemporaryDirectory(prefix="writer-cta-copy-unicode-") as tmp:
+            run_dir = make_run(Path(tmp), ja=ja)
+            frozen = (run_dir / "article-ja.md").read_bytes()
+
+            receipts = prepare_all(run_dir, landing_url=LANDING, product_id="writer")
+
+            self.assertEqual((run_dir / "article-ja.md").read_bytes(), frozen)
+            ja_ids = {receipts[p]["variant_id"] for p in ACTIVE_PAIRS if p.endswith("/ja")}
+            self.assertEqual(len(ja_ids), 1)
+            safe = ja_ids.pop()
+            self.assertRegex(safe, publisher_cta_copy.LINEAGE_ID_RE)
+            self.assertTrue(safe.isascii())
+            self.assertEqual(receipts["substack/en"]["variant_id"], "role-map")
+            self.assertEqual(
+                len({row["click_id"] for row in receipts.values()}), len(receipts)
+            )
+            for pair in ACTIVE_PAIRS:
+                lang = pair.rsplit("/", 1)[1]
+                copy = publisher_copy_path(run_dir, pair, run_dir / f"article-{lang}.md")
+                text = copy.read_text(encoding="utf-8")
+                self.assertIn(f"variant_id={receipts[pair]['variant_id']}&", text)
+                self.assertNotIn("%E3", text)
+            # Deterministic: a second prepare over the same frozen source is a no-op.
+            self.assertEqual(
+                prepare_all(run_dir, landing_url=LANDING, product_id="writer"), receipts
+            )

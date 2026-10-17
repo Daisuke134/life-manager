@@ -267,6 +267,39 @@ class OwnedPublishRevisionTest(unittest.TestCase):
             result = module.fetch_readback(artifact, "https://example.test")
         self.assertEqual(result["public_url"], "https://example.test/blog/subtitle-experiment")
 
+    def test_readback_accepts_direct_link_for_placement_the_site_does_not_redirect(self):
+        # Legacy ids (elevenlabs-dubbing-en-1, elevenagents-en-1, ...) fail the
+        # site's affiliate-placement.js pattern, so the page keeps the direct link.
+        link = "https://try.elevenlabs.io/elevenlabs-dubbing-en-1"
+        artifact = {
+            "slug": "dubbing", "title": "Dubbing",
+            "readback_markers": ["Affiliate disclosure"], "readback_links": [link],
+        }
+        markup = (
+            '<html><h1>Dubbing</h1><p>Affiliate disclosure</p>'
+            f'<a href="{link}">Try it</a></html>'
+        ).encode()
+        with patch.object(module, "_read_public_markup", return_value=(markup, "test")):
+            self.assertIsNotNone(module.fetch_readback(artifact, "https://example.test"))
+
+    def test_readback_rejects_stale_page_for_rendered_revision(self):
+        placement = "elevenlabs-discovered-youtube-transcript-generator-en-1"
+        artifact = {
+            "slug": "yt", "title": "YT",
+            "markdown": f"body\n\n{module.ATTRIBUTION}",
+            "readback_markers": ["Affiliate disclosure"],
+            "readback_links": [f"https://try.elevenlabs.io/{placement}"],
+        }
+        old = (
+            '<html><h1>YT</h1><p>Affiliate disclosure</p>'
+            f'<a href="/go/af_{placement}">Try it</a></html>'
+        )
+        with patch.object(module, "_read_public_markup", return_value=(old.encode(), "test")):
+            self.assertIsNone(module.fetch_readback(artifact, "https://example.test"))
+        new = old.replace("</html>", f"<p>{module.ATTRIBUTION}</p></html>")
+        with patch.object(module, "_read_public_markup", return_value=(new.encode(), "test")):
+            self.assertIsNotNone(module.fetch_readback(artifact, "https://example.test"))
+
     def test_live_same_slug_revision_requires_and_replaces_prior_hash(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary) / "landing"

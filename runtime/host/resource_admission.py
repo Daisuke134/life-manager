@@ -614,8 +614,10 @@ def _database(path: Path) -> sqlite3.Connection:
 
 
 # 10 CPUs / 16GB: two host agent slots left Gig revenue lanes queued behind support
-# agents with 66% memory free (2026-10-15). lm_loop_run still defers below 15% free memory.
-DEFAULT_AGENT_TOTAL_RUNS = 3
+# agents with 66% memory free (2026-10-15). Three slots then let mercor + crowdworks x2
+# hold every slot for 50+ min and deferred the Capafy distribute pass with 42% memory
+# free (2026-10-18). lm_loop_run still defers below 15% free memory.
+DEFAULT_AGENT_TOTAL_RUNS = 4
 
 
 def _limits(resource_class: str, admission_class: str = "borrow") -> tuple[int, int]:

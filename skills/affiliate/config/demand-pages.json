@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "note": "Search-demand page types, created in this order, one per UTC day, before sitemap discovery. Demand per openseo US 2026-10-17. Structures copied from the ranking pages named in each structure_source. The first source is the CTA destination and must never be a pricing or docs page (#8278).",
+  "pages": [
+    {
+      "page_type": "pricing",
+      "plan_id": "elevenlabs-demand-pricing-en",
+      "slug": "elevenlabs-pricing-plans-explained",
+      "query": "elevenlabs pricing",
+      "buyer_intent": "Creators comparing ElevenLabs plans and credits before paying",
+      "pricing_table": true,
+      "structure_source": ["https://www.eesel.ai/blog/elevenlabs-pricing", "https://promptsrush.com/blog/elevenlabs-pricing-starter-creator-pro"],
+      "brief": "Pricing explainer. Open with a two-sentence direct answer (what the plans cost per month and what a credit buys). Then the official plan table. Then sections: how credits work (characters per credit, per-product credit costs, rollover, annual billing) ; which plan fits whom (one line per plan, mapped only to features the pricing page lists for that plan) ; free-tier limits ; FAQ with 3-5 questions searchers ask. Recommend starting on a paid plan only where the official page shows the free plan lacks what that reader needs (for example a commercial license).",
+      "sources": [
+        {"id": "elevenlabs-demand-pricing-tts", "adapter": "crwl", "url": "https://elevenlabs.io/text-to-speech", "evidence_class": "official_product", "license": "PROPRIETARY_REFERENCE_ONLY", "freshness_days": 7},
+        {"id": "elevenlabs-demand-pricing-pricing", "adapter": "crwl", "url": "https://elevenlabs.io/pricing", "evidence_class": "official_price", "license": "PROPRIETARY_REFERENCE_ONLY", "freshness_days": 1}
+      ]
+    },
+    {
+      "page_type": "best-ai-voice-generator",
+      "plan_id": "elevenlabs-demand-best-voice-en",
+      "slug": "best-ai-voice-generator-compared",
+      "query": "best ai voice generator",
+      "buyer_intent": "Creators choosing the best AI voice generator before paying",
+      "pricing_table": false,
+      "structure_source": ["https://zapier.com/blog/best-ai-voice-generator/"],
+      "brief": "Best-of list. Open with the short list and one 'best for' label per tool. Then 'what makes a good AI voice generator' (criteria a buyer can test). Then an at-a-glance table (tool, best for, free plan, entry paid plan, commercial use) using only the official pages supplied. Then one section per tool: what it is, best for, official pricing facts, limitations. Close with how to choose. Every competitor fact must come from that competitor's own official page in the sources; never state ratings, rankings by others, or quality judgements as fact.",
+      "sources": [
+        {"id": "elevenlabs-demand-best-voice-tts", "adapter": "crwl", "url": "https://elevenlabs.io/text-to-speech", "evidence_class": "official_product", "license": "PROPRIETARY_REFERENCE_ONLY", "freshness_days": 7},
+        {"id": "elevenlabs-demand-best-voice-pricing", "adapter": "crwl", "url": "https://elevenlabs.io/pricing", "evidence_class": "official_price", "license": "PROPRIETARY_REFERENCE_ONLY", "freshness_days": 1},
+        {"id": "elevenlabs-demand-best-voice-murf", "adapter": "crwl", "url": "https://murf.ai/pricing", "evidence_class": "competitor_official", "license": "PROPRIETARY_REFERENCE_ONLY", "freshness_days": 1},
+        {"id": "elevenlabs-demand-best-voice-speechify", "adapter": "crwl", "url": "https://speechify.com/pricing-studio/", "evidence_class": "competitor_official", "license": "PROPRIETARY_REFERENCE_ONLY", "freshness_days": 1}
+      ]
+    },
+    {
+      "page_type": "is-free",
+      "plan_id": "elevenlabs-demand-is-free-en",
+      "slug": "is-elevenlabs-free",
+      "query": "is elevenlabs free",
+      "buyer_intent": "Creators checking what the free ElevenLabs plan includes before paying",
+      "pricing_table": true,
+      "structure_source": ["https://academy.techpresso.co/reviews/is-elevenlabs-worth-it"],
+      "brief": "Direct-answer page. The first sentence answers the question with the official free-plan facts. Then: what the free plan includes ; what it does not include (compare with the features the pricing page lists only for paid plans) ; the official plan table ; 'free is enough if' and 'start on a paid plan if' lists, each item grounded in an official fact ; how far the free credits go in the units the pricing page states ; FAQ. Say the free tier runs out quickly only if the stated credit numbers show it for the reader's workload.",
+      "sources": [
+        {"id": "elevenlabs-demand-is-free-tts", "adapter": "crwl", "url": "https://elevenlabs.io/text-to-speech", "evidence_class": "official_product", "license": "PROPRIETARY_REFERENCE_ONLY", "freshness_days": 7},
+        {"id": "elevenlabs-demand-is-free-pricing", "adapter": "crwl", "url": "https://elevenlabs.io/pricing", "evidence_class": "official_price", "license": "PROPRIETARY_REFERENCE_ONLY", "freshness_days": 1}
+      ]
+    },
+    {
+      "page_type": "alternatives",
+      "plan_id": "elevenlabs-demand-alternatives-en",
+      "slug": "elevenlabs-alternatives-compared",
+      "query": "elevenlabs alternatives",
+      "buyer_intent": "Creators comparing ElevenLabs alternatives before paying",
+      "pricing_table": false,
+      "structure_source": ["https://academy.techpresso.co/reviews/is-elevenlabs-worth-it", "https://zapier.com/blog/best-ai-voice-generator/"],
+      "brief": "Alternatives page. Open with why people look for alternatives, stated as buyer questions, not as claims. Then an at-a-glance table (tool, free plan, entry paid plan, commercial use, best for) from the official pages supplied. Then one section per alternative with official facts and who it fits, then a section on when ElevenLabs remains the better fit, grounded in its official pages. Close with a decision checklist. Competitor facts only from that competitor's official page.",
+      "sources": [
+        {"id": "elevenlabs-demand-alternatives-tts", "adapter": "crwl", "url": "https://elevenlabs.io/text-to-speech", "evidence_class": "official_product", "license": "PROPRIETARY_REFERENCE_ONLY", "freshness_days": 7},
+        {"id": "elevenlabs-demand-alternatives-pricing", "adapter": "crwl", "url": "https://elevenlabs.io/pricing", "evidence_class": "official_price", "license": "PROPRIETARY_REFERENCE_ONLY", "freshness_days": 1},
+        {"id": "elevenlabs-demand-alternatives-murf", "adapter": "crwl", "url": "https://murf.ai/pricing", "evidence_class": "competitor_official", "license": "PROPRIETARY_REFERENCE_ONLY", "freshness_days": 1},
+        {"id": "elevenlabs-demand-alternatives-speechify", "adapter": "crwl", "url": "https://speechify.com/pricing-studio/", "evidence_class": "competitor_official", "license": "PROPRIETARY_REFERENCE_ONLY", "freshness_days": 1}
+      ]
+    },
+    {
+      "page_type": "versus",
+      "plan_id": "elevenlabs-demand-vs-murf-en",
+      "slug": "elevenlabs-vs-murf",
+      "query": "elevenlabs vs murf",
+      "buyer_intent": "Creators deciding between ElevenLabs and Murf before paying",
+      "pricing_table": false,
+      "structure_source": ["https://thespeakr.com/murf-ai-vs-elevenlabs/"],
+      "brief": "Head-to-head page. Open with a quick verdict by use case ('choose X if ..., choose Y if ...'), each clause tied to an official fact. Then a side-by-side table (free plan, entry paid plan, pricing unit, commercial use, notable features) from each tool's own official page. Then sections: pricing and limits ; features ; which one is right for you (recommendation matrix) ; FAQ. Never invent test results, scores, or user reviews.",
+      "sources": [
+        {"id": "elevenlabs-demand-vs-murf-tts", "adapter": "crwl", "url": "https://elevenlabs.io/text-to-speech", "evidence_class": "official_product", "license": "PROPRIETARY_REFERENCE_ONLY", "freshness_days": 7},
+        {"id": "elevenlabs-demand-vs-murf-pricing", "adapter": "crwl", "url": "https://elevenlabs.io/pricing", "evidence_class": "official_price", "license": "PROPRIETARY_REFERENCE_ONLY", "freshness_days": 1},
+        {"id": "elevenlabs-demand-vs-murf-murf", "adapter": "crwl", "url": "https://murf.ai/pricing", "evidence_class": "competitor_official", "license": "PROPRIETARY_REFERENCE_ONLY", "freshness_days": 1}
+      ]
+    },
+    {
+      "page_type": "versus",
+      "plan_id": "elevenlabs-demand-vs-speechify-en",
+      "slug": "elevenlabs-vs-speechify",
+      "query": "elevenlabs vs speechify",
+      "buyer_intent": "Creators deciding between ElevenLabs and Speechify Studio before paying",
+      "pricing_table": false,
+      "structure_source": ["https://thespeakr.com/murf-ai-vs-elevenlabs/"],
+      "brief": "Head-to-head page. Open with a quick verdict by use case ('choose X if ..., choose Y if ...'), each clause tied to an official fact. Then a side-by-side table (free plan, entry paid plan, credits, commercial use, notable features) from each tool's own official page. Then sections: pricing and limits ; features ; which one is right for you (recommendation matrix) ; FAQ. Never invent test results, scores, or user reviews.",
+      "sources": [
+        {"id": "elevenlabs-demand-vs-speechify-tts", "adapter": "crwl", "url": "https://elevenlabs.io/text-to-speech", "evidence_class": "official_product", "license": "PROPRIETARY_REFERENCE_ONLY", "freshness_days": 7},
+        {"id": "elevenlabs-demand-vs-speechify-pricing", "adapter": "crwl", "url": "https://elevenlabs.io/pricing", "evidence_class": "official_price", "license": "PROPRIETARY_REFERENCE_ONLY", "freshness_days": 1},
+        {"id": "elevenlabs-demand-vs-speechify-speechify", "adapter": "crwl", "url": "https://speechify.com/pricing-studio/", "evidence_class": "competitor_official", "license": "PROPRIETARY_REFERENCE_ONLY", "freshness_days": 1}
+      ]
+    },
+    {
+      "page_type": "how-to",
+      "plan_id": "elevenlabs-demand-how-to-en",
+      "slug": "how-to-use-elevenlabs",
+      "query": "how to use elevenlabs",
+      "buyer_intent": "Creators learning how to use ElevenLabs text to speech before paying",
+      "pricing_table": false,
+      "structure_source": ["https://academy.techpresso.co/reviews/is-elevenlabs-worth-it"],
+      "brief": "Step-by-step guide. Open with what the reader will produce and how long the steps take only if the docs say so. Then numbered steps from the official docs (choose a voice, enter text, adjust settings, generate, download), each with one practical tip from the docs. Then 'which plan you need for this' from the pricing page (commercial use, credits per character). Then common mistakes stated in the docs and a short FAQ.",
+      "sources": [
+        {"id": "elevenlabs-demand-how-to-tts", "adapter": "crwl", "url": "https://elevenlabs.io/text-to-speech", "evidence_class": "official_product", "license": "PROPRIETARY_REFERENCE_ONLY", "freshness_days": 7},
+        {"id": "elevenlabs-demand-how-to-docs", "adapter": "crwl", "url": "https://elevenlabs.io/docs/overview/capabilities/text-to-speech", "evidence_class": "official_product", "license": "PROPRIETARY_REFERENCE_ONLY", "freshness_days": 30},
+        {"id": "elevenlabs-demand-how-to-pricing", "adapter": "crwl", "url": "https://elevenlabs.io/pricing", "evidence_class": "official_price", "license": "PROPRIETARY_REFERENCE_ONLY", "freshness_days": 1}
+      ]
+    }
+  ]
+}

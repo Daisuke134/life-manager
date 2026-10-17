@@ -169,7 +169,7 @@ exec /usr/bin/python3 -I "$PORT_OWNER" run \
   --password-store=basic \
   --use-mock-keychain \
   --disable-sync \
-  --disable-features=MacAppCodeSignClone \
+  --disable-features=MacAppCodeSignClone,SpareRendererForSitePerProcess \
   --no-sandbox \
   "${FINGERPRINT_ARGUMENT[@]}" \
   --fingerprint-platform=macos \

@@ -521,3 +521,11 @@ def test_occurrence_manifest_rejects_unlisted_or_unsafe_slugs(tmp_path):
         except ValueError:
             continue
         raise AssertionError(f"accepted {slug}")
+
+
+def test_occurrence_manifest_accepts_keyword_slugs_from_every_seller_list(tmp_path):
+    record = rec.record_occurrence_manifest(
+        tmp_path / "occurrence.json", owner_id=rec.OWNER_ID, run_id="seo-run",
+        occurrence_id="capafy-distribute-daily:seo-run", slot="2026-10-18-h02m30",
+        article_slug="tiktok-script-template")
+    assert record["article_slug"] == "tiktok-script-template"

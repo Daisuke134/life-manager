@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 
@@ -14,6 +14,8 @@ LOOP_ID = "writer"
 SOURCE_ID = "writer-money-ledger"
 PROVIDER = "writer-money"
 DEFAULT_PATH = Path("~/.local/state/life-manager/writer/money.sqlite3").expanduser()
+# Same freshness window as the marketplace readback adapter.
+FRESHNESS_MAX_AGE = timedelta(hours=24)
 
 
 def _instant(value: str) -> str:
@@ -112,6 +114,11 @@ def adapt_path(path: str | Path | None, *, snapshot_at: str,
     start = _instant(trailing_start)
     observed_at = datetime.fromtimestamp(database.stat().st_mtime).astimezone().isoformat()
     observed_at = _instant(observed_at)
+    age = (datetime.fromisoformat(end.replace("Z", "+00:00"))
+           - datetime.fromisoformat(observed_at.replace("Z", "+00:00")))
+    if age < FRESHNESS_MAX_AGE:
+        # The ledger is read live at snapshot time; a sync within a day is current.
+        observed_at = end
     digest_ref = f"writer-money://sqlite/{database.name}/{int(database.stat().st_mtime)}"
     try:
         events, fees = _read_rows(database)

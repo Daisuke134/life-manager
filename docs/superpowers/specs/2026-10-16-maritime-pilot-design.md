@@ -1,54 +1,79 @@
-# Maritime 3人pilotのLife Manager接続設計
+# Keiki × Maritime採択後のLife Manager実運用設計
 
-## 目的と範囲
+**目的:** 採択済みのKeiki × Maritime competitionで、Life Managerを一人ずつが自分用に使えるサービスとして公開し、12月1日までに実利用者1,000人へ届ける。3人pilotは技術・安全性・体験の確認であり、勝利条件ではない。実行順と進捗カーソルは [`2026-09-25-life-manager-unified-ssot.md`](2026-09-25-life-manager-unified-ssot.md) に置く。
 
-Life ManagerのTelegram利用者3人に、各自専用のMaritime agentとmicro-VMを割り当て、日々の計画支援を7日間試す。これは1,000 agentを獲得する競争の前段階の技術・利用・費用確認であり、3人pilot自体は勝利条件ではない。
+## 参加者1,000人は必要だが、VMは1,000台いらない
 
-既存のTelegram利用面とslash-command routerを使う。通常のcommute、Calendar、browser-task、onboarding経路は置き換えない。新規Web/PWA、scheduler、loop registry、database migrationは追加しない。
+2026年10月15日更新の公式Program Termsは、競技終了までにagentを実際に使うdistinct user 1,000人を目標とし、最初に到達して検証された3プロジェクトをwinnerとしている。数えるのは人であり、agent・VM・subagent数ではない。TermsはKeikiまたはMaritimeのproject-level usageを実利用の確認に使うと書いているが、利用者の具体的な本人確認・計数方法や同着処理は未公表である。[Program Terms](https://competition.maritime.sh/terms)
 
-## 確認済みの外部条件
+したがって、推奨構成は、既存のLife Manager CloudとTelegram導線を使った共通サービスに、本人ごとのLife Manager ID、会話ID、保存領域を割り当てる形である。**人の単位で体験とデータを分け、VMは利用者数に合わせて増やさない。**主催者が「一人一agent」または「一人一VM」を求めると書面で確認した場合だけ、単価とアクセス上限を再計算する。
 
-- The First 1,000はKeikiとMaritimeの6週間competition。トップページは「1,000 users」と表現するが、2026-10-14更新のProgram Termsで正式な計数対象は1,000 distinct agentsで、各agentに専用Maritime VMが必要。1 agentを1,000人が使っても1 agentで、subagentは数えない。実利用のlegitimacy reviewはあるが、agentごとの追加retention/activity目標は書かれていない。最初に到達して確認された3 projectがwinner。https://competition.maritime.sh/ https://competition.maritime.sh/terms
-- Applications opened 2026-10-13。初期応募者にはその週の終わりまでにconfirmation emailを送る予定。共通の6週間windowで途中参加できるが期間延長なし。closing timeは11:59 p.m. Pacificだが、start/endのcalendar dateは未公表。Apply CTAはSMS `+1 (628) 726-4285`。公開ページに選考rubricや採択条件はない。https://competition.maritime.sh/terms
-- Awardはwinner projectあたり最大$20,000分のAI credits。3者全員が$20,000とは限らず、2位・3位のcredit額、free-accessの期間と範囲は未公表。SFは最初の3 winning projects向け3日間体験で、sponsored flightsは米国内旅行に限定。搭乗者数、費用範囲、国際winnerのflight support、日程は未公表。https://competition.maritime.sh/terms
-- maritime-sdk 0.9.0はESM、Node >=18。default exportの`Maritime`をCommonJSからdynamic importできる。`agents.provision({ externalId, name, template, instructions })`は`externalId`で冪等。`agents.chat(id, message, { conversationId })`は`{ response, error? }`を返し、delivery failureがthrowされない場合があるため`error`と空responseを確認する。SDK既定の再試行は2回なので`maxRetries: 0`を使う。https://maritime.sh/docs/sdk/agents.md https://registry.npmjs.org/maritime-sdk/-/maritime-sdk-0.9.0.tgz
-- API keyは`provision`と`deploy` scopeに限定できる。BYOK env登録には別途`secrets` scopeが必要。https://maritime.sh/docs/sdk/authentication.md
-- Free planは3 agent、同時起動1体、$0で期限なし。現行list priceで1,000 machineはScaleの500台$500/月 + 追加500台×$1/月で、host費用は約$1,000/月。model callsは別料金。大会free accessの範囲・期間は未確定。https://maritime.sh/docs/billing.md https://competition.maritime.sh/terms
-- Maritime AI-credit model callsはfull prompt/responseを無期限保存。BYOK callsはMaritimeに保存されないが、agentへkeyを登録する必要がある。どちらもこのpilotでは未使用。https://maritime.sh/privacy https://maritime.sh/docs/sdk/agents.md
-- MaritimeのOpenClaw frameworkは100+ built-in skills（web browsing、code execution、file management等）を持つautonomous agent。prompt指示だけではこれらを無効化できた証明にならない。制限済みtool policyかchat-only custom imageを確認するまで有効化しない。https://maritime.sh/docs/frameworks/openclaw
-- 現行apps/life-managerにMaritime SDK呼び出しやユーザー別継続chat経路はない。Telegram slash-command routerは既存の明示的なuser command境界。
-- YC公式profileでMaritimeはFall 2026 companyと確認。創業者への接点があることはYC紹介やWinter 2027採択の保証ではない。https://www.ycombinator.com/companies/maritime
+## 受諾メールと公式規約で開始日が食い違う
 
-## 選択肢
+2026年10月16日、Darshan Golchhaから件名「You're in! Keiki x Maritime」の受諾メールを受け取った。採択済みであり、単なる問い合わせ受付ではない。メールは、各参加者のLife Managerを動かすこと、初週にアイデアと製品を磨くこと、上位30チームだけが第2週へ進むことを案内している。チームメンバーは返信で追加できるが、受諾メールには追加対象者の名簿はない。
 
-1. **Telegramの明示command /pilotからだけMaritime agentを呼ぶ。** 既存のtenant UIDを使い、feature-offと3名allowlistを必須にする。通常機能は変更しない。**採用。**
-2. 全ユーザーの一般agent backendをMaritimeへ置き換える。アプリ全体のprovider・権限・データ経路を変えるため不採用。
-3. 新しいWeb/PWAを作る。既存のTelegram-only user-surface契約に反するため不採用。
+開始日はメールが10月19日、現行Program Termsが10月20日と食い違う。Termsは終了を12月1日午後11時59分Pacific Timeと定める。週1の終了時刻、上位30チームの選考基準、提出物、審査者が見る利用実績、チーム登録の状態は公表されていない。10月16日にDarshanへ日付・週1締切・選考・プラットフォーム要件・請求条件を尋ねる返信を送っており、10月18日までに追加回答は見つかっていない。**10月27日などを確定締切として扱わない。**
 
-## データフローと境界
+受諾メールはMaritimeとKeikiへの登録、Maritime Scaleの2か月プロモーション（メール記載の価値は参加者一人あたり1,000ドル相当）、初週に利用者へ提供するKeiki LLMクレジット（メールには利用者一人あたり25ドル相当とある）を案内する。プロモーションの対象者・適用手順・利用制限はTermsに記載されていない。規約は大会期間中の両サービスへのfull accessを約束するが、恒久利用やすべての第三者費用を負担するとは約束していない。プロモーションコード、招待コード、token付きURLは元メールだけに置き、この設計書やコードへ転記しない。Scale適用前にカード要否、2か月後の自動課金、追加VM・モデル利用料、参加者ごとの適用範囲を確認する。
 
-Telegram webhookが既存のlm_users.uidを解決する。/pilot commandを受けた場合だけ、feature flag、data approval、tool-policy verification、server-side MARITIME_API_KEY、重複なしの最大3 UID allowlistを検証する。どれかが不足・不正ならSDKをimportせず外部callを行わない。`MARITIME_PILOT_TOOL_POLICY_VERIFIED=1`は実際にtool制限を確認した後だけ設定し、OpenClawのprompt指示だけでpassさせない。
+賞はwinner projectあたり最大20,000ドル相当のAI creditsで、全winnerが同額とは限らない。最初の3 winning projectsには3日間のSan Francisco体験があるが、スポンサーflightは米国内の人に限られる。日本からの渡航費、同行人数、宿泊・食費、日程は未公表である。非返金の旅程は予約しない。[Program Terms](https://competition.maritime.sh/terms)
 
-有効なpilot userではprovider callより前に、既存の`lm_panel_command_receipts`へ`telegram-maritime-pilot:<update_id>`をclaimする。request hashはLM_UID_SECRETでHMAC化し、メッセージ本文をreceiptへ保存しない。同じupdate_idの再配信はclaim conflictでprovider callも返信も行わずHTTP 200で終える。pending/failed receiptは自動解放しないため、claim後のcrashで依頼が未完了になる場合はあるが、有料provider callの重複を優先して防ぐ。新しいTelegram updateでの明示再依頼は別のreceiptとなる。
+## Cloud基盤はあるが、大会向けMaritime経路は停止中
 
-有効時は、CommonJS appからmaritime-sdkをdynamic importする。UIDからPIIを含まない安定external IDとconversation IDを導出し、agents.provisionを呼ぶ。agent IDはprovider側externalIdの冪等性で再取得し、Life ManagerのDBに保存しない。agents.chatはresponse.errorを必ず検査し、errorまたは不明応答では成功表示せず、自動再送しない。
+「ほぼローカルだけ」という認識は一部だけ当たっている。ローカルrunnerや個人用BYOK stateは存在する一方、リポジトリにはRailway向けの常時稼働server設定、Supabaseを使うCloud経路、Telegram webhookと既存tenant分離の設計もある。したがって、Cloudへ移すための基盤がゼロではない。ただし、今の時点で公開ユーザーが登録して自然利用できることや、本番Cloudが大会用構成で稼働していることはこのソース確認では証明していない。
 
-Life Manager側ではCalendar書込み、メール送信、購入、browser actionを接続しない。OpenClaw自身のbrowser/code/file toolsは別に存在し、prompt文だけで禁止を保証しないため、tool-policy verification前はpilot routeをoffにする。prompt、response、email、phone、user name、API keyはLife Managerのログへ記録しない。Telegramへ返す文はHTML escapeし、長さを制限する。
+PR #8168はmainへmerge済みで、`maritime-sdk@0.9.0`、Telegram `/pilot`、Maritime側の冪等provision、UID由来のHMAC ID、会話ID、重複updateのreceipt fenceを追加した。SDKはCommonJS serverから遅延importされる。`MARITIME_PILOT_ENABLED`、data approval、tool-policy verification、API key、`LM_UID_SECRET`、最大3 UID allowlistが揃わなければprovider callをしない。現在のrouteは3人pilot用であり、一般signup、1,000人のオンボーディング、取得経路計測、winner readbackは実装・稼働確認されていない。
 
-## pilot測定・counting
+`/pilot`は現在、UIDごとにMaritime agentをprovisionし、そのUIDに結び付くconversation IDで応答する。MaritimeのSDKは同じagent IDにconversation IDを渡して会話を分けられる。現在の「UIDごとにagentを作る」設計をそのまま1,000人へ拡大すると、利用者数とは無関係にVM費用と管理負荷を増やす。OpenClaw templateはbrowser/code/file toolを持つため、promptで禁止しただけでは安全境界にならない。実行可能なtool policyを確認するまでpilot gateは解除しない。
 
-3つの異なるLife Manager UIDを3つの異なるexternal IDに対応させ、Maritime dashboardで3つのdistinct agent IDと3つの専用VMを確認する。provisionの再試行でagent/VMが増えないことを確認する。subagent、同一agentの利用者数、duplicate accountはagent数に加えない。
+Maritimeの料金表ではScaleは月500ドルで500 agent、追加agentは月1ドル、同時起動60台である。1人1VMを1,000人に単純適用するとhostだけで約1,000ドル/月となり、モデル利用料は別になる。しかし公式勝利条件は1,000人であって1,000VMではないため、この構成を前提にしない。[Maritime pricing](https://maritime.sh/pricing) [SDK agents](https://maritime.sh/docs/sdk/agents.md)
 
-7日間、provision成功、初回chat、再利用、利用者が明示したtask完了/未完了、provider error、agentごとの利用量を記録する。prompt/response本文は収集しない。実費はMaritime Billingのprovider readbackで確認し、app側の推定値をactual costにしない。Free tierでは同時起動1体を守る。
+Maritime AI creditsを使う場合、MaritimeのPrivacy Policyはrequest本文・会話・tool結果とmodel responseを保存し、model-call contentをアカウント削除後も無期限保持すると説明する。自分のmodel API keyを使う呼び出しはMaritimeを経由せず、この保存対象ではないが、各agentへ秘密情報を預ける条件が増える。初期版では実カレンダー、連絡先、メール、住所を送らず、利用者へ保持条件を説明して明示的に同意を得る。[Maritime Privacy Policy](https://maritime.sh/privacy)
 
-## live enablement gate
+## 個人ごとの体験を分け、VM台数とは切り離す
 
-- 本作業ではMaritime account作成、ToS同意、API key発行、VM作成、実ユーザーの入力送信、paid plan、AI-credit購入、旅行予約を行わない。
-- 現行goalの制約では、Maritimeの法的拘束力あるToSとAI-credit利用時の無期限prompt retentionを含むdata handling条件が未承認なのでpilot routeを有効化しない。
-- OpenClawのbrowser/code/file capabilitiesを限定するruntime設定は未確認なので、tool-policy verification gateを通すまではpilot routeを有効化しない。
-- BYOKはretentionを避ける候補だが、第三者agentへcredentialを登録する追加データ条件が発生するため、本作業では使わない。
-- 実pilotの成功条件は、参加者同意の証跡、3 UID→3 external ID→3 agent/VMのofficial readback、3人の実利用、error/retention条件確認、7日利用指標、Billingの実費readback。これらが揃う前に10→100→1,000へ拡大しない。
+| 領域 | AS-IS | TO-BE |
+|---|---|---|
+| 利用面 | 主な製品説明はTelegramのcommute agent。個人端末で動く機能も残る。 | Telegramの既存共有リンクからCloud版を開始し、Macや開発者のログイン状態なしで使える。 |
+| 個人化 | Maritime `/pilot`は最大3 UIDで、ユーザーごとにagentを作る。 | 1人につき1つの安定したLife Manager identity、会話ID、task stateを使う。会話・保存データはユーザー間で分離する。agent/VMを1人ずつ増やす要件は主催者確認後にだけ採用する。 |
+| 最初の価値 | `/pilot`は依頼文へのテキスト応答が中心で、一般利用者向け登録・使い方・継続価値は未確認。 | まず日常で繰り返し使う一つの仕事に絞る。推奨する仮説は、Telegramの一言から今日の次の行動を短い計画にし、本人が完了・変更を返せること。カレンダー連携は最初の利用価値に必須としない。 |
+| 安全・データ | tool-policyとdata approval gateはoff。Maritime AI creditsの会話保持条件あり。 | tool capabilityを実際に制限して確認し、本人別データ・開示・同意・削除案内を整えてから実利用を有効化する。プロンプト本文はLife Managerのログ・計測へ保存しない。 |
+| 勝敗計測 | 3人pilotは技術・費用確認。正式なsignup funnelや1,000人の重複除外集計はない。 | 実在する別人の利用者数と、初回に役立つ応答を受け取った人を別々に計測する。Keiki/Maritime project-level usageを照合し、signupだけを利用実績として数えない。 |
+| 運用 | Cloud source/configはあるが、大会向け公開導線の自然利用とprovider readbackは未確認。 | 既存Cloud/Telegram/Supabase経路を再利用し、公開導線、user isolation、error/cost、公式usage readbackを確認してから利用者獲得を増やす。 |
 
-## 現在の状態
+## 短い導入と毎日の利用者獲得に集中する
 
-SDKのAPI形状、counting rule、free cap、list-price試算、data retentionは一次資料で確認済み。Life ManagerとのSDK接続、account、key、VM、参加者3人は未作成。source changeはfeature-offで準備できるが、live connectionは現行の法的・データ条件のままでは実行しない。
+**推奨:** すべてのLife Manager機能を見せず、一つの反復タスクを最初の価値にする。新しい利用者は共有リンクから短いTelegram会話で開始し、最初の数分で自分の情報だけを使った結果を受け取る。利用者の個人データを使わずに価値が出るところから始め、予定・メール・購入など外部サービスを変える操作は提供しない。継続利用と紹介が実測できたチャネルを一つずつ増やす。
+
+同じ利用者・媒体・目的で、1,000人までの成長と再現できる勝ち方を一次情報で確認できる公開事例は、今回の限定調査では見つからなかった。一般的な「first 1,000 users」記事はこのcompetitionと同一用途・計測条件を満たさず、勝ち筋としてコピーしない。代わりに、最初の実験で共有リンク→開始→最初の有用な完了→7日以内の再利用を計測する。最初の25人は実在する対象利用者に直接案内し、どの導入文・開始手順・仕事が完了を生むかを記録する。良い反応が出た仕組みだけを次のcohortへ広げる。
+
+大会全体は10月20日から12月1日までの42日間である。1,000人を締切までに均等に増やすと平均約24人/日となる。これは大会の週1選考基準ではなく、必要な配信規模を把握する計算である。第1週の上位30選考はメールにだけ記載され、rubric・締切・提出形式が不明なので、独自の目標人数を公式条件と誤認しない。週1は「動くCloud体験」「初期利用者の実利用」「本物の利用記録」「何を学んで直したか」を提示できる状態にする。
+
+## 1,000人へ広げる前に分離・安全・計測を確認する
+
+1. 利用者が開発者のMacやlocal credentialなしでTelegramの公開導線から開始できる。
+2. 既存の署名済みTelegram actorから本人別のtenantを決め、同じ本人の再開で別アカウントやagentを重複作成しない。
+3. 1,000人へ開く前に、最低3人の同意済みpilotで他人の設定・会話・送信先を読めないことを確認する。3人は大会の利用者目標ではない。
+4. agent/VMを共用する場合、conversation IDと保存stateの分離を確認する。主催者が専用agent/VMを求める場合は、その回答と実費上限を先に記録する。
+5. Maritime tool policyは機能ごとに許可を絞り、browser/code/file/外部送信を使わない構成を実際に確認する。promptだけでoffと見なさない。
+6. user-facing data noticeに、Maritime AI creditsの入力・出力が無期限に保持されること、外部連携をまだしていないこと、利用者が送らない方がよい情報を明記する。同意前は実データをMaritimeへ送らない。
+7. internal metricはHMAC化した利用者identity、初回利用時刻、初回の有用な完了、再利用、エラー、モデル/host費用だけを記録する。自由文・予定・応答・秘密情報は記録しない。大会の公式人数とは分けて表示する。
+8. scale段階（3人→25人→100人→1,000人）ごとに、実際の利用・tenant分離・公式dashboard usage・billingを読み戻す。25/100は進め方を評価する内部cohortで、公式閾値ではない。
+9. 公式の1,000 distinct usersに関する重複・team/test userの扱いは主催者確認後に固定し、fake account、bot、複数identityでの水増しは行わない。
+
+## Top 30の審査基準と渡航条件は主催者へ確認する
+
+| 未確定 | 現在わかること | 決め方 |
+|---|---|---|
+| 開始日 | 受諾メールは10/19、Termsは10/20。 | Darshanからの書面回答を正本へ記録する。回答前は公式Termsの日付を基準にするが、週1締切は推定しない。 |
+| 第1週のtop 30 | メールに記載、Termsには審査方法・rubricがない。 | 週1締切、提出物、ランキング基準、利用実績の最低要件を確認する。 |
+| Keiki/Maritime利用 | TermsはKeikiまたはMaritime上のproject usageで実利用を確認すると記載。受諾メールは両方の登録を案内。 | 競技参加に両方の実装が必要か、片方のusageで十分かを確認し、必要条件だけ実装する。 |
+| 1人用agent構成 | Termsの計数は利用者。受諾メールは一人ずつのLife Managerを求める。 | 個人別体験・会話分離は必須として実装し、一人一VMは要求が明文化された場合のみ行う。 |
+| Scale promo | Emailは2か月Scaleと価値1,000ドル/参加者を案内。 | カード要否・自動更新・overage・対象者を確認。確認前に有料planへ変更しない。コードはメールに限定。 |
+| SF travel | 3日体験。スポンサー便は米国内の人に限定。 | 日本からの便、宿泊、人数、日程が書面確定してから旅程を判断する。 |
+| 事業登録 | 公開Termsは競技参加に法人を必須としていない。個別サービス要件は別途適用。 | 法人登記を競技の前提にしない。支払・税務・契約で必要になる場合だけ別途判断する。 |
+| YC紹介 | 競技TermsはYC紹介や採択を約束していない。 | YC応募は別手続きとして直接行う。勝利やSF招待をYC入学の確約として扱わない。 |
+
+## 採択・公開可能・大会勝利を別の状態として扱う
+
+この設計の実装完了と大会勝利は別の状態にする。技術上は、利用者別導線・分離・安全・公式usage readbackが確認できたら「公開可能」。競技結果は、Keiki/Maritimeの記録と主催者の確認により1,000 distinct users到達が認められた場合だけ「winner」とする。採択メールやローカルtestだけでは勝利と報告しない。

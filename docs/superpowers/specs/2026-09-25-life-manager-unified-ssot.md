@@ -237,6 +237,45 @@ README は「ユーザー向け18 + system agent 1」= 19 agent。19 = Host Stew
 - 閉じられないもの: `life-manager-daily:tiktok-retry-20260918-3`（Reddit アカウント `anicca_sao` が ban、公式 readback が取れない）。`fundraiser:18d9b0b6311a2018-87933`（marker 導入前の run、公式 readback 無し）。
 - 規模: reconciler の 1 回の巡回で fenced occurrence は約 3.9 万件、判定は 20 件／10 分。
 
+**10/18 07:10 エージェント別の状態（lm-loop health 実測、revenue facet ok/blocked/unknown）と残りTODO**
+
+| エージェント | 状態 | 残り |
+|---|---|---|
+| Writer | 10/17 公開 2 本（note https://note.com/anicca123/n/n6da69ebc218c 、Substack JA https://aniccabuddha.substack.com/p/claude-codecodex500 ）。10/18 は 0 本: run 20261017-150256 が 3 宛先とも `publisher-cta-variant-id-unsafe-unicode-frozen-artifact`、以降の起動が `frozen-incomplete-pairs` で全停止 | CTA id の unicode 修正と、全宛先 unavailable の run で日を止めない start control（作業中）。EN Substack は Stripe 未接続（Dais） |
+| Affiliate (ElevenLabs) | 24/24 公開 URL を readback 確認（押せる追跡リンク ≥2・開示あり、/go 302）。PartnerStack: 登録 1・有料 0・報酬 $0。税・支払いは Dais 登録済み | 検索需要の型（pricing/free/alternatives/vs/best/how-to）量産、YouTube 化、readback を版に結び付ける nit、旧 id 4 本の /go 化 |
+| Mobile apps | ok 18 / blocked 1（life-manager-daily: Reddit ban で閉鎖不可）/ unknown 2 | 確認済み MRR USD 20.34。unknown 2 の verified hint |
+| Capafy | ok 4 / unknown 5（IG 系・monitor） | IG 系の verified hint、販売者側の注文 readback（公式 API なし、コンソール読み取り producer） |
+| eBook | ok 4 / unknown 1（en-instagram）。ja-tiktok/ig は公開フラグ永続化（#8245）・fence 閉鎖済み | en-instagram の integration sidecar |
+| Gig Coconala | ok 3 / unknown 1。売上確定 JPY 263,634（直近30日 70,980） | apply-direct の fence |
+| Gig Lancers | ok 4 / blocked 1（storefront effect_unknown） | storefront fence、CFO producer |
+| Gig CrowdWorks | ok 4 | CFO producer |
+| Gig Mercor | ok 2 / blocked 1（reply fence） | reply の effect_reconcile |
+| Investment | ok 1 / blocked 1（alpaca-live）/ unknown 1 | Railway の重複 live trader 確認後に #8195、Alpaca readback を CFO に接続 |
+| LINE sticker | blocked 1（factory fence） | Instagram 凍結・lease |
+| PromptBase | unknown 1 | CFO 接続済み（#8281）、loop の verified hint |
+| Fundraiser | ok 1 | submitted_verified 10/08 以降 0 |
+| CFO | ok 1。Writer/PromptBase/agent-economy 配線済み（#8280–#8282） | Capafy・ASC・ebook(Stripe)・Lancers/CrowdWorks・LINE・Alpaca の producer |
+| Agent economy / self-build / job-hunter / connector | revenue 対象外または ok | 売上ソースなし |
+| 費用 | GCP 漏れ修正（#8257、Railway 本番 SUCCESS）見込み月 ¥16.5–17k 削減 | 10 月請求で実測 |
+
+残りTODO（この順）: 1 Writer 今日の停止を直す → 2 affiliate 量産（成功事例の型）→ 3 CFO producer（Capafy 注文・ASC・ebook Stripe 対応表）→ 4 unknown 12 lane の verified hint → 5 止まっている fence（Lancers storefront・Mercor reply・Coconala apply・LINE）→ 6 fundraiser 成約 → 7 R1 レビュー評価セット（事故を毎日採点）→ 8 SH4/SH3/SH5 → 9 fence 約 3.9 万件整理。Dais 待ち: EN Substack の Stripe 接続。
+
+**10/17 21:52 更新（順序変更）**: 旧順 1 Writer → 2 GCP 費用 → 3 計測 …、新順 0 affiliate 増産 → 3 計測 → 4 telemetry …、cursor = 0。理由: ElevenLabs Affiliates から「New ElevenLabs User」通知（10/17 21:11 JST）。aniccaai.com の ElevenLabs 記事 27 本・provider clicks 526（上位: voice-changer 34、voice-isolator 32、subtitle-translator 31）。外部で成果が出た唯一の lane なので、成功事例のコピーで量産を先にする。報酬台帳は approved/pending 0 件（有料転換まで報酬にならない可能性、規約確認中）。
+- 1 Writer: 10/17 公開 note https://note.com/anicca123/n/n6da69ebc218c 、Substack JA https://aniccabuddha.substack.com/p/claude-codecodex500 。EN は `aniccaai2026.substack.com` が `payments_state=disabled`（Stripe 未接続）で verify-preview が止める。Stripe dashboard の session も credentials 行も無く、Dais の接続操作が必要。
+- 2 GCP 費用: #8257 本番（Railway life-call 7f6daacab6 SUCCESS）。見込み月 ¥16.5–17k 削減、10 月請求で確認。後続: 空応答・ターン切れの短い TTL。
+
+**残りTODO（10/17 14:50 実測、この順）**
+- R1 レビュー改善（claude.dev「How the Claude Code team does code review」2026-10-15 を写す）: 済 = `REVIEW.md`（事故由来の失敗定義・指摘ルール・3往復上限・危険度別の深さ）と `bin/merge-when-green`。残 = 事故を評価セットにしてレビュアーを毎日採点（#8230/#8247/#8251/#8257/#8278 の初版を固定ケース化し、検出できたかを記録）、レビュー指摘への対応結果（修正/誤り/意図どおり）の集計、self-build merge guard への REVIEW.md 読み込み。
+1. Writer 今日の公開: #8251（公開前の決定的 finisher）を 13:58 本番化。14:04 run の結果で公開 URL を確認。残り: article-resume の 10/12 fence（occurrence→run 記録が無い）、prompt と `ABSENCE_DESTINATIONS` の x-article/ja が契約（dormant）と不一致、Firecrawl token 無効。
+2. 費用の漏れ: Google Cloud 2026-09 請求 JPY 27,889（Places 9,420 / Geocoding 7,493 / Gemini 5,161 / Directions 3,271）。呼び出し元を特定して止める。
+3. お金の計測（P3）: CFO の確認済み MRR は mobile-apps USD 20.34 のみ。他 16 loop は「未確認」（stale_readback / missing_category）。各 loop の公式 readback を CFO に接続する。
+4. revenue telemetry 未確認 11 lane（Capafy IG 系、PromptBase、eBook en-instagram、anicca-ai-youtube、hf-gig-apply 等）: Writer（#8247）と同じ verified effect hint を出させる。health の last_success フォールバックを外す。
+5. 止まっている 5 lane: alpaca-live（Railway の重複 live trader 確認後に #8195）、life-manager-daily（Reddit ban、閉鎖不可）、LINE スタンプ 2（Instagram 凍結・lease 取得失敗）、marketing-owner-events（未確認送信 1 件を表示中、設計どおり）。
+6. fundraiser: submitted_verified が 10/08 以降 0。昨夜 17 件は全部送信前失敗（必須の紹介者欄、動画長、$50 応募料、CDP 切断）。
+7. SH4: external_effect_owner の自己修復 PR を、周期に合わせた非同期 health で自動昇格させる。
+8. SH3: 全 effect_reconcile adapter とログインの毎日 dry-run。SH5: CI で repo 全体の bash -n、ballast 条件見直し。
+9. fence 残 約 3.9 万件の整理。P4 評価駆動、P5 最大化。
+
 **10/16 に本番へ出した修正:**
 - #8165 squash-merge 済み worktree の回収
 - #8172 Mercor の gog keyring
@@ -19528,3 +19567,74 @@ Top 10 by sales: 0/10 with a trial (Ocup 3,111, Serenity 2,002, HookAce 1,044, V
 6. Recover the 10/23 organize reel (occurrence cancelled before scheduling); daily reels now open with the winner confession (#8222).
 
 **Factory unblock found while fixing trials (2026-10-17 14:30 JST):** the five review slots were held by stale empty draft versions on three FROZEN sellers — 7686597754 YouTube Script Writer v1.0.6 (created 2026-10-11 05:27), 8828622062 Slide Maker v1.0.4, 2844813315 TikTok Script Pro v1.0.5 — plus 2781635836 (new-Agent draft) and 2455220100 Hook Grader (under review). Because sellers are frozen, no loop would ever finish or remove those drafts, so the factory stayed CAP_FULL and nothing new (and no trial removal) could ship. Deleted the three drafts in the seller console (`下書きを削除`); each Agent read back as `公開中` on its unchanged live version (v1.0.5 / v1.0.3 / v1.0.4). Live listings untouched. Capafy free trials auto-charge at trial end unless cancelled (month plan 3 days, week plan 1 day; console 価格設定), so the 4 current trials can still convert. Editing a published Agent creates a draft that itself holds a slot, so trial removal (TODO 1) runs only through a real version submission, after new Agents per AGENTS rule 10. New TODO 0 (first): add a check that flags any FROZEN seller whose console status is `draft`, so a stale seller draft never again holds a slot unseen.
+
+### Capafy distribution maxing + $10K MRR path — 2026-10-17 22:45 JST (claude-evo-eval-1012, Dais: "distribution first, track metrics always, go")
+
+**Math (inference):** $10K MRR at Hook Lab $9.99/month ≈ 1,000 paid monthly subscribers; at 2% detail-view→paid that needs ~50,000 views/month. Now: ~6,000 views/month (7d: 10,447 impressions → 1,414 views → 4 trials → 0 paid). Gap = ~8× reach and 0%→2% conversion.
+
+**Measured channel reach (Postiz analytics, 7d, 2026-10-17):** X selawmqt 6 followers, ~4 views/post (10 posts = 35); IG capafy.hooklab reach 83; TikTok reaches non-followers (anicca_slideshow 1 follower → 3,158 views; anicca.jpx 66 followers → 9,210). Capafy internal: Free Transcript Clip Map 7095835081 = 61% of impressions (6,367) and 860 views, but only ~1% reach Hook Lab (hooklab_free 10).
+
+**Done today:** keyword SEO pages on Hook Lab slots (#8263; first page `tiktok-hook-generator-free` HTTP 200) + H1-must-contain-query and IndexNow ping (#8275); TikTok @hooklab.capafy connected to Postiz (`cmvc98itr1d3clu0yf8vy3dgx`; freed by removing idle aniccajp + disabled anicca.jp8), warm-up registered (live 2026-10-24); reels scheduled to TikTok after warm-up (#8266); reel fence closed by official readback and loop restarted; winner confession opener + say fallback (#8222); factory unblocked (3 stale seller drafts + 2 unretryable rejected deleted) → 2 new Agents under review; hourly distribution-metrics routine `trig_01WPC9rtox5AN1mF815ab4tY`.
+
+**Remaining TODO (order; cursor = 1):**
+1. TikTok warm-up through 2026-10-24 (passive For You only, no search — search triggered a CAPTCHA on day 2); then read back the first DIRECT_POST reels.
+2. Confirm the next keyword page carries its query in the title and an IndexNow status; extend `seo/hook-lab-keywords.json` in the language that moves before the 50 run out.
+3. Free Clip Map → Hook Lab leak (~1%): ship a NEW free Agent that hands off to Hook Lab (the free agent itself is a top-10 seller by units — do not touch it).
+4. X selawmqt English-only: an unidentified poster publishes Anicca affirmation JA/ES posts there via the Postiz API (4/163 in 7d; text matches apps/landing es-affirmation-problems). Identify and re-route; cut posting volume and move effort to value replies on large accounts.
+5. Daily 6-slide carousel to TikTok (slideshow format reaches non-followers).
+6. Weekly winner-creative research loop (yt-dlp → transcript/frames → creative/winner-patterns.md).
+7. Hook Lab page conversion (476 impressions → 42 views, 8.8%): show real output on an external landing before the Capafy click; never edit the seller.
+8. Factory: detector for any FROZEN seller showing console status `draft`; keep shipping NEW winner-category Agents.
+9. Host memory pressure (swap 6–10 GB) defers distribute runs (`host_admission_deferred:resource_capacity_busy`); find and cut the top memory consumers.
+10. Free trial removal on 13 legacy Agents (Dais: later).
+
+### Capafy distribution status + remaining TODO — 2026-10-18 07:30 JST (claude-evo-eval-1012, Dais: "great impressions, great conversion, great revenue; first goal $10K MRR")
+
+**Where we are (Capafy official, 7d):** impressions 11,398 → detail views 1,512 (13.3%) → trials 4 → paid 0. Lifetime gross $102.75 / 70 orders (no paid order since 9/29). Google AI Overview is the largest external source: TikTok Script Pro 25, Hook Lab 17, YouTube Script Writer 4 views (X across the three sellers: 8). Free Transcript Clip Map 7095835081 holds ~60% of impressions; ~1% of its viewers reach Hook Lab.
+
+**$10K MRR math (inference):** ≈1,000 monthly subscribers at $9.99 → ~50,000 views/month at 2% view→paid. Now ~6,500 views/month and 0% paid. Gap: ~8× reach and 0%→2% conversion.
+
+**Shipped 2026-10-17/18 (all merged, released, applied):** keyword SEO pages on every seller slot (#8263, #8275 H1-must-contain-query + IndexNow, #8288/#8291 → 140 keywords across Hook Lab / TikTok Script Pro / YouTube Script Writer; 8 pages live, first TSP/YSW pages 04:30/05:30); Article + FAQPage JSON-LD on every aniccaai.com post (anicca-products #512/#513, verified live EN/ES/JA); fence reconciler serves live fences before refused leftovers (#8286); host agent slots 3→4 (#8292); distribute 15-min cadence retries deferred slots (#8294); spare renderer off in all browser launchers (#8284); leaked tabs swept on every lease release (#8297); frozen-seller-draft detector (#8277); stale seller drafts / unretryable rejected / abandoned draft deleted → factory resumed; TikTok @hooklab.capafy on Postiz (warm-up live 2026-10-24) + reels to TikTok after warm-up (#8266); disk back ≥15 GiB (17 merged worktrees + 7 unreferenced releases removed).
+
+**Remaining TODO (order; cursor = 1):**
+1. Impressions — TikTok: warm-up to 2026-10-24 (passive For You only), then verify the first DIRECT_POST reels and Postiz analytics reach.
+2. Impressions — SEO: keep 140-keyword queue flowing; weekly re-weight toward the product/language with the most AI-Overview views (TikTok Script Pro now strongest); refill before the queue empties (~5 days).
+3. Conversion — Free Clip Map → Hook Lab leak (~1%): watch Hook Grader v1.0.1 (free, hooklab_free CTA) once approved; if <3% hand-off after 7 days, ship a NEW free agent whose output ends in a Hook Lab teaser (never touch the free seller).
+4. Conversion — external page → Capafy click: add a real-output example block above the CTA on keyword pages (copy top-seller listing pattern); measure ct=*_blog views per page.
+5. Conversion — paid: track the 4 trials to trial end (auto-charge); remove free trials on the 13 legacy listings when review slots allow (Dais: after distribution).
+6. Impressions — X selawmqt English-only: identify the poster of Anicca affirmation JA/ES posts; cut volume, move to value replies on large accounts.
+7. Daily 6-slide carousel and weekly winner-creative research loop (yt-dlp).
+8. Foundation: browser flag reconcile for line-creators/fundraiser/tiktok owners (leases always busy); pre-existing failing test test_capafy_goal_monitors_declare_rebindable_host_admission_contract; zombie claim marketing-metrics-daily since 2026-10-16; offline candidate build reports success with no new candidate.
+
+### Keiki × Maritime採択後のLife Manager実利用者1,000人計画 — 2026-10-18
+
+**状態:** 採択済み。Darshan Golchhaから2026-10-16に件名「You're in! Keiki x Maritime」の公式メールを受信した。メールは「一人ずつが使えるLife Manager」を動かすこと、初週に製品を磨くこと、上位30チームだけが第2週へ進むことを案内する。参加者は返信で追加できるが、受諾メールにチーム名簿はない。メールではMaritime Scaleを2か月（参加者一人あたり1,000ドル相当）、初週のKeiki利用者向けLLM creditsを一人あたり25ドル相当と案内する。開始日はメールが10月19日、現行Program Termsが10月20日で食い違う。10月16日に送信した確認メールへの追加返信は10月18日時点で見つかっていない。招待・割引コード、token付きURLはSSOTへ写さない。初週の締切、Top 30の評価基準、提出物、必要なアカウント、名簿、日本からの渡航条件は推測しない。
+
+**公式目標:** agentを実際に使う別々の人1,000人。実利用の確認にはKeikiまたはMaritimeのproject-level usageを使う。agent、VM、subagentの数は目標人数ではない。1,000人に到達し検証された最初の3プロジェクトがwinnerとなる。Termsの共通期間は2026-10-20から2026-12-01 23:59 Pacificまで。利用者ごとの数値的な継続率・活動条件は記載されていない。winner projectごとに最大20,000ドル相当のAI creditsが案内され、SFでの3日間体験と米国内の人向けflightがある。日本からの便やその他旅費は未公表。[Program Terms](https://competition.maritime.sh/terms) [公式ページ](https://competition.maritime.sh/)
+
+**現状:** main `46e40243`にはPR #8168で追加した`maritime-sdk@0.9.0`、Telegram `/pilot`、UID由来HMACのagent/conversation ID、冪等provision、重複update防止receiptがある。routeはdefault-offで最大3 UID。data approval、実検証済みtool policy、server API key、`LM_UID_SECRET`がそろわなければ動かない。現在はUIDごとにagentをprovisionする。OpenClawのtool policyは未検証。大会用account/key/VM/実ユーザー操作は未確認で、一般利用者向けCloud導線の自然稼働も確認されていない。また、このrepoにはRailway/Cloud/SupabaseとTelegram tenant onboardingのソースがあるため、すべてがlocal専用ではない。ただしコードと設定の存在だけでは大会向け本番稼働を証明しない。
+
+**推奨:** 既存Cloud/Telegramのtenant導線を使い、ユーザーごとにLife Manager identity、conversation ID、task stateを分離する。主催者が専用VMを要求しない限り、一人ずつVMを作らない。カレンダー・メール接続のいらない、低機微な日次タスクを一つ選び、AI creditsでは入力・出力が無期限保存されることを利用者へ説明する。記録するのは仮名化ID、利用時刻、結果だけにし、自由文は残さない。主なボトルネックはローカル機能の追加より、すぐ始められる導線と実利用者の獲得と推定する。DuckDuckGo HTMLでの限定検索では、同じ利用者層・メッセージ手段・1,000人計数条件で実績を示す成長事例を確認できなかった。一般的な「最初の1,000人」記事を実証済みの勝ち筋として使わず、実在する利用者25人で、紹介元→開始→最初の有用な完了→7日以内の再利用を測る。42日で1,000人に達するには平均約24人/日の純増が必要だが、これは算術であり公式日次条件ではない。
+
+この正本に大会関連TODOは未登録だった。これからの実行順は「主催者条件・名簿確認 → 製品とデータ条件の確定 → Cloud個人別経路と安全なagent構成 → 3人の安全・体験pilot → 初週Top 30提出根拠 → 25人cohort獲得実験 → 100人cohort → 1,000人へ配信拡大 → 公式winner確認」とする。
+
+この順序にする理由は、利用実績の証明と初週進出が成果を決め、VM1,000台は規約上の条件でないためである。
+
+進捗はTODO 1から始める。詳しい設計と受け入れ条件は[詳細設計](2026-10-16-maritime-pilot-design.md)を参照。
+
+**Hackathon Radar同期:** Radar Page本文は採択状態・開始日の矛盾・主催者への確認事項を更新し、読み戻し済み。稼働中の日次scan workerには「1,000 distinct qualified agentsを別々のMaritime VMで動かす」という旧指示が残っている。Pages連携にはtask設定を変更・停止する操作が公開されていないため、同じworkerを重複作成しない。設定更新が可能になった時点で、1,000人の実利用を数える指示へ直す。
+
+**TODO（順序、cursor = 1）:**
+
+1. **送信済み確認への返信を読み、競技条件を確定する。** 開始日、第1週の締切とtimezone、Top 30の評価基準、必須demo/提出物、KeikiとMaritimeの両方が必要か、公式のdistinct user計数法、一人用agentまたはVMの要否を記録する。2026-10-16に確認メールを送信済みなので重複送信しない。第1週までに回答がなければ6週間の日付と1,000人条件は公開Termsに従い、Top 30の基準は未確認と報告する。
+2. **採択チームの名簿と登録案内を揃える。** メールは返信でチームメンバーを追加できるが、対象者名は書かれていない。既存のprivate profile/contextから実際のメンバーを照合し、主催者側の名簿への追加状態を確認する。promo/invite codeは元メールに限定する。
+3. **初週の製品価値を一つに絞り、短いdemoを作る。** 既存Life Manager/Telegramを再利用する。暫定案は、本人が今日やりたいことを一言で送り、短い行動計画を受け取り、完了を返せる低機微タスク。最初の価値に全機能やCalendar/Email OAuthを要求せず、実利用者の反応で修正する。
+4. **Cloudの公開導線を確立する。** 既存Cloud Telegram/tenant contractを読み、署名済みactor、onboarding、Supabaseの分離を再利用する。開発者でない新規利用者がMac/local credentialなしに共有リンクから始められることを確認する。Railwayと現行storageを使い、第二のbackendを作らない。source/configと本番稼働を区別して記録する。
+5. **実promptより先にdata・同意・tool境界を決める。** Maritime ToS、Privacy、AI-credit retention、program billingを確認する。初期agentではbrowser/code/file/external-send toolを外すか、deployment実環境で制限を証明する。利用者へAI credits使用時の入力・出力が無期限保存されると説明し、同意を得る。初期タスクではCalendar/contact/email/address/payment dataを扱わず、この条件が済むまで既存gateをoffに保つ。
+6. **3 UID上限を個人別identity contractへ更新する。** conversation IDで一人用Life Manager要件を満たすか、主催者回答を確認する。推奨はproject共通agentと、ユーザーごとの安定HMAC conversation ID、分離されたtenant/task state。cross-user context isolationと冪等provisionを確かめる。一人一agent/VMは明示的に必要かつ費用が確定した場合の代替とする。1,000人目標から1,000VMを推論しない。
+7. **同意済みの最小pilotを実施する。** 実在する別人3人から開始し、本文を記録せず、初回の有用な完了と本人の結果を測る。Keiki/Maritimeのusageと請求を読み戻す。利用者を増やす前にonboardingやprivacy漏れを修正する。これは内部安全・体験確認で、公式人数の閾値ではない。
+8. **初週Top 30の提出材料を整える。** rubricを受け取った後、公開demo、対象者、実際のdistinct users、feedbackから変えた点、data/tool保護、次の計測実験をまとめる。指定された公式手段だけで提出し、受付receiptを保存する。フォームや締切を推測しない。
+9. **チャネルを増やす前に無料の獲得実験を一つ測る。** 同条件の成功事例が見つからなかったため、関係する一つのcommunityまたは直接紹介から実在する見込み利用者25人を招く。紹介元、開始率、最初の有用な完了、7日再利用、error、利用者あたりcostを測る。team/test userは別集計し、未確認のclaimや有料広告は使わない。
+10. **実測できた経路だけ拡大する。** 25人から100人へ広げ、funnelの最大離脱を修正し、最も成果があった紹介元・案内・最初の仕事を再現する。distinct real usersと公式usageを毎日追い、42日間の平均として約24人/日の純増を目安にするが、達成保証とはしない。有用な仕事を完了する人が増えない場合はチャネル追加を止める。
+11. **winnerの検証と費用を閉じる。** Life Managerの重複除外済みuser ledgerをKeiki/Maritime dashboardと照合し、公式人数と主催者のwinner判定を確認する。Scaleや継続的なmodel利用を有効にする前に現在の請求、credit、期限を読む。採択、signup数、local test、agent/VM数を勝利と呼ばない。
+12. **渡航とYCを競技から分ける。** winner通知と日本からのflight/人数/費用の書面確認を待ってから旅程を判断する。YC紹介やWinter 2027採択は競技条件にない。YCは直接応募laneで扱い、締切も独立した公式sourceで確認する。

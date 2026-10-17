@@ -135,6 +135,32 @@ def fetch_sitemap_xml(url):
     return result.stdout
 
 
+def demand_pages(root):
+    path = root / "config" / "demand-pages.json"
+    if not path.is_file():
+        return []
+    config = json.loads(path.read_text(encoding="utf-8"))
+    if config.get("schema_version") != 1:
+        raise CaptureError("unsupported demand page config")
+    return config["pages"]
+
+
+def demand_plan(page):
+    return {
+        "schema_version": 1,
+        "plan_id": page["plan_id"],
+        "locale": "en",
+        "offer_id": f"elevenlabs-{page['page_type']}",
+        "buyer_intent": page["buyer_intent"],
+        "slug": page["slug"],
+        "page_type": page["page_type"],
+        "page_query": page["query"],
+        "page_brief": page["brief"],
+        "pricing_table": bool(page.get("pricing_table")),
+        "sources": [*page["sources"], *AFFILIATE_CASE_STUDY_SOURCES],
+    }
+
+
 def pending_experiment(state_root, plans):
     used = {
         plan.get("experiment", {}).get("decision_id")
@@ -306,7 +332,9 @@ def discover_official_plan(root, state_root, now, opportunity_selector=select_op
         return {**previous, "state": "DEFERRED"}
     plans = [load_plan(root, path.stem, state_root) for path in plan_paths(root, state_root)]
     experiment = pending_experiment(state_root, plans)
-    if previous.get("completed_day") == datetime.fromtimestamp(now, timezone.utc).date().isoformat():
+    today = datetime.fromtimestamp(now, timezone.utc).date().isoformat()
+    cooldown_today = False
+    if previous.get("completed_day") == today:
         prior_plan = previous.get("plan_id")
         try:
             publication = json.loads(
@@ -316,10 +344,30 @@ def discover_official_plan(root, state_root, now, opportunity_selector=select_op
             )
         except (OSError, ValueError):
             publication = {}
-        if experiment is None and (
+        cooldown_today = (
             previous.get("state") != "CREATED" or publication.get("state") != "X_LIVE"
-        ):
+        )
+        if experiment is None and cooldown_today:
             return {**previous, "state": "COOLDOWN"}
+    # High-demand search pages (pricing, alternatives, versus, ...) open one per
+    # day ahead of experiments and sitemap families; an experiment may still use
+    # a cooldown day as before.
+    known = {plan.get("plan_id") for plan in plans}
+    page = next((row for row in demand_pages(root) if row["plan_id"] not in known), None)
+    if page is not None and not cooldown_today:
+        plan = demand_plan(page)
+        plan_path = state_root / "discovered-source-plans" / f"{plan['plan_id']}.json"
+        atomic_write(plan_path, plan)
+        receipt = {
+            "schema_version": 1, "receipt_type": "OPPORTUNITY_DISCOVERY",
+            "state": "CREATED", "discovery_mode": "DEMAND_PAGE",
+            "completed_at": now, "completed_day": today,
+            "plan_id": plan["plan_id"], "page_type": plan["page_type"],
+            "page_query": plan["page_query"], "plan_path": str(plan_path),
+            "plan_sha256": hashlib.sha256(plan_path.read_bytes()).hexdigest(),
+        }
+        atomic_write(receipt_path, receipt)
+        return receipt
     if experiment is not None:
         control = next((
             plan for plan in plans
@@ -703,6 +751,10 @@ def write_composition_bundle(state_root, plan, receipts):
         bundle["opportunity_decision"] = plan["opportunity_decision"]
     if plan.get("experiment"):
         bundle["experiment"] = plan["experiment"]
+    # Composition guidance only; the plan file is immutable once discovered.
+    for key in ("page_type", "page_query", "page_brief", "pricing_table"):
+        if key in plan:
+            bundle[key] = plan[key]
     atomic_write(state_root / "composition-inbox" / f"{plan['plan_id']}.json", bundle)
     return bundle
 
