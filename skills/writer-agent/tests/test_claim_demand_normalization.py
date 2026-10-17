@@ -240,3 +240,26 @@ def test_select_rejects_equivalent_duplicate_observation_ids() -> None:
 
     with pytest.raises(DEMAND.DemandCardError, match="unique"):
         DEMAND.select_demand_observations(observations)
+
+
+def test_duplicate_or_malformed_model_ids_are_dropped_not_fatal() -> None:
+    # 2026-10-17: every claim-loop pass ended DEMAND_CARD_INVALID ("must list unique
+    # observation_ids"), the topic queue ran dry and article-daily stopped before generation.
+    observations = [
+        _row("publisher-1", "https://techi.com/authors", "publisher_opportunity"),
+        _row("publisher-2", "https://civo.com/write", "publisher_opportunity"),
+    ]
+    card = {"observation_ids": ["publisher-1", "publisher-1", "", None, "publisher-2"]}
+
+    normalized = MODULE._normalize_model_demand_observation_ids(card, observations)
+
+    assert normalized["observation_ids"] == ["publisher-1", "publisher-2"]
+
+
+def test_no_usable_model_id_names_its_own_reason() -> None:
+    observations = [_row("publisher-1", "https://techi.com/authors", "publisher_opportunity")]
+    for ids in ([], ["", None]):
+        with pytest.raises(DEMAND.DemandCardError, match="no usable observation_ids"):
+            MODULE._normalize_model_demand_observation_ids({"observation_ids": ids}, observations)
+    with pytest.raises(DEMAND.DemandCardError, match="unsupported observation_id"):
+        MODULE._normalize_model_demand_observation_ids({"observation_ids": ["nope"]}, observations)
