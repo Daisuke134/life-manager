@@ -3059,6 +3059,7 @@ def test_default_agent_total_capacity_spans_revenue_and_borrow_claims(
     claims = []
     for owner, admission_class in (
         ("agent-revenue", "revenue"), ("agent-support", "borrow"), ("agent-revenue-2", "revenue"),
+        ("agent-revenue-3", "revenue"),
     ):
         ticket, _ = admission.enqueue_durable(
             "agent", owner, admission_class=admission_class,
@@ -3945,3 +3946,22 @@ def test_stale_sweep_keeps_a_lone_old_wake_and_unknown_effects(tmp_path, monkeyp
     assert admission.cancel_stale_queued_occurrences(older_than_seconds=86_400, now=1_000_000) == 0
     states = {row["occurrence_id"]: row["state"] for row in durable_rows(tmp_path, "occurrences")}
     assert states["lone-owner:only"] == "queued"
+
+
+def test_default_agent_total_allows_four_concurrent_agents(tmp_path, monkeypatch):
+    # 2026-10-18: three long revenue agents (mercor + crowdworks x2) held all three host agent
+    # slots for 50+ minutes and the Capafy distribute agent pass was deferred
+    # (resource_capacity_busy) with 42% memory free.
+    monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(tmp_path))
+    for name in ("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", "LIFE_MANAGER_HOST_MAX_REVENUE_RUNS",
+                 "LIFE_MANAGER_HOST_MAX_AGENT_TOTAL_RUNS", "LIFE_MANAGER_HOST_MAX_AGENT_RUNS",
+                 "LIFE_MANAGER_HOST_MIN_REVENUE_RUNS"):
+        monkeypatch.delenv(name, raising=False)
+    admission.activate_durable_v2()
+    results = []
+    for index in range(5):
+        owner = f"agent-{index}"
+        ticket, _ = admission.enqueue_durable("agent", owner, admission_class="revenue", now=100 + index)
+        claim, reason = admission.claim_durable("agent", owner, admission_class="revenue", now=100 + index)
+        results.append(claim is not None)
+    assert results == [True, True, True, True, False]
