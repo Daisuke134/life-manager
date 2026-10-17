@@ -115,6 +115,10 @@ def _find_window(rows: list[dict], occurrence_id: str) -> tuple[dict, dict, str]
         row for row in rows
         if row.get("loop_id") == OWNER_ID and row.get("owner_id") == OWNER_ID
         and row.get("phase") == "report" and row.get("occurrence_id") == occurrence_id
+        # The occurrence's own wake deferred by host admission never ran the owner; a
+        # later run claims it (lm-occurrence://.../claim) and is the only real terminal.
+        and not (row.get("effect_status") == "not_applicable"
+                 and str(row.get("error_class") or "").startswith("host_admission_deferred:"))
     ]
     if len(occurrence_reports) != 1:
         raise EvidenceError("runtime_occurrence_event_invalid")

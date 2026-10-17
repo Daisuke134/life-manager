@@ -430,6 +430,47 @@ def test_cli_refuses_multiple_terminal_reports_for_one_occurrence(tmp_path, monk
     assert result["state"] == "HELD"
 
 
+def test_cli_ignores_the_occurrences_own_admission_deferred_report(tmp_path, monkeypatch, capsys):
+    """Live 2026-10-16: hf-gig-storefront-direct:18deeb722895f358-5308 was first deferred by
+    host admission (blocked, effect not_applicable, exit 75), then claimed by a later run.
+    The deferred report never ran the owner, so only the claim report is the terminal."""
+    module = load_module()
+    occurrence_id = f"{OWNER_ID}:queued-occurrence-5"
+    resumed_run = "runtime-run-claimant"
+    state_root = tmp_path / "storefront"
+    stdout_log = state_root / "logs" / "launchd.out.log"
+    host_root = tmp_path / "host-admission"
+    database = host_root / "admission-v2.sqlite3"
+    host_root.mkdir()
+    deferred = runtime_event(
+        "queued-occurrence-5", "report", "1970-01-01T00:01:00+00:00",
+        status="blocked", effect_status="not_applicable",
+        refs=[f"lm-loop://{OWNER_ID}/queued-occurrence-5/summary.json"],
+    )
+    deferred["event_id"] = "c" * 24
+    deferred["error_class"] = deferred["blocker"] = "host_admission_deferred:resource_capacity_busy"
+    resumed = start_terminal_events(
+        resumed_run, terminal_occurrence_id=occurrence_id, terminal_status="pass",
+    )
+    write_jsonl(state_root / "events.jsonl", [deferred, *resumed])
+    write_stdout_log(stdout_log, [pass_line(
+        observed_at_epoch=305, status="pending", reason="official_inventory_empty_or_invalid",
+        runtime_run_id=resumed_run, runtime_occurrence_id=occurrence_id,
+    )])
+    write_admission_db(database, occurrence_id)
+    monkeypatch.setattr(module, "admission_root", lambda: host_root)
+
+    return_code = module.main([
+        "--occurrence", occurrence_id, "--state-root", str(state_root),
+        "--stdout-log", str(stdout_log), "--dry-run",
+    ])
+    result = json.loads(capsys.readouterr().out)
+
+    assert return_code == 0
+    assert result["state"] == "PROOF_READY"
+    assert result["evidence"]["run_id"] == resumed_run
+
+
 @pytest.mark.parametrize("field", ["loop_id", "owner_id"])
 def test_cli_refuses_runtime_event_from_another_owner(field, tmp_path, monkeypatch, capsys):
     module = load_module()

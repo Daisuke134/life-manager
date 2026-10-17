@@ -43,10 +43,10 @@ def test_coconala_effect_fence_adapters_are_registered() -> None:
     storefront_reconcile = loops["hf-gig-storefront-direct"]["effect_reconcile"]
     assert storefront_reconcile == {
         "argv": [
-            "skills/earn/gig/scripts/storefront_pre_effect_reconcile.py",
+            "skills/earn/gig/scripts/storefront_official_reconcile.py",
         ],
         "occurrence_flag": "--occurrence",
-        "resolve_flag": None,
+        "resolve_flag": "--resolve",
         "timeout_seconds": 900,
     }
 
