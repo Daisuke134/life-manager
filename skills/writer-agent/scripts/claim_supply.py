@@ -560,22 +560,21 @@ def _normalize_model_demand_observation_ids(
     """
 
     raw_ids = selected_card.get("observation_ids")
-    if not isinstance(raw_ids, list) or not raw_ids:
-        raise DemandCardError("model demand_card must list unique observation_ids")
-
+    # A repeated or blank ID carries no evidence of its own: drop it rather than reject the
+    # whole card (2026-10-17: every claim-loop pass died here and the topic queue ran dry).
+    # Support and independence are still enforced on what remains below.
     chosen_ids: list[str] = []
-    for value in raw_ids:
+    for value in raw_ids if isinstance(raw_ids, list) else []:
         try:
             normalized_id = normalize_observation_id(
                 value, "model demand_card observation_id"
             )
-        except DemandCardError as error:
-            raise DemandCardError(
-                "model demand_card must list unique observation_ids"
-            ) from error
-        if normalized_id in chosen_ids:
-            raise DemandCardError("model demand_card must list unique observation_ids")
-        chosen_ids.append(normalized_id)
+        except DemandCardError:
+            continue
+        if normalized_id not in chosen_ids:
+            chosen_ids.append(normalized_id)
+    if not chosen_ids:
+        raise DemandCardError("model demand_card has no usable observation_ids")
 
     by_id: dict[str, Mapping[str, Any]] = {}
     for row in selected_observations:
