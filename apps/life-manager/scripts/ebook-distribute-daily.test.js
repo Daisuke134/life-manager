@@ -45,13 +45,13 @@ test("each Japanese eBook publisher owner resolves one matching account and loca
   );
 });
 
-test("English HeyGen owner resolves the approved active Monk TikTok route", () => {
+test("English slideshow owner resolves the approved active Monk TikTok route", () => {
   const lane = JOBS["ebook-en-tiktok-daily"];
   assert.deepEqual(lane, {
     productId: "ebook-en",
     platform: "tiktok",
     accountId: "tiktok.monk_anicca",
-    formatId: "ebook-avatar-iv",
+    formatId: "ebook-slideshow",
     form: "ebook-reflection-reel",
     locale: "en",
   });
@@ -139,12 +139,12 @@ test("same eBook slot has distinct publication IDs for TikTok and Instagram owne
   assert.notEqual(tiktok, instagram);
 });
 
-test("English baseline policy accepts only the owned HeyGen script and claims", () => {
+test("English baseline policy accepts only the owned slideshow script and claims", () => {
   const script = {
     product_id: "ebook-en",
     language: "en",
     baseline: true,
-    renderer_id: "heygen-avatar-iv",
+    renderer_id: "slideshow",
     cta: "Read The Anicca Reset",
     source_mechanism_ids: ["baseline.owner-authored.ebook-en.1.1"],
   };
@@ -222,7 +222,7 @@ test("manual slot override refuses to call the renderer when the existing receip
   }
 });
 
-test("manual slot override reuses the exact completed render and scopes the publication to its owner", async () => {
+test("manual slot override rejects a completed HeyGen render after the renderer switch", async () => {
   const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ebook-en-manual-reuse-"));
   const dataDir = path.join(temporaryRoot, "data");
   const stateRoot = path.join(dataDir, "marketing", "ebook");
@@ -271,7 +271,7 @@ test("manual slot override reuses the exact completed render and scopes the publ
         kind: "marketing_video_distribution",
         status: "published",
         product_id: "ebook-en",
-        format_id: "ebook-avatar-iv",
+        format_id: "ebook-slideshow",
         form: "ebook-reflection-reel",
         locale: "en",
         creative_id: `${ownerInput.publication_id}-ebook-en-tiktok-daily`,
@@ -322,27 +322,16 @@ test("manual slot override reuses the exact completed render and scopes the publ
     const previousEnv = Object.fromEntries(processEnv.map((key) => [key, process.env[key] ?? null]));
     Object.assign(process.env, Object.fromEntries(processEnv.map((key) => [key, env[key]])));
     try {
-      const result = await run([ownerId, "--slot-at", slotAt], {
-        env,
-        nowMs: Date.parse("2026-10-09T07:30:00+09:00"),
-        store,
-      });
-
-      assert.equal(result.state, "published");
-      assert.equal(result.slot_at, slotAt);
-      assert.equal(result.creative_id, `${ownerInput.publication_id}-ebook-en-tiktok-daily`);
+      await assert.rejects(
+        run([ownerId, "--slot-at", slotAt], {
+          env,
+          nowMs: Date.parse("2026-10-09T07:30:00+09:00"),
+          store,
+        }),
+        /eBook render receipt and baseline script do not match/,
+      );
       assert.equal(fs.existsSync(path.join(stateRoot, "renderer-called")), true);
-      assert.deepEqual(JSON.parse(fs.readFileSync(env.LIFE_MANAGER_RESULT_HINT_PATH, "utf8")), {
-        schema_version: 1,
-        kind: "life_manager_effect_result",
-        status: "verified_effect",
-        effect: 1,
-        owner_id: ownerId,
-        occurrence_id: env.LIFE_MANAGER_OCCURRENCE_ID,
-        provider: "postiz",
-        provider_receipt_id: "postiz_manual_slot_1",
-        effect_status: "reconciled",
-      });
+      assert.equal(fs.existsSync(env.LIFE_MANAGER_RESULT_HINT_PATH), false);
     } finally {
       for (const key of processEnv) {
         if (previousEnv[key] == null) delete process.env[key];
@@ -434,7 +423,7 @@ test("manual slot override requires a manual occurrence identity", async () => {
   }
 });
 
-test("renderer receives scoped HeyGen environment only for the English eBook", async () => {
+test("renderer process receives no HeyGen credentials for either eBook", async () => {
   const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ebook-renderer-env-"));
   const fakePython = path.join(temporaryRoot, "fake-python");
   const capturedKeys = [
@@ -479,8 +468,8 @@ test("renderer receives scoped HeyGen environment only for the English eBook", a
     const english = await captureRendererEnvironment(
       "ebook-en-tiktok-daily", "2026-10-08T08:00:00+09:00",
     );
-    assert.equal(english.LIFE_MANAGER_HEYGEN, path.join(temporaryRoot, "bin/heygen"));
-    assert.equal(english.HEYGEN_NO_ANALYTICS, "1");
+    assert.equal(english.LIFE_MANAGER_HEYGEN, null);
+    assert.equal(english.HEYGEN_NO_ANALYTICS, null);
     assert.equal(english.LM_POSTIZ_API_KEY, null);
     assert.equal(english.PRIVATE_UNRELATED_SECRET, null);
 

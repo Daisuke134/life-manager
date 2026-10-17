@@ -59,7 +59,7 @@ const SCRIPT_POLICY = Object.freeze({
 const JOBS = Object.freeze({
   "ebook-en-tiktok-daily": {
     productId: "ebook-en", platform: "tiktok", accountId: "tiktok.monk_anicca",
-    formatId: "ebook-avatar-iv", form: FORM, locale: "en",
+    formatId: "ebook-slideshow", form: FORM, locale: "en",
   },
   "ebook-en-instagram-daily": {
     productId: "ebook-en", platform: "instagram", accountId: "instagram.monk_anicca",
@@ -237,7 +237,7 @@ function selectTarget({ root, pack, ownerId, platform, accountId }) {
           || !account.product_ids?.includes(lane.productId)
           || account.platform !== platform
           || account.publisher_integration_id !== integrationId
-          || !account.allowed_renderer_ids?.includes(pack.renderer_id)) {
+          || (integrationId != null && !account.allowed_renderer_ids?.includes(pack.renderer_id))) {
         throw new Error("eBook held account does not match its product and Postiz route");
       }
       return {
@@ -302,12 +302,6 @@ function renderInput({ python, root, stateRoot, slotAt, product, ownerEnv = proc
     LC_ALL: ownerEnv.LC_ALL || "",
     TMPDIR: ownerEnv.TMPDIR || "/tmp",
   };
-  if (product === "ebook-en") {
-    for (const key of ["LIFE_MANAGER_HEYGEN", "HEYGEN_NO_ANALYTICS"]) {
-      const value = ownerEnv[key];
-      if (typeof value === "string" && value.trim()) rendererEnv[key] = value;
-    }
-  }
   const result = spawnSync(python, [renderer, "--product", product, "--slot-at", slotAt,
     "--state-root", stateRoot], {
     cwd: root,

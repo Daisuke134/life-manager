@@ -30,7 +30,9 @@ def canonical(value: dict) -> str:
 
 
 def semantic_signature(script: dict) -> str:
-    value = {key: script[key] for key in ("product_id", "language", *COMPONENTS, "body")}
+    value = {key: script[key] for key in (
+        "product_id", "language", "renderer_id", *COMPONENTS, "body",
+    )}
     return hashlib.sha256(canonical(value).encode()).hexdigest()
 
 
