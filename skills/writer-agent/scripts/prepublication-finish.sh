@@ -12,9 +12,11 @@
 set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RUN_DIR=""
+KEEP_PID=""
 while [ $# -gt 0 ]; do case "$1" in
   --run-dir) RUN_DIR="$2"; shift 2;;
-  *) echo "FATAL: usage: prepublication-finish.sh --run-dir <run>" >&2; exit 2;;
+  --keep-pid) KEEP_PID="$2"; shift 2;;
+  *) echo "FATAL: usage: prepublication-finish.sh --run-dir <run> [--keep-pid <broker>]" >&2; exit 2;;
 esac; done
 [ -d "$RUN_DIR" ] || { echo "FATAL: run dir missing" >&2; exit 2; }
 : "${ARTICLE_LEDGER:?ARTICLE_LEDGER is required}"
@@ -40,15 +42,49 @@ done
 TOPIC_ID="$(jq -r '.topic_id // empty' "$GATES/topic-route.json" 2>/dev/null)"
 [ -n "$TOPIC_ID" ] || skip "missing-topic-id"
 
-current_pass() {  # <receipt> <draft>
-  jq -e --arg h "$(shasum -a 256 "$2" | awk '{print $1}')" \
-    '.verdict == "PASS" and .article_sha256 == $h' "$1" >/dev/null 2>&1
+descendants() {  # <pid>: the pid and every descendant
+  local child
+  echo "$1"
+  for child in $(pgrep -P "$1" 2>/dev/null); do descendants "$child"; done
 }
 
+# The agent can end its turn while gates it launched for this run still run (codex left
+# identity/conscience in progress on 20261017-033711). Stop every process naming this run,
+# except this finisher and the kept judge broker tree, so no stale gate races our verdicts.
+stop_run_leftovers() {
+  local keep pid tries=0 found
+  keep=" $$ $PPID $( [ -n "$KEEP_PID" ] && descendants "$KEEP_PID" | tr '\n' ' ') "
+  while :; do
+    found=""
+    for pid in $(pgrep -f -- "$RUN_DIR" 2>/dev/null); do
+      case "$keep" in *" $pid "*) ;; *) found="$found $pid";; esac
+    done
+    [ -n "$found" ] || return 0
+    if [ "$tries" -lt 50 ]; then kill -TERM $found 2>/dev/null; else kill -KILL $found 2>/dev/null; fi
+    [ "$tries" -lt 100 ] || block "run-leftovers-survive:$found"
+    tries=$((tries + 1))
+    sleep 0.1
+  done
+}
+stop_run_leftovers
+
+verdict_for_current() {  # <receipt> <draft>: prints the verdict bound to the current bytes
+  jq -r --arg h "$(shasum -a 256 "$2" | awk '{print $1}')" \
+    'select(.article_sha256 == $h) | .verdict // empty' "$1" 2>/dev/null
+}
+
+# Negative verdicts are final for the same bytes: never re-judge them.
 for lang in ja en; do
   md="$RUN_DIR/article-$lang.md"
-  current_pass "$GATES/identity-$lang.json" "$md" && continue
-  bash "$SCRIPT_DIR/identity-gate.sh" "$md" --lang "$lang" || block "identity-$lang"
+  case "$(verdict_for_current "$GATES/identity-$lang.json" "$md")" in
+    PASS) continue ;;
+    "") bash "$SCRIPT_DIR/identity-gate.sh" "$md" --lang "$lang" || block "identity-$lang" ;;
+    *) block "identity-$lang-final" ;;
+  esac
+done
+for lang in ja en; do
+  [ "$(verdict_for_current "$GATES/conscience-$lang.json" "$RUN_DIR/article-$lang.md")" = BLOCK ] \
+    && block "conscience-$lang-final"
 done
 
 # Reuse a decision already bound to these exact drafts (a re-run must not open attempt 2).

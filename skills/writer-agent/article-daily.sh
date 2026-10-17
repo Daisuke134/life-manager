@@ -1323,7 +1323,7 @@ RC=$?
 # Blocks (identity FAIL, conscience BLOCK, quality owner) leave the run to its existing owners.
 if [ "$RC" -ne 124 ] && [ "$RC" -ne 130 ] && [ "$RC" -ne 143 ]; then
   ARTICLE_LEDGER="$LEDGER" bash "$ARTICLE_ROOT/scripts/prepublication-finish.sh" \
-    --run-dir "$RUN_DIR" >>"$LOG" 2>&1 || \
+    --run-dir "$RUN_DIR" --keep-pid "$JUDGE_BROKER_PID" >>"$LOG" 2>&1 || \
     echo "=== article-daily: deterministic prepublication finish blocked run=$RUN_TS rc=$? ===" >>"$LOG"
 fi
 drain_generation_workers

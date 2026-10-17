@@ -51,6 +51,19 @@ $BODY"
 if [ -z "${ARTICLE_RUN_DIR:-}" ] && [ -f "$MD" ]; then
   export ARTICLE_RUN_DIR="$(cd "$(dirname "$MD")" && pwd)"
 fi
+# A BLOCK is final for the same bytes: replay it instead of asking a fresh judge,
+# so a later pass can never re-roll a BLOCK into ALLOW (review of #8251).
+RECEIPT=""
+ARTICLE_HASH="$(shasum -a 256 "$MD" | awk '{print $1}')"
+if [ -n "${ARTICLE_RUN_DIR:-}" ]; then
+  RECEIPT="$ARTICLE_RUN_DIR/gates/conscience-$LANG_A.json"
+  if jq -e --arg h "$ARTICLE_HASH" '.verdict == "BLOCK" and .article_sha256 == $h' \
+    "$RECEIPT" >/dev/null 2>&1; then
+    jq -c '{verdict, reasons}' "$RECEIPT"
+    log_gate_verdict "BLOCK:replayed"
+    exit 1
+  fi
+fi
 OUT=$(printf '%s' "$PROMPT" | "$MODEL_RUNNER" judge --prompt-file - 2>/dev/null)
 JSON=$(printf '%s\n' "$OUT" | grep -o '{"verdict".*}' | tail -1)
 if [ -z "$JSON" ]; then
@@ -86,6 +99,14 @@ fi
 echo "$NORMALIZED"
 VERDICT=$(printf '%s' "$NORMALIZED" | python3 -c 'import json,sys; print(json.load(sys.stdin)["verdict"])')
 log_gate_verdict "$VERDICT"
+if [ -n "$RECEIPT" ]; then
+  mkdir -p "$(dirname "$RECEIPT")"
+  printf '%s' "$NORMALIZED" | jq -c --arg h "$ARTICLE_HASH" '. + {article_sha256: $h}' \
+    >"$RECEIPT.$$.tmp" && mv -f "$RECEIPT.$$.tmp" "$RECEIPT" || {
+      echo "FATAL: could not persist conscience receipt" >&2
+      exit 3
+    }
+fi
 if [ "$VERDICT" = "ALLOW" ] && [ -n "${ARTICLE_RUN_DIR:-}" ]; then
   python3 "$SCRIPT_DIR/quality-phase-terminal.py" write \
     --run-dir "$ARTICLE_RUN_DIR" --lang "$LANG_A" --markdown-file "$MD" || {

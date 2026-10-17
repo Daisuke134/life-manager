@@ -124,8 +124,52 @@ set -e
 [ "$rc" -ne 0 ]
 [ ! -e "$FAKE_INIT_ARGS" ] && [ ! -e "$RUN/gates/publication-state.json" ]
 
+# 5b. The BLOCK is persisted hash-bound and is final for the same bytes: no re-judge to ALLOW.
+jq -e --arg h "$(sha "$RUN/article-ja.md")" '.verdict == "BLOCK" and .article_sha256 == $h' \
+  "$RUN/gates/conscience-ja.json" >/dev/null
+: >"$FAKE_MODEL_CALLS"
+set +e
+ARTICLE_PUBLICATION_POLICY=continuous bash "$FINISH" --run-dir "$RUN" >"$TMP/out5b" 2>&1
+rc=$?
+set -e
+[ "$rc" -ne 0 ] && ! grep -q conscience "$FAKE_MODEL_CALLS"
+[ ! -e "$FAKE_INIT_ARGS" ] && [ ! -e "$RUN/gates/publication-state.json" ]
+# The gate itself also replays the stored BLOCK instead of asking the judge again.
+set +e
+ARTICLE_RUN_DIR="$RUN" bash "$ROOT/scripts/conscience-gate.sh" "$RUN/article-ja.md" --lang ja >"$TMP/out5c" 2>&1
+rc=$?
+set -e
+[ "$rc" -eq 1 ] && ! grep -q conscience "$FAKE_MODEL_CALLS" && grep -q '"BLOCK"' "$TMP/out5c"
+
+# 7. A current-hash identity FAIL is final: never re-judged, never initialized.
+RUN="$(make_run 20261017-070000)"
+printf '{"verdict":"FAIL","violations":["C: Dais"],"article_sha256":"%s"}\n' \
+  "$(sha "$RUN/article-en.md")" >"$RUN/gates/identity-en.json"
+set +e
+ARTICLE_PUBLICATION_POLICY=continuous bash "$FINISH" --run-dir "$RUN" >"$TMP/out7" 2>&1
+rc=$?
+set -e
+[ "$rc" -ne 0 ] && [ ! -s "$FAKE_MODEL_CALLS" ] && [ ! -e "$FAKE_INIT_ARGS" ]
+
+# 8. Gates the agent left running for this run are stopped before the finisher judges;
+#    the kept (broker) pid survives.
+RUN="$(make_run 20261017-080000)"
+python3 -c 'import time; time.sleep(300)' "$RUN/article-en.md" &
+LEFTOVER=$!
+python3 -c 'import time; time.sleep(300)' "$RUN" &
+KEPT=$!
+sleep 0.3
+ARTICLE_PUBLICATION_POLICY=continuous bash "$FINISH" --run-dir "$RUN" --keep-pid "$KEPT" >"$TMP/out8" 2>&1 \
+  || { cat "$TMP/out8"; exit 1; }
+alive_leftover=0; kill -0 "$LEFTOVER" 2>/dev/null && alive_leftover=1
+alive_kept=0; kill -0 "$KEPT" 2>/dev/null && alive_kept=1
+kill "$LEFTOVER" "$KEPT" 2>/dev/null || true
+wait "$LEFTOVER" "$KEPT" 2>/dev/null || true
+[ "$alive_leftover" -eq 0 ] && [ "$alive_kept" -eq 1 ] && [ -e "$FAKE_INIT_ARGS" ]
+
 # 6. The daily wrapper calls the finisher after the model pass, before the broker drains.
 awk '/^run_model_pass$/{m=1} m&&/prepublication-finish\.sh/{f=1} m&&/^drain_generation_workers$/{print (f?"ok":"missing"); exit}' \
   "$ROOT/article-daily.sh" | grep -qx ok
+grep -Fq -- '--keep-pid "$JUDGE_BROKER_PID"' "$ROOT/article-daily.sh"
 
 echo "prepublication-finish: PASS"
