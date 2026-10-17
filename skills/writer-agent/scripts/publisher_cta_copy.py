@@ -13,12 +13,12 @@ import tempfile
 from pathlib import Path
 from urllib.parse import parse_qsl, quote, unquote_plus, urlsplit
 
-ACTIVE_PUBLISHER_PAIRS = (
-    "note/ja",
-    "substack/ja",
-    "substack/en",
-    "x-article/ja",
-)
+from publication_contract import ACTIVE_PAIRS, NEWLY_DORMANT_PAIRS
+
+# Single source: the publication contract decides which destinations publish.
+ACTIVE_PUBLISHER_PAIRS = ACTIVE_PAIRS
+# x-article/ja stays mapped so contracts persisted while it was still listed
+# (2026-10-15..17 "active-four" runs) keep verifying; it is never staged.
 PAIR_ARTIFACT_IDS = {
     "note/ja": "article-ja",
     "substack/ja": "article-ja",
@@ -230,14 +230,31 @@ def _load_json(path: Path, label: str) -> dict:
     return value
 
 
+def _contract_pairs(contract: dict) -> tuple[str, ...]:
+    """Accept the current active pairs, optionally plus newly dormant legacy extras."""
+    pairs = contract.get("active_pairs")
+    if (
+        not isinstance(pairs, list)
+        or len(pairs) != len(set(pairs))
+        or not set(ACTIVE_PUBLISHER_PAIRS) <= set(pairs)
+        or not set(pairs) - set(ACTIVE_PUBLISHER_PAIRS) <= set(NEWLY_DORMANT_PAIRS)
+    ):
+        raise PublisherCTAError("publisher CTA contract does not match frozen publication state")
+    return tuple(pairs)
+
+
 def prepare_all(
     run_dir: Path, *, landing_url: str, product_id: str
 ) -> dict[str, dict[str, str]]:
     run_dir = _run_dir(run_dir)
     state, source_paths, source_hashes = _read_state(run_dir)
+    _, _, contract_path = _paths(run_dir, ACTIVE_PUBLISHER_PAIRS[0])
+    pairs = ACTIVE_PUBLISHER_PAIRS
+    if contract_path.exists():
+        pairs = _contract_pairs(_load_json(contract_path, "publisher CTA contract"))
     prepared: dict[str, dict[str, str]] = {}
     copies: dict[str, bytes] = {}
-    for pair in ACTIVE_PUBLISHER_PAIRS:
+    for pair in pairs:
         lang = pair.rsplit("/", 1)[1]
         source_path = source_paths[lang]
         source_text = source_path.read_text(encoding="utf-8")
@@ -264,13 +281,13 @@ def prepare_all(
         prepared[pair] = receipt
         copies[pair] = copy_bytes
 
-    if len({row["click_id"] for row in prepared.values()}) != len(ACTIVE_PUBLISHER_PAIRS):
+    if len({row["click_id"] for row in prepared.values()}) != len(pairs):
         raise PublisherCTAError("publisher click_id values are not unique")
 
     contract = {
         "version": 1,
         "run_id": run_dir.name,
-        "active_pairs": list(ACTIVE_PUBLISHER_PAIRS),
+        "active_pairs": list(pairs),
         "landing_url": landing_url,
         "product_id": product_id,
         "source_sha256_by_lang": source_hashes,
@@ -282,7 +299,6 @@ def prepare_all(
     if directory.exists() and (directory.is_symlink() or not directory.is_dir()):
         raise PublisherCTAError("publisher CTA directory is not a real directory")
     directory.mkdir(parents=True, exist_ok=True)
-    _, _, contract_path = _paths(run_dir, ACTIVE_PUBLISHER_PAIRS[0])
     if contract_path.exists() and _load_json(contract_path, "publisher CTA contract") != contract:
         raise PublisherCTAError("publisher CTA contract conflicts with current frozen sources")
     for pair, receipt in prepared.items():
@@ -329,7 +345,7 @@ def publisher_copy_path(run_dir: Path, pair: str, source: Path) -> Path:
     if (
         contract.get("version") != 1
         or contract.get("run_id") != run_dir.name
-        or contract.get("active_pairs") != list(ACTIVE_PUBLISHER_PAIRS)
+        or pair not in _contract_pairs(contract)
         or not isinstance(contract.get("landing_url"), str)
         or not isinstance(contract.get("product_id"), str)
         or contract.get("source_sha256_by_lang") != source_hashes

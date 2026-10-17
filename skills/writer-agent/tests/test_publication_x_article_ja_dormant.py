@@ -132,3 +132,18 @@ if __name__ == "__main__":
     test_active_four_state_missing_a_different_dormant_pair_is_still_invalid()
     test_active_pairs_no_longer_require_x_article_ja()
     print("ok")
+
+
+def test_article_daily_prompt_stages_only_the_contract_active_pairs() -> None:
+    """2026-10-17: the STEP 5 prompt still asked for an x-article/ja row, so the
+    run persisted a four-pair publisher CTA contract the contract no longer allows."""
+    text = (SCRIPTS.parent / "article-daily.sh").read_text(encoding="utf-8")
+    start = text.index("STEP 5 (")
+    step5 = text[start:text.index("STEP 6 (", start)]
+    for pair in ACTIVE_PAIRS:
+        assert pair in step5
+    assert "x-article/ja" not in step5
+    assert "X Article ja:" not in step5
+    register = text[text.index("STEP 11.5 ("):]
+    register = register[: register.index("\n")]
+    assert "x-article/ja" not in register.split("register-dormant-skip")[0]

@@ -72,7 +72,6 @@ jobs = [
     ("note", "ja", "note/ja", ["bash", str(helper), "--markdown-file", str(run_dir / "article-ja.md")]),
     ("substack-ja", "ja", "substack/ja", ["bash", str(helper), "--markdown-file", str(run_dir / "article-ja.md")]),
     ("substack-en", "en", "substack/en", ["bash", str(helper), "--markdown-file", str(run_dir / "article-en.md")]),
-    ("x-article", "ja", "x-article/ja", ["bash", str(helper), str(run_dir / "article-ja.md")]),
 ]
 with manifest.open("w", encoding="utf-8") as handle:
     for platform, lang, pair, argv in jobs:
@@ -111,7 +110,6 @@ expected = {
     "note/ja": ("ja", "article-ja", f"{run_id}-article-ja-note-ja"),
     "substack/ja": ("ja", "article-ja", f"{run_id}-article-ja-substack-ja"),
     "substack/en": ("en", "article-en", f"{run_id}-article-en-substack-en"),
-    "x-article/ja": ("ja", "article-ja", f"{run_id}-article-ja-x-article-ja"),
 }
 click_ids = set()
 for pair, (lang, artifact_id, click_id) in expected.items():
@@ -136,11 +134,11 @@ for pair, (lang, artifact_id, click_id) in expected.items():
     assert copy_body == expected_copy, f"non-click_id source bytes changed for {pair}"
     click_ids.add(click_id)
 
-assert len(click_ids) == 4, "active publisher click IDs must be pair-unique"
+assert len(click_ids) == 3, "active publisher click IDs must be pair-unique"
 assert hashlib.sha256((run_dir / "article-ja.md").read_bytes()).hexdigest() == sha_ja
 assert hashlib.sha256((run_dir / "article-en.md").read_bytes()).hexdigest() == sha_en
 rows = [json.loads(line) for line in results.read_text(encoding="utf-8").splitlines()]
-assert len(rows) == 4 and all(row["status"] == "ok" for row in rows)
+assert len(rows) == 3 and all(row["status"] == "ok" for row in rows)
 PY
 
 cp -R "$RUN_DIR/gates/publisher-cta" "$TMP/receipts-before-retry"
@@ -220,6 +218,31 @@ set -e
 test "$partial_rc" -ne 0
 test ! -e "$PARTIAL_CALLS" || {
   echo "FAIL: a partial first dispatch reached a publisher" >&2
+  exit 1
+}
+
+# Dormant x-article/ja (publication_contract.DORMANT_PAIRS) must fail preflight before any publisher.
+DORMANT_MANIFEST="$TMP/dormant.jsonl"
+DORMANT_CALLS="$TMP/dormant-calls"
+python3 - "$MANIFEST" "$DORMANT_MANIFEST" "$DORMANT_CALLS" "$TMP/cover.png" <<'PY'
+import json, sys
+source, destination, calls, cover = sys.argv[1:]
+rows = [json.loads(line) for line in open(source, encoding="utf-8")]
+x_row = json.loads(json.dumps(rows[0]))
+x_row.update({"platform": "x-article", "argv": [x_row["argv"][0], x_row["argv"][1], x_row["argv"][-1]]})
+x_row["env"].update({"ARTICLE_PUBLISH_PAIR": "x-article/ja", "X_COVER": cover})
+with open(destination, "w", encoding="utf-8") as handle:
+    for row in rows + [x_row]:
+        row["env"]["CALLS"] = calls
+        handle.write(json.dumps(row) + "\n")
+PY
+set +e
+bash "$DISPATCH" --manifest "$DORMANT_MANIFEST" --results "$TMP/dormant-results.jsonl" >"$TMP/dormant.out" 2>&1
+dormant_rc=$?
+set -e
+test "$dormant_rc" -ne 0
+test ! -e "$DORMANT_CALLS" || {
+  echo "FAIL: a dormant x-article/ja row reached a publisher" >&2
   exit 1
 }
 
