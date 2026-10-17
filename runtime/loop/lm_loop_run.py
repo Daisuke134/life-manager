@@ -128,6 +128,7 @@ WRITER_LIVE_URL = re.compile(r"https://[A-Za-z0-9._:/-]{1,504}\Z")
 NO_EFFECT_RESULT_HINT_ENTRYPOINTS = frozenset({
     "apps/life-manager/scripts/ebook-distribute-daily.sh",
     "apps/life-manager/scripts/mobile-app",
+    "skills/alpaca-investment/run.py",
     "skills/earn/marketing-engine/intel/treg-lead-signals-weekly",
 })
 # Loop IDs allowed to use the pre-effect hint when their registry entrypoint is
@@ -987,6 +988,8 @@ def _verified_no_effect_result(path: Path, loop_id: str, occurrence_id: str,
             allowed_reasons.add("publication_readiness_gate_closed")
     elif entrypoint == "skills/earn/marketing-engine/intel/treg-lead-signals-weekly":
         allowed_reasons = {"baseline_established", "no_new_signals", "balance_floor"}
+    elif entrypoint == "skills/alpaca-investment/run.py":
+        allowed_reasons = {"no_broker_order_submitted"}
     else:
         allowed_reasons = {"no_due_slot", "daily_limit_reached"}
     value = _read_private_result_hint(path)

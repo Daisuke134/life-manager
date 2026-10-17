@@ -2430,6 +2430,17 @@ def test_verified_no_effect_result_requires_exact_identity_and_allowed_entrypoin
                   'ebook-ja-tiktok-daily:run-off-slot', entrypoint) is None
     assert reader(hint, mobile_owner, mobile_occurrence,
                   'apps/life-manager/scripts/other-mobile-app') is None
+    investment_owner = 'alpaca-investment-paper'
+    investment_occurrence = f'{investment_owner}:wake-no-order'
+    _write_no_effect_result(
+        hint, owner_id=investment_owner, occurrence_id=investment_occurrence,
+        reason='no_broker_order_submitted',
+    )
+    assert reader(hint, investment_owner, investment_occurrence,
+                  'skills/alpaca-investment/run.py') == (
+                      'not_applicable',
+                      f'lm-no-effect://{investment_owner}/{investment_occurrence}/no_broker_order_submitted',
+                  )
     hint.write_text('{"status":"pre_effect_failure","effect":0}\n', encoding='utf-8')
     hint.chmod(0o600)
     assert reader(hint, 'ebook-ja-tiktok-daily',

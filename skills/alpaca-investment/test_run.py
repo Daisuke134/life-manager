@@ -584,6 +584,9 @@ class LiveRunTest(unittest.TestCase):
                 patch.object(MODULE, "submit_order", side_effect=submit_and_check), \
                 patch.object(MODULE, "deliver", return_value={"message_id": "live"}):
                 self.assertEqual(MODULE.main(wake_id="live-entry-hint"), 0)
+            self.assertEqual(json.loads(hint.read_text(encoding="utf-8")), {
+                "status": "effect_attempted", "effect": 1,
+            })
 
     def test_live_entry_submits_once_and_durably_marks_pending_ownership(self):
         observation = {"account": {"cash": "0", "equity": "66"}, "activities_count": 0,
@@ -647,14 +650,28 @@ class PortablePassTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             executable, marker = _publisher_probe(root)
+            result_hint = root / "entrypoint-result.json"
+            result_hint.write_text('{"status":"pre_effect_failure","effect":0}\n', encoding="utf-8")
+            result_hint.chmod(0o600)
             with patch.dict(MODULE.os.environ, {
                 "ALPACA_INVESTMENT_STATE_DIR": str(root / "state"),
                 "NODE_BIN": str(executable), "ALPACA_MARKER": str(marker),
                 "LIFE_MANAGER_INVESTMENT_DEPLOYMENT": "local",
                 "LIFE_MANAGER_INVESTMENT_MODE": "paper",
+                "LIFE_MANAGER_OCCURRENCE_ID": "alpaca-investment-paper:wake-success",
+                "LIFE_MANAGER_RESULT_HINT_PATH": str(result_hint),
             }), redirect_stdout(StringIO()) as output:
                 self.assertEqual(MODULE.main(wake_id="wake-success"), 0)
             self.assertFalse(marker.exists())
+            self.assertEqual(json.loads(result_hint.read_text(encoding="utf-8")), {
+                "schema_version": 1,
+                "kind": "life_manager_no_effect_result",
+                "status": "verified_no_effect",
+                "effect": 0,
+                "owner_id": "alpaca-investment-paper",
+                "occurrence_id": "alpaca-investment-paper:wake-success",
+                "reason": "no_broker_order_submitted",
+            })
             summary = json.loads(output.getvalue())
             self.assertNotIn("public_snapshot_published", summary)
             self.assertEqual(summary["deployment"], "local")
