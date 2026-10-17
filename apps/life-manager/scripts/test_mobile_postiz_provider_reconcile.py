@@ -2210,7 +2210,7 @@ def test_identityless_postiz_read_is_capped(tmp_path, monkeypatch):
 
 
 @pytest.mark.parametrize("case", [
-    "post_after_claim", "deleted_post_listed_after_claim", "two_claims", "too_recent", "no_integration",
+    "post_after_claim", "deleted_post_listed_after_claim", "report_without_start", "too_recent", "no_integration",
     "no_run", "direct_migration_plist", "direct_migration_env", "direct_migration_marketing_env",
     "non_postiz_route_after_claim", "no_launch_agent",
 ])
@@ -2219,8 +2219,14 @@ def test_identityless_fence_stays_fenced_without_an_occurrence_bound_zero_post_p
     occurrence = f"{owner}:18dc5e822e430b80-45345"
     refs = [] if case == "no_integration" else ["integration://postiz/tiktok/cmtt"]
     idir = _hist_identity_dir(tmp_path, owner, refs)
-    if case != "no_run":
-        _claim_run_events(tmp_path, owner, occurrence, reports=2 if case == "two_claims" else 1)
+    if case == "no_integration":  # no sidecar and no pack pin
+        monkeypatch.setattr(reconcile, "EBOOK_PACKS_DIR", tmp_path / "no-packs")
+    if case == "report_without_start":
+        events = _claim_run_events(tmp_path, owner, occurrence)
+        rows = [json.loads(line) for line in events.read_text().splitlines()]
+        events.write_text("".join(json.dumps(row) + "\n" for row in rows if row["phase"] != "execute"))
+    elif case != "no_run":
+        _claim_run_events(tmp_path, owner, occurrence)
     _postiz_route_env(
         tmp_path, monkeypatch, owner,
         plist_env={"LM_TIKTOK_DIRECT_MIGRATION": "1"} if case == "direct_migration_plist" else None,
@@ -2245,7 +2251,7 @@ def test_identityless_fence_stays_fenced_without_an_occurrence_bound_zero_post_p
     assert result["reason"] == "identity_missing_and_no_dispatch_unproven"
 
 
-@pytest.mark.parametrize("owner", ["life-manager-anicca-main-tiktok", "ebook-en-tiktok-daily"])
+@pytest.mark.parametrize("owner", ["life-manager-anicca-main-tiktok", "life-manager-honne-tiktok"])
 def test_identityless_path_is_limited_to_postiz_only_ebook_owners(tmp_path, monkeypatch, owner):
     occurrence = f"{owner}:run-x"
     idir = _hist_identity_dir(tmp_path, owner, ["integration://postiz/tiktok/cmtt"])
@@ -2258,7 +2264,8 @@ def test_identityless_path_is_limited_to_postiz_only_ebook_owners(tmp_path, monk
         apply=False, **_identityless_kw(tmp_path, owner, occurrence, idir))
     assert result["reason"] == "identity_missing_or_invalid"
     assert set(reconcile.IDENTITYLESS_POSTIZ_OWNERS) == {
-        "ebook-ja-tiktok-daily", "ebook-ja-instagram-daily", "ebook-en-instagram-daily"}
+        "ebook-ja-tiktok-daily", "ebook-ja-instagram-daily", "ebook-en-instagram-daily",
+        "ebook-en-tiktok-daily"}
 
 
 @pytest.mark.parametrize("case", ["zero_posts", "post_after_claim", "file_script_after_claim"])
@@ -2286,6 +2293,61 @@ def test_identityless_ebook_instagram_fence_needs_zero_posts_on_its_own_integrat
         assert result["status"] == "ready" and result["occurrence_id"] == occurrence
         assert result["historical_integration_id"] == "cmig"
         assert result["claim_run_id"] == "18dcc04408f9cac0-33517" and calls == ["cmig"]
+    else:
+        assert result["status"] == "inconclusive"
+        assert result["reason"] == "identity_missing_and_no_dispatch_unproven"
+
+
+def _ebook_packs(tmp_path, monkeypatch, tiktok_integration="cmen"):
+    packs = tmp_path / "ebook-packs"
+    packs.mkdir()
+    (packs / "ebook-en-anicca-monk.json").write_text(json.dumps({"product_id": "ebook-en", "accounts": [
+        {"account_id": "tiktok.monk_anicca", "integration_id": tiktok_integration},
+        {"account_id": "instagram.monk_anicca", "integration_id": None}]}))
+    monkeypatch.setattr(reconcile, "EBOOK_PACKS_DIR", packs)
+
+
+@pytest.mark.parametrize("case", ["died_without_report", "deferred_then_claimed", "sidecar_wins",
+                                  "no_pack_integration", "post_after_claim"])
+def test_identityless_ebook_en_tiktok_fence_uses_its_pack_integration_and_own_run_start(
+        tmp_path, monkeypatch, case):
+    # ebook-en-tiktok never wrote a sidecar, so its one Postiz integration comes from the pack the
+    # job pins.  The window opens at the occurrence's own run, the earliest process that could act.
+    owner = "ebook-en-tiktok-daily"
+    own = "18ddc66eb902eba0-53359"
+    occurrence = f"{owner}:{own}"
+    idir = _hist_identity_dir(tmp_path, owner, ["integration://postiz/tiktok/cmside"]
+                              if case == "sidecar_wins" else [])
+    _ebook_packs(tmp_path, monkeypatch, None if case == "no_pack_integration" else "cmen")
+    events = tmp_path / "events.jsonl"
+    rows = [{"owner_id": owner, "phase": "execute", "run_id": own, "occurrence_id": occurrence,
+             "timestamp": "2026-10-12T12:00:05+00:00"}]
+    if case != "died_without_report":
+        rows += [
+            {"owner_id": owner, "phase": "report", "run_id": own, "occurrence_id": occurrence,
+             "error_class": "host_admission_deferred:resource_capacity_busy", "exit_code": 75,
+             "timestamp": "2026-10-12T12:00:09+00:00"},
+            {"owner_id": owner, "phase": "execute", "run_id": "18ddd5e5-claim",
+             "occurrence_id": f"{owner}:18ddd5e5-claim", "timestamp": "2026-10-12T16:43:28+00:00"},
+            {"owner_id": owner, "phase": "report", "run_id": "18ddd5e5-claim", "occurrence_id": occurrence,
+             "exit_code": 0, "timestamp": "2026-10-12T16:43:38+00:00"}]
+    events.write_text("".join(json.dumps(row) + "\n" for row in rows))
+    events.chmod(0o600)
+    _postiz_route_env(tmp_path, monkeypatch, owner)
+    calls = []
+    monkeypatch.setattr(reconcile, "_postiz_posts_between", lambda i, s, e, k: calls.append((i, s)) or (
+        [{"id": "p"}] if case == "post_after_claim" else []))
+    monkeypatch.setattr(reconcile, "_admission_state", lambda *_a: ("claimed", 1))
+    monkeypatch.setattr(reconcile.time, "time", lambda: 1_791_900_000.0)  # 2026-10-13
+    result = reconcile.reconcile_current_occurrence(
+        apply=False, **_identityless_kw(tmp_path, owner, occurrence, idir))
+    if case in {"died_without_report", "deferred_then_claimed"}:
+        assert result["status"] == "ready" and result["occurrence_id"] == occurrence
+        assert result["historical_integration_id"] == "cmen"
+        assert calls == [("cmen", "2026-10-12T11:55:05Z")]
+        assert result["claim_run_id"] == (own if case == "died_without_report" else "18ddd5e5-claim")
+    elif case == "sidecar_wins":
+        assert result["status"] == "ready" and calls == [("cmside", "2026-10-12T11:55:05Z")]
     else:
         assert result["status"] == "inconclusive"
         assert result["reason"] == "identity_missing_and_no_dispatch_unproven"
