@@ -56,6 +56,34 @@ def _mark_external_effect_attempted() -> None:
         _atomic_json(Path(hint), {"status": "effect_attempted", "effect": 1})
 
 
+def _mark_no_broker_order_submitted(mode: str, effect_attempted: bool,
+                                    effect: str) -> None:
+    """Bind a successful no-order pass to its exact managed occurrence."""
+    if effect_attempted or effect != "none":
+        return
+    owner_id = {
+        "paper": "alpaca-investment-paper",
+        "live": "alpaca-investment-live",
+    }.get(mode)
+    occurrence_id = os.environ.get("LIFE_MANAGER_OCCURRENCE_ID", "")
+    hint = os.environ.get("LIFE_MANAGER_RESULT_HINT_PATH")
+    prefix, separator, suffix = occurrence_id.partition(":")
+    if (owner_id is None or prefix != owner_id or not separator or not suffix
+            or len(suffix) > 200 or not suffix.isascii()
+            or any(not (character.isalnum() or character in "._-")
+                   for character in suffix) or not hint):
+        return
+    _atomic_json(Path(hint), {
+        "schema_version": 1,
+        "kind": "life_manager_no_effect_result",
+        "status": "verified_no_effect",
+        "effect": 0,
+        "owner_id": owner_id,
+        "occurrence_id": occurrence_id,
+        "reason": "no_broker_order_submitted",
+    })
+
+
 def _retry_allowed(stage: str, effect_attempted: bool, attempt: int) -> bool:
     return stage != "telegram_deliver" and not effect_attempted and attempt < 2
 
@@ -588,6 +616,7 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
         stage = "telegram_deliver"
         telegram = deliver(state, observation, campaign, decision, effect,
                            event_key=cloud_event_key if deployment == "cloud" else None)
+        _mark_no_broker_order_submitted(mode, effect_attempted, effect)
         summary = {
             "account": observation["account"],
             "activities_count": observation["activities_count"],

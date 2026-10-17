@@ -145,7 +145,7 @@
       "job_ids": ["fundraiser", "fundraiser-browser"],
       "name": "Fundraiser",
       "description": "Find eligible accelerators, fellowships, grants, and investor intakes and apply with verified product context.",
-      "recovery_classes": ["external_effect_owner"],
+      "recovery_classes": ["continuous_service", "external_effect_owner"],
       "economic": {"role":"financing","revenue_classes":["fundraising"],"sources":{"funnel":{"adapter":"fundraiser-application-receipt","implementation":"implemented"},"financial":{"adapter":"fundraiser-financial-record","implementation":"missing"},"cost":{"adapter":"fundraiser-financial-record","implementation":"missing"}}},
       "requirements": ["applicant_profile", "telegram", "provider_login_when_required"],
       "hosts": {

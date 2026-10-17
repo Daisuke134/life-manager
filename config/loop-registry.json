@@ -86,7 +86,7 @@
       "entrypoint": "skills/alpaca-investment/run.py",
       "label": "ai.anicca.alpaca-investment-paper",
       "log_root": "~/.local/state/life-manager/alpaca-investment-paper/logs",
-      "resource_class": "agent",
+      "resource_class": "deterministic",
       "admission_class": "revenue",
       "priority": "revenue",
       "coalesce_reserved_wakes": true,

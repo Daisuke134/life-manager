@@ -55,6 +55,7 @@ class InvestmentRuntimeContractTests(unittest.TestCase):
         self.assertEqual(job["state_root"], "~/.local/state/life-manager/alpaca-investment-paper")
         self.assertEqual(job["admission_class"], "revenue")
         self.assertEqual(job["priority"], "revenue")
+        self.assertEqual(job["resource_class"], "deterministic")
         self.assertTrue(job["reconcile_queued_release"])
         self.assertEqual(
             job["effect_reconcile"]["argv"],
@@ -66,7 +67,9 @@ class InvestmentRuntimeContractTests(unittest.TestCase):
         job = self.registry["loops"]["investment-strategy-validation"]
         self.assertEqual(job["adapter"], "python")
         self.assertEqual(job["entrypoint"], "skills/alpaca-investment/validation_runner.py")
-        self.assertEqual(job["cadence"], {"start_interval_seconds": 604800})
+        self.assertEqual(job["cadence"], {
+            "calendar_interval": {"Weekday": 2, "Hour": 14, "Minute": 30},
+        })
         self.assertEqual(job["domain"], "financial")
         self.assertEqual(job["effect_class"], "none")
         self.assertEqual(job["provider_route"], "deterministic")
