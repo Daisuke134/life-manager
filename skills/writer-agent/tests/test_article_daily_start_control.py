@@ -1433,3 +1433,88 @@ class PublicationInitRefusedRowsDoNotBlockTheDayTest(unittest.TestCase):
         self.assertNotEqual(self._decide(self.STATE + " https://note.com/x")["action"], "new")
         self.assertNotEqual(self._decide("pending:other receipt=abc")["action"], "new")
         self.assertNotEqual(self._decide(self.STATE, publication_state=True)["action"], "new")
+
+
+class AllActiveUnavailableNoEffectTest(unittest.TestCase):
+    """2026-10-18 run 20261017-150256: every active pair was marked unavailable before any
+    intent (publisher CTA refused), and every hourly start then blocked the whole day."""
+
+    RUN = "20261017-150256"
+
+    def _fixture(self, root: Path, *, extra_entry=None, ledger_extra=None, runs=(RUN,)):
+        for run_id in runs:
+            (root / "runs" / run_id / "gates").mkdir(parents=True)
+        run = root / "runs" / self.RUN
+        pairs = {
+            pair: {
+                "platform": pair.split("/")[0], "lang": pair.split("/")[1],
+                "status": "skipped",
+                "skip_receipt": {"type": "dormant-destination", "pair": pair},
+            }
+            for pair in ("zenn-article/ja", "devto/en", "x-article/en", "x-post/ja", "x-article/ja")
+        }
+        rows = []
+        for pair in START.ACTIVE_PAIRS:
+            platform, lang = pair.split("/")
+            pairs[pair] = {
+                "platform": platform, "lang": lang, "status": "unavailable",
+                "error": "publisher-cta-variant-id-unsafe-unicode-frozen-artifact",
+                "unavailable_at": "2026-10-17T15:15:19Z",
+                **(extra_entry or {}),
+            }
+            rows.append({
+                "run_id": self.RUN, "topic_id": "paid-demand:x", "topic": "t",
+                "platform": platform, "lang": lang, "draft_url": None,
+                "state": "unavailable:publisher-cta-variant-id-unsafe-unicode-frozen-artifact",
+                "verified_logged_in": False, "published": False, "topic_source": "paid-demand",
+                "editorial_form": "how-to", "recorded_at": "2026-10-17T15:16:00Z",
+                **(ledger_extra or {}),
+            })
+        (run / "gates" / "publication-state.json").write_text(json.dumps({
+            "version": 1, "publication_contract": "active-four", "run_id": self.RUN,
+            "topic_id": "paid-demand:x", "pairs": pairs,
+        }), encoding="utf-8")
+        (run / "gates" / "platform-dispatch.jsonl").write_text("{}\n", encoding="utf-8")
+        (root / "articles.jsonl").write_text(
+            "".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8"
+        )
+
+    def _decide(self, root: Path):
+        with patch.object(START, "proof", side_effect=START.QuarantineError("no")), patch.object(
+            START, "publication_plan",
+            return_value={"resumable": False, "reason": "frozen-incomplete-pairs"},
+        ):
+            return START.decide(root, "2026-10-18")
+
+    def test_all_active_unavailable_without_intent_releases_new_run(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._fixture(root)
+            decision = self._decide(root)
+        self.assertEqual(decision["action"], "new")
+        self.assertEqual(decision["reason"], "same-jst-day-all-active-unavailable-no-effect")
+        self.assertEqual(decision["previous_run_id"], self.RUN)
+
+    def test_unavailable_pair_with_staged_target_stays_blocked(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._fixture(root, extra_entry={
+                "target_kind": "note-draft-url", "target": "https://note.com/n/x/edit",
+                "intent_at": "2026-10-17T15:10:00Z",
+            })
+            decision = self._decide(root)
+        self.assertEqual(decision["action"], "block-incomplete")
+
+    def test_ledger_row_with_draft_url_stays_blocked(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._fixture(root, ledger_extra={"draft_url": "https://note.com/n/x/edit"})
+            decision = self._decide(root)
+        self.assertEqual(decision["action"], "block-incomplete")
+
+    def test_second_same_day_run_respects_the_replacement_limit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._fixture(root, runs=("20261017-150000", self.RUN))
+            decision = self._decide(root)
+        self.assertEqual(decision["action"], "skip-quality-miss")
