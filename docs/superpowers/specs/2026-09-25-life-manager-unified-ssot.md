@@ -237,6 +237,10 @@ README は「ユーザー向け18 + system agent 1」= 19 agent。19 = Host Stew
 - 閉じられないもの: `life-manager-daily:tiktok-retry-20260918-3`（Reddit アカウント `anicca_sao` が ban、公式 readback が取れない）。`fundraiser:18d9b0b6311a2018-87933`（marker 導入前の run、公式 readback 無し）。
 - 規模: reconciler の 1 回の巡回で fenced occurrence は約 3.9 万件、判定は 20 件／10 分。
 
+**10/17 21:52 更新（順序変更）**: 旧順 1 Writer → 2 GCP 費用 → 3 計測 …、新順 0 affiliate 増産 → 3 計測 → 4 telemetry …、cursor = 0。理由: ElevenLabs Affiliates から「New ElevenLabs User」通知（10/17 21:11 JST）。aniccaai.com の ElevenLabs 記事 27 本・provider clicks 526（上位: voice-changer 34、voice-isolator 32、subtitle-translator 31）。外部で成果が出た唯一の lane なので、成功事例のコピーで量産を先にする。報酬台帳は approved/pending 0 件（有料転換まで報酬にならない可能性、規約確認中）。
+- 1 Writer: 10/17 公開 note https://note.com/anicca123/n/n6da69ebc218c 、Substack JA https://aniccabuddha.substack.com/p/claude-codecodex500 。EN は `aniccaai2026.substack.com` が `payments_state=disabled`（Stripe 未接続）で verify-preview が止める。Stripe dashboard の session も credentials 行も無く、Dais の接続操作が必要。
+- 2 GCP 費用: #8257 本番（Railway life-call 7f6daacab6 SUCCESS）。見込み月 ¥16.5–17k 削減、10 月請求で確認。後続: 空応答・ターン切れの短い TTL。
+
 **残りTODO（10/17 14:50 実測、この順）**
 1. Writer 今日の公開: #8251（公開前の決定的 finisher）を 13:58 本番化。14:04 run の結果で公開 URL を確認。残り: article-resume の 10/12 fence（occurrence→run 記録が無い）、prompt と `ABSENCE_DESTINATIONS` の x-article/ja が契約（dormant）と不一致、Firecrawl token 無効。
 2. 費用の漏れ: Google Cloud 2026-09 請求 JPY 27,889（Places 9,420 / Geocoding 7,493 / Gemini 5,161 / Directions 3,271）。呼び出し元を特定して止める。
