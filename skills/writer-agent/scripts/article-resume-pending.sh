@@ -31,6 +31,17 @@ export ARTICLE_ROOT ARTICLE_STATE_DIR STATE_DIR ARTICLE_SKILL_DIR \
   ARTICLE_PROVIDER ARTICLE_PROVIDER_COOLDOWN_SECONDS
 mkdir -p "$(dirname "$LOG")"
 
+# One structured line per branch decision binds this admission occurrence to the branch and
+# run(s) it took, so an effect_unknown fence can be reconciled from the occurrence itself.
+pass_record() {
+  jq -cn --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    --arg occurrence_id "${LIFE_MANAGER_OCCURRENCE_ID:-}" --argjson pid "$$" \
+    --arg branch "$1" --arg run_ids "${2:-}" \
+    '{at:$at, occurrence_id:$occurrence_id, pid:$pid, branch:$branch,
+      run_ids:($run_ids | split(" ") | map(select(length > 0)))}' \
+    | sed 's/^/article-resume: pass /' >>"$LOG" 2>/dev/null || true
+}
+
 [ -d "$STATE_DIR/runs" ] || exit 0
 
 # A durable local pause is the emergency brake for an external-publication
@@ -54,6 +65,7 @@ if [ -f "$PUBLICATION_PAUSE_FILE" ]; then
       echo "article-resume: paused claim recovery failed closed" >>"$LOG"
   fi
   echo "article-resume: publication paused file=$PUBLICATION_PAUSE_FILE" >>"$LOG"
+  pass_record publication-paused
   exit 0
 fi
 if [ "${ARTICLE_OWNER_FENCE_ACTIVE:-0}" != "1" ]; then
@@ -169,6 +181,7 @@ if ! mkdir "$LOCK_DIR" 2>/dev/null; then
     echo "article-resume: recovered ownerless publication lock" >>"$LOG"
   else
     echo "article-resume: shared publication lock is held" >>"$LOG"
+    pass_record lock-held
     exit 0
   fi
 fi
@@ -177,6 +190,7 @@ printf '%s\n' "$$" >"$LOCK_OWNER_FILE" || {
   exit 1
 }
 trap 'release_publication_lock' EXIT
+pass_record start
 
 # The same 300-second reconciler owns both sides of the publication boundary.
 # A safe interrupted generation has no public side effect, so hand the exact
@@ -355,6 +369,7 @@ if [ -n "$ADOPTION_RUN_ID" ]; then
   PRE_START_ACTION="resume-prepublication-adoption"
   PRE_START_REASON="quality-repair-ready"
   echo "article-resume: prepublication adoption run=$ADOPTION_RUN_ID action=$ADOPTION_ACTION status=$ADOPTION_STATUS" >>"$LOG"
+  pass_record prepublication-adoption "$ADOPTION_RUN_ID"
 fi
 # A quality recovery is an unpublished obligation, not a same-day article. At
 # midnight, do not let the calendar selector hide a prior-day run whose Codex
@@ -409,6 +424,7 @@ if [ -n "$PENDING_QUALITY_RUN_ID" ]; then
   PRE_START_ACTION="resume-quality-feedback"
   PRE_START_REASON="pending-quality-recovery-across-calendar-day"
   echo "article-resume: prioritizing unpublished quality recovery run=$PENDING_QUALITY_RUN_ID local=$LOCAL_DATE" >>"$LOG"
+  pass_record quality-feedback "$PENDING_QUALITY_RUN_ID"
 fi
 # A persisted publication backlog is the foreground availability contract.
 # Inspect it before today's schedule decision so midnight and quality work
@@ -463,6 +479,7 @@ PY
       echo "article-resume: older publication backlog does not block daily schedule run=$PRIORITY_RUN_ID date=$PRIORITY_RUN_DATE local=$LOCAL_DATE" >>"$LOG"
     else
       PRIORITY_PUBLICATION_READY=1
+      pass_record priority-publication "$PRIORITY_RUN_ID"
     fi
   fi
 fi
@@ -491,12 +508,15 @@ if [ "$PRE_START_ACTION" = "new" ] \
     # prior-day article publishes now instead of waiting for 06:00 (2026-10-12).
     echo "article-resume: publishing older backlog before the daily schedule run=$PRIORITY_RUN_ID hour=$LOCAL_HOUR" >>"$LOG"
     PRIORITY_PUBLICATION_READY=1
+    pass_record priority-publication "$PRIORITY_RUN_ID"
   elif [ "$LOCAL_HOUR_VALUE" -lt "$DAILY_SCHEDULE_HOUR" ]; then
     echo "article-resume: daily schedule not due date=$LOCAL_DATE hour=$LOCAL_HOUR" >>"$LOG"
+    pass_record daily-schedule-not-due
     exit 0
   else
     echo "article-resume: missed daily schedule catch-up date=$LOCAL_DATE hour=$LOCAL_HOUR" >>"$LOG"
     export ARTICLE_EXPECTED_NEW_DAILY_DATE="$LOCAL_DATE"
+    pass_record missed-daily-schedule-catch-up
     trap - EXIT
     release_publication_lock || exit 1
     exec bash "$ARTICLE_ROOT/article-daily.sh"
@@ -586,6 +606,7 @@ if [ "$PRIORITY_PUBLICATION_READY" -ne 1 ] \
   printf '%s\n' "$QUALITY_FEEDBACK_INVOKING" >>"$LOG"
   INVOKING_FEEDBACK_PROMPT="$(printf '%s' "$QUALITY_FEEDBACK_INVOKING" | jq -r '.prompt_path // empty')"
   [ -n "$INVOKING_FEEDBACK_PROMPT" ] && QUALITY_FEEDBACK_PROMPT="$INVOKING_FEEDBACK_PROMPT"
+  pass_record quality-feedback-model "$QUALITY_FEEDBACK_RUN_ID"
   export ARTICLE_RUN_DIR="$GENERATION_RUN_DIR"
   export ARTICLE_QUALITY_FEEDBACK_ACTIVE=1
   export ARTICLE_QUALITY_FEEDBACK_OWNER_PID="$$"
@@ -671,6 +692,7 @@ if [ "$PRIORITY_PUBLICATION_READY" -ne 1 ] \
   printf '%s\n' "$QUALITY_INVOKING" >>"$LOG"
   INVOKING_PROMPT="$(printf '%s' "$QUALITY_INVOKING" | jq -r '.prompt_path // empty')"
   [ -n "$INVOKING_PROMPT" ] && QUALITY_PROMPT="$INVOKING_PROMPT"
+  pass_record quality-repair-model "$QUALITY_RUN_ID"
   export ARTICLE_RUN_DIR="$GENERATION_RUN_DIR"
   export ARTICLE_QUALITY_REPAIR_ACTIVE=1
   export ARTICLE_QUALITY_REPAIR_OWNER_PID="$$"
@@ -732,6 +754,7 @@ if [ "$PRIORITY_PUBLICATION_READY" -ne 1 ] \
   }
   echo "article-resume: handing terminal quality slot to replacement run=$START_RUN_ID" >>"$LOG"
   export ARTICLE_EXPECTED_NEW_RUN_ID="$START_RUN_ID"
+  pass_record quality-replacement-handoff "$START_RUN_ID"
   trap - EXIT
   release_publication_lock || exit 1
   exec bash "$ARTICLE_ROOT/article-daily.sh"
@@ -755,6 +778,7 @@ if [ "$PRIORITY_PUBLICATION_READY" -ne 1 ] \
   fi
   echo "article-resume: prepublication generation recovery run=$GENERATION_RUN_ID" >>"$LOG"
   export ARTICLE_EXPECTED_RUN_ID="$GENERATION_RUN_ID"
+  pass_record prepublication-generation-recovery "$GENERATION_RUN_ID"
   trap - EXIT
   release_publication_lock || exit 1
   exec bash "$ARTICLE_ROOT/article-daily.sh"
@@ -783,6 +807,7 @@ PLAN="$(python3 "$PLANNER" "${PLAN_ARGS[@]}" 2>>"$LOG")" || {
 }
 [ "$(printf '%s' "$PLAN" | jq -r '.status')" = "READY" ] || {
   echo "article-resume: $(printf '%s' "$PLAN" | jq -c '.')" >>"$LOG"
+  pass_record self-heal
   # Coconala parity: the publication queue is the foreground consumer. Only
   # an empty publication queue may hand this tick to self-heal. Release the
   # publication lock before the bounded model step so repair investigation can
@@ -825,6 +850,7 @@ if [ "$INITIALIZATION_COUNT" -gt 0 ] && [ "$ELIGIBLE_COUNT" -gt 0 ]; then
 fi
 
 RUN_ID="$(printf '%s' "$PLAN" | jq -r '.run_id')"
+pass_record publication "$RUN_ID"
 RUN_DIR="$(printf '%s' "$PLAN" | jq -r '.run_dir')"
 STATE_PATH="$(printf '%s' "$PLAN" | jq -r '.state_path')"
 LEDGER_PATH="$(printf '%s' "$PLAN" | jq -r '.ledger_path')"

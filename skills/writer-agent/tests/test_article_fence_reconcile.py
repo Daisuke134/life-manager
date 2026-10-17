@@ -1052,3 +1052,153 @@ def test_a_young_fence_whose_run_already_reported_is_judged_now(tmp_path):
                          fetch_status=lambda u: 200, resolver=lambda *a, **k: True, resolve=False,
                          now=QUEUED + 600)
     assert result["reason"] == "fence_too_young"
+
+
+CATCHUP_OCC = "article-resume:18dd959f92920ff0-56630"
+CATCHUP_QUEUED = 1791752648.92176
+CATCHUP_RUN = "20261011-210544"
+CATCHUP_LINE = "article-resume: missed daily schedule catch-up date=2026-10-12 hour=06"
+CATCHUP_PREV = "article-resume: daily schedule not due date=2026-10-12 hour=05"
+ABSENT = {pair: {"status": "absent"} for pair in ("note/ja", "substack/ja", "substack/en", "x-article/ja")}
+
+
+def _event(occ, phase, ts, release, **extra):
+    loop = occ.split(":", 1)[0]
+    return json.dumps({"loop_id": loop, "owner_id": loop, "occurrence_id": occ, "phase": phase,
+                       "timestamp": ts, "release_sha": release, **extra})
+
+
+def _catchup_fixture(tmp_path, monkeypatch, m, *, extra_events=(), resume_log=None,
+                     ledger_rows=(), publication_state=False):
+    """The 2026-10-12 06:05 JST pass: catch-up exec'd article-daily.sh, the new run stopped pre-publication."""
+    import gzip
+    writer_root = tmp_path / "writer"
+    run_dir = writer_root / "runs" / CATCHUP_RUN
+    (run_dir / "gates").mkdir(parents=True)
+    (run_dir / "gates" / "publication-blocker.json").write_text('{"status":"blocked-before-publication"}\n')
+    (run_dir / "gates" / "generation-state.json").write_text('{"status":"provider-failed-ambiguous"}\n')
+    if publication_state:
+        (run_dir / "gates" / "publication-state.json").write_text("{}\n")
+    source_repo = tmp_path / "source"
+    files = {"skills/writer-agent/scripts/article-resume-pending.sh": "resume\n",
+             "skills/writer-agent/article-daily.sh": "daily\n"}
+    for name, text in files.items():
+        (source_repo / name).parent.mkdir(parents=True, exist_ok=True)
+        (source_repo / name).write_text(text)
+    subprocess.run(["git", "init", "-q", str(source_repo)], check=True)
+    subprocess.run(["git", "-C", str(source_repo), "add", "."], check=True)
+    subprocess.run(["git", "-C", str(source_repo), "-c", "user.name=T", "-c", "user.email=t@e.invalid",
+                    "commit", "-qm", "fixture"], check=True)
+    sha = subprocess.check_output(["git", "-C", str(source_repo), "rev-parse", "HEAD"], text=True).strip()
+    subprocess.run(["git", "-C", str(source_repo), "update-ref", "refs/remotes/origin/main", sha], check=True)
+    start = _event(CATCHUP_OCC, "execute", "2026-10-11T21:05:39.385339+00:00", sha)
+    terminal = _event(CATCHUP_OCC, "report", "2026-10-11T21:17:16.270268+00:00", sha, exit_code=1)
+    blocked = "article-resume:18dd958a6725c358-54254"
+    lines = [_event(blocked, "execute", "2026-10-11T21:04:08+00:00", sha),
+             _event(blocked, "report", "2026-10-11T21:04:09+00:00", sha,
+                    blocker="host_admission_deferred:resource_capacity_busy"),
+             start, terminal, *extra_events]
+    with gzip.open(writer_root / "events-20261013T124916565876Z.jsonl.gz", "wt", encoding="utf-8") as handle:
+        handle.write("\n".join(lines) + "\n")
+    (writer_root / "events.jsonl").write_text("")
+    (writer_root / "logs").mkdir()
+    (writer_root / "logs" / "article-resume.log").write_text(
+        "\n".join(resume_log or [CATCHUP_PREV, CATCHUP_LINE, "article-resume: later pass"]) + "\n")
+    segment = "\n".join(["=== article-daily run 2026-10-12 06:05:42 JST ===",
+                         f"=== article-daily start control: released a new run={CATCHUP_RUN} ===",
+                         "=== article-daily: generation incomplete before publication state ===",
+                         "=== article-daily done rc=1 2026-10-12 06:17:15 JST ==="])
+    (writer_root / "logs" / "article-daily.log").write_text("before\n" + segment + "\nafter\n")
+    (writer_root / "articles.jsonl").write_text("".join(json.dumps(row) + "\n" for row in [
+        _row("20261011-134916", "2026-10-11T20:19:10.502338Z", "https://x.substack.com/p/a", "substack"),
+        *ledger_rows,
+        _row("20261017-050403", "2026-10-17T10:00:00Z", "https://note.com/x/n/later"),
+    ]))
+    expected = dict(m.HISTORICAL_RESUME_CATCHUP_PROOFS[CATCHUP_OCC])
+    expected.update({
+        "release_sha": sha,
+        "entrypoint_sha256": {name: hashlib.sha256(text.encode()).hexdigest() for name, text in files.items()},
+        "event_hashes": [hashlib.sha256(line.encode()).hexdigest() for line in (start, terminal)],
+        "article_log_segment_sha256": hashlib.sha256(segment.encode()).hexdigest(),
+        "run_artifacts": {name: hashlib.sha256((run_dir / name).read_bytes()).hexdigest()
+                          for name in ("gates/generation-state.json", "gates/publication-blocker.json")},
+    })
+    monkeypatch.setitem(m.HISTORICAL_RESUME_CATCHUP_PROOFS, CATCHUP_OCC, expected)
+    return writer_root, source_repo, sha
+
+
+def _catchup(m, writer_root, source_repo, *, destinations=ABSENT, resolve=True):
+    calls, windows = [], []
+
+    def resolver(owner, occurrence, *, no_dispatch_proof, expected_state):
+        calls.append((owner, occurrence, no_dispatch_proof(), expected_state))
+        return True
+
+    def readback(run_dir, since, until):
+        windows.append((run_dir.name, since, until))
+        return {"destinations": destinations}
+
+    result = m.reconcile(CATCHUP_OCC, queued_at=CATCHUP_QUEUED, state="claimed",
+                         articles_path=writer_root / "articles.jsonl", resolver=resolver,
+                         resolve=resolve, now=CATCHUP_QUEUED + 6 * 86400, writer_root=writer_root,
+                         source_repo=source_repo, absence_readback=readback)
+    return result, calls, windows
+
+
+def test_resume_catchup_occurrence_closes_from_bound_exec_proof(tmp_path, monkeypatch):
+    m = _load()
+    writer_root, source_repo, _ = _catchup_fixture(tmp_path, monkeypatch, m)
+    result, calls, windows = _catchup(m, writer_root, source_repo)
+    assert result["status"] == "no_dispatch_proven" and result["closed"] is True, result
+    owner, occurrence, proof, state = calls[0]
+    assert (owner, occurrence, state) == ("article-resume", CATCHUP_OCC, "claimed")
+    assert proof["proof_type"] == "historical_writer_resume_no_dispatch"
+    assert proof["runtime_run_id"] == "18dd959f92920ff0-56630"
+    assert proof["writer_run_id"] == CATCHUP_RUN and proof["branch"] == "missed-daily-schedule-catch-up"
+    assert windows == [(CATCHUP_RUN, CATCHUP_QUEUED, 1791753436.270268)]
+    receipt = writer_root / "fence-reconciliation" / "article-resume-18dd959f92920ff0-56630.json"
+    assert json.loads(receipt.read_text(encoding="utf-8")) == proof
+
+
+def test_resume_catchup_dry_run_writes_nothing(tmp_path, monkeypatch):
+    m = _load()
+    writer_root, source_repo, _ = _catchup_fixture(tmp_path, monkeypatch, m)
+    result, calls, _ = _catchup(m, writer_root, source_repo, resolve=False)
+    assert result["status"] == "no_dispatch_proven" and result["closed"] is False and calls == []
+    assert not (writer_root / "fence-reconciliation").exists()
+
+
+def test_resume_catchup_stays_fenced_without_every_binding(tmp_path, monkeypatch):
+    m = _load()
+    cases = {
+        "destination": dict(destinations={**ABSENT, "substack/en": {"status": "unreadable"}}),
+        "second-execution": dict(extra_events=(
+            _event("article-resume:other", "execute", "2026-10-11T21:30:00+00:00", "x"),
+            _event("article-resume:other", "report", "2026-10-11T21:30:05+00:00", "x", exit_code=0))),
+        "daily-overlap": dict(extra_events=(
+            _event("article-daily:other", "execute", "2026-10-11T21:06:00+00:00", "x"),)),
+        "pass-logged-a-branch": dict(resume_log=[CATCHUP_PREV, "article-resume: prepublication adoption run=x",
+                                                 CATCHUP_LINE]),
+        "duplicate-line": dict(resume_log=[CATCHUP_PREV, CATCHUP_LINE, CATCHUP_PREV, CATCHUP_LINE]),
+        "ledger-in-window": dict(ledger_rows=[
+            _row("20261011-134916", "2026-10-11T21:10:00Z", "https://x.substack.com/p/b", "substack")]),
+        "run-ledger-row": dict(ledger_rows=[{"run_id": CATCHUP_RUN, "platform": "note", "published": False}]),
+        "publication-state": dict(publication_state=True),
+    }
+    for name, kwargs in cases.items():
+        destinations = kwargs.pop("destinations", ABSENT)
+        root = tmp_path / name
+        root.mkdir()
+        writer_root, source_repo, _ = _catchup_fixture(root, monkeypatch, m, **kwargs)
+        result, calls, _ = _catchup(m, writer_root, source_repo, destinations=destinations)
+        assert result["status"] == "inconclusive" and calls == [], (name, result)
+
+
+def test_resume_catchup_proof_is_pinned_to_the_measured_occurrence():
+    m = _load()
+    pinned = m.HISTORICAL_RESUME_CATCHUP_PROOFS[CATCHUP_OCC]
+    assert pinned["queued_at"] == CATCHUP_QUEUED and pinned["writer_run_id"] == CATCHUP_RUN
+    assert pinned["release_sha"] == "6f25bb2e95e9efbea58a0d8f04b4cc6eefbea7d2"
+    assert pinned["entrypoint_sha256"]["skills/writer-agent/scripts/article-resume-pending.sh"] == \
+        "5134fab95ab2b3056789ff7a1ed51383f5f0baf36baed81b32090c00369bf299"
+    assert list(m.HISTORICAL_RESUME_CATCHUP_PROOFS) == [CATCHUP_OCC]
