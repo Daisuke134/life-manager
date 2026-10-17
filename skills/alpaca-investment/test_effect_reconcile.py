@@ -140,3 +140,71 @@ class BuildProofTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CredentialPathTest(unittest.TestCase):
+    def test_minimal_launchd_env_falls_back_to_the_lane_credentials_ssot(self):
+        # lm-fence-reconciler runs without the lane plist env; the adapter must
+        # resolve the same SSOT path the lane plists set, not fail closed on env.
+        with patch.dict(os.environ, {}, clear=True), \
+                patch.object(er, "fenced_row", return_value=("claimed", QUEUED)), \
+                patch.object(er, "alpaca_get", return_value=fake_get([], [])) as getter, \
+                redirect_stdout(StringIO()):
+            self.assertEqual(er.main(["--mode", "paper", "--occurrence-id",
+                                      "alpaca-investment-paper:1", "--readback-only"]), 0)
+        self.assertEqual(getter.call_args.args[0],
+                         Path("~/.local/share/anicca/credentials.json").expanduser())
+
+    def test_explicit_env_still_wins(self):
+        with patch.dict(os.environ, {"ALPACA_INVESTMENT_LIVE_CREDENTIALS_FILE": "/x/c.json"},
+                        clear=True), \
+                patch.object(er, "fenced_row", return_value=("claimed", QUEUED)), \
+                patch.object(er, "alpaca_get", return_value=fake_get([], [])) as getter, \
+                redirect_stdout(StringIO()):
+            er.main(["--occurrence-id", OCC, "--readback-only"])
+        self.assertEqual(getter.call_args.args[0], Path("/x/c.json"))
+
+
+class OccurrenceWindowTest(unittest.TestCase):
+    def _events(self, rows):
+        import json, tempfile
+        directory = tempfile.mkdtemp()
+        path = Path(directory) / "events.jsonl"
+        path.write_text("".join(json.dumps(r) + "\n" for r in rows))
+        return path
+
+    def test_terminal_event_bounds_the_window(self):
+        path = self._events([
+            {"occurrence_id": OCC, "phase": "execute", "exit_code": None,
+             "timestamp": "2026-09-25T15:37:00+00:00"},
+            {"occurrence_id": OCC, "phase": "report", "exit_code": 75,
+             "timestamp": "2026-09-25T15:38:00.5+00:00"},
+            {"occurrence_id": OWNER + ":other", "phase": "report", "exit_code": 0,
+             "timestamp": "2026-09-26T00:00:00+00:00"},
+        ])
+        self.assertEqual(er.occurrence_window_end(path, OCC), "2026-09-25T15:43:01Z")
+
+    def test_missing_or_ambiguous_terminal_leaves_window_open(self):
+        self.assertIsNone(er.occurrence_window_end(Path("/nonexistent/events.jsonl"), OCC))
+        running = self._events([{"occurrence_id": OCC, "phase": "execute", "exit_code": None,
+                                 "timestamp": "2026-09-25T15:37:00+00:00"}])
+        self.assertIsNone(er.occurrence_window_end(running, OCC))
+        twice = self._events([
+            {"occurrence_id": OCC, "phase": "report", "exit_code": 75,
+             "timestamp": "2026-09-25T15:38:00+00:00"},
+            {"occurrence_id": OCC, "phase": "report", "exit_code": 0,
+             "timestamp": "2026-09-25T16:38:00+00:00"},
+        ])
+        self.assertIsNone(er.occurrence_window_end(twice, OCC))
+
+    def test_window_end_bounds_the_order_query_and_is_recorded(self):
+        get = fake_get([], [])
+        proof = er.build_proof(OWNER, OCC, QUEUED, get, until="2026-09-25T15:43:01Z")
+        self.assertIs(proof["verified"], True)
+        self.assertIn("until=2026-09-25T15:43:01Z", get.calls[0])
+        self.assertEqual(proof["window_end"], "2026-09-25T15:43:01Z")
+
+    def test_open_orders_still_hold_even_with_a_bounded_window(self):
+        proof = er.build_proof(OWNER, OCC, QUEUED, fake_get([], [{"id": "x"}]),
+                               until="2026-09-25T15:43:01Z")
+        self.assertIs(proof["verified"], False)
