@@ -48,7 +48,7 @@ EOF
   touch -t 202001010000 "$FAKE_HOME/.openclaw/skills/capafy-autopublish/state/published.jsonl"
 }
 capafy_call_count(){ local f="$FAKE_HOME/.openclaw/state/self-fix-calls.log"; [ -f "$f" ] || { echo 0; return; }; local n; n="$(grep -c '^capafy$' "$f" 2>/dev/null)"; echo "${n:-0}"; }
-run(){ HOME="$FAKE_HOME" VERIFY_LOOPS_SELF_DIR="$FAKE_SELF" VERIFY_LOOPS_AUDIT_CURL_BIN=/bin/false bash "$REAL_SCRIPT" >/dev/null 2>&1; }
+run(){ HOME="$FAKE_HOME" LIFE_MANAGER_REPO="$FAKE_HOME/.openclaw" VERIFY_LOOPS_SELF_DIR="$FAKE_SELF" VERIFY_LOOPS_AUDIT_CURL_BIN=/bin/false bash "$REAL_SCRIPT" >/dev/null 2>&1; }
 stub_inventory(){ cat > "$FAKE_HOME/.openclaw/skills/capafy-autopublish/scripts/inventory_status.py" <<PYEOF
 print("VERDICT=$1")
 PYEOF
