@@ -669,3 +669,27 @@ def test_cross_day_adoption_precedes_both_quality_plans_and_never_starts_daily(
     assert ambiguous.returncode == 0, ambiguous.stderr
     assert not calls.exists()
     assert not (tmp_path / "daily-started").exists()
+
+    # Every pass binds its admission occurrence to the branch and run(s) it took, so an
+    # effect_unknown fence can be reconciled from the occurrence itself (2026-10-17).
+    caught_up = subprocess.run(
+        command,
+        env={**env, "ARTICLE_LOCAL_HOUR": "06",
+             "LIFE_MANAGER_OCCURRENCE_ID": "article-resume:catchup-test"},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert caught_up.returncode == 0, caught_up.stderr
+    assert (tmp_path / "daily-started").exists()
+    records = [
+        json.loads(line.split("article-resume: pass ", 1)[1])
+        for line in (tmp_path / "resume.log").read_text().splitlines()
+        if line.startswith("article-resume: pass ")
+    ]
+    assert any(r["branch"] == "prepublication-adoption" and r["run_ids"] == [target_id] for r in records)
+    assert [(r["occurrence_id"], r["branch"], r["run_ids"]) for r in records[-2:]] == [
+        ("article-resume:catchup-test", "start", []),
+        ("article-resume:catchup-test", "missed-daily-schedule-catch-up", []),
+    ]
+    assert all(set(r) == {"at", "occurrence_id", "pid", "branch", "run_ids"} for r in records)
