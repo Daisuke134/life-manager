@@ -1,0 +1,9 @@
+{
+  "mode": "fictional_algebra_only",
+  "trained_model": false,
+  "x0": 2.0,
+  "noise": -1.0,
+  "xt": 1.0,
+  "oracle_reconstruction": 2.0,
+  "imperfect_reconstruction": 1.625
+}

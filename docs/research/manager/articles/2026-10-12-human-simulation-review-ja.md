@@ -126,3 +126,6 @@ RSI-Anythingの公開枠組みは、候補生成、予測、選択、外部評�
 
 
 方式選択の詳説：[レビューと最近の比較研究](2026-10-17-population-method-selection-ja.md)。VAEの次の教材：[GANの生成器と判別器](2026-10-17-gan-population-introduction-ja.md)。株式予測の集約を学ぶ別稿：[Numerai Unity](2026-10-17-numerai-unity-ja.md)。
+
+
+次の教材：[拡散モデルによる人口生成](2026-10-17-diffusion-population-ja.md)。DDPMの基本、数値とカテゴリー、潜在空間、人口合成コードの対応を説明する。

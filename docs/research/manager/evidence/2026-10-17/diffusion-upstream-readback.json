@@ -1,0 +1,28 @@
+{
+  "date": "2026-10-17",
+  "repository": "https://github.com/vdarsel/PopulationSynthesis",
+  "commit": "0fa77e3b2bc2068cf6156302db13365c2859b0e9",
+  "files": [
+    {
+      "path": "models/Diffusion/Diffusion_Embedded_data/train_Diffusion_Embedded_Data.py",
+      "sha256": "781153d6850135a42873db78d3dc9eb40a12a774f00140d0f979ed11951fea15"
+    },
+    {
+      "path": "models/Diffusion/Diffusion_Embedded_data/model_Diffusion.py",
+      "sha256": "9032b6ff09840f7966272f3a0c72822f3e1e2cc8b91594fa377293b3b374fa2d"
+    },
+    {
+      "path": "models/Diffusion/Diffusion_Embedded_data/sample_Diffusion_Embedded_Data.py",
+      "sha256": "1b8679cc56356bd1613d04163630e40346fcfcf9899cf3f2211725e4f41b78b8"
+    },
+    {
+      "path": "utils/utils_diffusion.py",
+      "sha256": "b778dd5adefb79fab770a4b81d81f36d38c60c1031bb3825d41a1bcef37a0689"
+    }
+  ],
+  "mode": "static_read",
+  "loss_target": "EDM predicts clean representation; distinguish DDPM noise prediction",
+  "training": false,
+  "inference": false,
+  "license": "reuse not confirmed; no root LICENSE found in inspected tree"
+}
