@@ -466,13 +466,11 @@ function createMarketingVideoGenerationLoopAdapter(deps = {}) {
       if (hook.media_ref && !contract.mediaRefs.includes(hook.media_ref)) {
         throw new Error("marketing video hook media is not approved");
       }
-      // Opt-in fresh text: when a textGenerator dep is supplied (wired per lane in the
-      // caller, e.g. honne-ja-cycle.js), the static hook.text is only a style hint for the
-      // hook "type" selectHook()/metrics already picked -- the actual words posted are
-      // regenerated every call instead of being the same handful of pack strings forever.
-      // No textGenerator configured -> unchanged legacy behavior (hook.text verbatim).
+      // A media-bound hook describes prerecorded content: preserve that approved
+      // pairing. Fresh text is only compatible with legacy unbound hooks; changing
+      // bound copy requires a matching asset/pack, not a new caption on old media.
       let hookText = hook.text;
-      if (deps.textGenerator) {
+      if (deps.textGenerator && !hook.media_ref) {
         const generated = await deps.textGenerator({
           styleHint: hook.text,
           avoidTexts: recentCopyTexts(history, objectStore),
