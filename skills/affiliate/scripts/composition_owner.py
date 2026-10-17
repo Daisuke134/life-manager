@@ -208,7 +208,7 @@ PRICING_URL = "https://elevenlabs.io/pricing"
 PRICING_TABLE = "{{PRICING_TABLE}}"
 
 
-def pricing_table(raw: str) -> str:
+def pricing_table(raw: str, fetched: str | None = None) -> str:
     """Plan table from the official pricing page's own plan summary (FAQ)."""
     summary = re.search(r"Monthly price and included credits per plan: ([^\n]+)", raw)
     plans = re.findall(
@@ -232,7 +232,7 @@ def pricing_table(raw: str) -> str:
         rows.append("| Enterprise | Custom | Custom | - | - |")
     return "\n".join(rows) + (
         f"\n\nPlan prices and credits from the [official pricing page]({PRICING_URL}),"
-        " fetched when this page was built. Prices exclude taxes."
+        f" fetched {fetched or 'when this page was built'}. Prices exclude taxes."
     )
 
 
@@ -242,10 +242,20 @@ def pricing_table_for(state_root: Path, bundle: dict) -> str:
     ), None)
     if row is None:
         raise CompositionError
-    matches = sorted((state_root / "sources" / row["source_id"]).glob(f"{row['raw_sha256']}.*"))
+    directory = state_root / "sources" / row["source_id"]
+    matches = sorted(directory.glob(f"{row['raw_sha256']}.*"))
     if len(matches) != 1:
         raise CompositionError
-    return pricing_table(matches[0].read_text(encoding="utf-8"))
+    fetched = None
+    try:
+        latest = json.loads((directory / "latest.json").read_text(encoding="utf-8"))
+        if latest.get("raw_sha256") == row["raw_sha256"]:
+            fetched = datetime.fromisoformat(latest["observed_at"]).date().isoformat()
+    except (OSError, ValueError, KeyError, TypeError):
+        pass
+    if fetched is None:  # same bytes, first written at their capture
+        fetched = datetime.fromtimestamp(matches[0].stat().st_mtime, timezone.utc).date().isoformat()
+    return pricing_table(matches[0].read_text(encoding="utf-8"), fetched)
 
 
 def prompt_for(state_root: Path, bundle: dict) -> str:

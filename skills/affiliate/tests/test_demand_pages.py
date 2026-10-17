@@ -88,6 +88,7 @@ class PricingTableTest(unittest.TestCase):
         self.assertIn("| Business | $990 | 6,000,000 | $825 | 10 seats |", table)
         self.assertIn("| Enterprise | Custom |", table)
         self.assertIn("(https://elevenlabs.io/pricing)", table)
+        self.assertIn("fetched 2026-10-15", COMPOSE.pricing_table(FIXTURE, "2026-10-15"))
 
     def test_unparseable_pricing_page_fails_closed(self):
         with self.assertRaises(COMPOSE.CompositionError):
@@ -215,7 +216,12 @@ class FocusGateTest(unittest.TestCase):
     def test_demand_page_publishes_while_focus_is_active(self):
         self.focus(1)
         self.assertTrue(self.loop.focused_publication_allowed(
-            self.state, "elevenlabs-demand-pricing-en-1", {}, {"page_type": "pricing"},
+            self.state, "elevenlabs-demand-pricing-en-1", {},
+            {"plan_id": "elevenlabs-demand-pricing-en", "page_type": "pricing"},
+        ))
+        # Only a configured demand plan bypasses, not any truthy page_type.
+        self.assertFalse(self.loop.focused_publication_allowed(
+            self.state, "other-en-1", {}, {"plan_id": "other-en", "page_type": "pricing"},
         ))
 
     def test_unexpired_focus_still_blocks_other_new_pages(self):
@@ -242,6 +248,71 @@ class FocusGateTest(unittest.TestCase):
             )
         legacy.assert_called_once()
         self.assertEqual(result["state"], "X_LIVE")
+
+
+    def campaign(self, plan_id, control=None):
+        handoff = {
+            "receipt_type": "CAMPAIGN_HANDOFF", "state": "READY_FOR_POLICY",
+            "plan_id": plan_id, "locale": "en", "slug": f"{plan_id}-guide",
+            "source_set_sha256": "e" * 64, "title": "t", "buyer_intent": "b before paying",
+            "cited_sources": [{"locator": "https://elevenlabs.io/x", "raw_sha256": "f" * 64}],
+            "owned_article_markdown": (
+                "Intro [docs](https://elevenlabs.io/x).\n\n"
+                "Disclosure: This article contains an affiliate link.\n\n"
+                "Try it: {{AFFILIATE_LINK}}"
+            ),
+            "x_copy": "Affiliate link disclosure: t {{OWNED_ARTICLE_URL}}",
+            "disclosure": "Disclosure: This article contains an affiliate link.",
+        }
+        if control:
+            handoff["experiment"] = {"control_placement_id": control, "decision_id": plan_id}
+        fingerprint = hashlib.sha256(json.dumps(
+            handoff, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+        body = json.dumps({**handoff, "handoff_fingerprint": fingerprint},
+                          sort_keys=True, separators=(",", ":")).encode()
+        path = self.state / "campaign-handoffs" / f"{plan_id}.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(body)
+        self.loop.atomic_json(self.state / "campaign-policy" / f"{plan_id}.json", {
+            "receipt_type": "GENERIC_CAMPAIGN_POLICY", "state": "PASS",
+            "decision": "PASS", "plan_id": plan_id, "locale": "en",
+            "handoff_sha256": hashlib.sha256(body).hexdigest(),
+            "handoff_fingerprint": fingerprint, "source_set_sha256": "e" * 64,
+            "checks": {"ok": True}, "semantic_audit": {"decision": "PASS"},
+        })
+
+    def test_expired_focus_archives_its_variants_and_caps_other_pages_per_day(self):
+        self.focus(8)
+        variants = [f"a-variant-{n}-en" for n in range(4)]
+        for plan_id in variants:
+            self.campaign(plan_id, control="subtitle-en-1")
+        for plan_id in ("b-plain-en", "c-plain-en"):
+            self.campaign(plan_id)
+        owned = mock.Mock(side_effect=lambda args: {
+            "state": "LIVE", "public_url": f"https://aniccaai.com/blog/{args.slug}"})
+        posted = mock.Mock(side_effect=lambda args: {
+            "state": "LIVE", "public_url": f"https://x.com/a/status/{args.placement}"})
+        acquire = mock.Mock(return_value={
+            "state": "VERIFIED", "deduplicated": True, "private_link_field": "f",
+            "provider_link_key": "k", "destination_sha256": None,
+        })
+        results = []
+        with mock.patch.object(self.loop, "elevenlabs_link",
+                               return_value="https://try.elevenlabs.io/p"):
+            for _ in range(8):
+                results.append(self.loop.advance_generic_publication(
+                    self.state, self.state / "landing", 9326, self.state / "private.md",
+                    owned_publisher=owned, x_publisher=posted, link_acquirer=acquire,
+                ))
+        published = {call.args[0].slug for call in owned.call_args_list}
+        self.assertEqual(published, {"b-plain-en-guide"})
+        self.assertEqual(posted.call_count, 1)
+        for plan_id in variants:
+            archive = json.loads((self.state / "campaign-archive" / f"{plan_id}.json").read_text())
+            self.assertEqual(archive["state"], "ARCHIVED_FOCUS_EXPIRED")
+            self.assertTrue((self.state / "campaign-policy" / f"{plan_id}.json").is_file())
+        self.assertEqual(self.loop.post_focus_generic_started_today(self.state), 1)
+        self.assertTrue(any(row.get("post_focus_daily_cap_reached") for row in results))
 
 
 if __name__ == "__main__":

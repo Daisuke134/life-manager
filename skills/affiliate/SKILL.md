@@ -273,7 +273,12 @@ policy, and owned/X publication as every campaign. Demand pages bypass the
 focused-cohort pause (their handoff carries `page_type`); they are not cohort
 variants. A focus pauses other new placements for at most `FOCUS_TTL_SECONDS`
 (7 days from its `created_at`, `local_loop.py`); after that the gate opens, the
-focus file is kept, and the wake reports `focused_cohort_expired: true`. The first
+focus file is kept, and the wake reports `focused_cohort_expired: true`. On expiry, unstarted
+experiment variants of the expired focus lineage are recorded under
+`campaign-archive/` as `ARCHIVED_FOCUS_EXPIRED` (receipts kept, never published),
+and other new non-demand campaigns start at most `POST_FOCUS_GENERIC_DAILY_CAP`
+(1) per UTC day, reported in the wake output. Only a handoff whose `plan_id` and
+`page_type` match `config/demand-pages.json` bypasses the focus. The first
 source is the tracked CTA destination and is never a pricing or docs page, so
 those citations stay direct. Pricing and free-plan pages carry a
 `{{PRICING_TABLE}}` line that `build_handoff` replaces with the plan table parsed

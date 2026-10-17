@@ -1055,6 +1055,36 @@ def write_focused_baseline(state, focus):
 
 # One focus may pause new placements for at most this long; the receipt stays.
 FOCUS_TTL_SECONDS = 7 * 86400
+# After a focus expires, new non-demand generic placements start at most this
+# many times per UTC day (demand pages keep their own one-per-day discovery).
+POST_FOCUS_GENERIC_DAILY_CAP = 1
+
+
+def demand_page_types():
+    from source_capture import demand_pages
+    return {
+        page["plan_id"]: page["page_type"]
+        for page in demand_pages(Path(__file__).resolve().parents[1])
+    }
+
+
+def is_demand_handoff(handoff):
+    page_type = (handoff or {}).get("page_type")
+    return bool(page_type) and demand_page_types().get((handoff or {}).get("plan_id")) == page_type
+
+
+def post_focus_generic_started_today(state, now=None):
+    today = (now or datetime.now(timezone.utc)).date().isoformat()
+    demand = demand_page_types()
+    count = 0
+    for path in (state / "campaign-publications").glob("*.json"):
+        try:
+            row = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if row.get("plan_id") not in demand and str(row.get("created_at", "")).startswith(today):
+            count += 1
+    return count
 
 
 def focus_expired(state, now=None):
@@ -1079,7 +1109,7 @@ def focused_publication_allowed(state, placement, progress, handoff=None):
     focus = json.loads(path.read_text(encoding="utf-8"))
     # Demand pages (config/demand-pages.json) are the copy-the-winners
     # acquisition class, not variants of the focused cohort.
-    if (handoff or {}).get("page_type") or focus_expired(state):
+    if is_demand_handoff(handoff) or focus_expired(state):
         return True
     if (
         placement == focus.get("placement_id")
@@ -3711,6 +3741,15 @@ def advance_generic_publication(
     link_acquirer = link_acquirer or elevenlabs_link_action
     completed = False
     invalid_metadata = False
+    archived = 0
+    cap_reached = False
+    expired_family = set()
+    if focus_expired(state):
+        focus = json.loads((state / "focused-cohort" / "latest.json").read_text(encoding="utf-8"))
+        expired_family = {
+            focus.get("placement_id"), focus.get("control_placement_id"),
+            *focused_live_lineage(state),
+        } - {None}
 
     def generic_link_receipt_pending(placement):
         return not any(
@@ -3820,6 +3859,28 @@ def advance_generic_publication(
             continue
         owned_receipt_path = state / "owned-publications" / f"{slug}.json"
         x_receipt_path = state / "x-posts" / f"{placement}.json"
+        archive_path = state / "campaign-archive" / f"{plan_id}.json"
+        if archive_path.is_file():
+            continue
+        not_started = not progress and not owned_receipt_path.exists() and not x_receipt_path.exists()
+        if expired_family and not_started and not is_demand_handoff(handoff):
+            control = (handoff.get("experiment") or {}).get("control_placement_id")
+            if control in expired_family:
+                # A backlog variant of the expired focus: keep every receipt,
+                # never publish it as a near-duplicate page.
+                atomic_json(archive_path, {
+                    "schema_version": 1, "receipt_type": "CAMPAIGN_ARCHIVE",
+                    "state": "ARCHIVED_FOCUS_EXPIRED", "plan_id": plan_id,
+                    "placement_id": placement, "control_placement_id": control,
+                    "handoff_fingerprint": fingerprint,
+                    "reason": "experiment variant of a focus older than FOCUS_TTL_SECONDS; not published",
+                    "archived_at": datetime.now(timezone.utc).isoformat(),
+                })
+                archived += 1
+                continue
+            if post_focus_generic_started_today(state) >= POST_FOCUS_GENERIC_DAILY_CAP:
+                cap_reached = True
+                continue
         try:
             existing_owned = json.loads(owned_receipt_path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
@@ -3985,6 +4046,8 @@ def advance_generic_publication(
     return {
         "state": generic_publication_terminal_state(completed, invalid_metadata),
         "public_url": None,
+        "archived_focus_expired": archived,
+        "post_focus_daily_cap_reached": cap_reached,
     }
 
 
@@ -5537,6 +5600,8 @@ def _wake_once(args, started_at, run_id):
         "focused_cohort_expansion_state": focused_cohort.get("placement_expansion_state"),
         "focused_cohort_failure_type": focused_cohort.get("failure_type"),
         "focused_cohort_expired": focus_expired(state),
+        "post_focus_generic_daily_cap": POST_FOCUS_GENERIC_DAILY_CAP,
+        "post_focus_generic_started_today": post_focus_generic_started_today(state),
         "rolling_net_state": rolling_net.get("state"),
         "rolling_net_money_state": rolling_net.get("money_state"),
         "rolling_net_net_state": rolling_net.get("net_state"),
