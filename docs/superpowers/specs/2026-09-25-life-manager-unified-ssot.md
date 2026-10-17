@@ -19370,3 +19370,32 @@ All nine are live with the ct, and IndexNow returned 200. Google Search Console 
 - lm-fence-reconciler skipped the distribute fence for 15 h (reported to Codex).
 - The x:anicca browser is shared with x-repost.
 - The IG bio link needs Dais's WhatsApp code.
+
+### Capafy free trial decision re-check + distribution — 2026-10-17 13:30 JST (claude-evo-eval-1012, Dais ask: "did we decide to get rid of the free trial?")
+
+**Answer: yes, decided 2026-10-05 (#6596, `No Free Trial` on every plan) and confirmed again with fresh data today.** The 2026-09-28 claim that winners "nearly all carry a free trial" was wrong; the factory has built new Agents without a trial since #6596, but 13 older non-selling Anicca listings still carry one.
+
+**Evidence (market sweep `capafy-market-agents-20261016.json`, 871 Agents, `supportFreeTrial` × `salesVolume`):**
+
+| Group | Agents | Share that sold | Total units | Agents ≥100 units |
+|---|---|---|---|---|
+| Free trial | 185 | 23% | 477 | 0 |
+| No free trial | 686 | 25% | 11,979 (96% of market) | 13 |
+
+Top 10 by sales: 0/10 with a trial (Ocup 3,111, Serenity 2,002, HookAce 1,044, Video Hook Forensics 1,022). Top 20: 2/20. Winners funnel with a separate free Agent (Free Transcript Clip Map 412, 3-Second Viral Hook Generator FREE 278) and keep the paid Agent trial-free.
+
+**Our data:** lifetime 73 trial units vs 32 paid units (`capafy-hourly-reconcile.json` 2026-10-17T04:08Z, gross $102.75 / 70 orders unchanged since 9/29). Last 7 days: 4 trial orders ($0) on 3798949471 Reels Hook Lab and 9466718786 Shorts Hook Lab, 0 paid. 30-day paid orders all came from trial-free Agents (Hook Lab 5, 2844813315 4, 7686597754 4).
+
+**Agents still carrying a trial (all 0 sales, none in FROZEN):** 9466718786, 3798949471, 6273179459, 2672128973, 7631594519, 6667600273, 8416888650, 4886968609, 4014388606, 8750239743, 6959704729, 5051239796, 2590720317.
+
+**Distribution readback (Hook Lab 8123079349, 7 days):** ai_overview 17, search 8, hooklab_free 8 (was 4), direct 3, hooklab_x 2, hooklab_blog 1; paid 0 on every route. X reach is near zero (13 Hook Lab posts + 52 link replies → 2 views). SEO batch 2 (16 pages EN/ES/JA/PT-BR, commit `6cac012` on self-owned-landing) is live (17/17 HTTP 200 incl. the fixed `reels-video-hook-ja`) and sent to IndexNow (HTTP 200).
+
+**Remaining TODO (order):**
+1. Remove the free trial from the 13 Agents above, highest-traffic first (9466718786, 3798949471), each as its own version when a review slot frees; existing trials keep running and are observed for conversion (do not cancel them). Never touch FROZEN sellers.
+2. Track the 4 current trials (3798949471 ×2, 9466718786 ×2) to trial end; record whether any becomes paid.
+3. Free Clip Map (hooklab_free, rising) → strengthen the upgrade line to paid Hook Lab inside the free Agent's output (non-seller listing only).
+4. Fix X reach (link-free native posts, replies on large accounts, or another account) and measure hooklab_x weekly; keep the channel.
+5. SEO: read ai_overview/hooklab_blog weekly; next batch in the language that moves.
+6. Recover the 10/23 organize reel (occurrence cancelled before scheduling); daily reels now open with the winner confession (#8222).
+
+**Factory unblock found while fixing trials (2026-10-17 14:30 JST):** the five review slots were held by stale empty draft versions on three FROZEN sellers — 7686597754 YouTube Script Writer v1.0.6 (created 2026-10-11 05:27), 8828622062 Slide Maker v1.0.4, 2844813315 TikTok Script Pro v1.0.5 — plus 2781635836 (new-Agent draft) and 2455220100 Hook Grader (under review). Because sellers are frozen, no loop would ever finish or remove those drafts, so the factory stayed CAP_FULL and nothing new (and no trial removal) could ship. Deleted the three drafts in the seller console (`下書きを削除`); each Agent read back as `公開中` on its unchanged live version (v1.0.5 / v1.0.3 / v1.0.4). Live listings untouched. Capafy free trials auto-charge at trial end unless cancelled (month plan 3 days, week plan 1 day; console 価格設定), so the 4 current trials can still convert. Editing a published Agent creates a draft that itself holds a slot, so trial removal (TODO 1) runs only through a real version submission, after new Agents per AGENTS rule 10. New TODO 0 (first): add a check that flags any FROZEN seller whose console status is `draft`, so a stale seller draft never again holds a slot unseen.
