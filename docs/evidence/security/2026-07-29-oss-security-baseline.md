@@ -190,3 +190,23 @@ added. The full-history scan is rerun on the PR head before merge.
 
 The full-history scan remains enabled. A match at a different commit, path,
 rule, or line is not suppressed.
+
+## Addendum 2026-10-17 — historical paper-access prose
+
+PR #7768's full-history Gitleaks job (`117372519104`, workflow `39024344781`)
+reports one `generic-api-key` finding at commit
+`d8be07020442615d043364cc320b4a851f8f3d02`, in
+`docs/research/manager/evidence/2026-10-17/numerai-methods-research.json:59`.
+An independent read-only review confirms that `access_limit` contains ordinary
+prose about a publisher's HTTP 403 response, retrieval from the author's HAL
+repository, and the distinction from an earlier paper. The matched substring
+is a public publisher/status label, not an authentication credential. No
+credential rotation is indicated.
+
+The commit is on `docs/manager-learning-20261017` and is not an ancestor of the
+reviewed investment head or `origin/main`. The current-tree scan passes; the
+unrelated commit is included by the existing `--log-opts=--all` history scan.
+Only this exact fingerprint is added to `.gitleaksignore`:
+`d8be07020442615d043364cc320b4a851f8f3d02:docs/research/manager/evidence/2026-10-17/numerai-methods-research.json:generic-api-key:59`.
+The current-tree and full-history scans remain enabled. Different commits,
+paths, rules, and lines remain subject to detection.
