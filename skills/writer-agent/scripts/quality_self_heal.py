@@ -314,8 +314,8 @@ def _load_feedback_invocation(
 
 
 def _snapshot_receipts(
-    run_dir: Path, attempt: int, quality: dict[str, Any]
-) -> dict[str, dict[str, str]]:
+    run_dir: Path, attempt: int, quality: dict[str, Any], advisory: bool = False
+) -> dict[str, dict[str, str | None]]:
     """Copy each gate receipt into an immutable, attempt-scoped evidence set."""
     gates = run_dir / "gates"
     destination = gates / f"quality-attempt-{attempt}"
@@ -330,7 +330,7 @@ def _snapshot_receipts(
             destination_present = False
     if not destination_present:
         destination.mkdir()
-    snapshots: dict[str, dict[str, str]] = {}
+    snapshots: dict[str, dict[str, str | None]] = {}
     names = {
         "editorial": lambda lang: f"editorial-{lang}.json",
         "reader": lambda lang: f"reader-testing-gate-{lang}.terminal.json",
@@ -343,6 +343,15 @@ def _snapshot_receipts(
         snapshots[lang] = {}
         for kind, filename in names.items():
             source = gates / filename(lang)
+            if advisory and kind != "identity" and record.get(kind) != "PASS" and not (
+                source.is_file()
+                and not source.is_symlink()
+                and (_read_json(source) or {}).get("article_sha256") == record.get("article_sha256")
+            ):
+                # Continuous policy: a missing or pre-revision editorial/reader receipt is
+                # advisory, not evidence. Record its absence (None) instead of stopping.
+                snapshots[lang][kind] = None
+                continue
             if source.is_symlink() or not source.is_file():
                 raise QualitySelfHealError(
                     f"quality {kind} receipt is missing for {lang}"
@@ -549,6 +558,14 @@ def _history(run_dir: Path) -> list[dict[str, Any]]:
                     "identity": f"identity-{lang}.json",
                 }
                 for kind, filename in filenames.items():
+                    if snapshot[kind] is None:
+                        if (
+                            kind == "identity"
+                            or value.get("publication_policy") != "continuous"
+                            or record.get(kind) == "PASS"
+                        ):
+                            raise QualitySelfHealError("quality receipt snapshot is missing")
+                        continue
                     path = directory / filename
                     if (
                         path.is_symlink()
@@ -727,12 +744,18 @@ def assess(run_dir: Path, drafts: dict[str, Path]) -> dict[str, Any]:
 
     if set(drafts) != {"ja", "en"}:
         raise QualitySelfHealError("drafts must contain ja and en")
-    for lang in ("ja", "en"):
-        _repair_unbound_editorial_receipt(run_dir, lang, Path(drafts[lang]))
-    editorial_form = _route_form(run_dir)
     publication_policy = os.environ.get("ARTICLE_PUBLICATION_POLICY", "strict")
     if publication_policy not in {"strict", "continuous"}:
         raise QualitySelfHealError("ARTICLE_PUBLICATION_POLICY must be strict or continuous")
+    for lang in ("ja", "en"):
+        try:
+            _repair_unbound_editorial_receipt(run_dir, lang, Path(drafts[lang]))
+        except QualitySelfHealError:
+            # Continuous: editorial is advisory. A pre-revision or missing receipt is
+            # simply not current (language_quality reports editorial FAIL), never a stop.
+            if publication_policy != "continuous":
+                raise
+    editorial_form = _route_form(run_dir)
     quality = {
         lang: language_quality(run_dir, lang, Path(drafts[lang]))
         for lang in ("ja", "en")
@@ -855,7 +878,9 @@ def assess(run_dir: Path, drafts: dict[str, Path]) -> dict[str, Any]:
         ),
         "quality_feedback_consumption_sha256": consumption_sha256,
     }
-    decision["receipt_snapshots"] = _snapshot_receipts(run_dir, attempt, quality)
+    decision["receipt_snapshots"] = _snapshot_receipts(
+        run_dir, attempt, quality, advisory=publication_policy == "continuous"
+    )
     if action == "force_publish_advisory":
         decision.update(
             {

@@ -1318,6 +1318,14 @@ python3 "$GENERATION_STATE" "${GENERATION_ARGS[@]}" begin \
 }
 run_model_pass
 RC=$?
+# Deterministic STEP 4.6-4.9 while the judge broker is still up: a staged continuous-policy
+# package reaches publication init even when the agent ends its turn early (run 20261017-033711).
+# Blocks (identity FAIL, conscience BLOCK, quality owner) leave the run to its existing owners.
+if [ "$RC" -ne 124 ] && [ "$RC" -ne 130 ] && [ "$RC" -ne 143 ]; then
+  ARTICLE_LEDGER="$LEDGER" bash "$ARTICLE_ROOT/scripts/prepublication-finish.sh" \
+    --run-dir "$RUN_DIR" >>"$LOG" 2>&1 || \
+    echo "=== article-daily: deterministic prepublication finish blocked run=$RUN_TS rc=$? ===" >>"$LOG"
+fi
 drain_generation_workers
 # The runtime reads this path as a verified effect after exit 0. The model never gets the path
 # (env -u above), but it can still guess it ($TMPDIR is the same scratch dir), so anything there
