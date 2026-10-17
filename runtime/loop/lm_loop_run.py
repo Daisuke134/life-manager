@@ -975,6 +975,7 @@ def _verified_effect_result(path: Path, loop_id: str,
 
 def _effect_result_hint_allowed(loop_id: str, entrypoint: str | None) -> bool:
     return (entrypoint in EFFECT_RESULT_HINT_ENTRYPOINTS
+            or entrypoint in NO_EFFECT_RESULT_HINT_ENTRYPOINTS
             or EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS.get(loop_id) == entrypoint)
 
 

@@ -2466,6 +2466,12 @@ def test_verified_no_effect_result_requires_exact_identity_and_allowed_entrypoin
                   'ebook-ja-tiktok-daily:run-off-slot', entrypoint) is None
 
 
+def test_alpaca_no_effect_hint_reaches_terminal_validation():
+    assert loop_runner._effect_result_hint_allowed(
+        'alpaca-investment-paper', 'skills/alpaca-investment/run.py',
+    ) is True
+
+
 def test_verified_no_effect_result_marks_the_terminal_as_no_effect():
     owner = 'ebook-ja-tiktok-daily'
     occurrence = f'{owner}:run-off-slot'
