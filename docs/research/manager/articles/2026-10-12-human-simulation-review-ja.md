@@ -123,3 +123,6 @@ RSI-Anythingの公開枠組みは、候補生成、予測、選択、外部評�
 
 
 人口生成の詳しい教材：[VAEの学習・生成と人口合成研究](2026-10-17-vae-population-synthesis-ja.md)。基本モデル、世帯との組み合わせ、公開コードの処理と評価を順に説明する。
+
+
+方式選択の詳説：[レビューと最近の比較研究](2026-10-17-population-method-selection-ja.md)。VAEの次の教材：[GANの生成器と判別器](2026-10-17-gan-population-introduction-ja.md)。株式予測の集約を学ぶ別稿：[Numerai Unity](2026-10-17-numerai-unity-ja.md)。

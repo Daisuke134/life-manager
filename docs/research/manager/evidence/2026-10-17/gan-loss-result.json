@@ -1,0 +1,7 @@
+{
+  "mode": "fictional_algebra_only",
+  "training_run": false,
+  "generator_loss_at_D_0_1": 2.3025850929940455,
+  "generator_loss_at_D_0_8": 0.2231435513142097,
+  "collapsed_distribution_total_variation": 0.6
+}

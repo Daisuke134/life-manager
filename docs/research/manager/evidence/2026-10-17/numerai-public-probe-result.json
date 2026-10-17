@@ -1,0 +1,29 @@
+{
+  "numerapi_version": "3.1.1",
+  "public_api_only": true,
+  "v6_files": [
+    "v6.0/features.json",
+    "v6.0/live.parquet",
+    "v6.0/live_benchmark_models.parquet",
+    "v6.0/live_example_preds.csv",
+    "v6.0/live_example_preds.parquet",
+    "v6.0/live_neutralizer.parquet",
+    "v6.0/train.parquet",
+    "v6.0/train_benchmark_models.parquet",
+    "v6.0/train_neutralizer.parquet",
+    "v6.0/validation.parquet",
+    "v6.0/validation_benchmark_models.parquet",
+    "v6.0/validation_example_preds.csv",
+    "v6.0/validation_example_preds.parquet",
+    "v6.0/validation_neutralizer.parquet"
+  ],
+  "feature_set_counts": {
+    "small": 101,
+    "medium": 351,
+    "all": 1040,
+    "signals": 23
+  },
+  "training_run": false,
+  "submission": false,
+  "staking": false
+}

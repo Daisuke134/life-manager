@@ -1,0 +1,71 @@
+{
+  "date": "2026-10-17",
+  "repos": [
+    {
+      "repo": "https://github.com/numerai/example-scripts.git",
+      "commit": "1e1a8f3aa1d3e210484bf544841cc14a82c993a9",
+      "files": [
+        {
+          "path": "README.md",
+          "sha256": "795113a9a29891a3729b44837f08872277bdaa1b93b2ddc3e39b5dcfdcd06cbe"
+        },
+        {
+          "path": "LICENSE.txt",
+          "sha256": "0f08863fb24c61a041ffe85f28711afa78d1b4438a55acaf36b99056d027d29f"
+        },
+        {
+          "path": "numerai/v6_example_model.ipynb",
+          "sha256": "b826a0c7b964a8158483a6666c793de8cc94c2e408bd429e5e3b644574bad598"
+        }
+      ],
+      "model_training": false
+    },
+    {
+      "repo": "https://github.com/HyunsooYun/llm-pop-synth.git",
+      "commit": "c7c11642cd6777b946e23ff57f8246bcdf4e8444",
+      "files": [
+        {
+          "path": "README.md",
+          "sha256": "21176e875bfb033d58ade3c1c12d0b74531104d82882f151f23b1138c321be64"
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "7a8be215d3b33c1d98a94574b3ece22704526855604c8cd68a557cbc7e5cd14e"
+        },
+        {
+          "path": "LLM-BN/BN_generator.py",
+          "sha256": "6e5ecf461ea7760ede6f2f0f58024896a71202fe95a6e0cef39a29fa1d405637"
+        }
+      ],
+      "model_training": false
+    },
+    {
+      "repo": "https://github.com/vdarsel/PopulationSynthesis.git",
+      "commit": "0fa77e3b2bc2068cf6156302db13365c2859b0e9",
+      "files": [
+        {
+          "path": "models/GAN/WGAN/model_WGAN_alone.py",
+          "sha256": "8948e51405e7c99691f86038de6c1dd2d115cbcd8fffd68c5851ec62d1211890"
+        },
+        {
+          "path": "models/GAN/WGAN/train_WGAN_alone.py",
+          "sha256": "0571a89fb4cba28d211346724f5e003690547b5259e3895043226b7d865b2d12"
+        }
+      ],
+      "model_training": false
+    }
+  ],
+  "numerai": "public metadata probe only; no account or submission",
+  "access_limit": "Publisher403; final Darsel2026 PDF successfully obtained from author HAL repository via direct HTTP. Methods/results/conclusion/limitations read; distinguish 2025 predecessor.",
+  "paper_correction": "Jones2026 Fig10 correction read, 2026-08-19",
+  "latest_social_survey": "2026 title and author repository discovered; full text not read",
+  "darsel_final": {
+    "url": "https://hal.science/hal-05758634/document",
+    "doi": "10.1016/j.trc.2026.105627",
+    "sha256": "fabfde0f1963b82849acdb74c5e0a95df1d46c95df2f24dac5db4974bac89005",
+    "bytes": 7024762,
+    "copyright": "Authors, CC BY4.0 as indicated in author deposit",
+    "read_scope": "methods evaluation criteria, experiment setup, results, conclusion and limitations; not a reproduction",
+    "model_training": false
+  }
+}
