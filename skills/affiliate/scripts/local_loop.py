@@ -1053,11 +1053,34 @@ def write_focused_baseline(state, focus):
     )
 
 
+# One focus may pause new placements for at most this long; the receipt stays.
+FOCUS_TTL_SECONDS = 7 * 86400
+
+
+def focus_expired(state, now=None):
+    """True once the focus is older than FOCUS_TTL_SECONDS (from its created_at)."""
+    path = state / "focused-cohort" / "latest.json"
+    try:
+        created = datetime.fromisoformat(
+            json.loads(path.read_text(encoding="utf-8"))["created_at"]
+        )
+    except (OSError, ValueError, KeyError, TypeError):
+        return False  # unknown age never lifts the pause
+    if created.tzinfo is None:
+        return False
+    now = now or datetime.now(timezone.utc)
+    return now - created >= timedelta(seconds=FOCUS_TTL_SECONDS)
+
+
 def focused_publication_allowed(state, placement, progress, handoff=None):
     path = state / "focused-cohort" / "latest.json"
     if not path.is_file():
         return True
     focus = json.loads(path.read_text(encoding="utf-8"))
+    # Demand pages (config/demand-pages.json) are the copy-the-winners
+    # acquisition class, not variants of the focused cohort.
+    if (handoff or {}).get("page_type") or focus_expired(state):
+        return True
     if (
         placement == focus.get("placement_id")
         or progress.get("state") in {"MATERIALIZED", "OWNED_NOT_LIVE", "OWNED_LIVE"}
@@ -4086,7 +4109,7 @@ def advance_known_publication(
     }
     if generic["state"] not in generic_non_blocking:
         return generic
-    if (state / "focused-cohort" / "latest.json").is_file():
+    if (state / "focused-cohort" / "latest.json").is_file() and not focus_expired(state):
         return {
             "state": "FOCUSED_COHORT_HELD", "public_url": None,
             "generic_state": generic["state"],
@@ -5513,6 +5536,7 @@ def _wake_once(args, started_at, run_id):
         "focused_cohort_receipt_sha256": focused_cohort.get("receipt_sha256"),
         "focused_cohort_expansion_state": focused_cohort.get("placement_expansion_state"),
         "focused_cohort_failure_type": focused_cohort.get("failure_type"),
+        "focused_cohort_expired": focus_expired(state),
         "rolling_net_state": rolling_net.get("state"),
         "rolling_net_money_state": rolling_net.get("money_state"),
         "rolling_net_net_state": rolling_net.get("net_state"),

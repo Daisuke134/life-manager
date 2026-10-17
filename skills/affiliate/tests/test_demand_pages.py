@@ -151,6 +151,7 @@ class PricingPageDryRunTest(unittest.TestCase):
             self.assertNotIn("{{PRICING_TABLE}}", body)
             self.assertIn("| Pro | $99 | 600,000 | $82.50 |", body)
             self.assertEqual(handoff["cited_sources"][0]["locator"], tts["url"])
+            self.assertEqual(handoff["page_type"], "pricing")
 
             link = "https://try.elevenlabs.io/demo-placement"
             page = render_affiliate_markdown(
@@ -192,6 +193,55 @@ class PricingPageDryRunTest(unittest.TestCase):
             with mock.patch.object(COMPOSE, "_ready_from_seal", return_value={"result_sha256": "b" * 64}):
                 with self.assertRaises(COMPOSE.CompositionError):
                     COMPOSE.build_handoff(root, state, bundle, {"evidence_dir": str(evidence)})
+
+
+class FocusGateTest(unittest.TestCase):
+    def setUp(self):
+        self.loop = load("affiliate_local_loop_demand", "local_loop.py")
+        self.directory = tempfile.TemporaryDirectory()
+        self.state = Path(self.directory.name)
+
+    def tearDown(self):
+        self.directory.cleanup()
+
+    def focus(self, age_days):
+        from datetime import datetime, timedelta, timezone
+        created = datetime.now(timezone.utc) - timedelta(days=age_days)
+        self.loop.atomic_json(self.state / "focused-cohort" / "latest.json", {
+            "placement_id": "subtitle-en-1", "created_at": created.isoformat(),
+            "placement_expansion_state": "PAUSED_FOR_FOCUSED_COHORT",
+        })
+
+    def test_demand_page_publishes_while_focus_is_active(self):
+        self.focus(1)
+        self.assertTrue(self.loop.focused_publication_allowed(
+            self.state, "elevenlabs-demand-pricing-en-1", {}, {"page_type": "pricing"},
+        ))
+
+    def test_unexpired_focus_still_blocks_other_new_pages(self):
+        self.focus(6)
+        self.assertFalse(self.loop.focused_publication_allowed(self.state, "new-en-1", {}, {}))
+        self.assertFalse(self.loop.focus_expired(self.state))
+
+    def test_expired_focus_allows_any_page_and_keeps_the_file(self):
+        self.focus(self.loop.FOCUS_TTL_SECONDS / 86400 + 0.01)
+        self.assertTrue(self.loop.focused_publication_allowed(self.state, "new-en-1", {}, {}))
+        self.assertTrue(self.loop.focus_expired(self.state))
+        self.assertTrue((self.state / "focused-cohort" / "latest.json").is_file())
+
+    def test_expired_focus_no_longer_holds_legacy_publication(self):
+        self.focus(8)
+        with (
+            mock.patch.object(self.loop, "advance_generic_publication",
+                              return_value={"state": "ALREADY_LIVE", "public_url": None}),
+            mock.patch.object(self.loop, "advance_legacy_dedicated_publication",
+                              return_value={"state": "X_LIVE", "public_url": "u"}) as legacy,
+        ):
+            result = self.loop.advance_known_publication(
+                self.state, self.state / "landing", 9326, self.state / "private.md",
+            )
+        legacy.assert_called_once()
+        self.assertEqual(result["state"], "X_LIVE")
 
 
 if __name__ == "__main__":

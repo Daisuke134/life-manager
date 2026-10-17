@@ -468,6 +468,8 @@ def build_handoff(skill_root: Path, state_root: Path, bundle: dict, receipt: dic
         handoff["opportunity_decision"] = bundle["opportunity_decision"]
     if bundle.get("experiment"):
         handoff["experiment"] = bundle["experiment"]
+    if plan.get("page_type"):
+        handoff["page_type"] = plan["page_type"]
     handoff["handoff_fingerprint"] = hashlib.sha256(
         json.dumps(handoff, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()

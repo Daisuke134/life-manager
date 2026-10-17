@@ -269,7 +269,11 @@ ranking page structure it copies and only official sources (competitor facts fro
 the competitor's own pricing page). Discovery opens the next unopened page as a
 normal discovered plan, at most one per UTC day and ahead of experiments and
 sitemap families; it then flows through the same capture, sealed composition,
-policy, focused-cohort gate, and owned/X publication as every campaign. The first
+policy, and owned/X publication as every campaign. Demand pages bypass the
+focused-cohort pause (their handoff carries `page_type`); they are not cohort
+variants. A focus pauses other new placements for at most `FOCUS_TTL_SECONDS`
+(7 days from its `created_at`, `local_loop.py`); after that the gate opens, the
+focus file is kept, and the wake reports `focused_cohort_expired: true`. The first
 source is the tracked CTA destination and is never a pricing or docs page, so
 those citations stay direct. Pricing and free-plan pages carry a
 `{{PRICING_TABLE}}` line that `build_handoff` replaces with the plan table parsed
