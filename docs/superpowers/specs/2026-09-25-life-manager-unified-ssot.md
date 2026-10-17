@@ -19570,3 +19570,21 @@ Top 10 by sales: 0/10 with a trial (Ocup 3,111, Serenity 2,002, HookAce 1,044, V
 8. Factory: detector for any FROZEN seller showing console status `draft`; keep shipping NEW winner-category Agents.
 9. Host memory pressure (swap 6–10 GB) defers distribute runs (`host_admission_deferred:resource_capacity_busy`); find and cut the top memory consumers.
 10. Free trial removal on 13 legacy Agents (Dais: later).
+
+### Capafy distribution status + remaining TODO — 2026-10-18 07:30 JST (claude-evo-eval-1012, Dais: "great impressions, great conversion, great revenue; first goal $10K MRR")
+
+**Where we are (Capafy official, 7d):** impressions 11,398 → detail views 1,512 (13.3%) → trials 4 → paid 0. Lifetime gross $102.75 / 70 orders (no paid order since 9/29). Google AI Overview is the largest external source: TikTok Script Pro 25, Hook Lab 17, YouTube Script Writer 4 views (X across the three sellers: 8). Free Transcript Clip Map 7095835081 holds ~60% of impressions; ~1% of its viewers reach Hook Lab.
+
+**$10K MRR math (inference):** ≈1,000 monthly subscribers at $9.99 → ~50,000 views/month at 2% view→paid. Now ~6,500 views/month and 0% paid. Gap: ~8× reach and 0%→2% conversion.
+
+**Shipped 2026-10-17/18 (all merged, released, applied):** keyword SEO pages on every seller slot (#8263, #8275 H1-must-contain-query + IndexNow, #8288/#8291 → 140 keywords across Hook Lab / TikTok Script Pro / YouTube Script Writer; 8 pages live, first TSP/YSW pages 04:30/05:30); Article + FAQPage JSON-LD on every aniccaai.com post (anicca-products #512/#513, verified live EN/ES/JA); fence reconciler serves live fences before refused leftovers (#8286); host agent slots 3→4 (#8292); distribute 15-min cadence retries deferred slots (#8294); spare renderer off in all browser launchers (#8284); leaked tabs swept on every lease release (#8297); frozen-seller-draft detector (#8277); stale seller drafts / unretryable rejected / abandoned draft deleted → factory resumed; TikTok @hooklab.capafy on Postiz (warm-up live 2026-10-24) + reels to TikTok after warm-up (#8266); disk back ≥15 GiB (17 merged worktrees + 7 unreferenced releases removed).
+
+**Remaining TODO (order; cursor = 1):**
+1. Impressions — TikTok: warm-up to 2026-10-24 (passive For You only), then verify the first DIRECT_POST reels and Postiz analytics reach.
+2. Impressions — SEO: keep 140-keyword queue flowing; weekly re-weight toward the product/language with the most AI-Overview views (TikTok Script Pro now strongest); refill before the queue empties (~5 days).
+3. Conversion — Free Clip Map → Hook Lab leak (~1%): watch Hook Grader v1.0.1 (free, hooklab_free CTA) once approved; if <3% hand-off after 7 days, ship a NEW free agent whose output ends in a Hook Lab teaser (never touch the free seller).
+4. Conversion — external page → Capafy click: add a real-output example block above the CTA on keyword pages (copy top-seller listing pattern); measure ct=*_blog views per page.
+5. Conversion — paid: track the 4 trials to trial end (auto-charge); remove free trials on the 13 legacy listings when review slots allow (Dais: after distribution).
+6. Impressions — X selawmqt English-only: identify the poster of Anicca affirmation JA/ES posts; cut volume, move to value replies on large accounts.
+7. Daily 6-slide carousel and weekly winner-creative research loop (yt-dlp).
+8. Foundation: browser flag reconcile for line-creators/fundraiser/tiktok owners (leases always busy); pre-existing failing test test_capafy_goal_monitors_declare_rebindable_host_admission_contract; zombie claim marketing-metrics-daily since 2026-10-16; offline candidate build reports success with no new candidate.
