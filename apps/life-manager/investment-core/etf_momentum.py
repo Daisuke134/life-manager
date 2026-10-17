@@ -150,6 +150,66 @@ def _partitions(trades: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]
     return result
 
 
+def _benchmark_comparison(
+    partitions: Mapping[str, Sequence[Mapping[str, Any]]],
+    spy: Mapping[str, Mapping[str, Decimal | str]] | None,
+    notional: Decimal,
+    fixed_cost: Decimal,
+) -> dict[str, Any]:
+    """Compare modeled P&L with one SPY holding per closed-trade partition.
+
+    The strategy resets its notional each trade; SPY keeps its initial quantity.
+    This is a reference P&L comparison, not a portfolio-return or alpha estimate.
+    """
+    benchmark: dict[str, Any] = {
+        "symbol": "SPY",
+        "method": "buy_and_hold",
+        "measurement_kind": "modeled_reference_pnl",
+        "notional_usd": _money(notional),
+        "strategy_sizing": "fixed_notional_per_round_trip",
+        "benchmark_sizing": "initial_notional_buy_and_hold",
+        "cost_scope": "declared_broker_costs_only",
+    }
+    for period, trades in partitions.items():
+        comparison: dict[str, Any] = {
+            "status": "unknown",
+            "reason": "benchmark_symbol_missing" if spy is None else "insufficient_trades",
+            "start_date": trades[0]["entry_date"] if trades else None,
+            "end_date": trades[-1]["exit_date"] if trades else None,
+            "entry_price": None,
+            "exit_price": None,
+            "gross_pnl_usd": None,
+            "cost_usd": None,
+            "net_pnl_usd": None,
+            "strategy_net_pnl_usd": None,
+            "excess_net_pnl_usd": None,
+            "outcome": None,
+        }
+        if spy is not None and trades:
+            entry = Decimal(str(spy[str(comparison["start_date"])]["open"]))
+            exit_price = Decimal(str(spy[str(comparison["end_date"])]["close"]))
+            gross = (exit_price / entry - Decimal("1")) * notional
+            net = Decimal(_money(gross - fixed_cost))
+            strategy_net = Decimal(str(_summary(trades)["net_pnl_usd"]))
+            excess = strategy_net - net
+            comparison.update(
+                status="measured", reason=None,
+                entry_price=format(entry, "f"), exit_price=format(exit_price, "f"),
+                gross_pnl_usd=_money(gross), cost_usd=_money(fixed_cost),
+                net_pnl_usd=_money(net), strategy_net_pnl_usd=_money(strategy_net),
+                excess_net_pnl_usd=_money(excess),
+                outcome="outperformed" if excess > 0 else "underperformed" if excess < 0 else "matched",
+            )
+        benchmark[period] = comparison
+    measured = sum(benchmark[period]["status"] == "measured" for period in partitions)
+    benchmark["status"] = "measured" if measured == len(partitions) else "partial" if measured else "unknown"
+    benchmark["reason"] = (
+        None if measured == len(partitions) else
+        "benchmark_symbol_missing" if spy is None else "insufficient_trades"
+    )
+    return benchmark
+
+
 def _validated_inputs(
     bars_by_symbol: Mapping[str, Sequence[Mapping[str, Any]]],
     universe: Sequence[str],
@@ -211,16 +271,16 @@ def simulate(
         "first_session": common[0] if common else None,
         "last_session": common[-1] if common else None,
     }
+    fixed_cost = notional * (entry_fee + exit_fee + entry_slippage + exit_slippage) / _BPS
     if len(common) <= lookback_days + hold_days:
         return {
             "status": "rejected", "decision": "rejected", "reason": "insufficient_sessions",
             "data_quality": quality, "trades": [],
             "train": _summary([]), "validation": _summary([]), "holdout": _summary([]),
+            "benchmark": _benchmark_comparison(_partitions([]), normalized.get("SPY"), notional, fixed_cost),
         }
 
     rows = {symbol: [normalized[symbol][session] for session in common] for symbol in symbols}
-    total_cost_bps = entry_fee + exit_fee + entry_slippage + exit_slippage
-    fixed_cost = notional * total_cost_bps / _BPS
     trades: list[dict[str, Any]] = []
     decision_index = lookback_days
     while decision_index + hold_days < len(common):
@@ -258,6 +318,7 @@ def simulate(
         "reason": None if complete else "insufficient_trades",
         "data_quality": quality,
         "trades": trades,
+        "benchmark": _benchmark_comparison(partitions, normalized.get("SPY"), notional, fixed_cost),
         **summaries,
     }
 
@@ -392,6 +453,10 @@ def build_validation_report(
         "fresh": True,
         "observed_at": observed_at,
         "data_quality": result.get("data_quality"),
+        "benchmark": result.get("benchmark", {
+            "symbol": "SPY", "measurement_kind": "modeled_reference_pnl",
+            "status": "unknown", "reason": "benchmark_not_measured",
+        }),
     }
     return report
 
