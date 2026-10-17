@@ -49,6 +49,53 @@ class RevenueCliTest(unittest.TestCase):
             result["unique_click_count_state"], "OBSERVED_MONTH_BUCKET_SUM",
         )
 
+    def test_link_rows_keep_per_placement_conversions(self):
+        link = "https://try.elevenlabs.io/campaign-one"
+        candidate = {
+            "placement_id": "campaign-one",
+            "link_fingerprints": sorted(MODULE.link_fingerprints(link)),
+        }
+        base = {
+            "link_path": link, "click_count": 5, "unique_click_count": 4,
+            "customer_count": 0, "paid_customer": 0, "transaction_count": 0,
+            "total_rewards": 0, "unpaid_rewards": 0,
+        }
+        rows = [
+            {**base, "click_created_at_month": "2026-09-01"},
+            {**base, "click_created_at_month": "2026-10-01", "customer_count": 1,
+             "total_rewards": 2200, "unpaid_rewards": 2200},
+        ]
+
+        result = MODULE.aggregate_link_rows(rows, candidate, "click_created_at_month")
+
+        self.assertEqual(result["conversions"], {
+            "customer_count": 1, "paid_customer": 0, "transaction_count": 0,
+            "total_rewards": 2200, "unpaid_rewards": 2200,
+        })
+        del rows[0]["paid_customer"]
+        result = MODULE.aggregate_link_rows(rows, candidate, "click_created_at_month")
+        self.assertIsNone(result["conversions"]["paid_customer"])
+        self.assertEqual(result["conversions"]["customer_count"], 1)
+        missing = MODULE.aggregate_link_rows([], candidate, "click_created_at_month")
+        self.assertEqual(set(missing["conversions"].values()), {None})
+
+    def test_conversion_deltas_never_invent_zero(self):
+        window = {"start_date": "a", "end_date": "b"}
+        current = {"customer_count": 1, "total_rewards": 2200, "paid_customer": None}
+        self.assertEqual(
+            MODULE.conversion_deltas(current, {"customer_count": 0, "total_rewards": 2500,
+                                               "paid_customer": 0}, window, window),
+            {"customer_count": 1, "total_rewards": -300, "paid_customer": None},
+        )
+        self.assertEqual(
+            MODULE.conversion_deltas(current, None, window, window),
+            {"customer_count": None, "total_rewards": None, "paid_customer": None},
+        )
+        self.assertEqual(
+            MODULE.conversion_deltas(current, {"customer_count": 0}, window, {}),
+            {"customer_count": None, "total_rewards": None, "paid_customer": None},
+        )
+
     def test_multiple_distinct_links_remain_ambiguous(self):
         first = "https://try.elevenlabs.io/campaign-one"
         second = "https://try.elevenlabs.io/campaign-two"
@@ -197,6 +244,52 @@ class RevenueCliTest(unittest.TestCase):
             self.assertEqual(row["provider_clicks"]["count"], 3)
             self.assertEqual(row["provider_clicks"]["unique_count"], 2)
             self.assertEqual(row["provider_clicks"]["unique_state"], "OBSERVED")
+            self.assertEqual(row["provider_conversions"]["customer_count"], None)
+            self.assertIsNone(row["unit_economics"]["customers_per_provider_click"])
+
+    def test_placement_ledger_attributes_provider_customer_to_public_url(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            (state / "campaign-publications").mkdir(parents=True)
+            (state / "program-links").mkdir(parents=True)
+            (state / "campaign-publications" / "alpha-en.json").write_text(json.dumps({
+                "plan_id": "alpha-en", "placement_id": "alpha-en-1",
+                "slug": "alpha", "state": "X_LIVE",
+                "owned_url": "https://example.com/alpha",
+            }))
+            (state / "program-links" / "alpha-en-1.json").write_text(json.dumps({
+                "placement": "alpha-en-1", "state": "VERIFIED",
+                "provider_link_key": "link-1", "link_fingerprints": ["f" * 64],
+            }))
+            (state / "provider-reports" / "partnerstack-links").mkdir(parents=True)
+            (state / "provider-reports" / "partnerstack-links" / "latest.json").write_text(
+                json.dumps({"observed_at": "provider-time", "placements": [{
+                    "placement_id": "alpha-en-1", "current_click_count": 40,
+                    "conversions": {
+                        "customer_count": 1, "paid_customer": 0,
+                        "transaction_count": 0, "total_rewards": 2200,
+                        "unpaid_rewards": 2200,
+                    },
+                    "conversion_deltas": {
+                        "customer_count": 1, "paid_customer": 0,
+                        "transaction_count": 0, "total_rewards": 2200,
+                        "unpaid_rewards": 2200,
+                    },
+                }]})
+            )
+
+            row = MODULE.build_placement_ledger(state)["placements"][0]
+
+            self.assertEqual(row["public_url"], "https://example.com/alpha")
+            self.assertEqual(row["provider_link_key"], "link-1")
+            self.assertEqual(row["provider_conversions"]["customer_count"], 1)
+            self.assertEqual(row["provider_conversions"]["deltas"]["customer_count"], 1)
+            self.assertEqual(row["provider_conversions"]["unpaid_rewards"], 2200)
+            self.assertEqual(row["provider_conversions"]["observed_at"], "provider-time")
+            economics = row["unit_economics"]
+            self.assertEqual(economics["customers_per_provider_click"], 0.025)
+            self.assertEqual(economics["paid_customers_per_provider_click"], 0.0)
+            self.assertEqual(economics["total_rewards_per_1000_provider_clicks"], 55000.0)
 
     def test_classifies_tax_and_provider_setup_without_bank_data(self):
         readiness = MODULE.payout_readiness(

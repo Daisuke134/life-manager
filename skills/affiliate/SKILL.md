@@ -289,6 +289,12 @@ the mode-0600 private Markdown; public receipts retain only provider identity an
 fingerprints. Each revenue reconciliation rebuilds `placement-ledger.json` from
 real campaign, DEV exposure, provider-link click, and commission receipts.
 Unavailable denominators and costs remain `null`/`UNKNOWN`, never inferred zero.
+The link readback also keeps the PartnerStack per-link `customer_count`,
+`paid_customer`, `transaction_count`, `total_rewards` and `unpaid_rewards`
+(summed across month buckets, with same-window deltas) in each placement's
+`provider_conversions`, and `unit_economics` derives customers and paid customers
+per provider click and rewards per 1,000 provider clicks. A missing or invalid
+provider field stays `null`.
 
 The same distribution command exposes the current Writer Substack API shape
 without importing Writer state or its retired manual sentinel path:
