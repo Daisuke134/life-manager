@@ -168,10 +168,23 @@ class PaperOperatingCostTests(unittest.TestCase):
         self.assertEqual(len(result.get("operating_cost_components", [])), 4)
 
     def test_previous_day_allocation_cannot_be_reassigned_to_another_trade(self):
+        self._assert_reassignment_rejected()
+
+    def test_adding_an_invoice_reference_does_not_allow_receipt_reassignment(self):
+        self._assert_reassignment_rejected(enrich_invoice=True)
+
+    def _assert_reassignment_rejected(self, *, enrich_invoice=False):
         prior = json.loads(json.dumps(_prior_rows()).replace("2026-09-22", "2026-10-19").replace("QQQ", "SPY"))
         prior_observation = copy.deepcopy(OBSERVATION)
         prior_observation["clock"]["observed_at"] = "2026-10-19T14:31:10Z"
         payload = _readback(prior)
+        if enrich_invoice:
+            document = payload["documents"][0]
+            del document["invoice_id"]
+            document.update(document_type="paid_receipt", source_type="official_paid_receipt",
+                            receipt_id="receipt-paper")
+            for join in payload["job_joins"]:
+                join.update(document_type="paid_receipt", document_id="receipt-paper")
         for line in payload["documents"][0]["line_items"]:
             line["occurred_at"] = "2026-10-10T00:00:00Z"
         with tempfile.TemporaryDirectory() as directory:
@@ -189,6 +202,8 @@ class PaperOperatingCostTests(unittest.TestCase):
                 for join in payload["job_joins"]:
                     join.update(order_ids=current_trip["order_ids"], period_start=current_trip["period_start"],
                                 period_end=current_trip["closed_at"], source_receipt_ids=current_trip["source_receipt_ids"])
+                if enrich_invoice:
+                    payload["documents"][0]["invoice_id"] = "invoice-paper"
                 billing.write_text(json.dumps(payload))
                 result = write_paper_performance(state, OBSERVATION, RISK)
                 self.assertEqual(json.loads((state / "performance-daily-2026-10-19.json").read_text()), original)
@@ -255,6 +270,24 @@ class PaperOperatingCostTests(unittest.TestCase):
                 result = write_paper_performance(state, OBSERVATION, RISK)
             self.assertEqual(result, {"status": "unknown", "reason": "paper_operating_cost_binding_unavailable"})
             self.assertFalse((state / "performance-daily-2026-10-20.json").exists())
+
+    def test_extreme_history_timestamp_stays_unknown_without_escaping(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            _write_state(state, _rows())
+            billing = state / "billing.json"
+            billing.write_text(json.dumps(_readback()))
+            with patch.dict(os.environ, {"LM_CFO_ACTUAL_COST_READBACK": str(billing),
+                                         "LM_CFO_ACTUAL_COST": ""}):
+                write_paper_performance(state, OBSERVATION, RISK)
+                path = state / "performance-daily-2026-10-20.json"
+                previous = json.loads(path.read_text())
+                previous["observed_at"] = "0001-01-01T00:00:00+23:00"
+                path.write_text(json.dumps(previous))
+                original = path.read_bytes()
+                result = write_paper_performance(state, OBSERVATION, RISK)
+                self.assertEqual(result, {"status": "unknown", "reason": "paper_operating_cost_binding_unavailable"})
+                self.assertEqual(path.read_bytes(), original)
 
     def test_unreadable_or_malformed_json_stays_unknown_without_aborting(self):
         with tempfile.TemporaryDirectory() as directory:
