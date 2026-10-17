@@ -12,6 +12,7 @@ mkdir -p "$SCRIPTS/x-publish" "$SCRIPTS/_shared/lib" \
 cp "$ROOT/skills/writer-agent/scripts/x-publish/publish-to-x.sh" "$SCRIPTS/x-publish/publish-to-x.sh"
 cp "$ROOT/skills/writer-agent/scripts/writer-runtime-env.sh" "$SCRIPTS/writer-runtime-env.sh"
 cp "$ROOT/skills/writer-agent/scripts/publisher_cta_copy.py" "$SCRIPTS/publisher_cta_copy.py"
+cp "$ROOT/skills/writer-agent/scripts/publication_contract.py" "$SCRIPTS/publication_contract.py"
 cat >"$SCRIPTS/pii-gate.py" <<'PY'
 raise SystemExit(0)
 PY
@@ -69,8 +70,17 @@ for lang, artifact in (("ja", "article-ja"), ("en", "article-en")):
     json.dumps({"run_id": run_id, "drafts": drafts}), encoding="utf-8"
 )
 PY
-python3 "$ROOT/skills/writer-agent/scripts/publisher_cta_copy.py" prepare \
-  --run-dir "$RUN_DIR" --landing-url https://writer.example/product --product-id writer >/dev/null
+# x-article/ja is dormant (publication_contract.DORMANT_PAIRS); only a contract persisted
+# while it was still listed (2026-10-15..17 active-four runs) carries an X copy.
+python3 - "$ROOT/skills/writer-agent/scripts" "$RUN_DIR" <<'PY'
+import sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+import publisher_cta_copy
+from publication_contract import NEWLY_DORMANT_PAIRS
+publisher_cta_copy.ACTIVE_PUBLISHER_PAIRS += NEWLY_DORMANT_PAIRS
+publisher_cta_copy.prepare_all(Path(sys.argv[2]), landing_url="https://writer.example/product", product_id="writer")
+PY
 COPY="$RUN_DIR/gates/publisher-cta/x-article-ja.md"
 
 HOME="$TMP/home" PATH="$TMP/bin:$PATH" REAL_PYTHON="$(command -v python3)" \

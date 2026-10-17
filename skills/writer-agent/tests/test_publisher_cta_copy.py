@@ -11,6 +11,8 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPT_DIR))
 
+import publisher_cta_copy  # noqa: E402
+from publication_contract import ACTIVE_PAIRS, NEWLY_DORMANT_PAIRS  # noqa: E402
 from publisher_cta_copy import (  # noqa: E402
     ACTIVE_PUBLISHER_PAIRS,
     PublisherCTAError,
@@ -36,8 +38,18 @@ EXPECTED_CLICK_IDS = {
     "note/ja": "click-base-ja-note-ja",
     "substack/ja": "click-base-ja-substack-ja",
     "substack/en": "click-base-en-substack-en",
-    "x-article/ja": "click-base-ja-x-article-ja",
 }
+LEGACY_X_CLICK_ID = "click-base-ja-x-article-ja"
+
+
+def prepare_legacy_active_four(run_dir: Path) -> None:
+    """Persist the pre-fix contract that still listed dormant x-article/ja."""
+    current = publisher_cta_copy.ACTIVE_PUBLISHER_PAIRS
+    publisher_cta_copy.ACTIVE_PUBLISHER_PAIRS = current + NEWLY_DORMANT_PAIRS
+    try:
+        prepare_all(run_dir, landing_url=LANDING, product_id="writer")
+    finally:
+        publisher_cta_copy.ACTIVE_PUBLISHER_PAIRS = current
 
 
 def make_run(root: Path, *, ja: str = BASE_JA, en: str = BASE_EN) -> Path:
@@ -59,7 +71,43 @@ def make_run(root: Path, *, ja: str = BASE_JA, en: str = BASE_EN) -> Path:
 
 
 class PublisherCTACopyTests(unittest.TestCase):
-    def test_four_pair_copies_change_only_click_id_and_keep_frozen_drafts(self) -> None:
+    def test_active_publisher_pairs_are_the_publication_contract(self) -> None:
+        self.assertEqual(ACTIVE_PUBLISHER_PAIRS, ACTIVE_PAIRS)
+        self.assertNotIn("x-article/ja", ACTIVE_PUBLISHER_PAIRS)
+
+    def test_legacy_active_four_contract_still_serves_the_active_copies(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="writer-cta-copy-legacy-four-") as tmp:
+            run_dir = make_run(Path(tmp))
+            prepare_legacy_active_four(run_dir)
+
+            receipts = prepare_all(run_dir, landing_url=LANDING, product_id="writer")
+
+            self.assertEqual(set(receipts), set(ACTIVE_PAIRS) | set(NEWLY_DORMANT_PAIRS))
+            for pair in ACTIVE_PAIRS:
+                source = run_dir / f"article-{pair.rsplit('/', 1)[1]}.md"
+                self.assertEqual(
+                    publisher_copy_path(run_dir, pair, source),
+                    Path(receipts[pair]["copy_path"]),
+                )
+
+    def test_contract_with_unknown_or_missing_pairs_is_refused(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="writer-cta-copy-bad-contract-") as tmp:
+            run_dir = make_run(Path(tmp))
+            prepare_all(run_dir, landing_url=LANDING, product_id="writer")
+            contract_path = run_dir / "gates" / "publisher-cta" / "contract.json"
+            original = json.loads(contract_path.read_text(encoding="utf-8"))
+            source = run_dir / "article-ja.md"
+            for pairs in (list(ACTIVE_PAIRS[:2]), list(ACTIVE_PAIRS) + ["devto/en"]):
+                with self.subTest(pairs=pairs):
+                    contract_path.write_text(
+                        json.dumps({**original, "active_pairs": pairs}), encoding="utf-8"
+                    )
+                    with self.assertRaises(PublisherCTAError):
+                        publisher_copy_path(run_dir, "note/ja", source)
+                    with self.assertRaises(PublisherCTAError):
+                        prepare_all(run_dir, landing_url=LANDING, product_id="writer")
+
+    def test_active_pair_copies_change_only_click_id_and_keep_frozen_drafts(self) -> None:
         with tempfile.TemporaryDirectory(prefix="writer-cta-copy-") as tmp:
             run_dir = make_run(Path(tmp))
             original = {
@@ -252,7 +300,7 @@ class PublisherCTACopyTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory(prefix="writer-cta-x-repair-") as tmp:
             run_dir = make_run(Path(tmp))
-            prepare_all(run_dir, landing_url=LANDING, product_id="writer")
+            prepare_legacy_active_four(run_dir)
             source = run_dir / "article-ja.md"
             original = source.read_bytes()
             adapted = run_dir / "gates" / "x-article-ja-with-media.md"
@@ -269,7 +317,7 @@ class PublisherCTACopyTests(unittest.TestCase):
 
             adapted_text = adapted.read_text(encoding="utf-8")
             self.assertIn(
-                f"click_id={EXPECTED_CLICK_IDS['x-article/ja']})",
+                f"click_id={LEGACY_X_CLICK_ID})",
                 adapted_text,
             )
             self.assertNotIn("click_id=click-base-ja)", adapted_text)

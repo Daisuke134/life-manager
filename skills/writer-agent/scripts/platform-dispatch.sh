@@ -25,12 +25,16 @@ manifest = Path(sys.argv[1])
 script_dir = Path(sys.argv[2])
 errors = []
 rows = []
+sys.path.insert(0, str(script_dir))
+from publication_contract import ACTIVE_PAIRS
+
 active_pair_platform = {
     "note/ja": {("note", "ja")},
     "substack/ja": {("substack-ja", "ja"), ("substack", "ja")},
     "substack/en": {("substack-en", "en"), ("substack", "en")},
-    "x-article/ja": {("x-article", "ja")},
 }
+if set(active_pair_platform) != set(ACTIVE_PAIRS):
+    errors.append("publisher platform map drifted from publication_contract.ACTIVE_PAIRS")
 v1_rows = []
 for number, line in enumerate(manifest.read_text(encoding="utf-8").splitlines(), 1):
     if not line.strip():
@@ -166,7 +170,7 @@ if v1_rows:
     contract_path = run_dir / "gates" / "publisher-cta" / "contract.json"
     existing_contract = contract_path.is_file()
     if not existing_contract and set(v1_pairs) != set(active_pair_platform):
-        print("PREFLIGHT: first publisher CTA v1 dispatch requires all four active pairs", file=sys.stderr)
+        print("PREFLIGHT: first publisher CTA v1 dispatch requires every active pair", file=sys.stderr)
         raise SystemExit(2)
     if set(v1_pairs) - set(active_pair_platform):
         print("PREFLIGHT: publisher CTA v1 manifest includes a non-active pair", file=sys.stderr)

@@ -207,6 +207,8 @@ def main() -> int:
         v1_pairs: list[str] = []
         landing_urls: set[str] = set()
         product_ids: set[str] = set()
+        from publication_contract import NEWLY_DORMANT_PAIRS
+
         for item in rows:
             item_env = item.get("env")
             item_argv = item.get("argv")
@@ -215,6 +217,10 @@ def main() -> int:
                 if isinstance(item_env, dict)
                 else None
             )
+            if item_pair in NEWLY_DORMANT_PAIRS:
+                # Manifests written while x-article/ja was still listed as
+                # active carry its row; it is dormant and never staged here.
+                continue
             if item_pair not in V1_PLATFORM_PAIRS:
                 raise SystemExit("refuse initialization: v1 manifest contains a non-active pair")
             if item_env.get("ARTICLE_PUBLISH_CTA_V1") != "1":
@@ -259,8 +265,18 @@ def main() -> int:
             prepare_all,
             publisher_copy_path,
         )
+        # Resume does not inherit article-daily's product env; the CTA
+        # contract persisted at first dispatch is the authoritative value.
+        contract_path = run_dir / "gates" / "publisher-cta" / "contract.json"
+        if "" in landing_urls | product_ids and contract_path.is_file():
+            try:
+                persisted = json.loads(contract_path.read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+                raise SystemExit("refuse initialization: publisher CTA contract is unreadable") from error
+            landing_urls = {value or str(persisted.get("landing_url") or "") for value in landing_urls}
+            product_ids = {value or str(persisted.get("product_id") or "") for value in product_ids}
         if (
-            len(rows) != len(ACTIVE_PUBLISHER_PAIRS)
+            len(v1_pairs) != len(ACTIVE_PUBLISHER_PAIRS)
             or set(v1_pairs) != set(ACTIVE_PUBLISHER_PAIRS)
             or len(v1_pairs) != len(set(v1_pairs))
             or len(landing_urls) != 1
@@ -268,7 +284,7 @@ def main() -> int:
             or len(product_ids) != 1
             or not next(iter(product_ids))
         ):
-            raise SystemExit("refuse initialization: v1 manifest must bind all four unique active pairs")
+            raise SystemExit("refuse initialization: v1 manifest must bind every active pair once with one landing URL and product id")
         try:
             prepare_all(
                 run_dir,
