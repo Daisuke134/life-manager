@@ -21,10 +21,11 @@ function cloudFixture() {
     'observation-latest.json': {clock:{observed_at:at},account:{equity:'66.63',cash:'0',id:'private-account-id'},
       positions:[{symbol:'PRIVATE',qty:'99'}],open_and_closed_orders_count:0},
     'campaign.json': {unrealized_pnl_usd:'0',fills:[]} };
-  const row = {mode:'live',paused:false,killed:false,bundle:sealed.bundle,bundle_digest:sealed.digest};
+  const row = {deployment:'cloud',mode:'live',paused:false,killed:false,bundle:sealed.bundle,bundle_digest:sealed.digest};
   const env = {LM_RUNTIME_TENANT_ID:'tenant-a',LM_INVESTMENT_CLOUD_STATE_ROOT:'/private/cloud',LM_INVESTMENT_CLOUD_LIVE_ENABLED:'true'};
   return {env, now:Date.parse(at)+1000, query:async (sql,params)=>{
-    assert.match(sql,/WHERE s.uid = \$1 AND s.deployment = 'cloud'/);assert.deepEqual(params,['tenant-a']);return {rows:[row]};
+    assert.match(sql,/WHERE s.uid = \$1 AND/);assert.match(sql,/s.deployment = 'cloud'/);
+    assert.deepEqual(params,['tenant-a']);return {rows:[row]};
   },readJson:file=>files[require('node:path').basename(file)]||{}, files,row};
 }
 test('cloud projection reads bound owner and only publishes safe aggregates',async()=>{
@@ -51,4 +52,27 @@ test('missing or misbound observation is unavailable, not zero equity or histori
 test('digest drift is rejected and paused state remains visible',async()=>{
   const f=cloudFixture();f.row.paused=true;assert.equal((await fetchCloudAlpacaPublicProjection(f)).paused,true);
   f.row.bundle_digest='c'.repeat(64);await assert.rejects(fetchCloudAlpacaPublicProjection(f),/unavailable/);
+});
+test('Local handoff keeps a retired Cloud view without publishing old values as current',async()=>{
+  const f=cloudFixture();f.row.deployment='local';f.row.paused=true;
+  f.env.LM_INVESTMENT_CLOUD_LIVE_ENABLED='false';f.env.LM_INVESTMENT_CLOUD_SHADOW_ENABLED='false';
+  let sql;const query=async(...args)=>{sql=args[0];return f.query(...args);};
+  const p=await resolveAlpacaPublicProjection({...f,query,
+    buildLocal:()=>{assert.fail('retired Cloud must not fall back to paper');}});
+  assert.equal(p.status,'retired');assert.equal(p.source,'cloud_runtime');
+  assert.equal(p.paper,false);assert.equal(p.mode,'live');assert.equal(p.paused,true);
+  for(const key of ['observed_at','starting_equity_usd','equity_usd','cash_usd','total_pnl_usd',
+    'daily_pnl_usd','realized_pnl_usd','unrealized_pnl_usd']) assert.equal(p[key],null,key);
+  assert.deepEqual(p.positions,[]);assert.deepEqual(p.fills,[]);assert.deepEqual(p.timeline,[]);
+  assert.equal(p.latest_decision,null);assert.equal(p.telegram.delivered,false);
+  assert.equal(p.reconciliation.status,'CLOUD_EXECUTION_RETIRED');
+  for(const key of ['positions','fills','broker_orders','last_receipt']) assert.equal(p.reconciliation[key],null,key);
+  assert.match(sql,/s.deployment = 'local' AND s.paused = true/);
+  assert.doesNotMatch(JSON.stringify(p),/private-|PRIVATE|tenant-a|aaaaaa|bbbbbb/);
+});
+test('public Cloud view rejects unpaused Local and unknown deployment rows',async()=>{
+  for(const deployment of ['local','other']) {
+    const f=cloudFixture();f.row.deployment=deployment;
+    await assert.rejects(fetchCloudAlpacaPublicProjection(f),/state unavailable/);
+  }
 });

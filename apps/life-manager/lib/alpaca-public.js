@@ -236,11 +236,15 @@ async function fetchCloudAlpacaPublicProjection(options = {}) {
     query = cloudPublicPool.query.bind(cloudPublicPool);
   }
   // Explicit owner scope, including paused/killed states. Never select another tenant.
-  const result = await query(`SELECT s.mode, s.paused, s.killed, r.bundle, r.bundle_digest
+  const result = await query(`SELECT s.deployment, s.mode, s.paused, s.killed, r.bundle, r.bundle_digest
     FROM public.lm_investment_states s JOIN public.lm_investment_runtime_states r ON r.uid = s.uid
-    WHERE s.uid = $1 AND s.deployment = 'cloud' LIMIT 1`, [uid]);
+    WHERE s.uid = $1 AND (s.deployment = 'cloud'
+      OR (s.deployment = 'local' AND s.paused = true)) LIMIT 1`, [uid]);
   const row = result && result.rows && result.rows.length === 1 ? result.rows[0] : null;
-  if (!row || !["live", "shadow"].includes(row.mode)) throw new Error("cloud public state unavailable");
+  if (!row || !["live", "shadow"].includes(row.mode)
+    || !["cloud", "local"].includes(row.deployment)
+    || (row.deployment === "local" && row.paused !== true)) throw new Error("cloud public state unavailable");
+  const retired = row.deployment === "local";
   const sealed = require("./investment-runtime-state-store.js").sealRuntimeBundle(row.bundle);
   if (sealed.digest !== row.bundle_digest) throw new Error("cloud public state unavailable");
   const bundle = sealed.bundle;
@@ -253,7 +257,7 @@ async function fetchCloudAlpacaPublicProjection(options = {}) {
     && marker.source_release_sha === bundle.cutover.source_release_sha;
   const observation = bound ? read(path.join(dir, "observation-latest.json")) : {};
   const campaign = bound ? read(path.join(dir, "campaign.json")) : {};
-  const observedAt = cloudTime(observation.clock && observation.clock.observed_at);
+  const observedAt = retired ? null : cloudTime(observation.clock && observation.clock.observed_at);
   const fresh = observedAt && (options.now ?? Date.now()) - Date.parse(observedAt) >= 0
     && (options.now ?? Date.now()) - Date.parse(observedAt) <= 15 * 60 * 1000;
   const account = observation.account || {};
@@ -263,7 +267,7 @@ async function fetchCloudAlpacaPublicProjection(options = {}) {
   const delivered = JSON.parse(Buffer.from(bundle.files["telegram-latest.json"] || "e30=", "base64").toString("utf8"));
   return {
     source: "cloud_runtime", paper: false, mode: row.mode,
-    observed_at: observedAt, status: !observedAt ? "unavailable" : fresh ? "fresh" : "stale",
+    observed_at: observedAt, status: retired ? "retired" : !observedAt ? "unavailable" : fresh ? "fresh" : "stale",
     paused: row.paused === true, killed: row.killed === true,
     starting_equity_usd: null, total_pnl_usd: null, realized_pnl_usd: null,
     equity_usd: observedAt ? cloudNumber(account.equity) : null,
@@ -273,13 +277,14 @@ async function fetchCloudAlpacaPublicProjection(options = {}) {
     // Private live positions, orders and free-text model output never leave the service.
     positions: [], fills: [], latest_decision: null, timeline: [],
     reconciliation: {
-      status: !observedAt ? "CLOUD_OBSERVATION_UNAVAILABLE" : fresh ? "CLOUD_READBACK" : "STALE_CLOUD_READBACK",
+      status: retired ? "CLOUD_EXECUTION_RETIRED"
+        : !observedAt ? "CLOUD_OBSERVATION_UNAVAILABLE" : fresh ? "CLOUD_READBACK" : "STALE_CLOUD_READBACK",
       positions: observedAt && Array.isArray(observation.positions) ? observation.positions.length : null,
       fills: observedAt && Array.isArray(campaign.fills) ? campaign.fills.length : null,
       broker_orders: observedAt ? cloudNumber(observation.open_and_closed_orders_count) : null,
-      last_receipt: latest ? cloudTime(latest.recorded_at) : null,
+      last_receipt: !retired && latest ? cloudTime(latest.recorded_at) : null,
     },
-    telegram: { delivered: delivered.status === "delivered" },
+    telegram: { delivered: !retired && delivered.status === "delivered" },
   };
 }
 
