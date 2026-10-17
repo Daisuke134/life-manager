@@ -81,8 +81,8 @@ def test_dry_run_exits_zero_and_writes_ledger(tmp_path: Path) -> None:
     assert occurrence["owner_id"] == "capafy-distribute-daily"
     assert occurrence["run_id"] == "test-run-1"
     assert occurrence["occurrence_id"] == "capafy-distribute-daily:test-run-1"
-    keyword_slugs = {k["slug"] for k in json.loads(
-        (Path(__file__).resolve().parents[1] / "seo" / "hook-lab-keywords.json").read_text())}
+    keyword_slugs = {k["slug"] for f in (Path(__file__).resolve().parents[1] / "seo").glob("*-keywords.json")
+                     for k in json.loads(f.read_text())}
     assert occurrence["slot"] in occurrence["article_slug"] or occurrence["article_slug"] in keyword_slugs
 
 

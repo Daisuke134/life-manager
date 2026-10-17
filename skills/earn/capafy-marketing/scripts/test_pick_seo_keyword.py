@@ -26,3 +26,9 @@ def test_shipped_keyword_list_is_valid_and_unique():
     assert len(kws) >= 40 and len(set(slugs)) == len(slugs)
     assert all(k["query"] and k["lang"] in {"en", "es", "pt", "ja", "de", "fr", "id", "it"} for k in kws)
     assert all(s == s.lower() and " " not in s and not s.startswith("capafy-") for s in slugs)
+
+
+def test_every_seller_keyword_list_is_valid_and_globally_unique():
+    files = sorted((Path(__file__).resolve().parents[1] / "seo").glob("*-keywords.json"))
+    slugs = [k["slug"] for f in files for k in json.loads(f.read_text())]
+    assert len(files) >= 3 and len(set(slugs)) == len(slugs)
