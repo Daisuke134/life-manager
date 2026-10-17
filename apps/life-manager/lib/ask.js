@@ -258,7 +258,25 @@ const RESOLVE_TOOLS = [{
 // (real venue found) | { kind: "ask" } (a human must tell us). The agent classifies online itself —
 // "they are LLM agents, they should know" (Dais 2026-06-23): an event like "藤井さんと電話オンライン"
 // is online and must never trigger a where-is-it question.
-async function agentResolveLocation(event, { home, mapsKey, geminiKey, uid, recordUsageEvent: usageWriter }) {
+// One resolve per event version per 24 h. askTick and fillTravel both call this every tick for an event
+// they could not place; an unchanged event gets the same answer, so a replay only re-bills Gemini+Places.
+// ponytail: in-process Map, a restart forgets it (one extra resolve); persist it if restarts get frequent.
+const RESOLVE_MEMO_TTL_MS = 24 * 3600_000;
+const resolveMemo = new Map();
+
+async function agentResolveLocation(event, opts) {
+  const key = JSON.stringify([opts.uid || "", event.id || "", event.updated || event.etag || "", event.summary || "",
+    event.location || "", event.description || "", (event.start || {}).dateTime || ""]);
+  const now = Date.now();
+  const hit = resolveMemo.get(key);
+  if (hit && hit.expiresAt > now) return hit.result;
+  const result = await resolveLocationUncached(event, opts);
+  for (const [k, v] of resolveMemo) if (v.expiresAt <= now) resolveMemo.delete(k);
+  resolveMemo.set(key, { result, expiresAt: now + RESOLVE_MEMO_TTL_MS });
+  return result;
+}
+
+async function resolveLocationUncached(event, { home, mapsKey, geminiKey, uid, recordUsageEvent: usageWriter }) {
   const contents = [{
     role: "user",
     parts: [{ text:
@@ -301,7 +319,8 @@ User's home address: ${JSON.stringify(home || "")}` }],
   }];
   let placesSearchCount = 0;
   for (let turn = 0; turn < 5; turn++) {
-    const j = await geminiRaw({ contents, tools: RESOLVE_TOOLS, generationConfig: { temperature: 0 } }, geminiKey,
+    const j = await geminiRaw({ contents, tools: RESOLVE_TOOLS,
+      generationConfig: { temperature: 0, thinkingConfig: { thinkingBudget: 0 } } }, geminiKey,
       { tenantId: uid, feature: "ask_resolve_location", recordUsageEvent: usageWriter });
     const parts = j?.candidates?.[0]?.content?.parts || [];
     const calls = parts.filter((p) => p.functionCall).map((p) => p.functionCall);

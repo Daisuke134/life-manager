@@ -178,3 +178,52 @@ test("candidate research meters tenant-scoped Gemini and Search grounding separa
     ["tenant-1", "gemini", "ask_candidate_extract"],
   ]);
 });
+
+test("location resolve sends thinkingBudget 0 so Gemini 2.5 Flash does not bill thinking tokens", async () => {
+  const oldFetch = globalThis.fetch;
+  const bodies = [];
+  globalThis.fetch = async (_url, init) => {
+    bodies.push(JSON.parse(init.body));
+    return { ok: true, status: 200, json: async () => ({ candidates: [{ content: { parts: [
+      { functionCall: { name: "submit_answer", args: { online: true, confident: false } } },
+    ] } }] }) };
+  };
+  try {
+    const result = await agentResolveLocation({ summary: "Zoom sync", start: { dateTime: "2030-01-01T10:00:00+09:00" } },
+      { geminiKey: "fixture", mapsKey: "", uid: "tenant-thinking", recordUsageEvent: async () => true });
+    assert.deepEqual(result, { kind: "online" });
+    assert.equal(bodies[0].generationConfig.thinkingConfig.thinkingBudget, 0);
+  } finally { globalThis.fetch = oldFetch; }
+});
+
+test("location resolve is not repeated for the same event version until it changes or 24h pass", async () => {
+  const oldFetch = globalThis.fetch;
+  const oldNow = Date.now;
+  let now = Date.parse("2030-01-01T01:00:00Z");
+  let geminiCalls = 0;
+  Date.now = () => now;
+  globalThis.fetch = async (url) => {
+    assert.match(String(url), /generativelanguage/);
+    geminiCalls++;
+    return { ok: true, status: 200, json: async () => ({ candidates: [{ content: { parts: [
+      { functionCall: { name: "submit_answer", args: { online: false, confident: false } } },
+    ] } }] }) };
+  };
+  const opts = { geminiKey: "fixture", mapsKey: "", uid: "tenant-memo", recordUsageEvent: async () => true };
+  let event = { id: "ev-memo", updated: "2030-01-01T00:00:00Z", summary: "情報科学大講義室",
+    location: "L1", start: { dateTime: "2030-01-02T12:00:00+09:00" } };
+  try {
+    assert.deepEqual(await agentResolveLocation(event, opts), { kind: "ask" });
+    now += 30 * 60_000;
+    assert.deepEqual(await agentResolveLocation(event, opts), { kind: "ask" });
+    assert.equal(geminiCalls, 1, "an unresolved event must not be re-resolved on the next tick");
+    assert.deepEqual(await agentResolveLocation(event, { ...opts, uid: "other-tenant" }), { kind: "ask" });
+    assert.equal(geminiCalls, 2, "the memo is tenant-scoped");
+    event = { ...event, updated: "2030-01-01T02:00:00Z", location: "NAIST L1" };
+    await agentResolveLocation(event, opts);
+    assert.equal(geminiCalls, 3, "an edited event is resolved again");
+    now += 24 * 3600_000 + 1;
+    await agentResolveLocation(event, opts);
+    assert.equal(geminiCalls, 4, "the memo expires after 24h");
+  } finally { globalThis.fetch = oldFetch; Date.now = oldNow; }
+});

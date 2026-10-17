@@ -18,6 +18,9 @@ export LIFE_MANAGER_HOME
 export LIFE_MANAGER_ENV_FILE="${LIFE_MANAGER_ENV_FILE:-$LIFE_MANAGER_HOME/.env}"
 # Load env: GOOGLE_API_KEY, TWILIO_*, GOG_*
 set -a; source "$LIFE_MANAGER_ENV_FILE" 2>/dev/null; set +a
+# Directions per event every 5 min had 0 successes in Sept 2026 (billed anyway); the area estimate
+# already covers travel time. Set LATE_PRECOMPUTE_H in the env file to turn Google Directions back on.
+export LATE_PRECOMPUTE_H="${LATE_PRECOMPUTE_H:-0}"
 unset ANICCA_HOME OPENCLAW_ENV_FILE
 echo "=== lateness run $(date '+%Y-%m-%d %H:%M:%S %Z') ===" >> "$LOG"
 "$PYTHON_BIN" "$LIFE_MANAGER_REPO/runtime/run-with-timeout.py" --grace-seconds 10 110 "$PYTHON_BIN" \
