@@ -1320,6 +1320,27 @@ def adapt(
     evidence_base: str | None = None,
 ) -> list[dict[str, Any]]:
     """Adapt either a combined B5 bundle or one source payload."""
+    if isinstance(payload, dict) and payload.get("kind") == "revenue_receipt":
+        payload = [payload]
+    if (isinstance(payload, list) and payload
+            and all(isinstance(row, dict) and row.get("kind") == "revenue_receipt"
+                    for row in payload)):
+        # The x402 seller journal is self-reported, not an on-chain readback bundle,
+        # and says nothing about investment.
+        end, start = _probe_instant(snapshot_at), _probe_instant(trailing_start)
+        evidence = f"lm-agent-economy://readback/{_digest(_digest_material(payload))}"
+        return _sort_records([
+            *_failure_coverages(loop_id=AGENT_LOOP, source_id="x402-readback", end=end,
+                                start=start, reason="unverified_receipt", evidence=evidence),
+            *_failure_coverages(loop_id=AGENT_LOOP, source_id="taskmarket-readback", end=end,
+                                start=start, reason="source_unconnected", evidence=evidence,
+                                as_of=True),
+            *_failure_coverages(loop_id=INVESTMENT_LOOP, source_id="alpaca-orders", end=end,
+                                start=start, reason="source_unconnected", evidence=evidence),
+            *_failure_coverages(loop_id=INVESTMENT_LOOP, source_id="alpaca-account", end=end,
+                                start=start, reason="source_unconnected", evidence=evidence,
+                                as_of=True),
+        ])
     if isinstance(payload, dict) and ("agent_economy" in payload or "investment" in payload):
         rows: list[dict[str, Any]] = []
         if "agent_economy" in payload:
@@ -1366,7 +1387,12 @@ def adapt_path(
 ) -> list[dict[str, Any]]:
     """Read one local JSON artifact and apply the same pure conversion."""
     try:
-        payload = json.loads(Path(path).read_text(encoding="utf-8"))
+        text = Path(path).read_text(encoding="utf-8")
+        try:
+            payload = json.loads(text)
+        except json.JSONDecodeError:
+            # JSONL journal (e.g. agent-economy revenue-receipts.jsonl).
+            payload = [json.loads(line) for line in text.splitlines() if line.strip()]
     except (OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError):
         payload = None
     return adapt(
