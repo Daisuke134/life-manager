@@ -1,0 +1,10 @@
+{
+  "mode": "fictional_algebra_only",
+  "trained_model": false,
+  "z": [
+    1.0,
+    1.0
+  ],
+  "kl_standard": 0.0,
+  "kl_shifted_mean": 0.5
+}

@@ -1,0 +1,67 @@
+{
+  "date": "2026-10-17",
+  "repos": [
+    {
+      "repo": "Eui-Jin__PopSynth",
+      "commit": "f02b67a7ca797fbb6ec27dc7023b4dca3964877f",
+      "files": [
+        {
+          "path": "VAE_OOSDivH_SampleCode.ipynb",
+          "sha256": "380610a7de6d230adfd2603e9d93b7a224fca52fc2f2abd0830cb8a89d0b9dba"
+        },
+        {
+          "path": "README.md",
+          "sha256": "13d612a6e3172fe1bfea9225283294e4c3379ea5589f8b6b6711f1f9745a9975"
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "400bb04b6c6d8e2f792e75948384b02b2a6dde4188e27ef54540ee4b93f1d4fd"
+        }
+      ],
+      "mode": "static_read_only",
+      "training_run": false,
+      "generation_run": false
+    },
+    {
+      "repo": "sdv-dev__CTGAN",
+      "commit": "4227383d7f6195f64cc90b1d10f2da680a9e4dc1",
+      "files": [
+        {
+          "path": "ctgan/synthesizers/tvae.py",
+          "sha256": "7c464ddba7e2f03223ceeebc2e7ed546aacb7145f48a90937941b80ad74a1837"
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "612a53c77c651d509c602b3202dd76904c762a4984471d3543e85d8248d5f10d"
+        }
+      ],
+      "mode": "static_read_only",
+      "training_run": false,
+      "generation_run": false
+    },
+    {
+      "repo": "vdarsel/PopulationSynthesis",
+      "commit": "0fa77e3b2bc2068cf6156302db13365c2859b0e9",
+      "files": [
+        {
+          "path": "README.md",
+          "sha256": "f4e5e0eca19ee1daf2ba915027b60b4aec220e459175679d4e19feb26edece5a"
+        },
+        {
+          "path": "models/VAE/beta_VAE/model_beta_VAE_alone.py",
+          "sha256": "b056c63f9931ecd4f76d718cb0410d7032e8fce4cbddf733073a59c17cb51fa8"
+        },
+        {
+          "path": "evaluation/metrics_proportion.py",
+          "sha256": "f89541bff2d6100546fbabd279fc23d4967017deecd72bd6ee4a598fb71102c2"
+        }
+      ],
+      "mode": "static_read_only",
+      "training_run": false,
+      "evaluation_run": false,
+      "license": "No root LICENSE found; reuse permission unconfirmed"
+    }
+  ],
+  "exercise": "vae-algebra.py; only formula checks, no VAE training",
+  "reuse": "PopSynth code MIT; data rights separate. CTGAN checkout BSL1.1; not unrestricted OSS."
+}
