@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">NFL Game Script Brief</title>
+  <desc id="desc">A football and a route-diagram card on a field-green background.</desc>
+  <rect width="512" height="512" rx="96" fill="#0B2E17"/>
+  <path d="M54 128h404M54 384h404" stroke="#7CDB8A" stroke-width="8" opacity=".5"/>
+  <path d="M256 54v404" stroke="#EFFFF2" stroke-width="8" opacity=".25"/>
+  <g transform="translate(96 150)">
+    <ellipse cx="160" cy="36" rx="104" ry="36" fill="#6B3A17" stroke="#3E2008" stroke-width="6"/>
+    <path d="M96 36h128" stroke="#F3E3C8" stroke-width="6" stroke-linecap="round"/>
+    <path d="M136 22v28M152 18v36M168 18v36M184 22v28" stroke="#F3E3C8" stroke-width="5" stroke-linecap="round"/>
+  </g>
+  <g transform="translate(104 284)">
+    <rect x="0" y="0" width="304" height="146" rx="20" fill="#F3FFF4"/>
+    <circle cx="48" cy="40" r="11" fill="#0B2E17"/>
+    <circle cx="150" cy="96" r="11" fill="#0B2E17"/>
+    <circle cx="252" cy="40" r="11" fill="#0B2E17"/>
+    <path d="M48 40 L150 96 L252 40" fill="none" stroke="#2E9E49" stroke-width="6" stroke-linecap="round"/>
+    <path d="M150 96 L150 128" fill="none" stroke="#2E9E49" stroke-width="6" stroke-linecap="round" stroke-dasharray="4 8"/>
+    <rect x="30" y="112" width="244" height="12" rx="6" fill="#CFE9D3"/>
+  </g>
+  <text x="256" y="463" text-anchor="middle" fill="#EFFFF2" font-family="Arial, sans-serif" font-size="27" font-weight="700" letter-spacing="1.5">GAME SCRIPT BRIEF</text>
+</svg>
