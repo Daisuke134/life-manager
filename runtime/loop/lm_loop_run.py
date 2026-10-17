@@ -1833,10 +1833,15 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                                        "reserve": claim_started_child}
                     terminal_persistence_failed = (
                         on_terminal_event is not None and not terminal_event_saved)
+                    missing_alpaca_terminal_result = (
+                        loop_id in {"alpaca-investment-paper", "alpaca-investment-live"}
+                        and entrypoint == "skills/alpaca-investment/run.py"
+                        and return_code == 0 and terminal_event_saved
+                        and terminal_effect_result is None
+                    )
                     if (claim_started_child
                             and (return_code != 0 or terminal_persistence_failed
-                                 or (return_code == 0 and terminal_event_saved
-                                     and terminal_effect_result is None))
+                                 or missing_alpaca_terminal_result)
                             and entry.get("effect_class") != "none"
                             and not (pre_effect_hint_allowed and _proven_pre_effect_failure(
                                 receipt.parent / "entrypoint-result.json"))):

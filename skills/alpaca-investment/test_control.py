@@ -62,30 +62,86 @@ class ControlStateTest(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "^investment_control_state_invalid$"):
                     read_control(path)
 
-    def test_paused_wake_reconciles_then_makes_zero_market_or_broker_effect_calls(self):
+    def test_paused_or_killed_wake_reports_its_exact_no_order_result(self):
+        for status, control in (
+            ("paused", {"paused": True, "killed": False, "revision": 1,
+                        "last_action": "pause"}),
+            ("killed", {"paused": True, "killed": True, "revision": 2,
+                        "last_action": "kill"}),
+        ):
+            with self.subTest(status=status), tempfile.TemporaryDirectory() as directory:
+                state = Path(directory)
+                (state / "control.json").write_text(json.dumps(control), encoding="utf-8")
+                occurrence = f"alpaca-investment-paper:{status}-wake"
+                hint = state / "entrypoint-result.json"
+                env = {
+                    "LIFE_MANAGER_INVESTMENT_MODE": "paper",
+                    "LIFE_MANAGER_INVESTMENT_DEPLOYMENT": "local",
+                    "ALPACA_INVESTMENT_STATE_DIR": directory,
+                    "LIFE_MANAGER_OCCURRENCE_ID": occurrence,
+                    "LIFE_MANAGER_RESULT_HINT_PATH": str(hint),
+                }
+                with patch.dict(os.environ, env, clear=True), \
+                        patch.object(investment_run, "reconcile_started", return_value={
+                            "pending": 0, "reconciled": 0, "unresolved": 0}) as reconcile, \
+                        patch.object(investment_run, "observe") as observe, \
+                        patch.object(investment_run, "read_allocator_snapshot") as allocator, \
+                        patch.object(investment_run, "submit_order") as submit, \
+                        patch.object(investment_run, "deliver_control", return_value={
+                            "message_id": "fixture"}) as deliver:
+                    self.assertEqual(investment_run.main(wake_id=f"{status}-wake"), 0)
+                reconcile.assert_called_once()
+                observe.assert_not_called()
+                allocator.assert_not_called()
+                submit.assert_not_called()
+                deliver.assert_called_once()
+                self.assertEqual(json.loads(hint.read_text(encoding="utf-8")), {
+                    "schema_version": 1,
+                    "kind": "life_manager_no_effect_result",
+                    "status": "verified_no_effect",
+                    "effect": 0,
+                    "owner_id": "alpaca-investment-paper",
+                    "occurrence_id": occurrence,
+                    "reason": "no_broker_order_submitted",
+                })
+
+    def test_pause_at_campaign_exit_fence_reports_no_order_result(self):
         with tempfile.TemporaryDirectory() as directory:
-            state = Path(directory)
-            (state / "control.json").write_text(
-                '{"paused":true,"killed":false,"revision":1,"last_action":"pause"}', encoding="utf-8")
+            root = Path(directory)
+            occurrence = "alpaca-investment-paper:campaign-pause"
+            hint = root / "entrypoint-result.json"
             env = {
                 "LIFE_MANAGER_INVESTMENT_MODE": "paper",
                 "LIFE_MANAGER_INVESTMENT_DEPLOYMENT": "local",
                 "ALPACA_INVESTMENT_STATE_DIR": directory,
+                "LIFE_MANAGER_OCCURRENCE_ID": occurrence,
+                "LIFE_MANAGER_RESULT_HINT_PATH": str(hint),
             }
             with patch.dict(os.environ, env, clear=True), \
                     patch.object(investment_run, "reconcile_started", return_value={
-                        "pending": 0, "reconciled": 0, "unresolved": 0}) as reconcile, \
-                    patch.object(investment_run, "observe") as observe, \
-                    patch.object(investment_run, "read_allocator_snapshot") as allocator, \
+                        "pending": 0, "reconciled": 0, "unresolved": 0}), \
+                    patch.object(investment_run, "read_control", return_value={
+                        "paused": False, "killed": False}), \
+                    patch.object(investment_run, "observe", return_value={}), \
+                    patch.object(investment_run, "_paper_campaign", return_value={
+                        "exit_status": "EXIT_READY"}), \
+                    patch.object(investment_run, "exit_order", return_value={
+                        "symbol": "QQQ"}), \
+                    patch.object(investment_run, "control_fence", _paused_fence), \
                     patch.object(investment_run, "submit_order") as submit, \
                     patch.object(investment_run, "deliver_control", return_value={
-                        "message_id": "fixture"}) as deliver:
-                self.assertEqual(investment_run.main(wake_id="fixture-wake"), 0)
-            reconcile.assert_called_once()
-            observe.assert_not_called()
-            allocator.assert_not_called()
+                        "message_id": "paused-campaign"}):
+                self.assertEqual(investment_run.main(wake_id="campaign-pause"), 0)
             submit.assert_not_called()
-            deliver.assert_called_once()
+            self.assertEqual(json.loads(hint.read_text(encoding="utf-8")), {
+                "schema_version": 1,
+                "kind": "life_manager_no_effect_result",
+                "status": "verified_no_effect",
+                "effect": 0,
+                "owner_id": "alpaca-investment-paper",
+                "occurrence_id": occurrence,
+                "reason": "no_broker_order_submitted",
+            })
 
     def test_pause_accepted_during_decision_fences_submit(self):
         observation = {
@@ -96,10 +152,14 @@ class ControlStateTest(unittest.TestCase):
             "positions": [],
         }
         with tempfile.TemporaryDirectory() as directory:
+            occurrence = "alpaca-investment-paper:allocation-pause"
+            hint = Path(directory) / "entrypoint-result.json"
             env = {
                 "LIFE_MANAGER_INVESTMENT_MODE": "paper",
                 "LIFE_MANAGER_INVESTMENT_DEPLOYMENT": "local",
                 "ALPACA_INVESTMENT_STATE_DIR": directory,
+                "LIFE_MANAGER_OCCURRENCE_ID": occurrence,
+                "LIFE_MANAGER_RESULT_HINT_PATH": str(hint),
             }
             with patch.dict(os.environ, env, clear=True), \
                     patch.object(investment_run, "reconcile_started", return_value={
@@ -126,6 +186,15 @@ class ControlStateTest(unittest.TestCase):
             submit.assert_not_called()
             deliver.assert_called_once()
             self.assertFalse((Path(directory) / "receipts.jsonl").exists())
+            self.assertEqual(json.loads(hint.read_text(encoding="utf-8")), {
+                "schema_version": 1,
+                "kind": "life_manager_no_effect_result",
+                "status": "verified_no_effect",
+                "effect": 0,
+                "owner_id": "alpaca-investment-paper",
+                "occurrence_id": occurrence,
+                "reason": "no_broker_order_submitted",
+            })
 
     def test_same_control_wake_sends_one_provider_message(self):
         with tempfile.TemporaryDirectory() as directory:

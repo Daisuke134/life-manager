@@ -2473,8 +2473,9 @@ def test_alpaca_no_effect_hint_reaches_terminal_validation():
     assert not loop_runner._effect_result_hint_allowed('unrelated-owner', entrypoint)
 
 
-def _run_admitted_alpaca_hint_case(tmp_path, hint_kind):
-    loop_id = 'alpaca-investment-paper'
+def _run_admitted_alpaca_hint_case(
+        tmp_path, hint_kind, *, loop_id='alpaca-investment-paper',
+        entrypoint='skills/alpaca-investment/run.py'):
     occurrence_id = f'{loop_id}:run-{hint_kind}'
     entry = {
         'cadence': {'start_interval_seconds': 300},
@@ -2483,7 +2484,7 @@ def _run_admitted_alpaca_hint_case(tmp_path, hint_kind):
         'admission_class': 'revenue',
         'priority': 'revenue',
         'effect_class': 'money',
-        'entrypoint': 'skills/alpaca-investment/run.py',
+        'entrypoint': entrypoint,
     }
     receipt = tmp_path / hint_kind / 'host-admission.json'
     receipt.parent.mkdir(parents=True)
@@ -2492,21 +2493,23 @@ def _run_admitted_alpaca_hint_case(tmp_path, hint_kind):
 
     def run_child(_command, _scratch, *, env, on_started, **_kwargs):
         on_started(4242)
-        hint = Path(env['LIFE_MANAGER_RESULT_HINT_PATH'])
-        if hint_kind == 'no-effect':
-            value = {
-                'schema_version': 1,
-                'kind': 'life_manager_no_effect_result',
-                'status': 'verified_no_effect',
-                'effect': 0,
-                'owner_id': loop_id,
-                'occurrence_id': occurrence_id,
-                'reason': 'no_broker_order_submitted',
-            }
-        else:
-            value = {'status': 'effect_attempted', 'effect': 1}
-        hint.write_text(json.dumps(value) + '\n', encoding='utf-8')
-        hint.chmod(0o600)
+        hint_path = env.get('LIFE_MANAGER_RESULT_HINT_PATH')
+        if hint_path:
+            hint = Path(hint_path)
+            if hint_kind == 'no-effect':
+                value = {
+                    'schema_version': 1,
+                    'kind': 'life_manager_no_effect_result',
+                    'status': 'verified_no_effect',
+                    'effect': 0,
+                    'owner_id': loop_id,
+                    'occurrence_id': occurrence_id,
+                    'reason': 'no_broker_order_submitted',
+                }
+            else:
+                value = {'status': 'effect_attempted', 'effect': 1}
+            hint.write_text(json.dumps(value) + '\n', encoding='utf-8')
+            hint.chmod(0o600)
         return 0, b''
 
     with (patch('runtime.loop.lm_loop_run.durable_protocol_version', return_value=2),
@@ -2567,6 +2570,16 @@ def test_successful_child_without_verified_effect_result_keeps_fence(tmp_path):
     release, resolutions, pre_effect_resolutions = _run_admitted_alpaca_hint_case(
         tmp_path, 'attempted')
     assert release.kwargs['effect_unknown'] is True
+    assert resolutions == []
+    assert pre_effect_resolutions == []
+
+
+def test_successful_non_alpaca_effect_owner_keeps_existing_no_hint_contract(tmp_path):
+    release, resolutions, pre_effect_resolutions = _run_admitted_alpaca_hint_case(
+        tmp_path, 'attempted', loop_id='affiliate-loop',
+        entrypoint='skills/affiliate/affiliate',
+    )
+    assert release.kwargs.get('effect_unknown') is not True
     assert resolutions == []
     assert pre_effect_resolutions == []
 
