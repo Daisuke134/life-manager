@@ -3680,7 +3680,7 @@ def advance_generic_publication(
     owned_publisher=None, x_publisher=None, link_acquirer=None,
 ):
     """Advance one policy-PASS generic campaign through existing effect fences."""
-    from owned_publish import publish as default_owned_publisher
+    from owned_publish import publish as default_owned_publisher, render_affiliate_markdown
     from x_post_cli import publish as default_x_publisher
 
     owned_publisher = owned_publisher or default_owned_publisher
@@ -3874,7 +3874,16 @@ def advance_generic_publication(
             or x_copy.count("{{OWNED_ARTICLE_URL}}") != 1
         ):
             return {"state": "CAMPAIGN_CONTENT_INVALID", "public_url": None}
-        published_markdown = markdown.replace("{{AFFILIATE_LINK}}", link)
+        raw_markdown = markdown.replace("{{AFFILIATE_LINK}}", link)
+        # A campaign materialized before rendering keeps its sealed body so its
+        # in-flight owned receipt never sees a conflicting hash; `owned
+        # rerender` upgrades it once LIVE.
+        if progress.get("content_sha256") == hashlib.sha256(raw_markdown.encode()).hexdigest():
+            published_markdown = raw_markdown
+        else:
+            published_markdown = render_affiliate_markdown(
+                raw_markdown, link, dedicated.get("destination_sha256"),
+            )
         content_sha256 = hashlib.sha256(published_markdown.encode()).hexdigest()
         created_at = progress.get("created_at") or datetime.now(timezone.utc).isoformat()
         progress = {

@@ -401,6 +401,23 @@ writes one deterministic blog JSON target, refuses unrelated worktree/index
 changes, commits and pushes only that target, then records `DELIVERED` until a
 later tick reads the title and three immutable markers from the public page.
 
+Every affiliate page body passes through `owned_publish.render_affiliate_markdown`
+before its hash is sealed (generic campaigns, plans, ElevenAgents, TTS API). It
+turns a bare tracked URL into a real link, retargets only the citation of the
+tracked link's own destination (`destination_sha256`; pricing/docs citations
+stay direct so link text and target agree), puts the full disclosure directly before a
+CTA at the top and the end, and appends the ElevenLabs terms attribution
+statement. Rendered pages publish a merchant-free `description` for the meta
+tag. A campaign materialized before rendering keeps its sealed body until LIVE.
+Re-render already-live pages through the same-slug revision path; a failed page
+reports `PUBLISH_FAILED`, is retried as `PENDING_REPUBLISH`, and keeps
+`previous_markdown` for rollback:
+
+```bash
+skills/affiliate/affiliate owned rerender --landing-root "$RELEASE_ROOT"          # dry-run
+skills/affiliate/affiliate owned rerender --landing-root "$RELEASE_ROOT" --apply  # republish
+```
+
 Use the versioned English program research before any application:
 
 ```bash
