@@ -1252,6 +1252,8 @@ fi
 
 # The foreground model owns the pass until it exits. A provider failure after agent execution
 # starts never replays the complete prompt on another provider because public side effects may exist.
+# After the model pass starts, the result-hint path holds only what article-run-complete.py writes.
+clear_result_hint() { [ -z "${LIFE_MANAGER_RESULT_HINT_PATH:-}" ] || rm -f -- "${LIFE_MANAGER_RESULT_HINT_PATH}"; }
 MODEL_PASS_PID=""
 drain_generation_workers() {
   local worker_pid
@@ -1272,6 +1274,7 @@ run_model_pass() {
   if [ -n "${LIFE_MANAGER_RESULT_HINT_PATH:-}" ]; then rm -f -- "$LIFE_MANAGER_RESULT_HINT_PATH" || exit 1; fi
   BOUNDED_EXEC_STOP_PATHS="$WRITER_DISK_CONTROL_DIR/disk-writers.stop" \
   ARTICLE_RUN_ID="$RUN_TS" ARTICLE_MODEL_LOG="$LOG" \
+    env -u LIFE_MANAGER_RESULT_HINT_PATH -u LIFE_MANAGER_OCCURRENCE_ID \
     python3 "$ARTICLE_ROOT/../../runtime/loop/bounded-exec.py" \
       "$ARTICLE_MODEL_AGENT_TIMEOUT_SECONDS" \
       "$ARTICLE_MODEL_RUNNER" agent --prompt-file "$active_prompt_file" &
@@ -1294,6 +1297,8 @@ archive_generation_interruption() {
   local interruption_rc="$1"
   trap - INT TERM
   drain_generation_workers
+  # A forged pre-effect marker would release the fence after a real effect.
+  clear_result_hint || true
   if [ "$GENERATION_ATTEMPT_ACTIVE" -eq 1 ]; then
     python3 "$GENERATION_STATE" "${GENERATION_ARGS[@]}" \
       archive-interrupted --return-code "$interruption_rc" >>"$LOG" 2>&1 || \
@@ -1314,6 +1319,11 @@ python3 "$GENERATION_STATE" "${GENERATION_ARGS[@]}" begin \
 run_model_pass
 RC=$?
 drain_generation_workers
+# The runtime reads this path as a verified effect after exit 0. The model never gets the path
+# (env -u above), but it can still guess it ($TMPDIR is the same scratch dir), so anything there
+# now is not ours. Only article-run-complete.py below may create it.
+HINT_WRITTEN=0
+clear_result_hint || { [ "$RC" -ne 0 ] || RC=1; }
 if [ "$RC" -eq 124 ] || [ "$RC" -eq 130 ] || [ "$RC" -eq 143 ]; then
   python3 "$GENERATION_STATE" "${GENERATION_ARGS[@]}" \
     archive-interrupted --return-code "$RC" >>"$LOG" 2>&1 || \
@@ -1415,10 +1425,13 @@ if pass_is_complete; then
       --effect-result-hint "$LIFE_MANAGER_RESULT_HINT_PATH" \
       --occurrence-id "$LIFE_MANAGER_OCCURRENCE_ID" >>"$LOG" 2>&1; then
       echo "=== article-daily: verified effect hint written run=$RUN_TS model_rc=$RC $(date '+%F %T %Z') ===" >>"$LOG"
+      HINT_WRITTEN=1
       RC=0
     else
       echo "=== article-daily: verified effect hint not written; effect stays unknown run=$RUN_TS $(date '+%F %T %Z') ===" >>"$LOG"
     fi
   fi
 fi
+# A late model descendant may have recreated the path; fail closed (nonzero keeps the fence).
+[ "$HINT_WRITTEN" -eq 1 ] || clear_result_hint || { [ "$RC" -ne 0 ] || RC=1; }
 exit "$RC"
