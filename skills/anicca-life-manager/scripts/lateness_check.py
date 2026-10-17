@@ -411,10 +411,15 @@ def geocode_place(address):
     cached = _geo_cache_get("fwd:" + address)
     if isinstance(cached, list) and len(cached) == 2:
         return (cached[0], cached[1])
+    if isinstance(cached, dict) and cached.get("miss_until", 0) > time.time():
+        return None  # Google could not find it; a 5-minute replay is billed and finds nothing new
     try:
         q = urllib.parse.urlencode({"address": address, "key": key, "language": "ja"})
         with urllib.request.urlopen(f"https://maps.googleapis.com/maps/api/geocode/json?{q}", timeout=8) as r:
             j = json.loads(r.read().decode())
+        if j.get("status") == "ZERO_RESULTS":
+            _geo_cache_put("fwd:" + address, {"miss_until": time.time() + 86400})
+            return None
         loc = j["results"][0]["geometry"]["location"]
         _geo_cache_put("fwd:" + address, [loc["lat"], loc["lng"]])
         return (loc["lat"], loc["lng"])

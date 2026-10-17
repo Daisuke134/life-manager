@@ -258,7 +258,38 @@ const RESOLVE_TOOLS = [{
 // (real venue found) | { kind: "ask" } (a human must tell us). The agent classifies online itself —
 // "they are LLM agents, they should know" (Dais 2026-06-23): an event like "藤井さんと電話オンライン"
 // is online and must never trigger a where-is-it question.
-async function agentResolveLocation(event, { home, mapsKey, geminiKey, uid, recordUsageEvent: usageWriter }) {
+// One resolve per event version per 24 h. askTick and fillTravel both call this every tick for an event
+// they could not place; an unchanged event gets the same answer, so a replay only re-bills Gemini+Places.
+// Only a real submit_answer is remembered: a provider error, empty reply or turn exhaustion retries next tick.
+// ponytail: in-process Map, a restart forgets it (one extra resolve); persist it if restarts get frequent.
+const RESOLVE_MEMO_TTL_MS = 24 * 3600_000;
+const resolveMemo = new Map();
+const submittedAnswers = new WeakSet();
+const submitted = (result) => { submittedAnswers.add(result); return result; };
+
+function resolveMemoKey(event, uid) {
+  return JSON.stringify([uid || "", event.id || "", event.updated || event.etag || "", event.summary || "",
+    event.location || "", event.description || "", (event.start || {}).dateTime || ""]);
+}
+
+// The remembered answer for this event version, or null when a resolve would call the providers.
+function memoizedLocation(event, uid) {
+  const hit = resolveMemo.get(resolveMemoKey(event, uid));
+  return hit && hit.expiresAt > Date.now() ? hit.result : null;
+}
+
+async function agentResolveLocation(event, opts) {
+  const hit = memoizedLocation(event, opts.uid);
+  if (hit) return hit;
+  const result = await resolveLocationUncached(event, opts);
+  if (!submittedAnswers.has(result)) return result;
+  const now = Date.now();
+  for (const [k, v] of resolveMemo) if (v.expiresAt <= now) resolveMemo.delete(k);
+  resolveMemo.set(resolveMemoKey(event, opts.uid), { result, expiresAt: now + RESOLVE_MEMO_TTL_MS });
+  return result;
+}
+
+async function resolveLocationUncached(event, { home, mapsKey, geminiKey, uid, recordUsageEvent: usageWriter }) {
   const contents = [{
     role: "user",
     parts: [{ text:
@@ -301,7 +332,8 @@ User's home address: ${JSON.stringify(home || "")}` }],
   }];
   let placesSearchCount = 0;
   for (let turn = 0; turn < 5; turn++) {
-    const j = await geminiRaw({ contents, tools: RESOLVE_TOOLS, generationConfig: { temperature: 0 } }, geminiKey,
+    const j = await geminiRaw({ contents, tools: RESOLVE_TOOLS,
+      generationConfig: { temperature: 0, thinkingConfig: { thinkingBudget: 0 } } }, geminiKey,
       { tenantId: uid, feature: "ask_resolve_location", recordUsageEvent: usageWriter });
     const parts = j?.candidates?.[0]?.content?.parts || [];
     const calls = parts.filter((p) => p.functionCall).map((p) => p.functionCall);
@@ -311,12 +343,12 @@ User's home address: ${JSON.stringify(home || "")}` }],
     for (const c of calls) {
       if (c.name === "submit_answer") {
         const a = c.args || {};
-        if (a.online) return { kind: "online" };
+        if (a.online) return submitted({ kind: "online" });
         if (a.confident && a.location && String(a.location).trim()) {
           const resolvedFrom = ["location_field", "description", "web_search"].includes(a.source) ? a.source : "web_search";
-          return { kind: "filled", location: String(a.location).trim(), resolvedFrom };
+          return submitted({ kind: "filled", location: String(a.location).trim(), resolvedFrom });
         }
-        return { kind: "ask" };
+        return submitted({ kind: "ask" });
       }
       if (c.name === "places_search") {
         const res = placesSearchCount < MAX_PLACES_SEARCHES_PER_EVENT
@@ -992,7 +1024,7 @@ async function handleInboundReply(token, replyText, opts = {}) {
 
 module.exports = {
   geminiJson,
-  askTick, recallOrResolve, agentResolveLocation, agentResolveTravelOrigin, agentMatchTravelOriginReply,
+  askTick, recallOrResolve, agentResolveLocation, memoizedLocation, agentResolveTravelOrigin, agentMatchTravelOriginReply,
   askTravelOriginOnce, readTravelOriginAskState, pendingTravelOriginAsks, answerTravelOriginAsk,
   travelOriginAskKey, agentSearchCandidate, closedAskMessage,
   closedOnlineAskMessage, semanticQuestionKey,

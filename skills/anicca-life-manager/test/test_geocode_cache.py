@@ -26,6 +26,16 @@ def run():
         assert lc.reverse_geocode({"lat": 35.65812, "lon": 139.70171}) == "渋谷区"
         assert lc.reverse_geocode({"lat": 35.65818, "lon": 139.70179}) == "渋谷区"
         assert urlopen.call_count == 2, urlopen.call_count
+
+        # A place Google cannot find is billed too; remember the miss for 24 h instead of every wake.
+        urlopen.reset_mock()
+        urlopen.return_value = _response({"status": "ZERO_RESULTS", "results": []})
+        assert lc.geocode_place("情報科学大講義室[L1]") is None
+        assert lc.geocode_place("情報科学大講義室[L1]") is None
+        assert urlopen.call_count == 1, urlopen.call_count
+        with mock.patch.object(lc.time, "time", return_value=lc.time.time() + 86401):
+            assert lc.geocode_place("情報科学大講義室[L1]") is None
+        assert urlopen.call_count == 2, urlopen.call_count
     print("PASS")
 
 
