@@ -1,25 +1,23 @@
 #!/usr/bin/env bash
 # Merge a PR only after every check has finished and none failed (REVIEW.md "Merging").
 # 2026-10-17: #8281/#8282 were merged with --admin while a check was still running.
+# The head commit seen green is pinned, so a later push cannot merge unverified.
 # Usage: bin/merge-when-green <pr> [gh pr merge args...]   (default: --squash --admin)
 set -uo pipefail
 pr="${1:?usage: merge-when-green <pr> [merge args]}"; shift
 [ $# -eq 0 ] && set -- --squash --admin
 poll="${MERGE_WHEN_GREEN_POLL:-20}"; tries="${MERGE_WHEN_GREEN_TRIES:-90}"
 for _ in $(seq 1 "$tries"); do
-  states="$(gh pr checks "$pr" --json state --jq '.[].state' 2>/dev/null)"
-  if [ -z "${states//[[:space:]]/}" ]; then echo "merge-when-green: no checks reported for #$pr" >&2; sleep "$poll"; continue; fi
-  bad=0; pending=0
-  for s in $states; do
-    case "$s" in
-      SUCCESS|SKIPPED|NEUTRAL) ;;
-      FAILURE|ERROR|CANCELLED|TIMED_OUT|ACTION_REQUIRED|STARTUP_FAILURE) bad=1 ;;
-      *) pending=1 ;;
-    esac
-  done
-  if [ "$bad" = 1 ]; then echo "merge-when-green: #$pr has a failed check; not merging" >&2; exit 2; fi
-  if [ "$pending" = 0 ]; then exec gh pr merge "$pr" "$@"; fi
-  sleep "$poll"
+  head="$(gh pr view "$pr" --json headRefOid --jq .headRefOid 2>/dev/null)"
+  buckets="$(gh pr checks "$pr" --json bucket --jq '.[].bucket' 2>/dev/null)"
+  if [ -z "${buckets//[[:space:]]/}" ] || [ -z "$head" ]; then
+    echo "merge-when-green: no checks or head for #$pr (gh error or none registered)" >&2; sleep "$poll"; continue
+  fi
+  case " $(echo $buckets) " in
+    *" fail "*|*" cancel "*) echo "merge-when-green: #$pr has a failed check; not merging" >&2; exit 2 ;;
+    *" pending "*) sleep "$poll"; continue ;;
+  esac
+  exec gh pr merge "$pr" "$@" --match-head-commit "$head"
 done
 echo "merge-when-green: #$pr checks still running after $tries polls; not merging" >&2
 exit 3

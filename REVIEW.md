@@ -9,7 +9,7 @@ Flag these first. Each comes from a real incident; cite file and line, not a gue
 
 | Area | Failure | Incident |
 |---|---|---|
-| Effect fences / reconcile adapters | A fence closes without an official readback bound to the exact occurrence (a time window or a sibling run is not proof). | #8230 paired a resume fence to a run the occurrence never owned |
+| Effect fences / reconcile adapters | A fence closes without an official readback bound to the exact occurrence (a time window or a sibling run is not proof). | #8230 (closed) paired a resume fence to a run the occurrence never owned |
 | Result hints / verified effects | A model-controlled process can write a "verified" receipt (env path inherited, guessable file). | #8247 hint path leaked into the model pass |
 | Money / CFO / ledgers | `unknown` becomes 0, a stale aggregate reads as current revenue, or revenue moves between loops. | CFO 未確認 rows, #8280–#8282 |
 | Publication | A gate verdict (identity FAIL, conscience BLOCK) can be re-judged into PASS for the same bytes. | #8251 first draft |
