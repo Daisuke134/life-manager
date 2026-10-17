@@ -1027,8 +1027,18 @@ async function fillTravel(uid, { apiKey, mapsKey, geminiKey, home, timezone, now
         }
         let mins = routeFn || allowanceState.blocked ? null
           : await directionsFn(origin, dest, mapsKey, ev.startMs, nowMs, false, routeOpts);
+        // A negative route hit skipped the allowance reservation; reserve before a paid venue resolve.
+        // The ask.js memo (24 h per event version) is what stops replays, not the route's negative TTL —
+        // otherwise one transient Gemini failure would leave the event without travel for a day.
         if (route == null && mins == null && geminiKey && !allowanceState.blocked
-            && !allowanceState.negativeCacheHit) {
+            && allowanceState.negativeCacheHit && !allowanceState.receipt
+            && typeof _reserveManagedAction === "function"
+            && !require("./ask.js").memoizedLocation(ev, uid)) {
+          const receipt = await _reserveManagedAction(uid, evKey, supaUrl, supaKey);
+          allowanceState.receipt = receipt && receipt.reservationToken ? receipt : null;
+          allowanceState.blocked = !receipt || receipt.allowed !== true;
+        }
+        if (route == null && mins == null && geminiKey && !allowanceState.blocked) {
           // The location is a room name / unroutable string (e.g. "情報科学大講義室[L1]（IS）"). Let the
           // agent web-search the REAL venue address so a must-travel event still gets a block instead of a
           // silent skip — never-late beats clean code. (Lazy require avoids any load-order coupling.)

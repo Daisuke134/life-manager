@@ -227,3 +227,26 @@ test("location resolve is not repeated for the same event version until it chang
     assert.equal(geminiCalls, 4, "the memo expires after 24h");
   } finally { globalThis.fetch = oldFetch; Date.now = oldNow; }
 });
+
+test("a transient Gemini failure is not memoized: the next tick resolves again", async () => {
+  const oldFetch = globalThis.fetch;
+  const replies = [
+    { ok: false, status: 503, json: async () => ({ error: { code: 503, status: "UNAVAILABLE" } }) },
+    { ok: true, status: 200, json: async () => ({ candidates: [{ content: { parts: [
+      { functionCall: { name: "submit_answer", args: { online: false, confident: true, location: "奈良県生駒市高山町8916-5" } } },
+    ] } }] }) },
+  ];
+  let geminiCalls = 0;
+  globalThis.fetch = async () => { geminiCalls++; return replies.shift(); };
+  const opts = { geminiKey: "fixture", mapsKey: "", uid: "tenant-transient", recordUsageEvent: async () => true };
+  const event = { id: "ev-transient", updated: "2030-01-01T00:00:00Z", summary: "[NAIST] class",
+    location: "L1", start: { dateTime: "2030-01-02T12:00:00+09:00" } };
+  try {
+    assert.deepEqual(await agentResolveLocation(event, opts), { kind: "ask" });
+    const second = await agentResolveLocation(event, opts);
+    assert.equal(second.kind, "filled");
+    assert.equal(geminiCalls, 2, "a provider failure must be retried, not cached for 24h");
+    await agentResolveLocation(event, opts);
+    assert.equal(geminiCalls, 2, "a real submit_answer is memoized");
+  } finally { globalThis.fetch = oldFetch; }
+});

@@ -173,21 +173,27 @@ test("[ALLOWANCE] exhausted tenant keeps Calendar read but performs zero route o
   assert.equal(cal._created.length, 0);
 });
 
-test("[ALLOWANCE] negative route cache suppresses Gemini/Search fallback during its TTL", async () => {
+test("[ALLOWANCE] negative route cache retries the venue agent under allowance (ask.js memo fences replays)", async () => {
   const start = "2026-06-20T14:00:00+09:00", end = "2026-06-20T15:00:00+09:00";
-  const cal = makeFakeCalendar([rawEvId("negative-event", "Unknown room", "Room L1", start, end)]);
-  let geminiCalls = 0, reserves = 0;
-  await fillTravel("negative-user", {
-    apiKey: "x", mapsKey: "x", geminiKey: "gemini", home: "Setagaya, Tokyo",
-    nowMs: Date.parse("2026-06-20T08:00:00+09:00"), calendar: cal,
-    supaUrl: "http://s", supaKey: "k",
-    _routeCache: { getByEvent: async () => ({ hit: true, value: null, failureClass: "no_route" }) },
-    _reserveManagedAction: async () => { reserves += 1; return { allowed: true }; },
-    _agentResolveLocation: async () => { geminiCalls += 1; return null; },
-  });
-  assert.equal(reserves, 0, "negative cache is read before allowance/provider work");
-  assert.equal(geminiCalls, 0, "negative TTL also fences Gemini/Search grounding");
-  assert.equal(cal._created.length, 0);
+  const run = async (uid, allowed) => {
+    const cal = makeFakeCalendar([rawEvId(`negative-event-${uid}`, "Unknown room", "Room L1", start, end)]);
+    let geminiCalls = 0, reserves = 0;
+    await fillTravel(uid, {
+      apiKey: "x", mapsKey: "x", geminiKey: "gemini", home: "Setagaya, Tokyo",
+      nowMs: Date.parse("2026-06-20T08:00:00+09:00"), calendar: cal,
+      supaUrl: "http://s", supaKey: "k",
+      _routeCache: { getByEvent: async () => ({ hit: true, value: null, failureClass: "no_route" }) },
+      _reserveManagedAction: async () => { reserves += 1; return allowed ? { allowed: true, reservationToken: "t" } : { allowed: false }; },
+      _releaseManagedAction: async () => true,
+      _agentResolveLocation: async () => { geminiCalls += 1; return { kind: "ask" }; },
+    });
+    assert.equal(cal._created.length, 0);
+    return { geminiCalls, reserves };
+  };
+  // A transient Gemini failure is not memoized, so a negative route must not fence the retry for 24 h.
+  assert.deepEqual(await run("negative-user", true), { geminiCalls: 1, reserves: 1 });
+  assert.deepEqual(await run("negative-exhausted", false), { geminiCalls: 0, reserves: 1 },
+    "an exhausted tenant gets no Gemini/Search grounding");
 });
 
 test("[INTEGRATION] re-running fillTravel does NOT double-create — 2nd run's claims all 409", async () => {
