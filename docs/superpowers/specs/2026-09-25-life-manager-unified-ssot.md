@@ -14605,6 +14605,10 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **IN-COST-01 source検証:** paper FEE欠落でexecution readbackが止まるケースと、合計P&Lを変えずFILL/quote価格だけを差し替えたケースの2件をREDで確認。規制手数料をnullのままexecution evidenceをpartialとして保存し、各orderの元の約定と一致するか確認する修正後、投資関連278 testはPASS。`lm-loop-contract`は18 loops / 194 jobs / 0 errors、`git diff --check`はPASS。独立レビュー、対象commitのCI、main統合、release/adoption、自然実行は未完。paperにはまだclosed round tripがないため、稼働上の費用計算や利益の証明とは扱わない。
 
+**IN-COST-01独立レビューの追加受入:** 後日取得したcost readbackは元の損益日の既存daily reportへ反映し、その日のaccount観測時刻・gross P&L・riskを変更せず、cost取得時刻を別に保持する。翌日のP&Lへ過去分を再計上しない。保存cache/attemptの不正UTF-8は不正cacheとして扱い、reporterから例外を伝播させない。部分約定やreconciliation_pendingの追記があっても、費用検索の開始は初回intent時刻を保持する。
+
+**IN-COST-01レビュー修正:** commit `906b7135`のfresh read-onlyレビューは`fix-first`。再現した3件（late costが過去dailyへ反映されない、不正UTF-8 cacheがrunへ伝播する、部分約定pendingで開始時刻が移動する）を各RED fixtureで確認し、修正後の投資関連281 test、loop契約18/194、syntax、diff checkはPASS。最新sourceは再度freshレビューとCIを受け、main/release/adoptionを完了してから稼働修正として扱う。既存CFOの`LM_CFO_ACTUAL_COST_READBACK`と`LM_CFO_ACTUAL_COST`は未設定で、paper owner/mode/periodに帰属するmodel/system実費は未確認。
+
 **戦略検証の診断:** 最後の失敗は10月14日の`ENOSPC`で、`reviewed-validation-reports.json`のatomic writeに失敗したもの。現在の選択戦略は10月21日05:47Zまで有効。loaded plistは`Weekday=2 / 14:30`を保持し、macOSの`launchd.plist`定義（0と7が日曜）により次の火曜の自然実行を待つ。手動の戦略再実行や注文は行わない。
 
 ### 2026-10-09 13:18 JST — Job Hunter Dreamwork cutover and updated user criteria

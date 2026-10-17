@@ -148,7 +148,12 @@ def _ledger_rows(rows: Any) -> tuple[list[dict[str, Any]], dict[str, dict[str, A
                 # A duplicate planned row is not an additional effect; the latest
                 # status is authoritative for the append-only effect identity.
                 continue
-            intents[effect_id] = dict(row)
+            previous = intents.get(effect_id)
+            intents[effect_id] = {
+                **dict(row),
+                "intent_created_at": (previous.get("intent_created_at")
+                                      if previous is not None else row.get("recorded_at")),
+            }
         elif row.get("receipt_type") == "outcome":
             effect_id = row.get("effect_id")
             if not isinstance(effect_id, str) or not effect_id:
@@ -272,8 +277,8 @@ def _closed_round_trips(
                     "id": broker["id"], "symbol": symbol, "side": side,
                     "filled_qty": str(qty), "filled_avg_price": str(price),
                 }],
-                "period_start": (intent.get("recorded_at")
-                                 if isinstance(intent.get("recorded_at"), str) else None),
+                "period_start": (intent.get("intent_created_at")
+                                 if isinstance(intent.get("intent_created_at"), str) else None),
                 "source_receipt_ids": list(event_source_ids),
             }
         elif side == "sell":
@@ -308,6 +313,7 @@ def _broker_cost_summary(
         "broker_costs_reason": "paper_cost_receipt_missing",
         "broker_fees_status": "not_simulated",
         "broker_slippage_status": "unknown",
+        "broker_costs_observed_at": None,
         "fees_usd": None,
         "slippage_usd": None,
         "broker_cost_source_receipt_ids": [],
@@ -451,6 +457,9 @@ def _broker_cost_summary(
         "broker_costs_reason": "paper_regulatory_fees_not_simulated",
         "broker_fees_status": "not_simulated",
         "broker_slippage_status": "complete",
+        "broker_costs_observed_at": max(
+            by_orders.values(), key=lambda row: _timestamp(row["observed_at"]),
+        )["observed_at"],
         "fees_usd": None,
         "slippage_usd": str(slippage_total),
         "broker_cost_source_receipt_ids": receipt_ids,
@@ -493,6 +502,7 @@ def build_paper_performance(
             "broker_costs_reason": broker_costs["broker_costs_reason"],
             "broker_fees_status": broker_costs["broker_fees_status"],
             "broker_slippage_status": broker_costs["broker_slippage_status"],
+            "broker_costs_observed_at": broker_costs["broker_costs_observed_at"],
             "broker_costs_errors": [],
             "broker_cost_source_receipt_ids": cost_source_ids,
             "costs_status": ("partial" if broker_costs["broker_slippage_status"] == "complete"
@@ -592,11 +602,11 @@ def _broker_cost_cache(
                     evidence.append(cached)
                     continue
             invalid_cached_receipt = True
-        except (OSError, json.JSONDecodeError, TypeError):
+        except (OSError, UnicodeError, json.JSONDecodeError, TypeError):
             invalid_cached_receipt = invalid_cached_receipt or receipt_path.exists()
         try:
             attempt = json.loads(attempt_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
+        except (OSError, UnicodeError, json.JSONDecodeError):
             attempt = {}
         attempted_today = (
             isinstance(attempt, Mapping) and attempt.get("attempted_day") == attempted_day
@@ -677,6 +687,62 @@ def _broker_cost_cache(
     return evidence, errors
 
 
+def _refresh_historical_costs(
+    state: Path, completed: Sequence[Mapping[str, Any]],
+    evidence: Sequence[Mapping[str, Any]], current_day: str,
+) -> list[dict[str, str]]:
+    """Attach late costs to the original day without backdating account observations."""
+    results = []
+    days = {_utc_day(trip["closed_at"]) for trip in completed}
+    for day in sorted(day for day in days if day < current_day):
+        trips = [trip for trip in completed if _utc_day(trip["closed_at"]) == day]
+        pairs = {tuple(sorted(trip["order_ids"])) for trip in trips}
+        day_evidence = [row for row in evidence if tuple(sorted(row["order_ids"])) in pairs]
+        costs = _broker_cost_summary(trips, day_evidence)
+        if costs["broker_slippage_status"] != "complete":
+            continue
+        path = state / f"performance-daily-{day}.json"
+        try:
+            previous = json.loads(path.read_text(encoding="utf-8"))
+            ids = previous.get("source_receipt_ids") if isinstance(previous, Mapping) else None
+            old_cost_ids = previous.get("broker_cost_source_receipt_ids", []) if isinstance(previous, Mapping) else None
+            required_ids = {value for trip in trips for value in trip["source_receipt_ids"]}
+            gross = sum((_number(trip["gross_pnl_usd"]) for trip in trips), Decimal("0"))
+            if (not isinstance(previous, Mapping) or previous.get("mode") != "paper"
+                    or previous.get("paper") is not True
+                    or previous.get("report_scope") != "daily_accumulation"
+                    or previous.get("performance_day") != day
+                    or _utc_day(previous.get("observed_at")) != day
+                    or previous.get("completed_round_trips") != len(trips)
+                    or _number(previous.get("gross_strategy_pnl_usd")) != gross
+                    or not isinstance(ids, list) or any(not isinstance(value, str) for value in ids)
+                    or not required_ids <= set(ids)
+                    or f"alpaca-account-readback:{previous['observed_at']}" not in ids
+                    or not isinstance(old_cost_ids, list)
+                    or any(not isinstance(value, str) for value in old_cost_ids)):
+                raise ValueError("paper_historical_performance_mismatch")
+            updated = {
+                **previous, **costs,
+                "broker_costs_errors": [], "costs_status": "partial",
+                "net_realized_pnl_usd": None,
+                "unknown_cost_categories": ["fees", "model", "system"],
+                "source_receipt_ids": list(dict.fromkeys([
+                    *[value for value in ids if value not in old_cost_ids],
+                    *costs["broker_cost_source_receipt_ids"],
+                ])),
+            }
+            if updated != previous:
+                _atomic_json(path, updated)
+            results.append({"performance_day": day, "status": "updated" if updated != previous else "unchanged"})
+        except (OSError, UnicodeError, ValueError, TypeError, ArithmeticError):
+            results.append({
+                "performance_day": day, "status": "unknown",
+                "reason": "paper_historical_performance_unavailable",
+                "next_action": "restore_same_day_account_readback",
+            })
+    return results
+
+
 def write_paper_performance(
     state_dir: str | Path,
     observation: Mapping[str, Any],
@@ -741,6 +807,7 @@ def write_paper_performance(
             "broker_costs_status": daily_broker_costs["broker_costs_status"],
             "broker_fees_status": daily_broker_costs["broker_fees_status"],
             "broker_slippage_status": daily_broker_costs["broker_slippage_status"],
+            "broker_costs_observed_at": daily_broker_costs["broker_costs_observed_at"],
             "broker_costs_reason": (
                 daily_cost_errors[0]["reason"] if daily_cost_errors
                 else daily_broker_costs["broker_costs_reason"]
@@ -762,6 +829,9 @@ def write_paper_performance(
             "slippage_usd": daily_broker_costs["slippage_usd"],
             "source_receipt_ids": list(dict.fromkeys(daily_source_ids)),
             "unknown_cost_categories": unknown_costs,
+            "historical_cost_reconciliations": _refresh_historical_costs(
+                state, completed, cost_evidence, observation_day,
+            ),
         }
         _atomic_json(state / f"performance-daily-{observation_day}.json", result)
         _atomic_json(state / "performance-latest.json", result)

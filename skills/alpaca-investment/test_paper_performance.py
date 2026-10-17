@@ -640,6 +640,72 @@ class PaperPerformanceTests(unittest.TestCase):
         self.assertEqual(first["broker_costs_reason"], "paper_cost_quote_invalid")
         self.assertEqual(second["broker_costs_errors"][0]["next_action"], "retry_after_next_et_day")
 
+    def test_late_cost_readback_updates_its_original_performance_day(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            (state / "receipts.jsonl").write_text(
+                "".join(json.dumps(row) + "\n" for row in _rows()), encoding="utf-8",
+            )
+            late_receipt = _broker_cost_evidence()
+            late_receipt["observed_at"] = "2026-10-21T14:31:15Z"
+            from unittest.mock import Mock
+            reader = Mock(side_effect=[ValueError("paper_cost_quote_invalid"), late_receipt])
+            write_paper_performance(state, OBSERVATION, RISK, broker_cost_reader=reader)
+            next_day = copy.deepcopy(OBSERVATION)
+            next_day["clock"]["observed_at"] = "2026-10-21T14:32:00Z"
+
+            current = write_paper_performance(
+                state, next_day, {"drawdown_usd": "1.25"}, broker_cost_reader=reader,
+            )
+            previous = json.loads((state / "performance-daily-2026-10-20.json").read_text())
+
+        self.assertEqual(previous["slippage_usd"], "-0.005")
+        self.assertEqual(previous["broker_costs_observed_at"], "2026-10-21T14:31:15Z")
+        self.assertEqual(previous["observed_at"], OBSERVATION["clock"]["observed_at"])
+        self.assertEqual(previous["gross_strategy_pnl_usd"], "0.250")
+        self.assertEqual(previous["risk"], RISK)
+        self.assertIsNone(previous["fees_usd"])
+        self.assertEqual(current["gross_strategy_pnl_usd"], "0")
+        self.assertEqual(current["completed_round_trips"], 0)
+
+    def test_invalid_utf8_cost_cache_and_attempt_are_refreshed_without_aborting(self):
+        for prefix in ("performance-cost", "performance-cost-attempt"):
+            with self.subTest(prefix=prefix), tempfile.TemporaryDirectory() as directory:
+                state = Path(directory)
+                (state / "receipts.jsonl").write_text(
+                    "".join(json.dumps(row) + "\n" for row in _rows()), encoding="utf-8",
+                )
+                digest = hashlib.sha256(b"paper-entry\0paper-exit").hexdigest()[:20]
+                (state / f"{prefix}-{digest}.json").write_bytes(b"\xff")
+                try:
+                    result = write_paper_performance(
+                        state, OBSERVATION, RISK,
+                        broker_cost_reader=lambda **_kwargs: _broker_cost_evidence(),
+                    )
+                except UnicodeError as error:
+                    self.fail(f"invalid cache aborted performance reporting: {error}")
+
+                self.assertEqual(result["broker_slippage_status"], "complete")
+                self.assertIsNone(result["net_realized_pnl_usd"])
+
+    def test_pending_reconciliation_keeps_the_initial_intent_period(self):
+        rows = _rows()
+        pending = copy.deepcopy(rows[0])
+        pending.update({"status": "reconciliation_pending", "recorded_at": "2026-09-29T14:31:06Z"})
+        rows.insert(1, pending)
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            (state / "receipts.jsonl").write_text(
+                "".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8",
+            )
+            result = write_paper_performance(
+                state, OBSERVATION, RISK,
+                broker_cost_reader=lambda **_kwargs: _broker_cost_evidence(),
+            )
+
+        self.assertEqual(result["broker_slippage_status"], "complete")
+        self.assertEqual(result["slippage_usd"], "-0.005")
+
     def test_open_or_unresolved_round_trip_does_not_emit_numeric_pnl(self):
         rows = _rows()
         rows.pop()
