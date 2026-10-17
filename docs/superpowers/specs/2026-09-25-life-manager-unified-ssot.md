@@ -237,6 +237,29 @@ README は「ユーザー向け18 + system agent 1」= 19 agent。19 = Host Stew
 - 閉じられないもの: `life-manager-daily:tiktok-retry-20260918-3`（Reddit アカウント `anicca_sao` が ban、公式 readback が取れない）。`fundraiser:18d9b0b6311a2018-87933`（marker 導入前の run、公式 readback 無し）。
 - 規模: reconciler の 1 回の巡回で fenced occurrence は約 3.9 万件、判定は 20 件／10 分。
 
+**10/18 07:10 エージェント別の状態（lm-loop health 実測、revenue facet ok/blocked/unknown）と残りTODO**
+
+| エージェント | 状態 | 残り |
+|---|---|---|
+| Writer | 10/17 公開 2 本（note https://note.com/anicca123/n/n6da69ebc218c 、Substack JA https://aniccabuddha.substack.com/p/claude-codecodex500 ）。10/18 は 0 本: run 20261017-150256 が 3 宛先とも `publisher-cta-variant-id-unsafe-unicode-frozen-artifact`、以降の起動が `frozen-incomplete-pairs` で全停止 | CTA id の unicode 修正と、全宛先 unavailable の run で日を止めない start control（作業中）。EN Substack は Stripe 未接続（Dais） |
+| Affiliate (ElevenLabs) | 24/24 公開 URL を readback 確認（押せる追跡リンク ≥2・開示あり、/go 302）。PartnerStack: 登録 1・有料 0・報酬 $0。税・支払いは Dais 登録済み | 検索需要の型（pricing/free/alternatives/vs/best/how-to）量産、YouTube 化、readback を版に結び付ける nit、旧 id 4 本の /go 化 |
+| Mobile apps | ok 18 / blocked 1（life-manager-daily: Reddit ban で閉鎖不可）/ unknown 2 | 確認済み MRR USD 20.34。unknown 2 の verified hint |
+| Capafy | ok 4 / unknown 5（IG 系・monitor） | IG 系の verified hint、販売者側の注文 readback（公式 API なし、コンソール読み取り producer） |
+| eBook | ok 4 / unknown 1（en-instagram）。ja-tiktok/ig は公開フラグ永続化（#8245）・fence 閉鎖済み | en-instagram の integration sidecar |
+| Gig Coconala | ok 3 / unknown 1。売上確定 JPY 263,634（直近30日 70,980） | apply-direct の fence |
+| Gig Lancers | ok 4 / blocked 1（storefront effect_unknown） | storefront fence、CFO producer |
+| Gig CrowdWorks | ok 4 | CFO producer |
+| Gig Mercor | ok 2 / blocked 1（reply fence） | reply の effect_reconcile |
+| Investment | ok 1 / blocked 1（alpaca-live）/ unknown 1 | Railway の重複 live trader 確認後に #8195、Alpaca readback を CFO に接続 |
+| LINE sticker | blocked 1（factory fence） | Instagram 凍結・lease |
+| PromptBase | unknown 1 | CFO 接続済み（#8281）、loop の verified hint |
+| Fundraiser | ok 1 | submitted_verified 10/08 以降 0 |
+| CFO | ok 1。Writer/PromptBase/agent-economy 配線済み（#8280–#8282） | Capafy・ASC・ebook(Stripe)・Lancers/CrowdWorks・LINE・Alpaca の producer |
+| Agent economy / self-build / job-hunter / connector | revenue 対象外または ok | 売上ソースなし |
+| 費用 | GCP 漏れ修正（#8257、Railway 本番 SUCCESS）見込み月 ¥16.5–17k 削減 | 10 月請求で実測 |
+
+残りTODO（この順）: 1 Writer 今日の停止を直す → 2 affiliate 量産（成功事例の型）→ 3 CFO producer（Capafy 注文・ASC・ebook Stripe 対応表）→ 4 unknown 12 lane の verified hint → 5 止まっている fence（Lancers storefront・Mercor reply・Coconala apply・LINE）→ 6 fundraiser 成約 → 7 R1 レビュー評価セット（事故を毎日採点）→ 8 SH4/SH3/SH5 → 9 fence 約 3.9 万件整理。Dais 待ち: EN Substack の Stripe 接続。
+
 **10/17 21:52 更新（順序変更）**: 旧順 1 Writer → 2 GCP 費用 → 3 計測 …、新順 0 affiliate 増産 → 3 計測 → 4 telemetry …、cursor = 0。理由: ElevenLabs Affiliates から「New ElevenLabs User」通知（10/17 21:11 JST）。aniccaai.com の ElevenLabs 記事 27 本・provider clicks 526（上位: voice-changer 34、voice-isolator 32、subtitle-translator 31）。外部で成果が出た唯一の lane なので、成功事例のコピーで量産を先にする。報酬台帳は approved/pending 0 件（有料転換まで報酬にならない可能性、規約確認中）。
 - 1 Writer: 10/17 公開 note https://note.com/anicca123/n/n6da69ebc218c 、Substack JA https://aniccabuddha.substack.com/p/claude-codecodex500 。EN は `aniccaai2026.substack.com` が `payments_state=disabled`（Stripe 未接続）で verify-preview が止める。Stripe dashboard の session も credentials 行も無く、Dais の接続操作が必要。
 - 2 GCP 費用: #8257 本番（Railway life-call 7f6daacab6 SUCCESS）。見込み月 ¥16.5–17k 削減、10 月請求で確認。後続: 空応答・ターン切れの短い TTL。
