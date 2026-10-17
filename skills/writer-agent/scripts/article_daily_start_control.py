@@ -1184,8 +1184,9 @@ def _no_effect_row(row: dict[str, Any]) -> bool:
     text = " ".join(str(row.get(key) or "") for key in ("state", "note", "reason", "failure_reason")).lower()
     forbidden = _NO_EFFECT_TEXT_FORBIDDEN
     if str(row.get("state") or "").startswith("pending:publication-init-refused:"):
-        # init refused before publication state existed; its refusal text names quality "receipts"
-        # (2026-10-17 run 20261016-230536), which are not provider receipts.
+        # The refusal text names quality "receipts" (2026-10-17 run 20261016-230536), not provider
+        # receipts. The prefix is model-written, so safety rests on the publication-state and
+        # platform-dispatch checks in _carry_over_without_dispatch, not on the prefix.
         forbidden = tuple(token for token in forbidden if token != "receipt")
     return not any(token in text for token in forbidden)
 
