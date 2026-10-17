@@ -1011,3 +1011,24 @@ def test_unpublished_row_with_an_external_identifier_never_takes_the_absence_pat
         root, arts = _carry_fixture(sub, ledger=row)
         result, calls, closed = _carry_reconcile(m, root, arts, {"destinations": ABSENT})
         assert not calls and not closed, extra
+
+
+def test_a_young_fence_whose_run_already_reported_is_judged_now(tmp_path):
+    # 2026-10-17: the 08:05 and 11:05 runs ended (report event written after the runner reaped the
+    # process group) but each fence waited the full hour, so the next hourly start was lost too.
+    m = _load()
+    arts = _articles(tmp_path, [_row("20260929-010128", "2026-09-29T02:44:15Z", "https://note.com/x/n/1")])
+    root = tmp_path / "writer"
+    root.mkdir()
+    report = {"occurrence_id": OCC, "phase": "report", "status": "fail",
+              "timestamp": datetime.fromtimestamp(QUEUED + 300, timezone.utc).isoformat()}
+    (root / "events.jsonl").write_text(json.dumps(report) + "\n")
+    result = m.reconcile(OCC, queued_at=QUEUED, state="claimed", articles_path=arts, writer_root=root,
+                         fetch_status=lambda u: 200, resolver=lambda *a, **k: True, resolve=False,
+                         now=QUEUED + 600)
+    assert result["status"] == "effected"
+    (root / "events.jsonl").write_text("")
+    result = m.reconcile(OCC, queued_at=QUEUED, state="claimed", articles_path=arts, writer_root=root,
+                         fetch_status=lambda u: 200, resolver=lambda *a, **k: True, resolve=False,
+                         now=QUEUED + 600)
+    assert result["reason"] == "fence_too_young"

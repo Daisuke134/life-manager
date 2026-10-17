@@ -683,7 +683,9 @@ def reconcile(occurrence_id: str, *, queued_at: float, state: str, articles_path
         return _central_closure_result(RESUME_OWNER_ID, result)
     if not occurrence_id.startswith(f"{OWNER_ID}:"):
         return _inconclusive(occurrence_id, "owner_not_allowlisted")
-    if now - queued_at < MIN_AGE_SECONDS:
+    # The runner writes the single report event only after it reaped the run's process group, so a
+    # reported run can no longer be going; only an unreported fence waits out the hour.
+    if now - queued_at < MIN_AGE_SECONDS and _terminal_epoch(writer_root, occurrence_id) is None:
         return _inconclusive(occurrence_id, "fence_too_young")
     try:
         rows = [json.loads(line) for line in articles_path.read_text(encoding="utf-8").splitlines() if line.strip()]
