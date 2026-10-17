@@ -3281,3 +3281,8 @@ Writer適用: `skills/writer-agent/SKILL.md`、Zinsser reader/prose、humanizer�
 条件付き確率は本人の次へという合図で学習上の完了。今回は3ノードの図と確率表、順方向生成、9.6%の検算、辺を省いた仮定を説明。Sun/Erath論文の方法・実験設定とpgmpy forward_sampleを読解した。実行したのは標準ライブラリの架空例で、pgmpy実行・実資料学習・論文再現は未実施。説明済み・質問待ち。次の深掘りは構造と確率表の学習・検証、その後VAE/LLMの比較。初期人口実装P01–P20は未完了。
 
 本文：`docs/research/manager/articles/2026-10-17-bayesian-network-ja.md`。教材実行と証拠：`docs/research/manager/evidence/2026-10-17/bayesian-network-tutorial.py`、`bayesian-network-result.json`。
+
+
+### 2026-10-17 条件付き確率とネットワークの区別を補足
+
+本人の質問を受け、条件付き確率は部品、BNは図と確率表を組にしたモデルと説明し直した。IPF/BN/LLMは講座の比較例で、網羅的な三分類や主要三方式という断定ではない。IPF手法とipfnライブラリの名前を区別。BN単元は質問対応中のままで、理解済みへ進めない。既存BN記事へ補足と図を追加。人口v0の採用依存・実装状態は変更しない。

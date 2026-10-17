@@ -48,3 +48,16 @@ pgmpyのBayesianModelSampling.forward_sampleを読んだ。コードは親が先
 [1] Sun / Erath, A Bayesian network approach for population synthesis https://lijunsun.github.io/files/papers/2015-TRC-BN-Population.pdf 。今回3.1–3.3と実験設定を確認。
 
 [2] pgmpy公開コード https://pgmpy.org/_modules/pgmpy/sampling/Sampling.html 。取得したdevソースのハッシュと読解範囲は対応する証拠JSONに保存。
+
+
+## 条件付き確率とネットワークは同じものか
+
+条件付き確率は「若い層なら就業80%」のような、条件の下での確率である。ベイジアンネットワークは、変数の図と、その図に対応する確率表を組にして結合分布を表すモデル。条件付き確率が部品、ネットワークがその組み合わせという関係であり、二つの名前が同じものを指すわけではない。
+
+人口生成についてIPF・ベイジアンネットワーク・LLMを比較しているのは、この講座で選んだ代表例である。分野全体をこの三方式だけに分類する意味でも、市場での主要三方式という意味でもない。IPFは調整アルゴリズム、ベイジアンネットワークは確率モデル、LLMはモデルの一群で、分類の階層も異なる。VAEなどの生成モデルや組み合わせ最適化もあり、複数を組み合わせられる。
+
+IPFとipfnも区別する。IPFは手法名、ipfnはその手法を利用できるPythonライブラリ名である。
+
+![部品とモデルの違い](visuals/2026-10-17-conditional-versus-network-ja.png)
+
+補足図の確率表もすべて架空値であり、前の二年齢区分の教材とは別の説明例である。部品と全体の関係を示すための図として読む。
