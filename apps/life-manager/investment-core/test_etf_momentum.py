@@ -46,6 +46,13 @@ def _costs() -> dict[str, Decimal]:
     }
 
 
+def _benchmark_fixture(count: int = 25) -> dict[str, list[dict[str, str]]]:
+    return {
+        "SPY": _bars([(100, 100 + index) for index in range(count)]),
+        "QQQ": _bars([(100, 100 + 2 * index) for index in range(count)]),
+    }
+
+
 def _measured_result() -> dict[str, object]:
     summary = {
         "trades": 40,
@@ -81,6 +88,91 @@ def _passing_grid() -> dict[str, object]:
 
 
 class EtfMomentumTests(unittest.TestCase):
+    def test_benchmark_uses_holdout_boundaries_and_one_round_trip_cost(self):
+        for notional, cost, net, excess in (
+            ("10", "0.02", "2.28", "10.26"),
+            ("20", "0.04", "4.56", "20.52"),
+        ):
+            with self.subTest(notional=notional):
+                result = simulate(
+                    _benchmark_fixture(), universe=("SPY", "QQQ"),
+                    lookback_days=1, hold_days=2,
+                    notional_usd=Decimal(notional), **_costs(),
+                )
+
+                self.assertIn("benchmark", result)
+                benchmark = result["benchmark"]
+                self.assertEqual(benchmark["status"], "measured")
+                self.assertEqual(benchmark["measurement_kind"], "modeled_reference_pnl")
+                holdout = benchmark["holdout"]
+                self.assertEqual(holdout["start_date"], "2026-01-19")
+                self.assertEqual(holdout["end_date"], "2026-01-24")
+                self.assertEqual(holdout["cost_usd"], cost)
+                self.assertEqual(holdout["net_pnl_usd"], net)
+                self.assertEqual(holdout["excess_net_pnl_usd"], excess)
+                self.assertEqual(holdout["outcome"], "outperformed")
+
+    def test_benchmark_exposes_underperformance_with_positive_strategy_net(self):
+        bars = {
+            "SPY": _bars([(100 + index, 100 + index) for index in range(25)]),
+            "QQQ": _bars([(100, 100)] * 25),
+        }
+        result = simulate(
+            bars, universe=("SPY", "QQQ"), lookback_days=1, hold_days=2,
+            notional_usd=Decimal("10"), **_costs(),
+        )
+
+        self.assertEqual(result["holdout"]["net_pnl_usd"], "0.18")
+        self.assertIn("benchmark", result)
+        holdout = result["benchmark"]["holdout"]
+        self.assertEqual(holdout["net_pnl_usd"], "0.40")
+        self.assertEqual(holdout["excess_net_pnl_usd"], "-0.22")
+        self.assertEqual(holdout["outcome"], "underperformed")
+
+    def test_missing_benchmark_symbol_is_unknown_not_zero(self):
+        result = simulate(
+            _fixture(), universe=UNIVERSE, lookback_days=2, hold_days=2,
+            notional_usd=Decimal("10"), **_costs(),
+        )
+
+        self.assertIn("benchmark", result)
+        self.assertEqual(result["benchmark"]["status"], "unknown")
+        holdout = result["benchmark"]["holdout"]
+        self.assertEqual(holdout["reason"], "benchmark_symbol_missing")
+        self.assertIsNone(holdout["net_pnl_usd"])
+        self.assertIsNone(holdout["excess_net_pnl_usd"])
+        self.assertIsNone(holdout["outcome"])
+
+    def test_measured_zero_benchmark_comparison_is_matched(self):
+        bars = {symbol: _bars([(100, 100)] * 25) for symbol in ("SPY", "QQQ")}
+        result = simulate(
+            bars, universe=("SPY", "QQQ"), lookback_days=1, hold_days=2,
+            notional_usd=Decimal("10"),
+            **dict.fromkeys(_costs(), Decimal("0")),
+        )
+
+        self.assertIn("benchmark", result)
+        holdout = result["benchmark"]["holdout"]
+        self.assertEqual(holdout["status"], "measured")
+        self.assertEqual(holdout["excess_net_pnl_usd"], "0.00")
+        self.assertEqual(holdout["outcome"], "matched")
+
+    def test_empty_benchmark_holdout_is_unknown_not_zero(self):
+        for count in (3, 6):
+            with self.subTest(count=count):
+                result = simulate(
+                    _benchmark_fixture(count), universe=("SPY", "QQQ"),
+                    lookback_days=2, hold_days=2,
+                    notional_usd=Decimal("10"), **_costs(),
+                )
+
+                self.assertIn("benchmark", result)
+                holdout = result["benchmark"]["holdout"]
+                self.assertEqual(holdout["status"], "unknown")
+                self.assertEqual(holdout["reason"], "insufficient_trades")
+                self.assertIsNone(holdout["net_pnl_usd"])
+                self.assertIsNone(holdout["excess_net_pnl_usd"])
+
     def test_signal_waits_for_full_lookback_and_enters_next_open(self):
         result = simulate(
             _fixture(), universe=UNIVERSE, lookback_days=2, hold_days=2,

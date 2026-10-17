@@ -52,6 +52,24 @@ def _history(start: date, count: int = 2) -> dict[str, object]:
 
 
 class ValidationRunnerTests(unittest.TestCase):
+    def test_real_report_builder_retains_modeled_benchmark_comparison(self):
+        history = _history(date(2025, 1, 1), count=600)
+
+        report = validation_runner.build_report_from_history(
+            history["daily_bars"],
+            source_receipt_ids=history["source_receipt_ids"],
+            release_sha="a" * 40,
+            observed_at=history["observed_at"],
+            completed_through_session=history["completed_through_session"],
+        )
+
+        self.assertEqual(report["holdout"]["net_pnl_usd"], "0.40")
+        self.assertIn("benchmark", report)
+        self.assertEqual(report["benchmark"]["measurement_kind"], "modeled_reference_pnl")
+        self.assertEqual(report["benchmark"]["holdout"]["net_pnl_usd"], "0.08")
+        self.assertEqual(report["benchmark"]["holdout"]["excess_net_pnl_usd"], "0.32")
+        self.assertEqual(report["evidence_ids"], ["receipt-2025-01-01"])
+
     def test_chunk_ranges_are_bounded_and_non_overlapping(self):
         ranges = list(validation_runner._chunk_ranges(date(2026, 1, 1), date(2026, 4, 1)))
 

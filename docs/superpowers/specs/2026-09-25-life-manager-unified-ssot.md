@@ -14626,7 +14626,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 - **所有範囲:** `apps/life-manager/investment-core/etf_momentum.py`、同`test_etf_momentum.py`、必要な`skills/alpaca-investment/test_validation_runner.py`の実caller回帰、本正本。既存writer `validation_runner.py::build_report_from_history`を通る実レポートへ値が残ることを確認する。新しいscheduler、選択器、設定、broker adapterは作らない。
 - **順序と完了証拠:** A 設計をcommit/push → B 手計算oracleのRED（holdout日付・SPY1往復費用・正のstrategy損益でもSPYに負ける例・欠測・空holdout・実report caller）→ C 最小実装と関連core/Alpaca suite、loop契約、syntax/diff → D fresh read-only金融review・対象head CI・main統合 → E main由来ALL release、validation ownerだけのloaded-idle採用、loaded argv/SHA → F 次の自然validationで新benchmarkと同じdata digest/公式source refsを確認。手動のvalidation/wake/orderは行わない。F未到達のsource採用を本番評価や利益の証明と扱わない。
 
-**IN-EDD-02現在cursor:** Aの設計保存。専用branch=`fix/investment-benchmark-comparison-20261017`、worktree=`/Users/anicca/Projects/life-manager-main/.worktrees/investment-repair-20261012`、lease owner=`codex-root`。Astraの親model/effortは観測不可で、固定model指定はUI選択優先の指示に従って行わず、Astra稼働を確認済みとは報告しない。自然paper qualified exitと費用実績の既存gateは並行して維持する。
+**IN-EDD-02現在cursor:** Aはcommit `952420d1`でremote保存済み。Bは既存core 15 tests中の新規5件（subcase込み7 failure）と実caller 7 tests中の新規1件で、全てbenchmark欠落のAssertionErrorによるREDを確認する。Cの最小実装へ進む。専用branch=`fix/investment-benchmark-comparison-20261017`、worktree=`/Users/anicca/Projects/life-manager-main/.worktrees/investment-repair-20261012`、lease owner=`codex-root`。Astraの親model/effortは観測不可で、固定model指定はUI選択優先の指示に従って行わず、Astra稼働を確認済みとは報告しない。自然paper qualified exitと費用実績の既存gateは並行して維持する。
 
 **戦略検証の診断:** 最後の失敗は10月14日の`ENOSPC`で、`reviewed-validation-reports.json`のatomic writeに失敗したもの。現在の選択戦略は10月21日05:47Zまで有効。loaded plistは`Weekday=2 / 14:30`を保持し、macOSの`launchd.plist`定義（0と7が日曜）により次の火曜の自然実行を待つ。手動の戦略再実行や注文は行わない。
 
