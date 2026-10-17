@@ -80,10 +80,29 @@ if [ ! -f "$CAMOUFOX_VERSION" ]; then
   fi
 fi
 
+# fetch.sh uses `npm ci --ignore-scripts` so a cache refresh does not execute
+# package hooks.  That leaves better-sqlite3 without the Node-ABI-specific
+# module required by Camoufox's persistence support.  On Node 25/macOS arm64
+# there is no downloadable prebuild, so the wrapper otherwise starts but every
+# browser launch fails.  Opening an in-memory database verifies the binding
+# itself (a bare require does not); rebuild only when that probe fails.
+NODE_BIN="$(command -v node)"
+sqlite_binding_ok() {
+  "$NODE_BIN" -e "const Database=require('better-sqlite3'); const db=new Database(':memory:'); db.close()" \
+    >/dev/null 2>&1
+}
+if ! sqlite_binding_ok; then
+  echo "better-sqlite3 native binding missing for $("$NODE_BIN" -v); rebuilding locally..." >&2
+  if ! npm rebuild better-sqlite3 --build-from-source >>"$LOG" 2>&1 || ! sqlite_binding_ok; then
+    echo "ERROR: better-sqlite3 native rebuild failed; see $LOG" >&2
+    tail -30 "$LOG" >&2
+    exit 1
+  fi
+fi
+
 # Launch the node process directly.  `npm start` leaves an npm wrapper in the
 # process group; automation runners may reap that group when this script
 # exits, taking the otherwise-healthy server with it.
-NODE_BIN="$(command -v node)"
 nohup "$NODE_BIN" "$CAMOFOX_DIR/server.js" </dev/null >"$LOG" 2>&1 &
 PID=$!
 echo "started camofox pid=$PID, waiting..."
