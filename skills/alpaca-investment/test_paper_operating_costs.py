@@ -227,6 +227,35 @@ class PaperOperatingCostTests(unittest.TestCase):
         self.assertEqual(result["gross_strategy_pnl_usd"], "0")
         self.assertIsNone(previous["net_realized_pnl_usd"])
 
+    def test_missing_next_readback_does_not_erase_the_existing_cost_binding(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            _write_state(state, _rows())
+            billing = state / "billing.json"
+            billing.write_text(json.dumps(_readback()))
+            with patch.dict(os.environ, {"LM_CFO_ACTUAL_COST_READBACK": str(billing),
+                                         "LM_CFO_ACTUAL_COST": ""}):
+                write_paper_performance(state, OBSERVATION, RISK)
+                path = state / "performance-daily-2026-10-20.json"
+                original = path.read_bytes()
+                billing.unlink()
+                result = write_paper_performance(state, OBSERVATION, RISK)
+                self.assertEqual(result, {"status": "unknown", "reason": "paper_operating_cost_readback_incomplete"})
+                self.assertEqual(path.read_bytes(), original)
+
+    def test_unreadable_binding_history_is_not_treated_as_empty(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            _write_state(state, _rows())
+            (state / "performance-daily-2026-10-19.json").write_bytes(b"\xff")
+            billing = state / "billing.json"
+            billing.write_text(json.dumps(_readback()))
+            with patch.dict(os.environ, {"LM_CFO_ACTUAL_COST_READBACK": str(billing),
+                                         "LM_CFO_ACTUAL_COST": ""}):
+                result = write_paper_performance(state, OBSERVATION, RISK)
+            self.assertEqual(result, {"status": "unknown", "reason": "paper_operating_cost_binding_unavailable"})
+            self.assertFalse((state / "performance-daily-2026-10-20.json").exists())
+
     def test_unreadable_or_malformed_json_stays_unknown_without_aborting(self):
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)

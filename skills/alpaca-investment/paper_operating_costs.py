@@ -92,7 +92,12 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str) -> dict:
                         raise ValueError("operating_cost_readback_invalid")
                     receipt_id = (f"{doc.get('provider')}:actual-cost:{kind}:{document_id}:"
                                   f"line:{line.get('line_item_id')}:allocation:{allocation.get('allocation_id')}")
-                    value = (doc.get("provider"), kind, document_id, line, allocation)
+                    invoice_id = doc.get("invoice_id")
+                    charge_kind, charge_document = (("invoice", invoice_id)
+                        if isinstance(invoice_id, str) and invoice_id else (kind, document_id))
+                    charge_identity = (doc.get("provider"), charge_kind, charge_document,
+                                       line.get("line_item_id"), allocation.get("allocation_id"))
+                    value = (doc.get("provider"), kind, document_id, line, allocation, charge_identity)
                     if receipt_id in raw and raw[receipt_id] != value:
                         conflicts.add(receipt_id)
                     raw[receipt_id] = value
@@ -106,6 +111,7 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str) -> dict:
                 job_conflicts.add(key)
             jobs[key] = join
         accepted = {}
+        charge_conflicts = set()
         for receipt in records:
             if (receipt["record_type"] != "receipt" or receipt["product_loop_id"] != "investment"
                     or receipt["currency"] != "USD" or receipt["verification_state"] != "verified"
@@ -114,7 +120,7 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str) -> dict:
             identity = receipt["receipt_id"]
             if identity in conflicts or identity not in raw:
                 continue
-            provider, kind, document_id, line, allocation = raw[identity]
+            provider, kind, document_id, line, allocation, charge_identity = raw[identity]
             key = (provider, allocation.get("job_id"))
             join = jobs.get(key)
             if key in job_conflicts or not isinstance(join, dict):
@@ -136,14 +142,22 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str) -> dict:
                         or not _time(trip["period_start"]) <= _time(receipt["occurred_at"]) <= _time(trip["closed_at"])):
                     continue
                 component = receipt["components"][0]
-                accepted[identity] = {
+                cost = {
                     "receipt_id": identity, "provider": provider, "currency": "USD",
+                    "charge_identity": list(charge_identity),
                     "category": component["category"], "amount_usd": component["amount"],
                     "order_ids": trip["order_ids"], "period_start": trip["period_start"],
                     "period_end": trip["closed_at"], "occurred_at": receipt["occurred_at"],
                     "settled_at": receipt["settled_at"], "evidence_refs": receipt["evidence_refs"],
                 }
-        summary.update({"operating_cost_components": [accepted[key] for key in sorted(accepted)],
+                if charge_identity in accepted:
+                    fields = ("category", "amount_usd", "order_ids", "period_start", "period_end")
+                    if any(accepted[charge_identity][field] != cost[field] for field in fields):
+                        charge_conflicts.add(charge_identity)
+                else:
+                    accepted[charge_identity] = cost
+        summary.update({"operating_cost_components": [accepted[key] for key in sorted(accepted)
+                                                      if key not in charge_conflicts],
                         "operating_costs_observed_at": billing_at,
                         "operating_costs_reason": "no_scoped_paid_components"})
     except (KeyError, TypeError, ValueError, ArithmeticError, RecursionError) as error:
