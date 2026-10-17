@@ -63,19 +63,21 @@ ATTRIBUTION = (
 MARKDOWN_LINK = re.compile(r"(?<!!)\[([^\]]+)\]\((https?://[^)\s]+)\)")
 
 
-def render_affiliate_markdown(markdown, link):
+def render_affiliate_markdown(markdown, link, destination_sha256=None):
     """Deterministically turn a composed affiliate article into its public page.
 
-    Every merchant link becomes the page's tracked link, a bare tracked URL
-    becomes a real link, a disclosed CTA sits at the top and the end, and the
-    terms-required attribution closes the page. Idempotent.
+    A bare tracked URL becomes a real link, the citation of the tracked link's
+    own destination becomes the tracked link (other merchant citations stay
+    direct so link text and target agree), a full disclosure sits directly
+    before a CTA at the top and the end, and the terms-required attribution
+    closes the page. Idempotent.
     """
     if urlsplit(link).hostname != TRACKED_HOST:
         return markdown
 
     def retarget(match):
-        host = urlsplit(match.group(2)).hostname or ""
-        if host != TRACKED_HOST and MERCHANT_HOST.match(host):
+        url = match.group(2)
+        if destination_sha256 and hashlib.sha256(url.encode()).hexdigest() == destination_sha256:
             return f"[{match.group(1)}]({link})"
         return match.group(0)
 
@@ -90,10 +92,18 @@ def render_affiliate_markdown(markdown, link):
     ]
     if CTA_TOP_MARKER not in text:
         at = 1 if blocks and blocks[0].startswith("# ") else 0
-        blocks[at:at] = [FULL_DISCLOSURE, CTA_TOP.format(link=link)]
+        if at < len(blocks) and blocks[at].lstrip("*_").startswith("Disclosure"):
+            blocks[at] = FULL_DISCLOSURE  # replace, never stack a second disclosure
+            at += 1
+        else:
+            blocks.insert(at, FULL_DISCLOSURE)
+            at += 1
+        blocks.insert(at, CTA_TOP.format(link=link))
     if ATTRIBUTION not in text:
-        if f"]({link})" not in blocks[-1] or "Disclosure" not in blocks[-2]:
+        if f"]({link})" not in blocks[-1]:
             blocks += [FULL_DISCLOSURE, CTA_END.format(link=link)]
+        elif len(blocks) < 2 or "Disclosure" not in blocks[-2]:
+            blocks.insert(len(blocks) - 1, FULL_DISCLOSURE)
         blocks.append(ATTRIBUTION)
     return "\n\n".join(blocks)
 
@@ -828,6 +838,8 @@ def rerender(args, publisher=None):
 
     Dry-run unless `args.apply`. Uses the existing same-slug revision path:
     a new artifact hash plus a matching PASS policy receipt, then `publish`.
+    A page whose rewritten artifact is not yet live is PENDING_REPUBLISH and
+    is retried; `previous_markdown` keeps the pre-render body for rollback.
     """
     publisher = publisher or publish
     state = args.state.expanduser()
@@ -846,54 +858,61 @@ def rerender(args, publisher=None):
         if artifact.get("disclosure") != "affiliate_link" or len(links) != 1:
             continue
         link = links[0]
+        try:
+            program_link = json.loads((
+                state / "program-links" / f"{urlsplit(link).path.strip('/')}.json"
+            ).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            program_link = {}
         markdown = artifact.get("markdown", "")
-        rendered = render_affiliate_markdown(markdown, link)
-        in_flight = (
-            receipt.get("revised_at") and receipt.get("state") != "LIVE"
-            and receipt.get("content_sha256") == artifact.get("content_sha256")
-            and rendered == markdown
+        rendered = render_affiliate_markdown(
+            markdown, link, program_link.get("destination_sha256"),
         )
-        if not in_flight and (
-            receipt.get("state") != "LIVE"
-            or receipt.get("content_sha256") != artifact.get("content_sha256")
-        ):
+        live_current = (
+            receipt.get("state") == "LIVE"
+            and receipt.get("content_sha256") == artifact.get("content_sha256")
+        )
+        pending = rendered == markdown and "previous_markdown" in artifact and not live_current
+        row = {"slug": slug}
+        if not live_current and not pending:
+            row["state"] = "SKIPPED_NOT_LIVE"
+            pages.append(row)
             continue
-        row = {
-            "slug": slug,
-            "before": page_link_stats(markdown, link),
-            "after": page_link_stats(rendered, link),
-        }
-        if rendered == markdown and not in_flight:
+        original = artifact.get("previous_markdown", markdown)
+        row["before"] = page_link_stats(original, link)
+        row["after"] = page_link_stats(rendered, link)
+        if rendered == markdown and not pending:
             row["state"] = "CURRENT"
         elif not args.apply:
-            row["state"] = "WOULD_REPUBLISH"
+            row["state"] = "PENDING_REPUBLISH" if pending else "WOULD_REPUBLISH"
         else:
-            if rendered != markdown:
-                policy_path = state / "policy" / f"{slug}.json"
-                policy = json.loads(policy_path.read_text(encoding="utf-8"))
-                old_sha256 = artifact["content_sha256"]
-                if policy.get("decision") != "PASS" or policy.get("content_sha256") != old_sha256:
-                    row["state"] = "POLICY_RECEIPT_MISMATCH"
-                    pages.append(row)
-                    continue
-                new_sha256 = hashlib.sha256(rendered.encode()).hexdigest()
-                atomic_write(artifact_path, {
-                    **artifact, "markdown": rendered, "content_sha256": new_sha256,
-                    "rendered_from_content_sha256": old_sha256,
-                })
-                atomic_write(policy_path, {
-                    **policy, "content_sha256": new_sha256,
-                    "rendered_from_content_sha256": old_sha256,
-                    "render": "AFFILIATE_PAGE_RENDER_V1",
-                })
             try:
+                if rendered != markdown:
+                    policy_path = state / "policy" / f"{slug}.json"
+                    policy = json.loads(policy_path.read_text(encoding="utf-8"))
+                    old_sha256 = artifact["content_sha256"]
+                    if policy.get("decision") != "PASS" or policy.get("content_sha256") != old_sha256:
+                        row["state"] = "POLICY_RECEIPT_MISMATCH"
+                        pages.append(row)
+                        continue
+                    new_sha256 = hashlib.sha256(rendered.encode()).hexdigest()
+                    atomic_write(artifact_path, {
+                        **artifact, "markdown": rendered, "content_sha256": new_sha256,
+                        "previous_markdown": markdown,
+                        "rendered_from_content_sha256": old_sha256,
+                    })
+                    atomic_write(policy_path, {
+                        **policy, "content_sha256": new_sha256,
+                        "rendered_from_content_sha256": old_sha256,
+                        "render": "AFFILIATE_PAGE_RENDER_V1",
+                    })
                 result = publisher(argparse.Namespace(
                     state=state, landing_root=args.landing_root, slug=slug,
                     remote=args.remote, branch=args.branch,
                     repository=args.repository, base_url=args.base_url,
                 ))
                 row["state"] = result.get("state")
-            except (PublishError, JobStateError) as error:
+            except Exception as error:  # one page never blocks the rest
                 row["state"] = "PUBLISH_FAILED"
                 row["failure_type"] = type(error).__name__
         pages.append(row)

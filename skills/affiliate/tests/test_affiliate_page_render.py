@@ -13,6 +13,8 @@ import owned_publish as module
 
 
 LINK = "https://try.elevenlabs.io/elevenlabs-discovered-voice-changer-en-1"
+DESTINATION = "https://elevenlabs.io/voice-changer"
+DEST_SHA = hashlib.sha256(DESTINATION.encode()).hexdigest()
 # Shape of the live voice-changer page: bare CTA URL, direct citation links.
 LEGACY = "\n\n".join((
     "ElevenLabs Voice Changer transforms a recording. [ElevenLabs Voice Changer](https://elevenlabs.io/voice-changer)",
@@ -31,13 +33,33 @@ class RenderAffiliateMarkdownTest(unittest.TestCase):
         rendered = module.render_affiliate_markdown(LEGACY, LINK)
         # No bare tracked URL survives outside markdown link syntax.
         self.assertNotRegex(rendered, r"(?<!\()" + re.escape(LINK))
-        self.assertTrue(anchors(rendered))
-        self.assertEqual(set(anchors(rendered)), {LINK})
+        self.assertIn(LINK, anchors(rendered))
 
-    def test_direct_merchant_links_are_rewritten_to_tracked_link(self):
-        rendered = module.render_affiliate_markdown(LEGACY, LINK)
-        self.assertNotIn("](https://elevenlabs.io", rendered)
-        self.assertNotIn("](https://www.elevenlabs.io", rendered)
+    def test_only_the_tracked_destination_is_retargeted(self):
+        rendered = module.render_affiliate_markdown(LEGACY, LINK, DEST_SHA)
+        # The product-page citation is the tracked link's own destination.
+        self.assertNotIn(f"]({DESTINATION})", rendered)
+        self.assertIn(f"[ElevenLabs Voice Changer]({LINK})", rendered)
+        # Pricing/docs citations are citations, not CTAs: text and target stay aligned.
+        self.assertIn("[ElevenLabs pricing](https://elevenlabs.io/pricing)", rendered)
+        # Without a known destination nothing is retargeted.
+        self.assertIn(f"]({DESTINATION})", module.render_affiliate_markdown(LEGACY, LINK))
+
+    def test_existing_top_disclosure_and_end_cta_are_not_duplicated(self):
+        markdown = "\n\n".join((
+            "# Title",
+            "*Disclosure: This article contains an affiliate link. If you subscribe through it, Anicca may earn a commission.*",
+            "Body.",
+            f"Disclosure: This article contains an affiliate link.",
+            f"If it fits, [try ElevenLabs here]({LINK}).",
+        ))
+        rendered = module.render_affiliate_markdown(markdown, LINK)
+        blocks = rendered.split("\n\n")
+        self.assertEqual(blocks[1], module.FULL_DISCLOSURE)
+        self.assertIn(module.CTA_TOP_MARKER, blocks[2])
+        self.assertEqual(rendered.count("Disclosure"), 2)
+        self.assertEqual(blocks[-2], f"If it fits, [try ElevenLabs here]({LINK}).")
+        self.assertNotIn("Start with the ElevenLabs Free plan", rendered)
 
     def test_disclosure_directly_precedes_top_and_end_cta(self):
         rendered = module.render_affiliate_markdown(LEGACY, LINK)
@@ -91,6 +113,9 @@ class RenderAffiliateMarkdownTest(unittest.TestCase):
 
 class RerenderLivePagesTest(unittest.TestCase):
     def write_page(self, state, slug, markdown, link, owned_state="LIVE"):
+        (state / "program-links").mkdir(parents=True, exist_ok=True)
+        (state / "program-links" / f"{link.rsplit('/', 1)[1]}.json").write_text(json.dumps(
+            {"state": "VERIFIED", "destination_sha256": DEST_SHA}))
         sha = hashlib.sha256(markdown.encode()).hexdigest()
         for folder, value in (
             ("content", {
@@ -115,13 +140,16 @@ class RerenderLivePagesTest(unittest.TestCase):
             args = Namespace(state=state, landing_root=state, apply=False, slug=None,
                              remote="origin", branch="main", repository="r", base_url="https://aniccaai.com")
             result = module.rerender(args, publisher=lambda a: calls.append(a.slug) or {"state": "LIVE"})
-            self.assertEqual([row["slug"] for row in result["pages"]], ["voice-changer"])
-            row = result["pages"][0]
+            self.assertEqual(
+                [(row["slug"], row["state"]) for row in result["pages"]],
+                [("draft", "SKIPPED_NOT_LIVE"), ("voice-changer", "WOULD_REPUBLISH")],
+            )
+            row = result["pages"][1]
             self.assertEqual(row["state"], "WOULD_REPUBLISH")
             self.assertEqual(row["before"]["tracked_anchors"], 0)
             self.assertGreaterEqual(row["after"]["tracked_anchors"], 2)
             self.assertEqual(row["before"]["direct_merchant_links"], 2)
-            self.assertEqual(row["after"]["direct_merchant_links"], 0)
+            self.assertEqual(row["after"]["direct_merchant_links"], 1)
             self.assertEqual((state / "content" / "voice-changer.json").read_bytes(), before)
             self.assertEqual(calls, [])
 
@@ -133,6 +161,7 @@ class RerenderLivePagesTest(unittest.TestCase):
             self.assertEqual(artifact["content_sha256"], hashlib.sha256(artifact["markdown"].encode()).hexdigest())
             self.assertEqual(policy["content_sha256"], artifact["content_sha256"])
             self.assertEqual(policy["decision"], "PASS")
+            self.assertEqual(artifact["previous_markdown"], LEGACY)
             module.load_artifact(state, "voice-changer")
 
             # Already rendered pages are a no-op on the next run.
@@ -140,8 +169,37 @@ class RerenderLivePagesTest(unittest.TestCase):
             (state / "owned-publications" / "voice-changer.json").write_text(json.dumps(
                 {"state": "LIVE", "content_sha256": artifact["content_sha256"]}))
             result = module.rerender(args, publisher=lambda a: calls.append(a.slug) or {"state": "LIVE"})
-            self.assertEqual(result["pages"][0]["state"], "CURRENT")
+            self.assertEqual(result["pages"][1]["state"], "CURRENT")
             self.assertEqual(calls, [])
+
+    def test_apply_continues_past_a_failed_page_and_retries_it_next_run(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            state = Path(temporary)
+            self.write_page(state, "a-page", LEGACY, LINK)
+            self.write_page(state, "b-page", LEGACY, LINK)
+            args = Namespace(state=state, landing_root=state, apply=True, slug=None,
+                             remote="origin", branch="main", repository="r", base_url="https://aniccaai.com")
+            calls = []
+
+            def flaky(a):
+                calls.append(a.slug)
+                if a.slug == "a-page":
+                    raise RuntimeError("network")
+                return {"state": "LIVE"}
+
+            result = module.rerender(args, publisher=flaky)
+            states = {row["slug"]: row["state"] for row in result["pages"]}
+            self.assertEqual(states, {"a-page": "PUBLISH_FAILED", "b-page": "LIVE"})
+            # Artifact was rewritten but the receipt still has the old hash.
+            calls.clear()
+            args.apply = False
+            dry = {row["slug"]: row["state"] for row in module.rerender(args, publisher=flaky)["pages"]}
+            self.assertEqual(dry["a-page"], "PENDING_REPUBLISH")
+            args.apply = True
+            again = {row["slug"]: row["state"] for row in module.rerender(
+                args, publisher=lambda a: calls.append(a.slug) or {"state": "LIVE"})["pages"]}
+            self.assertEqual(again["a-page"], "LIVE")
+            self.assertIn("a-page", calls)
 
 
 if __name__ == "__main__":

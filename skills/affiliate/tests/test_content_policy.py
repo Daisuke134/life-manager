@@ -50,16 +50,16 @@ class ContentPolicyTest(unittest.TestCase):
             "source_hashes": {"official": "abc"},
         }
         self.assertTrue(all(MODULE.policy_checks(artifact, {"official": "abc"}, link).values()))
-        artifact["markdown"] = markdown + "\n\n[leak](https://elevenlabs.io/pricing)"
+        artifact["markdown"] = markdown + "\n\n[other](https://try.elevenlabs.io/other)"
         artifact["content_sha256"] = MODULE.hashlib.sha256(artifact["markdown"].encode()).hexdigest()
-        self.assertFalse(MODULE.policy_checks(artifact, {"official": "abc"}, link)["no_untracked_merchant_links"])
+        self.assertFalse(MODULE.policy_checks(artifact, {"official": "abc"}, link)["one_owned_tracking_link"])
 
     def test_builders_render_tracked_page(self):
         template = (Path(__file__).parents[1] / "config" / "content" / "elevenlabs-en-v1.md").read_text()
         link = "https://try.elevenlabs.io/elevenlabs-en-1"
         markdown = MODULE.render_affiliate_markdown(template.replace("{{AFFILIATE_LINK}}", link), link)
         self.assertIn(MODULE.ATTRIBUTION, markdown)
-        self.assertNotIn("](https://elevenlabs.io", markdown)
+        self.assertEqual(markdown.count("Disclosure: This article contains an affiliate link."), 2)
 
     def test_elevenagents_x_artifact_fits_platform_limit(self):
         with tempfile.TemporaryDirectory() as temporary:

@@ -2626,7 +2626,7 @@ class LocalLoopTest(unittest.TestCase):
                 "source_set_sha256": "e" * 64, "title": "t", "buyer_intent": "b",
                 "cited_sources": [{"locator": "https://elevenlabs.io/x", "raw_sha256": "f" * 64}],
                 "owned_article_markdown": (
-                    "Intro [docs](https://elevenlabs.io/x).\n\n"
+                    "Intro [docs](https://elevenlabs.io/x) [pricing](https://elevenlabs.io/pricing).\n\n"
                     "Disclosure: This article contains an affiliate link.\n\n"
                     "Review it here: {{AFFILIATE_LINK}}"
                 ),
@@ -2653,6 +2653,7 @@ class LocalLoopTest(unittest.TestCase):
             link_acquirer = Mock(return_value={
                 "state": "VERIFIED", "deduplicated": True,
                 "private_link_field": "f", "provider_link_key": "key-2",
+                "destination_sha256": hashlib.sha256(b"https://elevenlabs.io/x").hexdigest(),
             })
             with patch.object(MODULE, "elevenlabs_link", return_value=link):
                 MODULE.advance_generic_publication(
@@ -2662,12 +2663,30 @@ class LocalLoopTest(unittest.TestCase):
                 )
             artifact = json.loads((state / "content" / f"{plan_id}-guide.json").read_text())
             markdown = artifact["markdown"]
-            self.assertNotIn("](https://elevenlabs.io", markdown)
+            # Only the tracked link's own destination is retargeted.
+            self.assertNotIn("](https://elevenlabs.io/x)", markdown)
+            self.assertIn("[pricing](https://elevenlabs.io/pricing)", markdown)
             self.assertNotRegex(markdown, r"(?<!\()" + re.escape(link))
             self.assertIn("is not sponsored by, endorsed by", markdown)
             self.assertEqual(
                 artifact["content_sha256"], hashlib.sha256(markdown.encode()).hexdigest(),
             )
+
+            # A campaign already in flight with the pre-render body stays unrendered,
+            # so its owned receipt never sees a conflicting hash.
+            raw = handoff["owned_article_markdown"].replace("{{AFFILIATE_LINK}}", link)
+            progress_path = state / "campaign-publications" / f"{plan_id}.json"
+            progress = json.loads(progress_path.read_text())
+            progress["content_sha256"] = hashlib.sha256(raw.encode()).hexdigest()
+            MODULE.atomic_json(progress_path, progress)
+            with patch.object(MODULE, "elevenlabs_link", return_value=link):
+                MODULE.advance_generic_publication(
+                    state, Path(root) / "landing", 9326, Path(root) / "private.md",
+                    owned_publisher=Mock(return_value={"state": "NOT_LIVE", "public_url": None}),
+                    x_publisher=Mock(), link_acquirer=link_acquirer,
+                )
+            artifact = json.loads((state / "content" / f"{plan_id}-guide.json").read_text())
+            self.assertEqual(artifact["markdown"], raw)
 
     def test_liveness_sweep_runs_once_per_jst_day_and_reports_a_dead_post(self):
         with tempfile.TemporaryDirectory() as root:

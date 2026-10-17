@@ -397,11 +397,15 @@ later tick reads the title and three immutable markers from the public page.
 
 Every affiliate page body passes through `owned_publish.render_affiliate_markdown`
 before its hash is sealed (generic campaigns, plans, ElevenAgents, TTS API). It
-retargets every `elevenlabs.io` markdown link to the page's tracked link, turns a
-bare tracked URL into a real link, puts the full disclosure directly before a
+turns a bare tracked URL into a real link, retargets only the citation of the
+tracked link's own destination (`destination_sha256`; pricing/docs citations
+stay direct so link text and target agree), puts the full disclosure directly before a
 CTA at the top and the end, and appends the ElevenLabs terms attribution
 statement. Rendered pages publish a merchant-free `description` for the meta
-tag. Re-render already-live pages through the same-slug revision path:
+tag. A campaign materialized before rendering keeps its sealed body until LIVE.
+Re-render already-live pages through the same-slug revision path; a failed page
+reports `PUBLISH_FAILED`, is retried as `PENDING_REPUBLISH`, and keeps
+`previous_markdown` for rollback:
 
 ```bash
 skills/affiliate/affiliate owned rerender --landing-root "$RELEASE_ROOT"          # dry-run

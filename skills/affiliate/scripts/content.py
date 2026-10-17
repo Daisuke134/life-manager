@@ -14,7 +14,7 @@ from urllib.parse import urlsplit
 
 from local_loop import elevenlabs_link
 from owned_publish import (  # noqa: F401  (ATTRIBUTION is part of this module's contract)
-    ATTRIBUTION, MARKDOWN_LINK, MERCHANT_HOST, TRACKED_HOST, render_affiliate_markdown,
+    ATTRIBUTION, TRACKED_HOST, render_affiliate_markdown,
 )
 from provider_cli import atomic_write
 
@@ -239,10 +239,6 @@ def policy_checks(artifact, source_hashes, link):
         # One distinct owned link; the rendered page repeats it at the top and end.
         "one_owned_tracking_link": bool(tracking) and parsed.scheme == "https" and parsed.hostname == TRACKED_HOST
         and set(re.findall(r"https://try\.elevenlabs\.io/[^\s)\]]*", markdown)) == {tracking},
-        "no_untracked_merchant_links": not any(
-            (urlsplit(url).hostname or "") != TRACKED_HOST and MERCHANT_HOST.match(urlsplit(url).hostname or "")
-            for _, url in MARKDOWN_LINK.findall(markdown)
-        ),
         "forbidden_claims_absent": not any(claim in lowered for claim in FORBIDDEN_CLAIMS),
     }
 
