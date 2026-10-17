@@ -302,10 +302,12 @@ def _closed_round_trips(
 def _broker_cost_summary(
     completed: Sequence[Mapping[str, Any]], evidence: Any,
 ) -> dict[str, Any]:
-    """Accept only broker receipts matching every closed owner order pair."""
+    """Validate paper execution evidence without inventing regulatory fees."""
     unknown = {
         "broker_costs_status": "unknown",
         "broker_costs_reason": "paper_cost_receipt_missing",
+        "broker_fees_status": "not_simulated",
+        "broker_slippage_status": "unknown",
         "fees_usd": None,
         "slippage_usd": None,
         "broker_cost_source_receipt_ids": [],
@@ -320,11 +322,16 @@ def _broker_cost_summary(
                 raise ValueError
             raw_ids = row.get("order_ids")
             if (row.get("provider") != "alpaca"
-                    or row.get("broker_costs_status") != "complete"
+                    or row.get("broker_costs_status") != "partial"
+                    or row.get("broker_slippage_status") != "complete"
+                    or row.get("broker_fees_status") != "not_simulated"
+                    or row.get("broker_fees_usd") is not None
+                    or row.get("broker_costs_reason") != "paper_regulatory_fees_not_simulated"
                     or row.get("owner_id") != OWNER_ID
                     or row.get("mode") != "paper" or row.get("paper") is not True
                     or not isinstance(raw_ids, list) or len(raw_ids) != 2
-                    or any(not isinstance(item, str) or not item for item in raw_ids)):
+                    or any(not isinstance(item, str) or not item for item in raw_ids)
+                    or len(set(raw_ids)) != 2):
                 raise ValueError
             order_key = tuple(sorted(raw_ids))
             if order_key in by_orders:
@@ -338,28 +345,22 @@ def _broker_cost_summary(
                     or any(not isinstance(item, str) or not item for item in receipts)
                     or len(set(receipts)) != len(receipts)):
                 raise ValueError
-            provider_readback = row.get("provider_readback")
-            if not isinstance(provider_readback, Mapping):
+            readback = row.get("provider_readback")
+            if not isinstance(readback, Mapping):
                 raise ValueError
-            fill_rows = provider_readback.get("fills")
-            fee_rows = provider_readback.get("fees")
-            quote_rows = provider_readback.get("quotes_by_fill_id")
-            account_scope = provider_readback.get("account_fill_order_ids_by_symbol_date")
+            fill_rows = readback.get("fills")
+            quote_rows = readback.get("quotes_by_fill_id")
             if (not isinstance(fill_rows, list) or not fill_rows
-                    or not isinstance(fee_rows, list) or not fee_rows
-                    or not isinstance(quote_rows, Mapping)
-                    or not isinstance(account_scope, list) or not account_scope):
+                    or not isinstance(quote_rows, Mapping)):
                 raise ValueError
             fill_ids: set[str] = set()
-            fill_order_ids: set[str] = set()
-            scope_by_fill: dict[tuple[str, str], set[str]] = {}
+            fills_by_order: dict[str, list[Mapping[str, Any]]] = {key: [] for key in raw_ids}
             readback_gross = Decimal("0")
             readback_slippage = Decimal("0")
             for fill in fill_rows:
                 if (not isinstance(fill, Mapping) or fill.get("activity_type") != "FILL"
-                        or not isinstance(fill.get("id"), str)
-                        or not isinstance(fill.get("order_id"), str)
-                        or fill.get("order_id") not in raw_ids
+                        or not isinstance(fill.get("id"), str) or not fill.get("id")
+                        or fill.get("order_id") not in fills_by_order
                         or not isinstance(fill.get("symbol"), str) or not fill.get("symbol")
                         or fill.get("side") not in {"buy", "sell"}):
                     raise ValueError
@@ -367,7 +368,6 @@ def _broker_cost_summary(
                 if fill_id in fill_ids:
                     raise ValueError
                 fill_ids.add(fill_id)
-                fill_order_ids.add(fill["order_id"])
                 quantity = _number(fill.get("qty"), positive=True)
                 price = _number(fill.get("price"), positive=True)
                 filled_at = _timestamp(fill.get("transaction_time"))
@@ -383,114 +383,75 @@ def _broker_cost_summary(
                 if quote_age < 0 or quote_age > 1 or ask < bid:
                     raise ValueError
                 midpoint = (bid + ask) / 2
-                scope_key = (
-                    fill["symbol"],
-                    filled_at.astimezone(ZoneInfo("America/New_York")).date().isoformat(),
-                )
-                scope_by_fill.setdefault(scope_key, set()).add(fill["order_id"])
-                if fill["side"] == "buy":
-                    readback_gross -= quantity * price
-                    readback_slippage += (price - midpoint) * quantity
-                else:
-                    readback_gross += quantity * price
-                    readback_slippage += (midpoint - price) * quantity
-            if fill_ids != set(quote_rows):
-                raise ValueError
-            if fill_order_ids != set(raw_ids):
-                raise ValueError
-            fee_ids: set[str] = set()
-            fee_scope: set[tuple[str, str]] = set()
-            readback_fees = Decimal("0")
-            for fee in fee_rows:
-                if (not isinstance(fee, Mapping) or fee.get("activity_type") != "FEE"
-                        or not isinstance(fee.get("id"), str)
-                        or not isinstance(fee.get("symbol"), str)
-                        or not isinstance(fee.get("date"), str)):
-                    raise ValueError
-                if fee["id"] in fee_ids:
-                    raise ValueError
-                fee_ids.add(fee["id"])
-                scope_key = (fee["symbol"], fee["date"])
-                if scope_key not in scope_by_fill:
-                    raise ValueError
-                fee_scope.add(scope_key)
-                fee_amount = _number(fee.get("net_amount"))
-                if fee_amount >= 0:
-                    raise ValueError
-                readback_fees -= fee_amount
-            if fee_scope != set(scope_by_fill):
-                raise ValueError
-            scope_from_readback: dict[tuple[str, str], set[str]] = {}
-            for scope in account_scope:
-                scope_ids = scope.get("order_ids") if isinstance(scope, Mapping) else None
-                symbol = scope.get("symbol") if isinstance(scope, Mapping) else None
-                day = scope.get("date") if isinstance(scope, Mapping) else None
-                if (not isinstance(symbol, str) or not symbol or not isinstance(day, str)
-                        or not isinstance(scope_ids, list) or not scope_ids
-                        or any(not isinstance(value, str) or not value for value in scope_ids)):
-                    raise ValueError
-                scope_key = (symbol, day)
-                if scope_key in scope_from_readback or len(scope_ids) != len(set(scope_ids)):
-                    raise ValueError
-                scope_from_readback[scope_key] = set(scope_ids)
-            if scope_from_readback != scope_by_fill:
+                direction = Decimal("1") if fill["side"] == "sell" else Decimal("-1")
+                readback_gross += direction * quantity * price
+                readback_slippage += direction * (midpoint - price) * quantity
+                fills_by_order[fill["order_id"]].append(fill)
+            if fill_ids != set(quote_rows) or any(not fills for fills in fills_by_order.values()):
                 raise ValueError
             quote_receipt_ids = {
                 f"alpaca-quote:{fill_id}:{quote.get('t')}"
                 for fill_id, quote in quote_rows.items() if isinstance(quote, Mapping)
             }
-            if set(receipts) != fill_ids | fee_ids | quote_receipt_ids:
+            if set(receipts) != fill_ids | quote_receipt_ids:
                 raise ValueError
             gross = _number(row.get("broker_gross_pnl_usd"))
-            fees = _number(row.get("broker_fees_usd"))
             slippage = _number(row.get("broker_slippage_usd"))
-            if (fees < 0
-                    or abs(gross - readback_gross) > Decimal("0.000001")
-                    or abs(fees - readback_fees) > Decimal("0.000001")
+            if (abs(gross - readback_gross) > Decimal("0.000001")
                     or abs(slippage - readback_slippage) > Decimal("0.000001")):
                 raise ValueError
             by_orders[order_key] = {
-                **dict(row),
-                "_gross": gross,
-                "_fees": fees,
-                "_slippage": slippage,
-                "_receipts": receipts,
+                **dict(row), "_gross": gross, "_slippage": slippage,
+                "_receipts": receipts, "_fills_by_order": fills_by_order,
             }
         expected_keys = []
         for trip in completed:
             order_ids = trip.get("order_ids")
+            orders = trip.get("orders")
             period_start = trip.get("period_start")
             if (not isinstance(order_ids, list) or len(order_ids) != 2
                     or any(not isinstance(item, str) or not item for item in order_ids)
+                    or not isinstance(orders, list) or len(orders) != 2
                     or not isinstance(period_start, str)):
                 raise ValueError
             key = tuple(sorted(order_ids))
             row = by_orders.get(key)
             if row is None:
                 raise ValueError
-            observed_at = _timestamp(row.get("observed_at"))
-            closed_at = _timestamp(trip.get("closed_at"))
-            if (observed_at < closed_at
-                    or _timestamp(row.get("period_start"))
-                    != _timestamp(trip.get("period_start"))):
+            if (len({order.get("id") for order in orders}) != 2
+                    or {order.get("id") for order in orders} != set(key)):
                 raise ValueError
-            if abs(row["_gross"] - _number(trip.get("gross_pnl_usd"))) > Decimal("0.000001"):
+            for order in orders:
+                fills = row["_fills_by_order"][order["id"]]
+                if any(fill["symbol"] != order.get("symbol")
+                       or fill["side"] != order.get("side") for fill in fills):
+                    raise ValueError
+                quantity = sum((_number(fill["qty"], positive=True) for fill in fills), Decimal("0"))
+                notional = sum((_number(fill["qty"]) * _number(fill["price"])
+                                for fill in fills), Decimal("0"))
+                if (quantity != _number(order.get("filled_qty"), positive=True)
+                        or abs(notional / quantity - _number(order.get("filled_avg_price"), positive=True))
+                        > Decimal("0.000001")):
+                    raise ValueError
+            if (_timestamp(row.get("observed_at")) < _timestamp(trip.get("closed_at"))
+                    or _timestamp(row.get("period_start")) != _timestamp(period_start)
+                    or abs(row["_gross"] - _number(trip.get("gross_pnl_usd"))) > Decimal("0.000001")):
                 raise ValueError
             expected_keys.append(key)
         if set(expected_keys) != set(by_orders):
             raise ValueError
-        receipt_ids = [receipt_id for row in by_orders.values()
-                       for receipt_id in row["_receipts"]]
+        receipt_ids = [receipt_id for row in by_orders.values() for receipt_id in row["_receipts"]]
         if len(receipt_ids) != len(set(receipt_ids)):
             raise ValueError
-        fees_total = sum((row["_fees"] for row in by_orders.values()), Decimal("0"))
         slippage_total = sum((row["_slippage"] for row in by_orders.values()), Decimal("0"))
-    except (KeyError, TypeError, ValueError, ArithmeticError):
+    except (AttributeError, KeyError, TypeError, ValueError, ArithmeticError):
         return {**unknown, "broker_costs_reason": "paper_cost_receipt_mismatch"}
     return {
-        "broker_costs_status": "complete",
-        "broker_costs_reason": None,
-        "fees_usd": str(fees_total),
+        "broker_costs_status": "partial",
+        "broker_costs_reason": "paper_regulatory_fees_not_simulated",
+        "broker_fees_status": "not_simulated",
+        "broker_slippage_status": "complete",
+        "fees_usd": None,
         "slippage_usd": str(slippage_total),
         "broker_cost_source_receipt_ids": receipt_ids,
     }
@@ -523,16 +484,18 @@ def build_paper_performance(
         all_source_ids = [*source_ids, *cost_source_ids]
         if len(all_source_ids) != len(set(all_source_ids)):
             raise ValueError("paper_receipt_duplicate")
-        unknown_costs = (["model", "system"] if broker_costs["broker_costs_status"] == "complete"
+        unknown_costs = (["fees", "model", "system"] if broker_costs["broker_slippage_status"] == "complete"
                          else ["fees", "slippage", "model", "system"])
         return {
             "completed_round_trips": len(completed),
             "completed_round_trips_total": len(completed),
             "broker_costs_status": broker_costs["broker_costs_status"],
             "broker_costs_reason": broker_costs["broker_costs_reason"],
+            "broker_fees_status": broker_costs["broker_fees_status"],
+            "broker_slippage_status": broker_costs["broker_slippage_status"],
             "broker_costs_errors": [],
             "broker_cost_source_receipt_ids": cost_source_ids,
-            "costs_status": ("partial" if broker_costs["broker_costs_status"] == "complete"
+            "costs_status": ("partial" if broker_costs["broker_slippage_status"] == "complete"
                              else "unknown"),
             "fees_usd": broker_costs["fees_usd"],
             "funding_or_borrow_usd": None,
@@ -625,7 +588,7 @@ def _broker_cost_cache(
             if (isinstance(cached, dict)
                     and sorted(cached.get("order_ids", [])) == sorted(order_ids)):
                 cached_summary = _broker_cost_summary([trip], [cached])
-                if cached_summary["broker_costs_status"] == "complete":
+                if cached_summary["broker_slippage_status"] == "complete":
                     evidence.append(cached)
                     continue
             invalid_cached_receipt = True
@@ -667,7 +630,8 @@ def _broker_cost_cache(
             receipt = reader(orders=orders, period_start=period_start)
             if (not isinstance(receipt, Mapping)
                     or sorted(receipt.get("order_ids", [])) != sorted(order_ids)
-                    or receipt.get("broker_costs_status") != "complete"):
+                    or receipt.get("broker_costs_status") != "partial"
+                    or receipt.get("broker_slippage_status") != "complete"):
                 raise ValueError("paper_cost_receipt_invalid")
             if (receipt.get("owner_id") not in (None, OWNER_ID)
                     or receipt.get("mode") not in (None, "paper")
@@ -676,7 +640,7 @@ def _broker_cost_cache(
             normalized = {
                 **dict(receipt), "owner_id": OWNER_ID, "mode": "paper", "paper": True,
             }
-            if (_broker_cost_summary([trip], [normalized])["broker_costs_status"]
+            if (_broker_cost_summary([trip], [normalized])["broker_slippage_status"]
                     != "complete"):
                 raise ValueError("paper_cost_receipt_invalid")
             _atomic_json(receipt_path, normalized)
@@ -769,12 +733,14 @@ def write_paper_performance(
             account_receipt_id,
             *daily_cost_source_ids,
         ]
-        unknown_costs = (["model", "system"]
-                         if daily_broker_costs["broker_costs_status"] == "complete"
+        unknown_costs = (["fees", "model", "system"]
+                         if daily_broker_costs["broker_slippage_status"] == "complete"
                          else ["fees", "slippage", "model", "system"])
         result = {
             **result,
             "broker_costs_status": daily_broker_costs["broker_costs_status"],
+            "broker_fees_status": daily_broker_costs["broker_fees_status"],
+            "broker_slippage_status": daily_broker_costs["broker_slippage_status"],
             "broker_costs_reason": (
                 daily_cost_errors[0]["reason"] if daily_cost_errors
                 else daily_broker_costs["broker_costs_reason"]
@@ -783,7 +749,7 @@ def write_paper_performance(
             "broker_costs_errors": daily_cost_errors,
             "completed_round_trips": len(daily_rounds),
             "completed_round_trips_total": len(completed),
-            "costs_status": ("partial" if daily_broker_costs["broker_costs_status"] == "complete"
+            "costs_status": ("partial" if daily_broker_costs["broker_slippage_status"] == "complete"
                              else "unknown"),
             "fees_usd": daily_broker_costs["fees_usd"],
             "gross_exposure_usd": str(daily_exposure),

@@ -14601,6 +14601,10 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **IN-COST-01実行順更新:** 旧順序=`21取引日の自然exit → 最初のround tripの費用照合`。新順序=`(1) 既存の費用連携PR #7768を最新mainへ追従 → (2) investor関連の回帰検証と独立した金融read-only review → (3) 対象commitのCI、main統合、immutable release、Local paper ownerへの反映 → (4) 自然HOLD runで注文なし・no-effect契約を維持 → (5) 既存21取引日のqualified exitを自然に迎える → (6) 同じowner/order pair/periodのFILL・FEE・quoteとmodel/systemの公式実費証拠を照合 → (7) cost-complete netと30件・holdout・cross-venue・AT-24/AT-29・replay-zeroの既存gate`。理由は、mainにbroker費用連携がなく、既存PR #7768が未統合だったため。自然exitの待機中にこの依存を閉じれば、売却後の評価を早められる。**現在cursor:** PR #7768の既存branchを専用worktreeへ復元し、main `505cd67f`を通常merge済み。実装の所有範囲は同PRのAlpaca CLI、paper performance、run接続、対応testと本正本。broker費用を照合してもmodel/system費用はnullのままで、complete netや利益、LIVE昇格を主張しない。
 
+**IN-COST-01受入更新:** [Alpaca公式のPaper vs Live](https://docs.alpaca.markets/us/docs/paper-trading)は、paperが規制手数料や遅延によるslippageを再現しないと説明する。存在しないpaper FEEを必須にして待ち続ける設計は採らない。paper adapterは公式FILLと約定以前のconsolidated quoteを照合し、取得できたexecution slippageを示す。手数料は`null / not_simulated`、broker費用全体は`partial`、netとmodel/system費用は引き続きnull。quote欠落はunknown、既存の限定retryを維持する。保存レシートはorder IDと合計損益だけでなく、各orderのsymbol・side・数量・加重平均価格を元のowner台帳と一致させる。paperで取得できない手数料を0や実費へ置換せず、complete netとLIVE昇格の既存gateは維持する。
+
+**IN-COST-01 source検証:** paper FEE欠落でexecution readbackが止まるケースと、合計P&Lを変えずFILL/quote価格だけを差し替えたケースの2件をREDで確認。規制手数料をnullのままexecution evidenceをpartialとして保存し、各orderの元の約定と一致するか確認する修正後、投資関連278 testはPASS。`lm-loop-contract`は18 loops / 194 jobs / 0 errors、`git diff --check`はPASS。独立レビュー、対象commitのCI、main統合、release/adoption、自然実行は未完。paperにはまだclosed round tripがないため、稼働上の費用計算や利益の証明とは扱わない。
+
 **戦略検証の診断:** 最後の失敗は10月14日の`ENOSPC`で、`reviewed-validation-reports.json`のatomic writeに失敗したもの。現在の選択戦略は10月21日05:47Zまで有効。loaded plistは`Weekday=2 / 14:30`を保持し、macOSの`launchd.plist`定義（0と7が日曜）により次の火曜の自然実行を待つ。手動の戦略再実行や注文は行わない。
 
 ### 2026-10-09 13:18 JST — Job Hunter Dreamwork cutover and updated user criteria

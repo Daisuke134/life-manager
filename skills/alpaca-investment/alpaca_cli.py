@@ -27,7 +27,6 @@ LIVE_ENDPOINT = "https://api.alpaca.markets/v2"
 ETF_DAILY_SYMBOLS = ("SPY", "QQQ", "IWM", "DIA", "EFA", "EEM", "TLT", "GLD")
 ETF_DAILY_LOOKBACK_SESSIONS = 127
 ETF_HISTORY_MAX_CALENDAR_DAYS = 90
-PAPER_EQUITY_FEE_SUBTYPES = frozenset({"CAT", "COM", "REG", "TAF"})
 MAX_CREDENTIAL_BYTES = 1_048_576
 MAX_OUTPUT_BYTES = 64 * 1024
 MAX_MULTI_BARS_OUTPUT_BYTES = 512 * 1024
@@ -134,7 +133,7 @@ def read_paper_etf_cost_evidence(
     *, credentials_path: Path, cli_path: Path,
     orders: list[Mapping[str, Any]], period_start: str,
 ) -> dict[str, Any]:
-    """Join one paper ETF round trip to official FILL, FEE, and historical quote rows."""
+    """Measure paper execution slippage; regulatory fees are not simulated."""
     if (not isinstance(orders, list) or len(orders) != 2
             or not isinstance(period_start, str)):
         raise ValueError("paper_cost_orders_invalid")
@@ -175,9 +174,7 @@ def read_paper_etf_cost_evidence(
             raise ValueError
     except (KeyError, TypeError, ValueError) as error:
         raise ValueError("paper_cost_period_invalid") from error
-    eastern = ZoneInfo("America/New_York")
-    scan_start = datetime.combine(start.astimezone(eastern).date(), time.min, eastern)
-    after = scan_start.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    after = start.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
     until = observed.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
     def activities(kind: str, query: str) -> list[dict[str, Any]]:
@@ -208,7 +205,6 @@ def read_paper_etf_cost_evidence(
         "FILL", "[.[]|{id,activity_type,order_id,symbol,side,qty,price,transaction_time}]",
     )
     fills_by_order: dict[str, list[dict[str, Any]]] = {order_id: [] for order_id in expected}
-    account_order_ids: dict[tuple[str, str], set[str]] = {}
     seen_fill_ids: set[str] = set()
     try:
         for row in all_fills:
@@ -222,11 +218,9 @@ def read_paper_etf_cost_evidence(
                     or not isinstance(symbol, str) or not symbol
                     or side not in {"buy", "sell"} or not qty.is_finite() or qty <= 0
                     or not price.is_finite() or price <= 0
-                    or filled_at < scan_start or filled_at > observed):
+                    or filled_at < start or filled_at > observed):
                 raise ValueError
             seen_fill_ids.add(row_id)
-            day = filled_at.astimezone(ZoneInfo("America/New_York")).date().isoformat()
-            account_order_ids.setdefault((symbol, day), set()).add(order_id)
             if order_id in expected:
                 if filled_at < start:
                     raise ValueError
@@ -248,68 +242,6 @@ def read_paper_etf_cost_evidence(
                 raise ValueError
     except (InvalidOperation, KeyError, TypeError, ValueError) as error:
         raise ValueError("paper_cost_fill_mismatch") from error
-
-    target_keys = {
-        (row["symbol"], parse_instant(row["transaction_time"])
-         .astimezone(ZoneInfo("America/New_York")).date().isoformat())
-        for rows in fills_by_order.values() for row in rows
-    }
-    target_days = {day for _symbol, day in target_keys}
-    observed_day = observed.astimezone(ZoneInfo("America/New_York")).date().isoformat()
-    if not target_days or observed_day <= max(target_days):
-        raise ValueError("paper_fee_settlement_pending")
-    fee_rows = activities(
-        "FEE", "[.[]|{id,activity_type,activity_sub_type,symbol,date,net_amount}]",
-    )
-    target_order_ids = set(expected)
-    for key in target_keys:
-        if not account_order_ids.get(key) or not account_order_ids[key] <= target_order_ids:
-            raise ValueError("paper_fee_attribution_ambiguous")
-    seen_fee_ids: set[str] = set()
-    fees_by_key: dict[tuple[str, str], list[dict[str, Any]]] = {}
-    try:
-        for row in fee_rows:
-            row_id = row.get("id")
-            raw_day = row.get("date")
-            symbol = row.get("symbol")
-            if (row.get("activity_type") != "FEE" or not isinstance(row_id, str)
-                    or not row_id or row_id in seen_fee_ids
-                    or not isinstance(raw_day, str)):
-                raise ValueError
-            seen_fee_ids.add(row_id)
-            try:
-                day = (datetime.strptime(raw_day, "%Y-%m-%d").date().isoformat()
-                       if len(raw_day) == 10 else parse_instant(raw_day)
-                       .astimezone(ZoneInfo("America/New_York")).date().isoformat())
-            except ValueError as error:
-                raise ValueError("paper_fee_activity_invalid") from error
-            if day not in target_days:
-                continue
-            if not isinstance(symbol, str) or not symbol:
-                raise ValueError("paper_fee_attribution_ambiguous")
-            key = (symbol, day)
-            if key not in target_keys:
-                continue
-            if row.get("activity_sub_type") not in PAPER_EQUITY_FEE_SUBTYPES:
-                raise ValueError("paper_fee_activity_type_unsupported")
-            amount = Decimal(str(row.get("net_amount")))
-            if not amount.is_finite() or amount >= 0:
-                raise ValueError
-            fees_by_key.setdefault(key, []).append({
-                "id": row_id, "activity_type": "FEE",
-                "activity_sub_type": row.get("activity_sub_type"),
-                "symbol": symbol, "date": day, "net_amount": str(amount),
-            })
-        if any(not fees_by_key.get(key) for key in target_keys):
-            raise ValueError("paper_fee_activity_missing")
-    except (InvalidOperation, KeyError, TypeError, ValueError) as error:
-        reason = str(error)
-        if reason in {
-            "paper_fee_attribution_ambiguous", "paper_fee_activity_missing",
-            "paper_fee_settlement_pending",
-        }:
-            raise
-        raise ValueError("paper_fee_activity_invalid") from error
 
     quotes_by_fill_id: dict[str, dict[str, str]] = {}
     try:
@@ -366,31 +298,24 @@ def read_paper_etf_cost_evidence(
         midpoint = (Decimal(quote["bp"]) + Decimal(quote["ap"])) / 2
         quantity, price = Decimal(row["qty"]), Decimal(row["price"])
         slippage += ((price - midpoint) if row["side"] == "buy" else (midpoint - price)) * quantity
-    fees = sum((-Decimal(row["net_amount"]) for rows in fees_by_key.values() for row in rows),
-               Decimal("0"))
-    relevant_fee_rows = [row for rows in fees_by_key.values() for row in rows]
-    account_fill_scope = [
-        {"symbol": symbol, "date": day, "order_ids": sorted(account_order_ids[(symbol, day)])}
-        for symbol, day in sorted(target_keys)
-    ]
     source_ids = [*[row["id"] for rows in fills_by_order.values() for row in rows],
-                  *[row["id"] for row in relevant_fee_rows],
                   *[f"alpaca-quote:{fill_id}:{row['t']}"
                     for fill_id, row in quotes_by_fill_id.items()]]
     if len(source_ids) != len(set(source_ids)):
         raise ValueError("paper_cost_receipt_duplicate")
     return {
-        "broker_fees_usd": str(fees),
+        "broker_fees_usd": None,
+        "broker_fees_status": "not_simulated",
         "broker_gross_pnl_usd": str(sell_notional - buy_notional),
         "broker_slippage_usd": format(slippage.normalize(), "f"),
-        "broker_costs_status": "complete",
+        "broker_slippage_status": "complete",
+        "broker_costs_status": "partial",
+        "broker_costs_reason": "paper_regulatory_fees_not_simulated",
         "observed_at": clock["timestamp"],
         "order_ids": sorted(expected),
         "period_start": start.isoformat().replace("+00:00", "Z"),
         "provider": "alpaca",
         "provider_readback": {
-            "account_fill_order_ids_by_symbol_date": account_fill_scope,
-            "fees": relevant_fee_rows,
             "fills": target_fills,
             "quotes_by_fill_id": quotes_by_fill_id,
         },

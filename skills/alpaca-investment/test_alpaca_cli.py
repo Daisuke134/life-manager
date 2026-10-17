@@ -269,17 +269,9 @@ class PaperEtfCostEvidenceTests(unittest.TestCase):
          "symbol": "QQQ", "side": "sell", "qty": "0.025", "price": "410",
          "transaction_time": "2026-09-29T14:31:10Z"},
     ]
-    fees = [
-        {"id": "fee-cat", "activity_type": "FEE", "activity_sub_type": "CAT",
-         "symbol": "QQQ", "date": "2026-09-29", "net_amount": "-0.01"},
-        {"id": "fee-taf", "activity_type": "FEE", "activity_sub_type": "TAF",
-         "symbol": "QQQ", "date": "2026-09-29", "net_amount": "-0.02"},
-    ]
-
-    def _read(self, *, fills=None, fees=None, missing_quote=False, observed_at=None,
+    def _read(self, *, fills=None, missing_quote=False, observed_at=None,
               quote_next_page_token=None, calls=None):
         fills = self.fills if fills is None else fills
-        fees = self.fees if fees is None else fees
         observed_at = self.observed_at if observed_at is None else observed_at
 
         def run(_cli, args, _env):
@@ -289,8 +281,6 @@ class PaperEtfCostEvidenceTests(unittest.TestCase):
                 return {"timestamp": observed_at}
             if args[:2] == ["account", "activity"] and "FILL" in args:
                 return fills
-            if args[:2] == ["account", "activity"] and "FEE" in args:
-                return fees
             if args[:2] == ["data", "quotes"]:
                 if missing_quote:
                     return {"quotes": [], "next_page_token": quote_next_page_token}
@@ -311,59 +301,44 @@ class PaperEtfCostEvidenceTests(unittest.TestCase):
             )
         return value, context, cli_run
 
-    def test_paper_readback_joins_exact_fills_fees_and_quotes(self):
+    def test_paper_readback_joins_exact_fills_and_quotes(self):
         value, context, cli_run = self._read()
 
         context.assert_called_once_with(Path("credentials"), Path("alpaca"), mode="paper")
-        self.assertEqual(value["broker_costs_status"], "complete")
+        self.assertEqual(value["broker_costs_status"], "partial")
         self.assertEqual(value["provider"], "alpaca")
         self.assertEqual(value["broker_gross_pnl_usd"], "0.250")
-        self.assertEqual(value["broker_fees_usd"], "0.03")
+        self.assertIsNone(value["broker_fees_usd"])
         self.assertEqual(value["broker_slippage_usd"], "0")
         self.assertEqual(set(value["order_ids"]), {"buy-order", "sell-order"})
         self.assertEqual(set(value["source_receipt_ids"]), {
-            "fill-buy", "fill-sell", "fee-cat", "fee-taf",
+            "fill-buy", "fill-sell",
             "alpaca-quote:fill-buy:2026-09-29T14:31:05Z",
             "alpaca-quote:fill-sell:2026-09-29T14:31:10Z",
         })
-        self.assertIn("sip", cli_run.call_args_list[3].args[1])
-        self.assertIn("next_page_token", cli_run.call_args_list[3].args[1][-1])
+        self.assertIn("sip", cli_run.call_args_list[2].args[1])
+        self.assertIn("next_page_token", cli_run.call_args_list[2].args[1][-1])
 
-    def test_fee_is_unknown_when_other_account_fill_shares_symbol_and_day(self):
+    def test_execution_readback_ignores_other_account_orders(self):
         foreign = {
             "id": "foreign-fill", "activity_type": "FILL", "order_id": "other-order",
             "symbol": "QQQ", "side": "buy", "qty": "1", "price": "400",
             "transaction_time": "2026-09-29T14:32:00Z",
         }
-        with self.assertRaisesRegex(ValueError, "^paper_fee_attribution_ambiguous$"):
-            self._read(fills=[*self.fills, foreign])
+        value, _context, _run = self._read(fills=[*self.fills, foreign])
+        self.assertNotIn("foreign-fill", value["source_receipt_ids"])
+        self.assertEqual(value["broker_gross_pnl_usd"], "0.250")
 
-    def test_fee_attribution_scans_the_full_et_day_before_period_start(self):
-        foreign = {
-            "id": "earlier-foreign-fill", "activity_type": "FILL",
-            "order_id": "other-order", "symbol": "QQQ", "side": "buy",
-            "qty": "1", "price": "400",
-            "transaction_time": "2026-09-29T13:30:00Z",
-        }
-
+    def test_execution_activity_scan_starts_at_the_owner_period(self):
         calls = []
-        with self.assertRaisesRegex(ValueError, "^paper_fee_attribution_ambiguous$"):
-            self._read(fills=[foreign, *self.fills], calls=calls)
+        self._read(calls=calls)
         fill_call = next(
             args for args in calls
             if args[:2] == ["account", "activity"] and "FILL" in args
         )
         self.assertEqual(
             fill_call[fill_call.index("--after") + 1],
-            "2026-09-29T04:00:00Z",
-        )
-        fee_call = next(
-            args for args in calls
-            if args[:2] == ["account", "activity"] and "FEE" in args
-        )
-        self.assertEqual(
-            fee_call[fee_call.index("--after") + 1],
-            "2026-09-29T04:00:00Z",
+            "2026-09-29T14:30:00Z",
         )
 
     def test_missing_historical_quote_fails_closed(self):
@@ -374,18 +349,24 @@ class PaperEtfCostEvidenceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "^paper_cost_quote_pages_incomplete$"):
             self._read(quote_next_page_token="more-quotes")
 
-    def test_missing_fee_receipt_fails_closed(self):
-        with self.assertRaisesRegex(ValueError, "^paper_fee_activity_missing$"):
-            self._read(fees=[])
+    def test_paper_fee_gap_does_not_prevent_execution_slippage_readback(self):
+        calls = []
+        try:
+            value, _context, _run = self._read(calls=calls)
+        except ValueError as error:
+            self.fail(f"paper fee gap blocked execution readback: {error}")
 
-    def test_untyped_fee_activity_is_not_assigned_to_the_etf_round_trip(self):
-        fees = [dict(row, activity_sub_type=None) for row in self.fees]
-        with self.assertRaisesRegex(ValueError, "^paper_fee_activity_invalid$"):
-            self._read(fees=fees)
+        self.assertEqual(value["broker_costs_status"], "partial")
+        self.assertEqual(value["broker_slippage_status"], "complete")
+        self.assertEqual(value["broker_fees_status"], "not_simulated")
+        self.assertIsNone(value["broker_fees_usd"])
+        self.assertEqual(value["broker_slippage_usd"], "0")
+        self.assertFalse(any("FEE" in args for args in calls))
 
-    def test_fee_readback_waits_for_the_trade_day_end(self):
-        with self.assertRaisesRegex(ValueError, "^paper_fee_settlement_pending$"):
-            self._read(observed_at="2026-09-29T20:00:00Z")
+    def test_execution_readback_does_not_wait_for_unsimulated_fee_settlement(self):
+        value, _context, _run = self._read(observed_at="2026-09-29T20:00:00Z")
+        self.assertEqual(value["broker_slippage_status"], "complete")
+        self.assertIsNone(value["broker_fees_usd"])
 
 if __name__ == "__main__":
     unittest.main()
