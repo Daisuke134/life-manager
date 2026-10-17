@@ -30,6 +30,18 @@ LINEAGE_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
 URL_RE = re.compile(r"https?://[^\s<>\]\[()\"']+")
 
 
+def safe_variant_id(value: str) -> str:
+    """Return a lineage-safe variant_id; derive a stable ASCII id from any other value.
+
+    The model derives variant_id from the title, so a Japanese title yields Unicode
+    (2026-10-18 run 20261017-150256 refused every pair). The frozen draft is untouched;
+    each publisher copy carries the derived id and its receipt records it.
+    """
+    if not value or LINEAGE_ID_RE.fullmatch(value):
+        return value
+    return "v-" + _sha256_bytes(value.encode("utf-8"))[:16]
+
+
 class PublisherCTAError(ValueError):
     """A publisher-specific CTA cannot be proven from the frozen source."""
 
@@ -168,6 +180,8 @@ def _rewrite_one_cta(
     fields: dict[str, str] = {}
     for field in CTA_FIELDS:
         values = [value for key, value in pairs if key == field]
+        if len(values) == 1 and field == "variant_id":
+            values = [safe_variant_id(values[0])]
         if len(values) != 1 or not LINEAGE_ID_RE.fullmatch(values[0]):
             raise PublisherCTAError(f"CTA {field} is missing, duplicated, or unsafe")
         fields[field] = values[0]
@@ -199,6 +213,11 @@ def _rewrite_one_cta(
             replaced += 1
             raw_value = quote(publisher_click_id, safe="-_.~")
             new_parts.append(f"{raw_key}{separator or '='}{raw_value}")
+        elif (
+            unquote_plus(raw_key) == "variant_id"
+            and unquote_plus(raw_value) != fields["variant_id"]
+        ):
+            new_parts.append(f"{raw_key}={quote(fields['variant_id'], safe='-_.~:')}")
         else:
             new_parts.append(raw_part)
     if replaced != 1:

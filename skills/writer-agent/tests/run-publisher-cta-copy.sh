@@ -15,6 +15,7 @@ mkdir -p "$SKILL/scripts/_shared" "$TMP/repo/skills/_shared/lib" \
 cp "$ROOT/skills/writer-agent/scripts/run.sh" "$SKILL/scripts/run.sh"
 cp "$ROOT/skills/writer-agent/scripts/writer-runtime-env.sh" "$SKILL/scripts/writer-runtime-env.sh"
 cp "$ROOT/skills/writer-agent/scripts/publisher_cta_copy.py" "$SKILL/scripts/publisher_cta_copy.py"
+cp "$ROOT/skills/writer-agent/scripts/publication_contract.py" "$SKILL/scripts/publication_contract.py"
 
 cat >"$SKILL/scripts/quality-phase-terminal.py" <<'PY'
 import json, os, sys
