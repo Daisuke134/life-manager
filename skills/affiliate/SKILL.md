@@ -356,6 +356,22 @@ It joins a row to one LIVE owned placement by sub-ID/shared-ID or tracking-link
 fingerprint. Zero or multiple candidates remain explicit `UNMATCHED` or
 `AMBIGUOUS`; raw tracking links and customer PII never enter the ledger.
 
+`revenue net` reuses the CFO actual-cost adapter when
+`LM_CFO_ACTUAL_COST_READBACK` or `LM_CFO_ACTUAL_COST` names its existing
+sanitized official billing readback. It imports only verified receipts
+explicitly allocated to `product_loop_id=affiliate` into the Affiliate-private
+actual-billed cost ledger, deduplicates by receipt identity, and binds the net
+receipt to the cost ledger hash and official evidence references. Cost coverage
+is complete only when every Affiliate trailing-coverage row is complete for the
+full 30-day window; stale, missing, conflicting, or unsupported-currency input
+keeps net unknown. The CFO's invoice-level billed-but-unpaid projection stays
+outside this ledger until its source provides explicit Affiliate allocation;
+those invoices keep coverage unknown. The natural wake's terminal event carries
+the cost ledger hash, coverage hash, and official evidence references. The raw
+billing readback is never copied into Affiliate state. If neither environment
+variable is set, the net
+calculation keeps cost coverage unknown.
+
 The 10-minute local wake invokes `observe → capture → reconcile` only when the
 provider is authenticated and its independent one-hour revenue cooldown is due.
 The cooldown receipt is written after all three commands succeed; a partial
