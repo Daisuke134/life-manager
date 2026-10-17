@@ -989,6 +989,8 @@ def _verified_no_effect_result(path: Path, loop_id: str, occurrence_id: str,
     elif entrypoint == "skills/earn/marketing-engine/intel/treg-lead-signals-weekly":
         allowed_reasons = {"baseline_established", "no_new_signals", "balance_floor"}
     elif entrypoint == "skills/alpaca-investment/run.py":
+        if loop_id not in {"alpaca-investment-paper", "alpaca-investment-live"}:
+            return None
         allowed_reasons = {"no_broker_order_submitted"}
     else:
         allowed_reasons = {"no_due_slot", "daily_limit_reached"}
