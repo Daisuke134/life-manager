@@ -1,14 +1,49 @@
 "use strict";
 const assert = require("node:assert/strict"); const fs = require("node:fs"); const os = require("node:os"); const path = require("node:path"); const test = require("node:test");
 const crypto = require("node:crypto");
-const { TARGETS, discoverTarget, discoverTargets, runDue } = require("./tiktok-metrics-due.js");
+const { TARGETS, discoverTarget, discoverTargets, runDue, snapshotFile } = require("./tiktok-metrics-due.js");
+const { postizAnalytics } = require("./tiktok-native-metrics-read.js");
 const { JA_JP1_TIKTOK_LANE, verifyMarketingNativeCarouselPublicationReceipt } = require("../lib/marketing-native-carousel-publication-adapter.js");
 const EXPECTED = { tenant_id: "dais-local", product_id: "anicca-ios", locale: "ja", account_id: "@anicca.jp4", native_owner: "anicca.jp4", integration_id: "cmn8x8hdv028uqx0y4gdfse5t", provider_post_id: "cmt328uot00s2qk0y23e8ptii", shortcode: "7676495865816632583", video_id: "7676495865816632583", public_url: "https://www.tiktok.com/@anicca.jp4/video/7676495865816632583", caption: "今すぐやれ", published_at: "2026-08-21T14:46:13.240Z" };
 
-test("JP4 due loop reports delayed and daily once while true 24h stays pending", async () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-jp4-due-")); let sends = 0; const env = { LM_DATA_DIR: dataDir, LM_TELEGRAM_BOT_TOKEN: "fake", LM_TELEGRAM_ALERT_CHAT_ID: "fake" };
+test("TikTok due runner leaves no snapshot when the local Telegram credential is unavailable", async (t) => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-tiktok-no-telegram-"));
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "lm-tiktok-no-credentials-"));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+  const expected = { ...EXPECTED, published_at: "2026-10-14T22:00:00.000Z" };
+  const nowMs = Date.parse(expected.published_at) + 2 * 3600_000;
+  const results = await runDue(nowMs, { HOME: home, LM_DATA_DIR: dataDir }, [expected]);
+  const checkpoint = results.find((row) => row.video_id === expected.video_id && row.window === "2h");
+  assert.equal(checkpoint.state, "source_unavailable");
+  assert.match(checkpoint.error, /local_telegram_credential_unavailable/);
+  assert.equal(fs.existsSync(snapshotFile(dataDir, expected, "2h")), false);
+});
+
+test("missed TikTok windows and per-post daily snapshots stay local while true 24h stays pending", async (t) => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-jp4-due-")); t.after(() => fs.rmSync(dataDir, { recursive: true, force: true })); let sends = 0; const env = { LM_DATA_DIR: dataDir, LM_TELEGRAM_BOT_TOKEN: "fake", LM_TELEGRAM_ALERT_CHAT_ID: "fake" };
   const originalFetch = global.fetch; global.fetch = async () => ({ ok: true, json: async () => ({ ok: true, result: { message_id: ++sends } }) });
-  try { const now = Date.parse(EXPECTED.published_at) + 18.5 * 3600_000; const first = await runDue(now, env, [EXPECTED]); assert.equal(first.find((row) => row.window === "2h").state, "source_delayed"); assert.equal(first.find((row) => row.window === "24h").state, "pending"); assert.equal(first.find((row) => row.window === "daily").state, "reported"); assert.equal(sends, 2); const replay = await runDue(now, env, [EXPECTED]); assert.equal(replay.find((row) => row.window === "2h").state, "complete"); assert.equal(replay.find((row) => row.window === "daily").state, "complete"); assert.equal(sends, 2); } finally { global.fetch = originalFetch; }
+  try { const now = Date.parse(EXPECTED.published_at) + 18.5 * 3600_000; const first = await runDue(now, env, [EXPECTED]); assert.equal(sends, 0); assert.equal(first.find((row) => row.window === "2h").state, "checkpoint_missed"); assert.equal(first.find((row) => row.window === "24h").state, "pending"); assert.equal(first.find((row) => row.window === "daily").state, "persisted"); const replay = await runDue(now, env, [EXPECTED]); assert.equal(replay.find((row) => row.window === "2h").state, "checkpoint_missed"); assert.equal(replay.find((row) => row.window === "daily").state, "complete"); assert.equal(sends, 0); } finally { global.fetch = originalFetch; }
+});
+
+test("TikTok metrics ignore publications older than the existing 30-day retention window", async (t) => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-tiktok-metrics-age-")); t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const old = { ...EXPECTED, published_at: "2026-08-01T00:00:00.000Z" };
+  const result = await runDue(Date.parse("2026-10-12T00:00:00.000Z"), { LM_DATA_DIR: dataDir }, [old]);
+  assert.deepEqual(result, []);
+  assert.equal(fs.existsSync(path.join(dataDir, "tenants", old.tenant_id, "marketing", "metrics")), false);
+});
+
+test("Postiz analytics uses the day range for each TikTok metric checkpoint", async () => {
+  const originalFetch = global.fetch; const requested = [];
+  global.fetch = async (url) => { requested.push(new URL(url).searchParams.get("date")); return { ok: true, json: async () => [] }; };
+  try {
+    for (const [window, days] of [["2h", "1"], ["24h", "1"], ["72h", "3"], ["7d", "7"]]) {
+      requested.length = 0;
+      await postizAnalytics({ integrationId: "integration-id", providerPostId: "post-id", window }, { LM_POSTIZ_API_KEY: "test-only" });
+      assert.deepEqual(requested, [days, days]);
+    }
+  } finally { global.fetch = originalFetch; }
 });
 
 test("discovery keeps verified Honne EN and JA relationship-confession lanes isolated", () => {
@@ -169,6 +204,12 @@ test("Postiz-only carousel metrics stay pending when the API has not populated p
 test("Postiz carousel metrics use the exact published permalink in the snapshot and Telegram report", async (t) => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-tiktok-photo-permalink-"));
   t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const home = path.join(dataDir, "test-home");
+  const credentialsFile = path.join(home, ".local", "share", "anicca", "credentials.json");
+  fs.mkdirSync(path.dirname(credentialsFile), { recursive: true });
+  fs.writeFileSync(credentialsFile, JSON.stringify({ credentials: [
+    { service: "telegram-life-manager", bot_token: "local-token-fixture", chat_id: "local-chat-fixture" },
+  ] }));
   const photoUrl = "https://www.tiktok.com/@anicca.jpx/photo/7695154487559851270";
   const expected = {
     ...EXPECTED,
@@ -196,12 +237,14 @@ test("Postiz carousel metrics use the exact published permalink in the snapshot 
   ];
   const originalFetch = global.fetch;
   let telegramText = "";
+  let telegramBotUrl = "";
   global.fetch = async (url, init = {}) => {
     const address = String(url);
     if (address.includes("/analytics/post/")) return { ok: true, json: async () => postRows };
     if (address.includes("/analytics/")) return { ok: true, json: async () => accountRows };
     if (address.includes("/posts?")) return { ok: true, json: async () => listedPosts };
     if (address.includes("api.telegram.org") && address.includes("/sendMessage")) {
+      telegramBotUrl = address;
       telegramText = JSON.parse(init.body).text;
       return { ok: true, json: async () => ({ ok: true, result: { message_id: 2 } }) };
     }
@@ -210,15 +253,18 @@ test("Postiz carousel metrics use the exact published permalink in the snapshot 
   try {
     const now = Date.parse("2026-10-10T23:45:00.000Z");
     const result = await runDue(now, {
+      HOME: home,
       LM_DATA_DIR: dataDir,
       LM_POSTIZ_API_KEY: "test-only",
-      LM_TELEGRAM_BOT_TOKEN: "fake",
-      LM_TELEGRAM_ALERT_CHAT_ID: "fake",
+      LM_TELEGRAM_BOT_TOKEN: "cloud-token-fixture",
+      LM_TELEGRAM_ALERT_CHAT_ID: "cloud-chat-fixture",
     }, [expected]);
     const twoHour = result.find((row) => row.window === "2h");
     assert.equal(twoHour.state, "measured");
     const snapshot = JSON.parse(fs.readFileSync(path.join(dataDir, "tenants", expected.tenant_id, "marketing", "metrics", expected.native_owner, expected.shortcode, "2h.combined.json"), "utf8"));
     assert.equal(snapshot.public_url, photoUrl);
+    assert.match(telegramBotUrl, /local-token-fixture/);
+    assert.equal(telegramBotUrl.includes("cloud-token-fixture"), false);
     assert.match(telegramText, new RegExp(photoUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 
     const profileOnlyURL = "https://www.tiktok.com/@anicca_buddha";
@@ -234,21 +280,24 @@ test("Postiz carousel metrics use the exact published permalink in the snapshot 
     listedPosts = [{ id: profileExpected.provider_post_id, state: "PUBLISHED", integration: { id: profileExpected.integration_id }, releaseURL: profileOnlyURL }];
     telegramText = "";
     await runDue(now, {
+      HOME: home,
       LM_DATA_DIR: dataDir,
       LM_POSTIZ_API_KEY: "test-only",
-      LM_TELEGRAM_BOT_TOKEN: "fake",
-      LM_TELEGRAM_ALERT_CHAT_ID: "fake",
+      LM_TELEGRAM_BOT_TOKEN: "cloud-token-fixture",
+      LM_TELEGRAM_ALERT_CHAT_ID: "cloud-chat-fixture",
     }, [profileExpected]);
     const profileSnapshot = JSON.parse(fs.readFileSync(path.join(dataDir, "tenants", profileExpected.tenant_id, "marketing", "metrics", profileExpected.native_owner, profileExpected.shortcode, "2h.combined.json"), "utf8"));
     assert.equal(profileSnapshot.public_url, "unavailable");
-    assert.match(telegramText, /投稿リンク未取得/);
+    assert.match(telegramText, /投稿リンクは取得できませんでした/);
     assert.equal(telegramText.includes(profileOnlyURL), false);
+    assert.match(telegramBotUrl, /local-token-fixture/);
+    assert.equal(telegramBotUrl.includes("cloud-token-fixture"), false);
   } finally {
     global.fetch = originalFetch;
   }
 });
 
-test("delayed Postiz photo metrics still report an exact available permalink", async (t) => {
+test("delayed Postiz photo metrics persist an exact permalink without a per-post Telegram send", async (t) => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-tiktok-photo-delayed-link-"));
   t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
   const photoUrl = "https://www.tiktok.com/@anicca.jpx/photo/7695154487559851270";
@@ -288,11 +337,115 @@ test("delayed Postiz photo metrics still report an exact available permalink", a
       LM_TELEGRAM_ALERT_CHAT_ID: "fake",
     }, [expected]);
     const twoHour = result.find((row) => row.window === "2h");
-    assert.equal(twoHour.state, "source_delayed");
+    assert.equal(twoHour.state, "checkpoint_missed");
     const snapshot = JSON.parse(fs.readFileSync(path.join(dataDir, "tenants", expected.tenant_id, "marketing", "metrics", expected.native_owner, expected.shortcode, "2h.combined.json"), "utf8"));
     assert.equal(snapshot.public_url, photoUrl);
     assert.equal(snapshot.post.views.status, "unavailable");
-    assert.ok(telegramText.includes(photoUrl));
+    assert.equal(telegramText, "");
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test("missing Honne weekly data stays unavailable and does not stop Anicca metrics", async (t) => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-metrics-product-isolation-"));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const reportDay = "2026-10-12";
+  const attributionRoot = path.join(dataDir, "tenants/dais-local/marketing/attribution");
+  for (const [relative, value] of [
+    [`asc/${reportDay}/acquisition.json`, { report_day: reportDay, products: [], rows: [] }],
+    [`revenuecat/${reportDay}/subscriptions.json`, { report_day: reportDay, products: [] }],
+    [`coverage/${reportDay}/summary.json`, { report_key: `attribution-${reportDay}`, products: [], message: "fixture coverage unavailable" }],
+  ]) {
+    const file = path.join(attributionRoot, relative);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify(value));
+  }
+  const aniccaSummaryDir = path.join(dataDir, "tenants/dais-local/marketing/metrics/summaries/anicca-ios/daily");
+  fs.mkdirSync(aniccaSummaryDir, { recursive: true });
+  fs.writeFileSync(path.join(aniccaSummaryDir, `${reportDay}.json`), JSON.stringify({
+    schema_version: 1,
+    kind: "marketing_product_metric_summary",
+    period: "daily",
+    report_key: reportDay,
+    observed_at: "2026-10-12T13:30:00.000Z",
+    product_id: "anicca-ios",
+    source_status: "partial",
+    source_refs: [],
+    message: "Anicca source is available",
+  }));
+
+  const target = TARGETS[0];
+  const caption = "毎日届く言葉で心を軽くする";
+  const captionSha = crypto.createHash("sha256").update(caption).digest("hex");
+  const captionFile = path.join(dataDir, "objects", "sha256", captionSha);
+  fs.mkdirSync(path.dirname(captionFile), { recursive: true });
+  fs.writeFileSync(captionFile, caption, { mode: 0o600 });
+  const videoId = "7695990000000000003";
+  const publicUrl = `https://www.tiktok.com/@${target.account_id.slice(1)}/video/${videoId}`;
+  const distributionRow = {
+    ts: "2026-10-12T13:50:00.000Z",
+    platform: "tiktok",
+    status: "published",
+    provider_reconciled: true,
+    format_id: target.format_id,
+    form: target.form,
+    locale: target.locale,
+    provider_id: "cmetricsvideo20261012",
+    public_url: publicUrl,
+    caption_path: captionFile,
+    caption_sha256: captionSha,
+  };
+  const ledger = path.join(dataDir, "tenants/dais-local/marketing/video-publication/anicca-ios/distribution.jsonl");
+  fs.mkdirSync(path.dirname(ledger), { recursive: true });
+  fs.writeFileSync(ledger, `${JSON.stringify(distributionRow)}\n`);
+
+  const metricFile = path.join(dataDir, "tenants/dais-local/marketing/metrics", target.native_owner, videoId, "2h.combined.json");
+  fs.mkdirSync(path.dirname(metricFile), { recursive: true });
+  fs.writeFileSync(metricFile, JSON.stringify({
+    schema_version: 1,
+    kind: "tiktok_combined_metric_snapshot",
+    tenant_id: "dais-local",
+    product_id: "anicca-ios",
+    locale: target.locale,
+    account_id: target.account_id,
+    native_owner: target.native_owner,
+    provider_post_id: distributionRow.provider_id,
+    shortcode: videoId,
+    video_id: videoId,
+    public_url: publicUrl,
+    caption,
+    published_at: distributionRow.ts,
+    window: "2h",
+    observed_at: "2026-10-12T14:30:00.000Z",
+    caption_sha256: captionSha,
+    sources: { tiktok_native: { status: "measured" }, postiz_post: { status: "measured" } },
+    post: { views: { status: "measured", value: 9 } },
+    account_metrics: { status: "unavailable", reason: "provider_field_missing" },
+  }));
+
+  const originalFetch = global.fetch;
+  let telegramId = 0;
+  global.fetch = async (url) => {
+    if (String(url).startsWith("https://api.telegram.org/")) return { ok: true, json: async () => ({ ok: true, result: { message_id: ++telegramId } }) };
+    throw new Error(`unexpected network request in isolated metrics test: ${url}`);
+  };
+  try {
+    const results = await runDue(Date.parse("2026-10-12T14:30:00.000Z"), {
+      LM_DATA_DIR: dataDir,
+      LM_TELEGRAM_BOT_TOKEN: "fake",
+      LM_TELEGRAM_ALERT_CHAT_ID: "fake",
+    });
+    assert.equal(results.find((row) => row.window === "weekly-product").state, "partial");
+    assert.equal(results.find((row) => row.product_id === "honne-ai" && row.window === "daily-product").state, "unavailable");
+    assert.equal(results.find((row) => row.product_id === "anicca-ios" && row.window === "daily-product").state, "partial");
+    assert.equal(results.find((row) => row.video_id === videoId && row.window === "2h").state, "complete");
+    const weekly = JSON.parse(fs.readFileSync(path.join(dataDir, "tenants/dais-local/marketing/metrics/summaries/mobile-marketing/weekly/2026-W42.json"), "utf8"));
+    assert.equal(weekly.source_status, "partial");
+    assert.deepEqual(weekly.unavailable_products, ["honne-ai"]);
+    const honne = JSON.parse(fs.readFileSync(path.join(dataDir, "tenants/dais-local/marketing/metrics/summaries/honne-ai/daily", `${reportDay}.json`), "utf8"));
+    assert.equal(honne.source_status, "unavailable");
+    assert.match(honne.message, /取得不可/);
   } finally {
     global.fetch = originalFetch;
   }

@@ -56,7 +56,8 @@ def test_watchdog_dispatches_to_governor_without_touching_worktrees_or_simulator
     fake_python = tmp_path / "python-capture"
     fake_python.write_text(
         '#!/bin/sh\nprintf "%s\\n" "$@" > "$CAPTURE_ARGS"\n'
-        'printf "%s\\n" "${LIFE_MANAGER_DISK_INVENTORY_FAST:-}" > "$CAPTURE_FAST"\n',
+        'printf "%s\\n" "${LIFE_MANAGER_DISK_INVENTORY_FAST:-}" > "$CAPTURE_FAST"\n'
+        'printf "%s\\n" "${LIFE_MANAGER_DISK_WATCHDOG:-}" > "$CAPTURE_WATCHDOG"\n',
         encoding="utf-8",
     )
     fake_python.chmod(0o755)
@@ -65,11 +66,14 @@ def test_watchdog_dispatches_to_governor_without_touching_worktrees_or_simulator
         "LIFE_MANAGER_RUNTIME_PYTHON": str(fake_python),
         "CAPTURE_ARGS": str(capture),
         "CAPTURE_FAST": str(tmp_path / "fast.txt"),
+        "CAPTURE_WATCHDOG": str(tmp_path / "watchdog.txt"),
     }
+    env.pop("LIFE_MANAGER_DISK_INVENTORY_FAST", None)
 
     subprocess.run(["/bin/sh", str(release / "bin/disk-watchdog.sh")], env=env, check=True)
 
-    assert (tmp_path / "fast.txt").read_text().strip() == "1"
+    assert (tmp_path / "fast.txt").read_text().strip() == ""
+    assert (tmp_path / "watchdog.txt").read_text().strip() == "1"
     captured = capture.read_text(encoding="utf-8").splitlines()
     assert captured[:2] == ["-B", "-c"]
     assert captured[-3:] == [
@@ -115,7 +119,8 @@ def test_watchdog_pins_release_and_bounds_stdio_without_blocking_recovery(
     governor.write_text(
         "import json,os,sys\nfrom pathlib import Path\n"
         f"Path({str(marker)!r}).write_text(json.dumps({{'release':str(Path(__file__).parents[3]),"
-        "'args':sys.argv[1:],'fast':os.environ.get('LIFE_MANAGER_DISK_INVENTORY_FAST')}))\n"
+        "'args':sys.argv[1:],'fast':os.environ.get('LIFE_MANAGER_DISK_INVENTORY_FAST'),"
+        "'watchdog':os.environ.get('LIFE_MANAGER_DISK_WATCHDOG')}))\n"
         "os.write(1,b'x'*32768+b'out-tail\\n')\n"
         "os.write(2,b'e'*32768+b'err-tail\\n')\n"
         "raise SystemExit(23)\n"
@@ -143,7 +148,8 @@ def test_watchdog_pins_release_and_bounds_stdio_without_blocking_recovery(
     assert json.loads(marker.read_text()) == {
         "release": str(release),
         "args": ["--home", str(home), "--state-dir", str(home / ".local/state/life-manager/state")],
-        "fast": "1",
+        "fast": None,
+        "watchdog": "1",
     }
     for stream in ("out", "err"):
         assert (logs / f"watchdog.{stream}.log").read_text() == f"legacy-{stream}\n"
@@ -327,3 +333,47 @@ def test_installer_updates_only_stable_watchdog_label(tmp_path: Path) -> None:
     assert readback_calls.read_text(encoding="utf-8").splitlines()[-1] == (
         f"print {domain}/com.anicca.disk-watchdog"
     )
+
+
+def _run_ballast(tmp_path: Path, free_kb: int, *, existing: bool, size: str | None = "4k") -> Path:
+    home = tmp_path / "home"
+    release = home / "loops/releases/fixture-main"
+    (release / "skills/self/disk-cleanup").mkdir(parents=True)
+    (release / "skills/self/disk-cleanup/disk_cleanup.py").write_text("# fake\n", encoding="utf-8")
+    (release / "bin").mkdir()
+    shutil.copy2(WATCHDOG, release / "bin/disk-watchdog.sh")
+    ballast = home / ".local/state/life-manager/disk-ballast"
+    ballast.parent.mkdir(parents=True)
+    if existing:
+        ballast.write_bytes(b"x")
+    fake_python = tmp_path / "python-noop"
+    fake_python.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    fake_python.chmod(0o755)
+    env = {"HOME": str(home), "LIFE_MANAGER_RUNTIME_PYTHON": str(fake_python),
+           "LIFE_MANAGER_DISK_FREE_KB": str(free_kb)}
+    if size is not None:
+        env["LIFE_MANAGER_BALLAST_SIZE"] = size
+    subprocess.run(["/bin/sh", str(release / "bin/disk-watchdog.sh")], env=env, check=True)
+    return ballast
+
+
+def test_ballast_is_released_when_free_space_is_critical(tmp_path: Path) -> None:
+    assert not _run_ballast(tmp_path, 3 * 1024 * 1024 - 1, existing=True).exists()
+
+
+def test_ballast_is_kept_between_floor_and_recreate_threshold(tmp_path: Path) -> None:
+    assert _run_ballast(tmp_path, 10 * 1024 * 1024, existing=True).exists()
+    assert not _run_ballast(tmp_path / "b", 10 * 1024 * 1024, existing=False).exists()
+
+
+def test_ballast_is_recreated_when_free_space_is_ample(tmp_path: Path) -> None:
+    assert _run_ballast(tmp_path, 25 * 1024 * 1024 + 1, existing=False).stat().st_size == 4096
+
+
+def test_ballast_is_never_allocated_without_installed_size(tmp_path: Path) -> None:
+    assert not _run_ballast(tmp_path, 25 * 1024 * 1024 + 1, existing=False, size=None).exists()
+
+
+def test_installed_watchdog_plist_sets_ballast_size() -> None:
+    plist = plistlib.loads(WATCHDOG_PLIST.read_bytes())
+    assert plist["EnvironmentVariables"]["LIFE_MANAGER_BALLAST_SIZE"] == "8g"

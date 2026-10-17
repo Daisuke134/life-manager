@@ -199,12 +199,12 @@ run_fleet_apply() {
   local state_dir="${LIFE_MANAGER_RELEASE_RECONCILER_STATE_ROOT:-$HOME/.local/state/life-manager/release-reconciler}"
   local state_path="$state_dir/fleet-apply-state.json"
   local log_path="$state_dir/fleet-apply.jsonl"
-  mkdir -p "$state_dir"
+  mkdir -p "$state_dir" || return 1
 
   local last_sha last_status last_next_retry last_ok_epoch last_attempt_epoch
-  local last_budget_progress_continue last_release_superseded
+  local last_budget_progress_continue last_release_superseded last_control_busy_continue
   IFS=$'\t' read -r last_sha last_status last_next_retry last_ok_epoch last_attempt_epoch \
-    last_budget_progress_continue last_release_superseded < <(
+    last_budget_progress_continue last_release_superseded last_control_busy_continue < <(
     FLEET_APPLY_STATE_PATH="$state_path" "$runtime_python" - <<'PY'
 import json, os
 path = os.environ["FLEET_APPLY_STATE_PATH"]
@@ -251,7 +251,8 @@ else:
         and next_retry > 0
     )
 release_superseded = data.get("release_superseded") is True
-print(f"{sha}\t{status}\t{next_retry}\t{last_ok_epoch}\t{last_attempt_epoch}\t{int(budget_progress_continue)}\t{int(release_superseded)}")
+control_busy_continue = data.get("control_busy_continue") is True
+print(f"{sha}\t{status}\t{next_retry}\t{last_ok_epoch}\t{last_attempt_epoch}\t{int(budget_progress_continue)}\t{int(release_superseded)}\t{int(control_busy_continue)}")
 PY
   )
 
@@ -270,10 +271,11 @@ PY
     local last_try_epoch="${last_ok_epoch:-0}"
     [ "${last_attempt_epoch:-0}" -gt "$last_try_epoch" ] && last_try_epoch="$last_attempt_epoch"
     local coalesce_until_epoch="$((last_try_epoch + min_interval_seconds))"
-    # Budget progress or a superseded release may record a shorter retry window than the
+    # Healthy progress or a deferred release may record a shorter retry window than the
     # ordinary SHA coalescing interval; honor that deadline when the activated SHA changes.
     if { [ "${last_budget_progress_continue:-0}" = "1" ] \
-      || [ "${last_release_superseded:-0}" = "1" ]; } \
+      || [ "${last_release_superseded:-0}" = "1" ] \
+      || [ "${last_control_busy_continue:-0}" = "1" ]; } \
       && [ "${last_next_retry:-0}" -gt 0 ] \
       && [ "${last_next_retry:-0}" -lt "$coalesce_until_epoch" ]; then
       coalesce_until_epoch="$last_next_retry"
@@ -312,7 +314,7 @@ PY
   # same apply to a file finished in 298s). The output file is also the evidence for a failure.
   local output_path="$state_dir/fleet-apply-last-output.log"
   local owners_log_path="$state_dir/fleet-apply-owners.jsonl"
-  : >"$output_path"
+  : >"$output_path" || return 1
 
   # One `apply --all` call waits on every owner in one process; a single stuck owner (or the
   # reconciler's own label, which `apply --all` skips as "already owned" by itself) hangs the
@@ -325,7 +327,7 @@ PY
   local changed=0 skipped=0 errors=0
   local already_owned=0 budget_exceeded=0 release_superseded=0
   local superseding_sha="" observed_release_sha=""
-  local timed_out_owners="" apply_message=""
+  local timed_out_owners="" control_busy_owners="" apply_message=""
 
   # Cheap pre-check before spawning `lm-loop apply`: an owner whose loaded plist already carries
   # the target sha needs no apply at all (per-owner apply costs 5-15s even as a no-op, 60-120s for
@@ -334,28 +336,37 @@ PY
   # apply, and push owners that errored or timed out on a previous attempt for this same sha to the
   # end of the queue so a repeatedly-stuck owner cannot starve the rest of the fleet.
   local plan_path
-  plan_path="$(mktemp "$state_dir/.fleet-apply-plan.XXXXXX")"
+  plan_path="$(mktemp "$state_dir/.fleet-apply-plan.XXXXXX")" || return 1
   FLEET_APPLY_REGISTRY_PATH="$registry_path" FLEET_APPLY_OWNERS_LOG_PATH="$owners_log_path" \
     FLEET_APPLY_OWN_LOOP_ID="$own_loop_id" FLEET_APPLY_SHA="$release_sha" \
-    "$runtime_python" - >"$plan_path" <<'PY'
-import json, os, plistlib
+    PYTHONPATH="$SCRIPT_ROOT" \
+    "$runtime_python" - >"$plan_path" <<'PY' || { rm -f "$plan_path"; return 1; }
+import fcntl, json, os, plistlib
 from pathlib import Path
+from runtime.loop.runtime_event import rotate_jsonl_locked
 
 registry_path = os.environ["FLEET_APPLY_REGISTRY_PATH"]
 owners_log_path = os.environ["FLEET_APPLY_OWNERS_LOG_PATH"]
+# Only rows for the sha being applied matter below; this single writer (the reconciler, under
+# its fleet lock) bounds the log before reading it. It had grown to 30 MB.
+if os.path.isfile(owners_log_path):
+    descriptor = os.open(owners_log_path, os.O_RDWR | os.O_APPEND)
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        rotate_jsonl_locked(descriptor, Path(owners_log_path), int(os.environ.get(
+            "LIFE_MANAGER_FLEET_APPLY_OWNERS_MAX_BYTES", 32 * 1024 * 1024)), keep_archives=1)
+    finally:
+        os.close(descriptor)
 own_loop_id = os.environ.get("FLEET_APPLY_OWN_LOOP_ID", "")
 release_sha = os.environ["FLEET_APPLY_SHA"]
 agents_dir = Path(os.environ.get(
     "LIFE_MANAGER_LAUNCH_AGENTS_DIR", "~/Library/LaunchAgents")).expanduser()
 
-try:
-    with open(registry_path, encoding="utf-8") as handle:
-        registry = json.load(handle)
-except (OSError, ValueError):
-    registry = {}
-loops = registry.get("loops") or {}
-if not isinstance(loops, dict):
-    loops = {}
+with open(registry_path, encoding="utf-8") as handle:
+    registry = json.load(handle)
+if not isinstance(registry, dict) or not isinstance(registry.get("loops"), dict):
+    raise ValueError("invalid fleet registry loops")
+loops = registry["loops"]
 
 # The most recent owners-log row per loop_id for this exact sha decides whether that owner
 # errored or timed out last time; a later successful retry for the same sha must not still be
@@ -385,6 +396,10 @@ prev_failed = {
 
 def apply_order(loop_id):
     entry = loops[loop_id] if isinstance(loops.get(loop_id), dict) else {}
+    # Cleanup/recovery adoption must not depend on the business workload it supports.
+    control_plane_rank = 0 if (
+        entry.get("domain") == "system" and entry.get("system_role") == "control"
+    ) else 1
     # Mobile publishing owns the user's current acquisition goal; keep its scheduled lanes
     # inside the bounded fleet budget before unrelated owner work.
     mobile_distribution_rank = 0 if (
@@ -400,7 +415,7 @@ def apply_order(loop_id):
         entry.get("priority"), 3
     )
     admission_rank = {"revenue": 0, "borrow": 1}.get(entry.get("admission_class"), 2)
-    return mobile_distribution_rank, domain_rank, priority_rank, admission_rank, loop_id
+    return control_plane_rank, mobile_distribution_rank, domain_rank, priority_rank, admission_rank, loop_id
 
 skip_current, clean, failed_last = [], [], []
 for loop_id in sorted(loops.keys(), key=apply_order):
@@ -449,7 +464,7 @@ PY
       skipped=$((skipped + 1))
       FLEET_APPLY_OWNERS_LOG_PATH="$owners_log_path" FLEET_APPLY_SHA="$release_sha" \
         FLEET_APPLY_OWNER_LOOP_ID="$loop_id" \
-        "$runtime_python" - <<'PY'
+        "$runtime_python" - <<'PY' || { rm -f "$plan_path"; return 1; }
 import json, os
 from datetime import datetime, timezone
 record = {
@@ -487,7 +502,8 @@ PY
     fi
 
     local owner_output_path owner_started owner_rc owner_output owner_seconds
-    owner_output_path="$(mktemp "$state_dir/.fleet-apply-owner-output.XXXXXX")"
+    owner_output_path="$(mktemp "$state_dir/.fleet-apply-owner-output.XXXXXX")" \
+      || { rm -f "$plan_path"; return 1; }
     owner_started="$(date -u +%s)"
     owner_rc=0
     LIFE_MANAGER_RELEASE_ROOT="$release_root" LIFE_MANAGER_APPLY_TARGET="$loop_id" \
@@ -499,7 +515,7 @@ PY
     {
       printf '=== owner %s (rc=%s, %ss) ===\n' "$loop_id" "$owner_rc" "$owner_seconds"
       cat "$owner_output_path"
-    } >>"$output_path"
+    } >>"$output_path" || { rm -f "$owner_output_path" "$plan_path"; return 1; }
     rm -f "$owner_output_path"
 
     local owner_changed=0 owner_skipped=0 owner_errors=0 owner_skip_reason=""
@@ -543,7 +559,7 @@ try:
     result = json.load(sys.stdin)
 except (ValueError, TypeError):
     sys.exit(1)
-sys.exit(0 if result == {
+sys.exit(0 if isinstance(result, dict) and result.get("ok") is False and result == {
     "ok": False,
     "error": "release is no longer current",
 } else 1)
@@ -553,23 +569,28 @@ sys.exit(0 if result == {
       owner_skipped=1
       skipped=$((skipped + owner_skipped))
       owner_skip_reason="release-superseded"
-    elif [ "$owner_rc" -eq 1 ] && printf '%s' "$owner_output" | "$runtime_python" -c '
+    elif [ "$owner_rc" -eq 1 ] && owner_skip_reason="$(printf '%s' "$owner_output" | "$runtime_python" -c '
 import json, sys
 try:
     result = json.load(sys.stdin)
 except (ValueError, TypeError):
     sys.exit(1)
-sys.exit(0 if result == {
-    "ok": False,
-    "error": "admission rebind refused: effect_unknown",
-} else 1)
-' 2>/dev/null; then
-      # A single owner's unresolved external-effect fence must keep that owner on its old release,
-      # but it must not turn an otherwise successful fleet pass into a fleet-wide failure. Match
-      # the exact structured refusal; text containing effect_unknown is not enough to skip.
+for error, reason in (
+    ("admission rebind refused: effect_unknown", "effect-unknown-fence"),
+    ("admission rebind refused: control_busy", "admission-control-busy"),
+):
+    if isinstance(result, dict) and result.get("ok") is False and result == {"ok": False, "error": error}:
+        print(reason)
+        sys.exit(0)
+sys.exit(1)
+' 2>/dev/null)"; then
+      # Exact pre-apply refusals preserve the owner's release and fences. Busy control must
+      # remain partial and retry; it is not proof that this owner adopted the release.
       owner_skipped=1
       skipped=$((skipped + owner_skipped))
-      owner_skip_reason="effect-unknown-fence"
+      if [ "$owner_skip_reason" = "admission-control-busy" ]; then
+        control_busy_owners="${control_busy_owners:+$control_busy_owners,}$loop_id"
+      fi
     elif [ "$owner_rc" -eq 124 ]; then
       errors=$((errors + 1))
       timed_out_owners="${timed_out_owners:+$timed_out_owners,}$loop_id"
@@ -582,7 +603,7 @@ sys.exit(0 if result == {
       FLEET_APPLY_OWNER_SECONDS="$owner_seconds" FLEET_APPLY_OWNER_CHANGED="$owner_changed" \
       FLEET_APPLY_OWNER_SKIPPED="$owner_skipped" \
       FLEET_APPLY_OWNER_SKIP_REASON="$owner_skip_reason" \
-      "$runtime_python" - <<'PY'
+      "$runtime_python" - <<'PY' || { rm -f "$plan_path"; return 1; }
 import json, os
 from datetime import datetime, timezone
 record = {
@@ -633,6 +654,9 @@ PY
   elif [ "$errors" -gt 0 ]; then
     status="error"
     message="one or more owner applies failed"
+  elif [ -n "$control_busy_owners" ]; then
+    status="partial"
+    message="control busy owners: $control_busy_owners"
   else
     status="ok"
     message=""
@@ -656,6 +680,13 @@ PY
       budget_progress_continue=1
     fi
   fi
+  local control_busy_continue=0
+  if [ "$status" = "partial" ] && [ "$release_superseded" -eq 0 ] \
+    && [ -n "$control_busy_owners" ] && [ "$errors" -eq 0 ] \
+    && [ -z "$timed_out_owners" ]; then
+    control_busy_continue=1
+    next_retry_epoch=$((now_epoch + ${LIFE_MANAGER_FLEET_APPLY_CONTINUE_SECONDS:-300}))
+  fi
   local new_last_ok_epoch="${last_ok_epoch:-0}"
   [ "$status" = "ok" ] && new_last_ok_epoch="$now_epoch"
 
@@ -664,9 +695,10 @@ PY
     FLEET_APPLY_CHANGED="$changed" FLEET_APPLY_SKIPPED="$skipped" FLEET_APPLY_ERRORS="$errors" \
     FLEET_APPLY_MESSAGE="$message" FLEET_APPLY_NEXT_RETRY="$next_retry_epoch" \
     FLEET_APPLY_BUDGET_PROGRESS_CONTINUE="$budget_progress_continue" \
+    FLEET_APPLY_CONTROL_BUSY_CONTINUE="$control_busy_continue" \
     FLEET_APPLY_RELEASE_SUPERSEDED="$release_superseded_continue" \
     FLEET_APPLY_LAST_OK_EPOCH="$new_last_ok_epoch" \
-    "$runtime_python" - <<'PY'
+    "$runtime_python" - <<'PY' || return 1
 import json, os, time
 record = {
     "sha": os.environ["FLEET_APPLY_SHA"],
@@ -678,6 +710,7 @@ record = {
     "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     "next_retry_epoch": int(os.environ["FLEET_APPLY_NEXT_RETRY"]),
     "budget_progress_continue": os.environ["FLEET_APPLY_BUDGET_PROGRESS_CONTINUE"] == "1",
+    "control_busy_continue": os.environ["FLEET_APPLY_CONTROL_BUSY_CONTINUE"] == "1",
     "release_superseded": os.environ["FLEET_APPLY_RELEASE_SUPERSEDED"] == "1",
     "last_ok_epoch": int(os.environ["FLEET_APPLY_LAST_OK_EPOCH"]),
 }
@@ -694,7 +727,15 @@ PY
     "$release_sha" "$status" "$changed" "$skipped" "$errors" \
     "${message:+ message=\"$message\"}" >&2
 
-  { [ "$status" = "error" ] || [ "$status" = "partial" ]; } && return 1
+  # A healthy deferred tick succeeds while fleet convergence stays partial in the journal.
+  # Real failures remain nonzero even if control was busy or current changed later.
+  { [ "$errors" -gt 0 ] || [ -n "$timed_out_owners" ] || [ "$status" = "error" ]; } && return 1
+  if [ "$status" = "partial" ] && [ "$budget_progress_continue" -ne 1 ] \
+    && [ "$control_busy_continue" -ne 1 ]; then
+    [ "$release_superseded_continue" -eq 1 ] \
+      && [[ "$superseding_sha" =~ ^[0-9a-f]{40}$ ]] \
+      && [ "$superseding_sha" != "$release_sha" ] || return 1
+  fi
   return 0
 }
 
@@ -711,13 +752,13 @@ schedule_self_handoff() {
   local launchctl_safe="$release_root/bin/launchctl-safe"
   [ -x "$helper_script" ] || { printf 'agent-runner self-handoff: helper missing in release\n' >&2; return 1; }
   [ -x "$launchctl_safe" ] || { printf 'agent-runner self-handoff: launchctl-safe missing in release\n' >&2; return 1; }
-  mkdir -p "$handoff_dir"
-  chmod 700 "$handoff_dir"
-  mkdir -p "$(dirname "$installed_plist")"
+  mkdir -p "$handoff_dir" || return 1
+  chmod 700 "$handoff_dir" || return 1
+  mkdir -p "$(dirname "$installed_plist")" || return 1
 
   LIFE_MANAGER_RUNTIME_PYTHON="$runtime_python" PYTHONPATH="$release_root" \
     "$runtime_python" - "$release_root" "$target_plist_tmp" "$installed_plist" \
-    "$helper_plist" "$helper_script" "$launchctl_safe" "$receipt_path" "$helper_label" "$$" <<'PY'
+    "$helper_plist" "$helper_script" "$launchctl_safe" "$receipt_path" "$helper_label" "$$" <<'PY' || return 1
 import json, os, plistlib, sys, tempfile
 from pathlib import Path
 from runtime.loop.lm_loop_apply import _plist, _preserve_operational_attributes
@@ -786,7 +827,7 @@ PY
     printf 'agent-runner self-handoff: helper already loaded for release %s\n' "$release_sha" >&2
     return 0
   fi
-  "$SCRIPT_ROOT/bin/launchctl-safe" bootstrap "gui/$(id -u)" "$helper_plist"
+  "$SCRIPT_ROOT/bin/launchctl-safe" bootstrap "gui/$(id -u)" "$helper_plist" || return 1
   printf 'agent-runner self-handoff: scheduled release %s after parent exit\n' "$release_sha" >&2
 }
 

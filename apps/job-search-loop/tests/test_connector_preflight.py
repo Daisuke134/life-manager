@@ -55,6 +55,20 @@ class ConnectorPreflightTests(unittest.TestCase):
         self.assertEqual(stat.S_IMODE(self.output.stat().st_mode), 0o600)
         self.assertEqual(stat.S_IMODE(self.output.parent.stat().st_mode), 0o700)
 
+    def test_gmail_only_is_ready_when_telegram_is_not_configured(self):
+        receipt = verify_connectors(
+            profile_path=self.profile,
+            outbox_path=self.outbox,
+            output_path=self.output,
+            gmail_runner=self.gmail_ok,
+            telegram_sender=None,
+        )
+
+        self.assertEqual(receipt["status"], "ready")
+        self.assertEqual(receipt["gmail"]["status"], "ready")
+        self.assertEqual(receipt["telegram"]["status"], "not_configured")
+        self.assertNotIn("candidate@example.test", json.dumps(receipt))
+
     def test_gmail_failure_sends_no_telegram_and_writes_no_receipt(self):
         sent = []
 
@@ -72,16 +86,18 @@ class ConnectorPreflightTests(unittest.TestCase):
         self.assertEqual(sent, [])
         self.assertFalse(self.output.exists())
 
-    def test_missing_telegram_ack_writes_no_ready_receipt(self):
-        with self.assertRaisesRegex(ConnectorPreflightError, "Telegram"):
-            verify_connectors(
-                profile_path=self.profile,
-                outbox_path=self.outbox,
-                output_path=self.output,
-                gmail_runner=self.gmail_ok,
-                telegram_sender=lambda **kwargs: {"status": "send_started", "message_id": None},
-            )
-        self.assertFalse(self.output.exists())
+    def test_unavailable_optional_telegram_does_not_block_gmail_readiness(self):
+        receipt = verify_connectors(
+            profile_path=self.profile,
+            outbox_path=self.outbox,
+            output_path=self.output,
+            gmail_runner=self.gmail_ok,
+            telegram_sender=lambda **kwargs: {"status": "send_started", "message_id": None},
+        )
+
+        self.assertEqual(receipt["status"], "ready")
+        self.assertEqual(receipt["telegram"]["status"], "unavailable")
+        self.assertEqual(stat.S_IMODE(self.output.stat().st_mode), 0o600)
 
 
 if __name__ == "__main__":

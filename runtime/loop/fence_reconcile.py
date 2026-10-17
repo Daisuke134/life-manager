@@ -20,11 +20,14 @@ must add their adapter.
 from __future__ import annotations
 
 import argparse
+import fcntl
+import hashlib
 import json
 import os
 import re
 import subprocess
 import time
+from datetime import datetime
 import sqlite3
 import sys
 from pathlib import Path
@@ -35,6 +38,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from runtime.loop.lm_loop import _admission_effect_unknown_occurrences  # noqa: E402
+from runtime.loop.runtime_event import rotate_jsonl_locked  # noqa: E402
 from runtime.loop.macos_loop_registry import validate_registry  # noqa: E402
 
 DEFAULT_REGISTRY = ROOT / "config/loop-registry.json"
@@ -49,6 +53,50 @@ EVENT_TAIL_LIMIT = 4 * 1024 * 1024
 DEFAULT_LOG = Path(
     "~/.local/state/life-manager/lm-fence-reconciler/reconcile-calls.jsonl"
 ).expanduser()
+CALL_LOG_TAIL_BYTES = 4 * 1024 * 1024
+# Every reader (here, lm_loop._last_adapter_calls, central_cleanup.closed_reconcile_occurrences)
+# reads at most the last 4 MiB, so rotation carries that tail forward. Archives hold closure
+# proofs, so they are compressed (~30x) and never pruned.
+CALL_LOG_MAX_BYTES = 32 * 1024 * 1024
+# SH2a: the health observer's latest snapshot names revenue lanes in revenue_outage.
+DEFAULT_HEALTH_LATEST = Path(
+    "~/.local/state/life-manager/health-observer/latest.json"
+).expanduser()
+
+
+HEALTH_MAX_AGE_SECONDS = 30 * 60
+
+
+def revenue_outage_owners(path: Path | None, now: float | None = None) -> frozenset[str]:
+    """Jobs whose ``facets.revenue.status`` is ``blocked`` in the latest health snapshot.
+
+    An unreadable or stale (> 30 min) snapshot yields no extra priority."""
+    if path is None:
+        return frozenset()
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+        generated = datetime.fromisoformat(document["generated_at"].replace("Z", "+00:00"))
+        age = (time.time() if now is None else now) - generated.timestamp()
+        jobs = document.get("jobs") or []
+    except (OSError, ValueError, AttributeError, KeyError, TypeError):
+        return frozenset()
+    if not -60 <= age <= HEALTH_MAX_AGE_SECONDS:  # small clock skew tolerated
+        return frozenset()
+    return frozenset(
+        job["job_id"] for job in jobs
+        if isinstance(job, dict) and isinstance(job.get("job_id"), str)
+        and ((job.get("facets") or {}).get("revenue") or {}).get("status") == "blocked"
+    )
+
+
+def _failure_fields(stdout_tail: str) -> dict:
+    """The last error_class/reason an adapter printed as JSON, so a repeated failure is visible."""
+    fields: dict = {}
+    for record in _json_output_records(stdout_tail):
+        for key in ("error_class", "reason"):
+            if isinstance(record.get(key), str):
+                fields[key] = record[key][:240]
+    return fields
 
 
 def run_call(argv: list[str], timeout: float = CALL_TIMEOUT_SECONDS) -> tuple[int, str]:
@@ -104,6 +152,102 @@ def _runtime_release_shas(owner_id: str, occurrences: set[str],
         if len(values) == 1 and None not in values:
             result[occurrence] = next(iter(values))
     return result
+
+
+def _lost_terminal_unknown_occurrences(
+        loops: Mapping[str, object], active: Mapping[str, tuple[str, ...]],
+        log_path: Path | None) -> dict[str, tuple[str, ...]]:
+    """Find exact unknown terminal events whose admission fence was already lost.
+
+    These are readback candidates only. A registered owner adapter must still prove the
+    occurrence through its official provider readback before an idempotent close is logged.
+    """
+    candidates: dict[str, set[str]] = {}
+    for owner_id, value in loops.items():
+        if not isinstance(owner_id, str) or not isinstance(value, Mapping):
+            continue
+        cfg = value.get("effect_reconcile")
+        state_root = value.get("state_root")
+        if (not isinstance(cfg, Mapping) or not cfg.get("argv")
+                or not isinstance(state_root, str) or not state_root):
+            continue
+        event_path = Path(state_root).expanduser() / "events.jsonl"
+        try:
+            size = event_path.stat().st_size
+            offset = max(0, size - EVENT_TAIL_LIMIT)
+            with event_path.open("rb") as handle:
+                handle.seek(offset)
+                payload = handle.read(EVENT_TAIL_LIMIT)
+        except OSError:
+            continue
+        lines = payload.splitlines()
+        if offset and lines:
+            lines = lines[1:]
+        for line in lines:
+            try:
+                event = json.loads(line)
+            except (UnicodeError, json.JSONDecodeError):
+                continue
+            if not isinstance(event, dict):
+                continue
+            occurrence = event.get("occurrence_id")
+            release_sha = event.get("release_sha")
+            if (event.get("loop_id") != owner_id or event.get("owner_id") != owner_id
+                    or event.get("phase") != "report"
+                    or event.get("status") not in {"blocked", "fail"}
+                    or event.get("effect_status") != "unknown"
+                    or not isinstance(event.get("effect_class"), str)
+                    or not event.get("effect_class") or event.get("effect_class") == "none"
+                    or not isinstance(occurrence, str)
+                    or not occurrence.startswith(f"{owner_id}:")
+                    or not isinstance(release_sha, str)
+                    or re.fullmatch(r"[a-f0-9]{40}", release_sha) is None
+                    or occurrence in active.get(owner_id, ())):
+                continue
+            candidates.setdefault(owner_id, set()).add(occurrence)
+    if not candidates:
+        return {}
+
+    release_shas = {
+        owner: _runtime_release_shas(owner, occurrences, loops)
+        for owner, occurrences in candidates.items()
+    }
+    closed = set()
+    if log_path is not None:
+        from runtime.loop.central_cleanup import closed_reconcile_occurrences
+        closed = closed_reconcile_occurrences(log_path)
+
+    pending: dict[str, set[str]] = {}
+    for owner, occurrences in candidates.items():
+        for occurrence in occurrences:
+            sha = release_shas[owner].get(occurrence)
+            if (sha is None or (owner, occurrence, sha) in closed):
+                continue
+            pending.setdefault(owner, set()).add(occurrence)
+    if not pending:
+        return {}
+
+    from runtime.host import resource_admission
+    database = resource_admission.state_root() / "admission-v2.sqlite3"
+    if not database.is_file():
+        return {}
+    released: dict[str, list[str]] = {}
+    with sqlite3.connect(f"file:{database}?mode=ro", uri=True, timeout=0.5) as connection:
+        for owner, occurrences in pending.items():
+            ordered = sorted(occurrences)
+            for start in range(0, len(ordered), 500):
+                batch = ordered[start:start + 500]
+                placeholders = ",".join("?" for _ in batch)
+                rows = connection.execute(
+                    f"""SELECT occurrence_id FROM occurrences
+                          WHERE owner_id=? AND state='released' AND effect_unknown=0
+                            AND occurrence_id IN ({placeholders})""",
+                    (owner, *batch),
+                ).fetchall()
+                if rows:
+                    released.setdefault(owner, []).extend(row[0] for row in rows)
+    return {owner: tuple(sorted(set(occurrences)))
+            for owner, occurrences in released.items()}
 
 
 def _json_output_records(stdout_tail: str) -> list[dict]:
@@ -200,6 +344,7 @@ def plan_targets(
 def round_robin(
     targets: Mapping[str, list[str | None]], cap: int, *,
     priority_owners: set[str] | frozenset[str] = frozenset(), start: int = 0,
+    outage_owners: set[str] | frozenset[str] = frozenset(),
 ) -> list[tuple[str, str | None]]:
     """Interleave owners fairly, serving explicit safety priorities first.
 
@@ -207,8 +352,12 @@ def round_robin(
     owners at the back when ``cap`` is smaller than the number of owners (2026-10-09: 41 owners,
     20 calls per wake, Anicca/Honne sat at positions 18+ and 16 of them were never called).
     """
+    # Order: financial (safety) -> revenue_outage (SH2a) -> rotating rest.
     priority = sorted(owner for owner in targets if owner in priority_owners)
-    rest = sorted(owner for owner in targets if owner not in priority_owners)
+    priority += sorted(owner for owner in targets
+                       if owner in outage_owners and owner not in priority_owners)
+    rest = sorted(owner for owner in targets
+                  if owner not in priority_owners and owner not in outage_owners)
     if rest:
         offset = start % len(rest)
         rest = rest[offset:] + rest[:offset]
@@ -228,10 +377,71 @@ def _append_jsonl(path: Path, rows: list[dict]) -> None:
     if not rows:
         return
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+    descriptor = os.open(path, os.O_RDWR | os.O_CREAT | os.O_APPEND, 0o600)
+    fcntl.flock(descriptor, fcntl.LOCK_EX)
+    rotate_jsonl_locked(descriptor, path, CALL_LOG_MAX_BYTES,
+                        keep_tail_bytes=CALL_LOG_TAIL_BYTES)
     with os.fdopen(descriptor, "a", encoding="utf-8") as handle:
         for row in rows:
             handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
+
+
+def _recent_call_rows(path: Path | None) -> dict[tuple[str, str], dict]:
+    """Read only the recent call window; historical proof rows stay untouched."""
+    if path is None:
+        return {}
+    try:
+        with path.open("rb") as handle:
+            size = os.fstat(handle.fileno()).st_size
+            offset = max(0, size - CALL_LOG_TAIL_BYTES)
+            handle.seek(offset)
+            lines = handle.read(CALL_LOG_TAIL_BYTES).splitlines()
+    except OSError:
+        return {}
+    if offset and lines:
+        lines = lines[1:]
+    latest: dict[tuple[str, str], dict] = {}
+    for line in lines:
+        try:
+            row = json.loads(line)
+        except (UnicodeError, json.JSONDecodeError):
+            continue
+        if (isinstance(row, dict) and isinstance(row.get("owner_id"), str)
+                and isinstance(row.get("occurrence_id"), str)):
+            latest[(row["owner_id"], row["occurrence_id"])] = row
+    return latest
+
+
+def _occurrence_digest(occurrences: set[str] | tuple[str, ...]) -> str:
+    payload = "\n".join(sorted(occurrences)).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _owner_batch_summary(owner_id: str, checked: set[str], still_fenced: set[str],
+                         exit_code: int, *, result_kind: str = "batch_checked") -> dict:
+    return {
+        "owner_id": owner_id,
+        "occurrence_id": f"{owner_id}:*",
+        "owner_batch_summary": True,
+        "checked_occurrence_count": len(checked),
+        "checked_occurrences_sha256": _occurrence_digest(checked),
+        "still_fenced_count": len(still_fenced),
+        "still_fenced_occurrences_sha256": _occurrence_digest(still_fenced),
+        "exit_code": exit_code,
+        "closed": False,
+        "result_kind": result_kind,
+        "recorded_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+
+
+def _batch_summary_changed(previous: dict | None, current: dict) -> bool:
+    if not isinstance(previous, dict) or previous.get("owner_batch_summary") is not True:
+        return True
+    keys = (
+        "checked_occurrence_count", "checked_occurrences_sha256", "still_fenced_count",
+        "still_fenced_occurrences_sha256", "exit_code", "result_kind",
+    )
+    return any(previous.get(key) != current.get(key) for key in keys)
 
 
 LOCK_RETRIES = 4
@@ -270,7 +480,9 @@ def _rotate_occurrences_from_log(targets: dict[str, list[str | None]], log_path:
                 continue
             if not isinstance(row, dict):
                 continue
-            owner, occurrence = row.get("owner_id"), row.get("occurrence_id")
+            owner = row.get("owner_id")
+            occurrence = (row.get("last_occurrence_id") if row.get("owner_cursor") is True
+                          else row.get("occurrence_id"))
             if isinstance(owner, str) and isinstance(occurrence, str):
                 last[owner] = occurrence
     except OSError:
@@ -294,23 +506,40 @@ def reconcile(
     log_path: Path | None = DEFAULT_LOG,
     wake_epoch: float | None = None,
     sleep: Callable[[float], None] = time.sleep,
+    health_latest: Path | None = None,
 ) -> dict:
     """Run one bounded reconciliation pass and return the summary dict."""
     loops = registry.get("loops", {}) if isinstance(registry, Mapping) else {}
     fenced = _read_with_retry(read_fenced, sleep)
+    lost_fence_scan_locked = False
+    try:
+        lost_fences = _read_with_retry(
+            lambda: _lost_terminal_unknown_occurrences(loops, fenced, log_path), sleep)
+    except sqlite3.OperationalError as error:
+        if "locked" not in str(error).lower():
+            raise
+        # This supplemental scan finds released-only candidates. Its failure must not
+        # suppress adapter readbacks for active fences already read above; keep those
+        # candidates unknown and retry their discovery on a later natural wake.
+        lost_fences = {}
+        lost_fence_scan_locked = True
+    for owner_id, occurrences in lost_fences.items():
+        fenced[owner_id] = tuple(sorted(set(fenced.get(owner_id, ())) | set(occurrences)))
     checked = sum(len(occurrences) for occurrences in fenced.values())
     targets, needs_adapter = plan_targets(fenced, loops)
     _rotate_occurrences_from_log(targets, log_path)
-    priority_owners = frozenset(
+    financial = frozenset(
         owner_id for owner_id in targets
         if isinstance(loops.get(owner_id), Mapping)
         and loops[owner_id].get("domain") == "financial"
         and isinstance(loops[owner_id].get("effect_reconcile"), Mapping)
     )
+    outage = revenue_outage_owners(health_latest) & set(targets)
     # The rotation comes from the wall clock (one step of ``cap`` owners per wake): no state file.
     wake = time.time() if wake_epoch is None else wake_epoch
     start = int(wake // WAKE_PERIOD_SECONDS) * cap
-    calls = round_robin(targets, cap, priority_owners=priority_owners, start=start)
+    calls = round_robin(targets, cap, priority_owners=financial, start=start,
+                        outage_owners=outage)
     target_owners = {owner_id for owner_id, _ in calls}
     event_release_shas = {
         owner_id: _runtime_release_shas(owner_id, set(fenced.get(owner_id, ())), loops)
@@ -318,8 +547,9 @@ def reconcile(
     }
     closed = 0
     deferred = 0
-    locked = False
+    locked = lost_fence_scan_locked
     records: list[dict] = []
+    recent_call_rows = _recent_call_rows(log_path)
     started = clock()
     for owner_id, occurrence in calls:
         reconcile_cfg = loops[owner_id]["effect_reconcile"]
@@ -334,46 +564,84 @@ def reconcile(
         except sqlite3.OperationalError:
             # Keep what already ran in the log and end the wake cleanly; the next wake resumes.
             locked = True
-            records.append({
-                "owner_id": owner_id, "occurrence_id": occurrence or "",
-                "exit_code": exit_code, "closed": False, "stdout_tail": tail,
-            })
+            if occurrence is None:
+                before = set(fenced.get(owner_id, ()))
+                record = _owner_batch_summary(
+                    owner_id, before, before, exit_code,
+                    result_kind="post_call_admission_read_locked",
+                )
+                if _batch_summary_changed(
+                        recent_call_rows.get((owner_id, record["occurrence_id"])), record):
+                    records.append(record)
+            else:
+                records.append({
+                    "owner_id": owner_id, "occurrence_id": occurrence,
+                    "exit_code": exit_code, "closed": False, "stdout_tail": tail,
+                })
             break
         still_open = set(after.get(owner_id, ()))
         if occurrence is None:
-            before = set(fenced.get(owner_id, ()))
-            for occ in sorted(before):
-                occ_closed = occ not in still_open
-                if occ_closed:
+            before = sorted(set(fenced.get(owner_id, ())))
+            still_fenced = set(before) & still_open
+            for occ in before:
+                if occ not in still_open:
                     closed += 1
-                records.append({
-                    "owner_id": owner_id, "occurrence_id": occ,
-                    "exit_code": exit_code, "closed": occ_closed, "stdout_tail": tail,
-                })
-                if occ_closed and exit_code == 0:
-                    proof = _closure_proof(
-                        tail, owner_id=owner_id, occurrence_id=occ,
-                        release_sha=event_release_shas.get(owner_id, {}).get(occ),
-                    )
-                    if proof is not None:
-                        records[-1]["release_sha"] = proof["release_sha"]
-                        records[-1]["closure_proof"] = proof
+                    record = {
+                        "owner_id": owner_id, "occurrence_id": occ,
+                        "exit_code": exit_code, "closed": True, "stdout_tail": tail,
+                    }
+                    records.append(record)
+                    if exit_code == 0:
+                        proof = _closure_proof(
+                            tail, owner_id=owner_id, occurrence_id=occ,
+                            release_sha=event_release_shas.get(owner_id, {}).get(occ),
+                        )
+                        if proof is not None:
+                            record["release_sha"] = proof["release_sha"]
+                            record["closure_proof"] = proof
+            if still_fenced:
+                record = _owner_batch_summary(
+                    owner_id, set(before), still_fenced, exit_code,
+                )
+                previous = recent_call_rows.get((owner_id, record["occurrence_id"]))
+                if owner_id in outage:
+                    record.update(_failure_fields(tail))
+                    records.append(record)
+                elif _batch_summary_changed(previous, record):
+                    records.append(record)
         else:
+            proof = _closure_proof(
+                tail, owner_id=owner_id, occurrence_id=occurrence,
+                release_sha=event_release_shas.get(owner_id, {}).get(occurrence),
+            ) if exit_code == 0 else None
+            lost = occurrence in lost_fences.get(owner_id, ())
             occ_closed = occurrence not in still_open
+            if lost:
+                occ_closed = occ_closed and proof is not None
             if occ_closed:
                 closed += 1
-            records.append({
+            record = {
                 "owner_id": owner_id, "occurrence_id": occurrence,
                 "exit_code": exit_code, "closed": occ_closed, "stdout_tail": tail,
-            })
-            if occ_closed and exit_code == 0:
-                proof = _closure_proof(
-                    tail, owner_id=owner_id, occurrence_id=occurrence,
-                    release_sha=event_release_shas.get(owner_id, {}).get(occurrence),
-                )
-                if proof is not None:
-                    records[-1]["release_sha"] = proof["release_sha"]
-                    records[-1]["closure_proof"] = proof
+            }
+            if not occ_closed:
+                record.update(_failure_fields(tail))
+            previous = recent_call_rows.get((owner_id, occurrence))
+            if (not lost or occ_closed or owner_id in outage or previous is None or previous.get("closed")
+                    or previous.get("exit_code") != exit_code):
+                records.append(record)
+            elif len(targets.get(owner_id, ())) > 1:
+                cursor = {
+                    "owner_id": owner_id, "occurrence_id": f"{owner_id}:*",
+                    "owner_cursor": True, "last_occurrence_id": occurrence,
+                    "closed": False,
+                }
+                previous_cursor = recent_call_rows.get((owner_id, cursor["occurrence_id"]), {})
+                if previous_cursor.get("last_occurrence_id") != occurrence:
+                    records.append(cursor)
+            if occ_closed and proof is not None:
+                record["release_sha"] = proof["release_sha"]
+                record["closure_proof"] = proof
     if log_path is not None:
         _append_jsonl(log_path, records)
     summary = {
@@ -385,6 +653,8 @@ def reconcile(
     }
     if locked:
         summary["status"] = "partial_database_locked"
+    if lost_fence_scan_locked:
+        summary["lost_fence_scan_locked"] = True
     return summary
 
 
@@ -408,7 +678,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     summary = reconcile(
         registry=registry, root=args.root.resolve(), cap=args.max_calls,
-        log_path=args.log.expanduser(),
+        log_path=args.log.expanduser(), health_latest=DEFAULT_HEALTH_LATEST,
     )
     print(json.dumps(summary, ensure_ascii=False, sort_keys=True))
     return 0

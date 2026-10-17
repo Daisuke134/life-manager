@@ -5,6 +5,8 @@ import json
 import os
 import pwd
 import shutil
+import subprocess
+import sys
 from types import SimpleNamespace
 from pathlib import Path
 
@@ -104,29 +106,48 @@ def test_disk_free_bytes_measures_the_requested_receipt_volume(
     assert calls == [path]
 
 
-@pytest.mark.parametrize(
-    ("free_bytes", "expected_return"),
-    ((2 * 1024**3, 0), (2 * 1024**3 - 1, 75), (None, 75)),
-)
-def test_regular_producer_requires_measured_headroom_before_exec(
-    tmp_path, monkeypatch, capsys, free_bytes, expected_return,
+@pytest.mark.parametrize("free_bytes", (0, 12 * 1024**3 - 1))
+def test_regular_producer_defers_below_disk_floor(
+    tmp_path, monkeypatch, capsys, free_bytes,
 ):
     guard = load_guard()
+    monkeypatch.setenv("LIFE_MANAGER_LOOP_ID", "line-sticker-factory-hourly")
     monkeypatch.setattr(guard, "disk_free_bytes", lambda _path: free_bytes)
     calls = []
     monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
 
-    assert guard.main(["/bin/true"]) == expected_return
-    if expected_return == 0:
-        assert calls and calls[0][1] == ["/bin/true"]
-    else:
-        assert calls == []
-        receipt = json.loads(capsys.readouterr().out.strip())
-        assert receipt["status"] == "deferred"
-        assert receipt["reason"] == ("disk_headroom_unknown" if free_bytes is None
-                                      else "disk_headroom_low")
-        assert receipt["required_bytes"] == guard.RECOVERY_FLOOR_BYTES
-        assert receipt["effect"] == receipt["readback"] == 0
+    assert guard.main(["/bin/true"]) == 75
+    assert calls == []
+    receipt = json.loads(capsys.readouterr().out.strip())
+    assert receipt["status"] == "deferred"
+    assert receipt["reason"] == "disk_floor_low"
+    assert receipt["required_bytes"] == guard.PRODUCER_FLOOR_BYTES
+
+
+@pytest.mark.parametrize("free_bytes", (12 * 1024**3, None))
+def test_regular_producer_runs_at_floor_or_unknown_free_space(
+    tmp_path, monkeypatch, free_bytes,
+):
+    guard = load_guard()
+    monkeypatch.setenv("LIFE_MANAGER_LOOP_ID", "line-sticker-factory-hourly")
+    monkeypatch.setattr(guard, "disk_free_bytes", lambda _path: free_bytes)
+    calls = []
+    monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
+
+    assert guard.main(["/bin/true"]) == 0
+    assert calls and calls[0][1] == ["/bin/true"]
+
+
+@pytest.mark.parametrize("loop_id", ("life-manager-disk-cleanup", "lm-fence-reconciler"))
+def test_control_plane_runs_below_disk_floor(monkeypatch, loop_id):
+    guard = load_guard()
+    monkeypatch.setenv("LIFE_MANAGER_LOOP_ID", loop_id)
+    monkeypatch.setattr(guard, "disk_free_bytes", lambda _path: 0)
+    calls = []
+    monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
+
+    assert guard.main(["/bin/true"]) == 0
+    assert calls
 
 
 @pytest.mark.parametrize("free_bytes", (None, -1, True, "unknown", "missing"))
@@ -159,27 +180,24 @@ def test_cleanup_stop_signal_does_not_block_child(monkeypatch: pytest.MonkeyPatc
     assert calls and calls[0][1] == ["/bin/true"]
 
 
-def test_cleanup_recovery_signal_defers_regular_producer(monkeypatch: pytest.MonkeyPatch):
+def test_cleanup_recovery_signal_does_not_defer_regular_producer(monkeypatch: pytest.MonkeyPatch):
     host_state = Path(os.environ["LIFE_MANAGER_HOST_STATE_DIR"])
     _write_cleanup_recovery_signal(host_state / "disk-writers.stop")
     guard = load_guard()
+    monkeypatch.setenv("LIFE_MANAGER_LOOP_ID", "job-search-daily")
+    monkeypatch.setattr(guard, "disk_free_bytes", lambda _path: 20 * 1024**3)
     calls = []
     monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
 
-    assert guard.main(["/bin/true"]) == 75
-    assert calls == []
-    receipt = json.loads(
-        (Path(os.environ["LIFE_MANAGER_PRODUCER_STATE_DIR"])
-         / "state/disk-headroom.json").read_text(encoding="utf-8")
-    )
-    assert receipt["status"] == "deferred"
-    assert receipt["reason"] == "disk_headroom_low"
+    assert guard.main(["/bin/true"]) == 0
+    assert calls and calls[0][1] == ["/bin/true"]
 
 
 def test_operator_stop_signal_still_blocks_child(monkeypatch: pytest.MonkeyPatch):
     host_state = Path(os.environ["LIFE_MANAGER_HOST_STATE_DIR"])
     host_state.joinpath("disk-writers.stop").write_text("owner=operator\n", encoding="utf-8")
     guard = load_guard()
+    monkeypatch.setattr(guard, "disk_free_bytes", lambda _path: 0)
     calls = []
     monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
 
@@ -240,3 +258,158 @@ def test_measured_capacity_check(monkeypatch, tmp_path, capsys, available, requi
         receipt = json.loads(capsys.readouterr().out)
         assert receipt["required_bytes"] == required
         assert receipt["effect"] == receipt["readback"] == 0
+
+
+def _release_capacity_fixture(tmp_path: Path):
+    guard = load_guard()
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    def git(*args):
+        return subprocess.run(["git", "-C", str(repo), *args], check=True,
+                              capture_output=True, text=True)
+
+    git("init", "--quiet")
+    git("config", "user.name", "disk-admission-test")
+    git("config", "user.email", "disk-admission-test@example.invalid")
+    (repo / "runtime").mkdir()
+    (repo / "runtime" / "fixture.py").write_text("VALUE = 1\n")
+    (repo / "README.md").write_text("fixture\n")
+    git("add", "README.md", "runtime/fixture.py")
+    git("commit", "--quiet", "-m", "fixture")
+    sha = git("rev-parse", "HEAD").stdout.strip()
+    git("update-ref", "refs/remotes/origin/main", sha)
+
+    loops = tmp_path / "loops"
+    donor = loops / "releases" / "seed"
+    donor.mkdir(parents=True)
+    (donor / "RELEASE.json").write_text(json.dumps({
+        "sha": sha,
+        "release_paths": "ALL",
+        "provenance": "ancestor-of-origin-main",
+        "runtime_python": str(Path(sys.executable).resolve()),
+        "runtime_python_cache_tag": sys.implementation.cache_tag,
+    }))
+    donor.chmod(0o555)
+    (loops / "current").symlink_to(donor, target_is_directory=True)
+    return guard, repo, sha, loops
+
+
+def test_release_capacity_uses_staging_budget_without_diagnostic_floor(tmp_path: Path):
+    guard, repo, sha, loops = _release_capacity_fixture(tmp_path)
+
+    required = guard.release_capacity_bytes(repo, sha, loops, "node", "npm")
+
+    assert 64 * 1024**2 < required < 65 * 1024**2
+
+
+def test_release_capacity_measurement_failure_fails_closed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys,
+):
+    guard = load_guard()
+    monkeypatch.setattr(
+        guard, "release_capacity",
+        lambda *_args: (_ for _ in ()).throw(ValueError("fixture measurement failure")),
+    )
+
+    assert guard.main([
+        "--release-capacity", str(tmp_path), "a" * 40, str(tmp_path), "node", "npm",
+    ]) == 1
+    assert capsys.readouterr().out == ""
+
+
+def test_release_capacity_reuses_locked_bundle_for_script_and_toolchain_change(tmp_path: Path):
+    import hashlib
+    import platform
+    guard, repo, seed_sha, loops = _release_capacity_fixture(tmp_path)
+    donor = (loops / "current").resolve()
+    old = json.dumps({"name": "fixture", "version": "1.0.0", "scripts": {"test": "old"}}).encode()
+    lock = b'{"lockfileVersion":3}\n'
+    donor.chmod(0o755)
+    (donor / "package.json").write_bytes(old)
+    (donor / "package-lock.json").write_bytes(lock)
+    header = "\0".join(("command", "npm-ci --omit=dev --ignore-scripts", "os", platform.system(),
+                          "arch", platform.machine(), "node", "node", "npm", "npm")) + "\0"
+    key_data = header.encode()
+    for label, payload in (("package-json", old), ("package-lock", lock)):
+        key_data += label.encode() + b"\0" + (hashlib.sha256(payload).hexdigest() + "  -\n").encode()
+    key = hashlib.sha256(key_data).hexdigest()
+    bundle = loops / "dependency-bundles" / ("npm-" + key)
+    (bundle / "node_modules").mkdir(parents=True)
+    (bundle / "node_modules/.package-lock.json").write_bytes(lock)
+    (bundle / ".complete").write_text(key + "\n")
+    bundle.chmod(0o555)
+    (donor / "node_modules").symlink_to(bundle / "node_modules")
+    donor.chmod(0o555)
+    (repo / "package-lock.json").write_bytes(lock)
+
+    def commit_package(package):
+        (repo / "package.json").write_text(json.dumps(package))
+        subprocess.run(["git", "-C", str(repo), "add", "package.json", "package-lock.json"], check=True)
+        subprocess.run(["git", "-C", str(repo), "commit", "-qm", "package"], check=True)
+        sha = subprocess.check_output(["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip()
+        subprocess.run(["git", "-C", str(repo), "update-ref", "refs/remotes/origin/main", sha], check=True)
+        return sha
+
+    package = {"name": "fixture", "version": "1.0.0", "scripts": {"test": "new"}}
+    sha = commit_package(package)
+    try:
+        required = guard.release_capacity_bytes(repo, sha, loops, "node-next", "npm-next")
+        assert 64 * 1024**2 < required < guard.RECOVERY_FLOOR_BYTES
+        assert list((loops / "dependency-bundles").iterdir()) == [bundle]
+        assert (donor / "package.json").read_bytes() == old
+        # A dependency change used to raise here and block every release on main (2026-10-16,
+        # #8168 added one package). Budget a fresh install the size of the donor's tree instead.
+        bundle.chmod(0o755)
+        (bundle / "node_modules" / "big.bin").write_bytes(b"\0" * (8 * 1024**2))
+        bundle.chmod(0o555)
+        package["dependencies"] = {"changed": "1.0.0"}
+        changed_sha = commit_package(package)
+        changed = guard.release_capacity_bytes(repo, changed_sha, loops, "node", "npm")
+        assert changed >= required + 8 * 1024**2
+    finally:
+        donor.chmod(0o755)
+        bundle.chmod(0o755)
+
+
+def test_revenue_producer_runs_down_to_the_lower_revenue_floor(tmp_path, monkeypatch):
+    # Kubernetes evicts low-priority pods first; a flat 12 GiB floor stopped every revenue lane
+    # at 11 GiB while background batches kept the same rights (2026-10-16).
+    guard = load_guard()
+    registry = tmp_path / "config" / "loop-registry.json"
+    registry.parent.mkdir()
+    registry.write_text(json.dumps({"loops": {
+        "earner": {"admission_class": "revenue"}, "batch": {"admission_class": "borrow"}}}))
+    monkeypatch.setenv("LIFE_MANAGER_REPO", str(tmp_path))
+    monkeypatch.setattr(guard, "disk_free_bytes", lambda _path: 11 * 1024**3)
+    assert guard._producer_gate("earner") is None
+    assert guard._producer_gate("batch")[0] == "disk_floor_low"
+    monkeypatch.setattr(guard, "disk_free_bytes", lambda _path: guard.REVENUE_FLOOR_BYTES - 1)
+    assert guard._producer_gate("earner")[0] == "disk_floor_low"
+    assert guard._floor_bytes("earner") == guard.REVENUE_FLOOR_BYTES
+    monkeypatch.setenv("LIFE_MANAGER_PRODUCER_FLOOR_BYTES", str(1024**3))
+    assert guard._floor_bytes("earner") == 1024**3
+
+
+def test_revenue_deferral_receipt_reports_the_floor_it_used(tmp_path, monkeypatch, capsys):
+    guard = load_guard()
+    registry = tmp_path / "config" / "loop-registry.json"
+    registry.parent.mkdir()
+    registry.write_text(json.dumps({"loops": {"earner": {"admission_class": "revenue"}}}))
+    monkeypatch.setenv("LIFE_MANAGER_REPO", str(tmp_path))
+    monkeypatch.setenv("LIFE_MANAGER_LOOP_ID", "earner")
+    monkeypatch.setattr(guard, "disk_free_bytes", lambda _path: 1)
+    monkeypatch.setattr(guard.os, "execvpe", lambda *args: None)
+    assert guard.main(["/bin/true"]) == 75
+    receipt = json.loads(capsys.readouterr().out.strip())
+    assert receipt["required_bytes"] == guard.REVENUE_FLOOR_BYTES
+
+
+def test_producer_floor_can_be_calibrated_for_isolated_hosts(monkeypatch):
+    guard = load_guard()
+    monkeypatch.setenv("LIFE_MANAGER_LOOP_ID", "line-sticker-factory-hourly")
+    monkeypatch.setenv("LIFE_MANAGER_PRODUCER_FLOOR_BYTES", "0")
+    monkeypatch.setattr(guard, "disk_free_bytes", lambda _path: 1)
+    calls = []
+    monkeypatch.setattr(guard.os, "execvpe", lambda *args: calls.append(args))
+    assert guard.main(["/bin/true"]) == 0

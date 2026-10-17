@@ -100,6 +100,25 @@ EBOOK_LEGACY_NO_DUE_RELEASE_PROOFS = {
 PRE_EFFECT_TERMINAL_BLOCKERS = PRE_EFFECT_ADMISSION_BLOCKERS | frozenset({
     FUNDRAISER_PRE_EFFECT_BLOCKER,
 })
+COCONALA_REPLY_LEGACY_PRE_EFFECT_PROOF = {
+    "owner_id": "hf-gig-reply-detector",
+    "occurrence_id": "hf-gig-reply-detector:18dbf6546032eca0-25901",
+    "entrypoint": "skills/earn/gig/scripts/coconala-reply-owner",
+    "browser_identity": "coconala:kosuke",
+    "browser_target_owner": "hf-gig-browser",
+    "previous_run_id": "18dbf6546032eca0-25901",
+    "previous_start_event_id": "38935ee0920356a7382626e2",
+    "previous_report_event_id": "9d85c866d17a03f179234aa3",
+    "previous_release_sha": "2cf94f43669a8afdd9cf8bb84c8ba7764c323221",
+    "failing_run_id": "18dc3f4dcd2305d8-87562",
+    "failing_start_event_id": "4f6294051d4ea6e5ced5ea08",
+    "failing_event_id": "fac566b9279781cf10a17ccd",
+    "failing_release_sha": "cecffc9b054e3abebce7081aa42f99500b2f83f3",
+    "release_name": "20261007T211424-cecffc9b",
+    "error_detail": "with-browser: coconala:kosuke unreachable after guarded startup attempt",
+    "wrapper_path": "skills/browser/with-browser.sh",
+    "wrapper_sha256": "d5160dd49bb52ed72135907127db815bf8b88c69bbb75676d296a5ac20e6842c",
+}
 SAFE_OCCURRENCE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,255}\Z")
 MAX_PRE_EFFECT_ARCHIVES = 4
 PRE_EFFECT_RECONCILE_MAX_ROWS = 20
@@ -316,6 +335,71 @@ def _is_ebook_legacy_no_due_terminal(entry: dict, row: dict) -> bool:
     return _ebook_legacy_no_due_proof(entry, row) is not None
 
 
+def _mobile_pre_effect_marker_sha256(loop_id: str, entry: dict, row: dict) -> str | None:
+    """Verify the run-private marker that mobile-app clears before its first upload."""
+    if (entry.get("entrypoint") != "apps/life-manager/scripts/mobile-app"
+            or entry.get("effect_class") != "publish"
+            or row.get("loop_id") != loop_id
+            or row.get("owner_id") != loop_id
+            or row.get("status") not in {"pass", "fail"}
+            or row.get("effect_status") != "unknown"
+            or row.get("effect_identity_status") not in {None, "not_written"}
+            or row.get("provider_receipt_id") is not None
+            or row.get("official_readback_ref") is not None):
+        return None
+    occurrence_id = row.get("occurrence_id")
+    run_id = row.get("run_id")
+    state_root = entry.get("state_root")
+    if (not isinstance(occurrence_id, str)
+            or not SAFE_OCCURRENCE.fullmatch(occurrence_id)
+            or not occurrence_id.startswith(f"{loop_id}:")
+            or not isinstance(run_id, str)
+            or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", run_id)
+            or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", loop_id)
+            or not isinstance(state_root, str) or not state_root):
+        return None
+    root = Path(state_root).expanduser()
+    if not root.is_absolute():
+        return None
+    marker = root / "loop-tmp" / loop_id / run_id / "entrypoint-result.json"
+    directories = (root, root / "loop-tmp", root / "loop-tmp" / loop_id, marker.parent)
+    descriptor = -1
+    try:
+        for directory in directories:
+            info = directory.lstat()
+            if (not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid()
+                    or stat.S_IMODE(info.st_mode) & 0o022):
+                return None
+        descriptor = os.open(marker, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        info = os.fstat(descriptor)
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                or info.st_nlink != 1 or stat.S_IMODE(info.st_mode) != 0o600
+                or info.st_size > 4096):
+            return None
+        with os.fdopen(descriptor, "rb") as stream:
+            descriptor = -1
+            data = stream.read(4097)
+        if len(data) > 4096:
+            return None
+        value = json.loads(data)
+        if (not isinstance(value, dict) or set(value) != {"status", "effect"}
+                or value.get("status") != "pre_effect_failure"
+                or type(value.get("effect")) is not int or value["effect"] != 0):
+            return None
+        try:
+            (marker.parent / "effect-identity.jsonl").lstat()
+        except FileNotFoundError:
+            pass
+        else:
+            return None
+        return hashlib.sha256(data).hexdigest()
+    except (OSError, UnicodeDecodeError, ValueError, json.JSONDecodeError):
+        return None
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+
+
 def _is_mobile_pre_effect_terminal(entry: dict, row: dict) -> bool:
     """Recognize only mobile-app failures proven before its Postiz publish call."""
     detail = row.get("error_detail")
@@ -506,6 +590,132 @@ def _atomic_private_json(path: Path, value: dict) -> None:
         Path(temporary).unlink(missing_ok=True)
 
 
+def _coconala_reply_legacy_pre_effect_proof(
+    loop_id: str, entry: dict, occurrence_id: str, expected_state: str,
+    runtime_rows: list[dict],
+) -> dict | None:
+    spec = COCONALA_REPLY_LEGACY_PRE_EFFECT_PROOF
+    if (loop_id != spec["owner_id"] or occurrence_id != spec["occurrence_id"]
+            or expected_state not in {"claimed", "released"}
+            or entry.get("effect_class") != "message"
+            or entry.get("entrypoint") != spec["entrypoint"]
+            or entry.get("browser_identity") != spec["browser_identity"]
+            or entry.get("browser_target_owner") != spec["browser_target_owner"]):
+        return None
+    owner_rows = [row for row in runtime_rows if row.get("loop_id") == loop_id]
+    previous_rows = [row for row in owner_rows
+                     if row.get("run_id") == spec["previous_run_id"]]
+    failing_rows = [row for row in owner_rows
+                    if row.get("run_id") == spec["failing_run_id"]]
+    previous_ids = {spec["previous_start_event_id"], spec["previous_report_event_id"]}
+    failing_ids = {spec["failing_start_event_id"], spec["failing_event_id"]}
+    if ({row.get("event_id") for row in previous_rows} != previous_ids
+            or {row.get("event_id") for row in failing_rows} != failing_ids):
+        return None
+    previous_start = next(row for row in previous_rows
+                          if row.get("event_id") == spec["previous_start_event_id"])
+    previous_report = next(row for row in previous_rows
+                           if row.get("event_id") == spec["previous_report_event_id"])
+    failing_start = next(row for row in failing_rows
+                         if row.get("event_id") == spec["failing_start_event_id"])
+    terminal = next(row for row in failing_rows
+                    if row.get("event_id") == spec["failing_event_id"])
+    occurrence_rows = [row for row in owner_rows
+                       if row.get("occurrence_id") == occurrence_id]
+    if {row.get("event_id") for row in occurrence_rows} != {
+            spec["previous_start_event_id"], spec["failing_event_id"]}:
+        return None
+    claim_ref = f"lm-occurrence://{loop_id}/{occurrence_id[len(loop_id) + 1:]}/claim"
+    claim_rows = [row for row in owner_rows
+                  if claim_ref in (row.get("evidence_refs") or [])]
+    if claim_rows != [terminal]:
+        return None
+
+    exact_fields = (
+        (previous_start, {
+            "phase": "execute", "status": "running", "effect_class": "none",
+            "effect_status": "not_applicable", "release_sha": spec["previous_release_sha"],
+        }),
+        (previous_report, {
+            "phase": "report", "status": "pass", "exit_code": 0,
+            "effect_class": "none", "effect_status": "not_applicable",
+            "release_sha": spec["previous_release_sha"],
+        }),
+        (failing_start, {
+            "phase": "execute", "status": "running", "effect_class": "message",
+            "effect_status": "started", "release_sha": spec["failing_release_sha"],
+        }),
+        (terminal, {
+            "phase": "report", "status": "fail", "blocker": "entrypoint_exit_10",
+            "error_class": "entrypoint_exit_10", "error_detail": spec["error_detail"],
+            "failure_layer": "entrypoint", "exit_code": 10,
+            "effect_class": "message", "effect_status": "unknown",
+            "effect_identity_status": "not_written",
+            "release_sha": spec["failing_release_sha"],
+        }),
+    )
+    if any(any(row.get(key) != value for key, value in expected.items())
+           for row, expected in exact_fields):
+        return None
+    if any(row.get("provider_receipt_id") is not None
+           or row.get("official_readback_ref") is not None
+           or any(isinstance(ref, str) and ref.startswith("lm-effect://")
+                  for ref in (row.get("evidence_refs") or []))
+           for row, _expected in exact_fields):
+        return None
+    previous_summary = f"lm-loop://{loop_id}/{spec['previous_run_id']}/summary.json"
+    failing_summary = f"lm-loop://{loop_id}/{spec['failing_run_id']}/summary.json"
+    if (previous_summary not in (previous_start.get("evidence_refs") or [])
+            or previous_summary not in (previous_report.get("evidence_refs") or [])
+            or failing_summary not in (failing_start.get("evidence_refs") or [])
+            or failing_summary not in (terminal.get("evidence_refs") or [])):
+        return None
+    try:
+        releases_root = ROOT.parent
+        release_root = releases_root / spec["release_name"]
+        manifest_path = release_root / "RELEASE.json"
+        wrapper_path = release_root / spec["wrapper_path"]
+        if (release_root.parent != releases_root or not release_root.is_dir()
+                or release_root.is_symlink() or not manifest_path.is_file()
+                or manifest_path.is_symlink() or not wrapper_path.is_file()
+                or wrapper_path.is_symlink()):
+            return None
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if (manifest.get("sha") != spec["failing_release_sha"]
+                or hashlib.sha256(wrapper_path.read_bytes()).hexdigest()
+                != spec["wrapper_sha256"]):
+            return None
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError):
+        return None
+    evidence_refs = [
+        f"lm-event://{loop_id}/{spec['previous_run_id']}/{spec['previous_start_event_id']}",
+        f"lm-event://{loop_id}/{spec['previous_run_id']}/{spec['previous_report_event_id']}",
+        f"lm-event://{loop_id}/{spec['failing_run_id']}/{spec['failing_start_event_id']}",
+        f"lm-event://{loop_id}/{spec['failing_run_id']}/{spec['failing_event_id']}",
+        failing_summary,
+        claim_ref,
+    ]
+    return {
+        "owner_id": loop_id,
+        "occurrence_id": occurrence_id,
+        "verified": True,
+        "proof_type": "pre_effect",
+        "evidence_ref": evidence_refs[-3],
+        "evidence_refs": evidence_refs,
+        "blocker": terminal["blocker"],
+        "no_effect_proof": {
+            "kind": "browser_wrapper_child_not_started",
+            "browser_identity": spec["browser_identity"],
+            "release_sha": spec["failing_release_sha"],
+            "release_name": spec["release_name"],
+            "wrapper_path": spec["wrapper_path"],
+            "wrapper_sha256": spec["wrapper_sha256"],
+            "error_detail": spec["error_detail"],
+            "exit_code": 10,
+        },
+    }
+
+
 def _pre_effect_occurrence_proof(
     loop_id: str, entry: dict, occurrence_id: object, expected_state: object,
     runtime_rows: list[dict], *, queued_at: float | None = None,
@@ -527,6 +737,11 @@ def _pre_effect_occurrence_proof(
     if queued_at is not None and (history_start is None or history_start > queued_at):
         # Rotated-out journals could hide a foreign claim; fail closed.
         return None, "history_incomplete"
+    coconala_proof = _coconala_reply_legacy_pre_effect_proof(
+        loop_id, entry, occurrence_id, expected_state, runtime_rows,
+    )
+    if coconala_proof is not None:
+        return coconala_proof, "ok"
     owner_rows = [row for row in runtime_rows if row.get("loop_id") == loop_id]
     occurrence_rows = [
         row for row in owner_rows if row.get("occurrence_id") == occurrence_id
@@ -583,12 +798,21 @@ def _pre_effect_occurrence_proof(
     starts = [row for row in exact
               if row.get("phase") == "execute" and row.get("status") == "running"
               and row.get("effect_status") == "started"]
-    terminals = [row for row in exact
-                 if row.get("phase") == "report"
-                 and _is_pre_effect_terminal(entry, row)]
+    mobile_marker_hashes = {}
+    terminals = []
+    for row in exact:
+        if row.get("phase") != "report":
+            continue
+        marker_sha256 = _mobile_pre_effect_marker_sha256(loop_id, entry, row)
+        if marker_sha256 is not None:
+            mobile_marker_hashes[id(row)] = marker_sha256
+            terminals.append(row)
+        elif _is_pre_effect_terminal(entry, row):
+            terminals.append(row)
     if len(terminals) != 1:
         return None, "no_pre_effect_terminal"
     terminal = terminals[0]
+    mobile_marker_sha256 = mobile_marker_hashes.get(id(terminal))
     verified_no_effect_terminal = _is_ebook_verified_no_effect_terminal(entry, terminal)
     legacy_no_due_proof = _ebook_legacy_no_due_proof(entry, terminal)
     terminal_run_id = terminal.get("run_id")
@@ -620,7 +844,10 @@ def _pre_effect_occurrence_proof(
     elif legacy_no_due_proof is not None:
         return None, "legacy_start_missing"
     terminal_summary_ref = f"lm-loop://{loop_id}/{terminal_run_id}/summary.json"
-    mobile_pre_effect_terminal = _is_mobile_pre_effect_terminal(entry, terminal)
+    mobile_pre_effect_terminal = (
+        mobile_marker_sha256 is not None
+        or _is_mobile_pre_effect_terminal(entry, terminal)
+    )
     if (terminal.get("blocker") not in PRE_EFFECT_TERMINAL_BLOCKERS
             and not mobile_pre_effect_terminal
             and not _is_ebook_pre_effect_entrypoint_terminal(entry, terminal)
@@ -661,6 +888,16 @@ def _pre_effect_occurrence_proof(
         if start is not None:
             proof["no_effect_proof"]["start_run_id"] = start.get("run_id")
             proof["no_effect_proof"]["start_timestamp"] = start.get("timestamp")
+    elif mobile_marker_sha256 is not None:
+        proof["evidence_refs"].append(
+            f"lm-loop://{loop_id}/{terminal_run_id}/entrypoint-result.json"
+        )
+        proof["no_effect_proof"] = {
+            "kind": "mobile_pre_effect_marker",
+            "run_id": terminal_run_id,
+            "release_sha": terminal.get("release_sha"),
+            "entrypoint_result_sha256": mobile_marker_sha256,
+        }
     return proof, "ok"
 
 
@@ -984,6 +1221,17 @@ def _project_cause_event(row: dict | None) -> dict | None:
         return None
     return {
         "timestamp": row.get("timestamp"),
+        "event_id": row.get("event_id"),
+        "loop_id": row.get("loop_id"),
+        "job_id": row.get("job_id"),
+        "owner_id": row.get("owner_id"),
+        "run_id": row.get("run_id"),
+        "wake_id": row.get("wake_id"),
+        "occurrence_id": row.get("occurrence_id"),
+        "release_sha": row.get("release_sha"),
+        "provider": row.get("provider"),
+        "loaded_argv_sha256": row.get("loaded_argv_sha256"),
+        "loaded_env_sha256": row.get("loaded_env_sha256"),
         "phase": row.get("phase"),
         "status": row.get("status"),
         "blocker": row.get("blocker"),
@@ -997,9 +1245,15 @@ def _project_cause_event(row: dict | None) -> dict | None:
     }
 
 
-def _latest_run_row(runtime_rows: list[dict], run_id: str) -> dict | None:
-    """The last journal row for a run_id, by timestamp order in the file."""
-    matching = [row for row in runtime_rows if row.get("run_id") == run_id]
+def _latest_occurrence_row(
+    runtime_rows: list[dict], owner_id: str, occurrence_id: str,
+) -> dict | None:
+    """The latest journal row for this owner's exact occurrence."""
+    matching = [
+        row for row in runtime_rows
+        if row.get("owner_id") == owner_id
+        and row.get("occurrence_id") == occurrence_id
+    ]
     if not matching:
         return None
 
@@ -1016,8 +1270,7 @@ def _admission_effect_unknown_detail(
     loop_id: str, occurrence_id: str, state: str, queued_at: object,
     cause_event: dict | None, auto_close_reason: str,
 ) -> dict:
-    prefix = f"{loop_id}:"
-    run_id = occurrence_id[len(prefix):] if occurrence_id.startswith(prefix) else occurrence_id
+    run_id = cause_event.get("run_id") if cause_event else None
     if auto_close_reason == "ok":
         next_action = "lm-loop reconcile"
     elif cause_event is None:
@@ -1076,9 +1329,8 @@ def _admission_effect_unknown_details(
             loop_id, entry, occurrence_id, state, runtime_rows,
             queued_at=float(queued_at) if queued_at is not None else float("inf"),
             history_start=history_start)
-        prefix = f"{loop_id}:"
-        run_id = occurrence_id[len(prefix):] if occurrence_id.startswith(prefix) else occurrence_id
-        cause_event = _project_cause_event(_latest_run_row(runtime_rows, run_id))
+        cause_event = _project_cause_event(
+            _latest_occurrence_row(runtime_rows, loop_id, occurrence_id))
         details.append(_admission_effect_unknown_detail(
             loop_id, occurrence_id, state, queued_at, cause_event, proof_reason))
     return details, truncated
@@ -1426,7 +1678,9 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
             "effect_class": entry["effect_class"],
             "effect_status": effect_status,
             "event_release_sha": event.get("release_sha"),
+            "registered_cadence": entry.get("cadence"),
             "next_eligible_run": _next_eligible(entry["cadence"]),
+            "admission_class": entry.get("admission_class"),
             "blocker": blocker,
             "admission_effect_unknown": current_effect_unknown,
             "admission_effect_unknown_occurrences": list(
@@ -1559,6 +1813,24 @@ def explain_status_row(row: dict) -> dict:
             "occurrence_id": row.get("occurrence_id"),
             "phase": row.get("phase"),
         },
+        "run_identity": {
+            "job_id": row.get("job_id"),
+            "owner_id": row.get("owner_id"),
+            "run_id": row.get("run_id"),
+            "wake_id": row.get("wake_id"),
+            "occurrence_id": row.get("occurrence_id"),
+            "event_release_sha": row.get("event_release_sha"),
+            "loaded_argv_sha256": row.get("loaded_argv_sha256"),
+            "loaded_env_sha256": row.get("loaded_env_sha256"),
+        },
+        "schedule": {
+            "registered_cadence": row.get("registered_cadence"),
+            "next_eligible_run": row.get("next_eligible_run"),
+            "loaded_cadence": row.get("loaded_cadence"),
+            "loaded_cadence_status": (
+                "reported" if row.get("loaded_cadence") is not None else "not_reported"
+            ),
+        },
         "cause_chain": cause_chain,
         "effect": {
             "class": row.get("effect_class"),
@@ -1674,6 +1946,8 @@ def _health_snapshot_failure_rows(registry: dict, target: str | None, *,
         "effect_class": registry["loops"][loop_id]["effect_class"],
         "effect_status": "unknown",
         "diagnostic_complete": False,
+        "admission_class": registry["loops"][loop_id].get("admission_class"),
+        "registered_cadence": registry["loops"][loop_id].get("cadence"),
         "health_adapter_status": "timeout" if error_class.endswith("timeout") else "error",
         "error_class": error_class,
         "retryable": True,
@@ -1843,6 +2117,9 @@ def _health_event_projection(
             "last_success": None,
             "last_effect": None,
             "last_receipt": None,
+            # execute/started is written by every wake, even one an admission
+            # fence defers; revenue outage needs an effect that actually landed.
+            "last_verified_effect": None,
         })
         is_latest = value.get("phase") == "report" and loop_id not in reports
         running_key = (loop_id, str(value.get("run_id", "")).rsplit("-", 1)[-1])
@@ -1866,13 +2143,19 @@ def _health_event_projection(
                 "started", "verified", "failed", "reconciled",
             }
         )
+        records_verified_effect = (
+            clocks["last_verified_effect"] is None
+            and value.get("phase") == "report"
+            and value.get("effect_class") != "none"
+            and value.get("effect_status") in {"verified", "reconciled"}
+        )
         records_receipt = (
             clocks["last_receipt"] is None
             and (value.get("provider_receipt_id")
                  or value.get("official_readback_ref"))
         )
         if not (is_latest or is_pid_bound_running or records_attempt or records_success
-                or records_effect or records_receipt):
+                or records_effect or records_receipt or records_verified_effect):
             continue
         try:
             validate_runtime_event(value)
@@ -1890,6 +2173,8 @@ def _health_event_projection(
             clocks["last_effect"] = timestamp
         if records_receipt:
             clocks["last_receipt"] = timestamp
+        if records_verified_effect:
+            clocks["last_verified_effect"] = timestamp
     projected_reports = {
         loop_id: {**event, "_health_clocks": clocks_by_loop[loop_id]}
         for loop_id, event in reports.items()
@@ -2112,27 +2397,44 @@ def _bounded_reconcile_candidates(registry: dict, route: str,
 FENCE_RECONCILE_LOG = Path(os.path.expanduser(
     "~/.local/state/life-manager/lm-fence-reconciler/reconcile-calls.jsonl"))
 DIAGNOSIS_DETAIL_CHARS = 600
+RECONCILE_CALL_TAIL_BYTES = 4 * 1024 * 1024
 
 
 def _last_adapter_calls(log_path: Path) -> dict[str, dict]:
-    """Latest lm-fence-reconciler adapter call per fenced occurrence."""
+    """Recent lm-fence-reconciler adapter calls from a bounded log tail."""
     latest: dict[str, dict] = {}
     try:
-        with log_path.open(encoding="utf-8") as handle:
-            for line in handle:
-                try:
-                    row = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if isinstance(row, dict) and isinstance(row.get("occurrence_id"), str):
-                    latest[row["occurrence_id"]] = row
+        size = log_path.stat().st_size
+        offset = max(0, size - RECONCILE_CALL_TAIL_BYTES)
+        with log_path.open("rb") as handle:
+            handle.seek(offset)
+            lines = handle.read(RECONCILE_CALL_TAIL_BYTES).splitlines()
     except OSError:
         return {}
+    if offset and lines:
+        lines = lines[1:]
+    for line in lines:
+        try:
+            row = json.loads(line)
+        except (UnicodeError, json.JSONDecodeError):
+            continue
+        if isinstance(row, dict) and isinstance(row.get("occurrence_id"), str):
+            latest[row["occurrence_id"]] = row
     return latest
 
 
 def _adapter_verdict(call: dict) -> dict:
     """Project the adapter's own provider-side readback out of its stdout tail."""
+    if call.get("owner_batch_summary") is True:
+        return {
+            "status": "owner_batch_checked_unresolved",
+            "adapter_exit_code": call.get("exit_code"),
+            "closed": False,
+            "checked_occurrence_count": call.get("checked_occurrence_count"),
+            "still_fenced_count": call.get("still_fenced_count"),
+            "recorded_at": call.get("recorded_at"),
+            "verified": False,
+        }
     tail = call.get("stdout_tail") if isinstance(call.get("stdout_tail"), str) else ""
     detail: dict = {}
     marker = None
@@ -2208,6 +2510,16 @@ def effect_unknown_diagnosis(loop_id: str, entry: dict, occurrences: tuple[str, 
                 "evidence_refs": chosen.get("evidence_refs"),
             }
     call = adapter_calls.get(occurrence_id)
+    if call is None:
+        owner_batch = adapter_calls.get(f"{loop_id}:*")
+        still_fenced = tuple(sorted(set(occurrences)))
+        digest = hashlib.sha256("\n".join(still_fenced).encode("utf-8")).hexdigest()
+        if (isinstance(owner_batch, dict)
+                and owner_batch.get("owner_id") == loop_id
+                and owner_batch.get("owner_batch_summary") is True
+                and owner_batch.get("still_fenced_count") == len(still_fenced)
+                and owner_batch.get("still_fenced_occurrences_sha256") == digest):
+            call = owner_batch
     has_adapter = isinstance(entry.get("effect_reconcile"), dict)
     provider_state = _adapter_verdict(call) if call else None
     if not has_adapter:
@@ -2217,6 +2529,8 @@ def effect_unknown_diagnosis(loop_id: str, entry: dict, occurrences: tuple[str, 
         next_action = "await_lm_fence_reconciler_pass"
     elif call.get("closed"):
         next_action = "closed_by_adapter"
+    elif call.get("owner_batch_summary") is True:
+        next_action = "official_readback_required"
     else:
         reason = (provider_state or {}).get("reason") or (provider_state or {}).get("marker")
         next_action = f"adapter_held:{reason}" if reason else "adapter_held:inspect_provider_state"

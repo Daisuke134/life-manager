@@ -31,7 +31,7 @@ const {
   parseGeminiTranscripts,
   muLawDecodeSample,
 } = require("./lib/call-logic.js");
-const { startScheduler, startWakeLoop, startReminderLoop, startTravelLoop, startAskLoop, startOnboardLoop, startDiscoveryLoop, buildStreamUrl, langForPhone } = require("./scheduler.js");
+const { startScheduler, startWakeLoop, startReminderLoop, startTravelLoop, startAskLoop, startOnboardLoop, startDiscoveryLoop, travelUserByUid, buildStreamUrl, langForPhone } = require("./scheduler.js");
 const { openingTurnForLang, resolveCallLang } = require("./lib/call-language.js");
 const { maybeStartLoops, inngestConfigured } = require("./lib/maybe-start-loops.js");
 const { compBootLog } = require("./lib/comp-window.js");
@@ -70,6 +70,7 @@ const { createSupabaseCommandStore } = require("./lib/panel-api.js");
 const { handleCalendarOnboardRequest } = require("./lib/calendar-onboard.js");
 const { parseUserCommand, dispatchParsedControl, executeUserCommand } = require("./lib/user-command.js");
 const { parseSlashCommand, slashAliasText, handleSlashCommand } = require("./lib/slash-command.js");
+const { createMaritimePilotTransport } = require("./lib/transport/maritime-pilot.js");
 const { createInvestmentStateStore } = require("./lib/investment-state-store.js");
 const { handleFeedbackMessage, createPostgresFeedbackStore } = require("./lib/feedback-intake.js");
 const { handleMentalCorrectionMessage } = require("./lib/mental-correction.js");
@@ -118,6 +119,7 @@ const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY || "sk_test_place
 }); // apiKey unused by constructEvent
 const SUPA_URL = process.env.SUPABASE_URL, SUPA_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const COMPOSIO_KEY = process.env.COMPOSIO_API_KEY;
+const maritimePilotTransport = createMaritimePilotTransport({ env: process.env });
 let moneyPrinterSource, moneyPrinterRuntimePool, moneyPrinterRuntimeStore, investmentStateStore, cloudCitizenStore, agentEconomyControlStore;
 let imessageCloudClient = null;
 let imessageCloudStartup = null;
@@ -131,6 +133,7 @@ function ensureIMessageCloud() {
       handleMessageImpl: (space, message) => handleIMessageStreamMessage(space, message, {
         supaUrl: SUPA_URL,
         supaKey: SUPA_KEY,
+        afterTravelOriginAnswer: travelAfterOriginAnswer,
       }),
     }).then((client) => {
       imessageCloudClient = client;
@@ -151,6 +154,13 @@ async function sendIMessageToSender(senderId, text) {
     return { ok: false, reason: "not_ready" };
   }
   return client.sendToSender(senderId, text);
+}
+
+async function travelAfterOriginAnswer(uid) {
+  return travelUserByUid(uid, {
+    imessageSend: sendIMessageToSender,
+    suppressAutofillReport: true,
+  });
 }
 
 function imessageLinkAvailable() {
@@ -1436,9 +1446,14 @@ const server = http.createServer(async (req, res) => {
               if (u.isStart) {
                 await sendMessage(LM_TG_TOKEN, u.chatId, "このTelegramはLife Manager Webに接続済みです。確認が必要な予定に返信できます。");
               } else if (u.text) {
-                const reply = await resolveTelegramReply(u.chatId, u.text);
+                const reply = await resolveTelegramReply(u.chatId, u.text, {
+                  afterTravelOriginAnswer: travelAfterOriginAnswer,
+                });
                 await sendMessage(LM_TG_TOKEN, u.chatId, reply.filled
                   ? `✅ ${reply.event}の場所を${reply.location}に更新しました。`
+                  : reply.originSet ? reply.travelResult
+                    ? `✅ ${reply.event}の出発元を「${reply.location}」に設定し、Calendarの移動時間を再計算しました。`
+                    : `✅ ${reply.event}の出発元を「${reply.location}」に記録しました。次回の自動確認で使います。`
                   : "確認が必要な予定への返信として一致しませんでした。Life Managerからの質問に返信してください。");
               }
               res.writeHead(200); res.end("ok");
@@ -1593,6 +1608,26 @@ const server = http.createServer(async (req, res) => {
           // and /panel return handled:false (their existing branches above/below stay the owner),
           // and an unknown /command gets an honest "unknown command + /help" reply.
           if (slash && !slashAlias) {
+            let maritimePilotReceipt = null;
+            if (slash.name === "pilot" && row && row.uid && maritimePilotTransport.isEnabledFor(row.uid)) {
+              const updateId = update.update_id;
+              if (!Number.isSafeInteger(updateId) || updateId < 0) throw new Error("maritime_pilot_update_id_invalid");
+              const scope = { uid: String(row.uid), chatId: String(u.chatId) };
+              const idempotencyKey = `telegram-maritime-pilot:${updateId}`;
+              const requestHash = crypto.createHmac("sha256", LM_UID_SECRET)
+                .update(JSON.stringify({ uid: scope.uid, chatId: scope.chatId, updateId, message: slash.args }))
+                .digest("hex");
+              const commandStore = createSupabaseCommandStore({ supaUrl: SUPA_URL, supaKey: SUPA_KEY });
+              const claimed = await commandStore.claimReceipt(scope, idempotencyKey, {
+                requestHash, commandType: "maritime.pilot.chat", status: "pending",
+              });
+              if (!claimed) {
+                console.log("[slash] command=pilot action=duplicate");
+                res.writeHead(200); res.end("ok");
+                return;
+              }
+              maritimePilotReceipt = { store: commandStore, scope, idempotencyKey };
+            }
             const outcome = await handleSlashCommand(slash, row, {
               token: LM_TG_TOKEN, chatId: u.chatId, base: PUBLIC_BASE,
               supaUrl: SUPA_URL, supaKey: SUPA_KEY,
@@ -1602,7 +1637,16 @@ const server = http.createServer(async (req, res) => {
                 return getInvestmentStateStore().read(uid);
               },
               getEconomyState: (uid) => getAgentEconomyControlStore().read(uid),
+              isMaritimePilotEnabled: maritimePilotTransport.isEnabledFor,
+              chatWithMaritimePilot: maritimePilotTransport.chatForUser,
             });
+            if (maritimePilotReceipt) {
+              await maritimePilotReceipt.store.finishReceipt(
+                maritimePilotReceipt.scope,
+                maritimePilotReceipt.idempotencyKey,
+                { status: outcome.ok === true ? "succeeded" : "failed", result: null },
+              );
+            }
             if (outcome.handled) {
               console.log(`[slash] command=${slash.name} action=${outcome.action}${outcome.ok === false ? ` reason=${outcome.reason || "failed"}` : ""}${outcome.providerMessageId == null ? "" : ` provider_message_id=${outcome.providerMessageId}`}`);
               res.writeHead(200); res.end("ok");
@@ -1693,9 +1737,14 @@ const server = http.createServer(async (req, res) => {
             // Native steps (name/phone) capture the typed value; web steps re-nudge; "done" → reply.
             const result = await handleOnboardingText(u.chatId, u.text, row, opts);
             if (result === "done") {
-              const res2 = await resolveTelegramReply(u.chatId, u.text);
+              const res2 = await resolveTelegramReply(u.chatId, u.text, {
+                afterTravelOriginAnswer: travelAfterOriginAnswer,
+              });
               await sendMessage(LM_TG_TOKEN, u.chatId,
-                res2.filled ? `✅ Got it — set “${res2.event}” to ${res2.location}.`
+                res2.originSet ? res2.travelResult
+                  ? `✅ ${res2.event}の出発元を「${res2.location}」に設定し、Calendarの移動時間を再計算しました。`
+                  : `✅ ${res2.event}の出発元を「${res2.location}」に記録しました。次回の自動確認で使います。`
+                  : res2.filled ? `✅ Got it — set “${res2.event}” to ${res2.location}.`
                             : "Thanks! If that was an event location, reply to my question and I'll add it.");
             }
           }
@@ -2056,7 +2105,8 @@ if (require.main === module) {
     // The /ws Telnyx⇄Gemini-Live voice bridge + /test-call + /telegram endpoints are ALWAYS on regardless.
     // As an OpenClaw voice daemon, set LIFE_RUN_LOOPS=false so the cron-COMMAND jobs (B2) own the loops.
     const loops = maybeStartLoops(process.env, {
-      startScheduler, startWakeLoop, startReminderLoop, startTravelLoop,
+      startScheduler, startWakeLoop, startReminderLoop,
+      startTravelLoop: () => startTravelLoop({ imessageSend: sendIMessageToSender }),
       startAskLoop: () => startAskLoop({ imessageSend: sendIMessageToSender }),
       startOnboardLoop, startDiscoveryLoop,
       startInvestmentDryRunLoop,

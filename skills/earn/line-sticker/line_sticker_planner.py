@@ -221,8 +221,14 @@ JSON Schemaに厳密に従ったJSONだけを返す。orderはちょうど24個�
         result = _run_agent(prompt=prompt, schema=HERE / "schemas/selection.schema.json",
                              evidence_dir=Path(tmp) / "evidence", task_label=f"line-sticker-select-{set_dir.name}",
                              images=[sheet])
-    result["campaign_value"] = _guard_campaign_value(result.get("campaign_value"), open_features,
-                                                     result.get("campaign_theme_ids", []), result.get("order", []))
+    listing = result.get("listing") or {}
+    campaign_value = _guard_campaign_value(
+        result.get("campaign_value"), open_features, result.get("campaign_theme_ids", []),
+        result.get("order", []), price_jpy=int(listing.get("price_jpy", 250)),
+    )
+    result["campaign_value"] = campaign_value
+    feature = next((f for f in open_features if f.get("value") == campaign_value), None)
+    result["campaign_requirements"] = _campaign_requirements(feature) if feature else None
     return result
 
 
@@ -238,25 +244,60 @@ def _deadline_passed(deadline: str | None, today: datetime.date) -> bool:
 def _open_features(today: datetime.date) -> list[dict]:
     if not FEATURES_FILE.exists():
         return []
-    features = json.loads(FEATURES_FILE.read_text()).get("features", [])
-    return [f for f in features if not _deadline_passed(f.get("deadline"), today)]
+    snapshot = json.loads(FEATURES_FILE.read_text())
+    observed_at = snapshot.get("observed_at")
+    try:
+        observed = datetime.datetime.fromisoformat(observed_at)
+        if observed.tzinfo is None or observed.astimezone(JST).date() != today:
+            return []
+    except (TypeError, ValueError):
+        return []
+    return [{**feature, "observed_at": observed.isoformat()}
+            for feature in snapshot.get("features", [])
+            if not _deadline_passed(feature.get("deadline"), today)]
 
 
 THEME_MARGIN = 4  # LINE judges "on theme" itself; a bare minimum got 48137583 rejected (2026-10-08)
 
 
-def _required_theme_count(conditions: str | None) -> int:
-    match = re.search(r"(\d+)\s*個以上", conditions or "")
-    return int(match.group(1)) if match else 8
+def _campaign_requirements(feature: dict | None) -> dict | None:
+    if not feature:
+        return None
+    if not all(feature.get(key) for key in ("value", "title", "deadline", "observed_at")):
+        return None
+    conditions = feature.get("conditions") or ""
+    count_match = re.search(r"個数[：:]\s*(\d+)\s*[-〜～]\s*(\d+)\s*個", conditions)
+    price_match = re.search(r"金額[：:]\s*[￥¥]\s*(\d+)", conditions)
+    theme_count_match = re.search(r"(\d+)\s*個以上", conditions)
+    if not count_match or not price_match or not theme_count_match:
+        return None
+    return {
+        "value": feature["value"],
+        "title": feature["title"],
+        "deadline": feature["deadline"],
+        "min_sticker_count": int(count_match.group(1)),
+        "max_sticker_count": int(count_match.group(2)),
+        "min_price_jpy": int(price_match.group(1)),
+        "min_theme_stickers": int(theme_count_match.group(1)) + THEME_MARGIN,
+        "observed_at": feature.get("observed_at"),
+    }
 
 
 def _guard_campaign_value(value: str | None, open_features: list[dict],
-                          theme_ids: list[str] = (), order: list[str] = ()) -> str | None:
+                          theme_ids: list[str] = (), order: list[str] = (),
+                          price_jpy: int = 250) -> str | None:
     """Hard deterministic limit: a value the model invents or that has since expired is never sent,
     and a feature is joined only when enough selected stickers depict its theme -- a feature miss
     rejects the whole set even when the stickers are fine."""
     feature = next((f for f in open_features if f.get("value") == value), None) if value else None
     if feature is None:
         return None
+    requirements = _campaign_requirements(feature)
+    if requirements is None:
+        return None
+    if not requirements["min_sticker_count"] <= len(order) <= requirements["max_sticker_count"]:
+        return None
+    if price_jpy < requirements["min_price_jpy"]:
+        return None
     on_theme = set(theme_ids) & set(order)
-    return value if len(on_theme) >= _required_theme_count(feature.get("conditions")) + THEME_MARGIN else None
+    return value if len(on_theme) >= requirements["min_theme_stickers"] else None

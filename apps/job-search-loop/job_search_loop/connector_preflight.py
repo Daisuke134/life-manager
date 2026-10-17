@@ -8,11 +8,27 @@ import tempfile
 from pathlib import Path
 from typing import Any, Callable
 
-from .telegram import send_once
+from .telegram import is_configured as telegram_is_configured, send_once
 
 
 class ConnectorPreflightError(RuntimeError):
     pass
+
+
+def _optional_telegram_sender(sender: Callable[..., dict[str, str | None]] | None):
+    if sender is None:
+        return lambda **_: {"status": "not_configured", "message_id": None}
+
+    def send(**kwargs):
+        try:
+            result = sender(**kwargs)
+        except Exception as error:
+            return {"status": "unavailable", "message_id": None, "error_class": type(error).__name__}
+        if result.get("status") != "sent" or not result.get("message_id"):
+            return {"status": "unavailable", "message_id": None}
+        return result
+
+    return send
 
 
 def _application_email(profile_path: Path) -> str:
@@ -84,28 +100,32 @@ def verify_connectors(
     outbox_path: Path,
     output_path: Path,
     gmail_runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
-    telegram_sender: Callable[..., dict[str, str | None]] = send_once,
+    telegram_sender: Callable[..., dict[str, str | None]] | None = None,
 ) -> dict[str, Any]:
     email = _application_email(profile_path)
     gmail = _gmail_readback(email, runner=gmail_runner)
+    telegram_sender = _optional_telegram_sender(telegram_sender)
     telegram = telegram_sender(
         database=outbox_path,
         event_key="job-search-oss-setup:v1",
         message=(
             "Codex::: [Job Hunter][セットアップ]\n"
-            "✅ GmailとTelegramの接続を確認しました。\n\n"
+            "✅ Gmail接続を確認しました。Telegramは任意です。\n\n"
             "次に自動で行うこと\n"
-            "30分ごとに新しいWorkday求人を確認し、履歴書と希望条件に合う求人だけを応募対象として報告します。"
+            "受領を確認したWorkday応募をメールで報告し、日次briefingを届けます。"
         ),
     )
     message_id = telegram.get("message_id")
-    if telegram.get("status") != "sent" or not message_id:
-        raise ConnectorPreflightError("Telegram ACK is unavailable")
+    telegram_status = (
+        {"status": "ready", "message_id": str(message_id)}
+        if telegram.get("status") == "sent" and message_id
+        else {"status": str(telegram.get("status") or "unavailable")}
+    )
     receipt = {
         "version": 1,
         "status": "ready",
         "gmail": gmail,
-        "telegram": {"status": "ready", "message_id": str(message_id)},
+        "telegram": telegram_status,
     }
     _write_private(output_path, receipt)
     return receipt
@@ -122,6 +142,7 @@ def main() -> int:
             profile_path=args.profile,
             outbox_path=args.outbox,
             output_path=args.output,
+            telegram_sender=send_once if telegram_is_configured() else None,
         )
     except (ConnectorPreflightError, OSError, json.JSONDecodeError) as error:
         print(json.dumps({"status": "blocked", "reason": str(error)}, sort_keys=True))

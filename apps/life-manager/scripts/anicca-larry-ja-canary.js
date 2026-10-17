@@ -158,11 +158,18 @@ function scopedSecretProvider(env, tenantId, lane = JA_RUNNER_LANE) {
 async function executeJob(store, job, workerId, handler, execute = executeCapabilityJob) {
   const existing = await store.readReceipt({ tenantId: job.tenant_id, jobId: job.job_id });
   if (existing) return { created: false, receipt: existing };
+  if (job.capability === "marketing.video.publish") {
+    const failed = await store.readJob({ tenantId: job.tenant_id, jobId: job.job_id });
+    if (failed?.status === "failed" && failed.unknown_effect === false
+      && failed.attempt < failed.max_attempts) {
+      await store.retryJob({ tenantId: job.tenant_id, jobId: job.job_id });
+    }
+  }
   const claim = await store.claimJob({ tenantId: job.tenant_id, jobId: job.job_id, capability: job.capability, workerId, leaseSeconds: 300 });
   if (!claim) {
     const retained = await store.readReceipt({ tenantId: job.tenant_id, jobId: job.job_id });
     if (retained) return { created: false, receipt: retained };
-    throw new Error(`Larry JA ${job.capability} job is not claimable`);
+    throw new Error(`Mobile marketing job is not claimable: ${job.job_id}`);
   }
   await execute(claim, {
     workerId,
@@ -175,7 +182,7 @@ async function executeJob(store, job, workerId, handler, execute = executeCapabi
   const receipt = await store.readReceipt({ tenantId: job.tenant_id, jobId: job.job_id });
   if (!receipt) {
     const state = await store.readJob({ tenantId: job.tenant_id, jobId: job.job_id });
-    const error = new Error(`Larry JA ${job.capability} receipt is unavailable`);
+    const error = new Error(`Mobile marketing receipt unavailable: ${job.job_id}`);
     if (state && state.unknown_effect === true) error.unknownEffect = true;
     throw error;
   }
@@ -341,11 +348,11 @@ async function runAniccaCarouselCanary(argv = [], deps = {}) {
   if (publicationError) throw publicationError;
   const publication = publicationRun.receipt;
   if (!verifyMarketingNativeCarouselPublicationReceipt(publication) || publication.provider_reconciled !== true) {
-    const error = new Error("Larry JA publication receipt is not reconciled");
+    const error = new Error(`Mobile marketing publication receipt is not reconciled: ${publicationJob.job_id}`);
     error.unknownEffect = true;
     throw error;
   }
-  const publicationResult = { created: queued.created && publicationRun.created, public_url: publication.public_url, provider_post_id: publication.provider_post_id };
+  const publicationResult = { created: queued.created && publicationRun.created, ...(typeof publication.provider_effect_created === "boolean" ? { provider_effect_created: publication.provider_effect_created, ...(typeof publication.origin_occurrence_id === "string" ? { origin_occurrence_id: publication.origin_occurrence_id } : {}) } : {}), public_url: publication.public_url, provider_post_id: publication.provider_post_id };
   const postizPhotoVerified = isVerifiedPostizPhotoPublication(lane, publication);
   const postizProductionVerified = production && publication.status === "published" && publication.provider_reconciled === true;
   if (!postizPhotoVerified && !postizProductionVerified && !verifyNativeObject(config.verificationRef, objectStore, publication, trustedNow, lane)) {

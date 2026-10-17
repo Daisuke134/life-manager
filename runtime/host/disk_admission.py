@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import json
-import hashlib
 import marshal
 import platform
 import subprocess
@@ -24,9 +23,39 @@ RECEIPT_PATH = Path("state") / "disk-headroom.json"
 _PRODUCER_GATE = "life-manager-producer-preflight"
 _DISK_STOP_FLAGS = (("disk-writers.stop", "disk_writers_stop"),)
 _DISK_RECOVERY_OWNER = "host-disk-recovery"
-_DISK_RECOVERY_LOOP_ID = "life-manager-disk-cleanup"
 _DISK_RECOVERY_REASON = "disk_headroom_low"
 RECOVERY_FLOOR_BYTES = 2 * 1024**3
+# Swap lives on the Data volume; below this floor the Mac froze (2026-10-14).
+PRODUCER_FLOOR_BYTES = 12 * 1024**3
+
+
+def _producer_floor_bytes() -> int:
+    """Calibration knob for isolated tests and smaller hosts; production uses the default."""
+    try:
+        return max(0, int(os.environ.get("LIFE_MANAGER_PRODUCER_FLOOR_BYTES", PRODUCER_FLOOR_BYTES)))
+    except ValueError:
+        return PRODUCER_FLOOR_BYTES
+_PRODUCER_FLOOR_REASON = "disk_floor_low"
+# Revenue lanes keep running down to this lower floor, like Kubernetes evicting low-priority
+# pods first: a flat 12 GiB floor stopped every revenue lane at 11 GiB (2026-10-16). 10 GiB still
+# leaves the unarmed 8 GiB ballast plus the 2 GiB recovery floor as headroom for swap growth.
+REVENUE_FLOOR_BYTES = 10 * 1024**3
+
+
+def _is_revenue_loop(loop_id: str | None) -> bool:
+    """Read the loop's admission_class from the release registry; unknown reads as not revenue."""
+    if not loop_id:
+        return False
+    try:
+        registry = json.loads((Path(os.environ["LIFE_MANAGER_REPO"]) / "config" / "loop-registry.json").read_text())
+        return registry["loops"][loop_id].get("admission_class") == "revenue"
+    except (KeyError, OSError, ValueError, TypeError, AttributeError):
+        return False
+# Cleanup, reconcile and health owners must keep running to recover space.
+_CONTROL_PLANE_LOOPS = frozenset({
+    "life-manager-disk-cleanup", "life-manager-disk-cleanup-15d", "lm-fence-reconciler",
+    "life-manager-health-observer", "life-manager-release-reconciler", "boot-panic-evidence",
+})
 _DISK_RECOVERY_ACTION = "restore_capacity_and_install_shared_disk_gate"
 
 
@@ -196,10 +225,14 @@ def _failure(
     return 1
 
 
+def _floor_bytes(loop_id: str | None) -> int:
+    floor = _producer_floor_bytes()
+    return min(floor, REVENUE_FLOOR_BYTES) if _is_revenue_loop(loop_id) else floor
+
+
 def _producer_gate(
     loop_id: str | None = None, *, check_capacity: bool = True,
 ) -> tuple[str, Path] | None:
-    loop_id = loop_id or os.environ.get("LIFE_MANAGER_LOOP_ID", "")
     try:
         configured = _host_state_dir()
         candidates = (*_canonical_host_state_dirs(), configured)
@@ -242,20 +275,13 @@ def _producer_gate(
             if not stat.S_ISREG(entry.st_mode):
                 return "disk_policy_unavailable", flag
             if is_cleanup_disk_recovery_signal(flag):
-                if check_capacity and loop_id != _DISK_RECOVERY_LOOP_ID:
-                    return _DISK_RECOVERY_REASON, flag
                 continue
             return reason, flag
-    if check_capacity and loop_id != _DISK_RECOVERY_LOOP_ID:
-        state_dir = _state_dir()
-        probe = next((path for path in (state_dir, *state_dir.parents) if path.exists()), None)
-        if probe is None:
-            return "disk_headroom_unknown", state_dir
-        available = disk_free_bytes(probe)
-        if available is None:
-            return "disk_headroom_unknown", probe
-        if available < RECOVERY_FLOOR_BYTES:
-            return "disk_headroom_low", probe
+    if check_capacity and loop_id not in _CONTROL_PLANE_LOOPS:
+        available = disk_free_bytes(configured)
+        floor = _floor_bytes(loop_id)
+        if available is not None and available < floor:
+            return _PRODUCER_FLOOR_REASON, configured
     return None
 
 
@@ -271,10 +297,11 @@ def _producer_preflight(loop_id: str | None = None) -> int:
     if gate is not None:
         reason, flag = gate
         available_bytes = disk_free_bytes(state_dir)
-        if reason in {"disk_headroom_low", "disk_headroom_unknown"}:
+        if reason in {"disk_headroom_low", "disk_headroom_unknown", _PRODUCER_FLOOR_REASON}:
             receipt = {
                 "status": "deferred", "effect": 0, "readback": 0,
-                "reason": reason, "required_bytes": RECOVERY_FLOOR_BYTES,
+                "reason": reason, "required_bytes": (
+                    _floor_bytes(loop_id) if reason == _PRODUCER_FLOOR_REASON else RECOVERY_FLOOR_BYTES),
                 "gate": _PRODUCER_GATE, "flag_path": str(flag),
             }
             if available_bytes is not None:
@@ -292,24 +319,59 @@ def _producer_preflight(loop_id: str | None = None) -> int:
 
 
 def disk_headroom_ok() -> bool:
-    """Return whether a normal producer has safe disk headroom."""
+    """Return whether producer control state and the free-space floor permit work."""
     return _producer_preflight(os.environ.get("LIFE_MANAGER_LOOP_ID")) == 0
 
 
+def dependency_manifest_matches(left: bytes, right: bytes) -> bool:
+    """Ignore only scripts, which the cached npm-ci command never executes."""
+    try:
+        manifests = [json.loads(payload) for payload in (left, right)]
+        for manifest in manifests:
+            if not isinstance(manifest, dict):
+                return False
+            if "scripts" in manifest and not isinstance(manifest["scripts"], dict):
+                return False
+            manifest.pop("scripts", None)
+        return json.dumps(manifests[0], sort_keys=True) == json.dumps(manifests[1], sort_keys=True)
+    except (ValueError, TypeError, UnicodeError):
+        return False
+
+
+def dependency_bundle_is_reusable(node_modules: Path, bundle_root: Path) -> bool:
+    """Accept only a complete read-only content-addressed bundle under the shared root."""
+    try:
+        if not node_modules.is_symlink():
+            return False
+        modules = node_modules.resolve(strict=True)
+        bundle = modules.parent
+        key = bundle.name.removeprefix("npm-")
+        marker = bundle / ".complete"
+        return (
+            modules == (bundle / "node_modules").resolve(strict=True)
+            and bundle.parent.resolve(strict=True) == bundle_root.resolve(strict=True)
+            and len(key) == 64
+            and all(char in "0123456789abcdef" for char in key)
+            and not bundle.stat().st_mode & 0o222
+            and not marker.is_symlink()
+            and stat.S_ISREG(marker.lstat().st_mode)
+            and marker.read_text(encoding="utf-8").strip() == key
+            and (modules / ".package-lock.json").is_file()
+        )
+    except (OSError, UnicodeError, ValueError, RuntimeError):
+        return False
+
+
 def release_capacity_bytes(repo: Path, sha: str, loops: Path, node: str, npm: str) -> int:
-    """Measure a complete source export only when all dependency bundles are reusable."""
-    donor = (loops / "current").resolve()
-    descriptor = json.loads((donor / "RELEASE.json").read_text())
-    if (descriptor.get("release_paths") != "ALL"
-            or descriptor.get("provenance") != "ancestor-of-origin-main"
-            or descriptor.get("runtime_python") != str(Path(sys.executable).resolve())
-            or descriptor.get("runtime_python_cache_tag") != sys.implementation.cache_tag
-            or donor.stat().st_mode & 0o222
-            or os.path.lexists(donor / "RECLAIMED-RELEASE.json")):
-        raise ValueError("donor is not a complete immutable runtime")
-    subprocess.run(["git","-C",str(repo),"merge-base","--is-ancestor",descriptor["sha"],"origin/main"],check=True,capture_output=True)
+    """Measure the source export, bytecode, and serial temporary write budget."""
+    return release_capacity(repo, sha, loops, node, npm)[0]
+
+
+def release_capacity(repo: Path, sha: str, loops: Path, node: str, npm: str) -> tuple[int, bool]:
+    """Return (bytes, fresh_install_budgeted); the flag lets cut-loop-release run npm ci."""
     roots = ("", "runtime/compute-proxy", "runtime/agentmail", "apps/life-manager",
              "skills/earn/taskmarket", "skills/earn/x402-sell", "services/x402-endpoint")
+    package_manifests = []
     for relative in roots:
         prefix = relative + "/" if relative else ""
         manifests = []
@@ -318,20 +380,46 @@ def release_capacity_bytes(repo: Path, sha: str, loops: Path, node: str, npm: st
             manifests.append(result.stdout if result.returncode == 0 else None)
         if None in manifests:
             continue
+
+        package_manifests.append((relative, manifests))
+
+    if package_manifests:
+        donor = (loops / "current").resolve()
+        descriptor = json.loads((donor / "RELEASE.json").read_text())
+        if (descriptor.get("release_paths") != "ALL"
+                or descriptor.get("provenance") != "ancestor-of-origin-main"
+                or descriptor.get("runtime_python") != str(Path(sys.executable).resolve())
+                or descriptor.get("runtime_python_cache_tag") != sys.implementation.cache_tag
+                or donor.stat().st_mode & 0o222
+                or os.path.lexists(donor / "RECLAIMED-RELEASE.json")):
+            raise ValueError("donor is not a complete immutable runtime")
+        subprocess.run(["git","-C",str(repo),"merge-base","--is-ancestor",descriptor["sha"],"origin/main"],check=True,capture_output=True)
+    fresh_install = 0
+    for relative, manifests in package_manifests:
         directory = donor / relative
-        if any((directory / name).read_bytes() != payload for name,payload in zip(("package.json","package-lock.json"),manifests)):
-            raise ValueError("dependency manifests changed")
-        header = "\0".join(("command","npm-ci --omit=dev --ignore-scripts","os",platform.system(),"arch",platform.machine(),"node",node,"npm",npm)) + "\0"
-        key_data = header.encode()
-        for label,payload in zip(("package-json","package-lock"),manifests):
-            key_data += label.encode() + b"\0" + (hashlib.sha256(payload).hexdigest() + "  -\n").encode()
-        key = hashlib.sha256(key_data).hexdigest()
-        bundle = loops / "dependency-bundles" / ("npm-" + key)
-        if (not (directory / "node_modules").is_symlink()
-                or (directory / "node_modules").resolve() != (bundle / "node_modules").resolve()
-                or bundle.stat().st_mode & 0o222
-                or (bundle / ".complete").read_text().strip() != key
-                or not (bundle / "node_modules/.package-lock.json").is_file()):
+        donor_manifests = [(directory / name).read_bytes()
+                           for name in ("package.json", "package-lock.json")]
+        if (donor_manifests[1] != manifests[1]
+                or not dependency_manifest_matches(donor_manifests[0], manifests[0])):
+            # cut-loop-release builds a fresh bundle when no donor matches; budget one the
+            # size of the donor's tree instead of refusing every release (2026-10-16, #8168).
+            # ponytail: assumes a changed lock installs about as much as the old one (+50%).
+            tree = 0
+            for root, _dirs, files in os.walk((directory / "node_modules").resolve()):
+                for name in files:
+                    try:
+                        tree += os.lstat(os.path.join(root, name)).st_size + 4096
+                    except OSError:
+                        pass
+            if tree <= 0:
+                raise ValueError("dependency install size unknown")
+            fresh_install += tree + tree // 2  # npm ci cache and temporaries
+            continue
+        # The bundle was built from the donor's bytes, including its old script aliases.
+        manifests = donor_manifests
+        # cut-loop-release can hardlink a dependency-compatible donor bundle into a
+        # new toolchain-keyed bundle. Validate that shared bundle contract in one place.
+        if not dependency_bundle_is_reusable(directory / "node_modules", loops / "dependency-bundles"):
             raise ValueError("dependency bundle unavailable")
     block = os.statvfs(loops).f_frsize
     if block <= 0:
@@ -352,7 +440,7 @@ def release_capacity_bytes(repo: Path, sha: str, loops: Path, node: str, npm: st
                     budget += 2 * (block + rounded(16 + len(marshal.dumps(code))))
         if archive.wait() != 0:
             raise ValueError("Git export measurement failed")
-    return budget + largest_temporary
+    return budget + largest_temporary + fresh_install, fresh_install > 0
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -361,10 +449,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         if len(remaining) != 6:
             return 2
         try:
-            required = release_capacity_bytes(Path(remaining[1]),remaining[2],Path(remaining[3]),remaining[4],remaining[5])
-        except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError, tarfile.TarError, SyntaxError):
-            required = RECOVERY_FLOOR_BYTES
-        print(required)
+            required, install = release_capacity(Path(remaining[1]),remaining[2],Path(remaining[3]),remaining[4],remaining[5])
+        except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError, tarfile.TarError, SyntaxError) as exc:
+            print(json.dumps({
+                "status": "failed",
+                "effect": 0,
+                "readback": 0,
+                "reason": "release_capacity_measurement_failed",
+                "error_class": type(exc).__name__,
+            }, sort_keys=True, separators=(",", ":")), file=sys.stderr)
+            return 1
+        print(f"{required} install" if install else required)
         return 0
     if remaining[:1] == ["--check-free-space"]:
         if len(remaining) not in (2,3):

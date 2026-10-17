@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Football Scoreline Scenario Card</title>
+  <desc id="desc">A dark blue football analysis card with a pitch, score markers, and scenario paths.</desc>
+  <rect width="512" height="512" rx="88" fill="#102A43"/>
+  <rect x="68" y="92" width="376" height="328" rx="26" fill="#1F5F75" stroke="#BEE3F8" stroke-width="10"/>
+  <path d="M256 92v328M68 256h376M172 92a84 84 0 0 1 0 164M340 92a84 84 0 0 0 0 164M172 420a84 84 0 0 0 0-164M340 420a84 84 0 0 1 0-164" fill="none" stroke="#BEE3F8" stroke-width="8"/>
+  <circle cx="256" cy="256" r="31" fill="#F6E05E" stroke="#102A43" stroke-width="10"/>
+  <path d="M256 225l18 13-7 21h-22l-7-21zM245 259l-18 14M267 259l18 14M248 278l-8 20M264 278l8 20" fill="none" stroke="#102A43" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="108" y="122" width="88" height="54" rx="12" fill="#102A43"/>
+  <text x="152" y="159" text-anchor="middle" font-family="Arial, sans-serif" font-size="29" font-weight="700" fill="#F6E05E">1–0</text>
+  <path d="M323 140h68M323 170h43M323 343h68M323 373h43" stroke="#F6E05E" stroke-width="12" stroke-linecap="round"/>
+</svg>

@@ -5,8 +5,11 @@ from __future__ import annotations
 
 import json
 import sys
+import tempfile
+import types
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import jsonschema
 
@@ -68,6 +71,37 @@ class CannotFixRouting(unittest.TestCase):
 
         self.assertEqual(result["resubmit_decision"], "cannot_fix")
         self.assertEqual(result["resubmit_decision_reason"], "画像内容の問題")
+
+
+class StaticPlanRetag(unittest.TestCase):
+    def test_retag_for_static_plan_is_declined_before_browser_acquire(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            set_dir = Path(tmp)
+            (set_dir / "plan.json").write_text(json.dumps({
+                "stickers": [{"id": "s1", "tags": ["あいさつ"]}],
+            }))
+            acquired = []
+            notifications = []
+            busy = types.SimpleNamespace(returncode=9, stdout="", stderr="BUSY")
+
+            with (
+                patch.object(MODULE, "decide_action",
+                             return_value={"action": "retag", "reason": "タグを修正"}),
+                patch.object(MODULE.subprocess, "run",
+                             side_effect=lambda *args, **kwargs: acquired.append(args) or busy),
+                patch.object(MODULE, "notify",
+                             side_effect=lambda _set_dir, payload: notifications.append(payload)),
+            ):
+                result = MODULE.resubmit(
+                    set_dir,
+                    {"product_id": "48292807", "auto_resubmit_count": 0},
+                    "タグを確認してください",
+                )
+
+        self.assertEqual(result["resubmit_decision"], "cannot_fix")
+        self.assertTrue(result["resubmit_decision_reason"])
+        self.assertEqual(acquired, [], "static plans must not enter motion-only retag or re-request flow")
+        self.assertEqual(notifications[0]["status"], "cannot_fix")
 
 
 class StatusReadbackFence(unittest.TestCase):

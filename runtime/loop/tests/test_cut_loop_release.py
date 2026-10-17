@@ -1,6 +1,8 @@
 import json
+import hashlib
 import os
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -27,11 +29,18 @@ class CutLoopReleaseTest(unittest.TestCase):
             target = root / "target"
             donor = root / "releases/donor"
             target.mkdir()
-            (donor / "node_modules").mkdir(parents=True)
+            donor.mkdir(parents=True)
             for filename in ("package.json", "package-lock.json"):
                 (target / filename).write_text("{}\n")
                 (donor / filename).write_text("{}\n")
-            (donor / "node_modules/.package-lock.json").write_text("{}\n")
+            bundle_root = root / "bundles"
+            bundle_key = "a" * 64
+            bundle = bundle_root / ("npm-" + bundle_key)
+            (bundle / "node_modules").mkdir(parents=True)
+            (bundle / "node_modules/.package-lock.json").write_text("{}\n")
+            (bundle / ".complete").write_text(bundle_key + "\n")
+            bundle.chmod(0o555)
+            (donor / "node_modules").symlink_to(bundle / "node_modules")
             descriptor = json.dumps({"sha": "a" * 40, "release_paths": "ALL"}).encode()
             (donor / "RELEASE.json").write_bytes(descriptor)
             marker = donor / "RECLAIMED-RELEASE.json"
@@ -47,11 +56,14 @@ class CutLoopReleaseTest(unittest.TestCase):
                         result = subprocess.run(
                             ["bash"], input=function + '\nmatching_locked_dependencies "$DEST"\n',
                             env={**os.environ, "SCRIPT_ROOT": str(ROOT),
-                                 "DEST": str(target), "RELEASES": str(root / "releases")},
+                                 "DEST": str(target), "RELEASES": str(root / "releases"),
+                                 "DEPENDENCY_BUNDLES": str(bundle_root),
+                                 "RUNTIME_PYTHON": sys.executable},
                             capture_output=True, text=True, check=False,
                         )
                     finally:
                         donor.chmod(0o755)
+                        bundle.chmod(0o755)
                         marker.unlink(missing_ok=True)
                     if kind == "absent":
                         self.assertEqual(result.returncode, 0, result.stderr)
@@ -60,6 +72,81 @@ class CutLoopReleaseTest(unittest.TestCase):
                         self.assertEqual(result.returncode, 1, result.stderr)
                         self.assertEqual(result.stdout, "")
                     self.assertEqual((donor / "RELEASE.json").read_bytes(), descriptor)
+
+    def test_script_only_change_reuses_bundle_without_installing_dependencies(self):
+        import hashlib
+        import platform
+        import sys
+        source = (ROOT / "bin/cut-loop-release.sh").read_text()
+        start = source.index("matching_locked_dependencies() {")
+        function = source[start:source.index('\nmkdir -p "$DEPENDENCY_BUNDLES"', start)]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target, donor = root / "target", root / "releases/donor"
+            target.mkdir(); donor.mkdir(parents=True)
+            package = {"name": "fixture", "version": "1.0.0", "scripts": {"test": "old"}}
+            old = json.dumps(package).encode()
+            lock = b'{"lockfileVersion":3}\n'
+            (donor / "package.json").write_bytes(old)
+            (donor / "package-lock.json").write_bytes(lock)
+            header = "\0".join(("command", "npm-ci --omit=dev --ignore-scripts", "os", platform.system(),
+                                  "arch", platform.machine(), "node", "previous-node", "npm", "previous-npm")) + "\0"
+            data = header.encode()
+            for label, payload in (("package-json", old), ("package-lock", lock)):
+                data += label.encode() + b"\0" + (hashlib.sha256(payload).hexdigest() + "  -\n").encode()
+            key = hashlib.sha256(data).hexdigest()
+            bundles = root / "bundles"
+            bundle = bundles / ("npm-" + key)
+            current_header = header.replace("previous-node", "node").replace("previous-npm", "npm")
+            current_data = current_header.encode()
+            for label, payload in (("package-json", old), ("package-lock", lock)):
+                current_data += label.encode() + b"\0" + (hashlib.sha256(payload).hexdigest() + "  -\n").encode()
+            current_key = hashlib.sha256(current_data).hexdigest()
+            current_bundle = bundles / ("npm-" + current_key)
+            (bundle / "node_modules").mkdir(parents=True)
+            (bundle / "node_modules/.package-lock.json").write_bytes(lock)
+            (bundle / "node_modules/retained.txt").write_text("known dependency")
+            (bundle / ".complete").write_text(key + "\n")
+            bundle.chmod(0o555)
+            (donor / "node_modules").symlink_to(bundle / "node_modules")
+            (donor / "RELEASE.json").write_text(json.dumps({"sha": "a" * 40, "release_paths": "ALL"}))
+            package["scripts"]["test"] = "new"
+            cases = (("script_only", package, lock, 0),
+                     ("deps_changed", {**package, "dependencies": {"new": "1"}}, lock, 1),
+                     ("lock_changed", package, lock + b" ", 1))
+            try:
+                for name, candidate, candidate_lock, expected in cases:
+                    with self.subTest(name=name):
+                        (target / "package.json").write_text(json.dumps(candidate))
+                        (target / "package-lock.json").write_bytes(candidate_lock)
+                        result = subprocess.run(["bash"], input=function + '\nlink_locked_dependencies "$DEST"\n',
+                            env={**os.environ, "SCRIPT_ROOT": str(ROOT), "DEST": str(target), "CURRENT": str(donor),
+                                 "RELEASES": str(donor.parent),
+                                 "DEPENDENCY_BUNDLES": str(bundles), "RUNTIME_PYTHON": sys.executable,
+                                 "NPM_NODE_VERSION": "node", "NPM_VERSION": "npm", "NPM_BIN": "/usr/bin/false",
+                                 "RELEASE_REQUIRED_BYTES": str(2 * 1024**3 + 64 * 1024**2)},
+                            capture_output=True, text=True)
+                        self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
+                        if expected == 0:
+                            self.assertEqual((target / "node_modules").resolve(),
+                                             (current_bundle / "node_modules").resolve())
+                            self.assertEqual((bundle / "node_modules/retained.txt").stat().st_ino,
+                                             (current_bundle / "node_modules/retained.txt").stat().st_ino)
+                            (target / "node_modules").unlink()
+                        else:
+                            self.assertFalse((target / "node_modules").exists())
+                        self.assertEqual((target / "package.json").read_text(), json.dumps(candidate))
+                if current_bundle.exists():
+                    self.assertEqual({path.name for path in bundles.iterdir()},
+                                     {bundle.name, current_bundle.name})
+                self.assertEqual((bundle / "node_modules/retained.txt").read_text(), "known dependency")
+            finally:
+                for path in sorted(bundles.rglob("*"), reverse=True):
+                    if not path.is_symlink():
+                        path.chmod(path.stat().st_mode | 0o200)
+                for path in bundles.iterdir():
+                    if path.is_dir() and not path.is_symlink():
+                        path.chmod(path.stat().st_mode | 0o200)
 
     def _pushed_branch_fixture(self, root):
         repo, origin = root / "repo", root / "origin.git"
@@ -93,10 +180,16 @@ class CutLoopReleaseTest(unittest.TestCase):
         return repo, main_sha, candidate_sha
 
     def _cut_sparse(self, root, repo, sha, *, activate, paths="payload.txt"):
+        capacity_probe = root / "capacity-probe"
+        capacity_probe.mkdir(exist_ok=True)
+        (capacity_probe / "sitecustomize.py").write_text(
+            "import shutil,types\nshutil.disk_usage=lambda p: types.SimpleNamespace(free=16*1024**3)\n"
+        )
         return subprocess.run(
             ["/bin/bash", str(ROOT / "bin/cut-loop-release.sh"), sha],
             cwd=repo,
             env={**os.environ, "LIFE_MANAGER_SOURCE_REPO": str(repo),
+                 "PYTHONPATH": str(capacity_probe),
                  "LOOPS_ROOT": str(root / "loops"), "LOOPS_RELEASE_PATHS": paths,
                  "LOOPS_ACTIVATE_CURRENT": "1" if activate else "0",
                  "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(root / "admission"),
@@ -437,13 +530,15 @@ class CutLoopReleaseTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             loops = root / "loops"
-            source_bundle = loops / "dependency-bundles/npm-old"
+            bundle_key = hashlib.sha256(b"old toolchain bundle").hexdigest()
+            source_bundle = loops / "dependency-bundles" / ("npm-" + bundle_key)
             modules = source_bundle / "node_modules"
             modules.mkdir(parents=True)
-            (source_bundle / ".complete").write_text("old\n")
+            (source_bundle / ".complete").write_text(bundle_key + "\n")
             (modules / ".package-lock.json").write_text("{}\n")
             marker = modules / "marker"
             marker.write_text("sealed\n")
+            source_bundle.chmod(0o555)
             donor = loops / "releases/donor"
             donor.mkdir(parents=True)
             release_ref = "origin/main"
@@ -460,31 +555,34 @@ class CutLoopReleaseTest(unittest.TestCase):
             npm.write_text("#!/bin/sh\nexit 99\n")
             npm.chmod(0o755)
 
-            result = subprocess.run(
-                ["/bin/bash", str(ROOT / "bin/cut-loop-release.sh"), release_ref],
-                cwd=ROOT,
-                env={
-                    **os.environ,
-                    "LOOPS_ROOT": str(loops),
-                    "LOOPS_KEEP_RELEASES": "2",
-                    "LOOPS_RELEASE_PATHS": "package.json package-lock.json",
-                    "LOOPS_ACTIVATE_CURRENT": "0",
-                    "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"),
-                    "NPM_BIN": str(npm),
-                    "NPM_VERSION": "new",
-                    "NPM_NODE_VERSION": "new",
-                },
-                capture_output=True,
-                text=True,
-                check=False,
-            )
+            try:
+                result = subprocess.run(
+                    ["/bin/bash", str(ROOT / "bin/cut-loop-release.sh"), release_ref],
+                    cwd=ROOT,
+                    env={
+                        **os.environ,
+                        "LOOPS_ROOT": str(loops),
+                        "LOOPS_KEEP_RELEASES": "2",
+                        "LOOPS_RELEASE_PATHS": "package.json package-lock.json",
+                        "LOOPS_ACTIVATE_CURRENT": "0",
+                        "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"),
+                        "NPM_BIN": str(npm),
+                        "NPM_VERSION": "new",
+                        "NPM_NODE_VERSION": "new",
+                    },
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
 
-            self.assertEqual(result.returncode, 0, result.stderr)
-            release = next(p for p in (loops / "releases").iterdir() if p != donor)
-            target = (release / "node_modules").resolve()
-            self.assertNotEqual(target, modules.resolve())
-            self.assertFalse(target.is_symlink())
-            self.assertEqual((target / "marker").stat().st_ino, marker.stat().st_ino)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                release = next(p for p in (loops / "releases").iterdir() if p != donor)
+                target = (release / "node_modules").resolve()
+                self.assertNotEqual(target, modules.resolve())
+                self.assertFalse(target.is_symlink())
+                self.assertEqual((target / "marker").stat().st_ino, marker.stat().st_ino)
+            finally:
+                source_bundle.chmod(0o755)
 
     def test_release_builds_locked_root_and_agentmail_dependencies(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -150,8 +150,10 @@ if [ -z "${ARCHIVE_PATHS[*]:-}" ]; then
     CAPACITY_NODE="${NPM_NODE_VERSION:-$(node --version 2>/dev/null)}"
     CAPACITY_NPM="${NPM_VERSION:-$("$NPM_BIN" --version 2>/dev/null)}"
   fi
-  RELEASE_REQUIRED_BYTES="$("$RUNTIME_PYTHON" -B "$SCRIPT_ROOT/runtime/host/disk_admission.py" \
+  RELEASE_CAPACITY="$("$RUNTIME_PYTHON" -B "$SCRIPT_ROOT/runtime/host/disk_admission.py" \
     --release-capacity "$REPO_ROOT" "$SHA" "$LOOPS_ROOT" "$CAPACITY_NODE" "$CAPACITY_NPM")" || die "release capacity measurement failed"
+  # "<bytes> install" means the measurement budgeted a fresh npm ci for a changed lock.
+  read -r RELEASE_REQUIRED_BYTES RELEASE_INSTALL_BUDGETED <<<"$RELEASE_CAPACITY"
   "$RUNTIME_PYTHON" "$SCRIPT_ROOT/runtime/host/disk_admission.py" \
     --check-free-space "$LOOPS_ROOT" "$RELEASE_REQUIRED_BYTES" || exit "$?"
 fi
@@ -253,8 +255,13 @@ matching_locked_dependencies() {
     donor_package="$donor$relative"
     [ -d "$donor_package/node_modules" ] || continue
     [ -f "$donor_package/node_modules/.package-lock.json" ] || continue
-    cmp -s "$package_dir/package.json" "$donor_package/package.json" || continue
+    PYTHONPATH="$SCRIPT_ROOT" "$RUNTIME_PYTHON" -B -c \
+      'import sys; from pathlib import Path; from runtime.host.disk_admission import dependency_manifest_matches; sys.exit(not dependency_manifest_matches(Path(sys.argv[1]).read_bytes(), Path(sys.argv[2]).read_bytes()))' \
+      "$package_dir/package.json" "$donor_package/package.json" || continue
     cmp -s "$package_dir/package-lock.json" "$donor_package/package-lock.json" || continue
+    PYTHONPATH="$SCRIPT_ROOT" "$RUNTIME_PYTHON" -B -c \
+      'import sys; from pathlib import Path; from runtime.host.disk_admission import dependency_bundle_is_reusable; sys.exit(not dependency_bundle_is_reusable(Path(sys.argv[1]), Path(sys.argv[2])))' \
+      "$donor_package/node_modules" "$DEPENDENCY_BUNDLES" || continue
     (cd "$donor_package/node_modules" && pwd -P)
     return
   done
@@ -262,7 +269,7 @@ matching_locked_dependencies() {
 }
 
 link_locked_dependencies() {
-  local package_dir="$1" relative key bundle build donor_modules node_version npm_version
+  local package_dir="$1" relative key bundle build donor_modules node_version npm_version key_package donor_package
   relative="${package_dir#"$DEST"}"
   if [ -n "${NPM_NODE_VERSION:-}" ]; then
     node_version="$NPM_NODE_VERSION"
@@ -278,17 +285,29 @@ link_locked_dependencies() {
   else
     npm_version="$("$NPM_BIN" --version)" || return 1
   fi
+  key_package="$package_dir/package.json"
+  donor_package="$CURRENT$relative"
+  if [ -f "$donor_package/package.json" ] && \
+     cmp -s "$package_dir/package-lock.json" "$donor_package/package-lock.json" && \
+     PYTHONPATH="$SCRIPT_ROOT" "$RUNTIME_PYTHON" -B -c \
+       'import sys; from pathlib import Path; from runtime.host.disk_admission import dependency_manifest_matches; sys.exit(not dependency_manifest_matches(Path(sys.argv[1]).read_bytes(), Path(sys.argv[2]).read_bytes()))' \
+       "$package_dir/package.json" "$donor_package/package.json"; then
+    key_package="$donor_package/package.json"
+  fi
   key="$({
     printf 'command\0%s\0os\0%s\0arch\0%s\0node\0%s\0npm\0%s\0' \
       'npm-ci --omit=dev --ignore-scripts' "$(uname -s)" "$(uname -m)" \
       "$node_version" "$npm_version"
-    printf 'package-json\0'; shasum -a 256 <"$package_dir/package.json"
+    printf 'package-json\0'; shasum -a 256 <"$key_package"
     printf 'package-lock\0'; shasum -a 256 <"$package_dir/package-lock.json"
   } | shasum -a 256 | awk '{print $1}')" || return 1
   bundle="$DEPENDENCY_BUNDLES/npm-$key"
   if [ ! -f "$bundle/.complete" ] || [ "$(cat "$bundle/.complete" 2>/dev/null)" != "$key" ] || [ ! -f "$bundle/node_modules/.package-lock.json" ]; then
-    if [ "${RELEASE_REQUIRED_BYTES:-2147483648}" != 2147483648 ]; then
-      return 1 # Measured source-only admission never permits dependency generation.
+    donor_modules=""
+    if donor_modules="$(matching_locked_dependencies "$package_dir")"; then
+      : # A compatible locked bundle can be re-keyed without installing dependencies.
+    elif [ "${RELEASE_REQUIRED_BYTES:-2147483648}" != 2147483648 ] && [ "${RELEASE_INSTALL_BUDGETED:-}" != install ]; then
+      return 1 # Measured admission permits npm ci only when it budgeted the install.
     fi
     if [ -e "$bundle" ]; then
       find "$bundle" -type d -exec chmod u+w {} + 2>/dev/null || return 1
@@ -298,7 +317,7 @@ link_locked_dependencies() {
     DEPENDENCY_BUILD="$build"
     mkdir -p "$build" || return 1
     cp "$package_dir/package.json" "$package_dir/package-lock.json" "$build/" || return 1
-    if donor_modules="$(matching_locked_dependencies "$package_dir")"; then
+    if [ -n "$donor_modules" ]; then
       cp -alR "$donor_modules" "$build/node_modules" || return 1
     elif [ -n "$NPM_BIN" ]; then
       if [ -n "$NPM_NODE_BIN" ]; then
@@ -344,7 +363,7 @@ if [ -d "$DEST/runtime" ]; then
     -s "$DEST" "$DEST/runtime" || die "runtime bytecode build failed"
 fi
 
-cat >"$DEST/RELEASE.json" <<EOF
+cat >"$DEST/RELEASE.json" <<EOF || die "release manifest write failed"
 {
   "sha": "$SHA",
   "ref": "$REF",

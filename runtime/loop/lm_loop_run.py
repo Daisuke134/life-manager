@@ -25,7 +25,7 @@ from typing import Callable, NamedTuple
 
 from runtime.loop.lm_loop import _apply_lock, _label_apply_lock_path, _loaded_v2_release
 from runtime.loop.lm_loop_apply import _loaded_arguments
-from runtime.loop.loop_cleanup import remove_owned_tree
+from runtime.loop.loop_cleanup import prune_to_evidence, remove_owned_tree
 from runtime.loop.macos_loop_registry import (
     CONTROL_PLANE_SAFETY_LOOPS, admission_effect_scope, validate_registry,
 )
@@ -41,6 +41,7 @@ from runtime.host.storage_policy import load_storage_policy
 from runtime.host.storage_failure import classify_storage_failure
 from runtime.host.bounded_output import start_stderr_relay, read_relay_snapshot, bounded_launchd_output
 from runtime.host.resource_admission import (
+    DurableHeartbeatFailure,
     OCCURRENCE_ID_PATTERN,
     cancel_durable as cancel_durable_resource,
     claim_durable as claim_durable_resource,
@@ -52,6 +53,7 @@ from runtime.host.resource_admission import (
     process_start,
     release as release_resource,
     release_and_reserve as release_and_reserve_resource,
+    resolve_verified_no_effect_occurrence as resolve_verified_no_effect_occurrence_resource,
     reserve_available as reserve_available_resource,
     transfer_durable as transfer_durable_resource,
     try_acquire as try_acquire_resource,
@@ -62,11 +64,37 @@ EXEC_GATE = Path(__file__).resolve().parents[1] / "host/exec_gate.py"
 SAFE_RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
 SAFE_EVENT_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
 SAFE_RESULT_HINT = re.compile(r"[a-z][a-z0-9_:-]{1,99}\Z")
+HEARTBEAT_SUBCAUSES = frozenset({
+    "resource_heartbeat_claim_missing",
+    "resource_heartbeat_claim_invalid",
+    "resource_heartbeat_process_identity_unavailable",
+    "resource_heartbeat_claim_ownership_lost",
+    "resource_heartbeat_claim_expired",
+    "resource_heartbeat_control_busy_timeout",
+    "resource_heartbeat_runtime_error",
+    "resource_heartbeat_oserror",
+    "resource_heartbeat_sqlite_error",
+    "resource_heartbeat_claim_not_renewed",
+    "resource_heartbeat_unknown",
+})
 ADMISSION_CONTROL_RETRY_ATTEMPTS = 8
 ADMISSION_CONTROL_RETRY_DELAY_SECONDS = 0.25
 HEARTBEAT_INTERVAL_SECONDS = 30.0
 # Stay under resource_admission.DEFAULT_HEARTBEAT_TIMEOUT_SECONDS (300s).
 HEARTBEAT_BUSY_TOLERANCE_SECONDS = 240.0
+
+
+def _valid_heartbeat_subcause(value: object) -> bool:
+    if not isinstance(value, str) or not SAFE_RUN_ID.fullmatch(value):
+        return False
+    if value in HEARTBEAT_SUBCAUSES:
+        return True
+    prefix = "resource_heartbeat_oserror_errno_"
+    if not value.startswith(prefix):
+        return False
+    digits = value[len(prefix):]
+    return bool(re.fullmatch(r"(?:0|[1-9][0-9]{0,4})", digits)
+                and int(digits) <= 65535)
 PRE_EFFECT_HINT_ENTRYPOINTS = frozenset({
     "apps/life-manager/scripts/ebook-distribute-daily.sh",
     "apps/life-manager/scripts/mobile-app",
@@ -91,10 +119,17 @@ EFFECT_RESULT_HINT_ENTRYPOINTS = frozenset({
 EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS = {
     "life-manager-cfo-hourly": "skills/cfo/run.sh",
     "marketing-treg-lead-signals-weekly": "skills/earn/marketing-engine/intel/treg-lead-signals-weekly",
+    "article-daily": "skills/writer-agent/article-daily.sh",
 }
+# Provider each owner above reports; owners not listed report Telegram messages.
+# Writer's receipt is its run ID, read back from the reality-PASS ledger rows of
+# every active destination (skills/writer-agent/scripts/article-run-complete.py).
+EFFECT_RESULT_HINT_LOOP_PROVIDERS = {"article-daily": "writer"}
+WRITER_LIVE_URL = re.compile(r"https://[A-Za-z0-9._:/-]{1,504}\Z")
 NO_EFFECT_RESULT_HINT_ENTRYPOINTS = frozenset({
     "apps/life-manager/scripts/ebook-distribute-daily.sh",
     "apps/life-manager/scripts/mobile-app",
+    "skills/alpaca-investment/run.py",
     "skills/earn/marketing-engine/intel/treg-lead-signals-weekly",
 })
 # Loop IDs allowed to use the pre-effect hint when their registry entrypoint is
@@ -110,6 +145,7 @@ PRE_EFFECT_HINT_LOOP_IDS = frozenset({
     "ebook-en-tiktok-daily",
     "ebook-ja-instagram-daily",
     "ebook-ja-tiktok-daily",
+    "hf-gig-reply-detector",
     "hf-gig-apply-direct",
     "investment-cross-venue-report",
     "hf-gig-storefront-direct",
@@ -187,6 +223,10 @@ def _child_environment_for_owner(
     # publisher authentication. Do not even pass it to the child while publishing
     # is disabled.
     environment.pop("LM_POSTIZ_API_KEY", None)
+    # `launchctl setenv` is lost on every reboot, which silently closed publishing
+    # (entrypoint_exit_1) after each kernel-panic restart. Default open; an explicit
+    # non-"true" value set in the manager still closes it.
+    environment.setdefault("LM_EBOOK_PUBLISHING_ENABLED", "true")
     if environment.get("LM_EBOOK_PUBLISHING_ENABLED") != "true":
         return environment
     private = (home or Path.home()) / ".local/share/anicca"
@@ -783,22 +823,41 @@ def _release_with_retry(operation: Callable[[], list[str]]) -> list[str]:
 
 
 def _heartbeat_loop(claim: Path, stop: threading.Event,
-                    failed: threading.Event) -> None:
+                    failed: threading.Event,
+                    failure_reason: list[str] | None = None) -> None:
+    def fail(reason: str) -> None:
+        if failure_reason is not None:
+            failure_reason.append(
+                reason if _valid_heartbeat_subcause(reason)
+                else "resource_heartbeat_unknown"
+            )
+        failed.set()
+
     last_ok = time.monotonic()
     while not stop.wait(HEARTBEAT_INTERVAL_SECONDS):
         try:
             healthy = heartbeat_durable_resource(claim)
+        except DurableHeartbeatFailure as error:
+            fail(f"resource_heartbeat_{error.reason}")
+            return
         except RuntimeError as error:
             if (str(error) == "control_busy"
                     and time.monotonic() - last_ok < HEARTBEAT_BUSY_TOLERANCE_SECONDS):
                 continue
-            failed.set()
+            fail("resource_heartbeat_control_busy_timeout" if str(error) == "control_busy"
+                 else "resource_heartbeat_runtime_error")
             return
-        except (OSError, sqlite3.Error):
-            failed.set()
+        except OSError as error:
+            reason = "resource_heartbeat_oserror"
+            if type(error.errno) is int and 0 <= error.errno <= 65535:
+                reason += f"_errno_{error.errno}"
+            fail(reason)
+            return
+        except sqlite3.Error:
+            fail("resource_heartbeat_sqlite_error")
             return
         if not healthy:
-            failed.set()
+            fail("resource_heartbeat_claim_not_renewed")
             return
         last_ok = time.monotonic()
 
@@ -816,6 +875,22 @@ def _host_admission_deferred(path: Path, started_ns: int) -> str | None:
     prefix = "host_admission_deferred:"
     return (reason if isinstance(reason, str) and SAFE_RUN_ID.fullmatch(reason)
             and len(prefix) + len(reason) <= 128 else "unknown")
+
+
+def _host_admission_heartbeat_subcause(path: Path, started_ns: int) -> str | None:
+    try:
+        if path.stat().st_mtime_ns < started_ns:
+            return None
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, TypeError, ValueError, json.JSONDecodeError):
+        return None
+    if not isinstance(value, dict):
+        return None
+    if (value.get("status") != "deferred" or value.get("effect") != 0
+            or value.get("reason") != "resource_heartbeat_unavailable"):
+        return None
+    subcause = value.get("heartbeat_subcause")
+    return subcause if _valid_heartbeat_subcause(subcause) else None
 
 
 def _proven_pre_effect_failure(path: Path) -> bool:
@@ -856,11 +931,11 @@ def _read_private_result_hint(path: Path) -> dict | None:
 
 def _verified_effect_result(path: Path, loop_id: str,
                             occurrence_id: str, *,
-                            entrypoint: str | None = None) -> tuple[str, str] | None:
+                            entrypoint: str | None = None) -> tuple[str, ...] | None:
     if loop_id in EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS:
         if entrypoint != EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS[loop_id]:
             return None
-        expected_provider = "telegram"
+        expected_provider = EFFECT_RESULT_HINT_LOOP_PROVIDERS.get(loop_id, "telegram")
     else:
         if entrypoint is not None and entrypoint not in EFFECT_RESULT_HINT_ENTRYPOINTS:
             return None
@@ -870,6 +945,8 @@ def _verified_effect_result(path: Path, loop_id: str,
         "schema_version", "kind", "status", "effect", "owner_id",
         "occurrence_id", "provider", "provider_receipt_id", "effect_status",
     }
+    if expected_provider == "writer":
+        expected_fields.add("live_urls")
     if (not isinstance(value, dict) or set(value) != expected_fields
             or type(value.get("schema_version")) is not int
             or value.get("schema_version") != 1
@@ -885,6 +962,13 @@ def _verified_effect_result(path: Path, loop_id: str,
     receipt_id = value.get("provider_receipt_id")
     if not isinstance(receipt_id, str) or not SAFE_RUN_ID.fullmatch(receipt_id):
         return None
+    if expected_provider == "writer":
+        urls = value["live_urls"]
+        if (not isinstance(urls, list) or not 1 <= len(urls) <= 8
+                or any(not isinstance(url, str) or not WRITER_LIVE_URL.fullmatch(url)
+                       for url in urls)):
+            return None
+        return (value["effect_status"], f"writer://runs/{receipt_id}", *urls)
     if expected_provider == "telegram":
         return value["effect_status"], f"telegram://messages/{receipt_id}"
     return value["effect_status"], f"postiz://posts/{receipt_id}"
@@ -892,6 +976,8 @@ def _verified_effect_result(path: Path, loop_id: str,
 
 def _effect_result_hint_allowed(loop_id: str, entrypoint: str | None) -> bool:
     return (entrypoint in EFFECT_RESULT_HINT_ENTRYPOINTS
+            or (entrypoint == "skills/alpaca-investment/run.py"
+                and loop_id in {"alpaca-investment-paper", "alpaca-investment-live"})
             or EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS.get(loop_id) == entrypoint)
 
 
@@ -905,6 +991,10 @@ def _verified_no_effect_result(path: Path, loop_id: str, occurrence_id: str,
             allowed_reasons.add("publication_readiness_gate_closed")
     elif entrypoint == "skills/earn/marketing-engine/intel/treg-lead-signals-weekly":
         allowed_reasons = {"baseline_established", "no_new_signals", "balance_floor"}
+    elif entrypoint == "skills/alpaca-investment/run.py":
+        if loop_id not in {"alpaca-investment-paper", "alpaca-investment-live"}:
+            return None
+        allowed_reasons = {"no_broker_order_submitted"}
     else:
         allowed_reasons = {"no_due_slot", "daily_limit_reached"}
     value = _read_private_result_hint(path)
@@ -927,8 +1017,56 @@ def _verified_no_effect_result(path: Path, loop_id: str, occurrence_id: str,
     return "not_applicable", f"lm-no-effect://{loop_id}/{occurrence_id}/{value['reason']}"
 
 
+def _verified_terminal_effect_result(
+        path: Path, loop_id: str, occurrence_id: str,
+        entrypoint: str | None) -> tuple[str, ...] | None:
+    if not _effect_result_hint_allowed(loop_id, entrypoint):
+        return None
+    if entrypoint in NO_EFFECT_RESULT_HINT_ENTRYPOINTS:
+        result = _verified_no_effect_result(path, loop_id, occurrence_id, entrypoint)
+        if result is not None:
+            return result
+    return _verified_effect_result(
+        path, loop_id, occurrence_id, entrypoint=entrypoint,
+    )
+
+
+def _resolve_verified_alpaca_no_effect_fence(
+        loop_id: str, occurrence_id: str | None, entrypoint: str | None,
+        effect_result: tuple[str, ...] | None) -> bool:
+    if (loop_id not in {"alpaca-investment-paper", "alpaca-investment-live"}
+            or entrypoint != "skills/alpaca-investment/run.py"
+            or occurrence_id is None
+            or effect_result is None
+            or len(effect_result) != 2
+            or effect_result[0] != "not_applicable"
+            or effect_result[1] != (
+                f"lm-no-effect://{loop_id}/{occurrence_id}/no_broker_order_submitted")):
+        return False
+    proof = {
+        "owner_id": loop_id,
+        "occurrence_id": occurrence_id,
+        "verified": True,
+        "proof_type": "verified_no_effect",
+        "effect": 0,
+        "reason": "no_broker_order_submitted",
+        "evidence_ref": effect_result[1],
+    }
+    readback = lambda: proof
+    return (
+        resolve_verified_no_effect_occurrence_resource(
+            loop_id, occurrence_id, expected_reason="no_broker_order_submitted",
+            no_effect_readback=readback, expected_state="released",
+        )
+        or resolve_verified_no_effect_occurrence_resource(
+            loop_id, occurrence_id, expected_reason="no_broker_order_submitted",
+            no_effect_readback=readback, expected_state="claimed",
+        )
+    )
+
+
 def _apply_verified_effect_result(
-        event: dict, result: tuple[str, str] | None) -> dict:
+        event: dict, result: tuple[str, ...] | None) -> dict:
     updated = dict(event)
     updated["evidence_refs"] = list(event.get("evidence_refs", []))
     if result is not None and updated.get("status") == "pass":
@@ -938,14 +1076,15 @@ def _apply_verified_effect_result(
         else:
             updated["effect_status"] = result[0]
             provider = result[1].partition("://")[0]
-            if provider in {"postiz", "telegram"}:
+            if provider in {"postiz", "telegram", "writer"}:
                 updated["provider"] = provider
             receipt_id = result[1].rsplit("/", 1)[-1]
             if "provider_receipt_id" in updated:
                 updated["provider_receipt_id"] = receipt_id
                 updated["official_readback_ref"] = result[1]
-        if result[1] not in updated["evidence_refs"]:
-            updated["evidence_refs"].append(result[1])
+        for ref in result[1:]:
+            if ref not in updated["evidence_refs"]:
+                updated["evidence_refs"].append(ref)
     return validate_runtime_event(updated)
 
 
@@ -981,7 +1120,9 @@ def _run_entrypoint(command: list[str], env: dict[str, str] | None = None, *,
                     termination_grace_seconds: float = 15,
                     cancelled: Callable[[], bool] = lambda: False,
                     on_started: Callable[[int], None] = lambda _pid: None,
+                    stdout_capture_fd: int | None = None,
                     stderr_capture_fd: int | None = None) -> int:
+    waitid = getattr(os, "waitid", None)
     watched = (signal.SIGTERM, signal.SIGINT)
     previous = {}
     process = None
@@ -993,8 +1134,64 @@ def _run_entrypoint(command: list[str], env: dict[str, str] | None = None, *,
         stopping = True
         if process is None:
             pending.append(signum)
-        elif process.poll() is None:
+        elif process.returncode is None:
             _forward_process_group_signal(process.pid, signum)
+
+    def live_group_children():
+        try:
+            result = subprocess.run(
+                ["ps", "-g", str(process.pid), "-o", "pid=,pgid=,stat="],
+                capture_output=True, text=True, timeout=2,
+            )
+            rows = [(int(pid), int(pgid), status) for pid, pgid, status
+                    in (row.split() for row in result.stdout.splitlines())]
+        except (OSError, ValueError, subprocess.TimeoutExpired):
+            return None
+        rows = [(pid, status) for pid, pgid, status in rows if pgid == process.pid]
+        if (result.returncode != 0 or not rows
+                or not any(pid == process.pid and status.startswith("Z")
+                           for pid, status in rows)):
+            return None
+        return any(pid != process.pid and not status.startswith("Z")
+                   for pid, status in rows)
+
+    def drain_group():
+        # Keep our session leader waitable so its group ID cannot be reused.
+        for signum in (signal.SIGTERM, signal.SIGKILL):
+            if live_group_children() is not True:
+                break
+            try:
+                os.killpg(process.pid, signum)
+            except (ProcessLookupError, PermissionError):
+                break
+            drain_deadline = time.monotonic() + max(0, termination_grace_seconds)
+            while (time.monotonic() < drain_deadline
+                   and live_group_children() is True):
+                time.sleep(.02)
+
+    def terminate(return_code):
+        forward(signal.SIGTERM, None)
+        if waitid is None:
+            try:
+                process.wait(timeout=termination_grace_seconds)
+            except subprocess.TimeoutExpired:
+                if process.poll() is None:
+                    _forward_process_group_signal(process.pid, signal.SIGKILL)
+                process.wait()
+        else:
+            stop_deadline = time.monotonic() + max(0, termination_grace_seconds)
+            exited = waitid(os.P_PID, process.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+            while exited is None:
+                if time.monotonic() >= stop_deadline:
+                    _forward_process_group_signal(process.pid, signal.SIGKILL)
+                    exited = waitid(os.P_PID, process.pid, os.WEXITED | os.WNOWAIT)
+                else:
+                    time.sleep(.02)
+                    exited = waitid(os.P_PID, process.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+            if exited.si_pid == process.pid:
+                drain_group()
+            process.wait()
+        return return_code
 
     for signum in watched:
         previous[signum] = signal.signal(signum, forward)
@@ -1007,7 +1204,7 @@ def _run_entrypoint(command: list[str], env: dict[str, str] | None = None, *,
         process = subprocess.Popen(
             [sys.executable, str(EXEC_GATE), str(read_fd), *command],
             start_new_session=True, env=env, pass_fds=(read_fd,),
-            stderr=stderr_capture_fd)
+            stdout=stdout_capture_fd, stderr=stderr_capture_fd)
         os.close(read_fd)
         if cancelled() or pending or stopping:
             os.close(write_fd)
@@ -1039,32 +1236,27 @@ def _run_entrypoint(command: list[str], env: dict[str, str] | None = None, *,
                     else time.monotonic() + max(0, timeout_seconds))
         while True:
             if cancelled() or pending or stopping:
-                forward(signal.SIGTERM, None)
-                try:
-                    process.wait(timeout=termination_grace_seconds)
-                except subprocess.TimeoutExpired:
-                    if process.poll() is None:
-                        _forward_process_group_signal(process.pid, signal.SIGKILL)
-                    process.wait()
-                return 75
+                return terminate(75)
+            exited = None if waitid is None else waitid(
+                os.P_PID, process.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT,
+            )
+            if exited is not None and exited.si_pid == process.pid:
+                drain_group()
+                return_code = process.wait()
+                break
             wait_timeout = 0.25
             if deadline is not None:
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
-                    forward(signal.SIGTERM, None)
-                    try:
-                        process.wait(timeout=termination_grace_seconds)
-                    except subprocess.TimeoutExpired:
-                        if process.poll() is None:
-                            _forward_process_group_signal(process.pid, signal.SIGKILL)
-                        process.wait()
-                    return 124
+                    return terminate(124)
                 wait_timeout = min(wait_timeout, remaining)
-            try:
-                return_code = process.wait(timeout=wait_timeout)
-                break
-            except subprocess.TimeoutExpired:
-                continue
+            if waitid is None:
+                try:
+                    return_code = process.wait(timeout=wait_timeout)
+                    break
+                except subprocess.TimeoutExpired:
+                    continue
+            time.sleep(wait_timeout)
     finally:
         for descriptor in (read_fd, write_fd):
             try:
@@ -1364,6 +1556,7 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
     claim_started_child = False
     heartbeat_stop = threading.Event()
     heartbeat_failed = threading.Event()
+    heartbeat_failure_reason: list[str] = []
     heartbeat_thread: threading.Thread | None = None
     durable = False
     dispatch_after_release: list[str] = []
@@ -1373,6 +1566,7 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
     stderr_tail = b""
     terminal_event_attempted = False
     terminal_event_saved = False
+    terminal_effect_result: tuple[str, ...] | None = None
     previous = {}
     pre_effect_hint_allowed = (entry.get("entrypoint") in PRE_EFFECT_HINT_ENTRYPOINTS
                                 or loop_id in PRE_EFFECT_HINT_LOOP_IDS)
@@ -1381,7 +1575,7 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
     hint_allowed = pre_effect_hint_allowed or effect_result_hint_allowed
 
     def _persist_terminal_before_release(child_return_code: int, tail: bytes) -> int:
-        nonlocal terminal_event_attempted, terminal_event_saved
+        nonlocal terminal_event_attempted, terminal_event_saved, terminal_effect_result
         if on_terminal_event is None or terminal_event_attempted:
             return child_return_code
         terminal_event_attempted = True
@@ -1396,6 +1590,12 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                 f"({type(error).__name__})",
                 file=sys.stderr,
             )
+        if (terminal_event_saved and child_return_code == 0
+                and claimed_occurrence_id is not None):
+            terminal_effect_result = _verified_terminal_effect_result(
+                receipt.parent / "entrypoint-result.json", loop_id,
+                claimed_occurrence_id, entrypoint,
+            )
         if not terminal_event_saved and child_return_code == 0:
             return 78
         return child_return_code
@@ -1405,6 +1605,8 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
         if gate is None:
             return False
         reason, flag = gate
+        if reason in {"disk_headroom_low", "disk_headroom_unknown", "disk_headroom_unavailable"}:
+            return False
         if durable and phase in {"pre_enqueue", "pre_claim"}:
             try:
                 defer_durable_resource(loop_id)
@@ -1562,7 +1764,8 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             if durable:
                 heartbeat_thread = threading.Thread(
                     target=_heartbeat_loop,
-                    args=(claim, heartbeat_stop, heartbeat_failed),
+                    args=(claim, heartbeat_stop, heartbeat_failed,
+                          heartbeat_failure_reason),
                     name=f"lm-heartbeat-{loop_id}", daemon=True,
                 )
                 heartbeat_thread.start()
@@ -1598,6 +1801,9 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                 _atomic_json(receipt, {
                     "status": "deferred", "effect": 0,
                     "reason": "resource_heartbeat_unavailable",
+                    "heartbeat_subcause": (heartbeat_failure_reason[0]
+                                            if heartbeat_failure_reason
+                                            else "resource_heartbeat_unknown"),
                 })
             except OSError:
                 pass
@@ -1627,11 +1833,23 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                                        "reserve": claim_started_child}
                     terminal_persistence_failed = (
                         on_terminal_event is not None and not terminal_event_saved)
+                    missing_alpaca_terminal_result = (
+                        loop_id in {"alpaca-investment-paper", "alpaca-investment-live"}
+                        and entrypoint == "skills/alpaca-investment/run.py"
+                        and return_code == 0 and terminal_event_saved
+                        and terminal_effect_result is None
+                    )
+                    proven_pre_effect_failure = (
+                        pre_effect_hint_allowed
+                        and _proven_pre_effect_failure(
+                            receipt.parent / "entrypoint-result.json")
+                    )
                     if (claim_started_child
-                            and (return_code != 0 or terminal_persistence_failed)
+                            and (return_code != 0 or terminal_persistence_failed
+                                 or missing_alpaca_terminal_result)
                             and entry.get("effect_class") != "none"
-                            and not (pre_effect_hint_allowed and _proven_pre_effect_failure(
-                                receipt.parent / "entrypoint-result.json"))):
+                            and not (proven_pre_effect_failure
+                                     and not missing_alpaca_terminal_result)):
                         release_options["effect_unknown"] = True
                     dispatch_after_release = _release_with_retry(
                         lambda: release_and_reserve_resource(claim, **release_options)
@@ -1641,6 +1859,21 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             except (OSError, RuntimeError, sqlite3.Error) as error:
                 print(f"lm-loop-run: resource release deferred to stale recovery: {error}",
                       file=sys.stderr)
+        alpaca_no_effect_terminal = (
+            claim_started_child and terminal_event_saved and return_code == 0
+            and terminal_effect_result is not None
+            and terminal_effect_result[0] == "not_applicable"
+            and loop_id in {"alpaca-investment-paper", "alpaca-investment-live"}
+            and entrypoint == "skills/alpaca-investment/run.py"
+        )
+        if (alpaca_no_effect_terminal
+                and not _resolve_verified_alpaca_no_effect_fence(
+                    loop_id, claimed_occurrence_id, entrypoint, terminal_effect_result)):
+            print(
+                "lm-loop-run: verified no-effect occurrence fence retained; "
+                "official readback required",
+                file=sys.stderr,
+            )
         if dispatch_after_release:
             _dispatch_reserved(dispatch_after_release)
 
@@ -1842,18 +2075,17 @@ def _main(argv: list[str] | None = None) -> int:
                 claimed_occurrence_id = terminal_occurrence_id
             entrypoint_stderr_tail = stderr_tail
             host_deferred = _host_admission_deferred(host_receipt, started_ns)
+            heartbeat_subcause = _host_admission_heartbeat_subcause(
+                host_receipt, started_ns,
+            )
             effect_result = None
             if (child_return_code == 0
                     and _effect_result_hint_allowed(loop_id, entry.get("entrypoint"))
                     and claimed_occurrence_id is not None):
-                hint_path = scratch / "entrypoint-result.json"
-                if entry.get("entrypoint") in NO_EFFECT_RESULT_HINT_ENTRYPOINTS:
-                    effect_result = _verified_no_effect_result(
-                        hint_path, loop_id, claimed_occurrence_id, entry["entrypoint"])
-                if effect_result is None:
-                    effect_result = _verified_effect_result(
-                        hint_path, loop_id, claimed_occurrence_id,
-                        entrypoint=entry.get("entrypoint"))
+                effect_result = _verified_terminal_effect_result(
+                    scratch / "entrypoint-result.json", loop_id,
+                    claimed_occurrence_id, entry.get("entrypoint"),
+                )
             effect_identity_ref = None
             effect_identity_status = None
             if entry.get("effect_class") != "none" and child_return_code != 0:
@@ -1877,6 +2109,15 @@ def _main(argv: list[str] | None = None) -> int:
                     stderr_tail.decode("utf-8", errors="replace")
                     if not succeeded and stderr_tail else None
                 )
+                heartbeat_effect_unknown = (
+                    child_return_code != 0
+                    and entry.get("effect_class") != "none"
+                    and heartbeat_subcause is not None
+                )
+                if heartbeat_subcause is not None:
+                    subcause_detail = f"heartbeat_subcause={heartbeat_subcause}"
+                    error_detail = (subcause_detail if not error_detail
+                                    else f"{subcause_detail}\n{error_detail}")
                 event = build_runtime_event(
                     loop_id=loop_id, domain=entry["domain"], run_id=run_id,
                     release_sha=manifest["sha"], provider=entry["provider_route"],
@@ -1895,6 +2136,9 @@ def _main(argv: list[str] | None = None) -> int:
                         "release_sha": manifest["sha"],
                     }),
                     exit_code=child_return_code, error_detail=error_detail,
+                    retryable=False if heartbeat_effect_unknown else None,
+                    next_action=("official_readback_required"
+                                 if heartbeat_effect_unknown else None),
                     storage_failure=(entrypoint_storage_failure["storage_failure"]
                                      if entrypoint_storage_failure else None),
                 )
@@ -1933,6 +2177,21 @@ def _main(argv: list[str] | None = None) -> int:
             if terminal_saved and effect_identity_status == "rejected":
                 cleanup_status = "held_effect_identity_unrecorded"
                 cleanup_operation = "persist_effect_identity"
+            elif terminal_saved and event["effect_status"] in {"unknown", "started"}:
+                cleanup_status = "held_effect_unknown"
+                cleanup_operation = "official_readback_required"
+                # Keep the readback evidence, not the run's bulk artifacts (journald-style cap).
+                try:
+                    from runtime.loop.central_cleanup import (
+                        _browser_profiles_live, _diagnostic_relay_live,
+                    )
+                    from runtime.host.resource_admission import process_starts
+                    if (not _diagnostic_relay_live(scratch_fd, process_starts(), loop_id, run_id)
+                            and _browser_profiles_live(scratch) is False):
+                        prune_to_evidence(scratch)
+                        cleanup_operation = "official_readback_required_evidence_only"
+                except Exception as error:
+                    cleanup_error = error
             elif terminal_saved:
                 try:
                     cleanup_operation = "unprotect_marker"
@@ -1955,7 +2214,11 @@ def _main(argv: list[str] | None = None) -> int:
                     else:
                         cleanup_operation = "remove_owned_tree"
                         removed = remove_owned_tree(scratch_parent_fd, scratch_fd, run_id)
-                        cleanup_status = "removed" if removed else "preserved"
+                        if removed == "contents_reclaimed":
+                            cleanup_status = "preserved"
+                            cleanup_operation = "contents_reclaimed"
+                        else:
+                            cleanup_status = "removed" if removed else "preserved"
                     cleanup_error = None
                 except Exception as error:
                     cleanup_status = "error"

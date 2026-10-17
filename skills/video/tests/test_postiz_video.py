@@ -323,6 +323,7 @@ class PostizVideoTests(unittest.TestCase):
             self.assertEqual(result["state"], "PUBLISHED")
             self.assertIsNone(result["post_url"])
             self.assertTrue(result["reconciled"])
+            self.assertIs(result["provider_effect_created"], True)
             self.assertEqual(result["integration_id"], args.integration)
             self.assertEqual(result["content_sha256"], hashlib.sha256(caption.encode("utf-8")).hexdigest())
             self.assertEqual(result["title"], args.title)
@@ -392,6 +393,26 @@ class PostizVideoTests(unittest.TestCase):
                 video_sha256="b" * 64,
             ),
         )
+
+    def test_exact_existing_post_is_readback_not_a_new_provider_effect(self):
+        rows = {
+            "posts": [{
+                "id": "post-1",
+                "state": "PUBLISHED",
+                "content": "Exact caption\n#line",
+                "integration": {"id": "integration-1"},
+                "releaseURL": "https://www.tiktok.com/@life/video/222",
+                "releaseId": "v_pub_file~v2-1.222",
+                "lifeManagerVideoSha256": "a" * 64,
+            }],
+        }
+        result = postiz_video.find_existing_post(
+            rows,
+            integration="integration-1",
+            caption="Exact caption\n#line",
+            video_sha256="a" * 64,
+        )
+        self.assertIs(result["provider_effect_created"], False)
 
     def test_profile_release_url_resolves_to_matching_recent_video(self):
         payload = {

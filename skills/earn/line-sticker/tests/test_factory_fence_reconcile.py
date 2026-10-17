@@ -1,15 +1,19 @@
 import datetime as dt
 import json
+import os
+import sqlite3
+import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import factory_fence_reconcile as MODULE  # noqa: E402
 
 Q = dt.datetime(2026, 10, 8, 17, 15, tzinfo=dt.timezone.utc)
-LATE = Q + dt.timedelta(seconds=MODULE.NO_EFFECT_MIN_AGE_SECONDS + 1)
+LATE = Q + dt.timedelta(minutes=6)
 
 
 def _iso(t: dt.datetime, z: bool = False) -> str:
@@ -29,7 +33,7 @@ class BuildProof(unittest.TestCase):
     def proof(self, root: Path, now: dt.datetime = LATE) -> dict:
         return MODULE.build_proof("line-sticker-factory-hourly:x", Q, now=now, state_root=root)
 
-    def test_no_item_created_since_the_run_started_proves_no_effect(self) -> None:
+    def test_no_local_item_after_the_run_does_not_prove_no_effect(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             _set(root, "set-014", "submitted", {"product_id": "1", "state": "review_requested",
@@ -37,8 +41,8 @@ class BuildProof(unittest.TestCase):
                                                 "review_requested_at": _iso(Q - dt.timedelta(hours=1), z=True)})
             _set(root, "set-015", "submit", None)
             p = self.proof(root)
-            self.assertTrue(p["verified"])
-            self.assertFalse(p["effected"])
+            self.assertFalse(p["verified"])
+            self.assertEqual(p["reason"], "official_line_no_effect_readback_required")
 
     def test_readback_rewriting_a_selling_set_is_not_an_effect(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -48,7 +52,9 @@ class BuildProof(unittest.TestCase):
                     "state_observed": _iso(Q + dt.timedelta(minutes=1)), "purchase_url": "https://x",
                     "store_public": True, "last_auto_resubmit_at": _iso(Q + dt.timedelta(minutes=1))}
             _set(root, "set-001", "submitted", item)
-            self.assertTrue(self.proof(root)["verified"])
+            proof = self.proof(root)
+            self.assertFalse(proof["verified"])
+            self.assertEqual(proof["reason"], "official_line_no_effect_readback_required")
 
     def test_a_completed_submission_confirmed_by_readback_closes_as_effected(self) -> None:
         # 2026-10-10: set-018 (48172824) was submitted by the fenced run itself and readback saw it
@@ -115,18 +121,315 @@ class BuildProof(unittest.TestCase):
             _set(root, "set-015", "submit", "{not json")
             self.assertFalse(self.proof(root)["verified"])
 
-    def test_a_stage_advance_alone_is_not_an_external_effect(self) -> None:
-        # stage.json moves on every wake; a run that only advanced stages never reached LINE.
+    def test_a_stage_advance_without_local_item_still_needs_official_no_effect_readback(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             _set(root, "set-015", "package", None)
-            self.assertTrue(self.proof(root)["verified"])
+            proof = self.proof(root)
+            self.assertFalse(proof["verified"])
+            self.assertEqual(proof["reason"], "official_line_no_effect_readback_required")
 
-    def test_too_recent_stays_fenced(self) -> None:
+    def test_local_absence_stays_fenced_even_after_old_no_effect_delay(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             _set(root, "set-015", "submit", None)
-            self.assertFalse(self.proof(root, now=Q + dt.timedelta(minutes=3))["verified"])
+            proof = self.proof(root, now=LATE)
+            self.assertFalse(proof["verified"])
+            self.assertEqual(proof["reason"], "official_line_no_effect_readback_required")
+
+
+class OfficialCreatorsListing(unittest.TestCase):
+    """No local hit: the account's own Creators Market item list (api/v2/sticker) is the receipt."""
+    AGED = Q + dt.timedelta(seconds=MODULE.NO_EFFECT_MIN_AGE_SECONDS + 1)
+
+    def root(self, tmp: str) -> Path:
+        root = Path(tmp)
+        _set(root, "set-041", "submitted", {"product_id": "48299386", "state": "review_requested",
+                                            "state_observed": "販売中",
+                                            "created_at": _iso(Q - dt.timedelta(days=1))})
+        _set(root, "set-042", "submit", {})
+        return root
+
+    def proof(self, root: Path, creators: dict, now: dt.datetime = AGED) -> dict:
+        return MODULE.build_proof("line-sticker-factory-hourly:x", Q, now=now, state_root=root,
+                                  creators=creators)
+
+    def test_complete_listing_with_no_new_unrecorded_item_proves_no_effect(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            # 42100028 is a pre-loop item: older than every item recorded before the run.
+            p = self.proof(self.root(tmp), {"ok": True, "ids": ["48299386", "42100028"], "total": 2})
+            self.assertTrue(p["verified"])
+            self.assertFalse(p["effected"])
+            self.assertTrue(p["provider_receipt_id"].startswith("creators-market-item-list:2:"))
+
+    def test_an_unrecorded_item_newer_than_the_run_baseline_stays_fenced(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            p = self.proof(self.root(tmp), {"ok": True, "ids": ["48300001", "48299386"], "total": 2})
+            self.assertFalse(p["verified"])
+            self.assertEqual(p["reason"], "unrecorded_creators_item:48300001")
+
+    def test_an_incomplete_listing_stays_fenced(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            p = self.proof(self.root(tmp), {"ok": True, "ids": ["48299386"], "total": 2})
+            self.assertFalse(p["verified"])
+            self.assertEqual(p["reason"], "incomplete_creators_listing:1<2")
+
+    def test_readback_failure_stays_fenced(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            p = self.proof(self.root(tmp), {"ok": False, "reason": "browser_unavailable"})
+            self.assertFalse(p["verified"])
+            self.assertEqual(p["reason"], "browser_unavailable")
+
+    def test_too_recent_stays_fenced(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            p = self.proof(self.root(tmp), {"ok": True, "ids": ["48299386"], "total": 1}, now=LATE)
+            self.assertFalse(p["verified"])
+            self.assertTrue(p["reason"].startswith("too_recent:"))
+
+    def test_without_any_item_recorded_before_the_run_an_unrecorded_item_stays_fenced(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _set(root, "set-042", "submit", {})
+            p = self.proof(root, {"ok": True, "ids": ["42100028"], "total": 1})
+            self.assertFalse(p["verified"])
+            self.assertEqual(p["reason"], "unrecorded_creators_item:42100028")
+
+    def test_list_pages_parse_into_ids_and_total(self) -> None:
+        pages = {1: {"items": [{"id": 48299386}, {"id": 48292978}], "pager": {"maxPage": 2, "totalEntries": 3}},
+                 2: {"items": [{"id": 42100028}], "pager": {"maxPage": 2, "totalEntries": 3}}}
+        self.assertEqual(MODULE.collect_listing(pages.__getitem__),
+                         {"ok": True, "ids": ["48299386", "48292978", "42100028"], "total": 3})
+        self.assertEqual(MODULE.collect_listing(lambda n: {"items": "x"})["ok"], False)
+
+
+class BrowserLeaseHolder(unittest.TestCase):
+    def test_acquire_and_release_carry_this_process_pid(self) -> None:
+        calls = []
+
+        def fake_run(argv, **kwargs):
+            calls.append((argv[2], (kwargs.get("env") or {}).get("AI_BROWSER_HOLDER_PID")))
+            return subprocess.CompletedProcess(argv, 9, "", "busy")
+
+        with patch.object(MODULE.subprocess, "run", side_effect=fake_run):
+            self.assertEqual(MODULE.read_creators_items()["reason"], "browser_unavailable")
+        self.assertEqual(calls, [("acquire", str(os.getpid()))])
+        calls.clear()
+
+        def fake_run_ok(argv, **kwargs):
+            calls.append((argv[2], (kwargs.get("env") or {}).get("AI_BROWSER_HOLDER_PID")))
+            return subprocess.CompletedProcess(argv, 0, "not-a-cdp-url\n", "")
+
+        with patch.object(MODULE.subprocess, "run", side_effect=fake_run_ok):
+            self.assertFalse(MODULE.read_creators_items()["ok"])
+        self.assertEqual(calls, [("acquire", str(os.getpid())), ("release", str(os.getpid()))])
+
+
+class ReleasedFenceRecovery(unittest.TestCase):
+    def test_active_released_unknown_keeps_the_existing_readback_route(self) -> None:
+        owner = MODULE.OWNER_ID
+        occurrence = f"{owner}:active-run"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with sqlite3.connect(root / "admission-v2.sqlite3") as connection:
+                connection.execute("CREATE TABLE occurrences(owner_id TEXT, occurrence_id TEXT, "
+                                   "state TEXT, queued_at REAL, effect_unknown INTEGER)")
+                connection.execute("INSERT INTO occurrences VALUES(?,?,?,?,?)",
+                                   (owner, occurrence, "released", Q.timestamp(), 1))
+            _set(root, "set-018", "submitted", {
+                "product_id": "48172824", "state": "review_requested",
+                "state_observed": "審査待ち", "created_at": _iso(Q + dt.timedelta(minutes=1))})
+            with patch("runtime.host.resource_admission.state_root", return_value=root), \
+                    patch.object(MODULE, "STATE_ROOT", root):
+                proof = MODULE.reconcile(occurrence)
+            self.assertTrue(proof["verified"])
+
+    def test_released_recovery_uses_only_exact_occurrence_receipt_binding(self) -> None:
+        owner = MODULE.OWNER_ID
+        occurrence = f"{owner}:old-run"
+        release_sha = "a" * 40
+        exact = {"owner_id": owner, "occurrence_id": occurrence, "release_sha": release_sha}
+        for binding, verified in [(exact, True), ({}, False),
+                ({**exact, "occurrence_id": f"{owner}:later-run"}, False),
+                ({**exact, "release_sha": "b" * 40}, False),
+                ({**exact, "owner_id": "another-owner"}, False)]:
+            with self.subTest(binding=binding), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                _set(root, "set-018", "submitted", {
+                    "product_id": "48172824", "state": "review_requested",
+                    "state_observed": "審査待ち", "created_at": _iso(Q + dt.timedelta(minutes=1)),
+                    **binding})
+                with patch.object(MODULE, "STATE_ROOT", root), \
+                        patch.object(MODULE, "fenced_row", return_value=("released", Q, True)), \
+                        patch.object(MODULE, "_terminal_unknown_release_sha", return_value=release_sha,
+                                     create=True):
+                    proof = MODULE.reconcile(occurrence)
+                self.assertEqual(proof["verified"], verified)
+                if not verified:
+                    self.assertNotIn("provider_receipt_id", proof)
+
+    def test_released_row_is_recoverable_only_with_exact_terminal_unknown_event(self) -> None:
+        owner = MODULE.OWNER_ID
+        occurrence = f"{owner}:run-1"
+        release_sha = "a" * 40
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            database = root / "admission-v2.sqlite3"
+            with sqlite3.connect(database) as connection:
+                connection.execute(
+                    "CREATE TABLE occurrences(owner_id TEXT, occurrence_id TEXT, state TEXT, "
+                    "queued_at REAL, effect_unknown INTEGER)"
+                )
+                connection.execute(
+                    "INSERT INTO occurrences VALUES(?,?,?,?,?)",
+                    (owner, occurrence, "released", Q.timestamp(), 0),
+                )
+            (root / "events.jsonl").write_text(json.dumps({
+                "loop_id": owner,
+                "owner_id": owner,
+                "occurrence_id": occurrence,
+                "release_sha": release_sha,
+                "phase": "report",
+                "status": "fail",
+                "effect_class": "publish",
+                "effect_status": "unknown",
+            }) + "\n")
+
+            with patch("runtime.host.resource_admission.state_root", return_value=root), \
+                    patch.object(MODULE, "STATE_ROOT", root):
+                state, queued_at, lost = MODULE.fenced_row(owner, occurrence)
+
+        self.assertEqual(state, "released")
+        self.assertEqual(queued_at, Q)
+        self.assertTrue(lost)
+
+    def test_released_row_without_exact_unknown_event_is_rejected(self) -> None:
+        owner = MODULE.OWNER_ID
+        occurrence = f"{owner}:run-1"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            database = root / "admission-v2.sqlite3"
+            with sqlite3.connect(database) as connection:
+                connection.execute(
+                    "CREATE TABLE occurrences(owner_id TEXT, occurrence_id TEXT, state TEXT, "
+                    "queued_at REAL, effect_unknown INTEGER)"
+                )
+                connection.execute(
+                    "INSERT INTO occurrences VALUES(?,?,?,?,?)",
+                    (owner, occurrence, "released", Q.timestamp(), 0),
+                )
+            (root / "events.jsonl").write_text(json.dumps({
+                "loop_id": owner,
+                "owner_id": owner,
+                "occurrence_id": f"{owner}:different-run",
+                "release_sha": "a" * 40,
+                "phase": "report",
+                "status": "blocked",
+                "effect_class": "publish",
+                "effect_status": "unknown",
+            }) + "\n")
+
+            with patch("runtime.host.resource_admission.state_root", return_value=root), \
+                    patch.object(MODULE, "STATE_ROOT", root):
+                with self.assertRaises(ValueError):
+                    MODULE.fenced_row(owner, occurrence)
+
+
+class RunWindow(unittest.TestCase):
+    """2026-10-17: an old lost fence (run 10/07 12:32-12:43) listed set-031..041 as its hits, all
+    created 10/12-10/13 by later runs, and demanded a binding the submitter never writes."""
+
+    END = Q + dt.timedelta(minutes=10)
+
+    def _report(self, root: Path, occurrence: str, timestamp: str) -> None:
+        (root / "events.jsonl").write_text(json.dumps({
+            "loop_id": MODULE.OWNER_ID, "owner_id": MODULE.OWNER_ID, "occurrence_id": occurrence,
+            "release_sha": "a" * 40, "phase": "report", "status": "fail", "effect_class": "publish",
+            "effect_status": "unknown", "timestamp": timestamp}) + "\n")
+
+    def test_run_end_is_the_exact_terminal_report_timestamp(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._report(root, "line-sticker-factory-hourly:r", self.END.isoformat())
+            self.assertEqual(MODULE.run_ended_at(root, "line-sticker-factory-hourly:r"), self.END)
+            self.assertIsNone(MODULE.run_ended_at(root, "line-sticker-factory-hourly:other"))
+
+    def test_an_item_created_after_the_run_ended_is_not_its_hit(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _set(root, "set-031", "submitted", {
+                "product_id": "48254786", "state": "review_requested", "state_observed": "審査中",
+                "created_at": _iso(Q + dt.timedelta(days=4)),
+                "review_requested_at": _iso(Q + dt.timedelta(days=4))})
+            self.assertEqual(MODULE.touched_since(root, Q, until=self.END), [])
+            self.assertEqual(MODULE.touched_since(root, Q), ["set-031/creators-item.json"])
+
+    def test_an_item_inside_the_run_window_is_still_a_hit(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _set(root, "set-031", "submitted", {"product_id": "1", "state": "review_requested",
+                                                "created_at": _iso(Q + dt.timedelta(minutes=5))})
+            self.assertEqual(MODULE.touched_since(root, Q, until=self.END), ["set-031/creators-item.json"])
+
+    def test_an_item_created_before_and_review_requested_after_the_run_is_a_hit(self) -> None:
+        # Upload/tag leave no timestamp and one item spans several runs (set-035: created 14:30,
+        # review requested 15:48): a run in between may have uploaded or tagged it on LINE.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _set(root, "set-035", "submitted", {
+                "product_id": "48275164", "state": "review_requested", "state_observed": "販売中",
+                "created_at": _iso(Q - dt.timedelta(hours=1)),
+                "review_requested_at": _iso(self.END + dt.timedelta(hours=1))})
+            self.assertEqual(MODULE.touched_since(root, Q, until=self.END), ["set-035/creators-item.json"])
+            proof = MODULE.build_proof(f"{MODULE.OWNER_ID}:mid-run", Q, now=LATE, state_root=root,
+                                       expected_binding=(MODULE.OWNER_ID, f"{MODULE.OWNER_ID}:mid-run", "a" * 40),
+                                       until=self.END)
+            self.assertFalse(proof["verified"])
+
+    def test_an_item_review_requested_before_the_run_is_not_a_hit(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _set(root, "set-030", "submitted", {"product_id": "1", "state": "review_requested",
+                                                "created_at": _iso(Q - dt.timedelta(hours=2)),
+                                                "review_requested_at": _iso(Q - dt.timedelta(hours=1))})
+            _set(root, "set-042", "init", {})
+            self.assertEqual(MODULE.touched_since(root, Q, until=self.END), [])
+
+    def test_lost_fence_with_only_later_items_goes_to_the_official_list(self) -> None:
+        occurrence = f"{MODULE.OWNER_ID}:old-run"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _set(root, "set-020", "submitted", {"product_id": "100", "state": "review_requested",
+                                                "created_at": _iso(Q - dt.timedelta(days=1)),
+                                                "review_requested_at": _iso(Q - dt.timedelta(hours=20))})
+            _set(root, "set-031", "submitted", {"product_id": "200", "state": "review_requested",
+                                                "state_observed": "販売中",
+                                                "created_at": _iso(Q + dt.timedelta(days=4))})
+            self._report(root, occurrence, self.END.isoformat())
+            listing = {"ok": True, "ids": ["100", "200"], "total": 2}
+            with patch.object(MODULE, "STATE_ROOT", root), \
+                    patch.object(MODULE, "fenced_row", return_value=("released", Q, True)), \
+                    patch.object(MODULE, "read_creators_items", return_value=listing) as read:
+                proof = MODULE.reconcile(occurrence)
+            read.assert_called_once()
+            self.assertTrue(proof["verified"])
+            self.assertFalse(proof["effected"])
+            self.assertTrue(proof["provider_receipt_id"].startswith("creators-market-item-list:2:200:"))
+
+    def test_lost_fence_with_an_unrecorded_newer_item_stays_fenced(self) -> None:
+        occurrence = f"{MODULE.OWNER_ID}:old-run"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _set(root, "set-020", "submitted", {"product_id": "100", "state": "review_requested",
+                                                "created_at": _iso(Q - dt.timedelta(days=1)),
+                                                "review_requested_at": _iso(Q - dt.timedelta(hours=20))})
+            self._report(root, occurrence, self.END.isoformat())
+            listing = {"ok": True, "ids": ["100", "150"], "total": 2}
+            with patch.object(MODULE, "STATE_ROOT", root), \
+                    patch.object(MODULE, "fenced_row", return_value=("released", Q, True)), \
+                    patch.object(MODULE, "read_creators_items", return_value=listing):
+                proof = MODULE.reconcile(occurrence)
+            self.assertFalse(proof["verified"])
+            self.assertEqual(proof["reason"], "unrecorded_creators_item:150")
 
 
 if __name__ == "__main__":

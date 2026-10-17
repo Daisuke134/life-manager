@@ -119,6 +119,55 @@ def should_run_today(ledger_path: Path) -> bool:
     return observed.astimezone(JST).date() != now_utc().astimezone(JST).date()
 
 
+async def read_features_on_page(page, item_url: str = FEATURE_PAGE) -> dict:
+    """Read currently listed features and matching official announcement conditions in an existing
+    authenticated Playwright context. The caller owns and closes ``page``."""
+    await page.goto(item_url, wait_until="domcontentloaded", timeout=60000)
+    await page.wait_for_timeout(2000)
+    if "access.line.me" in page.url:
+        return {"status": "needs_login"}
+    radios = await page.evaluate(
+        """() => {
+            const radios = [...document.querySelectorAll('input[type=radio]')];
+            const groups = {};
+            for (const r of radios) { (groups[r.name] ||= []).push(r); }
+            const group = Object.values(groups).find(g => g.some(r => r.value === 'on'));
+            return (group || []).map(r => ({
+                value: r.value,
+                // Not wrapped in a <label>: the feature block 4 levels up holds the title and period.
+                label: (r.parentElement?.parentElement?.parentElement?.parentElement || {}).innerText || '',
+            }));
+        }"""
+    )
+    await page.goto(f"{CREATOR_BASE}/announce/", wait_until="domcontentloaded", timeout=60000)
+    await page.wait_for_timeout(2000)
+    links = await page.evaluate(
+        """() => [...document.querySelectorAll('a[href*="/announce/article"]')]
+            .map(a => ({title: a.innerText.trim(), href: a.getAttribute('href')}))"""
+    )
+    today = now_utc().astimezone(JST).date()
+    features = []
+    for radio in radios:
+        parsed = parse_feature_radio(radio["value"], radio["label"], today)
+        if not parsed:
+            continue
+        href = match_announce_link(parsed["title"], links)
+        conditions = None
+        announce_url = None
+        if href:
+            announce_url = urljoin(page.url, href)  # href is root-relative (/my/<id>/announce/...)
+            await page.goto(announce_url, wait_until="domcontentloaded", timeout=60000)
+            await page.wait_for_timeout(1500)
+            conditions = await page.inner_text("body")
+        parsed["announce_url"] = announce_url
+        parsed["conditions"] = conditions
+        condition_deadline = deadline_from_conditions(conditions, today) if conditions else None
+        if condition_deadline:
+            parsed["deadline"] = condition_deadline
+        features.append(parsed)
+    return {"status": "ok", "features": features}
+
+
 async def _fetch(cdp: str, item_url: str) -> dict:
     from playwright.async_api import async_playwright
 
@@ -127,49 +176,7 @@ async def _fetch(cdp: str, item_url: str) -> dict:
         context = browser.contexts[0]
         page = await context.new_page()
         try:
-            await page.goto(item_url, wait_until="domcontentloaded", timeout=60000)
-            await page.wait_for_timeout(2000)
-            if "access.line.me" in page.url:
-                return {"status": "needs_login"}
-            radios = await page.evaluate(
-                """() => {
-                    const radios = [...document.querySelectorAll('input[type=radio]')];
-                    const groups = {};
-                    for (const r of radios) { (groups[r.name] ||= []).push(r); }
-                    const group = Object.values(groups).find(g => g.some(r => r.value === 'on'));
-                    return (group || []).map(r => ({
-                        value: r.value,
-                        // Not wrapped in a <label>: the feature block 4 levels up holds the title and period.
-                        label: (r.parentElement?.parentElement?.parentElement?.parentElement || {}).innerText || '',
-                    }));
-                }"""
-            )
-            await page.goto(f"{CREATOR_BASE}/announce/", wait_until="domcontentloaded", timeout=60000)
-            await page.wait_for_timeout(2000)
-            links = await page.evaluate(
-                """() => [...document.querySelectorAll('a[href*="/announce/article"]')]
-                    .map(a => ({title: a.innerText.trim(), href: a.getAttribute('href')}))"""
-            )
-            today = now_utc().astimezone(JST).date()
-            features = []
-            for radio in radios:
-                parsed = parse_feature_radio(radio["value"], radio["label"], today)
-                if not parsed:
-                    continue
-                href = match_announce_link(parsed["title"], links)
-                conditions = None
-                announce_url = None
-                if href:
-                    announce_url = urljoin(page.url, href)  # href is root-relative (/my/<id>/announce/...)
-                    await page.goto(announce_url, wait_until="domcontentloaded", timeout=60000)
-                    await page.wait_for_timeout(1500)
-                    conditions = await page.inner_text("body")
-                parsed["announce_url"] = announce_url
-                parsed["conditions"] = conditions
-                if parsed.get("deadline") is None and conditions:
-                    parsed["deadline"] = deadline_from_conditions(conditions, today)
-                features.append(parsed)
-            return {"status": "ok", "features": features}
+            return await read_features_on_page(page, item_url)
         finally:
             await page.close()
 

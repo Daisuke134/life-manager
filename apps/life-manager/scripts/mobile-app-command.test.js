@@ -7,6 +7,7 @@ const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 const { resolveMobileAppLoop } = require("./mobile-app-command.js");
+const { effectStatus } = require("./mobile-effect-result.js");
 
 const root = path.resolve(__dirname, "../../..");
 const manifest = require("../config/mobile-app-loops.json");
@@ -103,7 +104,7 @@ for (const binding of [
   {name: "absent", value: undefined, expected: "unset"},
   {name: "empty", value: "", expected: ""},
 ]) {
-test(`the shared mobile wrapper preserves ${binding.name} release binding through reconciliation and runner`, (t) => {
+test(`the mobile wrapper preserves ${binding.name} release binding but does not attest an unbound replay`, (t) => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "lm-mobile-wrapper-"));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const calls = path.join(directory, "python-calls.txt");
@@ -149,20 +150,53 @@ test(`the shared mobile wrapper preserves ${binding.name} release binding throug
   assert.match(invoked[1], /runtime\/run-with-timeout\.py/);
   assert.ok(invoked.every((call) => call.endsWith(`|release=${releaseSha}`)), "the release binding must survive loading mutable marketing env");
   assert.equal(result.stdout.trim(), '{"publication":{"created":false,"provider_post_id":"postiz-existing-1"}}');
-  assert.deepEqual(JSON.parse(fs.readFileSync(resultHint, "utf8")), {
-    schema_version: 1,
-    kind: "life_manager_effect_result",
-    status: "verified_effect",
-    effect: 1,
-    owner_id: "life-manager-honne-ja",
-    occurrence_id: "life-manager-honne-ja:run-1",
-    provider: "postiz",
-    provider_receipt_id: "postiz-existing-1",
-    effect_status: "reconciled",
-  });
-  assert.equal(fs.statSync(resultHint).mode & 0o777, 0o600);
+  assert.equal(fs.existsSync(resultHint), false);
+  assert.match(result.stderr, /mobile app exact result hint unavailable/);
 });
 }
+
+test("mobile reconciled receipts require their origin occurrence to match", () => {
+  const occurrenceId = "life-manager-honne-en:run-1";
+  const options = { occurrenceId, requireOriginOccurrence: true };
+  const receipt = {
+    created: false,
+    provider_effect_created: false,
+    provider_post_id: "postiz-honne-en-1",
+    origin_occurrence_id: occurrenceId,
+  };
+  assert.equal(effectStatus(receipt, options), "reconciled");
+  assert.equal(effectStatus({
+    created: true,
+    provider_effect_created: true,
+    provider_post_id: "postiz-created-1",
+    origin_occurrence_id: occurrenceId,
+  }, options), "verified");
+  assert.equal(effectStatus({
+    created: false,
+    provider_effect_created: true,
+    provider_post_id: "postiz-replayed-same-occurrence-1",
+    origin_occurrence_id: occurrenceId,
+  }, options), "verified");
+  assert.throws(() => effectStatus({
+    created: true,
+    provider_post_id: "postiz-created-1",
+  }, options), /origin occurrence|provider effect/);
+  assert.throws(() => effectStatus({
+    created: true,
+    provider_effect_created: false,
+    provider_post_id: "postiz-created-1",
+    origin_occurrence_id: occurrenceId,
+  }, options), /provider effect/);
+  assert.throws(() => effectStatus({
+    created: false,
+    provider_post_id: "postiz-honne-en-1",
+    origin_occurrence_id: occurrenceId,
+  }, options), /provider effect/);
+  assert.throws(() => effectStatus({ ...receipt, origin_occurrence_id: "life-manager-honne-en:old-run" }, options), /origin occurrence/);
+  assert.throws(() => effectStatus({ created: false, provider_post_id: receipt.provider_post_id }, options), /origin occurrence/);
+  assert.throws(() => effectStatus({ status: "published", provider_reconciled: true, replay_created: false }, options), /origin occurrence/);
+  assert.equal(effectStatus({ created: true, provider_post_id: "legacy-created-1" }), "verified");
+});
 
 test("the shared mobile wrapper fails closed without a managed occurrence", (t) => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "lm-mobile-unresolved-effect-"));
@@ -233,11 +267,11 @@ test("the mobile result helper accepts exact reconciled receipt shapes only", (t
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const helper = path.join(root, "apps/life-manager/scripts/mobile-effect-result.js");
 
-  function run(publication, name) {
+  function run(publication, name, requireOriginOccurrence = false) {
     const input = path.join(directory, `${name}.stdout`);
     const output = path.join(directory, `${name}.json`);
     fs.writeFileSync(input, `${JSON.stringify({ publication })}\n`);
-    const result = spawnSync(process.execPath, [helper, input], {
+    const result = spawnSync(process.execPath, [helper, input, ...(requireOriginOccurrence ? ["--require-origin-occurrence"] : [])], {
       cwd: root,
       env: {
         ...process.env,
@@ -261,10 +295,21 @@ test("the mobile result helper accepts exact reconciled receipt shapes only", (t
 
   const created = run({
     created: true,
+    provider_effect_created: true,
+    origin_occurrence_id: "life-manager-honne-en:run-1",
     provider_post_id: "postiz-created-1",
-  }, "created");
+  }, "created", true);
   assert.equal(created.result.status, 0, created.result.stderr);
   assert.equal(JSON.parse(fs.readFileSync(created.output, "utf8")).effect_status, "verified");
+
+  const originBound = run({
+    created: false,
+    provider_effect_created: false,
+    origin_occurrence_id: "life-manager-honne-en:run-1",
+    provider_post_id: "postiz-honne-en-origin-bound",
+  }, "origin-bound", true);
+  assert.equal(originBound.result.status, 0, originBound.result.stderr);
+  assert.equal(JSON.parse(fs.readFileSync(originBound.output, "utf8")).effect_status, "reconciled");
 
   const ambiguous = run({ provider_post_id: "postiz-ambiguous-1" }, "ambiguous");
   assert.notEqual(ambiguous.result.status, 0);

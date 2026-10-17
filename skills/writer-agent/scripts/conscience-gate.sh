@@ -36,7 +36,7 @@ BLOCK publication when the article creates a material gray-zone exposure in any 
 4. LEGAL RISK: defamation, privacy invasion, breach of confidence, unlawful disclosure, or instructions whose publication would create a concrete legal risk.
 5. TARGETED ACCUSATION: identifying a real person or organization in order to blame, shame, or accuse them, rather than neutrally documenting well-sourced public facts.
 
-Do not BLOCK ordinary critical analysis of public products, public documentation, public conduct, or well-sourced public facts merely because it is negative. Do not infer hidden context. Judge only the article below. When uncertain about a material gray-zone exposure, fail closed with BLOCK and explain the uncertainty.
+Do not BLOCK ordinary critical analysis of public products, public documentation, public conduct, or well-sourced public facts merely because it is negative. Query parameters on the article's own product or call-to-action link (product_id, run_id, artifact_id, variant_id, click_id, ct, utm_*) are standard marketing attribution that every publisher uses; they are not credentials, private access details, or a security or privacy exposure, so never BLOCK for them. Do not infer hidden context. Judge only the article below. When uncertain about a material gray-zone exposure, fail closed with BLOCK and explain the uncertainty.
 
 Output the FINAL LINE as pure JSON exactly:
 {\"verdict\":\"ALLOW\"|\"BLOCK\",\"reasons\":[\"<specific reason quoting or identifying the risky passage>\", ...]}
@@ -50,6 +50,19 @@ $BODY"
 # ARTICLE_RUN_DIR from it whenever the caller failed to pass one.
 if [ -z "${ARTICLE_RUN_DIR:-}" ] && [ -f "$MD" ]; then
   export ARTICLE_RUN_DIR="$(cd "$(dirname "$MD")" && pwd)"
+fi
+# A BLOCK is final for the same bytes: replay it instead of asking a fresh judge,
+# so a later pass can never re-roll a BLOCK into ALLOW (review of #8251).
+RECEIPT=""
+ARTICLE_HASH="$(shasum -a 256 "$MD" | awk '{print $1}')"
+if [ -n "${ARTICLE_RUN_DIR:-}" ]; then
+  RECEIPT="$ARTICLE_RUN_DIR/gates/conscience-$LANG_A.json"
+  if jq -e --arg h "$ARTICLE_HASH" '.verdict == "BLOCK" and .article_sha256 == $h' \
+    "$RECEIPT" >/dev/null 2>&1; then
+    jq -c '{verdict, reasons}' "$RECEIPT"
+    log_gate_verdict "BLOCK:replayed"
+    exit 1
+  fi
 fi
 OUT=$(printf '%s' "$PROMPT" | "$MODEL_RUNNER" judge --prompt-file - 2>/dev/null)
 JSON=$(printf '%s\n' "$OUT" | grep -o '{"verdict".*}' | tail -1)
@@ -86,6 +99,14 @@ fi
 echo "$NORMALIZED"
 VERDICT=$(printf '%s' "$NORMALIZED" | python3 -c 'import json,sys; print(json.load(sys.stdin)["verdict"])')
 log_gate_verdict "$VERDICT"
+if [ -n "$RECEIPT" ]; then
+  mkdir -p "$(dirname "$RECEIPT")"
+  printf '%s' "$NORMALIZED" | jq -c --arg h "$ARTICLE_HASH" '. + {article_sha256: $h}' \
+    >"$RECEIPT.$$.tmp" && mv -f "$RECEIPT.$$.tmp" "$RECEIPT" || {
+      echo "FATAL: could not persist conscience receipt" >&2
+      exit 3
+    }
+fi
 if [ "$VERDICT" = "ALLOW" ] && [ -n "${ARTICLE_RUN_DIR:-}" ]; then
   python3 "$SCRIPT_DIR/quality-phase-terminal.py" write \
     --run-dir "$ARTICLE_RUN_DIR" --lang "$LANG_A" --markdown-file "$MD" || {

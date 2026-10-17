@@ -2,6 +2,8 @@ from pathlib import Path
 import importlib.util
 import sys
 
+import pytest
+
 
 MODULE = Path(__file__).parents[1] / "scripts/reply_adapter.py"
 SPEC = importlib.util.spec_from_file_location("crowdworks_reply_adapter_test", MODULE)
@@ -100,7 +102,7 @@ class _Page:
     def title(self): return self._title
 
 
-def _contract_adapter(*, status="proposed", amount="12円", trigger_count=1):
+def _contract_adapter(*, status="proposed", amount="50,000円", trigger_count=1):
     adapter = adapter_module.CrowdWorksReplyAdapter({})
     adapter.rows = {"thread-1": {
         "thread_id": "thread-1", "id": "message-1", "proposal_status": status,
@@ -137,13 +139,23 @@ def test_contract_action_requires_one_official_proposed_control_and_fingerprints
     assert action["payload"]["title"] == "対象案件"
     assert action["payload"]["client"] == "発注者"
     assert action["payload"]["worker"] == "Kaito｜AI自動化"
-    assert action["payload"]["amount"] == "12円"
+    assert action["payload"]["amount"] == "50,000円"
     assert len(action["payload"]["terms_sha256"]) == 64
 
     not_proposed, _, _, _ = _contract_adapter(status="rejected")
     assert not_proposed._contract_action("thread-1") is None
     ambiguous, _, _, _ = _contract_adapter(trigger_count=2)
     assert ambiguous._contract_action("thread-1") is None
+
+
+@pytest.mark.parametrize("amount,accepted", [
+    ("12円", False), ("4,999円", False), ("5,000円", True),
+    ("時給 1,200円", False), ("時間単価 2,000円", True), ("要相談", False),
+])
+def test_contract_action_refuses_amounts_below_the_catalogue_floor(amount, accepted):
+    adapter, _, _, _ = _contract_adapter(amount=amount)
+    action = adapter._contract_action("thread-1")
+    assert (action is not None) is accepted
 
 
 def test_contract_mutation_rejects_changed_terms_before_click():

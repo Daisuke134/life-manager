@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">MLB In-Game Decision Brief</title>
+  <desc id="desc">A baseball diamond with a decision card</desc>
+  <rect width="512" height="512" rx="96" fill="#10233f"/>
+  <path d="M256 72 404 220 256 368 108 220Z" fill="#e8c46a"/>
+  <path d="M256 116 360 220 256 324 152 220Z" fill="#185a49"/>
+  <circle cx="256" cy="220" r="24" fill="#f5f0e4"/>
+  <rect x="122" y="338" width="268" height="92" rx="20" fill="#f5f0e4"/>
+  <path d="M154 369h110M154 397h70" stroke="#10233f" stroke-width="18" stroke-linecap="round"/>
+  <path d="m320 380 18 18 36-44" fill="none" stroke="#185a49" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

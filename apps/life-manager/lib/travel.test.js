@@ -42,6 +42,15 @@ test("home → real venue → INSERT, origin=home", () => {
   assert.equal(d.origin, HOME);
 });
 
+test("agent-selected same-day work origin overrides the home fallback for an evening event", () => {
+  const office = "MUIT 生駒";
+  const prev = { summary: "Work", location: office, startMs: ms(9), endMs: ms(17), timezone: "Asia/Tokyo" };
+  const ev = { summary: "Dinner", location: "渋谷ヒカリエ", startMs: ms(19), timezone: "Asia/Tokyo" };
+  assert.deepEqual(travelDecision(ev, prev, HOME, office), {
+    insert: true, origin: office, reason: "travel-needed",
+  });
+});
+
 test("back-to-back: prev ends ≤90min before, different place → origin=prev with no saved home", () => {
   const prev = { location: "MUIT 生駒", endMs: ms(17) };
   const ev = { summary: "😴 Sleep", location: HOME, startMs: ms(18) }; // 60min after prev
@@ -109,7 +118,7 @@ test("shared event reader exposes the existing normalized seven-day calendar que
   });
   assert.equal(requests.length, 1);
   assert.equal(requests[0].uid, "uid-1");
-  assert.equal(requests[0].bounds.timeMin, "2029-12-31T23:00:00Z");
+  assert.equal(requests[0].bounds.timeMin, "2029-12-30T21:00:00Z");
   assert.equal(requests[0].bounds.timeMax, "2030-01-07T23:00:00Z");
   assert.equal(events[0].id, "event-1");
   assert.equal(events[0].location, "Shibuya");
@@ -219,6 +228,334 @@ async function withTravelClaimStore(run) {
   try { await run({ claims, deletes }); }
   finally { globalThis.fetch = originalFetch; }
 }
+
+test("after-work Travel uses the agent-selected same-day office candidate", async () => {
+  await withTravelClaimStore(async () => {
+    const office = "MUIT 生駒";
+    const sourceRows = [
+      { id: "office-morning", summary: "Work", location: office,
+        start: { dateTime: "2030-01-01T09:00:00+09:00", timeZone: "Asia/Tokyo" },
+        end: { dateTime: "2030-01-01T10:00:00+09:00", timeZone: "Asia/Tokyo" } },
+      { id: "office-midday", summary: "Team", location: office,
+        start: { dateTime: "2030-01-01T12:00:00+09:00", timeZone: "Asia/Tokyo" },
+        end: { dateTime: "2030-01-01T13:00:00+09:00", timeZone: "Asia/Tokyo" } },
+      { id: "office-afternoon", summary: "Work", location: office,
+        start: { dateTime: "2030-01-01T15:00:00+09:00", timeZone: "Asia/Tokyo" },
+        end: { dateTime: "2030-01-01T17:00:00+09:00", timeZone: "Asia/Tokyo" } },
+      { id: "travel-helper", summary: "[Travel] 🚆 Office→Other", location: "Helper-only location",
+        start: { dateTime: "2030-01-01T17:20:00+09:00", timeZone: "Asia/Tokyo" },
+        end: { dateTime: "2030-01-01T17:30:00+09:00", timeZone: "Asia/Tokyo" } },
+      { id: "dinner", summary: "Dinner", location: "渋谷ヒカリエ",
+        start: { dateTime: "2030-01-01T19:00:00+09:00", timeZone: "Asia/Tokyo" },
+        end: { dateTime: "2030-01-01T20:00:00+09:00", timeZone: "Asia/Tokyo" } },
+    ];
+    const routeCalls = [];
+    const outboundTargets = [];
+    const allowanceCalls = [];
+    const created = [];
+    let originCandidates = [];
+    const calendar = {
+      async listEventsRaw(_uid, bounds) {
+        const min = Date.parse(bounds.timeMin);
+        return sourceRows.filter((event) => Date.parse(event.end.dateTime) >= min);
+      },
+      async createEvent(_uid, args) { created.push(args); return { successful: true }; },
+    };
+    const options = {
+      home: HOME,
+      geminiKey: "fixture-gemini-key",
+      timezone: "Asia/Tokyo",
+      nowMs: Date.parse("2030-01-01T17:30:00+09:00"),
+      calendar,
+      supaUrl: "https://db.example",
+      supaKey: "fixture",
+      _directionsMinutes: async (from, to, _key, _anchor, _now, isReturn) => {
+        if (!isReturn) outboundTargets.push(to);
+        if (to === "渋谷ヒカリエ" && !isReturn) routeCalls.push(from);
+        return isReturn ? null : 40;
+      },
+      _reserveManagedAction: async (_uid, eventKey) => {
+        allowanceCalls.push(eventKey);
+        return { allowed: true, reservationToken: eventKey };
+      },
+      _completeManagedAction: async () => true,
+      _releaseManagedAction: async () => true,
+      _readTravelOriginAskState: async () => ({ kind: "none" }),
+      _agentResolveTravelOrigin: async (_event, options) => {
+        originCandidates = options.candidates;
+        const candidate = options.candidates.find((item) => item.location === office);
+        assert.equal(candidate.source, "repeated_calendar_location");
+        assert.equal(options.candidates.some((item) => item.location === "Helper-only location"), false);
+        return { kind: "selected", candidateId: candidate.id };
+      },
+    };
+    const result = await fillTravel("tenant-after-work", options);
+    const replay = await fillTravel("tenant-after-work", options);
+    assert.ok(originCandidates.some((candidate) => candidate.location === office));
+    assert.deepEqual(routeCalls, [office, office]);
+    assert.deepEqual(outboundTargets, ["渋谷ヒカリエ", "渋谷ヒカリエ"]);
+    assert.equal(allowanceCalls.length, 4, "only the future event may reserve route usage on each run");
+    assert.equal(result.inserted, 1);
+    assert.equal(replay.inserted, 0);
+    assert.equal(created.length, 1);
+  });
+});
+
+test("unresolved origin asks once, holds outbound routing, then uses the reply", async () => {
+  await withTravelClaimStore(async () => {
+    const office = "MUIT 生駒";
+    const sourceRows = [
+      { id: "office-morning", summary: "Work", location: office,
+        start: { dateTime: "2030-01-01T09:00:00+09:00", timeZone: "Asia/Tokyo" },
+        end: { dateTime: "2030-01-01T10:00:00+09:00", timeZone: "Asia/Tokyo" } },
+      { id: "office-midday", summary: "Team", location: office,
+        start: { dateTime: "2030-01-01T12:00:00+09:00", timeZone: "Asia/Tokyo" },
+        end: { dateTime: "2030-01-01T13:00:00+09:00", timeZone: "Asia/Tokyo" } },
+      { id: "office-afternoon", summary: "Work", location: office,
+        start: { dateTime: "2030-01-01T14:00:00+09:00", timeZone: "Asia/Tokyo" },
+        end: { dateTime: "2030-01-01T15:00:00+09:00", timeZone: "Asia/Tokyo" } },
+      { id: "dinner", summary: "Dinner", location: "Venue",
+        start: { dateTime: "2030-01-01T19:00:00+09:00", timeZone: "Asia/Tokyo" },
+        end: { dateTime: "2030-01-01T20:00:00+09:00", timeZone: "Asia/Tokyo" } },
+    ];
+    const outboundOrigins = [];
+    const created = [];
+    let askState = { kind: "none" };
+    let originAgentCalls = 0;
+    let askCalls = 0;
+    const calendar = {
+      async listEventsRaw(_uid, bounds) {
+        const min = Date.parse(bounds.timeMin);
+        return sourceRows.filter((event) => Date.parse(event.end.dateTime) >= min);
+      },
+      async createEvent(_uid, args) { created.push(args); return { successful: true }; },
+    };
+    const options = {
+      home: HOME,
+      geminiKey: "fixture-gemini-key",
+      timezone: "Asia/Tokyo",
+      nowMs: Date.parse("2030-01-01T17:30:00+09:00"),
+      calendar,
+      supaUrl: "https://db.example",
+      supaKey: "fixture",
+      _directionsMinutes: async (from, _to, _key, _anchor, _now, isReturn) => {
+        if (!isReturn) outboundOrigins.push(from);
+        return 30;
+      },
+      _reserveManagedAction: async (_uid, eventKey) => ({ allowed: true, reservationToken: eventKey }),
+      _completeManagedAction: async () => true,
+      _releaseManagedAction: async () => true,
+      _readTravelOriginAskState: async (_uid, eventKey) => {
+        assert.equal(eventKey, "dinner");
+        return askState;
+      },
+      _agentResolveTravelOrigin: async () => {
+        originAgentCalls++;
+        return { kind: "unresolved" };
+      },
+      _askTravelOrigin: async (_uid, event, eventKey, candidates) => {
+        assert.equal(event.id, "dinner");
+        assert.equal(eventKey, "dinner");
+        assert.ok(candidates.some((candidate) => candidate.location === office));
+        askCalls++;
+        askState = { kind: "pending" };
+        return { kind: "pending", sent: true };
+      },
+    };
+
+    await fillTravel("tenant-origin-question", options);
+    await fillTravel("tenant-origin-question", options);
+    assert.deepEqual(outboundOrigins, [], "never create an outbound block from a guessed home while the question is pending");
+    assert.equal(askCalls, 1, "replay must not send another question");
+    assert.equal(originAgentCalls, 1, "a pending question suppresses repeated model calls");
+
+    askState = { kind: "answered", location: office };
+    await fillTravel("tenant-origin-question", options);
+    assert.deepEqual(outboundOrigins, [office]);
+    assert.equal(askCalls, 1);
+    assert.equal(created.length, 2, "the return leg remains independently eligible while the outbound waits");
+  });
+});
+
+test("unreadable origin ask state fails closed before outbound routing", async () => {
+  await withTravelClaimStore(async () => {
+    const office = "MUIT 生駒";
+    const sourceRows = [
+      { id: "office-one", summary: "Work", location: office,
+        start: { dateTime: "2030-01-01T09:00:00+09:00", timeZone: "Asia/Tokyo" },
+        end: { dateTime: "2030-01-01T10:00:00+09:00", timeZone: "Asia/Tokyo" } },
+      { id: "office-two", summary: "Team", location: office,
+        start: { dateTime: "2030-01-01T12:00:00+09:00", timeZone: "Asia/Tokyo" },
+        end: { dateTime: "2030-01-01T13:00:00+09:00", timeZone: "Asia/Tokyo" } },
+      { id: "office-three", summary: "Work", location: office,
+        start: { dateTime: "2030-01-01T14:00:00+09:00", timeZone: "Asia/Tokyo" },
+        end: { dateTime: "2030-01-01T15:00:00+09:00", timeZone: "Asia/Tokyo" } },
+      { id: "dinner", summary: "Dinner", location: "Venue",
+        start: { dateTime: "2030-01-01T19:00:00+09:00", timeZone: "Asia/Tokyo" },
+        end: { dateTime: "2030-01-01T20:00:00+09:00", timeZone: "Asia/Tokyo" } },
+    ];
+    const outboundOrigins = [];
+    const calendar = {
+      async listEventsRaw() { return sourceRows; },
+      async createEvent() { return { successful: true }; },
+    };
+    const options = {
+      home: HOME,
+      geminiKey: "fixture-gemini-key",
+      timezone: "Asia/Tokyo",
+      nowMs: Date.parse("2030-01-01T17:30:00+09:00"),
+      calendar,
+      supaUrl: "https://db.example",
+      supaKey: "fixture",
+      _directionsMinutes: async (_from, _to, _key, _anchor, _now, isReturn) => {
+        if (!isReturn) outboundOrigins.push(_from);
+        return isReturn ? null : 40;
+      },
+      _readTravelOriginAskState: async () => { throw new Error("ledger unavailable"); },
+      _agentResolveTravelOrigin: async () => ({ kind: "selected", candidateId: "home" }),
+      _askTravelOrigin: async () => assert.fail("do not send when ask-state read failed"),
+    };
+    await fillTravel("tenant-origin-ledger-down", options);
+    await fillTravel("tenant-origin-ledger-unconfigured", {
+      ...options,
+      supaUrl: undefined,
+      supaKey: undefined,
+      _readTravelOriginAskState: undefined,
+    });
+    assert.deepEqual(outboundOrigins, []);
+  });
+});
+
+test("ongoing Calendar event skips outbound routing but keeps its return route", async () => {
+  await withTravelClaimStore(async () => {
+    const sourceRows = [
+      { id: "ongoing-event", summary: "Dinner", location: "Venue",
+        start: { dateTime: "2030-01-01T17:00:00+09:00", timeZone: "Asia/Tokyo" },
+        end: { dateTime: "2030-01-01T18:00:00+09:00", timeZone: "Asia/Tokyo" } },
+    ];
+    const routeCalls = [];
+    const allowanceCalls = [];
+    const created = [];
+    const calendar = {
+      async listEventsRaw() { return sourceRows; },
+      async createEvent(_uid, args) { created.push(args); return { successful: true }; },
+    };
+    const result = await fillTravel("tenant-ongoing-event", {
+      home: HOME,
+      timezone: "Asia/Tokyo",
+      nowMs: Date.parse("2030-01-01T17:30:00+09:00"),
+      calendar,
+      supaUrl: "https://db.example",
+      supaKey: "fixture",
+      _directionsMinutes: async (_from, _to, _key, _anchor, _now, isReturn) => {
+        routeCalls.push(isReturn ? "return" : "outbound");
+        return isReturn ? 30 : 40;
+      },
+      _reserveManagedAction: async (_uid, eventKey) => {
+        allowanceCalls.push(eventKey);
+        return { allowed: true, reservationToken: eventKey };
+      },
+      _completeManagedAction: async () => true,
+      _releaseManagedAction: async () => true,
+    });
+
+    assert.deepEqual(routeCalls, ["return"]);
+    assert.equal(allowanceCalls.length, 1);
+    assert.equal(result.inserted, 1);
+    assert.equal(created.length, 1);
+  });
+});
+
+test("event starting at now skips origin resolution and outbound routing but keeps its return route", async () => {
+  await withTravelClaimStore(async () => {
+    const office = "MUIT 生駒";
+    const sourceRows = [
+      { id: "office-morning", summary: "Work", location: office,
+        start: { dateTime: "2030-01-01T09:00:00+09:00", timeZone: "Asia/Tokyo" },
+        end: { dateTime: "2030-01-01T10:00:00+09:00", timeZone: "Asia/Tokyo" } },
+      { id: "office-midday", summary: "Team", location: office,
+        start: { dateTime: "2030-01-01T12:00:00+09:00", timeZone: "Asia/Tokyo" },
+        end: { dateTime: "2030-01-01T13:00:00+09:00", timeZone: "Asia/Tokyo" } },
+      { id: "office-afternoon", summary: "Work", location: office,
+        start: { dateTime: "2030-01-01T14:00:00+09:00", timeZone: "Asia/Tokyo" },
+        end: { dateTime: "2030-01-01T15:00:00+09:00", timeZone: "Asia/Tokyo" } },
+      { id: "event-now", summary: "Dinner", location: "Venue",
+        start: { dateTime: "2030-01-01T17:30:00+09:00", timeZone: "Asia/Tokyo" },
+        end: { dateTime: "2030-01-01T18:00:00+09:00", timeZone: "Asia/Tokyo" } },
+    ];
+    const routeCalls = [];
+    const allowanceCalls = [];
+    const created = [];
+    let originResolutions = 0;
+    const calendar = {
+      async listEventsRaw() { return sourceRows; },
+      async createEvent(_uid, args) { created.push(args); return { successful: true }; },
+    };
+    const result = await fillTravel("tenant-event-now", {
+      home: HOME,
+      geminiKey: "fixture-gemini-key",
+      timezone: "Asia/Tokyo",
+      nowMs: Date.parse("2030-01-01T17:30:00+09:00"),
+      calendar,
+      supaUrl: "https://db.example",
+      supaKey: "fixture",
+      _directionsMinutes: async (_from, _to, _key, _anchor, _now, isReturn) => {
+        routeCalls.push(isReturn ? "return" : "outbound");
+        return isReturn ? 30 : 40;
+      },
+      _reserveManagedAction: async (_uid, eventKey) => {
+        allowanceCalls.push(eventKey);
+        return { allowed: true, reservationToken: eventKey };
+      },
+      _completeManagedAction: async () => true,
+      _releaseManagedAction: async () => true,
+      _agentResolveTravelOrigin: async () => {
+        originResolutions++;
+        return { kind: "selected", candidateId: "repeated-location" };
+      },
+    });
+
+    assert.equal(originResolutions, 0);
+    assert.deepEqual(routeCalls, ["return"]);
+    assert.equal(allowanceCalls.length, 1);
+    assert.equal(result.inserted, 1);
+    assert.equal(created.length, 1);
+  });
+});
+
+test("previous-day location is not offered as the origin for today's event", async () => {
+  await withTravelClaimStore(async () => {
+    const sourceRows = [
+      { id: "yesterday-office", summary: "Work", location: "Yesterday Office",
+        start: { dateTime: "2029-12-31T15:00:00+09:00", timeZone: "Asia/Tokyo" },
+        end: { dateTime: "2029-12-31T17:00:00+09:00", timeZone: "Asia/Tokyo" } },
+      { id: "today-event", summary: "Dinner", location: "Venue",
+        start: { dateTime: "2030-01-01T19:00:00+09:00", timeZone: "Asia/Tokyo" },
+        end: { dateTime: "2030-01-01T20:00:00+09:00", timeZone: "Asia/Tokyo" } },
+    ];
+    const origins = [];
+    const calendar = {
+      async listEventsRaw(_uid, bounds) {
+        const min = Date.parse(bounds.timeMin);
+        return sourceRows.filter((event) => Date.parse(event.end.dateTime) >= min);
+      },
+      async createEvent() { return { successful: true }; },
+    };
+    await fillTravel("tenant-cross-day-origin", {
+      home: HOME,
+      geminiKey: "fixture-gemini-key",
+      timezone: "Asia/Tokyo",
+      nowMs: Date.parse("2030-01-01T17:30:00+09:00"),
+      calendar,
+      _directionsMinutes: async (from, to, _key, _anchor, _now, isReturn) => {
+        if (to === "Venue" && !isReturn) origins.push(from);
+        return isReturn ? null : 40;
+      },
+      _agentResolveTravelOrigin: async () => assert.fail("previous-day events must not become candidates"),
+    });
+    assert.deepEqual(origins, [HOME]);
+  });
+});
 
 function makeUnknownGoCalendar(readback = () => []) {
   const calls = [];

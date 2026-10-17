@@ -7,7 +7,7 @@ try { funnelEvents = require("./web-funnel-events.js"); } catch {}
 
 const UID = "lm_12345678-1234-1234-1234-123456789abc";
 
-test("normalizes only allowlisted funnel fields and bounded UTM values", () => {
+test("normalizes allowlisted funnel fields and bounded UTM and Writer identities", () => {
   assert.ok(funnelEvents, "Web funnel event module is implemented");
   const row = funnelEvents.normalizeWebFunnelEvent({
     eventName: "landing_view",
@@ -15,6 +15,8 @@ test("normalizes only allowlisted funnel fields and bounded UTM values", () => {
     attribution: {
       utm_source: "instagram", utm_medium: "social", utm_campaign: "fall-travel",
       utm_id: "must-not-pass", utm_content: "c".repeat(241),
+      product_id: "anicca", run_id: "20261014-140000", artifact_id: "article-ja",
+      variant_id: "role-map", click_id: "20261014-140000-article-ja",
     },
     ip: "192.0.2.1", userAgent: "private-browser", email: "private@example.invalid",
   }, Date.parse("2030-01-01T00:00:00Z"));
@@ -25,7 +27,11 @@ test("normalizes only allowlisted funnel fields and bounded UTM values", () => {
     uid: null,
     source_object_id: null,
     source_event_id: null,
-    attribution: { utm_source: "instagram", utm_medium: "social", utm_campaign: "fall-travel" },
+    attribution: {
+      utm_source: "instagram", utm_medium: "social", utm_campaign: "fall-travel",
+      product_id: "anicca", run_id: "20261014-140000", artifact_id: "article-ja",
+      variant_id: "role-map", click_id: "20261014-140000-article-ja",
+    },
     amount_usd: null,
     currency: null,
     billing_reason: null,
@@ -85,13 +91,17 @@ test("a duplicate source event is successful and a ledger failure stays non-bloc
   assert.equal(failure, false);
 });
 
-test("server request funnel events retain only the exact landing and connect UTM fields", () => {
+test("server request funnel events retain allowlisted landing and connect attribution", () => {
   assert.equal(typeof funnelEvents.webFunnelEventForRequest, "function");
   assert.deepEqual(funnelEvents.webFunnelEventForRequest(
-    "/lm?utm_source=x&utm_medium=social&utm_campaign=travel&utm_id=discard",
+    "/lm?utm_source=x&utm_medium=social&utm_campaign=travel&utm_id=discard&product_id=anicca&run_id=20261014-140000&artifact_id=article-ja&variant_id=role-map&click_id=20261014-140000-article-ja",
   ), {
     eventName: "landing_view",
-    attribution: { utm_source: "x", utm_medium: "social", utm_campaign: "travel" },
+    attribution: {
+      utm_source: "x", utm_medium: "social", utm_campaign: "travel",
+      product_id: "anicca", run_id: "20261014-140000", artifact_id: "article-ja",
+      variant_id: "role-map", click_id: "20261014-140000-article-ja",
+    },
   });
   assert.deepEqual(funnelEvents.webFunnelEventForRequest(
     "/auth/google?utm_source=instagram&utm_campaign=founder-story",
@@ -199,7 +209,6 @@ test("refund webhook recording joins only the saved Web Stripe customer and retr
   assert.equal(ok, true);
   assert.match(calls[0], /stripe_customer_id=eq\.cus_web/);
   assert.match(calls[0], /telegram_chat_id=is\.null/);
-  assert.match(calls[0], /web_first_travel_at=not\.is\.null/);
   assert.equal(calls[1].uid, UID);
   assert.equal(calls[1].amountUsd, 5);
   assert.equal(calls[1].sourceObjectId, "re_web");
@@ -210,4 +219,47 @@ test("refund webhook recording joins only the saved Web Stripe customer and retr
     recordWebFunnelEventImpl: async () => false,
   });
   assert.equal(failed, false, "a failed refund receipt can be retried by Stripe");
+});
+
+test("landing event retains the complete Writer CTA identity tuple and filters unrelated query values", () => {
+  const query = new URLSearchParams({
+    utm_source: "writer", utm_medium: "owned-content", utm_campaign: "role-map",
+    product_id: "anicca", run_id: "20261014-061500", artifact_id: "article-ja",
+    variant_id: "role-map", click_id: "20261014-061500-article-ja-note-ja",
+    email: "private@example.test",
+  });
+  const event = funnelEvents.webFunnelEventForRequest("/lm?" + query);
+  const expected = {
+    utm_source: "writer", utm_medium: "owned-content", utm_campaign: "role-map",
+    product_id: "anicca", run_id: "20261014-061500", artifact_id: "article-ja",
+    variant_id: "role-map", click_id: "20261014-061500-article-ja-note-ja",
+  };
+  assert.deepEqual(event.attribution, expected);
+  assert.deepEqual(funnelEvents.normalizeWebFunnelEvent(event).attribution, expected);
+});
+
+test("records refunds for Web customers before their first Travel block", async () => {
+  const event = {
+    id: "evt_refund_before_travel", type: "refund.created", created: 1_893_456_000,
+    data: { object: { id: "re_before_travel", status: "succeeded", amount: 500, currency: "usd", customer: "cus_web" } },
+  };
+  const recorded = [];
+  const result = await funnelEvents.recordWebFunnelRefund(event, {
+    supaUrl: "https://db.example", supaKey: "service-role-test-key",
+    fetchImpl: async (url) => {
+      const lookup = new URL(String(url));
+      return {
+        ok: true,
+        json: async () => lookup.searchParams.has("web_first_travel_at") ? [] : [{ uid: UID }],
+      };
+    },
+    recordWebFunnelEventImpl: async (row) => { recorded.push(row); return true; },
+  });
+
+  assert.equal(result, true);
+  assert.deepEqual(recorded, [{
+    eventName: "refund_recorded", uid: UID, sourceObjectId: "re_before_travel",
+    sourceEventId: "evt_refund_before_travel", amountUsd: 5, currency: "usd",
+    attribution: {}, occurredAt: "2030-01-01T00:00:00.000Z",
+  }]);
 });

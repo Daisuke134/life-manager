@@ -111,17 +111,176 @@ esac
 # this exact confusion produced a false "PUBLISHED" label on a run where nothing went online).
 PRE_ONLINE="$(printf '%s' "$INV" | tail -1 | python3 -c 'import json,sys; print(json.load(sys.stdin).get("online_count", -1))' 2>>"$LOG")"
 
-# A resumed draft whose CP1 is already confirmed only needs CP2 -> CP3, which is
-# deterministic. The agentic runbook re-enters CP1 and demands an edit URL that
-# Capafy no longer issues once CP1 is saved (2026-09-28, Agent 9466718786: the
-# refresh returned only /R<digits> and every resume stopped). publish_finish.sh
-# refuses before any write unless is_confirmed_skills=true, so a draft that still
-# needs CP1 falls through to the agentic flow below.
+# A resumed repo draft or retryable Capafy AI-generator stub reuses the exact
+# existing Agent ID. If its saved CP1 is already confirmed, finish CP2 -> CP3
+# deterministically; the agentic runbook re-enters CP1 and may lack an edit URL.
+# publish_finish.sh refuses before any write unless is_confirmed_skills=true, so
+# a draft that still needs CP1 falls through to the agentic flow below.
 RESUME="$(printf '%s' "$INV" | tail -1 | python3 -c 'import json,os,sys
 d=json.load(sys.stdin); i=d.get("item") or {}
-if d.get("action") == "resume_draft" and i.get("agent_id") and i.get("skill") and i.get("listing"):
+if (d.get("action") == "resume_draft"
+        or (d.get("action") == "retry_existing"
+            and d.get("reason") == "retry Capafy AI-generator stub draft on the same agent_id")) \
+        and i.get("agent_id") and i.get("skill") and i.get("listing"):
     print(i["agent_id"], os.path.basename(os.path.dirname(i["skill"])), i["listing"],
           os.path.dirname(i["skill"]), i.get("icon",""), sep="\t")' 2>>"$LOG")"
+
+# A retry_existing AI-generator stub can already have CP1 and the package
+# saved on Capafy. Only finish that exact manifest version after a fresh
+# official readback confirms identity, version, and every CP1/upload flag.
+# Any mismatch or finish failure ends this wake so the agentic run cannot issue
+# a second CP3 submission against an uncertain version.
+# One fresh official readback after publish_finish.sh, then one receipt bound to this exact
+# run/occurrence/release/Agent/version for the factory fence reconciler. Returns non-zero
+# (and writes no receipt) unless the official status is 1 with every confirmation flag.
+finish_receipt() {
+  local agent_id="$1" version_id="$2" event="$3" key="$4" manifest final_status receipt
+  manifest="${CAPAFY_PUBLISHER_STATE_HOME:-$LIFE_MANAGER_STATE_HOME/runtime/capafy-publisher}/work/agents/$agent_id/publish-work-state.json"
+  final_status="$(cd "$AUTO/vendor/capafy-publisher" && \
+      CAPAFY_PUBLISH_WORK_DIR="${manifest%/*}" \
+      python3 packager.py publish-remote-status --agent-id "$agent_id" 2>>"$LOG")" || return 1
+  receipt="$(printf '%s' "$final_status" | \
+    EXPECTED_AGENT_ID="$agent_id" EXPECTED_AGENT_VERSION_ID="$version_id" \
+    RECEIPT_EVENT="$event" RECEIPT_KEY="$key" \
+    LIFE_MANAGER_RUN_ID="${LIFE_MANAGER_RUN_ID:-}" \
+    LIFE_MANAGER_OCCURRENCE_ID="${LIFE_MANAGER_OCCURRENCE_ID:-}" \
+    LIFE_MANAGER_RELEASE_SHA="${LIFE_MANAGER_RELEASE_SHA:-}" python3 -c 'import datetime,json,os,re,sys
+try:
+    payload=json.loads(sys.stdin.read(), strict=False)
+    latest=payload.get("latest_version")
+    agent_id=os.environ["EXPECTED_AGENT_ID"]
+    version_id=os.environ["EXPECTED_AGENT_VERSION_ID"]
+    run_id=os.environ["LIFE_MANAGER_RUN_ID"]
+    occurrence_id=os.environ["LIFE_MANAGER_OCCURRENCE_ID"]
+    release_sha=os.environ["LIFE_MANAGER_RELEASE_SHA"]
+    def confirmed(key):
+        value=latest.get(key)
+        return value is True or (type(value) is int and value == 1)
+    status=latest.get("platform_status") if isinstance(latest,dict) else None
+    ready=(payload.get("ok") is True and isinstance(latest,dict)
+           and payload.get("agent_id") == agent_id
+           and str(latest.get("agent_id") or "") == agent_id
+           and str(latest.get("agent_version_id") or "") == version_id
+           and type(status) is int and status == 1
+           and latest.get("agent_type") == "run_online"
+           and all(confirmed(key) for key in (
+               "is_confirmed_skills", "is_confirmed_config_keys", "package_uploaded"))
+           and bool(run_id) and occurrence_id == f"capafy-loop-daily:{run_id}"
+           and re.fullmatch(r"[0-9a-f]{40}", release_sha))
+    if not ready:
+        raise ValueError("official final receipt did not match the exact run/Agent/version/status")
+    receipt={
+        "event":os.environ["RECEIPT_EVENT"], "owner_id":"capafy-loop-daily",
+        "run_id":run_id, "occurrence_id":occurrence_id, "release_sha":release_sha,
+        "action_key":os.environ["RECEIPT_KEY"]+":"+agent_id, "agent_id":agent_id,
+        "agent_version_id":version_id, "cp3_attempt":1, "platform_status":1,
+        "is_confirmed_skills":confirmed("is_confirmed_skills"),
+        "is_confirmed_config_keys":confirmed("is_confirmed_config_keys"),
+        "package_uploaded":confirmed("package_uploaded"),
+        "provider_receipt_id":f"capafy:agent/{agent_id}/version/{version_id}:platform_status=1",
+        "verified_at":datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds").replace("+00:00","Z"),
+    }
+    print("CAPAFY_RETRY_FINISH_RECEIPT="+json.dumps(receipt,sort_keys=True,separators=(",",":")))
+except (KeyError, TypeError, ValueError):
+    raise SystemExit(1)')" || return 1
+  [ -n "$receipt" ] || return 1
+  printf '%s\n' "$receipt" >>"$LOG"
+}
+
+retry_existing_stub_finish() {
+  local is_stub R_ID R_SKILL R_LISTING R_SKILL_DIR R_ICON R_MANIFEST R_VERSION
+  local REMOTE_STATUS REMOTE_PREFLIGHT MODEL_CHECK RETRY_FINISH_RC
+  is_stub="$(printf '%s' "$INV" | tail -1 | python3 -c 'import json,sys
+d=json.load(sys.stdin)
+print("1" if d.get("action") == "retry_existing" and d.get("reason") == "retry Capafy AI-generator stub draft on the same agent_id" else "0")' 2>>"$LOG")"
+  [ "$is_stub" = "1" ] || return 0
+  if [ -z "$RESUME" ]; then
+    echo "$TS retry_existing stub: selected item is missing exact catalog inputs; stop before publish" >>"$LOG"
+    echo "=== $TS daily_loop done rc=1 (RETRY_EXISTING_PREFLIGHT_FAILED — marker NOT touched; no fallback) ===" >>"$LOG"
+    exit 1
+  fi
+  IFS=$'\t' read -r R_ID R_SKILL R_LISTING R_SKILL_DIR R_ICON <<<"$RESUME"
+  R_MANIFEST="${CAPAFY_PUBLISHER_STATE_HOME:-$LIFE_MANAGER_STATE_HOME/runtime/capafy-publisher}/work/agents/$R_ID/publish-work-state.json"
+  R_VERSION="$(python3 - "$R_MANIFEST" "$R_ID" <<'PY'
+import json,sys
+try:
+    manifest=json.load(open(sys.argv[1], encoding="utf-8"))
+    version=str(manifest.get("agent_version_id") or "")
+    if manifest.get("agent_id") != sys.argv[2] or not version:
+        raise ValueError("manifest identity/version mismatch")
+    print(version)
+except (OSError, ValueError, TypeError, AttributeError):
+    raise SystemExit(1)
+PY
+  2>>"$LOG")" || R_VERSION=""
+  if [ -z "$R_VERSION" ]; then
+    echo "$TS retry_existing stub $R_ID: local manifest is not bound to selected Agent ID/version; stop before publish" >>"$LOG"
+    echo "=== $TS daily_loop done rc=1 (RETRY_EXISTING_PREFLIGHT_FAILED — marker NOT touched; no fallback) ===" >>"$LOG"
+    exit 1
+  fi
+  if ! REMOTE_STATUS="$(cd "$AUTO/vendor/capafy-publisher" && \
+      CAPAFY_PUBLISH_WORK_DIR="${R_MANIFEST%/*}" \
+      python3 packager.py publish-remote-status --agent-id "$R_ID" 2>>"$LOG")"; then
+    echo "$TS retry_existing stub $R_ID version=$R_VERSION: official remote-status read failed; stop before publish" >>"$LOG"
+    echo "=== $TS daily_loop done rc=1 (RETRY_EXISTING_PREFLIGHT_FAILED — marker NOT touched; no fallback) ===" >>"$LOG"
+    exit 1
+  fi
+  REMOTE_PREFLIGHT="$(printf '%s' "$REMOTE_STATUS" | EXPECTED_AGENT_ID="$R_ID" \
+    EXPECTED_AGENT_VERSION_ID="$R_VERSION" python3 -c 'import json,os,sys
+try:
+    payload=json.loads(sys.stdin.read(), strict=False)
+    latest=payload.get("latest_version")
+    expected_id=os.environ["EXPECTED_AGENT_ID"]
+    expected_version=os.environ["EXPECTED_AGENT_VERSION_ID"]
+    def confirmed(key):
+        value=latest.get(key)
+        return value is True or (type(value) is int and value == 1)
+    status=latest.get("platform_status")
+    ready=(payload.get("ok") is True and isinstance(latest,dict)
+           and payload.get("agent_id") == expected_id
+           and str(latest.get("agent_version_id") or "") == expected_version
+           and type(status) is int and status == 0
+           and latest.get("agent_type") == "run_online"
+           and all(confirmed(key) for key in (
+               "is_confirmed_skills", "is_confirmed_config_keys", "package_uploaded")))
+    print("READY" if ready else "BLOCKED")
+except (KeyError, TypeError, ValueError):
+    print("BLOCKED")')"
+  if [ "$REMOTE_PREFLIGHT" != "READY" ]; then
+    echo "$TS retry_existing stub $R_ID version=$R_VERSION: official version/status/CP1/upload readback mismatch; stop before publish" >>"$LOG"
+    echo "=== $TS daily_loop done rc=1 (RETRY_EXISTING_PREFLIGHT_FAILED — marker NOT touched; no fallback) ===" >>"$LOG"
+    exit 1
+  fi
+  MODEL_CHECK="$(python3 "$AUTO/scripts/check_hosted_model.py" --agent-id "$R_ID" --listing "$R_LISTING" 2>&1)"
+  case "$MODEL_CHECK" in
+    "MODEL_MATCH "*|"MODEL_UNKNOWN cp1-confirmed-awaiting-cp2") ;;
+    *)
+      echo "$TS retry_existing stub $R_ID version=$R_VERSION: hosted-model confirmation is not safe to reuse; stop before publish" >>"$LOG"
+      echo "=== $TS daily_loop done rc=1 (RETRY_EXISTING_PREFLIGHT_FAILED — marker NOT touched; no fallback) ===" >>"$LOG"
+      exit 1
+      ;;
+  esac
+  echo "AGENT_ID=$R_ID" >>"$LOG"
+  echo "AGENT_VERSION_ID=$R_VERSION" >>"$LOG"
+  echo "$TS retry_existing stub $R_ID version=$R_VERSION: official identity, CP1/upload, and model preflight passed" >>"$LOG"
+  if bash "$AUTO/scripts/publish_finish.sh" "$R_ID" "$R_SKILL" "$R_LISTING" "$R_VERSION" >>"$LOG" 2>&1; then
+    if ! finish_receipt "$R_ID" "$R_VERSION" capafy_retry_existing_finish retry; then
+      echo "$TS retry_existing stub $R_ID version=$R_VERSION: final official receipt missing or mismatched; stop without healthy marker" >>"$LOG"
+      echo "=== $TS daily_loop done rc=1 (RETRY_EXISTING_READBACK_FAILED — marker NOT touched; no fallback) ===" >>"$LOG"
+      exit 1
+    fi
+    touch "$MARK"; echo 0 > "$CAPAFY_STATE_DIR/.maxturns-streak"
+    echo "=== $TS daily_loop done rc=0 (SUBMITTED — $R_ID finished CP2/CP3 after prepare; RETRY_EXISTING version=$R_VERSION; no LLM spend) ===" >>"$LOG"
+    exit 0
+  else
+    RETRY_FINISH_RC=$?
+    echo "$TS retry_existing stub $R_ID version=$R_VERSION: publish_finish failed rc=$RETRY_FINISH_RC; stop this wake; no retry/fallback" >>"$LOG"
+    echo "=== $TS daily_loop done rc=1 (RETRY_EXISTING_FINISH_FAILED — marker NOT touched; no fallback) ===" >>"$LOG"
+    exit 1
+  fi
+}
+retry_existing_stub_finish
+
 REUSE_PREPARE_ID=""
 FRESH=""
 if [ -n "$RESUME" ]; then
@@ -152,7 +311,12 @@ if [ -n "$RESUME" ]; then
   else
     R_MANIFEST="${CAPAFY_PUBLISHER_STATE_HOME:-$LIFE_MANAGER_STATE_HOME/runtime/capafy-publisher}/work/agents/$R_ID/publish-work-state.json"
     R_VERSION="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("agent_version_id",""))' "$R_MANIFEST" 2>>"$LOG")"
+    [ -n "$R_VERSION" ] && printf 'AGENT_ID=%s\nAGENT_VERSION_ID=%s\n' "$R_ID" "$R_VERSION" >>"$LOG"
     if [ -n "$R_VERSION" ] && bash "$AUTO/scripts/publish_finish.sh" "$R_ID" "$R_SKILL" "$R_LISTING" "$R_VERSION" >>"$LOG" 2>&1; then
+      if ! finish_receipt "$R_ID" "$R_VERSION" capafy_resume_draft_finish resume; then
+        echo "=== $TS daily_loop done rc=1 (RESUME_READBACK_FAILED — $R_ID submitted but official receipt missing; marker NOT touched; no fallback) ===" >> "$LOG"
+        exit 1
+      fi
       touch "$MARK"; echo 0 > "$CAPAFY_STATE_DIR/.maxturns-streak"
       echo "=== $TS daily_loop done rc=0 (RESUMED — $R_ID finished CP2/CP3 deterministically; no LLM spend) ===" >> "$LOG"
       exit 0
@@ -228,12 +392,12 @@ if [ -n "$FRESH" ]; then
     PROMPT="$PROMPT
 SAME-AGENT RE-PREPARE created fresh version $F_VERSION for agent_id=$F_ID, so earlier CP1 tab state is not evidence for this version. Do NOT run publish_prepare.sh or publish_finish.sh. Its output:
 $PREP_OUT
-Complete all three CP1 tabs using CP1_AGENTIC.md and the exact EDIT_URL_FILE, CONFIG_PATH, and TARGET PRICING above: Basic Info / 基本情報, Agent ワークスペース, and Pricing / 価格設定. Re-enter or verify every required value on this fresh version; do not stop after clicking the pending Skill card or seeing a green tab. Set every plan to its printed target, run scripts/cp1_agent.py prices $F_LISTING, and require PRICES_MATCH before continuing. Use the screenshot loop for each action. Then click 下書きを保存 followed by 提出を確認. Stop only after the card-save success signal appears AND official publish-remote-status confirms latest_version.agent_version_id=$F_VERSION and latest_version.is_confirmed_skills=true. The wrapper runs publish_finish.sh (CP2 -> CP3) after you."
+Complete all three CP1 tabs using CP1_AGENTIC.md and the exact EDIT_URL_FILE, CONFIG_PATH, and TARGET PRICING above. Required CP1 tab order: 基本情報 → Agent ワークスペース → 価格設定 last. After each Add Plan or period change, re-read state and match the card by its visible Period label; never reuse a positional index. If the LISTING trial target is not matched, do not save or submit; never replace a Free Trial target with No Free Trial. Complete Basic Info / 基本情報 first, then Agent ワークスペース, and verify both are green before Pricing / 価格設定 last. Re-enter or verify every required value on this fresh version; do not stop after clicking the pending Skill card or seeing a green tab. After entering 価格設定, do not switch tabs before PRICES_MATCH, save, and confirmation. If you leave 価格設定, re-enter every plan price/cap/trial and daily quota, then rerun PRICES_MATCH. Set every plan to its printed target, run scripts/cp1_agent.py prices $F_LISTING, and require PRICES_MATCH before continuing. Use the screenshot loop for each action. Then click 下書きを保存 followed by 提出を確認. Stop only after the card-save success signal appears AND official publish-remote-status confirms latest_version.agent_version_id=$F_VERSION and latest_version.is_confirmed_skills=true. The wrapper runs publish_finish.sh (CP2 -> CP3) after you."
   else
   PROMPT="$PROMPT
 PREPARE ALREADY DONE by the wrapper — do NOT run publish_prepare.sh or publish_finish.sh. Its output:
 $PREP_OUT
-Do only step 5b: complete all three CP1 tabs using CP1_AGENTIC.md and the exact EDIT_URL_FILE, CONFIG_PATH, and TARGET PRICING above: Basic Info / 基本情報 (fill every empty or red field from CONFIG_PATH), Agent ワークスペース, and Pricing / 価格設定. Clicking the pending Skill card alone does not set is_confirmed_skills on the server; it turns true only after the card is saved. Set every plan to its printed target, run scripts/cp1_agent.py prices with the listing above, and require PRICES_MATCH. Then click 下書きを保存 followed by 提出を確認. Stop only after the card-save success signal appears AND official publish-remote-status confirms latest_version.is_confirmed_skills=true. The wrapper runs publish_finish.sh (CP2 -> CP3) after you."
+Do only step 5b: complete all three CP1 tabs using CP1_AGENTIC.md and the exact EDIT_URL_FILE, CONFIG_PATH, and TARGET PRICING above. Required CP1 tab order: 基本情報 → Agent ワークスペース → 価格設定 last. After each Add Plan or period change, re-read state and match the card by its visible Period label; never reuse a positional index. If the LISTING trial target is not matched, do not save or submit; never replace a Free Trial target with No Free Trial. Fill every empty or red Basic Info / 基本情報 field from CONFIG_PATH and complete the workspace tab before Pricing / 価格設定 last. Clicking the pending Skill card alone does not set is_confirmed_skills on the server; it turns true only after the card is saved. After entering 価格設定, do not switch tabs before PRICES_MATCH, save, and confirmation. If you leave 価格設定, re-enter every plan price/cap/trial and daily quota, then rerun PRICES_MATCH. Set every plan to its printed target, run scripts/cp1_agent.py prices with the listing above, and require PRICES_MATCH. Then click 下書きを保存 followed by 提出を確認. Stop only after the card-save success signal appears AND official publish-remote-status confirms latest_version.is_confirmed_skills=true. The wrapper runs publish_finish.sh (CP2 -> CP3) after you."
   fi
 fi
 EVIDENCE_DIR="$LIFE_MANAGER_STATE_HOME/state/agent-runner-evidence/capafy-drainer/$(date +%s)-$$"
@@ -328,10 +492,12 @@ elif tail -60 "$LOG" | grep -q "Reached max turns"; then
     touch "$MARK"
     echo "=== $TS daily_loop done rc=$RC (MAXTURNS-CONTINUE ${N}/3 — headless agent hit the 60-turn budget mid-publish; marker touched (alive), continues next pass, self-fix NOT escalated) ===" >> "$LOG"
   else
+    [ "$RC" -ne 0 ] || RC=1
     echo "=== $TS daily_loop done rc=$RC (MAXTURNS-STUCK ${N} passes — persistent budget exhaustion, marker NOT touched → self-fix will escalate) ===" >> "$LOG"
   fi
 else
   echo 0 > "$MAXTURNS_STREAK"
+  [ "$RC" -ne 0 ] || RC=1
   echo "=== $TS daily_loop done rc=$RC (BLOCKED — post-verdict=$POST, marker NOT touched → self-fix will escalate) ===" >> "$LOG"
 fi
 exit $RC

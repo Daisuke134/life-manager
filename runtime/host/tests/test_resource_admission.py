@@ -1860,7 +1860,43 @@ def test_started_child_timeout_fences_occurrence_and_preserves_next_owner(tmp_pa
     assert blocked is None and reason == "effect_unknown"
 
 
-def test_successful_release_clears_stale_unknown_on_its_claim(tmp_path, monkeypatch):
+@pytest.mark.parametrize("preterminal_state", ("released", "missing"))
+def test_unknown_release_restores_fence_if_occurrence_row_changed_before_terminal(
+        tmp_path, monkeypatch, preterminal_state):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    owner = "line-sticker-factory-hourly"
+    occurrence = f"{owner}:heartbeat-unavailable"
+    admission.enqueue_durable("deterministic", owner, admission_class="revenue",
+                              occurrence_id=occurrence, now=100)
+    claim, reason = admission.claim_durable(
+        "deterministic", owner, admission_class="revenue", now=101)
+    assert claim is not None and reason == "acquired"
+    # A competing terminal path can release the occurrence before this live
+    # process records that its external effect became unknown.
+    with sqlite3.connect(tmp_path / "admission-v2.sqlite3") as connection:
+        if preterminal_state == "released":
+            connection.execute(
+                "UPDATE occurrences SET state='released' WHERE occurrence_id=?",
+                (occurrence,),
+            )
+        else:
+            connection.execute("DELETE FROM occurrences WHERE occurrence_id=?", (occurrence,))
+        connection.commit()
+
+    admission.release_and_reserve(claim, effect_unknown=True, reserve=False, now=102)
+
+    row = next(row for row in durable_rows(tmp_path, "occurrences")
+               if row["occurrence_id"] == occurrence)
+    assert (row["state"], row["effect_unknown"]) == ("released", 1)
+    queued, reason = admission.enqueue_durable(
+        "deterministic", owner, admission_class="revenue",
+        occurrence_id=f"{owner}:next", now=103,
+    )
+    assert queued is None and reason == "effect_unknown"
+
+
+def test_successful_release_does_not_clear_unknown_without_readback(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="1")
     admission.activate_durable_v2()
     admission.enqueue_durable("agent", "application", admission_class="revenue",
@@ -1874,7 +1910,7 @@ def test_successful_release_clears_stale_unknown_on_its_claim(tmp_path, monkeypa
     admission.release_and_reserve(claim, reserve=False, now=102)
     row = next(row for row in durable_rows(tmp_path, "occurrences")
                if row["occurrence_id"] == "application:old-wake")
-    assert (row["state"], row["effect_unknown"]) == ("released", 0)
+    assert (row["state"], row["effect_unknown"]) == ("released", 1)
 
 
 def test_unknown_occurrence_requires_matching_official_readback(tmp_path, monkeypatch):
@@ -1929,6 +1965,62 @@ def test_unknown_occurrence_can_close_with_explicit_pre_effect_proof(
     ) is True
     row = next(item for item in durable_rows(tmp_path, "occurrences")
                if item["occurrence_id"] == occurrence)
+    assert (row["state"], row["effect_unknown"]) == ("released", 0)
+
+
+def test_verified_no_effect_occurrence_requires_its_own_exact_proof_type(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    owner = "alpaca-investment-paper"
+    occurrence = f"{owner}:no-effect"
+    reason = "no_broker_order_submitted"
+    evidence_ref = f"lm-no-effect://{owner}/{occurrence}/{reason}"
+    admission.enqueue_durable("deterministic", owner, admission_class="revenue",
+                              occurrence_id=occurrence, now=100)
+    claim, claim_reason = admission.claim_durable(
+        "deterministic", owner, admission_class="revenue", now=101)
+    assert claim is not None and claim_reason == "acquired"
+    admission.release_and_reserve(claim, effect_unknown=True, reserve=False, now=102)
+
+    rejected = (
+        {"owner_id": owner, "occurrence_id": occurrence, "verified": True,
+         "proof_type": "pre_effect", "evidence_ref": evidence_ref},
+        {"owner_id": "other", "occurrence_id": occurrence, "verified": True,
+         "proof_type": "verified_no_effect", "effect": 0, "reason": reason,
+         "evidence_ref": evidence_ref},
+        {"owner_id": owner, "occurrence_id": f"{owner}:other", "verified": True,
+         "proof_type": "verified_no_effect", "effect": 0, "reason": reason,
+         "evidence_ref": evidence_ref},
+        {"owner_id": owner, "occurrence_id": occurrence, "verified": True,
+         "proof_type": "verified_no_effect", "effect": 1, "reason": reason,
+         "evidence_ref": evidence_ref},
+        {"owner_id": owner, "occurrence_id": occurrence, "verified": True,
+         "proof_type": "verified_no_effect", "effect": 0, "reason": "other_reason",
+         "evidence_ref": evidence_ref},
+        {"owner_id": owner, "occurrence_id": occurrence, "verified": True,
+         "proof_type": "verified_no_effect", "effect": 0, "reason": reason,
+         "evidence_ref": "lm-no-effect://other/occurrence/no_broker_order_submitted"},
+    )
+    for proof in rejected:
+        assert admission.resolve_verified_no_effect_occurrence(
+            owner, occurrence, expected_reason=reason, expected_state="claimed",
+            no_effect_readback=lambda proof=proof: proof,
+        ) is False
+
+    row = next(row for row in durable_rows(tmp_path, "occurrences")
+               if row["occurrence_id"] == occurrence)
+    assert (row["state"], row["effect_unknown"]) == ("claimed", 1)
+    assert admission.resolve_verified_no_effect_occurrence(
+        owner, occurrence, expected_reason=reason, expected_state="claimed",
+        no_effect_readback=lambda: {
+            "owner_id": owner, "occurrence_id": occurrence,
+            "verified": True, "proof_type": "verified_no_effect", "effect": 0,
+            "reason": reason, "evidence_ref": evidence_ref,
+        },
+    ) is True
+    row = next(row for row in durable_rows(tmp_path, "occurrences")
+               if row["occurrence_id"] == occurrence)
     assert (row["state"], row["effect_unknown"]) == ("released", 0)
 
 
@@ -2625,9 +2717,146 @@ def test_heartbeat_updates_only_the_owned_claim(tmp_path, monkeypatch):
         "agent", "heartbeat-owner", admission_class="revenue")
     assert claim is not None and reason == "acquired"
 
-    assert admission.heartbeat_durable(claim, now=123) is True
-    assert json.loads(claim.read_text())["heartbeat_at"] == 123
+    now = json.loads(claim.read_text())["heartbeat_at"] + 1
+    assert admission.heartbeat_durable(claim, now=now) is True
+    assert json.loads(claim.read_text())["heartbeat_at"] == now
     admission.release_and_reserve(claim, reserve=False)
+
+
+@pytest.mark.parametrize("version", (None, 1))
+def test_legacy_claim_can_be_renewed_twice(tmp_path, monkeypatch, version):
+    isolated(tmp_path, monkeypatch)
+    claim = tmp_path / "owners" / "legacy-heartbeat.json"
+    claim.parent.mkdir()
+    row = {
+        "pid": os.getpid(),
+        "process_start": admission.process_start(os.getpid()),
+        "phase": "running",
+    }
+    if version is not None:
+        row["version"] = version
+    admission.atomic_json(claim, row)
+
+    assert admission.heartbeat_durable(claim, now=123) is True
+    first_renewal = json.loads(claim.read_text())
+    assert first_renewal["heartbeat_at"] == 123
+    assert first_renewal["heartbeat_timeout_seconds"] == (
+        admission.DEFAULT_HEARTBEAT_TIMEOUT_SECONDS
+    )
+    assert admission.heartbeat_durable(claim, now=124) is True
+    assert json.loads(claim.read_text())["heartbeat_at"] == 124
+
+
+@pytest.mark.parametrize("case,expected", (
+    ("missing", "heartbeat_claim_missing"),
+    ("invalid", "heartbeat_claim_invalid"),
+    ("invalid_shape", "heartbeat_claim_invalid"),
+    ("invalid_phase", "heartbeat_claim_invalid"),
+    ("ownership", "heartbeat_claim_ownership_lost"),
+    ("expired", "heartbeat_claim_expired"),
+    ("process_identity", "heartbeat_process_identity_unavailable"),
+))
+def test_heartbeat_durable_reports_the_exact_claim_failure(
+        tmp_path, monkeypatch, case, expected):
+    isolated(tmp_path, monkeypatch)
+    claim = tmp_path / "owners" / "heartbeat.json"
+    claim.parent.mkdir()
+    if case == "invalid":
+        claim.write_text("{", encoding="utf-8")
+    elif case == "invalid_shape":
+        admission.atomic_json(claim, {"phase": "running"})
+    elif case == "invalid_phase":
+        admission.atomic_json(claim, {
+            "pid": os.getpid(), "process_start": admission.process_start(os.getpid()),
+            "phase": [],
+        })
+    elif case == "ownership":
+        admission.atomic_json(claim, {
+            "pid": 999_999_999, "process_start": "dead", "phase": "running",
+        })
+    elif case == "expired":
+        admission.atomic_json(claim, {
+            "pid": os.getpid(), "process_start": admission.process_start(os.getpid()),
+            "phase": "running", "heartbeat_at": 1,
+            "heartbeat_timeout_seconds": 10,
+        })
+    elif case == "process_identity":
+        admission.atomic_json(claim, {
+            "pid": os.getpid(), "process_start": "current", "phase": "running",
+        })
+
+    if case == "process_identity":
+        with patch.object(admission, "process_start", return_value=None):
+            with pytest.raises(RuntimeError, match=expected):
+                admission.heartbeat_durable(claim, now=20)
+    else:
+        with pytest.raises(RuntimeError, match=expected):
+            admission.heartbeat_durable(claim, now=20)
+
+
+@pytest.mark.parametrize("heartbeat_at,timeout", (
+    ("malformed", 300),
+    (float("nan"), 300),
+    (float("inf"), 300),
+    (10 ** 1000, 300),
+    (81, 300),
+    (1e300, 300),
+    (10, "300"),
+    (10, True),
+    (10, 0),
+    (10, 1.5),
+    (10, 3601),
+))
+def test_v2_heartbeat_rejects_malformed_or_unbounded_expiry_metadata(
+        tmp_path, monkeypatch, heartbeat_at, timeout):
+    isolated(tmp_path, monkeypatch)
+    claim = tmp_path / "owners" / "heartbeat.json"
+    claim.parent.mkdir()
+    admission.atomic_json(claim, {
+        "version": 2, "pid": os.getpid(),
+        "process_start": admission.process_start(os.getpid()),
+        "phase": "running", "heartbeat_at": heartbeat_at,
+        "heartbeat_timeout_seconds": timeout,
+    })
+
+    with pytest.raises(RuntimeError, match="heartbeat_claim_invalid"):
+        admission.heartbeat_durable(claim, now=20)
+
+
+def test_v2_heartbeat_requires_expiry_metadata(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    claim = tmp_path / "owners" / "heartbeat.json"
+    claim.parent.mkdir()
+    admission.atomic_json(claim, {
+        "version": 2, "pid": os.getpid(),
+        "process_start": admission.process_start(os.getpid()),
+        "phase": "running",
+    })
+
+    with pytest.raises(RuntimeError, match="heartbeat_claim_invalid"):
+        admission.heartbeat_durable(claim, now=20)
+
+
+def test_heartbeat_accepts_future_timestamp_within_clock_skew(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    claim = tmp_path / "owners" / "heartbeat.json"
+    claim.parent.mkdir()
+    admission.atomic_json(claim, {
+        "version": 2, "pid": os.getpid(),
+        "process_start": admission.process_start(os.getpid()),
+        "phase": "running", "heartbeat_at": 80,
+        "heartbeat_timeout_seconds": 300,
+    })
+
+    assert admission.heartbeat_durable(claim, now=20) is True
+    assert json.loads(claim.read_text())["heartbeat_at"] == 20
+
+
+def test_far_future_timestamp_is_expired_for_capacity_reconciliation():
+    assert admission._heartbeat_expired({
+        "version": 2, "phase": "running", "heartbeat_at": 81,
+        "heartbeat_timeout_seconds": 300,
+    }, now=20)
 
 
 def test_browser_resource_class_has_independent_capacity(tmp_path, monkeypatch):
@@ -2829,7 +3058,7 @@ def test_default_agent_total_capacity_spans_revenue_and_borrow_claims(
 
     claims = []
     for owner, admission_class in (
-        ("agent-revenue", "revenue"), ("agent-support", "borrow"),
+        ("agent-revenue", "revenue"), ("agent-support", "borrow"), ("agent-revenue-2", "revenue"),
     ):
         ticket, _ = admission.enqueue_durable(
             "agent", owner, admission_class=admission_class,
@@ -3476,13 +3705,17 @@ def test_simultaneous_durable_waiters_all_persist(tmp_path, monkeypatch):
 
 def test_heartbeat_durable_reports_busy_control_lock_as_transient(monkeypatch, tmp_path):
     import pytest
-    monkeypatch.setattr(admission, "_row", lambda _claim: {"phase": "running"})
+    claim = tmp_path / "claim"
+    claim.write_text(json.dumps({
+        "version": 1, "pid": os.getpid(),
+        "process_start": "start", "phase": "running",
+    }), encoding="utf-8")
     monkeypatch.setattr(admission, "process_start", lambda _pid: "start")
     monkeypatch.setattr(admission, "_controlled_by", lambda *_: True)
     monkeypatch.setattr(admission, "_durable_paths", lambda: (tmp_path, None, None, None))
     monkeypatch.setattr(admission, "_acquire_bounded", lambda *_a, **_k: False)
     with pytest.raises(RuntimeError, match="control_busy"):
-        admission.heartbeat_durable(tmp_path / "claim", now=1)
+        admission.heartbeat_durable(claim, now=1)
 
 
 def test_effect_fence_lookup_uses_ordered_partial_index(tmp_path):
@@ -3633,3 +3866,82 @@ def test_critical_paid_waiting_past_its_age_limit_outranks_fresh_distribution(
     )
 
     assert admission.reserve_available(now=2001, lease_seconds=30) == ["article-daily"]
+
+
+def _fenced(tmp_path, monkeypatch, occurrence):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    owner = occurrence.split(":", 1)[0]
+    admission.enqueue_durable("browser", owner, admission_class="revenue",
+                              occurrence_id=occurrence, now=100)
+    claim, reason = admission.claim_durable(
+        "browser", owner, admission_class="revenue", now=101)
+    assert claim is not None and reason == "acquired"
+    admission.release_and_reserve(claim, effect_unknown=True, reserve=False, now=102)
+    return owner
+
+
+def _settled(owner, occurrence, **changes):
+    proof = {"owner_id": owner, "occurrence_id": occurrence, "verified": True,
+             "proof_type": "write_ahead_store_settled.v1",
+             "unresolved_irreversible": 0, "scanned_intents": 12,
+             "evidence_ref": "gig-intents://sha256/abc"}
+    proof.update(changes)
+    return lambda: proof
+
+
+def _row_state(tmp_path, occurrence):
+    row = next(item for item in durable_rows(tmp_path, "occurrences")
+               if item["occurrence_id"] == occurrence)
+    return row["state"], row["effect_unknown"]
+
+
+def test_settled_write_ahead_store_closes_unbound_fence(tmp_path, monkeypatch):
+    occurrence = "hf-gig-apply-direct:unbound-old"
+    owner = _fenced(tmp_path, monkeypatch, occurrence)
+    assert admission.resolve_settled_write_ahead_occurrence(
+        owner, occurrence, settled_proof=_settled(owner, occurrence)) is True
+    assert _row_state(tmp_path, occurrence) == ("released", 0)
+
+
+@pytest.mark.parametrize("changes", [
+    {"unresolved_irreversible": 1},
+    {"unresolved_irreversible": True},
+    {"scanned_intents": 0},
+    {"verified": False},
+    {"proof_type": "provider_official_readback_exact_id"},
+    {"evidence_ref": " "},
+    {"occurrence_id": "hf-gig-apply-direct:other"},
+])
+def test_settled_write_ahead_store_rejects_incomplete_proof(tmp_path, monkeypatch, changes):
+    occurrence = "hf-gig-apply-direct:unbound-reject"
+    owner = _fenced(tmp_path, monkeypatch, occurrence)
+    assert admission.resolve_settled_write_ahead_occurrence(
+        owner, occurrence, settled_proof=_settled(owner, occurrence, **changes)) is False
+    assert _row_state(tmp_path, occurrence) == ("claimed", 1)
+
+def test_stale_queued_duplicates_are_cancelled_but_newest_wake_is_kept(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    owner = "affiliate-composition"
+    for index, at in enumerate((100, 200, 90_000)):
+        admission.enqueue_durable("deterministic", owner, admission_class="borrow",
+                                  occurrence_id=f"{owner}:wake-{index}", now=at)
+
+    cancelled = admission.cancel_stale_queued_occurrences(older_than_seconds=86_400, now=100_000)
+
+    states = {row["occurrence_id"]: row["state"] for row in durable_rows(tmp_path, "occurrences")}
+    assert cancelled == 2
+    assert states == {f"{owner}:wake-0": "cancelled", f"{owner}:wake-1": "cancelled",
+                      f"{owner}:wake-2": "queued"}
+    assert admission.cancel_stale_queued_occurrences(older_than_seconds=86_400, now=100_000) == 0
+
+
+def test_stale_sweep_keeps_a_lone_old_wake_and_unknown_effects(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    admission.enqueue_durable("deterministic", "lone-owner", admission_class="borrow",
+                              occurrence_id="lone-owner:only", now=100)
+    assert admission.cancel_stale_queued_occurrences(older_than_seconds=86_400, now=1_000_000) == 0
+    states = {row["occurrence_id"]: row["state"] for row in durable_rows(tmp_path, "occurrences")}
+    assert states["lone-owner:only"] == "queued"

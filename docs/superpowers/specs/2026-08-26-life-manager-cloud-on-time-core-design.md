@@ -82,7 +82,7 @@ Transit APIの公式契約は次を使う。
 - `time=HH:MM:SS`
 - outbound: `type=arrival`、anchorはevent start
 - return: `type=departure`、anchorはevent end
-- `numItineraries=3`
+- `numItineraries=1` to bound Transit API work; the provider may return multiple viable journeys, and the existing anchor parser still selects among the journeys returned.
 - source: `https://api.transit.ls8h.com/api/openapi.json`
 
 ```javascript

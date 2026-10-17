@@ -108,7 +108,7 @@ DISCOVERY_WINDOW = 6
 DISCOVERY_CATEGORIES = ("system", "web", "business", "writing", "design",
                         "translation", "salesmarketing", "multimedia", "task")
 # The lane wakes every 60 seconds (config/loop-registry.json), and the window steps by one query
-# per wake, so the whole vocabulary is read inside half an hour instead of over fourteen hours.
+# per admitted wake; _discovery_source cycles every category page before the keywords.
 WAKE_INTERVAL_SECONDS = 60
 PUBLIC_SOFTWARE_PROOF = {
     "source_url": "https://github.com/Daisuke134/life-manager", "title": "Life Manager", "license": "MIT",
@@ -275,6 +275,24 @@ def _discovery_query(value: object) -> str:
     except (TypeError, ValueError, OverflowError, OSError):
         return DEFAULT_DISCOVERY_QUERY
 
+def _discovery_source(value: object) -> dict[str, Optional[str]]:
+    """One request per wake: every category page first, then the catalogue keywords.
+
+    Measured 2026-10-16 through the leased browser: /system 19, /web 20, /writing 20, /task 20
+    postings against 1 for 「業務自動化」 or 「Python」. The default path read only keywords, so
+    the lane judged 0-4 rows a wake and applied to nothing for two days.
+    """
+    sources = [{"query": None, "category": c} for c in DISCOVERY_CATEGORIES]
+    sources += [{"query": q} for q in DISCOVERY_QUERIES]
+    try:
+        if isinstance(value, str):
+            value = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+        if not isinstance(value, datetime) or value.utcoffset() is None:
+            return sources[0]
+        return sources[int(value.astimezone(timezone.utc).timestamp() // WAKE_INTERVAL_SECONDS) % len(sources)]
+    except (TypeError, ValueError, OverflowError, OSError):
+        return sources[0]
+
 def _observed_after(candidate: Mapping[str, object], incumbent: Mapping[str, object]) -> bool:
     """True when candidate carries a strictly later `observed_at` than incumbent."""
     def parsed(row: Mapping[str, object]) -> Optional[datetime]:
@@ -307,7 +325,7 @@ def _discovery_window(tick_value: object) -> tuple[str, ...]:
     return tuple(DISCOVERY_QUERIES[(start + offset) % total] for offset in range(min(DISCOVERY_WINDOW, total)))
 
 
-def _run_exhaustive_discovery(timeout: float, tick_value: object = None) -> Mapping[str, object]:
+def _run_exhaustive_discovery(timeout: float, tick_value: object = None, page: Any = None) -> Mapping[str, object]:
     """Union every query so one wake can see the whole reachable board, not one keyword of it.
 
     The default path deliberately stops at the first query that still has unclaimed rows, which
@@ -330,9 +348,10 @@ def _run_exhaustive_discovery(timeout: float, tick_value: object = None) -> Mapp
     queries = _discovery_window(tick_value) if tick_value is not None else DISCOVERY_QUERIES
     for category, query in ([(name, None) for name in DISCOVERY_CATEGORIES]
                             + [(None, name) for name in queries]):
-        last = (status.run_discovery(query=None, limit=MAX_OPPORTUNITIES, timeout=timeout, category=category)
+        browser = {"page": page} if page is not None else {}
+        last = (status.run_discovery(query=None, limit=MAX_OPPORTUNITIES, timeout=timeout, category=category, **browser)
                 if category is not None
-                else status.run_discovery(query=query, limit=MAX_OPPORTUNITIES, timeout=timeout))
+                else status.run_discovery(query=query, limit=MAX_OPPORTUNITIES, timeout=timeout, **browser))
         if last.get("ok") is not True:
             if last.get("error") != "no_normalized_opportunities":
                 return last
@@ -360,17 +379,17 @@ def _run_exhaustive_discovery(timeout: float, tick_value: object = None) -> Mapp
     union["opportunities"] = list(merged.values())
     return union
 
-def _run_default_discovery(tick_value: object, timeout: float, state_path: Path, exclude_ids: frozenset[str] = frozenset()) -> Mapping[str, object]:
+def _run_default_discovery(tick_value: object, timeout: float, state_path: Path, exclude_ids: frozenset[str] = frozenset(), page: Any = None) -> Mapping[str, object]:
     """Read one rotating query per wake and hand that slice to the planner immediately.
 
     The old implementation kept fetching queries until it had a forty-row pool.  Each query also
     enriched up to twenty detail pages, so a single 60-second wake could hold the revenue slot for
     many minutes before the planner or browser was reached.  Coverage comes from
-    ``_discovery_query`` rotating on the next wake; a selected slice must be judged now rather
+    ``_discovery_source`` (categories, then keywords) rotating on the next wake; a selected slice must be judged now rather
     than waiting for an exhaustive union.
     """
-    query = _discovery_query(tick_value)
-    last = status.run_discovery(query=query, limit=MAX_OPPORTUNITIES, timeout=timeout)
+    source = _discovery_source(tick_value)
+    last = status.run_discovery(**source, limit=MAX_OPPORTUNITIES, timeout=timeout, **({"page": page} if page is not None else {}))
     error = last.get("error")
     if last.get("ok") is not True:
         if error == "no_normalized_opportunities":
@@ -410,6 +429,33 @@ def _run_default_discovery(tick_value: object, timeout: float, state_path: Path,
         "observed_count": len(observed_ids),
         "already_decided_count": decided_count,
     }
+
+def _browser_discovery(state_path: Path, discover: Callable[[Any], Mapping[str, object]]) -> Mapping[str, object]:
+    """Read the board through the leased logged-in page, and let it go before any submission.
+
+    Lancers' AWS WAF answers the cookieless urllib search with 405 (x-amzn-waf-action: captcha;
+    measured 2026-10-15), so every wake ended lancers_http_error with nothing discovered while
+    work-sync read /mypage through this browser with 200. Same lock, page and readiness check as
+    application_tick.run_live_tick, which opens its own page again for the submission.
+    """
+    browser = page = None
+    try:
+        with application_tick.account_lock(
+            Path(state_path).with_name("work-sync.json"),
+            timeout_seconds=application_tick.SHARED_BROWSER_LOCK_TIMEOUT_SECONDS,
+        ):
+            try:
+                browser, page = application_tick._open_owned_page(None)
+            except Exception:
+                return {"ok": False, "platform": PLATFORM, "error": "browser_unavailable"}
+            if not application_tick._production_account_ready(page):
+                return {"ok": False, "platform": PLATFORM, "error": "account_unavailable"}
+            return discover(page)
+    except application_tick.shared._AccountLockBusy:
+        return {"ok": False, "platform": PLATFORM, "error": "account_lock_busy"}
+    finally:
+        application_tick._close_owned_page(page)
+        application_tick._stop_playwright_runtime(getattr(browser, "_anicca_playwright_runtime", None))
 
 def _attribution_hash(value: object) -> str:
     return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
@@ -1107,7 +1153,7 @@ def run_loop(*, exhaustive: bool = False, state_path: Path = DEFAULT_STATE_PATH,
                     turn_evidence = evidence / f"turn-{turn + 1}"
                     turn_evidence.mkdir(mode=0o700, exist_ok=False)
                 try:
-                    observed = source(query=query if query is not None else _discovery_query(tick_value), limit=MAX_OPPORTUNITIES, timeout=timeout) if source is not None or query is not None else (_run_exhaustive_discovery(timeout, tick_value) if exhaustive else _run_default_discovery(tick_value, timeout, Path(state_path), frozenset(wake_seen_ids)))
+                    observed = source(query=query if query is not None else _discovery_query(tick_value), limit=MAX_OPPORTUNITIES, timeout=timeout) if source is not None or query is not None else _browser_discovery(Path(state_path), lambda page: _run_exhaustive_discovery(timeout, tick_value, page=page) if exhaustive else _run_default_discovery(tick_value, timeout, Path(state_path), frozenset(wake_seen_ids), page=page))
                 except Exception: observed = None
                 if observed is None or not isinstance(observed, Mapping): result = ApplicationLoopResult(False, error="discovery_failed")
                 else:

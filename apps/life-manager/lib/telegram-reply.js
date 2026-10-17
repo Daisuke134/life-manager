@@ -5,7 +5,7 @@
 // right one (agentMatchReply — no regex), and patch the real calendar via Composio.
 "use strict";
 
-const { agentMatchReply } = require("./ask.js");
+const { agentMatchReply, answerTravelOriginAsk, pendingTravelOriginAsks } = require("./ask.js");
 const { getCalendar } = require("./transport/index.js");
 const { placeKey, rememberPlace } = require("./places-memory.js");
 const { webMessageUserBySender, webTelegramUserBySender } = require("./message-links.js");
@@ -47,14 +47,38 @@ async function markUserAnswer(uid, eventId, fetchImpl) {
 async function resolveTelegramReply(chatId, text, deps = {}) {
   const composioKey = process.env.COMPOSIO_API_KEY, geminiKey = process.env.GEMINI_API_KEY;
   const out = { filled: false, event: "", location: "" };
-  if (!deps.calendar && (!composioKey || !geminiKey)) return out;
   const lookupUser = deps.lookupUser || userByChatId;
-  const match0 = deps.match || ((t, p) => agentMatchReply(t, p, geminiKey));
-  const remember = deps.remember || rememberPlace;
   const user = await lookupUser(chatId);
   if (!user || user.calendar_provider !== "composio_gcal") return out;
   const now = deps.nowMs === undefined ? Date.now() : Number(deps.nowMs);
   if (user.web_message_telegram_chat_id && !webTravelEntitled(user, now)) return out;
+  const supaUrl = deps.supaUrl || process.env.SUPABASE_URL;
+  const supaKey = deps.supaKey || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const findOriginAsks = deps.pendingTravelOriginAskImpl
+    || ((uid, channel) => pendingTravelOriginAsks(uid, channel, { supaUrl, supaKey, fetchImpl: deps.fetchImpl }));
+  let originAsks;
+  try { originAsks = await findOriginAsks(user.uid, "telegram"); }
+  catch { return { ...out, reason: "travel_origin_ask_unavailable" }; }
+  if (Array.isArray(originAsks) && originAsks.length) {
+    if (originAsks.length !== 1) return { ...out, reason: "ambiguous_travel_origin_ask" };
+    const answer = await (deps.answerTravelOriginAskImpl || answerTravelOriginAsk)(user.uid, originAsks[0], text, {
+      channel: "telegram", geminiKey: deps.geminiKey || geminiKey,
+      supaUrl, supaKey, fetchImpl: deps.fetchImpl, nowMs: deps.nowMs,
+      matchReply: deps.matchTravelOriginReplyImpl,
+    });
+    if (answer.kind === "answered") {
+      const travelResult = typeof deps.afterTravelOriginAnswer === "function"
+        ? await Promise.resolve().then(() => deps.afterTravelOriginAnswer(user.uid)).catch(() => null) : null;
+      return {
+        filled: false, originSet: true, event: answer.event, location: answer.location, uid: user.uid,
+        ...(travelResult ? { travelResult } : {}),
+      };
+    }
+    return { ...out, reason: answer.kind === "unavailable" ? "travel_origin_answer_unavailable" : "reply_not_a_travel_origin" };
+  }
+  if (!deps.calendar && (!composioKey || !geminiKey)) return out;
+  const match0 = deps.match || ((t, p) => agentMatchReply(t, p, deps.geminiKey || geminiKey));
+  const remember = deps.remember || rememberPlace;
   const cal = deps.calendar || getCalendar({ apiKey: composioKey, gmailAccountId: user.gmail_account_id });
 
   const items = await cal.listEventsRaw(user.uid, {
@@ -146,6 +170,20 @@ async function resolveIMessageReply(uid, senderId, replyText, deps = {}) {
   const messageId = String(deps.messageId || "").trim();
   if (messageId && context.lastInboundMessageId === messageId) {
     return { filled: false, reason: "duplicate_message" };
+  }
+
+  if (row.question_type === "travel_origin") {
+    const answer = await (deps.answerTravelOriginAskImpl || answerTravelOriginAsk)(uid, row, replyText, {
+      channel: "imessage", geminiKey: deps.geminiKey || process.env.GEMINI_API_KEY,
+      supaUrl: deps.supaUrl || process.env.SUPABASE_URL,
+      supaKey: deps.supaKey || process.env.SUPABASE_SERVICE_ROLE_KEY,
+      fetchImpl: deps.fetchImpl, messageId, nowMs,
+      matchReply: deps.matchTravelOriginReplyImpl,
+    });
+    if (answer.kind === "answered") return {
+      filled: false, originSet: true, event: answer.event, location: answer.location,
+    };
+    return { filled: false, reason: answer.kind === "unavailable" ? "travel_origin_answer_unavailable" : "reply_not_a_travel_origin" };
   }
 
   if (row.question_type === "calendar_online" && !context.awaitingLocation) {

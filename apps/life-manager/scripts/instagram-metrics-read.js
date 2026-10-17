@@ -27,6 +27,8 @@ function metricPlatform(snapshot) {
     : "instagram";
 }
 const POST_LABELS = Object.freeze({ Views: "views", Reach: "reach", Saves: "saves", Likes: "likes", Comments: "comments", Shares: "shares" });
+const JSONL_CACHE = new Map();
+const HISTORICAL_PUBLISH_TIMESTAMP_SKEW_MS = 3 * 60_000;
 
 function decodeHtml(value) {
   return String(value).replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
@@ -72,6 +74,144 @@ function currentSnapshotFile(dataDir, reportDay, expected = EXPECTED) {
   return path.join(path.resolve(dataDir), "tenants", expected.tenant_id, "marketing", "metrics", expected.native_owner, expected.shortcode, "current", `${reportDay}.combined.json`);
 }
 
+function metricSnapshotFile(dataDir, window, expected = EXPECTED) {
+  return path.join(path.resolve(dataDir), "tenants", expected.tenant_id, "marketing", "metrics", expected.native_owner, expected.shortcode, `${window}.combined.json`);
+}
+
+function historicalCorrectionFile(dataDir, window, expected = EXPECTED) {
+  return path.join(path.resolve(dataDir), "tenants", expected.tenant_id, "marketing", "metrics", expected.native_owner, expected.shortcode, `${window}.correction.json`);
+}
+
+function effectiveSnapshotFile(dataDir, window, expected = EXPECTED) {
+  const original = metricSnapshotFile(dataDir, window, expected);
+  if (window !== "7d") return original;
+  const correctionFile = historicalCorrectionFile(dataDir, window, expected);
+  if (!fs.existsSync(correctionFile)) return original;
+  try {
+    const correction = JSON.parse(fs.readFileSync(correctionFile, "utf8"));
+    if (correction.correction === true && correction.window === window && correction.product_id === expected.product_id
+      && correction.integration_id === expected.integration_id && correction.provider_post_id === expected.provider_post_id
+      && correction.public_url === expected.public_url && correction.published_at === expected.published_at
+      && correction.caption_sha256 === crypto.createHash("sha256").update(expected.caption).digest("hex")) return correctionFile;
+  } catch {}
+  return original;
+}
+
+function jsonlRows(dataDir, relativePath) {
+  const file = path.join(path.resolve(dataDir), relativePath);
+  let stat;
+  try { stat = fs.statSync(file); } catch { return []; }
+  if (!stat.isFile()) return [];
+  const cached = JSONL_CACHE.get(file);
+  if (cached?.size === stat.size && cached.mtimeMs === stat.mtimeMs) return cached.rows;
+  let rows = [];
+  try {
+    for (const line of fs.readFileSync(file, "utf8").split(/\r?\n/).filter(Boolean)) {
+      const row = JSON.parse(line);
+      if (!row || typeof row !== "object" || Array.isArray(row)) { rows = null; break; }
+      rows.push(row);
+    }
+  } catch { rows = null; }
+  JSONL_CACHE.set(file, { size: stat.size, mtimeMs: stat.mtimeMs, rows });
+  return rows;
+}
+
+function postMetricsFromLedgerRow(row) {
+  const keys = Object.values(POST_LABELS);
+  if (keys.some((key) => row[key] != null && (!Number.isSafeInteger(row[key]) || row[key] < 0))) return null;
+  if (row.impressions != null && (!Number.isSafeInteger(row.impressions) || row.impressions < 0)) return null;
+  const sourceDate = row.observed_at.slice(0, 10);
+  const postRows = Object.entries(POST_LABELS).map(([label, key]) => ({ label, data: [{ total: row[key] == null ? null : String(row[key]) }] }));
+  const post = postMetrics(postRows);
+  for (const key of keys) {
+    if (post[key].status === "measured") post[key] = { ...post[key], source: row.source, source_date: sourceDate };
+    else if (row.metric_null_reasons?.[key]) post[key].reason = row.metric_null_reasons[key];
+  }
+  post.impressions = row.impressions == null
+    ? { status: "unavailable", value: null, reason: row.metric_null_reasons?.impressions || "metric_missing" }
+    : { status: "measured", value: row.impressions, source: row.source, source_date: sourceDate };
+  if (post.engagement.status === "derived") post.engagement.source_date = sourceDate;
+  return post;
+}
+
+function persistHistoricalCheckpointCorrection({ dataDir, expected = EXPECTED, correctionCreatedAt = new Date().toISOString() }) {
+  const originalFile = metricSnapshotFile(dataDir, "7d", expected);
+  if (!fs.existsSync(originalFile)) return { created: false, reason: "historical_snapshot_missing" };
+  let original;
+  let originalBytes;
+  try { originalBytes = fs.readFileSync(originalFile); original = JSON.parse(originalBytes.toString("utf8")); } catch { return { created: false, reason: "historical_snapshot_invalid" }; }
+  if (original.window !== "7d" || original.sources?.postiz_post?.reason !== "source_delayed"
+    || original.product_id !== expected.product_id || original.integration_id !== expected.integration_id
+    || original.provider_post_id !== expected.provider_post_id || original.public_url !== expected.public_url
+    || original.published_at !== expected.published_at
+    || original.caption_sha256 !== crypto.createHash("sha256").update(expected.caption).digest("hex")) return { created: false, reason: "historical_snapshot_not_correctable" };
+
+  const metricsRows = jsonlRows(dataDir, "marketing-owner-events/state/post-metrics.jsonl");
+  const identityRows = jsonlRows(dataDir, "state/publication-identity.jsonl");
+  if (!Array.isArray(metricsRows) || !Array.isArray(identityRows)) return { created: false, reason: "normalized_metrics_ledger_invalid" };
+  const metricCandidates = metricsRows.filter((row) => row.product_id === expected.product_id && row.platform === "instagram"
+    && row.postiz_id === expected.provider_post_id && row.target_age_hours === 168);
+  const identityCandidates = identityRows.filter((row) => row.product_id === expected.product_id && row.postiz_post_id === expected.provider_post_id);
+  if (metricCandidates.length !== 1 || identityCandidates.length !== 1) return { created: false, reason: "historical_metrics_identity_ambiguous" };
+  const metric = metricCandidates[0]; const identity = identityCandidates[0];
+  const metricPublishedAt = Date.parse(metric.published_at || "");
+  const expectedPublishedAt = Date.parse(expected.published_at || "");
+  const metricObservedAt = Date.parse(metric.observed_at || "");
+  const measuredAgeHours = (metricObservedAt - metricPublishedAt) / 3600_000;
+  if (!Number.isFinite(metricPublishedAt) || !Number.isFinite(expectedPublishedAt) || !Number.isFinite(metricObservedAt)
+    || metric.published_at !== identity.publish_date
+    || Math.abs(metricPublishedAt - expectedPublishedAt) > HISTORICAL_PUBLISH_TIMESTAMP_SKEW_MS
+    || Math.abs(measuredAgeHours - metric.observed_age_hours) > 0.0001
+    || metric.native_url !== expected.public_url || metric.integration_id !== expected.integration_id
+    || metric.source !== "postiz_instagram_graph_api" || metric.checkpoint_status !== "measured"
+    || metric.checkpoint_sla_status !== "in_window" || !Number.isFinite(metric.observed_age_hours)
+    || metric.observed_age_hours < 168 || metric.observed_age_hours > 169.5
+    || typeof metric.observed_at !== "string" || !Number.isFinite(Date.parse(metric.observed_at))
+    || typeof metric.native_post_id !== "string" || !metric.native_post_id
+    || !/^[a-f0-9]{64}$/.test(String(metric.snapshot_id || ""))
+    || !/^[a-f0-9]{64}$/.test(String(metric.raw_evidence_hash || ""))) return { created: false, reason: "historical_metrics_row_invalid" };
+  if (identity.platform !== "instagram-standalone" || identity.native_post_url !== expected.public_url
+    || identity.publish_date !== metric.published_at || identity.integration_id !== expected.integration_id
+    || identity.native_post_id !== metric.native_post_id
+    || identity.postiz_state !== "PUBLISHED" || identity.identity_status !== "resolved"
+    || identity.resolution_method !== "postiz_provider_native_receipt") return { created: false, reason: "historical_publication_identity_invalid" };
+
+  const correctionFile = historicalCorrectionFile(dataDir, "7d", expected);
+  if (fs.existsSync(correctionFile)) {
+    try {
+      const existing = JSON.parse(fs.readFileSync(correctionFile, "utf8"));
+      if (existing.correction === true && existing.public_url === expected.public_url && existing.provider_post_id === expected.provider_post_id
+        && existing.source_snapshot_id === metric.snapshot_id && existing.source_raw_evidence_hash === metric.raw_evidence_hash) {
+        return { created: false, file: correctionFile, snapshot: existing };
+      }
+    } catch {}
+    return { created: false, reason: "historical_correction_conflict" };
+  }
+
+  const snapshot = {
+    schema_version: 1, kind: "instagram_combined_metric_snapshot_correction", ...expected,
+    window: "7d", observed_at: metric.observed_at, correction_created_at: correctionCreatedAt,
+    correction: true, historical_checkpoint: true,
+    checkpoint_published_at: metric.published_at,
+    caption_sha256: crypto.createHash("sha256").update(expected.caption).digest("hex"),
+    corrects_source_snapshot_sha256: crypto.createHash("sha256").update(originalBytes).digest("hex"),
+    source_snapshot_id: metric.snapshot_id, source_raw_evidence_hash: metric.raw_evidence_hash,
+    sources: {
+      instagram_native: { status: "unavailable", reason: original.sources?.instagram_native?.reason || "historical_native_metrics_not_recovered", identity_verified: true },
+      postiz_post: { status: "measured", source: metric.source, publication_identity: identity.resolution_method },
+      postiz_account: { status: "unavailable", reason: "account_metrics_not_in_post_metrics" },
+    },
+    post: postMetricsFromLedgerRow(metric),
+    account_metrics: { status: "unavailable", reason: "account_metrics_not_in_post_metrics" },
+  };
+  if (!snapshot.post) return { created: false, reason: "historical_metrics_values_invalid" };
+  fs.mkdirSync(path.dirname(correctionFile), { recursive: true, mode: 0o700 });
+  const temporary = `${correctionFile}.tmp-${process.pid}-${crypto.randomUUID()}`;
+  fs.writeFileSync(temporary, `${JSON.stringify(snapshot, null, 2)}\n`, { mode: 0o600, flag: "wx" });
+  fs.renameSync(temporary, correctionFile); fs.chmodSync(correctionFile, 0o600);
+  return { created: true, file: correctionFile, snapshot };
+}
+
 function persistSnapshot({ dataDir, window, observedAt, html, accountRows, postRows, expected = EXPECTED }) {
   if ((!WINDOWS.has(window) && window !== "current") || !Number.isFinite(Date.parse(observedAt))) throw new Error("Instagram metric window invalid");
   const native = verifyNativeHtml(html, expected);
@@ -86,9 +226,8 @@ function persistSnapshot({ dataDir, window, observedAt, html, accountRows, postR
     sources: { instagram_native: native, postiz_post: { status: "measured" }, postiz_account: Array.isArray(accountRows) && accountRows.length ? { status: "measured" } : { status: "unavailable", reason: "empty_response", response: "empty_array" } },
     post: metrics, account_metrics: Array.isArray(accountRows) && accountRows.length ? accountRows : { status: "unavailable", reason: "empty_response" },
   };
-  const directory = path.join(path.resolve(dataDir), "tenants", expected.tenant_id, "marketing", "metrics", expected.native_owner, expected.shortcode);
   const reportDay = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(observedAt));
-  const file = window === "current" ? currentSnapshotFile(dataDir, reportDay, expected) : path.join(directory, `${window}.combined.json`);
+  const file = window === "current" ? currentSnapshotFile(dataDir, reportDay, expected) : metricSnapshotFile(dataDir, window, expected);
   fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
   if (fs.existsSync(file)) {
     const existing = JSON.parse(fs.readFileSync(file, "utf8"));
@@ -109,8 +248,7 @@ function persistDelayedSnapshot({ dataDir, window, observedAt, expected = EXPECT
     caption_sha256: crypto.createHash("sha256").update(expected.caption).digest("hex"),
     sources: { instagram_native: { status: "unavailable", reason: "source_delayed", identity_verified: true }, postiz_post: { status: "unavailable", reason: "source_delayed" }, postiz_account: { status: "unavailable", reason: "source_delayed" } },
     post, account_metrics: { status: "unavailable", reason: "source_delayed" } };
-  const directory = path.join(path.resolve(dataDir), "tenants", expected.tenant_id, "marketing", "metrics", expected.native_owner, expected.shortcode);
-  const file = path.join(directory, `${window}.combined.json`); fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
+  const file = metricSnapshotFile(dataDir, window, expected); fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
   if (fs.existsSync(file)) return { created: false, file, snapshot: JSON.parse(fs.readFileSync(file, "utf8")) };
   const temporary = `${file}.tmp-${process.pid}-${crypto.randomUUID()}`;
   fs.writeFileSync(temporary, `${JSON.stringify(snapshot, null, 2)}\n`, { mode: 0o600, flag: "wx" }); fs.renameSync(temporary, file); fs.chmodSync(file, 0o600);
@@ -120,10 +258,14 @@ function persistDelayedSnapshot({ dataDir, window, observedAt, expected = EXPECT
 function persistDailyDigest({ dataDir, reportDay, observedAt, expected = EXPECTED }) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(reportDay) || !Number.isFinite(Date.parse(observedAt))) throw new Error("Instagram daily digest identity invalid");
   const directory = path.join(path.resolve(dataDir), "tenants", expected.tenant_id, "marketing", "metrics", expected.native_owner, expected.shortcode);
+  const historicalResult = persistHistoricalCheckpointCorrection({ dataDir, expected, correctionCreatedAt: observedAt });
+  const historicalCorrection = historicalResult.snapshot || null;
   const rows = [...WINDOWS].map((window) => {
-    const file = path.join(directory, `${window}.combined.json`);
+    const file = effectiveSnapshotFile(dataDir, window, expected);
     if (!fs.existsSync(file)) return { window, status: "pending" };
-    const snapshot = JSON.parse(fs.readFileSync(file, "utf8")); const status = Object.values(snapshot.post || {}).some((metric) => metric?.status === "measured" || metric?.status === "derived") ? "measured" : "unavailable";
+    const snapshot = JSON.parse(fs.readFileSync(file, "utf8"));
+    const measuredValue = Object.values(snapshot.post || {}).some((metric) => metric?.status === "measured" || metric?.status === "derived");
+    const status = snapshot.correction === true ? "corrected" : measuredValue ? "measured" : "unavailable";
     return { window, status, file };
   });
   const currentFile = currentSnapshotFile(dataDir, reportDay, expected);
@@ -133,18 +275,29 @@ function persistDailyDigest({ dataDir, reportDay, observedAt, expected = EXPECTE
   const baseFile = path.join(directory, "daily", `${reportDay}.json`);
   const correctionFile = path.join(directory, "daily", `${reportDay}.correction.json`);
   const currentCorrectionFile = path.join(directory, "daily", `${reportDay}.current.correction.json`);
-  const retainedFile = [currentCorrectionFile, correctionFile, baseFile].find((file) => fs.existsSync(file));
+  const historicalDailyCorrectionFile = path.join(directory, "daily", `${reportDay}.historical.correction.json`);
+  const retainedFile = [historicalDailyCorrectionFile, currentCorrectionFile, correctionFile, baseFile].find((file) => fs.existsSync(file));
+  let addHistoricalCorrection = false;
   if (retainedFile) {
     const existing = JSON.parse(fs.readFileSync(retainedFile, "utf8"));
     const existingMeasured = Object.values(existing.post || {}).some((metric) => metric?.status === "measured" || metric?.status === "derived");
     const sourceMeasured = Object.values(source.post || {}).some((metric) => metric?.status === "measured" || metric?.status === "derived");
     const promoteCurrent = source.historical_checkpoint === false && existing.historical_checkpoint !== false;
-    if ((existingMeasured && !promoteCurrent) || !sourceMeasured || (retainedFile !== baseFile && !promoteCurrent)) return { created: false, file: retainedFile, snapshot: existing };
+    const existingCorrectionId = existing.historical_checkpoint_correction?.source_snapshot_id
+      || (existing.source_window === "7d" && existing.correction === true ? existing.source_snapshot_id : null);
+    addHistoricalCorrection = Boolean(historicalCorrection && existingCorrectionId !== historicalCorrection.source_snapshot_id);
+    if ((existingMeasured && !promoteCurrent && !addHistoricalCorrection) || !sourceMeasured || (retainedFile !== baseFile && !promoteCurrent && !addHistoricalCorrection)) return { created: false, file: retainedFile, snapshot: existing };
   }
-  const correction = fs.existsSync(baseFile);
-  const file = correction ? (source.historical_checkpoint === false ? currentCorrectionFile : correctionFile) : baseFile;
-  const snapshot = { ...source, kind: `${/^https:\/\/www\.tiktok\.com\//.test(source.public_url) ? "tiktok" : "instagram"}_daily_metric_digest${correction ? "_correction" : ""}`, window: "daily", observed_at: observedAt, report_day: reportDay,
-    ...(source.historical_checkpoint === false ? { source_observed_at: source.observed_at } : {}),
+  const dailyCorrection = fs.existsSync(baseFile);
+  const sourceWindow = source.window || null;
+  const hasHistoricalCorrection = Boolean(historicalCorrection);
+  const file = addHistoricalCorrection ? historicalDailyCorrectionFile
+    : dailyCorrection ? (source.historical_checkpoint === false ? currentCorrectionFile : correctionFile) : baseFile;
+  const snapshot = { ...source, kind: `${/^https:\/\/www\.tiktok\.com\//.test(source.public_url) ? "tiktok" : "instagram"}_daily_metric_digest${dailyCorrection || source.correction === true || hasHistoricalCorrection ? "_correction" : ""}`, window: "daily", observed_at: observedAt, report_day: reportDay,
+    source_window: sourceWindow,
+    source_observed_at: source.observed_at,
+    ...(hasHistoricalCorrection ? { historical_checkpoint_correction: historicalCorrection } : {}),
+    ...(dailyCorrection || source.correction === true || hasHistoricalCorrection ? { correction: true } : {}),
     observation_windows: rows.map(({ window, status }) => ({ window, status })) };
   fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
   const temporary = `${file}.tmp-${process.pid}-${crypto.randomUUID()}`;
@@ -152,8 +305,30 @@ function persistDailyDigest({ dataDir, reportDay, observedAt, expected = EXPECTE
   return { created: true, file, snapshot };
 }
 
-async function sendMetricSnapshot(result, env, dataDir) {
+function loadLocalTelegramCredentials(env = process.env) {
+  const home = String(env.HOME || "").trim();
+  if (!home) throw new Error("local_telegram_credential_unavailable");
+  let credentials;
+  try {
+    credentials = JSON.parse(fs.readFileSync(path.join(home, ".local", "share", "anicca", "credentials.json"), "utf8")).credentials;
+  } catch {
+    throw new Error("local_telegram_credential_unavailable");
+  }
+  const matches = Array.isArray(credentials)
+    ? credentials.filter((row) => row && row.service === "telegram-life-manager")
+    : [];
+  if (matches.length !== 1) throw new Error("local_telegram_credential_unavailable");
+  const row = matches[0];
+  if (typeof row.bot_token !== "string" || !row.bot_token.trim()
+    || row.chat_id == null || !String(row.chat_id).trim()) {
+    throw new Error("local_telegram_credential_unavailable");
+  }
+  return { botToken: row.bot_token, chatId: String(row.chat_id) };
+}
+
+async function sendMetricSnapshot(result, env, dataDir, telegramCredentials = null) {
   if (!result.created) return { created: false, reason: "snapshot_replay" };
+  const telegram = telegramCredentials || loadLocalTelegramCredentials(env);
   const expected = result.snapshot;
   const platform = metricPlatform(expected);
   const lane = platform === "tiktok" ? `tiktok-metrics-${String(expected.account_id).replace(/^@/, "").replace(/[^A-Za-z0-9._-]/g, "-")}` : "anicca-main-ja-instagram";
@@ -172,7 +347,14 @@ async function sendMetricSnapshot(result, env, dataDir) {
   const claim = await store.claimJob({ tenantId: job.tenant_id, jobId: job.job_id, capability: job.capability, workerId: "instagram-metrics-read", leaseSeconds: 120 });
   if (!claim) throw new Error("Instagram metric Telegram job is not claimable");
   await executeCapabilityJob(claim, { workerId: "instagram-metrics-read", handlers: { [job.capability]: (claimed) => executeMarketingLivenessJob(claimed, {
-    secretProvider: { get: async () => env.LM_TELEGRAM_BOT_TOKEN }, chatProvider: { get: async () => env.LM_TELEGRAM_ALERT_CHAT_ID },
+    secretProvider: { get: async (tenantId, ref) => {
+      if (tenantId !== expected.tenant_id || ref !== "secret://telegram/bot-token") throw new Error("local Telegram secret scope mismatch");
+      return telegram.botToken;
+    } },
+    chatProvider: { get: async (tenantId, ref) => {
+      if (tenantId !== expected.tenant_id || ref !== "telegram-chat://owner") throw new Error("local Telegram chat scope mismatch");
+      return telegram.chatId;
+    } },
     snapshotProvider: { get: async (_tenantId, ref) => JSON.parse(fs.readFileSync(objectStore.resolve(ref), "utf8")) },
   }) }, heartbeatJob: (input) => store.heartbeatJob(input), completeJob: (input) => store.completeJob(input), failJob: (input) => store.failJob(input), leaseSeconds: 120 });
   const receipt = await store.readReceipt({ tenantId: job.tenant_id, jobId: job.job_id });
@@ -191,10 +373,11 @@ async function collectWindow(window, env = process.env, observedAt = new Date().
     get(`https://api.postiz.com/public/v1/analytics/post/${expected.provider_post_id}?date=${days}`, { Authorization: key }).then((response) => response.json()),
   ]);
   const dataDir = resolveDataRoot(env);
+  const telegramCredentials = window === "current" ? null : loadLocalTelegramCredentials(env);
   const result = persistSnapshot({ dataDir, window, observedAt, html: page, accountRows: account, postRows: post, expected });
-  const telegram = window === "current" ? { created: false, reason: "current_observation_for_daily_report" } : await sendMetricSnapshot(result, env, dataDir);
+  const telegram = window === "current" ? { created: false, reason: "current_observation_for_daily_report" } : await sendMetricSnapshot(result, env, dataDir, telegramCredentials);
   return { created: result.created, file: result.file, post: result.snapshot.post, account: result.snapshot.account_metrics, telegram };
 }
 
 if (require.main === module) collectWindow(process.argv[2] || "24h").then((result) => process.stdout.write(`${JSON.stringify(result)}\n`)).catch((error) => { process.stderr.write(`${error.message}\n`); process.exitCode = 1; });
-module.exports = { EXPECTED, collectWindow, currentSnapshotFile, metricPlatform, persistDailyDigest, persistDelayedSnapshot, persistSnapshot, postMetrics, sendMetricSnapshot, verifyNativeHtml };
+module.exports = { EXPECTED, collectWindow, currentSnapshotFile, effectiveSnapshotFile, historicalCorrectionFile, loadLocalTelegramCredentials, metricPlatform, persistDailyDigest, persistDelayedSnapshot, persistHistoricalCheckpointCorrection, persistSnapshot, postMetrics, sendMetricSnapshot, verifyNativeHtml };

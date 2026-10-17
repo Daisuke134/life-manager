@@ -53,6 +53,18 @@ class BuildProof(unittest.TestCase):
 
 
 
+class AccountGate(unittest.TestCase):
+    def test_suspended_or_checkpoint_redirect_is_a_typed_reason_not_post_count_unreadable(self) -> None:
+        self.assertEqual(MODULE.account_gate(
+            "https://www.instagram.com/accounts/suspended/?next=https%3A%2F%2Fwww.instagram.com%2Fx%2F"),
+            "instagram_account_suspended")
+        self.assertEqual(MODULE.account_gate("https://www.instagram.com/challenge/abc/"),
+                         "instagram_account_challenge")
+        self.assertEqual(MODULE.account_gate("https://www.instagram.com/accounts/login/?next=/x/"),
+                         "instagram_needs_login")
+        self.assertIsNone(MODULE.account_gate("https://www.instagram.com/stardust_doubutsu/"))
+
+
 class ThreadsLane(unittest.TestCase):
     """A Threads post is the same loop's effect: a fence closes only when Threads is all ledgered too."""
 
@@ -79,6 +91,57 @@ class ThreadsLane(unittest.TestCase):
     def test_all_ledgered_threads_posts_allow_the_close(self) -> None:
         self.assertTrue(self.proof({"ok": True, "codes": {"TTT"}})["verified"])
 
+
+
+class LostTerminalFence(unittest.TestCase):
+    """2026-10-17: the reconciler hands over runs whose report said effect unknown but whose admission
+    row is already released (effect_unknown=0); fenced_row rejected every one of them."""
+
+    def _fixture(self, root: Path, *, state: str, effect_unknown: int, event_occurrence: str) -> str:
+        import json
+        import sqlite3
+        occurrence = f"{MODULE.OWNER_ID}:run-1"
+        with sqlite3.connect(root / "admission-v2.sqlite3") as connection:
+            connection.execute("CREATE TABLE occurrences(owner_id TEXT, occurrence_id TEXT, state TEXT, "
+                               "queued_at REAL, effect_unknown INTEGER)")
+            connection.execute("INSERT INTO occurrences VALUES(?,?,?,?,?)",
+                               (MODULE.OWNER_ID, occurrence, state, Q.timestamp(), effect_unknown))
+        (root / "events.jsonl").write_text(json.dumps({
+            "loop_id": MODULE.OWNER_ID, "owner_id": MODULE.OWNER_ID, "occurrence_id": event_occurrence,
+            "release_sha": "a" * 40, "phase": "report", "status": "fail", "effect_class": "publish",
+            "effect_status": "unknown"}) + "\n")
+        return occurrence
+
+    def _read(self, root: Path, occurrence: str):
+        from unittest.mock import patch
+        with patch("runtime.host.resource_admission.state_root", return_value=root), \
+                patch.object(MODULE, "STATE_ROOT", root):
+            return MODULE.fenced_row(MODULE.OWNER_ID, occurrence)
+
+    def test_released_row_with_exact_terminal_unknown_event_is_accepted(self) -> None:
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            occurrence = self._fixture(root, state="released", effect_unknown=0,
+                                       event_occurrence=f"{MODULE.OWNER_ID}:run-1")
+            self.assertEqual(self._read(root, occurrence), ("released", Q))
+
+    def test_released_row_without_its_own_unknown_event_is_rejected(self) -> None:
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            occurrence = self._fixture(root, state="released", effect_unknown=0,
+                                       event_occurrence=f"{MODULE.OWNER_ID}:other-run")
+            with self.assertRaises(ValueError):
+                self._read(root, occurrence)
+
+    def test_active_fence_is_still_accepted(self) -> None:
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            occurrence = self._fixture(root, state="claimed", effect_unknown=1,
+                                       event_occurrence=f"{MODULE.OWNER_ID}:other-run")
+            self.assertEqual(self._read(root, occurrence), ("claimed", Q))
 
 
 class RunsInIsolatedMode(unittest.TestCase):

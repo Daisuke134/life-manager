@@ -1130,7 +1130,7 @@ def test_negotiate_runs_every_30_seconds_without_changing_other_job_intervals():
     registry = json.loads(
         (GIG_ROOT.parents[2] / "config" / "loop-registry.json").read_text(encoding="utf-8")
     )
-    assert registry["loops"]["hf-gig-paid-direct"]["cadence"] == {"start_interval_seconds": 300}
+    assert registry["loops"]["hf-gig-paid-direct"]["cadence"] == {"start_interval_seconds": 900}
 
 
 def test_semantic_prompt_v28_is_proactive_and_stops_blackwave():

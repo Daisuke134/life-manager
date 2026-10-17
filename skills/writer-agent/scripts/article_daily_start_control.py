@@ -636,7 +636,12 @@ def _preflight_only_run(run_dir: Path, rows: list[dict[str, Any]], run_id: str) 
     selection = gates / "product-selection.json"
     if "product-selection.json" in names and (selection.is_symlink() or not selection.is_file()):
         return False
-    return names - {"product-selection.json"} == {"strategy-consumption.json"}
+    # seo-keyword.json is the same kind of frozen pre-generation pick (seo_keyword_seed.py, written
+    # before run_model_pass). Missing it blocked every wake on 2026-10-16 (run 20261016-014724).
+    seo = gates / "seo-keyword.json"
+    if "seo-keyword.json" in names and (seo.is_symlink() or not seo.is_file()):
+        return False
+    return names - {"product-selection.json", "seo-keyword.json"} == {"strategy-consumption.json"}
 
 
 def _exhausted_empty_provider_failure(
@@ -664,7 +669,11 @@ def _exhausted_empty_provider_failure(
     state = _regular_json(run_dir / "gates" / "generation-state.json")
     if not state or state.get("run_id") != run_id:
         return False
-    if not (state.get("status") == "provider-failed-safe" or _failed_before_publication(state)):
+    # provider-returned: since PR #8249 a completed agent pass exits rc=0
+    # instead of a silent rc=1; an empty one is still released only by the
+    # prepublication_empty re-check below.
+    if not (state.get("status") in {"provider-failed-safe", "provider-returned"}
+            or _failed_before_publication(state)):
         return False
     if _charged_attempt_count(state) < int(state.get("maximum_attempts", MAX_GENERATION_ATTEMPTS)):
         return False
@@ -1155,6 +1164,63 @@ def terminal_quality_finished_at(
     )
 
 
+
+# Keys seen on effect-free Writer rows (carry-over, pending, quality stops). Any other key -- e.g.
+# public_id, status_id, edit_id, provider_receipt_id, live_url -- may hold an external identifier,
+# so such a row is never treated as effect-free (same allowlist idea as publication_resume.py).
+_NO_EFFECT_ROW_KEYS = frozenset({
+    "attempts_by_lang", "attempts_en", "attempts_en_reader", "attempts_en_rubric", "attempts_ja",
+    "attempts_ja_reader", "attempts_ja_rubric", "carry_over_card", "carry_over_source_card",
+    "draft_url", "editorial_form", "failure_reason", "lane", "lang", "localized_topic", "note",
+    "pair", "platform", "published", "reader_attempts", "reason", "recorded_at", "run_id",
+    "run_record", "source_mutated", "state", "telegram_message_id", "token_budget_usd", "topic",
+    "topic_id", "topic_source", "total_revise_attempts_en", "total_revise_attempts_ja", "ts",
+    "verified_logged_in", "verified_note",
+})
+_NO_EFFECT_TEXT_FORBIDDEN = ("http", "key=", "live", "receipt", "published")
+
+
+def _no_effect_row(row: dict[str, Any]) -> bool:
+    if set(row) - _NO_EFFECT_ROW_KEYS or row.get("published") is not False:
+        return False
+    if row.get("draft_url") not in (None, "") or row.get("verified_logged_in") is True:
+        return False
+    text = " ".join(str(row.get(key) or "") for key in ("state", "note", "reason", "failure_reason")).lower()
+    forbidden = _NO_EFFECT_TEXT_FORBIDDEN
+    if str(row.get("state") or "").startswith("pending:publication-init-refused:"):
+        # The refusal text names quality "receipts" (2026-10-17 run 20261016-230536), not provider
+        # receipts. The prefix is model-written, so safety rests on the publication-state and
+        # platform-dispatch checks in _carry_over_without_dispatch, not on the prefix.
+        forbidden = tuple(token for token in forbidden if token != "receipt")
+    return not any(token in text for token in forbidden)
+
+
+def _carry_over_without_dispatch(run_dir: Path, rows: list[dict[str, Any]], run_id: str) -> bool:
+    """A run that stopped before any destination was dispatched cannot have published.
+
+    2026-10-16: run 20261016-014724 wrote drafts, the conscience gate stopped it, and its only
+    ledger row was carry-over (published=false, draft_url=null); the 22:43 run left pending
+    media rows of the same shape. Any row kind counts. Publication goes only through
+    publication-state + platform-dispatch, so with neither present nothing left the machine.
+    """
+    own = [row for row in rows if row.get("run_id") == run_id]
+    if not own:
+        # 2026-10-17 00:27: run 20261016-152709 staged drafts and the provider failed (exit 1)
+        # before writing any row; a finished failed attempt with no dispatch is the same case.
+        state = _regular_json(run_dir / "gates" / "generation-state.json") or {}
+        attempts = state.get("attempts")
+        last = attempts[-1] if isinstance(attempts, list) and attempts and isinstance(attempts[-1], dict) else {}
+        code = last.get("return_code")
+        if not (state.get("status") == "provider-failed-ambiguous"
+                and type(code) is int and code != 0):
+            return False
+    elif not all(_no_effect_row(row) for row in own):
+        return False
+    gates = run_dir / "gates"
+    if (gates / "publication-state.json").exists() or (gates / "publication-state.json").is_symlink():
+        return False
+    return not any(child.name.startswith("platform-dispatch") for child in gates.iterdir()) if gates.is_dir() else False
+
 def decide(state_dir: Path | str, local_date: str) -> dict[str, str]:
     state_dir = Path(state_dir)
     runs_dir = state_dir / "runs"
@@ -1362,6 +1428,19 @@ def decide(state_dir: Path | str, local_date: str) -> dict[str, str]:
             "forbidden_editorial_form": forbidden_editorial_form,
             "quality_failure_feedback": quality_failure_feedback,
             "reason": "same-jst-day-terminal-quality-block",
+        }
+    if _carry_over_without_dispatch(run_dir, rows, run_id):
+        if len(run_ids) >= 2:
+            return {
+                "action": "skip-quality-miss",
+                "run_id": run_id,
+                "reason": "same-jst-day-carry-over-replacement-limit",
+            }
+        return {
+            "action": "new",
+            "run_id": "",
+            "previous_run_id": run_id,
+            "reason": "same-jst-day-carry-over-no-dispatch",
         }
     return {"action": "block-incomplete", "run_id": run_id, "reason": "same-jst-day-unclassified-run"}
 

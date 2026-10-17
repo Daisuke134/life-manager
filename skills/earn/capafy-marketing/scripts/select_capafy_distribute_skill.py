@@ -87,6 +87,15 @@ def _is_online_earner(products_cfg: dict, analytics: dict | None, slug: str) -> 
     return False
 
 
+def _is_buyer_visible(products_cfg: dict, analytics: dict | None, slug: str) -> bool:
+    agent_id = str(products_cfg["products"]["capafy-skills"]["skills"][slug]["agent_id"])
+    for row in (analytics or {}).get("per_skill_rows") or []:
+        if str(row.get("agent_id")) == agent_id:
+            flag = row.get("has_online_version")
+            return flag is True if flag is not None else row.get("status") in ("online", "under_review")
+    return False
+
+
 def select_for_date(
     products_cfg: dict,
     analytics: dict | None,
@@ -102,6 +111,10 @@ def select_for_date(
     # rotation gave 0-order and losing agents as many articles as the sellers).
     # With no earner at all, keep the full rotation so the loop still publishes.
     earners = [slug for slug in ranked if _is_online_earner(products_cfg, analytics, slug)]
+    # Rule 10: the top seller keeps half the slots while buyer-visible, even in a short
+    # loss window (2026-10-16: Hook Lab at -2.43 got 0 of 48 slots after its price restore).
+    if earners and "hook-lab" in ranked and "hook-lab" not in earners and _is_buyer_visible(products_cfg, analytics, "hook-lab"):
+        earners = ["hook-lab"] + earners
     ranked = earners if earners else ranked + sorted(extra)
     # Keep Hook Lab in half the slots regardless of short-window profit ranking.
     if len(earners) > 1:

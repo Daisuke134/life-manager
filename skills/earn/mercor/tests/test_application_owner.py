@@ -54,6 +54,15 @@ def test_owner_uses_shared_browser_lease_and_revenue_name():
     )
 
 
+def test_owner_clears_host_pre_effect_hint_before_the_agent_can_submit():
+    # The host writes the hint before spawn; it must not survive into the pass
+    # that can click Submit, or a submitted run would release without a fence.
+    source = (ROOT / "skills/earn/mercor/scripts/application-owner").read_text()
+    run = source.index('"$ROOT/apps/job-search-loop/scripts/run-mercor.sh"')
+    clear = source.rindex('rm -f "$RESULT_HINT"', 0, run)
+    assert source.rindex("pre_effect_failure", 0, run) < clear
+
+
 def test_owner_only_requests_email_auth_after_confirmed_logout():
     source = (ROOT / "skills/earn/mercor/scripts/application-owner").read_text()
     assert 'AUTH_STATUS=' in source

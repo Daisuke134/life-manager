@@ -13,31 +13,23 @@ def test_mercor_effect_owners_have_occurrence_bound_reconcilers() -> None:
     state_roots = {
         "mercor-revenue-application": "~/.local/state/anicca/job-search/mercor/application",
         "mercor-revenue-reply": "~/.local/state/anicca/job-search/mercor/reply",
+        "mercor-revenue-paid": "~/.local/state/anicca/job-search/mercor",
     }
-    for owner in ("mercor-revenue-application", "mercor-revenue-reply"):
+    for owner, state_root in state_roots.items():
+        assert loops[owner]["state_root"] == state_root
         reconcile = loops[owner]["effect_reconcile"]
-        assert reconcile == {
+        expected = {
             "argv": [
-                "skills/_shared/marketplace-core/scripts/reconcile_pre_effect_hint.py",
+                "skills/earn/mercor/scripts/reconcile_fence_readback.py",
                 "--state-root",
-                state_roots[owner],
+                state_root,
                 "--owner",
                 owner,
             ],
             "occurrence_flag": "--occurrence",
             "resolve_flag": "--resolve",
-            "timeout_seconds": 900,
         }
-
-    paid = loops["mercor-revenue-paid"]["effect_reconcile"]
-    assert paid == {
-        "argv": [
-            "skills/_shared/marketplace-core/scripts/reconcile_paid_no_effect.py",
-            "--state-root",
-            "~/.local/state/anicca/job-search/mercor",
-            "--owner",
-            "mercor-revenue-paid",
-        ],
-        "occurrence_flag": "--occurrence",
-        "resolve_flag": "--resolve",
-    }
+        if owner != "mercor-revenue-paid":
+            # Two bounded Gmail searches (30 s each) plus journal parsing.
+            expected["timeout_seconds"] = 120
+        assert reconcile == expected

@@ -8,7 +8,7 @@ const path = require("node:path");
 const SAFE_OWNER = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const SAFE_RECEIPT = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const MAX_RESULT_BYTES = 1024 * 1024;
-const MOBILE_NO_EFFECT_REASONS = new Set(["no_due_slot", "daily_limit_reached"]);
+const MOBILE_NO_EFFECT_REASONS = new Set(["no_due_slot", "daily_limit_reached", "slot_already_attempted"]);
 
 function required(value, label) {
   const text = String(value == null ? "" : value).trim();
@@ -39,9 +39,32 @@ function readResult(file) {
   return value.publication;
 }
 
-function effectStatus(publication) {
+function requireMatchingOriginOccurrence(publication, options) {
+  if (options.requireOriginOccurrence && publication.origin_occurrence_id !== options.occurrenceId) {
+    throw new Error("mobile publication result origin occurrence does not match");
+  }
+}
+
+function effectStatus(publication, options = {}) {
+  if (options.requireOriginOccurrence) {
+    requireMatchingOriginOccurrence(publication, options);
+    if (typeof publication.provider_effect_created !== "boolean") {
+      throw new Error("mobile publication result lacks provider effect proof");
+    }
+    if (publication.provider_effect_created) return "verified";
+    if (typeof publication.created === "boolean") {
+      if (publication.created) throw new Error("mobile publication created flag does not match provider effect proof");
+      return "reconciled";
+    }
+    if (publication.status === "published" && publication.provider_reconciled === true
+        && publication.replay_created === false && publication.provider_effect_created === false) {
+      return "reconciled";
+    }
+    throw new Error("mobile publication result lacks exact effect proof");
+  }
   if (typeof publication.created === "boolean") {
-    return publication.created ? "verified" : "reconciled";
+    if (publication.created) return "verified";
+    return "reconciled";
   }
   if (publication.status === "published" && publication.provider_reconciled === true
       && publication.replay_created === false) {
@@ -82,7 +105,10 @@ function writePrivateJson(target, value) {
 }
 
 function main(argv = process.argv.slice(2), env = process.env) {
-  if (argv.length !== 1) throw new Error("usage: mobile-effect-result.js <runner-stdout>");
+  const requireOriginOccurrence = argv.length === 2 && argv[1] === "--require-origin-occurrence";
+  if (argv.length !== 1 && !requireOriginOccurrence) {
+    throw new Error("usage: mobile-effect-result.js <runner-stdout> [--require-origin-occurrence]");
+  }
   const ownerId = required(env.LIFE_MANAGER_LOOP_ID, "LIFE_MANAGER_LOOP_ID");
   const occurrenceId = required(env.LIFE_MANAGER_OCCURRENCE_ID, "LIFE_MANAGER_OCCURRENCE_ID");
   const output = required(env.LIFE_MANAGER_RESULT_HINT_PATH, "LIFE_MANAGER_RESULT_HINT_PATH");
@@ -115,7 +141,7 @@ function main(argv = process.argv.slice(2), env = process.env) {
     occurrence_id: occurrenceId,
     provider: "postiz",
     provider_receipt_id: providerReceiptId,
-    effect_status: effectStatus(publication),
+    effect_status: effectStatus(publication, { occurrenceId, requireOriginOccurrence }),
   });
 }
 

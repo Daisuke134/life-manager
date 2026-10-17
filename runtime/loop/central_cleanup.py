@@ -12,6 +12,7 @@ import stat
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from contextlib import ExitStack, contextmanager
 from pathlib import Path
@@ -27,6 +28,7 @@ from runtime.loop.loop_cleanup import (
     gc_releases, remove_owned_tree, reclaim_release_source, release_is_reclaimed,
     RELEASE_NAME, _release_immutable_store_probe,
 )
+from runtime.host import resource_admission
 from runtime.host.resource_admission import process_starts
 
 
@@ -67,8 +69,10 @@ def no_effect_loop_ids(registry_path: Path) -> set[str]:
 
 def recorded_run_metadata(
         events_path: Path, loop_ids: set[str]
-        ) -> dict[tuple[str, str], tuple[str | None, str | None, str | None]]:
+        ) -> dict[tuple[str, str], tuple[str | None, str | None, str | None,
+                                        str | None, str | None, str | None]]:
     observed: dict[tuple[str, str], set[tuple[str | None, str | None, str | None]]] = {}
+    latest_effect: dict[tuple[str, str], tuple[str | None, str | None, str | None]] = {}
     try:
         with events_path.open(encoding="utf-8") as handle:
             for line in handle:
@@ -87,14 +91,21 @@ def recorded_run_metadata(
                     continue
                 if not isinstance(run_id, str):
                     return {}
-                observed.setdefault((loop_id, run_id), set()).add((
+                key = (loop_id, run_id)
+                observed.setdefault(key, set()).add((
                     effect_class if isinstance(effect_class, str) else None,
                     occurrence_id if isinstance(occurrence_id, str) else None,
                     release_sha if isinstance(release_sha, str) else None,
                 ))
+                latest_effect[key] = (
+                    event.get("effect_status") if isinstance(event.get("effect_status"), str) else None,
+                    event.get("provider_receipt_id") if isinstance(event.get("provider_receipt_id"), str) else None,
+                    event.get("official_readback_ref") if isinstance(event.get("official_readback_ref"), str) else None,
+                )
     except (OSError, UnicodeError):
         return {}
-    result: dict[tuple[str, str], tuple[str | None, str | None, str | None]] = {}
+    result: dict[tuple[str, str], tuple[str | None, str | None, str | None,
+                                        str | None, str | None, str | None]] = {}
     for key, values in observed.items():
         classes, occurrences, releases = ({value[index] for value in values}
                                            for index in range(3))
@@ -102,6 +113,7 @@ def recorded_run_metadata(
             next(iter(classes)) if len(classes) == 1 and None not in classes else None,
             next(iter(occurrences)) if len(occurrences) == 1 and None not in occurrences else None,
             next(iter(releases)) if len(releases) == 1 and None not in releases else None,
+            *latest_effect.get(key, (None, None, None)),
         )
     return result
 
@@ -218,6 +230,7 @@ def scratch_gc(roots: set[Path], *, snapshot_started_ns: int | None = None,
     result: dict[str, int | bool] = {
         "evaluated": 0, "removed": 0, "preserved": 0, "errors": 0,
         "owner_metadata_invalid": 0,
+        "contents_reclaimed": 0,
         "identity_snapshot_available": identities is not None,
     }
     flags = os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0)
@@ -297,24 +310,41 @@ def scratch_gc(roots: set[Path], *, snapshot_started_ns: int | None = None,
                                     raise ValueError("invalid owner effect class")
                             else:
                                 owner_effect_class = None
+                            event_key = (loop_name, run_name)
+                            metadata = event_metadata.get(event_key)
+                            (recorded_effect_class, occurrence_id, release_sha, effect_status,
+                             provider_receipt_id, official_readback_ref) = (
+                                metadata if metadata is not None else (None, None, None, None, None, None)
+                            )
+                            verified_close = (
+                                isinstance(occurrence_id, str)
+                                and isinstance(release_sha, str)
+                                and (loop_name, occurrence_id, release_sha) in reconciled_occurrences
+                            )
+                            no_effect_without_reconcile = (
+                                recorded_effect_class == "none"
+                                and loop_name in no_effect_loop_ids
+                            )
                             if has_terminal_unrecorded:
-                                event_key = (loop_name, run_name)
-                                recorded_effect_class, occurrence_id, release_sha = event_metadata.get(
-                                    event_key, (None, None, None))
-                                verified_close = (
-                                    isinstance(occurrence_id, str)
-                                    and isinstance(release_sha, str)
-                                    and (loop_name, occurrence_id, release_sha) in reconciled_occurrences
-                                )
-                                no_effect_without_reconcile = (
-                                    recorded_effect_class == "none"
-                                    and loop_name in no_effect_loop_ids
-                                )
                                 if (event_key not in event_metadata
                                         or recorded_effect_class is None
                                         or (not no_effect_without_reconcile and not verified_close)
                                         or (owner_effect_class is not None
                                             and owner_effect_class != recorded_effect_class)):
+                                    result["preserved"] += 1
+                                    continue
+                            if metadata is not None:
+                                effect_is_closed = (
+                                    verified_close
+                                    or no_effect_without_reconcile
+                                    or (recorded_effect_class not in {None, "none"}
+                                        and effect_status == "not_applicable"
+                                        and not provider_receipt_id and not official_readback_ref)
+                                    or (recorded_effect_class not in {None, "none"}
+                                        and effect_status in {"verified", "reconciled"}
+                                        and provider_receipt_id and official_readback_ref)
+                                )
+                                if not effect_is_closed:
                                     result["preserved"] += 1
                                     continue
                             if identities is None or owner_stat.st_mtime_ns >= started_ns:
@@ -329,8 +359,12 @@ def scratch_gc(roots: set[Path], *, snapshot_started_ns: int | None = None,
                             if browser_live is not False:
                                 result["preserved"] += 1
                                 continue
-                            if remove_owned_tree(loop_fd, run_fd, run_name):
+                            removal = remove_owned_tree(loop_fd, run_fd, run_name)
+                            if removal is True:
                                 result["removed"] += 1
+                            elif removal == "contents_reclaimed":
+                                result["contents_reclaimed"] += 1
+                                result["preserved"] += 1
                             else:
                                 result["errors"] += 1
                                 result["preserved"] += 1
@@ -397,11 +431,11 @@ def loaded_release_roots(agents_dir: Path, releases_root: Path) -> set[Path]:
     return protected
 
 
-def open_release_roots(releases_root: Path) -> set[Path]:
+def open_release_roots(releases_root: Path, timeout: float = 15) -> set[Path]:
     """Return release roots named by a running process command."""
     completed = subprocess.run(
         ["ps", "-axo", "command="],
-        capture_output=True, text=True, timeout=5,
+        capture_output=True, text=True, timeout=timeout,
     )
     if completed.returncode != 0:
         raise OSError(f"release process inventory failed: {completed.returncode}")
@@ -459,7 +493,7 @@ def _source_reclaim_lock(current: Path, deadline: float):
 
 
 def reclaim_unreferenced_source(releases: Path, current: Path, agents: Path, keep: int) -> dict:
-    """Retain stores while retiring one closed main code snapshot per occurrence."""
+    """Retain stores while retiring one closed, officially reachable source snapshot."""
     result = {"removed_files": 0, "reclaimed_bytes": 0, "protected_deletions": 0,
               "errors": 0, "status": "preserved"}
     source_repo = Path(os.environ.get("LIFE_MANAGER_SOURCE_REPO", "~/Projects/life-manager-main")).expanduser()
@@ -471,7 +505,11 @@ def reclaim_unreferenced_source(releases: Path, current: Path, agents: Path, kee
         return subprocess.run(["git", "-C", str(source_repo), *args], check=True,
                               capture_output=True, text=True, timeout=min(3, remaining)).stdout.strip()
     def references(owned_fds=()):
-        held = loaded_release_roots(agents, releases) | open_release_roots(releases)
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise subprocess.TimeoutExpired("ps", 0)
+        held = loaded_release_roots(agents, releases) | open_release_roots(
+            releases, min(5, remaining))
         held.add(current.resolve(strict=True))
         protected_file = Path(os.environ.get(
             "LIFE_MANAGER_PROTECTED_RELEASES", "~/.local/state/life-manager/protected-releases.json")).expanduser()
@@ -514,10 +552,56 @@ def reclaim_unreferenced_source(releases: Path, current: Path, agents: Path, kee
     try:
         # This same lock excludes both per-label apply and current activation.
         with _source_reclaim_lock(current, deadline):
-            cached_main = git("rev-parse", "refs/remotes/origin/main")
-            official = git("ls-remote", "origin", "refs/heads/main").split()
-            if not official or official[0] != cached_main:
-                return {**result, "status": "source_main_stale"}
+            official_heads = {}
+            for line in git("ls-remote", "--heads", "origin").splitlines():
+                fields = line.split()
+                if len(fields) == 2 and fields[1].startswith("refs/heads/"):
+                    official_heads[fields[1]] = fields[0]
+            local_refs = {}
+            for line in git("for-each-ref", "--format=%(refname) %(objectname)",
+                            "refs/remotes/origin").splitlines():
+                fields = line.split()
+                if len(fields) == 2:
+                    local_refs[fields[0]] = fields[1]
+            fresh_remote_refs = {}
+            for remote_ref, remote_sha in official_heads.items():
+                branch = remote_ref.removeprefix("refs/heads/")
+                local_ref = f"refs/remotes/origin/{branch}"
+                if local_refs.get(local_ref) == remote_sha:
+                    fresh_remote_refs[local_ref] = remote_sha
+            if not fresh_remote_refs:
+                return {**result, "status": "source_remote_refs_stale"}
+
+            def official_source_ref(sha: str) -> str | None:
+                containing = git("for-each-ref", f"--contains={sha}",
+                                 "--format=%(refname)", "refs/remotes/origin").splitlines()
+                return next((fresh_remote_refs[ref] for ref in containing
+                             if ref in fresh_remote_refs), None)
+
+            def existing_source_pin(sha: str) -> str | None:
+                pin = f"refs/life-manager/retired-release-source/{sha}"
+                try:
+                    value = git("rev-parse", "--verify", f"{pin}^{{commit}}")
+                except subprocess.CalledProcessError:
+                    return None
+                return value if value == sha else "mismatch"
+
+            def ensure_source_pin(sha: str, verified_ref: str) -> str | None:
+                pin = f"refs/life-manager/retired-release-source/{sha}"
+                existing = existing_source_pin(sha)
+                if existing == "mismatch":
+                    return None
+                if existing == sha:
+                    return sha
+                try:
+                    git("merge-base", "--is-ancestor", sha, verified_ref)
+                    git("update-ref", pin, sha, "0" * 40)
+                except subprocess.CalledProcessError:
+                    # Another cooperating cleanup may have created the same pin.
+                    existing = existing_source_pin(sha)
+                    return sha if existing == sha else None
+                return sha if existing_source_pin(sha) == sha else None
+
             common = Path(git("rev-parse", "--git-common-dir"))
             if not common.is_absolute():
                 common = source_repo / common
@@ -526,12 +610,10 @@ def reclaim_unreferenced_source(releases: Path, current: Path, agents: Path, kee
                 if p.is_symlink() or p.stat().st_uid != os.getuid() or p.stat().st_size > 65536:
                     raise ValueError("release lease inventory is unknown")
                 leases.append(json.dumps(json.loads(p.read_text())))
-            held = references()
             candidates = []
             rollback = []
             for path in releases.iterdir():
-                if (not RELEASE_NAME.fullmatch(path.name) or not path.is_dir() or path.is_symlink()
-                        or path.resolve() in held):
+                if not RELEASE_NAME.fullmatch(path.name) or not path.is_dir() or path.is_symlink():
                     continue
                 retired = release_is_reclaimed(path)
                 descriptor = path / ("RECLAIMED-RELEASE.json" if retired else "RELEASE.json")
@@ -546,22 +628,41 @@ def reclaim_unreferenced_source(releases: Path, current: Path, agents: Path, kee
                 if not retired:
                     rollback.append((path.stat().st_mtime, path))
                 if retired or _release_immutable_store_probe(path, deadline=deadline) == "protected_descendant":
-                    candidates.append((path.stat().st_mtime, path, sha))
+                    source_ref = existing_source_pin(sha) or official_source_ref(sha)
+                    if source_ref:
+                        candidates.append((path.stat().st_mtime, path, sha, source_ref))
+            held = references()
+            candidates = [item for item in candidates if item[1].resolve() not in held]
+            rollback = [item for item in rollback if item[1].resolve() not in held]
             keep_roots = {p for _, p in sorted(rollback, reverse=True)[:max(1, keep)]}
             counts = {}
-            for _, _, sha in candidates:
+            for _, _, sha, _ in candidates:
                 counts[sha] = counts.get(sha, 0) + 1
             ordered = sorted(candidates, key=lambda item: (
                 counts[item[2]] == 1 or release_is_reclaimed(item[1]),
                 -item[0] if counts[item[2]] > 1 and not release_is_reclaimed(item[1]) else item[0]))
-            for _, path, sha in ordered:
+            for _, path, sha, source_ref in ordered:
                 if time.monotonic() >= deadline or path in keep_roots:
                     continue
-                if subprocess.run(["git", "-C", str(source_repo), "merge-base", "--is-ancestor", sha, cached_main],
-                                  capture_output=True, timeout=min(2, max(.01, deadline-time.monotonic()))).returncode:
+                pinned_source = ensure_source_pin(sha, source_ref)
+                if pinned_source is None:
                     continue
+                open_reference_snapshot = None
+
+                def can_reclaim(owned_fds):
+                    nonlocal open_reference_snapshot
+                    if not owned_fds:
+                        return path.resolve() not in held
+                    if open_reference_snapshot is None:
+                        # Refresh once after the release descriptors are open, then reuse
+                        # that lock-scoped inventory for this source-file batch. Re-running
+                        # full-system lsof for every leaf exhausted the 15s cleanup budget.
+                        open_reference_snapshot = references(owned_fds)
+                    return path.resolve() not in open_reference_snapshot
+
                 result = reclaim_release_source(path, source_repo,
-                    can_reclaim=lambda owned: path.resolve() not in references(owned), deadline=deadline)
+                    can_reclaim=can_reclaim,
+                    source_ref=pinned_source, deadline=deadline)
                 result["release_root"] = str(path)
                 result["release_sha"] = sha
                 if release_is_reclaimed(path):
@@ -576,26 +677,70 @@ def reclaim_unreferenced_source(releases: Path, current: Path, agents: Path, kee
 
 
 def git_duplicate_cleanup(source_repo: Path) -> dict:
-    result = {"errors": 0, "prune_packable_before": None, "prune_packable_after": None}
+    result = {"errors": 0, "prune_packable_before": None, "prune_packable_after": None,
+              "loose_bytes_before": None, "loose_bytes_after": None}
     if not (source_repo / ".git").exists():
         return {**result, "status": "not_applicable"}
     try:
         if source_repo.stat().st_uid != os.getuid():
             raise ValueError("source repository owner mismatch")
         def git(*args):
-            return subprocess.run(["git", "-C", str(source_repo), *args],
-                capture_output=True, text=True, timeout=15, check=True).stdout
+            command = ["git", "-C", str(source_repo), *args]
+            environment = {**os.environ, "LC_ALL": "C"}
+            if args[:2] == ("maintenance", "run"):
+                from runtime.loop.lm_loop_run import _run_entrypoint
+                with tempfile.TemporaryFile(mode="w+") as stdout, \
+                     tempfile.TemporaryFile(mode="w+") as stderr:
+                    code = _run_entrypoint(command, env=environment, timeout_seconds=15,
+                        termination_grace_seconds=15, stdout_capture_fd=stdout.fileno(),
+                        stderr_capture_fd=stderr.fileno())
+                    stdout.seek(0)
+                    stderr.seek(0)
+                    completed = subprocess.CompletedProcess(command, code, stdout.read(), stderr.read())
+                if code == 124:
+                    raise subprocess.TimeoutExpired(command, 15,
+                        output=completed.stdout, stderr=completed.stderr)
+                completed.check_returncode()
+                return completed
+            return subprocess.run(command,
+                capture_output=True, text=True, timeout=15, check=True,
+                env=environment)
         def count():
-            return int(next(line.partition(":")[2] for line in git("count-objects", "-v").splitlines()
-                            if line.startswith("prune-packable:")))
-        result["prune_packable_before"] = count()
-        # Native Git removes only loose copies already present in a pack, preserving all refs.
-        if result["prune_packable_before"]:
+            lines = git("count-objects", "-v").stdout.splitlines()
+            return {name: int(next(line.partition(":")[2] for line in lines
+                                  if line.startswith(f"{name}:")))
+                    for name in ("prune-packable", "size")}
+        before = count()
+        result["prune_packable_before"] = before["prune-packable"]
+        result["loose_bytes_before"] = before["size"] * 1024
+        if before["prune-packable"]:
             git("prune-packed")
-            result["prune_packable_after"] = count()
-        else:
-            result["prune_packable_after"] = 0
+        # Byte pressure bypasses only the count threshold; Git keeps its batch and lock.
+        auto = ("--auto",) if before["size"] < 128 * 1024 else ()
+        lock = Path(git("rev-parse", "--git-path", "objects/maintenance.lock").stdout.strip())
+        if not lock.is_absolute():
+            lock = source_repo / lock
+        maintenance = (None if lock.exists() else
+                       git("maintenance", "run", "--no-quiet", *auto, "--task=loose-objects"))
+        if (maintenance is None or lock.exists()
+                or "skipping maintenance" in maintenance.stderr):
+            result.update(status="deferred", error_class="NativeMaintenanceSkipped",
+                          retryable=True, next_action="retry_next_natural_pass",
+                          native_diagnostic=(maintenance.stderr[-2048:].strip()
+                                             if maintenance is not None and maintenance.stderr
+                                             else "maintenance lock observed; ownership unknown"))
+            return result
+        # Newly packed loose objects can be reclaimed in this same sweep.
+        after = count()
+        if after["prune-packable"]:
+            git("prune-packed")
+            after = count()
+        result["prune_packable_after"] = after["prune-packable"]
+        result["loose_bytes_after"] = after["size"] * 1024
         result["status"] = "pass"
+    except subprocess.TimeoutExpired:
+        result.update(status="deferred", error_class="TimeoutExpired",
+                      retryable=True, next_action="retry_next_natural_pass")
     except (OSError, ValueError, StopIteration, subprocess.SubprocessError) as error:
         result.update(errors=1, status="failed", error_class=type(error).__name__)
     return result
@@ -714,6 +859,10 @@ def main() -> int:
     binding = cleanup_run_binding(dict(os.environ), ROOT)
     codex_result = (codex_history_cleanup(home) if binding and
         binding.get("owner_id") == "life-manager-disk-cleanup" else {"status": "unbound_owner"})
+    try:
+        queue_result = {"cancelled": resource_admission.cancel_stale_queued_occurrences()}
+    except Exception as error:  # admission maintenance never fails the cleanup run
+        queue_result = {"error_class": type(error).__name__}
     # The 60-second watchdog is the sole HostDiskGovernor owner. This five-minute
     # service performs maintenance and release/scratch GC without contending on
     # the watchdog's host-sweep lock.
@@ -736,8 +885,10 @@ def main() -> int:
     result.update({"ok": result["errors"] == 0 and host_ok and scratch_result["errors"] == 0,
                    "git_cleanup": git_result,
                    "codex_storage": codex_result,
+                   "admission_queue": queue_result,
                    "host_cleanup": host_result,
                    "scratch_cleanup": scratch_result,
+                   "run_binding": binding,
                    "idle_reconcile": [],
                    "shared_cache_candidates": 0, "orphan_candidates": 0})
     print(json.dumps(result, sort_keys=True, separators=(",", ":")))

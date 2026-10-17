@@ -7,14 +7,18 @@ import tempfile
 import fcntl
 import os
 import time
-from contextlib import redirect_stdout
+from contextlib import nullcontext, redirect_stdout
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
 
 from job_search_loop.browser_agent.direct_cdp import DirectCDPPage
 from job_search_loop.browser_agent.observation import ObservationBuilder
 from job_search_loop.browser_agent.actions import ActionExecutor
-from job_search_loop.browser_agent.contracts import ActionTargetV1, VisibleActionV1
+from job_search_loop.browser_agent.contracts import (
+    ActionTargetV1,
+    SessionHandleV1,
+    VisibleActionV1,
+)
 from job_search_loop.browser_agent.runtime import main as browser_runtime_main
 from job_search_loop.browser_agent.runtime import auth, type_candidate, type_text
 from job_search_loop.ledger import Ledger
@@ -110,16 +114,35 @@ class DirectCDPTypeTests(unittest.IsolatedAsyncioTestCase):
         builder = Mock(build=AsyncMock(return_value=observation))
         context = (row, session, checkpoints, Mock(), cursor, builder)
         store = Mock()
-        with tempfile.TemporaryDirectory() as directory, patch.object(
-            runtime, "_context", new=AsyncMock(return_value=context)
-        ), patch.object(
-            runtime, "_path_env", return_value=Path(directory) / "credentials.json"
-        ), patch.object(
-            runtime, "MachineWorkdayCredentialStore", return_value=store
-        ):
-            result = await runtime.checkpoint("email_recovery")
+        completed = Mock()
+        sender = Mock(return_value={"status": "sent", "message_id": "recovery-1"})
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            paths = {
+                "JOB_SEARCH_MACHINE_CREDENTIALS": root / "credentials.json",
+                "JOB_SEARCH_STATE_ROOT": root / "state",
+                "JOB_SEARCH_BROWSER_OWNER_EVIDENCE": root / "evidence" / "wake-1" / "browser-owner.json",
+            }
+            with patch.object(
+                runtime, "_context", new=AsyncMock(return_value=context)
+            ), patch.object(
+                runtime, "_path_env", side_effect=lambda name: paths[name]
+            ), patch.object(
+                runtime, "MachineWorkdayCredentialStore", return_value=store
+            ), patch.object(
+                runtime, "send_hourly_outcomes", sender
+            ), patch.object(
+                runtime, "_mark_wake_completed", completed
+            ):
+                result = await runtime.checkpoint("email_recovery")
 
         self.assertEqual(result["status"], "checkpointed")
+        self.assertEqual(result["application_id"], row["application_id"])
+        self.assertEqual(result["report_message_id"], "recovery-1")
+        sender.assert_called_once()
+        completed.assert_called_once_with(
+            row["application_id"], resume_next_wake=False
+        )
         store.mark_account_status.assert_called_once_with(
             row["canonical_url"], "recovery_requested"
         )
@@ -657,6 +680,147 @@ class DirectCDPTypeTests(unittest.IsolatedAsyncioTestCase):
             [("Input.insertText", {"text": "Developer"})],
         )
 
+    async def test_scroll_target_wheels_inside_the_exact_visible_option(self):
+        page = DirectCDPPage("ws://example", "target")
+        target = {
+            "label": "Afghanistan",
+            "role": "option",
+            "stable_id": "ref:e14",
+        }
+        page.resolve_target = AsyncMock(return_value={"x": 420.0, "y": 615.0})
+        page.call = AsyncMock(return_value={})
+
+        with patch(
+            "job_search_loop.browser_agent.direct_cdp.asyncio.sleep",
+            new=AsyncMock(),
+        ):
+            await page.scroll_target(target, delta_y=300)
+
+        page.resolve_target.assert_awaited_once_with(target, scroll=False)
+        page.call.assert_awaited_once_with(
+            "Input.dispatchMouseEvent",
+            {
+                "type": "mouseWheel",
+                "x": 420.0,
+                "y": 615.0,
+                "deltaX": 0,
+                "deltaY": 300,
+            },
+        )
+
+    async def test_direct_scroll_action_uses_the_observed_option_as_its_anchor(self):
+        page = DirectCDPPage("ws://example", "target")
+        page.scroll_target = AsyncMock()
+        page.scroll = AsyncMock()
+        target = ActionTargetV1("option", "Afghanistan", stable_id="ref:e14")
+        action = VisibleActionV1("scroll", target=target, delta_y=300)
+
+        await ActionExecutor(unittest.mock.Mock())._execute_direct(page, action)
+
+        page.scroll_target.assert_awaited_once_with(
+            {
+                "role": "option",
+                "label": "Afghanistan",
+                "exact": True,
+                "stable_id": "ref:e14",
+                "ordinal": None,
+            },
+            300,
+        )
+        page.scroll.assert_not_awaited()
+
+    async def test_playwright_scroll_moves_to_the_observed_option_before_wheeling(self):
+        page = Mock()
+        page.url = "https://venaenergy.wd102.myworkdayjobs.com/careers"
+        page.mouse.move = AsyncMock()
+        page.mouse.wheel = AsyncMock()
+        page.wait_for_timeout = AsyncMock()
+        session = Mock()
+        session.page.return_value = page
+        target = ActionTargetV1("option", "Afghanistan", stable_id="ref:e14")
+        locator = Mock()
+        locator.bounding_box = AsyncMock(
+            return_value={"x": 400.0, "y": 600.0, "width": 120.0, "height": 24.0}
+        )
+        executor = ActionExecutor(session)
+        executor._target = AsyncMock(return_value=locator)
+        handle = SessionHandleV1(1, "http://localhost:9222", "wake-1", "page-1", 1)
+        action = VisibleActionV1("scroll", target=target, delta_y=300)
+
+        await executor.execute(handle, action)
+
+        executor._target.assert_awaited_once_with(page, target)
+        page.mouse.move.assert_awaited_once_with(460.0, 612.0)
+        page.mouse.wheel.assert_awaited_once_with(0, 300)
+        page.wait_for_timeout.assert_awaited_once_with(350)
+
+    async def test_scroll_runtime_writes_only_the_observed_anchor_and_removes_action_file(self):
+        from job_search_loop.browser_agent import runtime
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            received = {}
+
+            async def consume(action_path):
+                received["value"] = json.loads(action_path.read_text(encoding="utf-8"))
+                received["mode"] = os.stat(action_path).st_mode & 0o777
+                return {"status": "acted"}
+
+            with patch.object(runtime, "_path_env", return_value=root), patch.object(
+                runtime, "act", new=consume
+            ):
+                result = await runtime.scroll(
+                    label="Afghanistan",
+                    role="option",
+                    stable_id="ref:e14",
+                    delta_y=300,
+                )
+
+            self.assertEqual(result, {"status": "acted"})
+            self.assertEqual(received["mode"], 0o600)
+            self.assertEqual(
+                received["value"],
+                {
+                    "kind": "scroll",
+                    "target": {
+                        "label": "Afghanistan",
+                        "role": "option",
+                        "stable_id": "ref:e14",
+                    },
+                    "delta_y": 300,
+                },
+            )
+            self.assertFalse((root / "runtime-scroll.json").exists())
+
+    def test_runtime_exposes_targeted_picker_scroll(self):
+        from job_search_loop.browser_agent import runtime
+
+        scroll = AsyncMock(return_value={"status": "acted"})
+        stdout = io.StringIO()
+        with patch.object(runtime, "_claim_active_command"), patch.object(
+            runtime, "_clear_active_command"
+        ), patch.object(runtime, "_check_terminal_failure_marker"), patch.object(
+            runtime, "_exclusive_command", return_value=nullcontext()
+        ), patch.object(runtime, "scroll", new=scroll), redirect_stdout(stdout):
+            result = browser_runtime_main(
+                [
+                    "scroll",
+                    "--label",
+                    "Afghanistan",
+                    "--role",
+                    "option",
+                    "--stable-id",
+                    "ref:e14",
+                    "--delta-y",
+                    "300",
+                ]
+            )
+
+        self.assertEqual(result, 0)
+        scroll.assert_awaited_once_with(
+            label="Afghanistan", role="option", stable_id="ref:e14", delta_y=300
+        )
+
     def test_ineligible_preserves_a_claimed_submission_without_terminal_failure(self):
         from job_search_loop.browser_agent import runtime
 
@@ -767,6 +931,154 @@ class DirectCDPTypeTests(unittest.IsolatedAsyncioTestCase):
             completed.assert_called_once_with(application_id)
             session.close_owned.assert_awaited_once_with(cursor.handle)
             sender.assert_not_called()
+
+    async def test_checkpoint_reports_and_completes_the_same_application_atomically(self):
+        from types import SimpleNamespace
+
+        from job_search_loop.browser_agent import runtime
+        from job_search_loop.browser_agent.contracts import QueueRowReceiptV1
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            row = {
+                "application_id": "application-checkpoint-a",
+                "company": "Example",
+                "title": "Role",
+                "canonical_url": "https://jobs.example.com/role",
+            }
+            session = Mock()
+            session.close_owned = AsyncMock()
+            checkpoints = Mock()
+            checkpoints.save.return_value = Mock(checkpoint_sha256="c" * 64)
+            cursor = Mock(checkpoint=None)
+            cursor.handle = SimpleNamespace(page_marker="page-1", generation=2)
+            observation = SimpleNamespace(
+                content_sha256="a" * 64,
+                url="https://jobs.example.com/role/application",
+            )
+            builder = Mock(build=AsyncMock(return_value=observation))
+            context = (row, session, checkpoints, Mock(), cursor, builder)
+            owner_evidence = root / "evidence" / "wake-1" / "browser-owner.json"
+            paths = {
+                "JOB_SEARCH_BROWSER_OWNER_EVIDENCE": owner_evidence,
+                "JOB_SEARCH_STATE_ROOT": root / "state",
+            }
+            sender = Mock(
+                return_value={"status": "sent", "message_id": "checkpoint-1"}
+            )
+            completed = Mock()
+
+            with patch.object(
+                runtime, "_context", new=AsyncMock(return_value=context)
+            ), patch.object(
+                runtime, "_path_env", side_effect=lambda name: paths[name]
+            ), patch.object(
+                runtime, "send_hourly_outcomes", sender
+            ), patch.object(
+                runtime, "_mark_wake_completed", completed
+            ):
+                result = await runtime.checkpoint("wake_budget_low")
+
+        self.assertEqual(result.get("application_id"), "application-checkpoint-a")
+        self.assertEqual(result.get("report_message_id"), "checkpoint-1")
+        sender.assert_called_once_with(
+            database=root / "state" / "telegram-outbox.sqlite3",
+            wake_id="wake-1",
+            receipts=(
+                QueueRowReceiptV1(
+                    "application-checkpoint-a", "Example", "Role", "checkpointed"
+                ),
+            ),
+            evidence_classes={},
+        )
+        completed.assert_called_once_with(
+            "application-checkpoint-a", resume_next_wake=True
+        )
+        session.close_owned.assert_awaited_once_with(cursor.handle)
+
+    async def test_answer_memory_resolves_an_exact_private_question(self):
+        from job_search_loop.browser_agent import runtime
+        from job_search_loop.browser_agent.answer_memory import AnswerMemory
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "answer-memory.json"
+            AnswerMemory(path).remember(
+                concept="job_hunter.prior_employment.circles",
+                answer="No",
+                kind="derived",
+                provenance=("uploaded_resume_experience_absent",),
+                question_variants=("Have you previously been employed by Circles?",),
+            )
+            resolver = getattr(runtime, "resolve_saved_answer", None)
+            self.assertTrue(callable(resolver), "browser runtime must expose saved answers")
+            with patch.object(runtime, "_path_env", return_value=path):
+                result = await resolver("Have you previously been employed by Circles?")
+
+        self.assertEqual(result["status"], "answer_found")
+        self.assertEqual(result["answer"], "No")
+        self.assertEqual(result["kind"], "derived")
+        self.assertEqual(result["provenance"], ["uploaded_resume_experience_absent"])
+
+    def test_answer_cli_resolves_saved_answer_without_browser_session(self):
+        from contextlib import nullcontext
+
+        from job_search_loop.browser_agent import runtime
+        from job_search_loop.browser_agent.answer_memory import AnswerMemory
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "answer-memory.json"
+            AnswerMemory(path).remember(
+                concept="job_hunter.prior_employment.circles",
+                answer="No",
+                kind="derived",
+                provenance=("uploaded_resume_experience_absent",),
+                question_variants=("Have you previously been employed by Circles?",),
+            )
+            output = io.StringIO()
+            with patch.object(runtime, "_claim_active_command"), patch.object(
+                runtime, "_clear_active_command"
+            ), patch.object(
+                runtime, "_exclusive_command", return_value=nullcontext()
+            ), patch.object(
+                runtime, "_check_terminal_failure_marker"
+            ), patch.object(
+                runtime, "_path_env", return_value=path
+            ), redirect_stdout(output):
+                result = runtime.main(
+                    ["answer", "--question-label", "Have you previously been employed by Circles?"]
+                )
+
+        self.assertEqual(result, 0)
+        self.assertEqual(json.loads(output.getvalue())["answer"], "No")
+
+    def test_standalone_checkpoint_report_cannot_select_a_different_row(self):
+        from job_search_loop.browser_agent import runtime
+
+        selected_row = Mock(
+            return_value={
+                "application_id": "next-row",
+                "company": "Example",
+                "title": "Another Role",
+            }
+        )
+        sender = Mock(return_value={"status": "sent", "message_id": "message-2"})
+        paths = {
+            "JOB_SEARCH_BROWSER_OWNER_EVIDENCE": Path("/tmp/evidence/wake/browser-owner.json"),
+            "JOB_SEARCH_STATE_ROOT": Path("/tmp/state"),
+        }
+        with patch.object(runtime, "_row", selected_row), patch.object(
+            runtime, "send_hourly_outcomes", sender
+        ), patch.object(
+            runtime, "_path_env", side_effect=lambda name: paths[name]
+        ), patch.object(
+            runtime, "_mark_wake_completed"
+        ):
+            result = runtime.report("checkpointed")
+
+        self.assertEqual(result["status"], "action_rejected")
+        self.assertEqual(result["reason"], "checkpoint_outcome_is_reported_atomically")
+        selected_row.assert_not_called()
+        sender.assert_not_called()
 
 
 if __name__ == "__main__":

@@ -112,7 +112,8 @@ class PlanPrompt(unittest.TestCase):
 
 class GuardCampaignValue(unittest.TestCase):
     WINTER = [{"value": "835", "title": "冬を感じるスタンプ", "deadline": "2026-12-04",
-               "conditions": "個数：8-40個\nパッケージの8個以上が「冬」に関連したクリエイティブであること"}]
+               "conditions": "個数：8-40個\n金額：￥190～\nパッケージの8個以上が「冬」に関連したクリエイティブであること",
+               "observed_at": "2026-10-08T00:30:00+09:00"}]
     ORDER = [f"m{i}" for i in range(24)]
 
     def test_a_value_with_enough_on_theme_stickers_passes_through(self) -> None:
@@ -135,6 +136,28 @@ class GuardCampaignValue(unittest.TestCase):
     def test_a_value_not_in_the_open_list_is_dropped_even_if_once_valid(self) -> None:
         # open_features already excludes expired entries; anything missing from it is unjoinable.
         self.assertIsNone(MODULE._guard_campaign_value("835", []))
+
+    def test_campaign_without_machine_readable_count_and_price_conditions_is_dropped(self) -> None:
+        feature = [{"value": "835", "deadline": "2026-12-04", "conditions": "冬テーマが8個以上"}]
+        self.assertIsNone(MODULE._guard_campaign_value("835", feature, self.ORDER[:12], self.ORDER))
+
+    def test_campaign_without_machine_readable_theme_count_is_dropped(self) -> None:
+        feature = [{"value": "835", "title": "冬を感じるスタンプ", "deadline": "2026-12-04",
+                    "observed_at": "2026-10-08T00:30:00+09:00",
+                    "conditions": "個数：8-40個\n金額：￥190～\n冬のクリエイティブ"}]
+        self.assertIsNone(MODULE._guard_campaign_value("835", feature, self.ORDER[:12], self.ORDER))
+
+    def test_campaign_requirements_keep_live_identity_fields_for_submit_recheck(self) -> None:
+        feature = {
+            "value": "835", "title": "冬を感じるスタンプ", "deadline": "2026-12-04",
+            "conditions": "個数：8-40個\n金額：￥190～\n冬関連が8個以上",
+            "observed_at": "2026-10-12T00:30:00+09:00",
+        }
+        self.assertEqual(MODULE._campaign_requirements(feature), {
+            "value": "835", "title": "冬を感じるスタンプ", "deadline": "2026-12-04",
+            "min_sticker_count": 8, "max_sticker_count": 40, "min_price_jpy": 190,
+            "min_theme_stickers": 12, "observed_at": "2026-10-12T00:30:00+09:00",
+        })
 
 
 class DeadlinePassed(unittest.TestCase):
@@ -164,7 +187,7 @@ class OpenFeatures(unittest.TestCase):
         original = MODULE.FEATURES_FILE
         with tempfile.TemporaryDirectory() as tmp:
             MODULE.FEATURES_FILE = Path(tmp) / "features.json"
-            MODULE.FEATURES_FILE.write_text(json.dumps({"features": [
+            MODULE.FEATURES_FILE.write_text(json.dumps({"observed_at": "2026-10-08T00:30:00+09:00", "features": [
                 {"value": "811", "title": "秋を感じるスタンプ", "deadline": "2026-10-01"},
                 {"value": "835", "title": "冬を感じるスタンプ", "deadline": "2026-12-04"},
             ]}))
@@ -173,6 +196,19 @@ class OpenFeatures(unittest.TestCase):
             finally:
                 MODULE.FEATURES_FILE = original
         self.assertEqual([f["value"] for f in open_features], ["835"])
+
+    def test_stale_feature_snapshot_is_not_used_for_campaign_selection(self) -> None:
+        original = MODULE.FEATURES_FILE
+        with tempfile.TemporaryDirectory() as tmp:
+            MODULE.FEATURES_FILE = Path(tmp) / "features.json"
+            MODULE.FEATURES_FILE.write_text(json.dumps({"observed_at": "2026-10-07T14:00:00+00:00", "features": [
+                {"value": "835", "title": "冬を感じるスタンプ", "deadline": "2026-12-04"},
+            ]}))
+            try:
+                open_features = MODULE._open_features(datetime.date(2026, 10, 8))
+            finally:
+                MODULE.FEATURES_FILE = original
+        self.assertEqual(open_features, [])
 
 
 class SelectorPromptIncludesOpenFeatures(unittest.TestCase):
@@ -183,9 +219,9 @@ class SelectorPromptIncludesOpenFeatures(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             set_dir = Path(tmp)
             MODULE.FEATURES_FILE = set_dir / "features.json"
-            MODULE.FEATURES_FILE.write_text(json.dumps({"features": [
+            MODULE.FEATURES_FILE.write_text(json.dumps({"observed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(), "features": [
                 {"value": "835", "title": "冬を感じるスタンプ", "deadline": "2099-12-04",
-                 "conditions": "8個以上40個以下、新規キャラクターのみ"},
+                 "conditions": "個数：8-40個\n金額：￥190～\nパッケージの8個以上が冬に関連したクリエイティブ"},
             ]}))
             (set_dir / "candidates-sheet.png").write_bytes(b"\x89PNG\r\n")
 
@@ -207,7 +243,7 @@ class SelectorPromptIncludesOpenFeatures(unittest.TestCase):
                 MODULE.FEATURES_FILE = original_features_file
 
         self.assertIn("冬を感じるスタンプ", captured["prompt"])
-        self.assertIn("8個以上40個以下", captured["prompt"])
+        self.assertIn("個数：8-40個", captured["prompt"])
         self.assertEqual(result["campaign_value"], "835")
 
     def test_guard_nulls_out_a_value_that_is_not_actually_open(self) -> None:

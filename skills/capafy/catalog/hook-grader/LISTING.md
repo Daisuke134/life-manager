@@ -66,9 +66,9 @@ Creators and social teams who already drafted a hook and want a second opinion b
 ## ❓ FAQ
 **What should I send?** The hook you already wrote — the spoken line, the on-screen text, or both — plus the platform.
 
-**Does this write new hooks for me?** No. It only scores the one hook you send. For 5+ new hooks and a full script built from a topic, Hook Lab on Capafy does that.
+**Does this write new hooks for me?** No. It only scores the one hook you send. For 5+ new hooks and a full script built from a topic, Hook Lab on Capafy does that: https://capafy.ai/agent/8123079349?ct=hooklab_free
 
 **Can I send more than one hook?** One at a time works best — send your next hook as a new message and it scores that one.
 
 ---
-Need 5+ new hooks and a full script? Hook Lab on Capafy does that.
+Need 5+ new hooks and a full script? Hook Lab on Capafy does that: https://capafy.ai/agent/8123079349?ct=hooklab_free

@@ -4,11 +4,16 @@ These tests use fake ``run_call``/``read_fenced`` callables so no real owner
 script, browser, or admission database is touched.
 """
 
+import io
 import json
+import os
+import sqlite3
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 from runtime.loop.fence_reconcile import (
     build_argv,
@@ -215,6 +220,7 @@ class ReconcileTest(unittest.TestCase):
     def test_null_occurrence_flag_owner_is_called_once_for_all_its_fences(self):
         state = {"owner-d": ["owner-d:1", "owner-d:2"]}
         calls = []
+        release_sha = "d" * 40
 
         def read_fenced():
             return {k: tuple(v) for k, v in state.items() if v}
@@ -222,21 +228,78 @@ class ReconcileTest(unittest.TestCase):
         def run_call(argv, **_k):
             calls.append(argv)
             state["owner-d"] = []  # the script's own internal enumeration closed both
-            return 0, "resolved"
+            return 0, "\n".join(json.dumps({
+                "owner_id": "owner-d", "occurrence_id": occurrence,
+                "release_sha": release_sha, "verified": True,
+                "provider_receipt_id": f"official:{occurrence}",
+            }) for occurrence in ("owner-d:1", "owner-d:2")) + "\n"
+
+        with tempfile.TemporaryDirectory() as directory:
+            state_root = Path(directory) / "owner-state"
+            state_root.mkdir()
+            (state_root / "events.jsonl").write_text("\n".join(json.dumps({
+                "loop_id": "owner-d", "owner_id": "owner-d",
+                "occurrence_id": occurrence, "release_sha": release_sha,
+            }) for occurrence in ("owner-d:1", "owner-d:2")) + "\n")
+            loops = {"owner-d": {
+                "state_root": str(state_root),
+                "effect_reconcile": {
+                    "argv": ["skills/x/self_enumerate.py"], "occurrence_flag": None,
+                    "resolve_flag": "--resolve",
+                },
+            }}
+            ledger = Path(directory) / "calls.jsonl"
+            summary = reconcile(
+                registry=_registry(loops), root=Path("/release"),
+                run_call=run_call, read_fenced=read_fenced, log_path=ledger,
+            )
+            rows = [json.loads(line) for line in ledger.read_text().splitlines()]
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(summary["closed"], 2)
+        self.assertEqual(summary["still_fenced"], 0)
+        self.assertEqual({row["occurrence_id"] for row in rows}, {"owner-d:1", "owner-d:2"})
+        self.assertTrue(all(row["closure_proof"]["verified"] for row in rows))
+
+    def test_unchanged_self_enumerated_fences_append_one_owner_summary(self):
+        state = {"owner-d": ["owner-d:1", "owner-d:2"]}
+        calls = []
+
+        def read_fenced():
+            return {owner: tuple(sorted(occurrences)) for owner, occurrences in state.items()
+                    if occurrences}
+
+        def run_call(argv, **_k):
+            calls.append(argv)
+            return 75, "still fenced"
 
         loops = {"owner-d": {"effect_reconcile": {
             "argv": ["skills/x/self_enumerate.py"], "occurrence_flag": None,
             "resolve_flag": "--resolve"}}}
         with tempfile.TemporaryDirectory() as directory:
             ledger = Path(directory) / "calls.jsonl"
-            ledger.write_text("{}\n")
-            summary = reconcile(
+            first = reconcile(
                 registry=_registry(loops), root=Path("/release"),
-                run_call=run_call, read_fenced=read_fenced, log_path=ledger,
+                run_call=run_call, read_fenced=read_fenced, log_path=ledger, wake_epoch=6000,
             )
-        self.assertEqual(len(calls), 1)
-        self.assertEqual(summary["closed"], 2)
-        self.assertEqual(summary["still_fenced"], 0)
+            second = reconcile(
+                registry=_registry(loops), root=Path("/release"),
+                run_call=run_call, read_fenced=read_fenced, log_path=ledger, wake_epoch=6600,
+            )
+            state["owner-d"].append("owner-d:3")
+            third = reconcile(
+                registry=_registry(loops), root=Path("/release"),
+                run_call=run_call, read_fenced=read_fenced, log_path=ledger, wake_epoch=7200,
+            )
+            rows = [json.loads(line) for line in ledger.read_text().splitlines()]
+
+        self.assertEqual(len(calls), 3)
+        self.assertEqual([first["still_fenced"], second["still_fenced"],
+                          third["still_fenced"]], [2, 2, 3])
+        self.assertEqual(len(rows), 2)
+        self.assertTrue(all(row["owner_batch_summary"] is True for row in rows))
+        self.assertEqual([row["still_fenced_count"] for row in rows], [2, 3])
+        self.assertTrue(all(row["closed"] is False for row in rows))
+        self.assertTrue(all("closure_proof" not in row for row in rows))
 
     def test_cap_and_round_robin_respected_across_owners(self):
         state = {
@@ -335,6 +398,92 @@ class ReconcileTest(unittest.TestCase):
         self.assertTrue(rows[0]["closed"])
         self.assertEqual(rows[0]["exit_code"], 0)
         self.assertLessEqual(len(rows[0]["stdout_tail"]), 300)
+
+    def test_reconciles_exact_terminal_unknown_when_admission_row_is_already_released(self):
+        owner_id = "line-sticker-factory-hourly"
+        occurrence_id = f"{owner_id}:run-1"
+        release_sha = "a" * 40
+        calls = []
+        proof = json.dumps({
+            "owner_id": owner_id,
+            "occurrence_id": occurrence_id,
+            "verified": True,
+            "provider_receipt_id": "creators-market-readback:48299386:審査待ち",
+        })
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            owner_state = root / "owner-state"
+            owner_state.mkdir()
+            (owner_state / "events.jsonl").write_text(json.dumps({
+                "loop_id": owner_id,
+                "owner_id": owner_id,
+                "occurrence_id": occurrence_id,
+                "release_sha": release_sha,
+                "phase": "report",
+                "status": "fail",
+                "effect_class": "publish",
+                "effect_status": "unknown",
+            }) + "\n")
+            database = root / "admission-v2.sqlite3"
+            with sqlite3.connect(database) as connection:
+                connection.execute(
+                    "CREATE TABLE occurrences(owner_id TEXT, occurrence_id TEXT, state TEXT, "
+                    "effect_unknown INTEGER)"
+                )
+                connection.execute(
+                    "INSERT INTO occurrences VALUES(?,?,?,?)",
+                    (owner_id, occurrence_id, "released", 0),
+                )
+            call_log = root / "reconcile-calls.jsonl"
+            call_log.touch()
+            loops = _registry({owner_id: {
+                "state_root": str(owner_state),
+                "effect_reconcile": {
+                    "argv": ["skills/earn/line-sticker/factory_fence_reconcile.py"],
+                    "occurrence_flag": "--occurrence",
+                    "resolve_flag": "--resolve",
+                },
+            }})
+
+            held_proof = json.dumps({"owner_id": owner_id, "occurrence_id": occurrence_id,
+                                     "verified": False, "reason": "official_readback_required"})
+            responses = [(1, held_proof), (1, held_proof), (0, held_proof), (0, proof)]
+
+            def run_call(argv, **_kwargs):
+                calls.append(argv)
+                code, response = responses.pop(0)
+                return code, response + "\n"
+
+            with patch("runtime.host.resource_admission.state_root", return_value=root):
+                held = [reconcile(
+                    registry=loops, root=root, read_fenced=lambda: {}, run_call=run_call,
+                    log_path=call_log,
+                ) for _ in range(3)]
+                first = reconcile(
+                    registry=loops, root=root, read_fenced=lambda: {}, run_call=run_call,
+                    log_path=call_log,
+                )
+                second = reconcile(
+                    registry=loops, root=root, read_fenced=lambda: {}, run_call=run_call,
+                    log_path=call_log,
+                )
+
+            rows = [json.loads(line) for line in call_log.read_text().splitlines()]
+
+        self.assertEqual(len(calls), 4)
+        self.assertEqual(calls[0][-3:], ["--occurrence", occurrence_id, "--resolve"])
+        self.assertEqual(first["checked"], 1)
+        self.assertEqual(first["closed"], 1)
+        self.assertEqual(second["checked"], 0)
+        for result in held:
+            self.assertEqual(result["closed"], 0)
+            self.assertEqual(result["still_fenced"], 1)
+        self.assertEqual(len(rows), 3)
+        self.assertFalse(rows[0]["closed"])
+        self.assertFalse(rows[1]["closed"])
+        self.assertTrue(rows[-1]["closure_proof"]["verified"])
+        self.assertEqual(rows[-1]["closure_proof"]["release_sha"], release_sha)
 
     def test_closed_call_logs_exact_release_bound_provider_proof(self):
         import json
@@ -435,6 +584,59 @@ class ReconcileTest(unittest.TestCase):
 
 
 
+
+class ReconcileCursorTest(unittest.TestCase):
+    def test_unchanged_lost_results_still_advance_to_later_fresh_proof(self):
+        owner = "owner-a"
+        occurrences = tuple(f"{owner}:{index}" for index in range(3))
+        sha = "a" * 40
+        rows, calls, attempts = [], [], {}
+        ledger = MagicMock(spec=Path)
+        class MemoryLog(io.BytesIO):
+            def fileno(self):
+                return 87654
+        def payload():
+            return b"\n".join(json.dumps(row).encode() for row in rows) + b"\n"
+        ledger.open.side_effect = lambda *args, **kwargs: MemoryLog(payload())
+        real_fstat = os.fstat
+        def fstat(fd):
+            return SimpleNamespace(st_size=len(payload())) if fd == 87654 else real_fstat(fd)
+        def call(argv, **kwargs):
+            occurrence = argv[argv.index("--occurrence") + 1]
+            calls.append(occurrence)
+            attempts[occurrence] = attempts.get(occurrence, 0) + 1
+            if occurrence == occurrences[-1] and attempts[occurrence] > 1:
+                return 0, json.dumps({
+                    "owner_id": owner, "occurrence_id": occurrence, "release_sha": sha,
+                    "verified": True, "provider_receipt_id": "fixture-official:ready",
+                })
+            return 1, "HELD"
+        loops = {owner: {"effect_reconcile": {
+            "argv": ["reconcile.py"], "occurrence_flag": "--occurrence",
+            "resolve_flag": "--resolve",
+        }}}
+        with patch("runtime.loop.fence_reconcile._lost_terminal_unknown_occurrences",
+                   return_value={owner: occurrences}), \
+             patch("runtime.loop.fence_reconcile._runtime_release_shas",
+                   side_effect=lambda owner, targets, loops: {occ: sha for occ in targets}), \
+             patch("runtime.loop.fence_reconcile._append_jsonl",
+                   side_effect=lambda path, added: rows.extend(added)), \
+             patch("runtime.loop.fence_reconcile.os.fstat", side_effect=fstat):
+            results = [reconcile(
+                registry=_registry(loops), root=Path("/fixture"), cap=1,
+                run_call=call, read_fenced=lambda: {}, log_path=ledger, wake_epoch=wake * 600,
+            ) for wake in range(6)]
+        self.assertEqual(calls, list(occurrences) * 2)
+        self.assertEqual([result["closed"] for result in results], [0, 0, 0, 0, 0, 1])
+        cursors = [row for row in rows if row.get("owner_cursor")]
+        self.assertEqual(len(cursors), 2)
+        self.assertTrue(all(row["closed"] is False and "closure_proof" not in row
+                            for row in cursors))
+        self.assertEqual(sum(row["occurrence_id"] == occurrences[0] for row in rows), 1)
+        self.assertEqual(sum(row["occurrence_id"] == occurrences[1] for row in rows), 1)
+        self.assertEqual(rows[-1]["closure_proof"]["release_sha"], sha)
+
+
 class WakeBudgetTest(unittest.TestCase):
     def test_per_owner_timeout_is_passed_and_overrunning_calls_are_deferred(self):
         state = {"slow": ["slow:1"], "fast": ["fast:1", "fast:2"]}
@@ -512,6 +714,28 @@ class SurvivesLockedDatabaseTest(unittest.TestCase):
         return {f"o{k:02d}": {"effect_reconcile": {"argv": ["x.py"], "occurrence_flag": "--occurrence"}}
                 for k in range(n)}
 
+    def test_lock_in_supplemental_lost_fence_scan_does_not_skip_active_fences(self):
+        import sqlite3
+        loops = self._loops(1)
+        fenced = {"o00": ("o00:active",)}
+        called = []
+
+        with patch("runtime.loop.fence_reconcile._lost_terminal_unknown_occurrences",
+                   side_effect=sqlite3.OperationalError("database is locked")):
+            summary = reconcile(
+                registry=_registry(loops), root=Path("/r"), cap=1,
+                budget_seconds=100, clock=lambda: 0.0, sleep=lambda _seconds: None,
+                run_call=lambda argv, **_kwargs: (called.append(argv[argv.index("--occurrence") + 1]) or (0, "")),
+                read_fenced=lambda: fenced, log_path=None, wake_epoch=0.0,
+            )
+
+        self.assertEqual(called, ["o00:active"])
+        self.assertEqual(summary["status"], "partial_database_locked")
+        self.assertTrue(summary["lost_fence_scan_locked"])
+        self.assertEqual(summary["checked"], 1)
+        self.assertEqual(summary["closed"], 0)
+        self.assertEqual(summary["still_fenced"], 1)
+
     def test_a_transient_lock_on_the_post_call_read_is_retried_and_the_wake_continues(self):
         import sqlite3
         loops = self._loops(3)
@@ -553,3 +777,97 @@ class SurvivesLockedDatabaseTest(unittest.TestCase):
             rows = [json.loads(l) for l in log.read_text().splitlines()]
         self.assertTrue(rows, "calls made before the lock must still be recorded")
         self.assertEqual(summary["status"], "partial_database_locked")
+
+
+class CallLogBoundTest(unittest.TestCase):
+    def test_call_log_rotates_but_keeps_the_recent_window_readers_use(self):
+        from runtime.loop import fence_reconcile
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "reconcile-calls.jsonl"
+            old = [{"owner_id": "a", "occurrence_id": f"a:{i}", "pad": "x" * 64} for i in range(50)]
+            with patch.object(fence_reconcile, "CALL_LOG_MAX_BYTES", 1024), \
+                    patch.object(fence_reconcile, "CALL_LOG_TAIL_BYTES", 512):
+                fence_reconcile._append_jsonl(log, old)
+                fence_reconcile._append_jsonl(log, [{"owner_id": "b", "occurrence_id": "b:1"}])
+            self.assertLessEqual(log.stat().st_size, 1024)
+            recent = fence_reconcile._recent_call_rows(log)
+            self.assertIn(("a", "a:49"), recent)
+            self.assertIn(("b", "b:1"), recent)
+            self.assertEqual(len(list(log.parent.glob("reconcile-calls-*.jsonl.gz"))), 1)
+
+
+class RevenueOutagePriorityTest(unittest.TestCase):
+    """SH2a: owners the health observer marks revenue_outage are reconciled first."""
+
+    def _health(self, tmp: str, blocked: list[str], age_seconds: float = 0) -> Path:
+        import time as _time
+        from datetime import datetime, timezone
+        path = Path(tmp) / "latest.json"
+        generated = datetime.fromtimestamp(_time.time() - age_seconds, timezone.utc).isoformat()
+        path.write_text(json.dumps({"generated_at": generated, "jobs": [
+            {"job_id": job, "facets": {"revenue": {"status": "blocked", "reason": "revenue_outage"}}}
+            for job in blocked
+        ] + [{"job_id": "a", "facets": {"revenue": {"status": "ok", "reason": None}}}]}))
+        return path
+
+    def test_revenue_outage_owner_is_called_first_despite_rotation(self):
+        loops = {name: {"effect_reconcile": {"argv": ["x.py"], "occurrence_flag": "--occurrence"}}
+                 for name in ("a", "b", "c", "zz-rev")}
+        fenced = {name: (f"{name}:1", f"{name}:2") for name in loops}
+        calls = []
+
+        def run_call(argv, timeout):
+            calls.append(argv[-1])
+            return 1, ""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            reconcile(registry=_registry(loops), root=Path("/r"), cap=1,
+                      run_call=run_call, read_fenced=lambda: fenced, log_path=None,
+                      wake_epoch=0, health_latest=self._health(tmp, ["zz-rev"]))
+        self.assertEqual(calls, ["zz-rev:1"])
+
+    def test_revenue_outage_batch_failure_is_logged_every_wake_with_error_class(self):
+        loops = {"rev": {"effect_reconcile": {"argv": ["x.py"], "occurrence_flag": None}}}
+        fenced = {"rev": ("rev:1",)}
+        tail = json.dumps({"error_class": "provider_readback_timeout", "reason": "login wall"})
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp) / "calls.jsonl"
+            for _ in range(2):
+                reconcile(registry=_registry(loops), root=Path("/r"),
+                          run_call=lambda argv, timeout: (2, tail),
+                          read_fenced=lambda: fenced, log_path=log,
+                          health_latest=self._health(tmp, ["rev"]))
+            rows = [json.loads(line) for line in log.read_text().splitlines()]
+        self.assertEqual(len(rows), 2)
+        for row in rows:
+            self.assertEqual(row["error_class"], "provider_readback_timeout")
+            self.assertEqual(row["reason"], "login wall")
+            self.assertEqual(row["exit_code"], 2)
+
+    def test_financial_owner_is_called_before_a_slow_outage_owner(self):
+        loops = {
+            "a-rev": {"effect_reconcile": {"argv": ["slow.py"], "occurrence_flag": "--occurrence",
+                                           "timeout_seconds": 900}},
+            "z-fin": {"domain": "financial", "effect_reconcile": {
+                "argv": ["fin.py"], "occurrence_flag": "--occurrence"}},
+        }
+        fenced = {"a-rev": ("a-rev:1",), "z-fin": ("z-fin:1",)}
+        calls = []
+
+        def run_call(argv, timeout):
+            calls.append(argv[-1])
+            return 1, ""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            reconcile(registry=_registry(loops), root=Path("/r"), cap=1,
+                      run_call=run_call, read_fenced=lambda: fenced, log_path=None,
+                      wake_epoch=0, health_latest=self._health(tmp, ["a-rev"]))
+        self.assertEqual(calls, ["z-fin:1"])
+
+    def test_stale_health_snapshot_gives_no_outage_priority(self):
+        from runtime.loop.fence_reconcile import revenue_outage_owners
+        with tempfile.TemporaryDirectory() as tmp:
+            fresh = revenue_outage_owners(self._health(tmp, ["rev"], age_seconds=60))
+            stale = revenue_outage_owners(self._health(tmp, ["rev"], age_seconds=31 * 60))
+        self.assertEqual(fresh, {"rev"})
+        self.assertEqual(stale, frozenset())

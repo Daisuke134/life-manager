@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import re
+from collections.abc import Awaitable, Callable
 from contextlib import contextmanager
 from datetime import datetime
 from dataclasses import asdict
@@ -22,8 +23,9 @@ from ..tailored_resume import compose, load_artifact, render_pdf, store_artifact
 from ..state import InvalidTransition, provider_recovery_url
 from ..workday_credentials import tenant_key
 from .actions import ActionExecutor
+from .answer_memory import AnswerMemory
 from .candidate_memory import CandidateMemoryView
-from .checkpoint import CheckpointStore, EvidenceStore
+from .checkpoint import CheckpointStore, EvidenceStore, _atomic_private
 from .completion import record_completion_evidence, verify_completion_ui
 from .contracts import (
     ActionTargetV1,
@@ -46,6 +48,125 @@ from .workday_account import MachineWorkdayCredentialStore
 _EMAIL = re.compile(r"\b[^\s@]+@[^\s@]+\.[^\s@]+\b")
 _PHONE = re.compile(r"(?<!\w)(?:\+?\d[\d ()-]{7,}\d)(?!\w)")
 _WAKE_STEP_BUDGET = 100
+_PROFILE_BATCH_MAX_FIELDS = 12
+_PROFILE_BATCH_TEXT_TYPES = frozenset({"text", "email", "tel", "url"})
+_FORM_BATCH_MAX_FIELDS = 12
+_FORM_BATCH_TEXT_TYPES = frozenset({"text", "textarea"})
+_PROFILE_BATCH_SENSITIVE = re.compile(
+    r"work[\s_-]?authori[sz]|visa|citizen|nationality|sponsor|immigra|salary|"
+    r"compensation|base[\s_-]?pay|wage|income|bonus|social[\s_-]?security|\bssn\b|"
+    r"passport|tax[\s_-]?id|birth|date[\s_-]?of[\s_-]?birth|\bage\b|gender|"
+    r"\bsex\b|race|ethnicity|disabilit|veteran|military|criminal|conviction|"
+    r"attest|certif|employer|previous[\s_-]?employment|prior[\s_-]?employment|"
+    r"password|credential|token",
+    re.IGNORECASE,
+)
+_PROFILE_BATCH_LABELS_BY_KIND = {
+    "first_name": frozenset({"first name", "given name", "applicant first name"}),
+    "middle_name": frozenset({"middle name"}),
+    "last_name": frozenset({"last name", "family name", "surname"}),
+    "full_name": frozenset({"name", "full name"}),
+    "preferred_name": frozenset({"preferred name"}),
+    "email": frozenset({"email", "email address", "e mail", "e mail address", "candidate email"}),
+    "application_email": frozenset({"email", "email address", "application email", "contact email", "candidate email"}),
+    "work_email": frozenset({"work email"}),
+    "personal_email": frozenset({"personal email"}),
+    "phone": frozenset({"phone", "phone number", "telephone"}),
+    "mobile_phone": frozenset({"mobile", "mobile phone", "cell phone", "cell number"}),
+    "address": frozenset({"address"}),
+    "address_street": frozenset({"street address", "street"}),
+    "address_mailing": frozenset({"mailing address"}),
+    "address_home": frozenset({"home address"}),
+    "address_line_1": frozenset({"address line 1"}),
+    "address_line_2": frozenset({"address line 2"}),
+    "city": frozenset({"city", "town"}),
+    "state": frozenset({"state"}),
+    "province": frozenset({"province"}),
+    "region": frozenset({"region"}),
+    "postal_code": frozenset({"postal code", "post code", "postcode"}),
+    "zip_code": frozenset({"zip", "zip code"}),
+    "country": frozenset({"country", "country region", "country of residence"}),
+    "location": frozenset({"location"}),
+    "current_location": frozenset({"current location"}),
+    "website": frozenset({"website", "personal website"}),
+    "profile_url": frozenset({"profile url", "url"}),
+    "linkedin": frozenset({"linkedin", "linkedin profile"}),
+    "linkedin_url": frozenset({"linkedin url", "linkedin profile url"}),
+    "github": frozenset({"github", "github profile"}),
+    "github_url": frozenset({"github url", "github profile url"}),
+    "portfolio": frozenset({"portfolio"}),
+    "portfolio_url": frozenset({"portfolio url", "portfolio website"}),
+}
+_PROFILE_BATCH_CONCEPT_KIND = {
+    "first_name": "first_name",
+    "given_name": "first_name",
+    "middle_name": "middle_name",
+    "last_name": "last_name",
+    "family_name": "last_name",
+    "surname": "last_name",
+    "name": "full_name",
+    "full_name": "full_name",
+    "preferred_name": "preferred_name",
+    "email": "email",
+    "application_email": "application_email",
+    "contact_email": "application_email",
+    "work_email": "work_email",
+    "personal_email": "personal_email",
+    "phone": "phone",
+    "phone_number": "phone",
+    "telephone": "phone",
+    "mobile": "mobile_phone",
+    "mobile_phone": "mobile_phone",
+    "cell_phone": "mobile_phone",
+    "address": "address",
+    "street_address": "address_street",
+    "mailing_address": "address_mailing",
+    "address_line_1": "address_line_1",
+    "address_line_2": "address_line_2",
+    "city": "city",
+    "town": "city",
+    "state": "state",
+    "province": "province",
+    "region": "region",
+    "postal_code": "postal_code",
+    "zip": "zip_code",
+    "zip_code": "zip_code",
+    "post_code": "postal_code",
+    "postcode": "postal_code",
+    "country": "country",
+    "location": "location",
+    "current_location": "current_location",
+    "website": "website",
+    "personal_website": "website",
+    "profile_url": "profile_url",
+    "linkedin": "linkedin",
+    "linkedin_url": "linkedin_url",
+    "linkedin_profile": "linkedin",
+    "github": "github",
+    "github_url": "github_url",
+    "github_profile": "github",
+    "portfolio": "portfolio",
+    "portfolio_url": "portfolio_url",
+    "portfolio_website": "portfolio_url",
+}
+_PROFILE_BATCH_ALL_LABELS = frozenset(
+    label for labels in _PROFILE_BATCH_LABELS_BY_KIND.values() for label in labels
+)
+_PROFILE_BATCH_LABEL_SEPARATOR = re.compile(r"[^a-z0-9]+", re.IGNORECASE)
+
+
+def _profile_batch_concept_kind(concept: str) -> str | None:
+    concept_tail = concept.casefold().rsplit(".", 1)[-1]
+    kind = _PROFILE_BATCH_CONCEPT_KIND.get(concept_tail)
+    if kind is not None:
+        return kind
+    if concept_tail.endswith("_address"):
+        qualifier = concept_tail[: -len("_address")]
+        if qualifier in {"home", "mailing", "street"}:
+            return f"address_{qualifier}"
+    if concept_tail.startswith("address_line_") and concept_tail[-1:] in {"1", "2"}:
+        return concept_tail
+    return None
 
 
 def _path_env(name: str) -> Path:
@@ -171,6 +292,59 @@ def _wake_completed_path() -> Path:
     return _path_env("JOB_SEARCH_BROWSER_SCRATCH") / "completed-rows.json"
 
 
+def _queue_cursor_path() -> Path:
+    return _path_env("JOB_SEARCH_BROWSER_STATE_ROOT") / "application-queue-cursor.v1.json"
+
+
+def _queue_cursor() -> dict[str, Any]:
+    path = _queue_cursor_path()
+    if not path.exists():
+        return {
+            "schema_version": 1,
+            "last_application_id": None,
+            "last_created_at": None,
+            "in_progress_application_id": None,
+            "resume_application_ids": [],
+        }
+    if path.stat().st_mode & 0o077:
+        raise RuntimeError("application queue cursor must be private")
+    value = json.loads(path.read_text(encoding="utf-8"))
+    last_application_id = value.get("last_application_id")
+    last_created_at = value.get("last_created_at")
+    in_progress_application_id = value.get("in_progress_application_id")
+    resume_application_ids = value.get("resume_application_ids")
+    if (
+        type(value.get("schema_version")) is not int
+        or value["schema_version"] != 1
+        or (last_application_id is None) != (last_created_at is None)
+        or last_application_id is not None
+        and (not isinstance(last_application_id, str) or not last_application_id)
+        or last_created_at is not None
+        and (not isinstance(last_created_at, str) or not last_created_at)
+        or in_progress_application_id is not None
+        and (
+            not isinstance(in_progress_application_id, str)
+            or not in_progress_application_id
+        )
+        or not isinstance(resume_application_ids, list)
+        or any(not isinstance(item, str) or not item for item in resume_application_ids)
+    ):
+        raise RuntimeError("application queue cursor is invalid")
+    return value
+
+
+def _save_queue_cursor(value: dict[str, Any]) -> None:
+    path = _queue_cursor_path()
+    payload = (json.dumps(value, sort_keys=True) + "\n").encode("utf-8")
+    _atomic_private(path, payload)
+
+
+def _set_queue_row_in_progress(application_id: str) -> None:
+    cursor = _queue_cursor()
+    cursor["in_progress_application_id"] = application_id
+    _save_queue_cursor(cursor)
+
+
 def _wake_completed() -> set[str]:
     path = _wake_completed_path()
     if not path.exists():
@@ -181,15 +355,41 @@ def _wake_completed() -> set[str]:
     return {str(item) for item in value.get("application_ids", [])}
 
 
-def _mark_wake_completed(application_id: str) -> None:
+def _mark_wake_completed(
+    application_id: str, *, resume_next_wake: bool = False
+) -> None:
     path = _wake_completed_path()
     completed = _wake_completed()
     completed.add(application_id)
-    path.write_text(
-        json.dumps({"application_ids": sorted(completed)}, sort_keys=True) + "\n",
-        encoding="utf-8",
+    _atomic_private(
+        path,
+        (json.dumps({"application_ids": sorted(completed)}, sort_keys=True) + "\n").encode(
+            "utf-8"
+        ),
     )
-    os.chmod(path, 0o600)
+    ledger = Ledger(_path_env("JOB_SEARCH_STATE_ROOT") / "ledger.sqlite3")
+    try:
+        record = ledger.connection.execute(
+            "SELECT created_at FROM applications WHERE id = ?", (application_id,)
+        ).fetchone()
+    finally:
+        ledger.close()
+    if record is None:
+        raise RuntimeError("completed application is missing from the ledger")
+    cursor = _queue_cursor()
+    cursor["last_application_id"] = application_id
+    cursor["last_created_at"] = str(record[0])
+    if cursor.get("in_progress_application_id") == application_id:
+        cursor["in_progress_application_id"] = None
+    resume_ids = [
+        item
+        for item in cursor["resume_application_ids"]
+        if item != application_id
+    ]
+    if resume_next_wake:
+        resume_ids.append(application_id)
+    cursor["resume_application_ids"] = resume_ids
+    _save_queue_cursor(cursor)
 
 
 def _decision_signature(observation_sha256: str, action_bytes: bytes) -> str:
@@ -242,23 +442,33 @@ def _wake_budget(*, consume: bool = False) -> int:
 def _row() -> dict[str, Any]:
     ledger = Ledger(_path_env("JOB_SEARCH_STATE_ROOT") / "ledger.sqlite3")
     try:
+        cursor = _queue_cursor()
         completed = _wake_completed()
-        rows = [
-            row
-            for row in RowQueueSupervisor.collect(ledger)
-            if row["application_id"] not in completed
-        ]
+        def collect_current_cursor() -> tuple[dict[str, Any], ...]:
+            cursor_after = (
+                (cursor["last_created_at"], cursor["last_application_id"])
+                if cursor["last_created_at"] and cursor["last_application_id"]
+                else None
+            )
+            return RowQueueSupervisor.collect(
+                ledger,
+                cursor_after=cursor_after,
+                in_progress_application_id=cursor["in_progress_application_id"],
+                resume_application_ids=cursor["resume_application_ids"],
+            )
+
+        available = collect_current_cursor()
+        rows = [row for row in available if row["application_id"] not in completed]
         if not rows and RowQueueSupervisor.admit_next_discovered_workday(ledger):
-            rows = [
-                row
-                for row in RowQueueSupervisor.collect(ledger)
-                if row["application_id"] not in completed
-            ]
+            available = collect_current_cursor()
+            rows = [row for row in available if row["application_id"] not in completed]
     finally:
         ledger.close()
     if not rows:
         raise RuntimeError("no eligible active-provider row")
-    return rows[0]
+    row = rows[0]
+    _set_queue_row_in_progress(str(row["application_id"]))
+    return row
 
 
 def _role_family(title: str) -> str:
@@ -417,6 +627,27 @@ async def observe() -> dict[str, Any]:
     return result
 
 
+async def resolve_saved_answer(question_label: str) -> dict[str, Any]:
+    """Resolve one exact employer question from private answer memory."""
+    if not question_label.strip():
+        raise ValueError("question label is required")
+    memory = AnswerMemory(_path_env("JOB_SEARCH_ANSWER_MEMORY"))
+    concept = memory.concept_for_question(question_label)
+    if concept is None:
+        return {"status": "answer_memory_missing"}
+    record = memory.lookup(concept)
+    if record is None:
+        return {"status": "answer_memory_missing"}
+    if not isinstance(record.answer, (str, int, float, bool)):
+        return {"status": "answer_memory_unsupported", "kind": record.kind}
+    return {
+        "status": "answer_found",
+        "answer": record.answer,
+        "kind": record.kind,
+        "provenance": list(record.provenance),
+    }
+
+
 def _private_action(path: Path) -> dict[str, Any]:
     scratch = _path_env("JOB_SEARCH_BROWSER_SCRATCH").resolve()
     resolved = path.resolve(strict=True)
@@ -487,7 +718,9 @@ def _action(value: dict[str, Any]) -> VisibleActionV1:
     )
 
 
-async def _act_locked(action_path: Path) -> dict[str, Any]:
+async def _act_locked(
+    action_path: Path, *, consume_budget: bool = True
+) -> dict[str, Any]:
     row, session, checkpoints, evidence, cursor, builder = await _context()
     before = await builder.build(cursor.handle)
     action_value = _private_action(action_path)
@@ -509,7 +742,7 @@ async def _act_locked(action_path: Path) -> dict[str, Any]:
         if action.kind == "wait"
         else _reject_repeated_decision(before.content_sha256, action_bytes)
     )
-    remaining = _wake_budget(consume=True)
+    remaining = _wake_budget(consume=consume_budget)
     receipt = await ActionExecutor(session).execute(cursor.handle, action)
     after = await builder.build(cursor.handle)
     parsed_after_url = urlparse(after.url)
@@ -567,12 +800,16 @@ async def _act_locked(action_path: Path) -> dict[str, Any]:
     }
 
 
-async def act(action_path: Path) -> dict[str, Any]:
+async def act(
+    action_path: Path, *, _consume_budget: bool = True
+) -> dict[str, Any]:
     with _exclusive_action():
-        return await _act_locked(action_path)
+        return await _act_locked(action_path, consume_budget=_consume_budget)
 
 
-async def type_text(*, label: str, role: str, stable_id: str, text: str) -> dict[str, Any]:
+async def type_text(
+    *, label: str, role: str, stable_id: str, text: str, _consume_budget: bool = True
+) -> dict[str, Any]:
     """Type one model-grounded visible answer without an intermediate file."""
     scratch = _path_env("JOB_SEARCH_BROWSER_SCRATCH")
     path = scratch / "literal-action.json"
@@ -597,7 +834,7 @@ async def type_text(*, label: str, role: str, stable_id: str, text: str) -> dict
     try:
         try:
             with _exclusive_action():
-                return await _act_locked(path)
+                return await _act_locked(path, consume_budget=_consume_budget)
         except RuntimeError as error:
             if "action target must resolve to exactly one visible enabled control" in str(error):
                 reason = "observed_text_target_no_longer_visible"
@@ -843,7 +1080,12 @@ async def choose(
 
 
 async def type_candidate(
-    *, label: str, role: str, stable_id: str, candidate_concept: str
+    *,
+    label: str,
+    role: str,
+    stable_id: str,
+    candidate_concept: str,
+    _consume_budget: bool = True,
 ) -> dict[str, Any]:
     if role not in {"textbox", "searchbox", "spinbutton", "combobox"}:
         result = await observe()
@@ -866,7 +1108,7 @@ async def type_candidate(
     )
     os.chmod(path, 0o600)
     try:
-        return await act(path)
+        return await act(path, _consume_budget=_consume_budget)
     except (RuntimeError, ValueError) as error:
         if str(error) == "candidate concept is not a scalar browser value":
             reason = "candidate_concept_requires_scalar_value"
@@ -878,6 +1120,430 @@ async def type_candidate(
         result["status"] = "action_rejected"
         result["reason"] = reason
         return result
+
+
+def _parse_profile_fill_fields(fields_json: str) -> tuple[list[dict[str, str]] | None, str | None]:
+    try:
+        value = json.loads(fields_json)
+    except (TypeError, json.JSONDecodeError):
+        return None, "profile_batch_invalid_json"
+    if not isinstance(value, list) or not 1 <= len(value) <= _PROFILE_BATCH_MAX_FIELDS:
+        return None, "profile_batch_field_count_out_of_range"
+
+    expected = {"label", "role", "stable_id", "candidate_concept"}
+    fields: list[dict[str, str]] = []
+    stable_ids: set[str] = set()
+    for item in value:
+        if not isinstance(item, dict) or set(item) != expected:
+            return None, "profile_batch_invalid_field_shape"
+        field = {key: item[key] for key in expected}
+        if any(not isinstance(part, str) or not part.strip() for part in field.values()):
+            return None, "profile_batch_invalid_field_value"
+        field = {key: part.strip() for key, part in field.items()}
+        if field["role"] != "textbox":
+            return None, "profile_batch_requires_textbox"
+        if not field["candidate_concept"].startswith("candidate."):
+            return None, "profile_batch_requires_candidate_concept"
+        if not re.fullmatch(r"(?:id|automation|ref):[^\s]+", field["stable_id"]):
+            return None, "profile_batch_requires_stable_id"
+        if field["stable_id"] in stable_ids:
+            return None, "profile_batch_duplicate_target"
+        stable_ids.add(field["stable_id"])
+        if _PROFILE_BATCH_SENSITIVE.search(
+            f"{field['label']} {field['candidate_concept']}"
+        ):
+            return None, "profile_batch_sensitive_field"
+        label = " ".join(
+            part
+            for part in _PROFILE_BATCH_LABEL_SEPARATOR.split(field["label"].casefold())
+            if part
+        )
+        concept_kind = _profile_batch_concept_kind(field["candidate_concept"])
+        if label not in _PROFILE_BATCH_ALL_LABELS:
+            return None, "profile_batch_not_profile_field"
+        allowed_labels = _PROFILE_BATCH_LABELS_BY_KIND.get(concept_kind or "")
+        if allowed_labels is None or label not in allowed_labels:
+            return None, "profile_batch_concept_label_mismatch"
+        fields.append(field)
+    return fields, None
+
+
+def _profile_batch_control_reason(
+    field: dict[str, str], observation: dict[str, Any]
+) -> str | None:
+    controls = observation.get("controls")
+    if not isinstance(controls, list):
+        return "profile_batch_observation_unavailable"
+    matches = [
+        control
+        for control in controls
+        if isinstance(control, dict)
+        and control.get("label") == field["label"]
+        and control.get("role") == field["role"]
+        and control.get("stable_id") == field["stable_id"]
+    ]
+    if len(matches) != 1:
+        return "profile_batch_target_not_fresh"
+    control = matches[0]
+    if (
+        control.get("disabled") is True
+        or control.get("type") not in _PROFILE_BATCH_TEXT_TYPES
+        or control.get("options")
+    ):
+        return "profile_batch_control_not_plain_text"
+    controls = observation.get("controls", [])
+    target_label = field["label"].casefold().strip()
+    if any(
+        isinstance(other, dict)
+        and other.get("role") == "button"
+        and isinstance(other.get("label"), str)
+        and other["label"].casefold().strip().endswith(" options")
+        and other["label"].casefold().strip()[: -len(" options")] == target_label
+        for other in controls
+    ):
+        return "profile_batch_control_is_picker"
+    if _PROFILE_BATCH_SENSITIVE.search(field["label"]):
+        return "profile_batch_sensitive_field"
+    return None
+
+
+def _profile_batch_result(
+    *,
+    completed_fields: list[str],
+    receipts: list[str],
+    observation: dict[str, Any],
+    reason: str,
+) -> dict[str, Any]:
+    return {
+        "status": "batch_partial" if completed_fields else "action_rejected",
+        "reason": reason,
+        "completed_fields": completed_fields,
+        "receipts": receipts,
+        "observation": observation,
+        "next_action": (
+            "continue from this fresh observation; do not replay completed fields"
+        ),
+    }
+
+
+async def _execute_text_batch(
+    fields: list[dict[str, Any]],
+    observation: dict[str, Any],
+    *,
+    fill_field: Callable[[dict[str, Any]], Awaitable[dict[str, Any]]],
+    control_reason: Callable[[dict[str, Any], dict[str, Any]], str | None],
+    target_changed_reason: str,
+    failure_prefix: str,
+) -> dict[str, Any]:
+    completed_fields: list[str] = []
+    receipts: list[str] = []
+    budget_charged = False
+    for field in fields:
+        reason = control_reason(field, observation)
+        if reason:
+            return _profile_batch_result(
+                completed_fields=completed_fields,
+                receipts=receipts,
+                observation=observation,
+                reason=reason,
+            )
+        if not budget_charged:
+            _wake_budget(consume=True)
+            budget_charged = True
+        try:
+            result = await fill_field(field)
+        except RuntimeError as error:
+            if "action target must resolve to exactly one visible enabled control" not in str(error):
+                raise
+            try:
+                refreshed = await observe()
+            except Exception:
+                return {
+                    "status": "transport_failed",
+                    "error_class": f"{failure_prefix}_batch_target_refresh_failed",
+                    "failed_field": field["label"],
+                    "completed_fields": completed_fields,
+                    "receipts": receipts,
+                    "retryable": False,
+                    "next_action": (
+                        "refresh provider state before continuing; preserve prior receipts "
+                        "and do not replay completed fields or this occurrence"
+                    ),
+                }
+            refreshed_observation = refreshed.get("observation")
+            if refreshed.get("status") != "observed" or not isinstance(refreshed_observation, dict):
+                return {
+                    "status": "transport_failed",
+                    "error_class": f"{failure_prefix}_batch_target_refresh_unavailable",
+                    "failed_field": field["label"],
+                    "completed_fields": completed_fields,
+                    "receipts": receipts,
+                    "retryable": False,
+                    "next_action": (
+                        "refresh provider state before continuing; preserve prior receipts "
+                        "and do not replay completed fields or this occurrence"
+                    ),
+                }
+            return _profile_batch_result(
+                completed_fields=completed_fields,
+                receipts=receipts,
+                observation=refreshed_observation,
+                reason=target_changed_reason,
+            )
+        if result.get("status") == "transport_failed":
+            failed = {
+                "status": "transport_failed",
+                "failed_field": field["label"],
+                "completed_fields": completed_fields,
+                "receipts": receipts,
+                "retryable": result.get("retryable") is True,
+                "next_action": result.get("next_action")
+                or "stop this row and do not replay any completed or current field",
+            }
+            for key in (
+                "error_class",
+                "action_receipt_sha256",
+                "evidence_sha256",
+                "checkpoint_sha256",
+            ):
+                value = result.get(key)
+                if isinstance(value, str) and value:
+                    failed[key] = value
+            return failed
+        next_observation = result.get("observation")
+        if result.get("status") != "acted" or not isinstance(next_observation, dict):
+            return _profile_batch_result(
+                completed_fields=completed_fields,
+                receipts=receipts,
+                observation=next_observation if isinstance(next_observation, dict) else observation,
+                reason=str(result.get("reason") or result.get("status") or "text_batch_action_failed"),
+            )
+        receipt = str((result.get("action") or {}).get("receipt_sha256") or "")
+        if not re.fullmatch(r"[0-9a-f]{64}", receipt):
+            return _profile_batch_result(
+                completed_fields=completed_fields,
+                receipts=receipts,
+                observation=next_observation,
+                reason="text_batch_action_receipt_missing",
+            )
+        completed_fields.append(field["label"])
+        receipts.append(receipt)
+        observation = next_observation
+
+    return {
+        "status": "batch_acted",
+        "completed_fields": completed_fields,
+        "receipts": receipts,
+        "observation": observation,
+    }
+
+
+def _normalize_fact_text(value: str) -> str:
+    return " ".join(value.split()).casefold()
+
+
+def _form_batch_content_reason(field: dict[str, Any]) -> str | None:
+    if _EMAIL.search(field["text"]) or _PHONE.search(field["text"]):
+        return "form_batch_sensitive_field"
+    return None
+
+
+def _parse_form_batch_fields(
+    fields_json: str,
+) -> tuple[list[dict[str, Any]] | None, str | None]:
+    try:
+        value = json.loads(fields_json)
+    except (TypeError, json.JSONDecodeError):
+        return None, "form_batch_invalid_json"
+    if not isinstance(value, list) or not 1 <= len(value) <= _FORM_BATCH_MAX_FIELDS:
+        return None, "form_batch_field_count_out_of_range"
+    expected = {"label", "role", "stable_id", "text", "fact_refs"}
+    fields: list[dict[str, Any]] = []
+    stable_ids: set[str] = set()
+    for item in value:
+        if not isinstance(item, dict) or set(item) != expected:
+            return None, "form_batch_invalid_field_shape"
+        if any(
+            not isinstance(item[key], str) or not item[key].strip()
+            for key in ("label", "role", "stable_id", "text")
+        ):
+            return None, "form_batch_invalid_field_value"
+        field = {
+            key: item[key].strip()
+            for key in ("label", "role", "stable_id", "text")
+        }
+        refs = item["fact_refs"]
+        if (
+            field["role"] != "textbox"
+            or not re.fullmatch(r"(?:id|automation|ref):[^\s]+", field["stable_id"])
+            or not isinstance(refs, list)
+            or not 1 <= len(refs) <= 4
+            or any(not isinstance(ref, str) or not ref.startswith("fact.") for ref in refs)
+            or len(set(refs)) != len(refs)
+        ):
+            return None, "form_batch_requires_visible_fact_grounded_textbox"
+        if field["stable_id"] in stable_ids:
+            return None, "form_batch_duplicate_target"
+        stable_ids.add(field["stable_id"])
+        reason = _form_batch_content_reason(field)
+        if reason:
+            return None, reason
+        field["fact_refs"] = refs
+        fields.append(field)
+    return fields, None
+
+
+def _form_batch_control_reason(
+    field: dict[str, Any], observation: dict[str, Any]
+) -> str | None:
+    controls = observation.get("controls")
+    if not isinstance(controls, list):
+        return "form_batch_observation_unavailable"
+    matches = [
+        control
+        for control in controls
+        if isinstance(control, dict)
+        and control.get("label") == field["label"]
+        and control.get("role") == field["role"]
+        and control.get("stable_id") == field["stable_id"]
+    ]
+    if len(matches) != 1:
+        return "form_batch_target_not_fresh"
+    control = matches[0]
+    if (
+        control.get("disabled") is True
+        or control.get("type") not in _FORM_BATCH_TEXT_TYPES
+        or control.get("options")
+    ):
+        return "form_batch_control_not_plain_text"
+    target_label = field["label"].casefold().strip()
+    if any(
+        isinstance(other, dict)
+        and other.get("role") == "button"
+        and isinstance(other.get("label"), str)
+        and other["label"].casefold().strip().endswith(" options")
+        and other["label"].casefold().strip()[: -len(" options")] == target_label
+        for other in controls
+    ):
+        return "form_batch_control_is_picker"
+    return _form_batch_content_reason(field)
+
+
+async def fill_profile_fields(fields_json: str) -> dict[str, Any]:
+    """Fill bounded, independent profile textboxes with one typed command."""
+    fields, reason = _parse_profile_fill_fields(fields_json)
+    if fields is None:
+        return {"status": "action_rejected", "reason": reason}
+
+    memory = CandidateMemoryView.load(_path_env("JOB_SEARCH_CANDIDATE_MEMORY"))
+    known_concepts = set(memory.concepts())
+    for field in fields:
+        concept = field["candidate_concept"]
+        if concept not in known_concepts:
+            return {"status": "action_rejected", "reason": "candidate_concept_not_found"}
+        value = memory.get(concept)
+        if not isinstance(value, (str, int, float)) or isinstance(value, bool) or not str(value).strip():
+            return {"status": "action_rejected", "reason": "candidate_concept_requires_scalar_value"}
+
+    current = await observe()
+    if current.get("status") != "observed":
+        return current
+    visible_concepts = current.get("candidate_concepts")
+    if not isinstance(visible_concepts, (list, tuple)):
+        return _profile_batch_result(
+            completed_fields=[],
+            receipts=[],
+            observation=current.get("observation", {}),
+            reason="candidate_concepts_not_currently_visible",
+        )
+    if any(field["candidate_concept"] not in visible_concepts for field in fields):
+        return _profile_batch_result(
+            completed_fields=[],
+            receipts=[],
+            observation=current.get("observation", {}),
+            reason="candidate_concept_not_currently_grounded",
+        )
+
+    async def fill_field(field: dict[str, str]) -> dict[str, Any]:
+        return await type_candidate(
+            label=field["label"],
+            role=field["role"],
+            stable_id=field["stable_id"],
+            candidate_concept=field["candidate_concept"],
+            _consume_budget=False,
+        )
+
+    return await _execute_text_batch(
+        fields,
+        current.get("observation", {}),
+        fill_field=fill_field,
+        control_reason=_profile_batch_control_reason,
+        target_changed_reason="profile_batch_target_changed",
+        failure_prefix="profile",
+    )
+
+
+async def fill_form_fields(fields_json: str) -> dict[str, Any]:
+    """Fill one bounded page batch copied verbatim from observed resume facts."""
+    fields, reason = _parse_form_batch_fields(fields_json)
+    if fields is None:
+        return {"status": "action_rejected", "reason": reason}
+    memory = CandidateMemoryView.load(_path_env("JOB_SEARCH_CANDIDATE_MEMORY"))
+    claims_by_concept = {
+        str(item["concept"]): str(item["claim"])
+        for item in memory.grounding_facts()
+        if isinstance(item.get("concept"), str) and isinstance(item.get("claim"), str)
+    }
+    for field in fields:
+        claims = [claims_by_concept.get(ref) for ref in field["fact_refs"]]
+        if any(claim is None for claim in claims):
+            return {"status": "action_rejected", "reason": "form_batch_fact_not_found"}
+        value = _normalize_fact_text(field["text"])
+        if not any(value in _normalize_fact_text(claim or "") for claim in claims):
+            return {"status": "action_rejected", "reason": "form_batch_value_not_grounded"}
+
+    current = await observe()
+    if current.get("status") != "observed":
+        return current
+    observation = current.get("observation", {})
+    visible_facts = current.get("grounding_facts")
+    if not isinstance(visible_facts, (list, tuple)):
+        return _profile_batch_result(
+            completed_fields=[],
+            receipts=[],
+            observation=observation,
+            reason="form_batch_grounding_facts_unavailable",
+        )
+    visible_concepts = {
+        str(fact["concept"])
+        for fact in visible_facts
+        if isinstance(fact, dict) and isinstance(fact.get("concept"), str)
+    }
+    if any(not set(field["fact_refs"]).issubset(visible_concepts) for field in fields):
+        return _profile_batch_result(
+            completed_fields=[],
+            receipts=[],
+            observation=observation,
+            reason="form_batch_fact_not_currently_grounded",
+        )
+
+    async def fill_field(field: dict[str, Any]) -> dict[str, Any]:
+        return await type_text(
+            label=field["label"],
+            role=field["role"],
+            stable_id=field["stable_id"],
+            text=field["text"],
+            _consume_budget=False,
+        )
+
+    return await _execute_text_batch(
+        fields,
+        observation,
+        fill_field=fill_field,
+        control_reason=_form_batch_control_reason,
+        target_changed_reason="form_batch_target_not_fresh",
+        failure_prefix="form",
+    )
 
 
 async def tailor_resume(sections_json: str) -> dict[str, Any]:
@@ -958,6 +1624,45 @@ async def wait(milliseconds: int) -> dict[str, Any]:
     return await act(path)
 
 
+async def scroll(
+    *, label: str, role: str, stable_id: str, delta_y: int
+) -> dict[str, Any]:
+    """Scroll inside one freshly observed control, such as a virtualized picker."""
+    if type(delta_y) is not int or not 0 < abs(delta_y) <= 600:
+        return {
+            "status": "action_rejected",
+            "reason": "targeted_scroll_delta_out_of_range",
+        }
+    if not label.strip() or not role.strip() or not stable_id.strip():
+        return {
+            "status": "action_rejected",
+            "reason": "targeted_scroll_requires_observed_anchor",
+        }
+    path = _path_env("JOB_SEARCH_BROWSER_SCRATCH") / "runtime-scroll.json"
+    path.write_text(
+        json.dumps(
+            {
+                "kind": "scroll",
+                "target": {
+                    "label": label,
+                    "role": role,
+                    "stable_id": stable_id,
+                },
+                "delta_y": delta_y,
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    os.chmod(path, 0o600)
+    try:
+        return await act(path)
+    finally:
+        path.unlink(missing_ok=True)
+
+
 async def checkpoint(reason: str) -> dict[str, Any]:
     row, session, checkpoints, _evidence, cursor, builder = await _context()
     observation = await builder.build(cursor.handle)
@@ -985,9 +1690,32 @@ async def checkpoint(reason: str) -> dict[str, Any]:
         )
     )
     await session.close_owned(cursor.handle)
+    _mark_wake_completed(
+        row["application_id"], resume_next_wake=reason == "wake_budget_low"
+    )
+    wake_id = _path_env("JOB_SEARCH_BROWSER_OWNER_EVIDENCE").parent.name
+    report_status = "delivery_failed"
+    report_message_id = None
+    report_error_class = None
+    try:
+        report_receipt = send_hourly_outcomes(
+            database=_path_env("JOB_SEARCH_STATE_ROOT") / "telegram-outbox.sqlite3",
+            wake_id=wake_id,
+            receipts=(
+                QueueRowReceiptV1(
+                    row["application_id"], row["company"], row["title"], "checkpointed"
+                ),
+            ),
+            evidence_classes={},
+        )
+        report_status = str(report_receipt.get("status") or "delivery_failed")
+        report_message_id = report_receipt.get("message_id")
+    except Exception as error:
+        report_error_class = type(error).__name__
     return {
         "status": "checkpointed",
         "reason": reason,
+        "application_id": row["application_id"],
         "row": {
             "application_id": row["application_id"],
             "company": row["company"],
@@ -995,6 +1723,9 @@ async def checkpoint(reason: str) -> dict[str, Any]:
         },
         "checkpoint_sha256": receipt.checkpoint_sha256,
         "observation_sha256": observation.content_sha256,
+        "report_status": report_status,
+        "report_message_id": report_message_id,
+        **({"report_error_class": report_error_class} if report_error_class else {}),
     }
 
 
@@ -1022,8 +1753,8 @@ async def ineligible(reason: str) -> dict[str, Any]:
     if blocked_state is not None:
         # A claimed/submitted row must retain its effect fence; skip it only for
         # this wake so the queue can continue with independent applications.
-        _mark_wake_completed(row["application_id"])
         await session.close_owned(cursor.handle)
+        _mark_wake_completed(row["application_id"])
         return {
             "status": "action_rejected",
             "reason": "application_state_prevents_rejection",
@@ -1032,19 +1763,24 @@ async def ineligible(reason: str) -> dict[str, Any]:
             "observation_sha256": observation.content_sha256,
             "instruction": "preserve the existing submission intent; do not submit or mark this row ineligible; continue with another row",
         }
-    wake_id = _path_env("JOB_SEARCH_BROWSER_OWNER_EVIDENCE").parent.name
-    report_receipt = send_hourly_outcomes(
-        database=_path_env("JOB_SEARCH_STATE_ROOT") / "telegram-outbox.sqlite3",
-        wake_id=wake_id,
-        receipts=(
-            QueueRowReceiptV1(
-                row["application_id"], row["company"], row["title"], "ineligible"
-            ),
-        ),
-        evidence_classes={},
-    )
-    _mark_wake_completed(row["application_id"])
     await session.close_owned(cursor.handle)
+    wake_id = _path_env("JOB_SEARCH_BROWSER_OWNER_EVIDENCE").parent.name
+    report_receipt = {"status": "delivery_failed", "message_id": None}
+    try:
+        report_receipt = send_hourly_outcomes(
+            database=_path_env("JOB_SEARCH_STATE_ROOT") / "telegram-outbox.sqlite3",
+            wake_id=wake_id,
+            receipts=(
+                QueueRowReceiptV1(
+                    row["application_id"], row["company"], row["title"], "ineligible"
+                ),
+            ),
+            evidence_classes={},
+        )
+    except Exception:
+        pass
+    finally:
+        _mark_wake_completed(row["application_id"])
     return {
         "status": "ineligible",
         "reason": reason,
@@ -1247,17 +1983,22 @@ async def finalize() -> dict[str, Any]:
         else completion.outcome
     )
     wake_id = _path_env("JOB_SEARCH_BROWSER_OWNER_EVIDENCE").parent.name
-    telegram = send_hourly_outcomes(
-        database=_path_env("JOB_SEARCH_STATE_ROOT") / "telegram-outbox.sqlite3",
-        wake_id=wake_id,
-        receipts=(
-            QueueRowReceiptV1(
-                row["application_id"], row["company"], row["title"], report_status
+    telegram = {"status": "delivery_failed", "message_id": None}
+    try:
+        telegram = send_hourly_outcomes(
+            database=_path_env("JOB_SEARCH_STATE_ROOT") / "telegram-outbox.sqlite3",
+            wake_id=wake_id,
+            receipts=(
+                QueueRowReceiptV1(
+                    row["application_id"], row["company"], row["title"], report_status
+                ),
             ),
-        ),
-        evidence_classes={row["application_id"]: completion.evidence_class},
-    )
-    _mark_wake_completed(row["application_id"])
+            evidence_classes={row["application_id"]: completion.evidence_class},
+        )
+    except Exception:
+        pass
+    finally:
+        _mark_wake_completed(row["application_id"])
     return {
         "status": report_status,
         "application_id": row["application_id"],
@@ -1266,23 +2007,33 @@ async def finalize() -> dict[str, Any]:
         "step_evidence_sha256": step.evidence_sha256,
         "checkpoint_sha256": checkpoint_receipt.checkpoint_sha256,
         "report_message_id": telegram["message_id"],
+        "report_status": telegram.get("status"),
     }
 
 
 def report(status: str) -> dict[str, Any]:
+    if status == "checkpointed":
+        return {
+            "status": "action_rejected",
+            "reason": "checkpoint_outcome_is_reported_atomically",
+        }
     row = _row()
     wake_id = _path_env("JOB_SEARCH_BROWSER_OWNER_EVIDENCE").parent.name
-    result = send_hourly_outcomes(
-        database=_path_env("JOB_SEARCH_STATE_ROOT") / "telegram-outbox.sqlite3",
-        wake_id=wake_id,
-        receipts=(
-            QueueRowReceiptV1(
-                row["application_id"], row["company"], row["title"], status
+    result = {"status": "delivery_failed", "message_id": None}
+    try:
+        result = send_hourly_outcomes(
+            database=_path_env("JOB_SEARCH_STATE_ROOT") / "telegram-outbox.sqlite3",
+            wake_id=wake_id,
+            receipts=(
+                QueueRowReceiptV1(
+                    row["application_id"], row["company"], row["title"], status
+                ),
             ),
-        ),
-        evidence_classes={},
-    )
-    if result.get("status") == "sent" and result.get("message_id"):
+            evidence_classes={},
+        )
+    except Exception:
+        pass
+    finally:
         _mark_wake_completed(row["application_id"])
     return {
         "status": result.get("status"),
@@ -1320,6 +2071,12 @@ def _run_main(argv: list[str] | None = None) -> int:
     type_text_parser.add_argument("--role", default="")
     type_text_parser.add_argument("--stable-id", default="")
     type_text_parser.add_argument("--text", required=True)
+    fill_form_parser = subparsers.add_parser("fill-form")
+    fill_form_parser.add_argument("--fields-json", required=True)
+    fill_profile_parser = subparsers.add_parser("fill-profile")
+    fill_profile_parser.add_argument("--fields-json", required=True)
+    answer_parser = subparsers.add_parser("answer")
+    answer_parser.add_argument("--question-label", required=True)
     tailor_parser = subparsers.add_parser("tailor")
     tailor_parser.add_argument("--sections-json", required=True)
     upload_parser = subparsers.add_parser("upload")
@@ -1328,6 +2085,11 @@ def _run_main(argv: list[str] | None = None) -> int:
     upload_parser.add_argument("--stable-id", default="")
     wait_parser = subparsers.add_parser("wait")
     wait_parser.add_argument("--milliseconds", required=True, type=int)
+    scroll_parser = subparsers.add_parser("scroll")
+    scroll_parser.add_argument("--label", required=True)
+    scroll_parser.add_argument("--role", required=True)
+    scroll_parser.add_argument("--stable-id", required=True)
+    scroll_parser.add_argument("--delta-y", required=True, type=int)
     act_parser = subparsers.add_parser("act")
     act_parser.add_argument("--action-file", required=True, type=Path)
     auth_parser = subparsers.add_parser("auth")
@@ -1342,7 +2104,12 @@ def _run_main(argv: list[str] | None = None) -> int:
     checkpoint_parser.add_argument(
         "--reason",
         required=True,
-        choices=("provider_unavailable", "visible_challenge", "email_recovery"),
+        choices=(
+            "provider_unavailable",
+            "visible_challenge",
+            "email_recovery",
+            "wake_budget_low",
+        ),
     )
     ineligible_parser = subparsers.add_parser("ineligible")
     ineligible_parser.add_argument(
@@ -1387,6 +2154,12 @@ def _run_main(argv: list[str] | None = None) -> int:
             stable_id=args.stable_id,
             text=args.text,
         )
+    elif args.command == "fill-profile":
+        operation = lambda: fill_profile_fields(args.fields_json)
+    elif args.command == "fill-form":
+        operation = lambda: fill_form_fields(args.fields_json)
+    elif args.command == "answer":
+        operation = lambda: resolve_saved_answer(args.question_label)
     elif args.command == "tailor":
         operation = lambda: tailor_resume(args.sections_json)
     elif args.command == "upload":
@@ -1395,6 +2168,13 @@ def _run_main(argv: list[str] | None = None) -> int:
         )
     elif args.command == "wait":
         operation = lambda: wait(args.milliseconds)
+    elif args.command == "scroll":
+        operation = lambda: scroll(
+            label=args.label,
+            role=args.role,
+            stable_id=args.stable_id,
+            delta_y=args.delta_y,
+        )
     elif args.command == "act":
         operation = lambda: act(args.action_file)
     elif args.command == "auth":

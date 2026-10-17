@@ -27,7 +27,8 @@ from runtime.loop.lm_loop_run import (
     PRE_EFFECT_HINT_ENTRYPOINTS,
     PRE_EFFECT_HINT_LOOP_IDS,
     _apply_verified_effect_result,
-    _admission_class, _dispatch_reserved, _host_admission_deferred, _queue_priority,
+    _admission_class, _dispatch_reserved, _host_admission_deferred,
+    _host_admission_heartbeat_subcause, _queue_priority,
     _enqueue_recovery_intent, _persist_effect_identity, _resource_class,
     _heartbeat_loop, _run_admitted, _run_entrypoint,
     _run_entrypoint_with_stderr_capture, _runtime_limit,
@@ -994,7 +995,7 @@ def test_heartbeat_failure_sets_cancellation_event(tmp_path, monkeypatch):
     failed = threading.Event()
 
     def heartbeat(_claim):
-        raise OSError("ENOSPC")
+        raise OSError(errno.ENOSPC, "private test detail")
 
     monkeypatch.setattr("runtime.loop.lm_loop_run.HEARTBEAT_INTERVAL_SECONDS", 0.01)
     with patch("runtime.loop.lm_loop_run.heartbeat_durable_resource",
@@ -1004,7 +1005,14 @@ def test_heartbeat_failure_sets_cancellation_event(tmp_path, monkeypatch):
     assert failed.is_set()
 
 
-def test_admitted_child_is_cancelled_when_heartbeat_fails(tmp_path, monkeypatch):
+@pytest.mark.parametrize("heartbeat_error,expected_reason,busy_tolerance", (
+    (OSError(errno.ENOSPC, "private test detail"),
+     "resource_heartbeat_oserror_errno_28", 240.0),
+    (RuntimeError("control_busy"),
+     "resource_heartbeat_control_busy_timeout", 0.001),
+))
+def test_admitted_child_is_cancelled_when_heartbeat_fails(
+        tmp_path, monkeypatch, heartbeat_error, expected_reason, busy_tolerance):
     entry = {
         "cadence": {"start_interval_seconds": 60},
         "provider_route": "deterministic",
@@ -1023,6 +1031,9 @@ def test_admitted_child_is_cancelled_when_heartbeat_fails(tmp_path, monkeypatch)
         return 0
 
     monkeypatch.setattr("runtime.loop.lm_loop_run.HEARTBEAT_INTERVAL_SECONDS", 0.01)
+    monkeypatch.setattr(
+        "runtime.loop.lm_loop_run.HEARTBEAT_BUSY_TOLERANCE_SECONDS", busy_tolerance,
+    )
     with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
           patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
                 return_value=(tmp_path / "ticket", "ready")),
@@ -1030,7 +1041,7 @@ def test_admitted_child_is_cancelled_when_heartbeat_fails(tmp_path, monkeypatch)
                 return_value=(claim, "acquired")),
           patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
           patch("runtime.loop.lm_loop_run.heartbeat_durable_resource",
-                side_effect=OSError("ENOSPC")),
+                side_effect=heartbeat_error),
           patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
                 return_value=[]),
           patch("runtime.loop.lm_loop_run._run_entrypoint",
@@ -1039,7 +1050,10 @@ def test_admitted_child_is_cancelled_when_heartbeat_fails(tmp_path, monkeypatch)
             ["/bin/true"], entry, "heartbeat-owner", {}, receipt,
         ) == 75
 
-    assert json.loads(receipt.read_text())["reason"] == "resource_heartbeat_unavailable"
+    receipt_payload = json.loads(receipt.read_text())
+    assert receipt_payload["reason"] == "resource_heartbeat_unavailable"
+    assert receipt_payload["heartbeat_subcause"] == expected_reason
+    assert "private test detail" not in receipt.read_text()
 
 
 def test_release_waits_for_inflight_heartbeat_before_closing_claim(tmp_path, monkeypatch):
@@ -1116,6 +1130,26 @@ def test_memory_deferral_requires_a_fresh_matching_receipt(tmp_path):
     assert not _host_admission_deferred(receipt, started)
 
 
+@pytest.mark.parametrize("subcause,expected", (
+    ("resource_heartbeat_claim_missing", "resource_heartbeat_claim_missing"),
+    ("resource_heartbeat_oserror_errno_0", "resource_heartbeat_oserror_errno_0"),
+    ("resource_heartbeat_oserror_errno_65535", "resource_heartbeat_oserror_errno_65535"),
+    ("resource_heartbeat_oserror_errno_65536", None),
+    ("resource_heartbeat_oserror_errno_0001", None),
+    ("resource_heartbeat_arbitrary_payload_123", None),
+))
+def test_host_admission_heartbeat_subcause_rejects_unknown_tokens(
+        tmp_path, subcause, expected):
+    receipt = tmp_path / "host-admission.json"
+    receipt.write_text(json.dumps({
+        "status": "deferred", "effect": 0,
+        "reason": "resource_heartbeat_unavailable",
+        "heartbeat_subcause": subcause,
+    }), encoding="utf-8")
+
+    assert _host_admission_heartbeat_subcause(receipt, 0) == expected
+
+
 def test_entrypoint_timeout_terminates_its_process_group():
     started = time.monotonic()
     result = _run_entrypoint(
@@ -1146,6 +1180,103 @@ def test_entrypoint_cancellation_terminates_running_process_group():
     trigger.join(timeout=1)
     assert result == 75
     assert time.monotonic() - started < 2
+
+
+@pytest.mark.parametrize("ignore_term", [False, True])
+@pytest.mark.parametrize("group_observed", [False, True])
+@pytest.mark.parametrize("terminal_kind", ["normal", "timeout", "cancel"])
+def test_entrypoint_terminal_exit_drains_only_verified_group_and_keeps_other_session(
+        tmp_path, ignore_term, group_observed, terminal_kind):
+    owned = tmp_path / "owned.json"
+    detached = tmp_path / "detached.json"
+    parent_terminated = tmp_path / "parent-terminated"
+    script = (
+        "import json,os,pathlib,signal,sys,time; "
+        "from runtime.host.resource_admission import process_start; "
+        f"signal.signal(signal.SIGTERM, {'signal.SIG_IGN' if ignore_term else 'lambda *_: sys.exit(0)'}); "
+        "pathlib.Path(sys.argv[1]).write_text(json.dumps([os.getpid(),process_start(os.getpid())])); "
+        "time.sleep(60)"
+    )
+    parent = (
+        "import pathlib,signal,subprocess,sys,time; "
+        f"signal.signal(signal.SIGTERM, lambda *_: (pathlib.Path({str(parent_terminated)!r}).write_text('TERM'), sys.exit(0))); "
+        f"subprocess.Popen([sys.executable,'-c',{script!r},{str(owned)!r}]); "
+        f"subprocess.Popen([sys.executable,'-c',{script!r},{str(detached)!r}],start_new_session=True); "
+        f"paths=[pathlib.Path({str(owned)!r}),pathlib.Path({str(detached)!r})]; "
+        "deadline=time.monotonic()+5\n"
+        "while not all(path.exists() for path in paths) and time.monotonic()<deadline: time.sleep(.01)\n"
+        "if not all(path.exists() for path in paths): sys.exit(86)\n"
+        + ("sys.exit(0)" if terminal_kind == "normal" else "time.sleep(60)")
+    )
+    leader = []
+    killpg = os.killpg
+
+    def signal_owned_group(pgid, signum):
+        assert pgid == leader[0]
+        exited = os.waitid(os.P_PID, pgid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+        if terminal_kind == "normal":
+            assert exited is not None
+        assert exited is None or exited.si_pid == pgid, "group leader was already reaped"
+        return killpg(pgid, signum)
+
+    group_observation = (
+        nullcontext() if group_observed else
+        patch("runtime.loop.lm_loop_run.subprocess.run",
+              return_value=subprocess.CompletedProcess([], 1, "", ""))
+    )
+    try:
+        started = time.monotonic()
+        with (group_observation,
+              patch("runtime.loop.lm_loop_run.os.killpg", side_effect=signal_owned_group)):
+            result = _run_entrypoint(
+                [sys.executable, "-c", parent],
+                timeout_seconds=1 if terminal_kind == "timeout" else 10,
+                termination_grace_seconds=.05, on_started=leader.append,
+                cancelled=lambda: terminal_kind == "cancel" and owned.exists() and detached.exists(),
+            )
+        assert result == {"normal": 0, "timeout": 124, "cancel": 75}[terminal_kind]
+        assert time.monotonic() - started < 2
+        if terminal_kind != "normal":
+            assert parent_terminated.read_text() == "TERM"
+        owned_pid, owned_start = json.loads(owned.read_text())
+        detached_pid, detached_start = json.loads(detached.read_text())
+        assert owned_start is not None and detached_start is not None
+        if group_observed or (terminal_kind != "normal" and not ignore_term):
+            deadline = time.monotonic() + 1
+            while admission.process_start(owned_pid) == owned_start and time.monotonic() < deadline:
+                time.sleep(.01)
+            assert admission.process_start(owned_pid) != owned_start, "terminal exit left its child live"
+        else:
+            assert admission.process_start(owned_pid) == owned_start
+        assert admission.process_start(leader[0]) is None
+        assert admission.process_start(detached_pid) == detached_start
+        assert os.getpgid(detached_pid) != leader[0]
+    finally:
+        for path in (owned, detached):
+            if path.exists():
+                pid, identity = json.loads(path.read_text())
+                if identity is not None and admission.process_start(pid) == identity:
+                    try:
+                        os.kill(pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+
+
+@pytest.mark.parametrize("timeout_seconds", [None, .2])
+def test_entrypoint_normal_exit_without_children_does_not_wait_for_grace(timeout_seconds):
+    started = time.monotonic()
+    assert _run_entrypoint([sys.executable, "-c", "pass"], timeout_seconds=timeout_seconds) == 0
+    assert time.monotonic() - started < 2
+
+
+@pytest.mark.parametrize("exit_code", [0, 7])
+def test_entrypoint_without_waitid_preserves_exit_without_guessing_group(monkeypatch, exit_code):
+    monkeypatch.delattr(os, "waitid", raising=False)
+    with patch("runtime.loop.lm_loop_run.os.killpg",
+               side_effect=AssertionError("reaped group ownership is unavailable")):
+        assert _run_entrypoint(
+            [sys.executable, "-c", f"raise SystemExit({exit_code})"], timeout_seconds=2,
+        ) == exit_code
 
 
 def test_entrypoint_completes_handoff_before_effect_gate(tmp_path):
@@ -1262,6 +1393,21 @@ def test_entrypoint_stderr_capture_replays_bounded_slices_for_large_output(
     assert list(scratch.iterdir()) == []
 
 
+def test_entrypoint_captures_stdout_and_stderr_without_replaying_them(tmp_path, capfd):
+    with (tmp_path / "stdout").open("w+b") as stdout, \
+         (tmp_path / "stderr").open("w+b") as stderr:
+        result = _run_entrypoint(
+            [sys.executable, "-B", "-c", "import os; os.write(1,b'out\\n'); os.write(2,b'err\\n')"],
+            timeout_seconds=5, stdout_capture_fd=stdout.fileno(), stderr_capture_fd=stderr.fileno())
+        stdout.seek(0)
+        stderr.seek(0)
+        assert stdout.read() == b"out\n"
+        assert stderr.read() == b"err\n"
+    assert result == 0
+    captured = capfd.readouterr()
+    assert captured.out == "" and captured.err == ""
+
+
 def test_entrypoint_without_stderr_capture_is_unaffected(capfd):
     child = "import sys; sys.stderr.write('untouched\\n'); sys.exit(1)"
 
@@ -1304,9 +1450,16 @@ def test_detached_grandchild_stderr_write_after_run_returns_does_not_epipe(tmp_p
     assert result == 1
     assert not (scratch / "entrypoint-stderr.log").exists()
     deadline = time.monotonic() + 5
-    while not marker.exists() and time.monotonic() < deadline:
+    marker_text = ""
+    while time.monotonic() < deadline:
+        try:
+            marker_text = marker.read_text()
+        except FileNotFoundError:
+            marker_text = ""
+        if marker_text == "ok":
+            break
         time.sleep(0.05)
-    assert marker.read_text() == "ok"
+    assert marker_text == "ok"
 
 
 def test_acquired_slot_keeps_the_full_entrypoint_runtime_budget(tmp_path):
@@ -1639,6 +1792,10 @@ def test_cross_venue_report_pre_effect_hint_is_allowlisted_by_loop_id():
     assert "investment-cross-venue-report" in PRE_EFFECT_HINT_LOOP_IDS
 
 
+def test_coconala_reply_detector_pre_effect_hint_is_allowlisted_by_loop_id():
+    assert "hf-gig-reply-detector" in PRE_EFFECT_HINT_LOOP_IDS
+
+
 def test_lancers_application_pre_effect_hint_is_allowlisted():
     assert "skills/earn/lancers/scripts/application-owner" in PRE_EFFECT_HINT_ENTRYPOINTS
 
@@ -1894,6 +2051,7 @@ def test_owner_effect_result_hint_requires_exact_loop_and_entrypoint(tmp_path):
     assert EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS == {
         "life-manager-cfo-hourly": "skills/cfo/run.sh",
         "marketing-treg-lead-signals-weekly": "skills/earn/marketing-engine/intel/treg-lead-signals-weekly",
+        "article-daily": "skills/writer-agent/article-daily.sh",
     }
 
     treg = observed_env(
@@ -2106,6 +2264,72 @@ def test_verified_cfo_telegram_effect_result_uses_message_receipt_ref(tmp_path):
         hint, "life-manager-cfo-hourly", "life-manager-cfo-hourly:telegram-run-1",
         entrypoint="skills/cfo/run.sh",
     ) is None
+WRITER_LIVE_URLS = [
+    "https://note.com/anicca123/n/n0123456789ab",
+    "https://aniccabuddha.substack.com/p/one-run",
+    "https://aniccaai2026.substack.com/p/one-run",
+]
+
+
+def _write_writer_effect_result(path, **overrides):
+    return _write_effect_result(path, **{
+        "owner_id": "article-daily",
+        "occurrence_id": "article-daily:writer-run-1",
+        "provider": "writer",
+        "provider_receipt_id": "20261017-001933",
+        "effect_status": "verified",
+        "live_urls": WRITER_LIVE_URLS,
+        **overrides,
+    })
+
+
+def test_verified_writer_effect_result_carries_run_receipt_and_live_urls(tmp_path):
+    hint = tmp_path / "entrypoint-result.json"
+    _write_writer_effect_result(hint)
+    entrypoint = "skills/writer-agent/article-daily.sh"
+    result = _verified_effect_result(
+        hint, "article-daily", "article-daily:writer-run-1", entrypoint=entrypoint)
+    assert result == ("verified", "writer://runs/20261017-001933", *WRITER_LIVE_URLS)
+
+    event = build_runtime_event(
+        loop_id="article-daily", domain="earn", run_id="writer-run-1",
+        release_sha="a" * 40, provider="shared-agent-runner", profile_alias=None,
+        effect_class="publish", succeeded=True, blocker=None,
+        claimed_occurrence_id="article-daily:writer-run-1",
+    )
+    upgraded = _apply_verified_effect_result(event, result)
+    assert upgraded["effect_status"] == "verified"
+    assert upgraded["provider"] == "writer"
+    assert upgraded["provider_receipt_id"] == "20261017-001933"
+    assert upgraded["official_readback_ref"] == "writer://runs/20261017-001933"
+    assert set(WRITER_LIVE_URLS) <= set(upgraded["evidence_refs"])
+
+    # Only the article-daily owner/entrypoint pair may report a Writer effect.
+    assert _verified_effect_result(
+        hint, "article-daily", "article-daily:writer-run-1",
+        entrypoint="skills/writer-agent/scripts/article-resume-pending.sh") is None
+    assert _verified_effect_result(
+        hint, "article-daily", "article-daily:other-run", entrypoint=entrypoint) is None
+    for overrides in (
+        {"provider": "telegram"},
+        {"live_urls": []},
+        {"live_urls": ["http://note.com/anicca123/n/x"]},
+        {"live_urls": ["https://note.com/n/x?utm=1"]},
+        {"live_urls": "https://note.com/anicca123/n/x"},
+        {"live_urls": WRITER_LIVE_URLS * 3},
+        {"effect_status": "unknown"},
+    ):
+        _write_writer_effect_result(hint, **overrides)
+        assert _verified_effect_result(
+            hint, "article-daily", "article-daily:writer-run-1",
+            entrypoint=entrypoint) is None, overrides
+    # The pre-effect marker left by a wake that never reached the model pass is not an effect.
+    hint.write_text(json.dumps({"status": "pre_effect_failure", "effect": 0}))
+    hint.chmod(0o600)
+    assert _verified_effect_result(
+        hint, "article-daily", "article-daily:writer-run-1", entrypoint=entrypoint) is None
+
+
 def _write_no_effect_result(path, **overrides):
     value = {
         'schema_version': 1,
@@ -2206,10 +2430,242 @@ def test_verified_no_effect_result_requires_exact_identity_and_allowed_entrypoin
                   'ebook-ja-tiktok-daily:run-off-slot', entrypoint) is None
     assert reader(hint, mobile_owner, mobile_occurrence,
                   'apps/life-manager/scripts/other-mobile-app') is None
+    investment_owner = 'alpaca-investment-paper'
+    investment_occurrence = f'{investment_owner}:wake-no-order'
+    _write_no_effect_result(
+        hint, owner_id=investment_owner, occurrence_id=investment_occurrence,
+        reason='no_broker_order_submitted',
+    )
+    assert reader(hint, investment_owner, investment_occurrence,
+                  'skills/alpaca-investment/run.py') == (
+                      'not_applicable',
+                      f'lm-no-effect://{investment_owner}/{investment_occurrence}/no_broker_order_submitted',
+                  )
+    live_owner = 'alpaca-investment-live'
+    live_occurrence = f'{live_owner}:wake-no-order'
+    _write_no_effect_result(
+        hint, owner_id=live_owner, occurrence_id=live_occurrence,
+        reason='no_broker_order_submitted',
+    )
+    assert reader(hint, live_owner, live_occurrence,
+                  'skills/alpaca-investment/run.py') == (
+                      'not_applicable',
+                      f'lm-no-effect://{live_owner}/{live_occurrence}/no_broker_order_submitted',
+                  )
+    other_owner = 'unrelated-owner'
+    other_occurrence = f'{other_owner}:wake-no-order'
+    _write_no_effect_result(
+        hint, owner_id=other_owner, occurrence_id=other_occurrence,
+        reason='no_broker_order_submitted',
+    )
+    assert reader(hint, other_owner, other_occurrence,
+                  'skills/alpaca-investment/run.py') is None
     hint.write_text('{"status":"pre_effect_failure","effect":0}\n', encoding='utf-8')
     hint.chmod(0o600)
     assert reader(hint, 'ebook-ja-tiktok-daily',
                   'ebook-ja-tiktok-daily:run-off-slot', entrypoint) is None
+
+
+def test_alpaca_no_effect_hint_reaches_terminal_validation():
+    entrypoint = 'skills/alpaca-investment/run.py'
+    assert loop_runner._effect_result_hint_allowed('alpaca-investment-paper', entrypoint)
+    assert loop_runner._effect_result_hint_allowed('alpaca-investment-live', entrypoint)
+    assert not loop_runner._effect_result_hint_allowed('unrelated-owner', entrypoint)
+
+
+def _run_admitted_alpaca_hint_case(
+        tmp_path, hint_kind, *, loop_id='alpaca-investment-paper',
+        entrypoint='skills/alpaca-investment/run.py'):
+    occurrence_id = f'{loop_id}:run-{hint_kind}'
+    entry = {
+        'cadence': {'start_interval_seconds': 300},
+        'provider_route': 'shared-agent-runner',
+        'resource_class': 'deterministic',
+        'admission_class': 'revenue',
+        'priority': 'revenue',
+        'effect_class': 'money',
+        'entrypoint': entrypoint,
+    }
+    receipt = tmp_path / hint_kind / 'host-admission.json'
+    receipt.parent.mkdir(parents=True)
+    claim = tmp_path / hint_kind / 'claim.json'
+    claim.write_text(json.dumps({'occurrence_id': occurrence_id}), encoding='utf-8')
+
+    def run_child(_command, _scratch, *, env, on_started, **_kwargs):
+        on_started(4242)
+        hint_path = env.get('LIFE_MANAGER_RESULT_HINT_PATH')
+        if hint_path:
+            hint = Path(hint_path)
+            if hint_kind == 'no-effect':
+                value = {
+                    'schema_version': 1,
+                    'kind': 'life_manager_no_effect_result',
+                    'status': 'verified_no_effect',
+                    'effect': 0,
+                    'owner_id': loop_id,
+                    'occurrence_id': occurrence_id,
+                    'reason': 'no_broker_order_submitted',
+                }
+            elif hint_kind == 'attempted':
+                value = {'status': 'effect_attempted', 'effect': 1}
+            else:
+                value = None
+            if value is not None:
+                hint.write_text(json.dumps(value) + '\n', encoding='utf-8')
+                hint.chmod(0o600)
+        return 0, b''
+
+    with (patch('runtime.loop.lm_loop_run.durable_protocol_version', return_value=2),
+          patch('runtime.loop.lm_loop_run.memory_free_percent', return_value=50),
+          patch('runtime.loop.lm_loop_run._producer_gate', return_value=None),
+          patch('runtime.loop.lm_loop_run.enqueue_durable_resource',
+                return_value=(tmp_path / hint_kind / 'ticket', 'ready')),
+          patch('runtime.loop.lm_loop_run.claim_durable_resource',
+                return_value=(claim, 'acquired')),
+          patch('runtime.loop.lm_loop_run.transfer_durable_resource'),
+          patch('runtime.loop.lm_loop_run._heartbeat_loop'),
+          patch('runtime.loop.lm_loop_run.release_and_reserve_resource',
+                return_value=[]) as release,
+          patch('runtime.loop.lm_loop_run._dispatch_reserved'),
+          patch('runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture',
+                side_effect=run_child),
+          patch('runtime.loop.lm_loop_run.resolve_verified_no_effect_occurrence_resource',
+                create=True, return_value=True) as resolve_no_effect,
+          patch('runtime.loop.lm_loop_run.resolve_pre_effect_occurrence_resource',
+                create=True, return_value=True) as resolve_pre_effect):
+        result = _run_admitted(
+            ['/bin/true'], entry, loop_id, {}, receipt,
+            occurrence_id=occurrence_id,
+            on_terminal_event=lambda *_args: True,
+        )
+        assert result == 0
+        release.assert_called_once()
+        return (release.call_args, resolve_no_effect.call_args_list,
+                resolve_pre_effect.call_args_list)
+
+
+def test_verified_alpaca_no_effect_closes_only_its_admission_occurrence(tmp_path):
+    release, resolutions, pre_effect_resolutions = _run_admitted_alpaca_hint_case(
+        tmp_path, 'no-effect')
+    assert release.kwargs.get('effect_unknown') is not True
+    assert len(resolutions) == 1
+    assert pre_effect_resolutions == []
+    args, kwargs = resolutions[0]
+    assert args == ('alpaca-investment-paper', 'alpaca-investment-paper:run-no-effect')
+    assert kwargs['expected_state'] == 'released'
+    assert kwargs['expected_reason'] == 'no_broker_order_submitted'
+    proof = kwargs['no_effect_readback']()
+    assert proof == {
+        'owner_id': 'alpaca-investment-paper',
+        'occurrence_id': 'alpaca-investment-paper:run-no-effect',
+        'verified': True,
+        'proof_type': 'verified_no_effect',
+        'effect': 0,
+        'reason': 'no_broker_order_submitted',
+        'evidence_ref': (
+            'lm-no-effect://alpaca-investment-paper/'
+            'alpaca-investment-paper:run-no-effect/no_broker_order_submitted'
+        ),
+    }
+
+
+def test_successful_child_without_verified_effect_result_keeps_fence(tmp_path):
+    release, resolutions, pre_effect_resolutions = _run_admitted_alpaca_hint_case(
+        tmp_path, 'attempted')
+    assert release.kwargs['effect_unknown'] is True
+    assert resolutions == []
+    assert pre_effect_resolutions == []
+
+
+def test_successful_alpaca_without_terminal_hint_keeps_fence_with_startup_marker(
+        tmp_path):
+    release, resolutions, pre_effect_resolutions = _run_admitted_alpaca_hint_case(
+        tmp_path, 'missing')
+    assert release.kwargs['effect_unknown'] is True
+    assert resolutions == []
+    assert pre_effect_resolutions == []
+
+
+def test_successful_non_alpaca_effect_owner_keeps_existing_no_hint_contract(tmp_path):
+    release, resolutions, pre_effect_resolutions = _run_admitted_alpaca_hint_case(
+        tmp_path, 'attempted', loop_id='affiliate-loop',
+        entrypoint='skills/affiliate/affiliate',
+    )
+    assert release.kwargs.get('effect_unknown') is not True
+    assert resolutions == []
+    assert pre_effect_resolutions == []
+
+
+def test_alpaca_no_effect_releases_only_exact_stale_fence_in_sqlite(tmp_path, monkeypatch):
+    monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(tmp_path / "admission"))
+    owner = "alpaca-investment-paper"
+    occurrence = f"{owner}:stale-terminal"
+    peer_occurrence = f"{owner}:peer-fence"
+    admission.activate_durable_v2()
+    ticket, reason = admission.enqueue_durable(
+        "deterministic", owner, admission_class="revenue",
+        occurrence_id=occurrence, now=100,
+    )
+    assert ticket is not None and reason == "ready"
+    claim, reason = admission.claim_durable(
+        "deterministic", owner, admission_class="revenue", now=101,
+    )
+    assert claim is not None and reason == "acquired"
+
+    database = tmp_path / "admission/admission-v2.sqlite3"
+    with sqlite3.connect(database) as connection:
+        row = connection.execute(
+            """SELECT resource_class,admission_class,base_priority,queued_at,sequence
+                 FROM occurrences WHERE occurrence_id=?""",
+            (occurrence,),
+        ).fetchone()
+        assert row is not None
+        connection.execute(
+            "UPDATE occurrences SET effect_unknown=1 WHERE occurrence_id=?",
+            (occurrence,),
+        )
+        connection.execute(
+            """INSERT OR REPLACE INTO priorities(
+                   owner_id,admission_class,admission_policy,base_priority,
+                   queued_at,effect_unknown,effect_scope
+               ) VALUES(?,'revenue',NULL,'revenue',100,1,'owner')""",
+            (owner,),
+        )
+        connection.execute(
+            """INSERT INTO occurrences(
+                   occurrence_id,owner_id,resource_class,admission_class,
+                   base_priority,queued_at,state,sequence,effect_unknown
+               ) VALUES(?,?,?,?,?,?,'claimed',?,1)""",
+            (peer_occurrence, owner, *row),
+        )
+        connection.commit()
+
+    # Normal child release changes `claimed` to `released` but retains a stale
+    # recovery fence already written for this occurrence.
+    admission.release_and_reserve(claim, reserve=False, now=102)
+    target = (
+        "not_applicable",
+        f"lm-no-effect://{owner}/{occurrence}/no_broker_order_submitted",
+    )
+    assert loop_runner._resolve_verified_alpaca_no_effect_fence(
+        owner, occurrence, "skills/alpaca-investment/run.py", target,
+    ) is True
+
+    with sqlite3.connect(database) as connection:
+        target_row = connection.execute(
+            "SELECT state,effect_unknown FROM occurrences WHERE occurrence_id=?",
+            (occurrence,),
+        ).fetchone()
+        peer_row = connection.execute(
+            "SELECT state,effect_unknown FROM occurrences WHERE occurrence_id=?",
+            (peer_occurrence,),
+        ).fetchone()
+        priority = connection.execute(
+            "SELECT effect_unknown FROM priorities WHERE owner_id=?", (owner,),
+        ).fetchone()
+    assert target_row == ("released", 0)
+    assert peer_row == ("claimed", 1)
+    assert priority == (1,)
 
 
 def test_verified_no_effect_result_marks_the_terminal_as_no_effect():
@@ -2316,6 +2772,45 @@ def test_main_projects_exact_mobile_result_into_terminal_event(tmp_path):
     enqueue.assert_not_called()
 
 
+def test_main_fences_heartbeat_failure_until_official_readback(tmp_path):
+    release = _write_prestart_lock_release(tmp_path, effect_class="publish")
+    state_root = tmp_path / "state"
+    events = []
+
+    def run_admitted(_command, _entry, loop_id, _env, receipt, *,
+                     occurrence_id, on_claimed, **_kwargs):
+        on_claimed(occurrence_id)
+        receipt.write_text(json.dumps({
+            "status": "deferred", "effect": 0,
+            "reason": "resource_heartbeat_unavailable",
+            "heartbeat_subcause": "resource_heartbeat_control_busy_timeout",
+        }), encoding="utf-8")
+        receipt.chmod(0o600)
+        return 75
+
+    with (patch.dict(os.environ, {
+              "LIFE_MANAGER_STATE_ROOT": str(state_root),
+              "LIFE_MANAGER_RUN_ID": "heartbeat-run",
+              "WAKE_ID": "heartbeat-wake",
+          }, clear=False),
+          patch("runtime.loop.lm_loop_run._apply_lock", return_value=nullcontext()),
+          patch("runtime.loop.lm_loop_run.build_loop_command", return_value=["/bin/true"]),
+          patch("runtime.loop.lm_loop_run._run_admitted", side_effect=run_admitted),
+          patch("runtime.loop.lm_loop_run.append_runtime_event",
+                side_effect=lambda _path, event: events.append(event)),
+          patch("runtime.loop.lm_loop_run._enqueue_recovery_intent") as enqueue):
+        assert lm_loop_run_main(["example-publisher", str(release)]) == 75
+
+    event = events[-1]
+    expected = "host_admission_deferred:resource_heartbeat_unavailable"
+    assert event["blocker"] == event["error_class"] == expected
+    assert event["effect_status"] == "unknown"
+    assert event["retryable"] is False
+    assert event["next_action"] == "official_readback_required"
+    assert event["error_detail"] == "heartbeat_subcause=resource_heartbeat_control_busy_timeout"
+    enqueue.assert_not_called()
+
+
 def test_main_preserves_live_relay_after_terminal_commit(tmp_path):
     release = _write_prestart_lock_release(tmp_path)
     state = tmp_path / "state"
@@ -2403,7 +2898,7 @@ def test_cleanup_safety_owner_runs_when_bounded_log_startup_has_enospc(tmp_path)
 
 
 @pytest.mark.parametrize("identity_outcome", ["rejected", "save_exception", "persisted", "not_written"])
-def test_failed_run_cleans_scratch_only_after_effect_identity_is_safe(tmp_path, identity_outcome):
+def test_failed_run_preserves_unknown_scratch_after_effect_identity_persistence(tmp_path, identity_outcome):
     release = _write_prestart_lock_release(tmp_path)
     state = tmp_path / "state"
     scratch = state / "loop-tmp/example-publisher/run-1"
@@ -2456,13 +2951,54 @@ def test_failed_run_cleans_scratch_only_after_effect_identity_is_safe(tmp_path, 
         assert scratch_gc({state}, starts={})["removed"] == 0
         assert sidecar.read_text() == raw
     else:
-        assert not scratch.exists(), "safe completed runs must still clean their own scratch"
+        assert (scratch / ".terminal-unrecorded").is_file()
+        diagnostic = json.loads((state / "scratch-cleanup-diagnostics/run-1.json").read_text())
+        assert diagnostic["cleanup_status"] == "held_effect_unknown"
         if identity_outcome == "persisted":
             assert (state / "effect-identities/run-1.jsonl").read_text() == raw
 
 
-def test_main_records_false_terminal_scratch_cleanup_without_changing_business_result(tmp_path):
+@pytest.mark.parametrize("effect_status", ["unknown", "started", "not_applicable", "verified", "reconciled"])
+def test_main_cleans_terminal_scratch_only_after_effect_is_known(tmp_path, effect_status):
     release = _write_prestart_lock_release(tmp_path)
+    state = tmp_path / "state"
+    scratch = state / "loop-tmp/example-publisher/run-1"
+
+    def terminal_event(**kwargs):
+        return {**build_runtime_event(**kwargs), "effect_status": effect_status}
+
+    def run_admitted(*_args, **_kwargs):
+        (scratch / "set-001").mkdir()
+        (scratch / "set-001" / "01.png").write_bytes(b"p" * 4096)
+        (scratch / "set-001" / "submit-response.json").write_text("{}")
+        return 0
+
+    with (patch.dict(os.environ, {"LIFE_MANAGER_STATE_ROOT": str(state), "LIFE_MANAGER_RUN_ID": "run-1"}),
+          patch("runtime.loop.lm_loop_run._apply_lock", return_value=nullcontext()),
+          patch("runtime.loop.lm_loop_run.build_loop_command", return_value=["/bin/true"]),
+          patch("runtime.loop.lm_loop_run._run_admitted", side_effect=run_admitted),
+          patch("runtime.loop.lm_loop_run.build_runtime_event", side_effect=terminal_event),
+          patch("runtime.loop.central_cleanup._browser_profiles_live", return_value=False)):
+        assert lm_loop_run_main(["example-publisher", str(release)]) == 0
+
+    event = json.loads((state / "events.jsonl").read_text().splitlines()[-1])
+    assert event["effect_status"] == effect_status
+    if effect_status in {"unknown", "started"}:
+        assert scratch.is_dir()
+        assert (scratch / ".terminal-unrecorded").is_file()
+        diagnostic = json.loads((state / "scratch-cleanup-diagnostics/run-1.json").read_text())
+        assert diagnostic["terminal_saved"] is True
+        assert diagnostic["cleanup_status"] == "held_effect_unknown"
+        assert diagnostic["cleanup_operation"] == "official_readback_required_evidence_only"
+        assert diagnostic["scratch_identity"]["terminal_marker_remaining"] is True
+        assert (scratch / "set-001" / "submit-response.json").is_file()
+        assert not (scratch / "set-001" / "01.png").exists()
+    else:
+        assert not scratch.exists()
+
+
+def test_main_records_false_terminal_scratch_cleanup_without_changing_business_result(tmp_path):
+    release = _write_prestart_lock_release(tmp_path, effect_class="none")
     state_root = tmp_path / "state"
     events = []
     scratch = state_root / "loop-tmp/example-publisher/run-1"
@@ -2512,7 +3048,7 @@ def test_main_records_false_terminal_scratch_cleanup_without_changing_business_r
 
 
 def test_main_preserves_terminal_scratch_while_run_owned_browser_profile_is_live(tmp_path):
-    release = _write_prestart_lock_release(tmp_path)
+    release = _write_prestart_lock_release(tmp_path, effect_class="none")
     state_root = tmp_path / "state"
     events = []
     scratch = state_root / "loop-tmp/example-publisher/run-1"
@@ -2546,8 +3082,32 @@ def test_main_preserves_terminal_scratch_while_run_owned_browser_profile_is_live
     assert not (scratch / ".terminal-unrecorded").exists()
 
 
+def test_main_records_partial_cleanup_as_preserved(tmp_path):
+    release = _write_prestart_lock_release(tmp_path, effect_class="none")
+    state_root = tmp_path / "state"
+    events = []
+    def run_admitted(_command, _entry, _loop_id, _env, receipt, **_kwargs):
+        receipt.write_text('{"status":"pass","effect":0}\n', encoding="utf-8")
+        receipt.chmod(0o600)
+        return 0
+    with (patch.dict(os.environ, {"LIFE_MANAGER_STATE_ROOT": str(state_root),
+              "LIFE_MANAGER_RUN_ID": "run-1", "WAKE_ID": "wake-1"}, clear=False),
+          patch("runtime.loop.lm_loop_run._apply_lock", return_value=nullcontext()),
+          patch("runtime.loop.lm_loop_run.build_loop_command", return_value=["/bin/true"]),
+          patch("runtime.loop.lm_loop_run._run_admitted", side_effect=run_admitted),
+          patch("runtime.loop.lm_loop_run.append_runtime_event", side_effect=lambda _p, e: events.append(e)),
+          patch("runtime.loop.central_cleanup._browser_profiles_live", return_value=False),
+          patch("runtime.loop.lm_loop_run.remove_owned_tree", return_value="contents_reclaimed")):
+        assert lm_loop_run_main(["example-publisher", str(release)]) == 0
+    diagnostic = json.loads((state_root / "scratch-cleanup-diagnostics/run-1.json").read_text())
+    assert diagnostic["cleanup_status"] == "preserved"
+    assert diagnostic["cleanup_operation"] == "contents_reclaimed"
+    assert (state_root / "loop-tmp/example-publisher/run-1").is_dir()
+    assert events[-1]["status"] == "pass"
+
+
 def test_main_records_cleanup_exception_without_changing_business_result(tmp_path):
-    release = _write_prestart_lock_release(tmp_path)
+    release = _write_prestart_lock_release(tmp_path, effect_class="none")
     state_root = tmp_path / "state"
     events = []
 
@@ -2622,7 +3182,7 @@ def test_main_keeps_scratch_protected_when_terminal_event_is_not_saved(tmp_path)
 
 def test_main_reports_typed_diagnostic_when_cleanup_record_cannot_be_written(
         tmp_path, capsys):
-    release = _write_prestart_lock_release(tmp_path)
+    release = _write_prestart_lock_release(tmp_path, effect_class="none")
     state_root = tmp_path / "state"
     events = []
 
@@ -2657,7 +3217,7 @@ def test_main_reports_typed_diagnostic_when_cleanup_record_cannot_be_written(
     assert "private diagnostic path" not in captured.err
 
 
-def _write_prestart_lock_release(tmp_path):
+def _write_prestart_lock_release(tmp_path, *, effect_class="publish"):
     release = tmp_path / "release"
     (release / "config").mkdir(parents=True)
     (release / "apps/life-manager/config").mkdir(parents=True)
@@ -2667,7 +3227,7 @@ def _write_prestart_lock_release(tmp_path):
             "domain": "earn",
             "entrypoint": "bin/example-publisher",
             "provider_route": "test-provider",
-            "effect_class": "publish",
+            "effect_class": effect_class,
             "state_root": str(tmp_path / "unused-state"),
         }},
     }), encoding="utf-8")
@@ -3317,10 +3877,15 @@ def test_all_coconala_lanes_enter_revenue_admission(tmp_path):
             kwargs["allow_no_effect_recovery"] = True
         if registry[loop_id].get("coalesce_queued_wakes") is True:
             kwargs["coalesce_reserved"] = True
+        if registry[loop_id].get("admission_effect_scope") == "occurrence":
+            kwargs["effect_scope"] = "occurrence"
         expected_enqueue.append(call("agent", loop_id, **kwargs))
     assert enqueue.call_args_list == expected_enqueue
     assert claim.call_args_list == [
-        call("agent", loop_id, admission_class="revenue") for loop_id in loop_ids
+        call("agent", loop_id, admission_class="revenue",
+             **({"effect_scope": "occurrence"}
+                if registry[loop_id].get("admission_effect_scope") == "occurrence" else {}))
+        for loop_id in loop_ids
     ]
     run.assert_not_called()
 
@@ -3388,6 +3953,7 @@ def test_invalid_memory_threshold_fails_closed(tmp_path):
 def test_entrypoint_blocks_signal_until_handler_owns_child(monkeypatch):
     class Process:
         pid = 43210
+        returncode = None
         def poll(self): return None
         def wait(self, timeout=None): return 0
 
@@ -3404,6 +3970,7 @@ def test_entrypoint_blocks_signal_until_handler_owns_child(monkeypatch):
 def test_entrypoint_treats_permission_denied_signal_forward_as_already_exited(monkeypatch):
     class Process:
         pid = 43210
+        returncode = None
         def poll(self): return None
         def wait(self, timeout=None): return 0
 
@@ -3508,36 +4075,40 @@ def test_memory_deferral_preserves_queue_and_releases_reservation(tmp_path):
 
 
 @pytest.mark.parametrize("reason", ("disk_headroom_low", "disk_headroom_unknown"))
-def test_low_or_unknown_disk_headroom_queues_then_defers_finite_owner(tmp_path, reason):
+def test_low_or_unknown_disk_headroom_does_not_defer_finite_owner(tmp_path, reason):
     entry = {"cadence": {"start_interval_seconds": 60},
              "provider_route": "shared-agent-runner", "effect_class": "application"}
     receipt = tmp_path / "host-admission.json"
     occurrence = "example:disk-low-occurrence"
     ticket = tmp_path / "ticket"
+    claim = tmp_path / "claim.json"
+    claim.write_text(json.dumps({"occurrence_id": occurrence}))
     stop = tmp_path / "disk-writers.stop"
     with (patch("runtime.loop.lm_loop_run._producer_gate",
-                side_effect=[None, (reason, stop)]) as gate,
+                side_effect=[None, (reason, stop), (reason, stop)]) as gate,
           patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
           patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
                 return_value=(ticket, "ready")) as enqueue,
-          patch("runtime.loop.lm_loop_run.claim_durable_resource") as claim,
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(claim, "acquired")) as claim_resource,
           patch("runtime.loop.lm_loop_run.defer_durable_resource") as defer,
           patch("runtime.loop.lm_loop_run.release_and_reserve_resource") as release,
-          patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture") as child):
+          patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture",
+                return_value=(0, b"")) as child):
         assert _run_admitted(["/bin/true"], entry, "example", {}, receipt,
-                             occurrence_id=occurrence) == 75
+                             occurrence_id=occurrence) == 0
 
     enqueue.assert_called_once()
     assert enqueue.call_args.kwargs["occurrence_id"] == occurrence
     gate.assert_has_calls([
         call("example", check_capacity=False),
         call("example", check_capacity=True),
+        call("example", check_capacity=True),
     ])
-    defer.assert_called_once_with("example")
-    claim.assert_not_called(); release.assert_not_called(); child.assert_not_called()
-    result = json.loads(receipt.read_text())
-    assert result["status"] == "deferred" and result["effect"] == 0
-    assert result["phase"] == "pre_claim" and result["reason"] == reason
+    defer.assert_not_called()
+    claim_resource.assert_called_once()
+    release.assert_called_once()
+    child.assert_called_once()
 
 
 def test_explicit_operator_disk_stop_still_defers_before_queue_and_provider_child(tmp_path):
@@ -3545,8 +4116,7 @@ def test_explicit_operator_disk_stop_still_defers_before_queue_and_provider_chil
              "provider_route": "shared-agent-runner", "effect_class": "application"}
     receipt = tmp_path / "host-admission.json"
     stop = tmp_path / "disk-writers.stop"
-    with (patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=3*1024**3, create=True) as disk,
-          patch("runtime.loop.lm_loop_run._producer_gate", return_value=("disk_writers_stop", stop), create=True) as gate,
+    with (patch("runtime.loop.lm_loop_run._producer_gate", return_value=("disk_writers_stop", stop), create=True) as gate,
           patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
           patch("runtime.loop.lm_loop_run.enqueue_durable_resource", return_value=(tmp_path / "ticket", "ready")) as enqueue,
           patch("runtime.loop.lm_loop_run.claim_durable_resource", return_value=(tmp_path / "claim", "acquired")) as claim,
@@ -3554,7 +4124,7 @@ def test_explicit_operator_disk_stop_still_defers_before_queue_and_provider_chil
           patch("runtime.loop.lm_loop_run.defer_durable_resource") as defer,
           patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture", return_value=(0,b"")) as child):
         assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 75
-    gate.assert_called_once(); disk.assert_not_called()
+    gate.assert_called_once()
     enqueue.assert_not_called(); claim.assert_not_called(); release.assert_not_called(); child.assert_not_called()
     defer.assert_called_once_with("example")
     result = json.loads(receipt.read_text())
@@ -3563,12 +4133,27 @@ def test_explicit_operator_disk_stop_still_defers_before_queue_and_provider_chil
     assert result["flag_path"] == str(stop)
 
 
+def test_disk_floor_defers_before_queue_and_provider_child(tmp_path):
+    entry = {"cadence": {"start_interval_seconds": 60},
+             "provider_route": "shared-agent-runner", "effect_class": "application"}
+    receipt = tmp_path / "host-admission.json"
+    with (patch("runtime.loop.lm_loop_run._producer_gate", return_value=("disk_floor_low", tmp_path), create=True),
+          patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource", return_value=(tmp_path / "ticket", "ready")) as enqueue,
+          patch("runtime.loop.lm_loop_run.claim_durable_resource", return_value=(tmp_path / "claim", "acquired")),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource", return_value=[]),
+          patch("runtime.loop.lm_loop_run.defer_durable_resource"),
+          patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture", return_value=(0,b"")) as child):
+        assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 75
+    enqueue.assert_not_called(); child.assert_not_called()
+    assert json.loads(receipt.read_text())["reason"] == "disk_floor_low"
+
+
 def test_healthy_disk_boundary_keeps_finite_dispatch_without_numeric_probe(tmp_path):
     entry = {"cadence": {"start_interval_seconds": 60},
              "provider_route": "shared-agent-runner", "effect_class": "application"}
     receipt = tmp_path / "host-admission.json"
-    with (patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=2*1024**3, create=True) as disk,
-          patch("runtime.loop.lm_loop_run._producer_gate", return_value=None, create=True) as gate,
+    with (patch("runtime.loop.lm_loop_run._producer_gate", return_value=None, create=True) as gate,
           patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
           patch("runtime.loop.lm_loop_run.enqueue_durable_resource", return_value=(tmp_path / "ticket","ready")),
           patch("runtime.loop.lm_loop_run.claim_durable_resource", return_value=(tmp_path / "claim","acquired")),
@@ -3581,18 +4166,16 @@ def test_healthy_disk_boundary_keeps_finite_dispatch_without_numeric_probe(tmp_p
         call("example", check_capacity=True),
         call("example", check_capacity=True),
     ])
-    disk.assert_not_called()
 
 
-def test_disk_drop_after_claim_requeues_finite_work_before_provider_effect(tmp_path):
+def test_operator_stop_after_claim_requeues_finite_work_before_provider_effect(tmp_path):
     entry = {"cadence": {"start_interval_seconds": 60},
              "provider_route": "shared-agent-runner", "effect_class": "application"}
     receipt = tmp_path / "host-admission.json"
     claim = tmp_path / "claim"
     stop = tmp_path / "disk-writers.stop"
-    with (patch("runtime.loop.lm_loop_run.disk_free_bytes", side_effect=[3*1024**3,0], create=True) as disk,
-          patch("runtime.loop.lm_loop_run._producer_gate",
-                side_effect=[None, None, ("disk_headroom_low", stop)], create=True) as gate,
+    with (patch("runtime.loop.lm_loop_run._producer_gate",
+                side_effect=[None, None, ("disk_writers_stop", stop)], create=True) as gate,
           patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
           patch("runtime.loop.lm_loop_run.enqueue_durable_resource", return_value=(tmp_path / "ticket", "ready")),
           patch("runtime.loop.lm_loop_run.claim_durable_resource", return_value=(claim, "acquired")),
@@ -3606,7 +4189,6 @@ def test_disk_drop_after_claim_requeues_finite_work_before_provider_effect(tmp_p
         call("example", check_capacity=True),
         call("example", check_capacity=True),
     ])
-    disk.assert_not_called()
     release.assert_called_once()
     assert release.call_args.kwargs["requeue"] is True
     result = json.loads(receipt.read_text())
@@ -4379,3 +4961,19 @@ def test_terminal_event_enospc_fences_effectful_owner_before_next_wake(
     if next_claim is not None:
         admission.release_and_reserve(next_claim, effect_unknown=True, reserve=False)
     assert next_claim is None and reason == "effect_unknown"
+
+
+def test_ebook_publish_flag_defaults_open_when_launchd_lost_it(tmp_path):
+    # `launchctl setenv` does not survive a reboot; an unset flag must not stop
+    # the eBook owners. An explicit non-"true" value still closes publishing.
+    base = {"PATH": "/usr/bin:/bin"}
+    for owner in sorted(loop_runner.EBOOK_POSTIZ_LOOP_IDS):
+        child = loop_runner._child_environment_for_owner(owner, base, home=tmp_path)
+        assert child["LM_EBOOK_PUBLISHING_ENABLED"] == "true"
+    closed = loop_runner._child_environment_for_owner(
+        "ebook-ja-tiktok-daily", {**base, "LM_EBOOK_PUBLISHING_ENABLED": "false"}, home=tmp_path)
+    assert closed["LM_EBOOK_PUBLISHING_ENABLED"] == "false"
+    assert "LM_POSTIZ_API_KEY" not in closed
+    assert "LM_EBOOK_PUBLISHING_ENABLED" not in loop_runner._child_environment_for_owner(
+        "article-daily", base, home=tmp_path)
+    assert "LM_EBOOK_PUBLISHING_ENABLED" not in base

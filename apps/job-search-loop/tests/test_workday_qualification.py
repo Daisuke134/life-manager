@@ -18,7 +18,6 @@ from job_search_loop.workday_search_loop import (
     cached_source_fetcher,
     interleave_companies,
     qualified_queue_ids,
-    rank_candidates,
     rotated_sources,
     rolling_submission_metrics,
     search_until_qualified,
@@ -28,43 +27,67 @@ from job_search_loop.workday_search_loop import (
     qualify_with_wake_cursor,
     reject_stale_workday_rows,
     submit_attempt_hosts,
-    validate_shortlist,
     unique_sources,
 )
 from job_search_loop.workday_qualification import POLICY_VERSION, qualify_one
 
 
 class WorkdayQualificationTests(unittest.TestCase):
-    def test_shortlist_prompt_balances_locations_and_uses_user_salary_target(self):
-        prompt_source = inspect.getsource(workday_search_loop.main)
-
-        self.assertIn("No location category outranks another", prompt_source)
-        self.assertIn("Tokyo onsite or hybrid", prompt_source)
-        self.assertIn("remote roles", prompt_source)
-        self.assertIn("United States", prompt_source)
-        self.assertIn("USD 100,000 annual gross base target", prompt_source)
-        self.assertNotIn("Japan employment first", prompt_source)
-        self.assertNotIn(
-            "Every row that explicitly supports employment from Japan must rank before any row tied to another country",
-            prompt_source,
-        )
-
+    def test_workday_fit_policy_includes_worldwide_scope_and_salary_target(self):
         fit_source = inspect.getsource(workday_qualification.qualify_one)
+        self.assertIn("Remote, onsite, and hybrid roles in every country", fit_source)
         self.assertIn("USD 100,000 annual gross base", fit_source)
         self.assertIn("CEO or C-suite", fit_source)
         self.assertIn("Do not reject a role based on title alone", fit_source)
 
-    def test_sponsorship_wording_alone_does_not_exclude_us_roles(self):
-        shortlist_source = inspect.getsource(workday_search_loop.main)
+    def test_v7_requalifies_old_rejections_without_replaying_submit_intents(self):
+        self.assertEqual(POLICY_VERSION, "workday-global-scope-v7")
+        with tempfile.TemporaryDirectory() as directory:
+            ledger = Ledger(Path(directory) / "ledger.sqlite3")
+
+            def rejected(label: str, url: str) -> str:
+                application_id = ledger.add_application("Example", label, url)
+                ledger.record_workday_fit_decision(
+                    application_id,
+                    "rejected",
+                    ("a" if label != "Already submitted" else "b") * 64,
+                    policy_version="workday-global-scope-v6",
+                )
+                return application_id
+
+            eligible = rejected(
+                "Worldwide onsite",
+                "https://example.wd1.myworkdayjobs.com/Careers/job/DE/Role_R1",
+            )
+            submitted = rejected(
+                "Already submitted",
+                "https://example.wd1.myworkdayjobs.com/Careers/job/FR/Role_R2",
+            )
+            ledger.connection.execute(
+                """
+                INSERT INTO submit_intents
+                  (intent_id, application_id, fence, payload_hash, japan_day,
+                   slot, status, created_at)
+                VALUES (?, ?, 1, ?, '2026-10-12', 1, 'submit_unknown',
+                        '2026-10-12T00:00:00+00:00')
+                """,
+                ("intent-worldwide", submitted, "c" * 64),
+            )
+
+            rows = ledger.superseded_workday_fit_rejections(POLICY_VERSION)
+            ledger.close()
+
+        self.assertEqual([row["application_id"] for row in rows], [eligible])
+
+    def test_sponsorship_wording_alone_does_not_exclude_worldwide_roles(self):
         fit_source = inspect.getsource(workday_qualification.qualify_one)
 
-        self.assertIn("Sponsorship status alone is not a reason to reject or hold", fit_source)
-        self.assertIn("regardless of sponsorship wording", shortlist_source)
-        self.assertIn("answer every work-authorization and sponsorship question truthfully", fit_source)
-        self.assertNotIn(
-            "eligible only with existing work authorization or explicit employer sponsorship",
-            shortlist_source,
+        self.assertIn("Sponsorship status alone is not a reason to reject any role", fit_source)
+        self.assertIn(
+            "including when sponsorship is stated as unavailable or left unstated",
+            fit_source,
         )
+        self.assertIn("answer every work-authorization and sponsorship question truthfully", fit_source)
 
     def test_candidate_windows_interleave_companies_instead_of_source_volume(self):
         rows = [
@@ -79,7 +102,25 @@ class WorkdayQualificationTests(unittest.TestCase):
             ["r-0", "s-1", "z-1", "r-1", "r-2", "r-3"],
         )
 
-    def test_qualification_uses_model_shortlist_before_ledger_order(self):
+    def test_priority_window_orders_lower_exposure_companies_then_interleaves(self):
+        candidates = [
+            {"company": "Company A", "url": "a-1"},
+            {"company": "Company A", "url": "a-2"},
+            {"company": "Company A", "url": "a-3"},
+            {"company": "Company B", "url": "b-1"},
+            {"company": "Company B", "url": "b-2"},
+            {"company": "Company C", "url": "c-1"},
+        ]
+
+        result = workday_search_loop.priority_candidate_urls(
+            candidates,
+            {"Company A": 3, "Company B": 1, "Company C": 0},
+            limit=4,
+        )
+
+        self.assertEqual(result, ("c-1", "b-1", "a-1", "b-2"))
+
+    def test_qualification_uses_priority_window_before_ledger_order(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             ledger_path, oldest, memory = self._row(root)
@@ -311,7 +352,7 @@ class WorkdayQualificationTests(unittest.TestCase):
         self.assertEqual(result["status"], "qualified")
         self.assertEqual(result["qualified_application_ids"], ["A", "B", "C"])
 
-    def test_main_qualifies_up_to_max_candidates_for_positive_rolling_deficit(self):
+    def test_main_stops_after_one_new_qualified_row_per_wake(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             ledger_path = root / "ledger.sqlite3"
@@ -346,8 +387,6 @@ class WorkdayQualificationTests(unittest.TestCase):
                 str(root / "agent-runner.py"),
                 "--schema",
                 str(root / "schema.json"),
-                "--shortlist-schema",
-                str(root / "shortlist-schema.json"),
                 "--workdir",
                 str(root / "workdir"),
                 "--evidence-root",
@@ -370,11 +409,11 @@ class WorkdayQualificationTests(unittest.TestCase):
                 workday_search_loop,
                 "discover_one",
                 return_value={"status": "discovered", "discovered": []},
-            ) as discover, patch.object(
+            ), patch.object(
                 workday_search_loop,
                 "qualify_with_wake_cursor",
                 side_effect=lambda *_args, **_kwargs: next(decisions),
-            ) as qualify, patch.object(
+            ), patch.object(
                 workday_search_loop,
                 "deliver_fit_decision",
                 return_value={"message_id": "telegram-1", "status": "sent"},
@@ -384,12 +423,13 @@ class WorkdayQualificationTests(unittest.TestCase):
             result = json.loads(output.read_text(encoding="utf-8"))
             self.assertEqual(
                 result["qualified_application_ids"],
-                ["application-0", "application-1", "application-2"],
+                ["application-0"],
             )
-            self.assertEqual(discover.call_count, 3)
-            self.assertEqual(qualify.call_count, 3)
+            self.assertEqual(result["status"], "qualified")
+            self.assertEqual(len(result["discoveries"]), 1)
+            self.assertEqual(len(result["decisions"]), 1)
 
-    def test_main_returns_existing_current_policy_queue_before_new_qualification(self):
+    def test_main_preserves_existing_queue_and_qualifies_fresh_workday_row(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             ledger_path = root / "ledger.sqlite3"
@@ -408,7 +448,6 @@ class WorkdayQualificationTests(unittest.TestCase):
                 ("--sources", sources),
                 ("--runner", root / "agent-runner.py"),
                 ("--schema", root / "schema.json"),
-                ("--shortlist-schema", root / "shortlist-schema.json"),
                 ("--workdir", root / "workdir"),
                 ("--evidence-root", root / "evidence"),
                 ("--output", output),
@@ -416,8 +455,18 @@ class WorkdayQualificationTests(unittest.TestCase):
             ):
                 base_args.extend((flag, str(path)))
 
+            fresh_url = "https://fresh.wd5.myworkdayjobs.com/Careers/job/Remote/New_R1"
+            fresh_candidate = {
+                "company": "NewCo",
+                "title": "Business Analyst",
+                "location": "Remote",
+                "url": fresh_url,
+            }
+            agent_runner = Mock()
             with patch.object(
-                workday_search_loop, "snapshot_candidates", return_value=[]
+                workday_search_loop, "snapshot_candidates", return_value=[fresh_candidate]
+            ), patch.object(
+                workday_search_loop, "AgentRunner", return_value=agent_runner
             ), patch.object(
                 workday_search_loop,
                 "reject_stale_workday_rows",
@@ -431,10 +480,18 @@ class WorkdayQualificationTests(unittest.TestCase):
                 "discover_one",
                 return_value={"status": "no_fresh_workday", "discovered": []},
             ) as discover, patch.object(
-                workday_search_loop, "qualify_with_wake_cursor"
+                workday_search_loop,
+                "qualify_with_wake_cursor",
+                return_value={
+                    "status": "decided",
+                    "decision": "qualified",
+                    "application_id": "new-application",
+                },
             ) as qualify, patch.object(
-                workday_search_loop.AgentRunner, "run"
-            ) as agent_run, patch.object(
+                workday_search_loop,
+                "deliver_fit_decision",
+                return_value={"message_id": "fit-message", "status": "sent"},
+            ), patch.object(
                 workday_search_loop,
                 "rolling_submission_metrics",
                 return_value={"target": 48, "confirmed_count": 0, "deficit": 48},
@@ -442,15 +499,17 @@ class WorkdayQualificationTests(unittest.TestCase):
                 self.assertEqual(workday_search_loop.main(), 0)
 
             result = json.loads(output.read_text(encoding="utf-8"))
-            self.assertEqual(result["status"], "queued_existing")
+            self.assertEqual(result["status"], "qualified")
             self.assertEqual(
-                result["queued_application_ids"], ["existing-application"]
+                result["queued_application_ids"],
+                ["new-application", "existing-application"],
             )
-            self.assertEqual(result["decisions"], [])
-            self.assertEqual(result["qualified_application_ids"], [])
-            discover.assert_not_called()
-            qualify.assert_not_called()
-            agent_run.assert_not_called()
+            self.assertEqual(result["qualified_application_ids"], ["new-application"])
+            self.assertEqual(result["shortlist"], [fresh_url])
+            self.assertEqual(discover.call_args.kwargs["preferred_urls"], (fresh_url,))
+            agent_runner.run.assert_not_called()
+            discover.assert_called_once()
+            qualify.assert_called_once()
 
     def test_zero_rolling_target_does_not_discover_or_qualify(self):
         calls = []
@@ -464,6 +523,32 @@ class WorkdayQualificationTests(unittest.TestCase):
         self.assertEqual(result["status"], "deficit_satisfied")
         self.assertEqual(result["qualified_application_ids"], [])
         self.assertEqual(calls, [])
+
+    def test_no_fresh_jobs_still_requalifies_superseded_fit_rows(self):
+        discovery_calls = []
+        fit_decisions = iter(
+            [
+                {
+                    "status": "decided",
+                    "decision": "qualified",
+                    "application_id": "old-location-reject",
+                },
+                {"status": "no_pending_workday_fit"},
+            ]
+        )
+
+        result = search_until_qualified(
+            discover=lambda: discovery_calls.append("discover")
+            or {"status": "no_fresh_workday", "discovered": []},
+            qualify=lambda: next(fit_decisions),
+            max_candidates=3,
+            target_qualified=2,
+        )
+
+        self.assertEqual(result["status"], "sources_exhausted")
+        self.assertEqual(result["qualified_application_ids"], ["old-location-reject"])
+        self.assertEqual(len(result["decisions"]), 2)
+        self.assertEqual(discovery_calls, ["discover"])
 
     def test_rolling_submission_metrics_uses_recent_confirmation_receipts(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -653,30 +738,6 @@ class WorkdayQualificationTests(unittest.TestCase):
         )
         self.assertEqual(len(unique_sources(sources)), 1)
 
-    def test_complete_snapshot_is_ranked_in_chunks_then_finalists(self):
-        candidates = [
-            {"url": f"https://a.wd1.myworkdayjobs.com/Careers/job/{index}"}
-            for index in range(50)
-        ]
-        calls = []
-        candidate_id_calls = []
-
-        def rank(chunk):
-            calls.append([row["url"] for row in chunk])
-            candidate_id_calls.append([row["candidate_id"] for row in chunk])
-            return {"ranked_candidate_ids": [chunk[-1]["candidate_id"]]}
-
-        result = rank_candidates(
-            candidates=candidates,
-            rank_chunk=rank,
-            chunk_size=2,
-        )
-
-        self.assertEqual(len(calls), 26)
-        self.assertEqual(len(calls[-1]), 25)
-        self.assertEqual(result, (calls[-1][-1],))
-        self.assertTrue(all(ids[0] == "c0" for ids in candidate_id_calls))
-
     def test_snapshot_skips_failed_source_and_keeps_other_company(self):
         with tempfile.TemporaryDirectory() as directory:
             sources = (
@@ -865,24 +926,6 @@ class WorkdayQualificationTests(unittest.TestCase):
                 "Fresh Red Hat 2",
             ],
         )
-
-    def test_shortlist_drops_model_invented_url_and_keeps_official_rows(self):
-        official = "https://a.wd1.myworkdayjobs.com/Careers/job/A"
-        candidates = [{"candidate_id": "candidate-1", "url": official}]
-        self.assertEqual(
-            validate_shortlist(
-                {"ranked_candidate_ids": ["invented", "candidate-1"]},
-                candidates,
-            ),
-            (official,),
-        )
-
-    def test_shortlist_fails_closed_when_no_official_url_remains(self):
-        with self.assertRaisesRegex(ValueError, "no official candidate ID"):
-            validate_shortlist(
-                {"ranked_candidate_ids": ["invented"]},
-                [{"candidate_id": "candidate-1", "url": "https://a.wd1.myworkdayjobs.com/Careers/job/A"}],
-            )
 
     def test_each_source_is_fetched_once_per_wake(self):
         calls = []

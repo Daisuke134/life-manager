@@ -33,6 +33,7 @@ def build_commands(
     evidence = mutable_root / "evidence/metrics"
     publication_ledger = state / "publication-identity.jsonl"
     env = home / "anicca/.env"
+    metrics_state = home / ".local/state/life-manager/marketing-metrics-daily/state"
     commands = [
         [
             python,
@@ -63,6 +64,22 @@ def build_commands(
             "--report",
             str(evidence / "native-metrics-latest.json"),
         ],
+        [
+            python,
+            str(engine / "measure/attribution_sweep.py"),
+            "--identity",
+            str(publication_ledger),
+            "--post-metrics",
+            str(state / "post-metrics.jsonl"),
+            "--business",
+            str(metrics_state / "business-outcomes.jsonl"),
+            "--attribution",
+            str(state / "experiment-attribution.jsonl"),
+            "--report",
+            str(evidence / "attribution-sweep-latest.json"),
+            "--repo-root",
+            str(repo_root),
+        ],
     ]
     owner_cli = engine / "report/owner_report_cli.py"
     for kind in ("action", "checkpoint", "incident", "experiment"):
@@ -80,7 +97,6 @@ def build_commands(
     # product_daily/portfolio_weekly read the metrics loop's own
     # business-outcomes.jsonl (revenue, MRR, subs, trials, installs,
     # proceeds), not this pipeline's post-metrics/publication state.
-    metrics_state = home / ".local/state/life-manager/marketing-metrics-daily/state"
     for kind in ("product_daily", "portfolio_weekly"):
         commands.append(
             [
@@ -102,6 +118,8 @@ def _stage_name(command: list[str]) -> str:
         return "reconcile"
     if "native_metrics.py" in rendered:
         return "collect"
+    if "attribution_sweep.py" in rendered:
+        return "attribution"
     if "owner_report_cli.py" in rendered and "--kind" in command:
         return "report:" + command[command.index("--kind") + 1]
     return command[0]
@@ -134,7 +152,7 @@ def run_pipeline(
         for command in commands:
             stage = _stage_name(command)
             returncode = int(run_command(command))
-            if stage == "reconcile" and returncode == 3:
+            if (stage in {"reconcile", "attribution"} or stage.startswith("report:")) and returncode == 3:
                 result = "attention"
                 attention.append(stage)
             elif returncode != 0:
@@ -151,6 +169,23 @@ def run_pipeline(
             "attention_stages": attention,
             "stages": stages,
         }
+
+
+OPEN_UNKNOWN_EXIT = 3
+
+
+def exit_code(result: dict) -> int:
+    """1 = a stage failed; 3 = an owner-report key is still delivery_unknown.
+
+    The loop runtime has no "pass with open unknowns" terminal, so an unresolved delivery
+    must stay a non-pass (``entrypoint_exit_3``) rather than read as success.  Its keys are
+    named on stderr by the report stage and summarized below for the terminal error tail.
+    """
+    if result["status"] == "failed":
+        return 1
+    if any(stage.startswith("report:") for stage in result["attention_stages"]):
+        return OPEN_UNKNOWN_EXIT
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -172,7 +207,11 @@ def main(argv: list[str] | None = None) -> int:
         lock_path=lock_path,
     )
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-    return 1 if result["status"] == "failed" else 0
+    code = exit_code(result)
+    if code == OPEN_UNKNOWN_EXIT:
+        stages = [stage for stage in result["attention_stages"] if stage.startswith("report:")]
+        print(f"truth pipeline: open owner-report delivery_unknown in {stages}", file=sys.stderr)
+    return code
 
 
 if __name__ == "__main__":

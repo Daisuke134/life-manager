@@ -29,9 +29,10 @@ allow-listed regenerable artifact after an open-path probe confirms
 - Generic `/private/tmp` directories, including `cfo-*`, remain unknown and
   protected. Scan the active `TMPDIR` plus `/private/tmp` and `/var/tmp` for
   same-user exact Capafy npm caches, old
-  `pytest-of-<user>/pytest-<number>` runs, and test-generated `slide-pack-*`
-  names; only paths older than one hour with a confirmed-closed path probe are
-  eligible.
+  `pytest-of-<user>/pytest-<number>` runs, existing exact `slide-pack-*`
+  names, and TikTok `slide-pack-tiktok-{workspace,cta,cache}-<6-char-id>`
+  names; only same-UID paths older than one hour with a confirmed-closed path
+  probe are eligible.
 - A stale Sparkle staging blocker has one narrow recovery action: send one
   `SIGTERM` only to the same-UID updater whose executable is under an exact
   allow-listed Codex/CodexBar Sparkle `Launcher`, whose PPID is 1, whose elapsed
@@ -111,10 +112,14 @@ allow-listed regenerable artifact after an open-path probe confirms
 ```
 
 The 60-second `com.anicca.disk-watchdog` is the sole `HostDiskGovernor` owner.
-The stable wrapper sets child-only `LIFE_MANAGER_DISK_INVENTORY_FAST=1`, so an
-incomplete full census cannot make every minute repeat heavy size probes.
-Deletion proof, protected paths, singleton locking and receipt coverage are
-unchanged; missing sizes remain unknown.
+Minute sweeps use fast inventory; when the one-hour inventory interval expires,
+the governor runs one bounded full census. It records the attempt first, so an
+incomplete census does not repeat heavy probes on every minute wake. If the
+attempt marker cannot be persisted, that wake falls back to fast inventory and
+records the scheduling error. Missing sizes remain unknown and never expand
+deletion authorization. The wrapper tags the watchdog child so its
+identity-less observations always use `last-unbound-receipt.json`; the managed
+owner's `last-receipt.json` remains reserved for an exact occurrence binding.
 The 5-minute `ai.anicca.life-manager-disk-cleanup` performs release/Git/Codex
 and managed scratch maintenance, but never invokes the host sweeper. This keeps
 it from holding the watchdog's singleton lock and making a minute pass exit 75.

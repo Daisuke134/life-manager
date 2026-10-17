@@ -12,6 +12,7 @@ from __future__ import annotations
 import datetime as dt
 import importlib.util
 import json
+import os
 import sqlite3
 import sys
 import tempfile
@@ -262,24 +263,41 @@ def test_dashboard_absent_after_window_resolves_no_effect():
         tmp.cleanup()
 
 
-def test_dashboard_read_uses_dedicated_promptbase_identity(tmp_path, monkeypatch):
-    call_log = tmp_path / "guard-calls.log"
+def _fake_provisioner(tmp_path, body):
+    provisioner = tmp_path / "ensure-provision-browser"
+    provisioner.write_text("#!/bin/sh\n" + body, encoding="utf-8")
+    provisioner.chmod(0o700)
+    return provisioner
+
+
+def test_dashboard_read_provisions_dedicated_promptbase_identity(tmp_path, monkeypatch):
+    """The fenced lane never runs, so nothing else launches its on-demand browser:
+    the readback must use the same provisioner daily.sh uses, not a bare acquire
+    (bare acquire = permanent browser_lease_rc_10, 2026-10-16)."""
+    call_log = tmp_path / "calls.log"
     monkeypatch.setenv("GUARD_CALL_LOG", str(call_log))
     guard = tmp_path / "browser-guard"
     guard.write_text(
         """#!/bin/sh
-printf '%s\\n' "$*" >> "$GUARD_CALL_LOG"
-exit 9
+printf 'guard %s holder=%s\\n' "$*" "$AI_BROWSER_HOLDER_PID" >> "$GUARD_CALL_LOG"
+exit 0
 """,
         encoding="utf-8",
     )
     guard.chmod(0o700)
+    provisioner = _fake_provisioner(tmp_path, """
+printf 'provision %s holder=%s guard=%s\\n' "$*" "$AI_BROWSER_HOLDER_PID" "$AI_BROWSER_GUARD" >> "$GUARD_CALL_LOG"
+exit 10
+""")
 
-    result = reconciler.read_dashboard_text(browser_guard=guard, timeout=2)
+    result = reconciler.read_dashboard_text(
+        browser_guard=guard, provisioner=provisioner, timeout=2,
+    )
 
-    assert result == {"ok": False, "reason": "browser_lease_rc_9"}
+    assert result == {"ok": False, "reason": "browser_lease_rc_10"}
     assert call_log.read_text(encoding="utf-8").splitlines() == [
-        "acquire promptbase:dais",
+        f"provision promptbase:dais holder={os.getpid()} guard={guard}",
+        f"guard release promptbase:dais holder={os.getpid()}",
     ]
 
 
@@ -328,7 +346,10 @@ exit 0
 
     import playwright.sync_api
     with patch.object(playwright.sync_api, "sync_playwright", lambda: FakeManager()):
-        result = reconciler.read_dashboard_text(browser_guard=guard)
+        result = reconciler.read_dashboard_text(
+            browser_guard=guard,
+            provisioner=_fake_provisioner(tmp_path, "printf '%s\\n' http://127.0.0.1:9222\n"),
+        )
 
     assert result == {"ok": False, "reason": "promptbase_dashboard_readback_unverified"}
 
@@ -384,7 +405,10 @@ Verify you are human"""
 
     import playwright.sync_api
     with patch.object(playwright.sync_api, "sync_playwright", lambda: FakeManager()):
-        result = reconciler.read_dashboard_text(browser_guard=guard)
+        result = reconciler.read_dashboard_text(
+            browser_guard=guard,
+            provisioner=_fake_provisioner(tmp_path, "printf '%s\\n' http://127.0.0.1:9222\n"),
+        )
 
     assert result == {"ok": False, "reason": "promptbase_dashboard_readback_unverified"}
 

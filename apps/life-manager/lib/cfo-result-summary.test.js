@@ -253,6 +253,33 @@ test("provider billing summary renders a safe underscore provider identifier", (
   assert.match(text, /Provider billed expense \(google_cloud, 2026-09\): JPY 31425/);
 });
 
+test("as-of readback revenue shows its observation time while net stays unknown", () => {
+  const unknown = { status: "unknown", currencies: {}, reasons: [], coverage_gaps: [] };
+  const coconala = { status: "unknown", currencies: { JPY: {
+    status: "unknown", unknown_categories: ["refund"], settled_external_revenue: "263634",
+    refund: null, total_cost: null, net: null,
+  } }, coverage_gaps: [{ reason: "missing_category", category: "refund" }], excluded: [] };
+  const writer = { status: "unknown", currencies: { USD: {
+    status: "unknown", unknown_categories: ["model_cost"], settled_external_revenue: "9", net: null,
+  } }, coverage_gaps: [{ reason: "missing_category", category: "model_cost" }], excluded: [] };
+  const projection = {
+    snapshot_at: "2026-10-15T12:00:00Z", trailing_start: "2026-09-15T12:00:00Z",
+    revenue_as_of: { "gig-coconala": "2026-10-15T11:45:49.078543Z" },
+    historical: { loops: { "gig-coconala": coconala, writer }, company: unknown },
+    trailing: { loops: { "gig-coconala": coconala, writer }, company: unknown },
+    mrr: { company: unknown, loops: {} },
+    runway: { status: "unknown", currencies: {}, reasons: [] },
+  };
+  const text = renderResultSummary({
+    reporting_date: "2026-10-15", timezone: "Asia/Tokyo", economic_attribution: projection,
+  });
+  assert.match(text, /historical readback revenue: gig-coconala JPY 263634 \(as of 2026-10-15T11:45:49\.078543Z\)/);
+  assert.match(text, /trailing readback revenue: gig-coconala JPY 263634 \(as of 2026-10-15T11:45:49\.078543Z\)/);
+  assert.match(text, /historical cost-complete net: 未確認/);
+  assert.match(text, /未確認: .*gig-coconala/);
+  assert.doesNotMatch(text, /writer USD 9/);
+});
+
 test("verified loop MRR stays visible while company and unknown loop MRR stay unknown", () => {
   const unknown = { status: "unknown", currencies: {}, reasons: ["mrr_coverage_unknown"], coverage_gaps: [] };
   const projection = {

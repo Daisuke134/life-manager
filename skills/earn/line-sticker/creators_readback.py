@@ -129,11 +129,21 @@ def acquire_when_free(acquire, *, wait_seconds=ACQUIRE_WAIT_SECONDS, poll_second
         sleep(poll_seconds)
 
 
-def main() -> None:
+def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--item-file", type=Path, required=True)
     args = parser.parse_args()
     item = json.loads(args.item_file.read_text())
+    if not isinstance(item, dict):
+        print(json.dumps({"status": "invalid_item_manifest", "readback": "not_attempted"},
+                         ensure_ascii=False))
+        return 1
+    if not item.get("product_id") and not item.get("url"):
+        # Empty creators-item.json files are placeholders for sets that have
+        # not been submitted; they are not sales/status rows and need no browser.
+        print(json.dumps({"status": "unsubmitted_placeholder", "readback": "not_attempted"},
+                         ensure_ascii=False))
+        return 0
     acquired = acquire_when_free(
         lambda: subprocess.run(["bash", str(GUARD), "acquire", IDENTITY], capture_output=True, text=True))
     if acquired.returncode != 0:
@@ -160,7 +170,8 @@ def main() -> None:
                                if k in ("resubmit_decision", "resubmit_decision_reason", "state",
                                         "auto_resubmit_count", "resubmit_block_reason")}
     print(json.dumps(row, ensure_ascii=False))
+    return 75 if result.get("status") in {"browser_unavailable", "needs_login"} else 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

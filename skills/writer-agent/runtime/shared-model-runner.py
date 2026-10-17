@@ -16,6 +16,11 @@ HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parents[2]
 DEFAULT_RUNNER = REPO_ROOT / "runtime/agent-runner/agent_runner.py"
 SCHEMA = HERE / "shared-model-output.schema.json"
+# An agent pass reports in prose; its effects are the product. The schema {}
+# is falsy in agent_runner, so Codex got no --output-schema, answered in prose,
+# and every completed pass failed JSON validation as a silent rc=1
+# (run 20261017-033711). Same envelope promptbase/gen_examples.py uses.
+AGENT_SCHEMA = HERE / "shared-agent-output.schema.json"
 
 
 def parse_contract_result(text: str) -> object:
@@ -41,6 +46,21 @@ def parse_contract_result(text: str) -> object:
     raise ValueError("no JSON object in provider result")
 
 
+def failure_line(returncode: int, evidence: Path) -> str:
+    """One stderr line naming why the canonical runner failed, never silent."""
+    last: dict = {}
+    try:
+        rows = (evidence / "attempts.jsonl").read_text(encoding="utf-8").splitlines()
+        last = json.loads(rows[-1]) if rows else {}
+    except (OSError, ValueError):
+        pass
+    fields = {key: last.get(key) for key in
+              ("attempt", "provider", "rc", "timed_out", "error_class",
+               "launch_error", "schema_errors")}
+    return (f"writer shared runner failed rc={returncode} "
+            f"{json.dumps(fields, ensure_ascii=False)[:600]} evidence={evidence}")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("mode", choices=("agent", "judge", "vision", "repair"))
@@ -55,7 +75,10 @@ def main(argv: list[str] | None = None) -> int:
     evidence = state / f"{args.mode}-{uuid.uuid4().hex}"
     loop_id = os.environ.get("LIFE_MANAGER_LOOP_ID", "writer")
     role = os.environ.get("ARTICLE_MODEL_ROLE", "terra")
-    schema_path = Path(os.environ.get("ARTICLE_CODEX_OUTPUT_SCHEMA", SCHEMA))
+    schema_override = os.environ.get("ARTICLE_CODEX_OUTPUT_SCHEMA", "").strip()
+    text_envelope = args.mode == "agent" and not schema_override
+    schema_path = Path(schema_override) if schema_override else (
+        AGENT_SCHEMA if text_envelope else SCHEMA)
     task_class = "high-value-agent" if args.mode == "agent" else "composition-agent"
     workdir = REPO_ROOT
     if args.mode == "repair":
@@ -93,6 +116,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     if completed.returncode:
         sys.stderr.write(completed.stderr)
+        sys.stderr.write(failure_line(completed.returncode, evidence) + "\n")
         return completed.returncode
     try:
         summary = json.loads((evidence / "summary.json").read_text())
@@ -105,6 +129,8 @@ def main(argv: list[str] | None = None) -> int:
         Path(last_message).write_text(
             value if isinstance(value, str) else json.dumps(value, ensure_ascii=False),
             encoding="utf-8")
+    if text_envelope and isinstance(value, dict) and isinstance(value.get("text"), str):
+        value = value["text"]
     print(value if isinstance(value, str) else json.dumps(
         value, ensure_ascii=False, separators=(",", ":")))
     return 0

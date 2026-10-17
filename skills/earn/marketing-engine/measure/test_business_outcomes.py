@@ -304,6 +304,31 @@ class RevenueCatContractTest(unittest.TestCase):
 
 
 class AppStoreContractTest(unittest.TestCase):
+    def test_download_summary_counts_only_rows_for_business_date(self):
+        rows = [
+            {"Date": "2026-10-08", "Download Type": "First-time download",
+             "Source Type": "App Store search", "Counts": "1"},
+            {"Date": "2026-10-09", "Download Type": "First-time download",
+             "Source Type": "App Store search", "Counts": "1"},
+        ]
+        summary = outcomes.summarize_asc_downloads(
+            rows, business_date="2026-10-09"
+        )
+
+        self.assertEqual(summary["first_time_downloads"], 1)
+
+    def test_download_summary_is_unavailable_when_business_date_is_absent(self):
+        rows = [
+            {"Date": "2026-10-09", "Download Type": "First-time download",
+             "Source Type": "App Store search", "Counts": "1"},
+        ]
+
+        summary = outcomes.summarize_asc_downloads(
+            rows, business_date="2026-10-11"
+        )
+
+        self.assertIsNone(summary)
+
     def test_download_types_are_never_collapsed_into_installs(self):
         raw = (
             "Date\tDownload Type\tSource Type\tCounts\n"
@@ -346,6 +371,21 @@ class AppStoreContractTest(unittest.TestCase):
         self.assertEqual(got["date_max"], "2026-07-30")
         self.assertEqual(got["numeric_totals"]["Counts"], 5)
 
+    def test_generic_report_scopes_rolling_rows_to_business_date(self):
+        rows = [
+            {"Date": "2026-10-08", "Event": "Impression", "Counts": "19"},
+            {"Date": "2026-10-09", "Event": "Impression", "Counts": "2"},
+        ]
+
+        got = outcomes.summarize_asc_table(rows, business_date="2026-10-09")
+
+        self.assertEqual(got["date_min"], "2026-10-09")
+        self.assertEqual(got["date_max"], "2026-10-09")
+        self.assertEqual(got["numeric_totals"]["Counts"], 2)
+        self.assertIsNone(
+            outcomes.summarize_asc_table(rows, business_date="2026-10-11")
+        )
+
     def test_sales_report_multiplies_units_by_per_unit_proceeds(self):
         rows = [
             {"Apple Identifier": "6755129214", "Units": "3",
@@ -375,6 +415,7 @@ class AscCollectionTest(unittest.TestCase):
     def test_one_report_with_no_instances_does_not_abort_the_others(self):
         gz_rows = gzip.compress(
             "Date\tDownload Type\tSource Type\tCounts\n"
+            "2026-09-25\tFirst-time download\tApp Store search\t7\n"
             "2026-09-26\tFirst-time download\tApp Store search\t2\n".encode()
         )
         checksum = hashlib.md5(gz_rows).hexdigest()
@@ -408,10 +449,21 @@ class AscCollectionTest(unittest.TestCase):
             with mock.patch.object(outcomes, "_asc_headers", return_value={}), \
                  mock.patch.object(outcomes, "_asc_get", side_effect=fake_get), \
                  mock.patch.object(outcomes, "_http_bytes", return_value=gz_rows):
-                result = outcomes.collect_asc({}, "app-1", Path(directory))
+                result = outcomes.collect_asc(
+                    {}, "app-1", Path(directory), business_date="2026-09-26"
+                )
+                missing_day = outcomes.collect_asc(
+                    {}, "app-1", Path(directory), business_date="2026-09-27"
+                )
 
         self.assertEqual(result["reports"]["downloads"]["status"], "available")
         self.assertEqual(result["reports"]["downloads"]["data"]["first_time_downloads"], 2)
+        self.assertEqual(
+            missing_day["reports"]["downloads"]["status"], "unavailable"
+        )
+        self.assertEqual(
+            missing_day["reports"]["downloads"]["reason"], "report_pending"
+        )
         self.assertEqual(result["reports"]["purchases"]["status"], "unavailable")
         self.assertEqual(result["reports"]["purchases"]["reason"], "no_instances")
         # Report types not offered for this app at all are untouched by the fix.

@@ -1,12 +1,30 @@
 import inspect
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from job_search_loop import telegram
 
 
 class TelegramReportTests(unittest.TestCase):
+    def test_telegram_configuration_can_be_absent_without_exposing_values(self):
+        with tempfile.TemporaryDirectory() as directory:
+            env_file = Path(directory) / "telegram.env"
+            environment = {
+                "JOB_SEARCH_TELEGRAM_ENV": str(env_file),
+                "TELEGRAM_BOT_TOKEN": "",
+                "JOB_SEARCH_TELEGRAM_CHAT_ID": "",
+            }
+            with patch.dict(os.environ, environment, clear=False):
+                self.assertFalse(telegram.is_configured())
+                env_file.write_text(
+                    "TELEGRAM_BOT_TOKEN=test-token\nJOB_SEARCH_TELEGRAM_CHAT_ID=123\n",
+                    encoding="utf-8",
+                )
+                self.assertTrue(telegram.is_configured())
+
     def test_uncertain_send_is_not_retried_through_direct_transport(self):
         with tempfile.TemporaryDirectory() as directory:
             database = Path(directory) / "outbox.sqlite3"

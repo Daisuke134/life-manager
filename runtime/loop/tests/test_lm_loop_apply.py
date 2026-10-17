@@ -5298,6 +5298,166 @@ class PreEffectForeignClaimTests(unittest.TestCase):
     ENTRY = {"effect_class": "message", "entrypoint": "x"}
     OWNER = "owner-a"
 
+    def _coconala_reply_wrapper_claim(self):
+        owner = "hf-gig-reply-detector"
+        occurrence = f"{owner}:18dbf6546032eca0-25901"
+        previous_run = "18dbf6546032eca0-25901"
+        failing_run = "18dc3f4dcd2305d8-87562"
+        claim_ref = f"lm-occurrence://{owner}/18dbf6546032eca0-25901/claim"
+        entry = {
+            "effect_class": "message",
+            "entrypoint": "skills/earn/gig/scripts/coconala-reply-owner",
+            "browser_identity": "coconala:kosuke",
+            "browser_target_owner": "hf-gig-browser",
+        }
+        rows = [
+            {
+                "loop_id": owner, "run_id": previous_run,
+                "occurrence_id": occurrence, "phase": "execute",
+                "status": "running", "effect_class": "none",
+                "effect_status": "not_applicable",
+                "release_sha": "2cf94f43669a8afdd9cf8bb84c8ba7764c323221",
+                "evidence_refs": [f"lm-loop://{owner}/{previous_run}/summary.json"],
+                "event_id": "38935ee0920356a7382626e2",
+                "timestamp": "2026-10-06T14:15:19.074092+00:00",
+            },
+            {
+                "loop_id": owner, "run_id": previous_run,
+                "occurrence_id": f"{owner}:18dbb03187455490-52108",
+                "phase": "report", "status": "pass", "exit_code": 0,
+                "effect_class": "none", "effect_status": "not_applicable",
+                "release_sha": "2cf94f43669a8afdd9cf8bb84c8ba7764c323221",
+                "evidence_refs": [
+                    f"lm-loop://{owner}/{previous_run}/summary.json",
+                    f"lm-occurrence://{owner}/18dbb03187455490-52108/claim",
+                ],
+                "event_id": "9d85c866d17a03f179234aa3",
+                "timestamp": "2026-10-06T14:15:46.059833+00:00",
+            },
+            {
+                "loop_id": owner, "run_id": failing_run,
+                "occurrence_id": f"{owner}:{failing_run}",
+                "phase": "execute", "status": "running",
+                "effect_class": "message", "effect_status": "started",
+                "release_sha": "cecffc9b054e3abebce7081aa42f99500b2f83f3",
+                "evidence_refs": [f"lm-loop://{owner}/{failing_run}/summary.json"],
+                "event_id": "4f6294051d4ea6e5ced5ea08",
+                "timestamp": "2026-10-07T12:32:35.271340+00:00",
+            },
+            {
+                "loop_id": owner, "run_id": failing_run,
+                "occurrence_id": occurrence, "phase": "report",
+                "status": "fail", "blocker": "entrypoint_exit_10",
+                "error_class": "entrypoint_exit_10",
+                "error_detail": "with-browser: coconala:kosuke unreachable after guarded startup attempt",
+                "failure_layer": "entrypoint", "exit_code": 10,
+                "effect_class": "message", "effect_status": "unknown",
+                "effect_identity_status": "not_written",
+                "provider_receipt_id": None, "official_readback_ref": None,
+                "release_sha": "cecffc9b054e3abebce7081aa42f99500b2f83f3",
+                "evidence_refs": [
+                    f"lm-loop://{owner}/{failing_run}/summary.json", claim_ref,
+                ],
+                "event_id": "fac566b9279781cf10a17ccd",
+                "timestamp": "2026-10-07T12:37:42.980237+00:00",
+            },
+        ]
+        return owner, occurrence, entry, rows
+
+    def _coconala_release_fixture(self, root, *, release_sha=None, wrapper_bytes=None):
+        release_root = Path(root) / "20261007T211424-cecffc9b"
+        wrapper = release_root / "skills/browser/with-browser.sh"
+        wrapper.parent.mkdir(parents=True, exist_ok=True)
+        wrapper.write_bytes(wrapper_bytes if wrapper_bytes is not None else
+                            (ROOT / "skills/browser/with-browser.sh").read_bytes())
+        (release_root / "RELEASE.json").write_text(json.dumps({
+            "sha": release_sha or "cecffc9b054e3abebce7081aa42f99500b2f83f3",
+        }))
+        return wrapper
+
+    def test_coconala_browser_wrapper_exit_is_an_exact_pre_effect_proof(self):
+        owner, occurrence, entry, rows = self._coconala_reply_wrapper_claim()
+        with tempfile.TemporaryDirectory() as tmp:
+            releases_root = Path(tmp)
+            active_root = releases_root / "current"
+            wrapper = self._coconala_release_fixture(releases_root)
+            wrapper_sha256 = hashlib.sha256(wrapper.read_bytes()).hexdigest()
+            with patch.object(lm_loop, "ROOT", active_root):
+                proof, reason = lm_loop._pre_effect_occurrence_proof(
+                    owner, entry, occurrence, "claimed", rows,
+                )
+        self.assertEqual(reason, "ok")
+        self.assertEqual(proof["proof_type"], "pre_effect")
+        self.assertEqual(proof["occurrence_id"], occurrence)
+        no_effect = proof["no_effect_proof"]
+        self.assertEqual(no_effect["kind"], "browser_wrapper_child_not_started")
+        self.assertEqual(no_effect["wrapper_sha256"],
+            "d5160dd49bb52ed72135907127db815bf8b88c69bbb75676d296a5ac20e6842c",
+        )
+        self.assertEqual(wrapper_sha256, no_effect["wrapper_sha256"])
+
+    def test_coconala_browser_wrapper_proof_requires_the_pinned_release_asset(self):
+        owner, occurrence, entry, rows = self._coconala_reply_wrapper_claim()
+        with tempfile.TemporaryDirectory() as tmp:
+            releases_root = Path(tmp)
+            active_root = releases_root / "current"
+            with patch.object(lm_loop, "ROOT", active_root):
+                proof, _reason = lm_loop._pre_effect_occurrence_proof(
+                    owner, entry, occurrence, "claimed", rows,
+                )
+                self.assertIsNone(proof)
+
+                wrapper = self._coconala_release_fixture(releases_root)
+                proof, reason = lm_loop._pre_effect_occurrence_proof(
+                    owner, entry, occurrence, "claimed", rows,
+                )
+                self.assertEqual(reason, "ok")
+                self.assertIsNotNone(proof)
+
+                wrapper.write_bytes(b"different release asset")
+                proof, _reason = lm_loop._pre_effect_occurrence_proof(
+                    owner, entry, occurrence, "claimed", rows,
+                )
+                self.assertIsNone(proof)
+
+                wrapper.write_bytes((ROOT / "skills/browser/with-browser.sh").read_bytes())
+                self._coconala_release_fixture(releases_root,
+                    release_sha="0" * 40)
+                proof, _reason = lm_loop._pre_effect_occurrence_proof(
+                    owner, entry, occurrence, "claimed", rows,
+                )
+                self.assertIsNone(proof)
+
+    def test_coconala_browser_wrapper_proof_rejects_changed_error_or_effect_ref(self):
+        owner, occurrence, entry, rows = self._coconala_reply_wrapper_claim()
+        rows[-1]["error_detail"] = "browser disconnected after submit"
+        proof, _reason = lm_loop._pre_effect_occurrence_proof(
+            owner, entry, occurrence, "claimed", rows,
+        )
+        self.assertIsNone(proof)
+
+        owner, occurrence, entry, rows = self._coconala_reply_wrapper_claim()
+        rows[-1]["release_sha"] = "0" * 40
+        proof, _reason = lm_loop._pre_effect_occurrence_proof(
+            owner, entry, occurrence, "claimed", rows,
+        )
+        self.assertIsNone(proof)
+
+        owner, occurrence, entry, rows = self._coconala_reply_wrapper_claim()
+        entry["browser_identity"] = "another:identity"
+        proof, _reason = lm_loop._pre_effect_occurrence_proof(
+            owner, entry, occurrence, "claimed", rows,
+        )
+        self.assertIsNone(proof)
+
+        owner, occurrence, entry, rows = self._coconala_reply_wrapper_claim()
+        rows[-1]["evidence_refs"].append("lm-effect://coconala/messages/unknown")
+        proof, reason = lm_loop._pre_effect_occurrence_proof(
+            owner, entry, occurrence, "claimed", rows,
+        )
+        self.assertIsNone(proof)
+        self.assertEqual(reason, "effect_ref_present")
+
     def _rows(self, extra=()):
         run = "runA"
         base = [{
@@ -5390,6 +5550,55 @@ class PreEffectForeignClaimTests(unittest.TestCase):
         )
         self.assertIsNone(proof)
         self.assertEqual(reason, "effect_ref_present")
+
+    def test_mobile_app_preserved_run_marker_proves_exact_pre_effect(self):
+        for status in ("pass", "fail"):
+            with self.subTest(status=status), tempfile.TemporaryDirectory() as tmp:
+                owner, occurrence, entry, rows = self._mobile_startup_failure_claim(
+                    "mobile app prior-effect reconciliation could not prove an old claim",
+                )
+                entry["state_root"] = tmp
+                row = rows[0]
+                row["owner_id"] = owner
+                row["status"] = status
+                row["blocker"] = "entrypoint_exit_1" if status == "fail" else None
+                row["error_class"] = "entrypoint_exit_1" if status == "fail" else None
+                row["failure_layer"] = "entrypoint" if status == "fail" else "clean"
+                row["exit_code"] = 1 if status == "fail" else 0
+
+                marker = (
+                    Path(tmp) / "loop-tmp" / owner / row["run_id"]
+                    / "entrypoint-result.json"
+                )
+                marker.parent.mkdir(parents=True)
+                marker.write_text(
+                    '{"status":"pre_effect_failure","effect":0}\n',
+                    encoding="utf-8",
+                )
+                marker.chmod(0o600)
+
+                proof, reason = lm_loop._pre_effect_occurrence_proof(
+                    owner, entry, occurrence, "claimed", rows,
+                )
+                self.assertEqual(reason, "ok")
+                self.assertEqual(proof["proof_type"], "pre_effect")
+                self.assertEqual(proof["occurrence_id"], occurrence)
+                self.assertEqual(proof["no_effect_proof"]["kind"], "mobile_pre_effect_marker")
+                self.assertEqual(
+                    proof["no_effect_proof"]["entrypoint_result_sha256"],
+                    hashlib.sha256(marker.read_bytes()).hexdigest(),
+                )
+                self.assertIn(
+                    f"lm-loop://{owner}/{row['run_id']}/entrypoint-result.json",
+                    proof["evidence_refs"],
+                )
+
+                marker.unlink()
+                proof, reason = lm_loop._pre_effect_occurrence_proof(
+                    owner, entry, occurrence, "claimed", rows,
+                )
+                self.assertIsNone(proof)
+                self.assertEqual(reason, "no_pre_effect_terminal")
 
     def _ebook_pre_effect_claim(self, error_detail="LM_DATA_DIR is required",
                                 owner="ebook-ja-tiktok-daily"):

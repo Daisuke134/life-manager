@@ -5,6 +5,8 @@ official package validator calls)."""
 from __future__ import annotations
 
 import json
+import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -100,6 +102,53 @@ class ClipsReceiptTest(unittest.TestCase):
                                     side_effect=MODULE.ChatGptImageGenUnavailable("no cli")):
                 MODULE.clips(set_dir, plan)
             self.assertFalse((set_dir / "clips" / "wave.json").exists())
+
+
+class SharedBrowserSessionTest(unittest.TestCase):
+    def test_generate_sheet_uses_relay_without_a_per_run_session(self) -> None:
+        calls = []
+
+        def fake_run(args, **kwargs):
+            calls.append(list(args))
+            Path(args[args.index("-o") + 1]).write_bytes(b"image")
+            return subprocess.CompletedProcess(args, 0, "", "")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "sheet.png"
+            with mock.patch.object(MODULE.subprocess, "run", side_effect=fake_run):
+                MODULE.generate_sheet("prompt", output)
+            args = calls[0]
+            self.assertNotIn("--session", args)
+            self.assertIn("--profile", args)
+            self.assertEqual(args[args.index("--profile") + 1], "relay")
+            self.assertTrue(output.is_file())
+
+    def test_timeout_does_not_close_the_shared_imagegen_session(self) -> None:
+        timeout_error = subprocess.TimeoutExpired(
+            ["chatgpt-imagegen", "private prompt"], 310, stderr="private timeout output")
+        calls = []
+
+        def fake_run(args, **kwargs):
+            calls.append((list(args), kwargs))
+            if len(calls) == 1:
+                raise timeout_error
+            return subprocess.CompletedProcess(args, 1, "private close output", "private close error")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            cli = Path(tmp) / "chatgpt-imagegen"
+            cli.touch()
+            output = Path(tmp) / "sheet.png"
+            with mock.patch.object(MODULE, "CLI", cli):
+                with mock.patch.object(MODULE.subprocess, "run", side_effect=fake_run):
+                    with mock.patch("shutil.which", return_value="/mock/chrome-use"):
+                        with self.assertRaises(MODULE.ChatGptImageGenUnavailable) as caught:
+                            MODULE.generate_sheet("private prompt", output)
+
+        self.assertIs(caught.exception.__cause__, timeout_error)
+        self.assertIn("timed out", str(caught.exception))
+        self.assertNotIn("private", str(caught.exception))
+        self.assertEqual(len(calls), 1)
+        self.assertNotIn("close", calls[0][0])
 
 
 if __name__ == "__main__":

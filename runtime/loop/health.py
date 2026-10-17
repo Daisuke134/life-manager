@@ -29,6 +29,10 @@ DIAGNOSTIC_FIELDS = frozenset({
     "release_sha", "run_id", "owner_id", "occurrence_id", "effect", "readback",
     "provider_receipt_id", "error_class", "retryable", "next_action",
 })
+FACET_NAMES = ("runtime", "productivity", "effect_safety", "business", "recovery", "revenue")
+# SH1: a revenue lane idle for more than 2x its cadence (never under 2h) is an outage,
+# even when an admission fence makes its state look "safe".
+REVENUE_OUTAGE_MIN_SECONDS = 2 * 3600
 RFC3339_PATTERN = (
     r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}"
     r"(?:\.[0-9]+)?(?:Z|[+-][0-9]{2}:[0-9]{2})$"
@@ -172,14 +176,9 @@ def health_json_schema() -> dict:
                     "state": {"type": "string", "enum": sorted(HEALTH_STATES)},
                     "facets": {
                         "type": "object",
-                        "required": [
-                            "runtime", "productivity", "effect_safety", "business", "recovery",
-                        ],
+                        "required": list(FACET_NAMES),
                         "properties": {
-                            name: {"$ref": "#/$defs/facet"}
-                            for name in (
-                                "runtime", "productivity", "effect_safety", "business", "recovery",
-                            )
+                            name: {"$ref": "#/$defs/facet"} for name in FACET_NAMES
                         },
                         "additionalProperties": False,
                     },
@@ -237,6 +236,74 @@ def _clock(row: dict, name: str, *, statuses: set[str] | None = None,
     ):
         return None
     return timestamp
+
+
+def _expected_interval_seconds(cadence: object) -> int | None:
+    if not isinstance(cadence, dict):
+        return None
+    interval = cadence.get("start_interval_seconds")
+    if type(interval) is int and interval > 0:
+        return interval
+    calendar = cadence.get("calendar_interval")
+    entries = [calendar] if isinstance(calendar, dict) else calendar
+    if (not isinstance(entries, list) or not entries
+            or any(not isinstance(entry, dict) for entry in entries)):
+        return None
+    if any("Day" in entry or "Month" in entry for entry in entries):
+        return 31 * 86400
+    if any("Weekday" in entry for entry in entries):
+        return 7 * 86400
+    if any("Hour" not in entry for entry in entries):
+        return 3600
+    try:
+        minutes = sorted({int(e["Hour"]) * 60 + int(e.get("Minute", 0)) for e in entries})
+    except (TypeError, ValueError):
+        return None
+    gaps = [b - a for a, b in zip(minutes, minutes[1:])] + [minutes[0] + 1440 - minutes[-1]]
+    return max(gaps) * 60
+
+
+def _revenue_blocker(row: dict, state: str) -> str:
+    if row.get("admission_effect_unknown") is True:
+        occurrences = [str(o) for o in row.get("admission_effect_unknown_occurrences") or []]
+        return ("resource_effect_unknown occurrences="
+                + (",".join(occurrences[:3]) or "unlisted")
+                + (f"(+{len(occurrences) - 3})" if len(occurrences) > 3 else ""))
+    for key in ("blocker", "error_class"):
+        if row.get(key):
+            return str(row[key])
+    if row.get("last_exit") not in {None, 0}:
+        return f"exit_{row['last_exit']}"
+    if row.get("launchd_state") in {"disabled", "unloaded"}:
+        return f"launchd_{row['launchd_state']}"
+    return state
+
+
+def _revenue_facet(row: dict, state: str, clocks: dict, now: datetime) -> dict:
+    if row.get("admission_class") != "revenue":
+        return {"status": "not_applicable", "reason": None}
+    interval = _expected_interval_seconds(row.get("registered_cadence"))
+    if interval is None:
+        return {"status": "unknown", "reason": "telemetry_gap:revenue_cadence_unreadable"}
+    # Not clocks["last_effect"]: every fenced wake stamps it with execute/started.
+    last = ((row.get("health_clocks") or {}).get("last_verified_effect")
+            or clocks.get("last_success"))
+    if last is None:
+        return {"status": "unknown",
+                "reason": f"telemetry_gap:no_effect_or_success_clock blocker={_revenue_blocker(row, state)}"}
+    try:
+        last_at = datetime.fromisoformat(last.replace("Z", "+00:00"))
+        if last_at.tzinfo is None:
+            raise ValueError("naive clock")
+    except (AttributeError, ValueError):
+        return {"status": "unknown", "reason": "telemetry_gap:revenue_clock_unreadable"}
+    idle = (now - last_at).total_seconds()
+    threshold = max(2 * interval, REVENUE_OUTAGE_MIN_SECONDS)
+    if idle <= threshold:
+        return {"status": "ok", "reason": None}
+    return {"status": "blocked", "reason": (
+        f"revenue_outage idle_hours={idle / 3600:.1f} threshold_hours={threshold / 3600:.1f} "
+        f"state={state} blocker={_revenue_blocker(row, state)}")[:512]}
 
 
 def _health_state(row: dict) -> str:
@@ -308,23 +375,41 @@ def _facets(row: dict, state: str) -> dict[str, dict[str, str | None]]:
 def read_storage_snapshot(state_dir: Path | None = None) -> dict | None:
     root = state_dir or Path(os.environ.get("LIFE_MANAGER_HOST_STATE_DIR",
         str(Path.home() / ".local/state/life-manager/state"))).expanduser()
-    try:
-        fd = os.open(root / "last-receipt.json", os.O_RDONLY | os.O_NOFOLLOW)
-    except OSError:
-        return None
-    try:
-        info = os.fstat(fd)
-        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
-                or stat.S_IMODE(info.st_mode) != 0o600 or info.st_nlink != 1
-                or info.st_size > 65536):
-            return None
-        with os.fdopen(fd, "r", encoding="utf-8", closefd=False) as stream:
-            value = json.load(stream)
-        return value if isinstance(value, dict) else None
-    except (OSError, ValueError, UnicodeError):
-        return None
-    finally:
-        os.close(fd)
+    snapshots = []
+    for filename, source in (("last-receipt.json", None),
+                             ("last-unbound-receipt.json", "watchdog")):
+        try:
+            fd = os.open(root / filename, os.O_RDONLY | os.O_NOFOLLOW)
+        except OSError:
+            continue
+        try:
+            info = os.fstat(fd)
+            if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                    or stat.S_IMODE(info.st_mode) != 0o600 or info.st_nlink != 1
+                    or info.st_size > 65536):
+                continue
+            with os.fdopen(fd, "r", encoding="utf-8", closefd=False) as stream:
+                value = json.load(stream)
+            if isinstance(value, dict):
+                if source is not None:
+                    if "identity" in value:
+                        continue
+                    value["_receipt_source"] = source
+                snapshots.append(value)
+        except (OSError, ValueError, UnicodeError):
+            continue
+        finally:
+            os.close(fd)
+
+    def observed_at(snapshot: dict) -> datetime:
+        try:
+            value = datetime.fromisoformat(snapshot["observed_at"].replace("Z", "+00:00"))
+            return value.astimezone(timezone.utc) if value.tzinfo else datetime.min.replace(
+                tzinfo=timezone.utc)
+        except (KeyError, TypeError, ValueError, AttributeError):
+            return datetime.min.replace(tzinfo=timezone.utc)
+
+    return max(snapshots, key=observed_at) if snapshots else None
 
 
 def _project_storage(snapshot: dict, jobs: list[dict], now: datetime) -> dict:
@@ -332,12 +417,16 @@ def _project_storage(snapshot: dict, jobs: list[dict], now: datetime) -> dict:
                "capacity_recovered": None, "free_bytes": None,
                "observed_at": None, "reason": "storage_receipt_unverified"}
     try:
-        identity = snapshot["identity"]
-        job = next(j for j in jobs if j["job_id"] == "life-manager-disk-cleanup")
-        expected = {k: job["diagnostic"][k] for k in
-                    ("owner_id", "run_id", "occurrence_id", "release_sha")}
-        if identity != expected or any(not isinstance(v, str) or not v for v in expected.values()):
-            return unknown
+        if snapshot.get("_receipt_source") == "watchdog":
+            if "identity" in snapshot:
+                return unknown
+        else:
+            identity = snapshot["identity"]
+            job = next(j for j in jobs if j["job_id"] == "life-manager-disk-cleanup")
+            expected = {k: job["diagnostic"][k] for k in
+                        ("owner_id", "run_id", "occurrence_id", "release_sha")}
+            if identity != expected or any(not isinstance(v, str) or not v for v in expected.values()):
+                return unknown
         observed = datetime.fromisoformat(snapshot["observed_at"].replace("Z", "+00:00"))
         age = (now - observed).total_seconds()
         if observed.tzinfo is None or not 0 <= age <= 600:
@@ -421,28 +510,31 @@ def project_health(rows: list[dict], *, scope: str = "fleet",
                     "next_action": "inspect_health_adapter",
                 })
         adapted_rows.append(row)
+    now = datetime.now(timezone.utc)
     for row in adapted_rows:
         state = _health_state(row)
         effect_status = row.get("effect_status")
+        clocks = {
+            "last_attempt": _clock(row, "last_attempt"),
+            "last_success": _clock(row, "last_success", statuses={"pass"}),
+            "last_effect": (
+                _clock(row, "last_effect") if row.get("effect_class") != "none"
+                and effect_status in {"started", "verified", "failed", "reconciled"}
+                else (row.get("health_clocks") or {}).get("last_effect")
+            ),
+            "last_receipt": _clock(
+                row, "last_receipt", require_receipt=True,
+            ),
+        }
         jobs.append({
             "job_id": row.get("loop_id"),
             "label": row.get("label"),
             "product_loop_id": row.get("product_loop_id"),
             "system_role": row.get("system_role"),
             "state": state,
-            "facets": _facets(row, state),
-            "clocks": {
-                "last_attempt": _clock(row, "last_attempt"),
-                "last_success": _clock(row, "last_success", statuses={"pass"}),
-                "last_effect": (
-                    _clock(row, "last_effect") if row.get("effect_class") != "none"
-                    and effect_status in {"started", "verified", "failed", "reconciled"}
-                    else (row.get("health_clocks") or {}).get("last_effect")
-                ),
-                "last_receipt": _clock(
-                    row, "last_receipt", require_receipt=True,
-                ),
-            },
+            "facets": {**_facets(row, state),
+                       "revenue": _revenue_facet(row, state, clocks, now)},
+            "clocks": clocks,
             "diagnostic": {
                 "release_sha": row.get("event_release_sha") or row.get("installed_release_sha"),
                 "run_id": row.get("run_id"),
@@ -465,13 +557,13 @@ def project_health(rows: list[dict], *, scope: str = "fleet",
     summary["total"] = len(jobs)
     value = {
         "schema_version": SCHEMA_VERSION,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": now.isoformat(),
         "scope": {"kind": scope, "target": target},
         "summary": summary,
         "jobs": jobs,
     }
     if storage_snapshot is not None:
-        value["host_storage"] = _project_storage(storage_snapshot, jobs, datetime.now(timezone.utc))
+        value["host_storage"] = _project_storage(storage_snapshot, jobs, now)
     return validate_health_document(value)
 
 
@@ -539,7 +631,7 @@ def validate_health_document(value: dict) -> dict:
                  for value in job["clocks"].values()):
             raise ValueError("invalid health clocks")
         facets = job.get("facets", {})
-        if set(facets) != {"runtime", "productivity", "effect_safety", "business", "recovery"}:
+        if set(facets) != set(FACET_NAMES):
             raise ValueError("invalid health facets")
         if any(not isinstance(facet, dict) or set(facet) != {"status", "reason"}
                or facet.get("status") not in FACET_STATUSES
@@ -575,7 +667,12 @@ def health_exit_code(value: dict) -> int:
     unsafe = (
         "safely_fenced", "effect_unknown", "telemetry_gap", "human_required", "failed",
     )
-    return 1 if any(summary[name] for name in unsafe) else 0
+    return 1 if any(summary[name] for name in unsafe) or any(
+        revenue_attention(job) for job in value["jobs"]) else 0
+
+
+def revenue_attention(job: dict) -> bool:
+    return job["facets"]["revenue"]["status"] in {"blocked", "unknown"}
 
 
 def render_human(value: dict) -> str:
@@ -584,11 +681,15 @@ def render_human(value: dict) -> str:
         f"health total={summary['total']} healthy={summary['healthy']} "
         f"running={summary['running']} safely_fenced={summary['safely_fenced']} "
         f"effect_unknown={summary['effect_unknown']} telemetry_gap={summary['telemetry_gap']} "
-        f"human_required={summary['human_required']} failed={summary['failed']}"
+        f"human_required={summary['human_required']} failed={summary['failed']} "
+        f"revenue_outage={sum(j['facets']['revenue']['status'] == 'blocked' for j in value['jobs'])}"
     )
     problems = [
         f"{job['job_id']}: {job['state']} next={job['diagnostic']['next_action'] or 'none'}"
         for job in value["jobs"] if job["state"] != "healthy"
+    ] + [
+        f"{job['job_id']}: {job['facets']['revenue']['reason']}"
+        for job in value["jobs"] if revenue_attention(job)
     ]
     storage = value.get("host_storage")
     storage_lines = [] if storage is None else [

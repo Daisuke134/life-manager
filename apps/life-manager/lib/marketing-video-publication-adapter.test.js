@@ -387,12 +387,15 @@ test("adapter records the runtime occurrence before a video provider effect", as
           provider_post_id: "postiz-honne-HJA-007",
           provider_route: "postiz",
           provider_reconciled: true,
+          provider_effect_created: true,
         };
       },
     });
 
-    await adapter.execute(job());
+    const execution = await adapter.execute(job());
     assert.equal(sidecarSeenByProvider, true);
+    assert.equal(execution.receipt.provider_effect_created, true);
+    assert.equal(execution.receipt.origin_occurrence_id, "life-manager-honne-ja:run-1");
     const identity = JSON.parse(fs.readFileSync(sidecar, "utf8"));
     assert.deepEqual(identity, {
       schema_version: 1,

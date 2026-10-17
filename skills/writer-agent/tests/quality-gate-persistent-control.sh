@@ -75,14 +75,71 @@ assert_begin_rejected() {
 assert_begin_rejected state-malformed gates/.attempts/rubric-judge-ja.json not-json
 assert_begin_rejected state-out-of-range gates/.attempts/rubric-judge-ja.json \
   "{\"gate\":\"rubric-judge\",\"lang\":\"ja\",\"attempts\":4,\"article_sha256\":\"$ARTICLE_SHA256\"}"
-assert_begin_rejected terminal-malformed-pass gates/rubric-judge-ja.terminal.json \
+
+# Non-canonical terminal evidence (a copied gate stdout, a captured traceback, a forged
+# PASS/advisory) is never honoured: begin moves it aside and spends one bounded
+# evaluation instead of skipping, and instead of failing every later resume forever.
+assert_terminal_quarantined() {
+  local name="$1" payload="$2"
+  export ARTICLE_RUN_DIR="$TMP/$name"
+  mkdir -p "$ARTICLE_RUN_DIR/gates"
+  printf '%s\n' "$payload" >"$ARTICLE_RUN_DIR/gates/rubric-judge-ja.terminal.json"
+  local bad_sha
+  bad_sha="$(shasum -a 256 "$ARTICLE_RUN_DIR/gates/rubric-judge-ja.terminal.json" | awk '{print $1}')"
+  : >"$FAKE_CLAUDE_COUNT"
+  set +e
+  bash "$RUBRIC" "$ARTICLE" --lang ja >"$TMP/$name.out" 2>&1
+  rc=$?
+  set -e
+  test "$rc" -eq 1
+  test "$(grep -c '^CALL$' "$FAKE_CLAUDE_COUNT")" -eq 1
+  test ! -e "$ARTICLE_RUN_DIR/gates/rubric-judge-ja.terminal.json"
+  test -f "$ARTICLE_RUN_DIR/gates/.attempts/rubric-judge-ja.terminal.rejected-$bad_sha.json"
+  jq -e '.attempts == 1' "$ARTICLE_RUN_DIR/gates/.attempts/rubric-judge-ja.json" >/dev/null
+}
+assert_terminal_quarantined terminal-malformed-pass \
   "{\"gate\":\"rubric-judge\",\"lang\":\"ja\",\"status\":\"pass\",\"article_sha256\":\"$ARTICLE_SHA256\"}"
-assert_begin_rejected terminal-wrong-identity-pass gates/rubric-judge-ja.terminal.json \
+assert_terminal_quarantined terminal-wrong-identity-pass \
   "{\"gate\":\"reader-testing-gate\",\"lang\":\"ja\",\"status\":\"pass\",\"attempts\":1,\"article_sha256\":\"$ARTICLE_SHA256\"}"
-assert_begin_rejected terminal-contradictory-pass gates/rubric-judge-ja.terminal.json \
+assert_terminal_quarantined terminal-contradictory-pass \
   "{\"gate\":\"rubric-judge\",\"lang\":\"ja\",\"status\":\"pass\",\"attempts\":1,\"exit_code\":1,\"article_sha256\":\"$ARTICLE_SHA256\",\"payload\":{\"verdict\":\"PASS\"}}"
-assert_begin_rejected terminal-premature-advisory gates/rubric-judge-ja.terminal.json \
+assert_terminal_quarantined terminal-premature-advisory \
   "{\"gate\":\"rubric-judge\",\"lang\":\"ja\",\"status\":\"advisory\",\"attempts\":2,\"reason\":\"max-attempts-reached\",\"article_sha256\":\"$ARTICLE_SHA256\"}"
+
+# Regression (run 20261016-230536): a resumed generation attempt revised the ja draft.
+# Attempt state still names the older draft and the canonical terminal holds either the
+# gate's own stdout record (status=fail, no exit_code) or a captured traceback. The new
+# draft must get a fresh bounded evaluation and a canonical hash-bound terminal.
+OLD_SHA256="cd23e28ac3154761ef9b3b3487aa59816491862430a07fc324675073e45674c6"
+for bad in stdout-copy traceback; do
+  export ARTICLE_RUN_DIR="$TMP/resume-$bad"
+  mkdir -p "$ARTICLE_RUN_DIR/gates/.attempts"
+  printf '{"gate":"reader-testing-gate","lang":"ja","attempts":1,"article_sha256":"%s"}\n' "$OLD_SHA256" \
+    >"$ARTICLE_RUN_DIR/gates/.attempts/reader-testing-gate-ja.json"
+  if [ "$bad" = stdout-copy ]; then
+    printf '{"verdict":"FAIL","questions":["Q1?"],"unanswered_questions":["Q1?"],"gate":"reader-testing-gate","lang":"ja","status":"fail","attempts":1,"article_sha256":"%s","payload":{"verdict":"FAIL"}}\n' "$OLD_SHA256" \
+      >"$ARTICLE_RUN_DIR/gates/reader-testing-gate-ja.terminal.json"
+  else
+    printf 'Traceback (most recent call last):\nValueError: terminal attempt evidence identity is malformed\n' \
+      >"$ARTICLE_RUN_DIR/gates/reader-testing-gate-ja.terminal.json"
+  fi
+  : >"$FAKE_CLAUDE_COUNT"
+  set +e
+  bash "$READER" "$ARTICLE" --lang ja --questions-file "$ARTICLE_RUN_DIR/gates/reader-questions-ja.json" \
+    >"$TMP/resume-$bad.out" 2>"$TMP/resume-$bad.err"
+  rc=$?
+  set -e
+  test "$rc" -eq 1
+  test "$(grep -c '^CALL$' "$FAKE_CLAUDE_COUNT")" -eq 2
+  ! grep -q Traceback "$TMP/resume-$bad.out" "$TMP/resume-$bad.err"
+  jq -e --arg sha "$ARTICLE_SHA256" \
+    '.gate == "reader-testing-gate" and .lang == "ja" and .status == "revision-required"
+     and .attempts == 1 and .exit_code == 1 and .article_sha256 == $sha' \
+    "$ARTICLE_RUN_DIR/gates/reader-testing-gate-ja.terminal.json" >/dev/null
+  jq -e --arg sha "$ARTICLE_SHA256" '.attempts == 1 and .article_sha256 == $sha' \
+    "$ARTICLE_RUN_DIR/gates/.attempts/reader-testing-gate-ja.json" >/dev/null
+  ls "$ARTICLE_RUN_DIR/gates/.attempts/" | grep -q '^reader-testing-gate-ja.terminal.rejected-'
+done
 
 # A current legacy PASS cannot mask a current non-PASS terminal.
 export ARTICLE_RUN_DIR="$TMP/legacy-terminal-conflict"

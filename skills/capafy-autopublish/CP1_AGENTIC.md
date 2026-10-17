@@ -88,13 +88,11 @@ showed).
 | Agent ワークスペース (Skill) | red after a model switch, else auto-confirmed ✓ | click the pending skill card once (see above) |
 | 価格設定 | often **red ✗** — the real work | **always open it, even when green**, and set every plan card to the TARGET values (fix until GREEN) |
 
-**An incomplete 基本情報 is work to do, never a reason to stop.** A resumed draft
-(`resume_draft`, an orphan stub) usually opens with 基本情報 red and 提出を確認
-disabled. Open 基本情報, fill every empty or red field from `<CONFIG_PATH>`, save the
-draft, and continue with the remaining tabs. Stopping there leaves the draft holding
-a review slot forever (2026-10-08: draft 9531771963 stopped twice on "基本情報 is
-incomplete" while every new Agent waited for that slot). The only exception is the
-price-only update recipe below, which leaves 基本情報 as-is.
+**Required CP1 tab order: 基本情報 → Agent ワークスペース → 価格設定 last.** Finish 基本情報 first, then Agent ワークスペース, and verify both are green before opening 価格設定. The latest resume-stub retry reported that a tab switch reset price fields, so treat unsaved pricing as lost if you leave Pricing. **After entering 価格設定, do not switch tabs before PRICES_MATCH, save, and confirmation.** If you leave 価格設定, re-enter every plan price/cap/trial and daily quota, then rerun PRICES_MATCH.
+
+**Proof images in the detailed description (SSOT D4, 2026-10-15).** Winners show real output inside the description (HookAce embeds 6 images; ours were text only, and 478 search visits in 7 days bought nothing). When `CONFIG_PATH` has a non-empty `proof_images` list, after the detailed description text is in place: put the cursor at the end of the description editor, find the editor's image/upload control in the state readout, and insert each path in order with `upload <idx> <path>`. Read the screenshot after each upload and confirm the image thumbnail appears in the editor. If the editor offers no image control, record `proof_images_unsupported` in the pass notes and continue; never paste file paths or `<img>` text into the description. Never add images to a FROZEN seller (they never reach CP1).
+
+**An incomplete 基本情報 is work to do, never a reason to stop.** A resumed draft or orphan stub usually opens with 基本情報 red and 提出を確認 disabled. Open 基本情報, fill every empty or red field from `CONFIG_PATH`, and verify the tab is green. Then follow the tab order above. Do not revisit completed tabs after entering plan data. Stopping before Basic Info is complete leaves the draft holding a review slot forever (2026-10-08: draft 9531771963 stopped twice on 基本情報 is incomplete while every new Agent waited for that slot). The only exception is the price-only update recipe below, which leaves 基本情報 as-is.
 
 **A green 価格設定 tab is not proof of the right price.** On 2026-09-29 the Hook Lab
 reprice (agent 8123079349, v1.0.4) was saved with a green tab still holding the OLD
@@ -116,8 +114,8 @@ needed first) and can still be fixed because the card is still editable.
 ## Fixing 価格設定 (the common breakage)
 1. Read the exact URL bytes from `EDIT_URL_FILE` emitted by `publish_prepare.sh` and
    open that value. Do not reconstruct, append query parameters, or print the URL.
-   Read the shot, then click the 価格設定 tab (find it in `buttons`/`markers`, click
-   its coords).
+   Finish and verify 基本情報 and Workspace first, then click 価格設定 last using
+   its current `buttons`/`markers` coordinates.
 2. Confirm 収益化モデル = **Capafy で実行** and Billing = **Subscription** and
    container mode = **On-Demand** are selected (orange). If not, click them.
 3. `scroll` down to reveal the plan cards. Each subscription plan card = a Period
@@ -137,20 +135,27 @@ needed first) and can still be fixed because the card is still editable.
    `scripts/verify_pricing.py --agent-id <ID> --listing <LISTING.md>`; on
    `PRICING_MISMATCH` re-open the edit URL (`publish_prepare.sh` re-issues it) and
    re-enter the prices with `typeinto`.
-   The card has exactly three plan cards and no "Add Plan" button (2026-10-05). Use each
-   card's Period dropdown to make the three cards match the LISTING table exactly. The
-   LISTING table is authoritative: if it lists Daily, switch a card's Period to Daily
-   (price-restore updates use Daily / Weekly / Monthly). Re-check every card's Period, Price and Request-Limit after switching, since
-   cards can re-sort when a period changes.
+   Never assume the default card count or periods. Make the visible cards match the
+   exact cycle set in the LISTING table, with one card per listed cycle and no extra
+   cycle. If a listed cycle is missing, use the visible **Add Plan** control when
+   available; otherwise repurpose a non-target card with its Period dropdown. Example:
+   for a Week / Month / Year listing, the final cards must be exactly Weekly,
+   Monthly, and Yearly — completing Week and Month alone is not enough. Re-read every
+   card's Period, Price, Request-Limit, and trial after adding or switching a card,
+   since cards can re-sort when a period changes. After each Add Plan or period
+   change, re-read state and match the card by its visible Period label; never reuse
+   a positional index. Run the mandatory `PRICES_MATCH`
+   gate below and do not save/submit while any LISTING cycle is missing or mismatched.
 5. Each plan needs a trial choice (required). Read the TARGET line printed by
    `publish_prepare.sh` for that plan's `trial=` value:
    - `trial=No Free Trial` → click **"No Free Trial"**.
    - `trial=Free Trial <H>h / <N> requests` → click **"Enable Free Trial"**, which
      reveals a duration field and a free-request-count field; fill them with the
-     printed `<H>` and `<N>` exactly, then re-check the 価格設定 tab is still green.
-     If the revealed fields don't match what you expect (wrong units, missing
-     field, still red after filling), do NOT block the submission on it — fall
-     back to **"No Free Trial"** for that plan and note why in your report.
+     printed `<H>` and `<N>` exactly. Re-read the cards and require `PRICES_MATCH`
+     before saving. If the UI cannot represent the LISTING target, do not substitute
+     No Free Trial for a Free Trial target; stop before save/submit and report the
+     exact target and observed fields. If the LISTING trial target is not matched,
+     do not save or submit; never replace a Free Trial target with No Free Trial.
 5b. Below the plans, **毎日の無料クォータ / Daily free quota** is required (added by Capafy
    2026-10-12). Click **"毎日の無料クォータなし" (No daily free quota)**, the same as the top
    sellers (search API dailyFreeQuotaCount -1). If it is left unselected, the 価格設定 tab stays
@@ -162,11 +167,12 @@ needed first) and can still be fixed because the card is still editable.
    pack" buttons after the last plan. Always re-run `state` after the last
    plan card to see what's actually there before assuming a field from an
    older doc revision still exists; do not block on a field you cannot find.
-7. Re-read all tabs: every tab must be green (基本情報 / Agent ワークスペース /
-   価格設定 — see above if a hosted-model switch put a 4th requirement on the
-   workspace tab). The 価格設定 tab's `priceSvg` should NOT contain
-   `229, 83, 75`/`255, 106, 43` (red/orange = invalid); if it does, something
-   is still empty/invalid — screenshot, find the red field, fix it.
+7. Final price-tab check: verify 基本情報 and Agent ワークスペース were green
+   before opening 価格設定. The latest resume-stub retry reported a price reset after
+   a tab switch. After entering plan values, do not switch tabs before PRICES_MATCH,
+   save, and confirmation. If you leave 価格設定, re-enter every cycle's target
+   price, request limit, trial, and daily quota, then rerun PRICES_MATCH. The active
+   価格設定 tab's priceSvg must not show red/orange; fix it while remaining on Pricing.
 8. **Mandatory gate — run `scripts/cp1_agent.py prices <LISTING.md>` and read its
    exit line BEFORE clicking 提出を確認. Never confirm the card on a `PRICES_MISMATCH`.**
    This re-reads the plan cards exactly as they currently stand (after any period

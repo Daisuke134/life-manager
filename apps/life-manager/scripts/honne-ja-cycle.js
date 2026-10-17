@@ -97,8 +97,16 @@ function historyProvider(dataDir) {
 async function executeJob(store, job, workerId, handler) {
   const existing = await store.readReceipt({ tenantId: job.tenant_id, jobId: job.job_id });
   if (existing) return existing;
+  if (job.capability === "marketing.video.publish") {
+    const failed = await store.readJob({ tenantId: job.tenant_id, jobId: job.job_id });
+    // The publication adapter marks every post-dispatch failure as unknown.
+    if (failed?.status === "failed" && failed.unknown_effect === false
+      && failed.attempt < failed.max_attempts) {
+      await store.retryJob({ tenantId: job.tenant_id, jobId: job.job_id });
+    }
+  }
   const claim = await store.claimJob({ tenantId: job.tenant_id, jobId: job.job_id, capability: job.capability, workerId, leaseSeconds: 300 });
-  if (!claim) throw new Error(`honne JA ${job.capability} job is not claimable`);
+  if (!claim) throw new Error(`Mobile marketing job is not claimable: ${job.job_id}`);
   await executeCapabilityJob(claim, {
     workerId,
     handlers: { [job.capability]: handler },
@@ -108,7 +116,7 @@ async function executeJob(store, job, workerId, handler) {
     leaseSeconds: 300,
   });
   const receipt = await store.readReceipt({ tenantId: job.tenant_id, jobId: job.job_id });
-  if (!receipt) throw new Error(`honne JA ${job.capability} receipt is unavailable`);
+  if (!receipt) throw new Error(`Mobile marketing receipt unavailable: ${job.job_id}`);
   return receipt;
 }
 
@@ -259,7 +267,7 @@ async function runHonneJaCycle(argv, deps = {}) {
   if (!verifyMarketingVideoPublicationReceipt(publication) || publication.provider_reconciled !== true || !direct.test(publication.public_url)) {
     throw new Error(`${lane.name} publication receipt is not account-bound and reconciled`);
   }
-  const publicationResult = { created: publicationQueued.created, public_url: publication.public_url, provider_post_id: publication.provider_post_id };
+  const publicationResult = { created: publicationQueued.created, ...(typeof publication.provider_effect_created === "boolean" ? { provider_effect_created: publication.provider_effect_created, ...(typeof publication.origin_occurrence_id === "string" ? { origin_occurrence_id: publication.origin_occurrence_id } : {}) } : {}), public_url: publication.public_url, provider_post_id: publication.provider_post_id };
   if (!telegramNativeUrlVerified(lane, env, publication.public_url)) {
     return { slot, generation: { created: generationQueued.created, creative_id: artifact.creative_id }, publication: publicationResult, telegram: { created: false, held: true, message_id: null } };
   }

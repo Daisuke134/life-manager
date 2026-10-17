@@ -29,7 +29,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.14'
       - name: Install exact loop contract test dependency
         run: python3 -m pip install --disable-pip-version-check jsonschema==4.26.0 pytest==9.0.3
       - name: Verify registry, releases, apply fencing, and clean install
@@ -56,6 +56,37 @@ jobs:
           runtime/loop/__tests__/recovery-apply-plan.test.mjs
           runtime/loop/__tests__/recovery-executor.test.mjs
           runtime/loop/__tests__/recovery-supervisor.test.mjs
+
+  writer-eval:
+    name: Writer EDD receipt grader
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.16.0'
+      - name: Run W-01 code grader and regression tests
+        working-directory: apps/life-manager
+        run: npm run test:writer-eval
+
+  web-attribution:
+    name: Web CTA attribution contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.16.0
+      - name: Run Writer CTA first-touch, Web forwarding, and report tests
+        working-directory: apps/life-manager
+        run: >-
+          node --test
+          lib/web-attribution.test.js
+          lib/web-auth.test.js
+          lib/web-funnel-events.test.js
+          lib/web-funnel-report.test.js
+          lib/web-page.test.js
+          scripts/lm-web-funnel-report.test.js
 
   openclaw-foundation:
     name: OpenClaw offline foundations

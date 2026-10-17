@@ -244,19 +244,56 @@ function planMarketingLivenessJobs(input = {}) {
 function renderMessage(payload) {
   if (payload.status === "summary") return payload.message;
   if (payload.status === "observed") {
-    const label = (key) => ({ views: "Views", reach: "Reach", impressions: "Impressions", likes: "Likes", comments: "Comments", shares: "Shares", saves: "Saves", watch_time: "Watch time", average_watch_time: "Average watch time", completion: "Completion", engagement: "Engagement", account_totals: "Account totals", account_followers: "Followers", account_following: "Following", account_total_likes: "Account total likes", account_videos: "Videos", account_recent_views: "Latest 20 videos views", account_recent_likes: "Latest 20 videos likes", account_recent_comments: "Latest 20 videos comments", account_recent_shares: "Latest 20 videos shares" }[key] || key);
-    const measured = []; const unavailable = []; const unsupported = [];
-    for (const [key, metric] of Object.entries(payload.metrics)) {
-      if (metric.status === "unavailable") (metric.reason === "metric_not_supported" ? unsupported : unavailable).push(label(key));
-      else measured.push(`${key.startsWith("account_") && key !== "account_totals" && metric.source_date ? `Account ${key.slice(8)}` : label(key)} ${metric.percent != null ? `${metric.percent}%` : metric.value}${metric.source_date ? `（${metric.source_date}）` : ""}`);
+    const labels = {
+      views: "閲覧数", reach: "リーチ", impressions: "表示回数", likes: "いいね数",
+      comments: "コメント数", shares: "シェア数", saves: "保存数", watch_time: "視聴時間",
+      average_watch_time: "平均視聴時間", completion: "完視聴率", engagement: "エンゲージメント率",
+      account_totals: "アカウント全体の指標", account_views: "アカウント閲覧数",
+      account_reach: "アカウントリーチ", account_followers: "フォロワー数",
+      account_following: "フォロー中", account_total_likes: "総いいね数", account_videos: "投稿数",
+      account_recent_views: "直近20投稿の閲覧数", account_recent_likes: "直近20投稿のいいね数",
+      account_recent_comments: "直近20投稿のコメント数", account_recent_shares: "直近20投稿のシェア数",
+    };
+    const product = { "honne-ai": "Honne", "anicca-ios": "Anicca iOS", anicca: "Anicca" }[payload.product] || "アプリ";
+    const platform = { tiktok: "TikTok", instagram: "Instagram", youtube: "YouTube", multi: "複数SNS" }[payload.platform] || "SNS";
+    const window = { "2h": "2時間", "24h": "24時間", "72h": "72時間", "7d": "7日間", daily: "日次", current: "現在" }[payload.window] || "指定期間";
+    const account = payload.account ? "（" + payload.account + "）" : "（登録済みアカウント）";
+    const measured = [];
+    const unavailable = [];
+    const unsupported = [];
+    for (const [key, metric] of Object.entries(payload.metrics || {})) {
+      const label = labels[key] || "その他の指標";
+      if (metric.status === "unavailable") {
+        (metric.reason === "metric_not_supported" ? unsupported : unavailable).push(label);
+      } else {
+        const value = metric.percent != null ? String(metric.percent) + "%" : String(metric.value);
+        const sourceDate = metric.source_date ? "（" + metric.source_date + "時点）" : "";
+        measured.push(label + " " + value + sourceDate);
+      }
     }
-    const windows = Array.isArray(payload.window_summary) ? ` Window status: ${payload.window_summary.join("、")}。` : "";
+    const observedTime = Date.parse(String(payload.metric_observed_at || ""));
+    const observedText = Number.isFinite(observedTime)
+      ? new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }).format(observedTime)
+      : "";
+    const current = payload.current_observation
+      ? "今回取得した現在値です" + (observedText ? "（取得時刻 " + observedText + "）" : "") + "。過去のチェックポイント値ではありません。"
+      : "";
     const identity = payload.publication_evidence === "postiz_published_exact_assets"
-      ? `Postiz PUBLISHED photo receipt${payload.public_url === "unavailable" ? "、投稿リンク未取得" : `、投稿リンク: ${payload.public_url}`}`
-      : `直接URL: ${payload.public_url}`;
-    const current = payload.current_observation ? `現在値（取得: ${payload.metric_observed_at}、過去のチェックポイント値ではありません）。` : "";
-    const capability = unsupported.length ? `API未提供: ${unsupported.join("、")}。` : "";
-    return `Life Manager::: ${payload.product}の${payload.platform} ${payload.account}、${payload.window}${payload.correction ? "訂正版" : ""}メトリクスです。${current}${measured.join("、")}。取得不可: ${unavailable.length ? unavailable.join("、") : "なし"}。${capability}${windows}${identity}。Snapshot: ${payload.snapshot_ref}。`;
+      ? "Postizの公開記録と承認済み素材の一致を確認しました。"
+      : "";
+    const url = typeof payload.public_url === "string" && payload.public_url.startsWith("https://")
+      ? "投稿リンク: " + payload.public_url + "。"
+      : "投稿リンクは取得できませんでした。";
+    const header = "📊 " + product + "の" + platform + account + "、" + window
+      + (payload.correction ? "の訂正メトリクスです。" : "のメトリクスです。");
+    const parts = [header];
+    if (current) parts.push(current);
+    if (measured.length) parts.push(measured.join("、") + "。");
+    if (unavailable.length) parts.push("取得できなかった指標: " + unavailable.join("、") + "。");
+    if (unsupported.length) parts.push("APIでは提供されていない指標: " + unsupported.join("、") + "。");
+    if (identity) parts.push(identity);
+    parts.push(url);
+    return parts.join(" ");
   }
   const accountPattern = payload.platform === "tiktok"
     ? /^https:\/\/www\.tiktok\.com\/@([^/]+)\/video\//

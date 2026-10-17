@@ -24,6 +24,7 @@ GUARD = REPO_ROOT / "skills/browser/browser-guard.sh"
 IDENTITY = "line-creators:dais"
 BASE = "https://creator.line.me/my/cCX4POFknN2lhLJE"
 BUSY_EXIT = 9
+JST = datetime.timezone(datetime.timedelta(hours=9))
 
 
 class NeedsLogin(RuntimeError):
@@ -184,7 +185,7 @@ async def _create_item(page: Page, listing: dict, selection: dict) -> dict:
     auto_release = page.locator("input[name=is_auto_release][value=true]")
     await auto_release.locator("xpath=ancestor::label[1]").click()
     assert await auto_release.is_checked()
-    await _select_taste_character_campaign(page, selection)
+    await _select_taste_character_campaign(page, selection, listing)
     await page.evaluate("document.querySelector('input[type=submit].mdBtn').click()")
     # The page keeps several hidden confirm dialogs; only the visible "OK" belongs to this save.
     ok_button = page.locator("button:visible", has_text="OK").last
@@ -217,7 +218,7 @@ async def _create_item(page: Page, listing: dict, selection: dict) -> dict:
     }
 
 
-async def _select_taste_character_campaign(page: Page, selection: dict) -> None:
+async def _select_taste_character_campaign(page: Page, selection: dict, listing: dict | None = None) -> None:
     selects = page.locator("select")
     count = await selects.count()
     for index in range(count):
@@ -232,8 +233,100 @@ async def _select_taste_character_campaign(page: Page, selection: dict) -> None:
     # 参加しない has no value attribute (DOM .value reads "on", CSS [value='on'] matches nothing).
     campaign_radio = page.locator(f"input[type=radio][value='{campaign_value}']" if campaign_value
                                   else "input[type=radio]:not([value])")
-    if await campaign_radio.count():
+    radio_count = await campaign_radio.count()
+    if campaign_value:
+        if not isinstance(selection.get("campaign_requirements"), dict):
+            raise RuntimeError("campaign_requirements_missing")
+        if not isinstance(listing, dict):
+            raise RuntimeError("campaign_listing_missing")
+        _validate_campaign_submission(selection, listing)
+        current_requirements = await _read_current_campaign_requirements(page, campaign_value)
+        if not _campaign_requirements_match(selection["campaign_requirements"], current_requirements):
+            raise RuntimeError("campaign_conditions_changed")
+        if radio_count != 1:
+            raise RuntimeError("campaign_radio_missing")
         await campaign_radio.first.evaluate("e => e.click()")  # feature radios are not wrapped in a <label>
+        if not await campaign_radio.first.is_checked():
+            raise RuntimeError("campaign_radio_unchecked")
+    else:
+        if radio_count != 1:
+            raise RuntimeError("campaign_opt_out_radio_missing")
+        await campaign_radio.first.evaluate("e => e.click()")
+        if not await campaign_radio.first.is_checked():
+            raise RuntimeError("campaign_opt_out_radio_unchecked")
+
+
+def _validate_campaign_submission(selection: dict, listing: dict) -> None:
+    requirements = selection.get("campaign_requirements")
+    if not isinstance(requirements, dict):
+        raise RuntimeError("campaign_requirements_missing")
+    observed_at = requirements.get("observed_at")
+    try:
+        observed = datetime.datetime.fromisoformat(observed_at)
+        if observed.tzinfo is None or observed.astimezone(JST).date() != datetime.datetime.now(JST).date():
+            raise RuntimeError("campaign_snapshot_stale")
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError("campaign_snapshot_stale") from exc
+
+    try:
+        count = int(listing["count"])
+        price = int(listing["price_jpy"])
+        minimum_count = int(requirements["min_sticker_count"])
+        maximum_count = int(requirements["max_sticker_count"])
+        minimum_price = int(requirements["min_price_jpy"])
+        minimum_theme_stickers = int(requirements["min_theme_stickers"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise RuntimeError("campaign_eligibility_facts_missing") from exc
+
+    order = selection.get("order")
+    if not isinstance(order, list) or count != len(order) or not minimum_count <= count <= maximum_count:
+        raise RuntimeError("campaign_item_count_ineligible")
+    if price < minimum_price:
+        raise RuntimeError("campaign_item_price_ineligible")
+    on_theme = set(selection.get("campaign_theme_ids") or []) & set(order)
+    if len(on_theme) < minimum_theme_stickers:
+        raise RuntimeError("campaign_theme_count_ineligible")
+
+
+CAMPAIGN_REQUIREMENT_FIELDS = (
+    "value", "title", "deadline", "min_sticker_count", "max_sticker_count", "min_price_jpy",
+    "min_theme_stickers",
+)
+
+
+def _campaign_requirements_match(selected: dict, current: dict) -> bool:
+    return (isinstance(selected, dict) and isinstance(current, dict)
+            and all(selected.get(key) == current.get(key) for key in CAMPAIGN_REQUIREMENT_FIELDS))
+
+
+async def _read_current_campaign_requirements(page: Page, campaign_value: str) -> dict:
+    # Re-read the same official create-page radios and their announcement bodies immediately before save.
+    from features_readback import FEATURE_PAGE, read_features_on_page
+    from line_sticker_planner import _campaign_requirements
+
+    live_page = await page.context.new_page()
+    try:
+        readback = await read_features_on_page(live_page, FEATURE_PAGE)
+    finally:
+        await live_page.close()
+    if readback.get("status") != "ok":
+        raise RuntimeError("campaign_live_readback_failed")
+    matches = [feature for feature in readback.get("features", [])
+               if feature.get("value") == campaign_value]
+    if len(matches) != 1:
+        raise RuntimeError("campaign_live_feature_unavailable")
+    feature = matches[0]
+    deadline = feature.get("deadline")
+    try:
+        if not deadline or datetime.date.fromisoformat(deadline) < datetime.datetime.now(JST).date():
+            raise RuntimeError("campaign_live_feature_unavailable")
+    except ValueError as exc:
+        raise RuntimeError("campaign_live_deadline_invalid") from exc
+    feature["observed_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    requirements = _campaign_requirements(feature)
+    if requirements is None:
+        raise RuntimeError("campaign_live_conditions_unparseable")
+    return requirements
 
 
 async def _upload_images(page: Page, item: dict, package_dir: Path) -> None:

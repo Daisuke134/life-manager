@@ -70,7 +70,7 @@ test("directionsRoute: JP query is anchored to event wall time and accepted tran
     assert.equal(query.get("date"), "20260827");
     assert.equal(query.get("time"), "18:30");
     assert.equal(query.get("type"), "arrival");
-    assert.equal(query.get("numItineraries"), "3");
+    assert.equal(query.get("numItineraries"), "1");
     assert.equal(route.provider, "transit");
     assert.equal(route.durationSeconds, 1029);
     assert.equal(googleCalled, false);
@@ -151,7 +151,7 @@ test("directionsRoute: return query uses event end wall time and departure type"
     assert.equal(query.get("date"), "20260827");
     assert.equal(query.get("time"), "20:00");
     assert.equal(query.get("type"), "departure");
-    assert.equal(query.get("numItineraries"), "3");
+    assert.equal(query.get("numItineraries"), "1");
     assert.equal(route.provider, "transit");
   } finally { global.fetch = originalFetch; }
 });
@@ -247,6 +247,20 @@ test("directionsRoute: a never-settling Transit injection times out and falls ba
   assert.notEqual(route, timeoutSentinel, "Transit timeout must settle instead of waiting forever");
   assert.equal(route.provider, "google");
   assert.equal(googleCalls, 1);
+});
+
+test("transitFetchPlan requests one itinerary for the timed Japan route lookup", async () => {
+  const originalFetch = global.fetch;
+  let requestUrl = "";
+  global.fetch = async (url) => {
+    requestUrl = String(url);
+    return { ok: true, status: 200, json: async () => ({ date: "20260827", timezone: "Asia/Tokyo", journeys: [] }) };
+  };
+  try {
+    const query = travel.wallAnchor(EVENT_START, "Asia/Tokyo", NOW, false);
+    await travel.transitFetchPlan({ lat: 35.681, lon: 139.767 }, { lat: 35.659, lon: 139.700 }, query);
+    assert.equal(new URL(requestUrl).searchParams.get("numItineraries"), "1");
+  } finally { global.fetch = originalFetch; }
 });
 
 test("transitFetchPlan: timeout aborts the real fetch and structured fallback makes one Google HTTP request", async () => {

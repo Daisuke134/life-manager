@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">MLB Postgame Turning-Point Brief</title>
+  <desc id="desc">A baseball with a highlighted turning-point timeline.</desc>
+  <rect width="512" height="512" rx="96" fill="#081b33"/>
+  <circle cx="256" cy="232" r="142" fill="#f7f2e8"/>
+  <path d="M151 136c61 47 61 145 0 192M361 136c-61 47-61 145 0 192" fill="none" stroke="#d34a42" stroke-width="14" stroke-linecap="round" stroke-dasharray="8 13"/>
+  <path d="M104 397h94l40-54 42 30 70-92" fill="none" stroke="#53d0bb" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="104" cy="397" r="13" fill="#53d0bb"/>
+  <circle cx="198" cy="397" r="13" fill="#53d0bb"/>
+  <circle cx="238" cy="343" r="13" fill="#53d0bb"/>
+  <circle cx="280" cy="373" r="13" fill="#53d0bb"/>
+  <circle cx="350" cy="281" r="13" fill="#53d0bb"/>
+  <path d="M256 187v90M211 232h90" stroke="#081b33" stroke-width="16" stroke-linecap="round"/>
+</svg>

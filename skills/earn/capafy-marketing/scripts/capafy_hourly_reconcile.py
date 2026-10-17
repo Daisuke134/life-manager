@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import hashlib
 import json
 import os
 import re
@@ -15,6 +16,7 @@ import urllib.request
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from pathlib import Path
 from typing import Any, Callable
+from zoneinfo import ZoneInfo
 
 
 API = "https://api.capafy.ai"
@@ -30,6 +32,22 @@ SKILL_STATS_DELAY_SECONDS = 0.15
 TRAFFIC_SOURCES_BASE = "/app/developer/traffic-sources"
 TRAFFIC_AGENT_CAP = SKILL_STATS_CAP  # ponytail: same bound as the per-agent stats loop above
 TRAFFIC_AGENT_DELAY_SECONDS = SKILL_STATS_DELAY_SECONDS
+
+
+FROZEN_PATH = Path(__file__).resolve().parents[3] / "capafy" / "FROZEN.json"
+
+
+def _sellers_first(agent_ids: list[str]) -> list[str]:
+    """FROZEN sellers first so the per-agent caps above never drop them (Hook Lab fell past
+    60 of 70 on 2026-10-15). Unreadable file = original order."""
+    try:
+        frozen = json.loads(FROZEN_PATH.read_text())
+        # "sellers" outlives a temporary unfreeze (Hook Lab price restore 2026-10-16).
+        sellers = [str(a) for a in frozen.get("sellers") or frozen.get("agent_ids") or []]
+    except Exception:
+        return list(agent_ids)
+    return [a for a in sellers if a in agent_ids] + [a for a in agent_ids if a not in sellers]
+TRAFFIC_DISPLAY_TIMEZONE = ZoneInfo("Asia/Tokyo")
 
 
 def _money(value: Any) -> str | None:
@@ -257,6 +275,41 @@ def _epoch_ms(day: dt.date, *, end_of_day: bool = False) -> int:
     return int(dt.datetime.combine(day, time_part, tzinfo=dt.timezone.utc).timestamp() * 1000)
 
 
+def _canonical_json_sha256(payload: Any) -> str | None:
+    if not _ok(payload):
+        return None
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _traffic_window_metadata(start_ms: int, end_ms: int, agent_id: str | None,
+                              observed_at: str | None) -> dict:
+    start_utc = dt.datetime.fromtimestamp(start_ms / 1000, tz=dt.timezone.utc)
+    end_utc = dt.datetime.fromtimestamp(end_ms / 1000, tz=dt.timezone.utc)
+    return {
+        "scope": {"kind": "agent" if agent_id else "account", "agent_id": agent_id or None},
+        "window": {
+            "start_at_ms": start_ms,
+            "end_at_ms": end_ms,
+            "start_utc": start_utc.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+            "end_utc": end_utc.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+            "display_timezone": "Asia/Tokyo",
+            "start_local": start_utc.astimezone(TRAFFIC_DISPLAY_TIMEZONE).isoformat(timespec="milliseconds"),
+            "end_local": end_utc.astimezone(TRAFFIC_DISPLAY_TIMEZONE).isoformat(timespec="milliseconds"),
+        },
+        "filters": {"country": None, "platform": None},
+        "observed_at": observed_at,
+    }
+
+
+def _optional_text(value: Any) -> str | None:
+    return value if isinstance(value, str) and value.strip() else None
+
+
+def _nonnegative_int(value: Any) -> int | None:
+    return value if type(value) is int and value >= 0 else None
+
+
 def _traffic_merge(visits_items: Any, sales_items: Any) -> list[dict] | None:
     """Merge GET-equivalent v2/visits/stats + v2/sales/stats rows by (sourceType, name),
     mirroring the Capafy console's own client-side merge in assets/TrafficSources-*.js."""
@@ -296,26 +349,41 @@ def _traffic_merge(visits_items: Any, sales_items: Any) -> list[dict] | None:
     return rows
 
 
-def _traffic_window(web_token: str, start_ms: int, end_ms: int, agent_id: str | None = None) -> dict:
+def _traffic_window(web_token: str, start_ms: int, end_ms: int, agent_id: str | None = None,
+                    *, observed_at: str | None = None) -> dict:
     """One (start, end[, agent]) window of Capafy's own traffic-sources v2 visits+sales stats,
     merged into per-source rows. No web_token / a failed call -> status unknown, never a fabricated zero."""
-    empty = {"status": "unknown", "by_source": [], "totals": {
-        "views": None, "unique_visitors": None, "trial_orders": None, "paid_orders": None, "sales_usd": None}}
+    metadata = _traffic_window_metadata(start_ms, end_ms, agent_id, observed_at)
+    empty = {**metadata, "status": "unknown", "source_status": {"visits": "unknown", "sales": "unknown"},
+             "source_hashes": {"visits": None, "sales": None}, "by_source": [], "totals": {
+                 "views": None, "unique_visitors": None, "trial_orders": None,
+                 "paid_orders": None, "sales_usd": None}}
     if not web_token:
-        return {**empty, "status": "unknown_web_token_unavailable"}
+        return {**empty, "status": "unknown_web_token_unavailable",
+                "source_status": {"visits": "unknown_web_token_unavailable",
+                                  "sales": "unknown_web_token_unavailable"}}
     body: dict[str, Any] = {"startAt": start_ms, "endAt": end_ms}
     if agent_id:
         body["agentId"] = agent_id
     visits = _post(f"{TRAFFIC_SOURCES_BASE}/v2/visits/stats", web_token, body)
     sales = _post(f"{TRAFFIC_SOURCES_BASE}/v2/sales/stats", web_token, body)
-    if not (_ok(visits) and _ok(sales)):
-        return {**empty, "status": "unknown_source_error"}
+    source_hashes = {"visits": _canonical_json_sha256(visits), "sales": _canonical_json_sha256(sales)}
     visits_data, sales_data = _data(visits), _data(sales)
     visits_items = visits_data.get("items") if isinstance(visits_data, dict) else None
     sales_items = sales_data.get("items") if isinstance(sales_data, dict) else None
+    visits_valid = _ok(visits) and _traffic_merge(visits_items, []) is not None
+    sales_valid = _ok(sales) and _traffic_merge([], sales_items) is not None
+    source_status = {
+        "visits": "fresh" if visits_valid else "unknown_source_error" if not _ok(visits) else "unknown_shape",
+        "sales": "fresh" if sales_valid else "unknown_source_error" if not _ok(sales) else "unknown_shape",
+    }
+    if not (visits_valid and sales_valid):
+        status = "unknown_source_error" if "unknown_source_error" in source_status.values() else "unknown_shape"
+        return {**empty, "status": status, "source_status": source_status, "source_hashes": source_hashes}
     by_source = _traffic_merge(visits_items, sales_items)
     if by_source is None:
-        return {**empty, "status": "unknown_shape"}
+        return {**empty, "status": "unknown_shape",
+                "source_status": source_status, "source_hashes": source_hashes}
     try:
         totals = {
             "views": sum(row["views"] for row in by_source),
@@ -325,12 +393,51 @@ def _traffic_window(web_token: str, start_ms: int, end_ms: int, agent_id: str | 
             "sales_usd": _money(sum(Decimal(row["sales_usd"]) for row in by_source)),
         }
     except InvalidOperation:
-        return {**empty, "status": "unknown_totals_error"}
-    return {"status": "fresh", "by_source": by_source, "totals": totals}
+        return {**empty, "status": "unknown_totals_error",
+                "source_status": source_status, "source_hashes": source_hashes}
+    return {**metadata, "status": "fresh", "source_status": source_status,
+            "source_hashes": source_hashes, "by_source": by_source, "totals": totals}
+
+
+def _impressions_window(web_token: str, start_ms: int, end_ms: int, observed_at: str,
+                        agent_id: str | None = None) -> dict:
+    """One read-only Capafy listing-exposure query. Preserve provider rows; never infer unique buyers."""
+    metadata = _traffic_window_metadata(start_ms, end_ms, agent_id, observed_at)
+    empty = {**metadata, "status": "unknown", "source_status": {"impressions": "unknown"},
+             "source_hashes": {"impressions": None}, "row_count": None, "by_source": []}
+    if not web_token:
+        return {**empty, "status": "unknown_web_token_unavailable",
+                "source_status": {"impressions": "unknown_web_token_unavailable"}}
+    body: dict[str, Any] = {"startAt": start_ms, "endAt": end_ms}
+    if agent_id:
+        body["agentId"] = agent_id
+    payload = _post(f"{TRAFFIC_SOURCES_BASE}/v2/impressions/stats", web_token, body)
+    source_hash = _canonical_json_sha256(payload)
+    if not _ok(payload):
+        return {**empty, "status": "unknown_source_error",
+                "source_status": {"impressions": "unknown_source_error"},
+                "source_hashes": {"impressions": source_hash}}
+    data = _data(payload)
+    items = data.get("items") if isinstance(data, dict) else None
+    if not isinstance(items, list) or any(not isinstance(row, dict) for row in items):
+        return {**empty, "status": "unknown_shape", "source_status": {"impressions": "unknown_shape"},
+                "source_hashes": {"impressions": source_hash}}
+    by_source = [{
+        "source_type": _optional_text(row.get("sourceType")),
+        "source_name": _optional_text(row.get("sourceName")),
+        "agent_id": _optional_text(row.get("agentId")),
+        "country": _optional_text(row.get("country")),
+        "platform": _optional_text(row.get("platform")),
+        "exposure_count": _nonnegative_int(row.get("exposureCount")),
+        "user_id_exposure_count": _nonnegative_int(row.get("userIdExposureCount")),
+    } for row in items]
+    return {**metadata, "status": "fresh", "source_status": {"impressions": "fresh"},
+            "source_hashes": {"impressions": source_hash}, "row_count": len(items), "by_source": by_source}
 
 
 def build_traffic_sources(
     web_token: str, end_date: dt.date, agent_ids: list[str], *,
+    observed_at: str,
     cap: int = TRAFFIC_AGENT_CAP, delay: float = TRAFFIC_AGENT_DELAY_SECONDS,
     sleep: Callable[[float], None] = time.sleep,
 ) -> dict:
@@ -338,33 +445,59 @@ def build_traffic_sources(
     agentId filter the API already supports is applied. Endpoint has no public documentation;
     discovered from the public (unauthenticated) Vite chunk assets/TrafficSources-*.js."""
     end_ms = _epoch_ms(end_date, end_of_day=True)
-    windows = {
-        "last_30d": _traffic_window(web_token, _epoch_ms(end_date - dt.timedelta(days=29)), end_ms),
-        "last_7d": _traffic_window(web_token, _epoch_ms(end_date - dt.timedelta(days=6)), end_ms),
+    starts = {
+        "last_30d": _epoch_ms(end_date - dt.timedelta(days=29)),
+        "last_7d": _epoch_ms(end_date - dt.timedelta(days=6)),
+    }
+    windows = {label: _traffic_window(web_token, start_ms, end_ms, observed_at=observed_at)
+               for label, start_ms in starts.items()}
+    impressions_account = {
+        label: _impressions_window(web_token, start_ms, end_ms, observed_at)
+        for label, start_ms in starts.items()
     }
     by_agent: dict[str, dict] = {}
+    impressions_by_agent: dict[str, dict] = {}
     for agent_id in agent_ids[:cap]:
         by_agent[agent_id] = {
-            "last_30d": _traffic_window(
-                web_token, _epoch_ms(end_date - dt.timedelta(days=29)), end_ms, agent_id),
-            "last_7d": _traffic_window(
-                web_token, _epoch_ms(end_date - dt.timedelta(days=6)), end_ms, agent_id),
+            label: _traffic_window(web_token, start_ms, end_ms, agent_id, observed_at=observed_at)
+            for label, start_ms in starts.items()
+        }
+        impressions_by_agent[agent_id] = {
+            label: _impressions_window(web_token, start_ms, end_ms, observed_at, agent_id)
+            for label, start_ms in starts.items()
         }
         sleep(delay)
     status = "fresh" if windows["last_30d"]["status"] == "fresh" and windows["last_7d"]["status"] == "fresh" \
         else "degraded"
+    impressions_status = "fresh" if all(
+        impressions_account[label]["status"] == "fresh" for label in ("last_30d", "last_7d")) else "degraded"
+    funnel_status = "fresh" if status == "fresh" and impressions_status == "fresh" else "degraded"
     return {
         "schema_version": 1,
         "kind": "capafy_traffic_sources",
         "status": status,
+        "funnel_status": funnel_status,
+        "observed_at": observed_at,
         "last_30d": windows["last_30d"],
         "last_7d": windows["last_7d"],
         "by_agent": by_agent,
+        "impressions": {
+            "status": impressions_status,
+            "account": impressions_account,
+            "by_agent": impressions_by_agent,
+            "by_agent_coverage": {
+                "requested": len(agent_ids), "queried": len(agent_ids[:cap]),
+                "omitted": max(0, len(agent_ids) - cap), "cap": cap,
+            },
+            "data_gaps": [
+                "userIdExposureCount semantics are not documented as unique people or qualified buyers.",
+                "Exposure rows are preserved separately; no totals are inferred across source/account/agent scopes.",
+            ],
+        },
         "data_gaps": [
             "Endpoint discovered from the public Vite chunk assets/TrafficSources-*.js (base "
             "/app/developer/traffic-sources); Capafy has no documented public API for it.",
-            "v2/impressions/stats (listing exposure count, a different metric from page views) "
-            "exists on the same base path but is not fetched here.",
+            "Impressions are listing exposures, distinct from page/detail views; userIdExposureCount dedupe semantics are unverified.",
         ],
     }
 
@@ -1172,9 +1305,11 @@ def _live_payloads(repo_root: Path, observed: dt.datetime,
         "unit_sales": _post("/app/unit-sales/clickhouse/trend", web_token, period),
         "statements": _get("/app/developer/settlement-statement/list?page=1&size=20", web_token),
     })
-    inventory_agent_ids = [str(row["agentId"]) for row in (_inventory_rows(payloads.get("inventory", {})) or [])
-                           if row.get("agentId")]
-    payloads["traffic_sources"] = build_traffic_sources(web_token, observed.date(), inventory_agent_ids)
+    inventory_agent_ids = _sellers_first([str(row["agentId"]) for row in (_inventory_rows(payloads.get("inventory", {})) or [])
+                                          if row.get("agentId")])
+    traffic_observed_at = observed.astimezone(dt.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    payloads["traffic_sources"] = build_traffic_sources(
+        web_token, observed.date(), inventory_agent_ids, observed_at=traffic_observed_at)
     # Per-agent GROSS revenue/orders for fixed 30d/7d windows. /agent/agent/{id}/stats
     # (SOURCE_STATS_ENDPOINT below) returns SETTLED-only figures that lag real sales by a
     # refund-clearance window and can read $0 for a skill with real recent activity; these
@@ -1338,8 +1473,8 @@ def main(argv: list[str] | None = None) -> int:
         stats_path = args.fixture_dir / "agent_stats.json"
         agent_stats = json.loads(stats_path.read_text()) if stats_path.exists() else {}
     else:
-        agent_ids = [str(row["agentId"]) for row in (_inventory_rows(payloads.get("inventory", {})) or [])
-                     if row.get("agentId")]
+        agent_ids = _sellers_first([str(row["agentId"]) for row in (_inventory_rows(payloads.get("inventory", {})) or [])
+                                    if row.get("agentId")])
         token = _token(repo_root)
         agent_stats = _fetch_agent_stats_windows(token, agent_ids, observed.date()) if token else {}
     analytics = build_skill_analytics(payloads, agent_stats, _catalog_models(repo_root), observed_at)

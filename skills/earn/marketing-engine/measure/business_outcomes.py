@@ -279,8 +279,16 @@ def _integer(value: str | int | None) -> int:
     return int(str(value).replace(",", ""))
 
 
-def summarize_asc_downloads(rows: list[dict[str, str]]) -> dict[str, Any]:
+def summarize_asc_downloads(
+    rows: list[dict[str, str]], *, business_date: str | None = None
+) -> dict[str, Any] | None:
+    if not rows and business_date is not None:
+        return None
     _required_columns(rows, {"Date", "Download Type", "Source Type", "Counts"})
+    if business_date is not None:
+        rows = [row for row in rows if row.get("Date") == business_date]
+        if not rows:
+            return None
     mapping = {
         "First-time download": "first_time_downloads",
         "Redownload": "redownloads",
@@ -303,13 +311,17 @@ def summarize_asc_downloads(rows: list[dict[str, str]]) -> dict[str, Any]:
     return {**totals, "by_source": by_source, "row_count": len(rows)}
 
 
-def summarize_asc_table(rows: list[dict[str, str]]) -> dict[str, Any]:
+def summarize_asc_table(
+    rows: list[dict[str, str]], *, business_date: str | None = None
+) -> dict[str, Any] | None:
     """Summarize an aggregate ASC table without discarding its schema.
 
     ASC analytics rows contain no person-level records. We retain the exact
     headers, row count, date bounds, and totals for numeric measure columns.
     Dimension combinations remain in the evidence file, not the compact state.
     """
+    if not rows and business_date is not None:
+        return None
     if not rows:
         return {"row_count": 0, "columns": [], "date_min": None, "date_max": None,
                 "numeric_totals": {}}
@@ -317,6 +329,13 @@ def summarize_asc_table(rows: list[dict[str, str]]) -> dict[str, Any]:
     date_column = next((name for name in columns if name.lower() in {
         "date", "download date", "event date"
     }), None)
+    if business_date is not None:
+        if date_column is None:
+            raise ValueError("ASC table missing date column for business-date scope")
+        rows = [row for row in rows if row.get(date_column) == business_date]
+        if not rows:
+            return None
+        columns = list(rows[0])
     dates = sorted(row.get(date_column, "") for row in rows) if date_column else []
     totals: dict[str, Decimal] = {}
     for column in columns:
@@ -610,6 +629,7 @@ def collect_asc(
     env: dict[str, str],
     app_id: str,
     evidence_dir: Path,
+    business_date: str,
 ) -> dict[str, Any]:
     headers = _asc_headers(env)
     requests = _asc_get(
@@ -645,7 +665,7 @@ def collect_asc(
             continue
         try:
             result["reports"][key] = _collect_asc_report(
-                app_id, key, name, report, headers, evidence_dir
+                app_id, key, name, report, headers, evidence_dir, business_date
             )
         except Exception as error:
             # One report type (e.g. Purchases/Subscription Events) can legitimately have
@@ -665,6 +685,7 @@ def _collect_asc_report(
     report: dict[str, Any],
     headers: dict[str, str],
     evidence_dir: Path,
+    business_date: str,
 ) -> dict[str, Any]:
     instances = _asc_get(
         f"/analyticsReports/{report['id']}/instances?limit=200", headers
@@ -688,10 +709,12 @@ def _collect_asc_report(
             raise ValueError(f"ASC segment checksum mismatch: {segment['id']}")
         rows.extend(parse_asc_tsv_gz(payload))
         segment_hashes.append(hashlib.sha256(payload).hexdigest())
-    compact = (
-        summarize_asc_downloads(rows)
-        if key == "downloads" else summarize_asc_table(rows)
-    )
+    if key == "downloads":
+        compact = summarize_asc_downloads(rows, business_date=business_date)
+    elif key == "discovery":
+        compact = summarize_asc_table(rows, business_date=business_date)
+    else:
+        compact = summarize_asc_table(rows)
     evidence = {
         "app_id": app_id,
         "report_name": name,
@@ -705,6 +728,15 @@ def _collect_asc_report(
     evidence_path.write_text(
         json.dumps(evidence, ensure_ascii=False, sort_keys=True)
     )
+    if compact is None:
+        pending = unavailable_source("report_pending")
+        pending.update({
+            "processing_date": evidence["processing_date"],
+            "granularity": evidence["granularity"],
+            "evidence_path": str(evidence_path),
+            "evidence_sha256": _json_hash(evidence),
+        })
+        return pending
     return available_source(
         {
             **compact,
@@ -912,6 +944,7 @@ def collect_snapshot(
                 env,
                 config["asc_app_id"],
                 DEFAULT_EVIDENCE / business_date / product_id,
+                business_date,
             )
             sources["app_store_connect"] = available_source(
                 asc, evidence_sha256=_json_hash(asc)

@@ -13,7 +13,13 @@ const assert = require("node:assert/strict");
 const http = require("node:http");
 
 function response(status, body) {
-  return { ok: status >= 200 && status < 300, status, json: async () => body };
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    headers: { get: () => null },
+    json: async () => body,
+    text: async () => JSON.stringify(body),
+  };
 }
 
 test("POST /telegram routes the legacy-parity slash surface without disturbing earlier branches", async () => {
@@ -33,6 +39,12 @@ test("POST /telegram routes the legacy-parity slash surface without disturbing e
   // Browser tasks ON: if slash routing ever fell through to this branch for the paid+done fixture
   // user, the classifier would call Gemini and the fake fetch below would throw.
   process.env.LM_BROWSER_TASKS_ENABLED = "1";
+  process.env.MARITIME_PILOT_ENABLED = "1";
+  process.env.MARITIME_PILOT_DATA_APPROVED = "1";
+  process.env.MARITIME_PILOT_TOOL_POLICY_VERIFIED = "1";
+  process.env.MARITIME_API_KEY = "mk_test_fixture";
+  process.env.MARITIME_PILOT_UID_ALLOWLIST = "u1";
+  process.env.LM_UID_SECRET = "fixture-uid-secret";
   delete process.env.RAILWAY_PUBLIC_DOMAIN;
 
   const originalCreateServer = http.createServer;
@@ -68,6 +80,9 @@ test("POST /telegram routes the legacy-parity slash surface without disturbing e
   const investmentReads = [];
   const runtimeJobs = new Map();
   const cloudCitizens = new Map();
+  const maritimeAgents = new Map();
+  const maritimeRequests = [];
+  let maritimeChatCalls = 0;
   let telegramSendOk = true;
   const logs = [];
   const originalConsoleLog = console.log;
@@ -139,6 +154,14 @@ test("POST /telegram routes the legacy-parity slash surface without disturbing e
       }
       throw new Error(`unexpected telegram call ${url.pathname}`);
     }
+    if (url.pathname === "/rest/v1/lm_message_channels" && method === "GET") {
+      const senderId = String(url.searchParams.get("sender_id") || "").replace(/^eq\./, "");
+      if (senderId === "100") return response(200, [{ uid: "u1", owner_kind: "legacy" }]);
+      if (startedRow && senderId === String(startedRow.telegram_chat_id)) {
+        return response(200, [{ uid: startedRow.uid, owner_kind: "legacy" }]);
+      }
+      return response(200, []);
+    }
     if (url.pathname === "/rest/v1/lm_users" && method === "GET") {
       const uid = String(url.searchParams.get("uid") || "").replace(/^eq\./, "");
       if (uid) {
@@ -206,6 +229,7 @@ test("POST /telegram routes the legacy-parity slash surface without disturbing e
     }
     if (url.pathname === "/rest/v1/lm_panel_command_receipts" && method === "POST") {
       const body = JSON.parse(init.body || "{}");
+      if (commandReceipts.has(body.idempotency_key)) return response(409, []);
       commandReceipts.set(body.idempotency_key, body);
       return response(201, []);
     }
@@ -246,6 +270,21 @@ test("POST /telegram routes the legacy-parity slash surface without disturbing e
     }
     if (url.hostname === "backend.composio.dev" && url.pathname === "/api/v3.1/tools/execute/GOOGLECALENDAR_EVENTS_LIST" && method === "POST") {
       return response(200, { successful: true, data: { items: [{ id: "event-1" }] } });
+    }
+    if (url.hostname === "api.maritime.sh") maritimeRequests.push({ method, path: url.pathname });
+    if (url.hostname === "api.maritime.sh" && url.pathname === "/api/agents" && method === "GET") {
+      const externalId = url.searchParams.get("externalId");
+      return response(200, externalId && maritimeAgents.has(externalId) ? [maritimeAgents.get(externalId)] : []);
+    }
+    if (url.hostname === "api.maritime.sh" && url.pathname === "/api/agents" && method === "POST") {
+      const body = JSON.parse(init.body || "{}");
+      const agent = { id: "pilot-agent-1", externalId: body.externalId };
+      maritimeAgents.set(body.externalId, agent);
+      return response(200, agent);
+    }
+    if (url.hostname === "api.maritime.sh" && /^\/api\/agents\/[^/]+\/chat$/.test(url.pathname) && method === "POST") {
+      maritimeChatCalls++;
+      return response(200, { response: "Pilot fixture reply" });
     }
     throw new Error(`unexpected fetch ${method} ${url}`);
   };
@@ -322,9 +361,26 @@ test("POST /telegram routes the legacy-parity slash surface without disturbing e
 
     // 2. /help → the command list, including the previously dropped kind:"help" NL actions.
     assert.equal(await message("100", "/help"), 200);
-    for (const expected of ["/status", "/where", "/stop", "/subscribe", "/connect", "/payout", "/reset", "/invest", "connect calendar"]) {
+    for (const expected of ["/status", "/where", "/stop", "/subscribe", "/connect", "/payout", "/reset", "/invest", "/pilot", "connect calendar"]) {
       assert.ok(lastSent().text.includes(expected), `/help must list ${expected}`);
     }
+
+    // 2a. /pilot routes through the fake Maritime SDK, and Telegram redelivery of the same
+    //     update is fenced in lm_panel_command_receipts before a second provider call.
+    const beforePilot = sent.length;
+    const pilotUpdateId = updateId + 1;
+    assert.equal(await exactMessage(pilotUpdateId, "100", "/pilot plan my day"), 200);
+    assert.equal(maritimeChatCalls, 1, JSON.stringify(maritimeRequests));
+    assert.equal(sent.length, beforePilot + 1);
+    assert.equal(lastSent().text, "Pilot fixture reply");
+    assert.equal(await exactMessage(pilotUpdateId, "100", "/pilot plan my day"), 200);
+    assert.equal(sent.length, beforePilot + 1, "duplicate update sends no second Telegram reply");
+    assert.equal(maritimeChatCalls, 1, "duplicate update never repeats the paid provider call");
+    const pilotReceipt = commandReceipts.get(`telegram-maritime-pilot:${pilotUpdateId}`);
+    assert.equal(pilotReceipt.status, "succeeded");
+    assert.equal(pilotReceipt.result, null, "receipt stores no prompt or model response");
+    assert.match(pilotReceipt.request_hash, /^[a-f0-9]{64}$/);
+    assert.doesNotMatch(JSON.stringify(pilotReceipt), /plan my day|Pilot fixture reply/);
 
     // 2b. /invest crosses the real authenticated webhook + tenant lookup + shared renderer +
     //     Telegram transport. It reads this exact tenant's Cloud Investment state and records the
@@ -374,6 +430,7 @@ test("POST /telegram routes the legacy-parity slash surface without disturbing e
     //    core.telegram.org/bots/features → Deep Linking says "https://t.me/your_bot?start=airplane"
     //    delivers "/start airplane" (groups deliver "/start@your_bot spaceship"), i.e. the payload
     //    is always space-separated. The production branch must not fall back to the legacy ?tg= URL.
+    const firstStartUpdateId = updateId + 1;
     assert.equal(await message("300", "/start"), 200);
     assert.match(lastSent().text, /ライフマネージャー/);
     const onboardingButton = lastSent().reply_markup.inline_keyboard[0][0];
@@ -382,7 +439,7 @@ test("POST /telegram routes the legacy-parity slash surface without disturbing e
     assert.doesNotMatch(JSON.stringify(onboardingButton), /\?tg=|300|token/i);
     assert.equal(actorClaims, 1);
     const sentBeforeReplay = sent.length;
-    assert.equal(await exactMessage(9108, "300", "/start"), 200);
+    assert.equal(await exactMessage(firstStartUpdateId, "300", "/start"), 200);
     assert.equal(sent.length, sentBeforeReplay, "the same Telegram update never sends twice");
     // A previously queued economy job can have older retry metadata. That additive subsystem must
     // not suppress a fresh Calendar consent link for the primary onboarding path.
@@ -537,6 +594,12 @@ test("POST /telegram routes the legacy-parity slash surface without disturbing e
     delete process.env.LM_RUNTIME_DATABASE_URL;
     delete process.env.LM_BROWSER_TASKS_ENABLED;
     delete process.env.LM_PANEL_BASE_URL;
+    delete process.env.MARITIME_PILOT_ENABLED;
+    delete process.env.MARITIME_PILOT_DATA_APPROVED;
+    delete process.env.MARITIME_PILOT_TOOL_POLICY_VERIFIED;
+    delete process.env.MARITIME_API_KEY;
+    delete process.env.MARITIME_PILOT_UID_ALLOWLIST;
+    delete process.env.LM_UID_SECRET;
     if (productionServer) await new Promise((resolve) => productionServer.close(resolve));
   }
 });

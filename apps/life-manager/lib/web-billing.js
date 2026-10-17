@@ -150,9 +150,44 @@ async function createWebCheckoutSession(uid, user, opts = {}) {
     const customerEmail = typeof user.email === "string" ? user.email.trim() : "";
     const domain = customerEmail.slice(customerEmail.lastIndexOf("@") + 1);
     const validDomain = domain.split(".").every((label) => label.length <= 63 && EMAIL_DOMAIN_LABEL_RE.test(label));
-    if (CHECKOUT_EMAIL_SCHEMA.safeParse(customerEmail).success && validDomain) params.customer_email = customerEmail;
+    const customerParams = { metadata };
+    if (CHECKOUT_EMAIL_SCHEMA.safeParse(customerEmail).success && validDomain) customerParams.email = customerEmail;
+    const customerDigest = crypto.createHash("sha256").update(`${uid}:${customerParams.email || ""}`).digest("hex").slice(0, 40);
+    let customer;
+    try {
+      customer = await stripe.customers.create(customerParams, { idempotencyKey: `lm-web-customer-${customerDigest}` });
+    } catch { throw webError(502, "checkout_unavailable"); }
+    const customerId = String(customer && customer.id || "");
+    if (!/^cus_[A-Za-z0-9]+$/.test(customerId)) throw webError(502, "checkout_unavailable");
+
+    const root = String(opts.supaUrl || envFor(opts).SUPABASE_URL || "").replace(/\/$/, "");
+    const key = String(opts.supaKey || envFor(opts).SUPABASE_SERVICE_ROLE_KEY || "").trim();
+    const customerUrl = new URL(`${root}/rest/v1/lm_users`);
+    customerUrl.searchParams.set("uid", `eq.${uid}`);
+    customerUrl.searchParams.set("telegram_chat_id", "is.null");
+    customerUrl.searchParams.set("stripe_customer_id", "is.null");
+    let savedCustomer;
+    try {
+      const response = await (opts.fetchImpl || opts.fetch || fetch)(customerUrl.toString(), {
+        method: "PATCH",
+        headers: serviceHeaders(key, { "content-type": "application/json", Prefer: "return=representation" }),
+        body: JSON.stringify({ stripe_customer_id: customerId }),
+      });
+      if (!response || !response.ok) throw new Error("customer mapping write failed");
+      savedCustomer = await response.json().catch(() => null);
+    } catch { throw webError(502, "checkout_unavailable"); }
+    if (Array.isArray(savedCustomer) && savedCustomer.length === 1
+      && savedCustomer[0].uid === uid && savedCustomer[0].telegram_chat_id === null
+      && savedCustomer[0].stripe_customer_id === customerId) {
+      row.stripe_customer_id = customerId;
+    } else {
+      const current = await readWebBillingUser(uid, opts);
+      if (!current.stripe_customer_id) throw webError(502, "checkout_unavailable");
+      row.stripe_customer_id = current.stripe_customer_id;
+    }
+    params.customer = row.stripe_customer_id;
   }
-  const digest = crypto.createHash("sha256").update(`${uid}:${row.calendar_connected_account_id}:${priceId}:${trialEligible ? "trial" : "paid"}:${row.stripe_subscription_id || ""}`).digest("hex").slice(0, 40);
+  const digest = crypto.createHash("sha256").update(`${uid}:${row.calendar_connected_account_id}:${priceId}:${trialEligible ? "trial" : "paid"}:${row.stripe_subscription_id || ""}:${row.stripe_customer_id}`).digest("hex").slice(0, 40);
   let session;
   try { session = await stripe.checkout.sessions.create(params, { idempotencyKey: `lm-web-trial-${digest}` }); }
   catch { throw webError(502, "checkout_unavailable"); }

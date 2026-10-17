@@ -77,7 +77,7 @@ prepare() {
 }
 
 configure_connectors() {
-  local email private_dir telegram_env keyring_password bot_token chat_id
+  local email private_dir telegram_env keyring_password bot_token chat_id configure_telegram
   email=$("$JOB_SEARCH_JQ" -er '.candidate.application_email' "$JOB_SEARCH_PROFILE")
   private_dir="${XDG_CONFIG_HOME:-$HOME/.config}/anicca/job-search"
   telegram_env="$private_dir/telegram.env"
@@ -119,15 +119,14 @@ raise SystemExit(0 if any(x.get("email")==want and "gmail" in (x.get("services")
   fi
 
   if [[ ! -f "$telegram_env" ]]; then
-    print -u2 "Create a Telegram bot with @BotFather, open its chat, then enter the private values below."
-    read -s "bot_token?Telegram bot token: "
-    print -u2
-    read "chat_id?Telegram chat ID: "
-    [[ -n "$bot_token" && "$chat_id" == <-> ]] || {
-      print -u2 "[job-hunter] valid Telegram bot token and numeric chat ID are required"
-      return 2
-    }
-    printf '%s\n%s' "$bot_token" "$chat_id" | "$JOB_SEARCH_PYTHON" -c '
+    read "configure_telegram?Telegram is optional. Configure extra Telegram notifications? [y/N]: "
+    if [[ "$configure_telegram" == [yY]* ]]; then
+      print -u2 "Create a Telegram bot with @BotFather, open its chat, then enter the private values below."
+      read -s "bot_token?Telegram bot token: "
+      print -u2
+      read "chat_id?Telegram chat ID: "
+      if [[ -n "$bot_token" && "$chat_id" == <-> ]]; then
+        printf '%s\n%s' "$bot_token" "$chat_id" | "$JOB_SEARCH_PYTHON" -c '
 import os,shlex,sys,tempfile
 from pathlib import Path
 path=Path(sys.argv[1]); token,chat=sys.stdin.read().splitlines()
@@ -144,6 +143,10 @@ finally:
  try: os.unlink(name)
  except FileNotFoundError: pass
 ' "$telegram_env"
+      else
+        print -u2 "[job-hunter] Telegram skipped; Gmail email reporting remains enabled."
+      fi
+    fi
   fi
 }
 
@@ -270,11 +273,12 @@ finished() {
 import json,sys
 from pathlib import Path
 value=json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+telegram=value.get("telegram") or {}
 print(json.dumps({
     "status":"ready",
     "gmail":"ready",
-    "telegram":"ready",
-    "telegram_message_id":value["telegram"]["message_id"],
+    "telegram":telegram.get("status","not_configured"),
+    "telegram_message_id":telegram.get("message_id"),
     "owners":5,
 }, sort_keys=True))
 PY

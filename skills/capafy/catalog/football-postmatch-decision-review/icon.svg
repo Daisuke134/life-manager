@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Football Post-Match Decision Review</title>
+  <desc id="desc">A football pitch with a decision-review clipboard.</desc>
+  <rect width="512" height="512" rx="96" fill="#102a43"/>
+  <rect x="54" y="82" width="250" height="348" rx="20" fill="#167c4b" stroke="#d7f9e9" stroke-width="8"/>
+  <path d="M179 86v340M58 256h242M95 128h62v90H95M201 294h62v90h-62" fill="none" stroke="#d7f9e9" stroke-width="8"/>
+  <rect x="265" y="125" width="176" height="238" rx="18" fill="#f6c453" stroke="#fff7df" stroke-width="8"/>
+  <rect x="315" y="96" width="76" height="48" rx="14" fill="#e89832"/>
+  <path d="M300 190h104M300 234h104M300 278h70" stroke="#102a43" stroke-width="14" stroke-linecap="round"/>
+  <path d="M384 287l15 15 30-36" fill="none" stroke="#167c4b" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="179" cy="256" r="22" fill="#f6c453" stroke="#fff7df" stroke-width="7"/>
+</svg>

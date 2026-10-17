@@ -27,6 +27,12 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 ARTICLE_ROOT="${ARTICLE_ROOT:-$(cd "$SCRIPT_DIR/../../writer-agent" && pwd -P)}"
 # shellcheck source=../writer-agent/scripts/writer-runtime-env.sh
 source "$ARTICLE_ROOT/scripts/writer-runtime-env.sh"
+if [ "${LIFE_MANAGER_LOOP_ID:-}" != "capafy-distribute-daily" ] \
+    || [ -z "${LIFE_MANAGER_RUN_ID:-}" ] \
+    || [ "${LIFE_MANAGER_OCCURRENCE_ID:-}" != "capafy-distribute-daily:${LIFE_MANAGER_RUN_ID:-}" ]; then
+  printf 'capafy-distribute-daily: exact runtime occurrence identity required\n' >&2
+  exit 1
+fi
 # writer-runtime-env derives the self-owned site checkout from this loop's own
 # state dir, which has no checkout (first live run 2026-09-29: FileNotFoundError
 # .../capafy-distribute/checkouts/self-owned-landing). Publish through the Writer's
@@ -137,6 +143,30 @@ FREE_ARTICLE_URL="${ARTICLE_SELF_OWNED_BASE_URL:-}"
 RUN_TS="capafy-distribute-$SLOT"
 RUN_DIR="$CAPAFY_DISTRIBUTE_STATE_DIR/runs/$RUN_TS"
 mkdir -p "$RUN_DIR/gates"
+# Bind the wrapper's actual clock-selected slot to the runtime occurrence before
+# any model or publication step. Execute-start may straddle a JST half-hour edge.
+if ! CAPAFY_DISTRIBUTE_SCRIPT_DIR="$SELF_DIR" python3 - \
+    "$RUN_DIR/gates/occurrence.json" "$SLOT" "$FREE_ARTICLE_SLUG" <<'PY'
+import os
+import sys
+from pathlib import Path
+
+sys.path.insert(0, os.environ["CAPAFY_DISTRIBUTE_SCRIPT_DIR"])
+from capafy_distribute_fence_reconcile import record_occurrence_manifest
+
+record_occurrence_manifest(
+    Path(sys.argv[1]),
+    owner_id=os.environ["LIFE_MANAGER_LOOP_ID"],
+    run_id=os.environ["LIFE_MANAGER_RUN_ID"],
+    occurrence_id=os.environ["LIFE_MANAGER_OCCURRENCE_ID"],
+    slot=sys.argv[2],
+    article_slug=sys.argv[3],
+)
+PY
+then
+  echo "capafy-distribute-daily: occurrence slot binding failed" >>"$LOG"
+  exit 1
+fi
 
 # --- dry-run: exercise every deterministic step above with no model/network
 # dispatch and no publish attempt. Used by tests. ------------------------
@@ -147,6 +177,9 @@ if [ "${CAPAFY_DISTRIBUTE_DRY_RUN:-0}" = "1" ]; then
   echo "capafy-distribute-daily: dry-run complete date=$JST_DATE skill=$CAPAFY_SKILL_SLUG" >>"$LOG"
   exit 0
 fi
+
+# D7 (SSOT 2026-10-15): one real output image for Hook Lab articles; optional, never blocks.
+python3 "$SELF_DIR/capafy_article_image.py" "$RUN_DIR" "$CAPAFY_SKILL_SLUG" >>"$LOG" 2>&1 || true
 
 # aniccaai.com is the live publish target below; the base URL is a pure
 # operator/dotenv value (see .env.example) required only once we are past
@@ -240,8 +273,9 @@ ARTICLE_RUN_ID="$RUN_TS" ARTICLE_MODEL_LOG="$LOG" ARTICLE_RUN_DIR="$RUN_DIR" \
     "$ARTICLE_MODEL_RUNNER" agent --prompt-file "$PROMPT_FILE" >>"$LOG" 2>&1
 RC=$?
 echo "capafy-distribute-daily: model pass exit=$RC slot=$SLOT skill=$CAPAFY_SKILL_SLUG" >>"$LOG"
-# The agent CLI exits 1 even after a fully published run (live 2026-09-29 h15:
-# receipt published + ledger written, exit 1). The ledger is the effect truth.
+# The ledger is the effect truth, not the exit code. Before PR #8249 the agent
+# exited 1 even after a fully published run (live 2026-09-29 h15) because its
+# prose report failed the shared runner's JSON contract; rc is still advisory.
 # X post runs here, outside the agent (same move as daily_loop.sh's prepare: the
 # agent's per-command timeout killed the up-to-10-min Postiz readback, h21 x=failed).
 CAPTION_FILE="$RUN_DIR/x-caption.txt"
@@ -330,6 +364,10 @@ PY
       : >"$TG_MARK"
     fi
   fi
+fi
+# Postiz strips links from X posts; reply to our own recent posts with their ct link (non-fatal).
+if [ "${CAPAFY_DISTRIBUTE_DRY_RUN:-0}" != "1" ]; then
+  python3 "$SELF_DIR/capafy_x_link_reply.py" --limit 4 >>"$LOG" 2>&1 || true
 fi
 POST_RC=0
 python3 "$SELF_DIR/capafy_distribute_ledger.py" check --ledger "$LEDGER" --date "$SLOT" >>"$LOG" 2>&1 || POST_RC=$?

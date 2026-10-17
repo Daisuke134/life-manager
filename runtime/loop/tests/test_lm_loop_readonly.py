@@ -1,5 +1,6 @@
 import unittest
 import io
+import hashlib
 import json
 import os
 import sqlite3
@@ -426,6 +427,39 @@ class LmLoopReadonlyTest(unittest.TestCase):
         self.assertEqual(explained["action_history_status"], "not_reported")
         self.assertEqual(explained["counter_status"], "not_reported")
 
+    def test_status_explain_projects_run_identity_and_schedule_gap(self):
+        event = build_runtime_event(
+            loop_id="example", domain="earn", run_id="run-1", release_sha="b" * 40,
+            provider="deterministic", profile_alias=None, effect_class="application",
+            succeeded=False, blocker="entrypoint_exit_1", exit_code=1,
+            product_loop_id=None, job_id="example", owner_id="example",
+            wake_id="wake-1", claimed_occurrence_id="example:occurrence-1",
+            loaded_argv_sha256="c" * 64, loaded_env_sha256="d" * 64,
+        )
+        row = status_rows(
+            REGISTRY, loaded={}, disabled={}, events={"example": event},
+            installed_releases={"ai.anicca.example": "b" * 40},
+        )[0]
+
+        explained = explain_status_row(row)
+
+        self.assertEqual(explained["run_identity"], {
+            "job_id": "example",
+            "owner_id": "example",
+            "run_id": "run-1",
+            "wake_id": "wake-1",
+            "occurrence_id": "example:occurrence-1",
+            "event_release_sha": "b" * 40,
+            "loaded_argv_sha256": "c" * 64,
+            "loaded_env_sha256": "d" * 64,
+        })
+        self.assertEqual(explained["schedule"], {
+            "registered_cadence": {"start_interval_seconds": 60},
+            "next_eligible_run": "interval:60s",
+            "loaded_cadence": None,
+            "loaded_cadence_status": "not_reported",
+        })
+
     def test_status_explain_cli_accepts_connector_alias_and_json(self):
         output = io.StringIO()
         row = {
@@ -781,6 +815,15 @@ class LmLoopReadonlyTest(unittest.TestCase):
         self.assertEqual(report["unmanaged_labels"], [])
         self.assertTrue(report["ok"])
 
+    def test_live_promptbase_browser_owner_is_classified_as_external(self):
+        root = Path(__file__).resolve().parents[3]
+        registry = json.loads((root / "config/loop-registry.json").read_text(encoding="utf-8"))
+        label = "ai.anicca.provision-browser.promptbase.dais"
+        report = doctor_report(registry, installed_labels={label}, loaded_labels={label},
+                              existing_entrypoints={entry["entrypoint"] for entry in registry["loops"].values()})
+        self.assertEqual(report["unmanaged_labels"], [])
+        self.assertTrue(report["ok"])
+
     def test_live_aws_cloud_provision_owner_is_classified_as_external(self):
         root = Path(__file__).resolve().parents[3]
         registry = json.loads((root / "config/loop-registry.json").read_text(encoding="utf-8"))
@@ -1120,6 +1163,54 @@ class EffectUnknownDiagnosisTest(unittest.TestCase):
         self.assertEqual(bare["provider_state"], "no_adapter")
         self.assertTrue(bare["next_action"].startswith("no_readback_adapter"))
 
+    def test_owner_batch_summary_is_used_only_for_the_exact_still_fenced_set(self):
+        owner = "crowdworks-revenue-reply"
+        occurrences = (f"{owner}:one", f"{owner}:two")
+        digest = hashlib.sha256("\n".join(sorted(occurrences)).encode()).hexdigest()
+        summary = {
+            "owner_id": owner,
+            "occurrence_id": f"{owner}:*",
+            "owner_batch_summary": True,
+            "checked_occurrence_count": 2,
+            "still_fenced_count": 2,
+            "still_fenced_occurrences_sha256": digest,
+            "recorded_at": "2026-10-14T00:00:00Z",
+            "exit_code": 75,
+            "closed": False,
+        }
+        entry = {"effect_reconcile": {"argv": ["x.py"]}}
+
+        got = lm_loop.effect_unknown_diagnosis(
+            owner, entry, occurrences, journal_rows=None,
+            adapter_calls={f"{owner}:*": summary},
+        )
+        self.assertEqual(got["provider_state"]["status"], "owner_batch_checked_unresolved")
+        self.assertEqual(got["provider_state"]["still_fenced_count"], 2)
+        self.assertFalse(got["provider_state"].get("verified", False))
+        self.assertEqual(got["next_action"], "official_readback_required")
+
+        changed = lm_loop.effect_unknown_diagnosis(
+            owner, entry, (*occurrences, f"{owner}:new"), journal_rows=None,
+            adapter_calls={f"{owner}:*": summary},
+        )
+        self.assertEqual(changed["provider_state"], "adapter_not_run_yet")
+
+
+class BoundedReconcileCallReadTest(unittest.TestCase):
+    def test_latest_adapter_calls_reads_only_recent_log_tail(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "reconcile-calls.jsonl"
+            old = {"owner_id": "owner-a", "occurrence_id": "owner-a:old",
+                   "closed": False, "stdout_tail": "x" * (5 * 1024 * 1024)}
+            current = {"owner_id": "owner-b", "occurrence_id": "owner-b:current",
+                       "closed": False, "stdout_tail": "held"}
+            path.write_text(json.dumps(old) + "\n" + json.dumps(current) + "\n")
+
+            latest = lm_loop._last_adapter_calls(path)
+
+        self.assertFalse("owner-a:old" in latest, "latest call reader included an old row")
+        self.assertEqual(latest["owner-b:current"]["stdout_tail"], "held")
+
 
 class AdmissionEffectUnknownDetailsTest(unittest.TestCase):
     """`lm-loop status`'s per-occurrence fence explanation.
@@ -1194,6 +1285,9 @@ class AdmissionEffectUnknownDetailsTest(unittest.TestCase):
             effect_class="application", succeeded=False, blocker=None,
             error_class="provider_timeout", exit_code=1,
             error_detail="upstream timed out",
+            job_id=owner, owner_id=owner, wake_id="wake-x",
+            claimed_occurrence_id=occurrence,
+            loaded_argv_sha256="c" * 64, loaded_env_sha256="d" * 64,
         )
         self._write_events(state_root, [event])
         registry = self._registry(owner, state_root)
@@ -1211,6 +1305,17 @@ class AdmissionEffectUnknownDetailsTest(unittest.TestCase):
         self.assertEqual(detail["state"], "claimed")
         self.assertEqual(detail["cause_event"], {
             "timestamp": event["timestamp"],
+            "event_id": event["event_id"],
+            "loop_id": owner,
+            "job_id": owner,
+            "owner_id": owner,
+            "run_id": "wake-x",
+            "wake_id": "wake-x",
+            "occurrence_id": occurrence,
+            "release_sha": "b" * 40,
+            "provider": "shared-agent-runner",
+            "loaded_argv_sha256": "c" * 64,
+            "loaded_env_sha256": "d" * 64,
             "phase": "report",
             "status": "fail",
             "blocker": None,
@@ -1225,6 +1330,76 @@ class AdmissionEffectUnknownDetailsTest(unittest.TestCase):
         self.assertNotEqual(detail["auto_close_reason"], "ok")
         self.assertEqual(detail["next_action"], "official_readback_required")
         self.assertFalse(row["admission_effect_unknown_details_truncated"])
+
+    def test_status_reports_cause_event_by_exact_occurrence_not_run_id(self):
+        owner = "example-fenced-exact"
+        occurrence = f"{owner}:wake-x"
+        self._mark_effect_unknown(owner, occurrence)
+        state_root = self.root / owner
+        wrong_occurrence = build_runtime_event(
+            loop_id=owner, domain="earn", run_id="wake-x", release_sha="b" * 40,
+            provider="shared-agent-runner", profile_alias=None,
+            effect_class="application", succeeded=False, blocker=None,
+            error_class="provider_timeout", exit_code=1,
+            job_id=owner, owner_id=owner, wake_id="wake-x",
+            claimed_occurrence_id=f"{owner}:different",
+        )
+        exact_occurrence = build_runtime_event(
+            loop_id=owner, domain="earn", run_id="run-after-wake", release_sha="c" * 40,
+            provider="shared-agent-runner", profile_alias=None,
+            effect_class="application", succeeded=False, blocker=None,
+            error_class="publication_unknown", exit_code=1,
+            job_id=owner, owner_id=owner, wake_id="wake-x",
+            claimed_occurrence_id=occurrence,
+        )
+        self._write_events(state_root, [wrong_occurrence, exact_occurrence])
+        registry = self._registry(owner, state_root)
+
+        row = status_rows(
+            registry, loaded={}, disabled={}, events={}, installed_releases={},
+            admission_effect_unknown={owner},
+            admission_effect_unknown_occurrences={owner: (occurrence,)},
+        )[0]
+
+        detail = row["admission_effect_unknown_details"][0]
+        self.assertEqual(detail["run_id"], "run-after-wake")
+        self.assertEqual(detail["cause_event"]["run_id"], "run-after-wake")
+        self.assertEqual(detail["cause_event"]["occurrence_id"], occurrence)
+        self.assertEqual(detail["cause_event"]["error_class"], "publication_unknown")
+
+    def test_status_reports_latest_exact_occurrence_event(self):
+        owner = "example-fenced-latest"
+        occurrence = f"{owner}:wake-x"
+        self._mark_effect_unknown(owner, occurrence)
+        state_root = self.root / owner
+
+        def event(run_id, error_class, timestamp):
+            row = build_runtime_event(
+                loop_id=owner, domain="earn", run_id=run_id, release_sha="b" * 40,
+                provider="shared-agent-runner", profile_alias=None,
+                effect_class="application", succeeded=False, blocker=None,
+                error_class=error_class, exit_code=1,
+                job_id=owner, owner_id=owner, wake_id="wake-x",
+                claimed_occurrence_id=occurrence,
+            )
+            row["timestamp"] = timestamp
+            return row
+
+        self._write_events(state_root, [
+            event("first-run", "first_failure", "2026-10-13T00:00:00+00:00"),
+            event("second-run", "second_failure", "2026-10-14T00:00:00+00:00"),
+        ])
+        registry = self._registry(owner, state_root)
+
+        row = status_rows(
+            registry, loaded={}, disabled={}, events={}, installed_releases={},
+            admission_effect_unknown={owner},
+            admission_effect_unknown_occurrences={owner: (occurrence,)},
+        )[0]
+
+        detail = row["admission_effect_unknown_details"][0]
+        self.assertEqual(detail["run_id"], "second-run")
+        self.assertEqual(detail["cause_event"]["error_class"], "second_failure")
 
     def test_status_reports_no_journal_row_when_run_never_logged(self):
         owner = "example-fenced-missing"
@@ -1242,6 +1417,7 @@ class AdmissionEffectUnknownDetailsTest(unittest.TestCase):
 
         detail = row["admission_effect_unknown_details"][0]
         self.assertIsNone(detail["cause_event"])
+        self.assertIsNone(detail["run_id"])
         self.assertEqual(detail["next_action"], "official_readback_required:no_journal_row")
 
     def test_status_reconcile_action_for_pre_effect_provable_occurrence(self):

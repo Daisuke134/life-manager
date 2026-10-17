@@ -65,6 +65,19 @@ test("runAniccaLarryJaRotatingCanary propagates a rotation resolution failure in
   }), /no unposted candidate available/);
 });
 
+test("an already-attempted slot becomes a no-effect result without invoking the canary", async () => {
+  let canaryCalls = 0;
+  const result = await runAniccaEnAffirmationTikTokRotatingCanary(["run-en-affirmation-tiktok-production"], {
+    resolveLarryJaSlot: () => {
+      throw Object.assign(new Error("slot already has a publication attempt"), { code: "SLOT_ALREADY_ATTEMPTED" });
+    },
+    runAniccaCarouselCanary: () => { canaryCalls += 1; throw new Error("must not publish an attempted slot"); },
+  });
+
+  assert.deepEqual(result, { status: "slot_already_attempted", reason: "slot_already_attempted" });
+  assert.equal(canaryCalls, 0);
+});
+
 test("rotating runner skips the canary when the current slot already has a verified publication", async () => {
   let canaryCalls = 0;
   const result = await runAniccaEnAffirmationTikTokRotatingCanary(["run-en-affirmation-tiktok-production"], {

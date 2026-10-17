@@ -1,0 +1,7 @@
+{
+  "agent_id": "7095835081",
+  "from_version_id": "2109493230256812032",
+  "target_one_time_fee": "0.00",
+  "reason": "free_funnel_to_hook_lab_2026_10_15",
+  "dais_approved_exception": "No agent-specific approval. Basis: AGENTS.md rule 10 allows iterating a non-selling Agent's description when no new Agent can ship (factory CAP_FULL on 2026-10-15), and Dais's 2026-10-15 directive to maximize Capafy distribution. Evidence: this free Agent received 449 of 882 weekly detail visits (423 from search) with no tracked route to paid Hook Lab. Change: add the registered hooklab_free ct link; price stays $0."
+}

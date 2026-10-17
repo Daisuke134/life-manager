@@ -55,6 +55,31 @@ if [ "$1" = "apply" ]; then
       echo '{"ok": false, "error": "production apply is already owned"}'
       exit 1
       ;;
+    control_busy|control_busy_lookalike|control_busy_compound|control_busy_with_error|control_busy_invalid_ok_type)
+      if [ "$target" = "${FAKE_CONTROL_BUSY_TARGET:-}" ]; then
+        case "$FAKE_APPLY_MODE" in
+          control_busy_lookalike)
+            echo '{"ok": false, "error": "observer failed while checking control_busy hint"}'
+            ;;
+          control_busy_compound)
+            echo '{"ok": false, "error": "admission rebind refused: control_busy", "details": "bootstrap code 5 Input/output error"}'
+            ;;
+          control_busy_invalid_ok_type)
+            echo '{"ok": 0, "error": "admission rebind refused: control_busy"}'
+            ;;
+          *)
+            echo '{"ok": false, "error": "admission rebind refused: control_busy"}'
+            ;;
+        esac
+        exit 1
+      fi
+      if [ "$FAKE_APPLY_MODE" = "control_busy_with_error" ]; then
+        echo '{"ok": false, "error": "boom"}'
+        exit 1
+      fi
+      printf '[{"ok":true,"label":"%s","release_sha":"x","changed":true}]' "$target"
+      exit 0
+      ;;
     effect_unknown)
       if [ "$target" = "${FAKE_EFFECT_UNKNOWN_TARGET:-}" ]; then
         echo '{"ok": false, "error": "admission rebind refused: effect_unknown"}'
@@ -102,14 +127,24 @@ if [ "$1" = "apply" ]; then
       echo "[{\\"ok\\":true,\\"label\\":\\"$target\\",\\"release_sha\\":\\"x\\",\\"changed\\":true}]"
       exit 0
       ;;
-    supersede_before_apply)
+    supersede_after_error)
+      rm -f "$FAKE_CURRENT_LINK"
+      ln -s "$FAKE_NEXT_RELEASE_ROOT" "$FAKE_CURRENT_LINK"
+      echo '{"ok": false, "error": "boom"}'
+      exit 1
+      ;;
+    supersede_before_apply|supersede_before_apply_invalid_ok_type)
       if [ "$target" = "${FAKE_SUPERSEDE_LOOP_ID:-}" ] \
         && [ ! -e "$FAKE_SUPERSEDE_MARKER" ]; then
         : >"$FAKE_SUPERSEDE_MARKER"
         rm -f "$FAKE_CURRENT_LINK"
         ln -s "$FAKE_NEXT_RELEASE_ROOT" "$FAKE_CURRENT_LINK"
         if [ "${LIFE_MANAGER_APPLY_REQUIRE_CURRENT:-0}" = "1" ]; then
-          echo '{"ok": false, "error": "release is no longer current"}'
+          if [ "$FAKE_APPLY_MODE" = "supersede_before_apply_invalid_ok_type" ]; then
+            echo '{"ok": 0, "error": "release is no longer current"}'
+          else
+            echo '{"ok": false, "error": "release is no longer current"}'
+          fi
           exit 1
         fi
       fi
@@ -532,6 +567,169 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             self.assertEqual(self._apply_call_count(calls_log), 1,
                              "a failed apply must not retry on the very next tick")
 
+    def test_required_fleet_receipt_write_failure_is_nonzero(self):
+        for path in ("fleet-apply-state.json.tmp", "fleet-apply-owners.jsonl"):
+            with self.subTest(path=path), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                repo, sha = self._make_repo(root)
+                self._activate(root, self._make_release(root, sha, loop_ids=("loop-a", "loop-b")))
+                state_dir = root / "reconciler-state"
+                (state_dir / path).mkdir(parents=True)
+                env = self._base_env(root, repo, calls_log=root / "calls.log",
+                                     apply_mode="control_busy")
+                env["FAKE_CONTROL_BUSY_TARGET"] = "loop-a"
+
+                result = self._run(env)
+
+                self.assertNotEqual(result.returncode, 0, result.stderr)
+                self.assertIn("IsADirectoryError", result.stderr)
+                self.assertFalse((state_dir / "fleet-apply-state.json").exists())
+
+    def test_current_skip_journal_write_failure_does_not_mark_release_applied(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            label = "ai.anicca.loop-a"
+            release = self._make_release(root, sha, labels={"loop-a": label})
+            self._activate(root, release)
+            agents = root / "agents"
+            agents.mkdir()
+            (agents / f"{label}.plist").write_bytes(plistlib.dumps({
+                "EnvironmentVariables": {"LIFE_MANAGER_RELEASE_SHA": sha},
+            }))
+            state_dir = root / "reconciler-state"
+            (state_dir / "fleet-apply-owners.jsonl").mkdir(parents=True)
+            calls_log = root / "calls.log"
+            env = self._base_env(root, repo, calls_log=calls_log)
+            env["LIFE_MANAGER_LAUNCH_AGENTS_DIR"] = str(agents)
+
+            result = self._run(env)
+
+            self.assertNotEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(self._apply_call_count(calls_log), 0)
+            self.assertFalse((state_dir / "fleet-apply-state.json").exists())
+
+    def test_invalid_fleet_plan_stops_before_applying_owners(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            release = self._make_release(root, sha)
+            self._activate(root, release)
+            (release / "config/loop-registry.json").write_text("{broken")
+            calls_log = root / "calls.log"
+
+            result = self._run(self._base_env(root, repo, calls_log=calls_log))
+
+            self.assertNotEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(self._apply_call_count(calls_log), 0)
+            self.assertFalse((root / "reconciler-state/fleet-apply-state.json").exists())
+
+    def test_fleet_output_write_failure_stops_before_applying_owners(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            self._activate(root, self._make_release(root, sha))
+            (root / "reconciler-state/fleet-apply-last-output.log").mkdir(parents=True)
+            calls_log = root / "calls.log"
+
+            result = self._run(self._base_env(root, repo, calls_log=calls_log))
+
+            self.assertNotEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(self._apply_call_count(calls_log), 0)
+            self.assertFalse((root / "reconciler-state/fleet-apply-state.json").exists())
+
+    def test_control_busy_defers_owner_without_marking_fleet_applied_and_retries(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            self._activate(root, self._make_release(root, sha, loop_ids=("loop-a", "loop-b")))
+            calls_log = root / "calls.log"
+            env = self._base_env(root, repo, calls_log=calls_log, apply_mode="control_busy")
+            env["FAKE_CONTROL_BUSY_TARGET"] = "loop-a"
+            env["LIFE_MANAGER_FLEET_APPLY_CONTINUE_SECONDS"] = "0"
+
+            first = self._run(env)
+
+            self.assertEqual(first.returncode, 0, first.stderr)
+            state = self._state(root)
+            self.assertEqual(state["status"], "partial")
+            self.assertEqual(state["changed"], 1)
+            self.assertEqual(state["skipped"], 1)
+            self.assertEqual(state["errors"], 0)
+            self.assertIs(state["control_busy_continue"], True)
+            self.assertEqual(state["last_ok_epoch"], 0)
+            self.assertGreater(state["next_retry_epoch"], 0)
+            self.assertEqual(self._apply_call_count(calls_log), 2)
+            busy = next(row for row in self._owners_log(root) if row["loop_id"] == "loop-a")
+            self.assertEqual(busy["rc"], 1)
+            self.assertEqual(busy["changed"], 0)
+            self.assertEqual(busy["skipped"], 1)
+            self.assertEqual(busy["reason"], "admission-control-busy")
+
+            env["FAKE_APPLY_MODE"] = "ok"
+            second = self._run(env)
+            self.assertEqual(second.returncode, 0, second.stderr)
+            self.assertEqual(self._apply_call_count(calls_log), 4)
+            self.assertEqual(self._state(root)["status"], "ok")
+            self.assertIs(self._state(root)["control_busy_continue"], False)
+
+    def test_new_release_after_control_busy_uses_recorded_retry_deadline(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            self._activate(root, self._make_release(root, sha))
+            calls_log = root / "calls.log"
+            env = self._base_env(root, repo, calls_log=calls_log, apply_mode="control_busy")
+            env["FAKE_CONTROL_BUSY_TARGET"] = "loop-a"
+            env["LIFE_MANAGER_FLEET_APPLY_CONTINUE_SECONDS"] = "0"
+            first = self._run(env)
+            self.assertEqual(first.returncode, 0, first.stderr)
+            self.assertEqual(self._state(root)["changed"], 0)
+            self.assertIs(self._state(root)["control_busy_continue"], True)
+
+            sha2 = self._advance_repo(repo)
+            self._activate(root, self._make_release(root, sha2))
+            env["FAKE_APPLY_MODE"] = "ok"
+            second = self._run(env)
+            self.assertEqual(second.returncode, 0, second.stderr)
+            self.assertEqual(self._apply_call_count(calls_log), 2)
+            self.assertEqual(self._state(root)["sha"], sha2)
+            self.assertEqual(self._state(root)["status"], "ok")
+
+    def test_control_busy_lookalike_and_compound_refusals_remain_errors(self):
+        for mode in ("control_busy_lookalike", "control_busy_compound", "control_busy_invalid_ok_type"):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                repo, sha = self._make_repo(root)
+                self._activate(root, self._make_release(root, sha))
+                env = self._base_env(root, repo, calls_log=root / "calls.log", apply_mode=mode)
+                env["FAKE_CONTROL_BUSY_TARGET"] = "loop-a"
+
+                result = self._run(env)
+
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(self._state(root)["status"], "error")
+                self.assertEqual(self._state(root)["skipped"], 0)
+                self.assertEqual(self._state(root)["errors"], 1)
+                self.assertIs(self._state(root)["control_busy_continue"], False)
+
+    def test_control_busy_does_not_hide_another_owner_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            self._activate(root, self._make_release(root, sha, loop_ids=("loop-a", "loop-b")))
+            env = self._base_env(root, repo, calls_log=root / "calls.log",
+                                 apply_mode="control_busy_with_error")
+            env["FAKE_CONTROL_BUSY_TARGET"] = "loop-a"
+
+            result = self._run(env)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(self._state(root)["status"], "error")
+            self.assertEqual(self._state(root)["skipped"], 1)
+            self.assertEqual(self._state(root)["errors"], 1)
+            self.assertIs(self._state(root)["control_busy_continue"], False)
+
     def test_effect_unknown_fence_refusal_skips_owner_and_continues_fleet_apply(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -840,12 +1038,14 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             env["LIFE_MANAGER_FLEET_APPLY_CONTINUE_SECONDS"] = "0"
 
             stale = self._run(env)
-            self.assertNotEqual(stale.returncode, 0)
+            self.assertEqual(stale.returncode, 0, stale.stderr)
             stale_state = self._state(root)
             self.assertEqual(stale_state["sha"], sha1)
             self.assertEqual(stale_state["status"], "partial")
             self.assertIn("superseded", stale_state["message"])
             self.assertIs(stale_state["release_superseded"], True)
+            self.assertEqual(stale_state["errors"], 0)
+            self.assertEqual(stale_state["last_ok_epoch"], 0)
             calls = calls_log.read_text()
             self.assertIn("target=first-earn", calls)
             self.assertNotIn("target=second-earn", calls)
@@ -886,13 +1086,14 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             env["LIFE_MANAGER_FLEET_APPLY_CONTINUE_SECONDS"] = "0"
 
             stale = self._run(env)
-            self.assertNotEqual(stale.returncode, 0)
+            self.assertEqual(stale.returncode, 0, stale.stderr)
             state = self._state(root)
             self.assertEqual(state["status"], "partial")
             self.assertEqual(state["changed"], 0)
             self.assertEqual(state["errors"], 0)
             self.assertEqual(state["skipped"], 1)
             self.assertIs(state["release_superseded"], True)
+            self.assertEqual(state["last_ok_epoch"], 0)
             rows = self._owners_log(root)
             self.assertEqual(rows[-1]["reason"], "release-superseded")
             self.assertEqual(rows[-1]["rc"], 1)
@@ -902,6 +1103,143 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             self.assertEqual(latest.returncode, 0, latest.stderr)
             self.assertEqual(self._state(root)["sha"], sha2)
             self.assertEqual(self._apply_call_count(calls_log), 3)
+
+    def test_superseded_refusal_rejects_numeric_ok(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            self._activate(root, self._make_release(root, sha, loop_ids=("loop-a", "loop-b")))
+            sha2 = self._advance_repo(repo)
+            release2 = self._make_release(root, sha2)
+            env = self._base_env(root, repo, calls_log=root / "calls.log",
+                                 apply_mode="supersede_before_apply_invalid_ok_type")
+            env["FAKE_SUPERSEDE_LOOP_ID"] = "loop-a"
+            env["FAKE_SUPERSEDE_MARKER"] = str(root / "superseded.marker")
+            env["FAKE_CURRENT_LINK"] = str(root / "loops/current")
+            env["FAKE_NEXT_RELEASE_ROOT"] = str(release2)
+
+            result = self._run(env)
+
+            self.assertNotEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(self._state(root)["errors"], 1)
+            self.assertEqual(self._owners_log(root)[-1]["skipped"], 0)
+
+    def test_self_handoff_propagates_generation_and_bootstrap_failure_in_conditional_call(self):
+        source = SCRIPT.read_text()
+        function = source[source.index("schedule_self_handoff() {"):
+                          source.index('\nif [ "${LIFE_MANAGER_RECONCILER_HANDOFF_ONLY:-0}"')]
+        for render_rc, bootstrap_rc in ((7, 0), (0, 9), (0, 0)):
+            with self.subTest(render_rc=render_rc, bootstrap_rc=bootstrap_rc), \
+                    tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                (root / "bin").mkdir()
+                renderer = root / "bin/fake-python"
+                renderer.write_text('#!/bin/sh\nexit "$FAKE_RENDER_RC"\n')
+                renderer.chmod(0o700)
+                launchctl = root / "bin/launchctl-safe"
+                launchctl.write_text('''#!/bin/sh
+printf '%s\\n' "$1" >> "$FAKE_HANDOFF_CALLS"
+if [ "$1" = "print" ]; then exit 113; fi
+if [ "$1" = "bootstrap" ]; then exit "$FAKE_BOOTSTRAP_RC"; fi
+exit 64
+''')
+                launchctl.chmod(0o700)
+                helper = root / "bin/reconcile-agent-self-handoff.sh"
+                helper.write_text("#!/bin/sh\nexit 0\n")
+                helper.chmod(0o700)
+                harness = root / "schedule-fixture.sh"
+                harness.write_text('''#!/bin/bash
+set -euo pipefail
+SCRIPT_ROOT="$FAKE_SCHEDULE_ROOT"
+runtime_python="$FAKE_SCHEDULE_ROOT/bin/fake-python"
+''' + function + '''
+fixture_status=0
+schedule_self_handoff "$FAKE_SCHEDULE_ROOT" 0123456789012345678901234567890123456789 || fixture_status=1
+exit "$fixture_status"
+''')
+                calls = root / "calls.log"
+                env = {**os.environ, "FAKE_SCHEDULE_ROOT": str(root),
+                       "FAKE_RENDER_RC": str(render_rc),
+                       "FAKE_BOOTSTRAP_RC": str(bootstrap_rc),
+                       "FAKE_HANDOFF_CALLS": str(calls),
+                       "LIFE_MANAGER_RELEASE_RECONCILER_STATE_ROOT": str(root / "state"),
+                       "LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(root / "agents")}
+
+                result = subprocess.run(["/bin/bash", str(harness)], env=env,
+                                        capture_output=True, text=True)
+
+                if render_rc or bootstrap_rc:
+                    self.assertNotEqual(result.returncode, 0, result.stderr)
+                    self.assertNotIn("scheduled release", result.stderr)
+                else:
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                if render_rc:
+                    self.assertFalse(calls.exists(), "generation failure must stop before launchd")
+                else:
+                    self.assertEqual(calls.read_text().splitlines(), ["print", "bootstrap"])
+
+    def test_superseded_release_does_not_hide_prior_owner_error(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            self._activate(root, self._make_release(root, sha, loop_ids=("loop-a", "loop-b")))
+            sha2 = self._advance_repo(repo)
+            release2 = self._make_release(root, sha2)
+            calls_log = root / "calls.log"
+            env = self._base_env(root, repo, calls_log=calls_log,
+                                 apply_mode="supersede_after_error")
+            env["FAKE_CURRENT_LINK"] = str(root / "loops" / "current")
+            env["FAKE_NEXT_RELEASE_ROOT"] = str(release2)
+
+            result = self._run(env)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIs(self._state(root)["release_superseded"], True)
+            self.assertEqual(self._state(root)["errors"], 1)
+            self.assertEqual(self._state(root)["last_ok_epoch"], 0)
+            self.assertNotIn("target=loop-b", calls_log.read_text())
+
+    def test_missing_or_invalid_current_sha_is_not_a_successful_defer(self):
+        for metadata in ({}, {"sha": "invalid"}):
+            with self.subTest(metadata=metadata), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                repo, sha = self._make_repo(root)
+                self._activate(root, self._make_release(root, sha, loop_ids=("loop-a", "loop-b")))
+                sha2 = self._advance_repo(repo)
+                release2 = self._make_release(root, sha2)
+                (release2 / "RELEASE.json").write_text(json.dumps(metadata))
+                calls_log = root / "calls.log"
+                env = self._base_env(root, repo, calls_log=calls_log,
+                                     apply_mode="supersede_after_first")
+                env["FAKE_SUPERSEDE_LOOP_ID"] = "loop-a"
+                env["FAKE_CURRENT_LINK"] = str(root / "loops" / "current")
+                env["FAKE_NEXT_RELEASE_ROOT"] = str(release2)
+
+                result = self._run(env)
+
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(self._state(root)["status"], "partial")
+                self.assertEqual(self._state(root)["last_ok_epoch"], 0)
+                self.assertNotIn("target=loop-b", calls_log.read_text())
+
+    def test_oversized_owners_log_rotates_to_one_gz_before_the_plan_reads_it(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            release_dir = self._make_release(root, sha)
+            self._activate(root, release_dir)
+            state_dir = root / "reconciler-state"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            (state_dir / "fleet-apply-owners.jsonl").write_text(
+                json.dumps({"sha": "0" * 40, "loop_id": "old", "rc": 1}) + "\n")
+            env = self._base_env(root, repo, calls_log=root / "calls.log")
+            env["LIFE_MANAGER_FLEET_APPLY_OWNERS_MAX_BYTES"] = "1"
+
+            result = self._run(env)
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(len(list(state_dir.glob("fleet-apply-owners-*.jsonl.gz"))), 1)
+            self.assertNotIn("old", [row["loop_id"] for row in self._owners_log(root)])
 
     def _owners_log(self, root):
         path = root / "reconciler-state" / "fleet-apply-owners.jsonl"
@@ -1087,18 +1425,18 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             )
 
     def test_mobile_distribution_publishers_precede_bounded_fleet_budget(self):
-        """Mobile distribution owners must not sit behind unrelated work in a bounded pass."""
+        """System controls enter first; mobile distribution leads the business owners."""
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             repo, sha = self._make_repo(root)
             release_dir = self._make_release(
                 root,
                 sha,
-                loop_ids=("aaa-growth", "mobile-publisher", "zzz-contract"),
+                loop_ids=("aaa-growth", "mobile-publisher", "zzz-contract", "zzz-cleanup"),
                 entry_overrides={
                     "aaa-growth": {
                         "domain": "growth", "admission_class": "revenue",
-                        "priority": "revenue",
+                        "priority": "revenue", "system_role": "control",
                     },
                     "mobile-publisher": {
                         "domain": "growth", "admission_class": "revenue",
@@ -1108,6 +1446,9 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
                     "zzz-contract": {
                         "domain": "earn", "admission_class": "revenue",
                         "priority": "critical_paid",
+                    },
+                    "zzz-cleanup": {
+                        "domain": "system", "system_role": "control",
                     },
                 },
             )
@@ -1120,9 +1461,14 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             calls_text = calls_log.read_text()
             self.assertLess(
+                calls_text.index("target=zzz-cleanup"),
+                calls_text.index("target=mobile-publisher"),
+                "cleanup and recovery must enter before business owners consume the apply budget",
+            )
+            self.assertLess(
                 calls_text.index("target=mobile-publisher"),
                 calls_text.index("target=zzz-contract"),
-                "mobile distribution must enter the bounded apply budget first",
+                "mobile distribution must lead the remaining business owners",
             )
             self.assertLess(
                 calls_text.index("target=zzz-contract"),
@@ -1160,9 +1506,14 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
                 calls_text,
                 "the next owner must wait for a later retry when less than one full owner timeout remains",
             )
-            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(result.returncode, 0, result.stderr)
             state = self._state(root)
             self.assertEqual(state["status"], "partial")
+            self.assertEqual(state["errors"], 0)
+            self.assertEqual(state["changed"], 1)
+            self.assertTrue(state["budget_progress_continue"])
+            self.assertEqual(state["last_ok_epoch"], 0)
+            self.assertGreater(state["next_retry_epoch"], time.time())
             self.assertIn("budget exceeded", state["message"])
 
     def test_owner_failure_does_not_delay_healthy_same_sha_budget_continuation(self):
@@ -1250,7 +1601,7 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             env["LIFE_MANAGER_FLEET_APPLY_CONTINUE_SECONDS"] = "0"
 
             first = self._run(env)
-            self.assertNotEqual(first.returncode, 0)
+            self.assertEqual(first.returncode, 0, first.stderr)
             first_state = self._state(root)
             self.assertEqual(first_state["status"], "partial")
             self.assertEqual(first_state["changed"], 1)
@@ -1378,7 +1729,7 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             env["LIFE_MANAGER_FLEET_APPLY_PER_OWNER_TIMEOUT_SECONDS"] = "3"
 
             first = self._run(env)
-            self.assertNotEqual(first.returncode, 0)
+            self.assertEqual(first.returncode, 0, first.stderr)
             self.assertEqual(self._apply_call_count(calls_log), 1)
             first_state = self._state(root)
             self.assertEqual(first_state["status"], "partial")

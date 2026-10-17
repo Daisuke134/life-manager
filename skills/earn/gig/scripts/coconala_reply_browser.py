@@ -722,6 +722,16 @@ class CoconalaCdpReplyBrowser:
         self.raw = raw
         return thread_state(raw, self.thread_url)
 
+    def read_text_only(self) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Read official message text and IDs without attachment collection."""
+        if self.tab is None:
+            raise RuntimeError("browser tab is not open")
+        raw = asyncio.run(collector.inspect_message_page(
+            self.tab.ws, collector.DIRECT_MESSAGE_EXPRESSION, self.thread_url,
+        ))
+        self.raw = raw
+        return thread_state(raw, self.thread_url)
+
     def _navigate_to(self, url: str) -> None:
         parsed = urlsplit(url)
         if parsed.scheme != "https" or parsed.hostname not in {"coconala.com", "www.coconala.com"}:

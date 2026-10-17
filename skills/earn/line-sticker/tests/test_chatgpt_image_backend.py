@@ -6,10 +6,13 @@ raised ChatGptImageGenUnavailable is observably routed to the Gemini fallback.
 """
 from __future__ import annotations
 
+import os
+import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 MODULE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(MODULE_ROOT))
@@ -80,6 +83,59 @@ class StaticStickerFallsBackToGemini(unittest.TestCase):
         self.assertEqual(backend, "chatgpt_imagegen")
         self.assertEqual(str(cost), "0")
         self.assertFalse(tmp_png.exists())  # the temp PNG is deleted after loading
+
+
+class SharedBrowserSession(unittest.TestCase):
+    def test_generation_uses_relay_and_leaves_the_stable_session_to_cli(self) -> None:
+        calls = []
+
+        def fake_run(args, **kwargs):
+            calls.append(list(args))
+            output = Path(args[args.index("-o") + 1])
+            output.write_bytes(b"image")
+            return subprocess.CompletedProcess(args, 0, "", "")
+
+        with mock.patch.object(BACKEND.subprocess, "run", side_effect=fake_run):
+            with mock.patch.dict(os.environ, {"LIFE_MANAGER_RUN_ID": "run-a"}):
+                first = BACKEND.generate("first prompt")
+                second = BACKEND.generate("second prompt")
+            with mock.patch.dict(os.environ, {"LIFE_MANAGER_RUN_ID": "run-b"}):
+                third = BACKEND.generate("third prompt")
+        try:
+            for args in calls:
+                self.assertNotIn("--session", args)
+                self.assertIn("--profile", args)
+                self.assertEqual(args[args.index("--profile") + 1], "relay")
+        finally:
+            first.unlink(missing_ok=True)
+            second.unlink(missing_ok=True)
+            third.unlink(missing_ok=True)
+
+    def test_timeout_does_not_close_the_shared_imagegen_session(self) -> None:
+        timeout_error = subprocess.TimeoutExpired(
+            ["chatgpt-imagegen", "private prompt"], 310, stderr="private timeout output")
+        calls = []
+
+        def fake_run(args, **kwargs):
+            calls.append((list(args), kwargs))
+            if len(calls) == 1:
+                raise timeout_error
+            return subprocess.CompletedProcess(args, 1, "private close output", "private close error")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            cli = Path(tmp) / "chatgpt-imagegen"
+            cli.touch()
+            with mock.patch.object(BACKEND, "CLI", cli):
+                with mock.patch.object(BACKEND.subprocess, "run", side_effect=fake_run):
+                    with mock.patch("shutil.which", return_value="/mock/chrome-use"):
+                        with self.assertRaises(BACKEND.ChatGptImageGenUnavailable) as caught:
+                            BACKEND.generate("private prompt")
+
+        self.assertIs(caught.exception.__cause__, timeout_error)
+        self.assertIn("timed out", str(caught.exception))
+        self.assertNotIn("private", str(caught.exception))
+        self.assertEqual(len(calls), 1)
+        self.assertNotIn("close", calls[0][0])
 
 
 if __name__ == "__main__":

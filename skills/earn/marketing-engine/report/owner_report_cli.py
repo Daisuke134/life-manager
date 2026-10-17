@@ -5,7 +5,8 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
-import os
+from functools import partial
+import json
 import pathlib
 import sys
 
@@ -24,9 +25,8 @@ except ModuleNotFoundError:  # direct file loading in the transport contract
 import owner_report
 
 
-TELEGRAM_TARGET = os.environ.get("MKT_TELEGRAM_TARGET")
 DEFAULT_STATE_ROOT = REPO_ROOT / "skills" / "earn" / "marketing-engine" / "state"
-CLOUD_BOT_ENV_FILE = pathlib.Path.home() / ".config" / "env" / "global.env"
+CREDENTIALS_FILE = pathlib.Path.home() / ".local" / "share" / "anicca" / "credentials.json"
 
 
 def _parse_as_of(value: str | None) -> dt.datetime:
@@ -41,31 +41,32 @@ def _parse_as_of(value: str | None) -> dt.datetime:
     return parsed.astimezone(dt.timezone.utc)
 
 
-def _cloud_bot_token() -> str:
-    token = os.environ.get("LM_TELEGRAM_BOT_TOKEN")
-    if token:
-        return token
-    if CLOUD_BOT_ENV_FILE.is_file():
-        for raw in CLOUD_BOT_ENV_FILE.read_text(encoding="utf-8", errors="replace").splitlines():
-            line = raw.strip()
-            if line.startswith("export "):
-                line = line[7:].lstrip()
-            key, separator, value = line.partition("=")
-            if not separator or key.strip() != "LM_TELEGRAM_BOT_TOKEN":
-                continue
-            value = value.strip()
-            if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
-                value = value[1:-1]
-            if value:
-                return value
-    raise TelegramError("Cloud Life Manager Telegram token is unavailable")
+def _local_telegram_credentials() -> tuple[str, str]:
+    try:
+        data = json.loads(CREDENTIALS_FILE.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise TelegramError("Local Life Manager Telegram credential is unavailable") from exc
+    credentials = data.get("credentials") if isinstance(data, dict) else None
+    matches = [
+        row for row in credentials
+        if isinstance(row, dict) and row.get("service") == "telegram-life-manager"
+    ] if isinstance(credentials, list) else []
+    if len(matches) != 1:
+        raise TelegramError("Local Life Manager Telegram credential is unavailable")
+    row = matches[0]
+    token = row.get("bot_token")
+    chat_id = row.get("chat_id")
+    if not isinstance(token, str) or not token.strip() or chat_id is None or not str(chat_id).strip():
+        raise TelegramError("Local Life Manager Telegram credential is incomplete")
+    return token, str(chat_id)
 
 
-def _send_text(text: str) -> dict:
-    environ = dict(os.environ)
-    environ["TELEGRAM_BOT_TOKEN"] = _cloud_bot_token()
-    client = TelegramClient.from_env(environ=environ)
-    return client.send_text(text, chat_id=TELEGRAM_TARGET)
+def _send_text(text: str, credentials: tuple[str, str] | None = None) -> dict:
+    token, chat_id = credentials or _local_telegram_credentials()
+    client = TelegramClient.from_env(
+        environ={"TELEGRAM_BOT_TOKEN": token, "TELEGRAM_CHAT_ID": chat_id},
+    )
+    return client.send_text(text, chat_id=chat_id)
 
 
 def send(message: str) -> bool:
@@ -121,21 +122,32 @@ def main(argv: list[str] | None = None) -> int:
             as_of=as_of,
             skip_message_keys=delivered_keys,
         )
+        credentials = _local_telegram_credentials() if not args.no_send and events else None
+        send_text = partial(_send_text, credentials=credentials) if credentials else _send_text
         store = owner_report.OwnerReportStore(report_path, delivery_path)
         failed = False
+        inherited = []
         for event in events:
             text = owner_report.render_japanese(event)
             print(text)
             if args.no_send:
                 store.record(event)
                 continue
-            receipt = owner_report.deliver(event, store, _send_text)
+            # A key already claimed by an earlier run is never resent; its unresolved state is
+            # that run's open receipt, not this run's failure.
+            prior = store.delivery_for(event["message_key"])
+            receipt = owner_report.deliver(event, store, send_text)
             status = receipt.get("status") if isinstance(receipt, dict) else None
             if status != "delivered":
-                failed = True
+                if prior is None:
+                    failed = True
+                else:
+                    inherited.append(event["message_key"])
             elif receipt.get("message_ids"):
                 print(f"telegram_message_ids={receipt['message_ids']}")
-        return 1 if failed else 0
+        if inherited:
+            print(f"owner report attention: unresolved earlier deliveries {inherited}", file=sys.stderr)
+        return 1 if failed else 3 if inherited else 0
     except (owner_report.OwnerReportError, OSError, TelegramError, argparse.ArgumentTypeError) as exc:
         print(f"owner report failed: {exc}", file=sys.stderr)
         return 1

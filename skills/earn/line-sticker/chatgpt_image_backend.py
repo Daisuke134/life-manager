@@ -28,6 +28,11 @@ class ChatGptImageGenUnavailable(RuntimeError):
     pass
 
 
+def timeout_failure() -> ChatGptImageGenUnavailable:
+    """Report a caller timeout without closing the CLI's shared browser session."""
+    return ChatGptImageGenUnavailable("chatgpt-imagegen timed out")
+
+
 def generate(prompt: str, *, size: str = "1024x1024", timeout: int = 280) -> Path:
     """Generate one PNG and return its path (caller owns deleting it). Raises
     ChatGptImageGenUnavailable on any failure (CLI missing, timeout, generation error) so callers
@@ -40,12 +45,12 @@ def generate(prompt: str, *, size: str = "1024x1024", timeout: int = 280) -> Pat
     try:
         done = subprocess.run(
             [str(CLI), prompt, "-o", str(out_path), "--size", size, "--backend", "auto",
-             "--quiet", "--timeout", str(timeout)],
+             "--profile", "relay", "--quiet", "--timeout", str(timeout)],
             capture_output=True, text=True, timeout=timeout + 30, check=False,
         )
     except subprocess.TimeoutExpired as exc:
         out_path.unlink(missing_ok=True)
-        raise ChatGptImageGenUnavailable(f"chatgpt-imagegen timed out: {exc}") from exc
+        raise timeout_failure() from exc
     if done.returncode != 0 or not out_path.is_file() or out_path.stat().st_size == 0:
         out_path.unlink(missing_ok=True)
         raise ChatGptImageGenUnavailable(

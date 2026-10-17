@@ -372,16 +372,56 @@ def get_location():
         return None
 
 
+def _geo_cache_path():
+    return LOOP_STATE_DIR / "geocode-cache.json"
+
+
+def _geo_cache_get(key):
+    try:
+        return json.loads(_geo_cache_path().read_text(encoding="utf-8")).get(key)
+    except (OSError, ValueError, AttributeError):
+        return None
+
+
+def _geo_cache_put(key, value):
+    """Addresses do not move: one Geocoding call per address, not one per 5-minute wake
+    (Sept 2026 bill: Geocoding JPY 7,493 ≈ the 8,640 monthly lateness wakes)."""
+    path = _geo_cache_path()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            data = {}
+    except (OSError, ValueError):
+        data = {}
+    data[key] = value
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+        os.replace(tmp, path)
+    except OSError:
+        pass
+
+
 def geocode_place(address):
     """Address/place string -> (lat, lon) for arrival detection. None on failure."""
     key = env("GOOGLE_API_KEY")
     if not (address and key):
         return None
+    cached = _geo_cache_get("fwd:" + address)
+    if isinstance(cached, list) and len(cached) == 2:
+        return (cached[0], cached[1])
+    if isinstance(cached, dict) and cached.get("miss_until", 0) > time.time():
+        return None  # Google could not find it; a 5-minute replay is billed and finds nothing new
     try:
         q = urllib.parse.urlencode({"address": address, "key": key, "language": "ja"})
         with urllib.request.urlopen(f"https://maps.googleapis.com/maps/api/geocode/json?{q}", timeout=8) as r:
             j = json.loads(r.read().decode())
+        if j.get("status") == "ZERO_RESULTS":
+            _geo_cache_put("fwd:" + address, {"miss_until": time.time() + 86400})
+            return None
         loc = j["results"][0]["geometry"]["location"]
+        _geo_cache_put("fwd:" + address, [loc["lat"], loc["lng"]])
         return (loc["lat"], loc["lng"])
     except Exception:
         return None
@@ -392,6 +432,11 @@ def reverse_geocode(loc):
     key = env("GOOGLE_API_KEY")
     if not (loc and key):
         return None
+    # ~100m cells: the ward/neighbourhood name does not change inside one.
+    cell = f"rev:{round(float(loc['lat']), 3)},{round(float(loc['lon']), 3)}"
+    cached = _geo_cache_get(cell)
+    if isinstance(cached, str):
+        return cached
     try:
         q = urllib.parse.urlencode({"latlng": f"{loc['lat']},{loc['lon']}", "key": key, "language": "ja"})
         with urllib.request.urlopen(f"https://maps.googleapis.com/maps/api/geocode/json?{q}", timeout=8) as r:
@@ -400,7 +445,9 @@ def reverse_geocode(loc):
         # prefer ward + neighbourhood (e.g. <city/区> + <neighbourhood>) over full address
         parts = [c["long_name"] for c in comps
                  if any(t in c["types"] for t in ("sublocality_level_1", "sublocality_level_2", "locality"))]
-        return "".join(parts[-2:]) if parts else j["results"][0]["formatted_address"]
+        name = "".join(parts[-2:]) if parts else j["results"][0]["formatted_address"]
+        _geo_cache_put(cell, name)
+        return name
     except Exception:
         return None
 

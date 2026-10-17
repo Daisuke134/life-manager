@@ -203,6 +203,18 @@ if [ "${WDAY:-0}" -ge "$WARMUP_DAYS_REQUIRED" ]; then
   fi
 fi
 
+# Hourly runs refresh the seller ledger before building the monitor snapshot so
+# that the persisted report refers to this same run's reconcile.
+REPORT_KIND="${CAPAFY_REPORT_KIND:-morning}"
+RECONCILE_RC=0
+if [ "$REPORT_KIND" = "hourly" ]; then
+  "$PY" "$LIFE_MANAGER_REPO/skills/earn/capafy-marketing/scripts/capafy_web_token_refresh.py" \
+    >>"$HOME/.local/state/life-manager/logs/capafy-goal-monitor-hourly.out" 2>>"$HOME/.local/state/life-manager/logs/capafy-goal-monitor-hourly.err" || true
+  "$PY" "$LIFE_MANAGER_REPO/skills/earn/capafy-marketing/scripts/capafy_hourly_reconcile.py" \
+    >>"$HOME/.local/state/life-manager/logs/capafy-goal-monitor-hourly.out" 2>>"$HOME/.local/state/life-manager/logs/capafy-goal-monitor-hourly.err"
+  RECONCILE_RC=$?
+fi
+
 # ── the rest (goal a/b/d parsing + state + telegram body) is one python pass (read+append only). ──
 DAILY_PROOF_JSON="$($PY "$DAILY_TERMINAL_TOOL" status --ledger "$DAILY_TERMINAL_LEDGER" 2>/dev/null || printf '{}')"
 $PY - "$STATE" "$EARN_LEDGER" "$WARMUP" "$KEY_GATE" "$IG_PLIST" "$IG_LABEL" "$WDAY" "$WARMUP_DAYS_REQUIRED" "$GO_LIVE_ACTION" "$IG_HANDLE" "$VERIFY_JSON" "$VERIFY_RC" "$COOKED_MARKER" "$DAILY_PROOF_JSON" <<'PY' > /tmp/capafy_goal_monitor.json
@@ -228,7 +240,8 @@ streak = int(daily_proof.get("consecutive_healthy_days") or 0)
 goal_a_pass = daily_proof.get("pass") is True
 
 # goal(b): latest sales row + reconcile freshness (staleness = divergence risk).
-gross = orders = None; last_sales_date = None; reconcile_age_h = None
+gross = orders = None; reconcile_observed_at = None; reconcile_observed_date = None
+analytics_observed_at = None; last_positive_revenue_date_30d = None; reconcile_age_h = None
 if os.path.exists(earn_ledger):
     reconcile_age_h = round((now.timestamp() - os.path.getmtime(earn_ledger)) / 3600, 1)
     try:
@@ -238,7 +251,30 @@ if os.path.exists(earn_ledger):
     if r.get("orders") is not None:
         orders = r.get("orders")
         gross = (r.get("money") or {}).get("gross_usd")
-        last_sales_date = str(r.get("observed_at") or "")[:10] or None
+        reconcile_observed_at = str(r.get("observed_at") or "") or None
+        reconcile_observed_date = reconcile_observed_at[:10] if reconcile_observed_at else None
+    analytics_path = os.path.join(os.path.dirname(earn_ledger), "capafy-skill-analytics.json")
+    try:
+        analytics = json.load(open(analytics_path))
+    except Exception:
+        analytics = {}
+    if not isinstance(analytics, dict):
+        analytics = {}
+    analytics_observed_at = str(analytics.get("observed_at") or "") or None
+    trend = analytics.get("daily_revenue_trend_last_30d")
+    if isinstance(trend, list):
+        positive_revenue_dates = []
+        for day in trend:
+            if not isinstance(day, dict):
+                continue
+            try:
+                has_paid_revenue = float(day.get("revenue")) > 0 and int(float(day.get("orders"))) > 0
+            except (TypeError, ValueError):
+                continue
+            date = str(day.get("date") or "")
+            if has_paid_revenue and re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
+                positive_revenue_dates.append(date)
+        last_positive_revenue_date_30d = max(positive_revenue_dates, default=None)
 goal_b_ok = reconcile_age_h is not None and reconcile_age_h < 48  # reconcile ran within 2 days
 
 # goal(d): NON-DESTRUCTIVE health — launchctl loaded? plist exists? key-health gate exit?
@@ -261,7 +297,11 @@ if os.path.exists(key_gate):
 report = {
     "ts": int(now.timestamp()), "date": today.isoformat(),
     "goal_a": {"blocked_free_streak_days": streak, "required": 7, "pass": goal_a_pass},
-    "goal_b": {"last_sales_date": last_sales_date, "orders": orders, "gross_usd": gross,
+    "goal_b": {"reconcile_observed_at": reconcile_observed_at,
+               "reconcile_observed_date": reconcile_observed_date,
+               "analytics_observed_at": analytics_observed_at,
+               "last_positive_revenue_date_30d": last_positive_revenue_date_30d,
+               "orders": orders, "gross_usd": gross,
                "reconcile_age_hours": reconcile_age_h, "fresh": goal_b_ok},
     "goal_c": {"warmup_day": wday, "required": wreq, "go_live_action": golive,
                "ig_marketing_loaded": health["ig_marketing_loaded"]},
@@ -290,7 +330,10 @@ account_line = (
 body = (
  "[Capafy goal-monitor " + today.isoformat() + "]\n"
  "goal(a) BLOCKED-free streak: " + str(ga["blocked_free_streak_days"]) + "/7 " + ("PASS" if ga["pass"] else "building") + "\n"
- "goal(b) sales: orders=" + str(gb["orders"]) + " gross=$" + str(gb["gross_usd"]) + " (last " + str(gb["last_sales_date"]) + "), reconcile " + str(gb["reconcile_age_hours"]) + "h ago " + ("OK" if gb["fresh"] else "STALE") + "\n"
+ "goal(b) sales: orders=" + str(gb["orders"]) + " gross=$" + str(gb["gross_usd"]) +
+ " (readback " + str(gb["reconcile_observed_date"] or "unknown") + ", 30d revenue as of " +
+ str(gb["analytics_observed_at"] or "unknown") + ", last positive day " +
+ str(gb["last_positive_revenue_date_30d"] or "unknown") + "), reconcile " + str(gb["reconcile_age_hours"]) + "h ago " + ("OK" if gb["fresh"] else "STALE") + "\n"
  "goal(c) IG warmup day " + str(gc["warmup_day"]) + "/" + str(gc["required"]) + " -> go-live: " + gc["go_live_action"] + " (ig loop loaded=" + str(gc["ig_marketing_loaded"]) + ")\n"
  "goal(d) health: capafy-loop=" + str(gd["capafy_loop_daily_loaded"]) + " warmup=" + str(gd["ig_warmup_loaded"]) + " key-gate=" + str(gd["key_health_gate_ok"]) + "\n"
  + account_line
@@ -301,17 +344,10 @@ PY
 
 RC=$?
 BODY="$(cat /tmp/capafy_goal_monitor_body.txt 2>/dev/null)"
-REPORT_KIND="${CAPAFY_REPORT_KIND:-morning}"
 
-# Hourly control wakes use the unified state-change receipt. It refreshes money,
-# joins candidate/slot/post/revenue under one run_id, and dedupes through the
-# durable Telegram outbox. Never fall through to the legacy sender on this path.
+# Hourly control wakes deliver the unified state-change receipt after the monitor
+# snapshot records the reconcile above. Never fall through to the legacy sender.
 if [ "$REPORT_KIND" = "hourly" ]; then
-  "$PY" "$LIFE_MANAGER_REPO/skills/earn/capafy-marketing/scripts/capafy_web_token_refresh.py" \
-    >>"$HOME/.local/state/life-manager/logs/capafy-goal-monitor-hourly.out" 2>>"$HOME/.local/state/life-manager/logs/capafy-goal-monitor-hourly.err" || true
-  "$PY" "$LIFE_MANAGER_REPO/skills/earn/capafy-marketing/scripts/capafy_hourly_reconcile.py" \
-    >>"$HOME/.local/state/life-manager/logs/capafy-goal-monitor-hourly.out" 2>>"$HOME/.local/state/life-manager/logs/capafy-goal-monitor-hourly.err"
-  RECONCILE_RC=$?
   "$PY" "$LIFE_MANAGER_REPO/skills/earn/capafy-marketing/scripts/capafy_company_receipt.py" deliver \
     >>"$HOME/.local/state/life-manager/logs/capafy-goal-monitor-hourly.out" 2>>"$HOME/.local/state/life-manager/logs/capafy-goal-monitor-hourly.err"
   UNIFIED_RC=$?

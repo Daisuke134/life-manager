@@ -1,9 +1,11 @@
 import hashlib
 import importlib
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from job_search_loop import telegram
 from job_search_loop.ledger import Ledger
@@ -186,6 +188,156 @@ class ApplicationReportingTests(unittest.TestCase):
             self.assertIn("今回の処理を完了できませんでした", calls[0]["message"])
             self.assertNotIn("transport_failed_without_command_failure", calls[0]["message"])
 
+    def test_blocked_queue_with_zero_receipts_is_not_reported_as_success(self):
+        reporting = importlib.import_module("job_search_loop.application_reporting")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = Ledger(root / "ledger.sqlite3")
+            application_id = ledger.add_application(
+                "Example", "Marketing Manager", "https://example.wd1.myworkdayjobs.com/role"
+            )
+            ledger.close()
+            discovery = root / "workday-discovery.json"
+            discovery.write_text(
+                json.dumps({"status": "queue_present", "queued_application_ids": [application_id]}),
+                encoding="utf-8",
+            )
+            result_path = root / "result.json"
+            result_path.write_text(
+                json.dumps({
+                    "status": "blocked_before_queue_complete",
+                    "submitted": [],
+                    "submit_unknown": [],
+                    "blocked": [f"row-{n}" for n in range(7)],
+                    "report_message_id": "report-1",
+                }),
+                encoding="utf-8",
+            )
+            summary = root / "summary.json"
+            summary.write_text(
+                json.dumps({"status": "success", "result_path": str(result_path)}),
+                encoding="utf-8",
+            )
+            messages = []
+            receipt = reporting.deliver_wake_report(
+                ledger_path=root / "ledger.sqlite3",
+                outbox_path=root / "outbox.sqlite3",
+                run_id="daily-blocked-zero-submit",
+                japan_day="2026-10-13",
+                runner_summary_path=summary,
+                discovery_path=discovery,
+                output_path=root / "wake-report.json",
+                sender=lambda **kwargs: messages.append(kwargs) or {
+                    "status": "sent", "message_id": "wake-1", "event_key": "event-1"
+                },
+            )
+
+        self.assertEqual(receipt["outcome"], "partial")
+        self.assertEqual(receipt["reason"], "blocked_before_queue_complete")
+        self.assertIn("応募完了: 0件", messages[0]["message"])
+        self.assertIn("未完了/保留: 7件", messages[0]["message"])
+        self.assertNotIn("今回の処理を完了しました", messages[0]["message"])
+
+    def test_queue_complete_with_blocked_rows_is_not_reported_as_success(self):
+        reporting = importlib.import_module("job_search_loop.application_reporting")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = Ledger(root / "ledger.sqlite3")
+            application_id = ledger.add_application(
+                "Example", "Marketing Manager", "https://example.wd1.myworkdayjobs.com/role"
+            )
+            ledger.close()
+            discovery = root / "workday-discovery.json"
+            discovery.write_text(
+                json.dumps({"status": "queue_present", "queued_application_ids": [application_id]}),
+                encoding="utf-8",
+            )
+            result_path = root / "result.json"
+            result_path.write_text(
+                json.dumps({
+                    "status": "queue_complete",
+                    "submitted": [],
+                    "submit_unknown": [],
+                    "blocked": [f"row-{n}" for n in range(4)],
+                    "report_message_id": "report-1",
+                }),
+                encoding="utf-8",
+            )
+            summary = root / "summary.json"
+            summary.write_text(
+                json.dumps({"status": "success", "result_path": str(result_path)}),
+                encoding="utf-8",
+            )
+            messages = []
+            receipt = reporting.deliver_wake_report(
+                ledger_path=root / "ledger.sqlite3",
+                outbox_path=root / "outbox.sqlite3",
+                run_id="daily-queue-complete-blocked",
+                japan_day="2026-10-13",
+                runner_summary_path=summary,
+                discovery_path=discovery,
+                output_path=root / "wake-report.json",
+                sender=lambda **kwargs: messages.append(kwargs) or {
+                    "status": "sent", "message_id": "wake-1", "event_key": "event-1"
+                },
+            )
+
+        self.assertEqual(receipt["outcome"], "partial")
+        self.assertEqual(receipt["reason"], "row_blocked")
+        self.assertIn("応募完了: 0件", messages[0]["message"])
+        self.assertIn("未完了/保留: 4件", messages[0]["message"])
+        self.assertNotIn("今回の処理を完了しました", messages[0]["message"])
+
+    def test_queue_complete_with_unknown_submission_reconciles_without_retry(self):
+        reporting = importlib.import_module("job_search_loop.application_reporting")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = Ledger(root / "ledger.sqlite3")
+            application_id = ledger.add_application(
+                "Example", "Marketing Manager", "https://example.wd1.myworkdayjobs.com/role"
+            )
+            ledger.close()
+            discovery = root / "workday-discovery.json"
+            discovery.write_text(
+                json.dumps({"status": "queue_present", "queued_application_ids": [application_id]}),
+                encoding="utf-8",
+            )
+            result_path = root / "result.json"
+            result_path.write_text(
+                json.dumps({
+                    "status": "queue_complete",
+                    "submitted": [],
+                    "submit_unknown": ["row-unknown"],
+                    "blocked": [],
+                    "report_message_id": "report-1",
+                }),
+                encoding="utf-8",
+            )
+            summary = root / "summary.json"
+            summary.write_text(
+                json.dumps({"status": "success", "result_path": str(result_path)}),
+                encoding="utf-8",
+            )
+            messages = []
+            receipt = reporting.deliver_wake_report(
+                ledger_path=root / "ledger.sqlite3",
+                outbox_path=root / "outbox.sqlite3",
+                run_id="daily-queue-complete-unknown",
+                japan_day="2026-10-13",
+                runner_summary_path=summary,
+                discovery_path=discovery,
+                output_path=root / "wake-report.json",
+                sender=lambda **kwargs: messages.append(kwargs) or {
+                    "status": "sent", "message_id": "wake-1", "event_key": "event-1"
+                },
+            )
+
+        self.assertEqual(receipt["outcome"], "partial")
+        self.assertEqual(receipt["reason"], "submit_unknown")
+        self.assertEqual(receipt["next_action"], "reconcile_submission_receipts")
+        self.assertIn("送信結果不明: 1件", messages[0]["message"])
+        self.assertNotIn("もう一度応募します", messages[0]["message"])
+
     def test_fit_decisions_are_suppressed_before_submission(self):
         reporting = importlib.import_module("job_search_loop.application_reporting")
         calls = []
@@ -229,6 +381,32 @@ class ApplicationReportingTests(unittest.TestCase):
 
         self.assertEqual(result, {"status": "suppressed", "message_id": None})
         self.assertEqual(calls, [])
+
+    def test_submitted_hourly_outcome_is_suppressed_without_telegram_setup(self):
+        from job_search_loop.browser_agent.contracts import QueueRowReceiptV1
+        from job_search_loop.browser_agent.outcome_reporting import send_hourly_outcomes
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            telegram_env = root / "telegram.env"
+            telegram_env.write_text("", encoding="utf-8")
+            with patch.dict(
+                os.environ,
+                {
+                    "JOB_SEARCH_TELEGRAM_ENV": str(telegram_env),
+                    "TELEGRAM_BOT_TOKEN": "",
+                    "JOB_SEARCH_TELEGRAM_CHAT_ID": "",
+                },
+                clear=False,
+            ):
+                result = send_hourly_outcomes(
+                    database=root / "outbox.sqlite3",
+                    wake_id="wake-submitted-no-telegram",
+                    receipts=(QueueRowReceiptV1("application-1", "Example", "Role", "submitted"),),
+                    evidence_classes={"application-1": "authoritative_receipt_email"},
+                )
+
+        self.assertEqual(result, {"status": "suppressed", "message_id": None})
     def test_quota_failed_wake_reports_queued_company_role_and_next_action(self):
         reporting = importlib.import_module("job_search_loop.application_reporting")
         deliver = getattr(reporting, "deliver_wake_report", None)

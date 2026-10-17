@@ -1266,7 +1266,170 @@ class GateStoppedRunDoesNotBlockTheDayTest(unittest.TestCase):
         self.assertEqual(decision["action"], "new")
         self.assertEqual(decision["reason"], "same-jst-day-preflight-only-run")
 
+    def test_a_gate_stopped_run_with_a_frozen_seo_keyword_is_reused(self):
+        # 2026-10-16: run 20261016-014724 stopped after writing product-selection.json and
+        # seo-keyword.json (both frozen before generation) and blocked the whole day.
+        with tempfile.TemporaryDirectory() as tmp:
+            decision = self._run(Path(tmp), {
+                "product-selection.json": '{"product_id": "capafy-skills"}',
+                "seo-keyword.json": '{"keyword": "hook"}',
+            })
+        self.assertEqual(decision["action"], "new")
+        self.assertEqual(decision["reason"], "same-jst-day-preflight-only-run")
+
     def test_any_other_gate_file_still_fails_closed(self):
         with tempfile.TemporaryDirectory() as tmp:
             decision = self._run(Path(tmp), {"product-selection.json": "{}", "topic-route.json": "{}"})
         self.assertEqual(decision["action"], "block-incomplete")
+
+
+class CarryOverWithoutDispatchDoesNotBlockTheDayTest(unittest.TestCase):
+    """2026-10-16: run 20261016-014724 wrote drafts, was stopped by the conscience gate before any
+    dispatch (ledger: one carry-over row, published=false, draft_url=null), and blocked the day as
+    `same-jst-day-unclassified-run`. Nothing left the machine, so a fresh run is safe."""
+
+    def _run(self, root: Path, run_id: str = "20261016-014724", publication_state: bool = False,
+             extra_runs: tuple = ()):
+        run_dir = root / "runs" / run_id
+        (run_dir / "gates").mkdir(parents=True)
+        (run_dir / "git-hash.txt").write_text("abc\n")
+        (run_dir / "article-ja.md").write_text("# ja\n")
+        (run_dir / "article-en.md").write_text("# en\n")
+        (run_dir / "gates" / "generation-state.json").write_text('{"status":"provider-failed-ambiguous"}')
+        if publication_state:
+            (run_dir / "gates" / "publication-state.json").write_text("{}")
+        for other in extra_runs:
+            (root / "runs" / other / "gates").mkdir(parents=True)
+        row = {"ts": "2026-10-16T05:15:43+00:00", "run_id": run_id, "platform": "carry-over",
+               "lang": "ja,en", "draft_url": None, "published": False,
+               "state": "carry-over:conscience-block:reader-visible-cta-identifiers"}
+        (root / "articles.jsonl").write_text(json.dumps(row) + "\n")
+        return START.decide(root, "2026-10-16")
+
+    def test_carry_over_run_with_no_dispatch_starts_a_new_run(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            decision = self._run(Path(tmp))
+        self.assertEqual(decision["action"], "new")
+        self.assertEqual(decision["reason"], "same-jst-day-carry-over-no-dispatch")
+        self.assertEqual(decision["previous_run_id"], "20261016-014724")
+
+    def test_publication_state_still_fails_closed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            decision = self._run(Path(tmp), publication_state=True)
+        self.assertNotEqual(decision["action"], "new")
+
+
+class PendingRowsWithoutDispatchDoNotBlockTheDayTest(unittest.TestCase):
+    """2026-10-16 22:43: run 20261016-134344 wrote rows note/substack/x-article with
+    state pending:media-renderer-unavailable (publication state never initialized). Any row kind
+    with nothing published, no draft URL and no dispatch must not block the day."""
+
+    def test_pending_media_rows_without_dispatch_start_a_new_run(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            run_id = "20261016-134344"
+            run_dir = root / "runs" / run_id
+            (run_dir / "gates").mkdir(parents=True)
+            (run_dir / "git-hash.txt").write_text("abc\n")
+            (run_dir / "article-ja.md").write_text("# ja\n")
+            state = "pending:media-renderer-unavailable:body-diagram candidate was not produced"
+            rows = [{"ts": "2026-10-16T13:43:00+00:00", "run_id": run_id, "platform": p, "lang": l,
+                     "published": False, "draft_url": None, "state": state}
+                    for p, l in (("note", "ja"), ("substack", "ja"), ("substack", "en"), ("x-article", "ja"))]
+            (root / "articles.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+            decision = START.decide(root, "2026-10-16")
+        self.assertEqual(decision["action"], "new")
+        self.assertEqual(decision["reason"], "same-jst-day-carry-over-no-dispatch")
+
+    def test_a_row_with_a_live_url_still_blocks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            run_id = "20261016-134344"
+            (root / "runs" / run_id / "gates").mkdir(parents=True)
+            row = {"run_id": run_id, "platform": "note", "lang": "ja", "published": False,
+                   "draft_url": None, "live_url": "https://note.com/x/n/abc", "state": "pending:x"}
+            (root / "articles.jsonl").write_text(json.dumps(row) + "\n")
+            decision = START.decide(root, "2026-10-16")
+        self.assertNotEqual(decision["action"], "new")
+
+
+class ExternalIdentifierKeysKeepTheDayBlockedTest(unittest.TestCase):
+    def test_unknown_identifier_key_or_url_in_state_blocks(self):
+        for row_extra in ({"public_id": "n123"}, {"edit_id": "99"}, {"state": "pending:key=nabc"}):
+            with tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                run_id = "20261016-134344"
+                (root / "runs" / run_id / "gates").mkdir(parents=True)
+                row = {"run_id": run_id, "platform": "note", "lang": "ja", "published": False,
+                       "draft_url": None, "state": "pending:x"} | row_extra
+                (root / "articles.jsonl").write_text(json.dumps(row) + "\n")
+                decision = START.decide(root, "2026-10-16")
+            self.assertNotEqual(decision["action"], "new", row_extra)
+
+
+class AmbiguousPrepublicationFailureDoesNotBlockTheDayTest(unittest.TestCase):
+    """2026-10-17 00:27: run 20261016-152709 staged drafts, the provider failed (session limit),
+    generation-state = provider-failed-ambiguous, no ledger row, no publication-state, no dispatch.
+    06:05 and 07:05 then blocked as same-jst-day-unclassified-run and no article shipped."""
+
+    def _run(self, root: Path, status: str = "provider-failed-ambiguous", return_code=1,
+             publication_state: bool = False):
+        run_id = "20261016-152709"
+        run_dir = root / "runs" / run_id
+        (run_dir / "gates").mkdir(parents=True)
+        (run_dir / "git-hash.txt").write_text("abc\n")
+        (run_dir / "article-ja.md").write_text("# ja\n")
+        (run_dir / "gates" / "generation-state.json").write_text(json.dumps(
+            {"status": status, "attempts": [{"status": status, "return_code": return_code}]}))
+        if publication_state:
+            (run_dir / "gates" / "publication-state.json").write_text("{}")
+        (root / "articles.jsonl").write_text("")
+        return START.decide(root, "2026-10-17")
+
+    def test_failed_provider_without_dispatch_starts_a_new_run(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            decision = self._run(Path(tmp))
+        self.assertEqual(decision["action"], "new")
+        self.assertEqual(decision["reason"], "same-jst-day-carry-over-no-dispatch")
+        self.assertEqual(decision["previous_run_id"], "20261016-152709")
+
+    def test_publication_state_or_a_live_attempt_still_blocks(self):
+        for kwargs in ({"publication_state": True}, {"status": "invoking", "return_code": None}):
+            with tempfile.TemporaryDirectory() as tmp:
+                decision = self._run(Path(tmp), **kwargs)
+            self.assertNotEqual(decision["action"], "new", kwargs)
+
+
+class PublicationInitRefusedRowsDoNotBlockTheDayTest(unittest.TestCase):
+    """2026-10-17 11:17: run 20261016-230536 wrote four rows
+    `pending:publication-init-refused:...quality_self_heal receipt hash binding failed...`.
+    init refused before publication state existed, so nothing left the machine, but the word
+    "receipt" in the refusal text kept the whole day blocked."""
+
+    STATE = ("pending:publication-init-refused:editorial/reader advisory requires single-evaluation "
+             "force receipt; quality_self_heal receipt hash binding failed after reader retry controller defect")
+
+    def _decide(self, state: str, publication_state: bool = False):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            run_id = "20261016-230536"
+            run_dir = root / "runs" / run_id
+            (run_dir / "gates").mkdir(parents=True)
+            (run_dir / "git-hash.txt").write_text("abc\n")
+            if publication_state:
+                (run_dir / "gates" / "publication-state.json").write_text("{}")
+            rows = [{"ts": "2026-10-17T02:17:00+00:00", "run_id": run_id, "platform": p, "lang": l,
+                     "published": False, "draft_url": None, "state": state}
+                    for p, l in (("note", "ja"), ("substack", "ja"), ("substack", "en"), ("x-article", "ja"))]
+            (root / "articles.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+            return START.decide(root, "2026-10-17")
+
+    def test_init_refused_rows_start_a_new_run(self):
+        decision = self._decide(self.STATE)
+        self.assertEqual(decision["action"], "new")
+        self.assertEqual(decision["reason"], "same-jst-day-carry-over-no-dispatch")
+
+    def test_other_effect_words_or_publication_state_still_block(self):
+        self.assertNotEqual(self._decide(self.STATE + " https://note.com/x")["action"], "new")
+        self.assertNotEqual(self._decide("pending:other receipt=abc")["action"], "new")
+        self.assertNotEqual(self._decide(self.STATE, publication_state=True)["action"], "new")

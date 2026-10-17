@@ -9,6 +9,7 @@
     "ai.anicca.provision-browser.buyma.na-l5-client",
     "ai.anicca.provision-browser.colors-hachioji.owner-18211957",
     "ai.anicca.provision-browser.instagram.capafy-provision",
+    "ai.anicca.provision-browser.promptbase.dais",
     "ai.anicca.provision-browser.tiktok-anicca-jp",
     "ai.anicca.provision-browser.upwork.dais",
     "ai.anicca.provision-browser.x.anicca",
@@ -85,7 +86,7 @@
       "entrypoint": "skills/alpaca-investment/run.py",
       "label": "ai.anicca.alpaca-investment-paper",
       "log_root": "~/.local/state/life-manager/alpaca-investment-paper/logs",
-      "resource_class": "agent",
+      "resource_class": "deterministic",
       "admission_class": "revenue",
       "priority": "revenue",
       "coalesce_reserved_wakes": true,
@@ -245,6 +246,15 @@
       "command": [],
       "domain": "earn",
       "effect_class": "message",
+      "effect_reconcile": {
+        "argv": [
+          "skills/earn/crowdworks/scripts/reconcile_report_outbox.py",
+          "--state-root", "~/.local/state/anicca/crowdworks"
+        ],
+        "occurrence_flag": "--occurrence",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 60
+      },
       "entrypoint": "skills/earn/crowdworks/scripts/report-owner",
       "label": "ai.anicca.crowdworks-revenue-report",
       "log_root": "~/.local/state/anicca/crowdworks/logs",
@@ -258,7 +268,7 @@
       "adapter": "exec",
       "browser_identity": "crowdworks:dais",
       "browser_target_owner": "crowdworks-revenue-browser",
-      "cadence": {"start_interval_seconds": 300},
+      "cadence": {"start_interval_seconds": 900},
       "runtime_timeout_seconds": 900,
       "cleanup": {"max_age_days": 14, "max_runs": 100},
       "coalesce_queued_wakes": true,
@@ -926,7 +936,7 @@
         "max_runs": 100
       },
       "domain": "earn",
-      "effect_class": "publish",
+      "effect_class": "none",
       "effect_reconcile": {"argv": ["skills/earn/line-sticker/readback_fence_reconcile.py"], "occurrence_flag": "--occurrence", "resolve_flag": "--resolve", "timeout_seconds": 60}, "entrypoint": "skills/earn/line-sticker/line-sticker-readback.sh",
       "browser_identity": "line-creators:dais",
       "browser_target_owner": "line-creators-browser",
@@ -965,7 +975,7 @@
       "state_root": "~/.local/state/life-manager/line-sticker"
     },
     "line-sticker-distribute": {
-      "priority": "revenue",
+      "priority": "distribution",
       "resource_class": "deterministic",
       "admission_class": "revenue",
       "coalesce_reserved_wakes": true,
@@ -993,7 +1003,23 @@
       "coalesce_reserved_wakes": true,
       "coalesce_queued_wakes": true,
       "cadence": {
-        "start_interval_seconds": 900
+        "calendar_interval": [
+          {"Hour": 7, "Minute": 5},
+          {"Hour": 8, "Minute": 5},
+          {"Hour": 9, "Minute": 5},
+          {"Hour": 11, "Minute": 5},
+          {"Hour": 12, "Minute": 5},
+          {"Hour": 14, "Minute": 5},
+          {"Hour": 15, "Minute": 5},
+          {"Hour": 16, "Minute": 5},
+          {"Hour": 17, "Minute": 5},
+          {"Hour": 18, "Minute": 5},
+          {"Hour": 19, "Minute": 5},
+          {"Hour": 20, "Minute": 5},
+          {"Hour": 21, "Minute": 5},
+          {"Hour": 22, "Minute": 5},
+          {"Hour": 23, "Minute": 5}
+        ]
       },
       "cleanup": {
         "max_age_days": 14,
@@ -1007,6 +1033,25 @@
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/line-sticker-articles",
       "system_role": "shared"
+    },
+    "ebook-articles": {
+      "priority": "distribution",
+      "resource_class": "deterministic",
+      "admission_class": "revenue",
+      "coalesce_reserved_wakes": true,
+      "coalesce_queued_wakes": true,
+      "cadence": {"calendar_interval": [{"Hour": 1, "Minute": 5}, {"Hour": 2, "Minute": 5}, {"Hour": 4, "Minute": 5}, {"Hour": 5, "Minute": 5}]},
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "domain": "earn",
+      "effect_class": "publish",
+      "effect_reconcile": {"argv": ["skills/earn/ebook-articles/scripts/ebook_article_fence_reconcile.py"], "occurrence_flag": "--occurrence", "resolve_flag": "--resolve", "timeout_seconds": 180}, "entrypoint": "skills/earn/ebook-articles/ebook-articles.sh",
+      "label": "ai.anicca.ebook-articles",
+      "log_root": "~/.local/state/life-manager/ebook-articles/logs",
+      "provider_route": "deterministic",
+      "state_root": "~/.local/state/life-manager/ebook-articles"
     },
     "line-creators-browser": {
       "adapter": "exec",
@@ -1243,6 +1288,39 @@
       "provider_route": "deterministic",
       "resource_class": "deterministic",
       "state_root": "~/.local/state/life-manager"
+    },
+    "capafy-reel-daily": {
+      "admission_class": "revenue",
+      "cadence": {
+        "calendar_interval": {
+          "Hour": 9,
+          "Minute": 41
+        }
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "domain": "growth",
+      "effect_class": "publish",
+      "effect_reconcile": {
+        "argv": [
+          "skills/earn/capafy-marketing/scripts/capafy_reel_fence_reconcile.py"
+        ],
+        "occurrence_flag": "--occurrence",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 120
+      },
+      "entrypoint": "skills/earn/capafy-marketing/capafy-reel-daily.sh",
+      "label": "ai.anicca.capafy-reel-daily",
+      "log_root": "~/.local/state/life-manager/logs",
+      "priority": "distribution",
+      "provider_route": "shared-agent-runner",
+      "resource_class": "agent",
+      "runtime_timeout_seconds": 2400,
+      "state_root": "~/.local/state/life-manager/capafy-reel"
     },
     "capafy-outcome-monitor": {
       "reconcile_queued_release": true,
@@ -1503,6 +1581,8 @@
     "fundraiser": {
       "admission_class": "revenue",
       "admission_effect_scope": "occurrence",
+      "browser_identity": "fundraiser:dais",
+      "browser_target_owner": "fundraiser-browser",
       "cadence": {
         "start_interval_seconds": 3600
       },
@@ -1527,6 +1607,28 @@
         "resolve_flag": "--resolve",
         "timeout_seconds": 60
       }
+    },
+    "fundraiser-browser": {
+      "adapter": "exec",
+      "browser_owner": {
+        "cdp_port": 9336,
+        "profile": "~/.cloak/profiles/fundraiser"
+      },
+      "cadence": {
+        "keep_alive": true
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "command": [],
+      "domain": "earn",
+      "effect_class": "none",
+      "entrypoint": "skills/browser/owned-persistent-context",
+      "label": "ai.anicca.fundraiser-browser",
+      "log_root": "~/.local/state/life-manager/fundraiser-browser/logs",
+      "provider_route": "shared-agent-runner",
+      "state_root": "~/.local/state/life-manager/fundraiser-browser"
     },
     "gig-outcome-watch": {
       "adapter": "exec",
@@ -1821,7 +1923,7 @@
       "browser_identity": "coconala:kosuke",
       "browser_target_owner": "hf-gig-browser",
       "cadence": {
-        "start_interval_seconds": 300
+        "start_interval_seconds": 900
       },
       "coalesce_queued_wakes": true,
       "coalesce_reserved_wakes": true,
@@ -1841,6 +1943,7 @@
       "state_root": "~/.local/state/life-manager/coconala/paid"
     },
     "hf-gig-reply-detector": {
+      "admission_effect_scope": "occurrence",
       "admission_class": "revenue",
       "adapter": "exec",
       "browser_identity": "coconala:kosuke",
@@ -1856,6 +1959,14 @@
       "coalesce_reserved_wakes": true,
       "domain": "earn",
       "effect_class": "message",
+      "effect_reconcile": {
+        "argv": [
+          "skills/earn/gig/scripts/coconala_reply_effect_reconcile.py"
+        ],
+        "occurrence_flag": "--occurrence",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 180
+      },
       "reconcile_queued_release": true,
       "command": [],
       "entrypoint": "skills/earn/gig/scripts/coconala-reply-owner",
@@ -1881,10 +1992,10 @@
       "effect_class": "publish",
       "effect_reconcile": {
         "argv": [
-          "skills/earn/gig/scripts/storefront_pre_effect_reconcile.py"
+          "skills/earn/gig/scripts/storefront_official_reconcile.py"
         ],
         "occurrence_flag": "--occurrence",
-        "resolve_flag": null,
+        "resolve_flag": "--resolve",
         "timeout_seconds": 900
       },
       "entrypoint": "runtime/loop/entry_dispatch.py",
@@ -2085,7 +2196,7 @@
       "browser_identity": "lancers:dais",
       "browser_target_owner": "lancers-revenue-browser",
       "cadence": {
-        "start_interval_seconds": 60
+        "start_interval_seconds": 300
       },
       "cleanup": {
         "max_age_days": 14,
@@ -2156,9 +2267,7 @@
       "effect_class": "publish",
       "effect_reconcile": {
         "argv": [
-          "skills/_shared/marketplace-core/scripts/reconcile_pre_effect_hint.py",
-          "--state-root", "~/.local/state/anicca/lancers",
-          "--owner", "lancers-revenue-storefront"
+          "skills/earn/lancers/scripts/storefront_effect_reconcile.py"
         ],
         "occurrence_flag": "--occurrence",
         "resolve_flag": "--resolve",
@@ -2241,7 +2350,7 @@
       "browser_identity": "lancers:dais",
       "browser_target_owner": "lancers-revenue-browser",
       "cadence": {
-        "start_interval_seconds": 300
+        "start_interval_seconds": 900
       },
       "coalesce_queued_wakes": true,
       "coalesce_reserved_wakes": true,
@@ -3204,7 +3313,21 @@
         "max_runs": 100
       },
       "domain": "growth",
-      "effect_class": "publish",
+      "effect_class": "message",
+      "effect_reconcile": {
+        "argv": [
+          "apps/life-manager/scripts/marketing-metrics-effect-reconcile.py",
+          "--owner-id",
+          "life-manager-instagram-metrics",
+          "--state-root",
+          "~/.local/state/life-manager",
+          "--data-root",
+          "~/.local/state/life-manager"
+        ],
+        "occurrence_flag": "--occurrence-id",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 60
+      },
       "entrypoint": "apps/life-manager/scripts/instagram-metrics-production-boot.sh",
       "label": "ai.anicca.life-manager-instagram-metrics",
       "log_root": "~/.local/state/life-manager/logs",
@@ -3356,7 +3479,21 @@
         "max_runs": 100
       },
       "domain": "growth",
-      "effect_class": "publish",
+      "effect_class": "message",
+      "effect_reconcile": {
+        "argv": [
+          "apps/life-manager/scripts/marketing-metrics-effect-reconcile.py",
+          "--owner-id",
+          "life-manager-tiktok-metrics",
+          "--state-root",
+          "~/.local/state/life-manager",
+          "--data-root",
+          "~/.local/state/life-manager"
+        ],
+        "occurrence_flag": "--occurrence-id",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 60
+      },
       "entrypoint": "apps/life-manager/scripts/tiktok-metrics-production-boot.sh",
       "label": "ai.anicca.life-manager-tiktok-metrics",
       "log_root": "~/.local/state/life-manager/logs",
@@ -3662,13 +3799,13 @@
       "effect_class": "application",
       "effect_reconcile": {
         "argv": [
-          "skills/_shared/marketplace-core/scripts/reconcile_pre_effect_hint.py",
+          "skills/earn/mercor/scripts/reconcile_fence_readback.py",
           "--state-root", "~/.local/state/anicca/job-search/mercor/application",
           "--owner", "mercor-revenue-application"
         ],
         "occurrence_flag": "--occurrence",
         "resolve_flag": "--resolve",
-        "timeout_seconds": 900
+        "timeout_seconds": 120
       },
       "coalesce_queued_wakes": true,
       "coalesce_reserved_wakes": true,
@@ -3697,7 +3834,7 @@
       "effect_class": "money",
       "effect_reconcile": {
         "argv": [
-          "skills/_shared/marketplace-core/scripts/reconcile_paid_no_effect.py",
+          "skills/earn/mercor/scripts/reconcile_fence_readback.py",
           "--state-root", "~/.local/state/anicca/job-search/mercor",
           "--owner", "mercor-revenue-paid"
         ],
@@ -3729,13 +3866,13 @@
       "effect_class": "message",
       "effect_reconcile": {
         "argv": [
-          "skills/_shared/marketplace-core/scripts/reconcile_pre_effect_hint.py",
+          "skills/earn/mercor/scripts/reconcile_fence_readback.py",
           "--state-root", "~/.local/state/anicca/job-search/mercor/reply",
           "--owner", "mercor-revenue-reply"
         ],
         "occurrence_flag": "--occurrence",
         "resolve_flag": "--resolve",
-        "timeout_seconds": 900
+        "timeout_seconds": 120
       },
       "resource_class": "agent",
       "admission_class": "revenue",

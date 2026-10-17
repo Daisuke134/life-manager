@@ -214,6 +214,216 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
             ["old-rakuten", "new-company"],
         )
 
+    def test_workday_queue_rotates_after_last_completed_application(self):
+        from job_search_loop.browser_agent.queue import RowQueueSupervisor
+
+        rows = [
+            {
+                "application_id": f"workday-{number}",
+                "company": f"Company {number}",
+                "title": "AI Role",
+                "canonical_url": f"https://company{number}.wd1.myworkdayjobs.com/job/role",
+                "_queue_created_at": (
+                    f"2026-10-15T{number // 3600:02d}:"
+                    f"{(number // 60) % 60:02d}:{number % 60:02d}Z"
+                ),
+            }
+            for number in range(1, 303)
+        ]
+        ledger = Mock()
+        ledger.pending_materials_ready_applications.return_value = rows
+        ledger.retryable_applications.return_value = []
+        ledger.workday_fit_qualified.return_value = True
+
+        with patch.dict(os.environ, {"JOB_SEARCH_APPLICATION_LIMIT": "48"}):
+            collected = RowQueueSupervisor.collect(
+                ledger,
+                active_provider="workday",
+                cursor_after=("2026-10-15T00:02:00Z", "workday-120"),
+            )
+
+        self.assertEqual(len(collected), 302)
+        self.assertEqual(collected[0]["application_id"], "workday-121")
+        self.assertEqual(collected[-1]["application_id"], "workday-120")
+
+    def test_in_progress_row_precedes_new_candidate_after_restart(self):
+        from job_search_loop.browser_agent.queue import RowQueueSupervisor
+
+        rows = [
+            {
+                "application_id": name,
+                "company": name,
+                "title": "AI Role",
+                "canonical_url": f"https://{name}.wd1.myworkdayjobs.com/job/role",
+                "_queue_created_at": f"2026-10-15T00:00:0{rowid}Z",
+            }
+            for name, rowid in (("wrapped-row", 1), ("cursor-row", 2), ("resume-row", 3), ("fresh-row", 4))
+        ]
+        ledger = Mock()
+        ledger.pending_materials_ready_applications.return_value = rows
+        ledger.retryable_applications.return_value = []
+        ledger.workday_fit_qualified.return_value = True
+        with patch.dict(
+            os.environ, {"JOB_SEARCH_PREFERRED_APPLICATION_ID": "fresh-row"}
+        ):
+            collected = RowQueueSupervisor.collect(
+                ledger,
+                active_provider="workday",
+                cursor_after=("2026-10-15T00:00:02Z", "cursor-row"),
+                in_progress_application_id="resume-row",
+            )
+
+        self.assertEqual(collected[0]["application_id"], "resume-row")
+
+    def test_wake_budget_resume_precedes_new_candidate(self):
+        from job_search_loop.browser_agent.queue import RowQueueSupervisor
+
+        rows = [
+            {
+                "application_id": name,
+                "company": name,
+                "title": "AI Role",
+                "canonical_url": f"https://{name}.wd1.myworkdayjobs.com/job/role",
+                "_queue_created_at": f"2026-10-15T00:00:0{rowid}Z",
+            }
+            for name, rowid in (("old-row", 1), ("cursor-row", 2), ("resume-row", 3), ("fresh-row", 4))
+        ]
+        ledger = Mock()
+        ledger.pending_materials_ready_applications.return_value = rows
+        ledger.retryable_applications.return_value = []
+        ledger.workday_fit_qualified.return_value = True
+        with patch.dict(
+            os.environ, {"JOB_SEARCH_PREFERRED_APPLICATION_ID": "fresh-row"}
+        ):
+            collected = RowQueueSupervisor.collect(
+                ledger,
+                active_provider="workday",
+                cursor_after=("2026-10-15T00:00:02Z", "cursor-row"),
+                resume_application_ids=("resume-row",),
+            )
+
+        self.assertEqual(collected[0]["application_id"], "resume-row")
+
+    def test_old_preferred_row_cannot_reset_a_workday_queue_cursor(self):
+        from job_search_loop.browser_agent.queue import RowQueueSupervisor
+
+        rows = [
+            {
+                "application_id": name,
+                "company": name,
+                "title": "AI Role",
+                "canonical_url": f"https://{name}.wd1.myworkdayjobs.com/job/role",
+                "_queue_created_at": f"2026-10-15T00:00:0{rowid}Z",
+            }
+            for name, rowid in (("old-preferred", 1), ("cursor", 2), ("next", 3), ("later", 4))
+        ]
+        ledger = Mock()
+        ledger.pending_materials_ready_applications.return_value = rows
+        ledger.retryable_applications.return_value = []
+        ledger.workday_fit_qualified.return_value = True
+        with patch.dict(
+            os.environ,
+            {"JOB_SEARCH_PREFERRED_APPLICATION_ID": "old-preferred"},
+        ):
+            collected = RowQueueSupervisor.collect(
+                ledger,
+                active_provider="workday",
+                cursor_after=("2026-10-15T00:00:02Z", "cursor"),
+            )
+
+        self.assertEqual(collected[0]["application_id"], "next")
+
+    def test_wake_completion_persists_private_queue_cursor(self):
+        from job_search_loop.browser_agent import runtime
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            scratch = root / "scratch"
+            state = root / "browser-state"
+            scratch.mkdir(mode=0o700)
+            state.mkdir(mode=0o700)
+            ledger = Mock()
+            ledger.connection.execute.return_value.fetchone.return_value = (
+                "2026-10-15T00:00:41Z",
+            )
+            with patch.dict(
+                os.environ,
+                {
+                    "JOB_SEARCH_BROWSER_SCRATCH": str(scratch),
+                    "JOB_SEARCH_BROWSER_STATE_ROOT": str(state),
+                    "JOB_SEARCH_STATE_ROOT": str(root),
+                },
+            ), patch.object(runtime, "Ledger", return_value=ledger):
+                runtime._mark_wake_completed("workday-41")
+
+            cursor = state / "application-queue-cursor.v1.json"
+            self.assertEqual(
+                json.loads(cursor.read_text(encoding="utf-8")),
+                {
+                    "schema_version": 1,
+                    "last_application_id": "workday-41",
+                    "last_created_at": "2026-10-15T00:00:41Z",
+                    "in_progress_application_id": None,
+                    "resume_application_ids": [],
+                },
+            )
+            self.assertEqual(cursor.stat().st_mode & 0o077, 0)
+
+    def test_wake_budget_checkpoint_keeps_row_in_resume_queue(self):
+        from job_search_loop.browser_agent import runtime
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            scratch = root / "scratch"
+            state = root / "browser-state"
+            scratch.mkdir(mode=0o700)
+            state.mkdir(mode=0o700)
+            ledger = Mock()
+            ledger.connection.execute.return_value.fetchone.return_value = (
+                "2026-10-15T00:00:41Z",
+            )
+            with patch.dict(
+                os.environ,
+                {
+                    "JOB_SEARCH_BROWSER_SCRATCH": str(scratch),
+                    "JOB_SEARCH_BROWSER_STATE_ROOT": str(state),
+                    "JOB_SEARCH_STATE_ROOT": str(root),
+                },
+            ), patch.object(runtime, "Ledger", return_value=ledger):
+                runtime._mark_wake_completed(
+                    "workday-41", resume_next_wake=True
+                )
+
+            cursor = json.loads(
+                (state / "application-queue-cursor.v1.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertEqual(cursor["resume_application_ids"], ["workday-41"])
+
+    def test_not_submitted_report_delivery_failure_still_advances_queue(self):
+        from job_search_loop.browser_agent import runtime
+
+        row = {
+            "application_id": "workday-blocked",
+            "company": "Example",
+            "title": "AI Role",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            owner_evidence = Path(directory) / "browser-owner.json"
+            with patch.dict(
+                os.environ,
+                {"JOB_SEARCH_BROWSER_OWNER_EVIDENCE": str(owner_evidence)},
+            ), patch.object(runtime, "_row", return_value=row), patch.object(
+                runtime,
+                "send_hourly_outcomes",
+                side_effect=RuntimeError("optional Telegram transport unavailable"),
+            ), patch.object(runtime, "_mark_wake_completed") as mark_completed:
+                result = runtime.report("not_submitted")
+
+        self.assertEqual(result["status"], "delivery_failed")
+        mark_completed.assert_called_once_with("workday-blocked")
+
     def test_browser_queue_omits_recovery_requested_workday_tenant(self):
         from job_search_loop.browser_agent.queue import RowQueueSupervisor
 
@@ -548,17 +758,150 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
             encoding="utf-8",
         )
 
+    def _write_wake_queue_evidence(
+        self, root: Path, queued: tuple[str, ...], completed: tuple[str, ...]
+    ) -> None:
+        (root / "workday-discovery.json").write_text(
+            json.dumps({"queued_application_ids": list(queued)}),
+            encoding="utf-8",
+        )
+        scratch = root / "scratch"
+        scratch.mkdir(exist_ok=True)
+        (scratch / "completed-rows.json").write_text(
+            json.dumps({"application_ids": list(completed)}),
+            encoding="utf-8",
+        )
+
     def test_queue_complete_after_observed_row_requires_semantic_retry(self):
         from job_search_loop.browser_agent import orchestrator
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self._write_queue_complete_observe_fixture(root, ("observed", "observed"))
+            self._write_wake_queue_evidence(root, ("observed-row",), ())
 
             self.assertEqual(
                 orchestrator.validate_pass_result(root),
                 "observed_row_without_terminal_outcome",
             )
+
+    def test_blocked_rows_do_not_hide_an_unprocessed_observed_row(self):
+        from job_search_loop.browser_agent import orchestrator
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_queue_complete_observe_fixture(root, ("queue_complete",))
+            self._write_wake_queue_evidence(
+                root, ("new-row", "older-row"), ("older-row",)
+            )
+            result = json.loads((root / "result.json").read_text(encoding="utf-8"))
+            result["blocked"] = ["an older row was truthfully blocked"]
+            (root / "result.json").write_text(
+                json.dumps(result), encoding="utf-8"
+            )
+
+            self.assertEqual(
+                orchestrator.validate_pass_result(root),
+                "observed_row_without_terminal_outcome",
+            )
+
+    def test_successful_submission_does_not_hide_an_unprocessed_queue_row(self):
+        from job_search_loop.browser_agent import orchestrator
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_queue_complete_observe_fixture(root, ("queue_complete",))
+            self._write_wake_queue_evidence(
+                root, ("submitted-row", "pending-row"), ("submitted-row",)
+            )
+            result = json.loads((root / "result.json").read_text(encoding="utf-8"))
+            result["submitted"] = ["submitted-row"]
+            (root / "result.json").write_text(json.dumps(result), encoding="utf-8")
+
+            self.assertEqual(
+                orchestrator.validate_pass_result(root),
+                "observed_row_without_terminal_outcome",
+            )
+
+    def test_successful_submission_is_terminal_after_queue_is_drained(self):
+        from job_search_loop.browser_agent import orchestrator
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_queue_complete_observe_fixture(root, ("queue_complete",))
+            self._write_wake_queue_evidence(
+                root, ("submitted-row", "completed-row"),
+                ("submitted-row", "completed-row"),
+            )
+            result = json.loads((root / "result.json").read_text(encoding="utf-8"))
+            result["submitted"] = ["submitted-row"]
+            (root / "result.json").write_text(json.dumps(result), encoding="utf-8")
+
+            self.assertIsNone(orchestrator.validate_pass_result(root))
+
+    def test_missing_queue_evidence_requires_semantic_retry(self):
+        from job_search_loop.browser_agent import orchestrator
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_queue_complete_observe_fixture(root, ("queue_complete",))
+            result = json.loads((root / "result.json").read_text(encoding="utf-8"))
+            result["blocked"] = ["an older row was truthfully blocked"]
+            (root / "result.json").write_text(
+                json.dumps(result), encoding="utf-8"
+            )
+
+            self.assertEqual(
+                orchestrator.validate_pass_result(root),
+                "observed_row_without_terminal_outcome",
+            )
+
+    def test_malformed_queue_evidence_requires_semantic_retry(self):
+        from job_search_loop.browser_agent import orchestrator
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_queue_complete_observe_fixture(root, ("queue_complete",))
+            self._write_wake_queue_evidence(root, (), ())
+            (root / "workday-discovery.json").write_text("{broken", encoding="utf-8")
+
+            self.assertEqual(
+                orchestrator.validate_pass_result(root),
+                "observed_row_without_terminal_outcome",
+            )
+
+    def test_invalid_utf8_queue_evidence_requires_semantic_retry(self):
+        from job_search_loop.browser_agent import orchestrator
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_queue_complete_observe_fixture(root, ("queue_complete",))
+            self._write_wake_queue_evidence(root, (), ())
+            (root / "workday-discovery.json").write_bytes(b"\xff")
+
+            self.assertEqual(
+                orchestrator.validate_pass_result(root),
+                "observed_row_without_terminal_outcome",
+            )
+
+    def test_blocked_rows_are_terminal_after_completed_ids_drain_discovery_queue(self):
+        from job_search_loop.browser_agent import orchestrator
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_queue_complete_observe_fixture(
+                root, ("observed", "queue_complete")
+            )
+            self._write_wake_queue_evidence(
+                root, ("row-one", "row-two"), ("row-one", "row-two")
+            )
+            result = json.loads((root / "result.json").read_text(encoding="utf-8"))
+            result["blocked"] = ["an older row was truthfully blocked"]
+            (root / "result.json").write_text(
+                json.dumps(result), encoding="utf-8"
+            )
+
+            self.assertIsNone(orchestrator.validate_pass_result(root))
 
     def test_latest_successful_queue_complete_observe_remains_accepted(self):
         from job_search_loop.browser_agent import orchestrator
@@ -568,6 +911,7 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
             self._write_queue_complete_observe_fixture(
                 root, ("observed", "queue_complete")
             )
+            self._write_wake_queue_evidence(root, (), ())
 
             self.assertIsNone(orchestrator.validate_pass_result(root))
 
@@ -586,6 +930,7 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self._write_queue_complete_observe_fixture(root, ())
+            self._write_wake_queue_evidence(root, ("row",), ("row",))
             (root / "stdout.log").write_text(
                 "".join(json.dumps(event) + "\n" for event in events), encoding="utf-8"
             )
@@ -603,22 +948,26 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
                 ],
             )
 
-    def test_validator_accepts_event_overlap_when_runtime_commands_both_succeed(self):
+    def test_validator_accepts_overlapping_actions_after_queue_complete_observe(self):
         from job_search_loop.browser_agent import orchestrator
 
         command = "/bin/zsh -lc '/opt/homebrew/bin/python3 -m job_search_loop.browser_agent.runtime "
         event = lambda kind, item_id, command, **fields: {"type": f"item.{kind}", "item": {"id": item_id, "type": "command_execution", "command": command, **fields}}
         click = command + "click --label Continue --role button --stable-id ref:e1'"
         wait = command + "wait --milliseconds 6000'"
+        observe = command + "observe'"
         events = [
             event("started", "click-1", click),
             event("started", "wait-1", wait),
             event("completed", "click-1", click, exit_code=0, aggregated_output=json.dumps({"status": "acted"})),
             event("completed", "wait-1", wait, exit_code=0, aggregated_output=json.dumps({"status": "acted"})),
+            event("started", "observe-1", observe),
+            event("completed", "observe-1", observe, exit_code=0, aggregated_output=json.dumps({"status": "queue_complete"})),
         ]
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self._write_queue_complete_observe_fixture(root, ())
+            self._write_wake_queue_evidence(root, (), ())
             (root / "result.json").write_text(
                 json.dumps(
                     {
@@ -653,6 +1002,7 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self._write_queue_complete_observe_fixture(root, ())
+            self._write_wake_queue_evidence(root, (), ())
             (root / "result.json").write_text(
                 json.dumps({"status": "transport_failed", "submitted": [], "submit_unknown": [], "blocked": []}),
                 encoding="utf-8",
@@ -722,6 +1072,58 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
         self.assertIn("job_search_loop.browser_agent.browser_agent.runtime", prompt)
         self.assertIn("replace it with the canonical module", prompt)
 
+    def test_daily_prompt_continues_after_profile_batch_results(self):
+        prompt = " ".join(
+            (APP_ROOT / "prompts" / "daily-pass.md").read_text(encoding="utf-8").split()
+        )
+        self.assertIn("`batch_acted`", prompt)
+        self.assertIn("`batch_partial`", prompt)
+        self.assertIn("never return `transport_failed` for them", prompt)
+
+    def test_daily_prompt_batches_grounded_workday_fields_and_checkpoints_before_budget_end(self):
+        prompt = " ".join(
+            (APP_ROOT / "prompts" / "daily-pass.md").read_text(encoding="utf-8").split()
+        )
+        self.assertIn("runtime fill-form --fields-json", prompt)
+        self.assertIn("exact `fact_refs`", prompt)
+        self.assertIn("literal substring", prompt)
+        self.assertIn("remaining_steps <= 2", prompt)
+        self.assertIn("checkpoint --reason wake_budget_low", prompt)
+        self.assertNotIn("do not create an intermediate file, helper code, or batch action", prompt)
+
+    def test_daily_prompt_stops_after_profile_batch_post_action_failure(self):
+        prompt = " ".join(
+            (APP_ROOT / "prompts" / "daily-pass.md").read_text(encoding="utf-8").split()
+        )
+        self.assertIn("nested `fill-profile` result has `status: transport_failed`", prompt)
+        self.assertIn("its `action_receipt_sha256`", prompt)
+        self.assertIn("Do not issue another runtime command", prompt)
+        self.assertIn("return a valid pass result with the current row in `blocked`", prompt)
+
+    def test_daily_prompt_searches_for_grounded_picker_value_before_continuing(self):
+        prompt = (APP_ROOT / "prompts" / "daily-pass.md").read_text(encoding="utf-8")
+        normalized = " ".join(prompt.split())
+
+        self.assertIn(
+            "When the exact grounded target is missing from the visible picker options",
+            normalized,
+        )
+        self.assertIn(
+            "use `runtime type-text` on the currently visible search control",
+            normalized,
+        )
+        self.assertIn("inspect the fresh filtered options", normalized)
+        self.assertIn("select only an exact match", normalized)
+        self.assertIn("A typed search term is not a committed selection", normalized)
+        self.assertIn(
+            "Never click Continue while a required picker remains unfilled",
+            normalized,
+        )
+        self.assertIn(
+            "report only this row as `not_submitted` and continue to the next `observe`",
+            normalized,
+        )
+
     def test_daily_prompt_skips_captcha_row_without_bypass_and_continues(self):
         prompt = (APP_ROOT / "prompts" / "daily-pass.md").read_text(encoding="utf-8")
         normalized = " ".join(prompt.split())
@@ -729,24 +1131,30 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
         self.assertIn("visible CAPTCHA or human-verification challenge appears before submission", normalized)
         self.assertIn("do not solve or bypass it", normalized)
         self.assertIn("checkpoint --reason visible_challenge", normalized)
-        self.assertIn("report --status checkpointed", normalized)
+        self.assertIn("saves and reports that exact row atomically", normalized)
+        self.assertNotIn("report --status checkpointed", normalized)
         self.assertIn("continue to the next independent Workday row", normalized)
         self.assertIn("after submission may have started", normalized)
         self.assertIn("preserve `submit_unknown` and never retry that row", normalized)
 
-    def test_daily_prompt_does_not_report_ineligible_rows_twice(self):
+    def test_daily_prompt_treats_suppressed_ineligible_report_as_terminal(self):
         prompt = (APP_ROOT / "prompts" / "daily-pass.md").read_text(encoding="utf-8")
         normalized = " ".join(prompt.split())
 
         self.assertIn(
-            "`runtime ineligible` already reports the exact current row itself and returns `report_message_id`",
+            "`runtime ineligible` returns `status: ineligible`",
             normalized,
         )
-        self.assertIn("never call `runtime report` after it", normalized)
+        self.assertIn("Its Telegram outcome may be suppressed", normalized)
+        self.assertIn("`report_message_id` may be null", normalized)
+        self.assertIn("continue with the next `observe`", normalized)
+        self.assertIn("do not call `runtime report` again for that row", normalized)
         self.assertIn(
-            "`runtime checkpoint` only saves a checkpoint; call `runtime report --status checkpointed`",
+            "`runtime checkpoint` saves and reports the same row atomically",
             normalized,
         )
+        self.assertIn("returns its exact `application_id`", normalized)
+        self.assertNotIn("runtime report --status checkpointed", normalized)
         self.assertNotIn(
             "`runtime ineligible --reason hard_ineligible`, report it", normalized
         )
@@ -757,14 +1165,34 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
             "`ineligible` and then `report --status not_submitted`", normalized
         )
 
+    def test_daily_prompt_skips_only_the_row_with_an_unsupported_required_fact(self):
+        prompt = (APP_ROOT / "prompts" / "daily-pass.md").read_text(encoding="utf-8")
+        normalized = " ".join(prompt.split())
+
+        self.assertIn("do not invent it", normalized)
+        self.assertIn("Call `runtime report --status not_submitted` once", normalized)
+        self.assertIn("continue to the next `observe`", normalized)
+        self.assertIn("Do not mark a role generally ineligible only because that one fact is missing", normalized)
+
+    def test_daily_prompt_uses_saved_answer_memory_for_prior_employment(self):
+        prompt = (APP_ROOT / "prompts" / "daily-pass.md").read_text(encoding="utf-8")
+        normalized = " ".join(prompt.split())
+
+        self.assertIn("runtime answer --question-label", normalized)
+        self.assertIn("Answer Memory", normalized)
+        self.assertIn("prior-employment yes/no", normalized)
+        self.assertIn("if the hiring company is absent from its Experience section, answer `No`", normalized)
+        self.assertIn("This assumption applies only to prior employment", normalized)
+        self.assertIn("Never infer work authorization or sponsorship", normalized)
+
     def test_daily_prompt_uses_safe_defaults_without_inventing_current_salary(self):
         prompt = (APP_ROOT / "prompts" / "daily-pass.md").read_text(encoding="utf-8")
         normalized = " ".join(prompt.split())
 
         self.assertIn("For ordinary non-factual preferences, do not stop to ask the owner", normalized)
         self.assertIn("infer the closest supported option from the private profile and job context", normalized)
-        self.assertIn("Do not use this inference rule for credentials, work authorization, salary, or other personal facts", normalized)
-        self.assertIn("For a required personal fact or legal attestation missing from approved profile facts", normalized)
+        self.assertIn("Do not use this inference rule for credentials, work authorization, sponsorship, or salary", normalized)
+        self.assertIn("Outside the prior-employment assumption above, never guess a required legal attestation or other personal fact missing from approved profile facts", normalized)
         self.assertIn("If the visible form explicitly offers a non-disclosure or decline option, choose that exact visible option", normalized)
         self.assertIn("If required and no truthful answer or decline option exists, block only this row", normalized)
         self.assertIn("Never invent or estimate a current salary", normalized)
@@ -851,6 +1279,8 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
         self.assertIn("Agent loop adopted from Browser Use and career-ops", prompt)
         self.assertIn("observation-local `ref:*`", prompt)
         self.assertIn("Act on exactly one currently visible control", prompt)
+        self.assertIn("runtime fill-profile --fields-json", prompt)
+        self.assertIn("separate action receipt for each field", prompt)
         self.assertIn("Opening a dropdown is\none action", prompt)
         self.assertIn("A row-local failure never ends the queue", " ".join(prompt.split()))
         self.assertIn("job_search_loop.browser_agent.candidate_memory", daily)
@@ -906,7 +1336,7 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
                 "/python3",
                 "/runtime/agent_runner.py",
                 "--task-class",
-                "job-hunter-agent",
+                "workday-browser-agent",
                 "--escalation-reason",
                 "repeated browser form completion abandoned before provider terminal outcome",
                 "--timeout-seconds",
@@ -929,6 +1359,29 @@ class ModelBrowserLoopContractTests(unittest.TestCase):
         self.assertEqual(
             kwargs["env"]["JOB_SEARCH_ACTIVE_APPLICATION_PROVIDER"], "workday"
         )
+
+    def test_orchestrator_keeps_the_shared_task_class_for_non_workday_providers(self):
+        from job_search_loop.browser_agent.orchestrator import invoke_runner
+
+        completed = Mock(returncode=0)
+        with patch(
+            "job_search_loop.browser_agent.orchestrator.subprocess.run",
+            return_value=completed,
+        ) as run:
+            returncode = invoke_runner(
+                runner=Path("/runtime/agent_runner.py"),
+                prompt=Path("/app/prompts/daily-pass.md"),
+                schema=Path("/app/schemas/pass-result.v1.schema.json"),
+                evidence_dir=Path("/state/evidence/wake"),
+                workdir=Path("/repo"),
+                timeout_seconds=900,
+                python="/python3",
+                active_provider="ashby",
+            )
+
+        self.assertEqual(returncode, 0)
+        command = run.call_args.args[0]
+        self.assertEqual(command[command.index("--task-class") + 1], "job-hunter-agent")
 
     def test_orchestrator_retries_once_after_false_transport_failure(self):
         from job_search_loop.browser_agent import orchestrator

@@ -40,4 +40,5 @@ def test_it_is_not_back_to_one_minute_polling():
 
 def test_only_the_applying_lane_changes():
     assert _lane("hf-gig-storefront-direct")["cadence"]["start_interval_seconds"] == 60
-    assert _lane("hf-gig-paid-direct")["cadence"]["start_interval_seconds"] == 300
+    # 2026-10-15: payment polling moved to 900s to stop it starving the two host agent slots.
+    assert _lane("hf-gig-paid-direct")["cadence"]["start_interval_seconds"] == 900

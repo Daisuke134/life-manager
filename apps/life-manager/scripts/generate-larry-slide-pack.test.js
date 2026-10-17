@@ -9,13 +9,15 @@ const { spawnSync } = require("node:child_process");
 const test = require("node:test");
 
 const { importContentObject } = require("../lib/content-object-store.js");
+const { createMarketingLocalLedger } = require("../lib/marketing-local-ledger.js");
 const { JA_LANE, JA_MAIN_TIKTOK_LANE, EN_AFFIRMATION_LANE, EN_AFFIRMATION_TIKTOK_LANE, EN_SLIDESHOW_TIKTOK_LANE, JA_BUDDHA_TIKTOK_LANE } = require("../lib/marketing-native-carousel-publication-adapter.js");
-const { EN_SLIDESHOW_PRODUCTION_SLOTS } = require("./anicca-larry-ja-canary.js");
+const { EN_AFFIRMATION_TIKTOK_PRODUCTION_SLOTS, EN_SLIDESHOW_PRODUCTION_SLOTS } = require("./anicca-larry-ja-canary.js");
 const {
   MIN_DAYS_BETWEEN_REPEAT,
   MIN_POOL_SIZE,
   poolPath,
   readPostedHistory,
+  readCreativeMetricsForFamilies,
   resolveLarryJaSlot,
 } = require("./generate-larry-slide-pack.js");
 
@@ -93,6 +95,59 @@ function seedPersistedSlidePool(dataDir, lane) {
   return candidates;
 }
 
+async function seedPublicationJob(dataDir, lane, slot, options = {}) {
+  const now = options.now || slot;
+  const ledger = createMarketingLocalLedger({ dataDir, now: () => now });
+  const jobId = "slot-job-" + String(lane.lane || lane.accountId).replace(/[^A-Za-z0-9_-]/g, "-")
+    + "-" + slot.replace(/[^0-9]/g, "");
+  const candidate = options.candidate;
+  const input = {
+    job_id: jobId,
+    tenant_id: TENANT,
+    loop_id: "marketing.video.publish",
+    capability: "marketing.video.publish",
+    effect_class: "publish",
+    effect_key: "marketing:carousel:test:" + slot,
+    input_refs: {
+      product_ref: "product://" + lane.productId,
+      format_ref: "format://" + lane.formatId,
+      form_ref: "form://" + lane.form,
+      locale_ref: "locale://" + lane.locale,
+      slot_ref: "schedule-slot://" + slot,
+      platform_ref: "platform://" + lane.platform,
+      account_ref: lane.accountRef,
+      tiktok_integration_ref: lane.integrationRef,
+      ...(candidate ? {
+        pack_ref: candidate.packRef,
+        media_refs: candidate.mediaRefs,
+        caption_ref: candidate.captionRef,
+        approval_ref: candidate.approvalRef,
+      } : {}),
+    },
+    max_attempts: 3,
+    available_at: now,
+  };
+  await ledger.enqueueJob(input);
+  if (options.unknownEffect === true) {
+    const claim = await ledger.claimJob({
+      tenantId: TENANT,
+      jobId,
+      capability: "marketing.video.publish",
+      workerId: "slot-fixture-worker",
+      leaseSeconds: 30,
+    });
+    await ledger.failJob({
+      tenantId: TENANT,
+      jobId,
+      attempt: claim.attempt,
+      workerId: "slot-fixture-worker",
+      errorCode: "provider_unknown",
+      unknownEffect: true,
+    });
+  }
+  return { ledger, input, jobId };
+}
+
 test("resolveLarryJaSlot generates a pool from empty and returns a candidate", { timeout: 60_000 }, async (t) => {
   makeFixtureBackgroundOnce();
   const dataDir = tempDataDir(t);
@@ -124,7 +179,7 @@ test("resolveLarryJaSlot returns a typed no-due result before the first slot wit
   assert.equal(fs.existsSync(poolPath(dataDir, TENANT, EN_AFFIRMATION_LANE.productId, EN_AFFIRMATION_LANE.lane)), false);
 });
 
-test("resolveLarryJaSlot catches up the oldest unposted slot after later slots are due", { timeout: 60_000 }, async (t) => {
+test("resolveLarryJaSlot preserves the oldest-slot catch-up behavior for Instagram", { timeout: 60_000 }, async (t) => {
   makeFixtureBackgroundOnce();
   const dataDir = tempDataDir(t);
   const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
@@ -134,8 +189,155 @@ test("resolveLarryJaSlot catches up the oldest unposted slot after later slots a
     resolveBackground: fakeResolveBackground(),
   });
 
-  assert.equal(result.slot, "2026-09-28T01:30:00.000Z"); // first unposted slot, 10:30 JST.
+  assert.equal(result.slot, "2026-09-28T01:30:00.000Z"); // first unposted Instagram slot, 10:30 JST.
   assert.ok(result.selected);
+});
+
+test("resolveLarryJaSlot selects the latest fresh TikTok slot instead of catching up an older slot", async (t) => {
+  const dataDir = tempDataDir(t);
+  const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
+  const lane = EN_AFFIRMATION_TIKTOK_LANE;
+  seedPersistedSlidePool(dataDir, lane);
+  const result = await resolveLarryJaSlot({
+    env,
+    now: () => "2026-10-13T05:16:00.000Z", // 14:16 JST; 14:15 is current, 09:15 is stale.
+    lane,
+    productionSlots: EN_AFFIRMATION_TIKTOK_PRODUCTION_SLOTS,
+    generateCandidates: async () => { throw new Error("the persisted pack pool should be reused"); },
+  });
+
+  assert.equal(result.slot, "2026-10-13T05:15:00.000Z");
+  assert.ok(result.selected);
+});
+
+test("resolveLarryJaSlot does not catch up a missed TikTok slot after its freshness window", async (t) => {
+  const dataDir = tempDataDir(t);
+  const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
+  let generateCalls = 0;
+  await assert.rejects(resolveLarryJaSlot({
+    env,
+    now: () => "2026-10-13T07:10:00.000Z", // 16:10 JST; 14:15 is over 15 minutes late.
+    lane: EN_AFFIRMATION_TIKTOK_LANE,
+    productionSlots: EN_AFFIRMATION_TIKTOK_PRODUCTION_SLOTS,
+    generateCandidates: async () => {
+      generateCalls += 1;
+      throw new Error("must not generate for a missed slot");
+    },
+  }), (error) => error && error.code === "NO_DUE_SLOT");
+  assert.equal(generateCalls, 0);
+});
+
+test("resolveLarryJaSlot advances to the current slot without replaying an older unknown job", { timeout: 60_000 }, async (t) => {
+  makeFixtureBackgroundOnce();
+  const dataDir = tempDataDir(t);
+  const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
+  const oldSlot = "2026-10-13T00:15:00.000Z";
+  const currentSlot = "2026-10-13T05:15:00.000Z";
+  await seedPublicationJob(dataDir, EN_AFFIRMATION_TIKTOK_LANE, oldSlot, {
+    now: "2026-10-13T05:15:22.000Z",
+    unknownEffect: true,
+  });
+  seedPersistedSlidePool(dataDir, EN_AFFIRMATION_TIKTOK_LANE);
+
+  const result = await resolveLarryJaSlot({
+    env,
+    now: () => "2026-10-13T05:16:00.000Z", // 14:16 JST; 14:15 is current, 09:15 is stale.
+    lane: EN_AFFIRMATION_TIKTOK_LANE,
+    productionSlots: EN_AFFIRMATION_TIKTOK_PRODUCTION_SLOTS,
+    generateCandidates: async () => { throw new Error("the persisted pack pool should be reused"); },
+  });
+
+  assert.equal(result.slot, currentSlot);
+  assert.ok(result.selected);
+});
+
+test("resolveLarryJaSlot holds an already-attempted current slot without generating or re-enqueueing", async (t) => {
+  const dataDir = tempDataDir(t);
+  const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
+  const currentSlot = "2026-10-13T05:15:00.000Z";
+  await seedPublicationJob(dataDir, EN_AFFIRMATION_TIKTOK_LANE, currentSlot, {
+    now: "2026-10-13T05:15:22.000Z",
+    unknownEffect: true,
+  });
+  let generateCalls = 0;
+
+  await assert.rejects(resolveLarryJaSlot({
+    env,
+    now: () => "2026-10-13T05:16:00.000Z",
+    lane: EN_AFFIRMATION_TIKTOK_LANE,
+    productionSlots: EN_AFFIRMATION_TIKTOK_PRODUCTION_SLOTS,
+    generateCandidates: async () => { generateCalls += 1; throw new Error("must not regenerate an attempted slot"); },
+  }), (error) => error && error.code === "SLOT_ALREADY_ATTEMPTED");
+
+  assert.equal(generateCalls, 0);
+});
+
+test("resolveLarryJaSlot refuses a safe queued job when a second historical same-slot job exists", async (t) => {
+  const dataDir = tempDataDir(t);
+  const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
+  const lane = EN_AFFIRMATION_TIKTOK_LANE;
+  const currentSlot = "2026-10-13T05:15:00.000Z";
+  const now = "2026-10-13T05:16:00.000Z";
+  const candidate = seedPersistedSlidePool(dataDir, lane)[0];
+  const { ledger, jobId } = await seedPublicationJob(dataDir, lane, currentSlot, { now, candidate });
+  const queued = await ledger.readJob({ tenantId: TENANT, jobId });
+  const unresolved = {
+    ...queued,
+    job_id: "historical-unknown-same-slot-job",
+    effect_key: "historical-unknown-same-slot-effect",
+    status: "failed",
+    attempt: 1,
+    unknown_effect: true,
+    error_code: "provider_unknown",
+    lease_owner: null,
+    lease_expires_at: null,
+  };
+  fs.appendFileSync(path.join(dataDir, "marketing", "jobs.jsonl"), `${JSON.stringify({
+    schema_version: 1,
+    kind: "job",
+    event: "fail",
+    job: unresolved,
+  })}\n`);
+  let generateCalls = 0;
+
+  await assert.rejects(resolveLarryJaSlot({
+    env,
+    now: () => now,
+    lane,
+    productionSlots: EN_AFFIRMATION_TIKTOK_PRODUCTION_SLOTS,
+    generateCandidates: async () => { generateCalls += 1; throw new Error("must not regenerate a conflicted slot"); },
+  }), (error) => error && error.code === "SLOT_ALREADY_ATTEMPTED");
+
+  assert.equal(generateCalls, 0);
+});
+
+test("resolveLarryJaSlot reuses a safe queued job for its current slot", async (t) => {
+  const dataDir = tempDataDir(t);
+  const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
+  const lane = EN_AFFIRMATION_TIKTOK_LANE;
+  const currentSlot = "2026-10-13T05:15:00.000Z";
+  const now = "2026-10-13T05:16:00.000Z";
+  const candidate = seedPersistedSlidePool(dataDir, lane)[0];
+  await seedPublicationJob(dataDir, lane, currentSlot, { now, candidate });
+  let generateCalls = 0;
+
+  const result = await resolveLarryJaSlot({
+    env,
+    now: () => now,
+    lane,
+    productionSlots: EN_AFFIRMATION_TIKTOK_PRODUCTION_SLOTS,
+    generateCandidates: async () => { generateCalls += 1; throw new Error("queued job must keep its original pack"); },
+  });
+
+  assert.equal(result.slot, currentSlot);
+  assert.deepEqual(result.selected, {
+    packRef: candidate.packRef,
+    mediaRefs: candidate.mediaRefs,
+    captionRef: candidate.captionRef,
+    approvalRef: candidate.approvalRef,
+  });
+  assert.equal(result.queuedJobReused, true);
+  assert.equal(generateCalls, 0);
 });
 
 test("resolveLarryJaSlot does not consume future daily slots before their configured times", async (t) => {
@@ -355,7 +557,7 @@ test("resolveLarryJaSlot rechecks the slot after generation finishes", async (t)
   const generated = { packRef: `object://sha256/${"e".repeat(64)}`, familyId: "fresh" };
   const result = await resolveLarryJaSlot({
     env,
-    now: () => NOW,
+    now: () => "2026-09-28T00:05:00.000Z", // 09:05 JST, inside the 09:00 slot window.
     slot,
     lane: EN_SLIDESHOW_TIKTOK_LANE,
     productionSlots: ["09:00", "15:00", "21:00"],
@@ -431,6 +633,69 @@ test("readPostedHistory maps carousel distribution receipts to packRef/postedAt"
     slotHash,
     providerPostId: "postiz-history-1",
   }]);
+});
+
+test("readCreativeMetricsForFamilies uses exact in-window 24h views and requires three posts", (t) => {
+  const dataDir = tempDataDir(t);
+  const lane = EN_AFFIRMATION_TIKTOK_LANE;
+  const candidates = [
+    { packRef: `object://sha256/${"a".repeat(64)}`, familyId: "question-hook" },
+    { packRef: `object://sha256/${"b".repeat(64)}`, familyId: "myth-vs-fact" },
+    { packRef: `object://sha256/${"c".repeat(64)}`, familyId: "listicle" },
+  ];
+  const postedHistory = [];
+  const metricRows = [];
+  const addPosts = (prefix, candidate, views) => {
+    for (const [index, viewCount] of views.entries()) {
+      const providerPostId = `${prefix}-${index + 1}`;
+      const publishedAt = `2026-10-01T0${index}:00:00.000Z`;
+      postedHistory.push({ packRef: candidate.packRef, postedAt: publishedAt,
+        integrationRef: lane.integrationRef, providerPostId });
+      metricRows.push({
+        product_id: lane.productId,
+        platform: lane.platform,
+        locale: lane.locale,
+        integration_id: lane.integrationId,
+        postiz_id: providerPostId,
+        published_at: publishedAt,
+        observed_at: `2026-10-02T0${index}:00:00.000Z`,
+        target_age_hours: 24,
+        checkpoint_status: "measured",
+        checkpoint_sla_status: "in_window",
+        views: viewCount,
+      });
+    }
+  };
+  addPosts("question", candidates[0], [100, 200, 300]);
+  addPosts("myth", candidates[1], [400, 500, 600]);
+  addPosts("listicle", candidates[2], [900, 1000]);
+  metricRows.find((row) => row.postiz_id === "question-1").published_at = "2026-10-01T00:00:09.056Z";
+  postedHistory.push(
+    { packRef: candidates[2].packRef, postedAt: "2026-10-01T03:00:00.000Z",
+      integrationRef: lane.integrationRef, providerPostId: "listicle-late" },
+    { packRef: candidates[2].packRef, postedAt: "2026-10-01T04:00:00.000Z",
+      integrationRef: lane.integrationRef, providerPostId: "listicle-skew" },
+  );
+  metricRows.push(
+    { ...metricRows[0], integration_id: "another-account", views: 99_999, observed_at: "2026-10-03T00:00:00.000Z" },
+    { ...metricRows[1], target_age_hours: 72, views: 88_888, observed_at: "2026-10-03T00:00:00.000Z" },
+    { ...metricRows.at(-1), postiz_id: "listicle-late", published_at: "2026-10-01T03:00:00.000Z",
+      target_age_hours: 24, checkpoint_status: "measured", checkpoint_sla_status: "missed", views: 77_777 },
+    { ...metricRows.at(-1), postiz_id: "listicle-skew", published_at: "2026-10-01T04:03:01.000Z",
+      observed_at: "2026-10-02T04:00:00.000Z", target_age_hours: 24,
+      checkpoint_status: "measured", checkpoint_sla_status: "in_window", views: 66_666 },
+  );
+  const metricsFile = path.join(dataDir, "marketing-owner-events", "state", "post-metrics.jsonl");
+  fs.mkdirSync(path.dirname(metricsFile), { recursive: true });
+  fs.writeFileSync(metricsFile, `${metricRows.map((row) => JSON.stringify(row)).join("\n")}\n`);
+
+  const scores = typeof readCreativeMetricsForFamilies === "function"
+    ? readCreativeMetricsForFamilies(dataDir, candidates, lane, postedHistory)
+    : [];
+  assert.deepEqual(scores.sort((a, b) => a.familyId.localeCompare(b.familyId)), [
+    { familyId: "myth-vs-fact", score: 500, samples: 3 },
+    { familyId: "question-hook", score: 200, samples: 3 },
+  ]);
 });
 
 test("MIN_DAYS_BETWEEN_REPEAT is at least a week (per spec: never repeat within N days)", () => {
@@ -629,7 +894,7 @@ test("resolveLarryJaSlot skips existing packs whose caption or slide text repeat
   let generationCalls = 0;
   const result = await resolveLarryJaSlot({
     env: { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT },
-    now: () => "2026-10-08T08:00:00.000Z",
+    now: () => "2026-10-08T04:05:00.000Z", // 13:05 JST, inside the 13:00 slot window.
     slot: "2026-10-08T04:00:00.000Z",
     lane: JA_BUDDHA_TIKTOK_LANE,
     productionSlots: ["07:00", "13:00", "20:00"],

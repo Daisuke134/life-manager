@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import errno
 import hashlib
 import os
 import re
@@ -13,17 +14,19 @@ import subprocess
 import time
 from contextlib import ExitStack
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Literal
 
 
 PROTECTED_NAME = re.compile(r"receipt|ledger|credential|session|wallet|payment", re.I)
 RELEASE_NAME = re.compile(r"\d{8}T\d{6}-[0-9a-f]{8,40}\Z")
 
 
-def _clear_owned_directory(directory_fd: int) -> bool:
+def _clear_owned_directory(directory_fd: int, *, keep_owner: bool = False) -> bool:
     """Clear entries only while each inspected inode remains at the same name."""
     flags = os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0)
     for name in os.listdir(directory_fd):
+        if keep_owner and name == ".owner.json":
+            continue
         try:
             before = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
             if stat.S_ISDIR(before.st_mode):
@@ -54,25 +57,87 @@ def _clear_owned_directory(directory_fd: int) -> bool:
     return True
 
 
-def remove_owned_tree(parent_fd: int, opened_fd: int, name: str) -> bool:
+def remove_owned_tree(parent_fd: int, opened_fd: int, name: str) -> bool | Literal["contents_reclaimed"]:
     """Rename and remove only the directory inode already opened by its owner."""
     expected = os.fstat(opened_fd)
     trash = f"{name}.gc-trash.{os.getpid()}.{time.time_ns():x}"
-    os.replace(name, trash, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
+    keep_owner = False
+    try:
+        os.replace(name, trash, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
+    except OSError as error:
+        if error.errno != errno.ENOSPC:
+            raise
+        # Keep the owner shell for a later rename; rmdir by the old name can race.
+        trash = name
+        keep_owner = True
     flags = os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0)
     trash_fd = os.open(trash, flags, dir_fd=parent_fd)
     try:
         actual = os.fstat(trash_fd)
         if ((actual.st_dev, actual.st_ino) != (expected.st_dev, expected.st_ino)
-                or not _clear_owned_directory(trash_fd)):
+                or not _clear_owned_directory(trash_fd, keep_owner=keep_owner)):
             return False
         current = os.stat(trash, dir_fd=parent_fd, follow_symlinks=False)
         if (current.st_dev, current.st_ino) != (expected.st_dev, expected.st_ino):
             return False
+        if keep_owner:
+            return "contents_reclaimed"
         os.rmdir(trash, dir_fd=parent_fd)
         return True
     finally:
         os.close(trash_fd)
+
+
+EVIDENCE_SUFFIXES = (".json", ".jsonl", ".log", ".txt")
+EVIDENCE_FILE_MAX_BYTES = 1024 * 1024
+EVIDENCE_TOTAL_MAX_BYTES = 8 * 1024 * 1024
+_SCRATCH_MARKERS = frozenset({".terminal-unrecorded", ".lm-protected"})
+
+
+def prune_to_evidence(root: Path) -> int:
+    """Keep small text evidence of an unknown-effect run; delete bulk artifacts.
+
+    Copies journald's per-writer cap: an unreconciled run may hold at most
+    EVIDENCE_TOTAL_MAX_BYTES, smallest evidence first. Symlinks are unlinked,
+    never followed. Returns bytes removed.
+    """
+    removed = 0
+    evidence: list[tuple[int, Path]] = []
+    for current, dirs, files in os.walk(root, topdown=True, followlinks=False):
+        base = Path(current)
+        if ".lm-protected" in files:
+            dirs.clear()
+            continue
+        for name in list(dirs):
+            path = base / name
+            if path.is_symlink():
+                path.unlink()
+                dirs.remove(name)
+        for name in files:
+            path = base / name
+            if name in _SCRATCH_MARKERS:
+                continue
+            info = path.lstat()
+            if (stat.S_ISREG(info.st_mode) and path.suffix in EVIDENCE_SUFFIXES
+                    and info.st_size <= EVIDENCE_FILE_MAX_BYTES):
+                evidence.append((info.st_size, path))
+                continue
+            removed += info.st_size if stat.S_ISREG(info.st_mode) else 0
+            path.unlink()
+    budget = EVIDENCE_TOTAL_MAX_BYTES
+    for size, path in sorted(evidence, key=lambda item: (item[0], str(item[1]))):
+        if size <= budget:
+            budget -= size
+        else:
+            path.unlink()
+            removed += size
+    for current, dirs, _files in os.walk(root, topdown=False, followlinks=False):
+        for name in dirs:
+            try:
+                (Path(current) / name).rmdir()
+            except OSError:
+                pass
+    return removed
 
 
 def _tree_bytes(path: Path, *, prepare_delete: bool = True) -> int:
@@ -105,7 +170,7 @@ def _contains_protected(path: Path) -> bool:
 
 def _remove_marked(path: Path) -> int:
     size = _tree_bytes(path)
-    trash = path.with_name(f"{path.name}.gc-trash.{os.getpid()}")
+    trash = path.with_name(f".{path.name}.gc-trash.{os.getpid()}")
     os.replace(path, trash)
     shutil.rmtree(trash)
     return size
@@ -197,9 +262,10 @@ def release_is_reclaimed(path: Path) -> bool:
 
 def reclaim_release_source(path: Path, source_repo: Path, *,
                            can_reclaim: Callable[[tuple[int, ...]], bool],
-                           max_bytes: int = 64 * 1024**2, max_files: int = 256,
+                           source_ref: str,
+                           max_bytes: int = 64 * 1024**2, max_files: int = 4096,
                            deadline: float | None = None) -> dict:
-    """Reclaim matching Git code leaves; retain stores and unknown files in place."""
+    """Reclaim exact Git blobs after the caller pins their source commit locally."""
     result = {"removed_files": 0, "removed_source_bytes": 0, "reclaimed_bytes": 0,
               "protected_deletions": 0, "errors": 0, "status": "preserved"}
     deadline = time.monotonic() + 15 if deadline is None else deadline
@@ -208,7 +274,7 @@ def reclaim_release_source(path: Path, source_repo: Path, *,
     directories = {"bin", "runtime", "apps", "skills", "lib", "scripts", "services",
                    "templates", "plugins", "adapters", "integrations"}
     suffixes = {".py", ".js", ".cjs", ".mjs", ".sh", ".ts", ".tsx", ".jsx",
-                ".css", ".html", ".svg", ".png", ".jpg", ".webp"}
+                ".css", ".html", ".svg", ".png", ".jpg", ".webp", ".md", ".json"}
     sensitive = re.compile(r"credential|secret|cookie|passkey|recovery|auth|session|wallet|payment|receipt|ledger", re.I)
     flags = os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0)
     root_fd = None
@@ -245,10 +311,12 @@ def reclaim_release_source(path: Path, source_repo: Path, *,
         finally:
             os.close(desc_fd)
         sha = manifest.get("sha")
-        if not isinstance(sha, str) or not re.fullmatch(r"[a-f0-9]{40}", sha):
+        if (not isinstance(sha, str) or not re.fullmatch(r"[a-f0-9]{40}", sha)
+                or not isinstance(source_ref, str)
+                or not re.fullmatch(r"[a-f0-9]{40}", source_ref)):
             return result
         try:
-            git("merge-base", "--is-ancestor", sha, "refs/remotes/origin/main")
+            git("merge-base", "--is-ancestor", sha, source_ref)
         except subprocess.CalledProcessError:
             return result
         entries = []

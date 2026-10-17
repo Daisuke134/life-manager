@@ -17,6 +17,30 @@ def _d(v):
     return None if v in (None, "") else Decimal(str(v))
 
 
+def _window(reconcile: dict, window: str) -> tuple[dict, dict]:
+    funnel: dict[str, dict] = {}
+    ct: dict[str, dict] = {}
+    for agent in ((reconcile.get("traffic_sources") or {}).get("by_agent") or {}).values():
+        for s in (agent.get(window) or {}).get("by_source") or []:
+            f = funnel.setdefault(s.get("source_type") or "unknown", {"views": 0, "paid_orders": 0, "sales_usd": Decimal("0")})
+            f["views"] += s.get("views") or 0
+            f["paid_orders"] += s.get("paid_orders") or 0
+            f["sales_usd"] += _d(s.get("sales_usd")) or 0
+            # A ct= link's visits land as sourceType="ct" sourceName="<token>"; a matching
+            # sale lands as a separate sourceType="campaign" row with the same token -- see
+            # skills/writer-agent/config/products.json "tracking". Merge both by token.
+            if s.get("source_type") not in ("ct", "campaign"):
+                continue
+            token = s.get("source_name") or "unknown"
+            c = ct.setdefault(token, {"views": 0, "paid_orders": 0, "sales_usd": Decimal("0")})
+            c["views"] += s.get("views") or 0
+            c["paid_orders"] += s.get("paid_orders") or 0
+            c["sales_usd"] += _d(s.get("sales_usd")) or 0
+    for row in (*funnel.values(), *ct.values()):
+        row["sales_usd"] = f"{row['sales_usd']:.2f}"
+    return funnel, ct
+
+
 def build_scoreboard(analytics: dict, reconcile: dict) -> dict:
     t = analytics.get("account_totals") or {}
     bal = analytics.get("balances") or {}
@@ -37,32 +61,14 @@ def build_scoreboard(analytics: dict, reconcile: dict) -> dict:
     selling = sum(1 for r in rows if (_d(r.get("stats_30d_revenue_usd")) or 0) > 0)
     never = sum(1 for r in rows if (_d(r.get("since_launch_gross_usd")) or 0) == 0
                 and (_d(r.get("stats_30d_revenue_usd")) or 0) == 0)
-    funnel: dict[str, dict] = {}
-    for agent in ((reconcile.get("traffic_sources") or {}).get("by_agent") or {}).values():
-        for s in (agent.get("last_30d") or {}).get("by_source") or []:
-            f = funnel.setdefault(s.get("source_type") or "unknown", {"views": 0, "paid_orders": 0, "sales_usd": Decimal("0")})
-            f["views"] += s.get("views") or 0
-            f["paid_orders"] += s.get("paid_orders") or 0
-            f["sales_usd"] += _d(s.get("sales_usd")) or 0
-    for f in funnel.values():
-        f["sales_usd"] = f"{f['sales_usd']:.2f}"
-    ct: dict[str, dict] = {}
-    for agent in ((reconcile.get("traffic_sources") or {}).get("by_agent") or {}).values():
-        for s in (agent.get("last_30d") or {}).get("by_source") or []:
-            # A ct= link's visits land as sourceType="ct" sourceName="<token>"; a matching
-            # sale lands as a separate sourceType="campaign" row with the same token -- see
-            # skills/writer-agent/config/products.json "tracking". Merge both by token.
-            if s.get("source_type") not in ("ct", "campaign"):
-                continue
-            token = s.get("source_name") or "unknown"
-            t = ct.setdefault(token, {"views": 0, "paid_orders": 0, "sales_usd": Decimal("0")})
-            t["views"] += s.get("views") or 0
-            t["paid_orders"] += s.get("paid_orders") or 0
-            t["sales_usd"] += _d(s.get("sales_usd")) or 0
-    for t in ct.values():
-        t["sales_usd"] = f"{t['sales_usd']:.2f}"
+    funnel, ct = _window(reconcile, "last_30d")
+    funnel_7d, ct_7d = _window(reconcile, "last_7d")
+    for c in ct_7d.values():  # D1 binary verdicts per ct token over 7 days
+        c["reach"] = "pass" if c["views"] > 0 else "fail"
+        c["convert"] = "pass" if c["paid_orders"] > 0 else "fail"
     return {"money": money, "zero_revenue_streak_days": streak,
-            "skills": {"total": len(rows), "selling": selling, "never_sold": never}, "funnel": funnel, "ct": ct}
+            "skills": {"total": len(rows), "selling": selling, "never_sold": never}, "funnel": funnel, "ct": ct,
+            "funnel_7d": funnel_7d, "ct_7d": ct_7d}
 
 
 def render_text(b: dict, comparisons: list[dict] | None = None) -> str:
@@ -74,6 +80,8 @@ def render_text(b: dict, comparisons: list[dict] | None = None) -> str:
         lines.append(f"流入 {src}: {f['views']} view → {f['paid_orders']} 件 ${f['sales_usd']}")
     for token, t in sorted((b.get("ct") or {}).items(), key=lambda kv: -kv[1]["views"]):
         lines.append(f"ct {token}: {t['views']} view → {t['paid_orders']} 件 ${t['sales_usd']}")
+    for token, t in sorted((b.get("ct_7d") or {}).items(), key=lambda kv: -kv[1]["views"]):
+        lines.append(f"7日 ct {token}: {t['views']} view → {t['paid_orders']} 件 届く={t['reach']} 売れる={t['convert']}")
     if comparisons is not None:
         pending = 0
         for c in comparisons:

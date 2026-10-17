@@ -142,10 +142,10 @@
     },
     {
       "id": "fundraiser",
-      "job_ids": ["fundraiser"],
+      "job_ids": ["fundraiser", "fundraiser-browser"],
       "name": "Fundraiser",
       "description": "Find eligible accelerators, fellowships, grants, and investor intakes and apply with verified product context.",
-      "recovery_classes": ["external_effect_owner"],
+      "recovery_classes": ["continuous_service", "external_effect_owner"],
       "economic": {"role":"financing","revenue_classes":["fundraising"],"sources":{"funnel":{"adapter":"fundraiser-application-receipt","implementation":"implemented"},"financial":{"adapter":"fundraiser-financial-record","implementation":"missing"},"cost":{"adapter":"fundraiser-financial-record","implementation":"missing"}}},
       "requirements": ["applicant_profile", "telegram", "provider_login_when_required"],
       "hosts": {
@@ -194,7 +194,7 @@
     },
     {
       "id": "ebook",
-      "job_ids": ["ebook-en-instagram-daily", "ebook-en-tiktok-daily", "ebook-ja-instagram-daily", "ebook-ja-tiktok-daily"],
+      "job_ids": ["ebook-articles", "ebook-en-instagram-daily", "ebook-en-tiktok-daily", "ebook-ja-instagram-daily", "ebook-ja-tiktok-daily"],
       "name": "eBook",
       "description": "Publish attributed English and Japanese eBook campaigns through existing owned social accounts and reconcile checkout and delivery receipts.",
       "recovery_classes": ["external_effect_owner"],
@@ -207,7 +207,7 @@
     },
     {
       "id": "capafy",
-      "job_ids": ["capafy-browser", "capafy-distribute-daily", "capafy-goal-monitor", "capafy-goal-monitor-daily-close", "capafy-goal-monitor-hourly", "capafy-ig-account-manager", "capafy-ig-marketing-daily", "capafy-loop-daily", "capafy-loop-healthcheck", "capafy-outcome-monitor", "life-manager-capafy-ig"],
+      "job_ids": ["capafy-browser", "capafy-distribute-daily", "capafy-goal-monitor", "capafy-goal-monitor-daily-close", "capafy-goal-monitor-hourly", "capafy-ig-account-manager", "capafy-ig-marketing-daily", "capafy-loop-daily", "capafy-loop-healthcheck", "capafy-outcome-monitor", "capafy-reel-daily", "life-manager-capafy-ig"],
       "name": "Capafy",
       "description": "Operate Capafy's product, sales, outcome, and audience-growth workflows.",
       "recovery_classes": ["continuous_service", "deterministic", "external_effect_owner", "read_only_external_owner"],
@@ -223,7 +223,7 @@
       "job_ids": ["line-creators-browser", "line-sticker-factory-hourly", "line-sticker-readback-hourly"],
       "name": "LINE Sticker",
       "description": "Design original animated LINE stickers end to end, submit a finished set to LINE Creators Market about every hour, and read review and sales status back.",
-      "recovery_classes": ["continuous_service", "external_effect_owner"],
+      "recovery_classes": ["browser", "continuous_service", "external_effect_owner"],
       "economic": {"role":"customer_revenue","revenue_classes":["one_time"],"sources":{"funnel":{"adapter":"line-creators-market-readback","implementation":"implemented"},"financial":{"adapter":"line-creators-market-payout","implementation":"missing"},"cost":{"adapter":"line-sticker-factory-cost","implementation":"missing"}}},
       "requirements": ["line_creators_account", "publication_profile", "public_guided_installer"],
       "hosts": {

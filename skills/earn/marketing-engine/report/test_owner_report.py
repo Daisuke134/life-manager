@@ -9,12 +9,14 @@ cannot make the tests pass.
 from __future__ import annotations
 
 import datetime as dt
+import io
 import json
 import os
 import tempfile
 import threading
 import time
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest import mock
@@ -243,7 +245,7 @@ FIXTURES: dict[str, list[dict]] = {
     ],
     "experiment-attribution.jsonl": [
         {
-            "schema_version": "marketing.experiment-attribution.v1",
+            "schema_version": "marketing.experiment-attribution.v2",
             "product_id": "ebook-ja",
             "experiment_id": "experiment.ebook-ja.001",
             "attribution_id": "attribution.ebook-ja.001",
@@ -263,6 +265,18 @@ FIXTURES: dict[str, list[dict]] = {
                     "status": "not_mature",
                     "value": None,
                     "null_reason": "business_window_not_mature",
+                },
+                {
+                    "metric_name": "actual_cost_usd",
+                    "status": "unknown",
+                    "value": None,
+                    "null_reason": "publication_scoped_cost_evidence_unavailable",
+                },
+                {
+                    "metric_name": "human_interventions",
+                    "status": "unknown",
+                    "value": None,
+                    "null_reason": "publication_scoped_intervention_evidence_unavailable",
                 },
             ],
         }
@@ -383,7 +397,8 @@ class OwnerReportRendererTest(unittest.TestCase):
         event = self.event("action", "anicca-ios")
         text = owner_report.render_japanese(event)
         self.assertEqual(event["product_id"], "anicca-ios")
-        self.assertIn("anicca-ios", text)
+        self.assertIn("Anicca iOS", text)
+        self.assertNotIn("anicca-ios", text)
         self.assertIn(NATIVE_URL, text)
 
     def test_action_replay_is_stable_when_attribution_snapshot_appended(self):
@@ -852,6 +867,13 @@ class OwnerReportRendererTest(unittest.TestCase):
     def test_experiment_does_not_call_not_mature_winner_or_loser(self):
         event = self.event("experiment", "ebook-ja")
         text = owner_report.render_japanese(event)
+        metrics = {item["name"]: item for item in event["facts"]["metrics"]}
+        self.assertEqual(metrics["actual_cost_usd"]["status"], "unknown")
+        self.assertEqual(metrics["human_interventions"]["status"], "unknown")
+        self.assertEqual(
+            metrics["actual_cost_usd"]["null_reason"],
+            "publication_scoped_cost_evidence_unavailable",
+        )
         self.assertIn("まだ判断できる時間ではありません", text)
         self.assertNotIn("winner", text.lower())
         self.assertNotIn("loser", text.lower())
@@ -961,8 +983,11 @@ class OwnerReportRendererTest(unittest.TestCase):
     def test_portfolio_weekly_contains_each_product_once(self):
         event = self.event("portfolio_weekly")
         text = owner_report.render_japanese(event)
-        for product_id in PRODUCTS:
-            self.assertEqual(text.count(product_id), 1, product_id)
+        for product_name in (
+            "Anicca iOS", "Honne", "BreathCalm", "SleepRitual",
+            "Desk Stretch Timer", "Micro-Mood", "日本語電子書籍", "英語電子書籍",
+        ):
+            self.assertEqual(text.count(product_name), 1, product_name)
 
     def test_portfolio_weekly_sums_revenue_28d_and_installs_28d_across_products(self):
         event = self.event("portfolio_weekly")
@@ -1020,6 +1045,25 @@ class OwnerReportRendererTest(unittest.TestCase):
         self.assertIn("0.0", honne)
         self.assertIn("42", checkpoint)
         self.assertIn("50", checkpoint)
+
+    def test_checkpoint_copy_is_natural_and_hides_internal_evidence(self):
+        event = self.event("checkpoint", "anicca-ios")
+        event["facts"].update({
+            "platform": "tiktok",
+            "target_age_hours": 24,
+            "checkpoint_status": "measured",
+            "views": 481,
+            "impressions": None,
+            "native_url": NATIVE_URL,
+        })
+        text = owner_report.render_japanese(event)
+        self.assertIn("Anicca iOS", text)
+        self.assertIn("TikTok", text)
+        self.assertIn("閲覧数 481", text)
+        self.assertIn("表示回数は取得できませんでした", text)
+        self.assertIn(NATIVE_URL, text)
+        for machine_field in ("None", "anicca-ios", "message_key=", "evidence_refs=", "object://sha256/", "確認情報"):
+            self.assertNotIn(machine_field, text)
 
     def test_openclaw_legacy_state_is_never_read(self):
         legacy = self.root / ".openclaw" / "state" / "content-library"
@@ -1089,46 +1133,75 @@ class OwnerReportRendererTest(unittest.TestCase):
         self.assertFalse(delivery_path.exists())
         client.from_env.assert_not_called()
 
-    def test_send_text_uses_cloud_bot_token_without_changing_chat_target(self):
+    def test_cli_missing_credentials_does_not_claim_and_can_deliver_after_recovery(self):
         import owner_report_cli
 
+        state_root = self.root / "cli-retry"
+        credentials = self.root / "credentials.json"
+        event = self.event("product_daily", "anicca-ios")
+        args = [
+            "sweep", "--kind", "product_daily", "--product-id", "anicca-ios",
+            "--state-root", str(state_root), "--as-of", "2026-08-05T12:00:00Z",
+        ]
+        client = mock.Mock()
+        client.send_text.return_value = {"status": "delivered", "message_ids": [991]}
+        with (
+            mock.patch.object(owner_report_cli, "CREDENTIALS_FILE", credentials, create=True),
+            mock.patch.object(owner_report, "build_events", return_value=[event]),
+            mock.patch.object(owner_report_cli.TelegramClient, "from_env", return_value=client) as from_env,
+            redirect_stdout(io.StringIO()),
+            redirect_stderr(io.StringIO()),
+        ):
+            self.assertEqual(owner_report_cli.main(args), 1)
+            store = owner_report.OwnerReportStore(
+                state_root / "owner-reports.jsonl",
+                state_root / "owner-report-deliveries.jsonl",
+            )
+            self.assertIsNone(store.delivery_for(event["message_key"]))
+            credentials.write_text(json.dumps({"credentials": [
+                {"service": "telegram-life-manager", "bot_token": "local-token", "chat_id": "local-chat"},
+                {"service": "telegram-cloud-life-manager", "bot_token": "cloud-token", "chat_id": "cloud-chat"},
+            ]}) + "\n", encoding="utf-8")
+            self.assertEqual(owner_report_cli.main(args), 0)
+
+        self.assertEqual(store.delivery_for(event["message_key"])["status"], "delivered")
+        from_env.assert_called_once_with(environ={
+            "TELEGRAM_BOT_TOKEN": "local-token",
+            "TELEGRAM_CHAT_ID": "local-chat",
+        })
+        client.send_text.assert_called_once()
+
+    def test_send_text_uses_exact_local_credential_not_hosted_alias(self):
+        import owner_report_cli
+
+        credentials = self.root / "credentials.json"
+        credentials.write_text(json.dumps({"credentials": [
+            {"service": "telegram-life-manager", "bot_token": "local-token", "chat_id": "local-chat"},
+            {"service": "telegram-cloud-life-manager", "bot_token": "cloud-token", "chat_id": "cloud-chat"},
+        ]}) + "\n", encoding="utf-8")
         client = mock.Mock()
         with (
-            mock.patch.dict(os.environ, {"LM_TELEGRAM_BOT_TOKEN": "cloud-token"}),
-            mock.patch.object(owner_report_cli, "TELEGRAM_TARGET", "report-chat"),
-            mock.patch.object(
-                owner_report_cli.TelegramClient, "from_env", return_value=client
-            ) as from_env,
+            mock.patch.object(owner_report_cli, "CREDENTIALS_FILE", credentials, create=True),
+            mock.patch.dict(os.environ, {"LM_TELEGRAM_BOT_TOKEN": "cloud-token", "MKT_TELEGRAM_TARGET": "cloud-chat"}, clear=True),
+            mock.patch.object(owner_report_cli.TelegramClient, "from_env", return_value=client) as from_env,
         ):
             owner_report_cli._send_text("checkpoint")
 
         environ = from_env.call_args.kwargs.get("environ", {})
-        self.assertEqual(environ.get("TELEGRAM_BOT_TOKEN"), "cloud-token")
-        client.send_text.assert_called_once_with(
-            "checkpoint", chat_id="report-chat"
-        )
+        self.assertEqual(environ.get("TELEGRAM_BOT_TOKEN"), "local-token")
+        self.assertEqual(environ.get("TELEGRAM_CHAT_ID"), "local-chat")
+        client.send_text.assert_called_once_with("checkpoint", chat_id="local-chat")
 
-    def test_cloud_bot_token_reads_global_env_without_printing_it(self):
+    def test_send_text_fails_closed_when_only_cloud_credential_exists(self):
         import owner_report_cli
 
-        global_env = self.root / "global.env"
-        global_env.write_text("export LM_TELEGRAM_BOT_TOKEN='cloud-token'\n")
+        credentials = self.root / "credentials.json"
+        credentials.write_text(json.dumps({"credentials": [
+            {"service": "telegram-cloud-life-manager", "bot_token": "cloud-token", "chat_id": "cloud-chat"},
+        ]}) + "\n", encoding="utf-8")
         with (
-            mock.patch.object(owner_report_cli, "CLOUD_BOT_ENV_FILE", global_env),
-            mock.patch.dict(os.environ, {"LM_TELEGRAM_BOT_TOKEN": ""}),
-        ):
-            token = owner_report_cli._cloud_bot_token()
-
-        self.assertEqual(token, "cloud-token")
-
-    def test_send_text_fails_closed_when_cloud_bot_token_is_missing(self):
-        import owner_report_cli
-
-        with (
-            mock.patch.object(
-                owner_report_cli, "CLOUD_BOT_ENV_FILE", self.root / "missing.env"
-            ),
-            mock.patch.dict(os.environ, {"LM_TELEGRAM_BOT_TOKEN": ""}),
+            mock.patch.object(owner_report_cli, "CREDENTIALS_FILE", credentials, create=True),
+            mock.patch.dict(os.environ, {"LM_TELEGRAM_BOT_TOKEN": "cloud-token", "MKT_TELEGRAM_TARGET": "cloud-chat"}, clear=True),
             mock.patch.object(owner_report_cli.TelegramClient, "from_env") as from_env,
         ):
             with self.assertRaises(owner_report_cli.TelegramError):
@@ -1169,6 +1242,49 @@ class OwnerReportRendererTest(unittest.TestCase):
         self.assertEqual(rc, 0)
         render.assert_not_called()
         sender.assert_not_called()
+
+    def _unknown_cli_run(self, prior_status):
+        import owner_report_cli
+
+        event = self.event("action", "anicca-ios")
+        store = owner_report.OwnerReportStore(
+            self.root / "owner-reports.jsonl",
+            self.root / "owner-report-deliveries.jsonl",
+        )
+        if prior_status is not None:
+            store.record(event)
+            store.claim_delivery(event["message_key"])
+            if prior_status != "sending":
+                store.record_delivery(event["message_key"], {"status": prior_status, "message_ids": []})
+        stderr = io.StringIO()
+        with (
+            mock.patch.object(owner_report, "build_events", return_value=[event]),
+            mock.patch.object(owner_report_cli, "_local_telegram_credentials", return_value=("t", "c")),
+            mock.patch.object(owner_report_cli, "_send_text", side_effect=TimeoutError("read timed out")) as sender,
+            redirect_stdout(io.StringIO()),
+            redirect_stderr(stderr),
+        ):
+            rc = owner_report_cli.main(["sweep", "--kind", "action", "--state-root", str(self.root)])
+        return rc, sender, stderr.getvalue(), store.delivery_for(event["message_key"]), event
+
+    def test_cli_inherited_unknown_delivery_is_attention_not_failure(self):
+        # 2026-10-07..10-17: two delivery_unknown keys from earlier runs failed every hourly
+        # sweep with exit 1, so marketing-owner-events sat at entrypoint_exit_1 for 209 h.
+        for prior in ("delivery_unknown", "sending"):
+            with self.subTest(prior=prior):
+                for path in self.root.glob("owner-report*.jsonl"):
+                    path.unlink()
+                rc, sender, stderr, latest, event = self._unknown_cli_run(prior)
+                self.assertEqual(rc, 3)
+                sender.assert_not_called()
+                self.assertEqual(latest["status"], prior)
+                self.assertIn(event["message_key"], stderr)
+
+    def test_cli_fresh_unknown_delivery_still_fails(self):
+        rc, sender, _, latest, _ = self._unknown_cli_run(None)
+        self.assertEqual(rc, 1)
+        sender.assert_called_once()
+        self.assertEqual(latest["status"], "delivery_unknown")
 
     def test_replay_different_as_of_keeps_semantic_key_and_sends_once(self):
         first_event = self.event("product_daily", "anicca-ios")
@@ -1673,7 +1789,7 @@ class OwnerReportRendererTest(unittest.TestCase):
                 as_of=dt.datetime(2026, 8, 6, 12, tzinfo=dt.timezone.utc),
             )[0]
             text = owner_report.render_japanese(event)
-        ebook_line = next(line for line in text.splitlines() if line.startswith("ebook-ja:"))
+        ebook_line = next(line for line in text.splitlines() if line.startswith("日本語電子書籍:"))
         self.assertIn("2073 XYZ", ebook_line)
         self.assertIn("最小単位", ebook_line)
         self.assertNotIn("売上額は取得できませんでした", ebook_line)

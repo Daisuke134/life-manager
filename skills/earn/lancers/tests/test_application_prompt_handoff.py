@@ -139,7 +139,9 @@ def test_pending_descriptor_visits_every_item_when_wakes_skip_clock_slots(tmp_pa
     assert (tmp_path / "application-pending-cursor.json").stat().st_mode & 0o777 == 0o600
 
 
-def test_default_discovery_reads_one_rotating_query_per_wake(tmp_path, monkeypatch):
+def test_default_discovery_reads_one_rotating_source_per_wake_categories_first(tmp_path, monkeypatch):
+    # Measured 2026-10-16 through the leased browser: a category page returned 19-20 postings,
+    # a keyword 1. One keyword per wake left the lane judging 0-4 rows and applying to nothing.
     module = _load_application_loop()
     calls = []
 
@@ -148,15 +150,20 @@ def test_default_discovery_reads_one_rotating_query_per_wake(tmp_path, monkeypat
         return {"ok": False, "error": "no_normalized_opportunities", "opportunities": []}
 
     monkeypatch.setattr(module.status, "run_discovery", discover)
+    start = datetime(2026, 9, 15, 0, 0, tzinfo=timezone.utc)
+    sources = len(module.DISCOVERY_CATEGORIES) + len(module.DISCOVERY_QUERIES)
+    first = int(start.timestamp() // module.WAKE_INTERVAL_SECONDS) % sources
+    offset = (sources - first) % sources  # wake index that lands on slot 0
 
-    result = module._run_default_discovery(
-        datetime(2026, 9, 15, 0, 0, tzinfo=timezone.utc),
-        20.0,
-        tmp_path / "application.json",
-    )
+    for i in range(len(module.DISCOVERY_CATEGORIES) + 1):
+        result = module._run_default_discovery(
+            start + timedelta(seconds=module.WAKE_INTERVAL_SECONDS * (offset + i)),
+            20.0,
+            tmp_path / "application.json",
+        )
+        assert result["ok"] is True
 
-    assert result["ok"] is True
-    assert len(calls) == 1
-    assert calls[0]["query"] == module._discovery_query(
-        datetime(2026, 9, 15, 0, 0, tzinfo=timezone.utc)
-    )
+    assert len(calls) == len(module.DISCOVERY_CATEGORIES) + 1
+    assert [c.get("category") for c in calls[:-1]] == list(module.DISCOVERY_CATEGORIES)
+    assert all(c["query"] is None for c in calls[:-1])
+    assert calls[-1]["query"] == module.DISCOVERY_QUERIES[0] and calls[-1].get("category") is None

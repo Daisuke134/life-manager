@@ -8,6 +8,7 @@ const path = require("node:path");
 const test = require("node:test");
 
 const { createContentObjectStore, importContentObject } = require("../lib/content-object-store.js");
+const { createMarketingLocalLedger } = require("../lib/marketing-local-ledger.js");
 const { createMarketingLaneManifest, writeMarketingLaneManifest } = require("../lib/marketing-lane-manifest.js");
 const {
   ACCOUNT_ID,
@@ -46,13 +47,30 @@ const EN_MEDIA_REFS = [
 const EN_CAPTION_REF = "object://sha256/bf90a15a5a615d2bb295c1829f7329f391a870fe4e950c8099972c20bf6e64a0";
 const EN_APPROVAL_REF = "object://sha256/7740cd09733d0cb7a5d8f32ff4614c3e07ebae27df0e3eae8bca8df80b968845";
 const EN_OBJECT_SOURCE = path.join(os.homedir(), ".local", "state", "life-manager", "objects", "sha256");
+const testTempDirs = new Set();
+
+function testTempDir(prefix) {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  fs.writeFileSync(path.join(dataDir, ".lm-test-canary"), "life-manager-canary-test-v1\n", { mode: 0o600 });
+  testTempDirs.add(dataDir);
+  return dataDir;
+}
+
+test.after(() => {
+  const leftovers = [];
+  for (const dataDir of testTempDirs) {
+    fs.rmSync(dataDir, { recursive: true, force: true });
+    if (fs.existsSync(dataDir)) leftovers.push(path.basename(dataDir));
+  }
+  assert.deepEqual(leftovers, []);
+});
 
 function sha256(value) {
   return crypto.createHash("sha256").update(value).digest("hex");
 }
 
 function fixture() {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-larry-ja-canary-"));
+  const dataDir = testTempDir("lm-larry-ja-canary-");
   const objectStore = createContentObjectStore({ objectDir: path.join(dataDir, "objects") });
   const importBytes = (name, bytes) => {
     const source = path.join(dataDir, name);
@@ -116,7 +134,7 @@ function fixture() {
 }
 
 function enFixture() {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-anicca-en-affirmation-canary-"));
+  const dataDir = testTempDir("lm-anicca-en-affirmation-canary-");
   const objectDir = path.join(dataDir, "objects");
   const objectStore = createContentObjectStore({ objectDir });
   const refs = [EN_PACK_REF, ...EN_MEDIA_REFS, EN_CAPTION_REF, EN_APPROVAL_REF];
@@ -168,7 +186,7 @@ function enFixture() {
 
 function enTikTokFixture() {
   const lane = EN_TIKTOK_RUNNER_LANE;
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-anicca-en-tiktok-canary-"));
+  const dataDir = testTempDir("lm-anicca-en-tiktok-canary-");
   const objectDir = path.join(dataDir, "objects");
   const objectStore = createContentObjectStore({ objectDir });
   const importBytes = (name, bytes) => {
@@ -279,8 +297,23 @@ function providerCalls(calls, result = {}) {
       reconciled: true,
       post_id: "postiz-larry-canary-1",
       post_url: "https://www.instagram.com/p/LarryCanary1/",
+      provider_effect_created: true,
       ...result,
     };
+  };
+}
+
+function failedCarouselExecutor({ unknownEffect, captureJobId }) {
+  return async (claim, context) => {
+    captureJobId(claim.job_id);
+    await context.failJob({
+      tenantId: claim.tenant_id,
+      jobId: claim.job_id,
+      attempt: claim.attempt,
+      workerId: context.workerId,
+      errorCode: unknownEffect ? "provider_unknown" : "provider_preflight",
+      unknownEffect,
+    });
   };
 }
 
@@ -315,15 +348,36 @@ test("first canary publishes once and holds Telegram without native verification
   const value = fixture();
   const publicationCalls = [];
   const telegramCalls = [];
-  const result = await runAniccaLarryJaCanary(["run", "--slot", SLOT], {
-    env: value.env,
-    runDistribution: providerCalls(publicationCalls),
-    sendTelegram: async (...args) => { telegramCalls.push(args); return { ok: true, result: { message_id: 1 } }; },
-    now: () => "2026-08-26T07:31:00.000Z",
+  const previous = Object.fromEntries(["LIFE_MANAGER_LOOP_ID", "LIFE_MANAGER_OCCURRENCE_ID", "LIFE_MANAGER_RUN_ID"]
+    .map((name) => [name, process.env[name]]));
+  Object.assign(process.env, {
+    LIFE_MANAGER_LOOP_ID: "life-manager-anicca-larry-ja-instagram",
+    LIFE_MANAGER_OCCURRENCE_ID: "life-manager-anicca-larry-ja-instagram:run-1",
+    LIFE_MANAGER_RUN_ID: "run-1",
   });
+  let result;
+  try {
+    result = await runAniccaLarryJaCanary(["run", "--slot", SLOT], {
+      env: value.env,
+      runDistribution: providerCalls(publicationCalls),
+      sendTelegram: async (...args) => { telegramCalls.push(args); return { ok: true, result: { message_id: 1 } }; },
+      now: () => "2026-08-26T07:31:00.000Z",
+    });
+  } finally {
+    for (const [name, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
   assert.deepEqual(result, {
     slot: SLOT,
-    publication: { created: true, public_url: "https://www.instagram.com/p/LarryCanary1/", provider_post_id: "postiz-larry-canary-1" },
+    publication: {
+      created: true,
+      provider_effect_created: true,
+      origin_occurrence_id: "life-manager-anicca-larry-ja-instagram:run-1",
+      public_url: "https://www.instagram.com/p/LarryCanary1/",
+      provider_post_id: "postiz-larry-canary-1",
+    },
     telegram: { created: false, held: true, message_id: null },
   });
   assert.equal(publicationCalls.length, 1);
@@ -576,7 +630,7 @@ test("JA main TikTok production command selects the recovered Larry sunset lane"
 test("JA jp1 production controls keep the Postiz alias separate from its native handle", () => {
   assert.equal(JA_JP1_TIKTOK_LANE.manifestProfile, "@anicca.jpx");
   assert.equal(JA_JP1_TIKTOK_LANE.accountId, "@anicca.jp1");
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-jp1-production-controls-"));
+  const dataDir = testTempDir("lm-jp1-production-controls-");
   const target = {
     integration_id: JA_JP1_TIKTOK_LANE.integrationId,
     tenant_id: "dais-local",
@@ -685,7 +739,104 @@ test("EN affirmation restores the exact closed controls when the provider effect
     objectStore: value.objectStore,
     runDistribution: async () => { throw new Error("response lost"); },
     now: () => "2026-08-26T07:31:00.000Z",
-  }), /receipt is unavailable|response lost|unknown|provider/i);
+  }), /receipt (?:is )?unavailable|response lost|unknown|provider/i);
   assert.deepEqual(fs.readFileSync(path.join(value.dataDir, "marketing", "lane-manifest.json")), value.controlBytes.manifest);
   assert.deepEqual(fs.readFileSync(path.join(value.dataDir, "marketing", "publication-effect-fence.json")), value.controlBytes.fence);
+});
+
+test("safe failed carousel publication retries once and completes", async () => {
+  const value = enFixture();
+  const store = createMarketingLocalLedger({ dataDir: value.dataDir, env: value.env, now: () => SLOT });
+  let failedJobId;
+  await assert.rejects(runAniccaEnAffirmationInstagramCanary(["run-en-affirmation", "--slot", SLOT], {
+    env: value.env,
+    store,
+    executeCapabilityJob: failedCarouselExecutor({ unknownEffect: false, captureJobId: (jobId) => { failedJobId = jobId; } }),
+    now: () => SLOT,
+  }), /receipt (?:is )?unavailable/i);
+  const publicationCalls = [];
+  await runAniccaEnAffirmationInstagramCanary(["run-en-affirmation", "--slot", SLOT], {
+    env: value.env,
+    store,
+    runDistribution: providerCalls(publicationCalls),
+    now: () => SLOT,
+  });
+  const completed = await store.readJob({ tenantId: "dais-local", jobId: failedJobId });
+  assert.equal(publicationCalls.length, 1);
+  assert.equal(completed.status, "completed");
+  assert.equal(completed.attempt, 2);
+});
+
+test("unknown-effect carousel publication remains fenced and identifies its job", async () => {
+  const value = enFixture();
+  const store = createMarketingLocalLedger({ dataDir: value.dataDir, env: value.env, now: () => SLOT });
+  let failedJobId;
+  await assert.rejects(runAniccaEnAffirmationInstagramCanary(["run-en-affirmation", "--slot", SLOT], {
+    env: value.env,
+    store,
+    executeCapabilityJob: failedCarouselExecutor({ unknownEffect: true, captureJobId: (jobId) => { failedJobId = jobId; } }),
+    now: () => SLOT,
+  }), /receipt (?:is )?unavailable/i);
+  const publicationCalls = [];
+  await assert.rejects(runAniccaEnAffirmationInstagramCanary(["run-en-affirmation", "--slot", SLOT], {
+    env: value.env,
+    store,
+    runDistribution: providerCalls(publicationCalls),
+    now: () => SLOT,
+  }), (error) => {
+    assert.match(error.message, /Mobile marketing job is not claimable/i);
+    assert.ok(error.message.includes(failedJobId));
+    return true;
+  });
+  const failed = await store.readJob({ tenantId: "dais-local", jobId: failedJobId });
+  assert.equal(publicationCalls.length, 0);
+  assert.equal(failed.status, "failed");
+  assert.equal(failed.unknown_effect, true);
+  assert.equal(failed.attempt, 1);
+});
+
+test("carousel publication at its retry limit stays failed and identifies its job", async () => {
+  const value = enFixture();
+  const store = createMarketingLocalLedger({ dataDir: value.dataDir, env: value.env, now: () => SLOT });
+  let failedJobId;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    await assert.rejects(runAniccaEnAffirmationInstagramCanary(["run-en-affirmation", "--slot", SLOT], {
+      env: value.env,
+      store,
+      executeCapabilityJob: failedCarouselExecutor({ unknownEffect: false, captureJobId: (jobId) => { failedJobId = jobId; } }),
+      now: () => SLOT,
+    }), /receipt (?:is )?unavailable|not claimable/i);
+  }
+  const publicationCalls = [];
+  await assert.rejects(runAniccaEnAffirmationInstagramCanary(["run-en-affirmation", "--slot", SLOT], {
+    env: value.env,
+    store,
+    runDistribution: providerCalls(publicationCalls),
+    now: () => SLOT,
+  }), (error) => {
+    assert.match(error.message, /Mobile marketing job is not claimable/i);
+    assert.ok(error.message.includes(failedJobId));
+    return true;
+  });
+  const failed = await store.readJob({ tenantId: "dais-local", jobId: failedJobId });
+  assert.equal(publicationCalls.length, 0);
+  assert.equal(failed.status, "failed");
+  assert.equal(failed.unknown_effect, false);
+  assert.equal(failed.attempt, failed.max_attempts);
+});
+
+test("carousel receipt failure diagnostic names the mobile job", async () => {
+  const value = enFixture();
+  const store = createMarketingLocalLedger({ dataDir: value.dataDir, env: value.env, now: () => SLOT });
+  let failedJobId;
+  await assert.rejects(runAniccaEnAffirmationInstagramCanary(["run-en-affirmation", "--slot", SLOT], {
+    env: value.env,
+    store,
+    executeCapabilityJob: failedCarouselExecutor({ unknownEffect: false, captureJobId: (jobId) => { failedJobId = jobId; } }),
+    now: () => SLOT,
+  }), (error) => {
+    assert.match(error.message, /Mobile marketing receipt unavailable/i);
+    assert.ok(failedJobId && error.message.includes(failedJobId));
+    return true;
+  });
 });

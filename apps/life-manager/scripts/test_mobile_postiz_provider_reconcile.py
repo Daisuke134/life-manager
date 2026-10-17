@@ -319,6 +319,7 @@ def test_official_postiz_readback_recovers_post_missing_from_local_distribution_
         "id": provider_id,
         "state": "PUBLISHED",
         "releaseURL": "https://www.instagram.com/reel/abc123",
+        "publishDate": "2026-10-07T00:00:00.000Z",
         "integration": {"id": integration_id},
         "content": caption[:-1],
         "lifeManagerVideoSha256": video_sha,
@@ -475,6 +476,623 @@ def test_real_postiz_readback_carries_local_caption_hash_into_recovery_row(tmp_p
     assert recovered["caption_sha256"] == caption_sha
 
 
+def test_provider_readback_rejects_conflicting_video_hash_fields(monkeypatch):
+    integration_id = "cmn8y95rg02d2qx0y09bbk5pb"
+    provider_id = "anicca-reel-456"
+    caption = "An exact provider caption.\n"
+    video_sha = "c" * 64
+    identity = {
+        "product_id": "anicca-ios",
+        "format_id": "reelclaw-widget",
+        "form": "lockscreen-affirmation-widget",
+        "locale": "en",
+        "creative_id": "EN-WIDGET-SELF-TALK-c20f73dbbfe5-20261013T223000000Z",
+        "platform": "instagram",
+        "account_id": "@anicca.en",
+        "integration_ref": f"integration://postiz/instagram/{integration_id}",
+        "caption_sha256": hashlib.sha256(caption.encode()).hexdigest(),
+        "video_sha256": video_sha,
+    }
+    provider_row = {
+        "id": provider_id,
+        "state": "PUBLISHED",
+        "releaseURL": "https://www.instagram.com/reel/anicca456",
+        "integration": {"id": integration_id},
+        "content": caption,
+        "lifeManagerVideoSha256": video_sha,
+        "video_sha256": "d" * 64,
+    }
+
+    def request(url, _key):
+        if url == f"{reconcile.POSTIZ_DETAILS}/{provider_id}":
+            return provider_row
+        if url == f"{reconcile.POSTIZ_V1}/integrations":
+            return {"integrations": [{
+                "id": integration_id,
+                "identifier": "instagram-standalone",
+                "profile": "@anicca.en",
+            }]}
+        raise AssertionError(f"unexpected Postiz readback URL: {url}")
+
+    monkeypatch.setattr(reconcile, "_request_json", request)
+
+    with pytest.raises(ValueError, match="Postiz video hash mismatch"):
+        reconcile._provider_readback(identity, provider_id, "test-only")
+
+
+def _anicca_remote_video_case(
+    tmp_path, monkeypatch, *, publish_date="2026-10-14T00:39:00.000Z",
+    duplicate_identity=False,
+):
+    data_dir = tmp_path / "data"
+    slot = "2026-10-13T22:30:00.000Z"
+    caption = "I meet myself with kindness.\n"
+    caption_sha = hashlib.sha256(caption.encode()).hexdigest()
+    video_sha = "a" * 64
+    caption_object = data_dir / "objects" / "sha256" / caption_sha
+    caption_object.parent.mkdir(parents=True)
+    caption_object.write_text(caption, encoding="utf-8")
+    caption_object.chmod(0o600)
+    ledger = (
+        data_dir / "tenants" / "dais-local" / "marketing" / "video-publication"
+        / "anicca-ios" / "distribution.jsonl"
+    )
+    ledger.parent.mkdir(parents=True)
+    ledger.write_text("", encoding="utf-8")
+    ledger.chmod(0o600)
+    identity_dir = data_dir / "marketing" / "effects"
+    identity_dir.mkdir(parents=True)
+    integration_id = "cmn8y95rg02d2qx0y09bbk5pb"
+    provider_id = "anicca-reel-123"
+    owner_id = "life-manager-anicca-en-widget-instagram"
+    occurrence_id = f"{owner_id}:run-1"
+    creative_id = "EN-WIDGET-SELF-TALK-c20f73dbbfe5-20261013T223000000Z"
+    identity = {
+        "schema_version": 1,
+        "kind": "life_manager_effect_identity",
+        "runtime_run_id": "run-1",
+        "occurrence_id": occurrence_id,
+        "loop_id": owner_id,
+        "job_id": "marketing-video-publication:job-1",
+        "product_id": "anicca-ios",
+        "format_id": "reelclaw-widget",
+        "form": "lockscreen-affirmation-widget",
+        "locale": "en",
+        "creative_id": creative_id,
+        "platform": "instagram",
+        "account_id": "@anicca.en",
+        "integration_ref": f"integration://postiz/instagram/{integration_id}",
+        "slot": slot,
+        "effect_key": (
+            f"marketing:video:anicca-ios:instagram:{creative_id}:{video_sha}:{caption_sha}:"
+            f"{hashlib.sha256(slot.encode()).hexdigest()}"
+        ),
+        "caption_sha256": caption_sha,
+        "video_sha256": video_sha,
+    }
+    identity_path = identity_dir / "run-1.jsonl"
+    identity_path.write_text(json.dumps(identity) + "\n", encoding="utf-8")
+    identity_path.chmod(0o600)
+    if duplicate_identity:
+        duplicate = {
+            **identity,
+            "runtime_run_id": "run-2",
+            "occurrence_id": f"{owner_id}:run-2",
+            "job_id": "marketing-video-publication:job-2",
+        }
+        duplicate_path = identity_dir / "run-2.jsonl"
+        duplicate_path.write_text(json.dumps(duplicate) + "\n", encoding="utf-8")
+        duplicate_path.chmod(0o600)
+    provider_row = {
+        "id": provider_id,
+        "state": "PUBLISHED",
+        "releaseURL": "https://www.instagram.com/reel/anicca123",
+        "integration": {"id": integration_id},
+        "content": caption,
+    }
+    if publish_date is not None:
+        provider_row["publishDate"] = publish_date
+
+    def request(url, _key):
+        if url.startswith(f"{reconcile.POSTIZ_V1}/posts?"):
+            return {"posts": [provider_row]}
+        if url == f"{reconcile.POSTIZ_DETAILS}/{provider_id}":
+            return provider_row
+        if url == f"{reconcile.POSTIZ_V1}/integrations":
+            return {"integrations": [{
+                "id": integration_id,
+                "identifier": "instagram-standalone",
+                "profile": "@anicca.en",
+            }]}
+        raise AssertionError(f"unexpected Postiz readback URL: {url}")
+
+    monkeypatch.setattr(reconcile, "_request_json", request)
+    return identity, ledger, identity_dir, provider_row, provider_id
+
+
+def test_remote_anicca_video_receipt_recovers_unique_exact_post_without_local_row(tmp_path, monkeypatch):
+    identity, ledger, identity_dir, _provider_row, provider_id = _anicca_remote_video_case(
+        tmp_path, monkeypatch,
+    )
+
+    proof = reconcile.build_official_proof(
+        identity, ledger, "test-only", identity_dir=identity_dir,
+    )
+
+    assert proof["provider_receipt_id"] == provider_id
+    assert proof["provider_readback"]["account_id"] == "@anicca.en"
+    assert proof["provider_readback"]["remote_effect_locator"]["integration_id"] == (
+        "cmn8y95rg02d2qx0y09bbk5pb"
+    )
+
+
+def test_legacy_local_anicca_video_receipt_without_publish_time_still_reads_back(
+    tmp_path, monkeypatch,
+):
+    identity, ledger, identity_dir, _provider_row, provider_id = _anicca_remote_video_case(
+        tmp_path, monkeypatch,
+    )
+    receipt = {
+        "schema_version": 1,
+        "kind": "marketing_video_distribution",
+        "status": "published",
+        "product_id": identity["product_id"],
+        "format_id": identity["format_id"],
+        "form": identity["form"],
+        "locale": identity["locale"],
+        "creative_id": identity["creative_id"],
+        "platform": identity["platform"],
+        "account_id": identity["account_id"],
+        "integration_ref": identity["integration_ref"],
+        "slot": identity["slot"],
+        "caption_sha256": identity["caption_sha256"],
+        "video_sha256": identity["video_sha256"],
+        "provider_post_id": provider_id,
+        "provider_reconciled": True,
+        "remote_effect_locator": {
+            "source": "postiz_public_v1_posts",
+            "post_id": provider_id,
+            "integration_id": identity["integration_ref"].rsplit("/", 1)[-1],
+            "caption_sha256": identity["caption_sha256"],
+            "slot": identity["slot"],
+        },
+    }
+    ledger.write_text(json.dumps({"effect_key": identity["effect_key"], "job_id": identity["job_id"], "receipt": receipt}) + "\n", encoding="utf-8")
+
+    proof = reconcile.build_official_proof(
+        identity, ledger, "test-only", identity_dir=identity_dir,
+    )
+
+    assert proof["provider_receipt_id"] == provider_id
+    assert proof["provider_readback"]["state"] == "PUBLISHED"
+
+
+@pytest.mark.parametrize("entrypoint", ["pending_owner", "current_occurrence"])
+def test_anicca_video_receipt_recovery_is_reached_from_reconciler_entrypoints(
+    tmp_path, monkeypatch, entrypoint,
+):
+    identity, _ledger, identity_dir, _provider_row, provider_id = _anicca_remote_video_case(
+        tmp_path, monkeypatch,
+    )
+    data_dir = tmp_path / "data"
+    admission_db = tmp_path / "admission.sqlite3"
+    monkeypatch.setattr(reconcile, "_pending_unknown_count", lambda *_args: 1)
+    monkeypatch.setattr(reconcile, "_admission_state", lambda *_args: ("claimed", 1))
+    monkeypatch.setattr(
+        reconcile, "_authoritative_admission_db", lambda: admission_db.resolve(),
+    )
+
+    if entrypoint == "pending_owner":
+        result = reconcile.reconcile_pending_owner(
+            owner_id=identity["loop_id"], identity_dir=identity_dir,
+            data_dir=data_dir, tenant_id="dais-local", admission_db=admission_db,
+            api_key="test-only", apply=False,
+        )
+    else:
+        result = reconcile.reconcile_current_occurrence(
+            owner_id=identity["loop_id"], occurrence_id=identity["occurrence_id"],
+            identity_dir=identity_dir, data_dir=data_dir, tenant_id="dais-local",
+            admission_db=admission_db, api_key="test-only", apply=False,
+        )
+
+    assert result["status"] == "ready"
+    assert result["provider_receipt_id"] == provider_id
+
+
+def test_remote_anicca_video_receipt_accepts_complete_100_row_post_list(tmp_path, monkeypatch):
+    identity, ledger, identity_dir, _provider_row, _provider_id = _anicca_remote_video_case(
+        tmp_path, monkeypatch,
+    )
+    request = reconcile._request_json
+    post_list_urls = []
+
+    def saturated_request(url, api_key):
+        payload = request(url, api_key)
+        if url.startswith(f"{reconcile.POSTIZ_V1}/posts?"):
+            post_list_urls.append(url)
+            payload = dict(payload)
+            payload["posts"] = [
+                *payload["posts"],
+                *({
+                    "id": f"unrelated-post-{index}",
+                    "integration": {"id": "another-integration"},
+                    "publishDate": "2026-10-14T00:39:00.000Z",
+                } for index in range(99)),
+            ]
+        return payload
+
+    monkeypatch.setattr(reconcile, "_request_json", saturated_request)
+
+    proof = reconcile.build_official_proof(
+        identity, ledger, "test-only", identity_dir=identity_dir,
+    )
+
+    assert proof["provider_receipt_id"] == _provider_id
+    assert len(post_list_urls) == 1
+    assert "limit=" not in post_list_urls[0]
+
+
+@pytest.mark.parametrize("unknown_date", [None, "not-a-date", "2026-10-14T00:39:00"])
+def test_remote_anicca_video_receipt_rejects_matching_row_with_unknown_date(
+    tmp_path, monkeypatch, unknown_date,
+):
+    identity, ledger, identity_dir, provider_row, _provider_id = _anicca_remote_video_case(
+        tmp_path, monkeypatch,
+    )
+    request = reconcile._request_json
+
+    def unknown_date_request(url, api_key):
+        payload = request(url, api_key)
+        if url.startswith(f"{reconcile.POSTIZ_V1}/posts?"):
+            payload = dict(payload)
+            conflicting_row = {**provider_row, "id": "anicca-reel-duplicate"}
+            if unknown_date is None:
+                conflicting_row.pop("publishDate", None)
+            else:
+                conflicting_row["publishDate"] = unknown_date
+            payload["posts"] = [*payload["posts"], conflicting_row]
+        return payload
+
+    monkeypatch.setattr(reconcile, "_request_json", unknown_date_request)
+
+    with pytest.raises(ValueError, match="receipt_missing_or_ambiguous"):
+        reconcile.build_official_proof(
+            identity, ledger, "test-only", identity_dir=identity_dir,
+        )
+
+
+def test_remote_anicca_video_receipt_rejects_non_object_list_entry(tmp_path, monkeypatch):
+    identity, ledger, identity_dir, _provider_row, _provider_id = _anicca_remote_video_case(
+        tmp_path, monkeypatch,
+    )
+    request = reconcile._request_json
+
+    def malformed_list_request(url, api_key):
+        payload = request(url, api_key)
+        if url.startswith(f"{reconcile.POSTIZ_V1}/posts?"):
+            payload = dict(payload)
+            payload["posts"] = [*payload["posts"], None]
+        return payload
+
+    monkeypatch.setattr(reconcile, "_request_json", malformed_list_request)
+
+    with pytest.raises(ValueError, match="receipt_missing_or_ambiguous"):
+        reconcile.build_official_proof(
+            identity, ledger, "test-only", identity_dir=identity_dir,
+        )
+
+
+@pytest.mark.parametrize(
+    "detail_publish_date",
+    ["2026-10-14T01:39:00.000Z", "2026-10-15T10:31:00.000Z", None],
+)
+def test_remote_anicca_video_receipt_requires_detail_date_to_match_list_date(
+    tmp_path, monkeypatch, detail_publish_date,
+):
+    identity, ledger, identity_dir, provider_row, provider_id = _anicca_remote_video_case(
+        tmp_path, monkeypatch,
+    )
+    request = reconcile._request_json
+
+    def conflicting_detail_request(url, api_key):
+        if url == f"{reconcile.POSTIZ_DETAILS}/{provider_id}":
+            detail = dict(provider_row)
+            if detail_publish_date is None:
+                detail.pop("publishDate", None)
+            else:
+                detail["publishDate"] = detail_publish_date
+            return detail
+        return request(url, api_key)
+
+    monkeypatch.setattr(reconcile, "_request_json", conflicting_detail_request)
+
+    with pytest.raises(ValueError, match="publish time"):
+        reconcile.build_official_proof(
+            identity, ledger, "test-only", identity_dir=identity_dir,
+        )
+
+
+@pytest.mark.parametrize("publish_date", [None, "2026-10-15T10:31:00.000Z"])
+def test_remote_anicca_video_receipt_requires_publish_date_inside_slot_window(
+    tmp_path, monkeypatch, publish_date,
+):
+    identity, ledger, identity_dir, _provider_row, _provider_id = _anicca_remote_video_case(
+        tmp_path, monkeypatch, publish_date=publish_date,
+    )
+
+    with pytest.raises(ValueError, match="receipt_missing_or_ambiguous"):
+        reconcile.build_official_proof(
+            identity, ledger, "test-only", identity_dir=identity_dir,
+        )
+
+
+def test_remote_anicca_video_receipt_rejects_conflicting_list_date_aliases(tmp_path, monkeypatch):
+    identity, ledger, identity_dir, provider_row, _provider_id = _anicca_remote_video_case(
+        tmp_path, monkeypatch,
+    )
+    provider_row["date"] = "2026-10-14T01:39:00.000Z"
+
+    with pytest.raises(ValueError, match="receipt_missing_or_ambiguous"):
+        reconcile.build_official_proof(
+            identity, ledger, "test-only", identity_dir=identity_dir,
+        )
+
+
+def test_remote_anicca_video_receipt_rejects_null_list_date_alias(tmp_path, monkeypatch):
+    identity, ledger, identity_dir, provider_row, _provider_id = _anicca_remote_video_case(
+        tmp_path, monkeypatch,
+    )
+    provider_row["date"] = None
+
+    with pytest.raises(ValueError, match="receipt_missing_or_ambiguous"):
+        reconcile.build_official_proof(
+            identity, ledger, "test-only", identity_dir=identity_dir,
+        )
+
+
+def test_remote_anicca_video_receipt_rejects_conflicting_detail_date_aliases(
+    tmp_path, monkeypatch,
+):
+    identity, ledger, identity_dir, provider_row, provider_id = _anicca_remote_video_case(
+        tmp_path, monkeypatch,
+    )
+    request = reconcile._request_json
+
+    def conflicting_detail_request(url, api_key):
+        if url == f"{reconcile.POSTIZ_DETAILS}/{provider_id}":
+            return {**provider_row, "date": "2026-10-14T01:39:00.000Z"}
+        return request(url, api_key)
+
+    monkeypatch.setattr(reconcile, "_request_json", conflicting_detail_request)
+
+    with pytest.raises(ValueError, match="publish time"):
+        reconcile.build_official_proof(
+            identity, ledger, "test-only", identity_dir=identity_dir,
+        )
+
+
+def test_remote_anicca_video_receipt_rejects_null_detail_date_alias(
+    tmp_path, monkeypatch,
+):
+    identity, ledger, identity_dir, provider_row, provider_id = _anicca_remote_video_case(
+        tmp_path, monkeypatch,
+    )
+    request = reconcile._request_json
+
+    def null_detail_date_request(url, api_key):
+        if url == f"{reconcile.POSTIZ_DETAILS}/{provider_id}":
+            return {**provider_row, "date": None}
+        return request(url, api_key)
+
+    monkeypatch.setattr(reconcile, "_request_json", null_detail_date_request)
+
+    with pytest.raises(ValueError, match="publish time"):
+        reconcile.build_official_proof(
+            identity, ledger, "test-only", identity_dir=identity_dir,
+        )
+
+
+def test_remote_anicca_video_receipt_rejects_conflicting_video_hash_fields(tmp_path, monkeypatch):
+    identity, ledger, identity_dir, provider_row, _provider_id = _anicca_remote_video_case(
+        tmp_path, monkeypatch,
+    )
+    provider_row["lifeManagerVideoSha256"] = identity["video_sha256"]
+    provider_row["video_sha256"] = "b" * 64
+
+    with pytest.raises(ValueError, match="receipt_missing_or_ambiguous"):
+        reconcile.build_official_proof(
+            identity, ledger, "test-only", identity_dir=identity_dir,
+        )
+
+
+def test_remote_anicca_video_receipt_rejects_conflicting_hash_on_competing_caption(
+    tmp_path, monkeypatch,
+):
+    identity, ledger, identity_dir, provider_row, _provider_id = _anicca_remote_video_case(
+        tmp_path, monkeypatch,
+    )
+    request = reconcile._request_json
+
+    def competing_hash_request(url, api_key):
+        payload = request(url, api_key)
+        if url.startswith(f"{reconcile.POSTIZ_V1}/posts?"):
+            payload = dict(payload)
+            conflicting = {
+                **provider_row,
+                "id": "anicca-reel-conflicting-hash",
+                "lifeManagerVideoSha256": "b" * 64,
+            }
+            payload["posts"] = [*payload["posts"], conflicting]
+        return payload
+
+    monkeypatch.setattr(reconcile, "_request_json", competing_hash_request)
+
+    with pytest.raises(ValueError, match="receipt_missing_or_ambiguous"):
+        reconcile.build_official_proof(
+            identity, ledger, "test-only", identity_dir=identity_dir,
+        )
+
+
+def test_remote_anicca_video_receipt_rejects_same_id_at_multiple_publish_times(
+    tmp_path, monkeypatch,
+):
+    identity, ledger, identity_dir, provider_row, provider_id = _anicca_remote_video_case(
+        tmp_path, monkeypatch,
+    )
+    request = reconcile._request_json
+    repeated_publish_date = "2026-10-15T00:39:00.000Z"
+
+    def recurring_post_request(url, api_key):
+        if url.startswith(f"{reconcile.POSTIZ_V1}/posts?"):
+            payload = dict(request(url, api_key))
+            repeated = {**provider_row, "publishDate": repeated_publish_date}
+            payload["posts"] = [*payload["posts"], repeated]
+            return payload
+        if url == f"{reconcile.POSTIZ_DETAILS}/{provider_id}":
+            return {**provider_row, "publishDate": repeated_publish_date}
+        return request(url, api_key)
+
+    monkeypatch.setattr(reconcile, "_request_json", recurring_post_request)
+
+    with pytest.raises(ValueError, match="receipt_missing_or_ambiguous"):
+        reconcile.build_official_proof(
+            identity, ledger, "test-only", identity_dir=identity_dir,
+        )
+
+
+def test_remote_anicca_video_receipt_rejects_conflicting_list_integration_aliases(
+    tmp_path, monkeypatch,
+):
+    identity, ledger, identity_dir, provider_row, _provider_id = _anicca_remote_video_case(
+        tmp_path, monkeypatch,
+    )
+    provider_row["integrationId"] = "another-integration"
+
+    with pytest.raises(ValueError, match="receipt_missing_or_ambiguous"):
+        reconcile.build_official_proof(
+            identity, ledger, "test-only", identity_dir=identity_dir,
+        )
+
+
+def test_remote_anicca_video_receipt_rejects_null_list_integration_alias(
+    tmp_path, monkeypatch,
+):
+    identity, ledger, identity_dir, provider_row, _provider_id = _anicca_remote_video_case(
+        tmp_path, monkeypatch,
+    )
+    provider_row["integrationId"] = None
+
+    with pytest.raises(ValueError, match="receipt_missing_or_ambiguous"):
+        reconcile.build_official_proof(
+            identity, ledger, "test-only", identity_dir=identity_dir,
+        )
+
+
+def test_remote_anicca_video_receipt_rejects_conflicting_detail_integration_aliases(
+    tmp_path, monkeypatch,
+):
+    identity, ledger, identity_dir, provider_row, provider_id = _anicca_remote_video_case(
+        tmp_path, monkeypatch,
+    )
+    request = reconcile._request_json
+
+    def conflicting_detail_request(url, api_key):
+        if url == f"{reconcile.POSTIZ_DETAILS}/{provider_id}":
+            return {**provider_row, "integrationId": "another-integration"}
+        return request(url, api_key)
+
+    monkeypatch.setattr(reconcile, "_request_json", conflicting_detail_request)
+
+    with pytest.raises(ValueError, match="integration"):
+        reconcile.build_official_proof(
+            identity, ledger, "test-only", identity_dir=identity_dir,
+        )
+
+
+def test_remote_anicca_video_receipt_rejects_null_detail_integration_alias(
+    tmp_path, monkeypatch,
+):
+    identity, ledger, identity_dir, provider_row, provider_id = _anicca_remote_video_case(
+        tmp_path, monkeypatch,
+    )
+    request = reconcile._request_json
+
+    def null_detail_integration_request(url, api_key):
+        if url == f"{reconcile.POSTIZ_DETAILS}/{provider_id}":
+            return {**provider_row, "integrationId": None}
+        return request(url, api_key)
+
+    monkeypatch.setattr(reconcile, "_request_json", null_detail_integration_request)
+
+    with pytest.raises(ValueError, match="integration"):
+        reconcile.build_official_proof(
+            identity, ledger, "test-only", identity_dir=identity_dir,
+        )
+
+
+def test_remote_anicca_video_receipt_rejects_unverifiable_matching_list_row(
+    tmp_path, monkeypatch,
+):
+    identity, ledger, identity_dir, provider_row, _provider_id = _anicca_remote_video_case(
+        tmp_path, monkeypatch,
+    )
+    request = reconcile._request_json
+
+    def uncertain_list_request(url, api_key):
+        payload = request(url, api_key)
+        if url.startswith(f"{reconcile.POSTIZ_V1}/posts?"):
+            payload = dict(payload)
+            uncertain_row = {
+                **provider_row,
+                "id": "anicca-reel-unknown",
+                "lifeManagerVideoSha256": identity["video_sha256"],
+            }
+            uncertain_row.pop("state", None)
+            uncertain_row.pop("releaseURL", None)
+            payload["posts"] = [*payload["posts"], uncertain_row]
+        return payload
+
+    monkeypatch.setattr(reconcile, "_request_json", uncertain_list_request)
+
+    with pytest.raises(ValueError, match="receipt_missing_or_ambiguous"):
+        reconcile.build_official_proof(
+            identity, ledger, "test-only", identity_dir=identity_dir,
+        )
+
+
+def test_remote_anicca_video_receipt_rejects_competing_identity_sidecar(tmp_path, monkeypatch):
+    identity, ledger, identity_dir, _provider_row, _provider_id = _anicca_remote_video_case(
+        tmp_path, monkeypatch, duplicate_identity=True,
+    )
+
+    with pytest.raises(ValueError, match="receipt_missing_or_ambiguous"):
+        reconcile.build_official_proof(
+            identity, ledger, "test-only", identity_dir=identity_dir,
+        )
+
+
+def test_remote_anicca_video_receipt_rejects_malformed_competing_sidecar(tmp_path, monkeypatch):
+    identity, ledger, identity_dir, _provider_row, _provider_id = _anicca_remote_video_case(
+        tmp_path, monkeypatch,
+    )
+    owner_id = identity["loop_id"]
+    malformed = {
+        **identity,
+        "runtime_run_id": "run-2",
+        "occurrence_id": f"{owner_id}:run-2",
+        "job_id": "",
+        "slot": "not-a-date",
+    }
+    sidecar = identity_dir / "malformed.jsonl"
+    sidecar.write_text(json.dumps(malformed) + "\n", encoding="utf-8")
+    sidecar.chmod(0o600)
+
+    with pytest.raises(ValueError, match="receipt_missing_or_ambiguous"):
+        reconcile.build_official_proof(
+            identity, ledger, "test-only", identity_dir=identity_dir,
+        )
+
+
 def test_remote_recovery_accepts_the_english_campaign_token_for_heygen_posts(tmp_path, monkeypatch):
     data_dir = tmp_path / "data"
     video_sha = "b" * 64
@@ -509,6 +1127,7 @@ def test_remote_recovery_accepts_the_english_campaign_token_for_heygen_posts(tmp
         "id": provider_id,
         "state": "PUBLISHED",
         "releaseURL": "https://www.tiktok.com/@monk_anicca/video/1234567890",
+        "publishDate": "2026-10-06T21:30:00.000Z",
         "integration": {"id": integration_id},
         "content": caption,
         "lifeManagerVideoSha256": video_sha,
@@ -592,6 +1211,7 @@ def test_pending_owner_persists_remote_receipt_before_resolving_missing_local_ro
         "id": "post-123",
         "state": "PUBLISHED",
         "releaseURL": "https://www.instagram.com/reel/abc123",
+        "publishDate": "2026-10-06T22:30:00.000Z",
         "integration": {"id": "cmooplxmu04tpmd0y4h3cpk33"},
         "content": caption,
         "lifeManagerVideoSha256": video_sha,
@@ -1488,3 +2108,246 @@ def test_native_carousel_late_publish_matches_only_the_same_jst_day():
     assert not reconcile._native_carousel_publish_time_matches_slot(
         slot, reconcile.datetime.fromisoformat("2026-10-07T08:44:00.000Z"),
     )
+
+
+
+def _claim_run_events(tmp_path, owner, occurrence, *, run="18dd-run", start="2026-10-09T03:55:50+00:00",
+                      reports=1):
+    events = tmp_path / "events.jsonl"
+    rows = [{"owner_id": owner, "phase": "execute", "run_id": run,
+             "occurrence_id": f"{owner}:{run}", "timestamp": start}]
+    rows += [{"owner_id": owner, "phase": "report", "run_id": run, "occurrence_id": occurrence,
+              "exit_code": 1, "effect_status": "unknown", "timestamp": start}] * reports
+    events.write_text("".join(json.dumps(row) + "\n" for row in rows))
+    events.chmod(0o600)
+    return events
+
+
+def _postiz_route_env(tmp_path, monkeypatch, owner, *, plist_env=None, ledger_rows=None, product="ebook-ja"):
+    """Owner LaunchAgent, marketing.env and distribution ledger the route check reads."""
+    import plistlib
+    agents = tmp_path / "LaunchAgents"
+    agents.mkdir(exist_ok=True)
+    (agents / f"ai.anicca.life-manager-{owner}.plist").write_bytes(
+        plistlib.dumps({"EnvironmentVariables": plist_env or {}}))
+    marketing_env = tmp_path / "marketing.env"
+    marketing_env.write_text("LM_POSTIZ_API_KEY=k\n")
+    marketing_env.chmod(0o600)
+    monkeypatch.setattr(reconcile, "LAUNCH_AGENTS", agents)
+    monkeypatch.setattr(reconcile, "DEFAULT_MARKETING_ENV", marketing_env)
+    monkeypatch.delenv("LM_TIKTOK_DIRECT_MIGRATION", raising=False)
+    if ledger_rows is not None:
+        ledger = (tmp_path / "tenants/dais-local/marketing/video-publication" / product
+                  / "distribution.jsonl")
+        ledger.parent.mkdir(parents=True)
+        ledger.write_text("".join(json.dumps(row) + "\n" for row in ledger_rows))
+        ledger.chmod(0o600)
+
+
+def _identityless_kw(tmp_path, owner, occurrence, idir):
+    return dict(owner_id=owner, occurrence_id=occurrence, identity_dir=idir, data_dir=tmp_path,
+                tenant_id="dais-local", admission_db=tmp_path / "a.sqlite3", api_key="k")
+
+
+def test_identityless_fence_closes_only_on_zero_posts_since_its_claim_run_started(tmp_path, monkeypatch):
+    owner = "ebook-ja-tiktok-daily"
+    occurrence = f"{owner}:18dc5e822e430b80-45345"
+    idir = _hist_identity_dir(tmp_path, owner, ["integration://postiz/tiktok/cmig"])
+    _claim_run_events(tmp_path, owner, occurrence)
+    _postiz_route_env(tmp_path, monkeypatch, owner, ledger_rows=[
+        {"platform": "tiktok", "route": "tiktok_direct", "ts": "2026-10-07T07:03:41Z"},
+        {"platform": "instagram", "route": "instagram_file_script", "ts": "2026-10-09T07:03:41Z"}])
+    now = 1_791_600_000.0  # days after the claim run
+    calls = []
+
+    def posts(integration_id, start, end, api_key):
+        calls.append((integration_id, start, end))
+        if len(calls) == 1:  # the whole range overflows one page once: bisect, never day-by-day
+            raise reconcile.PostizPageLimit("page limit")
+        return []
+    monkeypatch.setattr(reconcile, "_postiz_posts_between", posts)
+    monkeypatch.setattr(reconcile, "_admission_state", lambda *_a: ("claimed", 1))
+    monkeypatch.setattr(reconcile.time, "time", lambda: now)
+    kw = _identityless_kw(tmp_path, owner, occurrence, idir)
+
+    result = reconcile.reconcile_current_occurrence(apply=False, **kw)
+    assert result["status"] == "ready"
+    assert result["proof_type"] == "historical_integration_bound_no_dispatch"
+    assert result["historical_integration_id"] == "cmig" and result["claim_run_id"] == "18dd-run"
+    assert len(calls) == 3 and all(c[0] == "cmig" for c in calls)
+    assert calls[0][1] == "2026-10-09T03:50:50Z" and calls[0][2] > "2026-10-16"
+    assert calls[1][1] == calls[0][1] and calls[2][2] == calls[0][2] and calls[1][2] == calls[2][1]
+
+    calls.clear()
+    seen = {}
+    monkeypatch.setattr(reconcile, "_authoritative_admission_db", lambda: (tmp_path / "a.sqlite3").resolve())
+    monkeypatch.setattr(reconcile._resource_admission, "resolve_historical_no_dispatch_occurrence",
+                        lambda o, occ, *, no_dispatch_proof, expected_state:
+                        seen.update(proof=no_dispatch_proof(), state=expected_state) or True)
+    result = reconcile.reconcile_current_occurrence(apply=True, **kw)
+    assert result["status"] == "resolved" and seen["state"] == "claimed"
+    assert seen["proof"]["occurrence_id"] == occurrence and seen["proof"]["verified"] is True
+    assert len(calls) == 3  # the resolver reuses the proof; no second readback
+
+
+def test_identityless_postiz_read_is_capped(tmp_path, monkeypatch):
+    owner = "ebook-ja-tiktok-daily"
+    occurrence = f"{owner}:18dc5e822e430b80-45345"
+    idir = _hist_identity_dir(tmp_path, owner, ["integration://postiz/tiktok/cmtt"])
+    _claim_run_events(tmp_path, owner, occurrence)
+    _postiz_route_env(tmp_path, monkeypatch, owner)
+    calls = []
+
+    def always_full(*a):
+        calls.append(a)
+        raise reconcile.PostizPageLimit("page limit")
+    monkeypatch.setattr(reconcile, "_postiz_posts_between", always_full)
+    monkeypatch.setattr(reconcile, "_admission_state", lambda *_a: ("claimed", 1))
+    monkeypatch.setattr(reconcile.time, "time", lambda: 1_791_600_000.0)
+    result = reconcile.reconcile_current_occurrence(apply=False, **_identityless_kw(tmp_path, owner, occurrence, idir))
+    assert result["reason"] == "identity_missing_and_no_dispatch_unproven"
+    assert len(calls) == reconcile.MAX_POSTIZ_READS
+
+
+@pytest.mark.parametrize("case", [
+    "post_after_claim", "deleted_post_listed_after_claim", "report_without_start", "too_recent", "no_integration",
+    "no_run", "direct_migration_plist", "direct_migration_env", "direct_migration_marketing_env",
+    "non_postiz_route_after_claim", "no_launch_agent",
+])
+def test_identityless_fence_stays_fenced_without_an_occurrence_bound_zero_post_proof(tmp_path, monkeypatch, case):
+    owner = "ebook-ja-tiktok-daily"
+    occurrence = f"{owner}:18dc5e822e430b80-45345"
+    refs = [] if case == "no_integration" else ["integration://postiz/tiktok/cmtt"]
+    idir = _hist_identity_dir(tmp_path, owner, refs)
+    if case == "no_integration":  # no sidecar and no pack pin
+        monkeypatch.setattr(reconcile, "EBOOK_PACKS_DIR", tmp_path / "no-packs")
+    if case == "report_without_start":
+        events = _claim_run_events(tmp_path, owner, occurrence)
+        rows = [json.loads(line) for line in events.read_text().splitlines()]
+        events.write_text("".join(json.dumps(row) + "\n" for row in rows if row["phase"] != "execute"))
+    elif case != "no_run":
+        _claim_run_events(tmp_path, owner, occurrence)
+    _postiz_route_env(
+        tmp_path, monkeypatch, owner,
+        plist_env={"LM_TIKTOK_DIRECT_MIGRATION": "1"} if case == "direct_migration_plist" else None,
+        ledger_rows=[{"platform": "tiktok", "route": "tiktok_direct", "ts": "2026-10-09T04:00:00Z"}]
+        if case == "non_postiz_route_after_claim" else None)
+    if case == "direct_migration_env":
+        monkeypatch.setenv("LM_TIKTOK_DIRECT_MIGRATION", "1")
+    if case == "direct_migration_marketing_env":
+        reconcile.DEFAULT_MARKETING_ENV.write_text("LM_POSTIZ_API_KEY=k\nexport LM_TIKTOK_DIRECT_MIGRATION=1\n")
+    if case == "no_launch_agent":
+        for plist in reconcile.LAUNCH_AGENTS.iterdir():
+            plist.unlink()
+    now = 1_791_530_000.0 if case == "too_recent" else 1_791_600_000.0
+    rows = {"post_after_claim": [{"id": "p"}],
+            "deleted_post_listed_after_claim": [{"id": "p", "deletedAt": "2026-10-09T05:00:00Z"}]}.get(case, [])
+    monkeypatch.setattr(reconcile, "_postiz_posts_between", lambda *a: rows)
+    monkeypatch.setattr(reconcile, "_admission_state", lambda *_a: ("claimed", 1))
+    monkeypatch.setattr(reconcile.time, "time", lambda: now)
+    result = reconcile.reconcile_current_occurrence(
+        apply=True, **_identityless_kw(tmp_path, owner, occurrence, idir))
+    assert result["status"] == "inconclusive"
+    assert result["reason"] == "identity_missing_and_no_dispatch_unproven"
+
+
+@pytest.mark.parametrize("owner", ["life-manager-anicca-main-tiktok", "life-manager-honne-tiktok"])
+def test_identityless_path_is_limited_to_postiz_only_ebook_owners(tmp_path, monkeypatch, owner):
+    occurrence = f"{owner}:run-x"
+    idir = _hist_identity_dir(tmp_path, owner, ["integration://postiz/tiktok/cmtt"])
+    _claim_run_events(tmp_path, owner, occurrence)
+    _postiz_route_env(tmp_path, monkeypatch, owner)
+    monkeypatch.setattr(reconcile, "_postiz_posts_between", lambda *a: pytest.fail("no Postiz read"))
+    monkeypatch.setattr(reconcile, "_admission_state", lambda *_a: ("claimed", 1))
+    monkeypatch.setattr(reconcile.time, "time", lambda: 1_791_600_000.0)
+    result = reconcile.reconcile_current_occurrence(
+        apply=False, **_identityless_kw(tmp_path, owner, occurrence, idir))
+    assert result["reason"] == "identity_missing_or_invalid"
+    assert set(reconcile.IDENTITYLESS_POSTIZ_OWNERS) == {
+        "ebook-ja-tiktok-daily", "ebook-ja-instagram-daily", "ebook-en-instagram-daily",
+        "ebook-en-tiktok-daily"}
+
+
+@pytest.mark.parametrize("case", ["zero_posts", "post_after_claim", "file_script_after_claim"])
+def test_identityless_ebook_instagram_fence_needs_zero_posts_on_its_own_integration(
+        tmp_path, monkeypatch, case):
+    # The eBook Instagram job always carries a Postiz integration ref (the adapter rejects a
+    # job without one), so the file-script fallback is unreachable; a ledger row on any other
+    # route after the claim still keeps the fence.
+    owner = "ebook-ja-instagram-daily"
+    occurrence = f"{owner}:18dc64be2b4087e0-5330"
+    idir = _hist_identity_dir(tmp_path, owner, ["integration://postiz/instagram/cmig"])
+    _claim_run_events(tmp_path, owner, occurrence, run="18dcc04408f9cac0-33517")
+    rows = [{"platform": "instagram", "route": "instagram_file_script", "ts": "2026-10-07T07:03:41Z"}]
+    if case == "file_script_after_claim":
+        rows.append({"platform": "instagram", "route": "instagram_file_script", "ts": "2026-10-09T04:00:00Z"})
+    _postiz_route_env(tmp_path, monkeypatch, owner, ledger_rows=rows)
+    calls = []
+    monkeypatch.setattr(reconcile, "_postiz_posts_between", lambda i, s, e, k: calls.append(i) or (
+        [{"id": "p"}] if case == "post_after_claim" else []))
+    monkeypatch.setattr(reconcile, "_admission_state", lambda *_a: ("claimed", 1))
+    monkeypatch.setattr(reconcile.time, "time", lambda: 1_791_600_000.0)
+    result = reconcile.reconcile_current_occurrence(
+        apply=False, **_identityless_kw(tmp_path, owner, occurrence, idir))
+    if case == "zero_posts":
+        assert result["status"] == "ready" and result["occurrence_id"] == occurrence
+        assert result["historical_integration_id"] == "cmig"
+        assert result["claim_run_id"] == "18dcc04408f9cac0-33517" and calls == ["cmig"]
+    else:
+        assert result["status"] == "inconclusive"
+        assert result["reason"] == "identity_missing_and_no_dispatch_unproven"
+
+
+def _ebook_packs(tmp_path, monkeypatch, tiktok_integration="cmen"):
+    packs = tmp_path / "ebook-packs"
+    packs.mkdir()
+    (packs / "ebook-en-anicca-monk.json").write_text(json.dumps({"product_id": "ebook-en", "accounts": [
+        {"account_id": "tiktok.monk_anicca", "integration_id": tiktok_integration},
+        {"account_id": "instagram.monk_anicca", "integration_id": None}]}))
+    monkeypatch.setattr(reconcile, "EBOOK_PACKS_DIR", packs)
+
+
+@pytest.mark.parametrize("case", ["died_without_report", "deferred_then_claimed", "sidecar_wins",
+                                  "no_pack_integration", "post_after_claim"])
+def test_identityless_ebook_en_tiktok_fence_uses_its_pack_integration_and_own_run_start(
+        tmp_path, monkeypatch, case):
+    # ebook-en-tiktok never wrote a sidecar, so its one Postiz integration comes from the pack the
+    # job pins.  The window opens at the occurrence's own run, the earliest process that could act.
+    owner = "ebook-en-tiktok-daily"
+    own = "18ddc66eb902eba0-53359"
+    occurrence = f"{owner}:{own}"
+    idir = _hist_identity_dir(tmp_path, owner, ["integration://postiz/tiktok/cmside"]
+                              if case == "sidecar_wins" else [])
+    _ebook_packs(tmp_path, monkeypatch, None if case == "no_pack_integration" else "cmen")
+    events = tmp_path / "events.jsonl"
+    rows = [{"owner_id": owner, "phase": "execute", "run_id": own, "occurrence_id": occurrence,
+             "timestamp": "2026-10-12T12:00:05+00:00"}]
+    if case != "died_without_report":
+        rows += [
+            {"owner_id": owner, "phase": "report", "run_id": own, "occurrence_id": occurrence,
+             "error_class": "host_admission_deferred:resource_capacity_busy", "exit_code": 75,
+             "timestamp": "2026-10-12T12:00:09+00:00"},
+            {"owner_id": owner, "phase": "execute", "run_id": "18ddd5e5-claim",
+             "occurrence_id": f"{owner}:18ddd5e5-claim", "timestamp": "2026-10-12T16:43:28+00:00"},
+            {"owner_id": owner, "phase": "report", "run_id": "18ddd5e5-claim", "occurrence_id": occurrence,
+             "exit_code": 0, "timestamp": "2026-10-12T16:43:38+00:00"}]
+    events.write_text("".join(json.dumps(row) + "\n" for row in rows))
+    events.chmod(0o600)
+    _postiz_route_env(tmp_path, monkeypatch, owner)
+    calls = []
+    monkeypatch.setattr(reconcile, "_postiz_posts_between", lambda i, s, e, k: calls.append((i, s)) or (
+        [{"id": "p"}] if case == "post_after_claim" else []))
+    monkeypatch.setattr(reconcile, "_admission_state", lambda *_a: ("claimed", 1))
+    monkeypatch.setattr(reconcile.time, "time", lambda: 1_791_900_000.0)  # 2026-10-13
+    result = reconcile.reconcile_current_occurrence(
+        apply=False, **_identityless_kw(tmp_path, owner, occurrence, idir))
+    if case in {"died_without_report", "deferred_then_claimed"}:
+        assert result["status"] == "ready" and result["occurrence_id"] == occurrence
+        assert result["historical_integration_id"] == "cmen"
+        assert calls == [("cmen", "2026-10-12T11:55:05Z")]
+        assert result["claim_run_id"] == (own if case == "died_without_report" else "18ddd5e5-claim")
+    elif case == "sidecar_wins":
+        assert result["status"] == "ready" and calls == [("cmside", "2026-10-12T11:55:05Z")]
+    else:
+        assert result["status"] == "inconclusive"
+        assert result["reason"] == "identity_missing_and_no_dispatch_unproven"

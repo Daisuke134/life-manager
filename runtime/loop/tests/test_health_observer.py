@@ -1,3 +1,4 @@
+import gzip
 import json
 import unittest
 from pathlib import Path
@@ -40,6 +41,7 @@ def health_document(*, state="failed", generated_at="2026-10-01T00:00:00+00:00")
                 "effect_safety": {"status": "not_applicable", "reason": "entrypoint_exit_1" if state == "failed" else None},
                 "business": {"status": "not_applicable", "reason": None},
                 "recovery": {"status": "degraded" if state == "failed" else "ok", "reason": "reconcile_owner" if state == "failed" else "none"},
+                "revenue": {"status": "not_applicable", "reason": None},
             },
             "clocks": {
                 "last_attempt": generated_at,
@@ -194,6 +196,30 @@ class HealthObserverTest(unittest.TestCase):
             self.assertFalse(result["alert_emitted"])
             self.assertFalse((root / "alerts.jsonl").exists())
 
+    def test_revenue_outage_on_healthy_job_emits_intent_with_blocker_once(self):
+        with TemporaryDirectory() as directory:
+            document = health_document(state="healthy")
+            job = document["jobs"][0]
+            reason = ("revenue_outage idle_hours=36.0 threshold_hours=2.0 state=healthy "
+                      "blocker=disk_floor_low")
+            job["facets"]["revenue"] = {"status": "blocked", "reason": reason}
+            job["diagnostic"]["error_class"] = "disk_floor_low"
+
+            result = observe_health(document, Path(directory))
+            self.assertTrue(result["alert_emitted"])
+            self.assertEqual(len(result["recovery_intents"]), 1)
+            intent = result["recovery_intents"][0]
+            self.assertIn("lm-loop://example-loop/run-1/revenue-outage", intent["evidence_refs"])
+            self.assertFalse(intent["mutates_external_effect"])
+            alert = jsonl(Path(directory) / "alerts.jsonl")[-1]
+            self.assertEqual(alert["revenue_outages"], {"example-loop": reason})
+
+            # idle-hours jitter in the reason must not re-alert
+            job["facets"]["revenue"]["reason"] = reason.replace("36.0", "36.1")
+            document["generated_at"] = "2026-10-01T00:05:00+00:00"
+            again = observe_health(document, Path(directory))
+            self.assertFalse(again["alert_emitted"])
+
     def test_effect_unknown_intent_never_mutates_or_retries_effect(self):
         with TemporaryDirectory() as directory:
             document = health_document()
@@ -255,6 +281,23 @@ class HealthObserverTest(unittest.TestCase):
         self.assertTrue(argv[1].endswith("runtime/loop/recovery-intent-cli.mjs"))
         self.assertEqual(argv[2], "--input")
         self.assertFalse(intent["mutates_external_effect"])
+
+class HealthObserverJournalBoundTest(unittest.TestCase):
+    def test_history_and_alerts_rotate_and_alert_dedupe_survives(self):
+        with TemporaryDirectory() as directory, patch(
+                "runtime.loop.health_observer.JSONL_MAX_BYTES", 1):
+            root = Path(directory)
+            observe_health(health_document(generated_at="2026-10-01T00:00:00+00:00"), root)
+            observe_health(health_document(state="healthy", generated_at="2026-10-01T00:01:00+00:00"), root)
+            observe_health(health_document(generated_at="2026-10-01T00:02:00+00:00"), root)
+            result = observe_health(health_document(generated_at="2026-10-01T00:03:00+00:00"), root)
+            self.assertFalse(result["alert_emitted"])
+            for name in ("history", "alerts"):
+                self.assertEqual(len((root / f"{name}.jsonl").read_text().splitlines()), 1)
+                archives = list(root.glob(f"{name}-*.jsonl.gz"))
+                self.assertEqual(len(archives), 1)
+                with gzip.open(archives[0], "rt") as handle:
+                    json.loads(handle.readline())
 
 
 if __name__ == "__main__":

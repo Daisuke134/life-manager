@@ -1,5 +1,5 @@
 {
-  "why": "Dais 2026-10-11: never change an Agent that has sold. Every version update to a seller (9/29 DeepSeek switch, 10/06, 10/10 price restore) preceded its sales stopping, and a seller update under review also fills one of the five new-Agent slots, so it blocks shipping new Agents too. The factory refuses to prepare, resume or submit these Agents for any reason (frozen_guard.sh, inventory_status.drop_frozen / drop_profitable_updates); no exception field bypasses this. Iterate only non-selling Agents; ship new Agents first; market the sellers.",
+  "why": "Dais 2026-10-11: never change an Agent that has sold. Every version update to a seller (9/29 DeepSeek switch, 10/06, 10/10 price restore) preceded its sales stopping, and a seller update under review also fills one of the five new-Agent slots, so it blocks shipping new Agents too. The factory refuses to prepare, resume or submit these Agents for any reason (frozen_guard.sh, inventory_status.drop_frozen / drop_profitable_updates); no exception field bypasses this. Iterate only non-selling Agents; ship new Agents first; market the sellers. Dais 2026-10-16: Hook Lab (8123079349) leaves this list for one price restore to the September prices that sold (day $1.99 / week $4.99 / month $9.99): all 12 paid Hook Lab orders were at those prices, zero since the 9/29 raise to $3.99/$9.99/$19.99, and the 10/10 restore never went live (paid sales had already stopped on 9/29). Re-freeze it once the update is submitted. 2026-10-16 10:32 JST: Hook Lab v1.0.8 (September prices) submitted, platform_status=1; re-frozen.",
   "agent_ids": [
     "8123079349",
     "2844813315",
@@ -8,10 +8,17 @@
     "8828622062"
   ],
   "names": {
-    "8123079349": "Hook Lab (best seller)",
     "2844813315": "TikTok Script Pro",
     "9563867391": "Marketing Strategist",
     "7686597754": "YouTube Script Writer",
-    "8828622062": "Slide Maker"
-  }
+    "8828622062": "Slide Maker",
+    "8123079349": "Hook Lab (best seller)"
+  },
+  "sellers": [
+    "8123079349",
+    "2844813315",
+    "9563867391",
+    "7686597754",
+    "8828622062"
+  ]
 }

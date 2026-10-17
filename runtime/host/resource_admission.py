@@ -8,6 +8,7 @@ import fcntl
 from functools import wraps
 import hashlib
 import json
+import math
 import os
 import pwd
 import re
@@ -42,6 +43,7 @@ PRIORITY_AGE_SECONDS = {
 }
 OCCURRENCE_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
 DEFAULT_HEARTBEAT_TIMEOUT_SECONDS = 300
+HEARTBEAT_FUTURE_SKEW_SECONDS = 60
 CONNECTOR_OBSERVATION_OWNER = "life-manager-connector-native"
 
 
@@ -611,6 +613,11 @@ def _database(path: Path) -> sqlite3.Connection:
     return connection
 
 
+# 10 CPUs / 16GB: two host agent slots left Gig revenue lanes queued behind support
+# agents with 66% memory free (2026-10-15). lm_loop_run still defers below 15% free memory.
+DEFAULT_AGENT_TOTAL_RUNS = 3
+
+
 def _limits(resource_class: str, admission_class: str = "borrow") -> tuple[int, int]:
     total = _capacity("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", 10)
     if admission_class == "revenue":
@@ -704,14 +711,35 @@ def _heartbeat_timeout_seconds() -> int:
 def _heartbeat_expired(row: dict[str, object], now: float) -> bool:
     if row.get("phase") not in {"claimed", "running"}:
         return False
+    if "heartbeat_at" not in row and "heartbeat_timeout_seconds" not in row:
+        # Legacy claims without either field remain governed by process identity
+        # until heartbeat_durable upgrades them on their first renewal.
+        return False
     heartbeat_at = row.get("heartbeat_at")
     timeout = row.get("heartbeat_timeout_seconds", DEFAULT_HEARTBEAT_TIMEOUT_SECONDS)
+    try:
+        heartbeat_timestamp = float(heartbeat_at)
+        timeout_seconds = float(timeout)
+    except (OverflowError, TypeError, ValueError):
+        return True
     if (not isinstance(heartbeat_at, (int, float)) or isinstance(heartbeat_at, bool)
-            or not isinstance(timeout, (int, float)) or isinstance(timeout, bool)):
-        # Legacy claims have no heartbeat contract and remain governed by
-        # process identity until a compatible runner rewrites them.
+            or not math.isfinite(heartbeat_timestamp)
+            or type(timeout) is not int or not 1 <= timeout <= 3600):
+        return True
+    return (heartbeat_timestamp > now + HEARTBEAT_FUTURE_SKEW_SECONDS
+            or now - heartbeat_timestamp > timeout_seconds)
+
+
+def _heartbeat_timestamp_too_far_in_future(row: dict[str, object], now: float) -> bool:
+    heartbeat_at = row.get("heartbeat_at")
+    if not isinstance(heartbeat_at, (int, float)) or isinstance(heartbeat_at, bool):
         return False
-    return now - float(heartbeat_at) > float(timeout)
+    try:
+        timestamp = float(heartbeat_at)
+    except OverflowError:
+        return False
+    return (math.isfinite(timestamp)
+            and timestamp > now + HEARTBEAT_FUTURE_SKEW_SECONDS)
 
 
 def _record_occurrence(connection: sqlite3.Connection, occurrence_id: str,
@@ -846,7 +874,7 @@ def _capacity_available(occupied: list[dict[str, object]],
         return False
     if (resource_class == "agent"
             and sum(row.get("resource_class") == "agent" for row in occupied)
-            >= _capacity("LIFE_MANAGER_HOST_MAX_AGENT_TOTAL_RUNS", 2)):
+            >= _capacity("LIFE_MANAGER_HOST_MAX_AGENT_TOTAL_RUNS", DEFAULT_AGENT_TOTAL_RUNS)):
         return False
     if (admission_class == "revenue" and _revenue_floor(total)
             and _legacy_owner_present(occupied)):
@@ -871,7 +899,7 @@ def _capacity_overflow(occupied: list[dict[str, object]],
         return True
     if (resource_class == "agent"
             and sum(row.get("resource_class") == "agent" for row in occupied)
-            > _capacity("LIFE_MANAGER_HOST_MAX_AGENT_TOTAL_RUNS", 2)):
+            > _capacity("LIFE_MANAGER_HOST_MAX_AGENT_TOTAL_RUNS", DEFAULT_AGENT_TOTAL_RUNS)):
         return True
     if sum(_uses_limited_capacity(row, resource_class, admission_class)
            for row in occupied) > per_class:
@@ -1360,12 +1388,67 @@ def transfer_durable(claim: Path, child_pid: int) -> None:
         os.close(descriptor)
 
 
+class DurableHeartbeatFailure(RuntimeError):
+    """A bounded, secret-free reason a durable claim could not be renewed."""
+
+    def __init__(self, reason: str) -> None:
+        if reason not in {
+                "claim_missing", "claim_invalid", "process_identity_unavailable",
+                "claim_ownership_lost", "claim_expired"}:
+            raise ValueError("invalid durable heartbeat reason")
+        self.reason = reason
+        super().__init__(f"heartbeat_{reason}")
+
+
+def _heartbeat_claim_row(claim: Path) -> dict[str, object]:
+    try:
+        raw = claim.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        raise DurableHeartbeatFailure("claim_missing") from None
+    except UnicodeError:
+        raise DurableHeartbeatFailure("claim_invalid") from None
+    try:
+        value = json.loads(raw)
+    except (TypeError, ValueError):
+        raise DurableHeartbeatFailure("claim_invalid") from None
+    if not isinstance(value, dict):
+        raise DurableHeartbeatFailure("claim_invalid")
+    phase = value.get("phase", "claimed")
+    version = value.get("version", 1)
+    if (type(version) is not int or version not in {1, 2}
+            or type(value.get("pid")) is not int or value["pid"] <= 0
+            or not isinstance(value.get("process_start"), str)
+            or not value["process_start"]
+            or not isinstance(phase, str) or phase not in {"claimed", "running"}):
+        raise DurableHeartbeatFailure("claim_invalid")
+    has_heartbeat_contract = (
+        "heartbeat_at" in value or "heartbeat_timeout_seconds" in value
+    )
+    if version == 2 or has_heartbeat_contract:
+        heartbeat_at = value.get("heartbeat_at")
+        try:
+            heartbeat_at_valid = (
+                isinstance(heartbeat_at, (int, float))
+                and not isinstance(heartbeat_at, bool)
+                and math.isfinite(heartbeat_at)
+            )
+        except OverflowError:
+            heartbeat_at_valid = False
+        timeout = value.get("heartbeat_timeout_seconds")
+        if (not heartbeat_at_valid or type(timeout) is not int
+                or not 1 <= timeout <= 3600):
+            raise DurableHeartbeatFailure("claim_invalid")
+    return value
+
+
 def heartbeat_durable(claim: Path, *, now: float | None = None) -> bool:
-    """Refresh progress for the exact live claim, without changing ownership."""
-    value = _row(claim)
+    """Refresh the exact live claim or raise a bounded, secret-free failure."""
+    value = _heartbeat_claim_row(claim)
     started = process_start(os.getpid())
-    if not value or not started or not _controlled_by(value, os.getpid(), started):
-        return False
+    if not started:
+        raise DurableHeartbeatFailure("process_identity_unavailable")
+    if not _controlled_by(value, os.getpid(), started):
+        raise DurableHeartbeatFailure("claim_ownership_lost")
     instant = time.time() if now is None else now
     root, _, _, _ = _durable_paths()
     descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
@@ -1373,11 +1456,17 @@ def heartbeat_durable(claim: Path, *, now: float | None = None) -> bool:
         if not _acquire_bounded(descriptor, timeout_seconds=5.0):
             # Lock contention is transient; only lost ownership or expiry is fatal.
             raise RuntimeError("control_busy")
-        current = _row(claim)
-        if (not current or not _controlled_by(current, os.getpid(), started)
-                or _heartbeat_expired(current, instant)):
-            return False
-        atomic_json(claim, {**current, "heartbeat_at": instant})
+        current = _heartbeat_claim_row(claim)
+        if not _controlled_by(current, os.getpid(), started):
+            raise DurableHeartbeatFailure("claim_ownership_lost")
+        if _heartbeat_timestamp_too_far_in_future(current, instant):
+            raise DurableHeartbeatFailure("claim_invalid")
+        if _heartbeat_expired(current, instant):
+            raise DurableHeartbeatFailure("claim_expired")
+        renewed = {**current, "heartbeat_at": instant}
+        if "heartbeat_at" not in current and "heartbeat_timeout_seconds" not in current:
+            renewed["heartbeat_timeout_seconds"] = _heartbeat_timeout_seconds()
+        atomic_json(claim, renewed)
         return True
     finally:
         os.close(descriptor)
@@ -1540,6 +1629,40 @@ def cancel_effect_free_queued_owner(owner_id: str) -> str:
         os.close(descriptor)
 
 
+def cancel_stale_queued_occurrences(*, older_than_seconds: float = 86_400,
+                                    now: float | None = None, limit: int = 5_000) -> int:
+    """Cancel never-started queued duplicates; each owner keeps its newest queued wake.
+
+    18,238 queued rows (7,066 older than a week) made the ordered queue scan take
+    1.2s under control.lock, so other owners timed out with control_busy. A queued
+    row has not crossed any effect boundary, and the newest wake per owner stays,
+    so the owner still runs on its next claim. Returns rows cancelled (0 when busy).
+    """
+    _root, _owners, _tickets, database = _durable_paths()
+    if not database.exists():
+        return 0
+    cutoff = (time.time() if now is None else now) - older_than_seconds
+    descriptor = os.open(_root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        if not _acquire_bounded(descriptor, timeout_seconds=0.5):
+            return 0
+        with _database(database) as connection:
+            return connection.execute(
+                """UPDATE occurrences SET state='cancelled'
+                     WHERE rowid IN (
+                       SELECT stale.rowid FROM occurrences AS stale
+                        WHERE stale.state='queued' AND stale.effect_unknown=0
+                          AND stale.queued_at < ?
+                          AND stale.queued_at < (
+                            SELECT max(newest.queued_at) FROM occurrences AS newest
+                             WHERE newest.owner_id=stale.owner_id AND newest.state='queued')
+                        LIMIT ?)""",
+                (cutoff, limit),
+            ).rowcount
+    finally:
+        os.close(descriptor)
+
+
 def _expire_leaked_reservations(connection: sqlite3.Connection, instant: float) -> None:
     """Delete reservations nobody claimed in time, and cool the owner down.
 
@@ -1651,15 +1774,29 @@ def release_and_reserve(claim: Path, *, requeue: bool = False,
             occurrence_id = value.get("occurrence_id")
             if isinstance(occurrence_id, str) and occurrence_id:
                 if effect_unknown:
+                    owner_id = value["owner_id"]
+                    existing = connection.execute(
+                        "SELECT 1 FROM occurrences WHERE occurrence_id=?",
+                        (occurrence_id,),
+                    ).fetchone()
+                    _record_occurrence(
+                        connection, occurrence_id, owner_id, value["resource_class"],
+                        value["admission_class"], value["base_priority"],
+                        value["queued_at"], value["sequence"],
+                    )
+                    if existing is None:
+                        connection.execute(
+                            "UPDATE occurrences SET state='released' WHERE occurrence_id=?",
+                            (occurrence_id,),
+                        )
                     connection.execute(
-                        """UPDATE occurrences SET effect_unknown=1
-                             WHERE occurrence_id=? AND state='claimed'""",
+                        "UPDATE occurrences SET effect_unknown=1 WHERE occurrence_id=?",
                         (occurrence_id,),
                     )
                 else:
                     connection.execute(
-                        "UPDATE occurrences SET state=?,effect_unknown=0 WHERE occurrence_id=?",
-                        ("queued" if requeue else "released", occurrence_id),
+                        "UPDATE occurrences SET state=? WHERE occurrence_id=? AND owner_id=?",
+                        ("queued" if requeue else "released", occurrence_id, value["owner_id"]),
                     )
             elif effect_unknown:
                 connection.execute(
@@ -1817,6 +1954,38 @@ def resolve_pre_effect_occurrence(owner_id: str, occurrence_id: str, *,
                                      proof_check=proof_check)
 
 
+def resolve_verified_no_effect_occurrence(
+        owner_id: str, occurrence_id: str, *, expected_reason: str,
+        no_effect_readback: Callable[[], Mapping[str, object]],
+        expected_state: str = "released") -> bool:
+    """Close one fence from an exact, occurrence-bound terminal no-effect result.
+
+    This is distinct from ``resolve_pre_effect_occurrence``: the child completed
+    and its trusted adapter reported no effect, rather than proving that a
+    pre-dispatch marker was never written.
+    """
+    if (not owner_id or not _normalize_occurrence_id(occurrence_id)
+            or not isinstance(expected_reason, str) or not expected_reason
+            or expected_state not in {"claimed", "released"}):
+        raise RuntimeError("invalid no-effect occurrence identity")
+
+    def proof_check() -> bool:
+        proof = no_effect_readback()
+        return (isinstance(proof, Mapping)
+                and proof.get("owner_id") == owner_id
+                and proof.get("occurrence_id") == occurrence_id
+                and proof.get("verified") is True
+                and proof.get("proof_type") == "verified_no_effect"
+                and type(proof.get("effect")) is int
+                and proof.get("effect") == 0
+                and proof.get("reason") == expected_reason
+                and proof.get("evidence_ref") == (
+                    f"lm-no-effect://{owner_id}/{occurrence_id}/{expected_reason}"))
+
+    return _close_unknown_occurrence(owner_id, occurrence_id, expected_state,
+                                     proof_check=proof_check)
+
+
 _HISTORICAL_NO_DISPATCH_PROOFS = {
     ("historical_account_bound_no_dispatch", "coconala"): "historical_account_id",
     ("historical_integration_bound_no_dispatch", "postiz"): "historical_integration_id",
@@ -1860,6 +2029,41 @@ def resolve_historical_no_dispatch_occurrence(
         return (bound_key is not None
                 and isinstance(proof.get(bound_key), str)
                 and bool(proof[bound_key].strip()))
+
+    return _close_unknown_occurrence(
+        owner_id, occurrence_id, expected_state, proof_check=proof_check
+    )
+
+
+def resolve_settled_write_ahead_occurrence(
+        owner_id: str, occurrence_id: str, *,
+        settled_proof: Callable[[], Mapping[str, object]],
+        expected_state: str = "claimed") -> bool:
+    """Close an unknown occurrence whose owner's write-ahead effect store is fully settled.
+
+    For owners that write an ``irreversible_attempt_started`` marker before every
+    provider effect, an occurrence that cannot be bound to its own intents is still
+    safe to release when the owner's complete store holds zero attempts that lack a
+    terminal provider readback. The callback scans that store and runs inside the
+    control lock, so an attempt started concurrently counts as unresolved.
+    """
+    if (not owner_id or not _normalize_occurrence_id(occurrence_id)
+            or expected_state not in {"claimed", "released"}):
+        raise RuntimeError("invalid occurrence identity")
+
+    def proof_check() -> bool:
+        proof = settled_proof()
+        return (isinstance(proof, Mapping)
+                and proof.get("owner_id") == owner_id
+                and proof.get("occurrence_id") == occurrence_id
+                and proof.get("verified") is True
+                and proof.get("proof_type") == "write_ahead_store_settled.v1"
+                and type(proof.get("unresolved_irreversible")) is int
+                and proof["unresolved_irreversible"] == 0
+                and type(proof.get("scanned_intents")) is int
+                and proof["scanned_intents"] > 0
+                and isinstance(proof.get("evidence_ref"), str)
+                and bool(proof["evidence_ref"].strip()))
 
     return _close_unknown_occurrence(
         owner_id, occurrence_id, expected_state, proof_check=proof_check

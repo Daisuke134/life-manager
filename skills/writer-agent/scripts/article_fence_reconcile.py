@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
-"""Close a Writer fence from paired publish, paired pre-effect, or exact historical no-dispatch proof.
+"""Close Writer fences only from exact publication or no-dispatch evidence.
 
-article-daily: the fence is closed only when a Writer run that STARTED shortly after the fenced
-occurrence has a published article whose URL answers HTTP 200, or the exact allowlisted historical run
-is proven to have exited at its pre-publication demand gate. Ordinary URL absence never closes a fence.
-The time window pairs a fence with a run; it is never used to conclude that nothing happened.
+article-daily pairs a fence with the run start or a generation-attempt start. A resumed attempt can
+pair even when its run directory predates the fence. The time window selects candidates; it never
+proves no effect. Require HTTP 200 for a ledger URL or exact allowlisted pre-publication stop proof.
 
-article-resume: the fence is closed only when it is at least 7 days old and every official Writer
-destination readback (note, both Substacks) returns posts whose newest predates the fence, and the
-writer ledger (which also records self-owned aniccaai.com posts) has no row at or after it.
+article-resume requires age >= 7 days, official Note and both Substack reads whose newest posts
+predate the fence, and no at-or-after row in the Writer ledger (including self-owned aniccaai.com posts),
+or an exact allowlisted pass bound to its missed-schedule catch-up exec (HISTORICAL_RESUME_CATCHUP_PROOFS).
 
     python3 article_fence_reconcile.py --occurrence article-daily:<run_id> [--resolve]
     python3 article_fence_reconcile.py --occurrence article-resume:<run_id> [--resolve]
@@ -16,11 +15,13 @@ writer ledger (which also records self-owned aniccaai.com posts) has no row at o
 from __future__ import annotations
 
 import argparse
+import gzip
 import hashlib
 import json
 import math
 import os
 import sqlite3
+import stat
 import subprocess
 import sys
 import urllib.error
@@ -128,6 +129,41 @@ HISTORICAL_GATE_STOP_PROOFS = {
         "evidence_ref": "writer://fence-reconciliation/article-daily-18dcb869e78c3c38-58827.json",
     },
 }
+# article-resume passes whose only branch was the missed-schedule catch-up: in the pinned release every
+# resume publisher (adoption/quality/priority/devto/x-post/self-owned) runs only after that `exec`, and
+# reaching it requires adoption, pending-quality and priority publication all empty.  The proof binds the
+# log line to the one resume execution of its JST hour, then proves the exec'd article-daily run stopped
+# before publication state and that every active destination's owner listing reads it absent.
+HISTORICAL_RESUME_CATCHUP_PROOFS = {
+    # 2026-10-12 06:05 JST: catch-up exec'd article-daily.sh; run 20261011-210544 ended
+    # provider-failed-ambiguous with publication-blocker "no staging or publishing attempted".
+    "article-resume:18dd959f92920ff0-56630": {
+        "writer_run_id": "20261011-210544",
+        "queued_at": 1791752648.92176,
+        "release_sha": "6f25bb2e95e9efbea58a0d8f04b4cc6eefbea7d2",
+        "entrypoint_sha256": {
+            "skills/writer-agent/scripts/article-resume-pending.sh":
+                "5134fab95ab2b3056789ff7a1ed51383f5f0baf36baed81b32090c00369bf299",
+            "skills/writer-agent/article-daily.sh":
+                "8cad4180b62e1c4e072b98c05d3ffb3f8505011f23c9ce616e07cf43eccfcdd7",
+        },
+        "events_archive": "events-20261013T124916565876Z.jsonl.gz",
+        "event_hashes": [   # start, terminal
+            "02e82d525adbd67616a77068e99ef89a11a66613b09cd11940c41c3f09109372",
+            "6ff9ff0a449c273117c23bc822eeab40de37f9c6b8cf9c0e51f5ad81421865c8",
+        ],
+        "catchup_hour_utc": ("2026-10-11T21:00:00+00:00", "2026-10-11T22:00:00+00:00"),
+        "resume_log_line": "article-resume: missed daily schedule catch-up date=2026-10-12 hour=06",
+        "resume_log_previous_line": "article-resume: daily schedule not due date=2026-10-12 hour=05",
+        "article_log_segment": ("=== article-daily run 2026-10-12 06:05:42 JST ===",
+                                "=== article-daily done rc=1 2026-10-12 06:17:15 JST ==="),
+        "article_log_segment_sha256": "75afbdf93eb28e822973d13a4d4c44c907123d1f6217d1ba9ecec3b6a0c27b40",
+        "run_artifacts": {
+            "gates/generation-state.json": "128fa0373171bde3cec00fed99e7447f8c6460224b4d0ef8464d84e938d52c67",
+            "gates/publication-blocker.json": "4c345382af27d7297ef50bef9ec8d80dd6f66184b06b1b772cf8cacc4ac0afea",
+        },
+    },
+}
 
 
 def _run_start_epoch(run_id: str) -> float | None:
@@ -139,13 +175,21 @@ def _run_start_epoch(run_id: str) -> float | None:
 
 
 def _run_starts(run_dir: Path) -> list[float]:
-    """The run's creation time plus every generation attempt start (a run can be resumed later)."""
-    starts = [t for t in [_run_start_epoch(run_dir.name)] if t is not None]
+    """Run start plus resumed generation attempt starts."""
+    base = _run_start_epoch(run_dir.name)
+    starts = [base] if base is not None else []
+    gates = run_dir / "gates"
+    state_path = gates / "generation-state.json"
+    if run_dir.is_symlink() or not run_dir.is_dir() or gates.is_symlink() or state_path.is_symlink():
+        return starts
     try:
-        state = json.loads((run_dir / "gates/generation-state.json").read_text(encoding="utf-8"))
-        for attempt in state.get("attempts") or []:
-            starts.append(datetime.fromisoformat(str(attempt["started_at"]).replace("Z", "+00:00")).timestamp())
-    except (OSError, ValueError, TypeError, KeyError, AttributeError):
+        # Directory start may predate the fence; include retry start.
+        starts.extend(
+            timestamp for attempt in json.loads(state_path.read_text(encoding="utf-8")).get("attempts") or []
+            if isinstance(attempt, dict)
+            if (timestamp := _epoch(attempt.get("started_at"))) is not None
+        )
+    except (OSError, ValueError, TypeError, AttributeError):
         pass
     return starts
 
@@ -412,8 +456,17 @@ def _ledger_row_epoch(row: dict) -> float | None:
 
 def _reconcile_resume(occurrence_id: str, *, queued_at: float, state: str, articles_path: Path,
                       fetch_json: Callable[[str], object], resolver: Callable[..., bool] | None,
-                      resolve: bool, now: float, writer_root: Path) -> dict:
+                      resolve: bool, now: float, writer_root: Path, source_repo: Path = SOURCE_REPO,
+                      absence_readback: Callable[..., dict | None] | None = None) -> dict:
     """Prove no article-resume publication happened after the fence from official readbacks only."""
+    if occurrence_id in HISTORICAL_RESUME_CATCHUP_PROOFS:
+        proof = _historical_resume_catchup_proof(
+            occurrence_id, queued_at, writer_root=writer_root, source_repo=source_repo,
+            articles_path=articles_path, absence_readback=absence_readback or _official_absence_readback)
+        if isinstance(proof, str):
+            return _inconclusive(occurrence_id, proof)
+        return _resolve_resume_proof(occurrence_id, proof, state=state, resolver=resolver,
+                                     resolve=resolve, writer_root=writer_root)
     if now - queued_at < RESUME_MIN_AGE_SECONDS:
         return _inconclusive(occurrence_id, "fence_too_young")
     lines = _jsonl_lines(articles_path)
@@ -449,6 +502,12 @@ def _reconcile_resume(occurrence_id: str, *, queued_at: float, state: str, artic
         "ledger_newest_ts": _iso(max(t for t in times if t is not None)),
         "evidence_ref": f"writer://fence-reconciliation/article-resume-{runtime_run_id}.json",
     }
+    return _resolve_resume_proof(occurrence_id, proof, state=state, resolver=resolver,
+                                 resolve=resolve, writer_root=writer_root)
+
+
+def _resolve_resume_proof(occurrence_id: str, proof: dict, *, state: str,
+                          resolver: Callable[..., bool] | None, resolve: bool, writer_root: Path) -> dict:
     result = {"status": "no_dispatch_proven", "occurrence_id": occurrence_id, "closed": False,
               "proof_ref": proof["evidence_ref"]}
     if not resolve:
@@ -461,6 +520,125 @@ def _reconcile_resume(occurrence_id: str, *, queued_at: float, state: str, artic
     result["closed"] = bool(resolver(RESUME_OWNER_ID, occurrence_id,
                                      no_dispatch_proof=lambda: proof, expected_state=state))
     return result
+
+
+def _historical_resume_catchup_proof(occurrence_id: str, queued_at: float, *, writer_root: Path,
+                                     source_repo: Path, articles_path: Path,
+                                     absence_readback: Callable[..., dict | None]) -> dict | str:
+    """Bind an allowlisted resume pass to its catch-up exec; return the proof or the missing binding."""
+    expected = HISTORICAL_RESUME_CATCHUP_PROOFS[occurrence_id]
+    if not math.isclose(queued_at, expected["queued_at"], abs_tol=0.001):
+        return "catchup_queued_at_mismatch"
+    archive = writer_root / expected["events_archive"]
+    if writer_root.is_symlink() or archive.is_symlink() or not archive.is_file():
+        return "catchup_events_unreadable"
+    try:
+        with gzip.open(archive, "rt", encoding="utf-8") as handle:
+            lines = [line for line in handle.read().splitlines() if line.strip()]
+        events = [json.loads(line) for line in lines]
+    except (OSError, ValueError, EOFError):
+        return "catchup_events_unreadable"
+    own = [line for line in lines if occurrence_id in line]
+    if [hashlib.sha256(line.encode("utf-8")).hexdigest() for line in own] != expected["event_hashes"]:
+        return "catchup_events_mismatch"
+    until = _epoch(json.loads(own[1]).get("timestamp"))
+    hour_start, hour_end = (_epoch(value) for value in expected["catchup_hour_utc"])
+
+    def executions(loop_id: str, since: float, before: float) -> set[str]:
+        """Occurrences of loop_id that started in [since, before) and were not refused by admission."""
+        started = {event.get("occurrence_id") for event in events
+                   if event.get("loop_id") == loop_id and event.get("phase") == "execute"
+                   and since <= (_epoch(event.get("timestamp")) or -1) < before}
+        deferred = {event.get("occurrence_id") for event in events
+                    if event.get("phase") == "report"
+                    and str(event.get("blocker") or "").startswith("host_admission_deferred:")}
+        return started - deferred
+
+    # The catch-up line names its JST date+hour, so only a resume execution of that hour can print it.
+    if until is None or executions(RESUME_OWNER_ID, hour_start, hour_end) != {occurrence_id}:
+        return "catchup_hour_has_other_resume_execution"
+    # The exec'd article-daily.sh is the only article-daily process of the window.
+    if executions(OWNER_ID, queued_at, until):
+        return "catchup_overlapping_article_daily_execution"
+
+    try:
+        ancestry = subprocess.run(
+            ["git", "-C", str(source_repo), "merge-base", "--is-ancestor",
+             expected["release_sha"], "refs/remotes/origin/main"],
+            capture_output=True, timeout=10, check=False)
+        if ancestry.returncode != 0:
+            return "catchup_release_not_on_main"
+        for path, digest in expected["entrypoint_sha256"].items():
+            source = subprocess.run(["git", "-C", str(source_repo), "show", f"{expected['release_sha']}:{path}"],
+                                    capture_output=True, timeout=10, check=False)
+            if source.returncode != 0 or hashlib.sha256(source.stdout).hexdigest() != digest:
+                return "catchup_entrypoint_mismatch"
+    except (OSError, subprocess.SubprocessError):
+        return "catchup_release_unreadable"
+
+    try:
+        resume_log = (writer_root / "logs" / "article-resume.log").read_text(encoding="utf-8").splitlines()
+        daily_log = (writer_root / "logs" / "article-daily.log").read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeError):
+        return "catchup_logs_unreadable"
+    anchors = [i for i, line in enumerate(resume_log) if line == expected["resume_log_line"]]
+    # The previous line is the prior pass's `exit 0`: this pass logged nothing before its exec.
+    if len(anchors) != 1 or anchors[0] == 0 \
+            or resume_log[anchors[0] - 1] != expected["resume_log_previous_line"]:
+        return "catchup_resume_log_mismatch"
+    header, footer = expected["article_log_segment"]
+    starts = [i for i, line in enumerate(daily_log) if line == header]
+    ends = [i for i, line in enumerate(daily_log) if line == footer]
+    if len(starts) != 1 or len(ends) != 1 or hashlib.sha256(
+            "\n".join(daily_log[starts[0]:ends[0] + 1]).encode("utf-8")).hexdigest() \
+            != expected["article_log_segment_sha256"]:
+        return "catchup_article_daily_log_mismatch"
+
+    run_dir = writer_root / "runs" / expected["writer_run_id"]
+    if run_dir.is_symlink() or not run_dir.is_dir() \
+            or any(os.path.lexists(run_dir / name) for name in DISPATCH_FILES):
+        return "catchup_run_reached_publication"
+    for name, digest in expected["run_artifacts"].items():
+        path = run_dir / name
+        if path.is_symlink() or not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != digest:
+            return "catchup_run_artifact_mismatch"
+
+    lines = _jsonl_lines(articles_path)
+    if lines is None:
+        return "articles_ledger_unreadable"
+    for line in lines:
+        try:
+            row = json.loads(line)
+            stamp = _ledger_row_epoch(row)
+        except (ValueError, AttributeError):
+            return "articles_ledger_unreadable"
+        if str(row.get("run_id", "")) == expected["writer_run_id"]:
+            return "catchup_run_has_ledger_row"
+        if stamp is None and (row.get("published") is True or row.get("live_url")):
+            return "articles_ledger_undated_publication"
+        if stamp is not None and queued_at <= stamp <= until + PAIR_WINDOW_SECONDS:
+            return "writer_ledger_row_in_window"
+
+    readback = absence_readback(run_dir, queued_at, until)
+    destinations = (readback or {}).get("destinations") or {}
+    not_absent = [pair for pair in ABSENCE_DESTINATIONS
+                  if (destinations.get(pair) or {}).get("status") != "absent"]
+    if not_absent:
+        return "destination_not_proven_absent:" + ",".join(not_absent)
+    runtime_run_id = occurrence_id.split(":", 1)[1]
+    return {
+        "owner_id": RESUME_OWNER_ID, "occurrence_id": occurrence_id, "verified": True,
+        "proof_type": "historical_writer_resume_no_dispatch", "provider": "writer",
+        "runtime_run_id": runtime_run_id, "writer_run_id": expected["writer_run_id"],
+        "branch": "missed-daily-schedule-catch-up",
+        "release_sha": expected["release_sha"], "entrypoint_sha256": dict(expected["entrypoint_sha256"]),
+        "event_hashes": list(expected["event_hashes"]),
+        "article_log_segment_sha256": expected["article_log_segment_sha256"],
+        "run_artifacts": dict(expected["run_artifacts"]),
+        "window": {"since": _iso(queued_at), "until": _iso(until)},
+        "destinations": {pair: destinations[pair] for pair in ABSENCE_DESTINATIONS},
+        "evidence_ref": f"writer://fence-reconciliation/article-resume-{runtime_run_id}.json",
+    }
 
 
 def _pre_effect(occurrence_id: str, queued_at: float, state: str, rows: list, runs_root: Path,
@@ -497,21 +675,227 @@ def _pre_effect(occurrence_id: str, queued_at: float, state: str, rows: list, ru
     return result
 
 
+def _host_pre_effect_marker_sha256(occurrence_id: str, writer_root: Path) -> str | None:
+    """Verify the host's pre-effect marker survived this occurrence (lm_loop mobile marker shape).
+
+    lm-loop-run writes {"status":"pre_effect_failure","effect":0} before spawning article-daily.sh,
+    which deletes it only immediately before the foreground model pass. A start-control BLOCK exits
+    75 before that, without a run dir, so the surviving marker is the run's no-dispatch evidence.
+    """
+    run_id = occurrence_id.split(":", 1)[1]
+    if not run_id or not run_id.replace("-", "").isalnum():
+        return None
+    scratch = writer_root / "loop-tmp" / OWNER_ID / run_id
+    marker = scratch / "entrypoint-result.json"
+    descriptor = -1
+    try:
+        for directory in (writer_root, writer_root / "loop-tmp", scratch.parent, scratch):
+            info = directory.lstat()
+            if (not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid()
+                    or stat.S_IMODE(info.st_mode) & 0o022):
+                return None
+        descriptor = os.open(marker, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        info = os.fstat(descriptor)
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_nlink != 1
+                or stat.S_IMODE(info.st_mode) != 0o600 or info.st_size > 4096):
+            return None
+        with os.fdopen(descriptor, "rb") as stream:
+            descriptor = -1
+            data = stream.read(4097)
+        if json.loads(data) != {"status": "pre_effect_failure", "effect": 0}:
+            return None
+        if os.path.lexists(scratch / "effect-identity.jsonl"):
+            return None
+    except (OSError, ValueError):
+        return None
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+    lines = _jsonl_lines(writer_root / "events.jsonl")
+    try:
+        events = [json.loads(line) for line in lines or [] if occurrence_id in line]
+    except ValueError:
+        return None
+    terminals = [event for event in events if event.get("occurrence_id") == occurrence_id
+                 and event.get("phase") == "report"]
+    if (len(terminals) != 1 or type(terminals[0].get("exit_code")) is not int
+            or terminals[0]["exit_code"] == 0
+            or terminals[0].get("effect_identity_status") not in {None, "not_written"}
+            or terminals[0].get("provider_receipt_id") is not None
+            or terminals[0].get("official_readback_ref") is not None):
+        return None
+    return hashlib.sha256(data).hexdigest()
+
+
+DISPATCH_FILES = (PUBLICATION_STATE, "gates/platform-dispatch.jsonl", "gates/platform-dispatch-results.jsonl")
+ABSENCE_DESTINATIONS = ("note/ja", "substack/ja", "substack/en", "x-article/ja")
+
+
+def _official_absence_readback(run_dir: Path, since: float, until: float) -> dict | None:
+    """Run the owner listings under the Writer env (credentials) with the managed Python."""
+    scripts = REPO_ROOT / "skills/writer-agent/scripts"
+    try:
+        completed = subprocess.run(
+            ["bash", "-c", 'source "$0" >/dev/null 2>&1 || exit 69; exec "$LIFE_MANAGER_PYTHON" "$@"',
+             str(scripts / "writer-runtime-env.sh"), str(scripts / "article_absence_readback.py"),
+             "--run-dir", str(run_dir), "--since", repr(since), "--until", repr(until)],
+            capture_output=True, text=True, timeout=600, check=False,
+            # Under lm-fence-reconciler LIFE_MANAGER_STATE_ROOT is the reconciler's own root, and
+            # writer-runtime-env.sh falls back to it: note cookies were looked up there (2026-10-16).
+            env={**os.environ, "WRITER_STATE_DIR": str(run_dir.parents[1]),
+                 "ARTICLE_STATE_DIR": str(run_dir.parents[1])})
+        return json.loads(completed.stdout.strip().splitlines()[-1]) if completed.returncode == 0 else None
+    except (OSError, subprocess.SubprocessError, ValueError, IndexError):
+        return None
+
+
+def _terminal_epoch(writer_root: Path, occurrence_id: str) -> float | None:
+    times = []
+    for line in _jsonl_lines(writer_root / "events.jsonl") or []:
+        if occurrence_id not in line:
+            continue
+        try:
+            event = json.loads(line)
+        except ValueError:
+            return None
+        if event.get("occurrence_id") == occurrence_id and event.get("phase") == "report":
+            times.append(_epoch(event.get("timestamp")))
+    return times[0] if len(times) == 1 else None
+
+
+_KILLED_EXIT_CODES = {75, 124}   # plus 128+N signals
+
+
+def _killed(code: object) -> bool:
+    return type(code) is not int or code in _KILLED_EXIT_CODES or code >= 128
+
+
+def _ended_naturally(writer_root: Path, occurrence_id: str, queued_at: float, runs_root: Path) -> bool:
+    """The runner writes the single report event only after reaping the run's process group, so a
+    reported run is over. A killed run (timeout/cancel) or a killed model pass can leave detached
+    tool shells alive past the report, so those still wait out the hour (2026-10-17 review)."""
+    reports = []
+    for line in _jsonl_lines(writer_root / "events.jsonl") or []:
+        if occurrence_id not in line:
+            continue
+        try:
+            event = json.loads(line)
+        except ValueError:
+            return False
+        if event.get("occurrence_id") == occurrence_id and event.get("phase") == "report":
+            reports.append(event)
+    if len(reports) != 1 or _killed(reports[0].get("exit_code")):
+        return False
+    try:
+        paired = [d for d in runs_root.iterdir()
+                  if d.is_dir() and any(0 <= s - queued_at <= PAIR_WINDOW_SECONDS for s in _run_starts(d))]
+    except OSError:
+        paired = []
+    for run_dir in paired:
+        try:
+            attempts = json.loads((run_dir / "gates" / "generation-state.json").read_text(encoding="utf-8")).get("attempts")
+        except (OSError, ValueError, AttributeError):
+            continue
+        if isinstance(attempts, list) and attempts and isinstance(attempts[-1], dict) \
+                and "return_code" in attempts[-1] and _killed(attempts[-1]["return_code"]):
+            return False
+    return True
+
+
+def _carry_over_absence(occurrence_id: str, queued_at: float, state: str, rows: list, runs_root: Path,
+                        writer_root: Path, absence_readback: Callable[..., dict | None],
+                        resolver: Callable[..., bool] | None, resolve: bool) -> dict | None:
+    """A run whose only ledger trace is an unpublished carry-over row: prove absence officially.
+
+    The model pass ran, so missing local dispatch files are not proof. Every active destination's
+    authenticated owner listing must read the run's article absent; one unreadable keeps the fence.
+    Returns None when this path does not apply.
+    """
+    try:
+        paired = [d for d in runs_root.iterdir()
+                  if d.is_dir() and any(0 <= s - queued_at <= PAIR_WINDOW_SECONDS for s in _run_starts(d))]
+    except OSError:
+        return None
+    if len(paired) != 1:
+        return None
+    run_dir = paired[0]
+    run_rows = [row for row in rows if str(row.get("run_id", "")) == run_dir.name]
+    # Any unpublished row kind qualifies (2026-10-16 22:43: pending:media-renderer-unavailable rows);
+    # the proof is the four official owner listings below, not the row's state name.
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from article_daily_start_control import _no_effect_row  # same effect-free allowlist as start control
+    if (not run_rows or not all(_no_effect_row(row) for row in run_rows)
+            or any(os.path.lexists(run_dir / name) for name in DISPATCH_FILES)):
+        return None
+    until = _terminal_epoch(writer_root, occurrence_id)
+    if until is None:
+        return _inconclusive(occurrence_id, "carry_over_terminal_unreadable")
+    readback = absence_readback(run_dir, queued_at, until)
+    destinations = (readback or {}).get("destinations") or {}
+    not_absent = [pair for pair in ABSENCE_DESTINATIONS
+                  if (destinations.get(pair) or {}).get("status") != "absent"]
+    if not_absent:
+        held = _inconclusive(occurrence_id, "destination_not_proven_absent:" + ",".join(not_absent))
+        # Keep each destination's own reason in the reconciler call log (readers never echo credentials).
+        held["destinations"] = {pair: {key: (destinations.get(pair) or {}).get(key) for key in ("status", "reason")}
+                                for pair in not_absent}
+        return held
+    runtime_run_id = occurrence_id.split(":", 1)[1]
+    proof = {
+        "owner_id": OWNER_ID, "occurrence_id": occurrence_id, "verified": True,
+        "proof_type": "historical_writer_gate_stop_no_dispatch", "provider": "writer",
+        "runtime_run_id": runtime_run_id, "writer_run_id": run_dir.name,
+        "window": {"since": _iso(queued_at), "until": _iso(until)},
+        "article_sha256": {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+                           for p in sorted(run_dir.glob("article-*.md")) if p.is_file()},
+        "destinations": {pair: destinations[pair] for pair in ABSENCE_DESTINATIONS},
+        "evidence_ref": f"writer://fence-reconciliation/article-daily-{runtime_run_id}.json",
+    }
+    result = {"status": "no_dispatch_proven", "occurrence_id": occurrence_id, "closed": False,
+              "writer_run_id": run_dir.name, "proof_ref": proof["evidence_ref"],
+              "destinations": {pair: destinations[pair].get("status") for pair in ABSENCE_DESTINATIONS}}
+    if not resolve:
+        return result
+    if not _persist_historical_gate_stop_proof(writer_root, proof):
+        return _inconclusive(occurrence_id, "historical_proof_receipt_conflict")
+    if resolver is None:
+        from runtime.host.resource_admission import resolve_historical_no_dispatch_occurrence
+        resolver = resolve_historical_no_dispatch_occurrence
+    result["closed"] = bool(resolver(OWNER_ID, occurrence_id, no_dispatch_proof=lambda: proof,
+                                     expected_state=state))
+    return result
+
+
+def _central_closure_result(owner_id: str, result: dict) -> dict:
+    """Expose the exact proof contract consumed by lm-fence-reconciler."""
+    if result.get("closed") is True:
+        result["owner_id"] = owner_id
+        result["verified"] = True
+        proof_ref = result.get("proof_ref")
+        if isinstance(proof_ref, str) and proof_ref.strip() and not result.get("evidence_ref"):
+            result["evidence_ref"] = proof_ref
+    return result
+
+
 def reconcile(occurrence_id: str, *, queued_at: float, state: str, articles_path: Path = ARTICLES,
               fetch_status: Callable[[str], int] = _http_status, resolver: Callable[..., bool] | None = None,
               resolve: bool = False, now: float | None = None, runs_root: Path = RUNS_ROOT,
               pre_effect_resolver: Callable[..., bool] | None = None,
               writer_root: Path = WRITER_STATE_ROOT,
               source_repo: Path = SOURCE_REPO,
-              fetch_json: Callable[[str], object] = _fetch_json) -> dict:
+              fetch_json: Callable[[str], object] = _fetch_json,
+              absence_readback: Callable[..., dict | None] = _official_absence_readback) -> dict:
     now = datetime.now(timezone.utc).timestamp() if now is None else now
     if occurrence_id.startswith(f"{RESUME_OWNER_ID}:"):
-        return _reconcile_resume(occurrence_id, queued_at=queued_at, state=state,
-                                 articles_path=articles_path, fetch_json=fetch_json,
-                                 resolver=resolver, resolve=resolve, now=now, writer_root=writer_root)
+        result = _reconcile_resume(occurrence_id, queued_at=queued_at, state=state,
+                                   articles_path=articles_path, fetch_json=fetch_json,
+                                   resolver=resolver, resolve=resolve, now=now, writer_root=writer_root,
+                                   source_repo=source_repo, absence_readback=absence_readback)
+        return _central_closure_result(RESUME_OWNER_ID, result)
     if not occurrence_id.startswith(f"{OWNER_ID}:"):
         return _inconclusive(occurrence_id, "owner_not_allowlisted")
-    if now - queued_at < MIN_AGE_SECONDS:
+    if now - queued_at < MIN_AGE_SECONDS and not _ended_naturally(writer_root, occurrence_id,
+                                                                     queued_at, runs_root):
         return _inconclusive(occurrence_id, "fence_too_young")
     try:
         rows = [json.loads(line) for line in articles_path.read_text(encoding="utf-8").splitlines() if line.strip()]
@@ -519,11 +903,18 @@ def reconcile(occurrence_id: str, *, queued_at: float, state: str, articles_path
         return _inconclusive(occurrence_id, "articles_ledger_unreadable")
     candidates = []
     for row in rows:
-        started = _run_start_epoch(str(row.get("run_id", "")))
+        run_id = str(row.get("run_id", ""))
+        if (len(run_id) != 15 or not run_id.isascii() or run_id[8] != "-"
+                or not (run_id[:8] + run_id[9:]).isdigit()):
+            continue
+        started = _run_start_epoch(run_id)
         url = str(row.get("live_url") or "")
         if started is None or not url.startswith("https://"):
             continue
-        if 0 <= started - queued_at <= PAIR_WINDOW_SECONDS:
+        run_dir = runs_root / run_id
+        starts = ([started] if runs_root.is_symlink() or run_dir.is_symlink() or not run_dir.is_dir()
+                  else _run_starts(run_dir))
+        if any(queued_at <= start <= queued_at + PAIR_WINDOW_SECONDS for start in starts):
             candidates.append(row)
     proven = [row for row in candidates if fetch_status(str(row["live_url"])) == 200]
     if not proven:
@@ -548,9 +939,33 @@ def reconcile(occurrence_id: str, *, queued_at: float, state: str, articles_path
                 no_dispatch_proof=lambda: no_dispatch,
                 expected_state=state,
             ))
-            return result
-        return _pre_effect(occurrence_id, queued_at, state, rows, runs_root,
-                           pre_effect_resolver, resolve)
+            return _central_closure_result(OWNER_ID, result)
+        marker_sha256 = None if candidates else _host_pre_effect_marker_sha256(occurrence_id, writer_root)
+        if marker_sha256 is not None:
+            run_id = occurrence_id.split(":", 1)[1]
+            proof = {"owner_id": OWNER_ID, "occurrence_id": occurrence_id, "verified": True,
+                     "proof_type": "pre_effect",
+                     "evidence_ref": f"lm-loop://{OWNER_ID}/{run_id}/entrypoint-result.json",
+                     "entrypoint_result_sha256": marker_sha256}
+            result = {"status": "pre_effect", "occurrence_id": occurrence_id, "closed": False,
+                      "evidence_ref": proof["evidence_ref"]}
+            if resolve:
+                resolver_fn = pre_effect_resolver
+                if resolver_fn is None:
+                    from runtime.host.resource_admission import resolve_pre_effect_occurrence
+                    resolver_fn = resolve_pre_effect_occurrence
+                result["closed"] = bool(resolver_fn(OWNER_ID, occurrence_id,
+                                                    pre_effect_readback=lambda: proof,
+                                                    expected_state=state))
+            return _central_closure_result(OWNER_ID, result)
+        carry_over = None if candidates else _carry_over_absence(
+            occurrence_id, queued_at, state, rows, runs_root, writer_root,
+            absence_readback, resolver, resolve)
+        if carry_over is not None:
+            return _central_closure_result(OWNER_ID, carry_over)
+        result = _pre_effect(occurrence_id, queued_at, state, rows, runs_root,
+                             pre_effect_resolver, resolve)
+        return _central_closure_result(OWNER_ID, result)
     receipt = str(proven[0]["live_url"])
     result = {"status": "effected", "occurrence_id": occurrence_id, "closed": False,
               "provider_receipt_id": receipt, "run_id": proven[0].get("run_id"),
@@ -564,21 +979,23 @@ def reconcile(occurrence_id: str, *, queued_at: float, state: str, articles_path
              "provider_receipt_id": receipt}
     result["closed"] = bool(resolver(OWNER_ID, occurrence_id, official_readback=lambda: proof,
                                      expected_state=state))
-    return result
+    return _central_closure_result(OWNER_ID, result)
 
 
-def _admission_row(occurrence_id: str) -> tuple[float, str] | None:
+def _admission_row(occurrence_id: str) -> tuple[float, str, bool] | None:
     owner_id = occurrence_id.split(":", 1)[0]
     if owner_id not in {OWNER_ID, RESUME_OWNER_ID}:
         return None
     try:
         with sqlite3.connect(f"file:{ADMISSION_DB}?mode=ro", uri=True, timeout=20) as connection:
             row = connection.execute(
-                "SELECT queued_at, state FROM occurrences WHERE occurrence_id=? AND owner_id=? "
-                "AND effect_unknown=1", (occurrence_id, owner_id)).fetchone()
+                "SELECT queued_at, state, effect_unknown FROM occurrences WHERE occurrence_id=? AND owner_id=?",
+                (occurrence_id, owner_id)).fetchone()
     except sqlite3.Error:
         return None
-    return (float(row[0]), str(row[1])) if row else None
+    if row is None or type(row[2]) is not int or row[2] not in (0, 1):
+        return None
+    return (float(row[0]), str(row[1]), bool(row[2]))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -590,7 +1007,22 @@ def main(argv: list[str] | None = None) -> int:
     if row is None:
         result = _inconclusive(args.occurrence, "occurrence_not_fenced_or_unreadable")
     else:
-        result = reconcile(args.occurrence, queued_at=row[0], state=row[1], resolve=args.resolve)
+        queued_at, state, effect_unknown = row
+        already_released = state == "released" and not effect_unknown
+        if effect_unknown or already_released:
+            result = reconcile(
+                args.occurrence, queued_at=queued_at, state=state,
+                resolve=args.resolve and not already_released,
+                articles_path=ARTICLES, runs_root=RUNS_ROOT,
+                writer_root=WRITER_STATE_ROOT, source_repo=SOURCE_REPO,
+            )
+            if already_released and result.get("status") in {
+                    "effected", "pre_effect", "no_dispatch_proven"}:
+                # Revalidate an already-released occurrence without mutating admission state.
+                result["closed"] = True
+                result = _central_closure_result(args.occurrence.split(":", 1)[0], result)
+        else:
+            result = _inconclusive(args.occurrence, "occurrence_not_fenced_or_unreadable")
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
     return 0 if (
         result["status"] in {"effected", "pre_effect", "no_dispatch_proven"}

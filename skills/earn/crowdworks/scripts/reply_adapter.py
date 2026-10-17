@@ -55,6 +55,22 @@ _HUMAN_REQUIRED_BODY = (
 )
 
 
+# The catalogue's cheapest tier (skills/gig-work/profile/listings/catalog.json) is 5,000円.
+# Below it a "contract" is a recruiting funnel, not paid work: 2026-10-15 the lane had accepted
+# eleven 12円 contracts (CS shifts, "売れる文章が書けるようになる" programmes).
+MIN_FIXED_CONTRACT_JPY = 5_000
+MIN_HOURLY_CONTRACT_JPY = 1_500
+
+
+def _contract_amount_acceptable(amount: str) -> bool:
+    match = re.search(r"([\d,]+)\s*円", amount or "")
+    if match is None:
+        return False
+    yen = int(match.group(1).replace(",", ""))
+    hourly = "時給" in amount or "時間" in amount
+    return yen >= (MIN_HOURLY_CONTRACT_JPY if hourly else MIN_FIXED_CONTRACT_JPY)
+
+
 class CrowdWorksReplyAdapter:
     FORM_CONFIRMATION_BODY = (
         "先ほどご案内のGoogleフォームへの回答操作を行いましたが、送信完了画面の確認ができませんでした。"
@@ -526,6 +542,8 @@ class CrowdWorksReplyAdapter:
         )
         if not isinstance(terms, Mapping) or not terms:
             raise RuntimeError("crowdworks_contract_terms_invalid")
+        if not _contract_amount_acceptable(_text(terms.get("金額"))):
+            return None
         canonical = json.dumps(dict(terms), ensure_ascii=False, sort_keys=True,
                                separators=(",", ":"))
         return {"action": "accept_contract", "payload": {

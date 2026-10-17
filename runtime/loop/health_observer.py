@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import json
 import os
@@ -16,13 +17,16 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from runtime.loop.health import validate_health_document
+from runtime.loop.health import revenue_attention, validate_health_document
+from runtime.loop.runtime_event import rotate_jsonl_locked
 
 
 PROBLEM_STATES = frozenset({
     "safely_fenced", "effect_unknown", "telemetry_gap", "human_required", "failed",
 })
 SAFE_ID = re.compile(r"[^A-Za-z0-9._:-]")
+# history/alerts grew ~190 MB each; readers only need the last row (_last_jsonl).
+JSONL_MAX_BYTES = 32 * 1024 * 1024
 
 
 def _private_directory(path: Path) -> None:
@@ -62,12 +66,14 @@ def write_latest(path: Path, value: object) -> None:
 
 def _append_jsonl(path: Path, value: object) -> None:
     _private_directory(path.parent)
-    flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT
+    flags = os.O_RDWR | os.O_APPEND | os.O_CREAT
     if hasattr(os, "O_NOFOLLOW"):
         flags |= os.O_NOFOLLOW
     descriptor = os.open(path, flags, 0o600)
     try:
         os.fchmod(descriptor, 0o600)
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        rotate_jsonl_locked(descriptor, path, JSONL_MAX_BYTES, keep_archives=1)
         os.write(descriptor, _encoded(value))
         os.fsync(descriptor)
     finally:
@@ -139,6 +145,9 @@ def _intent_input(job: dict, observer_run_id: str) -> dict:
     run_id = _safe_id(diagnostic.get("run_id"), observer_run_id)
     owner_id = _safe_id(diagnostic.get("owner_id"), loop_id)
     effect = diagnostic.get("effect") or {}
+    blocker = diagnostic.get("error_class") or job["state"]
+    if revenue_attention(job):
+        blocker = f"revenue_outage:{blocker}"
     if job["state"] in {"safely_fenced", "effect_unknown"}:
         failure_layer = "effect_readback"
     elif job["state"] == "human_required":
@@ -161,12 +170,11 @@ def _intent_input(job: dict, observer_run_id: str) -> dict:
         "failure_layer": failure_layer,
         "effect_class": _safe_id(effect.get("class"), "none"),
         "effect_status": _safe_id(effect.get("status"), "unknown"),
-        "blocker": _safe_id(
-            diagnostic.get("error_class") or job["state"], job["state"],
-        ),
+        "blocker": _safe_id(blocker, job["state"]),
         "consecutive_failure_streak": 1,
         "threshold": 3,
-        "evidence_refs": [f"lm-loop://{loop_id}/{run_id}/health"],
+        "evidence_refs": [f"lm-loop://{loop_id}/{run_id}/health"] + (
+            [f"lm-loop://{loop_id}/{run_id}/revenue-outage"] if revenue_attention(job) else []),
     }
 
 
@@ -212,7 +220,7 @@ def observe_health(document: dict, state_root: Path, *, intent_builder=None) -> 
         if previous_rows.get(job_id) != current_rows.get(job_id)
     )
     first_problem = previous_fingerprint is None and any(
-        job["state"] in PROBLEM_STATES for job in document["jobs"]
+        job["state"] in PROBLEM_STATES or revenue_attention(job) for job in document["jobs"]
     )
     first_problem = first_problem or (previous_fingerprint is None
         and (document.get("host_storage") or {}).get("status") in {"unmet", "unknown"})
@@ -229,7 +237,8 @@ def observe_health(document: dict, state_root: Path, *, intent_builder=None) -> 
         recovery_intents = [
             intent_builder(job, observer_run_id)
             for job in document["jobs"]
-            if job["job_id"] in changed and job["state"] in PROBLEM_STATES
+            if job["job_id"] in changed
+            and (job["state"] in PROBLEM_STATES or revenue_attention(job))
         ]
         alert = {
             "schema_version": "lm-loop.health-alert.v1",
@@ -238,6 +247,11 @@ def observe_health(document: dict, state_root: Path, *, intent_builder=None) -> 
             "previous_state_fingerprint": previous_fingerprint,
             "changed_jobs": changed_jobs,
             "recovery_intents": recovery_intents,
+            "revenue_outages": {
+                job["job_id"]: job["facets"]["revenue"]["reason"]
+                for job in document["jobs"]
+                if job["job_id"] in changed and revenue_attention(job)
+            },
         }
         _append_jsonl(state_root / "alerts.jsonl", alert)
     write_latest(state_root / "latest.json", document)

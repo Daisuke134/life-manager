@@ -100,13 +100,15 @@ def test_reconcile_failure_preserves_no_publish_hint_and_skips_runner(tmp_path):
     assert calls.read_text(encoding="utf-8").splitlines() == ["reconcile"]
 
 
-def test_successful_reconcile_keeps_hint_through_resolution_then_clears_before_runner(tmp_path):
+def test_successful_reconcile_keeps_hint_through_runner_until_provider_dispatch(tmp_path):
     result, hint, calls = _run_mobile_app(
         tmp_path, reconcile_status=0, runner_status=1,
     )
 
     assert result.returncode == 1
-    assert not hint.exists()
+    assert json.loads(hint.read_text(encoding="utf-8")) == {
+        "status": "pre_effect_failure", "effect": 0,
+    }
     assert calls.read_text(encoding="utf-8").splitlines() == [
-        "reconcile", "resolve:hint-present", "runner:hint-absent", "runner",
+        "reconcile", "resolve:hint-present", "runner:hint-present", "runner",
     ]

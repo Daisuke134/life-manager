@@ -56,7 +56,15 @@ async function runRotatingCarouselCanary(argv = [], { action, lane, productionSl
   const resolve = deps.resolveLarryJaSlot || resolveLarryJaSlot;
   const run = deps.runAniccaCarouselCanary || runAniccaCarouselCanary;
 
-  const resolution = await resolve({ env, now, lane, productionSlots });
+  let resolution;
+  try {
+    resolution = await resolve({ env, now, lane, productionSlots });
+  } catch (error) {
+    if (error && error.code === "SLOT_ALREADY_ATTEMPTED") {
+      return { status: "slot_already_attempted", reason: "slot_already_attempted" };
+    }
+    throw error;
+  }
   if (resolution.alreadyPublished === true) {
     return {
       status: "already_published",

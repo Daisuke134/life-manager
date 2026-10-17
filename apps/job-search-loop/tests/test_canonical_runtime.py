@@ -19,13 +19,14 @@ class CanonicalRuntimeTests(unittest.TestCase):
         readme = (APP_ROOT / "README.md").read_text(encoding="utf-8")
         self.assertNotIn("Dreamwork native application owner", readme)
         self.assertIn(
-            "Tokyo onsite or hybrid, U.S. roles in any location, and remote roles worldwide",
+            "Remote, onsite, and hybrid roles worldwide",
             readme,
         )
         self.assertIn(
-            "Per-application email updates and a natural-language daily email briefing",
+            "Per-application status emails and one natural-language daily email briefing are shipped",
             readme,
         )
+        self.assertIn("Telegram is optional", readme)
         self.assertIn("onboarding that accepts a resume", readme)
         self.assertIn("Add Ashby and other ATS as separate discovery/application owners", readme)
 
@@ -793,7 +794,9 @@ raise SystemExit(0)
         )
         self.assertIn("brew install gogcli", installer)
         self.assertIn('gog auth add "$email" --services gmail', installer)
+        self.assertIn("Telegram is optional", installer)
         self.assertIn('read -s "bot_token?Telegram bot token: "', installer)
+        self.assertNotIn("valid Telegram bot token and numeric chat ID are required", installer)
         self.assertIn("TELEGRAM_BOT_TOKEN=", installer)
         self.assertIn("JOB_SEARCH_TELEGRAM_CHAT_ID=", installer)
         self.assertIn("os.fchmod(fd,0o600)", installer)

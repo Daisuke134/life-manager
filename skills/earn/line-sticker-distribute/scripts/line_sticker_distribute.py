@@ -94,7 +94,13 @@ def load_accounts(config_path: Path) -> list[dict]:
         account.setdefault("link_in_caption", True)
         if "link_in_caption_from" in account and not isinstance(account["link_in_caption_from"], str):
             raise RuntimeError(f"account {account['lane_id']} link_in_caption_from must be a date string")
-    return accounts
+        if "paused_reason" in account and not (
+            isinstance(account["paused_reason"], str) and account["paused_reason"]
+        ):
+            raise RuntimeError(f"account {account['lane_id']} paused_reason must be a non-empty string")
+    # A paused account (e.g. suspended by the platform) stays in the config for recovery, but no
+    # caller -- post, engagement, bio link -- may touch it.
+    return [account for account in accounts if not account.get("paused_reason")]
 
 
 def resolve_link_in_caption(account: dict, now: datetime) -> bool:

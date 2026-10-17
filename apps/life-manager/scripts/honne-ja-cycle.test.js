@@ -2,7 +2,11 @@
 
 const assert = require("node:assert/strict");
 const test = require("node:test");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
 const { ANICCA_EN_CARD_INSTAGRAM_SLOTS, ANICCA_EN_WIDGET_INSTAGRAM_SLOTS, ANICCA_HE_SLOTS, ANICCA_JP4_SLOTS, ANICCA_MAIN_INSTAGRAM_SLOTS, ANICCA_MAIN_SLOTS, CAPAFY_IG_SLOTS, PRODUCTION_SLOTS, parseArgs, runHonneJaCycle, runSlot, telegramNativeUrlVerified } = require("./honne-ja-cycle.js");
+const { createContentObjectStore } = require("../lib/content-object-store.js");
 const { marketingCtaLine } = require("../lib/marketing-app-store-cta.js");
 
 const ALL_LANE_COMMANDS = ["run", "run-anicca-main", "run-anicca-main-instagram", "run-anicca-en-card-instagram", "run-anicca-en-widget-instagram", "run-anicca-ai-youtube", "run-anicca-affirmation-youtube", "run-anicca-ja-widget-instagram", "run-anicca-jp4", "run-anicca-he", "run-capafy-ig"];
@@ -97,6 +101,114 @@ test("Honne JA production CLI accepts only an optional exact slot", () => {
   assert.equal(parseArgs(["run", "--slot", slot]).slot, slot);
   assert.throws(() => parseArgs(["run", "--slot"]), /usage/i);
   assert.throws(() => runSlot("invalid", Date.now()), /timestamp is invalid/i);
+});
+
+test("a failed publication with no provider effect retries once; an unknown effect stays held", async (t) => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "honne-publication-retry-"));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const objectStore = createContentObjectStore({ objectDir: path.join(dataDir, "objects") });
+  const importText = (name, value) => {
+    const source = path.join(dataDir, name);
+    fs.writeFileSync(source, value);
+    return objectStore.import(source).ref;
+  };
+  const packRef = importText("pack.json", "{}");
+  const mediaRef = importText("media.bin", "media");
+  const approvalRef = importText("approval.json", JSON.stringify({
+    scope: "standing", product_id: "honne-ai", locale: "ja", platform: "tiktok", account: "@honnevideo",
+  }));
+  const videoRef = importText("video.mp4", "video");
+  const copyRef = importText("copy.txt", "I can speak honestly.");
+  const artifact = {
+    creative_id: "retry-creative",
+    form: "relationship-confession",
+    video_ref: videoRef,
+    copy_ref: copyRef,
+  };
+  const jobs = new Map();
+  const receipts = new Map();
+  const calls = [];
+  let generationJobId;
+  let publicationJobId;
+  const store = {
+    async enqueueJob(input) {
+      const existing = jobs.get(input.jobId);
+      if (existing) return { created: false, job: existing };
+      const job = {
+        job_id: input.jobId,
+        tenant_id: input.tenantId,
+        loop_id: input.loopId,
+        capability: input.capability,
+        effect_class: input.effectClass,
+        effect_key: input.effectKey,
+        input_refs: input.inputRefs,
+        max_attempts: input.maxAttempts,
+        attempt: input.capability === "marketing.video.publish" ? 1 : 0,
+        status: input.capability === "marketing.video.publish" ? "failed" : "queued",
+        unknown_effect: false,
+      };
+      jobs.set(job.job_id, job);
+      if (job.capability === "marketing.video.generate") generationJobId = job.job_id;
+      if (job.capability === "marketing.video.publish") publicationJobId = job.job_id;
+      return { created: true, job };
+    },
+    async readReceipt({ jobId }) {
+      if (jobId === generationJobId) return artifact;
+      return receipts.get(jobId) || null;
+    },
+    async readJob({ jobId }) { return jobs.get(jobId) || null; },
+    async retryJob({ jobId }) {
+      calls.push("retry");
+      const job = jobs.get(jobId);
+      assert.equal(job.status, "failed");
+      assert.equal(job.unknown_effect, false);
+      job.status = "queued";
+      return job;
+    },
+    async claimJob({ jobId, workerId }) {
+      calls.push("claim");
+      const job = jobs.get(jobId);
+      if (!job || job.status !== "queued") return null;
+      job.status = "running";
+      job.attempt += 1;
+      job.lease_owner = workerId;
+      return { ...job };
+    },
+    async heartbeatJob() {},
+    async completeJob({ jobId, receipt }) { receipts.set(jobId, receipt); },
+    async failJob({ jobId, unknownEffect }) {
+      calls.push("fail");
+      const job = jobs.get(jobId);
+      job.status = "failed";
+      job.unknown_effect = unknownEffect;
+    },
+  };
+  const env = {
+    LM_DATA_DIR: dataDir,
+    LM_RUNTIME_TENANT_ID: "dais-local",
+    LM_HONNE_JA_PACK_REF: packRef,
+    LM_HONNE_JA_MEDIA_REFS: mediaRef,
+    LM_HONNE_JA_PUBLICATION_APPROVAL_REF: approvalRef,
+  };
+  const args = ["run", "--slot", "2026-10-13T22:30:00.000Z"];
+  const deps = { dataDir, env, nowMs: Date.parse(args[2]), store };
+
+  await assert.rejects(runHonneJaCycle(args, deps), (error) => {
+    assert.match(error.message, /Mobile marketing receipt unavailable/i);
+    assert.ok(error.message.includes(publicationJobId));
+    return true;
+  });
+  assert.deepEqual(calls, ["retry", "claim", "fail"]);
+  assert.equal(jobs.get(publicationJobId).attempt, 2);
+  assert.equal(jobs.get(publicationJobId).unknown_effect, false);
+
+  jobs.get(publicationJobId).unknown_effect = true;
+  await assert.rejects(runHonneJaCycle(args, deps), (error) => {
+    assert.match(error.message, /Mobile marketing job is not claimable/i);
+    assert.ok(error.message.includes(publicationJobId));
+    return true;
+  });
+  assert.deepEqual(calls, ["retry", "claim", "fail", "claim"]);
 });
 
 test("Anicca main uses only its three historical JA widget slots", () => {

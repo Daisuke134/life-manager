@@ -1,5 +1,6 @@
 import os
 import json
+import subprocess
 import sys
 import tempfile
 import time
@@ -16,6 +17,17 @@ import agent_runner as runner
 
 
 class EvidenceRetentionTest(unittest.TestCase):
+    def finish_with_closed_diagnostics(self, run: Path, summary: dict):
+        # Keep these orchestration tests independent of ambient CI lsof handles.
+        with patch(
+            "runtime.host.bounded_output.subprocess.run",
+            side_effect=lambda command, **kwargs: subprocess.CompletedProcess(command, 1, b"", b""),
+        ) as lsof:
+            result = runner.finish_evidence_run(run, summary)
+        self.assertTrue(lsof.called)
+        self.assertEqual(lsof.call_args.args[0][0], "lsof")
+        return result
+
     def test_registered_flat_evidence_prunes_only_closed_unsealed_diagnostics(self):
         with tempfile.TemporaryDirectory() as temporary:
             base = Path(temporary).resolve()
@@ -59,7 +71,7 @@ class EvidenceRetentionTest(unittest.TestCase):
             with (patch.dict(os.environ, {"LIFE_MANAGER_LOOP_ID": owner,
                                           "LIFE_MANAGER_STATE_ROOT": str(state)}),
                   patch.object(runner, "REPO_ROOT", config.parent)):
-                result = runner.finish_evidence_run(run, {"status": "failed"})
+                result = self.finish_with_closed_diagnostics(run, {"status": "failed"})
                 runner.finish_evidence_run(base / "unmanaged/run", {"status": "success"})
             self.assertFalse(captures["current"].exists())
             self.assertEqual(result["postrun_evidence_reclamation"]["removed"], 1)
@@ -108,7 +120,7 @@ class EvidenceRetentionTest(unittest.TestCase):
                                           "LIFE_MANAGER_STATE_ROOT": str(state)}),
                   patch.object(runner, "REPO_ROOT", config.parent),
                   patch.object(runner, "reclaim_completed_evidence") as legacy):
-                result = runner.finish_evidence_run(run, {"status": "success"})
+                result = self.finish_with_closed_diagnostics(run, {"status": "success"})
                 runner.finish_evidence_run(captures["foreign"].parent.parent, {"status": "success"})
             self.assertFalse(captures["current"].exists())
             self.assertEqual(result["postrun_evidence_reclamation"]["removed"], 1)
@@ -147,7 +159,7 @@ class EvidenceRetentionTest(unittest.TestCase):
             summary = {"status": "failed", "attempt_count": 1}
 
             with patch.dict(os.environ, {"LIFE_MANAGER_LOOP_ID": owner}), patch.object(runner, "REPO_ROOT", config.parent):
-                result = runner.finish_evidence_run(run, summary)
+                result = self.finish_with_closed_diagnostics(run, summary)
 
             self.assertFalse(relay.exists(), "a completed run must prune its own excess diagnostics")
             self.assertEqual(result["status"], "failed")

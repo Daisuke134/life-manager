@@ -98,6 +98,31 @@ class StaticStageRouting(unittest.TestCase):
             self.assertEqual(listing["count"], 16)
             self.assertEqual(listing["price_jpy"], 190)
 
+    def test_static_selection_preserves_campaign_value_through_submit(self) -> None:
+        def campaign_plan(set_dir, prior, market_items=None):
+            plan = _static_plan(set_dir, prior, market_items)
+            plan["campaign_value"] = "835"
+            plan["campaign_theme_ids"] = [f"s{i}" for i in range(12)]
+            plan["campaign_requirements"] = {
+                "value": "835", "title": "冬を感じるスタンプ", "deadline": "2026-12-04",
+                "min_sticker_count": 8, "max_sticker_count": 40, "min_price_jpy": 190,
+                "min_theme_stickers": 12, "observed_at": "2026-10-12T10:00:00+00:00",
+            }
+            return plan
+
+        with tempfile.TemporaryDirectory() as tmp:
+            state_root = Path(tmp)
+            deps = _fake_static_deps(static_planner=campaign_plan)
+            for _ in range(3):
+                MODULE.wake(state_root, deps)  # plan, character, images
+            selection = MODULE._read_json(state_root / "set-001" / "select.json")
+            self.assertEqual(selection.get("campaign_value"), "835")
+            self.assertEqual(selection.get("campaign_requirements"), {
+                "value": "835", "title": "冬を感じるスタンプ", "deadline": "2026-12-04",
+                "min_sticker_count": 8, "max_sticker_count": 40, "min_price_jpy": 190,
+                "min_theme_stickers": 12, "observed_at": "2026-10-12T10:00:00+00:00",
+            })
+
     def test_static_selection_inherits_the_series_store_categories(self) -> None:
         # 2026-10-09: six static items reached review with taste/character category 未設定 because the
         # static select.json carried only order/main/tab; the submit step skips a missing category.

@@ -89,6 +89,35 @@ class NativeCodexCompressionTest(unittest.TestCase):
 
 
 class LoopCleanupTest(unittest.TestCase):
+    def test_main_stdout_keeps_loaded_binding_and_standalone_none(self):
+        expected = {"owner_id": "life-manager-disk-cleanup", "run_id": "run-1",
+            "occurrence_id": "life-manager-disk-cleanup:run-1",
+            "release_sha": "a" * 40}
+        env = {"LIFE_MANAGER_RUN_ID": "run-1",
+            "LIFE_MANAGER_OCCURRENCE_ID": "life-manager-disk-cleanup:run-1",
+            "LIFE_MANAGER_RELEASE_SHA": "b" * 40}
+        for context, binding in ((env, expected), ({}, None)):
+            with self.subTest(bound=bool(context)), \
+                 mock.patch.dict(os.environ, context, clear=True), \
+                 mock.patch.object(central_cleanup, "ROOT", Path("/private-binding-fixture")), \
+                 mock.patch.object(Path, "read_text", return_value=json.dumps({"sha": "a" * 40})), \
+                 mock.patch.object(central_cleanup, "git_duplicate_cleanup", return_value={"errors": 0}), \
+                 mock.patch.object(central_cleanup, "codex_history_cleanup", return_value={"status": "fixture"}), \
+                 mock.patch.object(central_cleanup, "release_gc", return_value={"errors": 0}), \
+                 mock.patch.object(central_cleanup, "scratch_gc", return_value={"errors": 0}), \
+                 mock.patch.object(central_cleanup, "installed_state_roots", return_value=[]), \
+                 mock.patch.object(central_cleanup, "process_starts", return_value={}), \
+                 mock.patch.object(central_cleanup, "no_effect_loop_ids", return_value=set()), \
+                 mock.patch.object(central_cleanup, "closed_reconcile_occurrences", return_value={}), \
+                 mock.patch.object(central_cleanup.subprocess, "run",
+                     side_effect=AssertionError("fixture invoked a native subprocess")), \
+                 mock.patch.object(sys, "argv", ["central_cleanup.py"]), \
+                 mock.patch("builtins.print") as output:
+                self.assertEqual(central_cleanup.main(), 0)
+                result = json.loads(output.call_args.args[0])
+                self.assertIn("run_binding", result)
+                self.assertEqual(result["run_binding"], binding)
+
     def test_native_git_duplicate_cleanup_preserves_primary_data_and_replays_zero(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
@@ -125,6 +154,40 @@ class LoopCleanupTest(unittest.TestCase):
             self.assertEqual(replay["prune_packable_before"], 0)
             self.assertEqual(replay["prune_packable_after"], 0)
 
+    def test_native_git_cleanup_packs_loose_objects_without_losing_work(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            def git(*args, **kwargs):
+                return subprocess.run(["git", "-C", str(repo), *args],
+                    check=True, capture_output=True, text=True, **kwargs).stdout.strip()
+            git("init", "-q")
+            (repo / "source.txt").write_text("committed source\n")
+            git("add", "source.txt")
+            git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+                "commit", "-qm", "source")
+            head, branch = git("rev-parse", "HEAD"), git("symbolic-ref", "HEAD")
+            objects = [git("hash-object", "-w", "--stdin", input=f"retained blob {i}\n")
+                       for i in range(110)]
+            (repo / "source.txt").write_text("active source change\n")
+            (repo / "memory").mkdir()
+            (repo / "memory/keep.txt").write_text("retained memory\n")
+            dirty = git("status", "--porcelain")
+            result = central_cleanup.git_duplicate_cleanup(repo)
+            self.assertEqual(result["errors"], 0)
+            counts = dict(line.split(": ", 1) for line in git("count-objects", "-v").splitlines())
+            self.assertGreaterEqual(int(counts["in-pack"]), len(objects))
+            self.assertEqual(int(counts["count"]), 0)
+            for i, oid in enumerate(objects):
+                self.assertEqual(git("cat-file", "blob", oid), f"retained blob {i}")
+            self.assertEqual(git("rev-parse", "HEAD"), head)
+            self.assertEqual(git("symbolic-ref", "HEAD"), branch)
+            self.assertEqual(git("status", "--porcelain"), dirty)
+            self.assertEqual((repo / "source.txt").read_text(), "active source change\n")
+            self.assertEqual((repo / "memory/keep.txt").read_text(), "retained memory\n")
+            replay = central_cleanup.git_duplicate_cleanup(repo)
+            self.assertEqual(replay["errors"], 0)
+            self.assertEqual(replay["prune_packable_after"], 0)
+
     def test_native_git_duplicate_cleanup_skips_absent_source_checkout(self):
         with tempfile.TemporaryDirectory() as directory, \
              mock.patch.object(central_cleanup.subprocess, "run") as run:
@@ -133,16 +196,212 @@ class LoopCleanupTest(unittest.TestCase):
             self.assertEqual(result["errors"], 0)
             run.assert_not_called()
 
+    def test_native_git_cleanup_handles_few_objects_under_byte_pressure_and_replays_zero(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            native_run = subprocess.run
+            def git(*args, **kwargs):
+                return native_run(["git", "-C", str(repo), *args],
+                    check=True, capture_output=True, text=True, **kwargs).stdout.strip()
+            git("init", "-q")
+            (repo / "source.txt").write_text("committed source\n")
+            git("add", "source.txt")
+            git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+                "commit", "-qm", "source")
+            head, branch = git("rev-parse", "HEAD"), git("symbolic-ref", "HEAD")
+            objects = [git("hash-object", "-w", "--stdin", input=f"retained blob {i}\n")
+                       for i in range(3)]
+            (repo / "source.txt").write_text("active source change\n")
+            (repo / "memory").mkdir()
+            (repo / "memory/keep.txt").write_text("retained memory\n")
+            dirty = git("status", "--porcelain")
+            commands = []
+            native_entrypoint = lm_loop_run._run_entrypoint
+            def byte_pressure(command, **kwargs):
+                commands.append(command)
+                if command[0] == "git":
+                    self.assertEqual(kwargs["env"]["LC_ALL"], "C")
+                completed = native_run(command, **kwargs)
+                if command[-2:] == ["count-objects", "-v"]:
+                    counts = dict(line.split(": ", 1) for line in completed.stdout.splitlines())
+                    if int(counts["count"]):
+                        # Exercise 128 MiB policy without allocating a large disk fixture.
+                        completed.stdout = "\n".join(
+                            "size: 131072" if line.startswith("size: ") else line
+                            for line in completed.stdout.splitlines()) + "\n"
+                return completed
+            def maintenance(command, **kwargs):
+                commands.append(command)
+                self.assertEqual(kwargs["env"]["LC_ALL"], "C")
+                return native_entrypoint(command, **kwargs)
+            with mock.patch.object(central_cleanup.subprocess, "run", side_effect=byte_pressure), \
+                 mock.patch.object(lm_loop_run, "_run_entrypoint", side_effect=maintenance):
+                result = central_cleanup.git_duplicate_cleanup(repo)
+                counts = dict(line.split(": ", 1) for line in git("count-objects", "-v").splitlines())
+                self.assertEqual(int(counts["count"]), 0)
+                self.assertEqual(result["status"], "pass")
+                self.assertEqual(result["loose_bytes_before"], 134217728)
+                self.assertEqual(result["loose_bytes_after"], 0)
+                packed = {path.name: path.stat().st_mtime_ns for path in (repo / ".git/objects/pack").iterdir()}
+                replay = central_cleanup.git_duplicate_cleanup(repo)
+            self.assertEqual(replay["status"], "pass")
+            self.assertEqual(packed, {path.name: path.stat().st_mtime_ns for path in (repo / ".git/objects/pack").iterdir()})
+            maintenance = [command for command in commands if "maintenance" in command]
+            self.assertNotIn("--auto", maintenance[0])
+            self.assertIn("--auto", maintenance[1])
+            for i, oid in enumerate(objects):
+                self.assertEqual(git("cat-file", "blob", oid), f"retained blob {i}")
+            self.assertEqual(git("rev-parse", "HEAD"), head)
+            self.assertEqual(git("symbolic-ref", "HEAD"), branch)
+            self.assertEqual(git("status", "--porcelain"), dirty)
+            self.assertEqual((repo / "source.txt").read_text(), "active source change\n")
+            self.assertEqual((repo / "memory/keep.txt").read_text(), "retained memory\n")
+
+    def test_native_git_cleanup_defers_skipped_maintenance_and_preserves_unknown_lock(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            def git(*args, **kwargs):
+                return subprocess.run(["git", "-C", str(repo), *args],
+                    check=True, capture_output=True, text=True, **kwargs).stdout.strip()
+            git("init", "-q")
+            oid = git("hash-object", "-w", "--stdin", input="retained unreachable blob\n")
+            lock = repo / ".git/objects/maintenance.lock"
+            lock.write_text("unknown owner\n")
+            identity = lock.stat().st_ino
+            counts = git("count-objects", "-v")
+            result = central_cleanup.git_duplicate_cleanup(repo)
+            self.assertEqual(result["status"], "deferred")
+            self.assertEqual(result["errors"], 0)
+            self.assertEqual(result["error_class"], "NativeMaintenanceSkipped")
+            self.assertTrue(result["retryable"])
+            self.assertEqual(result["next_action"], "retry_next_natural_pass")
+            self.assertIsNone(result["prune_packable_after"])
+            self.assertIsNone(result["loose_bytes_after"])
+            self.assertEqual(lock.stat().st_ino, identity)
+            self.assertEqual(lock.read_text(), "unknown owner\n")
+            self.assertEqual(git("count-objects", "-v"), counts)
+            self.assertEqual(git("cat-file", "blob", oid), "retained unreachable blob")
+
+    def test_native_git_cleanup_prunes_packed_duplicates_before_deferred_maintenance(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            def git(*args, **kwargs):
+                return subprocess.run(["git", "-C", str(repo), *args],
+                    check=True, capture_output=True, text=True, **kwargs).stdout.strip()
+            git("init", "-q")
+            source = repo / "source.txt"
+            source.write_text("committed source\n")
+            git("add", "source.txt")
+            git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+                "commit", "-qm", "source")
+            head, refs = git("rev-parse", "HEAD"), git("show-ref")
+            git("pack-objects", "--all", str(repo / ".git/objects/pack/pack"))
+            unique = git("hash-object", "-w", "--stdin", input="retained unreachable blob\n")
+            source.write_text("active source change\n")
+            (repo / "memory").mkdir()
+            (repo / "memory/keep.txt").write_text("retained memory\n")
+            dirty = git("status", "--porcelain")
+            lock = repo / ".git/objects/maintenance.lock"
+            lock.write_text("unknown owner\n")
+            identity = lock.stat().st_ino
+
+            result = central_cleanup.git_duplicate_cleanup(repo)
+            counts = dict(line.split(": ", 1) for line in git("count-objects", "-v").splitlines())
+            self.assertGreater(result["prune_packable_before"], 0)
+            self.assertEqual(int(counts["prune-packable"]), 0)
+            self.assertEqual(int(counts["count"]), 1)
+            self.assertEqual(result["status"], "deferred")
+            self.assertEqual(result["errors"], 0)
+            self.assertEqual(result["error_class"], "NativeMaintenanceSkipped")
+            self.assertTrue(result["retryable"])
+            self.assertEqual(result["next_action"], "retry_next_natural_pass")
+            self.assertIsNone(result["prune_packable_after"])
+            self.assertIsNone(result["loose_bytes_after"])
+            self.assertEqual(lock.stat().st_ino, identity)
+            self.assertEqual(lock.read_text(), "unknown owner\n")
+            self.assertEqual(git("cat-file", "blob", unique), "retained unreachable blob")
+            self.assertEqual(git("rev-parse", "HEAD"), head)
+            self.assertEqual(git("show-ref"), refs)
+            self.assertEqual(git("status", "--porcelain"), dirty)
+            self.assertEqual(source.read_text(), "active source change\n")
+            self.assertEqual((repo / "memory/keep.txt").read_text(), "retained memory\n")
+
+    def test_git_maintenance_timeout_allows_its_private_child_to_clean_its_lock(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            (repo / ".git/objects").mkdir(parents=True)
+            lock = repo / ".git/objects/maintenance.lock"
+            terminated = repo / "terminated"
+            script = (
+                "import pathlib,signal,sys,time\n"
+                "lock=pathlib.Path(sys.argv[1])\n"
+                "def stop(*_):\n"
+                " lock.unlink()\n"
+                " pathlib.Path(sys.argv[2]).write_text('TERM')\n"
+                " sys.exit(0)\n"
+                "signal.signal(signal.SIGTERM,stop)\n"
+                "lock.write_text('owned by this private child')\n"
+                "print('private stdout',flush=True)\n"
+                "print('private stderr',file=sys.stderr,flush=True)\n"
+                "time.sleep(60)\n"
+            )
+            child = [sys.executable, "-B", "-c", script, str(lock), str(terminated)]
+            native_run, native_popen = subprocess.run, subprocess.Popen
+            native_entrypoint = lm_loop_run._run_entrypoint
+            children = []
+            def start(command, **kwargs):
+                process = native_popen(command, **kwargs)
+                if script in command:
+                    children.append(process)
+                return process
+            def run(command, **kwargs):
+                if command[-2:] == ["count-objects", "-v"]:
+                    return subprocess.CompletedProcess(command, 0, "prune-packable: 0\nsize: 0\n", "")
+                if command[-3:] == ["rev-parse", "--git-path", "objects/maintenance.lock"]:
+                    return subprocess.CompletedProcess(command, 0, str(lock), "")
+                if "maintenance" in command:
+                    self.assertEqual(kwargs["timeout"], 15)
+                    return native_run(child, **{**kwargs, "timeout": .3})
+                return native_run(command, **kwargs)
+            def owned(command, **kwargs):
+                self.assertEqual(kwargs["timeout_seconds"], 15)
+                self.assertEqual(kwargs.get("termination_grace_seconds", 15), 15)
+                self.assertEqual(kwargs["env"]["LC_ALL"], "C")
+                return native_entrypoint(child, **{**kwargs, "timeout_seconds": .3,
+                                                    "termination_grace_seconds": .3})
+            try:
+                with mock.patch.object(subprocess, "run", side_effect=run), \
+                     mock.patch.object(subprocess, "Popen", side_effect=start), \
+                     mock.patch.object(lm_loop_run, "_run_entrypoint", side_effect=owned):
+                    result = central_cleanup.git_duplicate_cleanup(repo)
+                self.assertFalse(lock.exists(), "timeout hard-killed the child before its lock cleanup")
+                self.assertEqual(terminated.read_text(), "TERM")
+                self.assertEqual(result["status"], "deferred")
+                self.assertEqual(result["errors"], 0)
+                self.assertEqual(result["error_class"], "TimeoutExpired")
+                self.assertIsNone(result["prune_packable_after"])
+                self.assertIsNone(result["loose_bytes_after"])
+            finally:
+                for process in children:
+                    if process.poll() is None:
+                        process.kill()
+                    process.wait()
+
     def test_native_git_duplicate_cleanup_preserves_unknown_after_timeout(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
             (repo / ".git").mkdir()
-            count = subprocess.CompletedProcess([], 0, "prune-packable: 3\n", "")
+            count = subprocess.CompletedProcess([], 0, "prune-packable: 3\nsize: 0\n", "")
+            lock_path = subprocess.CompletedProcess([], 0, str(repo / ".git/objects/maintenance.lock"), "")
             with mock.patch.object(central_cleanup.subprocess, "run", side_effect=(
-                    count, subprocess.TimeoutExpired("git prune-packed", 15))):
+                    count, subprocess.CompletedProcess([], 0, "", ""), lock_path)), \
+                 mock.patch.object(lm_loop_run, "_run_entrypoint", return_value=124):
                 result = central_cleanup.git_duplicate_cleanup(repo)
-            self.assertEqual(result["errors"], 1)
-            self.assertEqual(result["status"], "failed")
+            self.assertEqual(result["errors"], 0)
+            self.assertEqual(result["status"], "deferred")
+            self.assertEqual(result["error_class"], "TimeoutExpired")
+            self.assertTrue(result["retryable"])
+            self.assertEqual(result["next_action"], "retry_next_natural_pass")
             self.assertEqual(result["prune_packable_before"], 3)
             self.assertIsNone(result["prune_packable_after"])
 
@@ -387,6 +646,40 @@ class LoopCleanupTest(unittest.TestCase):
 
             self.assertFalse(stale.exists())
             self.assertEqual(result["errors"], 0)
+
+    def test_release_gc_hides_trash_from_finder_metadata_race(self):
+        with tempfile.TemporaryDirectory() as directory:
+            releases = Path(directory) / "releases"; releases.mkdir()
+            stale = releases / ("20260101T000000-" + "a" * 8); stale.mkdir()
+            (stale / "RELEASE.json").write_text(json.dumps({"sha": "a" * 40}))
+            current = Path(directory) / "current"
+            from runtime.loop import loop_cleanup
+            original_replace = loop_cleanup.os.replace
+            original_rmdir = loop_cleanup.os.rmdir
+            trash_names = []
+
+            def capture_trash(src, dst, *args, **kwargs):
+                trash_names.append(Path(dst).name)
+                return original_replace(src, dst, *args, **kwargs)
+
+            def finder_metadata_rmdir(path, *args, **kwargs):
+                name = os.fspath(path)
+                if (trash_names and Path(name).name == trash_names[0]
+                        and not Path(name).name.startswith(".")):
+                    fd = os.open(".DS_Store", os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                                 0o644, dir_fd=kwargs.get("dir_fd"))
+                    os.close(fd)
+                return original_rmdir(path, *args, **kwargs)
+
+            with mock.patch("runtime.loop.loop_cleanup.os.replace",
+                            side_effect=capture_trash), \
+                 mock.patch("runtime.loop.loop_cleanup.os.rmdir",
+                            side_effect=finder_metadata_rmdir):
+                result = gc_releases(releases, current, keep=0, protected=set())
+
+            self.assertEqual(result["errors"], 0)
+            self.assertTrue(trash_names[0].startswith("."))
+            self.assertFalse((releases / trash_names[0]).exists())
 
     def test_release_gc_preserves_memory_and_state_jsonl_but_removes_plain_release(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -781,6 +1074,29 @@ class LoopCleanupTest(unittest.TestCase):
             self.assertTrue(runs["run-3"].is_dir())
             self.assertEqual((result["removed"], result["preserved"]), (1, 2))
 
+    def test_scratch_gc_preserves_terminal_recorded_unknown_effect_until_reconciled(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = root / "loop-tmp/publish/run-unknown"
+            run.mkdir(parents=True)
+            (run / ".owner.json").write_text(json.dumps({
+                "pid": 11, "process_start": "old-start", "effect_class": "publish",
+            }))
+            (run / "intermediate.png").write_bytes(b"pending provider evidence")
+            (root / "events.jsonl").write_text(json.dumps({
+                "loop_id": "publish", "run_id": "run-unknown", "phase": "report",
+                "status": "pass", "effect_class": "publish", "effect_status": "unknown",
+                "occurrence_id": "publish:run-unknown", "release_sha": "a" * 40,
+            }) + "\n")
+
+            result = scratch_gc(
+                {root}, snapshot_started_ns=time.time_ns() + 1, starts={},
+                reconciled_occurrences=set(),
+            )
+
+            self.assertTrue(run.is_dir())
+            self.assertEqual((result["removed"], result["preserved"]), (0, 1))
+
     def test_scratch_gc_reclaims_exactly_reconciled_terminal_scratch(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -1090,7 +1406,7 @@ class LoopCleanupTest(unittest.TestCase):
             original_clear = loop_cleanup._clear_owned_directory
             swapped = False
 
-            def swap_then_clear(directory_fd):
+            def swap_then_clear(directory_fd, **kwargs):
                 nonlocal swapped
                 if not swapped:
                     swapped = True
@@ -1098,7 +1414,7 @@ class LoopCleanupTest(unittest.TestCase):
                     trash.rename(run.parent / "inspected-trash")
                     trash.mkdir()
                     (trash / "sentinel").write_text("keep")
-                return original_clear(directory_fd)
+                return original_clear(directory_fd, **kwargs)
 
             with mock.patch("runtime.loop.loop_cleanup._clear_owned_directory",
                             side_effect=swap_then_clear):
@@ -1321,8 +1637,28 @@ class LoopCleanupTest(unittest.TestCase):
             completed = mock.Mock(returncode=0, stdout=f"p123\nn{entry}\n", stderr="")
             with mock.patch("runtime.loop.central_cleanup.subprocess.run", return_value=completed) as run:
                 self.assertEqual(open_release_roots(releases), {entry.parents[1].resolve()})
-        run.assert_called_once_with(
-            ["ps", "-axo", "command="], capture_output=True, text=True, timeout=5)
+            run.assert_called_once_with(
+                ["ps", "-axo", "command="], capture_output=True, text=True, timeout=15)
+
+    def test_open_process_release_is_discovered_when_ps_takes_six_seconds(self):
+        with tempfile.TemporaryDirectory() as directory:
+            releases = Path(directory) / "releases"
+            entry = releases / ("20260101T000000-" + "a" * 8) / "bin/job.sh"
+            entry.parent.mkdir(parents=True)
+            entry.write_text("x")
+
+            timeouts = []
+            def slow_process_inventory(command, **kwargs):
+                timeouts.append(kwargs["timeout"])
+                if kwargs["timeout"] < 6:
+                    raise subprocess.TimeoutExpired(command, kwargs["timeout"])
+                return subprocess.CompletedProcess(command, 0, stdout=f"{entry}\n", stderr="")
+
+            with mock.patch("runtime.loop.central_cleanup.subprocess.run", side_effect=slow_process_inventory):
+                self.assertEqual(open_release_roots(releases), {entry.parents[1].resolve()})
+
+        self.assertGreaterEqual(timeouts[0], 6)
+        self.assertLessEqual(timeouts[0], 15)
 
     def _run_terminal_event(self, exit_code: int) -> dict:
         with tempfile.TemporaryDirectory() as directory:
@@ -1518,3 +1854,48 @@ class LoopCleanupTest(unittest.TestCase):
 
 
 if __name__ == "__main__": unittest.main()
+
+
+class PruneToEvidenceTest(unittest.TestCase):
+    def test_keeps_small_evidence_and_removes_bulk_artifacts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "run"
+            (root / "set-001" / "images").mkdir(parents=True)
+            (root / "profile" / "Default").mkdir(parents=True)
+            (root / "effect-identity.jsonl").write_text('{"id":"x"}\n')
+            (root / "set-001" / "submit-response.json").write_text("{}")
+            (root / "set-001" / "images" / "01.png").write_bytes(b"p" * 4096)
+            (root / "profile" / "Default" / "Cookies").write_bytes(b"c" * 128)
+            (root / "huge.log").write_bytes(b"l" * (1024 * 1024 + 1))
+            (root / "link.json").symlink_to(root / "effect-identity.jsonl")
+
+            removed = loop_cleanup.prune_to_evidence(root)
+
+            self.assertTrue((root / "effect-identity.jsonl").exists())
+            self.assertTrue((root / "set-001" / "submit-response.json").exists())
+            self.assertFalse((root / "set-001" / "images").exists())
+            self.assertFalse((root / "profile").exists())
+            self.assertFalse((root / "huge.log").exists())
+            self.assertFalse((root / "link.json").is_symlink())
+            self.assertGreaterEqual(removed, 4096 + 128 + 1024 * 1024 + 1)
+
+    def test_total_evidence_budget_keeps_smallest_first(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "run"
+            root.mkdir()
+            for index in range(10):
+                (root / f"e{index}.json").write_bytes(b"j" * (1024 * 1024 - 10 + index))
+            loop_cleanup.prune_to_evidence(root)
+            kept = sorted(p.name for p in root.iterdir())
+            self.assertEqual(kept, [f"e{index}.json" for index in range(8)])
+
+    def test_preserves_markers_and_protected_subtrees(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "run"
+            (root / "keep").mkdir(parents=True)
+            (root / ".terminal-unrecorded").write_bytes(b"")
+            (root / "keep" / ".lm-protected").write_bytes(b"")
+            (root / "keep" / "asset.png").write_bytes(b"p" * 64)
+            loop_cleanup.prune_to_evidence(root)
+            self.assertTrue((root / ".terminal-unrecorded").exists())
+            self.assertTrue((root / "keep" / "asset.png").exists())

@@ -1,6 +1,12 @@
+import contextlib
+import io
+import json
 import sys
+import tempfile
+import types
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import creators_readback as MODULE  # noqa: E402
@@ -29,6 +35,35 @@ class ApplyReading(unittest.TestCase):
     def test_a_built_store_url_is_never_stored(self) -> None:
         out = MODULE.apply_reading({"product_id": "1"}, {"status": "販売中", "store_url": "https://store.line.me/stickershop/product/1/ja"})
         self.assertNotIn("store_url", out)
+
+
+class UnsubmittedPlaceholder(unittest.TestCase):
+    def test_empty_creators_item_skips_browser_and_does_not_write_sales_status(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            item_file = root / "creators-item.json"
+            item_file.write_text("{}")
+            ledger = root / "readback.jsonl"
+            acquired = []
+            busy = types.SimpleNamespace(returncode=9, stdout="", stderr="BUSY")
+
+            with (
+                patch.object(MODULE, "LEDGER", ledger),
+                patch.object(MODULE, "acquire_when_free",
+                             side_effect=lambda _acquire: acquired.append(True) or busy),
+                patch.object(sys, "argv", ["creators_readback.py", "--item-file", str(item_file)]),
+            ):
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    try:
+                        result = MODULE.main()
+                    except KeyError:
+                        result = None
+
+            self.assertEqual(acquired, [], "an empty unsubmitted placeholder must not enter browser readback")
+            self.assertEqual(result, 0)
+            self.assertFalse(ledger.exists())
+            self.assertEqual(json.loads(output.getvalue())["status"], "unsubmitted_placeholder")
 
 
 
@@ -61,6 +96,28 @@ class AcquireWaitsForABusyBrowser(unittest.TestCase):
                                        wait_seconds=600, poll_seconds=30, sleep=lambda s: None, clock=lambda: 0)
         self.assertEqual(got.returncode, 10)
         self.assertEqual(len(calls), 1)
+
+    def test_main_returns_defer_after_browser_unavailable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            item_file = root / "creators-item.json"
+            item_file.write_text(json.dumps({
+                "product_id": "1", "state_observed": "販売中",
+                "purchase_url": "https://line.me/S/sticker/2",
+            }))
+            ledger = root / "readback.jsonl"
+            output = io.StringIO()
+            with (
+                patch.object(MODULE, "LEDGER", ledger),
+                patch.object(MODULE, "acquire_when_free", return_value=self.done(9, err="BUSY")),
+                patch.object(sys, "argv", ["creators_readback.py", "--item-file", str(item_file)]),
+                contextlib.redirect_stdout(output),
+            ):
+                result = MODULE.main()
+
+            self.assertEqual(result, 75)
+            self.assertEqual(json.loads(ledger.read_text().splitlines()[0])["status"], "browser_unavailable")
+            self.assertEqual(json.loads(item_file.read_text())["state_observed"], "販売中")
 
 
 if __name__ == "__main__":

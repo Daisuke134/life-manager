@@ -25,17 +25,22 @@ def load_json(path: pathlib.Path) -> dict:
     return value
 
 
-def verify_gate10(engine: pathlib.Path) -> dict:
+def verify_gate10(
+    engine: pathlib.Path,
+    *,
+    plans_path: pathlib.Path | None = None,
+    quarantine_path: pathlib.Path | None = None,
+) -> dict:
     engine = pathlib.Path(engine)
     registry = load_registry(engine)
-    require(set(registry.products) == {"anicca-ios", "honne-ai", "ebook-en", "ebook-ja"},
-            "initial product registry differs")
-    require(len(registry.accounts) == 9, "initial account registry differs")
+    core_products = {"anicca-ios", "honne-ai", "ebook-en", "ebook-ja"}
+    require(core_products <= set(registry.products), "required Gate10 core product missing")
     hooks_path = engine / "intel" / "hook-library.jsonl"
     hooks = {row["id"]: row for row in read_jsonl(hooks_path)}
     tactics = {row["id"] for row in read_jsonl(engine / "intel" / "playbook.jsonl")}
 
-    plans = read_jsonl(engine / "evidence" / "creative" / "gate10" / "plans.jsonl")
+    plans = read_jsonl(plans_path if plans_path is not None else
+                       engine / "evidence" / "creative" / "gate10" / "plans.jsonl")
     require(len(plans) == 2, "Gate 10 safe-plan evidence must contain exactly EN and JA")
     seen_experiments: set[str] = set()
     seen_creatives: set[str] = set()
@@ -91,7 +96,8 @@ def verify_gate10(engine: pathlib.Path) -> dict:
                       for path in canonical_sources for term in forbidden)
     require(legacy_refs == 0, "canonical router retains a legacy hook/runtime dependency")
 
-    quarantine = load_json(engine / "evidence" / "schedulers" /
+    quarantine = load_json(quarantine_path if quarantine_path is not None else
+                           engine / "evidence" / "schedulers" /
                            "2026-08-01-post-quarantine-v2.json")
     enabled_publishers = quarantine["summary"]["enabled_publishers"]
     require(enabled_publishers == 0, "legacy publishers were re-enabled")

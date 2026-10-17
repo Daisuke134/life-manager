@@ -30,6 +30,33 @@ PRODUCTS = (
     "anicca-ios", "honne-ai", "breath-reset", "sleep-ritual",
     "desk-stretch-timer", "micro-mood", "ebook-ja", "ebook-en",
 )
+_PRODUCT_DISPLAY_NAMES = {
+    "anicca-ios": "Anicca iOS",
+    "honne-ai": "Honne",
+    "breath-reset": "BreathCalm",
+    "sleep-ritual": "SleepRitual",
+    "desk-stretch-timer": "Desk Stretch Timer",
+    "micro-mood": "Micro-Mood",
+    "ebook-ja": "日本語電子書籍",
+    "ebook-en": "英語電子書籍",
+}
+_PLATFORM_DISPLAY_NAMES = {
+    "instagram": "Instagram",
+    "tiktok": "TikTok",
+    "youtube": "YouTube",
+    "social": "SNS",
+    "multi": "複数SNS",
+}
+_SOURCE_DISPLAY_NAMES = {
+    "app_store_connect": "App Store Connect",
+    "app_store_sales": "Appleの売上データ",
+    "revenuecat": "RevenueCat",
+    "product_analytics": "アプリ内分析",
+    "posthog": "PostHog",
+    "gumroad": "Gumroad",
+    "kdp": "Kindle出版",
+    "stripe": "Stripe",
+}
 KINDS = (
     "action",
     "checkpoint",
@@ -1241,37 +1268,58 @@ def _reason_text(reason: object, *, not_mature: bool = False) -> str:
     return "現在の証拠では分かりません"
 
 
+def _product_name(product_id: str | None) -> str:
+    if product_id is None:
+        return "ポートフォリオ"
+    return _PRODUCT_DISPLAY_NAMES.get(product_id, "アプリ")
+
+
+def _platform_name(platform: object) -> str:
+    return _PLATFORM_DISPLAY_NAMES.get(str(platform or "social"), "SNS")
+
+
+def _source_name(source: object) -> str:
+    return _SOURCE_DISPLAY_NAMES.get(str(source or ""), "データソース")
+
+
 def render_japanese(event: dict) -> str:
     """Render an already validated event without adding facts or numbers."""
 
     event = _validate_event(event)
     kind = event["kind"]
     product_id = event["product_id"]
+    product_name = _product_name(product_id)
     facts = event["facts"]
     lines: list[str] = []
     if kind == "action":
-        lines.append(f"📣 {product_id}の公開を確認しました。")
+        lines.append(f"📣 {product_name}の公開を確認しました。")
         lines.append(f"次に確認するリンク: {facts.get('native_url')}")
     elif kind == "checkpoint":
-        platform = facts.get("platform") or "social"
+        platform = _platform_name(facts.get("platform"))
         status = facts.get("checkpoint_status")
         age = facts.get("target_age_hours")
         if status == "measured" and facts.get("views") is not None:
-            lines.append(f"📊 {product_id}の{platform}チェックポイント（{age}時間）。")
-            lines.append(f"閲覧数 {facts.get('views')}、表示回数 {facts.get('impressions')}。")
+            lines.append(f"📊 {product_name}の{platform}投稿、{age}時間の結果です。")
+            impressions = facts.get("impressions")
+            impressions_text = (
+                f"表示回数 {impressions}"
+                if impressions is not None
+                else "表示回数は取得できませんでした"
+            )
+            lines.append(f"閲覧数 {facts['views']}、{impressions_text}。")
         else:
             reason = facts.get("reason") or "checkpoint_missed"
             natural = _reason_text(reason)
             if natural == "取得できませんでした":
                 natural = "まだ取得できませんでした"
-            lines.append(f"📊 {product_id}の{platform}チェックポイントは{natural}。")
+            lines.append(f"📊 {product_name}の{platform}投稿は{natural}。")
         native_url = facts.get("native_url")
         if isinstance(native_url, str) and native_url.startswith("https://"):
             lines.append(f"投稿リンク: {native_url}")
         else:
             lines.append("投稿リンク: 取得できませんでした")
     elif kind == "product_daily":
-        lines.append(f"📦 {product_id}の今日の結果です。")
+        lines.append(f"📦 {product_name}の今日の結果です。")
         mrr = facts.get("mrr")
         money_buckets = facts.get("money_buckets")
         if mrr is not None:
@@ -1288,12 +1336,12 @@ def render_japanese(event: dict) -> str:
                 for bucket in money_buckets
                 if isinstance(bucket, dict)
             )
-            lines.append(f"売上の確認値は{amounts}（{facts.get('money_source')}）。")
+            lines.append(f"売上の確認値は{amounts}（{_source_name(facts.get('money_source'))}）。")
             if facts.get("paid_orders") is not None:
                 lines.append(f"注文数 {facts['paid_orders']}件。")
         elif facts.get("money_value") is not None:
             currency = facts.get("money_currency") or "通貨不明"
-            lines.append(f"売上の確認値は{_number(facts.get('money_value'))} {currency}（{facts.get('money_source')}）。")
+            lines.append(f"売上の確認値は{_number(facts.get('money_value'))} {currency}（{_source_name(facts.get('money_source'))}）。")
             if facts.get("paid_orders") is not None:
                 lines.append(f"注文数 {facts['paid_orders']}件。")
         elif facts.get("paid_orders") is not None:
@@ -1326,32 +1374,32 @@ def render_japanese(event: dict) -> str:
         if isinstance(source_gaps, list) and source_gaps:
             business_date = facts.get("business_date") or "最新"
             lines.append(
-                f"⚠️ {product_id}の{business_date}時点で、確認できないソースがあります。"
+                f"⚠️ {product_name}の{business_date}時点で、確認できないデータがあります。"
             )
             for gap in source_gaps:
                 if not isinstance(gap, dict):
                     continue
                 source = gap.get("source") or "unknown"
                 reason = gap.get("reason") or "unknown"
-                lines.append(f"{source}は{_reason_text(reason)}。")
+                lines.append(f"{_source_name(source)}は{_reason_text(reason)}。")
                 lines.append(
                     f"次の修復: {gap.get('next_repair') or _repair_for(source)}。"
                 )
         else:
             source = facts.get("source") or "unknown"
             reason = facts.get("reason") or "unknown"
-            lines.append(f"⚠️ {product_id}で{source}の確認が必要です。{_reason_text(reason)}。")
+            lines.append(f"⚠️ {product_name}で{_source_name(source)}の確認が必要です。{_reason_text(reason)}。")
             lines.append(f"次の修復: {facts.get('next_repair') or _repair_for(source)}。")
     elif kind == "experiment":
         status = facts.get("status")
         if status == "not_mature":
-            lines.append(f"🧪 {product_id}の実験はまだ判断できる時間ではありません。")
+            lines.append(f"🧪 {product_name}の実験はまだ判断できる時間ではありません。")
             if facts.get("reason"):
                 lines.append(f"補足: {_reason_text(facts['reason'])}。")
         elif status == "observed":
-            lines.append(f"🧪 {product_id}の実験結果を観測しました。")
+            lines.append(f"🧪 {product_name}の実験結果を観測しました。")
         else:
-            lines.append(f"🧪 {product_id}の実験状態は現在の証拠では分かりません。")
+            lines.append(f"🧪 {product_name}の実験状態は現在の証拠では分かりません。")
     else:  # portfolio_weekly
         lines.append("🗓️ 今週のポートフォリオ状況です。")
         for item in facts.get("products", []):
@@ -1396,7 +1444,7 @@ def render_japanese(event: dict) -> str:
                 detail += f"・直近28日DL {item['installs_28d']}件"
             if item.get("proceeds_28d") is not None:
                 detail += f"・28日Apple収益 {_number(item['proceeds_28d'])}"
-            lines.append(f"{item_product}: {detail}")
+            lines.append(f"{_product_name(item_product)}: {detail}")
 
         totals = [item.get("revenue_28d") for item in facts.get("products", []) if item.get("revenue_28d") is not None]
         install_totals = [item.get("installs_28d") for item in facts.get("products", []) if item.get("installs_28d") is not None]
@@ -1408,29 +1456,6 @@ def render_japanese(event: dict) -> str:
                 summary.append(f"28日DL合計 {sum(install_totals)}件")
             lines.append("ポートフォリオ合計: " + "・".join(summary))
 
-    lines.extend(["", "確認情報"])
-    lines.append(f"message_key={event['message_key']}")
-    lines.append(f"product={product_id if product_id is not None else 'portfolio'}")
-    if kind == "action" and facts.get("native_url"):
-        lines.append(f"native_url={facts['native_url']}")
-    if kind == "incident":
-        source_gaps = facts.get("source_gaps")
-        if isinstance(source_gaps, list):
-            for gap in source_gaps:
-                if not isinstance(gap, dict):
-                    continue
-                lines.append(
-                    "source="
-                    + str(gap.get("source") or "unknown")
-                    + ";reason="
-                    + str(gap.get("reason") or "unknown")
-                    + ";next_repair="
-                    + str(gap.get("next_repair") or "")
-                )
-    raw_reason = facts.get("reason") or facts.get("money_reason") or facts.get("mrr_reason")
-    if raw_reason:
-        lines.append(f"reason={raw_reason}")
-    lines.append("evidence_refs=" + ",".join(event["evidence_refs"]))
     return "\n".join(lines)
 
 

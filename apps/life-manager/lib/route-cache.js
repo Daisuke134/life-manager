@@ -6,7 +6,8 @@
 "use strict";
 
 const BUCKET_MS = 10 * 60_000; // coarse 10-min bucket: a moved event lands in a new bucket → recompute.
-const NEGATIVE_TTL_MS = 30 * 60_000;
+// 24 h, not the 30-min travel tick: a deterministic no-route re-billed Directions every tick (2026-09).
+const NEGATIVE_TTL_MS = 24 * 3600_000;
 const TRANSIENT_TTL_MS = 2 * 60_000;
 const CACHE_FAILURE = Symbol("route-cache-failure");
 
