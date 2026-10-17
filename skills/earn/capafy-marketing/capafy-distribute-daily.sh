@@ -152,8 +152,12 @@ if [ -n "$SEO_KEYWORD_JSON" ]; then
   SEO_BRIEF="$(printf '%s' "$SEO_KEYWORD_JSON" | python3 -c 'import json,sys
 k=json.load(sys.stdin)
 print(f"SEARCH TARGET (overrides the English-only GOAL line): write this page for the search query \"{k[\"query\"]}\" in language \"{k[\"lang\"]}\", natively. The H1 must contain the query. Copy the structure, length and tone of the template pages apps/landing/data/research/hook-generator-for-tiktok.json (en), ganchos-para-tiktok.json (es) and reels-video-hook-ja.json (ja) in the landing checkout: a short search-intent intro, about 50 concrete ready-to-film hooks grouped by niche or hook type (spoken line plus on-screen text), how to pick and test them, a short FAQ, then the CTA. Where a hook needs a real figure, write a fill-in blank such as [ADD: your number]; never invent statistics. No notes to the editor in the body.")')"
+  SEO_QUERY="$(printf '%s' "$SEO_KEYWORD_JSON" | python3 -c 'import json,sys;print(json.load(sys.stdin)["query"])')"
   echo "capafy-distribute-daily: seo keyword=$SEO_KEYWORD_JSON" >>"$LOG"
 fi
+# Keyword pages must carry the query in the H1 and are announced to IndexNow (key file is public on aniccaai.com).
+SEO_QUERY="${SEO_QUERY:-}"
+INDEXNOW_KEY=92ec974b25b70513c2cbc172f532bb3b
 FREE_ARTICLE_URL="${ARTICLE_SELF_OWNED_BASE_URL:-}"
 [ -n "$FREE_ARTICLE_URL" ] && FREE_ARTICLE_URL="${FREE_ARTICLE_URL%/}/blog/${FREE_ARTICLE_SLUG}"
 
@@ -243,7 +247,7 @@ DESTINATIONS:
        --remote "$ARTICLE_SELF_OWNED_REMOTE" \\
        --branch "$ARTICLE_SELF_OWNED_BRANCH" \\
        --base-url "$ARTICLE_SELF_OWNED_BASE_URL" \\
-       --date "$JST_DATE"
+       --date "$JST_DATE"${SEO_QUERY:+ --title-must-contain "$SEO_QUERY" --indexnow-key $INDEXNOW_KEY}
    This writes ONE plain public JSON page (no preview/paid split, unlike the
    Writer's own self-owned paid articles) straight into the same landing
    repo the Writer commits to, pushes it, then polls the live page at
@@ -306,7 +310,7 @@ CAPTION_FILE="$RUN_DIR/x-caption.txt"
 python3 "$SELF_DIR/capafy_distribute_ledger.py" check --ledger "$LEDGER" --date "$SLOT" >/dev/null 2>&1
 if [ "$?" -eq 0 ] && [ -s "$RUN_DIR/article-en.md" ] && [ "${CAPAFY_DISTRIBUTE_DRY_RUN:-0}" != "1" ]; then
   PUB_OUT="$(python3 "$SELF_DIR/capafy_free_article.py" publish \
-    --draft-file "$RUN_DIR/article-en.md" --slug "$FREE_ARTICLE_SLUG" --cta-url "$CTA_URL" \
+    --draft-file "$RUN_DIR/article-en.md" --slug "$FREE_ARTICLE_SLUG" --cta-url "$CTA_URL" ${SEO_QUERY:+--title-must-contain "$SEO_QUERY" --indexnow-key "$INDEXNOW_KEY"} \
     --landing-root "$ARTICLE_SELF_OWNED_LANDING_ROOT" --remote "$ARTICLE_SELF_OWNED_REMOTE" \
     --branch "$ARTICLE_SELF_OWNED_BRANCH" --base-url "$ARTICLE_SELF_OWNED_BASE_URL" \
     --date "$JST_DATE" 2>>"$LOG" | tail -1)" || true
