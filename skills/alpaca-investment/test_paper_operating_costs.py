@@ -173,7 +173,10 @@ class PaperOperatingCostTests(unittest.TestCase):
     def test_adding_an_invoice_reference_does_not_allow_receipt_reassignment(self):
         self._assert_reassignment_rejected(enrich_invoice=True)
 
-    def _assert_reassignment_rejected(self, *, enrich_invoice=False):
+    def test_receipt_alias_survives_switch_to_the_invoice_representation(self):
+        self._assert_reassignment_rejected(enrich_invoice=True, representation_switch=True)
+
+    def _assert_reassignment_rejected(self, *, enrich_invoice=False, representation_switch=False):
         prior = json.loads(json.dumps(_prior_rows()).replace("2026-09-22", "2026-10-19").replace("QQQ", "SPY"))
         prior_observation = copy.deepcopy(OBSERVATION)
         prior_observation["clock"]["observed_at"] = "2026-10-19T14:31:10Z"
@@ -198,11 +201,25 @@ class PaperOperatingCostTests(unittest.TestCase):
                 billing.write_text(json.dumps(payload))
                 write_paper_performance(state, OBSERVATION, RISK)
                 original = json.loads((state / "performance-daily-2026-10-19.json").read_text())
+                if representation_switch:
+                    unreferenced_receipt = copy.deepcopy(payload)
+                    payload["documents"][0]["invoice_id"] = "invoice-paper"
+                    billing.write_text(json.dumps(payload))
+                    write_paper_performance(state, OBSERVATION, RISK)
+                    document = payload["documents"][0]
+                    document.update(document_type="invoice", source_type="official_invoice")
+                    del document["receipt_id"]
+                    for join in payload["job_joins"]:
+                        join.update(document_type="invoice", document_id="invoice-paper")
+                    billing.write_text(json.dumps(payload))
+                    write_paper_performance(state, OBSERVATION, RISK)
+                    payload = unreferenced_receipt
+                    original = json.loads((state / "performance-daily-2026-10-19.json").read_text())
                 current_trip = _closed_round_trips(_rows())[0][0]
                 for join in payload["job_joins"]:
                     join.update(order_ids=current_trip["order_ids"], period_start=current_trip["period_start"],
                                 period_end=current_trip["closed_at"], source_receipt_ids=current_trip["source_receipt_ids"])
-                if enrich_invoice:
+                if enrich_invoice and not representation_switch:
                     payload["documents"][0]["invoice_id"] = "invoice-paper"
                 billing.write_text(json.dumps(payload))
                 result = write_paper_performance(state, OBSERVATION, RISK)
