@@ -23,7 +23,8 @@ def test_pick_niche_rotates_by_date_and_covers_every_niche():
 
 
 def test_slots_match_existing_queue_times():
-    assert slots(dt.date(2026, 10, 22)) == {"ig": "2026-10-22T13:00:00.000Z", "x": "2026-10-22T17:00:00.000Z"}
+    assert slots(dt.date(2026, 10, 22)) == {"ig": "2026-10-22T13:00:00.000Z", "x": "2026-10-22T17:00:00.000Z",
+                                           "tt": "2026-10-22T14:00:00.000Z"}
 
 
 def test_caption_copies_the_live_queue_format():
@@ -65,5 +66,55 @@ def test_schedule_writes_dispatch_marker_before_upload_and_skips_existing(tmp_pa
 
 def test_second_slot_uses_other_times_and_a_different_niche():
     day = dt.date(2026, 10, 23)
-    assert slots(day, slot=2) == {"ig": "2026-10-23T23:00:00.000Z", "x": "2026-10-23T11:00:00.000Z"}
+    assert slots(day, slot=2) == {"ig": "2026-10-23T23:00:00.000Z", "x": "2026-10-23T11:00:00.000Z",
+                                  "tt": "2026-10-23T01:00:00.000Z"}
     assert pick_niche(day, slot=2)["key"] != pick_niche(day)["key"]
+
+
+def _video(tmp_path, m, monkeypatch):
+    monkeypatch.setattr(m, "BASE", tmp_path)
+    (tmp_path / "s" / "renders-v2").mkdir(parents=True)
+    (tmp_path / "s" / "renders-v2" / "video.mp4").write_bytes(b"x")
+
+
+def _warmup(tmp_path, phase):
+    import json
+    f = tmp_path / "warmup.json"
+    f.write_text(json.dumps({"integrations": [{"id": "tt-id", "platform": "tiktok", "warmup_phase": phase, "active": True}]}))
+    return f
+
+
+def test_tiktok_is_skipped_while_the_account_is_still_warming_up(tmp_path, monkeypatch):
+    import capafy_reel_daily as m
+    _video(tmp_path, m, monkeypatch)
+    monkeypatch.setattr(m, "TT_ID", "tt-id")
+    monkeypatch.setattr(m, "WARMUP_STATE", _warmup(tmp_path, "warmup"))
+    monkeypatch.setattr(m, "_req", lambda *a, **k: (_ for _ in ()).throw(AssertionError("no provider call")))
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    assert m.schedule("s", SPEC, dt.date(2026, 10, 29), "k", ("tt",), run_dir=run_dir) == {"tt": "warmup_skip"}
+    assert not list(run_dir.iterdir())
+
+
+def test_tiktok_posts_directly_once_the_account_is_live(tmp_path, monkeypatch):
+    import json
+    import capafy_reel_daily as m
+    _video(tmp_path, m, monkeypatch)
+    monkeypatch.setattr(m, "TT_ID", "tt-id")
+    monkeypatch.setattr(m, "WARMUP_STATE", _warmup(tmp_path, "live"))
+    calls = []
+
+    def fake_req(key, url, data=None, headers=None, method=None):
+        calls.append((url, data))
+        return {"id": "u1", "path": "p"} if url.endswith("/upload") else [{"postId": "post-1"}]
+
+    monkeypatch.setattr(m, "_req", fake_req)
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    m.schedule("s", SPEC, dt.date(2026, 10, 29), "k", ("tt",), run_dir=run_dir)
+    payload = json.loads(calls[-1][1])
+    post = payload["posts"][0]
+    assert post["integration"]["id"] == "tt-id" and payload["date"] == "2026-10-29T14:00:00.000Z"
+    assert post["settings"]["__type"] == "tiktok" and post["settings"]["content_posting_method"] == "DIRECT_POST"
+    assert post["settings"]["title"] == SPEC["hook_a"]
+    assert (run_dir / "dispatch-tt.json").exists()

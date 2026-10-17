@@ -29,9 +29,18 @@ HOOK_LAB_SKILL = HERE.parents[2] / "capafy" / "catalog" / "hook-lab" / "SKILL.md
 API = "https://api.postiz.com/public/v1"
 X_ID = os.environ.get("CAPAFY_REEL_X_INTEGRATION", "cmt4l2jld031tqp0y8qtyo983")      # x: sela | AI Tools
 IG_ID = os.environ.get("CAPAFY_REEL_IG_INTEGRATION", "cmuuycr5402uzqw0yhanqggo9")    # instagram: Hook Lab by Anicca
+TT_ID = os.environ.get("CAPAFY_REEL_TT_INTEGRATION", "cmvc98itr1d3clu0yf8vy3dgx")    # tiktok: @hooklab.capafy
+# TikTok reaches non-followers (our 1-follower slideshow account: 3,158 views/7d) while X and
+# IG Hook Lab reach ~0, so reels go to TikTok too -- only after anicca-warmup-flip marks the
+# new account live (7-day warm-up; fresh-account posting got spam-blocked before).
+WARMUP_STATE = Path(os.environ.get("CAPAFY_REEL_WARMUP_STATE", str(
+    Path.home() / ".local/state/life-manager/warmup-flip-daily/state/postiz-integrations.json")))
 SETTINGS = {
     "x": {"__type": "x", "who_can_reply_post": "everyone", "made_with_ai": True, "paid_partnership": False},
     "ig": {"__type": "instagram-standalone", "post_type": "post", "is_trial_reel": False, "collaborators": []},
+    "tt": {"__type": "tiktok", "privacy_level": "PUBLIC_TO_EVERYONE", "duet": False, "stitch": False, "comment": True,
+           "autoAddMusic": "yes", "brand_content_toggle": False, "brand_organic_toggle": False,
+           "video_made_with_ai": True, "content_posting_method": "DIRECT_POST"},
 }
 NICHES = [
     {"key": "baking", "topic": "home baking Reel"}, {"key": "language", "topic": "language-learning TikTok"},
@@ -45,7 +54,7 @@ NICHES = [
 LIMITS = {"hook_a": 40, "hook_b": 40, "title": 34, "label": 14, "quote": 80, "onscreen": 36}
 
 
-SLOT_TIMES = {1: ("13:00", "17:00"), 2: ("23:00", "11:00")}  # (ig, x) UTC; slot 2 doubles daily volume
+SLOT_TIMES = {1: ("13:00", "17:00", "14:00"), 2: ("23:00", "11:00", "01:00")}  # (ig, x, tt) UTC; slot 2 doubles volume
 
 
 def pick_niche(day: dt.date, slot: int = 1) -> dict:
@@ -53,8 +62,17 @@ def pick_niche(day: dt.date, slot: int = 1) -> dict:
 
 
 def slots(day: dt.date, slot: int = 1) -> dict:
-    ig, x = SLOT_TIMES[slot]
-    return {"ig": f"{day.isoformat()}T{ig}:00.000Z", "x": f"{day.isoformat()}T{x}:00.000Z"}
+    ig, x, tt = SLOT_TIMES[slot]
+    return {"ig": f"{day.isoformat()}T{ig}:00.000Z", "x": f"{day.isoformat()}T{x}:00.000Z",
+            "tt": f"{day.isoformat()}T{tt}:00.000Z"}
+
+
+def tiktok_live() -> bool:
+    try:
+        rows = json.loads(WARMUP_STATE.read_text()).get("integrations") or []
+    except (OSError, ValueError):
+        return False
+    return any(r.get("id") == TT_ID and r.get("active") and r.get("warmup_phase") == "live" for r in rows)
 
 
 def caption(spec: dict) -> str:
@@ -124,12 +142,15 @@ def _durable_write(path: Path, text: str) -> None:
         os.fsync(fh.fileno())
 
 
-def schedule(slug: str, spec: dict, day: dt.date, key: str, nets: tuple = ("ig", "x"), *,
+def schedule(slug: str, spec: dict, day: dt.date, key: str, nets: tuple = ("ig", "x", "tt"), *,
              run_dir: Path | None = None, existing_fn=None, slot: int = 1) -> dict:
     mp4 = BASE / slug / "renders-v2" / "video.mp4"
     out = {}
-    for net, integration in (("ig", IG_ID), ("x", X_ID)):
+    for net, integration in (("ig", IG_ID), ("x", X_ID), ("tt", TT_ID)):
         if net not in nets:
+            continue
+        if net == "tt" and not tiktok_live():
+            out[net] = "warmup_skip"
             continue
         receipt = BASE / slug / f"{net}-receipts-v3.jsonl"
         if receipt.exists():
@@ -151,7 +172,7 @@ def schedule(slug: str, spec: dict, day: dt.date, key: str, nets: tuple = ("ig",
         payload = {"type": "schedule", "date": slots(day, slot)[net], "shortLink": False, "tags": [],
                    "posts": [{"integration": {"id": integration},
                               "value": [{"content": caption(spec), "image": [{"id": up["id"], "path": up["path"]}]}],
-                              "settings": SETTINGS[net]}]}
+                              "settings": {**SETTINGS[net], "title": spec["hook_a"]} if net == "tt" else SETTINGS[net]}]}
         cr = _req(key, f"{API}/posts", json.dumps(payload).encode(), {"Content-Type": "application/json"}, "POST")
         rec = {"at": dt.datetime.now(dt.timezone.utc).isoformat(), "slug": slug, "asset": str(mp4), "upload": up,
                "create": cr, "scheduled_for": slots(day, slot)[net], "integration": integration}
@@ -160,7 +181,7 @@ def schedule(slug: str, spec: dict, day: dt.date, key: str, nets: tuple = ("ig",
     return out
 
 
-def run(day: dt.date, dry_run: bool = False, nets: tuple = ("ig", "x"), run_dir: Path | None = None,
+def run(day: dt.date, dry_run: bool = False, nets: tuple = ("ig", "x", "tt"), run_dir: Path | None = None,
         slot: int = 1) -> dict:
     niche = pick_niche(day, slot)
     slug = f"hooklab-d{day:%Y%m%d}-{niche['key']}"
@@ -187,7 +208,7 @@ def run(day: dt.date, dry_run: bool = False, nets: tuple = ("ig", "x"), run_dir:
 
 
 if __name__ == "__main__":
-    nets = tuple(sys.argv[sys.argv.index("--only") + 1].split(",")) if "--only" in sys.argv else ("ig", "x")
+    nets = tuple(sys.argv[sys.argv.index("--only") + 1].split(",")) if "--only" in sys.argv else ("ig", "x", "tt")
     run_dir = Path(os.environ["CAPAFY_REEL_RUN_DIR"]) if os.environ.get("CAPAFY_REEL_RUN_DIR") else None
     slot = int(sys.argv[sys.argv.index("--slot") + 1]) if "--slot" in sys.argv else 1
     print(json.dumps(run(dt.date.fromisoformat(sys.argv[1]), "--dry-run" in sys.argv, nets, run_dir, slot), default=str))
