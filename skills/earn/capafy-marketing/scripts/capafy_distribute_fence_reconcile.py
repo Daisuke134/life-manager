@@ -140,10 +140,20 @@ def _validate_slot_article(slot: Any, article_slug: Any) -> tuple[str, str]:
         dt.datetime.strptime(slot, "%Y-%m-%d-h%Hm%M")
     except ValueError as exc:
         raise ValueError("occurrence slot date is invalid") from exc
-    if (not isinstance(article_slug, str) or not article_slug.startswith("capafy-")
-            or not article_slug.endswith(f"-{slot}")):
+    if not isinstance(article_slug, str) or not (
+            (article_slug.startswith("capafy-") and article_slug.endswith(f"-{slot}"))
+            or article_slug in _seo_keyword_slugs()):
         raise ValueError("occurrence article slug does not match its slot")
     return slot, article_slug
+
+
+def _seo_keyword_slugs() -> set[str]:
+    """Hook Lab slots publish a keyword page from this list instead of a dated slug."""
+    path = Path(__file__).resolve().parents[1] / "seo" / "hook-lab-keywords.json"
+    try:
+        return {k["slug"] for k in json.loads(path.read_text(encoding="utf-8"))}
+    except (OSError, ValueError, KeyError, TypeError):
+        return set()
 
 
 def record_occurrence_manifest(path: Path, *, owner_id: str, run_id: str,

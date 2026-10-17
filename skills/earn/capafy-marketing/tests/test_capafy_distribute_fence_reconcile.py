@@ -501,3 +501,23 @@ def test_pre_effect_enospc_manifest_failure_rejects_any_run_artifact(tmp_path, m
         assert "occurrence slot manifest missing" in str(exc)
         return
     raise AssertionError("unbound prompt artifact was accepted as pre-effect proof")
+
+
+def test_occurrence_manifest_accepts_listed_seo_keyword_slug(tmp_path):
+    record = rec.record_occurrence_manifest(
+        tmp_path / "occurrence.json", owner_id=rec.OWNER_ID, run_id="seo-run",
+        occurrence_id="capafy-distribute-daily:seo-run", slot="2026-10-17-h20m00",
+        article_slug="tiktok-hook-generator-free")
+    assert record["article_slug"] == "tiktok-hook-generator-free"
+
+
+def test_occurrence_manifest_rejects_unlisted_or_unsafe_slugs(tmp_path):
+    for slug in ("../etc", "not-a-listed-keyword", "capafy-hook-lab-2026-10-17-h19m30"):
+        try:
+            rec.record_occurrence_manifest(
+                tmp_path / "occurrence.json", owner_id=rec.OWNER_ID, run_id="seo-run",
+                occurrence_id="capafy-distribute-daily:seo-run", slot="2026-10-17-h20m00",
+                article_slug=slug)
+        except ValueError:
+            continue
+        raise AssertionError(f"accepted {slug}")
