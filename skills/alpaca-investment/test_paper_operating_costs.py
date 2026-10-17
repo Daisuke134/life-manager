@@ -151,6 +151,51 @@ class PaperOperatingCostTests(unittest.TestCase):
         self.assertTrue(all(component["order_ids"] == ["paper-entry", "paper-exit"]
                             for component in result["operating_cost_components"]))
 
+    def test_invoice_and_its_paid_receipt_are_one_underlying_cost(self):
+        payload = _readback()
+        receipt = copy.deepcopy(payload["documents"][0])
+        receipt.update(document_type="paid_receipt", source_type="official_paid_receipt",
+                       receipt_id=receipt["invoice_id"])
+        for line in receipt["line_items"]:
+            line["allocations"][0]["job_id"] += "-receipt"
+        for join in copy.deepcopy(payload["job_joins"]):
+            join.update(document_type="paid_receipt", job_id=join["job_id"] + "-receipt")
+            payload["job_joins"].append(join)
+        payload["documents"].append(receipt)
+        result = self.report(payload)
+        self.assertEqual(result.get("verified_model_cost_subtotal_usd"), "0.01")
+        self.assertEqual(result.get("verified_system_cost_subtotal_usd"), "0.09")
+        self.assertEqual(len(result.get("operating_cost_components", [])), 4)
+
+    def test_previous_day_allocation_cannot_be_reassigned_to_another_trade(self):
+        prior = json.loads(json.dumps(_prior_rows()).replace("2026-09-22", "2026-10-19").replace("QQQ", "SPY"))
+        prior_observation = copy.deepcopy(OBSERVATION)
+        prior_observation["clock"]["observed_at"] = "2026-10-19T14:31:10Z"
+        payload = _readback(prior)
+        for line in payload["documents"][0]["line_items"]:
+            line["occurred_at"] = "2026-10-10T00:00:00Z"
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            billing = state / "billing.json"
+            with patch.dict(os.environ, {"LM_CFO_ACTUAL_COST_READBACK": str(billing),
+                                         "LM_CFO_ACTUAL_COST": ""}):
+                _write_state(state, prior)
+                write_paper_performance(state, prior_observation, RISK)
+                _write_state(state, [*prior, *_rows()])
+                billing.write_text(json.dumps(payload))
+                write_paper_performance(state, OBSERVATION, RISK)
+                original = json.loads((state / "performance-daily-2026-10-19.json").read_text())
+                current_trip = _closed_round_trips(_rows())[0][0]
+                for join in payload["job_joins"]:
+                    join.update(order_ids=current_trip["order_ids"], period_start=current_trip["period_start"],
+                                period_end=current_trip["closed_at"], source_receipt_ids=current_trip["source_receipt_ids"])
+                billing.write_text(json.dumps(payload))
+                result = write_paper_performance(state, OBSERVATION, RISK)
+                self.assertEqual(json.loads((state / "performance-daily-2026-10-19.json").read_text()), original)
+        self.assertEqual(original["verified_model_cost_subtotal_usd"], "0.01")
+        self.assertIsNone(result.get("verified_model_cost_subtotal_usd"))
+        self.assertIsNone(result.get("verified_system_cost_subtotal_usd"))
+
     def test_late_cost_is_attached_to_original_day_and_replay_does_not_add_it_again(self):
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
