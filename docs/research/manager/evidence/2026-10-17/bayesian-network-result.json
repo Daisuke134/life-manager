@@ -1,0 +1,114 @@
+{
+  "kind": "fictional specified-model tutorial; not data-fitted, not a product result",
+  "joint": [
+    {
+      "age": "young",
+      "employed": true,
+      "low": true,
+      "probability": 0.096
+    },
+    {
+      "age": "young",
+      "employed": true,
+      "low": false,
+      "probability": 0.384
+    },
+    {
+      "age": "young",
+      "employed": false,
+      "low": true,
+      "probability": 0.08399999999999998
+    },
+    {
+      "age": "young",
+      "employed": false,
+      "low": false,
+      "probability": 0.036
+    },
+    {
+      "age": "older",
+      "employed": true,
+      "low": true,
+      "probability": 0.024
+    },
+    {
+      "age": "older",
+      "employed": true,
+      "low": false,
+      "probability": 0.096
+    },
+    {
+      "age": "older",
+      "employed": false,
+      "low": true,
+      "probability": 0.19599999999999998
+    },
+    {
+      "age": "older",
+      "employed": false,
+      "low": false,
+      "probability": 0.084
+    }
+  ],
+  "samples": 10000,
+  "seed": 42,
+  "sampled_cells": [
+    {
+      "age": "older",
+      "employed": false,
+      "low": false,
+      "n": 842
+    },
+    {
+      "age": "older",
+      "employed": false,
+      "low": true,
+      "n": 1994
+    },
+    {
+      "age": "older",
+      "employed": true,
+      "low": false,
+      "n": 962
+    },
+    {
+      "age": "older",
+      "employed": true,
+      "low": true,
+      "n": 253
+    },
+    {
+      "age": "young",
+      "employed": false,
+      "low": false,
+      "n": 352
+    },
+    {
+      "age": "young",
+      "employed": false,
+      "low": true,
+      "n": 831
+    },
+    {
+      "age": "young",
+      "employed": true,
+      "low": false,
+      "n": 3795
+    },
+    {
+      "age": "young",
+      "employed": true,
+      "low": true,
+      "n": 971
+    }
+  ],
+  "assumption": "income is independent of age conditional on employment in this toy chain",
+  "causal_model_established": false,
+  "pgmpy_read": {
+    "url": "https://raw.githubusercontent.com/pgmpy/pgmpy/dev/pgmpy/sampling/Sampling.py",
+    "sha256": "6475c83089f4979be2ce1090ce2c4a82d46b5c91d36f86596fa365ca666bb2a1",
+    "method": "BayesianModelSampling.forward_sample",
+    "execution": "not_run"
+  },
+  "source_paper": "https://lijunsun.github.io/files/papers/2015-TRC-BN-Population.pdf"
+}
