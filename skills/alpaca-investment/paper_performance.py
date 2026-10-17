@@ -602,11 +602,11 @@ def _broker_cost_cache(
                     evidence.append(cached)
                     continue
             invalid_cached_receipt = True
-        except (OSError, UnicodeError, json.JSONDecodeError, TypeError):
+        except (OSError, ValueError, RecursionError, TypeError):
             invalid_cached_receipt = invalid_cached_receipt or receipt_path.exists()
         try:
             attempt = json.loads(attempt_path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeError, json.JSONDecodeError):
+        except (OSError, ValueError, RecursionError):
             attempt = {}
         attempted_today = (
             isinstance(attempt, Mapping) and attempt.get("attempted_day") == attempted_day
@@ -710,6 +710,9 @@ def _refresh_historical_costs(
             gross = sum((_number(trip["gross_pnl_usd"]) for trip in trips), Decimal("0"))
             if (not isinstance(previous, Mapping) or previous.get("mode") != "paper"
                     or previous.get("paper") is not True
+                    or previous.get("schema_version") != 1
+                    or previous.get("measurement_status") != "partial"
+                    or not isinstance(previous.get("risk"), Mapping)
                     or previous.get("report_scope") != "daily_accumulation"
                     or previous.get("performance_day") != day
                     or _utc_day(previous.get("observed_at")) != day
@@ -734,7 +737,7 @@ def _refresh_historical_costs(
             if updated != previous:
                 _atomic_json(path, updated)
             results.append({"performance_day": day, "status": "updated" if updated != previous else "unchanged"})
-        except (OSError, UnicodeError, ValueError, TypeError, ArithmeticError):
+        except (OSError, ValueError, RecursionError, TypeError, ArithmeticError):
             results.append({
                 "performance_day": day, "status": "unknown",
                 "reason": "paper_historical_performance_unavailable",

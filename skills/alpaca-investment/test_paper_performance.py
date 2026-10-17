@@ -668,25 +668,58 @@ class PaperPerformanceTests(unittest.TestCase):
         self.assertEqual(current["gross_strategy_pnl_usd"], "0")
         self.assertEqual(current["completed_round_trips"], 0)
 
-    def test_invalid_utf8_cost_cache_and_attempt_are_refreshed_without_aborting(self):
+    def test_invalid_cost_cache_and_attempt_are_refreshed_without_aborting(self):
+        payloads = {
+            "utf8": b"\xff",
+            "integer": b'{"unrelated":' + b"1" * 5000 + b"}",
+            "nesting": b'{"unrelated":' + b"[" * 10000 + b"0" + b"]" * 10000 + b"}",
+        }
         for prefix in ("performance-cost", "performance-cost-attempt"):
-            with self.subTest(prefix=prefix), tempfile.TemporaryDirectory() as directory:
+            for label, payload in payloads.items():
+                with self.subTest(prefix=prefix, payload=label), tempfile.TemporaryDirectory() as directory:
+                    state = Path(directory)
+                    (state / "receipts.jsonl").write_text(
+                        "".join(json.dumps(row) + "\n" for row in _rows()), encoding="utf-8",
+                    )
+                    digest = hashlib.sha256(b"paper-entry\0paper-exit").hexdigest()[:20]
+                    (state / f"{prefix}-{digest}.json").write_bytes(payload)
+                    try:
+                        result = write_paper_performance(
+                            state, OBSERVATION, RISK,
+                            broker_cost_reader=lambda **_kwargs: _broker_cost_evidence(),
+                        )
+                    except (ValueError, RecursionError) as error:
+                        self.fail(f"invalid cache aborted performance reporting: {error}")
+
+                    self.assertEqual(result["broker_slippage_status"], "complete")
+                    self.assertIsNone(result["net_realized_pnl_usd"])
+
+    def test_late_costs_do_not_modify_an_invalid_original_daily_report(self):
+        for invalid_field in ("risk", "measurement_status"):
+            with self.subTest(field=invalid_field), tempfile.TemporaryDirectory() as directory:
                 state = Path(directory)
                 (state / "receipts.jsonl").write_text(
                     "".join(json.dumps(row) + "\n" for row in _rows()), encoding="utf-8",
                 )
-                digest = hashlib.sha256(b"paper-entry\0paper-exit").hexdigest()[:20]
-                (state / f"{prefix}-{digest}.json").write_bytes(b"\xff")
-                try:
-                    result = write_paper_performance(
-                        state, OBSERVATION, RISK,
-                        broker_cost_reader=lambda **_kwargs: _broker_cost_evidence(),
-                    )
-                except UnicodeError as error:
-                    self.fail(f"invalid cache aborted performance reporting: {error}")
+                write_paper_performance(state, OBSERVATION, RISK)
+                path = state / "performance-daily-2026-10-20.json"
+                invalid = json.loads(path.read_text())
+                if invalid_field == "risk":
+                    invalid.pop("risk")
+                else:
+                    invalid["measurement_status"] = "measured"
+                path.write_text(json.dumps(invalid))
+                next_day = copy.deepcopy(OBSERVATION)
+                next_day["clock"]["observed_at"] = "2026-10-21T14:32:00Z"
+                receipt = _broker_cost_evidence()
+                receipt["observed_at"] = "2026-10-21T14:31:15Z"
 
-                self.assertEqual(result["broker_slippage_status"], "complete")
-                self.assertIsNone(result["net_realized_pnl_usd"])
+                result = write_paper_performance(
+                    state, next_day, RISK, broker_cost_reader=lambda **_kwargs: receipt,
+                )
+
+                self.assertEqual(result["historical_cost_reconciliations"][0]["status"], "unknown")
+                self.assertEqual(json.loads(path.read_text()), invalid)
 
     def test_pending_reconciliation_keeps_the_initial_intent_period(self):
         rows = _rows()
