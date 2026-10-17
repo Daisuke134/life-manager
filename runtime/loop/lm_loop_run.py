@@ -215,6 +215,10 @@ def _child_environment_for_owner(
     # publisher authentication. Do not even pass it to the child while publishing
     # is disabled.
     environment.pop("LM_POSTIZ_API_KEY", None)
+    # `launchctl setenv` is lost on every reboot, which silently closed publishing
+    # (entrypoint_exit_1) after each kernel-panic restart. Default open; an explicit
+    # non-"true" value set in the manager still closes it.
+    environment.setdefault("LM_EBOOK_PUBLISHING_ENABLED", "true")
     if environment.get("LM_EBOOK_PUBLISHING_ENABLED") != "true":
         return environment
     private = (home or Path.home()) / ".local/share/anicca"
