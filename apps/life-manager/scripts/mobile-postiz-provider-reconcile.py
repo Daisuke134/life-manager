@@ -1498,7 +1498,9 @@ IDENTITYLESS_POSTIZ_OWNERS = {
     "ebook-ja-tiktok-daily": ("ebook-ja", "tiktok"),
     "ebook-ja-instagram-daily": ("ebook-ja", "instagram"),
     "ebook-en-instagram-daily": ("ebook-en", "instagram"),
+    "ebook-en-tiktok-daily": ("ebook-en", "tiktok"),
 }
+EBOOK_PACKS_DIR = ROOT / "skills/earn/marketing-engine/registry/ebook-packs"
 _DIRECT_MIGRATION_LINE = re.compile(r"^(?:export\s+)?LM_TIKTOK_DIRECT_MIGRATION=['\"]?1['\"]?\s*$")
 
 
@@ -1507,11 +1509,13 @@ def _iso_ts(value: Any) -> float:
 
 
 def _claim_run(events: Path, owner_id: str, occurrence_id: str) -> tuple[str, float, float] | None:
-    """(run_id, started, reported) of the one run whose terminal event holds this claim.
+    """(run_id, started, reported) spanning every run that could have acted for this occurrence.
 
-    A later run's report names the earlier occurrence it claimed, so the run that could have
-    acted for the occurrence is found by its report, and its start by that run's execute
-    event.  Two claims, a missing start, or any unreadable line keep the fence.
+    The occurrence's own wake run comes first; a later run's report names the earlier
+    occurrence it claimed.  ``started`` is the earliest start among them, so one window from
+    it covers every claimant (a run that died without a report, or a deferral followed by a
+    later claim).  run_id is the latest claimant.  A claimant without a start, or any
+    unreadable line, keeps the fence.
     """
     try:
         info = events.lstat()
@@ -1529,16 +1533,44 @@ def _claim_run(events: Path, owner_id: str, occurrence_id: str) -> tuple[str, fl
             reports.append(row)
         elif row.get("phase") == "execute":
             starts[row.get("run_id")] = row.get("timestamp")
-    if len(reports) != 1:
+    own_run = occurrence_id.split(":", 1)[1]
+    if not reports and own_run not in starts:
         return None
-    run_id = reports[0].get("run_id")
     try:
-        started, reported = _iso_ts(starts.get(run_id)), _iso_ts(reports[0].get("timestamp"))
+        reported = [_iso_ts(row.get("timestamp")) for row in reports]
+        claimants = [row.get("run_id") for row in reports] or [own_run]
+        runs = set(claimants) | ({own_run} if own_run in starts else set())
+        started = min(_iso_ts(starts.get(run)) for run in runs)
     except ValueError:
         return None
-    if not isinstance(run_id, str) or started > reported:
+    last = max(reported, default=started)
+    run_id = claimants[reported.index(last)] if reported else own_run
+    if not isinstance(run_id, str) or started > last:
         return None
-    return run_id, started, reported
+    return run_id, started, last
+
+
+def _pack_integration_ids(owner_id: str) -> set[str]:
+    """Postiz integrations the eBook job pins for this owner (ebook-distribute-daily.js selectTarget).
+
+    Used only when the owner has no sidecar.  Limit: read from this release's packs, not the
+    claim run's; the EN TikTok id has not changed in git history.  Unreadable packs give an
+    empty set, which keeps the fence.
+    """
+    product, platform = IDENTITYLESS_POSTIZ_OWNERS[owner_id]
+    found: set[str] = set()
+    try:
+        for pack_file in EBOOK_PACKS_DIR.glob("*.json"):
+            pack = json.loads(pack_file.read_text(encoding="utf-8"))
+            if pack.get("product_id") != product:
+                continue
+            for account in pack.get("accounts") or []:
+                if (str(account.get("account_id", "")).startswith(f"{platform}.")
+                        and isinstance(account.get("integration_id"), str)):
+                    found.add(account["integration_id"])
+    except (OSError, ValueError, AttributeError):
+        return set()
+    return found
 
 
 def _postiz_route_proven(owner_id: str, since: float, data_dir: Path) -> bool:
@@ -1613,6 +1645,9 @@ def build_claim_run_no_dispatch_proof(
     list_posts = list_posts or _postiz_posts_between
     run = _claim_run(events, owner_id, occurrence_id)
     integration_id = _owner_integration_id(owner_id, identity_dir)
+    if integration_id is None:  # an owner that never wrote a sidecar: the integration its job pins
+        pinned = _pack_integration_ids(owner_id)
+        integration_id = next(iter(pinned)) if len(pinned) == 1 else None
     now = time.time()
     if run is None or integration_id is None or now - run[2] < HISTORICAL_MIN_AGE_SECONDS:
         return None
