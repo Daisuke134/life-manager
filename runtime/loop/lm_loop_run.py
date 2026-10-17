@@ -1839,12 +1839,17 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                         and return_code == 0 and terminal_event_saved
                         and terminal_effect_result is None
                     )
+                    proven_pre_effect_failure = (
+                        pre_effect_hint_allowed
+                        and _proven_pre_effect_failure(
+                            receipt.parent / "entrypoint-result.json")
+                    )
                     if (claim_started_child
                             and (return_code != 0 or terminal_persistence_failed
                                  or missing_alpaca_terminal_result)
                             and entry.get("effect_class") != "none"
-                            and not (pre_effect_hint_allowed and _proven_pre_effect_failure(
-                                receipt.parent / "entrypoint-result.json"))):
+                            and not (proven_pre_effect_failure
+                                     and not missing_alpaca_terminal_result)):
                         release_options["effect_unknown"] = True
                     dispatch_after_release = _release_with_retry(
                         lambda: release_and_reserve_resource(claim, **release_options)

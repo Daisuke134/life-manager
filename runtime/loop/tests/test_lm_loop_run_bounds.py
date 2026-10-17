@@ -2506,10 +2506,13 @@ def _run_admitted_alpaca_hint_case(
                     'occurrence_id': occurrence_id,
                     'reason': 'no_broker_order_submitted',
                 }
-            else:
+            elif hint_kind == 'attempted':
                 value = {'status': 'effect_attempted', 'effect': 1}
-            hint.write_text(json.dumps(value) + '\n', encoding='utf-8')
-            hint.chmod(0o600)
+            else:
+                value = None
+            if value is not None:
+                hint.write_text(json.dumps(value) + '\n', encoding='utf-8')
+                hint.chmod(0o600)
         return 0, b''
 
     with (patch('runtime.loop.lm_loop_run.durable_protocol_version', return_value=2),
@@ -2569,6 +2572,15 @@ def test_verified_alpaca_no_effect_closes_only_its_admission_occurrence(tmp_path
 def test_successful_child_without_verified_effect_result_keeps_fence(tmp_path):
     release, resolutions, pre_effect_resolutions = _run_admitted_alpaca_hint_case(
         tmp_path, 'attempted')
+    assert release.kwargs['effect_unknown'] is True
+    assert resolutions == []
+    assert pre_effect_resolutions == []
+
+
+def test_successful_alpaca_without_terminal_hint_keeps_fence_with_startup_marker(
+        tmp_path):
+    release, resolutions, pre_effect_resolutions = _run_admitted_alpaca_hint_case(
+        tmp_path, 'missing')
     assert release.kwargs['effect_unknown'] is True
     assert resolutions == []
     assert pre_effect_resolutions == []
