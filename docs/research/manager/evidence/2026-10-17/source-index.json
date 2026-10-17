@@ -1,0 +1,51 @@
+{
+  "checked_on": "2026-10-17",
+  "sources": [
+    {
+      "title": "Population synthesis comparison",
+      "url": "https://www.jasss.org/15/1/1.html",
+      "read_scope": "abstract, methods and evaluation design"
+    },
+    {
+      "title": "Bayesian network population synthesis",
+      "url": "https://lijunsun.github.io/files/papers/2015-TRC-BN-Population.pdf",
+      "read_scope": "search/indexed summary only; full method not read this turn"
+    },
+    {
+      "title": "VAE population synthesis",
+      "url": "https://arxiv.org/abs/1808.06910",
+      "read_scope": "abstract only; implementation not located this turn"
+    },
+    {
+      "title": "LLM population synthesis",
+      "url": "https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0341704",
+      "read_scope": "method, limitations, data/code availability, prompts and sensitivity"
+    },
+    {
+      "title": "LLM population synthesis correction",
+      "url": "https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0356492",
+      "read_scope": "correction concerns Figure 10: preliminary results replaced with 20 runs"
+    },
+    {
+      "title": "Socrates EMNLP2025",
+      "url": "https://aclanthology.org/2025.emnlp-main.1530.pdf",
+      "read_scope": "downloaded PDF, methods and evaluation sections"
+    },
+    {
+      "title": "Aaru research",
+      "url": "https://aaru.com/publications/population-simulation-at-the-replication-floor-research",
+      "read_scope": "workflow, non-LLM statement, evaluation conditions and unit; self-report not independent replication"
+    },
+    {
+      "title": "Simile confidence",
+      "url": "https://www.simile.com/blog/confidence",
+      "read_scope": "inputs, data, model fine-tuning, confidence estimation; not whole proprietary architecture"
+    },
+    {
+      "title": "Individual interview agents",
+      "url": "https://arxiv.org/abs/2411.10109",
+      "read_scope": "abstract and public research README/code; full updated manuscript not read this turn"
+    }
+  ],
+  "source_claims_not_product_capabilities": true
+}

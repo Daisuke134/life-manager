@@ -1,0 +1,112 @@
+{
+  "date": "2026-10-17",
+  "repositories": [
+    {
+      "repository": "MJones235/LLM-Population-Generator",
+      "commit": "ffe36bbbc83143c96e7575ed24ff7d932168ac1c",
+      "files_read": [
+        {
+          "path": "LICENSE",
+          "sha256": "5e8064112a8867c2f6a8cfad01f379e6ad04632e71e68ded6fc803edae0bcb95"
+        },
+        {
+          "path": "population_generator/engine/generator.py",
+          "sha256": "a963202c7715606f0b98dec4ac2567f0e186acef1ab4ce7ee043152f12879d67"
+        },
+        {
+          "path": "population_generator/generation/prompts.py",
+          "sha256": "e325f1b78d20e871fac51c577a215f90336727addd39946c34a77a3cfe197390"
+        },
+        {
+          "path": "population_generator/data/validation.py",
+          "sha256": "a80cc7449c172ee3a0ffb708849157cfceec6cd69f90fef33c40e816e1d7fc7a"
+        }
+      ]
+    },
+    {
+      "repository": "MJones235/Synthetic-Population-Experiments",
+      "commit": "0e48b26661ffe10a454eb0994983b695da28bbe3",
+      "files_read": [
+        {
+          "path": "LICENSE",
+          "sha256": "e2105d22f53496640a345726019bf657db337971b16aa22f7b5a307494c41158"
+        },
+        {
+          "path": "experiments/03_newcastle/scripts/04_analysis/validate_full_cross_tab.py",
+          "sha256": "c48e28c40abb70ee4f0aaa7ac128a0c0eed43366162f73ac1ec61211411025fe"
+        },
+        {
+          "path": "experiments/07_method_benchmark/scripts/09_compare_methods.py",
+          "sha256": "6bf71cce37cb43d1614486f96145bb91afd51f1dd6cb60a756c98baeb76f66c6"
+        }
+      ]
+    },
+    {
+      "repository": "StanfordHCI/genagents",
+      "commit": "96854071ef4c2d79c93144c973c7820722d52bab",
+      "files_read": [
+        {
+          "path": "README.md",
+          "sha256": "d6870b298156508ff69ae61466f5e685c42508738046d421a71675bafdfa0eaa"
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "0993b6d4da4ab68a802a1df98886b93fec17c2839b4df9775a12736561e0bcec"
+        },
+        {
+          "path": "genagents/genagents.py",
+          "sha256": "aba1a32854e63983155164591dd21df337626e01a2094fbe838d2a1f61d49cac"
+        },
+        {
+          "path": "genagents/modules/interaction.py",
+          "sha256": "437f6d59145a8ace8c75fe715fe435c1a03e6167023b45c4a0e0c59455f9f8b8"
+        },
+        {
+          "path": "genagents/modules/memory_stream.py",
+          "sha256": "9e0cf67af6309104cf4aeff39fd87b12ba2fce534cb27290443ee2e9702c7447"
+        }
+      ]
+    },
+    {
+      "repository": "akaashkolluri/socrates",
+      "commit": "8c9aef227ab1a5b315e797c811a122a12d8bb88a",
+      "files_read": [
+        {
+          "path": "README.md",
+          "sha256": "e687fcba25b1adb5d38fc941564faafe40750ea23aca2190a0a834ffe4fac623"
+        }
+      ]
+    }
+  ],
+  "probe": {
+    "kind": "fictional offline validator exercise, not population generation",
+    "age_30": {
+      "valid": true,
+      "total_issues": 0,
+      "errors": 0,
+      "warnings": 0,
+      "info": 0,
+      "validation_errors": []
+    },
+    "age_minus_1": {
+      "valid": false,
+      "total_issues": 1,
+      "errors": 1,
+      "warnings": 0,
+      "info": 0,
+      "validation_errors": [
+        {
+          "rule_name": "nonnegative_age",
+          "message": "Validation rule 'nonnegative_age' failed",
+          "data_path": null,
+          "description": "Teaching-only nonnegative age check",
+          "severity": "error"
+        }
+      ]
+    }
+  },
+  "model_inference_run": false,
+  "training_run": false,
+  "commercial_product_reproduced": false,
+  "product_implementation_complete": false
+}

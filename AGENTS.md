@@ -70,3 +70,11 @@ The current vision is Manager for the universe and all living beings. Preserve t
 Japanese public copy uses the product name マネージャー and Japanese headings, body text, slogans, diagram labels and controls. Keep English pages and articles in English. Preserve exact code identifiers, filenames, commands, URLs and source identities; explain their meaning in natural Japanese. Apply both pinned writing guides when revising, rather than merely claiming to have loaded them.
 
 Preserve official company, research and repository names such as Aaru, Simile, OpenAI and Anthropic in Japanese prose. The Japanese-language rule applies to explanatory copy, not transliteration of proper names.
+
+## マネージャーの学習進行（2026-10-17）
+
+進捗の正本は既存統合SSOTのみ。本人が「分かった・次へ」と伝えた単元は学習上の完了にし、毎回、完了・現在・次を更新する。未返信の時間だけでは完了にしない。説明済みと理解済み、実装、実行、実地成果は別々に記録し、必須テストや再承認を追加しない。質問がなければ完了単元を繰り返して足止めしない。
+
+学習説明は原則として生成画像をチャットへ表示し、必要に応じ複数枚とMermaidを使う。元画像を保存し、架空例・研究報告・私たちの実測を区別する。正式名称は原表記、日本語説明は自然な日本語。新しい方法や用途は一次資料・著者コード・既存実証を調べ、出典、読解範囲、利用条件、再利用部品、未確認点を記録する。未公開の企業実装を推測で確定しない。
+
+音声では短い説明を一区切りずつ話し、図と詳しい本文をチャットに残す。入口を増やして混乱させず、この会話と統合SSOTの現在地を使う。クラウド/端末間のファイル同期を確認なしに共有済みとしない。

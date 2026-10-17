@@ -63,3 +63,16 @@ SFT/DPOによる自前学習は初期人口部品の前提にしない。適切�
 - [PopulationSim・SFT・DPOの学習稿](../../research/manager/articles/2026-10-12-populationsim-sft-dpo-learning-ja.md)
 
 公開コードは主要箇所の静的読解。依存の導入、モデル推論、追加学習、実地接続、ベンチマークの性能測定は未実施。
+
+
+## 2026-10-17 人口生成と反応予測の分離
+
+既定の人口v0は公開集計表六セル・independent/IPFを維持する。LLM生成の論文が見つかったことを理由に、最初の部品を全面的に置換しない。人口生成は人/世帯/重みと出典を返し、反応予測は人口の属性、状況、選択肢から反応または確率を返す。重み付き期待件数はΣw_i p_iだが、相互作用や共有容量の制約を表すWorldが必要なら別に適用する。LLMの回答を現実の正解にしない。
+
+人口生成の研究候補として、確率モデル、組み合わせ最適化、VAE等、LLMの世帯生成を記録。今すべてを導入しない。追加候補は同じ資料と未使用の交差表で、精度、被覆、整合性、費用、実行時間を比べて採否を決める。
+
+予定配置は既存population/fit.py、benchmarks/population.pyを維持。反応段階でresponses/とbenchmarks/behavior.pyを詳細化する。responses/には、必要なら文脈参照型と追加学習済みモデル型を分けたadapterを置く。Socratesのデータ/モデル条件と未知研究の分割を先に確認し、自前SFT/DPOを最初の前提にしない。genagentsは記憶検索・構造化出力の参考、LLM-Population-Generatorは統計フィードバック・検証分離の参考とする。どちらも採用済み依存ではない。
+
+Aaruの中核が非LLMという公開説明からIPF/VAE採用を推論しない。Simileの集団分布出力を、常に一人ずつ明示的に生成するアーキテクチャと断定しない。個人単位と分布直接出力の比較では、出力の粒度をそろえる。
+
+参照：`../../research/manager/articles/2026-10-17-population-methods-and-behavior-ja.md`。進捗は統合SSOTのみ。
