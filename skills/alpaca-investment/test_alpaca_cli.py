@@ -137,12 +137,14 @@ class EtfDailyBarsTests(unittest.TestCase):
             "completed_through_session": COMPLETED_SESSIONS[-1].isoformat(),
             "source_receipt_ids": ["source"],
         }
-        with patch.object(alpaca_cli, "_context", return_value={}), patch.object(
+        with tempfile.TemporaryDirectory() as directory, patch.object(
+            alpaca_cli, "_context", return_value={},
+        ), patch.object(
             alpaca_cli, "_run", side_effect=common
         ), patch.object(alpaca_cli, "read_etf_daily_bars", return_value=etf) as daily:
             value = alpaca_cli.read_allocator_snapshot(
                 credentials_path=Path("credentials"), cli_path=Path("alpaca"),
-                risk_day_path=Path("risk-day.json"), include_etf_bars=True,
+                risk_day_path=Path(directory) / "risk-day.json", include_etf_bars=True,
             )
 
         self.assertEqual(value["completed_through_session"], COMPLETED_SESSIONS[-1].isoformat())
@@ -249,6 +251,122 @@ class EtfDailyHistoryTests(unittest.TestCase):
                     start=START, end=COMPLETED_SESSIONS[60],
                 )
 
+
+class PaperEtfCostEvidenceTests(unittest.TestCase):
+    observed_at = "2026-09-30T14:00:00Z"
+    period_start = "2026-09-29T14:30:00Z"
+    orders = [
+        {"id": "buy-order", "symbol": "QQQ", "side": "buy",
+         "filled_qty": "0.025", "filled_avg_price": "400"},
+        {"id": "sell-order", "symbol": "QQQ", "side": "sell",
+         "filled_qty": "0.025", "filled_avg_price": "410"},
+    ]
+    fills = [
+        {"id": "fill-buy", "activity_type": "FILL", "order_id": "buy-order",
+         "symbol": "QQQ", "side": "buy", "qty": "0.025", "price": "400",
+         "transaction_time": "2026-09-29T14:31:05Z"},
+        {"id": "fill-sell", "activity_type": "FILL", "order_id": "sell-order",
+         "symbol": "QQQ", "side": "sell", "qty": "0.025", "price": "410",
+         "transaction_time": "2026-09-29T14:31:10Z"},
+    ]
+    def _read(self, *, fills=None, missing_quote=False, observed_at=None,
+              quote_next_page_token=None, calls=None):
+        fills = self.fills if fills is None else fills
+        observed_at = self.observed_at if observed_at is None else observed_at
+
+        def run(_cli, args, _env):
+            if calls is not None:
+                calls.append(args)
+            if args[:2] == ["clock", "get"]:
+                return {"timestamp": observed_at}
+            if args[:2] == ["account", "activity"] and "FILL" in args:
+                return fills
+            if args[:2] == ["data", "quotes"]:
+                if missing_quote:
+                    return {"quotes": [], "next_page_token": quote_next_page_token}
+                end = args[args.index("--end") + 1]
+                if "14:31:05" in end:
+                    rows = [{"t": "2026-09-29T14:31:05Z", "bp": "399.99", "ap": "400.01"}]
+                else:
+                    rows = [{"t": "2026-09-29T14:31:10Z", "bp": "409.99", "ap": "410.01"}]
+                return {"quotes": rows, "next_page_token": quote_next_page_token}
+            raise AssertionError(f"unexpected Alpaca CLI operation: {args[:2]}")
+
+        with patch.object(alpaca_cli, "_context", return_value={}) as context, patch.object(
+            alpaca_cli, "_run", side_effect=run
+        ) as cli_run:
+            value = alpaca_cli.read_paper_etf_cost_evidence(
+                credentials_path=Path("credentials"), cli_path=Path("alpaca"),
+                orders=self.orders, period_start=self.period_start,
+            )
+        return value, context, cli_run
+
+    def test_paper_readback_joins_exact_fills_and_quotes(self):
+        value, context, cli_run = self._read()
+
+        context.assert_called_once_with(Path("credentials"), Path("alpaca"), mode="paper")
+        self.assertEqual(value["broker_costs_status"], "partial")
+        self.assertEqual(value["provider"], "alpaca")
+        self.assertEqual(value["broker_gross_pnl_usd"], "0.250")
+        self.assertIsNone(value["broker_fees_usd"])
+        self.assertEqual(value["broker_slippage_usd"], "0")
+        self.assertEqual(set(value["order_ids"]), {"buy-order", "sell-order"})
+        self.assertEqual(set(value["source_receipt_ids"]), {
+            "fill-buy", "fill-sell",
+            "alpaca-quote:fill-buy:2026-09-29T14:31:05Z",
+            "alpaca-quote:fill-sell:2026-09-29T14:31:10Z",
+        })
+        self.assertIn("sip", cli_run.call_args_list[2].args[1])
+        self.assertIn("next_page_token", cli_run.call_args_list[2].args[1][-1])
+
+    def test_execution_readback_ignores_other_account_orders(self):
+        foreign = {
+            "id": "foreign-fill", "activity_type": "FILL", "order_id": "other-order",
+            "symbol": "QQQ", "side": "buy", "qty": "1", "price": "400",
+            "transaction_time": "2026-09-29T14:32:00Z",
+        }
+        value, _context, _run = self._read(fills=[*self.fills, foreign])
+        self.assertNotIn("foreign-fill", value["source_receipt_ids"])
+        self.assertEqual(value["broker_gross_pnl_usd"], "0.250")
+
+    def test_execution_activity_scan_starts_at_the_owner_period(self):
+        calls = []
+        self._read(calls=calls)
+        fill_call = next(
+            args for args in calls
+            if args[:2] == ["account", "activity"] and "FILL" in args
+        )
+        self.assertEqual(
+            fill_call[fill_call.index("--after") + 1],
+            "2026-09-29T14:30:00Z",
+        )
+
+    def test_missing_historical_quote_fails_closed(self):
+        with self.assertRaisesRegex(ValueError, "^paper_cost_quote_invalid$"):
+            self._read(missing_quote=True)
+
+    def test_truncated_historical_quote_page_fails_closed(self):
+        with self.assertRaisesRegex(ValueError, "^paper_cost_quote_pages_incomplete$"):
+            self._read(quote_next_page_token="more-quotes")
+
+    def test_paper_fee_gap_does_not_prevent_execution_slippage_readback(self):
+        calls = []
+        try:
+            value, _context, _run = self._read(calls=calls)
+        except ValueError as error:
+            self.fail(f"paper fee gap blocked execution readback: {error}")
+
+        self.assertEqual(value["broker_costs_status"], "partial")
+        self.assertEqual(value["broker_slippage_status"], "complete")
+        self.assertEqual(value["broker_fees_status"], "not_simulated")
+        self.assertIsNone(value["broker_fees_usd"])
+        self.assertEqual(value["broker_slippage_usd"], "0")
+        self.assertFalse(any("FEE" in args for args in calls))
+
+    def test_execution_readback_does_not_wait_for_unsimulated_fee_settlement(self):
+        value, _context, _run = self._read(observed_at="2026-09-29T20:00:00Z")
+        self.assertEqual(value["broker_slippage_status"], "complete")
+        self.assertIsNone(value["broker_fees_usd"])
 
 if __name__ == "__main__":
     unittest.main()

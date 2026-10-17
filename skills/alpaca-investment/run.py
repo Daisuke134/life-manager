@@ -14,7 +14,7 @@ from pathlib import Path
 from allocator import build_candidates, choose, gate as allocation_gate, order_for
 from alpaca_cli import (CLI_OPERATIONS, SAFE_ERROR_CODES, find_order_by_client_id, observe,
                         read_allocator_snapshot, read_campaign_snapshot, read_crypto_history,
-                        submit_order)
+                        read_paper_etf_cost_evidence, submit_order)
 from campaign import CANDIDATE_REF, SYMBOLS, exit_order, reconcile
 from control import control_fence, read_control
 from effect_store import (mark_started, reconcile_started, record_no_trade, seal,
@@ -613,9 +613,14 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
         _atomic_json(state / "campaign.json", campaign)
         if mode == "paper":
             # This is a reporting-only read of the append-only effect ledger.
-            # Missing fees/slippage/model costs remain partial and never become
+            # Missing fees/slippage/model/system costs remain partial and never become
             # a numeric zero or a promotion signal.
-            write_paper_performance(state, observation, allocator_snapshot["risk"])
+            write_paper_performance(
+                state, observation, allocator_snapshot["risk"],
+                broker_cost_reader=lambda **kwargs: read_paper_etf_cost_evidence(
+                    credentials_path=credentials_path, cli_path=cli_path, **kwargs,
+                ),
+            )
         stage = "telegram_deliver"
         telegram = deliver(state, observation, campaign, decision, effect,
                            event_key=cloud_event_key if deployment == "cloud" else None)

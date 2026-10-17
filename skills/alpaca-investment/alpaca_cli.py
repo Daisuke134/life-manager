@@ -32,7 +32,7 @@ MAX_OUTPUT_BYTES = 64 * 1024
 MAX_MULTI_BARS_OUTPUT_BYTES = 512 * 1024
 CLI_OPERATIONS = frozenset({
     "account_activity", "account_get", "api_GET", "asset_get", "clock_get", "data_crypto",
-    "data_latest-quotes", "data_latest-trade", "data_multi-bars", "data_option", "order_list",
+    "data_latest-quotes", "data_latest-trade", "data_multi-bars", "data_option", "data_quotes", "order_list",
     "order_submit", "position_list",
 })
 SAFE_ERROR_CODES = frozenset({
@@ -127,6 +127,200 @@ def _run(cli: Path, args: list[str], env: dict[str, str]) -> Any:
         return json.loads(result.stdout.decode("utf-8").strip())
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
         raise ValueError("alpaca_cli_json_invalid") from error
+
+
+def read_paper_etf_cost_evidence(
+    *, credentials_path: Path, cli_path: Path,
+    orders: list[Mapping[str, Any]], period_start: str,
+) -> dict[str, Any]:
+    """Measure paper execution slippage; regulatory fees are not simulated."""
+    if (not isinstance(orders, list) or len(orders) != 2
+            or not isinstance(period_start, str)):
+        raise ValueError("paper_cost_orders_invalid")
+    expected: dict[str, dict[str, Any]] = {}
+    try:
+        for raw in orders:
+            if not isinstance(raw, Mapping):
+                raise ValueError
+            order_id = raw.get("id")
+            symbol = raw.get("symbol")
+            side = raw.get("side")
+            qty = Decimal(str(raw.get("filled_qty")))
+            price = Decimal(str(raw.get("filled_avg_price")))
+            if (not isinstance(order_id, str) or not order_id
+                    or order_id in expected or symbol not in ETF_SYMBOLS
+                    or side not in {"buy", "sell"} or not qty.is_finite() or qty <= 0
+                    or not price.is_finite() or price <= 0):
+                raise ValueError
+            expected[order_id] = {
+                "symbol": symbol, "side": side, "filled_qty": qty,
+                "filled_avg_price": price,
+            }
+        if ({row["side"] for row in expected.values()} != {"buy", "sell"}
+                or len({row["symbol"] for row in expected.values()}) != 1
+                or len({row["filled_qty"] for row in expected.values()}) != 1):
+            raise ValueError
+        start = parse_instant(period_start)
+    except (InvalidOperation, TypeError, ValueError) as error:
+        raise ValueError("paper_cost_orders_invalid") from error
+
+    env = _context(credentials_path, cli_path, mode="paper")
+    clock = _run(cli_path, ["clock", "get", "--quiet", "--jq", "{timestamp}"], env)
+    try:
+        if not isinstance(clock, Mapping):
+            raise ValueError
+        observed = parse_instant(clock["timestamp"])
+        if start > observed:
+            raise ValueError
+    except (KeyError, TypeError, ValueError) as error:
+        raise ValueError("paper_cost_period_invalid") from error
+    after = start.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    until = observed.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+    def activities(kind: str, query: str) -> list[dict[str, Any]]:
+        result: list[dict[str, Any]] = []
+        page_token: str | None = None
+        for _page in range(10):
+            args = [
+                "account", "activity", "list", "--activity-types", kind,
+                "--after", after, "--until", until,
+                "--page-size", "100", "--direction", "asc", "--quiet", "--jq", query,
+            ]
+            if page_token is not None:
+                args.extend(["--page-token", page_token])
+            page = _run(cli_path, args, env)
+            if (not isinstance(page, list) or len(page) > 100
+                    or any(not isinstance(row, dict) for row in page)):
+                raise ValueError("paper_cost_activity_invalid")
+            result.extend(page)
+            if len(page) < 100:
+                return result
+            next_token = page[-1].get("id")
+            if not isinstance(next_token, str) or not next_token:
+                raise ValueError("paper_cost_activity_invalid")
+            page_token = next_token
+        raise ValueError("paper_cost_activity_limit_exceeded")
+
+    all_fills = activities(
+        "FILL", "[.[]|{id,activity_type,order_id,symbol,side,qty,price,transaction_time}]",
+    )
+    fills_by_order: dict[str, list[dict[str, Any]]] = {order_id: [] for order_id in expected}
+    seen_fill_ids: set[str] = set()
+    try:
+        for row in all_fills:
+            row_id, order_id = row.get("id"), row.get("order_id")
+            symbol, side = row.get("symbol"), row.get("side")
+            qty, price = Decimal(str(row.get("qty"))), Decimal(str(row.get("price")))
+            filled_at = parse_instant(row.get("transaction_time"))
+            if (row.get("activity_type") != "FILL" or not isinstance(row_id, str)
+                    or not row_id or row_id in seen_fill_ids
+                    or not isinstance(order_id, str) or not order_id
+                    or not isinstance(symbol, str) or not symbol
+                    or side not in {"buy", "sell"} or not qty.is_finite() or qty <= 0
+                    or not price.is_finite() or price <= 0
+                    or filled_at < start or filled_at > observed):
+                raise ValueError
+            seen_fill_ids.add(row_id)
+            if order_id in expected:
+                if filled_at < start:
+                    raise ValueError
+                order = expected[order_id]
+                if symbol != order["symbol"] or side != order["side"]:
+                    raise ValueError
+                fills_by_order[order_id].append({
+                    "id": row_id, "activity_type": "FILL", "order_id": order_id,
+                    "symbol": symbol, "side": side, "qty": str(qty),
+                    "price": str(price), "transaction_time": row["transaction_time"],
+                })
+        for order_id, order in expected.items():
+            fills = fills_by_order[order_id]
+            qty = sum((Decimal(row["qty"]) for row in fills), Decimal("0"))
+            notional = sum((Decimal(row["qty"]) * Decimal(row["price"])
+                            for row in fills), Decimal("0"))
+            if (not fills or qty != order["filled_qty"]
+                    or abs(notional / qty - order["filled_avg_price"]) > Decimal("0.000001")):
+                raise ValueError
+    except (InvalidOperation, KeyError, TypeError, ValueError) as error:
+        raise ValueError("paper_cost_fill_mismatch") from error
+
+    quotes_by_fill_id: dict[str, dict[str, str]] = {}
+    try:
+        for fills in fills_by_order.values():
+            for row in fills:
+                filled_at = parse_instant(row["transaction_time"])
+                start_quote = filled_at - timedelta(seconds=2)
+                # Use the consolidated feed; an IEX-only quote is not a market-wide execution reference.
+                quotes = _run(cli_path, [
+                    "data", "quotes", "--symbol", row["symbol"],
+                    "--start", start_quote.isoformat().replace("+00:00", "Z"),
+                    "--end", filled_at.isoformat().replace("+00:00", "Z"),
+                    "--feed", "sip", "--limit", "1000", "--sort", "asc",
+                    "--quiet", "--jq",
+                    "{quotes: (.quotes|map({t,bp,ap})), next_page_token}",
+                ], env)
+                if not isinstance(quotes, Mapping):
+                    raise ValueError
+                if "next_page_token" not in quotes:
+                    raise ValueError
+                if quotes.get("next_page_token") not in (None, ""):
+                    raise ValueError("paper_cost_quote_pages_incomplete")
+                quote_rows = quotes.get("quotes")
+                if not isinstance(quote_rows, list) or not quote_rows:
+                    raise ValueError
+                prior_quotes = [
+                    (parse_instant(item.get("t")), item) for item in quote_rows
+                    if parse_instant(item.get("t")) <= filled_at
+                ]
+                if not prior_quotes:
+                    raise ValueError
+                quote_at, nearest = max(prior_quotes, key=lambda pair: pair[0])
+                bid, ask = Decimal(str(nearest.get("bp"))), Decimal(str(nearest.get("ap")))
+                if ((filled_at - quote_at).total_seconds() > 1
+                        or not bid.is_finite() or not ask.is_finite()
+                        or bid <= 0 or ask < bid):
+                    raise ValueError
+                quotes_by_fill_id[row["id"]] = {
+                    "t": nearest["t"], "bp": str(bid), "ap": str(ask),
+                }
+    except (InvalidOperation, KeyError, TypeError, ValueError) as error:
+        if str(error) == "paper_cost_quote_pages_incomplete":
+            raise
+        raise ValueError("paper_cost_quote_invalid") from error
+
+    target_fills = [row for rows in fills_by_order.values() for row in rows]
+    buy_notional = sum((Decimal(row["qty"]) * Decimal(row["price"])
+                        for row in target_fills if row["side"] == "buy"), Decimal("0"))
+    sell_notional = sum((Decimal(row["qty"]) * Decimal(row["price"])
+                         for row in target_fills if row["side"] == "sell"), Decimal("0"))
+    slippage = Decimal("0")
+    for row in target_fills:
+        quote = quotes_by_fill_id[row["id"]]
+        midpoint = (Decimal(quote["bp"]) + Decimal(quote["ap"])) / 2
+        quantity, price = Decimal(row["qty"]), Decimal(row["price"])
+        slippage += ((price - midpoint) if row["side"] == "buy" else (midpoint - price)) * quantity
+    source_ids = [*[row["id"] for rows in fills_by_order.values() for row in rows],
+                  *[f"alpaca-quote:{fill_id}:{row['t']}"
+                    for fill_id, row in quotes_by_fill_id.items()]]
+    if len(source_ids) != len(set(source_ids)):
+        raise ValueError("paper_cost_receipt_duplicate")
+    return {
+        "broker_fees_usd": None,
+        "broker_fees_status": "not_simulated",
+        "broker_gross_pnl_usd": str(sell_notional - buy_notional),
+        "broker_slippage_usd": format(slippage.normalize(), "f"),
+        "broker_slippage_status": "complete",
+        "broker_costs_status": "partial",
+        "broker_costs_reason": "paper_regulatory_fees_not_simulated",
+        "observed_at": clock["timestamp"],
+        "order_ids": sorted(expected),
+        "period_start": start.isoformat().replace("+00:00", "Z"),
+        "provider": "alpaca",
+        "provider_readback": {
+            "fills": target_fills,
+            "quotes_by_fill_id": quotes_by_fill_id,
+        },
+        "source_receipt_ids": source_ids,
+    }
 
 
 def observe(*, credentials_path: Path, cli_path: Path, symbol: str = "SPY") -> dict[str, Any]:
