@@ -767,5 +767,40 @@ class AgentEconomyInvestmentAttributionTest(unittest.TestCase):
             self.assertNotIn(forbidden, source)
 
 
+class RevenueReceiptJournalRoutingTest(unittest.TestCase):
+    """The x402 seller journal is not a B5 readback bundle and is not an investment source."""
+
+    ROW = {
+        "schema_version": 1, "kind": "revenue_receipt", "provider": "x402",
+        "occurred_at": "2026-09-30T00:00:00Z", "asset": "USDC", "gross": "0.01",
+        "fee": "0", "refund": "0", "signed_net": "0.01", "payer": "0xpayer",
+        "recipient": "0xrecipient", "proof": "0xproof", "idempotency_key": "k1",
+        "terminal_state": "settled",
+    }
+
+    def _reasons(self, text: str) -> set:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "revenue-receipts.jsonl"
+            path.write_text(text, encoding="utf-8")
+            rows = adapter.adapt_path(path, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START)
+        self.assertFalse(any(row["record_type"] == "receipt" for row in rows))
+        return {(row["product_loop_id"], row["source_id"], row["reason"])
+                for row in rows if row["projection"] == "trailing"}
+
+    def assert_routed(self, reasons: set) -> None:
+        self.assertIn(("agent-economy", "x402-readback", "unverified_receipt"), reasons)
+        self.assertFalse(any(
+            loop == "investment" and reason != "source_unconnected"
+            for loop, _, reason in reasons
+        ))
+
+    def test_single_line_journal_is_agent_economy_not_investment(self):
+        self.assert_routed(self._reasons(json.dumps(self.ROW) + "\n"))
+
+    def test_multi_line_journal_is_agent_economy_not_investment(self):
+        second = dict(self.ROW, idempotency_key="k2", proof="0xproof2")
+        self.assert_routed(self._reasons(json.dumps(self.ROW) + "\n" + json.dumps(second) + "\n"))
+
+
 if __name__ == "__main__":
     unittest.main()
