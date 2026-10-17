@@ -53,6 +53,7 @@ from runtime.host.resource_admission import (
     process_start,
     release as release_resource,
     release_and_reserve as release_and_reserve_resource,
+    resolve_pre_effect_occurrence as resolve_pre_effect_occurrence_resource,
     reserve_available as reserve_available_resource,
     transfer_durable as transfer_durable_resource,
     try_acquire as try_acquire_resource,
@@ -1016,6 +1017,52 @@ def _verified_no_effect_result(path: Path, loop_id: str, occurrence_id: str,
     return "not_applicable", f"lm-no-effect://{loop_id}/{occurrence_id}/{value['reason']}"
 
 
+def _verified_terminal_effect_result(
+        path: Path, loop_id: str, occurrence_id: str,
+        entrypoint: str | None) -> tuple[str, ...] | None:
+    if not _effect_result_hint_allowed(loop_id, entrypoint):
+        return None
+    if entrypoint in NO_EFFECT_RESULT_HINT_ENTRYPOINTS:
+        result = _verified_no_effect_result(path, loop_id, occurrence_id, entrypoint)
+        if result is not None:
+            return result
+    return _verified_effect_result(
+        path, loop_id, occurrence_id, entrypoint=entrypoint,
+    )
+
+
+def _resolve_verified_alpaca_no_effect_fence(
+        loop_id: str, occurrence_id: str | None, entrypoint: str | None,
+        effect_result: tuple[str, ...] | None) -> bool:
+    if (loop_id not in {"alpaca-investment-paper", "alpaca-investment-live"}
+            or entrypoint != "skills/alpaca-investment/run.py"
+            or occurrence_id is None
+            or effect_result is None
+            or len(effect_result) != 2
+            or effect_result[0] != "not_applicable"
+            or effect_result[1] != (
+                f"lm-no-effect://{loop_id}/{occurrence_id}/no_broker_order_submitted")):
+        return False
+    proof = {
+        "owner_id": loop_id,
+        "occurrence_id": occurrence_id,
+        "verified": True,
+        "proof_type": "pre_effect",
+        "evidence_ref": effect_result[1],
+    }
+    readback = lambda: proof
+    return (
+        resolve_pre_effect_occurrence_resource(
+            loop_id, occurrence_id, pre_effect_readback=readback,
+            expected_state="released",
+        )
+        or resolve_pre_effect_occurrence_resource(
+            loop_id, occurrence_id, pre_effect_readback=readback,
+            expected_state="claimed",
+        )
+    )
+
+
 def _apply_verified_effect_result(
         event: dict, result: tuple[str, ...] | None) -> dict:
     updated = dict(event)
@@ -1517,6 +1564,7 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
     stderr_tail = b""
     terminal_event_attempted = False
     terminal_event_saved = False
+    terminal_effect_result: tuple[str, ...] | None = None
     previous = {}
     pre_effect_hint_allowed = (entry.get("entrypoint") in PRE_EFFECT_HINT_ENTRYPOINTS
                                 or loop_id in PRE_EFFECT_HINT_LOOP_IDS)
@@ -1525,7 +1573,7 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
     hint_allowed = pre_effect_hint_allowed or effect_result_hint_allowed
 
     def _persist_terminal_before_release(child_return_code: int, tail: bytes) -> int:
-        nonlocal terminal_event_attempted, terminal_event_saved
+        nonlocal terminal_event_attempted, terminal_event_saved, terminal_effect_result
         if on_terminal_event is None or terminal_event_attempted:
             return child_return_code
         terminal_event_attempted = True
@@ -1539,6 +1587,12 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                 "lm-loop-run: terminal event persistence failed "
                 f"({type(error).__name__})",
                 file=sys.stderr,
+            )
+        if (terminal_event_saved and child_return_code == 0
+                and claimed_occurrence_id is not None):
+            terminal_effect_result = _verified_terminal_effect_result(
+                receipt.parent / "entrypoint-result.json", loop_id,
+                claimed_occurrence_id, entrypoint,
             )
         if not terminal_event_saved and child_return_code == 0:
             return 78
@@ -1778,7 +1832,9 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                     terminal_persistence_failed = (
                         on_terminal_event is not None and not terminal_event_saved)
                     if (claim_started_child
-                            and (return_code != 0 or terminal_persistence_failed)
+                            and (return_code != 0 or terminal_persistence_failed
+                                 or (return_code == 0 and terminal_event_saved
+                                     and terminal_effect_result is None))
                             and entry.get("effect_class") != "none"
                             and not (pre_effect_hint_allowed and _proven_pre_effect_failure(
                                 receipt.parent / "entrypoint-result.json"))):
@@ -1791,6 +1847,21 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             except (OSError, RuntimeError, sqlite3.Error) as error:
                 print(f"lm-loop-run: resource release deferred to stale recovery: {error}",
                       file=sys.stderr)
+        alpaca_no_effect_terminal = (
+            claim_started_child and terminal_event_saved and return_code == 0
+            and terminal_effect_result is not None
+            and terminal_effect_result[0] == "not_applicable"
+            and loop_id in {"alpaca-investment-paper", "alpaca-investment-live"}
+            and entrypoint == "skills/alpaca-investment/run.py"
+        )
+        if (alpaca_no_effect_terminal
+                and not _resolve_verified_alpaca_no_effect_fence(
+                    loop_id, claimed_occurrence_id, entrypoint, terminal_effect_result)):
+            print(
+                "lm-loop-run: verified no-effect occurrence fence retained; "
+                "official readback required",
+                file=sys.stderr,
+            )
         if dispatch_after_release:
             _dispatch_reserved(dispatch_after_release)
 
@@ -1999,14 +2070,10 @@ def _main(argv: list[str] | None = None) -> int:
             if (child_return_code == 0
                     and _effect_result_hint_allowed(loop_id, entry.get("entrypoint"))
                     and claimed_occurrence_id is not None):
-                hint_path = scratch / "entrypoint-result.json"
-                if entry.get("entrypoint") in NO_EFFECT_RESULT_HINT_ENTRYPOINTS:
-                    effect_result = _verified_no_effect_result(
-                        hint_path, loop_id, claimed_occurrence_id, entry["entrypoint"])
-                if effect_result is None:
-                    effect_result = _verified_effect_result(
-                        hint_path, loop_id, claimed_occurrence_id,
-                        entrypoint=entry.get("entrypoint"))
+                effect_result = _verified_terminal_effect_result(
+                    scratch / "entrypoint-result.json", loop_id,
+                    claimed_occurrence_id, entry.get("entrypoint"),
+                )
             effect_identity_ref = None
             effect_identity_status = None
             if entry.get("effect_class") != "none" and child_return_code != 0:
