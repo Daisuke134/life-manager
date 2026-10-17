@@ -379,6 +379,7 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
             telegram = deliver_control(
                 state, control=control, wake_id=wake_id, mode=mode,
                 event_key=cloud_event_key)
+            _mark_no_broker_order_submitted(mode, effect_attempted, "none")
             print(json.dumps({
                 "effect": "none", "loop_id": "alpaca-investment", "mode": mode,
                 "reconciliation": reconciliation,
@@ -430,6 +431,7 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                         telegram = deliver_control(
                             state, control=current_control, wake_id=wake_id, mode=mode,
                             event_key=cloud_event_key)
+                        _mark_no_broker_order_submitted(mode, effect_attempted, effect)
                         print(json.dumps({
                             "effect": "none", "loop_id": "alpaca-investment", "mode": mode,
                             "reconciliation": reconciliation,
@@ -532,6 +534,7 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                     if current_control["paused"] or current_control["killed"]:
                         telegram = deliver_control(state, control=current_control,
                             wake_id=wake_id, mode=mode, event_key=cloud_event_key)
+                        _mark_no_broker_order_submitted(mode, effect_attempted, effect)
                         print(json.dumps({"effect":"none","loop_id":"alpaca-investment","mode":mode,
                             "reconciliation":reconciliation,"status":"killed" if current_control["killed"] else "paused",
                             "telegram_message_id":telegram["message_id"]}, separators=(",", ":")))

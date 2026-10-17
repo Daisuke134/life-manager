@@ -2473,6 +2473,201 @@ def test_alpaca_no_effect_hint_reaches_terminal_validation():
     assert not loop_runner._effect_result_hint_allowed('unrelated-owner', entrypoint)
 
 
+def _run_admitted_alpaca_hint_case(
+        tmp_path, hint_kind, *, loop_id='alpaca-investment-paper',
+        entrypoint='skills/alpaca-investment/run.py'):
+    occurrence_id = f'{loop_id}:run-{hint_kind}'
+    entry = {
+        'cadence': {'start_interval_seconds': 300},
+        'provider_route': 'shared-agent-runner',
+        'resource_class': 'deterministic',
+        'admission_class': 'revenue',
+        'priority': 'revenue',
+        'effect_class': 'money',
+        'entrypoint': entrypoint,
+    }
+    receipt = tmp_path / hint_kind / 'host-admission.json'
+    receipt.parent.mkdir(parents=True)
+    claim = tmp_path / hint_kind / 'claim.json'
+    claim.write_text(json.dumps({'occurrence_id': occurrence_id}), encoding='utf-8')
+
+    def run_child(_command, _scratch, *, env, on_started, **_kwargs):
+        on_started(4242)
+        hint_path = env.get('LIFE_MANAGER_RESULT_HINT_PATH')
+        if hint_path:
+            hint = Path(hint_path)
+            if hint_kind == 'no-effect':
+                value = {
+                    'schema_version': 1,
+                    'kind': 'life_manager_no_effect_result',
+                    'status': 'verified_no_effect',
+                    'effect': 0,
+                    'owner_id': loop_id,
+                    'occurrence_id': occurrence_id,
+                    'reason': 'no_broker_order_submitted',
+                }
+            elif hint_kind == 'attempted':
+                value = {'status': 'effect_attempted', 'effect': 1}
+            else:
+                value = None
+            if value is not None:
+                hint.write_text(json.dumps(value) + '\n', encoding='utf-8')
+                hint.chmod(0o600)
+        return 0, b''
+
+    with (patch('runtime.loop.lm_loop_run.durable_protocol_version', return_value=2),
+          patch('runtime.loop.lm_loop_run.memory_free_percent', return_value=50),
+          patch('runtime.loop.lm_loop_run._producer_gate', return_value=None),
+          patch('runtime.loop.lm_loop_run.enqueue_durable_resource',
+                return_value=(tmp_path / hint_kind / 'ticket', 'ready')),
+          patch('runtime.loop.lm_loop_run.claim_durable_resource',
+                return_value=(claim, 'acquired')),
+          patch('runtime.loop.lm_loop_run.transfer_durable_resource'),
+          patch('runtime.loop.lm_loop_run._heartbeat_loop'),
+          patch('runtime.loop.lm_loop_run.release_and_reserve_resource',
+                return_value=[]) as release,
+          patch('runtime.loop.lm_loop_run._dispatch_reserved'),
+          patch('runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture',
+                side_effect=run_child),
+          patch('runtime.loop.lm_loop_run.resolve_verified_no_effect_occurrence_resource',
+                create=True, return_value=True) as resolve_no_effect,
+          patch('runtime.loop.lm_loop_run.resolve_pre_effect_occurrence_resource',
+                create=True, return_value=True) as resolve_pre_effect):
+        result = _run_admitted(
+            ['/bin/true'], entry, loop_id, {}, receipt,
+            occurrence_id=occurrence_id,
+            on_terminal_event=lambda *_args: True,
+        )
+        assert result == 0
+        release.assert_called_once()
+        return (release.call_args, resolve_no_effect.call_args_list,
+                resolve_pre_effect.call_args_list)
+
+
+def test_verified_alpaca_no_effect_closes_only_its_admission_occurrence(tmp_path):
+    release, resolutions, pre_effect_resolutions = _run_admitted_alpaca_hint_case(
+        tmp_path, 'no-effect')
+    assert release.kwargs.get('effect_unknown') is not True
+    assert len(resolutions) == 1
+    assert pre_effect_resolutions == []
+    args, kwargs = resolutions[0]
+    assert args == ('alpaca-investment-paper', 'alpaca-investment-paper:run-no-effect')
+    assert kwargs['expected_state'] == 'released'
+    assert kwargs['expected_reason'] == 'no_broker_order_submitted'
+    proof = kwargs['no_effect_readback']()
+    assert proof == {
+        'owner_id': 'alpaca-investment-paper',
+        'occurrence_id': 'alpaca-investment-paper:run-no-effect',
+        'verified': True,
+        'proof_type': 'verified_no_effect',
+        'effect': 0,
+        'reason': 'no_broker_order_submitted',
+        'evidence_ref': (
+            'lm-no-effect://alpaca-investment-paper/'
+            'alpaca-investment-paper:run-no-effect/no_broker_order_submitted'
+        ),
+    }
+
+
+def test_successful_child_without_verified_effect_result_keeps_fence(tmp_path):
+    release, resolutions, pre_effect_resolutions = _run_admitted_alpaca_hint_case(
+        tmp_path, 'attempted')
+    assert release.kwargs['effect_unknown'] is True
+    assert resolutions == []
+    assert pre_effect_resolutions == []
+
+
+def test_successful_alpaca_without_terminal_hint_keeps_fence_with_startup_marker(
+        tmp_path):
+    release, resolutions, pre_effect_resolutions = _run_admitted_alpaca_hint_case(
+        tmp_path, 'missing')
+    assert release.kwargs['effect_unknown'] is True
+    assert resolutions == []
+    assert pre_effect_resolutions == []
+
+
+def test_successful_non_alpaca_effect_owner_keeps_existing_no_hint_contract(tmp_path):
+    release, resolutions, pre_effect_resolutions = _run_admitted_alpaca_hint_case(
+        tmp_path, 'attempted', loop_id='affiliate-loop',
+        entrypoint='skills/affiliate/affiliate',
+    )
+    assert release.kwargs.get('effect_unknown') is not True
+    assert resolutions == []
+    assert pre_effect_resolutions == []
+
+
+def test_alpaca_no_effect_releases_only_exact_stale_fence_in_sqlite(tmp_path, monkeypatch):
+    monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(tmp_path / "admission"))
+    owner = "alpaca-investment-paper"
+    occurrence = f"{owner}:stale-terminal"
+    peer_occurrence = f"{owner}:peer-fence"
+    admission.activate_durable_v2()
+    ticket, reason = admission.enqueue_durable(
+        "deterministic", owner, admission_class="revenue",
+        occurrence_id=occurrence, now=100,
+    )
+    assert ticket is not None and reason == "ready"
+    claim, reason = admission.claim_durable(
+        "deterministic", owner, admission_class="revenue", now=101,
+    )
+    assert claim is not None and reason == "acquired"
+
+    database = tmp_path / "admission/admission-v2.sqlite3"
+    with sqlite3.connect(database) as connection:
+        row = connection.execute(
+            """SELECT resource_class,admission_class,base_priority,queued_at,sequence
+                 FROM occurrences WHERE occurrence_id=?""",
+            (occurrence,),
+        ).fetchone()
+        assert row is not None
+        connection.execute(
+            "UPDATE occurrences SET effect_unknown=1 WHERE occurrence_id=?",
+            (occurrence,),
+        )
+        connection.execute(
+            """INSERT OR REPLACE INTO priorities(
+                   owner_id,admission_class,admission_policy,base_priority,
+                   queued_at,effect_unknown,effect_scope
+               ) VALUES(?,'revenue',NULL,'revenue',100,1,'owner')""",
+            (owner,),
+        )
+        connection.execute(
+            """INSERT INTO occurrences(
+                   occurrence_id,owner_id,resource_class,admission_class,
+                   base_priority,queued_at,state,sequence,effect_unknown
+               ) VALUES(?,?,?,?,?,?,'claimed',?,1)""",
+            (peer_occurrence, owner, *row),
+        )
+        connection.commit()
+
+    # Normal child release changes `claimed` to `released` but retains a stale
+    # recovery fence already written for this occurrence.
+    admission.release_and_reserve(claim, reserve=False, now=102)
+    target = (
+        "not_applicable",
+        f"lm-no-effect://{owner}/{occurrence}/no_broker_order_submitted",
+    )
+    assert loop_runner._resolve_verified_alpaca_no_effect_fence(
+        owner, occurrence, "skills/alpaca-investment/run.py", target,
+    ) is True
+
+    with sqlite3.connect(database) as connection:
+        target_row = connection.execute(
+            "SELECT state,effect_unknown FROM occurrences WHERE occurrence_id=?",
+            (occurrence,),
+        ).fetchone()
+        peer_row = connection.execute(
+            "SELECT state,effect_unknown FROM occurrences WHERE occurrence_id=?",
+            (peer_occurrence,),
+        ).fetchone()
+        priority = connection.execute(
+            "SELECT effect_unknown FROM priorities WHERE owner_id=?", (owner,),
+        ).fetchone()
+    assert target_row == ("released", 0)
+    assert peer_row == ("claimed", 1)
+    assert priority == (1,)
+
+
 def test_verified_no_effect_result_marks_the_terminal_as_no_effect():
     owner = 'ebook-ja-tiktok-daily'
     occurrence = f'{owner}:run-off-slot'

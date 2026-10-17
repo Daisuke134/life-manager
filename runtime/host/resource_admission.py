@@ -1954,6 +1954,38 @@ def resolve_pre_effect_occurrence(owner_id: str, occurrence_id: str, *,
                                      proof_check=proof_check)
 
 
+def resolve_verified_no_effect_occurrence(
+        owner_id: str, occurrence_id: str, *, expected_reason: str,
+        no_effect_readback: Callable[[], Mapping[str, object]],
+        expected_state: str = "released") -> bool:
+    """Close one fence from an exact, occurrence-bound terminal no-effect result.
+
+    This is distinct from ``resolve_pre_effect_occurrence``: the child completed
+    and its trusted adapter reported no effect, rather than proving that a
+    pre-dispatch marker was never written.
+    """
+    if (not owner_id or not _normalize_occurrence_id(occurrence_id)
+            or not isinstance(expected_reason, str) or not expected_reason
+            or expected_state not in {"claimed", "released"}):
+        raise RuntimeError("invalid no-effect occurrence identity")
+
+    def proof_check() -> bool:
+        proof = no_effect_readback()
+        return (isinstance(proof, Mapping)
+                and proof.get("owner_id") == owner_id
+                and proof.get("occurrence_id") == occurrence_id
+                and proof.get("verified") is True
+                and proof.get("proof_type") == "verified_no_effect"
+                and type(proof.get("effect")) is int
+                and proof.get("effect") == 0
+                and proof.get("reason") == expected_reason
+                and proof.get("evidence_ref") == (
+                    f"lm-no-effect://{owner_id}/{occurrence_id}/{expected_reason}"))
+
+    return _close_unknown_occurrence(owner_id, occurrence_id, expected_state,
+                                     proof_check=proof_check)
+
+
 _HISTORICAL_NO_DISPATCH_PROOFS = {
     ("historical_account_bound_no_dispatch", "coconala"): "historical_account_id",
     ("historical_integration_bound_no_dispatch", "postiz"): "historical_integration_id",
