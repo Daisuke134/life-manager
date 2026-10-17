@@ -247,6 +247,14 @@ def load_frozen_ids(path=None):
         return set()
 
 
+def frozen_seller_drafts(agents, frozen_ids):
+    """Frozen sellers whose console status is `draft`: an abandoned draft version that holds a
+    review slot forever, because freezing stops every loop from finishing or removing it
+    (2026-10-17: three sellers blocked the factory for 6-11 days). Remove it in the console
+    (`下書きを削除`); the live version is untouched."""
+    return [a["agent_id"] for a in agents if a.get("agent_id") in frozen_ids and a.get("remote_status") == "draft"]
+
+
 MAX_DRAFT_ATTEMPTS = 3
 
 
@@ -912,6 +920,10 @@ def main():
         "publishable_count": len(publishable),
         **normalized,
     })
+    v["frozen_seller_drafts"] = frozen_seller_drafts(v.get("agents") or [], load_frozen_ids())
+    for agent_id in v["frozen_seller_drafts"]:
+        print(f"!FROZEN_SELLER_DRAFT {agent_id} holds a review slot; delete the draft version in the console",
+              file=sys.stderr)
     print("VERDICT=" + v["verdict"])
     print(json.dumps(v, ensure_ascii=False))
     return 0

@@ -1136,3 +1136,12 @@ def test_server_agents_carries_has_online_version_from_publish_list(monkeypatch)
     monkeypatch.setattr(module.subprocess, "run", lambda *a, **k: Done())
     rows = module.server_agents()
     assert rows[0]["hasOnlineVersion"] is True
+
+
+def test_frozen_seller_with_a_draft_version_is_flagged() -> None:
+    # 2026-10-17: three frozen sellers sat in console status `draft` (empty draft versions)
+    # for 6-11 days, held review slots, and no loop would ever clear them.
+    agents = [{"agent_id": "7686597754", "remote_status": "draft"},
+              {"agent_id": "8123079349", "remote_status": "online"},
+              {"agent_id": "2781635836", "remote_status": "draft"}]
+    assert load_module().frozen_seller_drafts(agents, {"7686597754", "8123079349"}) == ["7686597754"]
