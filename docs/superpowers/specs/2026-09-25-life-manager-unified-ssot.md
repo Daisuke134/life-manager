@@ -3255,7 +3255,9 @@ Writer適用: `skills/writer-agent/SKILL.md`、Zinsser reader/prose、humanizer�
 |標本ゼロ・構造的ゼロ・未回答|本人の合図で理解済み|欠測を0で埋めない|
 |調整条件の検査と未使用交差表の評価|本人の合図で理解済み|実資料で独立採点を実装|
 |人数差・分母・単純法との比較|本人の合図で理解済み|割合差はpercentage points、相対誤差の分母も明記|
-|IPF以外の人口生成、LLMによる人口生成と反応予測、Aaru/Simile|今回調査・説明、質問待ち|三軸（方法・必要データ・出力単位）で概観し、次に条件付き確率を深掘り|
+|IPF以外の人口生成、LLMによる人口生成と反応予測、Aaru/Simile|本人の次へという合図で概観の学習完了|各方式の詳細読解・製品再現の完了ではない|
+|条件付き確率と一属性の生成|今回説明済み・質問待ち|分母、条件の向き、期待値と抽選結果を区別|
+|Bayesian network・複数属性の生成|次|確率の推定と独立性の仮定を確認|
 |初期人口v0の本体実装・実資料評価|未完了|既存P01–P20を維持。まず型・割合・資料準備から|
 
 全体順は、人口→反応→時間・相互作用→環境変更の比較→実行と因果評価→継続改善と領域拡張。全生命・宇宙への構想を保持する。各段階は学習と小さい実装を往復する。全体の超知能や宇宙規模への到達を、解法と完了日が確定した作業と扱わない。
@@ -3265,3 +3267,10 @@ Writer適用: `skills/writer-agent/SKILL.md`、Zinsser reader/prose、humanizer�
 更新本文：`docs/research/manager/articles/2026-10-17-population-methods-and-behavior-ja.md`。証拠：`docs/research/manager/evidence/2026-10-17/upstream-inspection.json`。画像はarticles/visuals。公開記事・発表・応募に、今回の読解をモデル開発実績として書かない。
 
 今回の資料読解範囲は `docs/research/manager/evidence/2026-10-17/source-index.json` に記録。BN/VAEの全文・コード読解を完了とはしない。次の単元は条件付き確率と、その人物属性生成への使い方。今回の広い方式紹介は説明済み・質問待ち。音声は短く、詳説と図はチャットへ残す。
+
+
+### 2026-10-17 条件付き確率の講座
+
+前回の方式概観は本人の「次を説明して」で学習上の完了。条件付き確率を架空の学校100人で説明し、条件付き抽選をPython標準ライブラリで実行した。期待20人に対してseed42の一回では自転車26人。実人口への精度やマネージャー本体の実装成果ではない。現在は本単元の質問待ち、次は複数の条件付き分布をつなぐBayesian network。詳細な実装タスクP01–P20は未完了のまま。
+
+本文：`docs/research/manager/articles/2026-10-17-conditional-probability-ja.md`。実行：`docs/research/manager/evidence/2026-10-17/conditional-sampling.py`、出力JSON。同日、音声説明の長さは過度に固定せず、その場の理解とユーザーの希望に合わせるという補足を記録。

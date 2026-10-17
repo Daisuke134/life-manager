@@ -1,0 +1,33 @@
+{
+  "kind": "fictional educational sampling, not a real population result",
+  "random_seed": 42,
+  "group_counts": {
+    "male": 60,
+    "female": 40
+  },
+  "conditional_probabilities": {
+    "male": 0.3,
+    "female": 0.05
+  },
+  "reference_table": [
+    [
+      18,
+      42
+    ],
+    [
+      2,
+      38
+    ]
+  ],
+  "expected_bicycle_count": 20.0,
+  "sampled_bicycle_counts": {
+    "male": 24,
+    "female": 2
+  },
+  "sampled_bicycle_total": 26,
+  "sources": [
+    "https://www.jasss.org/15/1/1.html",
+    "https://seeing-theory.brown.edu/compound-probability/index.html"
+  ],
+  "product_implemented": false
+}
