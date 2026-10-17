@@ -185,7 +185,22 @@ def begin(args: argparse.Namespace) -> int:
         fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
 
         state_count = state_attempts(state_path, args, current_hash)
-        terminal_info = terminal_record(terminal_path, args, allow_empty=True)
+        try:
+            terminal_info = terminal_record(terminal_path, args, allow_empty=True)
+        except ValueError:
+            # Only `finish` and the cap branch below write canonical terminals.
+            # Anything else at this path (a copied gate stdout record, a captured
+            # traceback, a forged PASS) is never honoured. Move it aside so the
+            # current draft gets a fresh evaluation, still bounded by the strict
+            # attempt state, instead of failing every later resume forever.
+            if terminal_path.is_symlink() or not terminal_path.is_file():
+                raise
+            digest = hashlib.sha256(terminal_path.read_bytes()).hexdigest()
+            os.replace(
+                terminal_path,
+                state_path.with_name(f"{args.gate}-{args.lang}.terminal.rejected-{digest}.json"),
+            )
+            terminal_info = None
         # A shell caller may redirect stdout to this legacy path. The shell
         # truncates the file before this process starts, so empty regular
         # evidence means "not present yet", not malformed evidence. Attempt
