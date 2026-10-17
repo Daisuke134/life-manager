@@ -98,3 +98,51 @@ def test_normalizes_existing_force_receipt_to_continuous_policy(tmp_path):
     assert normalized["publication_policy"] == "continuous"
     assert QUALITY.validate_force_receipt(run, drafts)
     assert (gates / "quality-self-heal-policy-rebind-before.json").is_file()
+
+
+def _stale_editorial_run(tmp_path):
+    run = tmp_path / "run"
+    gates = run / "gates"
+    gates.mkdir(parents=True)
+    (gates / "topic-route.json").write_text(json.dumps({"editorial_form": "how-to"}))
+    drafts = {}
+    for lang in ("ja", "en"):
+        draft = run / f"article-{lang}.md"
+        draft.write_text(f"# {lang} revised\n", encoding="utf-8")
+        drafts[lang] = draft
+        digest = hashlib.sha256(draft.read_bytes()).hexdigest()
+        (gates / f"identity-{lang}.json").write_text(
+            json.dumps({"verdict": "PASS", "article_sha256": digest})
+        )
+        (gates / f"editorial-{lang}.json").write_text(
+            json.dumps({"verdict": "PASS", "fixes": [], "strengths": [], "article_sha256": digest})
+        )
+    # Pre-revision FAIL still on disk (run 20261017-033711): bound to old bytes.
+    (gates / "editorial-en.json").write_text(json.dumps({
+        "verdict": "FAIL", "fixes": ["cite"], "strengths": [],
+        "article_sha256": hashlib.sha256(b"old").hexdigest(),
+    }))
+    return run, drafts
+
+
+def test_continuous_stale_editorial_fail_is_advisory(tmp_path, monkeypatch):
+    run, drafts = _stale_editorial_run(tmp_path)
+    monkeypatch.setenv("ARTICLE_PUBLICATION_POLICY", "continuous")
+
+    decision = QUALITY.assess(run, drafts)
+
+    assert decision["action"] == "force_publish_advisory"
+    assert decision["quality"]["en"]["editorial"] == "FAIL"
+    assert decision["quality"]["en"]["editorial_current"] is False
+
+
+def test_strict_stale_editorial_fail_still_fails_closed(tmp_path, monkeypatch):
+    run, drafts = _stale_editorial_run(tmp_path)
+    monkeypatch.setenv("ARTICLE_PUBLICATION_POLICY", "strict")
+
+    try:
+        QUALITY.assess(run, drafts)
+    except QUALITY.QualitySelfHealError as error:
+        assert "hash mismatch" in str(error)
+    else:
+        raise AssertionError("strict policy must refuse a stale editorial receipt")
