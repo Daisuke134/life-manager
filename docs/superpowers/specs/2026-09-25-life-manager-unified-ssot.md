@@ -14648,6 +14648,8 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **IN-COST-02独立レビューの追加受入:** head `9f02b1ddc8`はfix-first。公式invoiceとそれを参照するpaid_receiptを同時に入れると部分計が2倍になり、別snapshotで同じallocationを別tradeへjoinし直すと両日に残る2件を独立probeで再現する。underlying invoice/line/allocation identityを共通化して一度だけ数え、既存dailyのcharge→trade bindingと照合する。過去と矛盾する再配賦は拒否し、証拠が減った入力で既知のbindingを削除しない。不正/読めない履歴を無いものと扱わない。新台帳・中央CFO変更・金額比率推定は追加しない。各最小RED→GREENと修正headの再レビューが完了するまでmergeしない。
 
+**IN-COST-02識別子保持修正:** 4-runのREDは`a932b4972f`でremote保存する。既存componentへ既知のcharge/receipt識別子集合を保持し、元tradeのbindingを表記切替後も残す。同じ集合を持つ同額・同category・同tradeの複数表記は一度だけ数え、矛盾する集合はunknown。Alpaca 299 tests、core 137 tests、loop契約18/194、diff checkはPASS。現在cursorはこの最終修正headの独立read-onlyレビューとCI。実費入力と利益は未証明。
+
 **IN-COST-02識別子保持の追加受入:** head `699bdea6e4`の通常回帰はPASSだが、同一tradeでpaid_receipt→invoice参照追加→invoice表記への切替を行うと、元receipt aliasが日次記録から消え、元paid_receiptを別tradeへ再利用できることを4 readbackの独立probeで再現する。判明した識別子集合を既存componentへ累積保存し、表記が変わってもtradeとの対応を保持する。同じ集合に属する複数表記は一度だけ数え、矛盾はunknown。新台帳は作らない。既存16 tests中、この4-run回帰だけがRED。
 
 **IN-COST-02再レビュー修正:** alias追加とUTC変換overflowを`e55fa3ff42`のREDでremote保存し、元receipt_idとcharge identityの両方で過去bindingを照合する。同じtradeへの情報追加はどちらかの識別子が対応すれば同一費用とみなす。UTC変換のArithmeticErrorをreport境界でunknownへ戻す。Alpaca 298 tests、core 137 tests、loop契約18/194、diff checkはPASS。現在cursorは最新修正headの独立再レビュー・CIで、旧headの結果は流用しない。

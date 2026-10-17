@@ -706,7 +706,17 @@ def _operating_identity_keys(component: Mapping[str, Any]) -> set[tuple[str, ...
     receipt_id = component.get("receipt_id")
     if not isinstance(receipt_id, str) or not receipt_id:
         raise ValueError("paper_operating_cost_binding_invalid")
-    return {("charge", *_operating_charge_key(component)), ("receipt", receipt_id)}
+    keys = {("charge", *_operating_charge_key(component)), ("receipt", receipt_id)}
+    aliases = component.get("identity_aliases", [])
+    if not isinstance(aliases, list):
+        raise ValueError("paper_operating_cost_binding_invalid")
+    for alias in aliases:
+        if (not isinstance(alias, list) or any(not isinstance(value, str) or not value for value in alias)
+                or not ((len(alias) == 6 and alias[0] == "charge")
+                        or (len(alias) == 2 and alias[0] == "receipt"))):
+            raise ValueError("paper_operating_cost_binding_invalid")
+        keys.add(tuple(alias))
+    return keys
 
 
 def _bind_operating_costs(state: Path, completed, summary):
@@ -719,6 +729,7 @@ def _bind_operating_costs(state: Path, completed, summary):
                          "period_end": trip["closed_at"]}): trip
                 for trip in completed if trip.get("period_start")}
     bindings = {}
+    alias_sets = {}
     day_keys = {}
     try:
         for path in state.glob("performance-daily-????-??-??.json"):
@@ -738,6 +749,7 @@ def _bind_operating_costs(state: Path, completed, summary):
                 raise ValueError("paper_operating_cost_binding_invalid")
             for component in components:
                 keys, trade = _operating_identity_keys(component), binding(component)
+                keys |= {alias for key in keys for alias in alias_sets.get(key, set())}
                 trip = expected.get(trade)
                 if (trip is None or _utc_day(component["period_end"]) != day
                         or component.get("receipt_id") not in ids
@@ -746,11 +758,28 @@ def _bind_operating_costs(state: Path, completed, summary):
                     raise ValueError("paper_operating_cost_binding_invalid")
                 for key in keys:
                     bindings[key] = trade
+                    alias_sets[key] = keys
                 day_keys.setdefault(day, []).append(keys)
         components = summary["operating_cost_components"]
-        eligible = [row for row in components
-                    if all(key not in bindings or bindings[key] == binding(row)
-                           for key in _operating_identity_keys(row))]
+        eligible = []
+        for row in components:
+            keys = _operating_identity_keys(row)
+            if any(key in bindings and bindings[key] != binding(row) for key in keys):
+                continue
+            keys |= {alias for key in keys for alias in alias_sets.get(key, set())}
+            matching = [index for index, prior in enumerate(eligible)
+                        if keys & _operating_identity_keys(prior)]
+            if matching:
+                prior = eligible[matching[0]]
+                if (len(matching) != 1 or binding(prior) != binding(row)
+                        or prior["category"] != row["category"]
+                        or _number(prior["amount_usd"]) != _number(row["amount_usd"])):
+                    return select_components({**summary, "operating_cost_components": [],
+                        "operating_costs_reason": "operating_cost_identity_conflict"}, completed), day_keys
+                keys |= _operating_identity_keys(prior)
+                prior["identity_aliases"] = [list(key) for key in sorted(keys)]
+            else:
+                eligible.append({**row, "identity_aliases": [list(key) for key in sorted(keys)]})
         value = {**summary, "operating_cost_components": eligible}
         if len(eligible) != len(components):
             value["operating_costs_reason"] = "operating_cost_receipt_reassigned"
