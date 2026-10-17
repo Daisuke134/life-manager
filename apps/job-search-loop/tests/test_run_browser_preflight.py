@@ -394,7 +394,7 @@ raise SystemExit(1)
             "--password-store=basic",
             "--use-mock-keychain",
             "--disable-sync",
-            "--disable-features=MacAppCodeSignClone",
+            "--disable-features=MacAppCodeSignClone,SpareRendererForSitePerProcess",
             "--no-sandbox",
             "--fingerprint=80137",
             "--fingerprint-platform=macos",

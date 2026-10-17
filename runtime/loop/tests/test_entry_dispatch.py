@@ -317,7 +317,7 @@ class EntryDispatchTest(unittest.TestCase):
 
     def test_lancers_browser_disables_code_sign_clone(self):
         script = Path(__file__).parents[3] / 'skills/earn/lancers/scripts/browser-owner'
-        self.assertIn('--disable-features=MacAppCodeSignClone', script.read_text())
+        self.assertIn('--disable-features=MacAppCodeSignClone,SpareRendererForSitePerProcess', script.read_text())
 
 
 if __name__=='__main__':unittest.main()

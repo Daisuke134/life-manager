@@ -662,7 +662,7 @@ def test_all_coconala_chromium_launches_disable_code_sign_clone():
         GIG_ROOT / "scripts" / "cdp_daily_driver_guard.sh",
     ]
     for script in scripts:
-        assert "--disable-features=MacAppCodeSignClone" in script.read_text()
+        assert "--disable-features=MacAppCodeSignClone,SpareRendererForSitePerProcess" in script.read_text()
 
 
 def test_coconala_browser_has_a_finite_renderer_process_limit():

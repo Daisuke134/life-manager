@@ -143,7 +143,7 @@ def main() -> int:
     context = launch_persistent_context(
         str(profile), headless=False,
         args=[f"--remote-debugging-port={port}", "--remote-allow-origins=*",
-              "--disable-features=MacAppCodeSignClone",
+              "--disable-features=MacAppCodeSignClone,SpareRendererForSitePerProcess",
               f"--renderer-process-limit={renderer_limit}"],
     )
     pages = context.pages

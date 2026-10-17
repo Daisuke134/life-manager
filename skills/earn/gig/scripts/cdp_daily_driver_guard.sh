@@ -72,7 +72,7 @@ _cdp_guard_relaunch() {
     --remote-debugging-port="$CDP_PORT" \
     --remote-allow-origins="*" \
     --user-data-dir="$CDP_PROFILE" \
-    --disable-features=MacAppCodeSignClone \
+    --disable-features=MacAppCodeSignClone,SpareRendererForSitePerProcess \
     --no-first-run --no-default-browser-check \
     >>"$CDP_GUARD_LOG" 2>&1 < /dev/null &
   disown 2>/dev/null || true

@@ -73,7 +73,7 @@ class CdpPersistentContextPreflightTests(unittest.TestCase):
 
     def test_persistent_context_disables_code_sign_clone(self) -> None:
         self.assertIn(
-            '"--disable-features=MacAppCodeSignClone"',
+            '"--disable-features=MacAppCodeSignClone,SpareRendererForSitePerProcess"',
             SCRIPT.read_text(encoding="utf-8"),
         )
 
