@@ -14,6 +14,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from effect_store import UNRESOLVED_INTENT_STATUSES
+from paper_operating_costs import read_readback, select_components, summarize as summarize_operating_costs
 
 
 OWNER_ID = "alpaca-investment-paper"
@@ -472,6 +473,7 @@ def build_paper_performance(
     risk: Mapping[str, Any],
     *,
     broker_cost_evidence: Any = None,
+    operating_cost_readback: Any = None,
 ) -> dict[str, Any]:
     """Return a partial receipt until every paper cost has official evidence."""
     try:
@@ -489,13 +491,17 @@ def build_paper_performance(
         gross = sum((item["gross_pnl_usd"] for item in completed), Decimal("0"))
         exposure = max((item["exposure_usd"] for item in completed), default=Decimal("0"))
         broker_costs = _broker_cost_summary(completed, broker_cost_evidence)
+        operating_costs = summarize_operating_costs(
+            completed, operating_cost_readback, owner_id=OWNER_ID, observed_at=observed_at,
+        )
         cost_source_ids = broker_costs["broker_cost_source_receipt_ids"]
-        all_source_ids = [*source_ids, *cost_source_ids]
+        all_source_ids = [*source_ids, *cost_source_ids, *operating_costs["operating_cost_source_receipt_ids"]]
         if len(all_source_ids) != len(set(all_source_ids)):
             raise ValueError("paper_receipt_duplicate")
         unknown_costs = (["fees", "model", "system"] if broker_costs["broker_slippage_status"] == "complete"
                          else ["fees", "slippage", "model", "system"])
         return {
+            **operating_costs,
             "completed_round_trips": len(completed),
             "completed_round_trips_total": len(completed),
             "broker_costs_status": broker_costs["broker_costs_status"],
@@ -506,6 +512,7 @@ def build_paper_performance(
             "broker_costs_errors": [],
             "broker_cost_source_receipt_ids": cost_source_ids,
             "costs_status": ("partial" if broker_costs["broker_slippage_status"] == "complete"
+                             or operating_costs["operating_costs_status"] == "partial"
                              else "unknown"),
             "fees_usd": broker_costs["fees_usd"],
             "funding_or_borrow_usd": None,
@@ -690,6 +697,7 @@ def _broker_cost_cache(
 def _refresh_historical_costs(
     state: Path, completed: Sequence[Mapping[str, Any]],
     evidence: Sequence[Mapping[str, Any]], current_day: str,
+    operating_costs: Mapping[str, Any],
 ) -> list[dict[str, str]]:
     """Attach late costs to the original day without backdating account observations."""
     results = []
@@ -699,13 +707,17 @@ def _refresh_historical_costs(
         pairs = {tuple(sorted(trip["order_ids"])) for trip in trips}
         day_evidence = [row for row in evidence if tuple(sorted(row["order_ids"])) in pairs]
         costs = _broker_cost_summary(trips, day_evidence)
-        if costs["broker_slippage_status"] != "complete":
+        day_operating_costs = select_components(dict(operating_costs), trips)
+        broker_available = costs["broker_slippage_status"] == "complete"
+        operating_available = day_operating_costs["operating_costs_status"] == "partial"
+        if not broker_available and not operating_available:
             continue
         path = state / f"performance-daily-{day}.json"
         try:
             previous = json.loads(path.read_text(encoding="utf-8"))
             ids = previous.get("source_receipt_ids") if isinstance(previous, Mapping) else None
             old_cost_ids = previous.get("broker_cost_source_receipt_ids", []) if isinstance(previous, Mapping) else None
+            old_operating_ids = previous.get("operating_cost_source_receipt_ids", []) if isinstance(previous, Mapping) else None
             required_ids = {value for trip in trips for value in trip["source_receipt_ids"]}
             gross = sum((_number(trip["gross_pnl_usd"]) for trip in trips), Decimal("0"))
             if (not isinstance(previous, Mapping) or previous.get("mode") != "paper"
@@ -722,16 +734,22 @@ def _refresh_historical_costs(
                     or not required_ids <= set(ids)
                     or f"alpaca-account-readback:{previous['observed_at']}" not in ids
                     or not isinstance(old_cost_ids, list)
-                    or any(not isinstance(value, str) for value in old_cost_ids)):
+                    or any(not isinstance(value, str) for value in old_cost_ids)
+                    or not isinstance(old_operating_ids, list)
+                    or any(not isinstance(value, str) for value in old_operating_ids)):
                 raise ValueError("paper_historical_performance_mismatch")
+            replaced_ids = set((old_cost_ids if broker_available else [])
+                               + (old_operating_ids if operating_available else []))
             updated = {
-                **previous, **costs,
-                "broker_costs_errors": [], "costs_status": "partial",
+                **previous,
+                **({**costs, "broker_costs_errors": [], "costs_status": "partial",
+                    "unknown_cost_categories": ["fees", "model", "system"]} if broker_available else {}),
+                **({**day_operating_costs, "costs_status": "partial"} if operating_available else {}),
                 "net_realized_pnl_usd": None,
-                "unknown_cost_categories": ["fees", "model", "system"],
                 "source_receipt_ids": list(dict.fromkeys([
-                    *[value for value in ids if value not in old_cost_ids],
-                    *costs["broker_cost_source_receipt_ids"],
+                    *[value for value in ids if value not in replaced_ids],
+                    *(costs["broker_cost_source_receipt_ids"] if broker_available else []),
+                    *(day_operating_costs["operating_cost_source_receipt_ids"] if operating_available else []),
                 ])),
             }
             if updated != previous:
@@ -768,6 +786,9 @@ def write_paper_performance(
         )
         result = build_paper_performance(
             rows, observation, risk, broker_cost_evidence=cost_evidence,
+            operating_cost_readback=read_readback(
+                os.environ.get("LM_CFO_ACTUAL_COST_READBACK") or os.environ.get("LM_CFO_ACTUAL_COST"),
+            ),
         )
         observation_day = _utc_day(observed_at)
         daily_rounds = [
@@ -793,6 +814,7 @@ def write_paper_performance(
                 and tuple(sorted(row["order_ids"])) in daily_order_ids)
         ]
         daily_broker_costs = _broker_cost_summary(daily_rounds, daily_cost_evidence)
+        daily_operating_costs = select_components(result, daily_rounds)
         daily_cost_source_ids = daily_broker_costs["broker_cost_source_receipt_ids"]
         daily_cost_errors = [
             row for row in cost_errors if tuple(sorted(row.get("order_ids", []))) in daily_order_ids
@@ -801,12 +823,14 @@ def write_paper_performance(
             *[receipt_id for item in daily_rounds for receipt_id in item.get("source_receipt_ids", [])],
             account_receipt_id,
             *daily_cost_source_ids,
+            *daily_operating_costs["operating_cost_source_receipt_ids"],
         ]
         unknown_costs = (["fees", "model", "system"]
                          if daily_broker_costs["broker_slippage_status"] == "complete"
                          else ["fees", "slippage", "model", "system"])
         result = {
             **result,
+            **daily_operating_costs,
             "broker_costs_status": daily_broker_costs["broker_costs_status"],
             "broker_fees_status": daily_broker_costs["broker_fees_status"],
             "broker_slippage_status": daily_broker_costs["broker_slippage_status"],
@@ -820,6 +844,7 @@ def write_paper_performance(
             "completed_round_trips": len(daily_rounds),
             "completed_round_trips_total": len(completed),
             "costs_status": ("partial" if daily_broker_costs["broker_slippage_status"] == "complete"
+                             or daily_operating_costs["operating_costs_status"] == "partial"
                              else "unknown"),
             "fees_usd": daily_broker_costs["fees_usd"],
             "gross_exposure_usd": str(daily_exposure),
@@ -833,7 +858,7 @@ def write_paper_performance(
             "source_receipt_ids": list(dict.fromkeys(daily_source_ids)),
             "unknown_cost_categories": unknown_costs,
             "historical_cost_reconciliations": _refresh_historical_costs(
-                state, completed, cost_evidence, observation_day,
+                state, completed, cost_evidence, observation_day, result,
             ),
         }
         _atomic_json(state / f"performance-daily-{observation_day}.json", result)

@@ -74,6 +74,7 @@ class PaperOperatingCostTests(unittest.TestCase):
         self.assertEqual(result.get("verified_model_cost_subtotal_usd"), "0.01")
         self.assertEqual(result.get("verified_system_cost_subtotal_usd"), "0.09")
         self.assertEqual(result.get("operating_costs_status"), "partial")
+        self.assertEqual(result["costs_status"], "partial")
         self.assertEqual(len(result.get("operating_cost_source_receipt_ids", [])), 4)
         self.assertEqual(len(result.get("operating_cost_components", [])), 4)
         for field in ("model_cost_usd", "system_cost_usd", "net_realized_pnl_usd", "fees_usd"):
@@ -197,6 +198,30 @@ class PaperOperatingCostTests(unittest.TestCase):
                         self.assertEqual(result.get("operating_costs_status"), "unknown")
                         self.assertIsNone(result.get("verified_model_cost_subtotal_usd"))
                         self.assertIsNone(result.get("verified_system_cost_subtotal_usd"))
+
+    def test_malformed_nested_rows_do_not_escape_the_reporting_boundary(self):
+        for location in ("document", "line", "allocation", "join"):
+            with self.subTest(location=location):
+                payload = _readback()
+                if location == "document":
+                    payload["documents"].append(None)
+                elif location == "line":
+                    payload["documents"][0]["line_items"].append(None)
+                elif location == "allocation":
+                    payload["documents"][0]["line_items"][0]["allocations"].append(None)
+                else:
+                    payload["job_joins"].append({"provider": [], "job_id": {}})
+                result = self.report(payload)
+                self.assertEqual(result.get("operating_costs_status"), "unknown")
+                self.assertIsNone(result.get("verified_model_cost_subtotal_usd"))
+
+    def test_component_addition_is_exact_beyond_default_decimal_precision(self):
+        payload = _readback()
+        for line in payload["documents"][0]["line_items"]:
+            amount = "99999999999999999999999999.99" if line["category"] == "infra_cost" else "0.01"
+            line["amount"] = line["allocations"][0]["amount"] = amount
+        result = self.report(payload)
+        self.assertEqual(result.get("verified_system_cost_subtotal_usd"), "100000000000000000000000000.01")
 
 
 if __name__ == "__main__":

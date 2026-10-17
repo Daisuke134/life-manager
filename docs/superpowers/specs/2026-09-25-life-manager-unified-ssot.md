@@ -14646,6 +14646,8 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 - **writer:** 既存CFO環境変数の任意pathをpaper callerだけで渡す。未設定/読めない/不正JSONはunknownで、注文を発行しない。現在日のclosed subsetに対応する部分計だけを当日に出す。後日費用は既存historical経路で元の日へ付け、元のaccount観測時刻・gross・riskを保持する。元dailyが不正/欠落なら作り直さずunknownを記録する。
 - **原子的TODO:** A この設計をcommit/push → B 有効paid component・scope違い・重複・daily/late readback・不正入力・実callerの最小RED → C 投資側だけの最小実装と関連GREEN → D fresh金融read-only review、対象head CI、main統合 → E main由来ALL releaseとpaper ownerだけの安全な採用・loaded SHA → F 自然paper終端と実データの状態をreadback。Aは`987ac775e1`でremote保存済み。Bは実writerを通す7 tests / 27 failureのREDで、欠落fieldによるAssertionErrorだけを確認する。現在cursorはC。CFO adapter/B0契約・他owner・取引判断・21-session hold・Cloud switch・live/fenceは変更しない。
 
+**IN-COST-02 source検証:** Bは`396b9a0623`でpush済み。Cは投資側の`paper_operating_costs.py`、既存`paper_performance.py`と対応testだけで実装する。全費用を確定するcoverageは現在の入力に存在しないため、受理したcomponentの部分計だけを表示し、model/system totalとnetはnullを維持する。追加診断で不正nested行がreport境界から例外を出す2件、Decimal既定精度で加算が丸まる1件、既知componentがあるのにcosts statusがunknownの1件を再現し、各最小修正後にGREENを確認する。Alpaca 292 tests、core 137 tests、既存CFO actual-cost 28 tests、loop契約18/194、変更Python構文、diff checkはPASS。現在cursorはDの独立read-onlyレビューと対象head CI。runtime adoption・自然結果・実費・利益は未証明。
+
 **実行順更新:** 旧cursorはIN-EDD-02 Fを待ちながらactual-cost帰属を診断。診断により入力不足と投資側の接続不足を分離したため、新cursorはIN-COST-02 A→Fを先に進める。IN-EDD-02 Fと自然qualified exitは予定どおり並行待機する。実請求の取引別joinがないことは技術的な入力不足として残し、fixtureやsource採用を実費取得・利益の証明に置き換えない。
 
 ### 2026-10-09 13:18 JST — Job Hunter Dreamwork cutover and updated user criteria
