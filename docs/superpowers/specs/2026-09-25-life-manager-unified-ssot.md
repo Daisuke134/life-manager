@@ -237,6 +237,17 @@ README は「ユーザー向け18 + system agent 1」= 19 agent。19 = Host Stew
 - 閉じられないもの: `life-manager-daily:tiktok-retry-20260918-3`（Reddit アカウント `anicca_sao` が ban、公式 readback が取れない）。`fundraiser:18d9b0b6311a2018-87933`（marker 導入前の run、公式 readback 無し）。
 - 規模: reconciler の 1 回の巡回で fenced occurrence は約 3.9 万件、判定は 20 件／10 分。
 
+**残りTODO（10/17 14:50 実測、この順）**
+1. Writer 今日の公開: #8251（公開前の決定的 finisher）を 13:58 本番化。14:04 run の結果で公開 URL を確認。残り: article-resume の 10/12 fence（occurrence→run 記録が無い）、prompt と `ABSENCE_DESTINATIONS` の x-article/ja が契約（dormant）と不一致、Firecrawl token 無効。
+2. 費用の漏れ: Google Cloud 2026-09 請求 JPY 27,889（Places 9,420 / Geocoding 7,493 / Gemini 5,161 / Directions 3,271）。呼び出し元を特定して止める。
+3. お金の計測（P3）: CFO の確認済み MRR は mobile-apps USD 20.34 のみ。他 16 loop は「未確認」（stale_readback / missing_category）。各 loop の公式 readback を CFO に接続する。
+4. revenue telemetry 未確認 11 lane（Capafy IG 系、PromptBase、eBook en-instagram、anicca-ai-youtube、hf-gig-apply 等）: Writer（#8247）と同じ verified effect hint を出させる。health の last_success フォールバックを外す。
+5. 止まっている 5 lane: alpaca-live（Railway の重複 live trader 確認後に #8195）、life-manager-daily（Reddit ban、閉鎖不可）、LINE スタンプ 2（Instagram 凍結・lease 取得失敗）、marketing-owner-events（未確認送信 1 件を表示中、設計どおり）。
+6. fundraiser: submitted_verified が 10/08 以降 0。昨夜 17 件は全部送信前失敗（必須の紹介者欄、動画長、$50 応募料、CDP 切断）。
+7. SH4: external_effect_owner の自己修復 PR を、周期に合わせた非同期 health で自動昇格させる。
+8. SH3: 全 effect_reconcile adapter とログインの毎日 dry-run。SH5: CI で repo 全体の bash -n、ballast 条件見直し。
+9. fence 残 約 3.9 万件の整理。P4 評価駆動、P5 最大化。
+
 **10/16 に本番へ出した修正:**
 - #8165 squash-merge 済み worktree の回収
 - #8172 Mercor の gog keyring
