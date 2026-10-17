@@ -47,6 +47,9 @@ export FAKE_MODEL_CALLS="$TMP/model-calls" FAKE_INIT_ARGS="$TMP/init-args.json"
 export ARTICLE_LEDGER="$TMP/articles.jsonl"
 unset ARTICLE_RUN_DIR
 
+# `a && b` does not trip set -e when a fails; every compound assertion ends in fail.
+fail() { echo "assertion failed at line $1" >&2; exit 1; }
+
 sha() { shasum -a 256 "$1" | awk '{print $1}'; }
 
 make_run() {
@@ -95,25 +98,25 @@ jq -e --arg run "$RUN" --arg ledger "$ARTICLE_LEDGER" '
 rm -f "$RUN/gates/publication-state.json" "$FAKE_INIT_ARGS"; : >"$FAKE_MODEL_CALLS"
 ARTICLE_PUBLICATION_POLICY=continuous bash "$FINISH" --run-dir "$RUN" >"$TMP/out1b" 2>&1 \
   || { cat "$TMP/out1b"; exit 1; }
-[ ! -s "$FAKE_MODEL_CALLS" ] && [ -e "$FAKE_INIT_ARGS" ]
+{ [ ! -s "$FAKE_MODEL_CALLS" ] && [ -e "$FAKE_INIT_ARGS" ]; } || fail "$LINENO"
 [ ! -e "$RUN/gates/quality-self-heal-attempt-2.json" ]
 
 # 2. Existing publication state: the agent already crossed init; do nothing.
 : >"$FAKE_MODEL_CALLS"; rm -f "$FAKE_INIT_ARGS"
 ARTICLE_PUBLICATION_POLICY=continuous bash "$FINISH" --run-dir "$RUN" >"$TMP/out2" 2>&1
-[ ! -s "$FAKE_MODEL_CALLS" ] && [ ! -e "$FAKE_INIT_ARGS" ]
+{ [ ! -s "$FAKE_MODEL_CALLS" ] && [ ! -e "$FAKE_INIT_ARGS" ]; } || fail "$LINENO"
 
 # 3. Strict policy never forces publication.
 RUN="$(make_run 20261017-040000)"
 ARTICLE_PUBLICATION_POLICY=strict bash "$FINISH" --run-dir "$RUN" >"$TMP/out3" 2>&1
-[ ! -s "$FAKE_MODEL_CALLS" ] && [ ! -e "$FAKE_INIT_ARGS" ]
+{ [ ! -s "$FAKE_MODEL_CALLS" ] && [ ! -e "$FAKE_INIT_ARGS" ]; } || fail "$LINENO"
 [ ! -e "$RUN/gates/quality-self-heal.json" ]
 
 # 4. A ledger row for the run means the agent already decided (e.g. carry-over); do nothing.
 RUN="$(make_run 20261017-050000)"
 printf '{"run_id":"20261017-050000","published":false,"state":"carry-over:conscience-block:x"}\n' >"$ARTICLE_LEDGER"
 ARTICLE_PUBLICATION_POLICY=continuous bash "$FINISH" --run-dir "$RUN" >"$TMP/out4" 2>&1
-[ ! -s "$FAKE_MODEL_CALLS" ] && [ ! -e "$FAKE_INIT_ARGS" ]
+{ [ ! -s "$FAKE_MODEL_CALLS" ] && [ ! -e "$FAKE_INIT_ARGS" ]; } || fail "$LINENO"
 
 # 5. Conscience BLOCK stays blocking: no init, non-zero exit.
 RUN="$(make_run 20261017-060000)"
@@ -122,7 +125,7 @@ FAKE_CONSCIENCE=BLOCK ARTICLE_PUBLICATION_POLICY=continuous bash "$FINISH" --run
 rc=$?
 set -e
 [ "$rc" -ne 0 ]
-[ ! -e "$FAKE_INIT_ARGS" ] && [ ! -e "$RUN/gates/publication-state.json" ]
+{ [ ! -e "$FAKE_INIT_ARGS" ] && [ ! -e "$RUN/gates/publication-state.json" ]; } || fail "$LINENO"
 
 # 5b. The BLOCK is persisted hash-bound and is final for the same bytes: no re-judge to ALLOW.
 jq -e --arg h "$(sha "$RUN/article-ja.md")" '.verdict == "BLOCK" and .article_sha256 == $h' \
@@ -132,14 +135,14 @@ set +e
 ARTICLE_PUBLICATION_POLICY=continuous bash "$FINISH" --run-dir "$RUN" >"$TMP/out5b" 2>&1
 rc=$?
 set -e
-[ "$rc" -ne 0 ] && ! grep -q conscience "$FAKE_MODEL_CALLS"
-[ ! -e "$FAKE_INIT_ARGS" ] && [ ! -e "$RUN/gates/publication-state.json" ]
+{ [ "$rc" -ne 0 ] && ! grep -q conscience "$FAKE_MODEL_CALLS"; } || fail "$LINENO"
+{ [ ! -e "$FAKE_INIT_ARGS" ] && [ ! -e "$RUN/gates/publication-state.json" ]; } || fail "$LINENO"
 # The gate itself also replays the stored BLOCK instead of asking the judge again.
 set +e
 ARTICLE_RUN_DIR="$RUN" bash "$ROOT/scripts/conscience-gate.sh" "$RUN/article-ja.md" --lang ja >"$TMP/out5c" 2>&1
 rc=$?
 set -e
-[ "$rc" -eq 1 ] && ! grep -q conscience "$FAKE_MODEL_CALLS" && grep -q '"BLOCK"' "$TMP/out5c"
+{ [ "$rc" -eq 1 ] && ! grep -q conscience "$FAKE_MODEL_CALLS" && grep -q '"BLOCK"' "$TMP/out5c"; } || fail "$LINENO"
 
 # 7. A current-hash identity FAIL is final: never re-judged, never initialized.
 RUN="$(make_run 20261017-070000)"
@@ -149,7 +152,7 @@ set +e
 ARTICLE_PUBLICATION_POLICY=continuous bash "$FINISH" --run-dir "$RUN" >"$TMP/out7" 2>&1
 rc=$?
 set -e
-[ "$rc" -ne 0 ] && [ ! -s "$FAKE_MODEL_CALLS" ] && [ ! -e "$FAKE_INIT_ARGS" ]
+{ [ "$rc" -ne 0 ] && [ ! -s "$FAKE_MODEL_CALLS" ] && [ ! -e "$FAKE_INIT_ARGS" ]; } || fail "$LINENO"
 
 # 8. Gates the agent left running for this run are stopped before the finisher judges;
 #    the kept (broker) pid survives.
@@ -165,7 +168,26 @@ alive_leftover=0; kill -0 "$LEFTOVER" 2>/dev/null && alive_leftover=1
 alive_kept=0; kill -0 "$KEPT" 2>/dev/null && alive_kept=1
 kill "$LEFTOVER" "$KEPT" 2>/dev/null || true
 wait "$LEFTOVER" "$KEPT" 2>/dev/null || true
-[ "$alive_leftover" -eq 0 ] && [ "$alive_kept" -eq 1 ] && [ -e "$FAKE_INIT_ARGS" ]
+{ [ "$alive_leftover" -eq 0 ] && [ "$alive_kept" -eq 1 ] && [ -e "$FAKE_INIT_ARGS" ]; } || fail "$LINENO"
+
+# 8b. A broker handler forked after the scan started is still kept (keep set is live).
+#     The leftover ignores TERM so the stop loop keeps iterating until KILL.
+RUN="$(make_run 20261017-090000)"
+python3 -c 'import signal,time; signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(300)' \
+  "$RUN/article-en.md" &
+LEFTOVER=$!
+bash -c 'sleep 1; python3 -c "import os,sys,time; open(sys.argv[2],\"w\").write(str(os.getpid())); time.sleep(300)" "$1" "$2" & wait' \
+  broker "$RUN" "$TMP/handler.pid" &
+KEPT=$!
+sleep 0.3
+ARTICLE_PUBLICATION_POLICY=continuous bash "$FINISH" --run-dir "$RUN" --keep-pid "$KEPT" >"$TMP/out8b" 2>&1 \
+  || { cat "$TMP/out8b"; exit 1; }
+HANDLER="$(cat "$TMP/handler.pid" 2>/dev/null || true)"
+alive_handler=0; [ -n "$HANDLER" ] && kill -0 "$HANDLER" 2>/dev/null && alive_handler=1
+alive_leftover=0; kill -0 "$LEFTOVER" 2>/dev/null && alive_leftover=1
+kill -KILL "$LEFTOVER" "$KEPT" ${HANDLER:+"$HANDLER"} 2>/dev/null || true
+wait "$LEFTOVER" "$KEPT" 2>/dev/null || true
+{ [ "$alive_handler" -eq 1 ] && [ "$alive_leftover" -eq 0 ]; } || fail "$LINENO"
 
 # 6. The daily wrapper calls the finisher after the model pass, before the broker drains.
 awk '/^run_model_pass$/{m=1} m&&/prepublication-finish\.sh/{f=1} m&&/^drain_generation_workers$/{print (f?"ok":"missing"); exit}' \

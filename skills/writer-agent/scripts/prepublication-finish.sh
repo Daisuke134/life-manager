@@ -52,11 +52,14 @@ descendants() {  # <pid>: the pid and every descendant
 # identity/conscience in progress on 20261017-033711). Stop every process naming this run,
 # except this finisher and the kept judge broker tree, so no stale gate races our verdicts.
 stop_run_leftovers() {
-  local keep pid tries=0 found
-  keep=" $$ $PPID $( [ -n "$KEEP_PID" ] && descendants "$KEEP_PID" | tr '\n' ' ') "
+  local keep pid tries=0 found candidates
   while :; do
+    # Recompute every pass, after the scan: the broker forks handlers (argv names this
+    # run) at any time, and a handler seen by pgrep must already be in the keep set.
+    candidates="$(pgrep -f -- "$RUN_DIR" 2>/dev/null)"
+    keep=" $$ $PPID $( [ -n "$KEEP_PID" ] && descendants "$KEEP_PID" | tr '\n' ' ') "
     found=""
-    for pid in $(pgrep -f -- "$RUN_DIR" 2>/dev/null); do
+    for pid in $candidates; do
       case "$keep" in *" $pid "*) ;; *) found="$found $pid";; esac
     done
     [ -n "$found" ] || return 0
