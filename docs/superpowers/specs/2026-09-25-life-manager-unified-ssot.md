@@ -14599,6 +14599,10 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **最新cursor:** (1) 完了: PR #8259修正をmain由来releaseへ載せ、Local paper ownerへ反映。 (2) 完了: 09:41Z・09:45Zの自然runで正常終了、no-order、fence falseを再確認。 (3) 完了: Railway productionのCloud LIVE/SHADOWをfalse、stagingにinvestment variableなしと確認。 (4) 現在: 21取引日の条件を満たす自然のqualified exitを待つ。 (5) 次: brokerのbuy/sell/fill/fee/slippageとmodel/system costを結び、最初のround tripのnetを計算。 (6) 続けて30件の自然なcost-complete round trip、holdout・parameter sensitivity・cross-venue・AT-24/AT-29・replay-zeroを評価。 (7) 全gateと独立反対レビューが通るまでLocal liveはdisabledのまま。
 
+**IN-COST-01実行順更新:** 旧順序=`21取引日の自然exit → 最初のround tripの費用照合`。新順序=`(1) 既存の費用連携PR #7768を最新mainへ追従 → (2) investor関連の回帰検証と独立した金融read-only review → (3) 対象commitのCI、main統合、immutable release、Local paper ownerへの反映 → (4) 自然HOLD runで注文なし・no-effect契約を維持 → (5) 既存21取引日のqualified exitを自然に迎える → (6) 同じowner/order pair/periodのFILL・FEE・quoteとmodel/systemの公式実費証拠を照合 → (7) cost-complete netと30件・holdout・cross-venue・AT-24/AT-29・replay-zeroの既存gate`。理由は、mainにbroker費用連携がなく、既存PR #7768が未統合だったため。自然exitの待機中にこの依存を閉じれば、売却後の評価を早められる。**現在cursor:** PR #7768の既存branchを専用worktreeへ復元し、main `505cd67f`を通常merge済み。実装の所有範囲は同PRのAlpaca CLI、paper performance、run接続、対応testと本正本。broker費用を照合してもmodel/system費用はnullのままで、complete netや利益、LIVE昇格を主張しない。
+
+**戦略検証の診断:** 最後の失敗は10月14日の`ENOSPC`で、`reviewed-validation-reports.json`のatomic writeに失敗したもの。現在の選択戦略は10月21日05:47Zまで有効。loaded plistは`Weekday=2 / 14:30`を保持し、macOSの`launchd.plist`定義（0と7が日曜）により次の火曜の自然実行を待つ。手動の戦略再実行や注文は行わない。
+
 ### 2026-10-09 13:18 JST — Job Hunter Dreamwork cutover and updated user criteria
 
 この追記は11:50 JST snapshot後のJob Hunter readbackとユーザーの最新指示を記録する。個別の勤務地・住所などの私的値はprivate profileのみを正本とし、このspecには複製しない。
