@@ -4,6 +4,7 @@ import hashlib
 import importlib.util
 import io
 import json
+import re
 import subprocess
 import tempfile
 import time
@@ -2613,6 +2614,60 @@ class LocalLoopTest(unittest.TestCase):
             # The live campaign no longer conflicts, so beta-en is actually reached.
             self.assertEqual(result["state"], "OWNED_NOT_LIVE")
             self.assertEqual(link_acquirer.call_args.args[3], "beta-en-1")
+
+    def test_generic_publication_materializes_rendered_affiliate_page(self):
+        with tempfile.TemporaryDirectory() as root:
+            state = Path(root) / "state"
+            plan_id = "beta-en"
+            link = "https://try.elevenlabs.io/beta-en-1"
+            handoff = {
+                "receipt_type": "CAMPAIGN_HANDOFF", "state": "READY_FOR_POLICY",
+                "plan_id": plan_id, "locale": "en", "slug": f"{plan_id}-guide",
+                "source_set_sha256": "e" * 64, "title": "t", "buyer_intent": "b",
+                "cited_sources": [{"locator": "https://elevenlabs.io/x", "raw_sha256": "f" * 64}],
+                "owned_article_markdown": (
+                    "Intro [docs](https://elevenlabs.io/x).\n\n"
+                    "Disclosure: This article contains an affiliate link.\n\n"
+                    "Review it here: {{AFFILIATE_LINK}}"
+                ),
+                "x_copy": "copy {{OWNED_ARTICLE_URL}}",
+                "disclosure": "Disclosure: This article contains an affiliate link.",
+            }
+            fingerprint = hashlib.sha256(json.dumps(
+                handoff, sort_keys=True, separators=(",", ":"),
+            ).encode()).hexdigest()
+            body = json.dumps(
+                {**handoff, "handoff_fingerprint": fingerprint},
+                sort_keys=True, separators=(",", ":"),
+            ).encode()
+            path = state / "campaign-handoffs" / f"{plan_id}.json"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(body)
+            MODULE.atomic_json(state / "campaign-policy" / f"{plan_id}.json", {
+                "receipt_type": "GENERIC_CAMPAIGN_POLICY", "state": "PASS",
+                "decision": "PASS", "plan_id": plan_id, "locale": "en",
+                "handoff_sha256": hashlib.sha256(body).hexdigest(),
+                "handoff_fingerprint": fingerprint, "source_set_sha256": "e" * 64,
+                "checks": {"ok": True}, "semantic_audit": {"decision": "PASS"},
+            })
+            link_acquirer = Mock(return_value={
+                "state": "VERIFIED", "deduplicated": True,
+                "private_link_field": "f", "provider_link_key": "key-2",
+            })
+            with patch.object(MODULE, "elevenlabs_link", return_value=link):
+                MODULE.advance_generic_publication(
+                    state, Path(root) / "landing", 9326, Path(root) / "private.md",
+                    owned_publisher=Mock(return_value={"state": "NOT_LIVE", "public_url": None}),
+                    x_publisher=Mock(), link_acquirer=link_acquirer,
+                )
+            artifact = json.loads((state / "content" / f"{plan_id}-guide.json").read_text())
+            markdown = artifact["markdown"]
+            self.assertNotIn("](https://elevenlabs.io", markdown)
+            self.assertNotRegex(markdown, r"(?<!\()" + re.escape(link))
+            self.assertIn("is not sponsored by, endorsed by", markdown)
+            self.assertEqual(
+                artifact["content_sha256"], hashlib.sha256(markdown.encode()).hexdigest(),
+            )
 
     def test_liveness_sweep_runs_once_per_jst_day_and_reports_a_dead_post(self):
         with tempfile.TemporaryDirectory() as root:

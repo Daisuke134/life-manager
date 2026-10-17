@@ -39,6 +39,28 @@ class ContentPolicyTest(unittest.TestCase):
         artifact["markdown"] = f"[Try it]({link})\n\n{MODULE.DISCLOSURE}"
         self.assertFalse(MODULE.policy_checks(artifact, {"official": "abc"}, link)["disclosure_before_first_cta"])
 
+    def test_rendered_page_with_top_and_end_cta_passes_policy(self):
+        link = "https://try.elevenlabs.io/unit"
+        markdown = MODULE.render_affiliate_markdown(
+            f"Intro [docs](https://elevenlabs.io/docs).\n\n{MODULE.DISCLOSURE}\n\nTry it: {link}", link,
+        )
+        artifact = {
+            "markdown": markdown,
+            "content_sha256": MODULE.hashlib.sha256(markdown.encode()).hexdigest(),
+            "source_hashes": {"official": "abc"},
+        }
+        self.assertTrue(all(MODULE.policy_checks(artifact, {"official": "abc"}, link).values()))
+        artifact["markdown"] = markdown + "\n\n[leak](https://elevenlabs.io/pricing)"
+        artifact["content_sha256"] = MODULE.hashlib.sha256(artifact["markdown"].encode()).hexdigest()
+        self.assertFalse(MODULE.policy_checks(artifact, {"official": "abc"}, link)["no_untracked_merchant_links"])
+
+    def test_builders_render_tracked_page(self):
+        template = (Path(__file__).parents[1] / "config" / "content" / "elevenlabs-en-v1.md").read_text()
+        link = "https://try.elevenlabs.io/elevenlabs-en-1"
+        markdown = MODULE.render_affiliate_markdown(template.replace("{{AFFILIATE_LINK}}", link), link)
+        self.assertIn(MODULE.ATTRIBUTION, markdown)
+        self.assertNotIn("](https://elevenlabs.io", markdown)
+
     def test_elevenagents_x_artifact_fits_platform_limit(self):
         with tempfile.TemporaryDirectory() as temporary:
             state = Path(temporary)

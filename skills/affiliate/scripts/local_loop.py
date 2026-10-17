@@ -3680,7 +3680,7 @@ def advance_generic_publication(
     owned_publisher=None, x_publisher=None, link_acquirer=None,
 ):
     """Advance one policy-PASS generic campaign through existing effect fences."""
-    from owned_publish import publish as default_owned_publisher
+    from owned_publish import publish as default_owned_publisher, render_affiliate_markdown
     from x_post_cli import publish as default_x_publisher
 
     owned_publisher = owned_publisher or default_owned_publisher
@@ -3874,7 +3874,9 @@ def advance_generic_publication(
             or x_copy.count("{{OWNED_ARTICLE_URL}}") != 1
         ):
             return {"state": "CAMPAIGN_CONTENT_INVALID", "public_url": None}
-        published_markdown = markdown.replace("{{AFFILIATE_LINK}}", link)
+        published_markdown = render_affiliate_markdown(
+            markdown.replace("{{AFFILIATE_LINK}}", link), link,
+        )
         content_sha256 = hashlib.sha256(published_markdown.encode()).hexdigest()
         created_at = progress.get("created_at") or datetime.now(timezone.utc).isoformat()
         progress = {

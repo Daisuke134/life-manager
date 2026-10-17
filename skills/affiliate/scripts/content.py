@@ -13,6 +13,9 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from local_loop import elevenlabs_link
+from owned_publish import (  # noqa: F401  (ATTRIBUTION is part of this module's contract)
+    ATTRIBUTION, MARKDOWN_LINK, MERCHANT_HOST, TRACKED_HOST, render_affiliate_markdown,
+)
 from provider_cli import atomic_write
 
 
@@ -99,7 +102,7 @@ def build(root, state, private_markdown, link_field="Default affiliate link"):
     template = (root / "config" / "content" / "elevenlabs-en-v1.md").read_text(encoding="utf-8")
     if template.count("{{AFFILIATE_LINK}}") != 1:
         raise ContentError("content template has an invalid link boundary")
-    markdown = template.replace("{{AFFILIATE_LINK}}", link)
+    markdown = render_affiliate_markdown(template.replace("{{AFFILIATE_LINK}}", link), link)
     slug = "elevenlabs-plans-for-solo-creators"
     artifact = {
         "schema_version": 1,
@@ -128,7 +131,7 @@ def build_agents(root, state, private_markdown, link_field="ElevenAgents affilia
     template = (root / "config" / "content" / "elevenagents-en-v1.md").read_text(encoding="utf-8")
     if template.count("{{AFFILIATE_LINK}}") != 1:
         raise ContentError("content template has an invalid link boundary")
-    markdown = template.replace("{{AFFILIATE_LINK}}", link)
+    markdown = render_affiliate_markdown(template.replace("{{AFFILIATE_LINK}}", link), link)
     slug = "elevenagents-for-customer-support"
     artifact = {
         "schema_version": 1,
@@ -182,9 +185,9 @@ def build_tts_api(root, state, private_markdown):
         ):
             return {key: artifact[key] for key in ("artifact_id", "slug", "content_sha256", "state")}
     template = (root / "config" / "content" / "elevenlabs-tts-api-en-v1.md").read_text(encoding="utf-8")
-    markdown = validate_tts_api_result({
+    markdown = render_affiliate_markdown(validate_tts_api_result({
         "title": TTS_API_TITLE, "markdown": template,
-    }).replace("{{AFFILIATE_LINK}}", link)
+    }).replace("{{AFFILIATE_LINK}}", link), link)
     artifact = {
         "schema_version": 1, "artifact_id": "elevenlabs-tts-api-en-v1",
         "slug": TTS_API_SLUG, "locale": "en", "title": TTS_API_TITLE,
@@ -233,7 +236,13 @@ def policy_checks(artifact, source_hashes, link):
         "artifact_hash": hashlib.sha256(markdown.encode()).hexdigest() == artifact.get("content_sha256"),
         "disclosure_before_first_cta": bool(tracking) and DISCLOSURE in markdown and markdown.find(DISCLOSURE) < markdown.find(tracking),
         "fresh_sources_match_artifact": source_hashes == artifact.get("source_hashes"),
-        "one_owned_tracking_link": bool(tracking) and markdown.count(tracking) == 1 and parsed.scheme == "https" and parsed.hostname == "try.elevenlabs.io",
+        # One distinct owned link; the rendered page repeats it at the top and end.
+        "one_owned_tracking_link": bool(tracking) and parsed.scheme == "https" and parsed.hostname == TRACKED_HOST
+        and set(re.findall(r"https://try\.elevenlabs\.io/[^\s)\]]*", markdown)) == {tracking},
+        "no_untracked_merchant_links": not any(
+            (urlsplit(url).hostname or "") != TRACKED_HOST and MERCHANT_HOST.match(urlsplit(url).hostname or "")
+            for _, url in MARKDOWN_LINK.findall(markdown)
+        ),
         "forbidden_claims_absent": not any(claim in lowered for claim in FORBIDDEN_CLAIMS),
     }
 

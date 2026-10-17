@@ -40,6 +40,7 @@
     {"command":"content policy-agents","entrypoint":"scripts/content.py","authority":"WRITE_LOCAL","external_effect":false},
     {"command":"content policy-tts-api","entrypoint":"scripts/content.py","authority":"WRITE_LOCAL","external_effect":false},
     {"command":"owned publish","entrypoint":"scripts/owned_publish.py","authority":"WRITE_EXTERNAL","external_effect":true},
+    {"command":"owned rerender","entrypoint":"scripts/owned_publish.py","authority":"WRITE_EXTERNAL","external_effect":true},
     {"command":"revenue observe","entrypoint":"scripts/revenue_cli.py","authority":"MONEY_RECONCILE","external_effect":false},
     {"command":"revenue links","entrypoint":"scripts/revenue_cli.py","authority":"MONEY_RECONCILE","external_effect":false},
     {"command":"revenue capture","entrypoint":"scripts/revenue_cli.py","authority":"MONEY_RECONCILE","external_effect":false},
