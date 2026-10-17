@@ -1182,7 +1182,12 @@ def _no_effect_row(row: dict[str, Any]) -> bool:
     if row.get("draft_url") not in (None, "") or row.get("verified_logged_in") is True:
         return False
     text = " ".join(str(row.get(key) or "") for key in ("state", "note", "reason", "failure_reason")).lower()
-    return not any(token in text for token in _NO_EFFECT_TEXT_FORBIDDEN)
+    forbidden = _NO_EFFECT_TEXT_FORBIDDEN
+    if str(row.get("state") or "").startswith("pending:publication-init-refused:"):
+        # init refused before publication state existed; its refusal text names quality "receipts"
+        # (2026-10-17 run 20261016-230536), which are not provider receipts.
+        forbidden = tuple(token for token in forbidden if token != "receipt")
+    return not any(token in text for token in forbidden)
 
 
 def _carry_over_without_dispatch(run_dir: Path, rows: list[dict[str, Any]], run_id: str) -> bool:

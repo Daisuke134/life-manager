@@ -1398,3 +1398,38 @@ class AmbiguousPrepublicationFailureDoesNotBlockTheDayTest(unittest.TestCase):
             with tempfile.TemporaryDirectory() as tmp:
                 decision = self._run(Path(tmp), **kwargs)
             self.assertNotEqual(decision["action"], "new", kwargs)
+
+
+class PublicationInitRefusedRowsDoNotBlockTheDayTest(unittest.TestCase):
+    """2026-10-17 11:17: run 20261016-230536 wrote four rows
+    `pending:publication-init-refused:...quality_self_heal receipt hash binding failed...`.
+    init refused before publication state existed, so nothing left the machine, but the word
+    "receipt" in the refusal text kept the whole day blocked."""
+
+    STATE = ("pending:publication-init-refused:editorial/reader advisory requires single-evaluation "
+             "force receipt; quality_self_heal receipt hash binding failed after reader retry controller defect")
+
+    def _decide(self, state: str, publication_state: bool = False):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            run_id = "20261016-230536"
+            run_dir = root / "runs" / run_id
+            (run_dir / "gates").mkdir(parents=True)
+            (run_dir / "git-hash.txt").write_text("abc\n")
+            if publication_state:
+                (run_dir / "gates" / "publication-state.json").write_text("{}")
+            rows = [{"ts": "2026-10-17T02:17:00+00:00", "run_id": run_id, "platform": p, "lang": l,
+                     "published": False, "draft_url": None, "state": state}
+                    for p, l in (("note", "ja"), ("substack", "ja"), ("substack", "en"), ("x-article", "ja"))]
+            (root / "articles.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+            return START.decide(root, "2026-10-17")
+
+    def test_init_refused_rows_start_a_new_run(self):
+        decision = self._decide(self.STATE)
+        self.assertEqual(decision["action"], "new")
+        self.assertEqual(decision["reason"], "same-jst-day-carry-over-no-dispatch")
+
+    def test_other_effect_words_or_publication_state_still_block(self):
+        self.assertNotEqual(self._decide(self.STATE + " https://note.com/x")["action"], "new")
+        self.assertNotEqual(self._decide("pending:other receipt=abc")["action"], "new")
+        self.assertNotEqual(self._decide(self.STATE, publication_state=True)["action"], "new")
