@@ -273,8 +273,9 @@ ARTICLE_RUN_ID="$RUN_TS" ARTICLE_MODEL_LOG="$LOG" ARTICLE_RUN_DIR="$RUN_DIR" \
     "$ARTICLE_MODEL_RUNNER" agent --prompt-file "$PROMPT_FILE" >>"$LOG" 2>&1
 RC=$?
 echo "capafy-distribute-daily: model pass exit=$RC slot=$SLOT skill=$CAPAFY_SKILL_SLUG" >>"$LOG"
-# The agent CLI exits 1 even after a fully published run (live 2026-09-29 h15:
-# receipt published + ledger written, exit 1). The ledger is the effect truth.
+# The ledger is the effect truth, not the exit code. Before PR #8249 the agent
+# exited 1 even after a fully published run (live 2026-09-29 h15) because its
+# prose report failed the shared runner's JSON contract; rc is still advisory.
 # X post runs here, outside the agent (same move as daily_loop.sh's prepare: the
 # agent's per-command timeout killed the up-to-10-min Postiz readback, h21 x=failed).
 CAPTION_FILE="$RUN_DIR/x-caption.txt"

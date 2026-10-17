@@ -669,7 +669,11 @@ def _exhausted_empty_provider_failure(
     state = _regular_json(run_dir / "gates" / "generation-state.json")
     if not state or state.get("run_id") != run_id:
         return False
-    if not (state.get("status") == "provider-failed-safe" or _failed_before_publication(state)):
+    # provider-returned: since PR #8249 a completed agent pass exits rc=0
+    # instead of a silent rc=1; an empty one is still released only by the
+    # prepublication_empty re-check below.
+    if not (state.get("status") in {"provider-failed-safe", "provider-returned"}
+            or _failed_before_publication(state)):
         return False
     if _charged_attempt_count(state) < int(state.get("maximum_attempts", MAX_GENERATION_ATTEMPTS)):
         return False
