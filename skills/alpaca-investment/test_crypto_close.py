@@ -165,7 +165,9 @@ class CryptoCloseTests(unittest.TestCase):
         variants=(('outcome','client_order_id','foreign'),('outcome','mode','paper'),
                   ('outcome','paper',True),('outcome','broker_receipt_id','foreign'),
                   ('broker','client_order_id','foreign'),('broker','side','buy'),
-                  ('broker','symbol','ETH/USDC'),('broker','type','limit'))
+                  ('broker','symbol','ETH/USDC'),('broker','type','limit'),
+                  ('proof','release_sha','b'*40),('proof','entry_provider_order_id','foreign'),
+                  ('proof','entry_price','999'),('proof','net_realized_pnl_usd','999'))
         for section,key,value in variants:
             with self.subTest(section=section,key=key),tempfile.TemporaryDirectory() as directory,patch.dict(os.environ,{
                     'LIFE_MANAGER_INVESTMENT_OWNER_ID':'alpaca-investment-live'}):
@@ -175,7 +177,7 @@ class CryptoCloseTests(unittest.TestCase):
                 rows=effect_store._rows(root/'receipts.jsonl')
                 outcome=next(r for r in reversed(rows) if r.get('receipt_type')=='outcome'
                              and r.get('effect_id')==owned['close_effect_id'])
-                (outcome if section=='outcome' else outcome['broker'])[key]=value
+                ({'outcome':outcome,'broker':outcome['broker'],'proof':outcome['strategy_receipt']['receipt']}[section])[key]=value
                 (root/'receipts.jsonl').write_text(''.join(json.dumps(r)+'\n' for r in rows))
                 self.assertEqual(effect_store.unresolved_intent_count(root/'receipts.jsonl'),1)
                 self.assertEqual(effect_store.effect_state(root/'receipts.jsonl',owned['close_effect_id']),'started')
