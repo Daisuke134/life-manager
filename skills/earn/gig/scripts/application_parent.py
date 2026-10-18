@@ -2696,7 +2696,10 @@ class CdpParentEffects:
         with self.target_lock():
             try:
                 observed = self._official_readback(request_ids, path)
-            except websockets.exceptions.ConnectionClosedError:
+            except (websockets.exceptions.ConnectionClosedError,
+                    websockets.exceptions.InvalidStatus):
+                # A refused CDP upgrade (HTTP 500 for every connect retry) is the same dead
+                # target as a dropped socket: recycle once and read back again, never resend.
                 if not self.recover_wedged_target():
                     raise
                 observed = self._official_readback(request_ids, path)
@@ -4972,6 +4975,34 @@ def _readonly_discovery_effect_factory(
     return factory
 
 
+def _commit_then_finalize(
+    effects: object, *, evidence_dir: Path, snapshot: dict[str, object],
+    planner_missing_request_ids: list[str], results: list[dict[str, object]],
+) -> None:
+    """Record what the workers did, then run the final exact readback.
+
+    Run 18df847a6a6c0b68-50470 sent four applications; the finalize readback then raised and
+    parent-commit.json, written after it, never existed, so the wake reported effect 0. The
+    commit is evidence, not success: summary.json (status success) is still written only
+    after finalize returns.
+    """
+    _atomic_json(
+        evidence_dir / "parent-commit.json",
+        {
+            "snapshot_sha256": snapshot["snapshot_sha256"],
+            "planner_missing_request_ids": planner_missing_request_ids,
+            "results": results,
+        },
+    )
+    if isinstance(effects, CdpParentEffects):
+        confirmed_ids = {
+            str(result["request_id"])
+            for result in results
+            if result.get("status") in CONFIRMED_STATUSES
+        }
+        effects.finalize_exact_readback(confirmed_ids)
+
+
 def run_parent(
     *,
     lease_script: Path,
@@ -5233,13 +5264,10 @@ def run_parent(
             # reuse so a later pass with unchanged content asks the planner fresh
             # instead of re-paying browser readback cost on already-settled rows.
             mark_planner_cache_consumed(cache_path, planner_content_key)
-        if isinstance(effects, CdpParentEffects):
-            confirmed_ids = {
-                str(result["request_id"])
-                for result in results
-                if result.get("status") in CONFIRMED_STATUSES
-            }
-            effects.finalize_exact_readback(confirmed_ids)
+        _commit_then_finalize(
+            effects, evidence_dir=evidence_dir, snapshot=snapshot,
+            planner_missing_request_ids=planner_missing_request_ids, results=results,
+        )
         legacy_b2 = project_legacy_b2(
             snapshot,
             decisions,
@@ -5250,14 +5278,6 @@ def run_parent(
             planner_missing_request_ids=planner_missing_request_ids,
         )
         _atomic_json(output_path, legacy_b2)
-        _atomic_json(
-            evidence_dir / "parent-commit.json",
-            {
-                "snapshot_sha256": snapshot["snapshot_sha256"],
-                "planner_missing_request_ids": planner_missing_request_ids,
-                "results": results,
-            },
-        )
         _atomic_json(
             evidence_dir / "summary.json",
             {
