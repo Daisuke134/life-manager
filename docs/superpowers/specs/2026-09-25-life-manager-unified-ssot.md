@@ -3554,3 +3554,5 @@ Final: Ruling: レビュー対象外のwheel配布・root installer・署名認�
 Ruling: 既存root installerの依存不足は、今回の承認済みsource branch保存を止める条件にしない — 人口suiteと元資料実行が成功し、root installer/runtime/packageは変更していない — root全体のinstall成功は保証せず、main統合/本番反映は行わない。
 
 本人への結果説明用に、2人世帯の目標151592に対して生成151575（17不足）という実測例を記事へ追記。6交差セルの差と周辺合計の差を混同しないよう明記した。8Bは実装/測定済み・説明と理解待ち。次9は別の実行動データで予測を評価する部品だが、今回追加実装していない。
+
+8B完了の保存記録：実装と素材の最終commit d17f0ac978777c6063929ca830a54d9c88a6b640 を origin/docs/manager-learning-20261017へpush成功。git ls-remoteのbranch SHAとlocal HEADが一致し、worktree cleanを確認。人口suite50/50（8A29含む）、OSS12/12、source-boundary/base→HEAD diff --check PASS。root installer2件は既知依存不足のまま別記録。本人へ渡すものはコード、再現手順、生成画像、実測図、記事、横長6/縦長6/HTML/JSON/台本。8B実装・測定・説明素材保存まで完了、本人の理解合図待ち。次9は未着手。main統合/本番反映/ブログ・SNS投稿/メール・応募は行っていない。既存worktreeは継続用に保持。このreceipt追記も同branchへ保存する。
