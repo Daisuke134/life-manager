@@ -46,6 +46,24 @@ def _costs():
 
 
 class StrategyValidationTests(unittest.TestCase):
+    def test_required_indicator_history_comparison_is_not_optional(self):
+        mapping=_card().to_mapping()
+        mapping["kill_conditions"].append("indicator_history_unstable")
+        result=validate_series(StrategyCard.from_mapping(mapping),_candles([90,110]*5),_split(),_costs())
+        self.assertEqual(result["status"],"unknown")
+        self.assertEqual(result["reason"],"indicator_history_unknown")
+        self.assertIsNone(result["net_pnl_usd"])
+
+    def test_indicator_reference_predicate_disagreement_is_unknown(self):
+        candles=_candles([90,110]*5)
+        for row in candles:
+            row["indicator_history_stable"]="1"
+            row["reference_close"]="1000"
+        result=validate_series(_card(),candles,_split(),_costs())
+        self.assertEqual(result["status"],"unknown")
+        self.assertEqual(result["decision"],"rejected")
+        self.assertIsNone(result["net_pnl_usd"])
+
     def test_non_usd_quotes_use_entry_and_exit_fx_without_changing_signals(self):
         mapping = _card().to_mapping()
         mapping["instruments"] = ["TEST/USDC"]
