@@ -30,6 +30,14 @@ if [ "$1" = "apply" ]; then
       echo "[{\\"ok\\":true,\\"label\\":\\"$target\\",\\"release_sha\\":\\"x\\",\\"changed\\":true}]"
       exit 0
       ;;
+    defer_loaded)
+      if [ "$target" = "${FAKE_DEFERRED_TARGET:-}" ]; then
+        printf '[{"ok":true,"label":"%s","changed":false,"skipped":"%s"}]' "$target" "$FAKE_DEFERRED_REASON"
+      else
+        printf '[{"ok":true,"label":"%s","changed":true}]' "$target"
+      fi
+      exit 0
+      ;;
     retire_bad)
       if [ "$target" = "${FAKE_RETIRE_TARGET:-}" ]; then
         echo "$FAKE_RETIRE_RESPONSE"
@@ -334,6 +342,9 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             first = self._run(env)
             self.assertEqual(first.returncode, 0, first.stderr)
             self.assertEqual(self._apply_call_count(calls_log), 1)
+            self.assertTrue(all(line.startswith("apply --loaded-idle-only ")
+                                for line in calls_log.read_text().splitlines()
+                                if line.startswith("apply ")))
             state = self._state(root)
             self.assertEqual(state["sha"], sha)
             self.assertEqual(state["status"], "ok")
@@ -672,6 +683,38 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             self.assertEqual(self._apply_call_count(calls_log), 4)
             self.assertEqual(self._state(root)["status"], "ok")
             self.assertIs(self._state(root)["control_busy_continue"], False)
+
+    def test_loaded_owner_deferral_is_partial_and_retried_when_idle(self):
+        for reason in ("loaded-running", "pending-admission"):
+            with self.subTest(reason=reason), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                repo, sha = self._make_repo(root)
+                self._activate(root, self._make_release(root, sha, loop_ids=("loop-a", "loop-b")))
+                calls_log = root / "calls.log"
+                env = self._base_env(root, repo, calls_log=calls_log, apply_mode="defer_loaded")
+                env.update(FAKE_DEFERRED_TARGET="loop-a", FAKE_DEFERRED_REASON=reason,
+                           LIFE_MANAGER_FLEET_APPLY_CONTINUE_SECONDS="0")
+
+                first = self._run(env)
+                self.assertEqual(first.returncode, 0, first.stderr)
+                state = self._state(root)
+                self.assertEqual(state["status"], "partial")
+                self.assertEqual(state["changed"], 1)
+                self.assertEqual(state["skipped"], 1)
+                self.assertEqual(state["errors"], 0)
+                self.assertIs(state["control_busy_continue"], True)
+                self.assertEqual(state["last_ok_epoch"], 0)
+                deferred = next(row for row in self._owners_log(root) if row["loop_id"] == "loop-a")
+                self.assertEqual(deferred["rc"], 0)
+                self.assertEqual(deferred["changed"], 0)
+                self.assertEqual(deferred["reason"], reason)
+
+                env["FAKE_APPLY_MODE"] = "ok"
+                second = self._run(env)
+                self.assertEqual(second.returncode, 0, second.stderr)
+                self.assertEqual(self._apply_call_count(calls_log), 4)
+                self.assertEqual(self._state(root)["status"], "ok")
+                self.assertIs(self._state(root)["control_busy_continue"], False)
 
     def test_new_release_after_control_busy_uses_recorded_retry_deadline(self):
         with tempfile.TemporaryDirectory() as directory:
