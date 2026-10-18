@@ -14919,6 +14919,8 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **一次資料と模倣する仕組み:** [Freqtradeのstartup期間](https://github.com/freqtrade/freqtrade/blob/develop/docs/strategy-customization.md)の「indicatorに必要な履歴を先に確保する」機構を既存readerへ適用する。外部engineやGPLコードは導入しない。51本は現在の計算最低数であり、EMAの再帰的安定性や利益を証明する数ではない。それらは既存validation/未使用期間比較で別途評価する。[Alpaca crypto bars](https://docs.alpaca.markets/docs/real-time-crypto-pricing-data)は前のminuteの集計を次の境界で配信し、遅着による更新も定義する。完了区間と将来訂正不能を混同しない。provider request/receiptを伴う最終成績と、推定fee/slippageのbacktestを分離する。
 
+**IN-BTC-01実行記録:** RED d90a8cb1f0は、実producerから既存strategy.evaluateへ接続してhistory_insufficientになること、8時間のraw97本拒否、進行中足7本→期待6本のaligned/unaligned両境界を再現する。GREEN e3f4f00916は既存read_crypto_historyの9行追加/6行削除でwindow8h・算出上限97・完了区間だけの返却へ揃える。追加69cf8c31e7で98本拒否も保持する。Alpaca328 unittest・core156 tests/39 subtests・source boundary/loop contract193 jobs/diffがPASS。これは最低51本の計算条件への接続証明であり、EMAの再帰安定性・自然売買・費用込み利益の証明ではない。独立review/全CI/main/正式版/実market-data readbackは次のcursor。
+
 **D3a2統合と追加観測:** PR #8338 head088e1d10bddda1befede3be4bd6f83dfb83a1857はfresh GitHub review未解決指摘なし・全13 exact-head checks PASS後、main1c4e1b3484c2f528eca0dd3d6fd3426cbbbb29ccへ統合する。census caller/実費producerは未接続。CFOの既存.envとpaper plistにLM_CFO_ACTUAL_COST_READBACK/LM_CFO_ACTUAL_COST設定はなく、費用入力の接続は未確認（manager継承値は未観測）。live credentialの公式GETで過去L09/L10のclient IDと保存済みprovider order IDの両方が一致する2件を確認する。これは歴史的live注文との口座連続性の証拠だが、未対応の後続4注文や旧fenceを閉じず、credential metadataのgeneric account_idも書換えない。provider/state書込0。
 
 **原子的な残TODO（この順序が正本）:**
