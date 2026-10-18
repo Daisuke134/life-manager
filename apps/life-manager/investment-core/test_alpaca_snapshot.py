@@ -26,6 +26,50 @@ RISK = {"drawdown_fraction": "0.0015"}
 
 
 class AlpacaSnapshotTests(unittest.TestCase):
+    def test_crypto_verified_operating_costs_remain_partial_in_root_and_daily_reader(self):
+        from alpaca_snapshot import _read_performance
+        base={'schema_version':1,'report_scope':'owned_crypto_cycles','mode':'live','paper':False,
+            'owner_id':'alpaca-investment-live','measurement_status':'partial','net_pnl_usd':None,
+            'capital_expansion_allowed':False,'model_cost_usd':'1','system_cost_usd':'0',
+            'operating_costs_status':'complete','operating_cost_coverage':{'coverage_state':'complete'}}
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            for mode in ('paper','live'):
+                for day in (None,'2026-01-01'):
+                    with self.subTest(mode=mode,day=day):
+                        payload={**base,'mode':mode,'paper':mode=='paper','owner_id':'alpaca-investment-'+mode}
+                        path=root/'performance-crypto-latest.json'
+                        if day:
+                            payload.update(report_scope='owned_crypto_cycles_daily',performance_day=day,
+                                observed_at=day+'T23:00:00Z')
+                            path=root/f'performance-crypto-daily-{day}.json'
+                        path.write_text(json.dumps(payload))
+                        value,error=_read_performance(root,day)
+                        self.assertIsNone(error)
+                        snapshot=self._builder()(value,OBSERVATION,RISK)
+                        self.assertEqual(snapshot['model_cost_usd'],'1')
+                        self.assertEqual(snapshot['system_cost_usd'],'0')
+                        self.assertEqual(snapshot['measurement_status'],'partial')
+                        self.assertIsNone(snapshot['gross_pnl_usd'])
+                        self.assertIsNone(snapshot['trading_fees_usd'])
+
+    def test_crypto_operating_amounts_need_complete_coverage_and_finite_nonnegative_strings(self):
+        from alpaca_snapshot import _read_performance
+        base={'schema_version':1,'report_scope':'owned_crypto_cycles','mode':'live','paper':False,
+            'owner_id':'alpaca-investment-live','measurement_status':'partial','net_pnl_usd':None,
+            'capital_expansion_allowed':False,'model_cost_usd':'1','system_cost_usd':'0',
+            'operating_costs_status':'complete','operating_cost_coverage':{'coverage_state':'complete'}}
+        changes=[{'operating_costs_status':'partial'},{'operating_cost_coverage':{'coverage_state':'gap'}},
+            {'operating_cost_coverage':None},{'model_cost_usd':None},{'system_cost_usd':None}]
+        changes += [{'model_cost_usd':raw} for raw in (True,1,1.2,[],{},'','NaN','sNaN','Infinity','-1')]
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);path=root/'performance-crypto-latest.json'
+            for change in changes:
+                with self.subTest(change=change):
+                    path.write_text(json.dumps({**base,**change}))
+                    value,error=_read_performance(root,None)
+                    self.assertIsNone(value);self.assertEqual(error,'alpaca_crypto_performance_invalid')
+
     def test_crypto_derived_source_is_selected_without_legacy_measured_fallback(self):
         from alpaca_snapshot import _read_performance
         import tempfile,json

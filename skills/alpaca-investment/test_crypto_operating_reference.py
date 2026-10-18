@@ -1,5 +1,6 @@
 """Known cycle costs adjust reference cashflow without proving settled profit."""
 import copy
+import importlib.util
 import json
 import os
 from decimal import localcontext
@@ -75,6 +76,18 @@ class CryptoOperatingReferenceTests(unittest.TestCase):
                     self.assertEqual(value(result['strategy_reports'][0][FIELD]),Fraction('0.4'))
                     self.assertEqual(value(result['cycles'][0]['fx_reference'][FIELD]),Fraction('0.4'))
                     self.assertIsNone(result['net_pnl_usd']);self.assertFalse(result['capital_expansion_allowed'])
+                module_spec=importlib.util.spec_from_file_location('crypto_snapshot_boundary',
+                    Path(__file__).resolve().parents[2]/'apps/life-manager/investment-core/alpaca_snapshot.py')
+                snapshot_module=importlib.util.module_from_spec(module_spec);module_spec.loader.exec_module(snapshot_module)
+                for result in (direct,report,daily):
+                    snapshot=snapshot_module.build_alpaca_snapshot(result,{},None)
+                    self.assertEqual(snapshot['measurement_status'],'partial')
+                    self.assertEqual(snapshot['model_cost_usd'],'0')
+                    self.assertEqual(snapshot['system_cost_usd'],'0')
+                    self.assertIsNone(snapshot['gross_pnl_usd'])
+                for day in (None,'2026-01-01'):
+                    loaded,error=snapshot_module._read_performance(root,day)
+                    self.assertIsNone(error);self.assertEqual(loaded['operating_costs_status'],'complete')
 
     def test_exact_paid_cost_is_deducted_once_and_remains_reference_only(self):
         for mode in ('paper', 'live'):
