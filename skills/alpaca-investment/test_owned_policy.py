@@ -10,6 +10,8 @@ import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
+from contextlib import ExitStack, contextmanager, redirect_stdout
+from io import StringIO
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
@@ -21,7 +23,7 @@ import position_manager
 from strategy_policy import candidate_cards
 
 
-def seed(root: Path, mode: str = "live", decision_changes=None):
+def seed(root: Path, mode: str = "live", decision_changes=None, broker_id="provider-entry"):
     owner = f"alpaca-investment-{mode}"
     card = candidate_cards()["alpaca-btc-5m-trend-v1"]
     decision = {"action": "ENTER", "mode": mode, "owner_id": owner,
@@ -34,7 +36,7 @@ def seed(root: Path, mode: str = "live", decision_changes=None):
     ledger = root / "receipts.jsonl"
     sealed = effect_store.seal(ledger, decision, order)
     effect_store.mark_started(ledger, sealed)
-    broker = {"id": "provider-entry", "client_order_id": sealed["client_order_id"],
+    broker = {"id": broker_id, "client_order_id": sealed["client_order_id"],
               "status": "filled", "symbol": "BTC/USDC", "side": "buy", "type": "market",
               "time_in_force": "gtc", "filled_qty": "0.05", "filled_avg_price": "200",
               "submitted_at": "2026-01-01T04:00:00Z", "filled_at": "2026-01-01T04:00:30Z"}
@@ -238,6 +240,100 @@ class OwnedPolicyTests(unittest.TestCase):
                 (root/"receipts.jsonl").write_text("".join(json.dumps(row)+"\n" for row in rows))
                 with patch.dict(os.environ,{"LIFE_MANAGER_INVESTMENT_OWNER_ID":owner}),self.assertRaises(ValueError):
                     position_manager.load_owned_policy(root,ownership,mode="live")
+
+
+class OwnedSubmitFenceTests(unittest.TestCase):
+    def _flow(self, *, quantity_drift=False, replace_entry=False):
+        import importlib.util
+        spec=importlib.util.spec_from_file_location("owned_policy_native_run",ROOT/"run.py")
+        native=importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(native)
+        self.assertEqual(Path(native.__file__).resolve(),ROOT/"run.py")
+        with tempfile.TemporaryDirectory() as directory,ExitStack() as stack:
+            root=Path(directory)
+            original,owner=seed(root)
+            allocator_snapshot,observation=snapshot("live")
+            history=allocator_snapshot.pop("crypto_history")
+            observation.update(account={"cash":"90","equity":"97.5"},activities_count=1,
+                               open_and_closed_orders_count=1,clock={"observed_at":"2026-01-01T04:15:00Z"})
+            observation["positions"][0]["unrealized_pl"]="0"
+            reads=[0]; current_qty=["0.05"]; observation_reads=[0]; fences=[0]
+            def observe(**_kwargs):
+                observation_reads[0]+=1
+                value=copy.deepcopy(observation)
+                value["positions"][0]["qty"]=current_qty[0]
+                return value
+            def fresh_snapshot(**_kwargs):
+                reads[0]+=1
+                if reads[0]>=2 and quantity_drift: current_qty[0]="0.04"
+                return copy.deepcopy(allocator_snapshot)
+            real_fence=native.control_fence
+            @contextmanager
+            def fenced(state):
+                fences[0]+=1
+                if fences[0]==2 and replace_entry:
+                    # Model another writer completing before this submit lock.
+                    with real_fence(state):
+                        replacement,_=seed(root,decision_changes={"observed_at":"2026-01-01T03:59:59Z"},
+                                           broker_id="provider-entry-b")
+                    self.assertNotEqual(replacement["entry_effect_id"],original["entry_effect_id"])
+                with real_fence(state) as control:
+                    yield control
+            def find(*,client_order_id,**_kwargs):
+                rows=effect_store._rows(root/"receipts.jsonl")
+                for row in reversed(rows):
+                    broker=row.get("broker")
+                    if isinstance(broker,dict) and broker.get("client_order_id")==client_order_id:
+                        return copy.deepcopy(broker)
+                return {"found":True,"id":"provider-exit","client_order_id":client_order_id,
+                        "status":"filled","symbol":"BTC/USDC","side":"sell","type":"market",
+                        "time_in_force":"gtc","filled_qty":"0.05","filled_avg_price":"150",
+                        "submitted_at":"2026-01-01T04:15:00Z","filled_at":"2026-01-01T04:15:00Z"}
+            stack.enter_context(patch.dict(os.environ,{
+                "LIFE_MANAGER_INVESTMENT_DEPLOYMENT":"local","LIFE_MANAGER_INVESTMENT_MODE":"live",
+                "LIFE_MANAGER_INVESTMENT_OWNER_ID":owner,
+                "ALPACA_INVESTMENT_LIVE_STATE_DIR":str(root),
+                "ALPACA_INVESTMENT_LIVE_CREDENTIALS_FILE":str(root/"credentials")},clear=True))
+            for name,replacement in (("observe",observe),("read_allocator_snapshot",fresh_snapshot),
+                                     ("find_order_by_client_id",find),("control_fence",fenced)):
+                stack.enter_context(patch.object(native,name,side_effect=replacement))
+            stack.enter_context(patch.object(native,"read_crypto_history",return_value=history))
+            stack.enter_context(patch.object(native,"build_candidates",return_value=[]))
+            stack.enter_context(patch.object(native,"_review_status",return_value={}))
+            stack.enter_context(patch.object(native,"deliver",return_value={"message_id":"fixture"}))
+            stack.enter_context(patch.object(native,"deliver_failure",return_value={"status":"delivered"}))
+            stack.enter_context(patch.object(native,"_retry_allowed",return_value=False))
+            stack.enter_context(patch.object(alpaca_cli,"_context",side_effect=AssertionError("unexpected provider context")))
+            stack.enter_context(patch.object(alpaca_cli,"_run",side_effect=AssertionError("unexpected provider call")))
+            submit=stack.enter_context(patch.object(native,"submit_order",return_value={"status":"accepted"}))
+            with redirect_stdout(StringIO()) as output:
+                code=native.main(wake_id="owned-fresh-fixture")
+            summary=json.loads(output.getvalue().splitlines()[-1])
+            rows=effect_store._rows(root/"receipts.jsonl")
+            return code,summary,submit.call_args_list,rows,observation_reads[0],original
+
+    def test_unchanged_owned_exit_preserves_parent_identity_through_real_main(self):
+        code,summary,calls,rows,reads,original=self._flow()
+        self.assertEqual(code,0,summary)
+        self.assertEqual(len(calls),1)
+        self.assertGreaterEqual(reads,2)
+        decisions=[row["decision"] for row in rows if row.get("receipt_type")=="decision"
+                   and row["decision"].get("position_action")=="EXIT"]
+        self.assertEqual(len(decisions),1)
+        self.assertEqual(decisions[0]["entry_effect_id"],original["entry_effect_id"])
+        self.assertEqual(decisions[0]["owner_id"],"alpaca-investment-live")
+
+    def test_quantity_drift_at_submit_time_cannot_sell_the_old_quantity(self):
+        code,summary,calls,rows,_reads,_original=self._flow(quantity_drift=True)
+        self.assertEqual(code,78,summary)
+        self.assertEqual(calls,[])
+        self.assertFalse(any(row.get("receipt_type")=="effect_intent" and
+                             row.get("order",{}).get("side")=="sell" for row in rows))
+
+    def test_replaced_entry_with_same_quantity_cannot_receive_an_old_exit(self):
+        code,summary,calls,_rows,_reads,_original=self._flow(replace_entry=True)
+        self.assertEqual(code,78,summary)
+        self.assertEqual(calls,[])
 
 
 if __name__ == "__main__":
