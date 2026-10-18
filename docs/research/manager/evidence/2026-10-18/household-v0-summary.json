@@ -1,0 +1,376 @@
+{
+  "stage": "empirical_household_synthesis",
+  "tracks": {
+    "behavior_prediction": "not_run",
+    "execution": "not_run",
+    "field": "not_run",
+    "policy": "not_run",
+    "population_fidelity": "measured"
+  },
+  "paid_model_calls": 0,
+  "state": "44",
+  "period": "2020-2024",
+  "universe": "Occupied housing units and their residents; group quarters excluded",
+  "sample": {
+    "group_quarters_persons": 4070,
+    "group_quarters_units": 4070,
+    "household_persons": 45755,
+    "housing_rows": 25755,
+    "occupied_households": 20182,
+    "person_rows": 49825,
+    "vacant_units": 1503
+  },
+  "controls": {
+    "family": [
+      270523,
+      171047
+    ],
+    "size": [
+      134164,
+      151592,
+      155814
+    ],
+    "total": 441570
+  },
+  "reference_joint": [
+    0,
+    120381,
+    150142,
+    134164,
+    31211,
+    5672
+  ],
+  "cell_order": [
+    "family_1",
+    "family_2",
+    "family_3plus",
+    "nonfamily_1",
+    "nonfamily_2",
+    "nonfamily_3plus"
+  ],
+  "results": {
+    "baseline": {
+      "audit": {
+        "attribute_errors": 0,
+        "duplicate_ids": 0,
+        "households": 441570,
+        "membership_errors": 0,
+        "orphan_persons": 0,
+        "persons": 1041476
+      },
+      "integer": {
+        "age_share_error_pp": [
+          0.21646333643101368,
+          0.49271289668576523,
+          0.7091762331167789
+        ],
+        "age_shares": [
+          0.1935138207697537,
+          0.6126814252080701,
+          0.19380475402217623
+        ],
+        "counts": [
+          0.0,
+          119680.0,
+          150154.0,
+          135185.0,
+          31022.0,
+          5529.0
+        ],
+        "households": 441570.0,
+        "max_marginal_error_fraction": 0.002312204180537627,
+        "max_marginal_error_households": 1021.0,
+        "persons": 1041476.0,
+        "tvd": 0.002339379939760396
+      },
+      "integerization_replicates": [
+        {
+          "max_marginal_error_households": 1021.0,
+          "persons": 1041476.0,
+          "seed": 20261018,
+          "tvd": 0.002339379939760396
+        },
+        {
+          "max_marginal_error_households": 1021.0,
+          "persons": 1041476.0,
+          "seed": 20261019,
+          "tvd": 0.002339379939760396
+        },
+        {
+          "max_marginal_error_households": 1021.0,
+          "persons": 1041476.0,
+          "seed": 20261020,
+          "tvd": 0.002339379939760396
+        },
+        {
+          "max_marginal_error_households": 1021.0,
+          "persons": 1041476.0,
+          "seed": 20261021,
+          "tvd": 0.002339379939760396
+        },
+        {
+          "max_marginal_error_households": 1021.0,
+          "persons": 1041476.0,
+          "seed": 20261022,
+          "tvd": 0.002339379939760396
+        },
+        {
+          "max_marginal_error_households": 1021.0,
+          "persons": 1041476.0,
+          "seed": 20261023,
+          "tvd": 0.002339379939760396
+        },
+        {
+          "max_marginal_error_households": 1021.0,
+          "persons": 1041476.0,
+          "seed": 20261024,
+          "tvd": 0.002339379939760396
+        },
+        {
+          "max_marginal_error_households": 1021.0,
+          "persons": 1041476.0,
+          "seed": 20261025,
+          "tvd": 0.002339379939760396
+        },
+        {
+          "max_marginal_error_households": 1021.0,
+          "persons": 1041476.0,
+          "seed": 20261026,
+          "tvd": 0.002339379939760396
+        },
+        {
+          "max_marginal_error_households": 1021.0,
+          "persons": 1041476.0,
+          "seed": 20261027,
+          "tvd": 0.002339379939760396
+        }
+      ],
+      "person_reference": {
+        "age_shares": [
+          0.19567845413406385,
+          0.6176085541749278,
+          0.18671299169100844
+        ],
+        "independent": false,
+        "persons": 1057168,
+        "weight": "PWGTP"
+      },
+      "weighted": {
+        "age_share_error_pp": [
+          0.21646333643101368,
+          0.49271289668576523,
+          0.7091762331167789
+        ],
+        "age_shares": [
+          0.1935138207697537,
+          0.6126814252080701,
+          0.19380475402217623
+        ],
+        "counts": [
+          0.0,
+          119680.0,
+          150154.0,
+          135185.0,
+          31022.0,
+          5529.0
+        ],
+        "households": 441570.0,
+        "max_marginal_error_fraction": 0.002312204180537627,
+        "max_marginal_error_households": 1021.0,
+        "persons": 1041476.0,
+        "tvd": 0.002339379939760396
+      }
+    },
+    "calibrated": {
+      "audit": {
+        "attribute_errors": 0,
+        "duplicate_ids": 0,
+        "households": 441570,
+        "membership_errors": 0,
+        "orphan_persons": 0,
+        "persons": 1042763
+      },
+      "integer": {
+        "age_share_error_pp": [
+          0.2207838088039954,
+          0.47991238441622563,
+          0.700696193220221
+        ],
+        "age_shares": [
+          0.1934706160460239,
+          0.6128094303307655,
+          0.19371995362321065
+        ],
+        "counts": [
+          0.0,
+          120249.0,
+          150264.0,
+          134167.0,
+          31326.0,
+          5564.0
+        ],
+        "households": 441570.0,
+        "max_marginal_error_fraction": 3.849899223226216e-05,
+        "max_marginal_error_households": 17.0,
+        "persons": 1042763.0,
+        "tvd": 0.0005435151844554427
+      },
+      "integerization_replicates": [
+        {
+          "max_marginal_error_households": 17.0,
+          "persons": 1042763.0,
+          "seed": 20261018,
+          "tvd": 0.0005435151844554427
+        },
+        {
+          "max_marginal_error_households": 33.0,
+          "persons": 1042776.0,
+          "seed": 20261019,
+          "tvd": 0.0005820141766877162
+        },
+        {
+          "max_marginal_error_households": 12.0,
+          "persons": 1042739.0,
+          "seed": 20261020,
+          "tvd": 0.0005480444776593046
+        },
+        {
+          "max_marginal_error_households": 21.0,
+          "persons": 1042767.0,
+          "seed": 20261021,
+          "tvd": 0.0005231333650383835
+        },
+        {
+          "max_marginal_error_households": 25.0,
+          "persons": 1042766.0,
+          "seed": 20261022,
+          "tvd": 0.000520868718436495
+        },
+        {
+          "max_marginal_error_households": 27.0,
+          "persons": 1042689.0,
+          "seed": 20261023,
+          "tvd": 0.00045519396698145975
+        },
+        {
+          "max_marginal_error_households": 31.0,
+          "persons": 1042724.0,
+          "seed": 20261024,
+          "tvd": 0.0005050161922232161
+        },
+        {
+          "max_marginal_error_households": 18.0,
+          "persons": 1042675.0,
+          "seed": 20261025,
+          "tvd": 0.00045519396698148057
+        },
+        {
+          "max_marginal_error_households": 38.0,
+          "persons": 1042770.0,
+          "seed": 20261026,
+          "tvd": 0.0005593677106687511
+        },
+        {
+          "max_marginal_error_households": 42.0,
+          "persons": 1042669.0,
+          "seed": 20261027,
+          "tvd": 0.0005774848834839584
+        }
+      ],
+      "person_reference": {
+        "age_shares": [
+          0.19567845413406385,
+          0.6176085541749278,
+          0.18671299169100844
+        ],
+        "independent": false,
+        "persons": 1057168,
+        "weight": "PWGTP"
+      },
+      "weighted": {
+        "age_share_error_pp": [
+          0.22205681498305985,
+          0.47608345292415866,
+          0.6981402679072157
+        ],
+        "age_shares": [
+          0.19345788598423325,
+          0.6128477196456862,
+          0.1936943943700806
+        ],
+        "counts": [
+          0.0,
+          120268.21177224367,
+          150254.7882419354,
+          134164.0,
+          31323.788227756322,
+          5559.211758064622
+        ],
+        "households": 441570.0,
+        "max_marginal_error_fraction": 3.21105737626778e-11,
+        "max_marginal_error_households": 1.4179066056385636e-05,
+        "persons": 1042732.6332613233,
+        "tvd": 0.0005108509855554699
+      }
+    }
+  },
+  "source": {
+    "acquired_at": "2026-10-18T10:19:10.149106+00:00",
+    "files": {
+      "b11016.dat": {
+        "bytes": 563,
+        "sha256": "f923f4cde431df6bb1a012ad4c0d44f970cbc421ca99065d768c40b45fb479fe",
+        "url": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/5YRData/acsdt5y2024-b11016.dat"
+      },
+      "housing.zip": {
+        "bytes": 3166574,
+        "sha256": "90fd8f5d577260ebbafbcf8231506a4aa644d3902d2303d4d109db8153a48238",
+        "url": "https://www2.census.gov/programs-surveys/acs/data/pums/2024/5-Year/csv_hri.zip"
+      },
+      "persons.zip": {
+        "bytes": 7321611,
+        "sha256": "ab856a1c287f9930d0886a8b2e733313b08d7a6f07114e4e3bbf711337d7fa24",
+        "url": "https://www2.census.gov/programs-surveys/acs/data/pums/2024/5-Year/csv_pri.zip"
+      }
+    },
+    "period": "2020-2024",
+    "schema_version": 1,
+    "state": "44",
+    "table_hash_scope": "state_extract"
+  },
+  "source_sha256": "2552023c4260bffabe59e2b0cf0b1f4b33d9f82c20fce54fcd76a6bed66c1139",
+  "config_sha256": "5f791a505c39db92684005d52268f881b81b263cbfa90987c97cb7d249559c94",
+  "code": {
+    "dependencies": {
+      "ipfn": "1.4.4",
+      "numpy": "2.4.4",
+      "pandas": "2.3.3"
+    },
+    "household_config_sha256": "5f791a505c39db92684005d52268f881b81b263cbfa90987c97cb7d249559c94",
+    "python": "3.12.14",
+    "source_tree_sha256": "5ff04d883edb083495b1f62b7628d5a265a5162160c02ca3e17e5d656747160d"
+  },
+  "prepared_manifest_sha256": "dab70aa7019da1c5657a134a35dcd2468d2942a90131a404e944c6fb9eb1f8c7",
+  "limitations": [
+    "Single-state retrospective synthesis, not evidence of geographic transfer.",
+    "PUMS and detailed ACS tables share a survey source; checks are not fully independent.",
+    "Household replication preserves observed members, not every target or person-weighted distribution.",
+    "Structural zeros are preserved; unsupported household types cannot be invented.",
+    "Replicate-weight sampling uncertainty is not propagated; seed variation is only integerization variation.",
+    "No behavior, policy, execution or field benefit is measured. No actual address or identity is reconstructed."
+  ],
+  "full_report_sha256": "0ee8fb4167a33fb3c04cea620f9ca2c672352e27b256139dd8c7ff93044369da",
+  "run_artifact_sha256": {
+    "baseline": {
+      "households.csv": "1f5bb9f88b49d2ebfd751e0872d618c77ee5be6a4e4e9814cd0ccccd1f06b248",
+      "persons.csv": "e1e07a0c8dfec114a6faed464a0b0c64579fa6f5a952fd0044c84dd8f3fc9a12",
+      "weights.json": "93ee8cd2b753036fe0c74471097e6c003e0079f8ee10d2f32304e499a407d020"
+    },
+    "calibrated": {
+      "households.csv": "d94b21f08a6f2b8cfb95b45b74f7510637e8c67794470fc2e1910e020723dc83",
+      "persons.csv": "372841b79e9f8b287d390ae40e4265598988037a59f2b83ac15b2d5fe5b16592",
+      "weights.json": "331d0d76c6e1d09fa0ecf5a2555950757b3e5a483b202687f61e342d0f3c7685"
+    }
+  },
+  "note": "Public aggregate result of official-source run; raw, prepared and synthetic person files stay outside Git."
+}

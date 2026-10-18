@@ -3537,3 +3537,9 @@ Ruling: 進捗ledgerは既存統合SSOTだけとし、別の進捗正本を作�
 8B Task4：CLI未登録でRED→prepare/synthesize/scoreを接続して全50テストPASS。synthesize中のreferenceファイル読取禁止を実試験。2方式不足、入力/CSV改ざんを拒否。fixture ZIPの時刻を固定し、fixture provenanceの比較が壁時計で揺れないようにした。
 
 公式のfetch-households→prepare→baseline/calibrated→scoreを /workspace/artifacts/manager-households/run-20261018 で実行して全工程PASS。通常世帯20182、所属45755人。調整後の整数人口は441570世帯/1042763人。CSV再読auditの欠員/孤立/重複/属性不一致0。6セルTVD：baseline weighted/integer=0.002339379939760396、calibrated weighted=0.0005108509855554699、integer=0.0005435151844554427。調整前周辺最大差1021世帯、調整後weighted約0.00001418世帯、integer17世帯。10seed整数化のTVD範囲0.00045519396698145975..0.0005820141766877162。設定/seed/区分は評価後に変更していない。再現用の再展開と最終reviewはこれから。
+
+8B Task4再現確認：同じpreparedからbaseline/calibratedを別runへ再展開し、weights.json/households.csv/persons.csvすべてのSHA256が一致（bytes再現）。元PUMSのPWGTP診断対象は1057168人、調整後整数人口1042763人とは不一致。年齢割合も最大約0.70ppの差があり、個人制約未投入の限界として記録。
+
+8B Task5素材保存：記事2026-10-18-household-v0-results-ja.mdに生成フロー図とmatplotlib実測図を埋込。content/2026-10-18-household-v0に横長6PNG、縦長6PNG、編集用HTML/JSON、台本・投稿文を保存。元の生成画像を保持。記事lint指摘なし、ローカルリンク確認、実画像を視認。公開用集計記録と描画scriptも保存。GitHub repo visibility=PUBLIC、root LICENSE=MITを確認。全CSV/raw/runはGit外、記事/ソース/素材をbranchへ保存するが、ブログ/TikTok/Xへの投稿は未実施。
+
+本人は実装→理解を希望しており、8Bは実装・測定の結果説明待ち。行動予測へ進む前に今回の所属/整数化/精度を説明する。Aaru/Simile等の製品再現や、苦しみの軽減実証とはしない。文章スタイルskillを確認したが検索/retrieveツールは今回のcatalogになく、本人の明示用語・既存日本語指針に従った。取得した文体資料があるとはしない。
