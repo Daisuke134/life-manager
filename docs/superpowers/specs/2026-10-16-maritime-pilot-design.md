@@ -61,6 +61,34 @@ Maritime AI creditsを使う場合、MaritimeのPrivacy Policyはrequest本文�
 8. scale段階（3人→25人→100人→1,000人）ごとに、実際の利用・tenant分離・公式dashboard usage・billingを読み戻す。25/100は進め方を評価する内部cohortで、公式閾値ではない。
 9. 公式の1,000 distinct usersに関する重複・team/test userの扱いは主催者確認後に固定し、fake account、bot、複数identityでの水増しは行わない。
 
+## 今回のdistribution-first source実装
+
+**AS-IS:** 公開Life Manager pageはGoogle Calendar接続とカード登録必須の7日trialへ誘導する。Telegramの通常`/start`はCalendar OAuthを始める。大会用のTelegram入口、Maritime保持条件の同意記録、紹介元から初回成功・再利用までの計測はない。既存Maritime `/pilot`はdefault-offで、最大3 UIDのallowlist、data/tool-policy/API-key gatesを維持している。
+
+**TO-BE:** `NEXT_PUBLIC_MARITIME_PILOT_CTA=1`の時だけ既存Life Manager pageに大会向けTelegram CTAを表示する。CTAはLife Manager serverの`/maritime` pageから`/maritime/start?source=<allowlisted-source>`へ進み、`MARITIME_PILOT_PUBLIC_ENTRY_ENABLED=1`と設定済みbot usernameがある場合だけ`/start maritime_<source>`へredirectする。Telegram開始は既存private actor/tenant claimを使い、Calendar OAuthは呼ばない。入力・応答の保持条件を表示し、`/maritime_accept`による明示同意を保存する。同一Telegram updateの再配信では同意・撤回を再処理せず、撤回後に古いacceptを再送しても同意を復活させない。成功利用RPCはparticipant rowをlockし、その時点のDB状態で初回応答か7日以内再利用かを選び、状態更新とfunnel eventを同一DB transactionで記録する。同時に成功した別updateも順番に分類し、初回／再利用を取りこぼさない。7日以内再利用は初回成功より後、初回から7日以内の別の成功利用だけを数える。同意と既存pilot gatesの両方がpassした場合だけ`/pilot`でMaritimeを呼ぶ。
+
+紹介元は小文字英数字と`-`/`_`だけの短いtagに制限し、未許可値は`other`へ正規化する。既存`lm_web_funnel_events`へ記録するのはcampaign source、HMAC化UID、start/consent/first-success/repeatのeventと時刻だけとし、Telegram本文・Maritime response・氏名・Telegram IDを記録しない。初回成功・再利用eventは利用者ごとに各1回だけ。competition dashboardのdistinct-user数と自社funnel数は別の指標として扱う。
+
+**Feature gates:** Web CTAとredirectはdefault-off。既存`MARITIME_PILOT_ENABLED`、data approval、tool-policy verification、API key、UID allowlistのgateを緩めない。source buildでは本番環境変数の変更、規約同意、Maritime/Keiki signup、VM provisioning、実ユーザーへの招待・送信をしない。Maritimeの実行可能tool policyとdata approvalを確認するまで、CTAをproductionへ出さない。
+
+**受入条件:**
+
+1. CTA flag未設定時の既存Calendar CTAと既存`/start`の挙動が変わらない。
+2. CTA/redirect feature gateがoffなら大会用redirectやprovider callが起きない。
+3. 有効なcampaign sourceだけがdeep linkへ渡り、invalid/arbitrary inputでURL injectionできない。
+4. 大会用`/start`はtenantを一度だけclaimし、Calendar OAuthもMaritime callも開始せず保持条件を表示する。
+5. 同意記録なし、撤回済み、既存global gate offのいずれかで`/pilot`を拒否する。
+6. 同一Telegram updateの`/maritime_accept`再配信は同意を成立させず、撤回後に古いacceptを再配信しても撤回状態を維持する。
+7. 初回・7日以内再利用のmilestone時刻とfunnel eventは同一DB transactionで確定し、7日後の利用や同じ初回処理の重複呼び出しを再利用に数えない。
+8. consent setupの案内で示す`/start maritime_direct`が実装済みdeep-link parserに一致する。
+9. 同時に成功した2件の異なる`/pilot` updateはDB状態で直列分類され、初回応答と7日以内再利用をそれぞれ最大一件記録する。
+10. consented userの成功利用と最初の再利用だけが各一件記録され、eventにprompt/response/Telegram IDが含まれない。
+11. DB migrationはappend-only/RLS/service-role boundaryを維持し、本番へは適用しない。
+
+**Source実装状態:** distribution page `/maritime`、allowlist source tag付きTelegram redirect、`/start maritime_<source>`、保持条件の同意/撤回、同意前provider拒否、初回応答と7日再利用の計測をLife Manager sourceに追加した。anonymous landing/click telemetryはbest-effortで、遅い書込みがTelegram redirectを止めない。公開CTAは`NEXT_PUBLIC_MARITIME_PILOT_CTA=1`、server入口は`MARITIME_PILOT_PUBLIC_ENTRY_ENABLED=1`と既存data/tool/API-key gatesが揃った場合だけ開く。人数上限は25人を既定、1,000人まで設定可能。Supabase migrationは作成したが未適用で、production flagは変更していない。招待、実ユーザー入力、Maritime/Keiki account・VMも作成していない。
+
+`apps/landing`には`package.json`、`tsconfig.json`、および`@/lib/launchStrings`のsourceがtrackedされていないため、CTAのfrontend build/typecheckはこのrepo内で実行できない。CTA copyは`LmBody.tsx`に英語/日本語で閉じ、未設定時は既存Calendar CTAだけを表示する。
+
 ## Top 30の審査基準と渡航条件は主催者へ確認する
 
 | 未確定 | 現在わかること | 決め方 |

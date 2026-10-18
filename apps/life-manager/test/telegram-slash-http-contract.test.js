@@ -42,6 +42,8 @@ test("POST /telegram routes the legacy-parity slash surface without disturbing e
   process.env.MARITIME_PILOT_ENABLED = "1";
   process.env.MARITIME_PILOT_DATA_APPROVED = "1";
   process.env.MARITIME_PILOT_TOOL_POLICY_VERIFIED = "1";
+  process.env.MARITIME_PILOT_PUBLIC_ENTRY_ENABLED = "1";
+  process.env.MARITIME_PILOT_MAX_USERS = "25";
   process.env.MARITIME_API_KEY = "mk_test_fixture";
   process.env.MARITIME_PILOT_UID_ALLOWLIST = "u1";
   process.env.LM_UID_SECRET = "fixture-uid-secret";
@@ -65,6 +67,11 @@ test("POST /telegram routes the legacy-parity slash surface without disturbing e
     email: "fixture@example.com", phone: "+819012345678", home_address: "Tokyo home",
     notifications_enabled: true, paid: true, payout_destination: null,
   };
+  const webUserRow = {
+    uid: "lm_11111111-1111-4111-8111-111111111111", telegram_chat_id: null,
+    calendar_provider: null, calendar_connected_account_id: null, gmail_account_id: null,
+    paid: false, plan_status: null, trial_expires_at: null,
+  };
   let startedRow = null;
   const commandReceipts = new Map();
   const actorClaimHashes = new Set();
@@ -81,8 +88,14 @@ test("POST /telegram routes the legacy-parity slash surface without disturbing e
   const runtimeJobs = new Map();
   const cloudCitizens = new Map();
   const maritimeAgents = new Map();
+  const maritimeParticipants = new Map();
+  const funnelEvents = [];
+  const funnelEventIds = new Set();
+  let slowMaritimeAnonymousEvents = false;
   const maritimeRequests = [];
   let maritimeChatCalls = 0;
+  let holdMaritimeResponses = false;
+  let heldMaritimeChatResponses = [];
   let telegramSendOk = true;
   const logs = [];
   const originalConsoleLog = console.log;
@@ -156,8 +169,12 @@ test("POST /telegram routes the legacy-parity slash surface without disturbing e
     }
     if (url.pathname === "/rest/v1/lm_message_channels" && method === "GET") {
       const senderId = String(url.searchParams.get("sender_id") || "").replace(/^eq\./, "");
-      if (senderId === "100") return response(200, [{ uid: "u1", owner_kind: "legacy" }]);
-      if (startedRow && senderId === String(startedRow.telegram_chat_id)) {
+      const ownerKind = String(url.searchParams.get("owner_kind") || "").replace(/^eq\./, "");
+      if (ownerKind === "web_link" && senderId === "401") {
+        return response(200, [{ uid: webUserRow.uid, owner_kind: "web_link" }]);
+      }
+      if (ownerKind === "legacy" && senderId === "100") return response(200, [{ uid: "u1", owner_kind: "legacy" }]);
+      if (ownerKind === "legacy" && startedRow && senderId === String(startedRow.telegram_chat_id)) {
         return response(200, [{ uid: startedRow.uid, owner_kind: "legacy" }]);
       }
       return response(200, []);
@@ -166,6 +183,7 @@ test("POST /telegram routes the legacy-parity slash surface without disturbing e
       const uid = String(url.searchParams.get("uid") || "").replace(/^eq\./, "");
       if (uid) {
         if (uid === "u1") return response(200, [{ ...userRow }]);
+        if (uid === webUserRow.uid) return response(200, [{ ...webUserRow }]);
         if (startedRow && uid === startedRow.uid) return response(200, [{ ...startedRow }]);
         return response(200, []);
       }
@@ -178,6 +196,38 @@ test("POST /telegram routes the legacy-parity slash surface without disturbing e
       userPatches.push({ uid, patch });
       if (uid === "u1") Object.assign(userRow, patch);
       return response(200, []);
+    }
+    if (url.pathname === "/rest/v1/lm_web_funnel_events" && method === "POST") {
+      const row = JSON.parse(init.body || "{}");
+      const persist = () => {
+        if (row.source_event_id && funnelEventIds.has(row.source_event_id)) return response(409, []);
+        funnelEvents.push(row);
+        if (row.source_event_id) funnelEventIds.add(row.source_event_id);
+        return response(201, []);
+      };
+      if (slowMaritimeAnonymousEvents && row.uid == null) {
+        return new Promise((resolve) => setTimeout(() => resolve(persist()), 300));
+      }
+      return persist();
+    }
+    if (url.pathname === "/rest/v1/lm_web_funnel_events" && method === "GET") {
+      const sourceObjectId = String(url.searchParams.get("source_object_id") || "").replace(/^eq\./, "");
+      const eventName = String(url.searchParams.get("event_name") || "").replace(/^eq\./, "");
+      const rows = funnelEvents.filter((row) => row.source_object_id === sourceObjectId && row.event_name === eventName)
+        .sort((a, b) => Date.parse(a.occurred_at) - Date.parse(b.occurred_at));
+      return response(200, rows.map(({ attribution, occurred_at }) => ({ attribution, occurred_at })));
+    }
+    if (url.pathname === "/rest/v1/lm_maritime_pilot_participants" && method === "GET") {
+      const participantId = String(url.searchParams.get("participant_id") || "").replace(/^eq\./, "");
+      const row = maritimeParticipants.get(participantId);
+      return response(200, row ? [{ ...row }] : []);
+    }
+    if (url.pathname === "/rest/v1/lm_maritime_pilot_participants" && method === "PATCH") {
+      const participantId = String(url.searchParams.get("participant_id") || "").replace(/^eq\./, "");
+      const row = maritimeParticipants.get(participantId);
+      if (!row || row.revoked_at) return response(200, []);
+      Object.assign(row, JSON.parse(init.body || "{}"));
+      return response(200, [{ ...row }]);
     }
     if (url.pathname === "/rest/v1/lm_user_locations" && method === "GET") {
       const uid = String(url.searchParams.get("uid") || "").replace(/^eq\./, "");
@@ -213,6 +263,60 @@ test("POST /telegram routes the legacy-parity slash surface without disturbing e
         notifications_enabled: true, paid: false,
       };
       return response(200, [{ status: "claimed", uid: startedRow.uid, chat_id: startedRow.telegram_chat_id }]);
+    }
+    if (url.pathname === "/rest/v1/rpc/claim_lm_maritime_participant_v1" && method === "POST") {
+      const body = JSON.parse(init.body || "{}");
+      const existing = maritimeParticipants.get(body.p_participant_id);
+      if (existing && !existing.revoked_at) return response(200, "already_consented");
+      if (!existing && maritimeParticipants.size >= body.p_max_users) return response(200, "capacity_full");
+      const row = {
+        participant_id: body.p_participant_id,
+        source: body.p_source,
+        consent_version: body.p_consent_version,
+        consented_at: body.p_now,
+        revoked_at: null,
+        first_response_at: existing?.first_response_at || null,
+        returned_at: existing?.returned_at || null,
+        updated_at: body.p_now,
+      };
+      maritimeParticipants.set(body.p_participant_id, row);
+      return response(200, "consented");
+    }
+    if (url.pathname === "/rest/v1/rpc/mark_lm_maritime_pilot_milestone_v1" && method === "POST") {
+      const body = JSON.parse(init.body || "{}");
+      const row = maritimeParticipants.get(body.p_participant_id);
+      if (!row || row.revoked_at || !row.consented_at) return response(200, false);
+      if (body.p_milestone === "successful_use") {
+        let eventName;
+        let eventAt = Date.parse(body.p_at);
+        if (!row.first_response_at) {
+          eventName = "maritime_first_response";
+          row.first_response_at = new Date(eventAt).toISOString();
+        } else if (!row.returned_at) {
+          const firstAt = Date.parse(row.first_response_at);
+          eventAt = Math.max(eventAt, firstAt + 1);
+          if (eventAt > firstAt + 7 * 24 * 60 * 60 * 1000) return response(200, false);
+          eventName = "maritime_7day_return";
+          row.returned_at = new Date(eventAt).toISOString();
+        } else {
+          return response(200, false);
+        }
+        funnelEvents.push({ event_name: eventName, uid: null, source_object_id: body.p_participant_id, occurred_at: new Date(eventAt).toISOString() });
+        return response(200, true);
+      }
+      if (body.p_milestone === "first_response" && !row.first_response_at) {
+        row.first_response_at = body.p_at;
+        funnelEvents.push({ event_name: "maritime_first_response", uid: null, source_object_id: body.p_participant_id, occurred_at: body.p_at });
+        return response(200, true);
+      }
+      if (body.p_milestone === "return_7d" && !row.returned_at && row.first_response_at
+        && Date.parse(body.p_at) > Date.parse(row.first_response_at)
+        && Date.parse(body.p_at) - Date.parse(row.first_response_at) <= 7 * 24 * 60 * 60 * 1000) {
+        row.returned_at = body.p_at;
+        funnelEvents.push({ event_name: "maritime_7day_return", uid: null, source_object_id: body.p_participant_id, occurred_at: body.p_at });
+        return response(200, true);
+      }
+      return response(200, false);
     }
     if (url.pathname === "/rest/v1/rpc/provision_lm_cloud_citizen" && method === "POST") {
       const body = JSON.parse(init.body || "{}");
@@ -284,6 +388,16 @@ test("POST /telegram routes the legacy-parity slash surface without disturbing e
     }
     if (url.hostname === "api.maritime.sh" && /^\/api\/agents\/[^/]+\/chat$/.test(url.pathname) && method === "POST") {
       maritimeChatCalls++;
+      if (holdMaritimeResponses) {
+        return new Promise((resolve) => {
+          heldMaritimeChatResponses.push(() => resolve(response(200, { response: "Pilot fixture reply" })));
+          if (heldMaritimeChatResponses.length === 2) {
+            const waiting = heldMaritimeChatResponses;
+            heldMaritimeChatResponses = [];
+            waiting.forEach((release) => release());
+          }
+        });
+      }
       return response(200, { response: "Pilot fixture reply" });
     }
     throw new Error(`unexpected fetch ${method} ${url}`);
@@ -296,6 +410,36 @@ test("POST /telegram routes the legacy-parity slash surface without disturbing e
     assert.ok(productionServer, "the production HTTP server must be captured");
     await new Promise((resolve) => productionServer.listen(0, "127.0.0.1", resolve));
     const origin = `http://127.0.0.1:${productionServer.address().port}`;
+    const get = (path) => new Promise((resolve, reject) => {
+      http.get(`${origin}${path}`, (res) => {
+        let body = "";
+        res.setEncoding("utf8");
+        res.on("data", (chunk) => { body += chunk; });
+        res.on("end", () => resolve({ status: res.statusCode, headers: res.headers, body }));
+      }).on("error", reject);
+    });
+
+    // The distribution page is available only with the public pilot gate and preserves an
+    // allowlisted source through the Telegram deep link.
+    const maritimeLanding = await get("/maritime?source=discord&lang=ja");
+    assert.equal(maritimeLanding.status, 200);
+    assert.match(maritimeLanding.body, /Telegramで始める/);
+    assert.match(maritimeLanding.body, /Maritime Privacy Policy/);
+    assert.match(maritimeLanding.body, /\/maritime\/start\?source=discord/);
+    const maritimeRedirect = await get("/maritime/start?source=discord");
+    assert.equal(maritimeRedirect.status, 302);
+    assert.equal(maritimeRedirect.headers.location, "https://t.me/LifeManagerBotbot?start=maritime_discord");
+    const invalidSourceRedirect = await get("/maritime/start?source=https%3A%2F%2Fevil.example");
+    assert.equal(invalidSourceRedirect.headers.location, "https://t.me/LifeManagerBotbot?start=maritime_other");
+    slowMaritimeAnonymousEvents = true;
+    const slowTrackingStartedAt = Date.now();
+    const fastRedirect = await get("/maritime/start?source=reddit");
+    const fastRedirectMs = Date.now() - slowTrackingStartedAt;
+    slowMaritimeAnonymousEvents = false;
+    assert.equal(fastRedirect.status, 302);
+    assert.ok(fastRedirectMs < 250, `CTA redirect must not wait for slow analytics write; took ${fastRedirectMs}ms`);
+    assert.ok(funnelEvents.some((event) => event.event_name === "maritime_landing_view"));
+    assert.ok(funnelEvents.some((event) => event.event_name === "maritime_cta_click"));
 
     const onboardingPage = await new Promise((resolve, reject) => {
       http.get(`${origin}/panel/onboarding`, (res) => {
@@ -361,26 +505,72 @@ test("POST /telegram routes the legacy-parity slash surface without disturbing e
 
     // 2. /help → the command list, including the previously dropped kind:"help" NL actions.
     assert.equal(await message("100", "/help"), 200);
-    for (const expected of ["/status", "/where", "/stop", "/subscribe", "/connect", "/payout", "/reset", "/invest", "/pilot", "connect calendar"]) {
+    for (const expected of ["/status", "/where", "/stop", "/subscribe", "/connect", "/payout", "/reset", "/invest", "/pilot", "/maritime_accept", "/maritime_stop", "connect calendar"]) {
       assert.ok(lastSent().text.includes(expected), `/help must list ${expected}`);
     }
 
+    assert.equal(await exactMessage(93009, "909", "/maritime_accept"), 200);
+    assert.match(lastSent().text, /\/start maritime_direct/, "setup points to a payload accepted by the source parser");
+
     // 2a. /pilot routes through the fake Maritime SDK, and Telegram redelivery of the same
     //     update is fenced in lm_panel_command_receipts before a second provider call.
+    const pilotUpdateId = 94001;
+    const concurrentPilotUpdateId = 94002;
+    const privatePrompt = "pre-consent prompt must not persist";
+    const firstNoticeUpdateId = 93000;
+    assert.equal(await exactMessage(firstNoticeUpdateId, "100", "/maritime_accept"), 200);
+    assert.equal(maritimeParticipants.size, 0, "accepting before viewing the notice only displays it");
+    assert.match(lastSent().text, /無期限/);
+    assert.match(lastSent().text, /\/maritime_accept/);
+    assert.equal(await exactMessage(firstNoticeUpdateId, "100", "/maritime_accept"), 200);
+    assert.equal(maritimeParticipants.size, 0, "Telegram redelivery of the notice command cannot become consent");
+    const receiptsBeforeConsent = commandReceipts.size;
+    assert.equal(await exactMessage(93001, "100", `/pilot ${privatePrompt}`), 200);
+    assert.equal(maritimeChatCalls, 0, "an unconsented prompt must not reach Maritime");
+    assert.equal(commandReceipts.size, receiptsBeforeConsent, "an unconsented prompt must not create a request receipt");
+    assert.doesNotMatch(JSON.stringify(commandReceipts), new RegExp(privatePrompt));
+    assert.doesNotMatch(logs.join("\n"), new RegExp(privatePrompt));
+    assert.match(lastSent().text, /Maritime|Maritime AI/);
+    assert.match(lastSent().text, /無期限/);
+    assert.match(lastSent().text, /\/maritime_accept/);
+    const consentUpdateId = 93003;
+    assert.equal(await exactMessage(consentUpdateId, "100", "/maritime_accept"), 200);
+    assert.equal(maritimeParticipants.size, 1);
+    assert.equal([...maritimeParticipants.values()][0].source, "direct");
+
     const beforePilot = sent.length;
-    const pilotUpdateId = updateId + 1;
+    holdMaritimeResponses = true;
+    const concurrentPilotReplies = await Promise.all([
+      exactMessage(pilotUpdateId, "100", "/pilot plan my day"),
+      exactMessage(concurrentPilotUpdateId, "100", "/pilot another small task"),
+    ]);
+    holdMaritimeResponses = false;
+    assert.deepEqual(concurrentPilotReplies, [200, 200]);
+    assert.equal(maritimeChatCalls, 2, JSON.stringify(maritimeRequests));
+    assert.equal(sent.length, beforePilot + 2);
     assert.equal(await exactMessage(pilotUpdateId, "100", "/pilot plan my day"), 200);
-    assert.equal(maritimeChatCalls, 1, JSON.stringify(maritimeRequests));
-    assert.equal(sent.length, beforePilot + 1);
-    assert.equal(lastSent().text, "Pilot fixture reply");
-    assert.equal(await exactMessage(pilotUpdateId, "100", "/pilot plan my day"), 200);
-    assert.equal(sent.length, beforePilot + 1, "duplicate update sends no second Telegram reply");
-    assert.equal(maritimeChatCalls, 1, "duplicate update never repeats the paid provider call");
+    assert.equal(sent.length, beforePilot + 2, "duplicate update sends no second Telegram reply");
+    assert.equal(maritimeChatCalls, 2, "duplicate update never repeats the paid provider call");
     const pilotReceipt = commandReceipts.get(`telegram-maritime-pilot:${pilotUpdateId}`);
     assert.equal(pilotReceipt.status, "succeeded");
     assert.equal(pilotReceipt.result, null, "receipt stores no prompt or model response");
     assert.match(pilotReceipt.request_hash, /^[a-f0-9]{64}$/);
     assert.doesNotMatch(JSON.stringify(pilotReceipt), /plan my day|Pilot fixture reply/);
+    assert.equal(funnelEvents.filter((event) => event.event_name === "maritime_first_response").length, 1);
+    assert.equal(funnelEvents.filter((event) => event.event_name === "maritime_7day_return").length, 1,
+      "two concurrent distinct successful requests are serialized as first response and return");
+    assert.ok(funnelEvents.every((event) => event.uid == null));
+
+    const callsBeforeStop = maritimeChatCalls;
+    assert.equal(await exactMessage(93005, "100", "/maritime_stop"), 200);
+    assert.match(lastSent().text, /停止|stopped/i);
+    const maritimeParticipant = [...maritimeParticipants.values()][0];
+    assert.ok(maritimeParticipant.revoked_at);
+    assert.equal(await exactMessage(consentUpdateId, "100", "/maritime_accept"), 200);
+    assert.ok(maritimeParticipant.revoked_at, "replaying the earlier accept after stop must not restore consent");
+    assert.equal(await exactMessage(93002, "100", `/pilot ${privatePrompt}`), 200);
+    assert.equal(maritimeChatCalls, callsBeforeStop, "revoked consent blocks later provider calls");
+    assert.doesNotMatch(JSON.stringify(commandReceipts), new RegExp(privatePrompt));
 
     // 2b. /invest crosses the real authenticated webhook + tenant lookup + shared renderer +
     //     Telegram transport. It reads this exact tenant's Cloud Investment state and records the
@@ -490,6 +680,43 @@ test("POST /telegram routes the legacy-parity slash surface without disturbing e
     assert.match(lastSent().text, /Unknown command: \/startfoo/);
     assert.ok(!/Welcome to Life Manager/.test(lastSent().text), "/startfoo must not open onboarding");
 
+    // A Maritime deep link provisions/reuses the tenant but skips the existing Calendar OAuth and
+    // Agent Economy onboarding path. Web-linked Telegram users reuse their Web tenant as well.
+    const calendarCallbackBeforeMaritime = telegramCalendarCallback;
+    const cloudCitizensBeforeMaritime = cloudCitizens.size;
+    const runtimeJobsBeforeMaritime = runtimeJobs.size;
+    const actorClaimsBeforeMaritime = actorClaims;
+    assert.equal(await message("400", "/start maritime_community"), 200);
+    assert.match(lastSent().text, /Maritime/);
+    assert.match(lastSent().text, /無期限/);
+    assert.match(lastSent().text, /\/maritime_accept/);
+    assert.equal(actorClaims, actorClaimsBeforeMaritime + 1);
+    assert.equal(telegramCalendarCallback, calendarCallbackBeforeMaritime);
+    assert.equal(cloudCitizens.size, cloudCitizensBeforeMaritime);
+    assert.equal(runtimeJobs.size, runtimeJobsBeforeMaritime);
+    const unconsentedNewPrompt = "new actor private prompt";
+    const newActorCallsBeforeConsent = maritimeChatCalls;
+    assert.equal(await message("400", `/pilot ${unconsentedNewPrompt}`), 200);
+    assert.equal(maritimeChatCalls, newActorCallsBeforeConsent);
+    assert.equal(await message("400", "/maritime_accept"), 200);
+    assert.equal([...maritimeParticipants.values()].find((row) => row.source === "community")?.source, "community");
+    assert.equal(await message("400", "/pilot one small task"), 200);
+    assert.equal(maritimeChatCalls, newActorCallsBeforeConsent + 1);
+
+    const actorClaimsBeforeWebUser = actorClaims;
+    assert.equal(await message("401", "/start maritime_discord"), 200);
+    assert.match(lastSent().text, /Maritime/);
+    assert.equal(actorClaims, actorClaimsBeforeWebUser, "a Web-linked person reuses their tenant without a legacy claim");
+    assert.equal(await message("401", "/maritime_accept"), 200);
+    assert.equal([...maritimeParticipants.values()].find((row) => row.source === "discord")?.source, "discord");
+    assert.equal(await message("401", "/pilot another small task"), 200);
+    assert.equal(maritimeChatCalls, newActorCallsBeforeConsent + 2);
+    assert.ok(funnelEvents.some((event) => event.event_name === "maritime_start"
+      && event.attribution.utm_source === "maritime-community"));
+    assert.ok(funnelEvents.some((event) => event.event_name === "maritime_consent"
+      && event.attribution.utm_source === "maritime-discord"));
+    assert.doesNotMatch(JSON.stringify(funnelEvents), /pre-consent prompt must not persist|new actor private prompt/);
+
     // 7. /where with nothing stored is honest; the edited_message live-location stream then routes
     //    to upsertLiveLocation; /where afterwards reads the stored fix back (age + rounded coords).
     assert.equal(await message("100", "/where"), 200);
@@ -597,6 +824,8 @@ test("POST /telegram routes the legacy-parity slash surface without disturbing e
     delete process.env.MARITIME_PILOT_ENABLED;
     delete process.env.MARITIME_PILOT_DATA_APPROVED;
     delete process.env.MARITIME_PILOT_TOOL_POLICY_VERIFIED;
+    delete process.env.MARITIME_PILOT_PUBLIC_ENTRY_ENABLED;
+    delete process.env.MARITIME_PILOT_MAX_USERS;
     delete process.env.MARITIME_API_KEY;
     delete process.env.MARITIME_PILOT_UID_ALLOWLIST;
     delete process.env.LM_UID_SECRET;

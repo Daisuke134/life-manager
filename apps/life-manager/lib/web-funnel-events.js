@@ -9,6 +9,8 @@ const WEB_FUNNEL_EVENTS = new Set([
   "landing_view", "google_connect_start", "google_authenticated", "calendar_active",
   "first_travel_block", "checkout_created", "trial_started", "paid_invoice",
   "cancellation_requested", "subscription_canceled", "refund_recorded",
+  "maritime_landing_view", "maritime_cta_click", "maritime_start", "maritime_consent",
+  "maritime_consent_revoked", "maritime_first_response", "maritime_7day_return",
 ]);
 const BILLING_REASONS = new Set([
   "automatic_pending_invoice_item_invoice", "manual", "subscription", "subscription_create",

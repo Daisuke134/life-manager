@@ -39,6 +39,22 @@ test("normalizes allowlisted funnel fields and bounded UTM and Writer identities
   });
 });
 
+test("accepts content-free Maritime campaign and usage milestones", () => {
+  const row = funnelEvents.normalizeWebFunnelEvent({
+    eventName: "maritime_first_response",
+    sourceEventId: `maritime:${"a".repeat(64)}:maritime_first_response`,
+    sourceObjectId: "a".repeat(64),
+    attribution: { utm_source: "maritime-community", utm_medium: "telegram", utm_campaign: "the-first-1000" },
+  }, Date.parse("2026-10-18T00:00:00.000Z"));
+
+  assert.equal(row.event_name, "maritime_first_response");
+  assert.equal(row.uid, null, "the funnel event uses a stable pseudonymous participant id, not the raw UID");
+  assert.equal(row.source_object_id, "a".repeat(64));
+  assert.deepEqual(row.attribution, {
+    utm_source: "maritime-community", utm_medium: "telegram", utm_campaign: "the-first-1000",
+  });
+});
+
 test("rejects invalid lifecycle events, user ids, amounts, and billing reasons", () => {
   assert.ok(funnelEvents, "Web funnel event module is implemented");
   assert.throws(() => funnelEvents.normalizeWebFunnelEvent({ eventName: "calendar_event_title" }));
