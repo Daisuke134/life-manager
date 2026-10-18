@@ -14791,6 +14791,17 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **評価loopの現状:** investment-strategy-validationはloaded-idle/同release57753841で、最後のrun18de607194d35d58-50438は10月14日にexit75。既存launchd.outの構造化errorにENOSPCを確認し、raw path/本文は複製しない。現在のselected reportは10月21日05:47:06Zまで有効、次の既存calendarは10月20日14:30 JSTで期限前。手動validation/期限延長は行わず、次の自然実行で確認する。
 
+**IN-REPORT-01 — 比較レポートの送信receipt形式修正:** 実行先は既存investment-cross-venue-report、entrypointはcross_venue_run.py、stateは既存investment-cross-venue。shared TelegramClient.send_textはstatus=delivered/message_ids=[positive integer]を返すが、cross_venue_reporter._provider_message_idは単数形message_id/provider_message_idしか読まず、正常な送信応答でもdelivery_uncertainにする。同じ不整合は歴史的release ac0e3a5dの両関数にも存在する。既存のAlpaca reporter._deliver_messageがsingleton message_idsを受ける形を再利用し、新しい送信client/outbox/controllerを作らない。
+
+- **最小契約:** 既存mapperへshared SDKの成功したsingleton message_idsだけを追加受理する。status不一致・空/複数/不正IDは確定にせず、既存の未確認・再送禁止を維持する。既存string/単数IDのsender契約、effect hintの直前無効化、outbox一回claim、daily occurrence保存は保持する。過去の不明rowやfenceを更新する処理は追加しない。複数chunkの受理は既存singleton source契約の範囲外であり、最初のIDだけで全件成功としない。
+- **既存不明状態の診断:** 対象historical occurrenceはinvestment-cross-venue-report:18d9b91b8146a120-88953、release ac0e3a5db961e102e7f1b856f9335b29ab93ccb7、entrypoint_exit1/effect_unknown。旧daily receiptはdelivery_uncertain、occurrence/provider IDなし。outboxはattempt1/ValueError/provider IDなし、本文にもexact occurrenceなし。旧run scratchは存在せず、既存logsにもexact run/tracebackを確認できない。登録済みbuild_proofのread-only probeはdaily_receipt_occurrence_not_unique、resolve=false/provider writes0/fence mutations0。これは売買fenceではなく通知fenceで、clear/replayしない。
+- **公式読み取りの区別:** private credential SSOT全体139 rowsとTelegram exact service2 rows、既存file session/registered tg_user dialogs/readを確認する。現行tokenのSSOT一致と公式getMe identityを確認し、MTProtoで対象UTC日の履歴913件を最後まで読み、既存outbox本文SHAと完全一致するメッセージ1件を確認する。本文/chat ID/tokenは本正本へ複製しない。これは通知が存在する観測であり、旧host occurrenceへexactに結んだreceiptではない。旧fence/outbox状態は維持する。Bot API IDとuser MTProto IDを同一視した補填も行わない。
+- **原子的TODO:** A 本契約をcommit/push → B real shared TelegramClient＋fake HTTP responseを既存wakeへ通すRED、未確認/不正応答と同日replay無送信を確認 → C mapperの最小修正と既存関連GREEN → D fresh-context effect review/全CI/main → E 正式版と対象ownerのloaded-idle採用/read-only canaryを確認。旧通知fenceの元実行紐付と公式receipt回収は別cursorで、証明なしに解除しない。新たな実通知や手動wakeは行わない。
+
+**C source統合と観測:** PR #8326 head3ec00beba3のSecurity Scan12項目＋CodeRabbit、13 checksは全PASSし、main ab5707cbc36d4df3a46ecc775b3b1c4407c058e1へ統合する。core sourceは独立review版630113f2cdからbyte変更なし。実消費ownerは日次investment-cross-venue-report（紙取引runのHOLDだけではcore稼働証明にならない）。観測時installed57753841/loaded-idle、旧通知fence=trueで自然実行は停止中。currentはcd6f52ac、既存30分cut intervalとreconcilerの自然反映を優先し、cut周期/閾値/旧fenceを変えない。source/mainと本番owner採用・自然readbackは区別する。
+
+**局所順序更新:** 旧=C全反映→B/D完全coverage。新=Cの既存reconcilerによる反映を並行観測→IN-REPORT-01のtransport receipt形式不整合をsource修正→B/D完全coverage（Dでmeasured解放前にpaper/mode保持とlive候補・実利益rolling除外を含める）。理由は実消費ownerが旧通知unknownで止まり、現SDK応答形式にも自己所有の実装不整合が見つかったため。current cursorはIN-REPORT-01 Bの最小RED。費用/利益の未確認を成功や0へ置換しない。
+
 ### IN-COST-04C 実装計画 — core費用とpaper損益基準
 
 **Goal:** 検証済みsystem費用を既存coreで一度だけ控除し、paper約定損益へslippageを二重控除しない。
