@@ -78,6 +78,20 @@ def _candidate(symbol: str = "QQQ") -> dict[str, object]:
     }
 
 
+class LegacyCryptoEntryRetirementTests(unittest.TestCase):
+    def test_old_btc_policy_cannot_reenter_while_new_policy_uses_the_same_risk_gates(self):
+        candidate={**_candidate("BTC/USDC"),"asset_class":"crypto","candidate_ref":"crypto://BTC/USDC"}
+        base={"action":"ENTER","candidate_ref":candidate["candidate_ref"],"symbol":"BTC/USDC",
+              "expected_cost_usd":"0.02","owner_id":"alpaca-investment-paper"}
+        for strategy in ("alpaca-btc-5m-trend-v1","alpaca-btc-5m-reversion-v1"):
+            with self.subTest(strategy=strategy):
+                result=allocator.gate(_snapshot("paper"),[candidate],{**base,"strategy_id":strategy})
+                self.assertFalse(result["approved"])
+                self.assertEqual(result["gate"],"legacy_btc_entry_retired")
+        result=allocator.gate(_snapshot("paper"),[candidate],{**base,"strategy_id":"alpaca-btc-5m-trend-400-v2"})
+        self.assertTrue(result["approved"],result)
+
+
 class EtfAllocatorTests(unittest.TestCase):
     def test_build_candidates_exposes_fixed_etf_universe_when_daily_bars_exist(self):
         snapshot = _snapshot()
