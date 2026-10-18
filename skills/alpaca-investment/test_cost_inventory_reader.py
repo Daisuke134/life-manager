@@ -114,6 +114,41 @@ class CostInventoryReaderTests(unittest.TestCase):
             self.assertEqual(lm_loop._private_jsonl_rows(path),[{'ok':1},{'ok':2}])
             self.assertEqual(lm_loop._private_jsonl_rows(path,strict=True),[])
 
+    def test_invalid_receipt_type_is_a_gap_and_never_escapes_the_reader(self):
+        for value in ([],{},17,None):
+            with self.subTest(value=value),tempfile.TemporaryDirectory() as directory:
+                root=Path(directory);owner,state,trips,observed=fixture(root)
+                ledger=state/'receipts.jsonl';row=json.loads(ledger.read_text());row['receipt_type']=value
+                ledger.write_text(json.dumps(row)+'\n')
+                result=self.read(root,state,trips,observed,owner)
+                self.assertIn('source_snapshot_invalid',reasons(result))
+                self.assertEqual(result['coverage_state'],'gap')
+
+    def test_release_metadata_never_follows_file_or_parent_links(self):
+        import os
+        for case in ('catalog','manifest','catalog_parent','catalog_hardlink'):
+            with self.subTest(case=case),tempfile.TemporaryDirectory() as directory:
+                root=Path(directory);owner,state,trips,observed=fixture(root)
+                catalog=root/inventory.CATALOG_PATH
+                body=json.loads(catalog.read_text());body['loops'][0]['cost_source_inventory']['sources'][0]['provider']='outside-provider'
+                external=root/'mutable-catalog.json';external.write_text(json.dumps(body))
+                if case=='catalog':catalog.unlink();catalog.symlink_to(external)
+                elif case=='manifest':
+                    manifest=root/'RELEASE.json';target=root/'mutable-manifest.json';target.write_bytes(manifest.read_bytes())
+                    manifest.unlink();manifest.symlink_to(target)
+                elif case=='catalog_hardlink':catalog.unlink();os.link(external,catalog)
+                else:
+                    parent=catalog.parent;target=root/'external-config';parent.rename(target);parent.symlink_to(target,target_is_directory=True)
+                    (target/'product-loop-catalog.json').write_bytes(external.read_bytes())
+                result=self.read(root,state,trips,observed,owner)
+                providers={r['provider'] for s in result['scopes'] for r in s['required_sources']}
+                self.assertNotIn('outside-provider',providers)
+                self.assertIn('source_release_missing',reasons(result))
+                ledger=root/'new-capture.jsonl'
+                captured=inventory.record_source_inventory(ledger,release_root=root,owner_id=owner,
+                    run_id='physical-new',occurrence_id=owner+':claimed-new')
+                self.assertFalse(captured['appended']);self.assertFalse(ledger.exists())
+
     def test_admission_read_closes_its_connection(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);owner,state,trips,observed=fixture(root)
