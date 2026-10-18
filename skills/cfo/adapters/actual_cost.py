@@ -794,6 +794,13 @@ def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_recor
             if settlement == "no_charge_final":
                 if documents:
                     raise ValueError
+                for document in _document_rows(payload)[0]:
+                    if (document.get("provider"), document.get("billing_account_ref")) != key[:2]:
+                        continue
+                    doc_start = _instant(document.get("billing_period_start"))
+                    doc_end = _instant(document.get("billing_period_end"))
+                    if doc_start is None or doc_end is None or (doc_start < times["window_end"] and doc_end > times["window_start"]):
+                        raise ValueError
             elif settlement == "paid_final":
                 paid_ids = set()
                 for document in _document_rows(payload)[0]:
