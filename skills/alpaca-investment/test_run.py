@@ -752,7 +752,9 @@ class PaperEtfFreshFenceTest(unittest.TestCase):
                             elif selection_change == "release": selected["release_sha"] = "b" * 40
                             elif selection_change == "expired": selected["expires_at"] = "2020-01-01T00:00:00Z"
                             elif selection_change == "report": selected["report_id"] = "new-report-same-policy"
-                            elif selection_change == "card": selected["card"]["entry_conditions"] = ["close > 0"]
+                            elif selection_change == "card": selected["card"]["entry_rules"] = {"all": ["close > 0"]}
+                            elif selection_change == "not_selected": selected["selection"] = "rejected"
+                            elif selection_change == "report_missing": selected["report_id"] = ""
                             MODULE._atomic_json(state / "selected-strategy.json", selected)
                     if changed_owned_qty is not None:
                         MODULE._atomic_json(state / "etf-owned-position.json", {
@@ -816,7 +818,7 @@ class PaperEtfFreshFenceTest(unittest.TestCase):
         self.assertEqual(calls[0].kwargs["order"]["side"], "buy")
 
     def test_entry_rejects_changed_missing_or_expired_selection_before_submit(self):
-        for change in ("strategy", "release", "expired", "missing", "card"):
+        for change in ("strategy", "release", "expired", "missing", "card", "not_selected", "report_missing"):
             with self.subTest(change=change):
                 code, result, calls, _ = self.run_approved_trade(action="ENTER", selection_change=change)
                 self.assertEqual(code, 78, result)
@@ -919,7 +921,7 @@ class LiveRunTest(unittest.TestCase):
             "observed_at": "2026-09-10T08:00:00Z"}
         order = {"asset_class": "crypto", "notional_usd": "10.00", "side": "buy",
             "symbol": "BTC/USDC", "time_in_force": "gtc", "type": "market"}
-        with tempfile.TemporaryDirectory() as directory, ExitStack() as fixture_stack:
+        with tempfile.TemporaryDirectory() as directory:
             _entry_selection_fixture(Path(directory) / "state", decision, "live")
             with patch.dict(MODULE.os.environ, {
             "LIFE_MANAGER_INVESTMENT_MODE": "live", "LIFE_MANAGER_INVESTMENT_DEPLOYMENT": "local",

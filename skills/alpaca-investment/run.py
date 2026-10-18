@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
-from allocator import build_candidates, choose, gate as allocation_gate, order_for
+from allocator import _read_selection, build_candidates, choose, gate as allocation_gate, order_for
 from alpaca_cli import (CLI_OPERATIONS, SAFE_ERROR_CODES, find_order_by_client_id, observe,
                         read_allocator_snapshot, read_campaign_snapshot, read_crypto_history,
                         read_paper_etf_cost_evidence, submit_order)
@@ -28,7 +28,7 @@ from paper_performance import write_paper_performance
 from cost_inventory import record_source_inventory
 from reporter import deliver, deliver_control, deliver_failure
 from position_manager import choose as choose_position, exit_order as live_exit_order, load_owned_policy
-from strategy_policy import INDICATOR_HISTORY_CONTRACTS, load_selected_card
+from strategy_policy import INDICATOR_HISTORY_CONTRACTS, load_selected_card, validate_policy_card
 from review_status import read_receipt as read_application_status
 from review_status import refresh as refresh_application_status
 from risk_policy import evaluate_entry, parse_instant
@@ -634,6 +634,20 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                         except (ValueError, KeyError, TypeError, InvalidOperation) as error:
                             raise ValueError("owned_position_changed_before_submit") from error
                         ownership, observation = fresh_ownership, fresh_observation
+                    if order.get("asset_class") == "crypto" and order.get("side") == "buy":
+                        try:
+                            selected = _read_selection(state)
+                            card, release = load_selected_card(state)
+                            frozen, frozen_release = validate_policy_card(decision.get("policy_card"),
+                                decision.get("release_sha"), strategy_id=decision.get("strategy_id"))
+                            if (not isinstance(selected, dict) or selected.get("selection") != "selected"
+                                    or not isinstance(selected.get("report_id"), str) or not selected["report_id"].strip()
+                                    or selected.get("strategy_id") != card.strategy_id
+                                    or decision.get("action") != "ENTER"
+                                    or card.strategy_id != frozen.strategy_id or release != frozen_release):
+                                raise ValueError("entry_policy_changed_before_submit")
+                        except (ValueError, OSError, KeyError, TypeError) as error:
+                            raise ValueError("entry_policy_changed_before_submit") from error
                     if mode == "live" and not live_positions and not evaluate_entry(
                             fresh.get("risk"), order.get("notional_usd"))["approved"]:
                         raise ValueError("investment_effect_fence_rejected")
