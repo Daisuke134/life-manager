@@ -243,7 +243,7 @@ class OwnedPolicyTests(unittest.TestCase):
 
 
 class OwnedSubmitFenceTests(unittest.TestCase):
-    def _flow(self, *, quantity_drift=False, replace_entry=False):
+    def _flow(self, *, quantity_drift=False, replace_entry=False, mode="live", remove_marker=False):
         import importlib.util
         spec=importlib.util.spec_from_file_location("owned_policy_native_run",ROOT/"run.py")
         native=importlib.util.module_from_spec(spec)
@@ -251,8 +251,9 @@ class OwnedSubmitFenceTests(unittest.TestCase):
         self.assertEqual(Path(native.__file__).resolve(),ROOT/"run.py")
         with tempfile.TemporaryDirectory() as directory,ExitStack() as stack:
             root=Path(directory)
-            original,owner=seed(root)
-            allocator_snapshot,observation=snapshot("live")
+            original,owner=seed(root,mode=mode)
+            if remove_marker: (root/"live-owned-position.json").unlink()
+            allocator_snapshot,observation=snapshot(mode)
             history=allocator_snapshot.pop("crypto_history")
             observation.update(account={"cash":"90","equity":"97.5"},activities_count=1,
                                open_and_closed_orders_count=1,clock={"observed_at":"2026-01-01T04:15:00Z"})
@@ -274,7 +275,7 @@ class OwnedSubmitFenceTests(unittest.TestCase):
                 if fences[0]==2 and replace_entry:
                     # Model another writer completing before this submit lock.
                     with real_fence(state):
-                        replacement,_=seed(root,decision_changes={"observed_at":"2026-01-01T03:59:59Z"},
+                        replacement,_=seed(root,mode=mode,decision_changes={"observed_at":"2026-01-01T03:59:59Z"},
                                            broker_id="provider-entry-b")
                     self.assertNotEqual(replacement["entry_effect_id"],original["entry_effect_id"])
                 with real_fence(state) as control:
@@ -290,13 +291,15 @@ class OwnedSubmitFenceTests(unittest.TestCase):
                         "time_in_force":"gtc","filled_qty":"0.05","filled_avg_price":"150",
                         "submitted_at":"2026-01-01T04:15:00Z","filled_at":"2026-01-01T04:15:00Z"}
             stack.enter_context(patch.dict(os.environ,{
-                "LIFE_MANAGER_INVESTMENT_DEPLOYMENT":"local","LIFE_MANAGER_INVESTMENT_MODE":"live",
+                "LIFE_MANAGER_INVESTMENT_DEPLOYMENT":"local","LIFE_MANAGER_INVESTMENT_MODE":mode,
                 "LIFE_MANAGER_INVESTMENT_OWNER_ID":owner,
-                "ALPACA_INVESTMENT_LIVE_STATE_DIR":str(root),
-                "ALPACA_INVESTMENT_LIVE_CREDENTIALS_FILE":str(root/"credentials")},clear=True))
+                f"ALPACA_INVESTMENT_{mode.upper()}_STATE_DIR":str(root),
+                f"ALPACA_INVESTMENT_{mode.upper()}_CREDENTIALS_FILE":str(root/"credentials")},clear=True))
             for name,replacement in (("observe",observe),("read_allocator_snapshot",fresh_snapshot),
                                      ("find_order_by_client_id",find),("control_fence",fenced)):
                 stack.enter_context(patch.object(native,name,side_effect=replacement))
+            stack.enter_context(patch.object(native,"read_campaign_snapshot",return_value={
+                "paper":True,"unexpected_positions":["BTCUSD"],"fills":[],"positions":[],"options":[]}))
             stack.enter_context(patch.object(native,"read_crypto_history",return_value=history))
             stack.enter_context(patch.object(native,"build_candidates",return_value=[]))
             stack.enter_context(patch.object(native,"_review_status",return_value={}))
@@ -404,6 +407,31 @@ class OwnedSubmitFenceTests(unittest.TestCase):
                 with patch.object(native,"find_order_by_client_id",return_value=broker):
                     actual=native._sync_live_ownership(root,Path("unused"),Path("unused"),{"positions":[]})
                 self.assertEqual(actual["status"],"closed" if not change else "entry_pending")
+
+    def test_paper_owned_btc_uses_same_exit_and_fresh_fence_as_live(self):
+        code,result,calls,rows,reads,original=self._flow(mode="paper")
+        self.assertEqual(code,0,result)
+        self.assertEqual(len(calls),1)
+        self.assertEqual(calls[0].kwargs["mode"],"paper")
+        self.assertEqual(calls[0].kwargs["order"],{
+            "asset_class":"crypto","qty":"0.05","side":"sell","symbol":"BTC/USDC",
+            "time_in_force":"gtc","type":"market"})
+        self.assertGreaterEqual(reads,2)
+        decisions=[r["decision"] for r in rows if r.get("receipt_type")=="decision"
+                   and r["decision"].get("position_action")=="EXIT"]
+        self.assertEqual(decisions[0]["entry_effect_id"],original["entry_effect_id"])
+        self.assertEqual(decisions[0]["owner_id"],"alpaca-investment-paper")
+        for changes in ({"quantity_drift":True},{"replace_entry":True}):
+            with self.subTest(changes=changes):
+                code,result,calls,*_=self._flow(mode="paper",**changes)
+                self.assertEqual(code,78,result)
+                self.assertEqual(result["error_code"],"owned_position_changed_before_submit")
+                self.assertEqual(calls,[])
+
+    def test_paper_campaign_cannot_whitelist_btc_without_an_owned_marker(self):
+        code,result,calls,*_=self._flow(mode="paper",remove_marker=True)
+        self.assertEqual(code,78,result)
+        self.assertEqual(calls,[])
 
     def test_unchanged_owned_exit_preserves_parent_identity_through_real_main(self):
         code,summary,calls,rows,reads,original=self._flow()
