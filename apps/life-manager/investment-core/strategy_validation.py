@@ -108,9 +108,13 @@ def _quote_valuations(card: StrategyCard, candles: list[dict[str, Any]]) -> str 
                     or _timestamp(conversion.get("timestamp")) != _timestamp(candle["timestamp"])
                     or not isinstance(evidence, str) or not evidence.strip()):
                 return "quote_conversion_invalid"
-        # Detach provider metadata and overwrite any caller-supplied internal rate.
-        candle["quote_to_usd"] = dict(conversion)
-        candle["_quote_to_usd_rate"] = Decimal(str(conversion["rate"]))
+        # Keep only validated, JSON-safe evidence and overwrite caller internal rates.
+        rate = Decimal(str(conversion["rate"]))
+        candle["quote_to_usd"] = {
+            "currency": quote, "rate": _text(rate), "timestamp": candle["timestamp"],
+            "evidence_ref": conversion["evidence_ref"],
+        }
+        candle["_quote_to_usd_rate"] = rate
     return None
 
 
