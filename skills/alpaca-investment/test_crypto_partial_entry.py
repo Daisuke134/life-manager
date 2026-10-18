@@ -154,6 +154,23 @@ class PartialEntryTests(unittest.TestCase):
                 self.assertEqual(result['unresolved'],1)
                 self.assertEqual(store.effect_state(root/'receipts.jsonl',marker['entry_effect_id']),'started')
 
+    def test_receipt_adoption_does_not_overwrite_conflicting_pending_quantities(self):
+        for mode in ('paper','live'):
+            for key,value in (('entry_filled_qty','0.04'),('entry_filled_qty','NaN'),('owned_qty','0.04')):
+                with self.subTest(mode=mode,key=key,value=value),tempfile.TemporaryDirectory() as directory,patch.dict(os.environ,{
+                        'LIFE_MANAGER_INVESTMENT_MODE':mode,'LIFE_MANAGER_INVESTMENT_OWNER_ID':f'alpaca-investment-{mode}'}):
+                    root=Path(directory);marker,broker,observation,owner,activities=partial_fixture(root,mode)
+                    proof=self.proof(root,marker,broker,observation,owner,activities,mode)
+                    store.reconcile_started(root/'receipts.jsonl',lambda _:broker,on_reconciled=lambda *_:proof)
+                    marker[key]=value;(root/'live-owned-position.json').write_text(json.dumps(marker))
+                    before=(root/'live-owned-position.json').read_bytes();ledger=(root/'receipts.jsonl').read_bytes()
+                    native=native_run()
+                    with patch.object(native,'find_order_by_client_id',return_value=broker):
+                        with self.assertRaisesRegex(ValueError,'owned_entry_account_invalid'):
+                            native._sync_live_ownership(root,Path('unused'),Path('unused'),observation)
+                    self.assertEqual((root/'live-owned-position.json').read_bytes(),before)
+                    self.assertEqual((root/'receipts.jsonl').read_bytes(),ledger)
+
     def test_saved_partial_proof_cannot_hide_invalid_activity_without_marker(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);marker,broker,observation,owner,activities=partial_fixture(root)
