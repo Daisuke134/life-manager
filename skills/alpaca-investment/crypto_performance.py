@@ -18,7 +18,7 @@ from effect_store import _owned_rows
 from paper_performance import _atomic_json,_operating_charge_key,_operating_cost_facts,_operating_cost_facts_match
 from cost_inventory import read_expected_inventory,select_expected_inventory
 from risk_policy import parse_instant
-from paper_operating_costs import read_readback,select_components,summarize as summarize_operating_costs
+from paper_operating_costs import read_readback,select_components,remember_source_evidence,summarize as summarize_operating_costs
 
 
 def _scoped_plans(rows,mode,owner):
@@ -347,7 +347,7 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
     state=Path(state_dir);latest=state/'performance-crypto-latest.json';phase='ledger'
     frames={};refs={};fee_refs=[];fee_checked=None;known_fees=set();known_entries=set();known_cycles=set()
     window_days=90;limit_window=None;query={};page_chunks=[];page_checked=None
-    fx_frames={};fx_attempts={};fx_errors=[];billing_cache=None;known_cost_components=[]
+    fx_frames={};fx_attempts={};fx_errors=[];billing_cache=None;known_cost_components=[];source_evidence=[]
     try:
         phase='cache'
         if latest.exists():
@@ -359,6 +359,9 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
             fx_frames=old.get('fx_quote_readbacks',{});fx_attempts=old.get('fx_attempted_at',{})
             billing_cache=old.get('operating_cost_readback')
             known_cost_components=old.get('known_operating_cost_components',old.get('operating_cost_components',[]))
+            source_evidence=old.get('known_operating_cost_source_evidence',[])
+            try:source_evidence=remember_source_evidence(source_evidence,old,owner_id=owner_id,mode=mode)
+            except ValueError as error:raise ValueError('crypto_operating_cost_source_history_invalid') from error
             for key,target in (('known_entry_effect_ids',known_entries),('known_closed_cycle_ids',known_cycles),('known_fee_activity_ids',known_fees)):
                 values=old.get(key,[])
                 if not isinstance(values,list) or any(not isinstance(v,str) or not v for v in values):
@@ -537,6 +540,7 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
         old_costs=summarize_operating_costs(result['cycles'],billing_cache,owner_id=owner_id,mode=mode,observed_at=observed,expected_inventory=expected_inventory)
         selected=incoming if incoming is not None else billing_cache
         costs=summarize_operating_costs(result['cycles'],selected,owner_id=owner_id,mode=mode,observed_at=observed,expected_inventory=expected_inventory)
+        source_evidence=remember_source_evidence(source_evidence,costs,owner_id=owner_id,mode=mode)
         def charges(components):
             if not isinstance(components,list):raise ValueError('crypto_operating_cost_cache_invalid')
             facts={}
@@ -561,7 +565,7 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
         result.update(costs)
         phase='write'
         observed=observation['clock']['observed_at'];day=parse_instant(observed).astimezone(timezone.utc).date().isoformat()
-        payload={**result,'known_operating_cost_components':known_cost_components,'operating_cost_readback':billing_cache,'fx_quote_readbacks':fx_frames,'fx_attempted_at':fx_attempts,'fx_readback_errors':fx_errors,'observed_at':observed,'performance_day':day,'activity_readbacks':frames,'order_activity_refs':refs,
+        payload={**result,'known_operating_cost_components':known_cost_components,'known_operating_cost_source_evidence':source_evidence,'operating_cost_readback':billing_cache,'fx_quote_readbacks':fx_frames,'fx_attempted_at':fx_attempts,'fx_readback_errors':fx_errors,'observed_at':observed,'performance_day':day,'activity_readbacks':frames,'order_activity_refs':refs,
                  'known_entry_effect_ids':sorted(known_entries),'known_closed_cycle_ids':sorted(known_cycles),
                  'known_fee_activity_ids':sorted(known_fees),'fee_activity_refs':fee_refs,'fee_checked_at':fee_checked,
                  'activity_window_days':window_days,'activity_limit_window':limit_window,
@@ -590,6 +594,7 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
         elif reason=='crypto_activity_pagination_pending': next_action='continue_activity_pages_from_saved_token'
         result={'schema_version':1,'owner_id':owner_id,'mode':mode,'paper':mode=='paper','report_scope':'owned_crypto_cycles',
             'measurement_status':'partial','reason':reason,'error_class':type(error).__name__,'failed_phase':phase,
+            'operating_cost_source_history_status':'invalid' if reason=='crypto_operating_cost_source_history_invalid' else 'recorded_only',
             'completed_round_trips':None,'net_pnl_usd':None,'capital_expansion_allowed':False,
             'activity_readbacks':frames if phase in {'ledger','history','observation','activity_readback','write','activity_page_readback','activity_page_cache','fx_reference','operating_costs'} else {},
             'order_activity_refs':refs if phase in {'ledger','history','observation','activity_readback','write','activity_page_readback','activity_page_cache','fx_reference','operating_costs'} else {},
@@ -597,7 +602,7 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
             'known_fee_activity_ids':sorted(known_fees),
             'fee_activity_refs':fee_refs if phase in {'ledger','history','observation','activity_readback','write','activity_page_readback','activity_page_cache','fx_reference','operating_costs'} else [],
             'fee_checked_at':fee_checked,
-            'known_operating_cost_components':known_cost_components,'operating_cost_readback':billing_cache,
+            'known_operating_cost_components':known_cost_components,'known_operating_cost_source_evidence':source_evidence,'operating_cost_readback':billing_cache,
             'fx_quote_readbacks':fx_frames,'fx_attempted_at':fx_attempts,'fx_readback_errors':fx_errors,
             'activity_window_days':window_days,'activity_limit_window':limit_window,'activity_query':query,
             'activity_page_chunks':page_chunks,'activity_page_checked_at':page_checked,

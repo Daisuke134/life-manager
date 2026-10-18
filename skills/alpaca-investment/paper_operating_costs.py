@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 import sys
 from datetime import datetime
 from decimal import Context, Decimal, localcontext
@@ -145,6 +146,54 @@ def select_components(summary: dict, trips) -> dict:
         "verified_model_cost_subtotal_usd": subtotal({"model_cost"}),
         "verified_system_cost_subtotal_usd": subtotal({"tool_cost", "browser_cost", "infra_cost"}),
     }
+
+
+def remember_source_evidence(known, summary, *, owner_id, mode):
+    """Keep recorded scope evidence; never use it to authorize current money."""
+    field='known_operating_cost_source_evidence'
+    def ids(values, required=False):
+        return (isinstance(values,list) and (bool(values) or not required)
+            and all(isinstance(value,str) and value for value in values) and len(values)==len(set(values)))
+    def validate(record):
+        try:
+            scope=record['scope'];queries=record['queries'];binding=_binding(scope)
+            if (record.get('kind')!='historical_source_coverage' or record.get('current_cost_authority') is not False
+                    or binding is None or not binding[1]<binding[2]<=_time(record['observed_at'])
+                    or scope.get('owner_id')!=owner_id or scope.get('mode')!=mode or scope.get('paper') is not (mode=='paper')
+                    or scope.get('coverage_state')!='complete' or not ids(scope.get('evidence_refs'),True)
+                    or not ids(scope.get('source_receipt_ids'),True) or not isinstance(queries,list) or not queries):
+                raise ValueError
+            categories=set()
+            for query in queries:
+                if (query.get('inventory_verification')!='verified' or _binding(query)!=binding
+                        or query.get('settlement_state') not in {'paid_final','no_charge_final'}
+                        or not isinstance(query.get('provider'),str) or not query['provider']
+                        or not isinstance(query.get('billing_account_ref'),str) or not query['billing_account_ref']
+                        or not ids(query.get('covered_categories'),True) or not ids(query.get('evidence_refs'),True)
+                        or not ids(query.get('document_ids')) or _time(query['observed_at'])>_time(record['observed_at'])):
+                    raise ValueError
+                categories.update(query['covered_categories'])
+            if categories!={'model_cost','tool_cost','browser_cost','infra_cost'}:raise ValueError
+        except (KeyError,TypeError,AttributeError,ValueError) as error:
+            raise ValueError('operating_cost_source_history_invalid') from error
+    if mode not in {'paper','live'} or owner_id!='alpaca-investment-'+mode:
+        raise ValueError('operating_cost_source_history_invalid')
+    current=summary.get(field,[])
+    if not isinstance(known,list) or not isinstance(current,list):raise ValueError('operating_cost_source_history_invalid')
+    result=[]
+    for record in [*known,*current]:
+        validate(record)
+        if record not in result:result.append(deepcopy(record))
+    for scope in summary.get('operating_cost_scope_coverages',[]):
+        if scope.get('coverage_state')!='complete':continue
+        queries=[query for query in summary.get('operating_cost_query_observations',[])
+            if query.get('inventory_verification')=='verified' and _binding(query)==_binding(scope)]
+        if not queries:continue
+        record={'kind':'historical_source_coverage','current_cost_authority':False,
+            'scope':scope,'queries':queries,'observed_at':summary.get('operating_costs_observed_at')}
+        validate(record)
+        if record not in result:result.append(deepcopy(record))
+    return result
 
 
 def read_readback(path: str | None) -> Any:

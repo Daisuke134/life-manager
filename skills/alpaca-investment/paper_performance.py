@@ -16,7 +16,7 @@ from zoneinfo import ZoneInfo
 from cost_inventory import read_expected_inventory,select_expected_inventory
 from effect_store import UNRESOLVED_INTENT_STATUSES
 from crypto_ownership_proof import BROKER_TERMINAL_FAILURE_STATUSES, BROKER_RESUMABLE_STATUSES, _terminal_no_fill_proven
-from paper_operating_costs import read_readback, select_components, summarize as summarize_operating_costs
+from paper_operating_costs import read_readback, select_components, remember_source_evidence, summarize as summarize_operating_costs
 
 
 OWNER_ID = "alpaca-investment-paper"
@@ -766,9 +766,14 @@ def _bind_operating_costs(state: Path, completed, summary):
     paid_facts = {}
     alias_sets = {}
     day_keys = {}
+    source_evidence = []
+    def selected(value):
+        return {**select_components(value,completed), 'known_operating_cost_source_evidence':
+            remember_source_evidence(source_evidence,summary,owner_id=OWNER_ID,mode='paper')}
     try:
         for path in state.glob("performance-daily-????-??-??.json"):
             previous = json.loads(path.read_text(encoding="utf-8"))
+            source_evidence=remember_source_evidence(source_evidence,previous,owner_id=OWNER_ID,mode='paper')
             components = previous.get("operating_cost_components", [])
             if not isinstance(components, list):
                 raise ValueError("paper_operating_cost_binding_invalid")
@@ -819,9 +824,9 @@ def _bind_operating_costs(state: Path, completed, summary):
             if matching:
                 prior = eligible[matching[0]]
                 if len(matching) != 1 or _operating_cost_facts(prior) != fact:
-                    return select_components({**summary, "operating_cost_components": [],
+                    return selected({**summary, "operating_cost_components": [],
                         "operating_cost_component_gaps": component_gaps + [gap(item, "operating_cost_identity_conflict") for item in components],
-                        "operating_costs_reason": "operating_cost_identity_conflict"}, completed), day_keys
+                        "operating_costs_reason": "operating_cost_identity_conflict"}), day_keys
                 keys |= _operating_identity_keys(prior)
                 prior["identity_aliases"] = [list(key) for key in sorted(keys)]
             else:
@@ -830,7 +835,7 @@ def _bind_operating_costs(state: Path, completed, summary):
                  "operating_cost_component_gaps": component_gaps}
         if len(eligible) != len(components):
             value["operating_costs_reason"] = "operating_cost_receipt_reassigned"
-        return select_components(value, completed), day_keys
+        return selected(value), day_keys
     except (OSError, KeyError, AttributeError, TypeError, ValueError, ArithmeticError, RecursionError) as error:
         raise ValueError("paper_operating_cost_binding_unavailable") from error
 
