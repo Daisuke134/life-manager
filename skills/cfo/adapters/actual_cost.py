@@ -1058,10 +1058,15 @@ def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_recor
                         identity=_document_identity(document)
                         if identity is None or (identity[0],document.get('billing_account_ref'))!=key[:2] or identity[2] not in documents:continue
                         verified={r['receipt_id'] for r in paid_document_rows(document)}
+                        if not verified:continue
                         for line in document.get('line_items',[]):
                             for allocation in line.get('allocations',[]):
                                 receipt_id=f"{key[0]}:actual-cost:{identity[1]}:{identity[2]}:line:{line.get('line_item_id')}:allocation:{allocation.get('allocation_id')}"
-                                if (receipt_id in verified and line.get('category')==binding['category'] and allocation.get('product_loop_id')=='investment'
+                                linked=any(item.get('join_type')=='paid_allocation' and item.get('document_type')==identity[1]
+                                    and item.get('document_id')==identity[2] and item.get('line_item_id')==line.get('line_item_id')
+                                    and item.get('allocation_id')==allocation.get('allocation_id') and item.get('job_id')==allocation.get('job_id')
+                                    for item in matching)
+                                if (linked and receipt_id in verified and line.get('category')==binding['category'] and allocation.get('product_loop_id')=='investment'
                                         and (paid_charge_identity(document,line,allocation) in aliases or receipt_id in receipt_ids)):
                                     found=True
                     if not found:raise ValueError('cost_query_known_paid_missing')

@@ -427,8 +427,17 @@ read limits, missing evidence and saved paid-source lower bounds. Strict ledger
 reads reject damaged rows; financial readback never substitutes a newer release
 for old evidence. One-order fee closures and multi-order partial exits retain
 ordered economic groups. Daily reports select the same closed scope subset.
-History coverage and the billing-query consumer still require separate validation;
-this input capture never proves complete costs, net profit or capital promotion.
+Official query coverage now consumes that inventory: actual execution-owner/run/
+claimed-occurrence tuples, same owner/mode/ordered group/period, read history bounds
+and every required provider/account/category must match finalized paginated billing
+facts. One-order fee closures, partial exits and owner periods are supported. Shared
+executors keep their identity. Legacy observations and unverified diagnostics remain
+separate from independent scope coverage. Known paid charges require the scoped
+paid allocation (including invoice/receipt aliases); a final-no-charge claim cannot
+hide them. Scope coverage and cost evidence are selected by group and period for
+daily output, without inventing zero-dollar receipts or net-profit totals.
+Complete monetary costs, post-close/idle overhead, durable coverage and net profit
+remain D4 work. Current production gaps are not cleared by passing fixtures.
 The pinned quote transport can now capture a single USDC/USD BBO at or before
 an economic timestamp, using a fixed 30-second window and descending limit one.
 The shared pure proof preserves nanoseconds in both the request and age checks,

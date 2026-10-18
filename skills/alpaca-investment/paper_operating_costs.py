@@ -19,11 +19,30 @@ def _time(value):
     return result
 
 
+def _cost_end(row):
+    return row['closed_at'] if 'closed_at' in row else row['period_end']
+
+
+def _binding(row):
+    try:
+        ids=row['order_ids']
+        if not isinstance(ids,list) or not all(isinstance(value,str) and value for value in ids):return None
+        return tuple(ids),_time(row['period_start']),_time(_cost_end(row))
+    except (KeyError,TypeError,ValueError):return None
+
+
 def select_components(summary: dict, trips) -> dict:
     """Select one economic day without moving cumulative costs onto that day's P&L."""
-    pairs = {tuple(trip["order_ids"]) for trip in trips}
+    requested=[_binding(trip) for trip in trips]
+    pairs={key for key in requested if key is not None}
     components = [row for row in summary.get("operating_cost_components", [])
-                  if tuple(row["order_ids"]) in pairs]
+                  if _binding(row) in pairs]
+    coverages=[row for row in summary.get('operating_cost_scope_coverages',[]) if _binding(row) in pairs]
+    complete=bool(requested) and len(pairs)==len(requested) and all(
+        len([row for row in coverages if _binding(row)==key])==1
+        and next(row for row in coverages if _binding(row)==key)['coverage_state']=='complete' for key in pairs)
+    coverage_reason=None if complete else next((row.get('reason') for row in coverages if row.get('coverage_state')!='complete'),
+        'cost_query_scope_missing' if summary.get('operating_cost_scope_coverages') else 'source_inventory_unverified')
     def subtotal(categories):
         amounts = [Decimal(row["amount_usd"]) for row in components if row["category"] in categories]
         if not amounts:
@@ -38,8 +57,9 @@ def select_components(summary: dict, trips) -> dict:
                                    else summary.get("operating_costs_reason", "no_scoped_paid_components")),
         "operating_costs_observed_at": summary.get("operating_costs_observed_at"),
         "operating_cost_query_observations": [row for row in summary.get("operating_cost_query_observations", [])
-                                              if tuple(row.get("order_ids", [])) in pairs],
-        "operating_cost_coverage": {"coverage_state": "gap", "reason": "source_inventory_unverified"},
+                                              if _binding(row) in pairs],
+        "operating_cost_scope_coverages":coverages,
+        "operating_cost_coverage": {"coverage_state": "complete" if complete else "gap", "reason": coverage_reason},
         "operating_cost_components": components,
         "operating_cost_source_receipt_ids": [row["receipt_id"] for row in components],
         "verified_model_cost_subtotal_usd": subtotal({"model_cost"}),
@@ -75,7 +95,7 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inven
         repo = str(Path(__file__).resolve().parents[2])
         if repo not in sys.path:
             sys.path.append(repo)
-        from skills.cfo.adapters.actual_cost import adapt, validate_official_cost_queries
+        from skills.cfo.adapters.actual_cost import adapt, validate_official_cost_queries, paid_charge_identity
         records = adapt(payload, snapshot_at=billing_at,
                         trailing_start=readback["trailing"]["window_start"])
         covered = {row["source_id"] for row in records
@@ -98,12 +118,11 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inven
                         raise ValueError("operating_cost_readback_invalid")
                     receipt_id = (f"{doc.get('provider')}:actual-cost:{kind}:{document_id}:"
                                   f"line:{line.get('line_item_id')}:allocation:{allocation.get('allocation_id')}")
-                    invoice_id = doc.get("invoice_id")
-                    charge_kind, charge_document = (("invoice", invoice_id)
-                        if isinstance(invoice_id, str) and invoice_id else (kind, document_id))
-                    charge_identity = (doc.get("provider"), charge_kind, charge_document,
-                                       line.get("line_item_id"), allocation.get("allocation_id"))
-                    value = (doc.get("provider"), kind, document_id, line, allocation, charge_identity)
+                    charge_identity=paid_charge_identity(doc,line,allocation)
+                    if charge_identity is None:raise ValueError("operating_cost_readback_invalid")
+                    account=doc.get('billing_account_ref')
+                    account=account if isinstance(account,str) and account.strip() else None
+                    value = (doc.get("provider"), kind, document_id, line, allocation, charge_identity, account)
                     if receipt_id in raw and raw[receipt_id] != value:
                         conflicts.add(receipt_id)
                     raw[receipt_id] = value
@@ -126,7 +145,7 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inven
             identity = receipt["receipt_id"]
             if identity in conflicts or identity not in raw:
                 continue
-            provider, kind, document_id, line, allocation, charge_identity = raw[identity]
+            provider, kind, document_id, line, allocation, charge_identity, account = raw[identity]
             key = (provider, allocation.get("job_id"))
             join = jobs.get(key)
             if key in job_conflicts or not isinstance(join, dict):
@@ -142,18 +161,18 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inven
                 if (join.get("order_ids") != trip["order_ids"]
                         or not trip.get("period_start")
                         or _time(join.get("period_start")) != _time(trip["period_start"])
-                        or _time(join.get("period_end")) != _time(trip["closed_at"])
+                        or _time(join.get("period_end")) != _time(_cost_end(trip))
                         or not isinstance(join.get("source_receipt_ids"), list)
                         or not set(trip["source_receipt_ids"]) <= set(join["source_receipt_ids"])
-                        or not _time(trip["period_start"]) <= _time(receipt["occurred_at"]) <= _time(trip["closed_at"])):
+                        or not _time(trip["period_start"]) <= _time(receipt["occurred_at"]) <= _time(_cost_end(trip))):
                     continue
                 component = receipt["components"][0]
                 cost = {
                     "receipt_id": identity, "provider": provider, "currency": "USD",
-                    "charge_identity": list(charge_identity),
+                    "charge_identity": list(charge_identity),"billing_account_ref":account,
                     "category": component["category"], "amount_usd": component["amount"],
                     "order_ids": trip["order_ids"], "period_start": trip["period_start"],
-                    "period_end": trip["closed_at"], "occurred_at": receipt["occurred_at"],
+                    "period_end": _cost_end(trip), "occurred_at": receipt["occurred_at"],
                     "settled_at": receipt["settled_at"], "evidence_refs": receipt["evidence_refs"],
                 }
                 if charge_identity in accepted:
@@ -162,7 +181,7 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inven
                         charge_conflicts.add(charge_identity)
                 else:
                     accepted[charge_identity] = cost
-        observations = []
+        observations = [];scope_coverages=[]
         scopes = readback.get("cost_scopes", [])
         for scope in scopes if isinstance(scopes, list) else []:
             if not isinstance(scope, dict):
@@ -172,16 +191,21 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inven
                     matches = (scope.get("owner_id") == owner_id and scope.get("mode") == mode
                         and scope.get("paper") is (mode == "paper") and scope.get("order_ids") == trip["order_ids"]
                         and _time(scope.get("period_start")) == _time(trip["period_start"])
-                        and _time(scope.get("period_end")) == _time(trip["closed_at"])
+                        and _time(scope.get("period_end")) == _time(_cost_end(trip))
                         and isinstance(scope.get("source_receipt_ids"), list)
                         and set(trip["source_receipt_ids"]) <= set(scope["source_receipt_ids"]))
                 except (KeyError, TypeError, ValueError):
                     matches = False
                 if matches:
-                    query_result = validate_official_cost_queries(payload, snapshot_at=billing_at,
+                    query_result = validate_official_cost_queries(payload, snapshot_at=observed_at,
                         paid_records=records, scope=scope, expected_inventory=expected_inventory)
                     observations.extend(query_result["observations"])
+                    verified=query_result.get('scope_coverages',[])
+                    if verified:scope_coverages.extend(verified)
+                    else:scope_coverages.append({**scope,'scope_kind':scope.get('scope_kind','order_pair'),
+                        'coverage_state':'gap','reason':query_result['reason'],'evidence_refs':[]})
         summary["operating_cost_query_observations"] = observations
+        summary["operating_cost_scope_coverages"] = scope_coverages
         summary.update({"operating_cost_components": [accepted[key] for key in sorted(accepted)
                                                       if key not in charge_conflicts],
                         "operating_costs_observed_at": billing_at,
