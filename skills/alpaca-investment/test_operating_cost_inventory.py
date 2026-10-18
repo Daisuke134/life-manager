@@ -202,4 +202,26 @@ class OperatingCostInventoryTests(unittest.TestCase):
                 self.assertNotIn('model_cost',closing['covered_categories'])
                 self.assertIn('infra_cost',closing['covered_categories'])
 
+    def test_modern_contradicted_proof_does_not_fall_back_inside_economic_interval(self):
+        for mode in ('paper','live'):
+            with self.subTest(mode=mode):
+                payload,inventory,trip=window_fixture(mode)
+                owner=trip['owner_id'];other='investment-strategy-validation';scope=inventory['scopes'][0]
+                scope['execution_refs'][1].update(execution_owner_id=other,occurrence_id=other+':closing-claim')
+                inventory['input_reads'][other]=copy.deepcopy(inventory['input_reads'][owner])
+                inventory['input_reads'][owner]['runtime']['row_count']=2
+                inventory['input_reads'][owner]['admission']['row_count']=1
+                for source in scope['required_sources']:
+                    if source['category']!='model_cost':source['execution_owner_ids']=[other]
+                for join in payload['job_joins']:
+                    for ref in join['execution_refs']:
+                        if ref['run_id']=='closing-run':ref.update(execution_owner_id=other,occurrence_id=other+':closing-claim')
+                    join['occurrence_ids']=[ref['occurrence_id'] for ref in join['execution_refs']]
+                payload['documents'][0]['line_items'][0]['occurred_at']='2026-09-29T23:59:55Z'
+                result=summarize([trip],payload,owner_id=owner,mode=mode,observed_at=inventory['observed_at'],expected_inventory=inventory)
+                self.assertIsNone(result['verified_model_cost_subtotal_usd'])
+                self.assertEqual(result['operating_cost_components'],[])
+                self.assertEqual(result['operating_cost_coverage']['coverage_state'],'gap')
+                self.assertTrue(result['operating_cost_component_gaps'])
+
 if __name__=='__main__':unittest.main()
