@@ -689,6 +689,7 @@ class OfficialCostQueryTests(unittest.TestCase):
 
     def test_malformed_envelopes_and_implicit_final_page_are_not_accepted(self):
         for path, value in ((("provider_pagination",), None), (("provider_pagination",), []),
+                            (("documents",), None),
                             (("sources", 0, "queries"), None),
                             (("sources", 0, "billing_account_refs"), "billing-account")):
             with self.subTest(path=path):
@@ -715,6 +716,30 @@ class OfficialCostQueryTests(unittest.TestCase):
         payload = query_payload()
         join = payload["job_joins"][0]
         join.update(join_type="paid_allocation", job_id="paid-job", document_id="paid-invoice")
+        self.assertEqual(self.validate(payload)["observations"], [])
+
+    def test_scope_identity_is_explicit_and_nonempty(self):
+        for value in (None, "", 1):
+            with self.subTest(scope_id=value):
+                payload = query_payload()
+                payload["readback"]["cost_scopes"][0]["scope_id"] = value
+                payload["sources"][0]["queries"][0]["scope_id"] = value
+                payload["job_joins"][0]["scope_id"] = value
+                self.assertEqual(self.validate(payload)["observations"], [])
+
+    def test_one_official_query_can_be_referenced_by_two_scopes(self):
+        payload = query_payload()
+        second = copy.deepcopy(payload["readback"]["cost_scopes"][0])
+        second.update(scope_id="scope-2", order_ids=["entry-2", "exit-2"],
+                      source_receipt_ids=["entry-receipt-2", "exit-receipt-2"])
+        payload["readback"]["cost_scopes"].append(second)
+        query = copy.deepcopy(payload["sources"][0]["queries"][0]); query["scope_id"] = "scope-2"
+        payload["sources"][0]["queries"].append(query)
+        payload["job_joins"].append({**payload["job_joins"][0], **second})
+        result = self.validate(payload)
+        self.assertEqual({row["scope_id"] for row in result["observations"]}, {"scope-1", "scope-2"})
+        self.assertEqual(result["coverage_state"], "gap")
+        payload["sources"][0]["queries"][1]["evidence_refs"] = ["conflicting-official-response"]
         self.assertEqual(self.validate(payload)["observations"], [])
 
     def test_new_paid_query_reference_mismatch_marks_its_group_gap(self):
