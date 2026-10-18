@@ -707,6 +707,7 @@ class PaperEtfFreshFenceTest(unittest.TestCase):
             **_candidate("BTC/USDC"), "asset_class": "crypto", "candidate_ref": "crypto://BTC/USDC",
         }
         raw = _snapshot()
+        if action == 'ENTER': raw['account']['id'] = 'synthetic-native-account-paper'
         raw.pop("mode")  # The real broker reader does not return this caller context.
         raw["positions"] = 1 if action == "EXIT" else 0
         raw["source_receipt_ids"] = ["alpaca://stock-bars/iex/split/fixture" if action == "EXIT"
@@ -885,11 +886,11 @@ class PaperEtfFreshFenceTest(unittest.TestCase):
 
 class LiveRunTest(unittest.TestCase):
     def test_submit_marks_effect_attempted_before_provider_mutation(self):
-        observation = {"account": {"cash": "0", "equity": "66"}, "activities_count": 0,
+        observation = {"account": {"id":"synthetic-native-account-live","cash": "0", "equity": "66"}, "activities_count": 0,
             "clock": {"observed_at": "2026-09-10T08:00:00Z"},
             "open_and_closed_orders_count": 0,
             "positions": [{"symbol": "USDCUSD", "qty": "66", "unrealized_pl": "0"}]}
-        snapshot = {"account": {"cash": "0", "equity": "66"},
+        snapshot = {"account": {"id":"synthetic-native-account-live","cash": "0", "equity": "66"},
             "available_cash_usd": "66", "clock": {"timestamp": "2026-09-10T08:00:00Z"},
             "crypto": [], "open_orders": 0, "option_quotes": [], "positions": 0,
             "risk": {}, "qqq_asset": {}, "qqq_quote": {}, "spy": {}}
@@ -934,11 +935,11 @@ class LiveRunTest(unittest.TestCase):
             })
 
     def test_live_entry_submits_once_and_durably_marks_pending_ownership(self):
-        observation = {"account": {"cash": "0", "equity": "66"}, "activities_count": 0,
+        observation = {"account": {"id":"synthetic-native-account-live","cash": "0", "equity": "66"}, "activities_count": 0,
             "clock": {"observed_at": "2026-09-10T08:00:00Z"},
             "open_and_closed_orders_count": 0,
             "positions": [{"symbol": "USDCUSD", "qty": "66", "unrealized_pl": "0"}]}
-        snapshot = {"account": {"cash": "0", "equity": "66"},
+        snapshot = {"account": {"id":"synthetic-native-account-live","cash": "0", "equity": "66"},
             "available_cash_usd": "66", "clock": {"timestamp": "2026-09-10T08:00:00Z"},
             "crypto": [], "open_orders": 0, "option_quotes": [], "positions": 0,
             "risk": {}, "qqq_asset": {}, "qqq_quote": {}, "spy": {}}

@@ -426,7 +426,7 @@ def observe(*, credentials_path: Path, cli_path: Path, symbol: str = "SPY") -> d
 
     account = _run(cli_path, [
         "account", "get", "--quiet", "--jq",
-        "{status:.status,cash:.cash,equity:.equity,last_equity:.last_equity,options_level:.options_trading_level}",
+        "{id:.id,status:.status,cash:.cash,equity:.equity,last_equity:.last_equity,options_level:.options_trading_level}",
     ], env)
     clock = _run(cli_path, [
         "clock", "get", "--quiet", "--jq",
@@ -701,7 +701,7 @@ def read_allocator_snapshot(
     env = _context(credentials_path, cli_path)
     account = _run(cli_path, [
         "account", "get", "--quiet", "--jq",
-        "{cash:.cash,equity:.equity,last_equity:.last_equity}",
+        "{id:.id,cash:.cash,equity:.equity,last_equity:.last_equity}",
     ], env)
     clock = _run(cli_path, [
         "clock", "get", "--quiet", "--jq", "{is_open:.is_open,timestamp:.timestamp}",

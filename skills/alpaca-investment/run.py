@@ -305,6 +305,9 @@ def _sync_live_ownership(state: Path, credentials_path: Path, cli_path: Path,
             return {**ownership, "status": "entry_pending"}
         rows=_owned_rows(state/'receipts.jsonl')
         quantity=owned_open_state_from_rows(rows,ownership,mode=mode,owner_id=investment_owner_id(),allow_fee_recovery=True)
+        account_id=quantity['acquisition']['receipt'].get('native_trading_account_id')
+        if account_id is not None and observation.get('account',{}).get('id')!=account_id:
+            raise ValueError('owned_entry_account_invalid')
         _audit_owned_order(rows,ownership,broker,quantity,mode=mode)
         positions=_account_positions(observation,mode=mode,not_before=quantity['last_observed_at'])
         btc=[p for p in positions if p['symbol'] in {'BTCUSD','BTCUSDC','BTC/USDC','BTC/USD','BTC'}]
@@ -775,6 +778,12 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                 effect = "none"
             else:
                 is_etf_order = order.get("asset_class") == "us_equity"
+                if order.get('asset_class')=='crypto' and order.get('side')=='buy':
+                    account_id=allocator_snapshot.get('account',{}).get('id')
+                    if (not isinstance(account_id,str) or not account_id.strip()
+                            or observation.get('account',{}).get('id')!=account_id):
+                        raise ValueError('owned_entry_account_invalid')
+                    decision['native_trading_account_id']=account_id
                 stage = "allocation_submit"
                 with control_fence(state) as current_control:
                     if current_control["paused"] or current_control["killed"]:
@@ -833,6 +842,9 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                     if order.get("asset_class") == "crypto" and order.get("side") == "buy":
                         fresh_observation = _normalize_live_position_symbols(observe(
                             credentials_path=credentials_path, cli_path=cli_path))
+                        if (fresh.get('account',{}).get('id')!=decision['native_trading_account_id']
+                                or fresh_observation.get('account',{}).get('id')!=decision['native_trading_account_id']):
+                            raise ValueError('owned_entry_account_invalid')
                         fresh_ownership = _sync_live_ownership(state, credentials_path, cli_path, fresh_observation,reconcile_fees=False)
                         if ((fresh_ownership and fresh_ownership.get("status") != "closed")
                                 or any(row.get("symbol") != "USDCUSD"
@@ -970,7 +982,7 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                            event_key=cloud_event_key if deployment == "cloud" else None)
         _mark_no_broker_order_submitted(mode, effect_attempted, effect)
         summary = {
-            "account": observation["account"],
+            "account": {key:value for key,value in observation["account"].items() if key!='id'},
             "activities_count": observation["activities_count"],
             "candidate_count": len(candidates),
             "decision": decision["candidate_ref"],

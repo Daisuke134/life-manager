@@ -53,9 +53,13 @@ def _fee_inventory(cycles,snapshots):
     snapshots={raw['source_receipt_id']:raw for frame in snapshots.values()
         for raw in (frame['segments'] if frame['schema_version']==2 else [frame])}
     orders={o['provider_order_id']:(c['cycle_id'],o) for c in cycles for o in c['orders']}
+    accounts={o['provider_order_id']:c['native_trading_account_id'] for c in cycles
+        if 'native_trading_account_id' in c for o in c['orders']}
     observed={};refs={};windows={}
     fill_ids={}
     for frame in snapshots.values():
+        if any(row.get('order_id') in accounts and frame.get('native_trading_account_id')!=accounts[row['order_id']]
+                for row in [*frame['fills'],*frame['fees']]):raise ValueError('crypto_cycle_account_invalid')
         for fill in frame['fills']:
             facts=execution_activity_identity(fill)
             if fill['id'] in fill_ids and fill_ids[fill['id']]!=facts:
@@ -224,6 +228,7 @@ def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None,fee_ac
             no_fill.append(effect);continue
         acquisition=recorded_entry_proof_from_rows(rows,marker,row['broker'],wrapper['account_readback'],mode=mode,owner_id=owner_id)
         receipt=acquisition['receipt'];owned_qty=receipt['account_owned_qty']
+        account_id=receipt.get('native_trading_account_id')
         if last_flat is not None and parse_instant(row['broker']['submitted_at'])<last_flat:
             raise ValueError('crypto_cycle_overlap')
         marker.update(status='closing',entry_filled_qty=receipt['entry_filled_qty'],owned_qty=owned_qty)
@@ -286,6 +291,8 @@ def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None,fee_ac
             native=extra[broker['id']] if broker['id'] in extra else proof.get('activity_readback')
             facts=None
             if native is not None:
+                if account_id is not None and native.get('native_trading_account_id')!=account_id:
+                    raise ValueError('crypto_cycle_account_invalid')
                 try: facts=crypto_fill_activity_proof(native,broker,mode=mode,allow_zero=broker['side']=='sell')
                 except ReconciliationPending: facts=None
                 fee_snapshots[native['source_receipt_id']]=native
@@ -316,6 +323,7 @@ def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None,fee_ac
                 'fill_activity_ids':ids,'execution_observed_until':native['request']['until'] if facts is not None else None})
         cycles.append({'cycle_id':_digest({'mode':mode,'owner_id':owner_id,'entry_effect_id':effect}),
             'owner_id':owner_id,'mode':mode,'strategy_id':receipt['strategy_id'],'release_sha':receipt['release_sha'],
+            **({'native_trading_account_id':account_id} if account_id is not None else {}),
             'entry_effect_id':effect,'period_start':sealed['decision']['observed_at'],
             'period_end':close_account['clock']['observed_at'],'closed_at':closed_at,'closure_kind':closure_kind,
             'post_acquisition_fee_debited_qty':quantity['debited_qty'],

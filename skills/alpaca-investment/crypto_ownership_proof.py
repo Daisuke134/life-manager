@@ -635,10 +635,15 @@ def _owned_policy(proof: dict[str, Any], ownership: dict[str, Any], *, mode: str
             raise ValueError
     except (KeyError, TypeError, ValueError) as error:
         raise ValueError("owned_entry_fill_time_invalid") from error
-    return {"card": card, "release_sha": release_sha, "entry_price": price,
+    result={"card": card, "release_sha": release_sha, "entry_price": price,
             "entry_timestamp": filled_at, "owned_qty": proof["owned_qty"],
             "entry_effect_id": ownership["entry_effect_id"], "entry_client_order_id": broker["client_order_id"],
             "entry_provider_order_id": broker["id"], "owner_id": decision["owner_id"], "mode": mode}
+    if 'native_trading_account_id' in decision:
+        account=decision['native_trading_account_id']
+        if not isinstance(account,str) or not account.strip():raise ValueError('owned_entry_account_invalid')
+        result['native_trading_account_id']=account
+    return result
 
 
 
@@ -769,6 +774,8 @@ def _close_fill_step(rows: list[dict[str, Any]], ownership: dict[str, Any], brok
         if not (parse_instant(parent["entry_timestamp"]) <= parse_instant(decision.get("observed_at"))
                 <= submitted <= filled <= observed):
             raise ValueError
+        if ('native_trading_account_id' in parent
+                and observation['account'].get('id')!=parent['native_trading_account_id']):raise ValueError
         _flat_btc_account(observation, mode=mode, not_before=filled)
         _known_exit_outcomes(rows, effect, client, broker, parent, mode=mode, owner_id=owner_id)
     except ReconciliationPending:
@@ -832,6 +839,10 @@ def no_fill_entry_proof_from_rows(rows: list[dict[str, Any]], ownership: dict[st
     try:
         card, release = validate_policy_card(decision['policy_card'], decision.get('release_sha'),
                                              strategy_id=decision.get('strategy_id'))
+        if 'native_trading_account_id' in decision:
+            account=decision['native_trading_account_id']
+            if (not isinstance(account,str) or not account.strip()
+                    or observation['account'].get('id')!=account):raise ValueError
         effect, client = ownership['entry_effect_id'], ownership['entry_client_order_id']
         if (tuple(card.instruments) != ('BTC/USDC',)
                 or ownership.get('status') not in {'closed', 'entry_pending'}
@@ -951,6 +962,10 @@ def entry_fill_proof_from_rows(rows: list[dict[str, Any]], ownership: dict[str, 
         validation_owner={**ownership,'entry_filled_qty':str(filled),'owned_qty':str(filled)}
         entry=owned_entry_decision_from_rows([*rows,current],validation_owner,owner_id=owner_id,mode=mode)
         parent=_owned_policy(entry,validation_owner,mode=mode)
+        if 'native_trading_account_id' in parent:
+            if observation['account'].get('id')!=parent['native_trading_account_id']:raise ValueError
+            if activity_readback is not None and activity_readback.get('native_trading_account_id')!=parent['native_trading_account_id']:
+                raise ValueError
         positions=_account_positions(observation,mode=mode,not_before=parse_instant(parent['entry_timestamp']))
         btc=[p for p in positions if p['symbol'] in {'BTCUSD','BTCUSDC','BTC/USDC'}]
         if not btc:
@@ -975,6 +990,7 @@ def entry_fill_proof_from_rows(rows: list[dict[str, Any]], ownership: dict[str, 
         'strategy_id':parent['card'].strategy_id,'release_sha':parent['release_sha'],
         'entry_effect_id':parent['entry_effect_id'],'entry_client_order_id':parent['entry_client_order_id'],
         'entry_provider_order_id':parent['entry_provider_order_id'],
+        **{key:parent[key] for key in ('native_trading_account_id',) if key in parent},
         'entry_filled_qty':_decimal_text(filled),
         'account_owned_qty':_decimal_text(held),
         'entry_price':parent['entry_price'] if partial else _decimal_text(Decimal(parent['entry_price'])),
@@ -1048,6 +1064,9 @@ def _sell_remainder_step(rows, ownership, broker, observation, *, before, quanti
             raise ValueError
         if activity_readback is None:
             activity_readback=_sell_receipt_row(rows,effect)['strategy_receipt']['activity_readback']
+        if 'native_trading_account_id' in parent and (
+                observation['account'].get('id')!=parent['native_trading_account_id']
+                or activity_readback.get('native_trading_account_id')!=parent['native_trading_account_id']):raise ValueError
         execution=crypto_fill_activity_proof(activity_readback,broker,mode=mode,allow_zero=True)
         _validate_known_activity_facts(quantity_state,activity_readback)
         if execution['side']!='sell':
@@ -1268,6 +1287,9 @@ def native_fee_debit_id(receipt):
 def _native_fee_debit_step(state,ownership,observation,*,activity_readback,broker,mode,owner_id):
     try:
         acquisition=state['acquisition']['receipt']
+        if 'native_trading_account_id' in acquisition and (
+                observation['account'].get('id')!=acquisition['native_trading_account_id']
+                or activity_readback.get('native_trading_account_id')!=acquisition['native_trading_account_id']):raise ValueError
         start,end=validate_crypto_activity_snapshot(activity_readback,mode=mode)
         _open_ownership_from_quantity_state(state,ownership)
         if start>parse_instant(broker['submitted_at']):raise ValueError

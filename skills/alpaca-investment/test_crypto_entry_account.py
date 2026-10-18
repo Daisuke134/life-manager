@@ -77,7 +77,7 @@ def save_entry(root, marker, broker, observation, owner, mode, *, backfill=False
                 credentials_path=Path('unused'), cli_path=Path('unused')))
 
 
-def close_cycle(root, marker, broker, observation, owner, mode):
+def close_cycle(root, marker, broker, observation, owner, mode, *, closing_account=ACCOUNT_A, terminal=False):
     rows = store._rows(root / 'receipts.jsonl')
     acquired = proofs.recorded_entry_proof_from_rows(rows, marker, broker, observation, mode=mode, owner_id=owner)
     owned = {**marker, 'status': 'open', 'entry_filled_qty': '0.05', 'owned_qty': '0.05'}
@@ -93,12 +93,16 @@ def close_cycle(root, marker, broker, observation, owner, mode):
     store.mark_started(root / 'receipts.jsonl', sealed)
     owned.update(status='closing', close_effect_id=sealed['effect_id'], close_client_order_id=sealed['client_order_id'])
     sell = {'id': 'synthetic-exit', 'client_order_id': sealed['client_order_id'], 'symbol': 'BTCUSDC',
-        'side': 'sell', 'type': 'market', 'time_in_force': 'gtc', 'status': 'filled', 'qty': '0.05',
+        'side': 'sell', 'type': 'market', 'time_in_force': 'gtc', 'status': 'canceled' if terminal else 'filled', 'qty': '0.05',
         'filled_qty': '0.05', 'filled_avg_price': '210', 'submitted_at': stamp(0), 'filled_at': stamp(1)}
     flat = {**copy.deepcopy(observation), 'positions': [], 'clock': {'observed_at': stamp(2)}}
+    flat['account']['id'] = closing_account
+    frame = native_activity(mode, [broker, sell], end=stamp(2))
     store.reconcile_started(root / 'receipts.jsonl', lambda _: sell, on_reconciled=lambda *_:
+        proofs.sell_remainder_proof_from_rows(store._rows(root / 'receipts.jsonl'), owned, sell, flat,
+            mode=mode, owner_id=owner, activity_readback=frame) if terminal else
         proofs.close_fill_proof_from_rows(store._rows(root / 'receipts.jsonl'), owned, sell, flat, mode=mode, owner_id=owner))
-    return native_activity(mode, [broker, sell]), acquired
+    return frame, acquired
 
 
 class CryptoEntryAccountTests(unittest.TestCase):
@@ -188,6 +192,7 @@ class CryptoEntryAccountTests(unittest.TestCase):
                 root = Path(directory)
                 code, rows, output = self.entry_main(root, mode, filled=True)
                 self.assertEqual(code, 0, output)
+                self.assertNotIn(ACCOUNT_A, output)
                 decisions = [row['decision'] for row in rows if row.get('receipt_type') == 'decision' and row['decision'].get('action') == 'ENTER']
                 self.assertEqual(len(decisions), 1)
                 self.assertEqual(decisions[0].get('native_trading_account_id'), ACCOUNT_A)
@@ -311,6 +316,94 @@ class CryptoEntryAccountTests(unittest.TestCase):
                     if row.get('receipt_type') == 'decision' and row['decision'].get('action') == 'ENTER')
                 self.assertNotIn('native_trading_account_id', decision)
                 self.assertIsNone(report['net_pnl_usd'])
+
+    def test_terminal_sell_closure_checks_the_new_bound_account(self):
+        # Terminal activity proof must not bypass the account check of a filled close.
+        for mode in ('paper', 'live'):
+            for account in (ACCOUNT_A, ACCOUNT_B):
+                with self.subTest(mode=mode, account=account), tempfile.TemporaryDirectory() as directory:
+                    root = Path(directory)
+                    marker, broker, observation, owner = seed(root, mode)
+                    save_entry(root, marker, broker, observation, owner, mode)
+                    def close():
+                        return close_cycle(root, marker, broker, observation, owner, mode,
+                            closing_account=account, terminal=True)
+                    if account == ACCOUNT_B:
+                        with self.assertRaises(ValueError): close()
+                    else:
+                        frame, _ = close()
+                        report = perf.build_crypto_performance(store._rows(root / 'receipts.jsonl'), mode=mode,
+                            owner_id=owner, activity_readbacks={row['order_id']: frame for row in frame['fills']})
+                        self.assertEqual(report['cycles'][0]['native_trading_account_id'], ACCOUNT_A)
+
+    def test_fee_only_closure_checks_current_and_activity_account(self):
+        # A fee reducing the last owned quantity to zero still belongs to the same account.
+        for mode in ('paper', 'live'):
+            for current, activity in ((ACCOUNT_A, ACCOUNT_A), (ACCOUNT_B, ACCOUNT_A), (ACCOUNT_A, ACCOUNT_B)):
+                with self.subTest(mode=mode, current=current, activity=activity), tempfile.TemporaryDirectory() as directory:
+                    root = Path(directory)
+                    marker, broker, observation, owner = seed(root, mode)
+                    save_entry(root, marker, broker, observation, owner, mode)
+                    owned = {**marker, 'status': 'open', 'entry_filled_qty': '0.05', 'owned_qty': '0.05'}
+                    flat = {**copy.deepcopy(observation), 'positions': []}
+                    flat['account']['id'] = current
+                    frame = native_activity(mode, [broker], account=activity, end=flat['clock']['observed_at'])
+                    frame['fees'] = [{'id': 'synthetic-fee-close', 'activity_type': 'CFEE', 'order_id': broker['id'],
+                        'symbol': 'BTCUSD', 'qty': '-0.05', 'date': '2026-01-01',
+                        'created_at': flat['clock']['observed_at'], 'net_amount': '0', 'status': 'executed'}]
+                    frame['source_receipt_id'] = 'alpaca-crypto-activities:' + proofs._digest([
+                        {key: value for key, value in frame.items() if key != 'source_receipt_id'}])
+                    def read():
+                        return proofs.native_fee_debit_proof_from_rows(store._rows(root / 'receipts.jsonl'), owned,
+                            flat, activity_readback=frame, mode=mode, owner_id=owner)
+                    if current != ACCOUNT_A or activity != ACCOUNT_A:
+                        with self.assertRaises(ValueError): read()
+                    else:
+                        self.assertEqual(read()['receipt']['remaining_owned_qty'], '0')
+
+    def test_no_fill_account_receipt_checks_new_binding(self):
+        # A failed new entry cannot close against an unrelated flat account.
+        for mode in ('paper', 'live'):
+            for account in (ACCOUNT_A, ACCOUNT_B):
+                with self.subTest(mode=mode, account=account), tempfile.TemporaryDirectory() as directory:
+                    root = Path(directory)
+                    marker, broker, observation, owner = seed(root, mode)
+                    broker.update(status='canceled', filled_qty='0', filled_avg_price=None, filled_at=None)
+                    observation['positions'] = []
+                    observation['account']['id'] = account
+                    store.reconcile_started(root / 'receipts.jsonl', lambda _: broker)
+                    def read():
+                        return proofs.no_fill_entry_proof_from_rows(store._rows(root / 'receipts.jsonl'), marker,
+                            broker, observation, mode=mode, owner_id=owner)
+                    if account == ACCOUNT_B:
+                        with self.assertRaises(ValueError): read()
+                    else:
+                        self.assertEqual(read()['receipt']['kind'], 'owned_crypto_no_fill')
+
+    def test_open_new_bound_owner_rejects_foreign_current_account_before_reuse(self):
+        # The open-owner path reads historical A; its fresh quantity check must bind A too.
+        for mode in ('paper', 'live'):
+            for account in (ACCOUNT_A, ACCOUNT_B):
+                with self.subTest(mode=mode, account=account), tempfile.TemporaryDirectory() as directory:
+                    root = Path(directory)
+                    marker, broker, observation, owner = seed(root, mode)
+                    save_entry(root, marker, broker, observation, owner, mode)
+                    owned = {**marker, 'status': 'open', 'entry_filled_qty': '0.05', 'owned_qty': '0.05'}
+                    (root / 'live-owned-position.json').write_text(json.dumps(owned))
+                    current = copy.deepcopy(observation)
+                    current['account']['id'] = account
+                    native = native_run()
+                    with patch.dict(os.environ, {'LIFE_MANAGER_INVESTMENT_MODE': mode,
+                        'LIFE_MANAGER_INVESTMENT_OWNER_ID': owner}, clear=True), \
+                            patch.object(native, 'find_order_by_client_id', return_value=broker), \
+                            patch.object(cli, '_context', side_effect=AssertionError('provider forbidden')):
+                        def read():
+                            return native._sync_live_ownership(root, Path('unused'), Path('unused'), current,
+                                reconcile_fees=False)
+                        if account == ACCOUNT_B:
+                            with self.assertRaises(ValueError): read()
+                        else:
+                            self.assertEqual(read()['owned_qty'], '0.05')
 
 
 if __name__ == '__main__':
