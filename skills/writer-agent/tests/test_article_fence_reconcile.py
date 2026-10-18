@@ -1202,3 +1202,127 @@ def test_resume_catchup_proof_is_pinned_to_the_measured_occurrence():
     assert pinned["entrypoint_sha256"]["skills/writer-agent/scripts/article-resume-pending.sh"] == \
         "5134fab95ab2b3056789ff7a1ed51383f5f0baf36baed81b32090c00369bf299"
     assert list(m.HISTORICAL_RESUME_CATCHUP_PROOFS) == [CATCHUP_OCC]
+
+
+# 2026-10-18: article-resume:18df6fc53500b510-26567 took the WAIT -> self-heal path (no publisher),
+# exited 0, but its admission release was lost; the fence deferred every later pass.
+PASS_OCC = "article-resume:18df6fc53500b510-26567"
+PASS_QUEUED = 1792273749.2848   # 2026-10-17T21:49:09Z
+
+
+def _pass_record(branch, at, run_ids=(), occurrence=PASS_OCC, pid=26638):
+    return "article-resume: pass " + json.dumps(
+        {"at": at, "occurrence_id": occurrence, "pid": pid, "branch": branch, "run_ids": list(run_ids)},
+        separators=(",", ":"))
+
+
+def _pass_fixture(tmp_path, *, records=None, after_self_heal='{"status":"NO_ACTIONABLE_INCIDENT"}',
+                  exit_code=0):
+    writer = tmp_path / "writer"
+    (writer / "logs").mkdir(parents=True)
+    records = records if records is not None else [
+        _pass_record("start", "2026-10-17T21:54:30Z"), _pass_record("self-heal", "2026-10-17T21:54:38Z")]
+    lines = [_pass_record("start", "2026-10-17T21:44:16Z", occurrence="article-resume:other", pid=8272)]
+    for record in records:
+        lines.append(record)
+        if '"branch":"self-heal"' in record:
+            lines.append(after_self_heal)
+    (writer / "logs/article-resume.log").write_text("\n".join(lines) + "\n")
+    events = [
+        {"occurrence_id": PASS_OCC, "phase": "execute", "timestamp": "2026-10-17T21:54:29.523644+00:00"},
+        {"occurrence_id": PASS_OCC, "phase": "report", "status": "pass" if exit_code == 0 else "fail",
+         "exit_code": exit_code, "event_id": "a2cf923ffa1a9dbcf638175c",
+         "release_sha": "4bfa2d2397666171669e14d62d289c214062ed8f",
+         "timestamp": "2026-10-17T21:54:39.825888+00:00"},
+    ]
+    (writer / "events.jsonl").write_text("".join(json.dumps(e) + "\n" for e in events))
+    return writer
+
+
+def _pass_readbacks(note="2026-10-16T06:10:00+09:00", buddha="2026-10-16T21:30:00Z",
+                    ai2026="2026-10-16T21:31:00Z", newer="2026-10-18T06:30:00Z"):
+    payloads = {
+        NOTE_URL: {"data": {"contents": [{"publishAt": newer}, {"publishAt": note}]}},
+        BUDDHA_URL: [{"post_date": newer}, {"post_date": buddha}],
+        AI2026_URL: [{"post_date": ai2026}],
+    }
+    return lambda url: payloads[url]
+
+
+def _pass_reconcile(m, tmp_path, writer, *, fetch_json=None, ledger=None, resolve=True):
+    calls = []
+
+    def resolver(owner, occurrence, *, no_dispatch_proof, expected_state):
+        calls.append((owner, occurrence, no_dispatch_proof(), expected_state))
+        return True
+
+    result = m.reconcile(PASS_OCC, queued_at=PASS_QUEUED, state="claimed",
+                         articles_path=ledger or _articles(tmp_path, [
+                             _row("20261016-205812", "2026-10-16T21:31:00Z", "https://note.com/x/n/1")]),
+                         fetch_json=fetch_json or _pass_readbacks(), resolver=resolver,
+                         resolve=resolve, now=PASS_QUEUED + 3600, writer_root=writer)
+    return result, calls
+
+
+def test_a_publication_free_resume_pass_closes_from_its_own_pass_records(tmp_path):
+    m = _load()
+    writer = _pass_fixture(tmp_path)
+    result, calls = _pass_reconcile(m, tmp_path, writer)
+    assert result["status"] == "no_dispatch_proven" and result["closed"] is True, result
+    owner, occurrence, proof, state = calls[0]
+    assert (owner, occurrence, state) == ("article-resume", PASS_OCC, "claimed")
+    assert proof["proof_type"] == "historical_writer_resume_no_dispatch" and proof["provider"] == "writer"
+    assert proof["runtime_run_id"] == "18df6fc53500b510-26567"
+    assert proof["branches"] == ["start", "self-heal"]
+    receipt = writer / "fence-reconciliation" / "article-resume-18df6fc53500b510-26567.json"
+    assert json.loads(receipt.read_text(encoding="utf-8")) == proof
+    for branches in (["publication-paused"], ["lock-held"], ["start", "daily-schedule-not-due"]):
+        writer = _pass_fixture(tmp_path / "-".join(branches), records=[
+            _pass_record(branch, "2026-10-17T21:54:3%dZ" % i) for i, branch in enumerate(branches)])
+        result, _ = _pass_reconcile(m, tmp_path, writer)
+        assert result["status"] == "no_dispatch_proven", (branches, result)
+
+
+def test_a_resume_pass_that_may_have_published_stays_fenced(tmp_path):
+    m = _load()
+    cases = {
+        "publisher branch": dict(records=[_pass_record("start", "2026-10-17T21:54:30Z"),
+                                          _pass_record("publication", "2026-10-17T21:54:31Z",
+                                                       ["20261017-223414"])]),
+        "catch-up exec": dict(records=[_pass_record("start", "2026-10-17T21:54:30Z"),
+                                       _pass_record("missed-daily-schedule-catch-up", "2026-10-17T21:54:31Z")]),
+        "repair model routed": dict(after_self_heal='{"status":"ROUTED"}'),
+        "nonzero exit": dict(exit_code=1),
+        "no records": dict(records=[]),
+        "foreign pid": dict(records=[_pass_record("start", "2026-10-17T21:54:30Z"),
+                                     _pass_record("self-heal", "2026-10-17T21:54:38Z", pid=1)]),
+    }
+    for name, kwargs in cases.items():
+        writer = _pass_fixture(tmp_path / name.replace(" ", "-"), **kwargs)
+        result, calls = _pass_reconcile(m, tmp_path, writer)
+        assert result["status"] == "inconclusive" and calls == [], (name, result)
+        assert result["reason"] == "fence_too_young" and result["pass_record"], (name, result)
+
+
+def test_a_resume_pass_with_a_publication_inside_its_window_stays_fenced(tmp_path):
+    m = _load()
+    writer = _pass_fixture(tmp_path)
+    in_window = "2026-10-17T21:54:35Z"
+    ledger = _articles(tmp_path, [_row("20261017-223414", in_window, "https://note.com/x/n/2")])
+    for kwargs, reason in (
+            (dict(ledger=ledger), "writer_ledger_row_in_window"),
+            (dict(fetch_json=_pass_readbacks(buddha=in_window)), "publication_in_window:substack:aniccabuddha"),
+            (dict(fetch_json=_pass_readbacks(note="2026-10-18T07:00:00+09:00")),
+             "readback_window_not_covered:note:anicca123"),
+            (dict(fetch_json=lambda url: None), "readback_failed:note:anicca123")):
+        result, calls = _pass_reconcile(m, tmp_path, writer, **kwargs)
+        assert result["status"] == "inconclusive" and calls == [], result
+        assert result["pass_record"] == reason, result
+
+
+def test_a_pass_record_proof_without_resolve_writes_nothing(tmp_path):
+    m = _load()
+    writer = _pass_fixture(tmp_path)
+    result, calls = _pass_reconcile(m, tmp_path, writer, resolve=False)
+    assert result["status"] == "no_dispatch_proven" and result["closed"] is False and calls == []
+    assert not (writer / "fence-reconciliation").exists()

@@ -131,7 +131,13 @@ NO_EFFECT_RESULT_HINT_ENTRYPOINTS = frozenset({
     "apps/life-manager/scripts/mobile-app",
     "skills/alpaca-investment/run.py",
     "skills/earn/marketing-engine/intel/treg-lead-signals-weekly",
+    "skills/writer-agent/scripts/article-resume-pending.sh",
 })
+# Owners that report only a verified no-effect result, never a verified effect:
+# article-resume writes one when its pass provably dispatched no publisher.
+NO_EFFECT_ONLY_LOOP_ENTRYPOINTS = {
+    "article-resume": "skills/writer-agent/scripts/article-resume-pending.sh",
+}
 # Loop IDs allowed to use the pre-effect hint when their registry entrypoint is
 # shared (e.g. runtime/loop/entry_dispatch.py dispatches several owners from one
 # entrypoint string). Entrypoint membership above is not enough to scope trust
@@ -978,7 +984,8 @@ def _effect_result_hint_allowed(loop_id: str, entrypoint: str | None) -> bool:
     return (entrypoint in EFFECT_RESULT_HINT_ENTRYPOINTS
             or (entrypoint == "skills/alpaca-investment/run.py"
                 and loop_id in {"alpaca-investment-paper", "alpaca-investment-live"})
-            or EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS.get(loop_id) == entrypoint)
+            or EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS.get(loop_id) == entrypoint
+            or NO_EFFECT_ONLY_LOOP_ENTRYPOINTS.get(loop_id) == entrypoint)
 
 
 def _verified_no_effect_result(path: Path, loop_id: str, occurrence_id: str,
@@ -995,6 +1002,11 @@ def _verified_no_effect_result(path: Path, loop_id: str, occurrence_id: str,
         if loop_id not in {"alpaca-investment-paper", "alpaca-investment-live"}:
             return None
         allowed_reasons = {"no_broker_order_submitted"}
+    elif entrypoint == NO_EFFECT_ONLY_LOOP_ENTRYPOINTS["article-resume"]:
+        if loop_id != "article-resume":
+            return None
+        allowed_reasons = {"publication_paused", "lock_held", "daily_schedule_not_due",
+                           "no_pending_publication"}
     else:
         allowed_reasons = {"no_due_slot", "daily_limit_reached"}
     value = _read_private_result_hint(path)
