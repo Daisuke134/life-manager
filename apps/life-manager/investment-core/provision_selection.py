@@ -187,6 +187,16 @@ def _official_etf_close(marker: dict[str, Any], rows: list[dict[str, Any]]) -> b
                 or not isinstance(receipt, dict)
                 or any(receipt.get(key) != value for key, value in marker.items())):
             continue
+        if not any(intent.get("receipt_type") == "effect_intent"
+                   and intent.get("effect_id") == row.get("effect_id")
+                   and intent.get("client_order_id") == marker.get("close_client_order_id")
+                   and intent.get("owner_id") == marker["owner_id"]
+                   and intent.get("strategy_id") == marker["strategy_id"]
+                   and intent.get("mode") == row.get("mode")
+                   and isinstance(intent.get("order"), dict)
+                   and intent["order"].get("side") == "sell"
+                   and intent["order"].get("symbol") == marker["symbol"] for intent in rows):
+            continue
         try:
             provider_id, price = _close_provider_order(
                 row.get("broker", {}), client_order_id=marker["close_client_order_id"],
