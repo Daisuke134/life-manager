@@ -326,6 +326,7 @@ class OwnedSubmitFenceTests(unittest.TestCase):
     def test_quantity_drift_at_submit_time_cannot_sell_the_old_quantity(self):
         code,summary,calls,rows,_reads,_original=self._flow(quantity_drift=True)
         self.assertEqual(code,78,summary)
+        self.assertEqual(summary["error_code"],"owned_position_changed_before_submit")
         self.assertEqual(calls,[])
         self.assertFalse(any(row.get("receipt_type")=="effect_intent" and
                              row.get("order",{}).get("side")=="sell" for row in rows))
@@ -333,6 +334,7 @@ class OwnedSubmitFenceTests(unittest.TestCase):
     def test_replaced_entry_with_same_quantity_cannot_receive_an_old_exit(self):
         code,summary,calls,_rows,_reads,_original=self._flow(replace_entry=True)
         self.assertEqual(code,78,summary)
+        self.assertEqual(summary["error_code"],"owned_position_changed_before_submit")
         self.assertEqual(calls,[])
 
 

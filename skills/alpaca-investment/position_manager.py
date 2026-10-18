@@ -80,7 +80,7 @@ def choose(snapshot: dict[str, Any], observation: dict[str, Any], state: Path,
     return {**decision, "action": action, "policy_action": decision["action"],
             "release_sha": release_sha, "qty": str(qty),
             **{key: policy[key] for key in ("entry_effect_id", "entry_client_order_id",
-                                           "entry_provider_order_id", "owner_id", "mode")}}
+                                           "entry_provider_order_id", "entry_price", "entry_timestamp", "owner_id", "mode")}}
 
 
 def exit_order(decision: dict[str, Any]) -> dict[str, Any]:

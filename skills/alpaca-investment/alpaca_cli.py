@@ -36,6 +36,7 @@ CLI_OPERATIONS = frozenset({
     "order_submit", "position_list",
 })
 SAFE_ERROR_CODES = frozenset({
+    "owned_position_changed_before_submit",
     "alpaca_allocator_risk_invalid", "alpaca_allocator_shape_invalid",
     "alpaca_crypto_history_invalid",
     "alpaca_etf_daily_bars_invalid",

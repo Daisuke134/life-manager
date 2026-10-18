@@ -31,7 +31,7 @@ from position_manager import choose as choose_position, exit_order as live_exit_
 from strategy_policy import INDICATOR_HISTORY_CONTRACTS, load_selected_card
 from review_status import read_receipt as read_application_status
 from review_status import refresh as refresh_application_status
-from risk_policy import evaluate_entry
+from risk_policy import evaluate_entry, parse_instant
 
 
 def _atomic_json(path: Path, value: dict) -> None:
@@ -530,7 +530,10 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
         if live_positions:
             _owned_live_position(ownership, observation)
             position = choose_position(allocator_snapshot, observation, state, runner, workdir)
-            decision = {"approved": position["action"] == "EXIT",
+            decision = {"action": position["action"], "owner_id": position.get("owner_id"),
+                        **{key: position.get(key) for key in ("entry_effect_id", "entry_client_order_id",
+                            "entry_provider_order_id", "entry_price", "entry_timestamp")},
+                        "approved": position["action"] == "EXIT",
                         "candidate_ref": "position://BTCUSD", "gate": "position_exit" if position["action"] == "EXIT" else "position_hold",
                         "reason": position["reason"], "position_action": position["action"],
                         "policy_action": position.get("policy_action"),
@@ -608,6 +611,29 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                             state / "receipts.jsonl") != 0 or
                             fresh.get("positions") != expected_positions):
                         raise ValueError("investment_effect_fence_rejected")
+                    if live_positions:
+                        fresh_observation = _normalize_live_position_symbols(observe(
+                            credentials_path=credentials_path, cli_path=cli_path))
+                        fresh_ownership = _sync_live_ownership(state, credentials_path, cli_path, fresh_observation)
+                        try:
+                            _owned_live_position(fresh_ownership, fresh_observation)
+                            policy = load_owned_policy(state, fresh_ownership, mode=mode)
+                            if (any(policy[key] != decision.get(key) for key in (
+                                    "entry_effect_id", "entry_client_order_id", "entry_provider_order_id", "owner_id", "mode"))
+                                    or policy["card"].strategy_id != decision.get("strategy_id")
+                                    or policy["release_sha"] != decision.get("release_sha")
+                                    or Decimal(policy["entry_price"]) != Decimal(decision["entry_price"])
+                                    or parse_instant(policy["entry_timestamp"]) != parse_instant(decision["entry_timestamp"])
+                                    or parse_instant(policy["entry_timestamp"]) > parse_instant(fresh["clock"]["timestamp"])
+                                    or Decimal(policy["owned_qty"]) != Decimal(order["qty"])
+                                    or Decimal(policy["owned_qty"]) != Decimal(decision["position_qty"])
+                                    or order.get("asset_class") != "crypto" or order.get("symbol") != "BTC/USDC"
+                                    or order.get("side") != "sell" or order.get("type") != "market"
+                                    or order.get("time_in_force") != "gtc"):
+                                raise ValueError("owned_position_changed_before_submit")
+                        except (ValueError, KeyError, TypeError, InvalidOperation) as error:
+                            raise ValueError("owned_position_changed_before_submit") from error
+                        ownership, observation = fresh_ownership, fresh_observation
                     if mode == "live" and not live_positions and not evaluate_entry(
                             fresh.get("risk"), order.get("notional_usd"))["approved"]:
                         raise ValueError("investment_effect_fence_rejected")
