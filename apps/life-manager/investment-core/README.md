@@ -466,6 +466,12 @@ money receipts. A partial view cannot invalidate a separately confirmed full
 service period. Owned raw obligations with missing or inconsistent scope-kind
 metadata still block a parent final-zero claim; unverified obligations are not
 excluded merely because their claimed occurrence time is outside the calendar.
+Known paid charge anchors now retain the exact amount, category, original group
+and period, and any known billing account across daily history and crypto caches.
+The same charge or receipt alias cannot replace those facts. Missing legacy account
+metadata stays unknown and can be enriched by a fresh validated input without
+changing money facts; a raw-cache edit cannot perform that enrichment. Conflicting
+inputs retain prior evidence or return a typed unknown instead of redefining costs.
 Production gaps are not cleared by passing fixtures.
 The pinned quote transport can now capture a single USDC/USD BBO at or before
 an economic timestamp, using a fixed 30-second window and descending limit one.
