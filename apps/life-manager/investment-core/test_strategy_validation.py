@@ -46,6 +46,58 @@ def _costs():
 
 
 class StrategyValidationTests(unittest.TestCase):
+    def test_non_usd_quotes_use_entry_and_exit_fx_without_changing_signals(self):
+        mapping = _card().to_mapping()
+        mapping["instruments"] = ["TEST/USDC"]
+        candles = _candles([90, 100, 110, 90, 100, 110, 90, 110, 90, 110])
+        for row in candles:
+            row["quote_to_usd"] = {
+                "currency": "USDC", "rate": "0.8" if row["close"] == "110" else "0.9",
+                "timestamp": row["timestamp"], "evidence_ref": "official-fx-bar-fixture",
+            }
+        result = validate_series(StrategyCard.from_mapping(mapping), candles, _split(), _costs())
+        trade = result["trades"][0]
+        self.assertEqual(trade["entry_price"], "90")
+        self.assertEqual(trade["exit_price"], "110")
+        self.assertEqual(trade["gross_pnl_usd"], "8.64")
+        self.assertEqual(trade["fees_usd"], "0.21")
+        self.assertEqual(trade["slippage_usd"], "0.10")
+        self.assertEqual(trade["net_pnl_usd"], "8.33")
+        self.assertEqual(trade["entry_quote_to_usd"]["rate"], "0.9")
+        self.assertEqual(trade["exit_quote_to_usd"]["rate"], "0.8")
+
+    def test_missing_or_invalid_quote_conversion_cannot_report_usd_profit(self):
+        mapping = _card().to_mapping()
+        mapping["instruments"] = ["TEST/USDC"]
+        base = {"currency": "USDC", "rate": "0.9",
+                "timestamp": "2026-01-01T00:00:00+00:00", "evidence_ref": "official-fx"}
+        for invalid in (None, {}, {**base, "currency": "EUR"},
+                        {**base, "rate": "NaN"}, {**base, "rate": "Infinity"},
+                        {**base, "rate": "0"}, {**base, "rate": "-1"},
+                        {**base, "rate": True}, {**base, "evidence_ref": " "},
+                        {**base, "timestamp": "2026-01-01T00:01:00+00:00"}):
+            with self.subTest(conversion=invalid):
+                candles = _candles([90, 110] * 5)
+                for row in candles:
+                    row["quote_to_usd"] = {**base, "timestamp": row["timestamp"]}
+                candles[0]["quote_to_usd"] = invalid
+                result = validate_series(StrategyCard.from_mapping(mapping), candles, _split(), _costs())
+                self.assertEqual(result["status"], "unknown")
+                self.assertEqual(result["decision"], "rejected")
+                self.assertIsNone(result["net_pnl_usd"])
+                self.assertIsNone(result["holdout"]["net_pnl_usd"])
+                self.assertEqual(result["trades"], [])
+
+    def test_ambiguous_instrument_currency_is_not_assumed_usd(self):
+        for instruments in (["TEST"], ["TEST/USD", "OTHER/USDC"], ["/USD"]):
+            with self.subTest(instruments=instruments):
+                mapping = _card().to_mapping()
+                mapping["instruments"] = instruments
+                result = validate_series(StrategyCard.from_mapping(mapping), _candles([90, 110] * 5),
+                                         _split(), _costs())
+                self.assertEqual(result["status"], "unknown")
+                self.assertIsNone(result["net_pnl_usd"])
+
     def test_train_validation_holdout_are_separate(self):
         result = validate_series(
             _card(),
