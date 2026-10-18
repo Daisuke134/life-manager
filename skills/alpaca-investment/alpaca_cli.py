@@ -774,6 +774,69 @@ def read_crypto_history(*, credentials_path: Path, cli_path: Path,
     return result
 
 
+def read_crypto_validation_history(
+    *, credentials_path: Path, cli_path: Path, start: datetime, end: datetime,
+    observed_at: str,
+) -> dict[str, Any]:
+    """Read one complete, bounded paper-context historical BTC/FX window."""
+    observed = parse_instant(observed_at)
+    if (not isinstance(start, datetime) or not isinstance(end, datetime)
+            or start.tzinfo is None or end.tzinfo is None
+            or not timedelta(0) < end - start <= timedelta(hours=6)
+            or end > observed or any(moment.timestamp() % 300 for moment in (start, end))):
+        raise ValueError("alpaca_crypto_validation_range_invalid")
+    start_text = start.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    end_text = end.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    context = _context(credentials_path, cli_path, mode="paper")
+    payload = _run(cli_path, ["data", "crypto", "bars", "--symbols", "BTC/USDC,USDC/USD",
+        "--start", start_text, "--end", end_text, "--timeframe", "5Min", "--limit", "1000",
+        "--sort", "asc", "--quiet", "--jq",
+        '{next_page_token,bars:(.bars|with_entries(.value|=map({t,o,h,l,c})))}'], context)
+    try:
+        if (not isinstance(payload, dict) or "next_page_token" not in payload
+                or payload["next_page_token"] is not None):
+            raise ValueError
+        by_symbol = payload["bars"]
+        if not isinstance(by_symbol, dict) or "BTC/USDC" not in by_symbol                 or set(by_symbol) - {"BTC/USDC", "USDC/USD"}:
+            raise ValueError
+        rows_by_symbol = {}
+        count = int((end - start).total_seconds() // 300)
+        for symbol, bars in by_symbol.items():
+            if not isinstance(bars, list) or len(bars) > count + 1:
+                raise ValueError
+            normalized = []
+            previous = None
+            for row in bars:
+                timestamp = parse_instant(row["t"])
+                keys = ("o", "h", "l", "c") if symbol == "BTC/USDC" else ("c",)
+                prices = {key: Decimal(str(row[key])) for key in keys}
+                if (timestamp < start or timestamp > end or timestamp.timestamp() % 300
+                        or (previous is not None and timestamp <= previous)
+                        or any(not price.is_finite() or price <= 0 for price in prices.values())
+                        or (symbol == "BTC/USDC" and (
+                            prices["h"] < max(prices.values()) or prices["l"] > min(prices.values())))):
+                    raise ValueError
+                previous = timestamp
+                if timestamp == end:
+                    continue  # Exclusive end makes adjacent history chunks disjoint.
+                normalized.append({"t": timestamp.astimezone(timezone.utc).isoformat(),
+                                   **{key: str(price) for key, price in prices.items()}})
+            rows_by_symbol[symbol] = normalized
+        btc = rows_by_symbol["BTC/USDC"]
+        if len(btc) != count or any(parse_instant(row["t"]) != start + timedelta(minutes=5 * i)
+                                    for i, row in enumerate(btc)):
+            raise ValueError
+    except (InvalidOperation, KeyError, TypeError, ValueError) as error:
+        raise ValueError("alpaca_crypto_validation_history_invalid") from error
+    digest = hashlib.sha256(json.dumps(rows_by_symbol, sort_keys=True,
+                                      separators=(",", ":")).encode()).hexdigest()
+    evidence = f"alpaca://crypto-bars/5Min/{start_text}/{end_text}/{digest}"
+    return {"crypto_history": btc, "quote_conversions": [
+        {"timestamp": row["t"], "currency": "USDC", "rate": row["c"], "evidence_ref": evidence}
+        for row in rows_by_symbol.get("USDC/USD", [])],
+        "source_receipt_ids": [evidence], "observed_at": observed_at}
+
+
 def read_live_performance_snapshot(
     *, credentials_path: Path, cli_path: Path, period_start: str,
     buy_client_order_id: str, sell_client_order_id: str,
