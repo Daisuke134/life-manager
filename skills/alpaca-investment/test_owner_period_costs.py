@@ -15,8 +15,8 @@ class OwnerPeriodCostsTests(unittest.TestCase):
         self.assertTrue(callable(reader),'owner-period cost reader is missing')
         return reader
 
-    def fixture(self,mode):
-        payload,inventory,scope=setup(mode,orders=[])
+    def fixture(self,mode,paid=False):
+        payload,inventory,scope=setup(mode,orders=[],paid=paid)
         scope.update(period_start='2026-09-30T00:00:00+00:00',period_end='2026-10-01T00:00:00+00:00')
         ref=inventory['scopes'][0]['execution_refs'][0]
         ref.update(started_at='2026-09-30T00:00:00Z',finished_at='2026-09-30T00:01:00Z')
@@ -24,6 +24,7 @@ class OwnerPeriodCostsTests(unittest.TestCase):
         payload['readback']['cost_scopes'][0].update(scope)
         payload['job_joins'][0].update(scope)
         inventory['scopes'][0].update(scope)
+        if paid:payload['documents'][0]['line_items'][0]['occurred_at']='2026-09-30T00:00:30Z'
         return payload,inventory,scope
 
     def test_census_fills_only_owner_period_anchors_from_native_events(self):
@@ -67,6 +68,54 @@ class OwnerPeriodCostsTests(unittest.TestCase):
                     self.assertEqual(second['known_operating_cost_source_evidence'],first['known_operating_cost_source_evidence'])
                     self.assertIsNone(second['net_pnl_usd']);self.assertFalse(second['capital_expansion_allowed'])
                 self.assertEqual(list(state.iterdir()),[])
+
+    def test_confirmed_paid_owner_costs_cannot_disappear_or_change(self):
+        reader=self.reader()
+        for mode in ('paper','live'):
+            for changed in ('zero','amount'):
+                with self.subTest(mode=mode,changed=changed),tempfile.TemporaryDirectory() as directory:
+                    root=Path(directory);payload,inventory,scope=self.fixture(mode,paid=True)
+                    billing=root/'billing.json';billing.write_text(json.dumps(payload))
+                    def read(previous=None):return reader(root,observed_at=inventory['observed_at'],
+                        owner_id=scope['owner_id'],mode=mode,previous=previous)
+                    with patch.dict(os.environ,{'LM_CFO_ACTUAL_COST_READBACK':str(billing),'LM_CFO_ACTUAL_COST':''}),                          patch.object(cost_inventory,'read_expected_inventory',return_value=inventory):
+                        first=read();self.assertEqual(first['model_cost_usd'],'1')
+                        bad=copy.deepcopy(payload)
+                        if changed=='zero':
+                            bad['documents']=[]
+                            bad['sources'][0]['queries'][0].update(settlement_state='no_charge_final',document_ids=[])
+                            bad['provider_pagination']['pages'][0]['document_ids']=[]
+                            bad['job_joins'][0].update(join_type='scope_query',job_id=None)
+                        else:
+                            line=bad['documents'][0]['line_items'][0]
+                            line['amount']=line['allocations'][0]['amount']='2'
+                        billing.write_text(json.dumps(bad));regressed=read(first)
+                        self.assertIsNone(regressed['model_cost_usd'])
+                        self.assertEqual(regressed['operating_cost_coverage']['coverage_state'],'gap')
+                        self.assertEqual(regressed['known_operating_cost_components'],first['known_operating_cost_components'])
+                        billing.write_text(json.dumps(payload));recovered=read(regressed)
+                        self.assertEqual(recovered['model_cost_usd'],'1')
+                        self.assertEqual(recovered['known_operating_cost_components'],first['known_operating_cost_components'])
+
+    def test_paper_producer_keeps_prior_day_economic_scopes_in_native_shape(self):
+        from paper_performance import write_paper_performance
+        from test_paper_performance import _rows,OBSERVATION,RISK
+        for next_day in (False,True):
+            with self.subTest(next_day=next_day),tempfile.TemporaryDirectory() as directory:
+                state=Path(directory);state.joinpath('receipts.jsonl').write_text(''.join(json.dumps(row)+'\n' for row in _rows()))
+                observation=copy.deepcopy(OBSERVATION)
+                if next_day:observation['clock']['observed_at']='2026-10-21T00:00:10Z'
+                with patch.dict(os.environ,{'LM_CFO_ACTUAL_COST_READBACK':'','LM_CFO_ACTUAL_COST':''}):
+                    result=write_paper_performance(state,observation,RISK)
+                self.assertEqual(result['completed_round_trips_total'],1)
+                scopes=result.get('economic_cost_scopes',[])
+                self.assertEqual(len(scopes),1)
+                self.assertIn('closed_at',scopes[0])
+                census=cost_inventory.build_expected_inventory(scopes,beneficiary_owner_id=OWNER,
+                    observed_at=observation['clock']['observed_at'],runtime_rows_by_owner={},occurrence_rows_by_owner={},
+                    release_inputs={},paid_bindings=[])
+                self.assertEqual(len(census['scopes']),1)
+                self.assertNotIn('scope_invalid',{g['reason'] for g in census['gaps']})
 
     def test_invalid_mode_owner_does_not_read_private_inventory(self):
         reader=self.reader()

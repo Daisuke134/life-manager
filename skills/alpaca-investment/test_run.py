@@ -1043,6 +1043,16 @@ class PortablePassTest(unittest.TestCase):
         self.assertEqual(saved.get('owner_period_operating_costs'),snapshot)
         self.assertEqual(saved['action'],'HOLD')
 
+    def test_owner_period_reader_gets_full_paper_economic_context(self):
+        scope={'owner_id':'alpaca-investment-paper','mode':'paper','paper':True,'order_ids':['buy','sell'],
+            'period_start':'2026-10-16T00:00:00Z','closed_at':'2026-10-17T01:00:00Z','source_receipt_ids':['native-fill']}
+        producer={'completed_round_trips':0,'completed_round_trips_total':1,'expected_cost_inventory':{'scopes':[]},
+            'economic_cost_scopes':[scope]}
+        with patch.object(MODULE,'write_paper_performance',return_value=producer),              patch.object(MODULE,'read_owner_period_costs',return_value={},create=True) as costs:
+            code,_rows,_steps,_pending=self._capture_case(configured_owner='alpaca-investment-paper')
+        self.assertEqual(code,0)
+        self.assertEqual(costs.call_args.kwargs['economic_scopes'],[scope])
+
     def test_owner_period_reporting_interruption_retains_previous_snapshot(self):
         previous={'report_scope':'owner_period_operating_costs','owner_id':'alpaca-investment-paper',
             'mode':'paper','paper':True,'observed_at':'2026-10-17T01:00:00Z',
