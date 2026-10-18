@@ -723,6 +723,19 @@ def _operating_charge_key(component: Mapping[str, Any]) -> tuple[str, ...]:
     return tuple(key)
 
 
+def _operating_cost_facts(component):
+    account=component.get("billing_account_ref")
+    if account is not None and (not isinstance(account,str) or not account.strip()):
+        raise ValueError("paper_operating_cost_binding_invalid")
+    return (component["category"],_number(component["amount_usd"]),tuple(component["order_ids"]),
+            _timestamp(component["period_start"]),_timestamp(component["period_end"]),account)
+
+
+def _operating_cost_facts_match(current, previous):
+    return (current is not None and current[:-1]==previous[:-1]
+            and (previous[-1] is None or current[-1]==previous[-1]))
+
+
 def _operating_identity_keys(component: Mapping[str, Any]) -> set[tuple[str, ...]]:
     receipt_id = component.get("receipt_id")
     if not isinstance(receipt_id, str) or not receipt_id:
@@ -750,6 +763,7 @@ def _bind_operating_costs(state: Path, completed, summary):
                          "period_end": trip["closed_at"]}): trip
                 for trip in completed if trip.get("period_start")}
     bindings = {}
+    paid_facts = {}
     alias_sets = {}
     day_keys = {}
     try:
@@ -772,13 +786,16 @@ def _bind_operating_costs(state: Path, completed, summary):
                 keys, trade = _operating_identity_keys(component), binding(component)
                 keys |= {alias for key in keys for alias in alias_sets.get(key, set())}
                 trip = expected.get(trade)
+                fact = _operating_cost_facts(component)
                 if (trip is None or _utc_day(component["period_end"]) != day
                         or component.get("receipt_id") not in ids
                         or not set(trip["source_receipt_ids"]) <= set(ids)
-                        or any(key in bindings and bindings[key] != trade for key in keys)):
+                        or any(key in bindings and bindings[key] != trade for key in keys)
+                        or any(key in paid_facts and not _operating_cost_facts_match(fact,paid_facts[key]) for key in keys)):
                     raise ValueError("paper_operating_cost_binding_invalid")
                 for key in keys:
                     bindings[key] = trade
+                    paid_facts[key] = fact
                     alias_sets[key] = keys
                 day_keys.setdefault(day, []).append(keys)
         components = summary["operating_cost_components"]
@@ -789,17 +806,19 @@ def _bind_operating_costs(state: Path, completed, summary):
                     "occurred_at": row.get("occurred_at"), "reason": reason}
         for row in components:
             keys = _operating_identity_keys(row)
+            keys |= {alias for key in keys for alias in alias_sets.get(key, set())}
+            fact = _operating_cost_facts(row)
             if any(key in bindings and bindings[key] != binding(row) for key in keys):
                 component_gaps.append(gap(row, "operating_cost_receipt_reassigned"))
                 continue
-            keys |= {alias for key in keys for alias in alias_sets.get(key, set())}
+            if any(key in paid_facts and not _operating_cost_facts_match(fact,paid_facts[key]) for key in keys):
+                component_gaps.append(gap(row, "operating_cost_identity_conflict"))
+                continue
             matching = [index for index, prior in enumerate(eligible)
                         if keys & _operating_identity_keys(prior)]
             if matching:
                 prior = eligible[matching[0]]
-                if (len(matching) != 1 or binding(prior) != binding(row)
-                        or prior["category"] != row["category"]
-                        or _number(prior["amount_usd"]) != _number(row["amount_usd"])):
+                if len(matching) != 1 or _operating_cost_facts(prior) != fact:
                     return select_components({**summary, "operating_cost_components": [],
                         "operating_cost_component_gaps": component_gaps + [gap(item, "operating_cost_identity_conflict") for item in components],
                         "operating_costs_reason": "operating_cost_identity_conflict"}, completed), day_keys

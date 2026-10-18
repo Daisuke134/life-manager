@@ -15,7 +15,7 @@ from crypto_ownership_proof import (_digest,_quantity_text,_sealed_entry_from_ro
     owned_quantity_state_from_rows,native_fee_debit_id,crypto_fx_quote_proof,_fx_instant,_execution_number,
     crypto_fill_activity_proof,validate_crypto_activity_snapshot,combine_crypto_activity_snapshots,execution_activity_identity,native_fee_row_facts,crypto_activity_page_progress,crypto_activity_paged_snapshot,validate_crypto_activity_page_chunk,ReconciliationPending)
 from effect_store import _owned_rows
-from paper_performance import _atomic_json,_operating_charge_key
+from paper_performance import _atomic_json,_operating_charge_key,_operating_cost_facts,_operating_cost_facts_match
 from cost_inventory import read_expected_inventory,select_expected_inventory
 from risk_policy import parse_instant
 from paper_operating_costs import read_readback,select_components,summarize as summarize_operating_costs
@@ -542,14 +542,13 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
             facts={}
             for c in components:
                 key=_operating_charge_key(c)
-                value=(c['category'],Fraction(str(c['amount_usd'])),tuple(c['order_ids']),
-                    parse_instant(c['period_start']),parse_instant(c['period_end']))
+                value=_operating_cost_facts(c)
                 if key in facts and facts[key]!=value:raise ValueError('crypto_operating_cost_cache_invalid')
                 facts[key]=value
             return facts
         anchored=charges(known_cost_components)
         previous=charges(old_costs['operating_cost_components']);current=charges(costs['operating_cost_components'])
-        accepts=(current==anchored if incoming is None else all(current.get(key)==value for key,value in anchored.items()))
+        accepts=(current==anchored if incoming is None else all(_operating_cost_facts_match(current.get(key),value) for key,value in anchored.items()))
         if accepts:
             billing_cache=selected;known_cost_components=costs['operating_cost_components']
         elif previous==anchored:
