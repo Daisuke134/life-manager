@@ -14847,6 +14847,24 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **反映の最新カーソル:** mainにはIN-REPORT-01とD1を統合するが、currentはまだ完全版ab5707cbで、既存1800秒cut間隔を守る。native release ownerの05:49 run18df895c3ed571d8-42505はfleet applyのbudget exceeded（timed-out ownerなし、skipped77）でexit1。paperは同abで05:45自然pass後、05:50 run18df89b980627530-54418がresource_capacity_busy/exit75、その後の自然再試行を観測中。登録resource_class=deterministic、旧agent席設定に戻ったとは断定しない。currentが更新されたら既存loaded-idle target applyだけでcrossvenue ownerを採用し、旧通知fenceを維持してread-only canaryを確認する。強制wake/間隔短縮/資金移動/旧fence解除はしない。
 
+### IN-COST-04D3 実装計画 — 独立runtime/source inventory
+
+**Goal:** billing payloadから独立した各取引の実行・source集合を生成し、完全coverageの受入へ接続する。**Architecture:** 既存private runtime journal/admission read-only/既存receipts ledger/既存catalogを再利用し、新DB・台帳・scheduler・net算術を作らない。**Tech Stack:** Python標準ライブラリ、既存unittest/pytest。**Spec:** 本SSOT IN-COST-04B/D。primaryが単独実装し、金融の独立read-only reviewを行う。UI model/effortを保持し、観測できない実値や開発費を捏造しない。
+
+**Constraints:** owner/mode/physical run/logical occurrence/実行releaseとstrategy releaseを混ぜない。billing sourcesからexpected集合を生成しない。旧releaseへ現在catalogを遡及適用しない。共有subscription/validation→paper・liveはexact allocationがない限りgap。既知paid bindingをsource設定変更で落とさない。unknown/欠測は0にしない。live/fence/21-session/資本上限を変更しない。
+
+**Review focus:** source省略、古いrelease/不足archive、未対応start、claimed occurrence≠physical run、支払済みaliasの二重帰属を反例にする。現在のpaper censusには歴史的未終端21件とexecution metadata未記録の期間があり、現在の全期間inventory completeを主張しない。
+
+1. **D3a: 既存ledgerへrelease固定のsource宣言を保存し、独立censusを生成する。** Files: 新規skills/alpaca-investment/cost_inventory.py、同test_cost_inventory.py、既存effect_store.py/run.py、apps/life-manager/config/product-loop-catalog.json investment.economic。本catalogのcost_source_inventoryをschema_version/status/sourcesの一箇所で定義する。初期status=unverified/sources=[]は明示gapであり、provider/accountを推測しない。既存effect_store._append_onceを使い、receipt_type=cost_source_inventory、owner、runtime release_sha、catalog digest、宣言、capture run/occurrence/時刻をreleaseごとに一回だけ保存する。immutable自身のRELEASE.json/当該catalogから読む。新台帳やGC保持方針を追加しない。
+   - [ ] RED→GREEN: record_source_inventory(ledger, *, release_root, owner_id, run_id, occurrence_id)はpaper entrypointで実行し、同release再実行は追記0、release違いは別snapshot、catalog欠測/未検証はgap、strategy release_shaをruntime SHAへ書換えない。provider呼出0。
+   - [ ] RED→GREEN: build_expected_inventory(trips, *, beneficiary_owner_id, observed_at, runtime_rows_by_owner, occurrence_rows_by_owner, release_inputs, paid_bindings)はexact scopeのrequired_sources/execution_refs/evidence_refs/coverage_state/gapsを返す。physical runでstart/terminalを組み、terminalの実occurrenceとadmission rowを照合する。合成occurrenceを受理せず、同event衝突・未終端・期間不足・不明release/宣言・不明account・共有未帰属をgapにする。各実行releaseの宣言と既知paid sourceを合併し、新しい設定だけで過去sourceを消さない。
+2. **D3b: 既存writerから本物入力を渡し、query/source集合を照合する。** Files: cost_inventory.py、paper_performance.py、paper_operating_costs.py、actual_cost.pyと既存対応tests。read_expected_inventory(state, trips, *, observed_at)は既存lm_loop._owner_runtime_rows/_read_admission_rowsの安全なread-only方式、既存ledger snapshot、当該immutable release inputを使う。source設定は費用query側から受け取らない。履歴上限/欠測/旧release情報の欠落はgap。writerはclose runのhost terminalより前に呼ばれるため、その回はgapとし次の自然runの既存historical refreshで再評価する。
+   - [ ] RED→GREEN: build_paper_performanceへexpected_inventory keywordを渡し、summarize→D2 validatorへ接続する。別ownerのexecution_refをbeneficiaryへ偽装せず、run/occurrenceの実組でjoinを検証する。必要(provider, account, category)全集合とofficial queryを照合し、欠測はgap、完全fixtureだけoperating coverage completeを受理する。金銭receipt0は作らない。
+   - [ ] RED→GREEN: component/coverageを同じclosed subsetへ絞り、既存paid binding/aliasを再利用する。共有queryの証拠はcost_evidence等へ保持し、economic source_receipt_idsへ追加しない。過去の既知component/coverageを欠測snapshotで削除しない。全model/tool/browser/infraが完全な時だけmodel/system合計を設定し、broker欠測時のnetはD4まで未確定。
+3. **検証・反映。** 対象RED/GREENを都度commit/pushし、Alpaca/core/CFO関連suiteとdiff/source boundaryを確認する。独立金融review→全13 exact-head checks→main→既存正式版→対象owner採用→自然記録を照合する。source受入を本物費用/利益の証明にしない。現在cursorはD3a。
+
+**D2統合:** PR #8329は全13checks PASS後にmain5a96b4e9c21fe637e0c0b97f3290e912cbab916dへ統合する。D1/通知の完全版c2e10124は正式版20261018T145653-c2e10124へ作成し、production9ファイルのmain完全一致、SDK singleton受理/複数chunk不明、synthetic paper保持/live候補除外、実live入力の不完全net非数値をread-only canaryで確認する。provider/runtime state書込0。対象owner採用は既存native fleetの進行を観測中、旧通知fenceは維持する。
+
 **原子的TODO:** B1上記schema/独立inventoryの信頼境界と型・enum・時刻・反例を固定→D1 mode保持/混在拒否/live候補・rolling除外→D2既存CFO内の共有query/zero受理→D3scoped coverageと既存paid binding接続→D4broker complete受入と日次/履歴の条件付き評価→E金融review/全CI/main/正式版/対象owner/readback→F公式closed取引・全期間inventory・paid/最終無請求・帰属・broker費用の本物入力接続。各source変更は最小RED→GREENで保存する。反例はsource削除による自己整合、next page/pending/未確定を空請求とする誤り、別account/mode/pair/境界時刻、paid alias再利用、shared query翌日再利用、measured paperのlive混入を含める。sourceの受け入れ経路と実利益証明を分離し、外部証拠が不足してもB/D source実装を止めない。
 
 ### IN-COST-04C 実装計画 — core費用とpaper損益基準
