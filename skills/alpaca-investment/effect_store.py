@@ -331,8 +331,16 @@ def _filled_qty_positive(order: dict[str, Any]) -> bool:
     try:
         quantity = Decimal(str(value))
     except (InvalidOperation, TypeError, ValueError):
-        return True
+        return False
     return quantity.is_finite() and quantity > 0
+
+
+def _filled_qty_is_zero(order: dict[str, Any]) -> bool:
+    try:
+        quantity = Decimal(str(order.get("filled_qty")))
+    except (InvalidOperation, TypeError, ValueError):
+        return False
+    return quantity.is_finite() and quantity == 0
 
 
 def _outcome_closed(outcome: dict[str, Any] | None) -> bool:
@@ -343,7 +351,7 @@ def _outcome_closed(outcome: dict[str, Any] | None) -> bool:
         broker = outcome.get("broker")
         return isinstance(broker, dict) and (
             broker.get("status") in BROKER_TERMINAL_FAILURE_STATUSES
-            and not _filled_qty_positive(broker)
+            and _filled_qty_is_zero(broker)
         )
     if kind == "broker_reconciled":
         broker = outcome.get("broker")
@@ -351,7 +359,7 @@ def _outcome_closed(outcome: dict[str, Any] | None) -> bool:
             return False
         status = broker.get("status")
         return status == "filled" or (
-            status in BROKER_TERMINAL_FAILURE_STATUSES and not _filled_qty_positive(broker)
+            status in BROKER_TERMINAL_FAILURE_STATUSES and _filled_qty_is_zero(broker)
         )
     return kind in {
         "live_canary_verified", "live_canary_terminal_failure",
@@ -374,6 +382,7 @@ def _pending_status(ledger: Path, intent: dict[str, Any], order: dict[str, Any],
         **preserved,
         "client_order_id": intent["client_order_id"],
         "broker_status": status,
+        "broker_receipt_id": order.get("id"), "filled_qty": order.get("filled_qty"),
         "effect_id": intent["effect_id"],
         "mode": intent.get("mode", "paper"),
         "paper": intent.get("paper") is True,
@@ -383,7 +392,7 @@ def _pending_status(ledger: Path, intent: dict[str, Any], order: dict[str, Any],
         "status": "reconciliation_pending",
         **({"reason": reason} if reason else {}),
         **({"strategy_readback_pending": True} if strategy_readback_pending else {}),
-    }, ("receipt_type", "effect_id", "status", "broker_status", "strategy_readback_pending"))
+    }, ("receipt_type", "effect_id", "status", "broker_status", "strategy_readback_pending", "broker_receipt_id", "filled_qty"))
 
 
 def unresolved_intent_count(ledger: Path) -> int:
@@ -449,7 +458,7 @@ def reconcile_started(
             raise ValueError("reconciliation_blocked")
         status = order.get("status")
         if status != "filled":
-            if status in BROKER_TERMINAL_FAILURE_STATUSES and not _filled_qty_positive(order):
+            if status in BROKER_TERMINAL_FAILURE_STATUSES and _filled_qty_is_zero(order):
                 _append_once(ledger, {
                     "broker": order, "broker_receipt_id": order.get("id"),
                     "broker_status": status,
@@ -464,8 +473,8 @@ def reconcile_started(
                 continue
             _pending_status(
                 ledger, intent, order,
-                reason="partial_fill_requires_reconciliation" if status in BROKER_TERMINAL_FAILURE_STATUSES
-                else None,
+                reason=("partial_fill_requires_reconciliation" if _filled_qty_positive(order)
+                        else "fill_quantity_unknown") if status in BROKER_TERMINAL_FAILURE_STATUSES else None,
             )
             deferred += 1
             continue

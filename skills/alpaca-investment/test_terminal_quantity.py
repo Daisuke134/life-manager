@@ -1,5 +1,4 @@
 """Terminal broker status is not proof that an unknown fill quantity is zero."""
-import json
 from pathlib import Path
 import sys
 import tempfile
@@ -32,7 +31,8 @@ class TerminalQuantityTests(unittest.TestCase):
                         self.assertEqual(store.unresolved_intent_count(ledger),1)
                         self.assertEqual(store.effect_state(ledger,sealed['effect_id']),'started')
                         last=store._rows(ledger)[-1]
-                        self.assertEqual(last['broker_receipt_id'],'official-order')
+                        self.assertEqual(last.get('broker_receipt_id'),'official-order')
+                        self.assertIn('filled_qty',last)
                         self.assertEqual(last['filled_qty'],qty)
                         self.assertEqual(last['reason'],'partial_fill_requires_reconciliation'
                                          if qty=='0.01' else 'fill_quantity_unknown')
