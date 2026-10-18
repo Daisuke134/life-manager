@@ -37,6 +37,23 @@ class TerminalQuantityTests(unittest.TestCase):
                         self.assertEqual(last['reason'],'partial_fill_requires_reconciliation'
                                          if qty=='0.01' else 'fill_quantity_unknown')
 
+    def test_a_known_positive_fill_cannot_be_reset_to_zero_by_a_later_status(self):
+        for mode in ('paper','live'):
+            with self.subTest(mode=mode),tempfile.TemporaryDirectory() as directory:
+                ledger=Path(directory)/'receipts.jsonl'
+                sealed=store.seal(ledger,{'mode':mode},{'asset_class':'crypto','side':'buy','symbol':'BTC/USDC'})
+                store.mark_started(ledger,sealed)
+                broker={'id':'official-order','client_order_id':sealed['client_order_id'],
+                        'status':'canceled','filled_qty':'0.01'}
+                store.reconcile_started(ledger,lambda _:broker)
+                broker['filled_qty']='0'
+                result=store.reconcile_started(ledger,lambda _:broker)
+                self.assertEqual(result['unresolved'],1)
+                self.assertEqual(store.unresolved_intent_count(ledger),1)
+                self.assertEqual(store.effect_state(ledger,sealed['effect_id']),'started')
+                self.assertEqual(store._rows(ledger)[-1]['reason'],'fill_quantity_conflict')
+                self.assertFalse(any(r.get('outcome')=='broker_terminal_failure' for r in store._rows(ledger)))
+
     def test_unknown_quantity_can_recover_to_an_official_explicit_zero(self):
         with tempfile.TemporaryDirectory() as directory:
             ledger=Path(directory)/'receipts.jsonl'
