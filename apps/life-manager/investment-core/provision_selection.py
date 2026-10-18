@@ -24,7 +24,8 @@ from control import control_fence
 _effect_spec = importlib.util.spec_from_file_location("alpaca_selection_effect_store", _ALPACA / "effect_store.py")
 _effects = importlib.util.module_from_spec(_effect_spec)
 _effect_spec.loader.exec_module(_effects)
-from etf_ownership import _read_open, _close_provider_order, _number, ETF_OWNER_IDS, ETF_STRATEGY_ID
+from etf_ownership import (_read_open, _close_provider_order, _closed_account_readback,
+                           _number, ETF_OWNER_IDS, ETF_STRATEGY_ID)
 
 
 class SelectionProvisionError(ValueError):
@@ -180,7 +181,8 @@ def _official_etf_close(marker: dict[str, Any], rows: list[dict[str, Any]]) -> b
     if not isinstance(refs, list) or not refs or any(not isinstance(ref, str) or not ref.strip() for ref in refs):
         return False
     for row in rows:
-        receipt = row.get("strategy_receipt")
+        envelope = row.get("strategy_receipt")
+        receipt = envelope.get("receipt") if isinstance(envelope, dict) else None
         if (row.get("receipt_type") != "outcome" or row.get("outcome") != "broker_reconciled"
                 or row.get("mode") != ("paper" if marker["owner_id"] == "alpaca-investment-paper" else "live")
                 or row.get("client_order_id") != marker.get("close_client_order_id")
@@ -198,6 +200,11 @@ def _official_etf_close(marker: dict[str, Any], rows: list[dict[str, Any]]) -> b
                    and intent["order"].get("symbol") == marker["symbol"] for intent in rows):
             continue
         try:
+            account = _closed_account_readback(envelope.get("account_readback", {}), symbol=marker["symbol"])
+            if (account["cash"] != marker["close_account_cash_usd"]
+                    or account["equity"] != marker["close_account_equity_usd"]
+                    or account["observed_at"] != marker["close_account_readback_at"]):
+                continue
             provider_id, price = _close_provider_order(
                 row.get("broker", {}), client_order_id=marker["close_client_order_id"],
                 symbol=marker["symbol"], expected_qty=_number(marker["position_qty"], positive=True))
