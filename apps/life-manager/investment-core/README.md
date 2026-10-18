@@ -513,6 +513,10 @@ root and daily views use exact rational sums; missing FX, observed quote fees or
 cost coverage leaves this value null. It is a reference cashflow, not settled
 net profit, and excludes unallocated standing/idle costs. The writer recomputes
 it after selecting accepted billing history; capital expansion stays disabled.
+The cross-venue reader accepts these scoped operating amounts only with complete
+operating coverage and finite nonnegative decimal strings. The crypto snapshot
+remains partial, with gross/net and broker fee economics unknown; known operating
+costs never authorize a measured result or a legacy measured fallback.
 The existing
 writer caches mode-bound raw FX evidence, reads at most two missing timestamps per
 pass and avoids retrying the same timestamp at the same observation clock. A

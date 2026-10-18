@@ -141,7 +141,7 @@ def _utc_day(value: Any) -> str | None:
 
 
 def _crypto_contract(value: Any, *, daily: bool = False) -> bool:
-    """Phase-one BTC evidence has no measured USD economics yet."""
+    """Scoped operating costs do not make BTC economics measured or settled."""
     if not isinstance(value, Mapping):
         return False
     mode = value.get("mode")
@@ -152,9 +152,25 @@ def _crypto_contract(value: Any, *, daily: bool = False) -> bool:
             and value.get("report_scope") == ("owned_crypto_cycles_daily" if daily else "owned_crypto_cycles")
             and value.get("measurement_status") == "partial"
             and value.get("capital_expansion_allowed") is False
+            and _crypto_operating_costs(value)
             and all(value.get(field) is None for field in (
                 "gross_strategy_pnl_usd", "net_pnl_usd", "fees_usd", "funding_or_borrow_usd",
-                "slippage_usd", "gas_usd", "model_cost_usd", "system_cost_usd")))
+                "slippage_usd", "gas_usd")))
+
+
+def _crypto_operating_costs(value: Mapping[str, Any]) -> bool:
+    amounts=[value.get(field) for field in ("model_cost_usd", "system_cost_usd")]
+    if all(amount is None for amount in amounts):
+        return True
+    coverage=value.get("operating_cost_coverage")
+    if (value.get("operating_costs_status") != "complete" or not isinstance(coverage, Mapping)
+            or coverage.get("coverage_state") != "complete"):
+        return False
+    try:
+        return all(isinstance(amount, str) and bool(amount) and amount == amount.strip()
+            and Decimal(amount).is_finite() and Decimal(amount) >= 0 for amount in amounts)
+    except (ArithmeticError, ValueError):
+        return False
 
 
 def _read_performance(
