@@ -267,6 +267,25 @@ class ValidationRunnerTests(unittest.TestCase):
             self.assertEqual(provision.call_args_list[0].args[0], live_selection)
             self.assertEqual(provision.call_args_list[1].args[0], paper_selection)
 
+    def test_btc_history_failure_keeps_legacy_report_without_claiming_full_success(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            history = _history(date(2026, 1, 1))
+            with patch.object(validation_runner, "read_etf_daily_history", return_value=history), \
+                 patch.object(validation_runner, "build_report_from_history", return_value=_report()), \
+                 patch.object(validation_runner, "build_crypto_reports_for_period",
+                              side_effect=ValueError("alpaca_crypto_validation_history_invalid")), \
+                 patch.object(validation_runner, "provision_selection", return_value={"status": "existing"}) as provision:
+                result = validation_runner.run_once(
+                    reports_path=root/"reports.json", selection_path=root/"selected-strategy.json",
+                    credentials_path=Path("credentials"), cli_path=Path("alpaca"),
+                    release_sha="b"*40, start_date=date(2026,1,1), end_date=date(2026,1,30))
+            self.assertEqual(result["status"], "partial")
+            self.assertEqual(result["crypto_report_count"], 0)
+            self.assertEqual(result["crypto_error_class"], "alpaca_crypto_validation_history_invalid")
+            self.assertEqual(len(json.loads((root/"reports.json").read_text())["reports"]), 1)
+            provision.assert_called_once()
+
     def test_write_reports_is_atomic_and_private(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "state" / "reports.json"
