@@ -775,7 +775,31 @@ def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_recor
                             or set(item["occurrence_ids"]) != {f"{target['owner_id']}:{run}" for run in item["run_ids"]}):
                         raise ValueError
                 elif item.get("join_type") == "paid_allocation":
-                    if query.get("settlement_state") != "paid_final" or item.get("document_id") not in query["document_ids"]:
+                    if (query.get("settlement_state") != "paid_final" or item.get("document_id") not in query["document_ids"]
+                            or item.get("status") not in ("completed", "settled", "paid")
+                            or not isinstance(item.get("job_id"), str) or not item["job_id"]):
+                        raise ValueError
+                    bound = False
+                    for document in _document_rows(payload)[0]:
+                        identity = _document_identity(document)
+                        if (identity != (key[0], item.get("document_type"), item.get("document_id"))
+                                or document.get("billing_account_ref") != key[1]):
+                            continue
+                        for line in document.get("line_items", []):
+                            if not isinstance(line, dict) or line.get("line_item_id") != item.get("line_item_id"):
+                                continue
+                            for allocation in line.get("allocations", []):
+                                if (not isinstance(allocation, dict) or allocation.get("allocation_id") != item.get("allocation_id")
+                                        or allocation.get("job_id") != item["job_id"]
+                                        or allocation.get("product_loop_id") != target["product_loop_id"]):
+                                    continue
+                                receipt_id = (f"{key[0]}:actual-cost:{identity[1]}:{identity[2]}:"
+                                              f"line:{line['line_item_id']}:allocation:{allocation['allocation_id']}")
+                                bound |= any(isinstance(row, dict) and row.get("receipt_id") == receipt_id
+                                    and row.get("record_type") == "receipt" and row.get("verification_state") == "verified"
+                                    and row.get("provider") == key[0] and row.get("currency") == "USD"
+                                    and row.get("product_loop_id") == target["product_loop_id"] for row in paid_records)
+                    if not bound:
                         raise ValueError
                 else:
                     raise ValueError
