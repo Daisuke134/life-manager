@@ -321,7 +321,7 @@ def test_owner_source_read_failure_has_safe_boundary_diagnostic(tmp_path, monkey
 
     assert result["status"] == "reference_or_source_unavailable"
     assert result["diagnostic"] == {
-        "phase": "git:ls-remote", "error_class": type(failure).__name__,
+        "phase": "remote_refs", "error_class": type(failure).__name__,
         "errno": getattr(failure, "errno", None),
         "exit_code": getattr(failure, "returncode", None),
     }

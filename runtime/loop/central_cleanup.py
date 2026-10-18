@@ -498,6 +498,7 @@ def reclaim_unreferenced_source(releases: Path, current: Path, agents: Path, kee
               "errors": 0, "status": "preserved"}
     source_repo = Path(os.environ.get("LIFE_MANAGER_SOURCE_REPO", "~/Projects/life-manager-main")).expanduser()
     deadline = time.monotonic() + 15
+    phase = "lifecycle_lock"
     def git(*args):
         remaining = deadline - time.monotonic()
         if remaining <= 0:
@@ -505,12 +506,16 @@ def reclaim_unreferenced_source(releases: Path, current: Path, agents: Path, kee
         return subprocess.run(["git", "-C", str(source_repo), *args], check=True,
                               capture_output=True, text=True, timeout=min(3, remaining)).stdout.strip()
     def references(owned_fds=()):
+        nonlocal phase
+        previous_phase, phase = phase, "loaded_release_references"
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             raise subprocess.TimeoutExpired("ps", 0)
         held = loaded_release_roots(agents, releases) | open_release_roots(
             releases, min(5, remaining))
+        phase = "current_release_reference"
         held.add(current.resolve(strict=True))
+        phase = "protected_release_references"
         protected_file = Path(os.environ.get(
             "LIFE_MANAGER_PROTECTED_RELEASES", "~/.local/state/life-manager/protected-releases.json")).expanduser()
         if protected_file.exists():
@@ -519,6 +524,7 @@ def reclaim_unreferenced_source(releases: Path, current: Path, agents: Path, kee
                 raise ValueError("protected release inventory is invalid")
             held.update(Path(v).expanduser().resolve() for v in values if isinstance(v, str))
         remaining = deadline - time.monotonic()
+        phase = "open_file_references"
         if remaining <= 0:
             raise subprocess.TimeoutExpired("lsof", 0)
         opened = subprocess.run(["lsof", "-nP", "-Fpnf"], check=True,
@@ -548,10 +554,12 @@ def reclaim_unreferenced_source(releases: Path, current: Path, agents: Path, kee
                     held.add(base / parts[0])
             except ValueError:
                 pass
+        phase = previous_phase
         return held
     try:
         # This same lock excludes both per-label apply and current activation.
         with _source_reclaim_lock(current, deadline):
+            phase = "remote_refs"
             official_heads = {}
             for line in git("ls-remote", "--heads", "origin").splitlines():
                 fields = line.split()
@@ -602,6 +610,7 @@ def reclaim_unreferenced_source(releases: Path, current: Path, agents: Path, kee
                     return sha if existing == sha else None
                 return sha if existing_source_pin(sha) == sha else None
 
+            phase = "lease_inventory"
             common = Path(git("rev-parse", "--git-common-dir"))
             if not common.is_absolute():
                 common = source_repo / common
@@ -612,6 +621,7 @@ def reclaim_unreferenced_source(releases: Path, current: Path, agents: Path, kee
                 leases.append(json.dumps(json.loads(p.read_text())))
             candidates = []
             rollback = []
+            phase = "release_inventory"
             for path in releases.iterdir():
                 if not RELEASE_NAME.fullmatch(path.name) or not path.is_dir() or path.is_symlink():
                     continue
@@ -660,6 +670,7 @@ def reclaim_unreferenced_source(releases: Path, current: Path, agents: Path, kee
                         open_reference_snapshot = references(owned_fds)
                     return path.resolve() not in open_reference_snapshot
 
+                phase = "source_reclaim"
                 result = reclaim_release_source(path, source_repo,
                     can_reclaim=can_reclaim,
                     source_ref=pinned_source, deadline=deadline)
@@ -669,10 +680,15 @@ def reclaim_unreferenced_source(releases: Path, current: Path, agents: Path, kee
                     # Retired snapshot metadata rotates the next bounded pass.
                     os.utime(path, None, follow_symlinks=False)
                 return result
-    except RuntimeError:
-        result["status"] = "lifecycle_lock_busy"
-    except (OSError, ValueError, subprocess.SubprocessError):
-        result["status"] = "reference_or_source_unavailable"
+    except (RuntimeError, OSError, ValueError, subprocess.SubprocessError) as error:
+        result["status"] = ("lifecycle_lock_busy" if isinstance(error, RuntimeError)
+                            else "reference_or_source_unavailable")
+        # Record only typed metadata: exception text and subprocess output may contain secrets.
+        result["diagnostic"] = {
+            "phase": phase, "error_class": type(error).__name__,
+            "errno": getattr(error, "errno", None),
+            "exit_code": getattr(error, "returncode", None),
+        }
     return result
 
 
