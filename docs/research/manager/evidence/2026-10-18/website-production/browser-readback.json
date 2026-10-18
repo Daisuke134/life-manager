@@ -1,0 +1,49 @@
+[
+  {
+    "page": "/en",
+    "width": 390,
+    "title": "Anicca — Technology to end suffering",
+    "overflow": false
+  },
+  {
+    "page": "/dais",
+    "width": 390,
+    "title": "My products — Dais / Anicca",
+    "overflow": false
+  },
+  {
+    "page": "/lm",
+    "width": 390,
+    "title": "Life Manager — A proactive agent for your body, mind and money",
+    "overflow": false
+  },
+  {
+    "page": "/en",
+    "width": 1440,
+    "title": "Anicca — Technology to end suffering",
+    "overflow": false
+  },
+  {
+    "page": "/lm",
+    "width": 1440,
+    "title": "Life Manager — A proactive agent for your body, mind and money",
+    "overflow": false
+  },
+  {
+    "page": "/ja",
+    "width": 390,
+    "title": "Anicca — テクノロジーで、苦しみのない世界へ。",
+    "overflow": false
+  },
+  {
+    "utm_forwarding": true
+  },
+  {
+    "legacy_blog_to_home_navigation": "new marketing page visible",
+    "retired_rsc_routes_404": [
+      "/en.txt",
+      "/lm.txt",
+      "/dais.txt"
+    ]
+  }
+]
