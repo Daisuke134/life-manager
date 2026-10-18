@@ -39,7 +39,7 @@ def close_fixture(root, mode='live'):
             'symbol':'BTCUSDC','side':'sell','status':'filled','type':'market',
             'time_in_force':'gtc','qty':'0.05','filled_qty':'0.05','filled_avg_price':'210',
             'submitted_at':'2026-01-01T04:15:00Z','filled_at':'2026-01-01T04:15:01Z'}
-    observation={'clock':{'observed_at':'2026-01-01T04:15:02Z'},
+    observation={'mode':mode,'paper':mode=='paper','clock':{'observed_at':'2026-01-01T04:15:02Z'},
                  'account':{'cash':'0','equity':'100'},
                  'positions':[{'symbol':'USDCUSD','qty':'100'}]}
     return owned,broker,observation,owner
@@ -156,7 +156,9 @@ class CryptoCloseTests(unittest.TestCase):
             with self.subTest(mode=mode): self._main_flow(mode=mode,backfill=True)
 
     def test_invalid_order_quantity_time_account_and_parent_cannot_make_close_proof(self):
-        variants=[('broker','client_order_id','foreign'),('broker','id',''),
+        variants=[('observation','mode','paper'),('observation','mode','shadow'),
+                  ('observation','mode',None),('observation','paper',True),
+                  ('broker','client_order_id','foreign'),('broker','id',''),
                   ('broker','side','buy'),('broker','symbol','ETH/USDC'),
                   ('broker','status','partially_filled'),('broker','filled_qty','0.04'),
                   ('broker','filled_avg_price','NaN'),('broker','filled_at',None),
