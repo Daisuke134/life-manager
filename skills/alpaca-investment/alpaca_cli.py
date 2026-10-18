@@ -733,7 +733,7 @@ def read_allocator_snapshot(
     else:
         crypto_transfers = _run(cli_path, [
             "api", "GET", "/v2/wallets/transfers", "--quiet", "--jq",
-            "." if flow_sink is not None else "[.[]|{id,asset,usd_value,direction,status}]",
+            "[.[]|{id,asset,usd_value,direction,status}]",
         ], env)
     trade_activities = _run(cli_path, [
         "account", "activity", "list", "--activity-types", "FILL",
@@ -820,24 +820,41 @@ def read_allocator_snapshot(
         mode=_selected_mode()
         after=day_start.astimezone(timezone.utc).isoformat().replace('+00:00','Z')
         frame={'mode':mode,'paper':mode=='paper','native_trading_account_id':account.get('id'),
-            'clock':clock,'wallet_transfers':None if mode=='paper' else crypto_transfers,
-            'wallet_status':'unsupported_on_paper' if mode=='paper' else 'observed',
+            'clock':clock,'wallet_transfers':None,
+            'wallet_status':'unsupported_on_paper' if mode=='paper' else 'unknown',
             'activity_request':{'after':after,'until':clock['timestamp'],'direction':'asc','page_size':100},
             'activity_pages':[],'activity_pagination':'unknown','next_page_token':None,
             'capture_status':'pending','fee_completeness_status':'unknown','net_pnl_usd':None}
-        try:
-            if not isinstance(account.get('id'),str) or not account['id'].strip():
-                raise ValueError('crypto_flow_account_invalid')
-            _read_activity_pages(cli_path,env,kind=None,after=after,until=clock['timestamp'],query='.',
-                error_prefix='crypto_flow',max_pages=4,page_sink=frame['activity_pages'])
-            frame.update(capture_status='captured',activity_pagination='exhausted')
-        except Exception as error:
-            pages=frame['activity_pages']
-            frame.update(capture_status='partial' if pages else 'failed',
-                activity_pagination='partial' if pages else 'unknown',
-                next_page_token=pages[-1][-1]['id'] if pages and len(pages[-1])==100 else None,
-                capture_error_class=type(error).__name__,
-                capture_error_code=str(error) if str(error).startswith('crypto_flow_') else type(error).__name__)
+        def capture_error(prefix,error):
+            code=str(error)
+            safe=(code in SAFE_ERROR_CODES or code.startswith('crypto_flow_') or
+                (code.partition(':')[0] in {'alpaca_cli_timeout','alpaca_cli_failed'} and code.partition(':')[2] in CLI_OPERATIONS))
+            frame[prefix+'_error_class']=type(error).__name__
+            frame[prefix+'_error_code']=code if safe else type(error).__name__
+        if not isinstance(account.get('id'),str) or not account['id'].strip():
+            capture_error('capture',ValueError('crypto_flow_account_invalid'))
+        else:
+            if mode!='paper':
+                try:
+                    frame['wallet_transfers']=_run(cli_path,
+                        ['api','GET','/v2/wallets/transfers','--quiet','--jq','.'],env)
+                    if (not isinstance(frame['wallet_transfers'],list) or
+                            any(not isinstance(row,dict) for row in frame['wallet_transfers'])):
+                        raise ValueError('crypto_flow_wallet_invalid')
+                    frame['wallet_status']='observed'
+                except Exception as error:
+                    frame['wallet_status']='failed';capture_error('wallet',error)
+            try:
+                _read_activity_pages(cli_path,env,kind=None,after=after,until=clock['timestamp'],query='.',
+                    error_prefix='crypto_flow',max_pages=4,page_sink=frame['activity_pages'])
+                frame['activity_pagination']='exhausted'
+            except Exception as error:
+                pages=frame['activity_pages']
+                frame.update(activity_pagination='partial' if pages else 'unknown',
+                    next_page_token=pages[-1][-1]['id'] if pages and len(pages[-1])==100 else None)
+                capture_error('capture',error)
+        failed=any(key in frame for key in ('capture_error_code','wallet_error_code'))
+        frame['capture_status']=('partial' if frame['activity_pages'] or frame['wallet_status']=='observed' else 'failed') if failed else 'captured'
         flow_sink.append(json.loads(json.dumps(frame)))
     return result
 
