@@ -310,6 +310,15 @@ including unique known provider order and target FILL IDs across the cycle.
 A final flat close must conserve that same history. Open close pointers remain
 paired and audited; only proven zero remaining qty permits flat policy refresh.
 No account balance difference is inferred to be a fee.
+New BTC BUY decisions retain the existing under-fence fresh account observation
+as `pre_trade_account_readback` before sealing. Native account, mode, position
+shape/finite quantities, and decision/submission time bounds are revalidated by
+the shared entry proof. Missing USDC positions stay absent, never inferred zero;
+legacy decisions are not backfilled. This is an immutable raw baseline for later
+quote-flow reconciliation, not an atomic account snapshot, fee completeness,
+settlement, or net-profit authority. The clock is read before positions by the
+existing observation reader. No additional provider reads or financial values
+are introduced by this capture.
 `crypto_fill_activity_proof` validates the saved snapshot and raw order, sums
 quantities and computes native VWAP with exact rational arithmetic. Display
 rounding cannot decide quantity equality. Nullable broker fields stay unchanged;
