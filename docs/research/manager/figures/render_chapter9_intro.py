@@ -20,7 +20,7 @@ def main():
         for index, slide in enumerate(data, 1):
             wide = aspect == "landscape"
             fig = plt.figure(figsize=size, facecolor="#f5f2eb")
-            fig.text(.075, .925, "Ninja / マネージャー 第9単元", fontproperties=FONT,
+            fig.text(.075, .925, "Anicca / マネージャー 第9単元", fontproperties=FONT,
                      fontsize=12, color="#b4452c")
             fig.text(.075, .81, slide["title"], fontproperties=BOLD,
                      fontsize=30 if wide else 25, va="top", color="#172823")
@@ -39,7 +39,7 @@ def main():
     for index, slide in enumerate(data, 1):
         sources = " ".join(f'<a href="{html.escape(url, quote=True)}">出典{n}</a>'
                            for n, url in enumerate(slide["sources"], 1))
-        sections.append(f'<section><small>Ninja / マネージャー {index}/{len(data)}</small>'
+        sections.append(f'<section><small>Anicca / マネージャー {index}/{len(data)}</small>'
                         f'<h1>{html.escape(slide["title"])}</h1>'
                         f'<p>{html.escape(slide["body"])}</p>'
                         f'<aside>{html.escape(slide["note"])}</aside>{sources}'

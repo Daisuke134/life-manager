@@ -83,3 +83,10 @@ Preserve official company, research and repository names such as Aaru, Simile, O
 ## Manager terminology preference (2026-10-18)
 
 Use established technical terms in each language. Japanese: ニューロフィードバック. English: neurofeedback. Do not replace accepted terminology with an invented literal translation. Keep official company/research names; add a plain-language explanation when needed. Founder story: the mission remains ending suffering; the intervention approach shifts from personalized individual neurofeedback to changes in conditions and environments shared by populations.
+
+
+## Company name and voice transcription (2026-10-18 user correction)
+
+The company name is **Anicca**. The product is **Manager** (Japanese: マネージャー). The mission is exactly **End suffering.** Technology belongs to the founder journey and chosen means, not the mission headline. Do not add a human-only or other population qualifier to that mission phrase.
+
+The user often dictates by voice, so transcripts may contain recognition errors. Resolve known company/product/research names against established context; do not infer a company rename from a phonetically inconsistent transcript. The user explicitly corrected the mistaken company name in this session to Anicca. Preserve this correction across sessions.

@@ -4,7 +4,7 @@
 
 ## 使命と会社と製品
 
-使命は **End suffering.** 日本語では「苦しみをなくす。」。会社はNinja、その使命に向けて作る製品はManager（日本語：マネージャー）。本人はNinjaを仏教に根ざす会社と位置付けている。
+使命は **End suffering.** 日本語では「苦しみをなくす。」。会社はAnicca、その使命に向けて作る製品はManager（日本語：マネージャー）。本人はAniccaを仏教に根ざす会社と位置付けている。
 
 テクノロジーは使命の条件ではなく、本人の歩みの中で選んだ手段である。「Technology to end suffering」を使命の見出しにせず、技術による探究は創業者の物語の中で説明する。使命の文言に、人間、全生命、特定の地域などの対象限定を付けない。研究の対象集団と実証範囲は、その研究ごとに正確に記す。
 
@@ -16,7 +16,7 @@
 
 サンタモニカのInstitute for Advanced Consciousness Studies（IACS）では、約1か月のインターン経験もしました。意識とマインドフルネスをテクノロジーで探究するこの経験も、現在の起業につながる私の原点の一つです。
 
-今、Ninjaで取り組んでいるのはマネージャーです。人口や行動、社会の仕組みをモデル化し、環境への変更を比較し、実行し、その結果を測る人工知能を目指しています。最初は、苦しみを減らすことにつながり、その変化を検証できる具体的な課題から始めます。
+今、Aniccaで取り組んでいるのはマネージャーです。人口や行動、社会の仕組みをモデル化し、環境への変更を比較し、実行し、その結果を測る人工知能を目指しています。最初は、苦しみを減らすことにつながり、その変化を検証できる具体的な課題から始めます。
 
 一人ひとりの状態を推定して個別に介入するアプローチから、集団が共有する環境や条件に介入するアプローチへ移っています。
 
@@ -30,7 +30,7 @@ In graduate school, I began approaching it through technology. I worked on perso
 
 I also spent about a month as an intern at the Institute for Advanced Consciousness Studies (IACS) in Santa Monica. That experience is another part of the roots I am returning to through this company.
 
-Today, at Ninja, I am building Manager: an AI intended to model populations, behavior, and social systems, compare changes to shared environments, act, and measure what happens. We begin with specific problems where we can evaluate whether a change helps reduce suffering.
+Today, at Anicca, I am building Manager: an AI intended to model populations, behavior, and social systems, compare changes to shared environments, act, and measure what happens. We begin with specific problems where we can evaluate whether a change helps reduce suffering.
 
 The approach has shifted from personalized interventions for individuals to interventions on the environments and conditions shared by populations.
 

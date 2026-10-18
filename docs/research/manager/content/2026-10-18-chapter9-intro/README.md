@@ -1,6 +1,6 @@
 # マネージャー 第9単元の導入教材
 
-使命はEnd suffering。会社はNinja、製品はマネージャー。最初の予測課題を定義するための教材である。
+使命はEnd suffering。会社はAnicca、製品はマネージャー。最初の予測課題を定義するための教材である。
 
 - [解説記事](../../articles/2026-10-18-chapter9-01-what-to-predict-ja.md)
 - [研究者・測定・介入の地図](../../2026-10-18-suffering-measurement-landscape.md)

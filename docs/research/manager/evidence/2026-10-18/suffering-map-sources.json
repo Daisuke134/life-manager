@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "mission": "End suffering.",
-  "company": "Ninja",
+  "company": "Anicca",
   "product": "Manager",
   "as_of": "2026-10-18",
   "authored_deliverable": "docs/research/manager/2026-10-18-suffering-measurement-landscape.md",
-  "deliverable_sha256": "8fd2879356a0b8a5a6acdba3a104d782efe41f919cb1057ac4ad178c718bee79",
+  "deliverable_sha256": "5325e3f6c5cb0a59fd4c3c200e7a34218179b180890039c6d69642c625a5ff5f",
   "scope": "Selective research landscape of 22 entities or research lineages; not a systematic review and not evidence of Manager efficacy.",
   "method": "Public web search and selected primary-page/PDF retrieval via search_service_web_run. No private accounts, paid APIs or outreach used.",
   "access_caveat": "Search-index excerpts and abstracts are explicitly distinguished from retrieved full papers. Some PMC pages returned reCAPTCHA and some publisher pages failed; no claim of full review is made for them.",
@@ -353,7 +353,7 @@
       "accessed_on": "2026-10-18",
       "publication_date_if_verified": null,
       "read_scope": "primary_source_search_result_excerpts_read_no_fulltext_review",
-      "claim_context": "Layardが2001年に始めたWellbeing Programmeの系統は、生活満足度、精神的健康、所得、雇用、教育などを政策評価へつなぐ。治療へのアクセス拡大にも関与した。個人への訓練から、集団が共有する条件や制度へ介入範囲を広げるNinjaの方針と接点が大きい。[研究プログラム](https://cep.lse.ac.uk/_new/our-work/wellbeing/)、[LSEによる政策への影響の説明](https://www.lse.ac.uk/Research/research-impact-case-studies/2021/understanding-and-improving-subjective-wellbeing)",
+      "claim_context": "Layardが2001年に始めたWellbeing Programmeの系統は、生活満足度、精神的健康、所得、雇用、教育などを政策評価へつなぐ。治療へのアクセス拡大にも関与した。個人への訓練から、集団が共有する条件や制度へ介入範囲を広げるAniccaの方針と接点が大きい。[研究プログラム](https://cep.lse.ac.uk/_new/our-work/wellbeing/)、[LSEによる政策への影響の説明](https://www.lse.ac.uk/Research/research-impact-case-studies/2021/understanding-and-improving-subjective-wellbeing)",
       "limits": "Linked source supports only its associated descriptive claims; recommendations are author synthesis. Public availability does not imply permission to reuse individual data, translations or commercial software."
     },
     {
@@ -366,7 +366,7 @@
       "accessed_on": "2026-10-18",
       "publication_date_if_verified": null,
       "read_scope": "primary_source_search_result_excerpts_read_no_fulltext_review",
-      "claim_context": "Layardが2001年に始めたWellbeing Programmeの系統は、生活満足度、精神的健康、所得、雇用、教育などを政策評価へつなぐ。治療へのアクセス拡大にも関与した。個人への訓練から、集団が共有する条件や制度へ介入範囲を広げるNinjaの方針と接点が大きい。[研究プログラム](https://cep.lse.ac.uk/_new/our-work/wellbeing/)、[LSEによる政策への影響の説明](https://www.lse.ac.uk/Research/research-impact-case-studies/2021/understanding-and-improving-subjective-wellbeing)",
+      "claim_context": "Layardが2001年に始めたWellbeing Programmeの系統は、生活満足度、精神的健康、所得、雇用、教育などを政策評価へつなぐ。治療へのアクセス拡大にも関与した。個人への訓練から、集団が共有する条件や制度へ介入範囲を広げるAniccaの方針と接点が大きい。[研究プログラム](https://cep.lse.ac.uk/_new/our-work/wellbeing/)、[LSEによる政策への影響の説明](https://www.lse.ac.uk/Research/research-impact-case-studies/2021/understanding-and-improving-subjective-wellbeing)",
       "limits": "Linked source supports only its associated descriptive claims; recommendations are author synthesis. Public availability does not imply permission to reuse individual data, translations or commercial software."
     },
     {

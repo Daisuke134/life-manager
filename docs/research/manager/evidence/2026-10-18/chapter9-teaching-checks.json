@@ -7,118 +7,118 @@
   "artifacts": [
     {
       "path": "docs/research/manager/2026-10-18-suffering-measurement-landscape.md",
-      "bytes": 37388,
-      "sha256": "8fd2879356a0b8a5a6acdba3a104d782efe41f919cb1057ac4ad178c718bee79"
+      "bytes": 37393,
+      "sha256": "5325e3f6c5cb0a59fd4c3c200e7a34218179b180890039c6d69642c625a5ff5f"
     },
     {
       "path": "docs/research/manager/2026-10-18-chapter9-dataset-decision.md",
-      "bytes": 17352,
-      "sha256": "46d62c026b9fe26e0632ae1afe8f5cb18b06dd21221aca6ca372df5ab5a9d848"
+      "bytes": 17353,
+      "sha256": "41c43ca28630f7172990eedfb79018a41a5a02d55ba7ad9da545b8b8b9ffd92c"
     },
     {
       "path": "docs/research/manager/articles/2026-10-18-chapter9-01-what-to-predict-ja.md",
-      "bytes": 9102,
-      "sha256": "ad70ce05f6a4c7bcd88e94d52865e86a556636612e8555af76156d1407ca90f9"
+      "bytes": 9103,
+      "sha256": "18afb833ee9edb4b19bbb215676d6cc8ed032d135fbd88aeffbdfc690d5a790a"
     },
     {
       "path": "docs/research/manager/2026-10-18-founder-story-and-mission.md",
-      "bytes": 9959,
-      "sha256": "3306750c09c096a5cf5bb5c3c0d40a010e7533f876a49267eb6707809a7aa7d2"
+      "bytes": 9963,
+      "sha256": "3eadbce28a1f6c7356a7ccd1f9a837b8084500fee757f6880d30230cc7306fec"
     },
     {
       "path": "docs/research/manager/learning/chapter9/2026-10-18-target-behavior-outcome.png",
-      "bytes": 1512841,
-      "sha256": "3ccec47ea515e7d21639f70615ff04ad107b80527bf4c93d390c23abb5df7529"
+      "bytes": 1713593,
+      "sha256": "0976d87c6e6ec90322da800472621dde64ef63367c4ac0889dfd003255a70449"
     },
     {
       "path": "docs/research/manager/content/2026-10-18-chapter9-intro/landscape-04.png",
-      "bytes": 139285,
-      "sha256": "d7e6aa801bcab8874d49eb79cbc2059f581f3ae9736a482fe625f0f8087258ce"
+      "bytes": 139919,
+      "sha256": "55727be86f57a171fcd4c7f21f782b663bcbe3583beca5513bcd6dae0995cca7"
     },
     {
       "path": "docs/research/manager/content/2026-10-18-chapter9-intro/portrait-04.png",
-      "bytes": 125953,
-      "sha256": "26dee84583a8177137f677230831b50145e22017cf2186934d04b89e5e8cd686"
+      "bytes": 126527,
+      "sha256": "0be536b6cdcdd35e37ea7a5a049ddfdb4c9ea24182877e6e06c487c7316b03af"
     },
     {
       "path": "docs/research/manager/content/2026-10-18-chapter9-intro/landscape-01.png",
-      "bytes": 96957,
-      "sha256": "7bfd1348912193e0c336d8cabce2eb8c6a1fca3ff66fd547035fe58e5a5b78c2"
+      "bytes": 98765,
+      "sha256": "c3677822a1ab0ed00d07d0f50ed928b45a7f1ce638c55ec35450f61b298aa9e2"
     },
     {
       "path": "docs/research/manager/content/2026-10-18-chapter9-intro/slides.json",
-      "bytes": 4182,
-      "sha256": "8d481340bd1bb1b42740a802cab5f6659c6a171774302e72bcfdee4e1f29a9ab"
+      "bytes": 4183,
+      "sha256": "736fb8f451ad5fa41924b820e3fe72164fba201cd2a5fcfe1ebb5f512987e7be"
     },
     {
       "path": "docs/research/manager/content/2026-10-18-chapter9-intro/deck.html",
-      "bytes": 5370,
-      "sha256": "e406dad55594d0fad8eb5fdafdae4cd161958d92bef133ebb25ae2bce952dcf9"
+      "bytes": 5377,
+      "sha256": "7ea1eda27fa2461128f528ddad51047c66198bc9d91f20cd4610a7ec8a4c01de"
     },
     {
       "path": "docs/research/manager/content/2026-10-18-chapter9-intro/portrait-01.png",
-      "bytes": 89728,
-      "sha256": "9e81dcc79de49aaa1ff115c6223785878658eb0dee649b810b25fea8ee73a3d5"
+      "bytes": 91267,
+      "sha256": "8f0f7af865738396619061856e393069746c88b1ce1a8c5572b3cb8fa4dcacfe"
     },
     {
       "path": "docs/research/manager/content/2026-10-18-chapter9-intro/portrait-02.png",
-      "bytes": 120877,
-      "sha256": "700b72ebf41f0a65fcded1cd4d848a86f57ac64583875d49fba140a6dbf3e032"
+      "bytes": 121451,
+      "sha256": "47d41541ec7866cf4678409bb902994caae867beb5fc99223d8d92226e1b0092"
     },
     {
       "path": "docs/research/manager/content/2026-10-18-chapter9-intro/landscape-05.png",
-      "bytes": 127365,
-      "sha256": "6d7eaad5296054ed4e5751c2fa8ae68b1a2a0d6c3ee0a7dcc8538e24d03a5a37"
+      "bytes": 127937,
+      "sha256": "778f9951583220fe6d3ad58eeade1d20bf5d4619147361ea3cb5105e5bcafd6c"
     },
     {
       "path": "docs/research/manager/content/2026-10-18-chapter9-intro/landscape-02.png",
-      "bytes": 130449,
-      "sha256": "af7fa8373a51d4038b4df3fb191cd1fb1e936c72842c2a9356f350e815a5082f"
+      "bytes": 131010,
+      "sha256": "5495689694d8fdd9371eb4d474302ec16732ac36158e32a3ba248602bcf8d5d1"
     },
     {
       "path": "docs/research/manager/content/2026-10-18-chapter9-intro/portrait-03.png",
-      "bytes": 120587,
-      "sha256": "93bb2c26785dcb09b0541585d55f9351c0c1cd3c8889eae2f19dad75b5473868"
+      "bytes": 121173,
+      "sha256": "60fcc884a060a97fa7850d2833d1e531f809648475fb88867455ea9395d0954a"
     },
     {
       "path": "docs/research/manager/content/2026-10-18-chapter9-intro/landscape-03.png",
-      "bytes": 133244,
-      "sha256": "bec82ccf85a737984646fcb23f4839cc5914aa6b4512b4db53ee0a62b8d2f5eb"
+      "bytes": 133890,
+      "sha256": "bda9f7bda3bb8400eb40515ea83b6b2fecf9946220d29fc195f9b06fed45bd6e"
     },
     {
       "path": "docs/research/manager/content/2026-10-18-chapter9-intro/portrait-05.png",
-      "bytes": 116782,
-      "sha256": "4719256ad881932017c38b51f6029b796a8eda30a69e35a2a0cf943215914b68"
+      "bytes": 117374,
+      "sha256": "06a3bac2c8f628c96d890efcd6ea9cf41baf1c139f5fd70a8cb8f223971e5a6a"
     },
     {
       "path": "docs/research/manager/content/2026-10-18-chapter9-intro/landscape-06.png",
-      "bytes": 142798,
-      "sha256": "7d626432cbb91eb579c5a876bcd8e61adc46b395d0ec899ed5be76cff7a8d28d"
+      "bytes": 143442,
+      "sha256": "c43e91a0b75573c8196d5bb75e50ce897fb39da165ef1692f1b4d922c372e32a"
     },
     {
       "path": "docs/research/manager/content/2026-10-18-chapter9-intro/portrait-06.png",
-      "bytes": 128771,
-      "sha256": "a4c04753cb35d233293a773fd52deb4e5ea41089deda8590eeaba1e0494e2837"
+      "bytes": 129348,
+      "sha256": "3811b8e5065f85841d8d0f3702740fab0655e3e1b033416fc73e3b1b88b3d64a"
     },
     {
       "path": "docs/research/manager/figures/render_chapter9_intro.py",
-      "bytes": 3551,
-      "sha256": "80164106a8761cb719aa915414963608dd61e1fad1423d18d61ee4758695ecbb"
+      "bytes": 3553,
+      "sha256": "90b0fe6fc67e3d187a3bb5ca0c03ae6a3d96bf627a23decd9baf73823d0434e2"
     },
     {
       "path": "docs/research/manager/content/2026-10-18-chapter9-intro/posts-ja.md",
-      "bytes": 1882,
-      "sha256": "2697b385078b1abfc5f5eddcb41fe39db0fb000f7046786f023523933159f936"
+      "bytes": 1883,
+      "sha256": "5d5a5aa9c58c5ab562e819ffad4d7c933ba35ed3b8ef666ce6c5a9e253967e70"
     },
     {
       "path": "docs/research/manager/content/2026-10-18-chapter9-intro/README.md",
-      "bytes": 1424,
-      "sha256": "fe7137fc9e7b654d5343b4ff63024fcc95ab8ae9abab7228bc2ffdc786d10ffb"
+      "bytes": 1425,
+      "sha256": "cf413c35dab0c99dbc7ee949fdeade91d2f23608e9e9617e86661f77a3eef494"
     },
     {
       "path": "docs/research/manager/learning/chapter9/target-definition.json",
-      "bytes": 3029,
-      "sha256": "13e04d571a2adc415438b9a588cf7ef00f2b43900f63b06b11135dc8eb771e99"
+      "bytes": 3030,
+      "sha256": "6f66512fb97788a265da67513187ed824abbcb3e38ce0a9887f81c32612926ef"
     }
   ],
   "additional_primary_reading": {
@@ -126,5 +126,7 @@
     "publication_date": "2026-08-10",
     "read_scope": "bibliographic metadata and abstract",
     "claim_scope": "separate direct effect from stressor-reactivity moderation"
-  }
+  },
+  "company": "Anicca",
+  "voice_correction": "Company name corrected per user; original generated files retained outside Git."
 }
