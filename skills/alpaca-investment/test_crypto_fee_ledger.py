@@ -206,3 +206,25 @@ class CryptoFeeLedgerTests(unittest.TestCase):
                 stable=(root/'receipts.jsonl').read_bytes()
                 self.assertFalse(self.record(root,owned,later,current,mode))
                 self.assertEqual((root/'receipts.jsonl').read_bytes(),stable)
+
+    def test_later_valid_receipt_reobservations_do_not_move_historical_fee_dependencies(self):
+        for mode in ('paper','live'):
+            for partial in (False,True):
+                for later_clock in (False,True):
+                    with self.subTest(mode=mode,partial=partial,later_clock=later_clock),tempfile.TemporaryDirectory() as directory:
+                        root=Path(directory);rows,owned,frame,account=debit_fixture(root,mode,partial=partial)
+                        ledger=root/'receipts.jsonl';write_rows(ledger,rows)
+                        self.assertTrue(self.record(root,owned,frame,account,mode))
+                        saved=store._rows(ledger)
+                        effect=owned['close_effect_id'] if partial else owned['entry_effect_id']
+                        duplicate=copy.deepcopy(next(r for r in rows if r.get('receipt_type')=='outcome' and r.get('effect_id')==effect))
+                        if later_clock:duplicate['strategy_receipt']['account_readback']['clock']['observed_at']='2026-01-03T04:00:00Z'
+                        write_rows(ledger,saved+[duplicate])
+                        state=self.state(root,owned,mode)
+                        self.assertEqual(state['owned_qty'],'0.029925' if partial else '0.049925')
+                        self.assertEqual(state['last_observed_at'],proofs.parse_instant(END))
+                        self.assertFalse(self.record(root,owned,frame,account,mode))
+                        # The first historical anchor never hides a later contradiction.
+                        duplicate['strategy_receipt']['receipt']['entry_filled_qty']='0.06'
+                        write_rows(ledger,saved+[duplicate])
+                        with self.assertRaises(ValueError):self.state(root,owned,mode)
