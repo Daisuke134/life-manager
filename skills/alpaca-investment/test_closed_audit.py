@@ -93,6 +93,28 @@ class ClosedAuditTests(unittest.TestCase):
                     with self.assertRaises(ValueError): native._sync_live_ownership(root,Path('unused'),Path('unused'),observation)
                 self.assertEqual((root/'receipts.jsonl').read_bytes(),before)
 
+    def test_known_policy_metadata_conflicts_are_rejected_for_filled_entries_and_exits(self):
+        for phase in ('entry','close'):
+            for key,value in (('owner_id','alpaca-investment-paper'),('strategy_id','foreign'),
+                              ('release_sha','b'*40),('broker_status','accepted')):
+                with self.subTest(phase=phase,key=key),tempfile.TemporaryDirectory() as directory,patch.dict(os.environ,{
+                        'LIFE_MANAGER_INVESTMENT_MODE':'live','LIFE_MANAGER_INVESTMENT_OWNER_ID':'alpaca-investment-live'}):
+                    root=Path(directory);owned,broker,observation,_=close_fixture(root)
+                    proof=position_manager.close_fill_proof(root,owned,broker,observation,mode='live')
+                    store.reconcile_started(root/'receipts.jsonl',lambda _:broker,on_reconciled=lambda *_:proof)
+                    owned['status']='closed';(root/'live-owned-position.json').write_text(json.dumps(owned))
+                    rows=store._rows(root/'receipts.jsonl')
+                    effect=owned['entry_effect_id'] if phase=='entry' else owned['close_effect_id']
+                    target=next(r for r in reversed(rows) if r.get('receipt_type')=='outcome' and r.get('effect_id')==effect)
+                    target[key]=value
+                    (root/'receipts.jsonl').write_text(''.join(json.dumps(r)+'\n' for r in rows))
+                    before=(root/'receipts.jsonl').read_bytes()
+                    native=native_run()
+                    with patch.object(native,'find_order_by_client_id',return_value=broker):
+                        with self.assertRaises(ValueError):
+                            native._sync_live_ownership(root,Path('unused'),Path('unused'),observation)
+                    self.assertEqual((root/'receipts.jsonl').read_bytes(),before)
+
     def test_closed_label_cannot_hide_wrong_quantity_identity_mode_or_missing_evidence(self):
         variants=(('broker','filled_qty',None),('broker','filled_qty','0.01'),
                   ('broker','client_order_id','foreign'),('broker','id','foreign'),
