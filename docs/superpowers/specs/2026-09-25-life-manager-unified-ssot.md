@@ -3493,3 +3493,6 @@ Task A/P01–P03: complete。Python3.12分離venv、7依存のwheel SHA固定と
 Task B/P04–P07: complete。型/取得テストを先に作り未実装importのREDを確認、実装後7テストPASS。公式URLの実headerと行を別途確認。HTML/別表/欠落/重複/負estimate/改ざん/上限/EOF/不完全snapshotを検査。まだ実資料の生成比較は未実施。
 
 Task C・D/P08–P12: complete。新しいprepare/fitテストが未実装でRED、実装後全16テストPASS。6セルのleaf対応、固定6/4/41、評価地域変更でseed不変、zero-target軸、非収束拒否、IPFの関連維持、uniform seedと単純法一致を確認。既存ipfnをそのまま呼び、独立に残差と反復上限を検査。
+
+Task E/P13–P17: complete。score/CLIの未実装importをRED確認後、全27テストPASS。TVD/年齢別貧困割合pp/人口加重と地域平均を区別。入力と出力をSHA256付きartifactにして、異なる内容の上書き・改ざん・重複方式・不完全coverageを拒否。prepare/reconstruct/scoreを分離し、reference非アクセスをテスト。run sidecarに時間/コード/依存/入力識別を保存し、数値予測は決定的に保つ。
+Ruling: artifactsは標準JSON payloadとSHA256のenvelopeで保存する — 依存追加なしで破損検出と決定的再実行を実現するため — 普通のJSON読者はpayloadを取り出す必要がある。署名や攻撃者に対する認証ではない。
