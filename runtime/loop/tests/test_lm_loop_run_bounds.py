@@ -2006,6 +2006,7 @@ def test_mobile_child_receives_effect_result_hint_path(tmp_path):
     assert EFFECT_RESULT_HINT_ENTRYPOINTS == frozenset({
         "apps/life-manager/scripts/ebook-distribute-daily.sh",
         "apps/life-manager/scripts/mobile-app",
+        "skills/earn/capafy-marketing/capafy-reel-daily.sh",
     })
     assert "apps/life-manager/scripts/ebook-distribute-daily.sh" in PRE_EFFECT_HINT_ENTRYPOINTS
     assert "apps/life-manager/scripts/mobile-app" in PRE_EFFECT_HINT_ENTRYPOINTS

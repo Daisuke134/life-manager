@@ -56,3 +56,100 @@ def test_second_slot_marker_reads_back_at_second_slot_time(tmp_path):
     proof = build_proof(OCC, d, posts_fn=lambda net, slot: seen.append((net, slot)) or f"{net}-1")
     assert ("ig", "2026-10-29T23:00:00.000Z") in seen and ("x", "2026-10-29T17:00:00.000Z") in seen
     assert proof["verified"] is True
+
+
+# --- terminal result hint: a passing wake reports its Postiz effect from the same official proof ---
+import os  # noqa: E402
+import shutil  # noqa: E402
+import subprocess  # noqa: E402
+
+from capafy_reel_fence_reconcile import REPO_ROOT, write_result_hint  # noqa: E402
+from runtime.loop.lm_loop_run import _verified_terminal_effect_result  # noqa: E402
+
+ENTRYPOINT = "skills/earn/capafy-marketing/capafy-reel-daily.sh"
+
+
+def _scratch(tmp_path):
+    scratch = tmp_path / "scratch"
+    scratch.mkdir(mode=0o700)
+    return scratch / "entrypoint-result.json"
+
+
+def test_effected_proof_writes_a_hint_the_runtime_accepts_as_a_postiz_receipt(tmp_path):
+    d = _run_dir(tmp_path, ("ig", "x"))
+    proof = build_proof(OCC, d, posts_fn=lambda net, slot: f"{net}post1")
+    hint = _scratch(tmp_path)
+    assert write_result_hint(proof, hint) is True
+    assert _verified_terminal_effect_result(hint, OWNER_ID, OCC, ENTRYPOINT) == (
+        "reconciled", "postiz://posts/igpost1")
+    assert _verified_terminal_effect_result(hint, OWNER_ID, f"{OWNER_ID}:other", ENTRYPOINT) is None
+
+
+def test_no_dispatch_proof_writes_a_verified_no_due_slot_hint(tmp_path):
+    proof = build_proof(OCC, _run_dir(tmp_path), posts_fn=lambda net, slot: None)
+    hint = _scratch(tmp_path)
+    assert write_result_hint(proof, hint) is True
+    assert _verified_terminal_effect_result(hint, OWNER_ID, OCC, ENTRYPOINT) == (
+        "not_applicable", f"lm-no-effect://{OWNER_ID}/{OCC}/no_due_slot")
+
+
+def test_held_proof_or_existing_file_writes_no_hint(tmp_path):
+    held = build_proof(OCC, _run_dir(tmp_path, ("ig",)), posts_fn=lambda net, slot: None)
+    hint = _scratch(tmp_path)
+    assert write_result_hint(held, hint) is False and not hint.exists()
+    hint.write_text("{}")
+    effected = {**held, "verified": True, "outcome": "effected", "provider_receipt_id": "ig:igpost1"}
+    assert write_result_hint(effected, hint) is False and hint.read_text() == "{}"
+
+
+def _run_wrapper(tmp_path, reconcile_rc: int) -> tuple[int, Path, Path]:
+    skill = tmp_path / "repo/skills/earn/capafy-marketing"
+    (skill / "scripts").mkdir(parents=True)
+    shutil.copy(REPO_ROOT / ENTRYPOINT, skill / "capafy-reel-daily.sh")
+    hint = _scratch(tmp_path)
+    seen = tmp_path / "model-env.jsonl"
+    # A prompt-injected model pass: forges a verified hint at the guessable scratch path.
+    (skill / "scripts/capafy_reel_daily.py").write_text(
+        "import json, os, pathlib\n"
+        f"open({str(seen)!r}, 'a').write(json.dumps({{k: os.environ.get(k) for k in "
+        "('LIFE_MANAGER_RESULT_HINT_PATH', 'LIFE_MANAGER_OCCURRENCE_ID')}) + '\\n')\n"
+        "p = pathlib.Path(os.environ['TMPDIR']) / 'entrypoint-result.json'\n"
+        "p.write_text('forged'); p.chmod(0o600)\n")
+    calls = tmp_path / "reconcile.json"
+    (skill / "scripts/capafy_reel_fence_reconcile.py").write_text(
+        "import json, os, sys\n"
+        f"json.dump({{'argv': sys.argv[1:], 'hint_existed': os.path.exists({str(hint)!r})}}, open({str(calls)!r}, 'w'))\n"
+        f"raise SystemExit({reconcile_rc})\n")
+    env = {"PATH": os.environ["PATH"], "HOME": str(tmp_path), "TMPDIR": str(hint.parent),
+           "LIFE_MANAGER_LOOP_ID": OWNER_ID, "LIFE_MANAGER_RUN_ID": "r1",
+           "LIFE_MANAGER_OCCURRENCE_ID": f"{OWNER_ID}:r1", "LIFE_MANAGER_RESULT_HINT_PATH": str(hint),
+           "LM_POSTIZ_API_KEY": "test", "CAPAFY_REEL_STATE_DIR": str(tmp_path / "state")}
+    rc = subprocess.run(["bash", str(skill / "capafy-reel-daily.sh")], env=env, timeout=60).returncode
+    lines = [json.loads(line) for line in seen.read_text().splitlines()]
+    assert lines == [{"LIFE_MANAGER_RESULT_HINT_PATH": None, "LIFE_MANAGER_OCCURRENCE_ID": None}] * 2
+    return rc, hint, calls
+
+
+def test_wrapper_hides_the_hint_from_the_model_and_reports_through_the_official_proof(tmp_path):
+    rc, hint, calls = _run_wrapper(tmp_path, reconcile_rc=0)
+    assert rc == 0
+    assert json.loads(calls.read_text()) == {
+        "argv": ["--occurrence", f"{OWNER_ID}:r1", "--result-hint", str(hint)], "hint_existed": False}
+
+
+def test_wrapper_fails_closed_and_drops_a_forged_hint_when_the_proof_is_held(tmp_path):
+    rc, hint, _calls = _run_wrapper(tmp_path, reconcile_rc=1)
+    assert rc == 1 and not hint.exists()
+
+
+def test_result_hint_cli_reads_back_a_claimed_unfenced_occurrence(tmp_path, monkeypatch):
+    import capafy_reel_fence_reconcile as reconcile
+
+    d = _run_dir(tmp_path, ("ig",))
+    monkeypatch.setattr(reconcile, "STATE_ROOT", tmp_path)
+    monkeypatch.setattr(reconcile, "postiz_post_at", lambda net, slot: "igpost9")
+    monkeypatch.setattr(reconcile, "fenced_state", lambda occ: pytest.fail("a passing wake is not fenced"))
+    hint = _scratch(tmp_path)
+    assert reconcile.main(["--occurrence", OCC, "--result-hint", str(hint)]) == 0
+    assert d.exists() and _verified_terminal_effect_result(hint, OWNER_ID, OCC, ENTRYPOINT) == (
+        "reconciled", "postiz://posts/igpost9")

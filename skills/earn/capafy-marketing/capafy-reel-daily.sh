@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # capafy-reel-daily.sh — one voiced Hook Lab reel per day on X and Instagram (SSOT D2, $0).
 # Schedules the reel for TARGET_DATE = today (JST) + 7 so the Postiz queue always holds a week.
-# Effect: Postiz schedule on two integrations; fenced by capafy_reel_fence_reconcile.py.
+# Effect: Postiz schedule on two integrations; a passing wake reports it through the same
+# capafy_reel_fence_reconcile.py readback (--result-hint), a failing one is fenced for it.
 set -uo pipefail
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$HOME/.local/bin:$PATH"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
@@ -37,7 +38,18 @@ with open(sys.argv[1], "w") as fh:
     fh.flush(); os.fsync(fh.fileno())
 PY
 export CAPAFY_REEL_RUN_DIR="$RUN_DIR"
-python3 "$SCRIPT_DIR/scripts/capafy_reel_daily.py" "$TARGET_DATE"; rc1=$?
+# The model pass never sees the runtime result hint; only the official Postiz proof below writes it.
+RESULT_HINT="${LIFE_MANAGER_RESULT_HINT_PATH:-}"
+clear_result_hint() { [ -z "$RESULT_HINT" ] || rm -f -- "$RESULT_HINT"; }
+clear_result_hint || exit 1
+env -u LIFE_MANAGER_RESULT_HINT_PATH -u LIFE_MANAGER_OCCURRENCE_ID \
+  python3 "$SCRIPT_DIR/scripts/capafy_reel_daily.py" "$TARGET_DATE"; rc1=$?
 # Slot 2 (different niche, IG 23:00Z / X 11:00Z) doubles daily reel volume (Dais 2026-10-15: max distribution).
-python3 "$SCRIPT_DIR/scripts/capafy_reel_daily.py" "$TARGET_DATE" --slot 2; rc2=$?
+env -u LIFE_MANAGER_RESULT_HINT_PATH -u LIFE_MANAGER_OCCURRENCE_ID \
+  python3 "$SCRIPT_DIR/scripts/capafy_reel_daily.py" "$TARGET_DATE" --slot 2; rc2=$?
+clear_result_hint || exit 1
 [ "$rc1" -eq 0 ] && [ "$rc2" -eq 0 ] || exit 1
+[ -n "$RESULT_HINT" ] || exit 0
+# Passing wake: report the effect from the occurrence-bound Postiz readback; held -> nonzero -> fence.
+python3 "$SCRIPT_DIR/scripts/capafy_reel_fence_reconcile.py" \
+  --occurrence "$LIFE_MANAGER_OCCURRENCE_ID" --result-hint "$RESULT_HINT" || { clear_result_hint; exit 1; }
