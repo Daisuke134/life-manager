@@ -2,6 +2,8 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { readFileSync } = require("node:fs");
+const { join } = require("node:path");
 const { createHmac } = require("node:crypto");
 const {
   normalizeMaritimeSource,
@@ -13,6 +15,7 @@ test("deep-link source is allowlisted and malformed payloads do not become campa
   assert.equal(normalizeMaritimeSource("community"), "community");
   assert.equal(normalizeMaritimeSource("../../attacker"), "other");
   assert.deepEqual(parseMaritimeStartPayload("/start maritime_community"), { source: "community" });
+  assert.deepEqual(parseMaritimeStartPayload("/start maritime_direct"), { source: "direct" });
   assert.deepEqual(parseMaritimeStartPayload("/start@LifeManagerBot maritime_referral"), { source: "referral" });
   assert.equal(parseMaritimeStartPayload("/startmaritime_community"), null);
   assert.equal(parseMaritimeStartPayload("/start maritime_community?redirect=https://evil.example"), null);
@@ -81,6 +84,7 @@ test("consent and milestones use HMAC participant ids and persist no Telegram id
     .digest("hex");
   let participant = null;
   let nowMs = Date.parse("2026-10-18T00:00:00.000Z");
+  let failNextMilestoneTransaction = false;
   const fetchImpl = async (input, init = {}) => {
     const url = new URL(String(input));
     const method = String(init.method || "GET").toUpperCase();
@@ -102,14 +106,22 @@ test("consent and milestones use HMAC participant ids and persist no Telegram id
       return { ok: true, status: 200, json: async () => participant ? [{ ...participant }] : [] };
     }
     if (url.pathname === "/rest/v1/rpc/mark_lm_maritime_pilot_milestone_v1" && method === "POST") {
+      if (failNextMilestoneTransaction) {
+        failNextMilestoneTransaction = false;
+        return { ok: false, status: 503, json: async () => null };
+      }
       const key = body.p_milestone === "first_response" ? "first_response_at" : "returned_at";
       const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
-      const tooSoon = body.p_milestone === "return_7d"
-        && (!participant?.first_response_at || Date.parse(body.p_at) - Date.parse(participant.first_response_at) < sevenDaysMs);
-      if (!participant || participant.revoked_at || participant[key] || tooSoon) {
+      const elapsedMs = participant?.first_response_at
+        ? Date.parse(body.p_at) - Date.parse(participant.first_response_at) : null;
+      const outsideReturnWindow = body.p_milestone === "return_7d"
+        && (elapsedMs == null || elapsedMs <= 0 || elapsedMs > sevenDaysMs);
+      if (!participant || participant.revoked_at || participant[key] || outsideReturnWindow) {
         return { ok: true, status: 200, json: async () => false };
       }
       participant[key] = body.p_at;
+      const eventName = body.p_milestone === "first_response" ? "maritime_first_response" : "maritime_7day_return";
+      events.push({ eventName, uid: null, sourceObjectId: participantId, occurredAt: body.p_at });
       return { ok: true, status: 200, json: async () => true };
     }
     if (url.pathname === "/rest/v1/lm_maritime_pilot_participants" && method === "PATCH") {
@@ -132,11 +144,18 @@ test("consent and milestones use HMAC participant ids and persist no Telegram id
 
   assert.deepEqual(await store.accept("telegram-987654321", "community"), { ok: true, status: "consented" });
   assert.equal(await store.isConsentActive("telegram-987654321"), true);
+  failNextMilestoneTransaction = true;
+  assert.equal(await store.markMilestone("telegram-987654321", "first_response"), false);
+  assert.equal(participant.first_response_at, null, "a failed RPC transaction must roll back the milestone");
+  assert.equal(events.some((event) => event.eventName === "maritime_first_response"), false);
   assert.equal(await store.markMilestone("telegram-987654321", "first_response"), true);
   assert.equal(await store.markMilestone("telegram-987654321", "first_response"), false);
   assert.equal(await store.markMilestone("telegram-987654321", "return_7d"), false);
   nowMs += 7 * 24 * 60 * 60 * 1000;
-  assert.equal(await store.markMilestone("telegram-987654321", "return_7d"), true);
+  assert.equal(await store.markMilestone("telegram-987654321", "return_7d"), true, "the exact 7-day boundary is included");
+  nowMs += 1;
+  participant.returned_at = null;
+  assert.equal(await store.markMilestone("telegram-987654321", "return_7d"), false, "use after 7 days is excluded");
   assert.equal(await store.revoke("telegram-987654321"), true);
   assert.equal(await store.isConsentActive("telegram-987654321"), false);
 
@@ -150,6 +169,18 @@ test("consent and milestones use HMAC participant ids and persist no Telegram id
   ]);
   assert.ok(events.every((event) => event.uid == null && event.sourceObjectId === participantId));
   assert.doesNotMatch(JSON.stringify(events), /telegram-987654321|private prompt|private response/);
+});
+
+test("milestone RPC updates participant and appends its funnel event in one transaction", () => {
+  const migration = readFileSync(join(__dirname, "../migrations/2026-10-18-lm-maritime-distribution.sql"), "utf8");
+  const routine = migration.match(/CREATE OR REPLACE FUNCTION public\.mark_lm_maritime_pilot_milestone_v1\([\s\S]*?\$function\$([\s\S]*?)\$function\$;/);
+  assert.ok(routine, "milestone RPC is defined in the Maritime migration");
+  assert.match(routine[1], /UPDATE public\.lm_maritime_pilot_participants[\s\S]*?RETURNING \* INTO v_participant/);
+  assert.match(routine[1], /INSERT INTO public\.lm_web_funnel_events/);
+  assert.match(routine[1], /format\('maritime:%s:%s', p_participant_id, v_event_name\)/);
+  assert.match(routine[1], /v_at <= first_response_at \+ interval '7 days'/);
+  assert.match(routine[1], /first_response_at < v_at/);
+  assert.doesNotMatch(routine[1], /ON CONFLICT DO NOTHING/);
 });
 
 test("full cohort cap does not create a consent record or a provider milestone", async () => {

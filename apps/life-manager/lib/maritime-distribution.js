@@ -230,10 +230,10 @@ function createMaritimeDistributionStore({
       p_milestone: milestone,
       p_at: new Date(Number(now())).toISOString(),
     });
-    if (!result.ok || result.result !== true) return false;
-    const participant = await getParticipant(uid);
-    await writeEvent(eventName, { uid, source: participant.participant?.source || "other" });
-    return true;
+    // The RPC updates the participant row and appends the corresponding funnel event
+    // in one PostgreSQL transaction. A successful state write therefore cannot leave
+    // an unrepairable gap in the append-only event ledger.
+    return result.ok && result.result === true;
   }
 
   return Object.freeze({

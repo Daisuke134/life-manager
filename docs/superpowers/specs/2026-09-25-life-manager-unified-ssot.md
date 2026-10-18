@@ -19632,13 +19632,13 @@ Top 10 by sales: 0/10 with a trial (Ocup 3,111, Serenity 2,002, HookAce 1,044, V
 
 この順序にする理由は、利用実績の証明と初週進出が成果を決め、VM1,000台は規約上の条件でないためである。競技サイトと公開life-manager pageを再確認し、同条件の成功配信事例がない現状は小さな測定実験で埋める。
 
-進捗: TODO 1のsource実装は専用branch上で完了し、PR/CI/main統合を進行中。production migration・flags・配信は未実施。main統合後はTODO 2へ進む。詳しい設計と受け入れ条件は[詳細設計](2026-10-16-maritime-pilot-design.md)を参照。
+進捗: TODO 1のsource実装は専用branch上でPR #8308として公開中。fresh reviewが指摘した同意再配信、milestone transaction、7日以内条件、setup deep linkの4点を回帰テスト付きで修正し、focused tests 26/26・syntax・source boundaryがPASS。修正をbranchへpushし、修正後review `ship`とexact-head CIを得てからmain統合する。production migration・flags・配信は未実施。詳しい設計と受け入れ条件は[詳細設計](2026-10-16-maritime-pilot-design.md)を参照。
 
 **Hackathon Radar同期:** Radar Page本文は採択状態・開始日の矛盾・主催者への確認事項を更新し、読み戻し済み。稼働中の日次scan workerには「1,000 distinct qualified agentsを別々のMaritime VMで動かす」という旧指示が残っている。Pages連携にはtask設定を変更・停止する操作が公開されていないため、同じworkerを重複作成しない。設定更新が可能になった時点で、1,000人の実利用を数える指示へ直す。
 
 **TODO（順序、cursor = 1）:**
 
-1. **配布入口・同意・計測をsource実装する。** default-offのsourceとfocused testsを専用branchへ実装する。PR/CI/main統合を完了対象とし、production enableや配信は含めない。migration適用・data/tool確認後の3人pilot/25人cohortで「start source → consent → first response → 7-day return」を確認する。
+1. **配布入口・同意・計測をsource実装する。** default-offのsourceとfocused testsを専用branchへ実装する。独立review指摘の同意再配信、milestoneとeventのtransaction、7日以内の別利用、setup deep linkを直してから、PR/CI/main統合を完了する。production enableや配信は含めない。migration適用・data/tool確認後の3人pilot/25人cohortで「start source → consent → first response → 7-day return」を確認する。
 2. **送信済み確認への返信を読み、競技条件を確定する。** 開始日はメール10/19・Terms10/20。第1週の締切とtimezone、Top 30の評価基準、必須demo/提出物、KeikiとMaritimeの両方が必要か、公式distinct user計数法、一人用agentまたはVMの要否を記録する。2026-10-16送信の確認メールへ重複返信しない。回答が間に合わなければ公開Termsを使い、Top 30基準は未確認と明記する。
 3. **採択チームの名簿と登録案内を揃える。** メールは返信でteam membersを追加できるが、対象者名は書かれていない。private profile/contextから実際のメンバーを照合し、主催者側の名簿追加を確認する。promo/invite codeは元メールに限定する。
 4. **wedgeとdata/tool境界を確定する。** 暫定価値は、本人が今日やりたいことを一言で送り、短い行動計画を受け取り、完了を返せる低機微タスク。Calendar/contact/email/address/payment dataを要求しない。Terms、Privacy、AI-credit retention、tool policyを確認し、実環境でbrowser/code/file/external-sendが無効と確認できるまでprovider gatesをoffにする。

@@ -144,7 +144,7 @@ function maritimeMessages(languageCode) {
       stopped: "Maritime pilotを停止しました。今後の依頼は送信しません。Maritimeへ送信済みの内容は削除されません。",
       stopUnavailable: "停止状態を確認できませんでした。今後の依頼を送っていません。少し待ってから /maritime_stop を再度お試しください。",
       noConsent: "このLife Managerアカウントに有効なMaritime同意はありません。",
-      setup: "Life Managerを /start maritime で開始してから同意してください。",
+      setup: "Life Managerを /start maritime_direct で開始してから同意してください。",
       privateOnly: "Maritime pilotは本人との1対1のTelegram chatでのみ利用できます。",
       disabled: "Maritime pilotは現在利用できません。",
     };
@@ -157,10 +157,25 @@ function maritimeMessages(languageCode) {
     stopped: "The Maritime pilot is stopped. Future requests will not be sent. This does not delete content already sent to Maritime.",
     stopUnavailable: "We could not confirm the stop state, so no new request was sent. Please retry /maritime_stop shortly.",
     noConsent: "No active Maritime consent was found for this Life Manager account.",
-    setup: "Start Life Manager with /start maritime before accepting the pilot notice.",
+    setup: "Start Life Manager with /start maritime_direct before accepting the pilot notice.",
     privateOnly: "Use the Maritime pilot in a private Telegram chat.",
     disabled: "The Maritime pilot is currently unavailable.",
   };
+}
+async function claimMaritimeCommandReceipt(uid, chatId, updateId, commandName) {
+  if (!Number.isSafeInteger(updateId) || updateId < 0) throw new Error("maritime_consent_update_id_invalid");
+  const scope = { uid: String(uid), chatId: String(chatId) };
+  const idempotencyKey = `telegram-maritime-consent:${commandName}:${updateId}`;
+  const requestHash = crypto.createHmac("sha256", LM_UID_SECRET)
+    .update(JSON.stringify({ uid: scope.uid, chatId: scope.chatId, updateId, command: commandName }))
+    .digest("hex");
+  const store = createSupabaseCommandStore({ supaUrl: SUPA_URL, supaKey: SUPA_KEY });
+  const claimed = await store.claimReceipt(scope, idempotencyKey, {
+    requestHash,
+    commandType: commandName === "maritime_accept" ? "maritime.consent.accept" : "maritime.consent.stop",
+    status: "pending",
+  });
+  return { store, scope, idempotencyKey, claimed };
 }
 let moneyPrinterSource, moneyPrinterRuntimePool, moneyPrinterRuntimeStore, investmentStateStore, cloudCitizenStore, agentEconomyControlStore;
 let imessageCloudClient = null;
@@ -1728,12 +1743,20 @@ const server = http.createServer(async (req, res) => {
               } else if (!maritimePilotTransport.isEnabledFor(row.uid)) {
                 await sendMessage(LM_TG_TOKEN, u.chatId, copy.disabled);
               } else {
+                const receipt = await claimMaritimeCommandReceipt(row.uid, u.chatId, update.update_id, slash.name);
+                if (!receipt.claimed) {
+                  console.log("[slash] command=maritime_accept action=duplicate");
+                  res.writeHead(200); res.end("ok");
+                  return;
+                }
                 const existing = await maritimeDistributionStore.getParticipant(row.uid);
                 const source = existing.participant?.source || await maritimeDistributionStore.startSource(row.uid);
+                let receiptStatus = "failed";
                 if (!source) {
                   const delivered = await sendMessage(LM_TG_TOKEN, u.chatId, copy.notice);
                   if (!delivered || delivered.ok !== true) throw new Error("Telegram Maritime consent notice send failed");
                   await maritimeDistributionStore.recordStart(row.uid, "direct");
+                  receiptStatus = "succeeded";
                 } else {
                   const accepted = await maritimeDistributionStore.accept(row.uid, source);
                   await sendMessage(LM_TG_TOKEN, u.chatId, accepted.ok
@@ -1741,7 +1764,9 @@ const server = http.createServer(async (req, res) => {
                     : accepted.status === "capacity_full"
                       ? copy.capacityFull
                       : copy.acceptUnavailable);
+                  receiptStatus = accepted.ok ? "succeeded" : "failed";
                 }
+                await receipt.store.finishReceipt(receipt.scope, receipt.idempotencyKey, { status: receiptStatus, result: null });
               }
               res.writeHead(200); res.end("ok");
               return;
@@ -1752,10 +1777,18 @@ const server = http.createServer(async (req, res) => {
                 await sendMessage(LM_TG_TOKEN, u.chatId, copy.noConsent);
               } else if (u.chatId !== u.userId) {
                 await sendMessage(LM_TG_TOKEN, u.chatId, copy.privateOnly);
-              } else if (await maritimeDistributionStore.revoke(row.uid)) {
-                await sendMessage(LM_TG_TOKEN, u.chatId, copy.stopped);
               } else {
-                await sendMessage(LM_TG_TOKEN, u.chatId, copy.stopUnavailable);
+                const receipt = await claimMaritimeCommandReceipt(row.uid, u.chatId, update.update_id, slash.name);
+                if (!receipt.claimed) {
+                  console.log("[slash] command=maritime_stop action=duplicate");
+                  res.writeHead(200); res.end("ok");
+                  return;
+                }
+                const stopped = await maritimeDistributionStore.revoke(row.uid);
+                await sendMessage(LM_TG_TOKEN, u.chatId, stopped ? copy.stopped : copy.stopUnavailable);
+                await receipt.store.finishReceipt(receipt.scope, receipt.idempotencyKey, {
+                  status: stopped ? "succeeded" : "failed", result: null,
+                });
               }
               res.writeHead(200); res.end("ok");
               return;
@@ -1767,12 +1800,18 @@ const server = http.createServer(async (req, res) => {
                 res.writeHead(200); res.end("ok");
                 return;
               }
-              if (!(await maritimeDistributionStore.isConsentActive(row.uid))) {
+              const participantRead = await maritimeDistributionStore.getParticipant(row.uid);
+              const participant = participantRead.participant;
+              const consentActive = participantRead.ok
+                && Boolean(participant && participant.consent_version === "maritime-retention-v1"
+                  && participant.consented_at && !participant.revoked_at);
+              if (!consentActive) {
                 const delivered = await sendMessage(LM_TG_TOKEN, u.chatId, maritimeMessages(u.languageCode).notice);
                 if (delivered && delivered.ok === true) await maritimeDistributionStore.recordStart(row.uid, "direct");
                 res.writeHead(200); res.end("ok");
                 return;
               }
+              const hadFirstResponseBeforePilot = Boolean(participant.first_response_at);
               const updateId = update.update_id;
               if (!Number.isSafeInteger(updateId) || updateId < 0) throw new Error("maritime_pilot_update_id_invalid");
               const scope = { uid: String(row.uid), chatId: String(u.chatId) };
@@ -1789,7 +1828,7 @@ const server = http.createServer(async (req, res) => {
                 res.writeHead(200); res.end("ok");
                 return;
               }
-              maritimePilotReceipt = { store: commandStore, scope, idempotencyKey };
+              maritimePilotReceipt = { store: commandStore, scope, idempotencyKey, hadFirstResponseBeforePilot };
             }
             const outcome = await handleSlashCommand(slash, row, {
               token: LM_TG_TOKEN, chatId: u.chatId, base: PUBLIC_BASE,
@@ -1810,8 +1849,10 @@ const server = http.createServer(async (req, res) => {
                 { status: outcome.ok === true ? "succeeded" : "failed", result: null },
               );
               if (outcome.ok === true) {
-                await maritimeDistributionStore.markMilestone(maritimePilotReceipt.scope.uid, "first_response");
-                await maritimeDistributionStore.markMilestone(maritimePilotReceipt.scope.uid, "return_7d");
+                await maritimeDistributionStore.markMilestone(
+                  maritimePilotReceipt.scope.uid,
+                  maritimePilotReceipt.hadFirstResponseBeforePilot ? "return_7d" : "first_response",
+                );
               }
             }
             if (outcome.handled) {

@@ -116,6 +116,9 @@ SET search_path = pg_catalog, public
 AS $function$
 DECLARE
   v_at timestamptz := COALESCE(p_at, now());
+  v_participant public.lm_maritime_pilot_participants%ROWTYPE;
+  v_event_name text;
+  v_event_id text;
 BEGIN
   IF p_participant_id IS NULL OR p_participant_id !~ '^[a-f0-9]{64}$'
     OR p_milestone IS NULL OR p_milestone NOT IN ('first_response', 'return_7d') THEN
@@ -123,23 +126,46 @@ BEGIN
   END IF;
 
   IF p_milestone = 'first_response' THEN
+    v_event_name := 'maritime_first_response';
     UPDATE public.lm_maritime_pilot_participants
       SET first_response_at = v_at, updated_at = v_at
       WHERE participant_id = p_participant_id
         AND consent_version = 'maritime-retention-v1'
         AND consented_at IS NOT NULL AND revoked_at IS NULL
-        AND first_response_at IS NULL;
-    RETURN FOUND;
+        AND first_response_at IS NULL
+      RETURNING * INTO v_participant;
+  ELSE
+    v_event_name := 'maritime_7day_return';
+    UPDATE public.lm_maritime_pilot_participants
+      SET returned_at = v_at, updated_at = v_at
+      WHERE participant_id = p_participant_id
+        AND consent_version = 'maritime-retention-v1'
+        AND consented_at IS NOT NULL AND revoked_at IS NULL
+        AND first_response_at < v_at
+        AND v_at <= first_response_at + interval '7 days'
+        AND returned_at IS NULL
+      RETURNING * INTO v_participant;
   END IF;
 
-  UPDATE public.lm_maritime_pilot_participants
-    SET returned_at = v_at, updated_at = v_at
-    WHERE participant_id = p_participant_id
-      AND consent_version = 'maritime-retention-v1'
-      AND consented_at IS NOT NULL AND revoked_at IS NULL
-      AND first_response_at <= v_at - interval '7 days'
-      AND returned_at IS NULL;
-  RETURN FOUND;
+  IF NOT FOUND THEN
+    RETURN false;
+  END IF;
+
+  -- The state transition and append-only event share this function transaction;
+  -- an event insert error rolls back the participant timestamp as well.
+  v_event_id := format('maritime:%s:%s', p_participant_id, v_event_name);
+  INSERT INTO public.lm_web_funnel_events (
+    event_id, event_name, uid, source_object_id, source_event_id, attribution, occurred_at
+  ) VALUES (
+    v_event_id, v_event_name, NULL, v_participant.participant_id, v_event_id,
+    jsonb_build_object(
+      'utm_source', 'maritime-' || v_participant.source,
+      'utm_medium', 'telegram',
+      'utm_campaign', 'the-first-1000'
+    ),
+    v_at
+  );
+  RETURN true;
 END;
 $function$;
 

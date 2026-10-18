@@ -60,3 +60,15 @@
 - [x] Run `node --test apps/life-manager/lib/transport/maritime-pilot.test.js apps/life-manager/lib/maritime-distribution.test.js apps/life-manager/test/telegram-slash-http-contract.test.js`, plus the landing's available type/build check if its project manifest is present.
 - [x] Run `git diff --check`, inspect the complete diff, and update the canonical SSOT cursor/evidence.
 - [x] Commit `feat: add Maritime distribution CTA` and push this branch for PR/CI.
+
+### Task 4: Fix independent review findings before integration
+
+**Files:** `apps/life-manager/server.js`, `apps/life-manager/lib/maritime-distribution.js`, `apps/life-manager/lib/maritime-distribution.test.js`, `apps/life-manager/test/telegram-slash-http-contract.test.js`, and the Maritime migration/specs.
+
+- [x] Add failing regression coverage for same-update consent replay, stale accept replay after revoke, atomic milestone/event persistence, the 7-day inclusive boundary and same-command exclusion, and the setup deep link.
+- [x] Fence `/maritime_accept` and `/maritime_stop` with the existing durable command receipt store, keyed by Telegram update ID.
+- [x] Move milestone event insertion into its participant-state RPC transaction and count only a later successful `/pilot` use within 7 days of first success.
+- [x] Correct setup instructions and the documented HTTP route.
+- [x] Run focused tests, syntax checks, migration contract assertions, and diff checks.
+- [ ] Commit and push the fix.
+- [ ] Obtain a fresh read-only review verdict of `ship` against the corrected PR head and wait for exact-head CI before integration.

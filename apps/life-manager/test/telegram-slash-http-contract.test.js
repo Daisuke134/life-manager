@@ -286,11 +286,14 @@ test("POST /telegram routes the legacy-parity slash surface without disturbing e
       if (!row || row.revoked_at || !row.consented_at) return response(200, false);
       if (body.p_milestone === "first_response" && !row.first_response_at) {
         row.first_response_at = body.p_at;
+        funnelEvents.push({ event_name: "maritime_first_response", uid: null, source_object_id: body.p_participant_id, occurred_at: body.p_at });
         return response(200, true);
       }
       if (body.p_milestone === "return_7d" && !row.returned_at && row.first_response_at
-        && Date.parse(body.p_at) - Date.parse(row.first_response_at) >= 7 * 24 * 60 * 60 * 1000) {
+        && Date.parse(body.p_at) > Date.parse(row.first_response_at)
+        && Date.parse(body.p_at) - Date.parse(row.first_response_at) <= 7 * 24 * 60 * 60 * 1000) {
         row.returned_at = body.p_at;
+        funnelEvents.push({ event_name: "maritime_7day_return", uid: null, source_object_id: body.p_participant_id, occurred_at: body.p_at });
         return response(200, true);
       }
       return response(200, false);
@@ -476,14 +479,20 @@ test("POST /telegram routes the legacy-parity slash surface without disturbing e
       assert.ok(lastSent().text.includes(expected), `/help must list ${expected}`);
     }
 
+    assert.equal(await exactMessage(93009, "909", "/maritime_accept"), 200);
+    assert.match(lastSent().text, /\/start maritime_direct/, "setup points to a payload accepted by the source parser");
+
     // 2a. /pilot routes through the fake Maritime SDK, and Telegram redelivery of the same
     //     update is fenced in lm_panel_command_receipts before a second provider call.
     const pilotUpdateId = updateId + 1;
     const privatePrompt = "pre-consent prompt must not persist";
-    assert.equal(await message("100", "/maritime_accept"), 200);
+    const firstNoticeUpdateId = 93000;
+    assert.equal(await exactMessage(firstNoticeUpdateId, "100", "/maritime_accept"), 200);
     assert.equal(maritimeParticipants.size, 0, "accepting before viewing the notice only displays it");
     assert.match(lastSent().text, /無期限/);
     assert.match(lastSent().text, /\/maritime_accept/);
+    assert.equal(await exactMessage(firstNoticeUpdateId, "100", "/maritime_accept"), 200);
+    assert.equal(maritimeParticipants.size, 0, "Telegram redelivery of the notice command cannot become consent");
     const receiptsBeforeConsent = commandReceipts.size;
     assert.equal(await exactMessage(93001, "100", `/pilot ${privatePrompt}`), 200);
     assert.equal(maritimeChatCalls, 0, "an unconsented prompt must not reach Maritime");
@@ -493,7 +502,8 @@ test("POST /telegram routes the legacy-parity slash surface without disturbing e
     assert.match(lastSent().text, /Maritime|Maritime AI/);
     assert.match(lastSent().text, /無期限/);
     assert.match(lastSent().text, /\/maritime_accept/);
-    assert.equal(await message("100", "/maritime_accept"), 200);
+    const consentUpdateId = 93003;
+    assert.equal(await exactMessage(consentUpdateId, "100", "/maritime_accept"), 200);
     assert.equal(maritimeParticipants.size, 1);
     assert.equal([...maritimeParticipants.values()][0].source, "direct");
 
@@ -511,11 +521,21 @@ test("POST /telegram routes the legacy-parity slash surface without disturbing e
     assert.match(pilotReceipt.request_hash, /^[a-f0-9]{64}$/);
     assert.doesNotMatch(JSON.stringify(pilotReceipt), /plan my day|Pilot fixture reply/);
     assert.ok(funnelEvents.some((event) => event.event_name === "maritime_first_response"));
+    assert.equal(funnelEvents.some((event) => event.event_name === "maritime_7day_return"), false,
+      "the first successful request is not also counted as a return");
+    assert.equal(await exactMessage(93004, "100", "/pilot another small task"), 200);
+    assert.equal(maritimeChatCalls, 2);
+    assert.ok(funnelEvents.some((event) => event.event_name === "maritime_7day_return"),
+      "a distinct successful request inside seven days counts as a return");
     assert.ok(funnelEvents.every((event) => event.uid == null));
 
     const callsBeforeStop = maritimeChatCalls;
-    assert.equal(await message("100", "/maritime_stop"), 200);
+    assert.equal(await exactMessage(93005, "100", "/maritime_stop"), 200);
     assert.match(lastSent().text, /停止|stopped/i);
+    const maritimeParticipant = [...maritimeParticipants.values()][0];
+    assert.ok(maritimeParticipant.revoked_at);
+    assert.equal(await exactMessage(consentUpdateId, "100", "/maritime_accept"), 200);
+    assert.ok(maritimeParticipant.revoked_at, "replaying the earlier accept after stop must not restore consent");
     assert.equal(await exactMessage(93002, "100", `/pilot ${privatePrompt}`), 200);
     assert.equal(maritimeChatCalls, callsBeforeStop, "revoked consent blocks later provider calls");
     assert.doesNotMatch(JSON.stringify(commandReceipts), new RegExp(privatePrompt));
