@@ -28,11 +28,14 @@ Per-platform measurement (MEASURED 2026-07-18 against the real logged-in dashboa
                absence means zero only after the terminal page, after publication, and when
                every returned row proves that zero-view articles are omitted.
   - substack:  {pub}/publish/home 's "有料登録者" overview card and
-               {pub}/publish/stats/earnings 's "累計収益" label. Both currently render as a literal
-               "-" rather than an explicit number. Nearby text ("0から" / no processed Stripe
-               payments) is retained in the failure reason, but is not converted into zero: a dash
-               is not a measured number, so these metrics remain null + reason until the dashboard
-               displays an explicit numeric value.
+               {pub}/publish/stats/earnings 's "累計収益" (Lifetime earnings) card. Substack's
+               formatter prints 0 and null alike as "-" (MEASURED 2026-10-18 in the reactPublish
+               bundle), so a dash alone is never converted into zero. The same leased page also
+               reads the JSON those cards render: /api/v1/publish-dashboard/summary `subscribers`
+               and user_pub_stats/payouts.totalAmount + payouts.totalEarnings (minor units, USD).
+               An explicit JSON number is recorded only when the card agrees with it ("-" only
+               with 0); otherwise the metric stays null + reason. Substack shows no MRR card, so
+               mrr is 0 only when paid subscribers were measured as 0, else null + reason.
 
 SCOPE (added 2026-07-31): every emitted row carries `scope` — "artifact" (this number is one
 article's) or "account" (publication-wide). Both note dashboard totals and all three Substack
@@ -315,10 +318,34 @@ try:
     time.sleep(4)
     earnings_url_final = pg.url
     earnings_body = pg.evaluate("() => document.body.innerText")
+    # The JSON these two dashboard pages render (reactPublish bundle): the cards show 0 and
+    # null alike as "-", the JSON does not.
+    api = pg.evaluate('''async () => {{
+        const read = async (path) => {{
+            try {{
+                const response = await fetch(path, {{credentials: "same-origin", cache: "no-store"}});
+                return response.ok ? await response.json() : {{error: `HTTP ${{response.status}}`}};
+            }} catch (error) {{
+                return {{error: String(error)}};
+            }}
+        }};
+        const pub = window._preloads && window._preloads.pub;
+        const payouts = pub && Number.isInteger(pub.id)
+            ? await read(`/api/v1/user_pub_stats/payouts?pubId=${{pub.id}}&limit=20`)
+            : {{error: "publication id unavailable"}};
+        return {{
+            summary: await read("/api/v1/publish-dashboard/summary"),
+            payouts,
+            payout_totals: typeof payouts.currency === "string"
+                ? await read(`/api/v1/payouts?currency=${{encodeURIComponent(payouts.currency)}}`)
+                : {{error: "payout currency unavailable"}},
+        }};
+    }}''')
 
     payload = {{
         "home_url": home_url_final, "home_body": home_body,
         "earnings_url": earnings_url_final, "earnings_body": earnings_body,
+        "api": api,
     }}
     print("PAYLOAD_B64:" + base64.b64encode(json.dumps(payload).encode("utf-8")).decode("ascii"))
 finally:
@@ -490,13 +517,47 @@ def parse_note_view_rows(
     return rows
 
 
+def _substack_api(payload: dict) -> tuple[int | None, float | None]:
+    """Paid subscribers and lifetime earnings (USD) as the dashboard JSON states them.
+
+    Lifetime earnings is the earnings card's own sum: user_pub_stats/payouts.totalAmount +
+    payouts.totalEarnings, both in minor units. Missing or malformed parts give None."""
+    api = payload.get("api") if isinstance(payload.get("api"), dict) else {}
+    part = {name: api[name] if isinstance(api.get(name), dict) else {}
+            for name in ("summary", "payouts", "payout_totals")}
+
+    def whole(name: str, key: str) -> int | None:
+        value = part[name].get(key)
+        return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else None
+
+    amount, earnings = whole("payouts", "totalAmount"), whole("payout_totals", "totalEarnings")
+    usd = part["payouts"].get("currency") == part["payout_totals"].get("currency") == "usd"
+    revenue = (amount + earnings) / 100 if usd and amount is not None and earnings is not None else None
+    return whole("summary", "subscribers"), revenue
+
+
+def _card_agrees(shown: str | None, value: float) -> bool:
+    """Substack prints 0 and null alike as '-'; a card that shows a number must equal the JSON.
+
+    No card means no visible anchor for the JSON field, so the value stays unknown."""
+    if shown is None:
+        return False
+    if shown == "-":
+        return value == 0
+    cleaned = re.sub(r"[^\d.]", "", shown)
+    return bool(cleaned) and abs(float(cleaned) - value) < 0.01
+
+
 def parse_substack_metrics(payload: dict) -> list[tuple[str, object, bool, str | None, str]]:
     home_body = payload["home_body"]
     earnings_body = payload["earnings_body"]
     out = []
+    api_paid, api_revenue = _substack_api(payload)
 
     m = re.search(r"有料登録者\s*\n\s*(-|[\d,]+)\s*\n\s*([\d,]+)から", home_body)
-    if not m:
+    if api_paid is not None and _card_agrees(m.group(1) if m else None, api_paid):
+        out.append(("paid_subscribers", api_paid, True, None, payload["home_url"]))
+    elif not m:
         out.append((
             "paid_subscribers", None, False,
             "'有料登録者' overview card not found in publish/home body text",
@@ -520,7 +581,10 @@ def parse_substack_metrics(payload: dict) -> list[tuple[str, object, bool, str |
         earnings_body,
         re.I,
     )
-    if not mrr:
+    # Substack shows no MRR card; zero paid subscribers measured above means zero recurring revenue.
+    if out[0][2] is True and out[0][1] == 0 and (not mrr or mrr.group(1).strip() == "-"):
+        out.append(("mrr", 0.0, True, None, payload["earnings_url"]))
+    elif not mrr:
         out.append((
             "mrr", None, False,
             "monthly recurring revenue label not found in Substack earnings body text",
@@ -545,7 +609,9 @@ def parse_substack_metrics(payload: dict) -> list[tuple[str, object, bool, str |
             ))
 
     m2 = re.search(r"累計収益\s*\n\s*([^\n]+)\n\s*([^\n]*)", earnings_body)
-    if not m2:
+    if api_revenue is not None and _card_agrees(m2.group(1).strip() if m2 else None, api_revenue):
+        out.append(("revenue", api_revenue, True, None, payload["earnings_url"]))
+    elif not m2:
         out.append((
             "revenue", None, False,
             "'累計収益' label not found in publish/stats/earnings body text",

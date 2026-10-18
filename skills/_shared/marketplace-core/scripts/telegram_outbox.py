@@ -224,17 +224,22 @@ def enqueue(
         return True
 
 
-def claim_next(database: Path) -> Optional[OutboxItem]:
-    """Atomically claim the oldest pending message for sending."""
+def claim_next(database: Path, event_key: Optional[str] = None) -> Optional[OutboxItem]:
+    """Atomically claim the oldest pending message, or exactly `event_key` when given.
+
+    A sender that delivers only its own message passes `event_key`; otherwise an older row left
+    pending by a run that died between enqueue and claim is claimed instead, forever.
+    """
 
     with _write_connection(database) as connection:
         row = connection.execute(
             f"""
             SELECT * FROM {_TABLE}
-            WHERE status = 'pending'
+            WHERE status = 'pending' AND (? IS NULL OR event_key = ?)
             ORDER BY created_at ASC, event_key ASC
             LIMIT 1
-            """
+            """,
+            (event_key, event_key),
         ).fetchone()
         if row is None:
             return None

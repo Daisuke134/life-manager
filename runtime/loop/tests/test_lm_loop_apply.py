@@ -4901,7 +4901,7 @@ class LmLoopApplyTest(unittest.TestCase):
         }
         loop_ids = (
             "article-audit-7day", "article-daily", "article-healthcheck",
-            "article-learn-whitelist", "article-repair-candidate", "article-resume",
+            "article-repair-candidate", "article-resume",
             "article-self-improve",
             "article-zenn-retry", "writer-claim-loop", "writer-craft-train",
             "writer-money-sync", "writer-opportunity-discovery",
