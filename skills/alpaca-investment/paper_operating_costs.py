@@ -345,7 +345,8 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inven
                 known=accepted.get(charge)
                 resolved=(charge not in charge_conflicts and known is not None
                     and known.get('attribution_basis') in {'verified_execution_window','verified_service_period'})
-                if (resolved and trip.get('scope_kind','order_pair')=='owner_period' and _binding(known)!=binding
+                if (resolved and known.get('attribution_basis')!='verified_service_period'
+                        and trip.get('scope_kind','order_pair')=='owner_period' and _binding(known)!=binding
                         and _time(trip['period_start'])<=_time(receipt['occurred_at'])<_time(_cost_end(trip))
                         and not _calendar_covers(known,trip,observations)):resolved=False
                 if resolved:continue
@@ -369,26 +370,38 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inven
         for trip in requested:
             for identity,value in raw.items():
                 provider,kind,document_id,line,allocation,charge,account=value
-                owned=[join for join in payload.get('job_joins',[]) if claims_owned(join,value) and _has_service_period(line,join)]
+                owned=[join for join in payload.get('job_joins',[]) if claims_owned(join,value)]
                 if not owned:continue
-                try:
-                    begin,end=_time(line['service_period_start']),_time(line['service_period_end'])
-                    relevant=not begin<end or begin<_time(_cost_end(trip)) and _time(trip['period_start'])<end
-                except (KeyError,TypeError,ValueError):
-                    relevant=True
+                service=any(_has_service_period(line,join) for join in owned)
+                if service:
+                    try:
+                        begin,end=_time(line['service_period_start']),_time(line['service_period_end'])
+                        relevant=not begin<end or begin<_time(_cost_end(trip)) and _time(trip['period_start'])<end
+                    except (KeyError,TypeError,ValueError):
+                        relevant=True
+                else:
+                    parent=_binding(trip)
+                    relevant=trip.get('scope_kind')=='owner_period' and parent is not None and any(
+                        _binding(join) is not None and _binding(join)[1]<parent[2] and parent[1]<=_binding(join)[2]
+                        for join in owned if join.get('scope_kind')=='owner_period')
                 known=accepted.get(charge)
                 confirmed=(charge not in charge_conflicts and known is not None
                     and known.get('attribution_basis')=='verified_service_period')
                 if not relevant or (confirmed and _binding(known)==_binding(trip)):continue
+                if (not service and charge not in charge_conflicts and known is not None
+                        and known.get('attribution_basis')=='verified_execution_window'
+                        and (_binding(known)==_binding(trip) or _calendar_covers(known,trip,observations))):continue
                 gap={'provider':provider,'document_type':kind,'document_id':document_id,
                     'line_item_id':line.get('line_item_id'),'allocation_id':allocation.get('allocation_id'),
                     'order_ids':trip['order_ids'],'period_start':trip['period_start'],'period_end':_cost_end(trip),
-                    'reason':'operating_cost_service_period_partial_view' if confirmed else 'operating_cost_service_period_unverified'}
+                    'reason':('operating_cost_service_period_partial_view' if confirmed else 'operating_cost_service_period_unverified')
+                        if service else 'operating_cost_paid_allocation_unattributed'}
                 if identity in verified_ids:gap['receipt_id']=identity
                 if not any(_binding(g)==_binding(gap) and g.get('document_id')==document_id
                         and g.get('allocation_id')==allocation.get('allocation_id') for g in component_gaps):component_gaps.append(gap)
             for charge,component in accepted.items():
-                if (_calendar_contains(component,trip) and (charge in charge_conflicts
+                if (component.get('attribution_basis')!='verified_service_period'
+                        and _calendar_contains(component,trip) and (charge in charge_conflicts
                         or not _calendar_covers(component,trip,observations))):
                     component_gaps.append({'receipt_id':component['receipt_id'],'provider':component['provider'],
                         'order_ids':trip['order_ids'],'period_start':trip['period_start'],'period_end':_cost_end(trip),
