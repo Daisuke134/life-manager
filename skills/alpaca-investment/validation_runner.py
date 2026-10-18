@@ -410,7 +410,7 @@ def run_once(
         # Keep legacy owned ETF exit policy fresh while reporting the BTC gap.
         # No BTC report/positive valuation is fabricated from failed history.
         crypto_reports = []
-        crypto_error = type(error).__name__
+        crypto_error = str(error) if isinstance(error, ValueError) else type(error).__name__
     write_reports(reports_path, [report, *crypto_reports])
     selections = [
         provision_selection(
