@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -203,7 +204,13 @@ def build_expected_inventory(trips, *, beneficiary_owner_id, observed_at,
                     if not isinstance(source, dict):
                         gap(scope, 'source_invalid', release_sha=sha)
                         continue
-                    if source.get('beneficiary_owner_id') != beneficiary_owner_id:
+                    beneficiary, mode = source.get('beneficiary_owner_id'), source.get('beneficiary_mode')
+                    if (not _text(beneficiary) or beneficiary not in jobs or not _text(mode)
+                            or mode not in {'paper', 'live', 'shadow'}
+                            or beneficiary in _OWNER_MODES and mode != _OWNER_MODES[beneficiary]):
+                        gap(scope, 'source_invalid', release_sha=sha)
+                        continue
+                    if beneficiary != beneficiary_owner_id:
                         continue
                     executor = source.get('execution_owner_id')
                     categories, source_refs = source.get('covered_categories'), source.get('evidence_refs')
@@ -235,6 +242,11 @@ def build_expected_inventory(trips, *, beneficiary_owner_id, observed_at,
             events, groups, conflicts = {}, {}, set()
             for row in rows:
                 if not isinstance(row, dict):
+                    gap(scope, 'runtime_event_invalid', execution_owner_id=owner)
+                    continue
+                if (not _text(row.get('phase')) or not _text(row.get('status'))
+                        or row['phase'] not in {'plan', 'execute', 'reconcile', 'verify', 'report'}
+                        or row['status'] not in {'running', 'pass', 'fail', 'blocked'}):
                     gap(scope, 'runtime_event_invalid', execution_owner_id=owner)
                     continue
                 if not (row.get('phase') == 'execute' and row.get('status') == 'running'
@@ -325,19 +337,20 @@ def build_expected_inventory(trips, *, beneficiary_owner_id, observed_at,
                 if not {'owner_id', 'mode', 'paper'} <= binding.keys():
                     gap(scope, 'paid_binding_owner_unverified')
                 if (not _text(binding.get('receipt_id')) or not _text(binding.get('provider'))
-                        or binding.get('category') not in _COST_CATEGORIES or not _ids(binding.get('evidence_refs'))
-                        or not _ids(binding.get('charge_identity')) or len(binding['charge_identity']) != 5
-                        or not _ids(binding.get('identity_aliases', []), nonempty=False)):
+                        or binding.get('category') not in _COST_CATEGORIES or not _ids(binding.get('evidence_refs'))):
                     raise ValueError
+                # Same identity contract as the existing paid binding writer.
+                from paper_performance import _operating_identity_keys
+                _operating_identity_keys(binding)
                 account = binding.get('billing_account_ref')
                 if not _text(account):
                     account = None
                     gap(scope, 'paid_account_missing', receipt_id=binding['receipt_id'])
                 add_source(binding['provider'], account, binding['category'], refs=binding['evidence_refs'])
-                scope['known_paid_bindings'].append({key: list(binding[key]) if isinstance(binding[key], list)
-                    else binding[key] for key in ('receipt_id', 'provider', 'billing_account_ref', 'category',
+                scope['known_paid_bindings'].append(deepcopy({key: binding[key] for key in
+                    ('receipt_id', 'provider', 'billing_account_ref', 'category',
                     'owner_id', 'mode', 'paper', 'order_ids', 'period_start', 'period_end',
-                    'charge_identity', 'identity_aliases', 'evidence_refs') if key in binding})
+                    'charge_identity', 'identity_aliases', 'evidence_refs') if key in binding}))
             except (ValueError, TypeError, OverflowError):
                 gap(scope, 'paid_binding_invalid')
         for key in sorted(sources, key=repr):
