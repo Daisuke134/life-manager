@@ -166,6 +166,42 @@ class CryptoStatementEvidenceTests(unittest.TestCase):
             self.assertIsNone(report['net_pnl_usd'])
             self.assertFalse(report['capital_expansion_allowed'])
 
+    def test_fresh_capture_adds_provenance_without_duplicating_unchanged_document_rows(self):
+        # Changing HTTP capture metadata alone must not conflict or double-count rows.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            observation, read = self.prepare(root)
+            packet(root)
+            with patch('subprocess.run', side_effect=pdf_process):
+                first = self.write(root, observation, read)
+            packet(root, metadata_changes={'native_account_get_request_id': 'fresh-account-request',
+                'native_account_get_date': 'Thu, 01 Jan 2026 06:00:01 GMT',
+                'documents_request_id': 'fresh-documents-request'})
+            with patch('subprocess.run', side_effect=pdf_process):
+                report = self.write(root, observation, read)
+            self.assertEqual(report.get('fee_evidence', {}).get('statement_evidence', {}).get('observed_row_count'), 8)
+            self.assertNotEqual(report.get('reason'), 'crypto_statement_evidence_conflict')
+            self.assertEqual(len(report['statement_readbacks']), 2)
+            self.assertEqual(report['known_statement_documents'], first['known_statement_documents'])
+            evidence = report['fee_evidence']['statement_evidence']
+            self.assertEqual(len(evidence['documents']), 1)
+            self.assertEqual(len(evidence['documents'][0]['capture_refs']), 2)
+            self.assertEqual(len(evidence['observations'][0]['capture_refs']), 2)
+
+    def test_same_document_with_changed_capture_account_binding_is_a_conflict(self):
+        # Fresh request metadata cannot mask a contradictory native account binding.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            observation, read = self.prepare(root)
+            packet(root)
+            with patch('subprocess.run', side_effect=pdf_process):
+                self.write(root, observation, read)
+            packet(root, metadata_changes={'native_trading_account_id': '33333333-3333-4333-8333-333333333333'})
+            with patch('subprocess.run', side_effect=pdf_process):
+                report = self.write(root, observation, read)
+            self.assertEqual(report.get('reason'), 'crypto_statement_evidence_conflict')
+            self.assertEqual(report['fee_evidence']['statement_evidence']['status'], 'conflict')
+
     def test_metadata_scope_and_unmapped_document_are_typed_unknown(self):
         # Trusting a mode/binding boolean or a foreign path would accept another account.
         variants = [
