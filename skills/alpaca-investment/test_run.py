@@ -973,7 +973,7 @@ class LiveRunTest(unittest.TestCase):
 
 class PortablePassTest(unittest.TestCase):
     def _capture_case(self, *, configured_owner=None, occurrence_owner="alpaca-investment-paper", capture_io_error=False,
-                      control_status=None, observe_error=False, terminal_summaries=None):
+                      control_status=None, observe_error=False, terminal_summaries=None, allocation_capture=None):
         import cost_inventory
         from test_cost_inventory import release_fixture
         steps = []
@@ -1026,7 +1026,20 @@ class PortablePassTest(unittest.TestCase):
             rows = [json.loads(line) for line in (state / "receipts.jsonl").read_text().splitlines()]
             pending = EFFECT_STORE.unresolved_intent_count(state / "receipts.jsonl")
             submit.assert_not_called()
+            if allocation_capture is not None and (state/'allocation-latest.json').exists():
+                allocation_capture.update(json.loads((state/'allocation-latest.json').read_text()))
             return code, rows, steps, pending
+
+    def test_local_hold_reports_owner_period_costs_without_a_trade(self):
+        snapshot={'report_scope':'owner_period_operating_costs','model_cost_usd':None,'net_pnl_usd':None,
+            'capital_expansion_allowed':False}
+        saved={}
+        with patch.object(MODULE,'read_owner_period_costs',return_value=snapshot,create=True) as costs:
+            code,rows,_steps,pending=self._capture_case(configured_owner='alpaca-investment-paper',allocation_capture=saved)
+        self.assertEqual(code,0);self.assertEqual(pending,0)
+        costs.assert_called_once()
+        self.assertEqual(saved.get('owner_period_operating_costs'),snapshot)
+        self.assertEqual(saved['action'],'HOLD')
 
     def test_paper_capture_does_not_accept_live_or_default_live_owner(self):
         for owner in (None, "alpaca-investment-live"):
