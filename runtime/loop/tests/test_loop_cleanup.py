@@ -412,7 +412,9 @@ class LoopCleanupTest(unittest.TestCase):
         tree = ast.parse(inspect.getsource(central_cleanup.reclaim_unreferenced_source))
         function = next(node for node in tree.body[0].body
                         if isinstance(node, ast.FunctionDef) and node.name == "references")
-        module = ast.fix_missing_locations(ast.Module(body=[function], type_ignores=[]))
+        scope = ast.parse("def _scope():\n    phase = 'fixture'\n    return references\n").body[0]
+        scope.body.insert(1, function)
+        module = ast.fix_missing_locations(ast.Module(body=[scope], type_ignores=[]))
         base = Path("/fixture/releases")
         output = "p999999\nf8\n" + "\n".join([
             "n/unrelated/file", "n/fixture/releases-other/code",
@@ -433,7 +435,7 @@ class LoopCleanupTest(unittest.TestCase):
             namespace.update(loaded_release_roots=central_cleanup.loaded_release_roots,
                              open_release_roots=central_cleanup.open_release_roots)
             exec(compile(module, "references", "exec"), namespace)
-            held = namespace["references"]((42,))
+            held = namespace["_scope"]()((42,))
         self.assertEqual(held, {Path("/"), base / "..", base / "open", base / "held"})
         self.assertNotIn("/unrelated/file", parsed)
         self.assertNotIn("/fixture/releases-other/code", parsed)
