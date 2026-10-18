@@ -312,6 +312,79 @@ class OwnedSubmitFenceTests(unittest.TestCase):
             rows=effect_store._rows(root/"receipts.jsonl")
             return code,summary,submit.call_args_list,rows,observation_reads[0],original
 
+    def test_missing_account_position_never_replaces_open_or_filled_pending_entry(self):
+        import importlib.util
+        spec=importlib.util.spec_from_file_location("owned_lag_native_run", ROOT/"run.py")
+        native=importlib.util.module_from_spec(spec); spec.loader.exec_module(native)
+        for pending in (False, True):
+            with self.subTest(pending=pending), tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
+                root=Path(directory); original,owner=seed(root)
+                if pending:
+                    original.update(status="entry_pending",entry_filled_qty="0")
+                    (root/"live-owned-position.json").write_text(json.dumps(original))
+                raw,observation=snapshot("live"); raw.pop("crypto_history"); raw["positions"]=0
+                observation.update(positions=[],account={"cash":"90","equity":"100"},activities_count=0,
+                    open_and_closed_orders_count=0,clock={"observed_at":raw["clock"]["timestamp"]})
+                broker=next(row["broker"] for row in effect_store._rows(root/"receipts.jsonl")
+                            if row.get("receipt_type")=="outcome")
+                stack.enter_context(patch.dict(os.environ,{
+                    "LIFE_MANAGER_INVESTMENT_DEPLOYMENT":"local","LIFE_MANAGER_INVESTMENT_MODE":"live",
+                    "LIFE_MANAGER_INVESTMENT_OWNER_ID":owner,"ALPACA_INVESTMENT_LIVE_STATE_DIR":str(root),
+                    "ALPACA_INVESTMENT_LIVE_CREDENTIALS_FILE":str(root/"unused")},clear=True))
+                for name,value in (("observe",observation),("find_order_by_client_id",broker),
+                                   ("read_allocator_snapshot",raw),("read_crypto_history",{}),
+                                   ("build_candidates",[]),("_review_status",{}),
+                                   ("deliver",{"message_id":"fixture"}),("deliver_failure",{"status":"delivered"}),
+                                   ("_retry_allowed",False)):
+                    stack.enter_context(patch.object(native,name,return_value=copy.deepcopy(value)))
+                choose=stack.enter_context(patch.object(native,"choose",side_effect=AssertionError("replacement entry")))
+                submit=stack.enter_context(patch.object(native,"submit_order",side_effect=AssertionError("unexpected submit")))
+                stack.enter_context(patch.object(alpaca_cli,"_context",side_effect=AssertionError("unexpected provider")))
+                stack.enter_context(patch.object(alpaca_cli,"_run",side_effect=AssertionError("unexpected provider")))
+                before=(root/"receipts.jsonl").read_bytes()
+                with redirect_stdout(StringIO()) as output: code=native.main(wake_id="account-lag-fixture")
+                result=json.loads(output.getvalue().splitlines()[-1])
+                self.assertEqual(code,0,result)
+                self.assertEqual(result["decision"],"NO_TRADE")
+                self.assertEqual(result["effect"],"none")
+                choose.assert_not_called(); submit.assert_not_called()
+                self.assertEqual(json.loads((root/"live-owned-position.json").read_text()),original)
+                rows=effect_store._rows(root/"receipts.jsonl")
+                decisions=[r["decision"] for r in rows if r.get("outcome")=="no_trade"]
+                self.assertEqual(decisions[-1]["gate"],"ownership_pending")
+
+    def test_pending_buy_missing_position_requires_explicit_zero_fill_before_closing(self):
+        import importlib.util
+        spec=importlib.util.spec_from_file_location("owned_terminal_native_run", ROOT/"run.py")
+        native=importlib.util.module_from_spec(spec); spec.loader.exec_module(native)
+        for status,qty in (("filled","0.05"),("filled","0"),("canceled","0.01"),
+                           ("canceled",None),("rejected","NaN"),("expired","-1")):
+            with self.subTest(status=status,qty=qty),tempfile.TemporaryDirectory() as directory:
+                root=Path(directory);original,_owner=seed(root)
+                original.update(status="entry_pending",entry_filled_qty="0")
+                native._atomic_json(root/"live-owned-position.json",original)
+                broker={"id":"provider-entry","client_order_id":original["entry_client_order_id"],
+                    "symbol":"BTC/USDC","side":"buy","status":status,"filled_qty":qty}
+                with patch.object(native,"find_order_by_client_id",return_value=broker):
+                    actual=native._sync_live_ownership(root,Path("unused"),Path("unused"),{"positions":[]})
+                self.assertEqual(actual,original)
+
+    def test_terminal_no_fill_requires_exact_order_identity(self):
+        import importlib.util
+        spec=importlib.util.spec_from_file_location("owned_zero_native_run", ROOT/"run.py")
+        native=importlib.util.module_from_spec(spec); spec.loader.exec_module(native)
+        variants=({}, {"client_order_id":"wrong"}, {"symbol":"ETH/USDC"}, {"side":"sell"}, {"id":""})
+        for change in variants:
+            with self.subTest(change=change),tempfile.TemporaryDirectory() as directory:
+                root=Path(directory);original,_owner=seed(root)
+                original.update(status="entry_pending",entry_filled_qty="0")
+                native._atomic_json(root/"live-owned-position.json",original)
+                broker={"id":"provider-entry","client_order_id":original["entry_client_order_id"],
+                    "symbol":"BTC/USDC","side":"buy","status":"rejected","filled_qty":"0",**change}
+                with patch.object(native,"find_order_by_client_id",return_value=broker):
+                    actual=native._sync_live_ownership(root,Path("unused"),Path("unused"),{"positions":[]})
+                self.assertEqual(actual["status"],"closed" if not change else "entry_pending")
+
     def test_unchanged_owned_exit_preserves_parent_identity_through_real_main(self):
         code,summary,calls,rows,reads,original=self._flow()
         self.assertEqual(code,0,summary)

@@ -368,7 +368,7 @@ class BrokerContextTest(unittest.TestCase):
             marker = json.loads((state / "live-owned-position.json").read_text())
             self.assertEqual(marker["status"], "open")
 
-    def test_live_ownership_closes_when_position_disappears(self):
+    def test_live_ownership_remains_open_when_position_disappears(self):
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
             MODULE._atomic_json(state / "live-owned-position.json", {
@@ -379,7 +379,7 @@ class BrokerContextTest(unittest.TestCase):
                     "status": "filled", "filled_qty": "0.0001"}):
                 ownership = MODULE._sync_live_ownership(
                     state, Path("credentials"), Path("alpaca"), {"positions": []})
-            self.assertEqual(ownership["status"], "closed")
+            self.assertEqual(ownership["status"], "open")
 
     def test_rejected_close_restores_owned_position(self):
         with tempfile.TemporaryDirectory() as directory:
