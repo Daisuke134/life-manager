@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the bounded, paper-only ETF validation and refresh selected strategy state."""
+"""Run bounded paper-context ETF/BTC validation and guarded strategy refresh."""
 
 from __future__ import annotations
 
@@ -328,10 +328,11 @@ def _atomic_write(path: Path, payload: bytes) -> None:
         temporary_path.unlink(missing_ok=True)
 
 
-def write_reports(path: str | Path, report: Mapping[str, Any]) -> None:
+def write_reports(path: str | Path, report: Mapping[str, Any] | Sequence[Mapping[str, Any]]) -> None:
     destination = Path(path).expanduser()
+    report_rows = [dict(report)] if isinstance(report, Mapping) else [dict(row) for row in report]
     encoded = json.dumps(
-        {"reports": [dict(report)]}, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        {"reports": report_rows}, ensure_ascii=False, sort_keys=True, separators=(",", ":")
     )
     _atomic_write(destination, (encoded + "\n").encode("utf-8"))
 
@@ -397,7 +398,20 @@ def run_once(
         observed_at=merged["observed_at"],
         completed_through_session=merged["completed_through_session"],
     )
-    write_reports(reports_path, report)
+    observed = _parse_timestamp(merged["observed_at"]).astimezone(timezone.utc)
+    crypto_end = observed.replace(hour=0, minute=0, second=0, microsecond=0)
+    crypto_error = None
+    try:
+        crypto_reports = build_crypto_reports_for_period(
+            start=crypto_end - timedelta(days=90), end=crypto_end,
+            observed_at=merged["observed_at"], credentials_path=credentials_path or _default_credentials_path(),
+            cli_path=cli_path or _default_cli_path(), release_sha=resolved_release)
+    except (OSError, ValueError, TypeError, KeyError) as error:
+        # Keep legacy owned ETF exit policy fresh while reporting the BTC gap.
+        # No BTC report/positive valuation is fabricated from failed history.
+        crypto_reports = []
+        crypto_error = type(error).__name__
+    write_reports(reports_path, [report, *crypto_reports])
     selections = [
         provision_selection(
             destination,
@@ -408,7 +422,9 @@ def run_once(
         for destination in destinations
     ]
     return {
-        "status": "ok",
+        "status": "ok" if crypto_error is None else "partial",
+        "crypto_report_count": len(crypto_reports),
+        "crypto_error_class": crypto_error,
         "report_id": report["report_id"],
         "report_decision": report["decision"],
         "selection_status": selections[0]["status"],
@@ -451,7 +467,7 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({"status": "error", "error": str(error)}, sort_keys=True))
         return 1
     print(json.dumps(result, sort_keys=True))
-    return 0
+    return 0 if result["status"] == "ok" else 1
 
 
 if __name__ == "__main__":
