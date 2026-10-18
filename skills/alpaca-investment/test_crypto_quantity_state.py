@@ -1,5 +1,6 @@
 """One historical quantity fold serves sell boundaries and future native debits."""
 import copy
+from decimal import Decimal, localcontext
 from pathlib import Path
 import sys
 import tempfile
@@ -49,6 +50,40 @@ class CryptoQuantityStateTests(unittest.TestCase):
                 self.assertEqual(final['last_close_effect_id'],owned['close_effect_id'])
                 self.assertEqual(final['provider_order_ids'],{o['id'] for o in orders})
                 self.assertEqual(owned,old);self.assertEqual(ledger.read_bytes(),before)
+
+    def test_full_buy_and_close_preserve_tiny_quantity_without_context_rounding(self):
+        qty='0.030000000000000000000000000001'
+        for mode in ('paper','live'):
+            for precision in (8,28,50):
+                with self.subTest(mode=mode,precision=precision),localcontext() as context,tempfile.TemporaryDirectory() as directory:
+                    context.prec=precision
+                    root=Path(directory);owned,buy,account,owner=entry_fixture(root,mode,owned_qty=qty)
+                    buy['filled_qty']=qty;ledger=root/'receipts.jsonl'
+                    acquisition=proofs.entry_fill_proof_from_rows(store._rows(ledger),owned,buy,account,mode=mode,owner_id=owner)
+                    self.assertEqual(acquisition['receipt']['account_owned_qty'],qty)
+                    self.assertEqual(acquisition['receipt']['entry_filled_qty'],qty)
+                    store.reconcile_started(ledger,lambda _:buy,on_reconciled=lambda *_:acquisition)
+                    owned.update(status='open',entry_filled_qty=qty,owned_qty=qty)
+                    parent=proofs._owned_policy(proofs.owned_entry_decision_from_rows(store._rows(ledger),owned,mode=mode,owner_id=owner),owned,mode=mode)
+                    decision={'action':'EXIT','mode':mode,'owner_id':owner,'strategy_id':parent['card'].strategy_id,
+                        'release_sha':parent['release_sha'],'position_qty':qty,'observed_at':'2026-01-01T04:15:00Z',
+                        **{k:parent[k] for k in ('entry_effect_id','entry_client_order_id','entry_provider_order_id','entry_price','entry_timestamp')}}
+                    sealed=store.seal(ledger,decision,{'asset_class':'crypto','symbol':'BTC/USDC','side':'sell',
+                        'type':'market','time_in_force':'gtc','qty':qty});store.mark_started(ledger,sealed)
+                    owned.update(status='closing',close_effect_id=sealed['effect_id'],close_client_order_id=sealed['client_order_id'])
+                    sell={'id':'exact-close','client_order_id':sealed['client_order_id'],'status':'filled','symbol':'BTCUSDC',
+                        'side':'sell','type':'market','time_in_force':'gtc','qty':qty,'filled_qty':qty,'filled_avg_price':'210',
+                        'submitted_at':'2026-01-01T04:15:00Z','filled_at':'2026-01-01T04:15:01Z'}
+                    flat={**account,'positions':[],'clock':{'observed_at':'2026-01-01T04:15:02Z'}}
+                    close=proofs.close_fill_proof_from_rows(store._rows(ledger),owned,sell,flat,mode=mode,owner_id=owner)
+                    self.assertEqual(close['receipt']['exit_filled_qty'],qty)
+                    store.reconcile_started(ledger,lambda _:sell,on_reconciled=lambda *_:close)
+                    owned['status']='closed';rows=store._rows(ledger);before=ledger.read_bytes()
+                    result=self.state(rows,owned,mode)
+                    self.assertEqual(result['sold_qty'],qty)
+                    self.assertEqual(result['owned_qty'],'0')
+                    self.assertEqual(proofs.Fraction(qty),proofs.Fraction(result['sold_qty'])+proofs.Fraction(result['owned_qty']))
+                    self.assertEqual(ledger.read_bytes(),before)
 
     def test_past_receipt_tampering_and_reselling_after_flat_are_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
