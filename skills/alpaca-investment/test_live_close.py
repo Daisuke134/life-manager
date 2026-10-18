@@ -147,6 +147,23 @@ class LiveCloseReplayTest(unittest.TestCase):
                           "qty": "-0.000000063"}],
                 "external_flow_fingerprint": alpaca_cli._digest_rows([])}
 
+    def test_planned_receipt_is_sealed_under_shared_selection_fence(self):
+        import fcntl
+        import effect_store
+        def checked_seal(path, decision, order):
+            with (path.parent/".control.lock").open("a+") as probe:
+                with self.assertRaises(BlockingIOError):
+                    fcntl.flock(probe, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return effect_store.seal(path, decision, order)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            snap = self.seed(root)
+            verified = {"status": "verified", "verified": True, "order": {"id": "close-one"}}
+            with self.env(root), patch.object(live_close, "read_live_close_snapshot", return_value=snap), \
+                 patch.object(live_close, "read_live_close", return_value=verified), \
+                 patch.object(live_close, "seal", side_effect=checked_seal):
+                self.assertEqual(live_close.main(), 0)
+
     def test_ack_unknown_then_restart_never_submits_again(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory); snap = self.seed(root)

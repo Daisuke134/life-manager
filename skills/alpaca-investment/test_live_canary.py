@@ -47,6 +47,21 @@ class LiveCanaryTest(unittest.TestCase):
                 patch.object(live_canary, "submit_live_canary", side_effect=submit),
                 patch.object(live_canary.time, "sleep"))
 
+    def test_planned_receipt_is_sealed_under_shared_selection_fence(self):
+        import fcntl
+        def checked_seal(path, decision, order):
+            with (path.parent/".control.lock").open("a+") as probe:
+                with self.assertRaises(BlockingIOError):
+                    fcntl.flock(probe, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return effect_store.seal(path, decision, order)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root/"state").mkdir()
+            verified = {"status": "verified", "verified": True, "order": {"id": "one"}}
+            with self.env(root), patch.object(live_canary, "read_live_canary", return_value=verified), \
+                 patch.object(live_canary, "seal", side_effect=checked_seal):
+                self.assertEqual(live_canary.main(), 0)
+
     def test_local_output_shape_remains_unchanged(self):
         output = io.StringIO()
         sealed = {"client_order_id": "lm-ai-" + "a" * 24, "effect_id": "b" * 64}
