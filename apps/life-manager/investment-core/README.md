@@ -258,6 +258,9 @@ current selection cannot replace the owned policy. Missing or conflicting fill
 evidence remains an error. Native fill price and `filled_at` define the entry.
 Before selling, the existing control fence checks fresh account quantity and the
 exact original entry effect/client/provider identity. A changed position is not
-submitted. This branch is source only: paper BTC routing, entry selection
-revalidation, complete costs and natural trade evidence remain in the canonical
-SSOT, not a second TODO list here.
+submitted. New crypto buys also revalidate the fresh selected card, release and
+expiry under that fence before sealing; only a new report for the same policy
+and release may replace the entry report. Paper and live share the existing
+bounded BTC/USDC market/gtc transport, keeping their mode-specific contexts.
+This branch is source only: remaining ownership dispatch, complete costs and
+natural trade evidence are tracked in the canonical SSOT.
