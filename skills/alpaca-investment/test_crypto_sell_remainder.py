@@ -154,6 +154,8 @@ class SellRemainderTests(unittest.TestCase):
                     'qty':'0.03','filled_qty':'0.03','filled_avg_price':'211','submitted_at':'2026-01-01T04:20:00Z',
                     'filled_at':'2026-01-01T04:20:01Z'}
                 flat={**obs,'positions':obs['positions'][:1],'clock':{'observed_at':'2026-01-01T04:20:02Z'}}
+                with self.assertRaises(ValueError):
+                    position_manager.close_fill_proof(root,closing,{**sell,'id':broker['id']},flat,mode=mode)
                 final=position_manager.close_fill_proof(root,closing,sell,flat,mode=mode)
                 store.reconcile_started(root/'receipts.jsonl',lambda _:sell,on_reconciled=lambda *_:final)
                 self.assertEqual(store.unresolved_intent_count(root/'receipts.jsonl'),0)
@@ -177,38 +179,60 @@ class SellRemainderTests(unittest.TestCase):
                     native._sync_live_ownership(root,Path('unused'),Path('unused'),native._normalize_live_position_symbols(copy.deepcopy(obs)))
             self.assertEqual((root/'live-owned-position.json').read_bytes(),before)
 
+    def two_partial_flow(self,mode,reuse=None):
+        with self.subTest(mode=mode),tempfile.TemporaryDirectory() as directory,patch.dict(os.environ,{
+                'LIFE_MANAGER_INVESTMENT_MODE':mode,'LIFE_MANAGER_INVESTMENT_OWNER_ID':f'alpaca-investment-{mode}'}):
+            root=Path(directory);owned,broker,obs,owner,activities=remainder_fixture(root,mode)
+            first=self.proof(root,owned,broker,obs,owner,activities,mode)
+            store.reconcile_started(root/'receipts.jsonl',lambda _:broker,on_reconciled=lambda *_:first)
+            opened={**owned,'status':'open','owned_qty':'0.03'}
+            parent=position_manager.load_owned_policy(root,opened,mode=mode)
+            decision={'action':'EXIT','mode':mode,'owner_id':owner,'strategy_id':parent['card'].strategy_id,
+                'release_sha':parent['release_sha'],'position_qty':'0.03','observed_at':'2026-01-01T04:20:00Z',
+                **{k:parent[k] for k in ('entry_effect_id','entry_client_order_id','entry_provider_order_id','entry_price','entry_timestamp')}}
+            sealed=store.seal(root/'receipts.jsonl',decision,{'asset_class':'crypto','symbol':'BTC/USDC','side':'sell',
+                'type':'market','time_in_force':'gtc','qty':'0.03'});store.mark_started(root/'receipts.jsonl',sealed)
+            closing={**opened,'status':'closing','close_effect_id':sealed['effect_id'],'close_client_order_id':sealed['client_order_id']}
+            second={**broker,'id':'next-exit','client_order_id':sealed['client_order_id'],'qty':'0.03',
+                    'filled_qty':'0.01','submitted_at':'2026-01-01T04:20:00Z'}
+            after={**obs,'clock':{'observed_at':'2026-01-01T04:20:02Z'},
+                   'positions':[obs['positions'][0],{'symbol':'BTCUSDC','qty':'0.02'}]}
+            if reuse in ('provider','both'): second['id']=broker['id']
+            fill={'id':'sell-fill' if reuse in ('fill','both') else 'sell-fill-2','activity_type':'FILL','order_id':second['id'],'symbol':'BTCUSDC','side':'sell',
+                  'qty':'0.01','price':'211','transaction_time':'2026-01-01T04:20:01Z'}
+            with patch.object(cli,'_context',return_value={}),patch.object(cli,'_run',side_effect=[[fill] if reuse else [activities['fills'][0],fill],[]]):
+                snapshot=cli.read_crypto_activity_evidence(credentials_path=Path('unused'),cli_path=Path('unused'),mode=mode,
+                    period_start=second['submitted_at'],period_end=after['clock']['observed_at'])
+            if reuse:
+                with self.assertRaises(ValueError): self.proof(root,closing,second,after,owner,snapshot,mode)
+                return
+            proof=self.proof(root,closing,second,after,owner,snapshot,mode)
+            self.assertEqual(proof['receipt']['remaining_owned_qty'],'0.02')
+            store.reconcile_started(root/'receipts.jsonl',lambda _:second,on_reconciled=lambda *_:proof)
+            self.assertEqual(store.unresolved_intent_count(root/'receipts.jsonl'),0)
+            (root/'live-owned-position.json').write_text(json.dumps(closing));native=native_run()
+            with patch.object(native,'find_order_by_client_id',return_value=second):
+                actual=native._sync_live_ownership(root,Path('unused'),Path('unused'),native._normalize_live_position_symbols(copy.deepcopy(after)))
+            self.assertEqual(actual['owned_qty'],'0.02');self.assertEqual(actual['entry_effect_id'],owned['entry_effect_id'])
+
+
     def test_two_partial_sell_legs_keep_the_same_parent_and_exact_remaining_qty(self):
         for mode in ('paper','live'):
-            with self.subTest(mode=mode),tempfile.TemporaryDirectory() as directory,patch.dict(os.environ,{
-                    'LIFE_MANAGER_INVESTMENT_MODE':mode,'LIFE_MANAGER_INVESTMENT_OWNER_ID':f'alpaca-investment-{mode}'}):
-                root=Path(directory);owned,broker,obs,owner,activities=remainder_fixture(root,mode)
-                first=self.proof(root,owned,broker,obs,owner,activities,mode)
-                store.reconcile_started(root/'receipts.jsonl',lambda _:broker,on_reconciled=lambda *_:first)
-                opened={**owned,'status':'open','owned_qty':'0.03'}
-                parent=position_manager.load_owned_policy(root,opened,mode=mode)
-                decision={'action':'EXIT','mode':mode,'owner_id':owner,'strategy_id':parent['card'].strategy_id,
-                    'release_sha':parent['release_sha'],'position_qty':'0.03','observed_at':'2026-01-01T04:20:00Z',
-                    **{k:parent[k] for k in ('entry_effect_id','entry_client_order_id','entry_provider_order_id','entry_price','entry_timestamp')}}
-                sealed=store.seal(root/'receipts.jsonl',decision,{'asset_class':'crypto','symbol':'BTC/USDC','side':'sell',
-                    'type':'market','time_in_force':'gtc','qty':'0.03'});store.mark_started(root/'receipts.jsonl',sealed)
-                closing={**opened,'status':'closing','close_effect_id':sealed['effect_id'],'close_client_order_id':sealed['client_order_id']}
-                second={**broker,'id':'next-exit','client_order_id':sealed['client_order_id'],'qty':'0.03',
-                        'filled_qty':'0.01','submitted_at':'2026-01-01T04:20:00Z'}
-                after={**obs,'clock':{'observed_at':'2026-01-01T04:20:02Z'},
-                       'positions':[obs['positions'][0],{'symbol':'BTCUSDC','qty':'0.02'}]}
-                fill={'id':'sell-fill-2','activity_type':'FILL','order_id':second['id'],'symbol':'BTCUSDC','side':'sell',
-                      'qty':'0.01','price':'211','transaction_time':'2026-01-01T04:20:01Z'}
-                with patch.object(cli,'_context',return_value={}),patch.object(cli,'_run',side_effect=[[fill],[]]):
-                    snapshot=cli.read_crypto_activity_evidence(credentials_path=Path('unused'),cli_path=Path('unused'),mode=mode,
-                        period_start=second['submitted_at'],period_end=after['clock']['observed_at'])
-                proof=self.proof(root,closing,second,after,owner,snapshot,mode)
-                self.assertEqual(proof['receipt']['remaining_owned_qty'],'0.02')
-                store.reconcile_started(root/'receipts.jsonl',lambda _:second,on_reconciled=lambda *_:proof)
-                self.assertEqual(store.unresolved_intent_count(root/'receipts.jsonl'),0)
-                (root/'live-owned-position.json').write_text(json.dumps(closing));native=native_run()
-                with patch.object(native,'find_order_by_client_id',return_value=second):
-                    actual=native._sync_live_ownership(root,Path('unused'),Path('unused'),native._normalize_live_position_symbols(copy.deepcopy(after)))
-                self.assertEqual(actual['owned_qty'],'0.02');self.assertEqual(actual['entry_effect_id'],owned['entry_effect_id'])
+            with self.subTest(mode=mode): self.two_partial_flow(mode)
+
+    def test_provider_and_target_fill_ids_cannot_be_reused_by_another_sell_leg(self):
+        for mode in ('paper','live'):
+            for reuse in ('provider','fill','both'):
+                with self.subTest(mode=mode,reuse=reuse): self.two_partial_flow(mode,reuse)
+
+    def test_sell_cannot_reuse_the_acquisition_provider_order(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);owned,broker,obs,owner,activities=remainder_fixture(root)
+            entry=proofs.entry_receipt_row(store._rows(root/'receipts.jsonl'),owned['entry_effect_id'])
+            broker['id']=entry['broker']['id'];activities['fills'][0]['order_id']=broker['id']
+            body={k:v for k,v in activities.items() if k!='source_receipt_id'}
+            activities['source_receipt_id']='alpaca-crypto-activities:'+proofs._digest([body])
+            with self.assertRaises(ValueError): self.proof(root,owned,broker,obs,owner,activities,'live')
 
     def test_positive_remainder_cannot_certify_closed_marker(self):
         with tempfile.TemporaryDirectory() as directory:
