@@ -54,6 +54,30 @@ class CostSourceHistoryTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError,'operating_cost_source_history_invalid'):
                     remember_source_evidence(damaged,missing,owner_id=trip['owner_id'],mode='paper')
 
+    def test_shared_execution_can_finish_after_billing_observation(self):
+        from paper_operating_costs import remember_source_evidence
+        for mode in ('paper','live'):
+            for paid in (False,True):
+                with self.subTest(mode=mode,paid=paid):
+                    payload,inventory,trip=setup(mode,orders=[],paid=paid)
+                    owner=trip['owner_id'];executor='investment-strategy-validation'
+                    ref=inventory['scopes'][0]['execution_refs'][0]
+                    ref.update(execution_owner_id=executor,occurrence_id=executor+':shared-run',
+                        finished_at='2026-10-01T00:00:00.500000Z')
+                    for source in inventory['scopes'][0]['required_sources']:source['execution_owner_ids']=[executor]
+                    inventory['input_reads'][executor]=inventory['input_reads'].pop(owner)
+                    inventory['input_reads'][executor]['runtime']['last_event_at']=inventory['observed_at']
+                    for join in payload['job_joins']:
+                        join['execution_refs']=[{k:ref[k] for k in ('execution_owner_id','run_id','occurrence_id')}]
+                        join['occurrence_ids']=[ref['occurrence_id']]
+                    result=summarize([trip],payload,owner_id=owner,mode=mode,
+                        observed_at=inventory['observed_at'],expected_inventory=inventory)
+                    self.assertEqual(result['operating_cost_coverage']['coverage_state'],'complete')
+                    recorded=remember_source_evidence([],result,owner_id=owner,mode=mode)
+                    self.assertEqual(len(recorded),1)
+                    self.assertEqual(recorded[0]['queries'][0]['execution_windows'][0]['execution_owner_id'],executor)
+                    self.assertFalse(recorded[0]['current_cost_authority'])
+
     def test_crypto_history_survives_regression_and_missing_input_without_restoring_zero(self):
         import crypto_performance as crypto
         import effect_store as store
