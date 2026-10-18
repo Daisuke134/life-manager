@@ -333,6 +333,60 @@ def _close_settled_fences(owner_id: str, intent_root: Path, runner=None) -> tupl
     return scan, closed
 
 
+def _close_closed_batch(owner_id: str, occurrence_id: str, runtime_run_id: str,
+                        request_ids: Sequence[str], intent_root: Path, *,
+                        runner=None, resolver=None) -> dict[str, object] | None:
+    """Close the exact occurrence when every bound, unconfirmed request's own official page,
+    read after its marker, is 募集終了/gone: no further application to it is possible.
+
+    Per-request pages instead of the full applied-history walk, which Coconala answers
+    with 403 after a few pages (hf-gig-apply-direct:18dea9ef6158f5b0-37135). None means
+    "not proven" and the caller falls back to the history walk.
+    """
+    try:
+        bound = reconciler._require_complete_request_set(
+            intent_root, occurrence_id=occurrence_id, runtime_run_id=runtime_run_id,
+            request_ids=list(request_ids))
+    except reconciler.ReconcileContractError:
+        return None
+    pending = sorted(str(value["request_id"]) for value in bound if value.get("state") != "confirmed")
+    if not pending:
+        return None
+    path = reconciler._default_evidence_dir(occurrence_id) / "request-closed-readback.json"
+    command = ["bash", str(WITH_BROWSER), BROWSER_IDENTITY, "--", sys.executable,
+               str(CLOSED_READBACK_SCRIPT), "--intent-root", str(intent_root), "--result", str(path)]
+    for request_id in pending:
+        command.extend(["--request-id", request_id])
+    if run_browser_reconcile(command, runner=runner) != 0:
+        return None
+    rows, closed = _closed_rows(path), _closed_ids(path)
+    urls = []
+    for request_id in pending:
+        row, url = rows.get(request_id) or {}, f"https://coconala.com/requests/{request_id}"
+        try:
+            after_marker = (datetime.fromisoformat(str(row.get("observed_at"))).timestamp()
+                            > (Path(intent_root) / f"{request_id}.json").stat().st_mtime)
+        except (OSError, ValueError, TypeError):
+            return None
+        if request_id not in closed or row.get("url") != url or row.get("final_url") != url or not after_marker:
+            return None
+        urls.append(url)
+    # The earlier click may still have applied, so the effect stays "unknown", never 0.
+    proof = {"owner_id": owner_id, "occurrence_id": occurrence_id, "runtime_run_id": runtime_run_id,
+             "request_ids": pending, "verified": True, "provider": "coconala",
+             "proof_type": resource_admission.REQUEST_CLOSED_PROOF_TYPE,
+             "effect": "unknown", "reason": "duplicate_impossible_request_closed",
+             "provider_receipt_id": ",".join(urls), "evidence_ref": str(path.resolve())}
+    closed_now = (resolver or resource_admission.resolve_request_closed_occurrence)(
+        owner_id, occurrence_id, closed_proof=lambda: proof, expected_state="claimed")
+    return {"status": "reconciled" if closed_now is True else "unresolved",
+            "reason": "duplicate_impossible_request_closed" if closed_now is True
+            else "occurrence_not_current_or_already_closed",
+            "retryable": False, "effect": "unknown", "readback": 1, "occurrence_id": occurrence_id,
+            "request_ids": pending, "provider_receipt_id": proof["provider_receipt_id"],
+            "evidence_ref": proof["evidence_ref"]}
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--owner-id", default=OWNER_ID)
@@ -409,6 +463,11 @@ def main(
         return 0
 
     occurrence_id, runtime_run_id, request_ids = target
+    closed_batch = _close_closed_batch(args.owner_id, occurrence_id, runtime_run_id,
+                                       request_ids, args.intent_root, runner=runner)
+    if closed_batch is not None:
+        _write_scan_result(_scan_result_path(args.result), closed_batch)
+        return 0
     command = build_browser_command(
         occurrence_id=occurrence_id,
         runtime_run_id=runtime_run_id,

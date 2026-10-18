@@ -385,3 +385,88 @@ def test_roster_counts_only_dated_applicant_rows_never_the_requester() -> None:
     # Two counted but one real applicant listed: the count no longer matches by accident.
     assert roster["applicant_ids"] == ["111"]
     assert roster["requester_ids"] == ["999"] and roster["expander_remaining"] is False
+
+
+# hf-gig-apply-direct:18dea9ef6158f5b0-37135 (2026-10-18): the full applied-history walk
+# hit 403 Forbidden on every wake, while each bound request's own official page read
+# 募集終了. A closed request can take no further application, so the exact occurrence
+# closes from those per-request readbacks without walking the history.
+def _closed_batch_setup(tmp_path, monkeypatch, rows):
+    wrapper = _load_wrapper()
+    intents = tmp_path / "intents"
+    intents.mkdir()
+    bound = []
+    for rid, state in (("5323286", "confirmed"), ("5329025", "prepared"), ("5329137", "prepared")):
+        (intents / f"{rid}.json").write_text("{}")
+        bound.append({"request_id": rid, "state": state})
+    monkeypatch.setattr(wrapper.reconciler, "_require_complete_request_set",
+                        lambda root, **kw: bound)
+    evidence = tmp_path / "evidence"
+    monkeypatch.setattr(wrapper.reconciler, "_default_evidence_dir", lambda occ: evidence)
+    calls = []
+
+    class Completed:
+        returncode = 0
+
+    def fake_run(argv, **kwargs):
+        calls.append(argv)
+        result = Path(argv[argv.index("--result") + 1])
+        result.parent.mkdir(parents=True, exist_ok=True)
+        result.write_text(json.dumps({"source": "code_owned_cdp_readback", "requests": rows}))
+        return Completed()
+
+    resolved = []
+
+    def resolver(owner_id, occurrence_id, *, closed_proof, expected_state):
+        resolved.append((owner_id, occurrence_id, closed_proof(), expected_state))
+        return True
+
+    return wrapper, intents, calls, fake_run, resolver, resolved
+
+
+def _closed_row(rid, closed=True):
+    url = f"https://coconala.com/requests/{rid}"
+    return {"closed": closed, "gone": False, "http_status": 200, "url": url, "final_url": url,
+            "observed_at": "2099-01-01T00:00:00+00:00"}
+
+
+def test_closed_bound_requests_close_the_exact_occurrence(tmp_path, monkeypatch) -> None:
+    rows = {rid: _closed_row(rid) for rid in ("5329025", "5329137")}
+    wrapper, intents, calls, fake_run, resolver, resolved = _closed_batch_setup(tmp_path, monkeypatch, rows)
+    result = wrapper._close_closed_batch(
+        "hf-gig-apply-direct", "occ-1", "run-1", ["5323286", "5329025", "5329137"], intents,
+        runner=fake_run, resolver=resolver)
+    assert result["status"] == "reconciled"
+    # The earlier click may have applied: never record the effect as 0.
+    assert (result["effect"], result["reason"]) == ("unknown", "duplicate_impossible_request_closed")
+    assert len(calls) == 1 and calls[0][2] == "coconala:kosuke"
+    assert calls[0][calls[0].index("--request-id") + 1] == "5329025"
+    assert calls[0].count("--request-id") == 2           # confirmed 5323286 is not re-read
+    owner, occurrence, proof, expected = resolved[0]
+    assert (owner, occurrence, expected) == ("hf-gig-apply-direct", "occ-1", "claimed")
+    assert proof["verified"] is True and proof["runtime_run_id"] == "run-1"
+    assert proof["proof_type"] == "provider_request_closed_exact_batch.v1"
+    assert proof["request_ids"] == ["5329025", "5329137"]
+    assert (proof["effect"], proof["reason"]) == ("unknown", "duplicate_impossible_request_closed")
+
+
+def test_closed_batch_uses_the_dedicated_admission_resolver() -> None:
+    wrapper = _load_wrapper()
+    import inspect
+    source = inspect.getsource(wrapper._close_closed_batch)
+    assert "resolve_request_closed_occurrence" in source
+    assert "resolve_unknown_occurrence" not in source
+
+
+def test_one_open_or_redirected_request_keeps_the_fence(tmp_path, monkeypatch) -> None:
+    for index, bad in enumerate((_closed_row("5329137", closed=False),
+                                 {**_closed_row("5329137"), "final_url": "https://coconala.com/login"},
+                                 {**_closed_row("5329137"), "observed_at": "2000-01-01T00:00:00+00:00"})):
+        rows = {"5329025": _closed_row("5329025"), "5329137": bad}
+        case = tmp_path / f"case-{index}"
+        case.mkdir()
+        wrapper, intents, _calls, fake_run, resolver, resolved = _closed_batch_setup(case, monkeypatch, rows)
+        assert wrapper._close_closed_batch(
+            "hf-gig-apply-direct", "occ-1", "run-1", ["5323286", "5329025", "5329137"], intents,
+            runner=fake_run, resolver=resolver) is None
+        assert resolved == []

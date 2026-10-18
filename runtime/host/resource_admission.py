@@ -1922,6 +1922,7 @@ def resolve_unknown_occurrence(owner_id: str, occurrence_id: str, *,
         raise RuntimeError("invalid occurrence identity")
     proof = official_readback()
     if (not isinstance(proof, Mapping)
+            or proof.get("proof_type") == REQUEST_CLOSED_PROOF_TYPE
             or proof.get("owner_id") != owner_id
             or proof.get("occurrence_id") != occurrence_id
             or proof.get("verified") is not True
@@ -2066,6 +2067,52 @@ def resolve_settled_write_ahead_occurrence(
                 and proof["scanned_intents"] > 0
                 and isinstance(proof.get("evidence_ref"), str)
                 and bool(proof["evidence_ref"].strip()))
+
+    return _close_unknown_occurrence(
+        owner_id, occurrence_id, expected_state, proof_check=proof_check
+    )
+
+
+REQUEST_CLOSED_PROOF_TYPE = "provider_request_closed_exact_batch.v1"
+_REQUEST_CLOSED_PROVIDER_URLS = {"coconala": "https://coconala.com/requests/{}"}
+
+
+def resolve_request_closed_occurrence(
+        owner_id: str, occurrence_id: str, *,
+        closed_proof: Callable[[], Mapping[str, object]],
+        expected_state: str = "claimed") -> bool:
+    """Close an unknown application occurrence whose bound requests are officially closed.
+
+    Neither an effect receipt nor a no-dispatch proof: the earlier attempt may or may not
+    have applied (``effect`` stays ``"unknown"``), but every request the occurrence bound
+    reads 募集終了/gone on its own official page, so a duplicate application is impossible.
+    The receipt must list exactly the official URL of every bound request.
+    """
+    if (not owner_id or not _normalize_occurrence_id(occurrence_id)
+            or expected_state not in {"claimed", "released"}):
+        raise RuntimeError("invalid occurrence identity")
+
+    def proof_check() -> bool:
+        proof = closed_proof()
+        if not (isinstance(proof, Mapping)
+                and proof.get("owner_id") == owner_id
+                and proof.get("occurrence_id") == occurrence_id
+                and proof.get("verified") is True
+                and proof.get("proof_type") == REQUEST_CLOSED_PROOF_TYPE
+                and proof.get("effect") == "unknown"
+                and proof.get("reason") == "duplicate_impossible_request_closed"
+                and isinstance(proof.get("runtime_run_id"), str)
+                and bool(proof["runtime_run_id"].strip())
+                and isinstance(proof.get("evidence_ref"), str)
+                and bool(proof["evidence_ref"].strip())):
+            return False
+        url = _REQUEST_CLOSED_PROVIDER_URLS.get(proof.get("provider"))
+        ids = proof.get("request_ids")
+        if (url is None or not isinstance(ids, list) or not ids
+                or len(set(map(str, ids))) != len(ids)
+                or not all(isinstance(value, str) and value.isdigit() for value in ids)):
+            return False
+        return proof.get("provider_receipt_id") == ",".join(url.format(value) for value in ids)
 
     return _close_unknown_occurrence(
         owner_id, occurrence_id, expected_state, proof_check=proof_check
