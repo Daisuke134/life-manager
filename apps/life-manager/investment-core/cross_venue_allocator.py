@@ -31,7 +31,8 @@ def _invalid_candidate(venue: Any, reason: str) -> dict[str, Any]:
 
 
 def build_candidates(snapshots: Iterable[Any], aggregate: dict[str, Any], caps: dict[str, Any]) -> list[dict[str, Any]]:
-    if not isinstance(aggregate, dict) or aggregate.get("measurement_status") != "measured":
+    if (not isinstance(aggregate, dict) or aggregate.get("measurement_status") != "measured"
+            or live_mode_reasons(aggregate)):
         return []
     try:
         rows = list(snapshots)
