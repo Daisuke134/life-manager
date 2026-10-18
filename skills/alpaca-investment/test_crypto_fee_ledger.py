@@ -186,3 +186,23 @@ class CryptoFeeLedgerTests(unittest.TestCase):
                 self.assertEqual(self.state(root,owned,mode)['owned_qty'],'0')
                 self.assertFalse(self.record(root,owned,frame,account,mode))
                 self.assertEqual((root/'receipts.jsonl').read_bytes(),before)
+
+    def test_a_stale_marker_must_adopt_the_saved_quantity_before_another_fee_is_appended(self):
+        for mode in ('paper','live'):
+            with self.subTest(mode=mode),tempfile.TemporaryDirectory() as directory:
+                root=Path(directory);_,owned,frame,account=debit_fixture(root,mode)
+                self.assertTrue(self.record(root,owned,frame,account,mode))
+                later=activity_fixture(frame,mode=mode,start=frame['requested_period_start'],
+                    end='2026-01-03T04:00:00Z',fees=frame['fees']+[{**frame['fees'][0],
+                        'id':'later-fee','qty':'-0.000025','created_at':'2026-01-03T00:00:03Z'}])
+                current={**account,'clock':{'observed_at':'2026-01-03T04:00:00Z'},
+                    'positions':[{'symbol':'BTCUSDC','qty':'0.0499'}]}
+                before=(root/'receipts.jsonl').read_bytes()
+                with self.assertRaisesRegex(proofs.ReconciliationPending,'owned_fee_marker_pending'):
+                    self.record(root,owned,later,current,mode)
+                self.assertEqual((root/'receipts.jsonl').read_bytes(),before)
+                owned['owned_qty']='0.049925'
+                self.assertTrue(self.record(root,owned,later,current,mode))
+                stable=(root/'receipts.jsonl').read_bytes()
+                self.assertFalse(self.record(root,owned,later,current,mode))
+                self.assertEqual((root/'receipts.jsonl').read_bytes(),stable)
