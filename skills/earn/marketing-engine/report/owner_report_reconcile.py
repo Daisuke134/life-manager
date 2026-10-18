@@ -11,8 +11,10 @@ read completely in every Life Manager bot dialog:
 * complete windows with no same-kind message carrying the event's post URL and none
   lacking a link (an older renderer printed no URL) -> ``not_delivered_confirmed``;
   the normal sweep re-sends;
-* a complete but ambiguous readback of a checkpoint claimed over 7 days ago ->
-  ``expired_unknown`` (never re-sent: a late checkpoint has no value);
+* a complete but ambiguous readback of a checkpoint or incident claimed over 7 days ago ->
+  ``expired_unknown`` (never re-sent: a late checkpoint or health warning has no value);
+* an incident text names no post, day or platform, so every same-kind message is
+  ambiguous: incidents close only by complete absence or by that expiry;
 * anything else stays open.
 """
 
@@ -44,7 +46,8 @@ CREDENTIALS_FILE = pathlib.Path.home() / ".local/share/anicca/credentials.json"
 # Owner reports were sent by the env/local bot before 2026-10-08, the cloud bot until
 # 2026-10-15 and the local bot since; both credentials name every bot that ever sent them.
 BOT_SERVICES = ("telegram-life-manager", "telegram-cloud-life-manager")
-KIND_MARKERS = {"action": "📣", "checkpoint": "📊"}
+KIND_MARKERS = {"action": "📣", "checkpoint": "📊", "incident": "⚠️"}
+EXPIRING_KINDS = {"checkpoint", "incident"}
 OPEN_STATUSES = {"delivery_unknown", "sending"}
 
 
@@ -73,13 +76,15 @@ def _attempt_window(rows: list[dict], message_key: str, now: dt.datetime) -> tup
     return claimed, start, end
 
 
-def _identity(store: owner_report.OwnerReportStore, message_key: str) -> tuple[dict, str, str, str | None]:
+def _identity(store: owner_report.OwnerReportStore, message_key: str) -> tuple[dict, str | None, str, str | None]:
     events = [row for row in store._reports() if row.get("message_key") == message_key]
     if len(events) != 1:
         raise ReconcileUnknown("owner_report_event_missing")
     event = events[0]
     url = (event.get("facts") or {}).get("native_url")
     marker = KIND_MARKERS.get(event.get("kind"))
+    if event.get("kind") == "incident":
+        return event, None, marker, None  # its text carries no identity to match
     if marker is None or not isinstance(url, str) or not url.startswith("https://"):
         raise ReconcileUnknown("event_identity_unavailable")
     rendered = owner_report.render_japanese(event).strip()
@@ -120,9 +125,9 @@ def _reconcile_key(
                 continue  # another report kind, even when it shows the same post URL
             if rendered is not None and text.strip() == rendered:
                 exact.append((bot_id, message))
-            elif url in text.split():
+            elif url is not None and url in text.split():
                 same_url += 1  # same post, other checkpoint age or another renderer version
-            elif "https://" not in text:
+            elif url is None or "https://" not in text:
                 linkless += 1
     observed_at = _iso(now)
     readback = {
@@ -153,7 +158,7 @@ def _reconcile_key(
         else None
     )
     if ambiguity is not None:
-        if event["kind"] != "checkpoint" or now - claimed < EXPIRY_AGE:
+        if event["kind"] not in EXPIRING_KINDS or now - claimed < EXPIRY_AGE:
             raise ReconcileUnknown(ambiguity)
         readback.update({
             "matched_by": "complete_window_ambiguous",
@@ -161,7 +166,7 @@ def _reconcile_key(
             "ambiguity": ambiguity,
             "claim_age_seconds": int((now - claimed).total_seconds()),
         })
-        store.expire_unknown(message_key, "stale_checkpoint_identity_unprovable", readback)
+        store.expire_unknown(message_key, f"stale_{event['kind']}_identity_unprovable", readback)
         return {"message_key": message_key, "status": "expired_unknown"}
     readback.update({"matched_by": "complete_window_absence", "complete": True})
     store.confirm_not_delivered(message_key, readback)
