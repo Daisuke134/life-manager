@@ -7,7 +7,26 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
-from strategy_policy import ACTION_EXIT, ACTION_HOLD, evaluate, load_selected_card
+from strategy_policy import ACTION_EXIT, ACTION_HOLD, evaluate, validate_policy_card
+from effect_store import owned_entry_decision
+from etf_ownership import investment_owner_id
+from risk_policy import parse_instant
+
+
+def load_owned_policy(state: Path, ownership: dict[str, Any], *, mode: str) -> dict[str, Any]:
+    proof = owned_entry_decision(state / "receipts.jsonl", ownership,
+                                 owner_id=investment_owner_id(), mode=mode)
+    decision, broker = proof["decision"], proof["broker"]
+    card, release_sha = validate_policy_card(decision["policy_card"], decision.get("release_sha"),
+                                             strategy_id=decision.get("strategy_id"))
+    try:
+        filled_at = broker["filled_at"]
+        if parse_instant(filled_at) < parse_instant(broker["submitted_at"]):
+            raise ValueError
+    except (KeyError, TypeError, ValueError) as error:
+        raise ValueError("owned_entry_fill_time_invalid") from error
+    return {"card": card, "release_sha": release_sha, "entry_price": broker["filled_avg_price"],
+            "entry_timestamp": filled_at, "owned_qty": proof["owned_qty"]}
 
 
 def choose(snapshot: dict[str, Any], observation: dict[str, Any], state: Path,
@@ -35,7 +54,12 @@ def choose(snapshot: dict[str, Any], observation: dict[str, Any], state: Path,
     except (InvalidOperation, KeyError, TypeError, ValueError) as error:
         raise ValueError("live_position_gate_rejected") from error
     try:
-        card, release_sha = load_selected_card(state)
+        policy = load_owned_policy(state, ownership, mode=snapshot.get("mode"))
+        card, release_sha = policy["card"], policy["release_sha"]
+        if qty != Decimal(policy["owned_qty"]):
+            raise ValueError("owned_position_quantity_mismatch")
+        if parse_instant(policy["entry_timestamp"]) > parse_instant(snapshot["clock"]["timestamp"]):
+            raise ValueError("owned_entry_fill_time_invalid")
     except ValueError as error:
         return {"action": ACTION_HOLD, "policy_action": "NO_TRADE", "strategy_id": None,
                 "signal_inputs": {}, "reason": str(error), "expected_cost_usd": None,
@@ -43,10 +67,8 @@ def choose(snapshot: dict[str, Any], observation: dict[str, Any], state: Path,
     policy_snapshot = dict(snapshot)
     policy_snapshot["positions"] = 1
     policy_position = dict(positions[0])
-    if "entry_price" not in policy_position and "avg_entry_price" in policy_position:
-        policy_position["entry_price"] = policy_position["avg_entry_price"]
-    if "entry_timestamp" not in policy_position and ownership.get("entry_timestamp"):
-        policy_position["entry_timestamp"] = ownership["entry_timestamp"]
+    policy_position["entry_price"] = policy["entry_price"]
+    policy_position["entry_timestamp"] = policy["entry_timestamp"]
     policy_snapshot["position"] = policy_position
     decision = evaluate(policy_snapshot, card)
     action = ACTION_EXIT if decision["action"] == ACTION_EXIT else ACTION_HOLD

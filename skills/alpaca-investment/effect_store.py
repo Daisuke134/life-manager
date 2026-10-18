@@ -6,6 +6,7 @@ import fcntl
 import hashlib
 import json
 import os
+import re
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -86,6 +87,64 @@ def seal(ledger: Path, decision: dict[str, Any], order: dict[str, Any]) -> dict[
     }, ("receipt_type", "effect_id", "status"))
     return {"client_order_id": client_order_id, "decision_id": decision_id,
             "effect_id": effect_id, "mode": mode}
+
+
+def owned_entry_decision(ledger: Path, ownership: dict[str, Any], *, owner_id: str, mode: str) -> dict[str, Any]:
+    """Read the sealed policy and official filled buy for one owned entry."""
+    if (not isinstance(mode, str) or mode not in {"paper", "live"}
+            or owner_id != f"alpaca-investment-{mode}" or not isinstance(ownership, dict)):
+        raise ValueError("owned_entry_identity_invalid")
+    effect_id, client = ownership.get("entry_effect_id"), ownership.get("entry_client_order_id")
+    if (not isinstance(effect_id, str) or re.fullmatch(r"[0-9a-f]{64}", effect_id) is None
+            or client != f"lm-ai-{effect_id[:24]}" or ledger.is_symlink()):
+        raise ValueError("owned_entry_identity_invalid")
+    rows = _rows(ledger)
+    intents = [row for row in rows if row.get("receipt_type") == "effect_intent"
+               and row.get("status") == "planned" and row.get("effect_id") == effect_id]
+    if len(intents) != 1:
+        raise ValueError("owned_entry_intent_missing" if not intents else "owned_entry_intent_conflict")
+    intent = intents[0]
+    if (intent.get("client_order_id") != client or intent.get("mode") != mode
+            or intent.get("owner_id") != owner_id):
+        raise ValueError("owned_entry_identity_invalid")
+    decisions = [row for row in rows if row.get("receipt_type") == "decision"
+                 and row.get("decision_id") == intent.get("decision_id")]
+    if len(decisions) != 1 or not isinstance(decisions[0].get("decision"), dict):
+        raise ValueError("owned_entry_policy_missing")
+    decision, order = decisions[0]["decision"], intent.get("order")
+    if (decisions[0].get("mode") != mode or decision.get("mode") != mode
+            or decision.get("owner_id") != owner_id or decision.get("action") != "ENTER"
+            or decision.get("strategy_id") != intent.get("strategy_id")
+            or not isinstance(decision.get("policy_card"), dict) or not isinstance(order, dict)
+            or order.get("asset_class") != "crypto" or order.get("symbol") != "BTC/USDC"
+            or order.get("side") != "buy"):
+        raise ValueError("owned_entry_policy_missing")
+    if (intent.get("decision_id") != _digest({"mode": mode, "decision": decision})
+            or effect_id != _digest({"decision_id": intent["decision_id"], "order": order})):
+        raise ValueError("owned_entry_digest_mismatch")
+    outcomes = [row for row in rows if row.get("receipt_type") == "outcome"
+                and row.get("effect_id") == effect_id]
+    if not outcomes:
+        raise ValueError("owned_entry_fill_missing")
+    outcome = outcomes[-1]
+    broker = outcome.get("broker")
+    if (outcome.get("outcome") != "broker_reconciled" or outcome.get("mode") != mode
+            or outcome.get("client_order_id") != client or not isinstance(broker, dict)
+            or broker.get("status") != "filled" or broker.get("side") != "buy"
+            or broker.get("symbol") not in {"BTC/USDC", "BTCUSDC"}
+            or broker.get("client_order_id") != client or not isinstance(broker.get("id"), str)
+            or not broker["id"] or outcome.get("broker_receipt_id") != broker["id"]):
+        raise ValueError("owned_entry_fill_invalid")
+    try:
+        filled, marker_filled, owned, price = [Decimal(str(value)) for value in (
+            broker.get("filled_qty"), ownership.get("entry_filled_qty"),
+            ownership.get("owned_qty"), broker.get("filled_avg_price"))]
+        if (any(not number.is_finite() or number <= 0 for number in (filled, marker_filled, owned, price))
+                or filled != marker_filled or owned > filled):
+            raise ValueError
+    except (InvalidOperation, ValueError, TypeError) as error:
+        raise ValueError("owned_entry_fill_invalid") from error
+    return {"decision": decision, "broker": broker, "owned_qty": str(owned)}
 
 
 def record_no_trade(ledger: Path, decision: dict[str, Any]) -> str:

@@ -562,8 +562,12 @@ def load_selected_card(state: Path) -> tuple[StrategyCard, str]:
         raise ValueError("strategy_release_expiry_invalid") from error
     if expires.tzinfo is None or expires <= datetime.now(timezone.utc):
         raise ValueError("strategy_release_expired")
-    release_sha = payload.get("release_sha")
-    card_payload = payload.get("card")
+    return validate_policy_card(payload.get("card"), payload.get("release_sha"),
+                                strategy_id=payload.get("strategy_id"))
+
+
+def validate_policy_card(card_payload: Any, release_sha: Any, *, strategy_id: Any = None) -> tuple[StrategyCard, str]:
+    """Verify a pinned immutable policy independently of entry-report expiry."""
     if not isinstance(release_sha, str) or not _RELEASE_SHA.fullmatch(release_sha):
         raise ValueError("strategy_release_invalid")
     if not isinstance(card_payload, Mapping):
@@ -579,7 +583,7 @@ def load_selected_card(state: Path) -> tuple[StrategyCard, str]:
     selected_mapping["status"] = canonical_mapping["status"]
     if selected_mapping != canonical_mapping:
         raise ValueError("strategy_release_stale")
-    expected = payload.get("strategy_id")
+    expected = strategy_id
     if expected is not None and expected != card.strategy_id:
         raise ValueError("strategy_release_invalid")
     return card, release_sha
