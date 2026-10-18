@@ -204,6 +204,39 @@ class CryptoPerformanceTests(unittest.TestCase):
             self.assertIsNone(result['completed_round_trips'])
             self.assertEqual(result['reason'],'crypto_performance_time_invalid')
 
+    def test_partial_history_loss_stays_unknown_across_retries(self):
+        self.assertIsNotNone(PERF)
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);orders,activity,_=cycle_fixture(root)
+            obs={'mode':'paper','paper':True,'clock':{'observed_at':NOW}}
+            with patch.object(PERF,'_read_activity',return_value=activity):
+                PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper')
+            count=len(store._rows(root/'receipts.jsonl'))
+            more,next_activity,_=cycle_fixture(root,index=1)
+            with patch.object(PERF,'_read_activity',return_value=next_activity):
+                self.assertEqual(PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper')['completed_round_trips'],2)
+            rows=store._rows(root/'receipts.jsonl');(root/'receipts.jsonl').write_text(''.join(json.dumps(r)+'\n' for r in rows[count:]))
+            for _ in range(2):
+                with patch.object(PERF,'_read_activity',side_effect=AssertionError('history loss must be diagnosed first')):
+                    result=PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper')
+                self.assertIsNone(result['completed_round_trips'])
+                self.assertEqual(result['reason'],'crypto_performance_history_missing')
+            daily=json.loads((root/'performance-crypto-daily-2026-01-01.json').read_text())
+            self.assertEqual(daily['completed_round_trips'],2)
+
+    def test_no_fill_provider_cannot_be_reused_for_a_filled_entry(self):
+        from test_closed_audit import no_fill_fixture
+        with tempfile.TemporaryDirectory() as directory,patch.dict(os.environ,{'LIFE_MANAGER_INVESTMENT_OWNER_ID':'alpaca-investment-paper'}):
+            root=Path(directory);owned,broker,account,owner=no_fill_fixture(root,'paper')
+            rows=store._rows(root/'receipts.jsonl')
+            for row in rows:
+                if row.get('broker_receipt_id')==broker['id']: row['broker_receipt_id']='buy-1'
+                if isinstance(row.get('broker'),dict) and row['broker'].get('id')==broker['id']: row['broker']['id']='buy-1'
+            broker['id']='buy-1';(root/'receipts.jsonl').write_text(''.join(json.dumps(r)+'\n' for r in rows))
+            store.record_no_fill_account_receipt(root/'receipts.jsonl',owned,broker,account,mode='paper',owner_id=owner)
+            orders,activity,_=cycle_fixture(root,index=1)
+            with self.assertRaises(ValueError): self.project(store._rows(root/'receipts.jsonl'),activities={o['id']:activity for o in orders})
+
     def test_legacy_etf_only_state_is_not_overwritten(self):
         self.assertIsNotNone(PERF,'crypto performance writer is required')
         with tempfile.TemporaryDirectory() as directory:
