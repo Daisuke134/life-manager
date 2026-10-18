@@ -387,8 +387,16 @@ activity reads. Explicit fee exhaustion has a separate proven flat marker/guard;
 no SELL is invented. The fresh submit check discovers no new fees: a changed
 quantity rejects that decision and is handled on the next natural wake. Missing
 BTC without fee evidence retains the existing pending/no-trade behavior.
-Fee posting while a SELL is still reconciling, and performance consumption of the
-same adjusted quantity chain, remain subsequent work in the canonical SSOT.
+Terminal partial/zero SELL reconciliation now reads from the original BUY and
+uses the same native fee proof against the raw account. Additional debit evidence
+is saved inside that SELL receipt, with sold and debited quantities kept separate.
+Historical receipt checks use the saved account; current flatness is checked
+separately so a later clock never rewrites a closed fee proof.
+Performance now derives each pre-sell and final quantity from this same chain.
+Fee-only closures count as closed ownership cycles, but never as completed round
+trips without a positive SELL. Post-acquisition quantity adjustments are explicit;
+native execution cashflow uses actual FILL notionals without subtracting BTC fees
+twice. USD net/cost completeness and capital expansion remain unproved.
 This branch is source only: verified fee quantity-drift recovery, FX and complete
 actual costs, deployment, natural outcomes and profitable evaluation remain in
 the canonical SSOT.
