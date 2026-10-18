@@ -25,6 +25,7 @@ from etf_ownership import read_state as read_etf_state
 from etf_ownership import record_closed as record_etf_closed
 from etf_ownership import record_filled as record_etf_filled
 from paper_performance import write_paper_performance
+from cost_inventory import record_source_inventory
 from reporter import deliver, deliver_control, deliver_failure
 from position_manager import choose as choose_position, exit_order as live_exit_order
 from review_status import read_receipt as read_application_status
@@ -363,6 +364,12 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                 "receipt": result["receipt"],
             }
 
+        if mode == "paper":
+            stage = "cost_inventory_capture"
+            record_source_inventory(state / "receipts.jsonl",
+                release_root=Path(os.environ.get("LIFE_MANAGER_RELEASE_ROOT", str(Path(__file__).resolve().parents[2]))),
+                owner_id=investment_owner_id(), run_id=os.environ.get("LIFE_MANAGER_RUN_ID"),
+                occurrence_id=os.environ.get("LIFE_MANAGER_OCCURRENCE_ID"))
         stage = "reconcile_started"
         reconciliation = reconcile_started(
             state / "receipts.jsonl",

@@ -103,6 +103,7 @@
     },
     {
       "id": "investment",
+      "cost_source_inventory": {"schema_version":1,"status":"unverified","sources":[]},
       "job_ids": ["alpaca-investment-paper", "alpaca-investment-live", "investment-cross-venue-report", "investment-strategy-validation"],
       "name": "Investment",
       "description": "Run risk-gated Alpaca paper, shadow, or live passes and reconcile every order.",

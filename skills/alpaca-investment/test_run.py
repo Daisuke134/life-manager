@@ -773,6 +773,7 @@ class PortablePassTest(unittest.TestCase):
                 environment = {
                     "LIFE_MANAGER_INVESTMENT_DEPLOYMENT": "local",
                     "LIFE_MANAGER_RELEASE_ROOT": str(release),
+                    "LIFE_MANAGER_INVESTMENT_OWNER_ID": "alpaca-investment-paper" if mode == "paper" else "alpaca-investment-live",
                     "LIFE_MANAGER_INVESTMENT_MODE": mode,
                     f"ALPACA_INVESTMENT_{mode.upper()}_STATE_DIR": str(state),
                     f"ALPACA_INVESTMENT_{mode.upper()}_CREDENTIALS_FILE": str(Path(directory) / "credentials"),
