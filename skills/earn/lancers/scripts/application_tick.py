@@ -1716,6 +1716,25 @@ def state_has_claim(state_path: Path, project_id: str) -> bool:
     return _application_marker(project_id) in fingerprints
 
 
+# Set once any proposal send in this process returned or failed after possibly reaching Lancers.
+_PROVIDER_SEND_STARTED = False
+
+
+def _restore_pre_effect_hint(path: Path) -> None:
+    """Atomically rewrite lm_loop_run's exact private pre-effect marker (mode 0600)."""
+    fd, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    try:
+        os.fchmod(fd, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write('{"status":"pre_effect_failure","effect":0}\n')
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    except OSError:
+        # No marker means the host keeps the occurrence fenced: the fail-closed side.
+        Path(temporary).unlink(missing_ok=True)
+
+
 def run_live_tick(
     *, project_id: str, proposal_text: str, proposed_amount_minor: int, delivery_due_on: str,
     title: Optional[str] = None,
@@ -1814,10 +1833,25 @@ def run_live_tick(
                 # The proposal send is the first provider mutation. Drop lm_loop_run's pre-spawn
                 # pre_effect hint first, as crowdworks application_owner does, so a failed send
                 # stays fenced as effect_unknown instead of being released as effect 0.
+                global _PROVIDER_SEND_STARTED
                 hint = os.environ.get("LIFE_MANAGER_RESULT_HINT_PATH", "").strip()
-                if hint:
-                    Path(hint).expanduser().resolve().unlink(missing_ok=True)
-                return send(*args)
+                hint_path = Path(hint).expanduser().resolve() if hint else None
+                if hint_path is not None:
+                    hint_path.unlink(missing_ok=True)
+                try:
+                    value = send(*args)
+                except SubmissionNotStarted:
+                    # Validated as never sent (run_transaction drops the claim). This lane's
+                    # effect_reconcile releases only the exact pre-effect marker, so restore it
+                    # unless an earlier send in this process may already have reached Lancers.
+                    if hint_path is not None and not _PROVIDER_SEND_STARTED:
+                        _restore_pre_effect_hint(hint_path)
+                    raise
+                except BaseException:
+                    _PROVIDER_SEND_STARTED = True
+                    raise
+                _PROVIDER_SEND_STARTED = True
+                return value
 
             def readback(proposal: Optional[str], project: str) -> Mapping[str, object]:
                 browser_value = readback_override(proposal, project) if readback_override is not None else (pending_readback or _production_readback(page, proposal, project, proposal_reader))

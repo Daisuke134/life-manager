@@ -85,3 +85,26 @@ def test_storefront_owner_clears_host_pre_effect_hint_before_provider_step(tmp_p
         "effect": 0,
     }
     assert stat.S_IMODE(hint.stat().st_mode) == 0o600
+
+
+def test_storefront_owner_keeps_host_hint_for_account_lock_busy(tmp_path: Path) -> None:
+    busy, hint = _run_owner(
+        tmp_path / "busy",
+        {"ok": False, "logged_in": False, "error": "account_lock_busy"},
+        host_hint=True,
+    )
+    assert busy.returncode == 1
+    assert json.loads(hint.read_text(encoding="utf-8")) == {"status": "pre_effect_failure", "effect": 0}
+    assert stat.S_IMODE(hint.stat().st_mode) == 0o600
+
+
+def test_storefront_owner_keeps_host_hint_for_any_pre_login_failure(tmp_path: Path) -> None:
+    # storefront_offer reaches a provider mutation only after logged_in=True.
+    failed, hint = _run_owner(
+        tmp_path / "pre-login",
+        {"ok": False, "logged_in": False, "error": "offer_unavailable"},
+        host_hint=True,
+    )
+    assert failed.returncode == 1
+    assert json.loads(hint.read_text(encoding="utf-8")) == {"status": "pre_effect_failure", "effect": 0}
+    assert stat.S_IMODE(hint.stat().st_mode) == 0o600

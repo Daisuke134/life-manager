@@ -26,15 +26,16 @@ STATUS=$?
 set -e
 printf '%s\n' "$OUTPUT"
 
-# These two errors happen before the storefront code can reach a provider mutation.  Preserve a
-# durable hint only for that exact boundary; form/readback/submission errors remain fenced.
+# storefront_offer reaches a provider mutation only after logged_in=True, so a failure that still
+# reports logged_in=false (account_unavailable, account_lock_busy, browser startup) is pre-effect.
+# Restore the durable hint only for that boundary; anything after login remains fenced.
 if [[ "$STATUS" -ne 0 && -n "${LIFE_MANAGER_RESULT_HINT_PATH:-}" ]] \
   && printf '%s' "$OUTPUT" | /usr/bin/python3 -c 'import json,sys
 try:
     value=json.load(sys.stdin)
 except Exception:
     raise SystemExit(1)
-raise SystemExit(0 if isinstance(value,dict) and value.get("ok") is False and value.get("error") in {"account_unavailable","account_lock_busy"} else 1)' ; then
+raise SystemExit(0 if isinstance(value,dict) and value.get("ok") is False and value.get("logged_in") is False else 1)' ; then
   hint="$LIFE_MANAGER_RESULT_HINT_PATH"
   temporary="$hint.tmp.$$"
   (umask 077; printf '%s\n' '{"status":"pre_effect_failure","effect":0}' > "$temporary")

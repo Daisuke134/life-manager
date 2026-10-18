@@ -2633,6 +2633,51 @@ def test_main_apply_invokes_catalog_create_only_when_run_left_nothing_to_do(monk
     assert len(calls) == 1
 
 
+@pytest.mark.parametrize("catalog, uncertain", [
+    ({"ok": False, "logged_in": True, "error": "publication_uncertain: readback failed"}, True),
+    ({"ok": False, "logged_in": True, "error": "listing_id_missing"}, True),
+    ({"ok": False, "logged_in": True, "error": "offer_unavailable"}, True),
+    ({"ok": False, "logged_in": False, "error": "account_unavailable"}, False),
+    ({"action": "all_published", "skipped": []}, False),
+])
+def test_main_apply_fails_closed_when_catalog_create_may_have_created(monkeypatch, catalog, uncertain):
+    """A create attempted after login that did not persist its listing id is an unknown effect.
+
+    Leaving the wake ok=True exits 0, so the host never fences it and the next wake creates the
+    same family again; it must exit non-zero without any pre-effect claim instead.
+    """
+    module = _module()
+    monkeypatch.setattr(module, "run", lambda apply, product_path, state_path: {"ok": True, "logged_in": True, "action": "unchanged"})
+    monkeypatch.setattr(module, "run_catalog_create", lambda state_path: dict(catalog))
+    reported = []
+
+    class _Delivery:
+        attempted = 0
+        delivered = 0
+        delivery_uncertain = False
+        pre_send_failed = False
+        provider_rejected = 0
+
+    class _Reporter:
+        @staticmethod
+        def notify_storefront_wake(result):
+            reported.append(dict(result))
+            return _Delivery()
+
+    monkeypatch.setattr(module, "_load", lambda *_a, **_k: _Reporter())
+
+    exit_code = module.main(["--apply"])
+
+    if uncertain:
+        assert exit_code == 1
+        assert reported[0]["ok"] is False
+        assert reported[0]["error"] == "catalog_creation_uncertain"
+        assert reported[0]["logged_in"] is True
+    else:
+        assert exit_code == 0
+        assert reported[0]["ok"] is True
+
+
 def test_main_apply_does_not_invoke_catalog_create_when_run_already_had_an_effect(monkeypatch):
     module = _module()
     monkeypatch.setattr(module, "run", lambda apply, product_path, state_path: {"ok": True, "action": "updated"})

@@ -1824,7 +1824,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     # from the shared catalogue. See run_catalog_create()'s own docstring for why this must be
     # a separate account_lock acquisition, never nested inside run()'s.
     if args.apply and result.get("action") == "unchanged":
-        result["catalog_creation"] = run_catalog_create(args.state_path)
+        catalog = result["catalog_creation"] = run_catalog_create(args.state_path)
+        # create_package() runs only after logged_in=True. A failed or unread create there may
+        # already be a listing whose id was never saved, so fail the wake: fenced, never pre-effect.
+        if catalog.get("ok") is False and catalog.get("logged_in") is not False:
+            result.update(ok=False, logged_in=True, error="catalog_creation_uncertain")
     if args.apply:
         reporter = _load("_anicca_lancers_storefront_reporter", HERE / "telegram_report.py")
         delivery = reporter.notify_storefront_wake(result)
