@@ -411,6 +411,13 @@ market orders, so requested and filled values need not match:
 https://alpaca.markets/support/why-do-i-see-a-discrepancy-between-the-notional-value-requested-and-the-order-value-ultimately-filled
 The requested USD field expresses our sealed budget; pair-specific backend sizing
 and quote funding still require the existing pre-live currency/capital proof.
+Crypto performance reuses the existing paid-cost adapter with exact paper/live
+owner, order group, period and broker/FILL source IDs. Known paid model/system
+components have separate verified subtotals; missing coverage never fills complete
+model/system costs or net P&L. Daily reports select the same closed subset. The
+writer uses the existing CFO readback path and caches accepted billing evidence;
+missing or regressed input preserves known verified components and reports a gap.
+Independent execution/source inventory and complete cost coverage remain pending.
 The pinned quote transport can now capture a single USDC/USD BBO at or before
 an economic timestamp, using a fixed 30-second window and descending limit one.
 The shared pure proof preserves nanoseconds in both the request and age checks,

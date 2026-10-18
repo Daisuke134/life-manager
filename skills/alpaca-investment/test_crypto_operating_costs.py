@@ -21,6 +21,7 @@ def billing(cycle,mode):
     rb=payload['readback'];rb['observed_at']='2026-01-02T00:00:02Z'
     for key in ('historical','trailing'):
         rb[key].update(window_start='2026-01-01T00:00:00Z',window_end=rb['observed_at'])
+    rb['historical']['window_start']=None
     for line in doc['line_items']:line['occurred_at']=cycle['closed_at']
     for join in payload['job_joins']:
         join.update(owner_id='alpaca-investment-'+mode,mode=mode,paper=mode=='paper',order_ids=cycle['order_ids'],
@@ -56,6 +57,25 @@ class CryptoOperatingCostTests(unittest.TestCase):
                 for join in changed['job_joins']:join[key]=value
                 result=self.build(root,'live',frame,changed)
                 self.assertIsNone(result['verified_model_cost_subtotal_usd']);self.assertEqual(result['operating_cost_components'],[])
+
+    def test_components_are_selected_by_exact_closed_order_group(self):
+        from paper_operating_costs import select_components
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);_,first,_=cycle_fixture(root);_,second,_=cycle_fixture(root,index=1,partial=True)
+            frame=activity_fixture({'fills':first['fills']+second['fills'],'fees':[]},mode='paper',
+                start=first['requested_period_start'],end=first['requested_period_end'])
+            cycles=self.build(root,'paper',frame)['cycles'];payload=billing(cycles[0],'paper');other=billing(cycles[1],'paper')
+            other['documents'][0]['invoice_id']='invoice-other'
+            for join in other['job_joins']:
+                join['document_id']='invoice-other';join['job_id']='other-'+join['job_id']
+            for line in other['documents'][0]['line_items']:
+                for allocation in line['allocations']:allocation['job_id']='other-'+allocation['job_id']
+            payload['documents']+=other['documents'];payload['job_joins']+=other['job_joins']
+            result=self.build(root,'paper',frame,payload)
+            self.assertEqual(result['verified_model_cost_subtotal_usd'],'0.02')
+            subset=select_components(result,[cycles[1]])
+            self.assertEqual(subset['verified_system_cost_subtotal_usd'],'0.09')
+            self.assertTrue(all(c['order_ids']==cycles[1]['order_ids'] for c in subset['operating_cost_components']))
 
     def test_writer_and_daily_keep_known_paid_components_when_input_disappears_or_regresses(self):
         with tempfile.TemporaryDirectory() as directory:

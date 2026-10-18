@@ -56,9 +56,12 @@ def read_readback(path: str | None) -> Any:
         return {"read_error": "operating_cost_readback_unavailable"}
 
 
-def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inventory=None) -> dict:
+def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inventory=None, mode="paper") -> dict:
     summary = {"operating_cost_components": [], "operating_costs_observed_at": None,
                "operating_costs_reason": "operating_cost_readback_missing"}
+    if mode not in {"paper", "live"} or owner_id != f"alpaca-investment-{mode}":
+        summary["operating_costs_reason"] = "operating_cost_scope_invalid"
+        return select_components(summary, trips)
     if payload is None:
         return select_components(summary, trips)
     try:
@@ -131,8 +134,8 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inven
             if (join.get("document_type") != kind or join.get("document_id") != document_id
                     or join.get("line_item_id") != line.get("line_item_id")
                     or join.get("allocation_id") != allocation.get("allocation_id")
-                    or join.get("owner_id") != owner_id or join.get("mode") != "paper"
-                    or join.get("paper") is not True or join.get("product_loop_id") != "investment"
+                    or join.get("owner_id") != owner_id or join.get("mode") != mode
+                    or join.get("paper") is not (mode == "paper") or join.get("product_loop_id") != "investment"
                     or join.get("status") not in {"completed", "settled", "paid"}):
                 continue
             for trip in trips:
@@ -166,8 +169,8 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inven
                 continue
             for trip in trips:
                 try:
-                    matches = (scope.get("owner_id") == owner_id and scope.get("mode") == "paper"
-                        and scope.get("paper") is True and scope.get("order_ids") == trip["order_ids"]
+                    matches = (scope.get("owner_id") == owner_id and scope.get("mode") == mode
+                        and scope.get("paper") is (mode == "paper") and scope.get("order_ids") == trip["order_ids"]
                         and _time(scope.get("period_start")) == _time(trip["period_start"])
                         and _time(scope.get("period_end")) == _time(trip["closed_at"])
                         and isinstance(scope.get("source_receipt_ids"), list)
