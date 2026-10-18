@@ -21,7 +21,7 @@ def activity_rows(kind,count=401):
         'date':'2026-01-01','price':'200','net_amount':'0','status':'executed'} for i in range(count)]
 
 
-def read_chunk(kind,token=None,mode='paper',rows=None):
+def read_chunk(kind,token=None,mode='paper',rows=None,period_start=START,period_end=END):
     reader=getattr(cli,'read_crypto_activity_page_chunk',None)
     if reader is None: return None
     records=activity_rows(kind) if rows is None else rows
@@ -31,7 +31,7 @@ def read_chunk(kind,token=None,mode='paper',rows=None):
         return copy.deepcopy(records[start:start+100])
     with patch.object(cli,'_context',return_value={}),patch.object(cli,'_run',side_effect=run):
         return reader(credentials_path=Path('unused'),cli_path=Path('unused'),mode=mode,
-            period_start=START,period_end=END,activity_type=kind,page_token=token)
+            period_start=period_start,period_end=period_end,activity_type=kind,page_token=token)
 
 
 class CryptoActivityPageTests(unittest.TestCase):

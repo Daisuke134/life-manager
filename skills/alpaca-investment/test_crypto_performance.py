@@ -414,6 +414,46 @@ class CryptoPerformanceTests(unittest.TestCase):
             self.assertEqual(result['fee_evidence']['attributed_native_fees'],[])
             self.assertEqual(result['fee_evidence']['unattributed_fees'][0]['reason'],'fee_date_invalid')
 
+    def test_writer_resumes_page_chunks_without_replay_and_preserves_failed_resume(self):
+        from test_crypto_activity_pages import read_chunk,activity_rows
+        for mode in ('paper','live'):
+            with self.subTest(mode=mode),tempfile.TemporaryDirectory() as directory:
+                root=Path(directory);orders,frame,_=cycle_fixture(root,mode)
+                owner=f'alpaca-investment-{mode}'
+                obs={'mode':mode,'paper':mode=='paper','clock':{'observed_at':'2026-01-02T00:01:00Z'}}
+                records={'FILL':frame['fills']+[{**f,'order_id':'foreign'} for f in activity_rows('FILL',399)],
+                         'CFEE':activity_rows('CFEE')}
+                calls=[];fail=[False]
+                def page_reader(**kw):
+                    if fail[0]: raise ValueError('crypto_page_transport_failed')
+                    calls.append(kw)
+                    return read_chunk(kw['activity_type'],kw['page_token'],kw['mode'],records[kw['activity_type']],
+                        period_start=kw['period_start'],period_end=kw['period_end'])
+                def regular(**_): raise ValueError('crypto_activity_limit_exceeded')
+                def write():
+                    try: return PERF.write_crypto_performance(root,obs,mode=mode,owner_id=owner,
+                        activity_reader=regular,activity_page_reader=page_reader)
+                    except TypeError as error: self.fail('writer needs page continuation: '+str(error))
+                write();obs['clock']['observed_at']='2026-01-02T00:02:00Z';write()
+                obs['clock']['observed_at']='2026-01-02T00:03:00Z';partial=write()
+                self.assertEqual(len(partial['activity_page_chunks']),1)
+                self.assertEqual(partial['reason'],'crypto_activity_pagination_pending')
+                self.assertEqual(len(calls),1);write();self.assertEqual(len(calls),1)
+                fail[0]=True;obs['clock']['observed_at']='2026-01-02T00:04:00Z';failed=write()
+                self.assertEqual(failed['activity_page_chunks'],partial['activity_page_chunks'])
+                self.assertEqual(failed['known_closed_cycle_ids'],partial['known_closed_cycle_ids'])
+                fail[0]=False
+                for minute in (5,6,7):
+                    obs['clock']['observed_at']=f'2026-01-02T00:{minute:02}:00Z';result=write()
+                self.assertEqual([c['activity_type'] for c in calls],['FILL','FILL','CFEE','CFEE'])
+                self.assertEqual(calls[1]['page_token'],partial['activity_page_chunks'][0]['next_page_token'])
+                self.assertEqual(result['cycles'][0]['execution_cashflow_usdc'],'0.5')
+                self.assertEqual(result['fee_evidence']['observed_fee_count'],401)
+                self.assertEqual(result['activity_page_chunks'],[]);self.assertIsNone(result['activity_limit_window'])
+                self.assertEqual(result['fee_readback_through'],'2026-01-02T00:00:00Z')
+                write();self.assertEqual(len(calls),4)
+                self.assertIsNone(result['fees_usd']);self.assertIsNone(result['net_pnl_usd'])
+
     def test_one_day_limit_keeps_evidence_and_avoids_larger_prefix_retries(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);orders,frame,_=cycle_fixture(root)
