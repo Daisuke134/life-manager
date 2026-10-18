@@ -224,6 +224,31 @@ class CryptoPerformanceTests(unittest.TestCase):
             daily=json.loads((root/'performance-crypto-daily-2026-01-01.json').read_text())
             self.assertEqual(daily['completed_round_trips'],2)
 
+    def test_cache_reference_corruption_cannot_erase_known_history(self):
+        self.assertIsNotNone(PERF)
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);orders,activity,_=cycle_fixture(root)
+            count=len(store._rows(root/'receipts.jsonl'))
+            more,second,_=cycle_fixture(root,index=1)
+            obs={'mode':'paper','paper':True,'clock':{'observed_at':NOW}}
+            # One complete official observation contains both cycles' fills.
+            combined=copy.deepcopy(activity);combined['fills']+=second['fills']
+            body={k:v for k,v in combined.items() if k!='source_receipt_id'}
+            combined['source_receipt_id']='alpaca-crypto-activities:'+proofs._digest([body])
+            with patch.object(PERF,'_read_activity',return_value=combined):
+                result=PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper')
+            self.assertEqual(result['completed_round_trips'],2)
+            path=root/'performance-crypto-latest.json';payload=json.loads(path.read_text())
+            payload['order_activity_refs']['orphan']='missing-frame';path.write_text(json.dumps(payload))
+            error=PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper')
+            self.assertEqual(error['reason'],'crypto_performance_activity_cache_invalid')
+            self.assertEqual(len(error['known_closed_cycle_ids']),2)
+            rows=store._rows(root/'receipts.jsonl')
+            (root/'receipts.jsonl').write_text(''.join(json.dumps(r)+'\n' for r in rows[count:]))
+            retry=PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper')
+            self.assertEqual(retry['reason'],'crypto_performance_history_missing')
+            self.assertIsNone(retry['completed_round_trips'])
+
     def test_no_fill_provider_cannot_be_reused_for_a_filled_entry(self):
         from test_closed_audit import no_fill_fixture
         with tempfile.TemporaryDirectory() as directory,patch.dict(os.environ,{'LIFE_MANAGER_INVESTMENT_OWNER_ID':'alpaca-investment-paper'}):
