@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "mission": "End suffering.",
+  "company": "Ninja",
+  "product": "Manager",
+  "scope": "Provisional learning contract, not a trained model or intervention policy",
+  "source_study": {
+    "doi": "10.1038/s41598-026-39518-z",
+    "data": "https://osf.io/chfy2/",
+    "population": "Participants in the source smartphone intervention study, not a representative general population",
+    "unit": "one participant at one observed EMA time"
+  },
+  "prediction_time": "After the current EMA is observed and before the current intervention response is observed",
+  "available_inputs": {
+    "examples_from_verified_header": ["Stress", "Mood", "Criticism", "Support", "Warmth", "beep"],
+    "rule": "Only information observed by prediction_time; histories must end at that time",
+    "excluded": ["future EMA values", "current intervention response not yet observed", "ID_name", "Contact_String"],
+    "study_constraints": "Timestamp meaning, observation timing, missingness and all label semantics need audit before fitting"
+  },
+  "targets": [
+    {
+      "name": "recorded_intervention_response",
+      "kind": "behavioral record proxy",
+      "opportunity": "intervention_computation == 1, with cohort and timing reproduced before training",
+      "candidate_source": "validation_yesno",
+      "interpretation": "Recorded yes/no response only; exact event meaning is unresolved",
+      "not_established": ["exercise completion", "actual meditation", "clinical benefit"],
+      "missing_rule": "Unknown remains unknown; do not silently convert missing to no"
+    },
+    {
+      "name": "next_same_day_reported_stress",
+      "kind": "reported state, not behavior",
+      "candidate_source": "Stress at the next valid same-day EMA observation",
+      "horizon": "next observed same-day EMA; elapsed time must be checked; not next-day prediction",
+      "not_established": ["total suffering", "diagnosis", "causal intervention effect"],
+      "missing_rule": "No subsequent observation is missing, not zero stress"
+    }
+  ],
+  "evaluation_design": {
+    "known_people_future": "forward-time split, training-only transformations",
+    "new_people": "participant-held-out evaluation reported separately",
+    "response_baselines": ["training response rate", "simple logistic regression"],
+    "state_baselines": ["current reported stress persists", "training-only personal mean", "simple regression"],
+    "response_metrics": ["Brier score", "log loss", "calibration", "PR-AUC"],
+    "state_metrics": ["MAE appropriate to the verified scale", "improvement over persistence"],
+    "uncertainty": "Participant-level uncertainty; no deployment score threshold selected from the final test set"
+  },
+  "later_field_outcomes": ["experienced distress", "daily functioning", "notification and response burden", "worsening"],
+  "population_connection": "No automatic linkage or extrapolation to Rhode Island synthetic residents",
+  "execution": "No participant records or predictions are included in this definition"
+}

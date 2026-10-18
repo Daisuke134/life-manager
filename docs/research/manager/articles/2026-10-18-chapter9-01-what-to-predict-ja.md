@@ -48,9 +48,11 @@ EMA（Ecological Momentary Assessment）は、日常生活のその時々に短�
 
 介入の効果を繰り返し調べる方法にはMicro-Randomized Trial（MRT）がある。HeartStepsは、活動の提案を出すかなどを繰り返しランダム化し、その後の行動を比較する代表例だ。[3] 歩数は方法を学ぶ教材にはなるが、歩数の増加を苦しみの減少そのものとは扱わない。
 
+より新しい2026年8月のTranらの研究は、救急対応などの従事者に、介入なし・短いメッセージ・アプリによる実践の条件を日ごとに割り付けた。抄録は、瞬間的ストレスへの直接効果を確認しなかった一方、ストレス要因への反応には条件による違いを報告する。[5] 「新しいマインドフルネス研究だから有効」とまとめず、比較条件と測った結果を読む必要がある。最初の教材は発表日の新しさだけでなく、観測の意味とコード・データを確かめられるかでも選ぶ。
+
 ## 苦しみを、何で測るのか
 
-使命はEnd sufferingだが、最初の研究で苦しみの全体を一つの数字で表せるとは仮定しない。本人のつらさ、生活への支障、抑うつや不安の症状、マインドフルネス、生活満足度は、関連があっても別の概念である。Harvard Human Flourishing ProgramのPersonal Suffering Assessmentのように、苦しみを直接問う測定もある。[4]
+使命はEnd sufferingだが、最初の研究で苦しみの全体を一つの数字で表せるとは仮定しない。本人のつらさ、生活への支障、抑うつや不安の症状、マインドフルネス、生活満足度は、関連があっても別の概念である。仏教でいう苦と、心理学のdistressの尺度が測る範囲も、同一だと仮定しない。使命を測りやすい指標だけへ置き換えず、今回何を測れたかを明示する。Harvard Human Flourishing ProgramのPersonal Suffering Assessmentのように、苦しみを直接問う測定もある。[4]
 
 採用する尺度は、対象者、言語、参照期間、信頼性、利用条件を調べて選ぶ。月全体を尋ねる質問票を、そのまま1分の介入の直後に繰り返して同じ尺度として扱うことはできない。脳波やHRVも、苦しみを直接読み取る万能な測定器ではない。
 
@@ -70,5 +72,6 @@ EMA（Ecological Momentary Assessment）は、日常生活のその時々に短�
 2. [2025年のJITAI/EMIに関する系統的レビュー](https://doi.org/10.1136/bmjment-2025-301641)。研究一覧と効果の評価に使う資料。全実装の有効性を保証するものではない。
 3. Klasnja et al., [Efficacy of Contextually Tailored Suggestions for Physical Activity](https://doi.org/10.1093/abm/kay067), 2018オンライン公開／2019掲載。
 4. [Harvard Human Flourishing Programの測定紹介](https://hfh.fas.harvard.edu/measuring-flourishing)。PSAを含む。
+5. Tran et al., [Effects of a Smartphone-Based Mindfulness Intervention on Momentary Stress Among First Responders](https://pubmed.ncbi.nlm.nih.gov/42576136/), Prevention Science, 2026-08-10。今回の確認範囲は書誌・抄録であり、個票や解析コードを再現したものではない。
 
 本文と図は学習用原稿。今回、臨床介入、本人の状態の推定、行動モデルの学習・評価は実行していない。第9単元の進捗と作業順は統合SSOTを参照する。

@@ -17,8 +17,8 @@
     },
     {
       "path": "docs/research/manager/articles/2026-10-18-chapter9-01-what-to-predict-ja.md",
-      "bytes": 7967,
-      "sha256": "eae65e4816fe2c65899b0773b314aac4700459b6defc83db78a06b35d2d7c2eb"
+      "bytes": 9102,
+      "sha256": "ad70ce05f6a4c7bcd88e94d52865e86a556636612e8555af76156d1407ca90f9"
     },
     {
       "path": "docs/research/manager/2026-10-18-founder-story-and-mission.md",
@@ -114,6 +114,17 @@
       "path": "docs/research/manager/content/2026-10-18-chapter9-intro/README.md",
       "bytes": 1424,
       "sha256": "fe7137fc9e7b654d5343b4ff63024fcc95ab8ae9abab7228bc2ffdc786d10ffb"
+    },
+    {
+      "path": "docs/research/manager/learning/chapter9/target-definition.json",
+      "bytes": 3029,
+      "sha256": "13e04d571a2adc415438b9a588cf7ef00f2b43900f63b06b11135dc8eb771e99"
     }
-  ]
+  ],
+  "additional_primary_reading": {
+    "url": "https://pubmed.ncbi.nlm.nih.gov/42576136/",
+    "publication_date": "2026-08-10",
+    "read_scope": "bibliographic metadata and abstract",
+    "claim_scope": "separate direct effect from stressor-reactivity moderation"
+  }
 }
