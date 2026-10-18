@@ -42,7 +42,14 @@ def _fee_inventory(cycles,snapshots):
     # CFEE IDs without an explicit order link are never joined by proximity.
     orders={o['provider_order_id']:(c['cycle_id'],o) for c in cycles for o in c['orders']}
     observed={};refs={};windows={}
-    fill_ids={f['id'] for frame in snapshots.values() for f in frame['fills']}
+    fill_ids={}
+    for frame in snapshots.values():
+        for fill in frame['fills']:
+            facts=(fill['order_id'],fill['symbol'].replace('/',''),fill['side'],Fraction(fill['qty']),
+                Fraction(fill['price']),parse_instant(fill['transaction_time']))
+            if fill['id'] in fill_ids and fill_ids[fill['id']]!=facts:
+                raise ValueError('crypto_cycle_execution_conflict')
+            fill_ids[fill['id']]=facts
     for frame in snapshots.values():
         for row in frame['fees']:
             key=row['id']

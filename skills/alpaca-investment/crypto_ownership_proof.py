@@ -115,7 +115,7 @@ def validate_crypto_activity_snapshot(snapshot: dict[str, Any], *, mode: str) ->
                     or not isinstance(row.get("symbol"), str) or not row["symbol"].strip()
                     or row.get("side") not in {"buy", "sell"}): raise ValueError
             _execution_number(row.get("qty")); _execution_number(row.get("price"))
-            parse_instant(row.get("transaction_time"))
+            if parse_instant(row.get("transaction_time")) > end: raise ValueError
         return start, end
     except (ValueError, KeyError, TypeError, AttributeError, ArithmeticError) as error:
         raise ValueError("owned_crypto_activities_invalid") from error
