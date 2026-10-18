@@ -222,6 +222,7 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inven
                         'operating_cost_execution_window_unverified' if proof is None else 'operating_cost_execution_time_mismatch')
                     component_gaps.append({'receipt_id':identity,'provider':provider,'owner_id':owner_id,'mode':mode,'paper':mode=='paper',
                         'order_ids':trip['order_ids'],'period_start':trip['period_start'],'period_end':_cost_end(trip),'reason':reason})
+                    continue
                 if calendar and not inside or proof is False or proof is None and not inside:continue
                 component = receipt["components"][0]
                 cost = {
