@@ -411,5 +411,54 @@ class CryptoStatementOrderContextTests(unittest.TestCase):
                 self.assertIn(failed['fee_evidence'].get('statement_order_candidates'), (None, []))
 
 
+    def test_corrupt_activity_cache_recovers_with_a_good_reader_then_replays_without_reads(self):
+        # Keeping forensic inputs must not make invalid cache block every later refresh.
+        for mode in ('live', 'paper'):
+            for kind in ('body_hash', 'foreign_account'):
+                with self.subTest(mode=mode, corruption=kind), tempfile.TemporaryDirectory() as directory:
+                    root = Path(directory)
+                    _, _, reader, text = self.prepare(root, mode=mode)
+                    self.add_packet(root, mode=mode)
+                    first = self.write(root, reader, text, mode=mode)
+                    changed = copy.deepcopy(first)
+                    remap = {}
+                    replacement = {}
+                    for old_ref, frame in changed['activity_readbacks'].items():
+                        if kind == 'body_hash':
+                            frame['fees'][0]['qty'] = '-0.02'
+                        else:
+                            frame['native_trading_account_id'] = OTHER_ACCOUNT
+                            frame = seal(frame, 'alpaca-crypto-activities:')
+                            proofs.validate_crypto_activity_snapshot(frame, mode=mode)
+                        new_ref = frame['source_receipt_id']
+                        remap[old_ref] = new_ref
+                        replacement[new_ref] = frame
+                    changed['activity_readbacks'] = replacement
+                    changed['order_activity_refs'] = {order: remap[ref]
+                        for order, ref in changed['order_activity_refs'].items()}
+                    changed['fee_activity_refs'] = [remap[ref] for ref in changed['fee_activity_refs']]
+                    (root / 'performance-crypto-latest.json').write_text(json.dumps(changed))
+                    calls = []
+                    def good_reader(**kwargs):
+                        calls.append(kwargs)
+                        return reader(**kwargs)
+                    failed = self.write(root, good_reader, text, mode=mode)
+                    self.assertEqual(failed['failed_phase'], 'project')
+                    self.assertEqual(calls, [])
+                    self.assertIn(failed['fee_evidence'].get('statement_order_candidates'), (None, []))
+                    recovered = self.write(root, good_reader, text, mode=mode)
+                    self.assertEqual(len(calls), 1, 'good input must be reachable after the failed projection')
+                    self.assertNotIn('failed_phase', recovered)
+                    self.assert_financial_unchanged(recovered, first)
+                    self.assert_raw_unchanged(recovered)
+                    self.assertEqual(recovered['fee_evidence'].get('statement_order_candidates'),
+                        first['fee_evidence'].get('statement_order_candidates'))
+                    replay = self.write(root, self.forbidden, text, mode=mode)
+                    self.assert_financial_unchanged(replay, first)
+                    self.assert_raw_unchanged(replay)
+                    for key in ANCHORS:
+                        self.assertEqual(replay[key], first[key], key)
+
+
 if __name__ == '__main__':
     unittest.main()
