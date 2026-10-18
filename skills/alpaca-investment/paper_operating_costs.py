@@ -58,6 +58,7 @@ def select_components(summary: dict, trips) -> dict:
         "operating_costs_observed_at": summary.get("operating_costs_observed_at"),
         "operating_cost_query_observations": [row for row in summary.get("operating_cost_query_observations", [])
                                               if _binding(row) in pairs],
+        "operating_cost_query_rejections":[row for row in summary.get('operating_cost_query_rejections',[]) if _binding(row) in pairs],
         "operating_cost_scope_coverages":coverages,
         "operating_cost_coverage": {"coverage_state": "complete" if complete else "gap", "reason": coverage_reason},
         "operating_cost_components": components,
@@ -181,7 +182,7 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inven
                         charge_conflicts.add(charge_identity)
                 else:
                     accepted[charge_identity] = cost
-        observations = [];scope_coverages=[]
+        observations = [];scope_coverages=[];query_rejections=[]
         scopes = readback.get("cost_scopes", [])
         for scope in scopes if isinstance(scopes, list) else []:
             if not isinstance(scope, dict):
@@ -200,12 +201,15 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inven
                     query_result = validate_official_cost_queries(payload, snapshot_at=observed_at,
                         paid_records=records, scope=scope, expected_inventory=expected_inventory)
                     observations.extend(query_result["observations"])
+                    context={key:scope.get(key) for key in ('scope_id','owner_id','mode','paper','order_ids','period_start','period_end')}
+                    query_rejections.extend({**context,**rejection} for rejection in query_result['rejections'])
                     verified=query_result.get('scope_coverages',[])
                     if verified:scope_coverages.extend(verified)
                     else:scope_coverages.append({**scope,'scope_kind':scope.get('scope_kind','order_pair'),
                         'coverage_state':'gap','reason':query_result['reason'],'evidence_refs':[]})
         summary["operating_cost_query_observations"] = observations
         summary["operating_cost_scope_coverages"] = scope_coverages
+        summary["operating_cost_query_rejections"] = query_rejections
         summary.update({"operating_cost_components": [accepted[key] for key in sorted(accepted)
                                                       if key not in charge_conflicts],
                         "operating_costs_observed_at": billing_at,
