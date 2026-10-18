@@ -20,6 +20,32 @@ from risk_policy import parse_instant
 CATALOG_PATH = Path('apps/life-manager/config/product-loop-catalog.json')
 
 
+MAX_RELEASE_METADATA_BYTES = 16 * 1024 * 1024
+
+
+def _release_bytes(root,relative):
+    relative=Path(relative)
+    if relative.is_absolute() or '..' in relative.parts:raise ValueError('source_release_invalid')
+    flags=os.O_RDONLY|os.O_DIRECTORY|getattr(os,'O_NOFOLLOW',0)
+    directory=os.open(root,flags)
+    try:
+        for part in relative.parts[:-1]:
+            child=os.open(part,flags,dir_fd=directory)
+            os.close(directory);directory=child
+        descriptor=os.open(relative.name,os.O_RDONLY|getattr(os,'O_NOFOLLOW',0)|os.O_NONBLOCK,dir_fd=directory)
+        try:
+            info=os.fstat(descriptor)
+            if not stat.S_ISREG(info.st_mode) or info.st_nlink!=1 or info.st_size>MAX_RELEASE_METADATA_BYTES:
+                raise ValueError('source_release_invalid')
+            with os.fdopen(descriptor,'rb') as handle:
+                descriptor=-1;value=handle.read(MAX_RELEASE_METADATA_BYTES+1)
+            if len(value)>MAX_RELEASE_METADATA_BYTES:raise ValueError('source_release_invalid')
+            return value
+        finally:
+            if descriptor>=0:os.close(descriptor)
+    finally:os.close(directory)
+
+
 def _gap(reason):
     return {'coverage_state': 'gap', 'reason': reason, 'appended': False}
 
@@ -36,8 +62,8 @@ def record_source_inventory(ledger: Path, *, release_root: Path, owner_id: str,
             or not isinstance(occurrence_id, str) or not occurrence_id.startswith(owner_id + ':')):
         return _gap('source_execution_identity_missing')
     try:
-        manifest = json.loads((Path(release_root) / 'RELEASE.json').read_text())
-        catalog_bytes = (Path(release_root) / CATALOG_PATH).read_bytes()
+        manifest = json.loads(_release_bytes(Path(release_root),'RELEASE.json'))
+        catalog_bytes = _release_bytes(Path(release_root),CATALOG_PATH)
         catalog = json.loads(catalog_bytes)
         sha = manifest.get('sha')
         if (not isinstance(sha, str) or not re.fullmatch('[a-f0-9]{40}', sha)
@@ -379,9 +405,9 @@ MAX_INVENTORY_ADMISSIONS = 50_000
 
 
 def _release_snapshot(root,sha):
-    manifest=json.loads((root/'RELEASE.json').read_text())
+    manifest=json.loads(_release_bytes(root,'RELEASE.json'))
     if manifest.get('sha')!=sha or manifest.get('release_paths')!='ALL':return None
-    raw=(root/CATALOG_PATH).read_bytes()
+    raw=_release_bytes(root,CATALOG_PATH)
     loops=[r for r in json.loads(raw)['loops'] if r.get('id')=='investment']
     if len(loops)!=1:raise ValueError('source_release_invalid')
     return {'receipt_type':'cost_source_inventory','release_sha':sha,
@@ -433,7 +459,7 @@ def read_expected_inventory(state,trips,*,observed_at,owner_id='alpaca-investmen
         observed=parse_instant(observed_at)
         if not isinstance(trips,list):raise ValueError
         if not trips:return finish()
-        entries=json.loads((root/'config/loop-registry.json').read_text())['loops']
+        entries=json.loads(_release_bytes(root,'config/loop-registry.json'))['loops']
         entry=entries.get(owner_id)
         if not isinstance(entry,dict) or Path(entry['state_root']).expanduser().resolve()!=Path(state).resolve():
             error('inventory_state_owner_mismatch',owner_id);return finish()
@@ -467,7 +493,12 @@ def read_expected_inventory(state,trips,*,observed_at,owner_id='alpaca-investmen
         detail['ledger']={'status':'ok' if ledger else 'unavailable','row_count':len(ledger)}
         if not ledger:error('source_ledger_unavailable',owner)
         for row in ledger:
-            if row.get('receipt_type') not in {'cost_source_inventory','cost_source_inventory_conflict'}:continue
+            kind=row.get('receipt_type')
+            if kind is not None and not isinstance(kind,str):
+                error('source_snapshot_invalid',owner);continue
+            if kind not in {'cost_source_inventory','cost_source_inventory_conflict'}:
+                if 'source_declaration' in row or 'catalog_sha256' in row:error('source_snapshot_invalid',owner)
+                continue
             if row.get('owner_id')!=owner:
                 error('source_snapshot_owner_mismatch',owner);continue
             sha=row.get('release_sha')
