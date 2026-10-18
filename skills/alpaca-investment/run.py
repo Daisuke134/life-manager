@@ -27,7 +27,8 @@ from etf_ownership import record_filled as record_etf_filled
 from paper_performance import write_paper_performance
 from cost_inventory import record_source_inventory
 from reporter import deliver, deliver_control, deliver_failure
-from position_manager import choose as choose_position, exit_order as live_exit_order
+from position_manager import choose as choose_position, exit_order as live_exit_order, load_owned_policy
+from strategy_policy import INDICATOR_HISTORY_CONTRACTS, load_selected_card
 from review_status import read_receipt as read_application_status
 from review_status import refresh as refresh_application_status
 from risk_policy import evaluate_entry
@@ -330,6 +331,30 @@ def _closing_marker(ownership: dict, sealed: dict) -> dict:
             "close_effect_id": sealed["effect_id"], "status": "closing"}
 
 
+def _policy_crypto_history(state: Path, ownership: dict | None, *, mode: str,
+                           credentials_path: Path, cli_path: Path, observed_at: str) -> dict:
+    """Resolve the data contract from the owned entry before a new selection."""
+    if ownership is not None and not isinstance(ownership, dict):
+        raise ValueError("live_position_not_owned")
+    if ownership and ownership.get("status") in {"entry_pending", "closing"}:
+        return {}
+    try:
+        if ownership and ownership.get("status") == "open":
+            card = load_owned_policy(state, ownership, mode=mode)["card"]
+        else:
+            card, _release = load_selected_card(state)
+    except ValueError:
+        # The decision path reports the exact policy error; do not substitute
+        # a different policy or a shorter history for an unresolved owned entry.
+        return {}
+    if tuple(card.instruments) != ("BTC/USDC",):
+        return {}
+    contract = INDICATOR_HISTORY_CONTRACTS.get(card.strategy_id)
+    options = {"history_bars": contract[2]} if contract is not None else {}
+    return read_crypto_history(credentials_path=credentials_path, cli_path=cli_path,
+                               observed_at=observed_at, **options)
+
+
 def main(*, attempt: int = 0, wake_id=None) -> int:
     wake_id = (wake_id or os.environ.get("LIFE_MANAGER_INVESTMENT_WAKE_ID")
                or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"))
@@ -484,11 +509,11 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
             )
             allocator_snapshot["position"] = etf_state["position"]
             allocator_snapshot["last_decision_session"] = etf_state["last_decision_session"]
-        if mode == "live":
+        if mode in {"paper", "live"}:
             stage = "market_history_read"
-            allocator_snapshot["crypto_history"] = read_crypto_history(
-                credentials_path=credentials_path, cli_path=cli_path,
-                observed_at=allocator_snapshot["clock"]["timestamp"])
+            allocator_snapshot["crypto_history"] = _policy_crypto_history(
+                state, ownership, mode=mode, credentials_path=credentials_path, cli_path=cli_path,
+                observed_at=allocator_snapshot.get("clock", {}).get("timestamp"))
         unresolved = reconciliation.get("unresolved")
         if isinstance(unresolved, bool) or not isinstance(unresolved, int) or unresolved != 0:
             if not _reconciliation_is_pending(reconciliation):
