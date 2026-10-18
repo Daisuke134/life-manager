@@ -71,7 +71,8 @@ class QuoteBaselineTests(unittest.TestCase):
         for mode in ('paper','live'):
             good=observation(mode)
             later=observation(mode,'2026-01-01T04:00:01Z')
-            for name,raw in [('valid',good),('absent',None),('after_submit',later),*malformed(good)]:
+            for name,raw in [('valid',good),('absent',None),('after_submit',later),
+                    ('after_submit_nanos',observation(mode,'2026-01-01T04:00:00.000000001Z')),*malformed(good)]:
                 with self.subTest(mode=mode,case=name),tempfile.TemporaryDirectory() as directory:
                     root=Path(directory)
                     marker,broker,after,owner=seed(root,mode,pre_trade_readback=raw)
@@ -93,10 +94,12 @@ class QuoteBaselineTests(unittest.TestCase):
     def test_partial_and_no_fill_use_the_same_pre_submission_bound(self):
         for mode in ('paper','live'):
             for kind in ('partial','no_fill'):
-                for later in (False,True):
+                for later in (False,True,'nanos'):
                     with self.subTest(mode=mode,kind=kind,later=later),tempfile.TemporaryDirectory() as directory:
                         root=Path(directory)
-                        raw=observation(mode,'2026-01-01T04:00:01Z' if later else START)
+                        stamp=('2026-01-01T04:00:00.000000001Z' if later=='nanos' else
+                            '2026-01-01T04:00:01Z' if later else START)
+                        raw=observation(mode,stamp)
                         marker,broker,after,owner=seed(root,mode,partial=True,pre_trade_readback=raw)
                         if kind=='no_fill':
                             broker.update(filled_qty='0',filled_at=None)
