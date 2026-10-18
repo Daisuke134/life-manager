@@ -10,6 +10,12 @@ if [[ ! -x "$PYTHON" ]]; then
   exit 69
 fi
 
+# The step below can create a portfolio. Drop the host's pre-spawn hint first, as mercor's
+# application-owner does, so a failed pass stays fenced unless the account preflight rewrites it.
+if [[ -n "${LIFE_MANAGER_RESULT_HINT_PATH:-}" ]]; then
+  rm -f "$LIFE_MANAGER_RESULT_HINT_PATH"
+fi
+
 set +e
 OUTPUT="$("$PYTHON" "$ROOT/skills/earn/lancers/scripts/storefront_offer.py" \
   --apply \
