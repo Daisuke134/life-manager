@@ -85,4 +85,18 @@ class OperatingCostTotalsTests(unittest.TestCase):
                 self.assertTrue(result['operating_cost_component_gaps'])
                 if status=='paid':self.assertEqual(Decimal(result['verified_model_cost_subtotal_usd']),Decimal('1'))
 
+    def test_paper_build_preserves_confirmed_operating_totals_and_remaining_unknowns(self):
+        from unittest.mock import patch
+        import paper_performance as paper
+        from test_paper_performance import _rows,OBSERVATION,RISK
+        base=summarize([],None,owner_id='alpaca-investment-paper',observed_at=OBSERVATION['clock']['observed_at'])
+        confirmed={**base,'model_cost_usd':'1','system_cost_usd':'2','operating_costs_status':'complete',
+            'operating_cost_coverage':{'coverage_state':'complete','reason':None}}
+        with patch.object(paper,'summarize_operating_costs',return_value=confirmed):
+            result=paper.build_paper_performance(_rows(),OBSERVATION,RISK)
+        self.assertEqual(result['model_cost_usd'],'1');self.assertEqual(result['system_cost_usd'],'2')
+        self.assertNotIn('model',result['unknown_cost_categories']);self.assertNotIn('system',result['unknown_cost_categories'])
+        self.assertIn('fees',result['unknown_cost_categories']);self.assertIsNone(result['net_realized_pnl_usd'])
+        self.assertEqual(result['measurement_status'],'partial')
+
 if __name__=='__main__':unittest.main()

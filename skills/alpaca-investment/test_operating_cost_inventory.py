@@ -64,7 +64,8 @@ class OperatingCostInventoryTests(unittest.TestCase):
         component=result['operating_cost_components'][0]
         self.assertEqual(component['billing_account_ref'],'billing-account')
         self.assertEqual(component['charge_identity'],['openai','invoice','same-id','line','allocation'])
-        self.assertNotIn('model_cost_usd',result)
+        self.assertEqual(result['model_cost_usd'],'1')
+        self.assertEqual(result['system_cost_usd'],'0')
 
     def test_scope_selector_uses_period_as_well_as_order_group_including_idle_periods(self):
         payload,inventory,trip=setup(orders=[])
@@ -120,7 +121,11 @@ class OperatingCostInventoryTests(unittest.TestCase):
                 daily=json.loads((root/'performance-crypto-daily-2026-01-01.json').read_text())
                 self.assertEqual(daily['operating_cost_coverage']['coverage_state'],'complete')
                 self.assertEqual(result['operating_cost_source_receipt_ids'],[])
-                self.assertIsNone(result['net_pnl_usd']);self.assertIsNone(result['model_cost_usd'])
+                self.assertIsNone(result['net_pnl_usd']);self.assertEqual(result['model_cost_usd'],'0')
+                self.assertEqual(result['system_cost_usd'],'0')
+                direct=crypto.build_crypto_performance(store._rows(root/'receipts.jsonl'),mode=mode,owner_id='alpaca-investment-'+mode,
+                    activity_readbacks={o['id']:frame for o in orders},operating_cost_readback=payload,observed_at=observed,expected_inventory=inventory)
+                self.assertEqual(direct['model_cost_usd'],'0');self.assertEqual(direct['system_cost_usd'],'0')
                 self.assertFalse(result['capital_expansion_allowed'])
 
     def test_rejection_reason_is_saved_with_the_exact_scope(self):
