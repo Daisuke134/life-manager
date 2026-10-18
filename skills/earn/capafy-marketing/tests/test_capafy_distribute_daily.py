@@ -103,3 +103,18 @@ def test_second_dry_run_same_day_is_a_no_op_and_does_not_rewrite_the_pick(tmp_pa
     second_ledger = json.loads(ledger_path.read_text())
 
     assert first_ledger == second_ledger  # idempotent: no duplicate publish, same receipt
+
+
+def test_model_publish_command_keeps_a_multiword_query_as_one_argument() -> None:
+    # Bash strips the quotes inside ${VAR:+ "..."} in a here-document, so the model was
+    # handed `--title-must-contain hook script template` and publish failed (10/18-19).
+    import shlex
+
+    text = SCRIPT.read_text()
+    (line,) = [l for l in text.splitlines() if l.startswith("SEO_PUBLISH_FLAGS=")]
+    assert '--date "$JST_DATE"$SEO_PUBLISH_FLAGS' in text
+    out = subprocess.run(
+        ["bash", "-c", f'SEO_QUERY="hook script template"; INDEXNOW_KEY=k\n{line}\ncat <<EOF\nx$SEO_PUBLISH_FLAGS\nEOF'],
+        capture_output=True, text=True, check=True,
+    ).stdout
+    assert shlex.split(out) == ["x", "--title-must-contain", "hook script template", "--indexnow-key", "k"]

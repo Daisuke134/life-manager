@@ -1608,6 +1608,15 @@ class MacosLoopRegistryTest(unittest.TestCase):
                 self.assertEqual(row["browser_target_owner"], "hf-gig-browser")
         self.assertEqual(registry["loops"]["hf-gig-reply-detector"]["effect_class"], "message")
 
+    def test_coconala_storefront_wakes_at_its_full_pass_interval(self):
+        # Every admitted Storefront wake is a full model+browser pass (no --auto-cadence since
+        # #5246; its --full-interval-seconds default is 1800). At 60 s it stayed queued at
+        # critical_paid and took freed agent slots ahead of hf-gig-apply-direct (2026-10-18:
+        # 894 deferrals, 79/79 completed passes no_op).
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["hf-gig-storefront-direct"]
+        self.assertEqual(row["cadence"], {"start_interval_seconds": 1800})
+
     def test_lancers_and_crowdworks_browser_action_lanes_declare_provider_identity_join(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         expected = {
