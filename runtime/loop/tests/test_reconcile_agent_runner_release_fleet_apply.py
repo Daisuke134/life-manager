@@ -797,7 +797,7 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             self.assertEqual(
                 [line for line in calls_log.read_text().splitlines()
                  if line.startswith("apply ")],
-                ["apply target=loop-a", "apply target=loop-b"],
+                ["apply --loaded-idle-only target=loop-a", "apply --loaded-idle-only target=loop-b"],
             )
             owner_rows = self._owners_log(root)
             fenced_owner = next(row for row in owner_rows if row["loop_id"] == "loop-a")
@@ -1806,7 +1806,7 @@ exit "$fixture_status"
                 first = self._run(env)
                 self.assertEqual(first.returncode, 0, first.stderr)
                 applies = [line for line in calls.read_text().splitlines() if line.startswith("apply ")]
-                self.assertEqual(applies, [f"apply target={label}", "apply target=loop-a"])
+                self.assertEqual(applies, [f"apply --loaded-idle-only target={label}", "apply --loaded-idle-only target=loop-a"])
                 self.assertEqual(self._state(root)["changed"], 2 if was_loaded else 1)
                 self.assertEqual(self._state(root)["skipped"], 0 if was_loaded else 1)
                 second = self._run(env)
@@ -1836,7 +1836,7 @@ exit "$fixture_status"
                 self.assertEqual(state['status'], 'error')
                 self.assertEqual(state['errors'], 1)
                 self.assertEqual(state['changed'], 1)
-                self.assertIn('apply target=loop-a', calls.read_text())
+                self.assertIn('apply --loaded-idle-only target=loop-a', calls.read_text())
 
 
     def test_retirement_ignores_generic_changed_and_skipped_fields(self):
