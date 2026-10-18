@@ -1,3 +1,4 @@
+import gzip
 import json
 import io
 import copy
@@ -359,6 +360,33 @@ class LmLoopHealthTest(unittest.TestCase):
             "last_effect": "2026-10-01T00:02:00+00:00",
             "last_receipt": "2026-10-01T00:03:00+00:00",
         })
+
+    def test_health_clocks_read_rotated_journals_when_the_live_one_lacks_a_daily_run(self):
+        # 2026-10-18: the shared journal rotates every ~15k lines (~16 h), so a daily loop's
+        # last pass lived only in the newest archive and health read it as telemetry_gap "never".
+        def event(loop_id, run_id, timestamp):
+            value = build_runtime_event(
+                loop_id=loop_id, domain="growth", run_id=run_id, release_sha="a" * 40,
+                provider="deterministic", profile_alias=None, effect_class="none",
+                succeeded=True, blocker=None,
+            )
+            value["timestamp"] = timestamp
+            return json.dumps(validate_runtime_event(value)) + "\n"
+
+        with tempfile.TemporaryDirectory() as directory:
+            with gzip.open(Path(directory, "events-20261018T062703209718Z.jsonl.gz"), "wt",
+                           encoding="utf-8") as archive:
+                archive.write(event("capafy-goal-monitor", "daily", "2026-10-18T01:35:39+00:00"))
+            Path(directory, "events.jsonl").write_text(
+                event("capafy-goal-monitor-hourly", "hourly", "2026-10-18T07:27:49+00:00"),
+                encoding="utf-8",
+            )
+            latest = lm_loop._last_event(
+                directory, "capafy-goal-monitor", include_health_clocks=True,
+            )
+
+        self.assertIsNotNone(latest)
+        self.assertEqual(latest["_health_clocks"]["last_success"], "2026-10-18T01:35:39+00:00")
 
     def test_health_clock_projection_reads_a_shared_journal_once(self):
         history = []
