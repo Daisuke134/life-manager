@@ -71,4 +71,18 @@ class OperatingCostTotalsTests(unittest.TestCase):
         self.assertEqual(select_components(result,[trip])['model_cost_usd'],'1')
         self.assertIsNone(select_components(result,[])['model_cost_usd'])
 
+    def test_paid_or_unpaid_owned_document_with_unknown_account_does_not_hitchhike_on_zero_query(self):
+        for status in ('paid','unpaid'):
+            with self.subTest(status=status):
+                payload,inventory,trip=setup()
+                paid,_,_=setup(paid=True);doc=paid['documents'][0];doc.pop('billing_account_ref');doc['status']=status
+                join=paid['job_joins'][0]
+                for key in ('query_id','scope_id','join_type','execution_refs','run_ids','occurrence_ids'):join.pop(key,None)
+                payload['documents']=[doc];payload['job_joins'].append(join)
+                result=report(payload,inventory,trip)
+                self.assertIsNone(result['model_cost_usd'])
+                self.assertEqual(result['operating_cost_coverage']['coverage_state'],'gap')
+                self.assertTrue(result['operating_cost_component_gaps'])
+                if status=='paid':self.assertEqual(Decimal(result['verified_model_cost_subtotal_usd']),Decimal('1'))
+
 if __name__=='__main__':unittest.main()
