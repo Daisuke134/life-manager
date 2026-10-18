@@ -171,6 +171,16 @@ class PartialEntryTests(unittest.TestCase):
                     self.assertEqual((root/'live-owned-position.json').read_bytes(),before)
                     self.assertEqual((root/'receipts.jsonl').read_bytes(),ledger)
 
+    def test_known_terminal_fill_time_cannot_contradict_execution_or_account(self):
+        for mode in ('paper','live'):
+            for timestamp in ('2025-01-01T00:00:00Z','2099-01-01T00:00:00Z',
+                              '2026-01-01T04:00:01Z','invalid'):
+                with self.subTest(mode=mode,timestamp=timestamp),tempfile.TemporaryDirectory() as directory:
+                    root=Path(directory);marker,broker,observation,owner,activities=partial_fixture(root,mode)
+                    broker['filled_at']=timestamp
+                    with self.assertRaises(ValueError): self.proof(root,marker,broker,observation,owner,activities,mode)
+                    self.assertEqual(store.unresolved_intent_count(root/'receipts.jsonl'),1)
+
     def test_saved_partial_proof_cannot_hide_invalid_activity_without_marker(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);marker,broker,observation,owner,activities=partial_fixture(root)
