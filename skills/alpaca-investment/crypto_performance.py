@@ -28,6 +28,10 @@ def _scoped_plans(rows,mode,owner):
 
 
 def _summary(cycles):
+    field='cashflow_after_observed_fees_and_scoped_operating_costs_usd'
+    def reference_total(items):
+        values=[c.get('fx_reference',{}).get(field) for c in items]
+        return _reference_amount(sum((Fraction(int(v['numerator']),int(v['denominator'])) for v in values),Fraction())) if values and all(v is not None for v in values) else None
     groups={}
     for cycle in cycles:
         key=(cycle['strategy_id'],cycle['release_sha'])
@@ -37,9 +41,9 @@ def _summary(cycles):
         values=[c['execution_cashflow_usdc'] for c in items]
         reports.append({'strategy_id':strategy,'release_sha':release,'cycle_ids':[c['cycle_id'] for c in items],
             'completed_round_trips':sum(c['positive_sell_count']>0 for c in items),'execution_cashflow_usdc':_quantity_text(sum((Fraction(v) for v in values),Fraction()))
-                if all(v is not None for v in values) else None,'net_pnl_usd':None})
+                if all(v is not None for v in values) else None,'net_pnl_usd':None,field:reference_total(items)})
     return {'closed_cycle_count':len(cycles),'completed_round_trips':sum(c['positive_sell_count']>0 for c in cycles) if len(reports)<=1 else None,
-            'strategy_reports':reports}
+            'strategy_reports':reports,field:reference_total(cycles)}
 
 
 def _fee_inventory(cycles,snapshots):
@@ -112,6 +116,19 @@ def _fee_inventory(cycles,snapshots):
 def _reference_amount(value):
     return None if value is None else {'decimal':_quantity_text(value),
         'numerator':str(value.numerator),'denominator':str(value.denominator)}
+
+
+def _operating_references(cycles,costs):
+    for cycle in cycles:
+        scoped=select_components(costs,[cycle]);ref=cycle['fx_reference']
+        cashflow=ref['cashflow_after_observed_quote_fees_usd']
+        model=scoped['model_cost_usd'];system=scoped['system_cost_usd']
+        # BTC credited-side fees already reduce sellable quantity in the native proof.
+        amount=(Fraction(int(cashflow['numerator']),int(cashflow['denominator']))-Fraction(model)-Fraction(system)
+            if cashflow is not None and model is not None and system is not None
+            and scoped['operating_cost_coverage']['coverage_state']=='complete' else None)
+        ref.update(scoped_model_cost_usd=model,scoped_system_cost_usd=system,
+            cashflow_after_observed_fees_and_scoped_operating_costs_usd=_reference_amount(amount))
 
 
 def _fx_references(cycles,fees,readbacks,*,mode):
@@ -326,6 +343,7 @@ def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None,fee_ac
     fx_requests,fx_sources=_fx_references(cycles,fee_inventory['attributed_native_fees'],fx_readbacks if fx_readbacks is not None else {},mode=mode)
     sources.update(fx_sources)
     costs=summarize_operating_costs(cycles,operating_cost_readback,owner_id=owner_id,mode=mode,observed_at=observed_at,expected_inventory=expected_inventory)
+    _operating_references(cycles,costs)
     return {**costs,'expected_cost_inventory':expected_inventory,'schema_version':1,'report_scope':'owned_crypto_cycles','owner_id':owner_id,'mode':mode,'paper':mode=='paper',
         'measurement_status':'partial','reason':'crypto_costs_or_fx_unknown','capital_expansion_allowed':False,
         'cycle_coverage_status':'partial' if pending or orphan or unscoped else 'complete',
@@ -564,6 +582,8 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
                 'operating_costs_reason':'crypto_operating_cost_cache_invalid',
                 'next_cost_action':'restore_official_billing_evidence_matching_known_charge_anchors'}
         result.update(costs)
+        _operating_references(result['cycles'],costs)
+        result.update(_summary(result['cycles']))
         phase='write'
         observed=observation['clock']['observed_at'];day=parse_instant(observed).astimezone(timezone.utc).date().isoformat()
         payload={**result,'known_operating_cost_components':known_cost_components,'known_operating_cost_source_evidence':source_evidence,'operating_cost_readback':billing_cache,'fx_quote_readbacks':fx_frames,'fx_attempted_at':fx_attempts,'fx_readback_errors':fx_errors,'observed_at':observed,'performance_day':day,'activity_readbacks':frames,'order_activity_refs':refs,

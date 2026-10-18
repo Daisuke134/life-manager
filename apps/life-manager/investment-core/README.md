@@ -507,6 +507,13 @@ consumer contract binds each raw FILL timestamp and identity to an as-of midpoin
 keeping exact rational USD reference amounts separate from native cashflow and
 actual cash settlement. Attributed fees use credited-asset weighted execution
 cost basis; BTC fees are not subtracted twice. Missing FX stays null. The existing
+cycle reference also subtracts verified, fully scoped model/system USD costs once
+as `cashflow_after_observed_fees_and_scoped_operating_costs_usd`. Cycle, strategy,
+root and daily views use exact rational sums; missing FX, observed quote fees or
+cost coverage leaves this value null. It is a reference cashflow, not settled
+net profit, and excludes unallocated standing/idle costs. The writer recomputes
+it after selecting accepted billing history; capital expansion stays disabled.
+The existing
 writer caches mode-bound raw FX evidence, reads at most two missing timestamps per
 pass and avoids retrying the same timestamp at the same observation clock. A
 transport failure preserves native performance; invalid FX cache preserves native
