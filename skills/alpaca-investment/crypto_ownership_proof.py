@@ -955,7 +955,21 @@ def _quantity_text(value: Fraction) -> str:
         return _decimal_text(Decimal(value.numerator)/Decimal(value.denominator))
 
 
-def _sell_remainder_step(rows, ownership, broker, observation, *, before, mode, owner_id, activity_readback=None):
+def _validate_known_activity_facts(state,activity_readback):
+    complete_orders=state['complete_fill_order_ids']
+    for raw in activity_readback['fills']+activity_readback['fees']:
+        fact=(raw['activity_type'],execution_activity_identity(raw) if raw['activity_type']=='FILL' else raw)
+        if (raw['id'] in state['activity_facts'] and state['activity_facts'][raw['id']]!=fact
+                or raw['activity_type']=='FILL' and raw['order_id'] in complete_orders
+                and raw['id'] not in state['fill_activity_ids']):
+            raise ValueError
+    buy=state['entry_broker']
+    if (parse_instant(activity_readback['requested_period_start'])<=parse_instant(buy['submitted_at'])
+            and any(r.get('order_id')==buy['id'] for r in activity_readback['fills'])):
+        crypto_fill_activity_proof(activity_readback,buy,mode=state['acquisition']['receipt']['mode'])
+
+
+def _sell_remainder_step(rows, ownership, broker, observation, *, before, quantity_state, mode, owner_id, activity_readback=None):
     parent,intent,decision,order,effect,client=_exit_context(rows,ownership,mode=mode,owner_id=owner_id)
     try:
         before=_execution_number(before)
@@ -967,6 +981,7 @@ def _sell_remainder_step(rows, ownership, broker, observation, *, before, mode, 
         if activity_readback is None:
             activity_readback=_sell_receipt_row(rows,effect)['strategy_receipt']['activity_readback']
         execution=crypto_fill_activity_proof(activity_readback,broker,mode=mode,allow_zero=True)
+        _validate_known_activity_facts(quantity_state,activity_readback)
         if execution['side']!='sell':
             raise ValueError
         filled=Decimal(execution['filled_qty'])
@@ -983,20 +998,31 @@ def _sell_remainder_step(rows, ownership, broker, observation, *, before, mode, 
         boundary=parse_instant(execution['last_execution_at']) if execution['last_execution_at'] else submitted
         positions=_account_positions(observation,mode=mode,not_before=boundary)
         btc=[p for p in positions if p['symbol'] in {'BTCUSD','BTCUSDC','BTC/USDC','BTC/USD','BTC'}]
-        if remaining==0:
-            _flat_btc_account(observation,mode=mode,not_before=boundary)
-        else:
-            if not btc:
-                raise ReconciliationPending('owned_sell_account_pending')
-            if len(btc)!=1:
-                raise ValueError
-            held=Fraction(_execution_number(btc[0]['qty']))
-            if held>Fraction(before):
-                raise ValueError
-            if held>remaining:
-                raise ReconciliationPending('owned_sell_account_pending')
-            if held!=remaining:
-                raise ValueError
+        if len(btc)>1:raise ValueError
+        held=Fraction(_execution_number(btc[0]['qty'])) if btc else Fraction()
+        if held>Fraction(before):raise ValueError
+        if held>remaining:raise ReconciliationPending('owned_sell_account_pending')
+        fee_receipt=None
+        new_buy_fees=any(r.get('order_id')==parent['entry_provider_order_id'] and r['id'] not in quantity_state['activity_facts']
+            for r in activity_readback['fees'])
+        if held<remaining or new_buy_fees:
+            # Derived after-SELL quantity only; the account/order readbacks stay raw.
+            intermediate={**quantity_state,'owned_qty':_quantity_text(remaining),
+                'sold_qty':_quantity_text(Fraction(quantity_state['sold_qty'])+Fraction(filled)),
+                'last_close_effect_id':effect,'last_close_client_order_id':client,
+                'last_observed_at':max(quantity_state['last_observed_at'],boundary)}
+            pending={**ownership,'status':'open','owned_qty':_quantity_text(remaining)}
+            buy=entry_receipt_row(rows,ownership['entry_effect_id'])['broker']
+            try:
+                fee=_native_fee_debit_step(intermediate,pending,observation,activity_readback=activity_readback,
+                    broker=buy,mode=mode,owner_id=owner_id)['receipt']
+            except ReconciliationPending as error:
+                if not btc:raise ReconciliationPending('owned_sell_account_pending') from error
+                raise
+            remaining=Fraction(fee['remaining_owned_qty'])
+            if Fraction(fee['debit_qty'])>0:fee_receipt=fee
+        if held!=remaining:raise ValueError
+        if remaining==0:_flat_btc_account(observation,mode=mode,not_before=boundary)
         remaining_text=_quantity_text(remaining)
         if remaining:
             _execution_number(remaining_text)
@@ -1005,7 +1031,7 @@ def _sell_remainder_step(rows, ownership, broker, observation, *, before, mode, 
         raise
     except (ValueError,KeyError,TypeError,AttributeError,ArithmeticError) as error:
         raise ValueError('owned_sell_proof_invalid') from error
-    return {'account_readback':observation,'activity_readback':activity_readback,'receipt':{
+    result={'account_readback':observation,'activity_readback':activity_readback,'receipt':{
         'schema_version':1,'kind':'owned_crypto_sell_remainder','owner_id':owner_id,'mode':mode,
         'strategy_id':parent['card'].strategy_id,'release_sha':parent['release_sha'],
         **{key:parent[key] for key in ('entry_effect_id','entry_client_order_id','entry_provider_order_id')},
@@ -1015,6 +1041,9 @@ def _sell_remainder_step(rows, ownership, broker, observation, *, before, mode, 
         'remaining_owned_qty':remaining_text,'exit_price':execution['weighted_avg_price_native'],
         'exit_timestamp':execution['last_execution_at'],'sell_execution':execution,
         'quote_currency':'USDC','net_realized_pnl_usd':None}}
+
+    if fee_receipt is not None:result['receipt']['native_fee_debit']=fee_receipt
+    return result
 
 
 def owned_quantity_state_from_rows(rows,ownership,*,mode,owner_id,upto_index=None):
@@ -1037,13 +1066,16 @@ def owned_quantity_state_from_rows(rows,ownership,*,mode,owner_id,upto_index=Non
             if raw['id'] in activity_facts and activity_facts[raw['id']]!=fact:
                 raise ValueError('owned_quantity_proof_invalid')
             activity_facts[raw['id']]=fact
+        buy_fills=[r for r in frame.get('fills',[]) if r.get('order_id')==entry['broker']['id']]
+        if buy_fills and parse_instant(frame['requested_period_start'])<=parse_instant(entry['broker']['submitted_at']):
+            fill_ids.update(r['id'] for r in buy_fills);complete_orders.add(entry['broker']['id'])
     remember_activities(acquisition)
     previous_observed=parse_instant(acquisition['account_readback']['clock']['observed_at'])
     seen=set();sold=Fraction();debited=Fraction();last_effect=None;last_client=None;last_fee=None
     fee_events=set();last_receipt_index=next(i for i,row in enumerate(rows) if row is entry)
     def current_state():
         return {'owned_qty':_quantity_text(Fraction(before)),'sold_qty':_quantity_text(sold),
-            'debited_qty':_quantity_text(debited),'acquisition':acquisition,
+            'debited_qty':_quantity_text(debited),'acquisition':acquisition,'entry_broker':entry['broker'],
             'last_observed_at':previous_observed,'provider_order_ids':providers,'fill_activity_ids':fill_ids,
             'activity_facts':activity_facts,'complete_fill_order_ids':complete_orders,
             'last_close_effect_id':last_effect,'last_close_client_order_id':last_client,'last_fee_debit':last_fee}
@@ -1094,8 +1126,9 @@ def owned_quantity_state_from_rows(rows,ownership,*,mode,owner_id,upto_index=Non
         old={**ownership,'status':'closing','owned_qty':_decimal_text(before),
              'close_effect_id':intent['effect_id'],'close_client_order_id':intent['client_order_id']}
         def step(rs,own,bk,obs,**scope):
-            reader=_sell_remainder_step if kind=='owned_crypto_sell_remainder' else _close_fill_step
-            return reader(rs,own,bk,obs,before=before,**scope)
+            if kind=='owned_crypto_sell_remainder':
+                return _sell_remainder_step(rs,own,bk,obs,before=before,quantity_state=current_state(),**scope)
+            return _close_fill_step(rs,own,bk,obs,before=before,**scope)
         proof=_recorded_proof_from_rows(rows,old,row['broker'],row['strategy_receipt']['account_readback'],
             mode=mode,owner_id=owner_id,reader=step,effect_key='close_effect_id')
         remember_activities(proof)
@@ -1103,6 +1136,8 @@ def owned_quantity_state_from_rows(rows,ownership,*,mode,owner_id,upto_index=Non
         prior_fills=set(proof['receipt'].get('sell_execution',{}).get('fill_activity_ids',[]))
         if prior_fills & fill_ids: raise ValueError('owned_sell_proof_invalid')
         fill_ids.update(prior_fills);sold+=Fraction(proof['receipt']['exit_filled_qty'])
+        if proof['receipt'].get('native_fee_debit'):
+            last_fee=proof['receipt']['native_fee_debit'];debited+=Fraction(last_fee['debit_qty'])
         before=Decimal(proof['receipt'].get('remaining_owned_qty','0'))
         previous_observed=parse_instant(proof['account_readback']['clock']['observed_at'])
         last_effect=intent['effect_id'];last_client=intent['client_order_id']
@@ -1172,13 +1207,7 @@ def _native_fee_debit_step(state,ownership,observation,*,activity_readback,broke
         known_fees={key for key,fact in state['activity_facts'].items()
             if fact[0]=='CFEE' and fact[1].get('order_id')==broker['id']}
         if not known_fees.issubset(fees['fee_activity_ids']): raise ValueError
-        complete_orders=state['complete_fill_order_ids']
-        for raw in activity_readback['fills']+activity_readback['fees']:
-            fact=(raw['activity_type'],execution_activity_identity(raw) if raw['activity_type']=='FILL' else raw)
-            if (raw['id'] in state['activity_facts'] and state['activity_facts'][raw['id']]!=fact
-                    or raw['activity_type']=='FILL' and raw['order_id'] in complete_orders
-                    and raw['id'] not in state['fill_activity_ids']):
-                raise ValueError
+        _validate_known_activity_facts(state,activity_readback)
         gross=Fraction(acquisition['entry_filled_qty']);sold=Fraction(state['sold_qty'])
         before=Fraction(state['owned_qty']);total_fee=Fraction(fees['cumulative_fee_qty'])
         remaining=gross-total_fee-sold
@@ -1207,7 +1236,7 @@ def _native_fee_debit_step(state,ownership,observation,*,activity_readback,broke
         'fee_completeness_status':'unknown','net_realized_pnl_usd':None}}
 
 
-def _sell_chain_before(rows,ownership,decision,*,mode,owner_id,broker,activity_readback=None):
+def _sell_chain_state_before(rows,ownership,decision,*,mode,owner_id,broker,activity_readback=None):
     current=[i for i,row in enumerate(rows) if row.get('receipt_type')=='effect_intent'
              and row.get('status')=='planned' and row.get('effect_id')==ownership['close_effect_id']]
     if len(current)!=1: raise ValueError('owned_sell_proof_invalid')
@@ -1222,15 +1251,22 @@ def _sell_chain_before(rows,ownership,decision,*,mode,owner_id,broker,activity_r
     if (current_fills & state['fill_activity_ids'] or before<=0
             or parse_instant(decision.get('observed_at'))<state['last_observed_at']):
         raise ValueError('owned_sell_proof_invalid')
-    return before
+    return state
+
+
+
+def _sell_chain_before(rows,ownership,decision,*,mode,owner_id,broker,activity_readback=None):
+    state=_sell_chain_state_before(rows,ownership,decision,mode=mode,owner_id=owner_id,broker=broker,
+        activity_readback=activity_readback)
+    return Decimal(state['owned_qty'])
 
 
 def sell_remainder_proof_from_rows(rows,ownership,broker,observation,*,mode,owner_id,activity_readback=None):
     try:
         parent,intent,decision,order,effect,client=_exit_context(rows,ownership,mode=mode,owner_id=owner_id)
-        before=_sell_chain_before(rows,ownership,decision,mode=mode,owner_id=owner_id,broker=broker,activity_readback=activity_readback)
-        return _sell_remainder_step(rows,ownership,broker,observation,before=before,mode=mode,
-            owner_id=owner_id,activity_readback=activity_readback)
+        state=_sell_chain_state_before(rows,ownership,decision,mode=mode,owner_id=owner_id,broker=broker,activity_readback=activity_readback)
+        return _sell_remainder_step(rows,ownership,broker,observation,before=Decimal(state['owned_qty']),
+            quantity_state=state,mode=mode,owner_id=owner_id,activity_readback=activity_readback)
     except ReconciliationPending:
         raise
     except (ValueError,KeyError,TypeError,AttributeError,ArithmeticError) as error:

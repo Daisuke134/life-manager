@@ -336,8 +336,12 @@ def _sync_live_ownership(state: Path, credentials_path: Path, cli_path: Path,
     elif ownership.get("status") == "closing":
         if status in BROKER_TERMINAL_FAILURE_STATUSES:
             try:
-                proof = recorded_close_fill_proof(state, ownership, broker, observation,
+                saved=_sell_receipt_row(_owned_rows(state/'receipts.jsonl'),ownership['close_effect_id'])['strategy_receipt']
+                proof = recorded_close_fill_proof(state, ownership, broker, saved['account_readback'],
                     mode=os.environ.get("LIFE_MANAGER_INVESTMENT_MODE"))
+                if Decimal(proof['receipt']['remaining_owned_qty'])==0:
+                    _flat_btc_account(observation,mode=os.environ.get('LIFE_MANAGER_INVESTMENT_MODE'),
+                        not_before=parse_instant(saved['account_readback']['clock']['observed_at']))
             except ReconciliationPending:
                 return ownership
             except ValueError as error:
@@ -349,6 +353,8 @@ def _sync_live_ownership(state: Path, credentials_path: Path, cli_path: Path,
             if remaining > 0:
                 ownership['owned_qty'] = proof['receipt']['remaining_owned_qty']
             _atomic_json(path, ownership)
+            if remaining>0:
+                return _sync_live_ownership(state,credentials_path,cli_path,observation,reconcile_fees=reconcile_fees)
         elif status == "filled" and not btc:
             mode = os.environ.get("LIFE_MANAGER_INVESTMENT_MODE")
             try:
@@ -475,9 +481,11 @@ def _reconcile_crypto_close(intent: dict, provider_order: dict, *, state: Path,
             rows = _owned_rows(state / 'receipts.jsonl')
             if any(r.get('receipt_type') == 'outcome' and r.get('effect_id') == intent['effect_id']
                    and r.get('strategy_receipt') is not None for r in rows):
-                return recorded_close_fill_proof(state, ownership, provider_order, observation, mode=mode)
+                saved=_sell_receipt_row(rows,ownership['close_effect_id'])['strategy_receipt']
+                return recorded_close_fill_proof(state, ownership, provider_order, saved['account_readback'], mode=mode)
+            entry=entry_receipt_row(rows,ownership['entry_effect_id'])['broker']
             activities = read_crypto_activity_evidence(credentials_path=credentials_path, cli_path=cli_path,
-                mode=mode, period_start=provider_order.get('submitted_at'), period_end=observation['clock']['observed_at'])
+                mode=mode, period_start=entry['submitted_at'], period_end=observation['clock']['observed_at'])
             return sell_remainder_proof_from_rows(rows, ownership, provider_order, observation,
                 mode=mode, owner_id=investment_owner_id(), activity_readback=activities)
         return close_fill_proof(state, ownership, provider_order, observation, mode=mode)

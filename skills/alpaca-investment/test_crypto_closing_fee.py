@@ -160,3 +160,25 @@ class CryptoClosingFeeTests(unittest.TestCase):
             self.assertEqual(store.unresolved_intent_count(ledger),1)
             with self.assertRaises(ValueError):
                 proofs.owned_quantity_state_from_rows(rows,args[0],mode='paper',owner_id=args[3])
+
+    def test_parent_buy_fills_cannot_contradict_the_order_even_without_a_fee_gap(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);args=list(closing_fee_fixture(root,remaining='0.03'))
+            fills=copy.deepcopy(args[4]['fills']);fills[0]['qty']='0.051'
+            args[4]=activity_fixture({'fills':fills,'fees':[]},mode='paper',start=args[4]['requested_period_start'],end=NOW)
+            with self.assertRaises(ValueError):self.proof(root,args)
+
+    def test_a_buy_fill_set_observed_during_close_cannot_be_replaced_by_new_ids(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);args=closing_fee_fixture(root);self.save(root,args)
+            owned={**args[0],'status':'open','owned_qty':'0.029925'}
+            old=args[4];later=activity_fixture({'fills':[{**old['fills'][0],'id':'different-buy-fill'}],
+                'fees':old['fees']+[{**old['fees'][0],'id':'later-buy-fee','qty':'-0.000025',
+                    'created_at':'2026-01-01T04:16:00Z'}]},mode='paper',start=old['requested_period_start'],end='2026-01-01T04:16:02Z')
+            account={**args[2],'positions':[{'symbol':'BTCUSD','qty':'0.0299'}],
+                'clock':{'observed_at':'2026-01-01T04:16:02Z'}}
+            before=(root/'receipts.jsonl').read_bytes()
+            with self.assertRaises(ValueError):
+                store.record_native_fee_debit(root/'receipts.jsonl',owned,account,activity_readback=later,
+                    mode='paper',owner_id=args[3])
+            self.assertEqual((root/'receipts.jsonl').read_bytes(),before)
