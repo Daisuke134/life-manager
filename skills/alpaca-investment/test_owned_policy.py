@@ -24,7 +24,7 @@ import position_manager
 from strategy_policy import candidate_cards
 
 
-def seed(root: Path, mode: str = "live", decision_changes=None, broker_id="provider-entry"):
+def seed(root: Path, mode: str = "live", decision_changes=None, broker_id="provider-entry", *, record_account=True):
     owner = f"alpaca-investment-{mode}"
     card = candidate_cards()["alpaca-btc-5m-trend-v1"]
     decision = {"action": "ENTER", "mode": mode, "owner_id": owner,
@@ -41,11 +41,19 @@ def seed(root: Path, mode: str = "live", decision_changes=None, broker_id="provi
               "status": "filled", "symbol": "BTC/USDC", "side": "buy", "type": "market",
               "time_in_force": "gtc", "filled_qty": "0.05", "filled_avg_price": "200",
               "submitted_at": "2026-01-01T04:00:00Z", "filled_at": "2026-01-01T04:00:30Z"}
-    effect_store.reconcile_started(ledger, lambda client: copy.deepcopy(broker))
     ownership = {"status": "open", "symbol": "BTCUSD", "entry_effect_id": sealed["effect_id"],
                  "entry_client_order_id": sealed["client_order_id"], "entry_filled_qty": "0.05",
                  "owned_qty": "0.05", "entry_timestamp": "2026-01-01T04:00:00Z"}
     (root / "live-owned-position.json").write_text(json.dumps(ownership))
+    if record_account:
+        from crypto_ownership_proof import entry_fill_proof_from_rows
+        account={"mode":mode,"paper":mode=="paper","clock":{"observed_at":"2026-01-01T04:00:31Z"},
+                 "account":{"cash":"90","equity":"100"},"positions":[{"symbol":"BTCUSD","qty":"0.05"}]}
+        proof=entry_fill_proof_from_rows(effect_store._rows(ledger),ownership,broker,account,mode=mode,owner_id=owner)
+        effect_store.reconcile_started(ledger,lambda client:copy.deepcopy(broker),on_reconciled=lambda *_:proof)
+    else:
+        # Negative fixtures intentionally retain an unproved raw broker response.
+        effect_store.reconcile_started(ledger,lambda client:copy.deepcopy(broker))
     other = candidate_cards()["alpaca-btc-5m-reversion-v1"]
     (root / "selected-strategy.json").write_text(json.dumps({
         "strategy_id": other.strategy_id, "release_sha": "b"*40, "card": other.to_mapping(),
@@ -206,7 +214,7 @@ class OwnedPolicyTests(unittest.TestCase):
         for changes in cases:
             with self.subTest(changes=changes),tempfile.TemporaryDirectory() as directory:
                 root=Path(directory)
-                ownership,owner=seed(root,decision_changes=changes)
+                ownership,owner=seed(root,decision_changes=changes,record_account=False)
                 with patch.dict(os.environ,{"LIFE_MANAGER_INVESTMENT_OWNER_ID":owner}),self.assertRaises(ValueError):
                     position_manager.load_owned_policy(root,ownership,mode="live")
 
@@ -330,7 +338,7 @@ class OwnedSubmitFenceTests(unittest.TestCase):
                     original.update(status="entry_pending",entry_filled_qty="0")
                     (root/"live-owned-position.json").write_text(json.dumps(original))
                 raw,observation=snapshot(mode); raw.pop("crypto_history"); raw["positions"]=0
-                observation.update(positions=[],account={"cash":"90","equity":"100"},activities_count=0,
+                observation.update(mode=mode,paper=mode=="paper",positions=[],account={"cash":"90","equity":"100"},activities_count=0,
                     open_and_closed_orders_count=0,clock={"observed_at":raw["clock"]["timestamp"]})
                 broker=next(row["broker"] for row in effect_store._rows(root/"receipts.jsonl")
                             if row.get("receipt_type")=="outcome")

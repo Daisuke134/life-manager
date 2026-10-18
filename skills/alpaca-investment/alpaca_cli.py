@@ -40,6 +40,8 @@ SAFE_ERROR_CODES = frozenset({
     "entry_position_changed_before_submit", "owned_close_proof_invalid",
     "owned_close_receipt_missing", "owned_close_receipt_conflict",
     "owned_closed_identity_invalid", "owned_no_fill_proof_invalid",
+    "owned_entry_account_invalid", "owned_entry_account_pending",
+    "owned_entry_receipt_missing", "owned_entry_receipt_conflict",
     "owned_no_fill_receipt_missing", "owned_no_fill_receipt_conflict",
     "alpaca_allocator_risk_invalid", "alpaca_allocator_shape_invalid",
     "alpaca_crypto_history_invalid",

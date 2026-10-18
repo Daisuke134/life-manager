@@ -164,7 +164,7 @@ def _owned_policy(proof: dict[str, Any], ownership: dict[str, Any], *, mode: str
 
 
 
-def _flat_btc_account(observation: dict[str, Any], *, mode: str, not_before: datetime) -> None:
+def _account_positions(observation: dict[str, Any], *, mode: str, not_before: datetime) -> list[dict[str, Any]]:
     if observation.get("mode") != mode or observation.get("paper") is not (mode == "paper"):
         raise ValueError
     if parse_instant(observation["clock"]["observed_at"]) < not_before:
@@ -178,8 +178,15 @@ def _flat_btc_account(observation: dict[str, Any], *, mode: str, not_before: dat
         if (not isinstance(position, dict) or not isinstance(position.get("symbol"), str)
                 or not position["symbol"].strip() or not Decimal(str(position.get("qty"))).is_finite()):
             raise ValueError
-        if position["symbol"] in {"BTCUSD", "BTCUSDC", "BTC/USDC", "BTC/USD", "BTC"}:
-            raise ReconciliationPending("owned_close_account_pending")
+
+
+    return positions
+
+
+def _flat_btc_account(observation: dict[str, Any], *, mode: str, not_before: datetime) -> None:
+    positions = _account_positions(observation, mode=mode, not_before=not_before)
+    if any(position["symbol"] in {"BTCUSD", "BTCUSDC", "BTC/USDC", "BTC/USD", "BTC"} for position in positions):
+        raise ReconciliationPending("owned_close_account_pending")
 
 
 def close_fill_proof_from_rows(rows: list[dict[str, Any]], ownership: dict[str, Any], broker: dict[str, Any],
@@ -288,7 +295,8 @@ def _recorded_proof_from_rows(rows: list[dict[str, Any]], ownership: dict[str, A
                                   mode: str, owner_id: str, reader, effect_key: str) -> dict[str, Any]:
     proof = reader(rows, ownership, broker, observation, mode=mode, owner_id=owner_id)
     matched = False
-    error_prefix = "owned_close" if effect_key == "close_effect_id" else "owned_no_fill"
+    error_prefix = {"owned_crypto_close": "owned_close", "owned_crypto_entry": "owned_entry",
+                    "owned_crypto_no_fill": "owned_no_fill"}[proof["receipt"]["kind"]]
     for row in rows:
         if row.get("receipt_type") != "outcome" or row.get("effect_id") != ownership.get(effect_key):
             continue
@@ -398,3 +406,78 @@ def recorded_close_proof_from_rows(rows, ownership, broker, observation, *, mode
 def recorded_no_fill_proof_from_rows(rows, ownership, broker, observation, *, mode, owner_id):
     return _recorded_proof_from_rows(rows, ownership, broker, observation, mode=mode, owner_id=owner_id,
                                      reader=no_fill_entry_proof_from_rows, effect_key="entry_effect_id")
+
+
+def entry_fill_proof_from_rows(rows: list[dict[str, Any]], ownership: dict[str, Any],
+                               broker: dict[str, Any], observation: dict[str, Any], *,
+                               mode: str, owner_id: str) -> dict[str, Any]:
+    """Validate the actual GET before committing its acquisition/account receipt."""
+    try:
+        if ownership.get('status') not in {'entry_pending','open','closing','closed'}:
+            raise ValueError
+        filled = Decimal(str(broker.get('filled_qty')))
+        if not filled.is_finite() or filled <= 0:
+            raise ValueError
+        known_fill = Decimal(str(ownership.get('entry_filled_qty')))
+        if (not known_fill.is_finite() or known_fill < 0
+                or (known_fill == 0 and ownership.get('status') != 'entry_pending')
+                or (known_fill > 0 and known_fill != filled)):
+            raise ValueError
+        # This envelope contains the current official response, not a synthetic order.
+        current = {'receipt_type':'outcome','outcome':'broker_reconciled',
+            'effect_id':ownership['entry_effect_id'],'client_order_id':ownership['entry_client_order_id'],
+            'mode':mode,'paper':mode=='paper','broker':broker,'broker_status':broker.get('status'),
+            'broker_receipt_id':broker.get('id')}
+        validation_owner={**ownership,'entry_filled_qty':str(filled),'owned_qty':str(filled)}
+        parent=_owned_policy(owned_entry_decision_from_rows([*rows,current],validation_owner,
+                             owner_id=owner_id,mode=mode),validation_owner,mode=mode)
+        positions=_account_positions(observation,mode=mode,not_before=parse_instant(parent['entry_timestamp']))
+        btc=[p for p in positions if p['symbol'] in {'BTCUSD','BTCUSDC','BTC/USDC'}]
+        if not btc:
+            raise ReconciliationPending('owned_entry_account_pending')
+        if len(btc)!=1:
+            raise ValueError
+        held=Decimal(str(btc[0]['qty']))
+        if held==0:
+            raise ReconciliationPending('owned_entry_account_pending')
+        if held<0 or held>filled:
+            raise ValueError
+        if ownership.get('owned_qty') is not None:
+            known_owned=Decimal(str(ownership['owned_qty']))
+            if not known_owned.is_finite() or known_owned<=0 or known_owned!=held:
+                raise ValueError
+    except ReconciliationPending:
+        raise
+    except (ValueError,KeyError,TypeError,AttributeError,InvalidOperation) as error:
+        raise ValueError('owned_entry_account_invalid') from error
+    return {'account_readback':observation,'receipt':{
+        'schema_version':1,'kind':'owned_crypto_entry','owner_id':owner_id,'mode':mode,
+        'strategy_id':parent['card'].strategy_id,'release_sha':parent['release_sha'],
+        'entry_effect_id':parent['entry_effect_id'],'entry_client_order_id':parent['entry_client_order_id'],
+        'entry_provider_order_id':parent['entry_provider_order_id'],
+        'entry_filled_qty':format(filled.normalize(),'f'),'account_owned_qty':format(held.normalize(),'f'),
+        'entry_price':format(Decimal(parent['entry_price']).normalize(),'f'),
+        'entry_timestamp':parse_instant(parent['entry_timestamp']).isoformat(),
+        'quote_currency':'USDC','net_realized_pnl_usd':None}}
+
+
+def entry_receipt_row(rows: list[dict[str, Any]], effect: str) -> dict[str, Any]:
+    candidates=[r for r in rows if r.get('receipt_type')=='outcome' and r.get('effect_id')==effect
+                and r.get('strategy_receipt') is not None]
+    if not candidates:
+        raise ValueError('owned_entry_receipt_missing')
+    return candidates[-1]
+
+
+def recorded_entry_proof_from_rows(rows: list[dict[str, Any]], ownership: dict[str, Any],
+                                   broker: dict[str, Any], observation: dict[str, Any], *,
+                                   mode: str, owner_id: str) -> dict[str, Any]:
+    try:
+        row=entry_receipt_row(rows,ownership['entry_effect_id'])
+        receipt=row['strategy_receipt']['receipt']
+        historical={**ownership,'entry_filled_qty':receipt['entry_filled_qty'],
+                    'owned_qty':receipt['account_owned_qty']}
+    except (ValueError,KeyError,TypeError,AttributeError) as error:
+        raise ValueError('owned_entry_receipt_missing') from error
+    return _recorded_proof_from_rows(rows,historical,broker,observation,mode=mode,owner_id=owner_id,
+                                    reader=entry_fill_proof_from_rows,effect_key='entry_effect_id')

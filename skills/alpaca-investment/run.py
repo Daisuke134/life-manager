@@ -28,6 +28,8 @@ from paper_performance import write_paper_performance
 from cost_inventory import record_source_inventory
 from reporter import deliver, deliver_control, deliver_failure
 from position_manager import choose as choose_position, exit_order as live_exit_order, load_owned_policy, close_fill_proof, recorded_close_fill_proof
+from position_manager import recorded_entry_fill_proof, historical_entry_fill_proof
+from crypto_ownership_proof import entry_fill_proof_from_rows, recorded_entry_proof_from_rows
 from strategy_policy import INDICATOR_HISTORY_CONTRACTS, load_selected_card, validate_policy_card
 from review_status import read_receipt as read_application_status
 from review_status import refresh as refresh_application_status
@@ -246,17 +248,16 @@ def _sync_live_ownership(state: Path, credentials_path: Path, cli_path: Path,
                                      client_order_id=ownership.get(order_key, ""))
     status = broker.get("status") if broker else "absent"
     if ownership.get("status") == "entry_pending":
-        if btc and status in {"filled", "canceled", "expired", "rejected"}:
+        if btc and status == "filled":
             try:
-                held = Decimal(str(btc[0]["qty"]))
-                filled = Decimal(str(broker.get("filled_qty") or "0"))
-            except (InvalidOperation, KeyError, TypeError) as error:
-                raise ValueError("live_position_not_owned") from error
-            if held <= 0 or held > filled:
-                raise ValueError("live_position_not_owned")
+                proof = recorded_entry_fill_proof(state, ownership, broker, observation,
+                                                  mode=os.environ.get("LIFE_MANAGER_INVESTMENT_MODE"))
+            except ValueError:
+                return ownership
             ownership["status"] = "open"
-            ownership["entry_filled_qty"] = str(filled)
-            ownership["owned_qty"] = str(held)
+            ownership["entry_filled_qty"] = proof["receipt"]["entry_filled_qty"]
+            ownership["owned_qty"] = proof["receipt"]["account_owned_qty"]
+            ownership["entry_timestamp"] = proof["receipt"]["entry_timestamp"]
             _atomic_json(path, ownership)
         elif status in {"canceled", "expired", "rejected", "done_for_day", "stopped", "suspended"} and not btc:
             try:
@@ -266,6 +267,14 @@ def _sync_live_ownership(state: Path, credentials_path: Path, cli_path: Path,
                 return ownership
             ownership["status"] = "closed"
             _atomic_json(path, ownership)
+    elif ownership.get("status") == "open":
+        mode = os.environ.get("LIFE_MANAGER_INVESTMENT_MODE")
+        if observation.get("mode") != mode or observation.get("paper") is not (mode == "paper"):
+            raise ValueError("owned_entry_account_invalid")
+        try:
+            historical_entry_fill_proof(state, ownership, mode=mode)
+        except ValueError:
+            return {**ownership, "status": "entry_pending"}
     elif ownership.get("status") == "closing":
         if status in {"canceled", "expired", "rejected"} and btc:
             try:
@@ -349,6 +358,31 @@ def _reconcile_etf_intent(
 
 
 
+
+def _reconcile_crypto_entry(intent: dict, provider_order: dict, *, state: Path,
+                            credentials_path: Path, cli_path: Path) -> dict:
+    mode = _mode()
+    if (intent.get("mode") != mode or intent.get("owner_id") != investment_owner_id()
+            or intent.get("order", {}).get("asset_class") != "crypto" or intent["order"].get("side") != "buy"):
+        raise ValueError("owned_entry_account_invalid")
+    with control_fence(state):
+        ownership = json.loads((state / "live-owned-position.json").read_text(encoding="utf-8"))
+        if (not isinstance(ownership, dict) or ownership.get("status") not in {"entry_pending", "open"}
+                or ownership.get("entry_effect_id") != intent.get("effect_id")
+                or ownership.get("entry_client_order_id") != intent.get("client_order_id")):
+            raise ValueError("owned_entry_account_invalid")
+        observation = _normalize_live_position_symbols(observe(
+            credentials_path=credentials_path, cli_path=cli_path))
+        from effect_store import _owned_rows
+        rows = _owned_rows(state / "receipts.jsonl")
+        if any(r.get("receipt_type") == "outcome" and r.get("effect_id") == intent["effect_id"]
+               and r.get("strategy_receipt") is not None for r in rows):
+            return recorded_entry_proof_from_rows(rows, ownership, provider_order, observation,
+                                                  mode=mode, owner_id=investment_owner_id())
+        return entry_fill_proof_from_rows(rows, ownership, provider_order, observation,
+                                         mode=mode, owner_id=investment_owner_id())
+
+
 def _reconcile_crypto_close(intent: dict, provider_order: dict, *, state: Path,
                             credentials_path: Path, cli_path: Path) -> dict:
     mode = _mode()
@@ -424,6 +458,11 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
         reconciled_observation: dict[str, dict] = {}
 
         def on_reconciled(intent: dict, provider_order: dict) -> dict | None:
+            if (intent.get("order", {}).get("asset_class") == "crypto" and intent["order"].get("side") == "buy"):
+                result = _reconcile_crypto_entry(intent, provider_order, state=state,
+                    credentials_path=credentials_path, cli_path=cli_path)
+                reconciled_observation["value"] = result["account_readback"]
+                return result
             if (intent.get("order", {}).get("asset_class") == "crypto"
                     and intent["order"].get("side") == "sell"):
                 result = _reconcile_crypto_close(intent, provider_order, state=state,

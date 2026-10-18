@@ -10,7 +10,7 @@ from typing import Any
 from strategy_policy import ACTION_EXIT, ACTION_HOLD, evaluate
 from effect_store import _owned_rows, owned_entry_decision
 from crypto_ownership_proof import (_owned_policy, close_fill_proof_from_rows,
-                                    recorded_close_proof_from_rows)
+                                    recorded_close_proof_from_rows, recorded_entry_proof_from_rows, entry_receipt_row)
 from etf_ownership import investment_owner_id
 from risk_policy import parse_instant
 
@@ -35,6 +35,20 @@ def recorded_close_fill_proof(state: Path, ownership: dict[str, Any], broker: di
                              observation: dict[str, Any], *, mode: str) -> dict[str, Any]:
     return recorded_close_proof_from_rows(_owned_rows(state / "receipts.jsonl"), ownership, broker,
                                           observation, mode=mode, owner_id=investment_owner_id())
+
+
+
+def recorded_entry_fill_proof(state: Path, ownership: dict[str, Any], broker: dict[str, Any],
+                              observation: dict[str, Any], *, mode: str) -> dict[str, Any]:
+    return recorded_entry_proof_from_rows(_owned_rows(state / "receipts.jsonl"), ownership, broker,
+                                          observation, mode=mode, owner_id=investment_owner_id())
+
+
+def historical_entry_fill_proof(state: Path, ownership: dict[str, Any], *, mode: str) -> dict[str, Any]:
+    rows = _owned_rows(state / "receipts.jsonl")
+    row = entry_receipt_row(rows, ownership["entry_effect_id"])
+    return recorded_entry_proof_from_rows(rows, ownership, row.get("broker"),
+        row.get("strategy_receipt", {}).get("account_readback"), mode=mode, owner_id=investment_owner_id())
 
 
 def choose(snapshot: dict[str, Any], observation: dict[str, Any], state: Path,

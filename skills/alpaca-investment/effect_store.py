@@ -12,7 +12,7 @@ from typing import Any, Callable
 
 from crypto_ownership_proof import (_digest, ReconciliationPending, owned_entry_decision_from_rows,
                                     recorded_close_proof_from_rows, no_fill_entry_proof_from_rows,
-                                    recorded_no_fill_proof_from_rows)
+                                    recorded_no_fill_proof_from_rows, recorded_entry_proof_from_rows)
 
 
 MODES = frozenset({"paper", "shadow", "live"})
@@ -162,14 +162,20 @@ def mark_started(ledger: Path, sealed: dict[str, str]) -> bool:
 
 
 
-def _crypto_close_pending(intent: dict[str, Any], outcome: dict[str, Any] | None,
+def _crypto_account_pending(intent: dict[str, Any], outcome: dict[str, Any] | None,
                           rows: list[dict[str, Any]]) -> bool:
     """Use the same historical proof as the position owner, without current state/env."""
     order = intent.get("order", {})
-    if (not isinstance(order, dict) or order.get("asset_class") != "crypto" or order.get("side") != "sell"
+    if (not isinstance(order, dict) or order.get("asset_class") != "crypto" or order.get("side") not in {"buy", "sell"}
             or not isinstance(outcome, dict) or outcome.get("outcome") != "broker_reconciled"):
         return False
     try:
+        if order["side"] == "buy":
+            ownership = {"status": "entry_pending", "symbol": "BTCUSD", "entry_filled_qty": "0",
+                         "entry_effect_id": intent["effect_id"], "entry_client_order_id": intent["client_order_id"]}
+            recorded_entry_proof_from_rows(rows, ownership, outcome["broker"],
+                outcome["strategy_receipt"]["account_readback"], mode=intent["mode"], owner_id=intent["owner_id"])
+            return False
         decisions = [r["decision"] for r in rows if r.get("receipt_type") == "decision"
                      and r.get("decision_id") == intent.get("decision_id")]
         if len(decisions) != 1:
@@ -200,7 +206,7 @@ def _unresolved(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [row for effect_id, row in latest.items()
             if row.get("status") in UNRESOLVED_INTENT_STATUSES
             and (not _outcome_closed(latest_outcome.get(effect_id), rows)
-                 or _crypto_close_pending(row, latest_outcome.get(effect_id), rows)
+                 or _crypto_account_pending(row, latest_outcome.get(effect_id), rows)
                  or (row.get("strategy_readback_pending") is True
                      and not isinstance((latest_outcome.get(effect_id) or {}).get("strategy_receipt"), dict))) ]
 
@@ -226,7 +232,7 @@ def _completed_without_strategy_receipt(
                        if isinstance(row.get("order"), dict)
                        and isinstance(row.get("owner_id"), str)
                        and isinstance(row.get("strategy_id"), str)
-                       and ((row["order"].get("asset_class") == "crypto" and row["order"].get("side") == "sell")
+                       and ((row["order"].get("asset_class") == "crypto" and row["order"].get("side") in {"buy", "sell"})
                             or (isinstance(row.get("decision_session"), str)
                                 and isinstance(row.get("source_receipt_ids"), list)))), None)
         if (outcome.get("outcome") != "broker_reconciled"

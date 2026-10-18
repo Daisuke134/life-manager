@@ -36,7 +36,7 @@ def _report(*, net: str = "1.62", report_id: str = "report-etf") -> dict[str, ob
 
 def _crypto_closed_fixture(root: Path, *, no_fill: bool):
     from provision_selection import _effects
-    from crypto_ownership_proof import close_fill_proof_from_rows
+    from crypto_ownership_proof import close_fill_proof_from_rows, entry_fill_proof_from_rows
     from strategy_policy import candidate_cards
     mode,owner='paper','alpaca-investment-paper'
     card=candidate_cards()['alpaca-btc-5m-trend-400-v2']
@@ -57,7 +57,12 @@ def _crypto_closed_fixture(root: Path, *, no_fill: bool):
     if no_fill:
         _effects.record_no_fill_account_receipt(ledger,owned,buy,account,mode=mode,owner_id=owner)
     else:
-        owned['owned_qty']='0.05'
+        owned.update(owned_qty='0.05',status='open')
+        acquired={**account,'clock':{'observed_at':'2026-01-01T04:00:02Z'},
+                  'positions':[{'symbol':'BTCUSDC','qty':'0.05'}]}
+        entry_proof=entry_fill_proof_from_rows(_effects._rows(ledger),owned,buy,acquired,mode=mode,owner_id=owner)
+        _effects.reconcile_started(ledger,lambda _:buy,on_reconciled=lambda *_:entry_proof)
+        owned['status']='closing'
         sell_decision={'action':'EXIT','mode':mode,'owner_id':owner,'strategy_id':card.strategy_id,
             'release_sha':'a'*40,'observed_at':'2026-01-01T04:15:00Z','position_qty':'0.05',
             'entry_effect_id':entry['effect_id'],'entry_client_order_id':entry['client_order_id'],

@@ -294,39 +294,36 @@ class BrokerContextTest(unittest.TestCase):
         self.assertIn("--qty", run.call_args.args[1])
 
     def test_live_ownership_selects_btc_not_usdc_and_opens_from_fill(self):
-        with tempfile.TemporaryDirectory() as directory:
-            state = Path(directory)
-            MODULE._atomic_json(state / "live-owned-position.json", {
-                "entry_client_order_id": "lm-ai-" + "c" * 24,
-                "entry_effect_id": "effect", "entry_filled_qty": "0",
-                "status": "entry_pending", "symbol": "BTCUSD"})
-            observation = {"positions": [
-                {"symbol": "USDCUSD", "qty": "60"},
-                {"symbol": "BTCUSD", "qty": "0.0001"}]}
-            with patch.object(MODULE, "find_order_by_client_id", return_value={
-                    "status": "filled", "filled_qty": "0.00011"}):
-                ownership = MODULE._sync_live_ownership(
-                    state, Path("credentials"), Path("alpaca"), observation)
-            self.assertEqual(ownership["status"], "open")
-            MODULE._owned_live_position(ownership, observation)
+        from test_crypto_entry import entry_fixture
+        from crypto_ownership_proof import entry_fill_proof_from_rows
+        with tempfile.TemporaryDirectory() as directory,patch.dict(MODULE.os.environ,{
+                "LIFE_MANAGER_INVESTMENT_MODE":"live","LIFE_MANAGER_INVESTMENT_OWNER_ID":"alpaca-investment-live"}):
+            state=Path(directory);marker,broker,observation,owner=entry_fixture(state,owned_qty="0.049875")
+            proof=entry_fill_proof_from_rows(EFFECT_STORE._rows(state/"receipts.jsonl"),marker,broker,observation,mode="live",owner_id=owner)
+            EFFECT_STORE.reconcile_started(state/"receipts.jsonl",lambda _:broker,on_reconciled=lambda *_:proof)
+            observation=MODULE._normalize_live_position_symbols(observation)
+            with patch.object(MODULE,"find_order_by_client_id",return_value=broker):
+                ownership=MODULE._sync_live_ownership(state,Path("unused"),Path("unused"),observation)
+            self.assertEqual(ownership["status"],"open")
+            self.assertEqual(ownership["owned_qty"],"0.049875")
+            MODULE._owned_live_position(ownership,observation)
 
-    def test_cloud_canary_symbol_is_normalized_before_regular_live_ownership_sync(self):
-        with tempfile.TemporaryDirectory() as directory:
-            state = Path(directory)
-            MODULE._atomic_json(state / "live-owned-position.json", {
-                "entry_client_order_id": "lm-ai-" + "c" * 24,
-                "entry_effect_id": "effect", "entry_filled_qty": "0.00002",
-                "owned_qty": "0.00001995", "status": "open", "symbol": "BTCUSD"})
-            observation = MODULE._normalize_live_position_symbols({"positions": [
-                {"symbol": "USDCUSD", "qty": "64"},
-                {"symbol": "BTCUSDC", "qty": "0.00001995"}]})
-            with patch.object(MODULE, "find_order_by_client_id", return_value={
-                    "status": "filled", "filled_qty": "0.00002"}):
-                ownership = MODULE._sync_live_ownership(
-                    state, Path("credentials"), Path("alpaca"), observation)
-            self.assertEqual(ownership["status"], "open")
-            self.assertEqual(observation["positions"][1]["symbol"], "BTCUSD")
-            MODULE._owned_live_position(ownership, observation)
+    def test_provider_symbol_is_normalized_before_regular_ownership_sync(self):
+        from test_crypto_entry import entry_fixture
+        from crypto_ownership_proof import entry_fill_proof_from_rows
+        with tempfile.TemporaryDirectory() as directory,patch.dict(MODULE.os.environ,{
+                "LIFE_MANAGER_INVESTMENT_MODE":"live","LIFE_MANAGER_INVESTMENT_OWNER_ID":"alpaca-investment-live"}):
+            state=Path(directory);marker,broker,observation,owner=entry_fixture(state)
+            proof=entry_fill_proof_from_rows(EFFECT_STORE._rows(state/"receipts.jsonl"),marker,broker,observation,mode="live",owner_id=owner)
+            EFFECT_STORE.reconcile_started(state/"receipts.jsonl",lambda _:broker,on_reconciled=lambda *_:proof)
+            marker.update(status="open",entry_filled_qty="0.05",owned_qty="0.05")
+            MODULE._atomic_json(state/"live-owned-position.json",marker)
+            observation=MODULE._normalize_live_position_symbols(observation)
+            with patch.object(MODULE,"find_order_by_client_id",return_value=broker):
+                ownership=MODULE._sync_live_ownership(state,Path("unused"),Path("unused"),observation)
+            self.assertEqual(ownership["status"],"open")
+            self.assertEqual(observation["positions"][1]["symbol"],"BTCUSD")
+            MODULE._owned_live_position(ownership,observation)
 
     def test_live_observation_and_sync_hold_fence_against_canary_open_writer(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -369,17 +366,19 @@ class BrokerContextTest(unittest.TestCase):
             self.assertEqual(marker["status"], "open")
 
     def test_live_ownership_remains_open_when_position_disappears(self):
-        with tempfile.TemporaryDirectory() as directory:
-            state = Path(directory)
-            MODULE._atomic_json(state / "live-owned-position.json", {
-                "entry_client_order_id": "lm-ai-" + "d" * 24,
-                "entry_effect_id": "effect", "entry_filled_qty": "0.0001", "owned_qty": "0.0001",
-                "status": "open", "symbol": "BTCUSD"})
-            with patch.object(MODULE, "find_order_by_client_id", return_value={
-                    "status": "filled", "filled_qty": "0.0001"}):
-                ownership = MODULE._sync_live_ownership(
-                    state, Path("credentials"), Path("alpaca"), {"positions": []})
-            self.assertEqual(ownership["status"], "open")
+        from test_crypto_entry import entry_fixture
+        from crypto_ownership_proof import entry_fill_proof_from_rows
+        with tempfile.TemporaryDirectory() as directory,patch.dict(MODULE.os.environ,{
+                "LIFE_MANAGER_INVESTMENT_MODE":"live","LIFE_MANAGER_INVESTMENT_OWNER_ID":"alpaca-investment-live"}):
+            state=Path(directory);marker,broker,observation,owner=entry_fixture(state)
+            proof=entry_fill_proof_from_rows(EFFECT_STORE._rows(state/"receipts.jsonl"),marker,broker,observation,mode="live",owner_id=owner)
+            EFFECT_STORE.reconcile_started(state/"receipts.jsonl",lambda _:broker,on_reconciled=lambda *_:proof)
+            marker.update(status="open",entry_filled_qty="0.05",owned_qty="0.05")
+            MODULE._atomic_json(state/"live-owned-position.json",marker)
+            observation["positions"]=observation["positions"][:1]
+            with patch.object(MODULE,"find_order_by_client_id",return_value=broker):
+                ownership=MODULE._sync_live_ownership(state,Path("unused"),Path("unused"),observation)
+            self.assertEqual(ownership["status"],"open")
 
     def test_rejected_close_restores_owned_position(self):
         with tempfile.TemporaryDirectory() as directory:

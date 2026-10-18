@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+from datetime import timedelta
 import json
 import sys
 import tempfile
@@ -20,6 +21,8 @@ import alpaca_cli
 import effect_store
 import reporter
 import risk_policy
+from strategy_policy import candidate_cards
+from crypto_ownership_proof import entry_fill_proof_from_rows
 
 
 class _TelegramClient:
@@ -54,9 +57,10 @@ class PreliveReplayTest(unittest.TestCase):
                 no_trade_id, effect_store.record_no_trade(ledger, fixture["no_trade"])
             )
 
-            sealed = effect_store.seal(
-                ledger, fixture["paper_proposal"], fixture["paper_order"]
-            )
+            card=candidate_cards()["alpaca-btc-5m-trend-400-v2"]
+            proposal={**fixture["paper_proposal"],"action":"ENTER","owner_id":"alpaca-investment-paper",
+                      "strategy_id":card.strategy_id,"policy_card":card.to_mapping(),"release_sha":"a"*40}
+            sealed = effect_store.seal(ledger,proposal,fixture["paper_order"])
             effect_store.mark_started(ledger, sealed)
             broker_reads: list[str] = []
 
@@ -69,11 +73,23 @@ class PreliveReplayTest(unittest.TestCase):
 
             restarted = importlib.reload(effect_store)
 
+            submitted=risk_policy.parse_instant(proposal["observed_at"])
+            broker={"id":"official-prelive-entry","client_order_id":sealed["client_order_id"],"status":"filled",
+                    "symbol":"BTCUSDC","side":"buy","type":"market","time_in_force":"gtc",
+                    "filled_qty":"0.05","filled_avg_price":"200","submitted_at":submitted.isoformat(),
+                    "filled_at":(submitted+timedelta(seconds=1)).isoformat()}
+            ownership={"status":"entry_pending","symbol":"BTCUSD","entry_effect_id":sealed["effect_id"],
+                       "entry_client_order_id":sealed["client_order_id"],"entry_filled_qty":"0"}
+            account={"mode":"paper","paper":True,"account":{"cash":"99990","equity":"100000"},
+                     "positions":[{"symbol":"BTCUSDC","qty":"0.05"}],
+                     "clock":{"observed_at":(submitted+timedelta(seconds=2)).isoformat()}}
             def found_order(client_order_id: str):
                 broker_reads.append(client_order_id)
-                return {"client_order_id": client_order_id, "status": "filled"}
-
-            recovered = restarted.reconcile_started(ledger, found_order)
+                return dict(broker)
+            def acquisition(_intent,order):
+                return entry_fill_proof_from_rows(restarted._rows(ledger),ownership,order,account,
+                                                 mode="paper",owner_id="alpaca-investment-paper")
+            recovered = restarted.reconcile_started(ledger, found_order,on_reconciled=acquisition)
             replayed = restarted.reconcile_started(
                 ledger, lambda value: self.fail(f"duplicate broker read: {value}")
             )
