@@ -90,4 +90,26 @@ class CryptoFxPerformanceTests(unittest.TestCase):
                 result=self.build(root,'paper',frame,fx)
             self.assertEqual(len(result['fx_requests']),1)
 
+class CryptoFxExactIdentityTests(unittest.TestCase):
+    def test_numeric_provider_fields_match_the_shared_decimal_proof(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);_,frame,_=cycle_fixture(root)
+            for fill in frame['fills']:fill['qty']=float(fill['qty']);fill['price']=float(fill['price'])
+            frame=activity_fixture(frame,mode='paper',start=frame['requested_period_start'],end=frame['requested_period_end'])
+            fx={f['transaction_time']:quote(f['transaction_time']) for f in frame['fills']}
+            report=CryptoFxPerformanceTests().build(root,'paper',frame,fx)
+            self.assertEqual(value(report['cycles'][0]['fx_reference']['execution_cashflow_usd']),Fraction('0.5'))
+
+    def test_same_fill_id_cannot_change_nanosecond_between_execution_and_fee_frames(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);_,original,_=cycle_fixture(root);frames=[]
+            for nano in ('000000001','000000002'):
+                frame=copy.deepcopy(original);frame['fills'][0]['transaction_time']='2026-01-01T04:00:01.'+nano+'Z'
+                frames.append(activity_fixture(frame,mode='paper',start=frame['requested_period_start'],end=frame['requested_period_end']))
+            for frame,other in (frames,frames[::-1]):
+                with self.assertRaises(ValueError):
+                    perf.build_crypto_performance(store._rows(root/'receipts.jsonl'),mode='paper',owner_id='alpaca-investment-paper',
+                        activity_readbacks={f['order_id']:frame for f in frame['fills']},fee_activity_readbacks=[other])
+
+
 if __name__=='__main__':unittest.main()
