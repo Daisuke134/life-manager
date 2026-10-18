@@ -3496,3 +3496,9 @@ Task C・D/P08–P12: complete。新しいprepare/fitテストが未実装でRED
 
 Task E/P13–P17: complete。score/CLIの未実装importをRED確認後、全27テストPASS。TVD/年齢別貧困割合pp/人口加重と地域平均を区別。入力と出力をSHA256付きartifactにして、異なる内容の上書き・改ざん・重複方式・不完全coverageを拒否。prepare/reconstruct/scoreを分離し、reference非アクセスをテスト。run sidecarに時間/コード/依存/入力識別を保存し、数値予測は決定的に保つ。
 Ruling: artifactsは標準JSON payloadとSHA256のenvelopeで保存する — 依存追加なしで破損検出と決定的再実行を実現するため — 普通のJSON読者はpayloadを取り出す必要がある。署名や攻撃者に対する認証ではない。
+
+Task F/P18–P20: 実資料の実行と原稿保存までcomplete、最終レビュー/branch push待ち。2026-10-18公式fetch CLIも新しいGit外ディレクトリで成功し、州抽出hashは事前確認値と一致。元source acquired_at=2026-10-18T09:44:42.240901+00:00を使うrunは /workspace/artifacts/manager-population/run-20261018。全51地域×2方式、固定6/4/41、欠落0、有料モデル呼出0。最終評価41地域の地域平均TVD: independent=0.01434818906262829、ipf=0.008880598197022646（約38.1%低下）。29地域改善、12悪化、悪化地域を除かず保存。population-weighted meanは0.015560383961947089と0.0076656369438327775。2方式の再生成予測bytes一致。最大IPF残差1.293427185046865e-11。評価を見た後に数値設定/初期表を変更していない。
+
+解説は docs/research/manager/articles/2026-10-18-population-v0-results-ja.md、生成フロー図とmatplotlib実測図を本文に埋込み保存。公開用集計記録にはsource/config/code/predictionの識別を保存。raw/runはGit外。READMEに再実行コマンド、docsに指標・対象・悪化例・限界を記載。日本語指針2資料とtech補足を確認、記事lint指摘なし。ブログ/SNS公開、応募・メール送信、本番への反映はしていない。
+
+現在：8Aの実装・実行完了、本人への結果説明と理解確認はこれから。8B（PUMS世帯）、9（別観測で行動予測）、10（時間/相互作用/資源）、11（介入候補比較）、12（実行と因果評価）、13（継続改善）、14（対象拡大）は未実装。使命は宇宙とすべての生命の苦しみを減らすことを維持し、今回のACS精度を苦しみ軽減の実証にしない。

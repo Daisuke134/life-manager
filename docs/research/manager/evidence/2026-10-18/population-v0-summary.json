@@ -1,0 +1,133 @@
+{
+  "stage": "empirical_reconstruction",
+  "tracks": {
+    "behavior_prediction": "not_run",
+    "execution": "not_run",
+    "field": "not_run",
+    "policy": "not_run",
+    "population_fidelity": "measured"
+  },
+  "coverage": {
+    "methods": 2,
+    "regions": 51
+  },
+  "paid_model_calls": 0,
+  "partitions": {
+    "development": {
+      "methods": {
+        "independent": {
+          "max_cell_error_pp": 1.2287599396046749,
+          "max_tvd": 0.024575198792093474,
+          "mean_max_cell_error_pp": 0.7771986875988777,
+          "mean_tvd": 0.015543973751977538,
+          "population_weighted_mean_tvd": 0.016709072115067825
+        },
+        "ipf": {
+          "max_cell_error_pp": 0.33707887827533645,
+          "max_tvd": 0.006741577559931209,
+          "mean_max_cell_error_pp": 0.15498225490153725,
+          "mean_tvd": 0.0030996450973986007,
+          "population_weighted_mean_tvd": 0.0028056367481948297
+        }
+      },
+      "region_count": 6,
+      "stage": "empirical_reconstruction",
+      "tracks": {
+        "behavior_prediction": "not_run",
+        "execution": "not_run",
+        "field": "not_run",
+        "policy": "not_run",
+        "population_fidelity": "measured"
+      }
+    },
+    "test": {
+      "methods": {
+        "independent": {
+          "max_cell_error_pp": 1.6751838307579359,
+          "max_tvd": 0.03350367661515869,
+          "mean_max_cell_error_pp": 0.7174094531314155,
+          "mean_tvd": 0.01434818906262829,
+          "population_weighted_mean_tvd": 0.015560383961947089
+        },
+        "ipf": {
+          "max_cell_error_pp": 0.7985450134631403,
+          "max_tvd": 0.015970900268816965,
+          "mean_max_cell_error_pp": 0.44402990986992613,
+          "mean_tvd": 0.008880598197022646,
+          "population_weighted_mean_tvd": 0.0076656369438327775
+        }
+      },
+      "region_count": 41,
+      "stage": "empirical_reconstruction",
+      "tracks": {
+        "behavior_prediction": "not_run",
+        "execution": "not_run",
+        "field": "not_run",
+        "policy": "not_run",
+        "population_fidelity": "measured"
+      }
+    },
+    "validation": {
+      "methods": {
+        "independent": {
+          "max_cell_error_pp": 1.1430309768612372,
+          "max_tvd": 0.022860619537224697,
+          "mean_max_cell_error_pp": 0.855222713968776,
+          "mean_tvd": 0.017104454279375503,
+          "population_weighted_mean_tvd": 0.018081205465291187
+        },
+        "ipf": {
+          "max_cell_error_pp": 0.313125561176282,
+          "max_tvd": 0.006262511223585094,
+          "mean_max_cell_error_pp": 0.26214220760627005,
+          "mean_tvd": 0.005242844151149625,
+          "population_weighted_mean_tvd": 0.00515089730730452
+        }
+      },
+      "region_count": 4,
+      "stage": "empirical_reconstruction",
+      "tracks": {
+        "behavior_prediction": "not_run",
+        "execution": "not_run",
+        "field": "not_run",
+        "policy": "not_run",
+        "population_fidelity": "measured"
+      }
+    }
+  },
+  "source": {
+    "acquired_at": "2026-10-18T09:44:42.240901+00:00",
+    "extract_sha256": "316b602beb75129605d91ca7a9c440a37df7bc9c02271d86d3eb39cf25559a9d",
+    "period": "2020-2024",
+    "table": "B17001",
+    "universe": "Population for whom poverty status is determined",
+    "url": "https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/5YRData/acsdt5y2024-b17001.dat"
+  },
+  "config_sha256": "dd3d0c2b5ae7d254f3979d2e6d06c50cdbe9b03d986045eabbdda86ba0d370d9",
+  "code": {
+    "dependencies": {
+      "ipfn": "1.4.4",
+      "numpy": "2.4.4",
+      "pandas": "2.3.3"
+    },
+    "python": "3.12.14",
+    "source_tree_sha256": "5bec3782f2686ef015fd43ccddb06b6e4b025af5eb0fb909b23fc09f57ab7cd6"
+  },
+  "manifest_sha256": "3e968d1937b44001214cad14ae97efe18a9173bd9ffc48553b68f661dec47ce9",
+  "prediction_sha256": {
+    "independent": "a3d03ac8d51fcc79f60d24490804596ed63b55d260177bb1e3c3a68dc5a936b9",
+    "ipf": "730ccc7429a2326f6d9e1c9b016bc71a8ecc93c6558bb9dcae28410e65faebc8"
+  },
+  "limitations": [
+    "ACS point estimates are uncertain, not exact population truth.",
+    "Retrospective reconstruction from marginals of the same source; not independent field validation.",
+    "Development seed regions are not held out. Geographic split is not a random sample.",
+    "Poverty status is not a direct measure of suffering. Behavior and intervention effects are not evaluated."
+  ],
+  "evaluation_date": "2026-10-18",
+  "test_regions_improved": 29,
+  "test_regions_worse": 12,
+  "predictions_repeated_byte_identical": true,
+  "full_report_sha256": "3dab004748e3d6c4f4881d6cfe4953f6de597029aa16dcb1fa438b590e73175a",
+  "note": "Public summary of a real run; raw/run artifacts remain outside Git."
+}
