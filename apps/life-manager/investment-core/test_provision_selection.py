@@ -147,6 +147,23 @@ class ProvisionSelectionTests(unittest.TestCase):
                     with self.assertRaisesRegex(SelectionProvisionError, "owned_close_evidence_unknown"):
                         provision_selection(destination, reports, refresh=True)
 
+    def test_all_legacy_seal_callers_hold_the_shared_control_fence(self):
+        import ast
+        repo = Path(__file__).resolve().parents[3]
+        for folder in (repo/"skills/alpaca-investment", Path(__file__).resolve().parent):
+            for name in ("live_canary.py", "live_close.py"):
+                path = folder/name
+                def walk(node, held=False):
+                    if isinstance(node, ast.With):
+                        held = held or any(isinstance(item.context_expr, ast.Call)
+                            and isinstance(item.context_expr.func, ast.Name)
+                            and item.context_expr.func.id == "control_fence" for item in node.items)
+                    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "seal":
+                        self.assertTrue(held, str(path))
+                    for child in ast.iter_child_nodes(node):
+                        walk(child, held)
+                walk(ast.parse(path.read_text()))
+
     def test_selected_report_is_written_as_release_pinned_state(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
