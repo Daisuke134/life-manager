@@ -14869,6 +14869,8 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **D3a実行順の局所更新:** 旧順序=`capture＋census＋consumerを一括source実装→反映`、新順序=`D3a1 captureの最小source/金融review/CI/main/正式版/自然snapshot→D3a2 census→D3b consumer`。理由は、現在から将来の全期間証拠を残し始めるほど自然取引の評価開始が早まり、source宣言を後から補完する穴を減らすため。現在cursorはD3a1 source review。設計a0f07bab15/f816f42c53、RED7fc2d031f1と実caller/catalogのRED7c82797144、GREEN5091944f25。source単体/実main接続51 tests/45 subtests、既存product onboarding47 testsがPASS。fixtureに本番と同じexplicit paper ownerを追加し、strategy SHA a…とruntime SHA b…を区別する。新台帳0、金額0化0、既存型のappend-only snapshotだけ。D3a2/consumer/完全coverage/実利益は未達。
 
+**D3a1 GitHub独立reviewの反例修正:** source8bc4b6716eに対するfresh GitHub Codex reviewは、paper callerが既定live ownerを渡す点と、補助captureを未解決注文のreconciliationより先に実行する点をP2/P1として報告する。これらを受理し、paper owner対応を検証し、公式reconciliationを先に行い、非金銭captureのI/O失敗は構造化gapとして報告して既存注文readbackを妨げない。partial appendの可能性はappended=null/error_class/next_actionで残し、0や成功へ置換しない。実注文/effect fence/売却条件は変更しない。最新headで再レビューを依頼し、旧headの完了をPASSへ流用しない。
+
 **原子的TODO:** B1上記schema/独立inventoryの信頼境界と型・enum・時刻・反例を固定→D1 mode保持/混在拒否/live候補・rolling除外→D2既存CFO内の共有query/zero受理→D3scoped coverageと既存paid binding接続→D4broker complete受入と日次/履歴の条件付き評価→E金融review/全CI/main/正式版/対象owner/readback→F公式closed取引・全期間inventory・paid/最終無請求・帰属・broker費用の本物入力接続。各source変更は最小RED→GREENで保存する。反例はsource削除による自己整合、next page/pending/未確定を空請求とする誤り、別account/mode/pair/境界時刻、paid alias再利用、shared query翌日再利用、measured paperのlive混入を含める。sourceの受け入れ経路と実利益証明を分離し、外部証拠が不足してもB/D source実装を止めない。
 
 ### IN-COST-04C 実装計画 — core費用とpaper損益基準
