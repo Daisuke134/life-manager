@@ -43,6 +43,7 @@ SAFE_ERROR_CODES = frozenset({
     "owned_entry_account_invalid", "owned_entry_account_pending",
     "owned_entry_receipt_missing", "owned_entry_receipt_conflict",
     "crypto_activity_period_invalid", "crypto_activity_invalid", "crypto_activity_limit_exceeded",
+    "owned_crypto_fills_pending", "owned_crypto_fills_invalid",
     "owned_no_fill_receipt_missing", "owned_no_fill_receipt_conflict",
     "alpaca_allocator_risk_invalid", "alpaca_allocator_shape_invalid",
     "alpaca_crypto_history_invalid",

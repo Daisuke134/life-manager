@@ -263,6 +263,13 @@ def _outcome_closed(outcome: dict[str, Any] | None, rows: list[dict[str, Any]]) 
         if not isinstance(broker, dict):
             return False
         status = broker.get("status")
+        if status in BROKER_TERMINAL_FAILURE_STATUSES and _filled_qty_positive(broker):
+            intents = [row for row in rows if row.get("receipt_type") == "effect_intent"
+                       and row.get("status") == "planned" and row.get("effect_id") == outcome.get("effect_id")]
+            return (len(intents) == 1 and isinstance(intents[0].get("order"), dict)
+                    and intents[0]["order"].get("asset_class") == "crypto"
+                    and intents[0]["order"].get("side") == "buy"
+                    and not _crypto_account_pending(intents[0], outcome, rows))
         return status == "filled" or (
             status in BROKER_TERMINAL_FAILURE_STATUSES and _terminal_no_fill_proven(broker, rows, outcome.get("effect_id"))
         )
@@ -362,7 +369,10 @@ def reconcile_started(
             }, ("receipt_type", "effect_id", "status"))
             raise ValueError("reconciliation_blocked")
         status = order.get("status")
-        if status != "filled":
+        partial_buy = (status in BROKER_TERMINAL_FAILURE_STATUSES and _filled_qty_positive(order)
+                       and intent.get("order", {}).get("asset_class") == "crypto"
+                       and intent["order"].get("side") == "buy" and on_reconciled is not None)
+        if status != "filled" and not partial_buy:
             if status in BROKER_TERMINAL_FAILURE_STATUSES and _terminal_no_fill_proven(order, rows, intent["effect_id"]):
                 _append_once(ledger, {
                     "broker": order, "broker_receipt_id": order.get("id"),

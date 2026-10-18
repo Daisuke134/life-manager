@@ -65,6 +65,11 @@ def _terminal_no_fill_proven(order: dict[str, Any], rows: list[dict[str, Any]], 
     return True
 
 
+def _decimal_text(value: Decimal) -> str:
+    text = format(value, "f")
+    return text.rstrip("0").rstrip(".") if "." in text else text
+
+
 def crypto_fill_activity_proof(snapshot: dict[str, Any], broker: dict[str, Any], *, mode: str) -> dict[str, Any]:
     """Validate cumulative native fills, without modifying nullable order facts.
 
@@ -77,10 +82,6 @@ def crypto_fill_activity_proof(snapshot: dict[str, Any], broker: dict[str, Any],
                 or abs(value.as_tuple().exponent) > 100):
             raise ValueError
         return value
-
-    def decimal_text(value: Decimal) -> str:
-        text = format(value, "f")
-        return text.rstrip("0").rstrip(".") if "." in text else text
 
     try:
         if (mode not in {"paper", "live"} or not isinstance(snapshot, dict) or not isinstance(broker, dict)
@@ -150,7 +151,7 @@ def crypto_fill_activity_proof(snapshot: dict[str, Any], broker: dict[str, Any],
         # Only the display quotient is rounded. Matching uses the exact ratio,
         # independent of a caller's Decimal precision, rounding mode or traps.
         with localcontext(Context(prec=256, rounding=ROUND_HALF_EVEN, Emin=-999999, Emax=999999)):
-            average_text = decimal_text(Decimal(average.numerator) / Decimal(average.denominator))
+            average_text = _decimal_text(Decimal(average.numerator) / Decimal(average.denominator))
         if broker["status"] == "filled" and broker.get("filled_at") not in (None, ""):
             if not executions[-1][0] <= parse_instant(broker["filled_at"]) <= end:
                 raise ValueError
@@ -161,7 +162,7 @@ def crypto_fill_activity_proof(snapshot: dict[str, Any], broker: dict[str, Any],
     return {"schema_version": 1, "kind": "crypto_order_fills", "mode": mode, "paper": mode == "paper",
         "provider_order_id": broker["id"], "client_order_id": broker["client_order_id"],
         "symbol": "BTC/USDC", "side": broker["side"], "broker_status": broker["status"],
-        "filled_qty": decimal_text(filled_qty), "weighted_avg_price_native": average_text,
+        "filled_qty": _decimal_text(filled_qty), "weighted_avg_price_native": average_text,
         "weighted_avg_price_numerator": str(average.numerator),
         "weighted_avg_price_denominator": str(average.denominator),
         "first_execution_at": executions[0][0].isoformat(), "last_execution_at": executions[-1][0].isoformat(),
@@ -235,13 +236,14 @@ def owned_entry_decision_from_rows(rows: list[dict[str, Any]], ownership: dict[s
         raise ValueError("owned_entry_fill_conflict") from error
     # Enrichment may append another view of the same immutable fill. Known
     # values must agree; a later contradictory row is not an authority override.
-    first_filled = next((index for index, row in enumerate(outcomes)
+    first_completed = next((index for index, row in enumerate(outcomes)
         if row.get("outcome") == "broker_reconciled" and isinstance(row.get("broker"), dict)
-        and row["broker"].get("status") == "filled"), len(outcomes))
+        and row["broker"].get("status") in ({"filled"} | BROKER_TERMINAL_FAILURE_STATUSES)
+        and _filled_qty_positive(row["broker"])), len(outcomes))
     # Older writers incorrectly sealed a paused zero as a terminal failure.
     # Keep its identity evidence, but a later same-order fill can supersede
     # that pre-execution snapshot. Never permit a post-fill regression.
-    paused_zero = {index for index, row in enumerate(outcomes) if index < first_filled
+    paused_zero = {index for index, row in enumerate(outcomes) if index < first_completed
         and row.get("outcome") == "broker_terminal_failure" and isinstance(row.get("broker"), dict)
         and row["broker"].get("status") in BROKER_RESUMABLE_STATUSES
         and _filled_qty_is_zero(row["broker"])
@@ -284,23 +286,33 @@ def owned_entry_decision_from_rows(rows: list[dict[str, Any]], ownership: dict[s
     if (outcome.get("outcome") != "broker_reconciled" or outcome.get("mode") != mode
             or outcome.get("paper") is not (mode == "paper")
             or outcome.get("client_order_id") != client or not isinstance(broker, dict)
-            or broker.get("status") != "filled" or broker.get("side") != "buy"
+            or broker.get("status") not in ({"filled"} | BROKER_TERMINAL_FAILURE_STATUSES)
+            or broker.get("side") != "buy"
             or broker.get("symbol") not in {"BTC/USDC", "BTCUSDC"}
             or broker.get("client_order_id") != client or broker.get("type") != order["type"]
             or broker.get("time_in_force") != order["time_in_force"]
             or not isinstance(broker.get("id"), str)
             or not broker["id"] or outcome.get("broker_receipt_id") != broker["id"]):
         raise ValueError("owned_entry_fill_invalid")
+    execution = None
     try:
+        if broker["status"] != "filled":
+            execution = crypto_fill_activity_proof(outcome["strategy_receipt"]["activity_readback"], broker, mode=mode)
+        price_value = execution["weighted_avg_price_native"] if execution else broker.get("filled_avg_price")
         filled, marker_filled, owned, price = [Decimal(str(value)) for value in (
             broker.get("filled_qty"), ownership.get("entry_filled_qty"),
-            ownership.get("owned_qty"), broker.get("filled_avg_price"))]
+            ownership.get("owned_qty"), price_value)]
         if (any(not number.is_finite() or number <= 0 for number in (filled, marker_filled, owned, price))
                 or filled != marker_filled or owned > filled):
             raise ValueError
-    except (InvalidOperation, ValueError, TypeError) as error:
+    except ReconciliationPending:
+        raise
+    except (InvalidOperation, ValueError, TypeError, KeyError, AttributeError) as error:
         raise ValueError("owned_entry_fill_invalid") from error
-    return {"decision": decision, "broker": broker, "owned_qty": str(owned)}
+    result = {"decision": decision, "broker": broker, "owned_qty": str(owned)}
+    if execution is not None:
+        result["entry_execution"] = execution
+    return result
 
 
 
@@ -311,13 +323,15 @@ def _owned_policy(proof: dict[str, Any], ownership: dict[str, Any], *, mode: str
     if tuple(card.instruments) != ("BTC/USDC",):
         raise ValueError("owned_entry_policy_scope_invalid")
     try:
-        filled_at = broker["filled_at"]
+        execution = proof.get("entry_execution")
+        filled_at = execution["last_execution_at"] if execution else broker["filled_at"]
+        price = execution["weighted_avg_price_native"] if execution else broker["filled_avg_price"]
         if not (parse_instant(decision["observed_at"]) <= parse_instant(broker["submitted_at"])
                 <= parse_instant(filled_at)):
             raise ValueError
     except (KeyError, TypeError, ValueError) as error:
         raise ValueError("owned_entry_fill_time_invalid") from error
-    return {"card": card, "release_sha": release_sha, "entry_price": broker["filled_avg_price"],
+    return {"card": card, "release_sha": release_sha, "entry_price": price,
             "entry_timestamp": filled_at, "owned_qty": proof["owned_qty"],
             "entry_effect_id": ownership["entry_effect_id"], "entry_client_order_id": broker["client_order_id"],
             "entry_provider_order_id": broker["id"], "owner_id": decision["owner_id"], "mode": mode}
@@ -571,7 +585,7 @@ def recorded_no_fill_proof_from_rows(rows, ownership, broker, observation, *, mo
 
 def entry_fill_proof_from_rows(rows: list[dict[str, Any]], ownership: dict[str, Any],
                                broker: dict[str, Any], observation: dict[str, Any], *,
-                               mode: str, owner_id: str) -> dict[str, Any]:
+                               mode: str, owner_id: str, activity_readback: dict[str, Any] | None = None) -> dict[str, Any]:
     """Validate the actual GET before committing its acquisition/account receipt."""
     try:
         if ownership.get('status') not in {'entry_pending','open','closing','closed'}:
@@ -589,9 +603,16 @@ def entry_fill_proof_from_rows(rows: list[dict[str, Any]], ownership: dict[str, 
             'effect_id':ownership['entry_effect_id'],'client_order_id':ownership['entry_client_order_id'],
             'mode':mode,'paper':mode=='paper','broker':broker,'broker_status':broker.get('status'),
             'broker_receipt_id':broker.get('id')}
+        partial = broker.get('status') in BROKER_TERMINAL_FAILURE_STATUSES
+        if partial:
+            if activity_readback is None:
+                activity_readback = entry_receipt_row(rows,ownership['entry_effect_id'])['strategy_receipt']['activity_readback']
+            if parse_instant(activity_readback['requested_period_end']) > parse_instant(observation['clock']['observed_at']):
+                raise ValueError
+            current['strategy_receipt']={'activity_readback':activity_readback}
         validation_owner={**ownership,'entry_filled_qty':str(filled),'owned_qty':str(filled)}
-        parent=_owned_policy(owned_entry_decision_from_rows([*rows,current],validation_owner,
-                             owner_id=owner_id,mode=mode),validation_owner,mode=mode)
+        entry=owned_entry_decision_from_rows([*rows,current],validation_owner,owner_id=owner_id,mode=mode)
+        parent=_owned_policy(entry,validation_owner,mode=mode)
         positions=_account_positions(observation,mode=mode,not_before=parse_instant(parent['entry_timestamp']))
         btc=[p for p in positions if p['symbol'] in {'BTCUSD','BTCUSDC','BTC/USDC'}]
         if not btc:
@@ -611,15 +632,20 @@ def entry_fill_proof_from_rows(rows: list[dict[str, Any]], ownership: dict[str, 
         raise
     except (ValueError,KeyError,TypeError,AttributeError,InvalidOperation) as error:
         raise ValueError('owned_entry_account_invalid') from error
-    return {'account_readback':observation,'receipt':{
+    result = {'account_readback':observation,'receipt':{
         'schema_version':1,'kind':'owned_crypto_entry','owner_id':owner_id,'mode':mode,
         'strategy_id':parent['card'].strategy_id,'release_sha':parent['release_sha'],
         'entry_effect_id':parent['entry_effect_id'],'entry_client_order_id':parent['entry_client_order_id'],
         'entry_provider_order_id':parent['entry_provider_order_id'],
-        'entry_filled_qty':format(filled.normalize(),'f'),'account_owned_qty':format(held.normalize(),'f'),
-        'entry_price':format(Decimal(parent['entry_price']).normalize(),'f'),
+        'entry_filled_qty':_decimal_text(filled) if partial else format(filled.normalize(),'f'),
+        'account_owned_qty':_decimal_text(held) if partial else format(held.normalize(),'f'),
+        'entry_price':parent['entry_price'] if partial else format(Decimal(parent['entry_price']).normalize(),'f'),
         'entry_timestamp':parse_instant(parent['entry_timestamp']).isoformat(),
         'quote_currency':'USDC','net_realized_pnl_usd':None}}
+    if partial:
+        result['activity_readback']=activity_readback
+        result['receipt']['entry_execution']=entry['entry_execution']
+    return result
 
 
 def entry_receipt_row(rows: list[dict[str, Any]], effect: str) -> dict[str, Any]:

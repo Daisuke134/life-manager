@@ -14,7 +14,7 @@ from pathlib import Path
 from allocator import _read_selection, build_candidates, choose, gate as allocation_gate, order_for
 from alpaca_cli import (CLI_OPERATIONS, SAFE_ERROR_CODES, find_order_by_client_id, observe,
                         read_allocator_snapshot, read_campaign_snapshot, read_crypto_history,
-                        read_paper_etf_cost_evidence, submit_order)
+                        read_paper_etf_cost_evidence, read_crypto_activity_evidence, submit_order)
 from campaign import CANDIDATE_REF, SYMBOLS, exit_order, reconcile
 from control import control_fence, read_control
 from effect_store import (ReconciliationPending, mark_started, record_no_fill_account_receipt, reconcile_started, record_no_trade, seal,
@@ -29,7 +29,7 @@ from cost_inventory import record_source_inventory
 from reporter import deliver, deliver_control, deliver_failure
 from position_manager import choose as choose_position, exit_order as live_exit_order, load_owned_policy, close_fill_proof, recorded_close_fill_proof
 from position_manager import recorded_entry_fill_proof, historical_entry_fill_proof
-from crypto_ownership_proof import BROKER_TERMINAL_FAILURE_STATUSES, entry_fill_proof_from_rows, recorded_entry_proof_from_rows
+from crypto_ownership_proof import BROKER_TERMINAL_FAILURE_STATUSES, _filled_qty_positive, entry_fill_proof_from_rows, recorded_entry_proof_from_rows
 from strategy_policy import INDICATOR_HISTORY_CONTRACTS, load_selected_card, validate_policy_card
 from review_status import read_receipt as read_application_status
 from review_status import refresh as refresh_application_status
@@ -248,7 +248,7 @@ def _sync_live_ownership(state: Path, credentials_path: Path, cli_path: Path,
                                      client_order_id=ownership.get(order_key, ""))
     status = broker.get("status") if broker else "absent"
     if ownership.get("status") == "entry_pending":
-        if btc and status == "filled":
+        if btc and (status == "filled" or (status in BROKER_TERMINAL_FAILURE_STATUSES and _filled_qty_positive(broker))):
             try:
                 proof = recorded_entry_fill_proof(state, ownership, broker, observation,
                                                   mode=os.environ.get("LIFE_MANAGER_INVESTMENT_MODE"))
@@ -379,8 +379,13 @@ def _reconcile_crypto_entry(intent: dict, provider_order: dict, *, state: Path,
                and r.get("strategy_receipt") is not None for r in rows):
             return recorded_entry_proof_from_rows(rows, ownership, provider_order, observation,
                                                   mode=mode, owner_id=investment_owner_id())
+        activity = None
+        if provider_order.get("status") in BROKER_TERMINAL_FAILURE_STATUSES:
+            activity = read_crypto_activity_evidence(credentials_path=credentials_path, cli_path=cli_path,
+                mode=mode, period_start=provider_order.get("submitted_at"),
+                period_end=observation["clock"]["observed_at"])
         return entry_fill_proof_from_rows(rows, ownership, provider_order, observation,
-                                         mode=mode, owner_id=investment_owner_id())
+                                         mode=mode, owner_id=investment_owner_id(), activity_readback=activity)
 
 
 def _reconcile_crypto_close(intent: dict, provider_order: dict, *, state: Path,
