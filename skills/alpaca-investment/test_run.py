@@ -1,11 +1,12 @@
 import json
+import copy
 import importlib.util
 import subprocess
 import sys
 import tempfile
 import threading
 import unittest
-from contextlib import redirect_stdout
+from contextlib import ExitStack, redirect_stdout
 from datetime import datetime, timedelta, timezone
 from io import StringIO
 from pathlib import Path
@@ -537,6 +538,135 @@ class ShadowReadOnlyTest(unittest.TestCase):
         campaign_read.assert_not_called()
         campaign_reconcile.assert_not_called()
         submit.assert_not_called()
+
+
+class PaperEtfFreshFenceTest(unittest.TestCase):
+    def run_approved_trade(self, *, action="EXIT", fresh_changes=None,
+                           broker_positions=None, changed_owned_qty=None):
+        from test_etf_allocator import _snapshot, _candidate, ETF_ID
+
+        owner = "alpaca-investment-paper"
+        position = {"owner_id": owner, "strategy_id": ETF_ID, "symbol": "QQQ",
+                    "qty": "0.025", "entry_session": "2026-09-29"}
+        raw = _snapshot()
+        raw.pop("mode")  # The real broker reader does not return this caller context.
+        raw["positions"] = 1 if action == "EXIT" else 0
+        raw["source_receipt_ids"] = ["alpaca://stock-bars/iex/split/fixture"]
+        initial = {**copy.deepcopy(raw), "mode": "paper",
+                   "position": position if action == "EXIT" else None}
+        decision = MODULE.allocation_gate(initial, [_candidate()], {
+            "action": action, "candidate_ref": "equity://QQQ", "symbol": "QQQ",
+            "strategy_id": ETF_ID, "owner_id": owner,
+            "position": position if action == "EXIT" else None,
+            "decision_session": "2026-10-20", "expected_cost_usd": "0.02",
+            "observed_at": raw["clock"]["timestamp"], "reason": "hold_sessions_elapsed",
+        })
+        self.assertTrue(decision["approved"], decision)
+        held = [{"symbol": "QQQ", "qty": "0.025"}] if action == "EXIT" else []
+        observation = {"account": raw["account"], "activities_count": 0,
+                       "clock": {"observed_at": raw["clock"]["timestamp"]},
+                       "open_and_closed_orders_count": 0, "positions": held}
+        observed = []
+        reads = []
+        with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
+            state = Path(directory) / "state"
+            state.mkdir()
+            ownership = {"schema_version": 1, "status": "open", "owner_id": owner,
+                         "strategy_id": ETF_ID, "symbol": "QQQ",
+                         "decision_session": "2026-09-29",
+                         "client_order_id": "lm-ai-" + "a" * 24,
+                         "provider_order_id": "paper-entry", "position_qty": "0.025"}
+            if action == "EXIT":
+                MODULE._atomic_json(state / "etf-owned-position.json", ownership)
+
+            def allocator_read(**_kwargs):
+                value = copy.deepcopy(raw)
+                if reads:
+                    value.update(fresh_changes or {})
+                    if changed_owned_qty is not None:
+                        MODULE._atomic_json(state / "etf-owned-position.json", {
+                            **ownership, "position_qty": changed_owned_qty,
+                        })
+                reads.append(value)
+                return value
+
+            def observe_read(**_kwargs):
+                value = copy.deepcopy(observation)
+                if observed and broker_positions is not None:
+                    value["positions"] = copy.deepcopy(broker_positions)
+                observed.append(value)
+                return value
+
+            stack.enter_context(patch.dict(MODULE.os.environ, {
+                "LIFE_MANAGER_INVESTMENT_DEPLOYMENT": "local",
+                "LIFE_MANAGER_INVESTMENT_MODE": "paper",
+                "LIFE_MANAGER_INVESTMENT_OWNER_ID": owner,
+                "ALPACA_INVESTMENT_PAPER_STATE_DIR": str(state),
+                "ALPACA_INVESTMENT_PAPER_CREDENTIALS_FILE": str(Path(directory) / "credentials"),
+            }, clear=True))
+            stack.enter_context(patch.object(CLI, "_run", side_effect=AssertionError("unexpected broker call")))
+            stack.enter_context(patch.object(MODULE, "reconcile_started", return_value={
+                "pending": 0, "reconciled": 0, "unresolved": 0,
+            }))
+            stack.enter_context(patch.object(MODULE, "observe", side_effect=observe_read))
+            stack.enter_context(patch.object(MODULE, "_paper_campaign", return_value={
+                "exit_status": "CLOSED", "unrealized_pnl_usd": "0",
+            }))
+            stack.enter_context(patch.object(MODULE, "read_allocator_snapshot", side_effect=allocator_read))
+            stack.enter_context(patch.object(MODULE, "build_candidates", return_value=[_candidate()]))
+            stack.enter_context(patch.object(MODULE, "choose", return_value=copy.deepcopy(decision)))
+            stack.enter_context(patch.object(MODULE, "_review_status", return_value={}))
+            stack.enter_context(patch.object(MODULE, "deliver", return_value={"message_id": "fixture"}))
+            stack.enter_context(patch.object(MODULE, "deliver_failure", return_value={"status": "delivered"}))
+            stack.enter_context(patch.object(MODULE, "_retry_allowed", return_value=False))
+            submit = stack.enter_context(patch.object(MODULE, "submit_order", return_value={"status": "accepted"}))
+            with redirect_stdout(StringIO()) as output:
+                code = MODULE.main(wake_id="paper-fresh-fence")
+            return code, json.loads(output.getvalue()), submit.call_args_list, observed
+
+    def test_owned_paper_exit_with_one_position_reaches_broker_once(self):
+        code, result, calls, observed = self.run_approved_trade()
+        self.assertEqual(code, 0, result)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0].kwargs["order"], {
+            "asset_class": "us_equity", "qty": "0.025", "side": "sell",
+            "symbol": "QQQ", "time_in_force": "day", "type": "market",
+        })
+        self.assertEqual(calls[0].kwargs["mode"], "paper")
+        self.assertEqual(calls[0].kwargs["owner_id"], "alpaca-investment-paper")
+        self.assertEqual(len(observed), 2)
+
+    def test_paper_entry_retains_mode_in_fresh_gate(self):
+        code, result, calls, _ = self.run_approved_trade(action="ENTER")
+        self.assertEqual(code, 0, result)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0].kwargs["order"]["side"], "buy")
+
+    def test_exit_rejects_broker_quantity_symbol_or_extra_position_drift(self):
+        variants = [[], [{"symbol": "QQQ", "qty": "0.024"}],
+                    [{"symbol": "SPY", "qty": "0.025"}],
+                    [{"symbol": "QQQ", "qty": "0.025"}, {"symbol": "SPY", "qty": "1"}],
+                    [{"symbol": "QQQ", "qty": "NaN"}]]
+        for positions in variants:
+            with self.subTest(positions=positions):
+                code, _, calls, _ = self.run_approved_trade(broker_positions=positions)
+                self.assertEqual(code, 78)
+                self.assertEqual(calls, [])
+
+    def test_exit_rejects_stale_order_when_owned_and_broker_quantity_change_together(self):
+        code, _, calls, _ = self.run_approved_trade(
+            changed_owned_qty="0.03", broker_positions=[{"symbol": "QQQ", "qty": "0.03"}],
+        )
+        self.assertEqual(code, 78)
+        self.assertEqual(calls, [])
+
+    def test_entry_and_exit_keep_fresh_position_and_order_limits(self):
+        for action, changes in (("EXIT", {"positions": 0}), ("EXIT", {"open_orders": 1}),
+                                ("ENTER", {"positions": 1}), ("ENTER", {"open_orders": 1})):
+            with self.subTest(action=action, changes=changes):
+                code, _, calls, _ = self.run_approved_trade(action=action, fresh_changes=changes)
+                self.assertEqual(code, 78)
+                self.assertEqual(calls, [])
 
 
 class LiveRunTest(unittest.TestCase):
