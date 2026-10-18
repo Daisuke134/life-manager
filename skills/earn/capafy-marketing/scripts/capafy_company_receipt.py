@@ -214,7 +214,7 @@ def deliver_receipt(
                 recovered["telegram"] = {"status": "delivery_uncertain", "message_id": None}
             return recovered
         return receipt
-    claimed = claim_next(outbox_database)
+    claimed = claim_next(outbox_database, run_id)
     if claimed is None or claimed.event_key != run_id:
         raise RuntimeError("outbox claim did not return the enqueued run")
     delivered = copy.deepcopy(receipt)
