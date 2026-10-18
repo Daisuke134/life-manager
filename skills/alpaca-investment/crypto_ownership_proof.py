@@ -70,18 +70,20 @@ def _decimal_text(value: Decimal) -> str:
     return text.rstrip("0").rstrip(".") if "." in text else text
 
 
-def crypto_fill_activity_proof(snapshot: dict[str, Any], broker: dict[str, Any], *, mode: str) -> dict[str, Any]:
+def _execution_number(raw: Any) -> Decimal:
+    value = Decimal(str(raw))
+    if (not value.is_finite() or value <= 0 or len(value.as_tuple().digits) > 100
+            or abs(value.as_tuple().exponent) > 100):
+        raise ValueError
+    return value
+
+
+def crypto_fill_activity_proof(snapshot: dict[str, Any], broker: dict[str, Any], *, mode: str, allow_zero: bool = False) -> dict[str, Any]:
     """Validate cumulative native fills, without modifying nullable order facts.
 
     This is execution evidence, not ownership, terminal reconciliation, fee
     settlement, or permission to place another order.
     """
-    def number(raw: Any) -> Decimal:
-        value = Decimal(str(raw))
-        if (not value.is_finite() or value <= 0 or len(value.as_tuple().digits) > 100
-                or abs(value.as_tuple().exponent) > 100):
-            raise ValueError
-        return value
 
     try:
         if (mode not in {"paper", "live"} or not isinstance(snapshot, dict) or not isinstance(broker, dict)
@@ -119,7 +121,8 @@ def crypto_fill_activity_proof(snapshot: dict[str, Any], broker: dict[str, Any],
                 or broker.get("status") not in ({"filled", "partially_filled"}
                     | BROKER_TERMINAL_FAILURE_STATUSES | BROKER_RESUMABLE_STATUSES)):
             raise ValueError
-        filled_qty = number(broker.get("filled_qty"))
+        zero = allow_zero and _filled_qty_is_zero(broker)
+        filled_qty = Decimal("0") if zero else _execution_number(broker.get("filled_qty"))
         submitted = parse_instant(broker.get("submitted_at"))
         if not start <= submitted <= end:
             raise ValueError
@@ -129,7 +132,7 @@ def crypto_fill_activity_proof(snapshot: dict[str, Any], broker: dict[str, Any],
                     or not isinstance(row.get("symbol"), str) or not row["symbol"].strip()
                     or row.get("side") not in {"buy", "sell"}):
                 raise ValueError
-            qty, price = number(row.get("qty")), number(row.get("price"))
+            qty, price = _execution_number(row.get("qty")), _execution_number(row.get("price"))
             executed = parse_instant(row.get("transaction_time"))
             if row["order_id"] != broker["id"]:
                 continue
@@ -143,18 +146,26 @@ def crypto_fill_activity_proof(snapshot: dict[str, Any], broker: dict[str, Any],
         if total < Fraction(filled_qty):
             raise ReconciliationPending("owned_crypto_fills_pending")
         executions.sort(key=lambda row: (row[0], row[1]["id"]))
-        average = sum((Fraction(row[2]) * Fraction(row[3]) for row in executions), Fraction()) / total
-        if broker.get("filled_avg_price") not in (None, ""):
-            known_average = Fraction(number(broker["filled_avg_price"]))
-            if abs(known_average - average) > Fraction(1, 1_000_000):
+        average = None
+        average_text = None
+        if zero:
+            if (broker["status"] not in BROKER_TERMINAL_FAILURE_STATUSES or broker.get("filled_at") not in (None, "")
+                    or (broker.get("filled_avg_price") not in (None, "")
+                        and not _filled_qty_is_zero({"filled_qty":broker["filled_avg_price"]}))):
                 raise ValueError
-        # Only the display quotient is rounded. Matching uses the exact ratio,
-        # independent of a caller's Decimal precision, rounding mode or traps.
-        with localcontext(Context(prec=256, rounding=ROUND_HALF_EVEN, Emin=-999999, Emax=999999)):
-            average_text = _decimal_text(Decimal(average.numerator) / Decimal(average.denominator))
-        if broker.get("filled_at") not in (None, ""):
-            if not executions[-1][0] <= parse_instant(broker["filled_at"]) <= end:
-                raise ValueError
+        else:
+            average = sum((Fraction(row[2]) * Fraction(row[3]) for row in executions), Fraction()) / total
+            if broker.get("filled_avg_price") not in (None, ""):
+                known_average = Fraction(_execution_number(broker["filled_avg_price"]))
+                if abs(known_average - average) > Fraction(1, 1_000_000):
+                    raise ValueError
+            # Only the display quotient is rounded. Matching uses the exact ratio,
+            # independent of a caller's Decimal precision, rounding mode or traps.
+            with localcontext(Context(prec=256, rounding=ROUND_HALF_EVEN, Emin=-999999, Emax=999999)):
+                average_text = _decimal_text(Decimal(average.numerator) / Decimal(average.denominator))
+            if broker.get("filled_at") not in (None, ""):
+                if not executions[-1][0] <= parse_instant(broker["filled_at"]) <= end:
+                    raise ValueError
     except ReconciliationPending:
         raise
     except (ValueError, KeyError, TypeError, AttributeError, ArithmeticError) as error:
@@ -163,9 +174,10 @@ def crypto_fill_activity_proof(snapshot: dict[str, Any], broker: dict[str, Any],
         "provider_order_id": broker["id"], "client_order_id": broker["client_order_id"],
         "symbol": "BTC/USDC", "side": broker["side"], "broker_status": broker["status"],
         "filled_qty": _decimal_text(filled_qty), "weighted_avg_price_native": average_text,
-        "weighted_avg_price_numerator": str(average.numerator),
-        "weighted_avg_price_denominator": str(average.denominator),
-        "first_execution_at": executions[0][0].isoformat(), "last_execution_at": executions[-1][0].isoformat(),
+        "weighted_avg_price_numerator": str(average.numerator) if average is not None else None,
+        "weighted_avg_price_denominator": str(average.denominator) if average is not None else None,
+        "first_execution_at": executions[0][0].isoformat() if executions else None,
+        "last_execution_at": executions[-1][0].isoformat() if executions else None,
         "fill_activity_ids": [row[1]["id"] for row in executions], "quote_currency": "USDC",
         "source_receipt_id": snapshot["source_receipt_id"], "fee_attribution_status": "unknown",
         "fee_settlement_status": "unknown", "net_realized_pnl_usd": None}
@@ -364,8 +376,7 @@ def _flat_btc_account(observation: dict[str, Any], *, mode: str, not_before: dat
         raise ReconciliationPending("owned_close_account_pending")
 
 
-def close_fill_proof_from_rows(rows: list[dict[str, Any]], ownership: dict[str, Any], broker: dict[str, Any],
-                              observation: dict[str, Any], *, mode: str, owner_id: str) -> dict[str, Any]:
+def _exit_context(rows, ownership, *, mode, owner_id):
     parent = _owned_policy(owned_entry_decision_from_rows(rows, ownership, owner_id=owner_id, mode=mode),
                            ownership, mode=mode)
     try:
@@ -405,6 +416,50 @@ def close_fill_proof_from_rows(rows: list[dict[str, Any]], ownership: dict[str, 
                 or order.get("side") != "sell" or order.get("type") != "market"
                 or order.get("time_in_force") != "gtc"):
             raise ValueError
+        before = _execution_number(order.get("qty"))
+        if (before != Decimal(str(decision.get("position_qty"))) or before != Decimal(parent["owned_qty"])
+                or parse_instant(parent["entry_timestamp"]) > parse_instant(decision.get("observed_at"))):
+            raise ValueError
+    except (ValueError, KeyError, TypeError, AttributeError, ArithmeticError) as error:
+        raise ValueError("owned_close_proof_invalid") from error
+    return parent, intent, decision, order, effect, client
+
+
+def _known_exit_outcomes(rows, effect, client, broker, parent, *, mode, owner_id, allow_failure=False):
+    for row in rows:
+        if row.get("receipt_type") != "outcome" or row.get("effect_id") != effect:
+            continue
+        _known_policy_metadata(row, owner_id=owner_id, strategy_id=parent["card"].strategy_id,
+                               release_sha=parent["release_sha"])
+        previous = row.get("broker")
+        if (row.get("mode") != mode or row.get("paper") is not (mode == "paper")
+                or row.get("client_order_id") != client or (row.get("outcome") != "broker_reconciled" and not (allow_failure and row.get("outcome") == "broker_terminal_failure" and _filled_qty_is_zero(previous)))
+                or row.get("broker_receipt_id") != broker["id"] or not isinstance(previous, dict)):
+            raise ValueError
+        for key in ("id", "client_order_id", "status", "side", "type", "time_in_force",
+                    "symbol", "filled_qty", "filled_avg_price", "submitted_at", "filled_at"):
+            old, current = previous.get(key), broker.get(key)
+            if old is None or old == "":
+                continue
+            if key in {"filled_qty", "filled_avg_price"}:
+                if Decimal(str(old)) != Decimal(str(current)):
+                    raise ValueError
+            elif key in {"submitted_at", "filled_at"}:
+                if parse_instant(old) != parse_instant(current):
+                    raise ValueError
+            elif key == "symbol":
+                if old.replace("/", "") != current.replace("/", ""):
+                    raise ValueError
+            elif old != current:
+                raise ValueError
+
+
+def close_fill_proof_from_rows(rows: list[dict[str, Any]], ownership: dict[str, Any], broker: dict[str, Any],
+                              observation: dict[str, Any], *, mode: str, owner_id: str) -> dict[str, Any]:
+    parent, intent, decision, order, effect, client = _exit_context(rows, ownership, mode=mode, owner_id=owner_id)
+    try:
+        if Decimal(order['qty']) != _sell_chain_before(rows, ownership, decision, mode=mode, owner_id=owner_id):
+            raise ValueError
         if (not isinstance(broker.get("id"), str) or not broker["id"].strip()
                 or broker.get("client_order_id") != client or broker.get("status") != "filled"
                 or broker.get("symbol") not in {"BTCUSDC", "BTC/USDC"}
@@ -423,32 +478,7 @@ def close_fill_proof_from_rows(rows: list[dict[str, Any]], ownership: dict[str, 
                 <= submitted <= filled <= observed):
             raise ValueError
         _flat_btc_account(observation, mode=mode, not_before=filled)
-        for row in rows:
-            if row.get("receipt_type") != "outcome" or row.get("effect_id") != effect:
-                continue
-            _known_policy_metadata(row, owner_id=owner_id, strategy_id=parent["card"].strategy_id,
-                                   release_sha=parent["release_sha"])
-            previous = row.get("broker")
-            if (row.get("mode") != mode or row.get("paper") is not (mode == "paper")
-                    or row.get("client_order_id") != client or row.get("outcome") != "broker_reconciled"
-                    or row.get("broker_receipt_id") != broker["id"] or not isinstance(previous, dict)):
-                raise ValueError
-            for key in ("id", "client_order_id", "status", "side", "type", "time_in_force",
-                        "symbol", "filled_qty", "filled_avg_price", "submitted_at", "filled_at"):
-                old, current = previous.get(key), broker.get(key)
-                if old is None or old == "":
-                    continue
-                if key in {"filled_qty", "filled_avg_price"}:
-                    if Decimal(str(old)) != Decimal(str(current)):
-                        raise ValueError
-                elif key in {"submitted_at", "filled_at"}:
-                    if parse_instant(old) != parse_instant(current):
-                        raise ValueError
-                elif key == "symbol":
-                    if old.replace("/", "") != current.replace("/", ""):
-                        raise ValueError
-                elif old != current:
-                    raise ValueError
+        _known_exit_outcomes(rows, effect, client, broker, parent, mode=mode, owner_id=owner_id)
     except ReconciliationPending:
         raise
     except (ValueError, KeyError, TypeError, AttributeError, InvalidOperation) as error:
@@ -471,7 +501,7 @@ def _recorded_proof_from_rows(rows: list[dict[str, Any]], ownership: dict[str, A
     proof = reader(rows, ownership, broker, observation, mode=mode, owner_id=owner_id)
     matched = False
     error_prefix = {"owned_crypto_close": "owned_close", "owned_crypto_entry": "owned_entry",
-                    "owned_crypto_no_fill": "owned_no_fill"}[proof["receipt"]["kind"]]
+                    "owned_crypto_no_fill": "owned_no_fill", "owned_crypto_sell_remainder": "owned_sell"}[proof["receipt"]["kind"]]
     for row in rows:
         if row.get("receipt_type") != "outcome" or row.get("effect_id") != ownership.get(effect_key):
             continue
@@ -574,6 +604,11 @@ def no_fill_entry_proof_from_rows(rows: list[dict[str, Any]], ownership: dict[st
 
 
 def recorded_close_proof_from_rows(rows, ownership, broker, observation, *, mode, owner_id):
+    if isinstance(broker, dict) and broker.get("status") in BROKER_TERMINAL_FAILURE_STATUSES:
+        proof = recorded_sell_remainder_from_rows(rows, ownership, broker, observation, mode=mode, owner_id=owner_id)
+        if ownership.get("status") == "closed" and Decimal(proof["receipt"]["remaining_owned_qty"]) != 0:
+            raise ValueError("owned_sell_proof_invalid")
+        return proof
     return _recorded_proof_from_rows(rows, ownership, broker, observation, mode=mode, owner_id=owner_id,
                                      reader=close_fill_proof_from_rows, effect_key="close_effect_id")
 
@@ -668,3 +703,151 @@ def recorded_entry_proof_from_rows(rows: list[dict[str, Any]], ownership: dict[s
         raise ValueError('owned_entry_receipt_missing') from error
     return _recorded_proof_from_rows(rows,historical,broker,observation,mode=mode,owner_id=owner_id,
                                     reader=entry_fill_proof_from_rows,effect_key='entry_effect_id')
+
+
+def _sell_receipt_row(rows, effect):
+    found=[r for r in rows if r.get('receipt_type')=='outcome' and r.get('effect_id')==effect
+           and r.get('strategy_receipt') is not None]
+    if not found:
+        raise ValueError('owned_sell_receipt_missing')
+    return found[-1]
+
+
+def _quantity_text(value: Fraction) -> str:
+    # Quantities originate from finite decimals, so this quotient terminates.
+    precision=len(str(abs(value.numerator)))+len(str(value.denominator))+2
+    with localcontext(Context(prec=precision,rounding=ROUND_HALF_EVEN,Emin=-999999,Emax=999999)):
+        return _decimal_text(Decimal(value.numerator)/Decimal(value.denominator))
+
+
+def _sell_remainder_step(rows, ownership, broker, observation, *, before, mode, owner_id, activity_readback=None):
+    parent,intent,decision,order,effect,client=_exit_context(rows,ownership,mode=mode,owner_id=owner_id)
+    try:
+        before=_execution_number(before)
+        if (Decimal(order['qty'])!=before or not isinstance(broker,dict)
+                or broker.get('status') not in BROKER_TERMINAL_FAILURE_STATUSES
+                or broker.get('id') in (None,'') or broker.get('client_order_id')!=client
+                or _execution_number(broker.get('qty'))!=before):
+            raise ValueError
+        if activity_readback is None:
+            activity_readback=_sell_receipt_row(rows,effect)['strategy_receipt']['activity_readback']
+        execution=crypto_fill_activity_proof(activity_readback,broker,mode=mode,allow_zero=True)
+        if execution['side']!='sell':
+            raise ValueError
+        filled=Decimal(execution['filled_qty'])
+        if filled==0 and not _terminal_no_fill_proven(broker,rows,effect):
+            raise ValueError
+        remaining=Fraction(before)-Fraction(filled)
+        if remaining<0:
+            raise ValueError
+        submitted=parse_instant(broker.get('submitted_at'))
+        observed=parse_instant(observation['clock']['observed_at'])
+        if (parse_instant(decision.get('observed_at'))>submitted
+                or parse_instant(activity_readback['requested_period_end'])>observed):
+            raise ValueError
+        boundary=parse_instant(execution['last_execution_at']) if execution['last_execution_at'] else submitted
+        positions=_account_positions(observation,mode=mode,not_before=boundary)
+        btc=[p for p in positions if p['symbol'] in {'BTCUSD','BTCUSDC','BTC/USDC','BTC/USD','BTC'}]
+        if remaining==0:
+            _flat_btc_account(observation,mode=mode,not_before=boundary)
+        else:
+            if not btc:
+                raise ReconciliationPending('owned_sell_account_pending')
+            if len(btc)!=1:
+                raise ValueError
+            held=Fraction(_execution_number(btc[0]['qty']))
+            if held>Fraction(before):
+                raise ValueError
+            if held>remaining:
+                raise ReconciliationPending('owned_sell_account_pending')
+            if held!=remaining:
+                raise ValueError
+        remaining_text=_quantity_text(remaining)
+        if remaining:
+            _execution_number(remaining_text)
+        _known_exit_outcomes(rows,effect,client,broker,parent,mode=mode,owner_id=owner_id,allow_failure=filled==0)
+    except ReconciliationPending:
+        raise
+    except (ValueError,KeyError,TypeError,AttributeError,ArithmeticError) as error:
+        raise ValueError('owned_sell_proof_invalid') from error
+    return {'account_readback':observation,'activity_readback':activity_readback,'receipt':{
+        'schema_version':1,'kind':'owned_crypto_sell_remainder','owner_id':owner_id,'mode':mode,
+        'strategy_id':parent['card'].strategy_id,'release_sha':parent['release_sha'],
+        **{key:parent[key] for key in ('entry_effect_id','entry_client_order_id','entry_provider_order_id')},
+        'entry_price':parent['entry_price'],'entry_timestamp':parent['entry_timestamp'],
+        'close_effect_id':effect,'close_client_order_id':client,'close_provider_order_id':broker['id'],
+        'before_owned_qty':_decimal_text(before),'exit_filled_qty':execution['filled_qty'],
+        'remaining_owned_qty':remaining_text,'exit_price':execution['weighted_avg_price_native'],
+        'exit_timestamp':execution['last_execution_at'],'sell_execution':execution,
+        'quote_currency':'USDC','net_realized_pnl_usd':None}}
+
+
+def _sell_chain_before(rows, ownership, decision, *, mode, owner_id):
+    entry=entry_receipt_row(rows,ownership['entry_effect_id'])
+    acquisition=recorded_entry_proof_from_rows(rows,ownership,entry['broker'],
+        entry['strategy_receipt']['account_readback'],mode=mode,owner_id=owner_id)
+    before=_execution_number(acquisition['receipt']['account_owned_qty'])
+    current=[i for i,row in enumerate(rows) if row.get('receipt_type')=='effect_intent'
+             and row.get('status')=='planned' and row.get('effect_id')==ownership['close_effect_id']]
+    if len(current)!=1:
+        raise ValueError('owned_sell_proof_invalid')
+    previous_observed=parse_instant(acquisition['account_readback']['clock']['observed_at'])
+    seen=set()
+    # ponytail: revalidate the small per-entry leg history; index only if measured slow.
+    for intent in rows[:current[0]]:
+        if (intent.get('receipt_type')!='effect_intent' or intent.get('status')!='planned'
+                or not isinstance(intent.get('order'),dict) or intent['order'].get('side')!='sell'
+                or intent['order'].get('asset_class')!='crypto'):
+            continue
+        ds=[r.get('decision') for r in rows if r.get('receipt_type')=='decision'
+            and r.get('decision_id')==intent.get('decision_id')]
+        if len(ds)!=1 or not isinstance(ds[0],dict):
+            raise ValueError('owned_sell_proof_invalid')
+        if ds[0].get('entry_effect_id')!=ownership['entry_effect_id']:
+            continue
+        if intent['effect_id'] in seen or before<=0:
+            raise ValueError('owned_sell_proof_invalid')
+        seen.add(intent['effect_id'])
+        if parse_instant(ds[0].get('observed_at'))<previous_observed:
+            raise ValueError('owned_sell_proof_invalid')
+        row=_sell_receipt_row(rows,intent['effect_id'])
+        if row['strategy_receipt'].get('receipt',{}).get('kind')!='owned_crypto_sell_remainder':
+            raise ValueError('owned_sell_proof_invalid')
+        old={**ownership,'status':'closing','owned_qty':_decimal_text(before),
+             'close_effect_id':intent['effect_id'],'close_client_order_id':intent['client_order_id']}
+        def step(rs,own,bk,obs,**scope):
+            return _sell_remainder_step(rs,own,bk,obs,before=before,**scope)
+        proof=_recorded_proof_from_rows(rows,old,row['broker'],row['strategy_receipt']['account_readback'],
+            mode=mode,owner_id=owner_id,reader=step,effect_key='close_effect_id')
+        before=Decimal(proof['receipt']['remaining_owned_qty'])
+        previous_observed=parse_instant(proof['account_readback']['clock']['observed_at'])
+    if before<=0 or parse_instant(decision.get('observed_at'))<previous_observed:
+        raise ValueError('owned_sell_proof_invalid')
+    return before
+
+
+def sell_remainder_proof_from_rows(rows,ownership,broker,observation,*,mode,owner_id,activity_readback=None):
+    try:
+        parent,intent,decision,order,effect,client=_exit_context(rows,ownership,mode=mode,owner_id=owner_id)
+        before=_sell_chain_before(rows,ownership,decision,mode=mode,owner_id=owner_id)
+        return _sell_remainder_step(rows,ownership,broker,observation,before=before,mode=mode,
+            owner_id=owner_id,activity_readback=activity_readback)
+    except ReconciliationPending:
+        raise
+    except (ValueError,KeyError,TypeError,AttributeError,ArithmeticError) as error:
+        raise ValueError('owned_sell_proof_invalid') from error
+
+
+def recorded_sell_remainder_from_rows(rows,ownership,broker,observation,*,mode,owner_id):
+    row=_sell_receipt_row(rows,ownership.get('close_effect_id'))
+    try:
+        receipt=row['strategy_receipt']['receipt']
+        before=receipt['before_owned_qty']
+        expected=receipt['remaining_owned_qty'] if ownership.get('status')=='open' else before
+        if Decimal(str(ownership.get('owned_qty')))!=Decimal(expected):
+            raise ValueError
+        historical={**ownership,'status':'closing','owned_qty':before}
+    except (ValueError,KeyError,TypeError,AttributeError,ArithmeticError) as error:
+        raise ValueError('owned_sell_proof_invalid') from error
+    return _recorded_proof_from_rows(rows,historical,broker,observation,mode=mode,owner_id=owner_id,
+        reader=sell_remainder_proof_from_rows,effect_key='close_effect_id')

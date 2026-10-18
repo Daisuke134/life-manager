@@ -29,7 +29,7 @@ from cost_inventory import record_source_inventory
 from reporter import deliver, deliver_control, deliver_failure
 from position_manager import choose as choose_position, exit_order as live_exit_order, load_owned_policy, close_fill_proof, recorded_close_fill_proof
 from position_manager import recorded_entry_fill_proof, historical_entry_fill_proof
-from crypto_ownership_proof import BROKER_TERMINAL_FAILURE_STATUSES, _filled_qty_positive, entry_fill_proof_from_rows, recorded_entry_proof_from_rows
+from crypto_ownership_proof import BROKER_TERMINAL_FAILURE_STATUSES, _filled_qty_positive, entry_fill_proof_from_rows, recorded_entry_proof_from_rows, sell_remainder_proof_from_rows
 from strategy_policy import INDICATOR_HISTORY_CONTRACTS, load_selected_card, validate_policy_card
 from review_status import read_receipt as read_application_status
 from review_status import refresh as refresh_application_status
@@ -242,7 +242,7 @@ def _sync_live_ownership(state: Path, credentials_path: Path, cli_path: Path,
     if (ownership.get("status") in {"closing", "closed"}
             and ((ownership.get("close_effect_id") is None) != (ownership.get("close_client_order_id") is None))):
         raise ValueError("owned_closed_identity_invalid")
-    order_key = ("close_client_order_id" if ownership.get("status") in {"closing", "closed"}
+    order_key = ("close_client_order_id" if ownership.get("status") in {"open", "closing", "closed"}
                  and ownership.get("close_client_order_id") is not None else "entry_client_order_id")
     broker = find_order_by_client_id(credentials_path=credentials_path, cli_path=cli_path,
                                      client_order_id=ownership.get(order_key, ""))
@@ -286,17 +286,26 @@ def _sync_live_ownership(state: Path, credentials_path: Path, cli_path: Path,
             historical_entry_fill_proof(state, ownership, mode=mode)
         except ValueError:
             return {**ownership, "status": "entry_pending"}
+        if ownership.get("close_effect_id") is not None:
+            proof = recorded_close_fill_proof(state, ownership, broker, observation, mode=mode)
+            if (proof['receipt'].get('kind') != 'owned_crypto_sell_remainder'
+                    or Decimal(proof['receipt']['remaining_owned_qty']) <= 0):
+                raise ValueError('owned_sell_proof_invalid')
     elif ownership.get("status") == "closing":
-        if status in {"canceled", "expired", "rejected"} and btc:
+        if status in BROKER_TERMINAL_FAILURE_STATUSES:
             try:
-                remaining = Decimal(str(btc[0]["qty"]))
-                previously_owned = Decimal(str(ownership["owned_qty"]))
-            except (InvalidOperation, KeyError, TypeError) as error:
-                raise ValueError("live_position_not_owned") from error
-            if remaining <= 0 or remaining > previously_owned:
-                raise ValueError("live_position_not_owned")
-            ownership["status"] = "open"
-            ownership["owned_qty"] = str(remaining)
+                proof = recorded_close_fill_proof(state, ownership, broker, observation,
+                    mode=os.environ.get("LIFE_MANAGER_INVESTMENT_MODE"))
+            except ReconciliationPending:
+                return ownership
+            except ValueError as error:
+                if str(error) == 'owned_sell_receipt_missing':
+                    return ownership
+                raise
+            remaining = Decimal(proof['receipt']['remaining_owned_qty'])
+            ownership['status'] = 'open' if remaining > 0 else 'closed'
+            if remaining > 0:
+                ownership['owned_qty'] = proof['receipt']['remaining_owned_qty']
             _atomic_json(path, ownership)
         elif status == "filled" and not btc:
             mode = os.environ.get("LIFE_MANAGER_INVESTMENT_MODE")
@@ -413,6 +422,16 @@ def _reconcile_crypto_close(intent: dict, provider_order: dict, *, state: Path,
             raise ValueError("owned_close_proof_invalid")
         observation = _normalize_live_position_symbols(observe(
             credentials_path=credentials_path, cli_path=cli_path))
+        if provider_order.get('status') in BROKER_TERMINAL_FAILURE_STATUSES:
+            from effect_store import _owned_rows
+            rows = _owned_rows(state / 'receipts.jsonl')
+            if any(r.get('receipt_type') == 'outcome' and r.get('effect_id') == intent['effect_id']
+                   and r.get('strategy_receipt') is not None for r in rows):
+                return recorded_close_fill_proof(state, ownership, provider_order, observation, mode=mode)
+            activities = read_crypto_activity_evidence(credentials_path=credentials_path, cli_path=cli_path,
+                mode=mode, period_start=provider_order.get('submitted_at'), period_end=observation['clock']['observed_at'])
+            return sell_remainder_proof_from_rows(rows, ownership, provider_order, observation,
+                mode=mode, owner_id=investment_owner_id(), activity_readback=activities)
         return close_fill_proof(state, ownership, provider_order, observation, mode=mode)
 
 

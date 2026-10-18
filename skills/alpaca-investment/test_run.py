@@ -380,7 +380,7 @@ class BrokerContextTest(unittest.TestCase):
                 ownership=MODULE._sync_live_ownership(state,Path("unused"),Path("unused"),observation)
             self.assertEqual(ownership["status"],"open")
 
-    def test_rejected_close_restores_owned_position(self):
+    def test_rejected_close_without_receipt_remains_pending(self):
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
             MODULE._atomic_json(state / "live-owned-position.json", {
@@ -392,9 +392,10 @@ class BrokerContextTest(unittest.TestCase):
                     "status": "rejected", "filled_qty": "0"}):
                 ownership = MODULE._sync_live_ownership(state, Path("credentials"),
                     Path("alpaca"), {"positions": [{"symbol": "BTCUSD", "qty": "0.0001"}]})
-            self.assertEqual(ownership["status"], "open")
+            self.assertEqual(ownership["status"], "closing")
+            self.assertEqual(ownership["owned_qty"], "0.0001")
 
-    def test_partial_terminal_close_restores_only_remaining_owned_qty(self):
+    def test_partial_terminal_close_without_receipt_cannot_change_owned_qty(self):
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
             MODULE._atomic_json(state / "live-owned-position.json", {
@@ -407,8 +408,10 @@ class BrokerContextTest(unittest.TestCase):
                     "status": "canceled", "filled_qty": "0.00006"}):
                 ownership = MODULE._sync_live_ownership(
                     state, Path("credentials"), Path("alpaca"), observation)
-            self.assertEqual(ownership["owned_qty"], "0.00004")
-            MODULE._owned_live_position(ownership, observation)
+            self.assertEqual(ownership["owned_qty"], "0.00010")
+            self.assertEqual(ownership["status"], "closing")
+            with self.assertRaises(ValueError):
+                MODULE._owned_live_position(ownership, observation)
 
     def test_second_close_marker_replaces_rejected_close_identity(self):
         ownership = {"entry_client_order_id": "entry", "entry_effect_id": "entry-effect",

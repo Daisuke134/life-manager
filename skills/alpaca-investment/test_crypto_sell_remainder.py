@@ -24,6 +24,8 @@ def remainder_fixture(root,mode='live',qty='0.02',status='canceled'):
     with patch.dict(os.environ,{'LIFE_MANAGER_INVESTMENT_OWNER_ID':f'alpaca-investment-{mode}'}):
         owned,broker,obs,owner=close_fixture(root,mode)
     broker.update(status=status,filled_qty=qty,filled_avg_price=None,filled_at=None)
+    obs.update(activities_count=0,open_and_closed_orders_count=0)
+    for position in obs['positions']: position['unrealized_pl']='0'
     remaining=Decimal('0.05')-Decimal(qty)
     if remaining:
         obs['positions'].append({'symbol':'BTCUSDC','qty':str(remaining),'unrealized_pl':'0'})
