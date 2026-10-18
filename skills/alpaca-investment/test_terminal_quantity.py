@@ -3,6 +3,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+import json
 
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 import effect_store as store
@@ -53,6 +54,24 @@ class TerminalQuantityTests(unittest.TestCase):
                 self.assertEqual(store.effect_state(ledger,sealed['effect_id']),'started')
                 self.assertEqual(store._rows(ledger)[-1]['reason'],'fill_quantity_conflict')
                 self.assertFalse(any(r.get('outcome')=='broker_terminal_failure' for r in store._rows(ledger)))
+
+    def test_legacy_unknown_terminal_outcome_can_be_enriched_by_official_zero(self):
+        with tempfile.TemporaryDirectory() as directory:
+            ledger=Path(directory)/'receipts.jsonl'
+            sealed=store.seal(ledger,{'mode':'paper'},{'side':'buy'})
+            store.mark_started(ledger,sealed)
+            broker={'id':'official-order','client_order_id':sealed['client_order_id'],
+                    'status':'rejected','filled_qty':None}
+            with ledger.open('a') as handle:
+                handle.write(json.dumps({'receipt_type':'outcome','outcome':'broker_terminal_failure',
+                    'effect_id':sealed['effect_id'],'client_order_id':sealed['client_order_id'],
+                    'mode':'paper','paper':True,'broker_status':'rejected','broker_receipt_id':broker['id'],
+                    'broker':dict(broker)})+'\n')
+            self.assertEqual(store.unresolved_intent_count(ledger),1)
+            broker['filled_qty']='0'
+            result=store.reconcile_started(ledger,lambda _:broker)
+            self.assertEqual(result['unresolved'],0)
+            self.assertEqual(store._rows(ledger)[-1]['broker']['filled_qty'],'0')
 
     def test_unknown_quantity_can_recover_to_an_official_explicit_zero(self):
         with tempfile.TemporaryDirectory() as directory:
