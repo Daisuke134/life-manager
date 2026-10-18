@@ -334,6 +334,25 @@ class CryptoPerformanceTests(unittest.TestCase):
                 self.assertEqual(result['activity_readbacks'],first['activity_readbacks'])
                 self.assertEqual(result['order_activity_refs'],first['order_activity_refs'])
 
+    def test_bad_cache_metadata_never_erases_known_fee_or_cycle_anchors(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);orders,frame,_=cycle_fixture(root)
+            fee={'id':'known-fee','activity_type':'CFEE','symbol':'BTCUSD','qty':'-0.00005',
+                'date':'2026-01-01','net_amount':'0','status':'executed'}
+            frame=activity_fixture(frame,mode='paper',start=frame['requested_period_start'],end=NOW,fees=[fee])
+            obs={'mode':'paper','paper':True,'clock':{'observed_at':NOW}}
+            first=PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper',activity_reader=lambda **_:frame)
+            path=root/'performance-crypto-latest.json';bad=copy.deepcopy(first);bad['order_activity_refs']=[]
+            path.write_text(json.dumps(bad))
+            result=PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper')
+            self.assertEqual(result['known_fee_activity_ids'],['known-fee'])
+            self.assertEqual(result['known_closed_cycle_ids'],first['known_closed_cycle_ids'])
+            self.assertEqual(result['reason'],'crypto_performance_activity_cache_invalid')
+            empty=activity_fixture(frame,mode='paper',start=frame['requested_period_start'],end=NOW,fees=[])
+            recovered=PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper',activity_reader=lambda **_:empty)
+            self.assertEqual(recovered['reason'],'crypto_performance_fee_history_missing')
+            self.assertEqual(recovered['known_fee_activity_ids'],['known-fee'])
+
     def test_readback_failure_preserves_previously_verified_execution_cache(self):
         self.assertIsNotNone(PERF)
         with tempfile.TemporaryDirectory() as directory:
