@@ -7,8 +7,8 @@
   "artifacts": [
     {
       "path": "docs/research/manager/2026-10-18-suffering-measurement-landscape.md",
-      "bytes": 37393,
-      "sha256": "5325e3f6c5cb0a59fd4c3c200e7a34218179b180890039c6d69642c625a5ff5f"
+      "bytes": 37804,
+      "sha256": "a358c62f7cb7708d2ee3a11d12f106d867edf42ada5a0d420d740445ba6a7cdf"
     },
     {
       "path": "docs/research/manager/2026-10-18-chapter9-dataset-decision.md",
@@ -112,13 +112,18 @@
     },
     {
       "path": "docs/research/manager/content/2026-10-18-chapter9-intro/README.md",
-      "bytes": 1425,
-      "sha256": "cf413c35dab0c99dbc7ee949fdeade91d2f23608e9e9617e86661f77a3eef494"
+      "bytes": 1513,
+      "sha256": "7e507763b8a0b72df5506678f9a52d18e725671f4e85673df2f58eb3cfbf1911"
     },
     {
       "path": "docs/research/manager/learning/chapter9/target-definition.json",
       "bytes": 3030,
       "sha256": "6f66512fb97788a265da67513187ed824abbcb3e38ce0a9887f81c32612926ef"
+    },
+    {
+      "path": "docs/research/manager/learning/chapter9/2026-10-18-research-landscape.png",
+      "bytes": 1630886,
+      "sha256": "f460fbf9546538570eb8b3302f79cc29ae5edd1ae9c58abb1ee9ac0138fbb291"
     }
   ],
   "additional_primary_reading": {

@@ -5,7 +5,7 @@
   "product": "Manager",
   "as_of": "2026-10-18",
   "authored_deliverable": "docs/research/manager/2026-10-18-suffering-measurement-landscape.md",
-  "deliverable_sha256": "5325e3f6c5cb0a59fd4c3c200e7a34218179b180890039c6d69642c625a5ff5f",
+  "deliverable_sha256": "a358c62f7cb7708d2ee3a11d12f106d867edf42ada5a0d420d740445ba6a7cdf",
   "scope": "Selective research landscape of 22 entities or research lineages; not a systematic review and not evidence of Manager efficacy.",
   "method": "Public web search and selected primary-page/PDF retrieval via search_service_web_run. No private accounts, paid APIs or outreach used.",
   "access_caveat": "Search-index excerpts and abstracts are explicitly distinguished from retrieved full papers. Some PMC pages returned reCAPTCHA and some publisher pages failed; no claim of full review is made for them.",

@@ -3,6 +3,7 @@
 使命はEnd suffering。会社はAnicca、製品はマネージャー。最初の予測課題を定義するための教材である。
 
 - [解説記事](../../articles/2026-10-18-chapter9-01-what-to-predict-ja.md)
+- [研究地図の生成図](../../learning/chapter9/2026-10-18-research-landscape.png)
 - [研究者・測定・介入の地図](../../2026-10-18-suffering-measurement-landscape.md)
 - [データ候補と著者コードの確認](../../2026-10-18-chapter9-dataset-decision.md)
 - [生成した概念図](../../learning/chapter9/2026-10-18-target-behavior-outcome.png)
