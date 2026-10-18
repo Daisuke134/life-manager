@@ -123,6 +123,8 @@ class CryptoCloseTests(unittest.TestCase):
             if lag:
                 self.assertEqual(summary['reconciliation']['unresolved'],1)
                 self.assertEqual(summary['reconciliation']['deferred'],1)
+                self.assertEqual(effect_store.unresolved_intent_count(root/'receipts.jsonl'),1)
+                self.assertEqual(effect_store.effect_state(root/'receipts.jsonl',owned['close_effect_id']),'started')
                 self.assertEqual(json.loads((root/'live-owned-position.json').read_text())['status'],'closing')
                 observation['positions']=[p for p in observation['positions'] if p['symbol']=='USDCUSD']
                 raw['positions']=0
@@ -150,6 +152,10 @@ class CryptoCloseTests(unittest.TestCase):
     def test_account_lag_defers_close_and_recovers_on_the_next_run(self):
         for mode in ('paper','live'):
             with self.subTest(mode=mode): self._main_flow(mode=mode,lag=True)
+
+    def test_backfill_lag_keeps_the_shared_durable_fence_until_receipt_is_complete(self):
+        for mode in ('paper','live'):
+            with self.subTest(mode=mode): self._main_flow(mode=mode,lag=True,backfill=True)
 
     def test_existing_filled_close_without_strategy_receipt_is_backfilled(self):
         for mode in ('paper','live'):
