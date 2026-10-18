@@ -14827,6 +14827,10 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **Dの先行条件 — mode保持:** Cの現行producerはpartialだが、将来measuredにすると、現alpaca_snapshot/VenueSnapshot/net出力がpaperを保持せず、crossvenue候補へpaper値を通し得る。Dでcompleteを解放する同じ差分でmeasurement_mode/paperをadapter→schema→net/aggregate→dailyへ保持し、欠落をliveへ補完しない。paper/live混在aggregateは拒否し、rankのpaper/mode不明除外とlive実利益rolling除外に既存capital_ladderのpaper_evidence/live_evidence_required契約を再利用する。paperの費用込み測定はpaperとして表示し、cap/order権限は増やさない。
 
+**D1実装カーソル:** 既存adapter→VenueSnapshot→net/aggregate→日次receiptの経路で `measurement_mode` と真偽値 `paper` を保持する。許可組合せはpaper/true、live/false、shadow/falseだけとし、欠落・不整合をliveへ補完しない。各receiptのmodeを検証して同venue内/venue間の混在を拒否する。既存capital_ladderのmode判定を共有し、build_candidates/rankと実利益rolling_30dでexplicit liveだけを受理する。紙のmeasured値は表示可能だが実利益・配分候補にしない。最小RED→GREEN→独立金融review→exact-head全CI→main→既存正式版更新→対象owner採用の順で進める。旧fence・live disabled・注文権限・実費coverageは変更しない。
+
+**確認済み反映:** IN-COST-04Cはmain `ab5707cbc36d4df3a46ecc775b3b1c4407c058e1`、正式版 `/Users/anicca/loops/releases/20261018T141943-ab5707cb`、crossvenue install event `5c6311679ba0dd3c4874104c` で採用する。実状態の読み取りcanaryはalpaca_state_missing/数値netなし、provider/state書込0。自然reportは旧通知fenceで未確認。IN-REPORT-01はPR #8327の13checks PASS、main `abb3cb3cf0d199f625d9a65abc5cc20a266c973f` へ統合し、正式版/owner採用は未確認。旧通知は公式historyに本文hash一致1件を確認するが、host occurrenceへのexact bindingを証明できずfenceを保持する。
+
 **原子的TODO:** B1上記schema/独立inventoryの信頼境界と型・enum・時刻・反例を固定→D1 mode保持/混在拒否/live候補・rolling除外→D2既存CFO内の共有query/zero受理→D3scoped coverageと既存paid binding接続→D4broker complete受入と日次/履歴の条件付き評価→E金融review/全CI/main/正式版/対象owner/readback→F公式closed取引・全期間inventory・paid/最終無請求・帰属・broker費用の本物入力接続。各source変更は最小RED→GREENで保存する。反例はsource削除による自己整合、next page/pending/未確定を空請求とする誤り、別account/mode/pair/境界時刻、paid alias再利用、shared query翌日再利用、measured paperのlive混入を含める。sourceの受け入れ経路と実利益証明を分離し、外部証拠が不足してもB/D source実装を止めない。
 
 ### IN-COST-04C 実装計画 — core費用とpaper損益基準
