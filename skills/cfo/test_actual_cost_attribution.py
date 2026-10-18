@@ -813,6 +813,21 @@ class OfficialCostQueryTests(unittest.TestCase):
         payload = query_payload(); payload["job_joins"][0]["paper"] = 1
         self.assertEqual(self.validate(payload)["observations"], [])
 
+    def test_paid_query_ignores_disjoint_obligations_but_not_omitted_current_documents(self):
+        payload = paid_query_payload()
+        other = copy.deepcopy(payload["documents"][0])
+        other.update(invoice_id="older-open", status="open", paid_at=None,
+                     billing_period_start="2026-08-01T00:00:00Z", billing_period_end="2026-09-01T00:00:00Z")
+        other["line_items"][0]["occurred_at"] = "2026-08-15T00:00:00Z"
+        payload["documents"].append(other)
+        result = actual_cost.validate_official_cost_queries(payload, snapshot_at=SNAPSHOT,
+                                                            paid_records=receipts(adapt(payload)))
+        self.assertEqual(len(result["observations"]), 1)
+        other.update(billing_period_start=TRAILING_START, billing_period_end=SNAPSHOT)
+        result = actual_cost.validate_official_cost_queries(payload, snapshot_at=SNAPSHOT,
+                                                            paid_records=receipts(adapt(payload)))
+        self.assertEqual(result["observations"], [])
+
     def test_new_paid_query_reference_mismatch_marks_its_group_gap(self):
         payload = fixture("actual-cost-official.json")
         join = next(row for row in payload["job_joins"] if row["provider"] == "blockrun")
