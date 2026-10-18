@@ -450,10 +450,14 @@ unknown accounts cannot hitchhike on another account's final-zero query. Exact
 model/system sums count each underlying charge once. Zero totals require final
 scope evidence; absent data remains null. Builders and daily output preserve
 confirmed operating totals while fees, FX and net retain their own gates.
-Periodic/standing allocation, inclusive owner-period/idle aggregation, durable
-account/coverage and full net remain D4 work. An incomplete calendar rollup never
-reports zero by excluding verified child expenses. Production gaps are not cleared
-by passing fixtures.
+Calendar requests independently verify same-owner/mode child scopes, then include
+in-period child expenses only when the parent final query covers the same billing
+provider/account/category/document. Components keep their original trade binding;
+selecting parent and child counts each charge once. Rejected child costs retain
+their event time so the calendar also preserves their gap. Periodic/standing service
+allocation, idle costs, durable account/coverage and full net remain D4 work.
+An incomplete calendar rollup never reports zero by excluding verified child
+expenses. Production gaps are not cleared by passing fixtures.
 The pinned quote transport can now capture a single USDC/USD BBO at or before
 an economic timestamp, using a fixed 30-second window and descending limit one.
 The shared pure proof preserves nanoseconds in both the request and age checks,
