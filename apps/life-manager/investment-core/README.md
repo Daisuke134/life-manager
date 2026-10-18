@@ -371,9 +371,15 @@ Known activity IDs remain bound to their original FILL/CFEE facts across saved
 history and new readbacks. Proven execution sets include zero-fill orders;
 conflicting or new executions for those sets are rejected. Previously observed
 BUY fee IDs cannot disappear from the cumulative recovery evidence.
-This proof does not persist an adjustment: next append each proven new debit once
-in the existing receipt chain and connect all ownership/counter/sell/performance
-consumers.
+The existing effect store now persists positive native debit proofs once under
+its receipt-ledger lock. Zero debits append nothing. The shared quantity fold
+revalidates debit events in ledger order alongside SELL legs; each sell uses only
+adjustments recorded before its seal. Original acquisition and SELL receipts stay
+unchanged. Save-before-marker-update replays append nothing; further new fees wait
+until the saved quantity is adopted. The first valid acquisition/SELL receipt
+anchors history, while all later observations remain subject to conflict checks.
+Next connect automatic observation/owner marker recovery and every policy,
+fresh-submit, counter and performance consumer to this same chain.
 This branch is source only: verified fee quantity-drift recovery, FX and complete
 actual costs, deployment, natural outcomes and profitable evaluation remain in
 the canonical SSOT.
