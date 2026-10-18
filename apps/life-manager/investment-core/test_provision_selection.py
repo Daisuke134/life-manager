@@ -72,6 +72,25 @@ class ProvisionSelectionTests(unittest.TestCase):
             self.assertEqual(destination.read_bytes(), before)
             self.assertTrue((root / ".control.lock").exists())
 
+    def test_known_positive_fill_with_legacy_zero_outcome_keeps_policy_protected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            reports,destination=root/'reports.json',root/'selected-strategy.json'
+            reports.write_text(json.dumps([_report()]))
+            provision_selection(destination,reports)
+            rows=[{'receipt_type':'effect_intent','effect_id':'pending','status':'planned'},
+                  {'receipt_type':'effect_intent','effect_id':'pending','status':'reconciliation_pending',
+                   'broker_status':'canceled','filled_qty':'0.01'},
+                  {'receipt_type':'outcome','effect_id':'pending','outcome':'broker_terminal_failure',
+                   'broker':{'status':'canceled','filled_qty':'0'}}]
+            (root/'receipts.jsonl').write_text(''.join(json.dumps(r)+'\n' for r in rows))
+            changed=_report(report_id='changed-rules')
+            changed['card']['entry_rules']={'all':['close > 1']}
+            reports.write_text(json.dumps([changed]))
+            before=destination.read_bytes()
+            self.assertEqual(provision_selection(destination,reports,refresh=True)['status'],'existing')
+            self.assertEqual(destination.read_bytes(),before)
+
     def test_corrupt_ownership_is_an_error_even_when_selection_is_valid(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
