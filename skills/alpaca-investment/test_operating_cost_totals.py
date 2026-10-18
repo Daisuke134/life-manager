@@ -214,6 +214,25 @@ class OperatingCostTotalsTests(unittest.TestCase):
                     self.assertIsNone(value['model_cost_usd'])
                     self.assertEqual(value['operating_cost_coverage']['coverage_state'],'gap')
 
+    def test_parent_zero_query_cannot_hide_unverified_owned_child_cost(self):
+        for mode in ('paper','live'):
+            for unpaid in (False,True):
+                for only_parent in (False,True):
+                    with self.subTest(mode=mode,unpaid=unpaid,only_parent=only_parent):
+                        payload,inventory,child,parent=calendar_fixture(mode)
+                        payload['sources'][0]['queries'][-1].update(settlement_state='no_charge_final',document_ids=[])
+                        payload['provider_pagination']['pages'][-1]['document_ids']=[]
+                        if unpaid:
+                            payload['documents'][0].pop('billing_account_ref')
+                            payload['documents'][0]['status']='unpaid'
+                        else:payload['documents'][0]['billing_account_ref']='foreign-account'
+                        result=summarize([parent] if only_parent else [parent,child],payload,
+                            owner_id=child['owner_id'],mode=mode,observed_at=inventory['observed_at'],expected_inventory=inventory)
+                        selected=select_components(result,[parent])
+                        self.assertIsNone(selected['model_cost_usd'])
+                        self.assertEqual(selected['operating_cost_coverage']['coverage_state'],'gap')
+                        self.assertTrue(selected['operating_cost_component_gaps'])
+
     def test_calendar_rollup_retains_rejected_child_gap_and_half_open_boundary(self):
         for mode in ('paper','live'):
             payload,inventory,child,parent=calendar_fixture(mode)
