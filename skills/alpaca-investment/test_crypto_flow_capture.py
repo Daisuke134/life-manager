@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import alpaca_cli as cli
@@ -25,12 +26,13 @@ def records(count):
 
 
 class FlowCaptureTests(unittest.TestCase):
-    def read(self,mode,*,capture=True,pages=None,fail=None,account_id=ACCOUNT):
+    def read(self,mode,*,capture=True,pages=None,fail=None,account_id=ACCOUNT,wallet=None,enforce_output_limit=False,raw_fail=None,raw_override=None):
         if capture:self.assertIn('flow_sink',inspect.signature(cli.read_allocator_snapshot).parameters)
         env={'synthetic-env':mode};calls=[];sink=[];pages=copy.deepcopy(pages if pages is not None else [records(3)])
-        raw_wallet=copy.deepcopy(WALLET)
+        raw_wallet=copy.deepcopy(WALLET if wallet is None else wallet)
+        original_run=cli._run
         common=iter([{'id':account_id,'cash':'0','equity':'66','last_equity':'66'},copy.deepcopy(CLOCK),[],
-            *([] if mode=='paper' else [raw_wallet]),[],
+            [],
             [{'symbol':'USDCUSD','market_value':'66','unrealized_pl':'0'}],0,
             {'price':'100','timestamp':CLOCK['timestamp']},[],{'tradable':False,'status':'inactive'},
             {'bid':'99','ask':'100','quote_at':CLOCK['timestamp']},[]])
@@ -39,9 +41,16 @@ class FlowCaptureTests(unittest.TestCase):
             if args[:3]==['account','activity','list'] and '--activity-types' not in args:
                 if fail:raise ValueError(fail)
                 return pages.pop(0)
-            value=copy.deepcopy(next(common))
-            if args[:2]==['api','GET'] and args[-1]!='.':
-                value=[{k:r[k] for k in ('id','asset','usd_value','direction','status')} for r in value]
+            if args[:2]==['api','GET']:
+                if args[-1]=='.':
+                    if raw_fail:raise ValueError(raw_fail)
+                    value=copy.deepcopy(raw_wallet if raw_override is None else raw_override)
+                else:value=[{k:r[k] for k in ('id','asset','usd_value','direction','status')} for r in raw_wallet]
+            else:value=copy.deepcopy(next(common))
+            if enforce_output_limit:
+                completed=SimpleNamespace(returncode=0,stdout=json.dumps(value).encode(),stderr=b'')
+                with patch.object(cli.subprocess,'run',return_value=completed):
+                    return original_run(_path,args,context)
             return value
         with tempfile.TemporaryDirectory() as directory,patch.dict(os.environ,{'LIFE_MANAGER_INVESTMENT_MODE':mode},clear=True),\
                 patch.object(cli,'_context',return_value=env),patch.object(cli,'_run',side_effect=run):
@@ -57,7 +66,7 @@ class FlowCaptureTests(unittest.TestCase):
                 baseline,_,old_calls,old_risk=self.read(mode,capture=False)
                 result,sink,calls,risk=self.read(mode)
                 self.assertEqual(result,baseline);self.assertEqual(risk,old_risk)
-                self.assertEqual(len(calls),len(old_calls)+1)
+                self.assertEqual(len(calls),len(old_calls)+(1 if mode=='paper' else 2))
                 self.assertEqual(len(sink),1);frame=sink[0]
                 self.assertEqual(frame['native_trading_account_id'],ACCOUNT)
                 self.assertEqual(frame['mode'],mode);self.assertIs(frame['paper'],mode=='paper')
@@ -73,7 +82,9 @@ class FlowCaptureTests(unittest.TestCase):
                 else:
                     self.assertEqual(frame['wallet_transfers'],WALLET)
                     self.assertEqual(frame['wallet_status'],'observed')
-                    self.assertEqual(next(c[-1] for c in calls if c[:2]==['api','GET']),'.')
+                    wallet_queries=[c[-1] for c in calls if c[:2]==['api','GET']]
+                    self.assertEqual(wallet_queries[-1],'.')
+                    self.assertEqual(wallet_queries[0],next(c[-1] for c in old_calls if c[:2]==['api','GET']))
                     self.assertNotEqual(next(c[-1] for c in old_calls if c[:2]==['api','GET']),'.')
 
     def test_fixed_window_tokens_and_terminal_page_are_saved_without_type_filter(self):
@@ -126,8 +137,35 @@ class FlowCaptureTests(unittest.TestCase):
                 result,sink,_,risk=self.read('live',fail=fail,account_id=account)
                 self.assertEqual(result,baseline);self.assertEqual(risk,old_risk)
                 self.assertEqual(sink[0]['activity_pages'],[])
-                self.assertEqual(sink[0]['capture_status'],'failed')
+                self.assertEqual(sink[0]['capture_status'],'partial' if account is not None else 'failed')
                 self.assertEqual(sink[0]['activity_pagination'],'unknown')
+                self.assertEqual(sink[0]['fee_completeness_status'],'unknown')
+                self.assertIsNone(sink[0]['net_pnl_usd'])
+
+    def test_raw_wallet_size_limit_does_not_block_existing_risk_or_drop_activity_pages(self):
+        large=[{**WALLET[0],'id':f'synthetic-large-{i}','native_extra':'x'*700} for i in range(150)]
+        baseline,_,_,old_risk=self.read('live',capture=False,wallet=large,enforce_output_limit=True)
+        try:
+            result,sink,_,risk=self.read('live',wallet=large,enforce_output_limit=True)
+        except ValueError as error:self.fail('optional raw capture blocked original snapshot: '+str(error))
+        self.assertEqual(result,baseline);self.assertEqual(risk,old_risk)
+        frame=sink[0]
+        self.assertIsNone(frame['wallet_transfers']);self.assertEqual(frame['wallet_status'],'failed')
+        self.assertEqual(frame['wallet_error_class'],'ValueError')
+        self.assertEqual(frame['activity_pages'],[records(3)])
+        self.assertEqual(frame['activity_pagination'],'exhausted');self.assertEqual(frame['capture_status'],'partial')
+        self.assertIsNone(frame['net_pnl_usd'])
+
+    def test_optional_wallet_error_or_malformed_body_keeps_original_risk_and_other_raw(self):
+        for fail,override in (('alpaca_cli_timeout:api_GET',None),(None,{'unexpected':'shape'})):
+            with self.subTest(timeout=bool(fail)):
+                baseline,_,_,old_risk=self.read('live',capture=False)
+                try:result,sink,_,risk=self.read('live',raw_fail=fail,raw_override=override)
+                except ValueError as error:self.fail('optional wallet capture blocked risk: '+str(error))
+                self.assertEqual(result,baseline);self.assertEqual(risk,old_risk)
+                self.assertEqual(sink[0]['wallet_status'],'failed')
+                self.assertEqual(sink[0]['activity_pages'],[records(3)])
+                self.assertEqual(sink[0]['capture_status'],'partial')
                 self.assertEqual(sink[0]['fee_completeness_status'],'unknown')
                 self.assertIsNone(sink[0]['net_pnl_usd'])
 
