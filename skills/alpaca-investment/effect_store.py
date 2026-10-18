@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 import fcntl
-import hashlib
 import json
 import os
-import re
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Callable
+
+from crypto_ownership_proof import (_digest, ReconciliationPending, owned_entry_decision_from_rows,
+                                    recorded_close_proof_from_rows)
 
 
 MODES = frozenset({"paper", "shadow", "live"})
@@ -22,19 +23,12 @@ UNRESOLVED_INTENT_STATUSES = frozenset({
 })
 
 
-class ReconciliationPending(ValueError):
-    """An official order exists but its strategy account readback is not settled."""
-
 
 def _mode(value: Any) -> str:
     if value not in MODES:
         raise ValueError("investment_mode_invalid")
     return value
 
-
-def _digest(value: Any) -> str:
-    encoded = json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
-    return hashlib.sha256(encoded).hexdigest()
 
 
 def _rows(path: Path) -> list[dict[str, Any]]:
@@ -106,97 +100,6 @@ def owned_entry_decision(ledger: Path, ownership: dict[str, Any], *, owner_id: s
     return owned_entry_decision_from_rows(_owned_rows(ledger), ownership, owner_id=owner_id, mode=mode)
 
 
-def owned_entry_decision_from_rows(rows: list[dict[str, Any]], ownership: dict[str, Any], *, owner_id: str, mode: str) -> dict[str, Any]:
-    """Read the sealed policy and official filled buy for one owned entry."""
-    if (not isinstance(mode, str) or mode not in {"paper", "live"}
-            or owner_id != f"alpaca-investment-{mode}" or not isinstance(ownership, dict)):
-        raise ValueError("owned_entry_identity_invalid")
-    effect_id, client = ownership.get("entry_effect_id"), ownership.get("entry_client_order_id")
-    if (not isinstance(effect_id, str) or re.fullmatch(r"[0-9a-f]{64}", effect_id) is None
-            or client != f"lm-ai-{effect_id[:24]}"):
-        raise ValueError("owned_entry_identity_invalid")
-    intents = [row for row in rows if row.get("receipt_type") == "effect_intent"
-               and row.get("status") == "planned" and row.get("effect_id") == effect_id]
-    if len(intents) != 1:
-        raise ValueError("owned_entry_intent_missing" if not intents else "owned_entry_intent_conflict")
-    intent = intents[0]
-    if (intent.get("client_order_id") != client or intent.get("mode") != mode
-            or intent.get("paper") is not (mode == "paper") or intent.get("owner_id") != owner_id):
-        raise ValueError("owned_entry_identity_invalid")
-    decisions = [row for row in rows if row.get("receipt_type") == "decision"
-                 and row.get("decision_id") == intent.get("decision_id")]
-    if len(decisions) != 1 or not isinstance(decisions[0].get("decision"), dict):
-        raise ValueError("owned_entry_policy_missing")
-    decision, order = decisions[0]["decision"], intent.get("order")
-    if (decisions[0].get("mode") != mode or decisions[0].get("paper") is not (mode == "paper")
-            or decision.get("mode") != mode or decision.get("owner_id") != owner_id
-            or decision.get("action") != "ENTER" or not isinstance(decision.get("strategy_id"), str)
-            or not decision["strategy_id"]
-            or decision.get("strategy_id") != intent.get("strategy_id")
-            or not isinstance(decision.get("policy_card"), dict) or not isinstance(order, dict)
-            or order.get("asset_class") != "crypto" or order.get("symbol") != "BTC/USDC"
-            or order.get("side") != "buy" or order.get("type") != "market"
-            or order.get("time_in_force") != "gtc"):
-        raise ValueError("owned_entry_policy_missing")
-    if (intent.get("decision_id") != _digest({"mode": mode, "decision": decision})
-            or effect_id != _digest({"decision_id": intent["decision_id"], "order": order})):
-        raise ValueError("owned_entry_digest_mismatch")
-    outcomes = [row for row in rows if row.get("receipt_type") == "outcome"
-                and row.get("effect_id") == effect_id]
-    if not outcomes:
-        raise ValueError("owned_entry_fill_missing")
-    # Enrichment may append another view of the same immutable fill. Known
-    # values must agree; a later contradictory row is not an authority override.
-    identity_fields = ("mode", "paper", "client_order_id", "outcome", "broker_receipt_id")
-    if any(tuple(row.get(key) for key in identity_fields) !=
-           tuple(outcomes[0].get(key) for key in identity_fields) for row in outcomes):
-        raise ValueError("owned_entry_fill_conflict")
-    for key in ("id", "client_order_id", "symbol", "side", "status", "type", "time_in_force",
-                "filled_qty", "filled_avg_price", "submitted_at", "filled_at"):
-        known = []
-        for row in outcomes:
-            value = row.get("broker", {}).get(key) if isinstance(row.get("broker"), dict) else None
-            if value is None or value == "":
-                continue
-            try:
-                if key in {"filled_qty", "filled_avg_price"}:
-                    value = Decimal(str(value))
-                    if not value.is_finite() or value <= 0:
-                        raise ValueError
-                elif key in {"submitted_at", "filled_at"}:
-                    value = datetime.fromisoformat(value.replace("Z", "+00:00"))
-                    if value.tzinfo is None:
-                        raise ValueError
-                elif key == "symbol" and isinstance(value, str):
-                    value = value.replace("/", "")
-            except (InvalidOperation, TypeError, ValueError, AttributeError) as error:
-                raise ValueError("owned_entry_fill_invalid") from error
-            known.append(value)
-        if known and any(value != known[0] for value in known):
-            raise ValueError("owned_entry_fill_conflict")
-    outcome = outcomes[-1]
-    broker = outcome.get("broker")
-    if (outcome.get("outcome") != "broker_reconciled" or outcome.get("mode") != mode
-            or outcome.get("paper") is not (mode == "paper")
-            or outcome.get("client_order_id") != client or not isinstance(broker, dict)
-            or broker.get("status") != "filled" or broker.get("side") != "buy"
-            or broker.get("symbol") not in {"BTC/USDC", "BTCUSDC"}
-            or broker.get("client_order_id") != client or broker.get("type") != order["type"]
-            or broker.get("time_in_force") != order["time_in_force"]
-            or not isinstance(broker.get("id"), str)
-            or not broker["id"] or outcome.get("broker_receipt_id") != broker["id"]):
-        raise ValueError("owned_entry_fill_invalid")
-    try:
-        filled, marker_filled, owned, price = [Decimal(str(value)) for value in (
-            broker.get("filled_qty"), ownership.get("entry_filled_qty"),
-            ownership.get("owned_qty"), broker.get("filled_avg_price"))]
-        if (any(not number.is_finite() or number <= 0 for number in (filled, marker_filled, owned, price))
-                or filled != marker_filled or owned > filled):
-            raise ValueError
-    except (InvalidOperation, ValueError, TypeError) as error:
-        raise ValueError("owned_entry_fill_invalid") from error
-    return {"decision": decision, "broker": broker, "owned_qty": str(owned)}
-
 
 def record_no_trade(ledger: Path, decision: dict[str, Any]) -> str:
     mode = _mode(decision.get("mode"))
@@ -247,8 +150,6 @@ def _crypto_close_pending(intent: dict[str, Any], outcome: dict[str, Any] | None
     if (not isinstance(order, dict) or order.get("asset_class") != "crypto" or order.get("side") != "sell"
             or not isinstance(outcome, dict) or outcome.get("outcome") != "broker_reconciled"):
         return False
-    # Import at call time: the position proof itself uses the ledger's pure entry reader.
-    from position_manager import recorded_close_proof_from_rows
     try:
         decisions = [r["decision"] for r in rows if r.get("receipt_type") == "decision"
                      and r.get("decision_id") == intent.get("decision_id")]

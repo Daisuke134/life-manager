@@ -91,6 +91,32 @@ class ProvisionSelectionTests(unittest.TestCase):
             self.assertEqual(provision_selection(destination,reports,refresh=True)['status'],'existing')
             self.assertEqual(destination.read_bytes(),before)
 
+    def test_core_guard_keeps_unproven_crypto_close_on_the_shared_contract(self):
+        from provision_selection import _effects
+        from crypto_ownership_proof import ReconciliationPending
+        self.assertIs(_effects.ReconciliationPending,ReconciliationPending)
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            reports,destination=root/'reports.json',root/'selected-strategy.json'
+            reports.write_text(json.dumps([_report()]))
+            provision_selection(destination,reports)
+            sealed=_effects.seal(root/'receipts.jsonl',{
+                'action':'EXIT','mode':'paper','owner_id':'alpaca-investment-paper',
+                'strategy_id':'alpaca-btc-5m-trend-400-v2'},
+                {'asset_class':'crypto','side':'sell','symbol':'BTC/USDC','qty':'0.01',
+                 'type':'market','time_in_force':'gtc'})
+            _effects.mark_started(root/'receipts.jsonl',sealed)
+            _effects.reconcile_started(root/'receipts.jsonl',lambda _: {
+                'id':'official-order','client_order_id':sealed['client_order_id'],
+                'symbol':'BTCUSDC','side':'sell','status':'filled','filled_qty':'0.01'})
+            self.assertEqual(_effects.unresolved_intent_count(root/'receipts.jsonl'),1)
+            changed=_report(report_id='changed-rules')
+            changed['card']['entry_rules']={'all':['close > 1']}
+            reports.write_text(json.dumps([changed]))
+            before=destination.read_bytes()
+            self.assertEqual(provision_selection(destination,reports,refresh=True)['status'],'existing')
+            self.assertEqual(destination.read_bytes(),before)
+
     def test_corrupt_ownership_is_an_error_even_when_selection_is_valid(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

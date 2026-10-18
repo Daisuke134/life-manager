@@ -226,7 +226,8 @@ def _guard_reports(root: Path, existing: Any, reports: list[dict[str, Any]]) -> 
         rows = _effects._rows(ledger)
         intents = {row["effect_id"]: row for row in rows if row.get("receipt_type") == "effect_intent"}
         outcomes = {row["effect_id"]: row for row in rows if row.get("receipt_type") == "outcome"}
-        protected = any(not _effects._outcome_closed(outcomes.get(effect_id)) for effect_id in intents)
+        protected = bool(_effects._unresolved(rows)) or any(
+            not _effects._outcome_closed(outcomes.get(effect_id), rows) for effect_id in intents)
     except (KeyError, TypeError, ValueError, OSError) as error:
         raise SelectionProvisionError("selection_ledger_invalid") from error
     owned_strategy = None
