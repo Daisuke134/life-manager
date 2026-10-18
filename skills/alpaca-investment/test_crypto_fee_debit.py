@@ -10,6 +10,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parent))
 import crypto_ownership_proof as proofs
 import effect_store as store
 from test_crypto_entry import entry_fixture
+from test_crypto_partial_entry import partial_fixture
 from test_crypto_performance import activity_fixture,cycle_fixture
 
 END='2026-01-02T04:00:00Z'
@@ -140,3 +141,25 @@ class CryptoFeeDebitTests(unittest.TestCase):
                         start=frame['requested_period_start'],end=END)
                     with self.subTest(fills=fills),self.assertRaisesRegex(ValueError,'owned_fee_debit_invalid'):
                         self.proof(rows,owned,bad,account,mode)
+
+    def test_known_fee_activity_cannot_change_between_acquisition_and_recovery(self):
+        for mode in ('paper','live'):
+            with self.subTest(mode=mode),tempfile.TemporaryDirectory() as directory:
+                root=Path(directory);owned,broker,account,owner,frame=partial_fixture(root,mode)
+                fee={'id':'known-fee','activity_type':'CFEE','order_id':broker['id'],'symbol':'BTCUSD',
+                    'qty':'-0.00001','date':'2026-01-01','created_at':'2026-01-01T04:00:02Z','net_amount':'0','status':'executed'}
+                frame=activity_fixture(frame,mode=mode,start=broker['submitted_at'],
+                    end=account['clock']['observed_at'],fees=[fee])
+                ledger=root/'receipts.jsonl'
+                acquisition=proofs.entry_fill_proof_from_rows(store._rows(ledger),owned,broker,account,
+                    mode=mode,owner_id=owner,activity_readback=frame)
+                store.reconcile_started(ledger,lambda _:broker,on_reconciled=lambda *_:acquisition)
+                owned.update(status='open',entry_filled_qty='0.03',owned_qty='0.03')
+                current={**account,'clock':{'observed_at':END},'positions':[{'symbol':'BTCUSDC','qty':'0.02999'}]}
+                same=activity_fixture({'fills':[],'fees':[fee]},mode=mode,start=broker['submitted_at'],end=END)
+                self.assertEqual(self.proof(store._rows(ledger),owned,same,current,mode)['receipt']['debit_qty'],'0.00001')
+                changed=activity_fixture({'fills':[],'fees':[{**fee,'qty':'-0.000075'}]},mode=mode,
+                    start=broker['submitted_at'],end=END)
+                current['positions'][0]['qty']='0.029925'
+                with self.assertRaisesRegex(ValueError,'owned_fee_debit_invalid'):
+                    self.proof(store._rows(ledger),owned,changed,current,mode)
