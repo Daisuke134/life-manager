@@ -408,9 +408,12 @@ an economic timestamp, using a fixed 30-second window and descending limit one.
 The shared pure proof preserves nanoseconds in both the request and age checks,
 rejects future/stale/invalid quotes and never invents FX parity for missing data.
 An older page token is retained without claiming an exhausted history window.
-The result is explicitly a reference quote, not a cash conversion. Linking these
-references to actual FILL/CFEE cashflows and complete operating costs remains work
-in the canonical SSOT.
+The result is explicitly a reference quote, not a cash conversion. The performance
+consumer contract binds each raw FILL timestamp and identity to an as-of midpoint,
+keeping exact rational USD reference amounts separate from native cashflow and
+actual cash settlement. Attributed fees use credited-asset weighted execution
+cost basis; BTC fees are not subtracted twice. Missing FX stays null. Writer/cache
+integration and complete operating costs remain work in the canonical SSOT.
 This branch is source only: verified fee quantity-drift recovery, FX and complete
 actual costs, deployment, natural outcomes and profitable evaluation remain in
 the canonical SSOT.
