@@ -808,6 +808,10 @@ def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_recor
     """
     result = {"observations": [], "rejections": [], "coverage_state": "gap",
               "reason": "source_inventory_unverified"}
+    if scope is not None and not isinstance(scope,dict):
+        result.update(reason='cost_query_scope_invalid')
+        result['rejections'].append({'reason':'cost_query_scope_invalid'})
+        return result
     end = _instant(snapshot_at)
     readback = payload.get("readback") if isinstance(payload, dict) else None
     billing_at = _instant(readback.get("observed_at")) if isinstance(readback, dict) else None
@@ -863,6 +867,26 @@ def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_recor
             paid_document_cache[signature] = (parsed if not failures and parsed
                 and all(row in paid_records for row in parsed) else [])
         return paid_document_cache[signature]
+
+    checked_aliases=set()
+    def verify_paid_aliases(charge,target,amount,category,account):
+        cache_key=(charge,_cost_scope_key(target),frozenset(target['source_receipt_ids']),amount,category,account)
+        if cache_key in checked_aliases:return
+        for document in _document_rows(payload)[0]:
+            identity=_document_identity(document)
+            if identity is None or not paid_document_rows(document):continue
+            for line in document.get('line_items',[]):
+                for allocation in line.get('allocations',[]):
+                    if paid_charge_identity(document,line,allocation)!=charge:continue
+                    contexts=[item for item in joins if isinstance(item,dict) and item.get('join_type')!='scope_query'
+                        and (item.get('provider'),item.get('document_type'),item.get('document_id'))==identity
+                        and item.get('line_item_id')==line.get('line_item_id')
+                        and item.get('allocation_id')==allocation.get('allocation_id') and item.get('job_id')==allocation.get('job_id')]
+                    if (not contexts or any(not _same_cost_scope(item,target) for item in contexts)
+                            or document.get('billing_account_ref')!=account or document.get('currency')!='USD'
+                            or line.get('category')!=category or _amount(allocation.get('amount'))!=amount):
+                        raise ValueError('cost_query_paid_alias_conflict')
+        checked_aliases.add(cache_key)
 
     prepared={}
     if expected_inventory is not None:
@@ -938,9 +962,10 @@ def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_recor
             if not matching or any(not _same_cost_scope(item,target) for item in matching):
                 raise ValueError
             information=prepared.get(target['scope_id'])
-            wanted_refs=set();query_keys=set();joined_refs=set()
+            wanted_refs=set();query_keys=set();joined_refs=set();scoped_paid={}
             if information is not None:
-                if 'investment' not in source.get('product_loop_ids',[]):raise ValueError('cost_query_source_missing')
+                if (not ids(source.get('product_loop_ids'),nonempty=True) or 'investment' not in source['product_loop_ids']
+                        or any(_loop_id(value) is None for value in source['product_loop_ids'])):raise ValueError('cost_query_source_missing')
                 query_keys={k for k in information['required'] if k[:2]==key[:2] and k[2] in query['covered_categories']}
                 if not query_keys:raise ValueError('cost_query_source_not_expected')
                 executors={v for k in query_keys for v in information['required'][k]}
@@ -980,10 +1005,15 @@ def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_recor
                                     continue
                                 receipt_id = (f"{key[0]}:actual-cost:{identity[1]}:{identity[2]}:"
                                               f"line:{line['line_item_id']}:allocation:{allocation['allocation_id']}")
-                                bound |= any(isinstance(row, dict) and row.get("receipt_id") == receipt_id
+                                proved = any(isinstance(row, dict) and row.get("receipt_id") == receipt_id
                                     and row.get("record_type") == "receipt" and row.get("verification_state") == "verified"
                                     and row.get("provider") == key[0] and row.get("currency") == "USD"
                                     and row.get("product_loop_id") == target["product_loop_id"] for row in paid_document_rows(document))
+                                bound |= proved
+                                if proved:
+                                    charge=paid_charge_identity(document,line,allocation)
+                                    if charge is None:raise ValueError('cost_query_paid_alias_invalid')
+                                    scoped_paid[charge]=(_amount(allocation.get('amount')),line.get('category'),document.get('billing_account_ref'))
                     if not bound:
                         raise ValueError
                 else:
@@ -1043,6 +1073,7 @@ def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_recor
             else:
                 raise ValueError
             if information is not None:
+                for charge,(amount,category,account) in scoped_paid.items():verify_paid_aliases(charge,target,amount,category,account)
                 for binding in information['scope']['known_paid_bindings']:
                     if (binding['provider'],binding['billing_account_ref'],binding['category']) not in query_keys:continue
                     if settlement!='paid_final':raise ValueError('cost_query_known_paid_missing')
