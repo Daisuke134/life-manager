@@ -43,6 +43,7 @@ def roster(**overrides) -> dict:
         "listing_external_id": "1338228", "listing_ids": ["1344057", "1338228", "1344056"],
         "superseded_status": {"1338229": "archived"},
         "portfolio_external_ids": {"portfolio": "743964", "software_portfolio": "743987"},
+        "portfolio_duplicate_external_ids": {"portfolio": [], "software_portfolio": []},
     }
     return value | overrides
 
@@ -144,6 +145,18 @@ def test_unknown_portfolio_stays_fenced(tmp_path, monkeypatch, capsys):
     state, product = setup(tmp_path)
     value = roster(portfolio_external_ids={"portfolio": "743964", "software_portfolio": None})
     assert held(module, state, product, value, capsys) == "portfolio_roster_differs_from_product"
+
+
+def test_same_title_portfolio_duplicate_stays_fenced(tmp_path, monkeypatch, capsys):
+    # 757333 beside the pinned 743987 (2026-10-18) is an unledgered public effect.
+    module = load_module()
+    state, product = setup(tmp_path)
+    monkeypatch.setattr(module, "resolve_unknown_occurrence", Mock(side_effect=AssertionError))
+    value = roster(portfolio_duplicate_external_ids={"portfolio": [], "software_portfolio": ["757333"]})
+    assert held(module, state, product, value, capsys) == "portfolio_duplicate_present"
+    missing = roster()
+    del missing["portfolio_duplicate_external_ids"]
+    assert held(module, state, product, missing, capsys) == "portfolio_duplicate_present"
 
 
 def test_unreadable_roster_stays_fenced(tmp_path, monkeypatch, capsys):
