@@ -314,6 +314,19 @@ def _condition(rule: Any, candle: Mapping[str, Any]) -> bool | None:
     return _compare(actual, wanted, str(rule.get("op", "eq")))
 
 
+def _consistent_condition(rule: Any, candle: Mapping[str, Any], *, require_stable: bool = True) -> bool | None:
+    """Compare the same predicate on bounded and reference indicator inputs."""
+    if (require_stable and "indicator_history_stable" in candle
+            and _decimal(candle["indicator_history_stable"]) != Decimal("1")):
+        return None
+    signal = _condition(rule, candle)
+    reference = {key.removeprefix("reference_"): value for key, value in candle.items()
+                 if key.startswith("reference_")}
+    if reference and signal != _condition(rule, {**candle, **reference}):
+        return None
+    return signal
+
+
 def _cost_parameters(costs: Mapping[str, str]) -> tuple[dict[str, Decimal] | None, str | None]:
     if not isinstance(costs, Mapping):
         return None, "cost_model_incomplete"
@@ -397,7 +410,7 @@ def _evaluate_partitions(
         trades: list[dict[str, Any]] = []
         for row_index, candle in enumerate(rows):
             if position is None:
-                signal = _condition(card.entry_rules, candle)
+                signal = _consistent_condition(card.entry_rules, candle)
                 if signal is None:
                     unknown = True
                     continue
@@ -420,7 +433,7 @@ def _evaluate_partitions(
                 "entry_price": position["price"],
                 "age_bars": row_index - position["entry_index"],
             }
-            signal = _condition(card.exit_rules, exit_candle)
+            signal = _consistent_condition(card.exit_rules, exit_candle, require_stable=False)
             if signal is None:
                 unknown = True
                 continue
@@ -634,6 +647,12 @@ def validate_series(
     if candle_error is not None:
         status = "rejected" if candle_error.startswith(("duplicate", "candle_timestamps")) else "unknown"
         return _empty_report(card.strategy_id, status, candle_error)
+    if "indicator_history_unstable" in card.kill_conditions:
+        if any("indicator_history_stable" not in row
+               or not any(key.startswith("reference_") for key in row) for row in normalized):
+            return _empty_report(card.strategy_id, "unknown", "indicator_history_unknown")
+        if any(_decimal(row["indicator_history_stable"]) != Decimal("1") for row in normalized):
+            return _empty_report(card.strategy_id, "unknown", "indicator_history_unstable")
     valuation_error = _quote_valuations(card, normalized)
     if valuation_error is not None:
         return _empty_report(card.strategy_id, "unknown", valuation_error)
@@ -689,6 +708,11 @@ def validate_series(
         "parameter_sensitivity": sensitivity,
         "decision": "paper" if not failures else "rejected",
     }
+    if unknown:
+        for scope in (result, result["train"], result["validation"], result["holdout"]):
+            for key in scope:
+                if key.endswith("_usd"):
+                    scope[key] = None
     if failures:
         result["reason"] = failures[0]
         result["failed_gates"] = failures

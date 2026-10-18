@@ -27,6 +27,7 @@ from etf_momentum import ETF_MOMENTUM_UNIVERSE, strategy_card as etf_strategy_ca
 from etf_ownership import investment_owner_id  # noqa: E402
 from etf_policy import evaluate as evaluate_etf_policy  # noqa: E402
 from strategy_cards import StrategyCard, validate_strategy_card  # noqa: E402
+from strategy_validation import _consistent_condition  # noqa: E402
 
 
 getcontext().prec = 28
@@ -44,6 +45,14 @@ ETF_SYMBOLS = tuple(ETF_MOMENTUM_UNIVERSE)
 MAX_QUOTE_AGE_SECONDS = Decimal("30")
 MAX_SPREAD_FRACTION = Decimal("0.15")
 BAR_SECONDS = 300
+
+# Versioned hypotheses: finite SMA-seeded indicators plus a longer observed reference.
+# Legacy v1 retains its original available-history calculation for owned exits.
+INDICATOR_HISTORY_CONTRACTS = {
+    "alpaca-btc-5m-reversion-400-v2": ("alpaca-btc-5m-reversion-v1", 400, 800),
+    "alpaca-btc-5m-trend-400-v2": ("alpaca-btc-5m-trend-v1", 400, 800),
+}
+
 
 _TWO_PLACES = Decimal("0.01")
 _RELEASE_SHA = re.compile(r"^[0-9a-fA-F]{40,64}$")
@@ -97,6 +106,11 @@ def candidate_cards() -> dict[str, StrategyCard]:
             "https://docs.freqtrade.io/en/stable/backtesting/",
         )),
     }
+    for strategy_id, (legacy_id, _window, _reference) in INDICATOR_HISTORY_CONTRACTS.items():
+        mapping = cards[legacy_id].to_mapping()
+        mapping["strategy_id"] = strategy_id
+        mapping["kill_conditions"].append("indicator_history_unstable")
+        cards[strategy_id] = StrategyCard.from_mapping(mapping)
     cards[ETF_STRATEGY_ID] = etf_strategy_card()
     return cards
 
@@ -295,6 +309,20 @@ def _atr(bars: Sequence[Mapping[str, Decimal]], period: int) -> Decimal | None:
 
 
 def _indicators(bars: Sequence[Mapping[str, Any]], strategy_id: str) -> dict[str, Decimal] | None:
+    contract = INDICATOR_HISTORY_CONTRACTS.get(strategy_id)
+    if contract is not None:
+        legacy_id, window, reference_window = contract
+        if len(bars) < reference_window:
+            return None
+        actual = _indicators(bars[-window:], legacy_id)
+        reference = _indicators(bars[-reference_window:], legacy_id)
+        if actual is None or reference is None:
+            return None
+        recursive = {"ema_20", "ema_50", "tema_9"} & actual.keys()
+        stable = all(abs(actual[key] - reference[key]) / actual["close"] <= Decimal("0.000001")
+                     for key in recursive)
+        return {**actual, **{f"reference_{key}": value for key, value in reference.items()},
+                "indicator_history_stable": Decimal(int(stable))}
     closes = [row["c"] for row in bars]
     if strategy_id == "alpaca-btc-5m-reversion-v1":
         if len(bars) < 20:
@@ -381,7 +409,7 @@ def _position(snapshot: Mapping[str, Any]) -> tuple[int, Mapping[str, Any] | Non
 
 def _edge_usd(card: StrategyCard, ask: Decimal, indicators: Mapping[str, Decimal]) -> Decimal:
     entry = ask
-    if card.strategy_id == "alpaca-btc-5m-reversion-v1":
+    if INDICATOR_HISTORY_CONTRACTS.get(card.strategy_id, (card.strategy_id,))[0] == "alpaca-btc-5m-reversion-v1":
         target = indicators["bollinger_upper_20_2"]
     else:
         target = indicators["close"] + Decimal("3") * indicators["atr_14"]
@@ -456,7 +484,11 @@ def evaluate(
     is_reversion = card.strategy_id == "alpaca-btc-5m-reversion-v1"
     inputs = _signal_inputs(indicators, quote_age=quote_age, spread=spread)
     if positions == 0:
-        if is_reversion:
+        if card.strategy_id in INDICATOR_HISTORY_CONTRACTS:
+            signal = _consistent_condition(card.entry_rules, indicators)
+            if signal is None:
+                return _result(card, ACTION_NO_TRADE, inputs, "indicator_history_unstable", cost_text)
+        elif is_reversion:
             signal = indicators["rsi_14"] <= Decimal("30") and indicators["tema_9"] < indicators["bollinger_middle_20_2"]
         else:
             signal = indicators["ema_20"] > indicators["ema_50"] and indicators["close"] > indicators["prior_20_high"]
@@ -482,6 +514,13 @@ def evaluate(
     if age_bars is None:
         return _result(card, ACTION_NO_TRADE, {**inputs, "age_bars": "unknown"}, "position_metadata_missing", cost_text)
     inputs["age_bars"] = str(age_bars)
+    if card.strategy_id in INDICATOR_HISTORY_CONTRACTS:
+        signal = _consistent_condition(card.exit_rules, {**indicators, "entry_price": entry_price,
+                                                       "age_bars": age_bars}, require_stable=False)
+        if signal is None:
+            return _result(card, ACTION_NO_TRADE, inputs, "indicator_history_unstable", cost_text)
+        return _result(card, ACTION_EXIT if signal else ACTION_HOLD, inputs,
+                       "signal_exit" if signal else "signal_hold", cost_text)
     close = indicators["close"]
     if is_reversion:
         if indicators["rsi_14"] >= Decimal("70"):
