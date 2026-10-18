@@ -11,7 +11,8 @@ from pathlib import Path
 from typing import Any, Callable
 
 from crypto_ownership_proof import (_digest, ReconciliationPending, owned_entry_decision_from_rows,
-                                    recorded_close_proof_from_rows)
+                                    recorded_close_proof_from_rows, no_fill_entry_proof_from_rows,
+                                    recorded_no_fill_proof_from_rows)
 
 
 MODES = frozenset({"paper", "shadow", "live"})
@@ -99,6 +100,24 @@ def _owned_rows(ledger: Path) -> list[dict[str, Any]]:
 def owned_entry_decision(ledger: Path, ownership: dict[str, Any], *, owner_id: str, mode: str) -> dict[str, Any]:
     return owned_entry_decision_from_rows(_owned_rows(ledger), ownership, owner_id=owner_id, mode=mode)
 
+
+
+
+def record_no_fill_account_receipt(ledger: Path, ownership: dict[str, Any], broker: dict[str, Any],
+                                   observation: dict[str, Any], *, owner_id: str, mode: str) -> dict[str, Any]:
+    rows = _owned_rows(ledger)
+    proof = no_fill_entry_proof_from_rows(rows, ownership, broker, observation, owner_id=owner_id, mode=mode)
+    if any(row.get("receipt_type") == "outcome" and row.get("effect_id") == ownership["entry_effect_id"]
+           and row.get("strategy_receipt") is not None for row in rows):
+        return recorded_no_fill_proof_from_rows(rows, ownership, broker, observation, owner_id=owner_id, mode=mode)
+    _append_once(ledger, {
+        "schema_version": 1, "receipt_type": "outcome", "outcome": "broker_terminal_failure",
+        "effect_id": ownership["entry_effect_id"], "client_order_id": ownership["entry_client_order_id"],
+        "mode": mode, "paper": mode == "paper", "broker": broker, "broker_status": broker["status"],
+        "broker_receipt_id": broker["id"], "strategy_receipt": proof,
+        "recorded_at": datetime.now(timezone.utc).isoformat(),
+    }, ("receipt_type", "effect_id", "outcome", "broker_status", "broker_receipt_id", "strategy_receipt"))
+    return proof
 
 
 def record_no_trade(ledger: Path, decision: dict[str, Any]) -> str:

@@ -425,7 +425,8 @@ class OwnedSubmitFenceTests(unittest.TestCase):
         native=importlib.util.module_from_spec(spec); spec.loader.exec_module(native)
         variants=({}, {"client_order_id":"wrong"}, {"symbol":"ETH/USDC"}, {"side":"sell"}, {"id":""})
         for change in variants:
-            with self.subTest(change=change),tempfile.TemporaryDirectory() as directory:
+            with self.subTest(change=change),tempfile.TemporaryDirectory() as directory,patch.dict(os.environ,{
+                    "LIFE_MANAGER_INVESTMENT_MODE":"live","LIFE_MANAGER_INVESTMENT_OWNER_ID":"alpaca-investment-live"}):
                 root=Path(directory);original,_owner=seed(root)
                 original.update(status="entry_pending",entry_filled_qty="0")
                 native._atomic_json(root/"live-owned-position.json",original)
@@ -436,9 +437,14 @@ class OwnedSubmitFenceTests(unittest.TestCase):
                       if r.get("receipt_type")!="outcome" and r.get("status")!="applied"]
                 (root/"receipts.jsonl").write_text("".join(json.dumps(r)+"\n" for r in rows))
                 broker={"id":"provider-entry","client_order_id":original["entry_client_order_id"],
-                    "symbol":"BTC/USDC","side":"buy","status":"rejected","filled_qty":"0",**change}
+                    "symbol":"BTC/USDC","side":"buy","status":"rejected","filled_qty":"0",
+                    "type":"market","time_in_force":"gtc","submitted_at":"2026-01-01T04:00:00Z","filled_at":None}
+                effect_store.reconcile_started(root/"receipts.jsonl",lambda _:copy.deepcopy(broker))
+                broker.update(change)
+                observation={"mode":"live","paper":False,"positions":[],
+                    "account":{"cash":"100","equity":"100"},"clock":{"observed_at":"2026-01-01T04:15:00Z"}}
                 with patch.object(native,"find_order_by_client_id",return_value=broker):
-                    actual=native._sync_live_ownership(root,Path("unused"),Path("unused"),{"positions":[]})
+                    actual=native._sync_live_ownership(root,Path("unused"),Path("unused"),observation)
                 self.assertEqual(actual["status"],"closed" if not change else "entry_pending")
 
     def test_paper_owned_btc_uses_same_exit_and_fresh_fence_as_live(self):
