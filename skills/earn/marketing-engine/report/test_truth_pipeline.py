@@ -26,12 +26,14 @@ class TruthPipelineTest(unittest.TestCase):
         self.assertIn("--quality-gate-exit-code 3", rendered[0])
         self.assertIn("native_metrics.py", rendered[1])
         self.assertIn("attribution_sweep.py", rendered[2])
+        self.assertIn("owner_report_reconcile.py", rendered[3])
+        self.assertEqual(truth_pipeline._stage_name(commands[3]), "report-reconcile")
         self.assertEqual(
-            [command[command.index("--kind") + 1] for command in commands[3:7]],
+            [command[command.index("--kind") + 1] for command in commands[4:8]],
             ["action", "checkpoint", "incident", "experiment"],
         )
         self.assertEqual(
-            [command[command.index("--kind") + 1] for command in commands[7:]],
+            [command[command.index("--kind") + 1] for command in commands[8:]],
             ["product_daily", "portfolio_weekly"],
         )
         self.assertNotIn("apify", " ".join(rendered).lower())
@@ -86,11 +88,11 @@ class TruthPipelineTest(unittest.TestCase):
         )
         self.assertIn(str(state_root / "evidence/metrics/native-metrics-latest.json"), rendered)
         self.assertEqual(
-            [command[command.index("--state-root") + 1] for command in commands[3:7]],
-            [str(state_root / "state")] * 4,
+            [command[command.index("--state-root") + 1] for command in commands[3:8]],
+            [str(state_root / "state")] * 5,
         )
         self.assertEqual(
-            [command[command.index("--state-root") + 1] for command in commands[7:]],
+            [command[command.index("--state-root") + 1] for command in commands[8:]],
             [str(metrics_state)] * 2,
         )
         self.assertNotIn("/read-only-release/skills/earn/marketing-engine/state", rendered)

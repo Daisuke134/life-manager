@@ -1535,7 +1535,8 @@ class OwnerReportStore:
             raise DeliveryError("message_key must be non-empty")
         with self._locked() as lock:
             existing = self._latest_delivery_unlocked(message_key)
-            if existing is not None:
+            # Complete history readback proved the earlier attempt never landed: send normally.
+            if existing is not None and existing.get("status") != "not_delivered_confirmed":
                 return False, existing
             claim = {
                 "schema_version": DELIVERY_SCHEMA_VERSION,
@@ -1593,7 +1594,7 @@ class OwnerReportStore:
             return self._append_delivery_row(row)
 
     def reconcile_delivery(self, message_key: str, receipt: dict) -> dict:
-        """Close ``delivery_unknown`` only from an exact Telegram history readback."""
+        """Close ``delivery_unknown`` or a stale ``sending`` claim only from an exact Telegram history readback."""
 
         if not isinstance(message_key, str) or not message_key:
             raise DeliveryError("message_key must be non-empty")
@@ -1611,19 +1612,38 @@ class OwnerReportStore:
             raise DeliveryError("reconciliation requires observed_at")
         if readback.get("message_id") not in normalized_receipt["message_ids"]:
             raise DeliveryError("readback message_id does not match receipt")
-        normalized_receipt["reconciled_from"] = "delivery_unknown"
-        row = {
-            "schema_version": DELIVERY_SCHEMA_VERSION,
-            "message_key": message_key,
-            "status": "delivered",
-            "message_ids": normalized_receipt["message_ids"],
-            "receipt": normalized_receipt,
-        }
+        return self._close_open_delivery(message_key, "delivered", normalized_receipt)
+
+    def confirm_not_delivered(self, message_key: str, readback: dict) -> dict:
+        """Record that a complete history readback of the attempt window found no message.
+
+        The row is terminal for that attempt only; ``claim_delivery`` may then claim the key again.
+        """
+
+        if not isinstance(message_key, str) or not message_key:
+            raise DeliveryError("message_key must be non-empty")
+        if not isinstance(readback, dict) or readback.get("source") != "telegram_mtproto_history":
+            raise DeliveryError("absence requires Telegram MTProto history")
+        if readback.get("matched_by") != "complete_window_absence" or readback.get("complete") is not True:
+            raise DeliveryError("absence requires a complete window readback")
+        if not isinstance(readback.get("observed_at"), str) or not readback["observed_at"]:
+            raise DeliveryError("absence requires observed_at")
+        receipt = {"status": "not_delivered_confirmed", "message_ids": [], "provider_readback": copy.deepcopy(readback)}
+        return self._close_open_delivery(message_key, "not_delivered_confirmed", receipt)
+
+    def _close_open_delivery(self, message_key: str, status: str, receipt: dict) -> dict:
         with self._locked() as lock:
             existing = self._latest_delivery_unlocked(message_key)
-            if existing is None or existing.get("status") != "delivery_unknown":
-                raise ConflictError(f"delivery is not unknown for {message_key}")
-            return self._append_delivery_row(row)
+            if existing is None or existing.get("status") not in {"delivery_unknown", "sending"}:
+                raise ConflictError(f"delivery is not open for {message_key}")
+            receipt["reconciled_from"] = existing["status"]
+            return self._append_delivery_row({
+                "schema_version": DELIVERY_SCHEMA_VERSION,
+                "message_key": message_key,
+                "status": status,
+                "message_ids": receipt["message_ids"],
+                "receipt": receipt,
+            })
 
 
 def _receipt_from_row(row: dict) -> dict:

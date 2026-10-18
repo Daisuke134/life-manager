@@ -16,6 +16,7 @@ USAGE:
   tg_user.py login                       # one-time: prompts phone + code, saves StringSession
   tg_user.py dialogs [limit]             # list recent conversations (find the right entity)
   tg_user.py read <entity> [limit]       # read history (entity = 'me' | @username | chat_id)
+  tg_user.py window <entity> <start> <end>  # every message in an RFC3339 window + complete flag
   tg_user.py send <entity> <text>        # post a message
 Reads emit JSON to stdout. Secrets are never printed.
 """
@@ -166,6 +167,31 @@ async def cmd_read(cfg, entity, limit):
     print(json.dumps({"ok": True, "entity": entity, "count": len(out), "messages": out}, ensure_ascii=False))
 
 
+async def cmd_window(cfg, entity, start, end, cap=2000):
+    # Every message after `start` (exclusive) up to `end`, oldest first, all pages.
+    # complete=True only once history is proven read past `end` (a later message, or
+    # the end of history with `end` already in the past) and the cap was not hit.
+    from datetime import datetime, timezone
+    since = datetime.fromisoformat(start.replace("Z", "+00:00"))
+    until = datetime.fromisoformat(end.replace("Z", "+00:00"))
+    cl = await _client(cfg)
+    await cl.connect()
+    out, complete = [], False
+    async for m in cl.iter_messages(await _resolve(cl, entity), offset_date=since, reverse=True):
+        if m.date > until:
+            complete = True
+            break
+        if len(out) >= cap:
+            break
+        out.append({"id": m.id, "date": m.date.isoformat(), "sender_id": m.sender_id,
+                    "out": bool(m.out), "text": m.raw_text or ""})
+    else:
+        complete = until < datetime.now(timezone.utc)
+    await cl.disconnect()
+    print(json.dumps({"ok": True, "entity": entity, "start": start, "end": end,
+                      "complete": complete, "count": len(out), "messages": out}, ensure_ascii=False))
+
+
 async def cmd_send(cfg, entity, text):
     cl = await _client(cfg)
     await cl.connect()
@@ -198,6 +224,10 @@ def main():
             print("usage: tg_user.py read <entity> [limit]"); sys.exit(1)
         limit = int(sys.argv[3]) if len(sys.argv) > 3 else 30
         asyncio.run(cmd_read(cfg, sys.argv[2], limit))
+    elif cmd == "window":
+        if len(sys.argv) < 5:
+            print("usage: tg_user.py window <entity> <start_iso> <end_iso>"); sys.exit(1)
+        asyncio.run(cmd_window(cfg, sys.argv[2], sys.argv[3], sys.argv[4]))
     elif cmd == "send":
         if len(sys.argv) < 4:
             print("usage: tg_user.py send <entity> <text>"); sys.exit(1)
