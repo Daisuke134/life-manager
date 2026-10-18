@@ -725,9 +725,11 @@ def read_allocator_snapshot(
 
 def read_crypto_history(*, credentials_path: Path, cli_path: Path,
                         observed_at: str) -> dict[str, list[dict[str, Any]]]:
-    """Read a bounded four-hour OHLC window for model judgment."""
+    """Read completed five-minute bars with room for the BTC trend warmup."""
     observed = parse_instant(observed_at)
-    window_start = observed - timedelta(hours=4)
+    window = timedelta(hours=8)
+    window_start = observed - window
+    max_bars = window // timedelta(minutes=5) + 1
     start = window_start.isoformat().replace("+00:00", "Z")
     end = observed.isoformat().replace("+00:00", "Z")
     env = _context(credentials_path, cli_path)
@@ -741,10 +743,9 @@ def read_crypto_history(*, credentials_path: Path, cli_path: Path,
     try:
         for row in rows:
             symbol, bars = row["symbol"], row["bars"]
-            # Alpaca's inclusive start/end query returns 49 five-minute bars
-            # for a four-hour window; reject only values beyond that bound.
+            # Bound the inclusive provider response before dropping a forming bar.
             if symbol not in {"BTC/USDC", "ETH/USDC"} or symbol in result \
-                    or not isinstance(bars, list) or len(bars) > 49:
+                    or not isinstance(bars, list) or len(bars) > max_bars:
                 raise ValueError
             normalized = []
             previous_timestamp = None
@@ -759,9 +760,11 @@ def read_crypto_history(*, credentials_path: Path, cli_path: Path,
                         or values[1] < max(values[0], values[2], values[3])
                         or values[2] > min(values[0], values[1], values[3])):
                     raise ValueError
+                previous_timestamp = timestamp
+                if observed - timestamp < timedelta(minutes=5):
+                    continue
                 normalized.append({"t": bar["t"], "o": str(values[0]), "h": str(values[1]),
                                    "l": str(values[2]), "c": str(values[3])})
-                previous_timestamp = timestamp
             result[symbol] = normalized
         btc = result.get("BTC/USDC")
         if not btc or len(btc) < 6 or observed - parse_instant(btc[-1]["t"]) > timedelta(minutes=15):
