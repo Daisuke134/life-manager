@@ -485,6 +485,22 @@ def _known_policy_metadata(row: dict[str, Any], *, owner_id: str, strategy_id: s
             raise ValueError
 
 
+def entry_pre_trade_account_readback(observation, decision):
+    """Copy a sealed raw baseline; no cashflow, completeness or fee inference."""
+    try:
+        mode=decision['mode'];account=decision['native_trading_account_id']
+        if (mode not in {'paper','live'} or not isinstance(account,str) or not account.strip()
+                or observation['account'].get('id')!=account):raise ValueError
+        positions=_account_positions(observation,mode=mode,
+            not_before=parse_instant(decision['observed_at']))
+        if (len(positions)>1 or any(row['symbol']!='USDCUSD'
+                or not isinstance(row.get('qty'),str) or Decimal(row['qty'])<0 for row in positions)):
+            raise ValueError
+        return json.loads(json.dumps(observation,allow_nan=False))
+    except (ValueError,KeyError,TypeError,AttributeError,ArithmeticError) as error:
+        raise ValueError('owned_entry_quote_baseline_invalid') from error
+
+
 def _sealed_entry_from_rows(rows: list[dict[str, Any]], ownership: dict[str, Any], *, owner_id: str, mode: str) -> dict[str, Any]:
     """Read the sealed policy and official filled buy for one owned entry."""
     if (not isinstance(mode, str) or mode not in {"paper", "live"}
@@ -521,6 +537,8 @@ def _sealed_entry_from_rows(rows: list[dict[str, Any]], ownership: dict[str, Any
     if (intent.get("decision_id") != _digest({"mode": mode, "decision": decision})
             or effect_id != _digest({"decision_id": intent["decision_id"], "order": order})):
         raise ValueError("owned_entry_digest_mismatch")
+    if 'pre_trade_account_readback' in decision:
+        entry_pre_trade_account_readback(decision['pre_trade_account_readback'],decision)
     return {"intent": intent, "decision": decision, "order": order}
 
 
@@ -633,6 +651,9 @@ def _owned_policy(proof: dict[str, Any], ownership: dict[str, Any], *, mode: str
         if not (parse_instant(decision["observed_at"]) <= parse_instant(broker["submitted_at"])
                 <= parse_instant(filled_at)):
             raise ValueError
+        if ('pre_trade_account_readback' in decision and
+                parse_instant(decision['pre_trade_account_readback']['clock']['observed_at'])
+                > parse_instant(broker['submitted_at'])):raise ValueError
     except (KeyError, TypeError, ValueError) as error:
         raise ValueError("owned_entry_fill_time_invalid") from error
     result={"card": card, "release_sha": release_sha, "entry_price": price,

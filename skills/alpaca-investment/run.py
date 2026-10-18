@@ -34,7 +34,7 @@ from position_manager import recorded_entry_fill_proof, historical_entry_fill_pr
 from crypto_ownership_proof import (BROKER_TERMINAL_FAILURE_STATUSES, _filled_qty_positive, entry_fill_proof_from_rows,
     recorded_entry_proof_from_rows, sell_remainder_proof_from_rows, owned_open_state_from_rows,
     recorded_fee_flat_state_from_rows, native_fee_debit_id, _account_positions, _execution_number,
-    _sell_receipt_row, recorded_close_proof_from_rows, _flat_btc_account, entry_receipt_row)
+    _sell_receipt_row, recorded_close_proof_from_rows, _flat_btc_account, entry_receipt_row, entry_pre_trade_account_readback)
 from strategy_policy import INDICATOR_HISTORY_CONTRACTS, load_selected_card, validate_policy_card
 from review_status import read_receipt as read_application_status
 from review_status import refresh as refresh_application_status
@@ -897,6 +897,8 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                         validate_etf_position_readback(
                             broker_readback, symbol=order["symbol"], expected_qty=qty,
                         )
+                    if order.get('asset_class')=='crypto' and order.get('side')=='buy':
+                        decision['pre_trade_account_readback']=entry_pre_trade_account_readback(fresh_observation,decision)
                     sealed = seal(state / "receipts.jsonl", decision, order)
                     if not mark_started(state / "receipts.jsonl", sealed):
                         raise ValueError("investment_effect_already_started")

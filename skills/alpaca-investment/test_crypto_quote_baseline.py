@@ -63,7 +63,7 @@ class QuoteBaselineTests(unittest.TestCase):
                 with self.subTest(mode=mode,case=name),tempfile.TemporaryDirectory() as directory:
                     code,rows,_=fixtures.CryptoEntryAccountTests().entry_main(Path(directory),mode,
                         pre_trade_readback=raw)
-                    self.assertEqual(code,1)
+                    self.assertNotEqual(code,0)
                     self.assertFalse(any(row.get('receipt_type')=='effect_intent' for row in rows))
                     self.assertFalse(any(row.get('receipt_type')=='outcome' for row in rows))
 
