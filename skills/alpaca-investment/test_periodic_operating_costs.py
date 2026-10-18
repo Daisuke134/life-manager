@@ -82,6 +82,54 @@ class PeriodicOperatingCostsTests(unittest.TestCase):
                     self.assertTrue(value['operating_cost_component_gaps'])
                     self.assertEqual(value['operating_cost_components'],[])
 
+    def test_charge_date_in_partial_view_does_not_invalidate_full_service_cost(self):
+        for mode in ('paper','live'):
+            payload,inventory,monthly=fixture(mode)
+            day=copy.deepcopy(monthly);day.update(scope_id='day-scope',period_start='2026-09-29T00:00:00Z')
+            payload['readback']['cost_scopes'].append(day)
+            query=copy.deepcopy(payload['sources'][0]['queries'][0]);query.update(query_id='day-query',scope_id='day-scope')
+            payload['sources'][0]['queries'].append(query)
+            page=copy.deepcopy(payload['provider_pagination']['pages'][0]);page.update(query_id='day-query')
+            payload['provider_pagination']['pages'].append(page)
+            join=copy.deepcopy(payload['job_joins'][0]);join.update(day,query_id='day-query',join_type='scope_query',job_id=None)
+            payload['job_joins'].append(join)
+            inv=copy.deepcopy(inventory['scopes'][0]);inv.update(day);inventory['scopes'].append(inv)
+            value=summarize([monthly,day],payload,owner_id=monthly['owner_id'],mode=mode,
+                observed_at=inventory['observed_at'],expected_inventory=inventory)
+            self.assertEqual(select_components(value,[monthly])['model_cost_usd'],'1')
+            self.assertIsNone(select_components(value,[day])['model_cost_usd'])
+
+    def test_non_service_owned_period_gap_still_blocks_parent_zero(self):
+        for mode in ('paper','live'):
+            for paid in (True,False):
+                with self.subTest(mode=mode,paid=paid):
+                    payload,inventory,child=fixture(mode)
+                    for row in (payload['documents'][0]['line_items'][0],payload['job_joins'][0]):
+                        for key in ('service_period_start','service_period_end','attribution_basis'):row.pop(key,None)
+                    child.update(period_end='2026-09-25T00:00:00Z')
+                    payload['readback']['cost_scopes'][0].update(child)
+                    payload['job_joins'][0].update(child)
+                    inventory['scopes'][0].update(child)
+                    payload['documents'][0]['line_items'][0]['occurred_at']='2026-09-24T12:00:00Z'
+                    if paid:payload['documents'][0]['billing_account_ref']='foreign-account'
+                    else:
+                        payload['documents'][0].pop('billing_account_ref')
+                        payload['documents'][0]['status']='unpaid'
+                    parent=copy.deepcopy(child);parent.update(scope_id='parent-scope',period_end='2026-09-30T00:00:00Z')
+                    payload['readback']['cost_scopes'].append(parent)
+                    query=copy.deepcopy(payload['sources'][0]['queries'][0])
+                    query.update(query_id='parent-query',scope_id='parent-scope',settlement_state='no_charge_final',document_ids=[])
+                    payload['sources'][0]['queries'].append(query)
+                    page=copy.deepcopy(payload['provider_pagination']['pages'][0]);page.update(query_id='parent-query',document_ids=[])
+                    payload['provider_pagination']['pages'].append(page)
+                    join=copy.deepcopy(payload['job_joins'][0]);join.update(parent,query_id='parent-query',join_type='scope_query',job_id=None)
+                    payload['job_joins'].append(join)
+                    inv=copy.deepcopy(inventory['scopes'][0]);inv.update(parent);inventory['scopes'].append(inv)
+                    for targets in ([parent],[parent,child]):
+                        value=summarize(targets,payload,owner_id=child['owner_id'],mode=mode,
+                            observed_at=inventory['observed_at'],expected_inventory=inventory)
+                        self.assertIsNone(select_components(value,[parent])['model_cost_usd'])
+
     def test_missing_final_query_or_unpaid_service_never_becomes_confirmed(self):
         for broken in ('query','unpaid','account','mode'):
             with self.subTest(broken=broken):
