@@ -37,6 +37,9 @@ def select_components(summary: dict, trips) -> dict:
                                    else "no_scoped_paid_components_for_day" if summary.get("operating_cost_components")
                                    else summary.get("operating_costs_reason", "no_scoped_paid_components")),
         "operating_costs_observed_at": summary.get("operating_costs_observed_at"),
+        "operating_cost_query_observations": [row for row in summary.get("operating_cost_query_observations", [])
+                                              if tuple(row.get("order_ids", [])) in pairs],
+        "operating_cost_coverage": {"coverage_state": "gap", "reason": "source_inventory_unverified"},
         "operating_cost_components": components,
         "operating_cost_source_receipt_ids": [row["receipt_id"] for row in components],
         "verified_model_cost_subtotal_usd": subtotal({"model_cost"}),
@@ -53,7 +56,7 @@ def read_readback(path: str | None) -> Any:
         return {"read_error": "operating_cost_readback_unavailable"}
 
 
-def summarize(trips, payload, *, owner_id: str, observed_at: str) -> dict:
+def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inventory=None) -> dict:
     summary = {"operating_cost_components": [], "operating_costs_observed_at": None,
                "operating_costs_reason": "operating_cost_readback_missing"}
     if payload is None:
@@ -69,7 +72,7 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str) -> dict:
         repo = str(Path(__file__).resolve().parents[2])
         if repo not in sys.path:
             sys.path.append(repo)
-        from skills.cfo.adapters.actual_cost import adapt
+        from skills.cfo.adapters.actual_cost import adapt, validate_official_cost_queries
         records = adapt(payload, snapshot_at=billing_at,
                         trailing_start=readback["trailing"]["window_start"])
         covered = {row["source_id"] for row in records
@@ -156,6 +159,26 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str) -> dict:
                         charge_conflicts.add(charge_identity)
                 else:
                     accepted[charge_identity] = cost
+        observations = []
+        scopes = readback.get("cost_scopes", [])
+        for scope in scopes if isinstance(scopes, list) else []:
+            if not isinstance(scope, dict):
+                continue
+            for trip in trips:
+                try:
+                    matches = (scope.get("owner_id") == owner_id and scope.get("mode") == "paper"
+                        and scope.get("paper") is True and scope.get("order_ids") == trip["order_ids"]
+                        and _time(scope.get("period_start")) == _time(trip["period_start"])
+                        and _time(scope.get("period_end")) == _time(trip["closed_at"])
+                        and isinstance(scope.get("source_receipt_ids"), list)
+                        and set(trip["source_receipt_ids"]) <= set(scope["source_receipt_ids"]))
+                except (KeyError, TypeError, ValueError):
+                    matches = False
+                if matches:
+                    query_result = validate_official_cost_queries(payload, snapshot_at=billing_at,
+                        paid_records=records, scope=scope, expected_inventory=expected_inventory)
+                    observations.extend(query_result["observations"])
+        summary["operating_cost_query_observations"] = observations
         summary.update({"operating_cost_components": [accepted[key] for key in sorted(accepted)
                                                       if key not in charge_conflicts],
                         "operating_costs_observed_at": billing_at,
