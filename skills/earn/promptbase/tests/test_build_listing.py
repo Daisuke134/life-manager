@@ -6,7 +6,7 @@ from pathlib import Path
 
 SCRIPTS_DIR = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
-from build_listing import build_listing, TITLE_MAX, DESCRIPTION_MAX  # noqa: E402
+from build_listing import build_listing, INPUT_VARIABLE_LABEL, TITLE_MAX, DESCRIPTION_MAX  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 CATALOG_DIR = REPO_ROOT / "skills" / "capafy" / "catalog" / "reels-hook-lab"
@@ -26,10 +26,11 @@ class BuildListingTest(unittest.TestCase):
         self.assertIn("Reels Hook Lab", listing.title)
         self.assertTrue(listing.example_input)
         self.assertTrue(listing.example_output)
-        # the SKILL.md body must be present verbatim inside what gets pasted
-        # into PromptBase's "prompt template" field
+        # the SKILL.md body (its own brackets as parentheses) is what gets
+        # pasted into PromptBase's "prompt template" field
         skill_md = (CATALOG_DIR / "SKILL.md").read_text(encoding="utf-8")
-        self.assertIn(skill_md.strip(), listing.prompt_instructions)
+        body = skill_md.strip().replace("[", "(").replace("]", ")")
+        self.assertIn(body, listing.prompt_instructions)
         # and the example-input bracket line precedes it (matches the live
         # Hook Lab listing's "[VAR]: value" prefix convention)
         self.assertTrue(listing.prompt_instructions.startswith("[TOPIC"))
@@ -42,6 +43,21 @@ class BuildListingTest(unittest.TestCase):
         self.assertEqual(listing.slug, "football-match-analyst")
         self.assertIn("Northbridge FC vs River Athletic", listing.example_input)
         self.assertIn("No reliable ranking is produced.", listing.example_output)
+
+    def test_template_has_only_the_injected_variable(self):
+        # PromptBase turns every "[...]" in the template into a variable and
+        # refuses more than 5 ("You can only have a maximum of 5 variables in
+        # your prompt.", live 2026-10-18 04:20 JST). This SKILL.md has 16.
+        import re
+
+        catalog_dir = REPO_ROOT / "skills" / "capafy" / "catalog" / "annual-report-risk-change-brief"
+        listing = build_listing(catalog_dir)
+
+        self.assertEqual(
+            re.findall(r"\[([^\[\]]*)\]", listing.prompt_instructions),
+            [INPUT_VARIABLE_LABEL],
+        )
+        self.assertIn("(UNVERIFIED)", listing.prompt_instructions)
 
     def test_title_never_exceeds_promptbase_limit(self):
         listing = build_listing(CATALOG_DIR)
