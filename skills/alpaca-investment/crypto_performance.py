@@ -442,7 +442,7 @@ def _update_crypto_flows(previous,observation,result,*,mode,owner_id,reader,ceil
                 seen.add(row['id'])
         pagination=frame['activity_pagination'];token=frame.get('next_page_token')
         if pagination=='exhausted':
-            if not pages or token is not None:raise ValueError
+            if not pages or len(pages[-1])==100 or token is not None:raise ValueError
         elif pagination=='partial':
             if not pages or any(len(page)!=100 for page in pages) or token!=pages[-1][-1]['id']:raise ValueError
         elif pagination!='unknown' or pages or token is not None:raise ValueError
@@ -538,7 +538,9 @@ def _update_crypto_flows(previous,observation,result,*,mode,owner_id,reader,ceil
         incoming=reader(mode=mode,period_start=query['after'],period_end=query['until'],
             native_trading_account_id=account,page_token=query['page_token'])
         record['readback']=clone(incoming)
-        ids,complete=frame_ok(incoming,query,account)
+        try:ids,complete=frame_ok(incoming,query,account)
+        except (ValueError,KeyError,TypeError,AttributeError,ArithmeticError) as error:
+            raise ValueError('crypto_flow_readback_invalid') from error
         _,known=chain(pending['readback_refs'],pending,complete=False)
         if ids&known:raise ValueError('crypto_flow_execution_conflict')
         record['validation_status']='recorded_only'
