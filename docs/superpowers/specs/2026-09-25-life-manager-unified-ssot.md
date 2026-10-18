@@ -14881,9 +14881,11 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **D3a1 終端診断の修正契約:** 最新head4e83a67d22のfresh GitHub reviewは、paused/killedおよび後続失敗の終端出力からcapture結果が脱落するP2を報告する。通常完了・初期control停止・submit直前control停止・例外終端の既存summaryへ同じcost_inventory_captureを保持する。capture前の例外やliveには結果を捏造しない。再試行やbroker効果の判定、送信内容、旧fenceは変更しない。最小RED→GREENと関連caller検証後、最新headのreview/CIを取り直す。現在cursorはこの終端診断修正。
 
-**D3a1 終端診断の実行記録:** RED abff07bd43でpaused/killed/observe失敗の3 subcasesがcost_inventory_capture欠落を再現する。GREEN6fdcb3bbc7は既存4終端summaryに結果が存在する場合だけ保持する5行修正。Alpaca316 testsがPASS、submit0・既存pending1・readback先行を維持する。新しい経済receipt、金額、再送、live enableを追加しない。最新headcf7775dad59f9714f98a228af908203fa4250473のfresh GitHub reviewは未解決指摘なし、全13 exact-head checksがPASSし、PR #8331をmain f3fd137e95183e45584c961905385769df1d2c90へ統合する。source/main完了で、正式版採用・自然snapshotは未確認。
+**D3a1 終端診断の実行記録:** RED abff07bd43でpaused/killed/observe失敗の3 subcasesがcost_inventory_capture欠落を再現する。GREEN6fdcb3bbc7は既存4終端summaryに結果が存在する場合だけ保持する5行修正。Alpaca316 testsがPASS、submit0・既存pending1・readback先行を維持する。新しい経済receipt、金額、再送、live enableを追加しない。最新headcf7775dad59f9714f98a228af908203fa4250473のfresh GitHub reviewは未解決指摘なし、全13 exact-head checksがPASSし、PR #8331をmain f3fd137e95183e45584c961905385769df1d2c90へ統合する。source/main完了。正式版採用は以下のreadbackで確認し、自然snapshotは未確認。
 
 **実稼働の確認:** 完全版/Users/anicca/loops/releases/20261018T151955-00cc7a49はmain00cc7a499612842cab087266ff08bb12e25e6c3f由来ALL版で、D2のactual_cost.py/paper_operating_costs.py/run.pyがmain5a96b4e9とbyte一致する。paperは同版を採用し、自然run18df8be87fdcb518-52453が06:30:32.181422 UTCにpass/exit0/effect not_applicable/no_broker_order_submittedで完了する。これはD2の本番採用・自然実行証拠であり、D3a1の採用や利益の証拠ではない。crossvenueはc2e10124を採用し旧通知fenceを保持、liveはdisabled/旧4121f447/歴史的fenceを保持する。
+
+**D3a1本番採用:** 完全版/Users/anicca/loops/releases/20261018T154007-26839cbfはmain f3fd137eの子孫で、run.py/cost_inventory.py/effect_store.py/catalogの4ファイルがreview済み版とbyte一致する。共通release controllerとpaperの両loaded-idle、paperの旧版自然pass/unknownなしを確認する。06:45:57.398856 UTCのlaunchctl-safe preflightはUID501/DS/Aqua/manager UID501・PID1/GUI readbackがPASS。既存apply --loaded-idle-onlyをLIFE_MANAGER_APPLY_TARGET=alpaca-investment-paper/LIFE_MANAGER_APPLY_REQUIRE_CURRENT=1で一度実行し、ok=true/changed=true、install event4338657576a945ac48d68992、loaded argv/SHA26839cbf一致を確認する。admission_resumed=false、live/fenceへの変更0。直後は自然snapshot0件・conflict0件で、5分間隔の次回自然実行を待つ。手動wake・注文・資金移動はしない。
 
 **追加の公式read-only照合:** 歴史的live occurrence alpaca-investment-live:18d9e6f979d18818-14709（queued_at2026-09-29T21:08:06Z）を既存effect_reconcile.build_proofで照合するとorders_present:after=4,open=0でverified=falseとなる。4件は9月30日/10月1日の後日のfilled crypto注文で、問題の実行とのexact対応は未確認。現在のadapterはqueued以後の全期間に注文があれば保持するため、現在未約定0だけで解除しない。公式request IDの存在を確認し、provider/state書込0、fence解除0。Google Driveはinvestment/Life Manager/Alpaca/投資で検索するが投資agentの指定sheetを同定できず、無関係なファイルへの書込0。sheet未同定をsource修正の停止条件にしない。
 
@@ -14899,10 +14901,10 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **公式仕様の境界:** Alpacaの[Paper Trading](https://docs.alpaca.markets/docs/paper-trading)は市場impact/latency/queue/regulatory fees等を模擬しない。紙のnot_simulatedを実口座の費用0にしない。[Crypto Trading](https://docs.alpaca.markets/docs/crypto-trading)のcrypto feeはCFEE活動で日末計上されるため、当日空一覧を確定無料にしない。strategyの予測費用と公式確定費用を区別する。paper feeの完全性・USDC quoteからの実注文可否は未確認であり、推測でmeasured/live許可へ上げない。
 
-**実行順の更新:** 旧=`D3取引pair inventory/consumer→D4費用評価→ETF紙サンプル→live gate`。新=`D3a1 capture修正のreview/CI/main/正式版/自然snapshot→D3a2 order_pair/owner_period独立inventory→BTC同一戦略validation・paper所有/exit/performance配線とETF保有遷移→D3b/D4完全費用coverage・全closed pairs/daily live reader→自然paper30件と既存全gate→exact live identity/fence/通貨・資本・損失条件照合→上限内live→実純利益/rollingに基づく改善・増額`。理由は、ETF紙評価とBTC-only liveの戦略不一致、idle期間の費用欠落、canary一組固定readerが最終成果への到達を妨げるため。現在cursorはD3a1の通常版採用/自然snapshotの観測と、D3a2独立inventoryのsource実装。進行中の自然ETF判断・外部effectを中断しない。
+**実行順の更新:** 旧=`D3取引pair inventory/consumer→D4費用評価→ETF紙サンプル→live gate`。新=`D3a1 capture修正のreview/CI/main/正式版/自然snapshot→D3a2 order_pair/owner_period独立inventory→BTC同一戦略validation・paper所有/exit/performance配線とETF保有遷移→D3b/D4完全費用coverage・全closed pairs/daily live reader→自然paper30件と既存全gate→exact live identity/fence/通貨・資本・損失条件照合→上限内live→実純利益/rollingに基づく改善・増額`。理由は、ETF紙評価とBTC-only liveの戦略不一致、idle期間の費用欠落、canary一組固定readerが最終成果への到達を妨げるため。現在cursorはD3a1採用後の自然snapshot/replay-zeroの観測と、D3a2独立inventoryのsource実装。進行中の自然ETF判断・外部effectを中断しない。
 
 **原子的な残TODO（この順序が正本）:**
-1. [ ] D3a1の通常immutable採用と自然snapshot/replay-zeroを確認する。source review/全13 checks/main f3fd137eへの統合は完了。
+1. [ ] D3a1採用後の自然snapshot/replay-zeroを確認する。source review/全13 checks/main f3fd137e統合、正式版26839cbfのpaper採用は完了。
 2. [ ] D3a2のorder_pair/owner_period入力契約をfixture化し、runtime physical run/actual occurrence/admission/release宣言と既知paid bindingの独立censusをRED→GREENで実装する。未終端・archive不足・旧release欠測・共有未帰属をgapにする。
 3. [ ] 既存BTC candidate/validationをpaper/live同一policyへ接続する。ETF保有中のselection更新を拒否し、自然EXIT後の所有移行、BTC paper entry/exit/公式約定の成績集計を検証する。
 4. [ ] D3bで安全なruntime/admission/ledger read-only loaderを既存writerへ接続し、必要provider/account/categoryと公式queryを照合する。欠測は0化せず、履歴更新で既知費用を失わない。
