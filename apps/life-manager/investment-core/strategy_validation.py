@@ -86,6 +86,34 @@ def _normalize_candles(candles: Sequence[Mapping[str, Any]]) -> tuple[list[dict[
     return normalized, None
 
 
+def _quote_valuations(card: StrategyCard, candles: list[dict[str, Any]]) -> str | None:
+    # One candle stream cannot establish prices/currencies for multiple assets.
+    if len(card.instruments) != 1:
+        return "instrument_currency_unknown"
+    parts = card.instruments[0].split("/")
+    if len(parts) != 2 or not all(part and part.strip() == part for part in parts):
+        return "instrument_currency_unknown"
+    quote = parts[1]
+    for candle in candles:
+        if quote == "USD":
+            conversion = {"currency": "USD", "rate": "1", "timestamp": candle["timestamp"],
+                          "evidence_ref": "USD_identity"}
+        else:
+            conversion = candle.get("quote_to_usd")
+            if not isinstance(conversion, Mapping):
+                return "quote_conversion_unknown"
+            rate = _decimal(conversion.get("rate"))
+            evidence = conversion.get("evidence_ref")
+            if (conversion.get("currency") != quote or rate is None or rate <= 0
+                    or _timestamp(conversion.get("timestamp")) != _timestamp(candle["timestamp"])
+                    or not isinstance(evidence, str) or not evidence.strip()):
+                return "quote_conversion_invalid"
+        # Detach provider metadata and overwrite any caller-supplied internal rate.
+        candle["quote_to_usd"] = dict(conversion)
+        candle["_quote_to_usd_rate"] = Decimal(str(conversion["rate"]))
+    return None
+
+
 def _ratio(value: Any) -> Decimal | None:
     if isinstance(value, str) and value.strip().endswith("%"):
         number = _decimal(value.strip()[:-1])
@@ -377,7 +405,8 @@ def _evaluate_partitions(
                     position = {
                         "timestamp": candle["timestamp"],
                         "price": price,
-                        "quantity": notional / price,
+                        "quantity": notional / (price * candle["_quote_to_usd_rate"]),
+                        "quote_to_usd": candle["quote_to_usd"],
                         "entry_index": row_index,
                     }
                 continue
@@ -399,8 +428,8 @@ def _evaluate_partitions(
                 continue
             entry_price = position["price"]
             quantity = position["quantity"]
-            exit_notional = quantity * exit_price
-            gross = (exit_price - entry_price) * quantity
+            exit_notional = quantity * exit_price * candle["_quote_to_usd_rate"]
+            gross = exit_notional - notional
             fees = (notional * costs["entry_fee_bps"] + exit_notional * costs["exit_fee_bps"]) / _BPS
             slippage = (
                 notional * costs["entry_slippage_bps"]
@@ -413,6 +442,8 @@ def _evaluate_partitions(
                 "entry_price": _text(entry_price),
                 "exit_price": _text(exit_price),
                 "quantity": _text(quantity),
+                "entry_quote_to_usd": dict(position["quote_to_usd"]),
+                "exit_quote_to_usd": dict(candle["quote_to_usd"]),
                 "gross_pnl_usd": _money(gross),
                 "fees_usd": _money(fees),
                 "slippage_usd": _money(slippage),
@@ -592,6 +623,14 @@ def validate_series(
     if candle_error is not None:
         status = "rejected" if candle_error.startswith(("duplicate", "candle_timestamps")) else "unknown"
         return _empty_report(card.strategy_id, status, candle_error)
+    valuation_error = _quote_valuations(card, normalized)
+    if valuation_error is not None:
+        report = _empty_report(card.strategy_id, "unknown", valuation_error)
+        for scope in (report, report["train"], report["validation"], report["holdout"]):
+            for key in scope:
+                if key.endswith("_usd"):
+                    scope[key] = None
+        return report
     partitions, split_error = _partition_candles(normalized, split)
     if split_error is not None or partitions is None:
         return _empty_report(card.strategy_id, "rejected", split_error or "split_invalid")
