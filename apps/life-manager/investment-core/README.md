@@ -394,7 +394,9 @@ Historical receipt checks use the saved account; current flatness is checked
 separately so a later clock never rewrites a closed fee proof.
 Performance now derives each pre-sell and final quantity from this same chain.
 Fee-only closures count as closed ownership cycles, but never as completed round
-trips without a positive SELL. Post-acquisition quantity adjustments are explicit;
+trips without a positive SELL. A position closed by a fee uses the saved flat
+account observation time, including a partial SELL followed by a next-day fee;
+it is never attributed to the earlier SELL day. Post-acquisition quantity adjustments are explicit;
 native execution cashflow uses actual FILL notionals without subtracting BTC fees
 twice. USD net/cost completeness and capital expansion remain unproved.
 This branch is source only: verified fee quantity-drift recovery, FX and complete
