@@ -66,6 +66,7 @@ def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None):
         row=entry_receipt_row(rows,effect);wrapper=row['strategy_receipt'];kind=wrapper['receipt']['kind']
         if kind=='owned_crypto_no_fill':
             recorded_no_fill_proof_from_rows(rows,{**marker,'status':'closed'},row['broker'],wrapper['account_readback'],mode=mode,owner_id=owner_id)
+            consume(row['broker']['id'],effect)
             no_fill.append(effect);continue
         acquisition=recorded_entry_proof_from_rows(rows,marker,row['broker'],wrapper['account_readback'],mode=mode,owner_id=owner_id)
         receipt=acquisition['receipt'];owned_qty=receipt['account_owned_qty']
@@ -74,6 +75,10 @@ def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None):
         marker.update(status='closing',entry_filled_qty=receipt['entry_filled_qty'],owned_qty=owned_qty)
         orders=[(effect,row['broker'],acquisition)]
         consume(row['broker']['id'],effect)
+        for fill_id in receipt.get('entry_execution',{}).get('fill_activity_ids',[]):
+            if fill_id in fill_ids and fill_ids[fill_id]!=row['broker']['id']:
+                raise ValueError('crypto_cycle_evidence_reused')
+            fill_ids[fill_id]=row['broker']['id']
         legs=[];incomplete=False;closed=None
         for intent in sells:
             ds=[r['decision'] for r in rows if r.get('receipt_type')=='decision' and r.get('decision_id')==intent.get('decision_id')]
@@ -159,14 +164,8 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
     if mode not in {'paper','live'} or owner_id!=f'alpaca-investment-{mode}':
         raise ValueError('crypto_performance_scope_invalid')
     state=Path(state_dir);latest=state/'performance-crypto-latest.json';phase='ledger'
-    frames={};refs={}
+    frames={};refs={};known_entries=set();known_cycles=set()
     try:
-        rows=_owned_rows(state/'receipts.jsonl')
-        if not _scoped_plans(rows,mode,owner_id):
-            if latest.exists(): raise ValueError('crypto_performance_history_missing')
-            return {'status':'not_applicable'}
-        if observation.get('mode')!=mode or observation.get('paper') is not (mode=='paper'):
-            raise ValueError('crypto_performance_observation_mode_invalid')
         phase='cache'
         if latest.exists():
             old=json.loads(latest.read_text())
@@ -175,9 +174,41 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
             frames=old.get('activity_readbacks',{});refs=old.get('order_activity_refs',{})
             if not isinstance(frames,dict) or not isinstance(refs,dict) or any(ref not in frames for ref in refs.values()):
                 raise ValueError('crypto_performance_activity_cache_invalid')
+            for key,target in (('known_entry_effect_ids',known_entries),('known_closed_cycle_ids',known_cycles)):
+                values=old.get(key,[])
+                if not isinstance(values,list) or any(not isinstance(v,str) or not v for v in values):
+                    raise ValueError('crypto_performance_activity_cache_invalid')
+                target.update(values)
+            for cycle in old.get('cycles',[]):
+                known_entries.add(cycle['entry_effect_id']);known_cycles.add(cycle['cycle_id'])
+            for entry in [*old.get('open_entries',[]),*old.get('pending_entries',[])]:
+                known_entries.add(entry['entry_effect_id'])
+            known_entries.update(old.get('no_fill_entry_effect_ids',[]))
+        phase='ledger'
+        rows=_owned_rows(state/'receipts.jsonl')
+        plans=_scoped_plans(rows,mode,owner_id)
+        phase='history'
+        if not plans:
+            if latest.exists(): raise ValueError('crypto_performance_history_missing')
+            return {'status':'not_applicable'}
+        current_entries={r['effect_id'] for r in plans if r['order'].get('side')=='buy'}
+        if not known_entries <= current_entries:
+            raise ValueError('crypto_performance_history_missing')
+        known_entries.update(current_entries)
         extra={key:frames[ref] for key,ref in refs.items()}
         phase='project'
         result=build_crypto_performance(rows,mode=mode,owner_id=owner_id,activity_readbacks=extra)
+        phase='history'
+        current_cycles={c['cycle_id'] for c in result['cycles']}
+        if not known_cycles <= current_cycles:
+            raise ValueError('crypto_performance_history_missing')
+        known_cycles.update(current_cycles)
+        phase='observation'
+        if observation.get('mode')!=mode or observation.get('paper') is not (mode=='paper'):
+            raise ValueError('crypto_performance_observation_mode_invalid')
+        observed=observation['clock']['observed_at'];now=parse_instant(observed)
+        if any(parse_instant(c['period_end'])>now for c in result['cycles']):
+            raise ValueError('crypto_performance_time_invalid')
         if result['activity_requests']:
             phase='activity_readback'
             reader=activity_reader or _read_activity
@@ -190,7 +221,8 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
             result=refreshed
         phase='write'
         observed=observation['clock']['observed_at'];day=parse_instant(observed).astimezone(timezone.utc).date().isoformat()
-        payload={**result,'observed_at':observed,'performance_day':day,'activity_readbacks':frames,'order_activity_refs':refs}
+        payload={**result,'observed_at':observed,'performance_day':day,'activity_readbacks':frames,'order_activity_refs':refs,
+                 'known_entry_effect_ids':sorted(known_entries),'known_closed_cycle_ids':sorted(known_cycles)}
         _atomic_json(latest,payload)
         for closed_day in sorted({parse_instant(c['closed_at']).astimezone(timezone.utc).date().isoformat() for c in result['cycles']}):
             cycles=[c for c in result['cycles'] if parse_instant(c['closed_at']).astimezone(timezone.utc).date().isoformat()==closed_day]
@@ -205,8 +237,9 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
         result={'schema_version':1,'owner_id':owner_id,'mode':mode,'paper':mode=='paper','report_scope':'owned_crypto_cycles',
             'measurement_status':'partial','reason':reason,'error_class':type(error).__name__,'failed_phase':phase,
             'completed_round_trips':None,'net_pnl_usd':None,'capital_expansion_allowed':False,
-            'activity_readbacks':frames if phase in {'activity_readback','write'} else {},
-            'order_activity_refs':refs if phase in {'activity_readback','write'} else {},
+            'activity_readbacks':frames if phase in {'ledger','history','observation','activity_readback','write'} else {},
+            'order_activity_refs':refs if phase in {'ledger','history','observation','activity_readback','write'} else {},
+            'known_entry_effect_ids':sorted(known_entries),'known_closed_cycle_ids':sorted(known_cycles),
             'next_action':'reconcile_cycle_proof_and_official_fill_readback'}
         _atomic_json(latest,result)
         return result
