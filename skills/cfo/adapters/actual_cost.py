@@ -131,13 +131,11 @@ def _instant(value: Any) -> str | None:
         return None
     try:
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            return None
+        return parsed.astimezone(timezone.utc).isoformat(timespec="microseconds").replace("+00:00", "Z")
     except (TypeError, ValueError, OverflowError):
         return None
-    if parsed.tzinfo is None or parsed.utcoffset() is None:
-        return None
-    return parsed.astimezone(timezone.utc).isoformat(timespec="microseconds").replace(
-        "+00:00", "Z"
-    )
 
 
 def _canonical_decimal_text(amount: Decimal) -> str:
@@ -364,6 +362,8 @@ def _job_index(payload: dict) -> tuple[dict[tuple[str, str], dict], set[tuple[st
     for row in rows:
         if not isinstance(row, dict):
             conflicts.add(("blockrun", "*"))
+            continue
+        if row.get("join_type") == "scope_query":
             continue
         provider = _provider(row.get("provider"))
         job_id = row.get("job_id")
@@ -664,6 +664,220 @@ def _parse_document(row: dict, *, end: str, payload_digest: str,
     return result, failures, seen_groups
 
 
+def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_records,
+                                   scope=None, expected_inventory=None) -> dict[str, Any]:
+    """Normalize scoped billing facts, never money or complete cost coverage.
+
+    Independent runtime inventory is not connected here yet. Even accepted,
+    finalized no-charge observations leave coverage open for the D3 consumer.
+    """
+    result = {"observations": [], "rejections": [], "coverage_state": "gap",
+              "reason": "source_inventory_unverified"}
+    end = _instant(snapshot_at)
+    readback = payload.get("readback") if isinstance(payload, dict) else None
+    billing_at = _instant(readback.get("observed_at")) if isinstance(readback, dict) else None
+    if (end is None or not isinstance(readback, dict)
+            or readback.get("kind") != "official_billing_readback"
+            or billing_at is None or billing_at > end):
+        result["rejections"].append({"reason": "read_failed"})
+        return result
+
+    def ids(value, *, nonempty=False):
+        return (isinstance(value, list) and (bool(value) or not nonempty)
+                and all(isinstance(item, str) and item for item in value)
+                and len(set(value)) == len(value))
+
+    sources = payload.get("sources", [])
+    scopes = readback.get("cost_scopes", [])
+    pagination = payload.get("provider_pagination", {})
+    pages = pagination.get("pages", []) if isinstance(pagination, dict) else None
+    joins = payload.get("job_joins", [])
+    if (_document_rows(payload)[1] is not None
+            or not all(isinstance(value, list) for value in (sources, scopes, pages, joins))):
+        result["rejections"].append({"reason": "read_failed"})
+        return result
+    candidates = []
+    for source in sources:
+        if not isinstance(source, dict) or not isinstance(source.get("queries", []), list):
+            result["rejections"].append({"reason": "read_failed"})
+            continue
+        candidates.extend((source, query) for query in source.get("queries", []))
+    seen = set()
+    query_bodies = {}
+    duplicate = set()
+    for source, query in candidates:
+        if isinstance(query, dict):
+            key = (source.get("provider"), query.get("billing_account_ref"), query.get("query_id"))
+            if all(isinstance(item, str) and item for item in (*key, query.get("scope_id"))):
+                try:
+                    body = _canonical({field: value for field, value in query.items() if field != "scope_id"})
+                except (TypeError, ValueError):
+                    duplicate.add(key)
+                    continue
+                scoped_key = (*key, query["scope_id"])
+                if scoped_key in seen or (key in query_bodies and query_bodies[key] != body):
+                    duplicate.add(key)
+                seen.add(scoped_key)
+                query_bodies[key] = body
+    jobs, job_conflicts = _job_index(payload)
+    paid_document_cache = {}
+
+    def paid_document_rows(document):
+        # Reuse paid validation on this exact document; IDs are not parsed by prefix.
+        signature = _canonical(document)
+        if signature not in paid_document_cache:
+            parsed, failures, _groups = _parse_document(document, end=end, payload_digest=_digest(payload),
+                jobs=jobs, job_conflicts=job_conflicts, source_loops={"investment"})
+            paid_document_cache[signature] = (parsed if not failures and parsed
+                and all(row in paid_records for row in parsed) else [])
+        return paid_document_cache[signature]
+
+    for source, query in candidates:
+        context = {"provider": source.get("provider")}
+        try:
+            if not isinstance(query, dict):
+                raise ValueError
+            context.update({key: query.get(key) for key in ("billing_account_ref", "query_id", "scope_id")})
+            key = tuple(context.get(field) for field in ("provider", "billing_account_ref", "query_id"))
+            if not all(isinstance(item, str) and item for item in (*key, query.get("scope_id"))) or key in duplicate:
+                raise ValueError
+            if (source.get("status") != "available" or _provider(key[0]) is None
+                    or not ids(source.get("billing_account_refs"), nonempty=True)
+                    or key[1] not in source["billing_account_refs"]
+                    or query.get("official") is not True or query.get("source_type") != "official_billing_query"
+                    or query.get("currency") != "USD" or query.get("complete") is not True
+                    or not ids(query.get("covered_categories"), nonempty=True)
+                    or not set(query["covered_categories"]) <= set(ACTUAL_COST_CATEGORIES)
+                    or not ids(query.get("evidence_refs"), nonempty=True)
+                    or any(query.get(field) != [] for field in ("pending_item_ids", "unbilled_item_ids", "unpaid_item_ids"))
+                    or not ids(query.get("document_ids"))):
+                raise ValueError
+            times = {field: _instant(query.get(field)) for field in
+                     ("window_start", "window_end", "observed_at", "finalized_through")}
+            if (any(value is None for value in times.values())
+                    or not times["window_start"] < times["window_end"] <= times["finalized_through"] <= times["observed_at"] <= billing_at):
+                raise ValueError
+            matching = [item for item in scopes if isinstance(item, dict) and item.get("scope_id") == query.get("scope_id")]
+            if len(matching) != 1:
+                raise ValueError
+            target = matching[0]
+            if scope is not None and target != scope:
+                raise ValueError
+            mode = target.get("mode")
+            start, finish = _instant(target.get("period_start")), _instant(target.get("period_end"))
+            if (target.get("product_loop_id") != "investment" or not isinstance(target.get("owner_id"), str)
+                    or not target["owner_id"] or mode not in ("paper", "live", "shadow")
+                    or type(target.get("paper")) is not bool or target["paper"] != (mode == "paper")
+                    or not ids(target.get("order_ids"), nonempty=True) or len(target["order_ids"]) != 2
+                    or not ids(target.get("source_receipt_ids"), nonempty=True)
+                    or start is None or finish is None
+                    or not times["window_start"] <= start < finish <= times["window_end"]):
+                raise ValueError
+            matching = [item for item in joins if isinstance(item, dict)
+                        and (item.get("provider"), item.get("billing_account_ref"), item.get("query_id")) == key
+                        and item.get("scope_id") == target["scope_id"]]
+            scope_fields = ("product_loop_id", "owner_id", "mode", "paper", "order_ids",
+                            "period_start", "period_end", "source_receipt_ids")
+            if not matching or any(type(item.get("paper")) is not bool
+                                   or any(item.get(field) != target.get(field) for field in scope_fields) for item in matching):
+                raise ValueError
+            for item in matching:
+                if item.get("join_type") == "scope_query":
+                    if (not ids(item.get("run_ids"), nonempty=True) or not ids(item.get("occurrence_ids"), nonempty=True)
+                            or set(item["occurrence_ids"]) != {f"{target['owner_id']}:{run}" for run in item["run_ids"]}):
+                        raise ValueError
+                elif item.get("join_type") == "paid_allocation":
+                    if (query.get("settlement_state") != "paid_final" or item.get("document_id") not in query["document_ids"]
+                            or item.get("status") not in ("completed", "settled", "paid")
+                            or not isinstance(item.get("job_id"), str) or not item["job_id"]):
+                        raise ValueError
+                    bound = False
+                    for document in _document_rows(payload)[0]:
+                        identity = _document_identity(document)
+                        if (identity != (key[0], item.get("document_type"), item.get("document_id"))
+                                or document.get("billing_account_ref") != key[1]):
+                            continue
+                        for line in document.get("line_items", []):
+                            if not isinstance(line, dict) or line.get("line_item_id") != item.get("line_item_id"):
+                                continue
+                            for allocation in line.get("allocations", []):
+                                if (not isinstance(allocation, dict) or allocation.get("allocation_id") != item.get("allocation_id")
+                                        or allocation.get("job_id") != item["job_id"]
+                                        or allocation.get("product_loop_id") != target["product_loop_id"]):
+                                    continue
+                                receipt_id = (f"{key[0]}:actual-cost:{identity[1]}:{identity[2]}:"
+                                              f"line:{line['line_item_id']}:allocation:{allocation['allocation_id']}")
+                                bound |= any(isinstance(row, dict) and row.get("receipt_id") == receipt_id
+                                    and row.get("record_type") == "receipt" and row.get("verification_state") == "verified"
+                                    and row.get("provider") == key[0] and row.get("currency") == "USD"
+                                    and row.get("product_loop_id") == target["product_loop_id"] for row in paid_document_rows(document))
+                    if not bound:
+                        raise ValueError
+                else:
+                    raise ValueError
+            chain = [page for page in pages if isinstance(page, dict)
+                     and (page.get("provider"), page.get("billing_account_ref"), page.get("query_id")) == key]
+            if not chain or any(type(page.get("page")) is not int for page in chain):
+                raise ValueError
+            chain.sort(key=lambda page: page["page"])
+            cursor, documents = None, []
+            for index, page in enumerate(chain, 1):
+                if (page["page"] != index or page.get("cursor") != cursor
+                        or not isinstance(page.get("request_id"), str) or not page["request_id"]
+                        or not ids(page.get("evidence_refs"), nonempty=True)
+                        or not ids(page.get("document_ids"))):
+                    raise ValueError
+                documents.extend(page["document_ids"])
+                if "cursor" not in page or "next_cursor" not in page:
+                    raise ValueError
+                cursor = page["next_cursor"]
+                if index < len(chain) and (not isinstance(cursor, str) or not cursor):
+                    raise ValueError
+            if cursor is not None or not ids(documents) or set(documents) != set(query["document_ids"]):
+                raise ValueError
+            settlement = query.get("settlement_state")
+            if settlement == "no_charge_final":
+                if documents:
+                    raise ValueError
+                for document in _document_rows(payload)[0]:
+                    if (document.get("provider"), document.get("billing_account_ref")) != key[:2]:
+                        continue
+                    doc_start = _instant(document.get("billing_period_start"))
+                    doc_end = _instant(document.get("billing_period_end"))
+                    if (doc_start is None or doc_end is None or doc_start >= doc_end
+                            or (doc_start < times["window_end"] and doc_end > times["window_start"])):
+                        raise ValueError
+            elif settlement == "paid_final":
+                paid_ids = set()
+                for document in _document_rows(payload)[0]:
+                    if (document.get("provider"), document.get("billing_account_ref")) != key[:2]:
+                        continue
+                    identity = _document_identity(document)
+                    if identity is None or identity[2] not in query["document_ids"]:
+                        doc_start = _instant(document.get("billing_period_start"))
+                        doc_end = _instant(document.get("billing_period_end"))
+                        if (doc_start is None or doc_end is None or doc_start >= doc_end
+                                or (doc_start < times["window_end"] and doc_end > times["window_start"])):
+                            raise ValueError
+                        continue
+                    rows = paid_document_rows(document)
+                    if not rows or any(row.get("currency") != "USD" for row in rows):
+                        raise ValueError
+                    paid_ids.add(identity[2])
+                if not documents or not set(documents) <= paid_ids:
+                    raise ValueError
+            else:
+                raise ValueError
+            observation_fields = ("billing_account_ref", "query_id", "scope_id", "covered_categories",
+                                  "window_start", "window_end", "observed_at", "finalized_through",
+                                  "settlement_state", "document_ids", "evidence_refs")
+            result["observations"].append({**{field: query[field] for field in observation_fields},
+                "provider": key[0], **{field: target[field] for field in ("order_ids", "period_start", "period_end")}})
+        except (KeyError, TypeError, ValueError):
+            result["rejections"].append({**context, "reason": "unverified_receipt"})
+    return result
+
+
 def _safe_gap_rows(*, end: str, start: str, digest: str, source_id: str,
                    loop_id: str, reason: str, observed_at: str) -> list[dict]:
     evidence = _evidence("readback", digest)
@@ -751,6 +965,20 @@ def adapt(payload: dict, *, snapshot_at: str, trailing_start: str) -> list[dict]
                     failures_by_group.setdefault((provider, loop_id, _source_id(provider)), set()).add(
                         "missing_coverage"
                     )
+
+    query_result = validate_official_cost_queries(
+        payload, snapshot_at=end,
+        paid_records=[row for group in receipts_by_group.values() for row in group],
+    )
+    accepted_queries = {(row["provider"], row["billing_account_ref"], row["query_id"], row["scope_id"])
+                        for row in query_result["observations"]}
+    for join in payload.get("job_joins", []) if isinstance(payload.get("job_joins", []), list) else []:
+        if isinstance(join, dict) and join.get("join_type") == "paid_allocation":
+            key = tuple(join.get(field) for field in ("provider", "billing_account_ref", "query_id", "scope_id"))
+            if (not all(isinstance(item, str) and item for item in key) or key not in accepted_queries):
+                provider, loop_id = _provider(join.get("provider")), _loop_id(join.get("product_loop_id"))
+                if provider is not None and loop_id is not None:
+                    failures_by_group.setdefault((provider, loop_id, _source_id(provider)), set()).add("unverified_receipt")
 
     if not sources:
         return _safe_gap_rows(
