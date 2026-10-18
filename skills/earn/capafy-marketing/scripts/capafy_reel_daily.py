@@ -132,9 +132,51 @@ def _claude(prompt: str) -> str:
                           timeout=600).stdout  # stdin: a prompt starting with "---" parses as a flag
 
 
+WINNER_OPENERS = Path.home() / ".local/state/life-manager/marketing/winner-openers.json"
+# Shorts tabs of creator-economy channels studied in creative/winner-patterns.md (yt-dlp search
+# returns long-form only, measured 2026-10-18).
+WINNER_SOURCES = ("https://www.youtube.com/@JadeBeason/shorts", "https://www.youtube.com/@VanessaLau/shorts",
+                  "https://www.youtube.com/@aliabdaal/shorts")
+
+
+def top_short_titles(entries: list, n: int = 15) -> list:
+    """Titles of the most-viewed <=60 s videos: what currently stops the scroll."""
+    shorts = [e for e in entries if (e.get("duration") or 0) <= 60 and e.get("title")
+              and not e["title"].upper().startswith("AD |")]
+    return [e["title"] for e in sorted(shorts, key=lambda e: -(e.get("view_count") or 0))[:n]]
+
+
+def winner_openers() -> list:
+    """Weekly yt-dlp metadata refresh (no video download) of top short-video titles; the
+    reel copies the winners' opener structure (Dais 2026-10-16: copy what top creators do)."""
+    try:
+        cached = json.loads(WINNER_OPENERS.read_text())
+        if (dt.date.today() - dt.date.fromisoformat(cached["fetched_at"])).days < 7:
+            return cached["titles"]
+    except (OSError, ValueError, KeyError):
+        cached = None
+    entries = []
+    for source in WINNER_SOURCES:
+        try:
+            out = subprocess.run(["yt-dlp", "--flat-playlist", "-J", "--playlist-end", "30", source],
+                                 capture_output=True, text=True, timeout=120).stdout
+            entries += json.loads(out).get("entries") or []
+        except (OSError, ValueError, subprocess.TimeoutExpired):
+            continue
+    titles = top_short_titles(entries)
+    if titles:
+        WINNER_OPENERS.parent.mkdir(parents=True, exist_ok=True)
+        WINNER_OPENERS.write_text(json.dumps({"fetched_at": dt.date.today().isoformat(), "titles": titles}, indent=1))
+        return titles
+    return (cached or {}).get("titles") or []
+
+
 def hook_lab_output(niche: dict) -> str:
+    openers = winner_openers()
+    reference = ("\nCurrently top-viewed short-video openers (study their structure; never copy their words):\n- "
+                 + "\n- ".join(openers[:10])) if openers else ""
     return _claude(f"{HOOK_LAB_SKILL.read_text()}\n\n---\nUser request: Format: Instagram Reel, 30 seconds, "
-                   f"direct tone. Topic: a {niche['topic']} for creators in that niche.")
+                   f"direct tone. Topic: a {niche['topic']} for creators in that niche.{reference}")
 
 
 def spec_from_output(output: str, niche: dict) -> dict:
