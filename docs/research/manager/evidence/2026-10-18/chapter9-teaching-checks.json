@@ -1,0 +1,119 @@
+{
+  "chapter": "9.1",
+  "state": "research_and_teaching_assets_only",
+  "model_training": false,
+  "field_intervention": false,
+  "main_generated_image": "learning/chapter9/2026-10-18-target-behavior-outcome.png",
+  "artifacts": [
+    {
+      "path": "docs/research/manager/2026-10-18-suffering-measurement-landscape.md",
+      "bytes": 37388,
+      "sha256": "8fd2879356a0b8a5a6acdba3a104d782efe41f919cb1057ac4ad178c718bee79"
+    },
+    {
+      "path": "docs/research/manager/2026-10-18-chapter9-dataset-decision.md",
+      "bytes": 17352,
+      "sha256": "46d62c026b9fe26e0632ae1afe8f5cb18b06dd21221aca6ca372df5ab5a9d848"
+    },
+    {
+      "path": "docs/research/manager/articles/2026-10-18-chapter9-01-what-to-predict-ja.md",
+      "bytes": 7967,
+      "sha256": "eae65e4816fe2c65899b0773b314aac4700459b6defc83db78a06b35d2d7c2eb"
+    },
+    {
+      "path": "docs/research/manager/2026-10-18-founder-story-and-mission.md",
+      "bytes": 9959,
+      "sha256": "3306750c09c096a5cf5bb5c3c0d40a010e7533f876a49267eb6707809a7aa7d2"
+    },
+    {
+      "path": "docs/research/manager/learning/chapter9/2026-10-18-target-behavior-outcome.png",
+      "bytes": 1512841,
+      "sha256": "3ccec47ea515e7d21639f70615ff04ad107b80527bf4c93d390c23abb5df7529"
+    },
+    {
+      "path": "docs/research/manager/content/2026-10-18-chapter9-intro/landscape-04.png",
+      "bytes": 139285,
+      "sha256": "d7e6aa801bcab8874d49eb79cbc2059f581f3ae9736a482fe625f0f8087258ce"
+    },
+    {
+      "path": "docs/research/manager/content/2026-10-18-chapter9-intro/portrait-04.png",
+      "bytes": 125953,
+      "sha256": "26dee84583a8177137f677230831b50145e22017cf2186934d04b89e5e8cd686"
+    },
+    {
+      "path": "docs/research/manager/content/2026-10-18-chapter9-intro/landscape-01.png",
+      "bytes": 96957,
+      "sha256": "7bfd1348912193e0c336d8cabce2eb8c6a1fca3ff66fd547035fe58e5a5b78c2"
+    },
+    {
+      "path": "docs/research/manager/content/2026-10-18-chapter9-intro/slides.json",
+      "bytes": 4182,
+      "sha256": "8d481340bd1bb1b42740a802cab5f6659c6a171774302e72bcfdee4e1f29a9ab"
+    },
+    {
+      "path": "docs/research/manager/content/2026-10-18-chapter9-intro/deck.html",
+      "bytes": 5370,
+      "sha256": "e406dad55594d0fad8eb5fdafdae4cd161958d92bef133ebb25ae2bce952dcf9"
+    },
+    {
+      "path": "docs/research/manager/content/2026-10-18-chapter9-intro/portrait-01.png",
+      "bytes": 89728,
+      "sha256": "9e81dcc79de49aaa1ff115c6223785878658eb0dee649b810b25fea8ee73a3d5"
+    },
+    {
+      "path": "docs/research/manager/content/2026-10-18-chapter9-intro/portrait-02.png",
+      "bytes": 120877,
+      "sha256": "700b72ebf41f0a65fcded1cd4d848a86f57ac64583875d49fba140a6dbf3e032"
+    },
+    {
+      "path": "docs/research/manager/content/2026-10-18-chapter9-intro/landscape-05.png",
+      "bytes": 127365,
+      "sha256": "6d7eaad5296054ed4e5751c2fa8ae68b1a2a0d6c3ee0a7dcc8538e24d03a5a37"
+    },
+    {
+      "path": "docs/research/manager/content/2026-10-18-chapter9-intro/landscape-02.png",
+      "bytes": 130449,
+      "sha256": "af7fa8373a51d4038b4df3fb191cd1fb1e936c72842c2a9356f350e815a5082f"
+    },
+    {
+      "path": "docs/research/manager/content/2026-10-18-chapter9-intro/portrait-03.png",
+      "bytes": 120587,
+      "sha256": "93bb2c26785dcb09b0541585d55f9351c0c1cd3c8889eae2f19dad75b5473868"
+    },
+    {
+      "path": "docs/research/manager/content/2026-10-18-chapter9-intro/landscape-03.png",
+      "bytes": 133244,
+      "sha256": "bec82ccf85a737984646fcb23f4839cc5914aa6b4512b4db53ee0a62b8d2f5eb"
+    },
+    {
+      "path": "docs/research/manager/content/2026-10-18-chapter9-intro/portrait-05.png",
+      "bytes": 116782,
+      "sha256": "4719256ad881932017c38b51f6029b796a8eda30a69e35a2a0cf943215914b68"
+    },
+    {
+      "path": "docs/research/manager/content/2026-10-18-chapter9-intro/landscape-06.png",
+      "bytes": 142798,
+      "sha256": "7d626432cbb91eb579c5a876bcd8e61adc46b395d0ec899ed5be76cff7a8d28d"
+    },
+    {
+      "path": "docs/research/manager/content/2026-10-18-chapter9-intro/portrait-06.png",
+      "bytes": 128771,
+      "sha256": "a4c04753cb35d233293a773fd52deb4e5ea41089deda8590eeaba1e0494e2837"
+    },
+    {
+      "path": "docs/research/manager/figures/render_chapter9_intro.py",
+      "bytes": 3551,
+      "sha256": "80164106a8761cb719aa915414963608dd61e1fad1423d18d61ee4758695ecbb"
+    },
+    {
+      "path": "docs/research/manager/content/2026-10-18-chapter9-intro/posts-ja.md",
+      "bytes": 1882,
+      "sha256": "2697b385078b1abfc5f5eddcb41fe39db0fb000f7046786f023523933159f936"
+    },
+    {
+      "path": "docs/research/manager/content/2026-10-18-chapter9-intro/README.md",
+      "bytes": 1424,
+      "sha256": "fe7137fc9e7b654d5343b4ff63024fcc95ab8ae9abab7228bc2ffdc786d10ffb"
+    }
+  ]
+}

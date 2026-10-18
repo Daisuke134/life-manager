@@ -1,0 +1,312 @@
+{
+  "schema_version": 1,
+  "checked_at_utc": "2026-10-18T23:45:54.907270+00:00",
+  "task": "chapter9_dataset_decision",
+  "scope": {
+    "no_training": true,
+    "no_raw_participant_records_saved_or_printed": true,
+    "no_registration_contact_or_paid_api": true,
+    "no_forced_join_to_Rhode_Island": true
+  },
+  "recommended_candidate": "UCL chfy2, provisional metadata/label reproduction before model training",
+  "osf_node": {
+    "url": "https://api.osf.io/v2/nodes/chfy2/",
+    "title": "Mindfulness and Mentalisation Smartphone-Based Ecological Momentary Interventions for Common Mental Health Problems: A Pilot Randomized Controlled Trial",
+    "public": true,
+    "date_created": "2025-06-04T14:44:46.752066",
+    "date_modified": "2026-01-07T11:28:42.899156",
+    "permissions": [
+      "read"
+    ],
+    "license_url": "https://api.osf.io/v2/licenses/563c1cf88c5e4a3877f9e96a/",
+    "license_name": "CC-By Attribution 4.0 International",
+    "license_terms_url": "https://creativecommons.org/licenses/by/4.0/legalcode"
+  },
+  "osf_files": [
+    {
+      "id": "68405bf4153f799cc3d6a43a",
+      "name": "Data",
+      "kind": "folder",
+      "size": null,
+      "date_modified": null,
+      "published_hashes": {
+        "md5": null,
+        "sha256": null
+      },
+      "download_url": null,
+      "metadata_url": "https://api.osf.io/v2/files/68405bf4153f799cc3d6a43a/",
+      "manifest_url": "https://api.osf.io/v2/nodes/chfy2/files/osfstorage/"
+    },
+    {
+      "id": "686e73faac5e6c1531fe525e",
+      "name": "EE EMA EMI content.xlsx",
+      "kind": "file",
+      "size": 11994,
+      "date_modified": "2025-07-09T13:51:54.914846",
+      "published_hashes": {
+        "md5": "69adb81039c9916dbe2fd3f44dc8eebe",
+        "sha256": "e11f90cc7152a079462ba1297c9fb57b71478ff7750f0d06d41154340190d3b7"
+      },
+      "download_url": "https://osf.io/download/yvcg8/",
+      "metadata_url": "https://api.osf.io/v2/files/686e73faac5e6c1531fe525e/",
+      "manifest_url": "https://api.osf.io/v2/nodes/chfy2/files/osfstorage/"
+    },
+    {
+      "id": "695e41640e0bcdd79e5556e5",
+      "name": "Optimization paper",
+      "kind": "folder",
+      "size": null,
+      "date_modified": null,
+      "published_hashes": {
+        "md5": null,
+        "sha256": null
+      },
+      "download_url": null,
+      "metadata_url": "https://api.osf.io/v2/files/695e41640e0bcdd79e5556e5/",
+      "manifest_url": "https://api.osf.io/v2/nodes/chfy2/files/osfstorage/"
+    },
+    {
+      "id": "695e4171de3d243c586f54e8",
+      "name": "RCT paper",
+      "kind": "folder",
+      "size": null,
+      "date_modified": null,
+      "published_hashes": {
+        "md5": null,
+        "sha256": null
+      },
+      "download_url": null,
+      "metadata_url": "https://api.osf.io/v2/files/695e4171de3d243c586f54e8/",
+      "manifest_url": "https://api.osf.io/v2/nodes/chfy2/files/osfstorage/"
+    },
+    {
+      "id": "68405c09153f799cc3d6a444",
+      "name": "filtered_df.csv",
+      "kind": "file",
+      "size": 11151,
+      "date_modified": "2025-06-04T14:45:29.071270",
+      "published_hashes": {
+        "md5": "a3b77f7493c14958d634ba20907323a0",
+        "sha256": "528841f1587a01c4a025f695c85c34d36a4df9773bb829b33394ce9db035df46"
+      },
+      "download_url": "https://osf.io/download/g7u4h/",
+      "metadata_url": "https://api.osf.io/v2/files/68405c09153f799cc3d6a444/",
+      "manifest_url": "https://api.osf.io/v2/nodes/chfy2/files/osfstorage/68405bf4153f799cc3d6a43a/"
+    },
+    {
+      "id": "68405c25d06d69149185b214",
+      "name": "dat_filtered_clean.csv",
+      "kind": "file",
+      "size": 1073860,
+      "date_modified": "2025-06-04T14:45:57.373822",
+      "published_hashes": {
+        "md5": "0527d6b00dae00e3b09149d0cdc304a0",
+        "sha256": "615adb58346c12343099a71cea3916473e8ed191dda2b58f3953952d99afad09"
+      },
+      "download_url": "https://osf.io/download/xekbv/",
+      "metadata_url": "https://api.osf.io/v2/files/68405c25d06d69149185b214/",
+      "manifest_url": "https://api.osf.io/v2/nodes/chfy2/files/osfstorage/68405bf4153f799cc3d6a43a/"
+    },
+    {
+      "id": "686d3d346656a0f4f903aabd",
+      "name": "multilevel_analysis_results.xlsx",
+      "kind": "file",
+      "size": 15548,
+      "date_modified": "2025-07-08T15:45:56.197712",
+      "published_hashes": {
+        "md5": "c286d4494a85e965c136590da7ff3b59",
+        "sha256": "bad6658b2cc4157b717bc2c1243111260573916bf3558edf7ffe88df73a07cbe"
+      },
+      "download_url": "https://osf.io/download/kbmzs/",
+      "metadata_url": "https://api.osf.io/v2/files/686d3d346656a0f4f903aabd/",
+      "manifest_url": "https://api.osf.io/v2/nodes/chfy2/files/osfstorage/68405bf4153f799cc3d6a43a/"
+    },
+    {
+      "id": "695e4365a44ba19ba828307f",
+      "name": "EMA proximal v3.R",
+      "kind": "file",
+      "size": 37700,
+      "date_modified": "2026-01-07T11:28:37.661270",
+      "published_hashes": {
+        "md5": "eb7968c9c0be4c8ea8104e887ee2b031",
+        "sha256": "92017806c69ac5ae907335978720059423facce556ea0f70b58a00d2c05b369a"
+      },
+      "download_url": "https://osf.io/download/7dfpu/",
+      "metadata_url": "https://api.osf.io/v2/files/695e4365a44ba19ba828307f/",
+      "manifest_url": "https://api.osf.io/v2/nodes/chfy2/files/osfstorage/695e41640e0bcdd79e5556e5/"
+    },
+    {
+      "id": "695e4369ec0577c465282e5e",
+      "name": "rq3_table1_LMM_effects_summary.csv",
+      "kind": "file",
+      "size": 1644,
+      "date_modified": "2026-01-07T11:28:41.874759",
+      "published_hashes": {
+        "md5": "ad56e4a6ed1644d18a659053dc5af38b",
+        "sha256": "9d700a1f002e5708b841060c693fade200a872f06e95e134c11a44ef3be7b305"
+      },
+      "download_url": "https://osf.io/download/5y7bd/",
+      "metadata_url": "https://api.osf.io/v2/files/695e4369ec0577c465282e5e/",
+      "manifest_url": "https://api.osf.io/v2/nodes/chfy2/files/osfstorage/695e41640e0bcdd79e5556e5/"
+    }
+  ],
+  "byte_inspections": [
+    {
+      "url": "https://osf.io/download/xekbv/",
+      "mode": "header_only",
+      "bytes_read": 281,
+      "sha256_of_inspected_bytes": "6e3c6a8deb60e34913741abb53009312b30208c327f53da1e1ea537cc1af07ad",
+      "header": "\"\",\"X\",\"Group\",\"ID_name\",\"ID\",\"timeStamp\",\"Contact\",\"Contact_String\",\"Criticism\",\"Hostility\",\"Overinvovlement\",\"Support\",\"Warmth\",\"Mood\",\"Stress\",\"Engagement\",\"Interaction\",\"Assertiveness\",\"intervention_computation\",\"validation_yesno\",\"cont_computation\",\"date\",\"beep\",\"condition\"",
+      "hash_scope": "header bytes only; not whole CSV"
+    },
+    {
+      "url": "https://osf.io/download/7dfpu/",
+      "mode": "author_code_full",
+      "bytes_read": 37700,
+      "sha256_of_inspected_bytes": "92017806c69ac5ae907335978720059423facce556ea0f70b58a00d2c05b369a"
+    },
+    {
+      "url": "https://osf.io/download/yvcg8/",
+      "mode": "questionnaire_full",
+      "bytes_read": 11994,
+      "sha256_of_inspected_bytes": "e11f90cc7152a079462ba1297c9fb57b71478ff7750f0d06d41154340190d3b7"
+    }
+  ],
+  "sources": [
+    {
+      "id": "ucl_2026",
+      "url": "https://doi.org/10.1038/s41598-026-39518-z",
+      "publication_date": "2026-02-11",
+      "observation": "Primary secondary-analysis paper; next EMA, not next day; N77; observational engagement; no independent heldout performance established.",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "ucl_2025",
+      "url": "https://mental.jmir.org/2025/1/e79296",
+      "publication_date": "2025-09-30",
+      "observation": "Primary trial n84; EMA adherence is separate from intervention response; group randomization does not randomize individual engagement.",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "mindfulness_2024",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11420060/",
+      "publication_date": "2024-06-11",
+      "observation": "Single-session randomized intervention, not daily practice-adherence panel.",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "mindfulness_2024_authorcode",
+      "url": "https://github.com/alessandro992/A-large-multi-site-test-of-self-administered-mindfulness",
+      "publication_date": null,
+      "observation": "Repository listing and finaldata.csv header verified; separate data reuse license not yet verified.",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "headspace_2025",
+      "url": "https://formative.jmir.org/2025/1/e56963/",
+      "publication_date": "2025-08-25",
+      "observation": "Actual app usage but data availability says corresponding-author reasonable request.",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "atus",
+      "url": "https://www.bls.gov/tus/modules/wbdatafiles.htm",
+      "publication_date": null,
+      "observation": "Official WB files 2010,2012,2013,2021; activity-level diary not next-day panel.",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "atus_methods",
+      "url": "https://www.bls.gov/tus/other-documentation/howto.htm",
+      "publication_date": null,
+      "observation": "Activity weights and early-year activity-selection error notice.",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "studentlife",
+      "url": "https://studentlife.cs.dartmouth.edu/dataset.html",
+      "publication_date": null,
+      "observation": "Original site fetch timed out; original-data license not verified.",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "studentlife_package",
+      "url": "https://github.com/frycast/studentlife",
+      "publication_date": null,
+      "observation": "GPL3 package license must not be assumed to license original dataset.",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "tiles",
+      "url": "https://tiles-data.isi.edu/download",
+      "publication_date": null,
+      "observation": "Official download page explicitly requires login.",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "tiles_sleep_2025",
+      "url": "https://arxiv.org/abs/2507.03520",
+      "publication_date": "2025-07-04",
+      "observation": "Primary sleep benchmark preprint candidate; data access not assumed from open paper.",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "snapshot",
+      "url": "https://sleepdata.org/datasets/snapshot",
+      "publication_date": null,
+      "observation": "Requires PI preapproval before submitting data request.",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "wesad",
+      "url": "https://archive.ics.uci.edu/dataset/465/wesad+wearable+stress+and+affect+detection",
+      "publication_date": "2018-09-13",
+      "observation": "Current official UCI page says linked dataset licensing; 15-person lab study, not next-day naturalistic behavior.",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "ukhls",
+      "url": "https://datacatalogue.ukdataservice.ac.uk/studies/study/6614?id=6614",
+      "publication_date": null,
+      "observation": "Longitudinal candidate; End User Licence and registration; target-wave availability unverified.",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "ukhls_access",
+      "url": "https://ukdataservice.ac.uk/find-data/access-conditions/safeguarded-access/",
+      "publication_date": null,
+      "observation": "Authenticated registration and licence conditions.",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "heartsteps",
+      "url": "https://github.com/klasnja/HeartStepsV1",
+      "publication_date": null,
+      "observation": "Official author public data CC-BY4.0; optional behavior methods benchmark, steps not suffering.",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "heartsteps_dictionary",
+      "url": "https://github.com/klasnja/HeartStepsV1/wiki/Documentation-for-suggestions.csv",
+      "publication_date": "2023-07-17",
+      "observation": "Pre/post steps, availability, treatment, missing zero-imputation caveat.",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "brfss",
+      "url": "https://www.cdc.gov/brfss/data_documentation/index.htm",
+      "publication_date": null,
+      "observation": "Official cross-sectional survey; cannot link annual samples into individual trajectories.",
+      "checked": "2026-10-18"
+    }
+  ],
+  "critical_caveats": [
+    "validation_yesno exact opening versus initiation versus completion semantics unresolved; label recorded intervention response only",
+    "Engagement is a distinct self-reported activity/social engagement item",
+    "author code replaces missing validation_yesno with zero; reproduce separately, do not infer missing means ignored",
+    "next assessment excludes last beep of day/overnight; not next-day prediction",
+    "author fullseries scaling/PCA/personquantile and same-data prediction require replacement by training-only processing and heldout evaluation",
+    "group randomized mindfulness versus mentalization; individual engagement is observational",
+    "only headers inspected; counts and missingness not reproduced"
+  ]
+}

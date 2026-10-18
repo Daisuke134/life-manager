@@ -1,0 +1,44 @@
+[
+  {
+    "title": "使命は、\n苦しみをなくすこと。",
+    "body": "会社：Ninja\n製品：マネージャー\n手段は変わっても、使命は同じ。",
+    "note": "使命と、いま実証できた能力は区別する。",
+    "speaker_notes": "創業者は16歳頃のヴィパッサナー実践から、大学院とIACSでのニューロフィードバック、共有条件へ働きかける構想へ進んだ。テクノロジーは使命そのものではなく手段。使命はEnd suffering。",
+    "sources": ["https://github.com/Daisuke134/life-manager/blob/docs/manager-learning-20261017/docs/research/manager/2026-10-18-founder-story-and-mission.md"]
+  },
+  {
+    "title": "住民を作ることと、\n行動を予測すること。",
+    "body": "8：どんな人が、誰と暮らすか。\n9：その状況で、何が起きるか。\n実際の行動や報告と比べて採点する。",
+    "note": "人口構成の精度は、行動予測の精度ではない。",
+    "speaker_notes": "8Bでは家族の所属を保つ合成人口を生成した。行動モデルには別の観測が必要。英国の臨床試験を米国の全住民へ無条件に移すことはできない。",
+    "sources": ["https://github.com/Daisuke134/life-manager/blob/docs/manager-learning-20261017/docs/research/manager/articles/2026-10-18-household-v0-results-ja.md"]
+  },
+  {
+    "title": "行動と、その後の\n経験を分けて測る。",
+    "body": "状況：その時点で分かること。\n行動：支援への記録上の応答。\n経験：次の質問で報告するつらさ。",
+    "note": "案内を開く・実践する・完了する、も別の出来事。",
+    "speaker_notes": "教材の架空例では14時の状況から、その後の応答と16時の自己報告を別々に予測する。候補データのvalidation_yesnoの厳密なイベント意味は確認が残る。日常生活についてのEngagement項目と混同しない。",
+    "sources": ["https://doi.org/10.1038/s41598-026-39518-z", "https://osf.io/chfy2/"]
+  },
+  {
+    "title": "必要なときに、\n取り組めるとは限らない。",
+    "body": "UCLの2026年研究から学ぶ。\n応答の条件と、次の状態を調べる。\n有意な近接介入効果は未確認。",
+    "note": "著者の研究報告。マネージャーの実測ではない。",
+    "speaker_notes": "Jaremba、O'Reilly、O'Driscollらの二次解析は、短い介入への応答と次のEMAのdistressを扱う。公開データとコードは候補として確認した段階で、モデルを独立に再現・評価していない。",
+    "sources": ["https://doi.org/10.1038/s41598-026-39518-z"]
+  },
+  {
+    "title": "予測が当たることと、\n改善を起こすこと。",
+    "body": "予測：後から観測と比べる。\n介入：比較する実験で効果を測る。\n応答が増えた ≠ 苦しみが減った。",
+    "note": "自己報告、生活への支障、負担、悪化も検討する。",
+    "speaker_notes": "7から5へ自己報告が下がった架空例でも、支援が原因とは限らない。施策の効果は比較設計で調べる。心拍変動や瞑想時間を苦しみそのものの尺度とみなさない。",
+    "sources": ["https://doi.org/10.1093/abm/kay067", "https://hfh.fas.harvard.edu/measuring-flourishing"]
+  },
+  {
+    "title": "学ぶ → 作る → 測る。\nその結果から、また学ぶ。",
+    "body": "まず、記録の意味と時系列を確認。\n単純な予測を、未知の観測で採点。\n結果・失敗例・限界を公開する。",
+    "note": "今回の成果は調査と教材。予測実装と介入はこれから。",
+    "speaker_notes": "共有環境や制度の変更へ進む構想を保つ。短い実践は最初のデータ教材であり、製品全体を個別通知へ限定しない。全作業の順序と実行状態は統合SSOTに保存している。",
+    "sources": ["https://osf.io/chfy2/", "https://github.com/Daisuke134/life-manager/blob/docs/manager-learning-20261017/docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md"]
+  }
+]

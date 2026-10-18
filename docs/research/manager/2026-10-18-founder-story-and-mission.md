@@ -1,6 +1,12 @@
 # 創業者の物語とマネージャーの使命
 
-2026年10月18日の本人の説明に基づく紹介文草稿。本人の経験・研究内容・信念と、製品の実証結果を区別する。IACSの正式名称は公式サイトで確認。約1か月の参加は本人の説明に基づき、具体的な年月と担当作業は未確認。本番サイトや発表スライドの描画物は今回変更しない。
+2026年10月18日の本人の説明に基づく紹介文。本人の経験・研究内容・信念と、製品の実証結果を区別する。IACSの正式名称は公式サイトで確認。約1か月の参加と64チャンネルEEGを使う聴覚ニューロフィードバックの実装は本人の説明に基づく。参加年月は未確認。公開作業の状態は統合SSOTを参照する。
+
+## 使命と会社と製品
+
+使命は **End suffering.** 日本語では「苦しみをなくす。」。会社はNinja、その使命に向けて作る製品はManager（日本語：マネージャー）。本人はNinjaを仏教に根ざす会社と位置付けている。
+
+テクノロジーは使命の条件ではなく、本人の歩みの中で選んだ手段である。「Technology to end suffering」を使命の見出しにせず、技術による探究は創業者の物語の中で説明する。使命の文言に、人間、全生命、特定の地域などの対象限定を付けない。研究の対象集団と実証範囲は、その研究ごとに正確に記す。
 
 ## 日本語の導入
 
@@ -10,11 +16,11 @@
 
 サンタモニカのInstitute for Advanced Consciousness Studies（IACS）では、約1か月のインターン経験もしました。意識とマインドフルネスをテクノロジーで探究するこの経験も、現在の起業につながる私の原点の一つです。
 
-今、取り組んでいるのはマネージャーです。人口や行動、社会の仕組みをモデル化し、人々が生きる環境への変更を比較し、実行し、その結果を測る人工知能を目指しています。最初は検証できる具体的な変化から始め、すべての生命を視野に対象を広げていきます。
+今、Ninjaで取り組んでいるのはマネージャーです。人口や行動、社会の仕組みをモデル化し、環境への変更を比較し、実行し、その結果を測る人工知能を目指しています。最初は、苦しみを減らすことにつながり、その変化を検証できる具体的な課題から始めます。
 
 一人ひとりの状態を推定して個別に介入するアプローチから、集団が共有する環境や条件に介入するアプローチへ移っています。
 
-問いは変わっていません。テクノロジーは、この世界の苦しみをどうすれば終わらせられるのか。変わってきたのは、その問いに取り組む手段です。
+使命は変わっていません。苦しみをなくす。変わってきたのは、その使命に向けて取り組む手段です。
 
 ## English introduction
 
@@ -24,15 +30,15 @@ In graduate school, I began approaching it through technology. I worked on perso
 
 I also spent about a month as an intern at the Institute for Advanced Consciousness Studies (IACS) in Santa Monica. That experience is another part of the roots I am returning to through this company.
 
-Today, I am building Manager: an AI intended to model populations, behavior, and social systems, compare changes to shared environments, act, and measure what happens. We begin with specific changes we can evaluate, with a long-term horizon that includes every living being.
+Today, at Ninja, I am building Manager: an AI intended to model populations, behavior, and social systems, compare changes to shared environments, act, and measure what happens. We begin with specific problems where we can evaluate whether a change helps reduce suffering.
 
 The approach has shifted from personalized interventions for individuals to interventions on the environments and conditions shared by populations.
 
-The question has stayed the same: how can technology end suffering in the world? What has changed is the approach.
+The mission has stayed the same: end suffering. What has changed is the approach. Technology is a means, not the mission.
 
 ## 仕様と実証に反映する原則
 
-使命は苦しみの終焉。全生命・宇宙への構想を維持する。研究や製品紹介で、利益最大化だけを使命へ置き換えない。個別介入の科学的価値を否定したり、環境がすべてを決めると実証済みの事実として語ったりしない。
+使命はEnd suffering。2026年10月18日の本人の最新指定に従い、使命の見出しに技術や対象集団の限定を加えない。研究や製品紹介で、利益最大化だけを使命へ置き換えない。個別介入の科学的価値を否定したり、環境がすべてを決めると実証済みの事実として語ったりしない。
 
 AGI・超知能がこの使命へ貢献できるという本人の信念を保持する。「達成しなければ超知能ではない」は本人の哲学的立場であり、科学的な定義や既達成の能力として記述しない。
 
