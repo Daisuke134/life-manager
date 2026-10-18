@@ -365,12 +365,6 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                 "receipt": result["receipt"],
             }
 
-        if mode == "paper":
-            stage = "cost_inventory_capture"
-            record_source_inventory(state / "receipts.jsonl",
-                release_root=Path(os.environ.get("LIFE_MANAGER_RELEASE_ROOT", str(Path(__file__).resolve().parents[2]))),
-                owner_id=investment_owner_id(), run_id=os.environ.get("LIFE_MANAGER_RUN_ID"),
-                occurrence_id=os.environ.get("LIFE_MANAGER_OCCURRENCE_ID"))
         stage = "reconcile_started"
         reconciliation = reconcile_started(
             state / "receipts.jsonl",
