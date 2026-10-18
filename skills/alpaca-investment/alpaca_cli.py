@@ -19,7 +19,7 @@ from risk_day import reconcile as reconcile_risk_day
 
 from risk_policy import parse_instant
 from etf_ownership import ETF_STRATEGY_ID, ETF_SYMBOLS, investment_owner_id
-from crypto_ownership_proof import validate_crypto_activity_page_chunk, crypto_fx_quote_request, crypto_fx_quote_proof, _digest
+from crypto_ownership_proof import validate_crypto_activity_page_chunk, crypto_fx_quote_request, crypto_fx_quote_proof, _digest, _fx_instant
 
 
 CLI_VERSION = "0.0.14"
@@ -171,6 +171,74 @@ def _read_activity_pages(cli_path: Path, env: dict[str, str], *, kind: str | Non
             return result
         page_token = page[-1]["id"]
     raise ValueError(f"{error_prefix}_activity_limit_exceeded")
+
+
+def _capture_crypto_flow_evidence(*, cli_path: Path, env: dict[str, str], mode: str,
+                                 native_trading_account_id: str | None, clock: dict | None,
+                                 after: str, until: str, page_token: str | None = None) -> dict[str, Any]:
+    frame={'mode':mode,'paper':mode=='paper','native_trading_account_id':native_trading_account_id,
+        'clock':clock,'wallet_transfers':None,
+        'wallet_status':'unsupported_on_paper' if mode=='paper' else 'unknown',
+        'activity_request':{'after':after,'until':until,'direction':'asc','page_size':100},
+        'activity_pages':[],'activity_pagination':'unknown','next_page_token':None,
+        'capture_status':'pending','fee_completeness_status':'unknown','net_pnl_usd':None}
+    if page_token is not None:
+        frame['activity_request']['page_token']=page_token
+    def capture_error(prefix,error):
+        code=str(error)
+        safe=(code in SAFE_ERROR_CODES or code.startswith('crypto_flow_') or
+            (code.partition(':')[0] in {'alpaca_cli_timeout','alpaca_cli_failed'} and code.partition(':')[2] in CLI_OPERATIONS))
+        frame[prefix+'_error_class']=type(error).__name__
+        frame[prefix+'_error_code']=code if safe else type(error).__name__
+    if not isinstance(native_trading_account_id,str) or not native_trading_account_id.strip():
+        capture_error('capture',ValueError('crypto_flow_account_invalid'))
+    else:
+        if mode!='paper':
+            try:
+                frame['wallet_transfers']=_run(cli_path,
+                    ['api','GET','/v2/wallets/transfers','--quiet','--jq','.'],env)
+                if (not isinstance(frame['wallet_transfers'],list) or
+                        any(not isinstance(row,dict) for row in frame['wallet_transfers'])):
+                    raise ValueError('crypto_flow_wallet_invalid')
+                frame['wallet_status']='observed'
+            except Exception as error:
+                frame['wallet_status']='failed';capture_error('wallet',error)
+        try:
+            _read_activity_pages(cli_path,env,kind=None,after=after,until=until,query='.',
+                error_prefix='crypto_flow',max_pages=4,page_token=page_token,page_sink=frame['activity_pages'])
+            frame['activity_pagination']='exhausted'
+        except Exception as error:
+            pages=frame['activity_pages']
+            frame.update(activity_pagination='partial' if pages else 'unknown',
+                next_page_token=pages[-1][-1]['id'] if pages and len(pages[-1])==100 else None)
+            capture_error('capture',error)
+    failed=any(key in frame for key in ('capture_error_code','wallet_error_code'))
+    frame['capture_status']=('partial' if frame['activity_pages'] or frame['wallet_status']=='observed' else 'failed') if failed else 'captured'
+    return json.loads(json.dumps(frame))
+
+
+def read_crypto_flow_evidence(*, credentials_path: Path, cli_path: Path, mode: str,
+                              period_start: str, period_end: str, native_trading_account_id: str,
+                              page_token: str | None = None) -> dict[str, Any]:
+    """Retain bounded raw flows for one exact account/window, without fee authority."""
+    if mode not in ('paper','live'):
+        raise ValueError('investment_mode_invalid')
+    if (not isinstance(native_trading_account_id,str) or not native_trading_account_id.strip()
+            or (page_token is not None and (not isinstance(page_token,str) or not page_token.strip()
+                                           or len(page_token)>8192))):
+        raise ValueError('crypto_flow_context_invalid')
+    try:
+        start,end=_fx_instant(period_start),_fx_instant(period_end)
+        if start>end or end-start>90*86400:raise ValueError
+    except (ValueError,TypeError,AttributeError,ArithmeticError) as error:
+        raise ValueError('crypto_flow_period_invalid') from error
+    env=_context(credentials_path,cli_path,mode=mode)
+    account=_run(cli_path,['account','get','--quiet','--jq','{id}'],env)
+    if not isinstance(account,dict) or account.get('id')!=native_trading_account_id:
+        raise ValueError('crypto_flow_account_invalid')
+    return _capture_crypto_flow_evidence(cli_path=cli_path,env=env,mode=mode,
+        native_trading_account_id=account['id'],clock=None,after=period_start,until=period_end,
+        page_token=page_token)
 
 
 def read_crypto_activity_evidence(*, credentials_path: Path, cli_path: Path,
@@ -817,45 +885,9 @@ def read_allocator_snapshot(
             clock=clock, env=env,
         ))
     if flow_sink is not None:
-        mode=_selected_mode()
         after=day_start.astimezone(timezone.utc).isoformat().replace('+00:00','Z')
-        frame={'mode':mode,'paper':mode=='paper','native_trading_account_id':account.get('id'),
-            'clock':clock,'wallet_transfers':None,
-            'wallet_status':'unsupported_on_paper' if mode=='paper' else 'unknown',
-            'activity_request':{'after':after,'until':clock['timestamp'],'direction':'asc','page_size':100},
-            'activity_pages':[],'activity_pagination':'unknown','next_page_token':None,
-            'capture_status':'pending','fee_completeness_status':'unknown','net_pnl_usd':None}
-        def capture_error(prefix,error):
-            code=str(error)
-            safe=(code in SAFE_ERROR_CODES or code.startswith('crypto_flow_') or
-                (code.partition(':')[0] in {'alpaca_cli_timeout','alpaca_cli_failed'} and code.partition(':')[2] in CLI_OPERATIONS))
-            frame[prefix+'_error_class']=type(error).__name__
-            frame[prefix+'_error_code']=code if safe else type(error).__name__
-        if not isinstance(account.get('id'),str) or not account['id'].strip():
-            capture_error('capture',ValueError('crypto_flow_account_invalid'))
-        else:
-            if mode!='paper':
-                try:
-                    frame['wallet_transfers']=_run(cli_path,
-                        ['api','GET','/v2/wallets/transfers','--quiet','--jq','.'],env)
-                    if (not isinstance(frame['wallet_transfers'],list) or
-                            any(not isinstance(row,dict) for row in frame['wallet_transfers'])):
-                        raise ValueError('crypto_flow_wallet_invalid')
-                    frame['wallet_status']='observed'
-                except Exception as error:
-                    frame['wallet_status']='failed';capture_error('wallet',error)
-            try:
-                _read_activity_pages(cli_path,env,kind=None,after=after,until=clock['timestamp'],query='.',
-                    error_prefix='crypto_flow',max_pages=4,page_sink=frame['activity_pages'])
-                frame['activity_pagination']='exhausted'
-            except Exception as error:
-                pages=frame['activity_pages']
-                frame.update(activity_pagination='partial' if pages else 'unknown',
-                    next_page_token=pages[-1][-1]['id'] if pages and len(pages[-1])==100 else None)
-                capture_error('capture',error)
-        failed=any(key in frame for key in ('capture_error_code','wallet_error_code'))
-        frame['capture_status']=('partial' if frame['activity_pages'] or frame['wallet_status']=='observed' else 'failed') if failed else 'captured'
-        flow_sink.append(json.loads(json.dumps(frame)))
+        flow_sink.append(_capture_crypto_flow_evidence(cli_path=cli_path,env=env,mode=_selected_mode(),
+            native_trading_account_id=account.get('id'),clock=clock,after=after,until=clock['timestamp']))
     return result
 
 
