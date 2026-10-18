@@ -21,7 +21,8 @@ from test_owned_policy import snapshot
 
 
 def remainder_fixture(root,mode='live',qty='0.02',status='canceled'):
-    owned,broker,obs,owner=close_fixture(root,mode)
+    with patch.dict(os.environ,{'LIFE_MANAGER_INVESTMENT_OWNER_ID':f'alpaca-investment-{mode}'}):
+        owned,broker,obs,owner=close_fixture(root,mode)
     broker.update(status=status,filled_qty=qty,filled_avg_price=None,filled_at=None)
     remaining=Decimal('0.05')-Decimal(qty)
     if remaining:
