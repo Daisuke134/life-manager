@@ -458,7 +458,7 @@ def close_fill_proof_from_rows(rows: list[dict[str, Any]], ownership: dict[str, 
                               observation: dict[str, Any], *, mode: str, owner_id: str) -> dict[str, Any]:
     parent, intent, decision, order, effect, client = _exit_context(rows, ownership, mode=mode, owner_id=owner_id)
     try:
-        if Decimal(order['qty']) != _sell_chain_before(rows, ownership, decision, mode=mode, owner_id=owner_id):
+        if Decimal(order['qty']) != _sell_chain_before(rows, ownership, decision, mode=mode, owner_id=owner_id, broker=broker):
             raise ValueError
         if (not isinstance(broker.get("id"), str) or not broker["id"].strip()
                 or broker.get("client_order_id") != client or broker.get("status") != "filled"
@@ -782,11 +782,20 @@ def _sell_remainder_step(rows, ownership, broker, observation, *, before, mode, 
         'quote_currency':'USDC','net_realized_pnl_usd':None}}
 
 
-def _sell_chain_before(rows, ownership, decision, *, mode, owner_id):
+def _sell_chain_before(rows, ownership, decision, *, mode, owner_id, broker, activity_readback=None):
     entry=entry_receipt_row(rows,ownership['entry_effect_id'])
     acquisition=recorded_entry_proof_from_rows(rows,ownership,entry['broker'],
         entry['strategy_receipt']['account_readback'],mode=mode,owner_id=owner_id)
     before=_execution_number(acquisition['receipt']['account_owned_qty'])
+    provider=broker.get('id')
+    entry_provider=acquisition['receipt']['entry_provider_order_id']
+    if not isinstance(provider,str) or not provider.strip() or provider==entry_provider:
+        raise ValueError('owned_sell_proof_invalid')
+    providers={entry_provider,provider}
+    fill_ids=set(acquisition['receipt'].get('entry_execution',{}).get('fill_activity_ids',[]))
+    if activity_readback is None and broker.get('status') in BROKER_TERMINAL_FAILURE_STATUSES:
+        activity_readback=_sell_receipt_row(rows,ownership['close_effect_id'])['strategy_receipt']['activity_readback']
+    current_fills={r['id'] for r in activity_readback['fills'] if r.get('order_id')==provider} if activity_readback else set()
     current=[i for i,row in enumerate(rows) if row.get('receipt_type')=='effect_intent'
              and row.get('status')=='planned' and row.get('effect_id')==ownership['close_effect_id']]
     if len(current)!=1:
@@ -811,6 +820,10 @@ def _sell_chain_before(rows, ownership, decision, *, mode, owner_id):
         if parse_instant(ds[0].get('observed_at'))<previous_observed:
             raise ValueError('owned_sell_proof_invalid')
         row=_sell_receipt_row(rows,intent['effect_id'])
+        prior_provider=row['broker']['id']
+        if prior_provider in providers:
+            raise ValueError('owned_sell_proof_invalid')
+        providers.add(prior_provider)
         if row['strategy_receipt'].get('receipt',{}).get('kind')!='owned_crypto_sell_remainder':
             raise ValueError('owned_sell_proof_invalid')
         old={**ownership,'status':'closing','owned_qty':_decimal_text(before),
@@ -819,9 +832,13 @@ def _sell_chain_before(rows, ownership, decision, *, mode, owner_id):
             return _sell_remainder_step(rs,own,bk,obs,before=before,**scope)
         proof=_recorded_proof_from_rows(rows,old,row['broker'],row['strategy_receipt']['account_readback'],
             mode=mode,owner_id=owner_id,reader=step,effect_key='close_effect_id')
+        prior_fills=set(proof['receipt']['sell_execution']['fill_activity_ids'])
+        if prior_fills & fill_ids:
+            raise ValueError('owned_sell_proof_invalid')
+        fill_ids.update(prior_fills)
         before=Decimal(proof['receipt']['remaining_owned_qty'])
         previous_observed=parse_instant(proof['account_readback']['clock']['observed_at'])
-    if before<=0 or parse_instant(decision.get('observed_at'))<previous_observed:
+    if current_fills & fill_ids or before<=0 or parse_instant(decision.get('observed_at'))<previous_observed:
         raise ValueError('owned_sell_proof_invalid')
     return before
 
@@ -829,7 +846,7 @@ def _sell_chain_before(rows, ownership, decision, *, mode, owner_id):
 def sell_remainder_proof_from_rows(rows,ownership,broker,observation,*,mode,owner_id,activity_readback=None):
     try:
         parent,intent,decision,order,effect,client=_exit_context(rows,ownership,mode=mode,owner_id=owner_id)
-        before=_sell_chain_before(rows,ownership,decision,mode=mode,owner_id=owner_id)
+        before=_sell_chain_before(rows,ownership,decision,mode=mode,owner_id=owner_id,broker=broker,activity_readback=activity_readback)
         return _sell_remainder_step(rows,ownership,broker,observation,before=before,mode=mode,
             owner_id=owner_id,activity_readback=activity_readback)
     except ReconciliationPending:
