@@ -1,5 +1,7 @@
 """Closed BTC cycles are counted once; quote cashflow is never USD net profit."""
 import copy
+from contextlib import ExitStack,redirect_stdout
+from io import StringIO
 import importlib
 import importlib.util
 import json
@@ -139,6 +141,55 @@ class CryptoPerformanceTests(unittest.TestCase):
             daily=json.loads((root/'performance-crypto-daily-2026-01-01.json').read_text())
             self.assertEqual(daily['completed_round_trips'],2)
             self.assertFalse((root/'performance-latest.json').exists())
+
+    def test_readback_failure_preserves_previously_verified_execution_cache(self):
+        self.assertIsNotNone(PERF)
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);orders,activity,_=cycle_fixture(root)
+            obs={'mode':'paper','paper':True,'clock':{'observed_at':NOW}}
+            with patch.object(PERF,'_read_activity',return_value=activity):
+                PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper')
+            more,new_activity,_=cycle_fixture(root,index=1)
+            with patch.object(PERF,'_read_activity',side_effect=ValueError('crypto_activity_invalid')):
+                failed=PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper')
+            self.assertIsNone(failed['completed_round_trips'])
+            with patch.object(PERF,'_read_activity',return_value=new_activity):
+                recovered=PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper')
+            self.assertEqual(recovered['completed_round_trips'],2)
+            self.assertTrue(all(c['native_execution_status']=='complete' for c in recovered['cycles']))
+
+    def test_real_main_uses_the_same_crypto_writer_in_paper_and_live(self):
+        from test_crypto_close import native_run
+        from test_owned_policy import snapshot
+        self.assertIsNotNone(PERF)
+        for mode in ('paper','live'):
+            with self.subTest(mode=mode),tempfile.TemporaryDirectory() as directory,ExitStack() as stack:
+                root=Path(directory);orders,activity,owned=cycle_fixture(root,mode)
+                (root/'live-owned-position.json').write_text(json.dumps(owned));native=native_run()
+                obs={'mode':mode,'paper':mode=='paper','clock':{'observed_at':NOW},'account':{'cash':'0','equity':'100'},
+                     'positions':[{'symbol':'USDCUSD','qty':'100','unrealized_pl':'0'}],
+                     'activities_count':0,'open_and_closed_orders_count':0}
+                raw,_=snapshot(mode);raw.pop('crypto_history');raw['positions']=0
+                stack.enter_context(patch.dict(os.environ,{'LIFE_MANAGER_INVESTMENT_MODE':mode,
+                    'LIFE_MANAGER_INVESTMENT_DEPLOYMENT':'local','LIFE_MANAGER_INVESTMENT_OWNER_ID':f'alpaca-investment-{mode}',
+                    f'ALPACA_INVESTMENT_{mode.upper()}_STATE_DIR':str(root),
+                    f'ALPACA_INVESTMENT_{mode.upper()}_CREDENTIALS_FILE':str(root/'unused')},clear=True))
+                stack.enter_context(patch.object(native,'observe',return_value=obs))
+                stack.enter_context(patch.object(native,'read_allocator_snapshot',return_value=raw))
+                stack.enter_context(patch.object(native,'find_order_by_client_id',side_effect=lambda **kw:
+                    next(o for o in orders if o['client_order_id']==kw['client_order_id'])))
+                stack.enter_context(patch.object(native,'read_crypto_activity_evidence',return_value=activity))
+                writer=stack.enter_context(patch.object(native,'write_crypto_performance',wraps=PERF.write_crypto_performance,create=True))
+                for name,value in (('read_crypto_history',{}),('build_candidates',[]),('_review_status',{}),
+                    ('read_campaign_snapshot',{'paper':True,'unexpected_positions':[],'fills':[],'positions':[],'options':[]}),
+                    ('deliver',{'message_id':'fixture'}),('deliver_failure',{'status':'delivered'}),('_retry_allowed',False)):
+                    stack.enter_context(patch.object(native,name,return_value=value))
+                stack.enter_context(patch.object(cli,'_context',side_effect=AssertionError('provider forbidden')))
+                stack.enter_context(patch.object(cli,'_run',side_effect=AssertionError('provider forbidden')))
+                with redirect_stdout(StringIO()) as output: code=native.main(wake_id='crypto-performance-fixture')
+                self.assertEqual(code,0,output.getvalue());self.assertEqual(writer.call_count,1)
+                saved=json.loads((root/'performance-crypto-latest.json').read_text())
+                self.assertEqual(saved['completed_round_trips'],1);self.assertIsNone(saved['net_pnl_usd'])
 
     def test_legacy_etf_only_state_is_not_overwritten(self):
         self.assertIsNotNone(PERF,'crypto performance writer is required')

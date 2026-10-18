@@ -26,6 +26,23 @@ RISK = {"drawdown_fraction": "0.0015"}
 
 
 class AlpacaSnapshotTests(unittest.TestCase):
+    def test_crypto_derived_source_is_selected_without_legacy_measured_fallback(self):
+        from alpaca_snapshot import _read_performance
+        import tempfile,json
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            (root/'performance-latest.json').write_text(json.dumps({'measurement_status':'measured','net_pnl_usd':'999'}))
+            path=root/'performance-crypto-latest.json'
+            path.write_text(json.dumps({'measurement_status':'partial','net_pnl_usd':None}))
+            value,error=_read_performance(root,None)
+            self.assertIsNone(error);self.assertEqual(value['measurement_status'],'partial');self.assertIsNone(value['net_pnl_usd'])
+            path.write_text('{broken')
+            value,error=_read_performance(root,None)
+            self.assertIsNone(value);self.assertEqual(error,'alpaca_crypto_performance_invalid')
+            value,error=_read_performance(root,'2026-01-01')
+            self.assertIsNone(value);self.assertEqual(error,'alpaca_crypto_daily_performance_missing')
+
     def test_paper_fill_gross_does_not_deduct_signed_slippage_twice(self):
         from net_pnl import venue_net
         for slippage in ("0.30", "-0.25"):
