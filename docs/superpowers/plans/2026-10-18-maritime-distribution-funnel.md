@@ -59,4 +59,4 @@
 - [x] Add the second Telegram CTA behind `NEXT_PUBLIC_MARITIME_PILOT_CTA=1`; default build output keeps the existing Calendar CTA only.
 - [x] Run `node --test apps/life-manager/lib/transport/maritime-pilot.test.js apps/life-manager/lib/maritime-distribution.test.js apps/life-manager/test/telegram-slash-http-contract.test.js`, plus the landing's available type/build check if its project manifest is present.
 - [x] Run `git diff --check`, inspect the complete diff, and update the canonical SSOT cursor/evidence.
-- [ ] Commit `feat: add Maritime distribution CTA` and push this branch for PR/CI.
+- [x] Commit `feat: add Maritime distribution CTA` and push this branch for PR/CI.
