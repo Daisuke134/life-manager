@@ -20,6 +20,7 @@ from control import control_fence, read_control
 from effect_store import (mark_started, reconcile_started, record_no_trade, seal,
                           unresolved_intent_count)
 from etf_ownership import ETF_STRATEGY_ID, investment_owner_id
+from etf_ownership import _account_position as validate_etf_position_readback
 from etf_ownership import read_state as read_etf_state
 from etf_ownership import record_closed as record_etf_closed
 from etf_ownership import record_filled as record_etf_filled
@@ -552,10 +553,13 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                         fresh["position"] = fresh_etf_state["position"]
                         fresh["last_decision_session"] = fresh_etf_state["last_decision_session"]
                     fresh["unresolved_intents"] = unresolved_intent_count(state / "receipts.jsonl")
+                    paper_etf_exit = (mode == "paper" and is_etf_order
+                                      and decision.get("strategy_id") == ETF_STRATEGY_ID
+                                      and decision.get("action") == "EXIT")
+                    expected_positions = 1 if live_positions or paper_etf_exit else 0
                     if (fresh.get("open_orders") != 0 or unresolved_intent_count(
                             state / "receipts.jsonl") != 0 or
-                            (live_positions and fresh.get("positions") != 1) or
-                            (not live_positions and fresh.get("positions") != 0)):
+                            fresh.get("positions") != expected_positions):
                         raise ValueError("investment_effect_fence_rejected")
                     if mode == "live" and not live_positions and not evaluate_entry(
                             fresh.get("risk"), order.get("notional_usd"))["approved"]:
@@ -565,6 +569,24 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                         if not refreshed["approved"]:
                             raise ValueError("investment_effect_fence_rejected")
                         decision = {**decision, **refreshed}
+                    if paper_etf_exit:
+                        position = fresh["position"]
+                        qty = Decimal(order["qty"])
+                        if (order.get("side") != "sell"
+                                or order.get("symbol") != position["symbol"]
+                                or qty != Decimal(position["qty"])):
+                            raise ValueError("investment_effect_fence_rejected")
+                        broker_readback = observe(
+                            credentials_path=credentials_path, cli_path=cli_path,
+                        )
+                        positions = broker_readback.get("positions")
+                        if (not isinstance(positions, list)
+                                or any(not isinstance(row, dict) for row in positions)
+                                or sum(row.get("symbol") != "USDCUSD" for row in positions) != 1):
+                            raise ValueError("investment_effect_fence_rejected")
+                        validate_etf_position_readback(
+                            broker_readback, symbol=order["symbol"], expected_qty=qty,
+                        )
                     sealed = seal(state / "receipts.jsonl", decision, order)
                     if not mark_started(state / "receipts.jsonl", sealed):
                         raise ValueError("investment_effect_already_started")
