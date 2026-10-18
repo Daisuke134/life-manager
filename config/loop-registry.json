@@ -1149,46 +1149,6 @@
         "timeout_seconds": 120
       }
     },
-    "life-manager-capafy-ig": {
-      "priority": "revenue",
-      "resource_class": "agent",
-      "admission_class": "revenue",
-      "cadence": {
-        "calendar_interval": [
-          {
-            "Hour": 9,
-            "Minute": 0
-          },
-          {
-            "Hour": 14,
-            "Minute": 0
-          },
-          {
-            "Hour": 20,
-            "Minute": 0
-          }
-        ]
-      },
-      "cleanup": {
-        "max_age_days": 14,
-        "max_runs": 100
-      },
-      "domain": "growth",
-      "effect_class": "publish",
-      "adapter": "exec",
-      "command": [],
-      "effect_reconcile": {
-        "argv": ["skills/earn/capafy-marketing/scripts/capafy_ig_reel_fence_reconcile.py"],
-        "occurrence_flag": "--occurrence",
-        "resolve_flag": "--resolve",
-        "timeout_seconds": 120
-      },
-      "entrypoint": "apps/life-manager/scripts/capafy-ig-reel",
-      "label": "ai.anicca.life-manager-capafy-ig",
-      "log_root": "~/.local/state/life-manager/logs",
-      "provider_route": "deterministic",
-      "state_root": "~/.local/state/life-manager"
-    },
     "capafy-browser": {
       "adapter": "exec",
       "browser_owner": {
@@ -4937,6 +4897,7 @@
     "ai.anicca.larry-library-filler",
     "ai.anicca.larry-strategy-updater",
     "ai.anicca.life-manager-anicca-obou-instagram",
+    "ai.anicca.life-manager-capafy-ig",
     "ai.anicca.life-manager-connector-healer-shadow",
     "ai.anicca.life-manager-connector-host-bridge",
     "ai.anicca.life-manager-connector-native-healthcheck",
