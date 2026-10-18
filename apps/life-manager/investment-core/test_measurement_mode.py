@@ -60,6 +60,12 @@ class MeasurementModeTests(unittest.TestCase):
             self.assertEqual(result["action"], "hold")
             self.assertEqual(result["ranked"], [])
 
+    def test_non_live_aggregate_cannot_authorize_live_candidate_rows(self):
+        live = snapshot(measurement_mode="live", paper=False)
+        paper = snapshot(measurement_mode="paper", paper=True)
+        combined = aggregate("2026-09-01T00:00:00Z", NOW.isoformat(), [paper], "0")
+        self.assertEqual(build_candidates([live], combined, CAPS), [])
+
     def test_rolling_profit_requires_explicit_live_on_every_day(self):
         for mode, paper in (("paper", True), ("shadow", False), (None, None), ("live", True)):
             receipts = thirty_days()
