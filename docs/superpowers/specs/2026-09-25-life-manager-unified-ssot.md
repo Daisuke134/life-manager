@@ -14983,6 +14983,8 @@ v2 readerはclosed_end=floor(observed/5m)、start=closed_end−800足、end excl
 
 **現在cursor:** TODO3/IN-BTC-02 item3の新規ENTRY直前selection照合。旧cursorの購入時policy保存/解決とowned履歴dispatch/SELL再照合はsource完了。次は既存control_fence内で現在のselected cardのcanonical identity・release・新規ENTRY鮮度を読み直し、decisionに固定したpolicyと一致しない場合はseal/submitしない。reportの同policy更新は許し、所有EXITへ新規ENTRY用expiryを課さない。続くitem4–8（paper BTC gateway/ownership/campaign、公式fills/performance、通貨/費用、全source受入/main/正式版/自然実行）は未完。順序は既存TODO3内部の先頭未完へ進め、D3b/D4・paper30件・live/fence・実費後利益は下の残TODOを保持する。
 
+**IN-BTC-02 item4・gatewayの最小接続:** 新規ENTRY直前照合はRED ee53ffcabc→GREEN 6b91087e48でsource修正し、core168/Alpaca368はPASS。新規crypto BUYは現在selectionのcanonical card/release/strategy/expiry/selection/reportと固定decisionをfence内で再確認し、不一致時はsealしない。同policy同releaseのreport更新は許す。独立反証は進行中。次は既存live BTC/USDCのbuy金額上限10・sell正値qty/9桁・market/gtc・exact keysの検査をpaperも共有し、modeは明示のまま既存_contextへ渡す。paper旧BTC/USD・ETH/USD buy別経路を退役させ、shadow禁止/live ETF禁止/所有ETF EXITを保持する。ackをfill/利益と呼ばず、通貨/notionalの公式照合・所有lifecycle/campaign/成績は後続未完。このsource単体を本番へ反映しない。
+
 **D3a2統合と追加観測:** PR #8338 head088e1d10bddda1befede3be4bd6f83dfb83a1857はfresh GitHub review未解決指摘なし・全13 exact-head checks PASS後、main1c4e1b3484c2f528eca0dd3d6fd3426cbbbb29ccへ統合する。census caller/実費producerは未接続。CFOの既存.envとpaper plistにLM_CFO_ACTUAL_COST_READBACK/LM_CFO_ACTUAL_COST設定はなく、費用入力の接続は未確認（manager継承値は未観測）。live credentialの公式GETで過去L09/L10のclient IDと保存済みprovider order IDの両方が一致する2件を確認する。これは歴史的live注文との口座連続性の証拠だが、未対応の後続4注文や旧fenceを閉じず、credential metadataのgeneric account_idも書換えない。provider/state書込0。
 
 **原子的な残TODO（この順序が正本）:**
