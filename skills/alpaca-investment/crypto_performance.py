@@ -51,6 +51,17 @@ def _fee_inventory(cycles,snapshots):
                 raise ValueError('crypto_cycle_execution_conflict')
             fill_ids[fill['id']]=facts
     for frame in snapshots.values():
+        begin=parse_instant(frame['request']['after']);end=parse_instant(frame['request']['until'])
+        for order_id,(_,order) in orders.items():
+            if order['quote_notional_usdc'] is None: continue
+            expected=set(order['fill_activity_ids'])
+            actual={f['id'] for f in frame['fills'] if f['order_id']==order_id}
+            if actual-expected:
+                raise ValueError('crypto_cycle_execution_conflict')
+            if (expected and begin<=parse_instant(order['submitted_at'])
+                    and end>parse_instant(order['execution_observed_until']) and actual!=expected):
+                raise ValueError('crypto_cycle_execution_conflict')
+    for frame in snapshots.values():
         for row in frame['fees']:
             key=row['id']
             if key in fill_ids or (key in observed and observed[key]!=row):
@@ -207,7 +218,7 @@ def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None,fee_ac
             sources.add(broker['id'])
             executions.append({'effect_id':order_effect,'provider_order_id':broker['id'],'client_order_id':broker['client_order_id'],
                 'side':broker['side'],'submitted_at':broker['submitted_at'],'filled_qty':broker['filled_qty'],'quote_notional_usdc':_quantity_text(amount) if amount is not None else None,
-                'fill_activity_ids':ids})
+                'fill_activity_ids':ids,'execution_observed_until':native['request']['until'] if facts is not None else None})
         cycles.append({'cycle_id':_digest({'mode':mode,'owner_id':owner_id,'entry_effect_id':effect}),
             'owner_id':owner_id,'mode':mode,'strategy_id':receipt['strategy_id'],'release_sha':receipt['release_sha'],
             'entry_effect_id':effect,'period_start':sealed['decision']['observed_at'],
