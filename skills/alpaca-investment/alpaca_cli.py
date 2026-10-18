@@ -1019,19 +1019,20 @@ def submit_order(
     order: dict[str, Any], mode: str | None = None,
     owner_id: str | None = None, strategy_id: str | None = None,
 ) -> dict[str, Any]:
-    """Submit one already-gated paper order or tightly bounded live crypto order."""
+    """Submit gated orders with one bounded BTC transport and explicit mode context."""
     if not re.fullmatch(r"lm-ai-[0-9a-f]{24}", client_order_id):
         raise ValueError("client_order_id_invalid")
     mode = _selected_mode(mode)
     if mode == "shadow":
         raise ValueError("investment_mode_effect_forbidden")
-    if mode == "live":
-        if order.get("asset_class") == "us_equity":
+    if mode == "live" or order.get("asset_class") == "crypto":
+        shape_error = "unsupported_live_order_shape" if mode == "live" else "unsupported_order_shape"
+        if mode == "live" and order.get("asset_class") == "us_equity":
             raise ValueError("live_etf_rejected")
         expected = {"asset_class", "side", "symbol", "time_in_force", "type"}
         if order.get("symbol") != "BTC/USDC" or order.get("asset_class") != "crypto" \
                 or order.get("type") != "market" or order.get("time_in_force") != "gtc":
-            raise ValueError("unsupported_live_order_shape")
+            raise ValueError(shape_error)
         if order.get("side") == "buy":
             expected.add("notional_usd")
             try:
@@ -1040,7 +1041,7 @@ def submit_order(
             except InvalidOperation:
                 valid = False
             if set(order) != expected or not valid:
-                raise ValueError("unsupported_live_order_shape")
+                raise ValueError(shape_error)
             args = ["order", "submit", "--quiet", "--symbol", "BTC/USDC",
                     "--notional", str(order["notional_usd"]), "--side", "buy", "--type", "market",
                     "--time-in-force", "gtc", "--client-order-id", client_order_id]
@@ -1052,12 +1053,12 @@ def submit_order(
             except InvalidOperation:
                 valid = False
             if set(order) != expected or not valid:
-                raise ValueError("unsupported_live_order_shape")
+                raise ValueError(shape_error)
             args = ["order", "submit", "--quiet", "--symbol", "BTC/USDC", "--qty", str(order["qty"]),
                     "--side", "sell", "--type", "market", "--time-in-force", "gtc",
                     "--client-order-id", client_order_id]
         else:
-            raise ValueError("unsupported_live_order_shape")
+            raise ValueError(shape_error)
         env = _context(credentials_path, cli_path, mode)
         result = _run(cli_path, [*args, "--jq",
             "{client_order_id,status,submitted_at,symbol,notional,qty,side,type,time_in_force}"], env)
@@ -1097,10 +1098,6 @@ def submit_order(
                     "--time-in-force", "day", "--client-order-id", client_order_id]
         else:
             raise ValueError("etf_order_shape_invalid")
-    elif order.get("asset_class") == "crypto" and order.get("symbol") in {"BTC/USD", "ETH/USD"}:
-        args = ["order", "submit", "--quiet", "--symbol", order["symbol"],
-                "--notional", order["notional_usd"], "--side", "buy", "--type", "market",
-                "--time-in-force", "gtc", "--client-order-id", client_order_id]
     elif order.get("asset_class") in {"option_spread", "option_spread_close"}:
         closing = order["asset_class"] == "option_spread_close"
         legs = json.dumps([
