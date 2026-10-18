@@ -99,4 +99,39 @@ class OperatingCostTotalsTests(unittest.TestCase):
         self.assertIn('fees',result['unknown_cost_categories']);self.assertIsNone(result['net_realized_pnl_usd'])
         self.assertEqual(result['measurement_status'],'partial')
 
+    def test_exact_totals_do_not_round_tiny_paid_amount_beside_large_amount(self):
+        from decimal import localcontext
+        payload,inventory,trip=window_fixture()
+        first=payload['documents'][0]['line_items'][0]
+        first['amount']=first['allocations'][0]['amount']='9999.99'
+        extra=copy.deepcopy(first);extra.update(line_item_id='tiny-line',amount='0.00000001')
+        extra['allocations'][0].update(allocation_id='tiny-allocation',job_id='tiny-job',amount='0.00000001')
+        payload['documents'][0]['line_items'].append(extra)
+        join=copy.deepcopy(payload['job_joins'][0]);join.update(line_item_id='tiny-line',allocation_id='tiny-allocation',job_id='tiny-job')
+        payload['job_joins'].append(join)
+        with localcontext() as context:
+            context.prec=1
+            for signal in context.traps:context.traps[signal]=True
+            result=report(payload,inventory,trip)
+        self.assertEqual(result['model_cost_usd'],'9999.99000001')
+
+    def test_calendar_view_does_not_report_zero_by_excluding_verified_child_charge(self):
+        payload,inventory,child=window_fixture()
+        owner=child['owner_id'];parent=copy.deepcopy(payload['readback']['cost_scopes'][0])
+        parent.update(scope_id='calendar-scope',scope_kind='owner_period',order_ids=[],period_end='2026-10-01T00:00:00Z')
+        payload['readback']['cost_scopes'].append(parent)
+        query=copy.deepcopy(payload['sources'][0]['queries'][0]);query.update(query_id='calendar-query',scope_id='calendar-scope')
+        payload['sources'][0]['queries'].append(query)
+        page=copy.deepcopy(payload['provider_pagination']['pages'][0]);page['query_id']='calendar-query'
+        payload['provider_pagination']['pages'].append(page)
+        join=copy.deepcopy(payload['job_joins'][1]);join.update(parent,query_id='calendar-query')
+        payload['job_joins'].append(join)
+        scope=copy.deepcopy(inventory['scopes'][0]);scope.update({k:parent[k] for k in ('scope_kind','order_ids','period_start','period_end','source_receipt_ids')})
+        inventory['scopes'].append(scope)
+        result=summarize([child,parent],payload,owner_id=owner,observed_at=inventory['observed_at'],expected_inventory=inventory)
+        calendar=select_components(result,[parent])
+        self.assertIsNone(calendar['model_cost_usd'])
+        self.assertEqual(calendar['operating_cost_coverage']['coverage_state'],'gap')
+        self.assertEqual(select_components(result,[child])['model_cost_usd'],'1')
+
 if __name__=='__main__':unittest.main()

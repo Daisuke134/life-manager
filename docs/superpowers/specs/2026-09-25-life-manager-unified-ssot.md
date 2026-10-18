@@ -15133,6 +15133,10 @@ crypto cycleのperiod_endはaccount観測時計、closed_atは経済close時計�
 3. RED→GREEN: 認証済みbillingのquery検証をpaid component選定に先行し、verified execution_windowsをcost evidenceとして保持する。order_pairのfirst-intent前/close後でも、同owner/mode/order/期間/chargeのpaid_allocationとexact execution tupleに結び付き、その実行span内で発生した費用だけを含める。legacy unverified/no inventoryは従来の経済期間内subtotalにとどめる。範囲外/別actor/ref欠測を0やcompleteへしない。query refs/window/evidenceをeconomic source_receipt_idsへ追加しない。
 4. 関連RED/全Alpaca・CFO・core/contract/diff、独立readonly金融反証、source pushまで。fixtureのpre-intent/post-close費用・query窓短縮・bad/future/missing/ref非overlap・後発別run・owner_period境界・paper/live・原receipt不変を検証する。金額合計/net/coverage/account durable化は後続未完で、本番/provider/資金/wake/売買/fence変更0を維持する。
 
+**D4 正確算術とowner-period境界:** 9999.99と0.00000001の同category支払いを足す反例で、既存max表示桁だけのprecisionでは微小分が丸まることをREDで確認する。正確な必要precisionは最大整数桁+最大小数scale+件数carryから取る。scope adapterのpaid/query parserを既存B0 significant-digit contextで局所実行し、callerの低precision/trapで検証済み費用が消えないようにする。B0 parser自体/領収書/全体projectionは変更しない。
+
+owner_periodが同期間内のverified child trade費用を持つ場合、まだ子費用を集約しないviewからmodel/system=0を返さずrollup未確定gapを残す。childの正しい単独合計は保持し、parentへの包括的集約/idle/periodicは次の実装事項として残す。同じsource proofで子へ帰属したことは別trade scopeからの除外根拠になるが、包括owner_periodのゼロ根拠にはならない。
+
 **D4 totalsのゼロ判断境界:** account不明のowned paid/unpaid文書を、別accountのno_charge_finalへ便乗させない。verified paid recordだけでなく、当該owner/mode/group/期間を明示するraw allocationが未検証ならdocument/allocation参照のgapを残す（未払いをmoney receiptへしない）。legacy経済期間内の既知subtotalは保持しても、verified attributionが無い成分を全費用合計へ昇格しない。他scopeへ帰属することを同じ計算でverified componentが証明する場合だけscope外として除外でき、他ownerの未証明自己申告だけで0にはしない。
 
 **D4 scoped paid合計実装計画・所有:** primary codex-rootがpaper_operating_costs.py/new test_operating_cost_totals.pyと既存対応tests、必要なpaper/crypto totals保存と本SSOTを専用worktreeで所有する。既存paid/query parser・5要素charge・actual execution windowsを再利用し、新money receipt/ledger/provider呼出/取引経路を作らない。
