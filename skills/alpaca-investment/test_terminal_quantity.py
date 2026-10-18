@@ -10,6 +10,11 @@ import effect_store as store
 
 
 class TerminalQuantityTests(unittest.TestCase):
+    def test_completion_check_requires_explicit_history_context(self):
+        with self.assertRaises(TypeError):
+            store._outcome_closed({'outcome':'broker_terminal_failure',
+                                   'broker':{'status':'canceled','filled_qty':'0'}})
+
     def test_only_explicit_finite_zero_closes_terminal_orders(self):
         for qty in (None,'','NaN','Infinity','-1','0.01','0'):
             for mode in ('paper','live'):
