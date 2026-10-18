@@ -45,7 +45,7 @@ class NetPnlTests(unittest.TestCase):
         for value in (True, "NaN"):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 snapshot(system_cost_usd=value)
-        self.assertEqual(venue_net(snapshot(system_cost_usd="-1"))["reason"], "cost_invalid")
+        self.assertEqual(venue_net(snapshot(system_cost_usd="-1")).get("reason"), "cost_invalid")
 
     def test_missing_system_cost_is_blocked_not_zero(self):
         result = venue_net(snapshot(system_cost_usd=None))
