@@ -269,5 +269,16 @@ and marker observations under the submit fence prevent overwriting another
 entry. Ambiguous or contradictory fill history cannot become a zero-fill close.
 Paper pending BTC orders defer the legacy option campaign with unknown P&L,
 while keeping the account-wide allocator, risk and unresolved-intent checks.
-This branch is source only: official crypto close receipts, complete costs,
-performance and natural trade evidence are tracked in the canonical SSOT.
+A managed BTC close records its sealed original entry, exact filled sell and
+mode-scoped account readback in the existing outcome strategy receipt before
+closing the position. The position owner and durable intent fence share one pure
+recorded-close validator from `crypto_ownership_proof`, including the core
+selection guard despite its other module names. Completion callers must pass
+full ledger history; planned and unresolved work prevent policy replacement.
+Account lag remains pending across repeated runs and
+receipt recovery; complete reconciliation replays without another query/append.
+Terminal no-fill requires an explicit finite zero consistent with known fills.
+Missing, malformed and partial quantities remain pending, and a later official
+zero can enrich unknown evidence without erasing a known positive fill.
+This branch is source only: historical closed-marker audit, entry account receipts,
+partial fills, complete costs, performance and natural outcomes remain in the SSOT.
