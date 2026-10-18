@@ -390,6 +390,30 @@ class CryptoPerformanceTests(unittest.TestCase):
             self.assertEqual(len(evidence['segments']),2)
             self.assertEqual(proofs.crypto_fill_activity_proof(evidence,sell,mode='paper')['filled_qty'],'0.05')
 
+    def test_bundle_hash_cannot_be_bypassed_by_equal_python_scalar_types(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);orders,frame,_=cycle_fixture(root)
+            later=activity_fixture(frame,mode='paper',start=NOW,end='2026-01-02T06:00:00Z')
+            bundle=proofs.combine_crypto_activity_snapshots([frame,later],mode='paper')
+            for key,value in (('paper',1),('schema_version',2.0),('page_size',100.0)):
+                bad=copy.deepcopy(bundle)
+                if key=='page_size': bad['request'][key]=value
+                else: bad[key]=value
+                with self.subTest(key=key),self.assertRaisesRegex(ValueError,'owned_crypto_activities_invalid'):
+                    proofs.validate_crypto_activity_snapshot(bad,mode='paper')
+
+    def test_bundle_fee_keeps_its_original_segment_date_scope(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);orders,frame,_=cycle_fixture(root)
+            fee={'id':'future-segment-fee','activity_type':'CFEE','order_id':orders[0]['id'],
+                'symbol':'BTCUSD','qty':'-0.00005','date':'2026-01-02','net_amount':'0','status':'executed'}
+            earlier=activity_fixture(frame,mode='paper',start=frame['requested_period_start'],end=NOW,fees=[fee])
+            later=activity_fixture(frame,mode='paper',start=NOW,end='2026-01-02T06:00:00Z',fees=[])
+            bundle=proofs.combine_crypto_activity_snapshots([earlier,later],mode='paper')
+            result=self.project(store._rows(root/'receipts.jsonl'),activities={o['id']:bundle for o in orders})
+            self.assertEqual(result['fee_evidence']['attributed_native_fees'],[])
+            self.assertEqual(result['fee_evidence']['unattributed_fees'][0]['reason'],'fee_date_invalid')
+
     def test_one_day_limit_keeps_evidence_and_avoids_larger_prefix_retries(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);orders,frame,_=cycle_fixture(root)
