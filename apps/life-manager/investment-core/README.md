@@ -367,6 +367,10 @@ with explicit cumulative BUY fees and a fresh same-mode account. Expected qty is
 gross BUY fills minus explicit BTC fees minus proven SELL fills; only the difference
 from currently proven qty is a new debit. Already embedded fees are not subtracted
 twice. Account lag stays pending; unexplained gaps and increases are rejected.
+Known activity IDs remain bound to their original FILL/CFEE facts across saved
+history and new readbacks. Proven execution sets include zero-fill orders;
+conflicting or new executions for those sets are rejected. Previously observed
+BUY fee IDs cannot disappear from the cumulative recovery evidence.
 This proof does not persist an adjustment: next append each proven new debit once
 in the existing receipt chain and connect all ownership/counter/sell/performance
 consumers.
