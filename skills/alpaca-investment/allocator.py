@@ -276,12 +276,15 @@ def gate(snapshot: dict[str, Any], candidates: list[dict[str, Any]], decision: d
             "paper_mode": (not is_equity) or snapshot.get("mode") == "paper",
             "regular_session": (not is_equity) or snapshot.get("clock", {}).get("is_open") is True,
         }
+        if is_equity:
+            checks["entry_policy_active"] = False
         approved = all(checks.values()) and candidate.get("asset_class") in {
             "crypto", "us_equity",
         }
         return {**decision, "approved": approved, "candidate": candidate,
                 "checks": checks, "fixed_risk": fixed_risk,
-                "gate": "approved" if approved else "risk_rejected"}
+                "gate": ("legacy_etf_entry_retired" if is_equity
+                         else "approved" if approved else "risk_rejected")}
     if ref == "NO_TRADE":
         return {**decision, "approved": False, "gate": "model_no_trade"}
     candidate = offered.get(ref)

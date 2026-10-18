@@ -591,15 +591,19 @@ class PaperEtfFreshFenceTest(unittest.TestCase):
         owner = "alpaca-investment-paper"
         position = {"owner_id": owner, "strategy_id": ETF_ID, "symbol": "QQQ",
                     "qty": "0.025", "entry_session": "2026-09-29"}
+        candidate = _candidate() if action == "EXIT" else {
+            **_candidate("BTC/USDC"), "asset_class": "crypto", "candidate_ref": "crypto://BTC/USDC",
+        }
         raw = _snapshot()
         raw.pop("mode")  # The real broker reader does not return this caller context.
         raw["positions"] = 1 if action == "EXIT" else 0
-        raw["source_receipt_ids"] = ["alpaca://stock-bars/iex/split/fixture"]
+        raw["source_receipt_ids"] = ["alpaca://stock-bars/iex/split/fixture" if action == "EXIT"
+                                     else "alpaca://crypto-bars/us/fixture"]
         initial = {**copy.deepcopy(raw), "mode": "paper",
                    "position": position if action == "EXIT" else None}
-        decision = MODULE.allocation_gate(initial, [_candidate()], {
-            "action": action, "candidate_ref": "equity://QQQ", "symbol": "QQQ",
-            "strategy_id": ETF_ID, "owner_id": owner,
+        decision = MODULE.allocation_gate(initial, [candidate], {
+            "action": action, "candidate_ref": candidate["candidate_ref"], "symbol": candidate["symbol"],
+            "strategy_id": ETF_ID if action == "EXIT" else "alpaca-btc-5m-trend-v1", "owner_id": owner,
             "position": position if action == "EXIT" else None,
             "decision_session": "2026-10-20", "expected_cost_usd": "0.02",
             "observed_at": raw["clock"]["timestamp"], "reason": "hold_sessions_elapsed",
@@ -611,6 +615,10 @@ class PaperEtfFreshFenceTest(unittest.TestCase):
                        "open_and_closed_orders_count": 0, "positions": held}
         observed = []
         reads = []
+        allocation_gate = MODULE.allocation_gate
+        def fresh_gate(snapshot, candidates, decision):
+            self.assertEqual(snapshot.get("mode"), "paper")
+            return allocation_gate(snapshot, candidates, decision)
         with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
             state = Path(directory) / "state"
             state.mkdir()
@@ -656,8 +664,9 @@ class PaperEtfFreshFenceTest(unittest.TestCase):
                 "exit_status": "CLOSED", "unrealized_pnl_usd": "0",
             }))
             stack.enter_context(patch.object(MODULE, "read_allocator_snapshot", side_effect=allocator_read))
-            stack.enter_context(patch.object(MODULE, "build_candidates", return_value=[_candidate()]))
+            stack.enter_context(patch.object(MODULE, "build_candidates", return_value=[candidate]))
             stack.enter_context(patch.object(MODULE, "choose", return_value=copy.deepcopy(decision)))
+            stack.enter_context(patch.object(MODULE, "allocation_gate", side_effect=fresh_gate))
             stack.enter_context(patch.object(MODULE, "_review_status", return_value={}))
             stack.enter_context(patch.object(MODULE, "deliver", return_value={"message_id": "fixture"}))
             stack.enter_context(patch.object(MODULE, "deliver_failure", return_value={"status": "delivered"}))
