@@ -100,6 +100,73 @@ class CryptoPerformanceTests(unittest.TestCase):
                 self.assertEqual(result['measurement_status'],'partial')
                 self.assertEqual(rows,before)
 
+    def test_native_fee_inventory_deduplicates_and_attributes_only_exact_order_ids(self):
+        for mode in ('paper','live'):
+            with self.subTest(mode=mode),tempfile.TemporaryDirectory() as directory:
+                root=Path(directory);orders,activity,_=cycle_fixture(root,mode)
+                fees=[{'id':'fee-buy','activity_type':'CFEE','order_id':orders[0]['id'],
+                       'symbol':'BTCUSD','qty':'-0.00005','price':'200','date':'2026-01-01',
+                       'net_amount':'0','status':'executed'},
+                      {'id':'fee-sell','activity_type':'CFEE','order_id':orders[-1]['id'],
+                       'symbol':'USDCUSD','qty':'-0.01','price':'1','date':'2026-01-01',
+                       'net_amount':'0','status':'executed'}]
+                activity['fees']=fees
+                activity['source_receipt_id']='alpaca-crypto-activities:'+proofs._digest([
+                    {k:v for k,v in activity.items() if k!='source_receipt_id'}])
+                result=self.project(store._rows(root/'receipts.jsonl'),mode,{o['id']:activity for o in orders})
+                inventory=result.get('fee_evidence',{})
+                self.assertEqual(inventory.get('observed_fee_count'),2)
+                self.assertEqual([(f['asset'],f['quantity']) for f in inventory['attributed_native_fees']],
+                                 [('BTC','0.00005'),('USDC','0.01')])
+                self.assertEqual(inventory['unattributed_fees'],[])
+                self.assertEqual(inventory['fee_settlement_status'],'unknown')
+                self.assertIsNone(result['fees_usd']);self.assertIsNone(result['net_pnl_usd'])
+                self.assertEqual(result['cycles'][0]['execution_cashflow_usdc'],'0.5')
+
+    def test_orderless_and_invalid_native_fees_never_become_zero_or_guessed_costs(self):
+        variants=[({},'order_id_missing'),({'order_id':'foreign'},'order_outside_closed_cycles'),
+            ({'symbol':'BTCUSDC'},'received_asset_unproved'),({'status':'pending'},'fee_not_executed'),
+            ({'qty':'0'},'fee_amount_invalid'),({'qty':'NaN'},'fee_amount_invalid'),
+            ({'qty':'-1e1000000'},'fee_amount_invalid'),({'net_amount':'3'},'fee_amount_invalid'),
+            ({'date':'2030-01-01'},'fee_date_invalid')]
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);orders,activity,_=cycle_fixture(root)
+            rows=store._rows(root/'receipts.jsonl')
+            for changes,reason in variants:
+                fee={'id':'unproved-fee','activity_type':'CFEE','symbol':'BTCUSD','qty':'-0.00005',
+                     'price':'200','date':'2026-01-01','net_amount':'0','status':'executed',**changes}
+                if reason!='order_id_missing': fee.setdefault('order_id',orders[0]['id'])
+                frame=copy.deepcopy(activity);frame['fees']=[fee]
+                frame['source_receipt_id']='alpaca-crypto-activities:'+proofs._digest([
+                    {k:v for k,v in frame.items() if k!='source_receipt_id'}])
+                with self.subTest(changes=changes):
+                    result=self.project(rows,activities={o['id']:frame for o in orders})
+                    inventory=result.get('fee_evidence',{})
+                    self.assertEqual(inventory.get('attributed_native_fees'),[])
+                    self.assertEqual(inventory['unattributed_fees'][0]['reason'],reason)
+                    self.assertIsNone(result['fees_usd'])
+
+    def test_fee_id_conflicting_across_snapshots_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);orders,activity,_=cycle_fixture(root)
+            frames=[]
+            for qty in ('-0.00005','-0.00006'):
+                frame=copy.deepcopy(activity);frame['fees']=[{'id':'same-fee','activity_type':'CFEE',
+                    'symbol':'BTCUSD','qty':qty,'price':'200','date':'2026-01-01','net_amount':'0','status':'executed'}]
+                frame['source_receipt_id']='alpaca-crypto-activities:'+proofs._digest([
+                    {k:v for k,v in frame.items() if k!='source_receipt_id'}]);frames.append(frame)
+            with self.assertRaisesRegex(ValueError,'crypto_fee_evidence_conflict'):
+                self.project(store._rows(root/'receipts.jsonl'),activities=dict(zip([o['id'] for o in orders],frames)))
+
+    def test_empty_fee_inventory_remains_unsettled(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);orders,activity,_=cycle_fixture(root)
+            result=self.project(store._rows(root/'receipts.jsonl'),activities={o['id']:activity for o in orders})
+            inventory=result.get('fee_evidence',{})
+            self.assertEqual(inventory.get('observed_fee_count'),0)
+            self.assertEqual(inventory['fee_settlement_status'],'unknown')
+            self.assertIsNone(result['fees_usd'])
+
     def test_order_average_is_not_used_when_full_fill_activities_are_missing(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);cycle_fixture(root)
