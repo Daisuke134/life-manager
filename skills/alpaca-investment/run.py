@@ -393,6 +393,7 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                 event_key=cloud_event_key)
             _mark_no_broker_order_submitted(mode, effect_attempted, "none")
             print(json.dumps({
+                **({"cost_inventory_capture": inventory_capture} if inventory_capture is not None else {}),
                 "effect": "none", "loop_id": "alpaca-investment", "mode": mode,
                 "reconciliation": reconciliation,
                 "status": "killed" if control["killed"] else "paused",
@@ -445,6 +446,7 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                             event_key=cloud_event_key)
                         _mark_no_broker_order_submitted(mode, effect_attempted, effect)
                         print(json.dumps({
+                            **({"cost_inventory_capture": inventory_capture} if inventory_capture is not None else {}),
                             "effect": "none", "loop_id": "alpaca-investment", "mode": mode,
                             "reconciliation": reconciliation,
                             "status": "killed" if current_control["killed"] else "paused",
@@ -555,7 +557,8 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                         telegram = deliver_control(state, control=current_control,
                             wake_id=wake_id, mode=mode, event_key=cloud_event_key)
                         _mark_no_broker_order_submitted(mode, effect_attempted, effect)
-                        print(json.dumps({"effect":"none","loop_id":"alpaca-investment","mode":mode,
+                        print(json.dumps({**({"cost_inventory_capture": inventory_capture} if inventory_capture is not None else {}),
+                            "effect":"none","loop_id":"alpaca-investment","mode":mode,
                             "reconciliation":reconciliation,"status":"killed" if current_control["killed"] else "paused",
                             "telegram_message_id":telegram["message_id"]}, separators=(",", ":")))
                         return 0
@@ -709,6 +712,7 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
             except Exception:
                 pass
         print(json.dumps({
+            **({"cost_inventory_capture": inventory_capture} if inventory_capture is not None else {}),
             "blocker": "alpaca_pass_failed",
             "effect": _terminal_effect(effect_attempted),
             "error_code": _error_code(error),
