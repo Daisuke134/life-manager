@@ -6,6 +6,7 @@ from decimal import Decimal
 from fractions import Fraction
 from pathlib import Path
 import json
+from math import ceil
 from typing import Any
 
 from crypto_ownership_proof import (_digest,_quantity_text,_sealed_entry_from_rows,entry_receipt_row,
@@ -251,6 +252,7 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
         raise ValueError('crypto_performance_scope_invalid')
     state=Path(state_dir);latest=state/'performance-crypto-latest.json';phase='ledger'
     frames={};refs={};fee_refs=[];fee_checked=None;known_fees=set();known_entries=set();known_cycles=set()
+    window_days=90;limit_window=None;query={}
     try:
         phase='cache'
         if latest.exists():
@@ -276,6 +278,20 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
             if (not isinstance(fee_refs,list)
                     or any(not isinstance(ref,str) or ref not in frames for ref in [*refs.values(),*fee_refs])):
                 raise ValueError('crypto_performance_activity_cache_invalid')
+            candidate=old.get('activity_window_days',90)
+            if type(candidate) is not int or not 1<=candidate<=90:
+                raise ValueError('crypto_performance_activity_cache_invalid')
+            window_days=candidate
+            candidate=old.get('activity_limit_window')
+            if candidate is not None:
+                if not isinstance(candidate,dict): raise ValueError('crypto_performance_activity_cache_invalid')
+                try:
+                    begin,end=(parse_instant(candidate[k]) for k in ('after','until'))
+                    if (begin!=begin.astimezone(timezone.utc).replace(hour=0,minute=0,second=0,microsecond=0)
+                            or not begin<end<=begin+timedelta(days=1)): raise ValueError
+                except (ValueError,TypeError,KeyError):
+                    raise ValueError('crypto_performance_activity_cache_invalid')
+                limit_window=candidate
         phase='ledger'
         rows=_owned_rows(state/'receipts.jsonl')
         plans=_scoped_plans(rows,mode,owner_id)
@@ -306,15 +322,24 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
                 or any(validate_crypto_activity_snapshot(frames[ref],mode=mode)[1]>now for ref in fee_refs)):
             raise ValueError('crypto_performance_time_invalid')
         reader=activity_reader or _read_activity
+        def read_window(start):
+            requested=parse_instant(start)
+            after=requested.astimezone(timezone.utc).replace(hour=0,minute=0,second=0,microsecond=0)
+            end=min(now,after+timedelta(days=window_days)).isoformat().replace('+00:00','Z')
+            query.update(period_start=start,after=after.isoformat().replace('+00:00','Z'),until=end)
+            if (limit_window is not None and after==parse_instant(limit_window['after'])
+                    and parse_instant(end)>=parse_instant(limit_window['until'])):
+                raise ValueError('crypto_activity_single_day_limit')
+            incoming=reader(mode=mode,period_start=start,period_end=end)
+            begin,finish=validate_crypto_activity_snapshot(incoming,mode=mode)
+            if begin!=requested or finish!=parse_instant(end):
+                raise ValueError('crypto_fee_readback_window_invalid')
+            return incoming,finish
         did_read=False
         if result['activity_requests']:
             phase='activity_readback'
             start=min(result['activity_requests'],key=lambda r:parse_instant(r['submitted_at']))['submitted_at']
-            end=min(now,parse_instant(start)+timedelta(days=90)).isoformat().replace('+00:00','Z')
-            incoming=reader(mode=mode,period_start=start,period_end=end)
-            begin,finish=validate_crypto_activity_snapshot(incoming,mode=mode)
-            if begin!=parse_instant(start) or finish!=parse_instant(end):
-                raise ValueError('crypto_fee_readback_window_invalid')
+            incoming,finish=read_window(start)
             eligible=[r['order_id'] for r in result['activity_requests'] if parse_instant(r['submitted_at'])<=finish]
             trial={**extra,**{key:incoming for key in eligible}}
             refreshed=build_crypto_performance(rows,mode=mode,owner_id=owner_id,activity_readbacks=trial,
@@ -328,14 +353,10 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
         for begin,finish in windows:
             if begin<=through: through=max(through,finish)
         if (not did_read and through<now and through.astimezone(timezone.utc).date()<now.astimezone(timezone.utc).date()
-                and fee_checked!=observed):
+                and (fee_checked is None or parse_instant(fee_checked)!=now)):
             phase='activity_readback'
             start=through.isoformat().replace('+00:00','Z')
-            end=min(now,through+timedelta(days=90)).isoformat().replace('+00:00','Z')
-            incoming=reader(mode=mode,period_start=start,period_end=end)
-            begin,finish=validate_crypto_activity_snapshot(incoming,mode=mode)
-            if begin!=through or finish!=parse_instant(end):
-                raise ValueError('crypto_fee_readback_window_invalid')
+            incoming,finish=read_window(start)
             refreshed=build_crypto_performance(rows,mode=mode,owner_id=owner_id,activity_readbacks=extra,
                 fee_activity_readbacks=[*[frames[ref] for ref in fee_refs],incoming])
             ref=incoming['source_receipt_id'];frames[ref]=incoming
@@ -350,7 +371,8 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
         observed=observation['clock']['observed_at'];day=parse_instant(observed).astimezone(timezone.utc).date().isoformat()
         payload={**result,'observed_at':observed,'performance_day':day,'activity_readbacks':frames,'order_activity_refs':refs,
                  'known_entry_effect_ids':sorted(known_entries),'known_closed_cycle_ids':sorted(known_cycles),
-                 'known_fee_activity_ids':sorted(known_fees),'fee_activity_refs':fee_refs,'fee_checked_at':fee_checked}
+                 'known_fee_activity_ids':sorted(known_fees),'fee_activity_refs':fee_refs,'fee_checked_at':fee_checked,
+                 'activity_window_days':window_days,'activity_limit_window':limit_window}
         _atomic_json(latest,payload)
         for closed_day in sorted({parse_instant(c['closed_at']).astimezone(timezone.utc).date().isoformat() for c in result['cycles']}):
             cycles=[c for c in result['cycles'] if parse_instant(c['closed_at']).astimezone(timezone.utc).date().isoformat()==closed_day]
@@ -365,6 +387,13 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
         # Reporting failure is visible and non-numeric; it never permits a trade
         # or suppresses the owner report and its existing financial fences.
         reason=str(error) if isinstance(error,ValueError) and str(error).startswith(('crypto_','owned_')) else 'crypto_performance_unavailable'
+        next_action='reconcile_cycle_proof_and_official_fill_readback'
+        if reason=='crypto_activity_limit_exceeded' and phase=='activity_readback' and query:
+            span=ceil((parse_instant(query['until'])-parse_instant(query['after']))/timedelta(days=1))
+            window_days=max(1,span//2)
+            if span<=1: limit_window={key:query[key] for key in ('after','until')}
+            next_action='inspect_single_day_activity_pagination' if span<=1 else 'retry_activity_readback_with_smaller_window'
+        elif reason=='crypto_activity_single_day_limit': next_action='inspect_single_day_activity_pagination'
         result={'schema_version':1,'owner_id':owner_id,'mode':mode,'paper':mode=='paper','report_scope':'owned_crypto_cycles',
             'measurement_status':'partial','reason':reason,'error_class':type(error).__name__,'failed_phase':phase,
             'completed_round_trips':None,'net_pnl_usd':None,'capital_expansion_allowed':False,
@@ -374,6 +403,7 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
             'known_fee_activity_ids':sorted(known_fees),
             'fee_activity_refs':fee_refs if phase in {'ledger','history','observation','activity_readback','write'} else [],
             'fee_checked_at':fee_checked,
-            'next_action':'reconcile_cycle_proof_and_official_fill_readback'}
+            'activity_window_days':window_days,'activity_limit_window':limit_window,'activity_query':query,
+            'retryable':next_action!='inspect_single_day_activity_pagination','next_action':next_action}
         _atomic_json(latest,result)
         return result

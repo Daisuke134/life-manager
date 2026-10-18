@@ -309,13 +309,13 @@ class CryptoPerformanceTests(unittest.TestCase):
             obs['clock']['observed_at']='2026-07-01T06:00:00Z'
             first=PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper',activity_reader=reader)
             self.assertEqual(len(calls),1)
-            self.assertEqual(first.get('fee_readback_through'),'2026-04-01T06:00:00Z')
+            self.assertEqual(first.get('fee_readback_through'),'2026-04-01T00:00:00Z')
             PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper',activity_reader=reader)
             self.assertEqual(len(calls),1)
             obs['clock']['observed_at']='2026-07-01T06:05:00Z'
             second=PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper',activity_reader=reader)
             self.assertEqual(len(calls),2)
-            self.assertEqual(second['fee_readback_through'],'2026-06-30T06:00:00Z')
+            self.assertEqual(second['fee_readback_through'],'2026-06-30T00:00:00Z')
             obs['clock']['observed_at']='2026-07-01T06:10:00Z'
             third=PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper',activity_reader=reader)
             self.assertEqual(len(calls),3);self.assertEqual(third['fee_readback_through'],obs['clock']['observed_at'])
