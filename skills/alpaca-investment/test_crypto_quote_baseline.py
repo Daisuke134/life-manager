@@ -101,6 +101,7 @@ class QuoteBaselineTests(unittest.TestCase):
                         if kind=='no_fill':
                             broker.update(filled_qty='0',filled_at=None)
                             after['positions']=[]
+                            store.reconcile_started(root/'receipts.jsonl',lambda _:broker)
                             def read():
                                 return proofs.no_fill_entry_proof_from_rows(store._rows(root/'receipts.jsonl'),
                                     marker,broker,after,mode=mode,owner_id=owner)
