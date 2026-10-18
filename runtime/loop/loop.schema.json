@@ -16,6 +16,22 @@
           "runtime_timeout_seconds"
         ]
       }
+    },
+    {
+      "not": {
+        "properties": {
+          "cadence": {
+            "required": [
+              "keep_alive"
+            ]
+          },
+          "effect_class": {
+            "not": {
+              "const": "none"
+            }
+          }
+        }
+      }
     }
   ],
   "dependentRequired": {
