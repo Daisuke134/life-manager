@@ -1,0 +1,29 @@
+{
+  "checked_utc": "2026-10-18T12:23:11.831728+00:00",
+  "sources": [
+    {
+      "url": "https://already-clean.goodfire.com/",
+      "status": 200,
+      "bytes": 2176465,
+      "sha256": "540679503a0f60486897bf2f5d326c2156904878ea96a9a017678378c660a54a"
+    },
+    {
+      "url": "https://transformer-circuits.pub/2022/toy_model/index.html",
+      "status": 200,
+      "bytes": 8254697,
+      "sha256": "beebc71a46a601f5362760f648821e18c9b374bf0a1af5c8b3b0fabddc25e37f"
+    },
+    {
+      "url": "https://transformer-circuits.pub/2023/monosemantic-features/index.html",
+      "status": 200,
+      "bytes": 20605691,
+      "sha256": "d3011059d4b3d55dd7347cb5c295e8d28cc8478c6caeabcceea177ddc6ce68fa"
+    }
+  ],
+  "scope": "Primary-source explanation. No independent model experiment; no social virality measurement; article and slide outline unpublished.",
+  "cautions": [
+    "Neuron role estimates are author-reported and threshold-dependent.",
+    "Working hypothesis does not disprove all superposition or establish safety.",
+    "MLP SwiGLU value branch is distinct from Attention V."
+  ]
+}
