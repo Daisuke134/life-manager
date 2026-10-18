@@ -191,6 +191,19 @@ class CryptoPerformanceTests(unittest.TestCase):
                 saved=json.loads((root/'performance-crypto-latest.json').read_text())
                 self.assertEqual(saved['completed_round_trips'],1);self.assertIsNone(saved['net_pnl_usd'])
 
+    def test_cached_completed_cycle_cannot_be_reported_before_its_close(self):
+        self.assertIsNotNone(PERF)
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);orders,activity,_=cycle_fixture(root)
+            obs={'mode':'paper','paper':True,'clock':{'observed_at':NOW}}
+            with patch.object(PERF,'_read_activity',return_value=activity):
+                PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper')
+            obs['clock']['observed_at']='2026-01-01T03:00:00Z'
+            with patch.object(PERF,'_read_activity',side_effect=AssertionError('stale-clock readback forbidden')):
+                result=PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper')
+            self.assertIsNone(result['completed_round_trips'])
+            self.assertEqual(result['reason'],'crypto_performance_time_invalid')
+
     def test_legacy_etf_only_state_is_not_overwritten(self):
         self.assertIsNotNone(PERF,'crypto performance writer is required')
         with tempfile.TemporaryDirectory() as directory:
