@@ -80,6 +80,7 @@ class OperatingCostInventoryTests(unittest.TestCase):
                     observed_at=billing_at,finalized_through=billing_at)
                 trusted=inventory['scopes'][0]
                 trusted.update({k:copy.deepcopy(scope[k]) for k in ('order_ids','period_start','period_end','source_receipt_ids')})
+                for ref in trusted['execution_refs']:ref.update(started_at=cycle['period_start'],finished_at=cycle['closed_at'])
                 inventory['observed_at']=observed
                 runtime=inventory['input_reads']['alpaca-investment-'+mode]['runtime']
                 runtime.update(first_event_at=cycle['period_start'],last_event_at=observed)

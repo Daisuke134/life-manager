@@ -12,7 +12,7 @@ def fixture(mode='paper',orders=None,paid=False):
     if scope['order_ids']==[]:scope['scope_kind']='owner_period'
     ref={'execution_owner_id':owner,'run_id':'physical-run','occurrence_id':owner+':claimed-earlier',
         'release_sha':'a'*40,'loaded_argv_sha256':'b'*64,'loaded_env_sha256':'c'*64,
-        'start_event_id':'1'*24,'terminal_event_id':'2'*24}
+        'start_event_id':'1'*24,'terminal_event_id':'2'*24,'started_at':scope['period_start'],'finished_at':scope['period_end']}
     join=payload['job_joins'][0];join.update(scope)
     join.update(execution_refs=[{k:ref[k] for k in ('execution_owner_id','run_id','occurrence_id')}],
         run_ids=[ref['run_id']],occurrence_ids=[ref['occurrence_id']])
@@ -226,5 +226,35 @@ class ActualCostInventoryTests(unittest.TestCase):
                     paid_records=[],scope=scope,expected_inventory=inventory)
                 self.assertEqual(result['coverage_state'],'gap')
                 self.assertTrue(result['rejections'])
+
+    def test_query_covers_full_seeded_run_before_intent_and_after_close(self):
+        payload,inventory=fixture();ref=inventory['scopes'][0]['execution_refs'][0]
+        ref.update(started_at='2026-09-23T23:59:50Z',finished_at='2026-09-30T00:00:10Z')
+        reads=inventory['input_reads'][inventory['beneficiary_owner_id']]['runtime']
+        reads['first_event_at']=ref['started_at']
+        self.assertEqual(self.validate(payload,inventory)['coverage_state'],'gap')
+        payload['sources'][0]['queries'][0]['window_start']=ref['started_at']
+        result=self.validate(payload,inventory)
+        self.assertEqual(result['coverage_state'],'complete')
+        windows=result['observations'][0]['execution_windows']
+        self.assertEqual(windows[0]['started_at'],'2026-09-23T23:59:50.000000Z')
+        self.assertEqual(windows[0]['finished_at'],'2026-09-30T00:00:10.000000Z')
+        payload['sources'][0]['queries'][0]['window_end']='2026-09-30T00:00:05Z'
+        self.assertEqual(self.validate(payload,inventory)['coverage_state'],'gap')
+
+    def test_invalid_execution_time_never_falls_back_to_scope_or_current_clock(self):
+        for change in ('missing','missing_both','reversed','future','outside','bad','history_end'):
+            with self.subTest(change=change):
+                payload,inventory=fixture();ref=inventory['scopes'][0]['execution_refs'][0]
+                if change=='missing':ref.pop('started_at')
+                elif change=='missing_both':ref.pop('started_at');ref.pop('finished_at')
+                elif change=='reversed':ref['started_at']=SNAPSHOT
+                elif change=='future':ref['finished_at']='2026-10-01T00:00:01Z'
+                elif change=='outside':ref.update(started_at='2026-09-23T00:00:00Z',finished_at='2026-09-23T01:00:00Z')
+                elif change=='bad':ref['finished_at']=False
+                else:
+                    ref['finished_at']='2026-09-30T01:00:00Z'
+                    inventory['input_reads'][inventory['beneficiary_owner_id']]['runtime']['last_event_at']='2026-09-30T00:00:00Z'
+                self.assertEqual(self.validate(payload,inventory)['coverage_state'],'gap')
 
 if __name__=='__main__':unittest.main()

@@ -198,6 +198,8 @@ class IndependentCensusTests(unittest.TestCase):
         self.assertEqual({row['occurrence_id'] for row in refs},
                          {f'{OWNER}:claimed-before-physical-a', f'{OWNER}:claimed-before-physical-b'})
         self.assertNotIn('admission_missing', self.reasons(result))
+        self.assertEqual(refs[0]['started_at'],'2026-10-18T01:01:00+00:00')
+        self.assertEqual(refs[0]['finished_at'],'2026-10-18T01:02:00+00:00')
         kwargs['occurrence_rows_by_owner'][OWNER][0]['occurrence_id'] = f'{OWNER}:physical-a'
         self.assertIn('admission_missing', self.reasons(self.invoke(trips, kwargs)))
 
