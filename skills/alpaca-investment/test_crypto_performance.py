@@ -23,12 +23,13 @@ PERF=importlib.import_module('crypto_performance') if importlib.util.find_spec('
 NOW='2026-01-01T06:00:00Z'
 
 
-def cycle_fixture(root,mode='paper',index=0,partial=False,zero=False,buy_price='200'):
+def cycle_fixture(root,mode='paper',index=0,partial=False,zero=False,buy_price='200',native_account_id=None):
     owner=f'alpaca-investment-{mode}';base=datetime(2026,1,1,4,tzinfo=timezone.utc)+timedelta(minutes=20*index)
     stamp=lambda seconds:(base+timedelta(seconds=seconds)).isoformat()
     card=candidate_cards()['alpaca-btc-5m-trend-400-v2']
     decision={'action':'ENTER','mode':mode,'owner_id':owner,'strategy_id':card.strategy_id,'release_sha':'a'*40,
               'policy_card':card.to_mapping(),'observed_at':stamp(0)}
+    if native_account_id is not None:decision['native_trading_account_id']=native_account_id
     ledger=root/'receipts.jsonl';sealed=store.seal(ledger,decision,{'asset_class':'crypto','symbol':'BTC/USDC',
         'side':'buy','type':'market','time_in_force':'gtc','notional_usd':'10'});store.mark_started(ledger,sealed)
     buy={'id':f'buy-{index}','client_order_id':sealed['client_order_id'],'status':'filled','symbol':'BTCUSDC',
@@ -38,6 +39,7 @@ def cycle_fixture(root,mode='paper',index=0,partial=False,zero=False,buy_price='
            'entry_client_order_id':sealed['client_order_id'],'entry_filled_qty':'0'}
     account={'mode':mode,'paper':mode=='paper','account':{'cash':'0','equity':'100'},
              'positions':[{'symbol':'BTCUSDC','qty':'0.05'}],'clock':{'observed_at':stamp(2)}}
+    if native_account_id is not None:account['account']['id']=native_account_id
     acquisition=proofs.entry_fill_proof_from_rows(store._rows(ledger),owned,buy,account,mode=mode,owner_id=owner)
     store.reconcile_started(ledger,lambda _:buy,on_reconciled=lambda *_:acquisition)
     owned.update(status='open',entry_filled_qty='0.05',owned_qty='0.05')
@@ -64,7 +66,7 @@ def cycle_fixture(root,mode='paper',index=0,partial=False,zero=False,buy_price='
         after={**account,'positions':[] if remaining==0 else [{'symbol':'BTCUSDC','qty':before}],
                'clock':{'observed_at':stamp(seconds+2)}}
         if terminal:
-            with patch.object(cli,'_context',return_value={}),patch.object(cli,'_run',side_effect=[{'id':'synthetic-native-account-'+mode},copy.deepcopy(fills),[]]):
+            with patch.object(cli,'_context',return_value={}),patch.object(cli,'_run',side_effect=[{'id':native_account_id if native_account_id is not None else 'synthetic-native-account-'+mode},copy.deepcopy(fills),[]]):
                 activities=cli.read_crypto_activity_evidence(credentials_path=Path('unused'),cli_path=Path('unused'),mode=mode,
                     period_start=sell['submitted_at'],period_end=after['clock']['observed_at'])
             result=proofs.sell_remainder_proof_from_rows(store._rows(ledger),owned,sell,after,mode=mode,owner_id=owner,activity_readback=activities)
@@ -73,7 +75,7 @@ def cycle_fixture(root,mode='paper',index=0,partial=False,zero=False,buy_price='
         if remaining: owned.update(status='open',owned_qty=before)
         else: owned['status']='closed'
         orders.append(sell)
-    with patch.object(cli,'_context',return_value={}),patch.object(cli,'_run',side_effect=[{'id':'synthetic-native-account-'+mode},copy.deepcopy(fills),[]]):
+    with patch.object(cli,'_context',return_value={}),patch.object(cli,'_run',side_effect=[{'id':native_account_id if native_account_id is not None else 'synthetic-native-account-'+mode},copy.deepcopy(fills),[]]):
         activities=cli.read_crypto_activity_evidence(credentials_path=Path('unused'),cli_path=Path('unused'),mode=mode,
             period_start=buy['submitted_at'],period_end=NOW)
     return orders,activities,owned
