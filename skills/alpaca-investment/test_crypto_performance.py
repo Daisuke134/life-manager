@@ -79,6 +79,13 @@ def cycle_fixture(root,mode='paper',index=0,partial=False,zero=False):
     return orders,activities,owned
 
 
+def activity_fixture(original,*,mode,start,end,fees=None):
+    with patch.object(cli,'_context',return_value={}),patch.object(cli,'_run',side_effect=[
+            copy.deepcopy(original['fills']),copy.deepcopy(fees if fees is not None else original['fees'])]):
+        return cli.read_crypto_activity_evidence(credentials_path=Path('unused'),cli_path=Path('unused'),
+            mode=mode,period_start=start,period_end=end)
+
+
 class CryptoPerformanceTests(unittest.TestCase):
     def project(self,rows,mode='paper',activities=None):
         self.assertIsNotNone(PERF,'common crypto performance projector is required')
@@ -258,6 +265,74 @@ class CryptoPerformanceTests(unittest.TestCase):
             daily=json.loads((root/'performance-crypto-daily-2026-01-01.json').read_text())
             self.assertEqual(daily['completed_round_trips'],2)
             self.assertFalse((root/'performance-latest.json').exists())
+
+    def test_late_fee_readback_keeps_execution_cache_and_replays_without_reads(self):
+        for mode in ('paper','live'):
+            with self.subTest(mode=mode),tempfile.TemporaryDirectory() as directory:
+                root=Path(directory);orders,frame,_=cycle_fixture(root,mode)
+                owner=f'alpaca-investment-{mode}'
+                obs={'mode':mode,'paper':mode=='paper','clock':{'observed_at':NOW}}
+                first=PERF.write_crypto_performance(root,obs,mode=mode,owner_id=owner,activity_reader=lambda **_:frame)
+                later='2026-01-02T06:00:00Z';obs['clock']['observed_at']=later
+                fee={'id':'late-fee','activity_type':'CFEE','order_id':orders[0]['id'],
+                    'symbol':'BTCUSD','qty':'-0.00005','date':'2026-01-02','net_amount':'0','status':'executed'}
+                calls=[]
+                def reader(**kw):
+                    calls.append(kw)
+                    return activity_fixture(frame,mode=mode,start=kw['period_start'],end=kw['period_end'],fees=[fee])
+                second=PERF.write_crypto_performance(root,obs,mode=mode,owner_id=owner,activity_reader=reader)
+                self.assertEqual(second['fee_evidence']['observed_fee_count'],1)
+                self.assertEqual(second['fee_evidence']['attributed_native_fees'][0]['quantity'],'0.00005')
+                self.assertEqual(second['order_activity_refs'],first['order_activity_refs'])
+                self.assertEqual(len(calls),1);self.assertEqual(calls[0]['period_start'],NOW)
+                self.assertEqual(second['fee_readback_through'],later)
+                with patch.object(PERF,'_read_activity',side_effect=AssertionError('same clock replay')):
+                    replay=PERF.write_crypto_performance(root,obs,mode=mode,owner_id=owner)
+                self.assertEqual(replay['fee_evidence'],second['fee_evidence'])
+                obs['clock']['observed_at']='2026-01-02T06:05:00Z'
+                with patch.object(PERF,'_read_activity',side_effect=AssertionError('same UTC day')):
+                    same_day=PERF.write_crypto_performance(root,obs,mode=mode,owner_id=owner)
+                self.assertEqual(same_day['fee_evidence']['observed_fee_count'],1)
+                daily=json.loads((root/'performance-crypto-daily-2026-01-01.json').read_text())
+                self.assertEqual(daily['generated_as_of'],obs['clock']['observed_at'])
+                self.assertIsNone(second['fees_usd']);self.assertFalse(second['capital_expansion_allowed'])
+
+    def test_fee_backlog_uses_one_ninety_day_window_per_new_observation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);orders,frame,_=cycle_fixture(root)
+            obs={'mode':'paper','paper':True,'clock':{'observed_at':NOW}}
+            PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper',activity_reader=lambda **_:frame)
+            calls=[]
+            def reader(**kw):
+                calls.append(kw)
+                return activity_fixture(frame,mode='paper',start=kw['period_start'],end=kw['period_end'])
+            obs['clock']['observed_at']='2026-07-01T06:00:00Z'
+            first=PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper',activity_reader=reader)
+            self.assertEqual(len(calls),1)
+            self.assertEqual(first.get('fee_readback_through'),'2026-04-01T06:00:00Z')
+            PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper',activity_reader=reader)
+            self.assertEqual(len(calls),1)
+            obs['clock']['observed_at']='2026-07-01T06:05:00Z'
+            second=PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper',activity_reader=reader)
+            self.assertEqual(len(calls),2)
+            self.assertEqual(second['fee_readback_through'],'2026-06-30T06:00:00Z')
+            obs['clock']['observed_at']='2026-07-01T06:10:00Z'
+            third=PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper',activity_reader=reader)
+            self.assertEqual(len(calls),3);self.assertEqual(third['fee_readback_through'],obs['clock']['observed_at'])
+            self.assertTrue(all(proofs.parse_instant(c['period_end'])-proofs.parse_instant(c['period_start'])<=timedelta(days=90) for c in calls))
+
+    def test_failed_or_wrong_window_fee_readback_keeps_verified_cache(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);orders,frame,_=cycle_fixture(root)
+            obs={'mode':'paper','paper':True,'clock':{'observed_at':NOW}}
+            first=PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper',activity_reader=lambda **_:frame)
+            obs['clock']['observed_at']='2026-01-02T06:00:00Z'
+            for reader,reason in ((lambda **_:(_ for _ in ()).throw(ValueError('crypto_activity_invalid')),'crypto_activity_invalid'),
+                    (lambda **_:frame,'crypto_fee_readback_window_invalid')):
+                result=PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper',activity_reader=reader)
+                self.assertEqual(result.get('reason'),reason)
+                self.assertEqual(result['activity_readbacks'],first['activity_readbacks'])
+                self.assertEqual(result['order_activity_refs'],first['order_activity_refs'])
 
     def test_readback_failure_preserves_previously_verified_execution_cache(self):
         self.assertIsNotNone(PERF)
