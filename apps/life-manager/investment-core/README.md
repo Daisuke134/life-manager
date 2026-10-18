@@ -53,6 +53,24 @@ indicators across it. It never uses a future bar. Exit expressions may use the
 current position's `entry_price` and `age_bars`; those values are supplied by
 the evaluator, not invented by a model.
 
+The new BTC `*-400-v2` hypotheses use one explicit finite indicator contract:
+400 completed five-minute bars, SMA-seeded EMA/TEMA, compared with an observed
+800-bar reference. Recursive-price differences above one part per million of
+current close, or different internal entry/exit predicates, prevent adoption.
+The longer prefix is a comparison input, not a claim of a true or universally
+stable EMA. Both validation and runtime signal code use the same comparison
+helper; unknown inputs retain null total USD amounts. A hard-stop or time-stop
+predicate that agrees on both inputs is not suppressed solely by relative
+indicator variation.
+
+Legacy BTC v1 calculations remain available for owned-position resolution, but
+the allocator rejects new v1 entries. New validation reports contain only v2
+BTC hypotheses. The bounded reader can fetch exactly 800 completed BTC bars
+with the same closed interval at aligned and unaligned observation times; gaps,
+incomplete pages and invalid prices remain errors. Dispatch of that input in
+the normal owner still depends on resolving the original owned entry policy;
+the task branch does not claim full runtime adoption or profitability.
+
 Strategy refresh shares the existing investment `control_fence` with submit and
 planned-receipt creation. While ownership or an unsettled intent exists, it only
 refreshes the same canonical card (status changes do not change the policy).
