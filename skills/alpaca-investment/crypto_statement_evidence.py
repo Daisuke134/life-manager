@@ -117,23 +117,40 @@ def _extract_pdf(pdf):
 def _fee_lines(text):
     lines = text.split('\n')
     result = []
-    found = False
-    for index, line in enumerate(lines):
-        if line.strip() != 'Fees':
-            continue
-        found = True
-        cursor = index + 1
-        while cursor < len(lines) and not lines[cursor].strip():
+    start = next((i for i, line in enumerate(lines) if line.strip() == 'Fees'), None)
+    if start is None:
+        raise ValueError(INVALID)
+    cursor = start + 1
+    need_header = True
+    while cursor < len(lines):
+        content = lines[cursor].strip()
+        header = bool(re.fullmatch(r'Trade Date\s+Order ID\s+Symbol\s+Qty\s+Net Amt', content))
+        if not content:
             cursor += 1
-        if cursor == len(lines) or not re.fullmatch(r'\s*Trade Date\s+Order ID\s+Symbol\s+Qty\s+Net Amt\s*', lines[cursor]):
+            continue
+        if need_header:
+            if not header:
+                raise ValueError(INVALID)
+            need_header = False
+        elif content == 'Transaction':
+            break
+        elif content == 'Fees':
+            need_header = True
+        elif header:
+            pass
+        elif _ROW.fullmatch(lines[cursor]):
+            result.append({'source_line_number': cursor + 1, 'raw_line': lines[cursor]})
+        elif content.isdecimal():
+            following = cursor + 1
+            while following < len(lines) and not lines[following].strip():
+                following += 1
+            # Only a page number immediately preceding a form feed is furniture.
+            if not any('\f' in line for line in lines[cursor + 1:following + 1]):
+                raise ValueError(INVALID)
+        else:
             raise ValueError(INVALID)
         cursor += 1
-        while cursor < len(lines) and lines[cursor].strip():
-            if not _ROW.fullmatch(lines[cursor]):
-                raise ValueError(INVALID)
-            result.append({'source_line_number': cursor + 1, 'raw_line': lines[cursor]})
-            cursor += 1
-    if not found or len(result) > 10000:
+    if need_header or len(result) > 10000:
         raise ValueError(INVALID)
     return result
 
