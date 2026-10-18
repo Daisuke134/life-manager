@@ -621,5 +621,91 @@ class ActualCostAttributionTest(unittest.TestCase):
         self.assertEqual(once["trailing"], replayed["trailing"])
 
 
+def query_payload():
+    scope = {"scope_id": "scope-1", "product_loop_id": "investment", "owner_id": "paper-owner",
+             "mode": "paper", "paper": True, "order_ids": ["entry", "exit"],
+             "period_start": TRAILING_START, "period_end": "2026-09-30T00:00:00Z",
+             "source_receipt_ids": ["entry-receipt", "exit-receipt"]}
+    query = {"query_id": "query-1", "scope_id": "scope-1", "billing_account_ref": "billing-account",
+             "official": True, "source_type": "official_billing_query", "currency": "USD",
+             "covered_categories": list(actual_cost.ACTUAL_COST_CATEGORIES),
+             "window_start": TRAILING_START, "window_end": SNAPSHOT, "observed_at": SNAPSHOT,
+             "finalized_through": SNAPSHOT, "complete": True, "settlement_state": "no_charge_final",
+             "document_ids": [], "pending_item_ids": [], "unbilled_item_ids": [], "unpaid_item_ids": [],
+             "evidence_refs": ["official-query-response"]}
+    return {"readback": {"kind": "official_billing_readback", "observed_at": SNAPSHOT,
+                         "cost_scopes": [scope]},
+            "sources": [{"provider": "openai", "status": "available", "product_loop_ids": ["investment"],
+                         "billing_account_refs": ["billing-account"], "queries": [query]}],
+            "documents": [],
+            "provider_pagination": {"pages": [{"provider": "openai", "query_id": "query-1",
+                "billing_account_ref": "billing-account", "page": 1, "cursor": None, "next_cursor": None,
+                "request_id": "request-1", "document_ids": [], "evidence_refs": ["official-page-response"]}]},
+            "job_joins": [{**scope, "provider": "openai", "billing_account_ref": "billing-account",
+                           "query_id": "query-1", "join_type": "scope_query", "job_id": None,
+                           "run_ids": ["run-1"], "occurrence_ids": ["paper-owner:run-1"]}]}
+
+
+class OfficialCostQueryTests(unittest.TestCase):
+    def validate(self, payload, **kwargs):
+        validator = getattr(actual_cost, "validate_official_cost_queries", None)
+        self.assertTrue(callable(validator), "shared official query validator is missing")
+        return validator(payload, snapshot_at=SNAPSHOT, paid_records=[], **kwargs)
+
+    def test_final_no_charge_observation_is_not_money_or_complete_coverage(self):
+        payload = query_payload()
+        result = self.validate(payload, scope=payload["readback"]["cost_scopes"][0])
+        self.assertEqual(len(result["observations"]), 1)
+        self.assertEqual(result["rejections"], [])
+        self.assertEqual(result["coverage_state"], "gap")
+        self.assertEqual(result["reason"], "source_inventory_unverified")
+        self.assertNotIn("amount", result["observations"][0])
+        self.assertNotIn("paid_at", result["observations"][0])
+
+    def test_incomplete_or_wrong_query_evidence_is_rejected(self):
+        cases = (("complete", False), ("pending_item_ids", ["pending"]),
+                 ("unbilled_item_ids", ["pending"]), ("unpaid_item_ids", ["pending"]),
+                 ("finalized_through", TRAILING_START), ("billing_account_ref", "other"),
+                 ("observed_at", "2026-10-02T00:00:00Z"), ("covered_categories", []),
+                 ("document_ids", ["unpaid-invoice"]))
+        for key, value in cases:
+            with self.subTest(field=key):
+                payload = query_payload(); payload["sources"][0]["queries"][0][key] = value
+                result = self.validate(payload)
+                self.assertEqual(result["observations"], [])
+                self.assertTrue(result["rejections"])
+        for key, value in (("next_cursor", "more"), ("cursor", "not-first"),
+                           ("request_id", ""), ("page", True)):
+            with self.subTest(page_field=key):
+                payload = query_payload(); payload["provider_pagination"]["pages"][0][key] = value
+                self.assertEqual(self.validate(payload)["observations"], [])
+
+    def test_scope_mismatch_and_duplicate_query_do_not_pass(self):
+        payload = query_payload(); scope = copy.deepcopy(payload["readback"]["cost_scopes"][0])
+        scope["owner_id"] = "other-owner"
+        self.assertEqual(self.validate(payload, scope=scope)["observations"], [])
+        payload["sources"][0]["queries"].append(copy.deepcopy(payload["sources"][0]["queries"][0]))
+        self.assertEqual(self.validate(payload)["observations"], [])
+
+    def test_new_paid_query_reference_mismatch_marks_its_group_gap(self):
+        payload = fixture("actual-cost-official.json")
+        join = next(row for row in payload["job_joins"] if row["provider"] == "blockrun")
+        join.update(join_type="paid_allocation", query_id="missing-query", scope_id="scope-1",
+                    billing_account_ref="billing-account")
+        rows = adapt(payload)
+        relevant = [row for row in rows if row.get("source_id") == "actual-cost-blockrun"]
+        self.assertTrue(relevant)
+        self.assertTrue(all(row["coverage_state"] == "gap" for row in relevant))
+        self.assertTrue(any(row.get("provider") == "blockrun" for row in receipts(rows)))
+
+    def test_scope_query_null_job_does_not_poison_legacy_blockrun_paid(self):
+        payload = fixture("actual-cost-official.json")
+        before = adapt(payload)
+        payload["job_joins"].append({**query_payload()["job_joins"][0], "provider": "blockrun"})
+        after = adapt(payload)
+        key = lambda rows: [(r.get("receipt_id"), r.get("coverage_state"), r.get("reason")) for r in rows]
+        self.assertEqual(key(before), key(after))
+
+
 if __name__ == "__main__":
     unittest.main()

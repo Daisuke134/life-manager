@@ -69,6 +69,33 @@ class PaperOperatingCostTests(unittest.TestCase):
                                          "LM_CFO_ACTUAL_COST": ""}):
                 return write_paper_performance(state, observation or OBSERVATION, RISK)
 
+    def test_official_query_diagnostics_reach_daily_without_making_profit(self):
+        from skills.cfo.test_actual_cost_attribution import query_payload
+        payload = _readback()
+        q = query_payload()
+        trip = _closed_round_trips(_rows())[0][0]
+        scope = q["readback"]["cost_scopes"][0]
+        scope.update(owner_id=OWNER, order_ids=trip["order_ids"],
+                     period_start=trip["period_start"], period_end=trip["closed_at"],
+                     source_receipt_ids=trip["source_receipt_ids"])
+        stamp = payload["readback"]["observed_at"]
+        query = q["sources"][0]["queries"][0]
+        query.update(window_start=trip["period_start"], window_end=stamp,
+                     observed_at=stamp, finalized_through=stamp)
+        payload["sources"][0].update(billing_account_refs=["billing-account"], queries=[query])
+        payload["readback"]["cost_scopes"] = [scope]
+        payload["provider_pagination"] = q["provider_pagination"]
+        payload["job_joins"].append({**scope, "provider": "openai", "billing_account_ref": "billing-account",
+            "query_id": "query-1", "join_type": "scope_query", "job_id": None,
+            "run_ids": ["run-1"], "occurrence_ids": [f"{OWNER}:run-1"]})
+        result = self.report(payload)
+        self.assertEqual(len(result.get("operating_cost_query_observations", [])), 1)
+        self.assertEqual(result.get("operating_cost_coverage", {}).get("coverage_state"), "gap")
+        self.assertEqual(result["operating_costs_status"], "partial")
+        self.assertIsNone(result["net_realized_pnl_usd"])
+        self.assertEqual(result["operating_cost_source_receipt_ids"],
+                         [row["receipt_id"] for row in result["operating_cost_components"]])
+
     def test_paid_scoped_components_are_subtotals_not_total_cost_or_profit(self):
         result = self.report(_readback())
         self.assertEqual(result.get("verified_model_cost_subtotal_usd"), "0.01")
