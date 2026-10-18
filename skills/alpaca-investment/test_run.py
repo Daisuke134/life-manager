@@ -23,6 +23,19 @@ MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
 
 
+def _entry_selection_fixture(state: Path, decision: dict, mode="paper"):
+    from strategy_policy import candidate_cards
+    card = candidate_cards()["alpaca-btc-5m-trend-400-v2"]
+    decision.update(action="ENTER", owner_id=f"alpaca-investment-{mode}", mode=mode,
+                    strategy_id=card.strategy_id, release_sha="a" * 40, policy_card=card.to_mapping())
+    state.mkdir(parents=True, exist_ok=True)
+    selection = {"selection": "selected", "strategy_id": card.strategy_id,
+                 "release_sha": "a" * 40, "card": card.to_mapping(),
+                 "expires_at": "2099-01-01T00:00:00Z", "report_id": "entry-fixture"}
+    (state / "selected-strategy.json").write_text(json.dumps(selection))
+    return selection
+
+
 def _publisher_probe(root: Path) -> tuple[Path, Path]:
     marker = root / "publisher-called"
     executable = root / "node"
@@ -677,7 +690,7 @@ class ShadowReadOnlyTest(unittest.TestCase):
 
 class PaperEtfFreshFenceTest(unittest.TestCase):
     def run_approved_trade(self, *, action="EXIT", fresh_changes=None,
-                           broker_positions=None, changed_owned_qty=None):
+                           broker_positions=None, changed_owned_qty=None, selection_change=None):
         from test_etf_allocator import _snapshot, _candidate, ETF_ID
 
         owner = "alpaca-investment-paper"
@@ -714,6 +727,7 @@ class PaperEtfFreshFenceTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
             state = Path(directory) / "state"
             state.mkdir()
+            selection = _entry_selection_fixture(state, decision) if action == "ENTER" else None
             ownership = {"schema_version": 1, "status": "open", "owner_id": owner,
                          "strategy_id": ETF_ID, "symbol": "QQQ",
                          "decision_session": "2026-09-29",
@@ -726,6 +740,20 @@ class PaperEtfFreshFenceTest(unittest.TestCase):
                 value = copy.deepcopy(raw)
                 if reads:
                     value.update(fresh_changes or {})
+                    if selection_change is not None:
+                        selected = copy.deepcopy(selection)
+                        if selection_change == "missing":
+                            (state / "selected-strategy.json").unlink()
+                        else:
+                            if selection_change == "strategy":
+                                from strategy_policy import candidate_cards
+                                card = candidate_cards()["alpaca-btc-5m-reversion-400-v2"]
+                                selected.update(strategy_id=card.strategy_id, card=card.to_mapping())
+                            elif selection_change == "release": selected["release_sha"] = "b" * 40
+                            elif selection_change == "expired": selected["expires_at"] = "2020-01-01T00:00:00Z"
+                            elif selection_change == "report": selected["report_id"] = "new-report-same-policy"
+                            elif selection_change == "card": selected["card"]["entry_conditions"] = ["close > 0"]
+                            MODULE._atomic_json(state / "selected-strategy.json", selected)
                     if changed_owned_qty is not None:
                         MODULE._atomic_json(state / "etf-owned-position.json", {
                             **ownership, "position_qty": changed_owned_qty,
@@ -757,6 +785,7 @@ class PaperEtfFreshFenceTest(unittest.TestCase):
             }))
             stack.enter_context(patch.object(MODULE, "read_allocator_snapshot", side_effect=allocator_read))
             stack.enter_context(patch.object(MODULE, "build_candidates", return_value=[candidate]))
+            stack.enter_context(patch.object(MODULE, "read_crypto_history", return_value={}))
             stack.enter_context(patch.object(MODULE, "choose", return_value=copy.deepcopy(decision)))
             stack.enter_context(patch.object(MODULE, "allocation_gate", side_effect=fresh_gate))
             stack.enter_context(patch.object(MODULE, "_review_status", return_value={}))
@@ -785,6 +814,19 @@ class PaperEtfFreshFenceTest(unittest.TestCase):
         self.assertEqual(code, 0, result)
         self.assertEqual(len(calls), 1)
         self.assertEqual(calls[0].kwargs["order"]["side"], "buy")
+
+    def test_entry_rejects_changed_missing_or_expired_selection_before_submit(self):
+        for change in ("strategy", "release", "expired", "missing", "card"):
+            with self.subTest(change=change):
+                code, result, calls, _ = self.run_approved_trade(action="ENTER", selection_change=change)
+                self.assertEqual(code, 78, result)
+                self.assertEqual(result["error_code"], "entry_policy_changed_before_submit")
+                self.assertEqual(calls, [])
+
+    def test_entry_accepts_fresh_report_for_same_policy_and_release(self):
+        code, result, calls, _ = self.run_approved_trade(action="ENTER", selection_change="report")
+        self.assertEqual(code, 0, result)
+        self.assertEqual(len(calls), 1)
 
     def test_exit_rejects_broker_quantity_symbol_or_extra_position_drift(self):
         variants = [[], [{"symbol": "QQQ", "qty": "0.024"}],
@@ -830,6 +872,7 @@ class LiveRunTest(unittest.TestCase):
             "symbol": "BTC/USDC", "time_in_force": "gtc", "type": "market"}
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            _entry_selection_fixture(root / "state", decision, "live")
             hint = root / "entrypoint-result.json"
             hint.write_text('{"status":"pre_effect_failure","effect":0}\n', encoding="utf-8")
             hint.chmod(0o600)
@@ -876,7 +919,9 @@ class LiveRunTest(unittest.TestCase):
             "observed_at": "2026-09-10T08:00:00Z"}
         order = {"asset_class": "crypto", "notional_usd": "10.00", "side": "buy",
             "symbol": "BTC/USDC", "time_in_force": "gtc", "type": "market"}
-        with tempfile.TemporaryDirectory() as directory, patch.dict(MODULE.os.environ, {
+        with tempfile.TemporaryDirectory() as directory, ExitStack() as fixture_stack:
+            _entry_selection_fixture(Path(directory) / "state", decision, "live")
+            with patch.dict(MODULE.os.environ, {
             "LIFE_MANAGER_INVESTMENT_MODE": "live", "LIFE_MANAGER_INVESTMENT_DEPLOYMENT": "local",
             "ALPACA_INVESTMENT_LIVE_CREDENTIALS_FILE": str(Path(directory) / "credentials.json"),
             "ALPACA_INVESTMENT_LIVE_STATE_DIR": str(Path(directory) / "state")}, clear=True), \
@@ -891,8 +936,8 @@ class LiveRunTest(unittest.TestCase):
             patch.object(MODULE, "allocation_gate", return_value={"approved": True}), \
             patch.object(MODULE, "submit_order", return_value={"submitted_at": "now"}) as submit, \
             patch.object(MODULE, "deliver", return_value={"message_id": "live"}):
-            self.assertEqual(MODULE.main(wake_id="live-entry"), 0)
-            marker = json.loads((Path(directory) / "state/live-owned-position.json").read_text())
+                self.assertEqual(MODULE.main(wake_id="live-entry"), 0)
+                marker = json.loads((Path(directory) / "state/live-owned-position.json").read_text())
         submit.assert_called_once()
         self.assertEqual(marker["status"], "entry_pending")
         self.assertEqual(marker["symbol"], "BTCUSD")
