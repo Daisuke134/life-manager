@@ -3491,3 +3491,5 @@ Pre-flight: Task1型/出典→Task2集計→Task3復元→Task4採点→Task5CLI
 
 Task A/P01–P03: complete。Python3.12分離venv、7依存のwheel SHA固定と--require-hashes導入、manager importを確認。ipfn wheelは指定SHAと一致。wheelにlicense未同梱のため固定upstreamのMIT本文をTHIRD_PARTY_NOTICESへ保存。
 Task B/P04–P07: complete。型/取得テストを先に作り未実装importのREDを確認、実装後7テストPASS。公式URLの実headerと行を別途確認。HTML/別表/欠落/重複/負estimate/改ざん/上限/EOF/不完全snapshotを検査。まだ実資料の生成比較は未実施。
+
+Task C・D/P08–P12: complete。新しいprepare/fitテストが未実装でRED、実装後全16テストPASS。6セルのleaf対応、固定6/4/41、評価地域変更でseed不変、zero-target軸、非収束拒否、IPFの関連維持、uniform seedと単純法一致を確認。既存ipfnをそのまま呼び、独立に残差と反復上限を検査。
