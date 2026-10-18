@@ -690,7 +690,8 @@ class ShadowReadOnlyTest(unittest.TestCase):
 
 class PaperEtfFreshFenceTest(unittest.TestCase):
     def run_approved_trade(self, *, action="EXIT", fresh_changes=None,
-                           broker_positions=None, changed_owned_qty=None, selection_change=None):
+                           broker_positions=None, changed_owned_qty=None, selection_change=None,
+                           pending_entry_at_fence=False):
         from test_etf_allocator import _snapshot, _candidate, ETF_ID
 
         owner = "alpaca-investment-paper"
@@ -740,6 +741,10 @@ class PaperEtfFreshFenceTest(unittest.TestCase):
                 value = copy.deepcopy(raw)
                 if reads:
                     value.update(fresh_changes or {})
+                    if pending_entry_at_fence:
+                        MODULE._atomic_json(state / "live-owned-position.json", {
+                            "status":"entry_pending","symbol":"BTCUSD","entry_effect_id":"b"*64,
+                            "entry_client_order_id":"lm-ai-"+"b"*24,"entry_filled_qty":"0"})
                     if selection_change is not None:
                         selected = copy.deepcopy(selection)
                         if selection_change == "missing":
@@ -781,6 +786,7 @@ class PaperEtfFreshFenceTest(unittest.TestCase):
             stack.enter_context(patch.object(MODULE, "reconcile_started", return_value={
                 "pending": 0, "reconciled": 0, "unresolved": 0,
             }))
+            stack.enter_context(patch.object(MODULE, "find_order_by_client_id", return_value={"status":"new"}))
             stack.enter_context(patch.object(MODULE, "observe", side_effect=observe_read))
             stack.enter_context(patch.object(MODULE, "_paper_campaign", return_value={
                 "exit_status": "CLOSED", "unrealized_pnl_usd": "0",
@@ -829,6 +835,20 @@ class PaperEtfFreshFenceTest(unittest.TestCase):
         code, result, calls, _ = self.run_approved_trade(action="ENTER", selection_change="report")
         self.assertEqual(code, 0, result)
         self.assertEqual(len(calls), 1)
+
+    def test_entry_rejects_another_buy_marker_appearing_before_submit(self):
+        code,result,calls,_=self.run_approved_trade(action="ENTER",pending_entry_at_fence=True)
+        self.assertEqual(code,78,result)
+        self.assertEqual(result["error_code"],"entry_position_changed_before_submit")
+        self.assertEqual(calls,[])
+
+    def test_entry_rejects_account_position_appearing_after_initial_observation(self):
+        for positions in ([{"symbol":"BTCUSDC","qty":"0.01"}], [{"symbol":"QQQ","qty":"1"}]):
+            with self.subTest(positions=positions):
+                code,result,calls,_=self.run_approved_trade(action="ENTER",broker_positions=positions)
+                self.assertEqual(code,78,result)
+                self.assertEqual(result["error_code"],"entry_position_changed_before_submit")
+                self.assertEqual(calls,[])
 
     def test_exit_rejects_broker_quantity_symbol_or_extra_position_drift(self):
         variants = [[], [{"symbol": "QQQ", "qty": "0.024"}],
