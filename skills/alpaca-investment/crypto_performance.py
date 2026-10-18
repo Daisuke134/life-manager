@@ -406,6 +406,7 @@ def _update_crypto_flows(previous,observation,result,*,mode,owner_id,reader,ceil
     rejected=state.get('flow_cache_rejected',{})
     if not isinstance(rejected,dict):rejected={'previous':rejected}
     def reject(key,value):
+        if key in rejected and not isinstance(rejected[key],list):rejected[key]=[rejected[key]]
         rejected.setdefault(key,[]).append(clone(value))
         errors.append({'phase':'flow_cache','error_class':'ValueError','reason':'crypto_flow_cache_invalid'})
     observed=observation['clock']['observed_at'];now=_fx_instant(observed)
