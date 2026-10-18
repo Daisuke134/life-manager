@@ -128,6 +128,30 @@ class OperatingCostTotalsTests(unittest.TestCase):
                 self.assertEqual(day['operating_cost_coverage']['coverage_state'],'gap')
                 self.assertTrue(day['operating_cost_component_gaps'])
 
+    def test_historical_refresh_removes_only_confirmed_unknown_categories(self):
+        import json,tempfile
+        from pathlib import Path
+        from paper_performance import build_paper_performance,_closed_round_trips,_refresh_historical_costs
+        from test_paper_performance import _rows,OBSERVATION,RISK
+        trips,_=_closed_round_trips(_rows())
+        previous=build_paper_performance(_rows(),OBSERVATION,RISK)
+        previous.update(report_scope='daily_accumulation',performance_day='2026-10-20',risk=RISK)
+        previous['source_receipt_ids'].append('alpaca-account-readback:'+previous['observed_at'])
+        summary=summarize([],None,owner_id='alpaca-investment-paper',observed_at=OBSERVATION['clock']['observed_at'])
+        summary['operating_cost_scope_coverages']=[{'order_ids':t['order_ids'],'period_start':t['period_start'],
+            'period_end':t['closed_at'],'coverage_state':'complete'} for t in trips]
+        with tempfile.TemporaryDirectory() as directory:
+            state=Path(directory);path=state/'performance-daily-2026-10-20.json'
+            path.write_text(json.dumps(previous))
+            _refresh_historical_costs(state,trips,[],'2026-10-21',summary)
+            saved=json.loads(path.read_text())
+            self.assertEqual(saved['model_cost_usd'],'0');self.assertEqual(saved['system_cost_usd'],'0')
+            self.assertNotIn('model',saved['unknown_cost_categories'])
+            self.assertNotIn('system',saved['unknown_cost_categories'])
+            self.assertIn('fees',saved['unknown_cost_categories'])
+            self.assertIsNone(saved['net_realized_pnl_usd'])
+            self.assertEqual(_refresh_historical_costs(state,trips,[],'2026-10-21',summary)[0]['status'],'unchanged')
+
     def test_exact_totals_do_not_round_tiny_paid_amount_beside_large_amount(self):
         from decimal import localcontext
         payload,inventory,trip=window_fixture()

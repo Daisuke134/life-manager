@@ -15133,6 +15133,8 @@ crypto cycleのperiod_endはaccount観測時計、closed_atは経済close時計�
 3. RED→GREEN: 認証済みbillingのquery検証をpaid component選定に先行し、verified execution_windowsをcost evidenceとして保持する。order_pairのfirst-intent前/close後でも、同owner/mode/order/期間/chargeのpaid_allocationとexact execution tupleに結び付き、その実行span内で発生した費用だけを含める。legacy unverified/no inventoryは従来の経済期間内subtotalにとどめる。範囲外/別actor/ref欠測を0やcompleteへしない。query refs/window/evidenceをeconomic source_receipt_idsへ追加しない。
 4. 関連RED/全Alpaca・CFO・core/contract/diff、独立readonly金融反証、source pushまで。fixtureのpre-intent/post-close費用・query窓短縮・bad/future/missing/ref非overlap・後発別run・owner_period境界・paper/live・原receipt不変を検証する。金額合計/net/coverage/account durable化は後続未完で、本番/provider/資金/wake/売買/fence変更0を維持する。
 
+**D4 historical表示の整合:** 過去dailyの費用が後から確定する場合も、保存後のmodel/system金額とunknown_cost_categoriesを同じ基準で更新する。未確定fees/slippageとnet=nullは保持し、同入力の再読取はunchangedとする。
+
 **D4 durable binding拒否の境界:** 独立reviewは過去dailyへ束縛済みchargeの再帰属を拒否したあと、components空＋complete coverageから当日費用0が生まれるP1を再現する。既存の付け替え拒否は保持し、除外対象scopeへcomponent gapを残す。同identityの金額/帰属矛盾で全componentsを拒否する経路も同様にgapとし、root/dailyの再selectorでゼロへ戻さない。
 
 **D4 正確算術とowner-period境界:** 9999.99と0.00000001の同category支払いを足す反例で、既存max表示桁だけのprecisionでは微小分が丸まることをREDで確認する。正確な必要precisionは最大整数桁+最大小数scale+件数carryから取る。scope adapterのpaid/query parserを既存B0 significant-digit contextで局所実行し、callerの低precision/trapで検証済み費用が消えないようにする。B0 parser自体/領収書/全体projectionは変更しない。
