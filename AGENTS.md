@@ -78,3 +78,8 @@ Preserve official company, research and repository names such as Aaru, Simile, O
 学習説明は原則として生成画像をチャットへ表示し、必要に応じ複数枚とMermaidを使う。元画像を保存し、架空例・研究報告・私たちの実測を区別する。正式名称は原表記、日本語説明は自然な日本語。新しい方法や用途は一次資料・著者コード・既存実証を調べ、出典、読解範囲、利用条件、再利用部品、未確認点を記録する。未公開の企業実装を推測で確定しない。
 
 音声では短い説明を一区切りずつ話し、図と詳しい本文をチャットに残す。入口を増やして混乱させず、この会話と統合SSOTの現在地を使う。クラウド/端末間のファイル同期を確認なしに共有済みとしない。
+
+
+## Manager terminology preference (2026-10-18)
+
+Use established technical terms in each language. Japanese: ニューロフィードバック. English: neurofeedback. Do not replace accepted terminology with an invented literal translation. Keep official company/research names; add a plain-language explanation when needed. Founder story: the mission remains ending suffering; the intervention approach shifts from personalized individual neurofeedback to changes in conditions and environments shared by populations.

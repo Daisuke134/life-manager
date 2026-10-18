@@ -6,9 +6,11 @@
 
 私の出発点は、「自分の苦しみをどうすれば終わらせられるか」という問いでした。高校生だった16歳の頃にヴィパッサナーに出会い、実践を続けてきました。やがてその問いは、自分だけでなく、この世界の苦しみをどうすれば終わらせられるかへと広がりました。
 
-大学院では、テクノロジーでこの問いに取り組みました。脳活動や瞳孔のデータを使う個人向けのデコーダと、神経フィードバックを通じてマインドフルネスを支えるアプローチを研究しました。
+大学院では、テクノロジーでこの問いに取り組みました。脳活動や瞳孔のデータを使う個人向けのデコーダと、ニューロフィードバックを通じてマインドフルネスを支えるアプローチを研究しました。
 
 今、取り組んでいるのはマネージャーです。人口や行動、社会の仕組みをモデル化し、人々が生きる環境への変更を比較し、実行し、その結果を測る人工知能を目指しています。最初は検証できる具体的な変化から始め、すべての生命を視野に対象を広げていきます。
+
+一人ひとりの状態を推定して個別に介入するアプローチから、集団が共有する環境や条件に介入するアプローチへ移っています。
 
 問いは変わっていません。テクノロジーは、この世界の苦しみをどうすれば終わらせられるのか。変わってきたのは、その問いに取り組む手段です。
 
@@ -19,6 +21,8 @@ My starting point was a question: how can I end my own suffering? I encountered 
 In graduate school, I began approaching it through technology. I worked on personalized decoding using brain and pupil data, exploring neurofeedback as a way to support mindfulness.
 
 Today, I am building Manager: an AI intended to model populations, behavior, and social systems, compare changes to shared environments, act, and measure what happens. We begin with specific changes we can evaluate, with a long-term horizon that includes every living being.
+
+The approach has shifted from personalized interventions for individuals to interventions on the environments and conditions shared by populations.
 
 The question has stayed the same: how can technology end suffering in the world? What has changed is the approach.
 
@@ -33,7 +37,7 @@ AGI・超知能がこの使命へ貢献できるという本人の信念を保�
 ## 発表の構成案
 
 1. 自分の苦しみという出発点とヴィパッサナー。
-2. 大学院での個別デコーダ・神経フィードバックの研究。
+2. 大学院での個別デコーダ・ニューロフィードバックの研究。
 3. 同じ問いを、共有環境への介入から考える現在。
 4. 人口生成、行動予測、社会の相互作用、介入、効果評価という分野の説明。
 5. 自分たちの実装・結果・限界（存在する証拠だけ）。
@@ -60,6 +64,11 @@ IACSや以前の研究室向けには、この導入を研究分野の概説の�
 
 IACS、以前の大学院の研究室、その他の発表先でも、聴衆が本人の動機を知っていると仮定しない。学術分野や所属を知っていても、人生の問いまで共有されているとは限らない。
 
-最初に「苦しみをどう終わらせるか」という問いを述べ、ヴィパッサナーを気づきを育む瞑想の実践として短く紹介する。次に、大学院では脳活動や瞳孔の観測から個人の状態を推定するデコーダと、神経フィードバックを通じてマインドフルネスを支える方法を研究したと説明する。その後に、共有環境へ働きかける現在の構想を置く。個々の専門用語の説明を省略せず、同じ問いが手段の変化を貫いていることを明示する。
+最初に「苦しみをどう終わらせるか」という問いを述べ、ヴィパッサナーを気づきを育む瞑想の実践として短く紹介する。次に、大学院では脳活動や瞳孔の観測から個人の状態を推定するデコーダと、ニューロフィードバックを通じてマインドフルネスを支える方法を研究したと説明する。その後に、共有環境へ働きかける現在の構想を置く。個々の専門用語の説明を省略せず、同じ問いが手段の変化を貫いていることを明示する。
 
 本番サイトへの掲載時は、既存の公開元を確認する。上記HTMLプレビューの更新だけで本番掲載済みとは扱わない。スライドも本文追記、JSON更新、描画・目視確認を別工程として記録する。
+
+
+## 専門用語の表記（2026-10-18本人指定）
+
+日本語は「ニューロフィードバック」、英語は「neurofeedback」。専門用語は各言語で定着した標準的な呼称と正式表記を使い、独自の直訳へ置き換えない。必要な場合は標準用語の後に平易な説明を添える。会社名・研究名も正式表記を保持する。
