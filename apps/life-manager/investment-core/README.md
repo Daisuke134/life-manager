@@ -262,5 +262,12 @@ submitted. New crypto buys also revalidate the fresh selected card, release and
 expiry under that fence before sealing; only a new report for the same policy
 and release may replace the entry report. Paper and live share the existing
 bounded BTC/USDC market/gtc transport, keeping their mode-specific contexts.
-This branch is source only: remaining ownership dispatch, complete costs and
-natural trade evidence are tracked in the canonical SSOT.
+Paper uses the same recorded BTC ownership and EXIT path as live, alongside its
+existing owned ETF path. Missing account positions retain open/pending entry
+markers; absence alone does not prove a close. Before a new buy, fresh account
+and marker observations under the submit fence prevent overwriting another
+entry. Ambiguous or contradictory fill history cannot become a zero-fill close.
+Paper pending BTC orders defer the legacy option campaign with unknown P&L,
+while keeping the account-wide allocator, risk and unresolved-intent checks.
+This branch is source only: official crypto close receipts, complete costs,
+performance and natural trade evidence are tracked in the canonical SSOT.
