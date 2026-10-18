@@ -68,7 +68,7 @@ the allocator rejects new v1 entries. New validation reports contain only v2
 BTC hypotheses. The bounded reader can fetch exactly 800 completed BTC bars
 with the same closed interval at aligned and unaligned observation times; gaps,
 incomplete pages and invalid prices remain errors. Dispatch of that input in
-the normal owner still depends on resolving the original owned entry policy;
+the normal owner resolves the recorded owned entry policy before selecting history;
 the task branch does not claim full runtime adoption or profitability.
 
 Strategy refresh shares the existing investment `control_fence` with submit and
@@ -248,3 +248,16 @@ authorize a transfer.
 ## Life Manager runtime boundary
 
 The allocator may report a recommendation, but it must not edit `config/loop-registry.json`, `runtime/loop`, `runtime/host`, `bin/`, or any provider wallet. Life Manager runtime owns cadence, registry admission, release, external funding, and live enablement. A missing owner/runtime receipt keeps the relevant venue visible as partial/unknown.
+
+### Recorded BTC ownership before submission
+
+Approved BTC entry decisions freeze the canonical card, release, owner and mode
+in the existing receipts ledger. Owned HOLD/EXIT resolves that entry through
+its sealed intent and consistent official filled-buy outcome; a stale or replaced
+current selection cannot replace the owned policy. Missing or conflicting fill
+evidence remains an error. Native fill price and `filled_at` define the entry.
+Before selling, the existing control fence checks fresh account quantity and the
+exact original entry effect/client/provider identity. A changed position is not
+submitted. This branch is source only: paper BTC routing, entry selection
+revalidation, complete costs and natural trade evidence remain in the canonical
+SSOT, not a second TODO list here.
