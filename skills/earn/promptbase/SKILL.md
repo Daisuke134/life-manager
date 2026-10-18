@@ -104,17 +104,19 @@ visible text), 2 steps + a modal:
    `[...]` variable per example row** (PromptBase parses every bracketed run
    in the Prompt template as a variable and renders one text input per
    variable per example; leaving any blank fails closed with "Please provide
-   inputs for all of your examples", and a value containing `[`/`]` itself
-   fails closed with "Remove all square brackets from your example inputs")
+   inputs for all of your examples", a value containing `[`/`]` itself
+   fails closed with "Remove all square brackets from your example inputs",
+   and more than 5 variables fails closed with "You can only have a maximum
+   of 5 variables in your prompt" — live 2026-10-18, a SKILL.md body with 16
+   bracketed runs; `build_listing` therefore turns the body's own `[`/`]`
+   into `(`/`)` so the injected `INPUT_VARIABLE_LABEL` is the only variable)
    → "Prompt instructions" (buyer-facing usage tip). `publish.py`'s
    `_fill_step2` handles both: it fills the single "Paste your output here"
    textarea and clicks "Add example +" four times (all four reuse the one
    real verified `example_output` — honest, not fabricated, just meeting the
    form's minimum count), then fills every `input[type=text]` it finds —
    `build_listing.INPUT_VARIABLE_LABEL`'s own variable gets the real
-   `example_input`, any other detected variable (e.g. a literal
-   `[ADD: your number]` from the catalog skill's own SKILL.md body) gets its
-   own placeholder text back, unbracketed, as a clearly-generic filler.
+   `example_input`.
 3. **"Next: Finish"** does not lead to a review step — it opens a **"Confirm
    you're human"** modal with a reCAPTCHA v2 checkbox gating the actual
    submit. This is the one part that is not fully autonomous: Google's risk
