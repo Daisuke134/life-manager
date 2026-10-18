@@ -157,4 +157,27 @@ class ActualCostInventoryTests(unittest.TestCase):
         scope['known_paid_bindings'][0]['charge_identity'][2]='other-invoice'
         self.assertEqual(self.validate(payload,inventory)['coverage_state'],'gap')
 
+    def test_known_paid_charge_is_not_rebound_by_another_owner_allocation(self):
+        payload,inventory=fixture(paid=True);scope=inventory['scopes'][0];record=paid_records(payload)[0]
+        scope['known_paid_bindings']=[{**{k:scope[k] for k in ('owner_id','mode','paper','order_ids','period_start','period_end')},
+            'provider':'openai','billing_account_ref':'billing-account','category':'model_cost','receipt_id':record['receipt_id'],
+            'charge_identity':['openai','invoice','same-id','line','allocation'],'evidence_refs':record['evidence_refs']}]
+        allocation=payload['job_joins'][0]
+        query_join=copy.deepcopy(allocation);query_join.update(join_type='scope_query',job_id=None)
+        payload['job_joins'].append(query_join)
+        allocation.update(scope_id='foreign-scope',owner_id='alpaca-investment-live',mode='live',paper=False,order_ids=['foreign-entry','foreign-exit'])
+        self.assertEqual(self.validate(payload,inventory)['coverage_state'],'gap')
+
+    def test_paid_receipt_alias_keeps_the_same_underlying_charge(self):
+        payload,inventory=fixture(paid=True);scope=inventory['scopes'][0];record=paid_records(payload)[0]
+        scope['known_paid_bindings']=[{**{k:scope[k] for k in ('owner_id','mode','paper','order_ids','period_start','period_end')},
+            'provider':'openai','billing_account_ref':'billing-account','category':'model_cost','receipt_id':record['receipt_id'],
+            'charge_identity':['openai','invoice','same-id','line','allocation'],'evidence_refs':record['evidence_refs']}]
+        document=payload['documents'][0]
+        document.update(document_type='paid_receipt',source_type='official_paid_receipt',receipt_id='receipt-alias')
+        payload['sources'][0]['queries'][0]['document_ids']=['receipt-alias']
+        payload['provider_pagination']['pages'][0]['document_ids']=['receipt-alias']
+        payload['job_joins'][0].update(document_type='paid_receipt',document_id='receipt-alias')
+        self.assertEqual(self.validate(payload,inventory)['coverage_state'],'complete')
+
 if __name__=='__main__':unittest.main()
