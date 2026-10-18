@@ -164,7 +164,8 @@ def main() -> int:
                 "parent_order_id": plan["parent_order_id"],
                 "reason": "L09の小額canary positionを一度だけ全量closeする。"}
     ledger = state / "receipts.jsonl"
-    sealed = seal(ledger, decision, order)
+    with control_fence(state):
+        sealed = seal(ledger, decision, order)
     broker = read_live_close(credentials_path=credentials, cli_path=cli,
                              client_order_id=sealed["client_order_id"],
                              frozen_qty=plan["frozen_qty"], pre_usdc_qty=plan["pre_usdc_qty"],
