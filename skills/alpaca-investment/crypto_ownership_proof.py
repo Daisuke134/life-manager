@@ -84,11 +84,79 @@ def execution_activity_identity(fill: dict[str, Any]) -> tuple:
         parse_instant(fill['transaction_time']))
 
 
+def validate_crypto_activity_page_chunk(chunk: dict[str, Any], *, mode: str) -> tuple:
+    try:
+        if (mode not in {'paper','live'} or not isinstance(chunk,dict)
+                or type(chunk.get('schema_version')) is not int or chunk['schema_version']!=1
+                or chunk.get('kind')!='crypto_activity_page_chunk' or chunk.get('mode')!=mode
+                or chunk.get('paper') is not (mode=='paper')): raise ValueError
+        body={k:v for k,v in chunk.items() if k!='source_receipt_id'}
+        if chunk.get('source_receipt_id')!='alpaca-crypto-activity-chunk:'+_digest([body]): raise ValueError
+        start,end=(parse_instant(chunk[k]) for k in ('requested_period_start','requested_period_end'))
+        request=chunk['request'];kind=request['activity_type'];token=request['page_token']
+        after=start.astimezone(timezone.utc).replace(hour=0,minute=0,second=0,microsecond=0)
+        if (start>end or end-start>timedelta(days=90) or kind not in {'FILL','CFEE'}
+                or parse_instant(request['after'])!=after or parse_instant(request['until'])!=end
+                or request.get('direction')!='asc' or type(request.get('page_size')) is not int or request['page_size']!=100
+                or (token is not None and (not isinstance(token,str) or not token.strip()))): raise ValueError
+        pages=chunk['pages'];seen=set();rows=[]
+        if not isinstance(pages,list) or not 1<=len(pages)<=4: raise ValueError
+        for index,page in enumerate(pages):
+            if not isinstance(page,list) or len(page)>100 or (index<len(pages)-1 and len(page)!=100): raise ValueError
+            for row in page:
+                if (not isinstance(row,dict) or row.get('activity_type')!=kind
+                        or not isinstance(row.get('id'),str) or not row['id'].strip() or row['id'] in seen): raise ValueError
+                seen.add(row['id']);rows.append(row)
+                if kind=='FILL':
+                    if (not isinstance(row.get('order_id'),str) or not row['order_id'].strip()
+                            or not isinstance(row.get('symbol'),str) or not row['symbol'].strip()
+                            or row.get('side') not in {'buy','sell'}): raise ValueError
+                    execution_activity_identity(row)
+                    if parse_instant(row['transaction_time'])>end: raise ValueError
+        next_token=pages[-1][-1]['id'] if len(pages[-1])==100 else None
+        if (next_token is not None and len(pages)!=4) or chunk.get('next_page_token')!=next_token:
+            raise ValueError
+        if chunk.get('pagination')!=('partial' if next_token is not None else 'exhausted'): raise ValueError
+        return start,end,kind,token,next_token,rows
+    except (ValueError,KeyError,TypeError,AttributeError,ArithmeticError) as error:
+        raise ValueError('owned_crypto_activity_pages_invalid') from error
+
+
+def crypto_activity_page_progress(chunks: list[dict[str, Any]], *, mode: str) -> dict[str, Any]:
+    if mode not in {'paper','live'} or not isinstance(chunks,list): raise ValueError('owned_crypto_activity_pages_invalid')
+    kind='FILL';token=None;window=None;seen=set();fills=[];fees=[]
+    for chunk in chunks:
+        start,end,actual_kind,actual_token,next_token,rows=validate_crypto_activity_page_chunk(chunk,mode=mode)
+        if (kind is None or actual_kind!=kind or actual_token!=token
+                or (window is not None and window!=(start,end))): raise ValueError('owned_crypto_activity_pages_invalid')
+        window=(start,end)
+        for row in rows:
+            if row['id'] in seen: raise ValueError('owned_crypto_activity_pages_invalid')
+            seen.add(row['id'])
+        (fills if kind=='FILL' else fees).extend(rows)
+        if next_token is None: kind='CFEE' if kind=='FILL' else None
+        token=next_token
+    return {'complete':kind is None,'next_kind':kind,'next_page_token':token,'fills':fills,'fees':fees}
+
+
+def crypto_activity_paged_snapshot(chunks: list[dict[str, Any]], *, mode: str) -> dict[str, Any]:
+    progress=crypto_activity_page_progress(chunks,mode=mode)
+    if not progress['complete']: raise ReconciliationPending('crypto_activity_pagination_pending')
+    first=chunks[0]
+    body={'schema_version':3,'kind':'crypto_activity_paged_window','mode':mode,'paper':mode=='paper',
+        'requested_period_start':first['requested_period_start'],'requested_period_end':first['requested_period_end'],
+        'request':{k:first['request'][k] for k in ('after','until','direction','page_size')},
+        'pagination':'exhausted','fills':progress['fills'],'fees':progress['fees'],'chunks':chunks,
+        'fee_attribution_status':'unknown','fee_settlement_status':'unknown','net_realized_pnl_usd':None}
+    body['source_receipt_id']='alpaca-crypto-activity-pages:'+_digest([body])
+    return body
+
+
 def _activity_bundle(segments: list[dict[str, Any]], *, mode: str) -> dict[str, Any]:
     if not isinstance(segments,list) or not segments: raise ValueError('owned_crypto_activities_invalid')
     unique={}
     for frame in segments:
-        if not isinstance(frame,dict) or frame.get('schema_version')!=1:
+        if not isinstance(frame,dict) or frame.get('schema_version') not in {1,3}:
             raise ValueError('owned_crypto_activities_invalid')
         validate_crypto_activity_snapshot(frame,mode=mode)
         unique[frame['source_receipt_id']]=frame
@@ -132,6 +200,14 @@ def combine_crypto_activity_snapshots(snapshots: list[dict[str, Any]], *, mode: 
 
 def validate_crypto_activity_snapshot(snapshot: dict[str, Any], *, mode: str) -> tuple[datetime, datetime]:
     """Shared raw activity envelope, independent of an individual order window."""
+    if isinstance(snapshot,dict) and snapshot.get('schema_version')==3:
+        try:
+            body={key:value for key,value in snapshot.items() if key!='source_receipt_id'}
+            if snapshot.get('source_receipt_id')!='alpaca-crypto-activity-pages:'+_digest([body]): raise ValueError
+            if snapshot!=crypto_activity_paged_snapshot(snapshot['chunks'],mode=mode): raise ValueError
+            return parse_instant(snapshot['requested_period_start']),parse_instant(snapshot['requested_period_end'])
+        except (ValueError,KeyError,TypeError,AttributeError,ArithmeticError) as error:
+            raise ValueError('owned_crypto_activities_invalid') from error
     if isinstance(snapshot,dict) and snapshot.get('schema_version')==2:
         try:
             body={key:value for key,value in snapshot.items() if key!='source_receipt_id'}

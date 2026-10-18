@@ -19,6 +19,7 @@ from risk_day import reconcile as reconcile_risk_day
 
 from risk_policy import parse_instant
 from etf_ownership import ETF_STRATEGY_ID, ETF_SYMBOLS, investment_owner_id
+from crypto_ownership_proof import validate_crypto_activity_page_chunk
 
 
 CLI_VERSION = "0.0.14"
@@ -142,11 +143,11 @@ def _run(cli: Path, args: list[str], env: dict[str, str]) -> Any:
 
 def _read_activity_pages(cli_path: Path, env: dict[str, str], *, kind: str,
                          after: str, until: str, query: str, error_prefix: str,
-                         max_pages: int = 10) -> list[dict[str, Any]]:
+                         max_pages: int = 10, page_token: str | None = None,
+                         page_sink: list | None = None) -> list[dict[str, Any]]:
     """Read a fixed window to an observed short page, never infer missing pages."""
     result: list[dict[str, Any]] = []
     seen: set[str] = set()
-    page_token: str | None = None
     for _page in range(max_pages):
         args = ["account", "activity", "list", "--activity-types", kind,
                 "--after", after, "--until", until, "--page-size", "100",
@@ -163,6 +164,7 @@ def _read_activity_pages(cli_path: Path, env: dict[str, str], *, kind: str,
                 raise ValueError(f"{error_prefix}_activity_invalid")
             seen.add(row["id"])
         result.extend(page)
+        if page_sink is not None: page_sink.append(page)
         if len(page) < 100:
             return result
         page_token = page[-1]["id"]
@@ -203,6 +205,36 @@ def read_crypto_activity_evidence(*, credentials_path: Path, cli_path: Path,
     # Content address of this local snapshot, not a provider-issued receipt ID.
     snapshot["source_receipt_id"] = "alpaca-crypto-activities:" + _digest_rows([snapshot])
     return snapshot
+
+
+def read_crypto_activity_page_chunk(*, credentials_path: Path, cli_path: Path, mode: str,
+                                    period_start: str, period_end: str, activity_type: str,
+                                    page_token: str | None = None) -> dict[str, Any]:
+    if (mode not in {'paper','live'} or activity_type not in {'FILL','CFEE'}
+            or (page_token is not None and (not isinstance(page_token,str) or not page_token.strip()))):
+        raise ValueError('crypto_activity_page_context_invalid')
+    try:
+        start,end=parse_instant(period_start),parse_instant(period_end)
+        if start>end or end-start>timedelta(days=90): raise ValueError
+    except (ValueError,TypeError,AttributeError) as error:
+        raise ValueError('crypto_activity_period_invalid') from error
+    after=start.astimezone(timezone.utc).replace(hour=0,minute=0,second=0,microsecond=0).isoformat().replace('+00:00','Z')
+    until=end.astimezone(timezone.utc).isoformat().replace('+00:00','Z');pages=[]
+    env=_context(credentials_path,cli_path,mode=mode)
+    try:
+        _read_activity_pages(cli_path,env,kind=activity_type,after=after,until=until,query='.',
+            error_prefix='crypto',max_pages=4,page_token=page_token,page_sink=pages)
+    except ValueError as error:
+        if str(error)!='crypto_activity_limit_exceeded' or len(pages)!=4 or any(len(p)!=100 for p in pages): raise
+    next_token=pages[-1][-1]['id'] if len(pages[-1])==100 else None
+    body={'schema_version':1,'kind':'crypto_activity_page_chunk','mode':mode,'paper':mode=='paper',
+        'requested_period_start':period_start,'requested_period_end':period_end,
+        'request':{'after':after,'until':until,'direction':'asc','page_size':100,
+                   'activity_type':activity_type,'page_token':page_token},'pages':pages,
+        'pagination':'partial' if next_token is not None else 'exhausted','next_page_token':next_token}
+    body['source_receipt_id']='alpaca-crypto-activity-chunk:'+_digest_rows([body])
+    validate_crypto_activity_page_chunk(body,mode=mode)
+    return body
 
 
 def read_paper_etf_cost_evidence(
