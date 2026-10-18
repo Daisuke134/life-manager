@@ -334,6 +334,20 @@ class CryptoPerformanceTests(unittest.TestCase):
                 self.assertEqual(result['activity_readbacks'],first['activity_readbacks'])
                 self.assertEqual(result['order_activity_refs'],first['order_activity_refs'])
 
+    def test_fee_only_snapshot_cannot_change_known_execution_or_contain_future_fill(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);orders,original,_=cycle_fixture(root)
+            rows=store._rows(root/'receipts.jsonl')
+            for change,reason in (({'price':'999'},'crypto_cycle_execution_conflict'),
+                    ({'transaction_time':'2026-01-03T06:00:01Z'},'owned_crypto_activities_invalid')):
+                frame=activity_fixture(original,mode='paper',start=NOW,end='2026-01-02T06:00:00Z')
+                frame['fills'][0].update(change)
+                frame['source_receipt_id']='alpaca-crypto-activities:'+proofs._digest([
+                    {k:v for k,v in frame.items() if k!='source_receipt_id'}])
+                with self.subTest(change=change),self.assertRaisesRegex(ValueError,reason):
+                    PERF.build_crypto_performance(rows,mode='paper',owner_id='alpaca-investment-paper',
+                        activity_readbacks={o['id']:original for o in orders},fee_activity_readbacks=[frame])
+
     def test_bad_cache_metadata_never_erases_known_fee_or_cycle_anchors(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);orders,frame,_=cycle_fixture(root)
