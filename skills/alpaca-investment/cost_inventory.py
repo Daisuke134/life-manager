@@ -239,27 +239,28 @@ def build_expected_inventory(trips, *, beneficiary_owner_id, observed_at,
             if not isinstance(rows, list):
                 gap(scope, 'runtime_owner_missing', execution_owner_id=owner)
                 continue
-            events, groups, conflicts = {}, {}, set()
+            events, groups, invalid, conflicts = {}, {}, {}, set()
             for row in rows:
                 if not isinstance(row, dict):
                     gap(scope, 'runtime_event_invalid', execution_owner_id=owner)
                     continue
-                if (not _text(row.get('phase')) or not _text(row.get('status'))
-                        or row['phase'] not in {'plan', 'execute', 'reconcile', 'verify', 'report'}
-                        or row['status'] not in {'running', 'pass', 'fail', 'blocked'}):
-                    gap(scope, 'runtime_event_invalid', execution_owner_id=owner)
-                    continue
-                if not (row.get('phase') == 'execute' and row.get('status') == 'running'
-                        or row.get('phase') == 'report' and row.get('status') in {'pass', 'fail', 'blocked'}):
-                    continue
                 try:
                     stamp = parse_instant(row.get('timestamp'))
                     if (row.get('owner_id') != owner or row.get('job_id') != owner
-                            or not _text(row.get('event_id')) or not _text(row.get('run_id'))
-                            or not _hex(row.get('release_sha'), 40) or not _ids(row.get('evidence_refs'))):
+                            or not _text(row.get('run_id'))):
                         raise ValueError
                 except (ValueError, TypeError, OverflowError):
                     gap(scope, 'runtime_event_invalid', execution_owner_id=owner)
+                    continue
+                valid_phase = (_text(row.get('phase')) and _text(row.get('status'))
+                    and row['phase'] in {'plan', 'execute', 'reconcile', 'verify', 'report'}
+                    and row['status'] in {'running', 'pass', 'fail', 'blocked'})
+                if valid_phase and not (row['phase'] == 'execute' and row['status'] == 'running'
+                        or row['phase'] == 'report' and row['status'] in {'pass', 'fail', 'blocked'}):
+                    continue
+                if (not valid_phase or not _text(row.get('event_id')) or not _hex(row.get('release_sha'), 40)
+                        or not _ids(row.get('evidence_refs'))):
+                    invalid.setdefault(row['run_id'], []).append((stamp, row))
                     continue
                 event_id = row['event_id']
                 if event_id in events:
@@ -270,17 +271,22 @@ def build_expected_inventory(trips, *, beneficiary_owner_id, observed_at,
                 events[event_id] = row
                 groups.setdefault(row['run_id'], []).append((stamp, row))
             selected = 0
-            for run_id, run in groups.items():
-                starts = [(t, r) for t, r in run if r['phase'] == 'execute']
-                terminals = [(t, r) for t, r in run if r['phase'] == 'report']
+            for run_id in sorted(groups.keys() | invalid.keys()):
+                valid = groups.get(run_id, [])
+                run = [*valid, *invalid.get(run_id, [])]
+                starts = [(t, r) for t, r in valid if r['phase'] == 'execute']
+                terminals = [(t, r) for t, r in valid if r['phase'] == 'report']
                 if min(t for t, _ in run) > end or terminals and max(t for t, _ in run) < start:
                     continue
                 selected += 1
-                for event_id in sorted(conflicts & {row['event_id'] for _, row in run}):
+                for event_id in sorted(conflicts & {row['event_id'] for _, row in valid}):
                     gap(scope, 'runtime_event_conflict', execution_owner_id=owner, event_id=event_id)
-                for sha in sorted({r['release_sha'] for _, r in run}):
+                for sha in sorted({r['release_sha'] for _, r in run if _hex(r.get('release_sha'), 40)}):
                     declarations(sha, owner)
-                evidence.update(ref for _, row in run for ref in row['evidence_refs'])
+                evidence.update(ref for _, row in run if _ids(row.get('evidence_refs')) for ref in row['evidence_refs'])
+                if run_id in invalid:
+                    gap(scope, 'runtime_event_invalid', execution_owner_id=owner, run_id=run_id)
+                    continue
                 if len(starts) != 1 or len(terminals) != 1:
                     gap(scope, 'runtime_start_missing' if not starts else 'runtime_terminal_missing'
                         if not terminals else 'runtime_event_cardinality', execution_owner_id=owner, run_id=run_id)
