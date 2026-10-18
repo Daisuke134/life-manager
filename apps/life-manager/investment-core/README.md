@@ -481,6 +481,9 @@ money, coverage, net and capital gates still use the current readback and indepe
 inventory. Regressed input therefore remains unknown even while the old evidence
 is preserved. Invalid source history is rejected without dropping the previously
 loaded activity or entry/closed/fee proof caches from the failure envelope.
+Historical execution intervals retain their native clock: their end is not bounded
+by an earlier billing observation; the original independent-inventory validation
+owns that execution-time bound.
 Production gaps are not cleared by passing fixtures.
 The pinned quote transport can now capture a single USDC/USD BBO at or before
 an economic timestamp, using a fixed 30-second window and descending limit one.
