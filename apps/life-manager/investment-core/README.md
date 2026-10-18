@@ -403,6 +403,14 @@ subtotals and native cashflow after those observed quote fees. Missing/invalid
 quote fees stay null, and missing execution cashflow prevents a numeric adjusted
 cashflow. These fields cover observed components only; BTC base fees are not
 subtracted again. USD net/cost completeness and capital expansion remain unproved.
+Each performance order also retains the sealed `requested_notional_usd` budget
+separately from `execution_quote_currency=USDC` and actual FILL notional. SELL
+requests have no requested notional. Missing fills never fall back to the budget;
+a short fill is not an inferred fee. Alpaca documents a 2% price collar for crypto
+market orders, so requested and filled values need not match:
+https://alpaca.markets/support/why-do-i-see-a-discrepancy-between-the-notional-value-requested-and-the-order-value-ultimately-filled
+The requested USD field expresses our sealed budget; pair-specific backend sizing
+and quote funding still require the existing pre-live currency/capital proof.
 The pinned quote transport can now capture a single USDC/USD BBO at or before
 an economic timestamp, using a fixed 30-second window and descending limit one.
 The shared pure proof preserves nanoseconds in both the request and age checks,

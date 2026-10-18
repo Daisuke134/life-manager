@@ -287,7 +287,9 @@ def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None,fee_ac
                 cashflow+=(-amount if broker['side']=='buy' else amount)
                 sources.add(facts['source_receipt_id']);sources.update(ids)
             sources.add(broker['id'])
+            requested=next(plan['order'] for plan in plans if plan['effect_id']==order_effect)
             executions.append({'effect_id':order_effect,'provider_order_id':broker['id'],'client_order_id':broker['client_order_id'],
+                'requested_notional_usd':requested.get('notional_usd'),'execution_quote_currency':'USDC',
                 'side':broker['side'],'submitted_at':broker['submitted_at'],'filled_qty':broker['filled_qty'],'quote_notional_usdc':_quantity_text(amount) if amount is not None else None,
                 'execution_fills':[{k:f[k] for k in ('id','qty','price','transaction_time')} for f in native['fills'] if f['id'] in ids] if facts is not None else [],
                 'fill_activity_ids':ids,'execution_observed_until':native['request']['until'] if facts is not None else None})
