@@ -703,6 +703,14 @@ class OfficialCostQueryTests(unittest.TestCase):
         del payload["provider_pagination"]["pages"][0]["next_cursor"]
         self.assertEqual(self.validate(payload)["observations"], [])
 
+    def test_no_charge_query_cannot_hide_known_account_charges(self):
+        payload = query_payload()
+        payload["documents"] = [{"provider": "openai", "billing_account_ref": "billing-account",
+            "document_type": "invoice", "invoice_id": "known-invoice",
+            "billing_period_start": TRAILING_START, "billing_period_end": SNAPSHOT,
+            "line_items": [{"category": "model_cost", "amount": "1.00"}]}]
+        self.assertEqual(self.validate(payload)["observations"], [])
+
     def test_no_charge_query_cannot_cover_a_paid_allocation(self):
         payload = query_payload()
         join = payload["job_joins"][0]
