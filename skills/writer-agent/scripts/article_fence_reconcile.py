@@ -8,9 +8,14 @@ proves no effect. Require HTTP 200 for a ledger URL or exact allowlisted pre-pub
 article-resume closes from its own pass records when the pass provably reached no publisher: the
 #8260 'article-resume: pass' lines bind the occurrence to a publication-free branch sequence, its
 single runtime report exited 0, and neither the ledger nor any official readback has a publication
-inside the pass window.  Otherwise it requires age >= 7 days, official Note and both Substack reads whose newest posts
-predate the fence, and no at-or-after row in the Writer ledger (including self-owned aniccaai.com posts),
-or an exact allowlisted pass bound to its missed-schedule catch-up exec (HISTORICAL_RESUME_CATCHUP_PROOFS).
+inside the pass window.  A start->publication pass whose own segment shows the Substack verify-preview
+gate refusing (PREVIEW_FATAL, exit 5 before the only publish POST) closes the same way, with any exit
+code, once the touched draft reads unpublished on its publication.  Otherwise it requires age >= 7 days:
+a bound Substack publication pass needs only its touched draft unpublished and no ledger row for that
+run+pair at or after the fence; an unbound pass needs official Note and both Substack reads whose newest
+posts predate the fence and no at-or-after row in the Writer ledger (including self-owned aniccaai.com
+posts), or an exact allowlisted pass bound to its missed-schedule catch-up exec
+(HISTORICAL_RESUME_CATCHUP_PROOFS).
 
     python3 article_fence_reconcile.py --occurrence article-daily:<run_id> [--resolve]
     python3 article_fence_reconcile.py --occurrence article-resume:<run_id> [--resolve]
@@ -23,6 +28,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import sqlite3
 import stat
 import subprocess
@@ -144,6 +150,16 @@ RESUME_PASS_PREFIX = "article-resume: pass "
 NO_PUBLICATION_PASSES = {("publication-paused",), ("lock-held",),
                          ("start", "daily-schedule-not-due"), ("start", "self-heal")}
 NO_MODEL_REPAIR_STATUSES = {"NO_ACTIONABLE_INCIDENT", "NO_INCIDENT_QUEUE"}
+# A start->publication pass runs one deterministic Substack publisher on one persisted draft.  The
+# wrapper (_shared/publish-substack-mermaid.sh) prints PREVIEW_FATAL and exits 5 before its only
+# publish POST; self_owned_article.py prints the bare {"status":"complete","run_id":...} only when it
+# returned before any git delivery.
+PREVIEW_FATAL = ("FATAL: verify-preview FAILED — NOT publishing (an image may be too tall on screen, "
+                 "or the preview could not be opened at all -- check the message above for which).")
+SUBSTACK_DRAFT_LINE = re.compile(r"== step 1/3: reuse stable Substack draft id=(\d+) ==")
+SUBSTACK_TERMINAL = re.compile(r"article-resume: run=(\S+) rc=(\d+) deterministic=(substack/(?:ja|en))")
+SUBSTACK_HOST = re.compile(r"[a-z0-9-]+\.substack\.com")
+TOUCHED_KEYS = ("writer_run_id", "pair", "draft_id", "host")
 HISTORICAL_RESUME_CATCHUP_PROOFS = {
     # 2026-10-12 06:05 JST: catch-up exec'd article-daily.sh; run 20261011-210544 ended
     # provider-failed-ambiguous with publication-blocker "no staging or publishing attempted".
@@ -484,6 +500,37 @@ def _reconcile_resume(occurrence_id: str, *, queued_at: float, state: str, artic
                                      resolve=resolve, writer_root=writer_root)
     if now - queued_at < RESUME_MIN_AGE_SECONDS:
         return {**_inconclusive(occurrence_id, "fence_too_young"), "pass_record": pass_proof}
+    observed = _resume_pass(writer_root, occurrence_id, queued_at)
+    touched = _substack_pass(observed, writer_root) if isinstance(observed, tuple) else None
+    if isinstance(touched, dict):
+        # The bound pass could publish only its one draft: later articles elsewhere are not its effect.
+        rows = _jsonl_lines(articles_path)
+        if rows is None:
+            return _inconclusive(occurrence_id, "articles_ledger_unreadable")
+        for line in rows:
+            try:
+                row = json.loads(line)
+                stamp = _ledger_row_epoch(row)
+            except (ValueError, AttributeError):
+                return _inconclusive(occurrence_id, "articles_ledger_unreadable")
+            if (str(row.get("run_id", "")) == touched["writer_run_id"]
+                    and f"{row.get('platform')}/{row.get('lang')}" == touched["pair"]
+                    and (stamp is None or stamp >= queued_at)):
+                return _inconclusive(occurrence_id, "touched_pair_ledger_row_after_fence")
+        readback = _touched_draft_unpublished(touched, queued_at, fetch_json)
+        if isinstance(readback, str):
+            return _inconclusive(occurrence_id, readback)
+        runtime_run_id = occurrence_id.split(":", 1)[1]
+        proof = {
+            "owner_id": RESUME_OWNER_ID, "occurrence_id": occurrence_id, "verified": True,
+            "proof_type": "historical_writer_resume_no_dispatch", "provider": "writer",
+            "runtime_run_id": runtime_run_id, "queued_at": _iso(queued_at),
+            "touched": {**{key: touched[key] for key in TOUCHED_KEYS}, **readback},
+            "report_event_id": observed[0].get("event_id"), "release_sha": observed[0].get("release_sha"),
+            "evidence_ref": f"writer://fence-reconciliation/article-resume-{runtime_run_id}.json",
+        }
+        return _resolve_resume_proof(occurrence_id, proof, state=state, resolver=resolver,
+                                     resolve=resolve, writer_root=writer_root)
     lines = _jsonl_lines(articles_path)
     try:
         times = [_ledger_row_epoch(json.loads(line)) for line in lines]
@@ -574,11 +621,23 @@ def _resume_pass_record_proof(occurrence_id: str, queued_at: float, *, writer_ro
     if isinstance(observed, str):
         return observed
     report, until, lines, records, branches = observed
-    if report.get("exit_code") != 0 or report.get("status") != "pass":
+    touched = None
+    if branches == ("start", "publication"):
+        # The only accepted nonzero exit: the Substack preview gate refused before the publish POST.
+        touched = _substack_pass(observed, writer_root)
+        if isinstance(touched, str):
+            return touched
+        if not _preview_fatal(touched):
+            return "pass_substack_may_have_published"
+        readback = _touched_draft_unpublished(touched, queued_at, fetch_json)
+        if isinstance(readback, str):
+            return readback
+        touched = {**{key: touched[key] for key in TOUCHED_KEYS}, "stop": "verify-preview-fatal", **readback}
+    elif report.get("exit_code") != 0 or report.get("status") != "pass":
         return "pass_report_not_clean_exit"
-    if branches not in NO_PUBLICATION_PASSES:
+    elif branches not in NO_PUBLICATION_PASSES:
         return "pass_branch_not_publication_free:" + ",".join(branches)
-    if any(record.get("run_ids") != [] for _, record in records):
+    elif any(record.get("run_ids") != [] for _, record in records):
         return "pass_record_unbound"
     if branches[-1] == "self-heal":
         index = records[-1][0] + 1
@@ -620,7 +679,7 @@ def _resume_pass_record_proof(occurrence_id: str, queued_at: float, *, writer_ro
             return f"readback_window_not_covered:{name}"   # older posts fell off the listed page
         readbacks[name] = _iso(max(t for t in times if t < queued_at))
     runtime_run_id = occurrence_id.split(":", 1)[1]
-    return {
+    proof = {
         "owner_id": RESUME_OWNER_ID, "occurrence_id": occurrence_id, "verified": True,
         "proof_type": "historical_writer_resume_no_dispatch", "provider": "writer",
         "runtime_run_id": runtime_run_id, "branches": list(branches),
@@ -630,6 +689,78 @@ def _resume_pass_record_proof(occurrence_id: str, queued_at: float, *, writer_ro
         "readback_urls": dict(RESUME_READBACKS), "readback_newest_post_before_window": readbacks,
         "evidence_ref": f"writer://fence-reconciliation/article-resume-{runtime_run_id}.json",
     }
+    if touched is not None:
+        proof["touched"] = touched
+    return proof
+
+
+def _substack_pass(observed: tuple, writer_root: Path) -> dict | str:
+    """The one Substack draft a start->publication pass touched, bound by its own log segment."""
+    report, _, lines, records, branches = observed
+    if branches != ("start", "publication") or records[0][1].get("run_ids") != []:
+        return "pass_branch_not_publication_free:" + ",".join(branches)
+    run_ids = records[1][1].get("run_ids")
+    if not isinstance(run_ids, list) or len(run_ids) != 1:
+        return "pass_record_unbound"
+    run_id, start = str(run_ids[0]), records[1][0] + 1
+    end = next((i for i in range(start, len(lines)) if lines[i].startswith("article-resume: run=")), None)
+    terminal = SUBSTACK_TERMINAL.fullmatch(lines[end]) if end is not None else None
+    if not terminal or terminal[1] != run_id or int(terminal[2]) != report.get("exit_code"):
+        return "pass_substack_terminal_unbound"
+    segment = lines[start:end]
+    if any(line.startswith(RESUME_PASS_PREFIX) for line in segment):
+        return "pass_record_unbound"
+    if segment[:1] != [json.dumps({"status": "complete", "run_id": run_id}, separators=(",", ":"))]:
+        return "pass_self_owned_may_have_published"
+    pair = terminal[3]
+    drafts = [match[1] for line in segment if (match := SUBSTACK_DRAFT_LINE.fullmatch(line))]
+    state_path = writer_root / "runs" / run_id / PUBLICATION_STATE
+    try:
+        if state_path.is_symlink():
+            return "pass_substack_draft_unbound"
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        host, target = str(state["destination_identities"][pair]), str(state["pairs"][pair]["target"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return "pass_substack_draft_unbound"
+    if drafts != [target] or not SUBSTACK_HOST.fullmatch(host):
+        return "pass_substack_draft_unbound"
+    return {"writer_run_id": run_id, "pair": pair, "draft_id": target, "host": host, "segment": segment}
+
+
+def _preview_fatal(touched: dict) -> bool:
+    """The failure circuit recorded PREVIEW_FATAL as this pair's publisher failure, after the line."""
+    segment = touched["segment"]
+    fatal = [index for index, line in enumerate(segment) if line == PREVIEW_FATAL]
+    decided = []
+    for index, line in enumerate(segment):
+        try:
+            decision = json.loads(line)
+        except ValueError:
+            continue
+        if (isinstance(decision, dict) and decision.get("action") in {"retry", "open"}
+                and decision.get("pair") == touched["pair"] and decision.get("signature") == PREVIEW_FATAL):
+            decided.append(index)
+    return (len(fatal) == 1 and bool(decided) and min(decided) > fatal[0]
+            and not any(line.startswith("PUBLISHED:") for line in segment))
+
+
+def _touched_draft_unpublished(touched: dict, queued_at: float,
+                               fetch_json: Callable[[str], object]) -> dict | str:
+    """The publication's official post listing reaches back before the fence and lacks the draft id."""
+    host = touched["host"]
+    url = f"https://{host}/api/v1/posts?limit=50"   # 50 is the public API maximum
+    try:
+        posts = {str(post["id"]): _epoch(post.get("post_date")) for post in fetch_json(url)}
+    except (KeyError, TypeError, AttributeError):
+        posts = {}
+    if not posts or None in posts.values():
+        return f"readback_failed:{host}"
+    if touched["draft_id"] in posts:
+        return f"touched_draft_published:{host}"
+    if min(posts.values()) >= queued_at:
+        return f"readback_window_not_covered:{host}"
+    return {"readback_url": url, "readback_post_count": len(posts),
+            "readback_oldest_post_at": _iso(min(posts.values()))}
 
 
 def _resolve_resume_proof(occurrence_id: str, proof: dict, *, state: str,
