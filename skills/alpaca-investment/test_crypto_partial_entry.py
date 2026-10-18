@@ -167,7 +167,8 @@ class PartialEntryTests(unittest.TestCase):
                     native=native_run()
                     with patch.object(native,'find_order_by_client_id',return_value=broker):
                         with self.assertRaisesRegex(ValueError,'owned_entry_account_invalid'):
-                            native._sync_live_ownership(root,Path('unused'),Path('unused'),observation)
+                            native._sync_live_ownership(root,Path('unused'),Path('unused'),
+                                native._normalize_live_position_symbols(copy.deepcopy(observation)))
                     self.assertEqual((root/'live-owned-position.json').read_bytes(),before)
                     self.assertEqual((root/'receipts.jsonl').read_bytes(),ledger)
 

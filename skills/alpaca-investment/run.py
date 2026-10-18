@@ -254,6 +254,17 @@ def _sync_live_ownership(state: Path, credentials_path: Path, cli_path: Path,
                                                   mode=os.environ.get("LIFE_MANAGER_INVESTMENT_MODE"))
             except ValueError:
                 return ownership
+            try:
+                for key, expected in (("entry_filled_qty", proof["receipt"]["entry_filled_qty"]),
+                                      ("owned_qty", proof["receipt"]["account_owned_qty"])):
+                    if key == "owned_qty" and ownership.get(key) is None:
+                        continue
+                    known = Decimal(str(ownership.get(key)))
+                    if (not known.is_finite() or known < 0
+                            or (known != Decimal(expected) and not (key == "entry_filled_qty" and known == 0))):
+                        raise ValueError
+            except (InvalidOperation, ValueError, TypeError) as error:
+                raise ValueError("owned_entry_account_invalid") from error
             ownership["status"] = "open"
             ownership["entry_filled_qty"] = proof["receipt"]["entry_filled_qty"]
             ownership["owned_qty"] = proof["receipt"]["account_owned_qty"]

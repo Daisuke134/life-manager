@@ -152,7 +152,7 @@ def crypto_fill_activity_proof(snapshot: dict[str, Any], broker: dict[str, Any],
         # independent of a caller's Decimal precision, rounding mode or traps.
         with localcontext(Context(prec=256, rounding=ROUND_HALF_EVEN, Emin=-999999, Emax=999999)):
             average_text = _decimal_text(Decimal(average.numerator) / Decimal(average.denominator))
-        if broker["status"] == "filled" and broker.get("filled_at") not in (None, ""):
+        if broker.get("filled_at") not in (None, ""):
             if not executions[-1][0] <= parse_instant(broker["filled_at"]) <= end:
                 raise ValueError
     except ReconciliationPending:
