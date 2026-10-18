@@ -99,6 +99,35 @@ class OperatingCostTotalsTests(unittest.TestCase):
         self.assertIn('fees',result['unknown_cost_categories']);self.assertIsNone(result['net_realized_pnl_usd'])
         self.assertEqual(result['measurement_status'],'partial')
 
+    def test_durable_binding_rejection_and_identity_conflict_do_not_become_zero(self):
+        import json,tempfile
+        from pathlib import Path
+        from paper_performance import _bind_operating_costs
+        payload,inventory,current=window_fixture()
+        confirmed=report(payload,inventory,current)
+        old=copy.deepcopy(current)
+        old.update(order_ids=['old-entry','old-exit'],period_start='2026-09-27T00:00:00Z',
+            closed_at='2026-09-28T00:00:00Z',source_receipt_ids=['old-trade-receipt'])
+        prior=copy.deepcopy(confirmed['operating_cost_components'][0])
+        prior.update(order_ids=old['order_ids'],period_start=old['period_start'],period_end=old['closed_at'])
+        for conflict in (False,True):
+            with self.subTest(conflict=conflict),tempfile.TemporaryDirectory() as directory:
+                state=Path(directory);incoming=copy.deepcopy(confirmed)
+                if conflict:
+                    duplicate=copy.deepcopy(incoming['operating_cost_components'][0]);duplicate['amount_usd']='2'
+                    incoming['operating_cost_components'].append(duplicate)
+                else:
+                    (state/'performance-daily-2026-09-28.json').write_text(json.dumps({
+                        'mode':'paper','paper':True,'performance_day':'2026-09-28',
+                        'report_scope':'daily_accumulation','observed_at':'2026-09-28T00:01:00Z',
+                        'source_receipt_ids':['old-trade-receipt',prior['receipt_id']],
+                        'operating_cost_components':[prior]}))
+                bound,_=_bind_operating_costs(state,[old,current],incoming)
+                day=select_components(bound,[current])
+                self.assertIsNone(day['model_cost_usd'])
+                self.assertEqual(day['operating_cost_coverage']['coverage_state'],'gap')
+                self.assertTrue(day['operating_cost_component_gaps'])
+
     def test_exact_totals_do_not_round_tiny_paid_amount_beside_large_amount(self):
         from decimal import localcontext
         payload,inventory,trip=window_fixture()
