@@ -14,7 +14,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from effect_store import UNRESOLVED_INTENT_STATUSES
-from crypto_ownership_proof import BROKER_TERMINAL_FAILURE_STATUSES
+from crypto_ownership_proof import BROKER_TERMINAL_FAILURE_STATUSES, _terminal_no_fill_proven
 from paper_operating_costs import read_readback, select_components, summarize as summarize_operating_costs
 
 
@@ -224,11 +224,8 @@ def _closed_round_trips(
         if not isinstance(broker, Mapping):
             raise ValueError("paper_provider_receipt_invalid")
         if outcome.get("outcome") == "broker_terminal_failure":
-            try:
-                zero_fill = _number(broker.get("filled_qty")) == 0
-            except ValueError:
-                zero_fill = False
-            if broker.get("status") not in BROKER_TERMINAL_FAILURE_STATUSES or not zero_fill:
+            if (broker.get("status") not in BROKER_TERMINAL_FAILURE_STATUSES
+                    or not _terminal_no_fill_proven(broker, rows, effect_id)):
                 raise ValueError("paper_effect_unresolved")
             continue
         if outcome.get("outcome") != "broker_reconciled":

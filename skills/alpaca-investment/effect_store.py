@@ -12,7 +12,8 @@ from typing import Any, Callable
 
 from crypto_ownership_proof import (_digest, ReconciliationPending, BROKER_TERMINAL_FAILURE_STATUSES, owned_entry_decision_from_rows,
                                     recorded_close_proof_from_rows, no_fill_entry_proof_from_rows,
-                                    recorded_no_fill_proof_from_rows, recorded_entry_proof_from_rows)
+                                    recorded_no_fill_proof_from_rows, recorded_entry_proof_from_rows,
+                                    _filled_qty_positive, _filled_qty_is_zero, _terminal_no_fill_proven)
 
 
 MODES = frozenset({"paper", "shadow", "live"})
@@ -246,39 +247,6 @@ def _completed_without_strategy_receipt(
             continue
         candidates.append(intent)
     return candidates
-
-
-def _filled_qty_positive(order: dict[str, Any]) -> bool:
-    value = order.get("filled_qty")
-    if value is None or value == "":
-        return False
-    try:
-        quantity = Decimal(str(value))
-    except (InvalidOperation, TypeError, ValueError):
-        return False
-    return quantity.is_finite() and quantity > 0
-
-
-def _filled_qty_is_zero(order: dict[str, Any]) -> bool:
-    try:
-        quantity = Decimal(str(order.get("filled_qty")))
-    except (InvalidOperation, TypeError, ValueError):
-        return False
-    return quantity.is_finite() and quantity == 0
-
-
-def _terminal_no_fill_proven(order: dict[str, Any], rows: list[dict[str, Any]], effect_id: str | None) -> bool:
-    if not _filled_qty_is_zero(order):
-        return False
-    for row in rows:
-        if row.get("effect_id") != effect_id:
-            continue
-        recorded = row["broker"] if isinstance(row.get("broker"), dict) else row
-        if (row.get("broker_status") in {"filled", "partially_filled"}
-                or recorded.get("status") in {"filled", "partially_filled"}
-                or _filled_qty_positive(recorded)):
-            return False
-    return True
 
 
 def _outcome_closed(outcome: dict[str, Any] | None, rows: list[dict[str, Any]]) -> bool:

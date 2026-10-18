@@ -30,6 +30,39 @@ def _digest(value: Any) -> str:
 
 
 
+def _filled_qty_positive(order: dict[str, Any]) -> bool:
+    value = order.get("filled_qty")
+    if value is None or value == "":
+        return False
+    try:
+        quantity = Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError):
+        return False
+    return quantity.is_finite() and quantity > 0
+
+
+def _filled_qty_is_zero(order: dict[str, Any]) -> bool:
+    try:
+        quantity = Decimal(str(order.get("filled_qty")))
+    except (InvalidOperation, TypeError, ValueError):
+        return False
+    return quantity.is_finite() and quantity == 0
+
+
+def _terminal_no_fill_proven(order: dict[str, Any], rows: list[dict[str, Any]], effect_id: str | None) -> bool:
+    if not _filled_qty_is_zero(order):
+        return False
+    for row in rows:
+        if row.get("effect_id") != effect_id:
+            continue
+        recorded = row["broker"] if isinstance(row.get("broker"), dict) else row
+        if (row.get("broker_status") in {"filled", "partially_filled"}
+                or recorded.get("status") in {"filled", "partially_filled"}
+                or _filled_qty_positive(recorded)):
+            return False
+    return True
+
+
 def _known_policy_metadata(row: dict[str, Any], *, owner_id: str, strategy_id: str, release_sha: str) -> None:
     for key, expected in (("owner_id", owner_id), ("strategy_id", strategy_id), ("release_sha", release_sha)):
         if row.get(key) is not None and row[key] != expected:
