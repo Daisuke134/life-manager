@@ -78,6 +78,21 @@ class ClosedAuditTests(unittest.TestCase):
                     native._sync_live_ownership(root,Path('unused'),Path('unused'),observation)
                 self.assertEqual((root/'receipts.jsonl').read_bytes(),before)
 
+    def test_conflicting_terminal_owner_policy_or_status_cannot_be_enriched(self):
+        for key,value in (('owner_id','alpaca-investment-paper'),('strategy_id','foreign'),
+                          ('release_sha','b'*40),('broker_status','accepted')):
+            with self.subTest(key=key),tempfile.TemporaryDirectory() as directory,patch.dict(os.environ,{
+                    'LIFE_MANAGER_INVESTMENT_MODE':'live','LIFE_MANAGER_INVESTMENT_OWNER_ID':'alpaca-investment-live'}):
+                root=Path(directory);_owned,broker,observation,_=no_fill_fixture(root)
+                rows=store._rows(root/'receipts.jsonl')
+                rows[-1][key]=value
+                (root/'receipts.jsonl').write_text(''.join(json.dumps(r)+'\n' for r in rows))
+                before=(root/'receipts.jsonl').read_bytes()
+                native=native_run()
+                with patch.object(native,'find_order_by_client_id',return_value=broker):
+                    with self.assertRaises(ValueError): native._sync_live_ownership(root,Path('unused'),Path('unused'),observation)
+                self.assertEqual((root/'receipts.jsonl').read_bytes(),before)
+
     def test_closed_label_cannot_hide_wrong_quantity_identity_mode_or_missing_evidence(self):
         variants=(('broker','filled_qty',None),('broker','filled_qty','0.01'),
                   ('broker','client_order_id','foreign'),('broker','id','foreign'),
