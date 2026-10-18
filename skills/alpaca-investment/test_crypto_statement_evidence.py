@@ -300,6 +300,9 @@ class CryptoStatementEvidenceTests(unittest.TestCase):
                 self.assertEqual(report['fee_evidence']['statement_evidence']['status'], 'conflict')
                 self.assertEqual(report['known_statement_documents'], first['known_statement_documents'])
                 self.assertIsNone(report['net_pnl_usd'])
+                for field in ('known_entry_effect_ids', 'known_closed_cycle_ids',
+                    'activity_readbacks', 'order_activity_refs', 'known_fee_activity_ids'):
+                    self.assertEqual(report[field], first[field], field)
 
     def test_unreadable_fee_rows_and_missing_extractor_stay_typed_unknown_without_private_text(self):
         # Parser/tool failures cannot become an empty fee table or leak a process error.
