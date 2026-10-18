@@ -869,15 +869,45 @@ PY
   exit 0
 fi
 
+# A cut can move `current` while this older release reconciles; lm-loop then refuses each remaining
+# owner with exactly "release is no longer current". Like fleet apply's superseded path, that defers
+# to the newer release's next tick. Any other failed row, or an invalid current sha, still fails.
+run_route_reconcile() {
+  local release_root="$1" route="$2" rc=0 output_path release_sha current_sha
+  local state_dir="${LIFE_MANAGER_RELEASE_RECONCILER_STATE_ROOT:-$HOME/.local/state/life-manager/release-reconciler}"
+  mkdir -p "$state_dir" || return 1
+  output_path="$(mktemp "$state_dir/.reconcile-output.XXXXXX")" || return 1
+  run_reconcile "$release_root" reconcile "$route" --loaded-idle-only --max-owners 4 \
+    >"$output_path" </dev/null || rc=$?
+  cat "$output_path"
+  release_sha="$(jq -r '.sha // ""' "$release_root/RELEASE.json" 2>/dev/null || true)"
+  current_sha="$(jq -r '.sha // ""' "$CURRENT/RELEASE.json" 2>/dev/null || true)"
+  if [ "$rc" -eq 1 ] && [[ "$current_sha" =~ ^[0-9a-f]{40}$ ]] && [ "$current_sha" != "$release_sha" ] \
+    && "$runtime_python" - "$output_path" <<'PY'
+import json, sys
+try:
+    result = json.load(open(sys.argv[1], encoding="utf-8"))
+except (OSError, ValueError):
+    sys.exit(1)
+failed = result.get("failed") if isinstance(result, dict) else None
+sys.exit(0 if isinstance(failed, list) and failed and result.get("ok") is False and all(
+    isinstance(row, dict) and row.get("error") == "release is no longer current" for row in failed
+) else 1)
+PY
+  then
+    printf 'agent-runner reconcile: %s release %s superseded by current sha %s\n' \
+      "$route" "$release_sha" "$current_sha" >&2
+    rc=0
+  fi
+  rm -f "$output_path"
+  return "$rc"
+}
+
 reconcile_release() {
   local release_root="$1"
   local status=0
-  if ! run_reconcile "$release_root" reconcile shared-agent-runner --loaded-idle-only --max-owners 4; then
-    status=1
-  fi
-  if ! run_reconcile "$release_root" reconcile deterministic --loaded-idle-only --max-owners 4; then
-    status=1
-  fi
+  run_route_reconcile "$release_root" shared-agent-runner || status=1
+  run_route_reconcile "$release_root" deterministic || status=1
   local recovery_queue="${LIFE_MANAGER_RECOVERY_INTENTS_PATH:-$HOME/.local/state/life-manager/recovery/intents.jsonl}"
   local recovery_journal="${LIFE_MANAGER_RECOVERY_SUPERVISOR_JOURNAL_PATH:-$HOME/.local/state/life-manager/recovery/supervisor.jsonl}"
   if [ -f "$recovery_queue" ]; then
