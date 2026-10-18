@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from cost_inventory import read_expected_inventory,select_expected_inventory
 from effect_store import UNRESOLVED_INTENT_STATUSES
 from crypto_ownership_proof import BROKER_TERMINAL_FAILURE_STATUSES, BROKER_RESUMABLE_STATUSES, _terminal_no_fill_proven
 from paper_operating_costs import read_readback, select_components, summarize as summarize_operating_costs
@@ -491,6 +492,7 @@ def build_paper_performance(
     *,
     broker_cost_evidence: Any = None,
     operating_cost_readback: Any = None,
+    expected_inventory: Any = None,
 ) -> dict[str, Any]:
     """Return a partial receipt until every paper cost has official evidence."""
     try:
@@ -509,7 +511,7 @@ def build_paper_performance(
         exposure = max((item["exposure_usd"] for item in completed), default=Decimal("0"))
         broker_costs = _broker_cost_summary(completed, broker_cost_evidence)
         operating_costs = summarize_operating_costs(
-            completed, operating_cost_readback, owner_id=OWNER_ID, observed_at=observed_at,
+            completed, operating_cost_readback, owner_id=OWNER_ID, observed_at=observed_at,expected_inventory=expected_inventory,
         )
         cost_source_ids = broker_costs["broker_cost_source_receipt_ids"]
         all_source_ids = [*source_ids, *cost_source_ids, *operating_costs["operating_cost_source_receipt_ids"]]
@@ -519,6 +521,7 @@ def build_paper_performance(
                          else ["fees", "slippage", "model", "system"])
         return {
             **operating_costs,
+            "expected_cost_inventory":expected_inventory,"owner_id":OWNER_ID,
             "completed_round_trips": len(completed),
             "completed_round_trips_total": len(completed),
             "broker_costs_status": broker_costs["broker_costs_status"],
@@ -898,11 +901,12 @@ def write_paper_performance(
     if result.get("measurement_status") == "partial":
         completed, _source_ids = _closed_round_trips(rows)
         observed_at = result.get("observed_at")
+        expected_inventory=read_expected_inventory(state,completed,owner_id=OWNER_ID,observed_at=observed_at)
         cost_evidence, cost_errors = _broker_cost_cache(
             state, completed, observed_at, broker_cost_reader,
         )
         result = build_paper_performance(
-            rows, observation, risk, broker_cost_evidence=cost_evidence,
+            rows, observation, risk, broker_cost_evidence=cost_evidence,expected_inventory=expected_inventory,
             operating_cost_readback=read_readback(
                 os.environ.get("LM_CFO_ACTUAL_COST_READBACK") or os.environ.get("LM_CFO_ACTUAL_COST"),
             ),
@@ -978,6 +982,7 @@ def write_paper_performance(
             "gross_strategy_pnl_total_usd": result.get("gross_strategy_pnl_usd"),
             "net_realized_pnl_usd": None,
             "reported_order_receipt_ids": cumulative_order_ids,
+            "expected_cost_inventory":select_expected_inventory(expected_inventory,daily_rounds),
             "report_scope": "daily_accumulation",
             "performance_day": observation_day,
             "slippage_usd": daily_broker_costs["slippage_usd"],

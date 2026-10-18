@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from datetime import datetime
 import fcntl
 import gzip
@@ -149,7 +149,7 @@ def _read_admission_rows(
     uri = f"{database.as_uri()}?mode=ro"
     for attempt in range(ADMISSION_READ_RETRY_ATTEMPTS):
         try:
-            with sqlite3.connect(uri, uri=True, timeout=1) as connection:
+            with closing(sqlite3.connect(uri, uri=True, timeout=1)) as connection:
                 return connection.execute(query, parameters).fetchall()
         except sqlite3.Error as error:
             if (not _sqlite_database_busy(error)

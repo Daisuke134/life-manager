@@ -420,7 +420,15 @@ missing or regressed input preserves known verified components and reports a gap
 Cached raw evidence must also match saved charge anchors. A mismatch makes cost
 subtotals unknown while retaining native cycles and anchors; correct incoming
 evidence restores the subtotal without accepting a changed historical charge.
-Independent execution/source inventory and complete cost coverage remain pending.
+The paper and crypto writers now capture independent local source inventory via
+the existing private runtime journals, read-only admission DB, saved source
+snapshots and exact-SHA release catalogs. They retain actual claimed occurrences,
+read limits, missing evidence and saved paid-source lower bounds. Strict ledger
+reads reject damaged rows; financial readback never substitutes a newer release
+for old evidence. One-order fee closures and multi-order partial exits retain
+ordered economic groups. Daily reports select the same closed scope subset.
+History coverage and the billing-query consumer still require separate validation;
+this input capture never proves complete costs, net profit or capital promotion.
 The pinned quote transport can now capture a single USDC/USD BBO at or before
 an economic timestamp, using a fixed 30-second window and descending limit one.
 The shared pure proof preserves nanoseconds in both the request and age checks,

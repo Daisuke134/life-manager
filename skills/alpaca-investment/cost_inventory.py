@@ -6,6 +6,7 @@ import json
 import math
 import os
 import sqlite3
+import stat
 import sys
 import re
 from copy import deepcopy
@@ -389,20 +390,40 @@ def _release_snapshot(root,sha):
         'evidence_refs':[f'lm-release://{sha}/{CATALOG_PATH.as_posix()}']}
 
 
+def _private_cost_object(path,max_bytes):
+    descriptor=os.open(path,os.O_RDONLY|getattr(os,'O_NOFOLLOW',0))
+    try:
+        info=os.fstat(descriptor)
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid!=os.getuid() or info.st_nlink!=1
+                or stat.S_IMODE(info.st_mode)!=0o600 or info.st_size>max_bytes):raise ValueError
+        with os.fdopen(descriptor,'r') as handle:
+            descriptor=-1;value=json.load(handle)
+        if not isinstance(value,dict):raise ValueError
+        return value
+    finally:
+        if descriptor>=0:os.close(descriptor)
+
+
+def select_expected_inventory(inventory,trips):
+    if inventory is None:return None
+    ids={tuple(trip['order_ids']) for trip in trips}
+    return {**inventory,'scopes':[scope for scope in inventory['scopes'] if tuple(scope['order_ids']) in ids]}
+
+
 def read_expected_inventory(state,trips,*,observed_at,owner_id='alpaca-investment-paper',release_root=None):
     """Read independent local inputs; no provider call, DB creation or coverage promotion."""
     code_root=Path(__file__).resolve().parents[2]
     if str(code_root) not in sys.path:sys.path.append(str(code_root))
     from runtime.loop import lm_loop
     root=Path(release_root) if release_root is not None else code_root
-    runtime={};admissions={};releases={};reads={};errors=[]
+    runtime={};admissions={};releases={};reads={};errors=[];paid_bindings=[]
     def error(reason,owner=None):
         item={'reason':reason}
         if owner is not None:item['execution_owner_id']=owner
         if item not in errors:errors.append(item)
     def finish():
         result=build_expected_inventory(trips,beneficiary_owner_id=owner_id,observed_at=observed_at,
-            runtime_rows_by_owner=runtime,occurrence_rows_by_owner=admissions,release_inputs=releases,paid_bindings=[])
+            runtime_rows_by_owner=runtime,occurrence_rows_by_owner=admissions,release_inputs=releases,paid_bindings=paid_bindings)
         result['gaps'].extend(errors);result['input_reads']=reads
         result['read_limits']={'owners':MAX_INVENTORY_OWNERS,'admission_rows_per_owner':MAX_INVENTORY_ADMISSIONS,
             'runtime_archives_per_owner':lm_loop.MAX_PRE_EFFECT_ARCHIVES}
@@ -441,7 +462,8 @@ def read_expected_inventory(state,trips,*,observed_at,owner_id='alpaca-investmen
             runtime[owner]=rows
         except (OSError,ValueError,KeyError,TypeError):
             detail['runtime']={'status':'unavailable'};error('runtime_read_unavailable',owner)
-        ledger=lm_loop._private_jsonl_rows(directory/'receipts.jsonl',strict=True)
+        try:ledger=lm_loop._private_jsonl_rows(directory/'receipts.jsonl',strict=True)
+        except (OSError,ValueError,TypeError,RecursionError):ledger=[]
         detail['ledger']={'status':'ok' if ledger else 'unavailable','row_count':len(ledger)}
         if not ledger:error('source_ledger_unavailable',owner)
         for row in ledger:
@@ -476,12 +498,37 @@ def read_expected_inventory(state,trips,*,observed_at,owner_id='alpaca-investmen
                     captured=_release_snapshot(candidate,sha)
                     if captured is not None:releases.setdefault(sha,[]).append(captured)
                 except (OSError,ValueError,KeyError,TypeError,AttributeError):continue
+        if owner==owner_id:
+            mode=_OWNER_MODES[owner_id];detail['paid_cache']={}
+            for name in ('performance-crypto-latest.json','performance-latest.json'):
+                path=directory/name
+                if not path.exists() and not path.is_symlink():continue
+                try:
+                    cached=_private_cost_object(path,lm_loop.MAX_HARNESS_FAILURE_BYTES)
+                    legacy=name=='performance-latest.json' and mode=='paper' and cached.get('owner_id') is None
+                    if (cached.get('mode')!=mode or cached.get('paper') is not (mode=='paper')
+                            or not legacy and cached.get('owner_id')!=owner_id):
+                        error('paid_cache_scope_invalid',owner);continue
+                    components=cached.get('known_operating_cost_components',cached.get('operating_cost_components',[]))
+                    if not isinstance(components,list):raise ValueError
+                    for component in components:
+                        if not isinstance(component,dict):raise ValueError
+                        context={'mode':mode,'paper':mode=='paper'}
+                        if not legacy:context['owner_id']=owner_id
+                        if any(k in component and component[k]!=v for k,v in context.items()):
+                            error('paid_cache_scope_invalid',owner);continue
+                        paid_bindings.append({**deepcopy(component),**context})
+                    detail['paid_cache'][name]={'status':'ok','component_count':len(components)}
+                except (OSError,ValueError,TypeError,KeyError,RecursionError):
+                    detail['paid_cache'][name]={'status':'unavailable'};error('paid_cache_unavailable',owner)
         for snapshots in releases.values():
             for captured in snapshots:
                 declaration=captured.get('source_declaration')
-                for source in declaration.get('sources',[]) if isinstance(declaration,dict) else []:
+                sources=declaration.get('sources') if isinstance(declaration,dict) else None
+                for source in sources if isinstance(sources,list) else []:
                     if (isinstance(source,dict) and source.get('beneficiary_owner_id')==owner_id
                             and source.get('beneficiary_mode')==_OWNER_MODES[owner_id]):
                         executor=source.get('execution_owner_id')
-                        if _text(executor) and executor not in reads and executor not in pending:pending.append(executor)
+                        if (_text(executor) and isinstance(captured.get('execution_owner_ids'),list)
+                                and executor in captured['execution_owner_ids'] and executor not in reads and executor not in pending):pending.append(executor)
     return finish()

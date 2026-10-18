@@ -16,6 +16,7 @@ from crypto_ownership_proof import (_digest,_quantity_text,_sealed_entry_from_ro
     crypto_fill_activity_proof,validate_crypto_activity_snapshot,combine_crypto_activity_snapshots,execution_activity_identity,native_fee_row_facts,crypto_activity_page_progress,crypto_activity_paged_snapshot,validate_crypto_activity_page_chunk,ReconciliationPending)
 from effect_store import _owned_rows
 from paper_performance import _atomic_json,_operating_charge_key
+from cost_inventory import read_expected_inventory,select_expected_inventory
 from risk_policy import parse_instant
 from paper_operating_costs import read_readback,select_components,summarize as summarize_operating_costs
 
@@ -168,7 +169,7 @@ def _fx_references(cycles,fees,readbacks,*,mode):
     return [missing[key] for key in sorted(missing)],sources
 
 
-def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None,fee_activity_readbacks=None,fx_readbacks=None,operating_cost_readback=None,observed_at=None):
+def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None,fee_activity_readbacks=None,fx_readbacks=None,operating_cost_readback=None,observed_at=None,expected_inventory=None):
     if mode not in {'paper','live'} or owner_id!=f'alpaca-investment-{mode}' or not isinstance(rows,list):
         raise ValueError('crypto_performance_scope_invalid')
     if any(not isinstance(r,dict) for r in rows):
@@ -324,8 +325,8 @@ def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None,fee_ac
         cycle['quote_fee_coverage_status']='partial' if observed else 'unknown'
     fx_requests,fx_sources=_fx_references(cycles,fee_inventory['attributed_native_fees'],fx_readbacks if fx_readbacks is not None else {},mode=mode)
     sources.update(fx_sources)
-    costs=summarize_operating_costs(cycles,operating_cost_readback,owner_id=owner_id,mode=mode,observed_at=observed_at)
-    return {**costs,'schema_version':1,'report_scope':'owned_crypto_cycles','owner_id':owner_id,'mode':mode,'paper':mode=='paper',
+    costs=summarize_operating_costs(cycles,operating_cost_readback,owner_id=owner_id,mode=mode,observed_at=observed_at,expected_inventory=expected_inventory)
+    return {**costs,'expected_cost_inventory':expected_inventory,'schema_version':1,'report_scope':'owned_crypto_cycles','owner_id':owner_id,'mode':mode,'paper':mode=='paper',
         'measurement_status':'partial','reason':'crypto_costs_or_fx_unknown','capital_expansion_allowed':False,
         'cycle_coverage_status':'partial' if pending or orphan or unscoped else 'complete',
         'net_pnl_usd':None,'gross_strategy_pnl_usd':None,'fees_usd':None,'slippage_usd':None,'model_cost_usd':None,'system_cost_usd':None,
@@ -529,10 +530,12 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
         result['fx_requests'],fx_sources=_fx_references(result['cycles'],result['fee_evidence']['attributed_native_fees'],fx_frames,mode=mode)
         result['source_receipt_ids']=sorted(set(result['source_receipt_ids'])|fx_sources)
         phase='operating_costs'
+        expected_inventory=read_expected_inventory(state,result['cycles'],owner_id=owner_id,observed_at=observed)
+        result['expected_cost_inventory']=expected_inventory
         incoming=read_readback(os.environ.get('LM_CFO_ACTUAL_COST_READBACK') or os.environ.get('LM_CFO_ACTUAL_COST'))
-        old_costs=summarize_operating_costs(result['cycles'],billing_cache,owner_id=owner_id,mode=mode,observed_at=observed)
+        old_costs=summarize_operating_costs(result['cycles'],billing_cache,owner_id=owner_id,mode=mode,observed_at=observed,expected_inventory=expected_inventory)
         selected=incoming if incoming is not None else billing_cache
-        costs=summarize_operating_costs(result['cycles'],selected,owner_id=owner_id,mode=mode,observed_at=observed)
+        costs=summarize_operating_costs(result['cycles'],selected,owner_id=owner_id,mode=mode,observed_at=observed,expected_inventory=expected_inventory)
         def charges(components):
             if not isinstance(components,list):raise ValueError('crypto_operating_cost_cache_invalid')
             facts={}
@@ -569,7 +572,7 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
             ids={c['cycle_id'] for c in cycles}
             fee_evidence={**result['fee_evidence'],'attribution_cycle_ids':sorted(ids),
                 'attributed_native_fees':[f for f in result['fee_evidence']['attributed_native_fees'] if f['cycle_id'] in ids]}
-            daily={**payload,**select_components(result,cycles),'generated_as_of':observed,'cycles':cycles,'fee_evidence':fee_evidence,**_summary(cycles),'performance_day':closed_day,
+            daily={**payload,**select_components(result,cycles),'expected_cost_inventory':select_expected_inventory(expected_inventory,cycles),'generated_as_of':observed,'cycles':cycles,'fee_evidence':fee_evidence,**_summary(cycles),'performance_day':closed_day,
                    'observed_at':max(c['closed_at'] for c in cycles),'report_scope':'owned_crypto_cycles_daily'}
             _atomic_json(state/f'performance-crypto-daily-{closed_day}.json',daily)
         return payload
