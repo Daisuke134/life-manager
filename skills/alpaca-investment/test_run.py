@@ -723,7 +723,7 @@ class PaperEtfFreshFenceTest(unittest.TestCase):
         })
         self.assertTrue(decision["approved"], decision)
         held = [{"symbol": "QQQ", "qty": "0.025"}] if action == "EXIT" else []
-        observation = {"account": raw["account"], "activities_count": 0,
+        observation = {"mode":"paper", "paper":True, "account": raw["account"], "activities_count": 0,
                        "clock": {"observed_at": raw["clock"]["timestamp"]},
                        "open_and_closed_orders_count": 0, "positions": held}
         observed = []
@@ -886,7 +886,7 @@ class PaperEtfFreshFenceTest(unittest.TestCase):
 
 class LiveRunTest(unittest.TestCase):
     def test_submit_marks_effect_attempted_before_provider_mutation(self):
-        observation = {"account": {"id":"synthetic-native-account-live","cash": "0", "equity": "66"}, "activities_count": 0,
+        observation = {"mode":"live", "paper":False, "account": {"id":"synthetic-native-account-live","cash": "0", "equity": "66"}, "activities_count": 0,
             "clock": {"observed_at": "2026-09-10T08:00:00Z"},
             "open_and_closed_orders_count": 0,
             "positions": [{"symbol": "USDCUSD", "qty": "66", "unrealized_pl": "0"}]}
@@ -935,7 +935,7 @@ class LiveRunTest(unittest.TestCase):
             })
 
     def test_live_entry_submits_once_and_durably_marks_pending_ownership(self):
-        observation = {"account": {"id":"synthetic-native-account-live","cash": "0", "equity": "66"}, "activities_count": 0,
+        observation = {"mode":"live", "paper":False, "account": {"id":"synthetic-native-account-live","cash": "0", "equity": "66"}, "activities_count": 0,
             "clock": {"observed_at": "2026-09-10T08:00:00Z"},
             "open_and_closed_orders_count": 0,
             "positions": [{"symbol": "USDCUSD", "qty": "66", "unrealized_pl": "0"}]}
