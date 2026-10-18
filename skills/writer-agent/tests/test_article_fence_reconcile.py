@@ -1260,7 +1260,9 @@ def _pass_reconcile(m, tmp_path, writer, *, fetch_json=None, ledger=None, resolv
                          articles_path=ledger or _articles(tmp_path, [
                              _row("20261016-205812", "2026-10-16T21:31:00Z", "https://note.com/x/n/1")]),
                          fetch_json=fetch_json or _pass_readbacks(), resolver=resolver,
-                         resolve=resolve, now=PASS_QUEUED + 3600, writer_root=writer)
+                         resolve=resolve, now=PASS_QUEUED + 3600, writer_root=writer,
+                         runs_root=tmp_path / "no-runs", fetch_status=lambda url: 0,
+                         absence_readback=lambda *a: None)
     return result, calls
 
 
@@ -1328,3 +1330,80 @@ def test_a_pass_record_proof_without_resolve_writes_nothing(tmp_path):
     result, calls = _pass_reconcile(m, tmp_path, writer, resolve=False)
     assert result["status"] == "no_dispatch_proven" and result["closed"] is False and calls == []
     assert not (writer / "fence-reconciliation").exists()
+
+
+# A resume pass that dispatched publication for run R closes only when every active pair of R is
+# accounted for officially: live (ledger live_url for R + HTTP 200) or absent (owner listings).
+PUB_RUN = "20261017-223414"
+PUB_RECORDS = [_pass_record("start", "2026-10-17T21:54:30Z"),
+               _pass_record("publication", "2026-10-17T21:54:31Z", [PUB_RUN])]
+NOTE_LIVE = "https://note.com/anicca123/n/n824660e9ee21"
+
+
+def _publication_reconcile(m, tmp_path, *, records=PUB_RECORDS, exit_code=1, rows=None,
+                           destinations=None, status=200, resolve=True):
+    writer = _pass_fixture(tmp_path / "w", records=records, exit_code=exit_code)
+    runs = tmp_path / "runs"
+    (runs / PUB_RUN).mkdir(parents=True, exist_ok=True)
+    rows = rows if rows is not None else [
+        {**_row(PUB_RUN, "2026-10-17T21:54:36Z", NOTE_LIVE), "published": True}]
+    destinations = destinations if destinations is not None else {
+        "note/ja": {"status": "present", "reason": "title_match"}, "substack/ja": {"status": "absent"},
+        "substack/en": {"status": "absent"}, "x-article/ja": {"status": "absent"}}
+    calls, reads = [], []
+
+    def resolver(owner, occurrence, *, expected_state, **proof):
+        calls.append((owner, occurrence, {k: v() for k, v in proof.items()}, expected_state))
+        return True
+
+    def absence(run_dir, since, until):
+        reads.append((run_dir.name, since, until))
+        return {"destinations": destinations}
+
+    result = m.reconcile(PASS_OCC, queued_at=PASS_QUEUED, state="claimed",
+                         articles_path=_articles(tmp_path, rows), fetch_status=lambda url: status,
+                         fetch_json=_pass_readbacks(), resolver=resolver, resolve=resolve,
+                         now=PASS_QUEUED + 3600, runs_root=runs, writer_root=writer,
+                         absence_readback=absence)
+    return result, calls, reads
+
+
+def test_a_publication_pass_closes_effected_when_each_pair_is_live_or_absent(tmp_path):
+    m = _load()
+    result, calls, reads = _publication_reconcile(m, tmp_path)
+    assert result["status"] == "effected" and result["closed"] is True, result
+    assert result["provider_receipt_id"] == NOTE_LIVE
+    owner, occurrence, proof, state = calls[0]
+    assert (owner, occurrence, state) == ("article-resume", PASS_OCC, "claimed")
+    assert proof["official_readback"]["provider_receipt_id"] == NOTE_LIVE
+    assert reads and reads[0][0] == PUB_RUN
+
+
+def test_a_publication_pass_with_every_pair_absent_closes_as_no_dispatch(tmp_path):
+    m = _load()
+    absent = {pair: {"status": "absent"} for pair in ("note/ja", "substack/ja", "substack/en", "x-article/ja")}
+    result, calls, _ = _publication_reconcile(m, tmp_path, rows=[], destinations=absent)
+    assert result["status"] == "no_dispatch_proven" and result["closed"] is True, result
+    proof = calls[0][2]["no_dispatch_proof"]
+    assert proof["proof_type"] == "historical_writer_resume_no_dispatch"
+    assert proof["writer_run_id"] == PUB_RUN
+
+
+def test_a_publication_pass_with_any_unproven_pair_stays_fenced(tmp_path):
+    m = _load()
+    present = {"note/ja": {"status": "present"}, "substack/ja": {"status": "present", "reason": "title_match"},
+               "substack/en": {"status": "absent"}, "x-article/ja": {"status": "absent"}}
+    unreadable = {"note/ja": {"status": "present"}, "substack/ja": {"status": "absent"},
+                  "substack/en": {"status": "unreadable"}, "x-article/ja": {"status": "absent"}}
+    cases = {
+        "draft present not live": dict(destinations=present),
+        "pair unreadable": dict(destinations=unreadable),
+        "live url dead": dict(status=404),
+        "killed": dict(exit_code=124),
+        "two runs": dict(records=[_pass_record("start", "2026-10-17T21:54:30Z"),
+                                  _pass_record("priority-publication", "2026-10-17T21:54:30Z", ["20261016-205812"]),
+                                  _pass_record("publication", "2026-10-17T21:54:31Z", [PUB_RUN])]),
+    }
+    for name, kwargs in cases.items():
+        result, calls, _ = _publication_reconcile(m, tmp_path / name.replace(" ", "-"), **kwargs)
+        assert result["status"] == "inconclusive" and calls == [], (name, result)

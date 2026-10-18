@@ -40,6 +40,13 @@ pass_record() {
     '{at:$at, occurrence_id:$occurrence_id, pid:$pid, branch:$branch,
       run_ids:($run_ids | split(" ") | map(select(length > 0)))}' \
     | sed 's/^/article-resume: pass /' >>"$LOG" 2>/dev/null || true
+  # A branch that may reach a model or publisher clears lm-loop-run's pre-spawn pre_effect marker
+  # (copy of article-daily run_model_pass): a nonzero exit after it must stay effect_unknown.
+  case "$1" in
+    publication|priority-publication|prepublication-adoption|quality-feedback|quality-feedback-model|quality-repair-model)
+      if [ -n "${RESULT_HINT_PATH:-}" ]; then rm -f -- "$RESULT_HINT_PATH" || exit 1; fi
+      HINT_BASELINE="" ;;
+  esac
 }
 
 # The verified no-effect result belongs to this wrapper alone (copy of article-daily #8247): only

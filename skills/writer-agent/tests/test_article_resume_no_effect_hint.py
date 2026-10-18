@@ -43,7 +43,19 @@ def _harness(tmp_path: Path) -> tuple[list[str], dict, Path, Path]:
     _write(scripts / "article_adoption_selection.py", "")
     _write(scripts / "quality_feedback_recovery.py",
            "def plan(*_a): return {'status':'NONE'}\nif __name__ == '__main__': print('{\"status\":\"NONE\"}')\n")
-    _write(scripts / "quality_repair_control.py", "print('{\"status\":\"NONE\"}')\n")
+    prompt = state / "runs/repair-prompt.txt"
+    _write(prompt, "repair")
+    # QR=1: a ready quality repair whose model pass runs and whose result step then fails.
+    _write(scripts / "quality_repair_control.py",
+           "import json, os, sys\n"
+           "if os.environ.get('QR') != '1': print('{\"status\":\"NONE\"}'); raise SystemExit(0)\n"
+           "if sys.argv[1] == 'result': raise SystemExit(3)\n"
+           f"print(json.dumps({{'status':'READY','reason':'prepared-quality-repair','run_id':'daily-2026-10-18',"
+           f"'prompt_path':{str(prompt)!r}}}))\n")
+    runtime = fake_root / "runtime"
+    _write(runtime / "model-runner-support.py", "raise SystemExit(0)\n")
+    _write(runtime / "judge-broker.sh", "#!/usr/bin/env bash\nexit 0\n", executable=True)
+    _write(runtime / "model-runner.sh", "#!/usr/bin/env bash\nexit 0\n", executable=True)
     _write(scripts / "recover-known-unavailable.py", "")
     _write(scripts / "writer_unavailable_incident_bridge.py", "")
     _write(scripts / "article_pending.py",
@@ -152,3 +164,15 @@ def test_a_dispatched_publication_pass_leaves_no_no_effect_hint(tmp_path):
                for line in (tmp_path / "resume.log").read_text().splitlines()
                if line.startswith("article-resume: pass ")]
     assert [r["branch"] for r in records] == ["start", "publication"]
+    # The pre-spawn marker is cleared before any publisher, so rc!=0 is never "proven pre-effect".
+    result = _run(command, env, hint, PLAN="READY")
+    assert result.returncode == 1
+    assert not hint.exists()
+
+
+def test_a_failed_model_pass_leaves_no_pre_effect_marker(tmp_path):
+    command, env, hint, _state = _harness(tmp_path)
+    result = _run(command, env, hint, QR="1")
+    assert result.returncode == 1, result.stderr
+    assert "quality-repair-model" in (tmp_path / "resume.log").read_text()
+    assert not hint.exists()
