@@ -75,4 +75,3 @@ SwiGLUでは、ゲート側と値側を掛け合わせる。ゲート側は単�
 1. Nick Cammarata, [Neural Networks Are Already Clean](https://already-clean.goodfire.com/). 言語ニューロン研究にCurt Tiggesが貢献。working hypothesis。
 2. Elhage et al., [Toy Models of Superposition](https://transformer-circuits.pub/2022/toy_model/index.html), 2022. 小さなモデルでの重ね合わせを扱う先行研究。
 3. Bricken et al., [Towards Monosemanticity](https://transformer-circuits.pub/2023/monosemantic-features/index.html), 2023. 辞書学習による分解を扱う先行研究。
-
