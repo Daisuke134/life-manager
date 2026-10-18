@@ -216,6 +216,22 @@ class CostInventoryReaderTests(unittest.TestCase):
             self.assertEqual(producer.call_count,1)
             self.assertEqual(result['expected_cost_inventory'],expected)
 
+    def test_crypto_writer_does_not_confuse_account_observation_with_economic_close(self):
+        import crypto_performance as crypto
+        from test_crypto_performance import cycle_fixture,activity_fixture,NOW
+        def project(state,trips,*,owner_id,observed_at):
+            return inventory.build_expected_inventory(trips,beneficiary_owner_id=owner_id,observed_at=observed_at,
+                runtime_rows_by_owner={},occurrence_rows_by_owner={},release_inputs={},paid_bindings=[])
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);_,frame,_=cycle_fixture(root)
+            def read(**kw):return activity_fixture(frame,mode='paper',start=kw['period_start'],end=kw['period_end'])
+            with patch.object(crypto,'read_expected_inventory',side_effect=project,create=True):
+                result=crypto.write_crypto_performance(root,{'mode':'paper','paper':True,'clock':{'observed_at':NOW}},
+                    mode='paper',owner_id='alpaca-investment-paper',activity_reader=read)
+            expected=result['expected_cost_inventory']
+            self.assertNotIn('scope_invalid',reasons(expected))
+            self.assertEqual(expected['scopes'][0]['period_end'],result['cycles'][0]['closed_at'])
+
     def test_fee_only_and_partial_order_groups_are_not_excluded_from_cost_census(self):
         trips,inputs=fixtures.IndependentCensusTests().fixture()
         for ids in (['entry'],['entry','partial','exit']):

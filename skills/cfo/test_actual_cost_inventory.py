@@ -53,6 +53,28 @@ class ActualCostInventoryTests(unittest.TestCase):
                     legacy=self.validate(payload,None)
                     self.assertEqual(len(legacy['observations']),1);self.assertEqual(legacy['coverage_state'],'gap')
 
+    def test_invalid_inventory_preserves_only_unverified_provider_diagnostics(self):
+        payload,inventory=fixture();inventory['gaps']=[{'reason':'source_declaration_unverified'}]
+        result=self.validate(payload,inventory)
+        self.assertEqual(result['coverage_state'],'gap');self.assertEqual(len(result['observations']),1)
+        self.assertEqual(result['observations'][0]['inventory_verification'],'unverified')
+        self.assertTrue(result['rejections'])
+
+    def test_scope_type_boolean_and_join_kind_mismatch_do_not_complete(self):
+        for change in ('missing_kind','bool_alias','join_kind'):
+            with self.subTest(change=change):
+                payload,inventory=fixture()
+                if change=='missing_kind':inventory['scopes'][0].pop('scope_kind')
+                elif change=='bool_alias':inventory['scopes'][0]['paper']=1
+                else:payload['job_joins'][0]['scope_kind']='owner_period'
+                self.assertEqual(self.validate(payload,inventory)['coverage_state'],'gap')
+
+    def test_equivalent_scope_timezone_and_unordered_evidence_ids_are_accepted(self):
+        payload,inventory=fixture();join=payload['job_joins'][0]
+        join['period_start']=join['period_start'].replace('Z','+00:00')
+        join['source_receipt_ids']=join['source_receipt_ids'][::-1]
+        self.assertEqual(self.validate(payload,inventory)['coverage_state'],'complete')
+
     def test_missing_source_account_or_category_never_shrinks_required_universe(self):
         payload,inventory=fixture()
         inventory['scopes'][0]['required_sources'].append({**inventory['scopes'][0]['required_sources'][0],
@@ -114,6 +136,11 @@ class ActualCostInventoryTests(unittest.TestCase):
         scope=copy.deepcopy(inventory['scopes'][0]);scope['order_ids']=other_scope['order_ids'];inventory['scopes'].append(scope)
         self.assertEqual(self.validate(payload,inventory)['coverage_state'],'complete')
         self.assertEqual(self.validate(payload,inventory,scope=False)['coverage_state'],'complete')
+        query['complete']=False;payload['sources'][0]['queries'][-1]['complete']=False
+        partly=self.validate(payload,inventory,scope=False)
+        by_scope={row['scope_id']:row for row in partly['scope_coverages']}
+        self.assertEqual(by_scope['scope-1']['coverage_state'],'complete')
+        self.assertEqual(by_scope['scope-2']['coverage_state'],'gap')
         payload['sources'][0]['queries'].pop()
         self.assertEqual(self.validate(payload,inventory,scope=False)['coverage_state'],'gap')
 
