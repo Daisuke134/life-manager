@@ -110,6 +110,12 @@ def _provider_message_id(response: Any) -> str | None:
     if isinstance(response, str) and response:
         return response
     if isinstance(response, Mapping):
+        if "message_ids" in response:
+            ids = response["message_ids"]
+            if (response.get("status") != "delivered" or not isinstance(ids, list)
+                    or len(ids) != 1):
+                return None
+            return str(ids[0]) if type(ids[0]) is int and ids[0] > 0 else None
         value = response.get("message_id", response.get("provider_message_id"))
         if isinstance(value, (str, int)) and not isinstance(value, bool) and str(value):
             return str(value)
