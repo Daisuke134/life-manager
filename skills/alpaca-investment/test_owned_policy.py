@@ -389,6 +389,29 @@ class OwnedSubmitFenceTests(unittest.TestCase):
                 actual=native._sync_live_ownership(root,Path("unused"),Path("unused"),{"positions":[]})
             self.assertEqual(actual,original)
 
+    def test_malformed_or_nested_fill_history_cannot_be_converted_to_zero_fill(self):
+        import importlib.util
+        spec=importlib.util.spec_from_file_location("owned_nested_native_run", ROOT/"run.py")
+        native=importlib.util.module_from_spec(spec); spec.loader.exec_module(native)
+        variants=({"broker":{"status":"filled","filled_qty":"0"}},
+                  {"broker":{"status":"partially_filled","filled_qty":"0"}},
+                  {"broker":None}, {"broker":[]}, {})
+        for change in variants:
+            with self.subTest(change=change),tempfile.TemporaryDirectory() as directory:
+                root=Path(directory);original,_owner=seed(root)
+                original.update(status="entry_pending",entry_filled_qty="0"); original.pop("owned_qty",None)
+                native._atomic_json(root/"live-owned-position.json",original)
+                rows=[r for r in effect_store._rows(root/"receipts.jsonl")
+                      if r.get("receipt_type")!="outcome" and r.get("status")!="applied"]
+                rows.append({"receipt_type":"outcome","outcome":"broker_reconciled",
+                             "effect_id":original["entry_effect_id"],**change})
+                (root/"receipts.jsonl").write_text("".join(json.dumps(r)+"\n" for r in rows))
+                broker={"id":"provider-entry","client_order_id":original["entry_client_order_id"],
+                        "symbol":"BTC/USDC","side":"buy","status":"rejected","filled_qty":"0"}
+                with patch.object(native,"find_order_by_client_id",return_value=broker):
+                    actual=native._sync_live_ownership(root,Path("unused"),Path("unused"),{"positions":[]})
+                self.assertEqual(actual,original)
+
     def test_terminal_no_fill_requires_exact_order_identity(self):
         import importlib.util
         spec=importlib.util.spec_from_file_location("owned_zero_native_run", ROOT/"run.py")
