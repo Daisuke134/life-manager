@@ -196,7 +196,7 @@ class FlowWriterTests(unittest.TestCase):
                 obs={'mode':mode,'paper':mode=='paper','account':{'id':account,'cash':'0','equity':'100'},
                     'positions':[{'symbol':'USDCUSD','qty':'100','unrealized_pl':'0'}],
                     'clock':{'observed_at':NOW},'activities_count':0,'open_and_closed_orders_count':0}
-                raw,_=snapshot(mode);raw.pop('crypto_history');raw['positions']=0;raw['account']['id']=account
+                raw,_=snapshot(mode);raw.pop('crypto_history');raw['positions']=0;raw['account']={'id':account,'cash':'0','equity':'100'}
                 initial_intents=sum(r.get('receipt_type')=='effect_intent' for r in store._rows(root/'receipts.jsonl'))
                 stack.enter_context(patch.dict(os.environ,{'LIFE_MANAGER_INVESTMENT_MODE':mode,
                     'LIFE_MANAGER_INVESTMENT_DEPLOYMENT':'local','LIFE_MANAGER_INVESTMENT_OWNER_ID':'alpaca-investment-'+mode,
