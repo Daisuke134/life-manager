@@ -11,7 +11,7 @@ from typing import Any
 
 from crypto_ownership_proof import (_digest,_quantity_text,_sealed_entry_from_rows,entry_receipt_row,
     recorded_entry_proof_from_rows,recorded_no_fill_proof_from_rows,recorded_close_proof_from_rows,
-    crypto_fill_activity_proof,validate_crypto_activity_snapshot,combine_crypto_activity_snapshots,execution_activity_identity,ReconciliationPending)
+    crypto_fill_activity_proof,validate_crypto_activity_snapshot,combine_crypto_activity_snapshots,execution_activity_identity,crypto_activity_page_progress,crypto_activity_paged_snapshot,validate_crypto_activity_page_chunk,ReconciliationPending)
 from effect_store import _owned_rows
 from paper_performance import _atomic_json
 from risk_policy import parse_instant
@@ -249,12 +249,12 @@ def _read_activity(**kwargs):
     raise ValueError('crypto_performance_activity_reader_missing')
 
 
-def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_reader=None):
+def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_reader=None,activity_page_reader=None):
     if mode not in {'paper','live'} or owner_id!=f'alpaca-investment-{mode}':
         raise ValueError('crypto_performance_scope_invalid')
     state=Path(state_dir);latest=state/'performance-crypto-latest.json';phase='ledger'
     frames={};refs={};fee_refs=[];fee_checked=None;known_fees=set();known_entries=set();known_cycles=set()
-    window_days=90;limit_window=None;query={}
+    window_days=90;limit_window=None;query={};page_chunks=[];page_checked=None
     try:
         phase='cache'
         if latest.exists():
@@ -294,6 +294,13 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
                 except (ValueError,TypeError,KeyError):
                     raise ValueError('crypto_performance_activity_cache_invalid')
                 limit_window=candidate
+            phase='activity_page_cache'
+            page_chunks=old.get('activity_page_chunks',[]);page_checked=old.get('activity_page_checked_at')
+            crypto_activity_page_progress(page_chunks,mode=mode)
+            if page_chunks and (limit_window is None
+                    or parse_instant(page_chunks[0]['requested_period_start'])!=parse_instant(limit_window['after'])
+                    or parse_instant(page_chunks[0]['requested_period_end'])!=parse_instant(limit_window['until'])):
+                raise ValueError('crypto_performance_activity_cache_invalid')
         phase='ledger'
         rows=_owned_rows(state/'receipts.jsonl')
         plans=_scoped_plans(rows,mode,owner_id)
@@ -323,6 +330,9 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
         if ((fee_checked is not None and parse_instant(fee_checked)>now)
                 or any(validate_crypto_activity_snapshot(frames[ref],mode=mode)[1]>now for ref in fee_refs)):
             raise ValueError('crypto_performance_time_invalid')
+        if ((page_checked is not None and parse_instant(page_checked)>now)
+                or (limit_window is not None and parse_instant(limit_window['until'])>now)):
+            raise ValueError('crypto_performance_time_invalid')
         reader=activity_reader or _read_activity
         def read_window(start):
             requested=parse_instant(start)
@@ -338,7 +348,35 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
                 raise ValueError('crypto_fee_readback_window_invalid')
             return incoming,finish
         did_read=False
-        if result['activity_requests'] and any(parse_instant(r['readback_start'])<now for r in result['activity_requests']):
+        if limit_window is not None and activity_page_reader is not None:
+            phase='activity_page_readback'
+            progress=crypto_activity_page_progress(page_chunks,mode=mode)
+            if not progress['complete']:
+                if page_checked is not None and parse_instant(page_checked)==now:
+                    raise ReconciliationPending('crypto_activity_pagination_pending')
+                chunk=activity_page_reader(mode=mode,period_start=limit_window['after'],period_end=limit_window['until'],
+                    activity_type=progress['next_kind'],page_token=progress['next_page_token'])
+                begin,finish,*_=validate_crypto_activity_page_chunk(chunk,mode=mode)
+                if begin!=parse_instant(limit_window['after']) or finish!=parse_instant(limit_window['until']):
+                    raise ValueError('crypto_fee_readback_window_invalid')
+                candidate=page_chunks+[chunk]
+                progress=crypto_activity_page_progress(candidate,mode=mode)
+                page_chunks=candidate;page_checked=observed
+                if not progress['complete']: raise ReconciliationPending('crypto_activity_pagination_pending')
+            incoming=crypto_activity_paged_snapshot(page_chunks,mode=mode)
+            finish=parse_instant(incoming['requested_period_end'])
+            eligible=[r['order_id'] for r in result['activity_requests'] if parse_instant(r['readback_start'])<=finish]
+            trial={**extra,**{key:combine_crypto_activity_snapshots([extra[key],incoming],mode=mode)
+                if key in extra else incoming for key in eligible}}
+            refreshed=build_crypto_performance(rows,mode=mode,owner_id=owner_id,activity_readbacks=trial,
+                fee_activity_readbacks=[*[frames[ref] for ref in fee_refs],incoming])
+            ref=incoming['source_receipt_id'];frames[ref]=incoming
+            for key in eligible:
+                projected=trial[key];projected_ref=projected['source_receipt_id']
+                frames[projected_ref]=projected;refs[key]=projected_ref
+            if ref not in fee_refs: fee_refs.append(ref)
+            result=refreshed;extra=trial;fee_checked=observed;did_read=True;limit_window=None;page_chunks=[]
+        if not did_read and result['activity_requests'] and any(parse_instant(r['readback_start'])<now for r in result['activity_requests']):
             phase='activity_readback'
             start=min(result['activity_requests'],key=lambda r:parse_instant(r['readback_start']))['readback_start']
             incoming,finish=read_window(start)
@@ -377,7 +415,8 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
         payload={**result,'observed_at':observed,'performance_day':day,'activity_readbacks':frames,'order_activity_refs':refs,
                  'known_entry_effect_ids':sorted(known_entries),'known_closed_cycle_ids':sorted(known_cycles),
                  'known_fee_activity_ids':sorted(known_fees),'fee_activity_refs':fee_refs,'fee_checked_at':fee_checked,
-                 'activity_window_days':window_days,'activity_limit_window':limit_window}
+                 'activity_window_days':window_days,'activity_limit_window':limit_window,
+                 'activity_page_chunks':page_chunks,'activity_page_checked_at':page_checked}
         _atomic_json(latest,payload)
         for closed_day in sorted({parse_instant(c['closed_at']).astimezone(timezone.utc).date().isoformat() for c in result['cycles']}):
             cycles=[c for c in result['cycles'] if parse_instant(c['closed_at']).astimezone(timezone.utc).date().isoformat()==closed_day]
@@ -399,16 +438,18 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
             if span<=1: limit_window={key:query[key] for key in ('after','until')}
             next_action='inspect_single_day_activity_pagination' if span<=1 else 'retry_activity_readback_with_smaller_window'
         elif reason=='crypto_activity_single_day_limit': next_action='inspect_single_day_activity_pagination'
+        elif reason=='crypto_activity_pagination_pending': next_action='continue_activity_pages_from_saved_token'
         result={'schema_version':1,'owner_id':owner_id,'mode':mode,'paper':mode=='paper','report_scope':'owned_crypto_cycles',
             'measurement_status':'partial','reason':reason,'error_class':type(error).__name__,'failed_phase':phase,
             'completed_round_trips':None,'net_pnl_usd':None,'capital_expansion_allowed':False,
-            'activity_readbacks':frames if phase in {'ledger','history','observation','activity_readback','write'} else {},
-            'order_activity_refs':refs if phase in {'ledger','history','observation','activity_readback','write'} else {},
+            'activity_readbacks':frames if phase in {'ledger','history','observation','activity_readback','write','activity_page_readback','activity_page_cache'} else {},
+            'order_activity_refs':refs if phase in {'ledger','history','observation','activity_readback','write','activity_page_readback','activity_page_cache'} else {},
             'known_entry_effect_ids':sorted(known_entries),'known_closed_cycle_ids':sorted(known_cycles),
             'known_fee_activity_ids':sorted(known_fees),
-            'fee_activity_refs':fee_refs if phase in {'ledger','history','observation','activity_readback','write'} else [],
+            'fee_activity_refs':fee_refs if phase in {'ledger','history','observation','activity_readback','write','activity_page_readback','activity_page_cache'} else [],
             'fee_checked_at':fee_checked,
             'activity_window_days':window_days,'activity_limit_window':limit_window,'activity_query':query,
+            'activity_page_chunks':page_chunks,'activity_page_checked_at':page_checked,
             'retryable':next_action!='inspect_single_day_activity_pagination','next_action':next_action}
         _atomic_json(latest,result)
         return result
