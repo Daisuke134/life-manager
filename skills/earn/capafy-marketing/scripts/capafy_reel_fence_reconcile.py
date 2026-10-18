@@ -15,6 +15,8 @@ Decision:
   - a marker without a read-back post, or any read failure -> held.
 
 Usage: capafy_reel_fence_reconcile.py --occurrence capafy-reel-daily:<run_id> [--resolve]
+       capafy_reel_fence_reconcile.py --occurrence capafy-reel-daily:<run_id> --result-hint PATH
+       (passing wake: same proof, written as the runtime's private entrypoint-result.json)
 """
 from __future__ import annotations
 
@@ -72,6 +74,41 @@ def build_proof(occurrence_id: str, run_dir: Path, *, posts_fn: Callable[[str, s
     return {**base, "verified": False, "outcome": "held", "dispatched": dispatched, "read_back": found}
 
 
+def write_result_hint(proof: dict, path: Path) -> bool:
+    """Report a passing wake's effect to lm_loop_run from the same official proof.
+
+    Private, never-overwritten entrypoint-result.json (sibling: article-run-complete.py).
+    A held proof writes nothing, so the wrapper exits nonzero and the fence reconciler owns it.
+    """
+    if proof.get("verified") is not True or proof.get("owner_id") != OWNER_ID:
+        return False
+    base = {"schema_version": 1, "owner_id": OWNER_ID, "occurrence_id": proof["occurrence_id"]}
+    if proof.get("outcome") == "no_dispatch":  # every slot of the target date was already scheduled
+        value = {**base, "kind": "life_manager_no_effect_result", "status": "verified_no_effect",
+                 "effect": 0, "reason": "no_due_slot"}
+    elif proof.get("outcome") == "effected":
+        # Runtime receipt ids exclude ':' and ','; name the occurrence by its first read-back post
+        # (build_proof already read back every dispatched post).
+        from runtime.loop.lm_loop_run import SAFE_RUN_ID  # noqa: PLC0415  (the reader's own charset)
+
+        receipt = proof["provider_receipt_id"].split(",")[0].partition(":")[2]
+        if not SAFE_RUN_ID.fullmatch(receipt):
+            return False
+        value = {**base, "kind": "life_manager_effect_result", "status": "verified_effect", "effect": 1,
+                 "provider": "postiz", "provider_receipt_id": receipt, "effect_status": "reconciled"}
+    else:
+        return False
+    try:
+        descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    except OSError:
+        return False
+    with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+        stream.write(json.dumps(value) + "\n")
+        stream.flush()
+        os.fsync(stream.fileno())
+    return True
+
+
 def postiz_post_at(net: str, slot: str) -> str | None:
     from capafy_reel_daily import IG_ID, TT_ID, X_ID  # noqa: PLC0415
 
@@ -104,7 +141,20 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--occurrence", required=True)
     parser.add_argument("--resolve", action="store_true")
+    parser.add_argument("--result-hint", type=Path, help="passing wake: write the runtime result hint instead")
     args = parser.parse_args(argv)
+    if args.result_hint is not None:
+        if args.resolve:
+            parser.error("--result-hint and --resolve are exclusive")
+        try:
+            proof = build_proof(args.occurrence, run_dir_for(args.occurrence), posts_fn=postiz_post_at)
+        except (OSError, ValueError, KeyError) as exc:
+            print(f"CAPAFY_REEL_RESULT_HINT=FAIL {type(exc).__name__}:{exc}", file=sys.stderr)
+            return 1
+        print(json.dumps(proof, sort_keys=True))
+        written = write_result_hint(proof, args.result_hint)
+        print("CAPAFY_REEL_RESULT_HINT=" + ("PASS" if written else "HELD"))
+        return 0 if written else 1
     try:
         state = fenced_state(args.occurrence)
         proof = build_proof(args.occurrence, run_dir_for(args.occurrence), posts_fn=postiz_post_at)

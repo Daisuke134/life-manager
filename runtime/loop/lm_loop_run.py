@@ -115,6 +115,8 @@ PRE_EFFECT_HINT_ENTRYPOINTS = frozenset({
 EFFECT_RESULT_HINT_ENTRYPOINTS = frozenset({
     "apps/life-manager/scripts/ebook-distribute-daily.sh",
     "apps/life-manager/scripts/mobile-app",
+    # Hint comes from capafy_reel_fence_reconcile.py's Postiz readback, never the model pass.
+    "skills/earn/capafy-marketing/capafy-reel-daily.sh",
 })
 EFFECT_RESULT_HINT_LOOP_ENTRYPOINTS = {
     "life-manager-cfo-hourly": "skills/cfo/run.sh",
@@ -130,6 +132,7 @@ NO_EFFECT_RESULT_HINT_ENTRYPOINTS = frozenset({
     "apps/life-manager/scripts/ebook-distribute-daily.sh",
     "apps/life-manager/scripts/mobile-app",
     "skills/alpaca-investment/run.py",
+    "skills/earn/capafy-marketing/capafy-reel-daily.sh",
     "skills/earn/marketing-engine/intel/treg-lead-signals-weekly",
     "skills/writer-agent/scripts/article-resume-pending.sh",
 })
