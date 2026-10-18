@@ -14932,14 +14932,16 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 **原子的な接続順（TODO3内部）:**
 1. ETF flat後の新規ENTERを共有allocator gateで拒否し、先にある所有ETF EXIT分岐を保持する。HOLD/EXIT条件・全口座slot/riskの分母を変えない。未所有legacy positionを無視してslotを空けない。
 2. 既存BTC candidate_cards/build_validation_candles/strategy_validation.validate_seriesをvalidation ownerへ接続する。承認reportは同じpolicy/cost/timeframeのpaper/live候補へ使い、ETF保有中のpaperは同一ETF policyの鮮度更新を続ける。BTC履歴の長期取得・全ページ/日付範囲/欠測・future/形成中足・EMA startup/recursive安定性を検証し、未確定データを埋めない。
-3. selectionのread/判定/writeを既存control_fenceへ置く。所有positionまたはpending intent中は異policyへの置換を拒否する。同一canonical policyの正式report更新だけを許し、flat/公式close/pendingなしを確認してからpaper/liveの同一BTC policyへ接続する。新規entryの直前もfence内でselectionとdecisionのpolicy identityを照合する。
+3. selectionのread/判定/writeを既存control_fenceへ置く。所有positionまたはpending intent中は異policyへの置換を拒否する。同一canonical policyの正式report更新だけを許し、flat/公式close/pendingなしを確認してからpaper/liveの同一BTC policyへ接続する。保有中のHOLD/EXITは元entryのpolicy identityを既存ledgerで照合し、新規ENTRY用reportの失効だけで所有物のEXITを止めない。元policy未証明を任意の別policyへ補完せず具体的な不足証拠を残す。新規entryの直前もfence内でselectionとdecisionのpolicy identityを照合する。
 4. runのasset/mode dispatchを所有証拠で行い、paper ETF stateでBTC positionを上書きしない。BTC history/owned entry/pending/EXITは既存BTC helperをmode別rootで共有する。paper BTC/USDC buy/sellは既存の厳格なlive BTC注文検証をmode別contextで再利用し、Alpaca CLI profileを切替えない。
 5. paper campaignの旧option処理とowned-symbol許可集合を確認し、未所有資産の保護と全口座riskを保つ。公式に照合した所有BTCだけを扱い、旧campaignのclosedをBTCのcloseや利益と呼ばない。
 6. reconcile_started→公式order readback→account readbackへBTCのowner/strategy/mode/source receiptsを結び、既存performanceへ通す。submit acknowledgmentやmarkerのclosedだけでは約定を数えず、entry/exitの公式filled qty/price/order IDを要求する。ETF/BTC・異policy・paper/liveのサンプルを混ぜない。
 7. quote通貨・実notional・USD評価を照合し、BTC/USDCの価格や費用を根拠なくUSD/1:1へ変換しない。未知のFX/fee/operating costは未知を保持し、D3b/D4の完全費用受入より前に実純利益へ昇格しない。paper BTC/USDCの取引可否は自然実行の公式readbackで判定し、確認目的の注文を発行しない。
 8. 最小RED/GREEN・既存owned ETF EXIT/異policy差替え/partial/pending/unowned/quote currency反例を検証し、独立金融review・全CI/main・通常immutable・自然readbackへ進める。sourceの完了と30件/費用込み利益/本番許可を分離する。
 
-**完了条件:** 正式な同一BTC policyのpaper entry→所有照合→自然EXIT→公式fills→policy別paper成績までが既存一経路で通り、legacy ETFを強制売却/置換/再入場せず、未所有資産やlive書込を増やさない。source/provisioning時のfixture PASSと実取引の自然receiptを区別する。現在cursorはitem1のsource RED/GREENで、item2以降と自然実取引は未完。
+**完了条件:** 正式な同一BTC policyのpaper entry→所有照合→自然EXIT→公式fills→policy別paper成績までが既存一経路で通り、legacy ETFを強制売却/置換/再入場せず、未所有資産やlive書込を増やさない。source/provisioning時のfixture PASSと実取引の自然receiptを区別する。item1のsource RED/GREENは完了し、現在cursorはitem2。item2以降と自然実取引は未完。
+
+**IN-BTC-02 item1 source記録:** RED4002098b77はflat後にETF ENTERが承認される3件を再現する。GREENf5d12ff62fはshared allocatorのENTRYにだけentry_policy_active=false/legacy_etf_entry_retiredを付け、先行する所有EXIT分岐を変えない。既存fresh fenceのENTER fixtureをこれから有効になるBTC candidateへ揃え、paper modeを実際のfresh gateでassertする。全口座positions/open ordersの上限をENTRY/EXIT双方で維持し、ETF所有EXIT/数量drift/余分な未所有positionの拒否も保持する。Alpaca328 unittestはPASS。このbranchはIN-BTC-02の残るitem2–8が未実装で、PR/main/本番への反映は行わない。現在cursorはitem2のBTC validation接続へ進む。
 
 **D3a2統合と追加観測:** PR #8338 head088e1d10bddda1befede3be4bd6f83dfb83a1857はfresh GitHub review未解決指摘なし・全13 exact-head checks PASS後、main1c4e1b3484c2f528eca0dd3d6fd3426cbbbb29ccへ統合する。census caller/実費producerは未接続。CFOの既存.envとpaper plistにLM_CFO_ACTUAL_COST_READBACK/LM_CFO_ACTUAL_COST設定はなく、費用入力の接続は未確認（manager継承値は未観測）。live credentialの公式GETで過去L09/L10のclient IDと保存済みprovider order IDの両方が一致する2件を確認する。これは歴史的live注文との口座連続性の証拠だが、未対応の後続4注文や旧fenceを閉じず、credential metadataのgeneric account_idも書換えない。provider/state書込0。
 
