@@ -403,6 +403,14 @@ subtotals and native cashflow after those observed quote fees. Missing/invalid
 quote fees stay null, and missing execution cashflow prevents a numeric adjusted
 cashflow. These fields cover observed components only; BTC base fees are not
 subtracted again. USD net/cost completeness and capital expansion remain unproved.
+The pinned quote transport can now capture a single USDC/USD BBO at or before
+an economic timestamp, using a fixed 30-second window and descending limit one.
+The shared pure proof preserves nanoseconds in both the request and age checks,
+rejects future/stale/invalid quotes and never invents FX parity for missing data.
+An older page token is retained without claiming an exhausted history window.
+The result is explicitly a reference quote, not a cash conversion. Linking these
+references to actual FILL/CFEE cashflows and complete operating costs remains work
+in the canonical SSOT.
 This branch is source only: verified fee quantity-drift recovery, FX and complete
 actual costs, deployment, natural outcomes and profitable evaluation remain in
 the canonical SSOT.
