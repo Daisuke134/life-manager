@@ -22,7 +22,10 @@ for ax,key,title in [(axes[0],'tvd','6区分の構成比のずれ（TVD）'),(ax
     ax.set_ylim(0,max(ys)*1.22);ax.spines[['top','right']].set_visible(False);ax.yaxis.grid(alpha=.2);ax.set_axisbelow(True)
 fig.suptitle('Rhode Islandの世帯人口を生成した実測結果',fontproperties=font_bold,fontsize=18)
 fig.text(.02,-.055,'ACS 2020–2024。単一州・同じ調査由来の比較。行動・介入効果は未評価。',fontproperties=font,fontsize=10)
-for suffix in ('png','svg'):fig.savefig(root/f'figures/2026-10-18-household-v0-measured.{suffix}',dpi=170,bbox_inches='tight')
+for suffix in ('png','svg'):
+    output=root/f'figures/2026-10-18-household-v0-measured.{suffix}'
+    fig.savefig(output,dpi=170,bbox_inches='tight')
+    if suffix=='svg':output.write_text('\n'.join(line.rstrip() for line in output.read_text().splitlines())+'\n')
 plt.close(fig)
 
 content=root/'content/2026-10-18-household-v0';content.mkdir(parents=True,exist_ok=True)

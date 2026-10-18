@@ -16,7 +16,7 @@
 
 2026-10-18に公式ZIP/PDF/header/全行を読解。2024はSTATE列（旧STではない）。ZIP同梱ReadMeは2026-03-05作成、PUMSの秘匿処理、住宅WGTPと個人PWGTP、空き家とGQの違いを明記。PUMS/ACSは同じ調査由来で、比較を独立調査による実証と呼ばない。住宅ZIP hash90fd8f5d577260ebbafbcf8231506a4aa644d3902d2303d4d109db8153a48238、個人ab856a1c287f9930d0886a8b2e733313b08d7a6f07114e4e3bbf711337d7fa24、辞書929c2752995b0af1c16d5c64de8cdc43b4aa7d388ee2d45b4b4df90fecce1dff。資料更新は別snapshotとし、過去hashへ偽装しない。
 
-fetchは各ZIP最大64MiB、CSV member最大128MiB、行数最大100万。ZIPを展開せず期待したmemberだけ読む。重複member/不正header/破損/上限/別州/不完全ファイルはfail。B11016は8MiB内にRI行がなければfail。入力manifestはURL/bytes/SHA256/取得時刻/期間/州を含む。既存snapshotを上書きしない。オフライン読込でも全hashと定義を検証する。
+fetchは各ZIP最大64MiB、CSV member最大128MiB、行数最大100万。ZIPを展開せず期待したmemberだけ読む。重複member/不正header/上限/別州/対象通常世帯の不完全な所属はfail。ZIP破損は成功manifestにせず、除外GQの個別人数照合は今回の完全性保証に含めない（レビューで確認した境界は統合SSOTに記録）。B11016は8MiB内にRI行がなければfail。入力manifestはURL/bytes/SHA256/取得時刻/期間/州を含む。既存snapshotを上書きしない。オフライン読込でも全hashと定義を検証する。
 
 ## 個人と世帯の契約
 

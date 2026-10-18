@@ -74,3 +74,9 @@ PopulationSimの固定commitにあるexpand_households.pyとwrite_synthetic_popu
 - [B11016公式Summary File](https://www2.census.gov/programs-surveys/acs/summary_file/2024/table-based-SF/data/5YRData/acsdt5y2024-b11016.dat)
 - [PopulationSim固定参照](https://github.com/ActivitySim/populationsim/tree/21881f0094680afbe11e2839124dfca10e61a2d2)
 - [TRSを含む整数化の原論文](https://arxiv.org/abs/1303.5228)
+
+## レビューで残した軽微な事項
+
+破損したDEFLATE ZIPの一部では、入力エラーがCLIの終了値2へ整理されず、zlib.errorとして表示される。完了manifestは作られず、成功した人口生成として扱われない。
+
+人数と所属の完全性保証は、生成対象の通常世帯について行っている。除外するGQはplaceholderと個人の件数を別々に記録するが、SERIALNOごとの欠員・人数超過の照合は未実装である。今回の公式資料では両方4,070件で、対象通常世帯の出力には混ぜていない。

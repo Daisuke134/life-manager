@@ -3543,3 +3543,14 @@ Ruling: 進捗ledgerは既存統合SSOTだけとし、別の進捗正本を作�
 8B Task5素材保存：記事2026-10-18-household-v0-results-ja.mdに生成フロー図とmatplotlib実測図を埋込。content/2026-10-18-household-v0に横長6PNG、縦長6PNG、編集用HTML/JSON、台本・投稿文を保存。元の生成画像を保持。記事lint指摘なし、ローカルリンク確認、実画像を視認。公開用集計記録と描画scriptも保存。GitHub repo visibility=PUBLIC、root LICENSE=MITを確認。全CSV/raw/runはGit外、記事/ソース/素材をbranchへ保存するが、ブログ/TikTok/Xへの投稿は未実施。
 
 本人は実装→理解を希望しており、8Bは実装・測定の結果説明待ち。行動予測へ進む前に今回の所属/整数化/精度を説明する。Aaru/Simile等の製品再現や、苦しみの軽減実証とはしない。文章スタイルskillを確認したが検索/retrieveツールは今回のcatalogになく、本人の明示用語・既存日本語指針に従った。取得した文体資料があるとはしない。
+
+8B最終検証途中：人口suite50/50、既存root OSS suite12/12、compileall/source-boundary/diff --check PASS。root test:installの2件（daemon-free install stays inside LIFE_MANAGER_HOME and preserves user env on rerun / default install with placeholder Telegram credentials does not register a daemon）は引き続き未導入viem/accountsで失敗。該当installer/runtime/root package/testファイルは8B差分なし。全体install成功とはしない。新しいroot依存を一括導入しない。縦6枚1080×1920/横6枚1920×1080を検査。独立reviewer household_v0_final_reviewへspec/plan/失敗観点/実runを渡し、現在review中。
+
+8B独立review完了：Critical0、Important0、Minor3。元CSVから独立に6区分/世帯数/人数/周辺差を再集計しreportと一致。重み全要素、全CSV再audit、6ファイルのrepeat hashも一致。科学的結果、入力reference非アクセス、通常世帯の所属にブロッカーなし。
+Final: minor (deferred): 壊れたDEFLATE ZIPの一部でzlib.errorがCLIの想定終了値2へ整理されない。成功manifestは残らない。エラー表示整理は後続。
+Final: minor (deferred): 除外GQのSERIALNOごとの欠員/人数超過は未照合。対象通常世帯は全員の所属/人数を検査し、今回の公式GQはplaceholder/個人各4070。README詳細に境界を明記した。
+Final: formatting corrected: Matplotlib生成SVGの末尾空白でbase→headのdiff --checkが失敗。表示を変えずXML末尾空白を正規化し、描画scriptにも同じ保存処理を追加。挙動変更のない書式修正で、実測/PNGは変えていない。
+Final: Ruling: レビュー対象外のwheel配布・root installer・署名認証・全PNGの独立校閲/法的評価・将来の行動/実地効果は今回の保証に含めない — source checkoutでの通常世帯生成と人口精度が依頼範囲で、root MIT/元資料/参考手法の引用を確認し、画像は寸法/リンク/代表例を目視検査した — これら対象外の利用には別の確認が必要。GQの完全性は通常世帯の保証と区別して仕様を明確化。
+Ruling: 既存root installerの依存不足は、今回の承認済みsource branch保存を止める条件にしない — 人口suiteと元資料実行が成功し、root installer/runtime/packageは変更していない — root全体のinstall成功は保証せず、main統合/本番反映は行わない。
+
+本人への結果説明用に、2人世帯の目標151592に対して生成151575（17不足）という実測例を記事へ追記。6交差セルの差と周辺合計の差を混同しないよう明記した。8Bは実装/測定済み・説明と理解待ち。次9は別の実行動データで予測を評価する部品だが、今回追加実装していない。
