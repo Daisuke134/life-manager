@@ -32,7 +32,7 @@ from etf_momentum import (  # noqa: E402
 )
 from provision_selection import provision_selection  # noqa: E402
 from strategy_cards import is_valid_release_sha  # noqa: E402
-from strategy_policy import build_validation_candles, candidate_cards  # noqa: E402
+from strategy_policy import build_validation_candles, candidate_cards, INDICATOR_HISTORY_CONTRACTS  # noqa: E402
 from strategy_validation import validate_series  # noqa: E402
 
 
@@ -281,7 +281,7 @@ def build_crypto_reports_from_history(
     ).encode()).hexdigest()
     reports = []
     for card in candidate_cards().values():
-        if tuple(card.instruments) != ("BTC/USDC",):
+        if tuple(card.instruments) != ("BTC/USDC",) or card.strategy_id not in INDICATOR_HISTORY_CONTRACTS:
             continue
         candles = build_validation_candles(bars, card.strategy_id)
         for candle in candles:

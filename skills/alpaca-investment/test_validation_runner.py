@@ -52,12 +52,12 @@ def _history(start: date, count: int = 2) -> dict[str, object]:
 
 
 class CryptoValidationReportTests(unittest.TestCase):
-    def _history(self):
+    def _history(self, count=900):
         from datetime import datetime, timedelta, timezone
         start = datetime(2026, 1, 1, tzinfo=timezone.utc)
         return [{"t": (start + timedelta(minutes=5 * i)).isoformat(),
                  "o": str(100 + i % 20), "h": str(102 + i % 20),
-                 "l": str(99 + i % 20), "c": str(101 + i % 20)} for i in range(160)]
+                 "l": str(99 + i % 20), "c": str(101 + i % 20)} for i in range(count)]
 
     def test_long_history_requests_disjoint_six_hour_chunks_and_reuses_report_builder(self):
         from datetime import datetime, timedelta, timezone
@@ -72,7 +72,7 @@ class CryptoValidationReportTests(unittest.TestCase):
         with patch.object(validation_runner, "read_crypto_validation_history", side_effect=chunk) as read, \
              patch.object(validation_runner, "build_crypto_reports_from_history", return_value=[{"fixture": True}]) as build:
             result = validation_runner.build_crypto_reports_for_period(
-                start=start, end=start+timedelta(hours=13), observed_at="2026-01-02T00:00:00Z",
+                start=start, end=start+timedelta(hours=13), observed_at="2026-01-05T00:00:00Z",
                 credentials_path=Path("credentials"), cli_path=Path("alpaca"), release_sha="a"*40)
         self.assertEqual(read.call_count, 3)
         self.assertEqual([c.kwargs["start"] for c in read.call_args_list],
@@ -87,14 +87,14 @@ class CryptoValidationReportTests(unittest.TestCase):
                "evidence_ref": "alpaca://fixture/fx"} for row in bars]
         reports = validation_runner.build_crypto_reports_from_history(
             bars, quote_conversions=fx, source_receipt_ids=["alpaca://fixture/btc"],
-            release_sha="a" * 40, observed_at="2026-01-02T00:00:00Z")
+            release_sha="a" * 40, observed_at="2026-01-05T00:00:00Z")
         self.assertEqual(len(reports), 2)
         self.assertEqual({r["strategy_id"] for r in reports},
-                         {"alpaca-btc-5m-reversion-v1", "alpaca-btc-5m-trend-v1"})
+                         {"alpaca-btc-5m-reversion-400-v2", "alpaca-btc-5m-trend-400-v2"})
         for report in reports:
             self.assertEqual(report["release_sha"], "a" * 40)
             self.assertEqual(report["card"]["instruments"], ["BTC/USDC"])
-            self.assertEqual(report["expires_at"], "2026-01-09T00:00:00Z")
+            self.assertEqual(report["expires_at"], "2026-01-12T00:00:00Z")
             self.assertIn("alpaca://fixture/fx", report["source_receipt_ids"])
             self.assertIn("parameter_sensitivity", report)
             self.assertNotEqual(report.get("reason"), "quote_conversion_unknown")
@@ -118,7 +118,7 @@ class CryptoValidationReportTests(unittest.TestCase):
     def test_insufficient_indicator_warmup_is_not_zero_dollar_profit(self):
         reports = validation_runner.build_crypto_reports_from_history(
             self._history()[:12], quote_conversions=[], source_receipt_ids=["alpaca://fixture/btc"],
-            release_sha="a"*40, observed_at="2026-01-02T00:00:00Z")
+            release_sha="a"*40, observed_at="2026-01-05T00:00:00Z")
         for report in reports:
             self.assertEqual(report["status"], "unknown")
             self.assertIsNone(report["net_pnl_usd"])
@@ -128,7 +128,7 @@ class CryptoValidationReportTests(unittest.TestCase):
         from strategy_validation import select_strategy
         reports = validation_runner.build_crypto_reports_from_history(
             self._history(), quote_conversions=[], source_receipt_ids=["alpaca://fixture/btc"],
-            release_sha="a" * 40, observed_at="2026-01-02T00:00:00Z")
+            release_sha="a" * 40, observed_at="2026-01-05T00:00:00Z")
         for report in reports:
             self.assertEqual(report["status"], "unknown")
             self.assertEqual(report["decision"], "rejected")
@@ -138,7 +138,7 @@ class CryptoValidationReportTests(unittest.TestCase):
     def test_crypto_reports_reject_future_or_ambiguous_history_and_fx(self):
         bars = self._history()
         base = dict(quote_conversions=[], source_receipt_ids=["alpaca://fixture/btc"],
-                    release_sha="a" * 40, observed_at="2026-01-02T00:00:00Z")
+                    release_sha="a" * 40, observed_at="2026-01-05T00:00:00Z")
         for bad_bars, changes in ((bars + [bars[-1]], {}),
                                   (bars[::-1], {}),
                                   (bars, {"observed_at": bars[-1]["t"]}),
