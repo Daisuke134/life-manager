@@ -97,6 +97,54 @@ class ProvisionSelectionTests(unittest.TestCase):
             with self.assertRaisesRegex(SelectionProvisionError, "owned_close_evidence_unknown"):
                 provision_selection(destination, reports, refresh=True)
 
+    def test_matching_official_closed_fill_allows_flat_policy_change(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            reports, destination = root/"reports.json", root/"selected-strategy.json"
+            reports.write_text(json.dumps([_report()]))
+            provision_selection(destination, reports)
+            client = "lm-ai-"+"2"*24
+            marker = {"status": "closed", "strategy_id": "alpaca-etf-126d-momentum-v1",
+                      "owner_id": "alpaca-investment-paper", "symbol": "QQQ", "position_qty": "1",
+                      "client_order_id": "lm-ai-"+"1"*24, "provider_order_id": "entry",
+                      "decision_session": "2026-10-18", "close_provider_order_id": "exit",
+                      "close_client_order_id": client, "close_filled_avg_price": "101",
+                      "close_source_receipt_ids": ["official-close-source"],
+                      "close_account_cash_usd": "101", "close_account_equity_usd": "101",
+                      "close_account_readback_at": "2026-10-18T00:00:00Z"}
+            (root/"etf-owned-position.json").write_text(json.dumps(marker))
+            broker = {"id": "exit", "status": "filled", "client_order_id": client,
+                      "symbol": "QQQ", "side": "sell", "type": "market", "time_in_force": "day",
+                      "filled_qty": "1", "filled_avg_price": "101"}
+            intent = {"receipt_type": "effect_intent", "effect_id": "close-effect", "status": "planned",
+                      "client_order_id": client, "owner_id": marker["owner_id"],
+                      "strategy_id": marker["strategy_id"], "mode": "paper",
+                      "order": {"symbol": "QQQ", "side": "sell"}}
+            outcome = {"receipt_type": "outcome", "outcome": "broker_reconciled", "mode": "paper",
+                       "effect_id": "close-effect", "client_order_id": client, "broker_receipt_id": "exit",
+                       "broker": broker, "strategy_receipt": marker}
+            ledger = root/"receipts.jsonl"
+            ledger.write_text(json.dumps(intent)+"\n"+json.dumps(outcome)+"\n")
+            changed = _report(report_id="flat-next-policy")
+            changed["card"]["entry_rules"] = {"all": ["close > 1"]}
+            reports.write_text(json.dumps([changed]))
+            self.assertEqual(provision_selection(destination, reports, refresh=True)["status"], "created")
+            for mutation in ("wrong-mode", "missing-intent", "wrong-qty", "missing-account"):
+                with self.subTest(mutation=mutation):
+                    altered = json.loads(json.dumps(outcome))
+                    altered_intent = dict(intent)
+                    if mutation == "wrong-mode":
+                        altered["mode"] = "live"
+                    elif mutation == "missing-intent":
+                        altered_intent = {}
+                    elif mutation == "wrong-qty":
+                        altered["broker"]["filled_qty"] = "2"
+                    else:
+                        altered["strategy_receipt"].pop("close_account_readback_at")
+                    ledger.write_text(json.dumps(altered_intent)+"\n"+json.dumps(altered)+"\n")
+                    with self.assertRaisesRegex(SelectionProvisionError, "owned_close_evidence_unknown"):
+                        provision_selection(destination, reports, refresh=True)
+
     def test_selected_report_is_written_as_release_pinned_state(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
