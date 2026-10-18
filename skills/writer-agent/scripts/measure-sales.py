@@ -160,7 +160,15 @@ storage = {storage!r}
 options = {{"headless": True, "humanize": False}}
 if os.path.exists(storage):
     options["storage_state"] = storage
-ctx = launch_context(**options)
+try:
+    ctx = launch_context(**options)
+except Exception:
+    # A corrupt saved session would fail every run and is only rewritten after a success.
+    if "storage_state" not in options:
+        raise
+    os.replace(storage, storage + ".corrupt")
+    options.pop("storage_state")
+    ctx = launch_context(**options)
 
 def login_if_shown():
     if pg.locator('input[name="login"]').count() == 0:
@@ -197,6 +205,9 @@ def confirm_password_if_shown():
         if (btn) btn.click();
     }}''')
     time.sleep(3)
+    if pg.locator('input[type="password"]').count() > 0:
+        print("NOTE_LOGIN_FAILED")
+        return False
     return True
 
 try:
