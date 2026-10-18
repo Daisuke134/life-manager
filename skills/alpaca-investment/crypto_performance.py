@@ -69,8 +69,8 @@ def _fee_inventory(cycles,snapshots):
             if key in fill_ids or (key in observed and observed[key]!=row):
                 raise ValueError('crypto_fee_evidence_conflict')
             observed[key]=row;refs.setdefault(key,set()).add(frame['source_receipt_id'])
-            windows.setdefault(key,[]).append((parse_instant(frame['request']['after']).date(),
-                parse_instant(frame['request']['until']).astimezone(timezone.utc).date()))
+            windows.setdefault(key,[]).append((parse_instant(frame['request']['after']),
+                parse_instant(frame['request']['until'])))
     attributed=[];unattributed=[]
     for key,row in sorted(observed.items()):
         item={'fee_activity_id':key,'source_receipt_ids':sorted(refs[key])}
@@ -94,8 +94,13 @@ def _fee_inventory(cycles,snapshots):
                     try:
                         day=date.fromisoformat(row['date'])
                         if (day.isoformat()!=row['date'] or day<parse_instant(order['submitted_at']).astimezone(timezone.utc).date()
-                                or not all(begin<=day<=end for begin,end in windows[key])): raise ValueError
+                                or not all(day<=end.astimezone(timezone.utc).date() for _,end in windows[key])): raise ValueError
                     except (ValueError,KeyError,TypeError): reason='fee_date_invalid'
+                if reason is None and row.get('created_at') is not None:
+                    try:
+                        created=parse_instant(row['created_at'])
+                        if not all(begin<=created<=end for begin,end in windows[key]): raise ValueError
+                    except (ValueError,KeyError,TypeError,AttributeError): reason='fee_creation_time_invalid'
                 if reason is None:
                     attributed.append({**item,'cycle_id':cycle_id,'provider_order_id':order_id,
                         'asset':asset,'quantity':_quantity_text(-Fraction(qty))})
