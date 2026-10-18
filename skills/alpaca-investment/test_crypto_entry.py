@@ -69,6 +69,24 @@ class CryptoEntryTests(unittest.TestCase):
             self.assertEqual(store.unresolved_intent_count(root/'receipts.jsonl'),1)
             self.assertEqual(store.effect_state(root/'receipts.jsonl',marker['entry_effect_id']),'started')
 
+    def test_duplicate_planned_after_completed_entry_cannot_hide_invalid_proof(self):
+        for mode in ('paper','live'):
+            with self.subTest(mode=mode),tempfile.TemporaryDirectory() as directory:
+                root=Path(directory);marker,broker,observation,owner=entry_fixture(root,mode)
+                ledger=root/'receipts.jsonl'
+                proof=self.proof(root,marker,broker,observation,mode)
+                store.reconcile_started(ledger,lambda _:broker,on_reconciled=lambda *_:proof)
+                self.assertEqual(store.unresolved_intent_count(ledger),0)
+                rows=store._rows(ledger)
+                rows.append(copy.deepcopy(next(row for row in rows
+                    if row.get('receipt_type')=='effect_intent' and row.get('status')=='planned')))
+                ledger.write_text(''.join(json.dumps(row)+'\n' for row in rows))
+                with self.assertRaises(ValueError):
+                    proofs.recorded_entry_proof_from_rows(rows,marker,broker,observation,
+                        mode=mode,owner_id=owner)
+                self.assertEqual(store.unresolved_intent_count(ledger),1)
+                self.assertEqual(store.effect_state(ledger,marker['entry_effect_id']),'started')
+
     def test_invalid_fill_identity_quantity_time_or_account_cannot_complete_entry(self):
         variants=(('broker','id',''),('broker','client_order_id','foreign'),('broker','filled_qty',None),
             ('broker','filled_qty','NaN'),('broker','filled_qty','0'),('broker','filled_avg_price',None),
