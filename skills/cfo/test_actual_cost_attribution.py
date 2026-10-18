@@ -742,6 +742,48 @@ class OfficialCostQueryTests(unittest.TestCase):
         payload["sources"][0]["queries"][1]["evidence_refs"] = ["conflicting-official-response"]
         self.assertEqual(self.validate(payload)["observations"], [])
 
+    def test_paid_query_requires_exact_document_account_line_allocation_and_job(self):
+        def paid_payload():
+            payload = query_payload()
+            payload["readback"].update(historical={"complete": True, "window_start": None, "window_end": SNAPSHOT},
+                                       trailing={"complete": True, "window_start": TRAILING_START, "window_end": SNAPSHOT})
+            payload["sources"][0]["queries"][0].update(settlement_state="paid_final", document_ids=["same-id"])
+            payload["provider_pagination"]["pages"][0]["document_ids"] = ["same-id"]
+            payload["documents"] = [{"document_type": "invoice", "invoice_id": "same-id", "provider": "openai",
+                "billing_account_ref": "billing-account", "official": True, "source_type": "official_invoice",
+                "status": "paid", "currency": "USD", "billing_period_start": TRAILING_START,
+                "billing_period_end": SNAPSHOT, "paid_at": "2026-09-30T12:00:00Z",
+                "line_items": [{"line_item_id": "line", "category": "model_cost", "basis": "official_invoice",
+                    "amount": "1.00", "occurred_at": "2026-09-29T12:00:00Z", "allocations": [
+                        {"allocation_id": "allocation", "job_id": "job", "product_loop_id": "investment", "amount": "1.00"}]}]}]
+            payload["job_joins"][0].update(join_type="paid_allocation", document_type="invoice", document_id="same-id",
+                line_item_id="line", allocation_id="allocation", job_id="job", status="completed")
+            return payload
+        def validate(payload):
+            records = adapt(payload)
+            validator = actual_cost.validate_official_cost_queries
+            return validator(payload, snapshot_at=SNAPSHOT, paid_records=receipts(records)), records
+        good, _ = validate(paid_payload())
+        self.assertEqual(len(good["observations"]), 1)
+        for field in ("line_item_id", "allocation_id", "job_id", "document_type", "status"):
+            with self.subTest(field=field):
+                payload = paid_payload(); payload["job_joins"][0][field] = "does-not-exist"
+                result, rows = validate(payload)
+                self.assertEqual(result["observations"], [])
+                self.assertTrue(all(row["coverage_state"] == "gap" for row in coverage(rows)))
+        payload = paid_payload()
+        payload["documents"][0]["billing_account_ref"] = "other-account"
+        other = copy.deepcopy(payload["documents"][0])
+        other.update(document_type="paid_receipt", source_type="official_paid_receipt",
+                     receipt_id="same-id", billing_account_ref="billing-account")
+        del other["invoice_id"]
+        other["line_items"][0]["allocations"][0]["product_loop_id"] = "writer"
+        payload["documents"].append(other)
+        result, rows = validate(payload)
+        self.assertEqual(result["observations"], [])
+        investment = [row for row in coverage(rows) if row["product_loop_id"] == "investment"]
+        self.assertTrue(all(row["coverage_state"] == "gap" for row in investment))
+
     def test_new_paid_query_reference_mismatch_marks_its_group_gap(self):
         payload = fixture("actual-cost-official.json")
         join = next(row for row in payload["job_joins"] if row["provider"] == "blockrun")
