@@ -1131,8 +1131,10 @@ def _native_fee_debit_step(state,ownership,observation,*,activity_readback,broke
     try:
         acquisition=state['acquisition']['receipt']
         start,end=validate_crypto_activity_snapshot(activity_readback,mode=mode)
+        owned_qty=(Decimal('0') if _filled_qty_is_zero({'filled_qty':ownership.get('owned_qty')})
+                   else _execution_number(ownership.get('owned_qty')))
         if (ownership.get('status')!='open'
-                or _execution_number(ownership.get('owned_qty'))!=Decimal(state['owned_qty'])
+                or owned_qty!=Decimal(state['owned_qty'])
                 or _execution_number(ownership.get('entry_filled_qty'))!=Decimal(acquisition['entry_filled_qty'])
                 or ownership.get('close_effect_id')!=state['last_close_effect_id']
                 or ownership.get('close_client_order_id')!=state['last_close_client_order_id']
