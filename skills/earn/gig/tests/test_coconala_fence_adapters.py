@@ -470,3 +470,114 @@ def test_one_open_or_redirected_request_keeps_the_fence(tmp_path, monkeypatch) -
             "hf-gig-apply-direct", "occ-1", "run-1", ["5323286", "5329025", "5329137"], intents,
             runner=fake_run, resolver=resolver) is None
         assert resolved == []
+
+
+# hf-gig-apply-direct run 18df847a6a6c0b68-50470 (2026-10-18): 5331065 stayed prepared after
+# the irreversible marker while the applied-history walk answered 403 on every wake. The
+# request's own applicant roster settles it: our account listed means the click applied;
+# a complete roster read >= 30 min after the marker without it means no application.
+_ROSTER_PASS = "gig-apply-direct-1792296999466785000-59911"
+_OBSERVED = "2026-10-18T03:00:00+00:00"
+
+
+def _started(store, rid, *, occurrence="hf-gig-apply-direct:occ-1", run="run-1"):
+    import application_effect_fence as fence
+    payload = fence.intent_payload(
+        request_id=rid, snapshot_sha256="a" * 64, proposal_text="提案本文です。" * 40,
+        price_jpy=10_000, deliver_date="2026-11-01",
+        lease_fence={"task": f"gig-apply-direct-{_ROSTER_PASS}-commit-{rid}",
+                     "token": "b" * 32, "generation": 1})
+    with store.locked(rid):
+        fence._durable_replace(store.intent_path(rid), payload)
+        return store.mark_irreversible_attempt_started_locked(
+            rid, expected_cas=payload["cas"], runtime_run_id=run, runtime_occurrence_id=occurrence)
+
+
+def _roster_batch(tmp_path, monkeypatch, *, ids, count=None, expander_remaining=False,
+                  marker_age=3600):
+    import os
+    from datetime import datetime
+    wrapper = _load_wrapper()
+    store = wrapper.fence.IntentStore(tmp_path / "intents")
+    confirmed = _started(store, "5330001")
+    store.confirm("5330001", expected_cas=confirmed["cas"])
+    _started(store, "5331065")
+    observed = datetime.fromisoformat(_OBSERVED).timestamp()
+    os.utime(store.intent_path("5331065"), (observed - marker_age, observed - marker_age))
+    apply_root = tmp_path / "apply-direct"
+    worker = apply_root / _ROSTER_PASS / "refresh-evidence" / "commit-workers" / "5331065"
+    worker.mkdir(parents=True)
+    (worker / f"gig-{_ROSTER_PASS}-commit-5331065-B2-5331065-identity.json").write_text(json.dumps({
+        "source": "code_owned_cdp_authenticated_identity", "request_id": "5331065",
+        "account_id": "2564121"}))
+    monkeypatch.setattr(wrapper, "APPLY_ROOT", apply_root)
+    evidence = tmp_path / "evidence"
+    evidence.mkdir()
+    monkeypatch.setattr(wrapper.reconciler, "_default_evidence_dir", lambda occ: evidence)
+    _roster(evidence, rid="5331065", ids=ids, count=count, observed_at=_OBSERVED,
+            expander_remaining=expander_remaining).rename(evidence / "request-closed-readback.json")
+    calls = {"unknown": [], "settled": []}
+
+    def unknown(owner_id, occurrence_id, *, official_readback, expected_state):
+        calls["unknown"].append((occurrence_id, official_readback(), expected_state))
+        return True
+
+    def settled(owner_id, occurrence_id, *, settled_proof):
+        calls["settled"].append((occurrence_id, settled_proof()))
+        return True
+
+    monkeypatch.setattr(wrapper, "_resolve_settled", settled)
+    result = wrapper._close_roster_batch(
+        "hf-gig-apply-direct", "hf-gig-apply-direct:occ-1", "run-1", ["5330001", "5331065"],
+        tmp_path / "intents", resolver=unknown)
+    return result, calls, store.read("5331065")["state"]
+
+
+def test_roster_listing_our_account_confirms_and_closes_via_provider_resolver(tmp_path, monkeypatch) -> None:
+    result, calls, state = _roster_batch(tmp_path, monkeypatch, ids=("111", "2564121"))
+    assert state == "confirmed"
+    assert result["status"] == "reconciled" and result["reason"] == "official_roster_account_present"
+    assert calls["settled"] == []
+    occurrence, proof, expected = calls["unknown"][0]
+    assert (occurrence, expected) == ("hf-gig-apply-direct:occ-1", "claimed")
+    assert proof["verified"] is True and proof["request_ids"] == ["5331065"]
+    assert proof["provider_receipt_id"] == "https://coconala.com/requests/5331065"
+
+
+def test_complete_late_roster_without_our_account_settles_via_store_proof(tmp_path, monkeypatch) -> None:
+    result, calls, state = _roster_batch(tmp_path, monkeypatch, ids=("111", "222"))
+    assert state == "prepared"                     # never re-clickable from this proof
+    assert calls["unknown"] == []
+    occurrence, proof = calls["settled"][0]
+    assert occurrence == "hf-gig-apply-direct:occ-1"
+    assert proof["proof_type"] == "write_ahead_store_settled.v1"
+    assert (proof["scanned_intents"], proof["unresolved_irreversible"]) == (2, 0)
+    assert result["status"] == "reconciled" and result["no_dispatch_request_ids"] == ["5331065"]
+
+
+def test_incomplete_roster_without_our_account_keeps_the_fence(tmp_path, monkeypatch) -> None:
+    for index, kwargs in enumerate(({"expander_remaining": True}, {"count": 3})):
+        case = tmp_path / str(index)
+        result, calls, state = _roster_batch(case, monkeypatch, ids=("111", "222"), **kwargs)
+        assert result is None and calls == {"unknown": [], "settled": []} and state == "prepared"
+
+
+def test_absent_roster_read_too_soon_after_the_marker_keeps_the_fence(tmp_path, monkeypatch) -> None:
+    result, calls, state = _roster_batch(tmp_path, monkeypatch, ids=("111", "222"), marker_age=600)
+    assert result is None and calls == {"unknown": [], "settled": []} and state == "prepared"
+
+
+def test_adapter_tries_the_roster_before_the_history_walk(tmp_path, monkeypatch, capsys) -> None:
+    wrapper = _load_wrapper()
+    monkeypatch.setattr(wrapper.reconciler, "discover_single_target",
+                        lambda *, owner_id, intent_root: ("occ-1", "run-1", ["5331065"]))
+    monkeypatch.setattr(wrapper, "_close_closed_batch", lambda *a, **k: None)
+    monkeypatch.setattr(wrapper, "_close_roster_batch",
+                        lambda *a, **k: {"status": "reconciled", "reason": "official_roster_account_present"})
+
+    def never(*_args, **_kwargs):
+        raise AssertionError("a settled roster must not start the 403-prone history walk")
+
+    monkeypatch.setattr(wrapper, "run_browser_reconcile", never)
+    assert wrapper.main(["--intent-root", str(tmp_path)]) == 0
+    assert json.loads(capsys.readouterr().out)["reason"] == "official_roster_account_present"

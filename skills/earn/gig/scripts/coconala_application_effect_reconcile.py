@@ -184,6 +184,42 @@ def _pre_dispatch_abort_archive(value: dict, intent_root: Path) -> Path | None:
     return path
 
 
+# A clicked application can take a while to appear on the request's applicant roster; an
+# absence read sooner than this after the irreversible marker proves nothing.
+ROSTER_SAFETY_LAG_SECONDS = 30 * 60
+
+
+def _roster_verdict(value: dict, row: object, apply_root: Path, *,
+                    after: float, lag: float = 0) -> str | None:
+    """"present"/"absent" for our account on the request's own official applicant roster.
+
+    The account is the one the same commit pass captured before the marker. Present needs
+    the exact page read after ``after``; absent also needs the whole list (count matches,
+    nothing left to expand, nobody contracted) read at least ``lag`` seconds after it.
+    Anything else is None: keep the fence.
+    """
+    account = _identity_account(value, apply_root)
+    if account is None or not isinstance(row, dict):
+        return None
+    url = f"https://coconala.com/requests/{value['request_id']}"
+    ids = row.get("applicant_ids")
+    try:
+        observed = datetime.fromisoformat(str(row.get("observed_at"))).timestamp()
+    except (ValueError, TypeError):
+        return None
+    if (observed <= after or row.get("http_status") != 200
+            or row.get("url") != url or row.get("final_url") != url
+            or not isinstance(ids, list) or not all(isinstance(item, str) for item in ids)
+            or account in (row.get("requester_ids") or [])):
+        return None
+    if account in ids:
+        return "present"
+    complete = (type(row.get("applicants_count")) is int
+                and row["applicants_count"] == len(set(ids)) == len(ids)
+                and row.get("contracted_count") == 0 and row.get("expander_remaining") is False)
+    return "absent" if complete and observed >= after + lag else None
+
+
 def _roster_proves_no_dispatch(value: dict, intent_root: Path, apply_root: Path, rows: dict) -> bool:
     """Post-marker retire without a click, plus the official roster lacking our account.
 
@@ -192,22 +228,22 @@ def _roster_proves_no_dispatch(value: dict, intent_root: Path, apply_root: Path,
     marker proves this attempt left no application.
     """
     archive = _pre_dispatch_abort_archive(value, intent_root)
-    account = _identity_account(value, apply_root) if archive else None
-    row = rows.get(value["request_id"])
-    if account is None or not isinstance(row, dict):
-        return False
-    url = f"https://coconala.com/requests/{value['request_id']}"
-    ids = row.get("applicant_ids")
     try:
-        after_retire = datetime.fromisoformat(str(row.get("observed_at"))).timestamp() > archive.stat().st_mtime
-    except (OSError, ValueError, TypeError):
+        retired_at = archive.stat().st_mtime if archive else None
+    except OSError:
         return False
-    return (after_retire and row.get("http_status") == 200
-            and row.get("url") == url and row.get("final_url") == url
-            and isinstance(ids, list) and all(isinstance(item, str) for item in ids)
-            and type(row.get("applicants_count")) is int and row["applicants_count"] == len(set(ids)) == len(ids)
-            and row.get("contracted_count") == 0 and row.get("expander_remaining") is False
-            and account not in ids and account not in (row.get("requester_ids") or []))
+    return retired_at is not None and _roster_verdict(
+        value, rows.get(value["request_id"]), apply_root, after=retired_at) == "absent"
+
+
+def _roster_settles_attempt(value: dict, intent_root: Path, apply_root: Path, rows: dict) -> str | None:
+    """Verdict for a still-prepared post-marker intent, read after its marker + safety lag."""
+    try:
+        marker = (Path(intent_root) / f"{value['request_id']}.json").stat().st_mtime
+    except OSError:
+        return None
+    return _roster_verdict(value, rows.get(value["request_id"]), apply_root,
+                           after=marker, lag=ROSTER_SAFETY_LAG_SECONDS)
 
 
 def _closed_ids(path: Path) -> set[str]:
@@ -236,12 +272,16 @@ def _intent_settled(value: dict, applied: set[str], closed: set[str],
     gone. retired_absent counts only when no irreversible attempt started: the
     screenshot-based retire path is not a provider readback; after the marker it
     also needs ``no_dispatch`` (pre-dispatch abort plus the official applicant roster).
+    A post-marker ``prepared`` intent settles only through ``no_dispatch`` too: its own
+    applicant roster lists our account, or is complete without it after the safety lag.
     """
     request_id = str(value.get("request_id") or "")
     if request_id and (request_id in applied or request_id in closed):
         return True
     if value.get("state") == "confirmed" or fence.is_pre_effect(value):
         return True
+    if value.get("state") == "prepared" and value.get("effect_phase") == fence.IRREVERSIBLE_ATTEMPT_STARTED:
+        return no_dispatch(value)
     if value.get("state") != "retired_absent":
         return False
     return value.get("effect_phase") != fence.IRREVERSIBLE_ATTEMPT_STARTED or no_dispatch(value)
@@ -264,14 +304,23 @@ def _store_intents(intent_root: Path):
 
 
 def _settled_scan(intent_root: Path, *, roster_path: Path | None = None,
-                  closed_path: Path | None = None, apply_root: Path | None = None) -> dict[str, object]:
-    """Count store entries that may still hide a duplicable application (fail closed)."""
+                  closed_path: Path | None = None, apply_root: Path | None = None,
+                  extra_closed_path: Path | None = None) -> dict[str, object]:
+    """Count store entries that may still hide a duplicable application (fail closed).
+
+    ``extra_closed_path`` adds one occurrence's own per-request readback to the global one.
+    """
     applied = _roster_ids(roster_path or _latest_roster())
     closed_path = closed_path or CLOSED_READBACK
     closed = _closed_ids(closed_path)
     rows = _closed_rows(closed_path)
+    if extra_closed_path is not None:
+        closed |= _closed_ids(extra_closed_path)
+        rows.update(_closed_rows(extra_closed_path))
 
     def no_dispatch(value: dict) -> bool:
+        if value.get("state") == "prepared":
+            return _roster_settles_attempt(value, intent_root, apply_root or APPLY_ROOT, rows) is not None
         return _roster_proves_no_dispatch(value, intent_root, apply_root or APPLY_ROOT, rows)
 
     digest = hashlib.sha256()
@@ -304,10 +353,14 @@ def _resolve_settled(owner_id, occurrence_id, *, settled_proof):
 
 
 def _needs_roster_readback(intent_root: Path) -> bool:
-    """Read the official roster only for post-marker intents retired before any click."""
-    return any(value is not None and value.get("state") == "retired_absent"
+    """Read the official roster only for post-marker intents a roster can settle: retired
+    before any click, or still prepared with the account captured before the marker."""
+    return any(value is not None
                and value.get("effect_phase") == fence.IRREVERSIBLE_ATTEMPT_STARTED
-               and _pre_dispatch_abort_archive(value, intent_root) is not None
+               and ((value.get("state") == "retired_absent"
+                     and _pre_dispatch_abort_archive(value, intent_root) is not None)
+                    or (value.get("state") == "prepared"
+                        and _identity_account(value, APPLY_ROOT) is not None))
                for _path, value in _store_intents(intent_root))
 
 
@@ -385,6 +438,75 @@ def _close_closed_batch(owner_id: str, occurrence_id: str, runtime_run_id: str,
             "retryable": False, "effect": "unknown", "readback": 1, "occurrence_id": occurrence_id,
             "request_ids": pending, "provider_receipt_id": proof["provider_receipt_id"],
             "evidence_ref": proof["evidence_ref"]}
+
+
+def _close_roster_batch(owner_id: str, occurrence_id: str, runtime_run_id: str,
+                        request_ids: Sequence[str], intent_root: Path, *,
+                        resolver=None) -> dict[str, object] | None:
+    """Close the exact occurrence from each prepared request's official applicant roster.
+
+    Reads the per-request readback ``_close_closed_batch`` just wrote (no second browser).
+    Our account listed: the click applied, so confirm the intent and close through the
+    provider-confirmed resolver. Every other request complete without it and read after the
+    marker + safety lag: no application, so close with the write-ahead store proof the
+    pre-dispatch roster already feeds. Anything else is None and the fence stays.
+    """
+    try:
+        bound = reconciler._require_complete_request_set(
+            intent_root, occurrence_id=occurrence_id, runtime_run_id=runtime_run_id,
+            request_ids=list(request_ids))
+    except reconciler.ReconcileContractError:
+        return None
+    pending = [value for value in bound if value.get("state") != "confirmed"]
+    if not pending:
+        return None
+    path = reconciler._default_evidence_dir(occurrence_id) / "request-closed-readback.json"
+    rows = _closed_rows(path)
+    verdicts = {str(value["request_id"]): _roster_settles_attempt(value, intent_root, APPLY_ROOT, rows)
+                for value in pending}
+    if None in verdicts.values():
+        return None
+    present = sorted(rid for rid, verdict in verdicts.items() if verdict == "present")
+    absent = sorted(rid for rid, verdict in verdicts.items() if verdict == "absent")
+    evidence_ref = str(path.resolve())
+    base = {"retryable": False, "occurrence_id": occurrence_id, "request_ids": sorted(verdicts),
+            "applied_request_ids": present, "no_dispatch_request_ids": absent,
+            "effect": len(bound) - len(absent), "readback": 1, "evidence_ref": evidence_ref}
+    store = fence.IntentStore(intent_root)
+    try:
+        for value in pending:
+            if verdicts[str(value["request_id"])] == "present":
+                store.confirm(value["request_id"], expected_cas=value["cas"])
+    except fence.IntentFenceError as error:
+        return {**base, "status": "unresolved", "reason": "intent_confirmation_failed",
+                "retryable": True, "error_class": type(error).__name__,
+                "error_detail": str(error)[:240]}
+    if absent:
+        checked: dict[str, object] = {}
+
+        def settled_proof() -> dict[str, object]:
+            checked.update(_settled_scan(intent_root, extra_closed_path=path))
+            return {"owner_id": owner_id, "occurrence_id": occurrence_id, "verified": True,
+                    "proof_type": "write_ahead_store_settled.v1", **checked}
+
+        closed_now = _resolve_settled(owner_id, occurrence_id, settled_proof=settled_proof)
+        reason = "official_roster_account_absent"
+        failure = "write_ahead_store_not_settled"
+        extra = {"unresolved_irreversible": checked.get("unresolved_irreversible")}
+    else:
+        urls = [f"https://coconala.com/requests/{rid}" for rid in present]
+        proof = {"owner_id": owner_id, "occurrence_id": occurrence_id,
+                 "runtime_run_id": runtime_run_id, "request_ids": present, "verified": True,
+                 "provider": "coconala", "proof_type": "provider_official_readback_exact_request_batch",
+                 "source": "official_request_applicant_roster",
+                 "provider_receipt_id": ",".join(urls), "evidence_ref": evidence_ref}
+        closed_now = (resolver or resource_admission.resolve_unknown_occurrence)(
+            owner_id, occurrence_id, official_readback=lambda: proof, expected_state="claimed")
+        reason = "official_roster_account_present"
+        failure = "occurrence_not_current_or_already_closed"
+        extra = {"provider_receipt_id": proof["provider_receipt_id"]}
+    return {**base, **extra, "status": "reconciled" if closed_now is True else "unresolved",
+            "reason": reason if closed_now is True else failure}
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -467,6 +589,11 @@ def main(
                                        request_ids, args.intent_root, runner=runner)
     if closed_batch is not None:
         _write_scan_result(_scan_result_path(args.result), closed_batch)
+        return 0
+    roster_batch = _close_roster_batch(args.owner_id, occurrence_id, runtime_run_id,
+                                       request_ids, args.intent_root)
+    if roster_batch is not None:
+        _write_scan_result(_scan_result_path(args.result), roster_batch)
         return 0
     command = build_browser_command(
         occurrence_id=occurrence_id,
