@@ -1018,6 +1018,8 @@ def write_paper_performance(
             "gross_strategy_pnl_total_usd": result.get("gross_strategy_pnl_usd"),
             "net_realized_pnl_usd": None,
             "reported_order_receipt_ids": cumulative_order_ids,
+            "economic_cost_scopes": [{**{key:trip[key] for key in ('order_ids','period_start','closed_at','source_receipt_ids')},
+                'owner_id':OWNER_ID,'mode':'paper','paper':True} for trip in completed],
             "expected_cost_inventory":select_expected_inventory(expected_inventory,daily_rounds),
             "report_scope": "daily_accumulation",
             "performance_day": observation_day,

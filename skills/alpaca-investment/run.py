@@ -944,8 +944,8 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                     credentials_path=credentials_path, cli_path=cli_path, **kwargs,
                 ),
             )
-            if isinstance(paper_result,dict) and isinstance(paper_result.get('expected_cost_inventory'),dict):
-                economic_cost_scopes.extend(paper_result['expected_cost_inventory'].get('scopes',[]))
+            if isinstance(paper_result,dict):
+                economic_cost_scopes.extend(paper_result.get('economic_cost_scopes',[]))
         if mode in {"paper", "live"} and investment_owner_id() == f"alpaca-investment-{mode}":
             crypto_result=write_crypto_performance(state, observation, mode=mode, owner_id=investment_owner_id(),
                 activity_reader=lambda **kwargs: read_crypto_activity_evidence(

@@ -228,10 +228,11 @@ def read_owner_period_costs(state, *, observed_at, owner_id, mode, previous=None
     result={'schema_version':1,'report_scope':'owner_period_operating_costs','owner_id':owner_id,
         'mode':mode,'paper':mode=='paper','observed_at':observed_at,'period_timezone':'UTC',
         'model_cost_usd':None,'system_cost_usd':None,'net_pnl_usd':None,'capital_expansion_allowed':False}
-    known=[]
+    known=[];paid_anchors=[]
     try:
         if mode not in {'paper','live'} or owner_id!='alpaca-investment-'+mode:
             raise ValueError('owner_period_costs_scope_invalid')
+        from paper_performance import _operating_identity_keys,_operating_cost_facts,_operating_cost_facts_match
         end=_time(observed_at).astimezone(timezone.utc).replace(hour=0,minute=0,second=0,microsecond=0)
         scope={'scope_kind':'owner_period','owner_id':owner_id,'mode':mode,'paper':mode=='paper',
             'order_ids':[],'period_start':(end-timedelta(days=1)).isoformat(),'period_end':end.isoformat(),
@@ -242,6 +243,10 @@ def read_owner_period_costs(state, *, observed_at, owner_id, mode, previous=None
             if previous.get('owner_id')!=owner_id or previous.get('mode')!=mode or previous.get('paper') is not (mode=='paper'):
                 raise ValueError('owner_period_costs_scope_invalid')
             known=remember_source_evidence([],previous,owner_id=owner_id,mode=mode)
+            paid_anchors=deepcopy(previous.get('known_operating_cost_components',previous.get('operating_cost_components',[])))
+            if not isinstance(paid_anchors,list):raise ValueError('owner_period_costs_history_invalid')
+            for anchor in paid_anchors:
+                _operating_identity_keys(anchor);_operating_cost_facts(anchor);_time(anchor['occurred_at'])
         scopes=[]
         for economic in economic_scopes:
             if (isinstance(economic,dict) and economic.get('scope_kind','order_pair')=='order_pair'
@@ -258,11 +263,42 @@ def read_owner_period_costs(state, *, observed_at, owner_id, mode, previous=None
         payload=read_readback(os.environ.get('LM_CFO_ACTUAL_COST_READBACK') or os.environ.get('LM_CFO_ACTUAL_COST'))
         summary=summarize([*scopes,scope],payload,owner_id=owner_id,mode=mode,observed_at=observed_at,expected_inventory=inventory)
         known=remember_source_evidence(known,summary,owner_id=owner_id,mode=mode)
-        return {**result,**select_components(summary,[scope]),'known_operating_cost_source_evidence':known}
+        current=select_components(summary,[scope])
+        old_anchors=deepcopy(paid_anchors);conflicts=[]
+        def matches(row,anchor):
+            return (_operating_cost_facts_match(_operating_cost_facts(row),_operating_cost_facts(anchor))
+                and _time(row['occurred_at'])==_time(anchor['occurred_at']))
+        for row in current['operating_cost_components']:
+            keys=_operating_identity_keys(row)
+            hits=[index for index,anchor in enumerate(paid_anchors) if keys&_operating_identity_keys(anchor)]
+            if any(not matches(row,paid_anchors[index]) for index in hits):
+                conflicts.extend(paid_anchors[index] for index in hits)
+                continue
+            for index in hits:keys|=_operating_identity_keys(paid_anchors[index])
+            anchored={**deepcopy(row),'identity_aliases':[list(key) for key in sorted(keys)]}
+            at=min(hits) if hits else len(paid_anchors)
+            paid_anchors=[anchor for index,anchor in enumerate(paid_anchors) if index not in hits]
+            paid_anchors.insert(at,anchored)
+        for anchor in old_anchors:
+            if 'service_period_start' in anchor or 'service_period_end' in anchor:
+                relevant=_time(anchor['service_period_start'])<end and end-timedelta(days=1)<_time(anchor['service_period_end'])
+            else:relevant=_binding(anchor)==_binding(scope) or end-timedelta(days=1)<=_time(anchor['occurred_at'])<end
+            if relevant and not any(_operating_identity_keys(row)&_operating_identity_keys(anchor) and matches(row,anchor)
+                    for row in current['operating_cost_components']):conflicts.append(anchor)
+        if conflicts:
+            gaps=[{'receipt_id':anchor['receipt_id'],'provider':anchor['provider'],'order_ids':scope['order_ids'],
+                'period_start':scope['period_start'],'period_end':scope['period_end'],'reason':'owner_period_paid_history_missing'}
+                for anchor in conflicts]
+            blocked=set().union(*(_operating_identity_keys(anchor) for anchor in conflicts))
+            current=select_components({**summary,'operating_cost_component_gaps':summary.get('operating_cost_component_gaps',[])+gaps,
+                'operating_cost_components':[row for row in summary['operating_cost_components']
+                    if not blocked&_operating_identity_keys(row)]},[scope])
+            current['operating_costs_reason']='owner_period_paid_history_missing'
+        return {**result,**current,'known_operating_cost_source_evidence':known,'known_operating_cost_components':paid_anchors}
     except (OSError,ValueError,TypeError,KeyError,AttributeError,ArithmeticError) as error:
         return {**result,'operating_costs_status':'unknown','operating_costs_reason':'owner_period_costs_unavailable',
             'operating_cost_coverage':{'coverage_state':'gap','reason':'owner_period_costs_unavailable'},
-            'error_class':type(error).__name__,'known_operating_cost_source_evidence':known}
+            'error_class':type(error).__name__,'known_operating_cost_source_evidence':known,'known_operating_cost_components':paid_anchors}
 
 
 def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inventory=None, mode="paper") -> dict:
