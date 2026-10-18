@@ -190,6 +190,8 @@ def read_crypto_activity_evidence(*, credentials_path: Path, cli_path: Path,
     env = _context(credentials_path, cli_path, mode=mode)
     fills, fees = [_read_activity_pages(cli_path, env, kind=kind, after=after_text,
         until=until, query=".", error_prefix="crypto", max_pages=4) for kind in ("FILL", "CFEE")]
+    if len({row["id"] for row in [*fills, *fees]}) != len(fills) + len(fees):
+        raise ValueError("crypto_activity_invalid")
     snapshot = {"schema_version": 1, "mode": mode, "paper": mode == "paper",
         "requested_period_start": period_start, "requested_period_end": period_end,
         "request": {"after": after_text, "until": until, "direction": "asc", "page_size": 100},
