@@ -15,6 +15,21 @@ class TerminalQuantityTests(unittest.TestCase):
             store._outcome_closed({'outcome':'broker_terminal_failure',
                                    'broker':{'status':'canceled','filled_qty':'0'}})
 
+    def test_paused_zero_fill_orders_remain_unresolved(self):
+        for status in ('done_for_day','stopped','suspended'):
+            for mode in ('paper','live'):
+                with self.subTest(status=status,mode=mode),tempfile.TemporaryDirectory() as directory:
+                    ledger=Path(directory)/'receipts.jsonl'
+                    sealed=store.seal(ledger,{'mode':mode},{'asset_class':'crypto','side':'buy','symbol':'BTC/USDC'})
+                    store.mark_started(ledger,sealed)
+                    broker={'id':'official-order','client_order_id':sealed['client_order_id'],
+                            'status':status,'filled_qty':'0'}
+                    self.assertFalse(store._outcome_closed({'outcome':'broker_terminal_failure','broker':broker},[]))
+                    result=store.reconcile_started(ledger,lambda _:broker)
+                    self.assertEqual(result['unresolved'],1)
+                    self.assertEqual(store.effect_state(ledger,sealed['effect_id']),'started')
+                    self.assertFalse(any(r.get('receipt_type')=='outcome' for r in store._rows(ledger)))
+
     def test_only_explicit_finite_zero_closes_terminal_orders(self):
         for qty in (None,'','NaN','Infinity','-1','0.01','0'):
             for mode in ('paper','live'):

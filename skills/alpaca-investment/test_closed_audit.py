@@ -33,6 +33,26 @@ def no_fill_fixture(root,mode='live'):
 
 
 class ClosedAuditTests(unittest.TestCase):
+    def test_paused_entry_cannot_be_certified_as_no_fill_or_closed(self):
+        for mode in ('paper','live'):
+            for status in ('done_for_day','stopped','suspended'):
+                with self.subTest(mode=mode,status=status),tempfile.TemporaryDirectory() as directory,patch.dict(os.environ,{
+                        'LIFE_MANAGER_INVESTMENT_MODE':mode,'LIFE_MANAGER_INVESTMENT_OWNER_ID':f'alpaca-investment-{mode}'}):
+                    root=Path(directory);owned,broker,observation,owner=no_fill_fixture(root,mode)
+                    owned['status']='entry_pending';broker['status']=status
+                    (root/'live-owned-position.json').write_text(json.dumps(owned))
+                    rows=store._rows(root/'receipts.jsonl')
+                    rows[-1]['broker']['status']=status;rows[-1]['broker_status']=status
+                    (root/'receipts.jsonl').write_text(''.join(json.dumps(r)+'\n' for r in rows))
+                    with self.assertRaises(ValueError):
+                        store.no_fill_entry_proof_from_rows(rows,owned,broker,observation,mode=mode,owner_id=owner)
+                    native=native_run();before=(root/'receipts.jsonl').read_bytes()
+                    with patch.object(native,'find_order_by_client_id',return_value=broker):
+                        actual=native._sync_live_ownership(root,Path('unused'),Path('unused'),observation)
+                    self.assertEqual(actual,owned)
+                    self.assertEqual((root/'receipts.jsonl').read_bytes(),before)
+                    self.assertEqual(json.loads((root/'live-owned-position.json').read_text()),owned)
+
     def test_closed_sell_requeries_the_close_and_validates_its_recorded_proof(self):
         for mode in ('paper','live'):
             with self.subTest(mode=mode),tempfile.TemporaryDirectory() as directory,patch.dict(os.environ,{
