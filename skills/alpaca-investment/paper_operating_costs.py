@@ -82,7 +82,7 @@ def select_components(summary: dict, trips) -> dict:
     component_gaps=[row for row in summary.get('operating_cost_component_gaps',[])
         if _binding(row) in pairs or any(_calendar_gap_applies(row,trip) for trip in trips)]
     component_gaps.extend(row for row in summary.get('operating_cost_scope_coverages',[])
-        if row.get('coverage_state')!='complete' and any(_calendar_gap_applies(row,trip) for trip in trips))
+        if row.get('coverage_state')!='complete' and row not in component_gaps and any(_calendar_gap_applies(row,trip) for trip in trips))
     for component in components:
         if (component.get('attribution_basis')!='verified_execution_window'
                 and any(_binding(row)==_binding(component) and row.get('coverage_state')=='complete' for row in coverages)
