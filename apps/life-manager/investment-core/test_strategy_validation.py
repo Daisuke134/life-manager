@@ -98,6 +98,20 @@ class StrategyValidationTests(unittest.TestCase):
                 self.assertEqual(result["status"], "unknown")
                 self.assertIsNone(result["net_pnl_usd"])
 
+    def test_quote_conversion_metadata_is_detached_and_json_serializable(self):
+        from datetime import datetime
+        from decimal import Decimal
+        mapping = _card().to_mapping()
+        mapping["instruments"] = ["TEST/USDC"]
+        candles = _candles([90, 110] * 5)
+        for row in candles:
+            row["quote_to_usd"] = {"currency": "USDC", "rate": Decimal("1"),
+                "timestamp": datetime.fromisoformat(row["timestamp"]), "evidence_ref": "fx"}
+        result = validate_series(StrategyCard.from_mapping(mapping), candles, _split(), _costs())
+        json.dumps(result)
+        self.assertIsInstance(result["trades"][0]["entry_quote_to_usd"]["rate"], str)
+        self.assertIsInstance(candles[0]["quote_to_usd"]["rate"], Decimal)
+
     def test_train_validation_holdout_are_separate(self):
         result = validate_series(
             _card(),
