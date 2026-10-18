@@ -94,7 +94,7 @@ def test_driver_reads_the_dashboard_json_inside_the_leased_page(monkeypatch):
 
     monkeypatch.setenv("SUBSTACK_PUBLICATION_JA", "aniccabuddha.substack.com")
     monkeypatch.setattr(measure, "run_browser_script", fake)
-    assert measure.measure_substack_pages(9222)["payload"]["api"] == ZERO_API
+    assert measure.measure_substack_pages()["payload"]["api"] == ZERO_API
     for path in ("/api/v1/publish-dashboard/summary", "/api/v1/user_pub_stats/payouts?pubId=",
                  "/api/v1/payouts?currency="):
         assert path in captured["script"]

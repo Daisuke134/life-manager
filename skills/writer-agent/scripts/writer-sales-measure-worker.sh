@@ -7,9 +7,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/writer-runtime-env.sh"
 LOCK_DIR="$STATE_DIR/.sales-measure.lock"
 LOCK_HELPER="$LIFE_MANAGER_REPO/runtime/host/owned_directory_lock.py"
-BROWSER_GUARD="$LIFE_MANAGER_REPO/skills/browser/browser-guard.sh"
-BROWSER_IDENTITY="interactive:dais"
-BROWSER_LEASED=0
 CLOAK_PYTHON="${WRITER_BROWSER_PYTHON:-$(command -v python3)}"
 
 # The previous release records only a PID in a directory lock. During the
@@ -31,10 +28,6 @@ else
 fi
 
 release_lock() {
-  if [ "$BROWSER_LEASED" -eq 1 ]; then
-    AI_BROWSER_HOLDER_PID=$$ bash "$BROWSER_GUARD" release "$BROWSER_IDENTITY" >/dev/null || \
-      printf 'sales measurement browser lease release failed\n' >&2
-  fi
   python3 "$LOCK_HELPER" release "$LOCK_DIR" "$$" "$LOCK_TOKEN" >/dev/null
 }
 trap release_lock EXIT
@@ -44,23 +37,9 @@ trap release_lock EXIT
   exit 75
 }
 
-# The canonical runner bounds this wait; retain this measurement while a peer owns the profile.
-while true; do
-  if BROWSER_ENDPOINT="$(AI_BROWSER_HOLDER_PID=$$ bash "$BROWSER_GUARD" acquire "$BROWSER_IDENTITY")"; then
-    BROWSER_LEASED=1
-    break
-  else
-    browser_rc=$?
-    if [ "$browser_rc" -ne 9 ]; then
-      printf 'sales measurement browser lease unavailable: rc=%s\n' "$browser_rc" >&2
-      exit 75
-    fi
-    printf 'sales measurement waiting for registered browser lease\n' >&2
-    sleep 5
-  fi
-done
-
-WRITER_CDP_ENDPOINT="$BROWSER_ENDPOINT" "$CLOAK_PYTHON" "$SCRIPT_DIR/measure-sales.py" \
+# measure-sales.py launches and closes its own short-lived headless browser per platform;
+# no shared or resident browser is leased, attached or waited for.
+"$CLOAK_PYTHON" "$SCRIPT_DIR/measure-sales.py" \
   --out "$STATE_DIR/sales-ledger.jsonl"
 python3 "$SCRIPT_DIR/money_sync.py" \
   --state-dir "$STATE_DIR" --db "$STATE_DIR/money.sqlite3"

@@ -1288,6 +1288,24 @@ class MacosLoopRegistryTest(unittest.TestCase):
         self.assertEqual(row["admission_class"], "revenue")
         self.assertEqual(row["priority"], "distribution")
 
+    def test_paid_pollers_do_not_compete_for_the_agent_slots(self):
+        # 2026-10-18 (24h): the four Paid pollers held 27,793 agent slot-seconds over 395
+        # admitted runs, made 1 provider effect and 0 model compose calls, while
+        # hf-gig-apply-direct (the only lane with revenue) was deferred resource_capacity_busy
+        # 46 times. Their poll is browser observation plus a deterministic decide; a model is
+        # used only for a real Paid event, via agent_runner with its own provider lease.
+        # critical_paid revenue priority is kept. Precedent: line-sticker-factory-hourly (#7262).
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        for loop_id in ("hf-gig-paid-direct", "lancers-revenue-paid",
+                        "crowdworks-revenue-paid", "mercor-revenue-paid"):
+            row = registry["loops"][loop_id]
+            with self.subTest(loop_id=loop_id):
+                self.assertEqual(row["resource_class"], "deterministic")
+                self.assertEqual(row["provider_route"], "deterministic")
+                self.assertEqual(row["admission_class"], "revenue")
+                self.assertEqual(row["priority"], "critical_paid")
+        self.assertEqual(registry["loops"]["hf-gig-apply-direct"]["resource_class"], "agent")
+
     def test_line_sticker_articles_is_ordered_as_distribution_work(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         row = registry["loops"]["line-sticker-articles"]
