@@ -1808,7 +1808,16 @@ def run_live_tick(
                                         "unhandled_exception",
                                         {"project_id": str(project_id), "detail": str(exc)[:200]})
                     return TickResult(ok=False, error="proposal_form_changed", project_id=str(project_id))
-            submitter = submitter_override or (lambda opportunity, text, amount, due: _production_submitter(page, opportunity, text, amount, due, proposal_reader))
+            send = submitter_override or (lambda opportunity, text, amount, due: _production_submitter(page, opportunity, text, amount, due, proposal_reader))
+
+            def submitter(*args: Any) -> Any:
+                # The proposal send is the first provider mutation. Drop lm_loop_run's pre-spawn
+                # pre_effect hint first, as crowdworks application_owner does, so a failed send
+                # stays fenced as effect_unknown instead of being released as effect 0.
+                hint = os.environ.get("LIFE_MANAGER_RESULT_HINT_PATH", "").strip()
+                if hint:
+                    Path(hint).expanduser().resolve().unlink(missing_ok=True)
+                return send(*args)
 
             def readback(proposal: Optional[str], project: str) -> Mapping[str, object]:
                 browser_value = readback_override(proposal, project) if readback_override is not None else (pending_readback or _production_readback(page, proposal, project, proposal_reader))
