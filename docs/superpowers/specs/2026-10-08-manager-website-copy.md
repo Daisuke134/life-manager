@@ -72,3 +72,8 @@ How can I end my suffering? Vipassana, which I encountered at around sixteen, wa
 The approach has changed. The question remains: how can technology end suffering in the world? We pursue it with every living being in view.
 
 詳しい物語と実証上の区別：`../../research/manager/2026-10-18-founder-story-and-mission.md`。会社名と製品名の区別は従来どおり。
+
+
+### 創業者の物語の正本と反映先（2026-10-18追記）
+
+正本：`docs/research/manager/2026-10-18-founder-story-and-mission.md`。初見の読者へ出発点から説明する。プレビューへの反映先は `docs/design/manager-universe-preview/ja.html` と `en.html`。製品紹介後の「なぜつくるのか」で、ヴィパッサナー、大学院の個別デコーダ・神経フィードバック、共有環境への介入という流れを示す。今回の反映は原稿までで、HTMLと本番は未変更。
