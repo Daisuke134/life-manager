@@ -95,7 +95,7 @@ class CryptoValidationReportTests(unittest.TestCase):
             self.assertEqual(report["release_sha"], "a" * 40)
             self.assertEqual(report["card"]["instruments"], ["BTC/USDC"])
             self.assertEqual(report["expires_at"], "2026-01-09T00:00:00Z")
-            self.assertIn("alpaca://fixture/fx", report["evidence_ids"])
+            self.assertIn("alpaca://fixture/fx", report["source_receipt_ids"])
             self.assertIn("parameter_sensitivity", report)
             self.assertNotEqual(report.get("reason"), "quote_conversion_unknown")
             self.assertEqual(report["measurement_kind"], "modeled_validation")

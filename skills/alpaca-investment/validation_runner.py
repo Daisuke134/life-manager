@@ -290,14 +290,20 @@ def build_crypto_reports_from_history(
                 candle["quote_to_usd"] = conversion
         costs = card.to_mapping()["cost_model"]
         result = validate_series(card, candles, {}, costs)
-        reports.append({
+        report = {
             **result, "report_id": f"{card.strategy_id}-{digest[:16]}",
             "release_sha": release_sha, "card": card.to_mapping(), "cost_model": costs,
-            "evidence_ids": evidence, "observed_at": _utc_timestamp(observed_at),
+            "source_receipt_ids": evidence, "observed_at": _utc_timestamp(observed_at),
             "expires_at": (observed + timedelta(days=REPORT_TTL_DAYS)).astimezone(
                 timezone.utc).isoformat().replace("+00:00", "Z"),
             "measurement_kind": "modeled_validation",
-        })
+        }
+        # Shared market observations are provenance; each evaluation has its own
+        # content-addressed artifact identity, never a fabricated broker receipt.
+        artifact = hashlib.sha256(json.dumps(report, sort_keys=True,
+                                             separators=(",", ":")).encode()).hexdigest()
+        report["evidence_ids"] = [f"investment-validation://modeled/{release_sha}/{artifact}"]
+        reports.append(report)
     return reports
 
 
