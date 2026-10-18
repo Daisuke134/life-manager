@@ -805,9 +805,10 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                         return 0
                     # Re-read official slots under the exclusive effect fence so two
                     # overlapping wakes cannot both act on the same stale snapshot.
+                    fresh_flows=[]
                     fresh = read_allocator_snapshot(credentials_path=credentials_path,
                         cli_path=cli_path, risk_day_path=state / "risk-day.json",
-                        include_etf_bars=True)
+                        include_etf_bars=True, **({'flow_sink':fresh_flows} if order.get('asset_class')=='crypto' else {}))
                     fresh["mode"] = mode
                     if mode == "paper" and not btc_positions:
                         fresh_etf_state = read_etf_state(
@@ -899,6 +900,8 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                         )
                     if order.get('asset_class')=='crypto' and order.get('side')=='buy':
                         decision['pre_trade_account_readback']=entry_pre_trade_account_readback(fresh_observation,decision)
+                    if order.get('asset_class')=='crypto':
+                        decision['pre_trade_flow_readbacks']=json.loads(json.dumps(fresh_flows)) if fresh_flows else None
                     sealed = seal(state / "receipts.jsonl", decision, order)
                     if not mark_started(state / "receipts.jsonl", sealed):
                         raise ValueError("investment_effect_already_started")

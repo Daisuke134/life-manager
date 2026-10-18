@@ -142,7 +142,7 @@ def _run(cli: Path, args: list[str], env: dict[str, str]) -> Any:
         raise ValueError("alpaca_cli_json_invalid") from error
 
 
-def _read_activity_pages(cli_path: Path, env: dict[str, str], *, kind: str,
+def _read_activity_pages(cli_path: Path, env: dict[str, str], *, kind: str | None,
                          after: str, until: str, query: str, error_prefix: str,
                          max_pages: int = 10, page_token: str | None = None,
                          page_sink: list | None = None) -> list[dict[str, Any]]:
@@ -150,7 +150,7 @@ def _read_activity_pages(cli_path: Path, env: dict[str, str], *, kind: str,
     result: list[dict[str, Any]] = []
     seen: set[str] = set()
     for _page in range(max_pages):
-        args = ["account", "activity", "list", "--activity-types", kind,
+        args = ["account", "activity", "list", *(["--activity-types", kind] if kind is not None else []),
                 "--after", after, "--until", until, "--page-size", "100",
                 "--direction", "asc", "--quiet", "--jq", query]
         if page_token is not None:
@@ -159,7 +159,8 @@ def _read_activity_pages(cli_path: Path, env: dict[str, str], *, kind: str,
         if not isinstance(page, list) or len(page) > 100:
             raise ValueError(f"{error_prefix}_activity_invalid")
         for row in page:
-            if (not isinstance(row, dict) or row.get("activity_type") != kind
+            if (not isinstance(row, dict) or (row.get("activity_type") != kind if kind is not None else
+                    not isinstance(row.get("activity_type"),str) or not row["activity_type"].strip())
                     or not isinstance(row.get("id"), str) or not row["id"].strip()
                     or row["id"] in seen):
                 raise ValueError(f"{error_prefix}_activity_invalid")
@@ -695,9 +696,9 @@ def read_etf_daily_history(
 
 def read_allocator_snapshot(
     *, credentials_path: Path, cli_path: Path, risk_day_path: Path,
-    include_etf_bars: bool = False,
+    include_etf_bars: bool = False, flow_sink: list | None = None,
 ) -> dict[str, Any]:
-    """Read only the official fields needed to offer trade candidates."""
+    """Read candidate inputs, optionally retaining raw pre-trade flow observations."""
     env = _context(credentials_path, cli_path)
     account = _run(cli_path, [
         "account", "get", "--quiet", "--jq",
@@ -732,7 +733,7 @@ def read_allocator_snapshot(
     else:
         crypto_transfers = _run(cli_path, [
             "api", "GET", "/v2/wallets/transfers", "--quiet", "--jq",
-            "[.[]|{id,asset,usd_value,direction,status}]",
+            "." if flow_sink is not None else "[.[]|{id,asset,usd_value,direction,status}]",
         ], env)
     trade_activities = _run(cli_path, [
         "account", "activity", "list", "--activity-types", "FILL",
@@ -815,6 +816,29 @@ def read_allocator_snapshot(
             credentials_path=credentials_path, cli_path=cli_path,
             clock=clock, env=env,
         ))
+    if flow_sink is not None:
+        mode=_selected_mode()
+        after=day_start.astimezone(timezone.utc).isoformat().replace('+00:00','Z')
+        frame={'mode':mode,'paper':mode=='paper','native_trading_account_id':account.get('id'),
+            'clock':clock,'wallet_transfers':None if mode=='paper' else crypto_transfers,
+            'wallet_status':'unsupported_on_paper' if mode=='paper' else 'observed',
+            'activity_request':{'after':after,'until':clock['timestamp'],'direction':'asc','page_size':100},
+            'activity_pages':[],'activity_pagination':'unknown','next_page_token':None,
+            'capture_status':'pending','fee_completeness_status':'unknown','net_pnl_usd':None}
+        try:
+            if not isinstance(account.get('id'),str) or not account['id'].strip():
+                raise ValueError('crypto_flow_account_invalid')
+            _read_activity_pages(cli_path,env,kind=None,after=after,until=clock['timestamp'],query='.',
+                error_prefix='crypto_flow',max_pages=4,page_sink=frame['activity_pages'])
+            frame.update(capture_status='captured',activity_pagination='exhausted')
+        except Exception as error:
+            pages=frame['activity_pages']
+            frame.update(capture_status='partial' if pages else 'failed',
+                activity_pagination='partial' if pages else 'unknown',
+                next_page_token=pages[-1][-1]['id'] if pages and len(pages[-1])==100 else None,
+                capture_error_class=type(error).__name__,
+                capture_error_code=str(error) if str(error).startswith('crypto_flow_') else type(error).__name__)
+        flow_sink.append(json.loads(json.dumps(frame)))
     return result
 
 
