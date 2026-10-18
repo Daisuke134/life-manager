@@ -1021,7 +1021,8 @@ def owned_quantity_state_from_rows(rows,ownership,*,mode,owner_id,upto_index=Non
     if upto_index is None: upto_index=len(rows)
     if type(upto_index) is not int or not 0<=upto_index<=len(rows):
         raise ValueError('owned_quantity_proof_invalid')
-    entry=entry_receipt_row(rows,ownership['entry_effect_id'])
+    # Anchor the first saved receipt; recorded readers still check all later outcomes.
+    entry=entry_receipt_row(rows[::-1],ownership['entry_effect_id'])
     acquisition=recorded_entry_proof_from_rows(rows,ownership,entry['broker'],
         entry['strategy_receipt']['account_readback'],mode=mode,owner_id=owner_id)
     before=_execution_number(acquisition['receipt']['account_owned_qty'])
@@ -1085,7 +1086,7 @@ def owned_quantity_state_from_rows(rows,ownership,*,mode,owner_id,upto_index=Non
         if intent['effect_id'] in seen or before<=0: raise ValueError('owned_sell_proof_invalid')
         seen.add(intent['effect_id'])
         if parse_instant(ds[0].get('observed_at'))<previous_observed: raise ValueError('owned_sell_proof_invalid')
-        row=_sell_receipt_row(rows,intent['effect_id']);provider=row['broker']['id']
+        row=_sell_receipt_row(rows[::-1],intent['effect_id']);provider=row['broker']['id']
         if provider in providers: raise ValueError('owned_sell_proof_invalid')
         providers.add(provider)
         kind=row['strategy_receipt'].get('receipt',{}).get('kind')
