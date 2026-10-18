@@ -174,3 +174,15 @@ class CryptoFeeLedgerTests(unittest.TestCase):
             before=ledger.read_bytes()
             with self.assertRaises(ValueError):self.record(root,owned,frame,account)
             self.assertEqual(ledger.read_bytes(),before)
+
+    def test_explicit_fee_consuming_all_remaining_btc_replays_without_another_debit(self):
+        for mode in ('paper','live'):
+            with self.subTest(mode=mode),tempfile.TemporaryDirectory() as directory:
+                root=Path(directory);_,owned,frame,account=debit_fixture(root,mode)
+                frame=activity_fixture(frame,mode=mode,start=frame['requested_period_start'],end=END,
+                    fees=[{**frame['fees'][0],'qty':'-0.05'}]);account['positions']=[]
+                self.assertTrue(self.record(root,owned,frame,account,mode))
+                before=(root/'receipts.jsonl').read_bytes()
+                self.assertEqual(self.state(root,owned,mode)['owned_qty'],'0')
+                self.assertFalse(self.record(root,owned,frame,account,mode))
+                self.assertEqual((root/'receipts.jsonl').read_bytes(),before)
