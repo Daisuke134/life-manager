@@ -70,6 +70,12 @@ class PeriodicOperatingCostsTests(unittest.TestCase):
                     payload['job_joins'].append(join)
                     inv=copy.deepcopy(inventory['scopes'][0]);inv.update(day);inventory['scopes'].append(inv)
                     if not paid:payload['documents'][0]['status']='unpaid'
+                    if paid:
+                        both=summarize([monthly,day],payload,owner_id=monthly['owner_id'],mode=mode,
+                            observed_at=inventory['observed_at'],expected_inventory=inventory)
+                        self.assertIsNotNone(select_components(both,[monthly])['model_cost_usd'])
+                        self.assertEqual(Decimal(select_components(both,[monthly])['model_cost_usd']),Decimal('1'))
+                        self.assertIsNone(select_components(both,[day])['model_cost_usd'])
                     value=report(payload,inventory,day,mode)
                     self.assertIsNone(value['model_cost_usd'])
                     self.assertEqual(value['operating_cost_coverage']['coverage_state'],'gap')
