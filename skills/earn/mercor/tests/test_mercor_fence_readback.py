@@ -190,6 +190,54 @@ def test_reply_uses_the_later_run_that_claimed_the_occurrence(tmp_path):
     assert search.queries == [f"in:anywhere from:me after:{T0 - 60} before:{T0 + 4 + 600}"]
 
 
+def deferred_wake_root(tmp_path: Path, **wake_report) -> Path:
+    # Production shape (mercor-revenue-reply:18df0351cb226510-21162): the wake
+    # is deferred at host admission, a run one day later claims it.
+    occurrence = f"{REPLY}:wake"
+    report = {"status": "blocked", "exit_code": 75, "failure_layer": "admission",
+              "blocker": "host_admission_deferred:resource_capacity_busy",
+              "effect_identity_status": "not_written", **wake_report}
+    root = write_events(tmp_path / "reply", [
+        event(REPLY, "wake", "execute", "2026-09-30T00:00:00+00:00",
+              occurrence_id=occurrence),
+        event(REPLY, "wake", "report", "2026-09-30T00:00:02+00:00",
+              occurrence_id=occurrence, **report),
+        event(REPLY, "claimer", "execute", "2026-10-01T00:00:00+00:00",
+              occurrence_id=f"{REPLY}:claimer"),
+        event(REPLY, "claimer", "report", "2026-10-01T00:00:15+00:00", status="pass",
+              occurrence_id=occurrence, release_sha="b" * 40,
+              evidence_refs=[f"lm-occurrence://{REPLY}/wake/claim"]),
+    ])
+    write_outbox(root, "2026-09-30T00:00:01Z")
+    return root
+
+
+def test_reply_window_skips_a_wake_deferred_at_host_admission(tmp_path):
+    # The deferred wake never spawned the owner, so its rows must not stretch
+    # the window over a day of unrelated mail the account sent.
+    module = load()
+    search = Search(GOG_EMPTY)
+
+    proof, reason = module.find_proof(deferred_wake_root(tmp_path), REPLY, f"{REPLY}:wake",
+                                      search=search)
+
+    assert reason == "ok" and proof["window"] == [float(T0), float(T0 + 15)]
+    assert proof["claim_run_id"] == "claimer"
+    assert search.queries == [f"in:anywhere from:me after:{T0 - 60} before:{T0 + 15 + 600}"]
+
+
+def test_reply_window_keeps_a_tagged_run_that_passed_admission(tmp_path):
+    module = load()
+    search = Search(GOG_EMPTY)
+    root = deferred_wake_root(tmp_path, status="fail", exit_code=1, failure_layer="entrypoint",
+                              blocker="entrypoint_exit_1")
+
+    assert module.find_proof(root, REPLY, f"{REPLY}:wake", search=search) == (
+        None, "telegram_outbox_not_quiet")
+    assert search.queries == [f"in:anywhere from:me after:{T0 - 86400 - 60} "
+                              f"before:{T0 + 15 + 600}"]
+
+
 def test_reply_telegram_send_in_window_or_missing_outbox_keeps_fenced(tmp_path):
     module = load()
     root = reply_root(tmp_path)

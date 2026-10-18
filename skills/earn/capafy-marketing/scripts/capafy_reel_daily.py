@@ -54,7 +54,7 @@ NICHES = [
 LIMITS = {"hook_a": 40, "hook_b": 40, "title": 34, "label": 14, "quote": 80, "onscreen": 36}
 
 
-SLOT_TIMES = {1: ("13:00", "17:00", "14:00"), 2: ("23:00", "11:00", "01:00")}  # (ig, x, tt) UTC; slot 2 doubles volume
+SLOT_TIMES = {1: ("13:00", "17:00", "14:00", "20:00"), 2: ("23:00", "11:00", "01:00", "08:00")}  # (ig, x, tt, tc) UTC
 
 
 def pick_niche(day: dt.date, slot: int = 1) -> dict:
@@ -62,9 +62,39 @@ def pick_niche(day: dt.date, slot: int = 1) -> dict:
 
 
 def slots(day: dt.date, slot: int = 1) -> dict:
-    ig, x, tt = SLOT_TIMES[slot]
+    ig, x, tt, tc = SLOT_TIMES[slot]
     return {"ig": f"{day.isoformat()}T{ig}:00.000Z", "x": f"{day.isoformat()}T{x}:00.000Z",
-            "tt": f"{day.isoformat()}T{tt}:00.000Z"}
+            "tt": f"{day.isoformat()}T{tt}:00.000Z", "tc": f"{day.isoformat()}T{tc}:00.000Z"}
+
+
+def render_carousel(slug: str, spec: dict) -> list[Path]:
+    """Six 1080x1920 JPEG slides for a TikTok photo post (slideshows reach non-followers:
+    our 1-follower slideshow account drew 3,158 views/7d): pain hook, promise, 3 hooks, CTA."""
+    from PIL import Image, ImageDraw, ImageFont  # noqa: PLC0415
+    import textwrap  # noqa: PLC0415
+    bold = "/System/Library/Fonts/Supplemental/Arial Bold.ttf"
+    out_dir = BASE / slug / "carousel"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    pages = [(spec["hook_a"], spec["hook_b"]), (spec["title"], "Hooks Hook Lab wrote. Swipe.")]
+    pages += [(quote, f"{label} hook · on screen: {onscreen}") for label, quote, onscreen in spec["cards"]]
+    pages.append(("Search \"Hook Lab\" on Capafy", "5+ hooks, a timed script and a caption from one line."))
+    paths = []
+    for i, (head, sub) in enumerate(pages, 1):
+        img = Image.new("RGB", (1080, 1920), (14, 14, 18))
+        d = ImageDraw.Draw(img)
+        y = 620
+        for row in textwrap.wrap(head, 18):
+            d.text((540, y), row, font=ImageFont.truetype(bold, 92), fill=(255, 196, 0), anchor="mm")
+            y += 112
+        y += 60
+        for row in textwrap.wrap(sub, 30):
+            d.text((540, y), row, font=ImageFont.truetype(bold, 52), fill=(245, 245, 245), anchor="mm")
+            y += 70
+        d.text((540, 1800), f"{i}/6", font=ImageFont.truetype(bold, 40), fill=(150, 150, 160), anchor="mm")
+        path = out_dir / f"slide-{i}.jpg"
+        img.save(path, "JPEG", quality=90)
+        paths.append(path)
+    return paths
 
 
 def tiktok_live() -> bool:
@@ -142,14 +172,14 @@ def _durable_write(path: Path, text: str) -> None:
         os.fsync(fh.fileno())
 
 
-def schedule(slug: str, spec: dict, day: dt.date, key: str, nets: tuple = ("ig", "x", "tt"), *,
+def schedule(slug: str, spec: dict, day: dt.date, key: str, nets: tuple = ("ig", "x", "tt", "tc"), *,
              run_dir: Path | None = None, existing_fn=None, slot: int = 1) -> dict:
     mp4 = BASE / slug / "renders-v2" / "video.mp4"
     out = {}
-    for net, integration in (("ig", IG_ID), ("x", X_ID), ("tt", TT_ID)):
+    for net, integration in (("ig", IG_ID), ("x", X_ID), ("tt", TT_ID), ("tc", TT_ID)):
         if net not in nets:
             continue
-        if net == "tt" and not tiktok_live():
+        if net in ("tt", "tc") and not tiktok_live():
             out[net] = "warmup_skip"
             continue
         receipt = BASE / slug / f"{net}-receipts-v3.jsonl"
@@ -165,14 +195,21 @@ def schedule(slug: str, spec: dict, day: dt.date, key: str, nets: tuple = ("ig",
         if run_dir is not None:  # durable pre-dispatch marker for capafy_reel_fence_reconcile
             _durable_write(run_dir / f"dispatch-{net}{'' if slot == 1 else f'-s{slot}'}.json",
                            json.dumps({"slug": slug, "net": net, "slot": slots(day, slot)[net]}) + "\n")
-        bnd = uuid.uuid4().hex
-        data = (f"--{bnd}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{slug}.mp4\"\r\n"
-                f"Content-Type: video/mp4\r\n\r\n").encode() + mp4.read_bytes() + f"\r\n--{bnd}--\r\n".encode()
-        up = _req(key, f"{API}/upload", data, {"Content-Type": f"multipart/form-data; boundary={bnd}"}, "POST")
+        assets = render_carousel(slug, spec) if net == "tc" else [mp4]
+        uploads = []
+        for asset in assets:
+            bnd = uuid.uuid4().hex
+            kind = "image/jpeg" if asset.suffix == ".jpg" else "video/mp4"
+            data = (f"--{bnd}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{slug}-{asset.name}\"\r\n"
+                    f"Content-Type: {kind}\r\n\r\n").encode() + asset.read_bytes() + f"\r\n--{bnd}--\r\n".encode()
+            uploads.append(_req(key, f"{API}/upload", data, {"Content-Type": f"multipart/form-data; boundary={bnd}"}, "POST"))
+        up = uploads[0]
+        settings = ({**SETTINGS["tt"], "title": spec["hook_a"]} if net in ("tt", "tc") else SETTINGS[net])
         payload = {"type": "schedule", "date": slots(day, slot)[net], "shortLink": False, "tags": [],
                    "posts": [{"integration": {"id": integration},
-                              "value": [{"content": caption(spec), "image": [{"id": up["id"], "path": up["path"]}]}],
-                              "settings": {**SETTINGS[net], "title": spec["hook_a"]} if net == "tt" else SETTINGS[net]}]}
+                              "value": [{"content": caption(spec),
+                                         "image": [{"id": u["id"], "path": u["path"]} for u in uploads]}],
+                              "settings": settings}]}
         cr = _req(key, f"{API}/posts", json.dumps(payload).encode(), {"Content-Type": "application/json"}, "POST")
         rec = {"at": dt.datetime.now(dt.timezone.utc).isoformat(), "slug": slug, "asset": str(mp4), "upload": up,
                "create": cr, "scheduled_for": slots(day, slot)[net], "integration": integration}
@@ -181,7 +218,7 @@ def schedule(slug: str, spec: dict, day: dt.date, key: str, nets: tuple = ("ig",
     return out
 
 
-def run(day: dt.date, dry_run: bool = False, nets: tuple = ("ig", "x", "tt"), run_dir: Path | None = None,
+def run(day: dt.date, dry_run: bool = False, nets: tuple = ("ig", "x", "tt", "tc"), run_dir: Path | None = None,
         slot: int = 1) -> dict:
     niche = pick_niche(day, slot)
     slug = f"hooklab-d{day:%Y%m%d}-{niche['key']}"
@@ -208,7 +245,7 @@ def run(day: dt.date, dry_run: bool = False, nets: tuple = ("ig", "x", "tt"), ru
 
 
 if __name__ == "__main__":
-    nets = tuple(sys.argv[sys.argv.index("--only") + 1].split(",")) if "--only" in sys.argv else ("ig", "x", "tt")
+    nets = tuple(sys.argv[sys.argv.index("--only") + 1].split(",")) if "--only" in sys.argv else ("ig", "x", "tt", "tc")
     run_dir = Path(os.environ["CAPAFY_REEL_RUN_DIR"]) if os.environ.get("CAPAFY_REEL_RUN_DIR") else None
     slot = int(sys.argv[sys.argv.index("--slot") + 1]) if "--slot" in sys.argv else 1
     print(json.dumps(run(dt.date.fromisoformat(sys.argv[1]), "--dry-run" in sys.argv, nets, run_dir, slot), default=str))
