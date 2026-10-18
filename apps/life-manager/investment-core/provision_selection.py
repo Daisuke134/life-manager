@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import importlib.util
 import os
+import sys
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -12,6 +14,17 @@ from typing import Any
 
 from strategy_cards import StrategyCard, is_valid_release_sha, validate_strategy_card
 from strategy_validation import select_strategy
+
+
+_ALPACA = Path(__file__).resolve().parents[3] / "skills" / "alpaca-investment"
+if str(_ALPACA) not in sys.path:
+    sys.path.append(str(_ALPACA))
+from control import control_fence
+# The core has another effect_store module with a different receipt schema.
+_effect_spec = importlib.util.spec_from_file_location("alpaca_selection_effect_store", _ALPACA / "effect_store.py")
+_effects = importlib.util.module_from_spec(_effect_spec)
+_effect_spec.loader.exec_module(_effects)
+from etf_ownership import _read_open, ETF_OWNER_IDS, ETF_STRATEGY_ID
 
 
 class SelectionProvisionError(ValueError):
@@ -154,7 +167,79 @@ def _selection_payload(
     return payload
 
 
-def provision_selection(
+def _guard_reports(root: Path, existing: Any, reports: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    protected = False
+    owned_strategy = None
+    for name in ("etf-owned-position.json", "live-owned-position.json"):
+        path = root / name
+        if path.is_symlink():
+            raise SelectionProvisionError("ownership_state_invalid")
+        try:
+            marker = json.loads(path.read_text())
+        except FileNotFoundError:
+            continue
+        except (OSError, ValueError) as error:
+            raise SelectionProvisionError("ownership_state_invalid") from error
+        if not isinstance(marker, dict):
+            raise SelectionProvisionError("ownership_state_invalid")
+        if name == "etf-owned-position.json":
+            try:
+                if marker.get("owner_id") not in ETF_OWNER_IDS or marker.get("strategy_id") != ETF_STRATEGY_ID:
+                    raise ValueError
+                _read_open(marker)
+            except (TypeError, ValueError) as error:
+                raise SelectionProvisionError("ownership_state_invalid") from error
+            closed = (marker.get("status") == "closed"
+                      and isinstance(marker.get("close_provider_order_id"), str)
+                      and bool(marker["close_provider_order_id"])
+                      and isinstance(marker.get("close_source_receipt_ids"), list)
+                      and bool(marker["close_source_receipt_ids"]))
+            if not closed:
+                owned_strategy = ETF_STRATEGY_ID
+                protected = True
+        else:
+            if marker.get("status") not in {"entry_pending", "open", "closing", "closed"}:
+                raise SelectionProvisionError("ownership_state_invalid")
+            # Legacy BTC closed markers alone do not establish official close fills.
+            protected = True
+    try:
+        rows = _effects._rows(root / "receipts.jsonl")
+        intents = {row["effect_id"]: row for row in rows
+                   if row.get("receipt_type") == "effect_intent"}
+        outcomes = {row["effect_id"]: row for row in rows if row.get("receipt_type") == "outcome"}
+        protected = protected or any(not _effects._outcome_closed(outcomes.get(effect_id)) for effect_id in intents)
+    except (KeyError, TypeError, ValueError, OSError) as error:
+        raise SelectionProvisionError("selection_ledger_invalid") from error
+    if protected:
+        if not _existing_selected_shape_is_valid(existing) or (
+                owned_strategy is not None and existing.get("strategy_id") != owned_strategy):
+            raise SelectionProvisionError("owned_policy_identity_unknown")
+        def canonical(card):
+            return {key: value for key, value in card.items() if key != "status"}
+        current = canonical(existing["card"])
+        return [report for report in reports if isinstance(report.get("card"), dict)
+                and canonical(report["card"]) == current]
+    btc = [report for report in reports if isinstance(report.get("card"), dict)
+           and report["card"].get("instruments") == ["BTC/USDC"]]
+    return btc if btc else reports
+
+
+def provision_selection(path: str | Path, reports_path: str | Path,
+                        runtime_release_sha: str | None = None, *, refresh: bool = False) -> dict[str, str]:
+    """Serialize selected-policy reads and writes with the existing submit fence."""
+    destination = Path(path).expanduser()
+    if destination.is_symlink() or destination.parent.is_symlink():
+        raise SelectionProvisionError("selection_symlink_refused")
+    try:
+        with control_fence(destination.parent):
+            return _provision_selection_locked(destination, reports_path, runtime_release_sha, refresh=refresh)
+    except ValueError as error:
+        if isinstance(error, SelectionProvisionError):
+            raise
+        raise SelectionProvisionError("selection_control_invalid") from error
+
+
+def _provision_selection_locked(
     path: str | Path,
     reports_path: str | Path,
     runtime_release_sha: str | None = None,
@@ -168,6 +253,7 @@ def provision_selection(
     if runtime_release_sha is not None and not is_valid_release_sha(runtime_release_sha):
         raise SelectionProvisionError("runtime_release_sha_invalid")
     existing_valid = False
+    existing = None
     if destination.exists():
         try:
             existing = json.loads(destination.read_text(encoding="utf-8"))
@@ -180,7 +266,7 @@ def provision_selection(
             raise SelectionProvisionError("existing_selection_invalid")
 
     try:
-        reports = _read_reports(Path(reports_path).expanduser())
+        reports = _guard_reports(destination.parent, existing, _read_reports(Path(reports_path).expanduser()))
         selection = select_strategy(reports)
         payload = _selection_payload(selection, reports, runtime_release_sha)
     except SelectionProvisionError:
