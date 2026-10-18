@@ -285,7 +285,7 @@
         "occurrence_flag": "--occurrence",
         "resolve_flag": "--resolve"
       },
-      "resource_class": "agent",
+      "resource_class": "deterministic",
       "admission_class": "revenue",
       "admission_effect_scope": "occurrence",
       "entrypoint": "skills/earn/crowdworks/scripts/paid-owner",
@@ -1878,7 +1878,7 @@
       "log_root": "~/.local/state/life-manager/coconala/paid/logs",
       "provider_route": "deterministic",
       "priority": "critical_paid",
-      "resource_class": "agent",
+      "resource_class": "deterministic",
       "state_root": "~/.local/state/life-manager/coconala/paid"
     },
     "hf-gig-reply-detector": {
@@ -2310,7 +2310,7 @@
         "resolve_flag": "--resolve"
       },
       "runtime_timeout_seconds": 300,
-      "resource_class": "agent",
+      "resource_class": "deterministic",
       "admission_class": "revenue",
       "admission_effect_scope": "occurrence",
       "entrypoint": "skills/earn/lancers/scripts/paid-owner",
@@ -3797,7 +3797,7 @@
         "occurrence_flag": "--occurrence",
         "resolve_flag": "--resolve"
       },
-      "resource_class": "agent",
+      "resource_class": "deterministic",
       "admission_class": "revenue",
       "entrypoint": "skills/earn/mercor/scripts/paid-owner",
       "label": "ai.anicca.mercor-revenue-paid",
