@@ -14771,8 +14771,8 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **IN-COST-03実装契約:** 対象は`run.py`の`choose`を実行したpaper/ETF/HOLDだけ。既存decisionへ`decision_execution`として`run_id`、`occurrence_id`、`scope=allocation_decision`、`model_invocation=not_invoked`を記録し、同じ値を既存no-trade receiptとallocation-latestへ保存する。IDはhostの既存環境変数だけから取り、未設定はnullとして捏造しない。runtime版はexact occurrenceの既存runtime eventへjoinし、既存`release_sha`はstrategy版のまま保持する。このfieldは一判断の非金銭事実であり、全run/全取引期間のモデル無呼出し、費用0、費用coverage completeを意味しない。live/別strategy/別action/choose未実行には付けない。注文intentや金額・gate・21-session条件を変えない。回帰は両保存先の一致、欠落IDのnull、対象外の未付与、strategy SHA保持を確認する。
 
-1. **現在cursor: 非金銭metadataの設計。** 既存HOLD decision/`record_no_trade`へexact occurrence/run IDと「この判断ではモデル無呼出し」の意味を定義し、既存runtime eventへ結び付ける。新台帳や費用ゼロの推定は追加しない。
-2. **最小修正の実装と反映。** 上記契約を先に固定し、最小RED→GREEN、必要な独立review/対象head CI/main統合/immutable採用/自然runの記録照合を行う。今回の文書更新では未実装。
+1. **設計完了: 非金銭metadata。** 既存HOLD decision/`record_no_trade`へexact occurrence/run IDと「この判断ではモデル無呼出し」の意味を定義し、既存runtime eventへ結び付ける。新台帳や費用ゼロの推定は追加しない。
+2. **最小修正の実装と反映。** 契約は`199bb340d0`、REDは`a2ab10f174`でremote保存する。初回fixtureのcampaign unrealized値不足を修正後、実行情報が欠落する2ケースだけのREDを確認する。`run.py`の既存choose後へ8行を追加し、ETF/paper/HOLDだけを記録する。対象caller47 tests/45 subtests、投資module全305 tests/151 subtests、diff checkがPASS。現在cursorは独立review→対象head CI/main統合→完全immutable採用→自然runの記録照合。金額・取引gate・21-session条件は変更しない。
 3. **公式支払証拠の分類。** Apple経由の共有subscription領収書は投資へのexact配賦を持たない。既存`billed_expenses`はinvoiceだけを独立表示し、paid_receipt単独表示には契約の穴がある。原本の種別・document/line ID・通貨・期間を確認し、必要な最小契約を定義してから接続する。invoiceへの偽装やJPY→USD推定換算はしない。
 4. **取引へのexact join。** provider chargeとjob/owner/mode/closed order pair/economic period/source receiptを結ぶ証拠を取得し、既存allocation→job_joinsへ入力する。共有月額の比率配賦はしない。必要な帰属証拠がなければunattributedを保持する。
 5. **評価への接続。** 自然なclosed round trip後、公式約定・完全な実費coverage・既存評価条件をそろえた場合だけ費用込み成績を判定する。HOLD回数をclosed trade sampleへ数えない。指定sheetはURL/正式名を特定できず、未読のまま明記する。
