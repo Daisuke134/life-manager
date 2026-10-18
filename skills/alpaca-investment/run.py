@@ -372,8 +372,10 @@ def _sync_live_ownership(state: Path, credentials_path: Path, cli_path: Path,
             return ownership
         if ownership.get("close_effect_id") is not None:
             try:
-                recorded_close_fill_proof(state, ownership, broker, observation,
-                                          mode=os.environ.get("LIFE_MANAGER_INVESTMENT_MODE"))
+                saved=_sell_receipt_row(_owned_rows(state/'receipts.jsonl'),ownership['close_effect_id'])['strategy_receipt']
+                mode=os.environ.get('LIFE_MANAGER_INVESTMENT_MODE')
+                recorded_close_fill_proof(state, ownership, broker, saved['account_readback'],mode=mode)
+                _flat_btc_account(observation,mode=mode,not_before=parse_instant(saved['account_readback']['clock']['observed_at']))
             except ReconciliationPending:
                 return {**ownership, "status": "closing"}
         else:
