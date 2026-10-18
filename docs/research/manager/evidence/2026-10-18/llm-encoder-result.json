@@ -1,0 +1,7 @@
+{
+  "mode": "fictional_record_upstream_text_encoder_only",
+  "encoded_text": "Age group is 30-39, Work type is Manager/Office, Number of household members is 3.",
+  "model_training": false,
+  "llm_inference": false,
+  "data": "fictional record, not real person"
+}

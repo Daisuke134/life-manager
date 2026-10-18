@@ -1,0 +1,50 @@
+{
+  "date": "2026-10-18",
+  "repos": [
+    {
+      "repo": "https://github.com/HyunsooYun/llm-pop-synth.git",
+      "commit": "c7c11642cd6777b946e23ff57f8246bcdf4e8444",
+      "files": [
+        {
+          "path": "utils/text_encoder.py",
+          "sha256": "4df614cb68a7b51a426ba72786a5b6aefa25eb9a661190885f68efaf1b341c01"
+        },
+        {
+          "path": "LLM-BN/BN_generator.py",
+          "sha256": "6e5ecf461ea7760ede6f2f0f58024896a71202fe95a6e0cef39a29fa1d405637"
+        },
+        {
+          "path": "LLM-BN/train.ipynb",
+          "sha256": "0b20ce2e9e84fa66c10e3814c4718c175a6960d9a4010cb9fd07893e0acefef3"
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "7a8be215d3b33c1d98a94574b3ece22704526855604c8cd68a557cbc7e5cd14e"
+        }
+      ]
+    },
+    {
+      "repo": "https://github.com/MJones235/LLM-Population-Generator.git",
+      "commit": "ffe36bbbc83143c96e7575ed24ff7d932168ac1c",
+      "files": [
+        {
+          "path": "population_generator/engine/generator.py",
+          "sha256": "a963202c7715606f0b98dec4ac2567f0e186acef1ab4ce7ee043152f12879d67"
+        },
+        {
+          "path": "population_generator/generation/prompts.py",
+          "sha256": "e325f1b78d20e871fac51c577a215f90336727addd39946c34a77a3cfe197390"
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "5e8064112a8867c2f6a8cfad01f379e6ad04632e71e68ded6fc803edae0bcb95"
+        }
+      ]
+    }
+  ],
+  "execution": "TextEncoder only; fictional row",
+  "training": false,
+  "llm_inference": false,
+  "live_website_changed": false,
+  "story_source": "User message on 2026-10-18; no independent clinical outcome asserted"
+}

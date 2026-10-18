@@ -49,3 +49,26 @@ We begin by building the capabilities that this ambition requires: models ground
 Netlify management identityは現在のcloudには未設定。公開元site/domain/SHA/build設定の公式readbackが未実施。本番公開したという主張はしない。既存hostingを保持し、previewの別domainで更新完了にしない。
 
 metadata英語: `Manager — One entity, blessing for all.`。日本語: `マネージャー｜ひとつの存在、すべてに恩恵を。`。Aniccaは発行主体として残し、legal identityをManagerへ書き換えない。英日canonical/hreflang、OG、JSON-LD、sitemapも同じ説明へ。
+
+
+## 2026-10-18 創業者の問いを伝える追加セクション案
+
+製品の紹介に続き、「なぜつくるのか」で背景を説明する草稿。最新の使命は苦しみの終焉であり、一般的な生活改善だけへ縮小しない。全生命・宇宙の構想を維持する。以下は本文案で、本番反映は未実施。
+
+### 日本語
+
+問いは、ずっと同じです。
+
+自分の苦しみをどうすれば終わらせられるか。16歳の頃に出会ったヴィパッサナーが、出発点でした。大学院では、脳活動や瞳孔のデータを使う個人向けのデコーダと神経フィードバックのアプローチを研究しました。今は、人口と社会をモデル化し、人々が生きる環境へ働きかけるマネージャーを開発しています。
+
+手段は変わってきました。テクノロジーで、この世界の苦しみをどうすれば終わらせられるか。その問いを、すべての生命を視野に追い続けます。
+
+### English
+
+The question has stayed the same.
+
+How can I end my suffering? Vipassana, which I encountered at around sixteen, was my starting point. In graduate school, I worked on personalized decoding using brain and pupil data and explored neurofeedback. Today, I am building Manager to model populations and society and act on the environments in which people live.
+
+The approach has changed. The question remains: how can technology end suffering in the world? We pursue it with every living being in view.
+
+詳しい物語と実証上の区別：`../../research/manager/2026-10-18-founder-story-and-mission.md`。会社名と製品名の区別は従来どおり。
