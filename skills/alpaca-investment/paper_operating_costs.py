@@ -383,14 +383,15 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inven
                     parent=_binding(trip)
                     relevant=trip.get('scope_kind')=='owner_period' and parent is not None and any(
                         _binding(join) is not None and _binding(join)[1]<parent[2] and parent[1]<=_binding(join)[2]
-                        for join in owned if join.get('scope_kind')=='owner_period')
+                        for join in owned)
                 known=accepted.get(charge)
                 confirmed=(charge not in charge_conflicts and known is not None
                     and known.get('attribution_basis')=='verified_service_period')
                 if not relevant or (confirmed and _binding(known)==_binding(trip)):continue
                 if (not service and charge not in charge_conflicts and known is not None
                         and known.get('attribution_basis')=='verified_execution_window'
-                        and (_binding(known)==_binding(trip) or _calendar_covers(known,trip,observations))):continue
+                        and (_binding(known)==_binding(trip) or not _calendar_contains(known,trip)
+                            or _calendar_covers(known,trip,observations))):continue
                 gap={'provider':provider,'document_type':kind,'document_id':document_id,
                     'line_item_id':line.get('line_item_id'),'allocation_id':allocation.get('allocation_id'),
                     'order_ids':trip['order_ids'],'period_start':trip['period_start'],'period_end':_cost_end(trip),

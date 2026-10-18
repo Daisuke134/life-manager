@@ -126,10 +126,24 @@ class PeriodicOperatingCostsTests(unittest.TestCase):
                     join=copy.deepcopy(payload['job_joins'][0]);join.update(parent,query_id='parent-query',join_type='scope_query',job_id=None)
                     payload['job_joins'].append(join)
                     inv=copy.deepcopy(inventory['scopes'][0]);inv.update(parent);inventory['scopes'].append(inv)
-                    for targets in ([parent],[parent,child]):
-                        value=summarize(targets,payload,owner_id=child['owner_id'],mode=mode,
-                            observed_at=inventory['observed_at'],expected_inventory=inventory)
-                        self.assertIsNone(select_components(value,[parent])['model_cost_usd'])
+                    for kind in (None,'order_pair','owner_period'):
+                        if kind is None:payload['job_joins'][0].pop('scope_kind',None)
+                        else:payload['job_joins'][0]['scope_kind']=kind
+                        for targets in ([parent],[parent,child]):
+                            value=summarize(targets,payload,owner_id=child['owner_id'],mode=mode,
+                                observed_at=inventory['observed_at'],expected_inventory=inventory)
+                            self.assertIsNone(select_components(value,[parent])['model_cost_usd'])
+
+    def test_verified_execution_expense_outside_calendar_does_not_taint_zero(self):
+        from test_operating_cost_totals import calendar_fixture
+        for mode in ('paper','live'):
+            payload,inventory,child,parent=calendar_fixture(mode)
+            parent['period_end']='2026-09-30T00:00:00Z'
+            payload['job_joins'][-1]['period_end']=parent['period_end']
+            inventory['scopes'][-1]['period_end']=parent['period_end']
+            value=report(payload,inventory,parent,mode)
+            self.assertEqual(value['model_cost_usd'],'0')
+            self.assertEqual(value['operating_cost_coverage']['coverage_state'],'complete')
 
     def test_missing_final_query_or_unpaid_service_never_becomes_confirmed(self):
         for broken in ('query','unpaid','account','mode'):
