@@ -20,10 +20,10 @@ def seal(frame):
     return frame
 
 
-def fixture(mode='paper',*,asof=ASOF,quoted='2026-01-01T12:00:29Z'):
+def fixture(mode='paper',*,asof=ASOF,quoted='2026-01-01T12:00:29Z',start='2026-01-01T12:00:00Z'):
     return seal({'schema_version':1,'kind':'crypto_fx_asof_quote','mode':mode,'paper':mode=='paper',
         'symbol':'USDC/USD','base_currency':'USDC','quote_currency':'USD','asof_at':asof,'observed_at':OBSERVED,
-        'request':{'symbols':'USDC/USD','start':'2026-01-01T12:00:00Z','end':asof,'sort':'desc','limit':1},
+        'request':{'symbols':'USDC/USD','start':start,'end':asof,'sort':'desc','limit':1},
         'response':{'next_page_token':'older-quotes','quotes':{'USDC/USD':[{'t':quoted,'bp':'0.9995','ap':'1.00001'}]}}})
 
 
@@ -76,11 +76,12 @@ class CryptoFxQuoteTests(unittest.TestCase):
 
     def test_nanosecond_asof_and_exact_thirty_second_boundary_do_not_round(self):
         asof='2026-01-01T12:00:30.000000001Z'
-        exact=fixture(asof=asof,quoted='2026-01-01T12:00:00.000000001Z')
+        start='2026-01-01T12:00:00.000000001Z'
+        exact=fixture(asof=asof,quoted='2026-01-01T12:00:00.000000001Z',start=start)
         self.assertEqual(self.proof(exact,asof=asof)['age_seconds'],'30')
-        future=fixture(asof=asof,quoted='2026-01-01T12:00:30.000000002Z')
+        future=fixture(asof=asof,quoted='2026-01-01T12:00:30.000000002Z',start=start)
         with self.assertRaisesRegex(ValueError,'crypto_fx_quote_invalid'):self.proof(future,asof=asof)
-        stale=fixture(asof=asof,quoted='2026-01-01T12:00:00Z')
+        stale=fixture(asof=asof,quoted='2026-01-01T12:00:00Z',start=start)
         with self.assertRaisesRegex(proofs.ReconciliationPending,'crypto_fx_quote_stale'):self.proof(stale,asof=asof)
         offset=fixture(asof='2026-01-01T21:00:30+09:00')
         self.assertEqual(self.proof(offset,asof=ASOF)['age_seconds'],'1')
@@ -101,3 +102,17 @@ class CryptoFxQuoteTests(unittest.TestCase):
             result=self.proof(frame)
             self.assertEqual(result['bid_usd_per_usdc'],'0.999999999999999999999999999999')
             self.assertEqual(result['ask_usd_per_usdc'],'1.000000000000000000000000000001')
+
+    def test_request_subtraction_preserves_nanoseconds_and_exact_window_width(self):
+        reader=getattr(cli,'read_crypto_fx_evidence',None);self.assertTrue(callable(reader))
+        cases=[('2026-01-01T12:00:30.123456789Z','2026-01-01T12:00:00.123456789Z'),
+               ('2026-01-01T21:00:30.000000001+09:00','2026-01-01T12:00:00.000000001Z'),
+               ('2026-01-01T12:00:30Z','2026-01-01T12:00:00Z')]
+        for asof,start in cases:
+            with self.subTest(asof=asof),patch.object(cli,'_context',return_value={}),\
+                 patch.object(cli,'_run',return_value=fixture(asof=asof,start=start)['response']) as run:
+                frame=reader(credentials_path=Path('unused'),cli_path=Path('unused'),mode='paper',
+                    asof_at=asof,observed_at=OBSERVED)
+                self.assertEqual(frame['request']['start'],start)
+                args=run.call_args.args[1];self.assertEqual(args[args.index('--start')+1],start)
+                self.assertEqual(self.proof(fixture(asof=asof,start=start),asof=asof)['bid_usd_per_usdc'],'0.9995')
