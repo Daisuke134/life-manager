@@ -166,6 +166,8 @@ fi
 # Keyword pages must carry the query in the H1 and are announced to IndexNow (key file is public on aniccaai.com).
 SEO_QUERY="${SEO_QUERY:-}"
 INDEXNOW_KEY=92ec974b25b70513c2cbc172f532bb3b
+# Pre-quoted: bash drops the quotes inside ${VAR:+ "..."} in the model brief here-document.
+SEO_PUBLISH_FLAGS=""; [ -n "$SEO_QUERY" ] && SEO_PUBLISH_FLAGS=" --title-must-contain $(printf '%q' "$SEO_QUERY") --indexnow-key $INDEXNOW_KEY"
 FREE_ARTICLE_URL="${ARTICLE_SELF_OWNED_BASE_URL:-}"
 [ -n "$FREE_ARTICLE_URL" ] && FREE_ARTICLE_URL="${FREE_ARTICLE_URL%/}/blog/${FREE_ARTICLE_SLUG}"
 
@@ -255,7 +257,7 @@ DESTINATIONS:
        --remote "$ARTICLE_SELF_OWNED_REMOTE" \\
        --branch "$ARTICLE_SELF_OWNED_BRANCH" \\
        --base-url "$ARTICLE_SELF_OWNED_BASE_URL" \\
-       --date "$JST_DATE"${SEO_QUERY:+ --title-must-contain "$SEO_QUERY" --indexnow-key $INDEXNOW_KEY}
+       --date "$JST_DATE"$SEO_PUBLISH_FLAGS
    This writes ONE plain public JSON page (no preview/paid split, unlike the
    Writer's own self-owned paid articles) straight into the same landing
    repo the Writer commits to, pushes it, then polls the live page at
