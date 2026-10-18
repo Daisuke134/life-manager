@@ -3628,3 +3628,15 @@ Verification so far: route hashes/noindex/live-route checks passed; adapter synt
 - Receipts and actual production screenshots: `docs/research/manager/evidence/2026-10-18/website-production/`. Research docs branch was synchronized to the final production package; other agents' MiroFish files were preserved.
 - Follow-up, not a publication blocker: the six new static pages do not mount the old Next SiteHitTracker component. Existing telemetry APIs and other product trackers remain; revenue CTA first-touch/UTM behavior is preserved. Add a shared static-page telemetry adapter in a separately verified change if those pageview counters are needed; do not invent metrics from this deployment.
 - Worktree disposition: website-only worktree `.worktrees/approved-marketing-release-20261018` was clean, its final artifact verified as ancestor of merged main, and no process used its directory; removed without force and Git registration pruned/read back. The primary `manager-learning-20261017` worktree remains active for the user's research and learning work. No mails, DMs, social posts or applications were sent by this publication task.
+
+### 2026-10-18 マネージャーへ戻る：現在地と残作業の再整理
+
+本人がGoodfire/Numerai等の学習からマネージャー本体へ戻り、現在地と使命までの全残作業を要求。現在の社会シミュレーション系は8A/8Bの人口部品を実装・測定済み。8Bは17世帯差の説明後にOK/ありがとうと応答しており、追加学習へ進む合図があった。専門家としての習得完了までは意味しない。次9の実行動予測は未実装。8Bの年齢・人数制約の不足は残り、9で必要な属性が決まったら改善する。既存Life Managerコアの存在と、今回の社会シミュレーション部分の未実装状態を混同しない。
+
+8A：41評価地域の平均TVDは単純法0.01434818906262829、IPF0.008880598197022646、29改善/12悪化。8B：Rhode Island、20182通常世帯の見本から441570仮想世帯/1042763人を作成。calibrated integer 6セルTVD0.0005435151844554427。これは人口分布の評価であり、行動/介入/苦しみ軽減の実証ではない。コード・再現手順・結果・記事・図・スライド素材を研究branchへ保存済み。MiroFish追加記事/図はローカル未追跡のものがあり、全教材がGitHub保存済みとは言わない。
+
+承認済みサイトは本番公開・外部readback完了（上記receipt参照）。Goodfireの解説原稿・10枚構成、Numerai Unity参加方針案は研究branchへpush済み。Goodfireは独立再現なし、Numeraiは未登録/未提出/ステークなし。記事のGitHub保存とブログ/SNSでの公開を区別。
+
+次の実装準備：9で予測する行動を一つ、実データと評価条件とともに定義する。交通/利用アクセス/生活時間は検討例であり用途の決定ではない。公開データの取得可否、行動・条件・属性の列、対象人口と地域、利用条件、未使用期間/地域/人での評価を比較し、単純モデルを基準にする。8Bの米国世帯と別調査の個人を対応付ける際の分布差と観測できない属性を記録し、無根拠な結合をしない。最初に作る成果は入力→予測→実測との採点を再実行できる行動予測部品。LLM、MiroFish、Numerai参加は必須依存ではない。
+
+残りの順序：9行動予測→10時間/相互作用/共有資源→11操作候補と現状/同予算比較→12小規模な実行と比較設計による因果評価→13監視/修正/更新の閉ループ→14領域/地域/対象の拡大。9では予測精度、12では現実の便益と副作用を別に測る。使命は苦しみの終焉を目指すこと。直近の成果指標は最初の用途に応じた負担・時間・費用・本人の困りごと等で具体化し、代理指標の改善だけで苦しみを減らしたと断言しない。世界規模の達成手法・期限は未確定。各段階の実装・評価・公開素材を繰り返し、発信/個別連絡/応募/YC準備は全ロードマップの完成を待たず、実際の成果と締切に合わせて並行する。今回送信や応募はしない。
