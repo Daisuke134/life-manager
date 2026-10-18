@@ -574,14 +574,25 @@ class CryptoPerformanceTests(unittest.TestCase):
         from test_crypto_close import native_run
         from test_owned_policy import snapshot
         self.assertIsNotNone(PERF)
-        for mode in ('paper','live'):
-            with self.subTest(mode=mode),tempfile.TemporaryDirectory() as directory,ExitStack() as stack:
+        for mode,paged in ((m,p) for m in ('paper','live') for p in (False,True)):
+            with self.subTest(mode=mode,paged=paged),tempfile.TemporaryDirectory() as directory,ExitStack() as stack:
                 root=Path(directory);orders,activity,owned=cycle_fixture(root,mode)
                 (root/'live-owned-position.json').write_text(json.dumps(owned));native=native_run()
                 obs={'mode':mode,'paper':mode=='paper','clock':{'observed_at':NOW},'account':{'cash':'0','equity':'100'},
                      'positions':[{'symbol':'USDCUSD','qty':'100','unrealized_pl':'0'}],
                      'activities_count':0,'open_and_closed_orders_count':0}
                 raw,_=snapshot(mode);raw.pop('crypto_history');raw['positions']=0
+                if paged:
+                    from test_crypto_activity_pages import read_chunk,activity_rows
+                    def limited(**_): raise ValueError('crypto_activity_limit_exceeded')
+                    for minute in (1,2):
+                        obs['clock']['observed_at']=f'2026-01-02T00:{minute:02}:00Z'
+                        PERF.write_crypto_performance(root,obs,mode=mode,owner_id=f'alpaca-investment-{mode}',activity_reader=limited)
+                    obs['clock']['observed_at']='2026-01-02T00:03:00Z'
+                    chunk=read_chunk('FILL',mode=mode,rows=activity['fills']+[
+                        {**f,'order_id':'foreign'} for f in activity_rows('FILL',399)],
+                        period_start='2026-01-01T00:00:00Z',period_end='2026-01-02T00:00:00Z')
+                    stack.enter_context(patch.object(native,'read_crypto_activity_page_chunk',return_value=chunk))
                 stack.enter_context(patch.dict(os.environ,{'LIFE_MANAGER_INVESTMENT_MODE':mode,
                     'LIFE_MANAGER_INVESTMENT_DEPLOYMENT':'local','LIFE_MANAGER_INVESTMENT_OWNER_ID':f'alpaca-investment-{mode}',
                     f'ALPACA_INVESTMENT_{mode.upper()}_STATE_DIR':str(root),
@@ -601,7 +612,12 @@ class CryptoPerformanceTests(unittest.TestCase):
                 with redirect_stdout(StringIO()) as output: code=native.main(wake_id='crypto-performance-fixture')
                 self.assertEqual(code,0,output.getvalue());self.assertEqual(writer.call_count,1)
                 saved=json.loads((root/'performance-crypto-latest.json').read_text())
-                self.assertEqual(saved['completed_round_trips'],1);self.assertIsNone(saved['net_pnl_usd'])
+                if paged:
+                    self.assertEqual(len(saved['activity_page_chunks']),1)
+                    self.assertEqual(saved['reason'],'crypto_activity_pagination_pending')
+                    self.assertIsNone(saved['completed_round_trips'])
+                else: self.assertEqual(saved['completed_round_trips'],1)
+                self.assertIsNone(saved['net_pnl_usd'])
 
     def test_cached_completed_cycle_cannot_be_reported_before_its_close(self):
         self.assertIsNotNone(PERF)
