@@ -15138,6 +15138,8 @@ rawの成功/失敗や未対応paper walletをtrade gate/fee0/settlement/fee完�
 3. 完了: 同再現・関連回帰・独立再反証を通し、原本保持だけを限定受入する。
 query境界の初回native probeはcontrol_target_absentで未判定。private native-activity-boundary-readonly-20261019/capture.json SHA256=6e7c3d35c939f89d64ef6dc12b155546ea7415542fcfad60c21fb149ad1825e3、同account GET＋CFEE2queryの3GET/HTTP200だが、created_atの1microsecond前/同時刻の両方で既知IDが0件になる。費用0や包含/排他とは判定しない。取得済み原本ではCFEE.dateとcreated_atが同日でも時刻が異なるため、次は同native IDに対しUTC日開始/開始+1microsecond/開始+1秒をafter、翌日開始をuntilにする同account GET＋3query（計4GET上限）の追加観測で失敗境界を狭める。最初のcaptureは保持し、別private directory/O_EXCLへ保存する。
 
+追加r2もcontrol_target_absentで包含境界は未判定。private native-activity-boundary-readonly-20261019-r2/capture.json SHA256=3dddcef29cfb60616eea35b11cddde08accdcf8287db9d2cff5123bb61b5643a、同account GET＋CFEE3queryの4GET/HTTP200でUTC日開始/開始+1microsecond/開始+1秒すべて既知ID0件。次は既知broad after＋固定now untilのcontrol、broad after＋対象翌日until、対象日開始（小数なし）after＋now until、対象created秒切捨（小数なし）after＋now untilの4query＋account GET1回（計5GET上限）を別r3原本へ保存し、上下boundとformatのどこで既知IDが消えるか独立に観測する。検証者はr1/r2のraw receipt/脚本/以前の捕捉との整合性をread-onlyで確認する。失敗を繰り返すためでなく観測を変えるprobeであり、未知のfee完全性/netを昇格しない。
+
 4. FILL/CFEE/その他native数量flowと口座quoteを時点・口座・cycle別に照合する。未説明差分とwallet/OCTの不明対応を隠さない。
 5. fee完全性・実paid model/system costs・FX・二重計上防止を揃え、producer/coreの費用後netへ接続する。未知費用はnullのまま残し、paper/live/cross-venueを混ぜない。
 6. 全R3のsource acceptance/PR #8360/CI/main統合→main由来immutable→対象ローカルowner採用→自然実行・公式readbackを確認する。現在の実装を本番反映済みとは扱わない。
