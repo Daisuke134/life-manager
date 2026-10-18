@@ -2,6 +2,7 @@ import json
 import os
 import tempfile
 import unittest
+from io import BytesIO
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -34,6 +35,58 @@ def snapshot(venue="alpaca", receipt_id=None):
 
 
 class CrossVenueReporterTests(unittest.TestCase):
+    def test_real_shared_sdk_receipt_is_persisted_and_replay_does_not_send(self):
+        from skills._shared.telegram import TelegramClient
+        requests = []
+        def opener(request, timeout):
+            requests.append(request)
+            return BytesIO(json.dumps({"ok": True, "result": {
+                "message_id": 123, "chat": {"id": 456}, "date": 1700000000,
+            }}).encode())
+        client = TelegramClient(token="test-token", chat_id="456",
+                                api_base="https://telegram.invalid", opener=opener)
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            readers = {"alpaca": lambda: snapshot()}
+            first = wake(readers, state, TODAY, client.send_text,
+                         occurrence_id="investment-cross-venue-report:fixture-sdk")
+            second = wake(readers, state, TODAY, client.send_text,
+                          occurrence_id="investment-cross-venue-report:fixture-sdk")
+            self.assertEqual(first["status"], "delivered")
+            self.assertEqual(first["provider_message_id"], "123")
+            self.assertEqual(first["occurrence_id"], "investment-cross-venue-report:fixture-sdk")
+            self.assertEqual(second["provider_message_id"], "123")
+            items = list_items(state / "telegram-outbox.sqlite3")
+            self.assertEqual(items[0].status, "delivered")
+            self.assertEqual(items[0].provider_message_id, "123")
+        self.assertEqual(len(requests), 1)
+
+    def test_incomplete_or_invalid_sdk_receipt_stays_uncertain_without_retry(self):
+        cases = [
+            {"status": "delivery_uncertain", "message_ids": [123], "message_id": "legacy"},
+            {"status": "delivered", "message_ids": 123, "message_id": "legacy"},
+            {"status": "delivered", "message_ids": []},
+            {"status": "delivered", "message_ids": [True]},
+            {"status": "delivered", "message_ids": [0]},
+            {"status": "delivered", "message_ids": [-1]},
+            {"status": "delivered", "message_ids": [1, 2]},
+            {"status": "delivered", "message_ids": ["123"]},
+            {"message_ids": [123]},
+        ]
+        for response in cases:
+            with self.subTest(response=response), tempfile.TemporaryDirectory() as directory:
+                state = Path(directory)
+                calls = []
+                def send(_message):
+                    calls.append(True)
+                    return response
+                first = wake({"alpaca": lambda: snapshot()}, state, TODAY, send)
+                second = wake({"alpaca": lambda: snapshot()}, state, TODAY, send)
+                self.assertEqual(first["status"], "delivery_uncertain")
+                self.assertEqual(second["status"], "delivery_uncertain")
+                self.assertEqual(len(calls), 1)
+                self.assertIsNone(list_items(state / "telegram-outbox.sqlite3")[0].provider_message_id)
+
     def test_render_keeps_system_cost_and_its_unknown_state_visible(self):
         for value, expected in (("0.40", "$0.40"), (None, "不明")):
             with self.subTest(value=value):
