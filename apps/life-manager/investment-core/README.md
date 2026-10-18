@@ -319,6 +319,13 @@ quote-flow reconciliation, not an atomic account snapshot, fee completeness,
 settlement, or net-profit authority. The clock is read before positions by the
 existing observation reader. No additional provider reads or financial values
 are introduced by this capture.
+The under-fence crypto order path additionally opts into a `flow_sink` on the
+existing allocator reader. It keeps raw wallet transfers (unsupported/null on
+paper) and bounded all-type activity pages in the sealed decision, with their
+actual query window and partial/error state. Default snapshots and risk inputs
+are unchanged. Additional capture errors retain valid observations and never
+become zero costs or another trading gate. This is raw input retention only;
+cycle-wide/late-fee coverage, flow identity, reconciliation and net remain open.
 `crypto_fill_activity_proof` validates the saved snapshot and raw order, sums
 quantities and computes native VWAP with exact rational arithmetic. Display
 rounding cannot decide quantity equality. Nullable broker fields stay unchanged;
