@@ -286,5 +286,11 @@ flat account receipt. Known owner/policy/status contradictions are rejected acro
 all fill phases. Proven closed/no-fill state permits the next policy refresh;
 unproved state cannot become permission to reenter. No-fill receipts retain unknown
 USD net profit and do not assert zero operating costs.
-This branch is source only: entry account receipts, partial fills, complete costs,
-performance and natural outcomes remain in the SSOT.
+Managed filled buys now require recorded same-mode acquisition/account evidence
+before opening ownership. Account lag remains durably unresolved, and malformed
+completed phases cannot hide an invalid proof from the common counter.
+Terminal partial recovery first reads bounded FILL/CFEE snapshots through the
+existing CLI. CFEE may post at end of day without an order ID: an empty query
+or an observed balance difference does not prove zero or attributed fees.
+This branch is source only: partial fills, complete costs, performance, deployment
+and natural outcomes remain in the SSOT.
