@@ -253,7 +253,6 @@ def build_expected_inventory(trips, *, beneficiary_owner_id, observed_at,
                 if event_id in events:
                     if events[event_id] != row:
                         conflicts.add(event_id)
-                        gap(scope, 'runtime_event_conflict', execution_owner_id=owner, event_id=event_id)
                     else:
                         continue
                 events[event_id] = row
@@ -265,6 +264,8 @@ def build_expected_inventory(trips, *, beneficiary_owner_id, observed_at,
                 if min(t for t, _ in run) > end or terminals and max(t for t, _ in run) < start:
                     continue
                 selected += 1
+                for event_id in sorted(conflicts & {row['event_id'] for _, row in run}):
+                    gap(scope, 'runtime_event_conflict', execution_owner_id=owner, event_id=event_id)
                 for sha in sorted({r['release_sha'] for _, r in run}):
                     declarations(sha, owner)
                 evidence.update(ref for _, row in run for ref in row['evidence_refs'])
@@ -317,6 +318,12 @@ def build_expected_inventory(trips, *, beneficiary_owner_id, observed_at,
                         or parse_instant(binding.get('period_start')) != start
                         or parse_instant(binding.get('period_end')) != end):
                     continue
+                if (any(key in binding and binding[key] != scope[key] for key in ('owner_id', 'mode'))
+                        or 'paper' in binding and binding['paper'] is not scope['paper']):
+                    gap(scope, 'paid_binding_scope_invalid')
+                    continue
+                if not {'owner_id', 'mode', 'paper'} <= binding.keys():
+                    gap(scope, 'paid_binding_owner_unverified')
                 if (not _text(binding.get('receipt_id')) or not _text(binding.get('provider'))
                         or binding.get('category') not in _COST_CATEGORIES or not _ids(binding.get('evidence_refs'))
                         or not _ids(binding.get('charge_identity')) or len(binding['charge_identity']) != 5
@@ -327,8 +334,10 @@ def build_expected_inventory(trips, *, beneficiary_owner_id, observed_at,
                     account = None
                     gap(scope, 'paid_account_missing', receipt_id=binding['receipt_id'])
                 add_source(binding['provider'], account, binding['category'], refs=binding['evidence_refs'])
-                scope['known_paid_bindings'].append({key: binding[key] for key in
-                    ('receipt_id', 'charge_identity', 'identity_aliases', 'evidence_refs') if key in binding})
+                scope['known_paid_bindings'].append({key: list(binding[key]) if isinstance(binding[key], list)
+                    else binding[key] for key in ('receipt_id', 'provider', 'billing_account_ref', 'category',
+                    'owner_id', 'mode', 'paper', 'order_ids', 'period_start', 'period_end',
+                    'charge_identity', 'identity_aliases', 'evidence_refs') if key in binding})
             except (ValueError, TypeError, OverflowError):
                 gap(scope, 'paid_binding_invalid')
         for key in sorted(sources, key=repr):
