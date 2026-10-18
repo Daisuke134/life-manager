@@ -121,30 +121,38 @@ DECLARE
   v_event_id text;
 BEGIN
   IF p_participant_id IS NULL OR p_participant_id !~ '^[a-f0-9]{64}$'
-    OR p_milestone IS NULL OR p_milestone NOT IN ('first_response', 'return_7d') THEN
+    OR p_milestone IS DISTINCT FROM 'successful_use' THEN
     RETURN false;
   END IF;
 
-  IF p_milestone = 'first_response' THEN
+  SELECT * INTO v_participant
+    FROM public.lm_maritime_pilot_participants
+    WHERE participant_id = p_participant_id
+      AND consent_version = 'maritime-retention-v1'
+      AND consented_at IS NOT NULL AND revoked_at IS NULL
+    FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN false;
+  END IF;
+
+  IF v_participant.first_response_at IS NULL THEN
     v_event_name := 'maritime_first_response';
     UPDATE public.lm_maritime_pilot_participants
       SET first_response_at = v_at, updated_at = v_at
       WHERE participant_id = p_participant_id
-        AND consent_version = 'maritime-retention-v1'
-        AND consented_at IS NOT NULL AND revoked_at IS NULL
-        AND first_response_at IS NULL
       RETURNING * INTO v_participant;
-  ELSE
+  ELSIF v_participant.returned_at IS NULL THEN
+    v_at := GREATEST(v_at, v_participant.first_response_at + interval '1 microsecond');
+    IF v_at > v_participant.first_response_at + interval '7 days' THEN
+      RETURN false;
+    END IF;
     v_event_name := 'maritime_7day_return';
     UPDATE public.lm_maritime_pilot_participants
       SET returned_at = v_at, updated_at = v_at
       WHERE participant_id = p_participant_id
-        AND consent_version = 'maritime-retention-v1'
-        AND consented_at IS NOT NULL AND revoked_at IS NULL
-        AND first_response_at < v_at
-        AND v_at <= first_response_at + interval '7 days'
-        AND returned_at IS NULL
       RETURNING * INTO v_participant;
+  ELSE
+    RETURN false;
   END IF;
 
   IF NOT FOUND THEN

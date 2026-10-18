@@ -1800,18 +1800,12 @@ const server = http.createServer(async (req, res) => {
                 res.writeHead(200); res.end("ok");
                 return;
               }
-              const participantRead = await maritimeDistributionStore.getParticipant(row.uid);
-              const participant = participantRead.participant;
-              const consentActive = participantRead.ok
-                && Boolean(participant && participant.consent_version === "maritime-retention-v1"
-                  && participant.consented_at && !participant.revoked_at);
-              if (!consentActive) {
+              if (!(await maritimeDistributionStore.isConsentActive(row.uid))) {
                 const delivered = await sendMessage(LM_TG_TOKEN, u.chatId, maritimeMessages(u.languageCode).notice);
                 if (delivered && delivered.ok === true) await maritimeDistributionStore.recordStart(row.uid, "direct");
                 res.writeHead(200); res.end("ok");
                 return;
               }
-              const hadFirstResponseBeforePilot = Boolean(participant.first_response_at);
               const updateId = update.update_id;
               if (!Number.isSafeInteger(updateId) || updateId < 0) throw new Error("maritime_pilot_update_id_invalid");
               const scope = { uid: String(row.uid), chatId: String(u.chatId) };
@@ -1828,7 +1822,7 @@ const server = http.createServer(async (req, res) => {
                 res.writeHead(200); res.end("ok");
                 return;
               }
-              maritimePilotReceipt = { store: commandStore, scope, idempotencyKey, hadFirstResponseBeforePilot };
+              maritimePilotReceipt = { store: commandStore, scope, idempotencyKey };
             }
             const outcome = await handleSlashCommand(slash, row, {
               token: LM_TG_TOKEN, chatId: u.chatId, base: PUBLIC_BASE,
@@ -1849,10 +1843,7 @@ const server = http.createServer(async (req, res) => {
                 { status: outcome.ok === true ? "succeeded" : "failed", result: null },
               );
               if (outcome.ok === true) {
-                await maritimeDistributionStore.markMilestone(
-                  maritimePilotReceipt.scope.uid,
-                  maritimePilotReceipt.hadFirstResponseBeforePilot ? "return_7d" : "first_response",
-                );
+                await maritimeDistributionStore.recordSuccessfulUse(maritimePilotReceipt.scope.uid);
               }
             }
             if (outcome.handled) {

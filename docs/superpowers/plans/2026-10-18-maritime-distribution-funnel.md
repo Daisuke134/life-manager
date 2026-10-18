@@ -72,3 +72,10 @@
 - [x] Run focused tests, syntax checks, migration contract assertions, and diff checks.
 - [x] Commit and push the fix (`1b526a185e`, rebased on `origin/main` `50160c2b`).
 - [ ] Obtain a fresh read-only review verdict of `ship` against the corrected PR head and wait for exact-head CI before integration.
+
+Follow-up from the fresh review: classify each successful `/pilot` update inside the RPC under a participant-row lock. Do not select first-response versus return from a pre-provider snapshot; that snapshot can undercount concurrent distinct requests. Add a concurrent HTTP contract case before the final review pass.
+
+- [x] Add a failing concurrent-success contract test proving two distinct overlapping `/pilot` updates produce one first-response and one 7-day return event.
+- [x] Replace caller-side milestone selection with one locked, atomic successful-use RPC transition.
+- [x] Re-run the focused suite (26/26), SQL contract, syntax/source-boundary checks, and diff checks.
+- [ ] Commit/push the correction and request another fresh review.

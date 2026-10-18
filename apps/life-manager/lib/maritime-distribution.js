@@ -15,10 +15,6 @@ const USER_EVENTS = new Set([
   "maritime_start", "maritime_consent", "maritime_consent_revoked",
   "maritime_first_response", "maritime_7day_return",
 ]);
-const MILESTONES = Object.freeze({
-  first_response: "maritime_first_response",
-  return_7d: "maritime_7day_return",
-});
 
 function parseMaritimeMaxUsers(value) {
   if (value == null || String(value).trim() === "") return DEFAULT_PUBLIC_MAX_USERS;
@@ -221,13 +217,12 @@ function createMaritimeDistributionStore({
     return true;
   }
 
-  async function markMilestone(uid, milestone) {
-    const eventName = MILESTONES[milestone];
+  async function recordSuccessfulUse(uid) {
     const id = participantId(uid);
-    if (!eventName || !id || !(await isConsentActive(uid))) return false;
+    if (!id) return false;
     const result = await callRpc("mark_lm_maritime_pilot_milestone_v1", {
       p_participant_id: id,
-      p_milestone: milestone,
+      p_milestone: "successful_use",
       p_at: new Date(Number(now())).toISOString(),
     });
     // The RPC updates the participant row and appends the corresponding funnel event
@@ -246,7 +241,7 @@ function createMaritimeDistributionStore({
     accept,
     isConsentActive,
     revoke,
-    markMilestone,
+    recordSuccessfulUse,
   });
 }
 

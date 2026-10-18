@@ -110,18 +110,25 @@ test("consent and milestones use HMAC participant ids and persist no Telegram id
         failNextMilestoneTransaction = false;
         return { ok: false, status: 503, json: async () => null };
       }
-      const key = body.p_milestone === "first_response" ? "first_response_at" : "returned_at";
       const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
-      const elapsedMs = participant?.first_response_at
-        ? Date.parse(body.p_at) - Date.parse(participant.first_response_at) : null;
-      const outsideReturnWindow = body.p_milestone === "return_7d"
-        && (elapsedMs == null || elapsedMs <= 0 || elapsedMs > sevenDaysMs);
-      if (!participant || participant.revoked_at || participant[key] || outsideReturnWindow) {
+      if (!participant || participant.revoked_at || body.p_milestone !== "successful_use") {
         return { ok: true, status: 200, json: async () => false };
       }
-      participant[key] = body.p_at;
-      const eventName = body.p_milestone === "first_response" ? "maritime_first_response" : "maritime_7day_return";
-      events.push({ eventName, uid: null, sourceObjectId: participantId, occurredAt: body.p_at });
+      let eventName;
+      let eventAt = Date.parse(body.p_at);
+      if (!participant.first_response_at) {
+        eventName = "maritime_first_response";
+        participant.first_response_at = new Date(eventAt).toISOString();
+      } else if (!participant.returned_at) {
+        const firstAt = Date.parse(participant.first_response_at);
+        eventAt = Math.max(eventAt, firstAt + 1);
+        if (eventAt > firstAt + sevenDaysMs) return { ok: true, status: 200, json: async () => false };
+        eventName = "maritime_7day_return";
+        participant.returned_at = new Date(eventAt).toISOString();
+      } else {
+        return { ok: true, status: 200, json: async () => false };
+      }
+      events.push({ eventName, uid: null, sourceObjectId: participantId, occurredAt: new Date(eventAt).toISOString() });
       return { ok: true, status: 200, json: async () => true };
     }
     if (url.pathname === "/rest/v1/lm_maritime_pilot_participants" && method === "PATCH") {
@@ -145,17 +152,16 @@ test("consent and milestones use HMAC participant ids and persist no Telegram id
   assert.deepEqual(await store.accept("telegram-987654321", "community"), { ok: true, status: "consented" });
   assert.equal(await store.isConsentActive("telegram-987654321"), true);
   failNextMilestoneTransaction = true;
-  assert.equal(await store.markMilestone("telegram-987654321", "first_response"), false);
+  assert.equal(await store.recordSuccessfulUse("telegram-987654321"), false);
   assert.equal(participant.first_response_at, null, "a failed RPC transaction must roll back the milestone");
   assert.equal(events.some((event) => event.eventName === "maritime_first_response"), false);
-  assert.equal(await store.markMilestone("telegram-987654321", "first_response"), true);
-  assert.equal(await store.markMilestone("telegram-987654321", "first_response"), false);
-  assert.equal(await store.markMilestone("telegram-987654321", "return_7d"), false);
+  assert.equal(await store.recordSuccessfulUse("telegram-987654321"), true);
   nowMs += 7 * 24 * 60 * 60 * 1000;
-  assert.equal(await store.markMilestone("telegram-987654321", "return_7d"), true, "the exact 7-day boundary is included");
+  participant.returned_at = null;
+  assert.equal(await store.recordSuccessfulUse("telegram-987654321"), true, "the exact 7-day boundary is included");
   nowMs += 1;
   participant.returned_at = null;
-  assert.equal(await store.markMilestone("telegram-987654321", "return_7d"), false, "use after 7 days is excluded");
+  assert.equal(await store.recordSuccessfulUse("telegram-987654321"), false, "use after 7 days is excluded");
   assert.equal(await store.revoke("telegram-987654321"), true);
   assert.equal(await store.isConsentActive("telegram-987654321"), false);
 
@@ -178,8 +184,11 @@ test("milestone RPC updates participant and appends its funnel event in one tran
   assert.match(routine[1], /UPDATE public\.lm_maritime_pilot_participants[\s\S]*?RETURNING \* INTO v_participant/);
   assert.match(routine[1], /INSERT INTO public\.lm_web_funnel_events/);
   assert.match(routine[1], /format\('maritime:%s:%s', p_participant_id, v_event_name\)/);
-  assert.match(routine[1], /v_at <= first_response_at \+ interval '7 days'/);
-  assert.match(routine[1], /first_response_at < v_at/);
+  assert.match(routine[1], /p_milestone IS DISTINCT FROM 'successful_use'/);
+  assert.match(routine[1], /FROM public\.lm_maritime_pilot_participants[\s\S]*?FOR UPDATE/);
+  assert.match(routine[1], /v_participant\.first_response_at IS NULL/);
+  assert.match(routine[1], /v_at := GREATEST\(v_at, v_participant\.first_response_at \+ interval '1 microsecond'\)/);
+  assert.match(routine[1], /IF v_at > v_participant\.first_response_at \+ interval '7 days' THEN/);
   assert.doesNotMatch(routine[1], /ON CONFLICT DO NOTHING/);
 });
 
