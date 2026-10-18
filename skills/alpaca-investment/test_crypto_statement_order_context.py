@@ -351,5 +351,65 @@ class CryptoStatementOrderContextTests(unittest.TestCase):
                 self.assertNotIn('statement_order_candidates', report['fee_evidence'])
 
 
+    def test_project_failure_retains_activity_evidence_and_recovers_without_provider_reads(self):
+        # A bad sealed ledger cannot erase the captured inputs needed after its repair.
+        retained = ('activity_readbacks', 'order_activity_refs', 'fee_activity_refs')
+        for field, value in (('release_sha', 'b' * 40), ('native_trading_account_id', OTHER_ACCOUNT)):
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                _, _, reader, text = self.prepare(root)
+                self.add_packet(root)
+                first = self.write(root, reader, text)
+                self.assert_candidates(first, PAIRS)
+                for key in retained:
+                    self.assertTrue(first[key], key)
+                ledger = root / 'receipts.jsonl'
+                original = ledger.read_bytes()
+                changed = [json.loads(line) for line in original.decode().splitlines() if line.strip()]
+                decision = next(row['decision'] for row in changed if row.get('receipt_type') == 'decision')
+                decision[field] = value
+                ledger.write_text(''.join(json.dumps(row) + '\n' for row in changed))
+                daily = root / 'performance-crypto-daily-2026-01-01.json'
+                old_daily = daily.read_bytes()
+                failed = self.write(root, self.forbidden, text)
+                self.assertEqual(failed['failed_phase'], 'project')
+                self.assertEqual(failed['measurement_status'], 'partial')
+                self.assert_raw_unchanged(failed)
+                self.assertIn(failed['fee_evidence'].get('statement_order_candidates'), (None, []))
+                self.assertEqual(daily.read_bytes(), old_daily)
+                for key in ANCHORS:
+                    if key not in retained:
+                        self.assertEqual(failed[key], first[key], key)
+                self.assertEqual({key: failed[key] for key in retained},
+                    {key: first[key] for key in retained})
+                ledger.write_bytes(original)
+                recovered = self.write(root, self.forbidden, text)
+                self.assertEqual(recovered['reason'], 'crypto_costs_or_fx_unknown')
+                self.assert_financial_unchanged(recovered, first)
+                self.assert_raw_unchanged(recovered)
+                self.assert_candidates(recovered, PAIRS)
+                for key in ANCHORS:
+                    self.assertEqual(recovered[key], first[key], key)
+
+    def test_wrong_cache_owner_or_mode_keeps_early_rejection_of_activity_references(self):
+        # Retaining project inputs does not authorize an invalid cache from another scope.
+        for field, value in (('owner_id', 'alpaca-investment-paper'), ('mode', 'paper')):
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                _, _, reader, text = self.prepare(root)
+                self.add_packet(root)
+                first = self.write(root, reader, text)
+                changed = copy.deepcopy(first)
+                changed[field] = value
+                (root / 'performance-crypto-latest.json').write_text(json.dumps(changed))
+                failed = self.write(root, self.forbidden, text)
+                self.assertEqual(failed['failed_phase'], 'cache')
+                self.assertEqual(failed['reason'], 'crypto_performance_activity_cache_invalid')
+                self.assertEqual(failed['activity_readbacks'], {})
+                self.assertEqual(failed['order_activity_refs'], {})
+                self.assertEqual(failed['fee_activity_refs'], [])
+                self.assertIn(failed['fee_evidence'].get('statement_order_candidates'), (None, []))
+
+
 if __name__ == '__main__':
     unittest.main()
