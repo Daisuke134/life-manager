@@ -7,13 +7,22 @@ LOCK_HELPER="$REPO_ROOT/runtime/host/owned_directory_lock.py"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
+# Dais's personal Chrome is never a loop browser; the worker leases its own identity.
+if grep -q 'interactive:dais' "$WORKER"; then
+  printf 'sales-measure contract: worker references interactive:dais\n' >&2
+  exit 1
+fi
+grep -q '^BROWSER_IDENTITY="writer:anicca"$' "$WORKER"
+grep -q 'ensure_provision_browser.sh' "$WORKER"
+
 make_fixture() {
   local root="$1"
   mkdir -p "$root/scripts" "$root/state" "$root/runtime/host" "$root/skills/browser"
   ln -s "$LOCK_HELPER" "$root/runtime/host/owned_directory_lock.py"
-  cat >"$root/skills/browser/browser-guard.sh" <<'EOF'
+  printf '#!/usr/bin/env bash\n' >"$root/skills/browser/browser-guard.sh"
+  cat >"$root/skills/browser/ensure_provision_browser.sh" <<'EOF'
 #!/usr/bin/env bash
-if [ "$1" = acquire ]; then printf 'http://[::1]:9222\n'; fi
+printf 'http://127.0.0.1:41234\n'
 EOF
   cp "$WORKER" "$root/scripts/writer-sales-measure-worker.sh"
   cat >"$root/scripts/writer-runtime-env.sh" <<EOF

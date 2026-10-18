@@ -24,6 +24,7 @@ def test_natural_observations_join_runtime_and_money_receipt_without_revenue(tmp
     monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "writer-sales-measure:claim-1")
     monkeypatch.setenv("LIFE_MANAGER_RELEASE_SHA", "a" * 40)
     monkeypatch.setenv("SUBSTACK_PUBLICATION_JA", "aniccabuddha.substack.com")
+    monkeypatch.delenv("SUBSTACK_PUBLICATION_EN", raising=False)
     artifact = {"run_id": "article-1", "public_id": "known-key", "lang": "ja", "platform": "note", "state": "live",
                 "published": True, "verified": True, "reality_gate": "PASS",
                 "live_url": "https://note.com/writer/n/known-key",
@@ -40,7 +41,7 @@ def test_natural_observations_join_runtime_and_money_receipt_without_revenue(tmp
                          "note_stats": [{"key": "known-key", "read_count": 3,
                                          "user": {"urlname": "writer"}}]}],
     }})
-    monkeypatch.setattr(measure, "measure_substack_pages", lambda _: {"payload": {
+    monkeypatch.setattr(measure, "measure_substack_pages", lambda _, lang="ja": {"payload": {
         "home_url": "https://aniccabuddha.substack.com/publish/home",
         "home_body": "有料登録者\n-\n0から",
         "earnings_url": "https://aniccabuddha.substack.com/publish/stats/earnings",
@@ -75,7 +76,7 @@ def test_manual_observation_does_not_invent_runtime_identity(tmp_path, monkeypat
     for key in ("LIFE_MANAGER_RUN_ID", "LIFE_MANAGER_LOOP_ID", "LIFE_MANAGER_OCCURRENCE_ID", "LIFE_MANAGER_RELEASE_SHA"):
         monkeypatch.delenv(key, raising=False)
     monkeypatch.setattr(measure, "measure_note_pages", lambda _: {"error": "auth unavailable"})
-    monkeypatch.setattr(measure, "measure_substack_pages", lambda _: {"error": "auth unavailable"})
+    monkeypatch.setattr(measure, "measure_substack_pages", lambda _, lang="ja": {"error": "auth unavailable"})
     out = tmp_path / "sales-ledger.jsonl"
     assert measure.main(["--out", str(out), "--articles", str(tmp_path / "articles.jsonl")]) == 0
     for row in map(json.loads, out.read_text().splitlines()):

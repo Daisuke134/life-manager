@@ -74,6 +74,9 @@ def test_parent_releases_exact_measurement_context_even_when_child_cannot_cleanu
     def acquire(owner, url="about:blank"):
         events.append(("acquire", owner, url))
         assert os.environ["AI_BROWSER_HOLDER_PID"] == str(os.getpid())
+        # Seeds (and their vault locks) come only from the writer browser's own vault.
+        assert os.environ["CLOAK_SESSION_VAULT_FILE"] == os.path.expanduser(
+            "~/.cloak/vault/writer-anicca/auth-state.json")
         return lease
     def release(owner, **fence):
         events.append(("release", owner, fence))
@@ -98,6 +101,49 @@ def test_parent_releases_exact_measurement_context_even_when_child_cannot_cleanu
     assert [event[0] for event in events] == ["acquire", "child", "release"]
     assert events[-1][2] == {"token": "owned-lease", "generation": 4}
     assert os.environ["CLOAK_CDP_BASE_URL"] == "http://preserved:9000"
+    assert os.environ.get("CLOAK_SESSION_VAULT_FILE") is None
+
+
+def test_en_substack_driver_uses_only_its_own_publication_and_session(monkeypatch):
+    captured = {}
+
+    def fake(script: str, timeout: int = 90, **kwargs):
+        captured["script"] = script
+        return completed({"home_url": "", "home_body": "", "earnings_url": "", "earnings_body": ""})
+
+    monkeypatch.setenv("SUBSTACK_PUBLICATION_JA", "aniccabuddha.substack.com")
+    monkeypatch.setenv("SUBSTACK_PUBLICATION_EN", "aniccaai2026.substack.com")
+    monkeypatch.setattr(measure, "run_browser_script", fake)
+    assert "payload" in measure.measure_substack_pages(9222, "en")
+    script = captured["script"]
+    assert "https://aniccaai2026.substack.com/publish/home" in script
+    assert "aniccabuddha" not in script
+    assert "'SUBSTACK_SESSION_COOKIE_EN'" in script
+    assert "'SUBSTACK_SESSION_COOKIE_JA'" not in script and "'SUBSTACK_SESSION_COOKIE'" not in script
+
+
+@pytest.mark.parametrize("en_configured", (True, False))
+def test_main_measures_en_substack_only_when_its_publication_is_configured(tmp_path, monkeypatch, en_configured):
+    monkeypatch.setenv("SUBSTACK_PUBLICATION_JA", "aniccabuddha.substack.com")
+    if en_configured:
+        monkeypatch.setenv("SUBSTACK_PUBLICATION_EN", "aniccaai2026.substack.com")
+    else:
+        monkeypatch.delenv("SUBSTACK_PUBLICATION_EN", raising=False)
+    monkeypatch.setattr(measure, "measure_note_pages", lambda _: {"error": "fixture"})
+    langs = []
+
+    def substack(_port, lang="ja"):
+        langs.append(lang)
+        return {"error": f"fixture {lang}"}
+
+    monkeypatch.setattr(measure, "measure_substack_pages", substack)
+    out = tmp_path / "sales-ledger.jsonl"
+    assert measure.main(["--out", str(out), "--articles", str(tmp_path / "articles.jsonl")]) == 0
+    hosts = {json.loads(line)["source_url"].split("/")[2]
+             for line in out.read_text().splitlines() if '"substack"' in line}
+    assert langs == (["ja", "en"] if en_configured else ["ja"])
+    assert hosts == ({"aniccabuddha.substack.com", "aniccaai2026.substack.com"} if en_configured
+                     else {"aniccabuddha.substack.com"})
 
 
 def test_measurement_context_admission_failure_never_starts_child(monkeypatch):

@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """measure-sales.py — measures REAL, currently-displayed sales/revenue figures for note and
-Substack by driving the CloakBrowser daily-driver over CDP. Same convention as
+Substack (JA, plus EN when SUBSTACK_PUBLICATION_EN is configured) over CDP on the Writer's own
+browser identity writer:anicca, which writer-sales-measure-worker.sh leases and passes in
+WRITER_CDP_ENDPOINT. Dais's personal Chrome (interactive:dais) is never used. Same convention as
 scripts/_shared/measure-funnel.py's measure_x: playwright.sync_api run via the
-Life Manager managed Python as a subprocess, connect_over_cdp to the
-ALREADY-LOGGED-IN daily-driver profile. The parent leases a seeded context and its exact tab
-for each measurement, then releases that context even if the child times out -- the shared daily-driver's other existing tabs are never touched, same
-discipline as render-verify-draft.sh ("never leave a stray tab on the shared daily-driver").
+Life Manager managed Python as a subprocess. Each measurement gets its own leased context, seeded
+only from the Writer vault (WRITER_SESSION_VAULT) and authenticated from LIFE_MANAGER_ENV_FILE
+credentials; the parent releases that context and its exact tab even if the child times out, so
+the browser's other tabs are never touched (same discipline as render-verify-draft.sh).
 NEVER estimate or fabricate a number: if a metric cannot be safely parsed from the real screen
 text today, emit null + a reason string, exactly like measure-funnel.py does. DOM reading uses
 document.body.innerText + regex on labels, never brittle CSS selectors and never an LLM judge.
@@ -50,6 +52,7 @@ from __future__ import annotations
 import argparse
 import secrets
 import base64
+import functools
 import hashlib
 import importlib.util
 import json
@@ -80,6 +83,21 @@ NOTE_SALES_URL = "https://note.com/sitesettings/salesmanage"
 NOTE_PURCHASES_URL = "https://note.com/sitesettings/purchasers"
 NOTE_STATS_URL = "https://note.com/sitesettings/stats"
 JST = timezone(timedelta(hours=9))
+# writer:anicca's own session vault: context seeds and their vault locks never reach another
+# identity's vault (the cdp_context_lease default is Dais's daily-driver vault).
+WRITER_SESSION_VAULT = os.path.expanduser("~/.cloak/vault/writer-anicca/auth-state.json")
+# (publication env keys, session cookie env keys) per publication, first non-empty wins.
+# Same fallback as publish-substack.sh: only JA may use the legacy unsuffixed keys.
+SUBSTACK_TARGETS = {
+    "ja": (("SUBSTACK_PUBLICATION_JA", "SUBSTACK_PUBLICATION"),
+           ("SUBSTACK_SESSION_COOKIE_JA", "SUBSTACK_SESSION_COOKIE")),
+    "en": (("SUBSTACK_PUBLICATION_EN",), ("SUBSTACK_SESSION_COOKIE_EN",)),
+}
+
+
+def substack_publication(lang: str) -> str:
+    return next((value for key in SUBSTACK_TARGETS[lang][0]
+                 if (value := os.environ.get(key, "").strip())), "")
 
 
 def _load_context_lease():
@@ -98,6 +116,7 @@ def run_browser_script(script: str, timeout: int = 90, *, cdp_port: int = 9222) 
     url = "about:blank#" + owner
     values = {"CLOAK_CDP_BASE_URL": os.environ.get("WRITER_CDP_ENDPOINT", f"http://localhost:{cdp_port}"),
               "AI_BROWSER_HOLDER_PID": str(os.getpid()),
+              "CLOAK_SESSION_VAULT_FILE": WRITER_SESSION_VAULT,
               "CLOAK_CONTEXT_COOKIE_DOMAINS": "note.com,substack.com"}
     previous = {key: os.environ.get(key) for key in values}
     lease = None
@@ -271,12 +290,13 @@ finally:
     return extract_payload(proc)
 
 
-def measure_substack_pages(cdp_port: int) -> dict:
+def measure_substack_pages(cdp_port: int, lang: str = "ja") -> dict:
     """Same shape as measure_note_pages: one new tab, two page loads (overview home + earnings
     stats), raw body text handed back to the parent for regex parsing."""
-    pub = (os.environ.get("SUBSTACK_PUBLICATION_JA") or os.environ.get("SUBSTACK_PUBLICATION", "")).strip()
+    pub = substack_publication(lang)
     if not pub:
-        return {"error": "SUBSTACK_PUBLICATION missing (configure LIFE_MANAGER_ENV_FILE first)"}
+        return {"error": f"{SUBSTACK_TARGETS[lang][0][0]} missing (configure LIFE_MANAGER_ENV_FILE first)"}
+    cookie_keys = SUBSTACK_TARGETS[lang][1]
     home_url = f"https://{pub}/publish/home"
     earnings_url = f"https://{pub}/publish/stats/earnings"
     script = f"""
@@ -289,8 +309,8 @@ try:
 except Exception as e:
     print("CDP_UNREACHABLE:" + str(e)); sys.exit(1)
 {LEASED_PAGE_SCRIPT}
-raw_cookie = (os.environ.get("SUBSTACK_SESSION_COOKIE_JA") or
-              os.environ.get("SUBSTACK_SESSION_COOKIE", "")).strip()
+raw_cookie = next((value for key in {cookie_keys!r}
+                   if (value := os.environ.get(key, "").strip())), "")
 cookies = []
 for item in raw_cookie.split(";"):
     name, separator, value = item.strip().partition("=")
@@ -724,16 +744,21 @@ def main(argv: list[str] | None = None) -> int:
             NOTE_SALES_URL,
         )
         rows += unknown_note_view_rows(note_artifacts, reason)
-    substack_pub = (os.environ.get("SUBSTACK_PUBLICATION_JA") or os.environ.get("SUBSTACK_PUBLICATION", "")).strip()
-    rows += measure_platform(
-        "substack",
-        [
-            ("paid_subscribers", f"https://{substack_pub}/publish/home"),
-            ("mrr", f"https://{substack_pub}/publish/stats/earnings"),
-            ("revenue", f"https://{substack_pub}/publish/stats/earnings"),
-        ],
-        measure_substack_pages, parse_substack_metrics, args.cdp_port, today,
-    )
+    for lang in SUBSTACK_TARGETS:
+        substack_pub = substack_publication(lang)
+        if lang != "ja" and not substack_pub:
+            continue  # optional publication not configured on this host
+        # Each publication is its own account; rows stay apart by source_url host.
+        rows += measure_platform(
+            "substack",
+            [
+                ("paid_subscribers", f"https://{substack_pub}/publish/home"),
+                ("mrr", f"https://{substack_pub}/publish/stats/earnings"),
+                ("revenue", f"https://{substack_pub}/publish/stats/earnings"),
+            ],
+            functools.partial(measure_substack_pages, lang=lang), parse_substack_metrics,
+            args.cdp_port, today,
+        )
 
     # Preserve the host's exact identity in the row whose hash money_sync stores.
     # Article run_id identifies the published product; keep it distinct from
