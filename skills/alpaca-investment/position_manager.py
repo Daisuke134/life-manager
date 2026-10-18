@@ -29,7 +29,9 @@ def load_owned_policy(state: Path, ownership: dict[str, Any], *, mode: str) -> d
     except (KeyError, TypeError, ValueError) as error:
         raise ValueError("owned_entry_fill_time_invalid") from error
     return {"card": card, "release_sha": release_sha, "entry_price": broker["filled_avg_price"],
-            "entry_timestamp": filled_at, "owned_qty": proof["owned_qty"]}
+            "entry_timestamp": filled_at, "owned_qty": proof["owned_qty"],
+            "entry_effect_id": ownership["entry_effect_id"], "entry_client_order_id": broker["client_order_id"],
+            "entry_provider_order_id": broker["id"], "owner_id": decision["owner_id"], "mode": mode}
 
 
 def choose(snapshot: dict[str, Any], observation: dict[str, Any], state: Path,
@@ -76,7 +78,9 @@ def choose(snapshot: dict[str, Any], observation: dict[str, Any], state: Path,
     decision = evaluate(policy_snapshot, card)
     action = ACTION_EXIT if decision["action"] == ACTION_EXIT else ACTION_HOLD
     return {**decision, "action": action, "policy_action": decision["action"],
-            "release_sha": release_sha, "qty": str(qty)}
+            "release_sha": release_sha, "qty": str(qty),
+            **{key: policy[key] for key in ("entry_effect_id", "entry_client_order_id",
+                                           "entry_provider_order_id", "owner_id", "mode")}}
 
 
 def exit_order(decision: dict[str, Any]) -> dict[str, Any]:

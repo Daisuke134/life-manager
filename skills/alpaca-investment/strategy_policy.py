@@ -591,5 +591,5 @@ def validate_policy_card(card_payload: Any, release_sha: Any, *, strategy_id: An
 
 __all__ = [
     "ALLOWED_ACTIONS", "StrategyCard", "build_validation_candles", "candidate_cards",
-    "ETF_STRATEGY_ID", "ETF_SYMBOLS", "evaluate", "load_selected_card",
+    "ETF_STRATEGY_ID", "ETF_SYMBOLS", "evaluate", "load_selected_card", "validate_policy_card",
 ]
