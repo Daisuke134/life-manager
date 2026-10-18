@@ -248,3 +248,61 @@ class IndependentCensusTests(unittest.TestCase):
         self.assertIn('scope_missing', self.reasons(self.invoke([], kwargs)))
         scope['owner_id'] = 'alpaca-investment-live'
         self.assertIn('scope_invalid', self.reasons(self.invoke([scope], kwargs)))
+
+    def test_historical_conflict_outside_scope_does_not_poison_future_period(self):
+        trips, kwargs = self.fixture()
+        old = copy.deepcopy(kwargs['runtime_rows_by_owner'][OWNER][:2])
+        for row in old:
+            row['run_id'] = 'historical-run'
+            row['event_id'] = 'historical-' + row['phase']
+            row['timestamp'] = row['timestamp'].replace('2026-10-18', '2026-10-17')
+            row['release_sha'] = 'f' * 40
+        kwargs['runtime_rows_by_owner'][OWNER].extend([*old, dict(old[0], loaded_env_sha256='f' * 64)])
+        result = self.invoke(trips, kwargs)
+        self.assertNotIn('runtime_event_conflict', self.reasons(result))
+        self.assertNotIn('source_release_missing', self.reasons(result))
+        self.assertEqual(len(result['scopes'][0]['execution_refs']), 2)
+
+    def test_paid_lower_bound_keeps_scope_and_source_identity_and_rejects_foreign_mode(self):
+        trips, kwargs = self.fixture()
+        paid = {'receipt_id': 'paid://known', 'provider': 'older-provider',
+            'billing_account_ref': 'older-account', 'category': 'infra_cost',
+            'owner_id': OWNER, 'mode': 'paper', 'paper': True,
+            'order_ids': ['entry', 'exit'], 'period_start': trips[0]['period_start'],
+            'period_end': trips[0]['closed_at'], 'evidence_refs': ['invoice://known'],
+            'charge_identity': ['older-provider', 'invoice', 'document', 'line', 'allocation'],
+            'identity_aliases': ['paid://alias'], 'amount_usd': 'DO_NOT_COPY_MONEY'}
+        kwargs['paid_bindings'] = [paid]
+        result = self.invoke(trips, kwargs)
+        preserved = result['scopes'][0]['known_paid_bindings'][0]
+        for key in ('provider', 'billing_account_ref', 'category', 'order_ids', 'period_start', 'period_end'):
+            self.assertEqual(preserved[key], paid[key])
+        self.assertNotIn('amount_usd', preserved)
+        for key, value in [('owner_id', 'alpaca-investment-live'), ('mode', 'live'), ('paper', False)]:
+            with self.subTest(key=key):
+                kwargs['paid_bindings'] = [{**paid, key: value}]
+                result = self.invoke(trips, kwargs)
+                self.assertIn('paid_binding_scope_invalid', self.reasons(result))
+                self.assertFalse(result['scopes'][0]['known_paid_bindings'])
+
+    def test_shared_validation_execution_is_not_relabelled_as_paper_execution(self):
+        trips, kwargs = self.fixture(); validation = 'investment-strategy-validation'
+        snapshot = kwargs['release_inputs']['a' * 40][0]
+        snapshot['execution_owner_ids'].append(validation)
+        source = copy.deepcopy(snapshot['source_declaration']['sources'][0])
+        source.update(execution_owner_id=validation, provider='validation-provider',
+                      billing_account_ref='validation-account', covered_categories=['model_cost'])
+        snapshot['source_declaration']['sources'].append(source)
+        kwargs['runtime_rows_by_owner'][validation] = [
+            {**row, 'owner_id': validation, 'job_id': validation, 'run_id': 'validation-run',
+             'occurrence_id': f'{validation}:claimed-validation', 'event_id': 'validation-' + row['phase']}
+            for row in kwargs['runtime_rows_by_owner'][OWNER][:2]]
+        kwargs['occurrence_rows_by_owner'][validation] = [{'owner_id': validation,
+            'occurrence_id': f'{validation}:claimed-validation', 'queued_at': '2026-10-18T00:59:00Z',
+            'state': 'released', 'effect_unknown': 0}]
+        result = self.invoke(trips, kwargs); scope = result['scopes'][0]
+        self.assertEqual(scope['owner_id'], OWNER)
+        self.assertEqual({row['execution_owner_id'] for row in scope['execution_refs']}, {OWNER, validation})
+        self.assertIn('shared_attribution_unproven', self.reasons(result))
+        self.assertEqual(next(row for row in scope['required_sources'] if row['provider'] == 'validation-provider')
+                         ['execution_owner_ids'], [validation])
