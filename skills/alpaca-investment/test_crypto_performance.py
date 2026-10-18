@@ -23,7 +23,7 @@ PERF=importlib.import_module('crypto_performance') if importlib.util.find_spec('
 NOW='2026-01-01T06:00:00Z'
 
 
-def cycle_fixture(root,mode='paper',index=0,partial=False,zero=False):
+def cycle_fixture(root,mode='paper',index=0,partial=False,zero=False,buy_price='200'):
     owner=f'alpaca-investment-{mode}';base=datetime(2026,1,1,4,tzinfo=timezone.utc)+timedelta(minutes=20*index)
     stamp=lambda seconds:(base+timedelta(seconds=seconds)).isoformat()
     card=candidate_cards()['alpaca-btc-5m-trend-400-v2']
@@ -32,7 +32,7 @@ def cycle_fixture(root,mode='paper',index=0,partial=False,zero=False):
     ledger=root/'receipts.jsonl';sealed=store.seal(ledger,decision,{'asset_class':'crypto','symbol':'BTC/USDC',
         'side':'buy','type':'market','time_in_force':'gtc','notional_usd':'10'});store.mark_started(ledger,sealed)
     buy={'id':f'buy-{index}','client_order_id':sealed['client_order_id'],'status':'filled','symbol':'BTCUSDC',
-         'side':'buy','type':'market','time_in_force':'gtc','filled_qty':'0.05','filled_avg_price':'200',
+         'side':'buy','type':'market','time_in_force':'gtc','filled_qty':'0.05','filled_avg_price':buy_price,
          'submitted_at':stamp(0),'filled_at':stamp(1)}
     owned={'status':'entry_pending','symbol':'BTCUSD','entry_effect_id':sealed['effect_id'],
            'entry_client_order_id':sealed['client_order_id'],'entry_filled_qty':'0'}
@@ -42,7 +42,7 @@ def cycle_fixture(root,mode='paper',index=0,partial=False,zero=False):
     store.reconcile_started(ledger,lambda _:buy,on_reconciled=lambda *_:acquisition)
     owned.update(status='open',entry_filled_qty='0.05',owned_qty='0.05')
     fills=[{'id':f'buy-fill-{index}','activity_type':'FILL','order_id':buy['id'],'symbol':'BTCUSDC','side':'buy',
-            'qty':'0.05','price':'200','transaction_time':stamp(1)}]
+            'qty':'0.05','price':buy_price,'transaction_time':stamp(1)}]
     orders=[buy];quantities=(['0'] if zero else [])+(['0.02','0.03'] if partial else ['0.05'])
     before='0.05'
     for n,qty in enumerate(quantities):
@@ -90,6 +90,30 @@ class CryptoPerformanceTests(unittest.TestCase):
     def project(self,rows,mode='paper',activities=None):
         self.assertIsNotNone(PERF,'common crypto performance projector is required')
         return PERF.build_crypto_performance(rows,mode=mode,owner_id=f'alpaca-investment-{mode}',activity_readbacks=activities)
+
+    def test_original_usd_budget_is_not_native_execution_or_an_inferred_fee(self):
+        for mode in ('paper','live'):
+            with self.subTest(mode=mode),tempfile.TemporaryDirectory() as directory:
+                root=Path(directory);orders,frame,_=cycle_fixture(root,mode,buy_price='196')
+                rows=store._rows(root/'receipts.jsonl');before=copy.deepcopy(rows)
+                result=self.project(rows,mode,{o['id']:frame for o in orders});cycle=result['cycles'][0]
+                buy,sell=cycle['orders']
+                self.assertEqual(buy['requested_notional_usd'],'10')
+                self.assertEqual(buy['execution_quote_currency'],'USDC')
+                self.assertEqual(buy['quote_notional_usdc'],'9.8')
+                self.assertIsNone(sell['requested_notional_usd'])
+                self.assertEqual(cycle['execution_cashflow_usdc'],'0.7')
+                self.assertIsNone(cycle['fx_reference']['execution_cashflow_usd'])
+                self.assertIsNone(result['fees_usd']);self.assertIsNone(result['net_pnl_usd'])
+                self.assertEqual(rows,before)
+
+    def test_missing_fills_never_use_requested_budget_as_execution_spend(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);_,_,_=cycle_fixture(root)
+            result=self.project(store._rows(root/'receipts.jsonl'));cycle=result['cycles'][0]
+            self.assertEqual(cycle['orders'][0]['requested_notional_usd'],'10')
+            self.assertIsNone(cycle['orders'][0]['quote_notional_usdc'])
+            self.assertIsNone(cycle['execution_cashflow_usdc'])
 
     def test_partial_and_zero_legs_form_one_cycle_with_exact_native_cashflow(self):
         for mode in ('paper','live'):
