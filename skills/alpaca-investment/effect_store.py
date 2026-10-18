@@ -6,13 +6,16 @@ import fcntl
 import json
 import os
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Callable
 
 from crypto_ownership_proof import (_digest, ReconciliationPending, BROKER_TERMINAL_FAILURE_STATUSES, owned_entry_decision_from_rows,
                                     recorded_close_proof_from_rows, no_fill_entry_proof_from_rows,
                                     recorded_no_fill_proof_from_rows, recorded_entry_proof_from_rows,
-                                    _filled_qty_positive, _filled_qty_is_zero, _terminal_no_fill_proven)
+                                    _filled_qty_positive, _filled_qty_is_zero, _terminal_no_fill_proven,
+                                    owned_quantity_state_from_rows, native_fee_debit_proof_from_rows,
+                                    native_fee_debit_id)
 
 
 MODES = frozenset({"paper", "shadow", "live"})
@@ -39,7 +42,7 @@ def _rows(path: Path) -> list[dict[str, Any]]:
     return values
 
 
-def _append_once(path: Path, row: dict[str, Any] | Callable[[list[dict[str, Any]]], dict[str, Any]],
+def _append_once(path: Path, row: dict[str, Any] | Callable[[list[dict[str, Any]]], dict[str, Any] | None],
                  identity: tuple[str, ...]) -> bool:
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     descriptor = os.open(path, os.O_RDWR | os.O_CREAT | os.O_APPEND, 0o600)
@@ -50,6 +53,8 @@ def _append_once(path: Path, row: dict[str, Any] | Callable[[list[dict[str, Any]
             existing = [json.loads(line) for line in handle if line.strip()]
         if callable(row):
             row = row(existing)
+        if row is None:
+            return False
         if any(all(item.get(key) == row.get(key) for key in identity) for item in existing):
             return False
         payload = (json.dumps(row, sort_keys=True, separators=(",", ":")) + "\n").encode()
@@ -58,6 +63,36 @@ def _append_once(path: Path, row: dict[str, Any] | Callable[[list[dict[str, Any]
         return True
     finally:
         os.close(descriptor)
+
+
+def record_native_fee_debit(ledger: Path, ownership: dict[str, Any], observation: dict[str, Any], *,
+                            activity_readback: dict[str, Any], mode: str, owner_id: str) -> bool:
+    if ledger.is_symlink():
+        raise ValueError('owned_fee_debit_invalid')
+    def candidate(rows):
+        try:
+            state=owned_quantity_state_from_rows(rows,ownership,mode=mode,owner_id=owner_id)
+            current=ownership
+            if Decimal(str(ownership.get('owned_qty')))!=Decimal(state['owned_qty']):
+                fee=state['last_fee_debit']
+                if (not fee or Decimal(str(ownership.get('owned_qty')))!=Decimal(fee['before_owned_qty'])
+                        or Decimal(fee['remaining_owned_qty'])!=Decimal(state['owned_qty'])
+                        or any(ownership.get(k)!=fee['last_'+k] or ownership.get(k)!=state['last_'+k]
+                            for k in ('close_effect_id','close_client_order_id'))):
+                    raise ValueError
+                current={**ownership,'owned_qty':state['owned_qty']}
+            proof=native_fee_debit_proof_from_rows(rows,current,observation,
+                activity_readback=activity_readback,mode=mode,owner_id=owner_id)
+            receipt=proof['receipt']
+            if Decimal(receipt['debit_qty'])==0: return None
+            return {'schema_version':1,'receipt_type':'native_fee_debit','paper':mode=='paper',
+                **{key:receipt[key] for key in ('owner_id','mode','strategy_id','release_sha','entry_effect_id')},
+                'fee_debit_id':native_fee_debit_id(receipt),'strategy_receipt':proof,
+                'recorded_at':datetime.now(timezone.utc).isoformat()}
+        except ReconciliationPending: raise
+        except (ValueError,KeyError,TypeError,AttributeError,InvalidOperation) as error:
+            raise ValueError('owned_fee_debit_invalid') from error
+    return _append_once(ledger,candidate,('receipt_type','fee_debit_id'))
 
 
 def seal(ledger: Path, decision: dict[str, Any], order: dict[str, Any]) -> dict[str, str]:

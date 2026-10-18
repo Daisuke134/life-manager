@@ -133,7 +133,44 @@ class CryptoFeeLedgerTests(unittest.TestCase):
             for key,value in (('mode','live'),('owner_id','foreign'),('fee_debit_id','forged'),('schema_version',True)):
                 bad=copy.deepcopy(rows);bad[-1][key]=value;variants.append(bad)
             bad=copy.deepcopy(rows);bad[-1]['strategy_receipt']['receipt']['remaining_owned_qty']='0.04';variants.append(bad)
+            bad=copy.deepcopy(rows);bad[-1].update(entry_effect_id='foreign',strategy_receipt=None);variants.append(bad)
             variants.extend((copy.deepcopy(rows)+[copy.deepcopy(rows[-1])], [copy.deepcopy(rows[-1])]+copy.deepcopy(rows[:-1])))
             for i,bad in enumerate(variants):
                 write_rows(root/'receipts.jsonl',bad)
                 with self.subTest(case=i),self.assertRaises(ValueError):self.state(root,owned)
+
+    def test_fee_after_partial_sell_preserves_its_receipt_and_requires_that_receipt_first(self):
+        for mode in ('paper','live'):
+            with self.subTest(mode=mode),tempfile.TemporaryDirectory() as directory:
+                root=Path(directory);rows,owned,frame,account=debit_fixture(root,mode,partial=True)
+                ledger=root/'receipts.jsonl';write_rows(ledger,rows);before=ledger.read_bytes()
+                self.assertTrue(self.record(root,owned,frame,account,mode))
+                self.assertTrue(ledger.read_bytes().startswith(before))
+                state=self.state(root,owned,mode)
+                self.assertEqual(state['owned_qty'],'0.029925');self.assertEqual(state['sold_qty'],'0.02')
+                saved=store._rows(ledger);event=saved[-1]
+                receipt_index=next(i for i,r in enumerate(saved) if r.get('receipt_type')=='outcome'
+                    and r.get('effect_id')==owned['close_effect_id'])
+                write_rows(ledger,saved[:receipt_index]+[event]+saved[receipt_index:-1])
+                with self.assertRaises(ValueError):self.state(root,owned,mode)
+                write_rows(ledger,saved);owned['owned_qty']='0.029925'
+                record_sell(root,owned,frame,mode=mode,before='0.029925',qty='0.029925',remaining='0',
+                    start='2026-01-02T04:10:00Z',partial=False)
+                final=self.state(root,owned,mode)
+                self.assertEqual(final['owned_qty'],'0');self.assertEqual(final['sold_qty'],'0.049925')
+
+    def test_pending_sell_prevents_a_fee_event_from_being_appended(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);_,owned,frame,account=debit_fixture(root)
+            ledger=root/'receipts.jsonl'
+            parent=proofs._owned_policy(proofs.owned_entry_decision_from_rows(store._rows(ledger),owned,
+                mode='paper',owner_id='alpaca-investment-paper'),owned,mode='paper')
+            decision={'action':'EXIT','mode':'paper','owner_id':'alpaca-investment-paper',
+                'strategy_id':parent['card'].strategy_id,'release_sha':parent['release_sha'],
+                'position_qty':'0.05','observed_at':'2026-01-01T04:05:00Z',
+                **{k:parent[k] for k in ('entry_effect_id','entry_client_order_id','entry_provider_order_id','entry_price','entry_timestamp')}}
+            sealed=store.seal(ledger,decision,{'asset_class':'crypto','symbol':'BTC/USDC','side':'sell','type':'market',
+                'time_in_force':'gtc','qty':'0.05'});store.mark_started(ledger,sealed)
+            before=ledger.read_bytes()
+            with self.assertRaises(ValueError):self.record(root,owned,frame,account)
+            self.assertEqual(ledger.read_bytes(),before)

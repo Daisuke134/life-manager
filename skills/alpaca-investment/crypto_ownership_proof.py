@@ -1038,9 +1038,42 @@ def owned_quantity_state_from_rows(rows,ownership,*,mode,owner_id,upto_index=Non
             activity_facts[raw['id']]=fact
     remember_activities(acquisition)
     previous_observed=parse_instant(acquisition['account_readback']['clock']['observed_at'])
-    seen=set();sold=Fraction();last_effect=None;last_client=None
+    seen=set();sold=Fraction();debited=Fraction();last_effect=None;last_client=None;last_fee=None
+    fee_events=set();last_receipt_index=next(i for i,row in enumerate(rows) if row is entry)
+    def current_state():
+        return {'owned_qty':_quantity_text(Fraction(before)),'sold_qty':_quantity_text(sold),
+            'debited_qty':_quantity_text(debited),'acquisition':acquisition,
+            'last_observed_at':previous_observed,'provider_order_ids':providers,'fill_activity_ids':fill_ids,
+            'activity_facts':activity_facts,'complete_fill_order_ids':complete_orders,
+            'last_close_effect_id':last_effect,'last_close_client_order_id':last_client,'last_fee_debit':last_fee}
     # ponytail: revalidate the small per-entry leg history; index only if measured slow.
-    for intent in rows[:upto_index]:
+    for index,intent in enumerate(rows[:upto_index]):
+        if intent.get('receipt_type')=='native_fee_debit':
+            saved=intent.get('strategy_receipt',{})
+            if not isinstance(saved,dict) or not isinstance(saved.get('receipt'),dict):
+                raise ValueError('owned_fee_debit_invalid')
+            if (intent.get('entry_effect_id')!=ownership['entry_effect_id']
+                    and saved.get('receipt',{}).get('entry_effect_id')!=ownership['entry_effect_id']): continue
+            try:
+                historical={**ownership,'status':'open','owned_qty':_decimal_text(before),
+                    'entry_filled_qty':acquisition['receipt']['entry_filled_qty'],
+                    'close_effect_id':last_effect,'close_client_order_id':last_client}
+                proof=_native_fee_debit_step(current_state(),historical,saved['account_readback'],
+                    activity_readback=saved['activity_readback'],broker=entry['broker'],mode=mode,owner_id=owner_id)
+                receipt=proof['receipt'];key=native_fee_debit_id(receipt)
+                if (index<=last_receipt_index or type(intent.get('schema_version')) is not int
+                        or intent['schema_version']!=1 or intent.get('paper') is not (mode=='paper')
+                        or any(intent.get(k)!=receipt[k] for k in ('owner_id','mode','strategy_id','release_sha','entry_effect_id'))
+                        or intent.get('fee_debit_id')!=key or key in fee_events
+                        or Fraction(receipt['debit_qty'])<=0 or _digest(saved)!=_digest(proof)):
+                    raise ValueError
+                fee_events.add(key);debited+=Fraction(receipt['debit_qty'])
+                before=Decimal(receipt['remaining_owned_qty']);last_fee=receipt
+                previous_observed=parse_instant(proof['account_readback']['clock']['observed_at'])
+                remember_activities(proof);last_receipt_index=index
+            except (ValueError,KeyError,TypeError,AttributeError,ArithmeticError) as error:
+                raise ValueError('owned_fee_debit_invalid') from error
+            continue
         if (intent.get('receipt_type')!='effect_intent' or intent.get('status')!='planned'
                 or not isinstance(intent.get('order'),dict) or intent['order'].get('side')!='sell'
                 or intent['order'].get('asset_class')!='crypto'):
@@ -1072,30 +1105,42 @@ def owned_quantity_state_from_rows(rows,ownership,*,mode,owner_id,upto_index=Non
         before=Decimal(proof['receipt'].get('remaining_owned_qty','0'))
         previous_observed=parse_instant(proof['account_readback']['clock']['observed_at'])
         last_effect=intent['effect_id'];last_client=intent['client_order_id']
-    return {'owned_qty':_quantity_text(Fraction(before)),'sold_qty':_quantity_text(sold),'acquisition':acquisition,
-        'last_observed_at':previous_observed,'provider_order_ids':providers,'fill_activity_ids':fill_ids,
-        'activity_facts':activity_facts,
-        'complete_fill_order_ids':complete_orders,
-        'last_close_effect_id':last_effect,'last_close_client_order_id':last_client}
+        last_receipt_index=next(i for i,item in enumerate(rows) if item is row)
+    return current_state()
 
 
 def native_fee_debit_proof_from_rows(rows,ownership,observation,*,activity_readback,mode,owner_id):
     """Compose exact evidence; callers alone persist a proven new debit once."""
     try:
         state=owned_quantity_state_from_rows(rows,ownership,mode=mode,owner_id=owner_id)
-        acquisition=state['acquisition']['receipt']
         entry=entry_receipt_row(rows,ownership['entry_effect_id'])
+        return _native_fee_debit_step(state,ownership,observation,activity_readback=activity_readback,
+            broker=entry['broker'],mode=mode,owner_id=owner_id)
+    except ReconciliationPending: raise
+    except (ValueError,KeyError,TypeError,AttributeError,ArithmeticError) as error:
+        raise ValueError('owned_fee_debit_invalid') from error
+
+
+def native_fee_debit_id(receipt):
+    return _digest({'entry_effect_id':receipt['entry_effect_id'],'mode':receipt['mode'],
+        'owner_id':receipt['owner_id'],'fee_activity_ids':receipt['fee_evidence']['fee_activity_ids'],
+        'cumulative_fee_qty':receipt['cumulative_fee_qty']})
+
+
+def _native_fee_debit_step(state,ownership,observation,*,activity_readback,broker,mode,owner_id):
+    try:
+        acquisition=state['acquisition']['receipt']
         start,end=validate_crypto_activity_snapshot(activity_readback,mode=mode)
         if (ownership.get('status')!='open'
                 or _execution_number(ownership.get('owned_qty'))!=Decimal(state['owned_qty'])
                 or _execution_number(ownership.get('entry_filled_qty'))!=Decimal(acquisition['entry_filled_qty'])
                 or ownership.get('close_effect_id')!=state['last_close_effect_id']
                 or ownership.get('close_client_order_id')!=state['last_close_client_order_id']
-                or start>parse_instant(entry['broker']['submitted_at'])):
+                or start>parse_instant(broker['submitted_at'])):
             raise ValueError
-        fees=crypto_buy_fee_activity_proof(activity_readback,entry['broker'],mode=mode)
+        fees=crypto_buy_fee_activity_proof(activity_readback,broker,mode=mode)
         known_fees={key for key,fact in state['activity_facts'].items()
-            if fact[0]=='CFEE' and fact[1].get('order_id')==entry['broker']['id']}
+            if fact[0]=='CFEE' and fact[1].get('order_id')==broker['id']}
         if not known_fees.issubset(fees['fee_activity_ids']): raise ValueError
         complete_orders=state['complete_fill_order_ids']
         for raw in activity_readback['fills']+activity_readback['fees']:
