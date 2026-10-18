@@ -240,7 +240,6 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
             if old.get('mode')!=mode or old.get('owner_id')!=owner_id or old.get('report_scope')!='owned_crypto_cycles':
                 raise ValueError('crypto_performance_activity_cache_invalid')
             frames=old.get('activity_readbacks',{});refs=old.get('order_activity_refs',{})
-            fee_refs=old.get('fee_activity_refs',list(dict.fromkeys(refs.values())))
             fee_checked=old.get('fee_checked_at')
             for key,target in (('known_entry_effect_ids',known_entries),('known_closed_cycle_ids',known_cycles),('known_fee_activity_ids',known_fees)):
                 values=old.get(key,[])
@@ -253,7 +252,10 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
                 known_entries.add(entry['entry_effect_id'])
             known_entries.update(old.get('no_fill_entry_effect_ids',[]))
             known_fees.update(old.get('fee_evidence',{}).get('observed_fee_activity_ids',[]))
-            if (not isinstance(frames,dict) or not isinstance(refs,dict) or not isinstance(fee_refs,list)
+            if not isinstance(frames,dict) or not isinstance(refs,dict):
+                raise ValueError('crypto_performance_activity_cache_invalid')
+            fee_refs=old.get('fee_activity_refs',list(refs.values()))
+            if (not isinstance(fee_refs,list)
                     or any(not isinstance(ref,str) or ref not in frames for ref in [*refs.values(),*fee_refs])):
                 raise ValueError('crypto_performance_activity_cache_invalid')
         phase='ledger'
