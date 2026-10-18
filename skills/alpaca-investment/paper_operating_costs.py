@@ -46,6 +46,28 @@ def _execution_time_proof(join,trip,receipt,account,observations):
         for proof in proofs for window in proof.get('execution_windows',[]))
 
 
+def _has_service_period(line, join):
+    return (any(key in row for row in (line,join) for key in ('service_period_start','service_period_end'))
+        or join.get('attribution_basis')=='service_period')
+
+
+def _service_period_proof(line, join, trip, receipt, account, observations):
+    try:
+        begin,end=_time(line['service_period_start']),_time(line['service_period_end'])
+        return (begin<end and join.get('join_type')=='paid_allocation'
+            and trip.get('scope_kind')=='owner_period' and trip.get('order_ids')==[]
+            and _time(trip['period_start'])==begin and _time(_cost_end(trip))==end
+            and join.get('attribution_basis')=='service_period'
+            and _time(join['service_period_start'])==begin and _time(join['service_period_end'])==end
+            and any(row.get('inventory_verification')=='verified' and row.get('settlement_state')=='paid_final'
+                and row.get('query_id')==join.get('query_id') and row.get('scope_id')==join.get('scope_id')
+                and _binding(row)==_binding(trip) and row.get('provider')==receipt['provider']
+                and row.get('billing_account_ref')==account and line['category'] in row.get('covered_categories',[])
+                and join.get('document_id') in row.get('document_ids',[]) for row in observations))
+    except (KeyError,TypeError,ValueError):
+        return False
+
+
 def _calendar_contains(component, trip):
     try:
         return (trip.get('scope_kind')=='owner_period' and _binding(component)!=_binding(trip)
@@ -84,7 +106,7 @@ def select_components(summary: dict, trips) -> dict:
     component_gaps.extend(row for row in summary.get('operating_cost_scope_coverages',[])
         if row.get('coverage_state')!='complete' and row not in component_gaps and any(_calendar_gap_applies(row,trip) for trip in trips))
     for component in components:
-        if (component.get('attribution_basis')!='verified_execution_window'
+        if (component.get('attribution_basis') not in {'verified_execution_window','verified_service_period'}
                 and any(_binding(row)==_binding(component) and row.get('coverage_state')=='complete' for row in coverages)
                 and not any(g.get('receipt_id')==component['receipt_id'] and _binding(g)==_binding(component) for g in component_gaps)):
             component_gaps.append({**{k:component[k] for k in ('receipt_id','provider','order_ids','period_start','period_end')},
@@ -263,40 +285,45 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inven
                 occurred=_time(receipt['occurred_at']);begin=_time(trip['period_start']);finish=_time(_cost_end(trip))
                 calendar=trip.get('scope_kind','order_pair')=='owner_period'
                 inside=begin<=occurred<finish if calendar else begin<=occurred<=finish
-                proof=_execution_time_proof(join,trip,receipt,account,observations)
-                modern=expected_inventory is not None and join.get('join_type')=='paid_allocation' and 'execution_refs' in join
-                if modern and (proof is not True or calendar and not inside):
-                    reason=('operating_cost_calendar_time_mismatch' if calendar and not inside else
+                service=_has_service_period(line,join)
+                proof=(_service_period_proof(line,join,trip,receipt,account,observations) if service
+                    else _execution_time_proof(join,trip,receipt,account,observations))
+                modern=service or expected_inventory is not None and join.get('join_type')=='paid_allocation' and 'execution_refs' in join
+                if modern and (proof is not True or calendar and not inside and not service):
+                    reason=('operating_cost_service_period_unverified' if service else 'operating_cost_calendar_time_mismatch' if calendar and not inside else
                         'operating_cost_execution_window_unverified' if proof is None else 'operating_cost_execution_time_mismatch')
                     component_gaps.append({'receipt_id':identity,'provider':provider,'owner_id':owner_id,'mode':mode,'paper':mode=='paper',
                         'order_ids':trip['order_ids'],'period_start':trip['period_start'],'period_end':_cost_end(trip),'reason':reason})
                     continue
                 if f"actual-cost-{provider}" not in covered and proof is not True:continue
-                if calendar and not inside or proof is False or proof is None and not inside:continue
+                if calendar and not inside and not service or proof is False or proof is None and not inside:continue
                 component = receipt["components"][0]
                 cost = {
                     "receipt_id": identity, "provider": provider, "currency": "USD", "document_id": document_id,
                     "charge_identity": list(charge_identity),"billing_account_ref":account,
-                    "attribution_basis":"verified_execution_window" if proof is True else "economic_interval_only",
+                    "attribution_basis":"verified_service_period" if service else "verified_execution_window" if proof is True else "economic_interval_only",
                     "category": component["category"], "amount_usd": component["amount"],
                     "order_ids": trip["order_ids"], "period_start": trip["period_start"],
                     "period_end": _cost_end(trip), "occurred_at": receipt["occurred_at"],
                     "settled_at": receipt["settled_at"], "evidence_refs": receipt["evidence_refs"],
                 }
+                if service:
+                    cost.update(service_period_start=line['service_period_start'],service_period_end=line['service_period_end'])
                 if charge_identity in accepted:
                     fields = ("category", "amount_usd", "order_ids", "period_start", "period_end")
                     if any(accepted[charge_identity][field] != cost[field] for field in fields):
                         charge_conflicts.add(charge_identity)
                 else:
                     accepted[charge_identity] = cost
-        def claims_current(join,trip,value):
+        def claims_owned(join,value):
             provider,kind,doc_id,line,allocation,charge,account=value
             return (isinstance(join,dict) and join.get('join_type')!='scope_query' and join.get('provider')==provider
                 and join.get('document_type')==kind and join.get('document_id')==doc_id
                 and join.get('line_item_id')==line.get('line_item_id') and join.get('allocation_id')==allocation.get('allocation_id')
                 and join.get('job_id')==allocation.get('job_id') and join.get('product_loop_id')=='investment'
-                and join.get('owner_id')==owner_id and join.get('mode')==mode and join.get('paper') is (mode=='paper')
-                and _binding(join)==_binding(trip))
+                and join.get('owner_id')==owner_id and join.get('mode')==mode and join.get('paper') is (mode=='paper'))
+        def claims_current(join,trip,value):
+            return claims_owned(join,value) and _binding(join)==_binding(trip)
         for trip in trips:
             binding=_binding(trip)
             proofs=[row for row in observations if row.get('inventory_verification')=='verified'
@@ -314,7 +341,7 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inven
                 if not relevant:continue
                 known=accepted.get(charge)
                 resolved=(charge not in charge_conflicts and known is not None
-                    and known.get('attribution_basis')=='verified_execution_window')
+                    and known.get('attribution_basis') in {'verified_execution_window','verified_service_period'})
                 if (resolved and trip.get('scope_kind','order_pair')=='owner_period' and _binding(known)!=binding
                         and _time(trip['period_start'])<=_time(receipt['occurred_at'])<_time(_cost_end(trip))
                         and not _calendar_covers(known,trip,observations)):resolved=False
@@ -337,6 +364,25 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inven
                     'order_ids':trip['order_ids'],'period_start':trip['period_start'],'period_end':_cost_end(trip),
                     'reason':'operating_cost_claimed_allocation_unverified'})
         for trip in requested:
+            for identity,value in raw.items():
+                provider,kind,document_id,line,allocation,charge,account=value
+                owned=[join for join in payload.get('job_joins',[]) if claims_owned(join,value) and _has_service_period(line,join)]
+                if not owned:continue
+                try:
+                    begin,end=_time(line['service_period_start']),_time(line['service_period_end'])
+                    relevant=not begin<end or begin<_time(_cost_end(trip)) and _time(trip['period_start'])<end
+                except (KeyError,TypeError,ValueError):
+                    relevant=True
+                known=accepted.get(charge)
+                if not relevant or (charge not in charge_conflicts and known is not None
+                        and known.get('attribution_basis')=='verified_service_period' and _binding(known)==_binding(trip)):continue
+                gap={'provider':provider,'document_type':kind,'document_id':document_id,
+                    'line_item_id':line.get('line_item_id'),'allocation_id':allocation.get('allocation_id'),
+                    'order_ids':trip['order_ids'],'period_start':trip['period_start'],'period_end':_cost_end(trip),
+                    'reason':'operating_cost_service_period_unverified'}
+                if identity in verified_ids:gap['receipt_id']=identity
+                if not any(_binding(g)==_binding(gap) and g.get('document_id')==document_id
+                        and g.get('allocation_id')==allocation.get('allocation_id') for g in component_gaps):component_gaps.append(gap)
             for charge,component in accepted.items():
                 if (_calendar_contains(component,trip) and (charge in charge_conflicts
                         or not _calendar_covers(component,trip,observations))):

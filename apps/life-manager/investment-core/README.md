@@ -457,7 +457,12 @@ selecting parent and child counts each charge once. Rejected child costs retain
 their event time so the calendar also preserves their gap. Periodic/standing service
 allocation, idle costs, durable account/coverage and full net remain D4 work.
 An incomplete calendar rollup never reports zero by excluding verified child
-expenses. Production gaps are not cleared by passing fixtures.
+expenses. Explicit paid service-period allocations require matching official line
+and paid-allocation join periods, a full matching owner period and verified final
+billing coverage. They retain the whole original amount as a service expense;
+execution timing is not substituted for service attribution. Partial periods and
+unverified service metadata remain gaps, without guessed daily proration or new
+money receipts. Production gaps are not cleared by passing fixtures.
 The pinned quote transport can now capture a single USDC/USD BBO at or before
 an economic timestamp, using a fixed 30-second window and descending limit one.
 The shared pure proof preserves nanoseconds in both the request and age checks,
