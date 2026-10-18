@@ -242,6 +242,17 @@ def _crypto_close_pending(intent: dict[str, Any], outcome: dict[str, Any] | None
         proof, account = wrapper["receipt"], wrapper["account_readback"]
         mode, owner, broker = intent["mode"], intent["owner_id"], outcome["broker"]
         if (mode not in {"paper", "live"} or owner != f"alpaca-investment-{mode}"
+                or outcome.get("mode") != mode or outcome.get("paper") is not (mode == "paper")
+                or outcome.get("client_order_id") != intent.get("client_order_id")
+                or outcome.get("broker_receipt_id") != broker.get("id")
+                or broker.get("client_order_id") != intent.get("client_order_id")
+                or broker.get("status") != "filled" or broker.get("side") != "sell"
+                or broker.get("symbol") not in {"BTC/USDC", "BTCUSDC"}
+                or broker.get("type") != "market" or broker.get("time_in_force") != "gtc"
+                or order.get("symbol") != "BTC/USDC" or order.get("type") != "market"
+                or order.get("time_in_force") != "gtc"
+                or intent.get("effect_id") != _digest({"decision_id": intent.get("decision_id"), "order": order})
+                or intent.get("client_order_id") != "lm-ai-" + intent["effect_id"][:24]
                 or proof.get("schema_version") != 1 or proof.get("kind") != "owned_crypto_close"
                 or proof.get("mode") != mode or proof.get("owner_id") != owner
                 or proof.get("strategy_id") != intent.get("strategy_id")
