@@ -205,15 +205,18 @@ class MacosLoopRegistryTest(unittest.TestCase):
                 self.assertTrue(row.get("coalesce_reserved_wakes"))
                 self.assertTrue(row.get("coalesce_queued_wakes"))
 
-    def test_x402_acquisition_controller_declares_effect_free_rebind_contract(self):
+    def test_the402_channel_is_retired_while_its_earnings_readback_stays(self):
+        # the402 sent no posting after 2026-07-23 and never a job or payment; its
+        # producers are retired, x402-sale-observer keeps reading earnings back.
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
-        row = registry["loops"]["x402-acquisition-controller"]
-        self.assertEqual(row.get("resource_class"), "deterministic")
-        self.assertEqual(row.get("admission_class"), "borrow")
-        self.assertEqual(row.get("priority"), "support")
-        self.assertTrue(row.get("coalesce_reserved_wakes"))
-        self.assertTrue(row.get("coalesce_queued_wakes"))
-        self.assertTrue(row.get("reconcile_queued_release"))
+        catalog = json.loads((ROOT / "apps/life-manager/config/product-loop-catalog.json").read_text())
+        catalog_jobs = {job for loop in catalog["loops"] for job in loop["job_ids"]}
+        for loop_id in ("the402-provider", "the402-worker", "x402-acquisition-controller"):
+            with self.subTest(loop_id=loop_id):
+                self.assertNotIn(loop_id, registry["loops"])
+                self.assertNotIn(loop_id, catalog_jobs)
+                self.assertIn(f"ai.anicca.{loop_id}", registry["retired_labels"])
+        self.assertIn("x402-sale-observer", registry["loops"])
 
     def test_x402_experiment_franklin1_declares_effect_free_rebind_contract(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
@@ -1355,18 +1358,6 @@ class MacosLoopRegistryTest(unittest.TestCase):
     def test_x402_research_serve_declares_deterministic_resource_class(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         row = registry["loops"]["x402-research-serve"]
-        self.assertEqual(row.get("resource_class"), "deterministic")
-        self.assertEqual(row.get("provider_route"), "deterministic")
-
-    def test_the402_provider_declares_deterministic_resource_class(self):
-        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
-        row = registry["loops"]["the402-provider"]
-        self.assertEqual(row.get("resource_class"), "deterministic")
-        self.assertEqual(row.get("provider_route"), "deterministic")
-
-    def test_the402_worker_declares_deterministic_resource_class(self):
-        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
-        row = registry["loops"]["the402-worker"]
         self.assertEqual(row.get("resource_class"), "deterministic")
         self.assertEqual(row.get("provider_route"), "deterministic")
 
