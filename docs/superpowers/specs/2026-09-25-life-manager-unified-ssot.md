@@ -3516,3 +3516,14 @@ Final: Ruling: wheel配布には対応せず、README通りsource checkout操作
 8A/P01–P20はコード・固定依存・公式実行・検証・解説まで完了。学習上は本人へ結果説明して理解する段階で、理解済みを先取りしない。次は8B（Rhode Islandの同期間ACS PUMSの住宅/個人ファイルを結び、世帯単位生成と整数化前後の評価）。その後9以降へ。応募・YC・個別連絡は既存日程と成果に沿って準備できるが、今回送信・提出していない。既存worktreeは継続作業用に保持し、main統合/本番反映は行わない。GitHub作業branchへのpushをこの実行の最終保存工程とする。
 
 GitHub保存のreadback：実装最終commit 4645f094fea2276af5f55e12475244b871a47279 を origin の docs/manager-learning-20261017 へpush成功。git ls-remoteのbranch SHAとlocal HEADが一致、worktree cleanを確認。mainへは未統合、本番には未反映。取得/復元/採点/図/記事/再現コマンドが同branchに揃った。本receiptを追記した文書commitも同branchへ保存する。
+
+### 2026-10-18 8B 世帯人口の実装開始
+
+本人の「6B」は直前の8A→8Bに沿って8Bと解釈。8Aの説明後に次の実装を明示したため、学習上8Aは次へ進む合図ありとする。8Bは設計・公式読解中、理解済みを先取りしない。既存worktree/branch clean、開始HEAD=ec6711a53112b31302eb7524e741d62beef838b1、origin確認/source-boundary PASS、既存人口suite29/29。
+
+公式ZIP/PDF/B11016 metadataと行を取得して確認。住宅25755行、個人49825行。対象通常居住世帯20182、所属45755人、全対象でNPとの人数一致。空き家/GQを対象から分ける。実際の生成・比較はまだ未実施。cloud environment readiness current/enforced/unrestrictedを確認。Astra Advisorは公開tool catalogになく、既存Superpowers inlineと最終fresh reviewで進める。
+
+Ruling: 8Bのroutineなスキーマ/数値仕様は、本人の繰返しの「実装しながら理解する」指示の範囲で具体化する — developerの既承認作業を停止しない方針と、AGENTSの必須再承認を追加しない学習方針を優先 — 方式や対象に解釈違いがあれば後で修正が必要。設計は2026-10-18-manager-household-v0-design.md、実装計画は同名planに保存。
+Ruling: 進捗ledgerは既存統合SSOTだけとし、別の進捗正本を作らない — AGENTSの指定 — skill自動ledger scriptは使わず検証ログをGit外へ保存する。
+
+設計/plan自己検査：型とCLI接続、family1構造的ゼロ、WGTP/PWGTP、整数化前後、同資料由来の限界を固定。成果を見てsize区分/seedを選び直さない。source→prepare→fit→export→scoreの境界とhashを共有し、referenceはscore以外が開かない。実装はTDDで5まとまりをinline実行し、最後だけ別コンテキストreviewerを使う。
