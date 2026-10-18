@@ -1,4 +1,5 @@
 """Only complete independent scope proof propagates; monetary totals stay unknown."""
+import copy
 from decimal import Decimal
 import unittest
 from paper_operating_costs import summarize,select_components
@@ -14,6 +15,29 @@ def setup(mode='paper',orders=None,paid=False):
     trip={**scope}
     if scope.get('scope_kind','order_pair')=='order_pair':trip['closed_at']=trip.pop('period_end')
     inventory['observed_at']='2026-10-01T00:00:01Z'
+    return payload,inventory,trip
+
+
+def window_fixture(mode='paper',moment='after'):
+    payload,inventory,trip=setup(mode,paid=True);owner=trip['owner_id'];scope=inventory['scopes'][0]
+    entry=scope['execution_refs'][0]
+    entry.update(started_at='2026-09-23T23:59:50Z',finished_at='2026-09-24T00:00:10Z')
+    closing={**entry,'run_id':'closing-run','occurrence_id':owner+':closing-claim',
+        'start_event_id':'3'*24,'terminal_event_id':'4'*24,'started_at':'2026-09-29T23:59:50Z','finished_at':'2026-09-30T00:00:10Z'}
+    scope['execution_refs'].append(closing)
+    metadata=inventory['input_reads'][owner];metadata['runtime'].update(row_count=4,first_event_at=entry['started_at'])
+    metadata['admission']['row_count']=2
+    query=payload['sources'][0]['queries'][0];query['window_start']=entry['started_at']
+    payload['documents'][0]['billing_period_start']=entry['started_at']
+    payload['documents'][0]['line_items'][0]['occurred_at']=('2026-09-23T23:59:55Z' if moment=='before' else '2026-09-30T00:00:05Z')
+    selected=entry if moment=='before' else closing
+    allocation=payload['job_joins'][0]
+    def refs(rows):return [{k:r[k] for k in ('execution_owner_id','run_id','occurrence_id')} for r in rows]
+    allocation.update(execution_refs=refs([selected]),run_ids=[selected['run_id']],occurrence_ids=[selected['occurrence_id']])
+    query_join=copy.deepcopy(allocation)
+    query_join.update(join_type='scope_query',job_id=None,execution_refs=refs([entry,closing]),
+        run_ids=[entry['run_id'],closing['run_id']],occurrence_ids=[entry['occurrence_id'],closing['occurrence_id']])
+    payload['job_joins'].append(query_join)
     return payload,inventory,trip
 
 
@@ -108,5 +132,47 @@ class OperatingCostInventoryTests(unittest.TestCase):
         self.assertEqual(errors[0]['reason'],'cost_query_source_missing')
         self.assertEqual(errors[0]['order_ids'],trip['order_ids'])
         self.assertEqual(select_components(result,[])['operating_cost_query_rejections'],[])
+
+    def test_exact_run_expenses_before_intent_and_after_close_are_not_dropped(self):
+        for mode in ('paper','live'):
+            for moment in ('before','after'):
+                with self.subTest(mode=mode,moment=moment):
+                    payload,inventory,trip=window_fixture(mode,moment);original=copy.deepcopy((payload,inventory,trip))
+                    result=summarize([trip],payload,owner_id=trip['owner_id'],mode=mode,
+                        observed_at=inventory['observed_at'],expected_inventory=inventory)
+                    self.assertEqual(Decimal(result['verified_model_cost_subtotal_usd']),Decimal('1'))
+                    self.assertEqual(result['operating_cost_coverage']['coverage_state'],'complete')
+                    self.assertEqual(result['operating_cost_components'][0]['attribution_basis'],'verified_execution_window')
+                    self.assertEqual((payload,inventory,trip),original)
+                    self.assertNotIn('net_pnl_usd',result)
+
+    def test_wrong_run_or_unproven_time_never_becomes_zero_cost(self):
+        for change in ('wrong_ref','outside','no_inventory_proof'):
+            with self.subTest(change=change):
+                payload,inventory,trip=window_fixture(moment='after')
+                if change=='wrong_ref':
+                    entry=inventory['scopes'][0]['execution_refs'][0]
+                    payload['job_joins'][0].update(execution_refs=[{k:entry[k] for k in ('execution_owner_id','run_id','occurrence_id')}],
+                        run_ids=[entry['run_id']],occurrence_ids=[entry['occurrence_id']])
+                elif change=='outside':payload['documents'][0]['line_items'][0]['occurred_at']='2026-09-30T00:00:15Z'
+                else:inventory['gaps']=[{'reason':'source_declaration_unverified'}]
+                result=summarize([trip],payload,owner_id=trip['owner_id'],observed_at=inventory['observed_at'],expected_inventory=inventory)
+                self.assertIsNone(result['verified_model_cost_subtotal_usd'])
+                self.assertEqual(result['operating_cost_coverage']['coverage_state'],'gap')
+                self.assertEqual(len(result['operating_cost_component_gaps']),1)
+                self.assertTrue(result['operating_cost_component_gaps'][0]['receipt_id'])
+
+    def test_calendar_costs_do_not_leak_across_the_exclusive_period_end(self):
+        for occurred in ('2026-09-30T00:00:00Z','2026-09-30T00:00:05Z'):
+            with self.subTest(occurred=occurred):
+                payload,inventory,trip=window_fixture()
+                end=trip.pop('closed_at');trip.update(scope_kind='owner_period',period_end=end,order_ids=[])
+                scope=payload['readback']['cost_scopes'][0];scope.update(scope_kind='owner_period',order_ids=[])
+                inventory['scopes'][0].update(scope_kind='owner_period',order_ids=[])
+                for join in payload['job_joins']:join.update(scope_kind='owner_period',order_ids=[])
+                payload['documents'][0]['line_items'][0]['occurred_at']=occurred
+                result=summarize([trip],payload,owner_id=trip['owner_id'],observed_at=inventory['observed_at'],expected_inventory=inventory)
+                self.assertEqual(result['operating_cost_components'],[])
+                self.assertEqual(result['operating_cost_coverage']['coverage_state'],'gap')
 
 if __name__=='__main__':unittest.main()
