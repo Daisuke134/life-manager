@@ -1027,6 +1027,7 @@ def owned_quantity_state_from_rows(rows,ownership,*,mode,owner_id,upto_index=Non
     before=_execution_number(acquisition['receipt']['account_owned_qty'])
     providers={acquisition['receipt']['entry_provider_order_id']}
     fill_ids=set(acquisition['receipt'].get('entry_execution',{}).get('fill_activity_ids',[]))
+    complete_orders=set(providers) if acquisition['receipt'].get('entry_execution') else set()
     activity_facts={}
     def remember_activities(proof):
         frame=proof.get('activity_readback',{})
@@ -1064,6 +1065,7 @@ def owned_quantity_state_from_rows(rows,ownership,*,mode,owner_id,upto_index=Non
         proof=_recorded_proof_from_rows(rows,old,row['broker'],row['strategy_receipt']['account_readback'],
             mode=mode,owner_id=owner_id,reader=step,effect_key='close_effect_id')
         remember_activities(proof)
+        if proof['receipt'].get('sell_execution'): complete_orders.add(provider)
         prior_fills=set(proof['receipt'].get('sell_execution',{}).get('fill_activity_ids',[]))
         if prior_fills & fill_ids: raise ValueError('owned_sell_proof_invalid')
         fill_ids.update(prior_fills);sold+=Fraction(proof['receipt']['exit_filled_qty'])
@@ -1073,6 +1075,7 @@ def owned_quantity_state_from_rows(rows,ownership,*,mode,owner_id,upto_index=Non
     return {'owned_qty':_quantity_text(Fraction(before)),'sold_qty':_quantity_text(sold),'acquisition':acquisition,
         'last_observed_at':previous_observed,'provider_order_ids':providers,'fill_activity_ids':fill_ids,
         'activity_facts':activity_facts,
+        'complete_fill_order_ids':complete_orders,
         'last_close_effect_id':last_effect,'last_close_client_order_id':last_client}
 
 
@@ -1094,7 +1097,7 @@ def native_fee_debit_proof_from_rows(rows,ownership,observation,*,activity_readb
         known_fees={key for key,fact in state['activity_facts'].items()
             if fact[0]=='CFEE' and fact[1].get('order_id')==entry['broker']['id']}
         if not known_fees.issubset(fees['fee_activity_ids']): raise ValueError
-        complete_orders={state['activity_facts'][key][1][0] for key in state['fill_activity_ids']}
+        complete_orders=state['complete_fill_order_ids']
         for raw in activity_readback['fills']+activity_readback['fees']:
             fact=(raw['activity_type'],execution_activity_identity(raw) if raw['activity_type']=='FILL' else raw)
             if (raw['id'] in state['activity_facts'] and state['activity_facts'][raw['id']]!=fact
