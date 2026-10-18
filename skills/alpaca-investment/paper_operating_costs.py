@@ -77,6 +77,9 @@ def _calendar_contains(component, trip):
 
 
 def _calendar_gap_applies(gap, trip):
+    if (gap.get('reason')=='operating_cost_service_period_partial_view'
+            or gap.get('scope_kind')=='owner_period'):
+        return False
     if _calendar_contains(gap,trip):
         return True
     parent,child=_binding(trip),_binding(gap)
@@ -374,12 +377,13 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inven
                 except (KeyError,TypeError,ValueError):
                     relevant=True
                 known=accepted.get(charge)
-                if not relevant or (charge not in charge_conflicts and known is not None
-                        and known.get('attribution_basis')=='verified_service_period' and _binding(known)==_binding(trip)):continue
+                confirmed=(charge not in charge_conflicts and known is not None
+                    and known.get('attribution_basis')=='verified_service_period')
+                if not relevant or (confirmed and _binding(known)==_binding(trip)):continue
                 gap={'provider':provider,'document_type':kind,'document_id':document_id,
                     'line_item_id':line.get('line_item_id'),'allocation_id':allocation.get('allocation_id'),
                     'order_ids':trip['order_ids'],'period_start':trip['period_start'],'period_end':_cost_end(trip),
-                    'reason':'operating_cost_service_period_unverified'}
+                    'reason':'operating_cost_service_period_partial_view' if confirmed else 'operating_cost_service_period_unverified'}
                 if identity in verified_ids:gap['receipt_id']=identity
                 if not any(_binding(g)==_binding(gap) and g.get('document_id')==document_id
                         and g.get('allocation_id')==allocation.get('allocation_id') for g in component_gaps):component_gaps.append(gap)
