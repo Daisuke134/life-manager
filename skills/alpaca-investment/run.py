@@ -676,6 +676,13 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                             raise ValueError("owned_position_changed_before_submit") from error
                         ownership, observation = fresh_ownership, fresh_observation
                     if order.get("asset_class") == "crypto" and order.get("side") == "buy":
+                        fresh_observation = _normalize_live_position_symbols(observe(
+                            credentials_path=credentials_path, cli_path=cli_path))
+                        fresh_ownership = _sync_live_ownership(state, credentials_path, cli_path, fresh_observation)
+                        if ((fresh_ownership and fresh_ownership.get("status") != "closed")
+                                or any(row.get("symbol") != "USDCUSD"
+                                       for row in fresh_observation["positions"])):
+                            raise ValueError("entry_position_changed_before_submit")
                         try:
                             selected = _read_selection(state)
                             card, release = load_selected_card(state)
