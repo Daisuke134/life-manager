@@ -32,18 +32,23 @@
       "source": "pages/life-manager-en.html",
       "public_route": "/lm",
       "export_path": "lm.html",
-      "sha256": "003b0d58ecb1487b0969c6e091bbf596d54b966d378c2b84782420e26a8eceb2"
+      "sha256": "49d720e92fb418e51d863cda4ea7abfa681e6c9bdc1ef14c5b00d3fbde4ee191"
     },
     {
       "source": "pages/life-manager.html",
       "public_route": "/lm/ja",
       "export_path": "lm/ja.html",
-      "sha256": "1181cfa7093f79c10fbb1c8acf9cff1069f31d903d8de373ba3c145b6caeebb7"
+      "sha256": "a7eca5172f9f4681d7eb5374cec094aa708c42ea583e12d17dad4bc52b76c0cf"
     },
     {
       "source": "assets/styles.css",
       "export_path": "assets/manager-site/styles.css",
       "sha256": "8a5d1cb44303a54681939f5647ac4ae16294193a66e0986f8ae3432a5707b242"
+    },
+    {
+      "source": "assets/writer-cta-url.js",
+      "export_path": "assets/manager-site/writer-cta-url.js",
+      "sha256": "b38abbcd5fa96835d54abe9780a3bdd7a34413e0b5526b28855a07f378847e86"
     }
   ]
 }

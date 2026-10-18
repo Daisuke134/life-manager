@@ -8,11 +8,11 @@ const base = `https://raw.githubusercontent.com/Daisuke134/life-manager/${revisi
 const response = await fetch(base + 'route-manifest.json');
 if (!response.ok) throw new Error(`Manifest HTTP ${response.status}`);
 const manifest = await response.json();
-const allowed = new Set(['en.html', 'ja.html', 'dais.html', 'dais/ja.html', 'lm.html', 'lm/ja.html', 'assets/manager-site/styles.css']);
+const allowed = new Set(['en.html', 'ja.html', 'dais.html', 'dais/ja.html', 'lm.html', 'lm/ja.html', 'assets/manager-site/styles.css', 'assets/manager-site/writer-cta-url.js']);
 if (manifest.files.length !== allowed.size) throw new Error('Unexpected file count');
 const staged = [];
 for (const file of manifest.files) {
-  if (!allowed.delete(file.export_path) || !/^(pages\/[a-z-]+\.html|assets\/styles\.css)$/.test(file.source)) throw new Error('Non-allowlisted path');
+  if (!allowed.delete(file.export_path) || !/^(pages\/[a-z-]+\.html|assets\/(?:styles\.css|writer-cta-url\.js))$/.test(file.source)) throw new Error('Non-allowlisted path');
   const result = await fetch(base + file.source);
   if (!result.ok) throw new Error(`Source HTTP ${result.status}`);
   const bytes = Buffer.from(await result.arrayBuffer());
