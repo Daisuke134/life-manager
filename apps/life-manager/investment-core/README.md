@@ -53,6 +53,16 @@ indicators across it. It never uses a future bar. Exit expressions may use the
 current position's `entry_price` and `age_bars`; those values are supplied by
 the evaluator, not invented by a model.
 
+Strategy refresh shares the existing investment `control_fence` with submit and
+planned-receipt creation. While ownership or an unsettled intent exists, it only
+refreshes the same canonical card (status changes do not change the policy).
+Corrupt ownership/ledger data is an error. An ETF closed marker is accepted only
+with the matching reconciled intent, official filled sell, receipt envelope and
+account readback showing the position absent. A legacy BTC `closed` label alone
+is insufficient. The existing validation owner evaluates BTC alongside the legacy
+ETF policy; a BTC history failure is reported as partial and does not manufacture
+a BTC report or prevent refreshing an existing owned ETF policy.
+
 ## Net-P&L contract
 
 Every measured venue snapshot carries official source receipt IDs and explicit costs:
