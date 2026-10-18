@@ -15,6 +15,8 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
 import effect_store
+import allocator
+import alpaca_cli
 import position_manager
 from strategy_policy import candidate_cards
 
@@ -60,6 +62,49 @@ def snapshot(mode):
 
 
 class OwnedPolicyTests(unittest.TestCase):
+    def test_new_entry_freezes_the_canonical_card_with_mode_and_owner(self):
+        from test_etf_allocator import _snapshot, _candidate
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            card=candidate_cards()["alpaca-btc-5m-trend-400-v2"]
+            (root/"selected-strategy.json").write_text(json.dumps({
+                "selection":"selected","report_id":"entry-fixture","strategy_id":card.strategy_id,
+                "release_sha":"a"*40,"card":card.to_mapping(),"expires_at":"2099-01-01T00:00:00Z"}))
+            candidate={**_candidate("BTC/USDC"),"asset_class":"crypto","candidate_ref":"crypto://BTC/USDC"}
+            policy={"action":"ENTER","strategy_id":card.strategy_id,"signal_inputs":{},
+                    "reason":"signal_entry","expected_cost_usd":"0.06"}
+            with patch.dict(os.environ,{"LIFE_MANAGER_INVESTMENT_OWNER_ID":"alpaca-investment-paper"}), \
+                 patch.object(allocator,"evaluate",return_value=policy):
+                decision=allocator.choose(_snapshot("paper"),[candidate],root,Path("unused"),root)
+            self.assertTrue(decision["approved"],decision)
+            self.assertEqual(decision["owner_id"],"alpaca-investment-paper")
+            self.assertEqual(decision["mode"],"paper")
+            self.assertEqual(decision["policy_card"],card.to_mapping())
+            policy["action"]="HOLD"
+            with patch.dict(os.environ,{"LIFE_MANAGER_INVESTMENT_OWNER_ID":"alpaca-investment-paper"}), \
+                 patch.object(allocator,"evaluate",return_value=policy):
+                hold=allocator.choose(_snapshot("paper"),[candidate],root,Path("unused"),root)
+            self.assertNotIn("policy_card",hold)
+
+    def test_new_entry_refuses_mismatched_mode_owner(self):
+        from test_etf_allocator import _snapshot, _candidate
+        candidate={**_candidate("BTC/USDC"),"asset_class":"crypto","candidate_ref":"crypto://BTC/USDC"}
+        decision={"action":"ENTER","strategy_id":"alpaca-btc-5m-trend-400-v2",
+                  "candidate_ref":candidate["candidate_ref"],"owner_id":"alpaca-investment-live",
+                  "expected_cost_usd":"0.06"}
+        result=allocator.gate(_snapshot("paper"),[candidate],decision)
+        self.assertFalse(result["approved"])
+        self.assertFalse(result["checks"]["owner_mode"])
+
+    def test_order_readback_keeps_the_official_fill_time(self):
+        row={"found":True,"filled_at":"2026-01-01T04:00:30Z"}
+        with patch.object(alpaca_cli,"_context",return_value={}), \
+             patch.object(alpaca_cli,"_run",return_value=row) as read:
+            result=alpaca_cli.find_order_by_client_id(credentials_path=Path("c"),cli_path=Path("a"),
+                                                    client_order_id="lm-ai-"+"a"*24)
+        self.assertIn("filled_at:.filled_at",read.call_args.args[1][-1])
+        self.assertEqual(result["filled_at"],row["filled_at"])
+
     def test_actual_entry_receipts_resolve_original_policy_despite_expired_other_selection(self):
         for mode in ("paper", "live"):
             with self.subTest(mode=mode), tempfile.TemporaryDirectory() as directory:
