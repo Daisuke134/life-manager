@@ -1730,12 +1730,18 @@ const server = http.createServer(async (req, res) => {
               } else {
                 const existing = await maritimeDistributionStore.getParticipant(row.uid);
                 const source = existing.participant?.source || await maritimeDistributionStore.startSource(row.uid);
-                const accepted = await maritimeDistributionStore.accept(row.uid, source);
-                await sendMessage(LM_TG_TOKEN, u.chatId, accepted.ok
-                  ? copy.accept
-                  : accepted.status === "capacity_full"
-                    ? copy.capacityFull
-                    : copy.acceptUnavailable);
+                if (!source) {
+                  const delivered = await sendMessage(LM_TG_TOKEN, u.chatId, copy.notice);
+                  if (!delivered || delivered.ok !== true) throw new Error("Telegram Maritime consent notice send failed");
+                  await maritimeDistributionStore.recordStart(row.uid, "direct");
+                } else {
+                  const accepted = await maritimeDistributionStore.accept(row.uid, source);
+                  await sendMessage(LM_TG_TOKEN, u.chatId, accepted.ok
+                    ? copy.accept
+                    : accepted.status === "capacity_full"
+                      ? copy.capacityFull
+                      : copy.acceptUnavailable);
+                }
               }
               res.writeHead(200); res.end("ok");
               return;
@@ -1762,7 +1768,8 @@ const server = http.createServer(async (req, res) => {
                 return;
               }
               if (!(await maritimeDistributionStore.isConsentActive(row.uid))) {
-                await sendMessage(LM_TG_TOKEN, u.chatId, maritimeMessages(u.languageCode).notice);
+                const delivered = await sendMessage(LM_TG_TOKEN, u.chatId, maritimeMessages(u.languageCode).notice);
+                if (delivered && delivered.ok === true) await maritimeDistributionStore.recordStart(row.uid, "direct");
                 res.writeHead(200); res.end("ok");
                 return;
               }

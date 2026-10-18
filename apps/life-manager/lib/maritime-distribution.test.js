@@ -45,6 +45,7 @@ test("consent recovers the first Telegram source from the HMAC-keyed start event
   const participantId = createHmac("sha256", "fixture-secret")
     .update(`maritime:participant:${uid}`)
     .digest("hex");
+  let sourceEventPresent = true;
   const store = createMaritimeDistributionStore({
     env: { LM_UID_SECRET: "fixture-secret" },
     supaUrl: "https://fixture.supabase.co",
@@ -53,9 +54,11 @@ test("consent recovers the first Telegram source from the HMAC-keyed start event
       const url = new URL(String(input));
       requested.push(url);
       if (url.pathname === "/rest/v1/lm_web_funnel_events") {
-        return { ok: true, status: 200, json: async () => [{
-          attribution: { utm_source: "maritime-discord" },
-        }] };
+        return {
+          ok: true,
+          status: 200,
+          json: async () => sourceEventPresent ? [{ attribution: { utm_source: "maritime-discord" } }] : [],
+        };
       }
       throw new Error(`unexpected request ${url.pathname}`);
     },
@@ -66,6 +69,8 @@ test("consent recovers the first Telegram source from the HMAC-keyed start event
   assert.equal(requested[0].searchParams.get("source_object_id"), `eq.${participantId}`);
   assert.equal(requested[0].searchParams.get("event_name"), "eq.maritime_start");
   assert.doesNotMatch(requested[0].toString(), /telegram-987654321/);
+  sourceEventPresent = false;
+  assert.equal(await store.startSource(uid), null, "no recorded notice must not be treated as a consented source");
 });
 
 test("consent and milestones use HMAC participant ids and persist no Telegram identity or message text", async () => {

@@ -480,6 +480,10 @@ test("POST /telegram routes the legacy-parity slash surface without disturbing e
     //     update is fenced in lm_panel_command_receipts before a second provider call.
     const pilotUpdateId = updateId + 1;
     const privatePrompt = "pre-consent prompt must not persist";
+    assert.equal(await message("100", "/maritime_accept"), 200);
+    assert.equal(maritimeParticipants.size, 0, "accepting before viewing the notice only displays it");
+    assert.match(lastSent().text, /無期限/);
+    assert.match(lastSent().text, /\/maritime_accept/);
     const receiptsBeforeConsent = commandReceipts.size;
     assert.equal(await exactMessage(93001, "100", `/pilot ${privatePrompt}`), 200);
     assert.equal(maritimeChatCalls, 0, "an unconsented prompt must not reach Maritime");

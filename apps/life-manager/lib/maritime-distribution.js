@@ -127,7 +127,7 @@ function createMaritimeDistributionStore({
 
   async function startSource(uid) {
     const id = participantId(uid);
-    if (!ready() || !id) return "direct";
+    if (!ready() || !id) return null;
     const url = new URL(`${base}/rest/v1/lm_web_funnel_events`);
     url.searchParams.set("source_object_id", `eq.${id}`);
     url.searchParams.set("event_name", "eq.maritime_start");
@@ -136,12 +136,12 @@ function createMaritimeDistributionStore({
     url.searchParams.set("limit", "1");
     let response;
     try { response = await fetchImpl(url.toString(), { headers }); }
-    catch { return "direct"; }
-    if (!response || !response.ok) return "direct";
+    catch { return null; }
+    if (!response || !response.ok) return null;
     const rows = await response.json().catch(() => null);
-    if (!Array.isArray(rows) || rows.length !== 1) return "direct";
+    if (!Array.isArray(rows) || rows.length !== 1) return null;
     const source = String(rows[0]?.attribution?.utm_source || "");
-    return source.startsWith("maritime-") ? normalizeMaritimeSource(source.slice("maritime-".length)) : "direct";
+    return source.startsWith("maritime-") ? normalizeMaritimeSource(source.slice("maritime-".length)) : null;
   }
 
   async function getParticipant(uid) {
