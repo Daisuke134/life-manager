@@ -185,6 +185,29 @@ class CryptoPerformanceTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'crypto_fee_evidence_conflict'):
                 self.project(store._rows(root/'receipts.jsonl'),activities=frames)
 
+    def test_daily_fee_attribution_excludes_other_days_closed_cycles(self):
+        with tempfile.TemporaryDirectory() as directory,patch(__name__+'.NOW','2026-01-03T06:00:00Z'):
+            root=Path(directory);orders,first,_=cycle_fixture(root)
+            more,second,_=cycle_fixture(root,index=72)
+            frame=copy.deepcopy(first);frame['fills']+=second['fills']
+            frame['fees']=[{'id':f'fee-{i}','activity_type':'CFEE','order_id':order['id'],
+                'symbol':'BTCUSD','qty':'-0.00005','date':day,'net_amount':'0','status':'executed'}
+                for i,(order,day) in enumerate(((orders[0],'2026-01-01'),(more[0],'2026-01-02')))]
+            frame['source_receipt_id']='alpaca-crypto-activities:'+proofs._digest([
+                {k:v for k,v in frame.items() if k!='source_receipt_id'}])
+            obs={'mode':'paper','paper':True,'clock':{'observed_at':NOW}}
+            result=PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper',
+                activity_reader=lambda **_:frame)
+            self.assertEqual(result['closed_cycle_count'],2)
+            for day in ('2026-01-01','2026-01-02'):
+                daily=json.loads((root/f'performance-crypto-daily-{day}.json').read_text())
+                evidence=daily['fee_evidence'];ids={c['cycle_id'] for c in daily['cycles']}
+                self.assertEqual(len(evidence['attributed_native_fees']),1)
+                self.assertTrue(all(f['cycle_id'] in ids for f in evidence['attributed_native_fees']))
+                self.assertEqual(evidence['observation_scope'],'account_activity_windows')
+                self.assertEqual(set(evidence['attribution_cycle_ids']),ids)
+                self.assertEqual(evidence['observed_fee_count'],2)
+
     def test_empty_fee_inventory_remains_unsettled(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);orders,activity,_=cycle_fixture(root)
