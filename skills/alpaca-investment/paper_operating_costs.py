@@ -185,7 +185,7 @@ def remember_source_evidence(known, summary, *, owner_id, mode):
                 for window in query['execution_windows']:
                     if (not isinstance(window,dict) or any(not isinstance(window.get(key),str) or not window[key]
                             for key in ('execution_owner_id','run_id','occurrence_id'))
-                            or not _time(window['started_at'])<=_time(window['finished_at'])<=_time(record['observed_at'])
+                            or not _time(window['started_at'])<=_time(window['finished_at'])
                             or not ids(window.get('covered_categories'),True)
                             or not set(window['covered_categories'])<=set(query['covered_categories'])):
                         raise ValueError
