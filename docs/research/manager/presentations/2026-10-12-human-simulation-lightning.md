@@ -105,3 +105,10 @@ Population → response → intervention → readback → evaluation
 
 
 2026-10-18導入の要点：個人向けデコーダを使うニューロフィードバックというミクロの介入から、集団が共有する環境や条件を変えるマクロの介入へ、取り組む対象が変化した。使命は苦しみの終焉で一貫している。専門用語は日本語「ニューロフィードバック」、英語「neurofeedback」を使う。
+
+
+### 2026-10-18 IACS経験も導入へ含める
+
+サンタモニカのInstitute for Advanced Consciousness Studies（IACS）では、約1か月のインターン経験もしました。意識とマインドフルネスをテクノロジーで探究するこの経験も、現在の起業につながる私の原点の一つです。
+
+IACSは発表先としてだけでなく、創業につながる経験として紹介する。本人の経歴正本とIACS公式プロフィールを参照。具体的な年月・担当成果は未確認のまま補わない。英語ではInstitute for Advanced Consciousness Studies (IACS), Santa Monicaと正式表記を使う。

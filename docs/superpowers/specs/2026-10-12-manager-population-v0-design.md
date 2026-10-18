@@ -69,3 +69,13 @@ reportに `stage=empirical_reconstruction`、`population_fidelity=measured`、`b
 manifestはsource/extract/split/config/code hash、method、numerical settings、wall time、seedの開発対象、invalid counts、参照セルへの入力非アクセスを記録。paid model calls=0。実費のないtoken costを推測しない。fetch/prepare/reconstruct/scoreを別CLIにし、reconstruct commandはreference pathを受け取らない。
 
 Python >=3.12。stdlibと、上記の固定ipfn/NumPy/pandas CPU依存を使う。新しいprovider、GPU、paid API、scheduler、live environment adapterは追加しない。unittest offline gateと実資料を使うexplicit integration runを分ける。raw/run outputはGit外へ保存し、small public fixtures/schema/mappingだけsourceへ。
+
+## 2026-10-18 データ選定の根拠と次段階
+
+第8単元の資料比較は [データ選定記事](../../research/manager/articles/2026-10-18-manager-dataset-selection-ja.md) に記録。人口v0には引き続き2020–2024 ACS B17001を使う。年齢×貧困の公開交差集計を採点用に隠し、周辺集計だけから復元する。既存の51地域、6/4/41分割、単純独立法/IPF比較を変更しない。地域分割と評価セルの非アクセスは答えの混入を防ぐ条件であり、周辺集計と交差集計が独立に採取されたことを意味しない。
+
+次の世帯人口部品の第一候補は、同じ2020–2024 ACS 5-year PUMSの住宅・個人ファイル。小規模な読解・実装対象にRhode Islandを推奨。公式配布先のcsv_hri.zip/csv_pri.zipの存在を確認したが、データ本体・世帯部品はまだ未取得/未実装。人口v0の6セル処理へ混在させず、世帯部品のスキーマと受入条件を別途具体化する。
+
+PUMSではSERIALNOによる所属、SPORDER、AGEP、RELSHIPP、NP、WGTP/PWGTPなどを辞書で確認し、通常世帯と空き家・集団居住施設の扱いを定義する。世帯単位の分割と整数化前後の誤差を検査する。PUMAは公開用の粗い地理で、実住所ではない。PUMS推計とACS詳細表は元調査が重なり、加重推計も完全一致しない場合があるため、別ファイルとの比較を完全独立の実証と呼ばない。
+
+ATUS/NHTS/BRFSSは、生活時間/移動/健康という用途別の追加候補。SocSci210は反応予測の候補、HeartStepsは介入評価の教材候補であり、この人口v0への採用ではない。異なる調査の人物を年齢などの一致だけで同じ実在個人として結合しない。データ利用と再配布の条件、対象母集団、期間、地理、重み、欠測、精度、出典の重なりを記録する。貧困状態を苦しみそのものと扱わず、人口精度から実地便益を主張しない。

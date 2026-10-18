@@ -1,0 +1,77 @@
+{
+  "checked_date": "2026-10-18",
+  "scope": "metadata and source availability only; no population model run or proprietary data obtained",
+  "sources": [
+    {
+      "id": "pums_docs",
+      "url": "https://www.census.gov/programs-surveys/acs/microdata/documentation/2024.html",
+      "error": "HTTP Error 403: Forbidden"
+    },
+    {
+      "id": "pums_downloads",
+      "url": "https://www2.census.gov/programs-surveys/acs/data/pums/2024/5-Year/",
+      "status": 200,
+      "bytes_read": 58152,
+      "sha256_read_bytes": "156a5263721b09cb60d8ed9a1bbbcc21b8ef156f4b7bdc5a8c27f4c4df9ca507",
+      "rhode_island_files": [
+        "csv_hri.zip",
+        "csv_pri.zip"
+      ]
+    },
+    {
+      "id": "b17001_metadata",
+      "url": "https://api.census.gov/data/2024/acs/acs5/groups/B17001.json",
+      "status": 200,
+      "bytes_read": 291458,
+      "sha256_read_bytes": "3554588a3334d9e4359d82508e7abb7f16b3bc52da9ff4b406d4e93375e146e5",
+      "example_variable": {
+        "label": "Estimate!!Total:!!Income in the past 12 months below poverty level:!!Male:!!Under 5 years",
+        "concept": "Poverty Status in the Past 12 Months by Sex by Age",
+        "predicateType": "int",
+        "group": "B17001",
+        "limit": 0,
+        "predicateOnly": true,
+        "universe": "Population for whom poverty status is determined"
+      }
+    },
+    {
+      "id": "heartsteps_readme",
+      "url": "https://raw.githubusercontent.com/klasnja/HeartStepsV1/main/README.md",
+      "status": 200,
+      "bytes_read": 8826,
+      "sha256_read_bytes": "553842f14c9316276b757bd7e587ba23197a583a8aaafea2bab80f5609d2c69c"
+    },
+    {
+      "id": "heartsteps_license",
+      "url": "https://raw.githubusercontent.com/klasnja/HeartStepsV1/main/LICENSE",
+      "status": 200,
+      "bytes_read": 18658,
+      "sha256_read_bytes": "f5b745ef98087f531e719ee8ca6a96809444573ecc7173c6fa68eaad39b3cc3f",
+      "license_identification": "CC-BY-4.0"
+    },
+    {
+      "id": "rti_readme",
+      "url": "https://raw.githubusercontent.com/RTIInternational/rti_synth_pop/main/README.md",
+      "status": 200,
+      "bytes_read": 15207,
+      "sha256_read_bytes": "cdb392930e783aa397e50c18112d11b4380676972050ed4dae5cb69079dd98ce"
+    },
+    {
+      "id": "socsci_card",
+      "url": "https://huggingface.co/datasets/socratesft/SocSci210/raw/048481111a4425ed83dc0eacf15f8431f252b21a/README.md",
+      "status": 200,
+      "bytes_read": 1062,
+      "sha256_read_bytes": "c78ab37b1613897b56d87a696e8b448fd1ff1aafec9488c08afee2cc2c46b179"
+    },
+    {
+      "id": "aaru_simulation",
+      "url": "https://aaru.com/simulation",
+      "error": "HTTP Error 403: Forbidden"
+    },
+    {
+      "id": "simile_confidence",
+      "url": "https://www.simile.com/blog/confidence",
+      "error": "HTTP Error 403: Forbidden"
+    }
+  ]
+}

@@ -65,3 +65,6 @@ Yunほかの公開稿では、LLM系が実現可能性の代理指標で有利�
 2. 著者コード：https://github.com/HyunsooYun/llm-pop-synth
 3. Jones・Dawson・Mills、2026：https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0341704 ; 図10の訂正確認済み：https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0356492
 4. 著者コード：https://github.com/MJones235/LLM-Population-Generator （今回の固定コミットは証拠JSONを参照。論文掲載時のreleaseと現行チェックアウトを同一視しない）
+
+
+![言語モデルの生成とパラメータ更新](visuals/2026-10-18-transformer-learning-ja.png)

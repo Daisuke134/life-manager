@@ -10,6 +10,8 @@
 
 **仕様：** [宇宙規模の全体定義](../specs/2026-10-12-manager-universe-design.md)、[人口部品の厳密な仕様](../specs/2026-10-12-manager-population-v0-design.md)、[6作業の受入計画](2026-10-12-manager-population-v0.md)。
 
+**2026-10-18 データ選定補足：** [比較と採用理由](../../research/manager/articles/2026-10-18-manager-dataset-selection-ja.md)。D01/B17001の人口v0を維持し、PUMS世帯部品は次段階の第一候補とする。P07/P09のメタデータでは対象母集団・期間・地理・推計という性質を保持し、P19では隠した交差集計の復元評価と、独立採取の観測・将来予測・実地便益を区別する。今回P01–P20の実装を完了にはしない。PUMS・ATUS・BRFSSを6セル入力へ足さない。
+
 ## 共通条件
 
 - v0は最初の部品であり、マネージャーの製品定義を人口統計へ縮めない。
@@ -38,6 +40,42 @@
 元資料と実行結果の保存先は `/workspace/artifacts/manager-population/`。実行場所の変更時はコマンドの引数で指定し、中核処理へ実行先固有パスを埋めない。
 
 ## パッチの実行順
+
+### 第8単元として見せる実装のまとまり（2026-10-18）
+
+学習7.5はデータと方式の比較。第8単元は以下の実装・実行・検証であり、説明だけで完了としない。進捗はSSOTのみ。
+
+|まとまり|パッチ|作るもの|確認できる結果|
+|---|---|---|---|
+|A 出典と実行環境|P01–P03|pyproject.toml、固定依存、THIRD_PARTY_NOTICES.md|分離環境でimportでき、依存と出典を再確認できる|
+|B 観測の取込|P04–P07|population/contracts.py、population/acs.pyと対応テスト|公式ファイルから取り出し、不正・欠測・重複を拒否する|
+|C 入力と答えを分離|P08–P09|population/prepare.py、config/population-v0.json|開発6/検証4/評価41、初期表と周辺集計と参照表を別々に出す|
+|D 2方式を実装|P10–P12|population/fit.pyと対応テスト|単純独立法と公開ipfnを同じ契約で比較できる|
+|E 評価と保存|P13–P17|benchmarks/population.py、artifacts.py、cli.pyと対応テスト|残差・TVD・群別誤差、出典と版付き結果を再生成できる|
+|F 実資料の結果を公開可能にする|P18–P20|実資料の実行結果、README、解説、検証記録|良い結果も悪い結果も同じ条件で再実行できる|
+
+この人口v0は集計表の復元まで。次のPUMS世帯部品は、pums.py/households.py/integerize.pyと世帯単位の評価を追加する別スライス。現段階でBN・拡散・LLMを全部の必須依存へしない。PUMS比較で採用する方式とインターフェースを確定してから追加する。
+
+予定配置：
+
+```text
+apps/manager/
+  pyproject.toml
+  requirements-population.in
+  requirements-population.lock
+  THIRD_PARTY_NOTICES.md
+  config/population-v0.json
+  src/manager/
+    population/{contracts,acs,prepare,fit}.py
+    benchmarks/population.py
+    artifacts.py
+    cli.py
+    __main__.py
+  tests/test_population_*.py
+  tests/test_acs.py
+```
+
+復元は初期表と周辺集計を受け取り、評価用交差集計のパスを受け取らない。採点は復元結果と参照表を別引数で受け取る。出力先はGit外のartifactsとし、記事はその実行結果から数値を引用する。
 
 各パッチには、変更するファイルと関数、入力、確認方法を記す。実装では、先にテストを書いて失敗を確認し、最小限の変更で同じテストを成功させる。コミットは6作業の意味のある完了単位で行い、空ファイル一個ごとのコミットは要求しない。
 

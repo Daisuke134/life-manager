@@ -80,3 +80,10 @@ The approach has changed. The question remains: how can technology end suffering
 
 
 2026-10-18用語・構成補足：日本語は「ニューロフィードバック」、英語は「neurofeedback」。個人向けデコーダによる個別の介入から、集団が共有する環境や条件への介入へ移る点を明記する。使命は一貫して苦しみの終焉である。
+
+
+### 2026-10-18 IACS経験も導入へ含める
+
+サンタモニカのInstitute for Advanced Consciousness Studies（IACS）では、約1か月のインターン経験もしました。意識とマインドフルネスをテクノロジーで探究するこの経験も、現在の起業につながる私の原点の一つです。
+
+IACSは発表先としてだけでなく、創業につながる経験として紹介する。本人の経歴正本とIACS公式プロフィールを参照。具体的な年月・担当成果は未確認のまま補わない。英語ではInstitute for Advanced Consciousness Studies (IACS), Santa Monicaと正式表記を使う。
