@@ -353,6 +353,43 @@ class CryptoPerformanceTests(unittest.TestCase):
                 self.assertEqual(next_result['fee_readback_through'],'2026-01-09T00:00:00Z')
                 self.assertIsNone(next_result['fees_usd'])
 
+    def test_fill_spanning_a_shrunk_day_advances_and_combines_real_evidence(self):
+        with tempfile.TemporaryDirectory() as directory,patch(__name__+'.NOW','2026-01-10T06:00:00Z'):
+            root=Path(directory);orders,frame,owned=cycle_fixture(root,index=59)
+            ledger=root/'receipts.jsonl';rows=store._rows(ledger)
+            sell=copy.deepcopy(orders[-1]);sell['filled_at']='2026-01-02T00:00:01Z'
+            old=next(r for r in rows if r.get('receipt_type')=='outcome' and r.get('effect_id')==owned['close_effect_id'])
+            account=copy.deepcopy(old['strategy_receipt']['account_readback'])
+            account['clock']['observed_at']='2026-01-02T00:00:02Z'
+            base=[r for r in rows if r is not old]
+            verified=proofs.close_fill_proof_from_rows(base,{**owned,'status':'closing'},sell,account,
+                mode='paper',owner_id='alpaca-investment-paper')
+            old['broker']=sell;old['strategy_receipt']=verified
+            ledger.write_text(''.join(json.dumps(r)+'\n' for r in rows))
+            frame['fills'][-1]['transaction_time']=sell['filled_at']
+            obs={'mode':'paper','paper':True,'clock':{'observed_at':NOW}}
+            calls=[]
+            def reader(**kw):
+                calls.append(kw)
+                after=proofs.parse_instant(kw['period_start']).replace(hour=0,minute=0,second=0,microsecond=0)
+                end=proofs.parse_instant(kw['period_end'])
+                if end-after>timedelta(days=1): raise ValueError('crypto_activity_limit_exceeded')
+                selected=copy.deepcopy(frame)
+                selected['fills']=[f for f in frame['fills'] if after<=proofs.parse_instant(f['transaction_time'])<=end]
+                return activity_fixture(selected,mode='paper',start=kw['period_start'],end=kw['period_end'])
+            for minute in range(5):
+                obs['clock']['observed_at']=f'2026-01-10T06:{minute:02}:00Z'
+                result=PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper',activity_reader=reader)
+            self.assertEqual(len(calls),5)
+            self.assertEqual(calls[-1]['period_start'],'2026-01-02T00:00:00Z')
+            self.assertEqual(result['missing_activity_order_ids'],[])
+            self.assertEqual(result['cycles'][0]['execution_cashflow_usdc'],'0.5')
+            reference=result['order_activity_refs'][sell['id']]
+            evidence=result['activity_readbacks'][reference]
+            self.assertEqual(evidence['kind'],'crypto_activity_bundle')
+            self.assertEqual(len(evidence['segments']),2)
+            self.assertEqual(proofs.crypto_fill_activity_proof(evidence,sell,mode='paper')['filled_qty'],'0.05')
+
     def test_one_day_limit_keeps_evidence_and_avoids_larger_prefix_retries(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);orders,frame,_=cycle_fixture(root)
