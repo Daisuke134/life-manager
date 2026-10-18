@@ -95,7 +95,7 @@ class EtfAllocatorTests(unittest.TestCase):
             ["SPY", "QQQ", "IWM", "DIA", "EFA", "EEM", "TLT", "GLD"],
         )
 
-    def test_paper_etf_selection_dispatches_and_approves_only_us_equity_candidate(self):
+    def test_legacy_paper_etf_does_not_reenter_once_flat(self):
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory) / "state"
             _selected_state(state)
@@ -107,8 +107,9 @@ class EtfAllocatorTests(unittest.TestCase):
         self.assertEqual(result["action"], "ENTER")
         self.assertEqual(result["strategy_id"], ETF_ID)
         self.assertEqual(result["candidate"]["asset_class"], "us_equity")
-        self.assertTrue(result["approved"])
-        self.assertEqual(result["gate"], "approved")
+        self.assertFalse(result["approved"])
+        self.assertFalse(result["checks"]["entry_policy_active"])
+        self.assertEqual(result["gate"], "legacy_etf_entry_retired")
 
     def test_paper_etf_entry_is_rejected_outside_regular_session(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -123,7 +124,7 @@ class EtfAllocatorTests(unittest.TestCase):
 
         self.assertFalse(result["approved"])
         self.assertFalse(result["checks"]["regular_session"])
-        self.assertEqual(result["gate"], "risk_rejected")
+        self.assertEqual(result["gate"], "legacy_etf_entry_retired")
 
     def test_paper_etf_exit_is_rejected_outside_regular_session(self):
         with tempfile.TemporaryDirectory() as directory, patch.dict(
@@ -172,7 +173,7 @@ class EtfAllocatorTests(unittest.TestCase):
                 Path("unused-runner"), Path(directory),
             )
 
-        self.assertTrue(result["approved"])
+        self.assertFalse(result["approved"])
         self.assertEqual(result["owner_id"], "alpaca-investment-paper")
 
     def test_paper_etf_exit_is_approved_and_emits_sell_quantity(self):
