@@ -1,5 +1,7 @@
 """Closed-cycle raw flow history stays scoped, resumable and nonfinancial."""
 import copy
+from contextlib import ExitStack,redirect_stdout
+from io import StringIO
 import inspect
 import json
 import os
@@ -181,6 +183,48 @@ class FlowWriterTests(unittest.TestCase):
                 self.assertEqual(calls,[]);self.assertEqual(result['completed_round_trips'],1)
                 self.assertNotIn('native_trading_account_id',result['cycles'][0])
                 self.assertIsNone(result['net_pnl_usd'])
+
+
+    def test_real_main_injects_the_same_scoped_flow_reader_after_close(self):
+        from test_crypto_close import native_run
+        from test_owned_policy import snapshot
+        for mode in ('paper','live'):
+            with self.subTest(mode=mode),tempfile.TemporaryDirectory() as directory,ExitStack() as stack:
+                root=Path(directory);account='synthetic-native-account-'+mode
+                orders,activity,owned=cycle_fixture(root,mode,native_account_id=account)
+                (root/'live-owned-position.json').write_text(json.dumps(owned));native=native_run()
+                obs={'mode':mode,'paper':mode=='paper','account':{'id':account,'cash':'0','equity':'100'},
+                    'positions':[{'symbol':'USDCUSD','qty':'100','unrealized_pl':'0'}],
+                    'clock':{'observed_at':NOW},'activities_count':0,'open_and_closed_orders_count':0}
+                raw,_=snapshot(mode);raw.pop('crypto_history');raw['positions']=0;raw['account']['id']=account
+                initial_intents=sum(r.get('receipt_type')=='effect_intent' for r in store._rows(root/'receipts.jsonl'))
+                stack.enter_context(patch.dict(os.environ,{'LIFE_MANAGER_INVESTMENT_MODE':mode,
+                    'LIFE_MANAGER_INVESTMENT_DEPLOYMENT':'local','LIFE_MANAGER_INVESTMENT_OWNER_ID':'alpaca-investment-'+mode,
+                    'ALPACA_INVESTMENT_'+mode.upper()+'_STATE_DIR':str(root),
+                    'ALPACA_INVESTMENT_'+mode.upper()+'_CREDENTIALS_FILE':str(root/'unused')},clear=True))
+                stack.enter_context(patch.object(native,'observe',return_value=obs))
+                stack.enter_context(patch.object(native,'read_allocator_snapshot',return_value=raw))
+                stack.enter_context(patch.object(native,'find_order_by_client_id',side_effect=lambda **kw:
+                    next(o for o in orders if o['client_order_id']==kw['client_order_id'])))
+                stack.enter_context(patch.object(native,'read_crypto_activity_evidence',return_value=activity))
+                def captured(**kw):return frame(kw)
+                reader=stack.enter_context(patch.object(native,'read_crypto_flow_evidence',side_effect=captured,create=True))
+                for name,value in (('read_crypto_history',{}),('build_candidates',[]),('_review_status',{}),
+                    ('read_campaign_snapshot',{'paper':True,'unexpected_positions':[],'fills':[],'positions':[],'options':[]}),
+                    ('deliver',{'message_id':'fixture'}),('deliver_failure',{'status':'delivered'}),('_retry_allowed',False)):
+                    stack.enter_context(patch.object(native,name,return_value=value))
+                import alpaca_cli
+                stack.enter_context(patch.object(alpaca_cli,'_context',side_effect=AssertionError('provider forbidden')))
+                stack.enter_context(patch.object(alpaca_cli,'_run',side_effect=AssertionError('provider forbidden')))
+                with redirect_stdout(StringIO()) as output:code=native.main(wake_id='synthetic-flow-report')
+                self.assertEqual(code,0,output.getvalue());self.assertEqual(reader.call_count,1)
+                self.assertEqual(reader.call_args.kwargs['native_trading_account_id'],account)
+                self.assertEqual(reader.call_args.kwargs['mode'],mode)
+                self.assertEqual(reader.call_args.kwargs['credentials_path'],root/'unused')
+                saved=json.loads((root/'performance-crypto-latest.json').read_text())
+                self.assertEqual(len(saved['flow_readbacks']),1);self.assertIsNone(saved['net_pnl_usd'])
+                self.assertEqual(sum(r.get('receipt_type')=='effect_intent' for r in store._rows(root/'receipts.jsonl')),initial_intents)
+                self.assertNotIn(account,output.getvalue())
 
 
 if __name__=='__main__':unittest.main()
