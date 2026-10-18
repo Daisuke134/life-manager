@@ -31,14 +31,18 @@ _PRELOADS = re.compile(
     r'<script[^>]*\bid="preloads-json"[^>]*>(.*?)</script>', re.DOTALL
 )
 AUDIENCES = ("only_paid", "everyone")
+_AUDIENCE_BY_PAYMENTS_STATE = {"enabled": "only_paid", "disabled": "everyone"}
 
 
 def audience_for_payments_state(state: object) -> str:
     """Map Substack's ``payments_state`` to the only audience it can sell to."""
 
-    if not isinstance(state, str) or not state:
-        raise ValueError("Substack payments_state is unreadable")
-    return "only_paid" if state == "enabled" else "everyone"
+    # Fail closed: an unknown Stripe state (paused, restricted, ...) on a paid publication
+    # must block, never silently publish paid writing for free.
+    audience = _AUDIENCE_BY_PAYMENTS_STATE.get(state) if isinstance(state, str) else None
+    if audience is None:
+        raise ValueError(f"Substack payments_state is unreadable or unknown: {state!r}")
+    return audience
 
 
 def payments_state_from_html(page: str, publication: str) -> str:

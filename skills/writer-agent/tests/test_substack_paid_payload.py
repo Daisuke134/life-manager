@@ -45,13 +45,13 @@ def _paywalls(payload: dict) -> int:
 
 @pytest.mark.parametrize(
     ("state", "audience"),
-    [("enabled", "only_paid"), ("disabled", "everyone"), ("pending", "everyone")],
+    [("enabled", "only_paid"), ("disabled", "everyone")],
 )
 def test_audience_follows_publication_payments_state(state: str, audience: str) -> None:
     assert MODULE.audience_for_payments_state(state) == audience
 
 
-@pytest.mark.parametrize("state", ["", None, 1])
+@pytest.mark.parametrize("state", ["", None, 1, "pending", "paused", "restricted", "enabled_pending"])
 def test_unreadable_payments_state_refuses_to_guess(state: object) -> None:
     with pytest.raises(ValueError, match="payments_state"):
         MODULE.audience_for_payments_state(state)
