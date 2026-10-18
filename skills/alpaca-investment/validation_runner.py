@@ -32,6 +32,8 @@ from etf_momentum import (  # noqa: E402
 )
 from provision_selection import provision_selection  # noqa: E402
 from strategy_cards import is_valid_release_sha  # noqa: E402
+from strategy_policy import build_validation_candles, candidate_cards  # noqa: E402
+from strategy_validation import validate_series  # noqa: E402
 
 
 HISTORY_CALENDAR_DAYS = 2190
@@ -205,6 +207,70 @@ def build_report_from_history(
     ).isoformat().replace("+00:00", "Z")
     report["completed_through_session"] = completed_through_session
     return report
+
+
+def build_crypto_reports_from_history(
+    bars: Sequence[Mapping[str, Any]], *,
+    quote_conversions: Sequence[Mapping[str, Any]], source_receipt_ids: Sequence[str],
+    release_sha: str, observed_at: str,
+) -> list[dict[str, Any]]:
+    """Reuse the existing BTC features/evaluator; never submit or provision here."""
+    if not is_valid_release_sha(release_sha):
+        raise ValueError("release_sha_invalid")
+    observed = _parse_timestamp(observed_at)
+    if (not isinstance(source_receipt_ids, (list, tuple)) or not source_receipt_ids
+            or any(not isinstance(ref, str) or not ref.strip() for ref in source_receipt_ids)
+            or not isinstance(bars, (list, tuple)) or not bars
+            or not isinstance(quote_conversions, (list, tuple))):
+        raise ValueError("crypto_validation_history_invalid")
+    previous = None
+    try:
+        for row in bars:
+            timestamp = _parse_timestamp(row["t"])
+            prices = [Decimal(str(row[key])) for key in ("o", "h", "l", "c")]
+            if (observed - timestamp < timedelta(minutes=5)
+                    or (previous is not None and timestamp - previous != timedelta(minutes=5))
+                    or any(not price.is_finite() or price <= 0 for price in prices)
+                    or prices[1] < max(prices) or prices[2] > min(prices)):
+                raise ValueError("crypto_validation_history_invalid")
+            previous = timestamp
+        fx_by_time = {}
+        for conversion in quote_conversions:
+            timestamp = _parse_timestamp(conversion["timestamp"])
+            if timestamp in fx_by_time or observed - timestamp < timedelta(minutes=5):
+                raise ValueError("crypto_validation_fx_invalid")
+            fx_by_time[timestamp] = dict(conversion)
+    except (KeyError, TypeError, ArithmeticError) as error:
+        raise ValueError("crypto_validation_history_invalid") from error
+    evidence = list(dict.fromkeys(source_receipt_ids))
+    for conversion in quote_conversions:
+        ref = conversion.get("evidence_ref")
+        if isinstance(ref, str) and ref.strip() and ref not in evidence:
+            evidence.append(ref)
+    digest = hashlib.sha256(json.dumps(
+        {"bars": list(bars), "fx": list(quote_conversions)}, sort_keys=True,
+        separators=(",", ":"),
+    ).encode()).hexdigest()
+    reports = []
+    for card in candidate_cards().values():
+        if tuple(card.instruments) != ("BTC/USDC",):
+            continue
+        candles = build_validation_candles(bars, card.strategy_id)
+        for candle in candles:
+            conversion = fx_by_time.get(_parse_timestamp(candle["timestamp"]))
+            if conversion is not None:
+                candle["quote_to_usd"] = conversion
+        costs = card.to_mapping()["cost_model"]
+        result = validate_series(card, candles, {}, costs)
+        reports.append({
+            **result, "report_id": f"{card.strategy_id}-{digest[:16]}",
+            "release_sha": release_sha, "card": card.to_mapping(), "cost_model": costs,
+            "evidence_ids": evidence, "observed_at": _utc_timestamp(observed_at),
+            "expires_at": (observed + timedelta(days=REPORT_TTL_DAYS)).astimezone(
+                timezone.utc).isoformat().replace("+00:00", "Z"),
+            "measurement_kind": "modeled_validation",
+        })
+    return reports
 
 
 def _atomic_write(path: Path, payload: bytes) -> None:
