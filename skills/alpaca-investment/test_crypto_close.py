@@ -88,6 +88,10 @@ class CryptoCloseTests(unittest.TestCase):
                 self.assertEqual(replay,closed)
                 self.assertEqual(closed['entry_effect_id'],owned['entry_effect_id'])
                 self.assertEqual((root/'receipts.jsonl').read_bytes(),before)
+                (root/'live-owned-position.json').unlink()
+                with patch.dict(os.environ,{'LIFE_MANAGER_INVESTMENT_OWNER_ID':'another-current-owner'}):
+                    self.assertEqual(effect_store.unresolved_intent_count(root/'receipts.jsonl'),0)
+                    self.assertEqual(effect_store.effect_state(root/'receipts.jsonl',owned['close_effect_id']),'outcome')
 
     def _main_flow(self, *, mode, lag=False, backfill=False):
         from test_owned_policy import snapshot
