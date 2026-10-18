@@ -28,7 +28,7 @@ def snapshot(venue="alpaca"):
         "source_receipt_ids": [f"{venue}-receipt"],
         "risk": {"drawdown_fraction": "0.01", "round_trips": 30,
                  "capital_at_risk_usd": "100"},
-        "measurement_status": "measured",
+        "measurement_status": "measured", "measurement_mode": "live", "paper": False,
     }
 
 
@@ -79,7 +79,7 @@ class CrossVenueRunTests(unittest.TestCase):
             alpaca_state = root / "alpaca-state"
             alpaca_state.mkdir()
             (alpaca_state / "performance-daily-2026-09-28.json").write_text(json.dumps({
-                "measurement_status": "measured",
+                "measurement_status": "measured", "measurement_mode": "live", "paper": False,
                 "observed_at": "2026-09-28T23:59:00Z",
                 "performance_day": "2026-09-28",
                 "gross_strategy_pnl_usd": "10",
@@ -98,7 +98,7 @@ class CrossVenueRunTests(unittest.TestCase):
             # replaced latest with a zero-P&L observation. The daily reader
             # must keep consuming the completed prior-day receipt instead.
             (alpaca_state / "performance-latest.json").write_text(json.dumps({
-                "measurement_status": "measured",
+                "measurement_status": "measured", "measurement_mode": "live", "paper": False,
                 "observed_at": NOW,
                 "gross_strategy_pnl_usd": "0",
                 "fees_usd": "0",
@@ -151,7 +151,7 @@ class CrossVenueRunTests(unittest.TestCase):
             alpaca_state = root / "alpaca-state"
             alpaca_state.mkdir()
             (alpaca_state / "performance-latest.json").write_text(json.dumps({
-                "measurement_status": "measured",
+                "measurement_status": "measured", "measurement_mode": "live", "paper": False,
                 "observed_at": NOW,
                 "gross_strategy_pnl_usd": "10",
                 "fees_usd": "1",

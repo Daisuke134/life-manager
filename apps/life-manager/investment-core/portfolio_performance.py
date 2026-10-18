@@ -120,6 +120,9 @@ def aggregate(
         if age < 0 or age > max_age_seconds:
             excluded_venues.append(snapshot.venue)
 
+    if len({snapshot.measurement_mode for snapshot in rows}) != 1:
+        return _blocked("measurement_mode_mixed")
+
     if excluded_venues:
         return _blocked("stale_snapshot", excluded_venues=excluded_venues)
 
@@ -155,6 +158,8 @@ def aggregate(
         "free_cash_usd": _money(totals["free_cash_usd"]),
         "gross_pnl_usd": _money(totals["gross_pnl_usd"]),
         "measurement_status": "measured",
+        "measurement_mode": rows[0].measurement_mode,
+        "paper": rows[0].paper,
         "model_cost_usd": _money(totals["model_cost_usd"]),
         "system_cost_usd": _money(totals["system_cost_usd"]),
         "net_pnl_usd": _money(net),

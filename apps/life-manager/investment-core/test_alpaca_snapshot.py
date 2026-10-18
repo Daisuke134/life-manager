@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 PERFORMANCE = {
-    "measurement_status": "measured",
+    "measurement_status": "measured", "mode": "live", "paper": False,
     "observed_at": "2026-09-29T00:00:00Z",
     "gross_strategy_pnl_usd": "-0.14",
     "fees_usd": "0.01",

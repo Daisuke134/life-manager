@@ -29,7 +29,7 @@ def snapshot_payload(**changes):
         "system_cost_usd": "0.00",
         "source_receipt_ids": ["alpaca-receipt-1"],
         "risk": {"drawdown_usd": "0.00"},
-        "measurement_status": "measured",
+        "measurement_status": "measured", "measurement_mode": "live", "paper": False,
     }
     payload.update(changes)
     return payload

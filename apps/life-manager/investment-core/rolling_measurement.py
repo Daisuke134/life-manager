@@ -7,6 +7,9 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_EVEN
 from typing import Any, Iterable, Mapping
 
 
+from capital_ladder import live_mode_reasons
+
+
 SCHEMA_VERSION = 1
 WINDOW_DAYS = 30
 TARGET_NET_PNL_USD = Decimal("10000.00")
@@ -144,6 +147,10 @@ def rolling_30d(receipts: Iterable[Mapping[str, Any]], end_day: str) -> dict[str
                 days_observed=WINDOW_DAYS,
             )
 
+        mode_reasons = live_mode_reasons(aggregate)
+        if mode_reasons:
+            return _failure(result_base, "blocked", mode_reasons[0], affected_days=[day.isoformat()])
+
         net = _number(aggregate.get("net_pnl_usd"))
         if net is None:
             return _failure(result_base, "blocked", "daily_net_pnl_invalid", affected_days=[day.isoformat()])
@@ -171,6 +178,8 @@ def rolling_30d(receipts: Iterable[Mapping[str, Any]], end_day: str) -> dict[str
         **result_base,
         "measurement_status": "measured",
         "reason": "rolling_measurement_complete",
+        "measurement_mode": "live",
+        "paper": False,
         "days_observed": WINDOW_DAYS,
         "net_pnl_usd": _money(net_total),
         "owner_cash_flow_usd": _money(owner_flow_total),

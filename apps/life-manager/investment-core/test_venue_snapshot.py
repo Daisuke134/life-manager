@@ -19,7 +19,7 @@ def receipt(receipt_id="r1", **overrides):
         "model_cost_usd": "0.15",
         "system_cost_usd": "0.00",
         "risk": {"drawdown_fraction": "0.01"},
-        "measurement_status": "measured",
+        "measurement_status": "measured", "measurement_mode": "live", "paper": False,
     }
     row.update(overrides)
     return row

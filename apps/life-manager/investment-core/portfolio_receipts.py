@@ -69,6 +69,8 @@ class VenueSnapshot:
     risk: Optional[Mapping[str, Any]]
     measurement_status: Optional[str]
     cost_evidence: Mapping[str, Tuple[str, ...]] = field(default_factory=dict)
+    measurement_mode: Optional[str] = None
+    paper: Optional[bool] = None
 
     @classmethod
     def from_mapping(cls, value: Mapping[str, Any]) -> "VenueSnapshot":
@@ -128,6 +130,8 @@ class VenueSnapshot:
             risk=risk,
             measurement_status=status,
             cost_evidence=cost_evidence,
+            measurement_mode=value.get("measurement_mode"),
+            paper=value.get("paper"),
         )
 
     def validation_reason(self) -> Optional[str]:
@@ -152,4 +156,8 @@ class VenueSnapshot:
             return "snapshot_number_invalid"
         if self.measurement_status != "measured":
             return "measurement_not_measured"
+        if (self.measurement_mode not in ("paper", "live", "shadow")
+                or type(self.paper) is not bool
+                or self.paper != (self.measurement_mode == "paper")):
+            return "measurement_mode_invalid"
         return None

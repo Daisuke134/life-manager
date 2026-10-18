@@ -69,6 +69,7 @@ def render_daily_pnl(aggregate: Mapping[str, Any], allocation: Mapping[str, Any]
         f"model cost: {_money(aggregate.get('model_cost_usd'))}",
         f"システム費用: {_money(aggregate.get('system_cost_usd'))}",
         f"owner cash flow: {_money(aggregate.get('owner_cash_flow_usd'))}",
+        f"測定区分: {aggregate.get('measurement_mode') or '不明'}",
         f"net P&L: {_money(aggregate.get('net_pnl_usd'))}",
         f"rolling period end: {aggregate.get('rolling_period_end') or '不明'}",
         f"rolling 30d net P&L: {_money(aggregate.get('rolling_30d_net_pnl_usd'))}",

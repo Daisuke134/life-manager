@@ -67,6 +67,8 @@ def build_alpaca_snapshot(
         source_ids = []
     snapshot = {
         "venue": "alpaca",
+        "measurement_mode": performance.get("measurement_mode", performance.get("mode")),
+        "paper": performance.get("paper"),
         "observed_at": performance.get("observed_at"),
         "equity_usd": account.get("equity"),
         "free_cash_usd": account.get("cash"),
@@ -105,6 +107,12 @@ def build_alpaca_snapshot(
             snapshot["gross_pnl_usd"] = str(gross + slippage)
         except (ArithmeticError, TypeError, ValueError):
             return snapshot
+    mode = snapshot["measurement_mode"]
+    if (mode not in ("paper", "live", "shadow")
+            or type(snapshot["paper"]) is not bool
+            or snapshot["paper"] != (mode == "paper")
+            or performance.get("mode", mode) != mode):
+        return snapshot
     snapshot["measurement_status"] = _measurement_status(snapshot, performance)
     return snapshot
 
