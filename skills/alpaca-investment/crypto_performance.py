@@ -11,6 +11,7 @@ from typing import Any
 
 from crypto_ownership_proof import (_digest,_quantity_text,_sealed_entry_from_rows,entry_receipt_row,
     recorded_entry_proof_from_rows,recorded_no_fill_proof_from_rows,recorded_close_proof_from_rows,
+    owned_quantity_state_from_rows,native_fee_debit_id,
     crypto_fill_activity_proof,validate_crypto_activity_snapshot,combine_crypto_activity_snapshots,execution_activity_identity,native_fee_row_facts,crypto_activity_page_progress,crypto_activity_paged_snapshot,validate_crypto_activity_page_chunk,ReconciliationPending)
 from effect_store import _owned_rows
 from paper_performance import _atomic_json
@@ -32,9 +33,9 @@ def _summary(cycles):
     for (strategy,release),items in sorted(groups.items()):
         values=[c['execution_cashflow_usdc'] for c in items]
         reports.append({'strategy_id':strategy,'release_sha':release,'cycle_ids':[c['cycle_id'] for c in items],
-            'completed_round_trips':len(items),'execution_cashflow_usdc':_quantity_text(sum((Fraction(v) for v in values),Fraction()))
+            'completed_round_trips':sum(c['positive_sell_count']>0 for c in items),'execution_cashflow_usdc':_quantity_text(sum((Fraction(v) for v in values),Fraction()))
                 if all(v is not None for v in values) else None,'net_pnl_usd':None})
-    return {'closed_cycle_count':len(cycles),'completed_round_trips':len(cycles) if len(reports)<=1 else None,
+    return {'closed_cycle_count':len(cycles),'completed_round_trips':sum(c['positive_sell_count']>0 for c in cycles) if len(reports)<=1 else None,
             'strategy_reports':reports}
 
 
@@ -158,6 +159,9 @@ def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None,fee_ac
             if ds[0].get('entry_effect_id')!=effect: continue
             matched_sells.add(intent['effect_id'])
             if closed is not None: raise ValueError('crypto_cycle_after_close')
+            cutoff=next(i for i,r in enumerate(rows) if r is intent)
+            before=owned_quantity_state_from_rows(rows,marker,mode=mode,owner_id=owner_id,upto_index=cutoff)
+            owned_qty=before['owned_qty']
             if Decimal(str(intent['order'].get('qty')))!=Decimal(owned_qty):
                 raise ValueError('crypto_cycle_quantity_invalid')
             marker.update(close_effect_id=intent['effect_id'],close_client_order_id=intent['client_order_id'],owned_qty=owned_qty)
@@ -175,9 +179,27 @@ def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None,fee_ac
             if Decimal(remainder)==0:
                 closed=verified
         if incomplete: continue
-        if closed is None:
-            opened.append({'entry_effect_id':effect,'recorded_owned_qty':owned_qty});continue
-        last_flat=parse_instant(closed['account_readback']['clock']['observed_at'])
+        quantity=owned_quantity_state_from_rows(rows,marker,mode=mode,owner_id=owner_id)
+        fee_events=[r for r in rows if r.get('receipt_type')=='native_fee_debit' and r.get('entry_effect_id')==effect]
+        for event in fee_events:
+            frame=event['strategy_receipt']['activity_readback']
+            fee_snapshots[frame['source_receipt_id']]=frame;sources.add(frame['source_receipt_id'])
+        if closed is not None:
+            close_account=closed['account_readback'];closed_at=closed['receipt']['exit_timestamp'];closure_kind='sell'
+            closing_fee=closed['receipt'].get('native_fee_debit')
+            if closing_fee:
+                closure_kind='sell_and_native_fee' if Decimal(closed['receipt']['exit_filled_qty'])>0 else 'native_fee_debit'
+                if closed_at is None:closed_at=closing_fee['observed_at']
+        elif quantity['owned_qty']=='0' and quantity['last_fee_debit'] is not None:
+            fee=quantity['last_fee_debit']
+            matches=[r for r in fee_events if r.get('fee_debit_id')==native_fee_debit_id(fee)]
+            if len(matches)!=1:raise ValueError('crypto_cycle_flat_proof_missing')
+            close_account=matches[0]['strategy_receipt']['account_readback']
+            closed_at=fee['observed_at'];closure_kind='native_fee_debit'
+        else:
+            opened.append({'entry_effect_id':effect,'recorded_owned_qty':quantity['owned_qty'],
+                'post_acquisition_fee_debited_qty':quantity['debited_qty']});continue
+        last_flat=parse_instant(close_account['clock']['observed_at'])
         executions=[];cashflow=Fraction();complete=True
         for order_effect,broker,proof in orders:
             native=extra[broker['id']] if broker['id'] in extra else proof.get('activity_readback')
@@ -211,7 +233,8 @@ def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None,fee_ac
         cycles.append({'cycle_id':_digest({'mode':mode,'owner_id':owner_id,'entry_effect_id':effect}),
             'owner_id':owner_id,'mode':mode,'strategy_id':receipt['strategy_id'],'release_sha':receipt['release_sha'],
             'entry_effect_id':effect,'period_start':sealed['decision']['observed_at'],
-            'period_end':closed['account_readback']['clock']['observed_at'],'closed_at':closed['receipt']['exit_timestamp'],
+            'period_end':close_account['clock']['observed_at'],'closed_at':closed_at,'closure_kind':closure_kind,
+            'post_acquisition_fee_debited_qty':quantity['debited_qty'],
             'entry_filled_qty':receipt['entry_filled_qty'],'entry_account_owned_qty':receipt['account_owned_qty'],
             'order_ids':[b['id'] for _,b,_ in orders],'orders':executions,
             'positive_sell_count':sum(Decimal(b['filled_qty'])>0 for _,b,_ in orders[1:]),

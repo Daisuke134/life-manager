@@ -54,7 +54,7 @@ class CryptoFeePerformanceTests(unittest.TestCase):
                     start='2026-01-02T04:05:00Z',partial=False)
                 full,cache=complete_frame(root,frame,mode);result=self.build(root,mode,cache);cycle=result['cycles'][0]
                 self.assertEqual(result['completed_round_trips'],1)
-                self.assertEqual(cycle['native_fee_debited_qty'],'0.000075')
+                self.assertEqual(cycle['post_acquisition_fee_debited_qty'],'0.000075')
                 self.assertEqual(cycle['execution_cashflow_usdc'],'0.48425')
                 self.assertEqual(cycle['closure_kind'],'sell');self.assertIsNone(result['net_pnl_usd'])
                 calls=[]
@@ -77,7 +77,7 @@ class CryptoFeePerformanceTests(unittest.TestCase):
                     start='2026-01-01T04:20:00Z',partial=False)
                 _,cache=complete_frame(root,args[4],mode);result=self.build(root,mode,cache);cycle=result['cycles'][0]
                 self.assertEqual(result['completed_round_trips'],1);self.assertEqual(cycle['positive_sell_count'],2)
-                self.assertEqual(cycle['native_fee_debited_qty'],'0.000075')
+                self.assertEqual(cycle['post_acquisition_fee_debited_qty'],'0.000075')
                 self.assertEqual(cycle['execution_cashflow_usdc'],'0.48425')
                 self.assertEqual(len(result['fee_evidence']['attributed_native_fees']),1)
 
@@ -101,7 +101,7 @@ class CryptoFeePerformanceTests(unittest.TestCase):
                     self.assertEqual(result['strategy_reports'][0]['completed_round_trips'],0)
                     cycle=result['cycles'][0]
                     self.assertEqual(cycle['positive_sell_count'],0);self.assertEqual(cycle['closure_kind'],'native_fee_debit')
-                    self.assertEqual(cycle['execution_cashflow_usdc'],'-10');self.assertEqual(cycle['native_fee_debited_qty'],'0.05')
+                    self.assertEqual(cycle['execution_cashflow_usdc'],'-10');self.assertEqual(cycle['post_acquisition_fee_debited_qty'],'0.05')
                     self.assertTrue(cycle['closed_at']);self.assertIsNone(cycle['net_pnl_usd'])
                     self.assertFalse(result['capital_expansion_allowed'])
 
@@ -118,7 +118,7 @@ class CryptoFeePerformanceTests(unittest.TestCase):
             _,cache=complete_frame(root,late,'paper');result=self.build(root,'paper',cache);cycle=result['cycles'][0]
             self.assertEqual(cycle['positive_sell_count'],1);self.assertEqual(result['completed_round_trips'],1)
             self.assertEqual(cycle['closure_kind'],'native_fee_debit');self.assertEqual(cycle['execution_cashflow_usdc'],'-5.8')
-            self.assertEqual(cycle['native_fee_debited_qty'],'0.03')
+            self.assertEqual(cycle['post_acquisition_fee_debited_qty'],'0.03')
 
     def test_open_quantity_and_tamper_failures_use_the_same_fee_history(self):
         with tempfile.TemporaryDirectory() as directory:
