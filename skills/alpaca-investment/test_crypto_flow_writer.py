@@ -175,6 +175,34 @@ class FlowWriterTests(unittest.TestCase):
             self.assertEqual(wrong['completed_round_trips'],1)
             self.assertTrue(wrong['flow_readback_errors']);self.assertFalse(wrong['capital_expansion_allowed'])
 
+    def test_malformed_rejection_slot_preserves_original_and_recovers_on_new_clock(self):
+        for mode in ('paper','live'):
+            for malformed in ({'synthetic':'original'},None,'synthetic-original',17):
+                with self.subTest(mode=mode,malformed=malformed),tempfile.TemporaryDirectory() as directory:
+                    root=Path(directory);_,activity,obs=self.setup_cycle(root,mode);calls=[]
+                    def reader(**kw):
+                        calls.append(copy.deepcopy(kw));return frame(kw)
+                    first=self.write(root,obs,activity,reader)
+                    latest=root/'performance-crypto-latest.json';bad=json.loads(latest.read_text())
+                    bad['flow_readbacks']=[]
+                    bad['flow_cache_rejected']={'flow_readbacks':copy.deepcopy(malformed)}
+                    latest.write_text(json.dumps(bad));obs['clock']['observed_at']=NEXT
+                    recovered=self.write(root,obs,activity,reader)
+                    self.assertEqual(len(calls),2)
+                    self.assertEqual(recovered['completed_round_trips'],1)
+                    self.assertEqual(recovered['order_activity_refs'],first['order_activity_refs'])
+                    self.assertEqual(recovered['flow_cache_rejected']['flow_readbacks'],[malformed,[]])
+                    self.assertTrue(recovered['flow_readbacks'])
+                    self.assertIsNone(recovered['net_pnl_usd']);self.assertFalse(recovered['capital_expansion_allowed'])
+                    prior=copy.deepcopy(recovered['flow_readbacks'])
+                    self.write(root,obs,activity,reader);self.assertEqual(len(calls),2)
+                    obs['clock']['observed_at']=AFTER
+                    again=self.write(root,obs,activity,reader)
+                    self.assertEqual(again['flow_cache_rejected']['flow_readbacks'],[malformed,[]])
+                    self.assertTrue(all(again['flow_readbacks'][k]==v for k,v in prior.items()))
+                    self.assertEqual(again['completed_round_trips'],1)
+                    self.assertIsNone(again['net_pnl_usd'])
+
     def test_legacy_unbound_cycle_does_not_adopt_current_native_account(self):
         for mode in ('paper','live'):
             with self.subTest(mode=mode),tempfile.TemporaryDirectory() as directory:

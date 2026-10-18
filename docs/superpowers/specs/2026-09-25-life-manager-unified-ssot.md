@@ -15126,7 +15126,7 @@ rawの成功/失敗や未対応paper walletをtrade gate/fee0/settlement/fee完�
 
 **D4(e)-2b独立反証と残TODO — source未受入:** 対象source5940a27419の_update_crypto_flows.reject()は、flow_cache_rejected自体がdictでも、既存slotがlistかを確かめずappendする。flow_readbacks=[]とflow_cache_rejected.flow_readbacksがdict/null/string/intの4型を持つcacheを実writerへ渡すと、各2新clockの計8観測すべてでAttributeError→crypto_performance_unavailable、flow reader0回となり再取得できない。private late-flow-adversarial-5940a27419-r1/diagnostic-cache-probe.json SHA256=324f5b1ae04c55c5435a9f9f7d02d88f1afcb6c53d52a981eae51c58fc098347、0600。最終独立reviewはBLOCK、blocking1件。focused reader9＋writer8、独立37条件、typed失敗4ケース/44確認、base比較12条件はPASSだが、この1件を相殺しない。private同directoryのfinal-review-manifest.json SHA256=349064fbb6f270790372bbbaafef1bb6d8fe9046dce77d39ca545cae7b786b94、初回source manifest不変・source変更0・権限不一致0・禁止作用試行0。
 
-順序更新の理由は「不正cacheの拒否が安全な再取得に進まず、評価用原本の取得を恒久的に止める」実反例。旧順序は全回帰→独立反証→限定受入、新順序は全回帰済み→本反例の最小RED→隔離slotを含む不正診断値の保持とcanonical再構成の最小修正→影響回帰/独立再反証→限定受入。現在cursorは反例の最小RED。これは手順(3)内の原因修正で、他の稼働ownerや進行中の外部effectを変更しない。
+順序更新の理由は「不正cacheの拒否が安全な再取得に進まず、評価用原本の取得を恒久的に止める」実反例。旧順序は全回帰→独立反証→限定受入、新順序は全回帰済み→本反例の最小RED→隔離slotを含む不正診断値の保持とcanonical再構成の最小修正→影響回帰/独立再反証→限定受入。現在cursorは反例REDの8失敗/errors0を確認した後の最小修正。診断slotが非listなら元値を1要素のlistとして保持してから、新しい拒否入力を追加する。同clock追加read0・次clock再取得・金融anchor保持を実writerで確認する。これは手順(3)内の原因修正で、他の稼働ownerや進行中の外部effectを変更しない。
 
 残る原子TODOは次の一列とする。
 1. 補助診断slotの4不正型で失敗とreader0回を再現する最小テストを追加する。
