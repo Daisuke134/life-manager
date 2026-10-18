@@ -94,4 +94,34 @@ class CryptoOperatingCostTests(unittest.TestCase):
                 self.assertEqual(daily['verified_model_cost_subtotal_usd'],'0.01')
                 self.assertIsNone(result['net_pnl_usd'])
 
+    def test_raw_cache_cannot_redefine_known_paid_charge_and_recovers_from_official_input(self):
+        for mode in ('paper','live'):
+            for case in ('missing','lowered','dropped_model'):
+                with self.subTest(mode=mode,case=case),tempfile.TemporaryDirectory() as directory:
+                    root=Path(directory);_,frame,_=cycle_fixture(root,mode)
+                    cycle=self.build(root,mode,frame)['cycles'][0];original=billing(cycle,mode)
+                    path=root/'billing.json';path.write_text(json.dumps(original))
+                    obs={'mode':mode,'paper':mode=='paper','clock':{'observed_at':OBSERVED}}
+                    def read(**kw):return activity_fixture(frame,mode=mode,start=kw['period_start'],end=kw['period_end'])
+                    def write():return perf.write_crypto_performance(root,obs,mode=mode,owner_id='alpaca-investment-'+mode,activity_reader=read)
+                    with patch.dict(os.environ,{'LM_CFO_ACTUAL_COST_READBACK':str(path),'LM_CFO_ACTUAL_COST':''}):first=write()
+                    latest=root/'performance-crypto-latest.json';cache=json.loads(latest.read_text())
+                    if case=='missing':cache.pop('operating_cost_readback')
+                    elif case=='lowered':
+                        line=cache['operating_cost_readback']['documents'][0]['line_items'][0]
+                        line['amount']=line['allocations'][0]['amount']='0.001'
+                    else:cache['operating_cost_readback']['documents'][0]['line_items'].pop(0)
+                    latest.write_text(json.dumps(cache))
+                    with patch.dict(os.environ,{'LM_CFO_ACTUAL_COST_READBACK':'','LM_CFO_ACTUAL_COST':''}):
+                        broken=write();again=write()
+                    for report in (broken,again):
+                        self.assertIsNone(report['verified_model_cost_subtotal_usd'])
+                        self.assertEqual(report['operating_costs_reason'],'crypto_operating_cost_cache_invalid')
+                        self.assertEqual(report['known_operating_cost_components'],first['operating_cost_components'])
+                        self.assertEqual(report['completed_round_trips'],1)
+                    with patch.dict(os.environ,{'LM_CFO_ACTUAL_COST_READBACK':str(path),'LM_CFO_ACTUAL_COST':''}):recovered=write()
+                    self.assertEqual(recovered['verified_model_cost_subtotal_usd'],'0.01')
+                    self.assertEqual(recovered['known_operating_cost_components'],first['operating_cost_components'])
+                    self.assertIsNone(recovered['net_pnl_usd'])
+
 if __name__=='__main__':unittest.main()
