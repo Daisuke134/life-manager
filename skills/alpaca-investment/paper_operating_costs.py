@@ -54,6 +54,14 @@ def _calendar_contains(component, trip):
         return False
 
 
+def _calendar_gap_applies(gap, trip):
+    if _calendar_contains(gap,trip):
+        return True
+    parent,child=_binding(trip),_binding(gap)
+    return (trip.get('scope_kind')=='owner_period' and parent is not None and child is not None
+        and parent!=child and child[1]<parent[2] and parent[1]<=child[2])
+
+
 def _calendar_covers(component, trip, observations):
     return (_calendar_contains(component,trip) and component.get('attribution_basis')=='verified_execution_window'
         and any(row.get('inventory_verification')=='verified' and row.get('settlement_state')=='paid_final'
@@ -72,7 +80,9 @@ def select_components(summary: dict, trips) -> dict:
                   if _binding(row) in pairs or any(_calendar_covers(row,trip,observations) for trip in trips)]
     coverages=[row for row in summary.get('operating_cost_scope_coverages',[]) if _binding(row) in pairs]
     component_gaps=[row for row in summary.get('operating_cost_component_gaps',[])
-        if _binding(row) in pairs or any(_calendar_contains(row,trip) for trip in trips)]
+        if _binding(row) in pairs or any(_calendar_gap_applies(row,trip) for trip in trips)]
+    component_gaps.extend(row for row in summary.get('operating_cost_scope_coverages',[])
+        if row.get('coverage_state')!='complete' and any(_calendar_gap_applies(row,trip) for trip in trips))
     for component in components:
         if (component.get('attribution_basis')!='verified_execution_window'
                 and any(_binding(row)==_binding(component) and row.get('coverage_state')=='complete' for row in coverages)
