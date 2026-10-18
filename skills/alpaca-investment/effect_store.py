@@ -279,7 +279,7 @@ def _unresolved(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             latest[row["effect_id"]] = {**latest.get(row["effect_id"], {}), **row}
     return [row for effect_id, row in latest.items()
             if row.get("status") in UNRESOLVED_INTENT_STATUSES
-            and (not _outcome_closed(latest_outcome.get(effect_id))
+            and (not _outcome_closed(latest_outcome.get(effect_id), rows)
                  or _crypto_close_pending(row, latest_outcome.get(effect_id), rows)
                  or (row.get("strategy_readback_pending") is True
                      and not isinstance((latest_outcome.get(effect_id) or {}).get("strategy_receipt"), dict))) ]
@@ -343,7 +343,21 @@ def _filled_qty_is_zero(order: dict[str, Any]) -> bool:
     return quantity.is_finite() and quantity == 0
 
 
-def _outcome_closed(outcome: dict[str, Any] | None) -> bool:
+def _terminal_no_fill_proven(order: dict[str, Any], rows: list[dict[str, Any]], effect_id: str | None) -> bool:
+    if not _filled_qty_is_zero(order):
+        return False
+    for row in rows:
+        if row.get("effect_id") != effect_id:
+            continue
+        recorded = row["broker"] if isinstance(row.get("broker"), dict) else row
+        if (row.get("broker_status") in {"filled", "partially_filled"}
+                or recorded.get("status") in {"filled", "partially_filled"}
+                or _filled_qty_positive(recorded)):
+            return False
+    return True
+
+
+def _outcome_closed(outcome: dict[str, Any] | None, rows: list[dict[str, Any]] | None = None) -> bool:
     if not isinstance(outcome, dict):
         return False
     kind = outcome.get("outcome")
@@ -351,7 +365,7 @@ def _outcome_closed(outcome: dict[str, Any] | None) -> bool:
         broker = outcome.get("broker")
         return isinstance(broker, dict) and (
             broker.get("status") in BROKER_TERMINAL_FAILURE_STATUSES
-            and _filled_qty_is_zero(broker)
+            and _terminal_no_fill_proven(broker, rows or [], outcome.get("effect_id"))
         )
     if kind == "broker_reconciled":
         broker = outcome.get("broker")
@@ -359,7 +373,7 @@ def _outcome_closed(outcome: dict[str, Any] | None) -> bool:
             return False
         status = broker.get("status")
         return status == "filled" or (
-            status in BROKER_TERMINAL_FAILURE_STATUSES and _filled_qty_is_zero(broker)
+            status in BROKER_TERMINAL_FAILURE_STATUSES and _terminal_no_fill_proven(broker, rows or [], outcome.get("effect_id"))
         )
     return kind in {
         "live_canary_verified", "live_canary_terminal_failure",
@@ -458,7 +472,7 @@ def reconcile_started(
             raise ValueError("reconciliation_blocked")
         status = order.get("status")
         if status != "filled":
-            if status in BROKER_TERMINAL_FAILURE_STATUSES and _filled_qty_is_zero(order):
+            if status in BROKER_TERMINAL_FAILURE_STATUSES and _terminal_no_fill_proven(order, rows, intent["effect_id"]):
                 _append_once(ledger, {
                     "broker": order, "broker_receipt_id": order.get("id"),
                     "broker_status": status,
@@ -474,7 +488,7 @@ def reconcile_started(
             _pending_status(
                 ledger, intent, order,
                 reason=("partial_fill_requires_reconciliation" if _filled_qty_positive(order)
-                        else "fill_quantity_unknown") if status in BROKER_TERMINAL_FAILURE_STATUSES else None,
+                        else "fill_quantity_conflict" if _filled_qty_is_zero(order) else "fill_quantity_unknown") if status in BROKER_TERMINAL_FAILURE_STATUSES else None,
             )
             deferred += 1
             continue
