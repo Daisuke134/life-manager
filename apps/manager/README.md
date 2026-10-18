@@ -9,6 +9,7 @@ Python 3.12、Linux x86_64で検証。依存は `requirements-population.lock` �
 ```bash
 python3.12 -m venv /tmp/manager-population-venv
 /tmp/manager-population-venv/bin/python -m pip install --require-hashes -r apps/manager/requirements-population.lock
+export PATH="/tmp/manager-population-venv/bin:$PATH"
 export PYTHONPATH="$PWD/apps/manager/src"
 /tmp/manager-population-venv/bin/python -m unittest discover -s apps/manager/tests -v
 ```

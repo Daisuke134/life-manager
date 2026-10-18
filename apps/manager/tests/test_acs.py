@@ -42,3 +42,16 @@ class AcsTests(unittest.TestCase):
             src=fetch_acs_extract(Path(d)/'input')
             src2,rows=read_acs_extract(Path(d)/'input/source.dat')
             self.assertEqual(src,src2);self.assertEqual(len(rows),52)
+
+    def test_fetch_never_overwrites_snapshot_published_during_download(self):
+        with tempfile.TemporaryDirectory() as d:
+            destination=Path(d)/'input'
+            def competing_snapshot(*args,**kwargs):
+                destination.mkdir()
+                (destination/'source.dat').write_bytes(b'existing snapshot')
+                (destination/'source.json').write_bytes(b'existing manifest')
+                return io.BytesIO(fixture_bytes())
+            with patch('manager.population.acs.urlopen',side_effect=competing_snapshot):
+                with self.assertRaises(PopulationDataError):fetch_acs_extract(destination)
+            self.assertEqual((destination/'source.dat').read_bytes(),b'existing snapshot')
+            self.assertEqual((destination/'source.json').read_bytes(),b'existing manifest')

@@ -114,3 +114,19 @@ class PopulationScore:
     tvd: float
     max_cell_error_pp: float
     poverty_rate_error_pp: tuple[float | None, float | None, float | None]
+
+    def __post_init__(self):
+        geo_valid(self.geo_id)
+        if self.method not in ('independent', 'ipf'):
+            raise PopulationDataError('unknown score method')
+        numbers((self.tvd,), 1, 'TVD')
+        numbers((self.max_cell_error_pp,), 1, 'cell error')
+        if self.tvd > 1 or self.max_cell_error_pp > 100:
+            raise PopulationDataError('score outside probability/percentage-point range')
+        if not isinstance(self.poverty_rate_error_pp, tuple) or len(self.poverty_rate_error_pp) != 3:
+            raise PopulationDataError('expected immutable tuple of three age-rate errors')
+        for rate in self.poverty_rate_error_pp:
+            if rate is not None:
+                numbers((rate,), 1, 'age-rate error')
+                if rate > 100:
+                    raise PopulationDataError('age-rate error exceeds 100 percentage points')

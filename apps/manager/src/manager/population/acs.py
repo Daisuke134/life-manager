@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 import hashlib
 import io
 import json
+import os
 from pathlib import Path
 import re
 import tempfile
@@ -89,8 +90,9 @@ def fetch_acs_extract(destination: Path, *, timeout_seconds=30, max_bytes=838860
             staging=Path(staging)
             (staging/'source.dat').write_bytes(data)
             (staging/'source.json').write_text(json.dumps(dict(asdict(source),hash_scope='state_extract',records=52),indent=2)+'\n')
-            (staging/'source.dat').replace(destination/'source.dat')
-            (staging/'source.json').replace(destination/'source.json')
+            # No-replace publication: another fetch may have won after the initial check.
+            os.link(staging/'source.dat', destination/'source.dat')
+            os.link(staging/'source.json', destination/'source.json')
         return source
     except (OSError, UnicodeError, ValueError) as exc:
         if isinstance(exc,PopulationDataError): raise

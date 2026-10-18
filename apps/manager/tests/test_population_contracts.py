@@ -15,3 +15,16 @@ class ContractTests(unittest.TestCase):
                                    ((30,70),(20,60,20),True), ((0,0),(0,0,0),0)]:
             with self.subTest(poverty=poverty), self.assertRaises(PopulationDataError):
                 Marginals('0400000US01',source(),poverty,age,total)
+
+    def test_score_rejects_invalid_metrics_and_mutable_rates(self):
+        from manager.population.contracts import PopulationScore
+        valid={'geo_id':'0400000US01','method':'ipf','tvd':.1,'max_cell_error_pp':10.,'poverty_rate_error_pp':(None,0.,10.)}
+        PopulationScore(**valid)
+        bad_fields=[('geo_id','unknown'),('method','invented'),('tvd',-1),('tvd',1.1),('tvd',True),
+                    ('max_cell_error_pp',-100),('max_cell_error_pp',101),
+                    ('poverty_rate_error_pp',[float('nan')]),('poverty_rate_error_pp',(None,-1,0)),
+                    ('poverty_rate_error_pp',(0,float('inf'),0)),('poverty_rate_error_pp',(0,101,0)),
+                    ('poverty_rate_error_pp',(0,0))]
+        for field,value in bad_fields:
+            with self.subTest(field=field,value=value),self.assertRaises(PopulationDataError):
+                PopulationScore(**dict(valid,**{field:value}))

@@ -3502,3 +3502,15 @@ Task F/P18–P20: 実資料の実行と原稿保存までcomplete、最終レビ
 解説は docs/research/manager/articles/2026-10-18-population-v0-results-ja.md、生成フロー図とmatplotlib実測図を本文に埋込み保存。公開用集計記録にはsource/config/code/predictionの識別を保存。raw/runはGit外。READMEに再実行コマンド、docsに指標・対象・悪化例・限界を記載。日本語指針2資料とtech補足を確認、記事lint指摘なし。ブログ/SNS公開、応募・メール送信、本番への反映はしていない。
 
 現在：8Aの実装・実行完了、本人への結果説明と理解確認はこれから。8B（PUMS世帯）、9（別観測で行動予測）、10（時間/相互作用/資源）、11（介入候補比較）、12（実行と因果評価）、13（継続改善）、14（対象拡大）は未実装。使命は宇宙とすべての生命の苦しみを減らすことを維持し、今回のACS精度を苦しみ軽減の実証にしない。
+
+追加検証：人口suite27/27、root test:oss12/12。root test:installは2件とも未導入のviem/accountsで停止した（install.sh/runtime/test/package manifestsは今回の差分なし）。人口部品には不要なroot依存全体を導入しておらず、root install成功とはしない。source-boundaryとdiff --checkはPASS。最終レビューをfresh-context agent population_v0_final_reviewへ依頼（executing-plansが要求する唯一のreviewer、実装agentなし）。クラウドskill catalogが作業途中で利用不可となり、reviewer補助templateの追加取得が不可だったため、既読skillの手順と明示したspec/plan/失敗観点でレビュー依頼した。
+
+最終レビュー完了：Critical0、Important2、Minor1。別reviewerは元資料から平均/人口加重TVDを独立再計算して一致を確認し、評価セルの混入経路を見つけなかった。
+Final: fixed PopulationScoreの無検証 — test_score_rejects_invalid_metrics_and_mutable_ratesで12不正値ケースがRED→__post_init__追加でGREEN。地域/方式/有限数/指標範囲/3要素tupleを検証。
+Final: fixed 同時fetch時のsnapshot上書き — test_fetch_never_overwrites_snapshot_published_during_downloadがRED→replaceをno-replace hard-link publicationへ変更してGREEN。既存snapshotを取得完了時にも保護。全人口suite29/29。
+Final: minor (deferred): 実在のACS値を超える401桁の整合整数入力ではOverflowErrorがCLIの想定終了値2へ変換されず例外表示となる。成功reportにはならない。正常資料への影響なし。次回の入力堅牢化候補。
+Final: Ruling: wheel配布には対応せず、README通りsource checkout操作をv0の対象とする — 今回の実行と再現はcheckoutで成立し、wheel配布は依頼範囲ではない — 後にwheel配布するならconfig/lockの同梱方法を直す必要がある。
+
+修正後の公式実行：/workspace/artifacts/manager-population/final-20261018 にfetch→prepare→2方式→scoreをすべて実行してPASS。州抽出hashは同一。2方式の再実行bytesは一致し、修正前runの予測bytesとも一致。公開用集計記録は修正後code hash=7d763651f3fbd299389ecc2ba13c75c9e191e0883c685e143c9c3107efbb9541と新しいmanifest/report hashへ更新した。評価を見て数値手法を調整していない。README/記事のリンクを確認し、図は生成画像とmatplotlib実測グラフの両方を保存した。
+
+8A/P01–P20はコード・固定依存・公式実行・検証・解説まで完了。学習上は本人へ結果説明して理解する段階で、理解済みを先取りしない。次は8B（Rhode Islandの同期間ACS PUMSの住宅/個人ファイルを結び、世帯単位生成と整数化前後の評価）。その後9以降へ。応募・YC・個別連絡は既存日程と成果に沿って準備できるが、今回送信・提出していない。既存worktreeは継続作業用に保持し、main統合/本番反映は行わない。GitHub作業branchへのpushをこの実行の最終保存工程とする。
