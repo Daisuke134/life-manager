@@ -495,8 +495,9 @@ encyclopedia-style = in-article "understand it in one glance" (6+ labelled modul
 The skill must AUTOMATE earning, not just posting. For every newly published note article, the executable desired
 state is `scripts/note-publish/note_monetization_policy.py desired-state`: one-time purchase, JPY, **¥500**, with a
 useful free preview before the paywall. Article count, follower count, and a price suggestion cannot switch a new
-article to free. Zenn and dev.to remain full-article discovery funnels. Substack uses its own subscriber-paywall
-contract; never reuse note's Japanese derivative as an English paywall artifact.
+article to free. Zenn and dev.to remain full-article discovery funnels. Substack uses its own audience contract
+(paywall only where the publication takes payment, see below); never reuse note's Japanese derivative as an English
+paywall artifact.
 
 ### note market observations (historical evidence, not the strategy SSOT)
 The 2026-07-16 note API measurement remains useful evidence about what the market did, but it does not override the
@@ -523,11 +524,19 @@ that winner instructions decay.
 
 ### other platforms
 Zenn is a funnel, permanently: full articles stay free there (discovery + trust building, feeding note/Substack
-subscriptions) — it is never a monetization target. Substack uses a useful free preview plus subscriber paywall.
-Its executable SSOT is `scripts/substack-publish/substack_paid_payload.py`: create and same-ID repair both emit
+subscriptions) — it is never a monetization target. Substack's audience follows the publication's live
+`payments_state` (anonymous `pub.payments_state` in the page's `preloads-json`, bound to the publication subdomain):
+`enabled` → subscriber paywall with a useful free preview; anything else → free for `everyone` (a paywall on a
+publication that cannot take payment means nobody can read or buy). Its executable SSOT is
+`scripts/substack-publish/substack_paid_payload.py` (`--read-audience --publication HOST`, then `--audience`):
+create and same-ID repair/refresh read the audience once before any upload or write and emit either
 `audience=only_paid`, `should_send_free_preview=true`, and exactly one ProseMirror paywall node after at least
-1,000 useful visible characters. The live wrapper must prove those three facts again from authenticated
-`GET /api/v1/drafts/{id}` before publish; a successful write response is not monetization evidence.
+1,000 useful visible characters, or `audience=everyone`, comments `everyone`, and zero paywall nodes. A free post
+sells through the article's closing CTA — the same `publisher_cta_copy.py` lineage link (registered `ct`) every
+other surface carries. An unreadable `payments_state` stops the publish as a blocker; it is never guessed. The live
+wrapper must prove the audience contract again from authenticated `GET /api/v1/drafts/{id}` before publish, and the
+done gate (`publication_remote.py`) requires the live draft audience to equal the audience the live post page's
+`payments_state` allows; a successful write response is not monetization evidence.
 X, dev.to, and video surfaces use their own product/channel reward contracts; no platform inherits note pricing.
 
 ### note conversion preview derivative — always through the shared script

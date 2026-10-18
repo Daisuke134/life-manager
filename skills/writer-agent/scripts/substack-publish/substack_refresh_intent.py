@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Restore the paid contract on one persisted, unpublished Substack ID."""
+"""Restore the audience contract on one persisted, unpublished Substack ID."""
 import argparse, hashlib, importlib.util, json, os, subprocess, sys
 from pathlib import Path
 from urllib.parse import urlparse
@@ -151,8 +151,11 @@ def refresh(pair):
     for x in [headline,*bodies]:
         p=Path(x["path"])
         if not p.is_file() or m.sha256(p)!=x["sha256"]: raise m.SubstackRepairRefused("immutable media changed")
+    # Audience follows the live payments_state; read it before any media
+    # upload or PUT so an unreadable state stops with no side effect.
+    contract=m._payload_contract(); audience=m._live_audience(contract)
     embedded_markdown = _build_embedded_markdown(state, pair.split("/", 1)[1])
-    payload=m._paid_payload_builder()(title=title,subtitle=str(old.get("draft_subtitle") or old.get("subtitle") or ""),markdown=embedded_markdown,byline_id=m._identity())
+    payload=contract.build_paid_draft_payload(title=title,subtitle=str(old.get("draft_subtitle") or old.get("subtitle") or ""),markdown=embedded_markdown,byline_id=m._identity(),audience=audience)
     updated=m._request("PUT",f"/api/v1/drafts/{target}",payload=payload)
     if str(updated.get("id",""))!=target: raise m.SubstackRepairRefused("same-ID refresh failed")
     return {"pair":pair,"target":target,"refreshed":True,"title":title,"subtitle":str(old.get("draft_subtitle") or old.get("subtitle") or "")}

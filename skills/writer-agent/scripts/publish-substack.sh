@@ -76,11 +76,18 @@ BYLINE_ID="$(printf '%s' "$PROFILE" | jq -r --arg subdomain "$SUBDOMAIN" '
 # table to ordinary heading/list Markdown before draft_body leaves this process.
 BODY_MD="$("$PYTHON_BIN" "$DIR/_shared/substack_compat.py" --strip-frontmatter-h1 "$MD_FILE")"
 
-# Writer is a money loop: every Substack draft is subscriber-only and contains
-# exactly one useful free preview before the paywall.  Keep this policy in one
-# builder so create and repair paths cannot silently diverge.
+# The audience follows the publication's live payments_state: enabled ->
+# subscriber-only with exactly one useful free preview before the paywall;
+# otherwise free for everyone (the closing CTA is the sell).  Unreadable state
+# stops here instead of guessing.  One builder keeps create and repair aligned.
+AUDIENCE="$("$PYTHON_BIN" "$DIR/substack-publish/substack_paid_payload.py" \
+  --read-audience --publication "$PUBLICATION")" || {
+    echo "FATAL: Substack payments_state is unreadable for $PUBLICATION; refusing to guess the audience" >&2
+    exit 2
+  }
 PAYLOAD="$(printf '%s' "$BODY_MD" | "$PYTHON_BIN" \
   "$DIR/substack-publish/substack_paid_payload.py" \
+  --audience "$AUDIENCE" \
   --title "$TITLE" \
   --subtitle "$SUBTITLE" \
   --byline-id "$BYLINE_ID" \

@@ -31,6 +31,12 @@ if str(SUBSTACK_HTTP_DIR) not in sys.path:
 from substack_http import json_request as substack_json_request
 from substack_http import text_request as substack_text_request
 from substack_http import bytes_request as substack_bytes_request
+from substack_paid_payload import (
+    AUDIENCES as SUBSTACK_AUDIENCES,
+    audience_for_payments_state,
+    payments_state_from_html,
+    verify_paid_draft_response,
+)
 from media_integrity import (
     center_crop_content_proof,
     NOTE_EYECATCH_RATIO_WINDOW,
@@ -83,9 +89,12 @@ def finalize_live(
         and observed.get("price") == 500
     ):
         return {"status": "unknown", "reason": "note-monetization-readback-failed"}
+    # The audience must be the one the publication's live payments_state
+    # allows: only_paid when payments are enabled, otherwise everyone.
     if pair.startswith("substack/") and not (
         observed.get("monetization_verified") is True
-        and observed.get("audience") == "only_paid"
+        and observed.get("audience") in SUBSTACK_AUDIENCES
+        and observed.get("audience") == observed.get("expected_audience")
         and observed.get("paywall_verified") is True
     ):
         return {"status": "unknown", "reason": "substack-monetization-readback-failed"}
@@ -1287,10 +1296,14 @@ def substack(
             ),
             "",
         )
+        # The public post page carries the publication's own preloads, so the
+        # live payments_state is read from the page fetched above.
+        expected_audience = None
         try:
-            from substack_paid_payload import verify_paid_draft_response
-
-            verify_paid_draft_response(data)
+            expected_audience = audience_for_payments_state(
+                payments_state_from_html(public_html, publication)
+            )
+            verify_paid_draft_response(data, expected_audience)
             monetization_verified = True
         except Exception:
             monetization_verified = False
@@ -1325,6 +1338,7 @@ def substack(
                 ),
                 "monetization_verified": monetization_verified,
                 "audience": data.get("audience"),
+                "expected_audience": expected_audience,
                 "paywall_verified": monetization_verified,
                 "asset_verified": body_ok,
                 "body_media_verified": body_ok,

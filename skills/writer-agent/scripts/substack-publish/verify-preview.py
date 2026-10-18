@@ -1,7 +1,8 @@
 """Verify Substack preview images in one registered, owned CDP context.
 
-Usage: verify-preview.py <post_id> [max_on_screen_h=950]
+Usage: verify-preview.py <post_id> [max_on_screen_h=950] [audience=only_paid|everyone]
 The existing browser guard owns the endpoint; every opened tab/context is reclaimed.
+A free (everyone) post has no paid-subscriber view, so only only_paid requires it.
 """
 import os
 import subprocess
@@ -10,7 +11,9 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from writer_runtime_paths import note_work_dir
+from substack_paid_payload import AUDIENCES
 
 PUB = os.environ.get("SUBSTACK_PUBLICATION", "").strip().rstrip("/")
 if not PUB:
@@ -19,7 +22,8 @@ W = str(note_work_dir())
 BROWSER_ROOT = Path(__file__).resolve().parents[3] / "browser"
 
 
-def verify_once(post_id: str, max_h: int) -> int:
+def verify_once(post_id: str, max_h: int, audience: str = "only_paid") -> int:
+    paid = audience == "only_paid"
     if not os.environ.get("LIFE_MANAGER_BROWSER_LEASE_IDENTITY") or not os.environ.get("CDP"):
         raise RuntimeError("registered browser lease is required")
     cookie_header = os.environ.get("SUBSTACK_SESSION_COOKIE", "")
@@ -60,7 +64,7 @@ def verify_once(post_id: str, max_h: int) -> int:
         time.sleep(6)
         cdp.evaluate(target, """(()=>{const m=document.querySelector('[data-testid=preview-modal]');const b=m&&[...m.querySelectorAll('button')].find(x=>['デスクトップ','Desktop'].includes(x.innerText.trim()));if(b&&!b.disabled)b.click();})()""")
         time.sleep(3)
-        point = cdp.evaluate(target, """(()=>{const b=document.querySelector('[data-testid=preview-modal] [data-testid=preview-sub-free]');if(!b||b.disabled)return null;const r=b.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()""")
+        point = paid and cdp.evaluate(target, """(()=>{const b=document.querySelector('[data-testid=preview-modal] [data-testid=preview-sub-free]');if(!b||b.disabled)return null;const r=b.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()""")
         if point:
             cdp.click(target, point['x'], point['y'])
             time.sleep(1)
@@ -71,11 +75,11 @@ def verify_once(post_id: str, max_h: int) -> int:
         layout = None
         for _ in range(10):
             time.sleep(1)
-            layout = cdp.evaluate(target, """(()=>{const m=document.querySelector('[data-testid=preview-modal]');const f=m?.querySelector('[data-testid=preview-iframe]');const d=f?.contentDocument;const desktop=m&&[...m.querySelectorAll('button')].find(e=>['Desktop','デスクトップ'].includes(e.innerText.trim()));if(!m||m.getBoundingClientRect().height<=0||!f||f.getBoundingClientRect().width<700||desktop?.dataset.state!=='active'||!m.querySelector('[data-testid=preview-sub-paid]')||!d||d.readyState!=='complete'||f.contentWindow.location.origin!==location.origin)return {ok:false};const imgs=[...d.querySelectorAll('img')];imgs.forEach(e=>e.loading='eager');if(imgs.some(e=>!e.complete||e.naturalWidth===0))return {ok:false};return {ok:true,sizes:imgs.map(e=>{const b=e.getBoundingClientRect();return [Math.round(b.width),Math.round(b.height)]}).filter(b=>b[1]>60)}})()""")
+            layout = cdp.evaluate(target, """(()=>{const m=document.querySelector('[data-testid=preview-modal]');const f=m?.querySelector('[data-testid=preview-iframe]');const d=f?.contentDocument;const desktop=m&&[...m.querySelectorAll('button')].find(e=>['Desktop','デスクトップ'].includes(e.innerText.trim()));if(!m||m.getBoundingClientRect().height<=0||!f||f.getBoundingClientRect().width<700||desktop?.dataset.state!=='active'""" + ("""||!m.querySelector('[data-testid=preview-sub-paid]')""" if paid else "") + """||!d||d.readyState!=='complete'||f.contentWindow.location.origin!==location.origin)return {ok:false};const imgs=[...d.querySelectorAll('img')];imgs.forEach(e=>e.loading='eager');if(imgs.some(e=>!e.complete||e.naturalWidth===0))return {ok:false};return {ok:true,sizes:imgs.map(e=>{const b=e.getBoundingClientRect();return [Math.round(b.width),Math.round(b.height)]}).filter(b=>b[1]>60)}})()""")
             if isinstance(layout, dict) and layout.get('ok') is True and layout.get('sizes'):
                 break
         if not isinstance(layout, dict) or layout.get('ok') is not True:
-            raise RuntimeError("paid desktop Substack preview unavailable")
+            raise RuntimeError(f"{audience} desktop Substack preview unavailable")
         sizes = layout.get('sizes')
         if not isinstance(sizes, list) or not sizes:
             raise RuntimeError("Substack preview images were not measured")
@@ -98,7 +102,11 @@ def verify_once(post_id: str, max_h: int) -> int:
 def main(argv=None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     if not args:
-        print("usage: verify-preview.py <post_id> [max_on_screen_h=950]", file=sys.stderr)
+        print("usage: verify-preview.py <post_id> [max_on_screen_h=950] [audience]", file=sys.stderr)
+        return 2
+    audience = args[2] if len(args) > 2 else "only_paid"
+    if audience not in AUDIENCES:
+        print(f"verify-preview: unsupported audience {audience!r}", file=sys.stderr)
         return 2
     if not os.environ.get("LIFE_MANAGER_BROWSER_LEASE_IDENTITY"):
         # Same registered identity as the existing Writer sales owner. BUSY defers;
@@ -108,7 +116,7 @@ def main(argv=None) -> int:
             sys.executable, str(Path(__file__).resolve()), *args,
         ], env={**os.environ, "BROWSER_WAIT_SECONDS": "0"}, check=False).returncode
     try:
-        return verify_once(args[0], int(args[1]) if len(args) > 1 else 950)
+        return verify_once(args[0], int(args[1]) if len(args) > 1 else 950, audience)
     except (OSError, RuntimeError, TimeoutError) as error:
         print(f"preview unavailable: {type(error).__name__}: {error}", file=sys.stderr)
         return 75

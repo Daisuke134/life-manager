@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Build a paid Substack ProseMirror payload with one useful free preview.
+"""Build the Writer loop's Substack ProseMirror payload for the publication's audience.
+
+The audience follows the publication's live ``payments_state``: ``enabled`` builds
+an ``only_paid`` post with one useful free preview before a single paywall node;
+any other state builds a free ``everyone`` post with no paywall, whose closing CTA
+(the publisher copy's lineage link) is readable by every visitor.  An unreadable
+``payments_state`` is a blocker, never a guess.
 
 The node shapes are a stdlib copy+tweak of python-substack 0.1.20's MIT-
 licensed ``substack.post.Post`` output.  The paywall node follows the
@@ -21,6 +27,51 @@ _IMAGE_LINE = re.compile(r"^!\[([^\]]*)\]\((https://[^)]+)\)$")
 _LINK = re.compile(r"\[([^\]]+)\]\((https://[^)]+)\)")
 _BOLD = re.compile(r"\*\*([^*]+)\*\*")
 _CODE = re.compile(r"`([^`]+)`")
+_PRELOADS = re.compile(
+    r'<script[^>]*\bid="preloads-json"[^>]*>(.*?)</script>', re.DOTALL
+)
+AUDIENCES = ("only_paid", "everyone")
+
+
+def audience_for_payments_state(state: object) -> str:
+    """Map Substack's ``payments_state`` to the only audience it can sell to."""
+
+    if not isinstance(state, str) or not state:
+        raise ValueError("Substack payments_state is unreadable")
+    return "only_paid" if state == "enabled" else "everyone"
+
+
+def payments_state_from_html(page: str, publication: str) -> str:
+    """Read ``pub.payments_state`` from a public page of exactly this publication."""
+
+    match = _PRELOADS.search(page)
+    if match is None:
+        raise ValueError("Substack preloads JSON is missing")
+    try:
+        data = json.loads(match.group(1))
+    except json.JSONDecodeError as error:
+        raise ValueError("Substack preloads JSON is malformed") from error
+    pub = data.get("pub") if isinstance(data, dict) else None
+    subdomain = publication.strip().lower().removesuffix(".substack.com")
+    if not isinstance(pub, dict) or str(pub.get("subdomain", "")).lower() != subdomain:
+        raise ValueError("Substack page does not belong to the publication")
+    state = pub.get("payments_state")
+    if not isinstance(state, str) or not state:
+        raise ValueError("Substack payments_state is unreadable")
+    return state
+
+
+def read_publication_audience(publication: str) -> str:
+    """Anonymous GET of the publication homepage -> the audience it allows."""
+
+    from substack_http import text_request  # same-directory transport
+
+    page, _ = text_request(
+        f"https://{publication}/", {"User-Agent": "Mozilla/5.0"}
+    )
+    return audience_for_payments_state(
+        payments_state_from_html(page, publication)
+    )
 
 
 def _text(value: str, marks: list[dict[str, Any]] | None = None) -> dict:
@@ -227,11 +278,14 @@ def build_paid_draft_payload(
     subtitle: str,
     markdown: str,
     byline_id: int,
+    audience: str,
     after_chars: int = 1200,
     minimum_free_chars: int = 1000,
 ) -> dict[str, Any]:
-    """Return one only-paid payload with a single block-level paywall."""
+    """Return one payload: ``only_paid`` with a single paywall, or free ``everyone``."""
 
+    if audience not in AUDIENCES:
+        raise ValueError(f"unsupported Substack audience: {audience!r}")
     if not title.strip() or byline_id <= 0:
         raise ValueError("title and positive byline_id are required")
     if _PAYWALL_LINE.search(markdown):
@@ -240,17 +294,18 @@ def build_paid_draft_payload(
     if len(nodes) < 2:
         raise ValueError("paid article requires multiple content blocks")
 
-    free_chars = 0
-    paywall_index: int | None = None
-    for index, node in enumerate(nodes[:-1]):
-        free_chars += _visible_chars(node)
-        if free_chars >= after_chars:
-            paywall_index = index + 1
-            break
-    if paywall_index is None or free_chars < minimum_free_chars:
-        raise ValueError("free preview is shorter than money contract")
-
-    nodes.insert(paywall_index, {"type": "paywall"})
+    paid = audience == "only_paid"
+    if paid:
+        free_chars = 0
+        paywall_index: int | None = None
+        for index, node in enumerate(nodes[:-1]):
+            free_chars += _visible_chars(node)
+            if free_chars >= after_chars:
+                paywall_index = index + 1
+                break
+        if paywall_index is None or free_chars < minimum_free_chars:
+            raise ValueError("free preview is shorter than money contract")
+        nodes.insert(paywall_index, {"type": "paywall"})
     body = {"type": "doc", "content": nodes}
     return {
         "draft_title": title,
@@ -262,21 +317,24 @@ def build_paid_draft_payload(
         ),
         "draft_bylines": [{"id": int(byline_id), "is_guest": False}],
         "type": "newsletter",
-        "audience": "only_paid",
+        "audience": audience,
         "draft_section_id": None,
         "section_chosen": True,
-        "write_comment_permissions": "only_paid",
+        "write_comment_permissions": audience,
         "should_send_email": False,
-        "should_send_free_preview": True,
+        "should_send_free_preview": paid,
     }
 
 
-def verify_paid_draft_response(response: dict[str, Any]) -> int:
-    """Verify authenticated readback still carries the paid contract."""
+def verify_paid_draft_response(response: dict[str, Any], audience: str) -> int:
+    """Verify authenticated readback still carries the expected audience contract."""
 
-    if response.get("audience") != "only_paid":
-        raise ValueError("authenticated draft audience is not only_paid")
-    if response.get("should_send_free_preview") is not True:
+    if audience not in AUDIENCES:
+        raise ValueError(f"unsupported Substack audience: {audience!r}")
+    if response.get("audience") != audience:
+        raise ValueError(f"authenticated draft audience is not {audience}")
+    paid = audience == "only_paid"
+    if paid and response.get("should_send_free_preview") is not True:
         raise ValueError("authenticated draft free preview is not enabled")
     body_value = response.get("draft_body")
     try:
@@ -297,9 +355,10 @@ def verify_paid_draft_response(response: dict[str, Any]) -> int:
             return sum(count_paywalls(child) for child in value)
         return 0
 
-    if count_paywalls(body) != 1:
+    expected_paywalls = 1 if paid else 0
+    if count_paywalls(body) != expected_paywalls:
         raise ValueError(
-            "authenticated draft must contain exactly one paywall"
+            f"authenticated draft must contain exactly {expected_paywalls} paywall"
         )
     draft_id = response.get("id")
     if not isinstance(draft_id, int) or draft_id <= 0:
@@ -309,9 +368,16 @@ def verify_paid_draft_response(response: dict[str, Any]) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Build the Writer loop's fixed paid Substack draft payload."
+        description="Build the Writer loop's Substack draft payload for one audience."
     )
     parser.add_argument("--verify-response", action="store_true")
+    parser.add_argument(
+        "--read-audience",
+        action="store_true",
+        help="print the audience the live --publication payments_state allows",
+    )
+    parser.add_argument("--publication")
+    parser.add_argument("--audience", choices=AUDIENCES)
     parser.add_argument("--title")
     parser.add_argument("--subtitle", default="")
     parser.add_argument("--byline-id", type=int)
@@ -319,9 +385,18 @@ def main() -> int:
     parser.add_argument("--minimum-free-chars", type=int, default=1000)
     args = parser.parse_args()
     try:
+        if args.read_audience:
+            if not args.publication:
+                raise ValueError("--publication is required with --read-audience")
+            print(read_publication_audience(args.publication))
+            return 0
+        if not args.audience:
+            raise ValueError(
+                "--audience is required; read it with --read-audience first"
+            )
         if args.verify_response:
             response = json.load(sys.stdin)
-            print(verify_paid_draft_response(response))
+            print(verify_paid_draft_response(response, args.audience))
             return 0
         if not args.title or args.byline_id is None:
             raise ValueError(
@@ -332,10 +407,11 @@ def main() -> int:
             subtitle=args.subtitle,
             markdown=sys.stdin.read(),
             byline_id=args.byline_id,
+            audience=args.audience,
             after_chars=args.after_chars,
             minimum_free_chars=args.minimum_free_chars,
         )
-    except ValueError as error:
+    except (OSError, ValueError) as error:
         parser.error(str(error))
     json.dump(payload, sys.stdout, ensure_ascii=False, separators=(",", ":"))
     return 0
