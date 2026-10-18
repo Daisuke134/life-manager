@@ -26,6 +26,16 @@ def _digest(value: Any) -> str:
 
 
 
+def _known_policy_metadata(row: dict[str, Any], *, owner_id: str, strategy_id: str, release_sha: str) -> None:
+    for key, expected in (("owner_id", owner_id), ("strategy_id", strategy_id), ("release_sha", release_sha)):
+        if row.get(key) is not None and row[key] != expected:
+            raise ValueError
+    if row.get("receipt_type") == "outcome" and row.get("broker_status") is not None:
+        broker = row.get("broker")
+        if not isinstance(broker, dict) or row["broker_status"] != broker.get("status"):
+            raise ValueError
+
+
 def _sealed_entry_from_rows(rows: list[dict[str, Any]], ownership: dict[str, Any], *, owner_id: str, mode: str) -> dict[str, Any]:
     """Read the sealed policy and official filled buy for one owned entry."""
     if (not isinstance(mode, str) or mode not in {"paper", "live"}
@@ -73,6 +83,12 @@ def owned_entry_decision_from_rows(rows: list[dict[str, Any]], ownership: dict[s
                 and row.get("effect_id") == effect_id]
     if not outcomes:
         raise ValueError("owned_entry_fill_missing")
+    try:
+        for row in outcomes:
+            _known_policy_metadata(row, owner_id=owner_id, strategy_id=decision["strategy_id"],
+                                   release_sha=decision.get("release_sha"))
+    except ValueError as error:
+        raise ValueError("owned_entry_fill_conflict") from error
     # Enrichment may append another view of the same immutable fill. Known
     # values must agree; a later contradictory row is not an authority override.
     identity_fields = ("mode", "paper", "client_order_id", "outcome", "broker_receipt_id")
@@ -228,6 +244,8 @@ def close_fill_proof_from_rows(rows: list[dict[str, Any]], ownership: dict[str, 
         for row in rows:
             if row.get("receipt_type") != "outcome" or row.get("effect_id") != effect:
                 continue
+            _known_policy_metadata(row, owner_id=owner_id, strategy_id=parent["card"].strategy_id,
+                                   release_sha=parent["release_sha"])
             previous = row.get("broker")
             if (row.get("mode") != mode or row.get("paper") is not (mode == "paper")
                     or row.get("client_order_id") != client or row.get("outcome") != "broker_reconciled"
@@ -322,10 +340,8 @@ def no_fill_entry_proof_from_rows(rows: list[dict[str, Any]], ownership: dict[st
         for row in rows:
             if row.get('effect_id') != effect:
                 continue
-            if ((row.get('owner_id') is not None and row.get('owner_id') != owner_id)
-                    or (row.get('strategy_id') is not None and row.get('strategy_id') != card.strategy_id)
-                    or (row.get('release_sha') is not None and row.get('release_sha') != release)
-                    or (row.get('mode') is not None and row.get('mode') != mode)
+            _known_policy_metadata(row, owner_id=owner_id, strategy_id=card.strategy_id, release_sha=release)
+            if ((row.get('mode') is not None and row.get('mode') != mode)
                     or (row.get('paper') is not None and row.get('paper') is not (mode == 'paper'))
                     or (row.get('client_order_id') is not None and row.get('client_order_id') != client)
                     or (row.get('broker_receipt_id') is not None and row.get('broker_receipt_id') != broker['id'])
@@ -343,8 +359,6 @@ def no_fill_entry_proof_from_rows(rows: list[dict[str, Any]], ownership: dict[st
                 pass
             if row.get('receipt_type') != 'outcome':
                 continue
-            if row.get('broker_status') is not None and row.get('broker_status') != previous.get('status'):
-                raise ValueError
             if (row.get('outcome') != 'broker_terminal_failure' or not isinstance(row.get('broker'), dict)
                     or row.get('mode') != mode or row.get('paper') is not (mode == 'paper')
                     or row.get('client_order_id') != client or row.get('broker_receipt_id') != broker['id']):
