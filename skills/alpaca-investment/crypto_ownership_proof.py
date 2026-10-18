@@ -713,7 +713,7 @@ def _close_fill_step(rows: list[dict[str, Any]], ownership: dict[str, Any], brok
         **{key: parent[key] for key in ("entry_effect_id", "entry_client_order_id", "entry_provider_order_id")},
         "close_effect_id": effect, "close_client_order_id": client, "close_provider_order_id": broker["id"],
         "entry_price": parent["entry_price"], "entry_timestamp": parent["entry_timestamp"],
-        "exit_filled_qty": format(qty.normalize(), "f"), "exit_price": format(price.normalize(), "f"),
+        "exit_filled_qty": _decimal_text(qty), "exit_price": _decimal_text(price),
         "exit_timestamp": filled.isoformat(), "quote_currency": "USDC", "net_realized_pnl_usd": None}}
 
 
@@ -907,9 +907,9 @@ def entry_fill_proof_from_rows(rows: list[dict[str, Any]], ownership: dict[str, 
         'strategy_id':parent['card'].strategy_id,'release_sha':parent['release_sha'],
         'entry_effect_id':parent['entry_effect_id'],'entry_client_order_id':parent['entry_client_order_id'],
         'entry_provider_order_id':parent['entry_provider_order_id'],
-        'entry_filled_qty':_decimal_text(filled) if partial else format(filled.normalize(),'f'),
-        'account_owned_qty':_decimal_text(held) if partial else format(held.normalize(),'f'),
-        'entry_price':parent['entry_price'] if partial else format(Decimal(parent['entry_price']).normalize(),'f'),
+        'entry_filled_qty':_decimal_text(filled),
+        'account_owned_qty':_decimal_text(held),
+        'entry_price':parent['entry_price'] if partial else _decimal_text(Decimal(parent['entry_price'])),
         'entry_timestamp':parse_instant(parent['entry_timestamp']).isoformat(),
         'quote_currency':'USDC','net_realized_pnl_usd':None}}
     if partial:
