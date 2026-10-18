@@ -447,8 +447,29 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
         if not isinstance(known_statements,dict) or known_statements!=anchors:
             raise ValueError('crypto_statement_evidence_conflict')
         fields=('documents','observations','observed_row_count','completeness_status','observation_scope')
-        if saved_statement_evidence is not None and any(saved_statement_evidence.get(k)!=rebuilt[k] for k in fields):
-            raise ValueError('crypto_statement_evidence_conflict')
+        if saved_statement_evidence is not None:
+            comparison={k:saved_statement_evidence.get(k) for k in fields}
+            for key in ('documents','observations'):
+                cached=comparison[key];expected=rebuilt[key]
+                if not isinstance(cached,list) or len(cached)!=len(expected):
+                    raise ValueError('crypto_statement_evidence_conflict')
+                normalized=[]
+                for saved,current in zip(cached,expected):
+                    statement_refs=saved.get('capture_refs') if isinstance(saved,dict) else None
+                    if not isinstance(statement_refs,list) or len(statement_refs)!=len(current['capture_refs']):
+                        raise ValueError('crypto_statement_evidence_conflict')
+                    projected=[]
+                    for old_ref,new_ref in zip(statement_refs,current['capture_refs']):
+                        if not isinstance(old_ref,dict):raise ValueError('crypto_statement_evidence_conflict')
+                        ref=dict(old_ref)
+                        # Older writers retained native proof before projecting its derived origin.
+                        if 'official_pdf_origin' not in ref and 'official_pdf_origin' in new_ref:
+                            ref['official_pdf_origin']=new_ref['official_pdf_origin']
+                        projected.append(ref)
+                    normalized.append({**saved,'capture_refs':projected})
+                comparison[key]=normalized
+            if any(comparison[k]!=rebuilt[k] for k in fields):
+                raise ValueError('crypto_statement_evidence_conflict')
         if statement_docs and saved_statement_evidence is None:
             raise ValueError('crypto_statement_evidence_conflict')
         phase='statement_readback'

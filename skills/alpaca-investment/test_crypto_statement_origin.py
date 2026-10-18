@@ -372,6 +372,30 @@ class CryptoStatementOriginTests(unittest.TestCase):
             daily = json.loads((root / 'performance-crypto-daily-2026-01-01.json').read_text())
             self.assertEqual(daily['fee_evidence']['statement_evidence'], self.evidence(report))
 
+    def test_cached_verified_origin_cannot_be_replaced_by_a_modified_projection(self):
+        # Missing derived data may be rebuilt; an existing conflicting origin must be rejected.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.seed_anchors(root)
+            readback = native_readback()
+            origin_packet(root, readback)
+            first = self.write(root)
+            changed = copy.deepcopy(first)
+            evidence = self.evidence(changed)
+            for item in [*evidence['documents'], *evidence['observations']]:
+                for ref in item['capture_refs']:
+                    if 'official_pdf_origin' in ref:
+                        ref['official_pdf_origin']['readback_sha256'] = '0' * 64
+            (root / 'performance-crypto-latest.json').write_text(json.dumps(changed))
+            report = self.write(root)
+            self.assertEqual(report.get('reason'), 'crypto_statement_evidence_conflict')
+            self.assertEqual(self.evidence(report)['status'], 'conflict')
+            self.assert_rows_unattributed(report)
+            for anchor in ANCHORS:
+                self.assertEqual(report[anchor], first[anchor], anchor)
+            self.assertEqual(self.evidence(report)['documents'], self.evidence(first)['documents'])
+            self.assertEqual(self.evidence(report)['observations'], self.evidence(first)['observations'])
+
 
 if __name__ == '__main__':
     unittest.main()

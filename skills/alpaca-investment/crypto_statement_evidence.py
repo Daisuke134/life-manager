@@ -92,6 +92,76 @@ def _metadata(raw, digest, mode):
     return metadata, documents
 
 
+def _official_pdf_origin(metadata, document_id, pdf_sha256, *, mode):
+    if 'official_pdf_readbacks' not in metadata:
+        return None
+    try:
+        readbacks = metadata['official_pdf_readbacks']
+        documents = {row['id']: row for row in metadata['rows'] if row['type'] == 'crypto_account_statement'}
+        if not isinstance(readbacks, dict) or not readbacks.keys() <= documents.keys():
+            raise ValueError(INVALID)
+        result = None
+        for key, proof in readbacks.items():
+            # Only Live has a captured native portal route; producer conclusions are not authority.
+            if (mode != 'live' or metadata['measurement_mode'] != mode or not isinstance(proof, dict)
+                    or proof['source_host'] != 'app.alpaca.markets'):
+                raise ValueError(INVALID)
+            observed = datetime.fromisoformat(proof['observed_at'].replace('Z', '+00:00'))
+            if observed.tzinfo is None:
+                raise ValueError(INVALID)
+            requests = {}
+            for layer in ('native_account_get', 'margin', 'documents', 'url_resolver', 'download'):
+                native = proof[layer]
+                status = native['http_status' if layer == 'native_account_get' else 'status']
+                request = native['request_id']
+                if (type(status) is not int or status != 200 or not isinstance(request, str)
+                        or not 0 < len(request) <= 256 or not request.isascii() or not request.isprintable()
+                        or parsedate_to_datetime(native['date']).tzinfo is None):
+                    raise ValueError(INVALID)
+                requests[layer] = request
+            account = proof['native_account_get']
+            if (account['source_host'] != 'api.alpaca.markets' or account['source_path'] != '/v2/account'
+                    or account['id'] != metadata['native_trading_account_id'] or proof['margin']['id'] != account['id']
+                    or account['request_id'] != metadata['native_account_get_request_id']
+                    or account['date'] != metadata['native_account_get_date']
+                    or proof['documents']['request_id'] != metadata['documents_request_id']
+                    or proof['documents']['rows'] != metadata['rows']):
+                raise ValueError(INVALID)
+            path = metadata['source_path']
+            if (proof['source_documents_path'] != path
+                    or proof['source_margin_path'] != path.removesuffix('/documents') + '/trade_account/margin'
+                    or proof['source_url_resolver_path'] != path + '/' + key + '/url'
+                    or proof['target_document'] != documents[key] or proof['url_resolver']['id'] != key):
+                raise ValueError(INVALID)
+            download = proof['download']
+            redirect = proof['download_redirect']
+            query_keys = {'X-Amz-Algorithm', 'X-Amz-Credential', 'X-Amz-Date',
+                'X-Amz-Expires', 'X-Amz-SignedHeaders', 'X-Amz-Signature'}
+            for capture in (redirect, download):
+                keys = capture['query_keys']
+                if (capture['source_host'] != 's3.amazonaws.com' or not isinstance(capture['source_path'], str)
+                        or not capture['source_path'].startswith('/') or len(capture['source_path']) > 4096
+                        or any(char in capture['source_path'] for char in ('?', '#', '\0'))
+                        or not isinstance(keys, list) or len(keys) != len(query_keys) or set(keys) != query_keys):
+                    raise ValueError(INVALID)
+            if (download['source_path'] != redirect['source_path'] or download['final_host'] != 's3.amazonaws.com'
+                    or download['final_path'] != download['source_path']
+                    or download['content_type'] not in {'application/pdf', 'application/octet-stream', 'binary/octet-stream'}
+                    or type(download['bytes']) is not int or not 0 < download['bytes'] <= MAX_PDF_BYTES
+                    or not re.fullmatch(r'[a-f0-9]{64}', download['request_url_sha256'])
+                    or not re.fullmatch(r'[a-f0-9]{64}', download['pdf_sha256'])):
+                raise ValueError(INVALID)
+            # HTTP Date has second precision and independent clocks; it is never a fill timestamp.
+            if key == document_id:
+                if download['pdf_sha256'] != pdf_sha256:
+                    raise ValueError(INVALID)
+                result = {'status': 'verified', 'readback_sha256': _digest(proof),
+                    'pdf_sha256': pdf_sha256, 'native_request_ids': requests}
+        return result
+    except (ValueError, TypeError, KeyError, AttributeError, OverflowError):
+        raise ValueError(INVALID) from None
+
+
 def _output_limit():
     resource.setrlimit(resource.RLIMIT_FSIZE, (MAX_TEXT_BYTES, MAX_TEXT_BYTES))
 
@@ -163,6 +233,7 @@ def _document(metadata_text, metadata_sha256, document_id, pdf_sha256, text_sha2
     if (not re.fullmatch(r'[a-f0-9]{64}', pdf_sha256) or not re.fullmatch(r'[a-f0-9]{64}', text_sha256)
             or not isinstance(fee_lines, list) or len(fee_lines) > 10000):
         raise ValueError(INVALID)
+    _official_pdf_origin(metadata, document_id, pdf_sha256, mode=mode)
     document = {'metadata_text': metadata_text, 'metadata_sha256': metadata_sha256,
         'document_id': document_id, 'document_type': native['type'], 'document_date': native['date'],
         'pdf_sha256': pdf_sha256, 'text_sha256': text_sha256, 'fee_lines': fee_lines,
@@ -215,6 +286,9 @@ def statement_inventory(documents, *, mode):
             unique[key] = document
             captures.setdefault(key, {})[document['source_receipt_id']] = {
                 'source_receipt_id': document['source_receipt_id'], 'metadata_sha256': document['metadata_sha256']}
+            origin = _official_pdf_origin(json.loads(document['metadata_text']), key, document['pdf_sha256'], mode=mode)
+            if origin is not None:
+                captures[key][document['source_receipt_id']]['official_pdf_origin'] = origin
         summaries = []
         observations = []
         for key, document in sorted(unique.items()):
