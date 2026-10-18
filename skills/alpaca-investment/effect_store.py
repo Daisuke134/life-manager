@@ -230,6 +230,58 @@ def mark_started(ledger: Path, sealed: dict[str, str]) -> bool:
     }, ("receipt_type", "effect_id", "status"))
 
 
+
+def _crypto_close_pending(intent: dict[str, Any], outcome: dict[str, Any] | None) -> bool:
+    """A filled managed sell remains fenced until its scoped account receipt exists."""
+    order = intent.get("order", {})
+    if (not isinstance(order, dict) or order.get("asset_class") != "crypto" or order.get("side") != "sell"
+            or not isinstance(outcome, dict) or outcome.get("outcome") != "broker_reconciled"):
+        return False
+    try:
+        wrapper = outcome["strategy_receipt"]
+        proof, account = wrapper["receipt"], wrapper["account_readback"]
+        mode, owner, broker = intent["mode"], intent["owner_id"], outcome["broker"]
+        if (mode not in {"paper", "live"} or owner != f"alpaca-investment-{mode}"
+                or proof.get("schema_version") != 1 or proof.get("kind") != "owned_crypto_close"
+                or proof.get("mode") != mode or proof.get("owner_id") != owner
+                or proof.get("strategy_id") != intent.get("strategy_id")
+                or not isinstance(proof.get("strategy_id"), str) or not proof["strategy_id"]
+                or proof.get("close_effect_id") != intent.get("effect_id")
+                or proof.get("close_client_order_id") != intent.get("client_order_id")
+                or proof.get("close_provider_order_id") != broker.get("id")
+                or not isinstance(broker.get("id"), str) or not broker["id"]
+                or proof.get("quote_currency") != "USDC"
+                or account.get("mode") != mode or account.get("paper") is not (mode == "paper")
+                or not isinstance(proof.get("entry_provider_order_id"), str) or not proof["entry_provider_order_id"]
+                or not re.fullmatch(r"[0-9a-f]{64}", proof["entry_effect_id"])
+                or proof.get("entry_client_order_id") != "lm-ai-" + proof["entry_effect_id"][:24]
+                or not re.fullmatch(r"[0-9a-f]{40,64}", proof["release_sha"])):
+            return True
+        qty, price, entry_price = (Decimal(str(proof[key])) for key in ("exit_filled_qty", "exit_price", "entry_price"))
+        if (any(not q.is_finite() or q <= 0 for q in (qty, price, entry_price))
+                or qty != Decimal(str(order["qty"])) or qty != Decimal(str(broker["filled_qty"]))
+                or price != Decimal(str(broker["filled_avg_price"]))):
+            return True
+        times = [datetime.fromisoformat(value.replace("Z", "+00:00")) for value in (
+            proof["entry_timestamp"], proof["exit_timestamp"], account["clock"]["observed_at"], broker["filled_at"])]
+        if (any(value.tzinfo is None for value in times) or not times[0] <= times[1] <= times[2]
+                or times[1] != times[3]):
+            return True
+        if any(not Decimal(str(account["account"][key])).is_finite() for key in ("cash", "equity")):
+            return True
+        if not isinstance(account["positions"], list):
+            return True
+        for position in account["positions"]:
+            if (not isinstance(position, dict) or not isinstance(position.get("symbol"), str)
+                    or not position["symbol"].strip()
+                    or position["symbol"] in {"BTCUSD", "BTCUSDC", "BTC/USDC", "BTC/USD", "BTC"}
+                    or not Decimal(str(position.get("qty"))).is_finite()):
+                return True
+    except (KeyError, ValueError, TypeError, AttributeError, InvalidOperation):
+        return True
+    return False
+
+
 def _unresolved(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     latest_outcome: dict[str, dict[str, Any]] = {}
     for row in rows:
@@ -238,10 +290,13 @@ def _unresolved(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     latest: dict[str, dict[str, Any]] = {}
     for row in rows:
         if row.get("receipt_type") == "effect_intent" and isinstance(row.get("effect_id"), str):
-            latest[row["effect_id"]] = row
+            latest[row["effect_id"]] = {**latest.get(row["effect_id"], {}), **row}
     return [row for effect_id, row in latest.items()
             if row.get("status") in UNRESOLVED_INTENT_STATUSES
-            and not _outcome_closed(latest_outcome.get(effect_id))]
+            and (not _outcome_closed(latest_outcome.get(effect_id))
+                 or _crypto_close_pending(row, latest_outcome.get(effect_id))
+                 or (row.get("strategy_readback_pending") is True
+                     and not isinstance((latest_outcome.get(effect_id) or {}).get("strategy_receipt"), dict))) ]
 
 
 def _completed_without_strategy_receipt(
@@ -319,7 +374,7 @@ def _outcome_closed(outcome: dict[str, Any] | None) -> bool:
 
 
 def _pending_status(ledger: Path, intent: dict[str, Any], order: dict[str, Any],
-                    *, reason: str | None = None) -> None:
+                    *, reason: str | None = None, strategy_readback_pending: bool = False) -> None:
     status = order.get("status")
     preserved = {
         key: intent[key]
@@ -341,7 +396,8 @@ def _pending_status(ledger: Path, intent: dict[str, Any], order: dict[str, Any],
         "schema_version": 1,
         "status": "reconciliation_pending",
         **({"reason": reason} if reason else {}),
-    }, ("receipt_type", "effect_id", "status", "broker_status"))
+        **({"strategy_readback_pending": True} if strategy_readback_pending else {}),
+    }, ("receipt_type", "effect_id", "status", "broker_status", "strategy_readback_pending"))
 
 
 def unresolved_intent_count(ledger: Path) -> int:
@@ -351,6 +407,8 @@ def unresolved_intent_count(ledger: Path) -> int:
 def effect_state(ledger: Path, effect_id: str) -> str:
     """Return the durable state of one sealed effect without changing the ledger."""
     rows = [row for row in _rows(ledger) if row.get("effect_id") == effect_id]
+    if _unresolved(rows):
+        return "started"
     if any(row.get("receipt_type") == "outcome" for row in rows):
         return "outcome"
     statuses = {row.get("status") for row in rows if row.get("receipt_type") == "effect_intent"}
@@ -432,7 +490,7 @@ def reconcile_started(
             try:
                 strategy_receipt = on_reconciled(intent, order)
             except ReconciliationPending as error:
-                _pending_status(ledger, intent, order, reason=str(error))
+                _pending_status(ledger, intent, order, reason=str(error), strategy_readback_pending=True)
                 deferred += 1
                 continue
             if strategy_receipt is not None and not isinstance(strategy_receipt, dict):
@@ -454,22 +512,23 @@ def reconcile_started(
         if strategy_receipt is not None:
             outcome["strategy_receipt"] = strategy_receipt
         _append_once(ledger, outcome, (
-            "receipt_type", "effect_id", "outcome", "broker_status", "broker_receipt_id",
+            "receipt_type", "effect_id", "outcome", "broker_status", "broker_receipt_id", "strategy_receipt",
         ))
         reconciled += 1
     strategy_reconciled = 0
-    strategy_deferred = 0
     if on_reconciled is not None:
+        pending_effects = {intent["effect_id"] for intent in pending}
         for intent in _completed_without_strategy_receipt(_rows(ledger)):
+            if intent["effect_id"] in pending_effects:
+                continue
             order = find_order(intent["client_order_id"])
             if order is None or order.get("status") != "filled":
                 raise ValueError("reconciliation_blocked")
             try:
                 strategy_receipt = on_reconciled(intent, order)
             except ReconciliationPending as error:
-                _pending_status(ledger, intent, order, reason=str(error))
+                _pending_status(ledger, intent, order, reason=str(error), strategy_readback_pending=True)
                 deferred += 1
-                strategy_deferred += 1
                 continue
             if strategy_receipt is None:
                 continue
@@ -495,7 +554,7 @@ def reconcile_started(
             ))
             strategy_reconciled += 1
     result = {"pending": len(pending), "reconciled": reconciled,
-              "unresolved": unresolved_intent_count(ledger) + strategy_deferred}
+              "unresolved": unresolved_intent_count(ledger)}
     if deferred:
         result["deferred"] = deferred
     if strategy_reconciled:
