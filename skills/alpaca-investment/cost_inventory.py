@@ -62,7 +62,12 @@ def record_source_inventory(ledger: Path, *, release_root: Path, owner_id: str,
             row['source_declaration'] = declaration
             row['execution_owner_ids'] = loops[0]['job_ids']
         return row
-    appended = _append_once(Path(ledger), prepare, ('receipt_type', 'owner_id', 'release_sha', 'catalog_sha256'))
+    try:
+        appended = _append_once(Path(ledger), prepare, ('receipt_type', 'owner_id', 'release_sha', 'catalog_sha256'))
+    except (OSError, ValueError) as error:
+        return {'coverage_state': 'gap', 'reason': 'source_inventory_write_failed', 'appended': None,
+                'error_class': type(error).__name__, 'retryable': True, 'next_action': 'inspect_owner_ledger',
+                'release_sha': sha, 'catalog_sha256': digest}
     return {'coverage_state': 'gap', 'reason': ('source_declaration_conflict' if prepared['conflict']
             else 'source_inventory_not_evaluated' if declaration['status'] == 'verified'
             else 'source_declaration_unverified'), 'appended': appended,

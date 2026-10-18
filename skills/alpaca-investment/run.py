@@ -19,7 +19,7 @@ from campaign import CANDIDATE_REF, SYMBOLS, exit_order, reconcile
 from control import control_fence, read_control
 from effect_store import (mark_started, reconcile_started, record_no_trade, seal,
                           unresolved_intent_count)
-from etf_ownership import ETF_STRATEGY_ID, investment_owner_id
+from etf_ownership import ETF_PAPER_OWNER_ID, ETF_STRATEGY_ID, investment_owner_id
 from etf_ownership import _account_position as validate_etf_position_readback
 from etf_ownership import read_state as read_etf_state
 from etf_ownership import record_closed as record_etf_closed
@@ -340,6 +340,7 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
     effect_attempted = False
     observation = None
     campaign = None
+    inventory_capture = None
     stage = "start"
     try:
         mode = _mode()
@@ -380,6 +381,15 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
             ),
             on_reconciled=on_reconciled,
         )
+        if mode == "paper":
+            stage = "cost_inventory_capture"
+            if investment_owner_id() != ETF_PAPER_OWNER_ID:
+                inventory_capture = {"coverage_state": "gap", "reason": "source_owner_mode_mismatch", "appended": False}
+            else:
+                inventory_capture = record_source_inventory(state / "receipts.jsonl",
+                    release_root=Path(os.environ.get("LIFE_MANAGER_RELEASE_ROOT", str(Path(__file__).resolve().parents[2]))),
+                    owner_id=ETF_PAPER_OWNER_ID, run_id=os.environ.get("LIFE_MANAGER_RUN_ID"),
+                    occurrence_id=os.environ.get("LIFE_MANAGER_OCCURRENCE_ID"))
         stage = "control_read"
         control = read_control(state / "control.json")
         if control["paused"] or control["killed"]:
@@ -389,6 +399,7 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                 event_key=cloud_event_key)
             _mark_no_broker_order_submitted(mode, effect_attempted, "none")
             print(json.dumps({
+                **({"cost_inventory_capture": inventory_capture} if inventory_capture is not None else {}),
                 "effect": "none", "loop_id": "alpaca-investment", "mode": mode,
                 "reconciliation": reconciliation,
                 "status": "killed" if control["killed"] else "paused",
@@ -441,6 +452,7 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                             event_key=cloud_event_key)
                         _mark_no_broker_order_submitted(mode, effect_attempted, effect)
                         print(json.dumps({
+                            **({"cost_inventory_capture": inventory_capture} if inventory_capture is not None else {}),
                             "effect": "none", "loop_id": "alpaca-investment", "mode": mode,
                             "reconciliation": reconciliation,
                             "status": "killed" if current_control["killed"] else "paused",
@@ -551,7 +563,8 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                         telegram = deliver_control(state, control=current_control,
                             wake_id=wake_id, mode=mode, event_key=cloud_event_key)
                         _mark_no_broker_order_submitted(mode, effect_attempted, effect)
-                        print(json.dumps({"effect":"none","loop_id":"alpaca-investment","mode":mode,
+                        print(json.dumps({**({"cost_inventory_capture": inventory_capture} if inventory_capture is not None else {}),
+                            "effect":"none","loop_id":"alpaca-investment","mode":mode,
                             "reconciliation":reconciliation,"status":"killed" if current_control["killed"] else "paused",
                             "telegram_message_id":telegram["message_id"]}, separators=(",", ":")))
                         return 0
@@ -680,6 +693,8 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
             "status": "allocated",
             "telegram_message_id": telegram["message_id"],
         }
+        if inventory_capture is not None:
+            summary["cost_inventory_capture"] = inventory_capture
         print(json.dumps(summary, separators=(",", ":")))
         return 0
     except Exception as error:
@@ -703,6 +718,7 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
             except Exception:
                 pass
         print(json.dumps({
+            **({"cost_inventory_capture": inventory_capture} if inventory_capture is not None else {}),
             "blocker": "alpaca_pass_failed",
             "effect": _terminal_effect(effect_attempted),
             "error_code": _error_code(error),

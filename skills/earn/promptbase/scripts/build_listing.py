@@ -30,11 +30,10 @@ ITEM_TYPE = "Prompt"
 # The one bracketed variable this builder itself injects into the prompt
 # template (see build_listing() below). PromptBase auto-detects every
 # "[...]" run in the template as a fillable variable and requires an example
-# value for each one per example row before it will submit -- publish.py's
-# _fill_step2 maps input boxes with this exact placeholder back to
-# listing.example_input, and fills any *other* detected variable (e.g. a
-# literal "[ADD: your number]" inside a catalog skill's own SKILL.md body)
-# with a generic non-fabricated placeholder instead.
+# value for each one per example row before it will submit (and refuses more
+# than 5) -- build_listing() turns the SKILL.md body's own brackets into
+# parentheses so this is the only variable, and publish.py's _fill_step2 maps
+# input boxes with this exact placeholder back to the real example inputs.
 INPUT_VARIABLE_LABEL = "TOPIC / PRODUCT / CLIP IDEA"
 TAGS = ["claude", "prompts"]
 
@@ -134,9 +133,11 @@ def build_listing(catalog_dir: Path) -> Listing:
     # PromptBase renders those as the public "Example input" block, separate
     # from the SKILL.md body that follows. Reproduce that shape with this
     # catalog skill's own concrete input as the value.
-    prompt_instructions = (
-        f"[{INPUT_VARIABLE_LABEL}]: {example_input}\n\n{skill_md.strip()}"
-    )
+    # PromptBase parses every "[...]" as a variable and refuses more than 5
+    # (live 2026-10-18), so the body's own brackets become parentheses
+    # (same rule as gen_examples._clean) and only the injected one remains.
+    body = skill_md.strip().replace("[", "(").replace("]", ")")
+    prompt_instructions = f"[{INPUT_VARIABLE_LABEL}]: {example_input}\n\n{body}"
 
     return Listing(
         slug=slug,

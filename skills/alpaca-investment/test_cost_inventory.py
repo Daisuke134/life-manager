@@ -72,6 +72,19 @@ class CostInventoryTests(unittest.TestCase):
             self.assertEqual(result['coverage_state'], 'gap')
             self.assertFalse(ledger.exists())
 
+    def test_capture_io_failure_is_a_visible_gap_with_unknown_append_effect(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); release_fixture(root / 'release')
+            module = self.module()
+            with patch.object(module, '_append_once', side_effect=OSError('isolated write failure')):
+                result = module.record_source_inventory(root / 'receipts.jsonl', release_root=root / 'release',
+                    owner_id=OWNER, run_id='run', occurrence_id=f'{OWNER}:run')
+            self.assertEqual(result['coverage_state'], 'gap')
+            self.assertEqual(result['reason'], 'source_inventory_write_failed')
+            self.assertEqual(result['error_class'], 'OSError')
+            self.assertIsNone(result['appended'])
+            self.assertFalse((root / 'receipts.jsonl').exists())
+
     def test_concurrent_divergent_declarations_use_one_atomic_ledger_decision(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory); release_fixture(root / 'release-a')

@@ -755,6 +755,93 @@ class LiveRunTest(unittest.TestCase):
 
 
 class PortablePassTest(unittest.TestCase):
+    def _capture_case(self, *, configured_owner=None, occurrence_owner="alpaca-investment-paper", capture_io_error=False,
+                      control_status=None, observe_error=False, terminal_summaries=None):
+        import cost_inventory
+        from test_cost_inventory import release_fixture
+        steps = []
+        with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
+            state = Path(directory) / "state"; state.mkdir()
+            release = Path(directory) / "release"; catalog = release_fixture(release, "b" * 40)
+            data = json.loads(catalog.read_text())
+            data["loops"][0]["job_ids"].append("alpaca-investment-live")
+            catalog.write_text(json.dumps(data))
+            environment = {"LIFE_MANAGER_INVESTMENT_DEPLOYMENT": "local", "LIFE_MANAGER_INVESTMENT_MODE": "paper",
+                "LIFE_MANAGER_RELEASE_ROOT": str(release), "ALPACA_INVESTMENT_PAPER_STATE_DIR": str(state),
+                "ALPACA_INVESTMENT_PAPER_CREDENTIALS_FILE": str(Path(directory) / "credentials"),
+                "LIFE_MANAGER_RUN_ID": "capture-run", "LIFE_MANAGER_OCCURRENCE_ID": f"{occurrence_owner}:capture-run"}
+            if configured_owner is not None:
+                environment["LIFE_MANAGER_INVESTMENT_OWNER_ID"] = configured_owner
+            stack.enter_context(patch.dict(MODULE.os.environ, environment, clear=True))
+            if capture_io_error:
+                sealed = EFFECT_STORE.seal(state / "receipts.jsonl", {"mode": "paper"},
+                    {"asset_class": "crypto", "side": "buy", "symbol": "BTC/USDC"})
+                EFFECT_STORE.mark_started(state / "receipts.jsonl", sealed)
+                def readback(**kwargs):
+                    steps.append("readback")
+                    return {"status": "accepted", "id": "pending-order", "client_order_id": sealed["client_order_id"]}
+                stack.enter_context(patch.object(MODULE, "find_order_by_client_id", side_effect=readback))
+                def write_failure(*args, **kwargs):
+                    steps.append("capture-error")
+                    raise OSError("isolated capture write failure")
+                stack.enter_context(patch.object(cost_inventory, "_append_once", side_effect=write_failure))
+            observation = {"account": {"cash": "100000", "equity": "100000"}, "activities_count": 0,
+                "clock": {"observed_at": "2026-10-18T04:11:18Z"}, "open_and_closed_orders_count": 0, "positions": []}
+            for name, value in {"observe": observation, "read_campaign_snapshot": {},
+                "reconcile": {"exit_status": "CLOSED", "unrealized_pnl_usd": "0"},
+                "read_allocator_snapshot": {"risk": {}}, "build_candidates": [],
+                "choose": {"approved": False, "action": "HOLD", "strategy_id": "other-strategy",
+                    "candidate_ref": "NO_TRADE", "gate": "policy_hold", "observed_at": "2026-10-18T04:11:18Z"},
+                "deliver": {"message_id": "isolated-test"}, "deliver_failure": {"status": "delivered"}}.items():
+                stack.enter_context(patch.object(MODULE, name, return_value=value))
+            if control_status:
+                stack.enter_context(patch.object(MODULE, "read_control", return_value={
+                    "paused": control_status == "paused", "killed": control_status == "killed"}))
+                stack.enter_context(patch.object(MODULE, "deliver_control", return_value={"message_id": "control-test"}))
+            if observe_error:
+                stack.enter_context(patch.object(MODULE, "observe", side_effect=ValueError("isolated observe failure")))
+                stack.enter_context(patch.object(MODULE, "_retry_allowed", return_value=False))
+            submit = stack.enter_context(patch.object(MODULE, "submit_order"))
+            with redirect_stdout(StringIO()) as output:
+                code = MODULE.main(wake_id="capture-run")
+            if terminal_summaries is not None:
+                terminal_summaries.extend(json.loads(line) for line in output.getvalue().splitlines())
+            rows = [json.loads(line) for line in (state / "receipts.jsonl").read_text().splitlines()]
+            pending = EFFECT_STORE.unresolved_intent_count(state / "receipts.jsonl")
+            submit.assert_not_called()
+            return code, rows, steps, pending
+
+    def test_paper_capture_does_not_accept_live_or_default_live_owner(self):
+        for owner in (None, "alpaca-investment-live"):
+            with self.subTest(owner=owner):
+                code, rows, _steps, _pending = self._capture_case(configured_owner=owner,
+                    occurrence_owner="alpaca-investment-live")
+                self.assertEqual(code, 0)
+                self.assertFalse(any(row["receipt_type"] == "cost_source_inventory" for row in rows))
+
+    def test_inventory_gap_survives_control_and_failure_terminal_summaries(self):
+        for status in ("paused", "killed", "blocked"):
+            with self.subTest(status=status):
+                summaries = []
+                code, _rows, steps, pending = self._capture_case(
+                    configured_owner="alpaca-investment-paper", capture_io_error=True,
+                    control_status=status if status != "blocked" else None,
+                    observe_error=status == "blocked", terminal_summaries=summaries)
+                self.assertEqual(code, 78 if status == "blocked" else 0)
+                self.assertEqual(summaries[-1]["status"], status)
+                self.assertEqual(summaries[-1]["cost_inventory_capture"]["reason"], "source_inventory_write_failed")
+                self.assertIsNone(summaries[-1]["cost_inventory_capture"]["appended"])
+                self.assertEqual(pending, 1)
+                self.assertLess(steps.index("readback"), steps.index("capture-error"))
+
+    def test_inventory_io_failure_cannot_prevent_pending_order_readback(self):
+        code, _rows, steps, pending = self._capture_case(configured_owner="alpaca-investment-paper", capture_io_error=True)
+        self.assertIn("readback", steps)
+        self.assertLess(steps.index("readback"), steps.index("capture-error"))
+        self.assertEqual(code, 0)
+        self.assertEqual(pending, 1)
+
+
     def test_paper_etf_hold_binds_nonfinancial_evidence_to_exact_execution(self):
         cases = (
             ("paper", "alpaca-etf-126d-momentum-v1", "HOLD", True, True),
