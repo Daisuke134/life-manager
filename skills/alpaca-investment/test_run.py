@@ -440,6 +440,11 @@ class BrokerSnapshotTest(unittest.TestCase):
                 cli_path=Path("alpaca"), observed_at="2026-09-10T08:05:00Z")
         self.assertEqual(len(result["BTC/USDC"]), 96)
         self.assertEqual(result["BTC/USDC"][-1]["t"], "2026-09-10T08:00:00Z")
+        excessive = [{"symbol": "BTC/USDC", "bars": [*rows[0]["bars"], rows[0]["bars"][-1]]}]
+        with patch.object(CLI, "_context", return_value={}), patch.object(CLI, "_run", return_value=excessive), \
+                self.assertRaisesRegex(ValueError, "^alpaca_crypto_history_invalid$"):
+            CLI.read_crypto_history(credentials_path=Path("credentials"),
+                cli_path=Path("alpaca"), observed_at="2026-09-10T08:05:00Z")
 
     def test_crypto_history_supplies_the_existing_trend_indicator_warmup(self):
         from strategy_policy import candidate_cards, evaluate
