@@ -343,6 +343,13 @@ Missing executions advance from saved window ends. Local schema2 activity bundle
 retain the original bounded wire snapshots and validate contiguous coverage and
 quantity with the same execution proof; they never claim one provider response.
 CFEE attribution uses each original segment's time window and receipt reference.
-This branch is source only: within-day page-token continuation and unlinked official evidence, quantity
+Within-day page limits now use the same transport with saved last-activity tokens.
+Each run reads at most four pages for one activity kind. Pure progress validates
+all token/window/kind/ID boundaries; only short terminal pages for both FILL and
+CFEE produce a local schema3 paged window, retaining every original raw chunk.
+The existing paper/live main injects this reader into the same writer. Partial
+chains and failed resumes keep their checkpoint/cache and never advance completed
+coverage. Successful same-clock replays read nothing.
+This branch is source only: unlinked official fee evidence, quantity
 drift, FX and complete actual costs, deployment, natural outcomes and profitable
 evaluation remain in the canonical SSOT.
