@@ -123,6 +123,29 @@ def _reference_amount(value):
         'numerator':str(value.numerator),'denominator':str(value.denominator)}
 
 
+def _statement_order_candidates(evidence,cycles):
+    orders={order['provider_order_id']:(cycle,order) for cycle in cycles for order in cycle['orders']}
+    candidates={}
+    for row in evidence['observations']:
+        matched=orders.get(row['order_id'])
+        if matched is None:continue
+        cycle,order=matched
+        refs=sorted(ref['source_receipt_id'] for ref in row['capture_refs']
+            if ref.get('official_pdf_origin',{}).get('status')=='verified')
+        if (not refs or cycle.get('native_trading_account_id')!=row['capture_trading_account_id']
+                or cycle['mode']!=row['mode'] or Fraction(order['filled_qty'])<=0
+                or not order['fill_activity_ids'] or order['quote_notional_usdc'] is None
+                or row['symbol']!=('BTCUSD' if order['side']=='buy' else 'USDCUSD')
+                or Fraction(row['signed_qty_raw'])>=0):
+            continue
+        key=(row['document_id'],row['source_line_number'],cycle['cycle_id'])
+        candidates[key]={'document_id':row['document_id'],'document_fingerprint':row['document_fingerprint'],
+            'source_line_number':row['source_line_number'],'provider_order_id':order['provider_order_id'],
+            'cycle_id':cycle['cycle_id'],'fill_activity_ids':list(order['fill_activity_ids']),
+            'verified_capture_receipt_ids':refs,'relation':'order_context_only'}
+    return [candidates[key] for key in sorted(candidates)]
+
+
 def _operating_references(cycles,costs):
     for cycle in cycles:
         scoped=select_components(costs,[cycle]);ref=cycle['fx_reference']
@@ -338,6 +361,8 @@ def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None,fee_ac
         and isinstance(r.get('order'),dict) and r['order'].get('asset_class')=='crypto' and r.get('mode')==mode and r.get('owner_id')!=owner_id]
     fee_inventory=_fee_inventory(cycles,fee_snapshots)
     fee_inventory['statement_evidence']=statement_inventory(statement_readbacks if statement_readbacks is not None else [],mode=mode)
+    if fee_inventory['statement_evidence']['documents']:
+        fee_inventory['statement_order_candidates']=_statement_order_candidates(fee_inventory['statement_evidence'],cycles)
     quote_fees={}
     for fee in fee_inventory['attributed_native_fees']:
         if fee['asset']=='USDC':quote_fees.setdefault(fee['cycle_id'],[]).append(fee)
@@ -667,6 +692,8 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
             ids={c['cycle_id'] for c in cycles}
             fee_evidence={**result['fee_evidence'],'attribution_cycle_ids':sorted(ids),
                 'attributed_native_fees':[f for f in result['fee_evidence']['attributed_native_fees'] if f['cycle_id'] in ids]}
+            if 'statement_order_candidates' in fee_evidence:
+                fee_evidence['statement_order_candidates']=[c for c in fee_evidence['statement_order_candidates'] if c['cycle_id'] in ids]
             daily={**{k:v for k,v in payload.items() if k!='statement_readbacks'},**select_components(result,cycles),'expected_cost_inventory':select_expected_inventory(expected_inventory,cycles),'generated_as_of':observed,'cycles':cycles,'fee_evidence':fee_evidence,**_summary(cycles),'performance_day':closed_day,
                    'observed_at':max(c['closed_at'] for c in cycles),'report_scope':'owned_crypto_cycles_daily'}
             _atomic_json(state/f'performance-crypto-daily-{closed_day}.json',daily)
