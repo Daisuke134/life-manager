@@ -176,7 +176,8 @@ class IndependentCensusTests(unittest.TestCase):
             'order_ids': ['entry', 'exit'], 'period_start': trips[0]['period_start'],
             'period_end': trips[0]['closed_at'], 'evidence_refs': ['invoice://known'],
             'charge_identity': ['older-provider', 'invoice', 'document', 'line', 'allocation'],
-            'identity_aliases': ['paid://alias']}]
+            'identity_aliases': [['charge', 'older-provider', 'invoice', 'document', 'line', 'allocation'],
+                                 ['receipt', 'paid://alias']]}]
         result = self.invoke(trips, kwargs)
         scope = result['scopes'][0]
         self.assertEqual({row['provider'] for row in scope['required_sources']},
@@ -271,7 +272,8 @@ class IndependentCensusTests(unittest.TestCase):
             'order_ids': ['entry', 'exit'], 'period_start': trips[0]['period_start'],
             'period_end': trips[0]['closed_at'], 'evidence_refs': ['invoice://known'],
             'charge_identity': ['older-provider', 'invoice', 'document', 'line', 'allocation'],
-            'identity_aliases': ['paid://alias'], 'amount_usd': 'DO_NOT_COPY_MONEY'}
+            'identity_aliases': [['charge', 'older-provider', 'invoice', 'document', 'line', 'allocation'],
+                                 ['receipt', 'paid://alias']], 'amount_usd': 'DO_NOT_COPY_MONEY'}
         kwargs['paid_bindings'] = [paid]
         result = self.invoke(trips, kwargs)
         preserved = result['scopes'][0]['known_paid_bindings'][0]
@@ -306,3 +308,18 @@ class IndependentCensusTests(unittest.TestCase):
         self.assertIn('shared_attribution_unproven', self.reasons(result))
         self.assertEqual(next(row for row in scope['required_sources'] if row['provider'] == 'validation-provider')
                          ['execution_owner_ids'], [validation])
+
+    def test_malformed_runtime_status_and_unassigned_sources_are_visible_gaps(self):
+        for defect in ('runtime-status', 'source-beneficiary'):
+            with self.subTest(defect=defect):
+                trips, kwargs = self.fixture()
+                if defect == 'runtime-status':
+                    kwargs['runtime_rows_by_owner'][OWNER][1]['status'] = []
+                    expected = 'runtime_event_invalid'
+                else:
+                    source = copy.deepcopy(kwargs['release_inputs']['a' * 40][0]['source_declaration']['sources'][0])
+                    source.pop('beneficiary_owner_id')
+                    source['provider'] = 'unassigned-provider'
+                    kwargs['release_inputs']['a' * 40][0]['source_declaration']['sources'].append(source)
+                    expected = 'source_invalid'
+                self.assertIn(expected, self.reasons(self.invoke(trips, kwargs)))
