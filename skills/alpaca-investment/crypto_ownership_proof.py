@@ -78,8 +78,66 @@ def _execution_number(raw: Any) -> Decimal:
     return value
 
 
+def execution_activity_identity(fill: dict[str, Any]) -> tuple:
+    return (fill['order_id'],fill['symbol'].replace('/',''),fill['side'],
+        Fraction(_execution_number(fill['qty'])),Fraction(_execution_number(fill['price'])),
+        parse_instant(fill['transaction_time']))
+
+
+def _activity_bundle(segments: list[dict[str, Any]], *, mode: str) -> dict[str, Any]:
+    if not isinstance(segments,list) or not segments: raise ValueError('owned_crypto_activities_invalid')
+    unique={}
+    for frame in segments:
+        if not isinstance(frame,dict) or frame.get('schema_version')!=1:
+            raise ValueError('owned_crypto_activities_invalid')
+        validate_crypto_activity_snapshot(frame,mode=mode)
+        unique[frame['source_receipt_id']]=frame
+    ordered=sorted(unique.values(),key=lambda f:(parse_instant(f['request']['after']),
+        parse_instant(f['request']['until']),f['source_receipt_id']))
+    if len(ordered)==1: return ordered[0]
+    start=min(parse_instant(f['requested_period_start']) for f in ordered)
+    through=start;activities={}
+    for frame in ordered:
+        begin,end=(parse_instant(frame['request'][key]) for key in ('after','until'))
+        if begin>through: raise ValueError('owned_crypto_activities_invalid')
+        through=max(through,end)
+        for kind in ('fills','fees'):
+            for row in frame[kind]:
+                old=activities.get(row['id'])
+                if old is not None and (old['activity_type']!=row['activity_type'] or (
+                        execution_activity_identity(old)!=execution_activity_identity(row)
+                        if kind=='fills' else old!=row)):
+                    raise ValueError('owned_crypto_activities_invalid')
+                activities.setdefault(row['id'],row)
+    # Logical coverage of validated GETs, never a claim of one wire response.
+    body={'schema_version':2,'kind':'crypto_activity_bundle','mode':mode,'paper':mode=='paper',
+        'requested_period_start':start.isoformat().replace('+00:00','Z'),
+        'requested_period_end':through.isoformat().replace('+00:00','Z'),
+        'request':{'after':min(parse_instant(f['request']['after']) for f in ordered).isoformat().replace('+00:00','Z'),
+                   'until':through.isoformat().replace('+00:00','Z'),'direction':'asc','page_size':100},
+        'pagination':'exhausted','fills':[r for r in activities.values() if r['activity_type']=='FILL'],
+        'fees':[r for r in activities.values() if r['activity_type']=='CFEE'],'segments':ordered,
+        'fee_attribution_status':'unknown','fee_settlement_status':'unknown','net_realized_pnl_usd':None}
+    body['source_receipt_id']='alpaca-crypto-activity-bundle:'+_digest([body])
+    return body
+
+
+def combine_crypto_activity_snapshots(snapshots: list[dict[str, Any]], *, mode: str) -> dict[str, Any]:
+    segments=[]
+    for frame in snapshots:
+        validate_crypto_activity_snapshot(frame,mode=mode)
+        segments.extend(frame['segments'] if frame['schema_version']==2 else [frame])
+    return _activity_bundle(segments,mode=mode)
+
+
 def validate_crypto_activity_snapshot(snapshot: dict[str, Any], *, mode: str) -> tuple[datetime, datetime]:
     """Shared raw activity envelope, independent of an individual order window."""
+    if isinstance(snapshot,dict) and snapshot.get('schema_version')==2:
+        try:
+            if snapshot!=_activity_bundle(snapshot['segments'],mode=mode): raise ValueError
+            return parse_instant(snapshot['requested_period_start']),parse_instant(snapshot['requested_period_end'])
+        except (ValueError,KeyError,TypeError,AttributeError,ArithmeticError) as error:
+            raise ValueError('owned_crypto_activities_invalid') from error
     try:
         if (mode not in {"paper", "live"} or not isinstance(snapshot, dict)
                 or type(snapshot.get("schema_version")) is not int or snapshot["schema_version"] != 1

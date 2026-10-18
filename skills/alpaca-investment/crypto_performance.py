@@ -11,7 +11,7 @@ from typing import Any
 
 from crypto_ownership_proof import (_digest,_quantity_text,_sealed_entry_from_rows,entry_receipt_row,
     recorded_entry_proof_from_rows,recorded_no_fill_proof_from_rows,recorded_close_proof_from_rows,
-    crypto_fill_activity_proof,validate_crypto_activity_snapshot,ReconciliationPending)
+    crypto_fill_activity_proof,validate_crypto_activity_snapshot,combine_crypto_activity_snapshots,execution_activity_identity,ReconciliationPending)
 from effect_store import _owned_rows
 from paper_performance import _atomic_json
 from risk_policy import parse_instant
@@ -46,8 +46,7 @@ def _fee_inventory(cycles,snapshots):
     fill_ids={}
     for frame in snapshots.values():
         for fill in frame['fills']:
-            facts=(fill['order_id'],fill['symbol'].replace('/',''),fill['side'],Fraction(fill['qty']),
-                Fraction(fill['price']),parse_instant(fill['transaction_time']))
+            facts=execution_activity_identity(fill)
             if fill['id'] in fill_ids and fill_ids[fill['id']]!=facts:
                 raise ValueError('crypto_cycle_execution_conflict')
             fill_ids[fill['id']]=facts
@@ -205,7 +204,8 @@ def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None,fee_ac
                     right={k:v for k,v in known.items() if k!='source_receipt_id'}
                     if left!=right: raise ValueError('crypto_cycle_execution_conflict')
             if facts is None:
-                complete=False;missing[broker['id']]=broker['submitted_at'];amount=None;ids=[]
+                complete=False;missing[broker['id']]={'submitted_at':broker['submitted_at'],
+                    'readback_start':native['requested_period_end'] if native is not None else broker['submitted_at']};amount=None;ids=[]
             else:
                 ids=facts['fill_activity_ids']
                 for fill_id in ids:
@@ -238,7 +238,7 @@ def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None,fee_ac
         'net_pnl_usd':None,'gross_strategy_pnl_usd':None,'fees_usd':None,'slippage_usd':None,'model_cost_usd':None,'system_cost_usd':None,
         'cycles':cycles,'open_entries':opened,'pending_entries':pending,'no_fill_entry_effect_ids':no_fill,
         'unmatched_sell_effect_ids':orphan,'unscoped_effect_ids':unscoped,'missing_activity_order_ids':sorted(missing),
-        'activity_requests':[{'order_id':key,'submitted_at':value} for key,value in sorted(missing.items())],
+        'activity_requests':[{'order_id':key,**value} for key,value in sorted(missing.items())],
         'fee_period_start':min(periods,key=parse_instant) if periods else None,
         'source_receipt_ids':sorted(sources),'fee_evidence':_fee_inventory(cycles,fee_snapshots),**_summary(cycles)}
 
@@ -336,16 +336,19 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
                 raise ValueError('crypto_fee_readback_window_invalid')
             return incoming,finish
         did_read=False
-        if result['activity_requests']:
+        if result['activity_requests'] and any(parse_instant(r['readback_start'])<now for r in result['activity_requests']):
             phase='activity_readback'
-            start=min(result['activity_requests'],key=lambda r:parse_instant(r['submitted_at']))['submitted_at']
+            start=min(result['activity_requests'],key=lambda r:parse_instant(r['readback_start']))['readback_start']
             incoming,finish=read_window(start)
-            eligible=[r['order_id'] for r in result['activity_requests'] if parse_instant(r['submitted_at'])<=finish]
-            trial={**extra,**{key:incoming for key in eligible}}
+            eligible=[r['order_id'] for r in result['activity_requests'] if parse_instant(r['readback_start'])<=finish]
+            trial={**extra,**{key:combine_crypto_activity_snapshots([extra[key],incoming],mode=mode)
+                if key in extra else incoming for key in eligible}}
             refreshed=build_crypto_performance(rows,mode=mode,owner_id=owner_id,activity_readbacks=trial,
                 fee_activity_readbacks=[*[frames[ref] for ref in fee_refs],incoming])
             ref=incoming['source_receipt_id'];frames[ref]=incoming
-            for key in eligible: refs[key]=ref
+            for key in eligible:
+                projected=trial[key];projected_ref=projected['source_receipt_id']
+                frames[projected_ref]=projected;refs[key]=projected_ref
             if ref not in fee_refs: fee_refs.append(ref)
             result=refreshed;extra=trial;fee_checked=observed;did_read=True
         through=parse_instant(result['fee_period_start']) if result['fee_period_start'] else now
