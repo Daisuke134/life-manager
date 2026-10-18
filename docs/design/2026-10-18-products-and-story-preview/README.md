@@ -2,15 +2,15 @@
 
 2026-10-18. **Reviewable design prototype only. Not deployed.**
 
-Open `index.html` locally. The three static pages share navigation, typography and a product footer; no build, dependencies, credentials, analytics or server are required. Japanese copy is drafted here first. English copy for the public `/en` page and YC readers is a follow-up after this layout is reviewed; this prototype does not remove the existing site's English locale.
+Start with `en.html`, the primary English review entry for YC and international readers. `index.html` is the Japanese counterpart. Three page types are available in both languages, with reciprocal EN/JA links. These static pages share navigation, typography and a product footer; no build, dependencies, credentials or analytics are required. A local HTTP server can be used for browser preview.
 
 ## Pages and intended routes
 
 | Preview | Existing public route | Purpose |
 | --- | --- | --- |
-| `index.html` | `/ja` (English counterpart `/en`) | Anicca's mission, Manager, product entrances, founder story, measured work |
-| `life-manager.html` | `/lm` | Proactive general agent; body, mind, money; earning loops; local/cloud options |
-| `products.html` | `/dais` | Mobile, web, open-source and research directory; category filters |
+| `en.html` / `index.html` | `/en` / `/ja` | Anicca's mission, Manager, product entrances, founder story, measured work |
+| `life-manager-en.html` / `life-manager.html` | `/lm` (language routing to preserve during integration) | Proactive general agent; body, mind, money; earning loops; local/cloud options |
+| `products-en.html` / `products.html` | `/dais` (language routing to preserve during integration) | Unified directory for all products; no separate Life Manager/app categories |
 
 Retain `/dais`; a `/products` alias can be considered later. Preserve existing localized routes, payment/onboarding callbacks, policies and metadata when implementing production. The prototype intentionally does not change production source. `apps/landing` contains only part of the marketing source and lacks the shared layout and strings needed to build the full public website.
 
@@ -22,7 +22,7 @@ Retain `/dais`; a `/products` alias can be considered later. Preserve existing l
 - Use ニューロフィードバック / neurofeedback. The story describes work and intention, not proof of reduced suffering.
 - Broaden Life Manager beyond travel-time management using the current repository README. Local and cloud use the same core. The visual action log is explicitly illustrative, without invented activity, earnings or receipts.
 - Explain continuous earning workflows without promising profit or claiming every platform's identity/interview/approval steps are autonomous. No unverified price/trial carried over from the stale live page.
-- Product footer appears on all three pages. Catalogue links use the existing public `/dais` inventory; product pages are introductions, not evidence that every service is fully operational. Lookmax is marked in preparation, without a live CTA. No separate 'Flash Dice' product was inferred from the transcript.
+- Following the user’s review, the home has one “My products” entrance. Life Manager and other apps are not presented as separate top-level product groups. Product footer appears on all six language pages. Catalogue links use the existing public `/dais` inventory; product pages are introductions, not evidence that every service is fully operational. Lookmax is marked in preparation, without a live CTA. No separate 'Flash Dice' product was inferred from the transcript.
 - No product ratings, customers, testimonials, medical benefits or revenue figures are invented.
 
 ## Evidence and sources read
@@ -47,6 +47,14 @@ The home evidence card uses measured 8B counts: 441,570 households, 1,042,763 pe
 
 `*-desktop.png` and `*-mobile.png` are full-page screenshots of the actual HTML rendered by system Chromium through Playwright. `*-first-screen.png` is the desktop viewport. These are faithful implementation previews, not AI-generated mockups or production screenshots.
 
-`verification.json` records checks of internal file/anchor targets, common footer, 390px overflow, JavaScript errors and catalogue filter behavior. External URLs are drawn from the observed pages; this is not a full audit of the destination apps, hosted availability, checkout flows or localized pages.
+`verification.json` records checks of internal file/anchor targets, common footer, 390px overflow, JavaScript errors and EN/JA switching. English pages are checked for untranslated Japanese visible text. Product filters were removed to keep one unified listing. External URLs are drawn from the observed pages; this is not a full audit of the destination apps, hosted availability, checkout flows or localized pages.
 
 No site publishing, app deployment, marketing posting or outreach was performed. Current work/order remain exclusively in the unified SSOT.
+
+## English-first revision, following user review
+
+The user approved the visual direction and asked to combine product entrances and show English first. `en.html`, `products-en.html` and `life-manager-en.html` provide full English copy, including the founder story and shared footer. English product links use existing English landing routes where known. Linked research articles remain Japanese and are labeled accordingly; an English marketing page does not imply every linked destination has been translated.
+
+`*-mobile-first-screen.png` shows a 390×844 viewport; `*-first-screen.png` a 1440×1000 viewport. Full-page desktop and mobile screenshots are also retained. These images are actual browser renders of the HTML.
+
+The user requested production deployment **after reviewing and accepting the English preview**. That acceptance is pending. Read-only preflight reconfirmed that the canonical `apps/landing` is a scoped subset, and the full shared site's source and Netlify configuration remain in `anicca-products`. No second site was registered, no production source was changed, and no deploy was triggered. Production integration must preserve onboarding, other products, policies, locale routes and the existing hosting identity.

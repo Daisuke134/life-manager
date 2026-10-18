@@ -3592,3 +3592,18 @@ Transformerは原論文本文と固定nanoGPT 3adf61e154c3fe3fca428ad6bc3818b27a
 ウェブデザイン案のトップに先行例の記事入口を追加。記事リンクは実在する公開GitHub branch宛てで、存在しない/blog記事URLを作らない。本番ブログはpartial landing sourceには含まれないため記事・素材保存まで。ブログ分類案は「マネージャー／研究と仕組み」。既存公開ソース/公開手順の統合後に英語版とブログ/本番ページ反映を進める。SNS投稿・メール・応募なし。
 
 確認：算数demo実行/勾配照合、24PNG寸法、記事内ローカルリンク、代表画像の目視、3ページpreviewの内部リンク/390px overflow/JS/filterを再検査しPASS。前turnのローカルserver停止による初回接続拒否は一時HTTP serverで再描画して解決。進捗：本依頼の研究と素材保存は完了、今回本人へ説明する。8Bの本人理解状態は変更せず、9行動予測の実装は未着手。次は説明の疑問を確認しつつ、別実データで行動予測を学習/評価する設計へ戻る。
+
+
+## 2026-10-18 サイト案の英語優先・My products統一
+
+本人のデザイン修正：Life Managerと暮らしのアプリを別枠にする必要はなく、My products/他の製品はこちらという一つの入口でよい。既存の見た目は良い。YC/海外の読者のため英語版を最優先してチャットに表示する。英語案を確認して良ければ本番反映を希望し、スクリーンショットも継続して送るよう依頼。
+
+draftの既存HTML/CSSを再利用し、トップの3製品枠を単一の製品一覧入口へ変更。商品一覧の分類filterを削除。en.html/products-en.html/life-manager-en.htmlの全文英語版と、対応する日本語へのEN/JA切替を追加。トップの使命と16歳頃のVipassana→大学院/IACSのニューロフィードバック→共有環境への介入という物語を英語化。Managerの全生命・宇宙のビジョン、現在の人口測定と未検証の行動/介入の境界を保持。英語のリンク先研究記事は日本語のままで、その旨を明記。
+
+今回読んだskill：sites、local preview参照、brainstorming、verification-before-completion。依頼は既存デザイン案の限定修正/英語化で、既存のユーザー承認済み方向に沿ってdraftを修正。製品コードや公開サービスはまだ変更しない。portable profileを確認し既存ChromiumでローカルHTTP描画。
+
+確認：JA/EN全6ページの内部ファイル/anchor、footer、EN/JA往復、英語本文に日本語の残りなし、390px横はみ出しなし、JS例外なしをPlaywrightでPASS。1440px desktop/390px mobileの全体とファーストビューを保存。英語トップPC/My productsスマホ/トップスマホ/Life Manager PCの画像をチャットで表示。最初の翻訳辞書にCTA1件の漏れを検出して補完後、全6ページで検査した。
+
+公開前確認：canonical apps/landing/READMEでfullサイト未移管を再確認。旧sourceのNetlify設定を読み取り、過去の公開手順資料を確認したが、今回Netlifyの現在のsite ID/deployed SHA/build rootを管理APIでreadbackしていない。旧repoへ変更を加えない。英語案への本人の確認が現在。良いという返答後、既存source authority/通常のPR・merge・deploy経路へ接続し、全製品/onboarding/localeを保って本番へ反映する。現在は英語draft完成、GitHubへ保存、本番未反映。
+
+8Bの整数化17世帯差まで説明し本人はOK/ありがとうと応答、次9に入る前にサイト確認へ切替。新たな人口/行動の実装は行っていない。
