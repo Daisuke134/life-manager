@@ -100,6 +100,20 @@ class CryptoValidationReportTests(unittest.TestCase):
             self.assertNotEqual(report.get("reason"), "quote_conversion_unknown")
             self.assertEqual(report["measurement_kind"], "modeled_validation")
 
+    def test_two_btc_reports_can_share_market_sources_without_duplicate_evidence(self):
+        from datetime import datetime, timezone
+        from strategy_validation import select_strategy
+        measured = {"status": "measured", "decision": "paper", "lookahead_detected": False,
+                    "holdout": {"trades": 3, "net_pnl_usd": "2", "max_drawdown_usd": "1"},
+                    "turnover": "3"}
+        with patch.object(validation_runner, "validate_series", return_value=measured):
+            reports = validation_runner.build_crypto_reports_from_history(
+                self._history(), quote_conversions=[], source_receipt_ids=["alpaca://fixture/btc"],
+                release_sha="a"*40, observed_at=datetime.now(timezone.utc).isoformat())
+        self.assertEqual(select_strategy(reports)["selection"], "selected")
+        self.assertEqual(len({ref for report in reports for ref in report["evidence_ids"]}), 2)
+        self.assertEqual(reports[0]["source_receipt_ids"], reports[1]["source_receipt_ids"])
+
     def test_crypto_reports_missing_fx_remain_unknown_and_not_selected(self):
         from strategy_validation import select_strategy
         reports = validation_runner.build_crypto_reports_from_history(
