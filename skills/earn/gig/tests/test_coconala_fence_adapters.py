@@ -535,7 +535,8 @@ def _admission_calls(wrapper, monkeypatch):
 
 
 def _roster_batch(tmp_path, monkeypatch, *, ids, count=None, expander_remaining=False,
-                  marker_age=3600, observed_at=_OBSERVED, unrelated=False, ledger_rows=()):
+                  marker_age=3600, observed_at=_OBSERVED, unrelated=False, ledger_rows=(),
+                  closed_peer=False):
     import os
     from datetime import datetime
     wrapper = _load_wrapper()
@@ -546,6 +547,8 @@ def _roster_batch(tmp_path, monkeypatch, *, ids, count=None, expander_remaining=
     _started(wrapper, store, "5331065", apply_root=apply_root)
     if unrelated:        # another occurrence's unresolved attempt must not block this one
         _started(wrapper, store, "5328691", occurrence="hf-gig-apply-direct:other", run="run-2")
+    if closed_peer:      # same occurrence; its page reads 募集終了 so it has no roster (verdict None)
+        _started(wrapper, store, "5320092")
     marker = datetime.fromisoformat(_OBSERVED).timestamp() - marker_age
     os.utime(store.intent_path("5331065"), (marker, marker))
     worker = apply_root / _ROSTER_PASS / "refresh-evidence" / "commit-workers" / "5331065"
@@ -562,11 +565,15 @@ def _roster_batch(tmp_path, monkeypatch, *, ids, count=None, expander_remaining=
     monkeypatch.setattr(wrapper.reconciler, "_default_evidence_dir", lambda occ: evidence)
     _roster(evidence, rid="5331065", ids=ids, count=count, observed_at=observed_at,
             expander_remaining=expander_remaining).rename(evidence / "request-closed-readback.json")
+    if closed_peer:
+        readback = json.loads((evidence / "request-closed-readback.json").read_text())
+        readback["requests"]["5320092"] = {**_closed_row("5320092"), "observed_at": observed_at}
+        (evidence / "request-closed-readback.json").write_text(json.dumps(readback))
     calls = _admission_calls(wrapper, monkeypatch)
     monkeypatch.setattr(wrapper, "_resolve_settled", lambda *a, **k: calls.append("settled") or True)
     result = wrapper._close_roster_batch(
-        "hf-gig-apply-direct", "hf-gig-apply-direct:occ-1", "run-1", ["5330001", "5331065"],
-        tmp_path / "intents")
+        "hf-gig-apply-direct", "hf-gig-apply-direct:occ-1", "run-1",
+        ["5330001", "5331065"] + (["5320092"] if closed_peer else []), tmp_path / "intents")
     ledger_ids = [json.loads(line).get("requestId") for line in ledger.read_text().splitlines()]
     return result, calls, store.read("5331065")["state"], ledger_ids
 
@@ -673,3 +680,99 @@ def test_adapter_tries_the_roster_before_the_history_walk(tmp_path, monkeypatch,
     monkeypatch.setattr(wrapper, "run_browser_reconcile", never)
     assert wrapper.main(["--intent-root", str(tmp_path)]) == 0
     assert json.loads(capsys.readouterr().out)["reason"] == "official_roster_account_present"
+
+
+# hf-gig-apply-direct:18df80f03ec86a98-74517 (2026-10-19): 5320092 read 募集終了 (no roster, so
+# verdict None) while 5331694 was open. A bound request whose roster lists our account is
+# confirmed and ledgered even then, so the next wake's pending set is the closed request alone
+# and _close_closed_batch can close the occurrence. The mixed batch itself closes nothing.
+def test_mixed_batch_confirms_present_request_and_keeps_the_occurrence_fenced(tmp_path, monkeypatch) -> None:
+    result, calls, state, ledger_ids = _roster_batch(
+        tmp_path, monkeypatch, ids=("111", "2564121"), closed_peer=True)
+    assert result is None and calls == []
+    assert state == "confirmed" and ledger_ids == ["5331065"]
+    peer = json.loads((tmp_path / "intents" / "5320092.json").read_text())
+    assert peer["state"] == "prepared"
+
+
+def test_mixed_batch_never_retires_or_closes_an_absent_request(tmp_path, monkeypatch) -> None:
+    result, calls, state, ledger_ids = _roster_batch(
+        tmp_path, monkeypatch, ids=("111", "222"), closed_peer=True)
+    assert result is None and calls == [] and state == "prepared" and ledger_ids == []
+
+
+class _RosterPage:
+    """Request 5331694's DOM shape (read-only probe, 2026-10-19): the applicant list's
+    もっと見る sits in #requestContentsProposers and the Q&A block's in #requestContentsFaq,
+    so a page-wide text match counts two. Each applicant click reveals ``step`` more rows
+    and the applicant expander is removed once every applicant is listed."""
+
+    SECTIONS = ("#requestContentsProposers", "#requestContentsFaq")
+
+    def __init__(self, total, shown=5, step=5, sections=SECTIONS):
+        self.total, self.shown, self.step, self.sections = total, shown, step, sections
+        self.clicks = []
+
+    def expanders(self, scope):
+        found = [("#requestContentsProposers", self.shown < self.total), ("#requestContentsFaq", True)]
+        return [name for name, present in found
+                if present and name in self.sections and scope in (None, name)]
+
+    def locator(self, css):
+        return _RosterLocator(self, css, text=False)
+
+    def get_by_text(self, text, exact=False):
+        return _RosterLocator(self, None, text=False).get_by_text(text, exact=exact)
+
+    def wait_for_timeout(self, _ms):
+        pass
+
+    def evaluate(self, _js):
+        return {"entries": [{"id": str(1000 + i), "row": f"user{i} 2026/10/18 12:00"}
+                            for i in range(self.shown)] + [{"id": "999", "row": "募集者情報"}],
+                "requester_ids": ["999"], "applicants_count": self.total, "contracted_count": 0}
+
+
+class _RosterLocator:
+    def __init__(self, page, scope, *, text):
+        self.page, self.scope, self.text = page, scope, text
+
+    def get_by_text(self, text, exact=False):
+        assert (text, exact) == ("もっと見る", True)
+        return _RosterLocator(self.page, self.scope, text=True)
+
+    def filter(self, *, visible):
+        assert visible is True
+        return self
+
+    @property
+    def first(self):
+        return self
+
+    def count(self):
+        if self.text:
+            return len(self.page.expanders(self.scope))
+        return int(self.scope in self.page.sections)
+
+    def click(self):
+        names = self.page.expanders(self.scope)
+        assert self.text and len(names) == 1, f"ambiguous or missing expander: {names}"
+        self.page.clicks.append(names[0])
+        if names[0] == "#requestContentsProposers":
+            self.page.shown = min(self.page.total, self.page.shown + self.page.step)
+
+
+def test_read_roster_expands_only_the_applicant_list_when_qa_has_its_own_expander() -> None:
+    module = _readback_module()
+    page = _RosterPage(total=83)
+    roster = module.read_roster(page)
+    assert set(page.clicks) == {"#requestContentsProposers"}      # the Q&A expander is never clicked
+    assert len(roster["applicant_ids"]) == roster["applicants_count"] == 83
+    assert roster["expander_remaining"] is False                  # the Q&A expander does not count
+
+
+def test_read_roster_fails_closed_without_the_applicant_section() -> None:
+    module = _readback_module()
+    page = _RosterPage(total=83, sections=("#requestContentsFaq",))
+    roster = module.read_roster(page)
+    assert page.clicks == [] and roster["expander_remaining"] is True

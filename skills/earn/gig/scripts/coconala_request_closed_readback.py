@@ -3,10 +3,10 @@
 
 Read-only: it opens https://coconala.com/requests/<id> in the leased registered
 browser (run under ``with-browser.sh coconala:kosuke``). Its only click is the
-applicant list's もっと見る expander; it never touches an application form. A request
-whose official page reads 募集期限 募集終了 can no longer receive an application,
-so a fence that only guards against a duplicate application to it is moot. The
-recorded applicant roster lets the adapter prove a post-marker attempt left none.
+applicant list's own もっと見る expander (never the Q&A one); it never touches an
+application form. A request whose official page reads 募集期限 募集終了 can no longer
+receive an application, so a fence that only guards against a duplicate application to it
+is moot. The recorded applicant roster lets the adapter prove a post-marker attempt left none.
 """
 
 from __future__ import annotations
@@ -95,15 +95,25 @@ def roster_from_page(raw: dict, *, expander_remaining: bool) -> dict:
             "requester_ids": sorted(requester), "expander_remaining": expander_remaining}
 
 
+# The applicant list's own container. The Q&A block (#requestContentsFaq) carries a second
+# もっと見る, so a page-wide match never expanded the list (request 5331694, 2026-10-19).
+_ROSTER_SECTION = "#requestContentsProposers"
+
+
 def read_roster(page) -> dict:
-    """Expand 応募者一覧 until no もっと見る remains; a count match alone never stops it."""
+    """Expand 応募者一覧 until its own もっと見る is gone; a count match alone never stops it.
+
+    Only the expander inside the applicant section is clicked or counted. A missing section,
+    or an expander that stays (even hidden), leaves ``expander_remaining`` True.
+    """
+    section = page.locator(_ROSTER_SECTION)
+    more = section.get_by_text("もっと見る", exact=True)
     for _ in range(60):
-        more = page.get_by_text("もっと見る", exact=True)
-        if more.count() != 1:
+        if section.count() != 1 or more.filter(visible=True).count() != 1:
             break
-        more.first.click()
+        more.filter(visible=True).click()
         page.wait_for_timeout(1_200)
-    remaining = page.get_by_text("もっと見る", exact=True).count() != 0
+    remaining = section.count() != 1 or more.count() != 0
     return roster_from_page(page.evaluate(_ROSTER_JS), expander_remaining=remaining)
 
 

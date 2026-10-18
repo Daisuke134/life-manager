@@ -118,3 +118,20 @@ def test_model_publish_command_keeps_a_multiword_query_as_one_argument() -> None
         capture_output=True, text=True, check=True,
     ).stdout
     assert shlex.split(out) == ["x", "--title-must-contain", "hook script template", "--indexnow-key", "k"]
+
+
+def test_seo_brief_renders_under_launchd_python39() -> None:
+    # launchd resolves python3 to /usr/bin/python3 (3.9); a backslash inside an f-string
+    # expression is a SyntaxError there, which left SEO_BRIEF empty in every production run.
+    import shutil
+
+    py = "/usr/bin/python3" if Path("/usr/bin/python3").exists() else shutil.which("python3")
+    text = SCRIPT.read_text()
+    start = text.index('SEO_BRIEF="$(printf')
+    end = text.index("')\"", start)
+    code = text[text.index("python3 -c '", start) + len("python3 -c '"):end]
+    out = subprocess.run(
+        [py, "-c", code], input='{"query": "hook script template", "lang": "en"}',
+        capture_output=True, text=True, check=True,
+    ).stdout
+    assert 'search query "hook script template" in language "en"' in out
