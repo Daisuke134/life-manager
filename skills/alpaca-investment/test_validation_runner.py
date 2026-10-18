@@ -115,6 +115,24 @@ class CryptoValidationReportTests(unittest.TestCase):
         self.assertEqual(len({ref for report in reports for ref in report["evidence_ids"]}), 2)
         self.assertEqual(reports[0]["source_receipt_ids"], reports[1]["source_receipt_ids"])
 
+    def test_unstable_v2_history_cannot_be_selected_as_profitable(self):
+        from decimal import Decimal
+        from strategy_validation import select_strategy
+        bars=self._history(1200)
+        for i,row in enumerate(bars):
+            close=Decimal("100000" if i<800 else "100" if i<1199 else "100.02")
+            row.update(o=str(close),h=str(close+Decimal(".01")),l=str(close-Decimal(".01")),c=str(close))
+        fx=[{"timestamp": row["t"], "currency": "USDC", "rate": "1", "evidence_ref": "fixture-fx"}
+            for row in bars]
+        reports=validation_runner.build_crypto_reports_from_history(
+            bars,quote_conversions=fx,source_receipt_ids=["fixture-source"],
+            release_sha="a"*40,observed_at="2026-01-06T00:00:00Z")
+        trend=next(report for report in reports if "trend" in report["strategy_id"])
+        self.assertEqual(trend["status"],"unknown")
+        self.assertEqual(trend["reason"],"indicator_history_unstable")
+        self.assertIsNone(trend["net_pnl_usd"])
+        self.assertEqual(select_strategy(reports)["selection"],"no_strategy")
+
     def test_insufficient_indicator_warmup_is_not_zero_dollar_profit(self):
         reports = validation_runner.build_crypto_reports_from_history(
             self._history()[:12], quote_conversions=[], source_receipt_ids=["alpaca://fixture/btc"],
