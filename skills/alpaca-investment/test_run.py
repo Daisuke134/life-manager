@@ -755,7 +755,8 @@ class LiveRunTest(unittest.TestCase):
 
 
 class PortablePassTest(unittest.TestCase):
-    def _capture_case(self, *, configured_owner=None, occurrence_owner="alpaca-investment-paper", capture_io_error=False):
+    def _capture_case(self, *, configured_owner=None, occurrence_owner="alpaca-investment-paper", capture_io_error=False,
+                      control_status=None, observe_error=False, terminal_summaries=None):
         import cost_inventory
         from test_cost_inventory import release_fixture
         steps = []
@@ -793,9 +794,18 @@ class PortablePassTest(unittest.TestCase):
                     "candidate_ref": "NO_TRADE", "gate": "policy_hold", "observed_at": "2026-10-18T04:11:18Z"},
                 "deliver": {"message_id": "isolated-test"}, "deliver_failure": {"status": "delivered"}}.items():
                 stack.enter_context(patch.object(MODULE, name, return_value=value))
+            if control_status:
+                stack.enter_context(patch.object(MODULE, "read_control", return_value={
+                    "paused": control_status == "paused", "killed": control_status == "killed"}))
+                stack.enter_context(patch.object(MODULE, "deliver_control", return_value={"message_id": "control-test"}))
+            if observe_error:
+                stack.enter_context(patch.object(MODULE, "observe", side_effect=ValueError("isolated observe failure")))
+                stack.enter_context(patch.object(MODULE, "_retry_allowed", return_value=False))
             submit = stack.enter_context(patch.object(MODULE, "submit_order"))
-            with redirect_stdout(StringIO()):
+            with redirect_stdout(StringIO()) as output:
                 code = MODULE.main(wake_id="capture-run")
+            if terminal_summaries is not None:
+                terminal_summaries.extend(json.loads(line) for line in output.getvalue().splitlines())
             rows = [json.loads(line) for line in (state / "receipts.jsonl").read_text().splitlines()]
             pending = EFFECT_STORE.unresolved_intent_count(state / "receipts.jsonl")
             submit.assert_not_called()
@@ -808,6 +818,21 @@ class PortablePassTest(unittest.TestCase):
                     occurrence_owner="alpaca-investment-live")
                 self.assertEqual(code, 0)
                 self.assertFalse(any(row["receipt_type"] == "cost_source_inventory" for row in rows))
+
+    def test_inventory_gap_survives_control_and_failure_terminal_summaries(self):
+        for status in ("paused", "killed", "blocked"):
+            with self.subTest(status=status):
+                summaries = []
+                code, _rows, steps, pending = self._capture_case(
+                    configured_owner="alpaca-investment-paper", capture_io_error=True,
+                    control_status=status if status != "blocked" else None,
+                    observe_error=status == "blocked", terminal_summaries=summaries)
+                self.assertEqual(code, 78 if status == "blocked" else 0)
+                self.assertEqual(summaries[-1]["status"], status)
+                self.assertEqual(summaries[-1]["cost_inventory_capture"]["reason"], "source_inventory_write_failed")
+                self.assertIsNone(summaries[-1]["cost_inventory_capture"]["appended"])
+                self.assertEqual(pending, 1)
+                self.assertLess(steps.index("readback"), steps.index("capture-error"))
 
     def test_inventory_io_failure_cannot_prevent_pending_order_readback(self):
         code, _rows, steps, pending = self._capture_case(configured_owner="alpaca-investment-paper", capture_io_error=True)

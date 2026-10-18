@@ -14873,6 +14873,8 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **D3a1 GitHub指摘のRED/GREEN記録:** RED5688bc56acは実main/既存started intentを使い、capture write失敗時にreadbackが0回になることと、paper modeへ既定/明示live ownerのsnapshotが保存されることを再現する。最小GREENでcaptureをreconcile_started後へ移し、ETF_PAPER_OWNER_IDとの対応を検証する。capture appendのOSError/ValueErrorはsource_inventory_write_failed/gap/appended=null/error_class/next_actionとしてstdout summaryへ残し、既存broker readbackとrisk判断を継続する。実際のpending order readback→補助write failureの順序、未解決数1維持、submit0を確認する。Alpaca315 tests/153 subtestsがPASS。未解決のbroker effectをmetadata失敗で消さない。最新sourceの独立review/全CIを再確認する。
 
+**D3a1 終端診断の修正契約:** 最新head4e83a67d22のfresh GitHub reviewは、paused/killedおよび後続失敗の終端出力からcapture結果が脱落するP2を報告する。通常完了・初期control停止・submit直前control停止・例外終端の既存summaryへ同じcost_inventory_captureを保持する。capture前の例外やliveには結果を捏造しない。再試行やbroker効果の判定、送信内容、旧fenceは変更しない。最小RED→GREENと関連caller検証後、最新headのreview/CIを取り直す。現在cursorはこの終端診断修正。
+
 **原子的TODO:** B1上記schema/独立inventoryの信頼境界と型・enum・時刻・反例を固定→D1 mode保持/混在拒否/live候補・rolling除外→D2既存CFO内の共有query/zero受理→D3scoped coverageと既存paid binding接続→D4broker complete受入と日次/履歴の条件付き評価→E金融review/全CI/main/正式版/対象owner/readback→F公式closed取引・全期間inventory・paid/最終無請求・帰属・broker費用の本物入力接続。各source変更は最小RED→GREENで保存する。反例はsource削除による自己整合、next page/pending/未確定を空請求とする誤り、別account/mode/pair/境界時刻、paid alias再利用、shared query翌日再利用、measured paperのlive混入を含める。sourceの受け入れ経路と実利益証明を分離し、外部証拠が不足してもB/D source実装を止めない。
 
 ### IN-COST-04C 実装計画 — core費用とpaper損益基準
