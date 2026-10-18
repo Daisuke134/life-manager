@@ -163,3 +163,7 @@ class CryptoFeeDebitTests(unittest.TestCase):
                 current['positions'][0]['qty']='0.029925'
                 with self.assertRaisesRegex(ValueError,'owned_fee_debit_invalid'):
                     self.proof(store._rows(ledger),owned,changed,current,mode)
+                missing_known=activity_fixture({'fills':[],'fees':[{**fee,'id':'late-fee','qty':'-0.000075'}]},
+                    mode=mode,start=broker['submitted_at'],end=END)
+                with self.assertRaisesRegex(ValueError,'owned_fee_debit_invalid'):
+                    self.proof(store._rows(ledger),owned,missing_known,current,mode)
