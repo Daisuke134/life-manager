@@ -702,6 +702,14 @@ def _cost_scope_key(scope):
         _instant(scope.get('period_start')),_instant(scope.get('period_end')),scope.get('scope_kind','order_pair'))
 
 
+def _same_cost_scope(left,right):
+    return (type(left.get('paper')) is bool and _query_ids(left.get('order_ids'))
+        and _query_ids(left.get('source_receipt_ids'),nonempty=True)
+        and left.get('product_loop_id')==right.get('product_loop_id')
+        and _cost_scope_key(left)==_cost_scope_key(right)
+        and set(left['source_receipt_ids'])==set(right['source_receipt_ids']))
+
+
 def _inventory_cost_scope(inventory,target,snapshot_at):
     invalid='cost_query_inventory_invalid'
     if (not isinstance(inventory,dict) or type(inventory.get('schema_version')) is not int or inventory['schema_version']!=1
@@ -721,7 +729,8 @@ def _inventory_cost_scope(inventory,target,snapshot_at):
         and _cost_scope_key(row)==_cost_scope_key(target)]
     if len(matches)!=1:raise ValueError('cost_query_inventory_scope_missing')
     scope=matches[0]
-    if (not _query_ids(scope.get('source_receipt_ids'),nonempty=True)
+    if (scope.get('scope_kind') not in ('order_pair','owner_period') or scope.get('paper') is not (mode=='paper')
+            or not _query_ids(scope.get('source_receipt_ids'),nonempty=True)
             or not set(scope['source_receipt_ids'])<=set(target['source_receipt_ids'])
             or not _query_ids(scope.get('evidence_refs'),nonempty=True)
             or not isinstance(scope.get('gaps'),list)):
@@ -871,6 +880,8 @@ def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_recor
         except (ValueError,KeyError,TypeError,AttributeError) as error:
             result['reason']=str(error) if str(error).startswith('cost_query_') else 'cost_query_inventory_invalid'
             result['rejections'].append({'reason':result['reason']})
+            diagnostic=validate_official_cost_queries(payload,snapshot_at=snapshot_at,paid_records=paid_records,scope=scope)
+            result['observations']=[{**row,'inventory_verification':'unverified'} for row in diagnostic['observations']]
             return result
 
     for source, query in candidates:
@@ -924,10 +935,7 @@ def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_recor
                     or start is None or finish is None
                     or not times["window_start"] <= start < finish <= times["window_end"]):
                 raise ValueError
-            scope_fields = ("product_loop_id", "owner_id", "mode", "paper", "order_ids",
-                            "period_start", "period_end", "source_receipt_ids")
-            if not matching or any(type(item.get("paper")) is not bool
-                                   or any(item.get(field) != target.get(field) for field in scope_fields) for item in matching):
+            if not matching or any(not _same_cost_scope(item,target) for item in matching):
                 raise ValueError
             information=prepared.get(target['scope_id'])
             wanted_refs=set();query_keys=set();joined_refs=set()
@@ -1072,7 +1080,8 @@ def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_recor
         result['scope_coverages']=[]
         for scope_id,information in prepared.items():
             trusted=information['scope']
-            complete=set(information['required'])<=information['covered'] and not result['rejections']
+            complete=set(information['required'])<=information['covered'] and not any(
+                rejection.get('scope_id') in (None,scope_id) for rejection in result['rejections'])
             result['scope_coverages'].append({**{k:trusted[k] for k in ('scope_kind','owner_id','mode','paper','order_ids','period_start','period_end','source_receipt_ids')},
                 'scope_id':scope_id,'coverage_state':'complete' if complete else 'gap',
                 'reason':None if complete else 'cost_query_sources_uncovered','evidence_refs':sorted(information['evidence_refs'])})

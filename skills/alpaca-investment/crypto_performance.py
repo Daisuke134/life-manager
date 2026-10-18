@@ -530,7 +530,8 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
         result['fx_requests'],fx_sources=_fx_references(result['cycles'],result['fee_evidence']['attributed_native_fees'],fx_frames,mode=mode)
         result['source_receipt_ids']=sorted(set(result['source_receipt_ids'])|fx_sources)
         phase='operating_costs'
-        expected_inventory=read_expected_inventory(state,result['cycles'],owner_id=owner_id,observed_at=observed)
+        cost_scopes=[{**{k:cycle[k] for k in ('owner_id','mode','order_ids','period_start','closed_at','source_receipt_ids')},'paper':mode=='paper'} for cycle in result['cycles']]
+        expected_inventory=read_expected_inventory(state,cost_scopes,owner_id=owner_id,observed_at=observed)
         result['expected_cost_inventory']=expected_inventory
         incoming=read_readback(os.environ.get('LM_CFO_ACTUAL_COST_READBACK') or os.environ.get('LM_CFO_ACTUAL_COST'))
         old_costs=summarize_operating_costs(result['cycles'],billing_cache,owner_id=owner_id,mode=mode,observed_at=observed,expected_inventory=expected_inventory)
