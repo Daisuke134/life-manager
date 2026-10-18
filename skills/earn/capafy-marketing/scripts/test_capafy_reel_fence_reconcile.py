@@ -23,8 +23,10 @@ def _run_dir(tmp_path, markers=()):
 
 
 def test_both_posts_read_back_proves_the_effect_with_provider_ids(tmp_path):
-    d = _run_dir(tmp_path, ("ig", "x"))
-    proof = build_proof(OCC, d, posts_fn=lambda net, slot: [f"{net}-post-1"])
+    d = _run_dir(tmp_path)
+    receipts = _created(tmp_path, d, "ig-post-1")
+    _created(tmp_path, d, "x-post-1", marker="x")
+    proof = build_proof(OCC, d, posts_fn=lambda net, slot: [f"{net}-post-1"], receipts_dir=receipts)
     assert proof["verified"] is True and proof["outcome"] == "effected"
     assert proof["provider_receipt_id"] == "ig:ig-post-1,x:x-post-1"
     assert proof["owner_id"] == OWNER_ID and proof["occurrence_id"] == OCC
@@ -50,10 +52,12 @@ def test_missing_manifest_raises(tmp_path):
 
 
 def test_second_slot_marker_reads_back_at_second_slot_time(tmp_path):
-    d = _run_dir(tmp_path, ("x",))
-    (d / "dispatch-ig-s2.json").write_text("{}")
+    d = _run_dir(tmp_path)
+    _created(tmp_path, d, "x-1", marker="x")
+    receipts = _created(tmp_path, d, "ig-1", marker="ig-s2")
     seen = []
-    proof = build_proof(OCC, d, posts_fn=lambda net, slot: seen.append((net, slot)) or [f"{net}-1"])
+    proof = build_proof(OCC, d, posts_fn=lambda net, slot: seen.append((net, slot)) or [f"{net}-1"],
+                        receipts_dir=receipts)
     assert ("ig", "2026-10-29T23:00:00.000Z") in seen and ("x", "2026-10-29T17:00:00.000Z") in seen
     assert proof["verified"] is True
 
@@ -62,15 +66,18 @@ def test_second_slot_marker_reads_back_at_second_slot_time(tmp_path):
 # --- the readback binds this occurrence's Postiz create id, not "any post at that minute" ---
 SLUG = "hooklab-d20261029-baking"
 IG_SLOT = "2026-10-29T13:00:00.000Z"
+SLOTS = {"ig": IG_SLOT, "x": "2026-10-29T17:00:00.000Z", "ig-s2": "2026-10-29T23:00:00.000Z"}
 
 
-def _created(tmp_path, d, post_id, slot=IG_SLOT):
-    """dispatch-ig marker + the create receipt capafy_reel_daily.schedule writes after POST /posts."""
-    (d / "dispatch-ig.json").write_text(json.dumps({"slug": SLUG, "net": "ig", "slot": IG_SLOT}))
+def _created(tmp_path, d, post_id, slot=None, marker="ig"):
+    """dispatch marker + the create receipt capafy_reel_daily.schedule writes after POST /posts."""
+    net = marker.partition("-s")[0]
+    slug = SLUG + marker[len(net):]  # slot 2 is another slug
+    (d / f"dispatch-{marker}.json").write_text(json.dumps({"slug": slug, "net": net, "slot": SLOTS[marker]}))
     receipts = tmp_path / "videos"
-    (receipts / SLUG).mkdir(parents=True)
-    (receipts / SLUG / "ig-receipts-v3.jsonl").write_text(json.dumps(
-        {"create": [{"postId": post_id, "integration": "i"}], "scheduled_for": slot}) + "\n")
+    (receipts / slug).mkdir(parents=True, exist_ok=True)
+    (receipts / slug / f"{net}-receipts-v3.jsonl").write_text(json.dumps(
+        {"create": [{"postId": post_id, "integration": "i"}], "scheduled_for": slot or SLOTS[marker]}) + "\n")
     return receipts
 
 
@@ -98,7 +105,15 @@ def test_create_receipt_for_another_slot_does_not_bind_this_marker(tmp_path):
     d = _run_dir(tmp_path)
     receipts = _created(tmp_path, d, "ours", slot="2026-10-29T23:00:00.000Z")
     proof = build_proof(OCC, d, posts_fn=lambda net, slot: ["theirs"], receipts_dir=receipts)
-    assert proof["verified"] is True and proof["provider_receipt_id"] == "ig:theirs"  # unbound: sole candidate
+    assert proof["verified"] is False and proof["outcome"] == "held"  # unbound: a sole candidate is not ours
+
+
+def test_marker_without_create_receipt_and_one_other_owner_candidate_stays_held(tmp_path):
+    # schedule() writes the marker before upload/POST; a crash there leaves no post and no receipt,
+    # and another owner's post on the shared integration that minute is not a proof of ours.
+    d = _run_dir(tmp_path, ("ig",))
+    proof = build_proof(OCC, d, posts_fn=lambda net, slot: ["theirs"], receipts_dir=tmp_path / "videos")
+    assert proof["verified"] is False and proof["outcome"] == "held"
 
 # --- terminal result hint: a passing wake reports its Postiz effect from the same official proof ---
 import os  # noqa: E402
@@ -118,8 +133,10 @@ def _scratch(tmp_path):
 
 
 def test_effected_proof_writes_a_hint_the_runtime_accepts_as_a_postiz_receipt(tmp_path):
-    d = _run_dir(tmp_path, ("ig", "x"))
-    proof = build_proof(OCC, d, posts_fn=lambda net, slot: [f"{net}post1"])
+    d = _run_dir(tmp_path)
+    receipts = _created(tmp_path, d, "igpost1")
+    _created(tmp_path, d, "xpost1", marker="x")
+    proof = build_proof(OCC, d, posts_fn=lambda net, slot: [f"{net}post1"], receipts_dir=receipts)
     hint = _scratch(tmp_path)
     assert write_result_hint(proof, hint) is True
     assert _verified_terminal_effect_result(hint, OWNER_ID, OCC, ENTRYPOINT) == (
@@ -185,9 +202,11 @@ def test_wrapper_fails_closed_and_drops_a_forged_hint_when_the_proof_is_held(tmp
 
 
 def test_result_hint_cli_reads_back_a_claimed_unfenced_occurrence(tmp_path, monkeypatch):
+    import capafy_reel_daily
     import capafy_reel_fence_reconcile as reconcile
 
-    d = _run_dir(tmp_path, ("ig",))
+    d = _run_dir(tmp_path)
+    monkeypatch.setattr(capafy_reel_daily, "BASE", _created(tmp_path, d, "igpost9"))
     monkeypatch.setattr(reconcile, "STATE_ROOT", tmp_path)
     monkeypatch.setattr(reconcile, "postiz_posts_at", lambda net, slot: ["igpost9"])
     monkeypatch.setattr(reconcile, "fenced_state", lambda occ: pytest.fail("a passing wake is not fenced"))

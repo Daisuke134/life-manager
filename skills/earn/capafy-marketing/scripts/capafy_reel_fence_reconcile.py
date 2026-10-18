@@ -11,8 +11,8 @@ Decision:
   - every net that has a dispatch marker reads back its own Postiz post at its slot
     -> effected; provider_receipt_id = the post ids; close via resolve_unknown_occurrence.
     "Its own" = the create postId in that marker's <slug>/<net>-receipts-v3.jsonl for the
-    same slot; with no create id (crash between dispatch and receipt), the only post on the
-    integration in the slot's minute. Another owner's post at that minute never proves ours.
+    same slot. No create id (crash between dispatch and receipt) -> held: the integrations are
+    shared, so a post in the slot's minute (even the only one) never proves ours.
   - no dispatch marker was ever written -> pre-effect proof; close via
     resolve_pre_effect_occurrence.
   - a marker without a read-back post, or any read failure -> held.
@@ -88,8 +88,7 @@ def build_proof(occurrence_id: str, run_dir: Path, *, posts_fn: Callable[[str, s
         return net, slots(day, int(slot) if slot else 1)[net]
     created = {m: create_post_id(receipts_dir or BASE, run_dir / f"dispatch-{m}.json", *at(m)) for m in dispatched}
     candidates = {m: posts_fn(*at(m)) for m in dispatched}
-    found = {m: (created[m] if created[m] in candidates[m] else None) if created[m]
-             else (candidates[m][0] if len(candidates[m]) == 1 else None) for m in dispatched}
+    found = {m: created[m] if created[m] and created[m] in candidates[m] else None for m in dispatched}
     if all(found.values()):
         return {**base, "verified": True, "outcome": "effected",
                 "provider_receipt_id": ",".join(f"{n}:{found[n]}" for n in dispatched)}
