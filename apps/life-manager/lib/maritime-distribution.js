@@ -45,6 +45,26 @@ function sourceAttribution(source, medium = "telegram") {
   };
 }
 
+function renderMaritimeLanding({ source = "direct", language = "en" } = {}) {
+  const campaignSource = normalizeMaritimeSource(source);
+  const isJapanese = String(language || "").toLowerCase().startsWith("ja");
+  const copy = isJapanese ? {
+    title: "TelegramでLife Managerを試す",
+    description: "小さなタスクをひとつ送ると、次の一歩を相談できます。最初はCalendarやGmailを接続せず、機微な情報を含めない短い依頼から試してください。",
+    notice: "メッセージと応答はMaritime AIへ送信されます。Maritime AI creditsを使う場合、MaritimeのPrivacy Policyではrequestとresponseが無期限に保持されることがあります。氏名・住所・連絡先・予定・決済情報などは送らないでください。",
+    consent: "Telegramで保持条件を表示し、初回送信の前に明示同意を求めます。Life Managerは仮名化した利用段階だけを記録し、会話本文は保存しません。",
+    cta: "Telegramで始める",
+  } : {
+    title: "Try Life Manager in Telegram",
+    description: "Send one small task and get a suggested next step. Start without connecting Calendar or Gmail, and keep your first request free of sensitive information.",
+    notice: "Your message and reply are sent to Maritime AI. When Maritime AI credits are used, Maritime's Privacy Policy says requests and responses may be retained indefinitely. Do not send names, addresses, contacts, calendar details, payment information, or other sensitive data.",
+    consent: "We show the retention notice and ask for explicit consent in Telegram before the first request. Life Manager records pseudonymous funnel milestones, not conversation text.",
+    cta: "Continue to Telegram",
+  };
+  const startUrl = `/maritime/start?source=${encodeURIComponent(campaignSource)}`;
+  return `<!doctype html><html lang="${isJapanese ? "ja" : "en"}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Life Manager · Maritime pilot</title><style>body{font:16px/1.65 system-ui,sans-serif;max-width:720px;margin:10vh auto;padding:0 24px;color:#17222d}h1{font-size:clamp(2rem,6vw,3.4rem);line-height:1.1}.notice{border-left:3px solid #b9832e;padding:12px 16px;background:#fbf7ef}a.button{display:inline-block;margin:12px 0;padding:12px 20px;border-radius:28px;background:#c99439;color:#111;text-decoration:none;font-weight:700}</style><main><p>Life Manager · Maritime pilot</p><h1>${copy.title}</h1><p>${copy.description}</p><p class="notice">${copy.notice}</p><p>${copy.consent}</p><p><a href="https://maritime.sh/privacy" rel="noreferrer">Maritime Privacy Policy</a></p><a class="button" href="${startUrl}">${copy.cta}</a></main></html>`;
+}
+
 function createMaritimeDistributionStore({
   env = process.env,
   supaUrl,
@@ -103,6 +123,25 @@ function createMaritimeDistributionStore({
 
   async function recordStart(uid, source) {
     return writeEvent("maritime_start", { uid, source });
+  }
+
+  async function startSource(uid) {
+    const id = participantId(uid);
+    if (!ready() || !id) return "direct";
+    const url = new URL(`${base}/rest/v1/lm_web_funnel_events`);
+    url.searchParams.set("source_object_id", `eq.${id}`);
+    url.searchParams.set("event_name", "eq.maritime_start");
+    url.searchParams.set("select", "attribution,occurred_at");
+    url.searchParams.set("order", "occurred_at.asc");
+    url.searchParams.set("limit", "1");
+    let response;
+    try { response = await fetchImpl(url.toString(), { headers }); }
+    catch { return "direct"; }
+    if (!response || !response.ok) return "direct";
+    const rows = await response.json().catch(() => null);
+    if (!Array.isArray(rows) || rows.length !== 1) return "direct";
+    const source = String(rows[0]?.attribution?.utm_source || "");
+    return source.startsWith("maritime-") ? normalizeMaritimeSource(source.slice("maritime-".length)) : "direct";
   }
 
   async function getParticipant(uid) {
@@ -203,6 +242,7 @@ function createMaritimeDistributionStore({
     getParticipant,
     recordAnonymousEvent,
     recordStart,
+    startSource,
     accept,
     isConsentActive,
     revoke,
@@ -217,5 +257,6 @@ module.exports = {
   parseMaritimeMaxUsers,
   normalizeMaritimeSource,
   parseMaritimeStartPayload,
+  renderMaritimeLanding,
   createMaritimeDistributionStore,
 };

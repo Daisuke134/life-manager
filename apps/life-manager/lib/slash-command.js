@@ -91,7 +91,11 @@ function helpMessage(options = {}) {
     "  /gig — open the Coconala gig lane",
     "  /crowd — open the CrowdWorks gig lane",
     "  /economy — Agent Economy status and emergency control",
-    ...(options.includePilot ? ["  /pilot — message your personal agent (pilot group only)"] : []),
+    ...(options.includePilot ? [
+      "  /maritime_accept — accept the Maritime data-retention notice",
+      "  /pilot — message your personal agent (consent required)",
+      "  /maritime_stop — stop future Maritime pilot requests",
+    ] : []),
     "",
     "You can also type:",
     ...help.availableActions.map((action) => `  ${action}`),

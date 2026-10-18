@@ -38,18 +38,18 @@
 - [x] Run the focused tests and verify expected failures.
 - [x] Implement participant table/RPC and distribution store; extend the existing funnel event allowlist.
 - [x] Run the focused tests and verify the gates, idempotency, and privacy assertions pass.
-- [ ] Commit `feat: add Maritime cohort tracking` and push this branch before Task 2.
+- [x] Commit `feat: add Maritime cohort tracking` and push this branch before Task 2.
 
 ### Task 2: Telegram and HTTP acquisition path
 
-**Files:** `apps/life-manager/server.js`, `apps/life-manager/lib/slash-command.js`, and `apps/life-manager/test/telegram-slash-http-contract.test.js`.
+**Files:** `apps/life-manager/server.js`, `apps/life-manager/lib/slash-command.js`, `apps/life-manager/lib/maritime-distribution.test.js`, and `apps/life-manager/test/telegram-slash-http-contract.test.js`.
 
-**Interfaces:** `GET /maritime` serves the campaign page only when public pilot readiness passes; `GET /maritime/start` redirects only to the validated bot deep link. `/start maritime_<source>` claims or reuses the existing user tenant and displays the data notice without Calendar OAuth. `/maritime_accept` persists consent; `/maritime_stop` revokes it. `/pilot` checks consent before creating its idempotency receipt or calling Maritime.
+**Interfaces:** `GET /maritime` serves the campaign page only when public pilot readiness passes; `GET /maritime/start` redirects only to the validated bot deep link. `/start maritime_<source>` claims or reuses the existing user tenant and displays the data notice without Calendar OAuth. The store's `recordStart(uid, source)` plus `startSource(uid)` preserve first-touch attribution without storing Telegram identity. `/maritime_accept` persists consent; `/maritime_stop` revokes it. `/pilot` checks consent before creating its idempotency receipt or calling Maritime.
 
-- [ ] Add failing HTTP contract coverage for disabled/ready public routes, a new and web-linked Telegram actor, no Calendar start, pre-consent rejection, and post-consent chat.
-- [ ] Run the focused contract test and verify expected failures.
-- [ ] Implement the routes and tenant-aware command path with no prompt/response logging.
-- [ ] Run the focused contract test and verify existing `/start` and `/pilot` behavior remains intact.
+- [x] Add failing contract coverage for the default-off transport gate and ready HTTP routes, a new and web-linked Telegram actor, no Calendar start, pre-consent rejection, and post-consent chat.
+- [x] Run the focused contract test and verify expected failures.
+- [x] Implement the routes and tenant-aware command path with no prompt/response logging.
+- [x] Run the focused contract test and verify existing `/start` and `/pilot` behavior remains intact.
 - [ ] Commit `feat: add Maritime Telegram acquisition path` and push this branch before Task 3.
 
 ### Task 3: Existing Life Manager page CTA and acceptance

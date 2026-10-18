@@ -71,6 +71,12 @@ const { handleCalendarOnboardRequest } = require("./lib/calendar-onboard.js");
 const { parseUserCommand, dispatchParsedControl, executeUserCommand } = require("./lib/user-command.js");
 const { parseSlashCommand, slashAliasText, handleSlashCommand } = require("./lib/slash-command.js");
 const { createMaritimePilotTransport } = require("./lib/transport/maritime-pilot.js");
+const {
+  createMaritimeDistributionStore,
+  normalizeMaritimeSource,
+  parseMaritimeStartPayload,
+  renderMaritimeLanding,
+} = require("./lib/maritime-distribution.js");
 const { createInvestmentStateStore } = require("./lib/investment-state-store.js");
 const { handleFeedbackMessage, createPostgresFeedbackStore } = require("./lib/feedback-intake.js");
 const { handleMentalCorrectionMessage } = require("./lib/mental-correction.js");
@@ -120,6 +126,42 @@ const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY || "sk_test_place
 const SUPA_URL = process.env.SUPABASE_URL, SUPA_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const COMPOSIO_KEY = process.env.COMPOSIO_API_KEY;
 const maritimePilotTransport = createMaritimePilotTransport({ env: process.env });
+const maritimeDistributionStore = createMaritimeDistributionStore({
+  env: process.env, supaUrl: SUPA_URL, supaKey: SUPA_KEY,
+});
+function maritimePublicEntryReady() {
+  const username = String(process.env.LM_TELEGRAM_BOT_USERNAME || "").replace(/^@/, "");
+  return maritimePilotTransport.isPublicEntryEnabled()
+    && /^[A-Za-z][A-Za-z0-9_]{4,31}$/.test(username);
+}
+function maritimeMessages(languageCode) {
+  if (String(languageCode || "").toLowerCase().startsWith("ja")) {
+    return {
+      notice: "このpilotでは、送信したメッセージとLife Managerの応答をMaritime AIへ送ります。Maritime AI credits利用時、MaritimeのPrivacy Policyではrequestとresponseがアカウント削除後も無期限に保持されることがあります。氏名・住所・連絡先・予定・決済情報・秘密情報は送らないでください。続ける場合は /maritime_accept を送信してください。今後の送信を止めるには /maritime_stop を使えます。停止はMaritimeへ送信済みのデータを削除しません。",
+      accept: "同意を記録しました。機微な情報を含めず、短い依頼は /pilot の後に続けて送ってください。今後の送信を止めるには /maritime_stop を使えます。",
+      capacityFull: "今回のpilot cohortは上限に達しました。追加の依頼は受け付けていません。",
+      acceptUnavailable: "同意を保存できませんでした。まだMaritimeへ送信していません。少し待ってから /maritime_accept を再度お試しください。",
+      stopped: "Maritime pilotを停止しました。今後の依頼は送信しません。Maritimeへ送信済みの内容は削除されません。",
+      stopUnavailable: "停止状態を確認できませんでした。今後の依頼を送っていません。少し待ってから /maritime_stop を再度お試しください。",
+      noConsent: "このLife Managerアカウントに有効なMaritime同意はありません。",
+      setup: "Life Managerを /start maritime で開始してから同意してください。",
+      privateOnly: "Maritime pilotは本人との1対1のTelegram chatでのみ利用できます。",
+      disabled: "Maritime pilotは現在利用できません。",
+    };
+  }
+  return {
+    notice: "This pilot sends your message and Life Manager's reply to Maritime AI. When Maritime AI credits are used, Maritime's Privacy Policy says requests and responses may be retained indefinitely, including after account deletion. Do not send names, addresses, contacts, calendar details, payment data, or secrets. To continue, send /maritime_accept. Use /maritime_stop to stop future requests; stopping cannot remove data already sent to Maritime.",
+    accept: "Consent is recorded. Send /pilot followed by one short task, without sensitive information. Use /maritime_stop to stop future requests.",
+    capacityFull: "This pilot cohort is full. No additional requests are being accepted.",
+    acceptUnavailable: "Consent could not be saved, and nothing was sent to Maritime. Please try /maritime_accept again shortly.",
+    stopped: "The Maritime pilot is stopped. Future requests will not be sent. This does not delete content already sent to Maritime.",
+    stopUnavailable: "We could not confirm the stop state, so no new request was sent. Please retry /maritime_stop shortly.",
+    noConsent: "No active Maritime consent was found for this Life Manager account.",
+    setup: "Start Life Manager with /start maritime before accepting the pilot notice.",
+    privateOnly: "Use the Maritime pilot in a private Telegram chat.",
+    disabled: "The Maritime pilot is currently unavailable.",
+  };
+}
 let moneyPrinterSource, moneyPrinterRuntimePool, moneyPrinterRuntimeStore, investmentStateStore, cloudCitizenStore, agentEconomyControlStore;
 let imessageCloudClient = null;
 let imessageCloudStartup = null;
@@ -565,6 +607,46 @@ async function recordStripeWebFunnelEvent(event, billingResult) {
 
 const server = http.createServer(async (req, res) => {
   const path = (req.url || "").split("?")[0];
+  if (path === "/maritime" || path === "/maritime/start") {
+    if (!maritimePublicEntryReady()) {
+      res.writeHead(404, { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" });
+      res.end("Not found");
+      return;
+    }
+    if (req.method !== "GET") {
+      res.writeHead(405, { allow: "GET", "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" });
+      res.end("Method not allowed");
+      return;
+    }
+    let url;
+    try { url = new URL(req.url || "/maritime", "https://life-call.invalid"); }
+    catch {
+      res.writeHead(400, { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" });
+      res.end("Invalid request");
+      return;
+    }
+    const source = normalizeMaritimeSource(url.searchParams.get("source"));
+    if (path === "/maritime/start") {
+      await maritimeDistributionStore.recordAnonymousEvent("maritime_cta_click", source);
+      const username = String(process.env.LM_TELEGRAM_BOT_USERNAME || "").replace(/^@/, "");
+      res.writeHead(302, {
+        location: `https://t.me/${username}?start=maritime_${source}`,
+        "cache-control": "no-store",
+        "content-length": "0",
+      });
+      res.end();
+      return;
+    }
+    await maritimeDistributionStore.recordAnonymousEvent("maritime_landing_view", source);
+    const language = String(url.searchParams.get("lang") || "").toLowerCase().startsWith("ja") ? "ja" : "en";
+    res.writeHead(200, {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store",
+      "x-content-type-options": "nosniff",
+    });
+    res.end(renderMaritimeLanding({ source, language }));
+    return;
+  }
   if (path === "/lm") {
     if (req.method !== "GET") {
       res.writeHead(405, { allow: "GET", "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" });
@@ -1439,26 +1521,55 @@ const server = http.createServer(async (req, res) => {
               return;
             }
           }
+          const maritimeStart = u.kind === "message" && u.isStart ? parseMaritimeStartPayload(u.text) : null;
+          const earlySlash = u.kind === "message" ? parseSlashCommand(u.text) : null;
+          const maritimeSlash = Boolean(earlySlash && ["pilot", "maritime_accept", "maritime_stop"].includes(earlySlash.name));
           let row = await rowByChatId(u.chatId, SUPA_URL, SUPA_KEY);
+          let webUser = null;
           if (!row && u.kind === "message" && u.chatId === u.userId) {
-            const webUser = await webTelegramUserBySender(u.userId, { supaUrl: SUPA_URL, supaKey: SUPA_KEY }).catch(() => null);
-            if (webUser) {
-              if (u.isStart) {
-                await sendMessage(LM_TG_TOKEN, u.chatId, "このTelegramはLife Manager Webに接続済みです。確認が必要な予定に返信できます。");
-              } else if (u.text) {
-                const reply = await resolveTelegramReply(u.chatId, u.text, {
-                  afterTravelOriginAnswer: travelAfterOriginAnswer,
-                });
-                await sendMessage(LM_TG_TOKEN, u.chatId, reply.filled
-                  ? `✅ ${reply.event}の場所を${reply.location}に更新しました。`
-                  : reply.originSet ? reply.travelResult
-                    ? `✅ ${reply.event}の出発元を「${reply.location}」に設定し、Calendarの移動時間を再計算しました。`
-                    : `✅ ${reply.event}の出発元を「${reply.location}」に記録しました。次回の自動確認で使います。`
-                  : "確認が必要な予定への返信として一致しませんでした。Life Managerからの質問に返信してください。");
-              }
+            webUser = await webTelegramUserBySender(u.userId, { supaUrl: SUPA_URL, supaKey: SUPA_KEY }).catch(() => null);
+          }
+          if (!row && webUser && (maritimeStart || maritimeSlash)) row = { uid: webUser.uid };
+          if (!row && webUser) {
+            if (u.isStart) {
+              await sendMessage(LM_TG_TOKEN, u.chatId, "このTelegramはLife Manager Webに接続済みです。確認が必要な予定に返信できます。");
+            } else if (u.text) {
+              const reply = await resolveTelegramReply(u.chatId, u.text, {
+                afterTravelOriginAnswer: travelAfterOriginAnswer,
+              });
+              await sendMessage(LM_TG_TOKEN, u.chatId, reply.filled
+                ? `✅ ${reply.event}の場所を${reply.location}に更新しました。`
+                : reply.originSet ? reply.travelResult
+                  ? `✅ ${reply.event}の出発元を「${reply.location}」に設定し、Calendarの移動時間を再計算しました。`
+                  : `✅ ${reply.event}の出発元を「${reply.location}」に記録しました。次回の自動確認で使います。`
+                : "確認が必要な予定への返信として一致しませんでした。");
+            }
+            res.writeHead(200); res.end("ok");
+            return;
+          }
+          if (maritimeStart) {
+            if (u.chatId !== u.userId) {
+              await sendMessage(LM_TG_TOKEN, u.chatId, "Maritime pilotは本人との1対1のTelegram chatから開始してください。");
               res.writeHead(200); res.end("ok");
               return;
             }
+            if (!row) {
+              const claim = await claimTelegramWebhookActor({
+                actorId: u.userId,
+                chatId: u.chatId,
+                updateId: update.update_id,
+                profileName: [u.firstName, u.lastName].filter(Boolean).join(" "),
+              }, { supaUrl: SUPA_URL, supaKey: SUPA_KEY });
+              if (!new Set(["claimed", "replayed"]).has(claim.status)) throw new Error("telegram actor claim failed");
+              if (claim.status === "claimed" && String(claim.chat_id) !== String(u.chatId)) throw new Error("telegram actor claim failed");
+              row = await rowByChatId(u.chatId, SUPA_URL, SUPA_KEY);
+            }
+            if (!row || !row.uid) throw new Error("telegram actor unavailable");
+            const delivered = await sendMessage(LM_TG_TOKEN, u.chatId, maritimeMessages(u.languageCode).notice);
+            if (!delivered || delivered.ok !== true) throw new Error("Telegram Maritime consent notice send failed");
+            await maritimeDistributionStore.recordStart(row.uid, maritimeStart.source);
+            res.writeHead(200); res.end("ok");
+            return;
           }
           if (u.kind === "message" && u.isStart && !isPanelDeepLink(u.text)) {
             const claim = await claimTelegramWebhookActor({
@@ -1608,8 +1719,53 @@ const server = http.createServer(async (req, res) => {
           // and /panel return handled:false (their existing branches above/below stay the owner),
           // and an unknown /command gets an honest "unknown command + /help" reply.
           if (slash && !slashAlias) {
+            if (slash.name === "maritime_accept") {
+              const copy = maritimeMessages(u.languageCode);
+              if (!row || !row.uid) {
+                await sendMessage(LM_TG_TOKEN, u.chatId, copy.setup);
+              } else if (u.chatId !== u.userId) {
+                await sendMessage(LM_TG_TOKEN, u.chatId, copy.privateOnly);
+              } else if (!maritimePilotTransport.isEnabledFor(row.uid)) {
+                await sendMessage(LM_TG_TOKEN, u.chatId, copy.disabled);
+              } else {
+                const existing = await maritimeDistributionStore.getParticipant(row.uid);
+                const source = existing.participant?.source || await maritimeDistributionStore.startSource(row.uid);
+                const accepted = await maritimeDistributionStore.accept(row.uid, source);
+                await sendMessage(LM_TG_TOKEN, u.chatId, accepted.ok
+                  ? copy.accept
+                  : accepted.status === "capacity_full"
+                    ? copy.capacityFull
+                    : copy.acceptUnavailable);
+              }
+              res.writeHead(200); res.end("ok");
+              return;
+            }
+            if (slash.name === "maritime_stop") {
+              const copy = maritimeMessages(u.languageCode);
+              if (!row || !row.uid) {
+                await sendMessage(LM_TG_TOKEN, u.chatId, copy.noConsent);
+              } else if (u.chatId !== u.userId) {
+                await sendMessage(LM_TG_TOKEN, u.chatId, copy.privateOnly);
+              } else if (await maritimeDistributionStore.revoke(row.uid)) {
+                await sendMessage(LM_TG_TOKEN, u.chatId, copy.stopped);
+              } else {
+                await sendMessage(LM_TG_TOKEN, u.chatId, copy.stopUnavailable);
+              }
+              res.writeHead(200); res.end("ok");
+              return;
+            }
             let maritimePilotReceipt = null;
             if (slash.name === "pilot" && row && row.uid && maritimePilotTransport.isEnabledFor(row.uid)) {
+              if (u.chatId !== u.userId) {
+                await sendMessage(LM_TG_TOKEN, u.chatId, "Use Maritime pilot in a private Telegram chat.");
+                res.writeHead(200); res.end("ok");
+                return;
+              }
+              if (!(await maritimeDistributionStore.isConsentActive(row.uid))) {
+                await sendMessage(LM_TG_TOKEN, u.chatId, maritimeMessages(u.languageCode).notice);
+                res.writeHead(200); res.end("ok");
+                return;
+              }
               const updateId = update.update_id;
               if (!Number.isSafeInteger(updateId) || updateId < 0) throw new Error("maritime_pilot_update_id_invalid");
               const scope = { uid: String(row.uid), chatId: String(u.chatId) };
@@ -1646,6 +1802,10 @@ const server = http.createServer(async (req, res) => {
                 maritimePilotReceipt.idempotencyKey,
                 { status: outcome.ok === true ? "succeeded" : "failed", result: null },
               );
+              if (outcome.ok === true) {
+                await maritimeDistributionStore.markMilestone(maritimePilotReceipt.scope.uid, "first_response");
+                await maritimeDistributionStore.markMilestone(maritimePilotReceipt.scope.uid, "return_7d");
+              }
             }
             if (outcome.handled) {
               console.log(`[slash] command=${slash.name} action=${outcome.action}${outcome.ok === false ? ` reason=${outcome.reason || "failed"}` : ""}${outcome.providerMessageId == null ? "" : ` provider_message_id=${outcome.providerMessageId}`}`);
