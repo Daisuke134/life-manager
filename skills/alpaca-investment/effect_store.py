@@ -482,7 +482,7 @@ def reconcile_started(
                     "recorded_at": datetime.now(timezone.utc).isoformat(),
                     "schema_version": 1,
                 }, ("receipt_type", "effect_id", "outcome", "broker_status",
-                    "broker_receipt_id"))
+                    "broker_receipt_id", "broker"))
                 reconciled += 1
                 continue
             _pending_status(
