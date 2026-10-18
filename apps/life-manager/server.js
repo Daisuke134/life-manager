@@ -627,7 +627,7 @@ const server = http.createServer(async (req, res) => {
     }
     const source = normalizeMaritimeSource(url.searchParams.get("source"));
     if (path === "/maritime/start") {
-      await maritimeDistributionStore.recordAnonymousEvent("maritime_cta_click", source);
+      void maritimeDistributionStore.recordAnonymousEvent("maritime_cta_click", source);
       const username = String(process.env.LM_TELEGRAM_BOT_USERNAME || "").replace(/^@/, "");
       res.writeHead(302, {
         location: `https://t.me/${username}?start=maritime_${source}`,
@@ -637,7 +637,7 @@ const server = http.createServer(async (req, res) => {
       res.end();
       return;
     }
-    await maritimeDistributionStore.recordAnonymousEvent("maritime_landing_view", source);
+    void maritimeDistributionStore.recordAnonymousEvent("maritime_landing_view", source);
     const language = String(url.searchParams.get("lang") || "").toLowerCase().startsWith("ja") ? "ja" : "en";
     res.writeHead(200, {
       "content-type": "text/html; charset=utf-8",

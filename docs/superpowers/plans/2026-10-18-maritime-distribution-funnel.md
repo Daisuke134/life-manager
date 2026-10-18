@@ -50,13 +50,13 @@
 - [x] Run the focused contract test and verify expected failures.
 - [x] Implement the routes and tenant-aware command path with no prompt/response logging.
 - [x] Run the focused contract test and verify existing `/start` and `/pilot` behavior remains intact.
-- [ ] Commit `feat: add Maritime Telegram acquisition path` and push this branch before Task 3.
+- [x] Commit `feat: add Maritime Telegram acquisition path` and push this branch before Task 3.
 
 ### Task 3: Existing Life Manager page CTA and acceptance
 
 **Files:** `apps/landing/app/lm/LmBody.tsx` and the source currently supplying `@/lib/launchStrings` if it exists; otherwise keep the CTA copy local to the component. Update both Maritime specs.
 
-- [ ] Add the second Telegram CTA behind `NEXT_PUBLIC_MARITIME_PILOT_CTA=1`; default build output keeps the existing Calendar CTA only.
-- [ ] Run `node --test apps/life-manager/lib/transport/maritime-pilot.test.js apps/life-manager/lib/maritime-distribution.test.js apps/life-manager/test/telegram-slash-http-contract.test.js`, plus the landing's available type/build check if its project manifest is present.
-- [ ] Run `git diff --check`, inspect the complete diff, and update the canonical SSOT cursor/evidence.
+- [x] Add the second Telegram CTA behind `NEXT_PUBLIC_MARITIME_PILOT_CTA=1`; default build output keeps the existing Calendar CTA only.
+- [x] Run `node --test apps/life-manager/lib/transport/maritime-pilot.test.js apps/life-manager/lib/maritime-distribution.test.js apps/life-manager/test/telegram-slash-http-contract.test.js`, plus the landing's available type/build check if its project manifest is present.
+- [x] Run `git diff --check`, inspect the complete diff, and update the canonical SSOT cursor/evidence.
 - [ ] Commit `feat: add Maritime distribution CTA` and push this branch for PR/CI.

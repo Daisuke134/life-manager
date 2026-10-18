@@ -5,6 +5,8 @@ import { useLaunchLocale } from '@/lib/launchLocale';
 import { launchStrings } from '@/lib/launchStrings';
 
 const WEB_APP_CTA_URL = 'https://life-call-production.up.railway.app/lm?start_calendar=1';
+const MARITIME_PILOT_CTA_ENABLED = process.env.NEXT_PUBLIC_MARITIME_PILOT_CTA === '1';
+const MARITIME_PILOT_URL = 'https://life-call-production.up.railway.app/maritime?source=aniccaai';
 const REPOSITORY_URL = 'https://github.com/Daisuke134/life-manager';
 
 // The public landing page starts the existing Web Calendar connection in the same tab.
@@ -35,6 +37,21 @@ export default function LmBody() {
                   >
                     {t.primaryCta}
                   </a>
+                  {MARITIME_PILOT_CTA_ENABLED && (
+                    <div className="flex flex-col gap-1">
+                      <a
+                        href={`${MARITIME_PILOT_URL}&lang=${locale === 'ja' ? 'ja' : 'en'}`}
+                        className="inline-flex items-center justify-center rounded-pill border border-[hsl(var(--gold))] px-7 py-3 text-sm font-semibold text-[hsl(var(--text-primary))] transition-all hover:-translate-y-0.5"
+                      >
+                        {locale === 'ja' ? 'TelegramでMaritime pilotを試す' : 'Try the Maritime pilot on Telegram'}
+                      </a>
+                      <p className="max-w-sm text-xs leading-5 text-[hsl(var(--text-secondary))]">
+                        {locale === 'ja'
+                          ? 'CalendarやGmailを接続せずに開始できます。最初の依頼前にデータ保持条件を表示します。'
+                          : 'Start without connecting Calendar or Gmail. We show data retention terms before your first request.'}
+                      </p>
+                    </div>
+                  )}
                   <a
                     href={REPOSITORY_URL}
                     target="_blank"

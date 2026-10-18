@@ -81,6 +81,10 @@ Maritime AI creditsを使う場合、MaritimeのPrivacy Policyはrequest本文�
 6. consented userの成功利用と最初の再利用だけが各一件記録され、eventにprompt/response/Telegram IDが含まれない。
 7. DB migrationはappend-only/RLS/service-role boundaryを維持し、本番へは適用しない。
 
+**Source実装状態:** distribution page `/maritime`、allowlist source tag付きTelegram redirect、`/start maritime_<source>`、保持条件の同意/撤回、同意前provider拒否、初回応答と7日再利用の計測をLife Manager sourceに追加した。anonymous landing/click telemetryはbest-effortで、遅い書込みがTelegram redirectを止めない。公開CTAは`NEXT_PUBLIC_MARITIME_PILOT_CTA=1`、server入口は`MARITIME_PILOT_PUBLIC_ENTRY_ENABLED=1`と既存data/tool/API-key gatesが揃った場合だけ開く。人数上限は25人を既定、1,000人まで設定可能。Supabase migrationは作成したが未適用で、production flagは変更していない。招待、実ユーザー入力、Maritime/Keiki account・VMも作成していない。
+
+`apps/landing`には`package.json`、`tsconfig.json`、および`@/lib/launchStrings`のsourceがtrackedされていないため、CTAのfrontend build/typecheckはこのrepo内で実行できない。CTA copyは`LmBody.tsx`に英語/日本語で閉じ、未設定時は既存Calendar CTAだけを表示する。
+
 ## Top 30の審査基準と渡航条件は主催者へ確認する
 
 | 未確定 | 現在わかること | 決め方 |

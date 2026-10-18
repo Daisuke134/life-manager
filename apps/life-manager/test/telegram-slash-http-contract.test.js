@@ -91,6 +91,7 @@ test("POST /telegram routes the legacy-parity slash surface without disturbing e
   const maritimeParticipants = new Map();
   const funnelEvents = [];
   const funnelEventIds = new Set();
+  let slowMaritimeAnonymousEvents = false;
   const maritimeRequests = [];
   let maritimeChatCalls = 0;
   let telegramSendOk = true;
@@ -196,10 +197,16 @@ test("POST /telegram routes the legacy-parity slash surface without disturbing e
     }
     if (url.pathname === "/rest/v1/lm_web_funnel_events" && method === "POST") {
       const row = JSON.parse(init.body || "{}");
-      if (row.source_event_id && funnelEventIds.has(row.source_event_id)) return response(409, []);
-      funnelEvents.push(row);
-      if (row.source_event_id) funnelEventIds.add(row.source_event_id);
-      return response(201, []);
+      const persist = () => {
+        if (row.source_event_id && funnelEventIds.has(row.source_event_id)) return response(409, []);
+        funnelEvents.push(row);
+        if (row.source_event_id) funnelEventIds.add(row.source_event_id);
+        return response(201, []);
+      };
+      if (slowMaritimeAnonymousEvents && row.uid == null) {
+        return new Promise((resolve) => setTimeout(() => resolve(persist()), 300));
+      }
+      return persist();
     }
     if (url.pathname === "/rest/v1/lm_web_funnel_events" && method === "GET") {
       const sourceObjectId = String(url.searchParams.get("source_object_id") || "").replace(/^eq\./, "");
@@ -391,6 +398,13 @@ test("POST /telegram routes the legacy-parity slash surface without disturbing e
     assert.equal(maritimeRedirect.headers.location, "https://t.me/LifeManagerBotbot?start=maritime_discord");
     const invalidSourceRedirect = await get("/maritime/start?source=https%3A%2F%2Fevil.example");
     assert.equal(invalidSourceRedirect.headers.location, "https://t.me/LifeManagerBotbot?start=maritime_other");
+    slowMaritimeAnonymousEvents = true;
+    const slowTrackingStartedAt = Date.now();
+    const fastRedirect = await get("/maritime/start?source=reddit");
+    const fastRedirectMs = Date.now() - slowTrackingStartedAt;
+    slowMaritimeAnonymousEvents = false;
+    assert.equal(fastRedirect.status, 302);
+    assert.ok(fastRedirectMs < 250, `CTA redirect must not wait for slow analytics write; took ${fastRedirectMs}ms`);
     assert.ok(funnelEvents.some((event) => event.event_name === "maritime_landing_view"));
     assert.ok(funnelEvents.some((event) => event.event_name === "maritime_cta_click"));
 

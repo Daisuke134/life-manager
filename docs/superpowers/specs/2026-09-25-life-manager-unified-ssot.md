@@ -19624,19 +19624,21 @@ Top 10 by sales: 0/10 with a trial (Ocup 3,111, Serenity 2,002, HookAce 1,044, V
 
 **推奨:** 既存Cloud/Telegramのtenant導線を使い、ユーザーごとにLife Manager identity、conversation ID、task stateを分離する。主催者が専用VMを要求しない限り、一人ずつVMを作らない。カレンダー・メール接続のいらない低機微な日次タスクを一つ選ぶ。利用者にはMaritime AI credits使用時に入力・出力が無期限保存されると説明し、明示同意前はproviderへ送らない。記録は仮名化ID、紹介元、時刻、結果に限り、自由文を残さない。主なボトルネックはローカル機能より、最初の価値まで短い参加導線と継続的な実利用者獲得と推定する。DuckDuckGo HTMLの限定検索では同じ利用者層・媒体・1,000人条件の実績ある成功事例を確認できなかったため、勝ち筋を捏造せず25人の実験で紹介元→開始→同意→初回有用完了→7日以内再利用を測る。42日で1,000人には平均約24人/日の純増が必要だが、これは算術であり公式の日次条件ではない。
 
-**AS-IS → TO-BE:** 現在は既存のCalendar向け公開CTAとCalendar OAuth開始が中心で、TelegramのMaritime入口・個人別retention同意・紹介元から利用までの大会用計測がない。TO-BEではLife Manager pageに大会向けTelegram CTAを追加し、短いcampaign sourceをTelegram deep linkまで維持する。`/start maritime_<source>`は既存tenant claim後に保持条件を説明して止まり、同意を保存した利用者だけが既存のprovider gateを通って`/pilot`を使える。新規フローはCalendarやカードを初回利用の条件にしない。記録は仮名化UID、campaign source、start/consent/first-success/repeatの時刻と成否に限り、prompt/responseを記録しない。CTA・入口・provider利用は明示feature gateを必要とし、すべてdefault-offのままsource実装する。公開・招待・実ユーザーデータ送信・production設定変更は今回のsource buildに含めない。
+**AS-IS → TO-BE:** 現在の公開ページはCalendar向けtrial CTA、通常Telegram `/start`はCalendar OAuthを始める。大会向けsourceでは`NEXT_PUBLIC_MARITIME_PILOT_CTA=1`の時だけTelegram CTAを表示し、`/maritime` page → allowlist source付きredirect → `/start maritime_<source>` → 保持条件の表示 → `/maritime_accept` → 個人別`/pilot`の順で進む。新規フローはCalendarやGmailを要求しない。`/pilot`は同意保存を確認するまでrequest receiptもprovider callも作らない。HMAC参加者ID、source、start/consent/first-response/7-day-return milestoneだけを記録し、prompt/responseやTelegram IDはイベントへ保存しない。
+
+**Source実装状態:** distribution route、tenant再利用、consent/revoke、25人default cohort cap（設定上限1,000人）、初回応答/7日再利用イベント、既存Life Manager pageのflagged CTAを専用branchに実装する。anonymous page/click telemetryはbest-effortでredirectを待たせない。デフォルトは非公開で既存data/tool/API-key gatesも維持する。DB migrationは未適用、production flagsは未変更、公開・招待・実ユーザー入力・Maritime/Keiki account/VM作成は未実施。`apps/landing`にpackage manifest・tsconfig・`@/lib/launchStrings` sourceがないためfrontend build/typecheckは未確認。
 
 **TODO順変更:** 旧順序「主催者条件 → 名簿 → wedge → Cloud導線 → data/tool同意 → identity → 3人pilot → Top 30 → 25人実験 → 100人 → 1,000人 → winner/渡航」。新順序「default-offのdistribution入口・同意・計測をsource実装 → 主催者条件と名簿 → wedgeとdata/tool条件 → Cloud個人別経路・identity → 3人pilot → 25人の獲得実験 → Top 30 packet → 100人 → 1,000人 → winner/渡航」。理由は大会開始まで日が近く、利用者へ開く前に紹介計測と同意導線を実装しておけば、規約・安全確認を待つ間にも必要なsource作業を閉じられ、最初の実利用を測る時間を増やせるため。25人実験や公開はgate完了後に限る。現在cursorは新TODO 1（source実装）。
 
 この順序にする理由は、利用実績の証明と初週進出が成果を決め、VM1,000台は規約上の条件でないためである。競技サイトと公開life-manager pageを再確認し、同条件の成功配信事例がない現状は小さな測定実験で埋める。
 
-進捗は新TODO 1から始める。詳しい設計と受け入れ条件は[詳細設計](2026-10-16-maritime-pilot-design.md)を参照。
+進捗: TODO 1のsource実装は専用branch上で完了し、PR/CI/main統合を進行中。production migration・flags・配信は未実施。main統合後はTODO 2へ進む。詳しい設計と受け入れ条件は[詳細設計](2026-10-16-maritime-pilot-design.md)を参照。
 
 **Hackathon Radar同期:** Radar Page本文は採択状態・開始日の矛盾・主催者への確認事項を更新し、読み戻し済み。稼働中の日次scan workerには「1,000 distinct qualified agentsを別々のMaritime VMで動かす」という旧指示が残っている。Pages連携にはtask設定を変更・停止する操作が公開されていないため、同じworkerを重複作成しない。設定更新が可能になった時点で、1,000人の実利用を数える指示へ直す。
 
 **TODO（順序、cursor = 1）:**
 
-1. **配布入口・同意・計測をsource実装する。** Life Manager pageから大会向けTelegram deep linkを開き、短いsource tagを保持する。`/start maritime_<source>`で既存tenantをclaimし、Calendar OAuthを開始せず、Maritimeの入力・出力保持条件の説明を表示する。明示同意を永続化し、同意前はprovider callを拒否する。仮名化IDだけでentry/start/consent/first-success/repeatを集計し、自由文を保存しない。すべてdefault-off。公開enableや配信はしない。
+1. **配布入口・同意・計測をsource実装する。** default-offのsourceとfocused testsを専用branchへ実装する。PR/CI/main統合を完了対象とし、production enableや配信は含めない。migration適用・data/tool確認後の3人pilot/25人cohortで「start source → consent → first response → 7-day return」を確認する。
 2. **送信済み確認への返信を読み、競技条件を確定する。** 開始日はメール10/19・Terms10/20。第1週の締切とtimezone、Top 30の評価基準、必須demo/提出物、KeikiとMaritimeの両方が必要か、公式distinct user計数法、一人用agentまたはVMの要否を記録する。2026-10-16送信の確認メールへ重複返信しない。回答が間に合わなければ公開Termsを使い、Top 30基準は未確認と明記する。
 3. **採択チームの名簿と登録案内を揃える。** メールは返信でteam membersを追加できるが、対象者名は書かれていない。private profile/contextから実際のメンバーを照合し、主催者側の名簿追加を確認する。promo/invite codeは元メールに限定する。
 4. **wedgeとdata/tool境界を確定する。** 暫定価値は、本人が今日やりたいことを一言で送り、短い行動計画を受け取り、完了を返せる低機微タスク。Calendar/contact/email/address/payment dataを要求しない。Terms、Privacy、AI-credit retention、tool policyを確認し、実環境でbrowser/code/file/external-sendが無効と確認できるまでprovider gatesをoffにする。
