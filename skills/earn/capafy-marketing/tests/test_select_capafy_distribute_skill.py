@@ -160,3 +160,14 @@ def test_buyer_visible_hook_lab_keeps_half_even_when_its_30d_profit_is_negative(
 
     assert picks.count("hook-lab") == 24
     assert set(picks) == {"hook-lab", "slide-maker", "tiktok-script-pro"}
+
+
+def test_other_sellers_share_the_non_hook_lab_half_by_search_views() -> None:
+    # 2026-10-18: TikTok Script Pro drew 27 search-side views (25 from Google AI Overview) and
+    # YouTube Script Writer 9, yet each got a quarter of all slots.
+    module = load_module()
+    order = module.weighted_rotation("hook-lab", ["tiktok-script-pro", "youtube-script-writer"],
+                                     {"tiktok-script-pro": 27, "youtube-script-writer": 9})
+    assert order.count("hook-lab") == len(order) // 2
+    assert order.count("tiktok-script-pro") == 3 and order.count("youtube-script-writer") == 1
+    assert module.weighted_rotation("hook-lab", ["a", "b"], None) == ["hook-lab", "a", "hook-lab", "b"]
