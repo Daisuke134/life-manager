@@ -35,6 +35,43 @@ def _report(*, net: str = "1.62", report_id: str = "report-etf") -> dict[str, ob
 
 
 class ProvisionSelectionTests(unittest.TestCase):
+    def test_owned_position_preserves_canonical_policy_and_allows_only_same_policy_refresh(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            reports, destination = root / "reports.json", root / "selected-strategy.json"
+            reports.write_text(json.dumps([_report()]))
+            provision_selection(destination, reports)
+            marker = {"status": "open", "strategy_id": "alpaca-etf-126d-momentum-v1",
+                      "owner_id": "alpaca-investment-paper", "symbol": "QQQ", "position_qty": "1",
+                      "client_order_id": "lm-ai-"+"1"*24, "provider_order_id": "provider-entry",
+                      "decision_session": "2026-10-18"}
+            (root / "etf-owned-position.json").write_text(json.dumps(marker))
+            changed = _report(report_id="changed-rules")
+            changed["card"]["entry_rules"] = {"all": ["close > 1"]}
+            reports.write_text(json.dumps([changed]))
+            before = destination.read_bytes()
+            self.assertEqual(provision_selection(destination, reports, refresh=True)["status"], "existing")
+            self.assertEqual(destination.read_bytes(), before)
+            reports.write_text(json.dumps([_report(report_id="same-policy-fresh")]))
+            self.assertEqual(provision_selection(destination, reports, refresh=True)["status"], "created")
+            self.assertEqual(json.loads(destination.read_text())["report_id"], "same-policy-fresh")
+
+    def test_planned_intent_prevents_policy_replacement_before_broker_start(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            reports, destination = root / "reports.json", root / "selected-strategy.json"
+            reports.write_text(json.dumps([_report()]))
+            provision_selection(destination, reports)
+            (root / "receipts.jsonl").write_text(json.dumps({
+                "receipt_type": "effect_intent", "effect_id": "pending", "status": "planned"})+"\n")
+            changed = _report(report_id="changed-rules")
+            changed["card"]["entry_rules"] = {"all": ["close > 1"]}
+            reports.write_text(json.dumps([changed]))
+            before = destination.read_bytes()
+            self.assertEqual(provision_selection(destination, reports, refresh=True)["status"], "existing")
+            self.assertEqual(destination.read_bytes(), before)
+            self.assertTrue((root / ".control.lock").exists())
+
     def test_selected_report_is_written_as_release_pinned_state(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
