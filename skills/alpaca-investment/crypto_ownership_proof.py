@@ -1065,6 +1065,49 @@ def owned_quantity_state_from_rows(rows,ownership,*,mode,owner_id,upto_index=Non
         'last_close_effect_id':last_effect,'last_close_client_order_id':last_client}
 
 
+def native_fee_debit_proof_from_rows(rows,ownership,observation,*,activity_readback,mode,owner_id):
+    """Compose exact evidence; callers alone persist a proven new debit once."""
+    try:
+        state=owned_quantity_state_from_rows(rows,ownership,mode=mode,owner_id=owner_id)
+        acquisition=state['acquisition']['receipt']
+        entry=entry_receipt_row(rows,ownership['entry_effect_id'])
+        start,end=validate_crypto_activity_snapshot(activity_readback,mode=mode)
+        if (ownership.get('status')!='open'
+                or _execution_number(ownership.get('owned_qty'))!=Decimal(state['owned_qty'])
+                or _execution_number(ownership.get('entry_filled_qty'))!=Decimal(acquisition['entry_filled_qty'])
+                or ownership.get('close_effect_id')!=state['last_close_effect_id']
+                or ownership.get('close_client_order_id')!=state['last_close_client_order_id']
+                or start>parse_instant(entry['broker']['submitted_at'])):
+            raise ValueError
+        fees=crypto_buy_fee_activity_proof(activity_readback,entry['broker'],mode=mode)
+        gross=Fraction(acquisition['entry_filled_qty']);sold=Fraction(state['sold_qty'])
+        before=Fraction(state['owned_qty']);total_fee=Fraction(fees['cumulative_fee_qty'])
+        remaining=gross-total_fee-sold
+        if remaining<0 or remaining>before: raise ValueError
+        positions=_account_positions(observation,mode=mode,not_before=max(end,state['last_observed_at']))
+        btc=[p for p in positions if p['symbol'] in {'BTCUSD','BTCUSDC','BTC/USDC','BTC/USD','BTC'}]
+        if len(btc)>1: raise ValueError
+        actual=Fraction(_execution_number(btc[0]['qty'])) if btc else Fraction()
+        if actual<remaining or actual>before: raise ValueError
+        if actual>remaining: raise ReconciliationPending('owned_fee_account_pending')
+    except ReconciliationPending: raise
+    except (ValueError,KeyError,TypeError,AttributeError,ArithmeticError) as error:
+        raise ValueError('owned_fee_debit_invalid') from error
+    return {'account_readback':observation,'activity_readback':activity_readback,'receipt':{
+        'schema_version':1,'kind':'owned_crypto_fee_debit','owner_id':owner_id,'mode':mode,
+        **{key:acquisition[key] for key in ('strategy_id','release_sha','entry_effect_id',
+            'entry_client_order_id','entry_provider_order_id')},
+        'last_close_effect_id':state['last_close_effect_id'],
+        'last_close_client_order_id':state['last_close_client_order_id'],
+        'entry_filled_qty':_quantity_text(gross),'acquisition_owned_qty':acquisition['account_owned_qty'],
+        'sold_qty':_quantity_text(sold),'before_owned_qty':_quantity_text(before),
+        'cumulative_fee_qty':_quantity_text(total_fee),'debit_qty':_quantity_text(before-remaining),
+        'remaining_owned_qty':_quantity_text(remaining),'fee_evidence':fees,
+        'observed_at':parse_instant(observation['clock']['observed_at']).isoformat(),
+        'quote_currency':'USDC','fee_settlement_status':'unknown',
+        'fee_completeness_status':'unknown','net_realized_pnl_usd':None}}
+
+
 def _sell_chain_before(rows,ownership,decision,*,mode,owner_id,broker,activity_readback=None):
     current=[i for i,row in enumerate(rows) if row.get('receipt_type')=='effect_intent'
              and row.get('status')=='planned' and row.get('effect_id')==ownership['close_effect_id']]
