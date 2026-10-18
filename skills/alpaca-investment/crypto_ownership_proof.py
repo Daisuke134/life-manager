@@ -29,7 +29,8 @@ def _digest(value: Any) -> str:
 def _sealed_entry_from_rows(rows: list[dict[str, Any]], ownership: dict[str, Any], *, owner_id: str, mode: str) -> dict[str, Any]:
     """Read the sealed policy and official filled buy for one owned entry."""
     if (not isinstance(mode, str) or mode not in {"paper", "live"}
-            or owner_id != f"alpaca-investment-{mode}" or not isinstance(ownership, dict)):
+            or owner_id != f"alpaca-investment-{mode}" or not isinstance(ownership, dict)
+            or ownership.get("symbol") != "BTCUSD"):
         raise ValueError("owned_entry_identity_invalid")
     effect_id, client = ownership.get("entry_effect_id"), ownership.get("entry_client_order_id")
     if (not isinstance(effect_id, str) or re.fullmatch(r"[0-9a-f]{64}", effect_id) is None
@@ -321,7 +322,10 @@ def no_fill_entry_proof_from_rows(rows: list[dict[str, Any]], ownership: dict[st
         for row in rows:
             if row.get('effect_id') != effect:
                 continue
-            if ((row.get('mode') is not None and row.get('mode') != mode)
+            if ((row.get('owner_id') is not None and row.get('owner_id') != owner_id)
+                    or (row.get('strategy_id') is not None and row.get('strategy_id') != card.strategy_id)
+                    or (row.get('release_sha') is not None and row.get('release_sha') != release)
+                    or (row.get('mode') is not None and row.get('mode') != mode)
                     or (row.get('paper') is not None and row.get('paper') is not (mode == 'paper'))
                     or (row.get('client_order_id') is not None and row.get('client_order_id') != client)
                     or (row.get('broker_receipt_id') is not None and row.get('broker_receipt_id') != broker['id'])
@@ -339,6 +343,8 @@ def no_fill_entry_proof_from_rows(rows: list[dict[str, Any]], ownership: dict[st
                 pass
             if row.get('receipt_type') != 'outcome':
                 continue
+            if row.get('broker_status') is not None and row.get('broker_status') != previous.get('status'):
+                raise ValueError
             if (row.get('outcome') != 'broker_terminal_failure' or not isinstance(row.get('broker'), dict)
                     or row.get('mode') != mode or row.get('paper') is not (mode == 'paper')
                     or row.get('client_order_id') != client or row.get('broker_receipt_id') != broker['id']):
