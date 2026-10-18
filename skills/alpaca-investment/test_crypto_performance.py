@@ -23,13 +23,14 @@ PERF=importlib.import_module('crypto_performance') if importlib.util.find_spec('
 NOW='2026-01-01T06:00:00Z'
 
 
-def cycle_fixture(root,mode='paper',index=0,partial=False,zero=False,buy_price='200',native_account_id=None):
+def cycle_fixture(root,mode='paper',index=0,partial=False,zero=False,buy_price='200',native_account_id=None,pre_trade_readback=None,credited_qty='0.05'):
     owner=f'alpaca-investment-{mode}';base=datetime(2026,1,1,4,tzinfo=timezone.utc)+timedelta(minutes=20*index)
     stamp=lambda seconds:(base+timedelta(seconds=seconds)).isoformat()
     card=candidate_cards()['alpaca-btc-5m-trend-400-v2']
     decision={'action':'ENTER','mode':mode,'owner_id':owner,'strategy_id':card.strategy_id,'release_sha':'a'*40,
               'policy_card':card.to_mapping(),'observed_at':stamp(0)}
     if native_account_id is not None:decision['native_trading_account_id']=native_account_id
+    if pre_trade_readback is not None:decision['pre_trade_account_readback']=copy.deepcopy(pre_trade_readback)
     ledger=root/'receipts.jsonl';sealed=store.seal(ledger,decision,{'asset_class':'crypto','symbol':'BTC/USDC',
         'side':'buy','type':'market','time_in_force':'gtc','notional_usd':'10'});store.mark_started(ledger,sealed)
     buy={'id':f'buy-{index}','client_order_id':sealed['client_order_id'],'status':'filled','symbol':'BTCUSDC',
@@ -38,15 +39,15 @@ def cycle_fixture(root,mode='paper',index=0,partial=False,zero=False,buy_price='
     owned={'status':'entry_pending','symbol':'BTCUSD','entry_effect_id':sealed['effect_id'],
            'entry_client_order_id':sealed['client_order_id'],'entry_filled_qty':'0'}
     account={'mode':mode,'paper':mode=='paper','account':{'cash':'0','equity':'100'},
-             'positions':[{'symbol':'BTCUSDC','qty':'0.05'}],'clock':{'observed_at':stamp(2)}}
+             'positions':[{'symbol':'BTCUSDC','qty':credited_qty}],'clock':{'observed_at':stamp(2)}}
     if native_account_id is not None:account['account']['id']=native_account_id
     acquisition=proofs.entry_fill_proof_from_rows(store._rows(ledger),owned,buy,account,mode=mode,owner_id=owner)
     store.reconcile_started(ledger,lambda _:buy,on_reconciled=lambda *_:acquisition)
-    owned.update(status='open',entry_filled_qty='0.05',owned_qty='0.05')
+    owned.update(status='open',entry_filled_qty='0.05',owned_qty=credited_qty)
     fills=[{'id':f'buy-fill-{index}','activity_type':'FILL','order_id':buy['id'],'symbol':'BTCUSDC','side':'buy',
             'qty':'0.05','price':buy_price,'transaction_time':stamp(1)}]
-    orders=[buy];quantities=(['0'] if zero else [])+(['0.02','0.03'] if partial else ['0.05'])
-    before='0.05'
+    orders=[buy];quantities=(['0'] if zero else [])+(['0.02',proofs._quantity_text(proofs.Fraction(credited_qty)-proofs.Fraction('0.02'))] if partial else [credited_qty])
+    before=credited_qty
     for n,qty in enumerate(quantities):
         price='211' if partial and qty=='0.03' else '210';seconds=300*(n+1)
         parent=proofs._owned_policy(proofs.owned_entry_decision_from_rows(store._rows(ledger),owned,mode=mode,owner_id=owner),owned,mode=mode)
