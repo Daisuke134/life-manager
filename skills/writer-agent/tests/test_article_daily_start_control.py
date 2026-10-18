@@ -905,14 +905,42 @@ class ArticleStartPolicyTest(unittest.TestCase):
         if pair == "note/ja":
             result.update({"monetization_verified": True, "price": 500})
         else:
+            # JA publication has payments enabled; EN has payments disabled,
+            # so its live audience is free ("everyone").
+            audience = "only_paid" if pair == "substack/ja" else "everyone"
             result.update(
                 {
                     "monetization_verified": True,
-                    "audience": "only_paid",
+                    "audience": audience,
+                    "expected_audience": audience,
                     "paywall_verified": True,
                 }
             )
         return result
+
+    def test_substack_audience_that_disagrees_with_payments_state_stays_blocked(self):
+        def mismatched_probe(pair, target, state):
+            result = self._fake_remote_probe(pair, target, state)
+            if pair == "substack/en":
+                result["expected_audience"] = "only_paid"
+            return result
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            run, state, rows = self._x_readability_release_fixture(root)
+            with patch.dict(sys.modules, {"publication_resume": RESUME, "publication_remote": REMOTE}), patch.object(
+                RESUME.PublicationStore,
+                "validate_managed_boundary",
+                return_value=state,
+            ), patch.object(RESUME, "validate_receipt_evidence"), patch.object(
+                REMOTE, "probe", side_effect=mismatched_probe
+            ), patch.object(
+                START, "validated_live_set", return_value=(False, None)
+            ), patch.object(START, "proof", side_effect=START.QuarantineError("not duplicate")), patch.object(
+                START, "publication_plan", return_value={"resumable": True}
+            ):
+                decision = START.decide(root, "2026-08-21")
+        self.assertEqual(decision["action"], "skip-pending-worker")
 
     def test_unavailable_x_readability_proof_releases_new_run(self):
         with tempfile.TemporaryDirectory() as tmp:

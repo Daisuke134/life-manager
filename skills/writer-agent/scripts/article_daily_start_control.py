@@ -340,7 +340,7 @@ def unavailable_x_readability_release(
     revenue_pairs = {"note/ja", "substack/ja", "substack/en"}
     seen_pairs: set[str] = set()
     try:
-        from publication_remote import probe
+        from publication_remote import SUBSTACK_AUDIENCES, probe
     except Exception:
         return False
     x_readback = probe("x-article/ja", str(x_entry["target"]), state)
@@ -409,9 +409,11 @@ def unavailable_x_readability_release(
                     and remote.get("price") == 500
                 )
                 or (
+                    # audience must match the live payments_state readback
                     pair.startswith("substack/")
                     and remote.get("monetization_verified") is True
-                    and remote.get("audience") == "only_paid"
+                    and remote.get("audience") in SUBSTACK_AUDIENCES
+                    and remote.get("audience") == remote.get("expected_audience")
                     and remote.get("paywall_verified") is True
                 )
             )

@@ -174,3 +174,84 @@ def test_refresh_refuses_live_or_ambiguous_target_before_media_put(
     with pytest.raises(MODULE.m.SubstackRepairRefused, match="live or ambiguous"):
         MODULE.refresh("substack/ja")
     assert calls == [("GET", "/api/v1/drafts/123")]
+
+
+PAYLOAD_SPEC = importlib.util.spec_from_file_location(
+    "substack_paid_payload_for_refresh",
+    SCRIPT.with_name("substack_paid_payload.py"),
+)
+PAYLOAD = importlib.util.module_from_spec(PAYLOAD_SPEC)
+assert PAYLOAD_SPEC.loader is not None
+PAYLOAD_SPEC.loader.exec_module(PAYLOAD)
+EN_HOST = "aniccaai2026.substack.com"
+ARTICLE = "\n\n".join([f"Paragraph {index} " + "x" * 300 for index in range(6)])
+
+
+def _refresh_fixture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, read_audience):  # type: ignore[no-untyped-def]
+    image = tmp_path / "headline.png"
+    image.write_bytes(b"immutable")
+    state = {
+        "pairs": {"substack/en": {"status": "intent", "target": "123"}},
+        "media": {
+            "headline_image": {"path": str(image), "sha256": MODULE.m.sha256(image)},
+            "body_assets": [],
+        },
+    }
+    calls: list[tuple[str, str, dict | None]] = []
+    old = {
+        "id": 123,
+        "publication": EN_HOST,
+        "draft_title": "title",
+        "draft_bylines": [{"id": 42}],
+        "is_published": False,
+        "post_date": None,
+    }
+
+    def request(method: str, path: str, payload=None):  # type: ignore[no-untyped-def]
+        calls.append((method, path, payload))
+        return old if method == "GET" else {"id": 123}
+
+    def rebuild(_state, _lang):  # type: ignore[no-untyped-def]
+        calls.append(("REBUILD", "media", None))
+        return ARTICLE
+
+    monkeypatch.setattr(MODULE.m, "_state", lambda: state)
+    monkeypatch.setattr(MODULE.m, "_publication", lambda: EN_HOST)
+    monkeypatch.setattr(MODULE.m, "_identity", lambda: 42)
+    monkeypatch.setattr(MODULE.m, "_request", request)
+    monkeypatch.setattr(MODULE, "_build_embedded_markdown", rebuild)
+    monkeypatch.setattr(
+        MODULE.m,
+        "_payload_contract",
+        lambda: SimpleNamespace(
+            read_publication_audience=read_audience,
+            build_paid_draft_payload=PAYLOAD.build_paid_draft_payload,
+        ),
+    )
+    return calls
+
+
+def test_refresh_puts_the_audience_the_live_payments_state_allows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls = _refresh_fixture(tmp_path, monkeypatch, lambda host: "everyone")
+
+    MODULE.refresh("substack/en")
+
+    put = [payload for method, _path, payload in calls if method == "PUT"]
+    assert len(put) == 1
+    assert put[0]["audience"] == "everyone"
+    assert '"type":"paywall"' not in put[0]["draft_body"]
+
+
+def test_refresh_stops_before_media_or_put_when_payments_state_is_unreadable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def unreadable(_host: str) -> str:
+        raise ValueError("Substack preloads JSON is missing")
+
+    calls = _refresh_fixture(tmp_path, monkeypatch, unreadable)
+
+    with pytest.raises(MODULE.m.SubstackRepairRefused, match="payments_state"):
+        MODULE.refresh("substack/en")
+    assert [method for method, _path, _payload in calls] == ["GET"]
