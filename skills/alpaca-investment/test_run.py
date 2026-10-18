@@ -428,17 +428,55 @@ class BrokerSnapshotTest(unittest.TestCase):
                 cli_path=Path("alpaca"), observed_at="2026-09-10T08:05:00Z")
         self.assertEqual(result["BTC/USDC"][0]["c"], "101")
 
-    def test_crypto_history_accepts_inclusive_four_hour_window(self):
-        start = datetime(2026, 9, 10, 4, 5, tzinfo=timezone.utc)
+    def test_crypto_history_accepts_inclusive_eight_hour_window_and_returns_completed_bars(self):
+        start = datetime(2026, 9, 10, 0, 5, tzinfo=timezone.utc)
         rows = [{"symbol": "BTC/USDC", "bars": [
             {"t": (start + timedelta(minutes=5 * index)).isoformat().replace("+00:00", "Z"),
              "o": 100, "h": 102, "l": 99, "c": 101}
-            for index in range(49)]}]
+            for index in range(97)]}]
         with patch.object(CLI, "_context", return_value={}), patch.object(
                 CLI, "_run", return_value=rows):
             result = CLI.read_crypto_history(credentials_path=Path("credentials"),
                 cli_path=Path("alpaca"), observed_at="2026-09-10T08:05:00Z")
-        self.assertEqual(len(result["BTC/USDC"]), 49)
+        self.assertEqual(len(result["BTC/USDC"]), 96)
+        self.assertEqual(result["BTC/USDC"][-1]["t"], "2026-09-10T08:00:00Z")
+
+    def test_crypto_history_supplies_the_existing_trend_indicator_warmup(self):
+        from strategy_policy import candidate_cards, evaluate
+        observed = "2026-09-10T08:05:00Z"
+        def serve(_cli, args, _env):
+            start = datetime.fromisoformat(args[args.index("--start") + 1].replace("Z", "+00:00"))
+            end = datetime.fromisoformat(args[args.index("--end") + 1].replace("Z", "+00:00"))
+            count = int((end - start).total_seconds() // 300) + 1
+            return [{"symbol": "BTC/USDC", "bars": [
+                {"t": (start + timedelta(minutes=5 * index)).isoformat(),
+                 "o": 100 + index, "h": 102 + index, "l": 99 + index, "c": 101 + index}
+                for index in range(count)]}]
+        with patch.object(CLI, "_context", return_value={}), patch.object(CLI, "_run", side_effect=serve) as run:
+            history = CLI.read_crypto_history(credentials_path=Path("credentials"),
+                cli_path=Path("alpaca"), observed_at=observed)
+        decision = evaluate({"clock": {"timestamp": observed},
+            "crypto": [{"symbol": "BTC/USDC", "bid": "195", "ask": "196", "quote_at": observed}],
+            "crypto_history": history, "positions": 0, "position": None},
+            candidate_cards()["alpaca-btc-5m-trend-v1"])
+        self.assertNotEqual(decision["reason"], "history_insufficient")
+        self.assertIn("ema_50", decision["signal_inputs"])
+        args = run.call_args.args[1]
+        self.assertEqual(args[args.index("--start") + 1], "2026-09-10T00:05:00Z")
+        self.assertEqual(args[args.index("--limit") + 1], "1000")
+
+    def test_crypto_history_omits_the_forming_interval_at_aligned_and_unaligned_times(self):
+        bars = [{"t": f"2026-09-10T07:{minute:02d}:00Z", "o": 100, "h": 102, "l": 99, "c": 101}
+                for minute in (35, 40, 45, 50, 55)] + [
+                {"t": "2026-09-10T08:00:00Z", "o": 100, "h": 102, "l": 99, "c": 101},
+                {"t": "2026-09-10T08:05:00Z", "o": 100, "h": 102, "l": 99, "c": 101}]
+        for observed in ("2026-09-10T08:05:00Z", "2026-09-10T08:07:00Z"):
+            with self.subTest(observed=observed), patch.object(CLI, "_context", return_value={}), \
+                    patch.object(CLI, "_run", return_value=[{"symbol": "BTC/USDC", "bars": bars}]):
+                result = CLI.read_crypto_history(credentials_path=Path("credentials"),
+                    cli_path=Path("alpaca"), observed_at=observed)
+                self.assertEqual(len(result["BTC/USDC"]), 6)
+                self.assertEqual(result["BTC/USDC"][-1]["t"], "2026-09-10T08:00:00Z")
 
     def test_crypto_history_rejects_future_or_malformed_bars(self):
         cases = [
@@ -463,7 +501,7 @@ class BrokerSnapshotTest(unittest.TestCase):
             [],
             [{"symbol": "ETH/USDC", "bars": valid}],
             [{"symbol": "BTC/USDC", "bars": valid[:5]}],
-            [{"symbol": "BTC/USDC", "bars": [{**valid[0], "t": "2026-09-10T04:00:00Z"}, *valid[1:]]}],
+            [{"symbol": "BTC/USDC", "bars": [{**valid[0], "t": "2026-09-10T00:00:00Z"}, *valid[1:]]}],
             [{"symbol": "BTC/USDC", "bars": [valid[1], valid[0], *valid[2:]]}],
             [{"symbol": "BTC/USDC", "bars": [valid[0], valid[0], *valid[2:]]}],
             [{"symbol": "BTC/USDC", "bars": [valid[0], {**valid[1], "t": "2026-09-10T07:41:00Z"}, *valid[2:]]}],
