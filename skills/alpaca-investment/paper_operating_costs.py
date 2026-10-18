@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import sys
 from datetime import datetime
-from decimal import Decimal, localcontext
+from decimal import Context, Decimal, localcontext
 from pathlib import Path
 from typing import Any
 
@@ -54,6 +54,12 @@ def select_components(summary: dict, trips) -> dict:
                   if _binding(row) in pairs]
     coverages=[row for row in summary.get('operating_cost_scope_coverages',[]) if _binding(row) in pairs]
     component_gaps=[row for row in summary.get('operating_cost_component_gaps',[]) if _binding(row) in pairs]
+    for component in components:
+        if (component.get('attribution_basis')!='verified_execution_window'
+                and any(_binding(row)==_binding(component) and row.get('coverage_state')=='complete' for row in coverages)
+                and not any(g.get('receipt_id')==component['receipt_id'] and _binding(g)==_binding(component) for g in component_gaps)):
+            component_gaps.append({**{k:component[k] for k in ('receipt_id','provider','order_ids','period_start','period_end')},
+                'reason':'operating_cost_paid_attribution_unverified'})
     complete=not component_gaps and bool(requested) and len(pairs)==len(requested) and all(
         len([row for row in coverages if _binding(row)==key])==1
         and next(row for row in coverages if _binding(row)==key)['coverage_state']=='complete' for key in pairs)
@@ -63,12 +69,14 @@ def select_components(summary: dict, trips) -> dict:
         amounts = [Decimal(row["amount_usd"]) for row in components if row["category"] in categories]
         if not amounts:
             return None
-        with localcontext() as context:
+        with localcontext(Context()) as context:
             context.prec = max(len(format(amount, "f").replace(".", "")) for amount in amounts) + len(str(len(amounts))) + 1
             return format(sum(amounts, Decimal("0")), "f")
     return {
-        "operating_costs_status": "partial" if components else "unknown",
-        "operating_costs_reason": ("scoped_paid_components_only" if components
+        "model_cost_usd":(subtotal({'model_cost'}) or '0') if complete else None,
+        "system_cost_usd":(subtotal({'tool_cost','browser_cost','infra_cost'}) or '0') if complete else None,
+        "operating_costs_status": "complete" if complete else "partial" if components else "unknown",
+        "operating_costs_reason": ("confirmed_scoped_costs" if complete else "scoped_paid_components_only" if components
                                    else "no_scoped_paid_components_for_day" if summary.get("operating_cost_components")
                                    else summary.get("operating_costs_reason", "no_scoped_paid_components")),
         "operating_costs_observed_at": summary.get("operating_costs_observed_at"),
@@ -186,8 +194,7 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inven
         charge_conflicts = set()
         for receipt in records:
             if (receipt["record_type"] != "receipt" or receipt["product_loop_id"] != "investment"
-                    or receipt["currency"] != "USD" or receipt["verification_state"] != "verified"
-                    or f"actual-cost-{receipt['provider']}" not in covered):
+                    or receipt["currency"] != "USD" or receipt["verification_state"] != "verified"):
                 continue
             identity = receipt["receipt_id"]
             if identity in conflicts or identity not in raw:
@@ -223,6 +230,7 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inven
                     component_gaps.append({'receipt_id':identity,'provider':provider,'owner_id':owner_id,'mode':mode,'paper':mode=='paper',
                         'order_ids':trip['order_ids'],'period_start':trip['period_start'],'period_end':_cost_end(trip),'reason':reason})
                     continue
+                if f"actual-cost-{provider}" not in covered and proof is not True:continue
                 if calendar and not inside or proof is False or proof is None and not inside:continue
                 component = receipt["components"][0]
                 cost = {
@@ -240,6 +248,50 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inven
                         charge_conflicts.add(charge_identity)
                 else:
                     accepted[charge_identity] = cost
+        def claims_current(join,trip,value):
+            provider,kind,doc_id,line,allocation,charge,account=value
+            return (isinstance(join,dict) and join.get('join_type')!='scope_query' and join.get('provider')==provider
+                and join.get('document_type')==kind and join.get('document_id')==doc_id
+                and join.get('line_item_id')==line.get('line_item_id') and join.get('allocation_id')==allocation.get('allocation_id')
+                and join.get('job_id')==allocation.get('job_id') and join.get('product_loop_id')=='investment'
+                and join.get('owner_id')==owner_id and join.get('mode')==mode and join.get('paper') is (mode=='paper')
+                and _binding(join)==_binding(trip))
+        for trip in trips:
+            binding=_binding(trip)
+            proofs=[row for row in observations if row.get('inventory_verification')=='verified'
+                and row.get('settlement_state') in {'paid_final','no_charge_final'} and _binding(row)==binding]
+            for receipt in records:
+                if (receipt.get('record_type')!='receipt' or receipt.get('product_loop_id')!='investment'
+                        or receipt.get('verification_state')!='verified' or receipt.get('currency')!='USD'):
+                    continue
+                identity=receipt['receipt_id'];value=raw.get(identity)
+                if value is None:continue
+                provider,kind,document_id,line,allocation,charge,account=value
+                claimed=any(claims_current(join,trip,value) for join in payload.get('job_joins',[]))
+                relevant=any(row.get('provider')==provider and line.get('category') in row.get('covered_categories',[])
+                    and (account is None or claimed or row.get('billing_account_ref')==account and document_id in row.get('document_ids',[])) for row in proofs)
+                if not relevant:continue
+                known=accepted.get(charge)
+                resolved=(charge not in charge_conflicts and known is not None
+                    and known.get('attribution_basis')=='verified_execution_window')
+                if resolved:continue
+                if any(g.get('receipt_id')==identity and _binding(g)==binding for g in component_gaps):continue
+                reason='operating_cost_paid_charge_conflict' if charge in charge_conflicts else 'operating_cost_paid_allocation_unattributed'
+                component_gaps.append({'receipt_id':identity,'provider':provider,'owner_id':owner_id,'mode':mode,'paper':mode=='paper',
+                    'order_ids':trip['order_ids'],'period_start':trip['period_start'],'period_end':_cost_end(trip),'reason':reason})
+        verified_ids={r.get('receipt_id') for r in records if r.get('record_type')=='receipt' and r.get('verification_state')=='verified'}
+        for trip in trips:
+            proofs=[row for row in observations if row.get('inventory_verification')=='verified' and _binding(row)==_binding(trip)]
+            for identity,value in raw.items():
+                if identity in verified_ids:continue
+                provider,kind,document_id,line,allocation,charge,account=value
+                if allocation.get('product_loop_id')!='investment' or not any(claims_current(join,trip,value) for join in payload.get('job_joins',[])):continue
+                if not any(row.get('provider')==provider and line.get('category') in row.get('covered_categories',[])
+                        and (account is None or row.get('billing_account_ref')==account) for row in proofs):continue
+                component_gaps.append({'document_type':kind,'document_id':document_id,'line_item_id':line.get('line_item_id'),
+                    'allocation_id':allocation.get('allocation_id'),'provider':provider,'owner_id':owner_id,'mode':mode,'paper':mode=='paper',
+                    'order_ids':trip['order_ids'],'period_start':trip['period_start'],'period_end':_cost_end(trip),
+                    'reason':'operating_cost_claimed_allocation_unverified'})
         summary['operating_cost_component_gaps']=component_gaps
         summary.update({"operating_cost_components": [accepted[key] for key in sorted(accepted)
                                                       if key not in charge_conflicts],
