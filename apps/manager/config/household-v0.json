@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "state": "44",
+  "period": "2020-2024",
+  "universe": "Occupied housing units and their residents; group quarters excluded",
+  "cell_order": ["family_1", "family_2", "family_3plus", "nonfamily_1", "nonfamily_2", "nonfamily_3plus"],
+  "methods": ["baseline", "calibrated"],
+  "tolerance": 1e-10,
+  "max_iterations": 1000,
+  "rng_seed": 20261018,
+  "integerization_replicates": 10,
+  "max_households": 1000000,
+  "max_persons": 5000000
+}

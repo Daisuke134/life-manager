@@ -3527,3 +3527,5 @@ Ruling: 8Bのroutineなスキーマ/数値仕様は、本人の繰返しの「�
 Ruling: 進捗ledgerは既存統合SSOTだけとし、別の進捗正本を作らない — AGENTSの指定 — skill自動ledger scriptは使わず検証ログをGit外へ保存する。
 
 設計/plan自己検査：型とCLI接続、family1構造的ゼロ、WGTP/PWGTP、整数化前後、同資料由来の限界を固定。成果を見てsize区分/seedを選び直さない。source→prepare→fit→export→scoreの境界とhashを共有し、referenceはscore以外が開かない。実装はTDDで5まとまりをinline実行し、最後だけ別コンテキストreviewerを使う。
+
+8B Task1 complete：Person/Household/HouseholdControls、PUMS読込と所属検証、B11016周辺制約、bounded公式fetchとsource hash確認を実装。未実装importでRED→全36テストPASS。ZIP/州/header/型/欠員/重複/GQ/空き家/改ざんを検査。既存8A29テスト維持。追加依存なし。source checkoutを継続利用。
