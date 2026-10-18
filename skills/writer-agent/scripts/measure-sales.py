@@ -537,9 +537,11 @@ def _substack_api(payload: dict) -> tuple[int | None, float | None]:
 
 
 def _card_agrees(shown: str | None, value: float) -> bool:
-    """Substack prints 0 and null alike as '-'; a card that shows a number must equal the JSON."""
+    """Substack prints 0 and null alike as '-'; a card that shows a number must equal the JSON.
+
+    No card means no visible anchor for the JSON field, so the value stays unknown."""
     if shown is None:
-        return True
+        return False
     if shown == "-":
         return value == 0
     cleaned = re.sub(r"[^\d.]", "", shown)

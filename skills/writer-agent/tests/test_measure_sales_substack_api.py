@@ -52,6 +52,17 @@ def test_dash_without_dashboard_json_stays_unknown():
     assert all(ok is False and value is None for value, ok, _ in result.values())
 
 
+def test_missing_dashboard_cards_keep_json_values_unknown():
+    # Review 2026-10-18: a relabelled or moved card must not let the unproven JSON field
+    # become a measured money value on its own.
+    api = json.loads(json.dumps(ZERO_API))
+    api["summary"]["subscribers"] = 7
+    result = metrics(home="no paid card here", earnings="no earnings card here", api=api)
+    assert result["paid_subscribers"][:2] == (None, False)
+    assert result["revenue"][:2] == (None, False)
+    assert result["mrr"][:2] == (None, False)
+
+
 def test_dash_contradicting_a_positive_json_count_stays_unknown():
     api = json.loads(json.dumps(ZERO_API))
     api["summary"]["subscribers"] = 3
