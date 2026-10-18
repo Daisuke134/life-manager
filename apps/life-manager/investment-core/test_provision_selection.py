@@ -122,7 +122,9 @@ class ProvisionSelectionTests(unittest.TestCase):
                       "order": {"symbol": "QQQ", "side": "sell"}}
             outcome = {"receipt_type": "outcome", "outcome": "broker_reconciled", "mode": "paper",
                        "effect_id": "close-effect", "client_order_id": client, "broker_receipt_id": "exit",
-                       "broker": broker, "strategy_receipt": marker}
+                       "broker": broker, "strategy_receipt": {"receipt": marker,
+                           "account_readback": {"account": {"cash": "101", "equity": "101"},
+                               "positions": [], "clock": {"observed_at": "2026-10-18T00:00:00Z"}}}}
             ledger = root/"receipts.jsonl"
             ledger.write_text(json.dumps(intent)+"\n"+json.dumps(outcome)+"\n")
             changed = _report(report_id="flat-next-policy")
@@ -140,7 +142,7 @@ class ProvisionSelectionTests(unittest.TestCase):
                     elif mutation == "wrong-qty":
                         altered["broker"]["filled_qty"] = "2"
                     else:
-                        altered["strategy_receipt"].pop("close_account_readback_at")
+                        altered["strategy_receipt"].pop("account_readback")
                     ledger.write_text(json.dumps(altered_intent)+"\n"+json.dumps(altered)+"\n")
                     with self.assertRaisesRegex(SelectionProvisionError, "owned_close_evidence_unknown"):
                         provision_selection(destination, reports, refresh=True)
