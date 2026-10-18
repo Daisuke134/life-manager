@@ -131,13 +131,11 @@ def _instant(value: Any) -> str | None:
         return None
     try:
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            return None
+        return parsed.astimezone(timezone.utc).isoformat(timespec="microseconds").replace("+00:00", "Z")
     except (TypeError, ValueError, OverflowError):
         return None
-    if parsed.tzinfo is None or parsed.utcoffset() is None:
-        return None
-    return parsed.astimezone(timezone.utc).isoformat(timespec="microseconds").replace(
-        "+00:00", "Z"
-    )
 
 
 def _canonical_decimal_text(amount: Decimal) -> str:
@@ -721,6 +719,19 @@ def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_recor
                     duplicate.add(key)
                 seen.add(scoped_key)
                 query_bodies[key] = body
+    jobs, job_conflicts = _job_index(payload)
+    paid_document_cache = {}
+
+    def paid_document_rows(document):
+        # Reuse paid validation on this exact document; IDs are not parsed by prefix.
+        signature = _canonical(document)
+        if signature not in paid_document_cache:
+            parsed, failures, _groups = _parse_document(document, end=end, payload_digest=_digest(payload),
+                jobs=jobs, job_conflicts=job_conflicts, source_loops={"investment"})
+            paid_document_cache[signature] = (parsed if not failures and parsed
+                and all(row in paid_records for row in parsed) else [])
+        return paid_document_cache[signature]
+
     for source, query in candidates:
         context = {"provider": source.get("provider")}
         try:
@@ -767,7 +778,8 @@ def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_recor
                         and item.get("scope_id") == target["scope_id"]]
             scope_fields = ("product_loop_id", "owner_id", "mode", "paper", "order_ids",
                             "period_start", "period_end", "source_receipt_ids")
-            if not matching or any(any(item.get(field) != target.get(field) for field in scope_fields) for item in matching):
+            if not matching or any(type(item.get("paper")) is not bool
+                                   or any(item.get(field) != target.get(field) for field in scope_fields) for item in matching):
                 raise ValueError
             for item in matching:
                 if item.get("join_type") == "scope_query":
@@ -798,7 +810,7 @@ def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_recor
                                 bound |= any(isinstance(row, dict) and row.get("receipt_id") == receipt_id
                                     and row.get("record_type") == "receipt" and row.get("verification_state") == "verified"
                                     and row.get("provider") == key[0] and row.get("currency") == "USD"
-                                    and row.get("product_loop_id") == target["product_loop_id"] for row in paid_records)
+                                    and row.get("product_loop_id") == target["product_loop_id"] for row in paid_document_rows(document))
                     if not bound:
                         raise ValueError
                 else:
@@ -832,7 +844,8 @@ def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_recor
                         continue
                     doc_start = _instant(document.get("billing_period_start"))
                     doc_end = _instant(document.get("billing_period_end"))
-                    if doc_start is None or doc_end is None or (doc_start < times["window_end"] and doc_end > times["window_start"]):
+                    if (doc_start is None or doc_end is None or doc_start >= doc_end
+                            or (doc_start < times["window_end"] and doc_end > times["window_start"])):
                         raise ValueError
             elif settlement == "paid_final":
                 paid_ids = set()
@@ -840,11 +853,10 @@ def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_recor
                     identity = _document_identity(document)
                     if identity is None or identity[0] != key[0] or document.get("billing_account_ref") != key[1]:
                         continue
-                    prefix = f"{identity[0]}:actual-cost:{identity[1]}:{identity[2]}:line:"
-                    if any(isinstance(row, dict) and row.get("record_type") == "receipt"
-                           and row.get("verification_state") == "verified" and row.get("currency") == "USD"
-                           and str(row.get("receipt_id", "")).startswith(prefix) for row in paid_records):
-                        paid_ids.add(identity[2])
+                    rows = paid_document_rows(document)
+                    if not rows or any(row.get("currency") != "USD" for row in rows):
+                        raise ValueError
+                    paid_ids.add(identity[2])
                 if not documents or not set(documents) <= paid_ids:
                     raise ValueError
             else:
