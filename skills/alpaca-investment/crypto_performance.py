@@ -11,7 +11,7 @@ from typing import Any
 
 from crypto_ownership_proof import (_digest,_quantity_text,_sealed_entry_from_rows,entry_receipt_row,
     recorded_entry_proof_from_rows,recorded_no_fill_proof_from_rows,recorded_close_proof_from_rows,
-    owned_quantity_state_from_rows,native_fee_debit_id,
+    owned_quantity_state_from_rows,native_fee_debit_id,crypto_fx_quote_proof,_fx_instant,
     crypto_fill_activity_proof,validate_crypto_activity_snapshot,combine_crypto_activity_snapshots,execution_activity_identity,native_fee_row_facts,crypto_activity_page_progress,crypto_activity_paged_snapshot,validate_crypto_activity_page_chunk,ReconciliationPending)
 from effect_store import _owned_rows
 from paper_performance import _atomic_json
@@ -106,7 +106,67 @@ def _fee_inventory(cycles,snapshots):
         'fee_completeness_status':'unknown','next_action':'read_late_fee_postings_and_reconcile_unattributed_evidence'}
 
 
-def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None,fee_activity_readbacks=None):
+def _reference_amount(value):
+    return None if value is None else {'decimal':_quantity_text(value),
+        'numerator':str(value.numerator),'denominator':str(value.denominator)}
+
+
+def _fx_references(cycles,fees,readbacks,*,mode):
+    if not isinstance(readbacks,dict):raise ValueError('crypto_fx_quote_invalid')
+    quotes={};missing={};sources=set()
+    for at,snapshot in readbacks.items():
+        try:proof=crypto_fx_quote_proof(snapshot,mode=mode,asof_at=at)
+        except ReconciliationPending:continue
+        key=_fx_instant(at)
+        facts=(Fraction(proof['bid_usd_per_usdc']),Fraction(proof['ask_usd_per_usdc']),_fx_instant(proof['quote_timestamp']))
+        if key in quotes and quotes[key][0]!=facts:raise ValueError('crypto_fx_quote_conflict')
+        quotes[key]=(facts,proof)
+    for cycle in cycles:
+        components=[];order_values={};cycle_missing=[]
+        for order in cycle['orders']:
+            total=Fraction();complete=order['quote_notional_usdc'] is not None
+            for fill in order['execution_fills']:
+                at=fill['transaction_time'];key=_fx_instant(at);quote=quotes.get(key)
+                if quote is None:
+                    missing.setdefault(key,{'asof_at':at,'mode':mode,'symbol':'USDC/USD'})
+                    cycle_missing.append(fill['id']);complete=False;continue
+                (bid,ask,_),proof=quote
+                native=Fraction(fill['qty'])*Fraction(fill['price']);amount=native*(bid+ask)/2
+                total+=amount;sources.add(proof['source_receipt_id'])
+                components.append({'kind':'fill','provider_order_id':order['provider_order_id'],
+                    'fill_activity_id':fill['id'],'transaction_time':at,'native_currency':'USDC',
+                    'signed_native_amount':_quantity_text(-native if order['side']=='buy' else native),
+                    'signed_usd_reference':_reference_amount(-amount if order['side']=='buy' else amount),
+                    'fx_source_receipt_id':proof['source_receipt_id'],'fx_quote_timestamp':proof['quote_timestamp']})
+            order_values[order['provider_order_id']]=total if complete else None
+        cashflow=sum((-order_values[o['provider_order_id']] if o['side']=='buy' else order_values[o['provider_order_id']]
+            for o in cycle['orders']),Fraction()) if all(v is not None for v in order_values.values()) else None
+        totals={'BTC':[],'USDC':[]}
+        for fee in fees:
+            if fee['cycle_id']!=cycle['cycle_id']:continue
+            order=next(o for o in cycle['orders'] if o['provider_order_id']==fee['provider_order_id'])
+            gross=order_values[order['provider_order_id']]
+            received=order['filled_qty'] if fee['asset']=='BTC' else order['quote_notional_usdc']
+            amount=(Fraction(fee['quantity'])/Fraction(received)*gross
+                if gross is not None and received is not None else None)
+            totals[fee['asset']].append(amount)
+            components.append({'kind':'fee_cost_basis','provider_order_id':fee['provider_order_id'],
+                'fee_activity_id':fee['fee_activity_id'],'native_currency':fee['asset'],'native_quantity':fee['quantity'],
+                'usd_reference':_reference_amount(amount),'fill_activity_ids':order['fill_activity_ids'],
+                'fee_source_receipt_ids':fee['source_receipt_ids']})
+        subtotal=lambda asset:sum(totals[asset],Fraction()) if totals[asset] and all(v is not None for v in totals[asset]) else None
+        base=subtotal('BTC');quote=subtotal('USDC')
+        cycle['fx_reference']={'valuation_basis':'asof_bbo_midpoint',
+            'fee_basis':'credited_asset_weighted_execution_cost_basis','measurement_status':'reference_only',
+            'cash_conversion_proven':False,'execution_cashflow_usd':_reference_amount(cashflow),
+            'observed_base_fee_cost_basis_usd':_reference_amount(base),
+            'observed_quote_fee_cost_basis_usd':_reference_amount(quote),
+            'cashflow_after_observed_quote_fees_usd':_reference_amount(cashflow-quote if cashflow is not None and quote is not None else None),
+            'components':components,'missing_fill_fx_ids':sorted(set(cycle_missing))}
+    return [missing[key] for key in sorted(missing)],sources
+
+
+def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None,fee_activity_readbacks=None,fx_readbacks=None):
     if mode not in {'paper','live'} or owner_id!=f'alpaca-investment-{mode}' or not isinstance(rows,list):
         raise ValueError('crypto_performance_scope_invalid')
     if any(not isinstance(r,dict) for r in rows):
@@ -229,6 +289,7 @@ def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None,fee_ac
             sources.add(broker['id'])
             executions.append({'effect_id':order_effect,'provider_order_id':broker['id'],'client_order_id':broker['client_order_id'],
                 'side':broker['side'],'submitted_at':broker['submitted_at'],'filled_qty':broker['filled_qty'],'quote_notional_usdc':_quantity_text(amount) if amount is not None else None,
+                'execution_fills':[{k:f[k] for k in ('id','qty','price','transaction_time')} for f in native['fills'] if f['id'] in ids] if facts is not None else [],
                 'fill_activity_ids':ids,'execution_observed_until':native['request']['until'] if facts is not None else None})
         cycles.append({'cycle_id':_digest({'mode':mode,'owner_id':owner_id,'entry_effect_id':effect}),
             'owner_id':owner_id,'mode':mode,'strategy_id':receipt['strategy_id'],'release_sha':receipt['release_sha'],
@@ -256,13 +317,15 @@ def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None,fee_ac
             if cashflow is not None and subtotal is not None else None)
         cycle['quote_fee_activity_ids']=sorted(f['fee_activity_id'] for f in observed)
         cycle['quote_fee_coverage_status']='partial' if observed else 'unknown'
+    fx_requests,fx_sources=_fx_references(cycles,fee_inventory['attributed_native_fees'],fx_readbacks if fx_readbacks is not None else {},mode=mode)
+    sources.update(fx_sources)
     return {'schema_version':1,'report_scope':'owned_crypto_cycles','owner_id':owner_id,'mode':mode,'paper':mode=='paper',
         'measurement_status':'partial','reason':'crypto_costs_or_fx_unknown','capital_expansion_allowed':False,
         'cycle_coverage_status':'partial' if pending or orphan or unscoped else 'complete',
         'net_pnl_usd':None,'gross_strategy_pnl_usd':None,'fees_usd':None,'slippage_usd':None,'model_cost_usd':None,'system_cost_usd':None,
         'cycles':cycles,'open_entries':opened,'pending_entries':pending,'no_fill_entry_effect_ids':no_fill,
         'unmatched_sell_effect_ids':orphan,'unscoped_effect_ids':unscoped,'missing_activity_order_ids':sorted(missing),
-        'activity_requests':[{'order_id':key,**value} for key,value in sorted(missing.items())],
+        'fx_requests':fx_requests,'activity_requests':[{'order_id':key,**value} for key,value in sorted(missing.items())],
         'fee_period_start':min(periods,key=parse_instant) if periods else None,
         'source_receipt_ids':sorted(sources),'fee_evidence':fee_inventory,**_summary(cycles)}
 
