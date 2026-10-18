@@ -18,6 +18,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import zlib
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -2106,7 +2107,7 @@ def _with_rotated_history(path: Path, lines: list[str]) -> list[str]:
         try:
             with gzip.open(archive, "rt", encoding="utf-8") as stream:
                 lines = stream.read().splitlines() + lines
-        except (OSError, EOFError, UnicodeError):
+        except (OSError, EOFError, UnicodeError, zlib.error):
             break
     return lines
 

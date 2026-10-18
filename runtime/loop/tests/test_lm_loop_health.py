@@ -388,6 +388,18 @@ class LmLoopHealthTest(unittest.TestCase):
         self.assertIsNotNone(latest)
         self.assertEqual(latest["_health_clocks"]["last_success"], "2026-10-18T01:35:39+00:00")
 
+    def test_a_corrupt_rotated_archive_does_not_crash_health(self):
+        # A deflate-corrupt gz raises zlib.error, which is not an OSError/EOFError.
+        with tempfile.TemporaryDirectory() as directory:
+            body = gzip.compress(b'{"loop_id": "x"}\n' * 200)
+            Path(directory, "events-20261018T062703209718Z.jsonl.gz").write_bytes(
+                body[:20] + b"\xff" * 40 + body[60:])
+            Path(directory, "events.jsonl").write_text("", encoding="utf-8")
+            latest = lm_loop._last_event(
+                directory, "capafy-goal-monitor", include_health_clocks=True,
+            )
+        self.assertIsNone(latest)
+
     def test_health_clock_projection_reads_a_shared_journal_once(self):
         history = []
         for loop_id in ("agentmail-nudge", "agentmail-reply"):
