@@ -323,7 +323,9 @@ The under-fence crypto order path additionally opts into a `flow_sink` on the
 existing allocator reader. It keeps raw wallet transfers (unsupported/null on
 paper) and bounded all-type activity pages in the sealed decision, with their
 actual query window and partial/error state. Default snapshots and risk inputs
-are unchanged. Additional capture errors retain valid observations and never
+are unchanged. The existing projected wallet read remains the risk input; an
+optional raw wallet read runs afterward and may fail independently under the
+existing output bound. Additional capture errors retain valid observations and never
 become zero costs or another trading gate. This is raw input retention only;
 cycle-wide/late-fee coverage, flow identity, reconciliation and net remain open.
 `crypto_fill_activity_proof` validates the saved snapshot and raw order, sums
