@@ -1,7 +1,7 @@
 """Derived BTC cycle inventory; no submit path or capital-promotion authority."""
 from __future__ import annotations
 
-from datetime import datetime,timezone
+from datetime import date,datetime,timezone
 from decimal import Decimal
 from fractions import Fraction
 from pathlib import Path
@@ -37,6 +37,53 @@ def _summary(cycles):
             'strategy_reports':reports}
 
 
+def _fee_inventory(cycles,snapshots):
+    # Existing FILL proof validates each snapshot's scope, content and paging.
+    # CFEE IDs without an explicit order link are never joined by proximity.
+    orders={o['provider_order_id']:(c['cycle_id'],o) for c in cycles for o in c['orders']}
+    observed={};refs={};windows={}
+    for frame in snapshots.values():
+        for row in frame['fees']:
+            key=row['id']
+            if key in observed and observed[key]!=row:
+                raise ValueError('crypto_fee_evidence_conflict')
+            observed[key]=row;refs.setdefault(key,set()).add(frame['source_receipt_id'])
+            windows.setdefault(key,[]).append((parse_instant(frame['request']['after']).date(),
+                parse_instant(frame['request']['until']).astimezone(timezone.utc).date()))
+    attributed=[];unattributed=[]
+    for key,row in sorted(observed.items()):
+        item={'fee_activity_id':key,'source_receipt_ids':sorted(refs[key])}
+        order_id=row.get('order_id');reason=None
+        if not isinstance(order_id,str) or not order_id.strip(): reason='order_id_missing'
+        elif order_id not in orders: reason='order_outside_closed_cycles'
+        elif row.get('status')!='executed': reason='fee_not_executed'
+        else:
+            cycle_id,order=orders[order_id]
+            asset='BTC' if order['side']=='buy' else 'USDC'
+            symbol=row.get('symbol')
+            if symbol not in {asset,asset+'USD',asset+'/USD'}: reason='received_asset_unproved'
+            else:
+                try:
+                    qty=Decimal(str(row['qty']));net=Decimal(str(row['net_amount']))
+                    if (not qty.is_finite() or qty>=0 or len(qty.as_tuple().digits)>100
+                            or abs(qty.as_tuple().exponent)>100 or not net.is_finite() or net!=0
+                            or Fraction(order['filled_qty'])<=0): raise ValueError
+                except (ValueError,KeyError,ArithmeticError): reason='fee_amount_invalid'
+                if reason is None:
+                    try:
+                        day=date.fromisoformat(row['date'])
+                        if (day.isoformat()!=row['date'] or day<parse_instant(order['submitted_at']).astimezone(timezone.utc).date()
+                                or not all(begin<=day<=end for begin,end in windows[key])): raise ValueError
+                    except (ValueError,KeyError,TypeError): reason='fee_date_invalid'
+                if reason is None:
+                    attributed.append({**item,'cycle_id':cycle_id,'provider_order_id':order_id,
+                        'asset':asset,'quantity':_quantity_text(-Fraction(qty))})
+        if reason: unattributed.append({**item,'reason':reason})
+    return {'observed_fee_count':len(observed),'attributed_native_fees':attributed,
+        'unattributed_fees':unattributed,'fee_settlement_status':'unknown',
+        'fee_completeness_status':'unknown','next_action':'read_late_fee_postings_and_reconcile_unattributed_evidence'}
+
+
 def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None):
     if mode not in {'paper','live'} or owner_id!=f'alpaca-investment-{mode}' or not isinstance(rows,list):
         raise ValueError('crypto_performance_scope_invalid')
@@ -49,7 +96,7 @@ def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None):
     entries=[r for r in plans if r['order'].get('side')=='buy']
     sells=[r for r in plans if r['order'].get('side')=='sell']
     cycles=[];opened=[];pending=[];no_fill=[];matched_sells=set();missing={};sources=set()
-    providers={};fill_ids={};last_flat=None
+    providers={};fill_ids={};last_flat=None;fee_snapshots={}
     def consume(provider,effect):
         if provider in providers and providers[provider]!=effect:
             raise ValueError('crypto_cycle_evidence_reused')
@@ -113,6 +160,7 @@ def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None):
             if native is not None:
                 try: facts=crypto_fill_activity_proof(native,broker,mode=mode,allow_zero=broker['side']=='sell')
                 except ReconciliationPending: facts=None
+                fee_snapshots[native['source_receipt_id']]=native
                 known=proof['receipt'].get('entry_execution') or proof['receipt'].get('sell_execution')
                 if facts is not None and known:
                     left={k:v for k,v in facts.items() if k!='source_receipt_id'}
@@ -132,7 +180,7 @@ def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None):
                 sources.add(facts['source_receipt_id']);sources.update(ids)
             sources.add(broker['id'])
             executions.append({'effect_id':order_effect,'provider_order_id':broker['id'],'client_order_id':broker['client_order_id'],
-                'side':broker['side'],'filled_qty':broker['filled_qty'],'quote_notional_usdc':_quantity_text(amount) if amount is not None else None,
+                'side':broker['side'],'submitted_at':broker['submitted_at'],'filled_qty':broker['filled_qty'],'quote_notional_usdc':_quantity_text(amount) if amount is not None else None,
                 'fill_activity_ids':ids})
         cycles.append({'cycle_id':_digest({'mode':mode,'owner_id':owner_id,'entry_effect_id':effect}),
             'owner_id':owner_id,'mode':mode,'strategy_id':receipt['strategy_id'],'release_sha':receipt['release_sha'],
@@ -153,7 +201,7 @@ def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None):
         'cycles':cycles,'open_entries':opened,'pending_entries':pending,'no_fill_entry_effect_ids':no_fill,
         'unmatched_sell_effect_ids':orphan,'unscoped_effect_ids':unscoped,'missing_activity_order_ids':sorted(missing),
         'activity_requests':[{'order_id':key,'submitted_at':value} for key,value in sorted(missing.items())],
-        'source_receipt_ids':sorted(sources),**_summary(cycles)}
+        'source_receipt_ids':sorted(sources),'fee_evidence':_fee_inventory(cycles,fee_snapshots),**_summary(cycles)}
 
 
 def _read_activity(**kwargs):
