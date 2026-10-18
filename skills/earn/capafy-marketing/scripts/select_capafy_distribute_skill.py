@@ -96,12 +96,38 @@ def _is_buyer_visible(products_cfg: dict, analytics: dict | None, slug: str) -> 
     return False
 
 
+def weighted_rotation(first: str, others: list[str], search_views: dict | None) -> list[str]:
+    """Alternate the top seller with the others, giving each other seller 1-3 turns by its
+    7-day search-side views (AI Overview + Google + Capafy search; +1 turn per 10 views).
+    2026-10-18: TikTok Script Pro had 27 such views and YouTube Script Writer 9, yet each
+    held a quarter of all slots. No data keeps the old equal rotation."""
+    turns = []
+    for slug in others:
+        views = (search_views or {}).get(slug, 0)
+        turns += [slug] * (1 + min(2, int(views) // 10))
+    return [slug for other in turns for slug in (first, other)]
+
+
+def search_views_by_skill(products_cfg: dict, reconcile_path: Path) -> dict:
+    """slug -> 7-day ai_overview + google + search views from capafy-hourly-reconcile.json."""
+    try:
+        by_agent = json.loads(reconcile_path.read_text())["traffic_sources"]["by_agent"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return {}
+    out = {}
+    for slug, skill in products_cfg["products"].get("capafy-skills", {}).get("skills", {}).items():
+        rows = ((by_agent.get(str(skill.get("agent_id"))) or {}).get("last_7d") or {}).get("by_source") or []
+        out[slug] = sum(r.get("views") or 0 for r in rows if r.get("source_name") in ("ai_overview", "google", "search"))
+    return out
+
+
 def select_for_date(
     products_cfg: dict,
     analytics: dict | None,
     date: dt.date,
     channel: str = "capafy-distribute",
     slot: int = 0,
+    search_views: dict | None = None,
 ) -> dict:
     ranked = rank_skills(products_cfg, analytics)
     # Other marketplaces' live listings (PromptBase, P4) join the rotation after
@@ -119,7 +145,7 @@ def select_for_date(
     # Keep Hook Lab in half the slots regardless of short-window profit ranking.
     if len(earners) > 1:
         first = "hook-lab" if "hook-lab" in earners else earners[0]
-        ranked = [slug for other in earners if other != first for slug in (first, other)]
+        ranked = weighted_rotation(first, [o for o in earners if o != first], search_views)
     if not ranked:
         raise ValueError("no capafy-skills or listings configured to rotate")
     # One slot per wake (48 half-hour slots/day); each slot promotes the next skill in the ranking.
@@ -146,6 +172,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--analytics", help="capafy-skill-analytics.json path (optional)")
     parser.add_argument("--channel", default="capafy-distribute")
     parser.add_argument("--slot", type=int, default=0, help="JST half-hour slot 0-47")
+    parser.add_argument("--reconcile", default=str(Path.home() / ".local/state/life-manager/state/capafy-hourly-reconcile.json"),
+                        help="capafy-hourly-reconcile.json for search-view weighting (optional)")
     args = parser.parse_args(argv)
 
     products_cfg = json.loads(Path(args.products).read_text(encoding="utf-8"))
@@ -158,7 +186,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.date
         else dt.datetime.now(tz=JST).date()
     )
-    result = select_for_date(products_cfg, analytics, date, channel=args.channel, slot=args.slot)
+    result = select_for_date(products_cfg, analytics, date, channel=args.channel, slot=args.slot,
+                             search_views=search_views_by_skill(products_cfg, Path(args.reconcile)))
     print(json.dumps(result, ensure_ascii=False))
     return 0
 
