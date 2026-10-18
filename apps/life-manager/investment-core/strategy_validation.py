@@ -322,7 +322,12 @@ def _consistent_condition(rule: Any, candle: Mapping[str, Any], *, require_stabl
     signal = _condition(rule, candle)
     reference = {key.removeprefix("reference_"): value for key, value in candle.items()
                  if key.startswith("reference_")}
-    if reference and signal != _condition(rule, {**candle, **reference}):
+    if not reference:
+        return None if "indicator_history_stable" in candle else signal
+    # Entry price and elapsed bars describe the same position in both views;
+    # missing reference indicators must never be supplied from the actual view.
+    position = {key: candle[key] for key in ("entry_price", "age_bars") if key in candle}
+    if signal != _condition(rule, {**reference, **position}):
         return None
     return signal
 
@@ -474,7 +479,7 @@ def _evaluate_partitions(
 
 def _find_parameter(value: Any, path: tuple[Any, ...] = ()) -> tuple[tuple[Any, ...], Decimal] | None:
     if isinstance(value, str):
-        match = re.search(r"(?<![A-Za-z_])-?\d+(?:\.\d+)?(?![A-Za-z_])", value)
+        match = re.search(r"(?<![\w.])[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?(?![\w.])", value)
         if match is not None:
             return path + ("__numeric_text__", match.start(), match.end()), Decimal("1")
         return None

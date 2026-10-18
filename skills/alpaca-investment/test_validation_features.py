@@ -60,6 +60,33 @@ class ValidationFeatureTests(unittest.TestCase):
         self.assertEqual(candle["indicator_history_stable"],"0")
         self.assertEqual(build_validation_candles(source[:400],"alpaca-btc-5m-trend-400-v2"),[])
 
+    def test_real_core_evaluates_all_numeric_neighbors_for_both_v2_cards(self):
+        from strategy_validation import validate_series
+        # Synthetic feature contract fixture, not provider data or performance evidence.
+        for kind in ("trend", "reversion"):
+            with self.subTest(kind=kind):
+                card=candidate_cards()[f"alpaca-btc-5m-{kind}-400-v2"]
+                candles=[]
+                for i in range(10):
+                    stamp=(datetime(2026,1,1,tzinfo=timezone.utc)+timedelta(minutes=5*i)).isoformat()
+                    price="100" if i%2==0 else "110"
+                    features={"close":price,"atr_14":"1"}
+                    if kind=="trend":
+                        features.update(ema_20="105" if i%2==0 else "120",ema_50="100",prior_20_high="99")
+                    else:
+                        features.update(rsi_14="20" if i%2==0 else "80",tema_9="90",
+                                        bollinger_middle_20_2="100",bollinger_upper_20_2="120")
+                    candles.append({"timestamp":stamp,"open":price,"high":price,"low":price,
+                                    **features,**{f"reference_{key}":value for key,value in features.items()},
+                                    "indicator_history_stable":"1",
+                                    "quote_to_usd":{"currency":"USDC","rate":"1","timestamp":stamp,
+                                                    "evidence_ref":"fixture:fx"}})
+                report=validate_series(card,candles,{},card.to_mapping()["cost_model"])
+                self.assertEqual(report["parameter_sensitivity"]["status"],"evaluated")
+                self.assertEqual(report["parameter_sensitivity"]["positive_count"],9)
+                self.assertEqual(report["decision"],"paper")
+                self.assertEqual(report["net_pnl_usd"],"4.70")
+
     def test_trend_features_start_after_warmup_and_use_only_past_bars(self):
         source = _bars()
         changed_future = copy.deepcopy(source)
