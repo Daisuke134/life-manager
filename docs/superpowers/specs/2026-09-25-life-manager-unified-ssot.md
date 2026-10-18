@@ -14769,6 +14769,8 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **IN-COST-03 — 費用帰属の調査結果と次の原子的TODO:** 現HEADのread-only調査では、`run.py`から渡すrunner引数を`allocator.choose`が破棄し、`strategy_policy.evaluate`のpure ETF policyを評価する。今回のHOLD判断ではモデル呼出しがない。しかしusage rowの欠落だけでは「無呼出し」と「未取得」を区別できず、paid component契約はpartial/unknown、CFO coverageはcomplete/gapのため、取引期間全体のmodel/system費用やnetを0または適用外に変えない。strategy SHAはselected strategyの版、runtime SHAは実行版で、それぞれの役割を保持する。
 
+**IN-COST-03実装契約:** 対象は`run.py`の`choose`を実行したpaper/ETF/HOLDだけ。既存decisionへ`decision_execution`として`run_id`、`occurrence_id`、`scope=allocation_decision`、`model_invocation=not_invoked`を記録し、同じ値を既存no-trade receiptとallocation-latestへ保存する。IDはhostの既存環境変数だけから取り、未設定はnullとして捏造しない。runtime版はexact occurrenceの既存runtime eventへjoinし、既存`release_sha`はstrategy版のまま保持する。このfieldは一判断の非金銭事実であり、全run/全取引期間のモデル無呼出し、費用0、費用coverage completeを意味しない。live/別strategy/別action/choose未実行には付けない。注文intentや金額・gate・21-session条件を変えない。回帰は両保存先の一致、欠落IDのnull、対象外の未付与、strategy SHA保持を確認する。
+
 1. **現在cursor: 非金銭metadataの設計。** 既存HOLD decision/`record_no_trade`へexact occurrence/run IDと「この判断ではモデル無呼出し」の意味を定義し、既存runtime eventへ結び付ける。新台帳や費用ゼロの推定は追加しない。
 2. **最小修正の実装と反映。** 上記契約を先に固定し、最小RED→GREEN、必要な独立review/対象head CI/main統合/immutable採用/自然runの記録照合を行う。今回の文書更新では未実装。
 3. **公式支払証拠の分類。** Apple経由の共有subscription領収書は投資へのexact配賦を持たない。既存`billed_expenses`はinvoiceだけを独立表示し、paid_receipt単独表示には契約の穴がある。原本の種別・document/line ID・通貨・期間を確認し、必要な最小契約を定義してから接続する。invoiceへの偽装やJPY→USD推定換算はしない。
