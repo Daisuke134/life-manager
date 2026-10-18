@@ -24,7 +24,7 @@ from control import control_fence
 _effect_spec = importlib.util.spec_from_file_location("alpaca_selection_effect_store", _ALPACA / "effect_store.py")
 _effects = importlib.util.module_from_spec(_effect_spec)
 _effect_spec.loader.exec_module(_effects)
-from etf_ownership import _read_open, ETF_OWNER_IDS, ETF_STRATEGY_ID
+from etf_ownership import _read_open, _close_provider_order, _number, ETF_OWNER_IDS, ETF_STRATEGY_ID
 
 
 class SelectionProvisionError(ValueError):
@@ -167,8 +167,51 @@ def _selection_payload(
     return payload
 
 
+def _official_etf_close(marker: dict[str, Any], rows: list[dict[str, Any]]) -> bool:
+    try:
+        _number(marker["close_account_cash_usd"])
+        _number(marker["close_account_equity_usd"])
+        observed = datetime.fromisoformat(marker["close_account_readback_at"].replace("Z", "+00:00"))
+        if observed.tzinfo is None:
+            return False
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return False
+    refs = marker.get("close_source_receipt_ids")
+    if not isinstance(refs, list) or not refs or any(not isinstance(ref, str) or not ref.strip() for ref in refs):
+        return False
+    for row in rows:
+        receipt = row.get("strategy_receipt")
+        if (row.get("receipt_type") != "outcome" or row.get("outcome") != "broker_reconciled"
+                or row.get("mode") != ("paper" if marker["owner_id"] == "alpaca-investment-paper" else "live")
+                or row.get("client_order_id") != marker.get("close_client_order_id")
+                or not isinstance(receipt, dict)
+                or any(receipt.get(key) != value for key, value in marker.items())):
+            continue
+        try:
+            provider_id, price = _close_provider_order(
+                row.get("broker", {}), client_order_id=marker["close_client_order_id"],
+                symbol=marker["symbol"], expected_qty=_number(marker["position_qty"], positive=True))
+            if (provider_id != marker.get("close_provider_order_id")
+                    or provider_id != row.get("broker_receipt_id")
+                    or price != _number(marker["close_filled_avg_price"], positive=True)):
+                continue
+            return True
+        except (KeyError, TypeError, ValueError):
+            continue
+    return False
+
+
 def _guard_reports(root: Path, existing: Any, reports: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    protected = False
+    try:
+        ledger = root / "receipts.jsonl"
+        if ledger.is_symlink():
+            raise ValueError("ledger_symlink")
+        rows = _effects._rows(ledger)
+        intents = {row["effect_id"]: row for row in rows if row.get("receipt_type") == "effect_intent"}
+        outcomes = {row["effect_id"]: row for row in rows if row.get("receipt_type") == "outcome"}
+        protected = any(not _effects._outcome_closed(outcomes.get(effect_id)) for effect_id in intents)
+    except (KeyError, TypeError, ValueError, OSError) as error:
+        raise SelectionProvisionError("selection_ledger_invalid") from error
     owned_strategy = None
     for name in ("etf-owned-position.json", "live-owned-position.json"):
         path = root / name
@@ -189,11 +232,9 @@ def _guard_reports(root: Path, existing: Any, reports: list[dict[str, Any]]) -> 
                 _read_open(marker)
             except (TypeError, ValueError) as error:
                 raise SelectionProvisionError("ownership_state_invalid") from error
-            closed = (marker.get("status") == "closed"
-                      and isinstance(marker.get("close_provider_order_id"), str)
-                      and bool(marker["close_provider_order_id"])
-                      and isinstance(marker.get("close_source_receipt_ids"), list)
-                      and bool(marker["close_source_receipt_ids"]))
+            closed = marker.get("status") == "closed"
+            if closed and not _official_etf_close(marker, rows):
+                raise SelectionProvisionError("owned_close_evidence_unknown")
             if not closed:
                 owned_strategy = ETF_STRATEGY_ID
                 protected = True
@@ -202,14 +243,6 @@ def _guard_reports(root: Path, existing: Any, reports: list[dict[str, Any]]) -> 
                 raise SelectionProvisionError("ownership_state_invalid")
             # Legacy BTC closed markers alone do not establish official close fills.
             protected = True
-    try:
-        rows = _effects._rows(root / "receipts.jsonl")
-        intents = {row["effect_id"]: row for row in rows
-                   if row.get("receipt_type") == "effect_intent"}
-        outcomes = {row["effect_id"]: row for row in rows if row.get("receipt_type") == "outcome"}
-        protected = protected or any(not _effects._outcome_closed(outcomes.get(effect_id)) for effect_id in intents)
-    except (KeyError, TypeError, ValueError, OSError) as error:
-        raise SelectionProvisionError("selection_ledger_invalid") from error
     if protected:
         if not _existing_selected_shape_is_valid(existing) or (
                 owned_strategy is not None and existing.get("strategy_id") != owned_strategy):
@@ -265,8 +298,8 @@ def _provision_selection_locked(
         if not existing_valid and not _existing_selection_is_expired(existing):
             raise SelectionProvisionError("existing_selection_invalid")
 
+    reports = _guard_reports(destination.parent, existing, _read_reports(Path(reports_path).expanduser()))
     try:
-        reports = _guard_reports(destination.parent, existing, _read_reports(Path(reports_path).expanduser()))
         selection = select_strategy(reports)
         payload = _selection_payload(selection, reports, runtime_release_sha)
     except SelectionProvisionError:
