@@ -85,6 +85,8 @@ def record_native_fee_debit(ledger: Path, ownership: dict[str, Any], observation
                 activity_readback=activity_readback,mode=mode,owner_id=owner_id)
             receipt=proof['receipt']
             if Decimal(receipt['debit_qty'])==0: return None
+            if current is not ownership:
+                raise ReconciliationPending('owned_fee_marker_pending')
             return {'schema_version':1,'receipt_type':'native_fee_debit','paper':mode=='paper',
                 **{key:receipt[key] for key in ('owner_id','mode','strategy_id','release_sha','entry_effect_id')},
                 'fee_debit_id':native_fee_debit_id(receipt),'strategy_receipt':proof,
