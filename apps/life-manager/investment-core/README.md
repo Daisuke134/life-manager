@@ -315,5 +315,16 @@ quantities and computes native VWAP with exact rational arithmetic. Display
 rounding cannot decide quantity equality. Nullable broker fields stay unchanged;
 FILL execution times and the exact average ratio are separate facts. The proof
 retains unknown fees/P&L and alone never opens or closes ownership.
-This branch is source only: fee attribution/quantity drift, complete costs, cycle performance, deployment
-and natural outcomes remain in the SSOT.
+The existing run now writes owned BTC cycle reports through one paper/live
+projector: `performance-crypto-latest.json` and
+`performance-crypto-daily-YYYY-MM-DD.json`. One acquisition and all proven sell
+legs form one cycle. Actual FILL notionals provide native execution cashflow;
+missing evidence remains unknown. Validated activity snapshots are reused,
+daily reports include newly closed cycles, and history anchors survive errors.
+The core selects the BTC namespace if its latest or daily files exist and never
+falls back to legacy measured ETF reports when BTC evidence is missing/invalid.
+Phase-one BTC reports remain partial, with all USD profit/cost values unknown
+and capital expansion disabled. Native cashflow is not settled net profit.
+This branch is source only: fee attribution/quantity drift, FX and complete
+actual costs, deployment, natural outcomes and profitable evaluation remain
+in the canonical SSOT.
