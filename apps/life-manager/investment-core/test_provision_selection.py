@@ -169,6 +169,22 @@ class ProvisionSelectionTests(unittest.TestCase):
                 self.assertEqual(provision_selection(destination,reports,refresh=True)['status'],'created')
                 self.assertEqual(json.loads(destination.read_text())['report_id'],'changed-rules')
 
+    def test_crypto_closed_symbol_mismatch_never_grants_policy_refresh(self):
+        for no_fill in (False,True):
+            with self.subTest(no_fill=no_fill),tempfile.TemporaryDirectory() as directory:
+                root=Path(directory);reports,destination=root/'reports.json',root/'selected-strategy.json'
+                reports.write_text(json.dumps([_report()]))
+                provision_selection(destination,reports)
+                _crypto_closed_fixture(root,no_fill=no_fill)
+                marker=root/'live-owned-position.json'
+                value=json.loads(marker.read_text());value['symbol']='ETHUSD';marker.write_text(json.dumps(value))
+                changed=_report(report_id='changed-rules');changed['card']['entry_rules']={'all':['close > 1']}
+                reports.write_text(json.dumps([changed]))
+                before=destination.read_bytes()
+                with self.assertRaisesRegex(SelectionProvisionError,'owned_close_evidence_unknown'):
+                    provision_selection(destination,reports,refresh=True)
+                self.assertEqual(destination.read_bytes(),before)
+
     def test_unproven_crypto_closed_marker_is_not_a_flat_policy_permission(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);reports,destination=root/'reports.json',root/'selected-strategy.json'
