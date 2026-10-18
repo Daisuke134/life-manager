@@ -67,8 +67,9 @@ class CryptoActivityAccountTests(unittest.TestCase):
             'period_start': START, 'period_end': END}
         if reader is cli.read_crypto_activity_page_chunk:
             kwargs['activity_type'] = 'FILL'
-        with patch.object(cli, '_context', return_value=env), patch.object(cli, '_run', side_effect=run):
+        with patch.object(cli, '_context', return_value=env) as context, patch.object(cli, '_run', side_effect=run):
             value = reader(**kwargs)
+            context.assert_called_once_with(Path('unused'), Path('unused'), mode=mode)
         return value, env, calls
 
     def test_both_capture_readers_bind_native_id_and_every_page_to_the_same_env(self):

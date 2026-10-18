@@ -64,7 +64,7 @@ def cycle_fixture(root,mode='paper',index=0,partial=False,zero=False,buy_price='
         after={**account,'positions':[] if remaining==0 else [{'symbol':'BTCUSDC','qty':before}],
                'clock':{'observed_at':stamp(seconds+2)}}
         if terminal:
-            with patch.object(cli,'_context',return_value={}),patch.object(cli,'_run',side_effect=[copy.deepcopy(fills),[]]):
+            with patch.object(cli,'_context',return_value={}),patch.object(cli,'_run',side_effect=[{'id':'synthetic-native-account-'+mode},copy.deepcopy(fills),[]]):
                 activities=cli.read_crypto_activity_evidence(credentials_path=Path('unused'),cli_path=Path('unused'),mode=mode,
                     period_start=sell['submitted_at'],period_end=after['clock']['observed_at'])
             result=proofs.sell_remainder_proof_from_rows(store._rows(ledger),owned,sell,after,mode=mode,owner_id=owner,activity_readback=activities)
@@ -73,7 +73,7 @@ def cycle_fixture(root,mode='paper',index=0,partial=False,zero=False,buy_price='
         if remaining: owned.update(status='open',owned_qty=before)
         else: owned['status']='closed'
         orders.append(sell)
-    with patch.object(cli,'_context',return_value={}),patch.object(cli,'_run',side_effect=[copy.deepcopy(fills),[]]):
+    with patch.object(cli,'_context',return_value={}),patch.object(cli,'_run',side_effect=[{'id':'synthetic-native-account-'+mode},copy.deepcopy(fills),[]]):
         activities=cli.read_crypto_activity_evidence(credentials_path=Path('unused'),cli_path=Path('unused'),mode=mode,
             period_start=buy['submitted_at'],period_end=NOW)
     return orders,activities,owned
@@ -81,7 +81,7 @@ def cycle_fixture(root,mode='paper',index=0,partial=False,zero=False,buy_price='
 
 def activity_fixture(original,*,mode,start,end,fees=None):
     with patch.object(cli,'_context',return_value={}),patch.object(cli,'_run',side_effect=[
-            copy.deepcopy(original['fills']),copy.deepcopy(fees if fees is not None else original['fees'])]):
+            {'id':'synthetic-native-account-'+mode},copy.deepcopy(original['fills']),copy.deepcopy(fees if fees is not None else original['fees'])]):
         return cli.read_crypto_activity_evidence(credentials_path=Path('unused'),cli_path=Path('unused'),
             mode=mode,period_start=start,period_end=end)
 

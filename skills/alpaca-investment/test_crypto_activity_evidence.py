@@ -26,7 +26,7 @@ class CryptoActivityEvidenceTests(unittest.TestCase):
     def test_mode_scoped_snapshot_keeps_unattributed_fee_and_raw_native_facts(self):
         for mode in ('paper','live'):
             with self.subTest(mode=mode),patch.object(cli,'_context',return_value={}) as context,\
-                    patch.object(cli,'_run',side_effect=[[copy.deepcopy(FILL)],[copy.deepcopy(FEE)]]) as run:
+                    patch.object(cli,'_run',side_effect=[{'id':'synthetic-native-account-'+mode},[copy.deepcopy(FILL)],[copy.deepcopy(FEE)]]) as run:
                 value=self.read(mode)
                 self.assertEqual(value['mode'],mode)
                 self.assertIs(value['paper'],mode=='paper')
@@ -37,8 +37,8 @@ class CryptoActivityEvidenceTests(unittest.TestCase):
                 self.assertIsNone(value['net_realized_pnl_usd'])
                 self.assertTrue(value['source_receipt_id'].startswith('alpaca-crypto-activities:'))
                 context.assert_called_once_with(Path('unused'),Path('unused'),mode=mode)
-                self.assertEqual(run.call_count,2)
-                for call in run.call_args_list:
+                self.assertEqual(run.call_count,3)
+                for call in run.call_args_list[1:]:
                     args=call.args[1]
                     self.assertEqual(args[:3],['account','activity','list'])
                     self.assertNotIn('--order-id',args)
@@ -46,7 +46,7 @@ class CryptoActivityEvidenceTests(unittest.TestCase):
                     self.assertEqual(args[args.index('--until')+1],END)
 
     def test_empty_fees_do_not_prove_zero_or_settlement(self):
-        with patch.object(cli,'_context',return_value={}),patch.object(cli,'_run',side_effect=[[FILL],[]]):
+        with patch.object(cli,'_context',return_value={}),patch.object(cli,'_run',side_effect=[{'id':'synthetic-native-account-paper'},[FILL],[]]):
             value=self.read()
         self.assertEqual(value['fees'],[])
         self.assertEqual(value['fee_settlement_status'],'unknown')
@@ -56,10 +56,10 @@ class CryptoActivityEvidenceTests(unittest.TestCase):
     def test_second_page_uses_last_activity_id_without_dropping_foreign_order_fills(self):
         page=[{**FILL,'id':f'fill-{i}','order_id':'other-order'} for i in range(100)]
         with patch.object(cli,'_context',return_value={}),\
-                patch.object(cli,'_run',side_effect=[page,[{**FILL,'id':'fill-target'}],[]]) as run:
+                patch.object(cli,'_run',side_effect=[{'id':'synthetic-native-account-paper'},page,[{**FILL,'id':'fill-target'}],[]]) as run:
             value=self.read()
         self.assertEqual(len(value['fills']),101)
-        args=run.call_args_list[1].args[1]
+        args=run.call_args_list[2].args[1]
         self.assertEqual(args[args.index('--page-token')+1],'fill-99')
         self.assertEqual(value['fills'][0]['order_id'],'other-order')
 
@@ -67,19 +67,19 @@ class CryptoActivityEvidenceTests(unittest.TestCase):
         variants=([FILL,FILL],[{**FILL,'id':''}],[{**FILL,'activity_type':'CFEE'}],{'rows':[FILL]})
         for page in variants:
             with self.subTest(page=page),patch.object(cli,'_context',return_value={}),\
-                    patch.object(cli,'_run',return_value=page):
+                    patch.object(cli,'_run',side_effect=[{'id':'synthetic-native-account-paper'},page]):
                 with self.assertRaisesRegex(ValueError,'crypto_activity_invalid'):
                     self.read()
 
     def test_page_bound_does_not_claim_exhaustion(self):
         pages=[[{**FILL,'id':f'{p}-{i}'} for i in range(100)] for p in range(4)]
-        with patch.object(cli,'_context',return_value={}),patch.object(cli,'_run',side_effect=pages) as run:
+        with patch.object(cli,'_context',return_value={}),patch.object(cli,'_run',side_effect=[{'id':'synthetic-native-account-paper'},*pages]) as run:
             with self.assertRaisesRegex(ValueError,'crypto_activity_limit_exceeded'): self.read()
-        self.assertEqual(run.call_count,4)
+        self.assertEqual(run.call_count,5)
 
     def test_same_activity_id_cannot_describe_both_a_fill_and_a_fee(self):
         with patch.object(cli,'_context',return_value={}),\
-                patch.object(cli,'_run',side_effect=[[FILL],[{**FEE,'id':FILL['id']}]]):
+                patch.object(cli,'_run',side_effect=[{'id':'synthetic-native-account-paper'},[FILL],[{**FEE,'id':FILL['id']}]]):
             with self.assertRaisesRegex(ValueError,'crypto_activity_invalid'): self.read()
 
     def test_invalid_mode_or_period_never_opens_credentials(self):

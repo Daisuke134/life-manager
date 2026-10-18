@@ -26,6 +26,7 @@ def read_chunk(kind,token=None,mode='paper',rows=None,period_start=START,period_
     if reader is None: return None
     records=activity_rows(kind) if rows is None else rows
     def run(_path,args,_env):
+        if args[:2]==['account','get']:return {'id':'synthetic-native-account-'+mode}
         cursor=args[args.index('--page-token')+1] if '--page-token' in args else None
         start=next((i+1 for i,r in enumerate(records) if r['id']==cursor),0) if cursor else 0
         return copy.deepcopy(records[start:start+100])

@@ -143,6 +143,8 @@ def validate_crypto_activity_page_chunk(chunk: dict[str, Any], *, mode: str) -> 
                 or type(chunk.get('schema_version')) is not int or chunk['schema_version']!=1
                 or chunk.get('kind')!='crypto_activity_page_chunk' or chunk.get('mode')!=mode
                 or chunk.get('paper') is not (mode=='paper')): raise ValueError
+        if 'native_trading_account_id' in chunk and (not isinstance(chunk['native_trading_account_id'],str)
+                or not chunk['native_trading_account_id'].strip()): raise ValueError
         body={k:v for k,v in chunk.items() if k!='source_receipt_id'}
         if chunk.get('source_receipt_id')!='alpaca-crypto-activity-chunk:'+_digest([body]): raise ValueError
         start,end=(parse_instant(chunk[k]) for k in ('requested_period_start','requested_period_end'))
@@ -177,9 +179,12 @@ def validate_crypto_activity_page_chunk(chunk: dict[str, Any], *, mode: str) -> 
 
 def crypto_activity_page_progress(chunks: list[dict[str, Any]], *, mode: str) -> dict[str, Any]:
     if mode not in {'paper','live'} or not isinstance(chunks,list): raise ValueError('owned_crypto_activity_pages_invalid')
-    kind='FILL';token=None;window=None;seen=set();fills=[];fees=[]
+    kind='FILL';token=None;window=None;seen=set();fills=[];fees=[];accounts=set();account_unknown=False
     for chunk in chunks:
         start,end,actual_kind,actual_token,next_token,rows=validate_crypto_activity_page_chunk(chunk,mode=mode)
+        if 'native_trading_account_id' in chunk: accounts.add(chunk['native_trading_account_id'])
+        else: account_unknown=True
+        if len(accounts)>1: raise ValueError('owned_crypto_activity_pages_invalid')
         if (kind is None or actual_kind!=kind or actual_token!=token
                 or (window is not None and window!=(start,end))): raise ValueError('owned_crypto_activity_pages_invalid')
         window=(start,end)
@@ -189,7 +194,9 @@ def crypto_activity_page_progress(chunks: list[dict[str, Any]], *, mode: str) ->
         (fills if kind=='FILL' else fees).extend(rows)
         if next_token is None: kind='CFEE' if kind=='FILL' else None
         token=next_token
-    return {'complete':kind is None,'next_kind':kind,'next_page_token':token,'fills':fills,'fees':fees}
+    result={'complete':kind is None,'next_kind':kind,'next_page_token':token,'fills':fills,'fees':fees}
+    if accounts and not account_unknown: result['native_trading_account_id']=next(iter(accounts))
+    return result
 
 
 def crypto_activity_paged_snapshot(chunks: list[dict[str, Any]], *, mode: str) -> dict[str, Any]:
@@ -201,6 +208,7 @@ def crypto_activity_paged_snapshot(chunks: list[dict[str, Any]], *, mode: str) -
         'request':{k:first['request'][k] for k in ('after','until','direction','page_size')},
         'pagination':'exhausted','fills':progress['fills'],'fees':progress['fees'],'chunks':chunks,
         'fee_attribution_status':'unknown','fee_settlement_status':'unknown','net_realized_pnl_usd':None}
+    if 'native_trading_account_id' in progress: body['native_trading_account_id']=progress['native_trading_account_id']
     body['source_receipt_id']='alpaca-crypto-activity-pages:'+_digest([body])
     return body
 
@@ -215,6 +223,9 @@ def _activity_bundle(segments: list[dict[str, Any]], *, mode: str) -> dict[str, 
         unique[frame['source_receipt_id']]=frame
     ordered=sorted(unique.values(),key=lambda f:(parse_instant(f['request']['after']),
         parse_instant(f['request']['until']),f['source_receipt_id']))
+    sources=[source for frame in ordered for source in (frame['chunks'] if frame['schema_version']==3 else [frame])]
+    accounts={source['native_trading_account_id'] for source in sources if 'native_trading_account_id' in source}
+    if len(accounts)>1: raise ValueError('owned_crypto_activities_invalid')
     if len(ordered)==1: return ordered[0]
     start=min(parse_instant(f['requested_period_start']) for f in ordered)
     through=start;activities={}
@@ -239,6 +250,8 @@ def _activity_bundle(segments: list[dict[str, Any]], *, mode: str) -> dict[str, 
         'pagination':'exhausted','fills':[r for r in activities.values() if r['activity_type']=='FILL'],
         'fees':[r for r in activities.values() if r['activity_type']=='CFEE'],'segments':ordered,
         'fee_attribution_status':'unknown','fee_settlement_status':'unknown','net_realized_pnl_usd':None}
+    if accounts and all('native_trading_account_id' in source for source in sources):
+        body['native_trading_account_id']=next(iter(accounts))
     body['source_receipt_id']='alpaca-crypto-activity-bundle:'+_digest([body])
     return body
 
@@ -278,6 +291,8 @@ def validate_crypto_activity_snapshot(snapshot: dict[str, Any], *, mode: str) ->
                 or snapshot.get("fee_settlement_status") != "unknown"
                 or snapshot.get("net_realized_pnl_usd") is not None):
             raise ValueError
+        if 'native_trading_account_id' in snapshot and (not isinstance(snapshot['native_trading_account_id'],str)
+                or not snapshot['native_trading_account_id'].strip()): raise ValueError
         body = {key: value for key, value in snapshot.items() if key != "source_receipt_id"}
         if snapshot.get("source_receipt_id") != "alpaca-crypto-activities:" + _digest([body]):
             raise ValueError

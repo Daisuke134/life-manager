@@ -26,7 +26,7 @@ def partial_fixture(root,mode='live',status='canceled'):
     observation['clock']['observed_at']='2026-01-01T04:00:03Z'
     fills=[copy.deepcopy(FILL),{**FILL,'id':'fill-2','qty':'0.01','price':'203',
                                'transaction_time':'2026-01-01T04:00:02Z'}]
-    with patch.object(cli,'_context',return_value={}),patch.object(cli,'_run',side_effect=[fills,[]]):
+    with patch.object(cli,'_context',return_value={}),patch.object(cli,'_run',side_effect=[{'id':'synthetic-native-account-'+mode},fills,[]]):
         activities=cli.read_crypto_activity_evidence(credentials_path=Path('unused'),cli_path=Path('unused'),
             mode=mode,period_start=broker['submitted_at'],period_end=observation['clock']['observed_at'])
     return marker,broker,observation,owner,activities

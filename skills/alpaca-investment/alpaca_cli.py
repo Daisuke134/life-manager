@@ -44,7 +44,7 @@ SAFE_ERROR_CODES = frozenset({
     "owned_closed_identity_invalid", "owned_no_fill_proof_invalid",
     "owned_entry_account_invalid", "owned_entry_account_pending",
     "owned_entry_receipt_missing", "owned_entry_receipt_conflict",
-    "crypto_activity_period_invalid", "crypto_activity_invalid", "crypto_activity_limit_exceeded",
+    "crypto_activity_period_invalid", "crypto_activity_invalid", "crypto_activity_limit_exceeded", "crypto_activity_account_invalid",
     "owned_crypto_fills_pending", "owned_crypto_fills_invalid",
     "owned_sell_proof_invalid", "owned_sell_receipt_missing", "owned_sell_receipt_conflict", "owned_sell_account_pending",
     "owned_no_fill_receipt_missing", "owned_no_fill_receipt_conflict",
@@ -193,11 +193,14 @@ def read_crypto_activity_evidence(*, credentials_path: Path, cli_path: Path,
     after_text = after.isoformat().replace("+00:00", "Z")
     until = end.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
     env = _context(credentials_path, cli_path, mode=mode)
+    account = _run(cli_path, ["account", "get", "--quiet", "--jq", "{id}"], env)
+    if not isinstance(account, dict) or not isinstance(account.get("id"), str) or not account["id"].strip():
+        raise ValueError("crypto_activity_account_invalid")
     fills, fees = [_read_activity_pages(cli_path, env, kind=kind, after=after_text,
         until=until, query=".", error_prefix="crypto", max_pages=4) for kind in ("FILL", "CFEE")]
     if len({row["id"] for row in [*fills, *fees]}) != len(fills) + len(fees):
         raise ValueError("crypto_activity_invalid")
-    snapshot = {"schema_version": 1, "mode": mode, "paper": mode == "paper",
+    snapshot = {"schema_version": 1, "mode": mode, "paper": mode == "paper", "native_trading_account_id": account["id"],
         "requested_period_start": period_start, "requested_period_end": period_end,
         "request": {"after": after_text, "until": until, "direction": "asc", "page_size": 100},
         "pagination": "exhausted", "fills": fills, "fees": fees,
@@ -222,13 +225,16 @@ def read_crypto_activity_page_chunk(*, credentials_path: Path, cli_path: Path, m
     after=start.astimezone(timezone.utc).replace(hour=0,minute=0,second=0,microsecond=0).isoformat().replace('+00:00','Z')
     until=end.astimezone(timezone.utc).isoformat().replace('+00:00','Z');pages=[]
     env=_context(credentials_path,cli_path,mode=mode)
+    account=_run(cli_path,['account','get','--quiet','--jq','{id}'],env)
+    if not isinstance(account,dict) or not isinstance(account.get('id'),str) or not account['id'].strip():
+        raise ValueError('crypto_activity_account_invalid')
     try:
         _read_activity_pages(cli_path,env,kind=activity_type,after=after,until=until,query='.',
             error_prefix='crypto',max_pages=4,page_token=page_token,page_sink=pages)
     except ValueError as error:
         if str(error)!='crypto_activity_limit_exceeded' or len(pages)!=4 or any(len(p)!=100 for p in pages): raise
     next_token=pages[-1][-1]['id'] if len(pages[-1])==100 else None
-    body={'schema_version':1,'kind':'crypto_activity_page_chunk','mode':mode,'paper':mode=='paper',
+    body={'schema_version':1,'kind':'crypto_activity_page_chunk','mode':mode,'paper':mode=='paper','native_trading_account_id':account['id'],
         'requested_period_start':period_start,'requested_period_end':period_end,
         'request':{'after':after,'until':until,'direction':'asc','page_size':100,
                    'activity_type':activity_type,'page_token':page_token},'pages':pages,

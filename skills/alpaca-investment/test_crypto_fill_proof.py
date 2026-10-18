@@ -16,7 +16,7 @@ def fixture(mode='live',side='buy'):
     fills=[{**FILL,'side':side},
            {**FILL,'id':'fill-2','side':side,'qty':'0.01','price':'203',
             'transaction_time':'2026-01-01T04:00:02Z'}]
-    with patch.object(cli,'_context',return_value={}),patch.object(cli,'_run',side_effect=[fills,[copy.deepcopy(FEE)]]):
+    with patch.object(cli,'_context',return_value={}),patch.object(cli,'_run',side_effect=[{'id':'synthetic-native-account-'+mode},fills,[copy.deepcopy(FEE)]]):
         snapshot=cli.read_crypto_activity_evidence(credentials_path=Path('unused'),cli_path=Path('unused'),
             mode=mode,period_start=START,period_end=END)
     broker={'id':'official-entry','client_order_id':'sealed-client','symbol':'BTCUSDC','side':side,

@@ -31,7 +31,7 @@ def remainder_fixture(root,mode='live',qty='0.02',status='canceled'):
         obs['positions'].append({'symbol':'BTCUSDC','qty':str(remaining),'unrealized_pl':'0'})
     fills=[] if qty=='0' else [{'id':'sell-fill','activity_type':'FILL','order_id':broker['id'],
         'symbol':'BTCUSDC','side':'sell','qty':qty,'price':'210','transaction_time':'2026-01-01T04:15:01Z'}]
-    with patch.object(cli,'_context',return_value={}),patch.object(cli,'_run',side_effect=[fills,[]]):
+    with patch.object(cli,'_context',return_value={}),patch.object(cli,'_run',side_effect=[{'id':'synthetic-native-account-'+mode},fills,[]]):
         activities=cli.read_crypto_activity_evidence(credentials_path=Path('unused'),cli_path=Path('unused'),
             mode=mode,period_start=broker['submitted_at'],period_end=obs['clock']['observed_at'])
     return owned,broker,obs,owner,activities
@@ -87,7 +87,7 @@ class SellRemainderTests(unittest.TestCase):
                     fills.append({'id':'entry-fill','activity_type':'FILL','order_id':entry['id'],
                         'symbol':'BTCUSDC','side':'buy','qty':entry['filled_qty'],'price':entry['filled_avg_price'],
                         'transaction_time':entry['filled_at']})
-                with patch.object(cli,'_context',return_value={}),patch.object(cli,'_run',side_effect=[fills,activities['fees']]):
+                with patch.object(cli,'_context',return_value={}),patch.object(cli,'_run',side_effect=[{'id':'synthetic-native-account-'+kw['mode']},fills,activities['fees']]):
                     return cli.read_crypto_activity_evidence(credentials_path=Path('unused'),cli_path=Path('unused'),
                         mode=kw['mode'],period_start=kw['period_start'],period_end=kw['period_end'])
             activity_reader=stack.enter_context(patch.object(native,'read_crypto_activity_evidence',side_effect=activity_response))
@@ -209,7 +209,7 @@ class SellRemainderTests(unittest.TestCase):
             if reuse in ('provider','both'): second['id']=broker['id']
             fill={'id':'sell-fill' if reuse in ('fill','both') else 'sell-fill-2','activity_type':'FILL','order_id':second['id'],'symbol':'BTCUSDC','side':'sell',
                   'qty':'0.01','price':'211','transaction_time':'2026-01-01T04:20:01Z'}
-            with patch.object(cli,'_context',return_value={}),patch.object(cli,'_run',side_effect=[[fill] if reuse else [activities['fills'][0],fill],[]]):
+            with patch.object(cli,'_context',return_value={}),patch.object(cli,'_run',side_effect=[{'id':'synthetic-native-account-'+mode},[fill] if reuse else [activities['fills'][0],fill],[]]):
                 snapshot=cli.read_crypto_activity_evidence(credentials_path=Path('unused'),cli_path=Path('unused'),mode=mode,
                     period_start=second['submitted_at'],period_end=after['clock']['observed_at'])
             if reuse:
