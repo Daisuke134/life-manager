@@ -10,6 +10,22 @@ def report(payload,inventory,trip,mode='paper'):
     return summarize([trip],payload,owner_id=trip['owner_id'],mode=mode,observed_at=inventory['observed_at'],expected_inventory=inventory)
 
 
+def calendar_fixture(mode="paper"):
+    payload,inventory,child=window_fixture(mode)
+    owner=child['owner_id'];parent=copy.deepcopy(payload['readback']['cost_scopes'][0])
+    parent.update(scope_id='calendar-scope',scope_kind='owner_period',order_ids=[],period_end='2026-10-01T00:00:00Z')
+    payload['readback']['cost_scopes'].append(parent)
+    query=copy.deepcopy(payload['sources'][0]['queries'][0]);query.update(query_id='calendar-query',scope_id='calendar-scope')
+    payload['sources'][0]['queries'].append(query)
+    page=copy.deepcopy(payload['provider_pagination']['pages'][0]);page['query_id']='calendar-query'
+    payload['provider_pagination']['pages'].append(page)
+    join=copy.deepcopy(payload['job_joins'][1]);join.update(parent,query_id='calendar-query')
+    payload['job_joins'].append(join)
+    scope=copy.deepcopy(inventory['scopes'][0]);scope.update({k:parent[k] for k in ('scope_kind','order_ids','period_start','period_end','source_receipt_ids')})
+    inventory['scopes'].append(scope)
+    return payload,inventory,child,parent
+
+
 class OperatingCostTotalsTests(unittest.TestCase):
     def test_scope_proof_does_not_lose_paid_cost_to_whole_loop_gap(self):
         for mode in ('paper','live'):
@@ -169,18 +185,8 @@ class OperatingCostTotalsTests(unittest.TestCase):
         self.assertEqual(result['model_cost_usd'],'9999.99000001')
 
     def test_calendar_view_includes_verified_child_once_without_rebinding(self):
-        payload,inventory,child=window_fixture()
-        owner=child['owner_id'];parent=copy.deepcopy(payload['readback']['cost_scopes'][0])
-        parent.update(scope_id='calendar-scope',scope_kind='owner_period',order_ids=[],period_end='2026-10-01T00:00:00Z')
-        payload['readback']['cost_scopes'].append(parent)
-        query=copy.deepcopy(payload['sources'][0]['queries'][0]);query.update(query_id='calendar-query',scope_id='calendar-scope')
-        payload['sources'][0]['queries'].append(query)
-        page=copy.deepcopy(payload['provider_pagination']['pages'][0]);page['query_id']='calendar-query'
-        payload['provider_pagination']['pages'].append(page)
-        join=copy.deepcopy(payload['job_joins'][1]);join.update(parent,query_id='calendar-query')
-        payload['job_joins'].append(join)
-        scope=copy.deepcopy(inventory['scopes'][0]);scope.update({k:parent[k] for k in ('scope_kind','order_ids','period_start','period_end','source_receipt_ids')})
-        inventory['scopes'].append(scope)
+        payload,inventory,child,parent=calendar_fixture()
+        owner=child["owner_id"]
         result=summarize([child,parent],payload,owner_id=owner,observed_at=inventory['observed_at'],expected_inventory=inventory)
         calendar=select_components(result,[parent])
         self.assertEqual(calendar['model_cost_usd'],'1')
@@ -192,5 +198,36 @@ class OperatingCostTotalsTests(unittest.TestCase):
         self.assertEqual(alone['operating_cost_components'][0]['order_ids'],child['order_ids'])
         self.assertEqual(select_components(alone,[parent])['model_cost_usd'],'1')
         self.assertEqual(select_components(result,[child])['model_cost_usd'],'1')
+
+    def test_calendar_rollup_requires_parent_and_child_proof_and_ignores_other_modes(self):
+        for mode in ('paper','live'):
+            for broken in ('parent_query','child_join','foreign_mode','foreign_account'):
+                with self.subTest(mode=mode,broken=broken):
+                    payload,inventory,child,parent=calendar_fixture(mode)
+                    if broken=='parent_query':payload['sources'][0]['queries'].pop()
+                    elif broken=='child_join':payload['job_joins'].pop(0)
+                    elif broken=='foreign_mode':
+                        payload['job_joins'][0].update(owner_id='alpaca-investment-'+('live' if mode=='paper' else 'paper'),mode='live' if mode=='paper' else 'paper',paper=mode!='paper')
+                    else:payload['documents'][0]['billing_account_ref']='foreign-account'
+                    value=summarize([parent],payload,owner_id=child['owner_id'],mode=mode,
+                        observed_at=inventory['observed_at'],expected_inventory=inventory)
+                    self.assertIsNone(value['model_cost_usd'])
+                    self.assertEqual(value['operating_cost_coverage']['coverage_state'],'gap')
+
+    def test_calendar_rollup_retains_rejected_child_gap_and_half_open_boundary(self):
+        for mode in ('paper','live'):
+            payload,inventory,child,parent=calendar_fixture(mode)
+            value=summarize([parent,child],payload,owner_id=child['owner_id'],mode=mode,
+                observed_at=inventory['observed_at'],expected_inventory=inventory)
+            self.assertEqual(value['model_cost_usd'],'1')
+            selected=select_components(value,[parent])
+            self.assertEqual(selected['model_cost_usd'],'1')
+            component=selected['operating_cost_components'][0]
+            rejected=copy.deepcopy(value);rejected['operating_cost_components']=[]
+            rejected['operating_cost_component_gaps']=[{**component,'reason':'operating_cost_receipt_reassigned'}]
+            self.assertIsNone(select_components(rejected,[parent])['model_cost_usd'])
+            from paper_operating_costs import _calendar_contains
+            self.assertFalse(_calendar_contains({**component,'occurred_at':parent['period_end']},parent))
+            self.assertTrue(_calendar_contains({**component,'occurred_at':parent['period_start']},parent))
 
 if __name__=='__main__':unittest.main()

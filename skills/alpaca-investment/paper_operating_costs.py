@@ -46,14 +46,33 @@ def _execution_time_proof(join,trip,receipt,account,observations):
         for proof in proofs for window in proof.get('execution_windows',[]))
 
 
+def _calendar_contains(component, trip):
+    try:
+        return (trip.get('scope_kind')=='owner_period' and _binding(component)!=_binding(trip)
+            and _time(trip['period_start'])<=_time(component['occurred_at'])<_time(_cost_end(trip)))
+    except (KeyError,TypeError,ValueError):
+        return False
+
+
+def _calendar_covers(component, trip, observations):
+    return (_calendar_contains(component,trip) and component.get('attribution_basis')=='verified_execution_window'
+        and any(row.get('inventory_verification')=='verified' and row.get('settlement_state')=='paid_final'
+            and _binding(row)==_binding(trip) and row.get('provider')==component.get('provider')
+            and row.get('billing_account_ref')==component.get('billing_account_ref')
+            and component.get('category') in row.get('covered_categories',[])
+            and component.get('document_id') in row.get('document_ids',[]) for row in observations))
+
+
 def select_components(summary: dict, trips) -> dict:
     """Select one economic day without moving cumulative costs onto that day's P&L."""
     requested=[_binding(trip) for trip in trips]
     pairs={key for key in requested if key is not None}
+    observations=summary.get("operating_cost_query_observations", [])
     components = [row for row in summary.get("operating_cost_components", [])
-                  if _binding(row) in pairs]
+                  if _binding(row) in pairs or any(_calendar_covers(row,trip,observations) for trip in trips)]
     coverages=[row for row in summary.get('operating_cost_scope_coverages',[]) if _binding(row) in pairs]
-    component_gaps=[row for row in summary.get('operating_cost_component_gaps',[]) if _binding(row) in pairs]
+    component_gaps=[row for row in summary.get('operating_cost_component_gaps',[])
+        if _binding(row) in pairs or any(_calendar_contains(row,trip) for trip in trips)]
     for component in components:
         if (component.get('attribution_basis')!='verified_execution_window'
                 and any(_binding(row)==_binding(component) and row.get('coverage_state')=='complete' for row in coverages)
@@ -103,17 +122,27 @@ def read_readback(path: str | None) -> Any:
 
 
 def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inventory=None, mode="paper") -> dict:
+    requested=list(trips)
+    trips=list(requested)
     summary = {"operating_cost_components": [], "operating_costs_observed_at": None,
                "operating_costs_reason": "operating_cost_readback_missing"}
     if mode not in {"paper", "live"} or owner_id != f"alpaca-investment-{mode}":
         summary["operating_costs_reason"] = "operating_cost_scope_invalid"
-        return select_components(summary, trips)
+        return select_components(summary, requested)
     if payload is None:
-        return select_components(summary, trips)
+        return select_components(summary, requested)
     try:
         if not isinstance(payload, dict) or "read_error" in payload:
             raise ValueError("operating_cost_readback_unavailable")
         readback = payload["readback"]
+        # Calendar views verify child scopes independently; money keeps its original binding.
+        if any(trip.get('scope_kind')=='owner_period' for trip in requested):
+            for scope in readback.get('cost_scopes',[]):
+                if (isinstance(scope,dict) and scope.get('scope_kind','order_pair')=='order_pair'
+                        and scope.get('owner_id')==owner_id and scope.get('mode')==mode
+                        and scope.get('paper') is (mode=='paper') and _binding(scope) is not None
+                        and not any(_binding(scope)==_binding(trip) for trip in trips)):
+                    trips.append(scope)
         billing_at = readback["observed_at"]
         if _time(billing_at) > _time(observed_at):
             raise ValueError("operating_cost_readback_from_future")
@@ -236,7 +265,7 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inven
                 if calendar and not inside or proof is False or proof is None and not inside:continue
                 component = receipt["components"][0]
                 cost = {
-                    "receipt_id": identity, "provider": provider, "currency": "USD",
+                    "receipt_id": identity, "provider": provider, "currency": "USD", "document_id": document_id,
                     "charge_identity": list(charge_identity),"billing_account_ref":account,
                     "attribution_basis":"verified_execution_window" if proof is True else "economic_interval_only",
                     "category": component["category"], "amount_usd": component["amount"],
@@ -277,7 +306,8 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inven
                 resolved=(charge not in charge_conflicts and known is not None
                     and known.get('attribution_basis')=='verified_execution_window')
                 if (resolved and trip.get('scope_kind','order_pair')=='owner_period' and _binding(known)!=binding
-                        and _time(trip['period_start'])<=_time(receipt['occurred_at'])<_time(_cost_end(trip))):resolved=False
+                        and _time(trip['period_start'])<=_time(receipt['occurred_at'])<_time(_cost_end(trip))
+                        and not _calendar_covers(known,trip,observations)):resolved=False
                 if resolved:continue
                 if any(g.get('receipt_id')==identity and _binding(g)==binding for g in component_gaps):continue
                 reason='operating_cost_paid_charge_conflict' if charge in charge_conflicts else 'operating_cost_paid_allocation_unattributed'
@@ -296,6 +326,13 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inven
                     'allocation_id':allocation.get('allocation_id'),'provider':provider,'owner_id':owner_id,'mode':mode,'paper':mode=='paper',
                     'order_ids':trip['order_ids'],'period_start':trip['period_start'],'period_end':_cost_end(trip),
                     'reason':'operating_cost_claimed_allocation_unverified'})
+        for trip in requested:
+            for charge,component in accepted.items():
+                if (_calendar_contains(component,trip) and (charge in charge_conflicts
+                        or not _calendar_covers(component,trip,observations))):
+                    component_gaps.append({'receipt_id':component['receipt_id'],'provider':component['provider'],
+                        'order_ids':trip['order_ids'],'period_start':trip['period_start'],'period_end':_cost_end(trip),
+                        'reason':'operating_cost_calendar_source_unverified'})
         summary['operating_cost_component_gaps']=component_gaps
         summary.update({"operating_cost_components": [accepted[key] for key in sorted(accepted)
                                                       if key not in charge_conflicts],
@@ -305,4 +342,4 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inven
         summary["operating_costs_reason"] = (str(error) if isinstance(error, ValueError)
                                              and str(error).startswith("operating_cost_")
                                              else "operating_cost_readback_invalid")
-    return select_components(summary, trips)
+    return select_components(summary, requested)

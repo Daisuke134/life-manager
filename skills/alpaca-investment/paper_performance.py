@@ -786,7 +786,7 @@ def _bind_operating_costs(state: Path, completed, summary):
         component_gaps = list(summary.get("operating_cost_component_gaps", []))
         def gap(row, reason):
             return {**{key: row[key] for key in ("receipt_id", "provider", "order_ids", "period_start", "period_end")},
-                    "reason": reason}
+                    "occurred_at": row.get("occurred_at"), "reason": reason}
         for row in components:
             keys = _operating_identity_keys(row)
             if any(key in bindings and bindings[key] != binding(row) for key in keys):
