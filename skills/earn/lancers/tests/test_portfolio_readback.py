@@ -57,6 +57,7 @@ def test_pinned_portfolio_is_found_when_a_same_title_duplicate_exists():
     assert found == {
         "portfolio_external_id": "743987",
         "portfolio_url": "https://www.lancers.jp/profile/keiodaisuke/portfolio_popup/743987",
+        "portfolio_duplicate_external_ids": ["757333"],
     }
 
 
@@ -70,3 +71,18 @@ def test_unpinned_duplicate_titles_stay_ambiguous():
     module = _module()
     with pytest.raises(module.OfferError, match="portfolio_readback_invalid"):
         module._portfolio(Page(_links("757333", "743987")), {"title_stem": TITLE_STEM, "external_id": ""})
+
+
+def test_pinned_portfolio_absent_never_reads_as_create_me():
+    # None makes _ensure_portfolio create a new portfolio: a pinned row that did not render
+    # is the likely origin of duplicate 757333. A pin with zero title matches is invalid.
+    module = _module()
+    with pytest.raises(module.OfferError, match="portfolio_readback_invalid"):
+        module._portfolio(Page([]), {"title_stem": TITLE_STEM, "external_id": "743987"})
+    assert module._portfolio(Page([]), {"title_stem": TITLE_STEM, "external_id": ""}) is None
+
+
+def test_same_title_duplicates_are_surfaced():
+    module = _module()
+    found = module._portfolio(Page(_links("757333", "743987")), {"title_stem": TITLE_STEM, "external_id": "743987"})
+    assert found["portfolio_duplicate_external_ids"] == ["757333"]
