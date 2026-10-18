@@ -398,7 +398,11 @@ trips without a positive SELL. A position closed by a fee uses the saved flat
 account observation time, including a partial SELL followed by a next-day fee;
 it is never attributed to the earlier SELL day. Post-acquisition quantity adjustments are explicit;
 native execution cashflow uses actual FILL notionals without subtracting BTC fees
-twice. USD net/cost completeness and capital expansion remain unproved.
+twice. Observed executed SELL fees denominated in USDC have separate per-cycle known
+subtotals and native cashflow after those observed quote fees. Missing/invalid
+quote fees stay null, and missing execution cashflow prevents a numeric adjusted
+cashflow. These fields cover observed components only; BTC base fees are not
+subtracted again. USD net/cost completeness and capital expansion remain unproved.
 This branch is source only: verified fee quantity-drift recovery, FX and complete
 actual costs, deployment, natural outcomes and profitable evaluation remain in
 the canonical SSOT.
