@@ -159,6 +159,36 @@ class OwnedPolicyTests(unittest.TestCase):
                  self.assertRaisesRegex(ValueError,"owned_entry_fill_conflict"):
                 position_manager.load_owned_policy(root,ownership,mode="live")
 
+    def test_same_provider_fill_cannot_be_overridden_by_contradictory_values(self):
+        for field,value in (("filled_avg_price","100"),("filled_qty","0.1"),
+                            ("filled_at","2026-01-01T04:01:30Z"),("submitted_at","2026-01-01T03:59:00Z")):
+            with self.subTest(field=field),tempfile.TemporaryDirectory() as directory:
+                root=Path(directory)
+                ownership,owner=seed(root)
+                ledger=root/"receipts.jsonl"
+                rows=[json.loads(line) for line in ledger.read_text().splitlines()]
+                altered=copy.deepcopy(next(row for row in rows if row["receipt_type"]=="outcome"))
+                altered["broker"][field]=value
+                ledger.write_text("".join(json.dumps(row)+"\n" for row in [*rows,altered]))
+                with patch.dict(os.environ,{"LIFE_MANAGER_INVESTMENT_OWNER_ID":owner}), \
+                     self.assertRaisesRegex(ValueError,"owned_entry_fill_conflict"):
+                    position_manager.load_owned_policy(root,ownership,mode="live")
+
+    def test_equivalent_fill_formats_and_receipt_enrichment_remain_usable(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            ownership,owner=seed(root)
+            ledger=root/"receipts.jsonl"
+            rows=[json.loads(line) for line in ledger.read_text().splitlines()]
+            enriched=copy.deepcopy(next(row for row in rows if row["receipt_type"]=="outcome"))
+            enriched["broker"].update(filled_avg_price="200.0",filled_qty="0.050000",symbol="BTCUSDC",
+                                     filled_at="2026-01-01T04:00:30+00:00")
+            enriched["strategy_receipt"]={"fixture":"enriched"}
+            ledger.write_text("".join(json.dumps(row)+"\n" for row in [*rows,enriched]))
+            with patch.dict(os.environ,{"LIFE_MANAGER_INVESTMENT_OWNER_ID":owner}):
+                policy=position_manager.load_owned_policy(root,ownership,mode="live")
+            self.assertEqual(policy["card"].strategy_id,"alpaca-btc-5m-trend-v1")
+
     def test_entry_policy_identity_scope_and_time_cannot_be_inferred(self):
         cases=({"strategy_id":None},
                {"strategy_id":"alpaca-etf-126d-momentum-v1",
@@ -180,7 +210,7 @@ class OwnedPolicyTests(unittest.TestCase):
                  self.assertRaisesRegex(ValueError,"owned_entry_ledger_unavailable"):
                 position_manager.load_owned_policy(root,ownership,mode="live")
 
-    def test_tampered_or_foreign_entry_receipts_are_rejected(self):
+    def test_invalid_or_foreign_entry_receipts_are_rejected(self):
         changes = ("decision", "mode", "provider", "quantity", "price", "time", "owner", "paperflag", "order-type")
         for change in changes:
             with self.subTest(change=change), tempfile.TemporaryDirectory() as directory:

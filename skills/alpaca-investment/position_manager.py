@@ -19,9 +19,12 @@ def load_owned_policy(state: Path, ownership: dict[str, Any], *, mode: str) -> d
     decision, broker = proof["decision"], proof["broker"]
     card, release_sha = validate_policy_card(decision["policy_card"], decision.get("release_sha"),
                                              strategy_id=decision.get("strategy_id"))
+    if tuple(card.instruments) != ("BTC/USDC",):
+        raise ValueError("owned_entry_policy_scope_invalid")
     try:
         filled_at = broker["filled_at"]
-        if parse_instant(filled_at) < parse_instant(broker["submitted_at"]):
+        if not (parse_instant(decision["observed_at"]) <= parse_instant(broker["submitted_at"])
+                <= parse_instant(filled_at)):
             raise ValueError
     except (KeyError, TypeError, ValueError) as error:
         raise ValueError("owned_entry_fill_time_invalid") from error
