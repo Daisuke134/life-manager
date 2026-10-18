@@ -783,9 +783,14 @@ def _bind_operating_costs(state: Path, completed, summary):
                 day_keys.setdefault(day, []).append(keys)
         components = summary["operating_cost_components"]
         eligible = []
+        component_gaps = list(summary.get("operating_cost_component_gaps", []))
+        def gap(row, reason):
+            return {**{key: row[key] for key in ("receipt_id", "provider", "order_ids", "period_start", "period_end")},
+                    "reason": reason}
         for row in components:
             keys = _operating_identity_keys(row)
             if any(key in bindings and bindings[key] != binding(row) for key in keys):
+                component_gaps.append(gap(row, "operating_cost_receipt_reassigned"))
                 continue
             keys |= {alias for key in keys for alias in alias_sets.get(key, set())}
             matching = [index for index, prior in enumerate(eligible)
@@ -796,12 +801,14 @@ def _bind_operating_costs(state: Path, completed, summary):
                         or prior["category"] != row["category"]
                         or _number(prior["amount_usd"]) != _number(row["amount_usd"])):
                     return select_components({**summary, "operating_cost_components": [],
+                        "operating_cost_component_gaps": component_gaps + [gap(item, "operating_cost_identity_conflict") for item in components],
                         "operating_costs_reason": "operating_cost_identity_conflict"}, completed), day_keys
                 keys |= _operating_identity_keys(prior)
                 prior["identity_aliases"] = [list(key) for key in sorted(keys)]
             else:
                 eligible.append({**row, "identity_aliases": [list(key) for key in sorted(keys)]})
-        value = {**summary, "operating_cost_components": eligible}
+        value = {**summary, "operating_cost_components": eligible,
+                 "operating_cost_component_gaps": component_gaps}
         if len(eligible) != len(components):
             value["operating_costs_reason"] = "operating_cost_receipt_reassigned"
         return select_components(value, completed), day_keys
@@ -873,6 +880,9 @@ def _refresh_historical_costs(
                     *(day_operating_costs["operating_cost_source_receipt_ids"] if operating_available else []),
                 ])),
             }
+            updated["unknown_cost_categories"] = [category for category in updated["unknown_cost_categories"]
+                if not (category == "model" and updated.get("model_cost_usd") is not None
+                        or category == "system" and updated.get("system_cost_usd") is not None)]
             if updated != previous:
                 _atomic_json(path, updated)
             results.append({"performance_day": day, "status": "updated" if updated != previous else "unchanged"})
