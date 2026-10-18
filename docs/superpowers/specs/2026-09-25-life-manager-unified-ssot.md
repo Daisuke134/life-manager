@@ -19868,3 +19868,18 @@ Top 10 by sales: 0/10 with a trial (Ocup 3,111, Serenity 2,002, HookAce 1,044, V
 9. **実測できた経路だけ100人へ拡大する。** funnel最大離脱を直し、最も成果の出たsource・導入・最初の仕事を再現する。公式usageと実利用を分けて毎日追い、合計1,000人に向けて42日平均約24人/日の純増を参考にする。達成保証には使わない。
 10. **winner判定と費用を閉じる。** 重複除外のLife Manager cohort ledgerとKeiki/Maritime project usageを照合し、公式人数・winner判定を確認する。Scale/継続model利用の前に請求・credit・期限を読む。採択、signup、local test、agent/VM数を勝利と呼ばない。
 11. **渡航とYCを競技から分ける。** winner通知と日本発のflight/人数/費用の書面確認後に旅程を判断する。YC紹介・Winter 2027採択は競技条件でない。YCは別応募laneで扱う。
+
+### Life Manager distribution: four channels, one metrics tool, blog per business — 2026-10-18 20:40 JST (claude-evo-eval-1012, Dais: "maximize distribution and conversion for every business; separate the blog per business; same tool for all agents; copy the successful")
+
+**Directive (restated):** every business agent (Capafy, LINE stickers, eBook, AI voice tools, Anicca app) runs the same distribution system on four channels, measures with the same free tools, and improves from the numbers: (1) social (one account = one language, largest market first), (2) search-engine SEO, (3) AI answer engines (Google AI Overview, ChatGPT, Perplexity), (4) the platform's own internal promotion (Capafy search/category/hot ranking). Copy successful software/agent distribution, not only Capafy sellers.
+
+**Done 2026-10-18:** blog separated per business without moving any URL — anicca-products #516: /blog/c/<business> hubs (ai-creator-tools 246, line-stickers 41, ai-voice-tools 28, anicca 12, ebook 7, notes 5) with CollectionPage + BreadcrumbList JSON-LD and sitemap entries; every post shows Articles / Business breadcrumb + BreadcrumbList JSON-LD + "More in <business>" (verified live). Earlier: Article + FAQPage JSON-LD (#512/#513), keyword pages with real product example above the CTA (#8306), slot weighting by search-side views (#8330).
+
+**Measured gap:** Google Search Console is not set up for aniccaai.com (no verification tag/DNS TXT; OpenSEO project reports not_connected), so no agent sees which queries bring impressions/clicks.
+
+**TODO (order; cursor = 1):**
+1. One metrics tool: verify aniccaai.com in Google Search Console (HTML tag on the landing layout), submit the sitemap, connect it to the OpenSEO project 4e3bd4d3, and add a GSC pull (queries/pages by business hub) to the hourly distribution check so every business agent reads the same search data. Then Bing Webmaster Tools import from GSC (also free; feeds Copilot/ChatGPT search).
+2. AI answer engines: llms.txt per business hub; keep FAQPage/Article JSON-LD; track ai_overview views per seller weekly.
+3. Capafy internal promotion: compare our listings' rating/review count/recent sales with the top 20 of each category in the market sweep and close the gap on new Agents (never edit sellers).
+4. Social: one account per language — X selawmqt English only; TikTok @hooklab.capafy live 2026-10-24 (reels + carousels); other businesses keep their existing per-brand accounts.
+5. Extend keyword-page + hub pattern to LINE stickers and eBook distribution (each business publishes keyword pages into its own hub).
