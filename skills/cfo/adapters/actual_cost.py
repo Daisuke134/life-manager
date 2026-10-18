@@ -737,12 +737,16 @@ def _inventory_cost_scope(inventory,target,snapshot_at):
         raise ValueError(invalid)
     allowed={'history_coverage_unverified','shared_attribution_unproven'}
     if any(not isinstance(g,dict) or g.get('reason') not in allowed for g in scope['gaps']):raise ValueError('cost_query_inventory_gap')
-    raw_refs=scope.get('execution_refs');refs=set();events=set();releases=set()
-    ref_fields={'execution_owner_id','run_id','occurrence_id','release_sha','loaded_argv_sha256','loaded_env_sha256','start_event_id','terminal_event_id'}
+    raw_refs=scope.get('execution_refs');refs=set();events=set();releases=set();windows={}
+    ref_fields={'execution_owner_id','run_id','occurrence_id','release_sha','loaded_argv_sha256','loaded_env_sha256','start_event_id','terminal_event_id','started_at','finished_at'}
     if not isinstance(raw_refs,list) or not raw_refs:raise ValueError(invalid)
     for row in raw_refs:
         if not isinstance(row,dict) or set(row)!=ref_fields:raise ValueError(invalid)
-        refs.update(_execution_ref_triples([{k:row[k] for k in ('execution_owner_id','run_id','occurrence_id')}]))
+        triple=next(iter(_execution_ref_triples([{k:row[k] for k in ('execution_owner_id','run_id','occurrence_id')}])) )
+        began,ended=_instant(row['started_at']),_instant(row['finished_at'])
+        if None in (began,ended) or not began<=ended<=observed or began>finish or ended<start:
+            raise ValueError('cost_query_execution_window_invalid')
+        refs.add(triple);windows[triple]=(began,ended)
         for key,length in (('release_sha',40),('loaded_argv_sha256',64),('loaded_env_sha256',64)):
             if not isinstance(row[key],str) or re.fullmatch('[a-f0-9]{'+str(length)+'}',row[key]) is None:raise ValueError(invalid)
         for key in ('start_event_id','terminal_event_id'):
@@ -760,7 +764,9 @@ def _inventory_cost_scope(inventory,target,snapshot_at):
         if not isinstance(data,dict) or any(not isinstance(data.get(k),dict) or data[k].get('status')!='ok' for k in ('runtime','ledger','admission')):
             raise ValueError('cost_query_history_unverified')
         runtime=data['runtime'];first,last=_instant(runtime.get('first_event_at')),_instant(runtime.get('last_event_at'))
-        if (None in (first,last) or not first<=start<finish<=last<=observed
+        earliest=min([start]+[bounds[0] for ref,bounds in windows.items() if ref[0]==executor])
+        latest=max([finish]+[bounds[1] for ref,bounds in windows.items() if ref[0]==executor])
+        if (None in (first,last) or not first<=earliest<=latest<=last<=observed
                 or type(runtime.get('archives_available')) is not int or not 0<=runtime['archives_available']<=limits['runtime_archives_per_owner']
                 or any(type(data[k].get('row_count')) is not int or data[k]['row_count']<1 for k in ('runtime','ledger','admission'))
                 or runtime['row_count']<2*sum(r[0]==executor for r in refs)
@@ -796,7 +802,7 @@ def _inventory_cost_scope(inventory,target,snapshot_at):
     for gap in scope['gaps']:
         if gap['reason']=='shared_attribution_unproven' and (gap.get('execution_owner_id')==owner
                 or gap.get('execution_owner_id') not in {v for values in required.values() for v in values}):raise ValueError(invalid)
-    return {'scope':scope,'required':required,'refs':refs,'covered':set(),'evidence_refs':set(scope['evidence_refs'])}
+    return {'scope':scope,'required':required,'refs':refs,'windows':windows,'covered':set(),'evidence_refs':set(scope['evidence_refs'])}
 
 
 def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_records,
@@ -1018,7 +1024,11 @@ def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_recor
                         raise ValueError
                 else:
                     raise ValueError
-            if information is not None and joined_refs!=wanted_refs:raise ValueError('cost_query_execution_ref_missing')
+            if information is not None:
+                if joined_refs!=wanted_refs:raise ValueError('cost_query_execution_ref_missing')
+                if kind=='order_pair' and (times['window_start']>min(information['windows'][r][0] for r in wanted_refs)
+                        or times['window_end']<max(information['windows'][r][1] for r in wanted_refs)):
+                    raise ValueError('cost_query_execution_window_uncovered')
             chain = [page for page in pages if isinstance(page, dict)
                      and (page.get("provider"), page.get("billing_account_ref"), page.get("query_id")) == key]
             if not chain or any(type(page.get("page")) is not int for page in chain):
@@ -1109,6 +1119,11 @@ def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_recor
                                   "settlement_state", "document_ids", "evidence_refs")
             result["observations"].append({**{field: query[field] for field in observation_fields},
                 "provider": key[0], **{field: target[field] for field in ("order_ids", "period_start", "period_end")}})
+            if information is not None:
+                result['observations'][-1].update(inventory_verification='verified',scope_kind=kind,
+                    execution_windows=[{'execution_owner_id':r[0],'run_id':r[1],'occurrence_id':r[2],
+                        'started_at':information['windows'][r][0],'finished_at':information['windows'][r][1]}
+                        for r in sorted(wanted_refs)])
         except (KeyError, TypeError, ValueError) as error:
             reason=str(error) if str(error).startswith('cost_query_') else 'unverified_receipt'
             result["rejections"].append({**context, "reason": reason})

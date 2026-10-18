@@ -355,7 +355,8 @@ def build_expected_inventory(trips, *, beneficiary_owner_id, observed_at,
                 scope['execution_refs'].append({'execution_owner_id': owner, 'run_id': run_id,
                     'occurrence_id': occurrence, 'release_sha': terminal['release_sha'],
                     'loaded_argv_sha256': terminal['loaded_argv_sha256'], 'loaded_env_sha256': terminal['loaded_env_sha256'],
-                    'start_event_id': first['event_id'], 'terminal_event_id': terminal['event_id']})
+                    'start_event_id': first['event_id'], 'terminal_event_id': terminal['event_id'],
+                    'started_at':started_at.isoformat(),'finished_at':finished_at.isoformat()})
             if not selected:
                 gap(scope, 'source_execution_missing', execution_owner_id=owner)
 
