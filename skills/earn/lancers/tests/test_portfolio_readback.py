@@ -86,3 +86,23 @@ def test_same_title_duplicates_are_surfaced():
     module = _module()
     found = module._portfolio(Page(_links("757333", "743987")), {"title_stem": TITLE_STEM, "external_id": "743987"})
     assert found["portfolio_duplicate_external_ids"] == ["757333"]
+
+
+def test_roster_reports_same_title_duplicates():
+    module = _module()
+    item = {"title_stem": TITLE_STEM, "external_id": "743987"}
+    module._portfolio = lambda page, value: (
+        {"portfolio_external_id": "743987", "portfolio_duplicate_external_ids": ["757333"]}
+        if value is item else {"portfolio_external_id": "743964"})
+    page = SimpleNamespace(goto=lambda *a, **k: None, url="https://www.lancers.jp/myplan",
+                           locator=lambda _s: SimpleNamespace(all=lambda: []))
+    roster = module._roster(page, {"superseded_listing_ids": [], "portfolio": {"external_id": "743964"},
+                                   "software_portfolio": item})
+    assert roster["portfolio_duplicate_external_ids"] == {"portfolio": [], "software_portfolio": ["757333"]}
+
+
+def test_query_string_on_a_duplicate_href_is_not_part_of_its_id():
+    module = _module()
+    links = _links("743987") + [Link(TITLE_STEM + "ました", "/profile/keiodaisuke/portfolio_popup/757333?ref=x")]
+    found = module._portfolio(Page(links), {"title_stem": TITLE_STEM, "external_id": "743987"})
+    assert found["portfolio_duplicate_external_ids"] == ["757333"]

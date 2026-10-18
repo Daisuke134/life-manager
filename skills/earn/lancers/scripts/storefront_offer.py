@@ -1666,7 +1666,7 @@ def _portfolio(page: Any, item: Mapping[str, Any]) -> dict[str, Any] | None:
         return None
     # A same-title duplicate must not hide the pinned row; without a pin, duplicates stay
     # ambiguous. Duplicates are reported so they surface instead of hiding behind the pin.
-    ids = [(link.get_attribute("href") or "").rstrip("/").rsplit("/", 1)[-1] for link in matches]
+    ids = [urlsplit(link.get_attribute("href") or "").path.rstrip("/").rsplit("/", 1)[-1] for link in matches]
     duplicates = sorted(value for value in ids if value != item["external_id"]) if item["external_id"] else []
     if len(matches) > 1 and item["external_id"]:
         matches = [link for link, value in zip(matches, ids) if value == item["external_id"]]
@@ -1752,8 +1752,11 @@ def _roster(page: Any, product: Mapping[str, Any]) -> dict[str, Any]:
         if found is None: raise OfferError("roster_readback_invalid")
         listing_ids.append(found.group(1))
     superseded = {listing_id: _setting_status(page, listing_id) for listing_id in product["superseded_listing_ids"]}
-    portfolios = {key: (_portfolio(page, product[key]) or {}).get("portfolio_external_id") for key in ("portfolio", "software_portfolio")}
-    return {"action": "roster_readback", "listing_ids": listing_ids, "superseded_status": superseded, "portfolio_external_ids": portfolios}
+    found = {key: _portfolio(page, product[key]) or {} for key in ("portfolio", "software_portfolio")}
+    return {"action": "roster_readback", "listing_ids": listing_ids, "superseded_status": superseded,
+            "portfolio_external_ids": {key: value.get("portfolio_external_id") for key, value in found.items()},
+            # Same-title duplicates are unledgered public effects; the fence reconciler holds on them.
+            "portfolio_duplicate_external_ids": {key: value.get("portfolio_duplicate_external_ids", []) for key, value in found.items()}}
 
 
 def run(apply: bool, product_path: Path, state_path: Path, *, roster: bool = False) -> dict[str, Any]:
