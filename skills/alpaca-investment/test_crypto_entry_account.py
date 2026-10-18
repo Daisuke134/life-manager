@@ -105,6 +105,39 @@ def close_cycle(root, marker, broker, observation, owner, mode, *, closing_accou
     return frame, acquired
 
 
+def closed_reuse_fixture(root, mode, path, *, bound):
+    marker, buy, observation, owner = seed(root, mode, bound=bound)
+    save_entry(root, marker, buy, observation, owner, mode)
+    owned = {**marker, 'status': 'open', 'entry_filled_qty': '0.05', 'owned_qty': '0.05'}
+    if path == 'closed_fee_only':
+        current = {**copy.deepcopy(observation), 'positions': []}
+        frame = native_activity(mode, [buy], end=current['clock']['observed_at'])
+        frame['fees'] = [{'id': 'synthetic-saved-fee-close', 'activity_type': 'CFEE', 'order_id': buy['id'],
+            'symbol': 'BTCUSD', 'qty': '-0.05', 'date': '2026-01-01',
+            'created_at': current['clock']['observed_at'], 'net_amount': '0', 'status': 'executed'}]
+        frame['source_receipt_id'] = 'alpaca-crypto-activities:' + proofs._digest([
+            {key: value for key, value in frame.items() if key != 'source_receipt_id'}])
+        store.record_native_fee_debit(root / 'receipts.jsonl', owned, current,
+            activity_readback=frame, mode=mode, owner_id=owner)
+        quantity = proofs.owned_quantity_state_from_rows(store._rows(root / 'receipts.jsonl'), owned,
+            mode=mode, owner_id=owner)
+        owned.update(status='closed', owned_qty='0', close_reason='native_fee_debit',
+            fee_close_id=proofs.native_fee_debit_id(quantity['last_fee_debit']))
+        broker = buy
+    else:
+        close_cycle(root, marker, buy, observation, owner, mode, terminal=path != 'closed_filled_sell')
+        rows = store._rows(root / 'receipts.jsonl')
+        plan = next(row for row in rows if row.get('receipt_type') == 'effect_intent'
+            and row.get('status') == 'planned' and row.get('order', {}).get('side') == 'sell')
+        saved = proofs._sell_receipt_row(rows, plan['effect_id'])
+        broker = saved['broker']
+        current = copy.deepcopy(saved['strategy_receipt']['account_readback'])
+        owned.update(status='closing' if path == 'closing_terminal_sell' else 'closed',
+            close_effect_id=plan['effect_id'], close_client_order_id=plan['client_order_id'])
+    (root / 'live-owned-position.json').write_text(json.dumps(owned))
+    return owned, broker, current, owner
+
+
 class CryptoEntryAccountTests(unittest.TestCase):
     def test_native_account_id_survives_both_real_account_get_projections(self):
         # Returning whole fake GET objects would hide the production jq projection loss.
@@ -404,6 +437,50 @@ class CryptoEntryAccountTests(unittest.TestCase):
                             with self.assertRaises(ValueError): read()
                         else:
                             self.assertEqual(read()['owned_qty'], '0.05')
+
+    def test_saved_close_reuse_checks_current_account_on_all_paths_and_preserves_legacy(self):
+        # Validating saved A proves no fresh B; every close replay must bind current scope.
+        missing = object()
+        paths = ('closing_terminal_sell', 'closed_filled_sell', 'closed_terminal_sell', 'closed_fee_only')
+        variants = (('A', ACCOUNT_A), ('B', ACCOUNT_B), ('missing', missing),
+            ('null', None), ('bool', True), ('integer', 7))
+        for bound in (True, False):
+            for mode in ('paper', 'live'):
+                for path in paths:
+                    for label, account in variants if bound else (('B', ACCOUNT_B),):
+                        with self.subTest(bound=bound, mode=mode, path=path, current=label), tempfile.TemporaryDirectory() as directory:
+                            root = Path(directory)
+                            owned, broker, current, owner = closed_reuse_fixture(root, mode, path, bound=bound)
+                            if account is missing:
+                                current['account'].pop('id')
+                            else:
+                                current['account']['id'] = account
+                            marker = root / 'live-owned-position.json'
+                            marker_before = marker.read_bytes()
+                            ledger_before = (root / 'receipts.jsonl').read_bytes()
+                            native = native_run()
+                            rejected = False
+                            with patch.dict(os.environ, {'LIFE_MANAGER_INVESTMENT_MODE': mode,
+                                'LIFE_MANAGER_INVESTMENT_OWNER_ID': owner}, clear=True), \
+                                    patch.object(native, 'find_order_by_client_id', return_value=broker), \
+                                    patch.object(cli, '_context', side_effect=AssertionError('provider forbidden')):
+                                try:
+                                    result = native._sync_live_ownership(root, Path('unused'), Path('unused'), current,
+                                        reconcile_fees=False)
+                                except ValueError:
+                                    rejected = True
+                            self.assertEqual((root / 'receipts.jsonl').read_bytes(), ledger_before)
+                            if bound and label != 'A':
+                                self.assertEqual(marker.read_bytes(), marker_before, 'foreign current account must not rewrite the marker')
+                                self.assertTrue(rejected, 'new-bound close must reject a different or missing current account')
+                            else:
+                                self.assertFalse(rejected)
+                                self.assertEqual(result, {**owned, 'status': 'closed'})
+                                self.assertEqual(json.loads(marker.read_text()), {**owned, 'status': 'closed'})
+                                if not bound:
+                                    decision = next(row['decision'] for row in store._rows(root / 'receipts.jsonl')
+                                        if row.get('receipt_type') == 'decision' and row['decision'].get('action') == 'ENTER')
+                                    self.assertNotIn('native_trading_account_id', decision)
 
 
 if __name__ == '__main__':
