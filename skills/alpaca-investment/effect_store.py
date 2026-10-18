@@ -6,7 +6,6 @@ import fcntl
 import json
 import os
 from datetime import datetime, timezone
-from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Callable
 

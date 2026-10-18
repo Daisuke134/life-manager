@@ -14,7 +14,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from effect_store import UNRESOLVED_INTENT_STATUSES
-from crypto_ownership_proof import BROKER_TERMINAL_FAILURE_STATUSES, _terminal_no_fill_proven
+from crypto_ownership_proof import BROKER_TERMINAL_FAILURE_STATUSES, BROKER_RESUMABLE_STATUSES, _terminal_no_fill_proven
 from paper_operating_costs import read_readback, select_components, summarize as summarize_operating_costs
 
 
@@ -22,8 +22,8 @@ OWNER_ID = "alpaca-investment-paper"
 STRATEGY_ID = "alpaca-etf-126d-momentum-v1"
 BROKER_NONTERMINAL_STATUSES = frozenset({
     "accepted", "accepted_for_bidding", "new", "partially_filled",
-    "pending_cancel", "pending_new", "pending_replace", "done_for_day", "stopped", "suspended",
-})
+    "pending_cancel", "pending_new", "pending_replace",
+}) | BROKER_RESUMABLE_STATUSES
 
 
 def _unknown(reason: str) -> dict[str, str]:
@@ -169,6 +169,22 @@ def _ledger_rows(rows: Any) -> tuple[list[dict[str, Any]], dict[str, dict[str, A
                     if isinstance(previous_broker, Mapping) else None
                 current_status = current_broker.get("status") \
                     if isinstance(current_broker, Mapping) else None
+                if previous_status in BROKER_NONTERMINAL_STATUSES:
+                    if not isinstance(previous_broker, Mapping) or not isinstance(current_broker, Mapping):
+                        raise ValueError("paper_receipt_duplicate")
+                    for key in ("id", "client_order_id", "symbol", "side", "type", "time_in_force", "submitted_at"):
+                        known = previous_broker.get(key)
+                        if key in {"id", "client_order_id"} and (not isinstance(known, str) or not known):
+                            raise ValueError("paper_receipt_duplicate")
+                        if known not in (None, "") and known != current_broker.get(key):
+                            raise ValueError("paper_receipt_duplicate")
+                    try:
+                        previous_qty = _number(previous_broker.get("filled_qty"))
+                        current_qty = _number(current_broker.get("filled_qty"))
+                        if previous_qty < 0 or current_qty < previous_qty:
+                            raise ValueError
+                    except ValueError as error:
+                        raise ValueError("paper_receipt_duplicate") from error
                 same_filled_order = (
                     previous_status == current_status == "filled"
                     and isinstance(previous_broker, Mapping)

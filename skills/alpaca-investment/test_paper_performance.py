@@ -322,10 +322,10 @@ class PaperPerformanceTests(unittest.TestCase):
         intent={'receipt_type':'effect_intent','effect_id':'unsettled','status':'applied',
             'mode':'paper','paper':True,'owner_id':OWNER,'strategy_id':STRATEGY,
             'client_order_id':'lm-ai-'+'c'*24,'order':{'symbol':'SPY','side':'buy','asset_class':'us_equity'}}
-        previous={'receipt_type':'outcome','effect_id':'unsettled','outcome':'broker_reconciled',
-            'mode':'paper','paper':True,'broker':{'id':'unsettled-order','status':'suspended','filled_qty':'0.01'}}
-        latest={**previous,'outcome':'broker_terminal_failure',
-                'broker':{**previous['broker'],'status':'canceled','filled_qty':'0'}}
+        previous={**intent,'status':'reconciliation_pending','broker_status':'suspended','filled_qty':'0.01'}
+        latest={'receipt_type':'outcome','effect_id':'unsettled','outcome':'broker_terminal_failure',
+                'mode':'paper','paper':True,
+                'broker':{'id':'unsettled-order','status':'canceled','filled_qty':'0'}}
         result=build_paper_performance([intent,previous,latest,*_rows()],OBSERVATION,RISK)
         self.assertEqual(result,{'status':'unknown','reason':'paper_effect_unresolved'})
 

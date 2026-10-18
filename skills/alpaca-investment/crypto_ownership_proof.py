@@ -17,6 +17,7 @@ from strategy_policy import validate_policy_card
 
 # Only these failures guarantee that the order receives no further updates.
 BROKER_TERMINAL_FAILURE_STATUSES = frozenset({"canceled", "expired", "rejected"})
+BROKER_RESUMABLE_STATUSES = frozenset({"done_for_day", "stopped", "suspended"})
 
 
 class ReconciliationPending(ValueError):
@@ -128,14 +129,31 @@ def owned_entry_decision_from_rows(rows: list[dict[str, Any]], ownership: dict[s
         raise ValueError("owned_entry_fill_conflict") from error
     # Enrichment may append another view of the same immutable fill. Known
     # values must agree; a later contradictory row is not an authority override.
-    identity_fields = ("mode", "paper", "client_order_id", "outcome", "broker_receipt_id")
+    first_filled = next((index for index, row in enumerate(outcomes)
+        if row.get("outcome") == "broker_reconciled" and isinstance(row.get("broker"), dict)
+        and row["broker"].get("status") == "filled"), len(outcomes))
+    # Older writers incorrectly sealed a paused zero as a terminal failure.
+    # Keep its identity evidence, but a later same-order fill can supersede
+    # that pre-execution snapshot. Never permit a post-fill regression.
+    paused_zero = {index for index, row in enumerate(outcomes) if index < first_filled
+        and row.get("outcome") == "broker_terminal_failure" and isinstance(row.get("broker"), dict)
+        and row["broker"].get("status") in BROKER_RESUMABLE_STATUSES
+        and _filled_qty_is_zero(row["broker"])
+        and row["broker"].get("filled_at") in {None, ""}
+        and row["broker"].get("filled_avg_price") in {None, ""}}
+    if any(row.get("outcome") != "broker_reconciled" and index not in paused_zero
+           for index, row in enumerate(outcomes)):
+        raise ValueError("owned_entry_fill_conflict")
+    identity_fields = ("mode", "paper", "client_order_id", "broker_receipt_id")
     if any(tuple(row.get(key) for key in identity_fields) !=
            tuple(outcomes[0].get(key) for key in identity_fields) for row in outcomes):
         raise ValueError("owned_entry_fill_conflict")
     for key in ("id", "client_order_id", "symbol", "side", "status", "type", "time_in_force",
                 "filled_qty", "filled_avg_price", "submitted_at", "filled_at"):
         known = []
-        for row in outcomes:
+        for index, row in enumerate(outcomes):
+            if index in paused_zero and key in {"status", "filled_qty", "filled_avg_price", "filled_at"}:
+                continue
             value = row.get("broker", {}).get(key) if isinstance(row.get("broker"), dict) else None
             if value is None or value == "":
                 continue
