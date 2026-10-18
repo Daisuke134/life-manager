@@ -15142,6 +15142,8 @@ query境界の初回native probeはcontrol_target_absentで未判定。private n
 
 r3はcontrol成立で、private native-activity-boundary-readonly-20261019-r3/capture.json SHA256=00c9c73f329def36fc9cd784ec6a8e925eb356f3d23ef2cbc65dd65b609a0633。同account GET＋4queryの5GET/HTTP200で、broad control10件/対象IDあり、broad after＋対象翌日untilは0件/対象なし、日開始およびcreated秒切捨の小数なしafter＋現在untilは各10件/対象あり。until差が消失を再現するが、untilの値と表記は未分離のためprovider不具合/内部timestampの種類/after包含排他を断定しない。次のr4はbroad after固定でuntilを対象翌日/固定現在×小数なし/6桁小数ありの2×2にし、account GET＋4query（計5GET上限）の一回だけでformatを分離する。旧capture全件保持・新directory/O_EXCL・同credential reader/読取限定/private権限・全receipt保持を維持する。
 
+r4は2×2のcontrol成立。private native-activity-boundary-readonly-20261019-r4/capture.json SHA256=82eeac76cf5b3aa67d4246ab265df1df050856d515c2541819ece441c30037a4。同account GET＋4queryの5GET/HTTP200、broad plain/fraction各10件・対象あり、narrow plain/fraction各0件・対象なし。同instantの小数表記差では説明できず、until上限値の差が両表記で再現することだけを確認する。after exactの包含排他、実際のfilter内部timestamp、provider不具合は未判定。追加API照会は終了する。以後の照合は保存raw query/原本/quoteを区別し、応答created_atやshort pageだけから「その期間の全flow/fee0/最終settlement」を作らない。r1–r3独立照合は224確認PASS/指摘0で、private native-activity-boundary-adversarial-review-20261019-r1/review-summary.json SHA256=38c0d034db647193124af10bd2a7e4d8925c3c12122b62f1870dc7e6d1190de1、manifest SHA256=154c4c66a6ed3784d046fbf2c9059e0ab8a5c3f752094c373ff26de1b1b09296。r4の最終照合は進行中で、本番や利益の判定を含めない。
+
 4. FILL/CFEE/その他native数量flowと口座quoteを時点・口座・cycle別に照合する。未説明差分とwallet/OCTの不明対応を隠さない。
 5. fee完全性・実paid model/system costs・FX・二重計上防止を揃え、producer/coreの費用後netへ接続する。未知費用はnullのまま残し、paper/live/cross-venueを混ぜない。
 6. 全R3のsource acceptance/PR #8360/CI/main統合→main由来immutable→対象ローカルowner採用→自然実行・公式readbackを確認する。現在の実装を本番反映済みとは扱わない。
