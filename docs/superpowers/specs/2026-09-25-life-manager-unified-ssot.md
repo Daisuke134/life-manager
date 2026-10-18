@@ -19632,11 +19632,11 @@ Top 10 by sales: 0/10 with a trial (Ocup 3,111, Serenity 2,002, HookAce 1,044, V
 
 この順序にする理由は、利用実績の証明と初週進出が成果を決め、VM1,000台は規約上の条件でないためである。競技サイトと公開life-manager pageを再確認し、同条件の成功配信事例がない現状は小さな測定実験で埋める。
 
-進捗: TODO 1のsource実装はPR #8308で進行中。fresh review指摘の同意再配信、milestone transaction、7日以内条件、setup deep link、並行pilot更新の計測漏れを修正した。各成功利用をDB row lock内で初回／7日以内再利用へ分類し、eventを同一transactionで挿入する。review `SHIP`。mainがPR #8307で`c4a73cf5`へ進み、最初のmerge操作がbase変更で拒否されたため、branchを最新mainへrebaseした。rebase後focused checks 26/26・syntax・source boundaryがPASS。exact-head CIを再実行する。production migration・flags・配信は未実施。詳しい設計と受け入れ条件は[詳細設計](2026-10-16-maritime-pilot-design.md)を参照。
+進捗: TODO 1のdistribution sourceはPR #8308でmain merge commit `d622c4f718`へ統合済み。fresh review verdict `SHIP`、最新head CI全件PASS、focused Node tests 26/26。Telegram同意の再配信防止、row-lock内の初回／7日以内再利用分類、milestone state/eventの同一transaction、allowlist deep linkを実装した。production migration・flags・配信・ユーザー招待は未実施なので、実利用者funnelはまだliveではない。公式メールは10月16日に主催者が日程・審査基準・旅費などの確認を約束した後、10月15日以降のGmail検索では追加返信が見つからない。公式Terms（10月15日更新）は10月20日開始・12月1日終了、実在するdistinct users 1,000人、米国内居住者のみsponsored flight対象と記載し、日本発flightは未確定。TODO cursorは1から2へ進み、次は確認済みメールへの回答読み戻しと未確定条件の更新。詳しい設計と受け入れ条件は[詳細設計](2026-10-16-maritime-pilot-design.md)を参照。
 
 **Hackathon Radar同期:** Radar Page本文は採択状態・開始日の矛盾・主催者への確認事項を更新し、読み戻し済み。稼働中の日次scan workerには「1,000 distinct qualified agentsを別々のMaritime VMで動かす」という旧指示が残っている。Pages連携にはtask設定を変更・停止する操作が公開されていないため、同じworkerを重複作成しない。設定更新が可能になった時点で、1,000人の実利用を数える指示へ直す。
 
-**TODO（順序、cursor = 1）:**
+**TODO（順序、cursor = 2）:**
 
 1. **配布入口・同意・計測をsource実装する。** default-offのsourceとfocused testsを専用branchへ実装する。独立review指摘の同意再配信、milestoneとeventのtransaction、7日以内の別利用、setup deep linkを直してから、PR/CI/main統合を完了する。production enableや配信は含めない。migration適用・data/tool確認後の3人pilot/25人cohortで「start source → consent → first response → 7-day return」を確認する。
 2. **送信済み確認への返信を読み、競技条件を確定する。** 開始日はメール10/19・Terms10/20。第1週の締切とtimezone、Top 30の評価基準、必須demo/提出物、KeikiとMaritimeの両方が必要か、公式distinct user計数法、一人用agentまたはVMの要否を記録する。2026-10-16送信の確認メールへ重複返信しない。回答が間に合わなければ公開Termsを使い、Top 30基準は未確認と明記する。

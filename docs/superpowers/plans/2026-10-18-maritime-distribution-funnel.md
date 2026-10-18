@@ -71,7 +71,7 @@
 - [x] Correct setup instructions and the documented HTTP route.
 - [x] Run focused tests, syntax checks, migration contract assertions, and diff checks.
 - [x] Commit and push the source fixes (`7d1d2e3971` and `b6080fa095`) after rebasing on current `origin/main` `c4a73cf5`.
-- [ ] Obtain a fresh read-only review verdict of `ship` against the corrected PR head and wait for exact-head CI before integration.
+- [x] Obtain a fresh read-only review verdict of `ship` against the corrected PR head and wait for exact-head CI before integration.
 
 Follow-up from the fresh review: classify each successful `/pilot` update inside the RPC under a participant-row lock. Do not select first-response versus return from a pre-provider snapshot; that snapshot can undercount concurrent distinct requests. Add a concurrent HTTP contract case before the final review pass.
 
@@ -79,4 +79,6 @@ Follow-up from the fresh review: classify each successful `/pilot` update inside
 - [x] Replace caller-side milestone selection with one locked, atomic successful-use RPC transition.
 - [x] Re-run the focused suite (26/26), SQL contract, syntax/source-boundary checks, and diff checks.
 - [x] Commit/push the concurrent-success correction (`b6080fa095`).
-- [ ] Request another fresh review and wait for exact-head CI.
+- [x] Request another fresh review and wait for exact-head CI.
+
+Task 4 complete: PR #8308 merged to main as `d622c4f718` after exact-head CI passed and the rebased diff received a fresh `SHIP` review. Source code is integrated; migration and public/provider configuration remain untouched.
