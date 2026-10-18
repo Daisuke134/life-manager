@@ -292,5 +292,10 @@ completed phases cannot hide an invalid proof from the common counter.
 Terminal partial recovery first reads bounded FILL/CFEE snapshots through the
 existing CLI. CFEE may post at end of day without an order ID: an empty query
 or an observed balance difference does not prove zero or attributed fees.
+Paused orders (`done_for_day`, `stopped`, `suspended`) remain unresolved. Only
+`canceled`, `expired`, and `rejected` can prove a final zero-fill failure, consistent
+with full known fill history. Prior raw paused-zero outcomes can progress to an
+exact same-order fill; reversed identity, decreasing quantity and post-fill
+regressions remain invalid. The partial-fill consumer is not connected yet.
 This branch is source only: partial fills, complete costs, performance, deployment
 and natural outcomes remain in the SSOT.
