@@ -81,7 +81,7 @@ def postiz_post_at(net: str, slot: str) -> str | None:
                                 "endDate": (at + dt.timedelta(minutes=1)).isoformat().replace("+00:00", "Z")})
     req = urllib.request.Request(f"https://api.postiz.com/public/v1/posts?{q}", headers={"Authorization": key})
     data = json.load(urllib.request.urlopen(req, timeout=60))
-    integration = {"ig": IG_ID, "x": X_ID, "tt": TT_ID}[net]
+    integration = {"ig": IG_ID, "x": X_ID, "tt": TT_ID, "tc": TT_ID}[net]
     for post in (data.get("posts") if isinstance(data, dict) else data) or []:
         if (post.get("integration") or {}).get("id") == integration and not post.get("deletedAt"):
             return str(post["id"])
