@@ -7,14 +7,27 @@ LOCK_HELPER="$REPO_ROOT/runtime/host/owned_directory_lock.py"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
+MEASURE="$REPO_ROOT/skills/writer-agent/scripts/measure-sales.py"
+# Measurement launches its own short-lived headless browser per platform; no path may
+# attach to a shared browser (Dais's personal Chrome above all) or keep one resident.
+port="92""22"
+for pattern in interactive:dais daily-driver browser-guard ensure_provision_browser WRITER_CDP_ENDPOINT; do
+  if grep -q "$pattern" "$WORKER"; then
+    printf 'sales-measure contract: worker references %s\n' "$pattern" >&2
+    exit 1
+  fi
+done
+for pattern in "$port" interactive:dais daily-driver connect_over_cdp cdp_context_lease; do
+  if grep -q "$pattern" "$MEASURE"; then
+    printf 'sales-measure contract: measure-sales.py references %s\n' "$pattern" >&2
+    exit 1
+  fi
+done
+
 make_fixture() {
   local root="$1"
-  mkdir -p "$root/scripts" "$root/state" "$root/runtime/host" "$root/skills/browser"
+  mkdir -p "$root/scripts" "$root/state" "$root/runtime/host"
   ln -s "$LOCK_HELPER" "$root/runtime/host/owned_directory_lock.py"
-  cat >"$root/skills/browser/browser-guard.sh" <<'EOF'
-#!/usr/bin/env bash
-if [ "$1" = acquire ]; then printf 'http://[::1]:9222\n'; fi
-EOF
   cp "$WORKER" "$root/scripts/writer-sales-measure-worker.sh"
   cat >"$root/scripts/writer-runtime-env.sh" <<EOF
 STATE_DIR="$root/state"
