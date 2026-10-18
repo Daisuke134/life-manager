@@ -687,6 +687,28 @@ class OfficialCostQueryTests(unittest.TestCase):
         payload["sources"][0]["queries"].append(copy.deepcopy(payload["sources"][0]["queries"][0]))
         self.assertEqual(self.validate(payload)["observations"], [])
 
+    def test_malformed_envelopes_and_implicit_final_page_are_not_accepted(self):
+        for path, value in ((("provider_pagination",), None), (("provider_pagination",), []),
+                            (("sources", 0, "queries"), None),
+                            (("sources", 0, "billing_account_refs"), "billing-account")):
+            with self.subTest(path=path):
+                payload = query_payload(); row = payload
+                for part in path[:-1]:
+                    row = row[part]
+                row[path[-1]] = value
+                result = self.validate(payload)
+                self.assertEqual(result["observations"], [])
+                self.assertTrue(result["rejections"])
+        payload = query_payload()
+        del payload["provider_pagination"]["pages"][0]["next_cursor"]
+        self.assertEqual(self.validate(payload)["observations"], [])
+
+    def test_no_charge_query_cannot_cover_a_paid_allocation(self):
+        payload = query_payload()
+        join = payload["job_joins"][0]
+        join.update(join_type="paid_allocation", job_id="paid-job", document_id="paid-invoice")
+        self.assertEqual(self.validate(payload)["observations"], [])
+
     def test_new_paid_query_reference_mismatch_marks_its_group_gap(self):
         payload = fixture("actual-cost-official.json")
         join = next(row for row in payload["job_joins"] if row["provider"] == "blockrun")
