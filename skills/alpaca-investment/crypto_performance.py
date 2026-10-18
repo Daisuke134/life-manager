@@ -19,6 +19,7 @@ from paper_performance import _atomic_json,_operating_charge_key,_operating_cost
 from cost_inventory import read_expected_inventory,select_expected_inventory
 from risk_policy import parse_instant
 from paper_operating_costs import read_readback,select_components,remember_source_evidence,summarize as summarize_operating_costs
+from crypto_statement_evidence import read_statement_readbacks,statement_inventory
 
 
 def _scoped_plans(rows,mode,owner):
@@ -186,7 +187,7 @@ def _fx_references(cycles,fees,readbacks,*,mode):
     return [missing[key] for key in sorted(missing)],sources
 
 
-def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None,fee_activity_readbacks=None,fx_readbacks=None,operating_cost_readback=None,observed_at=None,expected_inventory=None):
+def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None,fee_activity_readbacks=None,fx_readbacks=None,operating_cost_readback=None,observed_at=None,expected_inventory=None,statement_readbacks=None):
     if mode not in {'paper','live'} or owner_id!=f'alpaca-investment-{mode}' or not isinstance(rows,list):
         raise ValueError('crypto_performance_scope_invalid')
     if any(not isinstance(r,dict) for r in rows):
@@ -328,6 +329,7 @@ def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None,fee_ac
     unscoped=[r.get('effect_id') for r in rows if r.get('receipt_type')=='effect_intent' and r.get('status')=='planned'
         and isinstance(r.get('order'),dict) and r['order'].get('asset_class')=='crypto' and r.get('mode')==mode and r.get('owner_id')!=owner_id]
     fee_inventory=_fee_inventory(cycles,fee_snapshots)
+    fee_inventory['statement_evidence']=statement_inventory(statement_readbacks if statement_readbacks is not None else [],mode=mode)
     quote_fees={}
     for fee in fee_inventory['attributed_native_fees']:
         if fee['asset']=='USDC':quote_fees.setdefault(fee['cycle_id'],[]).append(fee)
@@ -359,17 +361,24 @@ def _read_activity(**kwargs):
     raise ValueError('crypto_performance_activity_reader_missing')
 
 
-def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_reader=None,activity_page_reader=None,fx_reader=None):
+def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_reader=None,activity_page_reader=None,fx_reader=None,statement_readback_dir=None):
     if mode not in {'paper','live'} or owner_id!=f'alpaca-investment-{mode}':
         raise ValueError('crypto_performance_scope_invalid')
     state=Path(state_dir);latest=state/'performance-crypto-latest.json';phase='ledger'
     frames={};refs={};fee_refs=[];fee_checked=None;known_fees=set();known_entries=set();known_cycles=set()
     window_days=90;limit_window=None;query={};page_chunks=[];page_checked=None
     fx_frames={};fx_attempts={};fx_errors=[];billing_cache=None;known_cost_components=[];source_evidence=[]
+    statement_docs=[];known_statements={};statement_input_status='unavailable'
+    statement_evidence=statement_inventory([],mode=mode);saved_statement_evidence=None
     try:
         phase='cache'
         if latest.exists():
             old=json.loads(latest.read_text())
+            statement_docs=old.get('statement_readbacks',[])
+            known_statements=old.get('known_statement_documents',{})
+            saved_statement_evidence=old.get('fee_evidence',{}).get('statement_evidence')
+            if isinstance(saved_statement_evidence,dict):statement_evidence=saved_statement_evidence
+            phase='cache'
             if old.get('mode')!=mode or old.get('owner_id')!=owner_id or old.get('report_scope')!='owned_crypto_cycles':
                 raise ValueError('crypto_performance_activity_cache_invalid')
             frames=old.get('activity_readbacks',{});refs=old.get('order_activity_refs',{})
@@ -419,11 +428,38 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
             phase='operating_costs'
             try:source_evidence=remember_source_evidence(source_evidence,old,owner_id=owner_id,mode=mode)
             except ValueError as error:raise ValueError('crypto_operating_cost_source_history_invalid') from error
+        phase='statement_cache'
+        rebuilt=statement_inventory(statement_docs,mode=mode)
+        anchors={d['document_id']:d['document_fingerprint'] for d in statement_docs}
+        if not isinstance(known_statements,dict) or known_statements!=anchors:
+            raise ValueError('crypto_statement_evidence_conflict')
+        fields=('documents','observations','observed_row_count','completeness_status','observation_scope')
+        if saved_statement_evidence is not None and any(saved_statement_evidence.get(k)!=rebuilt[k] for k in fields):
+            statement_evidence=rebuilt
+            raise ValueError('crypto_statement_evidence_conflict')
+        if statement_docs and saved_statement_evidence is None:
+            raise ValueError('crypto_statement_evidence_conflict')
+        statement_evidence=rebuilt
+        phase='statement_readback'
+        incoming_statements=read_statement_readbacks(
+            statement_readback_dir if statement_readback_dir is not None else state/'statement-readbacks',mode=mode,
+            known_metadata_hashes={d['metadata_sha256'] for d in statement_docs})
+        statement_input_status='available' if incoming_statements else 'unavailable'
+        merged={d['source_receipt_id']:d for d in statement_docs}
+        for document in incoming_statements:
+            key=document['document_id'];fingerprint=document['document_fingerprint']
+            if key in known_statements and known_statements[key]!=fingerprint:
+                raise ValueError('crypto_statement_evidence_conflict')
+            merged[document['source_receipt_id']]=document
+        candidate=list(merged.values())
+        statement_evidence=statement_inventory(candidate,mode=mode)
+        statement_docs=candidate
+        known_statements={d['document_id']:d['document_fingerprint'] for d in statement_docs}
         phase='ledger'
         rows=_owned_rows(state/'receipts.jsonl')
         plans=_scoped_plans(rows,mode,owner_id)
         phase='history'
-        if not plans:
+        if not plans and not statement_docs:
             if latest.exists(): raise ValueError('crypto_performance_history_missing')
             return {'status':'not_applicable'}
         current_entries={r['effect_id'] for r in plans if r['order'].get('side')=='buy'}
@@ -433,7 +469,7 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
         extra={key:frames[ref] for key,ref in refs.items()}
         phase='project'
         result=build_crypto_performance(rows,mode=mode,owner_id=owner_id,activity_readbacks=extra,
-            fee_activity_readbacks=[frames[ref] for ref in fee_refs])
+            fee_activity_readbacks=[frames[ref] for ref in fee_refs],statement_readbacks=statement_docs)
         phase='history'
         current_cycles={c['cycle_id'] for c in result['cycles']}
         if not known_cycles <= current_cycles:
@@ -487,7 +523,7 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
             trial={**extra,**{key:combine_crypto_activity_snapshots([extra[key],incoming],mode=mode)
                 if key in extra else incoming for key in eligible}}
             refreshed=build_crypto_performance(rows,mode=mode,owner_id=owner_id,activity_readbacks=trial,
-                fee_activity_readbacks=[*[frames[ref] for ref in fee_refs],incoming])
+                fee_activity_readbacks=[*[frames[ref] for ref in fee_refs],incoming],statement_readbacks=statement_docs)
             ref=incoming['source_receipt_id'];frames[ref]=incoming
             for key in eligible:
                 projected=trial[key];projected_ref=projected['source_receipt_id']
@@ -502,7 +538,7 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
             trial={**extra,**{key:combine_crypto_activity_snapshots([extra[key],incoming],mode=mode)
                 if key in extra else incoming for key in eligible}}
             refreshed=build_crypto_performance(rows,mode=mode,owner_id=owner_id,activity_readbacks=trial,
-                fee_activity_readbacks=[*[frames[ref] for ref in fee_refs],incoming])
+                fee_activity_readbacks=[*[frames[ref] for ref in fee_refs],incoming],statement_readbacks=statement_docs)
             ref=incoming['source_receipt_id'];frames[ref]=incoming
             for key in eligible:
                 projected=trial[key];projected_ref=projected['source_receipt_id']
@@ -519,7 +555,7 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
             start=through.isoformat().replace('+00:00','Z')
             incoming,finish=read_window(start)
             refreshed=build_crypto_performance(rows,mode=mode,owner_id=owner_id,activity_readbacks=extra,
-                fee_activity_readbacks=[*[frames[ref] for ref in fee_refs],incoming])
+                fee_activity_readbacks=[*[frames[ref] for ref in fee_refs],incoming],statement_readbacks=statement_docs)
             ref=incoming['source_receipt_id'];frames[ref]=incoming
             if ref not in fee_refs: fee_refs.append(ref)
             result=refreshed;through=finish;fee_checked=observed
@@ -553,9 +589,9 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
         result['source_receipt_ids']=sorted(set(result['source_receipt_ids'])|fx_sources)
         phase='operating_costs'
         cost_scopes=[{**{k:cycle[k] for k in ('owner_id','mode','order_ids','period_start','closed_at','source_receipt_ids')},'paper':mode=='paper'} for cycle in result['cycles']]
-        expected_inventory=read_expected_inventory(state,cost_scopes,owner_id=owner_id,observed_at=observed)
+        expected_inventory=read_expected_inventory(state,cost_scopes,owner_id=owner_id,observed_at=observed) if plans else None
         result['expected_cost_inventory']=expected_inventory
-        incoming=read_readback(os.environ.get('LM_CFO_ACTUAL_COST_READBACK') or os.environ.get('LM_CFO_ACTUAL_COST'))
+        incoming=read_readback(os.environ.get('LM_CFO_ACTUAL_COST_READBACK') or os.environ.get('LM_CFO_ACTUAL_COST')) if plans else None
         old_costs=summarize_operating_costs(result['cycles'],billing_cache,owner_id=owner_id,mode=mode,observed_at=observed,expected_inventory=expected_inventory)
         selected=incoming if incoming is not None else billing_cache
         costs=summarize_operating_costs(result['cycles'],selected,owner_id=owner_id,mode=mode,observed_at=observed,expected_inventory=expected_inventory)
@@ -586,7 +622,9 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
         result.update(_summary(result['cycles']))
         phase='write'
         observed=observation['clock']['observed_at'];day=parse_instant(observed).astimezone(timezone.utc).date().isoformat()
-        payload={**result,'known_operating_cost_components':known_cost_components,'known_operating_cost_source_evidence':source_evidence,'operating_cost_readback':billing_cache,'fx_quote_readbacks':fx_frames,'fx_attempted_at':fx_attempts,'fx_readback_errors':fx_errors,'observed_at':observed,'performance_day':day,'activity_readbacks':frames,'order_activity_refs':refs,
+        payload={**result,'statement_readbacks':statement_docs,'known_statement_documents':known_statements,
+                 'statement_input_status':statement_input_status,
+                 'known_operating_cost_components':known_cost_components,'known_operating_cost_source_evidence':source_evidence,'operating_cost_readback':billing_cache,'fx_quote_readbacks':fx_frames,'fx_attempted_at':fx_attempts,'fx_readback_errors':fx_errors,'observed_at':observed,'performance_day':day,'activity_readbacks':frames,'order_activity_refs':refs,
                  'known_entry_effect_ids':sorted(known_entries),'known_closed_cycle_ids':sorted(known_cycles),
                  'known_fee_activity_ids':sorted(known_fees),'fee_activity_refs':fee_refs,'fee_checked_at':fee_checked,
                  'activity_window_days':window_days,'activity_limit_window':limit_window,
@@ -597,7 +635,7 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
             ids={c['cycle_id'] for c in cycles}
             fee_evidence={**result['fee_evidence'],'attribution_cycle_ids':sorted(ids),
                 'attributed_native_fees':[f for f in result['fee_evidence']['attributed_native_fees'] if f['cycle_id'] in ids]}
-            daily={**payload,**select_components(result,cycles),'expected_cost_inventory':select_expected_inventory(expected_inventory,cycles),'generated_as_of':observed,'cycles':cycles,'fee_evidence':fee_evidence,**_summary(cycles),'performance_day':closed_day,
+            daily={**{k:v for k,v in payload.items() if k!='statement_readbacks'},**select_components(result,cycles),'expected_cost_inventory':select_expected_inventory(expected_inventory,cycles),'generated_as_of':observed,'cycles':cycles,'fee_evidence':fee_evidence,**_summary(cycles),'performance_day':closed_day,
                    'observed_at':max(c['closed_at'] for c in cycles),'report_scope':'owned_crypto_cycles_daily'}
             _atomic_json(state/f'performance-crypto-daily-{closed_day}.json',daily)
         return payload
@@ -613,15 +651,21 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
             next_action='inspect_single_day_activity_pagination' if span<=1 else 'retry_activity_readback_with_smaller_window'
         elif reason=='crypto_activity_single_day_limit': next_action='inspect_single_day_activity_pagination'
         elif reason=='crypto_activity_pagination_pending': next_action='continue_activity_pages_from_saved_token'
+        if reason.startswith('crypto_statement_'):
+            statement_evidence={**statement_evidence,'status':'conflict' if reason=='crypto_statement_evidence_conflict' else 'unknown',
+                'reason':reason}
+            next_action='reconcile_native_statement_capture_without_replacing_known_document_evidence'
         result={'schema_version':1,'owner_id':owner_id,'mode':mode,'paper':mode=='paper','report_scope':'owned_crypto_cycles',
             'measurement_status':'partial','reason':reason,'error_class':type(error).__name__,'failed_phase':phase,
             'operating_cost_source_history_status':'invalid' if reason=='crypto_operating_cost_source_history_invalid' else 'recorded_only',
             'completed_round_trips':None,'net_pnl_usd':None,'capital_expansion_allowed':False,
-            'activity_readbacks':frames if phase in {'ledger','history','observation','activity_readback','write','activity_page_readback','activity_page_cache','fx_reference','operating_costs'} else {},
-            'order_activity_refs':refs if phase in {'ledger','history','observation','activity_readback','write','activity_page_readback','activity_page_cache','fx_reference','operating_costs'} else {},
+            'statement_readbacks':statement_docs,'known_statement_documents':known_statements,
+            'statement_input_status':statement_input_status,'fee_evidence':{'statement_evidence':statement_evidence},
+            'activity_readbacks':frames if phase in {'ledger','history','observation','activity_readback','write','activity_page_readback','activity_page_cache','fx_reference','operating_costs','statement_cache','statement_readback'} else {},
+            'order_activity_refs':refs if phase in {'ledger','history','observation','activity_readback','write','activity_page_readback','activity_page_cache','fx_reference','operating_costs','statement_cache','statement_readback'} else {},
             'known_entry_effect_ids':sorted(known_entries),'known_closed_cycle_ids':sorted(known_cycles),
             'known_fee_activity_ids':sorted(known_fees),
-            'fee_activity_refs':fee_refs if phase in {'ledger','history','observation','activity_readback','write','activity_page_readback','activity_page_cache','fx_reference','operating_costs'} else [],
+            'fee_activity_refs':fee_refs if phase in {'ledger','history','observation','activity_readback','write','activity_page_readback','activity_page_cache','fx_reference','operating_costs','statement_cache','statement_readback'} else [],
             'fee_checked_at':fee_checked,
             'known_operating_cost_components':known_cost_components,'known_operating_cost_source_evidence':source_evidence,'operating_cost_readback':billing_cache,
             'fx_quote_readbacks':fx_frames,'fx_attempted_at':fx_attempts,'fx_readback_errors':fx_errors,

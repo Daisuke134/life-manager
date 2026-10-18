@@ -948,6 +948,7 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                 economic_cost_scopes.extend(paper_result.get('economic_cost_scopes',[]))
         if mode in {"paper", "live"} and investment_owner_id() == f"alpaca-investment-{mode}":
             crypto_result=write_crypto_performance(state, observation, mode=mode, owner_id=investment_owner_id(),
+                statement_readback_dir=state/'statement-readbacks',
                 activity_reader=lambda **kwargs: read_crypto_activity_evidence(
                     credentials_path=credentials_path, cli_path=cli_path, **kwargs),
                 activity_page_reader=lambda **kwargs: read_crypto_activity_page_chunk(
