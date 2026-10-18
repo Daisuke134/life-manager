@@ -7,7 +7,7 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
-from effect_store import _append_once, _rows
+from effect_store import _append_once
 
 
 CATALOG_PATH = Path('apps/life-manager/config/product-loop-catalog.json')
@@ -48,18 +48,22 @@ def record_source_inventory(ledger: Path, *, release_root: Path, owner_id: str,
         return _gap('source_declaration_unavailable')
     digest = hashlib.sha256(catalog_bytes).hexdigest()
     identity = {'owner_id': owner_id, 'release_sha': sha}
-    previous = [row for row in _rows(ledger) if row.get('receipt_type') == 'cost_source_inventory'
-                and all(row.get(key) == value for key, value in identity.items())]
-    conflict = any(row.get('catalog_sha256') != digest for row in previous)
-    row = {**identity, 'receipt_type': ('cost_source_inventory_conflict' if conflict else 'cost_source_inventory'),
-           'schema_version': 1, 'catalog_sha256': digest, 'run_id': run_id, 'occurrence_id': occurrence_id,
-           'recorded_at': datetime.now(timezone.utc).isoformat(),
-           'evidence_refs': [f'lm-release://{sha}/{CATALOG_PATH.as_posix()}']}
-    if not conflict:
-        row['source_declaration'] = declaration
-        row['execution_owner_ids'] = loops[0]['job_ids']
-    appended = _append_once(Path(ledger), row, ('receipt_type', 'owner_id', 'release_sha', 'catalog_sha256'))
-    return {'coverage_state': 'gap', 'reason': ('source_declaration_conflict' if conflict
+    prepared = {}
+    def prepare(existing):
+        previous = [row for row in existing if row.get('receipt_type') == 'cost_source_inventory'
+                    and all(row.get(key) == value for key, value in identity.items())]
+        conflict = any(row.get('catalog_sha256') != digest for row in previous)
+        prepared['conflict'] = conflict
+        row = {**identity, 'receipt_type': ('cost_source_inventory_conflict' if conflict else 'cost_source_inventory'),
+               'schema_version': 1, 'catalog_sha256': digest, 'run_id': run_id, 'occurrence_id': occurrence_id,
+               'recorded_at': datetime.now(timezone.utc).isoformat(),
+               'evidence_refs': [f'lm-release://{sha}/{CATALOG_PATH.as_posix()}']}
+        if not conflict:
+            row['source_declaration'] = declaration
+            row['execution_owner_ids'] = loops[0]['job_ids']
+        return row
+    appended = _append_once(Path(ledger), prepare, ('receipt_type', 'owner_id', 'release_sha', 'catalog_sha256'))
+    return {'coverage_state': 'gap', 'reason': ('source_declaration_conflict' if prepared['conflict']
             else 'source_inventory_not_evaluated' if declaration['status'] == 'verified'
             else 'source_declaration_unverified'), 'appended': appended,
             'release_sha': sha, 'catalog_sha256': digest}
