@@ -279,8 +279,8 @@ Account lag remains pending across repeated runs and
 receipt recovery; complete reconciliation replays without another query/append.
 Terminal no-fill requires an explicit finite zero consistent with known fills.
 Missing or malformed quantities remain pending. A later official zero can enrich
-unknown evidence without erasing a known positive fill. Positive partial buys
-require the terminal acquisition proof described below.
+unknown evidence without erasing a known positive fill. Positive partial fills
+require the terminal acquisition/remainder proofs described below.
 Existing closed markers are also audited: a sell needs its recorded original-entry,
 close and account proof; a no-fill needs a sealed entry, official terminal zero and
 flat account receipt. Known owner/policy/status contradictions are rejected across
@@ -303,11 +303,17 @@ and same-mode account evidence must be saved before opening ownership. A stale
 or contradictory pending quantity is not overwritten during receipt adoption;
 known non-null fill times must also agree with executions and account time.
 FILL/account lag remains unresolved, without another order. Normal owned EXIT
-keeps the same original policy and parent; partial sell recovery remains pending.
+keeps the same original policy and parent. Terminal partial/zero sells now save
+an account/activity/remainder receipt before reopening the proven remaining qty.
+The original acquisition and each prior sell leg are revalidated in ledger order,
+including unique known provider order and target FILL IDs across the cycle.
+A final flat close must conserve that same history. Open close pointers remain
+paired and audited; only proven zero remaining qty permits flat policy refresh.
+No account balance difference is inferred to be a fee.
 `crypto_fill_activity_proof` validates the saved snapshot and raw order, sums
 quantities and computes native VWAP with exact rational arithmetic. Display
 rounding cannot decide quantity equality. Nullable broker fields stay unchanged;
 FILL execution times and the exact average ratio are separate facts. The proof
 retains unknown fees/P&L and alone never opens or closes ownership.
-This branch is source only: partial sells, fee attribution, complete costs, performance, deployment
+This branch is source only: fee attribution/quantity drift, complete costs, cycle performance, deployment
 and natural outcomes remain in the SSOT.
