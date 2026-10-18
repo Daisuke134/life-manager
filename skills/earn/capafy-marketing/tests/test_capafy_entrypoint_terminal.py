@@ -15,18 +15,49 @@ def write_executable(path: Path, body: str) -> None:
 
 
 def run_money_entrypoint(tmp_path: Path, runner_rc: int) -> subprocess.CompletedProcess:
+    # Release root + separate writable source repo (e14caee35d); release tools are stubbed so the
+    # wake reaches the DRAINED agent pass. The runner always writes a success result, so a
+    # non-zero runner rc must still win over it.
     repo = tmp_path / "repo"
     home = tmp_path / "home"
-    script = repo / "skills/self/capafy-loop/capafy-loop-daily.sh"
-    script.parent.mkdir(parents=True)
-    shutil.copy2(ROOT / "skills/self/capafy-loop/capafy-loop-daily.sh", script)
+    loop = repo / "skills/self/capafy-loop"
+    script = loop / "capafy-loop-daily.sh"
+    loop.mkdir(parents=True)
+    for name in ("capafy-loop-daily.sh", "capafy_daily_terminal.py"):
+        shutil.copy2(ROOT / "skills/self/capafy-loop" / name, loop / name)
+    write_executable(repo / "bin/lm-loop", "#!/usr/bin/env bash\nexit 0\n")
+    autopublish = repo / "skills/capafy-autopublish/scripts"
+    write_executable(autopublish / "key_health_gate.sh", "#!/usr/bin/env bash\nexit 0\n")
+    write_executable(
+        autopublish / "inventory_status.py",
+        "print('VERDICT=DRAINED')\nprint('{\"action\": \"drained\"}')\n",
+    )
+    write_executable(autopublish / "candidate_backlog.py", "import sys\nsys.stdin.read()\n")
+    source = tmp_path / "source"
+    subprocess.run(["git", "init", "-q", str(source)], check=True)
+    subprocess.run(
+        ["git", "-C", str(source), "remote", "add", "origin",
+         "https://github.com/Daisuke134/life-manager.git"],
+        check=True,
+    )
     write_executable(
         repo / "skills/earn/marketing-engine/run_agent.sh",
-        f"#!/usr/bin/env bash\ncat >/dev/null\nexit {runner_rc}\n",
+        "#!/usr/bin/env bash\ncat >/dev/null\n"
+        'while [ $# -gt 0 ]; do [ "$1" = --evidence-dir ] && dir="$2"; shift; done\n'
+        'mkdir -p "$dir"\n'
+        """printf '{"status":"success","evidence":["fixture"]}' >"$dir/result.json"\n"""
+        """printf '{"result_path":"result.json"}' >"$dir/summary.json"\n"""
+        f"exit {runner_rc}\n",
     )
     return subprocess.run(
         ["bash", str(script)],
-        env=os.environ | {"HOME": str(home), "LIFE_MANAGER_REPO": str(repo)},
+        env=os.environ
+        | {
+            "HOME": str(home),
+            "LIFE_MANAGER_REPO": str(repo),
+            "LIFE_MANAGER_RELEASE_ROOT": str(repo),
+            "LIFE_MANAGER_SOURCE_REPO": str(source),
+        },
         text=True,
         capture_output=True,
         check=False,
@@ -68,14 +99,22 @@ capafy_ig_warming_day() {{ printf '%s\\n' '{warm_day}'; }}
         repo / "skills/earn/marketing-engine/load_manifest.sh",
         "#!/usr/bin/env bash\nme_load_manifest() { return 0; }\n",
     )
+    # A live success needs a verified native Reel row for the selected Agent (3304f9ffe5);
+    # the runner always writes one, so a non-zero runner rc must still win over it.
     write_executable(
         repo / "skills/earn/marketing-engine/run_agent.sh",
-        f"#!/usr/bin/env bash\ncat >/dev/null\nexit {runner_rc}\n",
+        "#!/usr/bin/env bash\ncat >/dev/null\n"
+        """printf '%s\\n' '{"agent_id":"fixture-agent","reel_url":"https://www.instagram.com/reel/fixture/","""
+        """"listing_name":"Fixture","caption":"c","hook":"h"}' """
+        '>>"$HOME/.local/state/life-manager/state/capafy-marketing-ig-ledger.jsonl"\n'
+        f"exit {runner_rc}\n",
     )
     scripts = marketing / "scripts"
     for name in ("ig_metrics.py", "pull_attribution.py"):
         write_executable(scripts / name, "#!/usr/bin/env python3\n")
     write_executable(scripts / "build_landing.py", "#!/usr/bin/env python3\nraise SystemExit(1)\n")
+    write_executable(scripts / "select_listing.py", "print('{\"agent_id\": \"fixture-agent\"}')\n")
+    write_executable(scripts / "creative_approval.py", "print('{\"status\": \"none\"}')\n")
     if recent_rotation:
         rotation = home / ".local/state/life-manager/state/capafy-marketing-rotation.jsonl"
         rotation.parent.mkdir(parents=True, exist_ok=True)
@@ -84,6 +123,9 @@ capafy_ig_warming_day() {{ printf '%s\\n' '{warm_day}'; }}
         rotation = home / ".local/state/life-manager/state/capafy-marketing-rotation.jsonl"
         rotation.parent.mkdir(parents=True, exist_ok=True)
         rotation.write_text('{"platform":\n')
+    # Every launchd owner reads as loaded, so the wake's self-heal (b9b4a758ea) is a no-op.
+    safe = tmp_path / "launchctl-safe"
+    write_executable(safe, "#!/usr/bin/env bash\nexit 0\n")
     return subprocess.run(
         ["bash", str(script)],
         env=os.environ
@@ -91,6 +133,8 @@ capafy_ig_warming_day() {{ printf '%s\\n' '{warm_day}'; }}
             "HOME": str(home),
             "LIFE_MANAGER_REPO": str(repo),
             "TELEGRAM_ALERT_CHAT_ID": "fixture-chat",
+            "CAPAFY_LAUNCHCTL_SAFE": str(safe),
+            "CAPAFY_LAUNCHCTL_DOMAIN": "gui/501",
         },
         text=True,
         capture_output=True,
