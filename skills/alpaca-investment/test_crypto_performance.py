@@ -153,6 +153,52 @@ class CryptoPerformanceTests(unittest.TestCase):
                     self.assertEqual(inventory['unattributed_fees'][0]['reason'],reason)
                     self.assertIsNone(result['fees_usd'])
 
+    def test_backdated_fee_date_is_valid_in_raw_bundle_and_paged_creation_windows(self):
+        from test_crypto_activity_pages import read_chunk
+        for mode in ('paper','live'):
+            with self.subTest(mode=mode),tempfile.TemporaryDirectory() as directory:
+                root=Path(directory);orders,original,_=cycle_fixture(root,mode)
+                rows=store._rows(root/'receipts.jsonl')
+                fee={'id':'late-date-fee','activity_type':'CFEE','order_id':orders[0]['id'],
+                    'symbol':'BTCUSD','qty':'-0.00005','date':'2026-01-01',
+                    'created_at':'2026-01-02T06:00:00Z','net_amount':'0','status':'executed'}
+                empty={'fills':[],'fees':[]};start='2026-01-02T00:00:00Z';end='2026-01-03T00:00:00Z'
+                raw=activity_fixture(empty,mode=mode,start=start,end=end,fees=[fee])
+                prefix=activity_fixture(empty,mode=mode,start=start,end='2026-01-02T05:00:00Z')
+                tail=activity_fixture(empty,mode=mode,start='2026-01-02T05:00:00Z',end=end,fees=[fee])
+                bundle=proofs.combine_crypto_activity_snapshots([prefix,tail],mode=mode)
+                chunks=[read_chunk(kind,mode=mode,rows=[] if kind=='FILL' else [fee],
+                    period_start=start,period_end=end) for kind in ('FILL','CFEE')]
+                paged=proofs.crypto_activity_paged_snapshot(chunks,mode=mode)
+                for form in (raw,bundle,paged):
+                    with self.subTest(schema=form['schema_version']):
+                        result=PERF.build_crypto_performance(rows,mode=mode,owner_id=f'alpaca-investment-{mode}',
+                            activity_readbacks={o['id']:original for o in orders},fee_activity_readbacks=[form])
+                        inventory=result['fee_evidence']
+                        self.assertEqual(len(inventory['attributed_native_fees']),1)
+                        self.assertEqual(inventory['attributed_native_fees'][0]['quantity'],'0.00005')
+                        self.assertEqual(inventory['unattributed_fees'],[])
+                        self.assertIsNone(result['fees_usd']);self.assertIsNone(result['net_pnl_usd'])
+
+    def test_fee_creation_time_and_activity_date_are_validated_separately(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);orders,original,_=cycle_fixture(root)
+            variants=[({'created_at':'2026-01-01T23:59:59Z'},'fee_creation_time_invalid'),
+                ({'created_at':'2026-01-03T00:00:01Z'},'fee_creation_time_invalid'),
+                ({'created_at':'invalid'},'fee_creation_time_invalid'),
+                ({'date':'2026-01-04'},'fee_date_invalid'),({'date':'2025-12-31'},'fee_date_invalid')]
+            for changes,reason in variants:
+                fee={'id':'late-date-fee','activity_type':'CFEE','order_id':orders[0]['id'],
+                    'symbol':'BTCUSD','qty':'-0.00005','date':'2026-01-01',
+                    'created_at':'2026-01-02T06:00:00Z','net_amount':'0','status':'executed',**changes}
+                raw=activity_fixture({'fills':[],'fees':[]},mode='paper',start='2026-01-02T00:00:00Z',
+                    end='2026-01-03T00:00:00Z',fees=[fee])
+                with self.subTest(changes=changes):
+                    result=PERF.build_crypto_performance(store._rows(root/'receipts.jsonl'),mode='paper',
+                        owner_id='alpaca-investment-paper',activity_readbacks={o['id']:original for o in orders},fee_activity_readbacks=[raw])
+                    self.assertEqual(result['fee_evidence']['attributed_native_fees'],[])
+                    self.assertEqual(result['fee_evidence']['unattributed_fees'][0]['reason'],reason)
+
     def test_fee_id_conflicting_across_snapshots_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);orders,activity,_=cycle_fixture(root)
