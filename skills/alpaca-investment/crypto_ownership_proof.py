@@ -81,7 +81,7 @@ def _execution_number(raw: Any) -> Decimal:
 def execution_activity_identity(fill: dict[str, Any]) -> tuple:
     return (fill['order_id'],fill['symbol'].replace('/',''),fill['side'],
         Fraction(_execution_number(fill['qty'])),Fraction(_execution_number(fill['price'])),
-        parse_instant(fill['transaction_time']))
+        _fx_instant(fill['transaction_time']))
 
 
 def _fx_instant(value):

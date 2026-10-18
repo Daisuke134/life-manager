@@ -11,7 +11,7 @@ from typing import Any
 
 from crypto_ownership_proof import (_digest,_quantity_text,_sealed_entry_from_rows,entry_receipt_row,
     recorded_entry_proof_from_rows,recorded_no_fill_proof_from_rows,recorded_close_proof_from_rows,
-    owned_quantity_state_from_rows,native_fee_debit_id,crypto_fx_quote_proof,_fx_instant,
+    owned_quantity_state_from_rows,native_fee_debit_id,crypto_fx_quote_proof,_fx_instant,_execution_number,
     crypto_fill_activity_proof,validate_crypto_activity_snapshot,combine_crypto_activity_snapshots,execution_activity_identity,native_fee_row_facts,crypto_activity_page_progress,crypto_activity_paged_snapshot,validate_crypto_activity_page_chunk,ReconciliationPending)
 from effect_store import _owned_rows
 from paper_performance import _atomic_json
@@ -131,7 +131,7 @@ def _fx_references(cycles,fees,readbacks,*,mode):
                     missing.setdefault(key,{'asof_at':at,'mode':mode,'symbol':'USDC/USD'})
                     cycle_missing.append(fill['id']);complete=False;continue
                 (bid,ask,_),proof=quote
-                native=Fraction(fill['qty'])*Fraction(fill['price']);amount=native*(bid+ask)/2
+                native=Fraction(_execution_number(fill['qty']))*Fraction(_execution_number(fill['price']));amount=native*(bid+ask)/2
                 total+=amount;sources.add(proof['source_receipt_id'])
                 components.append({'kind':'fill','provider_order_id':order['provider_order_id'],
                     'fill_activity_id':fill['id'],'transaction_time':at,'native_currency':'USDC',
