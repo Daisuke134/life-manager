@@ -691,27 +691,6 @@
       "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/writer"
     },
-    "article-learn-whitelist": {
-      "cadence": {
-        "calendar_interval": {
-          "Hour": 3,
-          "Minute": 0,
-          "Weekday": 0
-        }
-      },
-      "cleanup": {
-        "max_age_days": 14,
-        "max_runs": 100
-      },
-      "domain": "earn",
-      "effect_class": "none",
-      "entrypoint": "skills/writer-agent/scripts/learn-whitelist.sh",
-      "label": "ai.anicca.article-learn-whitelist",
-      "system_role": "control",
-      "log_root": "~/.local/state/life-manager/writer/logs",
-      "provider_route": "shared-agent-runner",
-      "state_root": "~/.local/state/life-manager/writer"
-    },
     "article-resume": {
       "cadence": {
         "start_interval_seconds": 300
@@ -4880,6 +4859,7 @@
     "ai.anicca.agents-skills-sync",
     "ai.anicca.alpaca-investment",
     "ai.anicca.alpaca-investment-shadow",
+    "ai.anicca.article-learn-whitelist",
     "ai.anicca.autohedge",
     "ai.anicca.bounty-proactive",
     "ai.anicca.cfo-daily",

@@ -38,7 +38,6 @@
     "ai.anicca.article-zenn-retry",
     "ai.anicca.article-self-improve",
     "ai.anicca.article-audit-7day",
-    "ai.anicca.article-learn-whitelist",
     "ai.anicca.writer-claim-loop",
     "ai.anicca.writer-craft-train",
     "ai.anicca.writer-money-sync",
@@ -55,7 +54,6 @@
     "ai.anicca.article-zenn-retry": "~/Library/LaunchAgents/ai.anicca.article-zenn-retry.plist",
     "ai.anicca.article-self-improve": "~/Library/LaunchAgents/ai.anicca.article-self-improve.plist",
     "ai.anicca.article-audit-7day": "~/Library/LaunchAgents/ai.anicca.article-audit-7day.plist",
-    "ai.anicca.article-learn-whitelist": "~/Library/LaunchAgents/ai.anicca.article-learn-whitelist.plist",
     "ai.anicca.writer-claim-loop": "~/Library/LaunchAgents/ai.anicca.writer-claim-loop.plist",
     "ai.anicca.writer-craft-train": "~/Library/LaunchAgents/ai.anicca.writer-craft-train.plist",
     "ai.anicca.writer-money-sync": "~/Library/LaunchAgents/ai.anicca.writer-money-sync.plist",
@@ -78,8 +76,8 @@
     "launchctl_readback": "all five retired labels are absent from installed plists and gui launchd"
   },
   "path_audit": {
-    "installed_writer_launchagents": 15,
-    "life_manager_registry_entries": 15,
+    "installed_writer_launchagents": 14,
+    "life_manager_registry_entries": 14,
     "external_cli_labels": 0,
     "retired_external_cli_labels": 5,
     "status": "repository-releases-only",

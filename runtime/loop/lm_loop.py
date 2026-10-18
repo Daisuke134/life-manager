@@ -3099,7 +3099,7 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
                 existing_bytes = target_path.read_bytes() if target_path.is_file() else None
                 writer_loop_ids = {
                     "article-audit-7day", "article-daily", "article-healthcheck",
-                    "article-learn-whitelist", "article-repair-candidate", "article-resume",
+                    "article-repair-candidate", "article-resume",
                     "article-self-improve",
                     "article-zenn-retry", "writer-claim-loop", "writer-craft-train",
                     "writer-money-sync", "writer-opportunity-discovery",
