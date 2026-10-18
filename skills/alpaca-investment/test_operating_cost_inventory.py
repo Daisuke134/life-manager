@@ -175,4 +175,31 @@ class OperatingCostInventoryTests(unittest.TestCase):
                 self.assertEqual(result['operating_cost_components'],[])
                 self.assertEqual(result['operating_cost_coverage']['coverage_state'],'gap')
 
+    def test_category_uses_its_own_declared_executor_not_the_query_union(self):
+        for mode in ('paper','live'):
+            with self.subTest(mode=mode):
+                payload,inventory,trip=window_fixture(mode)
+                owner=trip['owner_id'];other='investment-strategy-validation';scope=inventory['scopes'][0]
+                scope['execution_refs'][1].update(execution_owner_id=other,occurrence_id=other+':closing-claim')
+                inventory['input_reads'][other]=copy.deepcopy(inventory['input_reads'][owner])
+                inventory['input_reads'][owner]['runtime']['row_count']=2
+                inventory['input_reads'][owner]['admission']['row_count']=1
+                for source in scope['required_sources']:
+                    if source['category']!='model_cost':source['execution_owner_ids']=[other]
+                for join in payload['job_joins']:
+                    for ref in join['execution_refs']:
+                        if ref['run_id']=='closing-run':ref.update(execution_owner_id=other,occurrence_id=other+':closing-claim')
+                    join['occurrence_ids']=[r['occurrence_id'] for r in join['execution_refs']]
+                wrong=summarize([trip],payload,owner_id=owner,mode=mode,observed_at=inventory['observed_at'],expected_inventory=inventory)
+                self.assertIsNone(wrong['verified_model_cost_subtotal_usd'])
+                self.assertEqual(wrong['operating_cost_coverage']['coverage_state'],'gap')
+                self.assertTrue(wrong['operating_cost_component_gaps'])
+                payload['documents'][0]['line_items'][0]['category']='infra_cost'
+                correct=summarize([trip],payload,owner_id=owner,mode=mode,observed_at=inventory['observed_at'],expected_inventory=inventory)
+                self.assertEqual(Decimal(correct['verified_system_cost_subtotal_usd']),Decimal('1'))
+                self.assertEqual(correct['operating_cost_coverage']['coverage_state'],'complete')
+                closing=next(w for w in correct['operating_cost_query_observations'][0]['execution_windows'] if w['run_id']=='closing-run')
+                self.assertNotIn('model_cost',closing['covered_categories'])
+                self.assertIn('infra_cost',closing['covered_categories'])
+
 if __name__=='__main__':unittest.main()
