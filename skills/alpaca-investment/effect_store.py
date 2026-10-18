@@ -42,7 +42,8 @@ def _rows(path: Path) -> list[dict[str, Any]]:
     return values
 
 
-def _append_once(path: Path, row: dict[str, Any], identity: tuple[str, ...]) -> bool:
+def _append_once(path: Path, row: dict[str, Any] | Callable[[list[dict[str, Any]]], dict[str, Any]],
+                 identity: tuple[str, ...]) -> bool:
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     descriptor = os.open(path, os.O_RDWR | os.O_CREAT | os.O_APPEND, 0o600)
     try:
@@ -50,6 +51,8 @@ def _append_once(path: Path, row: dict[str, Any], identity: tuple[str, ...]) -> 
         fcntl.flock(descriptor, fcntl.LOCK_EX)
         with os.fdopen(os.dup(descriptor), "r", encoding="utf-8") as handle:
             existing = [json.loads(line) for line in handle if line.strip()]
+        if callable(row):
+            row = row(existing)
         if any(all(item.get(key) == row.get(key) for key in identity) for item in existing):
             return False
         payload = (json.dumps(row, sort_keys=True, separators=(",", ":")) + "\n").encode()

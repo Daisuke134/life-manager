@@ -14847,7 +14847,64 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **反映の最新カーソル:** mainにはIN-REPORT-01とD1を統合するが、currentはまだ完全版ab5707cbで、既存1800秒cut間隔を守る。native release ownerの05:49 run18df895c3ed571d8-42505はfleet applyのbudget exceeded（timed-out ownerなし、skipped77）でexit1。paperは同abで05:45自然pass後、05:50 run18df89b980627530-54418がresource_capacity_busy/exit75、その後の自然再試行を観測中。登録resource_class=deterministic、旧agent席設定に戻ったとは断定しない。currentが更新されたら既存loaded-idle target applyだけでcrossvenue ownerを採用し、旧通知fenceを維持してread-only canaryを確認する。強制wake/間隔短縮/資金移動/旧fence解除はしない。
 
-**原子的TODO:** B1上記schema/独立inventoryの信頼境界と型・enum・時刻・反例を固定→D1 mode保持/混在拒否/live候補・rolling除外→D2既存CFO内の共有query/zero受理→D3scoped coverageと既存paid binding接続→D4broker complete受入と日次/履歴の条件付き評価→E金融review/全CI/main/正式版/対象owner/readback→F公式closed取引・全期間inventory・paid/最終無請求・帰属・broker費用の本物入力接続。各source変更は最小RED→GREENで保存する。反例はsource削除による自己整合、next page/pending/未確定を空請求とする誤り、別account/mode/pair/境界時刻、paid alias再利用、shared query翌日再利用、measured paperのlive混入を含める。sourceの受け入れ経路と実利益証明を分離し、外部証拠が不足してもB/D source実装を止めない。
+### IN-COST-04D3 実装計画 — 独立runtime/source inventory
+
+**Goal:** billing payloadから独立した各取引の実行・source集合を生成し、完全coverageの受入へ接続する。**Architecture:** 既存private runtime journal/admission read-only/既存receipts ledger/既存catalogを再利用し、新DB・台帳・scheduler・net算術を作らない。**Tech Stack:** Python標準ライブラリ、既存unittest/pytest。**Spec:** 本SSOT IN-COST-04B/D。primaryが単独実装し、金融の独立read-only reviewを行う。UI model/effortを保持し、観測できない実値や開発費を捏造しない。
+
+**Constraints:** owner/mode/physical run/logical occurrence/実行releaseとstrategy releaseを混ぜない。billing sourcesからexpected集合を生成しない。旧releaseへ現在catalogを遡及適用しない。共有subscription/validation→paper・liveはexact allocationがない限りgap。既知paid bindingをsource設定変更で落とさない。unknown/欠測は0にしない。live/fence/21-session/資本上限を変更しない。
+
+**Review focus:** source省略、古いrelease/不足archive、未対応start、claimed occurrence≠physical run、支払済みaliasの二重帰属を反例にする。現在のpaper censusには歴史的未終端21件とexecution metadata未記録の期間があり、現在の全期間inventory completeを主張しない。
+
+1. **D3a: 既存ledgerへrelease固定のsource宣言を保存し、独立censusを生成する。** 先にD3a1宣言captureを独立反映し、D3a2 censusを続ける。 Files: 新規skills/alpaca-investment/cost_inventory.py、同test_cost_inventory.py、既存effect_store.py/run.py、apps/life-manager/config/product-loop-catalog.json investment loop直下。本catalogのcost_source_inventoryをschema_version/status/sourcesの一箇所で定義する。初期status=unverified/sources=[]は明示gapであり、provider/accountを推測しない。既存effect_store._append_onceを使い、receipt_type=cost_source_inventory、owner、runtime release_sha、catalog digest、宣言、capture run/occurrence/時刻をreleaseごとに一回だけ保存する。immutable自身のRELEASE.json/当該catalogから読む。新台帳やGC保持方針を追加しない。
+   - [x] source RED→GREEN: record_source_inventory(ledger, *, release_root, owner_id, run_id, occurrence_id)はpaper entrypointで実行し、同release再実行は追記0、release違いは別snapshot、catalog欠測/未検証はgap、strategy release_shaをruntime SHAへ書換えない。provider呼出0。
+   - [ ] RED→GREEN: build_expected_inventory(trips, *, beneficiary_owner_id, observed_at, runtime_rows_by_owner, occurrence_rows_by_owner, release_inputs, paid_bindings)はexact scopeのrequired_sources/execution_refs/evidence_refs/coverage_state/gapsを返す。physical runでstart/terminalを組み、terminalの実occurrenceとadmission rowを照合する。合成occurrenceを受理せず、同event衝突・未終端・期間不足・不明release/宣言・不明account・共有未帰属をgapにする。各実行releaseの宣言と既知paid sourceを合併し、新しい設定だけで過去sourceを消さない。
+2. **D3b: 既存writerから本物入力を渡し、query/source集合を照合する。** Files: cost_inventory.py、paper_performance.py、paper_operating_costs.py、actual_cost.pyと既存対応tests。read_expected_inventory(state, trips, *, observed_at)は既存lm_loop._owner_runtime_rows/_read_admission_rowsの安全なread-only方式、既存ledger snapshot、当該immutable release inputを使う。source設定は費用query側から受け取らない。履歴上限/欠測/旧release情報の欠落はgap。writerはclose runのhost terminalより前に呼ばれるため、その回はgapとし次の自然runの既存historical refreshで再評価する。
+   - [ ] RED→GREEN: build_paper_performanceへexpected_inventory keywordを渡し、summarize→D2 validatorへ接続する。別ownerのexecution_refをbeneficiaryへ偽装せず、run/occurrenceの実組でjoinを検証する。必要(provider, account, category)全集合とofficial queryを照合し、欠測はgap、完全fixtureだけoperating coverage completeを受理する。金銭receipt0は作らない。
+   - [ ] RED→GREEN: component/coverageを同じclosed subsetへ絞り、既存paid binding/aliasを再利用する。共有queryの証拠はcost_evidence等へ保持し、economic source_receipt_idsへ追加しない。過去の既知component/coverageを欠測snapshotで削除しない。全model/tool/browser/infraが完全な時だけmodel/system合計を設定し、broker欠測時のnetはD4まで未確定。
+3. **検証・反映。** 対象RED/GREENを都度commit/pushし、Alpaca/core/CFO関連suiteとdiff/source boundaryを確認する。独立金融review→全13 exact-head checks→main→既存正式版→対象owner採用→自然記録を照合する。source受入を本物費用/利益の証明にしない。現在cursorはD3a。
+
+**Ruling:** catalogのeconomicはproduct-onboarding.jsでexact keysへ固定されるため、source宣言は同じinvestment loop直下へ置く。理由は既存economic契約を広げず単一のcatalogを使うため。誤りの場合の影響はsource宣言を同catalog内で移すだけとし、money gateはgapを維持する。履歴releaseのGC後も宣言を失わないよう、既存ledgerへruntime release/catalog digest付きsnapshotを一度保存する。immutable同SHAでdigestが違う時は上書きせずconflictを記録し、inventoryをgapにする。
+
+**D2統合:** PR #8329は全13checks PASS後にmain5a96b4e9c21fe637e0c0b97f3290e912cbab916dへ統合する。D1/通知の完全版c2e10124は正式版20261018T145653-c2e10124へ作成し、production9ファイルのmain完全一致、SDK singleton受理/複数chunk不明、synthetic paper保持/live候補除外、実live入力の不完全net非数値をread-only canaryで確認する。provider/runtime state書込0。crossvenue対象ownerは06:04:50 UTCのAqua preflight PASS後、loaded-idle apply event12e07e39227d8f66dab51bb4で同c2e10124を採用する。changed=true/ok=true、admission_resumed=false、旧通知fenceを維持する。liveはdisabledのまま。新reportの自然業務実行は旧fenceのため未確認。
+
+**D3a実行順の局所更新:** 旧順序=`capture＋census＋consumerを一括source実装→反映`、新順序=`D3a1 captureの最小source/金融review/CI/main/正式版/自然snapshot→D3a2 census→D3b consumer`。理由は、現在から将来の全期間証拠を残し始めるほど自然取引の評価開始が早まり、source宣言を後から補完する穴を減らすため。現在cursorはD3a1 source review。設計a0f07bab15/f816f42c53、RED7fc2d031f1と実caller/catalogのRED7c82797144、GREEN5091944f25。source単体/実main接続51 tests/45 subtests、既存product onboarding47 testsがPASS。fixtureに本番と同じexplicit paper ownerを追加し、strategy SHA a…とruntime SHA b…を区別する。新台帳0、金額0化0、既存型のappend-only snapshotだけ。D3a2/consumer/完全coverage/実利益は未達。
+
+**D3a1 GitHub独立reviewの反例修正:** source8bc4b6716eに対するfresh GitHub Codex reviewは、paper callerが既定live ownerを渡す点と、補助captureを未解決注文のreconciliationより先に実行する点をP2/P1として報告する。これらを受理し、paper owner対応を検証し、公式reconciliationを先に行い、非金銭captureのI/O失敗は構造化gapとして報告して既存注文readbackを妨げない。partial appendの可能性はappended=null/error_class/next_actionで残し、0や成功へ置換しない。実注文/effect fence/売却条件は変更しない。最新headで再レビューを依頼し、旧headの完了をPASSへ流用しない。
+
+**D3a1 GitHub指摘のRED/GREEN記録:** RED5688bc56acは実main/既存started intentを使い、capture write失敗時にreadbackが0回になることと、paper modeへ既定/明示live ownerのsnapshotが保存されることを再現する。最小GREENでcaptureをreconcile_started後へ移し、ETF_PAPER_OWNER_IDとの対応を検証する。capture appendのOSError/ValueErrorはsource_inventory_write_failed/gap/appended=null/error_class/next_actionとしてstdout summaryへ残し、既存broker readbackとrisk判断を継続する。実際のpending order readback→補助write failureの順序、未解決数1維持、submit0を確認する。Alpaca315 tests/153 subtestsがPASS。未解決のbroker effectをmetadata失敗で消さない。最新sourceの独立review/全CIを再確認する。
+
+**D3a1 終端診断の修正契約:** 最新head4e83a67d22のfresh GitHub reviewは、paused/killedおよび後続失敗の終端出力からcapture結果が脱落するP2を報告する。通常完了・初期control停止・submit直前control停止・例外終端の既存summaryへ同じcost_inventory_captureを保持する。capture前の例外やliveには結果を捏造しない。再試行やbroker効果の判定、送信内容、旧fenceは変更しない。最小RED→GREENと関連caller検証後、最新headのreview/CIを取り直す。現在cursorはこの終端診断修正。
+
+**D3a1 終端診断の実行記録:** RED abff07bd43でpaused/killed/observe失敗の3 subcasesがcost_inventory_capture欠落を再現する。GREEN6fdcb3bbc7は既存4終端summaryに結果が存在する場合だけ保持する5行修正。Alpaca316 testsがPASS、submit0・既存pending1・readback先行を維持する。新しい経済receipt、金額、再送、live enableを追加しない。最新sourceの独立reviewとexact-head CIは進行中。
+
+**実稼働の確認:** 完全版/Users/anicca/loops/releases/20261018T151955-00cc7a49はmain00cc7a499612842cab087266ff08bb12e25e6c3f由来ALL版で、D2のactual_cost.py/paper_operating_costs.py/run.pyがmain5a96b4e9とbyte一致する。paperは同版を採用し、自然run18df8be87fdcb518-52453が06:30:32.181422 UTCにpass/exit0/effect not_applicable/no_broker_order_submittedで完了する。これはD2の本番採用・自然実行証拠であり、D3a1の採用や利益の証拠ではない。crossvenueはc2e10124を採用し旧通知fenceを保持、liveはdisabled/旧4121f447/歴史的fenceを保持する。
+
+### IN-END-TO-END — 同一戦略の検証から実利益へ
+
+**確認した構造上の問題:** validation_runnerはETFのselectionをpaper/live両方へ配るが、allocator.gate、run.py、alpaca_cli.submit_orderのlive許可はBTC/USDCに限定する。そのためETFの紙成績だけでは同じ戦略のlive取引へ進めない。performance_gateはL09 canary/L10 closeの一組を読み、read_live_performance_snapshotのcompleted_round_tripsは1固定で、全自然取引の成績集計ではない。費用scopeもordered pair2件だけで、売買しない日の運用費用を完全評価できない。これらは未修正のsource課題である。
+
+**一本道:** ローカルの既存BTC/USDC candidate cards/5m validation/注文照合・position経路を再利用し、paperとliveで同一strategy/policyを評価する。既存ETF保有は所有権・自然EXIT条件を保ったまま管理し、21-sessionの短縮や強制売却、保有中のselection置換をしない。BTCへの新規selectionは既存保有を取り残さない状態遷移をsourceで検証してから行う。ETF成績をBTCの実績に数えない。新しい取引基盤・並列運用先・net計算器は作らない。
+
+**費用scope:** order_pairは引き続き正確なentry/exit2注文を要求する。売買なしの期間には既存cost_scopes内のscope_kind=owner_periodを追加し、owner/mode/UTC start/end/order_ids=[]/実execution refs/必要source集合/公式活動照会と確定billingを照合する。空注文だけで費用0にせず、初回未決済日の欠測もgapとする。日次とtrade期間の同じchargeは既存charge identity/bindingで一度だけ控除する。D3 inventoryはbilling payloadから独立し、両scopeを扱う。paperはlive候補・live rollingへ混入させない。
+
+**評価の単位:** holdout/backtestの模擬取引、既存昇格条件の自然paper closed round trips30件、増額用のlive closed round trips30件、rolling30日、運用repeatabilityは別々に数える。HOLD/wake数や過去canary一件で置換しない。既存損失上限・資本上限・全gateを維持する。AT-24/AT-29のexact acceptance未同定は未確認として残す。紙約定は実収益に足さない。
+
+**公式仕様の境界:** Alpacaの[Paper Trading](https://docs.alpaca.markets/docs/paper-trading)は市場impact/latency/queue/regulatory fees等を模擬しない。紙のnot_simulatedを実口座の費用0にしない。[Crypto Trading](https://docs.alpaca.markets/docs/crypto-trading)のcrypto feeはCFEE活動で日末計上されるため、当日空一覧を確定無料にしない。strategyの予測費用と公式確定費用を区別する。paper feeの完全性・USDC quoteからの実注文可否は未確認であり、推測でmeasured/live許可へ上げない。
+
+**実行順の更新:** 旧=`D3取引pair inventory/consumer→D4費用評価→ETF紙サンプル→live gate`。新=`D3a1 capture修正のreview/CI/main/正式版/自然snapshot→D3a2 order_pair/owner_period独立inventory→BTC同一戦略validation・paper所有/exit/performance配線とETF保有遷移→D3b/D4完全費用coverage・全closed pairs/daily live reader→自然paper30件と既存全gate→exact live identity/fence/通貨・資本・損失条件照合→上限内live→実純利益/rollingに基づく改善・増額`。理由は、ETF紙評価とBTC-only liveの戦略不一致、idle期間の費用欠落、canary一組固定readerが最終成果への到達を妨げるため。現在cursorはD3a1最新source6fdcb3bbc7のreview/CIと本番採用。進行中の自然ETF判断・外部effectを中断しない。
+
+**原子的な残TODO（この順序が正本）:**
+1. [ ] D3a1の最新headレビュー指摘0・13 exact-head checks PASSを確認し、main統合、通常のimmutable採用、自然snapshot/replay-zeroを確認する。
+2. [ ] D3a2のorder_pair/owner_period入力契約をfixture化し、runtime physical run/actual occurrence/admission/release宣言と既知paid bindingの独立censusをRED→GREENで実装する。未終端・archive不足・旧release欠測・共有未帰属をgapにする。
+3. [ ] 既存BTC candidate/validationをpaper/live同一policyへ接続する。ETF保有中のselection更新を拒否し、自然EXIT後の所有移行、BTC paper entry/exit/公式約定の成績集計を検証する。
+4. [ ] D3bで安全なruntime/admission/ledger read-only loaderを既存writerへ接続し、必要provider/account/categoryと公式queryを照合する。欠測は0化せず、履歴更新で既知費用を失わない。
+5. [ ] D4で公式broker fee/funding/gasとmodel/systemの完全性を照合し、全て揃ったscopeだけ既存coreの費用込みnetへ昇格する。日次・取引の同charge二重控除を拒否する。
+6. [ ] liveのcanary固定一組readerを実際の同owner/mode/strategy全closed pairs集計と日次測定へ置き換える。paper/live/通貨を分離し、30件と30日を混同しない。
+7. [ ] 各sourceを独立金融review・必要CI・main・正式版・自然readbackまで進める。公式closed fillsと実費/確定無請求の入力、同戦略paper30件、holdout/sensitivity/基準比較、AT-24/AT-29の受入定義を揃える。
+8. [ ] 期待live口座identity、歴史的注文/通知fence、USD cash/USDC数量/評価/quote通貨、既存全risk/spend-capをexact証拠で照合する。不確実な注文や通知を再送しない。
+9. [ ] 全gateを満たす場合だけ既存上限内liveへ進み、公式約定・実費・日次純利益・drawdown・replay-zeroを自動集計する。増額は既存liveサンプル/rolling条件を満たす場合だけ行う。
+10. [ ] 成果根拠のある公開手法/コードを出所・license・期間・費用・リスク込みで再現し、同じ未使用期間/benchmarkで比較する。採用は評価で改善を示した変更だけとし、悪化時の停止/復旧を既存risk経路で行う。世界一の利益や将来残高は保証せず、実測純利益を継続報告する。
+
 
 ### IN-COST-04C 実装計画 — core費用とpaper損益基準
 
