@@ -81,7 +81,16 @@ class SellRemainderTests(unittest.TestCase):
             stack.enter_context(patch.object(native,'read_allocator_snapshot',side_effect=lambda **_:copy.deepcopy(raw)))
             stack.enter_context(patch.object(native,'find_order_by_client_id',side_effect=lambda **kw:
                 copy.deepcopy(broker if kw['client_order_id']==broker['client_order_id'] else entry)))
-            activity_reader=stack.enter_context(patch.object(native,'read_crypto_activity_evidence',side_effect=lambda **_:copy.deepcopy(activities)))
+            def activity_response(**kw):
+                fills=copy.deepcopy(activities['fills'])
+                if proofs.parse_instant(kw['period_start']) <= proofs.parse_instant(entry['submitted_at']):
+                    fills.append({'id':'entry-fill','activity_type':'FILL','order_id':entry['id'],
+                        'symbol':'BTCUSDC','side':'buy','qty':entry['filled_qty'],'price':entry['filled_avg_price'],
+                        'transaction_time':entry['filled_at']})
+                with patch.object(cli,'_context',return_value={}),patch.object(cli,'_run',side_effect=[fills,activities['fees']]):
+                    return cli.read_crypto_activity_evidence(credentials_path=Path('unused'),cli_path=Path('unused'),
+                        mode=kw['mode'],period_start=kw['period_start'],period_end=kw['period_end'])
+            activity_reader=stack.enter_context(patch.object(native,'read_crypto_activity_evidence',side_effect=activity_response))
             for name,value in (('read_crypto_history',{}),('build_candidates',[]),('_review_status',{}),
                     ('read_campaign_snapshot',{'paper':True,'unexpected_positions':['BTCUSD'] if remaining else [],
                                               'fills':[],'positions':[],'options':[]}),

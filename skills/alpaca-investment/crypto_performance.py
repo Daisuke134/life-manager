@@ -143,6 +143,7 @@ def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None):
         and isinstance(r.get('order'),dict) and r['order'].get('asset_class')=='crypto' and r.get('mode')==mode and r.get('owner_id')!=owner_id]
     return {'schema_version':1,'report_scope':'owned_crypto_cycles','owner_id':owner_id,'mode':mode,'paper':mode=='paper',
         'measurement_status':'partial','reason':'crypto_costs_or_fx_unknown','capital_expansion_allowed':False,
+        'cycle_coverage_status':'partial' if pending or orphan or unscoped else 'complete',
         'net_pnl_usd':None,'gross_strategy_pnl_usd':None,'fees_usd':None,'slippage_usd':None,'model_cost_usd':None,'system_cost_usd':None,
         'cycles':cycles,'open_entries':opened,'pending_entries':pending,'no_fill_entry_effect_ids':no_fill,
         'unmatched_sell_effect_ids':orphan,'unscoped_effect_ids':unscoped,'missing_activity_order_ids':sorted(missing),
@@ -155,6 +156,8 @@ def _read_activity(**kwargs):
 
 
 def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_reader=None):
+    if mode not in {'paper','live'} or owner_id!=f'alpaca-investment-{mode}':
+        raise ValueError('crypto_performance_scope_invalid')
     state=Path(state_dir);latest=state/'performance-crypto-latest.json';phase='ledger'
     frames={};refs={}
     try:
@@ -162,6 +165,8 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
         if not _scoped_plans(rows,mode,owner_id):
             if latest.exists(): raise ValueError('crypto_performance_history_missing')
             return {'status':'not_applicable'}
+        if observation.get('mode')!=mode or observation.get('paper') is not (mode=='paper'):
+            raise ValueError('crypto_performance_observation_mode_invalid')
         phase='cache'
         if latest.exists():
             old=json.loads(latest.read_text())
@@ -200,6 +205,8 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
         result={'schema_version':1,'owner_id':owner_id,'mode':mode,'paper':mode=='paper','report_scope':'owned_crypto_cycles',
             'measurement_status':'partial','reason':reason,'error_class':type(error).__name__,'failed_phase':phase,
             'completed_round_trips':None,'net_pnl_usd':None,'capital_expansion_allowed':False,
+            'activity_readbacks':frames if phase in {'activity_readback','write'} else {},
+            'order_activity_refs':refs if phase in {'activity_readback','write'} else {},
             'next_action':'reconcile_cycle_proof_and_official_fill_readback'}
         _atomic_json(latest,result)
         return result

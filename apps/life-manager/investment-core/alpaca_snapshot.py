@@ -141,9 +141,12 @@ def _read_performance(
     root: Path,
     performance_day: str | None,
 ) -> tuple[Mapping[str, Any] | None, str | None]:
+    crypto = (root / "performance-crypto-latest.json").exists()
+    prefix = "performance-crypto" if crypto else "performance"
     if performance_day is None:
-        path = root / "performance-latest.json"
-        return _read_mapping(path), None
+        path = root / f"{prefix}-latest.json"
+        value = _read_mapping(path)
+        return value, "alpaca_crypto_performance_invalid" if crypto and value is None else None
     if not isinstance(performance_day, str):
         return None, "alpaca_performance_day_invalid"
     try:
@@ -152,8 +155,10 @@ def _read_performance(
         return None, "alpaca_performance_day_invalid"
     if parsed.isoformat() != performance_day:
         return None, "alpaca_performance_day_invalid"
-    path = root / f"performance-daily-{performance_day}.json"
+    path = root / f"{prefix}-daily-{performance_day}.json"
     if not path.is_file():
+        if crypto:
+            return None, "alpaca_crypto_daily_performance_missing"
         # Keep a narrow migration path for an older live gate that only wrote
         # latest: it is acceptable only when its own observation is exactly
         # the requested completed day, never when latest is a new-day record.

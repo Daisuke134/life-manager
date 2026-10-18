@@ -25,6 +25,7 @@ from etf_ownership import read_state as read_etf_state
 from etf_ownership import record_closed as record_etf_closed
 from etf_ownership import record_filled as record_etf_filled
 from paper_performance import write_paper_performance
+from crypto_performance import write_crypto_performance
 from cost_inventory import record_source_inventory
 from reporter import deliver, deliver_control, deliver_failure
 from position_manager import choose as choose_position, exit_order as live_exit_order, load_owned_policy, close_fill_proof, recorded_close_fill_proof
@@ -874,6 +875,10 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                     credentials_path=credentials_path, cli_path=cli_path, **kwargs,
                 ),
             )
+        if mode in {"paper", "live"} and investment_owner_id() == f"alpaca-investment-{mode}":
+            write_crypto_performance(state, observation, mode=mode, owner_id=investment_owner_id(),
+                activity_reader=lambda **kwargs: read_crypto_activity_evidence(
+                    credentials_path=credentials_path, cli_path=cli_path, **kwargs))
         stage = "telegram_deliver"
         telegram = deliver(state, observation, campaign, decision, effect,
                            event_key=cloud_event_key if deployment == "cloud" else None)
