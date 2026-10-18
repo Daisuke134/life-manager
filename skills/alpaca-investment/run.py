@@ -509,6 +509,14 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                             "observed_at": allocator_snapshot["clock"]["timestamp"]}
             else:
                 decision = choose(allocator_snapshot, candidates, state, runner, workdir)
+                if (mode == "paper" and decision.get("strategy_id") == ETF_STRATEGY_ID
+                        and decision.get("action") == "HOLD"):
+                    # Scope this fact to the pure policy call, never to billed costs.
+                    decision["decision_execution"] = {
+                        "run_id": os.environ.get("LIFE_MANAGER_RUN_ID"),
+                        "occurrence_id": os.environ.get("LIFE_MANAGER_OCCURRENCE_ID"),
+                        "scope": "allocation_decision", "model_invocation": "not_invoked",
+                    }
         decision["deployment"] = deployment
         decision["mode"] = mode
         decision["risk"] = allocator_snapshot["risk"]
