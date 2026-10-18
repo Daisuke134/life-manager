@@ -1091,6 +1091,9 @@ def native_fee_debit_proof_from_rows(rows,ownership,observation,*,activity_readb
                 or start>parse_instant(entry['broker']['submitted_at'])):
             raise ValueError
         fees=crypto_buy_fee_activity_proof(activity_readback,entry['broker'],mode=mode)
+        known_fees={key for key,fact in state['activity_facts'].items()
+            if fact[0]=='CFEE' and fact[1].get('order_id')==entry['broker']['id']}
+        if not known_fees.issubset(fees['fee_activity_ids']): raise ValueError
         complete_orders={state['activity_facts'][key][1][0] for key in state['fill_activity_ids']}
         for raw in activity_readback['fills']+activity_readback['fees']:
             fact=(raw['activity_type'],execution_activity_identity(raw) if raw['activity_type']=='FILL' else raw)
