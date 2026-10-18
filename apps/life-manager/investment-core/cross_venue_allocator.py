@@ -60,6 +60,7 @@ def build_candidates(snapshots: Iterable[Any], aggregate: dict[str, Any], caps: 
             "slippage_usd": row["slippage_usd"],
             "gas_usd": row["gas_usd"],
             "model_cost_usd": row["model_cost_usd"],
+            "system_cost_usd": row["system_cost_usd"],
             "source_receipt_ids": list(row["source_receipt_ids"]),
             "observed_at": row["observed_at"],
             "risk": risk,

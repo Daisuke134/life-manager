@@ -132,6 +132,7 @@ def aggregate(
         "slippage_usd": sum((snapshot.slippage_usd for snapshot in rows), Decimal("0")),
         "gas_usd": sum((snapshot.gas_usd for snapshot in rows), Decimal("0")),
         "model_cost_usd": sum((snapshot.model_cost_usd for snapshot in rows), Decimal("0")),
+        "system_cost_usd": sum((snapshot.system_cost_usd for snapshot in rows), Decimal("0")),
     }
     net = (
         totals["gross_pnl_usd"]
@@ -140,6 +141,7 @@ def aggregate(
         - totals["slippage_usd"]
         - totals["gas_usd"]
         - totals["model_cost_usd"]
+        - totals["system_cost_usd"]
     )
     source_receipts = [
         receipt_id
@@ -154,6 +156,7 @@ def aggregate(
         "gross_pnl_usd": _money(totals["gross_pnl_usd"]),
         "measurement_status": "measured",
         "model_cost_usd": _money(totals["model_cost_usd"]),
+        "system_cost_usd": _money(totals["system_cost_usd"]),
         "net_pnl_usd": _money(net),
         "observed_at": observed_at,
         "owner_cash_flow_usd": _money(owner_flow),

@@ -24,6 +24,7 @@ def snapshot(venue="alpaca"):
         "slippage_usd": "0.25",
         "gas_usd": "0.1",
         "model_cost_usd": "0.15",
+        "system_cost_usd": "0.00",
         "source_receipt_ids": [f"{venue}-receipt"],
         "risk": {"drawdown_fraction": "0.01", "round_trips": 30,
                  "capital_at_risk_usd": "100"},
@@ -87,6 +88,7 @@ class CrossVenueRunTests(unittest.TestCase):
                 "slippage_usd": "0.25",
                 "gas_usd": "0.1",
                 "model_cost_usd": "0.15",
+                "system_cost_usd": "0.00",
                 "completed_round_trips": 30,
                 "observed_endpoint_drawdown_usd": "1",
                 "gross_exposure_usd": "100",
@@ -104,6 +106,7 @@ class CrossVenueRunTests(unittest.TestCase):
                 "slippage_usd": "0",
                 "gas_usd": "0",
                 "model_cost_usd": "0",
+                "system_cost_usd": "0.00",
                 "completed_round_trips": 0,
                 "source_receipt_ids": ["new-day-zero"],
             }), encoding="utf-8")
@@ -156,6 +159,7 @@ class CrossVenueRunTests(unittest.TestCase):
                 "slippage_usd": "0.25",
                 "gas_usd": "0.1",
                 "model_cost_usd": "0.15",
+                "system_cost_usd": "0.00",
                 "completed_round_trips": 30,
                 "source_receipt_ids": ["alpaca-state-receipt"],
             }), encoding="utf-8")

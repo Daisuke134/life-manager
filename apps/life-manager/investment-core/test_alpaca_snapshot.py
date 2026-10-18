@@ -26,6 +26,31 @@ RISK = {"drawdown_fraction": "0.0015"}
 
 
 class AlpacaSnapshotTests(unittest.TestCase):
+    def test_paper_fill_gross_does_not_deduct_signed_slippage_twice(self):
+        from net_pnl import venue_net
+        for slippage in ("0.30", "-0.25"):
+            with self.subTest(slippage=slippage):
+                performance = {**PERFORMANCE, "paper": True, "mode": "paper",
+                    "gross_strategy_pnl_usd": "10", "slippage_included_in_gross_pnl": True,
+                    "fees_usd": "0.20", "funding_or_borrow_usd": "0.10",
+                    "slippage_usd": slippage, "gas_usd": "0.05",
+                    "model_cost_usd": "0.50", "system_cost_usd": "1.00"}
+                result = venue_net(self._builder()(performance, OBSERVATION, RISK))
+                self.assertEqual(result["measurement_status"], "measured")
+                self.assertEqual(result["net_pnl_usd"], "8.15")
+                self.assertEqual(result.get("system_cost_usd"), "1.00")
+                self.assertEqual(performance["gross_strategy_pnl_usd"], "10")
+
+    def test_paper_unknown_slippage_basis_stays_partial(self):
+        for basis in (None, False, "true"):
+            with self.subTest(basis=basis):
+                performance = {**PERFORMANCE, "paper": True,
+                    "slippage_included_in_gross_pnl": basis,
+                    "funding_or_borrow_usd": "0", "gas_usd": "0",
+                    "model_cost_usd": "0", "system_cost_usd": "0"}
+                result = self._builder()(performance, OBSERVATION, RISK)
+                self.assertEqual(result["measurement_status"], "partial")
+
     def _builder(self):
         try:
             module = importlib.import_module("alpaca_snapshot")
@@ -48,6 +73,7 @@ class AlpacaSnapshotTests(unittest.TestCase):
         self.assertIsNone(snapshot["funding_or_borrow_usd"])
         self.assertIsNone(snapshot["gas_usd"])
         self.assertIsNone(snapshot["model_cost_usd"])
+        self.assertIsNone(snapshot["system_cost_usd"])
         self.assertEqual(snapshot["measurement_status"], "partial")
         self.assertEqual(snapshot["cost_evidence"], {})
         self.assertEqual(snapshot["source_receipt_ids"], PERFORMANCE["source_receipt_ids"])
@@ -60,6 +86,7 @@ class AlpacaSnapshotTests(unittest.TestCase):
             "funding_or_borrow_usd": "0.00",
             "gas_usd": "0.00",
             "model_cost_usd": "0.00",
+            "system_cost_usd": "0.00",
         }
 
         snapshot = self._builder()(performance, OBSERVATION, RISK)

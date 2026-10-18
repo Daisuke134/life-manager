@@ -23,6 +23,7 @@ def snapshot(venue, receipt_id, gross, fees, funding, slippage, gas, model):
         "slippage_usd": slippage,
         "gas_usd": gas,
         "model_cost_usd": model,
+        "system_cost_usd": "0.00",
         "source_receipt_ids": [receipt_id],
         "risk": {"drawdown_fraction": "0.01", "round_trips": 30, "capital_at_risk_usd": "100"},
         "measurement_status": "measured",

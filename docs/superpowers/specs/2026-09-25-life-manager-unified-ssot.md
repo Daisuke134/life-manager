@@ -14787,7 +14787,7 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 - **broker費用:** 現行paper readerは公式FILL/SIP quoteを返すがregulatory feeはnot_simulated/None。これは公式fee=0ではない。将来のexact fee証拠に対するcomplete受入を既存_broker_cost_summaryへ追加し、funding/gasも公式の非該当/無請求根拠なしには0化しない。現入力で全実費completeを達成できるとは主張しない。
 - **保存とgate:** 完全coverageの場合だけ既存coreの計算結果を既存daily/latest/historicalへ保存し、固定null/partial/category列挙を証拠に基づく条件付き結果へ置き換える。後日証拠、元経済期間、既知binding、重複抑止、過去gross/riskを保持する。CFOがpaper損益を収益から除外する契約は維持し、paperをliveや銀行入金へ偽装しない。live capital_ladderはpaper拒否のまま、paperからの移行評価と本番資本増額を混同しない。
 
-**IN-COST-04 原子的TODOと実行順:** 旧順序=`実費document接続→exact取引join→完全coverage評価`。新順序=`A 現在の記録修正の自然runを照合→B 上記完全入力契約のfield/単位/範囲/証拠要件と最小反例を固定→C 既存coreのsystem費用伝達とsigned slippage基準をRED/GREENで修正→D 既存paid coverage検証とpaper日次/履歴の条件付き完全評価をRED/GREENで接続→E financial独立review/全CI/main/ALL release/対象owner採用/自然readback→F 公式paid/zero/broker費用/帰属データを接続し、足りない実証はpartialのまま列挙→G 自然closed samples/validation/費用込み成績/既存live gateを判定`。理由は、現在のsourceでは完全入力が届いてもnet=nullに固定され、単なるデータ接続だけでは元の利益評価goalへ届かないため。B–Eは外部の約定・請求を待たずに進められるsource作業、F–Gは本物の外部証拠を必要とする。Aは自然pass/台帳/実行ID一致まで完了する。順序更新は旧=A→B→C→D→E→F→G、新=A完了→C（既存coreのsystem伝達と損益基準）→B（取引別coverageのfieldと証拠要件固定）→D→E→F→G。理由は、Cの既存field/算術の不足はBの外部請求scopeとは独立に修正でき、完全評価の前提を先に整えられるため。現在cursorはCの最小RED。手動wake/売買/保有期間短縮/live-enable/歴史的fence解除は行わない。
+**IN-COST-04 原子的TODOと実行順:** 旧順序=`実費document接続→exact取引join→完全coverage評価`。新順序=`A 現在の記録修正の自然runを照合→B 上記完全入力契約のfield/単位/範囲/証拠要件と最小反例を固定→C 既存coreのsystem費用伝達とsigned slippage基準をRED/GREENで修正→D 既存paid coverage検証とpaper日次/履歴の条件付き完全評価をRED/GREENで接続→E financial独立review/全CI/main/ALL release/対象owner採用/自然readback→F 公式paid/zero/broker費用/帰属データを接続し、足りない実証はpartialのまま列挙→G 自然closed samples/validation/費用込み成績/既存live gateを判定`。理由は、現在のsourceでは完全入力が届いてもnet=nullに固定され、単なるデータ接続だけでは元の利益評価goalへ届かないため。B–Eは外部の約定・請求を待たずに進められるsource作業、F–Gは本物の外部証拠を必要とする。Aは自然pass/台帳/実行ID一致まで完了する。順序更新は旧=A→B→C→D→E→F→G、新=A完了→C（既存coreのsystem伝達と損益基準）→B（取引別coverageのfieldと証拠要件固定）→D→E→F→G。理由は、Cの既存field/算術の不足はBの外部請求scopeとは独立に修正でき、完全評価の前提を先に整えられるため。現在cursorはCのsource/独立reviewを確認し、全CI/main/正式版/自然readbackへ進める段階。手動wake/売買/保有期間短縮/live-enable/歴史的fence解除は行わない。
 
 **評価loopの現状:** investment-strategy-validationはloaded-idle/同release57753841で、最後のrun18de607194d35d58-50438は10月14日にexit75。既存launchd.outの構造化errorにENOSPCを確認し、raw path/本文は複製しない。現在のselected reportは10月21日05:47:06Zまで有効、次の既存calendarは10月20日14:30 JSTで期限前。手動validation/期限延長は行わず、次の自然実行で確認する。
 
@@ -14800,16 +14800,18 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 **Review focus:** system費用欠測の0化、正負slippageの二重控除、venueとportfolioの式の差、normalizer/表示での費用脱落、partialな実入力のmeasured化を反例で確認する。
 
 1. **既存schema/normalizerと算術を揃える。** Files: `apps/life-manager/investment-core/{portfolio_receipts,venue_receipts,net_pnl,portfolio_performance}.py`。`system_cost_usd: Optional[Decimal]`を既存money/cost fieldsとVenueSnapshot.from_mappingへ追加し、未設定はcost_unknown、非有限/boolean/負system費用は既存の拒否規則へ通す。normalizerも同fieldの合計・evidenceを伝達する。signed slippageと既存signed fundingは共有schemaの意味へ揃え、それ以外の負costは拒否する。既存venue/portfolioのnetはsystem費用を一度だけ引く。
-   - [ ] RED: `test_net_pnl.py`で既存gross10/fees1/funding0.5/slippage0.25/gas0.1/model0.15にsystem0.40を加え、net7.60とsystem0.40、2venue合計net15.20、owner cash flow250を損益に混ぜないことを要求する。
-   - [ ] RED: `test_venue_snapshot.py`でsystem欠落/None/boolean/NaN/負値を拒否し、normalizerがsystemとsource evidenceを保つこと、負slippageを消さず保存することを確認する。
-   - [ ] GREEN: 上記既存field lists/算術/serializationだけを修正する。完全fixtureへ追加するsystem0はsynthetic test入力として明示し、productionの欠測を0へ補う実装を作らない。
+   - [x] RED: `test_net_pnl.py`で既存gross10/fees1/funding0.5/slippage0.25/gas0.1/model0.15にsystem0.40を加え、net7.60とsystem0.40、2venue合計net15.20、owner cash flow250を損益に混ぜないことを要求する。
+   - [x] RED: `test_venue_snapshot.py`でsystem欠落/None/boolean/NaN/負値を拒否し、normalizerがsystemとsource evidenceを保つこと、負slippageを消さず保存することを確認する。
+   - [x] GREEN: 上記既存field lists/算術/serializationだけを修正する。完全fixtureへ追加するsystem0はsynthetic test入力として明示し、productionの欠測を0へ補う実装を作らない。
 2. **Alpaca adapterと利用先へ通す。** Files: `alpaca_snapshot.py`、`cross_venue_allocator.py`、`cross_venue_reporter.py`、既存の対応tests。system_cost_usdを既存performanceからコピーし、候補/集計/レポートまで保持する。paper=trueでslippage_included_in_gross_pnl=trueが明示され、gross/slippageが有限の時だけ、core grossを元fill gross + signed slippageとする。元paper receiptのfill grossは変更しない。paperで基準不明/不正ならpartialとし、liveの基準を推測して変更しない。
-   - [ ] RED: `test_alpaca_snapshot.py`→`venue_net`の実接続でfill gross10、signed slippageが+0.30/-0.25、fees0.20/funding0.10/gas0.05/model0.50/system1.00の両ケースともnet8.15になることを要求する。system欠測・paper基準欠落はmeasuredにしない。
-   - [ ] RED/GREEN: allocator/reporterの既存出力へsystemを保持し、値の捏造や資本拡大許可を追加しない。既存measured fixtureだけへsynthetic system費用を補い、未知を検証するfixtureは未知のまま残す。
+   - [x] RED: `test_alpaca_snapshot.py`→`venue_net`の実接続でfill gross10、signed slippageが+0.30/-0.25、fees0.20/funding0.10/gas0.05/model0.50/system1.00の両ケースともnet8.15になることを要求する。system欠測・paper基準欠落はmeasuredにしない。
+   - [x] RED/GREEN: allocator/reporterの既存出力へsystemを保持し、値の捏造や資本拡大許可を追加しない。既存measured fixtureだけへsynthetic system費用を補い、未知を検証するfixtureは未知のまま残す。
 3. **検証・統合・反映。**
-   - [ ] 新規反例のREDを保存・commit/push後に最小実装し、GREENを保存する。
-   - [ ] `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONPATH=apps/life-manager/investment-core python3 -m pytest -q apps/life-manager/investment-core`と投資skill関連tests、syntax/diff/source-boundaryを確認する。外部provider/credentials/stateをfixtureへ接続しない。
+   - [x] 新規反例のREDを保存・commit/push後に最小実装し、GREENを保存する。
+   - [x] `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONPATH=apps/life-manager/investment-core python3 -m pytest -q apps/life-manager/investment-core`と投資skill関連tests、syntax/diff/source-boundaryを確認する。外部provider/credentials/stateをfixtureへ接続しない。
    - [ ] fresh-context金融review、対象head全CI、main統合、ALL immutableと対象ownerのloaded-idle採用、次の自然readbackを照合する。現在のpaper費用入力は未完なので、反映しても費用込み利益/closed sample/live許可を宣言しない。
+
+**C source実行記録:** 専用branch=fix/investment-core-system-cost-20261018、元base=aa2aacf63a、既存owned worktree/lease owner=codex-root。REDは1b92c3d2d6、direct拒否assertのKeyErrorをNone比較へ整えた138630ccf0でremote保存し、欠測・費用脱落・正負slippage・基準不明・表示欠落の失敗を確認する。最小source GREEN=8087ad13b7。新しく必要なsystem費用を完全fixtureだけへsynthetic0として追加し、既存core15 failuresを解消する。primary差分確認で費用行の負値が合計で相殺される穴を見つけ、70809f6207で4 subcasesのREDを保存、630113f2cdで既存共有sign contractを各行へ適用してGREENにする。core148 tests/24 subtests、Alpaca305 tests/151 subtests、変更Python15 filesの構文/diff/source-boundaryはPASS。fresh-context金融reviewはhead630113f2cdに対して0 findings/0 blocking/ship、メモリ内pure probe28 casesがPASS、model/effort unobservable。candidateのread-only actual-state probeはalpaca_state_missing/numeric netなし、provider/runtime writes0で、利益を作らない。先行文書PR #8324は全13 checks後main f6f229079dへ統合し、実装branchにも取り込む。現在cursorは最新headの全CI/main/正式版/対象owner/自然readback。全実費coverage・紙取引利益・新しい約定・live gateは未達。
 
 **Cの完了条件:** system費用がschema→normalizer→venue/portfolio計算→adapter/候補/表示で消えず、手計算の正負slippage反例を満たす。不明入力は不明を維持する。**残るD–G:** exact取引別coverage/公式zero・broker fee受入/日次履歴の完全評価/本物の実費producerと帰属/自然closed samples/本番gateは、このCの成功で完了扱いしない。
 

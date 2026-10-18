@@ -18,6 +18,7 @@ _MONEY_FIELDS = (
     "slippage_usd",
     "gas_usd",
     "model_cost_usd",
+    "system_cost_usd",
 )
 _COST_FIELDS = (
     "trading_fees_usd",
@@ -25,12 +26,13 @@ _COST_FIELDS = (
     "slippage_usd",
     "gas_usd",
     "model_cost_usd",
+    "system_cost_usd",
 )
 _NON_NEGATIVE_COST_FIELDS = frozenset({
     "trading_fees_usd",
-    "slippage_usd",
     "gas_usd",
     "model_cost_usd",
+    "system_cost_usd",
 })
 
 
@@ -62,6 +64,7 @@ class VenueSnapshot:
     slippage_usd: Optional[Decimal]
     gas_usd: Optional[Decimal]
     model_cost_usd: Optional[Decimal]
+    system_cost_usd: Optional[Decimal]
     source_receipt_ids: Tuple[str, ...]
     risk: Optional[Mapping[str, Any]]
     measurement_status: Optional[str]
@@ -120,6 +123,7 @@ class VenueSnapshot:
             slippage_usd=numbers["slippage_usd"],
             gas_usd=numbers["gas_usd"],
             model_cost_usd=numbers["model_cost_usd"],
+            system_cost_usd=numbers["system_cost_usd"],
             source_receipt_ids=tuple(receipt_ids),
             risk=risk,
             measurement_status=status,

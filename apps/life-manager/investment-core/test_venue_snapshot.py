@@ -17,6 +17,7 @@ def receipt(receipt_id="r1", **overrides):
         "slippage_usd": "0.25",
         "gas_usd": "0.10",
         "model_cost_usd": "0.15",
+        "system_cost_usd": "0.00",
         "risk": {"drawdown_fraction": "0.01"},
         "measurement_status": "measured",
     }
@@ -25,6 +26,33 @@ def receipt(receipt_id="r1", **overrides):
 
 
 class VenueSnapshotTests(unittest.TestCase):
+    def test_normalizer_preserves_system_cost_and_signed_slippage(self):
+        for slip, funding in (("0.30", "0.5"), ("-0.25", "0.5"), ("0.30", "-0.1")):
+            with self.subTest(slippage=slip, funding=funding):
+                result = normalize_receipts("alpaca", [receipt(system_cost_usd="0.40", slippage_usd=slip, funding_or_borrow_usd=funding)])
+                self.assertIsInstance(result, VenueSnapshot)
+                self.assertEqual(getattr(result, "system_cost_usd", None), Decimal("0.40"))
+                self.assertEqual(result.slippage_usd, Decimal(slip))
+                self.assertEqual(result.cost_evidence["system_cost_usd"], ("r1",))
+
+    def test_negative_cost_row_cannot_be_hidden_by_positive_row(self):
+        for field in ("trading_fees_usd", "gas_usd", "model_cost_usd", "system_cost_usd"):
+            with self.subTest(field=field):
+                rows = [receipt(**{field: "-0.10"}), receipt("r2", **{field: "0.20"})]
+                self.assertEqual(normalize_receipts("alpaca", rows),
+                                 {"status": "unknown", "reason": "cost_invalid"})
+
+    def test_system_cost_missing_or_invalid_is_never_measured(self):
+        for value, reason in ((None, "cost_unknown"), (True, "snapshot_number_invalid"),
+                              ("NaN", "snapshot_number_invalid"), ("-1", "cost_invalid")):
+            with self.subTest(system_cost=value):
+                result = normalize_receipts("alpaca", [receipt(system_cost_usd=value)])
+                self.assertEqual(result, {"status": "unknown", "reason": reason})
+        row = receipt()
+        del row["system_cost_usd"]
+        self.assertEqual(normalize_receipts("alpaca", [row]),
+                         {"status": "unknown", "reason": "cost_unknown"})
+
     def test_normalizes_valid_receipts_and_preserves_cost_evidence(self):
         snapshot = normalize_receipts("alpaca", [receipt(), receipt("r2", gross_pnl_usd="2")])
 

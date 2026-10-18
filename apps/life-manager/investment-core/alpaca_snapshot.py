@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import date, datetime, timezone
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -14,6 +15,7 @@ _COST_FIELDS = (
     "slippage_usd",
     "gas_usd",
     "model_cost_usd",
+    "system_cost_usd",
 )
 
 
@@ -74,6 +76,7 @@ def build_alpaca_snapshot(
         "slippage_usd": performance.get("slippage_usd"),
         "gas_usd": performance.get("gas_usd"),
         "model_cost_usd": performance.get("model_cost_usd"),
+        "system_cost_usd": performance.get("system_cost_usd"),
         "source_receipt_ids": list(source_ids),
         "risk": snapshot_risk,
         "measurement_status": "partial",
@@ -88,6 +91,20 @@ def build_alpaca_snapshot(
             and isinstance(evidence_ids, (list, tuple))
             and all(isinstance(item, str) and item for item in evidence_ids)
         }
+    if performance.get("paper") is True or performance.get("mode") == "paper":
+        if (performance.get("paper") is not True
+                or performance.get("mode") not in (None, "paper")
+                or performance.get("slippage_included_in_gross_pnl") is not True):
+            return snapshot
+        try:
+            gross = Decimal(str(snapshot["gross_pnl_usd"]))
+            slippage = Decimal(str(snapshot["slippage_usd"]))
+            if not gross.is_finite() or not slippage.is_finite():
+                return snapshot
+            # Core subtracts signed slippage; fill gross already includes it.
+            snapshot["gross_pnl_usd"] = str(gross + slippage)
+        except (ArithmeticError, TypeError, ValueError):
+            return snapshot
     snapshot["measurement_status"] = _measurement_status(snapshot, performance)
     return snapshot
 
