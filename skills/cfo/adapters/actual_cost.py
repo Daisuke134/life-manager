@@ -694,7 +694,8 @@ def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_recor
     pagination = payload.get("provider_pagination", {})
     pages = pagination.get("pages", []) if isinstance(pagination, dict) else None
     joins = payload.get("job_joins", [])
-    if not all(isinstance(value, list) for value in (sources, scopes, pages, joins)):
+    if (_document_rows(payload)[1] is not None
+            or not all(isinstance(value, list) for value in (sources, scopes, pages, joins))):
         result["rejections"].append({"reason": "read_failed"})
         return result
     candidates = []
@@ -704,14 +705,22 @@ def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_recor
             continue
         candidates.extend((source, query) for query in source.get("queries", []))
     seen = set()
+    query_bodies = {}
     duplicate = set()
     for source, query in candidates:
         if isinstance(query, dict):
             key = (source.get("provider"), query.get("billing_account_ref"), query.get("query_id"))
-            if all(isinstance(item, str) for item in key):
-                if key in seen:
+            if all(isinstance(item, str) and item for item in (*key, query.get("scope_id"))):
+                try:
+                    body = _canonical({field: value for field, value in query.items() if field != "scope_id"})
+                except (TypeError, ValueError):
                     duplicate.add(key)
-                seen.add(key)
+                    continue
+                scoped_key = (*key, query["scope_id"])
+                if scoped_key in seen or (key in query_bodies and query_bodies[key] != body):
+                    duplicate.add(key)
+                seen.add(scoped_key)
+                query_bodies[key] = body
     for source, query in candidates:
         context = {"provider": source.get("provider")}
         try:
@@ -719,7 +728,7 @@ def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_recor
                 raise ValueError
             context.update({key: query.get(key) for key in ("billing_account_ref", "query_id", "scope_id")})
             key = tuple(context.get(field) for field in ("provider", "billing_account_ref", "query_id"))
-            if not all(isinstance(item, str) and item for item in key) or key in duplicate:
+            if not all(isinstance(item, str) and item for item in (*key, query.get("scope_id"))) or key in duplicate:
                 raise ValueError
             if (source.get("status") != "available" or _provider(key[0]) is None
                     or not ids(source.get("billing_account_refs"), nonempty=True)
