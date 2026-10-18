@@ -873,12 +873,12 @@ fi
 # owner with exactly "release is no longer current". Like fleet apply's superseded path, that defers
 # to the newer release's next tick. Any other failed row, or an invalid current sha, still fails.
 run_route_reconcile() {
-  local release_root="$1" route="$2" rc=0 output_path release_sha current_sha
+  local release_root="$1" route="$3" rc=0 output_path release_sha current_sha
+  shift
   local state_dir="${LIFE_MANAGER_RELEASE_RECONCILER_STATE_ROOT:-$HOME/.local/state/life-manager/release-reconciler}"
   mkdir -p "$state_dir" || return 1
   output_path="$(mktemp "$state_dir/.reconcile-output.XXXXXX")" || return 1
-  run_reconcile "$release_root" reconcile "$route" --loaded-idle-only --max-owners 4 \
-    >"$output_path" </dev/null || rc=$?
+  run_reconcile "$release_root" "$@" >"$output_path" </dev/null || rc=$?
   cat "$output_path"
   release_sha="$(jq -r '.sha // ""' "$release_root/RELEASE.json" 2>/dev/null || true)"
   current_sha="$(jq -r '.sha // ""' "$CURRENT/RELEASE.json" 2>/dev/null || true)"
@@ -906,8 +906,10 @@ PY
 reconcile_release() {
   local release_root="$1"
   local status=0
-  run_route_reconcile "$release_root" shared-agent-runner || status=1
-  run_route_reconcile "$release_root" deterministic || status=1
+  run_route_reconcile "$release_root" reconcile shared-agent-runner --loaded-idle-only --max-owners 4 \
+    || status=1
+  run_route_reconcile "$release_root" reconcile deterministic --loaded-idle-only --max-owners 4 \
+    || status=1
   local recovery_queue="${LIFE_MANAGER_RECOVERY_INTENTS_PATH:-$HOME/.local/state/life-manager/recovery/intents.jsonl}"
   local recovery_journal="${LIFE_MANAGER_RECOVERY_SUPERVISOR_JOURNAL_PATH:-$HOME/.local/state/life-manager/recovery/supervisor.jsonl}"
   if [ -f "$recovery_queue" ]; then
