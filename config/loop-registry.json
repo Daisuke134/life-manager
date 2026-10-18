@@ -538,7 +538,7 @@
         "max_runs": 100
       },
       "domain": "earn",
-      "effect_class": "message",
+      "effect_class": "none",
       "entrypoint": "runtime/agentmail/launch.sh",
       "label": "ai.anicca.agentmail-webhook",
       "system_role": "platform",
@@ -4138,7 +4138,7 @@
         "max_runs": 100
       },
       "domain": "financial",
-      "effect_class": "money",
+      "effect_class": "none",
       "entrypoint": "skills/earn/x402-sell/the402-boot.sh",
       "label": "ai.anicca.the402-provider",
       "log_root": "~/.local/state/life-manager/x402-sell/logs",
@@ -4155,7 +4155,7 @@
         "max_runs": 100
       },
       "domain": "financial",
-      "effect_class": "money",
+      "effect_class": "none",
       "entrypoint": "skills/earn/x402-sell/the402-worker-boot.sh",
       "label": "ai.anicca.the402-worker",
       "log_root": "~/.local/state/life-manager/x402-sell/logs",
@@ -4818,7 +4818,7 @@
         "max_runs": 100
       },
       "domain": "financial",
-      "effect_class": "money",
+      "effect_class": "none",
       "entrypoint": "skills/earn/x402-sell/seller-boot-v2.sh",
       "label": "ai.anicca.x402-seller-8404",
       "log_root": "~/.local/state/life-manager/x402-sell/logs",

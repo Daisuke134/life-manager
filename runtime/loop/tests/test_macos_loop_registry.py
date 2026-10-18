@@ -908,7 +908,26 @@ class MacosLoopRegistryTest(unittest.TestCase):
                 "required": ["runtime_timeout_seconds"],
                 "properties": {"cadence": {"required": ["keep_alive"]}},
             },
+        }, {
+            "not": {
+                "properties": {
+                    "cadence": {"required": ["keep_alive"]},
+                    "effect_class": {"not": {"const": "none"}},
+                },
+            },
         }])
+
+    def test_keep_alive_owner_cannot_declare_a_per_wake_effect(self):
+        # lm-loop-run admits a keep_alive owner as continuous_owner_exempt (effect 0) and
+        # it never writes a terminal while serving, so a non-none class can only ever
+        # project as permanent effect_unknown. Its effects belong to a finite readback owner.
+        continuous = entry()
+        continuous["cadence"] = {"keep_alive": True}
+        continuous["effect_class"] = "money"
+        with self.assertRaisesRegex(ValueError, "keep_alive owner must declare effect_class none"):
+            validate_registry({"schema_version": 2, "loops": {"example": continuous}})
+        continuous["effect_class"] = "none"
+        validate_registry({"schema_version": 2, "loops": {"example": continuous}})
 
     def test_marketing_dashboard_uses_direct_python_adapter(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())

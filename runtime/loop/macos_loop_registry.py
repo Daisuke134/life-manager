@@ -207,6 +207,10 @@ def validate_registry(registry: dict) -> dict:
                 _fail(f"{loop_id}: invalid runtime_timeout_seconds")
         if key in {"run_at_load", "keep_alive"} and value is not True:
             _fail(f"{loop_id}: {key} must be true")
+        if key == "keep_alive" and row["effect_class"] != "none":
+            # lm-loop-run admits continuous owners as effect 0 and they never write a
+            # terminal while serving; a finite readback owner holds their effects.
+            _fail(f"{loop_id}: keep_alive owner must declare effect_class none")
         if key == "calendar_interval" and not isinstance(value, (dict, list)):
             _fail(f"{loop_id}: invalid calendar_interval")
         for root_field in ("state_root", "log_root"):
@@ -392,6 +396,13 @@ def loop_json_schema() -> dict:
                 "required": ["runtime_timeout_seconds"],
                 "properties": {
                     "cadence": {"required": ["keep_alive"]},
+                },
+            },
+        }, {
+            "not": {
+                "properties": {
+                    "cadence": {"required": ["keep_alive"]},
+                    "effect_class": {"not": {"const": "none"}},
                 },
             },
         }],
