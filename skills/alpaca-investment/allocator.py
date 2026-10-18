@@ -205,11 +205,13 @@ def choose(snapshot: dict[str, Any], candidates: list[dict[str, Any]], state: Pa
             "gate": "candidate_not_offered",
             "observed_at": observed_at,
         }
-    decision = {**policy, "candidate_ref": offered["candidate_ref"], "release_sha": release_sha}
+    decision = {**policy, "candidate_ref": offered["candidate_ref"], "release_sha": release_sha,
+                "owner_id": investment_owner_id(), "mode": snapshot.get("mode")}
     if card.strategy_id == ETF_STRATEGY_ID:
-        decision["owner_id"] = investment_owner_id()
         decision["position"] = snapshot.get("position")
     gated = gate(snapshot, candidates, decision)
+    if gated["approved"] and decision.get("action") == ACTION_ENTER:
+        gated["policy_card"] = card.to_mapping()
     gated["observed_at"] = observed_at
     return gated
 
@@ -276,6 +278,10 @@ def gate(snapshot: dict[str, Any], candidates: list[dict[str, Any]], decision: d
             "paper_mode": (not is_equity) or snapshot.get("mode") == "paper",
             "regular_session": (not is_equity) or snapshot.get("clock", {}).get("is_open") is True,
         }
+        if not is_equity:
+            mode = snapshot.get("mode")
+            checks["owner_mode"] = (mode in ("paper", "live") and decision.get("mode") == mode
+                                    and decision.get("owner_id") == f"alpaca-investment-{mode}")
         strategy_id = decision.get("strategy_id")
         checks["entry_policy_active"] = (not is_equity and isinstance(strategy_id, str)
                                           and strategy_id in INDICATOR_HISTORY_CONTRACTS)

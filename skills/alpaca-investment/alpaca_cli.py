@@ -389,7 +389,7 @@ def find_order_by_client_id(
         "{found:true,id:.id,client_order_id:.client_order_id,status:.status,"
         "symbol:.symbol,side:.side,type:.type,time_in_force:.time_in_force,"
         "notional:.notional,qty:.qty,filled_qty:.filled_qty,"
-        "filled_avg_price:.filled_avg_price,submitted_at:.submitted_at} end"
+        "filled_avg_price:.filled_avg_price,submitted_at:.submitted_at,filled_at:.filled_at} end"
     )
     result = _run(cli_path, [
         "order", "list", "--quiet", "--status", "all", "--limit", "500", "--jq", query,
