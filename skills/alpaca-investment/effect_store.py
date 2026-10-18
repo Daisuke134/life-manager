@@ -258,7 +258,7 @@ def _terminal_no_fill_proven(order: dict[str, Any], rows: list[dict[str, Any]], 
     return True
 
 
-def _outcome_closed(outcome: dict[str, Any] | None, rows: list[dict[str, Any]] | None = None) -> bool:
+def _outcome_closed(outcome: dict[str, Any] | None, rows: list[dict[str, Any]]) -> bool:
     if not isinstance(outcome, dict):
         return False
     kind = outcome.get("outcome")
@@ -266,7 +266,7 @@ def _outcome_closed(outcome: dict[str, Any] | None, rows: list[dict[str, Any]] |
         broker = outcome.get("broker")
         return isinstance(broker, dict) and (
             broker.get("status") in BROKER_TERMINAL_FAILURE_STATUSES
-            and _terminal_no_fill_proven(broker, rows or [], outcome.get("effect_id"))
+            and _terminal_no_fill_proven(broker, rows, outcome.get("effect_id"))
         )
     if kind == "broker_reconciled":
         broker = outcome.get("broker")
@@ -274,7 +274,7 @@ def _outcome_closed(outcome: dict[str, Any] | None, rows: list[dict[str, Any]] |
             return False
         status = broker.get("status")
         return status == "filled" or (
-            status in BROKER_TERMINAL_FAILURE_STATUSES and _terminal_no_fill_proven(broker, rows or [], outcome.get("effect_id"))
+            status in BROKER_TERMINAL_FAILURE_STATUSES and _terminal_no_fill_proven(broker, rows, outcome.get("effect_id"))
         )
     return kind in {
         "live_canary_verified", "live_canary_terminal_failure",

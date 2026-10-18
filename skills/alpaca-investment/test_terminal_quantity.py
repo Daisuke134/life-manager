@@ -26,7 +26,7 @@ class TerminalQuantityTests(unittest.TestCase):
                     broker={'id':'official-order','client_order_id':sealed['client_order_id'],
                             'status':'canceled','filled_qty':qty}
                     outcome={'outcome':'broker_terminal_failure','broker':broker}
-                    self.assertEqual(store._outcome_closed(outcome),qty=='0')
+                    self.assertEqual(store._outcome_closed(outcome,[]),qty=='0')
                     result=store.reconcile_started(ledger,lambda _:broker)
                     if qty=='0':
                         self.assertEqual(result['unresolved'],0)
