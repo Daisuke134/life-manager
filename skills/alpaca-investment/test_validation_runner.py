@@ -210,6 +210,8 @@ class ValidationRunnerTests(unittest.TestCase):
             ) as read_history, patch.object(
                 validation_runner, "build_report_from_history", return_value=_report()
             ) as build, patch.object(
+                validation_runner, "build_crypto_reports_for_period", return_value=[_report("btc-fixture")]
+            ) as crypto, patch.object(
                 validation_runner, "provision_selection", return_value={"status": "created"}
             ) as provision:
                 result = validation_runner.run_once(
@@ -225,6 +227,8 @@ class ValidationRunnerTests(unittest.TestCase):
             self.assertEqual(result["status"], "ok")
             self.assertEqual(read_history.call_count, 1)
             build.assert_called_once()
+            crypto.assert_called_once()
+            self.assertEqual(len(json.loads(reports_path.read_text())["reports"]), 2)
             provision.assert_called_once_with(
                 selection_path,
                 reports_path,
@@ -243,6 +247,8 @@ class ValidationRunnerTests(unittest.TestCase):
                 validation_runner, "read_etf_daily_history", return_value=history
             ), patch.object(
                 validation_runner, "build_report_from_history", return_value=_report()
+            ), patch.object(
+                validation_runner, "build_crypto_reports_for_period", return_value=[]
             ), patch.object(
                 validation_runner, "provision_selection", return_value={"status": "created"}
             ) as provision:
