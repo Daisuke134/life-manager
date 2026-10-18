@@ -1660,6 +1660,10 @@ def _portfolio(page: Any, item: Mapping[str, Any]) -> dict[str, Any] | None:
         if " ".join(str(link.inner_text() or "").split()) == title:
             matches.append(link)
     if not matches: return None
+    # A same-title duplicate on /myportfolio (2026-10-18: 757333 beside the pinned 743987)
+    # must not hide the pinned row; without a pin, duplicates stay ambiguous.
+    if len(matches) > 1 and item["external_id"]:
+        matches = [link for link in matches if (link.get_attribute("href") or "").rstrip("/").rsplit("/", 1)[-1] == item["external_id"]]
     if len(matches) != 1: raise OfferError("portfolio_readback_invalid")
     href = matches[0].get_attribute("href") or ""
     parsed = urlsplit(href)
