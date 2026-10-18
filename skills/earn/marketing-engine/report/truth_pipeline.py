@@ -82,6 +82,10 @@ def build_commands(
         ],
     ]
     owner_cli = engine / "report/owner_report_cli.py"
+    # Close open deliveries from Telegram history before the sweeps count them as unresolved.
+    commands.append(
+        [python, str(engine / "report/owner_report_reconcile.py"), "--state-root", str(state)]
+    )
     for kind in ("action", "checkpoint", "incident", "experiment"):
         commands.append(
             [
@@ -120,6 +124,8 @@ def _stage_name(command: list[str]) -> str:
         return "collect"
     if "attribution_sweep.py" in rendered:
         return "attribution"
+    if "owner_report_reconcile.py" in rendered:
+        return "report-reconcile"
     if "owner_report_cli.py" in rendered and "--kind" in command:
         return "report:" + command[command.index("--kind") + 1]
     return command[0]
