@@ -124,4 +124,33 @@ class CryptoOperatingCostTests(unittest.TestCase):
                     self.assertEqual(recovered['known_operating_cost_components'],first['operating_cost_components'])
                     self.assertIsNone(recovered['net_pnl_usd'])
 
+    def test_known_billing_account_cannot_change_in_input_or_raw_cache(self):
+        for mode in ('paper','live'):
+            for target in ('incoming','cache'):
+                with self.subTest(mode=mode,target=target),tempfile.TemporaryDirectory() as directory:
+                    root=Path(directory);_,frame,_=cycle_fixture(root,mode)
+                    cycle=self.build(root,mode,frame)['cycles'][0];original=billing(cycle,mode)
+                    original['documents'][0]['billing_account_ref']='account-a'
+                    path=root/'billing.json';path.write_text(json.dumps(original))
+                    obs={'mode':mode,'paper':mode=='paper','clock':{'observed_at':OBSERVED}}
+                    def read(**kw):return activity_fixture(frame,mode=mode,start=kw['period_start'],end=kw['period_end'])
+                    def write():return perf.write_crypto_performance(root,obs,mode=mode,owner_id='alpaca-investment-'+mode,activity_reader=read)
+                    env={'LM_CFO_ACTUAL_COST_READBACK':str(path),'LM_CFO_ACTUAL_COST':''}
+                    with patch.dict(os.environ,env):first=write()
+                    if target=='incoming':
+                        changed=copy.deepcopy(original);changed['documents'][0]['billing_account_ref']='account-b'
+                        path.write_text(json.dumps(changed))
+                    else:
+                        latest=root/'performance-crypto-latest.json';cache=json.loads(latest.read_text())
+                        cache['operating_cost_readback']['documents'][0]['billing_account_ref']='account-b'
+                        latest.write_text(json.dumps(cache));env['LM_CFO_ACTUAL_COST_READBACK']=''
+                    with patch.dict(os.environ,env):broken=write()
+                    self.assertEqual(broken['known_operating_cost_components'],first['known_operating_cost_components'])
+                    self.assertEqual(broken['operating_costs_reason'],
+                        'crypto_operating_cost_history_missing' if target=='incoming' else 'crypto_operating_cost_cache_invalid')
+                    path.write_text(json.dumps(original));env['LM_CFO_ACTUAL_COST_READBACK']=str(path)
+                    with patch.dict(os.environ,env):recovered=write()
+                    self.assertEqual(recovered['operating_cost_components'],first['operating_cost_components'])
+                    self.assertIsNone(recovered['net_pnl_usd'])
+
 if __name__=='__main__':unittest.main()

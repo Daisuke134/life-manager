@@ -168,6 +168,28 @@ class OperatingCostTotalsTests(unittest.TestCase):
             self.assertIsNone(saved['net_realized_pnl_usd'])
             self.assertEqual(_refresh_historical_costs(state,trips,[],'2026-10-21',summary)[0]['status'],'unchanged')
 
+    def test_paper_history_freezes_amount_category_and_known_billing_account(self):
+        import json,tempfile
+        from pathlib import Path
+        from paper_performance import _bind_operating_costs
+        payload,inventory,trip=window_fixture()
+        confirmed=report(payload,inventory,trip)
+        for field,value in (('billing_account_ref','another-account'),('billing_account_ref',None),
+                ('amount_usd','2'),('category','infra_cost')):
+            with self.subTest(field=field,value=value),tempfile.TemporaryDirectory() as directory:
+                state=Path(directory);old=confirmed['operating_cost_components'][0]
+                history=state/'performance-daily-2026-09-30.json'
+                history.write_text(json.dumps({'mode':'paper','paper':True,'performance_day':'2026-09-30',
+                    'report_scope':'daily_accumulation','observed_at':'2026-09-30T00:01:00Z',
+                    'source_receipt_ids':trip['source_receipt_ids']+[old['receipt_id']],
+                    'operating_cost_components':[old]}))
+                before=history.read_bytes();incoming=copy.deepcopy(confirmed)
+                incoming['operating_cost_components'][0][field]=value
+                bound,_=_bind_operating_costs(state,[trip],incoming)
+                self.assertIsNone(bound['model_cost_usd'])
+                self.assertTrue(bound['operating_cost_component_gaps'])
+                self.assertEqual(history.read_bytes(),before)
+
     def test_exact_totals_do_not_round_tiny_paid_amount_beside_large_amount(self):
         from decimal import localcontext
         payload,inventory,trip=window_fixture()
