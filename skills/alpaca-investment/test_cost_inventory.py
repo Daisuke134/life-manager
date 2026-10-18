@@ -1,5 +1,6 @@
 """Cost source declarations come from execution releases, never billing payloads."""
 import importlib
+import copy
 import json
 import tempfile
 import threading
@@ -123,3 +124,217 @@ class CostInventoryTests(unittest.TestCase):
             rows=ledger.read_text().splitlines()
             self.assertEqual(rows[0],original)
             self.assertEqual(json.loads(rows[1])['receipt_type'],'cost_source_inventory_conflict')
+
+
+class IndependentCensusTests(unittest.TestCase):
+    def fixture(self):
+        trip = {'order_ids': ['entry', 'exit'], 'period_start': '2026-10-18T01:00:00Z',
+                'closed_at': '2026-10-18T02:00:00Z', 'source_receipt_ids': ['fill://entry', 'fill://exit']}
+        def event(run, sha, phase, stamp):
+            return {'event_id': run + '-' + phase, 'owner_id': OWNER, 'job_id': OWNER,
+                'run_id': run, 'occurrence_id': f'{OWNER}:claimed-before-{run}', 'release_sha': sha,
+                'timestamp': stamp, 'phase': phase, 'status': 'running' if phase == 'execute' else 'pass',
+                'loaded_argv_sha256': 'd' * 64, 'loaded_env_sha256': 'e' * 64,
+                'evidence_refs': [f'lm-loop://{OWNER}/{run}/summary.json']}
+        runtime = {OWNER: [event('physical-a', 'a' * 40, 'execute', '2026-10-18T01:01:00Z'),
+                           event('physical-a', 'a' * 40, 'report', '2026-10-18T01:02:00Z'),
+                           event('physical-b', 'b' * 40, 'execute', '2026-10-18T01:30:00Z'),
+                           event('physical-b', 'b' * 40, 'report', '2026-10-18T01:31:00Z')]}
+        admissions = {OWNER: [{'owner_id': OWNER, 'occurrence_id': f'{OWNER}:claimed-before-{run}',
+                    'queued_at': '2026-10-18T00:59:00Z', 'state': 'released', 'effect_unknown': 0}
+                    for run in ('physical-a', 'physical-b')]}
+        releases = {}
+        for letter in ('a', 'b'):
+            releases[letter * 40] = [{'receipt_type': 'cost_source_inventory', 'release_sha': letter * 40,
+                'catalog_sha256': letter * 64, 'execution_owner_ids': [OWNER],
+                'source_declaration': {'schema_version': 1, 'status': 'verified', 'sources': [{
+                    'execution_owner_id': OWNER, 'beneficiary_owner_id': OWNER, 'beneficiary_mode': 'paper',
+                    'provider': 'provider-' + letter, 'billing_account_ref': 'account-' + letter,
+                    'covered_categories': ['model_cost', 'tool_cost', 'browser_cost', 'infra_cost'],
+                    'attribution': 'exact_evidence_required', 'evidence_refs': ['registry://source/' + letter]}]},
+                'evidence_refs': ['lm-release://' + letter * 40 + '/catalog']}]
+        return [trip], dict(beneficiary_owner_id=OWNER, observed_at='2026-10-18T03:00:00Z',
+            runtime_rows_by_owner=runtime, occurrence_rows_by_owner=admissions,
+            release_inputs=releases, paid_bindings=[])
+
+    def invoke(self, trips, kwargs):
+        function = getattr(importlib.import_module('cost_inventory'), 'build_expected_inventory', None)
+        self.assertTrue(callable(function), 'independent runtime census is missing')
+        before = copy.deepcopy((trips, kwargs))
+        result = function(trips, **kwargs)
+        self.assertEqual((trips, kwargs), before, 'pure census must not mutate its inputs')
+        return result
+
+    def reasons(self, result):
+        return {gap['reason'] for gap in result.get('gaps', [])
+                + [gap for scope in result['scopes'] for gap in scope['gaps']]}
+
+    def test_union_is_from_executing_releases_and_known_paid_lower_bound(self):
+        trips, kwargs = self.fixture()
+        kwargs['paid_bindings'] = [{'receipt_id': 'paid://known', 'provider': 'older-provider',
+            'billing_account_ref': 'older-account', 'category': 'infra_cost',
+            'order_ids': ['entry', 'exit'], 'period_start': trips[0]['period_start'],
+            'period_end': trips[0]['closed_at'], 'evidence_refs': ['invoice://known'],
+            'charge_identity': ['older-provider', 'invoice', 'document', 'line', 'allocation'],
+            'identity_aliases': [['charge', 'older-provider', 'invoice', 'document', 'line', 'allocation'],
+                                 ['receipt', 'paid://alias']]}]
+        result = self.invoke(trips, kwargs)
+        scope = result['scopes'][0]
+        self.assertEqual({row['provider'] for row in scope['required_sources']},
+                         {'provider-a', 'provider-b', 'older-provider'})
+        self.assertEqual(len(scope['required_sources']), 9)
+        self.assertEqual(result['coverage_state'], 'gap')
+        self.assertEqual(result['reason'], 'cost_coverage_not_evaluated')
+        self.assertIn('history_coverage_unverified', self.reasons(result))
+        self.assertNotIn('model_cost_usd', result)
+        self.assertNotIn('net_realized_pnl_usd', result)
+        self.assertEqual(scope['known_paid_bindings'][0]['charge_identity'],
+                         kwargs['paid_bindings'][0]['charge_identity'])
+
+    def test_physical_runs_keep_actual_claimed_occurrences(self):
+        trips, kwargs = self.fixture(); result = self.invoke(trips, kwargs)
+        refs = result['scopes'][0]['execution_refs']
+        self.assertEqual({row['run_id'] for row in refs}, {'physical-a', 'physical-b'})
+        self.assertEqual({row['occurrence_id'] for row in refs},
+                         {f'{OWNER}:claimed-before-physical-a', f'{OWNER}:claimed-before-physical-b'})
+        self.assertNotIn('admission_missing', self.reasons(result))
+        kwargs['occurrence_rows_by_owner'][OWNER][0]['occurrence_id'] = f'{OWNER}:physical-a'
+        self.assertIn('admission_missing', self.reasons(self.invoke(trips, kwargs)))
+
+    def test_conflicting_events_and_unfinished_runs_stay_gaps(self):
+        for defect in ('event', 'unfinished', 'release', 'hash', 'admission'):
+            with self.subTest(defect=defect):
+                trips, kwargs = self.fixture(); rows = kwargs['runtime_rows_by_owner'][OWNER]
+                if defect == 'event':
+                    changed = dict(rows[0], loaded_env_sha256='f' * 64); rows.append(changed)
+                    expected = 'runtime_event_conflict'
+                elif defect == 'unfinished':
+                    rows.pop(); expected = 'runtime_terminal_missing'
+                elif defect == 'release':
+                    kwargs['release_inputs'].pop('a' * 40); expected = 'source_release_missing'
+                elif defect == 'hash':
+                    rows[1]['loaded_argv_sha256'] = 'f' * 64; expected = 'runtime_identity_mismatch'
+                else:
+                    kwargs['occurrence_rows_by_owner'][OWNER][0]['effect_unknown'] = 1
+                    expected = 'admission_unresolved'
+                self.assertIn(expected, self.reasons(self.invoke(trips, kwargs)))
+
+    def test_source_conflicts_unverified_accounts_and_paid_unknowns_are_not_zero(self):
+        for defect, expected in [('conflict', 'source_declaration_conflict'),
+                                 ('unverified', 'source_declaration_unverified'),
+                                 ('account', 'source_account_missing'),
+                                 ('paid', 'paid_account_missing')]:
+            with self.subTest(defect=defect):
+                trips, kwargs = self.fixture(); row = kwargs['release_inputs']['a' * 40][0]
+                if defect == 'conflict':
+                    kwargs['release_inputs']['a' * 40].append(dict(row,
+                        receipt_type='cost_source_inventory_conflict', catalog_sha256='f' * 64))
+                elif defect == 'unverified': row['source_declaration']['status'] = 'unverified'
+                elif defect == 'account': row['source_declaration']['sources'][0].pop('billing_account_ref')
+                else:
+                    kwargs['paid_bindings'] = [{'receipt_id': 'paid://known', 'provider': 'old-provider',
+                        'category': 'model_cost', 'order_ids': ['entry', 'exit'],
+                        'period_start': trips[0]['period_start'], 'period_end': trips[0]['closed_at'],
+                        'charge_identity': ['old-provider', 'invoice', 'doc', 'line', 'allocation'],
+                        'evidence_refs': ['invoice://known']}]
+                self.assertIn(expected, self.reasons(self.invoke(trips, kwargs)))
+
+    def test_owner_period_is_explicit_and_empty_trips_are_not_a_free_day(self):
+        trips, kwargs = self.fixture()
+        scope = {**trips[0], 'scope_kind': 'owner_period', 'owner_id': OWNER, 'mode': 'paper',
+                 'paper': True, 'period_end': trips[0]['closed_at'], 'order_ids': []}
+        result = self.invoke([scope], kwargs)
+        self.assertEqual(result['scopes'][0]['scope_kind'], 'owner_period')
+        self.assertEqual(result['scopes'][0]['order_ids'], [])
+        self.assertIn('scope_missing', self.reasons(self.invoke([], kwargs)))
+        scope['owner_id'] = 'alpaca-investment-live'
+        self.assertIn('scope_invalid', self.reasons(self.invoke([scope], kwargs)))
+
+    def test_historical_conflict_outside_scope_does_not_poison_future_period(self):
+        trips, kwargs = self.fixture()
+        old = copy.deepcopy(kwargs['runtime_rows_by_owner'][OWNER][:2])
+        for row in old:
+            row['run_id'] = 'historical-run'
+            row['event_id'] = 'historical-' + row['phase']
+            row['timestamp'] = row['timestamp'].replace('2026-10-18', '2026-10-17')
+            row['release_sha'] = 'f' * 40
+        kwargs['runtime_rows_by_owner'][OWNER].extend([*old, dict(old[0], loaded_env_sha256='f' * 64)])
+        result = self.invoke(trips, kwargs)
+        self.assertNotIn('runtime_event_conflict', self.reasons(result))
+        self.assertNotIn('source_release_missing', self.reasons(result))
+        self.assertEqual(len(result['scopes'][0]['execution_refs']), 2)
+
+    def test_paid_lower_bound_keeps_scope_and_source_identity_and_rejects_foreign_mode(self):
+        trips, kwargs = self.fixture()
+        paid = {'receipt_id': 'paid://known', 'provider': 'older-provider',
+            'billing_account_ref': 'older-account', 'category': 'infra_cost',
+            'owner_id': OWNER, 'mode': 'paper', 'paper': True,
+            'order_ids': ['entry', 'exit'], 'period_start': trips[0]['period_start'],
+            'period_end': trips[0]['closed_at'], 'evidence_refs': ['invoice://known'],
+            'charge_identity': ['older-provider', 'invoice', 'document', 'line', 'allocation'],
+            'identity_aliases': [['charge', 'older-provider', 'invoice', 'document', 'line', 'allocation'],
+                                 ['receipt', 'paid://alias']], 'amount_usd': 'DO_NOT_COPY_MONEY'}
+        kwargs['paid_bindings'] = [paid]
+        result = self.invoke(trips, kwargs)
+        preserved = result['scopes'][0]['known_paid_bindings'][0]
+        for key in ('provider', 'billing_account_ref', 'category', 'order_ids', 'period_start', 'period_end'):
+            self.assertEqual(preserved[key], paid[key])
+        self.assertNotIn('amount_usd', preserved)
+        for key, value in [('owner_id', 'alpaca-investment-live'), ('mode', 'live'), ('paper', False)]:
+            with self.subTest(key=key):
+                kwargs['paid_bindings'] = [{**paid, key: value}]
+                result = self.invoke(trips, kwargs)
+                self.assertIn('paid_binding_scope_invalid', self.reasons(result))
+                self.assertFalse(result['scopes'][0]['known_paid_bindings'])
+
+    def test_shared_validation_execution_is_not_relabelled_as_paper_execution(self):
+        trips, kwargs = self.fixture(); validation = 'investment-strategy-validation'
+        snapshot = kwargs['release_inputs']['a' * 40][0]
+        snapshot['execution_owner_ids'].append(validation)
+        source = copy.deepcopy(snapshot['source_declaration']['sources'][0])
+        source.update(execution_owner_id=validation, provider='validation-provider',
+                      billing_account_ref='validation-account', covered_categories=['model_cost'])
+        snapshot['source_declaration']['sources'].append(source)
+        kwargs['runtime_rows_by_owner'][validation] = [
+            {**row, 'owner_id': validation, 'job_id': validation, 'run_id': 'validation-run',
+             'occurrence_id': f'{validation}:claimed-validation', 'event_id': 'validation-' + row['phase']}
+            for row in kwargs['runtime_rows_by_owner'][OWNER][:2]]
+        kwargs['occurrence_rows_by_owner'][validation] = [{'owner_id': validation,
+            'occurrence_id': f'{validation}:claimed-validation', 'queued_at': '2026-10-18T00:59:00Z',
+            'state': 'released', 'effect_unknown': 0}]
+        result = self.invoke(trips, kwargs); scope = result['scopes'][0]
+        self.assertEqual(scope['owner_id'], OWNER)
+        self.assertEqual({row['execution_owner_id'] for row in scope['execution_refs']}, {OWNER, validation})
+        self.assertIn('shared_attribution_unproven', self.reasons(result))
+        self.assertEqual(next(row for row in scope['required_sources'] if row['provider'] == 'validation-provider')
+                         ['execution_owner_ids'], [validation])
+
+    def test_malformed_runtime_status_and_unassigned_sources_are_visible_gaps(self):
+        for defect in ('runtime-status', 'source-beneficiary'):
+            with self.subTest(defect=defect):
+                trips, kwargs = self.fixture()
+                if defect == 'runtime-status':
+                    kwargs['runtime_rows_by_owner'][OWNER][1]['status'] = []
+                    expected = 'runtime_event_invalid'
+                else:
+                    source = copy.deepcopy(kwargs['release_inputs']['a' * 40][0]['source_declaration']['sources'][0])
+                    source.pop('beneficiary_owner_id')
+                    source['provider'] = 'unassigned-provider'
+                    kwargs['release_inputs']['a' * 40][0]['source_declaration']['sources'].append(source)
+                    expected = 'source_invalid'
+                self.assertIn(expected, self.reasons(self.invoke(trips, kwargs)))
+
+    def test_invalid_status_on_completed_old_run_is_scoped_but_unknown_time_is_not_hidden(self):
+        trips, kwargs = self.fixture()
+        old = copy.deepcopy(kwargs['runtime_rows_by_owner'][OWNER][:2])
+        for row in old:
+            row.update(run_id='historical-run', event_id='historical-' + row['phase'], release_sha='f' * 40)
+            row['timestamp'] = row['timestamp'].replace('2026-10-18', '2026-10-17')
+        malformed = dict(old[1], event_id='historical-invalid', status=[])
+        kwargs['runtime_rows_by_owner'][OWNER].extend([*old, malformed])
+        result = self.invoke(trips, kwargs)
+        self.assertNotIn('runtime_event_invalid', self.reasons(result))
+        self.assertNotIn('source_release_missing', self.reasons(result))
+        self.assertEqual(len(result['scopes'][0]['execution_refs']), 2)
+        malformed['timestamp'] = 'not-a-time'
+        self.assertIn('runtime_event_invalid', self.reasons(self.invoke(trips, kwargs)))
