@@ -91,6 +91,18 @@ class QuoteBaselineTests(unittest.TestCase):
                     self.assertEqual(rows,before)
 
 
+    def test_baseline_lower_bound_keeps_native_timestamp_precision(self):
+        for mode in ('paper','live'):
+            decision={'mode':mode,'native_trading_account_id':ACCOUNT_A,
+                'observed_at':'2026-01-01T04:00:00.000000001Z'}
+            for stale,stamp in ((True,START),(False,decision['observed_at'])):
+                with self.subTest(mode=mode,stale=stale):
+                    raw=observation(mode,stamp)
+                    if stale:
+                        with self.assertRaises(ValueError):proofs.entry_pre_trade_account_readback(raw,decision)
+                    else:
+                        self.assertEqual(proofs.entry_pre_trade_account_readback(raw,decision),raw)
+
     def test_partial_and_no_fill_use_the_same_pre_submission_bound(self):
         for mode in ('paper','live'):
             for kind in ('partial','no_fill'):
