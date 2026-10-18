@@ -131,3 +131,21 @@ class CryptoFeePerformanceTests(unittest.TestCase):
             rows=store._rows(root/'receipts.jsonl');rows[-1]['strategy_receipt']['receipt']['debit_qty']='0.0001'
             write_rows(root/'receipts.jsonl',rows)
             with self.assertRaises(ValueError):self.build(root,'paper')
+
+    def test_partial_sell_closed_by_next_day_fee_uses_the_flat_account_day(self):
+        for mode in ('paper','live'):
+            with self.subTest(mode=mode),tempfile.TemporaryDirectory() as directory:
+                root=Path(directory);args=list(closing_fee_fixture(root,mode,remaining='0'))
+                end='2026-01-02T00:00:02Z'
+                args[2]={**args[2],'clock':{'observed_at':end}}
+                args[4]=activity_fixture(args[4],mode=mode,start=args[4]['requested_period_start'],end=end,
+                    fees=[{**args[4]['fees'][0],'qty':'-0.03','created_at':'2026-01-02T00:00:01Z'}])
+                save_close(root,args,mode);frame,cache=complete_frame(root,args[4],mode)
+                result=self.build(root,mode,cache);cycle=result['cycles'][0]
+                self.assertEqual(proofs.parse_instant(cycle['closed_at']),proofs.parse_instant(end))
+                self.assertEqual(cycle['closure_kind'],'sell_and_native_fee')
+                def read(**kwargs):return activity_fixture(frame,mode=mode,start=kwargs['period_start'],end=kwargs['period_end'])
+                report=perf.write_crypto_performance(root,args[2],mode=mode,owner_id=args[3],activity_reader=read)
+                self.assertEqual(report['completed_round_trips'],1)
+                self.assertTrue((root/'performance-crypto-daily-2026-01-02.json').exists())
+                self.assertFalse((root/'performance-crypto-daily-2026-01-01.json').exists())
