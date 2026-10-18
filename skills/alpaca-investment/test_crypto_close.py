@@ -161,6 +161,25 @@ class CryptoCloseTests(unittest.TestCase):
         for mode in ('paper','live'):
             with self.subTest(mode=mode): self._main_flow(mode=mode,backfill=True)
 
+    def test_wrong_recorded_order_identity_keeps_the_common_close_fence(self):
+        variants=(('outcome','client_order_id','foreign'),('outcome','mode','paper'),
+                  ('outcome','paper',True),('outcome','broker_receipt_id','foreign'),
+                  ('broker','client_order_id','foreign'),('broker','side','buy'),
+                  ('broker','symbol','ETH/USDC'),('broker','type','limit'))
+        for section,key,value in variants:
+            with self.subTest(section=section,key=key),tempfile.TemporaryDirectory() as directory,patch.dict(os.environ,{
+                    'LIFE_MANAGER_INVESTMENT_OWNER_ID':'alpaca-investment-live'}):
+                root=Path(directory);owned,broker,observation,_owner=close_fixture(root)
+                proof=self.proof(root,owned,broker,observation,mode='live')
+                effect_store.reconcile_started(root/'receipts.jsonl',lambda _:broker,on_reconciled=lambda *_:proof)
+                rows=effect_store._rows(root/'receipts.jsonl')
+                outcome=next(r for r in reversed(rows) if r.get('receipt_type')=='outcome'
+                             and r.get('effect_id')==owned['close_effect_id'])
+                (outcome if section=='outcome' else outcome['broker'])[key]=value
+                (root/'receipts.jsonl').write_text(''.join(json.dumps(r)+'\n' for r in rows))
+                self.assertEqual(effect_store.unresolved_intent_count(root/'receipts.jsonl'),1)
+                self.assertEqual(effect_store.effect_state(root/'receipts.jsonl',owned['close_effect_id']),'started')
+
     def test_invalid_order_quantity_time_account_and_parent_cannot_make_close_proof(self):
         variants=[('observation','mode','paper'),('observation','mode','shadow'),
                   ('observation','mode',None),('observation','paper',True),
