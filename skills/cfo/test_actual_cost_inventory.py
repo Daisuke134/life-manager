@@ -1,0 +1,133 @@
+"""Independent execution/source evidence governs scope coverage, never money."""
+import copy
+import unittest
+from skills.cfo.adapters import actual_cost
+from skills.cfo.test_actual_cost_attribution import query_payload,paid_query_payload,SNAPSHOT,TRAILING_START
+
+
+def fixture(mode='paper',orders=None,paid=False):
+    payload=paid_query_payload() if paid else query_payload()
+    owner='alpaca-investment-'+mode;scope=payload['readback']['cost_scopes'][0]
+    scope.update(owner_id=owner,mode=mode,paper=mode=='paper',order_ids=['entry','exit'] if orders is None else orders)
+    if scope['order_ids']==[]:scope['scope_kind']='owner_period'
+    ref={'execution_owner_id':owner,'run_id':'physical-run','occurrence_id':owner+':claimed-earlier',
+        'release_sha':'a'*40,'loaded_argv_sha256':'b'*64,'loaded_env_sha256':'c'*64,
+        'start_event_id':'1'*24,'terminal_event_id':'2'*24}
+    join=payload['job_joins'][0];join.update(scope)
+    join.update(execution_refs=[{k:ref[k] for k in ('execution_owner_id','run_id','occurrence_id')}],
+        run_ids=[ref['run_id']],occurrence_ids=[ref['occurrence_id']])
+    selected={k:copy.deepcopy(scope[k]) for k in ('owner_id','mode','paper','order_ids','period_start','period_end','source_receipt_ids')}
+    selected.update(scope_kind=scope.get('scope_kind','order_pair'),
+        required_sources=[{'provider':'openai','billing_account_ref':'billing-account','category':category,
+            'execution_owner_ids':[owner],'release_refs':['a'*40],'evidence_refs':['registry://cost-source']}
+            for category in actual_cost.ACTUAL_COST_CATEGORIES],
+        execution_refs=[ref],known_paid_bindings=[],evidence_refs=['lm-release://'+'a'*40+'/catalog'],
+        gaps=[{'reason':'history_coverage_unverified'}])
+    reads={'runtime':{'status':'ok','row_count':2,'archives_available':0,'first_event_at':TRAILING_START,'last_event_at':SNAPSHOT},
+        'ledger':{'status':'ok','row_count':1},'admission':{'status':'ok','row_count':1}}
+    inventory={'schema_version':1,'beneficiary_owner_id':owner,'observed_at':SNAPSHOT,'coverage_state':'gap',
+        'reason':'cost_coverage_not_evaluated','scopes':[selected],'gaps':[],'input_reads':{owner:reads},
+        'read_limits':{'owners':16,'admission_rows_per_owner':50000,'runtime_archives_per_owner':4}}
+    return payload,inventory
+
+
+def paid_records(payload):
+    return [r for r in actual_cost.adapt(payload,snapshot_at=SNAPSHOT,trailing_start=TRAILING_START) if r['record_type']=='receipt']
+
+
+class ActualCostInventoryTests(unittest.TestCase):
+    def validate(self,payload,inventory,*,scope=True):
+        return actual_cost.validate_official_cost_queries(payload,snapshot_at=SNAPSHOT,paid_records=paid_records(payload),
+            scope=payload['readback']['cost_scopes'][0] if scope else None,expected_inventory=inventory)
+
+    def test_real_occurrence_and_all_order_group_shapes_have_scoped_coverage_without_money(self):
+        for mode in ('paper','live'):
+            for orders in (['entry'],['entry','exit'],['entry','partial','exit'],[]):
+                with self.subTest(mode=mode,orders=orders):
+                    payload,inventory=fixture(mode,orders);before=copy.deepcopy((payload,inventory))
+                    result=self.validate(payload,inventory)
+                    self.assertEqual(result['coverage_state'],'complete');self.assertEqual(result['rejections'],[])
+                    self.assertEqual(len(result['observations']),1)
+                    self.assertNotIn('amount',result['observations'][0]);self.assertNotIn('paid_at',result['observations'][0])
+                    self.assertEqual((payload,inventory),before)
+                    legacy=self.validate(payload,None)
+                    self.assertEqual(len(legacy['observations']),1);self.assertEqual(legacy['coverage_state'],'gap')
+
+    def test_missing_source_account_or_category_never_shrinks_required_universe(self):
+        payload,inventory=fixture()
+        inventory['scopes'][0]['required_sources'].append({**inventory['scopes'][0]['required_sources'][0],
+            'billing_account_ref':'another-account'})
+        result=self.validate(payload,inventory)
+        self.assertEqual(len(result['observations']),1);self.assertEqual(result['coverage_state'],'gap')
+        for value in (None,''):
+            changed=copy.deepcopy(inventory);changed['scopes'][0]['required_sources'][0]['billing_account_ref']=value
+            self.assertEqual(self.validate(payload,changed)['coverage_state'],'gap')
+        payload,inventory=fixture();inventory['scopes'][0]['required_sources'].pop()
+        self.assertEqual(self.validate(payload,inventory)['coverage_state'],'gap')
+
+    def test_wrong_history_bounds_gap_mode_owner_or_execution_is_not_complete(self):
+        for change in ('future','root_gap','source_gap','mode','owner','late_start','early_end','archive_limit','missing_ledger','hash'):
+            with self.subTest(change=change):
+                payload,inventory=fixture();scope=inventory['scopes'][0];reads=inventory['input_reads'][scope['owner_id']]
+                if change=='future':inventory['observed_at']='2026-10-01T00:00:01Z'
+                elif change=='root_gap':inventory['gaps']=[{'reason':'admission_read_limit'}]
+                elif change=='source_gap':scope['gaps'].append({'reason':'source_release_missing'})
+                elif change=='mode':scope['mode']='live'
+                elif change=='owner':inventory['beneficiary_owner_id']='other-owner'
+                elif change=='late_start':reads['runtime']['first_event_at']='2026-09-25T00:00:00Z'
+                elif change=='early_end':reads['runtime']['last_event_at']=TRAILING_START
+                elif change=='archive_limit':reads['runtime']['archives_available']=5
+                elif change=='missing_ledger':reads['ledger']['status']='unavailable'
+                else:scope['execution_refs'][0]['loaded_env_sha256']='not-a-hash'
+                self.assertEqual(self.validate(payload,inventory)['coverage_state'],'gap')
+
+    def test_execution_pair_swap_and_synthetic_fallback_are_rejected(self):
+        for change in ('swap','synthetic','missing','foreign'):
+            with self.subTest(change=change):
+                payload,inventory=fixture();join=payload['job_joins'][0]
+                if change=='swap':join['execution_refs'][0]['occurrence_id']=join['occurrence_ids'][0]=inventory['beneficiary_owner_id']+':another-claim'
+                elif change=='synthetic':join.pop('execution_refs');join['occurrence_ids']=[inventory['beneficiary_owner_id']+':physical-run']
+                elif change=='missing':join['execution_refs']=[]
+                else:join['execution_refs'][0]['execution_owner_id']='other-owner'
+                self.assertEqual(self.validate(payload,inventory)['coverage_state'],'gap')
+
+    def test_shared_executor_keeps_its_identity_with_exact_beneficiary_scope(self):
+        payload,inventory=fixture();scope=inventory['scopes'][0];owner=inventory['beneficiary_owner_id'];executor='investment-strategy-validation'
+        ref={**scope['execution_refs'][0],'execution_owner_id':executor,'run_id':'shared-run','occurrence_id':executor+':claimed-old',
+             'start_event_id':'3'*24,'terminal_event_id':'4'*24}
+        scope['execution_refs'].append(ref);inventory['input_reads'][executor]=copy.deepcopy(inventory['input_reads'][owner])
+        scope['gaps'].append({'reason':'shared_attribution_unproven','execution_owner_id':executor})
+        for row in scope['required_sources']:row['execution_owner_ids']=[executor]
+        join=payload['job_joins'][0];join.update(execution_refs=[{k:ref[k] for k in ('execution_owner_id','run_id','occurrence_id')}],
+            run_ids=[ref['run_id']],occurrence_ids=[ref['occurrence_id']])
+        self.assertEqual(self.validate(payload,inventory)['coverage_state'],'complete')
+        join['execution_refs'][0]['execution_owner_id']=owner
+        self.assertEqual(self.validate(payload,inventory)['coverage_state'],'gap')
+
+    def test_explicit_scope_does_not_reject_other_scope_and_global_requires_every_scope(self):
+        payload,inventory=fixture();other_scope=copy.deepcopy(payload['readback']['cost_scopes'][0]);other_scope.update(scope_id='scope-2',order_ids=['entry-2','exit-2'])
+        payload['readback']['cost_scopes'].append(other_scope)
+        query=copy.deepcopy(payload['sources'][0]['queries'][0]);query.update(query_id='query-2',scope_id='scope-2')
+        payload['sources'][0]['queries'].append(query)
+        page=copy.deepcopy(payload['provider_pagination']['pages'][0]);page['query_id']='query-2';payload['provider_pagination']['pages'].append(page)
+        join=copy.deepcopy(payload['job_joins'][0]);join.update(other_scope,query_id='query-2');payload['job_joins'].append(join)
+        scope=copy.deepcopy(inventory['scopes'][0]);scope['order_ids']=other_scope['order_ids'];inventory['scopes'].append(scope)
+        self.assertEqual(self.validate(payload,inventory)['coverage_state'],'complete')
+        self.assertEqual(self.validate(payload,inventory,scope=False)['coverage_state'],'complete')
+        payload['sources'][0]['queries'].pop()
+        self.assertEqual(self.validate(payload,inventory,scope=False)['coverage_state'],'gap')
+
+    def test_paid_lower_bound_cannot_be_replaced_with_final_no_charge(self):
+        payload,inventory=fixture(paid=True);record=paid_records(payload)[0];scope=inventory['scopes'][0]
+        binding={**{k:scope[k] for k in ('owner_id','mode','paper','order_ids','period_start','period_end')},
+            'provider':'openai','billing_account_ref':'billing-account','category':'model_cost',
+            'receipt_id':record['receipt_id'],'charge_identity':['openai','invoice','same-id','line','allocation'],
+            'evidence_refs':record['evidence_refs']}
+        scope['known_paid_bindings']=[binding]
+        self.assertEqual(self.validate(payload,inventory)['coverage_state'],'complete')
+        empty,_=fixture();self.assertEqual(self.validate(empty,inventory)['coverage_state'],'gap')
+        scope['known_paid_bindings'][0]['receipt_id']='paid://missing'
+        scope['known_paid_bindings'][0]['charge_identity'][2]='other-invoice'
+        self.assertEqual(self.validate(payload,inventory)['coverage_state'],'gap')
+
+if __name__=='__main__':unittest.main()
