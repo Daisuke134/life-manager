@@ -397,7 +397,7 @@ def _read_activity(**kwargs):
 def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_reader=None,activity_page_reader=None,fx_reader=None,statement_readback_dir=None):
     if mode not in {'paper','live'} or owner_id!=f'alpaca-investment-{mode}':
         raise ValueError('crypto_performance_scope_invalid')
-    state=Path(state_dir);latest=state/'performance-crypto-latest.json';phase='ledger'
+    state=Path(state_dir);latest=state/'performance-crypto-latest.json';phase='ledger';retain_project_inputs=False
     frames={};refs={};fee_refs=[];fee_checked=None;known_fees=set();known_entries=set();known_cycles=set()
     window_days=90;limit_window=None;query={};page_chunks=[];page_checked=None
     fx_frames={};fx_attempts={};fx_errors=[];billing_cache=None;known_cost_components=[];source_evidence=[]
@@ -525,8 +525,16 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
         known_entries.update(current_entries)
         extra={key:frames[ref] for key,ref in refs.items()}
         phase='project'
-        result=build_crypto_performance(rows,mode=mode,owner_id=owner_id,activity_readbacks=extra,
-            fee_activity_readbacks=[frames[ref] for ref in fee_refs],statement_readbacks=statement_docs)
+        try:
+            result=build_crypto_performance(rows,mode=mode,owner_id=owner_id,activity_readbacks=extra,
+                fee_activity_readbacks=[frames[ref] for ref in fee_refs],statement_readbacks=statement_docs)
+        except Exception:
+            # Diagnose ledger failures without making cached activity a mandatory retry input.
+            try:
+                build_crypto_performance(rows,mode=mode,owner_id=owner_id,statement_readbacks=statement_docs)
+            except Exception:
+                retain_project_inputs=True
+            raise
         phase='history'
         current_cycles={c['cycle_id'] for c in result['cycles']}
         if not known_cycles <= current_cycles:
@@ -714,17 +722,18 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
             statement_evidence={**statement_evidence,'status':'conflict' if reason=='crypto_statement_evidence_conflict' else 'unknown',
                 'reason':reason}
             next_action='reconcile_native_statement_capture_without_replacing_known_document_evidence'
+        keep_activity_inputs=phase in {'ledger','history','observation','activity_readback','write','activity_page_readback','activity_page_cache','fx_reference','operating_costs','statement_cache','statement_readback'} or (phase=='project' and retain_project_inputs)
         result={'schema_version':1,'owner_id':owner_id,'mode':mode,'paper':mode=='paper','report_scope':'owned_crypto_cycles',
             'measurement_status':'partial','reason':reason,'error_class':type(error).__name__,'failed_phase':phase,
             'operating_cost_source_history_status':'invalid' if reason=='crypto_operating_cost_source_history_invalid' else 'recorded_only',
             'completed_round_trips':None,'net_pnl_usd':None,'capital_expansion_allowed':False,
             'statement_readbacks':statement_docs,'known_statement_documents':known_statements,
             'statement_input_status':statement_input_status,'fee_evidence':{'statement_evidence':statement_evidence},
-            'activity_readbacks':frames if phase in {'ledger','project','history','observation','activity_readback','write','activity_page_readback','activity_page_cache','fx_reference','operating_costs','statement_cache','statement_readback'} else {},
-            'order_activity_refs':refs if phase in {'ledger','project','history','observation','activity_readback','write','activity_page_readback','activity_page_cache','fx_reference','operating_costs','statement_cache','statement_readback'} else {},
+            'activity_readbacks':frames if keep_activity_inputs else {},
+            'order_activity_refs':refs if keep_activity_inputs else {},
             'known_entry_effect_ids':sorted(known_entries),'known_closed_cycle_ids':sorted(known_cycles),
             'known_fee_activity_ids':sorted(known_fees),
-            'fee_activity_refs':fee_refs if phase in {'ledger','project','history','observation','activity_readback','write','activity_page_readback','activity_page_cache','fx_reference','operating_costs','statement_cache','statement_readback'} else [],
+            'fee_activity_refs':fee_refs if keep_activity_inputs else [],
             'fee_checked_at':fee_checked,
             'known_operating_cost_components':known_cost_components,'known_operating_cost_source_evidence':source_evidence,'operating_cost_readback':billing_cache,
             'fx_quote_readbacks':fx_frames,'fx_attempted_at':fx_attempts,'fx_readback_errors':fx_errors,
