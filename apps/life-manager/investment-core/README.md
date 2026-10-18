@@ -436,8 +436,14 @@ separate from independent scope coverage. Known paid charges require the scoped
 paid allocation (including invoice/receipt aliases); a final-no-charge claim cannot
 hide them. Scope coverage and cost evidence are selected by group and period for
 daily output, without inventing zero-dollar receipts or net-profit totals.
-Complete monetary costs, post-close/idle overhead, durable coverage and net profit
-remain D4 work. Current production gaps are not cleared by passing fixtures.
+Execution inventory now retains native started/finished timestamps. Billing windows
+for owned trade groups must cover their full seeded executions, without moving the
+economic close or pulling in later runs. Paid components can include pre-intent and
+post-close work only through verified query evidence and the exact allocated run's
+incurred-time window. Unproven or mismatched attribution remains an explicit component
+gap; it never becomes zero cost. Owner periods use a half-open calendar interval.
+All-cost monetary aggregation, periodic/idle overhead, durable coverage and net
+profit remain D4 work. Current production gaps are not cleared by passing fixtures.
 The pinned quote transport can now capture a single USDC/USD BBO at or before
 an economic timestamp, using a fixed 30-second window and descending limit one.
 The shared pure proof preserves nanoseconds in both the request and age checks,

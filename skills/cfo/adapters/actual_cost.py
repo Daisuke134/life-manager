@@ -744,7 +744,7 @@ def _inventory_cost_scope(inventory,target,snapshot_at):
         if not isinstance(row,dict) or set(row)!=ref_fields:raise ValueError(invalid)
         triple=next(iter(_execution_ref_triples([{k:row[k] for k in ('execution_owner_id','run_id','occurrence_id')}])) )
         began,ended=_instant(row['started_at']),_instant(row['finished_at'])
-        if None in (began,ended) or not began<=ended<=observed or began>finish or ended<start:
+        if None in (began,ended) or not began<=ended<=observed or (began>=finish if kind=='owner_period' else began>finish) or ended<start:
             raise ValueError('cost_query_execution_window_invalid')
         refs.add(triple);windows[triple]=(began,ended)
         for key,length in (('release_sha',40),('loaded_argv_sha256',64),('loaded_env_sha256',64)):

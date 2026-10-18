@@ -307,7 +307,8 @@ def build_expected_inventory(trips, *, beneficiary_owner_id, observed_at,
                 run = [*valid, *invalid.get(run_id, [])]
                 starts = [(t, r) for t, r in valid if r['phase'] == 'execute']
                 terminals = [(t, r) for t, r in valid if r['phase'] == 'report']
-                if min(t for t, _ in run) > end or terminals and max(t for t, _ in run) < start:
+                earliest=min(t for t,_ in run)
+                if (earliest>=end if scope['scope_kind']=='owner_period' else earliest>end) or terminals and max(t for t,_ in run)<start:
                     continue
                 selected += 1
                 for event_id in sorted(conflicts & {row['event_id'] for _, row in valid}):

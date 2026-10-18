@@ -31,6 +31,20 @@ def _binding(row):
     except (KeyError,TypeError,ValueError):return None
 
 
+def _execution_time_proof(join,trip,receipt,account,observations):
+    if join.get('join_type')!='paid_allocation':return None
+    proofs=[row for row in observations if row.get('inventory_verification')=='verified'
+        and row.get('provider')==receipt['provider'] and row.get('billing_account_ref')==account
+        and row.get('query_id')==join.get('query_id') and row.get('scope_id')==join.get('scope_id')
+        and receipt['components'][0]['category'] in row.get('covered_categories',[]) and _binding(row)==_binding(trip)]
+    if not proofs:return None
+    refs={tuple(row[k] for k in ('execution_owner_id','run_id','occurrence_id')) for row in join.get('execution_refs',[])}
+    occurred=_time(receipt['occurred_at'])
+    return any(tuple(window[k] for k in ('execution_owner_id','run_id','occurrence_id')) in refs
+        and _time(window['started_at'])<=occurred<=_time(window['finished_at'])
+        for proof in proofs for window in proof.get('execution_windows',[]))
+
+
 def select_components(summary: dict, trips) -> dict:
     """Select one economic day without moving cumulative costs onto that day's P&L."""
     requested=[_binding(trip) for trip in trips]
@@ -38,10 +52,11 @@ def select_components(summary: dict, trips) -> dict:
     components = [row for row in summary.get("operating_cost_components", [])
                   if _binding(row) in pairs]
     coverages=[row for row in summary.get('operating_cost_scope_coverages',[]) if _binding(row) in pairs]
-    complete=bool(requested) and len(pairs)==len(requested) and all(
+    component_gaps=[row for row in summary.get('operating_cost_component_gaps',[]) if _binding(row) in pairs]
+    complete=not component_gaps and bool(requested) and len(pairs)==len(requested) and all(
         len([row for row in coverages if _binding(row)==key])==1
         and next(row for row in coverages if _binding(row)==key)['coverage_state']=='complete' for key in pairs)
-    coverage_reason=None if complete else next((row.get('reason') for row in coverages if row.get('coverage_state')!='complete'),
+    coverage_reason=None if complete else component_gaps[0]['reason'] if component_gaps else next((row.get('reason') for row in coverages if row.get('coverage_state')!='complete'),
         'cost_query_scope_missing' if summary.get('operating_cost_scope_coverages') else 'source_inventory_unverified')
     def subtotal(categories):
         amounts = [Decimal(row["amount_usd"]) for row in components if row["category"] in categories]
@@ -59,6 +74,7 @@ def select_components(summary: dict, trips) -> dict:
         "operating_cost_query_observations": [row for row in summary.get("operating_cost_query_observations", [])
                                               if _binding(row) in pairs],
         "operating_cost_query_rejections":[row for row in summary.get('operating_cost_query_rejections',[]) if _binding(row) in pairs],
+        "operating_cost_component_gaps":component_gaps,
         "operating_cost_scope_coverages":coverages,
         "operating_cost_coverage": {"coverage_state": "complete" if complete else "gap", "reason": coverage_reason},
         "operating_cost_components": components,
@@ -136,52 +152,6 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inven
             if key in jobs and jobs[key] != join:
                 job_conflicts.add(key)
             jobs[key] = join
-        accepted = {}
-        charge_conflicts = set()
-        for receipt in records:
-            if (receipt["record_type"] != "receipt" or receipt["product_loop_id"] != "investment"
-                    or receipt["currency"] != "USD" or receipt["verification_state"] != "verified"
-                    or f"actual-cost-{receipt['provider']}" not in covered):
-                continue
-            identity = receipt["receipt_id"]
-            if identity in conflicts or identity not in raw:
-                continue
-            provider, kind, document_id, line, allocation, charge_identity, account = raw[identity]
-            key = (provider, allocation.get("job_id"))
-            join = jobs.get(key)
-            if key in job_conflicts or not isinstance(join, dict):
-                continue
-            if (join.get("document_type") != kind or join.get("document_id") != document_id
-                    or join.get("line_item_id") != line.get("line_item_id")
-                    or join.get("allocation_id") != allocation.get("allocation_id")
-                    or join.get("owner_id") != owner_id or join.get("mode") != mode
-                    or join.get("paper") is not (mode == "paper") or join.get("product_loop_id") != "investment"
-                    or join.get("status") not in {"completed", "settled", "paid"}):
-                continue
-            for trip in trips:
-                if (join.get("order_ids") != trip["order_ids"]
-                        or not trip.get("period_start")
-                        or _time(join.get("period_start")) != _time(trip["period_start"])
-                        or _time(join.get("period_end")) != _time(_cost_end(trip))
-                        or not isinstance(join.get("source_receipt_ids"), list)
-                        or not set(trip["source_receipt_ids"]) <= set(join["source_receipt_ids"])
-                        or not _time(trip["period_start"]) <= _time(receipt["occurred_at"]) <= _time(_cost_end(trip))):
-                    continue
-                component = receipt["components"][0]
-                cost = {
-                    "receipt_id": identity, "provider": provider, "currency": "USD",
-                    "charge_identity": list(charge_identity),"billing_account_ref":account,
-                    "category": component["category"], "amount_usd": component["amount"],
-                    "order_ids": trip["order_ids"], "period_start": trip["period_start"],
-                    "period_end": _cost_end(trip), "occurred_at": receipt["occurred_at"],
-                    "settled_at": receipt["settled_at"], "evidence_refs": receipt["evidence_refs"],
-                }
-                if charge_identity in accepted:
-                    fields = ("category", "amount_usd", "order_ids", "period_start", "period_end")
-                    if any(accepted[charge_identity][field] != cost[field] for field in fields):
-                        charge_conflicts.add(charge_identity)
-                else:
-                    accepted[charge_identity] = cost
         observations = [];scope_coverages=[];query_rejections=[]
         scopes = readback.get("cost_scopes", [])
         for scope in scopes if isinstance(scopes, list) else []:
@@ -210,6 +180,65 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inven
         summary["operating_cost_query_observations"] = observations
         summary["operating_cost_scope_coverages"] = scope_coverages
         summary["operating_cost_query_rejections"] = query_rejections
+        component_gaps=[]
+        accepted = {}
+        charge_conflicts = set()
+        for receipt in records:
+            if (receipt["record_type"] != "receipt" or receipt["product_loop_id"] != "investment"
+                    or receipt["currency"] != "USD" or receipt["verification_state"] != "verified"
+                    or f"actual-cost-{receipt['provider']}" not in covered):
+                continue
+            identity = receipt["receipt_id"]
+            if identity in conflicts or identity not in raw:
+                continue
+            provider, kind, document_id, line, allocation, charge_identity, account = raw[identity]
+            key = (provider, allocation.get("job_id"))
+            join = jobs.get(key)
+            if key in job_conflicts or not isinstance(join, dict):
+                continue
+            if (join.get("document_type") != kind or join.get("document_id") != document_id
+                    or join.get("line_item_id") != line.get("line_item_id")
+                    or join.get("allocation_id") != allocation.get("allocation_id")
+                    or join.get("owner_id") != owner_id or join.get("mode") != mode
+                    or join.get("paper") is not (mode == "paper") or join.get("product_loop_id") != "investment"
+                    or join.get("status") not in {"completed", "settled", "paid"}):
+                continue
+            for trip in trips:
+                if (join.get("order_ids") != trip["order_ids"]
+                        or not trip.get("period_start")
+                        or _time(join.get("period_start")) != _time(trip["period_start"])
+                        or _time(join.get("period_end")) != _time(_cost_end(trip))
+                        or not isinstance(join.get("source_receipt_ids"), list)
+                        or not set(trip["source_receipt_ids"]) <= set(join["source_receipt_ids"])):
+                    continue
+                occurred=_time(receipt['occurred_at']);begin=_time(trip['period_start']);finish=_time(_cost_end(trip))
+                calendar=trip.get('scope_kind','order_pair')=='owner_period'
+                inside=begin<=occurred<finish if calendar else begin<=occurred<=finish
+                proof=_execution_time_proof(join,trip,receipt,account,observations)
+                modern=expected_inventory is not None and join.get('join_type')=='paid_allocation' and 'execution_refs' in join
+                if modern and (proof is not True or calendar and not inside):
+                    reason=('operating_cost_calendar_time_mismatch' if calendar and not inside else
+                        'operating_cost_execution_window_unverified' if proof is None else 'operating_cost_execution_time_mismatch')
+                    component_gaps.append({'receipt_id':identity,'provider':provider,'owner_id':owner_id,'mode':mode,'paper':mode=='paper',
+                        'order_ids':trip['order_ids'],'period_start':trip['period_start'],'period_end':_cost_end(trip),'reason':reason})
+                if calendar and not inside or proof is False or proof is None and not inside:continue
+                component = receipt["components"][0]
+                cost = {
+                    "receipt_id": identity, "provider": provider, "currency": "USD",
+                    "charge_identity": list(charge_identity),"billing_account_ref":account,
+                    "attribution_basis":"verified_execution_window" if proof is True else "economic_interval_only",
+                    "category": component["category"], "amount_usd": component["amount"],
+                    "order_ids": trip["order_ids"], "period_start": trip["period_start"],
+                    "period_end": _cost_end(trip), "occurred_at": receipt["occurred_at"],
+                    "settled_at": receipt["settled_at"], "evidence_refs": receipt["evidence_refs"],
+                }
+                if charge_identity in accepted:
+                    fields = ("category", "amount_usd", "order_ids", "period_start", "period_end")
+                    if any(accepted[charge_identity][field] != cost[field] for field in fields):
+                        charge_conflicts.add(charge_identity)
+                else:
+                    accepted[charge_identity] = cost
+        summary['operating_cost_component_gaps']=component_gaps
         summary.update({"operating_cost_components": [accepted[key] for key in sorted(accepted)
                                                       if key not in charge_conflicts],
                         "operating_costs_observed_at": billing_at,
