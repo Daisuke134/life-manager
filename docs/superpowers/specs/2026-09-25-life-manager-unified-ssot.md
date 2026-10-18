@@ -4,7 +4,7 @@
 
 目的はローカル投資の自然実行を戻し、明細/費用後成績の検証まで進めること。紙ownerはmain819fd631由来完全releaseを採用済みで、deterministic/revenue/revenue、現在unknown fence0。18:40Z自然runはclaim前disk_floor_low/exit75で、必要10GiBに対し約9.58GiB、約429MiB不足する。最後の正常判断は16:05ZのHOLD/hold_period_not_elapsed。追加apply/hold短縮/fence解除/強制wakeは解決策にしない。
 
-既存watchdogは候補10件がopen/protectedで回収0、古いworktreeはkeep/dirtyで保護し、ballastは未武装。既存source reclaimは15秒予算のrelease_inventoryでTimeoutExpiredになる。現callerはheld/current releaseの高価なimmutable-store probeも先に行い、後からreferencesで除外する。既存referencesを同じlifecycle lock内でinventory前へ置き、held rootをprobe前に除外する最小修正を検証する。予算延長や新collector/cleanup経路は作らない。lock・official Git reachability/pin・lease・保護store・rollback keep・削除直前fresh referencesは維持する。source PASSは実容量回復の証明ではない。
+既存watchdogは候補10件がopen/protectedで回収0、古いworktreeはkeep/dirtyで保護し、ballastは未武装。既存source reclaimは15秒予算のrelease_inventoryでTimeoutExpiredになる。現callerはheld/current releaseの高価なimmutable-store probeも先に行い、後からreferencesで除外する。既存referencesを同じlifecycle lock内でinventory前へ置き、held rootをprobe前に除外する最小修正を検証する。予算延長や新collector/cleanup経路は作らない。初期ls-remoteとlocal trackingの一致で確認したimmutable SHA witnessを保持し、参照census中のbranch削除で既存の回収条件が退行しないようにする。現在のtracking nameに残らない場合も、その既確認SHAへのancestor証明と既存pin検査を要求する。確認前に削除済み/未確認のremoteは受理しない。lock・official Git reachability/pin・lease・保護store・rollback keep・削除直前fresh referencesは維持する。source PASSは実容量回復の証明ではない。
 
 所有: codex-root、task investment-storage-reclaim-8360。最新origin/main819fd631から専用worktree /Users/anicca/Projects/life-manager-main/.worktrees/investment-storage-reclaim-20261019、branch fix/investment-storage-reclaim-20261019を使用する。編集範囲はruntime/loop/central_cleanup.py、既存test_release_source_reclaim.py、本SSOT。投資R3 branch fix/investment-btc-paper-route-20261018は隔離したまま保持する。
 
@@ -18,7 +18,7 @@
 5. 自然cleanupのreceiptと実free bytesを確認し、10GiB以上なら紙ownerの次の自然terminal/公式readbackを確認する。回収0ならsource改善だけを復旧と呼ばず次の実測境界へ進む。
 6. 投資R3の公式PDF/metadata入力接続、完全なowner/mode/card/release/account/fill帰属、CFEEとの一回計上、fee完全性・確定netと既存live成熟gate/実費後利益を継続する。
 
-現在cursor: TODO1のbaseline/held-root RED。これはcapacity sourceの修正で、投資利益や本番回復は未達。
+現在cursor: TODO3の独立read-only review/PR。baseline18PASS、REDa5cfe222aaはcurrent/installed/open3条件でrelease_inventory TimeoutExpiredを再現する。held先行除外と既確認remote SHA witnessの保持後、既存branch削除前拒否/途中削除後pin維持・最終再参照を含むsource reclaim/loop cleanup99tests・13subtests、contract190jobs、diffはPASS。実cleanup/provider/注文/資金/fenceの変更は0、容量回復や本番採用は未確認。
 
 > **正本はこの文書 1 本だけ（Dais 2026-09-29）。** 以前の `2026-09-15-life-manager-agent-architecture-refinement.md`（全体設計・meta loop #10）、`2026-09-22-paid-fulfillment-all-platforms-design.md`（Paid）、`skills/earn/gig/TODO.md`（gig TODO）と、`docs/superpowers/specs/` のほかの spec はすべて参照用。TODO・順序・状態はここだけを更新し、他のファイルに新しい TODO を書かない。
 
