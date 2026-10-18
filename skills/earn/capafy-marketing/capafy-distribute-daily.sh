@@ -154,6 +154,13 @@ if [ -n "$SEO_KEYWORD_JSON" ]; then
 k=json.load(sys.stdin)
 print(f"SEARCH TARGET (overrides the English-only GOAL line): write this page for the search query \"{k[\"query\"]}\" in language \"{k[\"lang\"]}\", natively. The H1 must contain the query. Copy the structure, length and tone of the template pages apps/landing/data/research/hook-generator-for-tiktok.json (en), ganchos-para-tiktok.json (es) and reels-video-hook-ja.json (ja) in the landing checkout: a short search-intent intro, 30-50 concrete ready-to-use examples of what the promoted product makes (hooks, script beats or titles, matching the query) grouped by niche or type, how to pick and test them, a short FAQ, then the CTA. Where an example needs a real figure, write a fill-in blank such as [ADD: your number]; never invent statistics. No notes to the editor in the body.")')"
   SEO_QUERY="$(printf '%s' "$SEO_KEYWORD_JSON" | python3 -c 'import json,sys;print(json.load(sys.stdin)["query"])')"
+  # Conversion (2026-10-18: 0% view->paid): show the seller's real published example right before the CTA.
+  SEO_EXAMPLE="$(python3 "$SELF_DIR/pick_seo_keyword.py" --example "$SELF_DIR/../../../capafy/catalog/$CAPAFY_SKILL_SLUG/LISTING.md" 2>/dev/null || true)"
+  if [ -n "$SEO_EXAMPLE" ]; then
+    SEO_BRIEF="$SEO_BRIEF
+Immediately above the CTA, add a section titled \"What the tool returns\" (written in the page language) that quotes this real, published example of the product's input and output. Keep the quoted example lines as given; translate only your own lead-in sentence:
+$SEO_EXAMPLE"
+  fi
   echo "capafy-distribute-daily: seo keyword=$SEO_KEYWORD_JSON" >>"$LOG"
 fi
 # Keyword pages must carry the query in the H1 and are announced to IndexNow (key file is public on aniccaai.com).

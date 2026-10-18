@@ -32,3 +32,18 @@ def test_every_seller_keyword_list_is_valid_and_globally_unique():
     files = sorted((Path(__file__).resolve().parents[1] / "seo").glob("*-keywords.json"))
     slugs = [k["slug"] for f in files for k in json.loads(f.read_text())]
     assert len(files) >= 3 and len(set(slugs)) == len(slugs)
+
+
+def test_listing_example_returns_the_published_example_section(tmp_path):
+    from pick_seo_keyword import listing_example
+    listing = tmp_path / "LISTING.md"
+    listing.write_text("# Title\n\n## 🧪 Example\n**You send:** a topic\n\n**You get back:** 5 hooks\n\n## ❓ FAQ\nq\n")
+    assert listing_example(listing) == "**You send:** a topic\n\n**You get back:** 5 hooks"
+    assert listing_example(tmp_path / "missing.md") == ""
+
+
+def test_every_seller_listing_has_an_example_to_quote():
+    from pick_seo_keyword import listing_example
+    catalog = Path(__file__).resolve().parents[3] / "capafy" / "catalog"
+    for skill in ("hook-lab", "tiktok-script-pro", "youtube-script-writer"):
+        assert "You send" in listing_example(catalog / skill / "LISTING.md") or listing_example(catalog / skill / "LISTING.md")
