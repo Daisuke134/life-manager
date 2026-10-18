@@ -20,7 +20,7 @@
 
 CI依存は既存6d8bbe6a96と同じ最小修正を再利用する。mainのpublic context auditはproduct digest不一致だけで失敗し、source context/READMEに本変更の差分はない。PRでは既存29 source testsを維持し、公開反映auditはmain push/manualへ残す。本番公開状態をsource PR前提へ戻さず、public不一致自体は未解決として保持する。
 
-現在cursor: TODO3の独立read-only review/PR。baseline18PASS、REDa5cfe222aaはcurrent/installed/open3条件でrelease_inventory TimeoutExpiredを再現する。held先行除外と既確認remote SHA witnessの保持後、既存branch削除前拒否/途中削除後pin維持・最終再参照を含むsource reclaim/loop cleanup99tests・13subtests、contract190jobs、diffはPASS。実cleanup/provider/注文/資金/fenceの変更は0、容量回復や本番採用は未確認。
+現在cursor: TODO4、PR #8361のexact-head CI確認→main統合。TODO1–3のsource検証は完了。baseline18PASS、REDa5cfe222aaはcurrent/installed/open3条件でrelease_inventory TimeoutExpiredを再現する。code2084b4f786はsource reclaim/loop cleanup99tests・13subtests、contract190jobs、context29tests、diff PASS。独立read-only reviewは既存21件＋独立fixture21条件でblocking0件。census後の参照追加、tracking差替え/stale拒否、branch削除後SHA witness、pin不一致/消失、missing commit、lease/symlink/FD欠測/deadlineを確認する。CI依存修正eccdaf8950を含む主コードは同一。CodeRabbitのskip表示はreview実施の証拠にせず、上記独立検証を採用する。実cleanup/provider/注文/資金/fenceの変更は0、容量回復や本番採用は未確認。
 
 > **正本はこの文書 1 本だけ（Dais 2026-09-29）。** 以前の `2026-09-15-life-manager-agent-architecture-refinement.md`（全体設計・meta loop #10）、`2026-09-22-paid-fulfillment-all-platforms-design.md`（Paid）、`skills/earn/gig/TODO.md`（gig TODO）と、`docs/superpowers/specs/` のほかの spec はすべて参照用。TODO・順序・状態はここだけを更新し、他のファイルに新しい TODO を書かない。
 
