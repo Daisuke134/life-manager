@@ -271,7 +271,11 @@ def _sync_live_ownership(state: Path, credentials_path: Path, cli_path: Path,
                         or row.get("reason") == "partial_fill_requires_reconciliation"):
                     no_fill = False
                 recorded = row.get("broker")
+                if row.get("receipt_type") == "outcome" and not isinstance(recorded, dict):
+                    no_fill = False
                 if isinstance(recorded, dict):
+                    if recorded.get("status") in {"filled", "partially_filled"}:
+                        no_fill = False
                     try:
                         quantity = Decimal(str(recorded.get("filled_qty")))
                         if not quantity.is_finite() or quantity != 0:
