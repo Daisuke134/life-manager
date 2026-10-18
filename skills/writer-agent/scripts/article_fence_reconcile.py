@@ -143,7 +143,6 @@ HISTORICAL_GATE_STOP_PROOFS = {
 RESUME_PASS_PREFIX = "article-resume: pass "
 NO_PUBLICATION_PASSES = {("publication-paused",), ("lock-held",),
                          ("start", "daily-schedule-not-due"), ("start", "self-heal")}
-PUBLICATION_PASSES = {("start", "publication"), ("start", "priority-publication", "publication")}
 NO_MODEL_REPAIR_STATUSES = {"NO_ACTIONABLE_INCIDENT", "NO_INCIDENT_QUEUE"}
 HISTORICAL_RESUME_CATCHUP_PROOFS = {
     # 2026-10-12 06:05 JST: catch-up exec'd article-daily.sh; run 20261011-210544 ended
@@ -468,8 +467,7 @@ def _ledger_row_epoch(row: dict) -> float | None:
 def _reconcile_resume(occurrence_id: str, *, queued_at: float, state: str, articles_path: Path,
                       fetch_json: Callable[[str], object], resolver: Callable[..., bool] | None,
                       resolve: bool, now: float, writer_root: Path, source_repo: Path = SOURCE_REPO,
-                      absence_readback: Callable[..., dict | None] | None = None,
-                      runs_root: Path = RUNS_ROOT, fetch_status: Callable[[str], int] = _http_status) -> dict:
+                      absence_readback: Callable[..., dict | None] | None = None) -> dict:
     """Prove no article-resume publication happened after the fence from official readbacks only."""
     if occurrence_id in HISTORICAL_RESUME_CATCHUP_PROOFS:
         proof = _historical_resume_catchup_proof(
@@ -484,16 +482,8 @@ def _reconcile_resume(occurrence_id: str, *, queued_at: float, state: str, artic
     if isinstance(pass_proof, dict):
         return _resolve_resume_proof(occurrence_id, pass_proof, state=state, resolver=resolver,
                                      resolve=resolve, writer_root=writer_root)
-    publication = _resume_publication_pass(
-        occurrence_id, queued_at, state=state, writer_root=writer_root, runs_root=runs_root,
-        articles_path=articles_path, fetch_status=fetch_status, absence_readback=absence_readback
-        or _official_absence_readback, resolver=resolver, resolve=resolve)
-    if isinstance(publication, dict):
-        return publication
-    if not pass_proof.startswith("pass_branch_not_publication_free:"):
-        publication = pass_proof
     if now - queued_at < RESUME_MIN_AGE_SECONDS:
-        return {**_inconclusive(occurrence_id, "fence_too_young"), "pass_record": publication}
+        return {**_inconclusive(occurrence_id, "fence_too_young"), "pass_record": pass_proof}
     lines = _jsonl_lines(articles_path)
     try:
         times = [_ledger_row_epoch(json.loads(line)) for line in lines]
@@ -575,75 +565,6 @@ def _resume_pass(writer_root: Path, occurrence_id: str, queued_at: float) -> tup
             or None in stamps or min(stamps) < queued_at - 1 or max(stamps) > until):
         return "pass_record_unbound"
     return report, until, lines, records, tuple(str(record.get("branch")) for _, record in records)
-
-
-def _resume_publication_pass(occurrence_id: str, queued_at: float, *, state: str, writer_root: Path,
-                             runs_root: Path, articles_path: Path, fetch_status: Callable[[str], int],
-                             absence_readback: Callable[..., dict | None],
-                             resolver: Callable[..., bool] | None, resolve: bool) -> dict | str:
-    """A pass that dispatched publication for one run R: every active pair of R must read back live
-    (ledger live_url for R + HTTP 200) or absent (owner listings over the pass window)."""
-    observed = _resume_pass(writer_root, occurrence_id, queued_at)
-    if isinstance(observed, str):
-        return observed
-    report, until, _lines, records, branches = observed
-    if branches not in PUBLICATION_PASSES:
-        return "pass_branch_not_publication:" + ",".join(branches)
-    if _killed(report.get("exit_code")):
-        return "pass_report_killed"   # detached children may outlive a killed pass
-    run_ids = {tuple(record.get("run_ids") or ()) for _, record in records if record.get("branch") != "start"}
-    if len(run_ids) != 1 or len(next(iter(run_ids))) != 1 \
-            or any(record.get("run_ids") != [] for _, record in records if record.get("branch") == "start"):
-        return "pass_run_unbound"
-    run_id = next(iter(run_ids))[0]
-    run_dir = runs_root / str(run_id)
-    if runs_root.is_symlink() or run_dir.is_symlink() or not run_dir.is_dir():
-        return "pass_run_dir_missing"
-    rows = _jsonl_lines(articles_path)
-    if rows is None:
-        return "articles_ledger_unreadable"
-    live = {}
-    for line in rows:
-        try:
-            row = json.loads(line)
-        except ValueError:
-            return "articles_ledger_unreadable"
-        url = str(row.get("live_url") or "")
-        pair = f"{row.get('platform')}/{row.get('lang')}"
-        if str(row.get("run_id", "")) == run_id and pair in ABSENCE_DESTINATIONS and url.startswith("https://"):
-            live.setdefault(pair, url)
-    live = {pair: url for pair, url in live.items() if fetch_status(url) == 200}
-    readback = absence_readback(run_dir, queued_at, until) if len(live) < len(ABSENCE_DESTINATIONS) else {}
-    destinations = (readback or {}).get("destinations") or {}
-    unproven = [pair for pair in ABSENCE_DESTINATIONS
-                if pair not in live and (destinations.get(pair) or {}).get("status") != "absent"]
-    if unproven:
-        return "pair_unproven:" + ",".join(unproven)
-    runtime_run_id = occurrence_id.split(":", 1)[1]
-    if live:
-        receipt = live[next(pair for pair in ABSENCE_DESTINATIONS if pair in live)]
-        result = {"status": "effected", "occurrence_id": occurrence_id, "closed": False,
-                  "provider_receipt_id": receipt, "run_id": run_id, "live_urls": live}
-        if not resolve:
-            return result
-        if resolver is None:
-            from runtime.host.resource_admission import resolve_unknown_occurrence
-            resolver = resolve_unknown_occurrence
-        proof = {"owner_id": RESUME_OWNER_ID, "occurrence_id": occurrence_id, "verified": True,
-                 "provider_receipt_id": receipt}
-        result["closed"] = bool(resolver(RESUME_OWNER_ID, occurrence_id, official_readback=lambda: proof,
-                                         expected_state=state))
-        return result
-    proof = {
-        "owner_id": RESUME_OWNER_ID, "occurrence_id": occurrence_id, "verified": True,
-        "proof_type": "historical_writer_resume_no_dispatch", "provider": "writer",
-        "runtime_run_id": runtime_run_id, "writer_run_id": run_id, "branches": list(branches),
-        "exit_code": report.get("exit_code"), "window": {"since": _iso(queued_at), "until": _iso(until)},
-        "destinations": {pair: destinations[pair] for pair in ABSENCE_DESTINATIONS},
-        "evidence_ref": f"writer://fence-reconciliation/article-resume-{runtime_run_id}.json",
-    }
-    return _resolve_resume_proof(occurrence_id, proof, state=state, resolver=resolver,
-                                 resolve=resolve, writer_root=writer_root)
 
 
 def _resume_pass_record_proof(occurrence_id: str, queued_at: float, *, writer_root: Path,
@@ -1095,8 +1016,7 @@ def reconcile(occurrence_id: str, *, queued_at: float, state: str, articles_path
         result = _reconcile_resume(occurrence_id, queued_at=queued_at, state=state,
                                    articles_path=articles_path, fetch_json=fetch_json,
                                    resolver=resolver, resolve=resolve, now=now, writer_root=writer_root,
-                                   source_repo=source_repo, absence_readback=absence_readback,
-                                   runs_root=runs_root, fetch_status=fetch_status)
+                                   source_repo=source_repo, absence_readback=absence_readback)
         return _central_closure_result(RESUME_OWNER_ID, result)
     if not occurrence_id.startswith(f"{OWNER_ID}:"):
         return _inconclusive(occurrence_id, "owner_not_allowlisted")

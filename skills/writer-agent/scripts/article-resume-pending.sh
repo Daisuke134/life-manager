@@ -883,6 +883,7 @@ echo "article-resume: publication queue foreground; self-heal deferred run=$(pri
 # incident claim/runbook decision so a repeatedly failing publication lane cannot
 # starve self-heal forever. READY passes --defer-model-always, so even a circuit
 # owner waits for the lock-free backlog=0 repair tick.
+# It executes no runbook and no external effect, so the pre_effect marker is still kept here.
 python3 "$ARTICLE_ROOT/scripts/writer_repair_dispatch.py" \
   --state-root "$STATE_DIR" \
   --scripts "$ARTICLE_ROOT/scripts" \
