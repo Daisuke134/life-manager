@@ -15140,6 +15140,8 @@ query境界の初回native probeはcontrol_target_absentで未判定。private n
 
 追加r2もcontrol_target_absentで包含境界は未判定。private native-activity-boundary-readonly-20261019-r2/capture.json SHA256=3dddcef29cfb60616eea35b11cddde08accdcf8287db9d2cff5123bb61b5643a、同account GET＋CFEE3queryの4GET/HTTP200でUTC日開始/開始+1microsecond/開始+1秒すべて既知ID0件。次は既知broad after＋固定now untilのcontrol、broad after＋対象翌日until、対象日開始（小数なし）after＋now until、対象created秒切捨（小数なし）after＋now untilの4query＋account GET1回（計5GET上限）を別r3原本へ保存し、上下boundとformatのどこで既知IDが消えるか独立に観測する。検証者はr1/r2のraw receipt/脚本/以前の捕捉との整合性をread-onlyで確認する。失敗を繰り返すためでなく観測を変えるprobeであり、未知のfee完全性/netを昇格しない。
 
+r3はcontrol成立で、private native-activity-boundary-readonly-20261019-r3/capture.json SHA256=00c9c73f329def36fc9cd784ec6a8e925eb356f3d23ef2cbc65dd65b609a0633。同account GET＋4queryの5GET/HTTP200で、broad control10件/対象IDあり、broad after＋対象翌日untilは0件/対象なし、日開始およびcreated秒切捨の小数なしafter＋現在untilは各10件/対象あり。until差が消失を再現するが、untilの値と表記は未分離のためprovider不具合/内部timestampの種類/after包含排他を断定しない。次のr4はbroad after固定でuntilを対象翌日/固定現在×小数なし/6桁小数ありの2×2にし、account GET＋4query（計5GET上限）の一回だけでformatを分離する。旧capture全件保持・新directory/O_EXCL・同credential reader/読取限定/private権限・全receipt保持を維持する。
+
 4. FILL/CFEE/その他native数量flowと口座quoteを時点・口座・cycle別に照合する。未説明差分とwallet/OCTの不明対応を隠さない。
 5. fee完全性・実paid model/system costs・FX・二重計上防止を揃え、producer/coreの費用後netへ接続する。未知費用はnullのまま残し、paper/live/cross-venueを混ぜない。
 6. 全R3のsource acceptance/PR #8360/CI/main統合→main由来immutable→対象ローカルowner採用→自然実行・公式readbackを確認する。現在の実装を本番反映済みとは扱わない。
