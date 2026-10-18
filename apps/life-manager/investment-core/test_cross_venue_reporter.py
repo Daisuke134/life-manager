@@ -26,6 +26,7 @@ def snapshot(venue="alpaca", receipt_id=None):
         "slippage_usd": "0.25",
         "gas_usd": "0.1",
         "model_cost_usd": "0.15",
+        "system_cost_usd": "0.00",
         "source_receipt_ids": [receipt_id or f"{venue}-receipt"],
         "risk": {"drawdown_fraction": "0.01", "round_trips": 30, "capital_at_risk_usd": "100"},
         "measurement_status": "measured",

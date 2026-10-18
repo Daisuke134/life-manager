@@ -67,6 +67,7 @@ def render_daily_pnl(aggregate: Mapping[str, Any], allocation: Mapping[str, Any]
         f"slippage: {_money(aggregate.get('slippage_usd'))}",
         f"gas: {_money(aggregate.get('gas_usd'))}",
         f"model cost: {_money(aggregate.get('model_cost_usd'))}",
+        f"システム費用: {_money(aggregate.get('system_cost_usd'))}",
         f"owner cash flow: {_money(aggregate.get('owner_cash_flow_usd'))}",
         f"net P&L: {_money(aggregate.get('net_pnl_usd'))}",
         f"rolling period end: {aggregate.get('rolling_period_end') or '不明'}",

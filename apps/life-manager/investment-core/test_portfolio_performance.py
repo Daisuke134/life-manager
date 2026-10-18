@@ -26,6 +26,7 @@ def snapshot_payload(**changes):
         "slippage_usd": "0.00",
         "gas_usd": "0.00",
         "model_cost_usd": "0.00",
+        "system_cost_usd": "0.00",
         "source_receipt_ids": ["alpaca-receipt-1"],
         "risk": {"drawdown_usd": "0.00"},
         "measurement_status": "measured",

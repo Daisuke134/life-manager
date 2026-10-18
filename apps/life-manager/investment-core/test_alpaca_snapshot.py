@@ -73,6 +73,7 @@ class AlpacaSnapshotTests(unittest.TestCase):
         self.assertIsNone(snapshot["funding_or_borrow_usd"])
         self.assertIsNone(snapshot["gas_usd"])
         self.assertIsNone(snapshot["model_cost_usd"])
+        self.assertIsNone(snapshot["system_cost_usd"])
         self.assertEqual(snapshot["measurement_status"], "partial")
         self.assertEqual(snapshot["cost_evidence"], {})
         self.assertEqual(snapshot["source_receipt_ids"], PERFORMANCE["source_receipt_ids"])
@@ -85,6 +86,7 @@ class AlpacaSnapshotTests(unittest.TestCase):
             "funding_or_borrow_usd": "0.00",
             "gas_usd": "0.00",
             "model_cost_usd": "0.00",
+            "system_cost_usd": "0.00",
         }
 
         snapshot = self._builder()(performance, OBSERVATION, RISK)

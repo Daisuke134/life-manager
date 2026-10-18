@@ -18,6 +18,7 @@ _COST_FIELDS = (
     "slippage_usd",
     "gas_usd",
     "model_cost_usd",
+    "system_cost_usd",
 )
 
 
@@ -60,6 +61,7 @@ def venue_net(snapshot: Any) -> dict[str, Any]:
         "slippage_usd": _money(row.slippage_usd),
         "gas_usd": _money(row.gas_usd),
         "model_cost_usd": _money(row.model_cost_usd),
+        "system_cost_usd": _money(row.system_cost_usd),
         "net_pnl_usd": _money(net),
         "source_receipt_ids": list(row.source_receipt_ids),
         "measurement_status": "measured",

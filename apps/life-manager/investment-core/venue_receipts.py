@@ -19,6 +19,7 @@ _MONEY_FIELDS = (
     "slippage_usd",
     "gas_usd",
     "model_cost_usd",
+    "system_cost_usd",
 )
 _COST_FIELDS = _MONEY_FIELDS[3:]
 
@@ -81,8 +82,6 @@ def normalize_receipts(venue: str, rows: Iterable[dict[str, Any]]) -> VenueSnaps
                 amount = Decimal(str(value))
                 if not amount.is_finite():
                     return _unknown("snapshot_number_invalid")
-                if field_name in _COST_FIELDS and amount < 0:
-                    return _unknown("cost_invalid")
                 totals[field_name] += amount
                 if field_name in _COST_FIELDS:
                     cost_evidence[field_name].append(receipt_id)
@@ -101,6 +100,7 @@ def normalize_receipts(venue: str, rows: Iterable[dict[str, Any]]) -> VenueSnaps
         "slippage_usd": totals["slippage_usd"],
         "gas_usd": totals["gas_usd"],
         "model_cost_usd": totals["model_cost_usd"],
+        "system_cost_usd": totals["system_cost_usd"],
         "source_receipt_ids": source_ids,
         "risk": latest_row.get("risk"),
         "measurement_status": "measured",
