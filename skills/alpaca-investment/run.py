@@ -480,9 +480,14 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
         if "value" in reconciled_observation:
             observation = reconciled_observation["value"]
         stage = "campaign_read"
-        campaign = (_paper_campaign(
-            state=state, credentials_path=credentials_path, cli_path=cli_path)
-            if mode == "paper" else _nonpaper_campaign(observation))
+        if mode == "paper" and ownership and ownership.get("status") in {"entry_pending", "closing"}:
+            campaign = {"exit_status": "OWNERSHIP_PENDING", "paper": True,
+                        "positions": observation["positions"], "realized_pnl_usd": None,
+                        "unrealized_pnl_usd": None}
+        else:
+            campaign = (_paper_campaign(
+                state=state, credentials_path=credentials_path, cli_path=cli_path)
+                if mode == "paper" else _nonpaper_campaign(observation))
         effect = "none"
         if campaign["exit_status"] == "EXIT_READY":
             exit_decision = {
