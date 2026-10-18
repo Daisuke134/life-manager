@@ -56,4 +56,31 @@ if [ -z "$PROMPT_LEN" ] || [ "$PROMPT_LEN" -lt 20000 ]; then
   exit 1
 fi
 
+# 2026-10-19: the same failure hit an ARMED publish addendum (STEP 11-20): an apostrophe in
+# STEP 17 ("pair's") ended the single-quoted literal, the publish steps never reached the model,
+# and no pair was published. Execute every PROMPT="${PROMPT}"'...' addendum and require its last
+# line to survive in PROMPT.
+ADD_SNIPPET="$(mktemp)"
+trap 'rm -f "$TMP_SNIPPET" "$ADD_SNIPPET"' EXIT
+ADDENDA=0
+while IFS=: read -r ADD_START ADD_END; do
+  ADDENDA=$((ADDENDA + 1))
+  LAST_TEXT="$(sed -n "${ADD_END}p" "$SOURCE_SH" | cut -c1-40)"
+  {
+    echo 'PROMPT=base'
+    sed -n "${ADD_START},${ADD_END}p" "$SOURCE_SH"
+    printf 'case "$PROMPT" in *%q*) echo ADDENDUM_INTACT=yes ;; *) echo ADDENDUM_INTACT=no ;; esac\n' "$LAST_TEXT"
+  } > "$ADD_SNIPPET"
+  ADD_OUTPUT="$(bash "$ADD_SNIPPET" 2>&1 || true)"
+  if echo "$ADD_OUTPUT" | grep -Fq "command not found" || ! echo "$ADD_OUTPUT" | grep -q "^ADDENDUM_INTACT=yes"; then
+    echo "article daily prompt quoting: FAIL (addendum at line $ADD_START was truncated -- unescaped apostrophe inside its single-quoted literal)" >&2
+    echo "$ADD_OUTPUT" >&2
+    exit 1
+  fi
+done < <(awk -v q="'" '
+  index($0, "  PROMPT=\"${PROMPT}\"" q) == 1 && length($0) == 21 { start = NR; next }
+  start && substr($0, length($0), 1) == q { print start ":" NR; start = 0 }
+' "$SOURCE_SH")
+[ "$ADDENDA" -ge 3 ] || { echo "article daily prompt quoting: FAIL (expected >=3 publish addenda, found $ADDENDA)" >&2; exit 1; }
+
 echo "article daily prompt quoting: PASS (len=$PROMPT_LEN)"
