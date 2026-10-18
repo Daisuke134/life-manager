@@ -4,7 +4,7 @@ No provider, environment, marker-file or ledger writes occur in these readers.
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 import hashlib
 import json
@@ -62,6 +62,99 @@ def _terminal_no_fill_proven(order: dict[str, Any], rows: list[dict[str, Any]], 
                 or _filled_qty_positive(recorded)):
             return False
     return True
+
+
+def crypto_fill_activity_proof(snapshot: dict[str, Any], broker: dict[str, Any], *, mode: str) -> dict[str, Any]:
+    """Validate cumulative native fills, without modifying nullable order facts.
+
+    This is execution evidence, not ownership, terminal reconciliation, fee
+    settlement, or permission to place another order.
+    """
+    try:
+        if (mode not in {"paper", "live"} or not isinstance(snapshot, dict) or not isinstance(broker, dict)
+                or type(snapshot.get("schema_version")) is not int or snapshot["schema_version"] != 1
+                or snapshot.get("mode") != mode or snapshot.get("paper") is not (mode == "paper")
+                or snapshot.get("pagination") != "exhausted"
+                or snapshot.get("fee_attribution_status") != "unknown"
+                or snapshot.get("fee_settlement_status") != "unknown"
+                or snapshot.get("net_realized_pnl_usd") is not None):
+            raise ValueError
+        body = {key: value for key, value in snapshot.items() if key != "source_receipt_id"}
+        if snapshot.get("source_receipt_id") != "alpaca-crypto-activities:" + _digest([body]):
+            raise ValueError
+        start, end = (parse_instant(snapshot[key]) for key in ("requested_period_start", "requested_period_end"))
+        after = start.astimezone(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        request = snapshot["request"]
+        if (not isinstance(request, dict) or start > end or end - start > timedelta(days=90)
+                or parse_instant(request.get("after")) != after or parse_instant(request.get("until")) != end
+                or request.get("direction") != "asc" or type(request.get("page_size")) is not int
+                or request["page_size"] != 100):
+            raise ValueError
+        fills, fees = snapshot["fills"], snapshot["fees"]
+        if (not isinstance(fills, list) or not isinstance(fees, list) or len(fills) >= 400 or len(fees) >= 400):
+            raise ValueError
+        seen: set[str] = set()
+        for kind, rows in (("FILL", fills), ("CFEE", fees)):
+            for row in rows:
+                if (not isinstance(row, dict) or row.get("activity_type") != kind
+                        or not isinstance(row.get("id"), str) or not row["id"].strip() or row["id"] in seen):
+                    raise ValueError
+                seen.add(row["id"])
+        if (any(not isinstance(broker.get(key), str) or not broker[key].strip() for key in ("id", "client_order_id"))
+                or broker.get("symbol") not in {"BTCUSDC", "BTC/USDC"} or broker.get("side") not in {"buy", "sell"}
+                or broker.get("type") != "market" or broker.get("time_in_force") != "gtc"
+                or broker.get("status") not in ({"filled", "partially_filled"}
+                    | BROKER_TERMINAL_FAILURE_STATUSES | BROKER_RESUMABLE_STATUSES)):
+            raise ValueError
+        filled_qty = Decimal(str(broker.get("filled_qty")))
+        submitted = parse_instant(broker.get("submitted_at"))
+        if not filled_qty.is_finite() or filled_qty <= 0 or not start <= submitted <= end:
+            raise ValueError
+        executions: list[tuple[datetime, dict[str, Any], Decimal, Decimal]] = []
+        for row in fills:
+            if (not isinstance(row.get("order_id"), str) or not row["order_id"].strip()
+                    or not isinstance(row.get("symbol"), str) or not row["symbol"].strip()
+                    or row.get("side") not in {"buy", "sell"}):
+                raise ValueError
+            qty, price = Decimal(str(row.get("qty"))), Decimal(str(row.get("price")))
+            executed = parse_instant(row.get("transaction_time"))
+            if any(not number.is_finite() or number <= 0 for number in (qty, price)):
+                raise ValueError
+            if row["order_id"] != broker["id"]:
+                continue
+            if (row["symbol"].replace("/", "") != "BTCUSDC" or row["side"] != broker["side"]
+                    or not submitted <= executed <= end):
+                raise ValueError
+            executions.append((executed, row, qty, price))
+        total = sum((row[2] for row in executions), Decimal("0"))
+        if total > filled_qty:
+            raise ValueError
+        if total < filled_qty:
+            raise ReconciliationPending("owned_crypto_fills_pending")
+        executions.sort(key=lambda row: (row[0], row[1]["id"]))
+        average = sum((row[2] * row[3] for row in executions), Decimal("0")) / total
+        if not average.is_finite() or average <= 0:
+            raise ValueError
+        if broker.get("filled_avg_price") not in (None, ""):
+            known_average = Decimal(str(broker["filled_avg_price"]))
+            if (not known_average.is_finite() or known_average <= 0
+                    or abs(known_average - average) > Decimal("0.000001")):
+                raise ValueError
+        if broker["status"] == "filled" and broker.get("filled_at") not in (None, ""):
+            if not executions[-1][0] <= parse_instant(broker["filled_at"]) <= end:
+                raise ValueError
+    except ReconciliationPending:
+        raise
+    except (ValueError, KeyError, TypeError, AttributeError, ArithmeticError) as error:
+        raise ValueError("owned_crypto_fills_invalid") from error
+    return {"schema_version": 1, "kind": "crypto_order_fills", "mode": mode, "paper": mode == "paper",
+        "provider_order_id": broker["id"], "client_order_id": broker["client_order_id"],
+        "symbol": "BTC/USDC", "side": broker["side"], "broker_status": broker["status"],
+        "filled_qty": format(total.normalize(), "f"), "weighted_avg_price_native": format(average.normalize(), "f"),
+        "first_execution_at": executions[0][0].isoformat(), "last_execution_at": executions[-1][0].isoformat(),
+        "fill_activity_ids": [row[1]["id"] for row in executions], "quote_currency": "USDC",
+        "source_receipt_id": snapshot["source_receipt_id"], "fee_attribution_status": "unknown",
+        "fee_settlement_status": "unknown", "net_realized_pnl_usd": None}
 
 
 def _known_policy_metadata(row: dict[str, Any], *, owner_id: str, strategy_id: str, release_sha: str) -> None:
