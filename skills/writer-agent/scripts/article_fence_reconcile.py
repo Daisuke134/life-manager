@@ -575,7 +575,9 @@ def _resume_pass_record_proof(occurrence_id: str, queued_at: float, *, writer_ro
             status = json.loads(lines[index]).get("status") if index < len(lines) else None
         except (ValueError, AttributeError):
             status = None
-        if status not in NO_MODEL_REPAIR_STATUSES:
+        # Both the pinned and current wrappers log a nonzero dispatcher exit right after its result.
+        failed = index + 1 < len(lines) and lines[index + 1] == "article-resume: repair routing failed closed"
+        if status not in NO_MODEL_REPAIR_STATUSES or failed:
             return "pass_self_heal_may_have_run_model"
 
     rows = _jsonl_lines(articles_path)

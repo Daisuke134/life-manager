@@ -1292,6 +1292,8 @@ def test_a_resume_pass_that_may_have_published_stays_fenced(tmp_path):
         "catch-up exec": dict(records=[_pass_record("start", "2026-10-17T21:54:30Z"),
                                        _pass_record("missed-daily-schedule-catch-up", "2026-10-17T21:54:31Z")]),
         "repair model routed": dict(after_self_heal='{"status":"ROUTED"}'),
+        "dispatcher failed": dict(after_self_heal='{"status":"NO_ACTIONABLE_INCIDENT"}\n'
+                                                  'article-resume: repair routing failed closed'),
         "nonzero exit": dict(exit_code=1),
         "no records": dict(records=[]),
         "foreign pid": dict(records=[_pass_record("start", "2026-10-17T21:54:30Z"),

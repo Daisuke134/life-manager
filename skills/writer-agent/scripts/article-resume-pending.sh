@@ -42,9 +42,10 @@ pass_record() {
     | sed 's/^/article-resume: pass /' >>"$LOG" 2>/dev/null || true
 }
 
-# The verified no-effect result belongs to this wrapper alone (copy of article-daily #8247): no
-# child sees the hint path or occurrence, anything a child writes at the guessable path is
-# removed, and the hint is written only on a branch that provably dispatched no publisher.
+# The verified no-effect result belongs to this wrapper alone (copy of article-daily #8247): only
+# the exec'd trusted entrypoints (owner fence, article-daily.sh with its own isolation) receive the
+# hint path or occurrence; anything another child writes at the guessable path is removed, and the
+# hint is written only on a branch that provably dispatched no publisher.
 RESULT_HINT_PATH="${LIFE_MANAGER_RESULT_HINT_PATH:-}"
 RESULT_OCCURRENCE_ID="${LIFE_MANAGER_OCCURRENCE_ID:-}"
 export -n LIFE_MANAGER_RESULT_HINT_PATH LIFE_MANAGER_OCCURRENCE_ID
@@ -56,7 +57,8 @@ drop_foreign_result_hint() {
 }
 write_no_effect_hint() {
   [ -n "$RESULT_HINT_PATH" ] && [ -n "$RESULT_OCCURRENCE_ID" ] || return 0
-  local temporary="$RESULT_HINT_PATH.$$.tmp"
+  local temporary
+  temporary="$(mktemp "$RESULT_HINT_PATH.XXXXXX")" || return 1
   if (umask 077 && jq -cn --arg occurrence_id "$RESULT_OCCURRENCE_ID" --arg reason "$1" \
       '{schema_version:1, kind:"life_manager_no_effect_result", status:"verified_no_effect",
         effect:0, owner_id:"article-resume", occurrence_id:$occurrence_id, reason:$reason}' \
