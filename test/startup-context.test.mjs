@@ -355,3 +355,13 @@ test("public artifact validator blocks legacy product values, PII, and placehold
   assert.match(validatePublicArtifact(`${metadata}Life Manager was accepted to Example Accelerator.`, context).join("\n"), /unverified-application-outcome/);
   assert.deepEqual(validatePublicArtifact(`${metadata}Product: Life Manager`, context), []);
 });
+
+test("published /lm marketing page carries the current context version and digest", async () => {
+  const context = await loadStartupContext(contextPath);
+  const page = await readFile(
+    new URL("../apps/landing/marketing/pages/life-manager-en.html", import.meta.url),
+    "utf8",
+  );
+  assert.ok(page.includes(context.context_version));
+  assert.ok(page.includes(contextDigest(context)));
+});
