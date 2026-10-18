@@ -109,6 +109,7 @@ class PeriodicOperatingCostsTests(unittest.TestCase):
                     child.update(period_end='2026-09-25T00:00:00Z')
                     payload['readback']['cost_scopes'][0].update(child)
                     payload['job_joins'][0].update(child)
+                    payload['job_joins'][0].pop('scope_kind')
                     inventory['scopes'][0].update(child)
                     payload['documents'][0]['line_items'][0]['occurred_at']='2026-09-24T12:00:00Z'
                     if paid:payload['documents'][0]['billing_account_ref']='foreign-account'
