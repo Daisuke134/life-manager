@@ -93,7 +93,8 @@ def _fee_inventory(cycles,snapshots):
             unattributed.append({'fee_activity_id':item['fee_activity_id'],
                 'source_receipt_ids':item['source_receipt_ids'],'reason':reason})
         else: valid.append(item)
-    return {'observed_fee_count':len(observed),'attributed_native_fees':valid,
+    return {'observation_scope':'account_activity_windows','observed_fee_count':len(observed),
+        'attribution_cycle_ids':[c['cycle_id'] for c in cycles],'attributed_native_fees':valid,
         'unattributed_fees':unattributed,'fee_settlement_status':'unknown',
         'fee_completeness_status':'unknown','next_action':'read_late_fee_postings_and_reconcile_unattributed_evidence'}
 
@@ -288,7 +289,10 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
         _atomic_json(latest,payload)
         for closed_day in sorted({parse_instant(c['closed_at']).astimezone(timezone.utc).date().isoformat() for c in result['cycles']}):
             cycles=[c for c in result['cycles'] if parse_instant(c['closed_at']).astimezone(timezone.utc).date().isoformat()==closed_day]
-            daily={**payload,'cycles':cycles,**_summary(cycles),'performance_day':closed_day,
+            ids={c['cycle_id'] for c in cycles}
+            fee_evidence={**result['fee_evidence'],'attribution_cycle_ids':sorted(ids),
+                'attributed_native_fees':[f for f in result['fee_evidence']['attributed_native_fees'] if f['cycle_id'] in ids]}
+            daily={**payload,'cycles':cycles,'fee_evidence':fee_evidence,**_summary(cycles),'performance_day':closed_day,
                    'observed_at':max(c['closed_at'] for c in cycles),'report_scope':'owned_crypto_cycles_daily'}
             _atomic_json(state/f'performance-crypto-daily-{closed_day}.json',daily)
         return payload
