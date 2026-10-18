@@ -22,7 +22,7 @@ _CORE = _ROOT / "apps" / "life-manager" / "investment-core"
 if str(_CORE) not in sys.path:
     sys.path.append(str(_CORE))
 
-from alpaca_cli import read_etf_daily_history  # noqa: E402
+from alpaca_cli import read_crypto_validation_history, read_etf_daily_history  # noqa: E402
 from etf_momentum import (  # noqa: E402
     ETF_MOMENTUM_UNIVERSE,
     build_validation_report,
@@ -207,6 +207,34 @@ def build_report_from_history(
     ).isoformat().replace("+00:00", "Z")
     report["completed_through_session"] = completed_through_session
     return report
+
+
+def build_crypto_reports_for_period(
+    *, start: datetime, end: datetime, observed_at: str,
+    credentials_path: Path, cli_path: Path, release_sha: str,
+) -> list[dict[str, Any]]:
+    """Fetch every bounded interval before evaluating the two existing BTC cards."""
+    if (not isinstance(start, datetime) or not isinstance(end, datetime)
+            or start.tzinfo is None or end.tzinfo is None
+            or not timedelta(0) < end - start <= timedelta(days=90)
+            or end > _parse_timestamp(observed_at)
+            or any(moment.timestamp() % 300 for moment in (start, end))
+            or not is_valid_release_sha(release_sha)):
+        raise ValueError("crypto_validation_period_invalid")
+    bars, conversions, receipts = [], [], []
+    cursor = start
+    while cursor < end:
+        chunk_end = min(cursor + timedelta(hours=6), end)
+        chunk = read_crypto_validation_history(
+            credentials_path=credentials_path, cli_path=cli_path,
+            start=cursor, end=chunk_end, observed_at=observed_at)
+        bars.extend(chunk["crypto_history"])
+        conversions.extend(chunk["quote_conversions"])
+        receipts.extend(chunk["source_receipt_ids"])
+        cursor = chunk_end
+    return build_crypto_reports_from_history(
+        bars, quote_conversions=conversions, source_receipt_ids=receipts,
+        release_sha=release_sha, observed_at=observed_at)
 
 
 def build_crypto_reports_from_history(
