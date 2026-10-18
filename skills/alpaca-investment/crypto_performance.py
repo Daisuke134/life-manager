@@ -243,6 +243,19 @@ def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None,fee_ac
     orphan=[r['effect_id'] for r in sells if r['effect_id'] not in matched_sells]
     unscoped=[r.get('effect_id') for r in rows if r.get('receipt_type')=='effect_intent' and r.get('status')=='planned'
         and isinstance(r.get('order'),dict) and r['order'].get('asset_class')=='crypto' and r.get('mode')==mode and r.get('owner_id')!=owner_id]
+    fee_inventory=_fee_inventory(cycles,fee_snapshots)
+    quote_fees={}
+    for fee in fee_inventory['attributed_native_fees']:
+        if fee['asset']=='USDC':quote_fees.setdefault(fee['cycle_id'],[]).append(fee)
+    for cycle in cycles:
+        observed=quote_fees.get(cycle['cycle_id'],[])
+        subtotal=sum((Fraction(f['quantity']) for f in observed),Fraction()) if observed else None
+        cycle['observed_quote_fee_subtotal_usdc']=_quantity_text(subtotal) if subtotal is not None else None
+        cashflow=cycle['execution_cashflow_usdc']
+        cycle['cashflow_after_observed_quote_fees_usdc']=(_quantity_text(Fraction(cashflow)-subtotal)
+            if cashflow is not None and subtotal is not None else None)
+        cycle['quote_fee_activity_ids']=sorted(f['fee_activity_id'] for f in observed)
+        cycle['quote_fee_coverage_status']='partial' if observed else 'unknown'
     return {'schema_version':1,'report_scope':'owned_crypto_cycles','owner_id':owner_id,'mode':mode,'paper':mode=='paper',
         'measurement_status':'partial','reason':'crypto_costs_or_fx_unknown','capital_expansion_allowed':False,
         'cycle_coverage_status':'partial' if pending or orphan or unscoped else 'complete',
@@ -251,7 +264,7 @@ def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None,fee_ac
         'unmatched_sell_effect_ids':orphan,'unscoped_effect_ids':unscoped,'missing_activity_order_ids':sorted(missing),
         'activity_requests':[{'order_id':key,**value} for key,value in sorted(missing.items())],
         'fee_period_start':min(periods,key=parse_instant) if periods else None,
-        'source_receipt_ids':sorted(sources),'fee_evidence':_fee_inventory(cycles,fee_snapshots),**_summary(cycles)}
+        'source_receipt_ids':sorted(sources),'fee_evidence':fee_inventory,**_summary(cycles)}
 
 
 def _read_activity(**kwargs):
