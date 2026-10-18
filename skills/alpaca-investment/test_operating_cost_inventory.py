@@ -98,4 +98,14 @@ class OperatingCostInventoryTests(unittest.TestCase):
                 self.assertIsNone(result['net_pnl_usd']);self.assertIsNone(result['model_cost_usd'])
                 self.assertFalse(result['capital_expansion_allowed'])
 
+    def test_rejection_reason_is_saved_with_the_exact_scope(self):
+        payload,inventory,trip=setup();payload['sources'][0]['product_loop_ids']='not-investment'
+        result=summarize([trip],payload,owner_id=trip['owner_id'],observed_at=inventory['observed_at'],expected_inventory=inventory)
+        self.assertEqual(result['operating_cost_coverage']['coverage_state'],'gap')
+        errors=result['operating_cost_query_rejections']
+        self.assertEqual(len(errors),1)
+        self.assertEqual(errors[0]['reason'],'cost_query_source_missing')
+        self.assertEqual(errors[0]['order_ids'],trip['order_ids'])
+        self.assertEqual(select_components(result,[])['operating_cost_query_rejections'],[])
+
 if __name__=='__main__':unittest.main()
