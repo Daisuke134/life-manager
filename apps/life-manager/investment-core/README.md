@@ -336,8 +336,13 @@ execution references. The existing reader advances one window of at most 90 days
 per run; a completed UTC day waits for the next day, and the same successful
 observation replays without reads. Invalid snapshots retain prior cache/anchors.
 New or conflicting fills for completed orders are rejected; daily generated_as_of
-records when historical results were actually rebuilt. Page-limit recovery still
-needs window shrinking; the reader currently retains unknown and its cache.
-This branch is source only: page-limit recovery and unlinked official evidence, quantity
+records when historical results were actually rebuilt. Page limits shrink the
+actual UTC window for the next run; unrelated failures retain its width. A minimum
+day limit retains its exact range and prevents larger-prefix repeat reads.
+Missing executions advance from saved window ends. Local schema2 activity bundles
+retain the original bounded wire snapshots and validate contiguous coverage and
+quantity with the same execution proof; they never claim one provider response.
+CFEE attribution uses each original segment's time window and receipt reference.
+This branch is source only: within-day page-token continuation and unlinked official evidence, quantity
 drift, FX and complete actual costs, deployment, natural outcomes and profitable
 evaluation remain in the canonical SSOT.
