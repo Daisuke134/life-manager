@@ -15141,7 +15141,9 @@ crypto cycleのperiod_endはaccount観測時計、closed_atは経済close時計�
 
 **D4 正確算術とowner-period境界:** 9999.99と0.00000001の同category支払いを足す反例で、既存max表示桁だけのprecisionでは微小分が丸まることをREDで確認する。正確な必要precisionは最大整数桁+最大小数scale+件数carryから取る。scope adapterのpaid/query parserを既存B0 significant-digit contextで局所実行し、callerの低precision/trapで検証済み費用が消えないようにする。B0 parser自体/領収書/全体projectionは変更しない。
 
-owner_periodが同期間内のverified child trade費用を持つ場合、まだ子費用を集約しないviewからmodel/system=0を返さずrollup未確定gapを残す。childの正しい単独合計は保持し、parentへの包括的集約/idle/periodicは次の実装事項として残す。同じsource proofで子へ帰属したことは別trade scopeからの除外根拠になるが、包括owner_periodのゼロ根拠にはならない。
+owner_periodが同期間内のverified child trade費用を持つ場合、親の最終queryと子の独立した実行費用proofが揃う範囲を元bindingのまま包括集約する。証明が不足するviewはmodel/system=0を返さずgapを残す。childの単独合計は保持し、idle/periodicの未証明費用を取引費用の集約で確定しない。
+
+**D4 owner-period包括集約の契約・所有:** primary codex-rootがpaper_operating_costs.py・既存totals tests・READMEを所有する。既存のscope query validator/charge identity/selectorを再利用する。明示owner_periodを要求する時は同owner/modeのreadback内child scopeも独立inventoryで検証し、親の最終queryが同provider/account/category/documentを覆う場合だけ、暦期間内occurred_atの確認済みchild componentを元bindingのまま集約する。親だけを要求しても子費用を失わず、親+子の合計は同charge一回。親query不足/子費用の未帰属/拒否は親gapを保ち、単独childはそのまま、別期間・owner・mode・accountを混ぜない。既存の固定費/periodic service-period配賦は別の未完事項であり、今回の取引実行費用の集約で代用しない。RED→GREEN・関連/全体test・限定金融review後にsource受入する。provider/本番state/注文/wake/資金/fenceは変更しない。
 
 **D4 totalsのゼロ判断境界:** account不明のowned paid/unpaid文書を、別accountのno_charge_finalへ便乗させない。verified paid recordだけでなく、当該owner/mode/group/期間を明示するraw allocationが未検証ならdocument/allocation参照のgapを残す（未払いをmoney receiptへしない）。legacy経済期間内の既知subtotalは保持しても、verified attributionが無い成分を全費用合計へ昇格しない。他scopeへ帰属することを同じ計算でverified componentが証明する場合だけscope外として除外でき、他ownerの未証明自己申告だけで0にはしない。
 

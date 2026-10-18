@@ -168,7 +168,7 @@ class OperatingCostTotalsTests(unittest.TestCase):
             result=report(payload,inventory,trip)
         self.assertEqual(result['model_cost_usd'],'9999.99000001')
 
-    def test_calendar_view_does_not_report_zero_by_excluding_verified_child_charge(self):
+    def test_calendar_view_includes_verified_child_once_without_rebinding(self):
         payload,inventory,child=window_fixture()
         owner=child['owner_id'];parent=copy.deepcopy(payload['readback']['cost_scopes'][0])
         parent.update(scope_id='calendar-scope',scope_kind='owner_period',order_ids=[],period_end='2026-10-01T00:00:00Z')
@@ -183,8 +183,14 @@ class OperatingCostTotalsTests(unittest.TestCase):
         inventory['scopes'].append(scope)
         result=summarize([child,parent],payload,owner_id=owner,observed_at=inventory['observed_at'],expected_inventory=inventory)
         calendar=select_components(result,[parent])
-        self.assertIsNone(calendar['model_cost_usd'])
-        self.assertEqual(calendar['operating_cost_coverage']['coverage_state'],'gap')
+        self.assertEqual(calendar['model_cost_usd'],'1')
+        self.assertEqual(calendar['operating_cost_coverage']['coverage_state'],'complete')
+        self.assertEqual(calendar['operating_cost_components'][0]['order_ids'],child['order_ids'])
+        self.assertEqual(result['model_cost_usd'],'1')
+        alone=summarize([parent],payload,owner_id=owner,observed_at=inventory['observed_at'],expected_inventory=inventory)
+        self.assertEqual(alone['model_cost_usd'],'1')
+        self.assertEqual(alone['operating_cost_components'][0]['order_ids'],child['order_ids'])
+        self.assertEqual(select_components(alone,[parent])['model_cost_usd'],'1')
         self.assertEqual(select_components(result,[child])['model_cost_usd'],'1')
 
 if __name__=='__main__':unittest.main()
