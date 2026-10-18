@@ -166,7 +166,7 @@ class CryptoEntryAccountTests(unittest.TestCase):
                                 risk_day_path=Path(directory) / 'risk-day.json'))
                     self.assertEqual(value['account'].get('id'), ACCOUNT_A)
 
-    def entry_main(self, root, mode, *, fresh_account=ACCOUNT_A, filled=False, pre_trade_readback=None):
+    def entry_main(self, root, mode, *, fresh_account=ACCOUNT_A, filled=False, pre_trade_readback=None, flow_readback=None, flow_requests=None):
         native = native_run()
         raw = _snapshot(mode)
         raw['account']['id'] = ACCOUNT_A
@@ -177,7 +177,11 @@ class CryptoEntryAccountTests(unittest.TestCase):
             'expires_at': '2099-01-01T00:00:00Z'}))
         reads = []
         provider_order = {}
-        def allocator_read(**_):
+        def allocator_read(**kwargs):
+            if flow_requests is not None:
+                flow_requests.append({'has_sink':'flow_sink' in kwargs,'read_index':len(reads)})
+            if kwargs.get('flow_sink') is not None and flow_readback is not None:
+                kwargs['flow_sink'].append(copy.deepcopy(flow_readback))
             value = copy.deepcopy(raw)
             if reads:
                 value['account']['id'] = fresh_account
