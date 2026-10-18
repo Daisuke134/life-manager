@@ -96,6 +96,34 @@ class PaperOperatingCostTests(unittest.TestCase):
         self.assertEqual(result["operating_cost_source_receipt_ids"],
                          [row["receipt_id"] for row in result["operating_cost_components"]])
 
+    def test_final_paid_query_uses_existing_paid_records_and_stays_partial(self):
+        from skills.cfo.test_actual_cost_attribution import query_payload
+        payload = _readback()
+        q = query_payload()
+        trip = _closed_round_trips(_rows())[0][0]
+        scope = q["readback"]["cost_scopes"][0]
+        scope.update(owner_id=OWNER, order_ids=trip["order_ids"],
+                     period_start=trip["period_start"], period_end=trip["closed_at"],
+                     source_receipt_ids=trip["source_receipt_ids"])
+        stamp = payload["readback"]["observed_at"]
+        query = q["sources"][0]["queries"][0]
+        query.update(window_start=trip["period_start"], window_end=stamp, observed_at=stamp,
+                     finalized_through=stamp, settlement_state="paid_final", document_ids=["invoice-paper"])
+        payload["sources"][0].update(billing_account_refs=["billing-account"], queries=[query])
+        payload["readback"]["cost_scopes"] = [scope]
+        payload["provider_pagination"] = q["provider_pagination"]
+        payload["provider_pagination"]["pages"][0]["document_ids"] = ["invoice-paper"]
+        payload["documents"][0]["billing_account_ref"] = "billing-account"
+        for join in payload["job_joins"]:
+            join.update(join_type="paid_allocation", scope_id="scope-1", query_id="query-1",
+                        billing_account_ref="billing-account")
+        result = self.report(payload)
+        self.assertEqual(len(result.get("operating_cost_query_observations", [])), 1)
+        self.assertEqual(result["verified_model_cost_subtotal_usd"], "0.01")
+        self.assertEqual(result["verified_system_cost_subtotal_usd"], "0.09")
+        self.assertEqual(result["operating_cost_coverage"]["coverage_state"], "gap")
+        self.assertIsNone(result["net_realized_pnl_usd"])
+
     def test_paid_scoped_components_are_subtotals_not_total_cost_or_profit(self):
         result = self.report(_readback())
         self.assertEqual(result.get("verified_model_cost_subtotal_usd"), "0.01")

@@ -691,13 +691,18 @@ def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_recor
 
     sources = payload.get("sources", [])
     scopes = readback.get("cost_scopes", [])
-    pages = payload.get("provider_pagination", {}).get("pages", [])
+    pagination = payload.get("provider_pagination", {})
+    pages = pagination.get("pages", []) if isinstance(pagination, dict) else None
     joins = payload.get("job_joins", [])
     if not all(isinstance(value, list) for value in (sources, scopes, pages, joins)):
         result["rejections"].append({"reason": "read_failed"})
         return result
-    candidates = [(source, query) for source in sources if isinstance(source, dict)
-                  for query in source.get("queries", []) if isinstance(source.get("queries", []), list)]
+    candidates = []
+    for source in sources:
+        if not isinstance(source, dict) or not isinstance(source.get("queries", []), list):
+            result["rejections"].append({"reason": "read_failed"})
+            continue
+        candidates.extend((source, query) for query in source.get("queries", []))
     seen = set()
     duplicate = set()
     for source, query in candidates:
@@ -717,7 +722,8 @@ def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_recor
             if not all(isinstance(item, str) and item for item in key) or key in duplicate:
                 raise ValueError
             if (source.get("status") != "available" or _provider(key[0]) is None
-                    or key[1] not in source.get("billing_account_refs", [])
+                    or not ids(source.get("billing_account_refs"), nonempty=True)
+                    or key[1] not in source["billing_account_refs"]
                     or query.get("official") is not True or query.get("source_type") != "official_billing_query"
                     or query.get("currency") != "USD" or query.get("complete") is not True
                     or not ids(query.get("covered_categories"), nonempty=True)
@@ -759,7 +765,10 @@ def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_recor
                     if (not ids(item.get("run_ids"), nonempty=True) or not ids(item.get("occurrence_ids"), nonempty=True)
                             or set(item["occurrence_ids"]) != {f"{target['owner_id']}:{run}" for run in item["run_ids"]}):
                         raise ValueError
-                elif item.get("join_type") != "paid_allocation":
+                elif item.get("join_type") == "paid_allocation":
+                    if query.get("settlement_state") != "paid_final" or item.get("document_id") not in query["document_ids"]:
+                        raise ValueError
+                else:
                     raise ValueError
             chain = [page for page in pages if isinstance(page, dict)
                      and (page.get("provider"), page.get("billing_account_ref"), page.get("query_id")) == key]
@@ -774,7 +783,9 @@ def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_recor
                         or not ids(page.get("document_ids"))):
                     raise ValueError
                 documents.extend(page["document_ids"])
-                cursor = page.get("next_cursor")
+                if "cursor" not in page or "next_cursor" not in page:
+                    raise ValueError
+                cursor = page["next_cursor"]
                 if index < len(chain) and (not isinstance(cursor, str) or not cursor):
                     raise ValueError
             if cursor is not None or not ids(documents) or set(documents) != set(query["document_ids"]):
