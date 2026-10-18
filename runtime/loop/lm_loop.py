@@ -455,7 +455,7 @@ def _is_pre_effect_terminal(entry: dict, row: dict) -> bool:
 
 
 def _private_jsonl_rows(path: Path, *, max_rows: int = 50_000,
-                        max_bytes: int = MAX_HARNESS_FAILURE_BYTES) -> list[dict]:
+                        max_bytes: int = MAX_HARNESS_FAILURE_BYTES, strict: bool = False) -> list[dict]:
     """Read one private JSONL side channel without following links or trusting its mode.
 
     Harness failures are diagnostic input, not runtime events, so they cannot use
@@ -479,7 +479,11 @@ def _private_jsonl_rows(path: Path, *, max_rows: int = 50_000,
                 try:
                     value = json.loads(line)
                 except (UnicodeDecodeError, json.JSONDecodeError):
+                    if strict:
+                        return []
                     continue
+                if strict and not isinstance(value, dict):
+                    return []
                 if isinstance(value, dict):
                     rows.append(value)
                     if len(rows) > max_rows:

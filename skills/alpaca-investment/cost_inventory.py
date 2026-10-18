@@ -3,6 +3,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
+import os
+import sqlite3
+import sys
 import re
 from copy import deepcopy
 from datetime import datetime, timezone
@@ -97,7 +101,7 @@ def _census_scope(trip, owner, observed):
     kind = trip.get('scope_kind', 'order_pair')
     ids = trip.get('order_ids')
     if (kind not in {'order_pair', 'owner_period'} or not _ids(ids, nonempty=False)
-            or (kind == 'order_pair' and (len(ids) != 2 or len(set(ids)) != 2))
+            or (kind == 'order_pair' and (not ids or len(set(ids)) != len(ids)))
             or (kind == 'owner_period' and ids != [])
             or trip.get('owner_id', owner) != owner or trip.get('mode', mode) != mode
             or trip.get('paper', mode == 'paper') is not (mode == 'paper')
@@ -367,3 +371,117 @@ def build_expected_inventory(trips, *, beneficiary_owner_id, observed_at,
         scope['execution_refs'].sort(key=lambda row: (row['execution_owner_id'], row['run_id']))
         scope['evidence_refs'] = sorted(evidence)
     return result
+
+
+MAX_INVENTORY_OWNERS = 16
+MAX_INVENTORY_ADMISSIONS = 50_000
+
+
+def _release_snapshot(root,sha):
+    manifest=json.loads((root/'RELEASE.json').read_text())
+    if manifest.get('sha')!=sha or manifest.get('release_paths')!='ALL':return None
+    raw=(root/CATALOG_PATH).read_bytes()
+    loops=[r for r in json.loads(raw)['loops'] if r.get('id')=='investment']
+    if len(loops)!=1:raise ValueError('source_release_invalid')
+    return {'receipt_type':'cost_source_inventory','release_sha':sha,
+        'catalog_sha256':hashlib.sha256(raw).hexdigest(),'source_declaration':loops[0].get('cost_source_inventory'),
+        'execution_owner_ids':loops[0].get('job_ids'),
+        'evidence_refs':[f'lm-release://{sha}/{CATALOG_PATH.as_posix()}']}
+
+
+def read_expected_inventory(state,trips,*,observed_at,owner_id='alpaca-investment-paper',release_root=None):
+    """Read independent local inputs; no provider call, DB creation or coverage promotion."""
+    code_root=Path(__file__).resolve().parents[2]
+    if str(code_root) not in sys.path:sys.path.append(str(code_root))
+    from runtime.loop import lm_loop
+    root=Path(release_root) if release_root is not None else code_root
+    runtime={};admissions={};releases={};reads={};errors=[]
+    def error(reason,owner=None):
+        item={'reason':reason}
+        if owner is not None:item['execution_owner_id']=owner
+        if item not in errors:errors.append(item)
+    def finish():
+        result=build_expected_inventory(trips,beneficiary_owner_id=owner_id,observed_at=observed_at,
+            runtime_rows_by_owner=runtime,occurrence_rows_by_owner=admissions,release_inputs=releases,paid_bindings=[])
+        result['gaps'].extend(errors);result['input_reads']=reads
+        result['read_limits']={'owners':MAX_INVENTORY_OWNERS,'admission_rows_per_owner':MAX_INVENTORY_ADMISSIONS,
+            'runtime_archives_per_owner':lm_loop.MAX_PRE_EFFECT_ARCHIVES}
+        return result
+    try:
+        if owner_id not in _OWNER_MODES:raise ValueError
+        observed=parse_instant(observed_at)
+        if not isinstance(trips,list):raise ValueError
+        if not trips:return finish()
+        entries=json.loads((root/'config/loop-registry.json').read_text())['loops']
+        entry=entries.get(owner_id)
+        if not isinstance(entry,dict) or Path(entry['state_root']).expanduser().resolve()!=Path(state).resolve():
+            error('inventory_state_owner_mismatch',owner_id);return finish()
+    except (OSError,ValueError,KeyError,TypeError,AttributeError):
+        error('inventory_registry_unavailable',owner_id);return finish()
+    pending=[owner_id]
+    while pending:
+        owner=pending.pop(0)
+        if owner in reads:continue
+        if len(reads)>=MAX_INVENTORY_OWNERS:
+            error('inventory_owner_read_limit',owner);continue
+        detail=reads[owner]={}
+        entry=entries.get(owner)
+        if not isinstance(entry,dict) or not _text(entry.get('state_root')):
+            error('inventory_owner_unregistered',owner);continue
+        directory=Path(entry['state_root']).expanduser()
+        rows,reason=lm_loop._owner_runtime_rows(entry)
+        try:
+            if rows is None:raise ValueError
+            stamps=[parse_instant(r['timestamp']) for r in rows]
+            archives=len(list(directory.glob('events-*.jsonl.gz')))
+            detail['runtime']={'status':'ok','row_count':len(rows),'archives_available':archives,
+                'first_event_at':min(stamps).isoformat() if stamps else None,
+                'last_event_at':max(stamps).isoformat() if stamps else None}
+            if archives>lm_loop.MAX_PRE_EFFECT_ARCHIVES:error('runtime_archive_read_limit',owner)
+            runtime[owner]=rows
+        except (OSError,ValueError,KeyError,TypeError):
+            detail['runtime']={'status':'unavailable'};error('runtime_read_unavailable',owner)
+        ledger=lm_loop._private_jsonl_rows(directory/'receipts.jsonl',strict=True)
+        detail['ledger']={'status':'ok' if ledger else 'unavailable','row_count':len(ledger)}
+        if not ledger:error('source_ledger_unavailable',owner)
+        for row in ledger:
+            if row.get('receipt_type') not in {'cost_source_inventory','cost_source_inventory_conflict'}:continue
+            if row.get('owner_id')!=owner:
+                error('source_snapshot_owner_mismatch',owner);continue
+            sha=row.get('release_sha')
+            if not _hex(sha,40):
+                error('source_snapshot_invalid',owner);continue
+            releases.setdefault(sha,[]).append(row)
+        try:
+            database=lm_loop.admission_root()/'admission-v2.sqlite3'
+            values=lm_loop._read_admission_rows(database,
+                'SELECT occurrence_id,state,queued_at,effect_unknown FROM occurrences WHERE owner_id=? AND queued_at<=? ORDER BY queued_at DESC,occurrence_id LIMIT ?',
+                (owner,observed.timestamp(),MAX_INVENTORY_ADMISSIONS+1))
+            if len(values)>MAX_INVENTORY_ADMISSIONS:error('admission_read_limit',owner)
+            normalized=[]
+            for occurrence,status,queued,unknown in values[:MAX_INVENTORY_ADMISSIONS]:
+                if type(queued) not in (int,float) or not math.isfinite(queued):raise ValueError
+                normalized.append({'owner_id':owner,'occurrence_id':occurrence,'state':status,
+                    'queued_at':datetime.fromtimestamp(queued,timezone.utc).isoformat(),'effect_unknown':unknown})
+            admissions[owner]=normalized;detail['admission']={'status':'ok','row_count':len(normalized)}
+        except (OSError,sqlite3.Error,ValueError,OverflowError,TypeError):
+            detail['admission']={'status':'unavailable'};error('admission_read_unavailable',owner)
+        for sha in {r.get('release_sha') for r in runtime.get(owner,[]) if _hex(r.get('release_sha'),40)}:
+            if sha in releases:continue
+            parent=root.parent if (root/'RELEASE.json').exists() else Path.home()/'loops/releases'
+            candidates=[root,*sorted(parent.glob('*-'+sha[:8]))]
+            for candidate in candidates:
+                try:
+                    if candidate.is_symlink():continue
+                    captured=_release_snapshot(candidate,sha)
+                    if captured is not None:releases.setdefault(sha,[]).append(captured)
+                except (OSError,ValueError,KeyError,TypeError,AttributeError):continue
+        for snapshots in releases.values():
+            for captured in snapshots:
+                declaration=captured.get('source_declaration')
+                for source in declaration.get('sources',[]) if isinstance(declaration,dict) else []:
+                    if (isinstance(source,dict) and source.get('beneficiary_owner_id')==owner_id
+                            and source.get('beneficiary_mode')==_OWNER_MODES[owner_id]):
+                        executor=source.get('execution_owner_id')
+                        if _text(executor) and executor not in reads and executor not in pending:pending.append(executor)
+    return finish()
