@@ -134,6 +134,8 @@ def validate_crypto_activity_snapshot(snapshot: dict[str, Any], *, mode: str) ->
     """Shared raw activity envelope, independent of an individual order window."""
     if isinstance(snapshot,dict) and snapshot.get('schema_version')==2:
         try:
+            body={key:value for key,value in snapshot.items() if key!='source_receipt_id'}
+            if snapshot.get('source_receipt_id')!='alpaca-crypto-activity-bundle:'+_digest([body]): raise ValueError
             if snapshot!=_activity_bundle(snapshot['segments'],mode=mode): raise ValueError
             return parse_instant(snapshot['requested_period_start']),parse_instant(snapshot['requested_period_end'])
         except (ValueError,KeyError,TypeError,AttributeError,ArithmeticError) as error:

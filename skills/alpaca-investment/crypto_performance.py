@@ -41,6 +41,8 @@ def _summary(cycles):
 def _fee_inventory(cycles,snapshots):
     # Existing FILL proof validates each snapshot's scope, content and paging.
     # CFEE IDs without an explicit order link are never joined by proximity.
+    snapshots={raw['source_receipt_id']:raw for frame in snapshots.values()
+        for raw in (frame['segments'] if frame['schema_version']==2 else [frame])}
     orders={o['provider_order_id']:(c['cycle_id'],o) for c in cycles for o in c['orders']}
     observed={};refs={};windows={}
     fill_ids={}
