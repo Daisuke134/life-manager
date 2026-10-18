@@ -356,6 +356,16 @@ wire window, without generating a missing timestamp. A fixed live readback
 confirmed four raw CFEE order IDs match four official orders, and the pinned CLI
 preserves all fields. Scoped CFEE queries returned empty in that diagnostic;
 retain unfiltered bounded reads and exact response IDs without inferring zero fees.
+The pure native BUY fee reader additionally requires executed received-BTC debits,
+exact order identity and creation times; missing evidence remains pending. It
+retains exact cumulative quantity and original activity IDs/window references.
+The shared historical quantity fold starts with actual credited quantity and
+validates every prior partial, zero and full sell using the same receipts.
+Acquisition and full-close quantity text preserves all digits independently of
+ambient Decimal precision. These foundations do not yet apply fee adjustments:
+compose them with fresh account evidence, then append each proven new debit once
+in the existing receipt chain and connect all ownership/counter/sell/performance
+consumers. Never subtract an already reflected acquisition fee twice.
 This branch is source only: verified fee quantity-drift recovery, FX and complete
 actual costs, deployment, natural outcomes and profitable evaluation remain in
 the canonical SSOT.
