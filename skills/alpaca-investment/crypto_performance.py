@@ -189,7 +189,7 @@ def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None,fee_ac
             closing_fee=closed['receipt'].get('native_fee_debit')
             if closing_fee:
                 closure_kind='sell_and_native_fee' if Decimal(closed['receipt']['exit_filled_qty'])>0 else 'native_fee_debit'
-                if closed_at is None:closed_at=closing_fee['observed_at']
+                closed_at=closing_fee['observed_at']
         elif quantity['owned_qty']=='0' and quantity['last_fee_debit'] is not None:
             fee=quantity['last_fee_debit']
             matches=[r for r in fee_events if r.get('fee_debit_id')==native_fee_debit_id(fee)]
