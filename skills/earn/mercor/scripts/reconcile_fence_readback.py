@@ -5,7 +5,8 @@ Binding copies the host pre-effect proof (``runtime/loop/lm_loop.py``): the
 claim run is the one run whose terminal carries
 ``lm-occurrence://<owner>/<suffix>/claim``, else the occurrence's own wake.
 The window spans every row tagged with the occurrence (nested runners
-included) plus every row of the claim run.  Journals written before rows
+included) plus every row of the claim run, minus tagged runs the host
+deferred at admission before spawning the owner.  Journals written before rows
 carried an occurrence keep the suffix run with an open end.  A journal whose
 oldest row is newer than the occurrence's ``queued_at`` fails closed.
 
@@ -55,6 +56,7 @@ from runtime.host.resource_admission import (  # noqa: E402
     resolve_pre_effect_occurrence, state_root as admission_state_root)
 from reconcile_paid_no_effect import find_paid_no_effect_proof, run_marker_path  # noqa: E402
 from reconcile_pre_effect_hint import find_pre_effect_proof  # noqa: E402
+from runtime.loop.lm_loop import PRE_EFFECT_ADMISSION_BLOCKERS  # noqa: E402
 
 APP = "mercor-revenue-application"
 REPLY = "mercor-revenue-reply"
@@ -127,6 +129,18 @@ def claim_window(rows: list[dict[str, Any]], owner: str, occurrence: str
     legacy = not tagged and not claims
     if legacy and any("occurrence_id" in r for r in run_rows):
         return None, "claim_run_unavailable"
+    # A run the host deferred before spawning the owner cannot have sent
+    # anything; its rows would stretch the window over unrelated mail
+    # (18df0351cb226510-21162 waited one day for its claim run).
+    deferred = {r.get("run_id") for r in tagged
+                if r.get("run_id") != claim_run and r.get("phase") == "report"
+                and r.get("blocker") in PRE_EFFECT_ADMISSION_BLOCKERS
+                and r.get("failure_layer") == "admission" and r.get("exit_code") == 75
+                and r.get("effect_identity_status") == "not_written"}
+    deferred -= {r.get("run_id") for r in tagged
+                 if r.get("phase") == "report" and r.get("run_id") in deferred
+                 and r.get("blocker") not in PRE_EFFECT_ADMISSION_BLOCKERS}
+    tagged = [r for r in tagged if r.get("run_id") not in deferred]
     members = {id(r): r for r in [*tagged, *claims, *run_rows]}.values()
     stamps = [_epoch(r.get("timestamp")) for r in members]
     terminals = sorted((r for r in run_rows if r.get("phase") == "report"),
