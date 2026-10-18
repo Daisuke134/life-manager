@@ -104,13 +104,13 @@ class WriterRuntimeEnvTest(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("refuses legacy", result.stderr)
 
-    def test_all_fifteen_registry_entrypoints_use_the_shared_contract(self):
+    def test_all_fourteen_registry_entrypoints_use_the_shared_contract(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         rows = {
             loop_id: row for loop_id, row in registry["loops"].items()
             if loop_id.startswith(("article-", "writer-"))
         }
-        self.assertEqual(len(rows), 15)
+        self.assertEqual(len(rows), 14)
         for loop_id, row in rows.items():
             with self.subTest(loop_id=loop_id):
                 source = (ROOT / row["entrypoint"]).read_text(errors="replace")

@@ -55,6 +55,8 @@ def _is_revenue_loop(loop_id: str | None) -> bool:
 _CONTROL_PLANE_LOOPS = frozenset({
     "life-manager-disk-cleanup", "life-manager-disk-cleanup-15d", "lm-fence-reconciler",
     "life-manager-health-observer", "life-manager-release-reconciler", "boot-panic-evidence",
+    # Recycling idle browsers frees the swap that pushes free disk under the floor (2026-10-18).
+    "browser-recycle-idle",
 })
 _DISK_RECOVERY_ACTION = "restore_capacity_and_install_shared_disk_gate"
 

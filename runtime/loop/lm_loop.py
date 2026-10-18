@@ -18,6 +18,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import zlib
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -2096,6 +2097,25 @@ _HEALTH_RUNNING_CACHE_KEY = object()
 HEALTH_HISTORY_EVENT_LIMIT = 50_000
 
 
+def _with_rotated_history(path: Path, lines: list[str]) -> list[str]:
+    """Prepend the newest rotated archives until the health history budget is full.
+
+    The shared journal rotates every ~15k lines (~16 h, 2026-10-18), which erased a daily
+    loop's last run from health and reported it as telemetry_gap "never".
+    """
+    # ponytail: the line budget covers ~2 days; weekly loops still read as a gap until clocks
+    # are persisted per loop instead of re-derived from journal history.
+    for archive in sorted(path.parent.glob("events-*.jsonl.gz"), reverse=True):
+        if len(lines) >= HEALTH_HISTORY_EVENT_LIMIT:
+            break
+        try:
+            with gzip.open(archive, "rt", encoding="utf-8") as stream:
+                lines = stream.read().splitlines() + lines
+        except (OSError, EOFError, UnicodeError, zlib.error):
+            break
+    return lines
+
+
 def _health_event_projection(
     lines: list[str],
 ) -> tuple[dict[str, dict], dict[tuple[str, str], dict]]:
@@ -2217,7 +2237,8 @@ def _last_event(state_root: str, loop_id: str | None = None,
         lines = []
     health_reports: dict[str, dict] = {}
     if include_health_clocks:
-        health_reports, health_running_events = _health_event_projection(lines)
+        health_reports, health_running_events = _health_event_projection(
+            _with_rotated_history(path, lines))
         if cache is not None:
             cached = cache.setdefault(path, {})
             cached.update(health_reports)
@@ -3082,7 +3103,7 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
                 existing_bytes = target_path.read_bytes() if target_path.is_file() else None
                 writer_loop_ids = {
                     "article-audit-7day", "article-daily", "article-healthcheck",
-                    "article-learn-whitelist", "article-repair-candidate", "article-resume",
+                    "article-repair-candidate", "article-resume",
                     "article-self-improve",
                     "article-zenn-retry", "writer-claim-loop", "writer-craft-train",
                     "writer-money-sync", "writer-opportunity-discovery",

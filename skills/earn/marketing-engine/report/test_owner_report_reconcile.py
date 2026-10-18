@@ -222,6 +222,61 @@ class OwnerReportReconcileTest(unittest.TestCase):
         self.assertEqual(replay["status"], "expired_unknown")
         self.assertEqual(calls, [])
 
+    def incident(self) -> tuple[dict, dt.datetime]:
+        """A day-keyed measurement incident stuck in ``sending`` (the sweep never regenerates it)."""
+        event = owner_report._event(
+            kind="incident",
+            product_id="anicca-ios",
+            as_of=dt.datetime(2026, 9, 26, 1, 16, tzinfo=dt.timezone.utc),
+            message_key="measurement_unhealthy:anicca-ios:tiktok:2026-09-26",
+            facts={"source": "social_measurement", "platform": "tiktok", "reason": "metric_unavailable",
+                   "next_repair": "repair", "affected_checkpoints": 2, "native_urls": [URL]},
+            evidence_refs=["post-metrics.jsonl#1"],
+        )
+        self.store.record(event)
+        self.assertTrue(self.store.claim_delivery(event["message_key"])[0])
+        return event, self.claimed_at(event)
+
+    def test_stale_incident_warning_cannot_be_bound_and_expires_without_resend(self):
+        event, claimed = self.incident()
+        # The incident text names no post, day or platform: even an exact copy proves nothing.
+        sent = owner_report.render_japanese(event)
+        history = {
+            BOT: {"complete": True, "messages": [self.message(9101, BOT, claimed + dt.timedelta(seconds=4), sent)]},
+            OTHER_BOT: {"complete": True, "messages": []},
+        }
+        results = self.run_reconcile(history, claimed + dt.timedelta(days=22))
+
+        self.assertEqual([r["status"] for r in results], ["expired_unknown"])
+        row = self.store.delivery_for(event["message_key"])
+        self.assertEqual(row["receipt"]["reason"], "stale_incident_identity_unprovable")
+        self.assertEqual(row["receipt"]["provider_readback"]["ambiguity"], "same_kind_message_without_identity")
+        calls = []
+        self.assertEqual(owner_report.deliver(event, self.store, lambda _text: calls.append(1))["status"], "expired_unknown")
+        self.assertEqual(calls, [])
+
+    def test_fresh_incident_warning_stays_open(self):
+        event, claimed = self.incident()
+        history = {
+            BOT: {"complete": True, "messages": [self.message(9102, BOT, claimed + dt.timedelta(seconds=4), "⚠️ https://example.com")]},
+            OTHER_BOT: {"complete": True, "messages": []},
+        }
+        results = self.run_reconcile(history, claimed + dt.timedelta(hours=2))
+
+        self.assertEqual(results[0]["reason"], "same_kind_message_without_identity")
+        self.assertEqual(self.store.delivery_for(event["message_key"])["status"], "sending")
+
+    def test_incident_window_without_any_warning_confirms_absence(self):
+        event, claimed = self.incident()
+        other_kind = f"📣 Aniccaの公開を確認しました。\n次に確認するリンク: {URL}"
+        history = {
+            BOT: {"complete": True, "messages": [self.message(9103, BOT, claimed + dt.timedelta(seconds=4), other_kind)]},
+            OTHER_BOT: {"complete": True, "messages": []},
+        }
+        results = self.run_reconcile(history, claimed + dt.timedelta(days=22))
+
+        self.assertEqual([r["status"] for r in results], ["not_delivered_confirmed"])
+
     def test_stale_ambiguous_action_stays_open(self):
         event = _event()
         claimed = self.unknown(event)

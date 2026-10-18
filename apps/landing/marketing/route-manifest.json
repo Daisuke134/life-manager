@@ -1,0 +1,60 @@
+{
+  "kind": "production marketing route package; not a full site export or deployment",
+  "source_authority": "https://github.com/Daisuke134/life-manager",
+  "approved_design_commit": "6f1d50b649f4b550ce334903910996c6148486ce",
+  "legacy_baseline_commit": "64ae00d6fedc53206251d3e2426023c2633f8d68",
+  "files": [
+    {
+      "source": "pages/en.html",
+      "public_route": "/",
+      "export_path": "index.html",
+      "sha256": "dc803d6ed0e23b8edaf9d83288c64ab85d6876ca39df818bd0a06a3579152c92"
+    },
+    {
+      "source": "pages/en.html",
+      "public_route": "/en",
+      "export_path": "en.html",
+      "sha256": "dc803d6ed0e23b8edaf9d83288c64ab85d6876ca39df818bd0a06a3579152c92"
+    },
+    {
+      "source": "pages/ja.html",
+      "public_route": "/ja",
+      "export_path": "ja.html",
+      "sha256": "8c4399d2aca9ac74cd96a0a65b7f5f235521cad80cb69c910e80a81310df15e6"
+    },
+    {
+      "source": "pages/products-en.html",
+      "public_route": "/dais",
+      "export_path": "dais.html",
+      "sha256": "f7cd6a4ec3b98a92b642c2a1c7ac419060ef39a595982af18aa41b5b533100fa"
+    },
+    {
+      "source": "pages/products.html",
+      "public_route": "/dais/ja",
+      "export_path": "dais/ja.html",
+      "sha256": "21696e7eac56d6baa5e0577845f93b4a87d5a7ed6bba94fd2c526d1de3087d72"
+    },
+    {
+      "source": "pages/life-manager-en.html",
+      "public_route": "/lm",
+      "export_path": "lm.html",
+      "sha256": "49d720e92fb418e51d863cda4ea7abfa681e6c9bdc1ef14c5b00d3fbde4ee191"
+    },
+    {
+      "source": "pages/life-manager.html",
+      "public_route": "/lm/ja",
+      "export_path": "lm/ja.html",
+      "sha256": "a7eca5172f9f4681d7eb5374cec094aa708c42ea583e12d17dad4bc52b76c0cf"
+    },
+    {
+      "source": "assets/styles.css",
+      "export_path": "assets/manager-site/styles.css",
+      "sha256": "8a5d1cb44303a54681939f5647ac4ae16294193a66e0986f8ae3432a5707b242"
+    },
+    {
+      "source": "assets/writer-cta-url.js",
+      "export_path": "assets/manager-site/writer-cta-url.js",
+      "sha256": "b38abbcd5fa96835d54abe9780a3bdd7a34413e0b5526b28855a07f378847e86"
+    }
+  ]
+}

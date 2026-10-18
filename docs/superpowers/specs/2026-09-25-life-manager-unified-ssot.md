@@ -1,5 +1,27 @@
 # Life Manager 統合SSOT — As-Is / To-Be / TODO
 
+## 投資紙owner復旧の依存修正 — source reclaim inventory
+
+目的はローカル投資の自然実行を戻し、明細/費用後成績の検証まで進めること。紙ownerはmain819fd631由来完全releaseを採用済みで、deterministic/revenue/revenue、現在unknown fence0。18:40Z自然runはclaim前disk_floor_low/exit75で、必要10GiBに対し約9.58GiB、約429MiB不足する。最後の正常判断は16:05ZのHOLD/hold_period_not_elapsed。追加apply/hold短縮/fence解除/強制wakeは解決策にしない。
+
+既存watchdogは候補10件がopen/protectedで回収0、古いworktreeはkeep/dirtyで保護し、ballastは未武装。既存source reclaimは15秒予算のrelease_inventoryでTimeoutExpiredになる。現callerはheld/current releaseの高価なimmutable-store probeも先に行い、後からreferencesで除外する。既存referencesを同じlifecycle lock内でinventory前へ置き、held rootをprobe前に除外する最小修正を検証する。予算延長や新collector/cleanup経路は作らない。初期ls-remoteとlocal trackingの一致で確認したimmutable SHA witnessを保持し、参照census中のbranch削除で既存の回収条件が退行しないようにする。現在のtracking nameに残らない場合も、その既確認SHAへのancestor証明と既存pin検査を要求する。確認前に削除済み/未確認のremoteは受理しない。lock・official Git reachability/pin・lease・保護store・rollback keep・削除直前fresh referencesは維持する。source PASSは実容量回復の証明ではない。
+
+所有: codex-root、task investment-storage-reclaim-8360。最新origin/main819fd631から専用worktree /Users/anicca/Projects/life-manager-main/.worktrees/investment-storage-reclaim-20261019、branch fix/investment-storage-reclaim-20261019を使用する。編集範囲はruntime/loop/central_cleanup.py、既存test_release_source_reclaim.py、本SSOT。投資R3 branch fix/investment-btc-paper-route-20261018は隔離したまま保持する。
+
+旧順序はD4全source完了後に稼働反映を確認。新順序は既にmain採用済み紙ownerの容量blockerをこの依存修正で扱い、自然実行の回復を確認しながらD4の公式明細/fee完全性/netを継続する。全goalは縮めず、未完成BTC版の反映/live enable/注文/資金移動は行わない。
+
+原子TODO:
+1. 既存関連baselineを確認し、held/current rootをprobeすると予算切れになる最小REDを追加する。
+2. 既存referencesをinventory前へ移し、held rootを先にskipする。候補の最終照合は削らない。
+3. RED→GREEN、既存source reclaim/保護/再参照の回帰、loop contract、独立read-only adversarial reviewを確認して専用branchへpushする。
+4. PR/全CI/main→通常immutable→対象cleanup ownerだけのloaded-idle採用を通常lock/launchctl-safe preflightで行う。source受入と本番容量を分ける。
+5. 自然cleanupのreceiptと実free bytesを確認し、10GiB以上なら紙ownerの次の自然terminal/公式readbackを確認する。回収0ならsource改善だけを復旧と呼ばず次の実測境界へ進む。
+6. 投資R3の公式PDF/metadata入力接続、完全なowner/mode/card/release/account/fill帰属、CFEEとの一回計上、fee完全性・確定netと既存live成熟gate/実費後利益を継続する。
+
+CI依存は既存6d8bbe6a96と同じ最小修正を再利用する。mainのpublic context auditはproduct digest不一致だけで失敗し、source context/READMEに本変更の差分はない。PRでは既存29 source testsを維持し、公開反映auditはmain push/manualへ残す。本番公開状態をsource PR前提へ戻さず、public不一致自体は未解決として保持する。
+
+現在cursor: TODO4、PR #8361のexact-head CI確認→main統合。TODO1–3のsource検証は完了。baseline18PASS、REDa5cfe222aaはcurrent/installed/open3条件でrelease_inventory TimeoutExpiredを再現する。code2084b4f786はsource reclaim/loop cleanup99tests・13subtests、contract190jobs、context29tests、diff PASS。独立read-only reviewは既存21件＋独立fixture21条件でblocking0件。census後の参照追加、tracking差替え/stale拒否、branch削除後SHA witness、pin不一致/消失、missing commit、lease/symlink/FD欠測/deadlineを確認する。CI依存修正eccdaf8950を含む主コードは同一。CodeRabbitのskip表示はreview実施の証拠にせず、上記独立検証を採用する。実cleanup/provider/注文/資金/fenceの変更は0、容量回復や本番採用は未確認。
+
 > **正本はこの文書 1 本だけ（Dais 2026-09-29）。** 以前の `2026-09-15-life-manager-agent-architecture-refinement.md`（全体設計・meta loop #10）、`2026-09-22-paid-fulfillment-all-platforms-design.md`（Paid）、`skills/earn/gig/TODO.md`（gig TODO）と、`docs/superpowers/specs/` のほかの spec はすべて参照用。TODO・順序・状態はここだけを更新し、他のファイルに新しい TODO を書かない。
 
 > **共有資源方針:** →「統括cursor — 共有資源回復と全案件の引き継ぎ」。旧floor撤去方針は現在のproducer契約により置換する。
@@ -20307,3 +20329,18 @@ Top 10 by sales: 0/10 with a trial (Ocup 3,111, Serenity 2,002, HookAce 1,044, V
 9. **実測できた経路だけ100人へ拡大する。** funnel最大離脱を直し、最も成果の出たsource・導入・最初の仕事を再現する。公式usageと実利用を分けて毎日追い、合計1,000人に向けて42日平均約24人/日の純増を参考にする。達成保証には使わない。
 10. **winner判定と費用を閉じる。** 重複除外のLife Manager cohort ledgerとKeiki/Maritime project usageを照合し、公式人数・winner判定を確認する。Scale/継続model利用の前に請求・credit・期限を読む。採択、signup、local test、agent/VM数を勝利と呼ばない。
 11. **渡航とYCを競技から分ける。** winner通知と日本発のflight/人数/費用の書面確認後に旅程を判断する。YC紹介・Winter 2027採択は競技条件でない。YCは別応募laneで扱う。
+
+### Life Manager distribution: four channels, one metrics tool, blog per business — 2026-10-18 20:40 JST (claude-evo-eval-1012, Dais: "maximize distribution and conversion for every business; separate the blog per business; same tool for all agents; copy the successful")
+
+**Directive (restated):** every business agent (Capafy, LINE stickers, eBook, AI voice tools, Anicca app) runs the same distribution system on four channels, measures with the same free tools, and improves from the numbers: (1) social (one account = one language, largest market first), (2) search-engine SEO, (3) AI answer engines (Google AI Overview, ChatGPT, Perplexity), (4) the platform's own internal promotion (Capafy search/category/hot ranking). Copy successful software/agent distribution, not only Capafy sellers.
+
+**Done 2026-10-18:** blog separated per business without moving any URL — anicca-products #516: /blog/c/<business> hubs (ai-creator-tools 246, line-stickers 41, ai-voice-tools 28, anicca 12, ebook 7, notes 5) with CollectionPage + BreadcrumbList JSON-LD and sitemap entries; every post shows Articles / Business breadcrumb + BreadcrumbList JSON-LD + "More in <business>" (verified live). Earlier: Article + FAQPage JSON-LD (#512/#513), keyword pages with real product example above the CTA (#8306), slot weighting by search-side views (#8330).
+
+**Measured gap:** Google Search Console is not set up for aniccaai.com (no verification tag/DNS TXT; OpenSEO project reports not_connected), so no agent sees which queries bring impressions/clicks.
+
+**TODO (order; cursor = 1):**
+1. One metrics tool: verify aniccaai.com in Google Search Console (HTML tag on the landing layout), submit the sitemap, connect it to the OpenSEO project 4e3bd4d3, and add a GSC pull (queries/pages by business hub) to the hourly distribution check so every business agent reads the same search data. Then Bing Webmaster Tools import from GSC (also free; feeds Copilot/ChatGPT search).
+2. AI answer engines: llms.txt per business hub; keep FAQPage/Article JSON-LD; track ai_overview views per seller weekly.
+3. Capafy internal promotion: compare our listings' rating/review count/recent sales with the top 20 of each category in the market sweep and close the gap on new Agents (never edit sellers).
+4. Social: one account per language — X selawmqt English only; TikTok @hooklab.capafy live 2026-10-24 (reels + carousels); other businesses keep their existing per-brand accounts.
+5. Extend keyword-page + hub pattern to LINE stickers and eBook distribution (each business publishes keyword pages into its own hub).

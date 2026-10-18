@@ -35,7 +35,7 @@ LOOP:
      back to step 3. Max 3 rounds.
    - If ALL pass AND AUTONOMY=on: `publish-to-substack.sh enable-publish` then `SUBSTACK_MODE=go
      publish-to-substack.sh publish <MD> --title "<TITLE>" --paid-from "<PAID_FROM>" --mode go` (sentinel + second
-     factor; it re-runs verify-preview as the vision gate, then publishes). Requires Stripe connected for only_paid gating.
+     factor; it re-runs verify-preview as the vision gate, then publishes). The audience follows the live payments_state: enabled -> only_paid with one paywall, disabled -> everyone with no paywall, anything else blocks.
    - If ALL pass AND AUTONOMY=off (default): STOP at the draft. Do NOT publish. Tell Dais it's ready for review.
 6. REPORT: the draft (or live) URL, the screenshot path, and the checklist verdict with the reasons you saw.
 

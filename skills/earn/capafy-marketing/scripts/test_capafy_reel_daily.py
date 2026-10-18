@@ -154,3 +154,19 @@ def test_tiktok_carousel_posts_six_images_once_live(tmp_path, monkeypatch):
     assert len(post["value"][0]["image"]) == 6 and post["settings"]["__type"] == "tiktok"
     assert json.loads(calls[-1][1])["date"] == "2026-10-29T20:00:00.000Z"
     assert (run_dir / "dispatch-tc.json").exists()
+
+
+def test_winner_openers_pick_top_viewed_shorts_and_feed_the_hook_prompt(tmp_path, monkeypatch):
+    import json
+    import capafy_reel_daily as m
+    entries = [{"title": "Long video", "view_count": 9_000_000, "duration": 900},
+               {"title": "Stop opening with your name", "view_count": 800_000, "duration": 31},
+               {"title": "Nobody tells you this about hooks", "view_count": 1_200_000, "duration": 45}]
+    assert m.top_short_titles(entries, 2) == ["Nobody tells you this about hooks", "Stop opening with your name"]
+    cache = tmp_path / "winner-openers.json"
+    cache.write_text(json.dumps({"fetched_at": "2026-10-18", "titles": ["Nobody tells you this about hooks"]}))
+    monkeypatch.setattr(m, "WINNER_OPENERS", cache)
+    seen = {}
+    monkeypatch.setattr(m, "_claude", lambda prompt: seen.setdefault("p", prompt) or "out")
+    m.hook_lab_output({"key": "baking", "topic": "home baking Reel"})
+    assert "Nobody tells you this about hooks" in seen["p"]

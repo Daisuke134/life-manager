@@ -663,6 +663,7 @@ class LmLoopReadonlyTest(unittest.TestCase):
         registry = {"schema_version": 2, "loops": {"example": {
             **REGISTRY["loops"]["example"],
             "cadence": {"keep_alive": True},
+            "effect_class": "none",
         }}}
         row = status_rows(
             registry,
@@ -1036,6 +1037,7 @@ class LmLoopReadonlyTest(unittest.TestCase):
             registry = {"schema_version": 2, "loops": {"example": {
                 **REGISTRY["loops"]["example"],
                 "cadence": {"keep_alive": True},
+                "effect_class": "none",
                 "state_root": f"~/{root.name}",
             }}}
             row = status_rows(
@@ -1085,6 +1087,7 @@ class LmLoopReadonlyTest(unittest.TestCase):
             registry = {"schema_version": 2, "loops": {"example": {
                 **REGISTRY["loops"]["example"],
                 "cadence": {"keep_alive": True},
+                "effect_class": "none",
                 "state_root": f"~/{root.name}",
             }}}
             row = status_rows(

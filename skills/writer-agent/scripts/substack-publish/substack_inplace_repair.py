@@ -39,7 +39,8 @@ class SubstackRepairRefused(RuntimeError):
 SCRIPTS = Path(__file__).resolve().parents[1]
 
 
-def _paid_payload_builder():
+def _payload_contract():
+    """Load the one Substack payload contract (builder + live audience read)."""
     module_path = (
         SCRIPTS / "substack-publish/substack_paid_payload.py"
     )
@@ -52,7 +53,18 @@ def _paid_payload_builder():
             "Substack paid payload builder is unavailable"
         )
     spec.loader.exec_module(module)
-    return module.build_paid_draft_payload
+    return module
+
+
+def _live_audience(contract) -> str:
+    """Read the audience the publication's payments_state allows; never guess."""
+    try:
+        return contract.read_publication_audience(_publication())
+    except (OSError, ValueError) as error:
+        raise SubstackRepairRefused(
+            "Substack payments_state is unreadable; refusing to guess the "
+            f"audience: {error}"
+        ) from error
 
 
 def sha256(path: Path) -> str:
@@ -308,6 +320,8 @@ def repair(pair: str) -> dict[str, Any]:
             raise SubstackRepairRefused(
                 "immutable Substack media is missing or changed"
             )
+    contract = _payload_contract()
+    audience = _live_audience(contract)
     publication = _publication()
     cookie = _cookie()
     headline_url = upload_image(
@@ -318,7 +332,7 @@ def repair(pair: str) -> dict[str, Any]:
         for item in body_assets
     ]
     language = pair.rsplit("/", 1)[1]
-    payload = _paid_payload_builder()(
+    payload = contract.build_paid_draft_payload(
         title=title,
         subtitle=str(
             existing.get("draft_subtitle")
@@ -329,6 +343,7 @@ def repair(pair: str) -> dict[str, Any]:
             state, language, headline_url, body_urls
         ),
         byline_id=owned_user_id,
+        audience=audience,
     )
     updated = _request(
         "PUT", f"/api/v1/drafts/{target}", payload=payload

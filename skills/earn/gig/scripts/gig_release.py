@@ -95,7 +95,6 @@ JOB_PROCESS_MARKERS = {
     "ai.anicca.writer-craft-train": "craft-train.sh",
     "ai.anicca.article-self-improve": "self-improve.sh",
     "ai.anicca.article-audit-7day": "audit-7day.sh",
-    "ai.anicca.article-learn-whitelist": "learn-whitelist.sh",
 }
 
 

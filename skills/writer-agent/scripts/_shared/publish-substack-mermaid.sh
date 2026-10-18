@@ -151,8 +151,14 @@ case "$cmd" in
       fi
 
       # The create/repair request is not evidence that Substack retained the
-      # subscriber contract. Refuse the live side effect unless authenticated
-      # readback shows only_paid + free preview + exactly one paywall node.
+      # audience contract. The audience follows the live payments_state
+      # (enabled -> only_paid + free preview + one paywall; otherwise everyone
+      # + no paywall). Unreadable payments_state blocks; it is never guessed.
+      EXPECTED_AUDIENCE="$("$PYTHON_BIN" "$DIR/substack-publish/substack_paid_payload.py" \
+        --read-audience --publication "$SUBSTACK_PUBLICATION")" || {
+          echo "BLOCKED: Substack payments_state is unreadable for $SUBSTACK_PUBLICATION; refusing to guess the audience" >&2
+          exit 5
+        }
       PAID_DRAFT_READBACK="$(substack_curl "$SUBSTACK_PUBLICATION" -sS --fail-with-body \
         "https://${SUBSTACK_PUBLICATION}/api/v1/drafts/${DRAFT_ID}" \
         -H "Cookie: ${SUBSTACK_SESSION_COOKIE}" \
@@ -163,8 +169,8 @@ case "$cmd" in
         }
       printf '%s' "$PAID_DRAFT_READBACK" | "$PYTHON_BIN" \
         "$DIR/substack-publish/substack_paid_payload.py" \
-        --verify-response >/dev/null || {
-          echo "FATAL: Substack draft lost its paid subscriber contract" >&2
+        --verify-response --audience "$EXPECTED_AUDIENCE" >/dev/null || {
+          echo "FATAL: Substack draft does not carry the $EXPECTED_AUDIENCE audience contract" >&2
           exit 5
         }
 
@@ -175,7 +181,7 @@ case "$cmd" in
       # the page). Best-effort: if the browser session itself is unavailable this still refuses
       # (fail-closed), but the failure may not be about image size specifically -- say so.
       if [ -x "$VC" ]; then
-        "$VC" "$DIR/substack-publish/verify-preview.py" "$DRAFT_ID" 950
+        "$VC" "$DIR/substack-publish/verify-preview.py" "$DRAFT_ID" 950 "$EXPECTED_AUDIENCE"
         if [ $? -ne 0 ]; then
           echo "FATAL: verify-preview FAILED — NOT publishing (an image may be too tall on screen, or the preview could not be opened at all -- check the message above for which)." >&2
           exit 5
