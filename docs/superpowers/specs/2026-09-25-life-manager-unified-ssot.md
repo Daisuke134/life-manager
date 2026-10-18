@@ -3531,3 +3531,5 @@ Ruling: 進捗ledgerは既存統合SSOTだけとし、別の進捗正本を作�
 8B Task1 complete：Person/Household/HouseholdControls、PUMS読込と所属検証、B11016周辺制約、bounded公式fetchとsource hash確認を実装。未実装importでRED→全36テストPASS。ZIP/州/header/型/欠員/重複/GQ/空き家/改ざんを検査。既存8A29テスト維持。追加依存なし。source checkoutを継続利用。
 
 8B Task2 complete：世帯WGTP比例baseline、構造的ゼロを保つ既存ipfn調整、TRS整数化を実装。新test未実装importでRED→全42テストPASS。周辺一致、support不足、非収束、zero-target行、順序不変、整数総数保持、固定seed、ゼロ重み、NaN/負/total不一致拒否を確認。整数化が世帯数以外の制約をすべて保証するとはしない。
+
+8B Task3 complete：streaming CSV展開と再読audit、weighted/integerの別採点を実装。未実装importでRED→全46テストPASS。3人世帯を2組で2世帯6人、新ID/所属/元属性の維持、欠員/重複/孤立/属性書換え/異なる既存出力の拒否を確認。6セルTVDを手計算fixtureと照合し、PWGTP基準と世帯重みによる人数を分けた。
