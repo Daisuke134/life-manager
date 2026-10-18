@@ -70,5 +70,5 @@
 - [x] Move milestone event insertion into its participant-state RPC transaction and count only a later successful `/pilot` use within 7 days of first success.
 - [x] Correct setup instructions and the documented HTTP route.
 - [x] Run focused tests, syntax checks, migration contract assertions, and diff checks.
-- [ ] Commit and push the fix.
+- [x] Commit and push the fix (`1b526a185e`, rebased on `origin/main` `50160c2b`).
 - [ ] Obtain a fresh read-only review verdict of `ship` against the corrected PR head and wait for exact-head CI before integration.

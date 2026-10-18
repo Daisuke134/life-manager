@@ -19632,7 +19632,7 @@ Top 10 by sales: 0/10 with a trial (Ocup 3,111, Serenity 2,002, HookAce 1,044, V
 
 この順序にする理由は、利用実績の証明と初週進出が成果を決め、VM1,000台は規約上の条件でないためである。競技サイトと公開life-manager pageを再確認し、同条件の成功配信事例がない現状は小さな測定実験で埋める。
 
-進捗: TODO 1のsource実装は専用branch上でPR #8308として公開中。fresh reviewが指摘した同意再配信、milestone transaction、7日以内条件、setup deep linkの4点を回帰テスト付きで修正し、focused tests 26/26・syntax・source boundaryがPASS。修正をbranchへpushし、修正後review `ship`とexact-head CIを得てからmain統合する。production migration・flags・配信は未実施。詳しい設計と受け入れ条件は[詳細設計](2026-10-16-maritime-pilot-design.md)を参照。
+進捗: TODO 1のsource実装はPR #8308で進行中。fresh review指摘の同意再配信、milestone transaction、7日以内条件、setup deep linkを回帰テスト付きで修正した。fix commit `1b526a185e`を最新main `50160c2b`へrebaseしてpushし、focused tests 26/26・syntax・source boundaryがPASS。修正後fresh reviewとexact-head CIが進行中。production migration・flags・配信は未実施。詳しい設計と受け入れ条件は[詳細設計](2026-10-16-maritime-pilot-design.md)を参照。
 
 **Hackathon Radar同期:** Radar Page本文は採択状態・開始日の矛盾・主催者への確認事項を更新し、読み戻し済み。稼働中の日次scan workerには「1,000 distinct qualified agentsを別々のMaritime VMで動かす」という旧指示が残っている。Pages連携にはtask設定を変更・停止する操作が公開されていないため、同じworkerを重複作成しない。設定更新が可能になった時点で、1,000人の実利用を数える指示へ直す。
 
