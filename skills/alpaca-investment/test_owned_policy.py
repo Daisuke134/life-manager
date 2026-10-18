@@ -19,6 +19,7 @@ sys.path.insert(0, str(ROOT))
 import effect_store
 import allocator
 import alpaca_cli
+import campaign as native_campaign
 import position_manager
 from strategy_policy import candidate_cards
 
@@ -247,7 +248,9 @@ class OwnedSubmitFenceTests(unittest.TestCase):
         import importlib.util
         spec=importlib.util.spec_from_file_location("owned_policy_native_run",ROOT/"run.py")
         native=importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(native)
+        # Other core fixtures reorder sys.path; keep this flow on the real skill campaign.
+        with patch.dict(sys.modules,{"campaign":native_campaign}):
+            spec.loader.exec_module(native)
         self.assertEqual(Path(native.__file__).resolve(),ROOT/"run.py")
         with tempfile.TemporaryDirectory() as directory,ExitStack() as stack:
             root=Path(directory)

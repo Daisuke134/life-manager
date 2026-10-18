@@ -189,9 +189,20 @@ def _owned_paper_symbols(state: Path) -> frozenset[str]:
         state / "etf-owned-position.json", owner_id=investment_owner_id(),
     )
     position = etf_state["position"]
-    if position is None:
-        return frozenset()
-    return frozenset({position["symbol"]})
+    symbols = {position["symbol"]} if position is not None else set()
+    try:
+        ownership = json.loads((state / "live-owned-position.json").read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        ownership = None
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError("live_position_not_owned") from error
+    if ownership is not None:
+        if not isinstance(ownership, dict):
+            raise ValueError("live_position_not_owned")
+        if ownership.get("status") in {"open", "closing"}:
+            load_owned_policy(state, ownership, mode="paper")
+            symbols.update({"BTCUSD", "BTCUSDC", "BTC/USDC"})
+    return frozenset(symbols)
 
 
 def _paper_campaign(*, state: Path, credentials_path: Path, cli_path: Path) -> dict:
@@ -453,7 +464,7 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
             }, separators=(",", ":")))
             return 0
         stage = "observe"
-        if mode == "live":
+        if mode in {"paper", "live"}:
             observation, ownership = _observe_and_sync_live_ownership(
                 state, credentials_path, cli_path)
         else:
@@ -530,7 +541,7 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
             credentials_path=credentials_path, cli_path=cli_path,
             risk_day_path=state / "risk-day.json", include_etf_bars=True)
         allocator_snapshot["mode"] = mode
-        if mode == "paper":
+        if mode == "paper" and not (ownership and ownership.get("status") in {"entry_pending", "open", "closing"}):
             etf_state = read_etf_state(
                 state / "etf-owned-position.json", owner_id=investment_owner_id(),
             )
@@ -553,8 +564,11 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
             str(Path(__file__).resolve().parents[2] / "runtime/agent-runner/agent_runner.py"),
         )).expanduser()
         workdir = Path(__file__).resolve().parents[2]
-        live_positions = mode == "live" and allocator_snapshot.get("positions", 0) > 0
-        if live_positions:
+        btc_positions = (mode in {"paper", "live"}
+            and not (ownership and ownership.get("status") in {"entry_pending", "closing"})
+            and ((mode == "live" and allocator_snapshot.get("positions", 0) > 0)
+                 or any(row.get("symbol") == "BTCUSD" for row in observation.get("positions", []))))
+        if btc_positions:
             _owned_live_position(ownership, observation)
             position = choose_position(allocator_snapshot, observation, state, runner, workdir)
             decision = {"action": position["action"], "owner_id": position.get("owner_id"),
@@ -571,7 +585,7 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                         "position_qty": position["qty"],
                         "observed_at": allocator_snapshot["clock"]["timestamp"]}
         else:
-            if mode == "live" and ownership and ownership.get("status") in {"entry_pending", "open", "closing"}:
+            if mode in {"paper", "live"} and ownership and ownership.get("status") in {"entry_pending", "open", "closing"}:
                 decision = {"approved": False, "candidate_ref": "NO_TRADE",
                             "gate": "ownership_pending", "reason": "既存注文の公式確定を待つ。",
                             "observed_at": allocator_snapshot["clock"]["timestamp"]}
@@ -596,8 +610,8 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
         if decision["approved"] and mode in {"paper", "live"}:
             stage = "allocation_order_build"
             order = (live_exit_order({"qty": decision["position_qty"]})
-                     if live_positions else order_for(decision))
-            if mode == "live" and not live_positions:
+                     if btc_positions else order_for(decision))
+            if mode == "live" and not btc_positions:
                 if order.get("asset_class") != "crypto" or order.get("symbol") != "BTC/USDC":
                     decision.update({"approved": False, "gate": "live_asset_rejected"})
                     record_no_trade(state / "receipts.jsonl", decision)
@@ -623,7 +637,7 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                         cli_path=cli_path, risk_day_path=state / "risk-day.json",
                         include_etf_bars=True)
                     fresh["mode"] = mode
-                    if mode == "paper":
+                    if mode == "paper" and not btc_positions:
                         fresh_etf_state = read_etf_state(
                             state / "etf-owned-position.json", owner_id=investment_owner_id(),
                         )
@@ -633,12 +647,12 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                     paper_etf_exit = (mode == "paper" and is_etf_order
                                       and decision.get("strategy_id") == ETF_STRATEGY_ID
                                       and decision.get("action") == "EXIT")
-                    expected_positions = 1 if live_positions or paper_etf_exit else 0
+                    expected_positions = 1 if btc_positions or paper_etf_exit else 0
                     if (fresh.get("open_orders") != 0 or unresolved_intent_count(
                             state / "receipts.jsonl") != 0 or
                             fresh.get("positions") != expected_positions):
                         raise ValueError("investment_effect_fence_rejected")
-                    if live_positions:
+                    if btc_positions:
                         fresh_observation = _normalize_live_position_symbols(observe(
                             credentials_path=credentials_path, cli_path=cli_path))
                         fresh_ownership = _sync_live_ownership(state, credentials_path, cli_path, fresh_observation)
@@ -675,10 +689,10 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                                 raise ValueError("entry_policy_changed_before_submit")
                         except (ValueError, OSError, KeyError, TypeError) as error:
                             raise ValueError("entry_policy_changed_before_submit") from error
-                    if mode == "live" and not live_positions and not evaluate_entry(
+                    if mode == "live" and not btc_positions and not evaluate_entry(
                             fresh.get("risk"), order.get("notional_usd"))["approved"]:
                         raise ValueError("investment_effect_fence_rejected")
-                    if mode in {"paper", "live"} and not live_positions:
+                    if mode in {"paper", "live"} and not btc_positions:
                         refreshed = allocation_gate(fresh, build_candidates(fresh), decision)
                         if not refreshed["approved"]:
                             raise ValueError("investment_effect_fence_rejected")
@@ -704,8 +718,8 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                     sealed = seal(state / "receipts.jsonl", decision, order)
                     if not mark_started(state / "receipts.jsonl", sealed):
                         raise ValueError("investment_effect_already_started")
-                    if mode == "live":
-                        marker = (_closing_marker(ownership, sealed) if live_positions else {
+                    if order.get("asset_class") == "crypto":
+                        marker = (_closing_marker(ownership, sealed) if btc_positions else {
                             "entry_client_order_id": sealed["client_order_id"],
                             "entry_effect_id": sealed["effect_id"], "entry_filled_qty": "0",
                             "status": "entry_pending", "symbol": "BTCUSD",
