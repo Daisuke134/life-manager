@@ -12,7 +12,7 @@ from risk_policy import evaluate_entry
 from etf_ownership import investment_owner_id
 from strategy_policy import (ACTION_ENTER, ACTION_EXIT, ACTION_NO_TRADE, ALLOWED_ACTIONS,
                              BTC_SYMBOLS, CANONICAL_SYMBOL, ETF_STRATEGY_ID,
-                             ETF_SYMBOLS, evaluate,
+                             ETF_SYMBOLS, INDICATOR_HISTORY_CONTRACTS, evaluate,
                              load_selected_card)
 
 
@@ -276,14 +276,18 @@ def gate(snapshot: dict[str, Any], candidates: list[dict[str, Any]], decision: d
             "paper_mode": (not is_equity) or snapshot.get("mode") == "paper",
             "regular_session": (not is_equity) or snapshot.get("clock", {}).get("is_open") is True,
         }
-        if is_equity:
-            checks["entry_policy_active"] = False
+        strategy_id = decision.get("strategy_id")
+        checks["entry_policy_active"] = (not is_equity and isinstance(strategy_id, str)
+                                          and strategy_id in INDICATOR_HISTORY_CONTRACTS)
+        legacy_btc = strategy_id in {contract[0] for contract in INDICATOR_HISTORY_CONTRACTS.values()} if isinstance(strategy_id, str) else False
         approved = all(checks.values()) and candidate.get("asset_class") in {
             "crypto", "us_equity",
         }
         return {**decision, "approved": approved, "candidate": candidate,
                 "checks": checks, "fixed_risk": fixed_risk,
                 "gate": ("legacy_etf_entry_retired" if is_equity
+                         else "legacy_btc_entry_retired" if legacy_btc
+                         else "entry_policy_unknown" if not checks["entry_policy_active"]
                          else "approved" if approved else "risk_rejected")}
     if ref == "NO_TRADE":
         return {**decision, "approved": False, "gate": "model_no_trade"}

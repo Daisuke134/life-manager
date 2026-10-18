@@ -645,7 +645,7 @@ class PaperEtfFreshFenceTest(unittest.TestCase):
                    "position": position if action == "EXIT" else None}
         decision = MODULE.allocation_gate(initial, [candidate], {
             "action": action, "candidate_ref": candidate["candidate_ref"], "symbol": candidate["symbol"],
-            "strategy_id": ETF_ID if action == "EXIT" else "alpaca-btc-5m-trend-v1", "owner_id": owner,
+            "strategy_id": ETF_ID if action == "EXIT" else "alpaca-btc-5m-trend-400-v2", "owner_id": owner,
             "position": position if action == "EXIT" else None,
             "decision_session": "2026-10-20", "expected_cost_usd": "0.02",
             "observed_at": raw["clock"]["timestamp"], "reason": "hold_sessions_elapsed",
