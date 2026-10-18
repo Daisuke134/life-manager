@@ -42,10 +42,11 @@ def _fee_inventory(cycles,snapshots):
     # CFEE IDs without an explicit order link are never joined by proximity.
     orders={o['provider_order_id']:(c['cycle_id'],o) for c in cycles for o in c['orders']}
     observed={};refs={};windows={}
+    fill_ids={f['id'] for frame in snapshots.values() for f in frame['fills']}
     for frame in snapshots.values():
         for row in frame['fees']:
             key=row['id']
-            if key in observed and observed[key]!=row:
+            if key in fill_ids or (key in observed and observed[key]!=row):
                 raise ValueError('crypto_fee_evidence_conflict')
             observed[key]=row;refs.setdefault(key,set()).add(frame['source_receipt_id'])
             windows.setdefault(key,[]).append((parse_instant(frame['request']['after']).date(),
@@ -79,7 +80,20 @@ def _fee_inventory(cycles,snapshots):
                     attributed.append({**item,'cycle_id':cycle_id,'provider_order_id':order_id,
                         'asset':asset,'quantity':_quantity_text(-Fraction(qty))})
         if reason: unattributed.append({**item,'reason':reason})
-    return {'observed_fee_count':len(observed),'attributed_native_fees':attributed,
+    totals={}
+    for item in attributed:
+        key=item['provider_order_id'];totals[key]=totals.get(key,Fraction())+Fraction(item['quantity'])
+    valid=[]
+    for item in attributed:
+        order=orders[item['provider_order_id']][1]
+        received=order['filled_qty'] if order['side']=='buy' else order['quote_notional_usdc']
+        reason='fee_execution_missing' if received is None else (
+            'fee_amount_invalid' if totals[item['provider_order_id']]>Fraction(received) else None)
+        if reason:
+            unattributed.append({'fee_activity_id':item['fee_activity_id'],
+                'source_receipt_ids':item['source_receipt_ids'],'reason':reason})
+        else: valid.append(item)
+    return {'observed_fee_count':len(observed),'attributed_native_fees':valid,
         'unattributed_fees':unattributed,'fee_settlement_status':'unknown',
         'fee_completeness_status':'unknown','next_action':'read_late_fee_postings_and_reconcile_unattributed_evidence'}
 
