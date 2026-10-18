@@ -583,8 +583,20 @@ def reclaim_unreferenced_source(releases: Path, current: Path, agents: Path, kee
             def official_source_ref(sha: str) -> str | None:
                 containing = git("for-each-ref", f"--contains={sha}",
                                  "--format=%(refname)", "refs/remotes/origin").splitlines()
-                return next((fresh_remote_refs[ref] for ref in containing
-                             if ref in fresh_remote_refs), None)
+                witnessed = next((fresh_remote_refs[ref] for ref in containing
+                                  if ref in fresh_remote_refs), None)
+                if witnessed:
+                    return witnessed
+                # A census can outlive a branch name; keep the verified commit witness.
+                for witness in dict.fromkeys(fresh_remote_refs.values()):
+                    try:
+                        git("merge-base", "--is-ancestor", sha, witness)
+                    except subprocess.CalledProcessError as error:
+                        if error.returncode == 1:
+                            continue
+                        raise
+                    return witness
+                return None
 
             def existing_source_pin(sha: str) -> str | None:
                 pin = f"refs/life-manager/retired-release-source/{sha}"
@@ -619,11 +631,15 @@ def reclaim_unreferenced_source(releases: Path, current: Path, agents: Path, kee
                 if p.is_symlink() or p.stat().st_uid != os.getuid() or p.stat().st_size > 65536:
                     raise ValueError("release lease inventory is unknown")
                 leases.append(json.dumps(json.loads(p.read_text())))
+            held = references()
             candidates = []
             rollback = []
             phase = "release_inventory"
             for path in releases.iterdir():
                 if not RELEASE_NAME.fullmatch(path.name) or not path.is_dir() or path.is_symlink():
+                    continue
+                # Referenced roots cannot be reclaimed and need no expensive store scan.
+                if path.resolve() in held:
                     continue
                 retired = release_is_reclaimed(path)
                 descriptor = path / ("RECLAIMED-RELEASE.json" if retired else "RELEASE.json")
@@ -641,7 +657,6 @@ def reclaim_unreferenced_source(releases: Path, current: Path, agents: Path, kee
                     source_ref = existing_source_pin(sha) or official_source_ref(sha)
                     if source_ref:
                         candidates.append((path.stat().st_mtime, path, sha, source_ref))
-            held = references()
             candidates = [item for item in candidates if item[1].resolve() not in held]
             rollback = [item for item in rollback if item[1].resolve() not in held]
             keep_roots = {p for _, p in sorted(rollback, reverse=True)[:max(1, keep)]}
