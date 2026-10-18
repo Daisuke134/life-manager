@@ -1027,6 +1027,15 @@ def owned_quantity_state_from_rows(rows,ownership,*,mode,owner_id,upto_index=Non
     before=_execution_number(acquisition['receipt']['account_owned_qty'])
     providers={acquisition['receipt']['entry_provider_order_id']}
     fill_ids=set(acquisition['receipt'].get('entry_execution',{}).get('fill_activity_ids',[]))
+    activity_facts={}
+    def remember_activities(proof):
+        frame=proof.get('activity_readback',{})
+        for raw in frame.get('fills',[])+frame.get('fees',[]):
+            fact=(raw['activity_type'],execution_activity_identity(raw) if raw['activity_type']=='FILL' else raw)
+            if raw['id'] in activity_facts and activity_facts[raw['id']]!=fact:
+                raise ValueError('owned_quantity_proof_invalid')
+            activity_facts[raw['id']]=fact
+    remember_activities(acquisition)
     previous_observed=parse_instant(acquisition['account_readback']['clock']['observed_at'])
     seen=set();sold=Fraction();last_effect=None;last_client=None
     # ponytail: revalidate the small per-entry leg history; index only if measured slow.
@@ -1054,6 +1063,7 @@ def owned_quantity_state_from_rows(rows,ownership,*,mode,owner_id,upto_index=Non
             return reader(rs,own,bk,obs,before=before,**scope)
         proof=_recorded_proof_from_rows(rows,old,row['broker'],row['strategy_receipt']['account_readback'],
             mode=mode,owner_id=owner_id,reader=step,effect_key='close_effect_id')
+        remember_activities(proof)
         prior_fills=set(proof['receipt'].get('sell_execution',{}).get('fill_activity_ids',[]))
         if prior_fills & fill_ids: raise ValueError('owned_sell_proof_invalid')
         fill_ids.update(prior_fills);sold+=Fraction(proof['receipt']['exit_filled_qty'])
@@ -1062,6 +1072,7 @@ def owned_quantity_state_from_rows(rows,ownership,*,mode,owner_id,upto_index=Non
         last_effect=intent['effect_id'];last_client=intent['client_order_id']
     return {'owned_qty':_quantity_text(Fraction(before)),'sold_qty':_quantity_text(sold),'acquisition':acquisition,
         'last_observed_at':previous_observed,'provider_order_ids':providers,'fill_activity_ids':fill_ids,
+        'activity_facts':activity_facts,
         'last_close_effect_id':last_effect,'last_close_client_order_id':last_client}
 
 
@@ -1080,6 +1091,13 @@ def native_fee_debit_proof_from_rows(rows,ownership,observation,*,activity_readb
                 or start>parse_instant(entry['broker']['submitted_at'])):
             raise ValueError
         fees=crypto_buy_fee_activity_proof(activity_readback,entry['broker'],mode=mode)
+        complete_orders={state['activity_facts'][key][1][0] for key in state['fill_activity_ids']}
+        for raw in activity_readback['fills']+activity_readback['fees']:
+            fact=(raw['activity_type'],execution_activity_identity(raw) if raw['activity_type']=='FILL' else raw)
+            if (raw['id'] in state['activity_facts'] and state['activity_facts'][raw['id']]!=fact
+                    or raw['activity_type']=='FILL' and raw['order_id'] in complete_orders
+                    and raw['id'] not in state['fill_activity_ids']):
+                raise ValueError
         gross=Fraction(acquisition['entry_filled_qty']);sold=Fraction(state['sold_qty'])
         before=Fraction(state['owned_qty']);total_fee=Fraction(fees['cumulative_fee_qty'])
         remaining=gross-total_fee-sold
