@@ -32,6 +32,28 @@ class CostSourceHistoryTests(unittest.TestCase):
             self.assertEqual(again['model_cost_usd'],'0')
             self.assertEqual(json.loads(history.read_text()),saved)
 
+    def test_history_record_requires_traceable_query_identity_and_window(self):
+        from paper_operating_costs import remember_source_evidence
+        payload,inventory,trip=setup()
+        confirmed=summarize([trip],payload,owner_id=trip['owner_id'],observed_at=inventory['observed_at'],expected_inventory=inventory)
+        known=remember_source_evidence([],confirmed,owner_id=trip['owner_id'],mode='paper')
+        missing=summarize([trip],None,owner_id=trip['owner_id'],observed_at=inventory['observed_at'])
+        for field in ('query_id','scope_id','window_start','window_end','finalized_through','execution_windows'):
+            with self.subTest(field=field):
+                damaged=copy.deepcopy(known);damaged[0]['queries'][0].pop(field)
+                before=copy.deepcopy(damaged)
+                with self.assertRaisesRegex(ValueError,'operating_cost_source_history_invalid'):
+                    remember_source_evidence(damaged,missing,owner_id=trip['owner_id'],mode='paper')
+                self.assertEqual(damaged,before)
+        for target,field,value in (('scope','owner_id','alpaca-investment-live'),
+                ('queries','scope_id','foreign-scope'),('queries','window_end','2026-09-23T00:00:00Z')):
+            with self.subTest(target=target,field=field):
+                damaged=copy.deepcopy(known)
+                row=damaged[0]['scope'] if target=='scope' else damaged[0]['queries'][0]
+                row[field]=value
+                with self.assertRaisesRegex(ValueError,'operating_cost_source_history_invalid'):
+                    remember_source_evidence(damaged,missing,owner_id=trip['owner_id'],mode='paper')
+
     def test_crypto_history_survives_regression_and_missing_input_without_restoring_zero(self):
         import crypto_performance as crypto
         import effect_store as store
