@@ -40,6 +40,8 @@ def close_fill_proof(state: Path, ownership: dict[str, Any], broker: dict[str, A
     """Prove a sealed owned BTC close in native quote, without inventing costs."""
     parent = load_owned_policy(state, ownership, mode=mode)
     try:
+        if observation.get("mode") != mode or observation.get("paper") is not (mode == "paper"):
+            raise ValueError
         effect = ownership["close_effect_id"]
         client = ownership["close_client_order_id"]
         if (ownership.get("status") != "closing" or not isinstance(effect, str)

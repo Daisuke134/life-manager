@@ -258,7 +258,7 @@ class OwnedSubmitFenceTests(unittest.TestCase):
             if remove_marker: (root/"live-owned-position.json").unlink()
             allocator_snapshot,observation=snapshot(mode)
             history=allocator_snapshot.pop("crypto_history")
-            observation.update(account={"cash":"90","equity":"97.5"},activities_count=1,
+            observation.update(mode=mode,paper=mode=="paper",account={"cash":"90","equity":"97.5"},activities_count=1,
                                open_and_closed_orders_count=1,clock={"observed_at":"2026-01-01T04:15:00Z"})
             observation["positions"][0]["unrealized_pl"]="0"
             reads=[0]; current_qty=["0.05"]; observation_reads=[0]; fences=[0]
