@@ -6,6 +6,12 @@
   "files": [
     {
       "source": "pages/en.html",
+      "public_route": "/",
+      "export_path": "index.html",
+      "sha256": "dc803d6ed0e23b8edaf9d83288c64ab85d6876ca39df818bd0a06a3579152c92"
+    },
+    {
+      "source": "pages/en.html",
       "public_route": "/en",
       "export_path": "en.html",
       "sha256": "dc803d6ed0e23b8edaf9d83288c64ab85d6876ca39df818bd0a06a3579152c92"
