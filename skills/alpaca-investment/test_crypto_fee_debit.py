@@ -122,3 +122,21 @@ class CryptoFeeDebitTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             args=debit_fixture(Path(directory),credit='0.0499')
             with self.assertRaisesRegex(ValueError,'owned_fee_debit_invalid'):self.proof(*args)
+
+    def test_new_observation_cannot_conflict_with_known_execution_ids_or_facts(self):
+        for mode in ('paper','live'):
+            with self.subTest(mode=mode),tempfile.TemporaryDirectory() as directory:
+                rows,owned,frame,account=debit_fixture(Path(directory),mode,partial=True)
+                partial=next(r['strategy_receipt'] for r in rows if r.get('strategy_receipt',{}).get('receipt',{}).get('kind')=='owned_crypto_sell_remainder')
+                known=next(r for r in partial['activity_readback']['fills'] if r['id']=='sell-fill-0-0')
+                observed=activity_fixture({'fills':[known],'fees':frame['fees']},mode=mode,
+                    start=frame['requested_period_start'],end=END)
+                self.assertEqual(self.proof(rows,owned,observed,account,mode)['receipt']['debit_qty'],'0.000075')
+                variants=[([], [{**frame['fees'][0],'id':known['id']}]),
+                    ([{**known,'qty':'0.021'}],frame['fees']),
+                    ([{**known,'id':'unexpected-extra-fill','qty':'0.001'}],frame['fees'])]
+                for fills,fees in variants:
+                    bad=activity_fixture({'fills':fills,'fees':fees},mode=mode,
+                        start=frame['requested_period_start'],end=END)
+                    with self.subTest(fills=fills),self.assertRaisesRegex(ValueError,'owned_fee_debit_invalid'):
+                        self.proof(rows,owned,bad,account,mode)

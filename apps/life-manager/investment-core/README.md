@@ -362,10 +362,14 @@ retains exact cumulative quantity and original activity IDs/window references.
 The shared historical quantity fold starts with actual credited quantity and
 validates every prior partial, zero and full sell using the same receipts.
 Acquisition and full-close quantity text preserves all digits independently of
-ambient Decimal precision. These foundations do not yet apply fee adjustments:
-compose them with fresh account evidence, then append each proven new debit once
+ambient Decimal precision. The pure native debit proof now composes this history
+with explicit cumulative BUY fees and a fresh same-mode account. Expected qty is
+gross BUY fills minus explicit BTC fees minus proven SELL fills; only the difference
+from currently proven qty is a new debit. Already embedded fees are not subtracted
+twice. Account lag stays pending; unexplained gaps and increases are rejected.
+This proof does not persist an adjustment: next append each proven new debit once
 in the existing receipt chain and connect all ownership/counter/sell/performance
-consumers. Never subtract an already reflected acquisition fee twice.
+consumers.
 This branch is source only: verified fee quantity-drift recovery, FX and complete
 actual costs, deployment, natural outcomes and profitable evaluation remain in
 the canonical SSOT.
