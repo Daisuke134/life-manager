@@ -161,7 +161,8 @@ def _read_performance(
     root: Path,
     performance_day: str | None,
 ) -> tuple[Mapping[str, Any] | None, str | None]:
-    crypto = (root / "performance-crypto-latest.json").exists()
+    crypto = ((root / "performance-crypto-latest.json").exists()
+              or any(root.glob("performance-crypto-daily-????-??-??.json")))
     prefix = "performance-crypto" if crypto else "performance"
     if performance_day is None:
         path = root / f"{prefix}-latest.json"

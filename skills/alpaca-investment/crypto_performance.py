@@ -172,8 +172,6 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
             if old.get('mode')!=mode or old.get('owner_id')!=owner_id or old.get('report_scope')!='owned_crypto_cycles':
                 raise ValueError('crypto_performance_activity_cache_invalid')
             frames=old.get('activity_readbacks',{});refs=old.get('order_activity_refs',{})
-            if not isinstance(frames,dict) or not isinstance(refs,dict) or any(ref not in frames for ref in refs.values()):
-                raise ValueError('crypto_performance_activity_cache_invalid')
             for key,target in (('known_entry_effect_ids',known_entries),('known_closed_cycle_ids',known_cycles)):
                 values=old.get(key,[])
                 if not isinstance(values,list) or any(not isinstance(v,str) or not v for v in values):
@@ -184,6 +182,8 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
             for entry in [*old.get('open_entries',[]),*old.get('pending_entries',[])]:
                 known_entries.add(entry['entry_effect_id'])
             known_entries.update(old.get('no_fill_entry_effect_ids',[]))
+            if not isinstance(frames,dict) or not isinstance(refs,dict) or any(ref not in frames for ref in refs.values()):
+                raise ValueError('crypto_performance_activity_cache_invalid')
         phase='ledger'
         rows=_owned_rows(state/'receipts.jsonl')
         plans=_scoped_plans(rows,mode,owner_id)
