@@ -1,0 +1,23 @@
+[
+  {
+    "page": "index",
+    "internal_links": "pass",
+    "footer": "pass",
+    "mobile_overflow": "none",
+    "javascript_errors": []
+  },
+  {
+    "page": "life-manager",
+    "internal_links": "pass",
+    "footer": "pass",
+    "mobile_overflow": "none",
+    "javascript_errors": []
+  },
+  {
+    "page": "products",
+    "internal_links": "pass",
+    "footer": "pass",
+    "mobile_overflow": "none",
+    "javascript_errors": []
+  }
+]

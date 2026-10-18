@@ -3556,3 +3556,18 @@ Ruling: 既存root installerの依存不足は、今回の承認済みsource bra
 本人への結果説明用に、2人世帯の目標151592に対して生成151575（17不足）という実測例を記事へ追記。6交差セルの差と周辺合計の差を混同しないよう明記した。8Bは実装/測定済み・説明と理解待ち。次9は別の実行動データで予測を評価する部品だが、今回追加実装していない。
 
 8B完了の保存記録：実装と素材の最終commit d17f0ac978777c6063929ca830a54d9c88a6b640 を origin/docs/manager-learning-20261017へpush成功。git ls-remoteのbranch SHAとlocal HEADが一致し、worktree cleanを確認。人口suite50/50（8A29含む）、OSS12/12、source-boundary/base→HEAD diff --check PASS。root installer2件は既知依存不足のまま別記録。本人へ渡すものはコード、再現手順、生成画像、実測図、記事、横長6/縦長6/HTML/JSON/台本。8B実装・測定・説明素材保存まで完了、本人の理解合図待ち。次9は未着手。main統合/本番反映/ブログ・SNS投稿/メール・応募は行っていない。既存worktreeは継続用に保持。このreceipt追記も同branchへ保存する。
+
+
+## 2026-10-18 ウェブサイト再設計：先にデザイン案を提示
+
+本人は全プロダクトへの共通フッター/一覧、Life Managerを移動時間アシスタントからREADME準拠の自発的な汎用エージェントとして紹介、創業ストーリーの掲載を希望し、まずデザイン案を見るよう指定。今回は公開せず、docs/design/2026-10-18-products-and-story-preview/ に独立した静的3ページのプレビューを作成。既存manager-universe-previewの色/組版を再利用し、追加依存/実行サービスを導入しない。
+
+現行公開/en・/lm・/dais・Honne・Aniccaを実読。/enはすでにManager構想だがフッター/物語/新しい人口実測が不足、/lmはCalendar移動時間中心のまま。READMEと現行partial /lm実装は汎用エージェントを定義している。商品一覧は既存/daisを基準にmobile/web/AIを整理。Flash Diceという別製品は確認できず捏造しない。
+
+トップは使命→Manager/Life Manager/アプリ→16歳頃のVipassana/大学院/IACS64ch EEG聴覚ニューロフィードバック/共有環境への介入という物語→研究の実測と未検証範囲。Life Managerは体・心・お金、収益ループ、同一コアのlocal/cloudを紹介。利益保証/無条件の全工程無人化/架空の実行実績を入れない。製品一覧と全ページ共通フッターで回遊を確保。日本語案を先に提示し、英語版は構成レビュー後に作る。既存英語ルートを削除する提案ではない。
+
+確認済みskill: brainstorming、sitesとpresentation-led参照、repo日本語指針/両pinned guides（本タスク前半）。skillサービス途中で利用不可となったが既読手順とローカルChromiumで継続。本人の明示したdraft-firstの範囲で、承認待ちの本番実装には進まない。preview/local参照は取得失敗のため既読とは扱わない。Astra Advisorはcatalogになく、ローカル案をinlineで構築。
+
+今回の成果はデザイン案。8Bの実装/測定状態は変わらず、学習上は本人の理解待ち。9の行動予測は未着手。本番サイト/課金導線/メール/応募/SNSは変更していない。
+
+デザイン案の確認完了：system Chromium/Playwrightで1440px desktop、390px mobileの3ページを描画。内部ファイル/anchor、共通footer、横はみ出しなし、JS例外なし、商品filter全10/モバイル6を確認。全体/ファーストビュー/スマホの実HTMLスクリーンショット9枚とverification.jsonを保存し代表例を目視。file URLはブラウザpolicyで拒否されたため通常のlocalhost HTTP previewで描画。外部製品の全機能/決済を検証したとはしない。HTML/CSS/商品一覧/根拠README/画像を同branchへ保存する。本人へのデザイン提示が現在、英語版と本番実装は次の段階。

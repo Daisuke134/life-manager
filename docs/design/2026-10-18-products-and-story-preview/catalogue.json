@@ -1,0 +1,72 @@
+[
+  {
+    "name": "Life Manager",
+    "type": "AI / オープンソース",
+    "description": "目標に向けて継続的に動く、体・心・お金のマネージャー。",
+    "url": "life-manager.html",
+    "category": "ai"
+  },
+  {
+    "name": "Anicca",
+    "type": "iOS",
+    "description": "日常に寄り添う、アファメーションのコンパニオン。",
+    "url": "https://aniccaai.com/affirmation-app/ja",
+    "category": "mobile"
+  },
+  {
+    "name": "Honne",
+    "type": "iOS",
+    "description": "メッセージの意図や、返答を考えるためのサポート。",
+    "url": "https://aniccaai.com/honne/ja",
+    "category": "mobile"
+  },
+  {
+    "name": "BreathCalm",
+    "type": "モバイル",
+    "description": "呼吸に意識を向けるためのアプリ。",
+    "url": "https://aniccaai.com/breath-calm",
+    "category": "mobile"
+  },
+  {
+    "name": "CalmCortisol",
+    "type": "モバイル",
+    "description": "落ち着くための短いルーティンを日常へ。",
+    "url": "https://aniccaai.com/calmcortisol",
+    "category": "mobile"
+  },
+  {
+    "name": "Thankful",
+    "type": "モバイル",
+    "description": "日々の感謝を記録する。",
+    "url": "https://aniccaai.com/thankful",
+    "category": "mobile"
+  },
+  {
+    "name": "ImpulseLog",
+    "type": "モバイル",
+    "description": "衝動を記録し、振り返るためのアプリ。",
+    "url": "https://aniccaai.com/impulse-log",
+    "category": "mobile"
+  },
+  {
+    "name": "PDF Insight",
+    "type": "ウェブ",
+    "description": "PDFを読み、内容について質問するツール。",
+    "url": "https://clear-pdf-converter.com",
+    "category": "web"
+  },
+  {
+    "name": "GlowUp AI",
+    "type": "ウェブ",
+    "description": "外見の印象についてAIに相談するツール。",
+    "url": "https://iglowup-ai.lovable.app",
+    "category": "web"
+  },
+  {
+    "name": "マネージャー",
+    "type": "研究・開発",
+    "description": "人口、行動、環境をモデル化し、介入案を検証する構想。",
+    "url": "index.html#research",
+    "category": "ai"
+  }
+]
