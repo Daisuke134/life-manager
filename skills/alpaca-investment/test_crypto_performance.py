@@ -321,6 +321,78 @@ class CryptoPerformanceTests(unittest.TestCase):
             self.assertEqual(len(calls),3);self.assertEqual(third['fee_readback_through'],obs['clock']['observed_at'])
             self.assertTrue(all(proofs.parse_instant(c['period_end'])-proofs.parse_instant(c['period_start'])<=timedelta(days=90) for c in calls))
 
+    def test_page_limits_shrink_the_actual_window_for_fills_and_fees(self):
+        for cached in (False,True):
+            with self.subTest(cached=cached),tempfile.TemporaryDirectory() as directory:
+                root=Path(directory);orders,frame,_=cycle_fixture(root)
+                obs={'mode':'paper','paper':True,'clock':{'observed_at':NOW}}
+                if cached:
+                    PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper',activity_reader=lambda **_:frame)
+                calls=[]
+                def reader(**kw):
+                    calls.append(kw)
+                    after=proofs.parse_instant(kw['period_start']).replace(hour=0,minute=0,second=0,microsecond=0)
+                    if proofs.parse_instant(kw['period_end'])-after>timedelta(days=7):
+                        raise ValueError('crypto_activity_limit_exceeded')
+                    return activity_fixture(frame,mode='paper',start=kw['period_start'],end=kw['period_end'])
+                for index,want_days in enumerate((16,8,4)):
+                    obs['clock']['observed_at']=f'2026-02-01T06:{index:02}:00Z'
+                    result=PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper',activity_reader=reader)
+                    self.assertEqual(result.get('activity_window_days'),want_days)
+                    self.assertEqual(result['next_action'],'retry_activity_readback_with_smaller_window')
+                obs['clock']['observed_at']='2026-02-01T06:03:00Z'
+                result=PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper',activity_reader=reader)
+                self.assertEqual(result['completed_round_trips'],1)
+                self.assertEqual(result['fee_readback_through'],'2026-01-05T00:00:00Z')
+                self.assertEqual(len(calls),4)
+                self.assertEqual(len({c['period_end'] for c in calls}),4)
+                PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper',activity_reader=reader)
+                self.assertEqual(len(calls),4)
+                obs['clock']['observed_at']='2026-02-01T06:04:00Z'
+                next_result=PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper',activity_reader=reader)
+                self.assertEqual(next_result['fee_readback_through'],'2026-01-09T00:00:00Z')
+                self.assertIsNone(next_result['fees_usd'])
+
+    def test_one_day_limit_keeps_evidence_and_avoids_larger_prefix_retries(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);orders,frame,_=cycle_fixture(root)
+            obs={'mode':'paper','paper':True,'clock':{'observed_at':NOW}}
+            first=PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper',activity_reader=lambda **_:frame)
+            calls=[]
+            def reader(**kw):
+                calls.append(kw);raise ValueError('crypto_activity_limit_exceeded')
+            # Actual provider window is one UTC day plus one minute, then one day.
+            obs['clock']['observed_at']='2026-01-02T00:01:00Z'
+            first_fail=PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper',activity_reader=reader)
+            self.assertEqual(first_fail.get('activity_window_days'),1)
+            obs['clock']['observed_at']='2026-01-02T00:02:00Z'
+            minimum=PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper',activity_reader=reader)
+            self.assertEqual(minimum['next_action'],'inspect_single_day_activity_pagination')
+            for clock in ('2026-01-02T00:03:00Z','2026-01-03T00:00:00Z'):
+                obs['clock']['observed_at']=clock
+                held=PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper',activity_reader=reader)
+                self.assertEqual(held['reason'],'crypto_activity_single_day_limit')
+                self.assertEqual(held['order_activity_refs'],first['order_activity_refs'])
+                self.assertIsNone(held['net_pnl_usd'])
+            self.assertEqual(len(calls),2)
+
+    def test_invalid_window_state_preserves_anchors_and_other_errors_do_not_shrink(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);orders,frame,_=cycle_fixture(root)
+            obs={'mode':'paper','paper':True,'clock':{'observed_at':NOW}}
+            first=PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper',activity_reader=lambda **_:frame)
+            path=root/'performance-crypto-latest.json'
+            for invalid in (True,0,91,'4'):
+                bad={**first,'activity_window_days':invalid};path.write_text(json.dumps(bad))
+                result=PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper')
+                self.assertEqual(result.get('reason'),'crypto_performance_activity_cache_invalid')
+                self.assertEqual(result['known_closed_cycle_ids'],first['known_closed_cycle_ids'])
+            path.write_text(json.dumps(first));obs['clock']['observed_at']='2026-02-01T06:00:00Z'
+            result=PERF.write_crypto_performance(root,obs,mode='paper',owner_id='alpaca-investment-paper',
+                activity_reader=lambda **_:(_ for _ in ()).throw(ValueError('crypto_transport_failed')))
+            self.assertEqual(result['reason'],'crypto_transport_failed')
+            self.assertEqual(result.get('activity_window_days'),90)
+
     def test_failed_or_wrong_window_fee_readback_keeps_verified_cache(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);orders,frame,_=cycle_fixture(root)
