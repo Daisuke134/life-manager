@@ -157,9 +157,12 @@ def main(argv=None):
     recon.add_argument('--method',choices=('independent','ipf'),required=True)
     scoring=commands.add_parser('score-population');scoring.add_argument('--predictions',action='append',required=True)
     for flag in ('reference','manifest','out'):scoring.add_argument('--'+flag,required=True)
+    from .household_cli import add_household_commands
+    add_household_commands(commands)
     args=parser.parse_args(argv)
     try:
-        if args.command=='fetch-acs':fetch_acs_extract(Path(args.out))
+        if hasattr(args,'handler'):args.handler(args)
+        elif args.command=='fetch-acs':fetch_acs_extract(Path(args.out))
         elif args.command=='prepare-population':prepare(args)
         elif args.command=='reconstruct':reconstruct(args)
         else:score(args)

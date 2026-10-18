@@ -3533,3 +3533,7 @@ Ruling: 進捗ledgerは既存統合SSOTだけとし、別の進捗正本を作�
 8B Task2 complete：世帯WGTP比例baseline、構造的ゼロを保つ既存ipfn調整、TRS整数化を実装。新test未実装importでRED→全42テストPASS。周辺一致、support不足、非収束、zero-target行、順序不変、整数総数保持、固定seed、ゼロ重み、NaN/負/total不一致拒否を確認。整数化が世帯数以外の制約をすべて保証するとはしない。
 
 8B Task3 complete：streaming CSV展開と再読audit、weighted/integerの別採点を実装。未実装importでRED→全46テストPASS。3人世帯を2組で2世帯6人、新ID/所属/元属性の維持、欠員/重複/孤立/属性書換え/異なる既存出力の拒否を確認。6セルTVDを手計算fixtureと照合し、PWGTP基準と世帯重みによる人数を分けた。
+
+8B Task4：CLI未登録でRED→prepare/synthesize/scoreを接続して全50テストPASS。synthesize中のreferenceファイル読取禁止を実試験。2方式不足、入力/CSV改ざんを拒否。fixture ZIPの時刻を固定し、fixture provenanceの比較が壁時計で揺れないようにした。
+
+公式のfetch-households→prepare→baseline/calibrated→scoreを /workspace/artifacts/manager-households/run-20261018 で実行して全工程PASS。通常世帯20182、所属45755人。調整後の整数人口は441570世帯/1042763人。CSV再読auditの欠員/孤立/重複/属性不一致0。6セルTVD：baseline weighted/integer=0.002339379939760396、calibrated weighted=0.0005108509855554699、integer=0.0005435151844554427。調整前周辺最大差1021世帯、調整後weighted約0.00001418世帯、integer17世帯。10seed整数化のTVD範囲0.00045519396698145975..0.0005820141766877162。設定/seed/区分は評価後に変更していない。再現用の再展開と最終reviewはこれから。

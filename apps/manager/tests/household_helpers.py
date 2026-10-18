@@ -24,7 +24,7 @@ def rows():
 
 def zip_rows(path,member,fields,data):
     stream=io.StringIO();writer=csv.DictWriter(stream,fields);writer.writeheader();writer.writerows(data)
-    with zipfile.ZipFile(path,'w') as z:z.writestr(member,stream.getvalue())
+    with zipfile.ZipFile(path,'w') as z:z.writestr(zipfile.ZipInfo(member,date_time=(2026,10,18,0,0,0)),stream.getvalue())
 
 
 def fixture(root,housing=None,persons=None):
