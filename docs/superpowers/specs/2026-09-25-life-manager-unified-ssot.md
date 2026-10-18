@@ -3479,3 +3479,15 @@ PopulationSimを別の研究用scratchへ取得、commit 21881f0094680afbe11e283
 8Aの成果は人口再構成部品の実装と評価であり、行動予測製品や実地便益ではない。YCの会社説明には大きな使命と、最初に誰の何を改善するか、変更可能な環境、デモと現在の実測を区別して書く。8Aだけで全求人に十分、採用/YC合格を保証、とはしない。研究寄りの職種では8B/9の再現や評価が特に重要。締切のある適合職種は成果の完成を待たず現時点の実績で応募できる。
 
 コールドメールは相手の具体的な論文/処理→自分が再現した結果→一つの疑問や依頼→コード/短いレポートの順で用意。本文を使い回す一斉送信にしない。最初は3–5件を準備する案であり、この件数に効果の実証があるとはしない。全ロードマップ完成まで待たない。相手の返信や紹介をYC提出の条件にしない。求人と創業の時間配分、採用先の条件とYCフルタイム要件は機会が具体化した時点で確認する。
+
+
+### 2026-10-18 人口v0の実装開始（実行記録）
+
+本人が「実装→結果を理解→改善」の実行を明示。既存worktree docs/manager-learning-20261017を確認、実行前HEAD=416674d058ad2685699731420f54fef8bf125142、clean。executing-plans / test-driven-development / using-git-worktreesを読んで6まとまりを順に実行する。進捗の正本は本項。
+
+Ruling: skillが要求する別ledgerの代わりに、このSSOTへ実行・判断・完了を記録する — ユーザーとAGENTSの唯一の進捗正本ルールを優先 — 別ledger依存の自動スクリプトは使えないため、検証出力はGit外へ保管する。
+Ruling: Astra Advisorは現在のtool catalogにないため、既存のSuperpowers inline手順を用いる — unavailableなら続行するAGENTSに従う — 最終レビューは技能指定の別コンテキストで実施する。
+Pre-flight: Task1型/出典→Task2集計→Task3復元→Task4採点→Task5CLIの型・セル順・ハッシュ識別は仕様の契約を共用する。raw/runはGit外、paid calls=0、残り4track=not_run。
+
+Task A/P01–P03: complete。Python3.12分離venv、7依存のwheel SHA固定と--require-hashes導入、manager importを確認。ipfn wheelは指定SHAと一致。wheelにlicense未同梱のため固定upstreamのMIT本文をTHIRD_PARTY_NOTICESへ保存。
+Task B/P04–P07: complete。型/取得テストを先に作り未実装importのREDを確認、実装後7テストPASS。公式URLの実headerと行を別途確認。HTML/別表/欠落/重複/負estimate/改ざん/上限/EOF/不完全snapshotを検査。まだ実資料の生成比較は未実施。
