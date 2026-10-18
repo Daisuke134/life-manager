@@ -75,7 +75,7 @@ class CryptoValidationReportTests(unittest.TestCase):
             self.assertEqual(report["expires_at"], "2026-01-09T00:00:00Z")
             self.assertIn("alpaca://fixture/fx", report["evidence_ids"])
             self.assertIn("parameter_sensitivity", report)
-            self.assertNotEqual(report["reason"], "quote_conversion_unknown")
+            self.assertNotEqual(report.get("reason"), "quote_conversion_unknown")
             self.assertEqual(report["measurement_kind"], "modeled_validation")
 
     def test_crypto_reports_missing_fx_remain_unknown_and_not_selected(self):
@@ -87,7 +87,7 @@ class CryptoValidationReportTests(unittest.TestCase):
             self.assertEqual(report["status"], "unknown")
             self.assertEqual(report["decision"], "rejected")
             self.assertIsNone(report["net_pnl_usd"])
-        self.assertIsNone(select_strategy(reports)["selected_strategy_id"])
+        self.assertEqual(select_strategy(reports)["strategy_id"], "NO_STRATEGY")
 
     def test_crypto_reports_reject_future_or_ambiguous_history_and_fx(self):
         bars = self._history()

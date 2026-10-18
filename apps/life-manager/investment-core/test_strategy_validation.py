@@ -89,7 +89,7 @@ class StrategyValidationTests(unittest.TestCase):
                 self.assertEqual(result["trades"], [])
 
     def test_ambiguous_instrument_currency_is_not_assumed_usd(self):
-        for instruments in (["TEST"], ["TEST/USD", "OTHER/USDC"], ["/USD"]):
+        for instruments in (["TEST"], ["TEST/USD", "OTHER/USDC"], ["/USD"], [None], [1], [{}], [[]]):
             with self.subTest(instruments=instruments):
                 mapping = _card().to_mapping()
                 mapping["instruments"] = instruments

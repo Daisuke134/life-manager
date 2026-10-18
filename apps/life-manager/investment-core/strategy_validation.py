@@ -88,7 +88,7 @@ def _normalize_candles(candles: Sequence[Mapping[str, Any]]) -> tuple[list[dict[
 
 def _quote_valuations(card: StrategyCard, candles: list[dict[str, Any]]) -> str | None:
     # One candle stream cannot establish prices/currencies for multiple assets.
-    if len(card.instruments) != 1:
+    if len(card.instruments) != 1 or not isinstance(card.instruments[0], str):
         return "instrument_currency_unknown"
     parts = card.instruments[0].split("/")
     if len(parts) != 2 or not all(part and part.strip() == part for part in parts):
