@@ -350,6 +350,12 @@ CFEE produce a local schema3 paged window, retaining every original raw chunk.
 The existing paper/live main injects this reader into the same writer. Partial
 chains and failed resumes keep their checkpoint/cache and never advance completed
 coverage. Successful same-clock replays read nothing.
-This branch is source only: unlinked official fee evidence, quantity
-drift, FX and complete actual costs, deployment, natural outcomes and profitable
-evaluation remain in the canonical SSOT.
+CFEE activity/settlement dates are distinct from creation-time query bounds.
+A backdated fee is allowed; optional created_at is checked against its original
+wire window, without generating a missing timestamp. A fixed live readback
+confirmed four raw CFEE order IDs match four official orders, and the pinned CLI
+preserves all fields. Scoped CFEE queries returned empty in that diagnostic;
+retain unfiltered bounded reads and exact response IDs without inferring zero fees.
+This branch is source only: verified fee quantity-drift recovery, FX and complete
+actual costs, deployment, natural outcomes and profitable evaluation remain in
+the canonical SSOT.
