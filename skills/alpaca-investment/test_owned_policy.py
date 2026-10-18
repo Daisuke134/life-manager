@@ -341,7 +341,6 @@ class OwnedSubmitFenceTests(unittest.TestCase):
                 submit=stack.enter_context(patch.object(native,"submit_order",side_effect=AssertionError("unexpected submit")))
                 stack.enter_context(patch.object(alpaca_cli,"_context",side_effect=AssertionError("unexpected provider")))
                 stack.enter_context(patch.object(alpaca_cli,"_run",side_effect=AssertionError("unexpected provider")))
-                before=(root/"receipts.jsonl").read_bytes()
                 with redirect_stdout(StringIO()) as output: code=native.main(wake_id="account-lag-fixture")
                 result=json.loads(output.getvalue().splitlines()[-1])
                 self.assertEqual(code,0,result)
@@ -369,6 +368,21 @@ class OwnedSubmitFenceTests(unittest.TestCase):
                     actual=native._sync_live_ownership(root,Path("unused"),Path("unused"),{"positions":[]})
                 self.assertEqual(actual,original)
 
+    def test_zero_fill_readback_cannot_erase_a_previously_recorded_fill(self):
+        import importlib.util
+        spec=importlib.util.spec_from_file_location("owned_conflict_native_run", ROOT/"run.py")
+        native=importlib.util.module_from_spec(spec); spec.loader.exec_module(native)
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);original,_owner=seed(root)
+            original.update(status="entry_pending",entry_filled_qty="0")
+            original.pop("owned_qty",None)
+            native._atomic_json(root/"live-owned-position.json",original)
+            broker={"id":"provider-entry","client_order_id":original["entry_client_order_id"],
+                    "symbol":"BTC/USDC","side":"buy","status":"rejected","filled_qty":"0"}
+            with patch.object(native,"find_order_by_client_id",return_value=broker):
+                actual=native._sync_live_ownership(root,Path("unused"),Path("unused"),{"positions":[]})
+            self.assertEqual(actual,original)
+
     def test_terminal_no_fill_requires_exact_order_identity(self):
         import importlib.util
         spec=importlib.util.spec_from_file_location("owned_zero_native_run", ROOT/"run.py")
@@ -379,6 +393,12 @@ class OwnedSubmitFenceTests(unittest.TestCase):
                 root=Path(directory);original,_owner=seed(root)
                 original.update(status="entry_pending",entry_filled_qty="0")
                 native._atomic_json(root/"live-owned-position.json",original)
+                # A genuine pending, never-filled entry has no filled outcome or owned quantity.
+                original.pop("owned_qty",None)
+                native._atomic_json(root/"live-owned-position.json",original)
+                rows=[r for r in effect_store._rows(root/"receipts.jsonl")
+                      if r.get("receipt_type")!="outcome" and r.get("status")!="applied"]
+                (root/"receipts.jsonl").write_text("".join(json.dumps(r)+"\n" for r in rows))
                 broker={"id":"provider-entry","client_order_id":original["entry_client_order_id"],
                     "symbol":"BTC/USDC","side":"buy","status":"rejected","filled_qty":"0",**change}
                 with patch.object(native,"find_order_by_client_id",return_value=broker):

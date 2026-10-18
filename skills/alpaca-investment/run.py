@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import tempfile
 from datetime import datetime, timezone
@@ -17,7 +18,7 @@ from alpaca_cli import (CLI_OPERATIONS, SAFE_ERROR_CODES, find_order_by_client_i
                         read_paper_etf_cost_evidence, submit_order)
 from campaign import CANDIDATE_REF, SYMBOLS, exit_order, reconcile
 from control import control_fence, read_control
-from effect_store import (mark_started, reconcile_started, record_no_trade, seal,
+from effect_store import (_rows as receipt_rows, mark_started, reconcile_started, record_no_trade, seal,
                           unresolved_intent_count)
 from etf_ownership import ETF_PAPER_OWNER_ID, ETF_STRATEGY_ID, investment_owner_id
 from etf_ownership import _account_position as validate_etf_position_readback
@@ -244,9 +245,38 @@ def _sync_live_ownership(state: Path, credentials_path: Path, cli_path: Path,
             ownership["entry_filled_qty"] = str(filled)
             ownership["owned_qty"] = str(held)
             _atomic_json(path, ownership)
-        elif status in {"filled", "canceled", "expired", "rejected"} and not btc:
-            ownership["status"] = "closed"
-            _atomic_json(path, ownership)
+        elif status in {"canceled", "expired", "rejected"} and not btc:
+            try:
+                filled = Decimal(str(broker.get("filled_qty")))
+                entry_filled = Decimal(str(ownership.get("entry_filled_qty")))
+                owned = Decimal(str(ownership.get("owned_qty", "0")))
+                no_fill = all(q.is_finite() and q == 0 for q in (filled, entry_filled, owned))
+            except InvalidOperation:
+                no_fill = False
+            for row in receipt_rows(state / "receipts.jsonl"):
+                if row.get("effect_id") != ownership.get("entry_effect_id"):
+                    continue
+                if (row.get("broker_status") in {"filled", "partially_filled"}
+                        or row.get("reason") == "partial_fill_requires_reconciliation"):
+                    no_fill = False
+                recorded = row.get("broker")
+                if isinstance(recorded, dict):
+                    try:
+                        quantity = Decimal(str(recorded.get("filled_qty")))
+                        if not quantity.is_finite() or quantity != 0:
+                            no_fill = False
+                    except InvalidOperation:
+                        no_fill = False
+            effect_id = ownership.get("entry_effect_id")
+            client_id = ownership.get("entry_client_order_id")
+            if (no_fill and isinstance(effect_id, str) and re.fullmatch(r"[0-9a-f]{64}", effect_id)
+                    and client_id == "lm-ai-" + effect_id[:24]
+                    and isinstance(broker.get("id"), str) and broker["id"].strip()
+                    and broker.get("client_order_id") == ownership.get("entry_client_order_id")
+                    and broker.get("symbol") in {"BTC/USDC", "BTCUSDC"}
+                    and broker.get("side") == "buy"):
+                ownership["status"] = "closed"
+                _atomic_json(path, ownership)
     elif ownership.get("status") == "closing":
         if status in {"canceled", "expired", "rejected"} and btc:
             try:
@@ -262,9 +292,6 @@ def _sync_live_ownership(state: Path, credentials_path: Path, cli_path: Path,
         elif status == "filled" and not btc:
             ownership["status"] = "closed"
             _atomic_json(path, ownership)
-    elif ownership.get("status") == "open" and not btc:
-        ownership["status"] = "closed"
-        _atomic_json(path, ownership)
     return ownership
 
 
@@ -544,7 +571,7 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                         "position_qty": position["qty"],
                         "observed_at": allocator_snapshot["clock"]["timestamp"]}
         else:
-            if mode == "live" and ownership and ownership.get("status") in {"entry_pending", "closing"}:
+            if mode == "live" and ownership and ownership.get("status") in {"entry_pending", "open", "closing"}:
                 decision = {"approved": False, "candidate_ref": "NO_TRADE",
                             "gate": "ownership_pending", "reason": "既存注文の公式確定を待つ。",
                             "observed_at": allocator_snapshot["clock"]["timestamp"]}
