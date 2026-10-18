@@ -73,7 +73,7 @@ replays, `tests/` the tests.
 | lane | job label | every | what it does |
 |---|---|---|---|
 | apply | `ai.anicca.hf-gig-apply-direct` | 60s | Reads the public job board, proves which postings the installed AI/Mac/tool system can deliver, and submits an application with a proposal. |
-| storefront | `ai.anicca.hf-gig-storefront-direct` | 60s | Reads the seller's own listings and their view/inquiry counts, and edits the ones people look at and never contact. |
+| storefront | `ai.anicca.hf-gig-storefront-direct` | 1800s (one full pass per wake) | Reads the seller's own listings and their view/inquiry counts, and edits the ones people look at and never contact. |
 | negotiate | `ai.anicca.hf-gig-reply-detector` | continuous, 30s discovery | Watches talkrooms opened *before* purchase and answers the buyer's questions and estimate requests with two independent workers. |
 | paid | `ai.anicca.hf-gig-paid-direct` | 300s | Works orders that have been paid for: reads the requirement, builds or reviews the deliverable, and decides whether it is good enough to hand over. |
 
