@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 """measure-sales.py — measures REAL, currently-displayed sales/revenue figures for note and
-Substack (JA, plus EN when SUBSTACK_PUBLICATION_EN is configured) over CDP on the Writer's own
-browser identity writer:anicca, which writer-sales-measure-worker.sh leases and passes in
-WRITER_CDP_ENDPOINT. Dais's personal Chrome (interactive:dais) is never used. Same convention as
-scripts/_shared/measure-funnel.py's measure_x: playwright.sync_api run via the
-Life Manager managed Python as a subprocess. Each measurement gets its own leased context, seeded
-only from the Writer vault (WRITER_SESSION_VAULT) and authenticated from LIFE_MANAGER_ENV_FILE
-credentials; the parent releases that context and its exact tab even if the child times out, so
-the browser's other tabs are never touched (same discipline as render-verify-draft.sh).
+Substack (JA, plus EN when SUBSTACK_PUBLICATION_EN is configured). Each platform driver runs in
+the Life Manager managed Python as a subprocess and launches its own short-lived headless
+CloakBrowser context (cloakbrowser.launch_context, the note-publish/publish-paid.py precedent),
+which it closes when done: no shared or resident browser is ever attached. Credentials come from
+LIFE_MANAGER_ENV_FILE; note's session is kept in a Writer-owned 0600 storage_state file so the
+ordinary login runs only when that session expires, and a failed login backs off for a day.
 NEVER estimate or fabricate a number: if a metric cannot be safely parsed from the real screen
 text today, emit null + a reason string, exactly like measure-funnel.py does. DOM reading uses
 document.body.innerText + regex on labels, never brittle CSS selectors and never an LLM judge.
@@ -32,7 +30,7 @@ Per-platform measurement (MEASURED 2026-07-18 against the real logged-in dashboa
   - substack:  {pub}/publish/home 's "有料登録者" overview card and
                {pub}/publish/stats/earnings 's "累計収益" (Lifetime earnings) card. Substack's
                formatter prints 0 and null alike as "-" (MEASURED 2026-10-18 in the reactPublish
-               bundle), so a dash alone is never converted into zero. The same leased page also
+               bundle), so a dash alone is never converted into zero. The same page also
                reads the JSON those cards render: /api/v1/publish-dashboard/summary `subscribers`
                and user_pub_stats/payouts.totalAmount + payouts.totalEarnings (minor units, USD).
                An explicit JSON number is recorded only when the card agrees with it ("-" only
@@ -47,13 +45,12 @@ the `artifact_id` encoding live in scripts/artifact_attribution.py; join with
 scripts/attribution-join.py.
 
 CLI:
-    measure-sales.py [--out <path>] [--cdp-port <port>]
+    measure-sales.py [--out <path>]
 stdout: one JSON line summary {"date": "...", "measured": N, "results": [...]}
 """
 from __future__ import annotations
 
 import argparse
-import secrets
 import base64
 import functools
 import hashlib
@@ -86,9 +83,13 @@ NOTE_SALES_URL = "https://note.com/sitesettings/salesmanage"
 NOTE_PURCHASES_URL = "https://note.com/sitesettings/purchasers"
 NOTE_STATS_URL = "https://note.com/sitesettings/stats"
 JST = timezone(timedelta(hours=9))
-# writer:anicca's own session vault: context seeds and their vault locks never reach another
-# identity's vault (the cdp_context_lease default is Dais's daily-driver vault).
-WRITER_SESSION_VAULT = os.path.expanduser("~/.cloak/vault/writer-anicca/auth-state.json")
+# Writer-owned, private, outside the repository and release: note's measured session and the
+# marker that stops repeated password logins after a failure.
+NOTE_SESSION_DIR = Path(os.environ.get("ARTICLE_STATE_DIR") or os.environ.get("WRITER_STATE_DIR")
+                        or "~/.local/state/life-manager/writer").expanduser()
+NOTE_STORAGE_STATE = NOTE_SESSION_DIR / "note-measure-storage.json"
+NOTE_LOGIN_BACKOFF = NOTE_SESSION_DIR / "note-measure-login-backoff.json"
+NOTE_LOGIN_BACKOFF_SECONDS = 24 * 3600
 # (publication env keys, session cookie env keys) per publication, first non-empty wins.
 # Same fallback as publish-substack.sh: only JA may use the legacy unsuffixed keys.
 SUBSTACK_TARGETS = {
@@ -103,65 +104,11 @@ def substack_publication(lang: str) -> str:
                  if (value := os.environ.get(key, "").strip())), "")
 
 
-def _load_context_lease():
-    spec = importlib.util.spec_from_file_location("writer_context_lease",
-        Path(__file__).resolve().parents[3] / "skills/browser/scripts/cdp_context_lease.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-def run_browser_script(script: str, timeout: int = 90, *, cdp_port: int = 9222) -> subprocess.CompletedProcess:
+def run_browser_script(script: str, timeout: int = 120) -> subprocess.CompletedProcess:
     if not os.path.exists(VENV_CLOAK_PYTHON):
         raise FileNotFoundError(f"Writer browser Python not found at {VENV_CLOAK_PYTHON}")
-    contexts = _load_context_lease()
-    owner = "writer-measure-" + secrets.token_hex(12)
-    url = "about:blank#" + owner
-    values = {"CLOAK_CDP_BASE_URL": os.environ.get("WRITER_CDP_ENDPOINT", f"http://localhost:{cdp_port}"),
-              "AI_BROWSER_HOLDER_PID": str(os.getpid()),
-              "CLOAK_SESSION_VAULT_FILE": WRITER_SESSION_VAULT,
-              "CLOAK_CONTEXT_COOKIE_DOMAINS": "note.com,substack.com"}
-    previous = {key: os.environ.get(key) for key in values}
-    lease = None
-    os.environ.update(values)
-    try:
-        lease = contexts.acquire(owner, url=url)
-        if not lease.get("ok") or not all(lease.get(key) for key in ("context_id", "target_id", "token", "generation")):
-            reason = lease.get("reason", "invalid_lease_identity")
-            lease = None
-            raise RuntimeError(f"measurement context admission failed: {reason}")
-        child_env = {**os.environ, "WRITER_LEASED_CONTEXT_ID": lease["context_id"],
-                     "WRITER_LEASED_TARGET_ID": lease["target_id"], "WRITER_LEASED_TARGET_URL": url}
-        return subprocess.run([VENV_CLOAK_PYTHON, "-c", script], capture_output=True,
-                              text=True, timeout=timeout, env=child_env)
-    finally:
-        try:
-            if lease is not None:
-                result = contexts.release(owner, token=lease["token"], generation=lease["generation"])
-                if not result.get("ok") or result.get("cleanup_pending"):
-                    raise RuntimeError("measurement context cleanup remains pending")
-        finally:
-            for key, value in previous.items():
-                if value is None:
-                    os.environ.pop(key, None)
-                else:
-                    os.environ[key] = value
-
-
-LEASED_PAGE_SCRIPT = """
-pg = next((page for context in b.contexts for page in context.pages
-           if page.url == os.environ["WRITER_LEASED_TARGET_URL"]), None)
-if pg is None:
-    raise RuntimeError("measurement leased target unavailable")
-session = pg.context.new_cdp_session(pg)
-try:
-    info = session.send("Target.getTargetInfo")["targetInfo"]
-finally:
-    session.detach()
-if (info["targetId"] != os.environ["WRITER_LEASED_TARGET_ID"]
-        or info.get("browserContextId") != os.environ["WRITER_LEASED_CONTEXT_ID"]):
-    raise RuntimeError("measurement leased target identity mismatch")
-"""
+    return subprocess.run([VENV_CLOAK_PYTHON, "-c", script], capture_output=True,
+                          text=True, timeout=timeout)
 
 
 def extract_payload(proc: subprocess.CompletedProcess) -> dict:
@@ -171,9 +118,6 @@ def extract_payload(proc: subprocess.CompletedProcess) -> dict:
     line = next((l for l in proc.stdout.splitlines() if l.startswith("PAYLOAD_B64:")), None)
     if proc.returncode == 0 and line:
         return {"payload": json.loads(base64.b64decode(line[len("PAYLOAD_B64:"):]).decode("utf-8"))}
-    if "CDP_UNREACHABLE:" in proc.stdout:
-        reason = next(l for l in proc.stdout.splitlines() if l.startswith("CDP_UNREACHABLE:"))
-        return {"error": f"browser DOM read failed: {reason}"}
     if "NOTE_PASSWORD_MISSING" in proc.stdout:
         return {"error": "NOTE_PASSWORD missing (configure LIFE_MANAGER_ENV_FILE first)"}
     if "NOTE_CREDENTIALS_MISSING" in proc.stdout:
@@ -186,22 +130,37 @@ def extract_payload(proc: subprocess.CompletedProcess) -> dict:
     return {"error": f"browser DOM read failed: {reason}"}
 
 
-def measure_note_pages(cdp_port: int) -> dict:
-    """Drives ONE new tab through both note.com dashboard pages that this run needs, filling the
-    password re-confirmation step only if the browser actually shows it (idempotent: harmless to
-    check before each page). Returns {"error": ...} OR the two pages' final URL + raw
-    document.body.innerText, for the caller to regex-parse (parsing happens in the parent, same
-    division of labor as measure-funnel.py's measure_x: subprocess fetches, parent parses)."""
+def note_login_backoff() -> str | None:
+    """A failed password login is not retried for a day: hourly retries risk an account lock."""
+    try:
+        failed_at = NOTE_LOGIN_BACKOFF.stat().st_mtime
+    except FileNotFoundError:
+        return None
+    until = failed_at + NOTE_LOGIN_BACKOFF_SECONDS
+    if datetime.now(timezone.utc).timestamp() >= until:
+        return None
+    return ("note login backoff after NOTE_LOGIN_FAILED until "
+            f"{datetime.fromtimestamp(until, timezone.utc).isoformat()}; no login attempted")
+
+
+def measure_note_pages() -> dict:
+    """Drives one ephemeral page through the note.com dashboard pages this run needs, filling the
+    login or password re-confirmation step only if the browser actually shows it. Returns
+    {"error": ...} OR the pages' final URL + raw document.body.innerText, for the caller to
+    regex-parse (subprocess fetches, parent parses, as in measure-funnel.py's measure_x)."""
+    backoff = note_login_backoff()
+    if backoff:
+        return {"error": backoff}
+    storage = str(NOTE_STORAGE_STATE)
     script = f"""
 import base64, json, os, sys, time
-from playwright.sync_api import sync_playwright
+from cloakbrowser import launch_context
 
-p = sync_playwright().start()
-try:
-    b = p.chromium.connect_over_cdp(os.environ.get("WRITER_CDP_ENDPOINT", "http://localhost:{cdp_port}"))
-except Exception as e:
-    print("CDP_UNREACHABLE:" + str(e)); sys.exit(1)
-{LEASED_PAGE_SCRIPT}
+storage = {storage!r}
+options = {{"headless": True, "humanize": False}}
+if os.path.exists(storage):
+    options["storage_state"] = storage
+ctx = launch_context(**options)
 
 def login_if_shown():
     if pg.locator('input[name="login"]').count() == 0:
@@ -241,12 +200,20 @@ def confirm_password_if_shown():
     return True
 
 try:
+    pg = ctx.new_page()
     pg.goto({NOTE_SALES_URL!r}, wait_until="domcontentloaded", timeout=40000)
     time.sleep(3)
     if not login_if_shown():
         sys.exit(1)
     if not confirm_password_if_shown():
         sys.exit(1)
+    # The money dashboard answered, so this session is authenticated: keep it (0600) for the next pass.
+    os.makedirs(os.path.dirname(storage), mode=0o700, exist_ok=True)
+    temporary = f"{{storage}}.{{os.getpid()}}.tmp"
+    with os.fdopen(os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "w") as handle:
+        json.dump(ctx.storage_state(), handle)
+    os.replace(temporary, storage)
+
     sales_url = pg.url
     sales_body = pg.evaluate("() => document.body.innerText")
 
@@ -284,18 +251,27 @@ try:
     }}
     print("PAYLOAD_B64:" + base64.b64encode(json.dumps(payload).encode("utf-8")).decode("ascii"))
 finally:
-    pg.close()
+    ctx.close()
 """
     try:
-        proc = run_browser_script(script, cdp_port=cdp_port)
+        proc = run_browser_script(script)
     except (subprocess.TimeoutExpired, FileNotFoundError, RuntimeError) as e:
         return {"error": f"note browser driver failed to run: {e}"}
-    return extract_payload(proc)
+    if "NOTE_LOGIN_FAILED" in proc.stdout:
+        NOTE_LOGIN_BACKOFF.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        NOTE_LOGIN_BACKOFF.unlink(missing_ok=True)
+        with os.fdopen(os.open(NOTE_LOGIN_BACKOFF, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "w") as handle:
+            json.dump({"failed_at": datetime.now(timezone.utc).isoformat(),
+                       "backoff_seconds": NOTE_LOGIN_BACKOFF_SECONDS}, handle)
+    result = extract_payload(proc)
+    if "payload" in result:
+        NOTE_LOGIN_BACKOFF.unlink(missing_ok=True)
+    return result
 
 
-def measure_substack_pages(cdp_port: int, lang: str = "ja") -> dict:
-    """Same shape as measure_note_pages: one new tab, two page loads (overview home + earnings
-    stats), raw body text handed back to the parent for regex parsing."""
+def measure_substack_pages(lang: str = "ja") -> dict:
+    """Same shape as measure_note_pages: one ephemeral page, two page loads (overview home +
+    earnings stats), raw body text handed back to the parent for regex parsing."""
     pub = substack_publication(lang)
     if not pub:
         return {"error": f"{SUBSTACK_TARGETS[lang][0][0]} missing (configure LIFE_MANAGER_ENV_FILE first)"}
@@ -304,14 +280,8 @@ def measure_substack_pages(cdp_port: int, lang: str = "ja") -> dict:
     earnings_url = f"https://{pub}/publish/stats/earnings"
     script = f"""
 import base64, json, os, sys, time
-from playwright.sync_api import sync_playwright
+from cloakbrowser import launch_context
 
-p = sync_playwright().start()
-try:
-    b = p.chromium.connect_over_cdp(os.environ.get("WRITER_CDP_ENDPOINT", "http://localhost:{cdp_port}"))
-except Exception as e:
-    print("CDP_UNREACHABLE:" + str(e)); sys.exit(1)
-{LEASED_PAGE_SCRIPT}
 raw_cookie = next((value for key in {cookie_keys!r}
                    if (value := os.environ.get(key, "").strip())), "")
 cookies = []
@@ -322,13 +292,10 @@ for item in raw_cookie.split(";"):
 if not cookies:
     print("SUBSTACK_COOKIE_MISSING")
     sys.exit(1)
-browser_session = b.new_browser_cdp_session()
+ctx = launch_context(headless=True, humanize=False)
 try:
-    browser_session.send("Storage.setCookies", {{"cookies": cookies,
-        "browserContextId": os.environ["WRITER_LEASED_CONTEXT_ID"]}})
-finally:
-    browser_session.detach()
-try:
+    ctx.add_cookies(cookies)
+    pg = ctx.new_page()
     pg.goto({home_url!r}, wait_until="domcontentloaded", timeout=40000)
     time.sleep(4)
     home_url_final = pg.url
@@ -369,10 +336,10 @@ try:
     }}
     print("PAYLOAD_B64:" + base64.b64encode(json.dumps(payload).encode("utf-8")).decode("ascii"))
 finally:
-    pg.close()
+    ctx.close()
 """
     try:
-        proc = run_browser_script(script, cdp_port=cdp_port)
+        proc = run_browser_script(script)
     except (subprocess.TimeoutExpired, FileNotFoundError, RuntimeError) as e:
         return {"error": f"substack browser driver failed to run: {e}"}
     return extract_payload(proc)
@@ -753,9 +720,9 @@ def unknown_note_view_rows(artifacts: list[dict], reason: str) -> list[dict]:
     ]
 
 
-def measure_platform(platform: str, metric_sources: list[tuple[str, str]], fetch_fn, parse_fn, cdp_port: int, today: str) -> list[dict]:
+def measure_platform(platform: str, metric_sources: list[tuple[str, str]], fetch_fn, parse_fn, today: str) -> list[dict]:
     try:
-        result = fetch_fn(cdp_port)
+        result = fetch_fn()
         if "error" in result:
             reason = result["error"]
             metrics = [(name, None, False, reason, source_url) for name, source_url in metric_sources]
@@ -772,7 +739,6 @@ def measure_platform(platform: str, metric_sources: list[tuple[str, str]], fetch
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     p.add_argument("--out", default=DEFAULT_OUT)
-    p.add_argument("--cdp-port", type=int, default=int(os.environ.get("CDP_PORT", 9222)))
     p.add_argument(
         "--articles",
         type=Path,
@@ -787,7 +753,7 @@ def main(argv: list[str] | None = None) -> int:
     rows = []
     note_artifacts = load_note_artifacts(args.articles)
     try:
-        note_result = measure_note_pages(args.cdp_port)
+        note_result = measure_note_pages()
         if "error" in note_result:
             raise ValueError(str(note_result["error"]))
         note_payload = note_result["payload"]
@@ -814,17 +780,17 @@ def main(argv: list[str] | None = None) -> int:
         substack_pub = substack_publication(lang)
         if lang != "ja" and not substack_pub:
             continue  # optional publication not configured on this host
-        # Each publication is its own account; rows stay apart by source_url host.
-        rows += measure_platform(
+        # Each publication is its own account; its rows name it so JA and EN never mix.
+        for row in measure_platform(
             "substack",
             [
                 ("paid_subscribers", f"https://{substack_pub}/publish/home"),
                 ("mrr", f"https://{substack_pub}/publish/stats/earnings"),
                 ("revenue", f"https://{substack_pub}/publish/stats/earnings"),
             ],
-            functools.partial(measure_substack_pages, lang=lang), parse_substack_metrics,
-            args.cdp_port, today,
-        )
+            functools.partial(measure_substack_pages, lang), parse_substack_metrics, today,
+        ):
+            rows.append({**row, "publication": substack_pub})
 
     # Preserve the host's exact identity in the row whose hash money_sync stores.
     # Article run_id identifies the published product; keep it distinct from
