@@ -35,6 +35,15 @@ P&L is positive, drawdown is within the card, no lookahead is detected, and
 the nine-point parameter sensitivity gate passes. The evaluator never imports
 credentials or calls venue effect functions.
 
+The evaluator requires one instrument with an explicit `/QUOTE` suffix. USD
+uses identity conversion. Other quotes require `quote_to_usd` on every candle:
+`{currency, rate, timestamp, evidence_ref}`, with a finite positive USD-per-quote
+rate, matching quote currency and candle timestamp, and nonempty source evidence.
+Signals retain native prices; USD sizing and proceeds use entry and exit FX
+respectively. Missing or invalid conversion yields `unknown` / `rejected` and
+null USD money fields, so it cannot become a selected strategy. These are modeled
+validation costs, not evidence of actual fees or realized profit.
+
 For the Alpaca cards, `skills/alpaca-investment/strategy_policy.py`
 `build_validation_candles(...)` derives RSI/EMA/TEMA/Bollinger/ATR features
 from each prefix of the official 5-minute OHLC stream and discards only the
