@@ -110,17 +110,21 @@ def main(argv: list[str] | None = None) -> int:
                 message_key = row.get("message_key")
                 if isinstance(message_key, str):
                     latest_deliveries[message_key] = row
-        delivered_keys = {
+        # expired_unknown = resolved-unknown: never re-sent and not an open delivery.
+        closed_keys = {
             message_key
             for message_key, row in latest_deliveries.items()
-            if row.get("status") == "delivered"
+            if row.get("status") in {"delivered", "expired_unknown"}
         }
+        resolved_unknown = sum(row.get("status") == "expired_unknown" for row in latest_deliveries.values())
+        if resolved_unknown:
+            print(f"owner_report_resolved_unknown={resolved_unknown}")
         events = owner_report.build_events(
             args.state_root,
             args.kind,
             product_id=args.product_id,
             as_of=as_of,
-            skip_message_keys=delivered_keys,
+            skip_message_keys=closed_keys,
         )
         credentials = _local_telegram_credentials() if not args.no_send and events else None
         send_text = partial(_send_text, credentials=credentials) if credentials else _send_text

@@ -20,15 +20,17 @@ OTHER_BOT = 222
 URL = "https://www.tiktok.com/@anicca/video/7697791291253361936"
 
 
-def _event(kind: str = "action", native_url: str = URL) -> dict:
+def _event(kind: str = "action", native_url: str = URL, age: int = 24, measured: bool = True) -> dict:
     facts = {"native_url": native_url}
     if kind == "checkpoint":
-        facts.update({"platform": "tiktok", "checkpoint_status": "measured", "target_age_hours": 24, "views": 5})
+        facts.update({"platform": "tiktok", "target_age_hours": age})
+        facts.update({"checkpoint_status": "measured", "views": 5} if measured else {"checkpoint_status": "missed", "reason": "metric_unavailable"})
+    suffix = f"postiz:post-{int(measured)}:{age}" if kind == "checkpoint" else "7697791291253361936"
     return owner_report._event(
         kind=kind,
         product_id="anicca-ios",
         as_of=dt.datetime(2026, 10, 18, 0, 0, tzinfo=dt.timezone.utc),
-        message_key=f"{kind}:anicca-ios:7697791291253361936",
+        message_key=f"{kind}:anicca-ios:{suffix}",
         facts=facts,
         evidence_refs=["post-metrics.jsonl#1"],
     )
@@ -114,7 +116,7 @@ class OwnerReportReconcileTest(unittest.TestCase):
         self.assertEqual(sorted(readback["bot_ids"]), [BOT, OTHER_BOT])
         self.assertEqual({bot for bot, _start, _end in self.reads}, {BOT, OTHER_BOT})
         for _bot, start, end in self.reads:
-            self.assertLessEqual(start, claimed)
+            self.assertEqual(claimed - start, dt.timedelta(seconds=300))
             self.assertGreaterEqual(end, claimed + dt.timedelta(seconds=reconcile.READBACK_WINDOW_SECONDS))
 
         calls = []
@@ -178,6 +180,89 @@ class OwnerReportReconcileTest(unittest.TestCase):
         results = self.run_reconcile(history, claimed + dt.timedelta(hours=2))
 
         self.assertEqual(results[0]["status"], "not_delivered_confirmed")
+
+    def test_other_age_checkpoint_of_same_post_does_not_close_key(self):
+        for measured in (True, False):
+            with self.subTest(measured=measured):
+                six = _event("checkpoint", age=6, measured=measured)
+                day = _event("checkpoint", age=24, measured=measured)
+                claimed = self.unknown(day)
+                history = {
+                    BOT: {"complete": True, "messages": [
+                        self.message(9005, BOT, claimed + dt.timedelta(seconds=4), owner_report.render_japanese(six))]},
+                    OTHER_BOT: {"complete": True, "messages": []},
+                }
+                results = self.run_reconcile(history, claimed + dt.timedelta(hours=2))
+
+                status = {r["message_key"]: r for r in results}[day["message_key"]]
+                self.assertEqual(status["status"], "unknown")
+                self.assertEqual(self.store.delivery_for(day["message_key"])["status"], "delivery_unknown")
+
+    def test_stale_ambiguous_checkpoint_expires_without_resend(self):
+        event = _event("checkpoint", age=72)
+        claimed = self.unknown(event)
+        old_renderer = "📊 anicca-iosのTikTokチェックポイント（72時間）。\n閲覧数 5、表示回数 None。"
+        history = {
+            BOT: {"complete": True, "messages": [self.message(9006, BOT, claimed + dt.timedelta(seconds=4), old_renderer)]},
+            OTHER_BOT: {"complete": True, "messages": []},
+        }
+        results = self.run_reconcile(history, claimed + dt.timedelta(days=10))
+
+        self.assertEqual([r["status"] for r in results], ["expired_unknown"])
+        row = self.store.delivery_for(event["message_key"])
+        self.assertEqual(row["status"], "expired_unknown")
+        self.assertEqual(row["message_ids"], [])
+        self.assertEqual(row["receipt"]["reason"], "stale_checkpoint_identity_unprovable")
+        readback = row["receipt"]["provider_readback"]
+        self.assertTrue(readback["complete"])
+        self.assertEqual(readback["ambiguity"], "same_kind_message_without_identity")
+        self.assertGreaterEqual(readback["claim_age_seconds"], 7 * 86400)
+        calls = []
+        replay = owner_report.deliver(event, self.store, lambda _text: calls.append(1))
+        self.assertEqual(replay["status"], "expired_unknown")
+        self.assertEqual(calls, [])
+
+    def test_stale_ambiguous_action_stays_open(self):
+        event = _event()
+        claimed = self.unknown(event)
+        linkless = "📣 Aniccaの公開を確認しました。"
+        history = {
+            BOT: {"complete": True, "messages": [self.message(9007, BOT, claimed + dt.timedelta(seconds=4), linkless)]},
+            OTHER_BOT: {"complete": True, "messages": []},
+        }
+        results = self.run_reconcile(history, claimed + dt.timedelta(days=10))
+
+        self.assertEqual(results[0]["status"], "unknown")
+        self.assertEqual(self.store.delivery_for(event["message_key"])["status"], "delivery_unknown")
+
+    def test_cli_counts_expired_unknown_as_resolved_not_open(self):
+        import io
+        from contextlib import redirect_stderr, redirect_stdout
+        from unittest import mock
+        import owner_report_cli
+
+        event = _event("checkpoint", age=72)
+        claimed = self.unknown(event)
+        self.store.expire_unknown(event["message_key"], "stale_checkpoint_identity_unprovable", {
+            "source": "telegram_mtproto_history", "matched_by": "complete_window_ambiguous", "complete": True,
+            "observed_at": "2026-10-18T01:00:00Z", "claim_age_seconds": 10 * 86400,
+        })
+
+        def build(_root, _kind, *, product_id, as_of, skip_message_keys):
+            return [] if event["message_key"] in skip_message_keys else [event]
+
+        stdout = io.StringIO()
+        with (
+            mock.patch.object(owner_report, "build_events", side_effect=build),
+            mock.patch.object(owner_report_cli, "_send_text") as send,
+            redirect_stdout(stdout),
+            redirect_stderr(io.StringIO()),
+        ):
+            rc = owner_report_cli.main(["sweep", "--kind", "checkpoint", "--state-root", str(self.root)])
+
+        self.assertEqual(rc, 0)
+        send.assert_not_called()
+        self.assertIn("owner_report_resolved_unknown=1", stdout.getvalue())
 
     def test_open_readback_window_is_not_read(self):
         event = _event()

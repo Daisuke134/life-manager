@@ -1631,6 +1631,23 @@ class OwnerReportStore:
         receipt = {"status": "not_delivered_confirmed", "message_ids": [], "provider_readback": copy.deepcopy(readback)}
         return self._close_open_delivery(message_key, "not_delivered_confirmed", receipt)
 
+    def expire_unknown(self, message_key: str, reason: str, readback: dict) -> dict:
+        """Close an old open key whose delivery a complete readback can prove neither way.
+
+        Neither delivered nor not delivered: never re-sent, counted as resolved-unknown.
+        """
+
+        if not isinstance(reason, str) or not reason:
+            raise DeliveryError("expiry requires a reason")
+        if not isinstance(readback, dict) or readback.get("source") != "telegram_mtproto_history":
+            raise DeliveryError("expiry requires Telegram MTProto history")
+        if readback.get("matched_by") != "complete_window_ambiguous" or readback.get("complete") is not True:
+            raise DeliveryError("expiry requires a complete window readback")
+        if not isinstance(readback.get("observed_at"), str) or not readback["observed_at"]:
+            raise DeliveryError("expiry requires observed_at")
+        receipt = {"status": "expired_unknown", "message_ids": [], "reason": reason, "provider_readback": copy.deepcopy(readback)}
+        return self._close_open_delivery(message_key, "expired_unknown", receipt)
+
     def _close_open_delivery(self, message_key: str, status: str, receipt: dict) -> dict:
         with self._locked() as lock:
             existing = self._latest_delivery_unlocked(message_key)

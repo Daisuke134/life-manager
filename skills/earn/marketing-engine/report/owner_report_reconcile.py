@@ -6,16 +6,20 @@ owner's MTProto user session (``skills/tools/telegram-user/tg_user.py``).  Per o
 (``delivery_unknown`` or a stale ``sending`` claim) the attempt window after its claim is
 read completely in every Life Manager bot dialog:
 
-* exactly one bot message carrying the event's immutable identity (its https post URL)
-  -> ``delivered`` via ``OwnerReportStore.reconcile_delivery``;
-* complete windows with no identity and no same-kind message lacking a link (an older
-  renderer that printed no URL) -> ``not_delivered_confirmed``; the normal sweep re-sends;
+* exactly one bot message whose full text equals the event's rendering (Telegram trims
+  surrounding whitespace) -> ``delivered`` via ``OwnerReportStore.reconcile_delivery``;
+* complete windows with no same-kind message carrying the event's post URL and none
+  lacking a link (an older renderer printed no URL) -> ``not_delivered_confirmed``;
+  the normal sweep re-sends;
+* a complete but ambiguous readback of a checkpoint claimed over 7 days ago ->
+  ``expired_unknown`` (never re-sent: a late checkpoint has no value);
 * anything else stays open.
 """
 
 from __future__ import annotations
 
 import argparse
+import copy
 import datetime as dt
 import json
 import pathlib
@@ -32,7 +36,8 @@ import owner_report  # noqa: E402
 
 
 READBACK_WINDOW_SECONDS = 900  # same window as the Treg sibling; one send takes < 2 min
-CLOCK_SKEW_SECONDS = 60
+CLOCK_SKEW_SECONDS = 300
+EXPIRY_AGE = dt.timedelta(days=7)
 USER_PYTHON = pathlib.Path.home() / ".cache/telegram-user-venv/bin/python"
 USER_SCRIPT = ROOT / "skills/tools/telegram-user/tg_user.py"
 CREDENTIALS_FILE = pathlib.Path.home() / ".local/share/anicca/credentials.json"
@@ -56,7 +61,7 @@ def _iso(value: dt.datetime) -> str:
     return value.astimezone(dt.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
-def _attempt_window(rows: list[dict], message_key: str, now: dt.datetime) -> tuple[dt.datetime, dt.datetime]:
+def _attempt_window(rows: list[dict], message_key: str, now: dt.datetime) -> tuple[dt.datetime, dt.datetime, dt.datetime]:
     claims = [row for row in rows if row.get("message_key") == message_key and row.get("status") == "sending"]
     claimed = owner_report._parse_time(claims[-1].get("claimed_at")) if claims else None
     if claimed is None:
@@ -65,10 +70,10 @@ def _attempt_window(rows: list[dict], message_key: str, now: dt.datetime) -> tup
     end = claimed + dt.timedelta(seconds=READBACK_WINDOW_SECONDS)
     if end >= now:
         raise ReconcileUnknown("readback_window_open")
-    return start, end
+    return claimed, start, end
 
 
-def _identity(store: owner_report.OwnerReportStore, message_key: str) -> tuple[str, str]:
+def _identity(store: owner_report.OwnerReportStore, message_key: str) -> tuple[dict, str, str, str | None]:
     events = [row for row in store._reports() if row.get("message_key") == message_key]
     if len(events) != 1:
         raise ReconcileUnknown("owner_report_event_missing")
@@ -77,7 +82,14 @@ def _identity(store: owner_report.OwnerReportStore, message_key: str) -> tuple[s
     marker = KIND_MARKERS.get(event.get("kind"))
     if marker is None or not isinstance(url, str) or not url.startswith("https://"):
         raise ReconcileUnknown("event_identity_unavailable")
-    return url, marker
+    rendered = owner_report.render_japanese(event).strip()
+    if event["kind"] == "checkpoint":
+        # An unmeasured checkpoint text omits the age, so 6h/24h/72h of one post read the same.
+        probe = copy.deepcopy(event)
+        probe["facts"]["target_age_hours"] = -1
+        if owner_report.render_japanese(probe).strip() == rendered:
+            rendered = None
+    return event, url, marker, rendered
 
 
 def _reconcile_key(
@@ -89,9 +101,9 @@ def _reconcile_key(
     read_window: ReadWindow,
     now: dt.datetime,
 ) -> dict:
-    start, end = _attempt_window(rows, message_key, now)
-    url, marker = _identity(store, message_key)
-    exact, ambiguous, scanned = [], 0, 0
+    claimed, start, end = _attempt_window(rows, message_key, now)
+    event, url, marker, rendered = _identity(store, message_key)
+    exact, same_url, linkless, scanned = [], 0, 0, 0
     for bot_id in bot_ids:
         window = read_window(bot_id, start, end)
         if not isinstance(window, dict) or window.get("complete") is not True or not isinstance(window.get("messages"), list):
@@ -106,10 +118,12 @@ def _reconcile_key(
             scanned += 1
             if not text.startswith(marker):
                 continue  # another report kind, even when it shows the same post URL
-            if url in text.split():
+            if rendered is not None and text.strip() == rendered:
                 exact.append((bot_id, message))
+            elif url in text.split():
+                same_url += 1  # same post, other checkpoint age or another renderer version
             elif "https://" not in text:
-                ambiguous += 1
+                linkless += 1
     observed_at = _iso(now)
     readback = {
         "source": "telegram_mtproto_history",
@@ -119,9 +133,7 @@ def _reconcile_key(
         "bot_ids": list(bot_ids),
         "messages_scanned": scanned,
     }
-    if len(exact) > 1:
-        raise ReconcileUnknown("event_identity_not_unique")
-    if exact:
+    if len(exact) == 1:
         bot_id, message = exact[0]
         message_id = message.get("id")
         if type(message_id) is not int or message_id <= 0:
@@ -134,8 +146,23 @@ def _reconcile_key(
         })
         store.reconcile_delivery(message_key, {"status": "delivered", "message_ids": [message_id], "provider_readback": readback})
         return {"message_key": message_key, "status": "delivered"}
-    if ambiguous:
-        raise ReconcileUnknown("same_kind_message_without_identity")
+    ambiguity = (
+        "event_identity_not_unique" if exact
+        else "same_kind_message_with_same_url" if same_url
+        else "same_kind_message_without_identity" if linkless
+        else None
+    )
+    if ambiguity is not None:
+        if event["kind"] != "checkpoint" or now - claimed < EXPIRY_AGE:
+            raise ReconcileUnknown(ambiguity)
+        readback.update({
+            "matched_by": "complete_window_ambiguous",
+            "complete": True,
+            "ambiguity": ambiguity,
+            "claim_age_seconds": int((now - claimed).total_seconds()),
+        })
+        store.expire_unknown(message_key, "stale_checkpoint_identity_unprovable", readback)
+        return {"message_key": message_key, "status": "expired_unknown"}
     readback.update({"matched_by": "complete_window_absence", "complete": True})
     store.confirm_not_delivered(message_key, readback)
     return {"message_key": message_key, "status": "not_delivered_confirmed"}
