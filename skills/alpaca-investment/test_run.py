@@ -973,12 +973,14 @@ class LiveRunTest(unittest.TestCase):
 
 class PortablePassTest(unittest.TestCase):
     def _capture_case(self, *, configured_owner=None, occurrence_owner="alpaca-investment-paper", capture_io_error=False,
-                      control_status=None, observe_error=False, terminal_summaries=None, allocation_capture=None):
+                      control_status=None, observe_error=False, terminal_summaries=None, allocation_capture=None, initial_owner_costs=None):
         import cost_inventory
         from test_cost_inventory import release_fixture
         steps = []
         with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
             state = Path(directory) / "state"; state.mkdir()
+            if initial_owner_costs is not None:
+                (state/'allocation-latest.json').write_text(json.dumps({'owner_period_operating_costs':initial_owner_costs}))
             release = Path(directory) / "release"; catalog = release_fixture(release, "b" * 40)
             data = json.loads(catalog.read_text())
             data["loops"][0]["job_ids"].append("alpaca-investment-live")
@@ -1039,6 +1041,18 @@ class PortablePassTest(unittest.TestCase):
         self.assertEqual(code,0);self.assertEqual(pending,0)
         costs.assert_called_once()
         self.assertEqual(saved.get('owner_period_operating_costs'),snapshot)
+        self.assertEqual(saved['action'],'HOLD')
+
+    def test_owner_period_reporting_interruption_retains_previous_snapshot(self):
+        previous={'report_scope':'owner_period_operating_costs','owner_id':'alpaca-investment-paper',
+            'mode':'paper','paper':True,'observed_at':'2026-10-17T01:00:00Z',
+            'known_operating_cost_source_evidence':[],'model_cost_usd':None}
+        saved={}
+        with patch.object(MODULE,'read_owner_period_costs',side_effect=RuntimeError('isolated reporting interruption'),create=True):
+            code,_rows,_steps,pending=self._capture_case(configured_owner='alpaca-investment-paper',
+                initial_owner_costs=previous,allocation_capture=saved)
+        self.assertNotEqual(code,0);self.assertEqual(pending,0)
+        self.assertEqual(saved['owner_period_operating_costs'],previous)
         self.assertEqual(saved['action'],'HOLD')
 
     def test_paper_capture_does_not_accept_live_or_default_live_owner(self):

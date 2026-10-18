@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import json
+import os
 from copy import deepcopy
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from decimal import Context, Decimal, localcontext
 from pathlib import Path
 from typing import Any
@@ -220,6 +221,48 @@ def read_readback(path: str | None) -> Any:
         return json.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, ValueError, RecursionError):
         return {"read_error": "operating_cost_readback_unavailable"}
+
+
+def read_owner_period_costs(state, *, observed_at, owner_id, mode, previous=None, economic_scopes=()):
+    """Read the last completed UTC day's operating costs without a trade or write."""
+    result={'schema_version':1,'report_scope':'owner_period_operating_costs','owner_id':owner_id,
+        'mode':mode,'paper':mode=='paper','observed_at':observed_at,'period_timezone':'UTC',
+        'model_cost_usd':None,'system_cost_usd':None,'net_pnl_usd':None,'capital_expansion_allowed':False}
+    known=[]
+    try:
+        if mode not in {'paper','live'} or owner_id!='alpaca-investment-'+mode:
+            raise ValueError('owner_period_costs_scope_invalid')
+        end=_time(observed_at).astimezone(timezone.utc).replace(hour=0,minute=0,second=0,microsecond=0)
+        scope={'scope_kind':'owner_period','owner_id':owner_id,'mode':mode,'paper':mode=='paper',
+            'order_ids':[],'period_start':(end-timedelta(days=1)).isoformat(),'period_end':end.isoformat(),
+            'source_receipt_ids':[]}
+        result.update(period_start=scope['period_start'],period_end=scope['period_end'])
+        if previous is not None:
+            if not isinstance(previous,dict) or 'read_error' in previous:raise ValueError('owner_period_costs_history_unavailable')
+            if previous.get('owner_id')!=owner_id or previous.get('mode')!=mode or previous.get('paper') is not (mode=='paper'):
+                raise ValueError('owner_period_costs_scope_invalid')
+            known=remember_source_evidence([],previous,owner_id=owner_id,mode=mode)
+        scopes=[]
+        for economic in economic_scopes:
+            if (isinstance(economic,dict) and economic.get('scope_kind','order_pair')=='order_pair'
+                    and economic.get('owner_id')==owner_id and economic.get('mode')==mode
+                    and economic.get('paper',mode=='paper') is (mode=='paper') and _binding(economic) is not None
+                    and not any(_binding(economic)==_binding(row) for row in scopes)):
+                scopes.append(deepcopy(economic))
+        from cost_inventory import read_expected_inventory
+        inventory=read_expected_inventory(state,[*scopes,scope],owner_id=owner_id,observed_at=observed_at)
+        matching=[row for row in inventory.get('scopes',[]) if _binding(row)==_binding(scope)
+            and row.get('owner_id')==owner_id and row.get('mode')==mode]
+        if len(matching)==1:scope={**scope,'source_receipt_ids':list(matching[0]['source_receipt_ids'])}
+        result.update(cost_scope=scope,source_receipt_ids=scope['source_receipt_ids'],expected_cost_inventory=inventory)
+        payload=read_readback(os.environ.get('LM_CFO_ACTUAL_COST_READBACK') or os.environ.get('LM_CFO_ACTUAL_COST'))
+        summary=summarize([*scopes,scope],payload,owner_id=owner_id,mode=mode,observed_at=observed_at,expected_inventory=inventory)
+        known=remember_source_evidence(known,summary,owner_id=owner_id,mode=mode)
+        return {**result,**select_components(summary,[scope]),'known_operating_cost_source_evidence':known}
+    except (OSError,ValueError,TypeError,KeyError,AttributeError,ArithmeticError) as error:
+        return {**result,'operating_costs_status':'unknown','operating_costs_reason':'owner_period_costs_unavailable',
+            'operating_cost_coverage':{'coverage_state':'gap','reason':'owner_period_costs_unavailable'},
+            'error_class':type(error).__name__,'known_operating_cost_source_evidence':known}
 
 
 def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inventory=None, mode="paper") -> dict:

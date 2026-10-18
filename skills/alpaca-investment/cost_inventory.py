@@ -181,7 +181,7 @@ def build_expected_inventory(trips, *, beneficiary_owner_id, observed_at,
             continue
         result['scopes'].append(scope)
         gap(scope, 'history_coverage_unverified')
-        if not scope['source_receipt_ids']:
+        if not scope['source_receipt_ids'] and scope['scope_kind']!='owner_period':
             gap(scope, 'scope_evidence_missing')
         start, end = parse_instant(scope['period_start']), parse_instant(scope['period_end'])
         sources, evidence, visited, pending = {}, set(), set(), [beneficiary_owner_id]
@@ -360,6 +360,11 @@ def build_expected_inventory(trips, *, beneficiary_owner_id, observed_at,
                     'started_at':started_at.isoformat(),'finished_at':finished_at.isoformat()})
             if not selected:
                 gap(scope, 'source_execution_missing', execution_owner_id=owner)
+
+        if scope['scope_kind']=='owner_period' and not scope['source_receipt_ids']:
+            scope['source_receipt_ids']=sorted({ref[key] for ref in scope['execution_refs']
+                for key in ('start_event_id','terminal_event_id')})
+            if not scope['source_receipt_ids']:gap(scope,'scope_evidence_missing')
 
         for binding in paid_bindings:
             try:

@@ -25,6 +25,7 @@ from etf_ownership import read_state as read_etf_state
 from etf_ownership import record_closed as record_etf_closed
 from etf_ownership import record_filled as record_etf_filled
 from paper_performance import write_paper_performance
+from paper_operating_costs import read_owner_period_costs
 from crypto_performance import write_crypto_performance
 from cost_inventory import record_source_inventory
 from reporter import deliver, deliver_control, deliver_failure
@@ -917,29 +918,52 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
             record_no_trade(state / "receipts.jsonl", decision)
         review = _review_status(state, mode, deployment)
         decision["application_status"] = review.get("application_status", "unknown")
+        owner_costs_local=(deployment=='local' and mode in {'paper','live'}
+            and investment_owner_id()==f'alpaca-investment-{mode}')
+        previous_owner_costs=None
+        if owner_costs_local:
+            try:previous_owner_costs=json.loads((state/'allocation-latest.json').read_text()).get('owner_period_operating_costs')
+            except FileNotFoundError:pass
+            except (OSError,ValueError,AttributeError):previous_owner_costs={'read_error':'previous_owner_costs_unavailable'}
+            if (isinstance(previous_owner_costs,dict) and previous_owner_costs.get('owner_id')==investment_owner_id()
+                    and previous_owner_costs.get('mode')==mode and previous_owner_costs.get('paper') is (mode=='paper')):
+                decision['owner_period_operating_costs']=previous_owner_costs
         stage = "state_write"
         _atomic_json(state / "allocation-latest.json", decision)
         _atomic_json(state / "risk-latest.json", allocator_snapshot["risk"])
         _atomic_json(state / "observation-latest.json", observation)
         _atomic_json(state / "campaign.json", campaign)
+        economic_cost_scopes=[]
         if mode == "paper":
             # This is a reporting-only read of the append-only effect ledger.
             # Missing fees/slippage/model/system costs remain partial and never become
             # a numeric zero or a promotion signal.
-            write_paper_performance(
+            paper_result=write_paper_performance(
                 state, observation, allocator_snapshot["risk"],
                 broker_cost_reader=lambda **kwargs: read_paper_etf_cost_evidence(
                     credentials_path=credentials_path, cli_path=cli_path, **kwargs,
                 ),
             )
+            if isinstance(paper_result,dict) and isinstance(paper_result.get('expected_cost_inventory'),dict):
+                economic_cost_scopes.extend(paper_result['expected_cost_inventory'].get('scopes',[]))
         if mode in {"paper", "live"} and investment_owner_id() == f"alpaca-investment-{mode}":
-            write_crypto_performance(state, observation, mode=mode, owner_id=investment_owner_id(),
+            crypto_result=write_crypto_performance(state, observation, mode=mode, owner_id=investment_owner_id(),
                 activity_reader=lambda **kwargs: read_crypto_activity_evidence(
                     credentials_path=credentials_path, cli_path=cli_path, **kwargs),
                 activity_page_reader=lambda **kwargs: read_crypto_activity_page_chunk(
                     credentials_path=credentials_path, cli_path=cli_path, **kwargs),
                 fx_reader=lambda **kwargs: read_crypto_fx_evidence(
                     credentials_path=credentials_path, cli_path=cli_path, **kwargs))
+            if isinstance(crypto_result,dict):
+                economic_cost_scopes.extend({**{key:cycle[key] for key in ('owner_id','mode','order_ids','period_start','closed_at','source_receipt_ids')},
+                    'paper':mode=='paper'} for cycle in crypto_result.get('cycles',[]))
+        if owner_costs_local:
+            stage='owner_period_costs'
+            decision['owner_period_operating_costs']=read_owner_period_costs(state,
+                observed_at=observation['clock']['observed_at'],owner_id=investment_owner_id(),mode=mode,
+                previous=previous_owner_costs,economic_scopes=economic_cost_scopes)
+            stage='state_write'
+            _atomic_json(state/'allocation-latest.json',decision)
         stage = "telegram_deliver"
         telegram = deliver(state, observation, campaign, decision, effect,
                            event_key=cloud_event_key if deployment == "cloud" else None)

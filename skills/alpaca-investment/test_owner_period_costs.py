@@ -6,7 +6,7 @@ from unittest.mock import patch
 import paper_operating_costs as costs
 import cost_inventory
 from test_operating_cost_inventory import setup
-from test_cost_inventory import IndependentCensusTests,OWNER
+from test_cost_inventory import OWNER
 
 
 class OwnerPeriodCostsTests(unittest.TestCase):
@@ -27,6 +27,7 @@ class OwnerPeriodCostsTests(unittest.TestCase):
         return payload,inventory,scope
 
     def test_census_fills_only_owner_period_anchors_from_native_events(self):
+        from test_cost_inventory import IndependentCensusTests
         trips,kwargs=IndependentCensusTests().fixture()
         scope={**trips[0],'scope_kind':'owner_period','owner_id':OWNER,'mode':'paper','paper':True,
             'order_ids':[],'period_end':trips[0]['closed_at'],'source_receipt_ids':[]}
