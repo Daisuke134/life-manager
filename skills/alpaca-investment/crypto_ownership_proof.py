@@ -5,7 +5,8 @@ No provider, environment, marker-file or ledger writes occur in these readers.
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, Context, localcontext, ROUND_HALF_EVEN
+from fractions import Fraction
 import hashlib
 import json
 import re
@@ -70,6 +71,17 @@ def crypto_fill_activity_proof(snapshot: dict[str, Any], broker: dict[str, Any],
     This is execution evidence, not ownership, terminal reconciliation, fee
     settlement, or permission to place another order.
     """
+    def number(raw: Any) -> Decimal:
+        value = Decimal(str(raw))
+        if (not value.is_finite() or value <= 0 or len(value.as_tuple().digits) > 100
+                or abs(value.as_tuple().exponent) > 100):
+            raise ValueError
+        return value
+
+    def decimal_text(value: Decimal) -> str:
+        text = format(value, "f")
+        return text.rstrip("0").rstrip(".") if "." in text else text
+
     try:
         if (mode not in {"paper", "live"} or not isinstance(snapshot, dict) or not isinstance(broker, dict)
                 or type(snapshot.get("schema_version")) is not int or snapshot["schema_version"] != 1
@@ -106,9 +118,9 @@ def crypto_fill_activity_proof(snapshot: dict[str, Any], broker: dict[str, Any],
                 or broker.get("status") not in ({"filled", "partially_filled"}
                     | BROKER_TERMINAL_FAILURE_STATUSES | BROKER_RESUMABLE_STATUSES)):
             raise ValueError
-        filled_qty = Decimal(str(broker.get("filled_qty")))
+        filled_qty = number(broker.get("filled_qty"))
         submitted = parse_instant(broker.get("submitted_at"))
-        if not filled_qty.is_finite() or filled_qty <= 0 or not start <= submitted <= end:
+        if not start <= submitted <= end:
             raise ValueError
         executions: list[tuple[datetime, dict[str, Any], Decimal, Decimal]] = []
         for row in fills:
@@ -116,30 +128,29 @@ def crypto_fill_activity_proof(snapshot: dict[str, Any], broker: dict[str, Any],
                     or not isinstance(row.get("symbol"), str) or not row["symbol"].strip()
                     or row.get("side") not in {"buy", "sell"}):
                 raise ValueError
-            qty, price = Decimal(str(row.get("qty"))), Decimal(str(row.get("price")))
+            qty, price = number(row.get("qty")), number(row.get("price"))
             executed = parse_instant(row.get("transaction_time"))
-            if any(not number.is_finite() or number <= 0 for number in (qty, price)):
-                raise ValueError
             if row["order_id"] != broker["id"]:
                 continue
             if (row["symbol"].replace("/", "") != "BTCUSDC" or row["side"] != broker["side"]
                     or not submitted <= executed <= end):
                 raise ValueError
             executions.append((executed, row, qty, price))
-        total = sum((row[2] for row in executions), Decimal("0"))
-        if total > filled_qty:
+        total = sum((Fraction(row[2]) for row in executions), Fraction())
+        if total > Fraction(filled_qty):
             raise ValueError
-        if total < filled_qty:
+        if total < Fraction(filled_qty):
             raise ReconciliationPending("owned_crypto_fills_pending")
         executions.sort(key=lambda row: (row[0], row[1]["id"]))
-        average = sum((row[2] * row[3] for row in executions), Decimal("0")) / total
-        if not average.is_finite() or average <= 0:
-            raise ValueError
+        average = sum((Fraction(row[2]) * Fraction(row[3]) for row in executions), Fraction()) / total
         if broker.get("filled_avg_price") not in (None, ""):
-            known_average = Decimal(str(broker["filled_avg_price"]))
-            if (not known_average.is_finite() or known_average <= 0
-                    or abs(known_average - average) > Decimal("0.000001")):
+            known_average = Fraction(number(broker["filled_avg_price"]))
+            if abs(known_average - average) > Fraction(1, 1_000_000):
                 raise ValueError
+        # Only the display quotient is rounded. Matching uses the exact ratio,
+        # independent of a caller's Decimal precision, rounding mode or traps.
+        with localcontext(Context(prec=256, rounding=ROUND_HALF_EVEN, Emin=-999999, Emax=999999)):
+            average_text = decimal_text(Decimal(average.numerator) / Decimal(average.denominator))
         if broker["status"] == "filled" and broker.get("filled_at") not in (None, ""):
             if not executions[-1][0] <= parse_instant(broker["filled_at"]) <= end:
                 raise ValueError
@@ -150,7 +161,9 @@ def crypto_fill_activity_proof(snapshot: dict[str, Any], broker: dict[str, Any],
     return {"schema_version": 1, "kind": "crypto_order_fills", "mode": mode, "paper": mode == "paper",
         "provider_order_id": broker["id"], "client_order_id": broker["client_order_id"],
         "symbol": "BTC/USDC", "side": broker["side"], "broker_status": broker["status"],
-        "filled_qty": format(total.normalize(), "f"), "weighted_avg_price_native": format(average.normalize(), "f"),
+        "filled_qty": decimal_text(filled_qty), "weighted_avg_price_native": average_text,
+        "weighted_avg_price_numerator": str(average.numerator),
+        "weighted_avg_price_denominator": str(average.denominator),
         "first_execution_at": executions[0][0].isoformat(), "last_execution_at": executions[-1][0].isoformat(),
         "fill_activity_ids": [row[1]["id"] for row in executions], "quote_currency": "USDC",
         "source_receipt_id": snapshot["source_receipt_id"], "fee_attribution_status": "unknown",
