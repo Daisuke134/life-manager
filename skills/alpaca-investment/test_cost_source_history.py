@@ -74,5 +74,14 @@ class CostSourceHistoryTests(unittest.TestCase):
                     billing.write_text(json.dumps(payload));recovered=write()
                     self.assertEqual(recovered[FIELD],first[FIELD])
                     self.assertEqual(recovered['model_cost_usd'],'0')
+                    latest=root/'performance-crypto-latest.json';damaged=json.loads(latest.read_text())
+                    damaged[FIELD][0]['scope']['mode']='live' if mode=='paper' else 'paper'
+                    latest.write_text(json.dumps(damaged));invalid=write()
+                    self.assertEqual(invalid['reason'],'crypto_operating_cost_source_history_invalid')
+                    self.assertEqual(invalid['known_entry_effect_ids'],recovered['known_entry_effect_ids'])
+                    self.assertEqual(invalid['known_closed_cycle_ids'],recovered['known_closed_cycle_ids'])
+                    self.assertEqual(invalid['activity_readbacks'],recovered['activity_readbacks'])
+                    self.assertEqual(invalid[FIELD],damaged[FIELD])
+                    self.assertIsNone(invalid['net_pnl_usd']);self.assertFalse(invalid['capital_expansion_allowed'])
 
 if __name__=='__main__':unittest.main()
