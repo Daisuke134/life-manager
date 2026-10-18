@@ -1258,6 +1258,46 @@ def _all_active_unavailable_no_effect(
     return bool(own) and all(_no_effect_row(row) for row in own)
 
 
+def _initialization_owned_no_effect(
+    state_path: Path, ledger_path: Path, rows: list[dict[str, Any]], run_id: str
+) -> bool:
+    """No active pair was ever registered, so the resume worker owns target initialization.
+
+    2026-10-19: run 20261018-194904 froze its drafts, but an apostrophe in STEP 17 dropped the
+    publish addendum (#8371); init wrote only the dormant skips and every hourly start blocked
+    on missing-targets. The worker's initialization_plan registers the active pairs of exactly
+    this shape, so defer to it instead of starting a second article. Any active entry, dispatch
+    file or effect row keeps the block.
+    """
+    state = _regular_json(state_path)
+    pairs = state.get("pairs") if state else None
+    if not (
+        isinstance(pairs, dict)
+        and state.get("publication_contract") == "active-four"
+        and state.get("run_id") == run_id
+        and not set(ACTIVE_PAIRS) & set(pairs)
+        and all(
+            isinstance(entry, dict) and entry.get("status") == "skipped"
+            and not set(entry) - {"platform", "lang", "status", "skip_receipt"}
+            for entry in pairs.values()
+        )
+        and all(_no_effect_row(row) for row in rows if row.get("run_id") == run_id)
+        and not any(child.name.startswith("platform-dispatch") for child in state_path.parent.iterdir())
+    ):
+        return False
+    from publication_resume import PublicationStore  # pylint: disable=import-outside-toplevel
+
+    try:
+        init = PublicationStore(state_path, ledger_path).initialization_plan()
+    except Exception:
+        return False
+    return (
+        init.get("initializable") is True
+        and init.get("reason") == "partial-target-initialization"
+        and init.get("initialization_pairs") == list(ACTIVE_PAIRS)
+    )
+
+
 def decide(state_dir: Path | str, local_date: str) -> dict[str, str]:
     state_dir = Path(state_dir)
     runs_dir = state_dir / "runs"
@@ -1365,6 +1405,14 @@ def decide(state_dir: Path | str, local_date: str) -> dict[str, str]:
                 "run_id": "",
                 "previous_run_id": run_id,
                 "reason": "same-jst-day-all-active-unavailable-no-effect",
+            }
+        if plan.get("reason") == "missing-targets" and _initialization_owned_no_effect(
+            state_path, ledger, rows, run_id
+        ):
+            return {
+                "action": "skip-pending-worker",
+                "run_id": run_id,
+                "reason": "same-jst-day-owned-by-pending-initialization",
             }
         return {
             "action": "block-incomplete",
