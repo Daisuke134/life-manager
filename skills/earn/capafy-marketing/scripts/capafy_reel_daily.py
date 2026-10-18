@@ -238,9 +238,9 @@ def run(day: dt.date, dry_run: bool = False, nets: tuple = ("ig", "x", "tt", "tc
         capafy_reel_voice.build(slug)
     result = {"slug": slug, "niche": niche["key"], "slots": slots(day, slot)}
     if not dry_run:
-        from capafy_reel_fence_reconcile import postiz_post_at  # noqa: PLC0415
+        from capafy_reel_fence_reconcile import postiz_posts_at  # noqa: PLC0415
         result["scheduled"] = schedule(slug, spec, day, os.environ["LM_POSTIZ_API_KEY"], nets,
-                                       run_dir=run_dir, existing_fn=postiz_post_at, slot=slot)
+                                       run_dir=run_dir, existing_fn=postiz_posts_at, slot=slot)
     return result
 
 
