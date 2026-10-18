@@ -278,8 +278,9 @@ full ledger history; planned and unresolved work prevent policy replacement.
 Account lag remains pending across repeated runs and
 receipt recovery; complete reconciliation replays without another query/append.
 Terminal no-fill requires an explicit finite zero consistent with known fills.
-Missing, malformed and partial quantities remain pending, and a later official
-zero can enrich unknown evidence without erasing a known positive fill.
+Missing or malformed quantities remain pending. A later official zero can enrich
+unknown evidence without erasing a known positive fill. Positive partial buys
+require the terminal acquisition proof described below.
 Existing closed markers are also audited: a sell needs its recorded original-entry,
 close and account proof; a no-fill needs a sealed entry, official terminal zero and
 flat account receipt. Known owner/policy/status contradictions are rejected across
@@ -296,11 +297,17 @@ Paused orders (`done_for_day`, `stopped`, `suspended`) remain unresolved. Only
 `canceled`, `expired`, and `rejected` can prove a final zero-fill failure, consistent
 with full known fill history. Prior raw paused-zero outcomes can progress to an
 exact same-order fill; reversed identity, decreasing quantity and post-fill
-regressions remain invalid. The partial-fill consumer is not connected yet.
+regressions remain invalid. Terminal partial buys now use the existing callback,
+recorded entry proof, durable counter and ownership synchronization. Exact FILL
+and same-mode account evidence must be saved before opening ownership. A stale
+or contradictory pending quantity is not overwritten during receipt adoption;
+known non-null fill times must also agree with executions and account time.
+FILL/account lag remains unresolved, without another order. Normal owned EXIT
+keeps the same original policy and parent; partial sell recovery remains pending.
 `crypto_fill_activity_proof` validates the saved snapshot and raw order, sums
 quantities and computes native VWAP with exact rational arithmetic. Display
 rounding cannot decide quantity equality. Nullable broker fields stay unchanged;
 FILL execution times and the exact average ratio are separate facts. The proof
 retains unknown fees/P&L and alone never opens or closes ownership.
-This branch is source only: partial fills, complete costs, performance, deployment
+This branch is source only: partial sells, fee attribution, complete costs, performance, deployment
 and natural outcomes remain in the SSOT.
