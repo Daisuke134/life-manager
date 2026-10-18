@@ -185,6 +185,19 @@ class FlowWriterTests(unittest.TestCase):
                 self.assertIsNone(result['net_pnl_usd'])
 
 
+    def test_full_terminal_page_without_next_read_is_not_exhausted_evidence(self):
+        for mode in ('paper','live'):
+            with self.subTest(mode=mode),tempfile.TemporaryDirectory() as directory:
+                root=Path(directory);_,activity,obs=self.setup_cycle(root,mode)
+                def unproven(**kw):return frame(kw,count=100)
+                result=self.write(root,obs,activity,unproven)
+                self.assertIsNotNone(result['flow_pending'])
+                self.assertEqual(result['flow_windows'],[])
+                self.assertEqual(result['completed_round_trips'],1)
+                self.assertEqual(result['flow_readback_errors'][-1]['reason'],'crypto_flow_readback_invalid')
+                self.assertTrue(result['flow_readbacks'])
+                self.assertIsNone(result['net_pnl_usd'])
+
     def test_real_main_injects_the_same_scoped_flow_reader_after_close(self):
         from test_crypto_close import native_run
         from test_owned_policy import snapshot
