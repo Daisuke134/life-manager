@@ -29,13 +29,15 @@ ACCOUNT_B = 'synthetic-trading-account-B'
 START = '2026-01-01T04:00:00Z'
 
 
-def seed(root, mode, *, bound=True, partial=False):
+def seed(root, mode, *, bound=True, partial=False, pre_trade_readback=None):
     owner = 'alpaca-investment-' + mode
     card = candidate_cards()['alpaca-btc-5m-trend-400-v2' if bound else 'alpaca-btc-5m-trend-v1']
     decision = {'action': 'ENTER', 'mode': mode, 'owner_id': owner, 'strategy_id': card.strategy_id,
         'policy_card': card.to_mapping(), 'release_sha': 'a' * 40, 'observed_at': START}
     if bound:
         decision['native_trading_account_id'] = ACCOUNT_A
+    if pre_trade_readback is not None:
+        decision['pre_trade_account_readback'] = pre_trade_readback
     sealed = store.seal(root / 'receipts.jsonl', decision, {'asset_class': 'crypto', 'symbol': 'BTC/USDC',
         'side': 'buy', 'type': 'market', 'time_in_force': 'gtc', 'notional_usd': '10'})
     store.mark_started(root / 'receipts.jsonl', sealed)
@@ -164,7 +166,7 @@ class CryptoEntryAccountTests(unittest.TestCase):
                                 risk_day_path=Path(directory) / 'risk-day.json'))
                     self.assertEqual(value['account'].get('id'), ACCOUNT_A)
 
-    def entry_main(self, root, mode, *, fresh_account=ACCOUNT_A, filled=False):
+    def entry_main(self, root, mode, *, fresh_account=ACCOUNT_A, filled=False, pre_trade_readback=None):
         native = native_run()
         raw = _snapshot(mode)
         raw['account']['id'] = ACCOUNT_A
@@ -185,6 +187,8 @@ class CryptoEntryAccountTests(unittest.TestCase):
             value = {'mode': mode, 'paper': mode == 'paper', 'account': {**raw['account'],
                 'id': fresh_account if len(reads) > 1 else ACCOUNT_A}, 'positions': [],
                 'clock': {'observed_at': raw['clock']['timestamp']}, 'activities_count': 0, 'open_and_closed_orders_count': 0}
+            if len(reads) > 1 and not provider_order and pre_trade_readback is not None:
+                value = copy.deepcopy(pre_trade_readback)
             if provider_order and filled:
                 value['positions'] = [{'symbol': 'BTCUSDC', 'qty': '0.05', 'unrealized_pl': '0'}]
                 value['clock']['observed_at'] = (proofs.parse_instant(raw['clock']['timestamp']) + timedelta(seconds=2)).isoformat()
