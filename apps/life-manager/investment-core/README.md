@@ -442,8 +442,18 @@ economic close or pulling in later runs. Paid components can include pre-intent 
 post-close work only through verified query evidence and the exact allocated run's
 incurred-time window. Unproven or mismatched attribution remains an explicit component
 gap; it never becomes zero cost. Owner periods use a half-open calendar interval.
-All-cost monetary aggregation, periodic/idle overhead, durable coverage and net
-profit remain D4 work. Current production gaps are not cleared by passing fixtures.
+Confirmed operating totals now require complete selected scope coverage, verified
+attribution and an audit of every paid investment allocation in that billing
+footprint. Scope-specific proof can retain a valid paid cost despite a separate
+whole-loop historical gap. Unmapped or unverified owned obligations block totals;
+unknown accounts cannot hitchhike on another account's final-zero query. Exact
+model/system sums count each underlying charge once. Zero totals require final
+scope evidence; absent data remains null. Builders and daily output preserve
+confirmed operating totals while fees, FX and net retain their own gates.
+Periodic/standing allocation, inclusive owner-period/idle aggregation, durable
+account/coverage and full net remain D4 work. An incomplete calendar rollup never
+reports zero by excluding verified child expenses. Production gaps are not cleared
+by passing fixtures.
 The pinned quote transport can now capture a single USDC/USD BBO at or before
 an economic timestamp, using a fixed 30-second window and descending limit one.
 The shared pure proof preserves nanoseconds in both the request and age checks,

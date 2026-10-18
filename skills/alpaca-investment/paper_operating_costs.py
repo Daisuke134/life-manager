@@ -70,7 +70,7 @@ def select_components(summary: dict, trips) -> dict:
         if not amounts:
             return None
         with localcontext(Context()) as context:
-            context.prec = max(len(format(amount, "f").replace(".", "")) for amount in amounts) + len(str(len(amounts))) + 1
+            context.prec = max(max(1,amount.adjusted()+1) for amount in amounts) + max(max(0,-amount.as_tuple().exponent) for amount in amounts) + len(str(len(amounts))) + 1
             return format(sum(amounts, Decimal("0")), "f")
     return {
         "model_cost_usd":(subtotal({'model_cost'}) or '0') if complete else None,
@@ -121,9 +121,10 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inven
         repo = str(Path(__file__).resolve().parents[2])
         if repo not in sys.path:
             sys.path.append(repo)
-        from skills.cfo.adapters.actual_cost import adapt, validate_official_cost_queries, paid_charge_identity
-        records = adapt(payload, snapshot_at=billing_at,
-                        trailing_start=readback["trailing"]["window_start"])
+        from skills.cfo.adapters.actual_cost import adapt, validate_official_cost_queries, paid_charge_identity, MAX_B0_AMOUNT_SIGNIFICANT_DIGITS
+        with localcontext(Context(prec=MAX_B0_AMOUNT_SIGNIFICANT_DIGITS)):
+            records = adapt(payload, snapshot_at=billing_at,
+                            trailing_start=readback["trailing"]["window_start"])
         covered = {row["source_id"] for row in records
                    if row["record_type"] == "coverage" and row["product_loop_id"] == "investment"
                    and row["projection"] == "historical" and row["coverage_state"] == "complete"}
@@ -177,8 +178,9 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inven
                 except (KeyError, TypeError, ValueError):
                     matches = False
                 if matches:
-                    query_result = validate_official_cost_queries(payload, snapshot_at=observed_at,
-                        paid_records=records, scope=scope, expected_inventory=expected_inventory)
+                    with localcontext(Context(prec=MAX_B0_AMOUNT_SIGNIFICANT_DIGITS)):
+                        query_result = validate_official_cost_queries(payload, snapshot_at=observed_at,
+                            paid_records=records, scope=scope, expected_inventory=expected_inventory)
                     observations.extend(query_result["observations"])
                     context={key:scope.get(key) for key in ('scope_id','owner_id','mode','paper','order_ids','period_start','period_end')}
                     query_rejections.extend({**context,**rejection} for rejection in query_result['rejections'])
@@ -274,6 +276,8 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inven
                 known=accepted.get(charge)
                 resolved=(charge not in charge_conflicts and known is not None
                     and known.get('attribution_basis')=='verified_execution_window')
+                if (resolved and trip.get('scope_kind','order_pair')=='owner_period' and _binding(known)!=binding
+                        and _time(trip['period_start'])<=_time(receipt['occurred_at'])<_time(_cost_end(trip))):resolved=False
                 if resolved:continue
                 if any(g.get('receipt_id')==identity and _binding(g)==binding for g in component_gaps):continue
                 reason='operating_cost_paid_charge_conflict' if charge in charge_conflicts else 'operating_cost_paid_allocation_unattributed'

@@ -329,7 +329,7 @@ def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None,fee_ac
     return {**costs,'expected_cost_inventory':expected_inventory,'schema_version':1,'report_scope':'owned_crypto_cycles','owner_id':owner_id,'mode':mode,'paper':mode=='paper',
         'measurement_status':'partial','reason':'crypto_costs_or_fx_unknown','capital_expansion_allowed':False,
         'cycle_coverage_status':'partial' if pending or orphan or unscoped else 'complete',
-        'net_pnl_usd':None,'gross_strategy_pnl_usd':None,'fees_usd':None,'slippage_usd':None,'model_cost_usd':None,'system_cost_usd':None,
+        'net_pnl_usd':None,'gross_strategy_pnl_usd':None,'fees_usd':None,'slippage_usd':None,'model_cost_usd':costs.get('model_cost_usd'),'system_cost_usd':costs.get('system_cost_usd'),
         'cycles':cycles,'open_entries':opened,'pending_entries':pending,'no_fill_entry_effect_ids':no_fill,
         'unmatched_sell_effect_ids':orphan,'unscoped_effect_ids':unscoped,'missing_activity_order_ids':sorted(missing),
         'fx_requests':fx_requests,'activity_requests':[{'order_id':key,**value} for key,value in sorted(missing.items())],

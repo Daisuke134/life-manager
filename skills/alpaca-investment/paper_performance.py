@@ -519,6 +519,7 @@ def build_paper_performance(
             raise ValueError("paper_receipt_duplicate")
         unknown_costs = (["fees", "model", "system"] if broker_costs["broker_slippage_status"] == "complete"
                          else ["fees", "slippage", "model", "system"])
+        unknown_costs=[key for key in unknown_costs if key not in {"model","system"} or operating_costs.get(key+"_cost_usd") is None]
         return {
             **operating_costs,
             "expected_cost_inventory":expected_inventory,"owner_id":OWNER_ID,
@@ -532,7 +533,7 @@ def build_paper_performance(
             "broker_costs_errors": [],
             "broker_cost_source_receipt_ids": cost_source_ids,
             "costs_status": ("partial" if broker_costs["broker_slippage_status"] == "complete"
-                             or operating_costs["operating_costs_status"] == "partial"
+                             or operating_costs["operating_costs_status"] in {"partial","complete"}
                              else "unknown"),
             "fees_usd": broker_costs["fees_usd"],
             "funding_or_borrow_usd": None,
@@ -542,7 +543,7 @@ def build_paper_performance(
             "gross_strategy_pnl_total_usd": str(gross),
             "measurement_status": "partial",
             "mode": "paper",
-            "model_cost_usd": None,
+            "model_cost_usd": operating_costs.get("model_cost_usd"),
             "net_realized_pnl_usd": None,
             "observed_at": observed_at,
             "owner_cash_flow_usd": "0.00",
@@ -553,7 +554,7 @@ def build_paper_performance(
             "slippage_usd": broker_costs["slippage_usd"],
             "slippage_included_in_gross_pnl": True,
             "source_receipt_ids": all_source_ids,
-            "system_cost_usd": None,
+            "system_cost_usd": operating_costs.get("system_cost_usd"),
             "unknown_cost_categories": unknown_costs,
         }
     except (TypeError, ValueError, ArithmeticError) as error:
@@ -823,7 +824,7 @@ def _refresh_historical_costs(
         costs = _broker_cost_summary(trips, day_evidence)
         day_operating_costs = select_components(dict(operating_costs), trips)
         broker_available = costs["broker_slippage_status"] == "complete"
-        operating_available = day_operating_costs["operating_costs_status"] == "partial"
+        operating_available = day_operating_costs["operating_costs_status"] in {"partial","complete"}
         if not broker_available and not operating_available:
             continue
         path = state / f"performance-daily-{day}.json"
@@ -958,6 +959,7 @@ def write_paper_performance(
         unknown_costs = (["fees", "model", "system"]
                          if daily_broker_costs["broker_slippage_status"] == "complete"
                          else ["fees", "slippage", "model", "system"])
+        unknown_costs=[key for key in unknown_costs if key not in {"model","system"} or daily_operating_costs.get(key+"_cost_usd") is None]
         result = {
             **result,
             **daily_operating_costs,
@@ -974,7 +976,7 @@ def write_paper_performance(
             "completed_round_trips": len(daily_rounds),
             "completed_round_trips_total": len(completed),
             "costs_status": ("partial" if daily_broker_costs["broker_slippage_status"] == "complete"
-                             or daily_operating_costs["operating_costs_status"] == "partial"
+                             or daily_operating_costs["operating_costs_status"] in {"partial","complete"}
                              else "unknown"),
             "fees_usd": daily_broker_costs["fees_usd"],
             "gross_exposure_usd": str(daily_exposure),
