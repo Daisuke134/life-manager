@@ -4,7 +4,7 @@ No provider, environment, marker-file or ledger writes occur in these readers.
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation, Context, localcontext, ROUND_HALF_EVEN
 from fractions import Fraction
 import hashlib
@@ -333,6 +333,78 @@ def crypto_fill_activity_proof(snapshot: dict[str, Any], broker: dict[str, Any],
         "fill_activity_ids": [row[1]["id"] for row in executions], "quote_currency": "USDC",
         "source_receipt_id": snapshot["source_receipt_id"], "fee_attribution_status": "unknown",
         "fee_settlement_status": "unknown", "net_realized_pnl_usd": None}
+
+
+def native_fee_row_facts(row: dict[str, Any], *, side: str, submitted_at: str,
+                         windows: list[tuple[datetime, datetime]], require_created_at: bool = False) -> dict[str, Any]:
+    if row.get('status')!='executed': raise ValueError('fee_not_executed')
+    asset='BTC' if side=='buy' else 'USDC'
+    if row.get('symbol') not in {asset,asset+'USD',asset+'/USD'}: raise ValueError('received_asset_unproved')
+    try:
+        qty=Decimal(str(row['qty']));net=Decimal(str(row['net_amount']))
+        if (not qty.is_finite() or qty>=0 or len(qty.as_tuple().digits)>100
+                or abs(qty.as_tuple().exponent)>100 or not net.is_finite() or net!=0): raise ValueError
+    except (ValueError,KeyError,ArithmeticError) as error: raise ValueError('fee_amount_invalid') from error
+    try:
+        submitted=parse_instant(submitted_at);day=date.fromisoformat(row['date'])
+        if (day.isoformat()!=row['date'] or day<submitted.astimezone(timezone.utc).date()
+                or not windows or not all(day<=end.astimezone(timezone.utc).date() for _,end in windows)): raise ValueError
+    except (ValueError,KeyError,TypeError,AttributeError) as error: raise ValueError('fee_date_invalid') from error
+    created=None
+    if row.get('created_at') is None:
+        if require_created_at: raise ValueError('fee_creation_time_missing')
+    else:
+        try:
+            created=parse_instant(row['created_at'])
+            if (not all(begin<=created<=end for begin,end in windows)
+                    or (require_created_at and created<submitted)): raise ValueError
+        except (ValueError,KeyError,TypeError,AttributeError) as error: raise ValueError('fee_creation_time_invalid') from error
+    return {'asset':asset,'quantity':-Fraction(qty),'created_at':created}
+
+
+def crypto_buy_fee_activity_proof(snapshot: dict[str, Any], broker: dict[str, Any], *, mode: str) -> dict[str, Any]:
+    """Observed, exact-order BTC debits; no ownership or settlement permission."""
+    try:
+        _,end=validate_crypto_activity_snapshot(snapshot,mode=mode)
+        if (not isinstance(broker,dict) or broker.get('side')!='buy'
+                or broker.get('symbol') not in {'BTCUSDC','BTC/USDC'}
+                or broker.get('type')!='market' or broker.get('time_in_force')!='gtc'
+                or broker.get('status') not in ({'filled'}|BROKER_TERMINAL_FAILURE_STATUSES)
+                or any(not isinstance(broker.get(k),str) or not broker[k].strip() for k in ('id','client_order_id'))): raise ValueError
+        filled=Fraction(_execution_number(broker['filled_qty']));submitted=parse_instant(broker['submitted_at'])
+        if submitted>end: raise ValueError
+        if broker.get('filled_at') not in (None,'') and not submitted<=parse_instant(broker['filled_at'])<=end: raise ValueError
+        frames=snapshot['segments'] if snapshot['schema_version']==2 else [snapshot]
+        fees={};refs={};windows={}
+        for frame in frames:
+            for row in frame['fees']:
+                if row.get('order_id')!=broker['id']: continue
+                key=row['id']
+                if key in fees and fees[key]!=row: raise ValueError
+                fees[key]=row;refs.setdefault(key,set()).add(frame['source_receipt_id'])
+                windows.setdefault(key,[]).append((parse_instant(frame['request']['after']),parse_instant(frame['request']['until'])))
+        if not fees: raise ReconciliationPending('owned_crypto_fees_pending')
+        total=Fraction();created=[]
+        for key,row in sorted(fees.items()):
+            try:
+                facts=native_fee_row_facts(row,side='buy',submitted_at=broker['submitted_at'],
+                    windows=windows[key],require_created_at=True)
+            except ValueError as error:
+                if str(error)=='fee_creation_time_missing': raise ReconciliationPending('owned_crypto_fee_time_pending') from error
+                raise
+            total+=facts['quantity'];created.append(facts['created_at'])
+        if total>filled: raise ValueError
+    except ReconciliationPending: raise
+    except (ValueError,KeyError,TypeError,AttributeError,ArithmeticError) as error:
+        raise ValueError('owned_crypto_fees_invalid') from error
+    return {'schema_version':1,'kind':'crypto_buy_fee_debits','mode':mode,'paper':mode=='paper',
+        'provider_order_id':broker['id'],'client_order_id':broker['client_order_id'],'symbol':'BTC/USDC','asset':'BTC',
+        'cumulative_fee_qty':_quantity_text(total),'fee_activity_ids':sorted(fees),
+        'source_receipt_ids':sorted({ref for values in refs.values() for ref in values}),
+        'activity_receipt_id':snapshot['source_receipt_id'],
+        'first_created_at':min(created).astimezone(timezone.utc).isoformat().replace('+00:00','Z'),
+        'last_created_at':max(created).astimezone(timezone.utc).isoformat().replace('+00:00','Z'),
+        'fee_settlement_status':'unknown','fee_completeness_status':'unknown','net_realized_pnl_usd':None}
 
 
 def _known_policy_metadata(row: dict[str, Any], *, owner_id: str, strategy_id: str, release_sha: str) -> None:

@@ -1,7 +1,7 @@
 """Derived BTC cycle inventory; no submit path or capital-promotion authority."""
 from __future__ import annotations
 
-from datetime import date,datetime,timedelta,timezone
+from datetime import datetime,timedelta,timezone
 from decimal import Decimal
 from fractions import Fraction
 from pathlib import Path
@@ -11,7 +11,7 @@ from typing import Any
 
 from crypto_ownership_proof import (_digest,_quantity_text,_sealed_entry_from_rows,entry_receipt_row,
     recorded_entry_proof_from_rows,recorded_no_fill_proof_from_rows,recorded_close_proof_from_rows,
-    crypto_fill_activity_proof,validate_crypto_activity_snapshot,combine_crypto_activity_snapshots,execution_activity_identity,crypto_activity_page_progress,crypto_activity_paged_snapshot,validate_crypto_activity_page_chunk,ReconciliationPending)
+    crypto_fill_activity_proof,validate_crypto_activity_snapshot,combine_crypto_activity_snapshots,execution_activity_identity,native_fee_row_facts,crypto_activity_page_progress,crypto_activity_paged_snapshot,validate_crypto_activity_page_chunk,ReconciliationPending)
 from effect_store import _owned_rows
 from paper_performance import _atomic_json
 from risk_policy import parse_instant
@@ -77,33 +77,14 @@ def _fee_inventory(cycles,snapshots):
         order_id=row.get('order_id');reason=None
         if not isinstance(order_id,str) or not order_id.strip(): reason='order_id_missing'
         elif order_id not in orders: reason='order_outside_closed_cycles'
-        elif row.get('status')!='executed': reason='fee_not_executed'
         else:
             cycle_id,order=orders[order_id]
-            asset='BTC' if order['side']=='buy' else 'USDC'
-            symbol=row.get('symbol')
-            if symbol not in {asset,asset+'USD',asset+'/USD'}: reason='received_asset_unproved'
-            else:
-                try:
-                    qty=Decimal(str(row['qty']));net=Decimal(str(row['net_amount']))
-                    if (not qty.is_finite() or qty>=0 or len(qty.as_tuple().digits)>100
-                            or abs(qty.as_tuple().exponent)>100 or not net.is_finite() or net!=0
-                            or Fraction(order['filled_qty'])<=0): raise ValueError
-                except (ValueError,KeyError,ArithmeticError): reason='fee_amount_invalid'
-                if reason is None:
-                    try:
-                        day=date.fromisoformat(row['date'])
-                        if (day.isoformat()!=row['date'] or day<parse_instant(order['submitted_at']).astimezone(timezone.utc).date()
-                                or not all(day<=end.astimezone(timezone.utc).date() for _,end in windows[key])): raise ValueError
-                    except (ValueError,KeyError,TypeError): reason='fee_date_invalid'
-                if reason is None and row.get('created_at') is not None:
-                    try:
-                        created=parse_instant(row['created_at'])
-                        if not all(begin<=created<=end for begin,end in windows[key]): raise ValueError
-                    except (ValueError,KeyError,TypeError,AttributeError): reason='fee_creation_time_invalid'
-                if reason is None:
-                    attributed.append({**item,'cycle_id':cycle_id,'provider_order_id':order_id,
-                        'asset':asset,'quantity':_quantity_text(-Fraction(qty))})
+            try:
+                facts=native_fee_row_facts(row,side=order['side'],submitted_at=order['submitted_at'],windows=windows[key])
+                if Fraction(order['filled_qty'])<=0: raise ValueError('fee_amount_invalid')
+                attributed.append({**item,'cycle_id':cycle_id,'provider_order_id':order_id,
+                    'asset':facts['asset'],'quantity':_quantity_text(facts['quantity'])})
+            except ValueError as error: reason=str(error)
         if reason: unattributed.append({**item,'reason':reason})
     totals={}
     for item in attributed:
