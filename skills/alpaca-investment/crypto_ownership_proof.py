@@ -881,7 +881,9 @@ def no_fill_entry_proof_from_rows(rows: list[dict[str, Any]], ownership: dict[st
             if not quantity.is_finite() or quantity != 0:
                 raise ValueError
         submitted = parse_instant(broker.get('submitted_at'))
-        if parse_instant(decision.get('observed_at')) > submitted:
+        if (parse_instant(decision.get('observed_at')) > submitted
+                or ('pre_trade_account_readback' in decision and
+                    parse_instant(decision['pre_trade_account_readback']['clock']['observed_at']) > submitted)):
             raise ValueError
         _flat_btc_account(observation, mode=mode, not_before=submitted)
         outcomes = []
