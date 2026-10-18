@@ -22,6 +22,10 @@ UNRESOLVED_INTENT_STATUSES = frozenset({
 })
 
 
+class ReconciliationPending(ValueError):
+    """An official order exists but its strategy account readback is not settled."""
+
+
 def _mode(value: Any) -> str:
     if value not in MODES:
         raise ValueError("investment_mode_invalid")
@@ -261,14 +265,18 @@ def _completed_without_strategy_receipt(
                        if isinstance(row.get("order"), dict)
                        and isinstance(row.get("owner_id"), str)
                        and isinstance(row.get("strategy_id"), str)
-                       and isinstance(row.get("decision_session"), str)
-                       and isinstance(row.get("source_receipt_ids"), list)), None)
+                       and ((row["order"].get("asset_class") == "crypto" and row["order"].get("side") == "sell")
+                            or (isinstance(row.get("decision_session"), str)
+                                and isinstance(row.get("source_receipt_ids"), list)))), None)
         if (outcome.get("outcome") != "broker_reconciled"
                 or not isinstance(broker, dict)
                 or broker.get("status") != "filled"
                 or not isinstance(intent, dict)
                 or not isinstance(intent.get("client_order_id"), str)
-                or isinstance(outcome.get("client_order_id"), str)
+                or (outcome.get("client_order_id") is not None
+                    and outcome.get("client_order_id") != intent["client_order_id"])
+                or (intent["order"].get("asset_class") == "crypto"
+                    and outcome.get("client_order_id") != intent["client_order_id"])
                 or isinstance(outcome.get("strategy_receipt"), dict)):
             continue
         candidates.append(intent)
@@ -421,7 +429,12 @@ def reconcile_started(
             # The callback owns any additional provider/account readback needed
             # for a strategy-specific receipt.  It runs before this effect is
             # closed so a missing fill or foreign position remains retry-fenced.
-            strategy_receipt = on_reconciled(intent, order)
+            try:
+                strategy_receipt = on_reconciled(intent, order)
+            except ReconciliationPending as error:
+                _pending_status(ledger, intent, order, reason=str(error))
+                deferred += 1
+                continue
             if strategy_receipt is not None and not isinstance(strategy_receipt, dict):
                 raise ValueError("strategy_receipt_invalid")
         _append_once(ledger, {
@@ -445,12 +458,19 @@ def reconcile_started(
         ))
         reconciled += 1
     strategy_reconciled = 0
+    strategy_deferred = 0
     if on_reconciled is not None:
         for intent in _completed_without_strategy_receipt(_rows(ledger)):
             order = find_order(intent["client_order_id"])
             if order is None or order.get("status") != "filled":
                 raise ValueError("reconciliation_blocked")
-            strategy_receipt = on_reconciled(intent, order)
+            try:
+                strategy_receipt = on_reconciled(intent, order)
+            except ReconciliationPending as error:
+                _pending_status(ledger, intent, order, reason=str(error))
+                deferred += 1
+                strategy_deferred += 1
+                continue
             if strategy_receipt is None:
                 continue
             if not isinstance(strategy_receipt, dict):
@@ -475,7 +495,7 @@ def reconcile_started(
             ))
             strategy_reconciled += 1
     result = {"pending": len(pending), "reconciled": reconciled,
-              "unresolved": unresolved_intent_count(ledger)}
+              "unresolved": unresolved_intent_count(ledger) + strategy_deferred}
     if deferred:
         result["deferred"] = deferred
     if strategy_reconciled:

@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from strategy_policy import ACTION_EXIT, ACTION_HOLD, evaluate, validate_policy_card
-from effect_store import _digest, _rows, owned_entry_decision
+from effect_store import ReconciliationPending, _digest, _rows, owned_entry_decision
 from etf_ownership import investment_owner_id
 from risk_policy import parse_instant
 
@@ -103,9 +103,10 @@ def close_fill_proof(state: Path, ownership: dict[str, Any], broker: dict[str, A
         for position in positions:
             if (not isinstance(position, dict) or not isinstance(position.get("symbol"), str)
                     or not position["symbol"].strip()
-                    or position["symbol"] in {"BTCUSD", "BTCUSDC", "BTC/USDC", "BTC/USD", "BTC"}
                     or not Decimal(str(position.get("qty"))).is_finite()):
                 raise ValueError
+            if position["symbol"] in {"BTCUSD", "BTCUSDC", "BTC/USDC", "BTC/USD", "BTC"}:
+                raise ReconciliationPending("owned_close_account_pending")
         for row in rows:
             if row.get("receipt_type") != "outcome" or row.get("effect_id") != effect:
                 continue
@@ -130,6 +131,8 @@ def close_fill_proof(state: Path, ownership: dict[str, Any], broker: dict[str, A
                         raise ValueError
                 elif old != current:
                     raise ValueError
+    except ReconciliationPending:
+        raise
     except (ValueError, KeyError, TypeError, AttributeError, InvalidOperation) as error:
         raise ValueError("owned_close_proof_invalid") from error
     return {"account_readback": observation, "receipt": {

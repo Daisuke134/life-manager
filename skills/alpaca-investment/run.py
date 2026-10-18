@@ -18,7 +18,7 @@ from alpaca_cli import (CLI_OPERATIONS, SAFE_ERROR_CODES, find_order_by_client_i
                         read_paper_etf_cost_evidence, submit_order)
 from campaign import CANDIDATE_REF, SYMBOLS, exit_order, reconcile
 from control import control_fence, read_control
-from effect_store import (_rows as receipt_rows, mark_started, reconcile_started, record_no_trade, seal,
+from effect_store import (ReconciliationPending, _rows as receipt_rows, mark_started, reconcile_started, record_no_trade, seal,
                           unresolved_intent_count)
 from etf_ownership import ETF_PAPER_OWNER_ID, ETF_STRATEGY_ID, investment_owner_id
 from etf_ownership import _account_position as validate_etf_position_readback
@@ -306,7 +306,10 @@ def _sync_live_ownership(state: Path, credentials_path: Path, cli_path: Path,
             _atomic_json(path, ownership)
         elif status == "filled" and not btc:
             mode = os.environ.get("LIFE_MANAGER_INVESTMENT_MODE")
-            proof = close_fill_proof(state, ownership, broker, observation, mode=mode)
+            try:
+                proof = close_fill_proof(state, ownership, broker, observation, mode=mode)
+            except ReconciliationPending:
+                return ownership
             matched = False
             for row in receipt_rows(state / "receipts.jsonl"):
                 if row.get("receipt_type") != "outcome" or row.get("effect_id") != ownership.get("close_effect_id"):
@@ -377,6 +380,24 @@ def _reconcile_etf_intent(
     return {"receipt": receipt, "observation": account_readback}
 
 
+
+def _reconcile_crypto_close(intent: dict, provider_order: dict, *, state: Path,
+                            credentials_path: Path, cli_path: Path) -> dict:
+    mode = _mode()
+    if (intent.get("mode") != mode or intent.get("owner_id") != investment_owner_id()
+            or intent.get("order", {}).get("asset_class") != "crypto"
+            or intent["order"].get("side") != "sell"):
+        raise ValueError("owned_close_proof_invalid")
+    with control_fence(state):
+        ownership = json.loads((state / "live-owned-position.json").read_text(encoding="utf-8"))
+        if (not isinstance(ownership, dict) or ownership.get("close_effect_id") != intent.get("effect_id")
+                or ownership.get("close_client_order_id") != intent.get("client_order_id")):
+            raise ValueError("owned_close_proof_invalid")
+        observation = _normalize_live_position_symbols(observe(
+            credentials_path=credentials_path, cli_path=cli_path))
+        return close_fill_proof(state, ownership, provider_order, observation, mode=mode)
+
+
 def _observe_and_sync_live_ownership(
         state: Path, credentials_path: Path, cli_path: Path) -> tuple[dict, dict | None]:
     with control_fence(state):
@@ -435,6 +456,12 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
         reconciled_observation: dict[str, dict] = {}
 
         def on_reconciled(intent: dict, provider_order: dict) -> dict | None:
+            if (intent.get("order", {}).get("asset_class") == "crypto"
+                    and intent["order"].get("side") == "sell"):
+                result = _reconcile_crypto_close(intent, provider_order, state=state,
+                    credentials_path=credentials_path, cli_path=cli_path)
+                reconciled_observation["value"] = result["account_readback"]
+                return result
             if intent.get("order", {}).get("asset_class") != "us_equity":
                 return
             result = _reconcile_etf_intent(
