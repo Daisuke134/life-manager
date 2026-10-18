@@ -321,6 +321,10 @@ README は「ユーザー向け18 + system agent 1」= 19 agent。19 = Host Stew
 
 **Gig修理の順（お金に近い順）:** G-a Coconala apply fence → G-b Lancers session復元 → G-c CrowdWorks 単価filterと枠配分 → G-d Mercor fence → G-e admission DBの肥大(放置claimed/unknown)とpaid pollingの枠消費。
 
+**G-e paid pollingの枠消費（2026-10-18 20:30 JST 実測、24h、agent上限4）:** events.jsonl の execute→report と admission-v2 から集計。有限 agent 枠の使用は 249,636 slot秒（4枠の72%）。paid poller 4本は admitted 395回・27,793 slot秒（11%）で、実 effect は crowdworks の1回だけ、Lancers/CrowdWorks の compose（モデル呼び出し）は0件。hf-gig-apply-direct は wake 286回のうち admitted 9回、defer 276回（`resource_effect_unknown` 203＝10/17 20時〜10/18 14時の fence、`resource_capacity_busy` 46＝fence 解除後、`disk_floor_low` 25）。検証済み応募は22件（すべて13時以降）。capacity_busy 時点で agent 枠を握っていた上位は job-search-daily 21/46・fundraiser 18・hf-gig-storefront-direct 15・投稿lane各5〜11で、paid poller は lancers-paid 4・hf-gig-paid 3（重複を除くと46回中4回）。live agent run が4未満なのに capacity_busy になった22回は予約（reservation）が枠を占めていた分で、events からは保持者を特定できない。paid poller は `critical_paid` のため5分待つと最上位（rank -1）になり、空いた枠の予約を apply-direct より先に取る。
+- 対処（PR `fix/paid-poll-frees-apply-capacity`）: hf-gig-paid-direct・lancers/crowdworks/mercor-revenue-paid を `resource_class=deterministic` へ移す（revenue/critical_paid は維持）。poll は browser 観測と決定的な decide だけで、モデルは実 Paid event の時だけ agent_runner（自前 provider lease）経由で動く。先例は line-sticker-factory-hourly（#7262）。cadence は PR #8133 で既に15分。
+- 残り: apply-direct の capacity_busy の主因は job-search-daily（中央値2,007秒/回）・fundraiser・storefront-direct（60秒 cadence、critical_paid）。本番反映（release→対象限定 loaded-idle apply）後に、apply-direct の capacity_busy 件数と検証済み応募数を同じ集計で再測する。
+
 ### 実行計画と期限（2026-10-15 確定、Daisの実施指示あり）
 写した外部実装（コードを読んで確認）: Kubernetes kubelet `pkg/kubelet/images/image_gc_manager.go`（使用率がHighThresholdPercent既定85%以上でLowThresholdPercent既定80%まで最終使用が古い順に削除、使用中は除外、回収不足は`FreeDiskSpaceFailed`警告）と `pkg/kubelet/eviction/defaults_linux.go`（`nodefs.available<10%`で猶予0の停止）、systemd `src/journal/journald-manager.c`（書き手ごとに`max_use`と`keep_free`）、Elasticsearch `DiskThresholdSettings.java`（low 85%/high 90%/flood_stage 95%で書込禁止、回復で自動解除）。共通の型=「水位で自動掃除」「危険水位で新規書込停止」「回収不足は叫ぶ」「書き手ごとの上限」。出所の1ファイル単位証明はしない。
 

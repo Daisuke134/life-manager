@@ -3868,6 +3868,9 @@ def test_all_coconala_lanes_enter_revenue_admission(tmp_path):
                 tmp_path / f"{loop_id}.json",
             ) == 75
 
+    # The Paid poller observes without a model; it stays out of the agent slots.
+    resource_classes = {loop_id: "agent" for loop_id in loop_ids}
+    resource_classes["hf-gig-paid-direct"] = "deterministic"
     expected_enqueue = []
     for loop_id in loop_ids:
         kwargs = {
@@ -3880,10 +3883,10 @@ def test_all_coconala_lanes_enter_revenue_admission(tmp_path):
             kwargs["coalesce_reserved"] = True
         if registry[loop_id].get("admission_effect_scope") == "occurrence":
             kwargs["effect_scope"] = "occurrence"
-        expected_enqueue.append(call("agent", loop_id, **kwargs))
+        expected_enqueue.append(call(resource_classes[loop_id], loop_id, **kwargs))
     assert enqueue.call_args_list == expected_enqueue
     assert claim.call_args_list == [
-        call("agent", loop_id, admission_class="revenue",
+        call(resource_classes[loop_id], loop_id, admission_class="revenue",
              **({"effect_scope": "occurrence"}
                 if registry[loop_id].get("admission_effect_scope") == "occurrence" else {}))
         for loop_id in loop_ids
@@ -3912,19 +3915,24 @@ def test_all_marketplace_revenue_lanes_use_agent_revenue_admission():
     loop_ids = (
         "crowdworks-revenue-application",
         "crowdworks-revenue-reply",
-        "crowdworks-revenue-paid",
         "lancers-revenue-application",
         "lancers-revenue-negotiate",
-        "lancers-revenue-paid",
         "lancers-revenue-storefront",
         "mercor-revenue-application",
         "mercor-revenue-reply",
+    )
+    paid_pollers = (
+        "crowdworks-revenue-paid",
+        "lancers-revenue-paid",
         "mercor-revenue-paid",
     )
     assert all(registry[loop_id].get("resource_class") == "agent"
                for loop_id in loop_ids)
+    # Paid pollers observe without a model, so they keep revenue admission outside the agent slots.
+    assert all(registry[loop_id].get("resource_class") == "deterministic"
+               for loop_id in paid_pollers)
     assert all(registry[loop_id].get("admission_class") == "revenue"
-               for loop_id in loop_ids)
+               for loop_id in loop_ids + paid_pollers)
 
 
 def test_unavailable_admission_becomes_deferred_receipt(tmp_path):
