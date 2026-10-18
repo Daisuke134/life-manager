@@ -89,6 +89,13 @@ class NativeCodexCompressionTest(unittest.TestCase):
 
 
 class LoopCleanupTest(unittest.TestCase):
+    def setUp(self):
+        # The real disk gate reads this host's free space against a 12 GiB floor; keep it
+        # out of these tests, as test_lm_loop_run_bounds.py does.
+        gate = mock.patch("runtime.loop.lm_loop_run._producer_gate", return_value=None)
+        gate.start()
+        self.addCleanup(gate.stop)
+
     def test_main_stdout_keeps_loaded_binding_and_standalone_none(self):
         expected = {"owner_id": "life-manager-disk-cleanup", "run_id": "run-1",
             "occurrence_id": "life-manager-disk-cleanup:run-1",
@@ -1677,6 +1684,7 @@ class LoopCleanupTest(unittest.TestCase):
             (root / "RELEASE.json").write_text(json.dumps({"sha": "a" * 40}))
             command = (
                 "from runtime.loop import lm_loop_run; "
+                "lm_loop_run._producer_gate = lambda *_a, **_k: None; "
                 f"raise SystemExit(lm_loop_run.main(['job', {str(root)!r}]))"
             )
             result = subprocess.run(
@@ -1724,6 +1732,7 @@ class LoopCleanupTest(unittest.TestCase):
             }
             command = (
                 "from runtime.loop import lm_loop_run; "
+                "lm_loop_run._producer_gate = lambda *_a, **_k: None; "
                 f"raise SystemExit(lm_loop_run.main(['job', {str(root)!r}]))"
             )
             result = subprocess.run(
