@@ -416,6 +416,56 @@ class BrokerContextTest(unittest.TestCase):
                 "positions": [{"symbol": "BTCUSD", "qty": "0.00008"}]})
 
 
+class PolicyHistoryDispatchTest(unittest.TestCase):
+    def test_owned_history_follows_entry_policy_without_a_current_selection(self):
+        from test_owned_policy import seed
+        from strategy_policy import candidate_cards
+        for mode in ("paper","live"):
+            for strategy_id,required in (("alpaca-btc-5m-trend-v1",None),
+                                         ("alpaca-btc-5m-trend-400-v2",800)):
+                with self.subTest(mode=mode,strategy=strategy_id),tempfile.TemporaryDirectory() as directory:
+                    root=Path(directory)
+                    card=candidate_cards()[strategy_id]
+                    ownership,owner=seed(root,mode,decision_changes={"strategy_id":strategy_id,"policy_card":card.to_mapping()})
+                    (root/"selected-strategy.json").unlink()
+                    with patch.dict(MODULE.os.environ,{"LIFE_MANAGER_INVESTMENT_OWNER_ID":owner}), \
+                         patch.object(MODULE,"read_crypto_history",return_value={"BTC/USDC":[]}) as read:
+                        history=MODULE._policy_crypto_history(root,ownership,mode=mode,
+                            credentials_path=Path("c"),cli_path=Path("a"),observed_at="2026-01-01T04:15:00Z")
+                    self.assertEqual(history,{"BTC/USDC":[]})
+                    self.assertEqual(read.call_count,1)
+                    if required is None: self.assertNotIn("history_bars",read.call_args.kwargs)
+                    else: self.assertEqual(read.call_args.kwargs["history_bars"],required)
+
+    def test_flat_new_candidate_requests_800_and_etf_does_not_request_crypto(self):
+        from strategy_policy import candidate_cards
+        for strategy in ("alpaca-btc-5m-trend-400-v2","alpaca-etf-126d-momentum-v1"):
+            with self.subTest(strategy=strategy),tempfile.TemporaryDirectory() as directory:
+                root=Path(directory)
+                card=candidate_cards()[strategy]
+                (root/"selected-strategy.json").write_text(json.dumps({
+                    "strategy_id":strategy,"card":card.to_mapping(),"release_sha":"a"*40,
+                    "expires_at":"2099-01-01T00:00:00Z"}))
+                with patch.object(MODULE,"read_crypto_history",return_value={}) as read:
+                    MODULE._policy_crypto_history(root,None,mode="paper",credentials_path=Path("c"),
+                                                  cli_path=Path("a"),observed_at="2026-01-01T04:15:00Z")
+                self.assertEqual(read.call_count,0 if strategy.endswith("momentum-v1") else 1)
+                if read.called: self.assertEqual(read.call_args.kwargs["history_bars"],800)
+
+    def test_unknown_owned_policy_never_falls_back_to_a_current_candidate(self):
+        from test_owned_policy import seed
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            ownership,owner=seed(root)
+            (root/"receipts.jsonl").unlink()
+            with patch.dict(MODULE.os.environ,{"LIFE_MANAGER_INVESTMENT_OWNER_ID":owner}), \
+                 patch.object(MODULE,"read_crypto_history") as read:
+                result=MODULE._policy_crypto_history(root,ownership,mode="live",credentials_path=Path("c"),
+                                                    cli_path=Path("a"),observed_at="2026-01-01T04:15:00Z")
+            self.assertEqual(result,{})
+            read.assert_not_called()
+
+
 class VersionedCryptoHistoryTest(unittest.TestCase):
     def _read(self, observed="2026-09-10T08:05:00Z", mutate=None):
         def serve(_cli, args, _env):
