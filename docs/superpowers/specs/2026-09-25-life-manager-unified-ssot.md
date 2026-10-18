@@ -14909,11 +14909,23 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **公式仕様の境界:** Alpacaの[Paper Trading](https://docs.alpaca.markets/docs/paper-trading)は市場impact/latency/queue/regulatory fees等を模擬しない。紙のnot_simulatedを実口座の費用0にしない。[Crypto Trading](https://docs.alpaca.markets/docs/crypto-trading)のcrypto feeはCFEE活動で日末計上されるため、当日空一覧を確定無料にしない。strategyの予測費用と公式確定費用を区別する。paper feeの完全性・USDC quoteからの実注文可否は未確認であり、推測でmeasured/live許可へ上げない。
 
-**実行順の更新:** 旧=`D3取引pair inventory/consumer→D4費用評価→ETF紙サンプル→live gate`。新=`D3a1 capture修正のreview/CI/main/正式版/自然snapshot→D3a2 order_pair/owner_period独立inventory→BTC同一戦略validation・paper所有/exit/performance配線とETF保有遷移→D3b/D4完全費用coverage・全closed pairs/daily live reader→自然paper30件と既存全gate→exact live identity/fence/通貨・資本・損失条件照合→上限内live→実純利益/rollingに基づく改善・増額`。理由は、ETF紙評価とBTC-only liveの戦略不一致、idle期間の費用欠落、canary一組固定readerが最終成果への到達を妨げるため。現在cursorはD3a2独立inventoryのGitHub review/CI/main統合と、D3bのreader/consumer接続。進行中の自然ETF判断・外部effectを中断しない。
+**実行順の更新:** 旧=`D3取引pair inventory/consumer→D4費用評価→ETF紙サンプル→live gate`。新=`D3a1 capture修正のreview/CI/main/正式版/自然snapshot→D3a2 order_pair/owner_period独立inventory→BTC同一戦略validation・paper所有/exit/performance配線とETF保有遷移→D3b/D4完全費用coverage・全closed pairs/daily live reader→自然paper30件と既存全gate→exact live identity/fence/通貨・資本・損失条件照合→上限内live→実純利益/rollingに基づく改善・増額`。理由は、ETF紙評価とBTC-only liveの戦略不一致、idle期間の費用欠落、canary一組固定readerが最終成果への到達を妨げるため。現在cursorは正本TODO3のIN-BTC-01（市場データ不足の修正）。D3a2はmain統合し、D3b reader/consumerはTODO4へ残す。順序変更ではなく先頭未完項目の進行。進行中の自然ETF判断・外部effectを中断しない。
+
+### IN-BTC-01 — 取得履歴とBTC方針の最小入力を揃える
+
+**確認した原因:** run.pyのlive経路はalpaca_cli.read_crypto_historyから4時間の5分足を受ける。inclusive上限49本に対し、strategy_policy._indicatorsのtrendには51本が必要なので、その取得口からtrend判定へ十分な履歴が渡ることがない。検証済みBTC selectionとpaper側の取得接続は別のTODO3作業であり、このデータ不足だけで現在のETF HOLDやlive停止の全理由を説明したとは扱わない。
+
+**今回の範囲と完了条件:** owned worktreeの専用branch fix/investment-btc-history-warmup-20261018でalpaca_cli.py/test_run.py/本SSOTだけを変更する。既存5Min/BTC・ETH/USDC queryを8時間へ拡張し、raw inclusive上限97本を同じ期間から算出する。各足は既存OHLC/時刻/順序検証を通し、t+5分<=observed_atの完了区間だけを返す。未来timestampは拒否し、進行中の最後の足を除く。補間・欠測0化・quote通貨変換・strategy選択・注文・live enableは行わない。最小6本/最新15分の既存reader条件は維持し、個別strategyの51本条件は緩めない。producer→既存strategy.evaluateの隔離回帰でhistory_insufficientから先へ進めること、境界/未来/進行中/過量/古い足の拒否をRED→GREENで示す。source review/CI/main/通常immutable経路へ進める。liveはdisabledを維持する。
+
+**一次資料と模倣する仕組み:** [Freqtradeのstartup期間](https://github.com/freqtrade/freqtrade/blob/develop/docs/strategy-customization.md)の「indicatorに必要な履歴を先に確保する」機構を既存readerへ適用する。外部engineやGPLコードは導入しない。51本は現在の計算最低数であり、EMAの再帰的安定性や利益を証明する数ではない。それらは既存validation/未使用期間比較で別途評価する。[Alpaca crypto bars](https://docs.alpaca.markets/docs/real-time-crypto-pricing-data)は前のminuteの集計を次の境界で配信し、遅着による更新も定義する。完了区間と将来訂正不能を混同しない。provider request/receiptを伴う最終成績と、推定fee/slippageのbacktestを分離する。
+
+**IN-BTC-01実行記録:** RED d90a8cb1f0は、実producerから既存strategy.evaluateへ接続してhistory_insufficientになること、8時間のraw97本拒否、進行中足7本→期待6本のaligned/unaligned両境界を再現する。GREEN e3f4f00916は既存read_crypto_historyの9行追加/6行削除でwindow8h・算出上限97・完了区間だけの返却へ揃える。追加69cf8c31e7で98本拒否も保持する。Alpaca328 unittest・core156 tests/39 subtests・source boundary/loop contract193 jobs/diffがPASS。これは最低51本の計算条件への接続証明であり、EMAの再帰安定性・自然売買・費用込み利益の証明ではない。独立review/全CI/main/正式版/実market-data readbackは次のcursor。
+
+**D3a2統合と追加観測:** PR #8338 head088e1d10bddda1befede3be4bd6f83dfb83a1857はfresh GitHub review未解決指摘なし・全13 exact-head checks PASS後、main1c4e1b3484c2f528eca0dd3d6fd3426cbbbb29ccへ統合する。census caller/実費producerは未接続。CFOの既存.envとpaper plistにLM_CFO_ACTUAL_COST_READBACK/LM_CFO_ACTUAL_COST設定はなく、費用入力の接続は未確認（manager継承値は未観測）。live credentialの公式GETで過去L09/L10のclient IDと保存済みprovider order IDの両方が一致する2件を確認する。これは歴史的live注文との口座連続性の証拠だが、未対応の後続4注文や旧fenceを閉じず、credential metadataのgeneric account_idも書換えない。provider/state書込0。
 
 **原子的な残TODO（この順序が正本）:**
 1. [x] D3a1のsource review/全13 checks/main f3fd137e統合、正式版26839cbfのpaper採用、自然snapshot/replay-zeroを確認する。
-2. [ ] D3a2のorder_pair/owner_period入力契約をfixture化し、runtime physical run/actual occurrence/admission/release宣言と既知paid bindingの独立censusをRED→GREENで実装する。未終端・archive不足・旧release欠測・共有未帰属をgapにする。
+2. [x] D3a2のorder_pair/owner_period独立censusをRED→GREENで実装し、PR #8338/main1c4e1b3484c2f528eca0dd3d6fd3426cbbbb29ccへ統合する。未終端・履歴取得未証明・旧release欠測・共有未帰属はgap。費用consumer/producerはTODO4へ残す。
 3. [ ] 既存BTC candidate/validationをpaper/live同一policyへ接続する。ETF保有中のselection更新を拒否し、自然EXIT後の所有移行、BTC paper entry/exit/公式約定の成績集計を検証する。
 4. [ ] D3bで安全なruntime/admission/ledger read-only loaderを既存writerへ接続し、必要provider/account/categoryと公式queryを照合する。欠測は0化せず、履歴更新で既知費用を失わない。
 5. [ ] D4で公式broker fee/funding/gasとmodel/systemの完全性を照合し、全て揃ったscopeだけ既存coreの費用込みnetへ昇格する。日次・取引の同charge二重控除を拒否する。
