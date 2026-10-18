@@ -10,15 +10,12 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Callable
 
-from crypto_ownership_proof import (_digest, ReconciliationPending, owned_entry_decision_from_rows,
+from crypto_ownership_proof import (_digest, ReconciliationPending, BROKER_TERMINAL_FAILURE_STATUSES, owned_entry_decision_from_rows,
                                     recorded_close_proof_from_rows, no_fill_entry_proof_from_rows,
                                     recorded_no_fill_proof_from_rows, recorded_entry_proof_from_rows)
 
 
 MODES = frozenset({"paper", "shadow", "live"})
-BROKER_TERMINAL_FAILURE_STATUSES = frozenset({
-    "canceled", "done_for_day", "expired", "rejected", "stopped", "suspended",
-})
 UNRESOLVED_INTENT_STATUSES = frozenset({
     "started", "reconciliation_blocked", "reconciliation_pending", "applied",
 })

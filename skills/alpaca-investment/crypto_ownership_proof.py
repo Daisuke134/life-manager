@@ -15,6 +15,10 @@ from risk_policy import parse_instant
 from strategy_policy import validate_policy_card
 
 
+# Only these failures guarantee that the order receives no further updates.
+BROKER_TERMINAL_FAILURE_STATUSES = frozenset({"canceled", "expired", "rejected"})
+
+
 class ReconciliationPending(ValueError):
     """An official order exists but its strategy account readback is not settled."""
 
@@ -333,7 +337,7 @@ def no_fill_entry_proof_from_rows(rows: list[dict[str, Any]], ownership: dict[st
                 or broker.get('symbol') not in {'BTCUSDC', 'BTC/USDC'}
                 or broker.get('side') != 'buy' or broker.get('type') != order['type']
                 or broker.get('time_in_force') != order['time_in_force']
-                or broker.get('status') not in {'canceled', 'expired', 'rejected', 'done_for_day', 'stopped', 'suspended'}
+                or broker.get('status') not in BROKER_TERMINAL_FAILURE_STATUSES
                 or broker.get('filled_at') not in {None, ''}):
             raise ValueError
         for value in (broker.get('filled_qty'), ownership.get('entry_filled_qty'), ownership.get('owned_qty', '0')):

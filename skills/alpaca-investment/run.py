@@ -29,7 +29,7 @@ from cost_inventory import record_source_inventory
 from reporter import deliver, deliver_control, deliver_failure
 from position_manager import choose as choose_position, exit_order as live_exit_order, load_owned_policy, close_fill_proof, recorded_close_fill_proof
 from position_manager import recorded_entry_fill_proof, historical_entry_fill_proof
-from crypto_ownership_proof import entry_fill_proof_from_rows, recorded_entry_proof_from_rows
+from crypto_ownership_proof import BROKER_TERMINAL_FAILURE_STATUSES, entry_fill_proof_from_rows, recorded_entry_proof_from_rows
 from strategy_policy import INDICATOR_HISTORY_CONTRACTS, load_selected_card, validate_policy_card
 from review_status import read_receipt as read_application_status
 from review_status import refresh as refresh_application_status
@@ -259,7 +259,7 @@ def _sync_live_ownership(state: Path, credentials_path: Path, cli_path: Path,
             ownership["owned_qty"] = proof["receipt"]["account_owned_qty"]
             ownership["entry_timestamp"] = proof["receipt"]["entry_timestamp"]
             _atomic_json(path, ownership)
-        elif status in {"canceled", "expired", "rejected", "done_for_day", "stopped", "suspended"} and not btc:
+        elif status in BROKER_TERMINAL_FAILURE_STATUSES and not btc:
             try:
                 record_no_fill_account_receipt(state / "receipts.jsonl", ownership, broker, observation,
                     mode=os.environ.get("LIFE_MANAGER_INVESTMENT_MODE"), owner_id=investment_owner_id())

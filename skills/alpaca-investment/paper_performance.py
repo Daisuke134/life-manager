@@ -14,17 +14,15 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from effect_store import UNRESOLVED_INTENT_STATUSES
+from crypto_ownership_proof import BROKER_TERMINAL_FAILURE_STATUSES
 from paper_operating_costs import read_readback, select_components, summarize as summarize_operating_costs
 
 
 OWNER_ID = "alpaca-investment-paper"
 STRATEGY_ID = "alpaca-etf-126d-momentum-v1"
-BROKER_TERMINAL_FAILURE_STATUSES = frozenset({
-    "canceled", "done_for_day", "expired", "rejected", "stopped", "suspended",
-})
 BROKER_NONTERMINAL_STATUSES = frozenset({
     "accepted", "accepted_for_bidding", "new", "partially_filled",
-    "pending_cancel", "pending_new", "pending_replace",
+    "pending_cancel", "pending_new", "pending_replace", "done_for_day", "stopped", "suspended",
 })
 
 
@@ -226,6 +224,12 @@ def _closed_round_trips(
         if not isinstance(broker, Mapping):
             raise ValueError("paper_provider_receipt_invalid")
         if outcome.get("outcome") == "broker_terminal_failure":
+            try:
+                zero_fill = _number(broker.get("filled_qty")) == 0
+            except ValueError:
+                zero_fill = False
+            if broker.get("status") not in BROKER_TERMINAL_FAILURE_STATUSES or not zero_fill:
+                raise ValueError("paper_effect_unresolved")
             continue
         if outcome.get("outcome") != "broker_reconciled":
             raise ValueError("paper_outcome_invalid")

@@ -30,6 +30,25 @@ class TerminalQuantityTests(unittest.TestCase):
                     self.assertEqual(store.effect_state(ledger,sealed['effect_id']),'started')
                     self.assertFalse(any(r.get('receipt_type')=='outcome' for r in store._rows(ledger)))
 
+    def test_paused_entry_recovers_with_the_original_order_and_account_proof(self):
+        from test_crypto_entry import entry_fixture
+        from crypto_ownership_proof import entry_fill_proof_from_rows
+        for status in ('done_for_day','stopped','suspended'):
+            for mode in ('paper','live'):
+                with self.subTest(status=status,mode=mode),tempfile.TemporaryDirectory() as directory:
+                    root=Path(directory);marker,broker,observation,owner=entry_fixture(root,mode)
+                    ledger=root/'receipts.jsonl'
+                    waiting={**broker,'status':status,'filled_qty':'0','filled_avg_price':None,'filled_at':None}
+                    self.assertEqual(store.reconcile_started(ledger,lambda _:waiting)['unresolved'],1)
+                    proof=entry_fill_proof_from_rows(store._rows(ledger),marker,broker,observation,
+                        mode=mode,owner_id=owner)
+                    result=store.reconcile_started(ledger,lambda _:broker,on_reconciled=lambda *_:proof)
+                    self.assertEqual(result['unresolved'],0)
+                    self.assertEqual(store.effect_state(ledger,marker['entry_effect_id']),'outcome')
+                    before=ledger.read_bytes()
+                    store.reconcile_started(ledger,lambda _:self.fail('completed order replayed'))
+                    self.assertEqual(ledger.read_bytes(),before)
+
     def test_only_explicit_finite_zero_closes_terminal_orders(self):
         for qty in (None,'','NaN','Infinity','-1','0.01','0'):
             for mode in ('paper','live'):
