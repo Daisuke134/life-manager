@@ -493,6 +493,7 @@ def entry_pre_trade_account_readback(observation, decision):
                 or observation['account'].get('id')!=account):raise ValueError
         positions=_account_positions(observation,mode=mode,
             not_before=parse_instant(decision['observed_at']))
+        if _fx_instant(observation['clock']['observed_at'])<_fx_instant(decision['observed_at']):raise ValueError
         if (len(positions)>1 or any(row['symbol']!='USDCUSD'
                 or not isinstance(row.get('qty'),str) or Decimal(row['qty'])<0 for row in positions)):
             raise ValueError
@@ -652,8 +653,8 @@ def _owned_policy(proof: dict[str, Any], ownership: dict[str, Any], *, mode: str
                 <= parse_instant(filled_at)):
             raise ValueError
         if ('pre_trade_account_readback' in decision and
-                parse_instant(decision['pre_trade_account_readback']['clock']['observed_at'])
-                > parse_instant(broker['submitted_at'])):raise ValueError
+                _fx_instant(decision['pre_trade_account_readback']['clock']['observed_at'])
+                > _fx_instant(broker['submitted_at'])):raise ValueError
     except (KeyError, TypeError, ValueError) as error:
         raise ValueError("owned_entry_fill_time_invalid") from error
     result={"card": card, "release_sha": release_sha, "entry_price": price,
@@ -883,7 +884,8 @@ def no_fill_entry_proof_from_rows(rows: list[dict[str, Any]], ownership: dict[st
         submitted = parse_instant(broker.get('submitted_at'))
         if (parse_instant(decision.get('observed_at')) > submitted
                 or ('pre_trade_account_readback' in decision and
-                    parse_instant(decision['pre_trade_account_readback']['clock']['observed_at']) > submitted)):
+                    _fx_instant(decision['pre_trade_account_readback']['clock']['observed_at'])
+                    > _fx_instant(broker['submitted_at']))):
             raise ValueError
         _flat_btc_account(observation, mode=mode, not_before=submitted)
         outcomes = []
