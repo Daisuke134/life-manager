@@ -8,8 +8,11 @@ and the wrapper writes occurrence.json (owner, occurrence, target date) before
 running it.
 
 Decision:
-  - every net that has a dispatch marker reads back a Postiz post at its slot
+  - every net that has a dispatch marker reads back its own Postiz post at its slot
     -> effected; provider_receipt_id = the post ids; close via resolve_unknown_occurrence.
+    "Its own" = the create postId in that marker's <slug>/<net>-receipts-v3.jsonl for the
+    same slot; with no create id (crash between dispatch and receipt), the only post on the
+    integration in the slot's minute. Another owner's post at that minute never proves ours.
   - no dispatch marker was ever written -> pre-effect proof; close via
     resolve_pre_effect_occurrence.
   - a marker without a read-back post, or any read failure -> held.
@@ -48,8 +51,24 @@ def run_dir_for(occurrence_id: str) -> Path:
     return STATE_ROOT / "runs" / run_id
 
 
-def build_proof(occurrence_id: str, run_dir: Path, *, posts_fn: Callable[[str, str], str | None]) -> dict:
-    from capafy_reel_daily import slots  # noqa: PLC0415
+def create_post_id(receipts_dir: Path, marker: Path, net: str, slot: str) -> str | None:
+    """This marker's Postiz create postId (sibling: postiz_video.extract_post_id), else None.
+
+    Owner-scoped admission holds the next run while this occurrence is fenced, so the slot's
+    receipt is this occurrence's own create.
+    """
+    try:
+        slug = json.loads(marker.read_text())["slug"]
+        rec = json.loads((receipts_dir / slug / f"{net}-receipts-v3.jsonl").read_text())
+        post_id = rec["create"][0]["postId"]
+    except (OSError, ValueError, TypeError, KeyError, IndexError):
+        return None
+    return post_id if rec.get("scheduled_for") == slot and isinstance(post_id, str) and post_id else None
+
+
+def build_proof(occurrence_id: str, run_dir: Path, *, posts_fn: Callable[[str, str], list[str]],
+                receipts_dir: Path | None = None) -> dict:
+    from capafy_reel_daily import BASE, slots  # noqa: PLC0415
 
     manifest_path = run_dir / "occurrence.json"
     try:
@@ -67,11 +86,15 @@ def build_proof(occurrence_id: str, run_dir: Path, *, posts_fn: Callable[[str, s
     def at(marker: str) -> tuple[str, str]:
         net, _, slot = marker.partition("-s")
         return net, slots(day, int(slot) if slot else 1)[net]
-    found = {m: posts_fn(*at(m)) for m in dispatched}
+    created = {m: create_post_id(receipts_dir or BASE, run_dir / f"dispatch-{m}.json", *at(m)) for m in dispatched}
+    candidates = {m: posts_fn(*at(m)) for m in dispatched}
+    found = {m: (created[m] if created[m] in candidates[m] else None) if created[m]
+             else (candidates[m][0] if len(candidates[m]) == 1 else None) for m in dispatched}
     if all(found.values()):
         return {**base, "verified": True, "outcome": "effected",
                 "provider_receipt_id": ",".join(f"{n}:{found[n]}" for n in dispatched)}
-    return {**base, "verified": False, "outcome": "held", "dispatched": dispatched, "read_back": found}
+    return {**base, "verified": False, "outcome": "held", "dispatched": dispatched, "read_back": found,
+            "create_ids": created, "candidates": candidates}
 
 
 def write_result_hint(proof: dict, path: Path) -> bool:
@@ -109,7 +132,8 @@ def write_result_hint(proof: dict, path: Path) -> bool:
     return True
 
 
-def postiz_post_at(net: str, slot: str) -> str | None:
+def postiz_posts_at(net: str, slot: str) -> list[str]:
+    """Every live post on this net's integration within a minute of the slot (any owner)."""
     from capafy_reel_daily import IG_ID, TT_ID, X_ID  # noqa: PLC0415
 
     key = os.environ["LM_POSTIZ_API_KEY"]
@@ -119,10 +143,8 @@ def postiz_post_at(net: str, slot: str) -> str | None:
     req = urllib.request.Request(f"https://api.postiz.com/public/v1/posts?{q}", headers={"Authorization": key})
     data = json.load(urllib.request.urlopen(req, timeout=60))
     integration = {"ig": IG_ID, "x": X_ID, "tt": TT_ID, "tc": TT_ID}[net]
-    for post in (data.get("posts") if isinstance(data, dict) else data) or []:
-        if (post.get("integration") or {}).get("id") == integration and not post.get("deletedAt"):
-            return str(post["id"])
-    return None
+    return [str(post["id"]) for post in (data.get("posts") if isinstance(data, dict) else data) or []
+            if (post.get("integration") or {}).get("id") == integration and not post.get("deletedAt")]
 
 
 def fenced_state(occurrence_id: str) -> str:
@@ -147,7 +169,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.resolve:
             parser.error("--result-hint and --resolve are exclusive")
         try:
-            proof = build_proof(args.occurrence, run_dir_for(args.occurrence), posts_fn=postiz_post_at)
+            proof = build_proof(args.occurrence, run_dir_for(args.occurrence), posts_fn=postiz_posts_at)
         except (OSError, ValueError, KeyError) as exc:
             print(f"CAPAFY_REEL_RESULT_HINT=FAIL {type(exc).__name__}:{exc}", file=sys.stderr)
             return 1
@@ -157,7 +179,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if written else 1
     try:
         state = fenced_state(args.occurrence)
-        proof = build_proof(args.occurrence, run_dir_for(args.occurrence), posts_fn=postiz_post_at)
+        proof = build_proof(args.occurrence, run_dir_for(args.occurrence), posts_fn=postiz_posts_at)
     except (OSError, ValueError, KeyError, sqlite3.Error) as exc:
         print(json.dumps({"owner_id": OWNER_ID, "occurrence_id": args.occurrence, "verified": False,
                           "error": f"{type(exc).__name__}:{exc}"}))
