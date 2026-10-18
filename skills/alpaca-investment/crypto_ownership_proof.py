@@ -94,7 +94,11 @@ def _fx_instant(value):
 def crypto_fx_quote_request(*,mode,asof_at,observed_at):
     try:
         if mode not in {'paper','live'} or _fx_instant(asof_at)>_fx_instant(observed_at):raise ValueError
-        start=(parse_instant(asof_at).astimezone(timezone.utc)-timedelta(seconds=30)).isoformat().replace('+00:00','Z')
+        begin=_fx_instant(asof_at)-30;seconds=begin.numerator//begin.denominator
+        nanos=int((begin-seconds)*1_000_000_000)
+        start=datetime.fromtimestamp(seconds,timezone.utc).isoformat().replace('+00:00','')
+        if nanos:start+='.'+f'{nanos:09d}'.rstrip('0')
+        start+='Z'
         return {'symbols':'USDC/USD','start':start,'end':asof_at,'sort':'desc','limit':1}
     except (ValueError,TypeError,AttributeError,ArithmeticError) as error:
         raise ValueError('crypto_fx_quote_invalid') from error
