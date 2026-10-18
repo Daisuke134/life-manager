@@ -78,15 +78,10 @@ def _execution_number(raw: Any) -> Decimal:
     return value
 
 
-def crypto_fill_activity_proof(snapshot: dict[str, Any], broker: dict[str, Any], *, mode: str, allow_zero: bool = False) -> dict[str, Any]:
-    """Validate cumulative native fills, without modifying nullable order facts.
-
-    This is execution evidence, not ownership, terminal reconciliation, fee
-    settlement, or permission to place another order.
-    """
-
+def validate_crypto_activity_snapshot(snapshot: dict[str, Any], *, mode: str) -> tuple[datetime, datetime]:
+    """Shared raw activity envelope, independent of an individual order window."""
     try:
-        if (mode not in {"paper", "live"} or not isinstance(snapshot, dict) or not isinstance(broker, dict)
+        if (mode not in {"paper", "live"} or not isinstance(snapshot, dict)
                 or type(snapshot.get("schema_version")) is not int or snapshot["schema_version"] != 1
                 or snapshot.get("mode") != mode or snapshot.get("paper") is not (mode == "paper")
                 or snapshot.get("pagination") != "exhausted"
@@ -115,6 +110,27 @@ def crypto_fill_activity_proof(snapshot: dict[str, Any], broker: dict[str, Any],
                         or not isinstance(row.get("id"), str) or not row["id"].strip() or row["id"] in seen):
                     raise ValueError
                 seen.add(row["id"])
+        for row in fills:
+            if (not isinstance(row.get("order_id"), str) or not row["order_id"].strip()
+                    or not isinstance(row.get("symbol"), str) or not row["symbol"].strip()
+                    or row.get("side") not in {"buy", "sell"}): raise ValueError
+            _execution_number(row.get("qty")); _execution_number(row.get("price"))
+            parse_instant(row.get("transaction_time"))
+        return start, end
+    except (ValueError, KeyError, TypeError, AttributeError, ArithmeticError) as error:
+        raise ValueError("owned_crypto_activities_invalid") from error
+
+
+def crypto_fill_activity_proof(snapshot: dict[str, Any], broker: dict[str, Any], *, mode: str, allow_zero: bool = False) -> dict[str, Any]:
+    """Validate cumulative native fills, without modifying nullable order facts.
+
+    This is execution evidence, not ownership, terminal reconciliation, fee
+    settlement, or permission to place another order.
+    """
+
+    try:
+        start, end = validate_crypto_activity_snapshot(snapshot, mode=mode)
+        fills = snapshot["fills"]
         if (any(not isinstance(broker.get(key), str) or not broker[key].strip() for key in ("id", "client_order_id"))
                 or broker.get("symbol") not in {"BTCUSDC", "BTC/USDC"} or broker.get("side") not in {"buy", "sell"}
                 or broker.get("type") != "market" or broker.get("time_in_force") != "gtc"

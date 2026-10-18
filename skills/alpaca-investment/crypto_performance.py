@@ -1,7 +1,7 @@
 """Derived BTC cycle inventory; no submit path or capital-promotion authority."""
 from __future__ import annotations
 
-from datetime import date,datetime,timezone
+from datetime import date,datetime,timedelta,timezone
 from decimal import Decimal
 from fractions import Fraction
 from pathlib import Path
@@ -10,7 +10,7 @@ from typing import Any
 
 from crypto_ownership_proof import (_digest,_quantity_text,_sealed_entry_from_rows,entry_receipt_row,
     recorded_entry_proof_from_rows,recorded_no_fill_proof_from_rows,recorded_close_proof_from_rows,
-    crypto_fill_activity_proof,ReconciliationPending)
+    crypto_fill_activity_proof,validate_crypto_activity_snapshot,ReconciliationPending)
 from effect_store import _owned_rows
 from paper_performance import _atomic_json
 from risk_policy import parse_instant
@@ -93,13 +93,13 @@ def _fee_inventory(cycles,snapshots):
             unattributed.append({'fee_activity_id':item['fee_activity_id'],
                 'source_receipt_ids':item['source_receipt_ids'],'reason':reason})
         else: valid.append(item)
-    return {'observation_scope':'account_activity_windows','observed_fee_count':len(observed),
+    return {'observation_scope':'account_activity_windows','observed_fee_count':len(observed),'observed_fee_activity_ids':sorted(observed),
         'attribution_cycle_ids':[c['cycle_id'] for c in cycles],'attributed_native_fees':valid,
         'unattributed_fees':unattributed,'fee_settlement_status':'unknown',
         'fee_completeness_status':'unknown','next_action':'read_late_fee_postings_and_reconcile_unattributed_evidence'}
 
 
-def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None):
+def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None,fee_activity_readbacks=None):
     if mode not in {'paper','live'} or owner_id!=f'alpaca-investment-{mode}' or not isinstance(rows,list):
         raise ValueError('crypto_performance_scope_invalid')
     if any(not isinstance(r,dict) for r in rows):
@@ -111,7 +111,10 @@ def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None):
     entries=[r for r in plans if r['order'].get('side')=='buy']
     sells=[r for r in plans if r['order'].get('side')=='sell']
     cycles=[];opened=[];pending=[];no_fill=[];matched_sells=set();missing={};sources=set()
-    providers={};fill_ids={};last_flat=None;fee_snapshots={}
+    providers={};fill_ids={};last_flat=None;fee_snapshots={};periods=[]
+    for frame in (fee_activity_readbacks or []):
+        validate_crypto_activity_snapshot(frame,mode=mode)
+        fee_snapshots[frame['source_receipt_id']]=frame
     def consume(provider,effect):
         if provider in providers and providers[provider]!=effect:
             raise ValueError('crypto_cycle_evidence_reused')
@@ -121,6 +124,7 @@ def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None):
         marker={'status':'entry_pending','symbol':'BTCUSD','entry_effect_id':effect,
                 'entry_client_order_id':entry.get('client_order_id'),'entry_filled_qty':'0'}
         sealed=_sealed_entry_from_rows(rows,marker,mode=mode,owner_id=owner_id)
+        periods.append(sealed['decision']['observed_at'])
         saved=[r for r in rows if r.get('receipt_type')=='outcome' and r.get('effect_id')==effect
                and r.get('strategy_receipt') is not None]
         if not saved:
@@ -216,6 +220,7 @@ def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None):
         'cycles':cycles,'open_entries':opened,'pending_entries':pending,'no_fill_entry_effect_ids':no_fill,
         'unmatched_sell_effect_ids':orphan,'unscoped_effect_ids':unscoped,'missing_activity_order_ids':sorted(missing),
         'activity_requests':[{'order_id':key,'submitted_at':value} for key,value in sorted(missing.items())],
+        'fee_period_start':min(periods,key=parse_instant) if periods else None,
         'source_receipt_ids':sorted(sources),'fee_evidence':_fee_inventory(cycles,fee_snapshots),**_summary(cycles)}
 
 
@@ -227,7 +232,7 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
     if mode not in {'paper','live'} or owner_id!=f'alpaca-investment-{mode}':
         raise ValueError('crypto_performance_scope_invalid')
     state=Path(state_dir);latest=state/'performance-crypto-latest.json';phase='ledger'
-    frames={};refs={};known_entries=set();known_cycles=set()
+    frames={};refs={};fee_refs=[];fee_checked=None;known_fees=set();known_entries=set();known_cycles=set()
     try:
         phase='cache'
         if latest.exists():
@@ -235,7 +240,9 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
             if old.get('mode')!=mode or old.get('owner_id')!=owner_id or old.get('report_scope')!='owned_crypto_cycles':
                 raise ValueError('crypto_performance_activity_cache_invalid')
             frames=old.get('activity_readbacks',{});refs=old.get('order_activity_refs',{})
-            for key,target in (('known_entry_effect_ids',known_entries),('known_closed_cycle_ids',known_cycles)):
+            fee_refs=old.get('fee_activity_refs',list(dict.fromkeys(refs.values())))
+            fee_checked=old.get('fee_checked_at')
+            for key,target in (('known_entry_effect_ids',known_entries),('known_closed_cycle_ids',known_cycles),('known_fee_activity_ids',known_fees)):
                 values=old.get(key,[])
                 if not isinstance(values,list) or any(not isinstance(v,str) or not v for v in values):
                     raise ValueError('crypto_performance_activity_cache_invalid')
@@ -245,7 +252,9 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
             for entry in [*old.get('open_entries',[]),*old.get('pending_entries',[])]:
                 known_entries.add(entry['entry_effect_id'])
             known_entries.update(old.get('no_fill_entry_effect_ids',[]))
-            if not isinstance(frames,dict) or not isinstance(refs,dict) or any(ref not in frames for ref in refs.values()):
+            known_fees.update(old.get('fee_evidence',{}).get('observed_fee_activity_ids',[]))
+            if (not isinstance(frames,dict) or not isinstance(refs,dict) or not isinstance(fee_refs,list)
+                    or any(not isinstance(ref,str) or ref not in frames for ref in [*refs.values(),*fee_refs])):
                 raise ValueError('crypto_performance_activity_cache_invalid')
         phase='ledger'
         rows=_owned_rows(state/'receipts.jsonl')
@@ -260,7 +269,8 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
         known_entries.update(current_entries)
         extra={key:frames[ref] for key,ref in refs.items()}
         phase='project'
-        result=build_crypto_performance(rows,mode=mode,owner_id=owner_id,activity_readbacks=extra)
+        result=build_crypto_performance(rows,mode=mode,owner_id=owner_id,activity_readbacks=extra,
+            fee_activity_readbacks=[frames[ref] for ref in fee_refs])
         phase='history'
         current_cycles={c['cycle_id'] for c in result['cycles']}
         if not known_cycles <= current_cycles:
@@ -272,27 +282,62 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
         observed=observation['clock']['observed_at'];now=parse_instant(observed)
         if any(parse_instant(c['period_end'])>now for c in result['cycles']):
             raise ValueError('crypto_performance_time_invalid')
+        if ((fee_checked is not None and parse_instant(fee_checked)>now)
+                or any(validate_crypto_activity_snapshot(frames[ref],mode=mode)[1]>now for ref in fee_refs)):
+            raise ValueError('crypto_performance_time_invalid')
+        reader=activity_reader or _read_activity
+        did_read=False
         if result['activity_requests']:
             phase='activity_readback'
-            reader=activity_reader or _read_activity
             start=min(result['activity_requests'],key=lambda r:parse_instant(r['submitted_at']))['submitted_at']
-            incoming=reader(mode=mode,period_start=start,period_end=observation['clock']['observed_at'])
-            trial={**extra,**{key:incoming for key in result['missing_activity_order_ids']}}
-            refreshed=build_crypto_performance(rows,mode=mode,owner_id=owner_id,activity_readbacks=trial)
+            end=min(now,parse_instant(start)+timedelta(days=90)).isoformat().replace('+00:00','Z')
+            incoming=reader(mode=mode,period_start=start,period_end=end)
+            begin,finish=validate_crypto_activity_snapshot(incoming,mode=mode)
+            if begin!=parse_instant(start) or finish!=parse_instant(end):
+                raise ValueError('crypto_fee_readback_window_invalid')
+            eligible=[r['order_id'] for r in result['activity_requests'] if parse_instant(r['submitted_at'])<=finish]
+            trial={**extra,**{key:incoming for key in eligible}}
+            refreshed=build_crypto_performance(rows,mode=mode,owner_id=owner_id,activity_readbacks=trial,
+                fee_activity_readbacks=[*[frames[ref] for ref in fee_refs],incoming])
             ref=incoming['source_receipt_id'];frames[ref]=incoming
-            for key in result['missing_activity_order_ids']: refs[key]=ref
-            result=refreshed
+            for key in eligible: refs[key]=ref
+            if ref not in fee_refs: fee_refs.append(ref)
+            result=refreshed;extra=trial;fee_checked=observed;did_read=True
+        through=parse_instant(result['fee_period_start']) if result['fee_period_start'] else now
+        windows=sorted((parse_instant(frames[ref]['request']['after']),parse_instant(frames[ref]['request']['until'])) for ref in fee_refs)
+        for begin,finish in windows:
+            if begin<=through: through=max(through,finish)
+        if (not did_read and through<now and through.astimezone(timezone.utc).date()<now.astimezone(timezone.utc).date()
+                and fee_checked!=observed):
+            phase='activity_readback'
+            start=through.isoformat().replace('+00:00','Z')
+            end=min(now,through+timedelta(days=90)).isoformat().replace('+00:00','Z')
+            incoming=reader(mode=mode,period_start=start,period_end=end)
+            begin,finish=validate_crypto_activity_snapshot(incoming,mode=mode)
+            if begin!=through or finish!=parse_instant(end):
+                raise ValueError('crypto_fee_readback_window_invalid')
+            refreshed=build_crypto_performance(rows,mode=mode,owner_id=owner_id,activity_readbacks=extra,
+                fee_activity_readbacks=[*[frames[ref] for ref in fee_refs],incoming])
+            ref=incoming['source_receipt_id'];frames[ref]=incoming
+            if ref not in fee_refs: fee_refs.append(ref)
+            result=refreshed;through=finish;fee_checked=observed
+        phase='history'
+        current_fees=set(result['fee_evidence']['observed_fee_activity_ids'])
+        if not known_fees<=current_fees: raise ValueError('crypto_performance_fee_history_missing')
+        known_fees.update(current_fees)
+        result['fee_readback_through']=through.isoformat().replace('+00:00','Z')
         phase='write'
         observed=observation['clock']['observed_at'];day=parse_instant(observed).astimezone(timezone.utc).date().isoformat()
         payload={**result,'observed_at':observed,'performance_day':day,'activity_readbacks':frames,'order_activity_refs':refs,
-                 'known_entry_effect_ids':sorted(known_entries),'known_closed_cycle_ids':sorted(known_cycles)}
+                 'known_entry_effect_ids':sorted(known_entries),'known_closed_cycle_ids':sorted(known_cycles),
+                 'known_fee_activity_ids':sorted(known_fees),'fee_activity_refs':fee_refs,'fee_checked_at':fee_checked}
         _atomic_json(latest,payload)
         for closed_day in sorted({parse_instant(c['closed_at']).astimezone(timezone.utc).date().isoformat() for c in result['cycles']}):
             cycles=[c for c in result['cycles'] if parse_instant(c['closed_at']).astimezone(timezone.utc).date().isoformat()==closed_day]
             ids={c['cycle_id'] for c in cycles}
             fee_evidence={**result['fee_evidence'],'attribution_cycle_ids':sorted(ids),
                 'attributed_native_fees':[f for f in result['fee_evidence']['attributed_native_fees'] if f['cycle_id'] in ids]}
-            daily={**payload,'cycles':cycles,'fee_evidence':fee_evidence,**_summary(cycles),'performance_day':closed_day,
+            daily={**payload,'generated_as_of':observed,'cycles':cycles,'fee_evidence':fee_evidence,**_summary(cycles),'performance_day':closed_day,
                    'observed_at':max(c['closed_at'] for c in cycles),'report_scope':'owned_crypto_cycles_daily'}
             _atomic_json(state/f'performance-crypto-daily-{closed_day}.json',daily)
         return payload
@@ -306,6 +351,9 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
             'activity_readbacks':frames if phase in {'ledger','history','observation','activity_readback','write'} else {},
             'order_activity_refs':refs if phase in {'ledger','history','observation','activity_readback','write'} else {},
             'known_entry_effect_ids':sorted(known_entries),'known_closed_cycle_ids':sorted(known_cycles),
+            'known_fee_activity_ids':sorted(known_fees),
+            'fee_activity_refs':fee_refs if phase in {'ledger','history','observation','activity_readback','write'} else [],
+            'fee_checked_at':fee_checked,
             'next_action':'reconcile_cycle_proof_and_official_fill_readback'}
         _atomic_json(latest,result)
         return result
