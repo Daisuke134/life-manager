@@ -1,6 +1,7 @@
 """Read existing private runtime/ledger/admission evidence without writes."""
 from datetime import datetime
 import hashlib
+from contextlib import closing
 import json
 from pathlib import Path
 import sqlite3
@@ -39,11 +40,12 @@ def fixture(root,mode='paper'):
         native['timestamp']=row['timestamp'];events.append(native)
     journal=state/'events.jsonl';journal.write_text(''.join(json.dumps(row)+'\n' for row in events));journal.chmod(0o600)
     db=root/'admission-v2.sqlite3'
-    with sqlite3.connect(db) as connection:
+    with closing(sqlite3.connect(db)) as connection:
         connection.execute('CREATE TABLE occurrences(owner_id TEXT,occurrence_id TEXT,queued_at REAL,state TEXT,effect_unknown INTEGER)')
         connection.executemany('INSERT INTO occurrences VALUES(?,?,?,?,?)',[(owner,r['occurrence_id'],
             datetime.fromisoformat(r['queued_at'].replace('Z','+00:00')).timestamp(),r['state'],r['effect_unknown'])
             for r in inputs['occurrence_rows_by_owner'][owner]])
+        connection.commit()
     db.chmod(0o600)
     return owner,state,trips,inputs['observed_at']
 
@@ -111,6 +113,73 @@ class CostInventoryReaderTests(unittest.TestCase):
             path=Path(directory)/'rows.jsonl';path.write_text('{"ok":1}\n{broken\n{"ok":2}\n');path.chmod(0o600)
             self.assertEqual(lm_loop._private_jsonl_rows(path),[{'ok':1},{'ok':2}])
             self.assertEqual(lm_loop._private_jsonl_rows(path,strict=True),[])
+
+    def test_admission_read_closes_its_connection(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);owner,state,trips,observed=fixture(root)
+            class Connection(sqlite3.Connection):
+                closed=False
+                def close(self):self.closed=True;return super().close()
+            connection=sqlite3.connect(root/'admission-v2.sqlite3',factory=Connection)
+            try:
+                with patch.object(lm_loop.sqlite3,'connect',return_value=connection):
+                    lm_loop._read_admission_rows(root/'admission-v2.sqlite3','SELECT COUNT(*) FROM occurrences')
+                self.assertTrue(connection.closed)
+            finally:connection.close()
+
+    def test_bad_declaration_returns_gap_and_never_reads_an_unauthorized_executor(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);owner,state,trips,observed=fixture(root)
+            ledger=state/'receipts.jsonl';row=json.loads(ledger.read_text());row['source_declaration']['sources']=None
+            ledger.write_text(json.dumps(row)+'\n')
+            result=self.read(root,state,trips,observed,owner)
+            self.assertIn('source_release_invalid',reasons(result))
+            row['source_declaration']['sources']=[{'execution_owner_id':'unrelated-owner',
+                'beneficiary_owner_id':owner,'beneficiary_mode':'paper'}]
+            ledger.write_text(json.dumps(row)+'\n')
+            result=self.read(root,state,trips,observed,owner)
+            self.assertNotIn('unrelated-owner',result['input_reads'])
+
+    def test_known_paid_cache_is_a_lower_bound_without_copying_money_or_changing_owner(self):
+        for mode in ('paper','live'):
+            with self.subTest(mode=mode),tempfile.TemporaryDirectory() as directory:
+                root=Path(directory);owner,state,trips,observed=fixture(root,mode)
+                component={'receipt_id':'paid://older','provider':'older-provider','category':'infra_cost',
+                    'billing_account_ref':'older-account','order_ids':trips[0]['order_ids'],
+                    'period_start':trips[0]['period_start'],'period_end':trips[0]['closed_at'],
+                    'charge_identity':['older-provider','invoice','doc','line','allocation'],
+                    'evidence_refs':['invoice://older'],'amount_usd':'DO_NOT_COPY_MONEY'}
+                cached={'owner_id':owner,'mode':mode,'paper':mode=='paper','known_operating_cost_components':[component]}
+                path=state/'performance-crypto-latest.json';path.write_text(json.dumps(cached,indent=2));path.chmod(0o600)
+                result=self.read(root,state,trips,observed,owner);scope=result['scopes'][0]
+                self.assertIn('older-provider',{r['provider'] for r in scope['required_sources']})
+                bound=scope['known_paid_bindings'][0]
+                self.assertEqual(bound['owner_id'],owner);self.assertNotIn('amount_usd',bound)
+                cached['owner_id']='foreign-owner';path.write_text(json.dumps(cached))
+                result=self.read(root,state,trips,observed,owner)
+                self.assertIn('paid_cache_scope_invalid',reasons(result))
+                self.assertEqual(result['scopes'][0]['known_paid_bindings'],[])
+
+    def test_crypto_and_paper_writers_forward_and_persist_the_inventory(self):
+        import crypto_performance as crypto
+        import paper_performance as paper
+        from test_crypto_performance import cycle_fixture,activity_fixture,NOW
+        from test_paper_performance import _rows,OBSERVATION,RISK
+        expected={'coverage_state':'gap','scopes':[],'gaps':[{'reason':'fixture_inventory'}]}
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);_,frame,_=cycle_fixture(root)
+            def read(**kw):return activity_fixture(frame,mode='paper',start=kw['period_start'],end=kw['period_end'])
+            with patch.object(crypto,'read_expected_inventory',return_value=expected,create=True) as producer:
+                result=crypto.write_crypto_performance(root,{'mode':'paper','paper':True,'clock':{'observed_at':NOW}},
+                    mode='paper',owner_id='alpaca-investment-paper',activity_reader=read)
+            self.assertEqual(producer.call_count,1)
+            self.assertEqual(result['expected_cost_inventory'],expected)
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);(root/'receipts.jsonl').write_text(''.join(json.dumps(r)+'\n' for r in _rows()))
+            with patch.object(paper,'read_expected_inventory',return_value=expected,create=True) as producer:
+                result=paper.write_paper_performance(root,OBSERVATION,RISK)
+            self.assertEqual(producer.call_count,1)
+            self.assertEqual(result['expected_cost_inventory'],expected)
 
     def test_fee_only_and_partial_order_groups_are_not_excluded_from_cost_census(self):
         trips,inputs=fixtures.IndependentCensusTests().fixture()
