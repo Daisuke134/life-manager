@@ -182,3 +182,23 @@ class CryptoClosingFeeTests(unittest.TestCase):
                 store.record_native_fee_debit(root/'receipts.jsonl',owned,account,activity_readback=later,
                     mode='paper',owner_id=args[3])
             self.assertEqual((root/'receipts.jsonl').read_bytes(),before)
+
+    def test_fee_closed_sell_replays_at_a_later_clock_and_still_checks_current_flatness(self):
+        for mode in ('paper','live'):
+            for sold,fee_qty in (('0.02','-0.03'),('0','-0.05')):
+                with self.subTest(mode=mode,sold=sold),tempfile.TemporaryDirectory() as directory,patch.dict(os.environ,{
+                    'LIFE_MANAGER_INVESTMENT_MODE':mode,'LIFE_MANAGER_INVESTMENT_OWNER_ID':f'alpaca-investment-{mode}'}):
+                    root=Path(directory);args=list(closing_fee_fixture(root,mode,sold=sold,remaining='0'))
+                    args[4]=activity_fixture(args[4],mode=mode,start=args[4]['requested_period_start'],end=NOW,
+                        fees=[{**args[4]['fees'][0],'qty':fee_qty}]);self.save(root,args,mode)
+                    native=native_run();before=(root/'receipts.jsonl').read_bytes()
+                    with patch.object(native,'find_order_by_client_id',return_value=args[1]),\
+                         patch.object(native,'read_crypto_activity_evidence',side_effect=AssertionError('unexpected replay read')):
+                        closed=native._sync_live_ownership(root,Path('unused'),Path('unused'),args[2])
+                        marker=(root/'live-owned-position.json').read_bytes()
+                        later={**args[2],'clock':{'observed_at':'2026-01-01T04:16:02Z'}}
+                        self.assertEqual(native._sync_live_ownership(root,Path('unused'),Path('unused'),later),closed)
+                        not_flat={**later,'positions':[{'symbol':'BTCUSD','qty':'0.001'}]}
+                        self.assertEqual(native._sync_live_ownership(root,Path('unused'),Path('unused'),not_flat)['status'],'closing')
+                    self.assertEqual((root/'live-owned-position.json').read_bytes(),marker)
+                    self.assertEqual((root/'receipts.jsonl').read_bytes(),before)
