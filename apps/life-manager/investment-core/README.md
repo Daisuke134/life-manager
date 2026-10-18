@@ -484,6 +484,18 @@ loaded activity or entry/closed/fee proof caches from the failure envelope.
 Historical execution intervals retain their native clock: their end is not bounded
 by an earlier billing observation; the original independent-inventory validation
 owns that execution-time bound.
+The same local paper/live pass now attaches `owner_period_operating_costs` to
+`allocation-latest.json`, covering the last completed UTC day even without trades
+or closed cycles. The inventory fills an empty owner-period evidence list only
+from native start/terminal event IDs; missing executions remain a gap. Paper passes
+supply all verified completed economic scopes with original `closed_at`, including
+prior-day trades, and crypto supplies its verified cycle scopes. Confirmed daily
+paid components are retained as lower bounds: a later zero/missing/changed claim
+cannot erase them, move them to another day, or double-count a receipt alias.
+The first allocation update preserves the previous same-owner/mode snapshot until
+the reporting read completes; this read adds no provider calls or submit/risk/fence
+changes. Incomplete evidence stays null and net/capital remain unverified/false.
+Cloud and shadow paths do not run this local report.
 Production gaps are not cleared by passing fixtures.
 The pinned quote transport can now capture a single USDC/USD BBO at or before
 an economic timestamp, using a fixed 30-second window and descending limit one.
