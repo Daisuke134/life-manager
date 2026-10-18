@@ -59,6 +59,28 @@ class CryptoValidationReportTests(unittest.TestCase):
                  "o": str(100 + i % 20), "h": str(102 + i % 20),
                  "l": str(99 + i % 20), "c": str(101 + i % 20)} for i in range(160)]
 
+    def test_long_history_requests_disjoint_six_hour_chunks_and_reuses_report_builder(self):
+        from datetime import datetime, timedelta, timezone
+        start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        def chunk(**kwargs):
+            first, end = kwargs["start"], kwargs["end"]
+            rows = [{"t": (first + timedelta(minutes=5 * i)).isoformat(),
+                     "o": "100", "h": "102", "l": "99", "c": "101"}
+                    for i in range(int((end-first).total_seconds()/300))]
+            return {"crypto_history": rows, "quote_conversions": [],
+                    "source_receipt_ids": ["source-" + first.isoformat()]}
+        with patch.object(validation_runner, "read_crypto_validation_history", side_effect=chunk) as read, \
+             patch.object(validation_runner, "build_crypto_reports_from_history", return_value=[{"fixture": True}]) as build:
+            result = validation_runner.build_crypto_reports_for_period(
+                start=start, end=start+timedelta(hours=13), observed_at="2026-01-02T00:00:00Z",
+                credentials_path=Path("credentials"), cli_path=Path("alpaca"), release_sha="a"*40)
+        self.assertEqual(read.call_count, 3)
+        self.assertEqual([c.kwargs["start"] for c in read.call_args_list],
+                         [start, start+timedelta(hours=6), start+timedelta(hours=12)])
+        self.assertEqual(len(build.call_args.args[0]), 156)
+        self.assertEqual(len(build.call_args.kwargs["source_receipt_ids"]), 3)
+        self.assertEqual(result, [{"fixture": True}])
+
     def test_crypto_reports_use_real_feature_builder_and_common_evaluator(self):
         bars = self._history()
         fx = [{"timestamp": row["t"], "currency": "USDC", "rate": "0.99",
