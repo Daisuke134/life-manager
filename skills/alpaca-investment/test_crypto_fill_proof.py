@@ -1,5 +1,6 @@
 """Official activity arithmetic uses the actual bounded reader, never a fake fill."""
 import copy
+from decimal import localcontext, Inexact, ROUND_DOWN
 from pathlib import Path
 import sys
 import unittest
@@ -101,6 +102,36 @@ class CryptoFillProofTests(unittest.TestCase):
                 with self.assertRaises(ValueError): self.read(snapshot,broker)
         snapshot,broker=fixture();snapshot['fills'][0]['price']='999'
         with self.assertRaises(ValueError): self.read(snapshot,broker)
+
+    def test_quantity_equality_is_exact_under_every_caller_decimal_context(self):
+        for precision in (8,28,80):
+            for qty,overfilled in (('0.020000000000000000000000000001',True),
+                                    ('0.019999999999999999999999999999',False)):
+                with self.subTest(precision=precision,qty=qty),localcontext() as context:
+                    context.prec=precision
+                    snapshot,broker=fixture();snapshot['fills'][0]['qty']=qty;resign(snapshot)
+                    with self.assertRaises(ValueError) as caught: self.read(snapshot,broker)
+                    self.assertEqual(isinstance(caught.exception,proofs.ReconciliationPending),not overfilled)
+
+    def test_nonterminating_average_keeps_exact_ratio_and_ignores_ambient_rounding_traps(self):
+        snapshot,broker=fixture();snapshot['fills'][1]['price']='201';resign(snapshot)
+        expected=None
+        for precision in (8,28,80):
+            with self.subTest(precision=precision),localcontext() as context:
+                context.prec=precision;context.rounding=ROUND_DOWN;context.traps[Inexact]=True
+                value=self.read(snapshot,broker)
+                self.assertEqual(value['weighted_avg_price_numerator'],'601')
+                self.assertEqual(value['weighted_avg_price_denominator'],'3')
+                if expected is None: expected=value
+                self.assertEqual(value,expected)
+
+    def test_numeric_input_bounds_reject_unbounded_fraction_expansion(self):
+        for field,number in (('qty','1e1000000000'),('qty','1e-1000000000'),
+                              ('price','1'*101),('price','1e101')):
+            with self.subTest(field=field,number=number):
+                snapshot,broker=fixture();snapshot['fills'][0][field]=number;resign(snapshot)
+                with self.assertRaises(ValueError) as caught: self.read(snapshot,broker)
+                self.assertNotIsInstance(caught.exception,proofs.ReconciliationPending)
 
     def test_foreign_fills_and_unattributed_fees_are_retained_but_not_added_to_target(self):
         snapshot,broker=fixture()
