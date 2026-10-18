@@ -325,6 +325,13 @@ The core selects the BTC namespace if its latest or daily files exist and never
 falls back to legacy measured ETF reports when BTC evidence is missing/invalid.
 Phase-one BTC reports remain partial, with all USD profit/cost values unknown
 and capital expansion disabled. Native cashflow is not settled net profit.
-This branch is source only: fee attribution/quantity drift, FX and complete
-actual costs, deployment, natural outcomes and profitable evaluation remain
-in the canonical SSOT.
+Observed CFEE rows are deduplicated across validated snapshots. Only an explicit
+order link and validated received-asset quantity can attribute a native fee.
+Conflicting activity IDs and fees above actual received quantity are rejected;
+missing links remain unattributed. Daily attribution includes only its cycles,
+while account-window observation counts and unattributed evidence remain explicit.
+Empty results never prove zero fees or settlement. This does not yet refresh
+late fee postings after execution snapshots are cached.
+This branch is source only: late fees and unlinked official evidence, quantity
+drift, FX and complete actual costs, deployment, natural outcomes and profitable
+evaluation remain in the canonical SSOT.
