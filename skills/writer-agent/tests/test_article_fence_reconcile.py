@@ -1330,3 +1330,242 @@ def test_a_pass_record_proof_without_resolve_writes_nothing(tmp_path):
     result, calls = _pass_reconcile(m, tmp_path, writer, resolve=False)
     assert result["status"] == "no_dispatch_proven" and result["closed"] is False and calls == []
     assert not (writer / "fence-reconciliation").exists()
+
+
+# 2026-10-18 01:24Z: article-resume:18df7b7d9c470800-55543 ran the deterministic substack/en publisher
+# for run 20261017-223414 (draft 220918523); verify-preview refused before the publish POST and the
+# pass exited 1.  The exit-0-only pass proof and the 7-day "nothing newer anywhere" proof both kept
+# the fence forever, deferring every later resume wake.  Lines below are verbatim from the pass log
+# (the 1 KB pending-notification JSON and the self-heal enqueue JSON are shortened; neither is read).
+FATAL_OCC = "article-resume:18df7b7d9c470800-55543"
+FATAL_QUEUED = 1792286648.46845   # 2026-10-18T01:24:08Z
+FATAL_RUN = "20261017-223414"
+FATAL_DRAFT = "220918523"
+FATAL_LINE = ("FATAL: verify-preview FAILED — NOT publishing (an image may be too tall on screen, "
+              "or the preview could not be opened at all -- check the message above for which).")
+EN50_URL = "https://aniccaai2026.substack.com/api/v1/posts?limit=50"
+
+
+def _fatal_record(branch, at, run_ids=(), pid=55713):
+    return _pass_record(branch, at, run_ids, occurrence=FATAL_OCC, pid=pid)
+
+
+def _fatal_segment():
+    return [
+        '{"status":"complete","run_id":"20261017-223414"}',
+        "PII-GATE PASS stage=publish-substack-wrapper scanned=1",
+        "== step 1/3: reuse stable Substack draft id=220918523 ==",
+        "== step 3/3: verify + publish (send=false) + self-verify ==",
+        "preview unavailable: RuntimeError: paid Substack preview unavailable",
+        FATAL_LINE,
+        "",
+        json.dumps({"action": "retry", "count": 1, "notify": False, "pair": "substack/en",
+                    "signature": FATAL_LINE}, ensure_ascii=False),
+        json.dumps({"action": "retry", "count": 1, "notify": False, "pair": "substack/en",
+                    "signature": FATAL_LINE}, ensure_ascii=False, separators=(",", ":")),
+        '{"status":"pending"}',
+        '{"version":1,"event_id":"article-pending:20261017-223414:cb94396de1f5ffd3","run_id":"20261017-223414"}',
+    ]
+
+
+def _fatal_fixture(tmp_path, *, segment=None, rc=1, exit_code=1, target=FATAL_DRAFT, tail=()):
+    writer = tmp_path / "writer"
+    (writer / "logs").mkdir(parents=True)
+    lines = [
+        "article-resume: run=20261017-223414 rc=0 deterministic=substack/ja",
+        _fatal_record("start", "2026-10-18T01:29:18Z"),
+        "article-resume: older publication backlog does not block daily schedule run=20261017-223414 "
+        "date=2026-10-17 local=2026-10-18",
+        '{"runs":6,"enqueued":6,"results":[]}',
+        "article-resume: publication queue foreground; self-heal deferred run=20261017-223414",
+        '{"status":"NO_ACTIONABLE_INCIDENT","observed_at":"2026-10-18T01:29:34Z","quarantined_run_handoffs":[],'
+        '"reclaimed_stranded_leases":[],"recovered_orphaned_handoffs":[],"rearmed_on_new_code":[],'
+        '"deployed_commit":"06141970eb640087ef4f9e696c909fbc607cfc5e"}',
+        _fatal_record("publication", "2026-10-18T01:29:35Z", [FATAL_RUN]),
+        *(segment if segment is not None else _fatal_segment()),
+        f"article-resume: run={FATAL_RUN} rc={rc} deterministic=substack/en",
+        *tail,
+    ]
+    (writer / "logs/article-resume.log").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    events = [
+        {"occurrence_id": FATAL_OCC, "phase": "execute", "status": "running", "exit_code": None,
+         "event_id": "5df0847b871dcfbda41ad857", "timestamp": "2026-10-18T01:29:16.185904+00:00"},
+        {"occurrence_id": FATAL_OCC, "phase": "report", "status": "fail" if exit_code else "pass",
+         "exit_code": exit_code, "effect_status": "unknown", "event_id": "d4bec8d7df3d715a2646bccc",
+         "release_sha": "c4a73cf5fb0b4d658f0a51d47e536b6d04070b12",
+         "timestamp": "2026-10-18T01:30:14.907129+00:00"},
+    ]
+    (writer / "events.jsonl").write_text("".join(json.dumps(e) + "\n" for e in events))
+    gates = writer / "runs" / FATAL_RUN / "gates"
+    gates.mkdir(parents=True)
+    (gates / "publication-state.json").write_text(json.dumps({
+        "destination_identities": {"substack/ja": "aniccabuddha.substack.com",
+                                   "substack/en": "aniccaai2026.substack.com"},
+        "pairs": {"substack/ja": {"status": "live", "target": "220918512"},
+                  "substack/en": {"status": "intent", "target": target}}}))
+    return writer
+
+
+def _fatal_ledger(tmp_path, extra=()):
+    return _articles(tmp_path, [
+        _row(FATAL_RUN, "2026-10-18T01:11:14.903640Z", "https://note.com/anicca123/n/n824660e9ee21"),
+        _row(FATAL_RUN, "2026-10-18T01:20:26.906060Z", "https://aniccabuddha.substack.com/p/claude-code-e8d",
+             "substack"),
+        *extra,
+    ])
+
+
+def _fatal_readbacks(en_posts=None, newer=None):
+    """Readbacks observed 2026-10-19; `newer` adds a later post on every destination."""
+    later = [{"id": 221500001, "post_date": newer}] if newer else []
+    payloads = {
+        NOTE_URL: {"data": {"contents": [{"publishAt": "2026-08-08T16:31:34+09:00"},
+                                         *([{"publishAt": newer}] if newer else []),
+                                         {"publishAt": "2026-10-18T10:11:09+09:00"}]}},
+        BUDDHA_URL: [*later, {"post_date": "2026-10-18T01:20:14.480Z"}, {"post_date": "2026-10-17T11:09:18.659Z"}],
+        AI2026_URL: [*later, {"post_date": "2026-09-29T02:57:45.886Z"}, {"post_date": "2026-09-28T14:03:44.337Z"}],
+        EN50_URL: en_posts if en_posts is not None else [
+            *later, {"id": 217933883, "post_date": "2026-09-29T02:57:45.886Z"},
+            {"id": 217831411, "post_date": "2026-09-28T14:03:44.337Z"},
+            {"id": 216391003, "post_date": "2026-09-19T02:21:20.926Z"}],
+    }
+    return lambda url: payloads[url]
+
+
+def _fatal_reconcile(m, tmp_path, writer, *, fetch_json=None, ledger=None, now=FATAL_QUEUED + 86400,
+                     resolve=True):
+    calls = []
+
+    def resolver(owner, occurrence, *, no_dispatch_proof, expected_state):
+        calls.append((owner, occurrence, no_dispatch_proof(), expected_state))
+        return True
+
+    result = m.reconcile(FATAL_OCC, queued_at=FATAL_QUEUED, state="claimed",
+                         articles_path=ledger or _fatal_ledger(tmp_path),
+                         fetch_json=fetch_json or _fatal_readbacks(), resolver=resolver,
+                         resolve=resolve, now=now, writer_root=writer,
+                         runs_root=tmp_path / "no-runs", fetch_status=lambda url: 0,
+                         absence_readback=lambda *a: None)
+    return result, calls
+
+
+def test_a_substack_pass_refused_by_verify_preview_closes_from_its_own_log(tmp_path):
+    m = _load()
+    writer = _fatal_fixture(tmp_path)
+    result, calls = _fatal_reconcile(m, tmp_path, writer)
+    assert result["status"] == "no_dispatch_proven" and result["closed"] is True, result
+    owner, occurrence, proof, state = calls[0]
+    assert (owner, occurrence, state) == ("article-resume", FATAL_OCC, "claimed")
+    assert proof["proof_type"] == "historical_writer_resume_no_dispatch" and proof["provider"] == "writer"
+    assert proof["runtime_run_id"] == "18df7b7d9c470800-55543" and proof["branches"] == ["start", "publication"]
+    touched = proof["touched"]
+    assert (touched["stop"], touched["pair"], touched["draft_id"], touched["writer_run_id"]) == (
+        "verify-preview-fatal", "substack/en", FATAL_DRAFT, FATAL_RUN)
+    assert touched["readback_url"] == EN50_URL
+    receipt = writer / "fence-reconciliation" / "article-resume-18df7b7d9c470800-55543.json"
+    assert json.loads(receipt.read_text(encoding="utf-8")) == proof
+
+
+def test_a_substack_pass_that_may_have_published_stays_fenced(tmp_path):
+    m = _load()
+    segment = _fatal_segment()
+    slug_fail = "FATAL: publish API did not return a slug:"
+    other_decision = json.dumps({"action": "retry", "count": 1, "notify": False, "pair": "substack/en",
+                                 "signature": slug_fail}, separators=(",", ":"))
+    delivered = '{"status":"complete","run_id":"20261017-223414","pending_pairs":[],"waiting":[]}'
+    cases = {
+        "publish POST failed after the gate": (dict(segment=[*segment[:5], slug_fail, "", other_decision]),
+                                               "pass_substack_may_have_published"),
+        "published line": (dict(segment=[*segment, "PUBLISHED: https://aniccaai2026.substack.com/p/x"]),
+                           "pass_substack_may_have_published"),
+        "decision for another pair": (dict(segment=[s.replace("substack/en", "substack/ja") for s in segment]),
+                                      "pass_substack_may_have_published"),
+        "decision before the FATAL line": (dict(segment=[*segment[:5], segment[7], segment[5]]),
+                                           "pass_substack_may_have_published"),
+        "terminal rc is not the report exit": (dict(rc=0), "pass_substack_terminal_unbound"),
+        "self-owned delivered in this pass": (dict(segment=[delivered, *segment[1:]]),
+                                              "pass_self_owned_may_have_published"),
+        "durable target is another draft": (dict(target="220918999"), "pass_substack_draft_unbound"),
+        "foreign pass record inside": (dict(segment=[*segment[:3], _pass_record("start", "2026-10-18T01:29:40Z"),
+                                                     *segment[3:]]), "pass_record_unbound"),
+    }
+    for name, (kwargs, reason) in cases.items():
+        writer = _fatal_fixture(tmp_path / name.replace(" ", "-"), **kwargs)
+        result, calls = _fatal_reconcile(m, tmp_path, writer)
+        assert result["status"] == "inconclusive" and calls == [], (name, result)
+        assert result["reason"] == "fence_too_young" and result["pass_record"] == reason, (name, result)
+
+
+def test_a_verify_preview_pass_whose_draft_reads_published_stays_fenced(tmp_path):
+    m = _load()
+    writer = _fatal_fixture(tmp_path)
+    published = [{"id": int(FATAL_DRAFT), "post_date": "2026-10-18T01:29:50Z"},
+                 {"id": 217933883, "post_date": "2026-09-29T02:57:45.886Z"}]
+    uncovered = [{"id": 221500001, "post_date": "2026-10-18T02:00:00Z"}]
+    for posts, reason in ((published, "touched_draft_published:aniccaai2026.substack.com"),
+                          (uncovered, "readback_window_not_covered:aniccaai2026.substack.com"),
+                          ([], "readback_failed:aniccaai2026.substack.com")):
+        result, calls = _fatal_reconcile(m, tmp_path, writer, fetch_json=_fatal_readbacks(en_posts=posts))
+        assert result["status"] == "inconclusive" and calls == [], result
+        assert result["pass_record"] == reason, result
+
+
+# 7-day path: compare only the pair/draft the bound pass touched.  Later articles publish on every
+# destination; that must not keep this occurrence's fence forever.
+def test_seven_day_resume_proof_reads_only_the_touched_substack_draft(tmp_path):
+    m = _load()
+    slug_fail = "FATAL: publish API did not return a slug:"
+    segment = [*_fatal_segment()[:5], slug_fail, "",
+               json.dumps({"action": "retry", "count": 1, "notify": False, "pair": "substack/en",
+                           "signature": slug_fail}, separators=(",", ":"))]
+    writer = _fatal_fixture(tmp_path, segment=segment)
+    later_ledger = _fatal_ledger(tmp_path, [
+        _row("20261024-213000", "2026-10-24T22:00:00Z", "https://note.com/x/n/later"),
+        {**_row("20261024-213000", "2026-10-24T22:05:00Z", "https://aniccaai2026.substack.com/p/later",
+                "substack"), "lang": "en"}])
+    newer = "2026-10-24T22:05:00Z"
+    now = FATAL_QUEUED + 8 * 86400
+    result, calls = _fatal_reconcile(m, tmp_path, writer, fetch_json=_fatal_readbacks(newer=newer),
+                                     ledger=later_ledger, now=now)
+    assert result["status"] == "no_dispatch_proven" and result["closed"] is True, result
+    proof = calls[0][2]
+    assert proof["proof_type"] == "historical_writer_resume_no_dispatch"
+    assert (proof["touched"]["pair"], proof["touched"]["draft_id"]) == ("substack/en", FATAL_DRAFT)
+    assert "stop" not in proof["touched"]
+    # Younger than 7 days the same unproven failure stays fenced.
+    result, calls = _fatal_reconcile(m, tmp_path, writer, fetch_json=_fatal_readbacks(newer=newer),
+                                     ledger=later_ledger, now=FATAL_QUEUED + 6 * 86400)
+    assert result["reason"] == "fence_too_young" and calls == []
+
+
+def test_seven_day_touched_draft_proof_stays_fenced_without_its_readback(tmp_path):
+    m = _load()
+    writer = _fatal_fixture(tmp_path, segment=[*_fatal_segment()[:5], "FATAL: publish API did not return a slug:"])
+    now = FATAL_QUEUED + 8 * 86400
+    own_row = {**_row(FATAL_RUN, "2026-10-18T01:29:50Z", "https://aniccaai2026.substack.com/p/x", "substack"),
+               "lang": "en"}
+    published = [{"id": int(FATAL_DRAFT), "post_date": "2026-10-18T01:29:50Z"},
+                 {"id": 217933883, "post_date": "2026-09-29T02:57:45.886Z"}]
+    for kwargs, reason in (
+            (dict(ledger=_fatal_ledger(tmp_path, [own_row])), "touched_pair_ledger_row_after_fence"),
+            (dict(fetch_json=_fatal_readbacks(en_posts=published)),
+             "touched_draft_published:aniccaai2026.substack.com"),
+            (dict(fetch_json=_fatal_readbacks(en_posts=[])),
+             "readback_failed:aniccaai2026.substack.com")):
+        result, calls = _fatal_reconcile(m, tmp_path, writer, now=now, **kwargs)
+        assert result["status"] == "inconclusive" and calls == [] and result["reason"] == reason, result
+
+
+def test_verify_preview_fatal_line_still_precedes_the_only_publish_post():
+    """The proof's premise: the wrapper prints PREVIEW_FATAL, exits, and only later POSTs /publish."""
+    m = _load()
+    wrapper = (SCRIPT.parent / "_shared" / "publish-substack-mermaid.sh").read_text(encoding="utf-8").splitlines()
+    fatal = [i for i, line in enumerate(wrapper) if m.PREVIEW_FATAL in line]
+    posts = [i for i, line in enumerate(wrapper) if '/publish"' in line and "-X POST" in line]
+    assert len(fatal) == 1 and len(posts) == 1 and fatal[0] < posts[0]
+    assert wrapper[fatal[0] + 1].strip() == "exit 5"
+    # The bare two-key "complete" line is the self-owned worker's return before any git delivery.
+    owned = (SCRIPT.parent / "self_owned_article.py").read_text(encoding="utf-8")
+    body = owned[owned.index("def resume_publication("):owned.index("def main(")]
+    early = body.index('return {"status": "complete", "run_id": contracts[0]["run_id"]}')
+    assert early < body.index("commit_contract(") and early < body.index('"push", remote')
