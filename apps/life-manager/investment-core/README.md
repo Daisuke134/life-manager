@@ -297,5 +297,10 @@ Paused orders (`done_for_day`, `stopped`, `suspended`) remain unresolved. Only
 with full known fill history. Prior raw paused-zero outcomes can progress to an
 exact same-order fill; reversed identity, decreasing quantity and post-fill
 regressions remain invalid. The partial-fill consumer is not connected yet.
+`crypto_fill_activity_proof` validates the saved snapshot and raw order, sums
+quantities and computes native VWAP with exact rational arithmetic. Display
+rounding cannot decide quantity equality. Nullable broker fields stay unchanged;
+FILL execution times and the exact average ratio are separate facts. The proof
+retains unknown fees/P&L and alone never opens or closes ownership.
 This branch is source only: partial fills, complete costs, performance, deployment
 and natural outcomes remain in the SSOT.
