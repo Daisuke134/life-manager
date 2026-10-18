@@ -239,7 +239,7 @@ def _sync_live_ownership(state: Path, credentials_path: Path, cli_path: Path,
     btc = [row for row in observation.get("positions", []) if row.get("symbol") == "BTCUSD"]
     if len(btc) > 1 or ownership.get("symbol") != "BTCUSD":
         raise ValueError("live_position_not_owned")
-    if (ownership.get("status") in {"closing", "closed"}
+    if (ownership.get("status") in {"open", "closing", "closed"}
             and ((ownership.get("close_effect_id") is None) != (ownership.get("close_client_order_id") is None))):
         raise ValueError("owned_closed_identity_invalid")
     order_key = ("close_client_order_id" if ownership.get("status") in {"open", "closing", "closed"}
