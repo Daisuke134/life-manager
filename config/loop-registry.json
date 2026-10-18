@@ -4129,40 +4129,6 @@
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/stripe-revenue-poller"
     },
-    "the402-provider": {
-      "cadence": {
-        "keep_alive": true
-      },
-      "cleanup": {
-        "max_age_days": 14,
-        "max_runs": 100
-      },
-      "domain": "financial",
-      "effect_class": "none",
-      "entrypoint": "skills/earn/x402-sell/the402-boot.sh",
-      "label": "ai.anicca.the402-provider",
-      "log_root": "~/.local/state/life-manager/x402-sell/logs",
-      "provider_route": "deterministic",
-      "resource_class": "deterministic",
-      "state_root": "~/.local/state/life-manager/x402-sell"
-    },
-    "the402-worker": {
-      "cadence": {
-        "keep_alive": true
-      },
-      "cleanup": {
-        "max_age_days": 14,
-        "max_runs": 100
-      },
-      "domain": "financial",
-      "effect_class": "none",
-      "entrypoint": "skills/earn/x402-sell/the402-worker-boot.sh",
-      "label": "ai.anicca.the402-worker",
-      "log_root": "~/.local/state/life-manager/x402-sell/logs",
-      "provider_route": "deterministic",
-      "resource_class": "deterministic",
-      "state_root": "~/.local/state/life-manager/x402-sell"
-    },
     "tiktok-browser": {
       "adapter": "exec",
       "browser_owner": {
@@ -4559,28 +4525,6 @@
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/social-x/x-tweeter"
     },
-    "x402-acquisition-controller": {
-      "admission_class": "borrow",
-      "cadence": {
-        "start_interval_seconds": 300
-      },
-      "cleanup": {
-        "max_age_days": 14,
-        "max_runs": 100
-      },
-      "domain": "financial",
-      "effect_class": "none",
-      "entrypoint": "skills/earn/x402-sell/acquisition-controller-boot.sh",
-      "label": "ai.anicca.x402-acquisition-controller",
-      "log_root": "~/.local/state/life-manager/x402-sell/logs",
-      "coalesce_queued_wakes": true,
-      "coalesce_reserved_wakes": true,
-      "priority": "support",
-      "provider_route": "deterministic",
-      "reconcile_queued_release": true,
-      "resource_class": "deterministic",
-      "state_root": "~/.local/state/life-manager/x402-sell"
-    },
     "x402-claude-p": {
       "cadence": {
         "keep_alive": true
@@ -4936,12 +4880,15 @@
     "ai.anicca.sol-trade-earning-healthcheck",
     "ai.anicca.sync-memory",
     "ai.anicca.telegram-bot",
+    "ai.anicca.the402-provider",
+    "ai.anicca.the402-worker",
     "ai.anicca.tier1-remediate",
     "ai.anicca.tier2-agent-diagnose",
     "ai.anicca.watchdog",
     "ai.anicca.watercolor-jp-evening",
     "ai.anicca.watercolor-jp-morning",
     "ai.anicca.watercolor-jp-noon",
+    "ai.anicca.x402-acquisition-controller",
     "ai.anicca.x402-monitor",
     "ai.anicca.x402-seller-8412",
     "ai.anicca.x402-tunnel",
