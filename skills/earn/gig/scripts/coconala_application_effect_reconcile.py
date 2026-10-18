@@ -371,16 +371,18 @@ def _close_closed_batch(owner_id: str, occurrence_id: str, runtime_run_id: str,
         if request_id not in closed or row.get("url") != url or row.get("final_url") != url or not after_marker:
             return None
         urls.append(url)
+    # The earlier click may still have applied, so the effect stays "unknown", never 0.
     proof = {"owner_id": owner_id, "occurrence_id": occurrence_id, "runtime_run_id": runtime_run_id,
              "request_ids": pending, "verified": True, "provider": "coconala",
-             "proof_type": "provider_request_closed_exact_batch.v1",
+             "proof_type": resource_admission.REQUEST_CLOSED_PROOF_TYPE,
+             "effect": "unknown", "reason": "duplicate_impossible_request_closed",
              "provider_receipt_id": ",".join(urls), "evidence_ref": str(path.resolve())}
-    closed_now = (resolver or resource_admission.resolve_unknown_occurrence)(
-        owner_id, occurrence_id, official_readback=lambda: proof, expected_state="claimed")
+    closed_now = (resolver or resource_admission.resolve_request_closed_occurrence)(
+        owner_id, occurrence_id, closed_proof=lambda: proof, expected_state="claimed")
     return {"status": "reconciled" if closed_now is True else "unresolved",
-            "reason": "bound_requests_officially_closed" if closed_now is True
+            "reason": "duplicate_impossible_request_closed" if closed_now is True
             else "occurrence_not_current_or_already_closed",
-            "retryable": False, "effect": 0, "readback": 1, "occurrence_id": occurrence_id,
+            "retryable": False, "effect": "unknown", "readback": 1, "occurrence_id": occurrence_id,
             "request_ids": pending, "provider_receipt_id": proof["provider_receipt_id"],
             "evidence_ref": proof["evidence_ref"]}
 

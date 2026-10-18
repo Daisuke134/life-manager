@@ -3965,3 +3965,52 @@ def test_default_agent_total_allows_four_concurrent_agents(tmp_path, monkeypatch
         claim, reason = admission.claim_durable("agent", owner, admission_class="revenue", now=100 + index)
         results.append(claim is not None)
     assert results == [True, True, True, True, False]
+
+
+def _request_closed(owner, occurrence, **changes):
+    proof = {"owner_id": owner, "occurrence_id": occurrence, "verified": True,
+             "proof_type": "provider_request_closed_exact_batch.v1", "provider": "coconala",
+             "runtime_run_id": "run-1", "request_ids": ["5329025", "5329137"],
+             "provider_receipt_id": "https://coconala.com/requests/5329025,https://coconala.com/requests/5329137",
+             "effect": "unknown", "reason": "duplicate_impossible_request_closed",
+             "evidence_ref": "/evidence/request-closed-readback.json"}
+    proof.update(changes)
+    return lambda: proof
+
+
+def test_request_closed_batch_closes_its_exact_fence(tmp_path, monkeypatch):
+    occurrence = "hf-gig-apply-direct:closed-batch"
+    owner = _fenced(tmp_path, monkeypatch, occurrence)
+    assert admission.resolve_request_closed_occurrence(
+        owner, occurrence, closed_proof=_request_closed(owner, occurrence)) is True
+    assert _row_state(tmp_path, occurrence) == ("released", 0)
+
+
+@pytest.mark.parametrize("changes", [
+    {"effect": 0},
+    {"verified": False},
+    {"provider": "lancers"},
+    {"proof_type": "provider_official_readback_exact_request_batch"},
+    {"runtime_run_id": " "},
+    {"request_ids": []},
+    {"request_ids": ["5329025", "5329025"]},
+    {"provider_receipt_id": "https://coconala.com/requests/5329025"},
+    {"reason": "batch_exact_provider_readback_confirmed"},
+    {"evidence_ref": " "},
+    {"occurrence_id": "hf-gig-apply-direct:other"},
+])
+def test_request_closed_batch_rejects_incomplete_proof(tmp_path, monkeypatch, changes):
+    occurrence = "hf-gig-apply-direct:closed-reject"
+    owner = _fenced(tmp_path, monkeypatch, occurrence)
+    assert admission.resolve_request_closed_occurrence(
+        owner, occurrence, closed_proof=_request_closed(owner, occurrence, **changes)) is False
+    assert _row_state(tmp_path, occurrence) == ("claimed", 1)
+
+
+def test_request_closed_proof_is_not_a_provider_effect_receipt(tmp_path, monkeypatch):
+    occurrence = "hf-gig-apply-direct:closed-not-receipt"
+    owner = _fenced(tmp_path, monkeypatch, occurrence)
+    assert admission.resolve_unknown_occurrence(
+        owner, occurrence, official_readback=_request_closed(owner, occurrence),
+        expected_state="claimed") is False
+    assert _row_state(tmp_path, occurrence) == ("claimed", 1)

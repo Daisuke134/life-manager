@@ -417,8 +417,8 @@ def _closed_batch_setup(tmp_path, monkeypatch, rows):
 
     resolved = []
 
-    def resolver(owner_id, occurrence_id, *, official_readback, expected_state):
-        resolved.append((owner_id, occurrence_id, official_readback(), expected_state))
+    def resolver(owner_id, occurrence_id, *, closed_proof, expected_state):
+        resolved.append((owner_id, occurrence_id, closed_proof(), expected_state))
         return True
 
     return wrapper, intents, calls, fake_run, resolver, resolved
@@ -437,6 +437,8 @@ def test_closed_bound_requests_close_the_exact_occurrence(tmp_path, monkeypatch)
         "hf-gig-apply-direct", "occ-1", "run-1", ["5323286", "5329025", "5329137"], intents,
         runner=fake_run, resolver=resolver)
     assert result["status"] == "reconciled"
+    # The earlier click may have applied: never record the effect as 0.
+    assert (result["effect"], result["reason"]) == ("unknown", "duplicate_impossible_request_closed")
     assert len(calls) == 1 and calls[0][2] == "coconala:kosuke"
     assert calls[0][calls[0].index("--request-id") + 1] == "5329025"
     assert calls[0].count("--request-id") == 2           # confirmed 5323286 is not re-read
@@ -445,6 +447,15 @@ def test_closed_bound_requests_close_the_exact_occurrence(tmp_path, monkeypatch)
     assert proof["verified"] is True and proof["runtime_run_id"] == "run-1"
     assert proof["proof_type"] == "provider_request_closed_exact_batch.v1"
     assert proof["request_ids"] == ["5329025", "5329137"]
+    assert (proof["effect"], proof["reason"]) == ("unknown", "duplicate_impossible_request_closed")
+
+
+def test_closed_batch_uses_the_dedicated_admission_resolver() -> None:
+    wrapper = _load_wrapper()
+    import inspect
+    source = inspect.getsource(wrapper._close_closed_batch)
+    assert "resolve_request_closed_occurrence" in source
+    assert "resolve_unknown_occurrence" not in source
 
 
 def test_one_open_or_redirected_request_keeps_the_fence(tmp_path, monkeypatch) -> None:
