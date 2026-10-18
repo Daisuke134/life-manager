@@ -318,6 +318,17 @@ class PaperPerformanceTests(unittest.TestCase):
                 result=build_paper_performance([intent,outcome,*_rows()],OBSERVATION,RISK)
                 self.assertEqual(result,{'status':'unknown','reason':'paper_effect_unresolved'})
 
+    def test_paused_positive_fill_history_cannot_be_hidden_by_later_zero_failure(self):
+        intent={'receipt_type':'effect_intent','effect_id':'unsettled','status':'applied',
+            'mode':'paper','paper':True,'owner_id':OWNER,'strategy_id':STRATEGY,
+            'client_order_id':'lm-ai-'+'c'*24,'order':{'symbol':'SPY','side':'buy','asset_class':'us_equity'}}
+        previous={'receipt_type':'outcome','effect_id':'unsettled','outcome':'broker_reconciled',
+            'mode':'paper','paper':True,'broker':{'id':'unsettled-order','status':'suspended','filled_qty':'0.01'}}
+        latest={**previous,'outcome':'broker_terminal_failure',
+                'broker':{**previous['broker'],'status':'canceled','filled_qty':'0'}}
+        result=build_paper_performance([intent,previous,latest,*_rows()],OBSERVATION,RISK)
+        self.assertEqual(result,{'status':'unknown','reason':'paper_effect_unresolved'})
+
     def test_zero_fill_terminal_failure_is_not_a_pnl_event(self):
         failed_intent = {
             "receipt_type": "effect_intent",
