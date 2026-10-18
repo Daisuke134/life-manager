@@ -14,7 +14,7 @@ from pathlib import Path
 from allocator import _read_selection, build_candidates, choose, gate as allocation_gate, order_for
 from alpaca_cli import (CLI_OPERATIONS, SAFE_ERROR_CODES, find_order_by_client_id, observe,
                         read_allocator_snapshot, read_campaign_snapshot, read_crypto_history,
-                        read_paper_etf_cost_evidence, read_crypto_activity_evidence, read_crypto_activity_page_chunk, submit_order)
+                        read_paper_etf_cost_evidence, read_crypto_activity_evidence, read_crypto_activity_page_chunk, read_crypto_fx_evidence, submit_order)
 from campaign import CANDIDATE_REF, SYMBOLS, exit_order, reconcile
 from control import control_fence, read_control
 from effect_store import (ReconciliationPending, mark_started, record_no_fill_account_receipt, reconcile_started, record_no_trade, seal,
@@ -937,6 +937,8 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                 activity_reader=lambda **kwargs: read_crypto_activity_evidence(
                     credentials_path=credentials_path, cli_path=cli_path, **kwargs),
                 activity_page_reader=lambda **kwargs: read_crypto_activity_page_chunk(
+                    credentials_path=credentials_path, cli_path=cli_path, **kwargs),
+                fx_reader=lambda **kwargs: read_crypto_fx_evidence(
                     credentials_path=credentials_path, cli_path=cli_path, **kwargs))
         stage = "telegram_deliver"
         telegram = deliver(state, observation, campaign, decision, effect,

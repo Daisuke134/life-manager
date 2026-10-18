@@ -334,12 +334,13 @@ def _read_activity(**kwargs):
     raise ValueError('crypto_performance_activity_reader_missing')
 
 
-def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_reader=None,activity_page_reader=None):
+def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_reader=None,activity_page_reader=None,fx_reader=None):
     if mode not in {'paper','live'} or owner_id!=f'alpaca-investment-{mode}':
         raise ValueError('crypto_performance_scope_invalid')
     state=Path(state_dir);latest=state/'performance-crypto-latest.json';phase='ledger'
     frames={};refs={};fee_refs=[];fee_checked=None;known_fees=set();known_entries=set();known_cycles=set()
     window_days=90;limit_window=None;query={};page_chunks=[];page_checked=None
+    fx_frames={};fx_attempts={};fx_errors=[]
     try:
         phase='cache'
         if latest.exists():
@@ -348,6 +349,7 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
                 raise ValueError('crypto_performance_activity_cache_invalid')
             frames=old.get('activity_readbacks',{});refs=old.get('order_activity_refs',{})
             fee_checked=old.get('fee_checked_at')
+            fx_frames=old.get('fx_quote_readbacks',{});fx_attempts=old.get('fx_attempted_at',{})
             for key,target in (('known_entry_effect_ids',known_entries),('known_closed_cycle_ids',known_cycles),('known_fee_activity_ids',known_fees)):
                 values=old.get(key,[])
                 if not isinstance(values,list) or any(not isinstance(v,str) or not v for v in values):
@@ -495,9 +497,32 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
         if not known_fees<=current_fees: raise ValueError('crypto_performance_fee_history_missing')
         known_fees.update(current_fees)
         result['fee_readback_through']=through.isoformat().replace('+00:00','Z')
+        phase='fx_reference'
+        if not isinstance(fx_frames,dict) or not isinstance(fx_attempts,dict):
+            raise ValueError('crypto_fx_cache_invalid')
+        for at,checked in fx_attempts.items():_fx_instant(at);_fx_instant(checked)
+        if any(_fx_instant(frame['observed_at'])>_fx_instant(observed) for frame in fx_frames.values()):
+            raise ValueError('crypto_fx_cache_invalid')
+        if any(_fx_instant(checked)>_fx_instant(observed) for checked in fx_attempts.values()):
+            raise ValueError('crypto_fx_cache_invalid')
+        requests,_=_fx_references(result['cycles'],result['fee_evidence']['attributed_native_fees'],fx_frames,mode=mode)
+        attempted={_fx_instant(at):_fx_instant(checked) for at,checked in fx_attempts.items()}
+        eligible=[r for r in requests if attempted.get(_fx_instant(r['asof_at']))!=_fx_instant(observed)]
+        for request in eligible[:2] if fx_reader is not None else []:
+            at=request['asof_at'];fx_attempts[at]=observed
+            try:
+                incoming=fx_reader(mode=mode,asof_at=at,observed_at=observed)
+                crypto_fx_quote_proof(incoming,mode=mode,asof_at=at)
+                if _fx_instant(incoming['observed_at'])!=_fx_instant(observed):raise ValueError('crypto_fx_quote_invalid')
+                fx_frames[at]=incoming
+            except Exception as error:
+                fx_errors.append({'asof_at':at,'mode':mode,'error_class':type(error).__name__,
+                    'reason':'crypto_fx_readback_unavailable','retryable':True,'next_action':'retry_on_next_observation'})
+        result['fx_requests'],fx_sources=_fx_references(result['cycles'],result['fee_evidence']['attributed_native_fees'],fx_frames,mode=mode)
+        result['source_receipt_ids']=sorted(set(result['source_receipt_ids'])|fx_sources)
         phase='write'
         observed=observation['clock']['observed_at'];day=parse_instant(observed).astimezone(timezone.utc).date().isoformat()
-        payload={**result,'observed_at':observed,'performance_day':day,'activity_readbacks':frames,'order_activity_refs':refs,
+        payload={**result,'fx_quote_readbacks':fx_frames,'fx_attempted_at':fx_attempts,'fx_readback_errors':fx_errors,'observed_at':observed,'performance_day':day,'activity_readbacks':frames,'order_activity_refs':refs,
                  'known_entry_effect_ids':sorted(known_entries),'known_closed_cycle_ids':sorted(known_cycles),
                  'known_fee_activity_ids':sorted(known_fees),'fee_activity_refs':fee_refs,'fee_checked_at':fee_checked,
                  'activity_window_days':window_days,'activity_limit_window':limit_window,
@@ -527,12 +552,13 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
         result={'schema_version':1,'owner_id':owner_id,'mode':mode,'paper':mode=='paper','report_scope':'owned_crypto_cycles',
             'measurement_status':'partial','reason':reason,'error_class':type(error).__name__,'failed_phase':phase,
             'completed_round_trips':None,'net_pnl_usd':None,'capital_expansion_allowed':False,
-            'activity_readbacks':frames if phase in {'ledger','history','observation','activity_readback','write','activity_page_readback','activity_page_cache'} else {},
-            'order_activity_refs':refs if phase in {'ledger','history','observation','activity_readback','write','activity_page_readback','activity_page_cache'} else {},
+            'activity_readbacks':frames if phase in {'ledger','history','observation','activity_readback','write','activity_page_readback','activity_page_cache','fx_reference'} else {},
+            'order_activity_refs':refs if phase in {'ledger','history','observation','activity_readback','write','activity_page_readback','activity_page_cache','fx_reference'} else {},
             'known_entry_effect_ids':sorted(known_entries),'known_closed_cycle_ids':sorted(known_cycles),
             'known_fee_activity_ids':sorted(known_fees),
-            'fee_activity_refs':fee_refs if phase in {'ledger','history','observation','activity_readback','write','activity_page_readback','activity_page_cache'} else [],
+            'fee_activity_refs':fee_refs if phase in {'ledger','history','observation','activity_readback','write','activity_page_readback','activity_page_cache','fx_reference'} else [],
             'fee_checked_at':fee_checked,
+            'fx_quote_readbacks':fx_frames,'fx_attempted_at':fx_attempts,'fx_readback_errors':fx_errors,
             'activity_window_days':window_days,'activity_limit_window':limit_window,'activity_query':query,
             'activity_page_chunks':page_chunks,'activity_page_checked_at':page_checked,
             'retryable':next_action!='inspect_single_day_activity_pagination','next_action':next_action}

@@ -66,4 +66,16 @@ class CryptoFxWriterTests(unittest.TestCase):
             self.assertEqual(report['completed_round_trips'],1)
             self.assertEqual(len(report['fx_readback_errors']),2)
 
+    def test_invalid_fx_cache_does_not_erase_known_native_history_anchors(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);observation,read=self.prepare(root)
+            original=self.write(root,observation,read,lambda **kw:quote(kw['asof_at']))
+            broken={**original,'fx_attempted_at':[]};latest=root/'performance-crypto-latest.json'
+            latest.write_text(json.dumps(broken))
+            result=self.write(root,observation,read,None)
+            self.assertEqual(result['known_closed_cycle_ids'],original['known_closed_cycle_ids'])
+            self.assertEqual(result['order_activity_refs'],original['order_activity_refs'])
+            self.assertEqual(result['activity_readbacks'],original['activity_readbacks'])
+            self.assertIsNone(result['completed_round_trips'])
+
 if __name__=='__main__':unittest.main()

@@ -412,8 +412,12 @@ The result is explicitly a reference quote, not a cash conversion. The performan
 consumer contract binds each raw FILL timestamp and identity to an as-of midpoint,
 keeping exact rational USD reference amounts separate from native cashflow and
 actual cash settlement. Attributed fees use credited-asset weighted execution
-cost basis; BTC fees are not subtracted twice. Missing FX stays null. Writer/cache
-integration and complete operating costs remain work in the canonical SSOT.
+cost basis; BTC fees are not subtracted twice. Missing FX stays null. The existing
+writer caches mode-bound raw FX evidence, reads at most two missing timestamps per
+pass and avoids retrying the same timestamp at the same observation clock. A
+transport failure preserves native performance; invalid FX cache preserves native
+history anchors while failing closed. The normal run injects the same-mode read-only
+FX reader. Complete operating costs and production adoption remain in the SSOT.
 This branch is source only: verified fee quantity-drift recovery, FX and complete
 actual costs, deployment, natural outcomes and profitable evaluation remain in
 the canonical SSOT.

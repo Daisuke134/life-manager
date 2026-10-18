@@ -648,6 +648,12 @@ class CryptoPerformanceTests(unittest.TestCase):
                 stack.enter_context(patch.object(native,'find_order_by_client_id',side_effect=lambda **kw:
                     next(o for o in orders if o['client_order_id']==kw['client_order_id'])))
                 stack.enter_context(patch.object(native,'read_crypto_activity_evidence',return_value=activity))
+                from test_crypto_fx_performance import quote
+                from test_crypto_fx_quote import seal as seal_fx
+                def fx_response(**kwargs):
+                    frame=quote(kwargs['asof_at'],mode);frame['observed_at']=kwargs['observed_at']
+                    return seal_fx(frame)
+                fx_reader=stack.enter_context(patch.object(native,'read_crypto_fx_evidence',side_effect=fx_response))
                 writer=stack.enter_context(patch.object(native,'write_crypto_performance',wraps=PERF.write_crypto_performance,create=True))
                 for name,value in (('read_crypto_history',{}),('build_candidates',[]),('_review_status',{}),
                     ('read_campaign_snapshot',{'paper':True,'unexpected_positions':[],'fills':[],'positions':[],'options':[]}),
@@ -658,6 +664,8 @@ class CryptoPerformanceTests(unittest.TestCase):
                 with redirect_stdout(StringIO()) as output: code=native.main(wake_id='crypto-performance-fixture')
                 self.assertEqual(code,0,output.getvalue());self.assertEqual(writer.call_count,1)
                 saved=json.loads((root/'performance-crypto-latest.json').read_text())
+                self.assertEqual(fx_reader.call_count,0 if paged else 2)
+                if not paged:self.assertIsNotNone(saved['cycles'][0]['fx_reference']['execution_cashflow_usd'])
                 if paged:
                     self.assertEqual(len(saved['activity_page_chunks']),1)
                     self.assertEqual(saved['reason'],'crypto_activity_pagination_pending')
