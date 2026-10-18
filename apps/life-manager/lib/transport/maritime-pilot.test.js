@@ -68,6 +68,28 @@ test("allowlist excludes other users without loading the SDK", async () => {
   assert.equal(sdkLoads, 0);
 });
 
+test("public entry stays closed by default and requires a valid bounded cohort config", () => {
+  const publicEnv = {
+    ...ENV,
+    MARITIME_PILOT_UID_ALLOWLIST: "",
+    MARITIME_PILOT_PUBLIC_ENTRY_ENABLED: "1",
+    MARITIME_PILOT_MAX_USERS: "25",
+  };
+  const publicTransport = createMaritimePilotTransport({ env: publicEnv });
+
+  assert.equal(publicTransport.isPublicEntryEnabled(), true);
+  assert.equal(publicTransport.isEnabledFor("new-user"), true);
+  assert.equal(createMaritimePilotTransport({ env: ENV }).isPublicEntryEnabled(), false);
+  for (const maxUsers of ["0", "1001", "twenty-five"]) {
+    const transport = createMaritimePilotTransport({ env: { ...publicEnv, MARITIME_PILOT_MAX_USERS: maxUsers } });
+    assert.equal(transport.isPublicEntryEnabled(), false, `invalid cohort cap ${maxUsers} must fail closed`);
+    assert.equal(transport.isEnabledFor("new-user"), false);
+  }
+  assert.equal(createMaritimePilotTransport({
+    env: { ...publicEnv, MARITIME_PILOT_PUBLIC_ENTRY_ENABLED: "0" },
+  }).isPublicEntryEnabled(), false);
+});
+
 test("provisions one stable pseudonymous agent and conversation per UID, then chats once", async () => {
   const { client, calls } = fakeClient();
   const transport = createMaritimePilotTransport({ env: ENV, client });

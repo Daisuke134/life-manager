@@ -1,6 +1,7 @@
 "use strict";
 
 const { createHmac } = require("node:crypto");
+const { parseMaritimeMaxUsers } = require("../maritime-distribution.js");
 
 const MAX_MESSAGE_CHARS = 2000;
 const UID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
@@ -13,7 +14,9 @@ const AGENT_INSTRUCTIONS = [
 ].join(" ");
 
 function parseAllowlist(value) {
-  const entries = String(value || "").split(",").map((uid) => uid.trim());
+  const raw = String(value || "").trim();
+  if (!raw) return new Set();
+  const entries = raw.split(",").map((uid) => uid.trim());
   if (entries.length < 1 || entries.length > 3) return null;
   if (entries.some((uid) => !UID_PATTERN.test(uid))) return null;
   if (new Set(entries).size !== entries.length) return null;
@@ -24,6 +27,8 @@ function createMaritimePilotTransport({ env = {}, client = null, loadSdk } = {})
   const allowlist = parseAllowlist(env.MARITIME_PILOT_UID_ALLOWLIST);
   const apiKey = String(env.MARITIME_API_KEY || "");
   const uidSecret = String(env.LM_UID_SECRET || "");
+  const publicEntryRequested = env.MARITIME_PILOT_PUBLIC_ENTRY_ENABLED === "1";
+  const publicMaxUsers = parseMaritimeMaxUsers(env.MARITIME_PILOT_MAX_USERS);
   let clientPromise = null;
 
   // OpenClaw includes tools; do not treat the instruction prompt as a tool boundary.
@@ -32,11 +37,17 @@ function createMaritimePilotTransport({ env = {}, client = null, loadSdk } = {})
     && env.MARITIME_PILOT_TOOL_POLICY_VERIFIED === "1"
     && API_KEY_PATTERN.test(apiKey)
     && uidSecret.length > 0
-    && allowlist !== null;
+    && allowlist !== null
+    && (allowlist.size > 0 || publicEntryRequested)
+    && (!publicEntryRequested || publicMaxUsers !== null);
+
+  function isPublicEntryEnabled() {
+    return publicEntryRequested && publicMaxUsers !== null && configEnabled;
+  }
 
   function isEnabledFor(uid) {
     const value = String(uid || "");
-    return configEnabled && UID_PATTERN.test(value) && allowlist.has(value);
+    return configEnabled && UID_PATTERN.test(value) && (allowlist.has(value) || isPublicEntryEnabled());
   }
 
   function scopedId(kind, uid) {
@@ -88,7 +99,7 @@ function createMaritimePilotTransport({ env = {}, client = null, loadSdk } = {})
     }
   }
 
-  return Object.freeze({ isEnabledFor, chatForUser });
+  return Object.freeze({ isEnabledFor, isPublicEntryEnabled, chatForUser });
 }
 
 module.exports = { MAX_MESSAGE_CHARS, createMaritimePilotTransport };
