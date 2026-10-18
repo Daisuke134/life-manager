@@ -264,6 +264,11 @@ def _sync_live_ownership(state: Path, credentials_path: Path, cli_path: Path,
     broker = find_order_by_client_id(credentials_path=credentials_path, cli_path=cli_path,
                                      client_order_id=ownership.get(order_key, ""))
     status = broker.get("status") if broker else "absent"
+    def check_current_account():
+        acquisition=historical_entry_fill_proof(state,ownership,mode=os.environ.get('LIFE_MANAGER_INVESTMENT_MODE'))
+        account_id=acquisition['receipt'].get('native_trading_account_id')
+        if account_id is not None and observation.get('account',{}).get('id')!=account_id:
+            raise ValueError('owned_entry_account_invalid')
     if ownership.get("status") == "entry_pending":
         if btc and (status == "filled" or (status in BROKER_TERMINAL_FAILURE_STATUSES and _filled_qty_positive(broker))):
             try:
@@ -343,6 +348,7 @@ def _sync_live_ownership(state: Path, credentials_path: Path, cli_path: Path,
                 saved=_sell_receipt_row(_owned_rows(state/'receipts.jsonl'),ownership['close_effect_id'])['strategy_receipt']
                 proof = recorded_close_fill_proof(state, ownership, broker, saved['account_readback'],
                     mode=os.environ.get("LIFE_MANAGER_INVESTMENT_MODE"))
+                check_current_account()
                 if Decimal(proof['receipt']['remaining_owned_qty'])==0:
                     _flat_btc_account(observation,mode=os.environ.get('LIFE_MANAGER_INVESTMENT_MODE'),
                         not_before=parse_instant(saved['account_readback']['clock']['observed_at']))
@@ -371,6 +377,7 @@ def _sync_live_ownership(state: Path, credentials_path: Path, cli_path: Path,
         if ownership.get('close_reason')=='native_fee_debit':
             mode=os.environ.get('LIFE_MANAGER_INVESTMENT_MODE');rows=_owned_rows(state/'receipts.jsonl')
             quantity=recorded_fee_flat_state_from_rows(rows,ownership,mode=mode,owner_id=investment_owner_id())
+            check_current_account()
             _audit_owned_order(rows,ownership,broker,quantity,mode=mode)
             _flat_btc_account(observation,mode=mode,not_before=quantity['last_observed_at'])
             return ownership
@@ -379,6 +386,7 @@ def _sync_live_ownership(state: Path, credentials_path: Path, cli_path: Path,
                 saved=_sell_receipt_row(_owned_rows(state/'receipts.jsonl'),ownership['close_effect_id'])['strategy_receipt']
                 mode=os.environ.get('LIFE_MANAGER_INVESTMENT_MODE')
                 recorded_close_fill_proof(state, ownership, broker, saved['account_readback'],mode=mode)
+                check_current_account()
                 _flat_btc_account(observation,mode=mode,not_before=parse_instant(saved['account_readback']['clock']['observed_at']))
             except ReconciliationPending:
                 return {**ownership, "status": "closing"}
