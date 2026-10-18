@@ -160,6 +160,8 @@ def remember_source_evidence(known, summary, *, owner_id, mode):
             if (record.get('kind')!='historical_source_coverage' or record.get('current_cost_authority') is not False
                     or binding is None or not binding[1]<binding[2]<=_time(record['observed_at'])
                     or scope.get('owner_id')!=owner_id or scope.get('mode')!=mode or scope.get('paper') is not (mode=='paper')
+                    or scope.get('scope_kind') not in {'order_pair','owner_period'}
+                    or bool(binding[0]) != (scope.get('scope_kind')=='order_pair') or not ids(scope.get('order_ids'))
                     or scope.get('coverage_state')!='complete' or not ids(scope.get('evidence_refs'),True)
                     or not ids(scope.get('source_receipt_ids'),True) or not isinstance(queries,list) or not queries):
                 raise ValueError
@@ -172,6 +174,21 @@ def remember_source_evidence(known, summary, *, owner_id, mode):
                         or not ids(query.get('covered_categories'),True) or not ids(query.get('evidence_refs'),True)
                         or not ids(query.get('document_ids')) or _time(query['observed_at'])>_time(record['observed_at'])):
                     raise ValueError
+                if (not isinstance(query.get('query_id'),str) or not query['query_id']
+                        or not isinstance(scope.get('scope_id'),str) or not scope['scope_id']
+                        or query.get('scope_id')!=scope['scope_id'] or query.get('scope_kind')!=scope['scope_kind']
+                        or not _time(query['window_start'])<=binding[1]<binding[2]<=_time(query['window_end'])
+                            <=_time(query['finalized_through'])<=_time(query['observed_at'])
+                        or (query['settlement_state']=='no_charge_final') != (query['document_ids']==[])
+                        or not isinstance(query.get('execution_windows'),list) or not query['execution_windows']):
+                    raise ValueError
+                for window in query['execution_windows']:
+                    if (not isinstance(window,dict) or any(not isinstance(window.get(key),str) or not window[key]
+                            for key in ('execution_owner_id','run_id','occurrence_id'))
+                            or not _time(window['started_at'])<=_time(window['finished_at'])<=_time(record['observed_at'])
+                            or not ids(window.get('covered_categories'),True)
+                            or not set(window['covered_categories'])<=set(query['covered_categories'])):
+                        raise ValueError
                 categories.update(query['covered_categories'])
             if categories!={'model_cost','tool_cost','browser_cost','infra_cost'}:raise ValueError
         except (KeyError,TypeError,AttributeError,ValueError) as error:

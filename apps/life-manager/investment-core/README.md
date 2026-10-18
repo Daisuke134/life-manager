@@ -472,6 +472,15 @@ The same charge or receipt alias cannot replace those facts. Missing legacy acco
 metadata stays unknown and can be enriched by a fresh validated input without
 changing money facts; a raw-cache edit cannot perform that enrichment. Conflicting
 inputs retain prior evidence or return a typed unknown instead of redefining costs.
+Confirmed source observations are retained in the existing report's
+`known_operating_cost_source_evidence`, including zero-charge scopes with no paid
+components. Records retain their original scope, payer/category/document/query
+references and billing observation time. Duplicate input does not add duplicate
+records. These historical records have `current_cost_authority=false`: current
+money, coverage, net and capital gates still use the current readback and independent
+inventory. Regressed input therefore remains unknown even while the old evidence
+is preserved. Invalid source history is rejected without dropping the previously
+loaded activity or entry/closed/fee proof caches from the failure envelope.
 Production gaps are not cleared by passing fixtures.
 The pinned quote transport can now capture a single USDC/USD BBO at or before
 an economic timestamp, using a fixed 30-second window and descending limit one.
