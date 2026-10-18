@@ -122,7 +122,7 @@ class OwnedPolicyTests(unittest.TestCase):
     def test_owned_exit_uses_original_native_fill_price_and_not_current_selection_expiry(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)
-            _ownership,owner=seed(root)
+            ownership,owner=seed(root)
             state,observation=snapshot("live")
             with patch.dict(os.environ,{"LIFE_MANAGER_INVESTMENT_OWNER_ID":owner}):
                 decision=position_manager.choose(state,observation,root,Path("unused"),root)
@@ -130,6 +130,12 @@ class OwnedPolicyTests(unittest.TestCase):
             self.assertEqual(decision["strategy_id"],"alpaca-btc-5m-trend-v1")
             self.assertEqual(decision["reason"],"hard_stop")
             self.assertEqual(decision["release_sha"],"a"*40)
+            self.assertEqual(decision["entry_effect_id"],ownership["entry_effect_id"])
+            self.assertEqual(decision["entry_client_order_id"],ownership["entry_client_order_id"])
+            self.assertEqual(decision["entry_provider_order_id"],"provider-entry")
+            self.assertEqual(decision["owner_id"],owner)
+            self.assertEqual(decision["mode"],"live")
+            self.assertEqual(decision["signal_inputs"]["age_bars"],"2")
 
     def test_missing_entry_evidence_cannot_fall_back_to_fresh_other_selection(self):
         with tempfile.TemporaryDirectory() as directory:
