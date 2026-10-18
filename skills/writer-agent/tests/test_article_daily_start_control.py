@@ -1546,3 +1546,88 @@ class AllActiveUnavailableNoEffectTest(unittest.TestCase):
             self._fixture(root, runs=("20261017-150000", self.RUN))
             decision = self._decide(root)
         self.assertEqual(decision["action"], "skip-quality-miss")
+
+
+class MissingTargetsInitializationOwnedByWorkerTest(unittest.TestCase):
+    """2026-10-19 run 20261018-194904: an apostrophe in STEP 17 dropped the ARMED publish
+    addendum (#8371), so publication init wrote only the five dormant skips and no active
+    intent. plan() said missing-targets, every hourly start blocked the day, and the block
+    also kept the resume worker's priority planner off the run it can initialize."""
+
+    RUN = "20261018-194904"
+
+    def _fixture(self, root: Path, *, active_entry=None, row=None, dispatch=False):
+        run = root / "runs" / self.RUN
+        gates = run / "gates"
+        gates.mkdir(parents=True)
+        state_path = gates / "publication-state.json"
+        ledger = root / "articles.jsonl"
+        drafts = {}
+        for lang in ("ja", "en"):
+            article = run / f"article-{lang}.md"
+            article.write_text(f"# {lang}\n", encoding="utf-8")
+            drafts[lang] = {"path": str(article), "sha256": hashlib.sha256(article.read_bytes()).hexdigest()}
+        pairs = {
+            pair: {
+                "platform": pair.split("/")[0], "lang": pair.split("/")[1], "status": "skipped",
+                "skip_receipt": {
+                    "type": "dormant-destination", "pair": pair, "reason": "dormant-destination",
+                    "slo": "not-applicable", "recorded_at": "2026-10-18T19:59:42.886179Z",
+                },
+            }
+            for pair in ("zenn-article/ja", "devto/en", "x-article/en", "x-post/ja", "x-article/ja")
+        }
+        if active_entry:
+            pairs["note/ja"] = {"platform": "note", "lang": "ja", **active_entry}
+        state_path.write_text(json.dumps({
+            "version": 1, "publication_contract": "active-four", "run_id": self.RUN,
+            "run_dir": str(run), "state_path": str(state_path), "ledger_path": str(ledger),
+            "topic_id": "paid-demand:c98a", "safety_status": "ALLOW",
+            "destination_identities": {
+                "note/ja": "anicca123", "zenn-article/ja": "anicca", "devto/en": "anicca_dev",
+                "substack/ja": "aniccabuddha.substack.com", "substack/en": "aniccaai2026.substack.com",
+                "x-article/ja": "diceai0", "x-article/en": "diceai0", "x-post/ja": "diceai0",
+            },
+            "drafts": drafts, "pairs": pairs, "resume_attempts": 0, "max_resume_attempts": 2,
+        }), encoding="utf-8")
+        if dispatch:
+            (gates / "platform-dispatch-note-ja.json").write_text("{}", encoding="utf-8")
+        ledger.write_text(json.dumps(row) + "\n" if row else "", encoding="utf-8")
+
+    def _decide(self, root: Path):
+        # Only the file/draft boundary is stubbed; plan() and initialization_plan() run for real.
+        with patch.object(START, "proof", side_effect=START.QuarantineError("no")), patch(
+            "publication_resume.PublicationStore._validate_state_boundary_locked", return_value=None
+        ), patch("publication_resume.PublicationStore._drafts_intact", return_value=True):
+            return START.decide(root, "2026-10-19")
+
+    def test_dormant_only_state_without_effect_defers_to_initializing_worker(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._fixture(root)
+            decision = self._decide(root)
+        self.assertEqual(decision, {
+            "action": "skip-pending-worker",
+            "run_id": self.RUN,
+            "reason": "same-jst-day-owned-by-pending-initialization",
+        })
+
+    def test_registered_active_intent_stays_blocked(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._fixture(root, active_entry={
+                "status": "intent", "target_kind": "note-draft-url",
+                "target": "https://note.com/anicca123/n/n0123456789ab/edit",
+            })
+            decision = self._decide(root)
+        self.assertEqual(decision["action"], "block-incomplete")
+
+    def test_ledger_effect_row_or_dispatch_stays_blocked(self):
+        row = {"run_id": self.RUN, "platform": "note", "lang": "ja", "published": False,
+               "draft_url": "https://note.com/anicca123/n/n0123456789ab/edit", "state": "pending:x"}
+        for kwargs in ({"row": row}, {"dispatch": True}):
+            with tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                self._fixture(root, **kwargs)
+                decision = self._decide(root)
+            self.assertEqual(decision["action"], "block-incomplete", kwargs)
