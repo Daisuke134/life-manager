@@ -376,7 +376,11 @@ class BrokerContextTest(unittest.TestCase):
             marker.update(status="open",entry_filled_qty="0.05",owned_qty="0.05")
             MODULE._atomic_json(state/"live-owned-position.json",marker)
             observation["positions"]=observation["positions"][:1]
-            with patch.object(MODULE,"find_order_by_client_id",return_value=broker):
+            from test_crypto_performance import activity_fixture
+            empty_activities=activity_fixture({'fills':[],'fees':[]},mode='live',
+                start=broker['submitted_at'],end=observation['clock']['observed_at'])
+            with patch.object(MODULE,"find_order_by_client_id",return_value=broker), \
+                 patch.object(MODULE,"read_crypto_activity_evidence",return_value=empty_activities):
                 ownership=MODULE._sync_live_ownership(state,Path("unused"),Path("unused"),observation)
             self.assertEqual(ownership["status"],"open")
 

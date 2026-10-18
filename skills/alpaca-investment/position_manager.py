@@ -10,7 +10,8 @@ from typing import Any
 from strategy_policy import ACTION_EXIT, ACTION_HOLD, evaluate
 from effect_store import _owned_rows, owned_entry_decision
 from crypto_ownership_proof import (_owned_policy, close_fill_proof_from_rows,
-                                    recorded_close_proof_from_rows, recorded_entry_proof_from_rows, entry_receipt_row)
+                                    recorded_close_proof_from_rows, recorded_entry_proof_from_rows, entry_receipt_row,
+                                    owned_open_state_from_rows)
 from etf_ownership import investment_owner_id
 from risk_policy import parse_instant
 
@@ -18,7 +19,12 @@ from risk_policy import parse_instant
 def load_owned_policy(state: Path, ownership: dict[str, Any], *, mode: str) -> dict[str, Any]:
     proof = owned_entry_decision(state / "receipts.jsonl", ownership,
                                  owner_id=investment_owner_id(), mode=mode)
-    return _owned_policy(proof, ownership, mode=mode)
+    policy=_owned_policy(proof, ownership, mode=mode)
+    if ownership.get('status')=='open':
+        quantity=owned_open_state_from_rows(_owned_rows(state/'receipts.jsonl'),ownership,
+            mode=mode,owner_id=investment_owner_id())
+        policy['owned_qty']=quantity['owned_qty']
+    return policy
 
 
 

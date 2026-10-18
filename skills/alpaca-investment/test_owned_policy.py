@@ -191,7 +191,7 @@ class OwnedPolicyTests(unittest.TestCase):
                      self.assertRaisesRegex(ValueError,"owned_entry_fill_conflict"):
                     position_manager.load_owned_policy(root,ownership,mode="live")
 
-    def test_equivalent_fill_formats_and_receipt_enrichment_remain_usable(self):
+    def test_equivalent_fill_formats_and_outcome_metadata_remain_usable(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)
             ownership,owner=seed(root)
@@ -200,7 +200,7 @@ class OwnedPolicyTests(unittest.TestCase):
             enriched=copy.deepcopy(next(row for row in rows if row["receipt_type"]=="outcome"))
             enriched["broker"].update(filled_avg_price="200.0",filled_qty="0.050000",symbol="BTCUSDC",
                                      filled_at="2026-01-01T04:00:30+00:00")
-            enriched["strategy_receipt"]={"fixture":"enriched"}
+            enriched["readback_note"]="equivalent provider formats"
             ledger.write_text("".join(json.dumps(row)+"\n" for row in [*rows,enriched]))
             with patch.dict(os.environ,{"LIFE_MANAGER_INVESTMENT_OWNER_ID":owner}):
                 policy=position_manager.load_owned_policy(root,ownership,mode="live")
@@ -352,6 +352,10 @@ class OwnedSubmitFenceTests(unittest.TestCase):
                                    ("deliver",{"message_id":"fixture"}),("deliver_failure",{"status":"delivered"}),
                                    ("_retry_allowed",False)):
                     stack.enter_context(patch.object(native,name,return_value=copy.deepcopy(value)))
+                from test_crypto_performance import activity_fixture
+                empty_activities=activity_fixture({'fills':[],'fees':[]},mode=mode,
+                    start=broker['submitted_at'],end=observation['clock']['observed_at'])
+                stack.enter_context(patch.object(native,'read_crypto_activity_evidence',return_value=empty_activities))
                 campaign_read=stack.enter_context(patch.object(native,"read_campaign_snapshot",return_value={
                     "paper":True,"unexpected_positions":["BTCUSD"],"fills":[],"positions":[],"options":[]}))
                 choose=stack.enter_context(patch.object(native,"choose",side_effect=AssertionError("replacement entry")))

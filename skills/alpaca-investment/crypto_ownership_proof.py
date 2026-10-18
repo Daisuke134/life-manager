@@ -1110,6 +1110,40 @@ def owned_quantity_state_from_rows(rows,ownership,*,mode,owner_id,upto_index=Non
     return current_state()
 
 
+def _open_ownership_from_quantity_state(state,ownership,*,allow_fee_recovery=False):
+    try:
+        known=(Decimal('0') if _filled_qty_is_zero({'filled_qty':ownership.get('owned_qty')})
+               else _execution_number(ownership.get('owned_qty')))
+        if (ownership.get('status')!='open' or ownership.get('symbol')!='BTCUSD'
+                or _execution_number(ownership.get('entry_filled_qty'))!=Decimal(state['acquisition']['receipt']['entry_filled_qty'])
+                or ownership.get('close_effect_id')!=state['last_close_effect_id']
+                or ownership.get('close_client_order_id')!=state['last_close_client_order_id']): raise ValueError
+        if known==Decimal(state['owned_qty']):return ownership
+        fee=state['last_fee_debit']
+        if (not allow_fee_recovery or not fee or known!=Decimal(fee['before_owned_qty'])
+                or Decimal(fee['remaining_owned_qty'])!=Decimal(state['owned_qty'])
+                or any(ownership.get(k)!=fee['last_'+k] for k in ('close_effect_id','close_client_order_id'))):
+            raise ValueError
+        return {**ownership,'owned_qty':state['owned_qty']}
+    except (ValueError,KeyError,TypeError,AttributeError,ArithmeticError) as error:
+        raise ValueError('owned_quantity_marker_invalid') from error
+
+
+def owned_open_state_from_rows(rows,ownership,*,mode,owner_id,allow_fee_recovery=False):
+    state=owned_quantity_state_from_rows(rows,ownership,mode=mode,owner_id=owner_id)
+    return {**state,'ownership':_open_ownership_from_quantity_state(state,ownership,allow_fee_recovery=allow_fee_recovery)}
+
+
+def recorded_fee_flat_state_from_rows(rows,ownership,*,mode,owner_id):
+    state=owned_open_state_from_rows(rows,{**ownership,'status':'open'},mode=mode,owner_id=owner_id)
+    fee=state['last_fee_debit']
+    if (ownership.get('status')!='closed' or ownership.get('close_reason')!='native_fee_debit'
+            or not fee or state['owned_qty']!='0' or fee['remaining_owned_qty']!='0'
+            or ownership.get('fee_close_id')!=native_fee_debit_id(fee)):
+        raise ValueError('owned_fee_flat_invalid')
+    return state
+
+
 def native_fee_debit_proof_from_rows(rows,ownership,observation,*,activity_readback,mode,owner_id):
     """Compose exact evidence; callers alone persist a proven new debit once."""
     try:
@@ -1132,15 +1166,8 @@ def _native_fee_debit_step(state,ownership,observation,*,activity_readback,broke
     try:
         acquisition=state['acquisition']['receipt']
         start,end=validate_crypto_activity_snapshot(activity_readback,mode=mode)
-        owned_qty=(Decimal('0') if _filled_qty_is_zero({'filled_qty':ownership.get('owned_qty')})
-                   else _execution_number(ownership.get('owned_qty')))
-        if (ownership.get('status')!='open'
-                or owned_qty!=Decimal(state['owned_qty'])
-                or _execution_number(ownership.get('entry_filled_qty'))!=Decimal(acquisition['entry_filled_qty'])
-                or ownership.get('close_effect_id')!=state['last_close_effect_id']
-                or ownership.get('close_client_order_id')!=state['last_close_client_order_id']
-                or start>parse_instant(broker['submitted_at'])):
-            raise ValueError
+        _open_ownership_from_quantity_state(state,ownership)
+        if start>parse_instant(broker['submitted_at']):raise ValueError
         fees=crypto_buy_fee_activity_proof(activity_readback,broker,mode=mode)
         known_fees={key for key,fact in state['activity_facts'].items()
             if fact[0]=='CFEE' and fact[1].get('order_id')==broker['id']}

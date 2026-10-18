@@ -24,7 +24,7 @@ from control import control_fence
 _effect_spec = importlib.util.spec_from_file_location("alpaca_selection_effect_store", _ALPACA / "effect_store.py")
 _effects = importlib.util.module_from_spec(_effect_spec)
 _effect_spec.loader.exec_module(_effects)
-from crypto_ownership_proof import recorded_close_proof_from_rows, recorded_no_fill_proof_from_rows
+from crypto_ownership_proof import recorded_close_proof_from_rows, recorded_no_fill_proof_from_rows, recorded_fee_flat_state_from_rows
 from etf_ownership import (_read_open, _close_provider_order, _closed_account_readback,
                            _number, ETF_OWNER_IDS, ETF_STRATEGY_ID)
 
@@ -226,6 +226,9 @@ def _official_crypto_closed(marker: dict[str, Any], rows: list[dict[str, Any]]) 
         if len(entries) != 1:
             return False
         intent = entries[0]
+        if marker.get('close_reason')=='native_fee_debit':
+            recorded_fee_flat_state_from_rows(rows,marker,mode=intent.get('mode'),owner_id=intent.get('owner_id'))
+            return True
         close_effect, close_client = marker.get("close_effect_id"), marker.get("close_client_order_id")
         if (close_effect is None) != (close_client is None):
             return False

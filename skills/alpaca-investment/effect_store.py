@@ -14,7 +14,7 @@ from crypto_ownership_proof import (_digest, ReconciliationPending, BROKER_TERMI
                                     recorded_close_proof_from_rows, no_fill_entry_proof_from_rows,
                                     recorded_no_fill_proof_from_rows, recorded_entry_proof_from_rows,
                                     _filled_qty_positive, _filled_qty_is_zero, _terminal_no_fill_proven,
-                                    owned_quantity_state_from_rows, native_fee_debit_proof_from_rows,
+                                    owned_open_state_from_rows, native_fee_debit_proof_from_rows,
                                     native_fee_debit_id)
 
 
@@ -71,16 +71,8 @@ def record_native_fee_debit(ledger: Path, ownership: dict[str, Any], observation
         raise ValueError('owned_fee_debit_invalid')
     def candidate(rows):
         try:
-            state=owned_quantity_state_from_rows(rows,ownership,mode=mode,owner_id=owner_id)
-            current=ownership
-            if Decimal(str(ownership.get('owned_qty')))!=Decimal(state['owned_qty']):
-                fee=state['last_fee_debit']
-                if (not fee or Decimal(str(ownership.get('owned_qty')))!=Decimal(fee['before_owned_qty'])
-                        or Decimal(fee['remaining_owned_qty'])!=Decimal(state['owned_qty'])
-                        or any(ownership.get(k)!=fee['last_'+k] or ownership.get(k)!=state['last_'+k]
-                            for k in ('close_effect_id','close_client_order_id'))):
-                    raise ValueError
-                current={**ownership,'owned_qty':state['owned_qty']}
+            state=owned_open_state_from_rows(rows,ownership,mode=mode,owner_id=owner_id,allow_fee_recovery=True)
+            current=state['ownership']
             proof=native_fee_debit_proof_from_rows(rows,current,observation,
                 activity_readback=activity_readback,mode=mode,owner_id=owner_id)
             receipt=proof['receipt']
