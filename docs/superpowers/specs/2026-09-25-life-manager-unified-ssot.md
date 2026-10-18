@@ -14802,6 +14802,33 @@ The latest B7 snapshot (`2026-10-08T22:50:37Z`, occurrence `18dcaf99f154d708-331
 
 **局所順序更新:** 旧=C全反映→B/D完全coverage。新=Cの既存reconcilerによる反映を並行観測→IN-REPORT-01のtransport receipt形式不整合をsource修正→B/D完全coverage（Dでmeasured解放前にpaper/mode保持とlive候補・実利益rolling除外を含める）。理由は実消費ownerが旧通知unknownで止まり、現SDK応答形式にも自己所有の実装不整合が見つかったため。current cursorはIN-REPORT-01 Bの最小RED。費用/利益の未確認を成功や0へ置換しない。
 
+**IN-REPORT-01 source実行記録:** A=4d7641d469、B=d359d7cfc2でremote保存し、実SDK応答がuncertainになる1件と不正pluralからsingularへfallbackする2 subcasesのREDを確認する。C=ff274f6ddcの6行で成功した正int singletonだけを受理する。core150 tests/33 subtests、Alpaca305 tests/151 subtests、diff checkはPASS。fresh-context effect reviewは同headに0 findings/0 blocking/ship。独立のメモリ内96ケース＋旧契約13ケース、real SDK/fake HTTPの単一/複数chunkを確認する。model/effort unobservable、overrideなし。旧daily/outbox/fenceへの補填・解除・再送は0。現在cursorは最新headの全CI/main/正式版/対象owner/read-only canary。旧通知fenceの証拠不足と自然実行停止は別に残す。
+
+### IN-COST-04B/D 接続契約 — 実装前の入力境界
+
+既存CFO actual_cost.adapt、paper_operating_costsのexact join、paper_performanceのpaid alias/charge-to-trade bindingを再利用する。新台帳・第二のnet算術・按分器は作らない。独立source設計監査はhead3ec00beba3を読み、既存paid受理を残して以下を拡張する案を確認する。これは未実装の設計で、現在のprovider/runtime入力が揃ったとは主張しない。
+
+| 既存入力の場所 | 追加するfieldと意味 |
+|---|---|
+| readback.cost_scopes[] | 内部scope_id、product_loop_id、owner_id、mode、paper、ordered entry/exit order_ids、first intent〜closeのperiod_start/end、元source_receipt_ids、inventory_ref/digest、required_sources。scope_idをprovider発行IDと呼ばない。 |
+| scope.required_sources[] | provider、登録済みbilling_account_ref、covered_categories。照合集合は(provider, account, category)。model/tool/browser/infraのどれかが欠けたscopeはcompleteにしない。 |
+| sources[].queries[] | 実在するquery/statement identity、official、billing_account_ref、window_start/end、observed_at、covered_categories、complete、document_ids、pending_item_ids、settlement_state、finalized_through、保持した公式応答evidence_refs。空一覧だけで無請求としない。 |
+| provider_pagination.pages[] | 既存provider/page/cursor/next_cursor/document_ids/evidenceにquery_idとaccount対応を付け、ページ連鎖と返却document集合の一致を検証する。 |
+| job_joins[] paid_allocation | 既存paid document/line/allocation/jobとexact取引のjoinを維持し、scope_id/query_id/account_refを追加。旧fieldだけの入力は部分計を維持し、totalへ昇格しない。 |
+| job_joins[] scope_query | 無請求照会とscopeの対応。provider/account/query_id/scope_id、実run_ids/occurrence_idsを保持する。job_idはnullでよく、偽provider jobや0額invoiceを作らない。 |
+
+**独立inventory:** expected_inventoryは同じbilling payloadのsourcesから生成しない。既存ownerの全期間runtime event、該当release設定、費用サービス設定から独立に取得し、callerからsummarizeへ渡す。sourceをbilling payloadとinventoryの両方から消せばcompleteになる実装を禁止する。未観測run、shared subscription未帰属、未登録account、category不足、未検証inventoryはgap。単発HOLDのno-model metadataで全期間・validation・shared費用を0にしない。このinventory生成経路自体も未実装の仕事として残す。
+
+**共有query validatorとzero:** actual_cost.pyの既存readback/source/job/pagination/canonicalizationへ、公式queryを検証するpure helperを一つ追加し、CFO adaptとpaperの両方で再利用する。正数費用のinvoice/paid_receipt/paid時刻/通貨/金額一致/重複検証は既存adaptが正本。zeroは登録account、全ページ、対象category/期間、公式finalization、pending/unbilled/unpaid義務なし、exact scope/inventoryが揃った無請求観測だけをcoverageとして受理し、0額の経済receiptやpaid_atを作らない。取引一件のzeroからinvestment全historical/trailingのB0 completeへ広げない。B0 projection全域を証明しないqueryはscope限定で使う。B0 record schema/economic_attribution会計式/他adapterは変更せず、CFO source変更はactual_cost.pyと既存対応testsへ限定し、既存ownerの非重複を確認する。
+
+**日次/履歴:** componentとcoverageを当日のclosed subsetへ同じ基準で絞る。完全なmodel/tool/browser/infra coverageだけからmodel/system totalを設定する。paid chargeは既存alias/bindingで一回だけ計上し、queryのcoverage証拠は既存daily JSONのcoverage/cost_evidence/evidence_refsへ保持する。共有の無請求queryを一取引だけへ固定せず、経済source_receipt_idsへ詰めてrollingの重複拒否と衝突させない。欠けた新snapshotで既知のcomponent/coverage/bindingを削除せず、後日費用は元の日へ付けてgross/account/riskを保持する。
+
+**brokerと全net:** 既存broker_cost_reader/_broker_cost_summaryへexact account/mode/order pair/period、完全公式fee照会と最終確定の受入を追加する。not_simulated/Noneは引き続きgapで、funding/gasも公式非該当/無請求証拠なしには0化しない。model/systemとbroker/funding/gasが全てcompleteの場合だけCの既存coreへ渡し、build/daily/historicalの固定partial/nullを条件付きに置き換える。現在のpaper readerがこの公式fee証拠を生成できるとは主張しない。
+
+**Dの先行条件 — mode保持:** Cの現行producerはpartialだが、将来measuredにすると、現alpaca_snapshot/VenueSnapshot/net出力がpaperを保持せず、crossvenue候補へpaper値を通し得る。Dでcompleteを解放する同じ差分でmeasurement_mode/paperをadapter→schema→net/aggregate→dailyへ保持し、欠落をliveへ補完しない。paper/live混在aggregateは拒否し、rankのpaper/mode不明除外とlive実利益rolling除外に既存capital_ladderのpaper_evidence/live_evidence_required契約を再利用する。paperの費用込み測定はpaperとして表示し、cap/order権限は増やさない。
+
+**原子的TODO:** B1上記schema/独立inventoryの信頼境界と型・enum・時刻・反例を固定→D1 mode保持/混在拒否/live候補・rolling除外→D2既存CFO内の共有query/zero受理→D3scoped coverageと既存paid binding接続→D4broker complete受入と日次/履歴の条件付き評価→E金融review/全CI/main/正式版/対象owner/readback→F公式closed取引・全期間inventory・paid/最終無請求・帰属・broker費用の本物入力接続。各source変更は最小RED→GREENで保存する。反例はsource削除による自己整合、next page/pending/未確定を空請求とする誤り、別account/mode/pair/境界時刻、paid alias再利用、shared query翌日再利用、measured paperのlive混入を含める。sourceの受け入れ経路と実利益証明を分離し、外部証拠が不足してもB/D source実装を止めない。
+
 ### IN-COST-04C 実装計画 — core費用とpaper損益基準
 
 **Goal:** 検証済みsystem費用を既存coreで一度だけ控除し、paper約定損益へslippageを二重控除しない。
