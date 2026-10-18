@@ -35,6 +35,13 @@ class VenueSnapshotTests(unittest.TestCase):
                 self.assertEqual(result.slippage_usd, Decimal(slip))
                 self.assertEqual(result.cost_evidence["system_cost_usd"], ("r1",))
 
+    def test_negative_cost_row_cannot_be_hidden_by_positive_row(self):
+        for field in ("trading_fees_usd", "gas_usd", "model_cost_usd", "system_cost_usd"):
+            with self.subTest(field=field):
+                rows = [receipt(**{field: "-0.10"}), receipt("r2", **{field: "0.20"})]
+                self.assertEqual(normalize_receipts("alpaca", rows),
+                                 {"status": "unknown", "reason": "cost_invalid"})
+
     def test_system_cost_missing_or_invalid_is_never_measured(self):
         for value, reason in ((None, "cost_unknown"), (True, "snapshot_number_invalid"),
                               ("NaN", "snapshot_number_invalid"), ("-1", "cost_invalid")):
