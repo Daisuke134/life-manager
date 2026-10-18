@@ -416,6 +416,48 @@ class BrokerContextTest(unittest.TestCase):
                 "positions": [{"symbol": "BTCUSD", "qty": "0.00008"}]})
 
 
+class VersionedCryptoHistoryTest(unittest.TestCase):
+    def _read(self, observed="2026-09-10T08:05:00Z", mutate=None):
+        def serve(_cli, args, _env):
+            start=datetime.fromisoformat(args[args.index("--start")+1].replace("Z","+00:00"))
+            end=datetime.fromisoformat(args[args.index("--end")+1].replace("Z","+00:00"))
+            self.assertEqual((end-start).total_seconds(),800*300)
+            self.assertEqual(args[args.index("--symbols")+1],"BTC/USDC")
+            payload={"next_page_token":None,"rows":[{"symbol":"BTC/USDC","bars":[
+                {"t":(start+timedelta(minutes=5*i)).isoformat(),"o":"100","h":"102","l":"99","c":"101"}
+                for i in range(801)]}]}
+            if mutate: mutate(payload)
+            return payload
+        with patch.object(CLI,"_context",return_value={}),patch.object(CLI,"_run",side_effect=serve):
+            return CLI.read_crypto_history(credentials_path=Path("credentials"),cli_path=Path("alpaca"),
+                                           observed_at=observed,history_bars=800)
+
+    def test_v2_closed_end_has_identical_800_inputs_at_both_clock_offsets(self):
+        aligned=self._read()
+        unaligned=self._read("2026-09-10T08:05:29Z")
+        self.assertEqual(aligned,unaligned)
+        self.assertEqual(len(aligned["BTC/USDC"]),800)
+        self.assertEqual(aligned["BTC/USDC"][-1]["t"],"2026-09-10T08:00:00+00:00")
+
+    def test_v2_incomplete_or_paginated_history_is_not_filled(self):
+        for mutate in (lambda p:p.update(next_page_token="more"),
+                       lambda p:p["rows"][0]["bars"].pop(5),
+                       lambda p:p["rows"][0]["bars"].insert(2,p["rows"][0]["bars"][1]),
+                       lambda p:p["rows"][0]["bars"][-1].update(c="NaN")):
+            with self.subTest(mutation=mutate),self.assertRaises(ValueError):
+                self._read(mutate=mutate)
+
+    def test_large_output_budget_is_limited_to_bounded_btc_bars(self):
+        payload=json.dumps({"payload":"x"*CLI.MAX_OUTPUT_BYTES}).encode()
+        completed=type("Completed",(),{"returncode":0,"stdout":payload})()
+        with patch.object(CLI.subprocess,"run",return_value=completed):
+            CLI._run(Path("alpaca"),["data","crypto","bars","--symbols","BTC/USDC"],{})
+            for command in (["data","crypto","quotes","--symbols","BTC/USDC"],
+                            ["data","crypto","bars","--symbols","BTC/USDC,ETH/USDC"]):
+                with self.subTest(command=command),self.assertRaisesRegex(ValueError,"output_too_large"):
+                    CLI._run(Path("alpaca"),command,{})
+
+
 class BrokerSnapshotTest(unittest.TestCase):
     def test_crypto_history_accepts_bounded_official_ohlc(self):
         rows = [{"symbol": "BTC/USDC", "bars": [
