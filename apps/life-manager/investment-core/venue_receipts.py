@@ -7,7 +7,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any, Iterable
 
-from portfolio_receipts import VenueSnapshot
+from portfolio_receipts import VenueSnapshot, _NON_NEGATIVE_COST_FIELDS
 
 
 _MONEY_FIELDS = (
@@ -82,6 +82,8 @@ def normalize_receipts(venue: str, rows: Iterable[dict[str, Any]]) -> VenueSnaps
                 amount = Decimal(str(value))
                 if not amount.is_finite():
                     return _unknown("snapshot_number_invalid")
+                if field_name in _NON_NEGATIVE_COST_FIELDS and amount < 0:
+                    return _unknown("cost_invalid")
                 totals[field_name] += amount
                 if field_name in _COST_FIELDS:
                     cost_evidence[field_name].append(receipt_id)
