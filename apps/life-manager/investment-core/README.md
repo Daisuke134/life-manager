@@ -328,6 +328,16 @@ optional raw wallet read runs afterward and may fail independently under the
 existing output bound. Additional capture errors retain valid observations and never
 become zero costs or another trading gate. This is raw input retention only;
 cycle-wide/late-fee coverage, flow identity, reconciliation and net remain open.
+The same raw helper also serves an account-bound `read_crypto_flow_evidence`
+reader. The performance writer optionally retains post-close and late-fee raw
+windows and current account/position observations in its existing latest/daily
+files. Its separate raw query/token checkpoint resumes on a new observation
+without changing FILL/CFEE checkpoints; same-clock replay makes no extra read.
+Saved window references and their token chains are revalidated. Invalid cache
+inputs remain as rejected diagnostics and are re-read from canonical scope.
+Backlog query times and the current quote clock stay separate; short terminal
+pages prove observed pagination only. These raw records do not authorize fee
+completeness, settlement, numerical net profit or capital expansion.
 `crypto_fill_activity_proof` validates the saved snapshot and raw order, sums
 quantities and computes native VWAP with exact rational arithmetic. Display
 rounding cannot decide quantity equality. Nullable broker fields stay unchanged;
