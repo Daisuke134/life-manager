@@ -106,13 +106,23 @@ class CryptoValidationReportTests(unittest.TestCase):
         measured = {"status": "measured", "decision": "paper", "lookahead_detected": False,
                     "holdout": {"trades": 3, "net_pnl_usd": "2", "max_drawdown_usd": "1"},
                     "turnover": "3"}
-        with patch.object(validation_runner, "validate_series", return_value=measured):
+        with patch.object(validation_runner, "validate_series",
+                          side_effect=lambda card, *_args: {**measured, "strategy_id": card.strategy_id}):
             reports = validation_runner.build_crypto_reports_from_history(
                 self._history(), quote_conversions=[], source_receipt_ids=["alpaca://fixture/btc"],
                 release_sha="a"*40, observed_at=datetime.now(timezone.utc).isoformat())
         self.assertEqual(select_strategy(reports)["selection"], "selected")
         self.assertEqual(len({ref for report in reports for ref in report["evidence_ids"]}), 2)
         self.assertEqual(reports[0]["source_receipt_ids"], reports[1]["source_receipt_ids"])
+
+    def test_insufficient_indicator_warmup_is_not_zero_dollar_profit(self):
+        reports = validation_runner.build_crypto_reports_from_history(
+            self._history()[:12], quote_conversions=[], source_receipt_ids=["alpaca://fixture/btc"],
+            release_sha="a"*40, observed_at="2026-01-02T00:00:00Z")
+        for report in reports:
+            self.assertEqual(report["status"], "unknown")
+            self.assertIsNone(report["net_pnl_usd"])
+            self.assertIsNone(report["holdout"]["net_pnl_usd"])
 
     def test_crypto_reports_missing_fx_remain_unknown_and_not_selected(self):
         from strategy_validation import select_strategy
