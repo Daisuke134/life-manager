@@ -2,6 +2,10 @@
 import importlib
 import json
 import tempfile
+import threading
+from concurrent.futures import ThreadPoolExecutor
+from unittest.mock import patch
+import effect_store
 import unittest
 from pathlib import Path
 
@@ -67,6 +71,31 @@ class CostInventoryTests(unittest.TestCase):
             result=self.module().record_source_inventory(ledger, **{**kwargs,'release_root':root/'release','run_id':None})
             self.assertEqual(result['coverage_state'], 'gap')
             self.assertFalse(ledger.exists())
+
+    def test_concurrent_divergent_declarations_use_one_atomic_ledger_decision(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); release_fixture(root / 'release-a')
+            catalog = release_fixture(root / 'release-b')
+            data = json.loads(catalog.read_text())
+            data['loops'][0]['cost_source_inventory']['status'] = 'verified'
+            catalog.write_text(json.dumps(data))
+            ledger = root / 'receipts.jsonl'
+            barrier = threading.Barrier(2)
+            flock = effect_store.fcntl.flock
+            def synchronize(descriptor, operation):
+                if operation == effect_store.fcntl.LOCK_EX:
+                    barrier.wait(timeout=3)
+                return flock(descriptor, operation)
+            def capture(name):
+                return self.module().record_source_inventory(ledger, release_root=root / name,
+                    owner_id=OWNER, run_id=name, occurrence_id=f'{OWNER}:{name}')
+            with patch.object(effect_store.fcntl, 'flock', side_effect=synchronize):
+                with ThreadPoolExecutor(max_workers=2) as executor:
+                    results = list(executor.map(capture, ('release-a', 'release-b')))
+            rows = [json.loads(line) for line in ledger.read_text().splitlines()]
+            self.assertEqual(sum(row['receipt_type'] == 'cost_source_inventory' for row in rows), 1)
+            self.assertEqual(sum(row['receipt_type'] == 'cost_source_inventory_conflict' for row in rows), 1)
+            self.assertEqual(sum(row['reason'] == 'source_declaration_conflict' for row in results), 1)
 
     def test_same_release_changed_catalog_preserves_original_and_records_conflict(self):
         with tempfile.TemporaryDirectory() as directory:
