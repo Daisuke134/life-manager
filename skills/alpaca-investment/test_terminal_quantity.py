@@ -49,6 +49,29 @@ class TerminalQuantityTests(unittest.TestCase):
                     store.reconcile_started(ledger,lambda _:self.fail('completed order replayed'))
                     self.assertEqual(ledger.read_bytes(),before)
 
+    def test_legacy_paused_zero_outcome_recovers_to_the_same_official_fill(self):
+        from test_crypto_entry import entry_fixture
+        from crypto_ownership_proof import entry_fill_proof_from_rows
+        for status in ('done_for_day','stopped','suspended'):
+            for mode in ('paper','live'):
+                with self.subTest(status=status,mode=mode),tempfile.TemporaryDirectory() as directory:
+                    root=Path(directory);marker,broker,observation,owner=entry_fixture(root,mode)
+                    ledger=root/'receipts.jsonl'
+                    old={'receipt_type':'outcome','outcome':'broker_terminal_failure',
+                        'effect_id':marker['entry_effect_id'],'client_order_id':marker['entry_client_order_id'],
+                        'mode':mode,'paper':mode=='paper','broker_status':status,'broker_receipt_id':broker['id'],
+                        'broker':{**broker,'status':status,'filled_qty':'0','filled_avg_price':None,'filled_at':None}}
+                    with ledger.open('a') as handle: handle.write(json.dumps(old)+'\n')
+                    proof=lambda *_:entry_fill_proof_from_rows(store._rows(ledger),marker,broker,observation,
+                        mode=mode,owner_id=owner)
+                    result=store.reconcile_started(ledger,lambda _:broker,on_reconciled=proof)
+                    self.assertEqual(result['unresolved'],0)
+                    self.assertEqual(store.effect_state(ledger,marker['entry_effect_id']),'outcome')
+                    self.assertIn(old,store._rows(ledger))
+                    before=ledger.read_bytes()
+                    store.reconcile_started(ledger,lambda _:self.fail('completed order replayed'))
+                    self.assertEqual(ledger.read_bytes(),before)
+
     def test_only_explicit_finite_zero_closes_terminal_orders(self):
         for qty in (None,'','NaN','Infinity','-1','0.01','0'):
             for mode in ('paper','live'):

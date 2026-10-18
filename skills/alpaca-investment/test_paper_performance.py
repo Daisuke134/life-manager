@@ -329,6 +329,20 @@ class PaperPerformanceTests(unittest.TestCase):
         result=build_paper_performance([intent,previous,latest,*_rows()],OBSERVATION,RISK)
         self.assertEqual(result,{'status':'unknown','reason':'paper_effect_unresolved'})
 
+    def test_paused_outcome_enrichment_requires_same_order_and_monotonic_quantity(self):
+        for status in ('done_for_day','stopped','suspended'):
+            for key,value in ((None,None),('id','foreign'),('client_order_id','foreign'),('filled_qty','1.0')):
+                with self.subTest(status=status,key=key):
+                    rows=_rows();previous=copy.deepcopy(rows[1])
+                    previous['outcome']='broker_terminal_failure';previous.pop('strategy_receipt')
+                    previous['broker'].update(status=status,filled_qty='0')
+                    if key: previous['broker'][key]=value
+                    result=build_paper_performance([rows[0],previous,*rows[1:]],OBSERVATION,RISK)
+                    if key:
+                        self.assertEqual(result,{'status':'unknown','reason':'paper_receipt_duplicate'})
+                    else:
+                        self.assertEqual(result['completed_round_trips'],1)
+
     def test_zero_fill_terminal_failure_is_not_a_pnl_event(self):
         failed_intent = {
             "receipt_type": "effect_intent",
