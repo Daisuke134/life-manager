@@ -72,6 +72,31 @@ class ProvisionSelectionTests(unittest.TestCase):
             self.assertEqual(destination.read_bytes(), before)
             self.assertTrue((root / ".control.lock").exists())
 
+    def test_corrupt_ownership_is_an_error_even_when_selection_is_valid(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            reports, destination = root/"reports.json", root/"selected-strategy.json"
+            reports.write_text(json.dumps([_report()]))
+            provision_selection(destination, reports)
+            (root/"etf-owned-position.json").write_text("{}")
+            with self.assertRaisesRegex(SelectionProvisionError, "ownership_state_invalid"):
+                provision_selection(destination, reports, refresh=True)
+
+    def test_closed_marker_without_matching_official_outcome_is_not_flat(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            reports, destination = root/"reports.json", root/"selected-strategy.json"
+            reports.write_text(json.dumps([_report()]))
+            provision_selection(destination, reports)
+            marker = {"status": "closed", "strategy_id": "alpaca-etf-126d-momentum-v1",
+                      "owner_id": "alpaca-investment-paper", "symbol": "QQQ", "position_qty": "1",
+                      "client_order_id": "lm-ai-"+"1"*24, "provider_order_id": "provider-entry",
+                      "decision_session": "2026-10-18", "close_provider_order_id": "unproven",
+                      "close_source_receipt_ids": [None]}
+            (root/"etf-owned-position.json").write_text(json.dumps(marker))
+            with self.assertRaisesRegex(SelectionProvisionError, "owned_close_evidence_unknown"):
+                provision_selection(destination, reports, refresh=True)
+
     def test_selected_report_is_written_as_release_pinned_state(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
