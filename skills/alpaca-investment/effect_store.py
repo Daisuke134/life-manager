@@ -93,19 +93,28 @@ def seal(ledger: Path, decision: dict[str, Any], order: dict[str, Any]) -> dict[
             "effect_id": effect_id, "mode": mode}
 
 
+def _owned_rows(ledger: Path) -> list[dict[str, Any]]:
+    if ledger.is_symlink():
+        raise ValueError("owned_entry_identity_invalid")
+    try:
+        return _rows(ledger)
+    except OSError as error:
+        raise ValueError("owned_entry_ledger_unavailable") from error
+
+
 def owned_entry_decision(ledger: Path, ownership: dict[str, Any], *, owner_id: str, mode: str) -> dict[str, Any]:
+    return owned_entry_decision_from_rows(_owned_rows(ledger), ownership, owner_id=owner_id, mode=mode)
+
+
+def owned_entry_decision_from_rows(rows: list[dict[str, Any]], ownership: dict[str, Any], *, owner_id: str, mode: str) -> dict[str, Any]:
     """Read the sealed policy and official filled buy for one owned entry."""
     if (not isinstance(mode, str) or mode not in {"paper", "live"}
             or owner_id != f"alpaca-investment-{mode}" or not isinstance(ownership, dict)):
         raise ValueError("owned_entry_identity_invalid")
     effect_id, client = ownership.get("entry_effect_id"), ownership.get("entry_client_order_id")
     if (not isinstance(effect_id, str) or re.fullmatch(r"[0-9a-f]{64}", effect_id) is None
-            or client != f"lm-ai-{effect_id[:24]}" or ledger.is_symlink()):
+            or client != f"lm-ai-{effect_id[:24]}"):
         raise ValueError("owned_entry_identity_invalid")
-    try:
-        rows = _rows(ledger)
-    except OSError as error:
-        raise ValueError("owned_entry_ledger_unavailable") from error
     intents = [row for row in rows if row.get("receipt_type") == "effect_intent"
                and row.get("status") == "planned" and row.get("effect_id") == effect_id]
     if len(intents) != 1:
@@ -231,64 +240,30 @@ def mark_started(ledger: Path, sealed: dict[str, str]) -> bool:
 
 
 
-def _crypto_close_pending(intent: dict[str, Any], outcome: dict[str, Any] | None) -> bool:
-    """A filled managed sell remains fenced until its scoped account receipt exists."""
+def _crypto_close_pending(intent: dict[str, Any], outcome: dict[str, Any] | None,
+                          rows: list[dict[str, Any]]) -> bool:
+    """Use the same historical proof as the position owner, without current state/env."""
     order = intent.get("order", {})
     if (not isinstance(order, dict) or order.get("asset_class") != "crypto" or order.get("side") != "sell"
             or not isinstance(outcome, dict) or outcome.get("outcome") != "broker_reconciled"):
         return False
+    # Import at call time: the position proof itself uses the ledger's pure entry reader.
+    from position_manager import recorded_close_proof_from_rows
     try:
-        wrapper = outcome["strategy_receipt"]
-        proof, account = wrapper["receipt"], wrapper["account_readback"]
-        mode, owner, broker = intent["mode"], intent["owner_id"], outcome["broker"]
-        if (mode not in {"paper", "live"} or owner != f"alpaca-investment-{mode}"
-                or outcome.get("mode") != mode or outcome.get("paper") is not (mode == "paper")
-                or outcome.get("client_order_id") != intent.get("client_order_id")
-                or outcome.get("broker_receipt_id") != broker.get("id")
-                or broker.get("client_order_id") != intent.get("client_order_id")
-                or broker.get("status") != "filled" or broker.get("side") != "sell"
-                or broker.get("symbol") not in {"BTC/USDC", "BTCUSDC"}
-                or broker.get("type") != "market" or broker.get("time_in_force") != "gtc"
-                or order.get("symbol") != "BTC/USDC" or order.get("type") != "market"
-                or order.get("time_in_force") != "gtc"
-                or intent.get("effect_id") != _digest({"decision_id": intent.get("decision_id"), "order": order})
-                or intent.get("client_order_id") != "lm-ai-" + intent["effect_id"][:24]
-                or proof.get("schema_version") != 1 or proof.get("kind") != "owned_crypto_close"
-                or proof.get("mode") != mode or proof.get("owner_id") != owner
-                or proof.get("strategy_id") != intent.get("strategy_id")
-                or not isinstance(proof.get("strategy_id"), str) or not proof["strategy_id"]
-                or proof.get("close_effect_id") != intent.get("effect_id")
-                or proof.get("close_client_order_id") != intent.get("client_order_id")
-                or proof.get("close_provider_order_id") != broker.get("id")
-                or not isinstance(broker.get("id"), str) or not broker["id"]
-                or proof.get("quote_currency") != "USDC"
-                or account.get("mode") != mode or account.get("paper") is not (mode == "paper")
-                or not isinstance(proof.get("entry_provider_order_id"), str) or not proof["entry_provider_order_id"]
-                or not re.fullmatch(r"[0-9a-f]{64}", proof["entry_effect_id"])
-                or proof.get("entry_client_order_id") != "lm-ai-" + proof["entry_effect_id"][:24]
-                or not re.fullmatch(r"[0-9a-f]{40,64}", proof["release_sha"])):
+        decisions = [r["decision"] for r in rows if r.get("receipt_type") == "decision"
+                     and r.get("decision_id") == intent.get("decision_id")]
+        if len(decisions) != 1:
             return True
-        qty, price, entry_price = (Decimal(str(proof[key])) for key in ("exit_filled_qty", "exit_price", "entry_price"))
-        if (any(not q.is_finite() or q <= 0 for q in (qty, price, entry_price))
-                or qty != Decimal(str(order["qty"])) or qty != Decimal(str(broker["filled_qty"]))
-                or price != Decimal(str(broker["filled_avg_price"]))):
-            return True
-        times = [datetime.fromisoformat(value.replace("Z", "+00:00")) for value in (
-            proof["entry_timestamp"], proof["exit_timestamp"], account["clock"]["observed_at"], broker["filled_at"])]
-        if (any(value.tzinfo is None for value in times) or not times[0] <= times[1] <= times[2]
-                or times[1] != times[3]):
-            return True
-        if any(not Decimal(str(account["account"][key])).is_finite() for key in ("cash", "equity")):
-            return True
-        if not isinstance(account["positions"], list):
-            return True
-        for position in account["positions"]:
-            if (not isinstance(position, dict) or not isinstance(position.get("symbol"), str)
-                    or not position["symbol"].strip()
-                    or position["symbol"] in {"BTCUSD", "BTCUSDC", "BTC/USDC", "BTC/USD", "BTC"}
-                    or not Decimal(str(position.get("qty"))).is_finite()):
-                return True
-    except (KeyError, ValueError, TypeError, AttributeError, InvalidOperation):
+        decision = decisions[0]
+        entries = [r for r in rows if r.get("receipt_type") == "outcome"
+                   and r.get("effect_id") == decision["entry_effect_id"]]
+        ownership = {"status": "closing", "symbol": "BTCUSD",
+            "entry_effect_id": decision["entry_effect_id"], "entry_client_order_id": decision["entry_client_order_id"],
+            "entry_filled_qty": entries[-1]["broker"]["filled_qty"], "owned_qty": order["qty"],
+            "close_effect_id": intent["effect_id"], "close_client_order_id": intent["client_order_id"]}
+        recorded_close_proof_from_rows(rows, ownership, outcome["broker"],
+            outcome["strategy_receipt"]["account_readback"], mode=intent["mode"], owner_id=intent["owner_id"])
+    except (KeyError, IndexError, ValueError, TypeError, AttributeError):
         return True
     return False
 
@@ -305,7 +280,7 @@ def _unresolved(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [row for effect_id, row in latest.items()
             if row.get("status") in UNRESOLVED_INTENT_STATUSES
             and (not _outcome_closed(latest_outcome.get(effect_id))
-                 or _crypto_close_pending(row, latest_outcome.get(effect_id))
+                 or _crypto_close_pending(row, latest_outcome.get(effect_id), rows)
                  or (row.get("strategy_readback_pending") is True
                      and not isinstance((latest_outcome.get(effect_id) or {}).get("strategy_receipt"), dict))) ]
 
@@ -417,9 +392,10 @@ def unresolved_intent_count(ledger: Path) -> int:
 
 def effect_state(ledger: Path, effect_id: str) -> str:
     """Return the durable state of one sealed effect without changing the ledger."""
-    rows = [row for row in _rows(ledger) if row.get("effect_id") == effect_id]
-    if _unresolved(rows):
+    all_rows = _rows(ledger)
+    if any(row.get("effect_id") == effect_id for row in _unresolved(all_rows)):
         return "started"
+    rows = [row for row in all_rows if row.get("effect_id") == effect_id]
     if any(row.get("receipt_type") == "outcome" for row in rows):
         return "outcome"
     statuses = {row.get("status") for row in rows if row.get("receipt_type") == "effect_intent"}

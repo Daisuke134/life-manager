@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from strategy_policy import ACTION_EXIT, ACTION_HOLD, evaluate, validate_policy_card
-from effect_store import ReconciliationPending, _digest, _rows, owned_entry_decision
+from effect_store import ReconciliationPending, _digest, _owned_rows, owned_entry_decision, owned_entry_decision_from_rows
 from etf_ownership import investment_owner_id
 from risk_policy import parse_instant
 
@@ -16,6 +16,10 @@ from risk_policy import parse_instant
 def load_owned_policy(state: Path, ownership: dict[str, Any], *, mode: str) -> dict[str, Any]:
     proof = owned_entry_decision(state / "receipts.jsonl", ownership,
                                  owner_id=investment_owner_id(), mode=mode)
+    return _owned_policy(proof, ownership, mode=mode)
+
+
+def _owned_policy(proof: dict[str, Any], ownership: dict[str, Any], *, mode: str) -> dict[str, Any]:
     decision, broker = proof["decision"], proof["broker"]
     card, release_sha = validate_policy_card(decision["policy_card"], decision.get("release_sha"),
                                              strategy_id=decision.get("strategy_id"))
@@ -38,7 +42,14 @@ def load_owned_policy(state: Path, ownership: dict[str, Any], *, mode: str) -> d
 def close_fill_proof(state: Path, ownership: dict[str, Any], broker: dict[str, Any],
                      observation: dict[str, Any], *, mode: str) -> dict[str, Any]:
     """Prove a sealed owned BTC close in native quote, without inventing costs."""
-    parent = load_owned_policy(state, ownership, mode=mode)
+    return close_fill_proof_from_rows(_owned_rows(state / "receipts.jsonl"), ownership, broker, observation,
+                                      mode=mode, owner_id=investment_owner_id())
+
+
+def close_fill_proof_from_rows(rows: list[dict[str, Any]], ownership: dict[str, Any], broker: dict[str, Any],
+                              observation: dict[str, Any], *, mode: str, owner_id: str) -> dict[str, Any]:
+    parent = _owned_policy(owned_entry_decision_from_rows(rows, ownership, owner_id=owner_id, mode=mode),
+                           ownership, mode=mode)
     try:
         if observation.get("mode") != mode or observation.get("paper") is not (mode == "paper"):
             raise ValueError
@@ -48,7 +59,6 @@ def close_fill_proof(state: Path, ownership: dict[str, Any], broker: dict[str, A
                 or len(effect) != 64 or any(c not in "0123456789abcdef" for c in effect)
                 or client != "lm-ai-" + effect[:24]):
             raise ValueError
-        rows = _rows(state / "receipts.jsonl")
         intents = [r for r in rows if r.get("receipt_type") == "effect_intent"
                    and r.get("status") == "planned" and r.get("effect_id") == effect]
         if len(intents) != 1:
@@ -145,6 +155,36 @@ def close_fill_proof(state: Path, ownership: dict[str, Any], broker: dict[str, A
         "entry_price": parent["entry_price"], "entry_timestamp": parent["entry_timestamp"],
         "exit_filled_qty": format(qty.normalize(), "f"), "exit_price": format(price.normalize(), "f"),
         "exit_timestamp": filled.isoformat(), "quote_currency": "USDC", "net_realized_pnl_usd": None}}
+
+
+
+def recorded_close_proof_from_rows(rows: list[dict[str, Any]], ownership: dict[str, Any],
+                                  broker: dict[str, Any], observation: dict[str, Any], *,
+                                  mode: str, owner_id: str) -> dict[str, Any]:
+    proof = close_fill_proof_from_rows(rows, ownership, broker, observation, mode=mode, owner_id=owner_id)
+    matched = False
+    for row in rows:
+        if row.get("receipt_type") != "outcome" or row.get("effect_id") != ownership.get("close_effect_id"):
+            continue
+        recorded = row.get("strategy_receipt")
+        if recorded is None:
+            continue
+        if not isinstance(recorded, dict) or recorded.get("receipt") != proof["receipt"]:
+            raise ValueError("owned_close_receipt_conflict")
+        expected = close_fill_proof_from_rows(rows, ownership, row.get("broker"),
+            recorded.get("account_readback"), mode=mode, owner_id=owner_id)
+        if recorded != expected:
+            raise ValueError("owned_close_receipt_conflict")
+        matched = True
+    if not matched:
+        raise ValueError("owned_close_receipt_missing")
+    return proof
+
+
+def recorded_close_fill_proof(state: Path, ownership: dict[str, Any], broker: dict[str, Any],
+                             observation: dict[str, Any], *, mode: str) -> dict[str, Any]:
+    return recorded_close_proof_from_rows(_owned_rows(state / "receipts.jsonl"), ownership, broker,
+                                          observation, mode=mode, owner_id=investment_owner_id())
 
 
 def choose(snapshot: dict[str, Any], observation: dict[str, Any], state: Path,
