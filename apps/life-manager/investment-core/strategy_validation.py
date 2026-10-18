@@ -581,7 +581,7 @@ def _parameter_sensitivity(
 
 
 def _empty_report(strategy_id: Any, status: str, reason: str, lookahead: bool = False) -> dict[str, Any]:
-    return {
+    report = {
         "status": status,
         "strategy_id": strategy_id,
         "train": _empty_summary(),
@@ -604,6 +604,13 @@ def _empty_report(strategy_id: Any, status: str, reason: str, lookahead: bool = 
         "decision": "rejected",
         "reason": reason,
     }
+
+    if status == "unknown":
+        for scope in (report, report["train"], report["validation"], report["holdout"]):
+            for key in scope:
+                if key.endswith("_usd"):
+                    scope[key] = None
+    return report
 
 
 def validate_series(
@@ -629,12 +636,7 @@ def validate_series(
         return _empty_report(card.strategy_id, status, candle_error)
     valuation_error = _quote_valuations(card, normalized)
     if valuation_error is not None:
-        report = _empty_report(card.strategy_id, "unknown", valuation_error)
-        for scope in (report, report["train"], report["validation"], report["holdout"]):
-            for key in scope:
-                if key.endswith("_usd"):
-                    scope[key] = None
-        return report
+        return _empty_report(card.strategy_id, "unknown", valuation_error)
     partitions, split_error = _partition_candles(normalized, split)
     if split_error is not None or partitions is None:
         return _empty_report(card.strategy_id, "rejected", split_error or "split_invalid")
