@@ -13,7 +13,7 @@ from typing import Any
 from crypto_ownership_proof import (_digest,_quantity_text,_sealed_entry_from_rows,entry_receipt_row,
     recorded_entry_proof_from_rows,recorded_no_fill_proof_from_rows,recorded_close_proof_from_rows,
     owned_quantity_state_from_rows,native_fee_debit_id,crypto_fx_quote_proof,_fx_instant,_execution_number,
-    crypto_fill_activity_proof,validate_crypto_activity_snapshot,combine_crypto_activity_snapshots,execution_activity_identity,native_fee_row_facts,crypto_activity_page_progress,crypto_activity_paged_snapshot,validate_crypto_activity_page_chunk,ReconciliationPending)
+    crypto_fill_activity_proof,validate_crypto_activity_snapshot,combine_crypto_activity_snapshots,execution_activity_identity,native_fee_row_facts,crypto_activity_page_progress,crypto_activity_paged_snapshot,validate_crypto_activity_page_chunk,ReconciliationPending,_account_positions)
 from effect_store import _owned_rows
 from paper_performance import _atomic_json,_operating_charge_key,_operating_cost_facts,_operating_cost_facts_match
 from cost_inventory import read_expected_inventory,select_expected_inventory
@@ -394,7 +394,173 @@ def _read_activity(**kwargs):
     raise ValueError('crypto_performance_activity_reader_missing')
 
 
-def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_reader=None,activity_page_reader=None,fx_reader=None,statement_readback_dir=None):
+_FLOW_FIELDS=('flow_readbacks','flow_windows','flow_pending','flow_checked_at','flow_readback_errors',
+              'flow_cache_rejected','flow_readback_through')
+
+
+def _update_crypto_flows(previous,observation,result,*,mode,owner_id,reader,ceiling=None):
+    """Reporting-only raw checkpoint; typed execution and money authority stay separate."""
+    if reader is None and not previous:return {}
+    clone=lambda value:json.loads(json.dumps(value))
+    state=clone(previous);errors=[]
+    rejected=state.get('flow_cache_rejected',{})
+    if not isinstance(rejected,dict):rejected={'previous':rejected}
+    def reject(key,value):
+        rejected.setdefault(key,[]).append(clone(value))
+        errors.append({'phase':'flow_cache','error_class':'ValueError','reason':'crypto_flow_cache_invalid'})
+    observed=observation['clock']['observed_at'];now=_fx_instant(observed)
+    scopes={}
+    for cycle in result['cycles']:
+        account=cycle.get('native_trading_account_id')
+        if isinstance(account,str) and account:
+            scopes.setdefault(account,{})[cycle['cycle_id']]=cycle['period_start']
+    starts={a:min((parse_instant(v) for v in ids.values())).astimezone(timezone.utc).replace(
+        hour=0,minute=0,second=0,microsecond=0).isoformat().replace('+00:00','Z') for a,ids in scopes.items()}
+    def query_ok(query,account):
+        if (not isinstance(query,dict) or account not in scopes or
+                not _fx_instant(starts[account])<=_fx_instant(query['after'])<_fx_instant(query['until'])<=now
+                or _fx_instant(query['until'])-_fx_instant(query['after'])>90*86400):raise ValueError
+        token=query.get('page_token')
+        if token is not None and (not isinstance(token,str) or not token.strip() or len(token)>8192):raise ValueError
+    def frame_ok(frame,query,account):
+        if (not isinstance(frame,dict) or frame.get('mode')!=mode or frame.get('paper') is not (mode=='paper')
+                or frame.get('native_trading_account_id')!=account or frame.get('net_pnl_usd') is not None
+                or frame.get('fee_completeness_status')!='unknown'
+                or frame.get('capture_status') not in {'captured','partial','failed'}):raise ValueError
+        request=frame['activity_request']
+        if (request.get('after')!=query['after'] or request.get('until')!=query['until']
+                or request.get('page_token')!=query.get('page_token') or request.get('direction')!='asc'
+                or type(request.get('page_size')) is not int or request['page_size']!=100):raise ValueError
+        pages=frame['activity_pages'];seen=set()
+        if not isinstance(pages,list) or len(pages)>4:raise ValueError
+        for i,page in enumerate(pages):
+            if not isinstance(page,list) or len(page)>100 or (i<len(pages)-1 and len(page)!=100):raise ValueError
+            for row in page:
+                if (not isinstance(row,dict) or not isinstance(row.get('id'),str) or not row['id'].strip()
+                        or row['id'] in seen or not isinstance(row.get('activity_type'),str)
+                        or not row['activity_type'].strip()):raise ValueError
+                seen.add(row['id'])
+        pagination=frame['activity_pagination'];token=frame.get('next_page_token')
+        if pagination=='exhausted':
+            if not pages or token is not None:raise ValueError
+        elif pagination=='partial':
+            if not pages or any(len(page)!=100 for page in pages) or token!=pages[-1][-1]['id']:raise ValueError
+        elif pagination!='unknown' or pages or token is not None:raise ValueError
+        wallet=frame.get('wallet_status')
+        if mode=='paper':
+            if wallet!='unsupported_on_paper' or frame.get('wallet_transfers') is not None:raise ValueError
+        elif wallet not in {'observed','failed','unknown'}:raise ValueError
+        if wallet=='observed' and (not isinstance(frame.get('wallet_transfers'),list)
+                or any(not isinstance(row,dict) for row in frame['wallet_transfers'])):raise ValueError
+        complete=pagination=='exhausted' and wallet in {'observed','unsupported_on_paper'}
+        if frame['capture_status']=='captured' and not complete:raise ValueError
+        return seen,complete
+    books=state.get('flow_readbacks',{})
+    if not isinstance(books,dict):reject('flow_readbacks',books);books={}
+    valid={}
+    for ref,record in books.items():
+        try:
+            if (ref!='crypto-flow:'+_digest(record) or record.get('owner_id')!=owner_id
+                    or record.get('mode')!=mode or record.get('paper') is not (mode=='paper')):raise ValueError
+            account=record['native_trading_account_id'];query=record['query'];query_ok(query,account)
+            if (not isinstance(record['cycle_ids'],list) or not record['cycle_ids']
+                    or not set(record['cycle_ids'])<=set(scopes[account])):raise ValueError
+            obs=record['account_readback']
+            if obs['account'].get('id')!=account or _fx_instant(obs['clock']['observed_at'])>now:raise ValueError
+            _account_positions(obs,mode=mode,not_before=parse_instant(query['until']))
+            if record.get('validation_status')=='recorded_only':frame_ok(record['readback'],query,account)
+            elif record.get('validation_status') not in {'invalid','unavailable'} or not record.get('error_class'):raise ValueError
+            valid[ref]=record
+        except (ValueError,KeyError,TypeError,AttributeError,ArithmeticError):reject('flow_readbacks',{ref:record})
+    books=valid
+    def chain(refs,window,*,complete):
+        account=window['native_trading_account_id'];query_ok(window,account)
+        if not isinstance(refs,list) or (complete and not refs):raise ValueError
+        token=None;seen=set();last=None
+        for i,ref in enumerate(refs):
+            record=books[ref];query=record['query'];raw=record['readback']
+            if (record['validation_status']!='recorded_only' or record['native_trading_account_id']!=account
+                    or any(query[k]!=window[k] for k in ('after','until')) or query.get('page_token')!=token):raise ValueError
+            ids,done=frame_ok(raw,query,account)
+            if not raw['activity_pages'] or ids&seen:raise ValueError
+            seen.update(ids);last=raw
+            if raw['activity_pagination']!='partial' and i<len(refs)-1:raise ValueError
+            token=raw.get('next_page_token')
+        if complete and (last is None or not frame_ok(last,books[refs[-1]]['query'],account)[1]):raise ValueError
+        if not complete and last is not None and last['activity_pagination']!='partial':raise ValueError
+        return token,seen
+    windows=state.get('flow_windows',[])
+    if not isinstance(windows,list):reject('flow_windows',windows);windows=[]
+    accepted=[]
+    for window in windows:
+        try:chain(window['readback_refs'],window,complete=True);accepted.append(window)
+        except (ValueError,KeyError,TypeError,AttributeError,ArithmeticError):reject('flow_windows',window)
+    windows=accepted;pending=state.get('flow_pending')
+    if pending is not None:
+        try:
+            token,_=chain(pending['readback_refs'],pending,complete=False)
+            if pending.get('page_token')!=token:raise ValueError
+        except (ValueError,KeyError,TypeError,AttributeError,ArithmeticError):reject('flow_pending',pending);pending=None
+    checked=state.get('flow_checked_at')
+    try:
+        if checked is not None and _fx_instant(checked)>now:raise ValueError
+    except (ValueError,TypeError,AttributeError,ArithmeticError):reject('flow_checked_at',checked);checked=None
+    account_value=observation.get('account');account=account_value.get('id') if isinstance(account_value,dict) else None
+    through=_fx_instant(starts[account]) if account in starts else None
+    if through is not None:
+        for window in sorted((w for w in windows if w['native_trading_account_id']==account),key=lambda w:_fx_instant(w['after'])):
+            if _fx_instant(window['after'])<=through:through=max(through,_fx_instant(window['until']))
+    def finish():
+        out={'flow_readbacks':books,'flow_windows':windows,'flow_pending':pending,
+            'flow_checked_at':checked,'flow_readback_errors':errors or state.get('flow_readback_errors',[]),
+            'flow_readback_through':datetime.fromtimestamp(through.numerator//through.denominator,timezone.utc).isoformat().replace('+00:00','Z') if through is not None else None}
+        # Preserve the original exact query string, including subsecond precision.
+        ends=[w['until'] for w in windows if w['native_trading_account_id']==account and _fx_instant(w['until'])==through]
+        if ends:out['flow_readback_through']=ends[-1]
+        if rejected:out['flow_cache_rejected']=rejected
+        return out
+    if reader is None or (checked is not None and _fx_instant(checked)==now):return finish()
+    if account not in scopes:return finish()
+    if pending is not None and pending['native_trading_account_id']!=account:
+        errors.append({'phase':'flow_scope','error_class':'ValueError','reason':'crypto_flow_pending_account_unavailable'});return finish()
+    if pending is None:
+        if ceiling is None or through>=_fx_instant(ceiling):return finish()
+        after=next((w['until'] for w in windows if w['native_trading_account_id']==account and _fx_instant(w['until'])==through),starts[account])
+        end=min(parse_instant(ceiling),parse_instant(after)+timedelta(days=90)).isoformat().replace('+00:00','Z')
+        pending={'after':after,'until':end,'native_trading_account_id':account,'page_token':None,'readback_refs':[]}
+    query={k:pending[k] for k in ('after','until','page_token')};incoming=None
+    record={'owner_id':owner_id,'mode':mode,'paper':mode=='paper','native_trading_account_id':account,
+        'cycle_ids':sorted(scopes[account]),'query':query,'account_readback':clone(observation),'readback':None,
+        'validation_status':'unavailable'}
+    checked=observed
+    try:
+        _account_positions(observation,mode=mode,not_before=parse_instant(query['until']))
+        incoming=reader(mode=mode,period_start=query['after'],period_end=query['until'],
+            native_trading_account_id=account,page_token=query['page_token'])
+        record['readback']=clone(incoming)
+        ids,complete=frame_ok(incoming,query,account)
+        _,known=chain(pending['readback_refs'],pending,complete=False)
+        if ids&known:raise ValueError('crypto_flow_execution_conflict')
+        record['validation_status']='recorded_only'
+    except Exception as error:
+        record.update(validation_status='invalid' if incoming is not None else 'unavailable',error_class=type(error).__name__,
+            error_code=str(error) if str(error).startswith('crypto_flow_') else type(error).__name__)
+        errors.append({'phase':'flow_readback','error_class':type(error).__name__,'reason':record['error_code'],
+            'observed_at':observed,'query':clone(query),'retryable':True})
+        complete=False
+    ref='crypto-flow:'+_digest(record);books[ref]=record
+    if record['validation_status']=='recorded_only':
+        if complete:
+            window={k:pending[k] for k in ('after','until','native_trading_account_id')}
+            window['readback_refs']=[*pending['readback_refs'],ref]
+            chain(window['readback_refs'],window,complete=True)
+            windows.append(window);through=_fx_instant(pending['until']);pending=None
+        elif incoming['activity_pagination']=='partial':
+            pending={**pending,'page_token':incoming['next_page_token'],'readback_refs':[*pending['readback_refs'],ref]}
+    return finish()
+
+
+def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_reader=None,activity_page_reader=None,fx_reader=None,statement_readback_dir=None,flow_reader=None):
     if mode not in {'paper','live'} or owner_id!=f'alpaca-investment-{mode}':
         raise ValueError('crypto_performance_scope_invalid')
     state=Path(state_dir);latest=state/'performance-crypto-latest.json';phase='ledger';retain_project_inputs=False
@@ -402,11 +568,12 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
     window_days=90;limit_window=None;query={};page_chunks=[];page_checked=None
     fx_frames={};fx_attempts={};fx_errors=[];billing_cache=None;known_cost_components=[];source_evidence=[]
     statement_docs=[];known_statements={};statement_input_status='unavailable'
-    statement_evidence=statement_inventory([],mode=mode);saved_statement_evidence=None;saved_fee_evidence={}
+    statement_evidence=statement_inventory([],mode=mode);saved_statement_evidence=None;saved_fee_evidence={};flow_fields={}
     try:
         phase='cache'
         if latest.exists():
             old=json.loads(latest.read_text())
+            flow_fields={k:old[k] for k in _FLOW_FIELDS if k in old}
             statement_docs=old.get('statement_readbacks',[])
             known_statements=old.get('known_statement_documents',{})
             saved_fee_evidence=old.get('fee_evidence',{})
@@ -552,6 +719,8 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
         if ((page_checked is not None and parse_instant(page_checked)>now)
                 or (limit_window is not None and parse_instant(limit_window['until'])>now)):
             raise ValueError('crypto_performance_time_invalid')
+        if flow_fields.get('flow_pending') is not None:
+            flow_fields=_update_crypto_flows(flow_fields,observation,result,mode=mode,owner_id=owner_id,reader=flow_reader)
         reader=activity_reader or _read_activity
         def read_window(start):
             requested=parse_instant(start)
@@ -581,6 +750,7 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
                 candidate=page_chunks+[chunk]
                 progress=crypto_activity_page_progress(candidate,mode=mode)
                 page_chunks=candidate;page_checked=observed
+                flow_fields=_update_crypto_flows(flow_fields,observation,result,mode=mode,owner_id=owner_id,reader=flow_reader,ceiling=limit_window['until'])
                 if not progress['complete']: raise ReconciliationPending('crypto_activity_pagination_pending')
             incoming=crypto_activity_paged_snapshot(page_chunks,mode=mode)
             finish=parse_instant(incoming['requested_period_end'])
@@ -629,6 +799,8 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
         if not known_fees<=current_fees: raise ValueError('crypto_performance_fee_history_missing')
         known_fees.update(current_fees)
         result['fee_readback_through']=through.isoformat().replace('+00:00','Z')
+        flow_ceiling=max([through,*[parse_instant(c['period_end']) for c in result['cycles']]])
+        flow_fields=_update_crypto_flows(flow_fields,observation,result,mode=mode,owner_id=owner_id,reader=flow_reader,ceiling=flow_ceiling.isoformat().replace('+00:00','Z'))
         phase='fx_reference'
         if not isinstance(fx_frames,dict) or not isinstance(fx_attempts,dict):
             raise ValueError('crypto_fx_cache_invalid')
@@ -687,7 +859,7 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
         result.update(_summary(result['cycles']))
         phase='write'
         observed=observation['clock']['observed_at'];day=parse_instant(observed).astimezone(timezone.utc).date().isoformat()
-        payload={**result,'statement_readbacks':statement_docs,'known_statement_documents':known_statements,
+        payload={**result,**flow_fields,'statement_readbacks':statement_docs,'known_statement_documents':known_statements,
                  'statement_input_status':statement_input_status,
                  'known_operating_cost_components':known_cost_components,'known_operating_cost_source_evidence':source_evidence,'operating_cost_readback':billing_cache,'fx_quote_readbacks':fx_frames,'fx_attempted_at':fx_attempts,'fx_readback_errors':fx_errors,'observed_at':observed,'performance_day':day,'activity_readbacks':frames,'order_activity_refs':refs,
                  'known_entry_effect_ids':sorted(known_entries),'known_closed_cycle_ids':sorted(known_cycles),
@@ -723,7 +895,7 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
                 'reason':reason}
             next_action='reconcile_native_statement_capture_without_replacing_known_document_evidence'
         keep_activity_inputs=phase in {'ledger','history','observation','activity_readback','write','activity_page_readback','activity_page_cache','fx_reference','operating_costs','statement_cache','statement_readback'} or (phase=='project' and retain_project_inputs)
-        result={'schema_version':1,'owner_id':owner_id,'mode':mode,'paper':mode=='paper','report_scope':'owned_crypto_cycles',
+        result={**flow_fields,'schema_version':1,'owner_id':owner_id,'mode':mode,'paper':mode=='paper','report_scope':'owned_crypto_cycles',
             'measurement_status':'partial','reason':reason,'error_class':type(error).__name__,'failed_phase':phase,
             'operating_cost_source_history_status':'invalid' if reason=='crypto_operating_cost_source_history_invalid' else 'recorded_only',
             'completed_round_trips':None,'net_pnl_usd':None,'capital_expansion_allowed':False,
