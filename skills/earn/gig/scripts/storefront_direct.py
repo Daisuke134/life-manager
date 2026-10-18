@@ -281,6 +281,19 @@ def _write_pre_effect_hint() -> None:
         pass
 
 
+def _begin_provider_mutation() -> bool:
+    """Drop lm_loop_run's pre-spawn pre-effect hint; return the new `mutation_attempted`.
+
+    The host writes {"status": "pre_effect_failure"} before spawning this owner, so every
+    `mutation_attempted = True` goes through here: a failure after it must stay fenced as
+    effect_unknown, while genuine pre-effect exits keep (or rewrite) the hint.
+    """
+    hint_path = os.environ.get("LIFE_MANAGER_RESULT_HINT_PATH", "").strip()
+    if hint_path:
+        Path(hint_path).unlink(missing_ok=True)
+    return True
+
+
 def _append(path: Path, value: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as handle:
@@ -6584,7 +6597,7 @@ def run_once(args: argparse.Namespace) -> tuple[int, dict]:
                         # Coconala (a real provider mutation) rather than only claiming an
                         # existing one; it decides which internally, so the flag is set before
                         # the call regardless of which branch it takes.
-                        mutation_attempted = True
+                        mutation_attempted = _begin_provider_mutation()
                         draft = storefront_draft.create_or_claim_blank_draft(
                             getattr(args, "default_tab_script", DEFAULT_TAB)
                         )
@@ -6721,13 +6734,13 @@ def run_once(args: argparse.Namespace) -> tuple[int, dict]:
                                 inventory_path.parent / "bootstrap-public-readback",
                             )
                         except RuntimeError:
-                            mutation_attempted = True
+                            mutation_attempted = _begin_provider_mutation()
                             storefront_draft.prepare_draft(
                                 bootstrap_contract,
                                 getattr(args, "default_tab_script", DEFAULT_TAB),
                                 inventory_path.parent / "bootstrap-draft",
                             )
-                            mutation_attempted = True
+                            mutation_attempted = _begin_provider_mutation()
                             bootstrap_result = storefront_draft.publish_draft(
                                 bootstrap_contract,
                                 getattr(args, "default_tab_script", DEFAULT_TAB),
@@ -6901,7 +6914,7 @@ def run_once(args: argparse.Namespace) -> tuple[int, dict]:
                 blocked = _persist_effect_block(args, output, pass_id, "before_reopen_effect")
                 if blocked is not None:
                     return 0, blocked
-                mutation_attempted = True
+                mutation_attempted = _begin_provider_mutation()
                 _reopen_suspended_listings(
                     inventory["services"],
                     default_tab_script=getattr(args, "default_tab_script", DEFAULT_TAB),
@@ -7064,7 +7077,7 @@ def run_once(args: argparse.Namespace) -> tuple[int, dict]:
             deletable = _deletable_drafts(args.state_dir / "new-listing-drafts.jsonl", draft_ids)
             if args.effect and deletable:
                 try:
-                    mutation_attempted = True
+                    mutation_attempted = _begin_provider_mutation()
                     _delete_one_draft(inventory_path.parent, deletable[0],
                                       getattr(args, "default_tab_script", DEFAULT_TAB))
                 except Exception as error:  # cleanup never ends a wake
@@ -7455,7 +7468,7 @@ def run_once(args: argparse.Namespace) -> tuple[int, dict]:
                         )
                         if blocked is not None:
                             return 0, blocked
-                        mutation_attempted = True
+                        mutation_attempted = _begin_provider_mutation()
                         if judgement["changed_field"] == "image":
                             seller_before, _, intent_path = _execute_image_effect(
                                 ws_url=ws_url, contract=mutation_contract, judgement=judgement,
@@ -7575,7 +7588,7 @@ def run_once(args: argparse.Namespace) -> tuple[int, dict]:
                         raise RuntimeError("storefront_retire_tab_open_failed")
                     try:
                         retire_attempted_this_wake = True
-                        mutation_attempted = True
+                        mutation_attempted = _begin_provider_mutation()
                         retire_attempt = args.state_dir / f"retire-intent-{retire_service_id}.json"
                         _atomic_write(retire_attempt, {
                             "version": 1, "status": "attempted", "effect": 0,
@@ -8001,7 +8014,7 @@ def run_once(args: argparse.Namespace) -> tuple[int, dict]:
                                 preferred_draft_ids.append(draft_id)
                     # See the bootstrap path's identical comment: this may create a brand-new
                     # blank draft on Coconala rather than only claim an existing one.
-                    mutation_attempted = True
+                    mutation_attempted = _begin_provider_mutation()
                     create_draft_claim = storefront_draft.create_or_claim_blank_draft(
                         getattr(args, "default_tab_script", DEFAULT_TAB),
                         preferred_draft_ids=preferred_draft_ids,
@@ -8203,7 +8216,7 @@ def run_once(args: argparse.Namespace) -> tuple[int, dict]:
                 # here, immediately before the call, not at the top of the expression that
                 # also covers the two read-only/no-op branches.
                 nonlocal mutation_attempted
-                mutation_attempted = True
+                mutation_attempted = _begin_provider_mutation()
                 return storefront_draft.prepare_draft(
                     new_listing_contract,
                     getattr(args, "default_tab_script", DEFAULT_TAB),
@@ -8275,7 +8288,7 @@ def run_once(args: argparse.Namespace) -> tuple[int, dict]:
                 )
                 if blocked is not None:
                     return 0, blocked
-                mutation_attempted = True
+                mutation_attempted = _begin_provider_mutation()
                 draft_result = storefront_draft.publish_draft(
                     new_listing_contract,
                     getattr(args, "default_tab_script", DEFAULT_TAB),

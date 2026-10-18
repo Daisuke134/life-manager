@@ -11,7 +11,9 @@ ROOT = Path(__file__).resolve().parents[4]
 OWNER = ROOT / "skills/earn/lancers/scripts/storefront-owner"
 
 
-def _run_owner(tmp_path: Path, result: dict[str, object]) -> tuple[subprocess.CompletedProcess[str], Path]:
+def _run_owner(
+    tmp_path: Path, result: dict[str, object], *, host_hint: bool = False
+) -> tuple[subprocess.CompletedProcess[str], Path]:
     fake_root = tmp_path / "release"
     fake_script = fake_root / "skills/earn/lancers/scripts/storefront_offer.py"
     fake_script.parent.mkdir(parents=True)
@@ -30,6 +32,10 @@ def _run_owner(tmp_path: Path, result: dict[str, object]) -> tuple[subprocess.Co
     fake_python.chmod(0o700)
     state_root = tmp_path / "state"
     hint = tmp_path / "entrypoint-result.json"
+    if host_hint:
+        # lm_loop_run.py writes this marker before spawning the owner.
+        hint.write_text('{"status":"pre_effect_failure","effect":0}\n', encoding="utf-8")
+        hint.chmod(0o600)
     env = {
         **os.environ,
         "LIFE_MANAGER_PYTHON": str(fake_python),
@@ -57,3 +63,48 @@ def test_storefront_owner_does_not_mark_provider_effect_uncertainty(tmp_path: Pa
     )
     assert failed.returncode == 1
     assert not hint.exists()
+
+
+def test_storefront_owner_clears_host_pre_effect_hint_before_provider_step(tmp_path: Path) -> None:
+    uncertain, hint = _run_owner(
+        tmp_path / "uncertain",
+        {"ok": False, "logged_in": True, "error": "portfolio_submission_uncertain"},
+        host_hint=True,
+    )
+    assert uncertain.returncode == 1
+    assert not hint.exists()
+
+    preflight, hint = _run_owner(
+        tmp_path / "preflight",
+        {"ok": False, "logged_in": False, "error": "account_unavailable"},
+        host_hint=True,
+    )
+    assert preflight.returncode == 1
+    assert json.loads(hint.read_text(encoding="utf-8")) == {
+        "status": "pre_effect_failure",
+        "effect": 0,
+    }
+    assert stat.S_IMODE(hint.stat().st_mode) == 0o600
+
+
+def test_storefront_owner_keeps_host_hint_for_account_lock_busy(tmp_path: Path) -> None:
+    busy, hint = _run_owner(
+        tmp_path / "busy",
+        {"ok": False, "logged_in": False, "error": "account_lock_busy"},
+        host_hint=True,
+    )
+    assert busy.returncode == 1
+    assert json.loads(hint.read_text(encoding="utf-8")) == {"status": "pre_effect_failure", "effect": 0}
+    assert stat.S_IMODE(hint.stat().st_mode) == 0o600
+
+
+def test_storefront_owner_keeps_host_hint_for_any_pre_login_failure(tmp_path: Path) -> None:
+    # storefront_offer reaches a provider mutation only after logged_in=True.
+    failed, hint = _run_owner(
+        tmp_path / "pre-login",
+        {"ok": False, "logged_in": False, "error": "offer_unavailable"},
+        host_hint=True,
+    )
+    assert failed.returncode == 1
+    assert json.loads(hint.read_text(encoding="utf-8")) == {"status": "pre_effect_failure", "effect": 0}
+    assert stat.S_IMODE(hint.stat().st_mode) == 0o600

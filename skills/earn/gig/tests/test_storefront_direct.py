@@ -361,7 +361,8 @@ def test_invalid_official_contract_fails_before_downstream_work_and_releases_lea
     assert downstream == []
 
 
-def test_read_phase_contract_failure_writes_pre_effect_hint(tmp_path, monkeypatch):
+@pytest.mark.parametrize("host_hint", [False, True])
+def test_read_phase_contract_failure_writes_pre_effect_hint(tmp_path, monkeypatch, host_hint):
     """A failure before any provider mutation must let the host release the owner cleanly.
 
     lm_loop_run.py only trusts this hint from an allowlisted loop_id/entrypoint pair (see
@@ -371,6 +372,10 @@ def test_read_phase_contract_failure_writes_pre_effect_hint(tmp_path, monkeypatc
     """
     hint_path = tmp_path / "entrypoint-result.json"
     monkeypatch.setenv("LIFE_MANAGER_RESULT_HINT_PATH", str(hint_path))
+    if host_hint:
+        # lm_loop_run.py writes this marker before spawning the owner (blind spot of 6b85d55d33).
+        hint_path.write_text('{"status":"pre_effect_failure","effect":0}\n', encoding="utf-8")
+        hint_path.chmod(0o600)
     lease = {"ok": True, "ws": "ws://127.0.0.1/page/1", "token": "t", "generation": 2,
              "context_id": "c", "target_id": "p"}
 
@@ -410,7 +415,8 @@ def test_read_phase_contract_failure_writes_pre_effect_hint(tmp_path, monkeypatc
     }
 
 
-def test_failure_after_mutation_attempt_does_not_write_pre_effect_hint(tmp_path, monkeypatch):
+@pytest.mark.parametrize("host_hint", [False, True])
+def test_failure_after_mutation_attempt_does_not_write_pre_effect_hint(tmp_path, monkeypatch, host_hint):
     """Once a provider mutation is attempted, a later failure must NOT claim no-effect.
 
     Mirrors test_read_phase_contract_failure_writes_pre_effect_hint but drives the wake past
@@ -420,6 +426,10 @@ def test_failure_after_mutation_attempt_does_not_write_pre_effect_hint(tmp_path,
     """
     hint_path = tmp_path / "entrypoint-result.json"
     monkeypatch.setenv("LIFE_MANAGER_RESULT_HINT_PATH", str(hint_path))
+    if host_hint:
+        # lm_loop_run.py writes this marker before spawning the owner (blind spot of 6b85d55d33).
+        hint_path.write_text('{"status":"pre_effect_failure","effect":0}\n', encoding="utf-8")
+        hint_path.chmod(0o600)
     # A real bundle root routes run_once() past the from-scratch public_bootstrap import path
     # (see test_incremental_storefront_wake_validates_inventory_releases_lease_and_persists),
     # which would otherwise try to invoke a real proposal agent for a brand-new listing.
@@ -533,12 +543,13 @@ def test_run_once_mutation_call_site_is_preceded_by_mutation_attempted_true(call
     assert positions, f"{call_pattern!r} has no call site in run_once (test is stale)"
     for position in positions:
         window = body[max(0, position - 2000):position]
-        last_true = window.rfind("mutation_attempted = True")
+        # The flag flip must also drop the host pre-spawn hint (_begin_provider_mutation).
+        last_true = window.rfind("mutation_attempted = _begin_provider_mutation()")
         last_false = window.rfind("mutation_attempted = False")
         line_number = body.count("\n", 0, position) + 1
         assert last_true != -1 and last_true > last_false, (
             f"run_once line {line_number}: {call_pattern!r} has no near-preceding "
-            "mutation_attempted = True (a later failure in this wake could wrongly be "
+            "mutation_attempted = _begin_provider_mutation() (a later failure in this wake could wrongly be "
             "reported as pre-effect)"
         )
 
