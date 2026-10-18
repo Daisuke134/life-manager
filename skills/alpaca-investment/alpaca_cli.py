@@ -42,6 +42,7 @@ SAFE_ERROR_CODES = frozenset({
     "owned_closed_identity_invalid", "owned_no_fill_proof_invalid",
     "owned_entry_account_invalid", "owned_entry_account_pending",
     "owned_entry_receipt_missing", "owned_entry_receipt_conflict",
+    "crypto_activity_period_invalid", "crypto_activity_invalid", "crypto_activity_limit_exceeded",
     "owned_no_fill_receipt_missing", "owned_no_fill_receipt_conflict",
     "alpaca_allocator_risk_invalid", "alpaca_allocator_shape_invalid",
     "alpaca_crypto_history_invalid",
@@ -137,6 +138,69 @@ def _run(cli: Path, args: list[str], env: dict[str, str]) -> Any:
         raise ValueError("alpaca_cli_json_invalid") from error
 
 
+def _read_activity_pages(cli_path: Path, env: dict[str, str], *, kind: str,
+                         after: str, until: str, query: str, error_prefix: str,
+                         max_pages: int = 10) -> list[dict[str, Any]]:
+    """Read a fixed window to an observed short page, never infer missing pages."""
+    result: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    page_token: str | None = None
+    for _page in range(max_pages):
+        args = ["account", "activity", "list", "--activity-types", kind,
+                "--after", after, "--until", until, "--page-size", "100",
+                "--direction", "asc", "--quiet", "--jq", query]
+        if page_token is not None:
+            args.extend(["--page-token", page_token])
+        page = _run(cli_path, args, env)
+        if not isinstance(page, list) or len(page) > 100:
+            raise ValueError(f"{error_prefix}_activity_invalid")
+        for row in page:
+            if (not isinstance(row, dict) or row.get("activity_type") != kind
+                    or not isinstance(row.get("id"), str) or not row["id"].strip()
+                    or row["id"] in seen):
+                raise ValueError(f"{error_prefix}_activity_invalid")
+            seen.add(row["id"])
+        result.extend(page)
+        if len(page) < 100:
+            return result
+        page_token = page[-1]["id"]
+    raise ValueError(f"{error_prefix}_activity_limit_exceeded")
+
+
+def read_crypto_activity_evidence(*, credentials_path: Path, cli_path: Path,
+                                  mode: str, period_start: str, period_end: str) -> dict[str, Any]:
+    """Capture raw activity evidence; exhaustion does not prove fee settlement.
+
+    CFEE can be posted later without an order_id. Retain all account activities
+    in the window; ownership and fee attribution belong to the proof consumer.
+    """
+    if mode not in {"paper", "live"}:
+        raise ValueError("investment_mode_invalid")
+    try:
+        start, end = parse_instant(period_start), parse_instant(period_end)
+        if start > end or end - start > timedelta(days=90):
+            raise ValueError
+    except (ValueError, TypeError, AttributeError) as error:
+        raise ValueError("crypto_activity_period_invalid") from error
+    # Activities are filtered by creation time. Include the entire start day
+    # and retain each provider timestamp/date rather than relabeling it a fill.
+    after = start.astimezone(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    after_text = after.isoformat().replace("+00:00", "Z")
+    until = end.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    env = _context(credentials_path, cli_path, mode=mode)
+    fills, fees = [_read_activity_pages(cli_path, env, kind=kind, after=after_text,
+        until=until, query=".", error_prefix="crypto", max_pages=4) for kind in ("FILL", "CFEE")]
+    snapshot = {"schema_version": 1, "mode": mode, "paper": mode == "paper",
+        "requested_period_start": period_start, "requested_period_end": period_end,
+        "request": {"after": after_text, "until": until, "direction": "asc", "page_size": 100},
+        "pagination": "exhausted", "fills": fills, "fees": fees,
+        "fee_attribution_status": "unknown", "fee_settlement_status": "unknown",
+        "net_realized_pnl_usd": None}
+    # Content address of this local snapshot, not a provider-issued receipt ID.
+    snapshot["source_receipt_id"] = "alpaca-crypto-activities:" + _digest_rows([snapshot])
+    return snapshot
+
+
 def read_paper_etf_cost_evidence(
     *, credentials_path: Path, cli_path: Path,
     orders: list[Mapping[str, Any]], period_start: str,
@@ -186,28 +250,8 @@ def read_paper_etf_cost_evidence(
     until = observed.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
     def activities(kind: str, query: str) -> list[dict[str, Any]]:
-        result: list[dict[str, Any]] = []
-        page_token: str | None = None
-        for _page in range(10):
-            args = [
-                "account", "activity", "list", "--activity-types", kind,
-                "--after", after, "--until", until,
-                "--page-size", "100", "--direction", "asc", "--quiet", "--jq", query,
-            ]
-            if page_token is not None:
-                args.extend(["--page-token", page_token])
-            page = _run(cli_path, args, env)
-            if (not isinstance(page, list) or len(page) > 100
-                    or any(not isinstance(row, dict) for row in page)):
-                raise ValueError("paper_cost_activity_invalid")
-            result.extend(page)
-            if len(page) < 100:
-                return result
-            next_token = page[-1].get("id")
-            if not isinstance(next_token, str) or not next_token:
-                raise ValueError("paper_cost_activity_invalid")
-            page_token = next_token
-        raise ValueError("paper_cost_activity_limit_exceeded")
+        return _read_activity_pages(cli_path, env, kind=kind, after=after,
+                                    until=until, query=query, error_prefix="paper_cost")
 
     all_fills = activities(
         "FILL", "[.[]|{id,activity_type,order_id,symbol,side,qty,price,transaction_time}]",
