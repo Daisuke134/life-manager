@@ -15128,6 +15128,10 @@ rawの成功/失敗や未対応paper walletをtrade gate/fee0/settlement/fee完�
 
 順序更新の理由は「不正cacheの拒否が安全な再取得に進まず、評価用原本の取得を恒久的に止める」実反例。旧順序は全回帰→独立反証→限定受入、新順序は全回帰済み→本反例の最小RED→隔離slotを含む不正診断値の保持とcanonical再構成の最小修正→影響回帰/独立再反証→限定受入。現在cursorは反例REDの8失敗/errors0を確認した後の最小修正。診断slotが非listなら元値を1要素のlistとして保持してから、新しい拒否入力を追加する。同clock追加read0・次clock再取得・金融anchor保持を実writerで確認する。これは手順(3)内の原因修正で、他の稼働ownerや進行中の外部effectを変更しない。
 
+**D4(e)-2b隔離slot修正の再検証:** REDb1569d77a7はpaper/live×4不正型で8fail/errors0、GREEN24afc73390は既存slotの非list元値を1要素listに保持してから拒否入力を追記する1行でfocused writer9を通す。全Alpaca709/core178/contract190jobs/mapped112/errors0/diff PASS、最終独立再反証は進行中で未受入。稼働版・provider・資金・fenceに変更はない。
+
+次の数量照合に必要なquery境界診断は、既取得native CFEEのmicrosecond整列created_atを基準に、同account GET1回とCFEE query2回だけの有限read-only probeを行う。afterをnative時刻そのもの/1microsecond前とし、同じ固定untilでexact native IDの有無を比較する。credentials正本全体と完全一致行を再読し、既存immutable credential reader・redirect拒否・response上限・private0700/0600・O_EXCLを再利用する。注文/資金/state/profile変更0。公開docsのafter文言だけでは包含境界が確定しないため実wireを観測する診断であり、他typeや全期間の完全性、fee0、netを証明しない。
+
 残る原子TODOは次の一列とする。
 1. 補助診断slotの4不正型で失敗とreader0回を再現する最小テストを追加する。
 2. 元の不正値・有効raw/quote・金融anchorを保持して診断slotを安全に隔離し、新clockのcanonical再取得へ進める最小修正を行う。
