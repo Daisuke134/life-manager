@@ -131,6 +131,31 @@ def test_delivery_sends_exact_state_once_and_persists_message_id(tmp_path: Path)
     assert persisted["telegram"]["message_id"] == "9001"
 
 
+def test_orphaned_pending_row_from_a_dead_run_does_not_block_this_runs_delivery(tmp_path: Path) -> None:
+    # 2026-10-14: claim_next raised after enqueue, leaving a pending row. Every later hourly run
+    # claimed that orphan instead of its own row and exited 1, so no receipt was sent for 4 days.
+    module = load_module()
+    outbox = tmp_path / "outbox.sqlite"
+    calls = []
+
+    def sender(message: str) -> str:
+        calls.append(message)
+        return "9001"
+
+    orphan = module.build_receipt(sources(), "2026-10-14T06:21:36Z")
+    module.enqueue(outbox, orphan["run_id"], module.render_message(orphan), orphan["observed_at"])
+    changed = sources()
+    changed["inventory"]["counts"]["occupied"] = 4
+    current = module.build_receipt(changed, "2026-10-14T07:22:01Z")
+
+    delivered = module.deliver_receipt(current, outbox, tmp_path / "receipts", sender)
+
+    assert delivered["telegram"] == {"status": "delivered", "message_id": "9001"}
+    assert calls == [module.render_message(current)]
+    statuses = {item.event_key: item.status for item in module.list_items(outbox)}
+    assert statuses[orphan["run_id"]] == "pending"
+
+
 def test_provider_without_message_id_is_quarantined_and_not_retried(tmp_path: Path) -> None:
     module = load_module()
     calls = 0
