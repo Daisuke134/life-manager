@@ -360,8 +360,6 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
             billing_cache=old.get('operating_cost_readback')
             known_cost_components=old.get('known_operating_cost_components',old.get('operating_cost_components',[]))
             source_evidence=old.get('known_operating_cost_source_evidence',[])
-            try:source_evidence=remember_source_evidence(source_evidence,old,owner_id=owner_id,mode=mode)
-            except ValueError as error:raise ValueError('crypto_operating_cost_source_history_invalid') from error
             for key,target in (('known_entry_effect_ids',known_entries),('known_closed_cycle_ids',known_cycles),('known_fee_activity_ids',known_fees)):
                 values=old.get(key,[])
                 if not isinstance(values,list) or any(not isinstance(v,str) or not v for v in values):
@@ -400,6 +398,9 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
                     or parse_instant(page_chunks[0]['requested_period_start'])!=parse_instant(limit_window['after'])
                     or parse_instant(page_chunks[0]['requested_period_end'])!=parse_instant(limit_window['until'])):
                 raise ValueError('crypto_performance_activity_cache_invalid')
+            phase='operating_costs'
+            try:source_evidence=remember_source_evidence(source_evidence,old,owner_id=owner_id,mode=mode)
+            except ValueError as error:raise ValueError('crypto_operating_cost_source_history_invalid') from error
         phase='ledger'
         rows=_owned_rows(state/'receipts.jsonl')
         plans=_scoped_plans(rows,mode,owner_id)
