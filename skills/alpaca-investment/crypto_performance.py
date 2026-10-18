@@ -369,14 +369,15 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
     window_days=90;limit_window=None;query={};page_chunks=[];page_checked=None
     fx_frames={};fx_attempts={};fx_errors=[];billing_cache=None;known_cost_components=[];source_evidence=[]
     statement_docs=[];known_statements={};statement_input_status='unavailable'
-    statement_evidence=statement_inventory([],mode=mode);saved_statement_evidence=None
+    statement_evidence=statement_inventory([],mode=mode);saved_statement_evidence=None;saved_fee_evidence={}
     try:
         phase='cache'
         if latest.exists():
             old=json.loads(latest.read_text())
             statement_docs=old.get('statement_readbacks',[])
             known_statements=old.get('known_statement_documents',{})
-            saved_statement_evidence=old.get('fee_evidence',{}).get('statement_evidence')
+            saved_fee_evidence=old.get('fee_evidence',{})
+            saved_statement_evidence=saved_fee_evidence.get('statement_evidence') if isinstance(saved_fee_evidence,dict) else None
             if isinstance(saved_statement_evidence,dict):statement_evidence=saved_statement_evidence
             phase='cache'
             if old.get('mode')!=mode or old.get('owner_id')!=owner_id or old.get('report_scope')!='owned_crypto_cycles':
@@ -397,7 +398,7 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
             for entry in [*old.get('open_entries',[]),*old.get('pending_entries',[])]:
                 known_entries.add(entry['entry_effect_id'])
             known_entries.update(old.get('no_fill_entry_effect_ids',[]))
-            known_fees.update(old.get('fee_evidence',{}).get('observed_fee_activity_ids',[]))
+            known_fees.update(saved_fee_evidence.get('observed_fee_activity_ids',[]) if isinstance(saved_fee_evidence,dict) else [])
             if not isinstance(frames,dict) or not isinstance(refs,dict):
                 raise ValueError('crypto_performance_activity_cache_invalid')
             fee_refs=old.get('fee_activity_refs',list(refs.values()))
@@ -430,16 +431,18 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
             except ValueError as error:raise ValueError('crypto_operating_cost_source_history_invalid') from error
         phase='statement_cache'
         rebuilt=statement_inventory(statement_docs,mode=mode)
+        statement_evidence=rebuilt
         anchors={d['document_id']:d['document_fingerprint'] for d in statement_docs}
+        if (not isinstance(saved_fee_evidence,dict)
+                or (saved_statement_evidence is not None and not isinstance(saved_statement_evidence,dict))):
+            raise ValueError('crypto_statement_evidence_conflict')
         if not isinstance(known_statements,dict) or known_statements!=anchors:
             raise ValueError('crypto_statement_evidence_conflict')
         fields=('documents','observations','observed_row_count','completeness_status','observation_scope')
         if saved_statement_evidence is not None and any(saved_statement_evidence.get(k)!=rebuilt[k] for k in fields):
-            statement_evidence=rebuilt
             raise ValueError('crypto_statement_evidence_conflict')
         if statement_docs and saved_statement_evidence is None:
             raise ValueError('crypto_statement_evidence_conflict')
-        statement_evidence=rebuilt
         phase='statement_readback'
         incoming_statements=read_statement_readbacks(
             statement_readback_dir if statement_readback_dir is not None else state/'statement-readbacks',mode=mode,
