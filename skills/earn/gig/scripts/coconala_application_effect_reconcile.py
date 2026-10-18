@@ -112,6 +112,7 @@ SETTLED_STATES = frozenset({"confirmed", "retired_absent"})
 
 APPLY_ROOT = Path.home() / "gig" / "apply-direct"
 EVIDENCE_DIR = APPLY_ROOT / "evidence"
+LEDGER_PATH = Path.home() / "gig" / "applied.jsonl"
 CLOSED_READBACK = EVIDENCE_DIR / "request-closed-readback.json"
 CLOSED_READBACK_SCRIPT = SCRIPT_DIR / "coconala_request_closed_readback.py"
 # application_parent raises application_応募する_button_missing before it dispatches any
@@ -147,12 +148,20 @@ def _closed_rows(path: Path) -> dict:
         return {}
 
 
+_COMMIT_TASK = re.compile(r"gig-apply-direct-((gig-apply-direct-[0-9]+-[0-9]+)-commit-([0-9]+))")
+
+
+def _commit_task(value: dict) -> re.Match | None:
+    """(worker pass id, commit pass id, request id) of the commit pass that wrote the intent."""
+    match = _COMMIT_TASK.fullmatch(str((value.get("lease_fence") or {}).get("task") or ""))
+    return match if match is not None and match.group(3) == value["request_id"] else None
+
+
 def _identity_account(value: dict, apply_root: Path) -> str | None:
     """Account captured before the marker by the same commit pass that wrote the intent."""
     rid = value["request_id"]
-    task = str((value.get("lease_fence") or {}).get("task") or "")
-    match = re.fullmatch(r"gig-apply-direct-((gig-apply-direct-[0-9]+-[0-9]+)-commit-([0-9]+))", task)
-    if match is None or match.group(3) != rid:
+    match = _commit_task(value)
+    if match is None:
         return None
     found = list((apply_root / match.group(2)).glob(
         f"*/commit-workers/{rid}/gig-{match.group(1)}-B2-{rid}-identity.json"))
@@ -273,7 +282,7 @@ def _intent_settled(value: dict, applied: set[str], closed: set[str],
     screenshot-based retire path is not a provider readback; after the marker it
     also needs ``no_dispatch`` (pre-dispatch abort plus the official applicant roster).
     A post-marker ``prepared`` intent settles only through ``no_dispatch`` too: its own
-    applicant roster lists our account, or is complete without it after the safety lag.
+    applicant roster is complete without our account after the safety lag.
     """
     request_id = str(value.get("request_id") or "")
     if request_id and (request_id in applied or request_id in closed):
@@ -304,23 +313,18 @@ def _store_intents(intent_root: Path):
 
 
 def _settled_scan(intent_root: Path, *, roster_path: Path | None = None,
-                  closed_path: Path | None = None, apply_root: Path | None = None,
-                  extra_closed_path: Path | None = None) -> dict[str, object]:
-    """Count store entries that may still hide a duplicable application (fail closed).
-
-    ``extra_closed_path`` adds one occurrence's own per-request readback to the global one.
-    """
+                  closed_path: Path | None = None, apply_root: Path | None = None) -> dict[str, object]:
+    """Count store entries that may still hide a duplicable application (fail closed)."""
     applied = _roster_ids(roster_path or _latest_roster())
     closed_path = closed_path or CLOSED_READBACK
     closed = _closed_ids(closed_path)
     rows = _closed_rows(closed_path)
-    if extra_closed_path is not None:
-        closed |= _closed_ids(extra_closed_path)
-        rows.update(_closed_rows(extra_closed_path))
 
     def no_dispatch(value: dict) -> bool:
         if value.get("state") == "prepared":
-            return _roster_settles_attempt(value, intent_root, apply_root or APPLY_ROOT, rows) is not None
+            # "present" is a landed, unconfirmed application with no ledger row: it must
+            # stay unresolved here, or the store proof would close owner fences as effect 0.
+            return _roster_settles_attempt(value, intent_root, apply_root or APPLY_ROOT, rows) == "absent"
         return _roster_proves_no_dispatch(value, intent_root, apply_root or APPLY_ROOT, rows)
 
     digest = hashlib.sha256()
@@ -440,16 +444,51 @@ def _close_closed_batch(owner_id: str, occurrence_id: str, runtime_run_id: str,
             "evidence_ref": proof["evidence_ref"]}
 
 
+def _applied_detail(value: dict, apply_root: Path) -> dict | None:
+    """The request detail the commit pass judged, bound to the intent by its snapshot hash.
+
+    The worker hashes a sub-snapshot of its pass snapshot under its own lease fence; only the
+    pass snapshot that recomputes the intent's exact ``snapshot_sha256`` is accepted.
+    """
+    match = _commit_task(value)
+    if match is None:
+        return None
+    parent = reconciler.parent
+    for path in sorted((apply_root / match.group(2)).glob("*/application-snapshot.json")):
+        try:
+            snapshot = json.loads(path.read_text(encoding="utf-8"))
+            details = [row for row in snapshot.get("request_details") or []
+                       if isinstance(row, dict) and str(row.get("request_id")) == value["request_id"]]
+            if len(details) == 1 and parent._planner_subsnapshot(
+                    {**snapshot, "lease_fence": value["lease_fence"]}, details
+            )["snapshot_sha256"] == value.get("snapshot_sha256"):
+                return details[0]
+        except Exception:
+            continue
+    return None
+
+
+def _append_applied_ledger(value: dict, detail: dict, readback_path: Path) -> None:
+    """The parent's own idempotent ledger writer, fed the exact detail the pass judged."""
+    parent = reconciler.parent
+    effects = parent.CdpParentEffects(
+        ws_url="ws://roster-reconcile/devtools/page/none", evidence_dir=readback_path.parent,
+        ledger_path=LEDGER_PATH, pass_id=_commit_task(value).group(1))
+    effects._fresh_details[value["request_id"]] = detail
+    effects._readback_paths[value["request_id"]] = readback_path
+    effects.canonical_ledger_append(parent._application_row_from_intent(detail, value))
+
+
 def _close_roster_batch(owner_id: str, occurrence_id: str, runtime_run_id: str,
-                        request_ids: Sequence[str], intent_root: Path, *,
-                        resolver=None) -> dict[str, object] | None:
+                        request_ids: Sequence[str], intent_root: Path) -> dict[str, object] | None:
     """Close the exact occurrence from each prepared request's official applicant roster.
 
     Reads the per-request readback ``_close_closed_batch`` just wrote (no second browser).
-    Our account listed: the click applied, so confirm the intent and close through the
-    provider-confirmed resolver. Every other request complete without it and read after the
-    marker + safety lag: no application, so close with the write-ahead store proof the
-    pre-dispatch roster already feeds. Anything else is None and the fence stays.
+    Our account listed: the click applied, so write the ledger row, confirm the intent and
+    close through the provider-confirmed resolver. Complete without it and read after the
+    marker + safety lag: no application, so close this occurrence with the account-bound
+    no-dispatch proof and retire the intent, as the historical sibling does. Anything else is
+    None and the fence stays.
     """
     try:
         bound = reconciler._require_complete_request_set(
@@ -466,47 +505,81 @@ def _close_roster_batch(owner_id: str, occurrence_id: str, runtime_run_id: str,
                 for value in pending}
     if None in verdicts.values():
         return None
-    present = sorted(rid for rid, verdict in verdicts.items() if verdict == "present")
-    absent = sorted(rid for rid, verdict in verdicts.items() if verdict == "absent")
+    present = [value for value in pending if verdicts[str(value["request_id"])] == "present"]
+    absent = [value for value in pending if verdicts[str(value["request_id"])] == "absent"]
+    accounts = {_identity_account(value, APPLY_ROOT) for value in absent}
+    if len(accounts) > 1:
+        return None
     evidence_ref = str(path.resolve())
     base = {"retryable": False, "occurrence_id": occurrence_id, "request_ids": sorted(verdicts),
-            "applied_request_ids": present, "no_dispatch_request_ids": absent,
+            "applied_request_ids": sorted(str(value["request_id"]) for value in present),
+            "no_dispatch_request_ids": sorted(str(value["request_id"]) for value in absent),
             "effect": len(bound) - len(absent), "readback": 1, "evidence_ref": evidence_ref}
+    details = {str(value["request_id"]): _applied_detail(value, APPLY_ROOT) for value in present}
+    if None in details.values():
+        return {**base, "status": "unresolved", "reason": "ledger_detail_unavailable",
+                "next_action": "restore the commit pass snapshot; keep the fence closed"}
     store = fence.IntentStore(intent_root)
     try:
-        for value in pending:
-            if verdicts[str(value["request_id"])] == "present":
-                store.confirm(value["request_id"], expected_cas=value["cas"])
-    except fence.IntentFenceError as error:
+        for value in present:
+            # Ledger first, as the parent does: CONFIRMED must never exist without its row.
+            _append_applied_ledger(value, details[str(value["request_id"])], path)
+            store.confirm(value["request_id"], expected_cas=value["cas"])
+    except Exception as error:
         return {**base, "status": "unresolved", "reason": "intent_confirmation_failed",
                 "retryable": True, "error_class": type(error).__name__,
                 "error_detail": str(error)[:240]}
     if absent:
-        checked: dict[str, object] = {}
-
-        def settled_proof() -> dict[str, object]:
-            checked.update(_settled_scan(intent_root, extra_closed_path=path))
-            return {"owner_id": owner_id, "occurrence_id": occurrence_id, "verified": True,
-                    "proof_type": "write_ahead_store_settled.v1", **checked}
-
-        closed_now = _resolve_settled(owner_id, occurrence_id, settled_proof=settled_proof)
-        reason = "official_roster_account_absent"
-        failure = "write_ahead_store_not_settled"
-        extra = {"unresolved_irreversible": checked.get("unresolved_irreversible")}
-    else:
-        urls = [f"https://coconala.com/requests/{rid}" for rid in present]
-        proof = {"owner_id": owner_id, "occurrence_id": occurrence_id,
-                 "runtime_run_id": runtime_run_id, "request_ids": present, "verified": True,
-                 "provider": "coconala", "proof_type": "provider_official_readback_exact_request_batch",
-                 "source": "official_request_applicant_roster",
-                 "provider_receipt_id": ",".join(urls), "evidence_ref": evidence_ref}
-        closed_now = (resolver or resource_admission.resolve_unknown_occurrence)(
-            owner_id, occurrence_id, official_readback=lambda: proof, expected_state="claimed")
-        reason = "official_roster_account_present"
-        failure = "occurrence_not_current_or_already_closed"
-        extra = {"provider_receipt_id": proof["provider_receipt_id"]}
-    return {**base, **extra, "status": "reconciled" if closed_now is True else "unresolved",
-            "reason": reason if closed_now is True else failure}
+        account = next(iter(accounts))
+        proof = {"verified": True, "proof_type": "historical_account_bound_no_dispatch",
+                 "owner_id": owner_id, "occurrence_id": occurrence_id,
+                 "runtime_run_id": runtime_run_id, "provider": "coconala",
+                 "request_ids": base["no_dispatch_request_ids"],
+                 "applied_request_ids": base["applied_request_ids"],
+                 "historical_account_id": account,
+                 "historical_profile_url": f"https://coconala.com/users/{account}",
+                 "evidence_ref": evidence_ref,
+                 "target_roster": {str(value["request_id"]): {
+                     "official_url": f"https://coconala.com/requests/{value['request_id']}",
+                     "applicants_count": rows[str(value["request_id"])]["applicants_count"],
+                     "contracted_count": 0, "historical_account_absent": True}
+                     for value in absent}}
+        closed_now = resource_admission.resolve_historical_no_dispatch_occurrence(
+            owner_id, occurrence_id, no_dispatch_proof=lambda: proof, expected_state="claimed")
+        if closed_now is not True:
+            return {**base, "status": "unresolved", "reason": "occurrence_not_current_or_already_closed"}
+        try:
+            for value in absent:
+                rid = value["request_id"]
+                with store.locked(rid):
+                    current = store._read_locked(rid)
+                    if current is None:
+                        raise fence.IntentFenceError("intent_missing_after_resolution")
+                    if current["state"] == fence.PREPARED and current["cas"] == value["cas"]:
+                        store.retire_prepared_locked(
+                            rid, expected_cas=value["cas"],
+                            reason="official_roster_account_absent_no_dispatch_confirmed:" + evidence_ref)
+                    elif current["state"] != fence.RETIRED_ABSENT:
+                        raise fence.IntentFenceError("intent_state_changed_after_resolution")
+        except Exception as error:
+            return {**base, "status": "unresolved", "reason": "intent_retire_failed",
+                    "error_class": type(error).__name__, "error_detail": str(error)[:240],
+                    "next_action": "inspect the durable intent archive; the provider fence is closed"}
+        return {**base, "status": "reconciled", "reason": "official_roster_account_absent",
+                "historical_account_id": account}
+    urls = [f"https://coconala.com/requests/{value['request_id']}" for value in present]
+    proof = {"owner_id": owner_id, "occurrence_id": occurrence_id,
+             "runtime_run_id": runtime_run_id, "request_ids": base["applied_request_ids"],
+             "verified": True, "provider": "coconala",
+             "proof_type": "provider_official_readback_exact_request_batch",
+             "source": "official_request_applicant_roster",
+             "provider_receipt_id": ",".join(urls), "evidence_ref": evidence_ref}
+    closed_now = resource_admission.resolve_unknown_occurrence(
+        owner_id, occurrence_id, official_readback=lambda: proof, expected_state="claimed")
+    return {**base, "provider_receipt_id": proof["provider_receipt_id"],
+            "status": "reconciled" if closed_now is True else "unresolved",
+            "reason": "official_roster_account_present" if closed_now is True
+            else "occurrence_not_current_or_already_closed"}
 
 
 def _parser() -> argparse.ArgumentParser:

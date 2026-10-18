@@ -480,91 +480,183 @@ _ROSTER_PASS = "gig-apply-direct-1792296999466785000-59911"
 _OBSERVED = "2026-10-18T03:00:00+00:00"
 
 
-def _started(store, rid, *, occurrence="hf-gig-apply-direct:occ-1", run="run-1"):
-    import application_effect_fence as fence
+def _pass_snapshot(parent, rid):
+    return parent.snapshot_contract.build_envelope({
+        "pass_id": _ROSTER_PASS,
+        "lease_fence": {"task": "gig-apply-direct", "token": "1" * 32, "generation": 1},
+        "observed_at": "2026-10-18T01:00:00Z",
+        "objective": {"target_applications": 1, "max_applications": 1,
+                      "required_search_source_ids": ["source"]},
+        "search_sources": [{
+            "source_id": "source", "url": "https://coconala.com/requests", "page_index": 1,
+            "card_request_ids": [rid], "has_next": False, "exhausted": True,
+            "screenshot_sha256": "2" * 64, "dom_sha256": "3" * 64}],
+        "request_details": [{
+            "request_id": rid, "canonical_url": f"https://coconala.com/requests/{rid}",
+            "title": "業務自動化", "category": "IT・プログラミング",
+            "visible_text": "募集内容\n業務自動化をお願いします。", "accepting_applications": True,
+            "budget_min_jpy": 10_000, "budget_max_jpy": 30_000, "applicants_count": 0,
+            "contracted_count": 0, "applicants": [], "observed_at": "2026-10-18T01:00:00Z"}],
+        "already_applied_ids": [],
+    })
+
+
+def _started(wrapper, store, rid, *, occurrence="hf-gig-apply-direct:occ-1", run="run-1",
+             apply_root=None):
+    fence, parent = wrapper.fence, wrapper.reconciler.parent
+    lease = {"task": f"gig-apply-direct-{_ROSTER_PASS}-commit-{rid}", "token": "b" * 32, "generation": 1}
+    snapshot_sha256 = "a" * 64
+    if apply_root is not None:      # the commit pass's own snapshot, as the parent persists it
+        snapshot = _pass_snapshot(parent, rid)
+        phase = apply_root / _ROSTER_PASS / "refresh-evidence"
+        phase.mkdir(parents=True, exist_ok=True)
+        (phase / "application-snapshot.json").write_text(json.dumps(snapshot))
+        snapshot_sha256 = parent._planner_subsnapshot(
+            {**snapshot, "lease_fence": lease}, snapshot["request_details"])["snapshot_sha256"]
     payload = fence.intent_payload(
-        request_id=rid, snapshot_sha256="a" * 64, proposal_text="提案本文です。" * 40,
-        price_jpy=10_000, deliver_date="2026-11-01",
-        lease_fence={"task": f"gig-apply-direct-{_ROSTER_PASS}-commit-{rid}",
-                     "token": "b" * 32, "generation": 1})
+        request_id=rid, snapshot_sha256=snapshot_sha256, proposal_text="提案本文です。" * 40,
+        price_jpy=10_000, deliver_date="2026-11-01", lease_fence=lease)
     with store.locked(rid):
         fence._durable_replace(store.intent_path(rid), payload)
         return store.mark_irreversible_attempt_started_locked(
             rid, expected_cas=payload["cas"], runtime_run_id=run, runtime_occurrence_id=occurrence)
 
 
+def _admission_calls(wrapper, monkeypatch):
+    """Run the real admission resolvers' proof checks; only the database write is faked."""
+    calls = []
+
+    def close(owner_id, occurrence_id, expected_state=None, proof_check=None):
+        calls.append((owner_id, occurrence_id, expected_state))
+        return True if proof_check is None else proof_check()
+
+    monkeypatch.setattr(wrapper.resource_admission, "_close_unknown_occurrence", close)
+    return calls
+
+
 def _roster_batch(tmp_path, monkeypatch, *, ids, count=None, expander_remaining=False,
-                  marker_age=3600):
+                  marker_age=3600, observed_at=_OBSERVED, unrelated=False, ledger_rows=()):
     import os
     from datetime import datetime
     wrapper = _load_wrapper()
     store = wrapper.fence.IntentStore(tmp_path / "intents")
-    confirmed = _started(store, "5330001")
-    store.confirm("5330001", expected_cas=confirmed["cas"])
-    _started(store, "5331065")
-    observed = datetime.fromisoformat(_OBSERVED).timestamp()
-    os.utime(store.intent_path("5331065"), (observed - marker_age, observed - marker_age))
     apply_root = tmp_path / "apply-direct"
+    confirmed = _started(wrapper, store, "5330001")
+    store.confirm("5330001", expected_cas=confirmed["cas"])
+    _started(wrapper, store, "5331065", apply_root=apply_root)
+    if unrelated:        # another occurrence's unresolved attempt must not block this one
+        _started(wrapper, store, "5328691", occurrence="hf-gig-apply-direct:other", run="run-2")
+    marker = datetime.fromisoformat(_OBSERVED).timestamp() - marker_age
+    os.utime(store.intent_path("5331065"), (marker, marker))
     worker = apply_root / _ROSTER_PASS / "refresh-evidence" / "commit-workers" / "5331065"
     worker.mkdir(parents=True)
     (worker / f"gig-{_ROSTER_PASS}-commit-5331065-B2-5331065-identity.json").write_text(json.dumps({
         "source": "code_owned_cdp_authenticated_identity", "request_id": "5331065",
         "account_id": "2564121"}))
     monkeypatch.setattr(wrapper, "APPLY_ROOT", apply_root)
+    ledger = tmp_path / "applied.jsonl"
+    ledger.write_text("".join(json.dumps(row) + "\n" for row in ledger_rows))
+    monkeypatch.setattr(wrapper, "LEDGER_PATH", ledger)
     evidence = tmp_path / "evidence"
     evidence.mkdir()
     monkeypatch.setattr(wrapper.reconciler, "_default_evidence_dir", lambda occ: evidence)
-    _roster(evidence, rid="5331065", ids=ids, count=count, observed_at=_OBSERVED,
+    _roster(evidence, rid="5331065", ids=ids, count=count, observed_at=observed_at,
             expander_remaining=expander_remaining).rename(evidence / "request-closed-readback.json")
-    calls = {"unknown": [], "settled": []}
-
-    def unknown(owner_id, occurrence_id, *, official_readback, expected_state):
-        calls["unknown"].append((occurrence_id, official_readback(), expected_state))
-        return True
-
-    def settled(owner_id, occurrence_id, *, settled_proof):
-        calls["settled"].append((occurrence_id, settled_proof()))
-        return True
-
-    monkeypatch.setattr(wrapper, "_resolve_settled", settled)
+    calls = _admission_calls(wrapper, monkeypatch)
+    monkeypatch.setattr(wrapper, "_resolve_settled", lambda *a, **k: calls.append("settled") or True)
     result = wrapper._close_roster_batch(
         "hf-gig-apply-direct", "hf-gig-apply-direct:occ-1", "run-1", ["5330001", "5331065"],
-        tmp_path / "intents", resolver=unknown)
-    return result, calls, store.read("5331065")["state"]
+        tmp_path / "intents")
+    ledger_ids = [json.loads(line).get("requestId") for line in ledger.read_text().splitlines()]
+    return result, calls, store.read("5331065")["state"], ledger_ids
 
 
-def test_roster_listing_our_account_confirms_and_closes_via_provider_resolver(tmp_path, monkeypatch) -> None:
-    result, calls, state = _roster_batch(tmp_path, monkeypatch, ids=("111", "2564121"))
-    assert state == "confirmed"
+def test_roster_listing_our_account_records_ledger_then_closes_via_provider_resolver(tmp_path, monkeypatch) -> None:
+    result, calls, state, ledger_ids = _roster_batch(tmp_path, monkeypatch, ids=("111", "2564121"))
+    assert state == "confirmed" and ledger_ids == ["5331065"]     # CONFIRMED implies a ledger row
     assert result["status"] == "reconciled" and result["reason"] == "official_roster_account_present"
-    assert calls["settled"] == []
-    occurrence, proof, expected = calls["unknown"][0]
-    assert (occurrence, expected) == ("hf-gig-apply-direct:occ-1", "claimed")
-    assert proof["verified"] is True and proof["request_ids"] == ["5331065"]
-    assert proof["provider_receipt_id"] == "https://coconala.com/requests/5331065"
+    assert calls == [("hf-gig-apply-direct", "hf-gig-apply-direct:occ-1", "claimed")]
+    assert result["provider_receipt_id"] == "https://coconala.com/requests/5331065"
 
 
-def test_complete_late_roster_without_our_account_settles_via_store_proof(tmp_path, monkeypatch) -> None:
-    result, calls, state = _roster_batch(tmp_path, monkeypatch, ids=("111", "222"))
-    assert state == "prepared"                     # never re-clickable from this proof
-    assert calls["unknown"] == []
-    occurrence, proof = calls["settled"][0]
-    assert occurrence == "hf-gig-apply-direct:occ-1"
-    assert proof["proof_type"] == "write_ahead_store_settled.v1"
-    assert (proof["scanned_intents"], proof["unresolved_irreversible"]) == (2, 0)
-    assert result["status"] == "reconciled" and result["no_dispatch_request_ids"] == ["5331065"]
+def test_present_ledger_append_is_idempotent(tmp_path, monkeypatch) -> None:
+    result, _calls, state, ledger_ids = _roster_batch(
+        tmp_path, monkeypatch, ids=("2564121",), ledger_rows=({"requestId": "5331065"},))
+    assert result["status"] == "reconciled" and state == "confirmed" and ledger_ids == ["5331065"]
+
+
+def test_present_roster_read_before_the_marker_keeps_the_fence(tmp_path, monkeypatch) -> None:
+    result, calls, state, ledger_ids = _roster_batch(
+        tmp_path, monkeypatch, ids=("2564121",), marker_age=-60)
+    assert result is None and calls == [] and state == "prepared" and ledger_ids == []
+
+
+def test_complete_late_absent_roster_closes_this_occurrence_despite_unrelated_unresolved(tmp_path, monkeypatch) -> None:
+    result, calls, state, ledger_ids = _roster_batch(
+        tmp_path, monkeypatch, ids=("111", "222"), unrelated=True)
+    assert calls == [("hf-gig-apply-direct", "hf-gig-apply-direct:occ-1", "claimed")]
+    assert result["status"] == "reconciled" and result["reason"] == "official_roster_account_absent"
+    assert result["no_dispatch_request_ids"] == ["5331065"] and result["historical_account_id"] == "2564121"
+    assert state == "retired_absent" and ledger_ids == []         # retired like the sibling, no ledger
+
+
+def test_absent_proof_uses_the_occurrence_bound_no_dispatch_resolver() -> None:
+    import inspect
+    source = inspect.getsource(_load_wrapper()._close_roster_batch)
+    assert "resolve_historical_no_dispatch_occurrence" in source
+    assert "_resolve_settled" not in source
 
 
 def test_incomplete_roster_without_our_account_keeps_the_fence(tmp_path, monkeypatch) -> None:
     for index, kwargs in enumerate(({"expander_remaining": True}, {"count": 3})):
-        case = tmp_path / str(index)
-        result, calls, state = _roster_batch(case, monkeypatch, ids=("111", "222"), **kwargs)
-        assert result is None and calls == {"unknown": [], "settled": []} and state == "prepared"
+        result, calls, state, _ledger = _roster_batch(tmp_path / str(index), monkeypatch,
+                                                      ids=("111", "222"), **kwargs)
+        assert result is None and calls == [] and state == "prepared"
 
 
 def test_absent_roster_read_too_soon_after_the_marker_keeps_the_fence(tmp_path, monkeypatch) -> None:
-    result, calls, state = _roster_batch(tmp_path, monkeypatch, ids=("111", "222"), marker_age=600)
-    assert result is None and calls == {"unknown": [], "settled": []} and state == "prepared"
+    result, calls, state, _ledger = _roster_batch(tmp_path, monkeypatch, ids=("111", "222"), marker_age=600)
+    assert result is None and calls == [] and state == "prepared"
+
+
+def test_present_roster_never_settles_the_global_store(tmp_path, monkeypatch, capsys) -> None:
+    # An application that landed but is not yet confirmed must never let the target-less
+    # path close owner fences through write_ahead_store_settled.v1 with effect 0.
+    import os
+    from datetime import datetime
+    wrapper = _load_wrapper()
+    store = wrapper.fence.IntentStore(tmp_path / "intents")
+    _started(wrapper, store, "5331065")
+    marker = datetime.fromisoformat(_OBSERVED).timestamp() - 3600
+    os.utime(store.intent_path("5331065"), (marker, marker))
+    apply_root = tmp_path / "apply-direct"
+    worker = apply_root / _ROSTER_PASS / "refresh-evidence" / "commit-workers" / "5331065"
+    worker.mkdir(parents=True)
+    (worker / f"gig-{_ROSTER_PASS}-commit-5331065-B2-5331065-identity.json").write_text(json.dumps({
+        "source": "code_owned_cdp_authenticated_identity", "request_id": "5331065",
+        "account_id": "2564121"}))
+    closed = tmp_path / "closed.json"
+    monkeypatch.setattr(wrapper, "CLOSED_READBACK", closed)
+    monkeypatch.setattr(wrapper, "APPLY_ROOT", apply_root)
+    monkeypatch.setattr(wrapper.reconciler, "discover_single_target",
+                        lambda *, owner_id, intent_root: None)
+
+    def never(*_args, **_kwargs):
+        raise AssertionError("a landed, unconfirmed application must keep every owner fence")
+
+    monkeypatch.setattr(wrapper, "_fenced_occurrences", never)
+    monkeypatch.setattr(wrapper, "_resolve_settled", never)
+
+    def runner(command, **_kwargs):
+        _roster(tmp_path, rid="5331065", ids=("2564121",), observed_at=_OBSERVED)
+        return subprocess.CompletedProcess(command, 0)
+
+    assert wrapper.main(["--intent-root", str(tmp_path / "intents")], runner=runner) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["status"] == "nothing_to_reconcile" and result["unresolved_irreversible"] == 1
+    _roster(tmp_path, rid="5331065", ids=("111", "222"), observed_at=_OBSERVED)
+    assert wrapper._settled_scan(tmp_path / "intents", roster_path=tmp_path / "none.json",
+                                 closed_path=closed)["unresolved_irreversible"] == 0
 
 
 def test_adapter_tries_the_roster_before_the_history_walk(tmp_path, monkeypatch, capsys) -> None:
