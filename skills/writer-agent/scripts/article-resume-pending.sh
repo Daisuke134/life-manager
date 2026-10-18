@@ -40,6 +40,46 @@ pass_record() {
     '{at:$at, occurrence_id:$occurrence_id, pid:$pid, branch:$branch,
       run_ids:($run_ids | split(" ") | map(select(length > 0)))}' \
     | sed 's/^/article-resume: pass /' >>"$LOG" 2>/dev/null || true
+  # A branch that may reach a model or publisher clears lm-loop-run's pre-spawn pre_effect marker
+  # (copy of article-daily run_model_pass): a nonzero exit after it must stay effect_unknown.
+  case "$1" in
+    publication|priority-publication|prepublication-adoption|quality-feedback|quality-feedback-model|quality-repair-model)
+      if [ -n "${RESULT_HINT_PATH:-}" ]; then rm -f -- "$RESULT_HINT_PATH" || exit 1; fi
+      HINT_BASELINE="" ;;
+  esac
+}
+
+# The verified no-effect result belongs to this wrapper alone (copy of article-daily #8247): only
+# the exec'd trusted entrypoints (owner fence, article-daily.sh with its own isolation) receive the
+# hint path or occurrence; anything another child writes at the guessable path is removed, and the
+# hint is written only on a branch that provably dispatched no publisher.
+RESULT_HINT_PATH="${LIFE_MANAGER_RESULT_HINT_PATH:-}"
+RESULT_OCCURRENCE_ID="${LIFE_MANAGER_OCCURRENCE_ID:-}"
+export -n LIFE_MANAGER_RESULT_HINT_PATH LIFE_MANAGER_OCCURRENCE_ID
+HINT_BASELINE="$(cat "$RESULT_HINT_PATH" 2>/dev/null || true)"
+drop_foreign_result_hint() {
+  [ -n "$RESULT_HINT_PATH" ] || return 0
+  [ "$(cat "$RESULT_HINT_PATH" 2>/dev/null || true)" = "$HINT_BASELINE" ] && return 0
+  rm -f -- "$RESULT_HINT_PATH"
+}
+write_no_effect_hint() {
+  [ -n "$RESULT_HINT_PATH" ] && [ -n "$RESULT_OCCURRENCE_ID" ] || return 0
+  local temporary
+  temporary="$(mktemp "$RESULT_HINT_PATH.XXXXXX")" || return 1
+  if (umask 077 && jq -cn --arg occurrence_id "$RESULT_OCCURRENCE_ID" --arg reason "$1" \
+      '{schema_version:1, kind:"life_manager_no_effect_result", status:"verified_no_effect",
+        effect:0, owner_id:"article-resume", occurrence_id:$occurrence_id, reason:$reason}' \
+      >"$temporary") && mv -f -- "$temporary" "$RESULT_HINT_PATH"; then
+    HINT_BASELINE="$(cat "$RESULT_HINT_PATH")"
+  else
+    rm -f -- "$temporary"
+    return 1
+  fi
+}
+# exec hands this occurrence's result path to the trusted Writer entrypoints only.
+exec_with_result_hint() {
+  LIFE_MANAGER_RESULT_HINT_PATH="$RESULT_HINT_PATH" \
+    LIFE_MANAGER_OCCURRENCE_ID="$RESULT_OCCURRENCE_ID" exec "$@"
 }
 
 [ -d "$STATE_DIR/runs" ] || exit 0
@@ -66,12 +106,14 @@ if [ -f "$PUBLICATION_PAUSE_FILE" ]; then
   fi
   echo "article-resume: publication paused file=$PUBLICATION_PAUSE_FILE" >>"$LOG"
   pass_record publication-paused
+  drop_foreign_result_hint || exit 1
+  write_no_effect_hint publication_paused || true
   exit 0
 fi
 if [ "${ARTICLE_OWNER_FENCE_ACTIVE:-0}" != "1" ]; then
   OWNER_FENCE_DIR="${ARTICLE_OWNER_FENCE_DIR:-$HOME/.local/state/life-manager/writer/owner-fence}"
   export ARTICLE_OWNER_FENCE_DIR
-  exec python3 "$ARTICLE_ROOT/scripts/writer_owner_fence.py" run \
+  exec_with_result_hint python3 "$ARTICLE_ROOT/scripts/writer_owner_fence.py" run \
     --fence-dir "$OWNER_FENCE_DIR" --owner article-resume \
     --root "$ARTICLE_ROOT" --state "$STATE_DIR" \
     --run-id "${ARTICLE_EXPECTED_RUN_ID:-daily-$(TZ=Asia/Tokyo date +%F)}" \
@@ -121,6 +163,7 @@ process_owns_this_publication_lock() {
 
 release_publication_lock() {
   local recorded_owner=""
+  drop_foreign_result_hint || exit 1
   recorded_owner="$(cat "$LOCK_OWNER_FILE" 2>/dev/null || true)"
   if [ "$recorded_owner" = "$$" ]; then
     rm -f -- "$LOCK_OWNER_FILE"
@@ -182,6 +225,7 @@ if ! mkdir "$LOCK_DIR" 2>/dev/null; then
   else
     echo "article-resume: shared publication lock is held" >>"$LOG"
     pass_record lock-held
+    write_no_effect_hint lock_held || true
     exit 0
   fi
 fi
@@ -512,6 +556,7 @@ if [ "$PRE_START_ACTION" = "new" ] \
   elif [ "$LOCAL_HOUR_VALUE" -lt "$DAILY_SCHEDULE_HOUR" ]; then
     echo "article-resume: daily schedule not due date=$LOCAL_DATE hour=$LOCAL_HOUR" >>"$LOG"
     pass_record daily-schedule-not-due
+    write_no_effect_hint daily_schedule_not_due || true
     exit 0
   else
     echo "article-resume: missed daily schedule catch-up date=$LOCAL_DATE hour=$LOCAL_HOUR" >>"$LOG"
@@ -519,7 +564,7 @@ if [ "$PRE_START_ACTION" = "new" ] \
     pass_record missed-daily-schedule-catch-up
     trap - EXIT
     release_publication_lock || exit 1
-    exec bash "$ARTICLE_ROOT/article-daily.sh"
+    exec_with_result_hint bash "$ARTICLE_ROOT/article-daily.sh"
   fi
 fi
 
@@ -757,7 +802,7 @@ if [ "$PRIORITY_PUBLICATION_READY" -ne 1 ] \
   pass_record quality-replacement-handoff "$START_RUN_ID"
   trap - EXIT
   release_publication_lock || exit 1
-  exec bash "$ARTICLE_ROOT/article-daily.sh"
+  exec_with_result_hint bash "$ARTICLE_ROOT/article-daily.sh"
 fi
 if [ "$PRIORITY_PUBLICATION_READY" -ne 1 ] \
   && [ "$START_ACTION" = "resume-generation" ]; then
@@ -781,7 +826,7 @@ if [ "$PRIORITY_PUBLICATION_READY" -ne 1 ] \
   pass_record prepublication-generation-recovery "$GENERATION_RUN_ID"
   trap - EXIT
   release_publication_lock || exit 1
-  exec bash "$ARTICLE_ROOT/article-daily.sh"
+  exec_with_result_hint bash "$ARTICLE_ROOT/article-daily.sh"
 fi
 
 # An unavailable destination is otherwise excluded from pending work forever.
@@ -814,15 +859,22 @@ PLAN="$(python3 "$PLANNER" "${PLAN_ARGS[@]}" 2>>"$LOG")" || {
   # never hold a publisher's critical section.
   trap - EXIT
   release_publication_lock || exit 1
-  python3 "$ARTICLE_ROOT/scripts/writer_repair_dispatch.py" \
+  REPAIR_RC=0
+  REPAIR_RESULT="$(python3 "$ARTICLE_ROOT/scripts/writer_repair_dispatch.py" \
     --state-root "$STATE_DIR" \
     --scripts "$ARTICLE_ROOT/scripts" \
     --registry "$ARTICLE_ROOT/config/repair-runbooks.json" \
     --model-runner "$MODEL_RUNNER" \
     --publication-backlog "0" \
     --observed-at "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
-    >>"$LOG" 2>&1 || \
-    echo "article-resume: repair routing failed closed" >>"$LOG"
+    2>>"$LOG")" || REPAIR_RC=$?
+  [ -z "$REPAIR_RESULT" ] || printf '%s\n' "$REPAIR_RESULT" >>"$LOG"
+  [ "$REPAIR_RC" -eq 0 ] || echo "article-resume: repair routing failed closed" >>"$LOG"
+  drop_foreign_result_hint || exit 1
+  # Only a dispatcher that selected no incident ran no model; any routed repair stays unknown.
+  case "$REPAIR_RC/$(printf '%s\n' "$REPAIR_RESULT" | tail -n 1 | jq -r '.status // empty' 2>/dev/null)" in
+    0/NO_ACTIONABLE_INCIDENT|0/NO_INCIDENT_QUEUE) write_no_effect_hint no_pending_publication || true ;;
+  esac
   exit 0
 }
 echo "article-resume: publication queue foreground; self-heal deferred run=$(printf '%s' "$PLAN" | jq -r '.run_id // empty')" >>"$LOG"
@@ -831,6 +883,7 @@ echo "article-resume: publication queue foreground; self-heal deferred run=$(pri
 # incident claim/runbook decision so a repeatedly failing publication lane cannot
 # starve self-heal forever. READY passes --defer-model-always, so even a circuit
 # owner waits for the lock-free backlog=0 repair tick.
+# It executes no runbook and no external effect, so the pre_effect marker is still kept here.
 python3 "$ARTICLE_ROOT/scripts/writer_repair_dispatch.py" \
   --state-root "$STATE_DIR" \
   --scripts "$ARTICLE_ROOT/scripts" \

@@ -5,7 +5,10 @@ article-daily pairs a fence with the run start or a generation-attempt start. A 
 pair even when its run directory predates the fence. The time window selects candidates; it never
 proves no effect. Require HTTP 200 for a ledger URL or exact allowlisted pre-publication stop proof.
 
-article-resume requires age >= 7 days, official Note and both Substack reads whose newest posts
+article-resume closes from its own pass records when the pass provably reached no publisher: the
+#8260 'article-resume: pass' lines bind the occurrence to a publication-free branch sequence, its
+single runtime report exited 0, and neither the ledger nor any official readback has a publication
+inside the pass window.  Otherwise it requires age >= 7 days, official Note and both Substack reads whose newest posts
 predate the fence, and no at-or-after row in the Writer ledger (including self-owned aniccaai.com posts),
 or an exact allowlisted pass bound to its missed-schedule catch-up exec (HISTORICAL_RESUME_CATCHUP_PROOFS).
 
@@ -134,6 +137,13 @@ HISTORICAL_GATE_STOP_PROOFS = {
 # reaching it requires adoption, pending-quality and priority publication all empty.  The proof binds the
 # log line to the one resume execution of its JST hour, then proves the exec'd article-daily run stopped
 # before publication state and that every active destination's owner listing reads it absent.
+# Every resume branch that can reach a publisher records itself first (#8260), so these complete
+# per-occurrence branch sequences reach none.  self-heal additionally needs the dispatcher's own
+# result to say it selected no incident (no repair model ran).
+RESUME_PASS_PREFIX = "article-resume: pass "
+NO_PUBLICATION_PASSES = {("publication-paused",), ("lock-held",),
+                         ("start", "daily-schedule-not-due"), ("start", "self-heal")}
+NO_MODEL_REPAIR_STATUSES = {"NO_ACTIONABLE_INCIDENT", "NO_INCIDENT_QUEUE"}
 HISTORICAL_RESUME_CATCHUP_PROOFS = {
     # 2026-10-12 06:05 JST: catch-up exec'd article-daily.sh; run 20261011-210544 ended
     # provider-failed-ambiguous with publication-blocker "no staging or publishing attempted".
@@ -467,8 +477,13 @@ def _reconcile_resume(occurrence_id: str, *, queued_at: float, state: str, artic
             return _inconclusive(occurrence_id, proof)
         return _resolve_resume_proof(occurrence_id, proof, state=state, resolver=resolver,
                                      resolve=resolve, writer_root=writer_root)
+    pass_proof = _resume_pass_record_proof(occurrence_id, queued_at, writer_root=writer_root,
+                                           articles_path=articles_path, fetch_json=fetch_json)
+    if isinstance(pass_proof, dict):
+        return _resolve_resume_proof(occurrence_id, pass_proof, state=state, resolver=resolver,
+                                     resolve=resolve, writer_root=writer_root)
     if now - queued_at < RESUME_MIN_AGE_SECONDS:
-        return _inconclusive(occurrence_id, "fence_too_young")
+        return {**_inconclusive(occurrence_id, "fence_too_young"), "pass_record": pass_proof}
     lines = _jsonl_lines(articles_path)
     try:
         times = [_ledger_row_epoch(json.loads(line)) for line in lines]
@@ -504,6 +519,117 @@ def _reconcile_resume(occurrence_id: str, *, queued_at: float, state: str, artic
     }
     return _resolve_resume_proof(occurrence_id, proof, state=state, resolver=resolver,
                                  resolve=resolve, writer_root=writer_root)
+
+
+def _report_event(writer_root: Path, occurrence_id: str) -> dict | None:
+    """The occurrence's single runtime report event, or None."""
+    reports = []
+    for line in _jsonl_lines(writer_root / "events.jsonl") or []:
+        if occurrence_id not in line:
+            continue
+        try:
+            event = json.loads(line)
+        except ValueError:
+            return None
+        if event.get("occurrence_id") == occurrence_id and event.get("phase") == "report":
+            reports.append(event)
+    return reports[0] if len(reports) == 1 else None
+
+
+def _resume_pass(writer_root: Path, occurrence_id: str, queued_at: float) -> tuple | str:
+    """The occurrence's runtime report and its own pass records (one pid, inside the pass window)."""
+    report = _report_event(writer_root, occurrence_id)
+    if report is None:
+        return "pass_report_missing"
+    until = _epoch(report.get("timestamp"))
+    if until is None:
+        return "pass_report_missing"
+    log = writer_root / "logs" / "article-resume.log"
+    try:
+        if log.is_symlink():
+            return "pass_log_unreadable"
+        lines = log.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeError):
+        return "pass_log_unreadable"
+    records = []
+    for index, line in enumerate(lines):
+        if line.startswith(RESUME_PASS_PREFIX) and occurrence_id in line:
+            try:
+                record = json.loads(line[len(RESUME_PASS_PREFIX):])
+            except ValueError:
+                return "pass_record_unreadable"
+            if isinstance(record, dict) and record.get("occurrence_id") == occurrence_id:
+                records.append((index, record))
+    stamps = [_epoch(record.get("at")) for _, record in records]
+    if (not records or len({record.get("pid") for _, record in records}) != 1
+            or None in stamps or min(stamps) < queued_at - 1 or max(stamps) > until):
+        return "pass_record_unbound"
+    return report, until, lines, records, tuple(str(record.get("branch")) for _, record in records)
+
+
+def _resume_pass_record_proof(occurrence_id: str, queued_at: float, *, writer_root: Path,
+                              articles_path: Path, fetch_json: Callable[[str], object]) -> dict | str:
+    """Bind a resume fence to its own publication-free pass; return the proof or the missing binding."""
+    observed = _resume_pass(writer_root, occurrence_id, queued_at)
+    if isinstance(observed, str):
+        return observed
+    report, until, lines, records, branches = observed
+    if report.get("exit_code") != 0 or report.get("status") != "pass":
+        return "pass_report_not_clean_exit"
+    if branches not in NO_PUBLICATION_PASSES:
+        return "pass_branch_not_publication_free:" + ",".join(branches)
+    if any(record.get("run_ids") != [] for _, record in records):
+        return "pass_record_unbound"
+    if branches[-1] == "self-heal":
+        index = records[-1][0] + 1
+        try:
+            status = json.loads(lines[index]).get("status") if index < len(lines) else None
+        except (ValueError, AttributeError):
+            status = None
+        # Both the pinned and current wrappers log a nonzero dispatcher exit right after its result.
+        failed = index + 1 < len(lines) and lines[index + 1] == "article-resume: repair routing failed closed"
+        if status not in NO_MODEL_REPAIR_STATUSES or failed:
+            return "pass_self_heal_may_have_run_model"
+
+    rows = _jsonl_lines(articles_path)
+    if rows is None:
+        return "articles_ledger_unreadable"
+    for line in rows:
+        try:
+            row = json.loads(line)
+            stamp = _ledger_row_epoch(row)
+        except (ValueError, AttributeError):
+            return "articles_ledger_unreadable"
+        if stamp is None and (row.get("published") is True or row.get("live_url")):
+            return "articles_ledger_undated_publication"
+        if stamp is not None and queued_at <= stamp <= until:
+            return "writer_ledger_row_in_window"
+    readbacks = {}
+    for name, url in RESUME_READBACKS.items():
+        payload = fetch_json(url)
+        try:
+            posts = payload["data"]["contents"] if isinstance(payload, dict) else payload
+            times = [_epoch(post.get("publishAt") or post.get("post_date")) for post in posts]
+        except (KeyError, TypeError, AttributeError):
+            times = []
+        if not times or None in times:
+            return f"readback_failed:{name}"
+        if any(queued_at <= t <= until for t in times):
+            return f"publication_in_window:{name}"
+        if min(times) >= queued_at:
+            return f"readback_window_not_covered:{name}"   # older posts fell off the listed page
+        readbacks[name] = _iso(max(t for t in times if t < queued_at))
+    runtime_run_id = occurrence_id.split(":", 1)[1]
+    return {
+        "owner_id": RESUME_OWNER_ID, "occurrence_id": occurrence_id, "verified": True,
+        "proof_type": "historical_writer_resume_no_dispatch", "provider": "writer",
+        "runtime_run_id": runtime_run_id, "branches": list(branches),
+        "pass_records": [record for _, record in records],
+        "report_event_id": report.get("event_id"), "release_sha": report.get("release_sha"),
+        "window": {"since": _iso(queued_at), "until": _iso(until)},
+        "readback_urls": dict(RESUME_READBACKS), "readback_newest_post_before_window": readbacks,
+        "evidence_ref": f"writer://fence-reconciliation/article-resume-{runtime_run_id}.json",
+    }
 
 
 def _resolve_resume_proof(occurrence_id: str, proof: dict, *, state: str,

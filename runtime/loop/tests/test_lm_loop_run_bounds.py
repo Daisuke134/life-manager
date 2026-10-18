@@ -4977,3 +4977,28 @@ def test_ebook_publish_flag_defaults_open_when_launchd_lost_it(tmp_path):
     assert "LM_EBOOK_PUBLISHING_ENABLED" not in loop_runner._child_environment_for_owner(
         "article-daily", base, home=tmp_path)
     assert "LM_EBOOK_PUBLISHING_ENABLED" not in base
+
+
+def test_article_resume_reports_only_a_bounded_no_publication_result(tmp_path):
+    # 2026-10-18: every article-resume pass that published nothing ended effect unknown, so a
+    # lost release left article-resume:18df6fc53500b510-26567 fenced and today's run unpublished.
+    entrypoint = 'skills/writer-agent/scripts/article-resume-pending.sh'
+    owner = 'article-resume'
+    occurrence = f'{owner}:18df6fc53500b510-26567'
+    hint = tmp_path / 'entrypoint-result.json'
+    assert loop_runner._effect_result_hint_allowed(owner, entrypoint)
+    assert not loop_runner._effect_result_hint_allowed('article-daily', entrypoint)
+    for reason in ('publication_paused', 'lock_held', 'daily_schedule_not_due',
+                   'no_pending_publication'):
+        _write_no_effect_result(hint, owner_id=owner, occurrence_id=occurrence, reason=reason)
+        assert loop_runner._verified_terminal_effect_result(hint, owner, occurrence, entrypoint) == (
+            'not_applicable', f'lm-no-effect://{owner}/{occurrence}/{reason}')
+    for overrides in ({'reason': 'no_due_slot'}, {'occurrence_id': f'{owner}:other'},
+                      {'owner_id': 'article-daily'}):
+        _write_no_effect_result(hint, **{'owner_id': owner, 'occurrence_id': occurrence,
+                                         'reason': 'lock_held', **overrides})
+        assert loop_runner._verified_terminal_effect_result(
+            hint, owner, occurrence, entrypoint) is None, overrides
+    # article-resume never reports a verified effect; a forged one stays unknown.
+    _write_writer_effect_result(hint, owner_id=owner, occurrence_id=occurrence)
+    assert loop_runner._verified_terminal_effect_result(hint, owner, occurrence, entrypoint) is None
