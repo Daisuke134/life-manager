@@ -115,6 +115,8 @@ jobs:
       - name: Verify README, fundraising kit, and active form context
         run: node --test test/startup-context.test.mjs test/startup-context-export.test.mjs skills/apply-to-funder/__tests__/context.test.mjs
       - name: Verify canonical public links and product context digest
+        # Public deployment readback follows integration; PRs validate source above.
+        if: github.event_name != 'pull_request'
         run: node scripts/startup-context/audit.mjs
 
   oss-boundary:

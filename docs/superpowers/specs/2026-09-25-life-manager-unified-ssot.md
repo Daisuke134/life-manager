@@ -18,6 +18,8 @@
 5. 自然cleanupのreceiptと実free bytesを確認し、10GiB以上なら紙ownerの次の自然terminal/公式readbackを確認する。回収0ならsource改善だけを復旧と呼ばず次の実測境界へ進む。
 6. 投資R3の公式PDF/metadata入力接続、完全なowner/mode/card/release/account/fill帰属、CFEEとの一回計上、fee完全性・確定netと既存live成熟gate/実費後利益を継続する。
 
+CI依存は既存6d8bbe6a96と同じ最小修正を再利用する。mainのpublic context auditはproduct digest不一致だけで失敗し、source context/READMEに本変更の差分はない。PRでは既存29 source testsを維持し、公開反映auditはmain push/manualへ残す。本番公開状態をsource PR前提へ戻さず、public不一致自体は未解決として保持する。
+
 現在cursor: TODO3の独立read-only review/PR。baseline18PASS、REDa5cfe222aaはcurrent/installed/open3条件でrelease_inventory TimeoutExpiredを再現する。held先行除外と既確認remote SHA witnessの保持後、既存branch削除前拒否/途中削除後pin維持・最終再参照を含むsource reclaim/loop cleanup99tests・13subtests、contract190jobs、diffはPASS。実cleanup/provider/注文/資金/fenceの変更は0、容量回復や本番採用は未確認。
 
 > **正本はこの文書 1 本だけ（Dais 2026-09-29）。** 以前の `2026-09-15-life-manager-agent-architecture-refinement.md`（全体設計・meta loop #10）、`2026-09-22-paid-fulfillment-all-platforms-design.md`（Paid）、`skills/earn/gig/TODO.md`（gig TODO）と、`docs/superpowers/specs/` のほかの spec はすべて参照用。TODO・順序・状態はここだけを更新し、他のファイルに新しい TODO を書かない。
