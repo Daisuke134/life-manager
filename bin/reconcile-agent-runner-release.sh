@@ -509,7 +509,7 @@ PY
     LIFE_MANAGER_RELEASE_ROOT="$release_root" LIFE_MANAGER_APPLY_TARGET="$loop_id" \
       LIFE_MANAGER_APPLY_REQUIRE_CURRENT=1 \
       "$runtime_python" "$timeout_runner" --grace-seconds 15 "$per_owner_timeout_seconds" \
-      "$release_root/bin/lm-loop" apply >"$owner_output_path" 2>&1 </dev/null || owner_rc=$?
+      "$release_root/bin/lm-loop" apply --loaded-idle-only >"$owner_output_path" 2>&1 </dev/null || owner_rc=$?
     owner_output="$(cat "$owner_output_path")"
     owner_seconds=$(( $(date -u +%s) - owner_started ))
     {
@@ -520,7 +520,7 @@ PY
 
     local owner_changed=0 owner_skipped=0 owner_errors=0 owner_skip_reason=""
     if [ "$owner_rc" -eq 0 ]; then
-      read -r owner_changed owner_skipped owner_errors < <(printf '%s' "$owner_output" | "$runtime_python" -c '
+      read -r owner_changed owner_skipped owner_errors owner_skip_reason < <(printf '%s' "$owner_output" | "$runtime_python" -c '
 import json, sys
 try:
     rows = json.load(sys.stdin)
@@ -542,11 +542,18 @@ if sys.argv[1] == "retire":
 changed = sum(1 for r in rows if isinstance(r, dict) and r.get("changed"))
 skipped = sum(1 for r in rows if isinstance(r, dict) and r.get("skipped"))
 errors = sum(1 for r in rows if isinstance(r, dict) and r.get("ok") is False)
-print(changed, skipped, errors)
+deferred = next((r["skipped"] for r in rows if isinstance(r, dict)
+                 and r.get("ok") is True and r.get("changed") is False
+                 and r.get("skipped") in {"loaded-running", "pending-admission"}), "")
+print(changed, skipped, errors, deferred)
 ' "$plan_action" "$loop_id" 2>/dev/null || printf '0 0 1')
       changed=$((changed + owner_changed))
       skipped=$((skipped + owner_skipped))
       errors=$((errors + owner_errors))
+      # Preserved running/reserved owners still need adoption after they become idle.
+      if [ -n "$owner_skip_reason" ]; then
+        control_busy_owners="${control_busy_owners:+$control_busy_owners,}$loop_id"
+      fi
     elif printf '%s' "$owner_output" | grep -q "production apply is already owned"; then
       # Another apply (a human running `lm-loop apply --all`, or this reconciler's own next-tick
       # retry racing a slow prior run) already owns the fleet apply lock. This is lock contention,

@@ -764,7 +764,7 @@ class CutLoopReleaseTest(unittest.TestCase):
                     "reconcile shared-agent-runner --loaded-idle-only --max-owners 4",
                     "reconcile deterministic --loaded-idle-only --max-owners 4",
                     "admission-v2-enable",
-                    "apply",
+                    "apply --loaded-idle-only",
                 ],
             )
 
