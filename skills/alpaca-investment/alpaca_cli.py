@@ -119,7 +119,8 @@ def _run(cli: Path, args: list[str], env: dict[str, str]) -> Any:
         raise ValueError(f"alpaca_cli_timeout:{operation}") from error
     if result.returncode != 0:
         raise ValueError(f"alpaca_cli_failed:{operation}")
-    output_limit = (MAX_MULTI_BARS_OUTPUT_BYTES if operation == "data_multi-bars"
+    bounded_btc_bars = args[:5] == ["data", "crypto", "bars", "--symbols", "BTC/USDC"]
+    output_limit = (MAX_MULTI_BARS_OUTPUT_BYTES if operation == "data_multi-bars" or bounded_btc_bars
                     else MAX_OUTPUT_BYTES)
     if len(result.stdout) > output_limit:
         raise ValueError("alpaca_cli_output_too_large")
@@ -724,19 +725,29 @@ def read_allocator_snapshot(
 
 
 def read_crypto_history(*, credentials_path: Path, cli_path: Path,
-                        observed_at: str) -> dict[str, list[dict[str, Any]]]:
-    """Read completed five-minute bars with room for the BTC trend warmup."""
+                        observed_at: str, history_bars: int | None = None) -> dict[str, list[dict[str, Any]]]:
+    """Keep legacy history unchanged; v2 requires exactly 800 completed BTC bars."""
     observed = parse_instant(observed_at)
-    window = timedelta(hours=8)
-    window_start = observed - window
+    if history_bars is not None and (type(history_bars) is not int or history_bars != 800):
+        raise ValueError("alpaca_crypto_history_invalid")
+    window_end = (observed.replace(second=0, microsecond=0) - timedelta(minutes=observed.minute % 5)
+                  if history_bars is not None else observed)
+    window = timedelta(minutes=5 * history_bars) if history_bars is not None else timedelta(hours=8)
+    window_start = window_end - window
     max_bars = window // timedelta(minutes=5) + 1
     start = window_start.isoformat().replace("+00:00", "Z")
-    end = observed.isoformat().replace("+00:00", "Z")
+    end = window_end.isoformat().replace("+00:00", "Z")
     env = _context(credentials_path, cli_path)
+    projection = ".bars|to_entries|map({symbol:.key,bars:(.value|map({t,o,h,l,c}))})"
+    if history_bars is not None:
+        projection = "{next_page_token,rows:(" + projection + ")}"
     rows = _run(cli_path, ["data", "crypto", "bars", "--symbols",
-        "BTC/USDC,ETH/USDC", "--start", start, "--end", end,
-        "--timeframe", "5Min", "--limit", "1000", "--sort", "asc", "--quiet",
-        "--jq", ".bars|to_entries|map({symbol:.key,bars:(.value|map({t,o,h,l,c}))})"], env)
+        "BTC/USDC" if history_bars is not None else "BTC/USDC,ETH/USDC", "--start", start, "--end", end,
+        "--timeframe", "5Min", "--limit", "1000", "--sort", "asc", "--quiet", "--jq", projection], env)
+    if history_bars is not None:
+        if not isinstance(rows, dict) or "next_page_token" not in rows or rows["next_page_token"] is not None:
+            raise ValueError("alpaca_crypto_history_invalid")
+        rows = rows.get("rows")
     if not isinstance(rows, list):
         raise ValueError("alpaca_crypto_history_invalid")
     result: dict[str, list[dict[str, Any]]] = {}
@@ -744,7 +755,7 @@ def read_crypto_history(*, credentials_path: Path, cli_path: Path,
         for row in rows:
             symbol, bars = row["symbol"], row["bars"]
             # Bound the inclusive provider response before dropping a forming bar.
-            if symbol not in {"BTC/USDC", "ETH/USDC"} or symbol in result \
+            if symbol not in ({"BTC/USDC"} if history_bars is not None else {"BTC/USDC", "ETH/USDC"}) or symbol in result \
                     or not isinstance(bars, list) or len(bars) > max_bars:
                 raise ValueError
             normalized = []
@@ -752,7 +763,7 @@ def read_crypto_history(*, credentials_path: Path, cli_path: Path,
             for bar in bars:
                 timestamp = parse_instant(bar["t"])
                 values = [Decimal(str(bar[key])) for key in ("o", "h", "l", "c")]
-                if (timestamp < window_start or timestamp > observed
+                if (timestamp < window_start or timestamp > window_end
                         or (previous_timestamp is not None
                             and (timestamp <= previous_timestamp
                                  or (timestamp - previous_timestamp).total_seconds() % 300 != 0))
@@ -761,12 +772,16 @@ def read_crypto_history(*, credentials_path: Path, cli_path: Path,
                         or values[2] > min(values[0], values[1], values[3])):
                     raise ValueError
                 previous_timestamp = timestamp
-                if observed - timestamp < timedelta(minutes=5):
+                if (history_bars is not None and timestamp == window_end) or observed - timestamp < timedelta(minutes=5):
                     continue
                 normalized.append({"t": bar["t"], "o": str(values[0]), "h": str(values[1]),
                                    "l": str(values[2]), "c": str(values[3])})
             result[symbol] = normalized
         btc = result.get("BTC/USDC")
+        if history_bars is not None and (not btc or len(btc) != history_bars or any(
+                parse_instant(row["t"]) != window_start + timedelta(minutes=5 * index)
+                for index, row in enumerate(btc))):
+            raise ValueError
         if not btc or len(btc) < 6 or observed - parse_instant(btc[-1]["t"]) > timedelta(minutes=15):
             raise ValueError
     except (InvalidOperation, KeyError, TypeError, ValueError) as error:
