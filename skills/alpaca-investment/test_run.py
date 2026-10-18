@@ -755,6 +755,63 @@ class LiveRunTest(unittest.TestCase):
 
 
 class PortablePassTest(unittest.TestCase):
+    def test_paper_etf_hold_binds_nonfinancial_evidence_to_exact_execution(self):
+        cases = (
+            ("paper", "alpaca-etf-126d-momentum-v1", "HOLD", True, True),
+            ("paper", "alpaca-etf-126d-momentum-v1", "HOLD", False, True),
+            ("shadow", "alpaca-etf-126d-momentum-v1", "HOLD", True, False),
+            ("paper", "other-strategy", "HOLD", True, False),
+            ("paper", "alpaca-etf-126d-momentum-v1", "NO_TRADE", True, False),
+        )
+        for mode, strategy, action, bound, expected in cases:
+            with self.subTest(mode=mode, strategy=strategy, action=action, bound=bound), \
+                    tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
+                state = Path(directory) / "state"
+                environment = {
+                    "LIFE_MANAGER_INVESTMENT_DEPLOYMENT": "local",
+                    "LIFE_MANAGER_INVESTMENT_MODE": mode,
+                    f"ALPACA_INVESTMENT_{mode.upper()}_STATE_DIR": str(state),
+                    f"ALPACA_INVESTMENT_{mode.upper()}_CREDENTIALS_FILE": str(Path(directory) / "credentials"),
+                }
+                if bound:
+                    environment.update({"LIFE_MANAGER_RUN_ID": "hold-run-1",
+                        "LIFE_MANAGER_OCCURRENCE_ID": "alpaca-investment-paper:hold-run-1"})
+                stack.enter_context(patch.dict(MODULE.os.environ, environment, clear=True))
+                observation = {"account": {"cash": "100000", "equity": "100000"},
+                    "activities_count": 0, "clock": {"observed_at": "2026-10-18T04:11:18Z"},
+                    "open_and_closed_orders_count": 0, "positions": []}
+                decision = {"approved": False, "action": action, "strategy_id": strategy,
+                    "candidate_ref": "NO_TRADE", "gate": "policy_hold",
+                    "release_sha": "a" * 40, "expected_cost_usd": None,
+                    "observed_at": "2026-10-18T04:11:18Z"}
+                for name, value in {
+                    "reconcile_started": {"pending": 0, "reconciled": 0, "unresolved": 0},
+                    "observe": observation, "read_campaign_snapshot": {},
+                    "reconcile": {"exit_status": "CLOSED", "unrealized_pnl_usd": "0"},
+                    "read_allocator_snapshot": {"risk": {}}, "build_candidates": [],
+                    "choose": decision, "deliver": {"message_id": "local-test"},
+                }.items():
+                    stack.enter_context(patch.object(MODULE, name, return_value=value))
+                submit = stack.enter_context(patch.object(MODULE, "submit_order"))
+                with redirect_stdout(StringIO()):
+                    self.assertEqual(MODULE.main(wake_id="hold-run-1"), 0)
+                allocation = json.loads((state / "allocation-latest.json").read_text())
+                rows = [json.loads(line) for line in (state / "receipts.jsonl").read_text().splitlines()]
+                saved = next(row["decision"] for row in rows if row["receipt_type"] == "decision")
+                for actual in (allocation, saved):
+                    if expected:
+                        self.assertEqual(actual.get("decision_execution"), {
+                            "run_id": "hold-run-1" if bound else None,
+                            "occurrence_id": "alpaca-investment-paper:hold-run-1" if bound else None,
+                            "scope": "allocation_decision", "model_invocation": "not_invoked",
+                        })
+                    else:
+                        self.assertNotIn("decision_execution", actual)
+                    self.assertEqual(actual["release_sha"], "a" * 40)
+                    self.assertIsNone(actual["expected_cost_usd"])
+                    self.assertNotIn("model_cost_usd", actual)
+                submit.assert_not_called()
+
     @patch.object(MODULE, "reconcile_started", return_value={"pending": 0, "reconciled": 0, "unresolved": 0})
     @patch.object(MODULE, "observe")
     @patch.object(MODULE, "read_campaign_snapshot", return_value={})
