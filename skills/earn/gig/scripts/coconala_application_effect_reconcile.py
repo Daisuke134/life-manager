@@ -488,7 +488,8 @@ def _close_roster_batch(owner_id: str, occurrence_id: str, runtime_run_id: str,
     close through the provider-confirmed resolver. Complete without it and read after the
     marker + safety lag: no application, so close this occurrence with the account-bound
     no-dispatch proof and retire the intent, as the historical sibling does. Anything else is
-    None and the fence stays.
+    None and the fence stays; in such a mixed batch the listed requests are still ledgered and
+    confirmed, so a later wake sees only the unproven ones.
     """
     try:
         bound = reconciler._require_complete_request_set(
@@ -503,8 +504,6 @@ def _close_roster_batch(owner_id: str, occurrence_id: str, runtime_run_id: str,
     rows = _closed_rows(path)
     verdicts = {str(value["request_id"]): _roster_settles_attempt(value, intent_root, APPLY_ROOT, rows)
                 for value in pending}
-    if None in verdicts.values():
-        return None
     present = [value for value in pending if verdicts[str(value["request_id"])] == "present"]
     absent = [value for value in pending if verdicts[str(value["request_id"])] == "absent"]
     accounts = {_identity_account(value, APPLY_ROOT) for value in absent}
@@ -529,6 +528,10 @@ def _close_roster_batch(owner_id: str, occurrence_id: str, runtime_run_id: str,
         return {**base, "status": "unresolved", "reason": "intent_confirmation_failed",
                 "retryable": True, "error_class": type(error).__name__,
                 "error_detail": str(error)[:240]}
+    if None in verdicts.values():
+        # Mixed batch: landed applications are confirmed and ledgered above, so the next
+        # wake's pending set holds only the unproven requests. This occurrence stays fenced.
+        return None
     if absent:
         account = next(iter(accounts))
         proof = {"verified": True, "proof_type": "historical_account_bound_no_dispatch",
