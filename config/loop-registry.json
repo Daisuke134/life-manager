@@ -3137,6 +3137,23 @@
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/life-manager-disk-cleanup"
     },
+    "browser-recycle-idle": {
+      "cadence": {
+        "start_interval_seconds": 3600
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "domain": "system",
+      "effect_class": "none",
+      "entrypoint": "skills/browser/recycle_idle_browsers.py",
+      "label": "ai.anicca.browser-recycle-idle",
+      "system_role": "control",
+      "log_root": "~/.local/state/life-manager/browser-recycle-idle/logs",
+      "provider_route": "deterministic",
+      "state_root": "~/.local/state/life-manager/browser-recycle-idle"
+    },
     "life-manager-disk-cleanup-15d": {
       "cadence": {
         "start_interval_seconds": 1296000
