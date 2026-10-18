@@ -122,6 +122,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--intent-root", type=Path, default=Path.home() / "gig" / "application-intents")
     parser.add_argument("--result", type=Path, default=adapter.CLOSED_READBACK)
+    parser.add_argument("--request-id", action="append", default=[],
+                        help="read only these requests (one occurrence's bound set)")
     args = parser.parse_args(argv)
     endpoint = os.environ.get("CLOAK_CDP_BASE_URL")
     if not endpoint:
@@ -134,7 +136,7 @@ def main(argv: list[str] | None = None) -> int:
         browser = playwright.chromium.connect_over_cdp(endpoint)
         page = browser.contexts[0].new_page()
         try:
-            for rid in unresolved_request_ids(args.intent_root):
+            for rid in args.request_id or unresolved_request_ids(args.intent_root):
                 url = (f"https://coconala.com/job_matching/outsources/{rid}" if _RETAINER_ID.fullmatch(rid)
                        else f"https://coconala.com/requests/{rid}")
                 response = page.goto(url, wait_until="domcontentloaded", timeout=45_000)
