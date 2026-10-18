@@ -149,3 +149,48 @@ class CryptoFeePerformanceTests(unittest.TestCase):
                 self.assertEqual(report['completed_round_trips'],1)
                 self.assertTrue((root/'performance-crypto-daily-2026-01-02.json').exists())
                 self.assertFalse((root/'performance-crypto-daily-2026-01-01.json').exists())
+
+    def test_observed_quote_fees_reduce_native_cashflow_once_without_subtracting_base_fees_twice(self):
+        for mode in ('paper','live'):
+            with self.subTest(mode=mode),tempfile.TemporaryDirectory() as directory:
+                root=Path(directory);_,owned,base,account=debit_fixture(root,mode)
+                store.record_native_fee_debit(root/'receipts.jsonl',owned,account,activity_readback=base,
+                    mode=mode,owner_id=f'alpaca-investment-{mode}')
+                owned['owned_qty']='0.049925'
+                sell,closed=record_sell(root,owned,base,mode=mode,before='0.049925',qty='0.049925',remaining='0',
+                    start='2026-01-02T04:05:00Z',partial=False)
+                full,_=complete_frame(root,base,mode)
+                quote_fee={'id':'quote-fee','activity_type':'CFEE','order_id':sell['id'],'symbol':'USDCUSD',
+                    'qty':'-0.01','date':'2026-01-02','created_at':closed['clock']['observed_at'],
+                    'net_amount':'0','status':'executed'}
+                full=activity_fixture(full,mode=mode,start=full['requested_period_start'],end=full['requested_period_end'],
+                    fees=full['fees']+[quote_fee])
+                order_ids=[r['broker']['id'] for r in store._rows(root/'receipts.jsonl') if r.get('receipt_type')=='outcome']
+                report=perf.build_crypto_performance(store._rows(root/'receipts.jsonl'),mode=mode,
+                    owner_id=f'alpaca-investment-{mode}',activity_readbacks={key:full for key in order_ids},
+                    fee_activity_readbacks=[full,base])
+                cycle=report['cycles'][0]
+                self.assertEqual(cycle['execution_cashflow_usdc'],'0.48425')
+                self.assertEqual(cycle.get('observed_quote_fee_subtotal_usdc'),'0.01')
+                self.assertEqual(cycle.get('cashflow_after_observed_quote_fees_usdc'),'0.47425')
+                self.assertEqual(cycle['quote_fee_activity_ids'],['quote-fee'])
+                self.assertEqual(cycle['quote_fee_coverage_status'],'partial')
+                self.assertIsNone(cycle['net_pnl_usd']);self.assertFalse(report['capital_expansion_allowed'])
+
+    def test_absent_invalid_or_unpriced_quote_fee_never_becomes_zero_or_net_profit(self):
+        for fees_state in ('absent','invalid','unpriced'):
+            with self.subTest(fees_state=fees_state),tempfile.TemporaryDirectory() as directory:
+                root=Path(directory);args=list(closing_fee_fixture(root,remaining='0'))
+                fees=[{**args[4]['fees'][0],'qty':'-0.03'}]
+                if fees_state!='absent':fees.append({'id':'quote-fee','activity_type':'CFEE','order_id':args[1]['id'],
+                    'symbol':'USDCUSD','qty':'-0.01','date':'2026-01-01','created_at':NOW,'net_amount':'0',
+                    'status':'pending' if fees_state=='invalid' else 'executed'})
+                args[4]=activity_fixture(args[4],mode='paper',start=args[4]['requested_period_start'],end=NOW,fees=fees)
+                save_close(root,args,'paper')
+                _,cache=complete_frame(root,args[4],'paper')
+                report=self.build(root,'paper',None if fees_state=='unpriced' else cache);cycle=report['cycles'][0]
+                self.assertIn('observed_quote_fee_subtotal_usdc',cycle)
+                self.assertEqual(cycle['observed_quote_fee_subtotal_usdc'],'0.01' if fees_state=='unpriced' else None)
+                self.assertIsNone(cycle['cashflow_after_observed_quote_fees_usdc'])
+                self.assertEqual(cycle['quote_fee_coverage_status'],'partial' if fees_state=='unpriced' else 'unknown')
+                self.assertIsNone(report['net_pnl_usd']);self.assertIsNone(report['fees_usd'])
