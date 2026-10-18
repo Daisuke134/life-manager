@@ -298,3 +298,51 @@ def test_lifecycle_wait_deadline_keeps_lock_owned(tmp_path):
     with pytest.raises(RuntimeError):
         with central_cleanup._source_reclaim_lock(current, 0):
             pytest.fail("expired deadline acquired locks")
+
+
+@pytest.mark.parametrize("failure", [
+    FileNotFoundError(2, "PRIVATE diagnostic text", "/private/SECRET"),
+    subprocess.CalledProcessError(128, ["git"], stderr="PRIVATE credentials"),
+    subprocess.TimeoutExpired(["git"], 3, stderr="PRIVATE provider text"),
+])
+def test_owner_source_read_failure_has_safe_boundary_diagnostic(tmp_path, monkeypatch, failure):
+    from contextlib import nullcontext
+    from runtime.loop import central_cleanup
+
+    monkeypatch.setattr(central_cleanup, "_source_reclaim_lock", lambda *_: nullcontext())
+    def fail_read(*_args, **_kwargs):
+        raise failure
+    monkeypatch.setattr(central_cleanup.subprocess, "run", fail_read)
+    monkeypatch.setattr(central_cleanup, "reclaim_release_source",
+        lambda *_args, **_kwargs: pytest.fail("failed observation must not reclaim"))
+
+    result = central_cleanup.reclaim_unreferenced_source(
+        tmp_path / "releases", tmp_path / "current", tmp_path / "agents", 1)
+
+    assert result["status"] == "reference_or_source_unavailable"
+    assert result["diagnostic"] == {
+        "phase": "git:ls-remote", "error_class": type(failure).__name__,
+        "errno": getattr(failure, "errno", None),
+        "exit_code": getattr(failure, "returncode", None),
+    }
+    assert result["removed_files"] == result["reclaimed_bytes"] == result["protected_deletions"] == 0
+    assert "PRIVATE" not in json.dumps(result) and "SECRET" not in json.dumps(result)
+    assert not list(tmp_path.iterdir())
+
+
+def test_owner_lifecycle_lock_failure_has_safe_boundary_diagnostic(tmp_path, monkeypatch):
+    from runtime.loop import central_cleanup
+
+    def busy(*_args):
+        raise RuntimeError("PRIVATE owner detail")
+    monkeypatch.setattr(central_cleanup, "_source_reclaim_lock", busy)
+    result = central_cleanup.reclaim_unreferenced_source(
+        tmp_path / "releases", tmp_path / "current", tmp_path / "agents", 1)
+    assert result["status"] == "lifecycle_lock_busy"
+    assert result["diagnostic"] == {
+        "phase": "lifecycle_lock", "error_class": "RuntimeError",
+        "errno": None, "exit_code": None,
+    }
+    assert result["removed_files"] == result["reclaimed_bytes"] == result["protected_deletions"] == 0
+    assert "PRIVATE" not in json.dumps(result)
+    assert not list(tmp_path.iterdir())
