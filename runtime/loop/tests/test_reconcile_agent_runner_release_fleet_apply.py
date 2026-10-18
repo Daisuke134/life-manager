@@ -22,6 +22,18 @@ set -eu
 target="${LIFE_MANAGER_APPLY_TARGET:-}"
 echo "$@ target=$target" >> "$FAKE_LM_LOOP_CALLS_LOG"
 if [ "$1" = "reconcile" ]; then
+  case "${FAKE_RECONCILE_MODE:-ok}" in
+    supersede|supersede_with_error)
+      rm -f "$FAKE_CURRENT_LINK"
+      ln -s "$FAKE_NEXT_RELEASE_ROOT" "$FAKE_CURRENT_LINK"
+      other=""
+      if [ "$FAKE_RECONCILE_MODE" = "supersede_with_error" ]; then
+        other=',{"loop_id":"loop-b","error":"boom"}'
+      fi
+      printf '{"ok": false, "route": "%s", "applied": [], "failed": [{"loop_id":"loop-a","error":"release is no longer current"}%s]}\\n' "$2" "$other"
+      exit 1
+      ;;
+  esac
   exit 0
 fi
 if [ "$1" = "apply" ]; then
@@ -1220,6 +1232,33 @@ exit "$fixture_status"
                     self.assertFalse(calls.exists(), "generation failure must stop before launchd")
                 else:
                     self.assertEqual(calls.read_text().splitlines(), ["print", "bootstrap"])
+
+    def test_reconcile_refused_only_because_current_moved_is_a_deferral(self):
+        # 2026-10-18T06:16Z: a release cut finished while the old release's bounded reconcile ran;
+        # lm-loop refused the remaining owners with exactly "release is no longer current" and the
+        # tick exited 1 (41 such failures since 10-13) although fleet apply deferred it as superseded.
+        cases = (("supersede", None, 0), ("supersede_with_error", None, 1),
+                 ("supersede", {"sha": "invalid"}, 1))
+        for mode, next_metadata, expected_rc in cases:
+            with self.subTest(mode=mode, next_metadata=next_metadata), \
+                    tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                repo, sha = self._make_repo(root)
+                self._activate(root, self._make_release(root, sha, loop_ids=("loop-a", "loop-b")))
+                release2 = self._make_release(root, self._advance_repo(repo))
+                if next_metadata is not None:
+                    (release2 / "RELEASE.json").write_text(json.dumps(next_metadata))
+                env = self._base_env(root, repo, calls_log=root / "calls.log")
+                env["FAKE_RECONCILE_MODE"] = mode
+                env["FAKE_CURRENT_LINK"] = str(root / "loops" / "current")
+                env["FAKE_NEXT_RELEASE_ROOT"] = str(release2)
+
+                result = self._run(env)
+
+                self.assertEqual(result.returncode != 0, bool(expected_rc), result.stderr)
+                self.assertIn('"release is no longer current"', result.stdout)
+                if expected_rc == 0:
+                    self.assertIn("superseded by current sha", result.stderr)
 
     def test_superseded_release_does_not_hide_prior_owner_error(self):
         with tempfile.TemporaryDirectory() as directory:
