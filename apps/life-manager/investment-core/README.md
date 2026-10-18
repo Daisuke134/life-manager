@@ -280,5 +280,11 @@ receipt recovery; complete reconciliation replays without another query/append.
 Terminal no-fill requires an explicit finite zero consistent with known fills.
 Missing, malformed and partial quantities remain pending, and a later official
 zero can enrich unknown evidence without erasing a known positive fill.
-This branch is source only: historical closed-marker audit, entry account receipts,
-partial fills, complete costs, performance and natural outcomes remain in the SSOT.
+Existing closed markers are also audited: a sell needs its recorded original-entry,
+close and account proof; a no-fill needs a sealed entry, official terminal zero and
+flat account receipt. Known owner/policy/status contradictions are rejected across
+all fill phases. Proven closed/no-fill state permits the next policy refresh;
+unproved state cannot become permission to reenter. No-fill receipts retain unknown
+USD net profit and do not assert zero operating costs.
+This branch is source only: entry account receipts, partial fills, complete costs,
+performance and natural outcomes remain in the SSOT.
