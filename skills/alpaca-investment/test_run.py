@@ -766,9 +766,13 @@ class PortablePassTest(unittest.TestCase):
         for mode, strategy, action, bound, expected in cases:
             with self.subTest(mode=mode, strategy=strategy, action=action, bound=bound), \
                     tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
+                from test_cost_inventory import release_fixture
+                release = Path(directory) / "release"
+                release_fixture(release, "b" * 40)
                 state = Path(directory) / "state"
                 environment = {
                     "LIFE_MANAGER_INVESTMENT_DEPLOYMENT": "local",
+                    "LIFE_MANAGER_RELEASE_ROOT": str(release),
                     "LIFE_MANAGER_INVESTMENT_MODE": mode,
                     f"ALPACA_INVESTMENT_{mode.upper()}_STATE_DIR": str(state),
                     f"ALPACA_INVESTMENT_{mode.upper()}_CREDENTIALS_FILE": str(Path(directory) / "credentials"),
@@ -810,6 +814,10 @@ class PortablePassTest(unittest.TestCase):
                     self.assertEqual(actual["release_sha"], "a" * 40)
                     self.assertIsNone(actual["expected_cost_usd"])
                     self.assertNotIn("model_cost_usd", actual)
+                snapshots = [row for row in rows if row["receipt_type"] == "cost_source_inventory"]
+                self.assertEqual(len(snapshots), int(mode == "paper" and bound))
+                if snapshots:
+                    self.assertEqual(snapshots[0]["release_sha"], "b" * 40)
                 submit.assert_not_called()
 
     @patch.object(MODULE, "reconcile_started", return_value={"pending": 0, "reconciled": 0, "unresolved": 0})

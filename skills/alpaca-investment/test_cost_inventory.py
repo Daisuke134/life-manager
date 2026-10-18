@@ -7,6 +7,7 @@ from pathlib import Path
 
 
 OWNER = 'alpaca-investment-paper'
+CATALOG_RELATIVE = 'apps/life-manager/config/product-loop-catalog.json'
 
 
 def release_fixture(root, sha='a' * 40):
@@ -46,6 +47,13 @@ class CostInventoryTests(unittest.TestCase):
             release_fixture(root / 'release-b', 'b' * 40)
             self.module().record_source_inventory(ledger, **{**kwargs, 'release_root': root / 'release-b'})
             self.assertEqual(len(ledger.read_text().splitlines()), 2)
+
+    def test_catalog_declares_unverified_sources_without_guessing_accounts(self):
+        root = Path(__file__).resolve().parents[2]
+        catalog = json.loads((root / CATALOG_RELATIVE).read_text())
+        investment = next(row for row in catalog['loops'] if row['id'] == 'investment')
+        self.assertEqual(investment.get('cost_source_inventory'),
+                         {'schema_version': 1, 'status': 'unverified', 'sources': []})
 
     def test_missing_release_or_host_identity_does_not_fabricate_a_snapshot(self):
         with tempfile.TemporaryDirectory() as directory:
