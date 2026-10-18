@@ -204,7 +204,8 @@ def _unresolved(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if row.get("receipt_type") == "effect_intent" and isinstance(row.get("effect_id"), str):
             latest[row["effect_id"]] = {**latest.get(row["effect_id"], {}), **row}
     return [row for effect_id, row in latest.items()
-            if row.get("status") in UNRESOLVED_INTENT_STATUSES
+            if (row.get("status") in UNRESOLVED_INTENT_STATUSES
+                or (row.get("status") == "planned" and effect_id in latest_outcome))
             and (not _outcome_closed(latest_outcome.get(effect_id), rows)
                  or _crypto_account_pending(row, latest_outcome.get(effect_id), rows)
                  or (row.get("strategy_readback_pending") is True
