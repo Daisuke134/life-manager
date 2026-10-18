@@ -24,6 +24,7 @@ from control import control_fence
 _effect_spec = importlib.util.spec_from_file_location("alpaca_selection_effect_store", _ALPACA / "effect_store.py")
 _effects = importlib.util.module_from_spec(_effect_spec)
 _effect_spec.loader.exec_module(_effects)
+from crypto_ownership_proof import recorded_close_proof_from_rows, recorded_no_fill_proof_from_rows
 from etf_ownership import (_read_open, _close_provider_order, _closed_account_readback,
                            _number, ETF_OWNER_IDS, ETF_STRATEGY_ID)
 
@@ -218,6 +219,30 @@ def _official_etf_close(marker: dict[str, Any], rows: list[dict[str, Any]]) -> b
     return False
 
 
+def _official_crypto_closed(marker: dict[str, Any], rows: list[dict[str, Any]]) -> bool:
+    try:
+        entries = [row for row in rows if row.get("receipt_type") == "effect_intent"
+                   and row.get("status") == "planned" and row.get("effect_id") == marker.get("entry_effect_id")]
+        if len(entries) != 1:
+            return False
+        intent = entries[0]
+        close_effect, close_client = marker.get("close_effect_id"), marker.get("close_client_order_id")
+        if (close_effect is None) != (close_client is None):
+            return False
+        effect = close_effect if close_effect is not None else marker["entry_effect_id"]
+        outcomes = [row for row in rows if row.get("receipt_type") == "outcome"
+                    and row.get("effect_id") == effect and isinstance(row.get("strategy_receipt"), dict)]
+        if not outcomes:
+            return False
+        outcome = outcomes[-1]
+        reader = recorded_close_proof_from_rows if close_effect is not None else recorded_no_fill_proof_from_rows
+        reader(rows, marker, outcome.get("broker"), outcome["strategy_receipt"].get("account_readback"),
+               mode=intent.get("mode"), owner_id=intent.get("owner_id"))
+        return True
+    except (ValueError, KeyError, TypeError, AttributeError):
+        return False
+
+
 def _guard_reports(root: Path, existing: Any, reports: list[dict[str, Any]]) -> list[dict[str, Any]]:
     try:
         ledger = root / "receipts.jsonl"
@@ -259,8 +284,11 @@ def _guard_reports(root: Path, existing: Any, reports: list[dict[str, Any]]) -> 
         else:
             if marker.get("status") not in {"entry_pending", "open", "closing", "closed"}:
                 raise SelectionProvisionError("ownership_state_invalid")
-            # Legacy BTC closed markers alone do not establish official close fills.
-            protected = True
+            if marker.get("status") == "closed":
+                if not _official_crypto_closed(marker, rows):
+                    raise SelectionProvisionError("owned_close_evidence_unknown")
+            else:
+                protected = True
     if protected:
         if not _existing_selected_shape_is_valid(existing) or (
                 owned_strategy is not None and existing.get("strategy_id") != owned_strategy):
