@@ -1,5 +1,25 @@
 # Life Manager 統合SSOT — As-Is / To-Be / TODO
 
+## 投資紙owner復旧の依存修正 — source reclaim inventory
+
+目的はローカル投資の自然実行を戻し、明細/費用後成績の検証まで進めること。紙ownerはmain819fd631由来完全releaseを採用済みで、deterministic/revenue/revenue、現在unknown fence0。18:40Z自然runはclaim前disk_floor_low/exit75で、必要10GiBに対し約9.58GiB、約429MiB不足する。最後の正常判断は16:05ZのHOLD/hold_period_not_elapsed。追加apply/hold短縮/fence解除/強制wakeは解決策にしない。
+
+既存watchdogは候補10件がopen/protectedで回収0、古いworktreeはkeep/dirtyで保護し、ballastは未武装。既存source reclaimは15秒予算のrelease_inventoryでTimeoutExpiredになる。現callerはheld/current releaseの高価なimmutable-store probeも先に行い、後からreferencesで除外する。既存referencesを同じlifecycle lock内でinventory前へ置き、held rootをprobe前に除外する最小修正を検証する。予算延長や新collector/cleanup経路は作らない。lock・official Git reachability/pin・lease・保護store・rollback keep・削除直前fresh referencesは維持する。source PASSは実容量回復の証明ではない。
+
+所有: codex-root、task investment-storage-reclaim-8360。最新origin/main819fd631から専用worktree /Users/anicca/Projects/life-manager-main/.worktrees/investment-storage-reclaim-20261019、branch fix/investment-storage-reclaim-20261019を使用する。編集範囲はruntime/loop/central_cleanup.py、既存test_release_source_reclaim.py、本SSOT。投資R3 branch fix/investment-btc-paper-route-20261018は隔離したまま保持する。
+
+旧順序はD4全source完了後に稼働反映を確認。新順序は既にmain採用済み紙ownerの容量blockerをこの依存修正で扱い、自然実行の回復を確認しながらD4の公式明細/fee完全性/netを継続する。全goalは縮めず、未完成BTC版の反映/live enable/注文/資金移動は行わない。
+
+原子TODO:
+1. 既存関連baselineを確認し、held/current rootをprobeすると予算切れになる最小REDを追加する。
+2. 既存referencesをinventory前へ移し、held rootを先にskipする。候補の最終照合は削らない。
+3. RED→GREEN、既存source reclaim/保護/再参照の回帰、loop contract、独立read-only adversarial reviewを確認して専用branchへpushする。
+4. PR/全CI/main→通常immutable→対象cleanup ownerだけのloaded-idle採用を通常lock/launchctl-safe preflightで行う。source受入と本番容量を分ける。
+5. 自然cleanupのreceiptと実free bytesを確認し、10GiB以上なら紙ownerの次の自然terminal/公式readbackを確認する。回収0ならsource改善だけを復旧と呼ばず次の実測境界へ進む。
+6. 投資R3の公式PDF/metadata入力接続、完全なowner/mode/card/release/account/fill帰属、CFEEとの一回計上、fee完全性・確定netと既存live成熟gate/実費後利益を継続する。
+
+現在cursor: TODO1のbaseline/held-root RED。これはcapacity sourceの修正で、投資利益や本番回復は未達。
+
 > **正本はこの文書 1 本だけ（Dais 2026-09-29）。** 以前の `2026-09-15-life-manager-agent-architecture-refinement.md`（全体設計・meta loop #10）、`2026-09-22-paid-fulfillment-all-platforms-design.md`（Paid）、`skills/earn/gig/TODO.md`（gig TODO）と、`docs/superpowers/specs/` のほかの spec はすべて参照用。TODO・順序・状態はここだけを更新し、他のファイルに新しい TODO を書かない。
 
 > **共有資源方針:** →「統括cursor — 共有資源回復と全案件の引き継ぎ」。旧floor撤去方針は現在のproducer契約により置換する。

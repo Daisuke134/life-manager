@@ -300,6 +300,54 @@ def test_lifecycle_wait_deadline_keeps_lock_owned(tmp_path):
             pytest.fail("expired deadline acquired locks")
 
 
+@pytest.mark.parametrize("held_kind", ("current", "installed", "open"))
+def test_owner_skips_held_roots_before_expensive_store_inventory(tmp_path, monkeypatch, held_kind):
+    from runtime.loop import central_cleanup
+    repo, release, descriptor = fixture(tmp_path)
+    origin = tmp_path / "origin.git"
+    subprocess.run(["git", "init", "--bare", str(origin)], check=True, capture_output=True)
+    subprocess.run(["git", "remote", "add", "origin", str(origin)], cwd=repo, check=True)
+    subprocess.run(["git", "push", "origin", "main"], cwd=repo, check=True, capture_output=True)
+    rollback = release.with_name("20260102T000000-" + release.name.split("-")[1])
+    current_root = release.with_name("20260103T000000-" + release.name.split("-")[1])
+    shutil.copytree(release, rollback); shutil.copytree(release, current_root)
+    for stamp, root in enumerate((release, rollback, current_root), 1):
+        os.utime(root, (stamp, stamp))
+    held = current_root
+    if held_kind != "current":
+        held = release.with_name("20260104T000000-" + release.name.split("-")[1])
+        shutil.copytree(release, held)
+    current = tmp_path / "current"; current.symlink_to(current_root)
+    monkeypatch.setenv("LIFE_MANAGER_SOURCE_REPO", str(repo))
+    monkeypatch.setenv("LIFE_MANAGER_PROTECTED_RELEASES", str(tmp_path / "no-protected.json"))
+    reference_checks = []
+    def loaded(*_):
+        reference_checks.append(True)
+        return {held} if held_kind == "installed" else set()
+    monkeypatch.setattr(central_cleanup, "loaded_release_roots", loaded)
+    monkeypatch.setattr(central_cleanup, "open_release_roots",
+        lambda *_: {held} if held_kind == "open" else set())
+    real_run = subprocess.run
+    def run(command, **kwargs):
+        if command[0] == "lsof":
+            return subprocess.CompletedProcess(command, 0, "", "")
+        return real_run(command, **kwargs)
+    monkeypatch.setattr(central_cleanup.subprocess, "run", run)
+    real_probe = central_cleanup._release_immutable_store_probe
+    def probe(path, **kwargs):
+        if path == held:
+            raise subprocess.TimeoutExpired("held-store-inventory", 15)
+        return real_probe(path, **kwargs)
+    monkeypatch.setattr(central_cleanup, "_release_immutable_store_probe", probe)
+    result = central_cleanup.reclaim_unreferenced_source(release.parent, current, tmp_path / "agents", 1)
+    assert result["removed_files"] == 4, result
+    assert len(reference_checks) >= 2  # Initial census and fresh check before removal.
+    assert (held / "RELEASE.json").read_bytes() == descriptor
+    assert (current_root / "RELEASE.json").read_bytes() == descriptor
+    assert (rollback / "RELEASE.json").read_bytes() == descriptor
+    assert result["protected_deletions"] == 0
+
+
 @pytest.mark.parametrize("failure", [
     FileNotFoundError(2, "PRIVATE diagnostic text", "/private/SECRET"),
     subprocess.CalledProcessError(128, ["git"], stderr="PRIVATE credentials"),
