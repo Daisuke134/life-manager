@@ -19,7 +19,7 @@ from risk_day import reconcile as reconcile_risk_day
 
 from risk_policy import parse_instant
 from etf_ownership import ETF_STRATEGY_ID, ETF_SYMBOLS, investment_owner_id
-from crypto_ownership_proof import validate_crypto_activity_page_chunk
+from crypto_ownership_proof import validate_crypto_activity_page_chunk, crypto_fx_quote_request, crypto_fx_quote_proof, _digest
 
 
 CLI_VERSION = "0.0.14"
@@ -37,6 +37,7 @@ CLI_OPERATIONS = frozenset({
     "order_submit", "position_list",
 })
 SAFE_ERROR_CODES = frozenset({
+    "crypto_fx_quote_invalid", "crypto_fx_quote_missing", "crypto_fx_quote_stale",
     "owned_position_changed_before_submit", "entry_policy_changed_before_submit",
     "entry_position_changed_before_submit", "owned_close_proof_invalid",
     "owned_close_receipt_missing", "owned_close_receipt_conflict",
@@ -937,6 +938,20 @@ def read_crypto_validation_history(
         {"timestamp": row["t"], "currency": "USDC", "rate": row["c"], "evidence_ref": evidence}
         for row in rows_by_symbol.get("USDC/USD", [])],
         "source_receipt_ids": [evidence], "observed_at": observed_at}
+
+
+def read_crypto_fx_evidence(*,credentials_path: Path,cli_path: Path,mode: str,asof_at: str,observed_at: str) -> dict[str,Any]:
+    request=crypto_fx_quote_request(mode=mode,asof_at=asof_at,observed_at=observed_at)
+    env=_context(credentials_path,cli_path,mode=mode)
+    response=_run(cli_path,['data','crypto','quotes','--symbols','USDC/USD',
+        '--start',request['start'],'--end',request['end'],'--sort','desc','--limit','1','--quiet','--jq',
+        '{next_page_token,quotes:(.quotes|with_entries(.value|=map({t,bp,ap})))}'],env)
+    body={'schema_version':1,'kind':'crypto_fx_asof_quote','mode':mode,'paper':mode=='paper',
+        'symbol':'USDC/USD','base_currency':'USDC','quote_currency':'USD','asof_at':asof_at,
+        'observed_at':observed_at,'request':request,'response':response}
+    body['source_receipt_id']='alpaca-crypto-fx-quote:'+_digest(body)
+    crypto_fx_quote_proof(body,mode=mode,asof_at=asof_at)
+    return body
 
 
 def read_live_performance_snapshot(

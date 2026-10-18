@@ -84,6 +84,55 @@ def execution_activity_identity(fill: dict[str, Any]) -> tuple:
         parse_instant(fill['transaction_time']))
 
 
+def _fx_instant(value):
+    match=re.fullmatch(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.(\d{1,9}))?(?:Z|[+-]\d{2}:\d{2})',value)
+    if not match:raise ValueError
+    moment=parse_instant(value);digits=match.group(1) or '0'
+    return Fraction(int(moment.replace(microsecond=0).timestamp()))+Fraction(int(digits),10**len(digits))
+
+
+def crypto_fx_quote_request(*,mode,asof_at,observed_at):
+    try:
+        if mode not in {'paper','live'} or _fx_instant(asof_at)>_fx_instant(observed_at):raise ValueError
+        start=(parse_instant(asof_at).astimezone(timezone.utc)-timedelta(seconds=30)).isoformat().replace('+00:00','Z')
+        return {'symbols':'USDC/USD','start':start,'end':asof_at,'sort':'desc','limit':1}
+    except (ValueError,TypeError,AttributeError,ArithmeticError) as error:
+        raise ValueError('crypto_fx_quote_invalid') from error
+
+
+def crypto_fx_quote_proof(snapshot,*,mode,asof_at):
+    """One eligible reference BBO, never a complete window or cash conversion."""
+    try:
+        if (not isinstance(snapshot,dict) or type(snapshot.get('schema_version')) is not int
+                or snapshot['schema_version']!=1 or snapshot.get('kind')!='crypto_fx_asof_quote'
+                or snapshot.get('mode')!=mode or snapshot.get('paper') is not (mode=='paper')
+                or snapshot.get('symbol')!='USDC/USD' or snapshot.get('base_currency')!='USDC'
+                or snapshot.get('quote_currency')!='USD' or _fx_instant(snapshot['asof_at'])!=_fx_instant(asof_at)):
+            raise ValueError
+        body={k:v for k,v in snapshot.items() if k!='source_receipt_id'}
+        if snapshot.get('source_receipt_id')!='alpaca-crypto-fx-quote:'+_digest(body):raise ValueError
+        request=crypto_fx_quote_request(mode=mode,asof_at=snapshot['asof_at'],observed_at=snapshot['observed_at'])
+        if _digest(snapshot['request'])!=_digest(request):raise ValueError
+        response=snapshot['response'];cursor=response['next_page_token']
+        if cursor is not None and (not isinstance(cursor,str) or not cursor.strip() or len(cursor)>8192):raise ValueError
+        quotes=response['quotes']
+        if not isinstance(quotes,dict) or set(quotes)-{'USDC/USD'}:raise ValueError
+        rows=quotes.get('USDC/USD',[])
+        if not isinstance(rows,list) or len(rows)>1:raise ValueError
+        if not rows:raise ReconciliationPending('crypto_fx_quote_missing')
+        row=rows[0];bid=_execution_number(row['bp']);ask=_execution_number(row['ap'])
+        age=_fx_instant(asof_at)-_fx_instant(row['t'])
+        if ask<bid or age<0:raise ValueError
+        if age>30:raise ReconciliationPending('crypto_fx_quote_stale')
+    except ReconciliationPending:raise
+    except (ValueError,KeyError,TypeError,AttributeError,ArithmeticError) as error:
+        raise ValueError('crypto_fx_quote_invalid') from error
+    return {'schema_version':1,'kind':'crypto_fx_reference_quote','mode':mode,'paper':mode=='paper',
+        'base_currency':'USDC','quote_currency':'USD','asof_at':snapshot['asof_at'],'quote_timestamp':row['t'],
+        'bid_usd_per_usdc':_decimal_text(bid),'ask_usd_per_usdc':_decimal_text(ask),'age_seconds':_quantity_text(age),
+        'source_receipt_id':snapshot['source_receipt_id'],'selection':'latest_at_or_before','cash_conversion_proven':False}
+
+
 def validate_crypto_activity_page_chunk(chunk: dict[str, Any], *, mode: str) -> tuple:
     try:
         if (mode not in {'paper','live'} or not isinstance(chunk,dict)
