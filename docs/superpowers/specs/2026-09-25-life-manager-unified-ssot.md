@@ -3514,3 +3514,5 @@ Final: Ruling: wheel配布には対応せず、README通りsource checkout操作
 修正後の公式実行：/workspace/artifacts/manager-population/final-20261018 にfetch→prepare→2方式→scoreをすべて実行してPASS。州抽出hashは同一。2方式の再実行bytesは一致し、修正前runの予測bytesとも一致。公開用集計記録は修正後code hash=7d763651f3fbd299389ecc2ba13c75c9e191e0883c685e143c9c3107efbb9541と新しいmanifest/report hashへ更新した。評価を見て数値手法を調整していない。README/記事のリンクを確認し、図は生成画像とmatplotlib実測グラフの両方を保存した。
 
 8A/P01–P20はコード・固定依存・公式実行・検証・解説まで完了。学習上は本人へ結果説明して理解する段階で、理解済みを先取りしない。次は8B（Rhode Islandの同期間ACS PUMSの住宅/個人ファイルを結び、世帯単位生成と整数化前後の評価）。その後9以降へ。応募・YC・個別連絡は既存日程と成果に沿って準備できるが、今回送信・提出していない。既存worktreeは継続作業用に保持し、main統合/本番反映は行わない。GitHub作業branchへのpushをこの実行の最終保存工程とする。
+
+GitHub保存のreadback：実装最終commit 4645f094fea2276af5f55e12475244b871a47279 を origin の docs/manager-learning-20261017 へpush成功。git ls-remoteのbranch SHAとlocal HEADが一致、worktree cleanを確認。mainへは未統合、本番には未反映。取得/復元/採点/図/記事/再現コマンドが同branchに揃った。本receiptを追記した文書commitも同branchへ保存する。
