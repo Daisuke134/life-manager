@@ -228,6 +228,8 @@ class OperatingCostTotalsTests(unittest.TestCase):
                         else:payload['documents'][0]['billing_account_ref']='foreign-account'
                         result=summarize([parent] if only_parent else [parent,child],payload,
                             owner_id=child['owner_id'],mode=mode,observed_at=inventory['observed_at'],expected_inventory=inventory)
+                        requested=[parent] if only_parent else [parent,child]
+                        self.assertEqual(select_components(result,requested),result)
                         selected=select_components(result,[parent])
                         self.assertIsNone(selected['model_cost_usd'])
                         self.assertEqual(selected['operating_cost_coverage']['coverage_state'],'gap')
