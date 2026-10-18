@@ -180,4 +180,51 @@ class ActualCostInventoryTests(unittest.TestCase):
         payload['job_joins'][0].update(document_type='paid_receipt',document_id='receipt-alias')
         self.assertEqual(self.validate(payload,inventory)['coverage_state'],'complete')
 
+    def test_alias_cannot_contradict_charge_context_outside_selected_scope(self):
+        for change in ('owner','orders','period','amount','category'):
+            with self.subTest(change=change):
+                payload,inventory=fixture(paid=True)
+                document=copy.deepcopy(payload['documents'][0]);document.update(document_type='paid_receipt',
+                    source_type='official_paid_receipt',receipt_id='alias-outside')
+                document['line_items'][0]['allocations'][0]['job_id']='alias-job'
+                alias=copy.deepcopy(payload['job_joins'][0]);alias.update(job_id='alias-job',document_type='paid_receipt',
+                    document_id='alias-outside',scope_id='foreign-scope')
+                if change=='owner':alias.update(owner_id='alpaca-investment-live',mode='live',paper=False)
+                elif change=='orders':alias['order_ids']=['foreign-entry','foreign-exit']
+                elif change=='period':alias['period_start']='2026-09-24T00:00:01Z'
+                elif change=='amount':
+                    document['line_items'][0]['amount']='2'
+                    document['line_items'][0]['allocations'][0]['amount']='2'
+                else:document['line_items'][0]['category']='infra_cost'
+                payload['documents'].append(document);payload['job_joins'].append(alias)
+                payload['sources'][0]['queries'][0]['document_ids'].append('alias-outside')
+                payload['provider_pagination']['pages'][0]['document_ids'].append('alias-outside')
+                self.assertEqual(self.validate(payload,inventory)['coverage_state'],'gap')
+        payload,inventory=fixture(paid=True)
+        document=copy.deepcopy(payload['documents'][0]);document.update(document_type='paid_receipt',
+            source_type='official_paid_receipt',receipt_id='same-context-alias')
+        document['line_items'][0]['allocations'][0]['job_id']='alias-job'
+        alias=copy.deepcopy(payload['job_joins'][0]);alias.update(job_id='alias-job',document_type='paid_receipt',
+            document_id='same-context-alias',period_start=TRAILING_START.replace('Z','+00:00'))
+        alias['source_receipt_ids']=alias['source_receipt_ids'][::-1]
+        payload['documents'].append(document);payload['job_joins'].append(alias)
+        payload['sources'][0]['queries'][0]['document_ids'].append('same-context-alias')
+        payload['provider_pagination']['pages'][0]['document_ids'].append('same-context-alias')
+        self.assertEqual(self.validate(payload,inventory)['coverage_state'],'complete')
+
+    def test_product_loop_declaration_is_a_typed_list_not_string_or_mapping_membership(self):
+        for value in ('not-investment',{'investment':False},['investment','investment'],['investment','not-real'],None):
+            with self.subTest(value=value):
+                payload,inventory=fixture();payload['sources'][0]['product_loop_ids']=value
+                self.assertEqual(self.validate(payload,inventory)['coverage_state'],'gap')
+
+    def test_malformed_explicit_scope_never_escapes_fail_closed(self):
+        for scope in ([],False,'not-parsed'):
+            with self.subTest(scope=scope):
+                payload,inventory=fixture()
+                result=actual_cost.validate_official_cost_queries(payload,snapshot_at=SNAPSHOT,
+                    paid_records=[],scope=scope,expected_inventory=inventory)
+                self.assertEqual(result['coverage_state'],'gap')
+                self.assertTrue(result['rejections'])
+
 if __name__=='__main__':unittest.main()
