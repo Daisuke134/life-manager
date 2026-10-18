@@ -1017,6 +1017,10 @@ def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_recor
                                     and row.get("product_loop_id") == target["product_loop_id"] for row in paid_document_rows(document))
                                 bound |= proved
                                 if proved:
+                                    if information is not None:
+                                        category_key=(key[0],key[1],line.get('category'))
+                                        if category_key not in query_keys or any(r[0] not in information['required'][category_key] for r in item_refs):
+                                            raise ValueError('cost_query_execution_category_mismatch')
                                     charge=paid_charge_identity(document,line,allocation)
                                     if charge is None:raise ValueError('cost_query_paid_alias_invalid')
                                     scoped_paid[charge]=(_amount(allocation.get('amount')),line.get('category'),document.get('billing_account_ref'))
@@ -1122,7 +1126,8 @@ def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_recor
             if information is not None:
                 result['observations'][-1].update(inventory_verification='verified',scope_kind=kind,
                     execution_windows=[{'execution_owner_id':r[0],'run_id':r[1],'occurrence_id':r[2],
-                        'started_at':information['windows'][r][0],'finished_at':information['windows'][r][1]}
+                        'started_at':information['windows'][r][0],'finished_at':information['windows'][r][1],
+                        'covered_categories':sorted(k[2] for k in query_keys if r[0] in information['required'][k])}
                         for r in sorted(wanted_refs)])
         except (KeyError, TypeError, ValueError) as error:
             reason=str(error) if str(error).startswith('cost_query_') else 'unverified_receipt'

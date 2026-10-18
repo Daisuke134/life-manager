@@ -41,6 +41,7 @@ def _execution_time_proof(join,trip,receipt,account,observations):
     refs={tuple(row[k] for k in ('execution_owner_id','run_id','occurrence_id')) for row in join.get('execution_refs',[])}
     occurred=_time(receipt['occurred_at'])
     return any(tuple(window[k] for k in ('execution_owner_id','run_id','occurrence_id')) in refs
+        and receipt['components'][0]['category'] in window.get('covered_categories',[])
         and _time(window['started_at'])<=occurred<=_time(window['finished_at'])
         for proof in proofs for window in proof.get('execution_windows',[]))
 
