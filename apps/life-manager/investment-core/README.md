@@ -462,7 +462,11 @@ and paid-allocation join periods, a full matching owner period and verified fina
 billing coverage. They retain the whole original amount as a service expense;
 execution timing is not substituted for service attribution. Partial periods and
 unverified service metadata remain gaps, without guessed daily proration or new
-money receipts. Production gaps are not cleared by passing fixtures.
+money receipts. A partial view cannot invalidate a separately confirmed full
+service period. Owned raw obligations with missing or inconsistent scope-kind
+metadata still block a parent final-zero claim; unverified obligations are not
+excluded merely because their claimed occurrence time is outside the calendar.
+Production gaps are not cleared by passing fixtures.
 The pinned quote transport can now capture a single USDC/USD BBO at or before
 an economic timestamp, using a fixed 30-second window and descending limit one.
 The shared pure proof preserves nanoseconds in both the request and age checks,
