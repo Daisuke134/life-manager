@@ -21,12 +21,14 @@ import position_manager
 from strategy_policy import candidate_cards
 
 
-def seed(root: Path, mode: str = "live"):
+def seed(root: Path, mode: str = "live", decision_changes=None):
     owner = f"alpaca-investment-{mode}"
     card = candidate_cards()["alpaca-btc-5m-trend-v1"]
     decision = {"action": "ENTER", "mode": mode, "owner_id": owner,
                 "strategy_id": card.strategy_id, "policy_card": card.to_mapping(),
                 "release_sha": "a"*40, "observed_at": "2026-01-01T04:00:00Z"}
+    if decision_changes:
+        decision.update(decision_changes)
     order = {"asset_class": "crypto", "notional_usd": "10.00", "side": "buy",
              "symbol": "BTC/USDC", "time_in_force": "gtc", "type": "market"}
     ledger = root / "receipts.jsonl"
@@ -143,8 +145,43 @@ class OwnedPolicyTests(unittest.TestCase):
             self.assertEqual(decision["action"],"HOLD")
             self.assertEqual(decision["reason"],"owned_entry_intent_missing")
 
+    def test_conflicting_provider_identity_cannot_replace_the_original_fill(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            ownership,owner=seed(root)
+            ledger=root/"receipts.jsonl"
+            rows=[json.loads(line) for line in ledger.read_text().splitlines()]
+            foreign=copy.deepcopy(next(row for row in rows if row["receipt_type"]=="outcome"))
+            foreign["broker_receipt_id"]="foreign-provider-entry"
+            foreign["broker"]["id"]="foreign-provider-entry"
+            ledger.write_text("".join(json.dumps(row)+"\n" for row in [*rows,foreign]))
+            with patch.dict(os.environ,{"LIFE_MANAGER_INVESTMENT_OWNER_ID":owner}), \
+                 self.assertRaisesRegex(ValueError,"owned_entry_fill_conflict"):
+                position_manager.load_owned_policy(root,ownership,mode="live")
+
+    def test_entry_policy_identity_scope_and_time_cannot_be_inferred(self):
+        cases=({"strategy_id":None},
+               {"strategy_id":"alpaca-etf-126d-momentum-v1",
+                "policy_card":candidate_cards()["alpaca-etf-126d-momentum-v1"].to_mapping()},
+               {"observed_at":"2026-01-02T00:00:00Z"})
+        for changes in cases:
+            with self.subTest(changes=changes),tempfile.TemporaryDirectory() as directory:
+                root=Path(directory)
+                ownership,owner=seed(root,decision_changes=changes)
+                with patch.dict(os.environ,{"LIFE_MANAGER_INVESTMENT_OWNER_ID":owner}),self.assertRaises(ValueError):
+                    position_manager.load_owned_policy(root,ownership,mode="live")
+
+    def test_unreadable_entry_ledger_has_a_typed_reason(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            ownership,owner=seed(root)
+            with patch.dict(os.environ,{"LIFE_MANAGER_INVESTMENT_OWNER_ID":owner}), \
+                 patch.object(effect_store,"_rows",side_effect=PermissionError("fixture")), \
+                 self.assertRaisesRegex(ValueError,"owned_entry_ledger_unavailable"):
+                position_manager.load_owned_policy(root,ownership,mode="live")
+
     def test_tampered_or_foreign_entry_receipts_are_rejected(self):
-        changes = ("decision", "mode", "provider", "quantity", "price", "time", "owner")
+        changes = ("decision", "mode", "provider", "quantity", "price", "time", "owner", "paperflag", "order-type")
         for change in changes:
             with self.subTest(change=change), tempfile.TemporaryDirectory() as directory:
                 root=Path(directory)
@@ -159,6 +196,8 @@ class OwnedPolicyTests(unittest.TestCase):
                 elif change=="quantity": outcome["broker"]["filled_qty"]="0.1"
                 elif change=="price": outcome["broker"]["filled_avg_price"]="NaN"
                 elif change=="time": outcome["broker"]["filled_at"]="invalid"
+                elif change=="paperflag": outcome["paper"]=True
+                elif change=="order-type": outcome["broker"]["type"]="limit"
                 else: intent["owner_id"]="alpaca-investment-paper"
                 (root/"receipts.jsonl").write_text("".join(json.dumps(row)+"\n" for row in rows))
                 with patch.dict(os.environ,{"LIFE_MANAGER_INVESTMENT_OWNER_ID":owner}),self.assertRaises(ValueError):
