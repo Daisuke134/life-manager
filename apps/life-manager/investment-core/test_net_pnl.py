@@ -20,6 +20,7 @@ def snapshot(venue="alpaca", receipt_id="a-1", **changes):
         "slippage_usd": "0.25",
         "gas_usd": "0.1",
         "model_cost_usd": "0.15",
+        "system_cost_usd": "0.00",
         "source_receipt_ids": [receipt_id],
         "risk": {"drawdown_fraction": "0.01"},
         "measurement_status": "measured",
@@ -29,6 +30,29 @@ def snapshot(venue="alpaca", receipt_id="a-1", **changes):
 
 
 class NetPnlTests(unittest.TestCase):
+    def test_system_cost_is_deducted_once_per_venue_and_portfolio(self):
+        first = snapshot(system_cost_usd="0.40")
+        result = venue_net(first)
+        self.assertEqual(result["net_pnl_usd"], "7.60")
+        self.assertEqual(result.get("system_cost_usd"), "0.40")
+        result = aggregate("2026-09-01T00:00:00Z", NOW.isoformat(),
+            [first, snapshot("hyperliquid", "h-1", system_cost_usd="0.40")], "250")
+        self.assertEqual(result["net_pnl_usd"], "15.20")
+        self.assertEqual(result.get("system_cost_usd"), "0.80")
+        self.assertEqual(result["owner_cash_flow_usd"], "250.00")
+
+    def test_system_cost_direct_snapshot_rejects_invalid_values(self):
+        for value in (True, "NaN"):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                snapshot(system_cost_usd=value)
+        self.assertEqual(venue_net(snapshot(system_cost_usd="-1"))["reason"], "cost_invalid")
+
+    def test_missing_system_cost_is_blocked_not_zero(self):
+        result = venue_net(snapshot(system_cost_usd=None))
+        self.assertEqual(result["measurement_status"], "blocked")
+        self.assertEqual(result["reason"], "cost_unknown")
+        self.assertNotIn("net_pnl_usd", result)
+
     def test_venue_net_subtracts_every_cost_once(self):
         result = venue_net(snapshot())
 

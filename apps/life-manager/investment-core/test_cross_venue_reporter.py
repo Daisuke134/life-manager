@@ -33,6 +33,12 @@ def snapshot(venue="alpaca", receipt_id=None):
 
 
 class CrossVenueReporterTests(unittest.TestCase):
+    def test_render_keeps_system_cost_and_its_unknown_state_visible(self):
+        for value, expected in (("0.40", "$0.40"), (None, "不明")):
+            with self.subTest(value=value):
+                message = render_daily_pnl({"system_cost_usd": value}, {}, TODAY)
+                self.assertIn(f"システム費用: {expected}", message)
+
     def test_wake_marks_effect_attempted_immediately_before_sender(self):
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)

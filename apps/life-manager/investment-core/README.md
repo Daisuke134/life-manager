@@ -55,7 +55,10 @@ net_pnl_usd = gross_pnl_usd
               - slippage_usd
               - gas_usd
               - model_cost_usd
+              - system_cost_usd
 ```
+
+`system_cost_usd` is the verified tool/browser/infrastructure total, separate from model cost. A missing total remains unknown; paid subtotals cannot fill it. Slippage and funding are signed. Other costs remain nonnegative. The core gross basis is before slippage: the Alpaca paper adapter converts explicitly identified fill-based gross to `fill_gross + signed_slippage` before using this formula, preserving the original paper receipt. Unknown paper gross basis remains partial.
 
 Deposits and withdrawals are `owner_cash_flow_usd` and remain principal/cash-flow evidence. They are never investment revenue or net P&L. Missing, stale, duplicate, malformed, or `effect_unknown` evidence remains unknown/blocked and is never replaced with zero.
 
