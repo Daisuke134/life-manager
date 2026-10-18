@@ -323,3 +323,18 @@ class IndependentCensusTests(unittest.TestCase):
                     kwargs['release_inputs']['a' * 40][0]['source_declaration']['sources'].append(source)
                     expected = 'source_invalid'
                 self.assertIn(expected, self.reasons(self.invoke(trips, kwargs)))
+
+    def test_invalid_status_on_completed_old_run_is_scoped_but_unknown_time_is_not_hidden(self):
+        trips, kwargs = self.fixture()
+        old = copy.deepcopy(kwargs['runtime_rows_by_owner'][OWNER][:2])
+        for row in old:
+            row.update(run_id='historical-run', event_id='historical-' + row['phase'], release_sha='f' * 40)
+            row['timestamp'] = row['timestamp'].replace('2026-10-18', '2026-10-17')
+        malformed = dict(old[1], event_id='historical-invalid', status=[])
+        kwargs['runtime_rows_by_owner'][OWNER].extend([*old, malformed])
+        result = self.invoke(trips, kwargs)
+        self.assertNotIn('runtime_event_invalid', self.reasons(result))
+        self.assertNotIn('source_release_missing', self.reasons(result))
+        self.assertEqual(len(result['scopes'][0]['execution_refs']), 2)
+        malformed['timestamp'] = 'not-a-time'
+        self.assertIn('runtime_event_invalid', self.reasons(self.invoke(trips, kwargs)))
