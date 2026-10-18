@@ -23,7 +23,7 @@ def snapshot(venue="alpaca", receipt_id="a-1", **changes):
         "system_cost_usd": "0.00",
         "source_receipt_ids": [receipt_id],
         "risk": {"drawdown_fraction": "0.01"},
-        "measurement_status": "measured",
+        "measurement_status": "measured", "measurement_mode": "live", "paper": False,
     }
     payload.update(changes)
     return VenueSnapshot.from_mapping(payload)

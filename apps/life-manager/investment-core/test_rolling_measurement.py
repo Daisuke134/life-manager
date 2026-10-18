@@ -12,7 +12,7 @@ def daily(day, net="1.00", owner_flow="0.00", receipt_id=None, *, status="delive
         "day": day,
         "status": status,
         "aggregate": {
-            "measurement_status": measurement_status,
+            "measurement_status": measurement_status, "measurement_mode": "live", "paper": False,
             "net_pnl_usd": net,
             "owner_cash_flow_usd": owner_flow,
             "source_receipt_ids": [receipt_id or f"provider-{day}"],

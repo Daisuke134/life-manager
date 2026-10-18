@@ -62,6 +62,16 @@ def _requested_cap_reason(requested: Optional[Decimal], current: Decimal,
     return []
 
 
+def live_mode_reasons(evidence: Mapping[str, Any]) -> list[str]:
+    """Shared live-only boundary for capital candidates and actual profit."""
+    reasons = []
+    if evidence.get("paper") is True or evidence.get("measurement_mode") == "paper":
+        reasons.append("paper_evidence")
+    if evidence.get("measurement_mode") != "live" or evidence.get("paper") is not False:
+        reasons.append("live_evidence_required")
+    return reasons
+
+
 def _evidence_reasons(evidence: Any) -> tuple[list[str], list[str]]:
     if not isinstance(evidence, Mapping):
         return ["evidence_invalid"], []
@@ -72,12 +82,9 @@ def _evidence_reasons(evidence: Any) -> tuple[list[str], list[str]]:
             or len(ids) != len(raw_ids) or len(set(ids)) != len(ids)):
         reasons.append("source_receipt_invalid")
 
-    if evidence.get("paper") is True or evidence.get("measurement_mode") == "paper":
-        reasons.append("paper_evidence")
+    reasons.extend(live_mode_reasons(evidence))
     if evidence.get("measurement_status") != "measured":
         reasons.append("measurement_not_measured")
-    if evidence.get("measurement_mode") != "live":
-        reasons.append("live_evidence_required")
 
     net = _decimal(evidence.get("net_pnl_usd"))
     if net is None:

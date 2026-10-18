@@ -48,6 +48,13 @@ def normalize_receipts(venue: str, rows: Iterable[dict[str, Any]]) -> VenueSnaps
     if not items:
         return _unknown("receipts_missing")
 
+    if any(not isinstance(row, dict) or row.get("measurement_mode") not in ("paper", "live", "shadow")
+           or type(row.get("paper")) is not bool
+           or row["paper"] != (row["measurement_mode"] == "paper") for row in items):
+        return _unknown("measurement_mode_invalid")
+    if len({row["measurement_mode"] for row in items}) != 1:
+        return _unknown("measurement_mode_mixed")
+
     seen: set[str] = set()
     totals = {field_name: Decimal("0") for field_name in _MONEY_FIELDS}
     latest = None
@@ -93,6 +100,8 @@ def normalize_receipts(venue: str, rows: Iterable[dict[str, Any]]) -> VenueSnaps
     assert latest_row is not None
     payload = {
         "venue": venue,
+        "measurement_mode": latest_row["measurement_mode"],
+        "paper": latest_row["paper"],
         "observed_at": latest_row["observed_at"],
         "equity_usd": latest_row["equity_usd"],
         "free_cash_usd": latest_row["free_cash_usd"],

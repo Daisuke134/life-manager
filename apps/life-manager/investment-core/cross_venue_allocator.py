@@ -6,6 +6,7 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_EVEN
 from typing import Any, Iterable
 
 from net_pnl import venue_net
+from capital_ladder import live_mode_reasons
 
 
 _MONEY = Decimal("0.01")
@@ -30,7 +31,8 @@ def _invalid_candidate(venue: Any, reason: str) -> dict[str, Any]:
 
 
 def build_candidates(snapshots: Iterable[Any], aggregate: dict[str, Any], caps: dict[str, Any]) -> list[dict[str, Any]]:
-    if not isinstance(aggregate, dict) or aggregate.get("measurement_status") != "measured":
+    if (not isinstance(aggregate, dict) or aggregate.get("measurement_status") != "measured"
+            or live_mode_reasons(aggregate)):
         return []
     try:
         rows = list(snapshots)
@@ -39,7 +41,7 @@ def build_candidates(snapshots: Iterable[Any], aggregate: dict[str, Any], caps: 
     candidates: list[dict[str, Any]] = []
     for snapshot in rows:
         row = venue_net(snapshot)
-        if row.get("measurement_status") != "measured":
+        if row.get("measurement_status") != "measured" or live_mode_reasons(row):
             continue
         net = _decimal(row.get("net_pnl_usd"))
         risk = dict(row.get("risk") or {})
@@ -53,6 +55,8 @@ def build_candidates(snapshots: Iterable[Any], aggregate: dict[str, Any], caps: 
             "venue": row["venue"],
             "verified": True,
             "measurement_status": "measured",
+            "measurement_mode": row["measurement_mode"],
+            "paper": row["paper"],
             "net_pnl_usd": row["net_pnl_usd"],
             "gross_pnl_usd": row["gross_pnl_usd"],
             "trading_fees_usd": row["trading_fees_usd"],
@@ -108,6 +112,10 @@ def rank(candidates: Iterable[dict[str, Any]], available_capital: Any, caps: dic
         venue = candidate.get("venue")
         if candidate.get("verified") is not True or candidate.get("measurement_status") != "measured":
             result["excluded"].append(_invalid_candidate(venue, "measurement_unknown"))
+            continue
+        mode_reasons = live_mode_reasons(candidate)
+        if mode_reasons:
+            result["excluded"].append(_invalid_candidate(venue, mode_reasons[0]))
             continue
         if candidate.get("stale") is True:
             result["excluded"].append(_invalid_candidate(venue, "stale_snapshot"))

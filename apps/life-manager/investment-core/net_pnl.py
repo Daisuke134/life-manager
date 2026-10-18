@@ -54,6 +54,8 @@ def venue_net(snapshot: Any) -> dict[str, Any]:
     return {
         "capital_expansion_allowed": False,
         "venue": row.venue,
+        "measurement_mode": row.measurement_mode,
+        "paper": row.paper,
         "observed_at": row.observed_at,
         "gross_pnl_usd": _money(row.gross_pnl_usd),
         "trading_fees_usd": _money(row.trading_fees_usd),

@@ -30,7 +30,7 @@ def snapshot(venue="alpaca", receipt_id=None):
         "system_cost_usd": "0.00",
         "source_receipt_ids": [receipt_id or f"{venue}-receipt"],
         "risk": {"drawdown_fraction": "0.01", "round_trips": 30, "capital_at_risk_usd": "100"},
-        "measurement_status": "measured",
+        "measurement_status": "measured", "measurement_mode": "live", "paper": False,
     })
 
 
@@ -232,7 +232,7 @@ class CrossVenueReporterTests(unittest.TestCase):
                 "day": day,
                 "status": "delivered",
                 "aggregate": {
-                    "measurement_status": "measured",
+                    "measurement_status": "measured", "measurement_mode": "live", "paper": False,
                     "net_pnl_usd": "1.00",
                     "owner_cash_flow_usd": "50.00",
                     "source_receipt_ids": [f"daily-{offset}"],
@@ -299,7 +299,7 @@ class CrossVenueReporterTests(unittest.TestCase):
                         "day": day,
                         "status": "delivered",
                         "aggregate": {
-                            "measurement_status": "measured",
+                            "measurement_status": "measured", "measurement_mode": "live", "paper": False,
                             "net_pnl_usd": "1.00",
                             "owner_cash_flow_usd": "0.00",
                             "source_receipt_ids": [f"persisted-{offset}"],
