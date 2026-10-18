@@ -348,6 +348,20 @@ class CryptoPerformanceTests(unittest.TestCase):
                     PERF.build_crypto_performance(rows,mode='paper',owner_id='alpaca-investment-paper',
                         activity_readbacks={o['id']:original for o in orders},fee_activity_readbacks=[frame])
 
+    def test_fee_refresh_cannot_add_or_omit_known_order_execution_ids(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);orders,original,_=cycle_fixture(root)
+            rows=store._rows(root/'receipts.jsonl')
+            for action in ('add','omit'):
+                frame=activity_fixture(original,mode='paper',start=NOW,end='2026-01-02T06:00:00Z')
+                if action=='add': frame['fills'].append({**frame['fills'][0],'id':'new-extra-buy-fill','qty':'0.01'})
+                else: frame['fills']=frame['fills'][1:]
+                frame['source_receipt_id']='alpaca-crypto-activities:'+proofs._digest([
+                    {k:v for k,v in frame.items() if k!='source_receipt_id'}])
+                with self.subTest(action=action),self.assertRaisesRegex(ValueError,'crypto_cycle_execution_conflict'):
+                    PERF.build_crypto_performance(rows,mode='paper',owner_id='alpaca-investment-paper',
+                        activity_readbacks={o['id']:original for o in orders},fee_activity_readbacks=[frame])
+
     def test_bad_cache_metadata_never_erases_known_fee_or_cycle_anchors(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);orders,frame,_=cycle_fixture(root)
