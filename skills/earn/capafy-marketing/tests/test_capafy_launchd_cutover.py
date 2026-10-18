@@ -53,4 +53,5 @@ def test_all_capafy_launchd_templates_resolve_to_existing_life_manager_sources(t
 def test_ig_goal_monitor_generator_uses_hourly_interval() -> None:
     text = (ROOT / "skills/earn/capafy-marketing/capafy-goal-monitor.sh").read_text()
     assert "<key>StartInterval</key><integer>3600</integer>" in text
-    assert "StartCalendarInterval" not in text[text.index("write_ig_plist"):text.index("# NO-HUMAN-LOOP")]
+    start = text.index("write_ig_plist() {")
+    assert "StartCalendarInterval" not in text[start:text.index("\n}\n", start)]
