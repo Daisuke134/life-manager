@@ -34,6 +34,45 @@ def _report(*, net: str = "1.62", report_id: str = "report-etf") -> dict[str, ob
     }
 
 
+def _crypto_closed_fixture(root: Path, *, no_fill: bool):
+    from provision_selection import _effects
+    from crypto_ownership_proof import close_fill_proof_from_rows
+    from strategy_policy import candidate_cards
+    mode,owner='paper','alpaca-investment-paper'
+    card=candidate_cards()['alpaca-btc-5m-trend-400-v2']
+    decision={'action':'ENTER','mode':mode,'owner_id':owner,'strategy_id':card.strategy_id,
+              'policy_card':card.to_mapping(),'release_sha':'a'*40,'observed_at':'2026-01-01T04:00:00Z'}
+    order={'asset_class':'crypto','symbol':'BTC/USDC','side':'buy','type':'market','time_in_force':'gtc','notional_usd':'10'}
+    ledger=root/'receipts.jsonl';entry=_effects.seal(ledger,decision,order);_effects.mark_started(ledger,entry)
+    buy={'id':'official-entry','client_order_id':entry['client_order_id'],'symbol':'BTCUSDC',
+         'side':'buy','type':'market','time_in_force':'gtc','status':'rejected' if no_fill else 'filled',
+         'filled_qty':'0' if no_fill else '0.05','filled_avg_price':None if no_fill else '200',
+         'submitted_at':'2026-01-01T04:00:00Z','filled_at':None if no_fill else '2026-01-01T04:00:01Z'}
+    _effects.reconcile_started(ledger,lambda _:buy)
+    owned={'status':'closed' if no_fill else 'closing','symbol':'BTCUSD',
+           'entry_effect_id':entry['effect_id'],'entry_client_order_id':entry['client_order_id'],
+           'entry_filled_qty':buy['filled_qty']}
+    account={'mode':mode,'paper':True,'account':{'cash':'0','equity':'100'},'positions':[],
+             'clock':{'observed_at':'2026-01-01T04:15:02Z'}}
+    if no_fill:
+        _effects.record_no_fill_account_receipt(ledger,owned,buy,account,mode=mode,owner_id=owner)
+    else:
+        owned['owned_qty']='0.05'
+        sell_decision={'action':'EXIT','mode':mode,'owner_id':owner,'strategy_id':card.strategy_id,
+            'release_sha':'a'*40,'observed_at':'2026-01-01T04:15:00Z','position_qty':'0.05',
+            'entry_effect_id':entry['effect_id'],'entry_client_order_id':entry['client_order_id'],
+            'entry_provider_order_id':buy['id'],'entry_price':'200','entry_timestamp':buy['filled_at']}
+        exit_order={'asset_class':'crypto','symbol':'BTC/USDC','side':'sell','type':'market','time_in_force':'gtc','qty':'0.05'}
+        close=_effects.seal(ledger,sell_decision,exit_order);_effects.mark_started(ledger,close)
+        owned.update(close_effect_id=close['effect_id'],close_client_order_id=close['client_order_id'])
+        sell={**buy,'id':'official-exit','client_order_id':close['client_order_id'],'side':'sell',
+              'filled_avg_price':'210','submitted_at':'2026-01-01T04:15:00Z','filled_at':'2026-01-01T04:15:01Z'}
+        proof=close_fill_proof_from_rows(_effects._rows(ledger),owned,sell,account,mode=mode,owner_id=owner)
+        _effects.reconcile_started(ledger,lambda _:sell,on_reconciled=lambda *_:proof)
+        owned['status']='closed'
+    (root/'live-owned-position.json').write_text(json.dumps(owned))
+
+
 class ProvisionSelectionTests(unittest.TestCase):
     def test_owned_position_preserves_canonical_policy_and_allows_only_same_policy_refresh(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -115,6 +154,30 @@ class ProvisionSelectionTests(unittest.TestCase):
             reports.write_text(json.dumps([changed]))
             before=destination.read_bytes()
             self.assertEqual(provision_selection(destination,reports,refresh=True)['status'],'existing')
+            self.assertEqual(destination.read_bytes(),before)
+
+    def test_recorded_crypto_close_or_no_fill_allows_flat_policy_refresh(self):
+        for no_fill in (False,True):
+            with self.subTest(no_fill=no_fill),tempfile.TemporaryDirectory() as directory:
+                root=Path(directory);reports,destination=root/'reports.json',root/'selected-strategy.json'
+                reports.write_text(json.dumps([_report()]))
+                provision_selection(destination,reports)
+                _crypto_closed_fixture(root,no_fill=no_fill)
+                changed=_report(report_id='changed-rules')
+                changed['card']['entry_rules']={'all':['close > 1']}
+                reports.write_text(json.dumps([changed]))
+                self.assertEqual(provision_selection(destination,reports,refresh=True)['status'],'created')
+                self.assertEqual(json.loads(destination.read_text())['report_id'],'changed-rules')
+
+    def test_unproven_crypto_closed_marker_is_not_a_flat_policy_permission(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);reports,destination=root/'reports.json',root/'selected-strategy.json'
+            reports.write_text(json.dumps([_report()]))
+            provision_selection(destination,reports)
+            (root/'live-owned-position.json').write_text(json.dumps({'status':'closed','symbol':'BTCUSD'}))
+            before=destination.read_bytes()
+            with self.assertRaisesRegex(SelectionProvisionError,'owned_close_evidence_unknown'):
+                provision_selection(destination,reports,refresh=True)
             self.assertEqual(destination.read_bytes(),before)
 
     def test_corrupt_ownership_is_an_error_even_when_selection_is_valid(self):
