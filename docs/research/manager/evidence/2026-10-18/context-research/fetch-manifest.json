@@ -1,0 +1,63 @@
+[
+  {
+    "key": "goodfire",
+    "url": "https://already-clean.goodfire.com/",
+    "final": "https://already-clean.goodfire.com/",
+    "bytes": 2176465,
+    "sha256": "540679503a0f60486897bf2f5d326c2156904878ea96a9a017678378c660a54a",
+    "status": 200
+  },
+  {
+    "key": "numerai",
+    "url": "https://blog.numer.ai/unifying-numerai-and-signals/",
+    "final": "https://blog.numer.ai/unifying-numerai-and-signals/",
+    "bytes": 58230,
+    "sha256": "115b96ee0a4039b918d428c744f2e09a8aa9a19eeb222287cc118dca2c01066e",
+    "status": 200
+  },
+  {
+    "key": "mirofish-meta",
+    "url": "https://api.github.com/repos/666ghj/MiroFish/commits/main",
+    "final": "https://api.github.com/repos/666ghj/MiroFish/commits/main",
+    "bytes": 88936,
+    "sha256": "5d5544cc2a0ca4b64d403e0a2a28f725bbf50691353c9e7dcde094c709612811",
+    "status": 200
+  },
+  {
+    "key": "mirofish-readme",
+    "url": "https://raw.githubusercontent.com/666ghj/MiroFish/main/README-EN.md",
+    "error": "HTTP Error 404: Not Found"
+  },
+  {
+    "key": "simile",
+    "url": "https://www.simile.ai/",
+    "final": "https://www.simile.com/",
+    "bytes": 326197,
+    "sha256": "3960b9257afcff525dcbc9c2b80bc8130401d832fa2c0d198e43abef58866b30",
+    "status": 200
+  },
+  {
+    "key": "aaru",
+    "url": "https://aaru.com/publications/population-simulation-at-the-replication-floor-research",
+    "final": "https://aaru.com/publications/population-simulation-at-the-replication-floor-research",
+    "bytes": 731521,
+    "sha256": "9a6f12f0995527f50af6b7c7971ae6f14e908515571f87bdaa2afd8bf336b436",
+    "status": 200
+  },
+  {
+    "key": "cybersyn",
+    "url": "https://thereader.mitpress.mit.edu/project-cybersyn-chiles-radical-experiment-in-cybernetic-socialism/",
+    "final": "https://thereader.mitpress.mit.edu/project-cybersyn-chiles-radical-experiment-in-cybernetic-socialism/",
+    "bytes": 66790,
+    "sha256": "b81941f178de1ed0a17f3d3979e283a8681fcf1d5e9271bd26b6828a6d58fdb0",
+    "status": 200
+  },
+  {
+    "key": "ai-economist",
+    "url": "https://github.com/salesforce/ai-economist",
+    "final": "https://github.com/salesforce/ai-economist",
+    "bytes": 358580,
+    "sha256": "ffe7d66fe1482d9245f750cc9e2610763eb74926cbe333457c711b8e86d97f29",
+    "status": 200
+  }
+]

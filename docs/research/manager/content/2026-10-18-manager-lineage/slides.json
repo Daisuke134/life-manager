@@ -1,0 +1,105 @@
+[
+  {
+    "title": "同じAIでも、\n担当する問題が違う",
+    "body": "Transformer：次のトークンを計算\nGoodfire：モデル内部を調べる\nMiroFish：仮想社会で仮説を試す\nNumerai：予測を集めて採点する",
+    "note": "異なる層の比較。導入済みの構成図ではない。",
+    "sources": [
+      "https://already-clean.goodfire.com/",
+      "https://github.com/666ghj/MiroFish",
+      "https://numer.ai/"
+    ]
+  },
+  {
+    "title": "MiroFishは、\n資料から仮想社会へ",
+    "body": "入力文書 → 関係のグラフ\n人物設定 → OASISで交流\n履歴を検索 → 結果を報告",
+    "note": "固定SHAの主要処理を静的に読解。今回は未実行。",
+    "sources": [
+      "https://github.com/666ghj/MiroFish"
+    ]
+  },
+  {
+    "title": "仮想の発言と、\n現実の観測を分ける",
+    "body": "バス減便の資料を入れる\n→ 仮想の通勤者や学生が反応\n→ 次に調査する仮説ができる\n現実の反対率は、別に検証する",
+    "note": "バスの例は説明用。MiroFishの実測結果ではない。",
+    "sources": [
+      "https://arxiv.org/abs/2411.11581"
+    ]
+  },
+  {
+    "title": "Transformerは、\n数値の計算を繰り返す",
+    "body": "文章 → トークンID → embedding\nAttentionで前の情報を混ぜる\nMLPで各位置の表現を変換する\n候補の点数 → 確率 → 次のトークン",
+    "note": "自己回帰型decoder-onlyモデルの説明。",
+    "sources": [
+      "https://arxiv.org/abs/1706.03762"
+    ]
+  },
+  {
+    "title": "パラメータと、\nactivationは違う",
+    "body": "1×0.4 ＋ 2×(−0.1) ＋ 0.2 = 0.4\n重み・バイアス：学習する数値\nactivation：入力ごとの計算結果\nニューロン：計算上のユニット",
+    "note": "架空の小さな計算。生物の神経細胞と同一ではない。",
+    "sources": [
+      "https://github.com/karpathy/nanoGPT"
+    ]
+  },
+  {
+    "title": "損失から、\n重みを少し更新する",
+    "body": "正解「就業」の確率：66.52%\n損失 −log(p)：0.4076\n勾配を計算 → 数値を更新\n1回後：67.71%、損失0.3899",
+    "note": "架空例。Pythonで計算・数値微分照合。LLM実験ではない。",
+    "sources": [
+      "https://github.com/karpathy/nanoGPT"
+    ]
+  },
+  {
+    "title": "Goodfireは、\n内部の説明を実験で調べる",
+    "body": "入力で何が反応したか\n周辺の回路とどうつながるか\nその働きを変えると出力はどう変わるか\n説明と実験が合うかを確かめる",
+    "note": "2026年10月15日の研究エッセイ。作業仮説。",
+    "sources": [
+      "https://already-clean.goodfire.com/"
+    ]
+  },
+  {
+    "title": "Numeraiは、\n予測を現実で採点する",
+    "body": "株式の特徴量 → 各参加者の予測\n後日の結果で採点 → 統合\nUnity：実株式IDと独自特徴量\n大会統合は2027年1月1日予定",
+    "note": "2026年10月18日確認。投資利益の保証ではない。",
+    "sources": [
+      "https://blog.numer.ai/unifying-numerai-and-signals/"
+    ]
+  },
+  {
+    "title": "この問いには、\n技術の歴史がある",
+    "body": "Wiener：フィードバック制御\nForrester：社会と資源の動的モデル\nBeer・Floresら：Cybersyn\nEpstein・Axtell：人工社会の相互作用",
+    "note": "比較上の接点。直接の影響関係を示す年表ではない。",
+    "sources": [
+      "https://www.brookings.edu/books/growing-artificial-societies/",
+      "https://thereader.mitpress.mit.edu/project-cybersyn-chiles-radical-experiment-in-cybernetic-socialism/"
+    ]
+  },
+  {
+    "title": "いま、近い問題を\n研究している人たち",
+    "body": "Zheng・Trottら：AI Economist\nPark・Bernstein・Liangら：Simile\nCam Fink・John Kessler・Ned Koh：Aaru\nConcordia・AgentSociety：実験環境",
+    "note": "同一製品・同一使命とは言わず、部品ごとに比較する。",
+    "sources": [
+      "https://arxiv.org/abs/2108.02755",
+      "https://www.simile.com/",
+      "https://aaru.com/about"
+    ]
+  },
+  {
+    "title": "SFが描いた、\n似た問いと異なる答え",
+    "body": "Asimov：Foundationの集団予測\nBanks：CultureのMindsと生活環境\nForster：The Machine Stopsの依存\n将来像と、検証すべき論点を考える",
+    "note": "文学的な比較。科学的な実証ではない。",
+    "sources": [
+      "https://www.penguinrandomhouse.com/books/5655/foundation-by-isaac-asimov/",
+      "https://theculture.adactio.com/",
+      "https://sf-encyclopedia.com/entry/forster_e_m"
+    ]
+  },
+  {
+    "title": "マネージャーは、\n現実から学ぶところまで",
+    "body": "観測 → モデル化 → 変更案を比較\n→ 権限のある範囲で実行\n→ 現実の結果で検証・改善\n使命は、すべての生命の苦しみの軽減",
+    "note": "人口合成は実装・測定済み。行動・介入効果はこれから。",
+    "sources": [
+      "https://github.com/Daisuke134/life-manager"
+    ]
+  }
+]

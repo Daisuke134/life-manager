@@ -3571,3 +3571,24 @@ Ruling: 既存root installerの依存不足は、今回の承認済みsource bra
 今回の成果はデザイン案。8Bの実装/測定状態は変わらず、学習上は本人の理解待ち。9の行動予測は未着手。本番サイト/課金導線/メール/応募/SNSは変更していない。
 
 デザイン案の確認完了：system Chromium/Playwrightで1440px desktop、390px mobileの3ページを描画。内部ファイル/anchor、共通footer、横はみ出しなし、JS例外なし、商品filter全10/モバイル6を確認。全体/ファーストビュー/スマホの実HTMLスクリーンショット9枚とverification.jsonを保存し代表例を目視。file URLはブラウザpolicyで拒否されたため通常のlocalhost HTTP previewで描画。外部製品の全機能/決済を検証したとはしない。HTML/CSS/商品一覧/根拠README/画像を同branchへ保存する。本人へのデザイン提示が現在、英語版と本番実装は次の段階。
+
+
+## 2026-10-18 MiroFish・Goodfire・Numerai・Transformer・構想の歴史
+
+本人の追加依頼：Mirofish、already-clean.goodfire.com、numer.ai、Transformerの内部機構とマネージャーとの関係。過去/SF/現在の近い研究者や企業を学び、記事・スライド・サイトでも紹介する。調査と公開用原稿/素材を今回の範囲として作成。先に見せたサイト全体の本番反映はまだ行わない。
+
+cloud runtimeはcurrent=true/running、network unrestricted/enforced、VPN falseを再確認。using-superpowers/cloud-runtime/networking/brainstorming/write-like-meとrepo日本語指針/両pinned guides/tech補足を読んだ。途中でcloud skillが利用不可となりverification-before-completionの取得は失敗。write-like-me検索/retrieveはcatalogになく文体資料取得済みとはしない。本人の意図が具体的なため調査と素材作成を進め、製品コード/課金API接続は行わない。
+
+web一次資料と公開コードを再確認。MiroFish mainは7657031ac01184afe2cb220f5ee3545573b5e843で過去メモと同じSHA。graph_builder/profile_generator/simulation_runner/report_agent/config/pyproject/LICENSEの主要処理を読んだ。MiroFishは文書→graph→persona→OASIS→report。通常構成のZep Cloud/LLM/API費用、AGPLを明記し、代表人口や現実予測が検証済みとは扱わない。サービス未起動。
+
+GoodfireはNick Cammarataの10月15日working hypothesisとして紹介し、言語ニューロン/SwiGLU/説明の試験/限定条件を確認。全ニューロンの独立監査・技術論文全文を読んだとはしない。superpositionの普遍否定/安全性保証としない。Numeraiは10月16日Unity発表を再読し2027年1月1日の予定を現在の完了と混同しない。新たな取引・NMR購入・学習・投稿なし。
+
+Transformerは原論文本文と固定nanoGPT 3adf61e154c3fe3fca428ad6bc3818b27a3b8291のAttention/MLP/Block/forward/cross-entropy/AdamWを読解。token→embedding→QKV→MLP/residual→logit→softmax→loss→gradientの架空例を記事へ。標準ライブラリ算数demoで解析勾配/有限差分差<1e-8、損失0.407606→0.389928、正解確率0.665241→0.677106を確認。フルTransformerの追加学習ではない。
+
+歴史はWiener/Forrester/Beer・FloresのCybersyn/Epstein・AxtellのSugarscape。近い研究はZheng・TrottらAI Economist、Park・Bernstein・LiangらSimile、Aaru、Concordia、AgentSociety。SFはFoundation/Culture/The Machine Stops。直接の影響関係/同じ使命/提携とはしない。公開APIサービス、原論文成果、本人の構想、私たちの実測を分ける。
+
+保存：docs/research/manager/articles/2026-10-18-manager-lineage-and-mechanisms-ja.md（28項の出典）、同articles/visualsの生成概念図、content/2026-10-18-manager-lineageの12枚横/12枚縦/HTML/JSON/投稿文、figures/render_manager_lineage.py、evidence/2026-10-18/context-researchの取得manifest/固定SHA/算数code/output/読解範囲。元の生成画像を残してcopy。著作物全文/第三者コードはGit外。
+
+ウェブデザイン案のトップに先行例の記事入口を追加。記事リンクは実在する公開GitHub branch宛てで、存在しない/blog記事URLを作らない。本番ブログはpartial landing sourceには含まれないため記事・素材保存まで。ブログ分類案は「マネージャー／研究と仕組み」。既存公開ソース/公開手順の統合後に英語版とブログ/本番ページ反映を進める。SNS投稿・メール・応募なし。
+
+確認：算数demo実行/勾配照合、24PNG寸法、記事内ローカルリンク、代表画像の目視、3ページpreviewの内部リンク/390px overflow/JS/filterを再検査しPASS。前turnのローカルserver停止による初回接続拒否は一時HTTP serverで再描画して解決。進捗：本依頼の研究と素材保存は完了、今回本人へ説明する。8Bの本人理解状態は変更せず、9行動予測の実装は未着手。次は説明の疑問を確認しつつ、別実データで行動予測を学習/評価する設計へ戻る。

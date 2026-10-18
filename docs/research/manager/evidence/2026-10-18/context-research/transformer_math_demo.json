@@ -1,0 +1,69 @@
+{
+  "kind": "invented educational arithmetic; not research results",
+  "candidates": [
+    "就業",
+    "非就業",
+    "学生"
+  ],
+  "logits_before": [
+    2.0,
+    1.0,
+    0.0
+  ],
+  "probabilities_before": [
+    0.6652409557748218,
+    0.24472847105479764,
+    0.09003057317038046
+  ],
+  "loss_before": 0.40760596444438046,
+  "analytic_gradient": [
+    -0.3347590442251782,
+    0.24472847105479764,
+    0.09003057317038046
+  ],
+  "finite_difference_gradient": [
+    -0.3347590442237536,
+    0.2447284710632713,
+    0.09003057317158446
+  ],
+  "learning_rate": 0.1,
+  "logits_after": [
+    2.033475904422518,
+    0.9755271528945202,
+    -0.009003057317038047
+  ],
+  "probabilities_after": [
+    0.6771058419195133,
+    0.2350689437506638,
+    0.08782521432982289
+  ],
+  "loss_after": 0.3899276786743923,
+  "attention_scores": [
+    0,
+    2,
+    1
+  ],
+  "attention_weights": [
+    0.09003057317038046,
+    0.6652409557748218,
+    0.24472847105479764
+  ],
+  "attention_values": [
+    0,
+    2,
+    1
+  ],
+  "attention_weighted_sum": 1.5752103826044412,
+  "neuron_example": {
+    "input": [
+      1,
+      2
+    ],
+    "weights": [
+      0.4,
+      -0.1
+    ],
+    "bias": 0.2,
+    "preactivation": 0.4
+  }
+}
