@@ -16,18 +16,18 @@ from test_crypto_performance import activity_fixture,cycle_fixture
 END='2026-01-02T04:00:00Z'
 
 
-def debit_fixture(root,mode='paper',credit='0.05',*,partial=False):
+def debit_fixture(root,mode='paper',credit='0.05',*,partial=False,zero=False):
     ledger=root/'receipts.jsonl'
-    if partial:
-        orders,_,owned=cycle_fixture(root,mode,partial=True)
+    if partial or zero:
+        orders,_,owned=cycle_fixture(root,mode,partial=partial,zero=zero)
         rows=store._rows(ledger)
         cutoff=next(i for i,r in enumerate(rows) if r.get('receipt_type')=='effect_intent'
             and r.get('status')=='planned' and r.get('effect_id')==owned['close_effect_id'])
         rows=rows[:cutoff]
         state=proofs.owned_quantity_state_from_rows(rows,owned,mode=mode,owner_id=f'alpaca-investment-{mode}')
-        owned.update(status='open',owned_qty='0.03',close_effect_id=state['last_close_effect_id'],
+        owned.update(status='open',owned_qty='0.03' if partial else '0.05',close_effect_id=state['last_close_effect_id'],
                      close_client_order_id=state['last_close_client_order_id'])
-        broker=orders[0];current='0.029925'
+        broker=orders[0];current='0.029925' if partial else '0.049925'
     else:
         owned,broker,account,owner=entry_fixture(root,mode,owned_qty=credit)
         proof=proofs.entry_fill_proof_from_rows(store._rows(ledger),owned,broker,account,mode=mode,owner_id=owner)
@@ -167,3 +167,16 @@ class CryptoFeeDebitTests(unittest.TestCase):
                     mode=mode,start=broker['submitted_at'],end=END)
                 with self.assertRaisesRegex(ValueError,'owned_fee_debit_invalid'):
                     self.proof(store._rows(ledger),owned,missing_known,current,mode)
+
+    def test_proven_zero_sell_cannot_acquire_new_executions(self):
+        for mode in ('paper','live'):
+            with self.subTest(mode=mode),tempfile.TemporaryDirectory() as directory:
+                rows,owned,frame,account=debit_fixture(Path(directory),mode,zero=True)
+                self.assertEqual(self.proof(rows,owned,frame,account,mode)['receipt']['sold_qty'],'0')
+                order=next(r['broker'] for r in rows if r.get('receipt_type')=='outcome' and r.get('broker',{}).get('side')=='sell')
+                fill={'id':'impossible-zero-fill','activity_type':'FILL','order_id':order['id'],'symbol':'BTCUSDC',
+                    'side':'sell','qty':'0.001','price':'210','transaction_time':'2026-01-01T04:05:01Z'}
+                bad=activity_fixture({'fills':[fill],'fees':frame['fees']},mode=mode,
+                    start=frame['requested_period_start'],end=END)
+                with self.assertRaisesRegex(ValueError,'owned_fee_debit_invalid'):
+                    self.proof(rows,owned,bad,account,mode)
