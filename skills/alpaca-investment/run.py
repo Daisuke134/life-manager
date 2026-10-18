@@ -28,7 +28,7 @@ from etf_ownership import record_filled as record_etf_filled
 from paper_performance import write_paper_performance
 from cost_inventory import record_source_inventory
 from reporter import deliver, deliver_control, deliver_failure
-from position_manager import choose as choose_position, exit_order as live_exit_order, load_owned_policy
+from position_manager import choose as choose_position, exit_order as live_exit_order, load_owned_policy, close_fill_proof
 from strategy_policy import INDICATOR_HISTORY_CONTRACTS, load_selected_card, validate_policy_card
 from review_status import read_receipt as read_application_status
 from review_status import refresh as refresh_application_status
@@ -305,6 +305,24 @@ def _sync_live_ownership(state: Path, credentials_path: Path, cli_path: Path,
             ownership["owned_qty"] = str(remaining)
             _atomic_json(path, ownership)
         elif status == "filled" and not btc:
+            mode = os.environ.get("LIFE_MANAGER_INVESTMENT_MODE")
+            proof = close_fill_proof(state, ownership, broker, observation, mode=mode)
+            matched = False
+            for row in receipt_rows(state / "receipts.jsonl"):
+                if row.get("receipt_type") != "outcome" or row.get("effect_id") != ownership.get("close_effect_id"):
+                    continue
+                recorded = row.get("strategy_receipt")
+                if recorded is None:
+                    continue
+                if not isinstance(recorded, dict) or recorded.get("receipt") != proof["receipt"]:
+                    raise ValueError("owned_close_receipt_conflict")
+                expected = close_fill_proof(state, ownership, row.get("broker"),
+                                            recorded.get("account_readback"), mode=mode)
+                if recorded != expected:
+                    raise ValueError("owned_close_receipt_conflict")
+                matched = True
+            if not matched:
+                raise ValueError("owned_close_receipt_missing")
             ownership["status"] = "closed"
             _atomic_json(path, ownership)
     return ownership
