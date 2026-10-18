@@ -77,6 +77,11 @@ class CryptoActivityEvidenceTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'crypto_activity_limit_exceeded'): self.read()
         self.assertEqual(run.call_count,4)
 
+    def test_same_activity_id_cannot_describe_both_a_fill_and_a_fee(self):
+        with patch.object(cli,'_context',return_value={}),\
+                patch.object(cli,'_run',side_effect=[[FILL],[{**FEE,'id':FILL['id']}]]):
+            with self.assertRaisesRegex(ValueError,'crypto_activity_invalid'): self.read()
+
     def test_invalid_mode_or_period_never_opens_credentials(self):
         for mode,start,end in (('shadow',START,END),('paper',END,START),
                 ('paper','invalid',END),('paper','2025-01-01T00:00:00Z',END)):
