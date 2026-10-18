@@ -90,5 +90,30 @@ class QuoteBaselineTests(unittest.TestCase):
                     self.assertEqual(rows,before)
 
 
+    def test_partial_and_no_fill_use_the_same_pre_submission_bound(self):
+        for mode in ('paper','live'):
+            for kind in ('partial','no_fill'):
+                for later in (False,True):
+                    with self.subTest(mode=mode,kind=kind,later=later),tempfile.TemporaryDirectory() as directory:
+                        root=Path(directory)
+                        raw=observation(mode,'2026-01-01T04:00:01Z' if later else START)
+                        marker,broker,after,owner=seed(root,mode,partial=True,pre_trade_readback=raw)
+                        if kind=='no_fill':
+                            broker.update(filled_qty='0',filled_at=None)
+                            after['positions']=[]
+                            def read():
+                                return proofs.no_fill_entry_proof_from_rows(store._rows(root/'receipts.jsonl'),
+                                    marker,broker,after,mode=mode,owner_id=owner)
+                        else:
+                            frame=fixtures.native_activity(mode,[broker],end=after['clock']['observed_at'])
+                            def read():
+                                return proofs.entry_fill_proof_from_rows(store._rows(root/'receipts.jsonl'),
+                                    marker,broker,after,mode=mode,owner_id=owner,activity_readback=frame)
+                        if later:
+                            with self.assertRaises(ValueError):read()
+                        else:
+                            self.assertIsNone(read()['receipt']['net_realized_pnl_usd'])
+
+
 if __name__=='__main__':
     unittest.main()
