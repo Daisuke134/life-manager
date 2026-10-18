@@ -1659,13 +1659,24 @@ def _portfolio(page: Any, item: Mapping[str, Any]) -> dict[str, Any] | None:
     for link in page.locator('a[href*="portfolio"]').all():
         if " ".join(str(link.inner_text() or "").split()) == title:
             matches.append(link)
-    if not matches: return None
+    # None tells _ensure_portfolio to create one, so it is allowed only without a pin: a pinned
+    # row that did not render must never mint a duplicate (likely origin of 757333, 2026-10-18).
+    if not matches:
+        if item["external_id"]: raise OfferError("portfolio_readback_invalid")
+        return None
+    # A same-title duplicate must not hide the pinned row; without a pin, duplicates stay
+    # ambiguous. Duplicates are reported so they surface instead of hiding behind the pin.
+    ids = [urlsplit(link.get_attribute("href") or "").path.rstrip("/").rsplit("/", 1)[-1] for link in matches]
+    duplicates = sorted(value for value in ids if value != item["external_id"]) if item["external_id"] else []
+    if len(matches) > 1 and item["external_id"]:
+        matches = [link for link, value in zip(matches, ids) if value == item["external_id"]]
     if len(matches) != 1: raise OfferError("portfolio_readback_invalid")
     href = matches[0].get_attribute("href") or ""
     parsed = urlsplit(href)
     found = re.fullmatch(r"/profile/[^/?#\s]+/portfolio_popup/([0-9]+)", parsed.path)
     if parsed.scheme or parsed.netloc or parsed.query or parsed.fragment or found is None or item["external_id"] and found.group(1) != item["external_id"]: raise OfferError("portfolio_readback_invalid")
-    return {"portfolio_external_id": found.group(1), "portfolio_url": ORIGIN + parsed.path}
+    return {"portfolio_external_id": found.group(1), "portfolio_url": ORIGIN + parsed.path} | (
+        {"portfolio_duplicate_external_ids": duplicates} if duplicates else {})
 
 
 def _ensure_portfolio(page: Any, product: Mapping[str, Any], image: Path, key: str) -> dict[str, Any]:
@@ -1741,8 +1752,11 @@ def _roster(page: Any, product: Mapping[str, Any]) -> dict[str, Any]:
         if found is None: raise OfferError("roster_readback_invalid")
         listing_ids.append(found.group(1))
     superseded = {listing_id: _setting_status(page, listing_id) for listing_id in product["superseded_listing_ids"]}
-    portfolios = {key: (_portfolio(page, product[key]) or {}).get("portfolio_external_id") for key in ("portfolio", "software_portfolio")}
-    return {"action": "roster_readback", "listing_ids": listing_ids, "superseded_status": superseded, "portfolio_external_ids": portfolios}
+    found = {key: _portfolio(page, product[key]) or {} for key in ("portfolio", "software_portfolio")}
+    return {"action": "roster_readback", "listing_ids": listing_ids, "superseded_status": superseded,
+            "portfolio_external_ids": {key: value.get("portfolio_external_id") for key, value in found.items()},
+            # Same-title duplicates are unledgered public effects; the fence reconciler holds on them.
+            "portfolio_duplicate_external_ids": {key: value.get("portfolio_duplicate_external_ids", []) for key, value in found.items()}}
 
 
 def run(apply: bool, product_path: Path, state_path: Path, *, roster: bool = False) -> dict[str, Any]:
@@ -1760,6 +1774,8 @@ def run(apply: bool, product_path: Path, state_path: Path, *, roster: bool = Fal
                     result["portfolio_effect_count"] = portfolio["portfolio_effect_count"]
                     result[key + "_external_id"] = portfolio["portfolio_external_id"]
                     result[key + "_url"] = portfolio["portfolio_url"]
+                    if portfolio.get("portfolio_duplicate_external_ids"):
+                        result[key + "_duplicate_external_ids"] = portfolio["portfolio_duplicate_external_ids"]
                     if portfolio["portfolio_effect_count"]:
                         result["action"] = "portfolio_created"; break
                 else:

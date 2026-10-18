@@ -120,6 +120,8 @@ def official_proof(occurrence_id: str, state_root: Path, product_path: Path, *,
         raise Held("superseded_listing_not_archived")
     if live.get("portfolio_external_ids") != portfolios:
         raise Held("portfolio_roster_differs_from_product")
+    if live.get("portfolio_duplicate_external_ids") != {key: [] for key in PORTFOLIO_KEYS}:
+        raise Held("portfolio_duplicate_present")
     fingerprint = json.dumps({"listing_ids": sorted(expected_ids), "portfolios": portfolios,
                               "superseded": superseded}, sort_keys=True, separators=(",", ":"))
     return {
