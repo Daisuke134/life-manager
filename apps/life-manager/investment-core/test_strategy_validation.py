@@ -46,6 +46,37 @@ def _costs():
 
 
 class StrategyValidationTests(unittest.TestCase):
+    def test_sensitivity_changes_numeric_literals_not_indicator_names(self):
+        from strategy_validation import _find_parameter, _replace_path
+        expressions = {"all": ["ema_20 > ema_50", "close > prior_20_high"]}
+        self.assertIsNone(_find_parameter(expressions))
+        for text, literal in (("rsi_14 <= 30", "30"),
+                              ("close <= entry_price - 2 * atr_14", "2"),
+                              ("tema_9 < bollinger_middle_20_2", None),
+                              ("close <= 1e-3", "1e-3")):
+            with self.subTest(expression=text):
+                found=_find_parameter({"all":[text]})
+                if literal is None:
+                    self.assertIsNone(found)
+                else:
+                    self.assertIsNotNone(found)
+                    path,_step=found
+                    self.assertEqual(text[path[-2]:path[-1]],literal)
+                    changed=_replace_path({"all":[text]},path,"7")
+                    self.assertNotIn("rsi_17",changed["all"][0])
+                    self.assertNotIn("atr_17",changed["all"][0])
+
+    def test_reference_dummy_does_not_fill_missing_comparison_from_actual(self):
+        mapping=_card().to_mapping()
+        mapping["kill_conditions"].append("indicator_history_unstable")
+        candles=_candles([90,110]*5)
+        for row in candles:
+            row.update(indicator_history_stable="1",reference_dummy="1")
+        result=validate_series(StrategyCard.from_mapping(mapping),candles,_split(),_costs())
+        self.assertEqual(result["status"],"unknown")
+        self.assertEqual(result["decision"],"rejected")
+        self.assertIsNone(result["net_pnl_usd"])
+
     def test_required_indicator_history_comparison_is_not_optional(self):
         mapping=_card().to_mapping()
         mapping["kill_conditions"].append("indicator_history_unstable")
