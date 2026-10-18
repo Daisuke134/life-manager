@@ -378,8 +378,17 @@ adjustments recorded before its seal. Original acquisition and SELL receipts sta
 unchanged. Save-before-marker-update replays append nothing; further new fees wait
 until the saved quantity is adopted. The first valid acquisition/SELL receipt
 anchors history, while all later observations remain subject to conflict checks.
-Next connect automatic observation/owner marker recovery and every policy,
-fresh-submit, counter and performance consumer to this same chain.
+The existing open owner now adopts the same validated quantity state, and the
+policy loader rejects an unproved or stale marker quantity. The current official
+last order is audited against its historical account receipt. Only a new account
+quantity decrease triggers a bounded BUY fee observation, receipt save and marker
+update. Save-before-marker-update replays recover from the saved event without
+activity reads. Explicit fee exhaustion has a separate proven flat marker/guard;
+no SELL is invented. The fresh submit check discovers no new fees: a changed
+quantity rejects that decision and is handled on the next natural wake. Missing
+BTC without fee evidence retains the existing pending/no-trade behavior.
+Fee posting while a SELL is still reconciling, and performance consumption of the
+same adjusted quantity chain, remain subsequent work in the canonical SSOT.
 This branch is source only: verified fee quantity-drift recovery, FX and complete
 actual costs, deployment, natural outcomes and profitable evaluation remain in
 the canonical SSOT.

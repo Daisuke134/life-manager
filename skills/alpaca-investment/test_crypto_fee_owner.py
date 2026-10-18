@@ -1,6 +1,8 @@
 """Automatic owner synchronization consumes the same proven fee quantity chain."""
 import copy
+from contextlib import ExitStack,redirect_stdout
 import importlib.util
+from io import StringIO
 import json
 import os
 from pathlib import Path
@@ -19,6 +21,7 @@ from test_crypto_close import native_run
 from test_crypto_fee_debit import debit_fixture,END
 from test_crypto_fee_ledger import write_rows
 from test_crypto_performance import activity_fixture
+from test_owned_policy import seed,snapshot
 
 
 def owner_fixture(root,mode,*,partial=False):
@@ -141,3 +144,57 @@ class CryptoFeeOwnerTests(unittest.TestCase):
                     self.assertTrue(guard(current,rows))
                     self.assertFalse(guard({**current,'owned_qty':'0.001'},rows))
                     self.assertFalse(guard({**current,'fee_close_id':'forged'},rows))
+
+    def test_real_main_uses_adjusted_qty_and_defers_a_fee_first_seen_at_submit(self):
+        for mode in ('paper','live'):
+            for at_submit in (False,True):
+                with self.subTest(mode=mode,at_submit=at_submit),tempfile.TemporaryDirectory() as directory,ExitStack() as stack:
+                    root=Path(directory);owned,owner=seed(root,mode=mode);native=native_run()
+                    broker=next(r['broker'] for r in store._rows(root/'receipts.jsonl') if r.get('receipt_type')=='outcome')
+                    raw,account=snapshot(mode);history=raw.pop('crypto_history')
+                    clock=raw['clock']['timestamp'];account.update(mode=mode,paper=mode=='paper',
+                        account={'cash':'90','equity':'97.5'},activities_count=1,open_and_closed_orders_count=1,
+                        clock={'observed_at':clock})
+                    fee={'id':'native-main-fee','activity_type':'CFEE','order_id':broker['id'],'symbol':'BTCUSD',
+                        'qty':'-0.000075','date':'2026-01-01','created_at':'2026-01-01T04:10:00Z','net_amount':'0','status':'executed'}
+                    frame=activity_fixture({'fills':[],'fees':[fee]},mode=mode,start=broker['submitted_at'],end=clock)
+                    observes=[0]
+                    def observe(**_):
+                        observes[0]+=1;value=copy.deepcopy(account)
+                        value['positions'][0]['qty']='0.05' if at_submit and observes[0]==1 else '0.049925'
+                        value['positions'][0]['unrealized_pl']='0'
+                        return value
+                    def find(*,client_order_id,**_):
+                        if client_order_id==broker['client_order_id']:return copy.deepcopy(broker)
+                        return {'id':'main-sell','client_order_id':client_order_id,'status':'filled','symbol':'BTCUSDC',
+                            'side':'sell','type':'market','time_in_force':'gtc','qty':'0.049925','filled_qty':'0.049925',
+                            'filled_avg_price':'150','submitted_at':clock,'filled_at':clock}
+                    stack.enter_context(patch.dict(os.environ,{'LIFE_MANAGER_INVESTMENT_DEPLOYMENT':'local',
+                        'LIFE_MANAGER_INVESTMENT_MODE':mode,'LIFE_MANAGER_INVESTMENT_OWNER_ID':owner,
+                        f'ALPACA_INVESTMENT_{mode.upper()}_STATE_DIR':str(root),
+                        f'ALPACA_INVESTMENT_{mode.upper()}_CREDENTIALS_FILE':str(root/'unused')},clear=True))
+                    stack.enter_context(patch.object(native,'observe',side_effect=observe))
+                    stack.enter_context(patch.object(native,'find_order_by_client_id',side_effect=find))
+                    for name,value in (('read_allocator_snapshot',raw),('read_crypto_history',history),
+                        ('read_campaign_snapshot',{'paper':True,'unexpected_positions':['BTCUSD'],'fills':[],'positions':[],'options':[]}),
+                        ('build_candidates',[]),('_review_status',{}),('deliver',{'message_id':'fixture'}),
+                        ('deliver_failure',{'status':'delivered'}),('_retry_allowed',False)):
+                        stack.enter_context(patch.object(native,name,side_effect=lambda *args,value=value,**_:copy.deepcopy(value)))
+                    reader=stack.enter_context(patch.object(native,'read_crypto_activity_evidence',return_value=frame))
+                    submit=stack.enter_context(patch.object(native,'submit_order',return_value={'status':'accepted'}))
+                    stack.enter_context(patch.object(cli,'_context',side_effect=AssertionError('provider forbidden')))
+                    with redirect_stdout(StringIO()) as output:code=native.main(wake_id='fee-main-first')
+                    summary=json.loads(output.getvalue().splitlines()[-1])
+                    if at_submit:
+                        self.assertEqual(code,78,summary);self.assertEqual(summary['error_code'],'owned_position_changed_before_submit')
+                        self.assertEqual(submit.call_count,0);self.assertEqual(reader.call_count,0)
+                        self.assertFalse(any(r.get('order',{}).get('side')=='sell' for r in store._rows(root/'receipts.jsonl')))
+                        with redirect_stdout(StringIO()) as output:code=native.main(wake_id='fee-main-next-wake')
+                        summary=json.loads(output.getvalue().splitlines()[-1])
+                    self.assertEqual(code,0,summary);self.assertEqual(submit.call_count,1)
+                    self.assertEqual(reader.call_count,1)
+                    rows=store._rows(root/'receipts.jsonl')
+                    sells=[r for r in rows if r.get('receipt_type')=='effect_intent' and r.get('status')=='planned'
+                        and r.get('order',{}).get('side')=='sell']
+                    self.assertEqual(len(sells),1);self.assertEqual(sells[0]['order']['qty'],'0.049925')
+                    self.assertEqual(json.loads((root/'live-owned-position.json').read_text())['owned_qty'],'0.049925')
