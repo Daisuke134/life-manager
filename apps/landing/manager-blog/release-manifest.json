@@ -7,7 +7,7 @@
     },
     {
       "path": "scripts/package-contract.mjs",
-      "sha256": "e4d210e8628d19596f1aad6701a1dd69c52f82d11611808c7ebbc535d435a3d9"
+      "sha256": "28d0791c5feab39559ac6a561bb4cab550bc2183a171b10a262825793a1a8c53"
     },
     {
       "path": "lib/render-manager-markdown.mjs",

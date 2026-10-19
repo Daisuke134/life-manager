@@ -27,3 +27,6 @@ jobs:
         run: |
           node apps/landing/manager-blog/scripts/build-release-manifest.mjs
           git diff --exit-code -- apps/landing/manager-blog/release-manifest.json
+      - name: Verify reviewed publication bytes
+        if: ${{ hashFiles('docs/research/manager/publication/2026-10-19/manifest.json') != '' }}
+        run: node apps/landing/manager-blog/scripts/verify-package.mjs

@@ -8,6 +8,7 @@ export function validatePublication(value) {
   if(seen.has(a.slug)) throw new Error('Duplicate article slug');seen.add(a.slug);
   if(a.package_path!==`${a.lang}/${a.slug}.md`) throw new Error('Invalid article path');
   if(!/^[a-f0-9]{64}$/.test(a.sha256)||typeof a.markdown!=='string'||digest(a.markdown)!==a.sha256) throw new Error('Article hash mismatch');
+  if(!Number.isInteger(a.word_count)||a.word_count<0||!Number.isInteger(a.n_papers_cited)||a.n_papers_cited<0) throw new Error('Invalid article counts');
   if(a.canonical_url!==`https://aniccaai.com/blog/${a.slug}`||!a.title||!/^\d{4}-\d{2}-\d{2}$/.test(a.date)) throw new Error('Invalid article metadata');
  }
  for(const m of value.media) {
