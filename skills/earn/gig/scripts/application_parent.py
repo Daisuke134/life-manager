@@ -25,6 +25,7 @@ import subprocess
 import sys
 import threading
 import time
+import unicodedata
 from concurrent.futures import ThreadPoolExecutor, wait
 from pathlib import Path
 from typing import Any, Callable, Iterator, Protocol
@@ -261,14 +262,58 @@ def _budget_range(detail: dict[str, object]) -> tuple[int, int] | None:
     return (low, high) if low is not None and high is not None and low <= high else None
 
 
+# A yen amount a planner body quotes (8,000円 / 8千円 / 0.8万円 / ¥8,000).
+_YEN_AMOUNT = re.compile(
+    r"[¥￥]\s*(?P<prefixed>[0-9][0-9,]*)|(?P<number>[0-9][0-9,.]*)\s*(?P<unit>[千万]?)\s*円"
+)
+
+
+def _yen_amounts(text: str) -> set[float]:
+    values = set()
+    for match in _YEN_AMOUNT.finditer(unicodedata.normalize("NFKC", text)):
+        number = (match["prefixed"] or match["number"]).replace(",", "")
+        try:
+            value = float(number)
+        except ValueError:
+            value = -1.0  # unreadable amount: never equal to the planner price
+        values.add(value * {"千": 1_000, "万": 10_000}.get(match["unit"] or "", 1))
+    return values
+
+
+def _bid_cut_eligible(
+    detail: dict[str, object], request_id: str, planner_price_jpy: int, planner_text: str,
+) -> bool:
+    """Arm-independent eligibility, so both arms are drawn from the same population.
+
+    Only a real range (low < high) with room under the planner price can be cut to the
+    lower bound, and only when the body quotes no yen amount but the planner's own price
+    (a breakdown or the buyer's budget makes the request ineligible, never rewritten).
+    """
+    budget = _budget_range(detail)
+    return (
+        budget is not None and budget[0] < budget[1] and budget[0] < planner_price_jpy
+        and not _is_retainer_request(request_id)
+        and _yen_amounts(planner_text) <= {float(planner_price_jpy)}
+    )
+
+
+def _without_price_sentences(text: str) -> str:
+    """Drop body sentences that quote the price, so the closing line alone carries it."""
+    pieces = re.split(r"(?<=[。！？!?\n])", text)
+    return "".join(
+        piece for piece in pieces
+        if not _YEN_AMOUNT.search(unicodedata.normalize("NFKC", piece))
+    )
+
+
 def commercial_offer_price(
     detail: dict[str, object], *, planner_price_jpy: int, arm: str | None = None,
 ) -> int | None:
-    """Preserve the planner's price (arm A); arm B bids the buyer's stated lower bound.
+    """Preserve the planner's price (arm A); arm B cuts to the buyer's lower bound.
 
-    B never leaves the buyer's range and never goes under the official minimum or the
-    cost floor; when no price satisfies all of them it keeps the planner's price. The
-    form still clamps the live official bounds for both arms (adjust_offer_price).
+    B is only ever a cut: it never leaves the buyer's range, never goes under the
+    official minimum or the cost floor, and keeps the planner price whenever those
+    floors reach it. The form still clamps the live official bounds for both arms.
     """
     planner = _money_or_none(planner_price_jpy)
     budget = _budget_range(detail)
@@ -279,22 +324,10 @@ def commercial_offer_price(
     except ParentContractError:
         return planner
     price = max(budget[0], official_min or 0, COST_FLOOR_JPY)
-    if price > budget[1] or (official_max is not None and price > official_max):
+    if (price >= planner or price > budget[1]
+            or (official_max is not None and price > official_max)):
         return planner
     return price
-
-
-def _restate_price(text: str, old: int, new: int) -> str:
-    """Rewrite the planner's own amount (8,000円 / 8000円 / ¥8,000) to the offered price.
-
-    Most planner bodies repeat their price; an arm-B offer must not quote two amounts.
-    ponytail: kanji forms (8千円, 0.8万円) are left as written.
-    """
-    if old == new:
-        return text
-    amount = rf"(?:{re.escape(f'{old:,}')}|{old})"
-    pattern = rf"(?<![\d,])(?:(?<=[¥￥]){amount}|{amount}(?=\s?円))(?![\d,])"
-    return re.sub(pattern, f"{new:,}", text)
 
 
 def commercial_proposal_text(
@@ -338,8 +371,8 @@ def apply_commercial_offer_contract(
 ) -> dict[str, object]:
     """Apply the code-owned price policy and record the A/B arm on the decision.
 
-    Only single requests with a stated budget range join an A/B experiment; quote
-    requests, open-ended budgets and retainers keep the planner price and no arm.
+    Only _bid_cut_eligible requests join the experiment or the adopted policy; every
+    other request keeps the planner price and carries no arm.
     """
     details = {
         str(detail["request_id"]): detail
@@ -359,17 +392,17 @@ def apply_commercial_offer_contract(
             continue
         request_id = str(raw["request_id"])
         detail = details[request_id]
+        planner_price = int(raw["price_jpy"])
         arm = None
-        if _budget_range(detail) is not None and not _is_retainer_request(request_id):
+        planner_text = str(raw["proposal_text"])
+        if _bid_cut_eligible(detail, request_id, planner_price, planner_text):
+            # Same text treatment for both arms: only the price may differ between them.
+            planner_text = _without_price_sentences(planner_text)
             if ab is not None:
                 arm = assign_arm(str(ab["id"]), request_id)
             elif adopted_bid_policy == BUDGET_LOWER_BOUND:
                 arm = "B"
-        price = commercial_offer_price(
-            detail,
-            planner_price_jpy=int(raw["price_jpy"]),
-            arm=arm,
-        )
+        price = commercial_offer_price(detail, planner_price_jpy=planner_price, arm=arm)
         if price is None:
             continue
         row = {key: value for key, value in raw.items() if key not in EXPERIMENT_FIELDS}
@@ -377,7 +410,7 @@ def apply_commercial_offer_contract(
             row["experiment_id"], row["experiment_arm"] = str(ab["id"]), arm
         row["price_jpy"] = price
         row["proposal_text"] = commercial_proposal_text(
-            _restate_price(str(raw["proposal_text"]), int(raw["price_jpy"]), price),
+            planner_text,
             price_jpy=price,
             deliver_date=str(raw["deliver_date"]),
         )

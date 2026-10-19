@@ -458,7 +458,7 @@ def _ab_metrics(experiment: dict[str, Any], *, applied_rows: list[Any],
 
     receipt_map = readback.get("receipt_map") if isinstance(readback, dict) else None
     records = receipt_map.get("records") if isinstance(receipt_map, dict) else None
-    unattributed: dict[str, int] | None = None
+    unattributed: dict[str, dict[str, int]] | None = None
     # A complete receipt map plus the title map, or revenue stays unknown (None).
     if (
         isinstance(receipt_map, dict) and receipt_map.get("complete") is True
@@ -466,7 +466,8 @@ def _ab_metrics(experiment: dict[str, Any], *, applied_rows: list[Any],
         and all(isinstance(record, dict) and type(record.get("net_amount_minor")) is int
                 for record in records)
     ):
-        unattributed = {"count": 0, "jpy": 0}
+        unattributed = {"not_in_experiment": {"count": 0, "jpy": 0},
+                        "arm_ambiguous": {"count": 0, "jpy": 0}}
         room_titles = {str(room): _title(title) for room, title in revenue_titles.items()}
         for record in records:
             occurred = _epoch(record.get("occurred_at"))
@@ -478,16 +479,17 @@ def _ab_metrics(experiment: dict[str, Any], *, applied_rows: list[Any],
                 if occurred is not None and match[0] <= occurred
             ]
             tags = {(match[2], match[3]) for match in matches}
-            if len(tags) != 1:
-                # No title, no application, or applications from different arms.
-                unattributed["count"] += 1
-                unattributed["jpy"] += record["net_amount_minor"]
+            ours = {arm for tag_id, arm in tags if tag_id == experiment_id and arm in arms}
+            if len(tags) == 1 and ours:
+                (arm,) = ours
+                arms[arm]["net_jpy"] += record["net_amount_minor"]
+                contracts[arm].add(max(matches, key=lambda match: match[0])[1])
                 continue
-            (tag_id, arm), = tags
-            if tag_id != experiment_id or arm not in arms:
-                continue  # sale from an application made outside this experiment
-            arms[arm]["net_jpy"] += record["net_amount_minor"]
-            contracts[arm].add(max(matches, key=lambda match: match[0])[1])
+            # No title/application, or one from outside this experiment, is not in the
+            # experiment; a title shared with an experiment application is ambiguous.
+            bucket = unattributed["arm_ambiguous" if ours else "not_in_experiment"]
+            bucket["count"] += 1
+            bucket["jpy"] += record["net_amount_minor"]
     for arm, values in arms.items():
         values["contracts"] = len(contracts[arm])
         if unattributed is None:
@@ -525,6 +527,8 @@ def _ab_verdict(experiment: dict[str, Any], metrics: dict[str, Any],
     applications = min(a["applications"], b["applications"])
     if applications < experiment["min_applications_per_arm"]:
         return None, "insufficient_applications"
+    if metrics["unattributed"]["arm_ambiguous"]["jpy"] > abs(b["net_jpy"] - a["net_jpy"]):
+        return None, "arm_ambiguous_revenue"  # ambiguous sales could flip the comparison
     margin = experiment["contract_margin"]
     if (b["contracts"] >= a["contracts"] + margin
             and b["net_jpy_per_application"] >= a["net_jpy_per_application"]):

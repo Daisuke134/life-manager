@@ -16,9 +16,9 @@
       },
       "arms": {
         "A": "control: planner price (about 80% of the upper bound)",
-        "B": "bid the stated budget lower bound; never below the buyer range, official minimum or cost floor"
+        "B": "cut to the stated budget lower bound; never below the buyer range, official minimum or cost floor, and never above the planner price"
       },
-      "population": "requests with both budget_min_jpy and budget_max_jpy; quote requests (見積依頼) and open-ended budgets are unchanged and excluded",
+      "population": "single requests with budget_min_jpy < budget_max_jpy, budget_min_jpy below the planner price, and a planner body quoting no yen amount except that price; eligibility is decided before the arm. Single-amount budgets, quote requests (見積依頼), open-ended budgets and retainers are unchanged and excluded. Eligible bodies in both arms drop their price sentences, so only the closing line carries the price.",
       "primary_metric": "net_jpy_per_application",
       "secondary_metric": "contracts",
       "min_applications_per_arm": 150,

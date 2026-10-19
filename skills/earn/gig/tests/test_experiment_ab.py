@@ -113,6 +113,25 @@ def test_defer_until_samples_and_cohort_age() -> None:
     assert small["summary"]["reason"] == "insufficient_applications"
 
 
+def test_arm_ambiguous_revenue_larger_than_the_gap_defers_the_verdict() -> None:
+    shared = [
+        {"requestId": f"dup{arm}", "title": "共通案件", "ts": T0 + 60,
+         "experiment_id": EXP, "experiment_arm": arm}
+        for arm in ("A", "B")
+    ]
+    applied = _applied("A", 150) + _applied("B", 150) + shared
+    wins = [("A案件0", 1, 5_000), ("B案件0", 2, 3_000), ("B案件1", 3, 3_000),
+            ("B案件2", 4, 3_000)]
+
+    blocked = _assess(_strategy(), applied, _sales(*wins, ("共通案件", 5, 10_000)))
+    assert _status(blocked) == "active"
+    assert blocked["summary"]["reason"] == "arm_ambiguous_revenue"
+    assert blocked["summary"]["unattributed"]["arm_ambiguous"] == {"count": 1, "jpy": 10_000}
+
+    small = _assess(_strategy(), applied, _sales(*wins, ("共通案件", 5, 1_000)))
+    assert _status(small) == "kept"
+
+
 def test_cap_reverts_to_a_without_decision() -> None:
     applied = _applied("A", 400) + _applied("B", 400)
     sales = _sales(("A案件0", 1, 5_000), ("B案件0", 2, 5_000))
@@ -136,7 +155,10 @@ def test_guardrail_reverts_on_b_send_failures_before_samples() -> None:
 def test_unjoinable_receipts_are_unattributed_never_zero() -> None:
     sales = _sales(("どの応募とも一致しないサービス", 9, 7_000))
     result = _assess(_strategy(), _applied("A", 10) + _applied("B", 10), sales)
-    assert result["summary"]["unattributed"] == {"count": 1, "jpy": 7_000}
+    assert result["summary"]["unattributed"] == {
+        "not_in_experiment": {"count": 1, "jpy": 7_000},
+        "arm_ambiguous": {"count": 0, "jpy": 0},
+    }
 
     missing = evaluator.assess_ab(
         _strategy(), applied_rows=_applied("A", 150) + _applied("B", 150), readback=None,
@@ -193,6 +215,13 @@ def test_b_price_stays_inside_buyer_range_official_bounds_and_cost_floor() -> No
     assert price == 5_000 and parent._price_within_official_bounds(price, official["visible_text"]) == price
     cheap = {"budget_min_jpy": 500, "budget_max_jpy": 3_000, "visible_text": ""}
     assert parent.commercial_offer_price(cheap, planner_price_jpy=2_400, arm="B") == parent.COST_FLOOR_JPY
+    # B is only ever a cut: a floor at or above the planner price keeps the planner price.
+    high_min = dict(detail, visible_text="最低提案価格は8,000円です。")
+    assert parent.commercial_offer_price(high_min, planner_price_jpy=8_000, arm="B") == 8_000
+    assert parent.commercial_offer_price(detail, planner_price_jpy=3_000, arm="B") == 3_000
+    assert parent.commercial_offer_price(
+        {"budget_min_jpy": 10_000, "budget_max_jpy": 10_000}, planner_price_jpy=8_000, arm="B",
+    ) == 8_000
     for unchanged in ({"budget_min_jpy": None, "budget_max_jpy": None},
                       {"budget_min_jpy": None, "budget_max_jpy": 10_000}):
         assert parent.commercial_offer_price(unchanged, planner_price_jpy=8_000, arm="B") == 8_000

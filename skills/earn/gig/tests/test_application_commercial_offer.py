@@ -130,15 +130,19 @@ AB_EXPERIMENT = {
 }
 
 
-def _ab_contract(request_ids, *, experiment=AB_EXPERIMENT, adopted=None, budget=(3_000, 10_000)):
+PLAIN_BODY = "要件に沿って業務自動化の仕組みを構築し、運用まで整えます。"
+
+
+def _ab_contract(request_ids, *, experiment=AB_EXPERIMENT, adopted=None, budget=(3_000, 10_000),
+                 planner=8_000, body=PLAIN_BODY):
     snapshot = {"request_details": [
         {"request_id": rid, "budget_min_jpy": budget[0], "budget_max_jpy": budget[1],
          "visible_text": "募集内容"}
         for rid in request_ids
     ]}
     decisions = {"decisions": [
-        {"request_id": rid, "business_class": "submit_required", "price_jpy": 8_000,
-         "proposal_text": "要件に沿って業務自動化の仕組みを8,000円で構築します。", "deliver_date": "2026-11-01"}
+        {"request_id": rid, "business_class": "submit_required", "price_jpy": planner,
+         "proposal_text": body, "deliver_date": "2026-11-01"}
         for rid in request_ids
     ]}
     rows = application_parent.apply_commercial_offer_contract(
@@ -156,6 +160,11 @@ def _ids_by_arm():
     return arms["A"], arms["B"]
 
 
+def _outside(row, planner=8_000) -> bool:
+    return (row["price_jpy"] == planner
+            and "experiment_arm" not in row and "experiment_id" not in row)
+
+
 def test_ab_experiment_records_arm_and_prices_b_at_budget_lower_bound() -> None:
     a_id, b_id = _ids_by_arm()
     rows = _ab_contract([a_id, b_id])
@@ -163,34 +172,69 @@ def test_ab_experiment_records_arm_and_prices_b_at_budget_lower_bound() -> None:
     assert rows[a_id]["price_jpy"] == 8_000
     assert rows[b_id]["price_jpy"] == 3_000
     assert "3,000円で対応" in rows[b_id]["proposal_text"]
-    assert "8,000円" not in rows[b_id]["proposal_text"]
-    assert "8,000円で構築" in rows[a_id]["proposal_text"]
+    assert "8,000円で対応" in rows[a_id]["proposal_text"]
     for rid, arm in ((a_id, "A"), (b_id, "B")):
         assert rows[rid]["experiment_id"] == AB_EXPERIMENT["id"]
         assert rows[rid]["experiment_arm"] == arm
 
 
-def test_b_price_rewrites_the_planner_amount_in_the_proposal_body() -> None:
-    text = application_parent._restate_price(
-        "8,000円で対応します。8000円の範囲で、¥8,000以内。別件18,000円は対象外です。", 8_000, 3_000,
-    )
-    assert text == "3,000円で対応します。3,000円の範囲で、¥3,000以内。別件18,000円は対象外です。"
+def test_single_amount_budget_is_outside_the_experiment() -> None:
+    a_id, b_id = _ids_by_arm()
+    rows = _ab_contract([a_id, b_id], budget=(8_000, 8_000))
+
+    assert _outside(rows[a_id]) and _outside(rows[b_id])
+
+
+def test_planner_at_or_below_the_lower_bound_is_outside_the_experiment() -> None:
+    a_id, b_id = _ids_by_arm()
+    for planner in (5_000, 8_000):
+        rows = _ab_contract([a_id, b_id], budget=(8_000, 20_000), planner=planner)
+        assert _outside(rows[a_id], planner) and _outside(rows[b_id], planner)
+
+
+def test_body_quoting_another_yen_amount_is_outside_the_experiment() -> None:
+    a_id, b_id = _ids_by_arm()
+    for body in (
+        "1ページ8,000円×3ページ、合計24,000円で制作します。構成から納品まで対応します。",
+        "ご予算10,000円の範囲で業務自動化の仕組みを構築します。",
+        "¥9,000相当の作業を8,000円で行います。",
+        "0.9万円の作業を8,000円で行います。",
+    ):
+        rows = _ab_contract([a_id, b_id], body=body)
+        assert _outside(rows[a_id]) and _outside(rows[b_id])
+        assert body.split("。")[0] in rows[b_id]["proposal_text"]
+
+
+def test_planner_price_sentences_leave_both_arms_so_only_the_closing_line_prices() -> None:
+    a_id, b_id = _ids_by_arm()
+    body = "業務自動化の仕組みを構築します。8,000円で、設計から納品まで対応します。運用手順も整えます。"
+    rows = _ab_contract([a_id, b_id], body=body)
+
+    assert rows[b_id]["price_jpy"] == 3_000 and rows[b_id]["experiment_arm"] == "B"
+    assert rows[a_id]["price_jpy"] == 8_000 and rows[a_id]["experiment_arm"] == "A"
+    for rid, price in ((a_id, "8,000円"), (b_id, "3,000円")):
+        text = rows[rid]["proposal_text"]
+        assert "設計から納品まで" not in text
+        assert "業務自動化の仕組みを構築します。" in text and "運用手順も整えます。" in text
+        assert text.count("円") == 1 and f"上記内容を{price}で対応" in text
 
 
 def test_requests_without_a_budget_range_stay_outside_the_experiment() -> None:
     _, b_id = _ids_by_arm()
     row = _ab_contract([b_id], budget=(None, None))[b_id]
 
-    assert row["price_jpy"] == 8_000
-    assert "experiment_arm" not in row and "experiment_id" not in row
+    assert _outside(row)
 
 
-def test_adopted_policy_prices_every_ranged_request_at_the_lower_bound() -> None:
+def test_adopted_policy_uses_the_same_eligibility_rule() -> None:
     a_id, _ = _ids_by_arm()
-    row = _ab_contract([a_id], experiment=None, adopted="budget_lower_bound")[a_id]
+    adopted = dict(experiment=None, adopted="budget_lower_bound")
 
-    assert row["price_jpy"] == 3_000
-    assert "experiment_arm" not in row
+    assert _ab_contract([a_id], **adopted)[a_id]["price_jpy"] == 3_000
+    assert "experiment_arm" not in _ab_contract([a_id], **adopted)[a_id]
+    assert _ab_contract([a_id], budget=(8_000, 8_000), **adopted)[a_id]["price_jpy"] == 8_000
+    assert _ab_contract([a_id], budget=(8_000, 20_000), **adopted)[a_id]["price_jpy"] == 8_000
+    assert _ab_contract([a_id], body="8,000円×2回、計16,000円です。", **adopted)[a_id]["price_jpy"] == 8_000
 
 
 def test_application_and_ledger_rows_carry_experiment_arm(tmp_path) -> None:
