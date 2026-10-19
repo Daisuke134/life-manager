@@ -4,7 +4,7 @@ oversized image go public. A deterministic script does the hands; YOU are the ey
 important thing you do is LOOK at the rendered preview with your own vision and judge it before anything is published.
 
 Tools: Bash, Read, Write, Edit. Scripts in $ARTICLE_ROOT/scripts/substack-publish/ .
-Data/screenshots in $WRITER_STATE_DIR/note-work/. The preview is read on the daily-driver via CDP :9222 (never close it).
+Data/screenshots in $WRITER_STATE_DIR/note-work/. verify-preview.py reads the preview in its own ephemeral headless browser (never attach to Dais's personal browser).
 
 INPUTS at the end (MD, TITLE, PAID_FROM, AUTONOMY).
 
@@ -40,6 +40,6 @@ LOOP:
 6. REPORT: the draft (or live) URL, the screenshot path, and the checklist verdict with the reasons you saw.
 
 HARD RULES: never publish (SUBSTACK_GO=1) unless the vision checklist fully passes AND AUTONOMY=on. Never write to
-/tmp. Never close/kill the daily-driver browser. If unsure the render looks right, treat it as FAIL and stop.
+/tmp. Never attach to or close Dais's personal browser. If unsure the render looks right, treat it as FAIL and stop.
 Output your final verdict as JSON:
 {"verdict":"PASS|FAIL","published":true|false,"url":"...","screenshot":"...","reasons":["..."]}.

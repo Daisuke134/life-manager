@@ -131,6 +131,11 @@ def build_context(prep: dict[str, Any], applied_path: Path) -> dict[str, Any]:
             if isinstance(prep.get("active_strategy_experiment"), dict)
             else None
         ),
+        "adopted_bid_policy": (
+            prep.get("adopted_bid_policy")
+            if isinstance(prep.get("adopted_bid_policy"), str)
+            else None
+        ),
         "already_applied_request_ids": _applied_ids(applied_path),
         # A3 (2026-07-30): "retainer:new" is gone from the required program. A pass
         # must be able to close without ever having swept /job_matching/outsources,

@@ -64,6 +64,7 @@ HARD_PROHIBITED = "hard_prohibited"
 DUPLICATE_FENCED = "duplicate_fenced"
 OFFICIALLY_UNSUBMITTABLE = "officially_unsubmittable"
 DIRECT_MAX_APPLICATIONS = 20
+EXPERIMENT_FIELDS = ("experiment_id", "experiment_arm")
 
 
 def _official_open_scan_prep(prep: dict[str, Any]) -> dict[str, Any]:
@@ -78,6 +79,7 @@ def _official_open_scan_prep(prep: dict[str, Any]) -> dict[str, Any]:
     thresholds["min_budget_jpy"] = 0
     thresholds["max_applicants"] = 0
     thresholds["min_contracted_to_skip"] = 0
+    experiment = prep.get("active_strategy_experiment")
     return {
         **prep,
         # One continuous opportunity shares the existing 20-attempt Apply budget;
@@ -87,7 +89,13 @@ def _official_open_scan_prep(prep: dict[str, Any]) -> dict[str, Any]:
         "max_apply_per_pass": DIRECT_MAX_APPLICATIONS,
         "category_order": [],
         "apply_skip_thresholds": thresholds,
-        "active_strategy_experiment": None,
+        # Legacy isolated experiments mutate strategy fields Direct Apply no longer reads.
+        # An A/B experiment is priced and recorded by the parent's code-owned contract.
+        "active_strategy_experiment": (
+            experiment
+            if isinstance(experiment, dict) and experiment.get("mode") == "ab"
+            else None
+        ),
     }
 
 
@@ -714,6 +722,7 @@ def summarize(
             "business_class": business_class,
             "reason": reason,
             "outcome": outcome,
+            **{field: decision[field] for field in EXPERIMENT_FIELDS if field in decision},
         })
     committed_ids = {str(row.get("request_id") or "") for row in report_results}
     for row in observation_rows:
@@ -1059,6 +1068,25 @@ def _publish_fresh_decision_notifications(
     })
 
 
+def _record_experiment_attempts(
+    ledger: Path, pass_id: str, report_results: list[dict[str, Any]],
+) -> None:
+    """Append each A/B send outcome for experiment_evaluator's guardrail."""
+    rows = [
+        {"ts": int(time.time()), "pass_id": pass_id, "request_id": row["request_id"],
+         **{field: row[field] for field in EXPERIMENT_FIELDS}, "outcome": row["outcome"]}
+        for row in report_results
+        if all(row.get(field) for field in EXPERIMENT_FIELDS)
+        and row.get("outcome") in {"confirmed", "failed"}
+    ]
+    if not rows:
+        return
+    ledger.parent.mkdir(parents=True, exist_ok=True)
+    with ledger.open("a", encoding="utf-8") as handle:
+        for row in rows:
+            handle.write(json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n")
+
+
 def _finish(
     output: Path,
     pass_id: str,
@@ -1107,6 +1135,12 @@ def _finish(
     }
     if error:
         payload["error"] = error
+    try:
+        _record_experiment_attempts(
+            args.ledger.parent / "experiment-attempts.jsonl", pass_id, report_results,
+        )
+    except OSError:
+        pass  # guardrail input only; the wake's own result must still be written
     reports = _reports(pass_id, values)
     payload["reports"] = reports
     payload["report"] = reports[0]

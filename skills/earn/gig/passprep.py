@@ -309,6 +309,8 @@ def main():
             active = active_experiments[0]
             active_strategy_experiment = {
                 "id": active.get("id"),
+                "mode": active.get("mode"),
+                "policy": active.get("policy"),
                 "field_changed": active.get("field_changed"),
                 "new_value": deepcopy(active.get("new_value")),
                 "target_metric": active.get("target_metric"),
@@ -349,6 +351,8 @@ def main():
             "improve_mode": improve_mode,
             "experiments_due": experiments_due,
             "active_strategy_experiment": active_strategy_experiment,
+            # A kept A/B price policy outlives its experiment (experiment_evaluator.py).
+            "adopted_bid_policy": strategy.get("adopted_bid_policy"),
             "max_apply_per_pass": int(strategy["max_apply_per_pass"]),
             "target_retainer_apply_per_pass": 1,
             "category_order": category_order,

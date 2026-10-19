@@ -29,7 +29,7 @@ it NEVER touches the live daily-driver tab.
 | file | role |
 |---|---|
 | `../../../../skills/browser/owned-persistent-context` | registry-owned daily-driver process |
-| `extract-note-cookies.py` | decrypt note.com cookies from the daily-driver profile (run with /opt/homebrew/bin/python3) |
+| `extract-note-cookies.py` | copy note.com cookies from the Writer-owned `note-measure-storage.json` (written by `measure-sales.py`) |
 | `../note-stage1-render.py`,`../note-stage2-publish.py` | md → draft (tables/figs as uniform PNGs, hero, compact figure HTML) |
 | `set-eyecatch-republish.py` | set the 見出し画像 (top `画像を追加` button → upload → crop 保存) |
 | `insert-toc-save.py` + `delete-toc-node.py` | manual 目次 (big titles) + remove note's auto-目次 atom node |

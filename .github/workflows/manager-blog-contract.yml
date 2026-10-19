@@ -1,0 +1,32 @@
+name: Manager blog publication contract
+on:
+  pull_request:
+    paths:
+      - 'apps/landing/manager-blog/**'
+      - 'docs/research/manager/publication/**'
+      - '.github/workflows/manager-blog-contract.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/landing/manager-blog/**'
+      - 'docs/research/manager/publication/**'
+      - '.github/workflows/manager-blog-contract.yml'
+permissions:
+  contents: read
+jobs:
+  manager-blog-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify publication adapters and renderer
+        run: node --test apps/landing/manager-blog/tests/*.test.mjs
+      - name: Verify immutable module manifest
+        run: |
+          node apps/landing/manager-blog/scripts/build-release-manifest.mjs
+          git diff --exit-code -- apps/landing/manager-blog/release-manifest.json
+      - name: Verify reviewed publication bytes
+        if: ${{ hashFiles('docs/research/manager/publication/2026-10-19/manifest.json') != '' }}
+        run: node apps/landing/manager-blog/scripts/verify-package.mjs
