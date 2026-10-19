@@ -1042,6 +1042,15 @@ def test_dispatch_defer_temporarily_skips_incompatible_head_without_dropping_it(
     assert admission.reserve_available(now=base + 181, lease_seconds=30) == ["old-release"]
 
 
+def test_defer_cooldown_never_shortens_a_suspended_owner(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    base = time.time()
+    admission.enqueue_durable("deterministic", "stopped", now=base)
+    assert admission.suspend_durable("stopped") is True
+    admission.defer_durable("stopped", cooldown_seconds=60)
+    assert admission.reserve_available(now=base + 3600, lease_seconds=30) == []
+
+
 def test_dispatch_defer_skips_head_after_its_reservation_was_swept(
         tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch)

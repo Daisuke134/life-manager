@@ -35,7 +35,7 @@ from runtime.loop.runtime_event import (
     build_runtime_start_event,
     validate_runtime_event,
 )
-from runtime.host.disk_admission import _producer_gate
+from runtime.host.disk_admission import REVENUE_FLOOR_BYTES, _producer_gate, disk_free_bytes
 from runtime.host.memory_admission import memory_free_percent
 from runtime.host.storage_policy import load_storage_policy
 from runtime.host.storage_failure import classify_storage_failure
@@ -1624,11 +1624,25 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             return False
         if durable and phase in {"pre_enqueue", "pre_claim"}:
             try:
-                defer_durable_resource(loop_id)
+                # Same cooldown as a failed dispatch: the disk floor is per owner, so an
+                # owner deferred here would otherwise re-win the next reserve pass and
+                # starve a queued owner that could run (promptbase-loop-daily, 2026-10-19).
+                defer_durable_resource(loop_id, cooldown_seconds=60)
             except (OSError, RuntimeError, sqlite3.Error):
                 pass
         _atomic_json(receipt, {"status": "deferred", "effect": 0, "phase": phase,
                      "reason": reason, "flag_path": str(flag)})
+        # Above the revenue floor a lower-floor waiter can use the slot just returned.
+        # Hand it on now, like a failed claim does; waiting for an unrelated release
+        # lets several floor-blocked support owners rotate through it instead.
+        if (durable and phase == "pre_claim" and reason == "disk_floor_low"
+                and not interrupted
+                and (disk_free_bytes(flag) or 0) >= REVENUE_FLOOR_BYTES):
+            try:
+                _dispatch_reserved(reserve_available_resource())
+            except (OSError, RuntimeError, sqlite3.Error) as error:
+                print(f"lm-loop-run: reservation dispatch deferred: {error}",
+                      file=sys.stderr)
         return True
 
     def interrupt_wait(_signum, _frame):

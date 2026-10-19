@@ -1491,7 +1491,7 @@ def defer_durable(owner_id: str, *, cooldown_seconds: int = 0) -> bool:
             delayed = 0
             if cooldown_seconds:
                 delayed = connection.execute(
-                    """UPDATE priorities SET next_eligible_at=?
+                    """UPDATE priorities SET next_eligible_at=MAX(next_eligible_at,?)
                          WHERE owner_id=? AND EXISTS (
                              SELECT 1 FROM queue WHERE owner_id=?)""",
                     (time.time() + cooldown_seconds, owner_id, owner_id)).rowcount
