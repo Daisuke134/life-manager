@@ -563,6 +563,230 @@ def _update_crypto_flows(previous,observation,result,*,mode,owner_id,reader,ceil
     return finish()
 
 
+def _native_quantity_reconciliation(rows,observation,result,flow_fields,*,mode,owner_id):
+    """Compare reported BTC/USDC balance deltas with the retained native flows.
+
+    This is an account-quantity observation only. Its status is deliberately
+    separate from fee completeness, settlement, USD net, and capital authority.
+    """
+    report={'schema_version':1,'scope':'reported_native_account_flows','mode':mode,
+        'paper':mode=='paper','status':'unknown','baseline':None,'current':None,
+        'account_delta':{'BTC':None,'USDC':None},'known_flow_delta':{'BTC':None,'USDC':None},
+        'unexplained_delta':{'BTC':None,'USDC':None},
+        'observed_fee_quantities':{'BTC':None,'USDC':None},'fee_completeness_status':'unknown',
+        'fee_settlement_status':'unknown','net_pnl_usd':None,'capital_expansion_allowed':False,
+        'buy_credit_gaps':[],'unattributed_order_ids':[],'unattributed_fee_ids':[],
+        'unsupported_activity_ids':[],'unlocated_wallet_transfer_count':0,'reasons':[],
+        'flow_coverage':'observations_only_not_final'}
+    reasons=set()
+    currency={'BTC':Fraction(),'USDC':Fraction()}
+    fee_totals={'BTC':Fraction(),'USDC':Fraction()}
+    fee_seen={};fill_seen={};acquisition_clock_by_order={};buy_fee_totals={};priced_fees=set()
+    source_account=observation.get('account') if isinstance(observation,dict) else None
+    account_id=source_account.get('id') if isinstance(source_account,dict) else None
+    try:
+        if (mode not in {'paper','live'} or owner_id!=f'alpaca-investment-{mode}'
+                or not isinstance(account_id,str) or not account_id.strip()):
+            reasons.add('account_scope_unavailable')
+            return {**report,'reasons':sorted(reasons)}
+        current_at=observation['clock']['observed_at'];current_time=_fx_instant(current_at)
+        positions=_account_positions(observation,mode=mode,not_before=datetime.fromtimestamp(
+            current_time.numerator//current_time.denominator,timezone.utc))
+        def quantities(value):
+            totals={'BTC':Fraction(),'USDC':Fraction()};seen=set()
+            for position in value:
+                symbol=position['symbol'].replace('/','')
+                asset='BTC' if symbol in {'BTCUSD','BTCUSDC'} else 'USDC' if symbol=='USDCUSD' else None
+                if asset is None:
+                    reasons.add('unsupported_account_position')
+                    continue
+                if asset in seen:raise ValueError('duplicate_native_asset_position')
+                seen.add(asset)
+                amount=Decimal(str(position['qty']))
+                if (not amount.is_finite() or amount<0 or len(amount.as_tuple().digits)>100
+                        or abs(amount.as_tuple().exponent)>100):raise ValueError('native_position_quantity_invalid')
+                totals[asset]=Fraction(amount)
+            # Positions are the provider's complete list of currently held assets;
+            # BTC absent from that list means a flat BTC position. USDC has a
+            # separate explicit-row requirement in the sealed baseline contract.
+            if 'BTC' not in seen:
+                seen.add('BTC')
+            return totals,seen
+        current_qty,current_present=quantities(positions)
+        report['current']={'observed_at':current_at,
+            'quantities':{k:_quantity_text(v) if k in current_present else None for k,v in current_qty.items()}}
+        baselines=[];unbound=[]
+        for cycle in result.get('cycles',[]):
+            if cycle.get('mode')!=mode or cycle.get('owner_id')!=owner_id:continue
+            if cycle.get('native_trading_account_id')!=account_id:
+                if cycle.get('native_trading_account_id') is None:unbound.append(cycle.get('cycle_id'))
+                continue
+            orders=cycle.get('orders')
+            if not isinstance(orders,list) or not orders:raise ValueError('native_cycle_orders_missing')
+            marker={'status':'entry_pending','symbol':'BTCUSD','entry_effect_id':cycle['entry_effect_id'],
+                'entry_client_order_id':orders[0]['client_order_id'],'entry_filled_qty':'0'}
+            sealed=_sealed_entry_from_rows(rows,marker,mode=mode,owner_id=owner_id)
+            baseline=sealed['decision'].get('pre_trade_account_readback')
+            if not isinstance(baseline,dict):
+                unbound.append(cycle.get('cycle_id'));continue
+            if (baseline.get('account',{}).get('id')!=account_id
+                    or _fx_instant(baseline['clock']['observed_at'])>current_time):
+                reasons.add('native_baseline_scope_or_clock_invalid');continue
+            base_positions=_account_positions(baseline,mode=mode,not_before=parse_instant(sealed['decision']['observed_at']))
+            base_qty,present=quantities(base_positions)
+            if 'USDC' not in present:
+                reasons.add('baseline_native_usdc_unavailable');continue
+            entry=entry_receipt_row(rows,cycle['entry_effect_id'])
+            acquisition_readback=entry.get('strategy_receipt',{}).get('account_readback',{})
+            acquisition_clock=acquisition_readback.get('clock',{}).get('observed_at')
+            if not isinstance(acquisition_clock,str):reasons.add('native_acquisition_clock_unavailable')
+            baselines.append((_fx_instant(baseline['clock']['observed_at']),baseline,base_qty,present,cycle,acquisition_clock))
+        if unbound:
+            report['unbound_cycle_count']=len(unbound);reasons.add('legacy_cycle_baseline_unavailable')
+        if not baselines:
+            reasons.add('owned_native_baseline_unavailable')
+            return {**report,'current':report['current'],'reasons':sorted(reasons)}
+        baselines.sort(key=lambda item:item[0]);baseline_time,baseline,baseline_qty,baseline_present,first_cycle,_=baselines[0]
+        report['baseline']={'observed_at':baseline['clock']['observed_at'],
+            'quantities':{k:_quantity_text(v) if k in baseline_present else None for k,v in baseline_qty.items()},
+            'cycle_id':first_cycle['cycle_id']}
+        if _fx_instant(baseline['clock']['observed_at'])>current_time:
+            raise ValueError('native_balance_clock_order_invalid')
+        for asset in ('BTC','USDC'):
+            if asset in baseline_present and asset in current_present:
+                report['account_delta'][asset]=_quantity_text(current_qty[asset]-baseline_qty[asset])
+        if report['account_delta']['USDC'] is None:reasons.add('current_native_usdc_unavailable')
+        cycles_by_order={}
+        for cycle in result.get('cycles',[]):
+            if cycle.get('owner_id')!=owner_id or cycle.get('mode')!=mode or cycle.get('native_trading_account_id')!=account_id:continue
+            if _fx_instant(cycle['period_end'])<_fx_instant(baseline['clock']['observed_at']):continue
+            entry=entry_receipt_row(rows,cycle['entry_effect_id'])
+            acquisition_clock=entry.get('strategy_receipt',{}).get('account_readback',{}).get('clock',{}).get('observed_at')
+            for order in cycle.get('orders',[]):
+                order_id=order['provider_order_id'];cycles_by_order[order_id]=(cycle,order)
+                if order['side']=='buy' and isinstance(acquisition_clock,str):
+                    acquisition_clock_by_order[order_id]=_fx_instant(acquisition_clock)
+            gap=Fraction(cycle['entry_filled_qty'])-Fraction(cycle['entry_account_owned_qty'])
+            if gap<0:raise ValueError('native_entry_credit_exceeds_fill')
+            report['buy_credit_gaps'].append({'cycle_id':cycle['cycle_id'],'provider_order_id':cycle['orders'][0]['provider_order_id'],
+                'initial_gross_minus_credited_btc':_quantity_text(gap),'observed_buy_fee_btc':None,'unexplained_btc':_quantity_text(gap)})
+        books=flow_fields.get('flow_readbacks',{}) if isinstance(flow_fields,dict) else {}
+        windows=flow_fields.get('flow_windows',[]) if isinstance(flow_fields,dict) else []
+        pending=flow_fields.get('flow_pending') if isinstance(flow_fields,dict) else None
+        referenced=[]
+        for window in windows if isinstance(windows,list) else []:
+            if window.get('native_trading_account_id')==account_id:referenced.extend(window.get('readback_refs',[]))
+        if isinstance(pending,dict) and pending.get('native_trading_account_id')==account_id:
+            referenced.extend(pending.get('readback_refs',[]));reasons.add('native_flow_window_pending')
+        if not referenced:reasons.add('native_flow_window_missing')
+        records=[];seen_refs=set()
+        for ref in referenced:
+            if ref in seen_refs:continue
+            seen_refs.add(ref);record=books.get(ref) if isinstance(books,dict) else None
+            if (not isinstance(record,dict) or ref!='crypto-flow:'+_digest(record)
+                    or record.get('owner_id')!=owner_id or record.get('mode')!=mode
+                    or record.get('paper') is not (mode=='paper') or record.get('native_trading_account_id')!=account_id
+                    or record.get('validation_status')!='recorded_only'):
+                reasons.add('native_flow_record_invalid');continue
+            request=record.get('query',{})
+            try:
+                _fx_instant(request['after']);_fx_instant(request['until'])
+            except (KeyError,ValueError,TypeError):reasons.add('native_flow_query_invalid');continue
+            records.append(record)
+            raw=record.get('readback',{})
+            wallet_status=raw.get('wallet_status')
+            if mode=='live' and wallet_status!='observed':reasons.add('native_wallet_status_unavailable')
+            transfers=raw.get('wallet_transfers')
+            if mode=='live' and isinstance(transfers,list) and transfers:
+                report['unlocated_wallet_transfer_count']+=len(transfers)
+                reasons.add('native_wallet_effect_time_unproved')
+            pages=raw.get('activity_pages')
+            if not isinstance(pages,list):reasons.add('native_activity_pages_unavailable');continue
+            for page in pages:
+                for item in page:
+                    try:
+                        kind=item['activity_type'];activity_id=item['id']
+                        when=item.get('transaction_time') if kind=='FILL' else item.get('created_at')
+                        if kind not in {'FILL','CFEE'}:
+                            if when is None:
+                                report['unsupported_activity_ids'].append(activity_id)
+                                reasons.add('unsupported_activity_time_unavailable')
+                            elif baseline_time<_fx_instant(when)<=current_time:
+                                report['unsupported_activity_ids'].append(activity_id);reasons.add('unsupported_native_activity')
+                            continue
+                        if not isinstance(when,str):raise ValueError('native_activity_time_missing')
+                        event_time=_fx_instant(when)
+                        if event_time<=baseline_time or event_time>current_time:continue
+                        if kind=='FILL':
+                            identity=execution_activity_identity(item)
+                            if activity_id in fill_seen and fill_seen[activity_id]!=identity:
+                                reasons.add('native_activity_id_conflict');continue
+                            if activity_id in fill_seen:continue
+                            fill_seen[activity_id]=identity
+                            symbol=item['symbol'].replace('/','')
+                            if symbol!='BTCUSDC':
+                                report['unsupported_activity_ids'].append(activity_id);reasons.add('unsupported_native_fill_symbol');continue
+                            qty=Fraction(_execution_number(item['qty']));price=Fraction(_execution_number(item['price']))
+                            side=item['side']
+                            if side not in {'buy','sell'}:raise ValueError('native_fill_side_invalid')
+                            order_id=item['order_id'];owned=cycles_by_order.get(order_id)
+                            if owned is not None:
+                                _cycle,order=owned
+                                facts={f['id']:(Fraction(f['qty']),Fraction(f['price']),_fx_instant(f['transaction_time']))
+                                    for f in order.get('execution_fills',[])}
+                                if (order['side']!=side or activity_id not in facts or facts[activity_id]!=(qty,price,event_time)):
+                                    reasons.add('native_owned_fill_conflict');continue
+                            else:
+                                report.setdefault('unattributed_order_ids',[]).append(order_id)
+                            currency['BTC']+=qty if side=='buy' else -qty
+                            currency['USDC']+=-(qty*price) if side=='buy' else qty*price
+                        else:
+                            order_id=item.get('order_id');owned=cycles_by_order.get(order_id)
+                            if owned is None:
+                                report['unattributed_fee_ids'].append(activity_id);reasons.add('native_fee_order_unattributed');continue
+                            _cycle,order=owned;asset='BTC' if order['side']=='buy' else 'USDC'
+                            identity=(order_id,item.get('symbol'),item.get('qty'),item.get('net_amount'),item.get('status'),item.get('date'),when)
+                            if activity_id in fee_seen and fee_seen[activity_id]!=identity:
+                                reasons.add('native_activity_id_conflict');continue
+                            if activity_id in fee_seen:continue
+                            fee_seen[activity_id]=identity
+                            facts=native_fee_row_facts(item,side=order['side'],submitted_at=order['submitted_at'],
+                                windows=[(parse_instant(baseline['clock']['observed_at']),
+                                    datetime.fromtimestamp(current_time.numerator//current_time.denominator,timezone.utc))],
+                                require_created_at=True)
+                            if facts['asset']!=asset:raise ValueError('native_fee_received_asset_conflict')
+                            amount=facts['quantity'];fee_totals[asset]+=amount
+                            priced_fees.add(asset)
+                            if asset=='BTC' and order_id in acquisition_clock_by_order and event_time<=acquisition_clock_by_order[order_id]:
+                                buy_fee_totals[order_id]=buy_fee_totals.get(order_id,Fraction())+amount
+                            currency[asset]-=amount
+                    except (ValueError,KeyError,TypeError,AttributeError,ArithmeticError):
+                        reasons.add('native_activity_fact_invalid')
+        if pending is None and flow_fields.get('flow_readback_through') is not None:
+            if _fx_instant(flow_fields['flow_readback_through'])<current_time:reasons.add('native_flow_through_before_quote')
+        elif pending is not None:reasons.add('native_flow_through_pending')
+        report['known_flow_delta']={k:_quantity_text(v) for k,v in currency.items()}
+        report['observed_fee_quantities']={k:_quantity_text(fee_totals[k]) if k in priced_fees else None for k in fee_totals}
+        for gap in report['buy_credit_gaps']:
+            order_id=gap['provider_order_id'];observed=buy_fee_totals.get(order_id)
+            gap['observed_buy_fee_btc']=_quantity_text(observed) if observed is not None else None
+            gap['unexplained_btc']=_quantity_text(Fraction(gap['initial_gross_minus_credited_btc'])-(observed or Fraction()))
+            if Fraction(gap['unexplained_btc'])!=0:reasons.add('buy_credit_gap_unexplained')
+        for asset in ('BTC','USDC'):
+            if report['account_delta'][asset] is not None:
+                report['unexplained_delta'][asset]=_quantity_text(Fraction(report['account_delta'][asset])-currency[asset])
+        if any(value not in (None,'0') for value in report['unexplained_delta'].values()):
+            report['status']='unexplained'
+        elif reasons:report['status']='unknown'
+        else:report['status']='observed_match'
+    except (ValueError,KeyError,TypeError,AttributeError,ArithmeticError):
+        reasons.add('native_quantity_input_unavailable');report['status']='unknown'
+    report['reasons']=sorted(reasons)
+    report['unattributed_order_ids']=sorted(set(report['unattributed_order_ids']))
+    report['unsupported_activity_ids']=sorted(set(report['unsupported_activity_ids']))
+    return report
+
+
 def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_reader=None,activity_page_reader=None,fx_reader=None,statement_readback_dir=None,flow_reader=None):
     if mode not in {'paper','live'} or owner_id!=f'alpaca-investment-{mode}':
         raise ValueError('crypto_performance_scope_invalid')
@@ -804,6 +1028,18 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
         result['fee_readback_through']=through.isoformat().replace('+00:00','Z')
         flow_ceiling=max([through,*[parse_instant(c['period_end']) for c in result['cycles']]])
         flow_fields=_update_crypto_flows(flow_fields,observation,result,mode=mode,owner_id=owner_id,reader=flow_reader,ceiling=flow_ceiling.isoformat().replace('+00:00','Z'))
+        try:
+            quantity_reconciliation=_native_quantity_reconciliation(
+                rows,observation,result,flow_fields,mode=mode,owner_id=owner_id)
+        except Exception as error:
+            # Optional reporting only; this diagnostic cannot invalidate the canonical writer.
+            quantity_reconciliation={'schema_version':1,'scope':'reported_native_account_flows',
+                'mode':mode,'paper':mode=='paper','status':'unknown',
+                'reasons':['native_quantity_reconciliation_unavailable'],
+                'error_class':type(error).__name__,'net_pnl_usd':None,
+                'fee_completeness_status':'unknown','fee_settlement_status':'unknown',
+                'capital_expansion_allowed':False}
+        result['native_quantity_reconciliation']=quantity_reconciliation
         phase='fx_reference'
         if not isinstance(fx_frames,dict) or not isinstance(fx_attempts,dict):
             raise ValueError('crypto_fx_cache_invalid')

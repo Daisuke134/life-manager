@@ -27,7 +27,7 @@ class QuantityReconciliationTests(unittest.TestCase):
     def write(self,root,activity,current,*,fees=None,extras=None,wallets=None,reader=None):
         mode=current['mode']
         def raw(**kw):
-            value=frame(kw);value['activity_pages']=[copy.deepcopy([*activity['fills'],*(fees or []),*(extras or [])])]
+            value=frame(kw,count=0);value['activity_pages']=[copy.deepcopy([*activity['fills'],*(fees or []),*(extras or [])])]
             if wallets is not None:value['wallet_transfers']=copy.deepcopy(wallets)
             return value
         with patch.dict(os.environ,{},clear=True):
@@ -99,18 +99,20 @@ class QuantityReconciliationTests(unittest.TestCase):
             self.assertIsNone(report['net_pnl_usd'])
 
     def test_unexplained_balance_and_unlocated_wallet_or_activity_do_not_become_matches(self):
-        for kind in ('difference','wallet','OCT'):
+        for kind in ('difference','wallet','OCT','OCT_without_time'):
             with self.subTest(kind=kind),tempfile.TemporaryDirectory() as directory:
                 root=Path(directory);_,activity,current=self.setup_cycle(root,'live')
                 extras=[];wallets=[]
                 if kind=='difference':current['positions'][0]['qty']='100.49'
-                elif kind=='OCT':extras=[{'id':'synthetic-oct','activity_type':'OCT','qty':'1','net_amount':'1',
-                    'created_at':'2026-01-01T05:00:00Z'}]
+                elif kind in {'OCT','OCT_without_time'}:
+                    extras=[{'id':'synthetic-oct','activity_type':'OCT','qty':'1','net_amount':'1'}]
+                    if kind=='OCT':extras[0]['created_at']='2026-01-01T05:00:00Z'
                 else:wallets=[{'id':'synthetic-wallet','asset':'USDC','amount':'1','status':'COMPLETE','created_at':'2025-12-31T01:00:00Z'}]
                 _,report=self.write(root,activity,current,extras=extras,wallets=wallets)
                 self.assertEqual(report['status'],'unexplained' if kind=='difference' else 'unknown')
                 if kind=='difference':self.assertEqual(report['unexplained_delta']['USDC'],'-0.01')
                 else:self.assertTrue(report['reasons'])
+                if kind=='OCT_without_time':self.assertEqual(report['unsupported_activity_ids'],['synthetic-oct'])
                 self.assertIsNone(report['net_pnl_usd'])
 
     def test_missing_quote_or_legacy_baseline_never_uses_cash_equity_or_current_value(self):

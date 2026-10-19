@@ -15289,24 +15289,24 @@ r4は2×2のcontrol成立。private native-activity-boundary-readonly-20261019-r
 
 **現live注文入口と資本増額の区別:** 読み取り調査で確認した現registry→run.choose→allocator.gate→submit_order経路にはpaper performance/net/fee completenessの読取がない。crypto policy_cost_completeはstrategy_policy.py:152–162のcard fee/slippage bpsから作るexpected_cost_usdの非null判定であり、native実費proofとは別物。capital_ladder.py:65/85–102の30往復・measured/live net正・costs_complete・unknown_costs空はlive資本増額の条件で、paperを拒否する。これを「既存paper成熟gate」と呼ばない。本SSOTの自然紙30/benchmark→段階liveという採用計画はruntime実装済み条件と区別して維持し、この確認でlive-enable/注文/資金/上限/保持期間を変更しない。
 
-### 投資の残る原子TODO — 現在cursor 4.1
+### 投資の残る原子TODO — 現在cursor 5.1
 
-現在地: 原本保持/破損診断cacheの復旧はsource24afc73390で限定受入する。同sourceのAlpaca709/core178/contract190と独立24ケース528確認はPASS。後続RED72584fa11aは数量照合の専用7methodsが13fail/errors0で、失敗理由はnative_quantity_reconciliationの欠落。数量照合のproduction実装は未着手であり、現在HEADを全テストGREENとは扱わない。初期テストはBUY credit gap、部分売却、late fee、別取引、wallet/OCT、欠測/legacy、精度/replayを含む。scope改変やtoken破損等の追加反証は未実施である。全R3/main source採用・本番反映・実利益は未完。
+現在地: 原本保持/破損診断cacheの復旧はsource24afc73390で限定受入する。続くnative quantity reconciliationは専用worktree/branch `fix/investment-btc-paper-route-20261018` に実装し、latest main `6a02863fcb` をmerge commit `4ebf9b07fe` で取り込む。既存sealed BUY前account、同じAlpaca account/modeの現在位置、検証済みraw flow windowsを再利用し、FractionでBTC/USDCの口座差・既知FILL/CFEE差・残差とBUY credit gapを照合する。旧baselineやUSDC欠測を0にせず、未知activity時刻・wallet transfer等は理由を付けてunknownにする。別取引の約定は口座差に数えてもowner利益へ帰属させない。latest/dailyのnested reportへ保存し、fee completeness/settlement/net/capital expansionはunknown/null/falseのままにする。
 
-今回の依頼範囲は本SSOTの更新と残TODOの説明だけ。追加実装・新規テスト実行・provider/本番操作はこの依頼に含めない。以下は将来の実行TODOであり、この文書更新を実装・運用操作の実施として扱わない。
+RED72584fa11aの専用7methods/13 assertionsは最初に期待どおり失敗し、実writerへの接続後にGREENとなる。追加REDでは時刻欠落のunsupported activityが残高一致時にobserved_matchとなる反例を再現し、`unsupported_activity_time_unavailable`を保持してunknownへ落とす。最終検証はAlpaca716 tests/1390 subtests、investment-core180 tests/93 subtests、loop contract 18 catalog/191 jobs/112 mapped/errors0、`git diff --check` PASS。既存flow writer testsはforeign account、破損cache/token、resumed paginationも確認する。fresh read-only金融reviewはこの数量診断の範囲で残blocking0を報告する。
 
-順序は従来の4→5→6→7→8→9を維持し、同じ作業を完了判定できる粒度へ分解する。新しい停止条件や収益gateは追加しない。完了した原子TODO1–3は上記証跡を参照する。
+この受入はsource/合成fixtureの証拠に限る。PR #8360はopenであり、main統合・immutable release・local ownerのloaded SHA・natural run・公式注文readback・全費用/実損益・利益は未確認。provider/auth/runtime config/account/order/funds/live enable/fenceは変更していない。順序は従来の4→5→6→7→8→9を維持し、4.1–4.7のsource atomを閉じて5.1へcursorを進める。実装、評価、受入の所有はCodex primaryが継続する。
 
-| ID | 未完の作業 | 完了を示す証拠 |
+| ID | 状態・未完の作業 | 完了を示す証拠 |
 |---|---|---|
-| **4.1 次** | sealed BUY基準と実際のaccount観測からBTC/USDC前後数量を読む処理を実装する。 | 同account/modeと各clockを維持し、旧基準の補完・USDC欠測の0置換をしない。 |
-| 4.2 | native FILLの数量・quote増減を集計する。 | exact IDで一回だけ数え、別取引の口座flowをowner利益へ配らない。 |
-| 4.3 | native CFEEとBUY credit gap・partial SELL・late feeの対応を算術する。 | BTC/USDCの受取asset別で手計算値と一致し、未観測feeはnullを保つ。 |
-| 4.4 | wallet/OCT/未対応activityと残差を分類する。 | 未説明flowの参照と理由を保持し、近似joinや二重計上をしない。 |
-| 4.5 | 照合結果を既存latest/dailyへ接続する。 | observed_match/unexplained/unknownを保存し、原本clock・root partial/null net・capital falseと非公開情報の出力境界を保つ。 |
-| 4.6 | 数量照合のREDをGREENへする。 | 専用7methodsの13失敗が解消し、実writer/latest/dailyで確認できる。 |
-| 4.7 | 数量照合の回帰と独立金融反証を完了する。 | 関連Alpaca/core/loop契約がPASSし、scope/token改変・欠測・再処理を含む残blocking0で限定受入する。 |
-| 5.1 | native feeと公式明細の帰属・期間完全性を証明する。 | account/order/fill/同一費用を正確に対応させ、CFEE/PDFを二重計上しない。空queryだけでfee0にしない。 |
+| [x] 4.1 | sealed BUY基準と実際のaccount観測からBTC/USDC前後数量を読む。 | 同account/modeと各clockを維持し、旧基準の補完・USDC欠測の0置換をしない。 |
+| [x] 4.2 | native FILLの数量・quote増減を集計する。 | exact IDで一回だけ数え、別取引の口座flowをowner利益へ配らない。 |
+| [x] 4.3 | native CFEEとBUY credit gap・partial SELL・late feeの対応を算術する。 | BTC/USDCの受取asset別で手計算値と一致し、未観測feeはnullを保つ。 |
+| [x] 4.4 | wallet/OCT/未対応activityと残差を分類する。 | 未説明flowの参照と理由を保持し、近似joinや二重計上をしない。 |
+| [x] 4.5 | 照合結果を既存latest/dailyへ接続する。 | observed_match/unexplained/unknownを保存し、原本clock・root partial/null net・capital falseと非公開情報の出力境界を保つ。 |
+| [x] 4.6 | 数量照合のREDをGREENへする。 | 専用7methodsと追加unknown-time反例を実writer/latest/dailyで確認する。 |
+| [x] 4.7 | 数量照合の回帰と独立金融反証を完了する。 | Alpaca/core/loop契約PASS、scope/token・欠測・再処理を含む回帰と残blocking0でsource限定受入する。 |
+| **5.1 次** | native feeと公式明細の帰属・期間完全性を証明する。 | account/order/fill/同一費用を正確に対応させ、CFEE/PDFを二重計上しない。空queryだけでfee0にしない。 |
 | 5.2 | 支払済みmodel/system実費を同じowner/mode/期間へ割り当てる。 | billing/coverage証拠が対応し、paper/live/cross-venueを混ぜず、欠測を0にしない。 |
 | 5.3 | native USDC数量とUSD評価の関係を接続する。 | FXの時点・出典と参照評価/実換金の区別を保持し、USDC=USDと仮定しない。 |
 | 5.4 | producer/coreを同時に純利益対応へ変更する。 | 同じgross/cost定義で再計算し、slippage二重控除とmeasured receiptの非公開情報流出を防ぐ。 |
