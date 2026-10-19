@@ -4070,6 +4070,8 @@ _ABSENT = {"kind": "roster_absent", "account_id": "2564121",
     {"requests": {"5320092": {**_CLOSED, "official_url": "https://coconala.com/login"}, "5331694": _ABSENT}},
     {"requests": {"5320092": _CLOSED, "5331694": {k: v for k, v in _ABSENT.items() if k != "account_id"}}},
     {"requests": {"5320092": _CLOSED, "5331694": {**_ABSENT, "account_id": "me"}}},
+    # All roster-absent: the historical single-account no-dispatch path owns this case.
+    {"requests": {"5320092": {**_ABSENT, "official_url": _CLOSED["official_url"]}, "5331694": _ABSENT}},
 ])
 def test_closed_or_roster_absent_batch_rejects_malformed_proof(tmp_path, monkeypatch, changes):
     occurrence = "hf-gig-apply-direct:mixed-reject"

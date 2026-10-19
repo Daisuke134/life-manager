@@ -840,6 +840,11 @@ def test_mixed_closed_and_roster_absent_requests_close_the_exact_occurrence(tmp_
     # The closed request's earlier click may still have applied: never record the effect as 0.
     assert result["effect"] == "unknown"
     assert result["closed_request_ids"] == ["5320092"] and result["no_dispatch_request_ids"] == ["5331694"]
+    # The persisted result carries the per-request proof for audit.
+    assert result["requests"] == {
+        "5320092": {"kind": "closed", "official_url": "https://coconala.com/requests/5320092"},
+        "5331694": {"kind": "roster_absent", "account_id": "2564121",
+                    "official_url": "https://coconala.com/requests/5331694"}}
     # Absent is retired like the historical sibling; closed stays prepared, as the closed batch leaves it.
     assert states == {"5324400": "confirmed", "5331694": "retired_absent", "5320092": "prepared"}
 

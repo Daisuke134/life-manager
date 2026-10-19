@@ -506,7 +506,8 @@ def _close_closed_or_absent_batch(owner_id: str, occurrence_id: str, runtime_run
     base = {"retryable": False, "effect": "unknown", "readback": 1, "occurrence_id": occurrence_id,
             "request_ids": ids, "closed_request_ids": [rid for rid in ids if kinds[rid] == "closed"],
             "no_dispatch_request_ids": [rid for rid in ids if kinds[rid] == "roster_absent"],
-            "provider_receipt_id": proof["provider_receipt_id"], "evidence_ref": evidence_ref}
+            "requests": requests, "provider_receipt_id": proof["provider_receipt_id"],
+            "evidence_ref": evidence_ref}
     closed_now = resource_admission.resolve_request_closed_or_roster_absent_occurrence(
         owner_id, occurrence_id, mixed_proof=lambda: proof, expected_state="claimed")
     if closed_now is not True:

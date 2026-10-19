@@ -2131,8 +2131,8 @@ def resolve_request_closed_or_roster_absent_occurrence(
 
     Every request carries its own kind: ``closed`` (its official page reads 募集終了/gone, so a
     duplicate is impossible) or ``roster_absent`` (its complete official applicant roster lacks
-    the bound account). A closed request may still hold our application, so ``effect`` stays
-    ``"unknown"``. The adapter validates the readback; this enforces the exact request binding.
+    the bound account); at least one is ``closed``. A closed request may still hold our
+    application, so ``effect`` stays ``"unknown"``. The adapter validates the readback; this enforces the exact request binding.
     """
     if (not owner_id or not _normalize_occurrence_id(occurrence_id)
             or expected_state not in {"claimed", "released"}):
@@ -2168,7 +2168,8 @@ def resolve_request_closed_or_roster_absent_occurrence(
             account = row.get("account_id")
             if row["kind"] == "roster_absent" and not (isinstance(account, str) and account.isdigit()):
                 return False
-        return True
+        # All roster-absent belongs to the historical single-account no-dispatch resolver.
+        return any(requests[value]["kind"] == "closed" for value in ids)
 
     return _close_unknown_occurrence(
         owner_id, occurrence_id, expected_state, proof_check=proof_check
