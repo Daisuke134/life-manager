@@ -869,12 +869,20 @@ def backfill_asc_sales(
 
     The daily run asks for yesterday before Apple has published it, so each
     report is read on a later run and written into the row of its own date.
-    Rows Apple answered "no sales" for, and rows already available, are final.
-    Returns the dates that became available.
+    Rows Apple answered "no sales" for, and rows already summarized with
+    subscription rows (``iap_units``), are final. Returns the dates that
+    became available.
     """
     if not state_path.exists():
         return []
     rows = [json.loads(line) for line in state_path.read_text().splitlines() if line.strip()]
+
+    def needs_read(row: dict[str, Any]) -> bool:
+        sales = (row.get("sources") or {}).get("app_store_sales") or {}
+        if sales.get("status") == "available":
+            return "iap_units" not in (sales.get("data") or {})
+        return sales.get("reason") != "no_sales_for_date"
+
     end = dt.date.fromisoformat(business_date)
     filled: list[str] = []
     patched: list[dict[str, Any]] = []
@@ -884,9 +892,7 @@ def backfill_asc_sales(
             row for row in rows
             if row.get("business_date") == day
             and "asc_app_id" in PRODUCTS.get(canonical_product_id(row.get("product_id")), {})
-            and (row.get("sources") or {}).get("app_store_sales", {}).get("status") != "available"
-            and (row.get("sources") or {}).get("app_store_sales", {}).get("reason")
-            != "no_sales_for_date"
+            and needs_read(row)
         ]
         if not targets:
             continue

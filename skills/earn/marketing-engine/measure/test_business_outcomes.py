@@ -542,8 +542,10 @@ class AscSalesAvailabilityTest(unittest.TestCase):
                     "business_date": date, "observed_at": f"{date}T22:00:00+00:00",
                     "sources": {} if sales is None else {"app_store_sales": sales}}
 
-        done = outcomes.available_source({"units": 9, "proceeds": {}})
+        done = outcomes.available_source({"units": 9, "iap_units": 0, "proceeds": {}})
+        legacy = outcomes.available_source({"units": 9, "proceeds": {"JPY": 0.0}})
         rows = [
+            row("2026-10-14", "anicca-ios", legacy),
             row("2026-10-15", "anicca-ios", done),
             row("2026-10-16", "anicca-ios", outcomes.unavailable_source("no_sales_for_date")),
             row("2026-10-17", "anicca-ios", outcomes.unavailable_source("provider_query_failed")),
@@ -568,8 +570,10 @@ class AscSalesAvailabilityTest(unittest.TestCase):
             saved = {(item["product_id"], item["business_date"]): item
                      for item in map(json.loads, state.read_text().splitlines())}
 
-        self.assertEqual(calls, ["2026-10-17"])
-        self.assertEqual(filled, ["2026-10-17"])
+        # A row summarized before subscription rows were attributed is re-read.
+        self.assertEqual(calls, ["2026-10-17", "2026-10-14"])
+        self.assertEqual(filled, ["2026-10-17", "2026-10-14"])
+        self.assertEqual(saved[("anicca-ios", "2026-10-14")]["sources"]["app_store_sales"]["data"]["iap_units"], 0)
         sales = saved[("anicca-ios", "2026-10-17")]["sources"]["app_store_sales"]
         self.assertEqual(sales["status"], "available")
         self.assertEqual(sales["data"]["units"], 2)
