@@ -1,5 +1,34 @@
 # Life Manager 統合SSOT — As-Is / To-Be / TODO
 
+## 2026-10-19 state + cursor（統括cursor。2026-10-15統括cursorと10/17 SH順序を置換）
+
+**順序変更の記録:** 旧=「統括cursor（2026-10-15）D1→D4→Gig」と10/17「SH2→SH4→SH3→SH5、cursor = SH2」。新=下記「次の順序」1→7、現在cursor=1。理由: 10/19実測で収益laneを止めている根本はcorespotlightd→swap→disk floorで、merge済みsourceの採用だけでは収益laneが走らない。SH2–SH5・P2–P5は未完のまま残し、この順序の後に再評価する。
+
+**10/18–19 merge+apply:** #8313 #8315 #8318 #8325 #8332 #8333 #8334 #8335 #8336 #8337 #8339 #8341 #8343 #8345 #8346 #8347 #8348 #8349 #8351 #8352 #8353 #8355 #8358（+anicca-products #520）#8366 #8368 #8371 #8373 #8374 #8381 #8382（apply-cadence test fix）。全件 `gh pr view` でMERGEDを確認。
+
+**確認済みの成果（readback）:**
+- Writer: EN Substack 無料3本公開 2026-10-18 23:30–23:50Z（9/29以来初）、JA Substack 有料1本 23:20Z。article-resume fence 55543 は #8374 で閉鎖。
+- PromptBase: annual-report-risk-change-brief が「Prompt Uploaded」（審査中）23:58Z。
+- Capafy: goal-monitor-hourly 正常、会社receipt Telegram が10/18 11:26Zに再開。
+- LINEスタンプ readback 復旧（40商品）。marketing-owner-events 正常。Supabase本番は再起動後 正常。
+- Coconala: apply fence 18df80f03ec86a98-74517 を #8381 で閉鎖（5331694 retired_absent、applied 4件で roster 89/89 positive control PASS）。
+- Startup context drift: aniccaai.com/lm digest 復旧後 green（#8358 + anicca-products #520）。
+
+**売上（公式readback）:** Coconala 7日¥31,980 / 30日¥70,980 / 生涯¥263,634。Capafy 30日$25.87、最終入金9/29。Anicca MRR $20.34。Writer / PromptBase / Ebook $0。その他はunknown（0に置換しない）。
+
+**根本blocker:** corespotlightd 約16GB RAM → swap 約7GB → Data空き9.4GiB < 収益floor 10GiB → 56 jobが `disk_floor_low`。killはauto-mode classifierが拒否。owner作業: `killall corespotlightd` と、`~/loops`・`~/.local/state`・`~/Projects` を Spotlight Privacy へ追加。
+
+**EDDの実態:** 直近14日で eval→変更→計測→keep/revert を自律で回したlaneは0。
+
+**次の順序（現在cursor=1）:**
+1. Spotlight/disk（上記owner作業 → Data空き≥10GiBと `disk_floor_low` 解消をreadback）。
+2. 1日1回loopのdeferral retry。
+3. Coconala EDD loop（初の実keep/revert）。
+4. Capafy 無料→Hook Lab funnel の新agent。
+5. PartnerStack 税務/payout。
+6. Anicca ASC sales 404 + PostHog。
+7. Writerの残り `interactive:dais` 経路（約20）。
+
 ## 投資紙owner復旧の依存修正 — source reclaim inventory
 
 目的はローカル投資の自然実行を戻し、明細/費用後成績の検証まで進めること。紙ownerは既存の自動更新でmain9b36c8a6由来完全releaseを採用し、19:25Z自然runも同SHAのclaim前disk_floor_low/exit75、held money fence0。deterministic/revenue/revenueを維持する。初期18:40Zのmain819fd631観測は必要10GiBに対し約9.58GiB・約429MiB不足で、最新の実freeと自然runは既存ownerの記録で追う。最新の正常判断は20:40ZのHOLD/hold_period_not_elapsedで、現在の紙版は発注条件に達していない。追加apply/hold短縮/fence解除/強制wakeは解決策にしない。
@@ -25,7 +54,7 @@ CI依存は既存6d8bbe6a96と同じ最小修正を再利用する。mainのpubl
 
 > **正本はこの文書 1 本だけ（Dais 2026-09-29）。** 以前の `2026-09-15-life-manager-agent-architecture-refinement.md`（全体設計・meta loop #10）、`2026-09-22-paid-fulfillment-all-platforms-design.md`（Paid）、`skills/earn/gig/TODO.md`（gig TODO）と、`docs/superpowers/specs/` のほかの spec はすべて参照用。TODO・順序・状態はここだけを更新し、他のファイルに新しい TODO を書かない。
 
-> **共有資源方針:** →「統括cursor — 共有資源回復と全案件の引き継ぎ」。旧floor撤去方針は現在のproducer契約により置換する。
+> **共有資源方針・統括cursor:** →「2026-10-19 state + cursor」。旧floor撤去方針は現在のproducer契約により置換する。
 
 この文書は Life Manager 全体（Foundation 14ループ + Paid fulfillment）の唯一の入口。
 以下の文書は設計の参照資料。実行TODO・順序・状態・現在cursorの正本はこの文書だけとする。
@@ -109,7 +138,7 @@ flowchart LR
 
 **E01最新readback（2026-10-13T02:04:44Z）:** 最新main/immutable `current` releaseは`e4754bc9687cec670292a89c740a95f5770afc5d`で、`runtime/loop/self-eval.mjs`のSHA-256はmainとreleaseで一致（`75b050c7a9b060a332854b1d9994365bf8f7fa6061ca5b14c8b777574c97b897`）。既存回帰testは8/8 PASS。`df -k /`は空き2,826,744 KiB（2,894,585,856 bytes）、release要件2,393,772,032 bytesを500,813,824 bytes上回る。これは時点の容量readbackで、適用直前にも再確認する。`agent-economy-loop`はPID 3136で旧release `dd6f0ee51266dda30b84b054f6c72d3771badf7b`をloaded-runningし、run `18dda725e96ec240-3136` / occurrence `agent-economy-loop:18dda725e96ec240-3136`を実行中。`lm-loop status --explain`のdiagnosticはcomplete、`next_action=monitor_running`、effectは`none/not_applicable`、`admission_effect_unknown.current=false`。旧loaded ownerがliveのためE01は未完で、停止・再起動・release apply・effect fence変更はしない。次は同occurrenceの終端をread-onlyで確認し、loaded-idle後にfresh capacity/release readbackを取り、既存のowner-controlled reconcileと次の自然runで採用を検証する。
 
-## 統括cursor（2026-10-15 置換）— 基盤を「空き容量という結果」で定義し直す
+## 旧統括cursor（2026-10-15、2026-10-19に「2026-10-19 state + cursor」で置換、参照のみ）— 基盤を「空き容量という結果」で定義し直す
 
 **順序変更の記録:** 旧cursor=「P0 receipt reserve → P1 pressure controller → F1–F5 の自然cycle」。新cursor=下記 D1→D2→D3→D4、その後Gig。変更理由: 2026-10-14 23:03 JST にData volumeが残り約117MBとなり `low swap: failed to create swapfile` / `no paging space action` でMac全体が凍結し、23:09に強制リセット（ResetCounter `btn_rst`、panicではない）。翌10-15 09:44にも残り231MBへ再到達。旧F1–F5とP0/P1は「空き容量はKPIではない」「free-space floorはdiagnostic only」を前提にしており、ディスクを満たす原因を一つも止めないため、何週続けても完了しない。旧節は参照として下に残す。進行中の外部effectは変更しない。
 
@@ -230,7 +259,7 @@ README は「ユーザー向け18 + system agent 1」= 19 agent。19 = Host Stew
 - Coconala apply fence: 全intent確定の証明で閉じる案はreview FIX-FIRST。v1 `prepared` 117件と状態なし2件が未確定（2026-09-25応募履歴で59件は応募済み、60件は履歴が不完全＝確定776件中38件が履歴に無いため証明不能）。draft PR #8131 は保留。残る案=依頼ページの「募集終了」公式readbackで重複不能を証明する新proof型（Dais判断待ち）。
 - 新しい穴: governor の `storage_growth` は全root `delta_bytes=None` で増加犯を測れていない（#4通知は容量の大きい順へ縮退）。空きは worktree 退役後 15.2GiB で下限付近、swap 4GiB。
 
-### 自己修復の土台（ベビーシッター卒業）— 2026-10-16 確定、実行順の正本
+### 自己修復の土台（ベビーシッター卒業）— 2026-10-16 確定（実行順の正本は「2026-10-19 state + cursor」）
 
 **10/15 の「土台は直った」は誤りだった。** 直していたのは Mac のフリーズ防止だけで、稼ぎ系 lane は 12GiB の下限に張り付いて停止し、Dais の指摘まで誰も気づかなかった。10/16 は Writer（36時間停止）、fundraiser（6日停止）、PromptBase（ログイン切れ）を含め、壊れる → Claude が見つける → Claude が直す、を十数回繰り返した。
 
@@ -250,7 +279,7 @@ README は「ユーザー向け18 + system agent 1」= 19 agent。19 = Host Stew
 - [x] SH1 見張り（#8221、10/16 本番）: 稼ぎ系 lane（registry の admission_class=revenue）ごとに、期待される行動間隔（cadence）と last_effect を比べる。2倍を超えたら、停止印があっても `revenue_outage` として扱い、recovery intent を出す（health.py / health_observer.py）。
 - [ ] SH2 型ごとの自動処方: 6つの型それぞれに既知の処方を当てる（掃除、停止印の照合、lease の回収、再ログイン、やり直し）。
 - [ ] SH3 毎日の試運転: 全 effect_reconcile adapter とログイン状態を、reconciler と同じ環境で dry-run する。失敗は事故として扱う。
-- 順序変更（10/17）: 旧順 SH2→SH3→SH4→SH5、新順 SH2→SH4→SH3→SH5、cursor = SH2。理由: 10/17 時点の収益停止11件中8件が `resource_effect_unknown` の停止印で、SH2 の方が売上停止に直結する。SH4 の自動昇格は下記の設計制約があり、拡張は SH2 の後に行う。
+- 順序変更（10/17）: 旧順 SH2→SH3→SH4→SH5、新順 SH2→SH4→SH3→SH5、cursor = SH2（10/19に「2026-10-19 state + cursor」へ置換）。理由: 10/17 時点の収益停止11件中8件が `resource_effect_unknown` の停止印で、SH2 の方が売上停止に直結する。SH4 の自動昇格は下記の設計制約があり、拡張は SH2 の後に行う。
 - SH4 の実測（10/17）: 自己修復 PR が merge されないのは、merge guard（`apps/life-manager/lib/dev-merge-guard.js` → `runtime/loop/recovery-class.cjs` の `evaluateRecoveryPromotion`）が `deterministic` かつ `effect_class: none` の owner だけを自動昇格させる設計だから。稼ぎ系 lane はすべて `external_effect_owner` なので、#8215/#8191 などは永久に `recovery_promotion_hooks_incomplete` になる。昇格の本体（`runtime/loop/recovery-promotion.mjs`）は汎用的に作られている（release → その owner だけに canary 適用 → 次の自然実行で health → 失敗なら rollback）。ただし health の期限が45分で、待つ間は fleet 全体の `current` を凍結する。このため、次の自然実行が45分以内に終わらない日次 lane はほぼ必ず timeout → rollback になる。拡張するには、cadence に合わせた非同期の health 判定（凍結しない）が必要。#8215/#8191 の対象 owner は10/16に revenue ok へ戻っており、PR は古い。
 - [ ] SH4 自己修復 agent: 未知の故障を調査 → 修正 PR → 独立レビュー → merge → release → 自然実行で行動が出たか確認、まで行う（既存の self-heal-code-agent task class を使う）。
 - [ ] SH5 安全網: CI で repo 全体の bash -n を回す。ballast が作られる条件を見直す（今は空き25GiB 超で、満たされない）。
