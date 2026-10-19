@@ -1569,6 +1569,27 @@
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/fundraiser-browser"
     },
+    "gig-experiment-evaluate": {
+      "adapter": "exec",
+      "cadence": {
+        "start_interval_seconds": 86400
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "command": [
+        "evaluate"
+      ],
+      "domain": "earn",
+      "effect_class": "none",
+      "entrypoint": "skills/earn/gig/scripts/experiment_evaluator.py",
+      "label": "ai.anicca.gig-experiment-evaluate",
+      "system_role": "control",
+      "log_root": "~/.local/state/life-manager/gig-experiment-evaluate/logs",
+      "provider_route": "deterministic",
+      "state_root": "~/.local/state/life-manager/gig-experiment-evaluate"
+    },
     "gig-outcome-watch": {
       "adapter": "exec",
       "cadence": {
