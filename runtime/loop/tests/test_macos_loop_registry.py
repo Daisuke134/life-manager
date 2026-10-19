@@ -1288,6 +1288,16 @@ class MacosLoopRegistryTest(unittest.TestCase):
         self.assertEqual(row["admission_class"], "revenue")
         self.assertEqual(row["priority"], "distribution")
 
+    def test_coconala_experiment_evaluator_uses_the_revenue_disk_floor(self):
+        # 2026-10-19: the A/B evaluator for the only earning lane (Coconala apply) was deferred
+        # disk_floor_low at 11.8 GiB because borrow loops need 12 GiB; it writes a few KB and
+        # starts/decides the price experiment. Same reasoning as capafy-goal-monitor-hourly (#6944).
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["gig-experiment-evaluate"]
+        self.assertEqual(row["admission_class"], "revenue")
+        self.assertEqual(row["priority"], "revenue")
+        self.assertEqual(row["resource_class"], "deterministic")
+
     def test_paid_pollers_do_not_compete_for_the_agent_slots(self):
         # 2026-10-18 (24h): the four Paid pollers held 27,793 agent slot-seconds over 395
         # admitted runs, made 1 provider effect and 0 model compose calls, while
