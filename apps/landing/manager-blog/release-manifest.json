@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "modules": [
+    {
+      "path": "scripts/integrate.mjs",
+      "sha256": "6883d05d3e4e81ac3e107278118261f3c685750d4a8433d905e7212fbacb2589"
+    },
+    {
+      "path": "scripts/package-contract.mjs",
+      "sha256": "e4d210e8628d19596f1aad6701a1dd69c52f82d11611808c7ebbc535d435a3d9"
+    },
+    {
+      "path": "lib/render-manager-markdown.mjs",
+      "sha256": "2896d4799fdfd76bd65d0326371b62e84ff4d3e2840c3052428247782e1e96b1"
+    },
+    {
+      "path": "templates/manager-collection.tsx",
+      "sha256": "e5d9596ff0e73bbcc64feb9c0a607225e6bcaaafa707a967b902ae47f85256be"
+    }
+  ]
+}
