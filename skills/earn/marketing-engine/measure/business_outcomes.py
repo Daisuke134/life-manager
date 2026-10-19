@@ -783,7 +783,9 @@ class AscSalesReportMissing(Exception):
 
     Apple uses the same NOT_FOUND code for a report that is not generated yet
     (a daily report lands the next day, ~5 am PT) and for a day with no sales,
-    so only the error detail tells them apart.
+    so only the error detail tells them apart. "No sales" is Apple's own
+    readback of zero (see ``read_asc_sales_report``); every other reason stays
+    unknown and is retried.
     """
 
     def __init__(self, reason: str, detail: str):
@@ -815,14 +817,28 @@ def fetch_asc_sales_rows(env: dict[str, str], report_date: str) -> list[dict[str
             ).strip()
         except (ValueError, AttributeError):
             detail = ""
+        finally:
+            error.close()
         lowered = detail.lower()
         reason = (
             "report_not_available_yet" if "not available yet" in lowered
-            else "no_sales_for_date" if "no sales" in lowered
+            else "apple_no_sales_for_date" if "no sales" in lowered
             else "report_not_found"
         )
         raise AscSalesReportMissing(reason, detail or "HTTP 404") from error
     return parse_asc_tsv_gz(payload)
+
+
+def read_asc_sales_report(
+    env: dict[str, str], report_date: str
+) -> tuple[list[dict[str, str]], dict[str, str]]:
+    """Return the day's rows and provenance; Apple's "no sales" is a measured empty report."""
+    try:
+        return fetch_asc_sales_rows(env, report_date), {}
+    except AscSalesReportMissing as error:
+        if error.reason != "apple_no_sales_for_date":
+            raise
+        return [], {"evidence_reason": error.reason, "apple_detail": str(error)}
 
 
 def asc_sales_source(
@@ -830,14 +846,17 @@ def asc_sales_source(
     app_id: str,
     business_date: str,
     evidence_dir: Path,
+    provenance: dict[str, str] | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Scope an account-wide Sales Report to one app and keep its evidence."""
     compact = summarize_asc_sales(rows, app_id)
     evidence_dir.mkdir(parents=True, exist_ok=True)
-    evidence = {"app_id": app_id, "business_date": business_date, "rows": rows}
+    evidence = {"app_id": app_id, "business_date": business_date, "rows": rows,
+                **(provenance or {})}
     evidence_path = evidence_dir / f"{app_id}-sales-{business_date}.json"
     evidence_path.write_text(json.dumps(evidence, ensure_ascii=False, sort_keys=True))
-    return {**compact, "business_date": business_date, "evidence_path": str(evidence_path)}, evidence
+    return {**compact, **(provenance or {}), "business_date": business_date,
+            "evidence_path": str(evidence_path)}, evidence
 
 
 def collect_asc_sales(
@@ -852,9 +871,8 @@ def collect_asc_sales(
     under the vendor in one gzipped TSV; ``app_id`` here is the numeric ASC
     "Apple Identifier", used to filter rows to this product.
     """
-    return asc_sales_source(
-        fetch_asc_sales_rows(env, business_date), app_id, business_date, evidence_dir
-    )
+    rows, provenance = read_asc_sales_report(env, business_date)
+    return asc_sales_source(rows, app_id, business_date, evidence_dir, provenance)
 
 
 def backfill_asc_sales(
@@ -869,9 +887,9 @@ def backfill_asc_sales(
 
     The daily run asks for yesterday before Apple has published it, so each
     report is read on a later run and written into the row of its own date.
-    Rows Apple answered "no sales" for, and rows already summarized with
-    subscription rows (``iap_units``), are final. Returns the dates that
-    became available.
+    Rows already summarized with subscription rows (``iap_units``), including
+    Apple's measured "no sales" zero, are final; every unavailable row is
+    retried. Returns the dates that became available.
     """
     if not state_path.exists():
         return []
@@ -881,7 +899,7 @@ def backfill_asc_sales(
         sales = (row.get("sources") or {}).get("app_store_sales") or {}
         if sales.get("status") == "available":
             return "iap_units" not in (sales.get("data") or {})
-        return sales.get("reason") != "no_sales_for_date"
+        return True
 
     end = dt.date.fromisoformat(business_date)
     filled: list[str] = []
@@ -897,13 +915,13 @@ def backfill_asc_sales(
         if not targets:
             continue
         try:
-            report = fetch_asc_sales_rows(env, day)
+            report, provenance = read_asc_sales_report(env, day)
             sources = []
             for row in targets:
                 product_id = canonical_product_id(row["product_id"])
                 data, evidence = asc_sales_source(
                     report, PRODUCTS[product_id]["asc_app_id"], day,
-                    evidence_root / day / product_id,
+                    evidence_root / day / product_id, provenance,
                 )
                 data["observed_at"] = dt.datetime.now(dt.timezone.utc).isoformat()
                 sources.append(available_source(data, evidence_sha256=_json_hash(evidence)))

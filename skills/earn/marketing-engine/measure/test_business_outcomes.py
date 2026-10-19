@@ -503,25 +503,45 @@ def _apple_404(detail: str) -> Exception:
 
 NOT_YET = ("Report is not available yet. Daily reports for the Americas are available by "
            "5 am Pacific Time; Japan, Australia, and New Zealand by 5 am Japan Standard Time.")
+NO_SALES = "There were no sales for the date specified."
 
 
 class AscSalesAvailabilityTest(unittest.TestCase):
     """Apple answers 404 both for 'not generated yet' and 'no sales that day'."""
 
-    def test_404_not_available_yet_is_typed_unknown(self):
+    def test_404_not_available_yet_is_typed_unknown_and_body_closed(self):
+        error = _apple_404(NOT_YET)
         with mock.patch.object(outcomes, "_asc_headers", return_value={}), \
-             mock.patch.object(outcomes, "_http_bytes", side_effect=_apple_404(NOT_YET)):
+             mock.patch.object(outcomes, "_http_bytes", side_effect=error):
             with self.assertRaises(outcomes.AscSalesReportMissing) as caught:
                 outcomes.fetch_asc_sales_rows({"ASC_VENDOR_NUMBER": "1"}, "2026-10-18")
         self.assertEqual(caught.exception.reason, "report_not_available_yet")
+        self.assertTrue(error.fp.closed)
 
-    def test_404_no_sales_is_typed_unknown(self):
-        error = _apple_404("There were no sales for the date specified.")
+    def test_404_no_sales_is_typed_as_apple_readback(self):
+        error = _apple_404(NO_SALES)
         with mock.patch.object(outcomes, "_asc_headers", return_value={}), \
              mock.patch.object(outcomes, "_http_bytes", side_effect=error):
             with self.assertRaises(outcomes.AscSalesReportMissing) as caught:
                 outcomes.fetch_asc_sales_rows({"ASC_VENDOR_NUMBER": "1"}, "2026-10-12")
-        self.assertEqual(caught.exception.reason, "no_sales_for_date")
+        self.assertEqual(caught.exception.reason, "apple_no_sales_for_date")
+
+    def test_snapshot_records_apple_no_sales_as_measured_zero(self):
+        missing = outcomes.AscSalesReportMissing("apple_no_sales_for_date", NO_SALES)
+        with tempfile.TemporaryDirectory() as directory, \
+             mock.patch.object(outcomes, "DEFAULT_EVIDENCE", Path(directory)), \
+             mock.patch.object(outcomes, "collect_revenuecat", side_effect=RuntimeError("x")), \
+             mock.patch.object(outcomes, "collect_asc", side_effect=RuntimeError("x")), \
+             mock.patch.object(outcomes, "collect_mixpanel", side_effect=RuntimeError("x")), \
+             mock.patch.object(outcomes, "fetch_asc_sales_rows", side_effect=missing):
+            row = outcomes.collect_snapshot({}, "anicca-ios", "2026-10-12")
+        sales = row["sources"]["app_store_sales"]
+        self.assertEqual(sales["status"], "available")
+        data = sales["data"]
+        self.assertEqual((data["units"], data["iap_units"], data["proceeds"]), (0, 0, {}))
+        self.assertEqual(data["evidence_reason"], "apple_no_sales_for_date")
+        self.assertEqual(data["apple_detail"], NO_SALES)
+        self.assertTrue(sales["evidence_sha256"])
 
     def test_snapshot_records_missing_report_as_unknown_not_zero(self):
         missing = outcomes.AscSalesReportMissing("report_not_available_yet", NOT_YET)
@@ -544,10 +564,12 @@ class AscSalesAvailabilityTest(unittest.TestCase):
 
         done = outcomes.available_source({"units": 9, "iap_units": 0, "proceeds": {}})
         legacy = outcomes.available_source({"units": 9, "proceeds": {"JPY": 0.0}})
+        no_sales = outcomes.available_source({"units": 0, "iap_units": 0, "proceeds": {},
+                                              "evidence_reason": "apple_no_sales_for_date"})
         rows = [
             row("2026-10-14", "anicca-ios", legacy),
             row("2026-10-15", "anicca-ios", done),
-            row("2026-10-16", "anicca-ios", outcomes.unavailable_source("no_sales_for_date")),
+            row("2026-10-16", "anicca-ios", no_sales),
             row("2026-10-17", "anicca-ios", outcomes.unavailable_source("provider_query_failed")),
             row("2026-10-17", "ebook-en", None),
             row("2026-10-18", "anicca-ios", outcomes.unavailable_source("report_not_available_yet")),
@@ -584,11 +606,10 @@ class AscSalesAvailabilityTest(unittest.TestCase):
         self.assertEqual(saved[("anicca-ios", "2026-10-15")]["sources"]["app_store_sales"]["data"]["units"], 9)
         self.assertNotIn("app_store_sales", saved[("ebook-en", "2026-10-17")]["sources"])
 
-    def test_backfill_keeps_row_unknown_when_report_still_missing(self):
+    def _backfill_one(self, missing):
         row = {"schema_version": 1, "snapshot_id": "anicca-ios:2026-10-17", "product_id": "anicca-ios",
                "business_date": "2026-10-17", "observed_at": "2026-10-17T22:00:00+00:00",
                "sources": {"app_store_sales": outcomes.unavailable_source("provider_query_failed")}}
-        missing = outcomes.AscSalesReportMissing("no_sales_for_date", "There were no sales")
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory) / "business-outcomes.jsonl"
             state.write_text(json.dumps(row) + "\n")
@@ -596,11 +617,25 @@ class AscSalesAvailabilityTest(unittest.TestCase):
                 filled = outcomes.backfill_asc_sales(
                     {}, state, "2026-10-18", evidence_root=Path(directory)
                 )
-            saved = json.loads(state.read_text())
+            return filled, json.loads(state.read_text())["sources"]["app_store_sales"]
+
+    def test_backfill_keeps_row_unknown_while_report_is_not_published(self):
+        filled, sales = self._backfill_one(
+            outcomes.AscSalesReportMissing("report_not_available_yet", NOT_YET)
+        )
         self.assertEqual(filled, [])
-        sales = saved["sources"]["app_store_sales"]
         self.assertEqual((sales["status"], sales["reason"], sales["data"]),
-                         ("unavailable", "no_sales_for_date", None))
+                         ("unavailable", "report_not_available_yet", None))
+
+    def test_backfill_records_apple_no_sales_as_final_measured_zero(self):
+        filled, sales = self._backfill_one(
+            outcomes.AscSalesReportMissing("apple_no_sales_for_date", NO_SALES)
+        )
+        self.assertEqual(filled, ["2026-10-17"])
+        self.assertEqual(sales["status"], "available")
+        self.assertEqual((sales["data"]["units"], sales["data"]["iap_units"], sales["data"]["proceeds"]),
+                         (0, 0, {}))
+        self.assertEqual(sales["data"]["evidence_reason"], "apple_no_sales_for_date")
 
 
 class StripeContractTest(unittest.TestCase):
