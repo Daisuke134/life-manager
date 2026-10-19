@@ -1,0 +1,59 @@
+{
+  "checked_at_utc": "2026-10-19T00:05:37.670995+00:00",
+  "base_url": "https://aniccaai.com",
+  "revision": "c089afd4e41427a41f416eac16b9238c4dc9b555",
+  "checks": [
+    {
+      "route": "/",
+      "sha256": "52e8beb9f19af65f2b7338d9b9f35ba3d479c6a1ae3b49f809e18b91868e4c4e",
+      "matches_release": true
+    },
+    {
+      "route": "/en",
+      "sha256": "52e8beb9f19af65f2b7338d9b9f35ba3d479c6a1ae3b49f809e18b91868e4c4e",
+      "matches_release": true,
+      "title": "Anicca — End suffering.",
+      "company_Anicca": true,
+      "incorrect_company_Ninja": false
+    },
+    {
+      "route": "/ja",
+      "sha256": "af792bc718e8492734135d329d046e5769209a077f43f3b40c50ed00de977671",
+      "matches_release": true,
+      "title": "Anicca — 苦しみをなくす。",
+      "company_Anicca": true,
+      "incorrect_company_Ninja": false
+    },
+    {
+      "route": "/dais",
+      "sha256": "ddc6c2a7ca6564356940fc72b214acd4352269283b1b3d64ff7bf81cdd955d46",
+      "matches_release": true
+    },
+    {
+      "route": "/dais/ja",
+      "sha256": "3e21fbc97e74a40b07e4477d8a593933335b309e71fe92fedcbc2e4bd6bc1e73",
+      "matches_release": true
+    },
+    {
+      "route": "/lm",
+      "sha256": "08a0f44f66e9d4fd8e8d3c854ac4e96512be97b7e95ac576c9ac24ff5b2a3872",
+      "matches_release": true
+    },
+    {
+      "route": "/lm/ja",
+      "sha256": "ec195a330a1a074422dd3ebdcc90917e3c4cf8fc83e4bc9d599ff3e19b1fa810",
+      "matches_release": true
+    },
+    {
+      "route": "/assets/manager-site/styles.css",
+      "sha256": "8a5d1cb44303a54681939f5647ac4ae16294193a66e0986f8ae3432a5707b242",
+      "matches_release": true
+    },
+    {
+      "route": "/assets/manager-site/writer-cta-url.js",
+      "sha256": "b38abbcd5fa96835d54abe9780a3bdd7a34413e0b5526b28855a07f378847e86",
+      "matches_release": true
+    }
+  ],
+  "scope": "Independent primary-agent live HTTP readback; no payment or intervention executed."
+}

@@ -3682,3 +3682,16 @@ Verification so far: route hashes/noindex/live-route checks passed; adapter synt
 ### 2026-10-18 会社名の音声誤認を訂正
 
 本人が会社名はAniccaと明示訂正し、音声では誤字が多いことを常に考慮するよう指定。直前の別会社名への変更は誤認だった。会社Anicca・製品Manager・使命End sufferingを現在の確定表記とする。今回の研究地図、創業者の物語、9.1教材、JSON、スライド/図、AGENTSの継続指示を訂正。使命の文言修正は維持し、サイト担当は誤ブランドの公開runの通常キャンセルと、既存経路によるAniccaへの修正を優先する。本番反映完了の判定は正しい会社名と使命のlive readbackまで行わない。音声の表記ゆれから既知の会社名の変更を推定しない。
+
+
+### 2026-10-19 Anicca／End suffering の本番反映と第9単元の保存
+
+会社名はAnicca、製品はManager、使命は厳密にEnd suffering.／苦しみをなくす。本人は音声入力の誤字が多いと再度明示。既知の名称を文脈と照合し、誤変換から改名を推定しない指示をAGENTSへ保存済み。
+
+訂正版canonical PR #8380（main `5010169d`）、publishing PR #522（main `52576216`）を通常経路でmerge。immutable artifact `c089afd4e41427a41f416eac16b9238c4dc9b555`。GitHub→Netlify run https://github.com/Daisuke134/anicca-products/actions/runs/39178862807 は成功し、既存money-path smokeも成功。配信workflowはactive。主担当の独立HTTP readbackで `/manager-release.json` のrevisionと9ページ・assetのSHA256一致を確認。`/en` titleはAnicca — End suffering.、`/ja` titleはAnicca — 苦しみをなくす。両ページで誤会社名なし。証拠は `docs/research/manager/evidence/2026-10-19/mission-production-primary-readback.json`。支払いや被験者への介入はしていない。
+
+直前の誤会社名artifactのrunはcancelled。確認した公開ページは訂正前もAnicca表記を維持していたが、全瞬間の非公開履歴まで立証したとは扱わない。今回の終了判定は訂正版のlive readbackと公開後チェックの成功に基づく。
+
+第9単元は研究地図22系統・61出典、データ比較、9.1記事、生成図2枚、横6枚/縦6枚、HTML・JSON・発表者ノート・投稿草稿・予測対象定義をGitHubへ保存。主担当は保存された24成果物のhashを再照合した。説明は9.1の状況／記録上の応答／次の自己報告／介入効果の区別から始める。本人の理解完了は未確認。行動モデル学習、ブログ/SNS投稿、外部連絡、応募は未実行。
+
+次の小さな実装は候補UCLデータの列・時刻・欠測・ラベルの辞書と監査。`validation_yesno`の意味を確認し、実践開始/完了と勝手に言い換えない。同日次EMAを対象に、未来と未知の人の評価境界を固定してから単純な状態・応答予測を実装する。使命に近い学習対象として選んだもので、短い通知や個人の実践へManager全体を限定しない。
