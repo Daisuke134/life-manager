@@ -1,0 +1,69 @@
+{
+  "canonical_revision": "45b41beea3c87bb563b5c08e97066bcea66eaada",
+  "reviewed_package_sha256": "dd509054ac523d2483449da5ab5148fff5d2647f32ced3c4591b31d7a834ead1",
+  "immutable_deploy_url": "https://6ad571e58eef7878f92f2428--anicca2.netlify.app",
+  "article_count": 54,
+  "languages": {
+    "en": 27,
+    "ja": 27
+  },
+  "media_count": 29,
+  "runs": [
+    {
+      "conclusion": "success",
+      "databaseId": 39184364173,
+      "headSha": "45b41beea3c87bb563b5c08e97066bcea66eaada",
+      "status": "completed",
+      "url": "https://github.com/Daisuke134/life-manager/actions/runs/39184364173"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 39184363966,
+      "headSha": "45b41beea3c87bb563b5c08e97066bcea66eaada",
+      "status": "completed",
+      "url": "https://github.com/Daisuke134/life-manager/actions/runs/39184363966"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 39184414650,
+      "headSha": "07dd5ddc95e37cfbc120d6718a399942df632533",
+      "status": "completed",
+      "url": "https://github.com/Daisuke134/anicca-products/actions/runs/39184414650"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 39185113503,
+      "headSha": "e973c5492b3bc9a7d0eb27d28f679d0e9d6bef58",
+      "status": "completed",
+      "url": "https://github.com/Daisuke134/anicca-products/actions/runs/39185113503"
+    }
+  ],
+  "pull_requests": [
+    {
+      "headRefOid": "45b41beea3c87bb563b5c08e97066bcea66eaada",
+      "mergeCommit": {
+        "oid": "8161f176ee457f92a9c8591d00a7e4cd1413483c"
+      },
+      "mergedAt": "2026-10-19T01:23:03Z",
+      "state": "MERGED",
+      "url": "https://github.com/Daisuke134/life-manager/pull/8387"
+    },
+    {
+      "headRefOid": "07dd5ddc95e37cfbc120d6718a399942df632533",
+      "mergeCommit": {
+        "oid": "e973c5492b3bc9a7d0eb27d28f679d0e9d6bef58"
+      },
+      "mergedAt": "2026-10-19T01:23:12Z",
+      "state": "MERGED",
+      "url": "https://github.com/Daisuke134/anicca-products/pull/523"
+    }
+  ],
+  "merge_guard": "Unmodified bin/merge-when-green with isolated official gh v2.102.0 (verified release archive SHA-256); system gh unchanged.",
+  "gh_archive_sha256": "bb766f710eef8ede859c18578c72c327597cd4c8a85b06001b1f3843c6019386",
+  "independent_reviews": "Canonical adapter and publishing bridge: 0 blocking findings after Tailwind scan correction.",
+  "money_path_smoke": "SMOKE PASS: https://aniccaai.com up, /lm Web app handoff verified, life-call health is 200, no direct Stripe link, Checkout and legacy Payment Link remain reachable",
+  "limitations": [
+    "This verifies publication and website behavior, not scientific validity of every cited paper or real-world intervention efficacy.",
+    "External-channel publication is owned by the primary agent and is not claimed by this receipt."
+  ]
+}

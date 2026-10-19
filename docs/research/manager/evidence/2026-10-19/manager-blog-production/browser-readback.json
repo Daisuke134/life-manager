@@ -1,0 +1,105 @@
+[
+  {
+    "route": "/blog/manager",
+    "viewport": 390,
+    "title": "Manager Research & Build Notes | Anicca",
+    "headings": [
+      "Manager"
+    ],
+    "tables": 0,
+    "code_blocks": 0,
+    "images": 0,
+    "broken_images": 0,
+    "horizontal_overflow": false,
+    "pre_overflow": [],
+    "table_wrapper_overflow": [],
+    "ordered_list_style": [],
+    "page_errors": []
+  },
+  {
+    "route": "/blog/manager",
+    "viewport": 1440,
+    "title": "Manager Research & Build Notes | Anicca",
+    "headings": [
+      "Manager"
+    ],
+    "tables": 0,
+    "code_blocks": 0,
+    "images": 0,
+    "broken_images": 0,
+    "horizontal_overflow": false,
+    "pre_overflow": [],
+    "table_wrapper_overflow": [],
+    "ordered_list_style": [],
+    "page_errors": []
+  },
+  {
+    "route": "/blog/manager-household-population-results-ja",
+    "viewport": 390,
+    "title": "世帯を壊さず、44万世帯と104万人の仮想人口を作った | Anicca Articles",
+    "headings": [
+      "世帯を壊さず、44万世帯と104万人の仮想人口を作った"
+    ],
+    "tables": 1,
+    "code_blocks": 0,
+    "images": 2,
+    "broken_images": 0,
+    "horizontal_overflow": false,
+    "pre_overflow": [],
+    "table_wrapper_overflow": [
+      "auto"
+    ],
+    "ordered_list_style": [],
+    "page_errors": []
+  },
+  {
+    "route": "/blog/manager-population-weights-sft-dpo-en",
+    "viewport": 1440,
+    "title": "Understanding PopulationSim, SFT, and DPO through calculations | Anicca Articles",
+    "headings": [
+      "Understanding PopulationSim, SFT, and DPO through calculations"
+    ],
+    "tables": 0,
+    "code_blocks": 3,
+    "images": 2,
+    "broken_images": 0,
+    "horizontal_overflow": false,
+    "pre_overflow": [
+      "auto",
+      "auto",
+      "auto"
+    ],
+    "table_wrapper_overflow": [],
+    "ordered_list_style": [],
+    "page_errors": []
+  },
+  {
+    "route": "/blog/manager-population-dataset-selection-en",
+    "viewport": 390,
+    "title": "Choosing data for Manager: populations, behavior, and interventions | Anicca Articles",
+    "headings": [
+      "Choosing data for Manager: populations, behavior, and interventions"
+    ],
+    "tables": 4,
+    "code_blocks": 0,
+    "images": 1,
+    "broken_images": 0,
+    "horizontal_overflow": false,
+    "pre_overflow": [],
+    "table_wrapper_overflow": [
+      "auto",
+      "auto",
+      "auto",
+      "auto"
+    ],
+    "ordered_list_style": [],
+    "page_errors": []
+  },
+  {
+    "route": "/blog/manager-aaru-ja",
+    "viewport": 390,
+    "ordered_list_style": [
+      "decimal"
+    ]
+  }
+]

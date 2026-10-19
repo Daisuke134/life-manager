@@ -1,0 +1,757 @@
+{
+  "canonical_revision": "45b41beea3c87bb563b5c08e97066bcea66eaada",
+  "article_count": 54,
+  "media_count": 29,
+  "articles": [
+    {
+      "slug": "manager-world-engineering-ja",
+      "status": 200,
+      "html_sha256": "ae67bfbc85a755e0eb9ca46f92f69ed36c038b391a818f76c7cfbda1335228aa",
+      "bytes": 29100,
+      "tables": 0,
+      "pre": 0,
+      "images": 0
+    },
+    {
+      "slug": "manager-world-engineering-en",
+      "status": 200,
+      "html_sha256": "3b29b9091996c3b198cb4dbe94657e317610a5b584dabd570c64bbf8436372e3",
+      "bytes": 29873,
+      "tables": 0,
+      "pre": 0,
+      "images": 0
+    },
+    {
+      "slug": "manager-benchmark-first-ja",
+      "status": 200,
+      "html_sha256": "b3dbdbc7b918ba0552a023215c0db6dc60b55cbfbe478213b8d92421ab970e9f",
+      "bytes": 28261,
+      "tables": 0,
+      "pre": 0,
+      "images": 0
+    },
+    {
+      "slug": "manager-benchmark-first-en",
+      "status": 200,
+      "html_sha256": "91828905b2ee04eba94cc481364d2c347c68ca3ca13fad0cd2cfe031da9750f6",
+      "bytes": 30187,
+      "tables": 0,
+      "pre": 0,
+      "images": 0
+    },
+    {
+      "slug": "manager-ai-economist-ja",
+      "status": 200,
+      "html_sha256": "6e2eba7ca1c99ce3ca5550ed7da5f703ef92d0c6fde951aa0a147246cdcb9841",
+      "bytes": 29781,
+      "tables": 0,
+      "pre": 0,
+      "images": 0
+    },
+    {
+      "slug": "manager-ai-economist-en",
+      "status": 200,
+      "html_sha256": "89bdb1bfc29f3888d933fe7ff8ba467c882ddf2181080c016312fcb592b9b568",
+      "bytes": 30772,
+      "tables": 0,
+      "pre": 0,
+      "images": 0
+    },
+    {
+      "slug": "manager-aaru-ja",
+      "status": 200,
+      "html_sha256": "9adc2131129965a20fbb4e6d3ecaf7ad1ccb4f1fb4a2bc12c30dc9943960189b",
+      "bytes": 65255,
+      "tables": 1,
+      "pre": 0,
+      "images": 0
+    },
+    {
+      "slug": "manager-aaru-en",
+      "status": 200,
+      "html_sha256": "2598971058ba6e24a794f15262a006be5f8d74bc74c9f1007d45048dabe10a60",
+      "bytes": 56307,
+      "tables": 1,
+      "pre": 0,
+      "images": 0
+    },
+    {
+      "slug": "manager-simile-ja",
+      "status": 200,
+      "html_sha256": "32e097f1b94b002ba51744f0562d5dc8837a5cb932accf689114ee2f84ab1800",
+      "bytes": 64324,
+      "tables": 0,
+      "pre": 0,
+      "images": 0
+    },
+    {
+      "slug": "manager-simile-en",
+      "status": 200,
+      "html_sha256": "9a92d2b6fad2131c82face0b8e8bba30872cf8279cf7cb925b693b1ac6d40261",
+      "bytes": 53284,
+      "tables": 0,
+      "pre": 0,
+      "images": 0
+    },
+    {
+      "slug": "manager-human-simulation-landscape-ja",
+      "status": 200,
+      "html_sha256": "245e2a356995d81d4389185bea43ded7ef1c3f8f80e2f9e93e55226b40e8ebfc",
+      "bytes": 64608,
+      "tables": 0,
+      "pre": 0,
+      "images": 3
+    },
+    {
+      "slug": "manager-human-simulation-landscape-en",
+      "status": 200,
+      "html_sha256": "da3ed487b4424c7f2cafbd905f540c781b50eeb8aaf8c179c34616e9341bcd44",
+      "bytes": 44361,
+      "tables": 0,
+      "pre": 0,
+      "images": 2
+    },
+    {
+      "slug": "manager-population-foundations-ja",
+      "status": 200,
+      "html_sha256": "5072ff7910d66f2e8d77d0182307ffced35ebad58e664c513fabd6a32d7f48a0",
+      "bytes": 53737,
+      "tables": 1,
+      "pre": 0,
+      "images": 2
+    },
+    {
+      "slug": "manager-population-foundations-en",
+      "status": 200,
+      "html_sha256": "1862fe40c47b6a726e69038545a763163a13039226e9fc59ba393690c987c738",
+      "bytes": 47848,
+      "tables": 1,
+      "pre": 0,
+      "images": 2
+    },
+    {
+      "slug": "manager-population-weights-sft-dpo-ja",
+      "status": 200,
+      "html_sha256": "ad9ef825993286277d22e1960764b61469cfc0a45d48cd26167be17cb4b1bc88",
+      "bytes": 38933,
+      "tables": 0,
+      "pre": 3,
+      "images": 2
+    },
+    {
+      "slug": "manager-population-weights-sft-dpo-en",
+      "status": 200,
+      "html_sha256": "4fbdf7e9e0619f4819ee74eb9a197013894cceec61993130011c90257988f00f",
+      "bytes": 38443,
+      "tables": 0,
+      "pre": 3,
+      "images": 2
+    },
+    {
+      "slug": "manager-conditional-probability-ja",
+      "status": 200,
+      "html_sha256": "dda27539ce242c5d52dbc10becca0daf6acccf9a74046c2dee864f72f05abad7",
+      "bytes": 32272,
+      "tables": 0,
+      "pre": 1,
+      "images": 1
+    },
+    {
+      "slug": "manager-conditional-probability-en",
+      "status": 200,
+      "html_sha256": "003e3036edb4774c3c0850d2d9289a70bc8a3c3775eb1aa0d5138b422005e6c1",
+      "bytes": 32332,
+      "tables": 0,
+      "pre": 2,
+      "images": 1
+    },
+    {
+      "slug": "manager-bayesian-network-ja",
+      "status": 200,
+      "html_sha256": "d538dae8956d2f445cf05cb674f1ba9786c9209382f0218b8906d673d05f5ccf",
+      "bytes": 38255,
+      "tables": 0,
+      "pre": 1,
+      "images": 2
+    },
+    {
+      "slug": "manager-bayesian-network-en",
+      "status": 200,
+      "html_sha256": "698df6598bb38f913920d6f1cb03ca67dcef5b800cfda916bdf7d36cba1ff940",
+      "bytes": 36697,
+      "tables": 0,
+      "pre": 1,
+      "images": 2
+    },
+    {
+      "slug": "manager-vae-population-ja",
+      "status": 200,
+      "html_sha256": "28cde2bd1010fe3acb754fd0e47e88e25ec8b9ddb48d9b331f8b392f212c3311",
+      "bytes": 47552,
+      "tables": 0,
+      "pre": 1,
+      "images": 2
+    },
+    {
+      "slug": "manager-vae-population-en",
+      "status": 200,
+      "html_sha256": "e920677cbd72aeee729d9a34ef74c1d60ca783680380a17edc9eceeef8c86cc8",
+      "bytes": 45311,
+      "tables": 0,
+      "pre": 1,
+      "images": 2
+    },
+    {
+      "slug": "manager-gan-population-ja",
+      "status": 200,
+      "html_sha256": "85e845967ef2b69de3a2b7fa1048a12c96c5a015bc1ef6e9efbb0505665a928a",
+      "bytes": 29509,
+      "tables": 0,
+      "pre": 0,
+      "images": 1
+    },
+    {
+      "slug": "manager-gan-population-en",
+      "status": 200,
+      "html_sha256": "99a69869db44c22342f8822be4881bdc5db63a0c071ef448210505d0a5cae437",
+      "bytes": 29259,
+      "tables": 0,
+      "pre": 0,
+      "images": 1
+    },
+    {
+      "slug": "manager-diffusion-population-ja",
+      "status": 200,
+      "html_sha256": "7cafdc3611ce8abe6aa5471c356144fdd675d4a9991d72904d8eecaadc333f6b",
+      "bytes": 41469,
+      "tables": 0,
+      "pre": 0,
+      "images": 1
+    },
+    {
+      "slug": "manager-diffusion-population-en",
+      "status": 200,
+      "html_sha256": "db19fdb6bd947586abe99c740df6ce5fb6f88b9907044e5b30455763bf967049",
+      "bytes": 39152,
+      "tables": 0,
+      "pre": 0,
+      "images": 1
+    },
+    {
+      "slug": "manager-llm-population-ja",
+      "status": 200,
+      "html_sha256": "3b3b145171a3781dad42bc6da8275960c3ddfd4c99599e0f9c9534316610b751",
+      "bytes": 41753,
+      "tables": 1,
+      "pre": 0,
+      "images": 2
+    },
+    {
+      "slug": "manager-llm-population-en",
+      "status": 200,
+      "html_sha256": "e3753ed02869ad17ba95d21e5b3f581006eb6684cc833e4590b24969c599d85b",
+      "bytes": 40749,
+      "tables": 1,
+      "pre": 0,
+      "images": 2
+    },
+    {
+      "slug": "manager-population-method-selection-ja",
+      "status": 200,
+      "html_sha256": "8b13e011607a89196fb8a6ef24c10ac7427eb381d5fc1c1abd12300f6c82f985",
+      "bytes": 40303,
+      "tables": 1,
+      "pre": 0,
+      "images": 0
+    },
+    {
+      "slug": "manager-population-method-selection-en",
+      "status": 200,
+      "html_sha256": "2edf46c52acc655ebe1c2982ba181e3afcc2c2f6e304112578951a43ce2282f4",
+      "bytes": 41094,
+      "tables": 1,
+      "pre": 0,
+      "images": 0
+    },
+    {
+      "slug": "manager-population-models-and-behavior-ja",
+      "status": 200,
+      "html_sha256": "4b566baf0e49ab6e8c4655f693c619f94608ccaa8cee394ee4a8f221b21b80bc",
+      "bytes": 48655,
+      "tables": 0,
+      "pre": 1,
+      "images": 1
+    },
+    {
+      "slug": "manager-population-models-and-behavior-en",
+      "status": 200,
+      "html_sha256": "e9818f1b43e2e62bd30c64dd29f637980e11db8203d158e322471cfa1fe587fa",
+      "bytes": 45742,
+      "tables": 0,
+      "pre": 1,
+      "images": 1
+    },
+    {
+      "slug": "manager-generative-methods-comparison-ja",
+      "status": 200,
+      "html_sha256": "0b3b20f3916ae31a30ed3304ba496d814ae3aea6b4501b562f845504f4420359",
+      "bytes": 48422,
+      "tables": 2,
+      "pre": 0,
+      "images": 1
+    },
+    {
+      "slug": "manager-generative-methods-comparison-en",
+      "status": 200,
+      "html_sha256": "a16f68d6ea3bf4c77b35ac534dfc112625d53e28b14679880e9a3e7c430f5e19",
+      "bytes": 44683,
+      "tables": 2,
+      "pre": 0,
+      "images": 1
+    },
+    {
+      "slug": "manager-population-dataset-selection-ja",
+      "status": 200,
+      "html_sha256": "2556fb5c5654cbe17d8be8452e0b07aadceea9178891c6af65637a0dffb2c056",
+      "bytes": 69019,
+      "tables": 4,
+      "pre": 0,
+      "images": 1
+    },
+    {
+      "slug": "manager-population-dataset-selection-en",
+      "status": 200,
+      "html_sha256": "8ef511bd8fe7e0e34290734a1937ca2545886dfac8b297cce7e6162128044ea6",
+      "bytes": 63992,
+      "tables": 4,
+      "pre": 0,
+      "images": 1
+    },
+    {
+      "slug": "manager-household-integerization-ja",
+      "status": 200,
+      "html_sha256": "a047399334eb6be05953d1c719fb4155d38d4a407f99a789a2318db17634bb13",
+      "bytes": 27577,
+      "tables": 0,
+      "pre": 0,
+      "images": 1
+    },
+    {
+      "slug": "manager-household-integerization-en",
+      "status": 200,
+      "html_sha256": "0cdf51cd1b77e4e6ee8a8af877798d9076929e3b5b7667395d2fd12994ab72fe",
+      "bytes": 28783,
+      "tables": 0,
+      "pre": 0,
+      "images": 1
+    },
+    {
+      "slug": "manager-population-reconstruction-results-ja",
+      "status": 200,
+      "html_sha256": "77689c2df5a970fa5caec70b38954d06ec8c4288acd82428d9e682ad7b4dac41",
+      "bytes": 39304,
+      "tables": 1,
+      "pre": 0,
+      "images": 2
+    },
+    {
+      "slug": "manager-population-reconstruction-results-en",
+      "status": 200,
+      "html_sha256": "4fd38a785b3ad6c2dca80741fee90b61c9551db66a5942e9515a940ebec51496",
+      "bytes": 39953,
+      "tables": 1,
+      "pre": 0,
+      "images": 2
+    },
+    {
+      "slug": "manager-household-population-results-ja",
+      "status": 200,
+      "html_sha256": "baac076f0511e18f0a3c109e0adc8d83380be3e9cb15f1217b55d4d5f8bc62f4",
+      "bytes": 42763,
+      "tables": 1,
+      "pre": 0,
+      "images": 2
+    },
+    {
+      "slug": "manager-household-population-results-en",
+      "status": 200,
+      "html_sha256": "6b3287588bd78f15e00ffc980271a9792a036df06165dc5d8e07facfce99c480",
+      "bytes": 44304,
+      "tables": 1,
+      "pre": 0,
+      "images": 2
+    },
+    {
+      "slug": "manager-population-to-behavior-ja",
+      "status": 200,
+      "html_sha256": "83bf54fa6ccf548e457c372c444e36fed22c7823e94a57d5e8326c6c7dd2c801",
+      "bytes": 30717,
+      "tables": 0,
+      "pre": 0,
+      "images": 1
+    },
+    {
+      "slug": "manager-population-to-behavior-en",
+      "status": 200,
+      "html_sha256": "9aa9e938c0a39bc77c230acb69ce5dd4d829a7bf8cf48c8e5837008701e909f6",
+      "bytes": 29919,
+      "tables": 0,
+      "pre": 0,
+      "images": 1
+    },
+    {
+      "slug": "manager-behavior-prediction-basics-ja",
+      "status": 200,
+      "html_sha256": "44285f4a97ad87f687d33a0ce2812f20968c95ac76c9c7a36e721e2b282bb233",
+      "bytes": 55914,
+      "tables": 3,
+      "pre": 1,
+      "images": 2
+    },
+    {
+      "slug": "manager-behavior-prediction-basics-en",
+      "status": 200,
+      "html_sha256": "ea7c6624a40a6bba1ee76a9cf25b3434580015c90844c338b8844fa9c5bd7631",
+      "bytes": 55228,
+      "tables": 3,
+      "pre": 1,
+      "images": 2
+    },
+    {
+      "slug": "manager-behavior-data-ja",
+      "status": 200,
+      "html_sha256": "11426756f871a1f27387c479d9f17a96af4cbb15938eca28f4c534fcb0fff4ab",
+      "bytes": 95436,
+      "tables": 9,
+      "pre": 0,
+      "images": 1
+    },
+    {
+      "slug": "manager-behavior-data-en",
+      "status": 200,
+      "html_sha256": "8658503d002eb74c897c056d74ffe7bf9865d8009ae7d9ad4c942e985cb36227",
+      "bytes": 88637,
+      "tables": 9,
+      "pre": 0,
+      "images": 1
+    },
+    {
+      "slug": "manager-goodfire-already-clean-ja",
+      "status": 200,
+      "html_sha256": "1425ffec473bf4c39e909bca9838e11afa44d4a1ab18ea03a1f1f976f5cdaf35",
+      "bytes": 44903,
+      "tables": 0,
+      "pre": 0,
+      "images": 0
+    },
+    {
+      "slug": "manager-goodfire-already-clean-en",
+      "status": 200,
+      "html_sha256": "9e43bd1393b7bcf474da458aa0f4fbfe757bb6ad8f3c7bab0bce3da6cd49887e",
+      "bytes": 40502,
+      "tables": 0,
+      "pre": 0,
+      "images": 0
+    },
+    {
+      "slug": "manager-numerai-unity-ja",
+      "status": 200,
+      "html_sha256": "9b407e15305df1c2fdfbe56228dd4fef29eec645d29eabf4bd672423caabbcea",
+      "bytes": 35180,
+      "tables": 0,
+      "pre": 0,
+      "images": 0
+    },
+    {
+      "slug": "manager-numerai-unity-en",
+      "status": 200,
+      "html_sha256": "710e8dc0c9801871eea56a8913092b26fe2ed3511ef193edbd1836ffcebf3a7d",
+      "bytes": 33042,
+      "tables": 0,
+      "pre": 0,
+      "images": 0
+    },
+    {
+      "slug": "manager-simulation-lineage-and-mechanisms-ja",
+      "status": 200,
+      "html_sha256": "ce21c88008c8ba82f53a5b97c64bf5fd84cff8ee186c680f627774bd2413ae26",
+      "bytes": 91561,
+      "tables": 3,
+      "pre": 4,
+      "images": 1
+    },
+    {
+      "slug": "manager-simulation-lineage-and-mechanisms-en",
+      "status": 200,
+      "html_sha256": "3326c3f82f93ed1312a158e34de379a62c60b547c98a11b89636e67f47be6571",
+      "bytes": 81371,
+      "tables": 3,
+      "pre": 4,
+      "images": 1
+    }
+  ],
+  "media": [
+    {
+      "url": "https://aniccaai.com/blog/manager/media/9dc9fe3a29087f7a36c32d93ad570b6357a52a334afadb071b14e7d3a86adb2d.png",
+      "status": 200,
+      "sha256": "9dc9fe3a29087f7a36c32d93ad570b6357a52a334afadb071b14e7d3a86adb2d",
+      "bytes": 2044164
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/3c05d72aac35a878558f1cb14576369e4e1ed74378c49126d0067e99716d99ef.png",
+      "status": 200,
+      "sha256": "3c05d72aac35a878558f1cb14576369e4e1ed74378c49126d0067e99716d99ef",
+      "bytes": 1553864
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/c2b34fa4b38c79c5386200ca31a477fc80e9a3e2c3ff735eb0ac732f1835bc5c.png",
+      "status": 200,
+      "sha256": "c2b34fa4b38c79c5386200ca31a477fc80e9a3e2c3ff735eb0ac732f1835bc5c",
+      "bytes": 1552065
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/44e2559cf36951fd05b99b034d6c48c0bef0bfa5793bebd97d7af15bb2cfc57a.png",
+      "status": 200,
+      "sha256": "44e2559cf36951fd05b99b034d6c48c0bef0bfa5793bebd97d7af15bb2cfc57a",
+      "bytes": 44900
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/8b828c20d083053461c13a7afaa983829ecfaf22678d1d35e9b994ba84f0b64f.png",
+      "status": 200,
+      "sha256": "8b828c20d083053461c13a7afaa983829ecfaf22678d1d35e9b994ba84f0b64f",
+      "bytes": 113225
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/114cbab43a81483edea3efce24fde9fc9fef353918f1598b96002efebd479ea4.png",
+      "status": 200,
+      "sha256": "114cbab43a81483edea3efce24fde9fc9fef353918f1598b96002efebd479ea4",
+      "bytes": 1526901
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/6bcad6bc5e1bbfed8177e9605ddb8aecc3303b553ea31e9dd7fb9f4c4cc9f81a.png",
+      "status": 200,
+      "sha256": "6bcad6bc5e1bbfed8177e9605ddb8aecc3303b553ea31e9dd7fb9f4c4cc9f81a",
+      "bytes": 1703750
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/eb128c3864d700f6ed97817946df3eac49e5c7f28ea0a36a3b5ff1c57f1a5229.png",
+      "status": 200,
+      "sha256": "eb128c3864d700f6ed97817946df3eac49e5c7f28ea0a36a3b5ff1c57f1a5229",
+      "bytes": 1586689
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/1027d7fb554e8dbc13b1d79ec21e9e1be67441c74d189e6d880e6d827e8ece84.png",
+      "status": 200,
+      "sha256": "1027d7fb554e8dbc13b1d79ec21e9e1be67441c74d189e6d880e6d827e8ece84",
+      "bytes": 1628888
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/9acc6aa8508b836beea71a88e755c3f558c997b02ae81dca28741b2ce2023050.png",
+      "status": 200,
+      "sha256": "9acc6aa8508b836beea71a88e755c3f558c997b02ae81dca28741b2ce2023050",
+      "bytes": 1671579
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/af487ccd0c5d711816bfa1ca60335c08ebe98284cf15e2bf524136e4cc504f17.png",
+      "status": 200,
+      "sha256": "af487ccd0c5d711816bfa1ca60335c08ebe98284cf15e2bf524136e4cc504f17",
+      "bytes": 1781112
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/f1b0f3aa23b8141b3d33d9ec57b098cc09525d51c569ed98f9e8f4637361df12.png",
+      "status": 200,
+      "sha256": "f1b0f3aa23b8141b3d33d9ec57b098cc09525d51c569ed98f9e8f4637361df12",
+      "bytes": 1657760
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/508711f3df00ba5ce381dbeecb8c99351ebbc9733e4f351d1110d0ec2b2adfce.png",
+      "status": 200,
+      "sha256": "508711f3df00ba5ce381dbeecb8c99351ebbc9733e4f351d1110d0ec2b2adfce",
+      "bytes": 1747919
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/24723b9d04ebeba73cc2c076548142237bb74c09760c3fb5392d17d6f88b5412.png",
+      "status": 200,
+      "sha256": "24723b9d04ebeba73cc2c076548142237bb74c09760c3fb5392d17d6f88b5412",
+      "bytes": 1900636
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/c75b55eb16b7e3914ac451c9684efee3a7e435eb77ce6bdb699ffb17972acc92.png",
+      "status": 200,
+      "sha256": "c75b55eb16b7e3914ac451c9684efee3a7e435eb77ce6bdb699ffb17972acc92",
+      "bytes": 1515406
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/29800756ba241a433e6e8e24d07807f378f37ad40158fb525e2d1365ac694ecb.png",
+      "status": 200,
+      "sha256": "29800756ba241a433e6e8e24d07807f378f37ad40158fb525e2d1365ac694ecb",
+      "bytes": 1621950
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/9c26978fbafba515d22d1518336043ca1b4c13d05106d08e3ea5d876a61ff212.png",
+      "status": 200,
+      "sha256": "9c26978fbafba515d22d1518336043ca1b4c13d05106d08e3ea5d876a61ff212",
+      "bytes": 1713756
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/77f5eba6ed1ce20119a9fe77c4204c19194a26e47b6706277d676fff84236944.png",
+      "status": 200,
+      "sha256": "77f5eba6ed1ce20119a9fe77c4204c19194a26e47b6706277d676fff84236944",
+      "bytes": 1863503
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/49b58c16621bc9af72513e0af67d148ab06ff208bf24fd04bb2792c1d2042061.png",
+      "status": 200,
+      "sha256": "49b58c16621bc9af72513e0af67d148ab06ff208bf24fd04bb2792c1d2042061",
+      "bytes": 1966593
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/f7abe9b37eac34af40253544d14d7d114dd7044345b5d9466370a1898ce7f690.png",
+      "status": 200,
+      "sha256": "f7abe9b37eac34af40253544d14d7d114dd7044345b5d9466370a1898ce7f690",
+      "bytes": 1802568
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/441e6c94305611e6e848ee00552f6e8d72ca30ea5cb22459685a86df76979ee1.png",
+      "status": 200,
+      "sha256": "441e6c94305611e6e848ee00552f6e8d72ca30ea5cb22459685a86df76979ee1",
+      "bytes": 1444557
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/c3e8ba63bd7fce272884fec4e10119de2c720047ca4a3ad16e1d4a55e2ce5e67.png",
+      "status": 200,
+      "sha256": "c3e8ba63bd7fce272884fec4e10119de2c720047ca4a3ad16e1d4a55e2ce5e67",
+      "bytes": 106980
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/d8594aa19f99f4514eddf6d7ef672b5f549b421ad228a64345e0a44e312c049d.png",
+      "status": 200,
+      "sha256": "d8594aa19f99f4514eddf6d7ef672b5f549b421ad228a64345e0a44e312c049d",
+      "bytes": 1567244
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/4b110ec2b9686fb8df07c78a5c5824ec00d2e1b7bfbf806ce5f87959280ed7dd.png",
+      "status": 200,
+      "sha256": "4b110ec2b9686fb8df07c78a5c5824ec00d2e1b7bfbf806ce5f87959280ed7dd",
+      "bytes": 111512
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/f95dffd7e217815a30522f164588a158316ffc7bad45e50ee6beba853095f55c.png",
+      "status": 200,
+      "sha256": "f95dffd7e217815a30522f164588a158316ffc7bad45e50ee6beba853095f55c",
+      "bytes": 1651662
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/0e3cb41af0ffca953ee2c234b3c932778aeb70db6917c02fa2732d815c8879ee.png",
+      "status": 200,
+      "sha256": "0e3cb41af0ffca953ee2c234b3c932778aeb70db6917c02fa2732d815c8879ee",
+      "bytes": 1607496
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/b2387a23cde5e752c5fec753ee553719d12263f33e5ce1a0cd20bcf824e1983d.png",
+      "status": 200,
+      "sha256": "b2387a23cde5e752c5fec753ee553719d12263f33e5ce1a0cd20bcf824e1983d",
+      "bytes": 1833557
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/e18c3eda0c90e260b0dd5b42bcfc0946490b7e2a2f70988c15c68b8e227d4476.png",
+      "status": 200,
+      "sha256": "e18c3eda0c90e260b0dd5b42bcfc0946490b7e2a2f70988c15c68b8e227d4476",
+      "bytes": 1561401
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/d292bb58107aaa6fe1e137a476b19e66672f2a56acf9bff5d7cc80a04555514d.png",
+      "status": 200,
+      "sha256": "d292bb58107aaa6fe1e137a476b19e66672f2a56acf9bff5d7cc80a04555514d",
+      "bytes": 1592698
+    }
+  ],
+  "baseline_routes": [
+    {
+      "path": "/en",
+      "status": 200,
+      "sha256": "52e8beb9f19af65f2b7338d9b9f35ba3d479c6a1ae3b49f809e18b91868e4c4e",
+      "bytes": 9113,
+      "after_status": 200,
+      "after_sha256": "52e8beb9f19af65f2b7338d9b9f35ba3d479c6a1ae3b49f809e18b91868e4c4e",
+      "byte_identical": true
+    },
+    {
+      "path": "/ja",
+      "status": 200,
+      "sha256": "af792bc718e8492734135d329d046e5769209a077f43f3b40c50ed00de977671",
+      "bytes": 9669,
+      "after_status": 200,
+      "after_sha256": "af792bc718e8492734135d329d046e5769209a077f43f3b40c50ed00de977671",
+      "byte_identical": true
+    },
+    {
+      "path": "/lm",
+      "status": 200,
+      "sha256": "08a0f44f66e9d4fd8e8d3c854ac4e96512be97b7e95ac576c9ac24ff5b2a3872",
+      "bytes": 8321,
+      "after_status": 200,
+      "after_sha256": "08a0f44f66e9d4fd8e8d3c854ac4e96512be97b7e95ac576c9ac24ff5b2a3872",
+      "byte_identical": true
+    },
+    {
+      "path": "/dais",
+      "status": 200,
+      "sha256": "ddc6c2a7ca6564356940fc72b214acd4352269283b1b3d64ff7bf81cdd955d46",
+      "bytes": 6923,
+      "after_status": 200,
+      "after_sha256": "ddc6c2a7ca6564356940fc72b214acd4352269283b1b3d64ff7bf81cdd955d46",
+      "byte_identical": true
+    },
+    {
+      "path": "/blog/anicca-ios-2026-05-19-en",
+      "status": 200,
+      "sha256": "c3a90b0a6498f5faf86c4c4b0173c470b9005173b0ac00c5f6b79348969ee07f",
+      "bytes": 80884,
+      "after_status": 200,
+      "after_sha256": "079a1d197580c1643287eee0eb9ab77de1baf5ec44d1435e7666a9d0c7d56ebf",
+      "byte_identical": false
+    },
+    {
+      "path": "/blog/c/line-stickers",
+      "status": 200,
+      "sha256": "335f56b926db21e1b30c01affe7cae982101f7c63aed46d5137ed92edf22a9b0",
+      "bytes": 62122,
+      "after_status": 200,
+      "after_sha256": "cbeb8b15711c1581a9657eff03ed584fc5e561b1140cb90bf06aa66612d606b2",
+      "byte_identical": false
+    },
+    {
+      "path": "/blog/c/ai-creator-tools",
+      "status": 200,
+      "sha256": "11b686086a17abff3173be54c1e57f0eb9a1f03098d8524358cbd60204d6c5b3",
+      "bytes": 279862,
+      "after_status": 200,
+      "after_sha256": "81c852dd1ece5d9a7c7cc111f1f14a3fb3538d0606ea5232a7b1cac356551317",
+      "byte_identical": false
+    },
+    {
+      "path": "/honne",
+      "status": 200,
+      "sha256": "a5ac46fd2d8d35bccbd291e96fef06b48c974e2059b7f67031b9a56722fa0983",
+      "bytes": 22672,
+      "after_status": 200,
+      "after_sha256": "44ab51acc2f2f505cbdc9ff9b40e5b87a28fb449b0188554ff6f7169d55f7dd6",
+      "byte_identical": false
+    },
+    {
+      "path": "/affirmation-app",
+      "status": 200,
+      "sha256": "15075c30d8b1cc6a0321ec25b00d6aa8274e6589d4909c9498d50938e1d4df40",
+      "bytes": 81898,
+      "after_status": 200,
+      "after_sha256": "61ae802d02590f41c40c284e6a9d56fd916ae4e0c83d3ea48e9adac1bb1a84c9",
+      "byte_identical": false
+    }
+  ],
+  "collection_canonical": [
+    "https://aniccaai.com/blog/manager"
+  ],
+  "sitemap_verified": true,
+  "blog_index_verified": true
+}
