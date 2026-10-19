@@ -1,47 +1,40 @@
 #!/usr/bin/env python3
-"""Extract note.com cookies from the daily-driver Chromium profile (mock-keychain).
-Browser must be CLOSED (or copy the sqlite) to avoid a lock. Writes a real persistent
-JSON the ephemeral note scripts reuse. NEVER /tmp — survives reboot/cleanup."""
-import sqlite3, shutil, json, os
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.backends import default_backend
+"""Copy note.com cookies from the Writer-owned storage_state into note-work/note-cookies.json.
 
-PROFILE = os.path.expanduser("~/.cloak/profiles/daily-driver")
-SRC = PROFILE + "/Default/Cookies"
-WORK = os.path.join(os.path.expanduser(os.environ.get("WRITER_STATE_DIR", "~/.local/state/life-manager/writer")), "note-work")
-COPY = WORK + "/cookies-copy.db"
-OUT = WORK + "/note-cookies.json"
+The storage_state is the 0600 session measure-sales.py keeps from its own ephemeral headless
+CloakBrowser context (NOTE_STORAGE_STATE there). No personal browser profile is read. Without a
+note session this fails and leaves the existing note-cookies.json untouched."""
+import json
+import os
+import sys
+import tempfile
+from pathlib import Path
 
-kdf = PBKDF2HMAC(algorithm=hashes.SHA1(), length=16, salt=b"saltysalt",
-                 iterations=1003, backend=default_backend())
-KEY = kdf.derive(b"mock_password")
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from writer_runtime_paths import note_work_dir, writer_state_dir
 
-def decrypt(enc):
-    if not enc or enc[:3] != b"v10":
-        return None
-    enc = enc[3:]
-    dec = Cipher(algorithms.AES(KEY), modes.CBC(b" " * 16),
-                 backend=default_backend()).decryptor()
-    val = dec.update(enc) + dec.finalize()
-    if val:
-        val = val[:-val[-1]]  # strip PKCS7 pad
-    # Chrome 130+ prepends a 32-byte SHA256 domain hash; strip if present
-    out = val[32:].decode("utf-8", "ignore")
-    if not out:
-        out = val.decode("utf-8", "ignore")
-    return out
+STORAGE = writer_state_dir() / "note-measure-storage.json"
+OUT = note_work_dir() / "note-cookies.json"
 
-shutil.copy2(SRC, COPY)
-con = sqlite3.connect(COPY)
-rows = con.execute("SELECT name, encrypted_value FROM cookies WHERE host_key LIKE '%note.com%'").fetchall()
-con.close()
-ck = {}
-for name, enc in rows:
-    v = decrypt(enc)
-    if v:
-        ck[name] = v
-json.dump(ck, open(OUT, "w"))
-print(f"extracted {len(ck)} note.com cookies -> {OUT}")
-print("keys:", ",".join(sorted(ck.keys()))[:200])
+try:
+    state = json.loads(STORAGE.read_text(encoding="utf-8"))
+except (OSError, ValueError) as error:
+    raise SystemExit(f"note storage_state unavailable at {STORAGE}: {type(error).__name__}")
+cookies = {
+    item["name"]: item["value"]
+    for item in state.get("cookies", [])
+    if ("." + str(item.get("domain", "")).lstrip(".")).endswith(".note.com") and item.get("value")
+}
+if "_note_session_v5" not in cookies:
+    raise SystemExit(f"no note session in {STORAGE}; writer-sales-measure refreshes it")
+OUT.parent.mkdir(parents=True, exist_ok=True)
+fd, temporary = tempfile.mkstemp(dir=OUT.parent, prefix=".note-cookies-", suffix=".tmp")
+try:
+    with os.fdopen(fd, "w") as handle:
+        json.dump(cookies, handle)
+    os.replace(temporary, OUT)
+except BaseException:
+    os.unlink(temporary)
+    raise
+print(f"copied {len(cookies)} note.com cookies -> {OUT}")
+print("keys:", ",".join(sorted(cookies))[:200])

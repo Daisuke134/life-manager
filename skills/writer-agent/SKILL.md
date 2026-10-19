@@ -410,12 +410,11 @@ Fix: render EVERY markdown table to a PNG and embed as a body image (scripts/not
 styled HTML → cloakbrowser element screenshot). Same for Mermaid (kroki PNG). On note, ALL visuals = images.
 (Verified 2026-06-23: 19 tables + 6 mermaid → images; first attempt with raw md tables was crushed, caught by the gate.)
 
-## NOTE AUTH — reuse the daily-driver login without touching the browser
-note is logged into the daily-driver (CloakBrowser, Chromium, `--use-mock-keychain`). Extract cookies from disk:
-copy `~/.cloak/profiles/daily-driver/Default/Cookies`, decrypt v10 values with AES-128-CBC,
-key=PBKDF2("mock_password", b"saltysalt", 1003, 16), iv=16 spaces, strip 32-byte domain-hash prefix.
-Feed the cookie dict to note-mcp `Session(cookies=..., user_id, username="anicca123")`. NEVER launch on the
-daily-driver profile (SingletonLock = it's alive). Draft flow: create_draft (NO publish_article) →
+## NOTE AUTH — Writer-owned session, never Dais's browser
+`scripts/note-publish/extract-note-cookies.py` copies the note.com cookies from the Writer-owned 0600
+storage_state `$WRITER_STATE_DIR/note-measure-storage.json` (kept by `measure-sales.py`'s ephemeral headless
+context) into `note-work/note-cookies.json`. Never read or attach to Dais's personal browser (`interactive:dais`).
+Feed the cookie dict to note-mcp `Session(cookies=..., user_id, username="anicca123")`. Draft flow: create_draft (NO publish_article) →
 upload_body_image per table/fig (needs NUMERIC note id) → update_article (needs KEY). eyecatch via note-mcp is
 buggy (response lacks 'url'); fallback = insert thumbnail as the first body image (hero).
 
@@ -451,6 +450,9 @@ buggy (response lacks 'url'); fallback = insert thumbnail as the first body imag
    profile (SingletonLock = it's alive) and NEVER kill it. Get what you need from disk: copy the Chromium
    `Cookies` sqlite, decrypt v10 with AES-128-CBC key=PBKDF2("mock_password",b"saltysalt",1003,16), iv=16 spaces,
    strip 32-byte domain-hash prefix. (memory: feedback_never_close_daily_driver_browser)
+   Superseded for note and Substack: loops never touch Dais's Chrome (`interactive:dais`). note cookies come from
+   the Writer-owned storage_state and the Substack preview runs in an ephemeral headless context seeded with the
+   publication session cookie. The X paths still on the daily-driver move off it in a later slice.
 2. **Draft first, never publish blind.** Create as DRAFT → run the verification gate → only then publish.
 3. **VERIFICATION GATE (mandatory).** Render the draft on the real platform → screenshot (ephemeral
    launch_context + add_cookies, NOT the daily-driver) → Read the image → confirm: no crushed tables, images in
@@ -620,7 +622,7 @@ The broken multi-day session happened because steps were scattered/ad-hoc + a ke
   0. WRITE (writer-agent) emits markdown with: `##` = section titles ONLY (these become the auto-目次);
      sub-points = `**bold**`, NEVER `###` (so the auto-目次 stays short); NO in-article infographic; tables as
      markdown, diagrams as ```mermaid; setup screenshots as ![](images/automaton/<file>.png).
-  1. cookies: extract from the daily-driver profile → `$WRITER_STATE_DIR/note-work/note-cookies.json` (NEVER /tmp).
+  1. cookies: copy from the Writer-owned `note-measure-storage.json` → `$WRITER_STATE_DIR/note-work/note-cookies.json` (NEVER /tmp).
   2. render assets → `$WRITER_STATE_DIR/note-work/<slug>-assets/` : each markdown table → PNG (HTML, uniform 1080px width),
      each ```mermaid → kroki PNG. Persistent dir, NEVER /tmp.
   3. rebuild-note-body.py: upload every asset, place at its @@TBLn@@/@@FIGn@@/@@FUNDn@@ marker; NO infographic,
@@ -1058,5 +1060,5 @@ failure modes the writer-skill didn't pre-check. Six more rules.
     Pick tags by measuring first: `scripts/_shared/tag-counts.py <candidates...>` returns real counts
     from `note.com/api/v2/hashtags/{tag}` (e.g. AIエージェント=43,821, Claude=99,592, 生成AI=416,162 —
     avoid giants like #AI at 794k, they drown a small article); choose up to 5 from the numbers, not vibes.
-    If `extract-note-cookies.py` ever returns 0 cookies, see `note-publish/TROUBLESHOOTING.md` — the
-    on-disk Cookies sqlite can lag the live browser's in-memory session by hours; read CDP directly.
+    If `extract-note-cookies.py` finds no note session, see `note-publish/TROUBLESHOOTING.md` — the
+    Writer-owned storage_state is refreshed by `writer-sales-measure`; never read Dais's browser.

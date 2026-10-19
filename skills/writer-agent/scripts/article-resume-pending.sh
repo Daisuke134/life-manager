@@ -1159,9 +1159,8 @@ if [ "$INITIALIZATION_COUNT" -eq 0 ] \
     --code-file "$ARTICLE_ROOT/scripts/substack-publish/verify-preview.py"
   )
   SUBSTACK_COMMAND=(python3 "$ARTICLE_ROOT/scripts/publish-substack-managed.py")
-  # A live browser owner is temporary admission, never a publisher failure.
-  BROWSER_WAIT_SECONDS=0 bash "$LIFE_MANAGER_REPO/skills/browser/with-browser.sh" interactive:dais -- \
-    python3 "$ARTICLE_ROOT/scripts/resume_failure_circuit.py" run \
+  # verify-preview.py launches its own ephemeral headless browser; no shared browser lease.
+  python3 "$ARTICLE_ROOT/scripts/resume_failure_circuit.py" run \
     --circuit "$RUN_DIR/gates/resume-failure-circuit.json" \
     --state "$STATE_PATH" \
     "${SUBSTACK_CODE_ARGS[@]}" \
