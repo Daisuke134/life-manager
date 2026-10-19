@@ -748,37 +748,143 @@ def _collect_asc_report(
     )
 
 
-def collect_asc_sales(
-    env: dict[str, str],
-    app_id: str,
-    business_date: str,
-    evidence_dir: Path,
-) -> dict[str, Any]:
-    """Fetch one day's account-wide ASC Sales Report and scope it to one app.
+ASC_SALES_LOOKBACK_DAYS = 28  # matches the owner report's 28-day revenue window
 
-    The Sales Reports API (distinct from Analytics Reports) returns every app
-    under the vendor in one gzipped TSV; ``app_id`` here is the numeric ASC
-    "Apple Identifier", used to filter rows to this product.
+
+class AscSalesReportMissing(Exception):
+    """Apple answered 404 for one Sales report date: unknown, never zero.
+
+    Apple uses the same NOT_FOUND code for a report that is not generated yet
+    (a daily report lands the next day, ~5 am PT) and for a day with no sales,
+    so only the error detail tells them apart.
     """
+
+    def __init__(self, reason: str, detail: str):
+        super().__init__(detail)
+        self.reason = reason
+
+
+def fetch_asc_sales_rows(env: dict[str, str], report_date: str) -> list[dict[str, str]]:
+    """Fetch one day's account-wide ASC Sales Report (every app of the vendor)."""
     headers = {**_asc_headers(env), "Accept": "application/a-gzip"}
     query = urllib.parse.urlencode({
         "filter[frequency]": "DAILY",
-        "filter[reportDate]": business_date,
+        "filter[reportDate]": report_date,
         "filter[reportSubType]": "SUMMARY",
         "filter[reportType]": "SALES",
         "filter[vendorNumber]": env["ASC_VENDOR_NUMBER"],
         "filter[version]": "1_1",
     })
-    payload = _http_bytes(
-        "https://api.appstoreconnect.apple.com/v1/salesReports?" + query, headers
-    )
-    rows = parse_asc_tsv_gz(payload)
+    try:
+        payload = _http_bytes(
+            "https://api.appstoreconnect.apple.com/v1/salesReports?" + query, headers
+        )
+    except urllib.error.HTTPError as error:
+        if error.code != 404:
+            raise
+        try:
+            detail = " ".join(
+                str(item.get("detail") or "") for item in json.load(error).get("errors", [])
+            ).strip()
+        except (ValueError, AttributeError):
+            detail = ""
+        lowered = detail.lower()
+        reason = (
+            "report_not_available_yet" if "not available yet" in lowered
+            else "no_sales_for_date" if "no sales" in lowered
+            else "report_not_found"
+        )
+        raise AscSalesReportMissing(reason, detail or "HTTP 404") from error
+    return parse_asc_tsv_gz(payload)
+
+
+def asc_sales_source(
+    rows: list[dict[str, str]],
+    app_id: str,
+    business_date: str,
+    evidence_dir: Path,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Scope an account-wide Sales Report to one app and keep its evidence."""
     compact = summarize_asc_sales(rows, app_id)
     evidence_dir.mkdir(parents=True, exist_ok=True)
     evidence = {"app_id": app_id, "business_date": business_date, "rows": rows}
     evidence_path = evidence_dir / f"{app_id}-sales-{business_date}.json"
     evidence_path.write_text(json.dumps(evidence, ensure_ascii=False, sort_keys=True))
     return {**compact, "business_date": business_date, "evidence_path": str(evidence_path)}, evidence
+
+
+def collect_asc_sales(
+    env: dict[str, str],
+    app_id: str,
+    business_date: str,
+    evidence_dir: Path,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Fetch one day's account-wide ASC Sales Report and scope it to one app.
+
+    The Sales Reports API (distinct from Analytics Reports) returns every app
+    under the vendor in one gzipped TSV; ``app_id`` here is the numeric ASC
+    "Apple Identifier", used to filter rows to this product.
+    """
+    return asc_sales_source(
+        fetch_asc_sales_rows(env, business_date), app_id, business_date, evidence_dir
+    )
+
+
+def backfill_asc_sales(
+    env: dict[str, str],
+    state_path: Path,
+    business_date: str,
+    *,
+    evidence_root: Path = DEFAULT_EVIDENCE,
+    lookback_days: int = ASC_SALES_LOOKBACK_DAYS,
+) -> list[str]:
+    """Fill earlier rows whose Sales report was not ready when they were collected.
+
+    The daily run asks for yesterday before Apple has published it, so each
+    report is read on a later run and written into the row of its own date.
+    Rows Apple answered "no sales" for, and rows already available, are final.
+    Returns the dates that became available.
+    """
+    if not state_path.exists():
+        return []
+    rows = [json.loads(line) for line in state_path.read_text().splitlines() if line.strip()]
+    end = dt.date.fromisoformat(business_date)
+    filled: list[str] = []
+    patched: list[dict[str, Any]] = []
+    for offset in range(1, lookback_days + 1):
+        day = (end - dt.timedelta(days=offset)).isoformat()
+        targets = [
+            row for row in rows
+            if row.get("business_date") == day
+            and "asc_app_id" in PRODUCTS.get(canonical_product_id(row.get("product_id")), {})
+            and (row.get("sources") or {}).get("app_store_sales", {}).get("status") != "available"
+            and (row.get("sources") or {}).get("app_store_sales", {}).get("reason")
+            != "no_sales_for_date"
+        ]
+        if not targets:
+            continue
+        try:
+            report = fetch_asc_sales_rows(env, day)
+            sources = []
+            for row in targets:
+                product_id = canonical_product_id(row["product_id"])
+                data, evidence = asc_sales_source(
+                    report, PRODUCTS[product_id]["asc_app_id"], day,
+                    evidence_root / day / product_id,
+                )
+                data["observed_at"] = dt.datetime.now(dt.timezone.utc).isoformat()
+                sources.append(available_source(data, evidence_sha256=_json_hash(evidence)))
+            filled.append(day)
+        except AscSalesReportMissing as error:
+            sources = [unavailable_source(error.reason, error=str(error)) for _ in targets]
+        except Exception:
+            continue  # leave the rows as they were; the next run retries
+        for row, source in zip(targets, sources):
+            row.setdefault("sources", {})["app_store_sales"] = source
+        patched.extend(targets)
+    if patched:
+        upsert_snapshots(state_path, patched)
+    return filled
 
 
 def collect_revenuecat(
@@ -963,6 +1069,8 @@ def collect_snapshot(
             sources["app_store_sales"] = available_source(
                 sales, evidence_sha256=_json_hash(sales_evidence)
             )
+        except AscSalesReportMissing as error:
+            sources["app_store_sales"] = unavailable_source(error.reason, error=str(error))
         except Exception as error:
             sources["app_store_sales"] = unavailable_source(
                 "provider_query_failed", error=f"{type(error).__name__}: {error}"
@@ -1054,6 +1162,8 @@ def main() -> int:
     env = load_env()
     rows = [collect_snapshot(env, product, args.date) for product in selected]
     added = upsert_snapshots(args.state, rows)
+    if any("asc_app_id" in PRODUCTS[product] for product in selected):
+        backfill_asc_sales(env, args.state, args.date)
     status = {
         row["product_id"]: {
             source: value["status"] for source, value in row["sources"].items()
