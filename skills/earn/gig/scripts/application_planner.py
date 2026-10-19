@@ -31,6 +31,9 @@ _DECISION_FIELDS = frozenset({
     "work_frequency", "weekly_hours_min", "weekly_hours_max", "screening_answers",
 })
 _RETAINER_DECISION_FIELDS = _DECISION_FIELDS
+# Added by the parent's code-owned price contract, never by the model (the planner
+# JSON schema forbids additional properties). Both or neither.
+_EXPERIMENT_FIELDS = frozenset({"experiment_id", "experiment_arm"})
 RETAINER_WORK_FREQUENCIES = frozenset({
     "WEEK_ONE", "WEEK_TWO", "WEEK_THREE", "WEEK_FOUR", "WEEK_FIVE",
     "BIWEEKLY", "MONTH_ONE",
@@ -328,6 +331,11 @@ def validate_decisions(
             if isinstance(row, dict) and _RETAINER_ID.fullmatch(str(row.get("request_id") or ""))
             else _DECISION_FIELDS
         )
+        if isinstance(row, dict) and _EXPERIMENT_FIELDS & set(row):
+            expected_fields = expected_fields | _EXPERIMENT_FIELDS
+            if not (isinstance(row.get("experiment_id"), str) and row["experiment_id"]
+                    and row.get("experiment_arm") in {"A", "B"}):
+                errors.append(f"decision[{index}]_experiment_arm_invalid")
         if not _keys_equal(row, expected_fields, f"decision[{index}]", errors):
             continue
         assert isinstance(row, dict)

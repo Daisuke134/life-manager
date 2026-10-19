@@ -43,6 +43,7 @@ from coconala_applied_readback import (
     _wait_for_retainer_page,
     extract_retainer_ids,
 )
+from experiment_evaluator import assign_arm
 from listing_inventory import _cdp_connect
 from market_snapshot import MARKET_FIELDS, parse_market
 from browser_lease_yield import (
@@ -247,11 +248,53 @@ def _money_or_none(value: object) -> int | None:
     return value if isinstance(value, int) and not isinstance(value, bool) and value > 0 else None
 
 
+BUDGET_LOWER_BOUND = "budget_lower_bound"
+# ponytail: Coconala's smallest offer amount stands in for cost; per-order fulfilment
+# cost is unmeasured. Raise this floor once a measured cost per order exists.
+COST_FLOOR_JPY = 1_000
+EXPERIMENT_FIELDS = ("experiment_id", "experiment_arm")
+
+
+def _budget_range(detail: dict[str, object]) -> tuple[int, int] | None:
+    low = _money_or_none(detail.get("budget_min_jpy"))
+    high = _money_or_none(detail.get("budget_max_jpy"))
+    return (low, high) if low is not None and high is not None and low <= high else None
+
+
 def commercial_offer_price(
-    detail: dict[str, object], *, planner_price_jpy: int,
+    detail: dict[str, object], *, planner_price_jpy: int, arm: str | None = None,
 ) -> int | None:
-    """Preserve the planner's listing-grounded price; the form clamps official bounds."""
-    return _money_or_none(planner_price_jpy)
+    """Preserve the planner's price (arm A); arm B bids the buyer's stated lower bound.
+
+    B never leaves the buyer's range and never goes under the official minimum or the
+    cost floor; when no price satisfies all of them it keeps the planner's price. The
+    form still clamps the live official bounds for both arms (adjust_offer_price).
+    """
+    planner = _money_or_none(planner_price_jpy)
+    budget = _budget_range(detail)
+    if arm != "B" or planner is None or budget is None:
+        return planner
+    try:
+        official_min, official_max = _official_offer_price_bounds(detail.get("visible_text"))
+    except ParentContractError:
+        return planner
+    price = max(budget[0], official_min or 0, COST_FLOOR_JPY)
+    if price > budget[1] or (official_max is not None and price > official_max):
+        return planner
+    return price
+
+
+def _restate_price(text: str, old: int, new: int) -> str:
+    """Rewrite the planner's own amount (8,000円 / 8000円 / ¥8,000) to the offered price.
+
+    Most planner bodies repeat their price; an arm-B offer must not quote two amounts.
+    ponytail: kanji forms (8千円, 0.8万円) are left as written.
+    """
+    if old == new:
+        return text
+    amount = rf"(?:{re.escape(f'{old:,}')}|{old})"
+    pattern = rf"(?<![\d,])(?:(?<=[¥￥]){amount}|{amount}(?=\s?円))(?![\d,])"
+    return re.sub(pattern, f"{new:,}", text)
 
 
 def commercial_proposal_text(
@@ -290,29 +333,51 @@ def commercial_proposal_text(
 
 
 def apply_commercial_offer_contract(
-    snapshot: dict[str, object], decisions: dict[str, object]
+    snapshot: dict[str, object], decisions: dict[str, object], *,
+    experiment: object = None, adopted_bid_policy: object = None,
 ) -> dict[str, object]:
+    """Apply the code-owned price policy and record the A/B arm on the decision.
+
+    Only single requests with a stated budget range join an A/B experiment; quote
+    requests, open-ended budgets and retainers keep the planner price and no arm.
+    """
     details = {
         str(detail["request_id"]): detail
         for detail in snapshot["request_details"]
         if isinstance(detail, dict)
     }
+    ab = (
+        experiment
+        if isinstance(experiment, dict) and experiment.get("mode") == "ab"
+        and experiment.get("policy") == BUDGET_LOWER_BOUND and experiment.get("id")
+        else None
+    )
     rows: list[object] = []
     for raw in decisions["decisions"]:
         if not isinstance(raw, dict) or raw.get("business_class") != SUBMIT_REQUIRED:
             rows.append(raw)
             continue
-        detail = details[str(raw["request_id"])]
+        request_id = str(raw["request_id"])
+        detail = details[request_id]
+        arm = None
+        if _budget_range(detail) is not None and not _is_retainer_request(request_id):
+            if ab is not None:
+                arm = assign_arm(str(ab["id"]), request_id)
+            elif adopted_bid_policy == BUDGET_LOWER_BOUND:
+                arm = "B"
         price = commercial_offer_price(
             detail,
             planner_price_jpy=int(raw["price_jpy"]),
+            arm=arm,
         )
         if price is None:
             continue
-        row = dict(raw)
+        row = {key: value for key, value in raw.items() if key not in EXPERIMENT_FIELDS}
+        if ab is not None and arm is not None:
+            row["experiment_id"], row["experiment_arm"] = str(ab["id"]), arm
         row["price_jpy"] = price
         row["proposal_text"] = commercial_proposal_text(
-            str(raw["proposal_text"]),
+            _restate_price(str(raw["proposal_text"]), int(raw["price_jpy"]), price),
             price_jpy=price,
             deliver_date=str(raw["deliver_date"]),
         )
@@ -2757,6 +2822,9 @@ class CdpParentEffects:
             "compensation_type", "weekly_days", "weekly_hours_min", "weekly_hours_max",
         ):
             ledger_row[field] = row.get(field)
+        for field in EXPERIMENT_FIELDS:
+            if field in row:
+                ledger_row[field] = row[field]
         for field in MARKET_FIELDS:
             ledger_row[field] = market.get(field)
         ledger_row["market_source"] = "snapshot_detail"
@@ -3455,6 +3523,7 @@ def _application_row(detail: dict[str, object], decision: dict[str, object]) -> 
         "weekly_days": decision.get("work_frequency") if retainer else None,
         "weekly_hours_min": decision.get("weekly_hours_min") if retainer else None,
         "weekly_hours_max": decision.get("weekly_hours_max") if retainer else None,
+        **{field: decision[field] for field in EXPERIMENT_FIELDS if field in decision},
     }
 
 
@@ -4751,6 +4820,8 @@ def invoke_isolated_planner(
     evidence_dir: Path,
     workdir: Path,
     timeout_seconds: int,
+    experiment: object = None,
+    adopted_bid_policy: object = None,
 ) -> tuple[dict[str, object], list[str]]:
     """Model-judge every request in bounded context windows before any effect.
 
@@ -4818,7 +4889,10 @@ def invoke_isolated_planner(
         assert isinstance(batch_rows, list)
         rows.extend(batch_rows)
         missing_ids.extend(batch_missing)
-    decisions = apply_commercial_offer_contract(snapshot, {"decisions": rows})
+    decisions = apply_commercial_offer_contract(
+        snapshot, {"decisions": rows},
+        experiment=experiment, adopted_bid_policy=adopted_bid_policy,
+    )
     if not rows:
         raise ParentContractError(
             "application_intent_planner_contract:decisions_empty_after_id_sanitization"
@@ -5030,6 +5104,14 @@ def run_parent(
     """Acquire once, snapshot, isolate model judgment, commit, and always release."""
     context = _read_json_object(context_path, "b2_context")
     objective = _objective_from_b2_context(context)
+    experiment = context.get("active_strategy_experiment")
+    adopted_bid_policy = context.get("adopted_bid_policy")
+    # Cached decisions carry arm prices, so a cache entry is valid only for the same
+    # experiment/policy state; a started or finished experiment re-plans.
+    price_policy_key = json.dumps(
+        [experiment.get("id") if isinstance(experiment, dict) else None, adopted_bid_policy],
+        separators=(",", ":"),
+    )
     evidence_dir.mkdir(parents=True, exist_ok=True)
     planner_missing_request_ids: list[str] = []
     planner_content_key: str | None = None
@@ -5202,7 +5284,7 @@ def run_parent(
             # judgeable content and then died before committing it (browser wedge kill,
             # OOM, launchd timeout). Reuse it instead of re-asking the model.
             if snapshot["request_details"]:
-                planner_content_key = _content_fingerprint(snapshot)
+                planner_content_key = f"{_content_fingerprint(snapshot)}:{price_policy_key}"
                 cached = load_cached_decisions(
                     cache_path, planner_content_key, ttl_seconds=planner_cache_ttl_seconds,
                 )
@@ -5221,6 +5303,8 @@ def run_parent(
                     evidence_dir=evidence_dir,
                     workdir=planner_workdir,
                     timeout_seconds=planner_timeout_seconds,
+                    experiment=experiment,
+                    adopted_bid_policy=adopted_bid_policy,
                 )
                 save_planner_cache(
                     cache_path, planner_content_key, decisions,

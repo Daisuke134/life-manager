@@ -161,6 +161,12 @@ def main() -> int:
 
     payload = build_readback(pages, _utc(_parse_utc(observed_at)))
     write_atomic(args.output, payload)
+    # Talkroom -> service title for experiment_evaluator's receipt join; buyers stay out.
+    write_atomic(args.output.with_name(f"{args.output.stem}-titles.json"), {
+        "observed_at": payload["observed_at"],
+        "titles": {row["talkroom_id"]: row["title"]
+                   for row in parse_revenue_text("\n".join(pages))["rows"]},
+    })
     print(json.dumps({
         "status": "written", "output": str(args.output),
         "complete": payload["receipt_map"]["complete"],

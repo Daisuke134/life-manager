@@ -125,6 +125,96 @@ def test_commercial_offer_preserves_planner_price() -> None:
     assert application_parent.commercial_offer_price(detail, planner_price_jpy=15_000) == 15_000
 
 
+AB_EXPERIMENT = {
+    "id": "coconala-bid-budget-lower-bound-v1", "mode": "ab", "policy": "budget_lower_bound",
+}
+
+
+def _ab_contract(request_ids, *, experiment=AB_EXPERIMENT, adopted=None, budget=(3_000, 10_000)):
+    snapshot = {"request_details": [
+        {"request_id": rid, "budget_min_jpy": budget[0], "budget_max_jpy": budget[1],
+         "visible_text": "募集内容"}
+        for rid in request_ids
+    ]}
+    decisions = {"decisions": [
+        {"request_id": rid, "business_class": "submit_required", "price_jpy": 8_000,
+         "proposal_text": "要件に沿って業務自動化の仕組みを8,000円で構築します。", "deliver_date": "2026-11-01"}
+        for rid in request_ids
+    ]}
+    rows = application_parent.apply_commercial_offer_contract(
+        snapshot, decisions, experiment=experiment, adopted_bid_policy=adopted,
+    )["decisions"]
+    return {row["request_id"]: row for row in rows}
+
+
+def _ids_by_arm():
+    arms = {}
+    for number in range(5_000_000, 5_000_100):
+        arms.setdefault(
+            application_parent.assign_arm(AB_EXPERIMENT["id"], str(number)), str(number)
+        )
+    return arms["A"], arms["B"]
+
+
+def test_ab_experiment_records_arm_and_prices_b_at_budget_lower_bound() -> None:
+    a_id, b_id = _ids_by_arm()
+    rows = _ab_contract([a_id, b_id])
+
+    assert rows[a_id]["price_jpy"] == 8_000
+    assert rows[b_id]["price_jpy"] == 3_000
+    assert "3,000円で対応" in rows[b_id]["proposal_text"]
+    assert "8,000円" not in rows[b_id]["proposal_text"]
+    assert "8,000円で構築" in rows[a_id]["proposal_text"]
+    for rid, arm in ((a_id, "A"), (b_id, "B")):
+        assert rows[rid]["experiment_id"] == AB_EXPERIMENT["id"]
+        assert rows[rid]["experiment_arm"] == arm
+
+
+def test_b_price_rewrites_the_planner_amount_in_the_proposal_body() -> None:
+    text = application_parent._restate_price(
+        "8,000円で対応します。8000円の範囲で、¥8,000以内。別件18,000円は対象外です。", 8_000, 3_000,
+    )
+    assert text == "3,000円で対応します。3,000円の範囲で、¥3,000以内。別件18,000円は対象外です。"
+
+
+def test_requests_without_a_budget_range_stay_outside_the_experiment() -> None:
+    _, b_id = _ids_by_arm()
+    row = _ab_contract([b_id], budget=(None, None))[b_id]
+
+    assert row["price_jpy"] == 8_000
+    assert "experiment_arm" not in row and "experiment_id" not in row
+
+
+def test_adopted_policy_prices_every_ranged_request_at_the_lower_bound() -> None:
+    a_id, _ = _ids_by_arm()
+    row = _ab_contract([a_id], experiment=None, adopted="budget_lower_bound")[a_id]
+
+    assert row["price_jpy"] == 3_000
+    assert "experiment_arm" not in row
+
+
+def test_application_and_ledger_rows_carry_experiment_arm(tmp_path) -> None:
+    detail = {
+        "request_id": "123", "category": "IT・プログラミング", "title": "自動化",
+        "canonical_url": "https://coconala.com/requests/123", "visible_text": "募集内容",
+    }
+    decision = {"price_jpy": 3_000, "deliver_date": "2026-08-20",
+                "experiment_id": AB_EXPERIMENT["id"], "experiment_arm": "B"}
+    row = application_parent._application_row(detail, decision)
+    assert (row["experiment_id"], row["experiment_arm"]) == (AB_EXPERIMENT["id"], "B")
+
+    effects = object.__new__(application_parent.CdpParentEffects)
+    effects._fresh_details = {"123": detail}
+    effects._submitted_paths = {}
+    effects._readback_paths = {}
+    effects.ledger_path = tmp_path / "applied.jsonl"
+    effects.pass_id = "pass-1"
+    effects.instant_work_event_publisher = None
+    effects.canonical_ledger_append(row)
+    written = application_parent.json.loads(effects.ledger_path.read_text(encoding="utf-8"))
+    assert (written["experiment_id"], written["experiment_arm"]) == (AB_EXPERIMENT["id"], "B")
+
+
 def test_application_does_not_navigate_competitor_profiles() -> None:
     source = inspect.getsource(application_parent.CdpParentEffects._detail_async)
 

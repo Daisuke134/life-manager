@@ -166,6 +166,20 @@ def test_cli_writes_owner_only_file_and_skips_until_due(tmp_path: Path) -> None:
     assert subprocess.run(due, capture_output=True).returncode == 3
 
 
+def test_cli_writes_talkroom_titles_for_the_ab_join_without_buyers(tmp_path: Path) -> None:
+    page = tmp_path / "page.txt"
+    page.write_text(PAGE_1, encoding="utf-8")
+    output = tmp_path / "cfo-financial-readback.json"
+    subprocess.run([sys.executable, str(PATH), "--output", str(output), "--from-text", str(page)],
+                   capture_output=True, text=True, check=True)
+
+    titles = output.with_name("cfo-financial-readback-titles.json")
+    payload = json.loads(titles.read_text(encoding="utf-8"))
+    assert payload["titles"]["18250352"] == "県提出書類作成一式"
+    assert "buyer_a" not in titles.read_text(encoding="utf-8")
+    assert stat.S_IMODE(os.stat(titles).st_mode) == 0o600
+
+
 def test_paid_owner_refreshes_readback_before_paid_work_without_changing_its_result() -> None:
     owner = (SCRIPTS / "paid-direct-owner").read_text(encoding="utf-8")
     assert "coconala_cfo_financial_readback.py" in owner

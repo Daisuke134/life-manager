@@ -107,6 +107,18 @@ browser lock. Parallel work must never mix two customers' context. The model cho
 work plan and tools; deterministic code owns target identity, hashes, receipts, effect
 fencing, and replay detection. This is the `P0-four-lane-parallel` contract.
 
+### Price A/B experiments
+
+`config/experiments.json` queues one concurrent A/B experiment at a time (hypothesis,
+source, metric, decision rule). The daily `gig-experiment-evaluate` loop starts the next
+queued spec when none is active and judges the active one. Each single request that states
+a budget range is assigned an arm by `sha256(experiment:request)` parity; arm A keeps the
+planner price, arm B bids the buyer's lower bound (never under the range, the official
+minimum, or the cost floor). The arm is written to the decision, `applied.jsonl`, and
+`experiment-attempts.jsonl`. Net yen per application comes from the official CFO receipts
+joined by revenue-history title; a receipt that cannot be joined is counted as
+`unattributed`, never as zero. A kept experiment becomes `adopted_bid_policy`.
+
 ### Owner lifetime and closure
 
 An owner is durable project state, not a forever-running process. One bounded wake may

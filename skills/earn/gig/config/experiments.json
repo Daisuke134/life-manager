@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "queue": [
+    {
+      "id": "coconala-bid-budget-lower-bound-v1",
+      "mode": "ab",
+      "policy": "budget_lower_bound",
+      "hypothesis": "Coconala requests that state a budget range convert more often per application when we bid the buyer's lower bound instead of ~80% of the upper bound, raising net yen per application.",
+      "source_url": "https://github.com/Daisuke134/life-manager/blob/main/docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md",
+      "evidence": {
+        "lifetime_application_attributed_net_jpy": 166500,
+        "lifetime_applications": 1407,
+        "net_jpy_per_application": 118,
+        "bid_band_3k_10k": {"applications": 418, "paid": 14, "net_jpy_per_application": 147},
+        "bid_band_30k_plus": {"applications": 518, "paid": 1}
+      },
+      "arms": {
+        "A": "control: planner price (about 80% of the upper bound)",
+        "B": "bid the stated budget lower bound; never below the buyer range, official minimum or cost floor"
+      },
+      "population": "requests with both budget_min_jpy and budget_max_jpy; quote requests (見積依頼) and open-ended budgets are unchanged and excluded",
+      "primary_metric": "net_jpy_per_application",
+      "secondary_metric": "contracts",
+      "min_applications_per_arm": 150,
+      "min_cohort_days": 14,
+      "max_applications_per_arm": 400,
+      "contract_margin": 2,
+      "guardrail": {"send_failure_margin": 0.10, "min_attempts_per_arm": 20}
+    }
+  ]
+}

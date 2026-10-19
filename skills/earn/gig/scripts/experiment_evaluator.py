@@ -10,22 +10,38 @@ the safe boundary executable:
 * the post-mutation cohort must contain enough fresh applications;
 * reply/win/paid rates, not ever-growing cumulative counts, decide the verdict;
 * every terminal verdict is atomically persisted and appended once to an audit ledger.
+
+Mode "ab" runs both arms concurrently instead of before/after: each request is
+assigned by a hash of (experiment id, request id), the parent prices and records the
+arm, and assess_ab() compares net yen per application from official CFO receipts.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import tempfile
 import time
+from collections import defaultdict
 from copy import deepcopy
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
 
 DEFAULT_STATE = Path.home() / "gig"
+DEFAULT_COCONALA_STATE = Path.home() / ".local/state/life-manager/coconala"
+DEFAULT_EXPERIMENTS = Path(__file__).resolve().parents[1] / "config" / "experiments.json"
+AB_POLICIES = {"budget_lower_bound"}
+AB_RULES = (
+    "min_applications_per_arm", "min_cohort_days", "max_applications_per_arm",
+    "contract_margin",
+)
+ARMS = ("A", "B")
+DAY_SECONDS = 86_400
 REVERSIBLE_ROOTS = {
     "proposal_playbook",
     "proposal_templates",
@@ -41,6 +57,21 @@ def _number(value: Any) -> float | None:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
     return float(value)
+
+
+def assign_arm(experiment_id: str, request_id: str) -> str:
+    """Deterministic ~50/50 split: the parity of sha256(experiment:request)."""
+    digest = hashlib.sha256(f"{experiment_id}:{request_id}".encode("utf-8")).digest()
+    return "B" if digest[-1] & 1 else "A"
+
+
+def _experiment_id(spec: dict[str, Any]) -> str | None:
+    value = str(spec.get("id") or "").strip()
+    if not value or len(value) > 96 or any(
+        not (ch.isalnum() or ch in "._-") for ch in value
+    ):
+        return None
+    return value
 
 
 def _active_due(experiment: Any, pass_count: int) -> bool:
@@ -91,12 +122,8 @@ def start(strategy: dict[str, Any], latest_funnel: dict[str, Any] | None,
         return {"ok": False, "reason": "active_experiment_exists", "strategy": updated}
     if not isinstance(spec, dict):
         return {"ok": False, "reason": "spec_invalid", "strategy": updated}
-    experiment_id = str(spec.get("id") or "").strip()
-    if (
-        not experiment_id
-        or len(experiment_id) > 96
-        or any(not (ch.isalnum() or ch in "._-") for ch in experiment_id)
-    ):
+    experiment_id = _experiment_id(spec)
+    if experiment_id is None:
         return {"ok": False, "reason": "experiment_id_invalid", "strategy": updated}
     if any(isinstance(row, dict) and row.get("id") == experiment_id
            for row in experiments):
@@ -183,10 +210,13 @@ def assess(strategy: dict[str, Any], latest_funnel: dict[str, Any] | None, *,
         index for index, row in enumerate(experiments)
         if isinstance(row, dict) and row.get("status") == "active"
     ]
+    # A/B experiments have no pass deadline; assess_ab() owns them.  They still
+    # count toward active_count, so an overlap quarantines the legacy one too.
     due_indexes = [
         index for index in active_indexes
-        if not isinstance(experiments[index].get("eval_by_pass"), int)
-        or _active_due(experiments[index], pass_count)
+        if experiments[index].get("mode") != "ab"
+        and (not isinstance(experiments[index].get("eval_by_pass"), int)
+             or _active_due(experiments[index], pass_count))
     ]
     active_count = len(active_indexes)
     summary = {
@@ -323,6 +353,260 @@ def assess(strategy: dict[str, Any], latest_funnel: dict[str, Any] | None, *,
     return {"strategy": updated, "events": events, "summary": summary}
 
 
+def start_ab(strategy: dict[str, Any], spec: dict[str, Any], *,
+             now: int | None = None) -> dict[str, Any]:
+    """Start one concurrent A/B experiment; the arm policy itself lives in code."""
+    now = int(time.time()) if now is None else int(now)
+    updated = deepcopy(strategy) if isinstance(strategy, dict) else {}
+    experiments = updated.get("experiments")
+    experiments = experiments if isinstance(experiments, list) else []
+    if any(isinstance(row, dict) and row.get("status") == "active"
+           for row in experiments):
+        return {"ok": False, "reason": "active_experiment_exists", "strategy": updated}
+    if (not isinstance(spec, dict) or spec.get("mode") != "ab"
+            or spec.get("policy") not in AB_POLICIES):
+        return {"ok": False, "reason": "spec_invalid", "strategy": updated}
+    experiment_id = _experiment_id(spec)
+    if experiment_id is None:
+        return {"ok": False, "reason": "experiment_id_invalid", "strategy": updated}
+    if any(isinstance(row, dict) and row.get("id") == experiment_id
+           for row in experiments):
+        return {"ok": False, "reason": "experiment_id_duplicate", "strategy": updated}
+    parsed = urlsplit(str(spec.get("source_url") or ""))
+    if parsed.scheme != "https" or not parsed.netloc:
+        return {"ok": False, "reason": "source_url_invalid", "strategy": updated}
+    hypothesis = str(spec.get("hypothesis") or "").strip()
+    if not hypothesis:
+        return {"ok": False, "reason": "hypothesis_missing", "strategy": updated}
+    guardrail = spec.get("guardrail") if isinstance(spec.get("guardrail"), dict) else {}
+    margin = _number(guardrail.get("send_failure_margin"))
+    rules = {key: spec.get(key) for key in AB_RULES}
+    if (
+        any(isinstance(v, bool) or not isinstance(v, int) or v < 1 for v in rules.values())
+        or margin is None or not 0 < margin < 1
+        or isinstance(guardrail.get("min_attempts_per_arm"), bool)
+        or not isinstance(guardrail.get("min_attempts_per_arm"), int)
+        or guardrail["min_attempts_per_arm"] < 1
+    ):
+        return {"ok": False, "reason": "decision_rule_invalid", "strategy": updated}
+    experiment = {
+        "id": experiment_id,
+        "ts": now,
+        "mode": "ab",
+        "policy": spec["policy"],
+        "hypothesis": hypothesis,
+        "source_url": str(spec["source_url"]),
+        "primary_metric": "net_jpy_per_application",
+        "secondary_metric": "contracts",
+        **rules,
+        "guardrail": {
+            "send_failure_margin": margin,
+            "min_attempts_per_arm": guardrail["min_attempts_per_arm"],
+        },
+        "status": "active",
+    }
+    experiments.append(experiment)
+    updated["experiments"] = experiments
+    updated["last_experiment_started_at"] = now
+    return {"ok": True, "reason": "started", "strategy": updated, "experiment": experiment}
+
+
+def _epoch(value: Any) -> float | None:
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return None
+
+
+def _title(value: Any) -> str:
+    return " ".join(str(value or "").split())
+
+
+def _ab_metrics(experiment: dict[str, Any], *, applied_rows: list[Any],
+                readback: Any, revenue_titles: dict[str, Any], attempts: list[Any],
+                outcomes: list[Any]) -> dict[str, Any]:
+    """Join CFO receipts -> revenue-history title -> applied row -> recorded arm.
+
+    revenue_titles is the talkroom -> title map the CFO readback derives from the
+    same revenue history pages with revenue_collector.parse_revenue_text().
+    """
+    experiment_id = experiment.get("id")
+    started = float(experiment.get("ts") or 0)
+    arms = {arm: {"applications": 0, "contracts": 0, "net_jpy": 0,
+                  "net_jpy_per_application": None, "attempts": 0, "send_failures": 0}
+            for arm in ARMS}
+    cohort: dict[str, str] = {}
+    by_title: dict[str, list[tuple[float, str, Any, Any]]] = defaultdict(list)
+    for row in applied_rows:
+        if not isinstance(row, dict):
+            continue
+        request_id = str(row.get("requestId") or row.get("request_id") or "")
+        tag = (row.get("experiment_id"), row.get("experiment_arm"))
+        if request_id and tag[0] == experiment_id and tag[1] in arms:
+            cohort[request_id] = tag[1]
+        title = _title(row.get("title"))
+        if title:
+            by_title[title].append((_number(row.get("ts")) or 0.0, request_id, *tag))
+    for arm in cohort.values():
+        arms[arm]["applications"] += 1
+
+    contracts: dict[str, set[str]] = {arm: set() for arm in ARMS}
+    for row in outcomes:
+        request_id = str(row.get("request_id") or "") if isinstance(row, dict) else ""
+        if request_id in cohort and row.get("status") == "we_won":
+            contracts[cohort[request_id]].add(request_id)
+
+    receipt_map = readback.get("receipt_map") if isinstance(readback, dict) else None
+    records = receipt_map.get("records") if isinstance(receipt_map, dict) else None
+    unattributed: dict[str, int] | None = None
+    # A complete receipt map plus the title map, or revenue stays unknown (None).
+    if (
+        isinstance(receipt_map, dict) and receipt_map.get("complete") is True
+        and isinstance(records, list) and revenue_titles
+        and all(isinstance(record, dict) and type(record.get("net_amount_minor")) is int
+                for record in records)
+    ):
+        unattributed = {"count": 0, "jpy": 0}
+        room_titles = {str(room): _title(title) for room, title in revenue_titles.items()}
+        for record in records:
+            occurred = _epoch(record.get("occurred_at"))
+            if occurred is not None and occurred < started:
+                continue
+            room = str(record.get("work_external_id") or "").removeprefix("talkroom-")
+            matches = [
+                match for match in by_title.get(room_titles.get(room, ""), [])
+                if occurred is not None and match[0] <= occurred
+            ]
+            tags = {(match[2], match[3]) for match in matches}
+            if len(tags) != 1:
+                # No title, no application, or applications from different arms.
+                unattributed["count"] += 1
+                unattributed["jpy"] += record["net_amount_minor"]
+                continue
+            (tag_id, arm), = tags
+            if tag_id != experiment_id or arm not in arms:
+                continue  # sale from an application made outside this experiment
+            arms[arm]["net_jpy"] += record["net_amount_minor"]
+            contracts[arm].add(max(matches, key=lambda match: match[0])[1])
+    for arm, values in arms.items():
+        values["contracts"] = len(contracts[arm])
+        if unattributed is None:
+            values["net_jpy"] = None  # unknown, never zero
+        elif values["applications"]:
+            values["net_jpy_per_application"] = round(
+                values["net_jpy"] / values["applications"], 2
+            )
+
+    latest: dict[str, tuple[str, str]] = {}
+    for row in attempts:
+        if (isinstance(row, dict) and row.get("experiment_id") == experiment_id
+                and row.get("experiment_arm") in arms
+                and row.get("outcome") in {"confirmed", "failed"}):
+            latest[str(row.get("request_id") or "")] = (row["experiment_arm"], row["outcome"])
+    for arm, outcome in latest.values():
+        arms[arm]["attempts"] += 1
+        arms[arm]["send_failures"] += outcome == "failed"
+    return {"arms": arms, "unattributed": unattributed}
+
+
+def _ab_verdict(experiment: dict[str, Any], metrics: dict[str, Any],
+                now: int) -> tuple[str | None, str]:
+    a, b = metrics["arms"]["A"], metrics["arms"]["B"]
+    guardrail = experiment["guardrail"]
+    if min(a["attempts"], b["attempts"]) >= guardrail["min_attempts_per_arm"]:
+        a_rate = a["send_failures"] / a["attempts"]
+        b_rate = b["send_failures"] / b["attempts"]
+        if b_rate > a_rate + guardrail["send_failure_margin"]:
+            return "reverted", "guardrail_send_failure"
+    if metrics["unattributed"] is None:
+        return None, "revenue_readback_unavailable"
+    if now - int(experiment["ts"]) < experiment["min_cohort_days"] * DAY_SECONDS:
+        return None, "cohort_too_young"
+    applications = min(a["applications"], b["applications"])
+    if applications < experiment["min_applications_per_arm"]:
+        return None, "insufficient_applications"
+    margin = experiment["contract_margin"]
+    if (b["contracts"] >= a["contracts"] + margin
+            and b["net_jpy_per_application"] >= a["net_jpy_per_application"]):
+        return "kept", "b_won_contracts_and_yen_per_application"
+    if b["contracts"] + margin <= a["contracts"]:
+        return "reverted", "a_won_contracts"
+    if applications >= experiment["max_applications_per_arm"]:
+        return "reverted", "sample_cap_without_decision"
+    return None, "no_decision_yet"
+
+
+def assess_ab(strategy: dict[str, Any], *, applied_rows: list[Any], readback: Any,
+              revenue_titles: dict[str, Any], attempts: list[Any], outcomes: list[Any],
+              now: int | None = None) -> dict[str, Any]:
+    """Evaluate the one active A/B experiment without I/O."""
+    now = int(time.time()) if now is None else int(now)
+    updated = deepcopy(strategy) if isinstance(strategy, dict) else {}
+    experiments = updated.get("experiments")
+    experiments = experiments if isinstance(experiments, list) else []
+    active = [index for index, row in enumerate(experiments)
+              if isinstance(row, dict) and row.get("status") == "active"]
+    ab = [index for index in active if experiments[index].get("mode") == "ab"]
+    if not ab:
+        return {"strategy": updated, "events": [],
+                "summary": {"experiment_id": None, "reason": "no_active_ab_experiment"}}
+    events: list[dict[str, Any]] = []
+    if len(active) > 1:
+        for index in ab:
+            experiments[index] = _evaluation(
+                experiments[index], status="quarantined",
+                reason="overlapping_active_experiments", now=now,
+                active_experiment_count=len(active),
+            )
+        terminal = [experiments[index] for index in ab]
+        summary = {"experiment_id": terminal[0].get("id"), "status": "quarantined",
+                   "reason": "overlapping_active_experiments"}
+    else:
+        experiment = experiments[ab[0]]
+        metrics = _ab_metrics(
+            experiment, applied_rows=applied_rows, readback=readback,
+            revenue_titles=revenue_titles, attempts=attempts, outcomes=outcomes,
+        )
+        verdict, reason = _ab_verdict(experiment, metrics, now)
+        experiments[ab[0]] = _evaluation(
+            experiment, status=verdict or "active", reason=reason, now=now, **metrics,
+        )
+        if verdict == "kept":
+            updated["adopted_bid_policy"] = experiment["policy"]
+        terminal = [experiments[ab[0]]] if verdict else []
+        summary = {"experiment_id": experiment.get("id"), "status": verdict or "active",
+                   "reason": reason, **metrics}
+    for row in terminal:
+        events.append({
+            "ts": now, "experiment_id": row.get("id"), "status": row["status"],
+            "mode": "ab", "policy": row.get("policy"), "evaluation": row.get("evaluation"),
+        })
+    updated["experiments"] = experiments
+    updated["last_experiment_evaluation_at"] = now
+    return {"strategy": updated, "events": events, "summary": summary}
+
+
+def _jsonl(path: Path | None) -> list[Any]:
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines() if path else []
+    except OSError:
+        return []
+    rows = []
+    for line in lines:
+        try:
+            rows.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return rows
+
+
+def _json(path: Path | None) -> Any:
+    try:
+        return json.loads(path.read_text(encoding="utf-8")) if path else None
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
 def _latest_jsonl(path: Path) -> dict[str, Any] | None:
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
@@ -358,19 +642,55 @@ def _atomic_json(path: Path, value: dict[str, Any]) -> None:
 
 
 def evaluate_files(*, strategy_path: Path, funnel_path: Path, events_path: Path,
-                   now: int | None = None) -> dict[str, int]:
+                   now: int | None = None, applied_path: Path | None = None,
+                   readback_path: Path | None = None, titles_path: Path | None = None,
+                   attempts_path: Path | None = None, outcomes_path: Path | None = None,
+                   experiments_path: Path | None = None) -> dict[str, Any]:
     try:
         strategy = json.loads(strategy_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         strategy = {}
     result = assess(strategy, _latest_jsonl(funnel_path), now=now)
-    summary = result["summary"]
-    if summary["evaluated"] or summary["deferred"]:
-        _atomic_json(strategy_path, result["strategy"])
-    if result["events"]:
+    summary: dict[str, Any] = dict(result["summary"])
+    events = list(result["events"])
+    strategy = result["strategy"]
+    changed = bool(summary["evaluated"] or summary["deferred"])
+    if applied_path is not None:
+        titles = _json(titles_path)
+        titles = titles.get("titles") if isinstance(titles, dict) else None
+        ab = assess_ab(
+            strategy, applied_rows=_jsonl(applied_path), readback=_json(readback_path),
+            revenue_titles=titles if isinstance(titles, dict) else {},
+            attempts=_jsonl(attempts_path), outcomes=_jsonl(outcomes_path), now=now,
+        )
+        strategy, summary["ab"] = ab["strategy"], ab["summary"]
+        events.extend(ab["events"])
+        changed = changed or ab["summary"]["experiment_id"] is not None
+    summary["started"] = None
+    queue = _json(experiments_path)
+    queue = queue.get("queue") if isinstance(queue, dict) else None
+    known = {row.get("id") for row in strategy.get("experiments") or [] if isinstance(row, dict)}
+    pending = [spec for spec in (queue if isinstance(queue, list) else [])
+               if isinstance(spec, dict) and spec.get("id") not in known]
+    if pending:
+        started = start_ab(strategy, pending[0], now=now)
+        summary["start_reason"] = started["reason"]
+        if started["ok"]:
+            strategy, experiment = started["strategy"], started["experiment"]
+            summary["started"], changed = experiment["id"], True
+            events.append({
+                "ts": experiment["ts"], "experiment_id": experiment["id"], "status": "started",
+                "mode": "ab", "policy": experiment["policy"],
+                "source_url": experiment["source_url"],
+            })
+    if changed:
+        # ponytail: last-writer-wins with passprep's strategy.json write, as before;
+        # add a shared flock if a lost start/verdict is ever observed.
+        _atomic_json(strategy_path, strategy)
+    if events:
         events_path.parent.mkdir(parents=True, exist_ok=True)
         with events_path.open("a", encoding="utf-8") as handle:
-            for event in result["events"]:
+            for event in events:
                 handle.write(json.dumps(event, ensure_ascii=False, separators=(",", ":")) + "\n")
             handle.flush()
             os.fsync(handle.fileno())
@@ -431,6 +751,22 @@ def main(argv: list[str] | None = None) -> int:
         default=DEFAULT_STATE / "category-decisions.jsonl",
     )
     parser.add_argument("--spec-json")
+    parser.add_argument("--applied", type=Path, default=DEFAULT_STATE / "applied.jsonl")
+    parser.add_argument(
+        "--readback", type=Path,
+        default=DEFAULT_COCONALA_STATE / "cfo-financial-readback.json",
+    )
+    parser.add_argument(
+        "--revenue-titles", type=Path,
+        default=DEFAULT_COCONALA_STATE / "cfo-financial-readback-titles.json",
+    )
+    parser.add_argument(
+        "--attempts", type=Path, default=DEFAULT_STATE / "experiment-attempts.jsonl",
+    )
+    parser.add_argument(
+        "--outcomes", type=Path, default=DEFAULT_STATE / "applied-outcomes.jsonl",
+    )
+    parser.add_argument("--experiments", type=Path, default=DEFAULT_EXPERIMENTS)
     args = parser.parse_args(argv)
     if args.command == "start":
         try:
@@ -450,6 +786,12 @@ def main(argv: list[str] | None = None) -> int:
         strategy_path=args.strategy,
         funnel_path=args.funnel,
         events_path=args.events,
+        applied_path=args.applied,
+        readback_path=args.readback,
+        titles_path=args.revenue_titles,
+        attempts_path=args.attempts,
+        outcomes_path=args.outcomes,
+        experiments_path=args.experiments,
     )
     print(json.dumps(summary, ensure_ascii=False, separators=(",", ":")))
     return 0
