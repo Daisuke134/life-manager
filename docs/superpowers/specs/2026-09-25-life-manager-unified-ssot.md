@@ -3599,6 +3599,111 @@ Current cached catalog: 21 item records at ¥250 and 18 at ¥190; weighted avera
 - 5→6 の release 切りと apply が自動で連結しているか、未確認。
 
 
+### 5.1.1 全agent共通の再帰的自己改善 — 調査・採用設計・原子計画
+
+**今回の目的・範囲・完了条件:** 指定4研究の一次資料と実コードを調べ、Life Manager全業務への採用経路を一つ選び、既存部品との対応・サブスク/費用・実装順を正本へ記録する。今回は公開資料の取得、source読取り、文書作成、画像説明まで。外部codeの実行/install、モデル呼出し実験、GPU訓練、loop変更、live-enable、注文/投稿/応募/送信は行わない。完了は本調査と計画のremote保存であり、自己改善の稼働や利益改善の証明とは別とする。投資の既存RED/未完cursor・他ownerの実行順を変更しない。
+
+**単一推奨:** Life Managerの既存runner・評価器・self-build/merge/release経路を使い、Google Harness²のPropose–Probe–Composeと改善経験の再利用を取り込む。Harness²を第二の業務runner/schedulerとして常駐させず、OpenClawを目標とする既存harness方針も置き換えない。最初はWriterの保存事例を使う一つの試行。結果を確認してから投資・販売/集客・応募等へ同じinterfaceを広げる。MASSのweight学習や新しいAPI/GPU契約を初期導入へ含めない。
+
+#### 用語と成果条件
+
+- 自己修復: 失敗した動作を本来の契約へ戻す。自己改善: 同じ条件で成果または費用効率を改善する。再帰的自己改善: 成果を出す手順だけでなく、どの変更を試し、何を根拠に採用するかという改善手順も次回へ学習として戻す。
+- モデルのweight更新は必須ではない。今回の対象はtask prompt、skill、限定された手順/道具説明、agent間の受渡し、改善候補を考える指示と経験。モデル・認証・業務runnerは既存経路を使う。
+- 研究benchmarkのscore向上、quality proxy、token効率、paper損益、公式に確認した実利益を区別する。四研究のいずれもLife Managerの全業務で実利益が増えることを証明していない。
+- 評価器・公式receipt・CFO会計・権限/fence/spend cap・lease・rollbackの制御を改善候補へ渡さない。将来judgeを改善する場合は別versionの評価器変更として独立した検証を通し、比較中の採点規則を固定する。
+
+#### 固定した一次資料と実際の証明範囲
+
+| 対象 | 固定source / 一次資料 | 変えるもの・観測された成果 | 採用上の境界 |
+|---|---|---|---|
+| Google Harness² | [source 1cfe254e8d25b15f37048c3730134686abe60335](https://github.com/google-research/harness2/tree/1cfe254e8d25b15f37048c3730134686abe60335)、[論文](https://arxiv.org/html/2610.14224v1) | weight固定。実行harnessの候補比較と、次回の改善を支える経験libraryという二段の再帰。著者報告は3職業benchmark/4構成、最大WorkBuddy +11.5 points、JobBench +4.5 points、LAB partial pass +11.8 percentage points。 | Apache-2.0、Googleの公式サポート製品ではない。公開setupはLinux/Python3.12。Codex対応はResponses API endpoint経由で、ChatGPT subscription対応を意味しない。 |
+| Dream-RSI | [source 4149ea9181ab1db80f85717ffda2c9f0f130e85b](https://github.com/zhengkid/Dream-RSI/tree/4149ea9181ab1db80f85717ffda2c9f0f130e85b)、[論文§3–4/Appendix B–C](https://github.com/zhengkid/Dream-RSI/blob/4149ea9181ab1db80f85717ffda2c9f0f130e85b/papers/Dream-RSI.pdf) | モデル/評価器/interfaceを固定し、探索の分岐・深さ・並列・停止policy codeを変える。既知の実行木を再生して候補policyを安く比較する。8科学計算課題を報告。 | framework実装/再現script/requirementsは未公開、repoにLICENSEなし。付録の発見済みLasso solver codeはframework公開とは別。既知history上の再生scoreの非劣化は、未観測の探索枝や将来利益を保証しない。 |
+| RSI-Anything | [source 8ba44cd73ec6f57b151ec06e2f71a0726adfb687](https://github.com/Gen-Verse/RSI-Anything/tree/8ba44cd73ec6f57b151ec06e2f71a0726adfb687)、[論文](https://arxiv.org/pdf/2610.13912v1) | domain別world model/policy。Code repairは同coder/4候補/最大3修正round/200課題×3 seedsでhidden成功率26.3→29.2→31.2%。 | GUI99%はcheckboxes単一template/100 instance/policy学習1 seed。selected controllerはalpha=0でworldを不使用、別world cohortのrule baselineは100%。一般ブラウザ業務99%やworld固有の利益へ拡張しない。project codeはApache-2.0だが3B backbone/派生物はQwen Research Licenseの別商用grant条件がある。 |
+| MASS | [公式記事](https://sakana.ai/mass/)、[詳細](https://pub.sakana.ai/mass/)、[source fb403581bed2c974b3f99e7236224169da643079](https://github.com/SakanaAI/mass/tree/fb403581bed2c974b3f99e7236224169da643079)、[論文](https://arxiv.org/pdf/2610.12176v1) | 内側はrole/instruction/contract/hop、外側は共有27BのLoRA学習。2cycle後の4研究benchmarkのscore/output tokenが1.2–1.6倍。 | coding系ではTerminal-Bench37.5→35.2%、SWE-bench62.6→61.1%の退行も報告。SFTだけで6 H100×約19h、探索/評価は別。[NOTICE](https://github.com/SakanaAI/mass/blob/fb403581bed2c974b3f99e7236224169da643079/NOTICE.md#L12)はMASS固有codeに公開OSS license未付与と明記。 |
+| OpenEvolve（追加比較） | [source a1e9d91eecde612f0efc8e8e31f59b36998248c0](https://github.com/algorithmicsuperintelligence/openevolve/tree/a1e9d91eecde612f0efc8e8e31f59b36998248c0) | code候補と評価器を使う探索。Life Managerにも既に専用wrapperがある。 | Apache-2.0。既存wrapperは特定strategy/fixture向けで、全業務の稼働証明や現installed versionの証明ではない。新しい別schedulerを増やす理由にはしない。 |
+| GEPA（追加比較） | [source f1cfdee2856e9dc4b5b4dc5cc2e391d0aa20d819](https://github.com/gepa-ai/gepa/tree/f1cfdee2856e9dc4b5b4dc5cc2e391d0aa20d819) | traceを読んだ反省とPareto探索でtext parameterを最適化する。 | MIT。既存の比較/経験再利用と役割が重なるため初期の追加依存へ含めない。 |
+
+採用判断に使う具体的なcode上の差:
+
+1. Harness²の[core/recursion.py::run_parallel](https://github.com/google-research/harness2/blob/1cfe254e8d25b15f37048c3730134686abe60335/harness2/core/recursion.py#L342)は2k候補→k合成を実行する。baselineを1回とするとk=1でも主タスク実行は1+2+1=4回で、提案/選択/振返りやretryは別。通常の業務を4回送信する用途へ流用しない。
+2. [core/selection.py::selection_pool](https://github.com/google-research/harness2/blob/1cfe254e8d25b15f37048c3730134686abe60335/harness2/core/selection.py#L94)は最終候補だけをpoolにし、baseline/abstentionを除外する公開規約。Life Managerでは現行版を常に残し、劣化/同点/不明ならkeep_baseとする。上流の候補選択を本番昇格の権限にしない。
+3. [core/library.py::Library.add](https://github.com/google-research/harness2/blob/1cfe254e8d25b15f37048c3730134686abe60335/harness2/core/library.py)はcue/lesson/evidenceを持つ経験と採用harnessをdomain別に残し、grader verdict混入を検査する。この形を既存の業務別改善記録へ取り込む。global AGENTSやCodex memoryへ自動追記しない。
+4. RSI-Anythingの[code_repair/evaluation.py](https://github.com/Gen-Verse/RSI-Anything/blob/8ba44cd73ec6f57b151ec06e2f71a0726adfb687/tasks/code_repair/src/evaluation.py#L27)は現行を含めて比較し、utilityの厳密改善時だけ置換する。同file123–207行は決定をsealしてからhidden testを開く。この比較境界を借り、GUI固有の+4pt/1.2倍という数値はLife Managerへ転記しない。
+5. MASSの[論文Appendix G.3 p29](https://arxiv.org/pdf/2610.12176v1#page=29)は、force-driven simulationをgoalへ直接repositionする処理へ変えた解が6件中5件の外部judgeで好評価になった反例を報告する。LLMの高評価だけを、課題の成功条件や経済的成果の証拠にしない。
+
+#### Life Managerの確認済みsourceと再利用箇所
+
+source基準はmain由来3c93b4b064620fbf6a437b535d1fd11429e69402。以下はcode/registryの確認であり、現在稼働や自己改善の自然完走を証明していない。
+
+| 既存部品 | 再利用する責任 / 残る穴 |
+|---|---|
+| `runtime/agent-runner/agent_runner.py::run/command_for/extract_provider_usage` | 共通実行・task class・evidence・provider lease・予算。`--read-only/--prompt-stdin/--schema/--evidence-dir`を持つ。API相当額の`api_equivalent_estimate`を支払済み費用へ転用しない。 |
+| `skills/writer-agent/scripts/self_improve_control.py::validate_proposal/prepare_experiment/apply_prepared/evaluate_due` | 既に一変更proposal、pre/post hash、keep/revertと収益/quality-proxyの区別がある。収益欠測時のquality-proxy採用をprofit改善と報告しない。最初の接続先。 |
+| `apps/life-manager/eval/writer/{run-identity-cases.js,receipt-grader.js,judge-metrics.js}` | 原本/評価器freeze、identity/receipt検査、judge品質。既存public dev/held_out/challenge分割は回帰用であり、optimizerが読めるpublic正解を新しい盲検成果として数えない。 |
+| `apps/life-manager/eval/economic-autonomy/{run.js,score.js,records.js}` | tuning/held_out、verification/attribution/costCoverageを含む経済評価。profit/MRR/資金調達/代理指標を分離する責任を維持する。 |
+| `skills/earn/marketing-engine/measure/experiment_attribution.py` | 既存のexperiment/ct/公式効果/成熟期間/費用/unknownの対応。自己clickや投稿数で売上を作らない。 |
+| `skills/earn/self-improve/{evaluator.py,lib/scope_guard.py,lib/promote_gate.py}` | 限定code探索・walk-forward・scope・tripwire・現実ledger照合の先例。現evaluatorはPM fixture/strategyに固定され、全agentの共通評価器ではない。 |
+| `apps/life-manager/lib/{dev-merge-guard.js,self-build-daily.js}` | protected paths・対象head・review/CI/merge/release/rollbackの既存境界。optimizer自身の候補がこの制御を編集できるようにしない。 |
+| `config/loop-registry.json` の `self-improve-evolve` | 現sourceのentrypointは`skills/earn/marketing-engine/report/scheduled_runner.py`、command=`self-improve`、6h cadence/effect_class=none。`report/runners.json`で旧`run_evolve.sh`へ解決されるが、quarantine_reason=`verified_writeback_not_ready_until_gate_14`、product_ids=[]である。登録やcode存在を稼働・昇格可能の証拠にせず、この隔離を解除しない。初回は既存`article-self-improve`→Writer controllerを使い、新cronを増設しない。 |
+
+#### 一つの設計
+
+既存業務の公式成果/失敗trace → 同じ業務ownerの既存self-improve経路で候補作成 → 外部効果なしの保存事例比較 → 既存self-buildのsource受入 → main/immutable/対象owner一つの試行 → 自然実行の公式成果と費用 → 維持/復帰・改善方法の次version、という一本にする。
+
+**内側の改善:** 同じtask/入力/基盤model・tool version・予算で現行と候補2件を比較し、有効な差だけを1候補へまとめる。合成候補も試す。候補数2/合成1/改善round1を初期budgetとし、実行回数・tokens・経過時間を記録する。既存admission/budgetを通り、枠不足は後回しにして有料APIへ切替えない。元の業務実行を余分な公開/注文/応募で再現しない。
+
+**外側の再帰:** 実測から「どの失敗に何を試し、何が効かなかった/効いたか」を、既存experiment記録にparent experiment・candidate/baseline/eval/dataのhash・cue/lesson/evidenceとして残す。次のproposerはこの業務別経験を使って改善候補の作り方を変える。初回は外側1回まで。学びの候補もholdoutと現行比較を通し、未観測の市場/顧客反応を過去traceから捏造しない。
+
+**変更可能範囲:** pilotは`skills/writer-agent/reference/learned-playbook.md`の一変更。既存proposalのaxis/hypothesis/rule_text/held_out_assertionという4field契約を維持する。評価器・正解・provider receipt・金融record・identity/authorization/fence/認証・scheduler/runner/provider/model設定・spend/risk cap・global AGENTS・売れているagentのFROZEN対象は編集不可。scope enforcementはcandidate promptへのお願いではなく既存guard/権限制限で行う。
+
+**評価の二段階:** (A) frozen replay/回帰/独立reviewに通ったsourceを統合し、復旧可能な一ownerの試行へ進める技術受入、(B) 通常実行の公式成果/実費/測定期間から経済的改善を判断する業務受入を分ける。本番でしか取れない利益をmain統合の前提へ置かない。Aが通ってもprofitはunproven。Bで欠測/未成熟ならinconclusive、正の証拠がなければ全agent展開や増額をしない。下落・不正・上限違反は既存rollback/停止へ渡す。
+
+**比較と因果:** optimizer用dev、versionをsealした後に一度だけ開く非公開holdout、通常運用の評価期間を分ける。dev scoreを合成/選択に使い、holdoutを見て同じ版を再調整した結果を未使用testと呼ばない。投資は時系列walk-forward/同一policy・費用後比較、集客は既存experiment_id/ctで比較し、季節・traffic量・市場変動による差をそのままcandidate効果と断定しない。
+
+**業務別の主指標:** 共通なのは改善loopで、各業務の採点規則を一つの曖昧なLLM点数へ統合しない。
+
+| 業務 | 業務受入で見るもの | 代理指標としてだけ扱うもの |
+|---|---|---|
+| 投資 | 同owner/mode/期間の公式約定・実費後損益・drawdown・上限遵守 | backtest/paper益、未換金評価額、売買件数 |
+| Writer/販売agent | 公式有料取引・返金・実費後利益・対応するexperiment | LLM品質点、公開数、記事/商品数 |
+| 集客/アプリ | ct/experimentで結べる公式conversionと期間の費用後成果 | views/impressions/likes。ASC/RevenueCatの指標も各定義を維持する |
+| 応募/営業 | 実際の返信/面談/契約/入金を段階別に記録する | 応募数、モデルの採用確率、自分で書いたAPPLIED表示 |
+| 生活支援等 | 依頼固有の正しさ・完了・時間/費用削減 | 直接利益へ換算できない価値を架空USDへ置換しない |
+
+#### サブスクと費用
+
+公式[Codex認証](https://developers.openai.com/codex/auth/)と[利用料金の説明](https://developers.openai.com/codex/pricing/)はChatGPT sign-inとAPI keyの課金経路を区別する。Harness²の[CodexSubstrate.preflight](https://github.com/google-research/harness2/blob/1cfe254e8d25b15f37048c3730134686abe60335/harness2/substrate/codex.py#L198)は`HARNESS2_CODEX_BASE_URL/API_KEY`を要求し、proposerはOpenCode/Vertex Claude/Gemini向けである。上流のCodex対応を、そのままChatGPT subscription内実行の証拠にしない。
+
+本案は既存Life ManagerのCodex account経路へ提案/合成/振返りを適応する追加実装を必要とする。subscription枠内の実行は設計可能だが、利用枠・待ち時間・tokens・Mac資源を消費し、無制限/総費用0とはしない。API相当額はestimateのまま、実支払/配賦と区別する。新規Vertex/OpenAI/Anthropic API課金、GPU契約、wallet seedをこの計画の初期経路へ含めない。MASSの重み訓練はsubscription推論とは別のGPU計算である。現時点でモデル呼出し/課金benchmarkは行っていない。
+
+#### 原子実行計画（実装は未着手）
+
+方式は既存native runnerと既存self-buildを使う。別の計画正本や対話型外部coding-agent常駐は作らない。以下の各code taskは対象の最小RED→GREEN→必要な回帰を一組にし、source受入と自然成果の証明を分ける。
+
+| ID / 状態 | 所有ファイル・interface / 一つの作業 | 検証・完了証拠 |
+|---|---|---|
+| RSI-R1 完了 | 4研究とOpenEvolve/GEPAのsource/paper/licenseを固定して比較する。 | 上記SHA/一次URL/実装条件と限界。外部code実行・API実験0。 |
+| RSI-R2 完了 | 既存runner/eval/self-build/Writer実験/registryの呼出し境界を読む。 | source3c93b4b064。source存在と稼働を区別した上表。 |
+| RSI-D1 完了 | 本節へ単一推奨・変更範囲・評価二段階・費用・計画を記録する。 | 正本diff/remote commit。実装/導入/利益の完了とはしない。 |
+| RSI-01 次 | `self_improve_control.py::collect_snapshot`と既存Writer記録から最初の失敗cohortを選び、入力/eval/data/期間のhashをfreezeする。 | label/outcomeをoptimizerへ見せる範囲を固定。公開A9分割は回帰、別の未使用captureを盲検用とし、不足はunknown。実秘密はrepoへ入れない。 |
+| RSI-02 | 既存`lib/scope_guard.py`にtask-local harness差分検査を加える。既存code用`check`は維持し、新`check_harness_paths(candidate_root, baseline_root, editable_paths, protected_paths)`はbool/reasonを返す。 | `test_harness_scope.py`: playbook一変更の受理、eval/fence/budget/FROZEN/跨owner/global指示の変更拒否、symlink/範囲外path拒否。候補を実行する前のscope証拠。 |
+| RSI-03 | `lib/harness_proposer.py`を既存`agent_runner.py` CLIへのadapterとして作る。`propose(context_dir, schema_path, evidence_dir, task_class, timeout_seconds)`は既存4field proposal最大2件とrunner evidenceを返す。 | `test_harness_proposer.py`: native Codex subscription経路/既存予算とlease利用、API fallbackなし、read-only提案、失敗/費用不明を成功/0へ変えない。モデルIDを上流から移植しない。 |
+| RSI-04 | `lib/harness_round.py::run_round`を既存Writer controllerの準備段階へ接続する。入力はfrozen context/現行版/2候補/既存evaluate callable、出力は候補別traceと同条件のscore/costである。 | `test_harness_round.py`: baseline1+probe2+compose1以下、各stage予算、再開時重複0、同data/model/tool context、実provider送信/認証取得0。read-onlyと外部効果隔離の実効性をここで確認する。 |
+| RSI-05 | 同moduleのcompose/選択を現行保持付きにする。合成結果も評価し、`select_candidate`はkeep_baseまたは候補refを返す。 | `test_harness_selection.py`: 退行/同点/欠測/不正/予算超過はkeep_base。dev改善だけでholdoutや実利益の合格を作らない。 |
+| RSI-06 | `receipt-grader.js/run-identity-cases.js`とeconomic-autonomy評価を使うWriter adapterを接続し、非公開holdout評価をversion seal後だけ実行する。 | fixed evaluator/data SHA不変、oracleからの独立性、candidateによるreceipt偽造/ラベル読取り拒否、holdout再利用を検出するfocused検証。新しい学習済みworld modelは不要。 |
+| RSI-07 | 既存experiment記録へparent/cue/lesson/evidenceを加え、次のproposerへ読む外側1roundを接続する。 | `test_harness_reflection.py`: 証拠のない成功lessonを拒否、別業務への無検証混入なし、評価器を変えず改善指示だけが次版へ変わる、memory拡張は局所・version付き。 |
+| RSI-08 | 既存`article-self-improve`→`skills/writer-agent/scripts/self-improve.sh`→`self_improve_control.py`へ、同じWriter owner/lease/admissionのまま一cohortのbounded試行を結ぶ。 | registry job/cron/業務台帳を増やさず、quarantinedな旧OpenEvolve ownerを有効化しない。production業務の依頼を二重送信しない。保留/枠不足を明示し、元業務を停止しない。 |
+| RSI-09 | 候補self-build PRへ既存protected-path/expect-head/独立review/CIを適用し、main由来immutableへ反映する。 | 対象head・merge・release・一ownerのloaded argv/SHA。自然利益をsource統合前の条件へ置かない。 |
+| RSI-10 | 一ownerの通常運用で公式成果と実費を追い、技術受入と業務受入を別々に判定する。 | natural terminal/公式receipt/replay-zero、既存測定期間と十分な比較対象。欠測ならinconclusive、退行なら既存keep/revert。経済的優越を示さない結果をprofit改善にしない。 |
+| RSI-11 | 投資adapterを既存の数量/手数料/実費/net source完成後に接続する。 | 既存投資TODO順序を維持し、walk-forward/保持期間/risk cap/fenceは候補から編集不可。paper/参照値と実利益を分離する。 |
+| RSI-12 | 販売/集客adapterを同じinterfaceへ接続する。 | experiment/ct/paid/refund/costを対応させ、Capafy FROZEN sellersを改善実験で編集せず、当該ownerの独立受入と自然証拠を得る。 |
+| RSI-13 | 応募adapterを同じinterfaceへ接続する。 | 実際の返信/面談/契約/入金を別段階として記録し、件数や予測確率を収益と扱わず、当該ownerの独立受入と自然証拠を得る。 |
+| RSI-14 | 同じinterfaceを残る対象へ適用し、業務間で転用できた改善指示だけを共通化する。 | catalogから対象を列挙し、各業務のobjective/evidence/cost契約と未対応理由を記録。全agent利益改善や世界一を未測定のまま完了扱いしない。 |
+
+実装時の主な回帰先は`skills/earn/self-improve/tests/`、`skills/writer-agent/tests/`、`runtime/agent-runner/tests/`、Writer/economic-autonomyの既存eval、loop契約。今回これらは実行せず、文書の範囲・出典・diffだけを確認する。
+
+**単一推奨の評価:** 最良は成果を維持/改善しながら費用と失敗を減らし、その改善方法を他業務へ再現できること。基本ケースはまず失敗率/品質/作業時間の改善が見え、利益の判定は成熟データを待つこと。最悪は代理scoreへの過学習と計算量増加で、現行保持・予算・公式成果照合が必要になる。研究一式導入案の最強の利点は著者の探索/学習実装をまとめて再利用できる点だが、現環境の認証/実行/課金/権限/業務評価に合わない部分がある。本推奨が外れる最有力の筋は、agentのharnessよりも商品需要・集客・元データ不足が主な制約で、候補探索を増やしても事業成果が上がらない場合である。
+
 ### 5.2 Atomic TODO（実行順の正本。1行 = 1つの検証可能な作業）
 
 2026-09-26 時点。[x] は完了証拠あり、[ ] は未完了。
