@@ -4158,32 +4158,51 @@ def test_disk_floor_defers_before_queue_and_provider_child(tmp_path):
     assert json.loads(receipt.read_text())["reason"] == "disk_floor_low"
 
 
-def test_disk_floor_deferral_yields_reserved_slot_to_runnable_revenue_owner(
-        tmp_path, monkeypatch):
-    # 2026-10-19: aged support browser owners below the producer floor were reserved,
-    # kicked and disk-deferred ~1,000 times in five hours. With no cooldown each
-    # re-won the next reserve pass, so promptbase-loop-daily (revenue floor, runnable)
-    # never got the single browser slot and its 04:20 daily occurrence sat queued.
+@pytest.mark.parametrize(("free_gib", "expected_kicks"), (
+    (11, ["support-1", "support-2", "daily-revenue"]),
+    (9, []),
+))
+def test_disk_floor_deferral_hands_slot_to_runnable_revenue_owner(
+        tmp_path, monkeypatch, free_gib, expected_kicks):
+    # 2026-10-19: three aged support browser owners above the 10 GiB revenue floor but
+    # below the 12 GiB producer floor were reserved, kicked and disk-deferred ~1,000
+    # times in five hours. Each re-won the next reserve pass, so promptbase-loop-daily
+    # (runnable) never got the single browser slot and its 04:20 occurrence sat queued.
     admission_root = tmp_path / "admission"
     monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(admission_root))
     admission.activate_durable_v2()
     aged = time.time() - 3 * 3600
-    admission.enqueue_durable("browser", "support-browser", admission_class="borrow", now=aged)
+    for owner in ("support-0", "support-1", "support-2"):
+        admission.enqueue_durable("browser", owner, admission_class="borrow", now=aged)
     admission.enqueue_durable("browser", "daily-revenue", admission_class="revenue",
                               occurrence_id="daily-revenue:0420", now=aged)
-    assert admission.reserve_available() == ["support-browser"]
+    assert admission.reserve_available() == ["support-0"]
 
     entry = {"cadence": {"start_interval_seconds": 300}, "provider_route": "deterministic",
              "resource_class": "browser", "effect_class": "message"}
-    with (patch("runtime.loop.lm_loop_run._producer_gate",
-                side_effect=[None, ("disk_floor_low", tmp_path)]),
+    kicked = []
+
+    def gate(loop_id, *, check_capacity):
+        return ("disk_floor_low", tmp_path) if check_capacity else None
+
+    def kick(loop_ids):
+        # A support owner the host kicks hits the same producer floor at pre_claim.
+        for loop_id in loop_ids:
+            kicked.append(loop_id)
+            if loop_id.startswith("support-"):
+                assert _run_admitted(["/bin/true"], entry, loop_id, {},
+                                     tmp_path / f"{loop_id}.json") == 75
+        return loop_ids
+
+    with (patch("runtime.loop.lm_loop_run._producer_gate", side_effect=gate),
+          patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=free_gib * 1024**3),
           patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run._dispatch_reserved", side_effect=kick),
           patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture") as child):
-        assert _run_admitted(["/bin/true"], entry, "support-browser", {},
+        assert _run_admitted(["/bin/true"], entry, "support-0", {},
                              tmp_path / "host-admission.json") == 75
     child.assert_not_called()
-
-    assert admission.reserve_available() == ["daily-revenue"]
+    assert kicked == expected_kicks
 
 
 def test_healthy_disk_boundary_keeps_finite_dispatch_without_numeric_probe(tmp_path):
