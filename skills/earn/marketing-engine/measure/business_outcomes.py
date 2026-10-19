@@ -48,31 +48,37 @@ PRODUCTS = {
     "life-manager-cloud": {"web_funnel": True},
     "anicca-ios": {
         "asc_app_id": "6755129214",
+        "asc_sku": "anicca-ios-001",
         "revenuecat_app_id": "app511ef26659",
         "analytics": "mixpanel",
     },
     "honne-ai": {
         "asc_app_id": "6759667221",
+        "asc_sku": "app.rork.hon-ne-honyaku-ai",
         "revenuecat_app_id": "app3bbd298d22",
         "analytics": None,
     },
     "breath-reset": {
         "asc_app_id": "6760253231",
+        "asc_sku": "breathcalm-test-001",
         "revenuecat_app_id": "app498e23effc",
         "analytics": None,
     },
     "sleep-ritual": {
         "asc_app_id": "6759916261",
+        "asc_sku": "sleepritual",
         "revenuecat_app_id": "app92143da86e",
         "analytics": None,
     },
     "desk-stretch-timer": {
         "asc_app_id": "6760048397",
+        "asc_sku": "deskstretch",
         "revenuecat_app_id": "appca8d955a75",
         "analytics": None,
     },
     "micro-mood": {
         "asc_app_id": "6759877003",
+        "asc_sku": "MicroMood2026",
         "revenuecat_app_id": "appdda58236fa",
         "analytics": None,
     },
@@ -370,26 +376,47 @@ def summarize_asc_sales(rows: list[dict[str, str]], apple_identifier: str) -> di
     the per-unit proceeds amount in ``Currency of Proceeds``; a row's total is
     ``Units * Developer Proceeds``. An empty account-wide report (no sales
     activity anywhere that day) is a successful zero, not a schema failure.
+    In-App Purchase rows (subscriptions, refunds) carry their own Apple
+    Identifier and name the app only by its SKU in ``Parent Identifier``:
+    ``units`` counts app rows, ``iap_units`` counts those purchase rows.
     """
     if rows:
         _required_columns(rows, {"Apple Identifier", "Units", "Developer Proceeds"})
-    matched = [row for row in rows if row.get("Apple Identifier") == apple_identifier]
+    parent_sku = next(
+        (config["asc_sku"] for config in PRODUCTS.values()
+         if config.get("asc_app_id") == apple_identifier and config.get("asc_sku")),
+        None,
+    )
     units = 0
+    iap_units = 0
+    row_count = 0
     proceeds: dict[str, Decimal] = {}
-    for row in matched:
+    for row in rows:
+        is_app = row.get("Apple Identifier") == apple_identifier
+        is_iap = parent_sku is not None and (row.get("Parent Identifier") or "").strip() == parent_sku
+        if not (is_app or is_iap):
+            continue
+        row_count += 1
         row_units = _integer(row.get("Units"))
-        units += row_units
-        currency = (row.get("Currency of Proceeds") or "").strip() or "unknown"
+        if is_app:
+            units += row_units
+        else:
+            iap_units += row_units
+        currency = (row.get("Currency of Proceeds") or "").strip()
         try:
             per_unit = Decimal((row.get("Developer Proceeds") or "0").strip())
         except InvalidOperation:
             continue
+        if not currency and per_unit == 0:
+            continue  # free download: Apple leaves the proceeds currency blank
+        currency = currency or "unknown"
         proceeds[currency] = proceeds.get(currency, Decimal(0)) + per_unit * row_units
     return {
         "apple_identifier": apple_identifier,
         "units": units,
+        "iap_units": iap_units,
         "proceeds": {key: float(value) for key, value in sorted(proceeds.items())},
-        "row_count": len(matched),
+        "row_count": row_count,
     }
 
 

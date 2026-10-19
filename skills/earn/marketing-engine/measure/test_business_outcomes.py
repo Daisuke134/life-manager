@@ -400,6 +400,25 @@ class AppStoreContractTest(unittest.TestCase):
         self.assertEqual(summary["proceeds"], {"USD": 3.5})
         self.assertEqual(summary["row_count"], 2)
 
+    def test_subscription_rows_count_through_the_parent_app_sku(self):
+        # Shape of a real 1_1 Summary Sales row: an In-App Purchase carries its
+        # own Apple Identifier and names the app only through Parent Identifier.
+        rows = [
+            {"Apple Identifier": "6755129214", "Parent Identifier": " ", "SKU": "anicca-ios-001",
+             "Units": "3", "Developer Proceeds": "0.00", "Currency of Proceeds": " "},
+            {"Apple Identifier": "6762000001", "Parent Identifier": "anicca-ios-001",
+             "SKU": "ai.anicca.monthly", "Units": "2", "Developer Proceeds": "6.99",
+             "Currency of Proceeds": "USD"},
+            {"Apple Identifier": "6762133377", "Parent Identifier": "app.rork.hon-ne-honyaku-ai",
+             "SKU": "com.daisuke.honne.premium.weekly", "Units": "-1",
+             "Developer Proceeds": "1105.00", "Currency of Proceeds": "JPY"},
+        ]
+        summary = outcomes.summarize_asc_sales(rows, "6755129214")
+        self.assertEqual(summary["units"], 3)
+        self.assertEqual(summary["iap_units"], 2)
+        self.assertEqual(summary["proceeds"], {"USD": 13.98})
+        self.assertEqual(summary["row_count"], 2)
+
     def test_sales_report_with_no_activity_anywhere_is_a_successful_zero(self):
         summary = outcomes.summarize_asc_sales([], "6755129214")
         self.assertEqual(summary["units"], 0)
