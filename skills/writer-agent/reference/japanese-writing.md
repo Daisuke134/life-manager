@@ -41,3 +41,10 @@
 
 
 2026年10月18日の本人指定：専門用語は、その分野と言語で定着した標準的な呼称を優先する。日本語を自然に書くために独自の訳語へ置き換えない。日本語は「ニューロフィードバック」、英語は「neurofeedback」。必要なら正式な用語の後に平易な説明を添える。固有名詞・略語・専門用語の表記と、説明文の言語を区別する。
+
+2026年10月19日の最新指定：このManager学習シリーズの公開先は当面自社ブログだけ。Zenn・note・Substackの展開は停止し、他の既存有料ループは変更しない。新規記事は当面英語だけで書く。英語記事に載せる図は英語、日本語のチャット説明には日本語の図を使う。既存の日本語記事を削除する指示ではない。
+
+
+## Latest user override: learning first; publication on hold (2026-10-19)
+
+The user explicitly paused ALL new article publication, including the own website. Save research, explanations, article drafts and generated assets in files ready for later publication. Do not push publication branches, merge or deploy those pending articles. Do not generate further English images for now; English articles may be published without images if later requested. Continue Japanese teaching figures when helpful, but prioritize answering the learning question in chat rather than delaying explanations for content production. Already generated English assets may remain saved. This overrides earlier publication/image instructions; existing live pages need not be removed.

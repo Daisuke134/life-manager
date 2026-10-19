@@ -1,0 +1,446 @@
+{
+  "checked_at_utc": "2026-10-19T01:51:37.608920+00:00",
+  "research_method": {
+    "skill": "MaryCache/imozuru",
+    "upstream_commit": "0d656febbc3f5e0a20cb03d3e011b703e69fe034",
+    "installed_at": "~/.agents/skills/imozuru",
+    "skill_sha256": "b22a400e8b90f322bd8c835fa56d73dc50e0f48051d53ba58f2aeb9262993eba",
+    "install_command": "npx --yes skills add MaryCache/imozuru --skill imozuru --agent codex --global --yes",
+    "paid_crawling_api_used": false,
+    "source_retrieval": "imozuru fetch.py plus original public source/code byte retrieval; links followed from launch, docs index, papers and repositories",
+    "two_discovery_routes": [
+      "official launch/documentation/author path",
+      "implementation/independent evaluations/simulation adoption path"
+    ],
+    "stopped": "Four source-following rounds; unavailable proprietary internals and nonpublic deployments explicitly left unresolved; no saturation ratio claimed",
+    "private_originals": "~/research/jev-system-one/sources",
+    "private_extract_report": "~/research/jev-system-one/report.html"
+  },
+  "source_file_count": 41,
+  "unique_source_urls": 38,
+  "sources": [
+    {
+      "file": "aaru-replication-floor.md",
+      "url": "https://aaru.com/publications/population-simulation-at-the-replication-floor-summary",
+      "kind": "official-doc-or-code",
+      "sha256": "892c791d65fb241df29393032c72b52b5fb18c2143ac192cf97274b636c755c5",
+      "bytes": 24317,
+      "redistributed": false
+    },
+    {
+      "file": "badgerbees-jev-oasis.md",
+      "url": "https://github.com/badgerbees/jev-oasis",
+      "kind": "community-code-or-readme",
+      "sha256": "6b65c32451538ceac65f69f189ee6704c685b82336b3ef668f51011281b28c3e",
+      "bytes": 10342,
+      "redistributed": false
+    },
+    {
+      "file": "benchmark-jev-2609-37647.md",
+      "url": "https://arxiv.org/html/2609.37647v1",
+      "kind": "paper",
+      "sha256": "4f7ed4113e610133c1ae6beb1c18e9499ab1f12f896f1aed27e49e75e8fe41b2",
+      "bytes": 78420,
+      "redistributed": false
+    },
+    {
+      "file": "independent-jev-benchmark-code.md",
+      "url": "https://github.com/AppliedMachineLearning-Lab/jev-benchmarking",
+      "kind": "official-doc-or-code",
+      "sha256": "465eeacdc101cdda59adca50244caedfb981d71240d40c111892c5cee103f3db",
+      "bytes": 13096,
+      "redistributed": false
+    },
+    {
+      "file": "jev-advbench-2609-31142.md",
+      "url": "https://arxiv.org/html/2609.31142v1",
+      "kind": "paper",
+      "sha256": "ac4c2acc16cbe236a217279158e257ace3861e3601e97c41d8e7346c97aa1e00",
+      "bytes": 116960,
+      "redistributed": false
+    },
+    {
+      "file": "jev-judges-2610-17820.md",
+      "url": "https://arxiv.org/html/2610.17820v1",
+      "kind": "paper",
+      "sha256": "d30f21f10f74a2cbf73c39c6baa7bb6fa734c66cdd571fa2750470210be3c7f1",
+      "bytes": 94753,
+      "redistributed": false
+    },
+    {
+      "file": "jev-oasis-agent.py.txt",
+      "url": "https://raw.githubusercontent.com/badgerbees/jev-oasis/main/oasis/social_agent/agent.py",
+      "kind": "community-code-or-readme",
+      "sha256": "8618ccdc2baa0e28132fde7921557b836e24b8a2701ebfa636830e3fa1a71266",
+      "bytes": 21755,
+      "redistributed": false
+    },
+    {
+      "file": "jev-oasis-env.py.txt",
+      "url": "https://raw.githubusercontent.com/badgerbees/jev-oasis/main/oasis/environment/env.py",
+      "kind": "community-code-or-readme",
+      "sha256": "8d5ab3d046cee105baa3dbb4eb7bd6454da02e90ae2d49251f2183cce7a09eb7",
+      "bytes": 11821,
+      "redistributed": false
+    },
+    {
+      "file": "jev-oasis-pyproject.toml.txt",
+      "url": "https://raw.githubusercontent.com/badgerbees/jev-oasis/main/pyproject.toml",
+      "kind": "community-code-or-readme",
+      "sha256": "0f786c1e22627cc4b3c2a713112ec983c3330a43aab2ed39024f94c4cf99fd6e",
+      "bytes": 1073,
+      "redistributed": false
+    },
+    {
+      "file": "jev-oasis-readme-original.md",
+      "url": "https://raw.githubusercontent.com/badgerbees/jev-oasis/main/README.md",
+      "kind": "community-code-or-readme",
+      "sha256": "31624dda98bd91ed884cf46729a641196270d02e67fe1f9a1525900c1be7f5fe",
+      "bytes": 6675,
+      "redistributed": false
+    },
+    {
+      "file": "mirofish-env-example.txt",
+      "url": "https://raw.githubusercontent.com/666ghj/MiroFish/main/.env.example",
+      "kind": "official-doc-or-code",
+      "sha256": "18a0153f70a5f29ca0608b3796054b275631a5bfd899fc477a33a369ca7b398e",
+      "bytes": 715,
+      "redistributed": false
+    },
+    {
+      "file": "oasis-social-agent-doc.mdx",
+      "url": "https://raw.githubusercontent.com/camel-ai/oasis/main/docs/key_modules/social_agent.mdx",
+      "kind": "official-doc-or-code",
+      "sha256": "c4186c3872889654584bc5afbeaf6c69affeacfb2a52dd5d309bbadde8355e54",
+      "bytes": 6865,
+      "redistributed": false
+    },
+    {
+      "file": "official-oasis.md",
+      "url": "https://github.com/camel-ai/oasis",
+      "kind": "official-doc-or-code",
+      "sha256": "04b99881355110cdc6777d25a1a17af24443da869c6b484053359a6d3d798173",
+      "bytes": 16740,
+      "redistributed": false
+    },
+    {
+      "file": "simile-series-b.md",
+      "url": "https://www.simile.com/blog/series-b",
+      "kind": "official-doc-or-code",
+      "sha256": "6d5353b82042066240491eeb295ade2989bf62e009c8d392a07bc609b6c084c1",
+      "bytes": 2433,
+      "redistributed": false
+    },
+    {
+      "file": "typesafe-2026-introducing-system-one.md",
+      "url": "https://typesafe.ai/blog/introducing-system-one-models-and-jev",
+      "kind": "official-doc-or-code",
+      "sha256": "d4320ea777a2226f6e03b3c8cdd4c52935e510eca7092d718c29929dd2034506",
+      "bytes": 15047,
+      "redistributed": false
+    },
+    {
+      "file": "typesafe-antibenchmaxxing.md",
+      "url": "https://typesafe.ai/blog/antibenchmaxxing",
+      "kind": "official-doc-or-code",
+      "sha256": "cf61fc48f6f1eeea144641ebd40a626bce1ff0ce250760180ea5886eca1867c7",
+      "bytes": 7212,
+      "redistributed": false
+    },
+    {
+      "file": "typesafe-api.md",
+      "url": "https://docs.typesafe.ai/api.md",
+      "kind": "official-doc-or-code",
+      "sha256": "37f0f3a41917e17592876f67848bd63329ba576081a89704f28210f0efc3c0f6",
+      "bytes": 12905,
+      "redistributed": false
+    },
+    {
+      "file": "typesafe-autoresearch.md",
+      "url": "https://docs.typesafe.ai/cookbooks/autoresearch_feature_discovery.md",
+      "kind": "official-doc-or-code",
+      "sha256": "24e0854e5a5846c269142d2a57abfb8aa90d63c37231b03036ed08f1e9989b72",
+      "bytes": 71468,
+      "redistributed": false
+    },
+    {
+      "file": "typesafe-bitterest-lesson.md",
+      "url": "https://typesafe.ai/blog/bitterest-lesson",
+      "kind": "official-doc-or-code",
+      "sha256": "f6ba4bc51cdabaf2fc544ce1cec9b17b987e68299983c519acd9e8a620a4dc1d",
+      "bytes": 4256,
+      "redistributed": false
+    },
+    {
+      "file": "typesafe-blog-index.md",
+      "url": "https://typesafe.ai/blog",
+      "kind": "official-doc-or-code",
+      "sha256": "62d08492e34664858fd1228e1ea628dc18f0242141132df26ce79dca7e04b976",
+      "bytes": 4621,
+      "redistributed": false
+    },
+    {
+      "file": "typesafe-building.md",
+      "url": "https://docs.typesafe.ai/concepts/how-to-build-with-system-one.md",
+      "kind": "official-doc-or-code",
+      "sha256": "9f5a20ac39383695d554bf812b365ed4b70622b8e5ac10484dce290469c68972",
+      "bytes": 41034,
+      "redistributed": false
+    },
+    {
+      "file": "typesafe-choice.md",
+      "url": "https://docs.typesafe.ai/primitives/choice.md",
+      "kind": "official-doc-or-code",
+      "sha256": "ae9c49b815ee30b28ed851e22b63041130fba50ae41368d41a5d80b571f383bb",
+      "bytes": 26907,
+      "redistributed": false
+    },
+    {
+      "file": "typesafe-confidence.md",
+      "url": "https://docs.typesafe.ai/confidence.md",
+      "kind": "official-doc-or-code",
+      "sha256": "5c325ec0c0b69e78129406ca7c5d3aef113bce365abd34985b8674cd278c81be",
+      "bytes": 24090,
+      "redistributed": false
+    },
+    {
+      "file": "typesafe-current-documentation-index.md",
+      "url": "https://docs.typesafe.ai/llms.txt",
+      "kind": "official-doc-or-code",
+      "sha256": "99f746d2570aa97898ad0e62042b9b5b703e54c3f1142ce4cf4b7ff15b5782ae",
+      "bytes": 18372,
+      "redistributed": false
+    },
+    {
+      "file": "typesafe-enterprise-module.mjs.txt",
+      "url": "https://framerusercontent.com/sites/43bTeC8cU9jZO20XvdK79t/9CUXvgDhTc5wjeuIjXLc8YEYH5ZmwqaHyXJbL9XgkzU.BRc8zsUX.mjs",
+      "kind": "official-doc-or-code",
+      "sha256": "cfe93c9881f4c3f75ff1f36c9b548022e637a4d471d15b5647722f95ae214294",
+      "bytes": 95218,
+      "redistributed": false
+    },
+    {
+      "file": "typesafe-enterprise.md",
+      "url": "https://typesafe.ai/enterprise",
+      "kind": "official-doc-or-code",
+      "sha256": "06217de8de660af88d9683955fab01f4d34e07d3e3ab6ab35968b6790169b354",
+      "bytes": 4164,
+      "redistributed": false
+    },
+    {
+      "file": "typesafe-jaggedness-113.md",
+      "url": "https://docs.typesafe.ai/model-jaggedness/jev-1.13.md",
+      "kind": "official-doc-or-code",
+      "sha256": "ae4e822c759ce6665553a676c7bfa9371374e02685b4dacb1851a330875e5950",
+      "bytes": 9395,
+      "redistributed": false
+    },
+    {
+      "file": "typesafe-jev114.md",
+      "url": "https://typesafe.ai/blog/jev-1-14",
+      "kind": "official-doc-or-code",
+      "sha256": "ea31b06a022ef09107910cb77600f6de0613c4969a34680e6c8ca54c35695934",
+      "bytes": 6653,
+      "redistributed": false
+    },
+    {
+      "file": "typesafe-launch-embedded-faq-excerpts.txt",
+      "url": "https://typesafe.ai/blog/introducing-system-one-models-and-jev",
+      "kind": "derived-reading-view-original-preserved",
+      "sha256": "46456808dcd4e6ad8fee5780467a2e0f356f5cd75d0a4346eaf771bb17b29fe1",
+      "bytes": 974,
+      "redistributed": false
+    },
+    {
+      "file": "typesafe-launch-original.html",
+      "url": "https://typesafe.ai/blog/introducing-system-one-models-and-jev",
+      "kind": "official-doc-or-code",
+      "sha256": "71b8ae6a6a0d80511d6c6b6796a5d541dca1f629d54697b900c5ffe7a8c3bf10",
+      "bytes": 285279,
+      "redistributed": false
+    },
+    {
+      "file": "typesafe-launch-rendered-faq.txt",
+      "url": "https://typesafe.ai/blog/introducing-system-one-models-and-jev",
+      "kind": "derived-reading-view-original-preserved",
+      "sha256": "4e438cab0e723de7d8755d12d0de5e695e5c29f54dfa45129e8e6dce12be50ed",
+      "bytes": 13953,
+      "redistributed": false
+    },
+    {
+      "file": "typesafe-llm-adapter.md",
+      "url": "https://github.com/typesafe-ai/system-one-adapter-python",
+      "kind": "official-doc-or-code",
+      "sha256": "8b074bec1f1f681b15d61e11cd73e9b2f6f2c83811b043e966e76c843e48c44c",
+      "bytes": 10770,
+      "redistributed": false
+    },
+    {
+      "file": "typesafe-models-current.md",
+      "url": "https://docs.typesafe.ai/models.md",
+      "kind": "official-doc-or-code",
+      "sha256": "02b7682a7176d2d6649a2fa4588df45cbbaa3c3460f721828d632a7577e606df",
+      "bytes": 7971,
+      "redistributed": false
+    },
+    {
+      "file": "typesafe-noul.md",
+      "url": "https://docs.typesafe.ai/primitives/noul.md",
+      "kind": "official-doc-or-code",
+      "sha256": "bf5d8c6700fbd9272ce27b53a6439d598e7915cdf505704ac7c827c6175ecb88",
+      "bytes": 26498,
+      "redistributed": false
+    },
+    {
+      "file": "typesafe-parallel-questions.md",
+      "url": "https://docs.typesafe.ai/cookbooks/parallel_questions.md",
+      "kind": "official-doc-or-code",
+      "sha256": "1f4574474139321a1e05b31887a18ffe1dd3235169276aa4b600c6ebc110aee8",
+      "bytes": 48597,
+      "redistributed": false
+    },
+    {
+      "file": "typesafe-primer.md",
+      "url": "https://docs.typesafe.ai/introduction/machine-learning-primer.md",
+      "kind": "official-doc-or-code",
+      "sha256": "62f4354cfcdc00c5ec3e4865bc6b6a79900042c26c3afea0e67d88537e980121",
+      "bytes": 6693,
+      "redistributed": false
+    },
+    {
+      "file": "typesafe-python-basic.md",
+      "url": "https://docs.typesafe.ai/sdk/python/usage/basic.md",
+      "kind": "official-doc-or-code",
+      "sha256": "25a9e959ef68bb9c3302b99fb8456aa35782ff4ee41c7bb31bfe92e7c58221cb",
+      "bytes": 20454,
+      "redistributed": false
+    },
+    {
+      "file": "typesafe-series-ai.md",
+      "url": "https://typesafe.ai/blog/series-ai",
+      "kind": "official-doc-or-code",
+      "sha256": "70e9c9953fdd6358ff767c73f8a32a7cc3f0b24113b2bcd0dade7bfb7eb96f6f",
+      "bytes": 2475,
+      "redistributed": false
+    },
+    {
+      "file": "typesafe-system-one.md",
+      "url": "https://docs.typesafe.ai/concepts/system-one.md",
+      "kind": "official-doc-or-code",
+      "sha256": "f3ef88c39b3e6a52db708bef199a8d72be5d4f1ae3b58e256d1fae141f1836c2",
+      "bytes": 3933,
+      "redistributed": false
+    },
+    {
+      "file": "typesafe-workflow-evals.md",
+      "url": "https://github.com/typesafe-ai/WorkflowEvals",
+      "kind": "official-doc-or-code",
+      "sha256": "29eaab042caf8b56ec94fce7b10756b9432522242b1da5ed099db5c2bd262cf6",
+      "bytes": 10086,
+      "redistributed": false
+    },
+    {
+      "file": "workflow-evals-readme-original.md",
+      "url": "https://raw.githubusercontent.com/typesafe-ai/WorkflowEvals/main/README.md",
+      "kind": "official-doc-or-code",
+      "sha256": "49abcc891ae6deaeb33a7089cfb411bea7a7e5bf37ea72a4ca29f1f9a015fd1c",
+      "bytes": 5971,
+      "redistributed": false
+    }
+  ],
+  "claim_anchors": [
+    {
+      "claim": "Primary venues and source code",
+      "file": "typesafe-current-documentation-index.md",
+      "line": 3,
+      "short_exact_fragment": "How to use TypeSafe",
+      "url": "https://docs.typesafe.ai/llms.txt"
+    },
+    {
+      "claim": "Published latency conditions and price",
+      "file": "typesafe-2026-introducing-system-one.md",
+      "line": 105,
+      "short_exact_fragment": "End-to-end response time is 70ms-500ms",
+      "url": "https://typesafe.ai/blog/introducing-system-one-models-and-jev"
+    },
+    {
+      "claim": "Input and output contract; internals not fully disclosed",
+      "file": "typesafe-system-one.md",
+      "line": 13,
+      "short_exact_fragment": "It returns typed decisions and probabilities rather than generated text.",
+      "url": "https://docs.typesafe.ai/concepts/system-one.md"
+    },
+    {
+      "claim": "Customer adaptation and deployment boundaries",
+      "file": "typesafe-models-current.md",
+      "line": 79,
+      "short_exact_fragment": "Jev is not fine-tuned or LoRA-adapted with customer data.",
+      "url": "https://docs.typesafe.ai/models.md"
+    },
+    {
+      "claim": "Public social simulation integration and scoped adoption",
+      "file": "jev-oasis-readme-original.md",
+      "line": 6,
+      "short_exact_fragment": "A fork of",
+      "url": "https://raw.githubusercontent.com/badgerbees/jev-oasis/main/README.md"
+    },
+    {
+      "claim": "Manager fit requires target-specific evidence",
+      "file": "benchmark-jev-2609-37647.md",
+      "line": 25,
+      "short_exact_fragment": "zero-shot on 37 datasets",
+      "url": "https://arxiv.org/html/2609.37647v1"
+    }
+  ],
+  "reading_scope": "Complete documents retrieved. Interface/model/pricing/calibration/failure-mode passages, launch caveats/FAQ, benchmark abstracts/method/threshold results, and relevant OASIS agent/environment implementation were read; retrieval is not a claim that every paper section or every source code path was reviewed.",
+  "unresolved": [
+    "Proprietary architecture details, parameter count, exact RLCD loss and training recipe",
+    "No verified Aaru/Simile/official MiroFish/official OASIS Jev adoption in the reviewed public sources",
+    "Own Manager task latency, cost, human-behavior accuracy and real-world benefit are unmeasured"
+  ],
+  "source_anomalies": [
+    "Ordinary HTML extraction omitted closed FAQ answers; original embedded source preserved and checked.",
+    "Python SDK usage page includes November14,2026 while retrieved October19; example syntax instead grounded in core API reference and stable versioned model.",
+    "Some current concept/model pages disagree on experimental image support; stable1.13 text path and October14preview announcement kept separate."
+  ],
+  "not_run": [
+    "Jev inference API",
+    "Provider signup or billing",
+    "Jev-OASIS execution",
+    "Independent benchmark rerun",
+    "Customer fine-tuning"
+  ],
+  "review": {
+    "factual_reviewer": "jev_primary_links",
+    "blocking_findings": 0,
+    "applied_note": "LLM fallback when Jev unavailable/request fails added, verified against community code"
+  },
+  "article": {
+    "path": "docs/research/manager/articles/2026-10-19-typesafe-jev-system-one-en.md",
+    "sha256": "4607f1f773ca7d37cb994f7f9d75206babfab1a8c3ea2947cf3710536f8b7b0c",
+    "language": "en"
+  },
+  "figures": [
+    {
+      "path": "docs/research/manager/articles/assets/2026-10-19-jev-manager-workflow-en.png",
+      "sha256": "bf9de7f85fcedef7851c02f357634d93ab34a7b19069a9cec56e37bb909c53d0",
+      "kind": "original generated conceptual or fictional-example illustration; not measured data"
+    },
+    {
+      "path": "docs/research/manager/learning/chapter9/assets/2026-10-19-jev-manager-workflow-ja.png",
+      "sha256": "3f6a306476a5dbc3c74d5014f5eb2bfb0de90893fabceb00bdc29944244ff6f1",
+      "kind": "original generated conceptual or fictional-example illustration; not measured data"
+    },
+    {
+      "path": "docs/research/manager/learning/chapter9/assets/2026-10-19-chapter9-02-recap-ja.png",
+      "sha256": "78c615334c553a5f56cf088d986529c2b93b740cb116acd8bda21b4ae7081dcf",
+      "kind": "original generated conceptual or fictional-example illustration; not measured data"
+    }
+  ],
+  "arithmetic_checks": {
+    "usd_per_1000_input_tokens": 4.2e-05,
+    "usd_per_million_1000_token_requests": 42.0,
+    "usd_for_100_rounds": 4200.000000000001,
+    "choice_confidence_3_options_pmax_0_7": 0.5499999999999999
+  }
+}

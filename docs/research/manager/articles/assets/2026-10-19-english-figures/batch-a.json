@@ -1,0 +1,304 @@
+{
+  "schema_version": 1,
+  "batch": "a",
+  "date": "2026-10-19",
+  "unique_source_count": 13,
+  "scope": "First13 unique source figures referenced by EN articles in source-order, excluding already-English chapter9-02 globally",
+  "entries": [
+    {
+      "source_path": "docs/research/manager/articles/visuals/population-map.png",
+      "source_sha256": "44e2559cf36951fd05b99b034d6c48c0bef0bfa5793bebd97d7af15bb2cfc57a",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/population-map-en.png",
+      "sha256": "0308aeb9eb071804abed29d2a89f8cdeaa5a863db2f88e73ec34462551f51857",
+      "bytes": 1209767,
+      "dimensions": [
+        2172,
+        724
+      ],
+      "generated_original_path": "/workspace/generated_images/exec-fd9426bf-573e-4655-9e1b-20ed3dad8194.png",
+      "target_slugs": [
+        "manager-human-simulation-landscape-en"
+      ],
+      "visual_review": "Viewed original and final individually; English labels, numbers, fictional/conceptual limitations checked"
+    },
+    {
+      "source_path": "docs/research/manager/articles/visuals/evidence-path.png",
+      "source_sha256": "8b828c20d083053461c13a7afaa983829ecfaf22678d1d35e9b994ba84f0b64f",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/evidence-path-en.png",
+      "sha256": "97b11e60d3851ff9a045cb858908d5016f0fed305ac5a27ff55d1d1701040476",
+      "bytes": 1399976,
+      "dimensions": [
+        1320,
+        1191
+      ],
+      "generated_original_path": "/workspace/generated_images/exec-ffbe3f79-e5b3-4f28-9ebb-5c1d95b40845.png",
+      "target_slugs": [
+        "manager-human-simulation-landscape-en"
+      ],
+      "visual_review": "Viewed original and final individually; English labels, numbers, fictional/conceptual limitations checked"
+    },
+    {
+      "source_path": "docs/research/manager/articles/visuals/population-foundations-flow.png",
+      "source_sha256": "114cbab43a81483edea3efce24fde9fc9fef353918f1598b96002efebd479ea4",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/population-foundations-flow-en.png",
+      "sha256": "c77f64a4c413b07ca6cad89006c418445991323cb102c9c407c71453400204b9",
+      "bytes": 1524831,
+      "dimensions": [
+        1672,
+        941
+      ],
+      "generated_original_path": "/workspace/generated_images/exec-5150fcb9-ff50-439d-85b8-e9497c1f1cf5.png",
+      "target_slugs": [
+        "manager-population-foundations-en"
+      ],
+      "visual_review": "Viewed original and final individually; English labels, numbers, fictional/conceptual limitations checked"
+    },
+    {
+      "source_path": "docs/research/manager/articles/visuals/population-joint-distribution.png",
+      "source_sha256": "6bcad6bc5e1bbfed8177e9605ddb8aecc3303b553ea31e9dd7fb9f4c4cc9f81a",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/population-joint-distribution-en.png",
+      "sha256": "04c2db67d4762e74b91d1d55987b695d0516c3136bb87e1fd29b84fa46d75a86",
+      "bytes": 1747353,
+      "dimensions": [
+        1672,
+        941
+      ],
+      "generated_original_path": "/workspace/generated_images/exec-6306a5b5-e16b-446a-bd58-213ce89b7916.png",
+      "target_slugs": [
+        "manager-population-foundations-en"
+      ],
+      "visual_review": "Viewed original and final individually; English labels, numbers, fictional/conceptual limitations checked"
+    },
+    {
+      "source_path": "docs/research/manager/articles/visuals/populationsim-household-weights.png",
+      "source_sha256": "3c05d72aac35a878558f1cb14576369e4e1ed74378c49126d0067e99716d99ef",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/populationsim-household-weights-en.png",
+      "sha256": "3e1638358eb959af9b3a2f62db1d6280214e23d761c8ea0c9abc976ee1d3b136",
+      "bytes": 1583506,
+      "dimensions": [
+        1672,
+        941
+      ],
+      "generated_original_path": "/workspace/generated_images/exec-f4a9e37d-5ce5-499a-bd45-c0b31d0d811d.png",
+      "target_slugs": [
+        "manager-population-weights-sft-dpo-en"
+      ],
+      "visual_review": "Viewed original and final individually; English labels, numbers, fictional/conceptual limitations checked"
+    },
+    {
+      "source_path": "docs/research/manager/articles/visuals/sft-dpo-learning.png",
+      "source_sha256": "c2b34fa4b38c79c5386200ca31a477fc80e9a3e2c3ff735eb0ac732f1835bc5c",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/sft-dpo-learning-en.png",
+      "sha256": "5f7eec55e24df58448c47ee88b813c98d04243c73b33b70b1f13f435f124e349",
+      "bytes": 1583037,
+      "dimensions": [
+        1672,
+        941
+      ],
+      "generated_original_path": "/workspace/generated_images/exec-cf16aebc-dca5-4a71-9cc5-e7edb9235efa.png",
+      "target_slugs": [
+        "manager-population-weights-sft-dpo-en"
+      ],
+      "visual_review": "Viewed original and final individually; English labels, numbers, fictional/conceptual limitations checked"
+    },
+    {
+      "source_path": "docs/research/manager/articles/visuals/2026-10-17-conditional-probability-ja.png",
+      "source_sha256": "eb128c3864d700f6ed97817946df3eac49e5c7f28ea0a36a3b5ff1c57f1a5229",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-17-conditional-probability-en.png",
+      "sha256": "b21875e596fcbcb5d609f5dae7dab2865d4acc08e83fc0b095deb4fe621539f7",
+      "bytes": 1598859,
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "generated_original_path": "/workspace/generated_images/exec-4ea97f7c-5ffc-47ca-8e79-f367e5f08347.png",
+      "target_slugs": [
+        "manager-conditional-probability-en"
+      ],
+      "visual_review": "Viewed original and final individually; English labels, numbers, fictional/conceptual limitations checked"
+    },
+    {
+      "source_path": "docs/research/manager/articles/visuals/2026-10-17-bayesian-network-ja.png",
+      "source_sha256": "1027d7fb554e8dbc13b1d79ec21e9e1be67441c74d189e6d880e6d827e8ece84",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-17-bayesian-network-en.png",
+      "sha256": "c9f333f850452f9673f49afb6dfc93f3c4ec6597d7baeb26b9106c3a50042a1d",
+      "bytes": 1626756,
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "generated_original_path": "/workspace/generated_images/exec-7294c2f2-63e2-47cb-80da-2ff3561140a2.png",
+      "target_slugs": [
+        "manager-bayesian-network-en"
+      ],
+      "visual_review": "Viewed original and final individually; English labels, numbers, fictional/conceptual limitations checked"
+    },
+    {
+      "source_path": "docs/research/manager/articles/visuals/2026-10-17-conditional-versus-network-ja.png",
+      "source_sha256": "9acc6aa8508b836beea71a88e755c3f558c997b02ae81dca28741b2ce2023050",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-17-conditional-versus-network-en.png",
+      "sha256": "9692f05eab7fa25298c87ed6d076f5dec4b95b6465ef5e3212bb9f74078abe93",
+      "bytes": 1668489,
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "generated_original_path": "/workspace/generated_images/exec-42d4de22-cda1-4a13-969a-0cc0f2c3a3f0.png",
+      "target_slugs": [
+        "manager-bayesian-network-en"
+      ],
+      "visual_review": "Viewed original and final individually; English labels, numbers, fictional/conceptual limitations checked"
+    },
+    {
+      "source_path": "docs/research/manager/articles/visuals/2026-10-17-vae-workflow-ja.png",
+      "source_sha256": "af487ccd0c5d711816bfa1ca60335c08ebe98284cf15e2bf524136e4cc504f17",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-17-vae-workflow-en.png",
+      "sha256": "a4dbe4beb1464ab16aa89cca840c5eb33d44348f50e470e30f858efb1c35ec7f",
+      "bytes": 1830996,
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "generated_original_path": "/workspace/generated_images/exec-0fbde848-ff1e-4a40-88c9-84f8983b5b9f.png",
+      "target_slugs": [
+        "manager-vae-population-en"
+      ],
+      "visual_review": "Viewed original and final individually; English labels, numbers, fictional/conceptual limitations checked"
+    },
+    {
+      "source_path": "docs/research/manager/articles/visuals/2026-10-17-vae-households-ja.png",
+      "source_sha256": "f1b0f3aa23b8141b3d33d9ec57b098cc09525d51c569ed98f9e8f4637361df12",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-17-vae-households-en.png",
+      "sha256": "5fb31049f4c0a519a0b8e233d43c2efb2e647d53b0a0d01293fb9d6105407819",
+      "bytes": 1685057,
+      "dimensions": [
+        1774,
+        887
+      ],
+      "generated_original_path": "/workspace/generated_images/exec-dd094ec7-43db-42e1-8eb1-b3b65792c732.png",
+      "target_slugs": [
+        "manager-vae-population-en"
+      ],
+      "visual_review": "Viewed original and final individually; English labels, numbers, fictional/conceptual limitations checked"
+    },
+    {
+      "source_path": "docs/research/manager/articles/visuals/2026-10-17-gan-population-introduction-ja.png",
+      "source_sha256": "508711f3df00ba5ce381dbeecb8c99351ebbc9733e4f351d1110d0ec2b2adfce",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-17-gan-population-introduction-en.png",
+      "sha256": "c8345d541c962aa0e6105175ad0792d5beb5e1ac8e96f56f3b3f32796246341a",
+      "bytes": 1829086,
+      "dimensions": [
+        1672,
+        941
+      ],
+      "generated_original_path": "/workspace/generated_images/exec-bc019e57-29a3-4424-9582-900079742461.png",
+      "target_slugs": [
+        "manager-gan-population-en"
+      ],
+      "visual_review": "Viewed original and final individually; English labels, numbers, fictional/conceptual limitations checked"
+    },
+    {
+      "source_path": "docs/research/manager/articles/visuals/2026-10-17-diffusion-population-ja.png",
+      "source_sha256": "24723b9d04ebeba73cc2c076548142237bb74c09760c3fb5392d17d6f88b5412",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-17-diffusion-population-en.png",
+      "sha256": "ef48d71c3675e4528a3ba5f1fd90f010bb784007ba7449b4c7c977389a296fc9",
+      "bytes": 1936465,
+      "dimensions": [
+        1672,
+        941
+      ],
+      "generated_original_path": "/workspace/generated_images/exec-fa2d04d1-5d5a-4429-b4c3-a27b775fa033.png",
+      "target_slugs": [
+        "manager-diffusion-population-en"
+      ],
+      "visual_review": "Viewed original and final individually; English labels, numbers, fictional/conceptual limitations checked"
+    }
+  ],
+  "placements": [
+    {
+      "target_slug": "manager-human-simulation-landscape-en",
+      "source_path": "docs/research/manager/articles/visuals/population-map.png",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/population-map-en.png",
+      "sha256": "0308aeb9eb071804abed29d2a89f8cdeaa5a863db2f88e73ec34462551f51857"
+    },
+    {
+      "target_slug": "manager-human-simulation-landscape-en",
+      "source_path": "docs/research/manager/articles/visuals/evidence-path.png",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/evidence-path-en.png",
+      "sha256": "97b11e60d3851ff9a045cb858908d5016f0fed305ac5a27ff55d1d1701040476"
+    },
+    {
+      "target_slug": "manager-population-foundations-en",
+      "source_path": "docs/research/manager/articles/visuals/population-foundations-flow.png",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/population-foundations-flow-en.png",
+      "sha256": "c77f64a4c413b07ca6cad89006c418445991323cb102c9c407c71453400204b9"
+    },
+    {
+      "target_slug": "manager-population-foundations-en",
+      "source_path": "docs/research/manager/articles/visuals/population-joint-distribution.png",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/population-joint-distribution-en.png",
+      "sha256": "04c2db67d4762e74b91d1d55987b695d0516c3136bb87e1fd29b84fa46d75a86"
+    },
+    {
+      "target_slug": "manager-population-weights-sft-dpo-en",
+      "source_path": "docs/research/manager/articles/visuals/populationsim-household-weights.png",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/populationsim-household-weights-en.png",
+      "sha256": "3e1638358eb959af9b3a2f62db1d6280214e23d761c8ea0c9abc976ee1d3b136"
+    },
+    {
+      "target_slug": "manager-population-weights-sft-dpo-en",
+      "source_path": "docs/research/manager/articles/visuals/sft-dpo-learning.png",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/sft-dpo-learning-en.png",
+      "sha256": "5f7eec55e24df58448c47ee88b813c98d04243c73b33b70b1f13f435f124e349"
+    },
+    {
+      "target_slug": "manager-conditional-probability-en",
+      "source_path": "docs/research/manager/articles/visuals/2026-10-17-conditional-probability-ja.png",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-17-conditional-probability-en.png",
+      "sha256": "b21875e596fcbcb5d609f5dae7dab2865d4acc08e83fc0b095deb4fe621539f7"
+    },
+    {
+      "target_slug": "manager-bayesian-network-en",
+      "source_path": "docs/research/manager/articles/visuals/2026-10-17-bayesian-network-ja.png",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-17-bayesian-network-en.png",
+      "sha256": "c9f333f850452f9673f49afb6dfc93f3c4ec6597d7baeb26b9106c3a50042a1d"
+    },
+    {
+      "target_slug": "manager-bayesian-network-en",
+      "source_path": "docs/research/manager/articles/visuals/2026-10-17-conditional-versus-network-ja.png",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-17-conditional-versus-network-en.png",
+      "sha256": "9692f05eab7fa25298c87ed6d076f5dec4b95b6465ef5e3212bb9f74078abe93"
+    },
+    {
+      "target_slug": "manager-vae-population-en",
+      "source_path": "docs/research/manager/articles/visuals/2026-10-17-vae-workflow-ja.png",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-17-vae-workflow-en.png",
+      "sha256": "a4dbe4beb1464ab16aa89cca840c5eb33d44348f50e470e30f858efb1c35ec7f"
+    },
+    {
+      "target_slug": "manager-vae-population-en",
+      "source_path": "docs/research/manager/articles/visuals/2026-10-17-vae-households-ja.png",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-17-vae-households-en.png",
+      "sha256": "5fb31049f4c0a519a0b8e233d43c2efb2e647d53b0a0d01293fb9d6105407819"
+    },
+    {
+      "target_slug": "manager-gan-population-en",
+      "source_path": "docs/research/manager/articles/visuals/2026-10-17-gan-population-introduction-ja.png",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-17-gan-population-introduction-en.png",
+      "sha256": "c8345d541c962aa0e6105175ad0792d5beb5e1ac8e96f56f3b3f32796246341a"
+    },
+    {
+      "target_slug": "manager-diffusion-population-en",
+      "source_path": "docs/research/manager/articles/visuals/2026-10-17-diffusion-population-ja.png",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-17-diffusion-population-en.png",
+      "sha256": "ef48d71c3675e4528a3ba5f1fd90f010bb784007ba7449b4c7c977389a296fc9"
+    }
+  ],
+  "notes": [
+    "Each source has one replacement shared across all EN placements.",
+    "Original generated image bytes copied unchanged; original files retained.",
+    "Original source articles, old manifest, SSOT, Git untouched.",
+    "All explanatory text English. Existing English first two source figures also recreated.",
+    "Diffusion target label corrected to known injected noise, sampled during training."
+  ]
+}

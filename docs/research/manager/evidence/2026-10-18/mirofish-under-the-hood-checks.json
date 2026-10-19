@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-18",
+  "source_repository": "https://github.com/666ghj/MiroFish",
+  "source_sha": "7657031ac01184afe2cb220f5ee3545573b5e843",
+  "scope": "code_reading_and_illustrative_example_only",
+  "application_run": false,
+  "paid_api_calls": false,
+  "images_are": "generated_explanatory_illustrations_not_screenshots",
+  "image_originals": [
+    "/workspace/generated_images/exec-3e879462-6696-447e-afbb-2d8274e111ac.png",
+    "/workspace/generated_images/exec-2cc3073d-16dc-40e8-9e73-4baa60eb78ec.png"
+  ],
+  "article": "docs/research/manager/articles/2026-10-18-mirofish-under-the-hood-ja.md",
+  "images": [
+    {
+      "path": "docs/research/manager/visuals/2026-10-18-mirofish-input-to-persona.png",
+      "size": [
+        1672,
+        941
+      ],
+      "sha256": "3437c1c943d445178b1d29f1d97042e907eb2a79794ba8392b692b880c8fba87"
+    },
+    {
+      "path": "docs/research/manager/visuals/2026-10-18-mirofish-simulation-to-report.png",
+      "size": [
+        1672,
+        940
+      ],
+      "sha256": "4e83d19f249659280c742857fc4c650aab3614ae61f72bdf295563012b5bb04d"
+    }
+  ],
+  "checks": [
+    "Fixed source SHA included in code links",
+    "All persons/posts/log examples marked fictitious",
+    "MiroFish graph distinguished from BN",
+    "Zep Cloud extraction and OASIS/CAMEL prompt boundary explicit",
+    "Rule-based fallback profile explained",
+    "Twitter available action types separated from generic comment example",
+    "LLM API inference distinguished from fine-tuning",
+    "AGPL and external dependencies documented",
+    "Article image links resolve",
+    "Japanese lint reviewed; explanatory polite endings retained where appropriate",
+    "Optional graph-memory update distinguished from direct JSONL search"
+  ],
+  "limitations": [
+    "Actual model prompts inside OASIS/CAMEL not fully inspected",
+    "No reproduction or real-world predictive validation",
+    "Generated node/character decoration colors do not denote provenance; labels and panels carry the distinction"
+  ],
+  "article_sha256": "bd01d304fff328264dcb148f7638c1d1e6c435bb128fbc66b4db7cac22c25a3e"
+}

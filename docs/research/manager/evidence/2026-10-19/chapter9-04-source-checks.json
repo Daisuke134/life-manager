@@ -1,0 +1,105 @@
+{
+  "scope": "Read relevant original sections; no real behavioral performance measured",
+  "claims": [
+    {
+      "claim": "Logit objective",
+      "status": "付いた",
+      "quotes": [
+        {
+          "file": "sklearn-logistic.md",
+          "line": 868,
+          "text": "As an optimization problem, binary"
+        }
+      ]
+    },
+    {
+      "claim": "Available alternatives and likelihood",
+      "status": "付いた",
+      "quotes": [
+        {
+          "file": "biogeme-logit.md",
+          "line": 115,
+          "text": "log_probability = loglogit(v, av, CHOICE)"
+        }
+      ]
+    },
+    {
+      "claim": "Real downloadable estimation code",
+      "status": "付いた",
+      "quotes": [
+        {
+          "file": "biogeme-logit-code.py.txt",
+          "line": 120,
+          "text": "results = the_biogeme.estimate()"
+        }
+      ]
+    },
+    {
+      "claim": "Historical primary chapter",
+      "status": "付いた",
+      "quotes": [
+        {
+          "file": "mcfadden-conditional-logit.txt",
+          "line": 6,
+          "text": "Conditional logit analysis"
+        }
+      ]
+    },
+    {
+      "claim": "Official model version and price",
+      "status": "付いた",
+      "quotes": [
+        {
+          "file": "jev-models-current.md",
+          "line": 14,
+          "text": "| Price (per Btok / per Mtok) | \\$42 / \\$0.042 | \\$42 / \\$0.042 |"
+        }
+      ]
+    },
+    {
+      "claim": "Parallel decisions architecture claim",
+      "status": "付いた",
+      "quotes": [
+        {
+          "file": "jev-launch.md",
+          "line": 45,
+          "text": "We built a new stack entirely focused on automation: with a new model architecture, parallel sampler for maximum efficiency, and training method we call Reinforcement Learning for Calibrated Decisions (RLCD)."
+        }
+      ]
+    }
+  ],
+  "execution": {
+    "data_kind": "fictional teaching data; not real-world validation",
+    "single_update": {
+      "x": 1.0,
+      "y": 1.0,
+      "before_p": 0.5,
+      "before_loss": 0.6931471805599453,
+      "after_w": 0.1,
+      "after_b": 0.1,
+      "after_p": 0.549833997312478,
+      "after_loss": 0.5981388693815918
+    },
+    "full_batch": {
+      "n": 20,
+      "w": 1.3862943611198806,
+      "b": -7.993605777301137e-17,
+      "p_x_plus1": 0.7999999999999985,
+      "p_x_minus1": 0.2000000000000016,
+      "p_x_half": 0.6666666666666655,
+      "training_logloss": 0.5004024235381879
+    },
+    "warning": "Training fit only; no heldout behavioral accuracy or causal effect established."
+  },
+  "sources": {
+    "jev-launch.md": "d4320ea777a2226f6e03b3c8cdd4c52935e510eca7092d718c29929dd2034506",
+    "biogeme-logit-code.py.txt": "1607cb950f74c618766ba51c30da5057b766145e076ff953c3015e2c140082b9",
+    "mcfadden-conditional-logit.txt": "e3f2cdf418e8b6140b82e960b69224762c2eb9607e13aa868bb1e5381ce435af",
+    "train-logit-ch3.pdf": "bc3506b5b481ec316f109167f28d6c8876dd088d91f885baed584c39a0966c6f",
+    "train-logit-ch3.txt": "625e555853653a9f5e7b043fb278410c01b01e7b9703e65c954b7e6743270b2e",
+    "biogeme-logit.md": "6c28d335054a9021510c235e5c6bc71c3478babf18d8d96a69481913a1a31114",
+    "mcfadden-conditional-logit.pdf": "56a9284b52abc14bd95b208b040f58d3c81d163a5fae357e98fc75ce3a2da241",
+    "jev-models-current.md": "02b7682a7176d2d6649a2fa4588df45cbbaa3c3460f721828d632a7577e606df",
+    "sklearn-logistic.md": "3b5a5275dd4885bc6a82d4cdd922cd2ac8b3db4a5a3870cfad8f8d401aaf2215"
+  }
+}

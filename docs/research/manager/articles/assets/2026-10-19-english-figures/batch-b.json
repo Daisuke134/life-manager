@@ -1,0 +1,377 @@
+{
+  "schema_version": 1,
+  "batch": "b",
+  "date": "2026-10-19",
+  "unique_source_count": 13,
+  "scope": "Last13 unique source figures referenced by EN articles in the immutable 2026-10-19 package order, excluding already-English chapter9-02 globally.",
+  "entries": [
+    {
+      "source_path": "docs/research/manager/articles/visuals/2026-10-18-llm-population-ja.png",
+      "source_sha256": "c75b55eb16b7e3914ac451c9684efee3a7e435eb77ce6bdb699ffb17972acc92",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-18-llm-population-ja-en.png",
+      "sha256": "a8a38b76ed3d6038ccd5dafc3bf34e23e05728dc654d2ffde3dab9d957dfd427",
+      "bytes": 1574602,
+      "dimensions": [
+        1672,
+        941
+      ],
+      "generated_original_path": "/workspace/generated_images/exec-974c22bc-af63-4786-b141-4f3dc0245d65.png",
+      "target_slugs": [
+        "manager-llm-population-en"
+      ],
+      "generation_kind": "image_gen_english_edit",
+      "visual_review": "Original and final viewed individually; all explanatory labels English; mathematical values, measured/fictional distinctions and limitations inspected."
+    },
+    {
+      "source_path": "docs/research/manager/articles/visuals/2026-10-18-transformer-learning-ja.png",
+      "source_sha256": "29800756ba241a433e6e8e24d07807f378f37ad40158fb525e2d1365ac694ecb",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-18-transformer-learning-ja-en.png",
+      "sha256": "db4f90476f2e226282ceaaabb3f3a8e759df799ef286e150db7529c2fc6fbbab",
+      "bytes": 1707291,
+      "dimensions": [
+        1672,
+        941
+      ],
+      "generated_original_path": "/workspace/generated_images/exec-fc90d06b-59f8-4eb5-a964-af0ec26619d5.png",
+      "target_slugs": [
+        "manager-llm-population-en"
+      ],
+      "generation_kind": "image_gen_english_edit",
+      "visual_review": "Original and final viewed individually; all explanatory labels English; mathematical values, measured/fictional distinctions and limitations inspected."
+    },
+    {
+      "source_path": "docs/research/manager/articles/visuals/2026-10-17-population-to-behavior-ja.png",
+      "source_sha256": "9c26978fbafba515d22d1518336043ca1b4c13d05106d08e3ea5d876a61ff212",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-17-population-to-behavior-ja-en.png",
+      "sha256": "0c515a2291f9815b15bfde0b0e6894e9882d2509273638a99609b7c49708f588",
+      "bytes": 1775950,
+      "dimensions": [
+        1774,
+        887
+      ],
+      "generated_original_path": "/workspace/generated_images/exec-73760c2c-0ab1-4d4b-b51e-4c1ee521615c.png",
+      "target_slugs": [
+        "manager-population-models-and-behavior-en",
+        "manager-population-to-behavior-en"
+      ],
+      "generation_kind": "image_gen_english_edit",
+      "visual_review": "Original and final viewed individually; all explanatory labels English; mathematical values, measured/fictional distinctions and limitations inspected."
+    },
+    {
+      "source_path": "docs/research/manager/articles/visuals/2026-10-18-generative-methods-comparison-ja.png",
+      "source_sha256": "77f5eba6ed1ce20119a9fe77c4204c19194a26e47b6706277d676fff84236944",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-18-generative-methods-comparison-ja-en.png",
+      "sha256": "0e8f2fb1790d75f86de29a776a777987696809b5ab628bb14883330c9deec72a",
+      "bytes": 1942617,
+      "dimensions": [
+        1672,
+        941
+      ],
+      "generated_original_path": "/workspace/generated_images/exec-b160272e-b5f3-404e-aade-ed086ca7fa73.png",
+      "target_slugs": [
+        "manager-generative-methods-comparison-en"
+      ],
+      "generation_kind": "image_gen_english_edit",
+      "visual_review": "Original and final viewed individually; all explanatory labels English; mathematical values, measured/fictional distinctions and limitations inspected."
+    },
+    {
+      "source_path": "docs/research/manager/articles/visuals/2026-10-18-manager-dataset-selection-ja.png",
+      "source_sha256": "49b58c16621bc9af72513e0af67d148ab06ff208bf24fd04bb2792c1d2042061",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-18-manager-dataset-selection-ja-en.png",
+      "sha256": "18b057e644d08dbfd97ee7b6f6c7cc8aa2332dcc09cfcf2887ba8f81ce51c6d4",
+      "bytes": 1827734,
+      "dimensions": [
+        1672,
+        941
+      ],
+      "generated_original_path": "/workspace/generated_images/exec-5a04c8c8-83f7-46e3-809b-22257e0bfb88.png",
+      "target_slugs": [
+        "manager-population-dataset-selection-en"
+      ],
+      "generation_kind": "image_gen_english_edit",
+      "visual_review": "Original and final viewed individually; all explanatory labels English; mathematical values, measured/fictional distinctions and limitations inspected."
+    },
+    {
+      "source_path": "docs/research/manager/articles/visuals/2026-10-18-household-integerization-ja.png",
+      "source_sha256": "f7abe9b37eac34af40253544d14d7d114dd7044345b5d9466370a1898ce7f690",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-18-household-integerization-ja-en.png",
+      "sha256": "03925837a7e2c85d0fe7e51c646358e12538ccc7b7c0e49fbd5c8434d3ba2052",
+      "bytes": 1998509,
+      "dimensions": [
+        1672,
+        941
+      ],
+      "generated_original_path": "/workspace/generated_images/exec-b8e21813-49e9-4ba4-b610-ccb40245e015.png",
+      "target_slugs": [
+        "manager-household-integerization-en"
+      ],
+      "generation_kind": "image_gen_english_edit",
+      "visual_review": "Original and final viewed individually; all explanatory labels English; mathematical values, measured/fictional distinctions and limitations inspected.",
+      "review_note": "Corrected generated top-left header from integer count to Fractional count; retained 1.4/1.4/1.2/4.0. Lower output tables remain integer counts."
+    },
+    {
+      "source_path": "docs/research/manager/figures/2026-10-18-population-v0-flow.png",
+      "source_sha256": "441e6c94305611e6e848ee00552f6e8d72ca30ea5cb22459685a86df76979ee1",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-18-population-v0-flow-en.png",
+      "sha256": "af2a728d7d66736309c579ef2c1e0e6c3580fa760019e3809679982a6e908f58",
+      "bytes": 1510004,
+      "dimensions": [
+        1774,
+        887
+      ],
+      "generated_original_path": "/workspace/generated_images/exec-65fab990-4043-4401-8799-7c86908bb2e9.png",
+      "target_slugs": [
+        "manager-population-reconstruction-results-en"
+      ],
+      "generation_kind": "image_gen_english_edit",
+      "visual_review": "Original and final viewed individually; all explanatory labels English; mathematical values, measured/fictional distinctions and limitations inspected.",
+      "caption_guidance": "AI-generated explanatory infographic. Recorded measured figures and fictional mechanism examples are explicitly distinguished; no behavior or causal-benefit result is claimed."
+    },
+    {
+      "source_path": "docs/research/manager/figures/2026-10-18-population-v0-measured.png",
+      "source_sha256": "c3e8ba63bd7fce272884fec4e10119de2c720047ca4a3ad16e1d4a55e2ce5e67",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-18-population-v0-measured-en.png",
+      "sha256": "5878bb9bbedac1ef94d0b03286f5340045f79fbbfb31ddb6e877754a60031977",
+      "bytes": 127455,
+      "dimensions": [
+        2059,
+        1115
+      ],
+      "generated_original_path": null,
+      "target_slugs": [
+        "manager-population-reconstruction-results-en"
+      ],
+      "generation_kind": "matplotlib_from_measured_json",
+      "visual_review": "Original and final viewed individually; all explanatory labels English; mathematical values, measured/fictional distinctions and limitations inspected.",
+      "plot_provenance": [
+        {
+          "path": "docs/research/manager/evidence/2026-10-18/population-v0-summary.json",
+          "sha256": "923a888e7ed14f1872011369f0704e1845b5f4fabefd903ab22d7b240365888b"
+        },
+        {
+          "path": "docs/research/manager/articles/assets/2026-10-19-english-figures/render-measured-en.py",
+          "sha256": "66f2e0d02d9d821e3aebbd589393ef13b0efb090a5ae9a1534fbe490cc93a5b3"
+        }
+      ],
+      "caption_guidance": "Measured results plotted with matplotlib directly from recorded aggregate JSON. Bar heights use the unrounded values; displayed labels are rounded. This is not an AI approximation of a scientific plot."
+    },
+    {
+      "source_path": "docs/research/manager/figures/2026-10-18-household-v0-flow.png",
+      "source_sha256": "d8594aa19f99f4514eddf6d7ef672b5f549b421ad228a64345e0a44e312c049d",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-18-household-v0-flow-en.png",
+      "sha256": "9989b6210fee30d6104d1b998d000b57994a33c80902be7919109ad5c09aec9d",
+      "bytes": 1626389,
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "generated_original_path": "/workspace/generated_images/exec-4163e1fb-f77c-4892-8da8-55764af3e169.png",
+      "target_slugs": [
+        "manager-household-population-results-en"
+      ],
+      "generation_kind": "image_gen_english_edit",
+      "visual_review": "Original and final viewed individually; all explanatory labels English; mathematical values, measured/fictional distinctions and limitations inspected.",
+      "caption_guidance": "AI-generated explanatory infographic. Recorded measured figures and fictional mechanism examples are explicitly distinguished; no behavior or causal-benefit result is claimed."
+    },
+    {
+      "source_path": "docs/research/manager/figures/2026-10-18-household-v0-measured.png",
+      "source_sha256": "4b110ec2b9686fb8df07c78a5c5824ec00d2e1b7bfbf806ce5f87959280ed7dd",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-18-household-v0-measured-en.png",
+      "sha256": "435089db787b7fb0608f2c466dce101448d718a37fd113f8be6c41dab2096dcd",
+      "bytes": 141863,
+      "dimensions": [
+        2399,
+        1097
+      ],
+      "generated_original_path": null,
+      "target_slugs": [
+        "manager-household-population-results-en"
+      ],
+      "generation_kind": "matplotlib_from_measured_json",
+      "visual_review": "Original and final viewed individually; all explanatory labels English; mathematical values, measured/fictional distinctions and limitations inspected.",
+      "plot_provenance": [
+        {
+          "path": "docs/research/manager/evidence/2026-10-18/household-v0-summary.json",
+          "sha256": "faa81743bd0ee6c51dc0573e8e7d66ff67f4a694838c19c21b7bfc697c00a9c4"
+        },
+        {
+          "path": "docs/research/manager/articles/assets/2026-10-19-english-figures/render-measured-en.py",
+          "sha256": "66f2e0d02d9d821e3aebbd589393ef13b0efb090a5ae9a1534fbe490cc93a5b3"
+        }
+      ],
+      "caption_guidance": "Measured results plotted with matplotlib directly from recorded aggregate JSON. Bar heights use the unrounded values; displayed labels are rounded. This is not an AI approximation of a scientific plot."
+    },
+    {
+      "source_path": "docs/research/manager/learning/chapter9/2026-10-19-behavior-prediction-fundamentals.png",
+      "source_sha256": "f95dffd7e217815a30522f164588a158316ffc7bad45e50ee6beba853095f55c",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-19-behavior-prediction-fundamentals-en.png",
+      "sha256": "6ab4b05b73c6aff0057a64344c645136bb2c7461d8da3652f9becaaff2edff97",
+      "bytes": 1637405,
+      "dimensions": [
+        1672,
+        941
+      ],
+      "generated_original_path": "/workspace/generated_images/exec-06c8f0c1-1e37-4ea8-b486-a2ea784079e2.png",
+      "target_slugs": [
+        "manager-behavior-prediction-basics-en"
+      ],
+      "generation_kind": "image_gen_english_edit",
+      "visual_review": "Original and final viewed individually; all explanatory labels English; mathematical values, measured/fictional distinctions and limitations inspected."
+    },
+    {
+      "source_path": "docs/research/manager/learning/chapter9/2026-10-19-population-behavior-connection.png",
+      "source_sha256": "0e3cb41af0ffca953ee2c234b3c932778aeb70db6917c02fa2732d815c8879ee",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-19-population-behavior-connection-en.png",
+      "sha256": "77fc54c474e0f0cdd024fd0b339d783f7d698078484749bd9bb3ebc948a7b8cd",
+      "bytes": 1695331,
+      "dimensions": [
+        1672,
+        941
+      ],
+      "generated_original_path": "/workspace/generated_images/exec-02d99c0e-ac12-4ede-ac81-af5aad66b1fe.png",
+      "target_slugs": [
+        "manager-behavior-prediction-basics-en"
+      ],
+      "generation_kind": "image_gen_english_edit",
+      "visual_review": "Original and final viewed individually; all explanatory labels English; mathematical values, measured/fictional distinctions and limitations inspected."
+    },
+    {
+      "source_path": "docs/research/manager/articles/visuals/2026-10-18-manager-context.png",
+      "source_sha256": "b2387a23cde5e752c5fec753ee553719d12263f33e5ce1a0cd20bcf824e1983d",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-18-manager-context-en.png",
+      "sha256": "7ff2766b224a2db98306779c33f3380816db910f020490d76e04def19a3b4399",
+      "bytes": 1910338,
+      "dimensions": [
+        1672,
+        941
+      ],
+      "generated_original_path": "/workspace/generated_images/exec-eb94fd4d-23d8-46d1-a3e7-624032313080.png",
+      "target_slugs": [
+        "manager-simulation-lineage-and-mechanisms-en"
+      ],
+      "generation_kind": "image_gen_english_edit",
+      "visual_review": "Original and final viewed individually; all explanatory labels English; mathematical values, measured/fictional distinctions and limitations inspected."
+    }
+  ],
+  "placements": [
+    {
+      "target_slug": "manager-llm-population-en",
+      "source_path": "docs/research/manager/articles/visuals/2026-10-18-llm-population-ja.png",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-18-llm-population-ja-en.png",
+      "sha256": "a8a38b76ed3d6038ccd5dafc3bf34e23e05728dc654d2ffde3dab9d957dfd427"
+    },
+    {
+      "target_slug": "manager-llm-population-en",
+      "source_path": "docs/research/manager/articles/visuals/2026-10-18-transformer-learning-ja.png",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-18-transformer-learning-ja-en.png",
+      "sha256": "db4f90476f2e226282ceaaabb3f3a8e759df799ef286e150db7529c2fc6fbbab"
+    },
+    {
+      "target_slug": "manager-population-models-and-behavior-en",
+      "source_path": "docs/research/manager/articles/visuals/2026-10-17-population-to-behavior-ja.png",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-17-population-to-behavior-ja-en.png",
+      "sha256": "0c515a2291f9815b15bfde0b0e6894e9882d2509273638a99609b7c49708f588"
+    },
+    {
+      "target_slug": "manager-population-to-behavior-en",
+      "source_path": "docs/research/manager/articles/visuals/2026-10-17-population-to-behavior-ja.png",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-17-population-to-behavior-ja-en.png",
+      "sha256": "0c515a2291f9815b15bfde0b0e6894e9882d2509273638a99609b7c49708f588"
+    },
+    {
+      "target_slug": "manager-generative-methods-comparison-en",
+      "source_path": "docs/research/manager/articles/visuals/2026-10-18-generative-methods-comparison-ja.png",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-18-generative-methods-comparison-ja-en.png",
+      "sha256": "0e8f2fb1790d75f86de29a776a777987696809b5ab628bb14883330c9deec72a"
+    },
+    {
+      "target_slug": "manager-population-dataset-selection-en",
+      "source_path": "docs/research/manager/articles/visuals/2026-10-18-manager-dataset-selection-ja.png",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-18-manager-dataset-selection-ja-en.png",
+      "sha256": "18b057e644d08dbfd97ee7b6f6c7cc8aa2332dcc09cfcf2887ba8f81ce51c6d4"
+    },
+    {
+      "target_slug": "manager-household-integerization-en",
+      "source_path": "docs/research/manager/articles/visuals/2026-10-18-household-integerization-ja.png",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-18-household-integerization-ja-en.png",
+      "sha256": "03925837a7e2c85d0fe7e51c646358e12538ccc7b7c0e49fbd5c8434d3ba2052"
+    },
+    {
+      "target_slug": "manager-population-reconstruction-results-en",
+      "source_path": "docs/research/manager/figures/2026-10-18-population-v0-flow.png",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-18-population-v0-flow-en.png",
+      "sha256": "af2a728d7d66736309c579ef2c1e0e6c3580fa760019e3809679982a6e908f58"
+    },
+    {
+      "target_slug": "manager-population-reconstruction-results-en",
+      "source_path": "docs/research/manager/figures/2026-10-18-population-v0-measured.png",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-18-population-v0-measured-en.png",
+      "sha256": "5878bb9bbedac1ef94d0b03286f5340045f79fbbfb31ddb6e877754a60031977"
+    },
+    {
+      "target_slug": "manager-household-population-results-en",
+      "source_path": "docs/research/manager/figures/2026-10-18-household-v0-flow.png",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-18-household-v0-flow-en.png",
+      "sha256": "9989b6210fee30d6104d1b998d000b57994a33c80902be7919109ad5c09aec9d"
+    },
+    {
+      "target_slug": "manager-household-population-results-en",
+      "source_path": "docs/research/manager/figures/2026-10-18-household-v0-measured.png",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-18-household-v0-measured-en.png",
+      "sha256": "435089db787b7fb0608f2c466dce101448d718a37fd113f8be6c41dab2096dcd"
+    },
+    {
+      "target_slug": "manager-behavior-prediction-basics-en",
+      "source_path": "docs/research/manager/learning/chapter9/2026-10-19-behavior-prediction-fundamentals.png",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-19-behavior-prediction-fundamentals-en.png",
+      "sha256": "6ab4b05b73c6aff0057a64344c645136bb2c7461d8da3652f9becaaff2edff97"
+    },
+    {
+      "target_slug": "manager-behavior-prediction-basics-en",
+      "source_path": "docs/research/manager/learning/chapter9/2026-10-19-population-behavior-connection.png",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-19-population-behavior-connection-en.png",
+      "sha256": "77fc54c474e0f0cdd024fd0b339d783f7d698078484749bd9bb3ebc948a7b8cd"
+    },
+    {
+      "target_slug": "manager-simulation-lineage-and-mechanisms-en",
+      "source_path": "docs/research/manager/articles/visuals/2026-10-18-manager-context.png",
+      "image_path": "docs/research/manager/articles/assets/2026-10-19-english-figures/2026-10-18-manager-context-en.png",
+      "sha256": "7ff2766b224a2db98306779c33f3380816db910f020490d76e04def19a3b4399"
+    }
+  ],
+  "measured_values_used_for_plots": {
+    "population": {
+      "development": {
+        "independent": 0.015543973751977538,
+        "ipf": 0.0030996450973986007
+      },
+      "validation": {
+        "independent": 0.017104454279375503,
+        "ipf": 0.005242844151149625
+      },
+      "test": {
+        "independent": 0.01434818906262829,
+        "ipf": 0.008880598197022646
+      }
+    },
+    "household": {
+      "tvd": [
+        0.002339379939760396,
+        0.0005108509855554699,
+        0.0005435151844554427
+      ],
+      "max_marginal_error_households": [
+        1021.0,
+        1.4179066056385636e-05,
+        17.0
+      ]
+    }
+  },
+  "notes": [
+    "One replacement per source, shared across all EN article placements.",
+    "Eleven image_gen English explanatory edits retain original generated bytes; two measured charts are newly plotted from recorded JSON with matplotlib.",
+    "All 13 original and final figures inspected; no publication, article, old manifest, SSOT or Git mutation.",
+    "Household discrepancy17 is marginal-total discrepancy, not a bound on every cross-cell. Population mean TVD is an unweighted regional mean.",
+    "The original generated images remain in /workspace/generated_images. The reusable plotting script writes only the two task-owned English charts."
+  ]
+}

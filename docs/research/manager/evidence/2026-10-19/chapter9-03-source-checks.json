@@ -1,0 +1,109 @@
+{
+  "scope": "Foundational reading and fictional executable example only; unpublished",
+  "claims": [
+    {
+      "claim": "Conditional probability definition",
+      "status": "付いた",
+      "quotes": [
+        {
+          "file": "d2l-probability.md",
+          "line": 891,
+          "text": "extremely important. It is called the conditional probability, and is"
+        }
+      ]
+    },
+    {
+      "claim": "Feature-blind empirical prior baseline",
+      "status": "付いた",
+      "quotes": [
+        {
+          "file": "sklearn-dummy.md",
+          "line": 47,
+          "text": "class distribution of y also known as the empirical class prior"
+        }
+      ]
+    },
+    {
+      "claim": "Actual baseline implementation",
+      "status": "付いた",
+      "quotes": [
+        {
+          "file": "sklearn-dummy-source.md",
+          "line": 380,
+          "text": "out = np.ones((n_samples, 1)) * class_prior_[k]"
+        }
+      ]
+    },
+    {
+      "claim": "Small count smoothing",
+      "status": "付いた",
+      "quotes": [
+        {
+          "file": "jurafsky-ngram.txt",
+          "line": 763,
+          "text": "The simplest way to do smoothing is to add one to all the n-gram counts, before"
+        }
+      ]
+    },
+    {
+      "claim": "Last-observation forecast",
+      "status": "付いた",
+      "quotes": [
+        {
+          "file": "hyndman-baselines.txt",
+          "line": 337,
+          "text": "For naïve forecasts, we simply set all forecasts to be the value of the last observation. That is,"
+        }
+      ]
+    },
+    {
+      "claim": "Prediction versus explanation",
+      "status": "付いた",
+      "quotes": [
+        {
+          "file": "shmueli-correct.txt",
+          "line": 21,
+          "text": "explanatory power are inherently of high predictive power. Conflation"
+        }
+      ]
+    }
+  ],
+  "source_sha256": {
+    "sklearn-dummy.md": "37fcce7818b1abd796dc4705ccb6224051653d15ecd3d04aee908adcc927a2a8",
+    "hyndman-baselines.html": "d72117b50768eed014ba8ec8bc835940cdfa2b34ca7ec76b22ce2b0484877f9a",
+    "jurafsky-ngram.pdf": "4c49ef5fd5ee99cd4e01d8c755662756daf701bbe3db4da5abf693a64485e60f",
+    "train-choice-ch2.pdf": "d5cfcdb424f2694368b706c56023a7fd6cd342ddef3849a44772557d8f815225",
+    "sklearn-dummy-source.md": "3c4c1eeb7afc2017981fe018e8a33256546bfc282480cd83f19dd3e353a137ee",
+    "hyndman-baselines.txt": "626af6d48a5270cc0bde39603c2d1828747f316c97d622c2d8651eded13c2563",
+    "train-choice-ch2.txt": "bced15d6799e7cebcb916919c55bb9f3719791fd8be2e0f0b868127b3efe4cb2",
+    "shmueli-correct.txt": "d04e0997fc0c08a66a569e9e5269376b2a1d9dd725a944aec1fe31d74c4e1a4b",
+    "shmueli-correct.pdf": "69b9212fa7c75a790d7dcdac352b22a19bb9813961d6c5d27c3fca092e9b197e",
+    "irbook-smoothing.md": "c11a4f4ac32f944bbf3be8372f8f3e6e3b69ecd82da48d0e2cbc6509a4adfa2f",
+    "d2l-probability.md": "4d85395a340378112e7941ca5e63c0e61a178b0ff378dd54c9b92a2aefe456d5",
+    "jurafsky-ngram.txt": "70c9963a4214604bea344634b24d146008072968fd6ba673d659f2b903cdff26",
+    "shmueli-explain-predict.txt": "cef9ab7f58f6126f921aa5e43e62dda7b3abb972f116c6cdd6e8d018b073dfca",
+    "shmueli-explain-predict.pdf": "1791b842cd89187cb5f42d3c4eb315e0416e845a336acb066e25c4bdb3d98014"
+  },
+  "excluded_wrong_candidate": "shmueli-explain-predict.* is Gelman/Shalizi and not cited",
+  "execution": {
+    "data_kind": "fictional teaching fixture, not real-world validation",
+    "training_n": 20,
+    "overall_bus_probability": 0.5,
+    "conditional_bus_probability": {
+      "rain": 0.8,
+      "clear": 0.2
+    },
+    "heldout_overall": {
+      "n": 8,
+      "accuracy": 0.5,
+      "brier_binary": 0.25
+    },
+    "heldout_conditional": {
+      "n": 8,
+      "accuracy": 0.75,
+      "brier_binary": 0.19000000000000003
+    },
+    "laplace_binary_1_success_1_trial": 0.6666666666666666,
+    "warning": "Constructed data illustrate mechanics, not evidence that conditioning always improves prediction."
+  }
+}

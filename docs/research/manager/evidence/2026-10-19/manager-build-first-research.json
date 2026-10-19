@@ -1,0 +1,130 @@
+{
+  "date": "2026-10-19",
+  "research_method": "Free full-source retrieval and source/link following; raw copies private. No paid crawling or model inference.",
+  "sources": [
+    {
+      "claim": "Buddhist mission background",
+      "url": "https://www.accesstoinsight.org/tipitaka/sn/sn56/sn56.011.than.html",
+      "source_file": "philosophy-sn56-11.txt",
+      "sha256": "c2d10946ba2e038e2f25500fd94ec98e9408f63b4318a122cc5c98b57b9565cc",
+      "reading_scope": "Four truths and tasks; dukkha is broader than measured inconvenience."
+    },
+    {
+      "claim": "Conditional arising",
+      "url": "https://www.accesstoinsight.org/tipitaka/sn/sn12/sn12.015.than.html",
+      "source_file": "philosophy-sn12-15.txt",
+      "sha256": "c9a983f06dbfb427c937d709d35da3ff0f9101411fe007fc0a9cb72b547560aa",
+      "reading_scope": "Dependent arising is not identical to a causal DAG."
+    },
+    {
+      "claim": "Service metaphor",
+      "url": "https://www.lotsawahouse.org/indian-masters/shantideva/bodhicharyavatara-3",
+      "source_file": "philosophy-shantideva3.txt",
+      "sha256": "65cb8b2dcae42b2df773dcde3000c1413337e3e2815531aabd259fd448873d9b",
+      "reading_scope": "Verses3.17–18; contemporary AI application is our interpretation."
+    },
+    {
+      "claim": "Good Samaritan",
+      "url": "https://bible.usccb.org/bible/luke/10",
+      "source_file": "philosophy-luke10.txt",
+      "sha256": "6a76dc69e3d1e12123d9c5556f9691cd6af66540b3a1b3e4808d6fe9064213a9",
+      "reading_scope": "Luke10.25–37; divine intervention is not its exact phrase."
+    },
+    {
+      "claim": "Inquiry",
+      "url": "https://www.gutenberg.org/files/37423/37423-h/37423-h.htm#Page_72",
+      "source_file": "philosophy-dewey.txt",
+      "sha256": "2b4cdccbfea85e6aa92214943f691c934117ee81e619d61176765af2a8e44147",
+      "reading_scope": "Chapter6; observations and experiment can reject a proposed solution."
+    },
+    {
+      "claim": "System intervention",
+      "url": "https://donellameadows.org/wp-content/userfiles/Leverage_Points.pdf",
+      "source_file": "philosophy-meadows.txt",
+      "sha256": "b15d3f88b81f03a041275edbb15a7d887f91e088ef77b2379dcbb66036195f78",
+      "reading_scope": "Leverage points and limitations; not a universal optimization recipe."
+    },
+    {
+      "claim": "Calm technology",
+      "url": "https://calmtech.com/papers/coming-age-calm-technology.html",
+      "source_file": "philosophy-weiser.txt",
+      "sha256": "6210556b1e9877b6065d7f45f4fd169935bef34057442a872caa47b6ee599a3c",
+      "reading_scope": "Individual control and attention; not an autonomous AI specification."
+    },
+    {
+      "claim": "AI humor quality",
+      "url": "https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0305364",
+      "source_file": "comedy-ai-gorenz-schwarz.md",
+      "sha256": "abc4b035254f69f507303905a943f87e312375d78fac56ae057f2d5fcb0c6b24",
+      "reading_scope": "Blinded ratings of selected text tasks; not live performance or welfare outcomes."
+    },
+    {
+      "claim": "Laughter and cortisol",
+      "url": "https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0286260",
+      "source_file": "intervention-laughter2023.txt",
+      "sha256": "353ac69431325b34268d933665d7c01cf6d7453f94b424b8725c41a677d4895d",
+      "reading_scope": "Eight studies315participants, heterogeneous interventions and short-term cortisol; not AIcomedy efficacy."
+    },
+    {
+      "claim": "Music therapy",
+      "url": "https://www.cochrane.org/evidence/CD004517_music-therapy-depression",
+      "source_file": "intervention-music-original-summary.txt",
+      "sha256": "bcb1ce1d35d2fba9a2d685d8a93301caee1dec0fa60d0cef2bb03fdbb81e0335",
+      "reading_scope": "Read complete official structured abstract and explanation, not all included primary trials/full review; not Spotify/AIgeneratedmusic."
+    },
+    {
+      "claim": "Music intervention distinctions",
+      "url": "https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0240862",
+      "source_file": "intervention-music2020.txt",
+      "sha256": "6c06f29c0d55bab5e3494e942635f7e49e5c622c86367f11dddc85cd69601a7f",
+      "reading_scope": "Musictherapy vs musicmedicine; heterogeneous trials, not a head-to-head superiority claim."
+    },
+    {
+      "claim": "Adaptive intervention design",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5364076/",
+      "source_file": "intervention-jitai.txt",
+      "sha256": "b822ee2d2921209c9341cced2fa3440677096aceaa02fe5ca656e332d2d18530",
+      "reading_scope": "Six elements and receptivity; methodological design not a Manager trial."
+    },
+    {
+      "claim": "Repeated intervention experiments",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC4732571/",
+      "source_file": "intervention-mrt.txt",
+      "sha256": "0672c898ef07449f6e827c393718e344e79f2168552753ea90b3f857954966f0",
+      "reading_scope": "Eligible decision times and randomization; distinguish assignment/exposure."
+    },
+    {
+      "claim": "HeartSteps field evidence",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6401341/",
+      "source_file": "intervention-heartsteps-bioc.txt",
+      "sha256": "2fe6f52c9dc7070b37e58973af1cf475cf3cfbbc917c94a17bc67ad2c2ad897e",
+      "reading_scope": "37adults42days; heterogeneous/diminishing effects; not comedy/music."
+    },
+    {
+      "claim": "Reusable policy software",
+      "url": "https://vowpalwabbit.org/docs/vowpal_wabbit/python/latest/tutorials/python_Contextual_bandits_and_Vowpal_Wabbit.html",
+      "source_file": "intervention-vowpal.txt",
+      "sha256": "2ce8d1354e8b902ca3e26ea29b421b9e57b1e44660cfff809cd0310d5a3efaea",
+      "reading_scope": "Context/action/propensity/reward; no clinical effectiveness evidence."
+    }
+  ],
+  "existing_component_tests": {
+    "command": "node --test lib/opportunity-engine.test.js lib/agent-graph.test.js lib/loop-adapter-registry.test.js lib/effect-reconciler.test.js lib/connector-candidate-outcome.test.js",
+    "workdir": "apps/life-manager",
+    "tests": 34,
+    "passed": 34,
+    "failed": 0,
+    "scope": "Existing component tests only. Proposed integration not implemented."
+  },
+  "source_review": {
+    "reviewer": "manager_existing_architecture_audit",
+    "blocking_findings": 0,
+    "scope": "Read-only comparison to repository interfaces; not live deployment audit"
+  },
+  "publication": "held; English article and future website copy saved only",
+  "japanese_figure": {
+    "path": "docs/research/manager/learning/assets/2026-10-19-manager-build-first-architecture-ja.png",
+    "sha256": "1425a7a31d08ddac8cdc769d5cfa86d7d4a2fcb7e13d2472c3ea6a7b56479e4b",
+    "review": "Main flow1->2->3->4->5->6->1 checked; proposal and unmeasured effect labels present."
+  }
+}
