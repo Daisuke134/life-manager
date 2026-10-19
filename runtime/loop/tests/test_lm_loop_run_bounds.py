@@ -4135,7 +4135,7 @@ def test_explicit_operator_disk_stop_still_defers_before_queue_and_provider_chil
         assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 75
     gate.assert_called_once()
     enqueue.assert_not_called(); claim.assert_not_called(); release.assert_not_called(); child.assert_not_called()
-    defer.assert_called_once_with("example")
+    defer.assert_called_once_with("example", cooldown_seconds=60)
     result = json.loads(receipt.read_text())
     assert result["status"] == "deferred" and result["effect"] == 0
     assert result["reason"] == "disk_writers_stop" and result["phase"] == "pre_enqueue"
@@ -4156,6 +4156,34 @@ def test_disk_floor_defers_before_queue_and_provider_child(tmp_path):
         assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 75
     enqueue.assert_not_called(); child.assert_not_called()
     assert json.loads(receipt.read_text())["reason"] == "disk_floor_low"
+
+
+def test_disk_floor_deferral_yields_reserved_slot_to_runnable_revenue_owner(
+        tmp_path, monkeypatch):
+    # 2026-10-19: aged support browser owners below the producer floor were reserved,
+    # kicked and disk-deferred ~1,000 times in five hours. With no cooldown each
+    # re-won the next reserve pass, so promptbase-loop-daily (revenue floor, runnable)
+    # never got the single browser slot and its 04:20 daily occurrence sat queued.
+    admission_root = tmp_path / "admission"
+    monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(admission_root))
+    admission.activate_durable_v2()
+    aged = time.time() - 3 * 3600
+    admission.enqueue_durable("browser", "support-browser", admission_class="borrow", now=aged)
+    admission.enqueue_durable("browser", "daily-revenue", admission_class="revenue",
+                              occurrence_id="daily-revenue:0420", now=aged)
+    assert admission.reserve_available() == ["support-browser"]
+
+    entry = {"cadence": {"start_interval_seconds": 300}, "provider_route": "deterministic",
+             "resource_class": "browser", "effect_class": "message"}
+    with (patch("runtime.loop.lm_loop_run._producer_gate",
+                side_effect=[None, ("disk_floor_low", tmp_path)]),
+          patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run._run_entrypoint_with_stderr_capture") as child):
+        assert _run_admitted(["/bin/true"], entry, "support-browser", {},
+                             tmp_path / "host-admission.json") == 75
+    child.assert_not_called()
+
+    assert admission.reserve_available() == ["daily-revenue"]
 
 
 def test_healthy_disk_boundary_keeps_finite_dispatch_without_numeric_probe(tmp_path):

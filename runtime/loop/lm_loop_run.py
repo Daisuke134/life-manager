@@ -1624,7 +1624,10 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             return False
         if durable and phase in {"pre_enqueue", "pre_claim"}:
             try:
-                defer_durable_resource(loop_id)
+                # Same cooldown as a failed dispatch: the disk floor is per owner, so an
+                # owner deferred here would otherwise re-win the next reserve pass and
+                # starve a queued owner that could run (promptbase-loop-daily, 2026-10-19).
+                defer_durable_resource(loop_id, cooldown_seconds=60)
             except (OSError, RuntimeError, sqlite3.Error):
                 pass
         _atomic_json(receipt, {"status": "deferred", "effect": 0, "phase": phase,
