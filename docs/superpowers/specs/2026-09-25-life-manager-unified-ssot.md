@@ -3753,3 +3753,18 @@ Verification so far: route hashes/noindex/live-route checks passed; adapter synt
 
 
 改訂の検証：9.1の架空40件から雨/晴れの条件付き頻度0.8/0.2、全体基準0.5、100人の仮想条件で期待人数50を再計算。12枚のPNG寸法、21ローカルリンク、JSON、描画scriptの構文、git diff空白を確認。25教材ファイルのhashを `docs/research/manager/evidence/2026-10-19/chapter9-fundamentals-checks.json` へ保存。日本語lint96/100の2候補は観測と心の推測、架空の接続と実接続の必要な区別のため維持。原資料の確認範囲は同dirの `chapter9-fundamentals-sources.json`。横/縦の代表スライドと生成図2枚を目視。旧10月18日教材manifestは当時commitの履歴として識別し、新manifestへ参照を付けた。新しい製品機能・実データ学習・実地検証は実行していない。
+
+
+### 2026-10-19 人口と行動の関係、Manager記事公開、9.2
+
+本人の追加指定：Managerは問題を先に見つけて解決し、苦しみを減らすために自発的に働きかける製品。予測だけで止めない。人口合成と行動モデルは別の部品で、それぞれ独立利用できる。行動シミュレーションには主体の表現が必要だが、実際の既知の利用者/参加者/名簿や単純な設定を使えば、8Bのような人口合成は必須ではない。集団全体の影響を調べる際に対象の一覧がなければ両者を組み合わせる。ルールや最適化で直接解ける問題には、学習した行動予測器も毎回必須とはしない。これらは製品の設計方針で、Managerの現実の便益が実証済みという主張ではない。
+
+本人は9.2へ進むことを明示希望。9.1を繰り返して止めず、9.2を調査・作成・説明する。記事 `docs/research/manager/articles/2026-10-19-chapter9-02-behavior-data-ja.md` とEN、記事内assetsのJA/EN生成図を保存。人×選択機会、利用可能性、予測時刻と入力の取得時刻、行動時刻、ラベル確定、非選択/利用不可/欠測/観測前の違いを架空例で説明。Train、Biogeme/Swissmetroの辞書と実コード、NHTS2022辞書、ATUSの結合手順、scikit-learnの公式資料10件を確認。Swissmetroの表明選好を現実の乗車行動と呼ばない。NHTSのPERSONIDはHOUSEIDとの組合せ、2022版のTDCASEID/TRIPIDを確認。主担当もBiogemeのCHOICE0除外、availability別入力、ATUSの識別子を独立readback。出典・hashは同研究dirのevidence/2026-10-19/chapter9-02-behavior-data-sources.json。実データの推定やモデル精度測定は今回していない。9.2の本人理解完了はまだ未記録。
+
+公開指示：まず https://aniccaai.com/blog/manager へManager学習記事を事業別に整理して公開し、その後にZenn/noteは日本語、Substackは英語へ展開。シリーズは既存の無料教材方針を維持し、他の有料Writerループの価格/購読設定を変更しない。公開は実URL/body/mediaのreadbackまでが成功条件。SubstackのWeb公開と購読者へのメール送信は別で、今回メール一斉送信はしていない。
+
+公開用packageはdocs/research/manager/publication/2026-10-19/。重複旧稿/動画原稿/保留応用資料等を除き、JA27+EN27、画像29点を整形。古い章進捗を描いた画像を一般構成図へ差替え、使命End suffering.・会社Aniccaを統一。画像の多くは日本語で、該当英語記事に明記。manifest SHA256 dd509054ac523d2483449da5ab5148fff5d2647f32ced3c4591b31d7a834ead1をfreeze。主担当は54本文の実bytes/embedded/hash/sourcehash、29画像hash、記事間リンク、会社名、私的識別情報を確認し、既存PII-gateも54件PASS。8A/8Bの主数値を保存summaryと再照合。3元記事に残った古い使命表現も訂正した。
+
+website_publish_approvedが既存のGitHub→Netlify経路を担当。canonical独立branch feat/manager-blog-publish-20261019のPR8387で、Managercollection、既存カテゴリへの追加、Manager限定の表/コード/番号リスト描画、Next build前のimmutable記事/画像importを準備。主担当も8件のscopedtestsを実行しPASS。ここまでの時点では本番未公開。parentはfreezeしたpackageで公開実行を承認済み、最終live receiptを追記する。
+
+配信先のアクセス確認：このクラウドにはnote/Substackのセッション・公開設定・登録browser・sessionvaultがない。既存Runtimeenvを安全に読み、値を出力せず設定有無を確認した。利用可能な接続先/既存ジョブを本人へ非同期質問中。Zennは既存の公開連携repoとaniccaアカウントを公開APIで照合し、既存managedcheckoutへclone。9.1のローカルdraftと既存CLIpreviewを用意したが、自社サイトより先に公開しない。全チャネル公開済みとはしない。

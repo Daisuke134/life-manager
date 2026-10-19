@@ -1,0 +1,197 @@
+{
+  "schema_version": 1,
+  "checked_at_utc": "2026-10-19T01:07:52.227041+00:00",
+  "article_ja": "docs/research/manager/articles/2026-10-19-chapter9-02-behavior-data-ja.md",
+  "article_en": "docs/research/manager/articles/2026-10-19-chapter9-02-behavior-data-en.md",
+  "scope": {
+    "public_article": true,
+    "all_example_records_fictional": true,
+    "no_participant_microdata_saved": true,
+    "no_model_fit_or_performance_claim": true,
+    "no_population_or_product_usecase_chosen": true,
+    "no_website_publishing_or_git_mutations": true
+  },
+  "sources": [
+    {
+      "id": "train_ch2",
+      "url": "https://eml.berkeley.edu/books/choice2nd/Ch02_p9-33.pdf",
+      "scope": "Section2.2 choice sets; mutually exclusive/exhaustive/finite and outside option; web tool indexedPDF excerpts, no copyrightedpages reproduced",
+      "role": "author textbook",
+      "publication": "second edition2009",
+      "reuse": "author access page specifies personal study/research; no fulltext or figures reproduced",
+      "http_status": 200,
+      "retrieved_bytes": 130304,
+      "sha256_retrieved_document": "d5cfcdb424f2694368b706c56023a7fd6cd342ddef3849a44772557d8f815225",
+      "response_content_type": "application/pdf",
+      "retrieved_url": "https://eml.berkeley.edu/books/choice2nd/Ch02_p9-33.pdf"
+    },
+    {
+      "id": "train_access",
+      "url": "https://eml.berkeley.edu/books/choice2.html",
+      "scope": "author publication dates and electronic-access conditions",
+      "role": "author website",
+      "http_status": 200,
+      "retrieved_bytes": 4639,
+      "sha256_retrieved_document": "b5d5309c864eabc9d38de60a698d80c17ce3f2af811b3abd98c8285ce293ca79",
+      "response_content_type": "text/html",
+      "retrieved_url": "https://eml.berkeley.edu/books/choice2.html"
+    },
+    {
+      "id": "swissmetro_dictionary",
+      "url": "https://transp-or.epfl.ch/pythonbiogeme/examples/swissmetro/swissmetro.pdf",
+      "scope": "6page author data description; statedchoice procedure; ID,SP,CHOICE0unknown1train2SM3car; time/cost/availability dictionary",
+      "role": "author data description",
+      "no_participant_rows_downloaded": true,
+      "http_status": 200,
+      "retrieved_bytes": 94017,
+      "sha256_retrieved_document": "fffc2f47034008d5cd582b1961cf2b9d75b0378f2e3dab62edd185dd3d74a04b",
+      "response_content_type": "application/pdf",
+      "retrieved_url": "https://transp-or.epfl.ch/pythonbiogeme/examples/swissmetro/swissmetro.pdf"
+    },
+    {
+      "id": "swissmetro_preprocess",
+      "url": "https://biogeme.epfl.ch/sphinx/_modules/biogeme/data/swissmetro.html",
+      "scope": "sourcecode read_data and Variable definitions; CHOICE0 removal; availabilityconstruction; HTML extracted to inspect relevant code; no estimation run",
+      "role": "official author sourcecode",
+      "http_status": 200,
+      "retrieved_bytes": 103015,
+      "sha256_retrieved_document": "b4f2dfee52343e4f3e19b5b5c90f96230045f0dd9e473408facd4453aaa86589",
+      "response_content_type": "text/html",
+      "retrieved_url": "https://biogeme.epfl.ch/sphinx/_modules/biogeme/data/swissmetro.html"
+    },
+    {
+      "id": "swissmetro_model",
+      "url": "https://biogeme.epfl.ch/sphinx/auto_examples/swissmetro/plot_b01a_logit.html",
+      "scope": "v,av,CHOICE separation and loglogit call; no code copied into article",
+      "role": "official author tutorial/sourcecode",
+      "page_date": "2026-06-09",
+      "http_status": 200,
+      "retrieved_bytes": 103439,
+      "sha256_retrieved_document": "b6f2d9c6f073943cda7b7a9df35a4e080d5215635ac3fa9495362132644e5a48",
+      "response_content_type": "text/html",
+      "retrieved_url": "https://biogeme.epfl.ch/sphinx/auto_examples/swissmetro/plot_b01a_logit.html"
+    },
+    {
+      "id": "nhts_codebook",
+      "url": "https://nhts.ornl.gov/assets/2022/doc/codebook.pdf",
+      "scope": "public metadata only: HOUSEID,PERSONID,TRIPID,TDCASEID,TRPTRANS and variable-specific skip/dontknow/notascertained codes; PDF pages13,15,36,38-43 with wholePDF searchable context; not participantdata",
+      "role": "official federal survey dictionary",
+      "document_version": "2.0.1 December2024; not assumed identical to current site distribution",
+      "http_status": 200,
+      "retrieved_bytes": 391626,
+      "sha256_retrieved_document": "b0d74a27042a1ebfcf2ab239a8dfd0493d14e221b17d66f690765a249a75d5b8",
+      "response_content_type": "application/pdf",
+      "retrieved_url": "https://nhts.ornl.gov/assets/2022/doc/codebook.pdf"
+    },
+    {
+      "id": "atus_howto",
+      "url": "https://www.bls.gov/tus/other-documentation/howto.htm",
+      "scope": "Activity file and linking sections; TUCASEID,TUACTIVITY_N; published examples not reproduced",
+      "role": "official federal instructions",
+      "http_status": 200,
+      "retrieved_bytes": 134202,
+      "sha256_retrieved_document": "3a30116e918fed0e1c1510eed121d365315dd04f4cd22cd3c2f9659b82db5415",
+      "response_content_type": "text/html",
+      "retrieved_url": "https://www.bls.gov/tus/other-documentation/howto.htm"
+    },
+    {
+      "id": "atus_faq",
+      "url": "https://www.bls.gov/tus/questions-and-answers.htm",
+      "scope": "previous-day diary collection; not claiming subsequentdays panel",
+      "role": "official federal methodology",
+      "http_status": 200,
+      "retrieved_bytes": 110086,
+      "sha256_retrieved_document": "c47049ac71e346eac4b8c3dccd04ca8ad61d01f10eeebaa1151d611a0edda30d",
+      "response_content_type": "text/html",
+      "retrieved_url": "https://www.bls.gov/tus/questions-and-answers.htm"
+    },
+    {
+      "id": "sklearn_leakage",
+      "url": "https://scikit-learn.org/stable/common_pitfalls.html",
+      "scope": "12.2 leakage, preprocessing fit trainingonly; no tutorial code copied",
+      "role": "official developer documentation",
+      "http_status": 200,
+      "retrieved_bytes": 109748,
+      "sha256_retrieved_document": "21fac11c181ab35624dcf8673f0475d403d4f6ecf0f9bead01a573d7642b515c",
+      "response_content_type": "text/html; charset=utf-8",
+      "retrieved_url": "https://scikit-learn.org/stable/common_pitfalls.html"
+    },
+    {
+      "id": "sklearn_cv",
+      "url": "https://scikit-learn.org/stable/modules/cross_validation.html",
+      "scope": "groupeddata GroupKFold and timeseries sections; not claiming automatic jointtime/person split",
+      "role": "official developer documentation",
+      "http_status": 200,
+      "retrieved_bytes": 169672,
+      "sha256_retrieved_document": "78d7587fa92ba3b3e480c9d841b50fedc14ac29d571ccb319d4068235154f0e2",
+      "response_content_type": "text/html; charset=utf-8",
+      "retrieved_url": "https://scikit-learn.org/stable/modules/cross_validation.html"
+    }
+  ],
+  "fictional_example": {
+    "unit": "person x plannedmorningcommute choiceoccasion",
+    "prediction_time": "07:30",
+    "horizon_end": "08:00",
+    "walk": {
+      "available": true,
+      "estimated_minutes": 25,
+      "cost_yen": 0
+    },
+    "bus": {
+      "available": true,
+      "estimated_minutes": 15,
+      "cost_yen": 220
+    },
+    "bicycle": {
+      "available": false,
+      "reason": "repair"
+    },
+    "outside_outcome": "confirmed no commute started by08:00",
+    "observed_action": "bus",
+    "action_time": "07:40",
+    "confirmation_time": "08:00",
+    "not_observed_and_pending": "not mapped to no-start",
+    "classification_rule": "walk only; bus includes walking access tobusstop; bicycle; multimotorvehicle trips excluded fromfictionalexample"
+  },
+  "image_ja": {
+    "original": "/workspace/generated_images/exec-ddff4ec6-36d6-4883-8f42-da81fca03054.png",
+    "copy": "docs/research/manager/articles/assets/2026-10-19-chapter9-02-behavior-data.png",
+    "generated_with": "image_gen",
+    "visual_inspection": "Japanese labels readable; fictionalexample labeled; bus/walktimes/cost and bicycleunavailability correct; textcaption notes no-start alternative omitted"
+  },
+  "editorial_verification": {
+    "source_boundary": "PASS canonical root and origin",
+    "yomiyasu_lint": "73/100 after title/opening revision; remainingwarnings reviewed for meaning-preserving explanatory prose and dictionary edition terminology",
+    "revision_comparison": "yomiyasu_diff run with --stance=説明; substantive meaning retained",
+    "public_copy": "no internal SSOT or progressstate references"
+  },
+  "image_en": {
+    "original": "/workspace/generated_images/exec-31b8500a-651c-4124-9a50-30ad51da79ca.png",
+    "copy": "docs/research/manager/articles/assets/2026-10-19-chapter9-02-behavior-data-en.png",
+    "generated_with": "image_gen editing originalJA illustration",
+    "visual_inspection": "English translated labels; exact fictionaltimes/cost and availability; no performanceclaim"
+  },
+  "artifacts": [
+    {
+      "path": "docs/research/manager/articles/2026-10-19-chapter9-02-behavior-data-ja.md",
+      "bytes": 22094,
+      "sha256": "097c38b53acf04aa9a102ce505ae910d6a733090e71a21e05c540262a602e7fe"
+    },
+    {
+      "path": "docs/research/manager/articles/2026-10-19-chapter9-02-behavior-data-en.md",
+      "bytes": 18526,
+      "sha256": "ca4509aa6483aa1b61cd89bf626b3c457fe85b542b6a101d9a74c27ddaa070fe"
+    },
+    {
+      "path": "docs/research/manager/articles/assets/2026-10-19-chapter9-02-behavior-data.png",
+      "bytes": 1561401,
+      "sha256": "e18c3eda0c90e260b0dd5b42bcfc0946490b7e2a2f70988c15c68b8e227d4476"
+    },
+    {
+      "path": "docs/research/manager/articles/assets/2026-10-19-chapter9-02-behavior-data-en.png",
+      "bytes": 1592698,
+      "sha256": "d292bb58107aaa6fe1e137a476b19e66672f2a56acf9bff5d7cc80a04555514d"
+    }
+  ],
+  "primary_review": "Verified Biogeme CHOICE/availability/preprocessing and ATUS linking variables independently; corrected one Japanese typo, preserved all source claims."
+}

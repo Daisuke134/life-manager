@@ -95,3 +95,10 @@ The user often dictates by voice, so transcripts may contain recognition errors.
 ## Learning curriculum order (2026-10-19 user clarification)
 
 Teach general fundamentals first, with small examples and implementations; then reproduce on public data; only then specialize for Manager. Chapter9 is behavioral prediction. Do not make suffering measurement, mindfulness or a specific clinical dataset its starting premise. Preserve those as later Manager application references. Synthetic population generation machinery from8B is reusable; the Rhode Island output is not automatically the final population for every Manager use case. Keep current chapter order and progress only in the unified SSOT.
+
+
+## Proactive Manager and publication preference (2026-10-19)
+
+Manager should proactively identify and solve problems to reduce suffering, rather than stop at prediction. Treat this as the product aim; distinguish implemented, evaluated capabilities from the aim. Population synthesis and behavior models are separable components: actual known users/cohorts can support prediction or simulation without a synthetic population; population-level scenarios with no full roster may combine both. Choose components by the task, not as universal mandatory prerequisites.
+
+Publish the Manager learning series under the own-site collection https://aniccaai.com/blog/manager first, grouped by business. The user authorized Japanese Zenn/note and English Substack syndication for this series. Preserve the series' free educational scope, sources, generated figures and measured-versus-fictional distinctions. Publication requires actual live readback per platform; queued/prepared/draft content is not published. Existing credentials and platform identities must be reused; do not infer that credentials are available merely because another host has them.
