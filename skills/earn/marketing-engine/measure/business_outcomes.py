@@ -82,6 +82,28 @@ PRODUCTS = {
         "revenuecat_app_id": "appdda58236fa",
         "analytics": None,
     },
+    # Vendor apps with Sales report rows but no app in the RevenueCat project
+    # (RevenueCat is recorded unavailable for them, never zero).
+    "dhamma-quotes": {
+        "asc_app_id": "6757726663",
+        "asc_sku": "dailydhamma",
+        "analytics": None,
+    },
+    "sleep-reset": {
+        "asc_app_id": "6762143790",
+        "asc_sku": "app.rork.vcinrjbl3ke00f07gtlzf",
+        "analytics": None,
+    },
+    "studio-cherie": {
+        "asc_app_id": "6766485903",
+        "asc_sku": "app.rork.xhozd938ie79zdqd5plem",
+        "analytics": None,
+    },
+    "thankful": {
+        "asc_app_id": "6759514159",
+        "asc_sku": "app.rork.thankful-gratitude-app",
+        "analytics": None,
+    },
     "ebook-en": {"stripe_product_ids": ["prod_UQ2LTH66Rwict4"]},
     "ebook-ja": {"stripe_product_ids": ["prod_UQ2LrpVy4b1bAY"]},
 }
@@ -518,13 +540,14 @@ def verify_gate5_snapshots(rows: list[dict[str, Any]], business_date: str) -> di
                 value = data["subscription"].get(field)
                 if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
                     raise ValueError(f"{product_id} missing Web subscription field: {field}")
-        elif "revenuecat_app_id" in config:
+        elif "asc_app_id" in config:
             revenuecat = sources.get("revenuecat")
             asc = sources.get("app_store_connect")
-            if not revenuecat or revenuecat["status"] != "available":
-                raise ValueError(f"{product_id} RevenueCat unavailable")
-            if revenuecat["data"].get("app_id") != config["revenuecat_app_id"]:
-                raise ValueError(f"{product_id} RevenueCat app mismatch")
+            if "revenuecat_app_id" in config:
+                if not revenuecat or revenuecat["status"] != "available":
+                    raise ValueError(f"{product_id} RevenueCat unavailable")
+                if revenuecat["data"].get("app_id") != config["revenuecat_app_id"]:
+                    raise ValueError(f"{product_id} RevenueCat app mismatch")
             if not asc or asc["status"] != "available":
                 raise ValueError(f"{product_id} ASC unavailable")
             if asc["data"].get("app_id") != config["asc_app_id"]:
@@ -1085,24 +1108,27 @@ def collect_snapshot(
             sources["web_funnel"] = available_source(data, evidence_sha256=_json_hash(data))
         except Exception:
             sources["web_funnel"] = unavailable_source("provider_query_failed")
-    elif "revenuecat_app_id" in config:
+    elif "asc_app_id" in config:
         # 28-day inclusive window: matches the "revenue_28d" figure in the owner report.
         start = (dt.date.fromisoformat(business_date) - dt.timedelta(days=27)).isoformat()
-        try:
-            data = collect_revenuecat(
-                env, config["revenuecat_app_id"], start, business_date
-            )
-            source = available_source(data)
-            source["evidence_sha256"] = _json_hash({
-                "status": source["status"],
-                "reason": source["reason"],
-                "data": source["data"],
-            })
-            sources["revenuecat"] = source
-        except Exception as error:
-            sources["revenuecat"] = unavailable_source(
-                "provider_query_failed", error=f"{type(error).__name__}: {error}"
-            )
+        if "revenuecat_app_id" not in config:
+            sources["revenuecat"] = unavailable_source("no_revenuecat_app")
+        else:
+            try:
+                data = collect_revenuecat(
+                    env, config["revenuecat_app_id"], start, business_date
+                )
+                source = available_source(data)
+                source["evidence_sha256"] = _json_hash({
+                    "status": source["status"],
+                    "reason": source["reason"],
+                    "data": source["data"],
+                })
+                sources["revenuecat"] = source
+            except Exception as error:
+                sources["revenuecat"] = unavailable_source(
+                    "provider_query_failed", error=f"{type(error).__name__}: {error}"
+                )
         try:
             asc = collect_asc(
                 env,

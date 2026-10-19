@@ -444,6 +444,48 @@ class AppStoreContractTest(unittest.TestCase):
             outcomes.summarize_asc_sales(rows, "6755129214")
 
 
+class VendorAppCoverageTest(unittest.TestCase):
+    # Every (Apple Identifier, SKU) with rows in the vendor's Summary Sales
+    # reports, 2025-11..2026-10-17 (read-only scan 2026-10-19: monthly 1_0 +
+    # October daily 1_1), cross-checked with ASC GET /v1/apps.
+    VENDOR_APPS_WITH_SALES_ROWS = {
+        "6755129214": "anicca-ios-001",
+        "6759667221": "app.rork.hon-ne-honyaku-ai",
+        "6757726663": "dailydhamma",
+        "6759514159": "app.rork.thankful-gratitude-app",
+        "6762143790": "app.rork.vcinrjbl3ke00f07gtlzf",
+        "6766485903": "app.rork.xhozd938ie79zdqd5plem",
+    }
+
+    def test_every_vendor_app_with_sales_rows_is_tracked_by_sku(self):
+        tracked = {config["asc_app_id"]: config.get("asc_sku")
+                   for config in outcomes.PRODUCTS.values() if "asc_app_id" in config}
+        for app_id, sku in self.VENDOR_APPS_WITH_SALES_ROWS.items():
+            self.assertEqual(tracked.get(app_id), sku, app_id)
+
+    def test_sleep_reset_subscription_row_counts_for_sleep_reset(self):
+        rows = [{"Apple Identifier": "6762200000", "Parent Identifier": "app.rork.vcinrjbl3ke00f07gtlzf",
+                 "SKU": "sleepreset_weekly", "Units": "1", "Developer Proceeds": "45.00",
+                 "Currency of Proceeds": "CZK"}]
+        summary = outcomes.summarize_asc_sales(rows, outcomes.PRODUCTS["sleep-reset"]["asc_app_id"])
+        self.assertEqual((summary["iap_units"], summary["proceeds"]), (1, {"CZK": 45.0}))
+
+    def test_app_without_revenuecat_still_collects_app_store_sales(self):
+        report = [{"Apple Identifier": "6762143790", "Units": "1",
+                   "Developer Proceeds": "0.00", "Currency of Proceeds": " "}]
+        with tempfile.TemporaryDirectory() as directory, \
+             mock.patch.object(outcomes, "DEFAULT_EVIDENCE", Path(directory)), \
+             mock.patch.object(outcomes, "collect_revenuecat") as revenuecat, \
+             mock.patch.object(outcomes, "collect_asc", side_effect=RuntimeError("x")), \
+             mock.patch.object(outcomes, "fetch_asc_sales_rows", return_value=report):
+            row = outcomes.collect_snapshot({}, "sleep-reset", "2026-10-14")
+        revenuecat.assert_not_called()
+        self.assertEqual(row["sources"]["revenuecat"]["reason"], "no_revenuecat_app")
+        self.assertEqual(row["sources"]["app_store_sales"]["status"], "available")
+        self.assertEqual(row["sources"]["app_store_sales"]["data"]["units"], 1)
+        self.assertNotIn("stripe", row["sources"])
+
+
 class AscCollectionTest(unittest.TestCase):
     def test_one_report_with_no_instances_does_not_abort_the_others(self):
         gz_rows = gzip.compress(
@@ -793,12 +835,13 @@ class AnalyticsAndSnapshotContractTest(unittest.TestCase):
                     "period": {"days": 30},
                     "subscription": {"activeTrials": 0, "activePaidUsers": 0, "grossMrrUsd": 0},
                 })}
-            elif "revenuecat_app_id" in outcomes.PRODUCTS[product]:
+            elif "asc_app_id" in outcomes.PRODUCTS[product]:
                 config = outcomes.PRODUCTS[product]
                 sources = {
                     "revenuecat": outcomes.available_source({
                         "app_id": config["revenuecat_app_id"], "charts": {}
-                    }),
+                    }) if "revenuecat_app_id" in config
+                    else outcomes.unavailable_source("no_revenuecat_app"),
                     "app_store_connect": outcomes.available_source({
                         "app_id": config["asc_app_id"],
                         "reports": {"downloads": outcomes.available_source({
