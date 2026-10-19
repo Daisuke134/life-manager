@@ -419,6 +419,20 @@ class AppStoreContractTest(unittest.TestCase):
         self.assertEqual(summary["proceeds"], {"USD": 13.98})
         self.assertEqual(summary["row_count"], 2)
 
+    def test_zero_proceeds_rows_add_no_currency_and_refunds_stay_negative(self):
+        rows = [
+            {"Apple Identifier": "6759667221", "Units": "1", "Developer Proceeds": "0.00",
+             "Currency of Proceeds": "JPY"},
+            {"Apple Identifier": "6759667221", "Units": "2", "Developer Proceeds": "0.00",
+             "Currency of Proceeds": "USD"},
+            {"Apple Identifier": "6762133377", "Parent Identifier": "app.rork.hon-ne-honyaku-ai",
+             "Units": "-1", "Developer Proceeds": "1105.00", "Currency of Proceeds": "JPY"},
+        ]
+        summary = outcomes.summarize_asc_sales(rows, "6759667221")
+        self.assertEqual(summary["proceeds"], {"JPY": -1105.0})
+        self.assertEqual((summary["units"], summary["iap_units"]), (3, -1))
+        self.assertEqual(outcomes.summarize_asc_sales(rows[:2], "6759667221")["proceeds"], {})
+
     def test_sales_report_with_no_activity_anywhere_is_a_successful_zero(self):
         summary = outcomes.summarize_asc_sales([], "6755129214")
         self.assertEqual(summary["units"], 0)
@@ -526,6 +540,15 @@ class AscSalesAvailabilityTest(unittest.TestCase):
                 outcomes.fetch_asc_sales_rows({"ASC_VENDOR_NUMBER": "1"}, "2026-10-12")
         self.assertEqual(caught.exception.reason, "apple_no_sales_for_date")
 
+    def test_other_404_details_are_unknown_not_no_sales(self):
+        for detail in ("The specified resource does not exist.",
+                       "There were no sales reports generated due to an outage."):
+            with mock.patch.object(outcomes, "_asc_headers", return_value={}), \
+                 mock.patch.object(outcomes, "_http_bytes", side_effect=_apple_404(detail)):
+                with self.assertRaises(outcomes.AscSalesReportMissing) as caught:
+                    outcomes.fetch_asc_sales_rows({"ASC_VENDOR_NUMBER": "1"}, "2026-10-12")
+            self.assertEqual(caught.exception.reason, "report_not_found", detail)
+
     def test_snapshot_records_apple_no_sales_as_measured_zero(self):
         missing = outcomes.AscSalesReportMissing("apple_no_sales_for_date", NO_SALES)
         with tempfile.TemporaryDirectory() as directory, \
@@ -618,6 +641,24 @@ class AscSalesAvailabilityTest(unittest.TestCase):
                     {}, state, "2026-10-18", evidence_root=Path(directory)
                 )
             return filled, json.loads(state.read_text())["sources"]["app_store_sales"]
+
+    def test_backfill_never_downgrades_a_measured_row(self):
+        measured = outcomes.available_source({"units": 4, "proceeds": {"JPY": 5100.0}})
+        row = {"schema_version": 1, "snapshot_id": "honne-ai:2026-10-17", "product_id": "honne-ai",
+               "business_date": "2026-10-17", "observed_at": "2026-10-17T22:00:00+00:00",
+               "sources": {"app_store_sales": measured}}
+        for failure in (outcomes.AscSalesReportMissing("report_not_found", "gone"),
+                        RuntimeError("HTTP 500")):
+            with tempfile.TemporaryDirectory() as directory:
+                state = Path(directory) / "business-outcomes.jsonl"
+                state.write_text(json.dumps(row) + "\n")
+                with mock.patch.object(outcomes, "fetch_asc_sales_rows", side_effect=failure):
+                    filled = outcomes.backfill_asc_sales(
+                        {}, state, "2026-10-18", evidence_root=Path(directory)
+                    )
+                saved = json.loads(state.read_text())["sources"]["app_store_sales"]
+            self.assertEqual(filled, [])
+            self.assertEqual(saved, measured)
 
     def test_backfill_keeps_row_unknown_while_report_is_not_published(self):
         filled, sales = self._backfill_one(

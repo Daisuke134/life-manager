@@ -665,12 +665,11 @@ def _download_count(row: dict) -> int | None:
     return value if isinstance(value, int) and not isinstance(value, bool) else None
 
 
-def _proceeds_total(row: dict) -> float | None:
-    """Read one day's verified ASC developer proceeds total, or None if unmeasured.
+def _proceeds_by_currency(row: dict) -> dict[str, float] | None:
+    """Read one day's verified ASC developer proceeds per currency, or None if unmeasured.
 
-    A verified day with sales activity in more than one currency cannot be
-    summed into one number without misrepresenting value, so it is treated
-    as unmeasured for this rollup (the per-day evidence still has the split).
+    Zero-amount currency keys carry no money and are dropped, so a measured
+    day without proceeds is an empty dict.
     """
 
     sources = row.get("sources") if isinstance(row.get("sources"), dict) else {}
@@ -680,12 +679,25 @@ def _proceeds_total(row: dict) -> float | None:
     proceeds = (sales.get("data") or {}).get("proceeds")
     if not isinstance(proceeds, dict):
         return None
-    if not proceeds:
-        return 0.0
-    if len(proceeds) > 1:
+    if any(isinstance(value, bool) or not isinstance(value, (int, float)) for value in proceeds.values()):
         return None
-    value = next(iter(proceeds.values()))
-    return value if isinstance(value, (int, float)) and not isinstance(value, bool) else None
+    return {str(currency): float(value) for currency, value in proceeds.items() if value != 0}
+
+
+def _window_rows(rows: list[tuple[int, dict]], as_of: dt.datetime, window: int) -> list[dict]:
+    """The N most recent eligible snapshots, newest first."""
+
+    return [
+        row for _, row in sorted(
+            (
+                (row.get("business_date"), row)
+                for _, row in rows
+                if _before(row, as_of) and isinstance(row.get("business_date"), str) and row.get("business_date")
+            ),
+            key=lambda pair: pair[0],
+            reverse=True,
+        )[:window]
+    ]
 
 
 def _window_sum(
@@ -697,18 +709,10 @@ def _window_sum(
 ) -> tuple[float | int | None, str | None]:
     """Sum a verified per-day metric over the N most recent eligible snapshots."""
 
-    eligible = sorted(
-        (
-            (row.get("business_date"), row)
-            for _, row in rows
-            if _before(row, as_of) and isinstance(row.get("business_date"), str) and row.get("business_date")
-        ),
-        key=lambda pair: pair[0],
-        reverse=True,
-    )[:window]
+    eligible = _window_rows(rows, as_of, window)
     if not eligible:
         return None, "no_business_snapshot"
-    values = [extractor(row) for _, row in eligible]
+    values = [extractor(row) for row in eligible]
     known = [value for value in values if value is not None]
     if not known:
         return None, empty_reason
@@ -728,10 +732,28 @@ def _installs_28d(rows: list[tuple[int, dict]], as_of: dt.datetime) -> tuple[int
     return _window_sum(rows, as_of, 28, _download_count, "no_verified_download_report")
 
 
-def _proceeds_28d(rows: list[tuple[int, dict]], as_of: dt.datetime) -> tuple[float | None, str | None]:
-    """Sum verified ASC developer proceeds over the 28 most recent eligible snapshots."""
+def _proceeds_28d(
+    rows: list[tuple[int, dict]], as_of: dt.datetime
+) -> tuple[float | None, str | None, str | None]:
+    """Sum verified ASC developer proceeds over 28 snapshots as (amount, currency, reason).
 
-    return _window_sum(rows, as_of, 28, _proceeds_total, "no_verified_sales_report")
+    Amounts in different currencies are never added: a window with more than
+    one non-zero currency is unmeasured (``mixed_currency``). A measured window
+    without any proceeds is 0 with no currency.
+    """
+
+    eligible = _window_rows(rows, as_of, 28)
+    if not eligible:
+        return None, None, "no_business_snapshot"
+    known = [day for day in map(_proceeds_by_currency, eligible) if day is not None]
+    if not known:
+        return None, None, "no_verified_sales_report"
+    currencies = {currency for day in known for currency in day}
+    if len(currencies) > 1:
+        return None, None, "mixed_currency"
+    currency = next(iter(currencies), None)
+    total = round(sum(day.get(currency, 0.0) for day in known), 2)
+    return total, currency, ("partial_window" if len(known) < len(eligible) else None)
 
 
 def _business_facts(row: dict) -> dict:
@@ -883,6 +905,7 @@ def _daily_events(root: pathlib.Path, product_id: str, as_of: dt.datetime) -> li
                 "installs_28d": None,
                 "installs_28d_reason": "no_business_snapshot",
                 "proceeds_28d": None,
+                "proceeds_28d_currency": None,
                 "proceeds_28d_reason": "no_business_snapshot",
                 "sources": {},
             },
@@ -892,7 +915,7 @@ def _daily_events(root: pathlib.Path, product_id: str, as_of: dt.datetime) -> li
     facts = _business_facts(row)
     facts["installs_7d"], facts["installs_7d_reason"] = _installs_7d(rows, as_of)
     facts["installs_28d"], facts["installs_28d_reason"] = _installs_28d(rows, as_of)
-    facts["proceeds_28d"], facts["proceeds_28d_reason"] = _proceeds_28d(rows, as_of)
+    facts["proceeds_28d"], facts["proceeds_28d_currency"], facts["proceeds_28d_reason"] = _proceeds_28d(rows, as_of)
     evidence_ref = _ref("business-outcomes.jsonl", index)
     existing = _existing_owner_report_for_evidence(
         root, kind="product_daily", product_id=product_id, evidence_ref=evidence_ref
@@ -1155,6 +1178,7 @@ def _portfolio_event(root: pathlib.Path, as_of: dt.datetime) -> list[dict]:
                 "installs_28d": None,
                 "installs_28d_reason": "no_business_snapshot",
                 "proceeds_28d": None,
+                "proceeds_28d_currency": None,
                 "proceeds_28d_reason": "no_business_snapshot",
             })
             continue
@@ -1162,7 +1186,7 @@ def _portfolio_event(root: pathlib.Path, as_of: dt.datetime) -> list[dict]:
         facts = _business_facts(row)
         installs_7d, installs_7d_reason = _installs_7d(rows, as_of)
         installs_28d, installs_28d_reason = _installs_28d(rows, as_of)
-        proceeds_28d, proceeds_28d_reason = _proceeds_28d(rows, as_of)
+        proceeds_28d, proceeds_28d_currency, proceeds_28d_reason = _proceeds_28d(rows, as_of)
         product = {
             "product_id": product_id,
             "mrr": facts.get("mrr"),
@@ -1182,6 +1206,7 @@ def _portfolio_event(root: pathlib.Path, as_of: dt.datetime) -> list[dict]:
             "installs_28d": installs_28d,
             "installs_28d_reason": installs_28d_reason,
             "proceeds_28d": proceeds_28d,
+            "proceeds_28d_currency": proceeds_28d_currency,
             "proceeds_28d_reason": proceeds_28d_reason,
         }
         money_buckets = facts.get("money_buckets")
@@ -1245,6 +1270,14 @@ def _number(value: object) -> str:
     if value is None:
         return "取得できませんでした"
     return str(value)
+
+
+def _proceeds_text(facts: dict) -> str:
+    """Render a proceeds amount with its currency (none for a measured zero)."""
+
+    currency = facts.get("proceeds_28d_currency")
+    amount = _number(facts.get("proceeds_28d"))
+    return f"{amount} {currency}" if currency else amount
 
 
 def _money_bucket_text(bucket: dict) -> str:
@@ -1368,7 +1401,7 @@ def render_japanese(event: dict) -> str:
             lines.append(f"直近28日の新規ダウンロード数は{installs_28d}件（App Store Connect）。")
         proceeds_28d = facts.get("proceeds_28d")
         if proceeds_28d is not None:
-            lines.append(f"直近28日のApple収益は{_number(proceeds_28d)}（App Store Connect）。")
+            lines.append(f"直近28日のApple収益は{_proceeds_text(facts)}（App Store Connect）。")
     elif kind == "incident":
         source_gaps = facts.get("source_gaps")
         if isinstance(source_gaps, list) and source_gaps:
@@ -1443,7 +1476,7 @@ def render_japanese(event: dict) -> str:
             if item.get("installs_28d") is not None:
                 detail += f"・直近28日DL {item['installs_28d']}件"
             if item.get("proceeds_28d") is not None:
-                detail += f"・28日Apple収益 {_number(item['proceeds_28d'])}"
+                detail += f"・28日Apple収益 {_proceeds_text(item)}"
             lines.append(f"{_product_name(item_product)}: {detail}")
 
         totals = [item.get("revenue_28d") for item in facts.get("products", []) if item.get("revenue_28d") is not None]

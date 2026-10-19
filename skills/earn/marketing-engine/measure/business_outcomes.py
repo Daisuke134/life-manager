@@ -407,8 +407,8 @@ def summarize_asc_sales(rows: list[dict[str, str]], apple_identifier: str) -> di
             per_unit = Decimal((row.get("Developer Proceeds") or "0").strip())
         except InvalidOperation:
             continue
-        if not currency and per_unit == 0:
-            continue  # free download: Apple leaves the proceeds currency blank
+        if per_unit == 0:
+            continue  # free download/redownload: no money, so no currency key
         currency = currency or "unknown"
         proceeds[currency] = proceeds.get(currency, Decimal(0)) + per_unit * row_units
     return {
@@ -776,6 +776,7 @@ def _collect_asc_report(
 
 
 ASC_SALES_LOOKBACK_DAYS = 28  # matches the owner report's 28-day revenue window
+APPLE_NO_SALES_DETAIL = "there were no sales for the date specified."
 
 
 class AscSalesReportMissing(Exception):
@@ -819,10 +820,10 @@ def fetch_asc_sales_rows(env: dict[str, str], report_date: str) -> list[dict[str
             detail = ""
         finally:
             error.close()
-        lowered = detail.lower()
+        lowered = " ".join(detail.split()).lower()
         reason = (
-            "report_not_available_yet" if "not available yet" in lowered
-            else "apple_no_sales_for_date" if "no sales" in lowered
+            "report_not_available_yet" if lowered.startswith("report is not available yet")
+            else "apple_no_sales_for_date" if lowered == APPLE_NO_SALES_DETAIL
             else "report_not_found"
         )
         raise AscSalesReportMissing(reason, detail or "HTTP 404") from error
@@ -927,6 +928,12 @@ def backfill_asc_sales(
                 sources.append(available_source(data, evidence_sha256=_json_hash(evidence)))
             filled.append(day)
         except AscSalesReportMissing as error:
+            # Never downgrade a measured row; only refresh the reason of unknown ones.
+            targets = [
+                row for row in targets
+                if ((row.get("sources") or {}).get("app_store_sales") or {}).get("status")
+                != "available"
+            ]
             sources = [unavailable_source(error.reason, error=str(error)) for _ in targets]
         except Exception:
             continue  # leave the rows as they were; the next run retries

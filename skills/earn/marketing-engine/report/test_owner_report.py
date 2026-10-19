@@ -1636,9 +1636,53 @@ class OwnerReportRendererTest(unittest.TestCase):
         self.assertIsNone(event["facts"]["installs_28d_reason"])
         self.assertEqual(event["facts"]["proceeds_28d"], float(sum(range(1, 29))))
         self.assertIsNone(event["facts"]["proceeds_28d_reason"])
+        self.assertEqual(event["facts"]["proceeds_28d_currency"], "USD")
         rendered = owner_report.render_japanese(event)
         self.assertIn("直近28日の新規ダウンロード数は406件", rendered)
         self.assertIn("直近28日のApple収益は406", rendered)
+
+    def test_proceeds_28d_keeps_currency_and_never_adds_two_currencies(self):
+        def sales_row(business_date: str, proceeds: dict):
+            return {
+                "schema_version": 1,
+                "product_id": "honne-ai",
+                "business_date": business_date,
+                "observed_at": f"{business_date}T08:00:00Z",
+                "snapshot_id": f"honne-ai:{business_date}",
+                "sources": {"app_store_sales": {
+                    "status": "available", "reason": None,
+                    "data": {"proceeds": proceeds, "units": 1, "iap_units": 1},
+                }},
+            }
+
+        def event_for(days: list[tuple[str, dict]]):
+            with tempfile.TemporaryDirectory() as path:
+                root = Path(path)
+                (root / "business-outcomes.jsonl").write_text(
+                    "".join(json.dumps(sales_row(*day)) + "\n" for day in days), encoding="utf-8",
+                )
+                return owner_report.build_events(
+                    root, "product_daily", product_id="honne-ai",
+                    as_of=dt.datetime(2026, 10, 12, 12, tzinfo=dt.timezone.utc),
+                )[0]
+
+        mixed = event_for([("2026-10-10", {"JPY": 5100.0}), ("2026-10-11", {"USD": 7.0})])
+        self.assertIsNone(mixed["facts"]["proceeds_28d"])
+        self.assertIsNone(mixed["facts"]["proceeds_28d_currency"])
+        self.assertEqual(mixed["facts"]["proceeds_28d_reason"], "mixed_currency")
+        self.assertNotIn("Apple収益は", owner_report.render_japanese(mixed))
+
+        refund = event_for([("2026-10-08", {"JPY": 1105.0}), ("2026-10-09", {"JPY": -1105.0}),
+                            ("2026-10-10", {"JPY": 5100.0})])
+        self.assertEqual(refund["facts"]["proceeds_28d"], 5100.0)
+        self.assertEqual(refund["facts"]["proceeds_28d_currency"], "JPY")
+        self.assertIsNone(refund["facts"]["proceeds_28d_reason"])
+        self.assertIn("直近28日のApple収益は5100.0 JPY", owner_report.render_japanese(refund))
+
+        zero_keys = event_for([("2026-10-10", {"JPY": 5100.0}),
+                               ("2026-10-11", {"USD": 0.0, "unknown": 0.0})])
+        self.assertEqual(zero_keys["facts"]["proceeds_28d"], 5100.0)
+        self.assertEqual(zero_keys["facts"]["proceeds_28d_currency"], "JPY")
 
     def test_active_trials_and_revenue_28d_come_from_revenuecat_charts(self):
         row = {
