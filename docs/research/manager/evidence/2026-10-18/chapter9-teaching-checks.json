@@ -133,5 +133,8 @@
     "claim_scope": "separate direct effect from stressor-reactivity moderation"
   },
   "company": "Anicca",
-  "voice_correction": "Company name corrected per user; original generated files retained outside Git."
+  "voice_correction": "Company name corrected per user; original generated files retained outside Git.",
+  "snapshot_commit": "3acbaaba988036bc5e1792518f117954cb74ff3c",
+  "scope_note": "Historical2026-10-18 artifact hashes; some teaching paths revised on2026-10-19. Do not compare these historical hashes against current files.",
+  "superseded_by": "../2026-10-19/chapter9-fundamentals-checks.json"
 }

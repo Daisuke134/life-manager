@@ -1,0 +1,38 @@
+{
+  "checked_at_utc": "2026-10-19T00:23:17.195860+00:00",
+  "method": "Read primary author book page/PDF excerpts and official library documentation via web tool",
+  "sources": [
+    {
+      "url": "https://eml.berkeley.edu/books/choice2.html",
+      "scope": "Book landing page, edition and reuse notice",
+      "supports": "Primary author source for discrete choice; no book text or images redistributed"
+    },
+    {
+      "url": "https://eml.berkeley.edu/books/choice2nd/Ch02_p9-33.pdf",
+      "scope": "Relevant excerpts in chapter2 on choice set, observed/unobserved factors and choice probabilities",
+      "supports": "Available alternatives and probabilistic choice; not a new empirical study"
+    },
+    {
+      "url": "https://scikit-learn.org/stable/modules/generated/sklearn.dummy.DummyClassifier.html",
+      "scope": "Class definition and baseline strategy documentation",
+      "supports": "Feature-ignorant baseline and empirical class proportions"
+    },
+    {
+      "url": "https://scikit-learn.org/stable/common_pitfalls.html",
+      "scope": "Preprocessing and data leakage sections",
+      "supports": "Use only information available at prediction; train-only fitting"
+    },
+    {
+      "url": "https://scikit-learn.org/stable/modules/model_evaluation.html",
+      "scope": "Predicting versus decision making and scoring introduction",
+      "supports": "Distinguish predicted probabilities, decisions and metric choices"
+    },
+    {
+      "url": "https://scikit-learn.org/stable/modules/cross_validation.html",
+      "scope": "Group and time-series split documentation",
+      "supports": "Unseen people and future observations require appropriate splits"
+    }
+  ],
+  "fictional_example": "Original rain/clear trip counts, not source study data",
+  "scope": "Foundational curriculum correction; no claim of a latest-method ranking or exhaustive review"
+}

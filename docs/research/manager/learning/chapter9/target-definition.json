@@ -1,51 +1,61 @@
 {
-  "schema_version": 1,
-  "mission": "End suffering.",
+  "schema_version": 2,
   "company": "Anicca",
   "product": "Manager",
-  "scope": "Provisional learning contract, not a trained model or intervention policy",
-  "source_study": {
-    "doi": "10.1038/s41598-026-39518-z",
-    "data": "https://osf.io/chfy2/",
-    "population": "Participants in the source smartphone intervention study, not a representative general population",
-    "unit": "one participant at one observed EMA time"
-  },
-  "prediction_time": "After the current EMA is observed and before the current intervention response is observed",
-  "available_inputs": {
-    "examples_from_verified_header": ["Stress", "Mood", "Criticism", "Support", "Warmth", "beep"],
-    "rule": "Only information observed by prediction_time; histories must end at that time",
-    "excluded": ["future EMA values", "current intervention response not yet observed", "ID_name", "Contact_String"],
-    "study_constraints": "Timestamp meaning, observation timing, missingness and all label semantics need audit before fitting"
-  },
-  "targets": [
-    {
-      "name": "recorded_intervention_response",
-      "kind": "behavioral record proxy",
-      "opportunity": "intervention_computation == 1, with cohort and timing reproduced before training",
-      "candidate_source": "validation_yesno",
-      "interpretation": "Recorded yes/no response only; exact event meaning is unresolved",
-      "not_established": ["exercise completion", "actual meditation", "clinical benefit"],
-      "missing_rule": "Unknown remains unknown; do not silently convert missing to no"
-    },
-    {
-      "name": "next_same_day_reported_stress",
-      "kind": "reported state, not behavior",
-      "candidate_source": "Stress at the next valid same-day EMA observation",
-      "horizon": "next observed same-day EMA; elapsed time must be checked; not next-day prediction",
-      "not_established": ["total suffering", "diagnosis", "causal intervention effect"],
-      "missing_rule": "No subsequent observation is missing, not zero stress"
-    }
+  "scope": "General behavioral prediction teaching example, not a Manager application decision",
+  "example_is_fictional": true,
+  "unit": "one departure occasion, not necessarily one unique person",
+  "eligible_choices": [
+    "bus",
+    "walk"
   ],
-  "evaluation_design": {
-    "known_people_future": "forward-time split, training-only transformations",
-    "new_people": "participant-held-out evaluation reported separately",
-    "response_baselines": ["training response rate", "simple logistic regression"],
-    "state_baselines": ["current reported stress persists", "training-only personal mean", "simple regression"],
-    "response_metrics": ["Brier score", "log loss", "calibration", "PR-AUC"],
-    "state_metrics": ["MAE appropriate to the verified scale", "improvement over persistence"],
-    "uncertainty": "Participant-level uncertainty; no deployment score threshold selected from the final test set"
+  "eligibility": "Both alternatives available; otherwise outside this example",
+  "prediction_time": "Before choosing a mode for the upcoming trip",
+  "inputs": [
+    "weather_at_departure"
+  ],
+  "target": "observed_chosen_mode_for_upcoming_trip",
+  "training_counts": {
+    "rain": {
+      "bus": 16,
+      "walk": 4
+    },
+    "clear": {
+      "bus": 4,
+      "walk": 16
+    }
   },
-  "later_field_outcomes": ["experienced distress", "daily functioning", "notification and response burden", "worsening"],
-  "population_connection": "No automatic linkage or extrapolation to Rhode Island synthetic residents",
-  "execution": "No participant records or predictions are included in this definition"
+  "fitted_probabilities": {
+    "rain": {
+      "bus": 0.8,
+      "walk": 0.2
+    },
+    "clear": {
+      "bus": 0.2,
+      "walk": 0.8
+    }
+  },
+  "feature_ignorant_baseline": {
+    "bus": 0.5,
+    "walk": 0.5
+  },
+  "example_new_input": {
+    "weather_at_departure": "rain"
+  },
+  "example_output": {
+    "bus": 0.8,
+    "walk": 0.2
+  },
+  "illustrative_later_observation": "walk",
+  "population_calculation": {
+    "fictional_context_counts": {
+      "rain": 50,
+      "clear": 50
+    },
+    "expected_bus_count": 50,
+    "scope": "Hypothetical applicability to all100; not an actual8B integration or fixed sampled count"
+  },
+  "evaluation": "A separate unseen set is required; no measured accuracy or test metric is included",
+  "population_reuse": "Reuse8B generation machinery; decide region, variables and transportability after target selection",
+  "deferred_application_reference": "manager-application-candidate.json"
 }

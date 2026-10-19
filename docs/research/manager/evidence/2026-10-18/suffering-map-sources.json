@@ -5,7 +5,7 @@
   "product": "Manager",
   "as_of": "2026-10-18",
   "authored_deliverable": "docs/research/manager/2026-10-18-suffering-measurement-landscape.md",
-  "deliverable_sha256": "a358c62f7cb7708d2ee3a11d12f106d867edf42ada5a0d420d740445ba6a7cdf",
+  "deliverable_sha256": "deefedd8648a0e81a00af1de704d5d9fb75a31562659d352980cfbefd4f8269b",
   "scope": "Selective research landscape of 22 entities or research lineages; not a systematic review and not evidence of Manager efficacy.",
   "method": "Public web search and selected primary-page/PDF retrieval via search_service_web_run. No private accounts, paid APIs or outreach used.",
   "access_caveat": "Search-index excerpts and abstracts are explicitly distinguished from retrieved full papers. Some PMC pages returned reCAPTCHA and some publisher pages failed; no claim of full review is made for them.",
@@ -843,5 +843,6 @@
     "lint": "Final yomiyasu lint executed; literal terminology and necessary distinctions retained. Source-boundary check and JSON, entry count, source coverage and local-link checks performed.",
     "edits_allowed": "Only authored deliverable and this source ledger; no SSOT edits, commits or pushes.",
     "revision": "yomiyasu_diff run against saved before copy. Difference includes sourced factual expansions (license, obituaries, prior-research crosslinks); not described as style-only revision."
-  }
+  },
+  "editorial_update_2026_10_19": "Moved candidate-data positioning to later application chapter; underlying source observations remain as recorded on2026-10-18."
 }

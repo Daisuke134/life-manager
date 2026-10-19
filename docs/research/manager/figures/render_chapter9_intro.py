@@ -20,7 +20,7 @@ def main():
         for index, slide in enumerate(data, 1):
             wide = aspect == "landscape"
             fig = plt.figure(figsize=size, facecolor="#f5f2eb")
-            fig.text(.075, .925, "Anicca / マネージャー 第9単元", fontproperties=FONT,
+            fig.text(.075, .925, "Anicca / 第9単元 行動予測の基礎", fontproperties=FONT,
                      fontsize=12, color="#b4452c")
             fig.text(.075, .81, slide["title"], fontproperties=BOLD,
                      fontsize=30 if wide else 25, va="top", color="#172823")
@@ -29,7 +29,7 @@ def main():
                      color="#172823")
             fig.text(.075, .16, slide["note"], fontproperties=FONT,
                      fontsize=9 if wide else 8, color="#b4452c")
-            fig.text(.075, .09, "出典・発表者ノート：slides.jsonと解説記事\n確認日：2026-10-18",
+            fig.text(.075, .09, "出典・発表者ノート：slides.jsonと解説記事\n改訂日：2026-10-19",
                      fontproperties=FONT, fontsize=8, color="#637069")
             fig.text(.93, .07, f"{index:02}/{len(data):02}", fontproperties=FONT,
                      fontsize=10, ha="right", color="#637069")
@@ -47,7 +47,7 @@ def main():
                         f'<p>{html.escape(slide["speaker_notes"])}</p></details></section>')
     page = ('<!doctype html><html lang="ja"><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width, initial-scale=1">'
-            '<title>マネージャー 第9単元の導入</title><style>'
+            '<title>行動予測の基礎 第9単元の導入</title><style>'
             'body{margin:0;background:#e2e5df;color:#172823;font-family:sans-serif}'
             'section{box-sizing:border-box;max-width:1100px;min-height:70vh;margin:24px auto;'
             'padding:6vw;background:#f5f2eb;break-after:page}h1{font-size:clamp(28px,4vw,52px)}'

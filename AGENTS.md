@@ -90,3 +90,8 @@ Use established technical terms in each language. Japanese: ニューロフィ�
 The company name is **Anicca**. The product is **Manager** (Japanese: マネージャー). The mission is exactly **End suffering.** Technology belongs to the founder journey and chosen means, not the mission headline. Do not add a human-only or other population qualifier to that mission phrase.
 
 The user often dictates by voice, so transcripts may contain recognition errors. Resolve known company/product/research names against established context; do not infer a company rename from a phonetically inconsistent transcript. The user explicitly corrected the mistaken company name in this session to Anicca. Preserve this correction across sessions.
+
+
+## Learning curriculum order (2026-10-19 user clarification)
+
+Teach general fundamentals first, with small examples and implementations; then reproduce on public data; only then specialize for Manager. Chapter9 is behavioral prediction. Do not make suffering measurement, mindfulness or a specific clinical dataset its starting premise. Preserve those as later Manager application references. Synthetic population generation machinery from8B is reusable; the Rhode Island output is not automatically the final population for every Manager use case. Keep current chapter order and progress only in the unified SSOT.

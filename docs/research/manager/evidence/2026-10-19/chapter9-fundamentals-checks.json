@@ -1,0 +1,157 @@
+{
+  "checked_at_utc": "2026-10-19T00:23:17.210222+00:00",
+  "chapter": "9.1",
+  "scope": "Foundamentals-first curriculum and teaching assets",
+  "model_training_on_observed_data": false,
+  "field_intervention": false,
+  "fictional_arithmetic": {
+    "records": 40,
+    "rain_bus_probability": 0.8,
+    "clear_bus_probability": 0.2,
+    "baseline_bus_probability": 0.5,
+    "hypothetical_expected_bus_count": 50.0,
+    "test_accuracy": null
+  },
+  "local_links_checked": 21,
+  "slide_png_dimensions_checked": 12,
+  "visual_review": [
+    "Generated9.1 diagram",
+    "Generatedpopulation/model connection",
+    "Portrait05",
+    "Landscape03"
+  ],
+  "japanese_lint": {
+    "score": 96,
+    "notices": 2,
+    "resolution": "Kept necessary distinctions: observations versus mindreading; illustrative integration versus actual8B application"
+  },
+  "artifacts": [
+    {
+      "path": "docs/research/manager/2026-10-18-chapter9-dataset-decision.md",
+      "bytes": 17724,
+      "sha256": "06e2fd843885b97c382d8952ecb1656de59fe8ba3827c47c24e19acd04948034"
+    },
+    {
+      "path": "docs/research/manager/2026-10-18-suffering-measurement-landscape.md",
+      "bytes": 37856,
+      "sha256": "deefedd8648a0e81a00af1de704d5d9fb75a31562659d352980cfbefd4f8269b"
+    },
+    {
+      "path": "docs/research/manager/articles/2026-10-18-chapter9-01-what-to-predict-ja.md",
+      "bytes": 12021,
+      "sha256": "5b63d10885220cf55da159c5aa6ffcf14d7e3a23c9184b8bbef4197599b57540"
+    },
+    {
+      "path": "docs/research/manager/articles/2026-10-18-manager-mindfulness-application-reference-ja.md",
+      "bytes": 9388,
+      "sha256": "4e47d0376d29669d743c8da1d57aa1130e8b862997a69fdc03a3414cf8fea5df"
+    },
+    {
+      "path": "docs/research/manager/content/2026-10-18-chapter9-intro/README.md",
+      "bytes": 1699,
+      "sha256": "91302f39c8f5ea6074cde39711e2da77155b5144acccdcce689dd7c9c736bed0"
+    },
+    {
+      "path": "docs/research/manager/content/2026-10-18-chapter9-intro/deck.html",
+      "bytes": 5305,
+      "sha256": "19db07e24cec694fc48b3037d967e5b6c18f7edf926d7f1e42f0e1fec732c3d4"
+    },
+    {
+      "path": "docs/research/manager/content/2026-10-18-chapter9-intro/landscape-01.png",
+      "bytes": 114896,
+      "sha256": "de5dd6aea42cbcd25bcf255cae3d6f1c07bcc13d0a76f7e1dfae8b042a8108c6"
+    },
+    {
+      "path": "docs/research/manager/content/2026-10-18-chapter9-intro/landscape-02.png",
+      "bytes": 120991,
+      "sha256": "a7f623fe3d70dbb7514e0abcafde9f80c56781c6068db0bab9ce8d6c0356200d"
+    },
+    {
+      "path": "docs/research/manager/content/2026-10-18-chapter9-intro/landscape-03.png",
+      "bytes": 124675,
+      "sha256": "61d749316eacddeed3bc6bd4e178b0233e357417bedf691813db1082ea961e28"
+    },
+    {
+      "path": "docs/research/manager/content/2026-10-18-chapter9-intro/landscape-04.png",
+      "bytes": 109103,
+      "sha256": "8098860fdeb531b8c8d283fbf3f6eeae6eee1a163762012fa8e57417b4f375d3"
+    },
+    {
+      "path": "docs/research/manager/content/2026-10-18-chapter9-intro/landscape-05.png",
+      "bytes": 126834,
+      "sha256": "384332d7ce9bbf7f5c51872437e904bc06b62ccd052f1c58c3c99456fc6eb4f6"
+    },
+    {
+      "path": "docs/research/manager/content/2026-10-18-chapter9-intro/landscape-06.png",
+      "bytes": 120222,
+      "sha256": "067c575514daf9e0ae1db8f04a37d1941dc6d6c5efd23787f9c3c0ddc7185059"
+    },
+    {
+      "path": "docs/research/manager/content/2026-10-18-chapter9-intro/portrait-01.png",
+      "bytes": 105131,
+      "sha256": "cd47bf7dc21d63e1dcff33f019c9757ee0d5739f0fcea7d8ef2268a1d9a52b07"
+    },
+    {
+      "path": "docs/research/manager/content/2026-10-18-chapter9-intro/portrait-02.png",
+      "bytes": 111848,
+      "sha256": "3daf874c1bc28a2216cc5fbf9d9695829b71951bbc73125282b35129fd113594"
+    },
+    {
+      "path": "docs/research/manager/content/2026-10-18-chapter9-intro/portrait-03.png",
+      "bytes": 114163,
+      "sha256": "7023e0eb0b36ea794263d162a438028752c2790e1eb7fdffcb7168ed3ea1648f"
+    },
+    {
+      "path": "docs/research/manager/content/2026-10-18-chapter9-intro/portrait-04.png",
+      "bytes": 101000,
+      "sha256": "ebf97d9ba9e2cdde3e1b874f9d112444015a345b2dcf3898f921d38c332fc2e5"
+    },
+    {
+      "path": "docs/research/manager/content/2026-10-18-chapter9-intro/portrait-05.png",
+      "bytes": 114134,
+      "sha256": "3075a72654602d086242bfcdb2be688d898e5f0c8984c330eb5df18dd4ef7894"
+    },
+    {
+      "path": "docs/research/manager/content/2026-10-18-chapter9-intro/portrait-06.png",
+      "bytes": 110199,
+      "sha256": "cb37b90cb41151b2af1c25318d1a103b01dba3f700fcdc939368b55bc31a5870"
+    },
+    {
+      "path": "docs/research/manager/content/2026-10-18-chapter9-intro/posts-ja.md",
+      "bytes": 1095,
+      "sha256": "f68db9ac50b0d263f24a88c0054edc177ebeec729c9da3ad806a38585c1c8280"
+    },
+    {
+      "path": "docs/research/manager/content/2026-10-18-chapter9-intro/slides.json",
+      "bytes": 4204,
+      "sha256": "cec8aca509b158c099c5bb6c87c46f324bd1f542ab3b57d9b92815f4e439ebc1"
+    },
+    {
+      "path": "docs/research/manager/figures/render_chapter9_intro.py",
+      "bytes": 3559,
+      "sha256": "56c9982f5257371226dca835a7b903982b344e5016930b86c1a5c16170cefc1a"
+    },
+    {
+      "path": "docs/research/manager/learning/chapter9/2026-10-19-behavior-prediction-fundamentals.png",
+      "bytes": 1651662,
+      "sha256": "f95dffd7e217815a30522f164588a158316ffc7bad45e50ee6beba853095f55c"
+    },
+    {
+      "path": "docs/research/manager/learning/chapter9/2026-10-19-population-behavior-connection.png",
+      "bytes": 1607496,
+      "sha256": "0e3cb41af0ffca953ee2c234b3c932778aeb70db6917c02fa2732d815c8879ee"
+    },
+    {
+      "path": "docs/research/manager/learning/chapter9/manager-application-candidate.json",
+      "bytes": 3312,
+      "sha256": "2b06fc65b741e45ee757c3dc3ef737affcb7b2f663547f1e3d894ef4f42e4a15"
+    },
+    {
+      "path": "docs/research/manager/learning/chapter9/target-definition.json",
+      "bytes": 1640,
+      "sha256": "ce00fb14420b7898bb0491073628b0a0698dca9a90cd0a81f730d9ffd43e665e"
+    }
+  ],
+  "source_evidence": "chapter9-fundamentals-sources.json",
+  "historical_checks": "../2026-10-18/chapter9-teaching-checks.json"
+}
