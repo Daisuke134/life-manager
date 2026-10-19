@@ -1,9 +1,39 @@
 {
-  "checked_at_utc": "2026-10-19T01:13:41.181533+00:00",
-  "own_site": "canonical PR8387 prepared; final package approved; live deployment pending",
-  "zenn": "Existing linked repository and public account confirmed; local9.1 draft only; website-first sequencing",
+  "checked_at_utc": "2026-10-19T01:30:49.763704+00:00",
+  "own_site": "LIVE:54articles27JA27EN29media; independent production HTTP/media hashes passed; GitHub production run39185113503 success",
+  "zenn": "27 Japanese articles saved to existing GitHub-connected repository;9.1 published:true intent pushed at e3fd723; public API not yet live at latest readback. Historical mapping confirmed by13 existing slug matches; current synchronization not proven.",
   "note": "No configured session/browser/runtime connection in this cloud",
   "substack_en": "No configured session/publication runtime connection in this cloud",
   "credential_values_recorded": false,
-  "subscriber_email_sent": false
+  "subscriber_email_sent": false,
+  "zenn_preview": {
+    "tables": 3,
+    "code_blocks": 1,
+    "images_loaded": 2,
+    "scope": "local Zenn CLI preview; figures served from reviewed local bytes until own-site deployment",
+    "screenshot_review": "All five body sections plus table screenshot inspected; 3 native tables and 1 code block; both generated media loaded when routed to reviewed bytes",
+    "draft_source_sha256": "147dfcf375c703ae1a0b93c71adeded6795c765e69b0f5c95817cdd7f884452a"
+  },
+  "zenn_existing_public_latest": "2026-08-06T18:03:25.048+09:00",
+  "zenn_drafts": {
+    "count": 27,
+    "commit": "842f2ed",
+    "public_readback": "New9.1 slug absent from account public API after draft push",
+    "scope": "27 prepared sources;26remainpublished:false;onepublicintentnotyetverifiedlive",
+    "draft_only_count": 26,
+    "submitted_count": 1,
+    "verified_public_count": 0
+  },
+  "connected_app_tool_search": "No callable Zenn, note.com, or Substack connector found",
+  "zenn_public_intent_commit": "e3fd723",
+  "zenn_sync_diagnostics": {
+    "historical_matching_public_slugs": 13,
+    "previous_2026_10_09_repo_published_article_also_not_public": true,
+    "github_check_runs": 0,
+    "github_statuses": 0,
+    "webhook_inspection": "403resource-not-accessible-by-integration; no configuration changed",
+    "cause": "unconfirmed; do not assume rolling-window delay"
+  },
+  "syndication_artifact_index": "docs/research/manager/publication/2026-10-19/syndication-artifact-index.json",
+  "zenn_public_http_status": 404
 }

@@ -3768,3 +3768,15 @@ Verification so far: route hashes/noindex/live-route checks passed; adapter synt
 website_publish_approvedが既存のGitHub→Netlify経路を担当。canonical独立branch feat/manager-blog-publish-20261019のPR8387で、Managercollection、既存カテゴリへの追加、Manager限定の表/コード/番号リスト描画、Next build前のimmutable記事/画像importを準備。主担当も8件のscopedtestsを実行しPASS。ここまでの時点では本番未公開。parentはfreezeしたpackageで公開実行を承認済み、最終live receiptを追記する。
 
 配信先のアクセス確認：このクラウドにはnote/Substackのセッション・公開設定・登録browser・sessionvaultがない。既存Runtimeenvを安全に読み、値を出力せず設定有無を確認した。利用可能な接続先/既存ジョブを本人へ非同期質問中。Zennは既存の公開連携repoとaniccaアカウントを公開APIで照合し、既存managedcheckoutへclone。9.1のローカルdraftと既存CLIpreviewを用意したが、自社サイトより先に公開しない。全チャネル公開済みとはしない。
+
+#### 2026-10-19 公開結果と9.2の説明
+
+自社サイト https://aniccaai.com/blog/manager の公開完了。重複を整理した日本語27本・英語27本と画像29点を掲載。8A/8B、データ/方式比較、人口と行動の接続、9.1/9.2、先行研究の記事を同じManagercollectionへ集約した。英語記事の図の一部は日本語であることを本文に明記。canonical PR8387はmain8161f176ee457f92a9c8591d00a7e4cd1413483c、publisher PR523はe973c5492b3bc9a7d0eb27d28f679d0e9d6bef58へmerge。immutable記事revision45b41beea3c87bb563b5c08e97066bcea66eaada。既存GitHub→Netlify run39185113503 SUCCESS、既存money-path smoke PASS。全54記事200/canonical/title、全29画像hash、一覧/カテゴリalias/index/sitemapを担当者がreadback。390/1440pxで画像broken0/overflow0/JSerror0、表/code横scrollと番号list decimal確認。既存/en,/ja,/lm,/daisは公開前と同一byte。証拠は公開担当branchのcommit1def50009582f3832fcde6561b73790880067ee9のdocs/research/manager/evidence/2026-10-19/manager-blog-production/。
+
+主担当も別にcollection54リンク、release内54記事hashと29画像の実bytes/hash、8A/8B/9.1/9.2英日代表5記事の200と表を確認。manager-blog-primary-production-readback.jsonへ記録。collectionの本番スクショも目視。9.2生成図をチャットへ表示し、人×機会、入力と後から確認する正解、利用不可/非選択/欠測、予測時刻後のリーク、同じ人の繰返し観測を具体例で説明。本人の理解完了は先取りしない。実データの行動モデル学習・精度測定・介入実証はまだ実行していない。
+
+Zennは日本語27稿を既存repoへpublished:falseとして保存（draftcommit842f2ed）。9.1は自社サイトのlive確認後、既存manual guard・PII gate・no-lie確認・CLI描画の確認を経てpublished:trueの同一slugをpush（e3fd723）。ただし現時点の公開APIでは未表示で、公開済みとしない。既存公開13slugとrepoの対応は確認できたが、旧10月9日のpublished:true稿も公開一覧にないため、今回の遅延をrollingwindowと決めつけない。GitHubのcheck/statusはなし、hook照会は権限403で設定変更せず。Zennにログイン済みの既存runtime/同期dashboardへ接続できたら、同じslugの同期状態・エラーを確認してlive readbackする。別slug作成やpublishedflagの往復で回避しない。残り26稿は下書きのままで、一斉公開していない。
+
+note/Substackは既存接続がなく未投稿。ツール一覧にも当該connectorなし。既存runtime/公開ジョブの接続先を本人へ質問済みで、回答待ち。認証を新規作成・秘密の抽出・メール一斉送信は行わない。無料教材のJA27/EN27本文と画像は保存済み。syndication-artifact-index.jsonは本文/公開先の対応だけを示す索引で、別TODOや自動公開queueではない。公開進捗・残作業の正本はこのSSOTのみ。
+
+次の学習は9.3（条件付き確率と比較基準）。9.2への質問にはそのまま答え、本人が進む合図を出したら小さな表の計算へ進む。Managerは実在の既知の対象なら人口合成なしで行動を扱えるし、人口構成の評価だけなら行動モデルなしでも進める。集団の変更比較で必要なとき両者を接続する。学習した行動予測器が不要な、ルールや最適化で解ける問題も含め、問題の発見→予測が必要なら予測→判断/実行→現実の成果測定→改善を製品として組み立てる。

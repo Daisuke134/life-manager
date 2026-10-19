@@ -1,0 +1,628 @@
+{
+  "schema_version": 1,
+  "collection_url": "https://aniccaai.com/blog/manager",
+  "articles": [
+    {
+      "slug": "manager-world-engineering-ja",
+      "language": "ja",
+      "canonical_url": "https://aniccaai.com/blog/manager-world-engineering-ja",
+      "source": "ja/manager-world-engineering-ja.md",
+      "source_sha256": "c98990a764fd658fd42c79d0d31a92228f33c9a71530365454c86cb885dceba8",
+      "destinations": [
+        "zenn",
+        "note"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-world-engineering-en",
+      "language": "en",
+      "canonical_url": "https://aniccaai.com/blog/manager-world-engineering-en",
+      "source": "en/manager-world-engineering-en.md",
+      "source_sha256": "b070ac57b1355bc86af6dbf16af26c291b2a8788acf073733902126e6592865d",
+      "destinations": [
+        "substack-en"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-benchmark-first-ja",
+      "language": "ja",
+      "canonical_url": "https://aniccaai.com/blog/manager-benchmark-first-ja",
+      "source": "ja/manager-benchmark-first-ja.md",
+      "source_sha256": "4ed9667b44285ed9a94a0fc5ce135449b38e8f57b08a023b3f00fa26b13f278d",
+      "destinations": [
+        "zenn",
+        "note"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-benchmark-first-en",
+      "language": "en",
+      "canonical_url": "https://aniccaai.com/blog/manager-benchmark-first-en",
+      "source": "en/manager-benchmark-first-en.md",
+      "source_sha256": "bf66f639ffd1383f7b2d6737c2a748379dab560cd0c3ca8ad809bac7bf85d16f",
+      "destinations": [
+        "substack-en"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-ai-economist-ja",
+      "language": "ja",
+      "canonical_url": "https://aniccaai.com/blog/manager-ai-economist-ja",
+      "source": "ja/manager-ai-economist-ja.md",
+      "source_sha256": "57d55bb9b7ce7286dab584f808d65c55768cc05b62d7198f1c4a136b8d2e6319",
+      "destinations": [
+        "zenn",
+        "note"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-ai-economist-en",
+      "language": "en",
+      "canonical_url": "https://aniccaai.com/blog/manager-ai-economist-en",
+      "source": "en/manager-ai-economist-en.md",
+      "source_sha256": "3617cbbaf22a4a66185297ec5cfd26997db7948182b09ee707d6e10b0382effa",
+      "destinations": [
+        "substack-en"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-aaru-ja",
+      "language": "ja",
+      "canonical_url": "https://aniccaai.com/blog/manager-aaru-ja",
+      "source": "ja/manager-aaru-ja.md",
+      "source_sha256": "ec2681876effbbfcb5efd21818f22979197bb89f5bab689714eb70271fc018ee",
+      "destinations": [
+        "zenn",
+        "note"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-aaru-en",
+      "language": "en",
+      "canonical_url": "https://aniccaai.com/blog/manager-aaru-en",
+      "source": "en/manager-aaru-en.md",
+      "source_sha256": "dc13cf8a6d97b8000129e4afb5ba877682409ed80ce963f605bd2784c594207e",
+      "destinations": [
+        "substack-en"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-simile-ja",
+      "language": "ja",
+      "canonical_url": "https://aniccaai.com/blog/manager-simile-ja",
+      "source": "ja/manager-simile-ja.md",
+      "source_sha256": "14b45d3415d91f9f43423059df4a5991ee3771984c1e6ce3c15b55ea0b9d557c",
+      "destinations": [
+        "zenn",
+        "note"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-simile-en",
+      "language": "en",
+      "canonical_url": "https://aniccaai.com/blog/manager-simile-en",
+      "source": "en/manager-simile-en.md",
+      "source_sha256": "34f552d2ba702811bb4d2e39c5a27b476ca3a0f6bbf86a51a95bb50b3bad1ac6",
+      "destinations": [
+        "substack-en"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-human-simulation-landscape-ja",
+      "language": "ja",
+      "canonical_url": "https://aniccaai.com/blog/manager-human-simulation-landscape-ja",
+      "source": "ja/manager-human-simulation-landscape-ja.md",
+      "source_sha256": "33b260f33ae31e84897aa689c076885ef0a9e91e4f9fa538d4a888cdd61690b7",
+      "destinations": [
+        "zenn",
+        "note"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-human-simulation-landscape-en",
+      "language": "en",
+      "canonical_url": "https://aniccaai.com/blog/manager-human-simulation-landscape-en",
+      "source": "en/manager-human-simulation-landscape-en.md",
+      "source_sha256": "f4740c3f12adfaf202f2c3c5670fa01ca5175dd20900d104864885f43b796379",
+      "destinations": [
+        "substack-en"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-population-foundations-ja",
+      "language": "ja",
+      "canonical_url": "https://aniccaai.com/blog/manager-population-foundations-ja",
+      "source": "ja/manager-population-foundations-ja.md",
+      "source_sha256": "4f3e93d5f40a1a3c517ddaa8076dd0c5bbb0d237fed72af18723094bba672e09",
+      "destinations": [
+        "zenn",
+        "note"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-population-foundations-en",
+      "language": "en",
+      "canonical_url": "https://aniccaai.com/blog/manager-population-foundations-en",
+      "source": "en/manager-population-foundations-en.md",
+      "source_sha256": "6604113109fd4a9b828ee71bec3f174bc08166489648f610fed41f849021626d",
+      "destinations": [
+        "substack-en"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-population-weights-sft-dpo-ja",
+      "language": "ja",
+      "canonical_url": "https://aniccaai.com/blog/manager-population-weights-sft-dpo-ja",
+      "source": "ja/manager-population-weights-sft-dpo-ja.md",
+      "source_sha256": "6df27d4cb00499f727bf31e172b827fbda9ee38e2cf086f1b579ffc01abe3dca",
+      "destinations": [
+        "zenn",
+        "note"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-population-weights-sft-dpo-en",
+      "language": "en",
+      "canonical_url": "https://aniccaai.com/blog/manager-population-weights-sft-dpo-en",
+      "source": "en/manager-population-weights-sft-dpo-en.md",
+      "source_sha256": "fde8d6af2d2f44e1cba6f85f267a09dd5c0747e1fbecb0e6bda4abf39ccc277d",
+      "destinations": [
+        "substack-en"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-conditional-probability-ja",
+      "language": "ja",
+      "canonical_url": "https://aniccaai.com/blog/manager-conditional-probability-ja",
+      "source": "ja/manager-conditional-probability-ja.md",
+      "source_sha256": "0392fe6e2f1b0bcb8b102282f6d449d020fc5c2dba61a739bb581e34c1722684",
+      "destinations": [
+        "zenn",
+        "note"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-conditional-probability-en",
+      "language": "en",
+      "canonical_url": "https://aniccaai.com/blog/manager-conditional-probability-en",
+      "source": "en/manager-conditional-probability-en.md",
+      "source_sha256": "1d5555e0a3f2948f338961023b07d709aeef86d0bdc4981ecbd7829a5f0808cc",
+      "destinations": [
+        "substack-en"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-bayesian-network-ja",
+      "language": "ja",
+      "canonical_url": "https://aniccaai.com/blog/manager-bayesian-network-ja",
+      "source": "ja/manager-bayesian-network-ja.md",
+      "source_sha256": "edefe3fa67946bf9a8314ffc7575eca96a09ff86084680caa10246c2e106e4bc",
+      "destinations": [
+        "zenn",
+        "note"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-bayesian-network-en",
+      "language": "en",
+      "canonical_url": "https://aniccaai.com/blog/manager-bayesian-network-en",
+      "source": "en/manager-bayesian-network-en.md",
+      "source_sha256": "3ff88b591c2f65dcb8b7c382de0749aff68aaa6aa6b038b688db31834cb8090a",
+      "destinations": [
+        "substack-en"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-vae-population-ja",
+      "language": "ja",
+      "canonical_url": "https://aniccaai.com/blog/manager-vae-population-ja",
+      "source": "ja/manager-vae-population-ja.md",
+      "source_sha256": "b208182b03b42850cc59866297d5799fe025e8c924ee5bf5b4ddb7602c93e510",
+      "destinations": [
+        "zenn",
+        "note"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-vae-population-en",
+      "language": "en",
+      "canonical_url": "https://aniccaai.com/blog/manager-vae-population-en",
+      "source": "en/manager-vae-population-en.md",
+      "source_sha256": "c2f827373257b7ea1c9c379c7fd913931c3610f465fa249b07cc248eee745f3e",
+      "destinations": [
+        "substack-en"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-gan-population-ja",
+      "language": "ja",
+      "canonical_url": "https://aniccaai.com/blog/manager-gan-population-ja",
+      "source": "ja/manager-gan-population-ja.md",
+      "source_sha256": "a04d88cb8956766ec027ef2ef7635c33854a0e61611c66bf1d6de498e99ee30d",
+      "destinations": [
+        "zenn",
+        "note"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-gan-population-en",
+      "language": "en",
+      "canonical_url": "https://aniccaai.com/blog/manager-gan-population-en",
+      "source": "en/manager-gan-population-en.md",
+      "source_sha256": "bcb287e25db365bc0a5fe8d0b4c50e556ac4aba32e83123f49ecc36113fda6a0",
+      "destinations": [
+        "substack-en"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-diffusion-population-ja",
+      "language": "ja",
+      "canonical_url": "https://aniccaai.com/blog/manager-diffusion-population-ja",
+      "source": "ja/manager-diffusion-population-ja.md",
+      "source_sha256": "eef12269c4700f9d17c8934841771e6ea36a7bdfc77cf90217efa44a62e29c53",
+      "destinations": [
+        "zenn",
+        "note"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-diffusion-population-en",
+      "language": "en",
+      "canonical_url": "https://aniccaai.com/blog/manager-diffusion-population-en",
+      "source": "en/manager-diffusion-population-en.md",
+      "source_sha256": "6bbdbbdcddf54ba4aaa5936cfbbb415af8e7716e52de88bc2b897bf0af85c853",
+      "destinations": [
+        "substack-en"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-llm-population-ja",
+      "language": "ja",
+      "canonical_url": "https://aniccaai.com/blog/manager-llm-population-ja",
+      "source": "ja/manager-llm-population-ja.md",
+      "source_sha256": "f0354fe26a90979863c4825b7a509cc2a26e33ba73d23ff8177e5493978b13cc",
+      "destinations": [
+        "zenn",
+        "note"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-llm-population-en",
+      "language": "en",
+      "canonical_url": "https://aniccaai.com/blog/manager-llm-population-en",
+      "source": "en/manager-llm-population-en.md",
+      "source_sha256": "90e9953155292c5bf06772f3cc28c39cb2203e455a14da04964f93b83e6c0cfc",
+      "destinations": [
+        "substack-en"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-population-method-selection-ja",
+      "language": "ja",
+      "canonical_url": "https://aniccaai.com/blog/manager-population-method-selection-ja",
+      "source": "ja/manager-population-method-selection-ja.md",
+      "source_sha256": "258d9b47516ffdc9442980a4e2eecb95b827d5a7d83f453e6a192ccd10997cde",
+      "destinations": [
+        "zenn",
+        "note"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-population-method-selection-en",
+      "language": "en",
+      "canonical_url": "https://aniccaai.com/blog/manager-population-method-selection-en",
+      "source": "en/manager-population-method-selection-en.md",
+      "source_sha256": "d9dd87f2d8784ef54ee2a1c4a672379559bb45dc6e344ac1d6a4027dfb334e88",
+      "destinations": [
+        "substack-en"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-population-models-and-behavior-ja",
+      "language": "ja",
+      "canonical_url": "https://aniccaai.com/blog/manager-population-models-and-behavior-ja",
+      "source": "ja/manager-population-models-and-behavior-ja.md",
+      "source_sha256": "f95e7ec17e3160593aa332cd186fb4b51030a30d567259604a2af1b24a21f6ff",
+      "destinations": [
+        "zenn",
+        "note"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-population-models-and-behavior-en",
+      "language": "en",
+      "canonical_url": "https://aniccaai.com/blog/manager-population-models-and-behavior-en",
+      "source": "en/manager-population-models-and-behavior-en.md",
+      "source_sha256": "a7baa83c5b0e46ecd354be7fdccbb870f75040fa834193868ef986ae097c32f7",
+      "destinations": [
+        "substack-en"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-generative-methods-comparison-ja",
+      "language": "ja",
+      "canonical_url": "https://aniccaai.com/blog/manager-generative-methods-comparison-ja",
+      "source": "ja/manager-generative-methods-comparison-ja.md",
+      "source_sha256": "a9c49a47d8d2b6b15c4615a1adf3358a2490894725357369e5c347cba3bc4200",
+      "destinations": [
+        "zenn",
+        "note"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-generative-methods-comparison-en",
+      "language": "en",
+      "canonical_url": "https://aniccaai.com/blog/manager-generative-methods-comparison-en",
+      "source": "en/manager-generative-methods-comparison-en.md",
+      "source_sha256": "f34a03374de05e1960e88eb91ca58e17fd11cea7a749a275cc8e03b2177dabd9",
+      "destinations": [
+        "substack-en"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-population-dataset-selection-ja",
+      "language": "ja",
+      "canonical_url": "https://aniccaai.com/blog/manager-population-dataset-selection-ja",
+      "source": "ja/manager-population-dataset-selection-ja.md",
+      "source_sha256": "a0392697f08d9c1588ea55b77ac761c29352345adac6366aebe8d6d4e87acc80",
+      "destinations": [
+        "zenn",
+        "note"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-population-dataset-selection-en",
+      "language": "en",
+      "canonical_url": "https://aniccaai.com/blog/manager-population-dataset-selection-en",
+      "source": "en/manager-population-dataset-selection-en.md",
+      "source_sha256": "98c596e681d534e01a7367412f9374502a9c4c68e375f18247bcf06a996b6b7c",
+      "destinations": [
+        "substack-en"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-household-integerization-ja",
+      "language": "ja",
+      "canonical_url": "https://aniccaai.com/blog/manager-household-integerization-ja",
+      "source": "ja/manager-household-integerization-ja.md",
+      "source_sha256": "bb57088e05a6d06a173a273616f26e97a3ac378c19910bfa65b22ed85078ba84",
+      "destinations": [
+        "zenn",
+        "note"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-household-integerization-en",
+      "language": "en",
+      "canonical_url": "https://aniccaai.com/blog/manager-household-integerization-en",
+      "source": "en/manager-household-integerization-en.md",
+      "source_sha256": "bc4e39225fee207de09db309e0510a9e236c45c1c150a36c056c1331b2e6f73a",
+      "destinations": [
+        "substack-en"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-population-reconstruction-results-ja",
+      "language": "ja",
+      "canonical_url": "https://aniccaai.com/blog/manager-population-reconstruction-results-ja",
+      "source": "ja/manager-population-reconstruction-results-ja.md",
+      "source_sha256": "c37dc2c7e36ec8afe05802030a6f01483d78ec61cb5f22532155b2d972b9a991",
+      "destinations": [
+        "zenn",
+        "note"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-population-reconstruction-results-en",
+      "language": "en",
+      "canonical_url": "https://aniccaai.com/blog/manager-population-reconstruction-results-en",
+      "source": "en/manager-population-reconstruction-results-en.md",
+      "source_sha256": "1c9305f1ab72bf09873e102cf9382010529e2aef26fd79c527566b04d5b2b525",
+      "destinations": [
+        "substack-en"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-household-population-results-ja",
+      "language": "ja",
+      "canonical_url": "https://aniccaai.com/blog/manager-household-population-results-ja",
+      "source": "ja/manager-household-population-results-ja.md",
+      "source_sha256": "52c65aaeef6818d707079695b59ab11e89c9c84bec61ecc697fd64adcf6a70e6",
+      "destinations": [
+        "zenn",
+        "note"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-household-population-results-en",
+      "language": "en",
+      "canonical_url": "https://aniccaai.com/blog/manager-household-population-results-en",
+      "source": "en/manager-household-population-results-en.md",
+      "source_sha256": "0e9d739d936e4557ec3ac924077aa31557725d73d51fd3294c56d401c049ead8",
+      "destinations": [
+        "substack-en"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-population-to-behavior-ja",
+      "language": "ja",
+      "canonical_url": "https://aniccaai.com/blog/manager-population-to-behavior-ja",
+      "source": "ja/manager-population-to-behavior-ja.md",
+      "source_sha256": "d272be034a31323ad3b724a5e234ba3e68e4b27d6138400104b2d204489a8f24",
+      "destinations": [
+        "zenn",
+        "note"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-population-to-behavior-en",
+      "language": "en",
+      "canonical_url": "https://aniccaai.com/blog/manager-population-to-behavior-en",
+      "source": "en/manager-population-to-behavior-en.md",
+      "source_sha256": "93d326065a11954dbcda85b123f98e9ea550f921c49da6d318bbb7bc41e29968",
+      "destinations": [
+        "substack-en"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-behavior-prediction-basics-ja",
+      "language": "ja",
+      "canonical_url": "https://aniccaai.com/blog/manager-behavior-prediction-basics-ja",
+      "source": "ja/manager-behavior-prediction-basics-ja.md",
+      "source_sha256": "118123b0414cf1407219a67e5ed5dc40297fdcc72f8312a7a18f324bdd2d5f9e",
+      "destinations": [
+        "zenn",
+        "note"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-behavior-prediction-basics-en",
+      "language": "en",
+      "canonical_url": "https://aniccaai.com/blog/manager-behavior-prediction-basics-en",
+      "source": "en/manager-behavior-prediction-basics-en.md",
+      "source_sha256": "a721e2c254280d362b9a0220b412855194f7b49b8f5427b3d4f9ea5e88e3fdfe",
+      "destinations": [
+        "substack-en"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-behavior-data-ja",
+      "language": "ja",
+      "canonical_url": "https://aniccaai.com/blog/manager-behavior-data-ja",
+      "source": "ja/manager-behavior-data-ja.md",
+      "source_sha256": "b3ab310c1cea898d70e71e27581922100faf7d1b83f1072b1b7411863f563a8d",
+      "destinations": [
+        "zenn",
+        "note"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-behavior-data-en",
+      "language": "en",
+      "canonical_url": "https://aniccaai.com/blog/manager-behavior-data-en",
+      "source": "en/manager-behavior-data-en.md",
+      "source_sha256": "3cf97f640421af8d9d518bff74eaf3d1905c0a16f47920e46d8967467c0890b0",
+      "destinations": [
+        "substack-en"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-goodfire-already-clean-ja",
+      "language": "ja",
+      "canonical_url": "https://aniccaai.com/blog/manager-goodfire-already-clean-ja",
+      "source": "ja/manager-goodfire-already-clean-ja.md",
+      "source_sha256": "7f4a78557baa39d2018a7972e98d8dcfcaa85e7fc0520462235c88b5222618ca",
+      "destinations": [
+        "zenn",
+        "note"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-goodfire-already-clean-en",
+      "language": "en",
+      "canonical_url": "https://aniccaai.com/blog/manager-goodfire-already-clean-en",
+      "source": "en/manager-goodfire-already-clean-en.md",
+      "source_sha256": "a3dfd6d48ffd8fa18ac2aff6a6e40a041dd477364ec55881a8150dc0c5d83b57",
+      "destinations": [
+        "substack-en"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-numerai-unity-ja",
+      "language": "ja",
+      "canonical_url": "https://aniccaai.com/blog/manager-numerai-unity-ja",
+      "source": "ja/manager-numerai-unity-ja.md",
+      "source_sha256": "0ecd891afea3f6e9d5b5c25d8f15f11c27c1fd06756fea5f4465eae025dfd7dd",
+      "destinations": [
+        "zenn",
+        "note"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-numerai-unity-en",
+      "language": "en",
+      "canonical_url": "https://aniccaai.com/blog/manager-numerai-unity-en",
+      "source": "en/manager-numerai-unity-en.md",
+      "source_sha256": "180f6ae379f819f502a22e2ffc3b465f88be32900083b0da437d6b32adbcbdb0",
+      "destinations": [
+        "substack-en"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-simulation-lineage-and-mechanisms-ja",
+      "language": "ja",
+      "canonical_url": "https://aniccaai.com/blog/manager-simulation-lineage-and-mechanisms-ja",
+      "source": "ja/manager-simulation-lineage-and-mechanisms-ja.md",
+      "source_sha256": "51d0a197562ef9ba8e5aa0c5a414ceaee96b564bdd6f27e6d2067709f6c44477",
+      "destinations": [
+        "zenn",
+        "note"
+      ],
+      "send_subscriber_email": false
+    },
+    {
+      "slug": "manager-simulation-lineage-and-mechanisms-en",
+      "language": "en",
+      "canonical_url": "https://aniccaai.com/blog/manager-simulation-lineage-and-mechanisms-en",
+      "source": "en/manager-simulation-lineage-and-mechanisms-en.md",
+      "source_sha256": "64f47e580729078f9b8be0f141bf6622aa40bfe39d24cbf02d899ca1c28ad7c7",
+      "destinations": [
+        "substack-en"
+      ],
+      "send_subscriber_email": false
+    }
+  ],
+  "scope": "Artifact index only. Progress and remaining work are recorded only in the unified SSOT; this file creates no publishing loop or schedule."
+}

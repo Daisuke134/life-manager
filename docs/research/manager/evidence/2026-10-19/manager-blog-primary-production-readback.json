@@ -1,0 +1,186 @@
+{
+  "checked_at_utc": "2026-10-19T01:28:35.928453+00:00",
+  "revision": "45b41beea3c87bb563b5c08e97066bcea66eaada",
+  "collection_status": 200,
+  "article_count": 54,
+  "languages": {
+    "ja": 27,
+    "en": 27
+  },
+  "all_media_hashes_match": true,
+  "media": [
+    {
+      "url": "https://aniccaai.com/blog/manager/media/9dc9fe3a29087f7a36c32d93ad570b6357a52a334afadb071b14e7d3a86adb2d.png",
+      "status": 200,
+      "sha256": "9dc9fe3a29087f7a36c32d93ad570b6357a52a334afadb071b14e7d3a86adb2d"
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/3c05d72aac35a878558f1cb14576369e4e1ed74378c49126d0067e99716d99ef.png",
+      "status": 200,
+      "sha256": "3c05d72aac35a878558f1cb14576369e4e1ed74378c49126d0067e99716d99ef"
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/c2b34fa4b38c79c5386200ca31a477fc80e9a3e2c3ff735eb0ac732f1835bc5c.png",
+      "status": 200,
+      "sha256": "c2b34fa4b38c79c5386200ca31a477fc80e9a3e2c3ff735eb0ac732f1835bc5c"
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/44e2559cf36951fd05b99b034d6c48c0bef0bfa5793bebd97d7af15bb2cfc57a.png",
+      "status": 200,
+      "sha256": "44e2559cf36951fd05b99b034d6c48c0bef0bfa5793bebd97d7af15bb2cfc57a"
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/8b828c20d083053461c13a7afaa983829ecfaf22678d1d35e9b994ba84f0b64f.png",
+      "status": 200,
+      "sha256": "8b828c20d083053461c13a7afaa983829ecfaf22678d1d35e9b994ba84f0b64f"
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/114cbab43a81483edea3efce24fde9fc9fef353918f1598b96002efebd479ea4.png",
+      "status": 200,
+      "sha256": "114cbab43a81483edea3efce24fde9fc9fef353918f1598b96002efebd479ea4"
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/6bcad6bc5e1bbfed8177e9605ddb8aecc3303b553ea31e9dd7fb9f4c4cc9f81a.png",
+      "status": 200,
+      "sha256": "6bcad6bc5e1bbfed8177e9605ddb8aecc3303b553ea31e9dd7fb9f4c4cc9f81a"
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/eb128c3864d700f6ed97817946df3eac49e5c7f28ea0a36a3b5ff1c57f1a5229.png",
+      "status": 200,
+      "sha256": "eb128c3864d700f6ed97817946df3eac49e5c7f28ea0a36a3b5ff1c57f1a5229"
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/1027d7fb554e8dbc13b1d79ec21e9e1be67441c74d189e6d880e6d827e8ece84.png",
+      "status": 200,
+      "sha256": "1027d7fb554e8dbc13b1d79ec21e9e1be67441c74d189e6d880e6d827e8ece84"
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/9acc6aa8508b836beea71a88e755c3f558c997b02ae81dca28741b2ce2023050.png",
+      "status": 200,
+      "sha256": "9acc6aa8508b836beea71a88e755c3f558c997b02ae81dca28741b2ce2023050"
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/af487ccd0c5d711816bfa1ca60335c08ebe98284cf15e2bf524136e4cc504f17.png",
+      "status": 200,
+      "sha256": "af487ccd0c5d711816bfa1ca60335c08ebe98284cf15e2bf524136e4cc504f17"
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/f1b0f3aa23b8141b3d33d9ec57b098cc09525d51c569ed98f9e8f4637361df12.png",
+      "status": 200,
+      "sha256": "f1b0f3aa23b8141b3d33d9ec57b098cc09525d51c569ed98f9e8f4637361df12"
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/508711f3df00ba5ce381dbeecb8c99351ebbc9733e4f351d1110d0ec2b2adfce.png",
+      "status": 200,
+      "sha256": "508711f3df00ba5ce381dbeecb8c99351ebbc9733e4f351d1110d0ec2b2adfce"
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/24723b9d04ebeba73cc2c076548142237bb74c09760c3fb5392d17d6f88b5412.png",
+      "status": 200,
+      "sha256": "24723b9d04ebeba73cc2c076548142237bb74c09760c3fb5392d17d6f88b5412"
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/c75b55eb16b7e3914ac451c9684efee3a7e435eb77ce6bdb699ffb17972acc92.png",
+      "status": 200,
+      "sha256": "c75b55eb16b7e3914ac451c9684efee3a7e435eb77ce6bdb699ffb17972acc92"
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/29800756ba241a433e6e8e24d07807f378f37ad40158fb525e2d1365ac694ecb.png",
+      "status": 200,
+      "sha256": "29800756ba241a433e6e8e24d07807f378f37ad40158fb525e2d1365ac694ecb"
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/9c26978fbafba515d22d1518336043ca1b4c13d05106d08e3ea5d876a61ff212.png",
+      "status": 200,
+      "sha256": "9c26978fbafba515d22d1518336043ca1b4c13d05106d08e3ea5d876a61ff212"
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/77f5eba6ed1ce20119a9fe77c4204c19194a26e47b6706277d676fff84236944.png",
+      "status": 200,
+      "sha256": "77f5eba6ed1ce20119a9fe77c4204c19194a26e47b6706277d676fff84236944"
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/49b58c16621bc9af72513e0af67d148ab06ff208bf24fd04bb2792c1d2042061.png",
+      "status": 200,
+      "sha256": "49b58c16621bc9af72513e0af67d148ab06ff208bf24fd04bb2792c1d2042061"
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/f7abe9b37eac34af40253544d14d7d114dd7044345b5d9466370a1898ce7f690.png",
+      "status": 200,
+      "sha256": "f7abe9b37eac34af40253544d14d7d114dd7044345b5d9466370a1898ce7f690"
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/441e6c94305611e6e848ee00552f6e8d72ca30ea5cb22459685a86df76979ee1.png",
+      "status": 200,
+      "sha256": "441e6c94305611e6e848ee00552f6e8d72ca30ea5cb22459685a86df76979ee1"
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/c3e8ba63bd7fce272884fec4e10119de2c720047ca4a3ad16e1d4a55e2ce5e67.png",
+      "status": 200,
+      "sha256": "c3e8ba63bd7fce272884fec4e10119de2c720047ca4a3ad16e1d4a55e2ce5e67"
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/d8594aa19f99f4514eddf6d7ef672b5f549b421ad228a64345e0a44e312c049d.png",
+      "status": 200,
+      "sha256": "d8594aa19f99f4514eddf6d7ef672b5f549b421ad228a64345e0a44e312c049d"
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/4b110ec2b9686fb8df07c78a5c5824ec00d2e1b7bfbf806ce5f87959280ed7dd.png",
+      "status": 200,
+      "sha256": "4b110ec2b9686fb8df07c78a5c5824ec00d2e1b7bfbf806ce5f87959280ed7dd"
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/f95dffd7e217815a30522f164588a158316ffc7bad45e50ee6beba853095f55c.png",
+      "status": 200,
+      "sha256": "f95dffd7e217815a30522f164588a158316ffc7bad45e50ee6beba853095f55c"
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/0e3cb41af0ffca953ee2c234b3c932778aeb70db6917c02fa2732d815c8879ee.png",
+      "status": 200,
+      "sha256": "0e3cb41af0ffca953ee2c234b3c932778aeb70db6917c02fa2732d815c8879ee"
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/b2387a23cde5e752c5fec753ee553719d12263f33e5ce1a0cd20bcf824e1983d.png",
+      "status": 200,
+      "sha256": "b2387a23cde5e752c5fec753ee553719d12263f33e5ce1a0cd20bcf824e1983d"
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/e18c3eda0c90e260b0dd5b42bcfc0946490b7e2a2f70988c15c68b8e227d4476.png",
+      "status": 200,
+      "sha256": "e18c3eda0c90e260b0dd5b42bcfc0946490b7e2a2f70988c15c68b8e227d4476"
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager/media/d292bb58107aaa6fe1e137a476b19e66672f2a56acf9bff5d7cc80a04555514d.png",
+      "status": 200,
+      "sha256": "d292bb58107aaa6fe1e137a476b19e66672f2a56acf9bff5d7cc80a04555514d"
+    }
+  ],
+  "sample_articles": [
+    {
+      "slug": "manager-population-reconstruction-results-ja",
+      "status": 200,
+      "tables": 1
+    },
+    {
+      "slug": "manager-household-population-results-en",
+      "status": 200,
+      "tables": 1
+    },
+    {
+      "slug": "manager-behavior-prediction-basics-ja",
+      "status": 200,
+      "tables": 3
+    },
+    {
+      "slug": "manager-behavior-data-ja",
+      "status": 200,
+      "tables": 9
+    },
+    {
+      "slug": "manager-behavior-data-en",
+      "status": 200,
+      "tables": 9
+    }
+  ],
+  "scope": "Independent production HTTP receipt, all media bytes, collection links and representative rendered articles. No prediction or intervention experiment."
+}
