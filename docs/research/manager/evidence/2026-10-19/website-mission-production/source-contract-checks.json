@@ -1,0 +1,53 @@
+{
+  "company": "Anicca",
+  "product": "Manager",
+  "mission": "End suffering.",
+  "mission_ja": "苦しみをなくす。",
+  "source_revision": "c089afd4e41427a41f416eac16b9238c4dc9b555",
+  "compared_to_prior_published_revision": "1236275cd53270faacf90e1253dc08926fa51202",
+  "runtime_assets_adapter_unchanged": true,
+  "pages": [
+    {
+      "page": "products.html",
+      "outgoing_links_unchanged": true,
+      "brand": "Anicca",
+      "no_wrong_brand": true,
+      "sha256": "3e21fbc97e74a40b07e4477d8a593933335b309e71fe92fedcbc2e4bd6bc1e73"
+    },
+    {
+      "page": "life-manager.html",
+      "outgoing_links_unchanged": true,
+      "brand": "Anicca",
+      "no_wrong_brand": true,
+      "sha256": "ec195a330a1a074422dd3ebdcc90917e3c4cf8fc83e4bc9d599ff3e19b1fa810"
+    },
+    {
+      "page": "ja.html",
+      "outgoing_links_unchanged": true,
+      "brand": "Anicca",
+      "no_wrong_brand": true,
+      "sha256": "af792bc718e8492734135d329d046e5769209a077f43f3b40c50ed00de977671"
+    },
+    {
+      "page": "life-manager-en.html",
+      "outgoing_links_unchanged": true,
+      "brand": "Anicca",
+      "no_wrong_brand": true,
+      "sha256": "08a0f44f66e9d4fd8e8d3c854ac4e96512be97b7e95ac576c9ac24ff5b2a3872"
+    },
+    {
+      "page": "products-en.html",
+      "outgoing_links_unchanged": true,
+      "brand": "Anicca",
+      "no_wrong_brand": true,
+      "sha256": "ddc6c2a7ca6564356940fc72b214acd4352269283b1b3d64ff7bf81cdd955d46"
+    },
+    {
+      "page": "en.html",
+      "outgoing_links_unchanged": true,
+      "brand": "Anicca",
+      "no_wrong_brand": true,
+      "sha256": "52e8beb9f19af65f2b7338d9b9f35ba3d479c6a1ae3b49f809e18b91868e4c4e"
+    }
+  ]
+}

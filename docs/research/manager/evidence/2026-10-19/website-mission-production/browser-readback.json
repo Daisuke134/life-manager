@@ -1,0 +1,41 @@
+[
+  {
+    "page": "/en",
+    "width": 390,
+    "title": "Anicca — End suffering.",
+    "overflow": false
+  },
+  {
+    "page": "/dais",
+    "width": 390,
+    "title": "My products — Dais / Anicca",
+    "overflow": false
+  },
+  {
+    "page": "/lm",
+    "width": 390,
+    "title": "Life Manager — A proactive agent for your body, mind and money",
+    "overflow": false
+  },
+  {
+    "page": "/en",
+    "width": 1440,
+    "title": "Anicca — End suffering.",
+    "overflow": false
+  },
+  {
+    "page": "/lm",
+    "width": 1440,
+    "title": "Life Manager — A proactive agent for your body, mind and money",
+    "overflow": false
+  },
+  {
+    "page": "/ja",
+    "width": 390,
+    "title": "Anicca — 苦しみをなくす。",
+    "overflow": false
+  },
+  {
+    "utm_forwarding": true
+  }
+]

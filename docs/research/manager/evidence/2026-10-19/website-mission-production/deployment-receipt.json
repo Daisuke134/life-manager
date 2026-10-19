@@ -1,0 +1,22 @@
+{
+  "company": "Anicca",
+  "product": "Manager",
+  "mission": "End suffering.",
+  "run_url": "https://github.com/Daisuke134/anicca-products/actions/runs/39178862807",
+  "head_sha": "525762167ddcd45ae76c999cde7b6f1825773616",
+  "status": "completed",
+  "conclusion": "success",
+  "deploy_urls": [
+    "https://6ad55e91d4142e439619146e--anicca2.netlify.app"
+  ],
+  "smoke_pass": [
+    "https://aniccaai.com up, /lm Web app handoff verified, life-call health is 200, no direct Stripe link, Checkout and legacy Payment Link remain reachable"
+  ],
+  "production_workflow_state": "active",
+  "cancelled_wrong_brand_run": {
+    "id": 39178161891,
+    "conclusion": "cancelled"
+  },
+  "observed_previous_public_revision": "1236275cd53270faacf90e1253dc08926fa51202",
+  "source_revision": "c089afd4e41427a41f416eac16b9238c4dc9b555"
+}

@@ -1,0 +1,16 @@
+[
+  {
+    "repo": "life-manager",
+    "pr": 8380,
+    "sha": "5010169db53d4fc051bbda2650d69561c44e3df8",
+    "merged": true,
+    "message": "Pull Request successfully merged"
+  },
+  {
+    "repo": "anicca-products",
+    "pr": 522,
+    "sha": "525762167ddcd45ae76c999cde7b6f1825773616",
+    "merged": true,
+    "message": "Pull Request successfully merged"
+  }
+]
