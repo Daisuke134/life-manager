@@ -1922,7 +1922,8 @@ def resolve_unknown_occurrence(owner_id: str, occurrence_id: str, *,
         raise RuntimeError("invalid occurrence identity")
     proof = official_readback()
     if (not isinstance(proof, Mapping)
-            or proof.get("proof_type") == REQUEST_CLOSED_PROOF_TYPE
+            or proof.get("proof_type") in {REQUEST_CLOSED_PROOF_TYPE,
+                                           REQUEST_CLOSED_OR_ROSTER_ABSENT_PROOF_TYPE}
             or proof.get("owner_id") != owner_id
             or proof.get("occurrence_id") != occurrence_id
             or proof.get("verified") is not True
@@ -2113,6 +2114,61 @@ def resolve_request_closed_occurrence(
                 or not all(isinstance(value, str) and value.isdigit() for value in ids)):
             return False
         return proof.get("provider_receipt_id") == ",".join(url.format(value) for value in ids)
+
+    return _close_unknown_occurrence(
+        owner_id, occurrence_id, expected_state, proof_check=proof_check
+    )
+
+
+REQUEST_CLOSED_OR_ROSTER_ABSENT_PROOF_TYPE = "provider_request_closed_or_roster_absent_batch.v1"
+
+
+def resolve_request_closed_or_roster_absent_occurrence(
+        owner_id: str, occurrence_id: str, *,
+        mixed_proof: Callable[[], Mapping[str, object]],
+        expected_state: str = "claimed") -> bool:
+    """Close an unknown application occurrence whose bound requests are each proven settled.
+
+    Every request carries its own kind: ``closed`` (its official page reads 募集終了/gone, so a
+    duplicate is impossible) or ``roster_absent`` (its complete official applicant roster lacks
+    the bound account). A closed request may still hold our application, so ``effect`` stays
+    ``"unknown"``. The adapter validates the readback; this enforces the exact request binding.
+    """
+    if (not owner_id or not _normalize_occurrence_id(occurrence_id)
+            or expected_state not in {"claimed", "released"}):
+        raise RuntimeError("invalid occurrence identity")
+
+    def proof_check() -> bool:
+        proof = mixed_proof()
+        if not (isinstance(proof, Mapping)
+                and proof.get("owner_id") == owner_id
+                and proof.get("occurrence_id") == occurrence_id
+                and proof.get("verified") is True
+                and proof.get("proof_type") == REQUEST_CLOSED_OR_ROSTER_ABSENT_PROOF_TYPE
+                and proof.get("effect") == "unknown"
+                and proof.get("reason") == "duplicate_impossible_request_closed_or_roster_absent"
+                and isinstance(proof.get("runtime_run_id"), str)
+                and bool(proof["runtime_run_id"].strip())
+                and isinstance(proof.get("evidence_ref"), str)
+                and bool(proof["evidence_ref"].strip())):
+            return False
+        url = _REQUEST_CLOSED_PROVIDER_URLS.get(proof.get("provider"))
+        ids, requests = proof.get("request_ids"), proof.get("requests")
+        if (url is None or not isinstance(ids, list) or not ids
+                or len(set(map(str, ids))) != len(ids)
+                or not all(isinstance(value, str) and value.isdigit() for value in ids)
+                or not isinstance(requests, Mapping) or set(requests) != set(ids)
+                or proof.get("provider_receipt_id") != ",".join(url.format(value) for value in ids)):
+            return False
+        for value in ids:
+            row = requests[value]
+            if not (isinstance(row, Mapping) and row.get("official_url") == url.format(value)
+                    and row.get("kind") in {"closed", "roster_absent"}):
+                return False
+            account = row.get("account_id")
+            if row["kind"] == "roster_absent" and not (isinstance(account, str) and account.isdigit()):
+                return False
+        return True
 
     return _close_unknown_occurrence(
         owner_id, occurrence_id, expected_state, proof_check=proof_check

@@ -397,8 +397,11 @@ def _close_closed_batch(owner_id: str, occurrence_id: str, runtime_run_id: str,
     read after its marker, is 募集終了/gone: no further application to it is possible.
 
     Per-request pages instead of the full applied-history walk, which Coconala answers
-    with 403 after a few pages (hf-gig-apply-direct:18dea9ef6158f5b0-37135). None means
-    "not proven" and the caller falls back to the history walk.
+    with 403 after a few pages (hf-gig-apply-direct:18dea9ef6158f5b0-37135). A request that
+    is still open counts only when its complete roster, read after its marker + safety lag,
+    lacks our account; such a closed + absent batch closes through its own per-request proof
+    (hf-gig-apply-direct:18df80f03ec86a98-74517). None means "not proven" and the caller
+    falls back to the roster batch, then the history walk.
     """
     try:
         bound = reconciler._require_complete_request_set(
@@ -406,7 +409,9 @@ def _close_closed_batch(owner_id: str, occurrence_id: str, runtime_run_id: str,
             request_ids=list(request_ids))
     except reconciler.ReconcileContractError:
         return None
-    pending = sorted(str(value["request_id"]) for value in bound if value.get("state") != "confirmed")
+    unconfirmed = sorted((value for value in bound if value.get("state") != "confirmed"),
+                         key=lambda value: str(value["request_id"]))
+    pending = [str(value["request_id"]) for value in unconfirmed]
     if not pending:
         return None
     path = reconciler._default_evidence_dir(occurrence_id) / "request-closed-readback.json"
@@ -417,17 +422,27 @@ def _close_closed_batch(owner_id: str, occurrence_id: str, runtime_run_id: str,
     if run_browser_reconcile(command, runner=runner) != 0:
         return None
     rows, closed = _closed_rows(path), _closed_ids(path)
-    urls = []
-    for request_id in pending:
+    urls, kinds = [], {}
+    for value, request_id in zip(unconfirmed, pending):
         row, url = rows.get(request_id) or {}, f"https://coconala.com/requests/{request_id}"
         try:
             after_marker = (datetime.fromisoformat(str(row.get("observed_at"))).timestamp()
                             > (Path(intent_root) / f"{request_id}.json").stat().st_mtime)
         except (OSError, ValueError, TypeError):
             return None
-        if request_id not in closed or row.get("url") != url or row.get("final_url") != url or not after_marker:
+        if request_id in closed and row.get("url") == url and row.get("final_url") == url and after_marker:
+            kinds[request_id] = "closed"
+        elif _roster_settles_attempt(value, intent_root, APPLY_ROOT, rows) == "absent":
+            kinds[request_id] = "roster_absent"
+        else:
             return None
         urls.append(url)
+    if "roster_absent" in kinds.values():
+        # All-absent stays with _close_roster_batch's historical no-dispatch sibling.
+        if "closed" not in kinds.values():
+            return None
+        return _close_closed_or_absent_batch(owner_id, occurrence_id, runtime_run_id,
+                                             unconfirmed, kinds, intent_root, path)
     # The earlier click may still have applied, so the effect stays "unknown", never 0.
     proof = {"owner_id": owner_id, "occurrence_id": occurrence_id, "runtime_run_id": runtime_run_id,
              "request_ids": pending, "verified": True, "provider": "coconala",
@@ -442,6 +457,67 @@ def _close_closed_batch(owner_id: str, occurrence_id: str, runtime_run_id: str,
             "retryable": False, "effect": "unknown", "readback": 1, "occurrence_id": occurrence_id,
             "request_ids": pending, "provider_receipt_id": proof["provider_receipt_id"],
             "evidence_ref": proof["evidence_ref"]}
+
+
+def _retire_absent_intents(store, absent: Sequence[dict], evidence_ref: str) -> dict | None:
+    """Retire each roster-absent prepared intent under its lock + CAS once its fence is closed."""
+    try:
+        for value in absent:
+            rid = value["request_id"]
+            with store.locked(rid):
+                current = store._read_locked(rid)
+                if current is None:
+                    raise fence.IntentFenceError("intent_missing_after_resolution")
+                if current["state"] == fence.PREPARED and current["cas"] == value["cas"]:
+                    store.retire_prepared_locked(
+                        rid, expected_cas=value["cas"],
+                        reason="official_roster_account_absent_no_dispatch_confirmed:" + evidence_ref)
+                elif current["state"] != fence.RETIRED_ABSENT:
+                    raise fence.IntentFenceError("intent_state_changed_after_resolution")
+    except Exception as error:
+        return {"status": "unresolved", "reason": "intent_retire_failed",
+                "error_class": type(error).__name__, "error_detail": str(error)[:240],
+                "next_action": "inspect the durable intent archive; the provider fence is closed"}
+    return None
+
+
+def _close_closed_or_absent_batch(owner_id: str, occurrence_id: str, runtime_run_id: str,
+                                  unconfirmed: Sequence[dict], kinds: Mapping[str, str],
+                                  intent_root: Path, path: Path) -> dict[str, object]:
+    """Close the exact occurrence when each unconfirmed request is closed or roster-absent.
+
+    A closed request may still hold our application, so the effect stays "unknown".
+    Absent intents are retired like the historical sibling; closed ones stay prepared.
+    """
+    evidence_ref = str(path.resolve())
+    requests = {}
+    for value in unconfirmed:
+        rid = str(value["request_id"])
+        requests[rid] = {"kind": kinds[rid], "official_url": f"https://coconala.com/requests/{rid}"}
+        if kinds[rid] == "roster_absent":
+            requests[rid]["account_id"] = _identity_account(value, APPLY_ROOT)
+    ids = sorted(requests)
+    proof = {"owner_id": owner_id, "occurrence_id": occurrence_id, "runtime_run_id": runtime_run_id,
+             "request_ids": ids, "verified": True, "provider": "coconala",
+             "proof_type": resource_admission.REQUEST_CLOSED_OR_ROSTER_ABSENT_PROOF_TYPE,
+             "effect": "unknown", "reason": "duplicate_impossible_request_closed_or_roster_absent",
+             "provider_receipt_id": ",".join(requests[rid]["official_url"] for rid in ids),
+             "evidence_ref": evidence_ref, "requests": requests}
+    base = {"retryable": False, "effect": "unknown", "readback": 1, "occurrence_id": occurrence_id,
+            "request_ids": ids, "closed_request_ids": [rid for rid in ids if kinds[rid] == "closed"],
+            "no_dispatch_request_ids": [rid for rid in ids if kinds[rid] == "roster_absent"],
+            "provider_receipt_id": proof["provider_receipt_id"], "evidence_ref": evidence_ref}
+    closed_now = resource_admission.resolve_request_closed_or_roster_absent_occurrence(
+        owner_id, occurrence_id, mixed_proof=lambda: proof, expected_state="claimed")
+    if closed_now is not True:
+        return {**base, "status": "unresolved", "reason": "occurrence_not_current_or_already_closed"}
+    failure = _retire_absent_intents(
+        fence.IntentStore(intent_root),
+        [value for value in unconfirmed if kinds[str(value["request_id"])] == "roster_absent"],
+        evidence_ref)
+    if failure is not None:
+        return {**base, **failure}
+    return {**base, "status": "reconciled", "reason": "duplicate_impossible_request_closed_or_roster_absent"}
 
 
 def _applied_detail(value: dict, apply_root: Path) -> dict | None:
@@ -489,7 +565,8 @@ def _close_roster_batch(owner_id: str, occurrence_id: str, runtime_run_id: str,
     marker + safety lag: no application, so close this occurrence with the account-bound
     no-dispatch proof and retire the intent, as the historical sibling does. Anything else is
     None and the fence stays; in such a mixed batch the listed requests are still ledgered and
-    confirmed, so a later wake sees only the unproven ones.
+    confirmed, so a later wake sees only the unproven ones. A closed + absent batch is closed
+    by ``_close_closed_batch``, which owns this wake's exit-0 readback.
     """
     try:
         bound = reconciler._require_complete_request_set(
@@ -551,23 +628,9 @@ def _close_roster_batch(owner_id: str, occurrence_id: str, runtime_run_id: str,
             owner_id, occurrence_id, no_dispatch_proof=lambda: proof, expected_state="claimed")
         if closed_now is not True:
             return {**base, "status": "unresolved", "reason": "occurrence_not_current_or_already_closed"}
-        try:
-            for value in absent:
-                rid = value["request_id"]
-                with store.locked(rid):
-                    current = store._read_locked(rid)
-                    if current is None:
-                        raise fence.IntentFenceError("intent_missing_after_resolution")
-                    if current["state"] == fence.PREPARED and current["cas"] == value["cas"]:
-                        store.retire_prepared_locked(
-                            rid, expected_cas=value["cas"],
-                            reason="official_roster_account_absent_no_dispatch_confirmed:" + evidence_ref)
-                    elif current["state"] != fence.RETIRED_ABSENT:
-                        raise fence.IntentFenceError("intent_state_changed_after_resolution")
-        except Exception as error:
-            return {**base, "status": "unresolved", "reason": "intent_retire_failed",
-                    "error_class": type(error).__name__, "error_detail": str(error)[:240],
-                    "next_action": "inspect the durable intent archive; the provider fence is closed"}
+        failure = _retire_absent_intents(store, absent, evidence_ref)
+        if failure is not None:
+            return {**base, **failure}
         return {**base, "status": "reconciled", "reason": "official_roster_account_absent",
                 "historical_account_id": account}
     urls = [f"https://coconala.com/requests/{value['request_id']}" for value in present]

@@ -7,6 +7,8 @@ import sys
 import importlib.util
 from pathlib import Path
 
+import pytest
+
 
 ROOT = Path(__file__).parents[4]
 REGISTRY = ROOT / "config" / "loop-registry.json"
@@ -685,7 +687,8 @@ def test_adapter_tries_the_roster_before_the_history_walk(tmp_path, monkeypatch,
 # hf-gig-apply-direct:18df80f03ec86a98-74517 (2026-10-19): 5320092 read 募集終了 (no roster, so
 # verdict None) while 5331694 was open. A bound request whose roster lists our account is
 # confirmed and ledgered even then, so the next wake's pending set is the closed request alone
-# and _close_closed_batch can close the occurrence. The mixed batch itself closes nothing.
+# and _close_closed_batch can close the occurrence. The roster batch itself closes nothing: a
+# closed + absent batch is closed by _close_closed_batch from its own exit-0 readback.
 def test_mixed_batch_confirms_present_request_and_keeps_the_occurrence_fenced(tmp_path, monkeypatch) -> None:
     result, calls, state, ledger_ids = _roster_batch(
         tmp_path, monkeypatch, ids=("111", "2564121"), closed_peer=True)
@@ -776,3 +779,91 @@ def test_read_roster_fails_closed_without_the_applicant_section() -> None:
     page = _RosterPage(total=83, sections=("#requestContentsFaq",))
     roster = module.read_roster(page)
     assert page.clicks == [] and roster["expander_remaining"] is True
+
+
+# hf-gig-apply-direct:18df80f03ec86a98-74517 (2026-10-19): 5324400 confirmed, 5320092 read 募集終了,
+# 5331694 stayed open with a complete 89-applicant roster lacking account 2564121, read long after
+# its marker. Each unconfirmed request is proven on its own (closed, or roster-absent), so the
+# exact occurrence closes in the same wake that read them, effect still "unknown".
+def _mixed_batch(tmp_path, monkeypatch, *, ids=("111", "222"), count=None, expander_remaining=False,
+                 marker_age=3600, closed=True, closed_observed=_OBSERVED, exit_code=0, closed_peer=True):
+    import os
+    from datetime import datetime
+    wrapper = _load_wrapper()
+    store = wrapper.fence.IntentStore(tmp_path / "intents")
+    apply_root = tmp_path / "apply-direct"
+    confirmed = _started(wrapper, store, "5324400")
+    store.confirm("5324400", expected_cas=confirmed["cas"])
+    request_ids = ["5324400", "5331694"]
+    _started(wrapper, store, "5331694")
+    if closed_peer:
+        _started(wrapper, store, "5320092")
+        request_ids.append("5320092")
+    marker = datetime.fromisoformat(_OBSERVED).timestamp() - marker_age
+    for rid in request_ids[1:]:
+        os.utime(store.intent_path(rid), (marker, marker))
+    worker = apply_root / _ROSTER_PASS / "refresh-evidence" / "commit-workers" / "5331694"
+    worker.mkdir(parents=True)
+    (worker / f"gig-{_ROSTER_PASS}-commit-5331694-B2-5331694-identity.json").write_text(json.dumps({
+        "source": "code_owned_cdp_authenticated_identity", "request_id": "5331694",
+        "account_id": "2564121"}))
+    monkeypatch.setattr(wrapper, "APPLY_ROOT", apply_root)
+    evidence = tmp_path / "evidence"
+    monkeypatch.setattr(wrapper.reconciler, "_default_evidence_dir", lambda occ: evidence)
+    rows = json.loads(_roster(tmp_path, rid="5331694", ids=ids, count=count, observed_at=_OBSERVED,
+                              expander_remaining=expander_remaining).read_text())["requests"]
+    if closed_peer:
+        rows["5320092"] = {**_closed_row("5320092", closed=closed), "observed_at": closed_observed}
+    commands = []
+
+    def runner(command, **_kwargs):
+        commands.append(command)
+        result = Path(command[command.index("--result") + 1])
+        result.parent.mkdir(parents=True, exist_ok=True)
+        result.write_text(json.dumps({"source": "code_owned_cdp_readback", "requests": rows}))
+        return subprocess.CompletedProcess(command, exit_code)
+
+    calls = _admission_calls(wrapper, monkeypatch)
+    result = wrapper._close_closed_batch(
+        "hf-gig-apply-direct", "hf-gig-apply-direct:occ-1", "run-1", request_ids, tmp_path / "intents",
+        runner=runner)
+    states = {rid: store.read(rid)["state"] for rid in request_ids}
+    return result, calls, states, commands
+
+
+def test_mixed_closed_and_roster_absent_requests_close_the_exact_occurrence(tmp_path, monkeypatch) -> None:
+    result, calls, states, commands = _mixed_batch(tmp_path, monkeypatch)
+    assert len(commands) == 1 and commands[0][2] == "coconala:kosuke"
+    assert calls == [("hf-gig-apply-direct", "hf-gig-apply-direct:occ-1", "claimed")]
+    assert result["status"] == "reconciled"
+    assert result["reason"] == "duplicate_impossible_request_closed_or_roster_absent"
+    # The closed request's earlier click may still have applied: never record the effect as 0.
+    assert result["effect"] == "unknown"
+    assert result["closed_request_ids"] == ["5320092"] and result["no_dispatch_request_ids"] == ["5331694"]
+    # Absent is retired like the historical sibling; closed stays prepared, as the closed batch leaves it.
+    assert states == {"5324400": "confirmed", "5331694": "retired_absent", "5320092": "prepared"}
+
+
+def test_mixed_closed_batch_uses_the_dedicated_admission_resolver() -> None:
+    import inspect
+    wrapper = _load_wrapper()
+    assert "_close_closed_or_absent_batch" in inspect.getsource(wrapper._close_closed_batch)
+    source = inspect.getsource(wrapper._close_closed_or_absent_batch)
+    assert "resolve_request_closed_or_roster_absent_occurrence" in source
+    assert "resolve_unknown_occurrence" not in source
+
+
+@pytest.mark.parametrize("kwargs", [
+    {"ids": ("111", "2564121")},                              # our account listed: present, unconfirmed
+    {"expander_remaining": True},                             # roster not fully expanded
+    {"count": 3},                                             # count does not match the listed ids
+    {"marker_age": 600},                                      # absent read before the safety lag
+    {"closed": False, "ids": ("111", "222")},                 # peer request still open, no roster
+    {"closed_observed": "2000-01-01T00:00:00+00:00"},         # closed read before its marker
+    {"exit_code": 1},                                         # readback of this wake failed
+    {"closed_peer": False},                                   # all-absent: the historical sibling's case
+])
+def test_mixed_batch_without_a_proof_for_every_request_keeps_the_fence(tmp_path, monkeypatch, kwargs) -> None:
+    result, calls, states, _commands = _mixed_batch(tmp_path, monkeypatch, **kwargs)
+    assert result is None and calls == []
+    assert states["5331694"] == "prepared" and states.get("5320092", "prepared") == "prepared"

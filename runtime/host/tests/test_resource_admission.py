@@ -4014,3 +4014,86 @@ def test_request_closed_proof_is_not_a_provider_effect_receipt(tmp_path, monkeyp
         owner, occurrence, official_readback=_request_closed(owner, occurrence),
         expected_state="claimed") is False
     assert _row_state(tmp_path, occurrence) == ("claimed", 1)
+
+
+# hf-gig-apply-direct:18df80f03ec86a98-74517 (2026-10-19): 5320092 read 募集終了 while 5331694 was
+# open with a complete roster lacking our account. Each bound request is proven on its own:
+# closed (duplicate impossible) or roster-absent (account-bound), so the occurrence closes with
+# its effect still "unknown".
+def _closed_or_absent(owner, occurrence, **changes):
+    proof = {"owner_id": owner, "occurrence_id": occurrence, "verified": True,
+             "proof_type": "provider_request_closed_or_roster_absent_batch.v1",
+             "provider": "coconala", "runtime_run_id": "run-1",
+             "request_ids": ["5320092", "5331694"],
+             "provider_receipt_id": "https://coconala.com/requests/5320092,https://coconala.com/requests/5331694",
+             "effect": "unknown", "reason": "duplicate_impossible_request_closed_or_roster_absent",
+             "evidence_ref": "/evidence/request-closed-readback.json",
+             "requests": {
+                 "5320092": {"kind": "closed", "official_url": "https://coconala.com/requests/5320092"},
+                 "5331694": {"kind": "roster_absent", "account_id": "2564121",
+                             "official_url": "https://coconala.com/requests/5331694"}}}
+    proof.update(changes)
+    return lambda: proof
+
+
+def test_closed_or_roster_absent_batch_closes_its_exact_fence(tmp_path, monkeypatch):
+    occurrence = "hf-gig-apply-direct:mixed-batch"
+    owner = _fenced(tmp_path, monkeypatch, occurrence)
+    assert admission.resolve_request_closed_or_roster_absent_occurrence(
+        owner, occurrence, mixed_proof=_closed_or_absent(owner, occurrence)) is True
+    assert _row_state(tmp_path, occurrence) == ("released", 0)
+
+
+_CLOSED = {"kind": "closed", "official_url": "https://coconala.com/requests/5320092"}
+_ABSENT = {"kind": "roster_absent", "account_id": "2564121",
+           "official_url": "https://coconala.com/requests/5331694"}
+
+
+@pytest.mark.parametrize("changes", [
+    {"effect": 0},
+    {"verified": False},
+    {"provider": "lancers"},
+    {"proof_type": "provider_request_closed_exact_batch.v1"},
+    {"runtime_run_id": " "},
+    {"request_ids": []},
+    {"request_ids": ["5320092", "5320092"]},
+    {"request_ids": ["5320092", "abc"]},
+    {"provider_receipt_id": "https://coconala.com/requests/5320092"},
+    {"reason": "duplicate_impossible_request_closed"},
+    {"evidence_ref": " "},
+    {"occurrence_id": "hf-gig-apply-direct:other"},
+    {"requests": None},
+    {"requests": {"5320092": _CLOSED}},
+    {"requests": {"5320092": _CLOSED, "5331694": _ABSENT, "5399999": _CLOSED}},
+    {"requests": {"5320092": _CLOSED, "5331694": {**_ABSENT, "kind": "present"}}},
+    {"requests": {"5320092": {"official_url": _CLOSED["official_url"]}, "5331694": _ABSENT}},
+    {"requests": {"5320092": {**_CLOSED, "official_url": "https://coconala.com/login"}, "5331694": _ABSENT}},
+    {"requests": {"5320092": _CLOSED, "5331694": {k: v for k, v in _ABSENT.items() if k != "account_id"}}},
+    {"requests": {"5320092": _CLOSED, "5331694": {**_ABSENT, "account_id": "me"}}},
+])
+def test_closed_or_roster_absent_batch_rejects_malformed_proof(tmp_path, monkeypatch, changes):
+    occurrence = "hf-gig-apply-direct:mixed-reject"
+    owner = _fenced(tmp_path, monkeypatch, occurrence)
+    assert admission.resolve_request_closed_or_roster_absent_occurrence(
+        owner, occurrence, mixed_proof=_closed_or_absent(owner, occurrence, **changes)) is False
+    assert _row_state(tmp_path, occurrence) == ("claimed", 1)
+
+
+@pytest.mark.parametrize("resolve", [
+    lambda owner, occ, proof: admission.resolve_unknown_occurrence(
+        owner, occ, official_readback=proof, expected_state="claimed"),
+    lambda owner, occ, proof: admission.resolve_request_closed_occurrence(owner, occ, closed_proof=proof),
+    lambda owner, occ, proof: admission.resolve_historical_no_dispatch_occurrence(
+        owner, occ, no_dispatch_proof=proof),
+    lambda owner, occ, proof: admission.resolve_settled_write_ahead_occurrence(
+        owner, occ, settled_proof=proof),
+    lambda owner, occ, proof: admission.resolve_pre_effect_occurrence(owner, occ, pre_effect_readback=proof),
+    lambda owner, occ, proof: admission.resolve_verified_no_effect_occurrence(
+        owner, occ, expected_reason="duplicate_impossible_request_closed_or_roster_absent",
+        no_effect_readback=proof, expected_state="claimed"),
+])
+def test_closed_or_roster_absent_proof_closes_through_no_other_resolver(tmp_path, monkeypatch, resolve):
+    occurrence = "hf-gig-apply-direct:mixed-elsewhere"
+    owner = _fenced(tmp_path, monkeypatch, occurrence)
+    assert resolve(owner, occurrence, _closed_or_absent(owner, occurrence)) is False
+    assert _row_state(tmp_path, occurrence) == ("claimed", 1)
