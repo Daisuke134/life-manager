@@ -8,10 +8,12 @@ set -uo pipefail
 AUTO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LIFE_MANAGER_REPO="${LIFE_MANAGER_REPO:-$(git -C "$AUTO" rev-parse --show-toplevel 2>/dev/null)}"
 [ -n "$LIFE_MANAGER_REPO" ] || { echo "LIFE_MANAGER_REPO could not be resolved" >&2; exit 2; }
+CAPAFY_AGENT_WORKDIR="$LIFE_MANAGER_REPO"
 if [ "${LM_RUNTIME_HOST:-}" = "maritime" ]; then
   for cloud_required in LIFE_MANAGER_STATE_HOME CAPAFY_STATE_DIR LIFE_MANAGER_BUILD_WORKSPACE CAPAFY_CATALOG_DIR; do
     [ -n "${!cloud_required:-}" ] || { echo "$cloud_required required for Maritime" >&2; exit 2; }
   done
+  CAPAFY_AGENT_WORKDIR="$LIFE_MANAGER_BUILD_WORKSPACE"
   export AGENT_RUNNER_WORKDIR="$LIFE_MANAGER_BUILD_WORKSPACE"
 fi
 LIFE_MANAGER_STATE_HOME="${LIFE_MANAGER_STATE_HOME:-$HOME/.local/state/life-manager}"
@@ -419,7 +421,7 @@ printf '%s\n' "$PROMPT" | timeout "${CAPAFY_CP1_AGENT_TIMEOUT_SECONDS:-1800}" en
   --evidence-dir "$EVIDENCE_DIR" \
   --task-label capafy-drainer \
   --loop capafy \
-  --workdir "$LIFE_MANAGER_REPO" >> "$LOG" 2>&1
+  --workdir "$CAPAFY_AGENT_WORKDIR" >> "$LOG" 2>&1
 RC=$?
 # A 75 exit can follow real attempts. Refund only a fresh, explicit pre-provider proof.
 if [ "$RC" -eq 75 ] && [ "$FRESH_EVIDENCE" -eq 1 ]; then

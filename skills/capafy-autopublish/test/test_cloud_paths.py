@@ -81,6 +81,82 @@ class CloudPathsTest(unittest.TestCase):
         self.assertTrue(self.marker.exists())
         self.assertTrue((self.home / '.local/state/life-manager/state/capafy-autopublish/.capafy-healthy-pass').exists())
 
+    def real_key_gate(self, credits=100, remaining=100):
+        scripts = self.repo / 'skills/capafy-autopublish/scripts'
+        shutil.copyfile(ROOT / 'skills/capafy-autopublish/scripts/key_health_gate.sh', scripts / 'key_health_gate.sh')
+        (scripts / 'key_health_gate.sh').chmod(0o755)
+        fake_bin = self.base / 'bin'
+        fake_bin.mkdir()
+        self.calls = self.base / 'curl-calls'
+        curl = fake_bin / 'curl'
+        curl.write_text('#!/usr/bin/env python3\nimport json,os,sys\nfrom pathlib import Path\n'
+                        'args=sys.argv[1:]\np=Path(os.environ["FIXTURE_CURL_CALLS"])\n'
+                        'with p.open("a") as f:f.write(" ".join(args)+"\\n")\n'
+                        'url=next((v for v in args if v.startswith("https://")),"")\n'
+                        'data={"data":{"limit_remaining":'+str(remaining)+',"limit":5,"usage_daily":5}}\n'
+                        'if url.endswith("/credits"):data={"data":{"total_credits":'+str(credits)+',"total_usage":0}}\n'
+                        'elif url.endswith("/chat/completions"):data={"choices":[{"message":{"content":"ok"}}]}\n'
+                        'print(json.dumps(data))\n')
+        curl.chmod(0o755)
+        self.env['PATH'] = str(fake_bin) + os.pathsep + self.env['PATH']
+        self.env['FIXTURE_CURL_CALLS'] = str(self.calls)
+        return 'skills/capafy-autopublish/scripts/key_health_gate.sh'
+
+    def test_cloud_real_gate_does_not_read_key_from_dotenv(self):
+        gate = self.real_key_gate()
+        (self.state / '.env').write_text('CAPAFY_HOST_OPENROUTER_KEY=fixture-dotenv-key\n')
+        result = self.run_entry(gate)
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn('CAPAFY_HOST_OPENROUTER_KEY missing', result.stdout)
+        self.assertFalse(self.calls.exists())
+
+    def test_cloud_real_gate_never_sends_owner_funding_alert(self):
+        gate = self.real_key_gate(credits=5)
+        sender = self.base / 'telegram-fixture'
+        sender.write_text('#!/usr/bin/env bash\nprintf alert > "$HOME/alert-attempt"\n')
+        sender.chmod(0o755)
+        self.env.update(CAPAFY_HOST_OPENROUTER_KEY='fixture-key',
+                        CAPAFY_TELEGRAM_SENDER=str(sender), TELEGRAM_ALERT_CHAT_ID='fixture-chat')
+        result = self.run_entry(gate)
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn('balance_too_low', result.stdout)
+        self.assertFalse((self.home / 'alert-attempt').exists())
+
+    def test_cloud_real_gate_never_reads_management_key_from_dotenv(self):
+        gate = self.real_key_gate(remaining=0)
+        self.env['CAPAFY_HOST_OPENROUTER_KEY'] = 'fixture-key'
+        (self.state / '.env').write_text('CAPAFY_OPENROUTER_MANAGEMENT_KEY=fixture-management-key\n')
+        result = self.run_entry(gate)
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertNotIn('PATCH', self.calls.read_text())
+
+    def test_cloud_agent_receives_build_workspace_through_real_runner(self):
+        self.fixture_drainer()
+        scripts = self.repo / 'skills/capafy-autopublish/scripts'
+        counter = self.state / 'inventory-count'
+        (scripts / 'inventory_status.py').write_text(
+            'from pathlib import Path\nimport os\np=Path(os.environ["FIXTURE_COUNT"])\n'
+            'first=not p.exists()\np.write_text("seen")\n'
+            'print("VERDICT=PUBLISHABLE" if first else "VERDICT=DRAINED")\nprint(\'{"online_count":0}\')\n')
+        runner_dir = self.repo / 'skills/earn/marketing-engine'
+        runner_dir.mkdir(parents=True)
+        runner = runner_dir / 'run_agent.sh'
+        shutil.copyfile(ROOT / 'skills/earn/marketing-engine/run_agent.sh', runner)
+        runner.chmod(0o755)
+        schema = runner_dir / 'schemas/loop_pass.schema.json'
+        schema.parent.mkdir()
+        schema.write_text('{}')
+        (self.repo / 'skills/capafy-autopublish/DAILY_LOOP.md').write_text('Execute the current tenant inventory action.')
+        capture = self.base / 'runner-workdir'
+        backend = self.base / 'runner-fixture.py'
+        backend.write_text('import os,sys\nfrom pathlib import Path\n'
+                           'args=sys.argv[1:]\nPath(os.environ["FIXTURE_CAPTURE"]).write_text(args[args.index("--workdir")+1])\n')
+        self.env.update(AGENT_RUNNER_BIN=str(backend), RUN_AGENT_SILENT_POLL_SECONDS='1',
+                        FIXTURE_COUNT=str(counter), FIXTURE_CAPTURE=str(capture))
+        result = self.run_entry('skills/capafy-autopublish/scripts/daily_loop.sh')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(capture.read_text(), str(self.workspace))
+
     def test_cloud_drainer_rejects_missing_state_before_home_fallback(self):
         self.fixture_drainer()
         env = dict(self.env)

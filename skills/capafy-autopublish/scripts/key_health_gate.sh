@@ -78,6 +78,7 @@ mkdir -p "$STATE_DIR" 2>/dev/null || true
 
 # alert_user <remaining> <reason> — one telegram/day max (dedup marker keyed by date).
 alert_user() {
+  [ "${LM_RUNTIME_HOST:-}" != "maritime" ] || return 0
   local remain="$1" reason="$2" severity
   case "$reason" in
     BLOCKED*) severity="blocked" ;;
@@ -95,7 +96,7 @@ alert_user() {
   fi
 }
 KEY="${CAPAFY_HOST_OPENROUTER_KEY:-}"
-if [ -z "$KEY" ]; then
+if [ -z "$KEY" ] && [ "${LM_RUNTIME_HOST:-}" != "maritime" ]; then
   KEY="$(grep '^CAPAFY_HOST_OPENROUTER_KEY=' "$LIFE_MANAGER_STATE_HOME/.env" 2>/dev/null | cut -d= -f2-)"
 fi
 if [ -z "$KEY" ]; then
@@ -132,7 +133,7 @@ except Exception:
 heal_key_limit() {
   local management current usage desired key_hash healed
   management="${CAPAFY_OPENROUTER_MANAGEMENT_KEY:-}"
-  if [ -z "$management" ]; then
+  if [ -z "$management" ] && [ "${LM_RUNTIME_HOST:-}" != "maritime" ]; then
     management="$(grep '^CAPAFY_OPENROUTER_MANAGEMENT_KEY=' "$LIFE_MANAGER_STATE_HOME/.env" 2>/dev/null | cut -d= -f2-)"
   fi
   [ -n "$management" ] || return 2

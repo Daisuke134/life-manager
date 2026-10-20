@@ -24,6 +24,12 @@
       "boundary": "tenant runner adapter",
       "resolution": "T09 implementation pending",
       "status": "not_implemented"
+    },
+    {
+      "file": "skills/capafy-autopublish/scripts/key_health_gate.sh",
+      "boundary": "child dotenv credentials and owner funding alert",
+      "resolution": "Cloud does not read dotenv or send Telegram; caller receives failure status",
+      "status": "source_changed_not_deployed"
     }
   ],
   "linux_runtime": null,
