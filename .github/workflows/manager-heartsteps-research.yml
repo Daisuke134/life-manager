@@ -6,9 +6,11 @@ on:
       - 'products/manager/scripts/heartsteps_research.py'
       - 'products/manager/scripts/heartsteps_phase3.py'
       - 'products/manager/scripts/heartsteps_phase3_public.py'
+      - 'products/manager/scripts/heartsteps_phase3_probe.py'
       - 'products/manager/tests/test_heartsteps_research_h002_h004.py'
       - 'products/manager/tests/test_heartsteps_phase3.py'
       - 'products/manager/tests/test_heartsteps_phase3_public.py'
+      - 'products/manager/tests/test_heartsteps_phase3_probe.py'
       - '.github/workflows/manager-heartsteps-research.yml'
   workflow_dispatch:
 permissions:
@@ -27,20 +29,25 @@ jobs:
       - name: Focused source tests
         run: python -m unittest tests/test_heartsteps_research_h002_h004.py -v
       - name: Focused reproduction tests
-        run: python -m unittest tests/test_heartsteps_phase3.py tests/test_heartsteps_phase3_public.py -v
+        run: python -m unittest tests/test_heartsteps_phase3.py tests/test_heartsteps_phase3_public.py tests/test_heartsteps_phase3_probe.py -v
       - name: Download pinned source temporarily and emit aggregate source report
         run: python scripts/heartsteps_research.py --output output/heartsteps
+      - name: Emit aggregate mapping diagnostics
+        run: python scripts/heartsteps_phase3_probe.py --output output/heartsteps-probe
       - name: Reproduce analysis set and aggregate models
         run: python scripts/heartsteps_phase3_public.py --output output/heartsteps-phase3
       - name: Verify no raw CSV persisted in repository workspace
+        if: always()
         run: |
           test ! -e data/raw/suggestions.csv
           ! find output -type f -name '*.csv' | grep .
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: heartsteps-phase3-summary
           path: |
             products/manager/output/heartsteps
+            products/manager/output/heartsteps-probe
             products/manager/output/heartsteps-phase3
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
