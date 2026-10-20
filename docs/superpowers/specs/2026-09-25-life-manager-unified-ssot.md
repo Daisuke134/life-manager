@@ -4,15 +4,15 @@
 
 **目的・範囲・完了条件:** ローカルLife Managerの既存設計を継承し、全業務の自然実行・配信・公式収入・費用後利益・評価付き自己改善まで、既存C1–C9を一件ずつ進める。Daisの継続実行指示により前回のdocs-only境界を実装・必要検証・通常反映まで広げる。現在はC1をexact no-effectと再送防止まで完了し、cursorをC2へ進める。全社/各laneの収益目標・未知の費用/真のMRR・benchmark/AGIの未証明は保持し、C1完了で全goalを完了扱いしない。新しいSSOT・競合scheduler・cloudの別実装は作らない。
 
-**証拠の範囲:** source base=`70a5e3657317e0a53c33a2d643cd46ce967c8079`、稼働snapshotは`lm-loop status all --json`のローカル実測、収益は既存ownerが保存した公式readback。保存観測時刻と監査時刻を分ける。新しい認証付きseller probeは実施しない。匿名化した集計・run/SHA・出所は[監査証拠](../../evidence/capafy-rsi-status-20261020.json)。観測窓は2026-10-20、時刻は以下の通り。
+**証拠の範囲:** sourceの本番採用はmain `cd4c0d98855fd27d38c61df2afad2787947b2c0b`まで、管理対象の最新snapshotは19:16:40Zの`lm-loop status all --json`、金銭は以下に保存観測時刻を明示する公式readbackを使う。初期監査の[証拠](../../evidence/capafy-rsi-status-20261020.json)を最新観測へ上書きせず、追加の正規seller/package GET・SDK canary・採用・exact閉鎖は以下のC2/C4証拠を参照する。生credential・署名URLをrepoへ保存しない。
 
 ### As-Is：基盤は完全修復に至らず、全業務の収益改善は未証明
 
 - **「20 agents」の実体:** `apps/life-manager/config/product-loop-catalog.json`は18業務group。customer_revenue 14、investment 1、financing 1、non_economic 1、aggregator 1。18個の単一processではなく191 managed jobsで動く。未登録の2業務を推測で増やさない。CFO/Connectorに直接売上を要求せず会社の収益を支える契約で評価し、資金調達や投資元本を顧客売上/MRRへ加えない。
 - **稼働:** 19:16:40Zの更新snapshotは191 managed、loaded-idle152 / loaded-running37 / disabled2。最新attempt分類はblockerなし81 / resource_capacity_busy48 / resource_effect_unknown42 / disk_floor_low11 / entrypoint_exit_1 6 / entrypoint_exit_75 2 / brain_transport1。最新attemptの記録であり、同時停止数・期間成功率とは異なる。status allの総305行にはretired97/external15/unmanaged2も含まれ、管理対象へ加えない。79 managed jobsはproduct_loop_idなし。容量不足104→11は記録上の減少であり全ownerの自然復旧証明ではない。private正本証拠=`c2-fleet-post-adoption-snapshot.json`。
-- **容量:** watchdogの14:22:12Z receiptはfree_after=3,854,827,520 bytes、回収0 / errors0 / protected_deletions0。2GiB recovery floorは満たすが10GiB producer floorを満たさない。低いfloorのPASSを収益lane回復と扱わない。以前のcorespotlightd→swap原因は今回再測定せず、現在の書込owner/増加原因は未確認のままにする。恒久修復をkillや一度の空き容量だけで判定しない。
+- **容量:** native Spotlight再構築後にindexing enabledを復元し、19時台のData freeは約27.2GiBとなる。10GiB revenue/12GiB一般producer floorは満たす。初期約3.6GiBからの回復は実測済みだが、index再生成中で永続安定は未証明。保護storeの直接削除・基盤restart・floor低下は行わない。詳細とreceiptはC2容量atomを参照する。
 - **監視:** health-observer 14:21:34Zはtelemetry_gap191、health_snapshot_timeout。healthy=0は全故障の証明ではない。独立のstatus読取は成功しており、監視snapshotの失敗境界を別atomで直す必要がある。
-- **Capafy owner:** factory/hourlyはdisk_floor_low、distributor/outcome-monitor/IG-account-managerはresource_effect_unknown。IG-marketingはdisabled、reelの最新terminalはexit1。healthcheckのpassやbrowserのrunningで公開/収益成功を代用しない。installed SHAはownerごとに異なり、current symlinkだけで全fleet採用済みと判定しない。
+- **Capafy owner:** 19:16:40Zのfactoryは新main `cd4c0d98`をloaded-idleで採用し、旧exact effect fence閉鎖後のcurrent blockerはなし。distributor/hourlyはrunningで最新attemptにcapacity_busyを持ち、goal-monitor/daily-closeは過去disk_floor_low、IG-account-manager/outcome-monitorはeffect_unknown、reelはexit1、IG-marketingはdisabled。factoryの新SHA自然提出は未観測。healthcheckのpassやbrowserのrunningで公開/収益成功を代用せず、ownerごとのinstalled SHAと自然terminalを照合する。
 - **EDD:** 既存LM-EABは5つの公開synthetic fixtureによる契約検証で、自然taskに対する汎化性能・live利益・秘密held-outを証明しない。既存OpenEvolveのrun_evolveはpaper/backtest戦略を対象にし、Capafy配信を自己最適化する実装ではない。article-self-improve / gig-experiment-evaluate / self-improve-evolveもsnapshotでdisk延期。今回読んだ証拠からCapafyのeval→変更→成熟した売上/費用→keep/revertという自律閉路の完走は確認できない。
 
 ### 全18業務の確認表
@@ -102,7 +102,7 @@
 
 **到達した状態の定義:** self-healingは既知障害からdurable進捗が自然再開すること。self-improvingは比較可能な評価・実市場成果で採用した変更を次の実行が使用すること。全社最適化は、通貨/窓/実費を保持して限界利益と不確かさから実行枠を配分し、探索枠を残しながら損失/重複/顧客義務の制約を守ること。投稿数、出品数、model judgeの好み、process passだけではいずれも完了にしない。利益の絶対最大値/毎回の増益は市場不確実性のため証明できず、改善を測って保持/撤回できる閉路を受け入れ対象にする。
 
-**今回の検証と未完:** 稼働snapshotと保存済み公式数値、公開listing、4研究の一次資料を確認する。docs-onlyのため製品コード/依存追加や広いtest suiteは実施しない。数値整合・JSON・差分・独立read-only反証・PR/CI/mainの統合証拠は本作業の完了報告へ記す。基盤/全18業務収益化/C1–C9の実行完了は主張しない。
+**今回の検証と未完:** 保存済み公式金銭/流入、管理対象191 jobsの再取得、公開listing/正規配布ZIP、4研究の一次資料を確認する。Daisの継続実行指示によりdocs-onlyから既存C1–C9の実装・必要検証・通常反映へ進む。factory修正は関連51 tests/独立反証/全12 CI/main/immutable/本番read-only canary/限定採用と旧exact閉鎖まで確認し、新SHA自然提出を待つ。新規依存/API/GPU契約は追加せず、基盤全体・全18業務収益化・C1–C9全体の完了を主張しない。
 
 ### C1実行：配信unknownのexact occurrence照合
 
