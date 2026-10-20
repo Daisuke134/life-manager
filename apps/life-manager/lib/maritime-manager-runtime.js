@@ -59,8 +59,8 @@ function cycleContract(job) {
   } catch { throw new CycleError('maritime_cycle_job_invalid', false); }
 }
 function artifactRefsValid(refs, completed) {
-  return Array.isArray(refs) && refs.length <= 32 && (completed ? refs.length > 0 : refs.length === 0)
-    && refs.every(ref => typeof ref === 'string' && /^artifact:\/\/[A-Za-z0-9._/-]{1,512}$/.test(ref)
+  return Array.isArray(refs) && (completed ? refs.length > 0 : refs.length === 0)
+    && refs.every(ref => typeof ref === 'string' && ref.startsWith('artifact://') && !ref.includes('\0')
       && ref.slice('artifact://'.length).split('/').every(part => part && part !== '.' && part !== '..'));
 }
 function verifyCycleReceipt(receipt, job) {
@@ -115,8 +115,13 @@ function createMaritimeManagerLoopAdapter(services = {}) {
     if (execution?.status !== 'completed' || execution.exitCode !== 0) throw new CycleError('maritime_cycle_result_unknown');
     const envelope = await services.readCycleReceipt({ uid: c.tenantId, agentId: identity.agentId, occurrenceId: c.occurrenceId });
     const r = envelope?.result;
+    let capturedResult;
+    try {
+      if (typeof execution.stdout !== 'string') throw new Error();
+      capturedResult = JSON.parse(execution.stdout);
+    } catch { throw new CycleError('maritime_cycle_receipt_invalid'); }
     if (!envelope || envelope.dateKey !== c.dateKey || envelope.releaseSha !== c.releaseSha
-      || !r || r.tenantId !== c.tenantId || r.occurrenceId !== c.occurrenceId
+      || !r || !isDeepStrictEqual(capturedResult, r) || r.tenantId !== c.tenantId || r.occurrenceId !== c.occurrenceId
       || r.providerSnapshotRef !== null || !Array.isArray(r.providerReceiptRefs) || r.providerReceiptRefs.length !== 0
       || r.nextEligibleAt !== null) throw new CycleError('maritime_cycle_receipt_invalid');
     const receipt = { schema_version: 1, kind: 'maritime_manager_cycle', tenant_id: c.tenantId, job_id: job.job_id,
@@ -148,7 +153,8 @@ function createMaritimeManagerLoopAdapter(services = {}) {
             const current = await binding(c);
             if (!isDeepStrictEqual(current.identity, bound.identity)) throw new CycleError('maritime_cycle_binding_unknown');
             active(current.enrollment, c);
-            const dispatched = await services.dispatchCycle({ ...c, agentId: bound.identity.agentId });
+            const dispatched = await services.dispatchCycle({ uid: c.tenantId, agentId: bound.identity.agentId,
+              occurrenceId: c.occurrenceId, dateKey: c.dateKey, releaseSha: c.releaseSha });
             executionId = dispatched?.executionId;
             if (typeof executionId !== 'string' || !EXECUTION_ID.test(executionId)) throw new CycleError('maritime_cycle_dispatch_unconfirmed');
             row = await store.bindCycleExecution({ ...bound.identity, executionId });

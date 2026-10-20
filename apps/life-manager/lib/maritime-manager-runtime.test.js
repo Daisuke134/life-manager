@@ -50,6 +50,7 @@ function executionFixture() {
   const envelope = { dateKey: cycle.dateKey, releaseSha: SHA, result: { tenantId: UID, occurrenceId: 'cycle-1',
     artifactRefs: ['artifact://original/product.md'], providerSnapshotRef: null, providerReceiptRefs: [],
     nextEligibleAt: null, status: 'completed', errorClass: null } };
+  const capturedOutput = JSON.stringify(envelope.result);
   const services = {
     managerStore: {
       read: async () => structuredClone(enrollment),
@@ -63,7 +64,7 @@ function executionFixture() {
       bindCycleExecution: async (input) => { checkpoint.execution_id = input.executionId; return structuredClone(checkpoint); },
     },
     dispatchCycle: async () => { calls.push('dispatch'); return { executionId: 'exec-1' }; },
-    readExecution: async () => { calls.push('read'); return { status: 'completed', exitCode: 0 }; },
+    readExecution: async () => { calls.push('read'); return { status: 'completed', exitCode: 0, stdout: capturedOutput }; },
     readCycleReceipt: async () => structuredClone(envelope),
   };
   return { services, calls, enrollment, envelope,
@@ -166,4 +167,26 @@ test('unknown execution has a safe diagnostic cursor and never requests another 
   assert.equal(proof.nextAction, 'inspect_provider_execution');
   assert.equal(proof.retryable, false);
   assert.equal(f.calls.length, 0);
+});
+
+test('dispatch follows the fixed transport uid contract', async () => {
+  const f = executionFixture(); let dispatched;
+  f.services.dispatchCycle = async input => { dispatched = input; return { executionId: 'exec-1' }; };
+  await createMaritimeManagerLoopAdapter(f.services).execute(buildMaritimeManagerCycleJob(cycle));
+  assert.deepEqual(dispatched, { uid: UID, agentId: 'agent-a', occurrenceId: 'cycle-1', dateKey: '2026-10-20', releaseSha: SHA });
+});
+
+test('producer Japanese and space-containing artifact references remain recoverable', async () => {
+  const f = executionFixture();
+  f.envelope.result.artifactRefs = ['artifact://原稿/商品説明.md', 'artifact://original/product spec.md'];
+  f.services.readExecution = async () => ({ status: 'completed', exitCode: 0, stdout: JSON.stringify(f.envelope.result) });
+  const { receipt } = await createMaritimeManagerLoopAdapter(f.services).execute(buildMaritimeManagerCycleJob(cycle));
+  assert.deepEqual(receipt.artifact_refs, ['artifact://原稿/商品説明.md', 'artifact://original/product spec.md']);
+});
+
+test('a mutable cycle file cannot override the official captured execution output', async () => {
+  const f = executionFixture();
+  f.envelope.result.artifactRefs = ['artifact://forged.md'];
+  await assert.rejects(createMaritimeManagerLoopAdapter(f.services).execute(buildMaritimeManagerCycleJob(cycle)),
+    error => error.unknownEffect === true);
 });

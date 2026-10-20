@@ -309,7 +309,7 @@ life-manager/
 ## Task T15: custom containerのcreateをidempotentにする
 
 **Files:** Create `lib/transport/maritime-manager.js`/test、Modify manager storeのbinding。
-**Interfaces:** `createMaritimeManagerTransport({env,fetchImpl,client})`は`ensureAgent({uid,imageDigest,releaseSha}) -> {agentId,status}`、`dispatchCycle/readExecution`（固定する境界参照）、`readCycleReceipt({uid,agentId,occurrenceId}) -> {cycleResult,providerSnapshot}`、`writeScheduleSnapshot({uid,agentId,schedules}) -> {ok}`をproduces。receipt/schedule pathはtenant/occurrenceから構成し、request指定の任意absolute pathを受けない。
+**Interfaces:** `createMaritimeManagerTransport({env,fetchImpl,client})`は`ensureAgent({uid,imageDigest,releaseSha}) -> {agentId,status}`、`dispatchCycle/readExecution`（固定する境界参照）、`readCycleReceipt({uid,agentId,occurrenceId}) -> {dateKey,releaseSha,result}`（保存envelope。`result`は公式executionのcaptured stdoutのJSONと一致させる。providerSnapshotは中央collectorから別取得）、`writeScheduleSnapshot({uid,agentId,schedules}) -> {ok}`をproduces。receipt/schedule pathはtenant/occurrenceから構成し、request指定の任意absolute pathを受けない。
 **Depends:** T03/T12/T13。
 
 - [ ] T15.1 test `custom_create_never_uses_default_openclaw_and_lost_response_does_not_recreate`を定義。POST body `framework:'custom'`、immutable `imageName`、HMAC externalId、response喪失後はlistのみをassert。
