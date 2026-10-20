@@ -63,3 +63,7 @@ SDK docsには`provision()`を使う例があるが、それはOpenClaw template
 - https://maritime.sh/docs/cli — Deploy CLI文書はtemplate/github/dockerのみ。build文書のZIP対応から架空のCLI flag/API pathを推論しない。Docker CLIは存在するがdaemon socket不在をread-only確認。T12.1で公式dashboardの実受付契約を確認してからbuildを実行する。
 
 - https://supabase.com/docs/reference/api/v1-update-auth-service-config — Management APIのsmtp_portはstring。integer465のPATCHは400で無変更、string"465"へ訂正後は反映・GET照合成功。SMTPのTCP port番号とAPI JSON型を区別する。
+
+- https://maritime.sh/docs/frameworks/codex — Maritimeのmetered accessはCodexのResponses APIを使うと公式に説明。既存runnerへCloud専用configとtenant HOMEを渡す。Macのsubscription auth/profileをコピーしない。実provider接続は未確認。
+- https://maritime.sh/docs/frameworks/claude-code — ZIPの入口はNew agent → GitHub → Upload a ZIPと明記。T12.1で実UIのfieldを確認してから同じsanitized ZIPを使う。
+- https://maritime.sh/docs/computers — native Linux desktop/MCPとend-user pinned URLを確認。費用・既存CP1との互換は未実証で、採用済みのbrowser経路とは扱わない。
