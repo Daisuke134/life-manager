@@ -44,7 +44,7 @@
 
 ### Capafy：最新の保存済み公式readback
 
-観測時刻=2026-10-20T21:09:53Z（既存公式照合ファイル）。以下はこの取得窓の公式readbackであり、現在時刻のfreshnessや未観測売上を推定しない。旧19:07窓と自然hourly receiptはC2の保存証拠を参照する。CFO既存の6時間freshness契約を維持する。
+観測時刻=2026-10-20T22:07:07Z（既存公式照合ファイル）。以下はこの取得窓の公式readbackであり、現在時刻のfreshnessや未観測売上を推定しない。旧19:07窓と自然hourly receiptはC2の保存証拠を参照する。CFO既存の6時間freshness契約を維持する。
 
 | 指標・同一窓 | 確認値 | 解釈 |
 |---|---:|---|
@@ -144,6 +144,49 @@
 **到達した状態の定義:** self-healingは既知障害からdurable進捗が自然再開すること。self-improvingは比較可能な評価・実市場成果で採用した変更を次の実行が使用すること。全社最適化は、通貨/窓/実費を保持して限界利益と不確かさから実行枠を配分し、探索枠を残しながら損失/重複/顧客義務の制約を守ること。投稿数、出品数、model judgeの好み、process passだけではいずれも完了にしない。利益の絶対最大値/毎回の増益は市場不確実性のため証明できず、改善を測って保持/撤回できる閉路を受け入れ対象にする。
 
 **今回の検証と未完:** 保存済み公式金銭/流入、管理対象191 jobsの再取得、公開listing/正規配布ZIP、4研究の一次資料を確認する。Daisの継続実行指示によりdocs-onlyから既存C1–C9の実装・必要検証・通常反映へ進む。factory修正は関連51 tests/独立反証/全12 CI/main/immutable/本番read-only canary/限定採用と旧exact閉鎖まで確認し、新SHA自然提出を待つ。新規依存/API/GPU契約は追加せず、基盤全体・全18業務収益化・C1–C9全体の完了を主張しない。
+
+
+### 最新費用診断と残るatomic TODO
+
+**今回の範囲・完了条件:** 既存C1–C9の現況と実行順を本正本へ更新し、未完の一作業ごとの完了証拠をDaisへ報告する。今回の差分は文書だけで、以下の不具合修正・本番設定変更・追加配信・売上発生を実施済みとしない。金銭baselineは22:07:07Zの公式照合で、累計gross$102.75、有料units32、seller orders70、7日paid0/gross$0/trial5、provider paid_out$0を確認する。真のMRR・銀行入金・完全費用後会社利益はunknown。7日views/sourceの旧取得値は取得時刻ごとの履歴として扱う。全18業務の稼働表は19:16:40Z時点であり、全件を現在稼働・収益化済みとは主張しない。
+
+**証拠：費用期間・キー・按分:** 22:53:27Zの公式OpenRouter activityはHTTP200/no-store/BYPASS、317行/31日（9/19–10/19）、usage$6.690009。一次仕様は[activity](https://openrouter.ai/docs/api/api-reference/analytics/get-user-activity-grouped-by-endpoint)の直近30 completed UTC daysとdate/api_key_hash/workspace_id/group_by、[keys](https://openrouter.ai/docs/api/api-reference/api-keys/list-api-keys)のdisabled/expired/offsetとdefault-workspace境界を確認する。default-workspaceのキー列挙はoffset4が空、activityのworkspace分割は1件。宣言された現host keyの$6.043686とlegacy keyの$0.646323が総額と一致し、現keyだけのfilterは旧費用を落とす。これは応答内の照合で、全利用のCapafy専用性や全社請求の完全性ではない。予期した30日より9/19の$0.017440が余分にあり、期間のずれをlocal cacheだけの問題としない。9/21–10/19の29日usageは$6.394168で、rolling30日や暦月へ読み替えない。
+
+同じ29日を指定したCapafy公式analyticsはgross$33.87、creator earnings$24.88、units18/trial5を返す。gross×80%の$27.10は実creator値と一致しない。fee率や差額の原因は未確認で、creator metricの定義/明細照合が残る。usageは25行/hasMore=false・5 Agentで、vendorの12,167 requestsと粒度・範囲が一致せず、返されたrequest行に歴史model/upstream generation IDがない。現modelを過去requestの確定modelとせず、Agent別invoice/実利益はunknownを保持する。
+
+現行按分はAgentごとのlist-price推計をcentへ丸めてからweightにする。現在価格による22:07 token再計算では正の5件中3件が0.00へ落ち、TikTok/YouTube/Hook Labの費用weightが失われる。現usage Agentのmodelと対応しないvendor model費用$5.992558も残る。価格再計算は歴史invoiceではない。precision修正だけで期間/帰属/会社利益を解決したとは扱わない。
+
+**証拠：利益reportの誤表示は未修正:** 現immutableの`capafy_profit_report.py`を22:07入力で純粋再実行すると、累計creator earnings$76.18から暦月host usage$4.81を引いた$71.37を「銀行に入る額」、balance_payout$59を「振込可能」、Agentの推計差額を「利益」と表示する。provider paid_out/statement_payableはいずれも$0、入力に銀行receiptはない。期間混在、未知値の0化、推計/残高/入金の混同を修正する必要がある。今回の再現は送信なし・runtime書込なし。既存factory C6の定期report配送をprimaryから再送しない。
+
+private証拠は既存`~/.local/state/life-manager/reconciliation/capafy-c1-20261021/`の`c3-cost-scope-official-activity-readback.json`、`c3-cost-scope-key-workspace-readback.json`、`c3-cost-scope-filtered-key-readback.json`、`c3-cost-scope-capafy-overlap-window.json`、`c3-cost-scope-allocation-precision-replay.json`、`c3-profit-report-period-and-bank-claim-replay.json`。credential値・署名URL・key hashは本正本へ複製しない。
+
+**順序変更・現在cursor:** 旧=C3費用scope診断→按分precision→残る期間/Agent帰属照合。新=費用scope診断（上記まで確認）→誤った銀行/利益reportを修正→按分precisionと未配賦表示→期間/creator/Agent帰属照合。理由は、再現した$71.37の誤表示が経営判断を直接誤らせるため。現在cursorは下表A01のsource修正前。23:07/00:07 UTC以降のhourly自然coverageと09:41 JSTのReel自然回は既存ownerのまま観測し、収益行動を全社基盤残件の解消待ちにしない。C1完了を戻さず、C2/C3は未完、C4部分完了、C5–C9未完を維持する。
+
+| 実行索引 | 一つの未完作業 | 閉じる証拠 |
+|---|---|---|
+| A01 / C3・現在 | 既存利益reportの期間混在・銀行/振込可能/利益の断定・欠測0化を修正する | 最小回帰test、独立金融read-only review、CI/main、対象owner採用と次の自然reportで原系列/期間/unknownを確認。入金receiptなしで銀行利益を出さない |
+| A02 / C3 | Agent按分weightのcent丸めによる正費用の消失を修正する | 正の微小weightを保持する回帰testと自然snapshot。未配賦model費用/推計の限界を保持 |
+| A03 / C3 | vendor費用とcreator earningsを同じ期間・宣言キー履歴・workspaceで照合する | 余分な日・creator差額の根拠を記録し、観測外日や欠測費用を0へ置かない |
+| A04 / C3 | Agent/requestと歴史model/vendor costの対応を調べる | 確定joinまたは具体的なcoverage不足をscorecardへ表示。25対12,167を無根拠に同一request系列へ合算しない |
+| A05 / C3・自然回待ち | 新samplingの連続自然2枠を既存hourly receiptで確認する | 安定inventory78のAgent×窓のfresh結果をunion照合。cap60/保護5、omitted/missingと実測0を区別。模擬union78は代用不可 |
+| A06 / C2・自然回待ち | Reel修正後の自然09:41回を確認する | loaded SHA→自然生成/終端→公式schedule/PUBLISHED→公開CTAの証拠。canary成功だけでは閉じない |
+| A07 / C2 | factory offline childの新source schemaを自然回で確認する | child結果/source commit/候補ID→既存backlogの対応。親run成功やready総数だけでは閉じない |
+| A08 / C4 | Hook Grader無料利用cohortとHook Lab訪問/paidの分母を結ぶ | 同一商品・利用者cohort・期間の転送率/paid。既存shared CT36やviews81の単純除算は禁止。未達の時だけ既存契約のlead magnet1件へ進む |
+| A09 / C5 | 同対象・媒体・目的の勝ち筋を確認し、既存商品で配信候補1件を作る | 参照URL/検証できた成果/模倣する仕組み、実入力→実出力demo。成功証拠がない場合は穴を明記した小実験 |
+| A10 / C5 | その候補の比較条件を凍結する | 一商品/offer/channel、control/割当単位、成熟期間、費用cap/停止規則、click可能CTA/登録CT、自己probe除外 |
+| A11 / C5 | 既存ownerで候補を配信し購入導線を確認する | native公開receipt、qualified reach/click→activationの対応。投稿数/HTTP200だけを成功にしない |
+| A12 / C6 | 成熟したpaid/refund/費用で候補を判定する | retain/reject/inconclusiveと理由。候補diff→凍結eval→配信→成熟結果の自律1 cycle。sample不足でwinnerを作らない |
+| A13 / C7 | 最初の新規有料購入を公式照合で確認する | orders>70 AND gross>$102.75、新paidの公式証拠。無料trial・掲載・過去売上を加えない |
+| A14 / C7 | active/cancel/churnとsettlementの公式源を接続する | true MRRと入金を分ける。取得不能はunknownを保持し集客/新paidを止めない |
+| A15 / C2 | 履歴clockの期限超過を修復する | 同owner条件の自然監視が契約期限内に履歴を保持。期限延長や欠測正常化で閉じない |
+| A16 / C2 | 個別telemetry gap・未確定effect・失敗をowner単位で閉じる | 各exact occurrenceのtyped原因→修正→自然terminal/公式readback、再送0。全体件数だけで正常化しない |
+| A17 / C2 | 容量回復の永続性を自然運転で確認する | 10/12GiB既存floorとfresh admissionを維持。保護store削除/基盤restart/floor低下なし |
+| A18 / C8 | 79 unmapped jobsの所属を分類する | productまたは明示的な補助/基盤ownerへ全件対応し、重複集計しない |
+| A19 / C8 | 全18業務へ自然成果・費用・typed recoveryの評価を適用する | 各laneのverified/zero/unknown、公式成果/費用coverage、自然復旧。financing/投資元本を顧客売上へ加えない |
+| A20 / C9 | 自己改善を独立held-outと固定baselineで反復比較する | 自然trace、cost/latency/介入/回復/汎化/公式経済成果。公開synthetic PASSをAGI証明にしない |
+| A21 / C6–C9 | 成熟した費用後成果を基に次の配信資源を配分し、改善cycleを継続する | $100→$1K→$10K等のMRR目標と会社全体$10M目標を実測で追う。収益の単調増加・最大化・AGI達成を保証せず、悪化候補は既存契約で棄却/復帰 |
+
+A05–A07の自然時刻待ちとA15–A17の基盤作業は独立依存として扱い、A09–A13を不必要に止めない。順位は現在の実行索引であり、新しいscheduler/並列owner/評価frameworkを追加しない。
 
 ### C1実行：配信unknownのexact occurrence照合
 
