@@ -16054,6 +16054,15 @@ REDebbd5af252→GREEN0e8f071c0eはcore guardも証明済みsell/nofill closedか
 
 **cursor更新:** 06:24 subsectionのTODO 3（multi-page RED fixture）とTODO 4（bounded pagination修正）は完了。次cursorは06:07 subsectionのTODO 5（source/diff/contract受入、fresh read-only financial review、exact-head CI、main統合）。その後のimmutable release、validation ownerのみの安全な適用、次の自然BTC report、paper費用後取引、30 round trips、live gateは同section TODO 6–12の順を維持する。
 
+#### 2026-10-21 06:55 JST — Latest-main validation release loaded; natural run pending
+
+**As-Is:** PR #8441はmainへ統合済み（merge `28d60090`）。最新main由来release `/Users/anicca/loops/releases/20261021T065434-dd9d4cca` は`dd9d4cca908b5fc2272c41fa1f37775bf40e2d14`、`release_paths=ALL`、main ancestor。`current` selectorは`20261021T064341-0c071d28`のまま。
+- `investment-strategy-validation`だけを`loaded-idle-only`で採用し、applyは`changed=true`、`admission_resumed=false`を返した。launchd readbackはSHA `dd9d4cca` / `loaded-idle`。前のclaimed occurrence `investment-strategy-validation:18e05965431401b8-36964`はregistry `effect_class=none`の既存safe rebind pathで解放され、readback後の`admission_effect_unknown=false`。`pre-effect-reconcile --dry-run`も`resolved=[]`, `unprovable=[]`。
+- 最新releaseでの自然validation terminalはまだ無い。直近runは旧SHA `55cc06f2`でexit 1、BTC report 0、`pagination_incomplete`だった。次のeligible cadenceは`calendar: Weekday=2, 14:30`。手動wakeはしない。
+- paper ownerには触れていない。最後のreadbackはSHA `50935dfd` / `loaded-idle` / `host_admission_deferred:resource_control_busy`。当turnの注文・資金操作はない。BTC V2 reportと新しいpaper round tripは未確認。
+
+**cursor更新:** 06:07 subsectionのTODO 5（source acceptance/review/CI/main）とTODO 6（最新main immutable release、validatorのみloaded-idle apply、queue/effect_unknown readback）は完了。次cursorはTODO 7の新release上での自然validation結果。BTC reportが生成されるまでselection変更や新規entryはせず、紙の自然decision/公式readback、費用完全なclosed round trip、30件評価、live gateの順を維持する。
+
 ### 2026-10-09 13:18 JST — Job Hunter Dreamwork cutover and updated user criteria
 
 この追記は11:50 JST snapshot後のJob Hunter readbackとユーザーの最新指示を記録する。個別の勤務地・住所などの私的値はprivate profileのみを正本とし、このspecには複製しない。
