@@ -2583,7 +2583,7 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 | T8 | CFO: ループごとの settled revenue と cost の join（ループ別P&L）を毎日出す | P&L 行ごとに receipt id がある |
 | T9 | Mobile funnel と `/en` `/lm` `/income` の整合（install→activation→課金） | attribution receipt |
 | T10 | one-shot capability capsule | 目標・承認の質問なしで初回の実行が通る |
-| T11 | 既存queue/leaseへmanager.cycle adapter登録 | #8407でsource統合中。store/SQLとstable buildersはreview修正済。cycle adapterのplan/execute/reconcile/verify/reportを実装しruntime16/16 PASS。独立reviewのtransport uid不一致・日本語/空白のartifact path拒否と、保存fileだけを書き換えた完了判定を回帰RED→GREENで修正。公式captured stdoutとenvelope.resultを照合する。実行中はworkerを占有せずpending、停止後もread-only回収、共通receiptはexecutionの証拠として分離。provision/report adapter・worker wiring・本番DB/Cloud適用は未完 |
+| T11 | 既存queue/leaseへmanager.cycle adapter登録 | foundationは#8407/main334e0bd1bc、全14 checks PASSで統合済み。store/SQLとstable buildersはreview修正済。cycle adapterのplan/execute/reconcile/verify/reportを実装しruntime16/16 PASS。独立reviewのtransport uid不一致・日本語/空白のartifact path拒否と、保存fileだけを書き換えた完了判定を回帰RED→GREENで修正。公式captured stdoutとenvelope.resultを照合する。実行中はworkerを占有せずpending、停止後もread-only回収、共通receiptはexecutionの証拠として分離。provision/report adapter・worker wiring・本番DB/Cloud適用は未完 |
 | T12 | evaluator が所有する self-improvement（rollback つき） | canary で settled contribution が改善 |
 | T13 | settled cost で裏付けた x402 自己資金化 | inflow ≥ cost の CFO readback |
 | T14 | LM-EAB（held-out、較正、再現可能） | 独立した再実行で同じ結果 |
@@ -20756,10 +20756,10 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | T08 | Linux browser/provider accountのreadinessとtenant binding | preflight中。Maritime本体はGmail既存接続から本人確認を完了し通常loginで/agentsを確認。SteelはRailway private DNS。既存runnerはlocal Codex/Claude profile依存を確認。Linux/認証/専用routeの実証は未完 |
 | T09 | tenant envで既存factoryを一回呼ぶcloud_cycle.py | source完了。#8404/main64175a23edへ統合、全13 checks PASS。独立reviewの3指摘を回帰RED→GREENで修正しcycle12/12・host8/8 PASS。child path・env allowlist・cached receipt検査を追加。Cloud専用config未設定はdeferred、実環境受入はT08依存を維持 |
 | T10 | 同tenant公式Capafy snapshot→FinancialRecord | T10Aは#8405/main70a5e36573・全14 checks PASS、関連16/16・独立review Blocking0。T10B公式collectorは#8406/main1d54c5d24a・全13 checks PASS。独立reviewの成功code指摘をRED→GREENで修正し7/7・既存49/49 PASS、owned APIの所有者/日別coverage/合計一致と変換を実測。Cloud利用者接続・中央worker wiringは未完 |
-| T11 | 既存queue/leaseへmanager.cycle adapter登録 | #8407でsource統合中。store/SQLとstable buildersはreview修正済。cycle adapterのplan/execute/reconcile/verify/reportを実装しruntime16/16 PASS。独立reviewのtransport uid不一致・日本語/空白のartifact path拒否と、保存fileだけを書き換えた完了判定を回帰RED→GREENで修正。公式captured stdoutとenvelope.resultを照合する。実行中はworkerを占有せずpending、停止後もread-only回収、共通receiptはexecutionの証拠として分離。provision/report adapter・worker wiring・本番DB/Cloud適用は未完 |
-| T12 | 専用subfolder Dockerfileとsanitized ZIPで同repoのcustom imageをbuild | T11/T13後。Railwayのroot Dockerfile自動検出を避ける |
-| T13 | VM health/chat/schedulesの短いHTTP server | source確認中。HTTP handlerと起動unitの独立reviewは各Blocking0/Important0。起動/relay/runner専用configとdetached entryを実装、T14含む関連26/26 PASS（実loopback port・既存Python runnerが生成profileを読めることを含む）。model keyはenvだけ、空auth markerだけを保存。実relay/VM/model呼出は未完。T14 schedulesは別task |
-| T14 | sleeping VMでも起きるnextRunAt schedule | projection/永続snapshot reader/GET schedulesはsource実装、schedule7/7・server11/11 PASS。独立reviewのvolume/home欠損の誤空配列を回帰RED→GREENで修正。利用者19:00の日報時刻を既存timezone変換で計算しDST確認。中央queueからの更新/公式writeと実休眠wakeはT15/T16/T22で未完 |
+| T11 | 既存queue/leaseへmanager.cycle adapter登録 | foundationは#8407/main334e0bd1bc、全14 checks PASSで統合済み。store/SQLとstable buildersはreview修正済。cycle adapterのplan/execute/reconcile/verify/reportを実装しruntime16/16 PASS。独立reviewのtransport uid不一致・日本語/空白のartifact path拒否と、保存fileだけを書き換えた完了判定を回帰RED→GREENで修正。公式captured stdoutとenvelope.resultを照合する。実行中はworkerを占有せずpending、停止後もread-only回収、共通receiptはexecutionの証拠として分離。provision/report adapter・worker wiring・本番DB/Cloud適用は未完 |
+| T12 | 専用subfolder Dockerfileとsanitized ZIPで同repoのcustom imageをbuild | source実装中、archive5/5 PASS。独立reviewの公開実装profiles除外をRED→GREENで修正し、展開ZIPから実publisher importを確認。tracked main commitだけ・secret/profile/state除外・archive限度・既存output保護を確認。公式ZIP routeのUIとupload API契約を確認。実archive/remote image buildはsource統合後、Docker daemonなし。 |
+| T13 | VM health/chat/schedulesの短いHTTP server | sourceは#8407/main334e0bd1bcへ統合済み。HTTP handlerと起動unitの独立reviewは各Blocking0/Important0。起動/relay/runner専用configとdetached entryを実装、T14含む関連26/26 PASS（実loopback port・既存Python runnerが生成profileを読めることを含む）。model keyはenvだけ、空auth markerだけを保存。実relay/VM/model呼出は未完。T14 schedulesは別task |
+| T14 | sleeping VMでも起きるnextRunAt schedule | #8407/main334e0bd1bcへsource統合済み。projection/永続snapshot reader/GET schedulesはsource実装、schedule7/7・server11/11 PASS。独立reviewのvolume/home欠損の誤空配列を回帰RED→GREENで修正。利用者19:00の日報時刻を既存timezone変換で計算しDST確認。中央queueからの更新/公式writeと実休眠wakeはT15/T16/T22で未完 |
 | T15 | custom create・detached exec/resultの重複防止adapter | T03/T12/T13後 |
 | T16 | 一tenant tokenのwake relay・secret・初回wake配線 | T05/T08/T14/T15後 |
 | T17 | Cloudで一件の正規publishとofficial status確認 | T16後、売上発生自体は待たない |
@@ -20778,6 +20778,8 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | T30 | 共有できる稼働URLをDaisへメール送信しreceipt確認 | T23直後。T29の長期成長を待たない |
 | T31 | email利用者の任意paid upgradeを既存Stripeへ接続しLM自身の売上を照合 | 無料pilot/提出を妨げずT23後。顧客事業売上とStripe subscription売上を別集計 |
 | T32 | 既存SupabaseへResend SMTP/email enable/正確なcallbackを設定しowned inbox着信確認 | 実環境完了。設定GETとowned inbox着信を確認、認証件名/宛先/新規時刻照合済み。email=true/confirm必須/既存Googleとredirect保持。safe receipt=smtp-readback.json。browser全経路はT22 |
+
+**Source依存訂正:** 旧=T11全worker完了→T13→T12、T17実行→T22 deploy。新=T11Aの確定契約→T13/T12 source→T15/T16/T18/T19 source→T11B wiring→T22.1非公開foundation deploy→T17/日報の実測→T22完了。実装に存在した循環を解消するための順序具体化で、sourceを稼働完了へ置換しない。現在の運用cursor=T08、独立source cursor=T12。
 
 **計画訂正:** 旧T12=root Dockerfile、新T12=専用subfolder+sanitized ZIP。Railwayがroot Dockerfileを自動検出し既存life-callのbuildを変えるため訂正する。T32はT04後に独立して実行し、T22の依存へ追加する。T12→T13の逆依存もT13→T14→T12へ訂正し、CMD対象sourceが存在してからbuildする。現在cursor=T08。T32の設定/着信は確認済み。Maritime本体は本人確認・通常login済み。API keyはprivate SSOTへ保存し、公式API hostのGET /api/agents=200・owned agent0を確認。VM/業務effectは未実施。詳細file/command/期待結果はAtomic Implementation Planを参照。
 
