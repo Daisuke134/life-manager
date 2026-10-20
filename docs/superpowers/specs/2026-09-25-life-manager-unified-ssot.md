@@ -2696,11 +2696,11 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 | T8 | CFO: ループごとの settled revenue と cost の join（ループ別P&L）を毎日出す | P&L 行ごとに receipt id がある |
 | T9 | Mobile funnel と `/en` `/lm` `/income` の整合（install→activation→課金） | attribution receipt |
 | T10 | one-shot capability capsule | 目標・承認の質問なしで初回の実行が通る |
-| T11 | 既存queue/leaseへmanager.cycle adapter登録 | sourceは#8407/#8424でmain0cへ統合、最終全14checks成功。既存queue/30秒readback席/同transaction successor/provision/report/継続workerを接続する。稼働workerのsourceと設定は採用済み、Maritime capabilityはDB readiness待ちで無効。 |
-| T12 | evaluator が所有する self-improvement（rollback つき） | main0c由来ZIPは91,599,041 bytes/8,756files。公式upload200→既存VM再deploy success、実4source hash/health release一致、image固定browserのCDP/DOM成功。ZIP/source hashをimage digestと混同しない。証拠→image-build-source.json/owned-image-adoption.json。 |
+| T11 | 既存queue/leaseへmanager.cycle adapter登録 | foundationは#8407/main334e0bd1bc、全14 checks PASSで統合済み。store/SQLとstable buildersはreview修正済。cycle adapterのplan/execute/reconcile/verify/reportを実装しruntime16/16 PASS。独立reviewのtransport uid不一致・日本語/空白のartifact path拒否と、保存fileだけを書き換えた完了判定を回帰RED→GREENで修正。公式captured stdoutとenvelope.resultを照合する。実行中はworkerを占有せずpending、停止後もread-only回収、共通receiptはexecutionの証拠として分離。provision/report adapter・worker wiring・本番DB/Cloud適用は未完 |
+| T12 | evaluator が所有する self-improvement（rollback つき） | canary で settled contribution が改善 |
 | T13 | settled cost で裏付けた x402 自己資金化 | inflow ≥ cost の CFO readback |
 | T14 | LM-EAB（held-out、較正、再現可能） | 独立した再実行で同じ結果 |
-| T15 | custom create・detached exec/resultの重複防止adapter | 基本source #8415、coldguest/readiness/idempotencyは#8424でmain0cへ統合・実image採用済み。source/archive/専用identity/envを維持し既存VM一台を更新する。新cycleの実dispatch/readback/replay-zeroはT22。 |
+| T15 | custom create・detached exec/resultの重複防止adapter | 基本source #8415/main7d6adbbd43。実APIにimageName/digestが無いため、実績のあるuploadS3Key/private＋archive SHA256＋source SHAへ補正、独立review指摘0。custom/HMAC externalIdとUID/source/archive公式envを照合してbindし、実コードは別health/byte probeで確認。#8421未統合。署名/外部IDは専用LM_MARITIME_MANAGER_ID_SECRETで統一、globalとは別fixtureで回帰確認 |
 
 
 ### 5.0 順序変更（2026-09-27 10:5x JST）: 土台 → 全 loop を green → 収益 → 自己修復の実証 → 自己改善

@@ -155,10 +155,11 @@
           "db_role": "authenticator",
           "setting": "lock_timeout=8s"
         }
-      ],
-      "usage_column_present": false
+      ]
     },
-    "timeout_configuration_changed": false
+    "timeout_configuration_changed": false,
+    "usage_migration_accepted": true,
+    "usage_schema_readback_pending": true
   },
   "owned_vm": {
     "existing_external_identity_matches_manager": true,
