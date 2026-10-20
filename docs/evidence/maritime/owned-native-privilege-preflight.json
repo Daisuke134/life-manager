@@ -1,0 +1,17 @@
+{
+  "scope": "isolated native Linux fixture; candidate modules compiled in memory, not installed runtime; no model or provider business action",
+  "execution_status": "completed",
+  "exit_code": 0,
+  "uid": 10001,
+  "config_readable": true,
+  "relay_absent": true,
+  "workspace_writable": true,
+  "protected_write_denied": true,
+  "app_write_denied": true,
+  "capabilities_zero": true,
+  "no_new_privileges": true,
+  "candidate_source_sha256": {
+    "apps/life-manager/maritime/runtime-env.js": "76e0b6b3eb629e9be5f52c9033929d1418b1f42a3e9b1bb4269d161a05acaaa3",
+    "apps/life-manager/maritime/run-cycle.js": "9f339e9203eb5f4048dd53fb16044a9743f3356b4c64a1aa84e6e4f45e270da3"
+  }
+}

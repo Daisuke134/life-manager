@@ -21,12 +21,12 @@ function createMaritimeManagerStore(options = {}) {
   const key = options.supaKey || env.SUPABASE_SERVICE_ROLE_KEY;
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   const now = options.now || (() => new Date().toISOString());
-  async function request(path, method = "GET", body, prefer) {
+  async function request(path, method = "GET", body, prefer, signal) {
     if (!root || !key) throw new Error("maritime_manager_store_unconfigured");
     let response;
     try {
       response = await fetchImpl(`${root}/rest/v1/${path}`, {
-        method, headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json",
+        method, ...(signal ? { signal } : {}), headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json",
           Prefer: prefer || "return=representation" },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       });
@@ -35,9 +35,9 @@ function createMaritimeManagerStore(options = {}) {
     try { return await response.json(); }
     catch { throw new Error("maritime_manager_store_invalid"); }
   }
-  async function read(uid) {
+  async function read(uid, { signal } = {}) {
     identifier(uid, UID);
-    const rows = await request(`lm_maritime_manager_enrollments?uid=eq.${encodeURIComponent(uid)}&select=${SELECT}&limit=2`);
+    const rows = await request(`lm_maritime_manager_enrollments?uid=eq.${encodeURIComponent(uid)}&select=${SELECT}&limit=2`, "GET", undefined, undefined, signal);
     if (!Array.isArray(rows) || rows.length > 1 || (rows[0] && rows[0].uid !== uid)) {
       throw new Error("maritime_manager_store_invalid");
     }
@@ -49,6 +49,22 @@ function createMaritimeManagerStore(options = {}) {
     if (!Array.isArray(rows) || rows.length > limit || rows.some(row => !row || !UID.test(row.uid)
       || row.status !== 'pending' || row.paused_at !== null || row.agent_id !== null || !SHA.test(row.release_sha))) {
       throw new Error('maritime_manager_store_invalid');
+    }
+    return rows;
+  }
+  async function listPaused(limit = 20, afterUid = null) {
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) invalid();
+    if (afterUid !== null) identifier(afterUid, UID);
+    const rows = await request(`lm_maritime_manager_enrollments?status=eq.paused&paused_at=not.is.null&select=uid,status,paused_at,agent_id,release_sha&order=uid.asc&limit=${limit}`
+      + (afterUid === null ? "" : `&uid=gt.${encodeURIComponent(afterUid)}`));
+    if (!Array.isArray(rows) || rows.length > limit) throw new Error("maritime_manager_store_invalid");
+    let previous = afterUid;
+    for (const row of rows) {
+      if (!row || !UID.test(row.uid) || row.status !== "paused" || typeof row.paused_at !== "string"
+        || !Number.isFinite(Date.parse(row.paused_at)) || !SHA.test(row.release_sha)
+        || (row.agent_id !== null && !/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(row.agent_id))
+        || (previous !== null && row.uid <= previous)) throw new Error("maritime_manager_store_invalid");
+      previous = row.uid;
     }
     return rows;
   }
@@ -91,6 +107,16 @@ function createMaritimeManagerStore(options = {}) {
       throw new Error("maritime_manager_binding_rejected");
     }
     return row;
+  }
+  async function quarantinePendingProvision(uid) {
+    identifier(uid, UID);
+    const rows = await request(`lm_maritime_manager_enrollments?uid=eq.${encodeURIComponent(uid)}&status=eq.pending&paused_at=is.null&agent_id=is.null`,
+      "PATCH", { status: "effect_unknown" });
+    if (!Array.isArray(rows) || rows.length > 1 || (rows[0] && (rows[0].uid !== uid
+      || rows[0].status !== "effect_unknown" || rows[0].agent_id !== null || rows[0].paused_at !== null))) {
+      throw new Error("maritime_manager_store_invalid");
+    }
+    return rows[0] || null;
   }
   async function pause(uid) {
     identifier(uid, UID);
@@ -150,7 +176,7 @@ function createMaritimeManagerStore(options = {}) {
     if (!row || row.execution_id !== executionId) throw new Error("maritime_manager_binding_rejected");
     return row;
   }
-  return Object.freeze({ enroll, read, listPending, claimProvision, bindAgent, pause,
+  return Object.freeze({ enroll, read, listPending, listPaused, claimProvision, bindAgent, pause, quarantinePendingProvision,
     claimCycleDispatch, readCycleDispatch, bindCycleExecution });
 }
 module.exports = { createMaritimeManagerStore };

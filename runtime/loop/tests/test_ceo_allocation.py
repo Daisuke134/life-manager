@@ -1,6 +1,7 @@
 import json
 import os
 import subprocess
+import shutil
 import sys
 import tempfile
 import unittest
@@ -154,12 +155,26 @@ class CEOAllocationTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)
             registry_before = (ROOT / "config" / "loop-registry.json").read_bytes()
-            env = {**os.environ, "HOME": str(home), "CEO_CONFIG_ROOT": str(ROOT)}
+            source = home / "repository"
+            (source / "bin").mkdir(parents=True)
+            (source / "config").mkdir()
+            (source / "lib").symlink_to(ROOT / "lib", target_is_directory=True)
+            for name in ("ceo-run.sh", "ceo_run.py", "ceo_unit_economics.py",
+                         "budget-check.sh", "budget_check_cli.py"):
+                shutil.copyfile(ROOT / "bin" / name, source / "bin" / name)
+            for name in ("ceo-budget-config.json", "ceo-unit-economics.json"):
+                shutil.copyfile(ROOT / "config" / name, source / "config" / name)
+            registry = json.loads(registry_before)
+            registry["loops"] = {"ceo-runner": registry["loops"]["ceo-runner"]}
+            source_registry = source / "config" / "loop-registry.json"
+            source_registry.write_text(json.dumps(registry))
+            fixture_before = source_registry.read_bytes()
+            env = {**os.environ, "HOME": str(home), "CEO_CONFIG_ROOT": str(source)}
             env.pop("CEO_STATE_DIR", None)
             env.pop("LIFE_MANAGER_CEO_STATE_ROOT", None)
 
             result = subprocess.run(
-                ["bash", str(ROOT / "bin" / "ceo-run.sh"), "--light-pass"],
+                ["bash", str(source / "bin" / "ceo-run.sh"), "--light-pass"],
                 env=env,
                 capture_output=True,
                 text=True,
@@ -171,6 +186,8 @@ class CEOAllocationTest(unittest.TestCase):
             self.assertTrue((state / "ledgers" / "ceo-unit-economics.latest.json").is_file())
             self.assertEqual((ROOT / "config" / "loop-registry.json").read_bytes(), registry_before)
             self.assertFalse((state / "config" / "loop-registry.json").exists())
+            self.assertEqual(source_registry.read_bytes(), fixture_before)
+            self.assertFalse((source / "ledgers").exists())
 
 
 if __name__ == "__main__":

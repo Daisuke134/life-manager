@@ -57,6 +57,12 @@ life-manager/
 │   │   ├── maritime-manager-auth.js                [追加: email auth専用handler]
 │   │   ├── maritime-manager-runtime.js             [追加: 既存jobからfactoryを呼ぶadapter]
 │   │   ├── maritime-manager-report.js              [追加: tenant結果→既存CFO email]
+│   │   ├── maritime-manager-artifacts.js           [追加: 認証cookie/検証済み成果download]
+│   │   ├── maritime-manager-artifacts.test.js      [download/tenant/HTTP境界]
+│   │   ├── maritime-manager-wake.js               [追加: agent-bound wake→既存queue]
+│   │   ├── maritime-manager-wake.test.js          [署名/停止/initial dedup]
+│   │   ├── maritime-manager-schedules.js          [追加: 既存timezoneからnextRunAt投影]
+│   │   ├── maritime-manager-schedules.test.js     [永続snapshot/欠損/隔離]
 │   │   ├── maritime-manager-store.test.js           [store境界]
 │   │   ├── maritime-manager-auth.test.js            [auth/activate/page/stop境界]
 │   │   ├── maritime-manager-runtime.test.js         [queue/dispatch/reconcile境界]
@@ -74,7 +80,13 @@ life-manager/
 │   │       └── maritime-manager.test.js            [追加予定]
 │   ├── maritime/
 │   │   ├── server.js                               [追加: health/chat/schedules、短いHTTP]
-│   │   ├── server.test.js                          [追加予定]
+│   │   ├── server.test.js                          [health/chat/schedules HTTP]
+│   │   ├── runtime-env.js                         [追加: 専用model config/tenant OS所有権]
+│   │   ├── runtime-env.test.js                    [実runner profile契約]
+│   │   ├── run-cycle.js                           [追加: 非root factory child]
+│   │   ├── run-cycle.test.js                      [argv/環境/失敗時fallbackなし]
+│   │   ├── artifact-proof.py                      [追加: no-follow/size/hashのread-only proof]
+│   │   ├── artifact-proof.test.js                 [POSIX名/越境/リンク/size境界]
 │   │   ├── Dockerfile                              [追加: 専用image、repo直下へ置かない]
 │   │   └── build-context.py                        [追加: tracked SHAからsecret抜きZIP]
 │   └── scripts/
@@ -235,6 +247,7 @@ life-manager/
 **Depends:** T07。実行者のcredential SSOT/registry事前確認が必要。
 
 - [ ] T08.1 private SSOTでservice完全一致を調べ、登録済みCapafy/browser/Maritime/model/Resendの有無とownerをsecret値を出さず確認する。specにないことを未登録の根拠にしない。
+- [ ] T08.1a Docker image内でpin済みCloakBrowserの公式ensure_binaryを使いfree Linux binaryを/optへ導入する。root所有read-only binaryを固定/usr/local/bin/lm-cloud-chromiumへbindし、cloud_cycleは存在する固定binaryだけをchildへ渡す。既存browser-ownerのLinux起動だけheadless/dev-shm制約へ対応する。Mac profileや親browser変数を継承しない。
 - [ ] T08.2 founder用と新利用者用のbindingを別々に作り、既存Steel/CDP adapterへ同じtenantのsessionだけを渡す。Macの`:9222`をCloudのlocalhostと解釈しない。
 - [ ] T08.3 Linux隔離環境でread-onlyのinventory/statusまでを一回通す。認証切れ、macOS必須処理、provider本人手続きはfield別に記録し、別tenant sessionへfallbackしない。
 - [ ] T08.4 focused isolation case `tenant_b_cannot_use_tenant_a_capafy_session`をPASSにしてcommit/push。provider認証未完の人も商品生成と報告は開始できるが、販売済みと表示しない。
@@ -272,6 +285,12 @@ life-manager/
 - [ ] T11.1 test `same_occurrence_is_one_runtime_job`を定義。stable job/effect keyがtenant+occurrenceにbindし、別tenantでは異なることをassert。
 - [ ] T11.2 `buildRuntimeJob`と既存queue/leaseを使う。factoryを長時間HTTP request内で実行せず、中央jobからMaritime公式detached execへ一度dispatchし、executionIdを既存jobのreceipt/stateへpersistしてpollする。既存workerのlease heartbeatを維持し、次wakeをpersistする。T11Aとして、既存storeへ`claimCycleDispatch({uid,agentId,occurrenceId,dateKey,releaseSha}) -> {claimed,row}`、`readCycleDispatch(identity)`、`bindCycleExecution({...identity,executionId})`を追加する。専用tableはuid+occurrenceにagent/date/releaseと不変のexecution IDだけを保存し、終端state/receiptは既存runtime queueに残す。新規claim成功の同じ呼出しだけがdispatch可能。既存rowでexecution IDが未記録ならunknownを保持して再dispatchせず、記録済みなら同IDをpollする。SQL claimはactiveで停止されていない同tenant/agent/releaseだけを許可する。cycle adapterのexecuteは既存checkpointを先に読み、fresh claimだけdispatch、直後にexecution IDを保存して一回だけ状態を読む。実行中はpending codeで既存queueのreconcilingへ戻し、単一workerを長時間占有しない。停止後も既存executionの読取は継続する。reconcile(job)はread-onlyでpresent/pending/unknownを返し、pendingをunknown agingや再dispatchへ変換しない。完了はexitCode=0と同tenant/occurrence/date/releaseの保存済みcycle envelopeを照合し、売上は別の公式collectorだけから取得する。
 - [ ] T11.3 `runtime-up.js`のservicesByAdapterへ`dispatchCycle/readExecution/readCycleReceipt`を注入する。storeに`listPending(limit)`を追加し、enroll後enqueue前に落ちたpending rowを既存stable provision jobへ戻す有限reconcileをworkerの既存pollで行う。同じjob keyで再enqueueし、paused/effect_unknownは新規実行へ戻さない。同workerの有限reconcileでcycle adapterを呼び、pendingはagingせず、presentは既存resolveReconciliationへ渡す。unknownは安全なerrorClass/nextActionを保存して公式readbackを続ける。factory wrapperの実行場所はMaritime VMだけとし、Railwayで同じfactoryを二重実行しない。adapter manifestにprovision/cycle/reportの三capabilityを別entryで追加し、既存capabilityを置換しない。provision/reportを実行できないままqueueへ入れる穴を残さない。日次金融aggregateは最新の検証済みsnapshotとして読み、更新時刻ごとにimmutable取引storeへappendしない。同じ日を別取引として重複加算しない。
+- [ ] T11.3a `runtime-job-store.js`へ`claimReconcilingJobs({capabilities,tenantId?,limit})`を追加する。既存updated_atの30秒窓と同一SQLのFOR UPDATE SKIP LOCKEDで有限のreadback席を取得し、pending一件による他tenantの飢餓と複数workerの同時pollを避ける。available_atは変更しない（既存enqueue identityと継続時刻を保持）。外部effectの再実行を許可するclaimではない。
+- [ ] T11.3b 同storeへ`resolveReconciliationAndEnqueue`を追加する。専用connectionのBEGIN/COMMITで既存resolveReconciliationとenqueueJobAtを原子的に呼び、同tenant/presentのみ許可する。失敗はROLLBACK/release、pool.queryでtransactionを開始しない。
+- [ ] T11.3c cycle adapterのcontinuationは既存Capafy同様15分を使う。次occurrence=`slot:<UTC epoch milliseconds>`、次dueは親available_at+15分に固定し、retryでDate.nowを使わない。paused/inactive/release mismatchは新規successorなし。中央workerはreceipt verify後に既存completeJobAndEnqueueを使い、reconcile時も同じcontinuationを呼ぶ。cycle transportをservicesByAdapterへ注入してmanifestへ登録する。
+- [ ] T11.3d report adapterは既存runtime queueの同tenant cycle receiptと既存FinancialRecord storeを読み、T18 builder→T19 deliveryを呼ぶ。金融は接続先アカウント明細として示し、Cloudが作った売上への帰属を断定しない。未接続/coverage不明は未確認、aggregateを新しい取引としてappendしない。reconcileはCFOのsent/provider ID/hashをread-only確認、pendingを再送しない。次の現地19時は既存DST対応projectorから決め、親dueを基準に固定する。
+- [ ] T11.3e provisionは同じcapabilityのcreate/configure二つのstable jobへ分ける。createは既存ensureAgent、reconcileはreadAgentのみ。ready後のconfigure jobがschedule snapshot→bound wake reloadを行い、read-only runtime-statusがloaded healthのrelay SHA256とscheduleを照合する。reconcile内でprovider設定を変更しない。configure確認後のcontinuationが同じ初回reportをidempotent enqueueし、既存atomic completionで初回cycleへ進む（report seedは確認済みready後のみ、親再処理でも同key）。追加capability/table/schedulerなし。
+- [ ] T11.3f fresh reviewのImportant4件を一回のRED→GREEN修正passで閉じる。receipt取得後のcontinuation例外はreconcilingへ戻す。configureは先読み失敗を設定前gateにしない。pending recoveryは既存terminal jobのrowを既存effect_unknownへ隔離して次tenantへ進む。画面のactiveはconfigureのcommon receipt（初回cycle/reportの永続化後）を必要にし、enrollment.activeだけでは準備中を表示する。
 - [ ] T11.4 T11Aは`node --test lib/maritime-manager-store.test.js`（既存server binariesがある環境では隔離PostgreSQLも起動し、並行claim・FK・権限・migration再適用を検証する）。adapter追加後は`node --test lib/maritime-manager-runtime.test.js lib/loop-adapter-registry.test.js`で再claim/unknown/replayのfocused casesを確認しcommit/push。
 
 ## Task T12: custom imageを同じrepoから作る
@@ -320,6 +339,12 @@ life-manager/
 - [ ] T15.3 create前にstore.claimProvisionを取り、同externalIdの既存agentを読む。通信喪失時は`effect_unknown`を保存し、readbackで同agentをbindするまで再createしない。exec POSTのresponse喪失も再POSTせず、`/data`の同occurrence receiptとprovider readbackへ進む。execution 404は実行失敗の証明にしない。
 - [ ] T15.4 `node --test lib/transport/maritime-manager.test.js lib/maritime-manager-store.test.js`を確認してcommit/push。
 
+**T15追加の実測修正:** owned VMのauto-sleepでexecが503/guest_command_unavailable/execution_started:falseを返すことを確認する。公式POST startはidempotentで同VMをactiveへ戻す。追加VM/alwaysOn/addon/課金変更はしない。
+
+- [ ] T15.5 transportの同tenant guest操作（成果物/receipt/loaded health/schedules）前に既存SDK startで復帰し、返却ID/activeを確認する。foreign入力はstart前に拒否する。
+- [ ] T15.6 cycle adapterはfresh dispatch claim前にprepareCycle（loaded wake readback）を確認する。未準備ならclaim/model callなしの中央preflight receiptとしてdeferredを保存し、既存atomic continuationで観測時刻の15分後へ回す。provider実行/仕事完了として数えない。実行中のreadExecutionはuid/agent bindingを確認し、同active tenantのaccepted executionだけstartで維持する。business execの再送はしない。pausedなら新たに実行を維持せずmetadata readを続ける。これはresource lifecycle操作であり、reconcileのbusiness read-only境界を変更しない。
+- [ ] T15.7 native sleeping→start→nonroot CDP/DOM成功を証拠へ記録し、cold guest/foreign/pending/no-repost回帰を確認してcommit/pushする。
+
 ## Task T16: secretと初回wakeを同tenantへ配線する
 
 **Files:** Create `lib/maritime-manager-wake.js`/test。Modify `server.js`、transport/runtime/authのservices wiring、`scripts/runtime-up.js`。
@@ -344,19 +369,25 @@ life-manager/
 
 ## Task T18: 初日から役立つ日次結果を組み立てる
 
-**Files:** Create `lib/maritime-manager-report.js`/test。Reuse financial conversion、`cfo-result-summary.js`、既存action receipts。
-**Interfaces:** `buildMaritimeDailyResult({enrollment,periodKey,actionReceipts,financialRecords,costs}) -> DailyResult`、`renderMaritimeDailyEmail(result) -> string`。
+**Files:** Create `lib/maritime-manager-report.js`/test、`lib/maritime-manager-artifacts.js`/test。Modify `lib/financial-manager-report.js`（既存formatter export）、`lib/maritime-manager-runtime.js`（既存契約parser/参照validator export）、`lib/transport/maritime-manager.js`/test、`maritime/artifact-proof.py`/test（read-onlyのdirfd/no-follow/size/hash）、`server.js`（download route）。既存金融集計・認証cookie・queue/receiptを再利用する。
+**Interfaces:** `buildMaritimeDailyResult({enrollment,periodKey,actionReceipts,financialRecords,financialCoverage,costs}) -> DailyResult`、`renderMaritimeDailyEmail(result) -> string`。
+**入力契約:** actionReceiptsは中央queueの`{receipt,completedAt}`で、VM自己申告時刻を使わない。未確定jobは`{job,status,observedAt}`に中央で観測した時刻を渡し、架空の完了receiptを作らない。financialRecordsは同tenantのbusiness FinancialRecordのみ。financialCoverage/costsのcompleteは中央collectorの同tenant/period/timezone/evidence付き観測だけに付与する。欠落はunknownで、空配列だけから0を出さない。費用は観測小計とcoverageを分け、両coverage完備までprofitはunknown。既存Financial Managerの日付・通貨集計とformatterを再利用する。
 **Depends:** T10/T11Aのsource。T17の売上発生は待たない。
 
 - [ ] T18.1 test `daily_result_separates_artifact_publish_sales_payout_and_unknown_cost`を定義。商品作成だけなら売上0の観測がある場合のみ0、未取得は未確認、費用欠落で利益unknownをassert。
 - [ ] T18.2 action receiptから「何を作った/公開した/保留中か」を構成し、gross/refund/known cost/payoutを別表示する。私用Moneytree/Dais balanceは参照しない。
 - [ ] T18.3 日次copyを「今日実行したこと／確認できた成果と売上／費用／未完・失敗／次に進めること」に固定し、URLは同tenantのartifact/provider evidenceだけにする。
 - [ ] T18.4 focused report testと二通貨/日付またぎを確認しcommit/push。
+- [ ] T18.5 `buildMaritimeArtifactPath({jobId,artifactRef})`と`handleMaritimeManagerArtifact(req,res,options)`を新artifact moduleへ定義。URLは`/maritime/artifacts/<encoded jobId>/<各segmentをencodeしたrelative artifact path>`。uidは既存resolveMaritimeManagerUserの認証cookieからのみ解決する。新しいdownload token/secret/storeは作らない。
+- [ ] T18.6 同uid+jobIdで既存readCommonJobを読み、既存cycle adapter.reconcile/verifyで公式captured stdoutと保存receiptが一致したcompleted jobだけを許可する。要求refがそのreceipt.artifact_refsに存在することを確認し、他tenant/任意file/未確認結果は返さない。pause後も既存成果は読める。
+- [ ] T18.6a rootのproof verifierをmodelが書き換えられないよう、`maritime/run-cycle.js`はLinux root時にnative setprivでPython factoryをuid/gid10001・groups空・全capability削除・no-new-privsへ落とす。失敗はnonzero、root fallbackなし。`runtime-env.js`が/data parentをroot所有/書込不可にし、tenantの既知write dirsとgenerated configだけをfd経由でuid10001へ渡す。Dockerfileはutil-linux/専用userとroot所有readonly /appを含める。Localのagent-runner全体は変更しない。既存root Codex profileはコピーせず、Cloud専用agent-codex/agent-ledgersを使い旧データは保持する。rootrelay tokenはmodel子のenvから除外。focused argv/envと既存runtime profile、owned Linuxの非root/書込拒否/capabilityなしのread-only probeで確認する。
+- [ ] T18.7 transportへreadArtifact({uid,agentId,artifactRef})を追加。先に公式read-only execでimmutable sourceのartifact-proof.pyを呼び、固定 `/data/<uid>/build/<raw relative>`をdirfd/O_NOFOLLOW/regular-fileだけで開いてsize/hashを取得する。公式files/downloadを同じ固定pathで読み、metadataのsize/hashと一致したbytesだけを返す。これによりworkspace途中のsymlinkや、proof後の差替えでprivate pathを配信しない。20MiBまでstreamを蓄積して超過時cancelする（中央HTTPのmemory bound）。SDKの無制限arrayBuffer downloadをこの経路では使わない。redirect禁止/20秒。返却はattachment/octet-stream/nosniff/no-store、SVG等を同originで実行しない。
+- [ ] T18.8 serverへGET routeをmount。認証なしはログインへの案内、他tenant/不在は404。日報builderが既存publicOriginで実routeのlinkを作り、利用者がcookieで取得する。相対refだけをクリック可能URLと偽装しない。Unicode/空白/%/literal backslashをround-trip、dot/NUL/encoded separatorを拒否、foreign/未完/oversize/no-dispatchをfocused testしcommit/push。
 
 ## Task T19: 日次メールを既存CFO配信へ接続する
 
 **Files:** Modify `maritime-manager-report.js`、`runtime-up.js`。Reuse `cfo-cloud-delivery.js`/`mail-resend.js`。
-**Interfaces:** `deliverMaritimeDailyResult({enrollment,result,observedAt},deps)`→既存`deliverCloudCfoEmail({uid,periodKey,message,observedAt,recipient})`。
+**Interfaces:** `deliverMaritimeDailyResult({enrollment,result,observedAt},deps)`→既存`deliverCloudCfoEmail({uid,periodKey,message,observedAt,recipient})`。送信直前にmanagerStore.read(uid)でactive/非停止/同timezoneを読み直し、recipientは最新enrollment.emailだけから取得する。resultのtenant/period/dateとobservedAtを検証し、呼出側のrecipient上書きを受けない。成果物メールのoriginは明示したLM_PANEL_BASE_URLまたはpublicOriginだけとし、worker自身のRAILWAY_PUBLIC_DOMAINを推測で使わない。
 **Depends:** sourceはT18。実送信の受入はT16のtenant binding/worker wiring後。
 
 - [ ] T19.1 test `daily_email_replay_returns_original_provider_id`を定義。同uid+periodKeyを二回実行してResend send1回、異なるrecipientへpending receiptを再利用しない。
@@ -366,22 +397,32 @@ life-manager/
 
 ## Task T20: 停止が次の仕事と配信に効くようにする
 
-**Files:** Modify auth/store/runtime/report、existing consent/stop経路。
+**Files:** Modify `lib/maritime-manager-auth.js`/test、`lib/maritime-manager-store.js`/test、`lib/maritime-manager-runtime.js`/test、`lib/runtime-job-store.js`/test、`lib/maritime-distribution.js`/test、`scripts/runtime-up.js`/test、`server.js`。既存consent/report guardを再利用する。
 **Interfaces:** authenticated POST `/maritime/stop`→paused、schedule除去、未claim job停止。進行済みeffectは公式readback継続。
 **Depends:** T14/T19。
 
 - [ ] T20.1 test `pause_blocks_next_job_and_report_but_preserves_inflight_receipt`を定義。他tenant停止不可、停止後新規publish/send0件、進行済みreceiptは保持。
+- [ ] T20.1a `/maritime/stop`は既存verified-cookie/Origin/CSRFでuidを解決し、空JSONだけを受ける。最初に既存store.pauseで新規job/model/sendを遮断し、既存provision capabilityのstable phase=pause jobをenqueueする。HTTPはpaused/cleanupPendingを返し、queued cleanupを完了と偽装しない。
+- [ ] T20.1b provision pause phaseは既存consent revokeとpaused schedule snapshotを実行する。bound agentなしはlocal control receipt、ありはloaded empty schedulesを確認する。reconcileは停止状態を照合し、未反映時だけ同じconsent revoke/empty snapshotをidempotentに再適用する。business/model/sendは再送せず、続きの仕事/日報をenqueueしない。新capability/table/schedulerを増やさず、既存inflight receiptは保持する。
+- [ ] T20.1d pause保存→cleanup enqueue間のcrashを回収する。store.listPaused(limit20,afterUid)をuid順で有限pagingし、既存workerの30秒recoveryが同じpause jobをidempotent enqueueする。ローカルcursorを進めて古いcompleted cleanupが新tenantを飢餓させない。新table/cronは作らない。
+- [ ] T20.1c landingへCSRF付き停止ボタンを追加し、停止は新しい仕事/今後のメールを止め、進行中の結果確認と既送信データは残ると明記する。中央queueの既存行は残し、dispatch/report直前のpaused guardで新規外部作用を拒否する。
+- [ ] T20.1e review実測の競合を閉じる。`runtime-job-store.withRuntimeTenantControlLock({tenantId},operation,opts)`が既存PostgreSQL connectionで20秒lock_timeout付きtenant advisory transaction lockを使い、activateのconsent/enrollとconfigure/pauseの設定変更＋最終確認を同uidで直列化する。local pauseは先に即保存する。accepted create/configureのinspectはpausedでもreadbackを許し、execute/continuationの禁止は維持する。既存poolを使い、新lock table/providerを作らない。
 - [ ] T20.2 既存consent revokeとenrollment.pauseを接続し、中央のjob claim/dispatch/report直前にもpausedを読む。停止を既送信データ削除と表示しない。
 - [ ] T20.3 provider側に保存済みデータ・VMの削除は停止と分け、削除を勝手に実施しない。scheduled wake snapshotから停止分を外す。
 - [ ] T20.4 focused stop testを確認してcommit/push。
 
 ## Task T21: 登録・実業務・再利用を既存funnelへ記録する
 
-**Files:** Modify `apps/life-manager/lib/web-funnel-events.js`/`web-funnel-events.test.js`、`maritime-distribution.js`/test、auth/runtime/report call sites。
+**Files:** Modify `apps/life-manager/lib/web-funnel-events.js`/test、`maritime-distribution.js`/test、`web-auth.js`/既存attribution test、`maritime-manager-auth.js`/test、`maritime-manager-artifacts.js`/test、`scripts/runtime-up.js`/test。Create `lib/maritime-manager-usage.js`/test、`migrations/2026-10-21-lm-maritime-manager-usage.sql`。
 **Interfaces:** events=`maritime_email_verified|maritime_manager_activated|maritime_work_completed|maritime_report_sent|maritime_returned`。source_object_id=既存HMAC participant ID。
 **Depends:** T05/T11/T19。
 
 - [ ] T21.1 test `manager_usage_is_not_signup_and_analytics_has_no_email_or_body`を定義。signupだけではwork_completed0、再送はmilestone1件、email/token/本文なし。
+- [ ] T21.1a `recordMaritimeManagerCompletion(job,receipt,options)`は中央completed rowと既存adapter.verifyを照合し、configure完了/実cycle完了/Resend受付だけをそれぞれactivated/work_completed/report_sentへ渡す。deferred/preflight/unknownは実業務完了に数えない。既存workerのSQL完了後とreconcile完了後にだけhookし、計測失敗で仕事/メールを再送しない。中央immutable receiptを再集計の正本として残す。
+- [ ] T21.1b `createMaritimeDistributionStore.recordManagerEvent(eventName,uid,{eventKey,source,attribution,occurredAt})`を追加。source_object_idは既存HMAC、source_event_idはHMAC participant+event+job/periodのSHA256で128文字以内。本文/email/token/生uidを送らない。new eventだけ`audience_kind=internal|external`を付け、`LM_MARITIME_INTERNAL_UIDS`のfounder/team/fixtureを外部集計から除く。email account数を実在人間数と断定しない。
+- [ ] T21.1c migrationは既存funnel event allowlist/audience_kindだけを追加する。既存`lm_users.web_first_touch`と`web-auth.storeWebFirstTouch`を再利用し、enrollmentに第二のattribution列を作らない。activationのhidden metadataへ既存sanitizeWebAttributionを使い、first-touch localStorageのUTMを引き継ぐ。emailだけ必須のformは維持し、source=instagramを追加して配布draftのIG source=otherを修正する。
+- [ ] T21.1e review修正: 計測observerは共通2秒deadline/AbortSignalとfalse/例外/timeoutの匿名化診断を持つ。signupで既存署名cookieへ初回UTMを保存し、確認callbackで既存first-touchへ保存してからemitする。業務・認証を再送せず、永続receiptをbackfill正本とする。
+- [ ] T21.1d `recordMaritimeEmailVerified(uid,options)`は確認済みsession成立後だけ。`recordMaritimeManagerReturn(uid,options)`は認証済み非prefetch GETで初回verified workから24時間以上後だけ。既存funnel読取+安定event IDで重複を防ぐ。計測障害は未確認として記録し、signupをreal useへ変換しない。
 - [ ] T21.2 既存WEB_FUNNEL_EVENTSへevent名を追加し、既存record関数で記録する。true sourceのDM/X/IG/community別UTMを維持する。
 - [ ] T21.3 founder/team/fixtureを外部userと別集計し、公式Keiki/Maritime project usageへの対応キーをprivate receiptで保持する。
 - [ ] T21.4 focused event/distribution testを確認しcommit/push。独自analyticsサービスや新dashboardは作らない。
@@ -392,7 +433,15 @@ life-manager/
 **Interfaces:** sanitizeされた`{releaseSha,imageDigest,agentId,uidHash,loadedSha,workReceipt,emailReceipt,nextWake,usage,costStatus}`。
 **Depends:** T22.1は各taskのsource統合（T11B/T12/T15/T16/T19/T20/T21/T32）後。T22の完了はT17とメール/停止/計測の自然readback後。T17をT22.1 deployより先に要求しない。
 
+- [ ] T22.0 GitHubがMac arm64 runnerを15分確保できず取消したannotationを確認する。公式actions/runner-imagesのstandard `macos-15-intel`へLoop control jobのrunnerだけをpinし、同じ契約テストを実行する。検証内容を削減せずexact HEADの14checkを再確認する。
+- [ ] T22.0a Intel CIの既存release-bytecode testがcompute-proxyのnpm10 lock不整合で失敗する。既存npm10.9.4の隔離dry-runでREDを再現し、jayson/ws用の既存pinned utf-8-validate5 metadataを不足するnested lock entryへ補う。bytecode testのrelease allowlistは対象のruntime/loopへ絞り、無関係なNode packageのnetwork installに依存させない。bytecode/readonly/runtime Pythonのassertionは保持し、同じfocused testとnpm10 dry-runを通す。
+- [ ] T22.0b CEO外部state境界のtestが191-loopの実registry全件を処理しIntel CIで30秒timeoutになる。実shell entry/CLI/libを使う一つのloopのsource fixtureへ分離し、30秒制限とsource registry不変・外部snapshot・state配下にregistryを複製しないassertionを保持する。production light-passと191-loop registryは変更しない。CI RED→focused GREENを確認する。
 - [ ] T22.1 全source acceptanceとexact-head CIを確認しmainへ統合する。immutable imageをmain SHAから作り、DB migration履歴とapply結果を読む。公開flagをoffに保ち、central worker/relayとowned tenantの非公開foundationを先にdeployし、その後T17の実業務とT19の着信を確認する。
+- [ ] T22.1a main由来commitで両DBのschema/historyを読む。Railwayは既存runtime jobs/receipts/reconcile agingと既存worker用`2026-09-09-lm-financial-records-worker.sql`のtableを確認する。Supabaseは`2026-09-30-lm-cfo-result-report.sql`、`2026-10-18-lm-maritime-distribution.sql`、`2026-10-20-lm-maritime-manager.sql`、`2026-10-20-lm-maritime-runtime-executions.sql`、`2026-10-21-lm-maritime-manager-usage.sql`を依存順で照合する。存在するmigrationを未確認で再applyせず、不足分だけ実行・readbackする。新FinancialRecord storeをSupabaseへ作らない。
+- [ ] T22.1b SupabaseのAuth/認証RESTを実測する。project ACTIVE_HEALTHYや未認証401だけでPASSにしない。503 PGRST002時は直近postgres_logsをerror/query classで集計し、本文/SQL本文/email/tokenを取得しない。過去の適用済みtimezone migrationを未適用と断定せず、既存の全体restart/restore禁止を守る。
+- [ ] T22.1c `build-context.py`で統合mainからZIPを作る。owned external identityは現行HMACと一致するため、既存agentへ公式ZIP redeployを一回行い、新agentを作らない。既存VMの`LM_RELEASE_SHA`/`LM_SOURCE_ARCHIVE_SHA256`を新main/ZIPへ更新し、`LM_RUNTIME_TENANT_ID`は同値維持する。source SHA/ZIP hashとprovider deployment/image digestを区別し、実source file hashとloaded healthも照合する。envのSHAだけで新版採用と判定しない。upload/agent ID/tokenはprivate SSOTへ保存する。
+- [ ] T22.1d 既存Railway life-callへruntime DB・Manager identity secret・image releaseの必要値を追加し、workerの既存3capabilityを保持して`maritime.manager.provision,maritime.manager.cycle,maritime.manager.report`を追加する。workerにはMARITIME_API_KEY/source S3 key/archive hash/同じfrontend originを設定する。secretはstdin/private SSOT経由としargv/logへ出さない。workerで未設定の`LM_UID_SECRET`へfrontendの既存値を追加し、既存値をrotateしない。両appへ`MARITIME_PILOT_MAX_USERS=3`と`LM_MARITIME_INTERNAL_UIDS=owned uid`を設定する。既存Resend keyは保持する。公開flag offでmain由来を反映し、worker healthのcapability/loaded releaseを読む。
+- [ ] T22.1e foundation準備後に宣言して`LM_MARITIME_MANAGER_EMAIL_ENABLED=1`へ切替える。flag0のままbrowser登録できるとは扱わない。配布告知前にowned本人の確認済みemail/uidと既存VMだけでenrollment/consent/provision receiptを確認する。初回cycle/reportは既存stable job identityから起動し、unknown occurrenceの再POSTをしない。自然完了・literal成果物download・日報着信・停止後の新規仕事抑止・計測の内部cohortを確認してから配布告知へ進む。
 - [ ] T22.2 登録→自律job→provider結果→日次メールを自分の別Cloud tenantで一回実行する。Macのloopやbrowserを止める破壊的検証はせず、Cloudのargv/state/network evidenceでMac非依存を確かめる。
 - [ ] T22.3 正規sleep後のscheduled wakeを一回観測し、同occurrenceの公開/送信が増えないことを読む。メール着信/送信provider ID、official usageとloaded SHAを結合する。
 - [ ] T22.4 readiness/capacity/費用/未接続条件を正本へ更新。全14loopsをCloud完成扱いにせず、実証したCapafy範囲だけcatalogへ反映する。
@@ -476,9 +525,9 @@ life-manager/
 
 ## Task T30: 稼働URLをDaisへメールで届ける
 
-**Files:** 既存mail送信経路と`submission.json`のprivate delivery receipt参照。個人宛先/secretはrepoに保存しない。
-**Interfaces:** T23の受付済みentryとT22の稼働URLをconsumes。送信先はprivate profile/credential SSOTから解決する。
-**Depends:** T23直後。長期獲得T29やwinner通知を待たない。
+**Files:** 既存mail送信経路とprivate delivery receipt。個人宛先/secretはrepoに保存しない。提出packetの作成を送信の前提にしない。
+**Interfaces:** T22の稼働URLと準備済み配布copyをconsumes。T23受付済みならその事実も記す。送信先はprivate profile/credential SSOTから解決する。
+**Depends:** T22直後。正式提出先の公表、長期獲得T29、winner通知を待たない。
 
 - [ ] T30.1 稼働中のemail登録URLと無料pilotの範囲を再度GETで確認し、Dais宛先をprivate SSOTから解決する。
 - [ ] T30.2 URL、できること、未接続部分、家族/友人へ転送できる短い紹介文を日本語の一通にまとめ、送信payloadを独立read-only検証する。
@@ -537,3 +586,10 @@ life-manager/
 - 五つのReview FocusはT04/T05/T15/T14/T08/T10/T19/T20のassertionに対応。
 - 未確定の外部事実はT01/T08/T22の観測taskに限定し、曖昧な「調べる」「Cloud化する」で後続へ渡さない。
 - 作成済み資料を確認しただけでproduct実装/友人利用/売上/提出済みにはしない。
+
+### T22前のCI環境依存修正
+
+- 実測: Intel hosted runnerで `test_full_inventory_gives_homebrew_a_longer_bounded_probe` が `/opt/homebrew` 不在により失敗。他609件成功。
+- 対象: `skills/self/disk-cleanup/tests/test_host_inventory.py` の同テストだけ。`_children` のHomebrewメタデータを既存tmp_pathの実ディレクトリから作り、実環境のHomebrew有無に依存させない。
+- 保持: 本物のcollect/size-probe/30秒assertion。production inventory、root一覧、timeout、削除処理は変更しない。
+- 受入: 関連test module成功→commit/push→exact HEAD全14checks→main統合。現在cursorはこのCI差分、T22以降の順序は維持する。

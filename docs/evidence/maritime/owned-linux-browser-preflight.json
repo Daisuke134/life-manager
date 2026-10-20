@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "provider": "maritime",
+  "scope": "owned_founder_vm_read_only",
+  "loaded_source_sha": "8d7d4474a357303a87ad3dd7acf1920b6cb77030",
+  "platform": "linux",
+  "cloakbrowser_version": "0.5.6",
+  "playwright_version": "1.59.0",
+  "configured_browser_binary_present": false,
+  "configured_browser_binary_executable": false,
+  "configured_browser_directory_present": false,
+  "browser_launched": false,
+  "browser_attach_verified": false,
+  "provider_authenticated": false,
+  "personal_profiles_copied": false,
+  "next_action": "Install the pinned official Linux browser binary in the main-derived image and verify a tenant-scoped attach before provider operations."
+}

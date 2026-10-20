@@ -1,5 +1,6 @@
 'use strict';
-const { createHmac } = require('node:crypto');
+const { createHmac, createHash } = require('node:crypto');
+const { maritimeArtifactRefsValid } = require('../maritime-manager-runtime.js');
 const { verifyMaritimeWakeToken } = require('../maritime-manager-wake.js');
 const { validateMaritimeScheduleSnapshot } = require('../maritime-manager-schedules.js');
 const UID = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -56,6 +57,14 @@ function createMaritimeManagerTransport({ env = {}, fetchImpl = globalThis.fetch
     if (active && (row.status === 'paused' || row.paused_at)) throw new TransportError('paused', false);
     if (active && row.status !== 'active') throw new TransportError('inactive', false);
     return { ...row };
+  }
+  async function wakeGuest(uid, agentId, releaseSha, active = false) {
+    const maritime = await sdk();
+    await enrollment(uid, agentId, releaseSha, active);
+    if (typeof maritime.agents.start !== 'function') throw new TransportError('unconfigured', false);
+    // Official lifecycle start is idempotent. Exec itself does not auto-wake custom VMs.
+    const result = await maritime.agents.start(agentId);
+    if (result?.id !== agentId || result.status !== 'active') throw new TransportError('guest_wake_unconfirmed');
   }
   function provisionIdentity(input) {
     const uid = valid(input?.uid, UID); const releaseSha = valid(input.releaseSha, SHA);
@@ -158,6 +167,7 @@ function createMaritimeManagerTransport({ env = {}, fetchImpl = globalThis.fetch
         throw new TransportError('unconfigured', false);
       }
       await enrollment(uid, agentId, releaseSha, true);
+      await wakeGuest(uid, agentId, releaseSha, true);
       await maritime.agents.setEnv(agentId, 'LM_WAKE_RELAY_TOKEN', wake.token, { secret: true });
       await enrollment(uid, agentId, releaseSha, true);
       const result = await maritime.agents.reloadEnv(agentId);
@@ -181,23 +191,94 @@ function createMaritimeManagerTransport({ env = {}, fetchImpl = globalThis.fetch
       return { executionId: execution.executionId };
     }); },
     readExecution(input) { return safe(async () => {
-      const agentId = valid(input?.agentId, ID); const executionId = valid(input.executionId, ID);
+      const uid = valid(input?.uid, UID), agentId = valid(input.agentId, ID), executionId = valid(input.executionId, ID);
+      const row = await enrollment(uid, agentId);
       const result = await request(`/api/agents/${agentId}/exec/${executionId}`);
       if (result?.executionId !== executionId || !['running', 'completed', 'timed_out', 'cancelled', 'failed'].includes(result.status)) {
         throw new TransportError('execution_invalid');
       }
-      if (result.status === 'running') return { status: result.status };
+      if (result.status === 'running') {
+        // Maintain only an already accepted, active tenant execution; never re-POST it.
+        if (row.status === 'active' && !row.paused_at) {
+          try { await wakeGuest(uid, agentId, undefined, true); }
+          catch (error) {
+            if (!(error instanceof TransportError) || !['MARITIME_MANAGER_TRANSPORT_PAUSED', 'MARITIME_MANAGER_TRANSPORT_INACTIVE'].includes(error.code)) throw error;
+          }
+        }
+        return { status: result.status };
+      }
       if (!Number.isInteger(result.exitCode) || typeof result.stdout !== 'string') throw new TransportError('execution_invalid');
       return { status: result.status, exitCode: result.exitCode, stdout: result.stdout };
     }); },
     readCycleReceipt(input) { return safe(async () => {
       const uid = valid(input?.uid, UID); const agentId = valid(input.agentId, ID); const occurrence = valid(input.occurrenceId, OCCURRENCE);
       await enrollment(uid, agentId);
+      await wakeGuest(uid, agentId);
       const bytes = await (await sdk()).agents.files.download(agentId, `/data/${uid}/receipts/${occurrence}/cycle.json`);
       if (!(bytes instanceof Uint8Array) || bytes.byteLength > 262144) throw new TransportError('receipt_invalid');
       const envelope = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
       if (envelope?.result?.tenantId !== uid || envelope.result.occurrenceId !== occurrence) throw new TransportError('binding_invalid');
       return envelope;
+    }); },
+    readArtifact(input) { return safe(async () => {
+      const uid = valid(input?.uid, UID); const agentId = valid(input.agentId, ID);
+      const artifactRef = input.artifactRef; const maxBytes = 20 * 1024 * 1024;
+      if (!maritimeArtifactRefsValid([artifactRef], true)) throw new TransportError('artifact_invalid', false);
+      await enrollment(uid, agentId);
+      await wakeGuest(uid, agentId);
+      const execution = await request(`/api/agents/${agentId}/exec`, 'POST', {
+        command: ['python3', '/app/apps/life-manager/maritime/artifact-proof.py', '--tenant', uid, '--artifact', artifactRef],
+        detached: false, timeout: 20,
+      });
+      if (execution?.status !== 'completed' || execution.exitCode !== 0 || typeof execution.stdout !== 'string'
+        || execution.stdout.length > 262144) throw new TransportError('artifact_proof_unavailable', false);
+      let proof;
+      try { proof = JSON.parse(execution.stdout); } catch { throw new TransportError('artifact_proof_invalid', false); }
+      if (proof?.tenantId !== uid || proof.artifactRef !== artifactRef || !Number.isSafeInteger(proof.size)
+        || proof.size < 0 || proof.size > maxBytes || !/^[0-9a-f]{64}$/.test(proof.sha256 || '')) {
+        throw new TransportError('artifact_proof_invalid', false);
+      }
+      const path = `/data/${uid}/build/${artifactRef.slice('artifact://'.length)}`;
+      const response = await fetchImpl(`https://api.maritime.sh/api/agents/${agentId}/files/download?path=${encodeURIComponent(path)}`, {
+        method: 'GET', redirect: 'error', signal: AbortSignal.timeout(20000), headers: { Authorization: `Bearer ${apiKey}` },
+      });
+      const reader = response?.body?.getReader();
+      if (!reader) throw new TransportError('artifact_unavailable', false);
+      let ended = false;
+      try {
+        if (!response.ok || Number(response.headers?.get('content-length')) > maxBytes) throw new TransportError('artifact_unavailable', false);
+        const chunks = []; let total = 0; const digest = createHash('sha256');
+        while (true) {
+          const chunk = await reader.read();
+          if (chunk.done) { ended = true; break; }
+          total += chunk.value.byteLength;
+          if (total > maxBytes || total > proof.size) throw new TransportError('artifact_changed', false);
+          digest.update(chunk.value); chunks.push(chunk.value);
+        }
+        if (total !== proof.size || digest.digest('hex') !== proof.sha256) throw new TransportError('artifact_changed', false);
+        return Buffer.concat(chunks, total);
+      } finally { if (!ended) { try { await reader.cancel(); } catch {} } }
+    }); },
+    readWakeConfiguration(input) { return safe(async () => {
+      const uid = valid(input?.uid, UID), agentId = valid(input.agentId, ID), releaseSha = valid(input.releaseSha, SHA);
+      const activeOnly = input.activeOnly === true;
+      await enrollment(uid, agentId, releaseSha, activeOnly);
+      if (typeof getWakeBinding !== 'function') throw new TransportError('unconfigured', false);
+      const wake = await getWakeBinding({ uid, agentId, releaseSha });
+      const identity = verifyMaritimeWakeToken(wake?.token, uidSecret);
+      if (!identity || identity.uid !== uid || identity.agentId !== agentId || identity.releaseSha !== releaseSha) throw new TransportError('relay_invalid', false);
+      await wakeGuest(uid, agentId, releaseSha, activeOnly);
+      const execution = await (await sdk()).agents.exec(agentId,
+        'node /app/apps/life-manager/maritime/runtime-status.js', { detached: false, timeout: 10 });
+      if (execution?.status !== 'completed' || execution.exitCode !== 0 || typeof execution.stdout !== 'string'
+        || Buffer.byteLength(execution.stdout) > 65536) throw new TransportError('runtime_readback_unavailable');
+      let result;
+      try { result = JSON.parse(execution.stdout); } catch { throw new TransportError('runtime_readback_invalid'); }
+      if (result?.health?.ok !== true || result.health.releaseSha !== releaseSha
+        || result.health.relayBindingHash !== createHash('sha256').update(wake.token).digest('hex')) return { ready: false };
+      try { validateMaritimeScheduleSnapshot({ schema_version: 1, tenantId: uid, releaseSha, paused: false, schedules: result.schedules }, uid, releaseSha); }
+      catch { return { ready: false }; }
+      return { ready: true, schedules: result.schedules };
     }); },
     writeScheduleSnapshot(input) { return safe(async () => {
       const uid = valid(input?.uid, UID); const agentId = valid(input.agentId, ID);
@@ -209,6 +290,7 @@ function createMaritimeManagerTransport({ env = {}, fetchImpl = globalThis.fetch
         if (snapshot.paused !== paused || (paused ? snapshot.schedules.length !== 0
           : row.status !== 'active' || !snapshot.schedules.some(entry => entry.id === `lm-report:${uid}`))) throw new Error();
       } catch { throw new TransportError('schedule_invalid', false); }
+      await wakeGuest(uid, agentId);
       await (await sdk()).agents.files.write(agentId, `/data/${uid}/maritime-schedules.json`, JSON.stringify(snapshot));
       return { ok: true };
     }); },

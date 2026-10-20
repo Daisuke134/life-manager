@@ -20870,9 +20870,9 @@ Top 10 by sales: 0/10 with a trial (Ocup 3,111, Serenity 2,002, HookAce 1,044, V
 
 ### Keiki × Maritime — 初週Top 30と実利用者1,000人
 
-**目的・今回の範囲:** 採択済みLife Managerで初週Top 30進出と、その後の実利用者1,000人到達を目指す。今回の作業は新メール・公式Terms・最新mainのsource/specを照合した日英README・応募生成正本・日英サイト原稿・本節の訂正。コード、登録、課金、migration、production flags、VM/browser、ユーザー招待・投稿・主催者への送信は変更しない。全体統括cursorは冒頭の正本を維持し、本節はMaritime laneの順序だけを更新する。
+**目的・今回の範囲:** 採択済みLife ManagerをCloudで実行し、初週の正式提出・Top 30進出、その後の実在利用者1,000人と実収益を目指す。開発、必要な本番反映、配布素材、正式提出、Daisへの稼働URLメールまで進める。目標/予算入力やTelegramは登録の必須条件にしない。ソース・本番稼働・提出受付・売上/利益を別々に確認する。全体統括cursorは冒頭の正本を維持し、本節はMaritime laneの順序を管理する。
 
-**新メールの確定事項:** GmailでDarshan Golchha（0.email）の件名「Keiki x Maritime kicks off tomorrow」、受信2026-10-19 05:00 UTCを確認した。メールは初週末までに製品をbuildすること、人に使ってもらえれば加点、上位30チームだけ第2週へ進むこと、一つの仕事を動かして少人数のfeedbackから改善することを案内する。初週の必須利用者数・採点配分・提出フォーム・demo形式・締切時刻/timezoneは書かれていない。Slack/Discordの案内はあるが内部のpinned announcementsは今回未確認。採択自体は10月16日の「You're in! Keiki x Maritime」で確認済み。
+**新メールの確定事項:** GmailでDarshan Golchha（0.email）の件名「Keiki x Maritime kicks off tomorrow」、受信2026-10-19 05:00 UTCを確認した。メールは初週末までに製品をbuildすること、人に使ってもらえれば加点、上位30チームだけ第2週へ進むこと、一つの仕事を動かして少人数のfeedbackから改善することを案内する。初週の必須利用者数・採点配分・提出フォーム・demo形式・締切時刻/timezoneは書かれていない。Slackの既存membershipでcompetition-announcementsを再読し、新しい初週締切/formは確認できない。採択自体は10月16日の「You're in! Keiki x Maritime」で確認済み。
 
 **日程:** 新メール本文は「tomorrow, Monday, October 19」、公式サイト/Termsは10月20日開始・12月1日23:59 Pacific終了で、開始日の不一致が残る。初週は既に始まっている前提で準備する。動くdemoを10月23日18:00 JST、提出packetを10月24日までに揃える内部目標とする。この日付は公式締切ではない。[公式ページ](https://competition.maritime.sh/) / [Program Terms](https://competition.maritime.sh/terms)
 
@@ -20922,7 +20922,7 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 
 **TODO順変更:** 旧=一業務readiness→Cloud→入口→3人pilot→packet→1,000人。新=下記atomic ID順、提出経路確認T01・配布文案T24・台本T25は即着手可能。理由はDaisが知人DMを担当し、利用者feedbackを待たず実装・素材・提出準備を進められるため。先に試せる製品と正式必須項目を揃えて提出し、改善と獲得を継続する。全体統括cursorと進行中provider effectは変更しない。
 
-**Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細file/signature/acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。状態は本節が正本。運用cursor=T08（Linux browser/provider準備）、独立source cursor=T16/T11B（bound wake→worker/continuation→報告）。owned Free VM一台のmain由来build/実コード/healthと、既存モデルgpt-5.6-terraのResponses HTTP200を確認済み。offline factoryは6ファイルを作成したがevidence形式不一致でcycle receiptはunknownを保持し、source修正の配備は未完。公開flag・正式提出・DaisへのURLメール・外部利用者・新規Cloud売上は未完。#8421の追加sourceはCI待ちで、main/本番完了とは扱わない。
+**Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細file/signature/acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。状態は本節が正本。運用cursor=T08（main由来image/browser/provider binding）、独立source cursor=T21 bounded review→source統合。completion/auth/24h return hookを接続し、登録・deferred・internalを実業務/外部利用へ混同しない。Node88＋worker15と実PostgreSQLのreceipt型からのcallbackを含む13確認がPASS。main cd4c0d9を取り込みOSS inventory競合を解消し、Node126/Python13/OSSがPASS。T21 proof consumerと既存first-touch reader/writerの共通利用は28テストPASS。T21のevent allowlist/HMAC occurrence ID/internal cohort台帳はsource実装し、25テストとmigration再適用を含む隔離PostgreSQLの12確認がPASS。#8421はmain統合済み、T11B/T15 coldguest/T18/T19/T20はPR #8424でsource/CI段階。owned Free VM一台は旧release8d7d4474a3で、モデルResponses HTTP200とoffline6ファイル、隔離uid10001 browser/CDP/DOMを実測する。factoryのunknown receiptは保持し、訂正したimageの配備・公開flag・正式提出・DaisへのURLメール・外部利用者・新規Cloud売上は未完。
 
 | ID | 一件の成果物 | 状態/依存 |
 |---|---|---|
@@ -20943,8 +20943,8 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | T15 | custom create・detached exec/resultの重複防止adapter | 基本source #8415/main7d6adbbd43。実APIにimageName/digestが無いため、実績のあるuploadS3Key/private＋archive SHA256＋source SHAへ補正、独立review指摘0。custom/HMAC externalIdとUID/source/archive公式envを照合してbindし、実コードは別health/byte probeで確認。#8421未統合。署名/外部IDは専用LM_MARITIME_MANAGER_ID_SECRETで統一、globalとは別fixtureで回帰確認 |
 | T16 | 一tenant tokenのwake relay・secret・初回wake配線 | #8421 source実装/CI待ち。署名uid/agent/source SHA、bootstrap拒否、body ID無視、initial job固定、停止/未登録worker拒否。configureWakeはactive同bindingだけSDK setEnv(secret)/reload、専用key混同をRED→GREEN修正。関連80/80 PASS。health確認/provision/worker continuation/本番secret設定は未完 |
 | T17 | Cloudで一件の正規publishとofficial status確認 | T16後、売上発生自体は待たない |
-| T18 | 作業/売上/費用/未確認を分ける日次結果 | T10/T11後 |
-| T19 | 既存CFO/Resendへの一日一通配信 | T18/T16後 |
+| T18 | 作業/売上/費用/未確認を分ける日次結果と成果download | sourceは#8424で実装/CI待ち。既存金融集計/formatter/CFO、認証cookie/queue/cycle proofを再利用。成果参照と保留理由を保持し、通貨・coverage欠落は未確認。成果downloadは同uid/jobの公式完了receiptに含まれるfileのみ、dirfd/no-follow/size/hashとbounded streamで照合しattachment返却。モデルはuid10001/caps0/no-new-privs、rootの/app検証器を変更できない。隔離native Linuxで実測済み（実モデル未反映）。リンク/HTTP/配信の関連22/22 PASS。新image/helper/実worker/公開URLとメール着信は未確認 |
+| T19 | 既存CFO/Resendへの一日一通配信 | source wrapper実装。最新active/非停止enrollmentのemailを読み、同tenant/period/date/timezoneとobservedAtを検証して既存CFO配信へ渡す。同日replayは元provider ID、送信1回を確認。関連17/17 PASS。実worker接続/送信/受信箱readbackはT16/T22で未完 |
 | T20 | 停止を次のjob/schedule/配信へ反映 | T14/T19後 |
 | T21 | 登録と業務完了を分けたsource別funnel | T05/T11/T19後 |
 | T22 | main image・DB・一人分のCloud自然wake/receipt確認 | T17/T19/T20/T21/T32後 |
@@ -20955,11 +20955,27 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | T27 | DaisのDMとowned X/IG/community配布 | T22/T24/T26後、3人feedback待ちなし |
 | T28 | source別の最大離脱を一つ修正 | T21/T27後 |
 | T29 | 実測のcapacity/費用/利益/再利用を改善し1,000人を公式検証 | T28後 |
-| T30 | 共有できる稼働URLをDaisへメール送信しreceipt確認 | T23直後。T29の長期成長を待たない |
+| T30 | 共有できる稼働URLをDaisへメール送信しreceipt確認 | T22直後。正式form未公表で止めず、T29の長期成長を待たない |
 | T31 | email利用者の任意paid upgradeを既存Stripeへ接続しLM自身の売上を照合 | 無料pilot/提出を妨げずT23後。顧客事業売上とStripe subscription売上を別集計 |
 | T32 | 既存SupabaseへResend SMTP/email enable/正確なcallbackを設定しowned inbox着信確認 | 実環境完了。設定GETとowned inbox着信を確認、認証件名/宛先/新規時刻照合済み。email=true/confirm必須/既存Googleとredirect保持。safe receipt=smtp-readback.json。browser全経路はT22 |
 
+**実測による順序更新:** 旧=T08→T20/T21→T22。新=T15 cold guest対応→T08 image/provider→T20/T21→T22。理由=auto-sleep中のexecが公式503/未開始となり、継続実行と成果物downloadを止めることを確認する。現在cursor→上記atomic TODO。coldguest reviewのImportant2件（pause待機競合、準備失敗の永久停止）をRED→GREEN修正し、未実行をruntime-owned preflight deferredとして既存queueで15分後へ回す。provider実行/仕事完了とは数えない。関連160＋worker10テストPASS。既存business effectの再送・中断はしない。owned nonroot CDP/DOMは隔離fixtureで成功するが、provider認証/image導入は未完。証拠→docs/evidence/maritime/owned-linux-browser-attach.json。
+
+**T20 source:** verified-cookie/Origin/CSRFの停止APIとUIを接続する。pausedを先に保存し、既存queueのpause phaseでconsent revoke/empty schedulesを確定する。進行中receiptとデータは保持し、新規business/model/send・successorを止める。pause保存とenqueue間のcrashは既存workerのuid cursor付き有限recoveryで回収する。停止の実環境受入はT22で確認する。T20 review Important3件（遅いconfigure/acceptの停止上書き、停止後accepted provisionのreadback欠落）は同tenant advisory lock＋paused inspectでRED→GREEN修正する。関連112＋worker12テスト、隔離PostgreSQLの同tenant直列/別tenant独立/例外後解放を含む10確認がPASS。
+
+**T08 image source:** pin済みCloakBrowser 0.5.6の公式`ensure_binary`でfree Linux binaryをimageのroot所有領域へ導入し、固定`/usr/local/bin/lm-cloud-chromium`を既存cloud_cycle/Capafy browser-ownerへ渡す。Linuxはheadless/dev-shm引数を追加しsandboxを無効化しない。親のbrowser path/profileは継承しない。既存runnerを置き換えず、新scheduler/有料browserは追加しない。関連Python15＋bash syntax＋OSS inventory PASS。image buildと同tenant provider認証のreadbackは未完。
+
+**T21 review修正:** 計測observerは2秒deadlineとAbortSignalで業務workerから切り離し、false/例外/timeoutをevent・時刻・HMAC ID・error classだけで未確認記録へ残す。初回UTMはsignup時に既存署名attribution cookieへ保持し、確認callbackで既存first-touchへ保存してから確認eventを出す。emailのみ必須は維持する。関連94＋worker12テストPASS。sourceはPR #8424内であり本番計測/利用者/売上は未確認。
+
+**T11B source受入:** 30秒readback席と同一connectionのreconcile完了＋successor enqueue、中央workerでのfull-job reconcile、cycle manifest/transport注入、既存15分cadenceのstable continuationをsource実装する（関連54＋worker5テストPASS）。report adapter/同tenant queue＋既存会計store reader/CFO配信とsent receiptのread-only reconciliation/現地19時のDST継続を追加する（関連48＋worker4テストPASS）。金額は接続先アカウント明細と明記しCloud帰属を捏造しない。provision create/configureの別stable job、loaded relay hash/schedule確認、初回cycle/report seed、30秒ごとのpending enrollment recoveryをsource実装する（関連43＋worker8テストPASS）。fresh read-only reviewのImportant4件（成功後continuation失敗、configure前readback、pending先頭の飢餓、早すぎるactive表示）を回帰RED→GREENで修正する。関連154＋worker10テストPASS、隔離PostgreSQLの同時poll/transaction/replay/rollback実測PASS。次はsource統合、その後T08/T20/T21を閉じT22へ進める。稼働VMは旧releaseのまま、公開/自然実行/メール/提出は未完。詳細→Atomic Implementation Plan T11.3a/b/c。
+
 **Source依存訂正:** 旧=T11全worker→T13/T12、T17実証→T22 deploy。新=T11A契約→T13/T12 source→T15/T16/T18/T19 source→T11B wiring→T22.1非公開deploy→T17/日報実測→T22完了。循環を解消し、実証条件は維持する。現在cursorは上記atomic TODOの正本を参照。
+
+**T22事前観測 / 現在cursor:** source PR #8424は計測reviewのImportant3件を解消し、関連94＋worker12、browser接続Python15、OSS検証がPASS。旧HEAD `5932044b9a`は13 CI成功、Loop controlはMac arm64容量不足でrunner未割当のまま取消となる。公式runner-imagesで対応を確認し、同じ検証をstandard `macos-15-intel`へpinしたその後のIntel CIで952件中951件成功、npm10 lock不足が1件判明する。source修正 `5e4962228103f99f799f3c16b0749bc4b72acf05`は隔離npm10 RED→GREENとbytecode focused test PASS、reviewのCritical/Important残存0。最新mainと本番手順を統合したHEADで14check確認・統合を進める。owned VMは旧main `8d7d4474a357303a87ad3dd7acf1920b6cb77030`のまま。既存VMのexternal identityは現行ManagerのHMAC identityと一致し、新VMを増やさずredeployする。Railway既存workerの3capabilityは保持してMaritimeを追加し、frontendには既存workerと同じruntime DB接続を追加する。workerで欠落するLM_UID_SECRETはfrontendの既存値を追加し、rotateしない。両appのcapacityを3、owned uidを内部cohortとして設定する。queue/receiptsはRailway Postgres、enrollment/execution/participant/funnel/CFO送信receiptはSupabaseへ配置する。FinancialRecord storeはRailway側であり、Supabaseへ第二の金融storeを作らない。
+
+**本番DBの実測:** Railwayのruntime jobs/receiptsは存在しMaritime jobは0。SupabaseのManager enrollment/execution/pilot participantは未作成、funnelは存在する。Authは一時timeoutから200へ戻るが、認証RESTは503 PGRST002が続く。Managementのread-only SQLは成功とconnection timeout/544が混在し、top-level ACTIVE_HEALTHYを機能復旧の証明にしない。直近15分の匿名化ログはauthenticatorのstatement timeout9件、そのうちtimezone catalog照会8件。過去のtimezone/timeout migration適用済み・再起動完了の記録を保持し、原因未確認の再適用/全体restart/restoreを行わない。上流PostgREST #5100はstartupの同照会の遅延とschema cache依存除去を記録するが、稼働provider版は未確認。次は残CI→source統合、RESTのreadback回復/診断、既存main由来migrationをDB別に適用し、flag offのfoundation→flag1へ切替/owned本人の自然cycle・成果物・日報・停止→DaisへURL/配布→正式提出の順。正式経路が公表されたら最短で提出する。詳細→Atomic Plan T22.1a–e、safe evidence=`docs/evidence/maritime/cloud-foundation-preflight.json`。
+
+**成果基準の順序更新:** 旧=T22→T23正式receipt→T30 URLメール。新=T22→T30 URLメール/配布、T23は正式経路が確認でき次第。理由=公式form/締切が未公表という実測不足を、友人への共有と実利用の依存にしない。現在cursorはsource CI/統合→T22のままで、進行中の外部送信はない。
 
 **配備方式:** 専用subfolderのDockerfileをsanitized main由来ZIPのrootだけに配置し、Railway既存buildを変えない。Maritime公式upload/buildはowned Free VMで成功済み。source archive hashをOCI image digestと混同しない。API key/upload referenceはprivate credential SSOTだけに保持する。
 
@@ -20989,3 +21005,5 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 3. Capafy internal promotion: compare our listings' rating/review count/recent sales with the top 20 of each category in the market sweep and close the gap on new Agents (never edit sellers).
 4. Social: one account per language — X selawmqt English only; TikTok @hooklab.capafy live 2026-10-24 (reels + carousels); other businesses keep their existing per-brand accounts.
 5. Extend keyword-page + hub pattern to LINE stickers and eBook distribution (each business publishes keyword pages into its own hub).
+
+**Maritime T22追加readback:** 既存VMの隔離fixtureでofficial binaryをuid/gid10001、caps0、NoNewPrivs、credential非継承、`--no-sandbox`除外の条件で実行し、CDP/DOM成功・公式completed/exit0・専用process/fixture削除を確認する。旧8d7 source上のfixture実測であり、新image配備完了ではない。Railway既存金融tableは存在し、照合中のagent-economy.start2件/investment.live2件は保持する。Supabase CFO receipt tableは存在するがManager3tableは未作成。Auth200、SQL成功と接続timeoutが混在し、RESTの正しいzero-row readもtimeout、復旧完了とはしない。DBversion17.6.1.111は確認するがPostgREST版は未確認。CI bf3はIntelにHomebrewが存在する前提のfixture1件失敗、実在tmpディレクトリを使うtest-only修正とし30秒assertion・本番処理は維持する。現在cursor=最小fixture修正→exact全14check→main→T22。

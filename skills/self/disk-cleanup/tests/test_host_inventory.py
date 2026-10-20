@@ -435,7 +435,16 @@ def test_inventory_replace_failure_preserves_target_and_removes_temporaries(tmp_
     assert list(state.glob(".host-inventory.*")) == []
 
 
-def test_full_inventory_gives_homebrew_a_longer_bounded_probe(tmp_path: Path) -> None:
+def test_full_inventory_gives_homebrew_a_longer_bounded_probe(tmp_path: Path, monkeypatch) -> None:
+    real_children = host_inventory._children
+
+    def fixture_children(path: Path):
+        if path == Path("/opt/homebrew"):
+            record, gaps = real_children(tmp_path)
+            return {**record, "path": str(path)}, gaps
+        return real_children(path)
+
+    monkeypatch.setattr(host_inventory, "_children", fixture_children)
     du_calls: list[tuple[str, float]] = []
 
     def recording_runner(

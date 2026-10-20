@@ -1,7 +1,7 @@
 "use strict";
 
 const { createWebAuthClient, createWebCsrfToken, ensureWebUser, publicOrigin,
-  hasPkceVerifier, csrfSecret } = require("./web-auth.js");
+  hasPkceVerifier, csrfSecret, captureWebFirstTouchCookie, readWebFirstTouchCookie } = require("./web-auth.js");
 const SIGNUP_PATH = "/auth/maritime/email";
 const CONFIRM_PATH = "/auth/maritime/confirm";
 function enabled(options) {
@@ -48,10 +48,10 @@ async function readMaritimeBody(req) {
 }
 async function signupBody(req) {
   const body = await readMaritimeBody(req);
-  if (Object.keys(body).some(key => key !== "email") || typeof body.email !== "string") throw new Error("invalid_body");
+  if (Object.keys(body).some(key => !["email", "attribution"].includes(key)) || typeof body.email !== "string") throw new Error("invalid_body");
   const email = body.email.trim().toLowerCase();
   if (email.length > 320 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("invalid_body");
-  return email;
+  return { email, attribution: require("./web-attribution.js").sanitizeWebAttribution(body.attribution) };
 }
 async function handleMaritimeManagerAuth(req, res, options = {}) {
   const url = new URL(req.url || "/", "http://localhost");
@@ -64,10 +64,11 @@ async function handleMaritimeManagerAuth(req, res, options = {}) {
     try { origin = publicOrigin(req, options); }
     catch { send(res, 503, { error: "manager_email_unavailable" }); return true; }
     if (req.headers?.origin !== origin) { send(res, 403, { error: "origin_rejected" }); return true; }
-    let email;
-    try { email = await signupBody(req); }
+    let email, attribution;
+    try { ({email, attribution} = await signupBody(req)); }
     catch { send(res, 400, { error: "invalid_email_request" }); return true; }
     try {
+      captureWebFirstTouchCookie(req, res, attribution, options);
       const client = clientFor(req, res, options);
       const result = await client.auth.signInWithOtp({ email,
         options: { shouldCreateUser: true, emailRedirectTo: `${origin}${CONFIRM_PATH}` } });
@@ -96,12 +97,33 @@ async function handleMaritimeManagerAuth(req, res, options = {}) {
     sessionEstablished = true;
     const user = await resolveMaritimeManagerUser(req, res, { ...options, createClient: () => client });
     if (!user) throw new Error("invalid_confirmation");
+    const attribution = readWebFirstTouchCookie(req, options);
+    void require("./maritime-manager-usage.js").observeMaritimeUsage("email_verified", user.uid, async signal => {
+      if (Object.keys(attribution).length) {
+        const fetchImpl = options.fetchImpl || globalThis.fetch;
+        const fetch = (url, init = {}) => fetchImpl(url, { ...init, signal: init.signal ? AbortSignal.any([signal, init.signal]) : signal });
+        if (!await (options.storeFirstTouch || require("./web-auth.js").storeWebFirstTouch)(user.uid, attribution, { ...options, fetch })) return false;
+      }
+      return (options.recordEmailVerified || require("./maritime-manager-usage.js").recordMaritimeEmailVerified)(user.uid, { ...options, attribution, signal });
+    }, options);
     redirect(res, "/maritime?verified=1");
   } catch {
     if (client && sessionEstablished) { try { await client.auth.signOut({ scope: "local" }); } catch {} }
     redirect(res, "/maritime?auth_error=connection");
   }
   return true;
+}
+async function managerReady(row, options) {
+  if (row?.status !== "active" || row.paused_at || !row.agent_id) return false;
+  const job = require("./maritime-manager-runtime.js").buildMaritimeManagerProvisionJob({
+    tenantId: row.uid, releaseSha: row.release_sha, phase: "configure",
+  });
+  const receipt = await (options.readCommonReceipt || require("./runtime-job-store.js").readCommonReceipt)({
+    tenantId: row.uid, jobId: job.job_id, attempt: 1,
+  }, options.storeOptions || {});
+  const ref = `maritime-agent://${row.agent_id}`;
+  return Boolean(receipt && ["verified", "reconciled"].includes(receipt.outcome) && receipt.provider === "maritime"
+    && receipt.loop_id === "maritime.manager" && receipt.external_ref === ref && receipt.evidence_refs?.includes(ref));
 }
 async function handleMaritimeManagerActivate(req, res, options = {}) {
   const path = new URL(req.url || "/", "http://localhost").pathname;
@@ -123,20 +145,25 @@ async function handleMaritimeManagerActivate(req, res, options = {}) {
   let body;
   try {
     body = await readMaritimeBody(req);
-    if (Object.keys(body).some(key => !["consentVersion", "source", "timezone"].includes(key))
+    if (Object.keys(body).some(key => !["consentVersion", "source", "timezone", "attribution"].includes(key))
       || body.consentVersion !== MANAGER_CONSENT_VERSION || (body.source != null && typeof body.source !== "string")
-      || (body.timezone != null && typeof body.timezone !== "string")) throw new Error("invalid_activation");
+      || (body.timezone != null && typeof body.timezone !== "string")
+      || (body.attribution != null && (typeof body.attribution !== "object" || Array.isArray(body.attribution)))) throw new Error("invalid_activation");
     new Intl.DateTimeFormat("en", { timeZone: body.timezone || "UTC" });
   } catch { send(res, 400, { error: "invalid_activation" }); return true; }
   const env = options.env || process.env;
   const releaseSha = options.releaseSha || env.LM_MARITIME_MANAGER_IMAGE_RELEASE_SHA;
   if (!/^[0-9a-f]{40}$/.test(String(releaseSha || ""))) { send(res, 503, { error: "release_unavailable" }); return true; }
   try {
+    const lock = options.withControlLock || ((uid, operation) => require("./runtime-job-store.js").withRuntimeTenantControlLock({ tenantId: uid }, operation, options.storeOptions || {}));
+    await lock(user.uid, async () => {
     const store = options.managerStore || require("./maritime-manager-store.js").createMaritimeManagerStore({ env });
     const existing = await store.read(user.uid);
     if (existing?.status === "paused" || existing?.paused_at) { send(res, 409, { error: "manager_paused" }); return true; }
     if (existing?.status === "effect_unknown") { send(res, 409, { error: "manager_reconciling" }); return true; }
-    if (existing?.status === "active") { send(res, 200, { status: "active" }); return true; }
+    if (existing?.status === "active") {
+      const ready = await managerReady(existing, options); send(res, ready ? 200 : 202, { status: ready ? "active" : "pending" }); return true;
+    }
     const source = normalizeMaritimeSource(body.source || "direct");
     const distribution = options.distributionStore || createMaritimeDistributionStore({ env });
     const consent = await distribution.accept(user.uid, source);
@@ -145,6 +172,11 @@ async function handleMaritimeManagerActivate(req, res, options = {}) {
       timezone: body.timezone || "UTC", source, consentVersion: MANAGER_CONSENT_VERSION, releaseSha });
     if (row.status === "paused" || row.paused_at) { send(res, 409, { error: "manager_paused" }); return true; }
     if (row.status === "effect_unknown") { send(res, 409, { error: "manager_reconciling" }); return true; }
+    const attribution = require("./web-attribution.js").sanitizeWebAttribution(body.attribution);
+    if (Object.keys(attribution).length) {
+      try { await (options.storeFirstTouch || require("./web-auth.js").storeWebFirstTouch)(user.uid, attribution, { ...options, env }); }
+      catch { /* Acquisition telemetry cannot authorize or duplicate business work. */ }
+    }
     const job = require("./maritime-manager-runtime.js").buildMaritimeManagerProvisionJob({ tenantId: user.uid, releaseSha: row.release_sha });
     const queued = await (options.enqueueJob || require("./runtime-job-store.js").enqueueJob)(job);
     if (!queued || typeof queued.created !== "boolean" || queued.job?.job_id !== job.job_id
@@ -153,13 +185,47 @@ async function handleMaritimeManagerActivate(req, res, options = {}) {
     if (queued.job.status === "reconciling") { send(res, 409, { error: "manager_reconciling" }); return true; }
     if (queued.job.status === "completed") {
       const latest = await store.read(user.uid);
-      if (latest?.status === "active" && latest.agent_id && !latest.paused_at) send(res, 200, { status: "active" });
+      if (latest?.status === "active" && latest.agent_id && !latest.paused_at) {
+        const ready = await managerReady(latest, options); send(res, ready ? 200 : 202, { status: ready ? "active" : "pending" });
+      }
       else send(res, 409, { error: "provision_state_unconfirmed" });
       return true;
     }
     if (!["queued", "running"].includes(queued.job.status)) throw new Error("enqueue_state_invalid");
     send(res, 202, { status: "pending", jobCreated: queued.created });
+    });
   } catch { send(res, 503, { error: "activation_unavailable" }); }
+  return true;
+}
+async function handleMaritimeManagerStop(req, res, options = {}) {
+  if (new URL(req.url || "/", "http://localhost").pathname !== "/maritime/stop") return false;
+  if (!enabled(options)) { send(res, 503, { error: "manager_unavailable" }); return true; }
+  if (req.method !== "POST") { send(res, 405, { error: "method_not_allowed" }, { allow: "POST" }); return true; }
+  let origin;
+  try { origin = publicOrigin(req, options); } catch { send(res, 503, { error: "manager_unavailable" }); return true; }
+  if (req.headers?.origin !== origin) { send(res, 403, { error: "origin_rejected" }); return true; }
+  const user = await resolveMaritimeManagerUser(req, res, options);
+  if (!user) { send(res, 401, { error: "authentication_required" }); return true; }
+  const supplied = Buffer.from(String(req.headers?.["x-lm-web-csrf"] || "")), expected = Buffer.from(user.csrf);
+  if (supplied.length !== expected.length || !require("node:crypto").timingSafeEqual(supplied, expected)) {
+    send(res, 403, { error: "csrf_rejected" }); return true;
+  }
+  try { if (Object.keys(await readMaritimeBody(req)).length) throw new Error(); }
+  catch { send(res, 400, { error: "invalid_stop" }); return true; }
+  let paused = false;
+  try {
+    const store = options.managerStore || require("./maritime-manager-store.js").createMaritimeManagerStore({ env: options.env || process.env });
+    const existing = await store.read(user.uid);
+    if (!existing) { send(res, 404, { error: "manager_not_found" }); return true; }
+    const row = await store.pause(user.uid);
+    if (!row || row.uid !== user.uid || row.status !== "paused" || !row.paused_at) throw new Error();
+    paused = true;
+    const job = require("./maritime-manager-runtime.js").buildMaritimeManagerProvisionJob({ tenantId: user.uid, releaseSha: row.release_sha, phase: "pause" });
+    const queued = await (options.enqueueJob || require("./runtime-job-store.js").enqueueJob)(job, options.storeOptions || {});
+    if (!queued?.job || queued.job.job_id !== job.job_id || queued.job.tenant_id !== user.uid) throw new Error();
+    const pending = queued.job.status !== "completed";
+    send(res, pending ? 202 : 200, { status: "paused", cleanupPending: pending });
+  } catch { send(res, 503, { ...(paused ? { status: "paused", cleanupPending: true } : {}), error: "stop_cleanup_unconfirmed" }); }
   return true;
 }
 async function handleMaritimeManagerPage(req, res, options = {}) {
@@ -177,6 +243,8 @@ async function handleMaritimeManagerPage(req, res, options = {}) {
       const store = options.managerStore || require("./maritime-manager-store.js").createMaritimeManagerStore({ env: options.env || process.env });
       const row = await store.read(user.uid);
       state = row?.status || null;
+      if (state === "active" && !await managerReady(row, options)) state = "provisioning";
+      void require("./maritime-manager-usage.js").observeMaritimeUsage("returned", user.uid, signal => (options.recordReturn || require("./maritime-manager-usage.js").recordMaritimeManagerReturn)(user.uid, { ...options, signal, request: req, managerStore: store }), options);
     }
     const distribution = options.distributionStore || createMaritimeDistributionStore({ env: options.env || process.env });
     void Promise.resolve(distribution.recordAnonymousEvent("maritime_landing_view", source)).catch(() => {});
@@ -187,4 +255,4 @@ async function handleMaritimeManagerPage(req, res, options = {}) {
   } catch { send(res, 503, { error: "manager_unavailable" }); }
   return true;
 }
-module.exports = { handleMaritimeManagerAuth, resolveMaritimeManagerUser, handleMaritimeManagerActivate, handleMaritimeManagerPage };
+module.exports = { handleMaritimeManagerAuth, resolveMaritimeManagerUser, handleMaritimeManagerActivate, handleMaritimeManagerPage, handleMaritimeManagerStop };

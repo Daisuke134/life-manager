@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { buildMaritimeManagerCycleJob, buildMaritimeManagerReportJob, createMaritimeManagerLoopAdapter } = require('./maritime-manager-runtime.js');
+const { buildMaritimeManagerCycleJob, buildMaritimeManagerReportJob, createMaritimeManagerLoopAdapter, createMaritimeManagerReportAdapter, createMaritimeManagerProvisionAdapter, buildMaritimeManagerProvisionJob } = require('./maritime-manager-runtime.js');
 const UID = 'lm_11111111-1111-4111-8111-111111111111';
 const SHA = 'a'.repeat(40);
 const cycle = { tenantId: UID, occurrenceId: 'cycle-1', dateKey: '2026-10-20', releaseSha: SHA };
@@ -63,6 +63,7 @@ function executionFixture() {
       },
       bindCycleExecution: async (input) => { checkpoint.execution_id = input.executionId; return structuredClone(checkpoint); },
     },
+    prepareCycle: async () => ({ready:true}),
     dispatchCycle: async () => { calls.push('dispatch'); return { executionId: 'exec-1' }; },
     readExecution: async () => { calls.push('read'); return { status: 'completed', exitCode: 0, stdout: capturedOutput }; },
     readCycleReceipt: async () => structuredClone(envelope),
@@ -189,4 +190,191 @@ test('a mutable cycle file cannot override the official captured execution outpu
   f.envelope.result.artifactRefs = ['artifact://forged.md'];
   await assert.rejects(createMaritimeManagerLoopAdapter(f.services).execute(buildMaritimeManagerCycleJob(cycle)),
     error => error.unknownEffect === true);
+});
+
+
+test('cycle continuation preserves stable due identity and stops when enrollment pauses', async () => {
+  const f = executionFixture();
+  const adapter = createMaritimeManagerLoopAdapter(f.services);
+  const job = { ...buildMaritimeManagerCycleJob(cycle), available_at: '2026-10-20T23:55:00.000Z' };
+  const next = await adapter.continuation(job);
+  assert.equal(next.availableAt, '2026-10-21T00:10:00.000Z');
+  assert.equal(next.job.input_refs.date_ref, 'date://2026-10-21');
+  assert.equal(next.job.input_refs.cycle_ref, `maritime-cycle://${UID}/slot%3A${Date.parse(next.availableAt)}`);
+  assert.deepEqual(await adapter.continuation(job), next);
+  f.enrollment.status = 'paused';
+  assert.equal(await adapter.continuation(job), null);
+  f.enrollment.status = 'active'; f.enrollment.paused_at = '2026-10-20T23:59:00.000Z';
+  assert.equal(await adapter.continuation(job), null);
+  f.enrollment.paused_at = null; f.enrollment.release_sha = 'b'.repeat(40);
+  assert.equal(await adapter.continuation(job), null);
+});
+
+
+test('daily report adapter sends through existing delivery and reconciles without sending again', async () => {
+  const enrollment = { uid: UID, release_sha: SHA, status: 'active', paused_at: null, timezone: 'America/New_York' };
+  const job = { ...buildMaritimeManagerReportJob({ tenantId: UID, releaseSha: SHA, periodKey: 'maritime:daily:2026-10-31' }), available_at: '2026-10-31T23:00:00.000Z' };
+  let sends = 0, stored = null;
+  const adapter = createMaritimeManagerReportAdapter({
+    managerStore: { read: async () => enrollment },
+    readDailyObservations: async input => { assert.equal(input.uid, UID); return { actionReceipts: [], financialRecords: [] }; },
+    deliverDailyResult: async ({ result }) => {
+      sends++;
+      assert.equal(result.financial.profit, null);
+      stored = { uid: UID, period_key: result.periodKey, status: 'sent', channel: 'email',
+        provider_message_id: 'email-a', recipient_hash: 'b'.repeat(64), message: 'frozen report', sent_at: '2026-10-31T23:00:01.000Z' };
+      return { status: 'sent', providerMessageId: stored.provider_message_id, recipientHash: stored.recipient_hash,
+        snapshotHash: require('node:crypto').createHash('sha256').update(stored.message).digest('hex'), sentAt: stored.sent_at };
+    },
+    readReportDelivery: async () => stored,
+    now: () => '2026-10-31T23:00:01.000Z',
+  });
+  const missing = await adapter.reconcile(job);
+  assert.equal(missing.state, 'unknown');
+  const { receipt } = await adapter.execute(job);
+  assert.equal(adapter.verify(receipt, job), true);
+  assert.equal((await adapter.reconcile(job)).state, 'present');
+  assert.equal(sends, 1);
+  const next = await adapter.continuation(job);
+  assert.equal(next.availableAt, '2026-11-02T00:00:00.000Z');
+  assert.equal(next.job.input_refs.period_ref, 'maritime-period://maritime%3Adaily%3A2026-11-01');
+  stored.status = 'pending'; stored.provider_message_id = null;
+  assert.equal((await adapter.reconcile(job)).state, 'unknown');
+  assert.equal(sends, 1);
+  enrollment.status = 'paused';
+  assert.equal(await adapter.continuation(job), null);
+  await assert.rejects(() => adapter.execute(job), /inactive/);
+  assert.equal(sends, 1);
+});
+
+
+test('provision create and configure are separate stable jobs with read-only reconciliation',async()=>{
+ const row={uid:UID,agent_id:'agent-a',release_sha:SHA,status:'active',paused_at:null,created_at:'2026-10-21T00:00:00.000Z',timezone:'Asia/Tokyo'};
+ const calls=[];let status='deploying',ready=false,schedules=[];
+ const services={withControlLock:async(_uid,operation)=>operation(),managerStore:{read:async()=>row},
+  ensureAgent:async()=>{calls.push('create');return {agentId:'agent-a',status};},
+  readAgent:async()=>{calls.push('readAgent');return {agentId:'agent-a',status};},
+  writeScheduleSnapshot:async input=>{calls.push('schedule');schedules=input.snapshot.schedules;},
+  configureWake:async()=>{calls.push('configure');ready=true;},
+  readWakeConfiguration:async()=>{calls.push('readWake');return {ready,schedules};},
+  seedInitialReport:async plan=>{calls.push('seedReport');assert.equal(plan.job.capability,'maritime.manager.report');},
+  provisionSource:()=>({uploadS3Key:'uploads/fixture.zip',archiveSha256:'b'.repeat(64)}),
+ };
+ const adapter=createMaritimeManagerProvisionAdapter(services);
+ const create={...buildMaritimeManagerProvisionJob({tenantId:UID,releaseSha:SHA}),available_at:row.created_at};
+ await assert.rejects(()=>adapter.execute(create),error=>error.code==='MARITIME_PROVISION_PENDING'&&error.unknownEffect);
+ assert.equal((await adapter.reconcile(create)).state,'pending');
+ assert.equal(calls.filter(x=>x==='create').length,1);
+ status='active';const created=await adapter.reconcile(create);assert.equal(created.state,'present');
+ const configure=await adapter.continuation(create,created.receipt);
+ assert.notEqual(configure.job.job_id,create.job_id);
+ const job={...configure.job,available_at:configure.availableAt};
+ const {receipt}=await adapter.execute(job);
+ assert.equal(adapter.verify(receipt,job),true);
+ const before=calls.filter(x=>['create','configure','schedule'].includes(x)).length;
+ assert.equal((await adapter.reconcile(job)).state,'present');
+ assert.equal(calls.filter(x=>['create','configure','schedule'].includes(x)).length,before);
+ const first=await adapter.continuation(job,receipt);
+ assert.equal(first.job.capability,'maritime.manager.cycle');assert.equal(calls.includes('seedReport'),true);
+ ready=false;assert.equal((await adapter.reconcile(job)).state,'unknown');ready=true;
+ row.status='paused';assert.equal(await adapter.continuation(job,receipt),null);
+ await assert.rejects(()=>adapter.execute(job),/inactive/);
+});
+
+
+test('first configure readback failure happens after settings and recovers read-only',async()=>{
+ const row={uid:UID,agent_id:'agent-a',release_sha:SHA,status:'active',paused_at:null,created_at:'2026-10-21T00:00:00.000Z',timezone:'UTC'};
+ let writes=0,reloads=0,reads=0,schedules=[];
+ const adapter=createMaritimeManagerProvisionAdapter({withControlLock:async(_uid,operation)=>operation(),managerStore:{read:async()=>row},
+  writeScheduleSnapshot:async input=>{writes++;schedules=input.snapshot.schedules;},configureWake:async()=>{reloads++;},
+  readWakeConfiguration:async()=>{if(++reads===1)throw new Error('temporary read failure');return {ready:reloads>0,schedules};},seedInitialReport:async()=>{},
+ });
+ const job={...buildMaritimeManagerProvisionJob({tenantId:UID,releaseSha:SHA,phase:'configure'}),available_at:row.created_at};
+ await assert.rejects(()=>adapter.execute(job),error=>error.unknownEffect===true);
+ assert.equal(writes,1);assert.equal(reloads,1);
+ const proof=await adapter.reconcile(job);assert.equal(proof.state,'present');
+ assert.equal((await adapter.continuation(job,proof.receipt)).job.capability,'maritime.manager.cycle');
+ assert.equal(writes,1);assert.equal(reloads,1);
+});
+
+
+test('guest readiness is checked before the irreversible cycle dispatch claim',async()=>{
+ const f=executionFixture();let prepared=0;
+ f.services.prepareCycle=async input=>{prepared++;assert.equal(input.uid,UID);assert.equal(f.checkpoint(),null);return {ready:false};};
+ const adapter=createMaritimeManagerLoopAdapter(f.services),job=buildMaritimeManagerCycleJob(cycle);
+ const deferred=await adapter.execute(job);assert.equal(deferred.receipt.status,'deferred');assert.equal(deferred.receipt.error_class,'cloud_runtime_not_ready');assert.equal(adapter.verify(deferred.receipt,job),true);
+ assert.equal(prepared,1);assert.equal(f.checkpoint(),null);assert.equal(f.calls.filter(x=>x==='dispatch').length,0);
+});
+
+
+test('transient preflight defers through the existing worker without consuming a dispatch claim',async()=>{
+ const f=executionFixture();f.services.prepareCycle=async()=>{throw new Error('temporary guest unavailable');};
+ f.services.now=()=> '2026-10-21T01:00:00.000Z';
+ const job={...buildMaritimeManagerCycleJob(cycle),available_at:'2026-10-20T00:00:00.000Z',attempt:1};
+ const adapter=createMaritimeManagerLoopAdapter(f.services);
+ const execution=await adapter.execute(job);
+ assert.equal(execution.receipt.status,'deferred');assert.equal(execution.receipt.error_class,'cloud_runtime_not_ready');
+ assert.equal(execution.receipt.provider,'runtime');assert.equal(execution.receipt.execution_id,null);
+ assert.equal(adapter.verify(execution.receipt,job),true);
+ const next=await adapter.continuation(job,execution.receipt);assert.equal(next.availableAt,'2026-10-21T01:15:00.000Z');
+ assert.equal(f.checkpoint(),null);assert.equal(f.calls.filter(x=>x==='dispatch').length,0);
+ let completed=0;
+ await require('../scripts/runtime-up.js').executeCapabilityJob(job,{workerId:'worker-a',
+  handlers:{[job.capability]:async()=>({...execution,continuation:next})},
+  completeJobAndEnqueue:async input=>{assert.equal(input.nextJob.job_id,next.job.job_id);completed++;},
+  failJob:async()=>{throw new Error('preflight must not dead-letter');},
+ });
+ assert.equal(completed,1);
+ const report=require('./maritime-manager-report.js').buildMaritimeDailyResult({enrollment:{uid:UID,timezone:'UTC'},periodKey:'maritime:daily:2026-10-21',actionReceipts:[{receipt:execution.receipt,completedAt:'2026-10-21T01:00:00.000Z'}]});
+ assert.equal(report.actions.deferredCycles,1);assert.equal(report.actions.completedCycles,0);
+ assert.match(require('./maritime-manager-report.js').renderMaritimeDailyEmail(report),/実行環境の準備待ち/);
+});
+
+
+test('pause cleanup revokes consent and clears schedules while retaining inflight data and no successors',async()=>{
+ for(const bound of [true,false]){
+  const row={uid:UID,agent_id:bound?'agent-a':null,release_sha:SHA,status:'paused',paused_at:'2026-10-21T00:00:00.000Z'};
+  let revoked=false,revokeCalls=0,writes=0,schedules=[{id:'old'}];
+  const adapter=createMaritimeManagerProvisionAdapter({withControlLock:async(_uid,operation)=>operation(),managerStore:{read:async()=>row},
+   isConsentRevoked:async()=>revoked,revokeConsent:async()=>{revoked=true;revokeCalls++;},
+   writeScheduleSnapshot:async input=>{assert.equal(input.snapshot.paused,true);assert.deepEqual(input.snapshot.schedules,[]);writes++;schedules=[];},
+   readWakeConfiguration:async()=>({ready:true,schedules}),
+   ensureAgent:()=>{throw new Error('no provision');},configureWake:()=>{throw new Error('no configure');},seedInitialReport:()=>{throw new Error('no report');},
+  });
+  const job=buildMaritimeManagerProvisionJob({tenantId:UID,releaseSha:SHA,phase:'pause'});
+  const proof=await adapter.reconcile(job);assert.equal(proof.state,'present');assert.equal(adapter.verify(proof.receipt,job),true);
+  assert.equal(revokeCalls,1);assert.equal(writes,bound?1:0);assert.equal(await adapter.continuation(job,proof.receipt),null);
+  await adapter.reconcile(job);assert.equal(revokeCalls,1);assert.equal(writes,bound?1:0);
+  assert.equal(row.agent_id,bound?'agent-a':null);
+ }
+});
+
+
+function controlMutex(){let tail=Promise.resolve();return async(_uid,operation)=>{const previous=tail;let release;tail=new Promise(resolve=>{release=resolve;});await previous;try{return await operation();}finally{release();}};}
+test('pause final confirmation waits for the older configure writer before clearing schedules',async()=>{
+ const row={uid:UID,agent_id:'agent-a',release_sha:SHA,status:'active',paused_at:null,created_at:'2026-10-21T00:00:00.000Z',timezone:'UTC'};
+ let enter,release;const entered=new Promise(resolve=>{enter=resolve;}),gate=new Promise(resolve=>{release=resolve;});let schedules=[],revoked=false;
+ const adapter=createMaritimeManagerProvisionAdapter({managerStore:{read:async()=>structuredClone(row)},withControlLock:controlMutex(),
+  writeScheduleSnapshot:async input=>{if(!input.snapshot.paused){enter();await gate;}schedules=input.snapshot.schedules;},
+  configureWake:async()=>{},readWakeConfiguration:async()=>({ready:true,schedules}),isConsentRevoked:async()=>revoked,revokeConsent:async()=>{revoked=true;},
+ });
+ const configure=buildMaritimeManagerProvisionJob({tenantId:UID,releaseSha:SHA,phase:'configure'});
+ const execution=adapter.execute(configure).catch(()=>null);await entered;
+ row.status='paused';row.paused_at='2026-10-21T00:00:01.000Z';
+ const pause=buildMaritimeManagerProvisionJob({tenantId:UID,releaseSha:SHA,phase:'pause'});
+ const cleanup=adapter.reconcile(pause);const early=await Promise.race([cleanup.then(()=>true),new Promise(resolve=>setTimeout(()=>resolve(false),15))]);release();await execution;
+ const proof=await cleanup;assert.equal(early,false);assert.equal(proof.state,'present');assert.deepEqual(schedules,[]);assert.equal(revoked,true);
+});
+
+test('paused accepted provision still reads the official result without creating a successor',async()=>{
+ const row={uid:UID,agent_id:null,release_sha:SHA,status:'provisioning',paused_at:null,created_at:'2026-10-21T00:00:00.000Z',timezone:'UTC'};let reads=0,creates=0,status='deploying';
+ const adapter=createMaritimeManagerProvisionAdapter({managerStore:{read:async()=>row},provisionSource:()=>({uploadS3Key:'uploads/fixture.zip',archiveSha256:'b'.repeat(64)}),ensureAgent:async()=>{creates++;},
+ readAgent:async()=>{reads++;if(status==='active')row.agent_id='agent-a';return {agentId:'agent-a',status};}});
+ const job=buildMaritimeManagerProvisionJob({tenantId:UID,releaseSha:SHA});await assert.rejects(()=>adapter.execute(job),/pending/);
+ row.status='paused';row.paused_at='2026-10-21T00:00:01.000Z';status='active';const before=reads;
+ const proof=await adapter.reconcile(job);assert.equal(proof.state,'present');assert.equal(reads,before+1);assert.equal(creates,1);assert.equal(await adapter.continuation(job,proof.receipt),null);
+ let loaded=0;const configured=createMaritimeManagerProvisionAdapter({managerStore:{read:async()=>row},readWakeConfiguration:async()=>{loaded++;return {ready:true,schedules:[]};}});
+ const configJob=buildMaritimeManagerProvisionJob({tenantId:UID,releaseSha:SHA,phase:'configure'});const configProof=await configured.reconcile(configJob);
+ assert.equal(configProof.state,'present');assert.equal(loaded,1);assert.equal(await configured.continuation(configJob,configProof.receipt),null);
+ await assert.rejects(()=>configured.execute(configJob),/inactive/);assert.equal(loaded,1);
 });

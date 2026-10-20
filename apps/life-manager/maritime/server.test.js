@@ -140,3 +140,25 @@ test('schedule endpoint rereads the persisted projection and never turns read fa
   assert.equal((await third.text()).includes('private-path'), false);
   assert.equal(reads, 3);
 });
+
+
+test('loaded health exposes only the relay hash and never the relay credential',async t=>{
+ const {startMaritimeManagerServer}=require('./server.js');
+ const server=startMaritimeManagerServer({env:{PORT:'48789',LM_WAKE_RELAY_URL:'https://panel.invalid/api/internal/maritime/wake',LM_WAKE_RELAY_TOKEN:'private-fixture-relay'},prepareRuntime:()=>({config})});
+ t.after(()=>new Promise(resolve=>server.close(resolve)));
+ await new Promise(resolve=>server.once('listening',resolve));
+ const response=await fetch('http://127.0.0.1:48789/health');
+ const text=await response.text();
+ assert.equal(JSON.parse(text).relayBindingHash,require('node:crypto').createHash('sha256').update('private-fixture-relay').digest('hex'));
+ assert.equal(text.includes('private-fixture-relay'),false);
+});
+
+
+test('runtime status reads only the local health and schedules endpoints',async t=>{
+ const schedules=[{id:'lm-report:'+UID,nextRunAt:'2026-10-22T10:00:00.000Z',prompt:'lm:report',enabled:true}];
+ const server=require('./server.js').createMaritimeManagerServer({config:{...config,relayBindingHash:'a'.repeat(64)},relayWake:async()=>{},readSchedules:()=>schedules});
+ server.listen(0,'127.0.0.1');await new Promise(resolve=>server.once('listening',resolve));
+ t.after(()=>new Promise(resolve=>server.close(resolve)));
+ const result=await require('./runtime-status.js').readRuntimeStatus({port:server.address().port});
+ assert.equal(result.health.ok,true);assert.equal(result.health.relayBindingHash,'a'.repeat(64));assert.deepEqual(result.schedules,schedules);
+});

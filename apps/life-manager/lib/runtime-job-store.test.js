@@ -12,11 +12,14 @@ const {
   readCommonJob,
   readCommonReceipt,
   claimJobs,
+  claimReconcilingJobs,
+  withRuntimeTenantControlLock,
   heartbeatJob,
   completeJob,
   completeJobAndEnqueue,
   failJob,
   resolveReconciliation,
+  resolveReconciliationAndEnqueue,
   recordUnknownReconciliation,
   MAX_UNKNOWN_RECONCILE_RESULTS,
 } = require("./runtime-job-store.js");
@@ -390,4 +393,65 @@ test("migration enforces atomic claim, bounded retry, unique effects, and immuta
   assert.match(MIGRATION, /status = 'reconciling'/i);
   assert.match(MIGRATION, /OLD TABLE|immutable/i);
   assert.doesNotMatch(MIGRATION, /advisory_(?:lock|xact_lock)/i);
+});
+
+
+test("reconciliation readback seats are bounded and preserve original job due time", async () => {
+  const row = { ...buildRuntimeJob(sampleJob()), status: "reconciling", attempt: 1,
+    available_at: "2026-10-20T00:00:00.000Z" };
+  const calls = [];
+  const opts = { query: async (sql, params) => { calls.push({ sql, params }); return { rows: [row] }; } };
+  assert.deepEqual(await claimReconcilingJobs({ capabilities: ["maritime.manager.cycle"], tenantId: "tenant-a", limit: 2 }, opts), [row]);
+  assert.deepEqual(calls[0].params, [["maritime.manager.cycle"], "tenant-a", 2]);
+  assert.match(calls[0].sql, /FOR UPDATE SKIP LOCKED/i);
+  assert.match(calls[0].sql, /updated_at[^]*interval '30 seconds'/i);
+  assert.match(calls[0].sql, /SET updated_at = clock_timestamp\(\)/i);
+  assert.doesNotMatch(calls[0].sql, /SET available_at/i);
+  for (const invalid of [0, 51, -1]) {
+    await assert.rejects(() => claimReconcilingJobs({ capabilities: ["x"], limit: invalid }, opts), /limit/);
+  }
+  await assert.rejects(() => claimReconcilingJobs({ capabilities: [] }, opts), /capabilities/);
+  assert.equal(calls.length, 1);
+});
+
+
+test("reconciled completion and successor share one transaction with rollback and tenant fence", async () => {
+  const calls = [];
+  let failInsert = false;
+  const nextJob = sampleJob({ jobId: "job-next", effectKey: "effect-next" });
+  const scheduled = { ...buildRuntimeJob(nextJob), available_at: "2026-10-21T00:00:00.000Z" };
+  const client = {
+    query: async (sql, params) => {
+      calls.push(sql.trim());
+      if (/resolve_lm_runtime_effect/.test(sql)) return { rows: [{ status: "completed" }] };
+      if (/INSERT INTO/.test(sql)) { if (failInsert) throw new Error("enqueue failed"); return { rows: [scheduled] }; }
+      return { rows: [] };
+    },
+    release: () => calls.push("RELEASE"),
+  };
+  const input = { tenantId: "tenant-a", jobId: "job-001", attempt: 1, decision: "present", receipt: { ok: true }, nextJob, availableAt: scheduled.available_at };
+  const opts = { connect: async () => client };
+  assert.equal((await resolveReconciliationAndEnqueue(input, opts)).status, "completed");
+  assert.equal(calls[0], "BEGIN");
+  assert.match(calls[1], /resolve_lm_runtime_effect/);
+  assert.match(calls[2], /INSERT INTO/);
+  assert.deepEqual(calls.slice(-2), ["COMMIT", "RELEASE"]);
+  calls.length = 0; failInsert = true;
+  await assert.rejects(() => resolveReconciliationAndEnqueue(input, opts), /enqueue failed/);
+  assert.deepEqual(calls.slice(-2), ["ROLLBACK", "RELEASE"]);
+  calls.length = 0;
+  await assert.rejects(() => resolveReconciliationAndEnqueue({ ...input, nextJob: { ...nextJob, tenantId: "foreign" } }, opts), /tenant mismatch/);
+  await assert.rejects(() => resolveReconciliationAndEnqueue({ ...input, decision: "absent" }, opts), /decision/);
+  assert.deepEqual(calls, []);
+});
+
+
+test("tenant control lock uses a dedicated bounded transaction and releases on error",async()=>{
+ const calls=[];const client={query:async(sql,params)=>{calls.push([sql,params]);return {rows:[]};},release:()=>calls.push(['RELEASE'])};
+ const opts={connect:async()=>client};
+ assert.equal(await withRuntimeTenantControlLock({tenantId:'tenant-a'},async()=>{calls.push(['OP']);return 'ok';},opts),'ok');
+ assert.equal(calls[0][0],'BEGIN');assert.match(calls[1][0],/lock_timeout/);assert.match(calls[2][0],/pg_advisory_xact_lock/);
+ assert.deepEqual(calls[2][1],['maritime-control:tenant-a']);assert.deepEqual(calls.slice(-2),[['COMMIT',undefined],['RELEASE']]);
+ calls.length=0;await assert.rejects(()=>withRuntimeTenantControlLock({tenantId:'tenant-a'},async()=>{throw new Error('fixture failure');},opts),/fixture failure/);
+ assert.deepEqual(calls.slice(-2),[['ROLLBACK',undefined],['RELEASE']]);
 });

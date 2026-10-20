@@ -178,8 +178,7 @@ function attributionCookie(req, opts = {}) {
 }
 
 function setAttributionCookie(res, opts, value) {
-  const ssr = ssrFor(opts);
-  const serializer = opts.serializeCookieHeader || ssr.serializeCookieHeader;
+  const serializer = opts.serializeCookieHeader || ssrFor(opts).serializeCookieHeader;
   if (typeof serializer !== "function") return;
   appendResponseCookies(res, [{
     name: WEB_ATTRIBUTION_COOKIE,
@@ -192,6 +191,17 @@ function setAttributionCookie(res, opts, value) {
       maxAge: WEB_ATTRIBUTION_MAX_AGE_SECONDS,
     },
   }], serializer);
+}
+
+function captureWebFirstTouchCookie(req, res, attribution, opts = {}) {
+  const existing = attributionCookie(req, opts);
+  const secret = attributionSecret(opts);
+  if (consumeWebAttribution(existing.value, secret)) return;
+  const cookie = captureWebAttribution(attribution, secret);
+  if (cookie) setAttributionCookie(res, opts, cookie);
+}
+function readWebFirstTouchCookie(req, opts = {}) {
+  return consumeWebAttribution(attributionCookie(req, opts).value, attributionSecret(opts)) || {};
 }
 
 function matchesAttribution(value, expected) {
@@ -217,7 +227,7 @@ function hasVerifiedGoogleIdentity(user) {
     .some((provider) => String(provider || "").trim().toLowerCase() === "google");
 }
 
-async function readWebFirstTouch(uid, fetchImpl, root, key) {
+async function readWebFirstTouchRow(uid, fetchImpl, root, key) {
   const response = await fetchImpl(
     `${root}/rest/v1/lm_users?uid=eq.${encodeURIComponent(uid)}&select=uid,telegram_chat_id,web_first_touch&limit=2`,
     { headers: serviceHeaders(key) },
@@ -226,7 +236,17 @@ async function readWebFirstTouch(uid, fetchImpl, root, key) {
   const rows = await response.json();
   if (!Array.isArray(rows) || rows.length !== 1) return false;
   const row = rows[0];
-  return isUnboundWebRow(row, uid) && row.web_first_touch != null;
+  return isUnboundWebRow(row, uid) ? row : null;
+}
+
+async function readWebFirstTouch(uid, fetchImpl, root, key) {
+  const row = await readWebFirstTouchRow(uid, fetchImpl, root, key);
+  return Boolean(row && row.web_first_touch != null);
+}
+async function readWebFirstTouchValue(uid, opts = {}) {
+  if (!WEB_UID_RE.test(String(uid || ""))) throw new Error("verified Web uid is required");
+  const row = await readWebFirstTouchRow(uid, opts.fetch || globalThis.fetch, requiredSupabaseUrl(opts), requiredServiceRoleKey(opts));
+  return sanitizeWebAttribution(row?.web_first_touch);
 }
 
 async function storeWebFirstTouch(uid, attribution, opts = {}) {
@@ -425,8 +445,7 @@ function redirectToConnectionError(res) {
 }
 
 function clearCookie(res, opts, name) {
-  const ssr = ssrFor(opts);
-  const serializer = opts.serializeCookieHeader || ssr.serializeCookieHeader;
+  const serializer = opts.serializeCookieHeader || ssrFor(opts).serializeCookieHeader;
   if (typeof serializer !== "function") return;
   const settings = cookieOptions(opts);
   delete settings.name;
@@ -606,4 +625,8 @@ module.exports = {
   resolveWebUser,
   signedOutCalendarHandoffLocation,
   separateWebUidForSubject,
+  captureWebFirstTouchCookie,
+  readWebFirstTouchCookie,
+  storeWebFirstTouch,
+  readWebFirstTouchValue,
 };

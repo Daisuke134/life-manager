@@ -13,6 +13,35 @@ TENANT = 'lm_11111111-1111-4111-8111-111111111111'
 
 
 class CloudCycleTest(unittest.TestCase):
+    def test_cloud_binary_is_image_owned_and_parent_profile_is_not_inherited(self):
+        from unittest.mock import patch
+        self.env.update(CAPAFY_CHROMIUM='/parent/browser', CLOAKBROWSER_BINARY_PATH='/parent/browser', CAPAFY_BROWSER_PROFILE='/parent/profile')
+        with patch.object(self.module.os, 'access', return_value=True):
+            self.run_cycle()
+        child = self.calls[0][1]['env']
+        self.assertEqual(child['CAPAFY_CHROMIUM'], '/usr/local/bin/lm-cloud-chromium')
+        self.assertEqual(child['CLOAKBROWSER_BINARY_PATH'], '/usr/local/bin/lm-cloud-chromium')
+        self.assertNotIn('CAPAFY_BROWSER_PROFILE', child)
+
+    def test_linux_browser_owner_uses_existing_binary_headlessly(self):
+        import os
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            browser = root / 'browser'
+            browser.write_text('#!/bin/sh\nprintf "%s\\n" "$@"\n')
+            browser.chmod(0o700)
+            uname = root / 'uname'
+            uname.write_text('#!/bin/sh\necho Linux\n')
+            uname.chmod(0o700)
+            script = MODULE.parent / 'browser-owner'
+            env = {'PATH': str(root) + ':/usr/bin:/bin', 'HOME': str(root),
+                   'CAPAFY_BROWSER_PORT_OWNED': '1', 'CAPAFY_CHROMIUM': str(browser)}
+            result = subprocess.run(['bash', str(script)], env=env, text=True, capture_output=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn('--headless=new', result.stdout.splitlines())
+            self.assertIn('--disable-dev-shm-usage', result.stdout.splitlines())
+            self.assertNotIn('--no-sandbox', result.stdout.splitlines())
+
     def setUp(self):
         self.assertTrue(MODULE.exists(), 'cloud_cycle.py must implement the tenant adapter')
         spec = importlib.util.spec_from_file_location('cloud_cycle', MODULE)
@@ -127,7 +156,7 @@ class CloudCycleTest(unittest.TestCase):
     def test_child_directories_cannot_alias_another_tenant(self):
         foreign = self.root / 'other-tenant'
         foreign.mkdir()
-        for directory in ['home', 'codex', 'claude', 'evidence', 'state', 'runtime', 'tmp', 'ledgers']:
+        for directory in ['home', 'agent-codex', 'claude', 'evidence', 'state', 'runtime', 'tmp', 'agent-ledgers']:
             with self.subTest(directory=directory):
                 link = self.home / directory
                 if link.exists():

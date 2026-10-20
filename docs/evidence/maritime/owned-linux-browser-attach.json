@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "provider": "maritime",
+  "scope": "owned_isolated_fixture",
+  "loaded_source_sha": "8d7d4474a357303a87ad3dd7acf1920b6cb77030",
+  "browser_attach_verified": true,
+  "native_uid": 10001,
+  "browser_version": "Chrome/146.0.7680.177",
+  "dom_ready_state": "complete",
+  "page_operation": "Runtime.evaluate",
+  "provider_authenticated": false,
+  "external_website_visited": false,
+  "credentials_inherited": false,
+  "fixture_removed": true,
+  "installed_runtime_browser_verified": false,
+  "prior_load_event_timeout": true,
+  "sleeping_exec_observation": {
+    "http_status": 503,
+    "error_code": "guest_command_unavailable",
+    "execution_started": false,
+    "agent_status": "sleeping"
+  },
+  "official_start_readback": {
+    "http_status": 200,
+    "agent_status": "active",
+    "sleep_policy": "auto-sleep"
+  },
+  "limitations": [
+    "Offline isolated browser capability only; no provider login, publication, sale or external user.",
+    "Pinned binary was installed only in an isolated fixture and removed; main-derived runtime image adoption remains pending.",
+    "Page.set_content load wait previously timed out; the later probe verifies DOM execution and does not establish general navigation reliability."
+  ]
+}

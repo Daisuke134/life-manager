@@ -274,3 +274,27 @@ test('pending enrollment recovery is bounded and excludes paused or claimed rows
   const foreign=createMaritimeManagerStore({supaUrl:'https://database.invalid',supaKey:'fixture-key',fetchImpl:async()=>new Response(JSON.stringify([{uid:UID_A,status:'paused',paused_at:null,agent_id:null,release_sha:SHA}]))});
   await assert.rejects(foreign.listPending(1),/store_invalid/);
 });
+
+
+test('quarantine pending provision is tenant scoped and cannot change active or paused enrollments',async()=>{
+ let calls=0;
+ const store=createMaritimeManagerStore({supaUrl:'https://database.invalid',supaKey:'fixture',fetchImpl:async(url,options)=>{
+  calls++;const u=new URL(url);
+  assert.equal(options.method,'PATCH');assert.equal(u.searchParams.get('uid'),'eq.'+UID_A);
+  assert.equal(u.searchParams.get('status'),'eq.pending');assert.equal(u.searchParams.get('paused_at'),'is.null');assert.equal(u.searchParams.get('agent_id'),'is.null');
+  assert.deepEqual(JSON.parse(options.body),{status:'effect_unknown'});
+  return new Response(JSON.stringify([{uid:UID_A,status:'effect_unknown',paused_at:null,agent_id:null}]));
+ }});
+ assert.equal((await store.quarantinePendingProvision(UID_A)).status,'effect_unknown');
+ await assert.rejects(()=>store.quarantinePendingProvision('../foreign'),/invalid/);assert.equal(calls,1);
+});
+
+
+test('paused cleanup recovery reads bounded identity pages without contact data fallback',async()=>{
+ const calls=[];const row={uid:UID_B,status:'paused',paused_at:'2026-10-21T00:00:00Z',agent_id:null,release_sha:SHA};
+ const store=createMaritimeManagerStore({supaUrl:'https://database.invalid',supaKey:'fixture',fetchImpl:async url=>{calls.push(new URL(url));return new Response(JSON.stringify([row]));}});
+ assert.deepEqual(await store.listPaused(20,UID_A),[row]);
+ assert.equal(calls[0].searchParams.get('uid'),'gt.'+UID_A);assert.equal(calls[0].searchParams.get('status'),'eq.paused');
+ assert.equal(calls[0].searchParams.get('order'),'uid.asc');assert.equal(calls[0].searchParams.get('limit'),'20');
+ await assert.rejects(()=>store.listPaused(0),/invalid/);await assert.rejects(()=>store.listPaused(20,'foreign'),/invalid/);assert.equal(calls.length,1);
+});

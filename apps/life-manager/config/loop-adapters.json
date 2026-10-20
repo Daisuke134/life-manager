@@ -130,6 +130,36 @@
       ],
       "module_ref": "lib/connector-coverage-adapter.js",
       "factory_export": "createConnectorCoverageLoopAdapter"
+    },
+    {
+      "adapter_id": "maritime-manager-cycle",
+      "loop_id": "maritime.manager.cycle",
+      "capability": "maritime.manager.cycle",
+      "effect_classes": [
+        "money"
+      ],
+      "module_ref": "lib/maritime-manager-runtime.js",
+      "factory_export": "createMaritimeManagerLoopAdapter"
+    },
+    {
+      "adapter_id": "maritime-manager-report",
+      "loop_id": "maritime.manager.report",
+      "capability": "maritime.manager.report",
+      "effect_classes": [
+        "message"
+      ],
+      "module_ref": "lib/maritime-manager-runtime.js",
+      "factory_export": "createMaritimeManagerReportAdapter"
+    },
+    {
+      "adapter_id": "maritime-manager-provision",
+      "loop_id": "maritime.manager",
+      "capability": "maritime.manager.provision",
+      "effect_classes": [
+        "money"
+      ],
+      "module_ref": "lib/maritime-manager-runtime.js",
+      "factory_export": "createMaritimeManagerProvisionAdapter"
     }
   ]
 }

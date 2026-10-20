@@ -1,0 +1,15 @@
+{
+  "scope": "owned read-only synchronous exec contract; no model or provider business action",
+  "http_status": 200,
+  "response_fields": [
+    "executionId",
+    "status",
+    "exitCode",
+    "stdout",
+    "stderr"
+  ],
+  "status": "completed",
+  "exit_code": 0,
+  "expected_fixture_stdout": true,
+  "uid": 0
+}

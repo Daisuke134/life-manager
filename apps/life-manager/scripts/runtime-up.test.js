@@ -12,6 +12,8 @@ const {
   createScopedEnvironmentSecretProvider,
   createWorkerHandlers,
   observeWorkerPoll,
+  reconcileMaritimeCapabilityJobs,
+  recoverMaritimeEnrollments,
 } = require("./runtime-up.js");
 const {
   buildMarketingObservationJob,
@@ -1138,4 +1140,210 @@ test("Agent Economy Cloud worker runs the shared wake and schedules the next wak
   assert.equal(result.receipt.status, "completed");
   assert.equal(wakeCalls, 1);
   assert.ok(services.citizenStore);
+});
+
+
+test("Maritime worker reconciliation reads full jobs without redispatch and commits successors atomically", async () => {
+  const job = { tenant_id: "tenant-a", job_id: "job-a", attempt: 1, status: "reconciling",
+    capability: "maritime.manager.cycle", effect_class: "money", effect_key: "effect-a", input_refs: { cycle_ref: "cycle://a" } };
+  const calls = [];
+  let state = "pending";
+  const adapter = {
+    execute: () => { throw new Error("redispatch forbidden"); },
+    reconcile: async fullJob => { assert.equal(fullJob, job); calls.push("read"); return { state, receipt: { valid: true } }; },
+    verify: receipt => receipt.valid === true,
+    continuation: async () => ({ job: { job_id: "next" }, availableAt: "2026-10-21T00:00:00.000Z" }),
+  };
+  const store = {
+    claimReconcilingJobs: async input => { assert.deepEqual(input.capabilities, [job.capability]); return [job]; },
+    resolveReconciliation: async () => { calls.push("resolve"); },
+    recordUnknownReconciliation: async () => { calls.push("age"); return { status: "reconciling" }; },
+    resolveReconciliationAndEnqueue: async input => { assert.equal(input.nextJob.job_id, "next"); calls.push("atomic"); },
+  };
+  const deps = { registry: { getByCapability: () => adapter }, store };
+  await reconcileMaritimeCapabilityJobs([job.capability, "content.publish"], deps);
+  assert.deepEqual(calls, ["read"]);
+  state = "present"; calls.length = 0;
+  await reconcileMaritimeCapabilityJobs([job.capability], deps);
+  assert.deepEqual(calls, ["read", "atomic"]);
+  state = "unknown"; calls.length = 0;
+  await reconcileMaritimeCapabilityJobs([job.capability], deps);
+  assert.deepEqual(calls, ["read", "age"]);
+  state = "present"; adapter.verify = () => false; calls.length = 0;
+  await reconcileMaritimeCapabilityJobs([job.capability], deps);
+  assert.deepEqual(calls, ["read", "age"]);
+});
+
+test("Maritime pending code survives the worker failure boundary", async () => {
+  let failure;
+  await executeCapabilityJob({ tenant_id: "tenant-a", job_id: "job-a", attempt: 1,
+    capability: "maritime.manager.cycle", effect_class: "money" }, {
+    workerId: "worker-a",
+    handlers: { "maritime.manager.cycle": async () => { const error = new Error("pending"); error.code = "MARITIME_CYCLE_PENDING"; error.unknownEffect = true; throw error; } },
+    failJob: async value => { failure = value; },
+  });
+  assert.equal(failure.errorCode, "MARITIME_CYCLE_PENDING");
+  assert.equal(failure.unknownEffect, true);
+});
+
+
+test("Maritime cycle worker injects the existing remote transport and activates verified continuations", async () => {
+  const seen = [];
+  const managerStore = {};
+  const transport = Object.fromEntries(["dispatchCycle", "readExecution", "readCycleReceipt"].map(key => [key, async () => {}]));
+  const receipt = { status: "completed" };
+  const next = { job: { job_id: "next" }, availableAt: "2026-10-21T00:00:00.000Z" };
+  const handlers = createWorkerHandlers({}, ["maritime.manager.cycle"], {
+    maritimeManagerStore: managerStore, maritimeTransport: transport,
+    createRegistry: ({ servicesByAdapter }) => {
+      const services = servicesByAdapter["maritime-manager-cycle"];
+      assert.equal(services.managerStore, managerStore);
+      assert.equal(services.dispatchCycle, transport.dispatchCycle);
+      return { hasCapability: () => true, getByCapability: () => ({
+        execute: async () => ({ receipt }), verify: () => true,
+        continuation: async job => { seen.push(job); return next; },
+      }) };
+    },
+  });
+  const job = { job_id: "cycle-a" };
+  assert.deepEqual(await handlers["maritime.manager.cycle"](job), { receipt, continuation: next });
+  assert.deepEqual(seen, [job]);
+});
+
+
+test("Maritime report worker injects existing queue reader and CFO receipt IO", async () => {
+  const io = { read: async identity => ({ uid: identity.uid, period_key: identity.periodKey, status: "sent" }) };
+  const queries = [];
+  const handlers = createWorkerHandlers({}, ["maritime.manager.report"], {
+    maritimeManagerStore: {}, maritimeTransport: {}, maritimeReportReceiptIO: io,
+    query: async (sql, params) => { queries.push({sql,params}); return { rows: [] }; },
+    createRegistry: ({ servicesByAdapter }) => {
+      const report = servicesByAdapter["maritime-manager-report"];
+      assert.equal(typeof report.deliverDailyResult, "function");
+      return { hasCapability: () => true, getByCapability: () => ({execute: async input => {
+        const observations = await report.readDailyObservations(input);
+        assert.deepEqual(observations, { actionReceipts: [], financialRecords: [] });
+        return {receipt: await report.readReportDelivery(input)};
+      }}) };
+    },
+  });
+  const input = {uid:"lm_11111111-1111-4111-8111-111111111111",periodKey:"maritime:daily:2026-10-21"};
+  assert.equal((await handlers["maritime.manager.report"](input)).receipt.status,"sent");
+  assert.equal(queries.length,2);
+  assert.equal(queries[1].params[0],input.uid);
+});
+
+
+test("pending Maritime enrollment recovery reuses stable jobs and skips undeclared capability",async()=>{
+ const uid="lm_11111111-1111-4111-8111-111111111111",sha="a".repeat(40),calls=[];
+ const dependencies={managerStore:{listPaused:async()=>[],listPending:async limit=>{assert.equal(limit,1);return [{uid,release_sha:sha}];}},enqueueJob:async job=>{calls.push(job);return {created:calls.length===1,job};}};
+ await recoverMaritimeEnrollments(["maritime.manager.cycle"],dependencies);assert.equal(calls.length,0);
+ await recoverMaritimeEnrollments(["maritime.manager.provision"],dependencies);
+ await recoverMaritimeEnrollments(["maritime.manager.provision"],dependencies);
+ assert.deepEqual(calls[0],calls[1]);assert.equal(calls[0].tenant_id,uid);assert.equal(calls[0].capability,"maritime.manager.provision");
+});
+
+test("Maritime provision worker binds release-specific source and existing remote operations",()=>{
+ const sha="a".repeat(40),transport=Object.fromEntries(["ensureAgent","readAgent","configureWake","readWakeConfiguration","writeScheduleSnapshot"].map(key=>[key,async()=>{}]));
+ let services;
+ createWorkerHandlers({LM_MARITIME_MANAGER_IMAGE_RELEASE_SHA:sha,LM_MARITIME_MANAGER_SOURCE_S3_KEY:"uploads/fixture.zip",LM_MARITIME_MANAGER_SOURCE_ARCHIVE_SHA256:"b".repeat(64)},["maritime.manager.provision"],{
+  maritimeManagerStore:{},maritimeTransport:transport,query:async()=>({rows:[]}),
+  createRegistry:({servicesByAdapter})=>{services=servicesByAdapter["maritime-manager-provision"];return {hasCapability:()=>false};},
+ });
+ assert.equal(services.ensureAgent,transport.ensureAgent);assert.equal(services.readWakeConfiguration,transport.readWakeConfiguration);
+ assert.equal(services.provisionSource(sha).uploadS3Key,"uploads/fixture.zip");
+ assert.throws(()=>services.provisionSource("c".repeat(40)),/source/);
+});
+
+
+test("Maritime post-send continuation failure reconciles the receipt without a second send",async()=>{
+ let sends=0,continuations=0,failure,atomic=0;
+ const receipt={status:"completed"},next={job:{job_id:"next"},availableAt:"2026-10-22T00:00:00.000Z"};
+ const adapter={execute:async()=>{sends++;return {receipt};},verify:()=>true,
+  continuation:async()=>{if(++continuations===1)throw new Error("store temporarily unavailable");return next;},
+  reconcile:async()=>({state:"present",receipt})};
+ const registry={hasCapability:()=>true,getByCapability:()=>adapter};
+ const handlers=createWorkerHandlers({},["maritime.manager.report"],{maritimeManagerStore:{},maritimeTransport:{},query:async()=>({rows:[]}),createRegistry:()=>registry});
+ const job={tenant_id:"tenant-a",job_id:"report-a",attempt:1,capability:"maritime.manager.report",effect_class:"message",effect_key:"message-a",status:"running"};
+ await executeCapabilityJob(job,{workerId:"worker-a",handlers,failJob:async input=>{failure=input;}});
+ assert.equal(sends,1);assert.equal(failure.unknownEffect,true);
+ await reconcileMaritimeCapabilityJobs([job.capability],{registry,store:{
+  claimReconcilingJobs:async()=>[{...job,status:"reconciling"}],recordUnknownReconciliation:async()=>{throw new Error("not unknown");},
+  resolveReconciliation:async()=>{throw new Error("non-atomic");},resolveReconciliationAndEnqueue:async input=>{assert.equal(input.nextJob.job_id,"next");atomic++;},
+ }});
+ assert.equal(sends,1);assert.equal(atomic,1);
+});
+
+test("terminal pending provision is quarantined so the next tenant can recover",async()=>{
+ const a={uid:"lm_11111111-1111-4111-8111-111111111111",release_sha:"a".repeat(40)},b={...a,uid:"lm_22222222-2222-4222-8222-222222222222"};
+ const rows=[a,b],queued=[],quarantined=[];
+ const deps={managerStore:{listPaused:async()=>[],listPending:async()=>rows.slice(0,1),quarantinePendingProvision:async uid=>{quarantined.push(uid);rows.shift();}},
+ enqueueJob:async job=>{queued.push(job.tenant_id);return {created:job.tenant_id===b.uid,job:{...job,status:job.tenant_id===a.uid?"dead_letter":"queued"}};}};
+ await recoverMaritimeEnrollments(["maritime.manager.provision"],deps);await recoverMaritimeEnrollments(["maritime.manager.provision"],deps);
+ assert.deepEqual(quarantined,[a.uid]);assert.deepEqual(queued,[a.uid,b.uid]);
+});
+
+
+test("Maritime pause job uses the existing consent store and never sends a report",async()=>{
+ const uid="lm_11111111-1111-4111-8111-111111111111",sha="a".repeat(40);let revoked=false,calls=0;
+ const runtime=require('../lib/maritime-manager-runtime.js');
+ const handlers=createWorkerHandlers({},['maritime.manager.provision'],{
+  withControlLock:async(_uid,operation)=>operation(),
+  maritimeManagerStore:{read:async()=>({uid,agent_id:null,release_sha:sha,status:'paused',paused_at:'2026-10-21T00:00:00.000Z'})},
+  maritimeTransport:{},query:async()=>{throw new Error('no report enqueue');},
+  maritimeDistributionStore:{getParticipant:async()=>({ok:true,participant:{revoked_at:revoked?'2026-10-21T00:00:01.000Z':null}}),revoke:async()=>{calls++;revoked=true;return true;}},
+  createRegistry:({servicesByAdapter})=>{const adapter=runtime.createMaritimeManagerProvisionAdapter(servicesByAdapter['maritime-manager-provision']);return {hasCapability:()=>true,getByCapability:()=>adapter};},
+ });
+ const job=runtime.buildMaritimeManagerProvisionJob({tenantId:uid,releaseSha:sha,phase:'pause'});
+ assert.equal((await handlers[job.capability](job)).receipt.consent_revoked,true);assert.equal(calls,1);
+ await handlers[job.capability](job);assert.equal(calls,1);
+});
+
+
+test("paused cleanup recovery advances beyond completed old jobs and wraps its cursor",async()=>{
+ const rows=Array.from({length:21},(_,i)=>({uid:`lm_${(i+1).toString(16).padStart(8,'0')}-1111-4111-8111-111111111111`,release_sha:'a'.repeat(40)}));
+ const seen=[];
+ const deps={managerStore:{listPending:async()=>[],listPaused:async(limit,after)=>{assert.equal(limit,20);return rows.filter(row=>!after||row.uid>after).slice(0,limit);}},
+  enqueueJob:async job=>{assert.equal(job.input_refs.provision_phase_ref,'maritime-provision-phase://pause');seen.push(job.tenant_id);return {created:false,job:{...job,status:'completed'}};}};
+ const cursor=await recoverMaritimeEnrollments(['maritime.manager.provision'],deps);assert.equal(cursor,rows[19].uid);
+ assert.equal(await recoverMaritimeEnrollments(['maritime.manager.provision'],{...deps,pausedCursor:cursor}),null);
+ assert.equal(new Set(seen).size,21);
+});
+
+
+test("Maritime completion telemetry runs after durable completion and cannot trigger a resend",async()=>{
+ const order=[],job={tenant_id:'tenant-a',job_id:'job-a',attempt:1,capability:'maritime.manager.report',effect_class:'message'};
+ const completed={...job,status:'completed',completed_at:'2026-10-21T01:00:00.000Z'};
+ await executeCapabilityJob(job,{workerId:'worker-a',handlers:{[job.capability]:async()=>({receipt:{status:'completed'}})},
+ completeJob:async()=>{order.push('complete');return completed;},failJob:async()=>{throw new Error('do not fail completed mail');},
+ onJobCompleted:async row=>{assert.equal(row,completed);order.push('usage');throw new Error('metrics unavailable');}});
+ assert.deepEqual(order,['complete','usage']);
+});
+test("reconciled Maritime telemetry follows the atomic successor commit",async()=>{
+ const job={tenant_id:'tenant-a',job_id:'job-a',attempt:1,status:'reconciling',capability:'maritime.manager.cycle',effect_class:'money',effect_key:'effect-a'},order=[];
+ const adapter={reconcile:async()=>({state:'present',receipt:{status:'completed'}}),verify:()=>true,continuation:async()=>({job:{job_id:'next'},availableAt:'2026-10-21T01:15:00.000Z'})};
+ await reconcileMaritimeCapabilityJobs([job.capability],{registry:{getByCapability:()=>adapter},store:{claimReconcilingJobs:async()=>[job],recordUnknownReconciliation:async()=>{},resolveReconciliation:async()=>{},resolveReconciliationAndEnqueue:async()=>{order.push('atomic');return {...job,status:'completed'};}},
+ onJobCompleted:async row=>{assert.equal(row.status,'completed');order.push('usage');return true;}});
+ assert.deepEqual(order,['atomic','usage']);
+});
+
+
+test("Maritime telemetry consumes the SQL completion receipt row rather than assuming a job row",async()=>{
+ const receipt={status:'completed'},time='2026-10-21T01:00:00.000Z';let observed=0;
+ const job={tenant_id:'tenant-a',job_id:'job-a',attempt:1,capability:'maritime.manager.report',effect_class:'message'};
+ await executeCapabilityJob(job,{workerId:'worker-a',handlers:{[job.capability]:async()=>({receipt})},
+  completeJob:async()=>({tenant_id:job.tenant_id,job_id:job.job_id,attempt:job.attempt,outcome:'completed',receipt,created_at:time}),
+  onJobCompleted:async completed=>{assert.equal(completed.status,'completed');assert.equal(completed.completed_at,time);assert.equal(completed.capability,job.capability);observed++;},
+  failJob:async()=>{throw new Error('unexpected failure');}});
+ assert.equal(observed,1);
+});
+
+test('Maritime completed work returns when telemetry stalls',async()=>{
+ const job={tenant_id:'tenant-a',job_id:'job-a',attempt:1,capability:'maritime.manager.report',effect_class:'message'},logs=[];let signal;
+ await executeCapabilityJob(job,{workerId:'worker-a',usageTimeoutMs:10,writeUsageDiagnostic:row=>logs.push(row),
+ handlers:{[job.capability]:async()=>({receipt:{status:'completed'}})},
+ completeJob:async()=>({...job,status:'completed',completed_at:'2026-10-21T01:00:00Z'}),
+ failJob:async()=>assert.fail('business must not retry'),
+ onJobCompleted:async(row,receipt,opts)=>{signal=opts.signal;await new Promise(()=>{});}});
+ assert.equal(signal.aborted,true);assert.equal(logs[0].error_class,'usage_timeout');
 });

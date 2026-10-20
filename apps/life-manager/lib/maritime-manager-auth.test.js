@@ -2,8 +2,8 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { Readable } = require("node:stream");
-let handleMaritimeManagerAuth, resolveMaritimeManagerUser, handleMaritimeManagerActivate, handleMaritimeManagerPage;
-try { ({ handleMaritimeManagerAuth, resolveMaritimeManagerUser, handleMaritimeManagerActivate, handleMaritimeManagerPage } = require("./maritime-manager-auth.js")); }
+let handleMaritimeManagerAuth, resolveMaritimeManagerUser, handleMaritimeManagerActivate, handleMaritimeManagerPage, handleMaritimeManagerStop;
+try { ({ handleMaritimeManagerAuth, resolveMaritimeManagerUser, handleMaritimeManagerActivate, handleMaritimeManagerPage, handleMaritimeManagerStop } = require("./maritime-manager-auth.js")); }
 catch (error) { if (error.code !== "MODULE_NOT_FOUND") throw error; }
 const ORIGIN = "https://manager.example.invalid";
 const SUBJECT = "11111111-1111-4111-8111-111111111111";
@@ -109,6 +109,8 @@ test("unbound_token_hash_cannot_replace_an_existing_session",async()=>{
 function activationFixture({capacityFull=false,user=USER}={}) {
   const f=fixture({user});const rows=new Map();const jobs=new Map();
   f.deps.env.LM_MARITIME_MANAGER_IMAGE_RELEASE_SHA="a".repeat(40);
+  f.deps.readCommonReceipt=async()=>null;
+  f.deps.withControlLock=async(_uid,operation)=>operation();
   f.deps.managerStore={read:async uid=>rows.get(uid)||null,enroll:async input=>{
     if(!rows.has(input.uid))rows.set(input.uid,{uid:input.uid,auth_subject:input.authSubject,email:input.email,status:"pending",release_sha:input.releaseSha});
     return rows.get(input.uid);}};
@@ -168,8 +170,9 @@ test("terminal_or_reconciling_provision_jobs_are_not_reported_as_pending",async(
     await handleMaritimeManagerActivate(activateRequest(deps),res,deps);assert.equal(res.statusCode,expected,status);assert.doesNotMatch(res.body,/"status":"pending"/,status);
   }
 });
-test("completed_provision_job_requires_active_enrollment_readback",async()=>{
+test("completed_provision_job_requires_active_enrollment_and_configure_receipt",async()=>{
   const {deps,rows}=activationFixture();deps.enqueueJob=async job=>{const row=rows.get(`lm_${SUBJECT}`);row.status="active";row.agent_id="agent-a";return {created:false,job:{...job,status:"completed"}};};
+  deps.readCommonReceipt=async()=>({outcome:"verified",provider:"maritime",loop_id:"maritime.manager",external_ref:"maritime-agent://agent-a",evidence_refs:["maritime-agent://agent-a"]});
   const res=response();await handleMaritimeManagerActivate(activateRequest(deps),res,deps);assert.equal(res.statusCode,200);assert.equal(JSON.parse(res.body).status,"active");
 });
 
@@ -191,4 +194,90 @@ test('manager activation pins the VM image release independently of the central 
 test('an app deployment SHA alone cannot label an unconfigured VM image release',async()=>{
   const {deps,rows,jobs}=activationFixture();deps.env.LM_RELEASE_SHA='b'.repeat(40);delete deps.env.LM_MARITIME_MANAGER_IMAGE_RELEASE_SHA;
   const res=response();await handleMaritimeManagerActivate(activateRequest(deps),res,deps);assert.equal(res.statusCode,503);assert.equal(rows.size,0);assert.equal(jobs.size,0);
+});
+
+
+test("bound enrollment stays preparing until configure completion is committed",async()=>{
+ const {deps,rows}=activationFixture();const uid=`lm_${SUBJECT}`;
+ rows.set(uid,{uid,status:"active",agent_id:"agent-a",release_sha:"a".repeat(40)});
+ let receipt=null,reads=0;
+ deps.readCommonReceipt=async input=>{reads++;assert.equal(input.tenantId,uid);assert.equal(input.attempt,1);return receipt;};
+ let res=response();await handleMaritimeManagerActivate(activateRequest(deps),res,deps);
+ assert.equal(res.statusCode,202);assert.equal(JSON.parse(res.body).status,"pending");assert.equal(reads,1);
+ receipt={outcome:"verified",provider:"maritime",loop_id:"maritime.manager",external_ref:"maritime-agent://agent-a",evidence_refs:["maritime-agent://agent-a"]};
+ res=response();await handleMaritimeManagerActivate(activateRequest(deps),res,deps);
+ assert.equal(res.statusCode,200);assert.equal(JSON.parse(res.body).status,"active");
+ deps.distributionStore.recordAnonymousEvent=async()=>{};
+ receipt=null;res=response();await handleMaritimeManagerPage(request('/maritime?lang=ja'),res,deps);
+ assert.equal(res.statusCode,200);assert.doesNotMatch(res.body,/稼働中/);
+});
+
+
+test("stop authenticates the cookie, pauses first and durably queues cleanup without deleting data",async()=>{
+ const {deps,rows,jobs}=activationFixture();const uid=`lm_${SUBJECT}`;let pauses=0;
+ rows.set(uid,{uid,status:"active",agent_id:"agent-a",release_sha:"a".repeat(40)});
+ deps.managerStore.pause=async input=>{assert.equal(input,uid);pauses++;Object.assign(rows.get(uid),{status:"paused",paused_at:"2026-10-21T00:00:00.000Z"});return rows.get(uid);};
+ const csrf=require('./web-auth.js').createWebCsrfToken(uid,deps.env.LM_UID_SECRET);
+ let res=response();await handleMaritimeManagerStop(request('/maritime/stop','POST',{}),res,deps);assert.equal(res.statusCode,403);assert.equal(pauses,0);
+ res=response();await handleMaritimeManagerStop(request('/maritime/stop','POST',{uid:'foreign'},{'x-lm-web-csrf':csrf}),res,deps);assert.equal(res.statusCode,400);assert.equal(pauses,0);
+ res=response();await handleMaritimeManagerStop(request('/maritime/stop','POST',{}, {'x-lm-web-csrf':csrf}),res,deps);
+ assert.equal(res.statusCode,202);assert.equal(JSON.parse(res.body).status,'paused');assert.equal(JSON.parse(res.body).cleanupPending,true);
+ assert.equal(pauses,1);assert.equal(jobs.size,1);assert.equal([...jobs.values()][0].input_refs.provision_phase_ref,'maritime-provision-phase://pause');
+ res=response();await handleMaritimeManagerStop(request('/maritime/stop','POST',{}, {'x-lm-web-csrf':csrf}),res,deps);assert.equal(jobs.size,1);assert.equal(rows.has(uid),true);
+});
+
+
+test("late activation cannot restore consent after the serialized stop cleanup",async()=>{
+ const {deps,rows}=activationFixture();const uid=`lm_${SUBJECT}`,sha='a'.repeat(40);rows.set(uid,{uid,status:'pending',agent_id:null,release_sha:sha});
+ let tail=Promise.resolve();const lock=async(_uid,operation)=>{const previous=tail;let done;tail=new Promise(resolve=>{done=resolve;});await previous;try{return await operation();}finally{done();}};
+ deps.withControlLock=lock;let enter,release;const entered=new Promise(resolve=>{enter=resolve;}),gate=new Promise(resolve=>{release=resolve;});let consent=true;
+ deps.distributionStore.accept=async()=>{enter();await gate;consent=true;return {ok:true};};
+ deps.managerStore.pause=async()=>Object.assign(rows.get(uid),{status:'paused',paused_at:'2026-10-21T00:00:01.000Z'});
+ const activation=handleMaritimeManagerActivate(activateRequest(deps),response(),deps);await entered;
+ const stop=response(),csrf=require('./web-auth.js').createWebCsrfToken(uid,deps.env.LM_UID_SECRET);
+ await handleMaritimeManagerStop(request('/maritime/stop','POST',{}, {'x-lm-web-csrf':csrf}),stop,deps);
+ const runtime=require('./maritime-manager-runtime.js');const adapter=runtime.createMaritimeManagerProvisionAdapter({managerStore:deps.managerStore,withControlLock:lock,isConsentRevoked:async()=>!consent,revokeConsent:async()=>{consent=false;}});
+ const cleanup=adapter.reconcile(runtime.buildMaritimeManagerProvisionJob({tenantId:uid,releaseSha:sha,phase:'pause'}));
+ const early=await Promise.race([cleanup.then(()=>true),new Promise(resolve=>setTimeout(()=>resolve(false),15))]);release();await activation;assert.equal((await cleanup).state,'present');assert.equal(early,false);assert.equal(consent,false);
+});
+
+
+test("confirmed email telemetry follows session verification and contains only the derived uid",async()=>{
+ const {deps}=fixture(),events=[];deps.recordEmailVerified=async uid=>{events.push(uid);return true;};
+ const res=response();await handleMaritimeManagerAuth(request('/auth/maritime/confirm?code=fixture-code','GET',undefined,{cookie:'lm-web-auth-code-verifier=fixture-verifier'}),res,deps);
+ assert.equal(res.statusCode,302);assert.deepEqual(events,[`lm_${SUBJECT}`]);
+ const unverified=fixture({user:{...USER,email_confirmed_at:null}});unverified.deps.recordEmailVerified=deps.recordEmailVerified;
+ await handleMaritimeManagerAuth(request('/auth/maritime/confirm?code=fixture-code','GET',undefined,{cookie:'lm-web-auth-code-verifier=fixture-verifier'}),response(),unverified.deps);assert.equal(events.length,1);
+});
+
+
+test("manager activation forwards only sanitized first touch through the existing writer",async()=>{
+ const {deps}=activationFixture(),stored=[];deps.storeFirstTouch=async(uid,attribution)=>{stored.push({uid,attribution});return true;};
+ const csrf=require('./web-auth.js').createWebCsrfToken(`lm_${SUBJECT}`,deps.env.LM_UID_SECRET),res=response();
+ await handleMaritimeManagerActivate(request('/maritime/activate','POST',{consentVersion:'maritime-manager-v1',source:'instagram',attribution:{utm_source:'instagram',utm_medium:'dm',email:'private@example.invalid',token:'private-token'}},{'x-lm-web-csrf':csrf}),res,deps);
+ assert.equal(res.statusCode,202);assert.deepEqual(stored,[{uid:`lm_${SUBJECT}`,attribution:{utm_source:'instagram',utm_medium:'dm'}}]);
+});
+
+test('signup keeps signed first-touch until verification before emitting email event',async()=>{
+ const {deps}=fixture(),signup=response();deps.serializeCookieHeader=(name,value)=>name+'='+value;
+ await handleMaritimeManagerAuth(request('/auth/maritime/email','POST',{email:USER.email,attribution:{utm_source:'instagram',utm_medium:'dm'}}),signup,deps);
+ assert.equal(signup.statusCode,202);
+ const cookies=signup.headers['set-cookie'];assert.ok(cookies);
+ const cookie=Array.isArray(cookies)?cookies.join('; '):cookies;
+ const seen=[];deps.storeFirstTouch=async(uid,attribution)=>{seen.push(['stored',attribution]);return true;};
+ deps.recordEmailVerified=async(uid,opts)=>{seen.push(['event',opts.attribution]);return true;};
+ const confirmed=response();
+ await handleMaritimeManagerAuth(request('/auth/maritime/confirm?code=fixture-code','GET',undefined,{cookie:'lm-web-auth-code-verifier=fixture; '+cookie}),confirmed,deps);
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(confirmed.headers.location,'/maritime?verified=1');
+ assert.deepEqual(seen.map(row=>row[0]),['stored','event']);assert.equal(seen[1][1].utm_source,'instagram');
+});
+
+test('authenticated return failure records an unconfirmed observation without changing HTTP success',async()=>{
+ const {deps}=fixture(),logs=[];deps.managerStore={read:async()=>null};
+ deps.distributionStore={recordAnonymousEvent:async()=>true};deps.recordReturn=async()=>false;
+ deps.writeUsageDiagnostic=row=>logs.push(row);const res=response();
+ await handleMaritimeManagerPage(request('/maritime'),res,deps);await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(res.statusCode,200);assert.equal(logs[0].event,'returned');assert.equal(logs[0].error_class,'usage_store_unconfirmed');
+ assert.doesNotMatch(JSON.stringify(logs),/person@|lm_11111111/);
 });
