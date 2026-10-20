@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "host_dependencies": [
+    {
+      "file": "skills/self/capafy-loop/capafy-loop-daily.sh",
+      "boundary": "personal dotenv/source origin/owner prompt/Telegram",
+      "resolution": "Cloud delegates before personal reads to T09 adapter",
+      "status": "source_changed_not_deployed"
+    },
+    {
+      "file": "skills/capafy-autopublish/scripts/daily_loop.sh",
+      "boundary": "state fallback and dotenv",
+      "resolution": "Cloud requires explicit state/workspace/catalog and skips dotenv",
+      "status": "source_changed_not_deployed"
+    },
+    {
+      "file": "skills/capafy-autopublish/scripts/daily_loop.sh",
+      "boundary": "stat -f %m lock age",
+      "resolution": "Linux fixture still required in T08",
+      "status": "unverified"
+    },
+    {
+      "file": "skills/capafy-autopublish/scripts/cloud_cycle.py",
+      "boundary": "tenant runner adapter",
+      "resolution": "T09 implementation pending",
+      "status": "not_implemented"
+    },
+    {
+      "file": "skills/capafy-autopublish/scripts/key_health_gate.sh",
+      "boundary": "child dotenv credentials and owner funding alert",
+      "resolution": "Cloud does not read dotenv or send Telegram; caller receives failure status",
+      "status": "source_changed_not_deployed"
+    }
+  ],
+  "linux_runtime": null,
+  "browser_attach": null,
+  "provider_auth": null,
+  "prepare": null,
+  "finish": null,
+  "readback": null,
+  "limitations": [
+    "Focused host-boundary tests use local provider fixtures; no real Cloud factory or provider effect verified."
+  ],
+  "maritime_account_status": "signup_email_verification_pending",
+  "cloud_browser_observation": {
+    "existing_steel_base": "http://steel-browser.railway.internal:8080",
+    "maritime_reachability": "unverified_private_network_boundary",
+    "candidates": [
+      "reuse existing Capafy browser-owner with official Linux CloakBrowser binary",
+      "official Maritime Computers integration; plan/cost and factory compatibility unverified"
+    ]
+  },
+  "cloud_model_observation": {
+    "existing_runner_providers": [
+      "codex",
+      "claude",
+      "claude-direct"
+    ],
+    "current_application_route": "local profile alias acct1",
+    "portable_tenant_route": "unverified",
+    "founder_auth_profiles_copied": false
+  }
+}

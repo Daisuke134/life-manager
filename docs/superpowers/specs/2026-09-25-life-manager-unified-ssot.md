@@ -20636,7 +20636,7 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 
 **TODO順変更:** 旧=一業務readiness→Cloud→入口→3人pilot→packet→1,000人。新=下記atomic ID順、提出経路確認T01・配布文案T24・台本T25は即着手可能。理由はDaisが知人DMを担当し、利用者feedbackを待たず実装・素材・提出準備を進められるため。先に試せる製品と正式必須項目を揃えて提出し、改善と獲得を継続する。全体統括cursorと進行中provider effectは変更しない。
 
-**Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細・file tree・signature・focused acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。同plan内のcheckboxは実装手順で、状態判定は本節を正とする。現在cursor=T06（email登録/開始画面）。T05 sourceはterminal jobを分離して42/42 PASS、全14 checks PASS、#8399/main e3e02c206dへ統合済み。T04はPKCE限定、28/28 PASS、全14 checks PASS、#8398/main286e982bfeへ統合済み。T01は公式channel確認済みだがform/期限時刻は未公表の外部条件として継続確認。T03はmain統合済みで実DB適用はT22。T02はmain統合済み。T03の実環境適用順は変更しない。正式提出は未実施。
+**Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細・file tree・signature・focused acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。同plan内のcheckboxは実装手順で、状態判定は本節を正とする。現在cursor=T07（Cloud host境界のmain統合待ち）。T06は#8401/main bcf87319aa、関連54/54・全14 checks PASSでsource統合済み。T08のaccount/browser/model route preflightを並行している。T05 sourceはterminal jobを分離して42/42 PASS、全14 checks PASS、#8399/main e3e02c206dへ統合済み。T04はPKCE限定、28/28 PASS、全14 checks PASS、#8398/main286e982bfeへ統合済み。T01は公式channel確認済みだがform/期限時刻は未公表の外部条件として継続確認。T03はmain統合済みで実DB適用はT22。T02はmain統合済み。T03の実環境適用順は変更しない。正式提出は未実施。
 
 | ID | 一件の成果物 | 状態/依存 |
 |---|---|---|
@@ -20645,9 +20645,9 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | T03 | enrollment DB/storeの一uid一row・一provision claim | source完了。6/6 PASS、独立review指摘修正、全14 checks PASS。#8397/main f3f5e02564、実DB未適用 |
 | T04 | Supabaseのemail認証専用handler | source完了。#8398/main 286e982bfe、関連28/28・全14 checks PASS。既存Google guard維持、PKCE限定。productionのemail設定/配送はT32 |
 | T05 | 本人POST activateから一度だけenqueue | source完了。#8399/main e3e02c206d、関連42/42・全14 checks PASS。GET/CSRF/cap/停止/unknownは起動しない。実adapterはT11 |
-| T06 | email登録が主CTAのcampaign入口 | source実装。旧Telegram guardから分離、日英email/開始UIと状態表示。Manager専用consent version、関連54/54 PASS。公開flagは未変更 |
-| T07 | Capafy既存factoryへtenant state/build path注入 | T02後 |
-| T08 | Linux browser/provider accountのreadinessとtenant binding | T07後、secret値を記録しない |
+| T06 | email登録が主CTAのcampaign入口 | source完了。#8401/main bcf87319aa、関連54/54・全14 checks PASS。Manager専用consent、公開flagは未変更 |
+| T07 | Capafy既存factoryへtenant state/build path注入 | source実装/#8402。reviewで子gateのdotenv/owner通知とrunner workdir上書きを検出し、実gate/runner回帰4件RED→GREEN。host8/8・既存gate14/14 PASS。T09未実装/本番未適用 |
+| T08 | Linux browser/provider accountのreadinessとtenant binding | preflight中。Maritime本体signupはメール確認待ち。SteelはRailway private DNS。既存runnerはlocal Codex/Claude profile依存を確認。Linux/認証/専用routeの実証は未完 |
 | T09 | tenant envで既存factoryを一回呼ぶcloud_cycle.py | T07/T08後 |
 | T10 | 同tenant公式Capafy snapshot→FinancialRecord | T09後 |
 | T11 | 既存queue/leaseへmanager.cycle adapter登録 | T09/T10後 |
@@ -20673,7 +20673,7 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | T31 | email利用者の任意paid upgradeを既存Stripeへ接続しLM自身の売上を照合 | 無料pilot/提出を妨げずT23後。顧客事業売上とStripe subscription売上を別集計 |
 | T32 | 既存SupabaseへResend SMTP/email enable/正確なcallbackを設定しowned inbox着信確認 | 実環境完了。設定GETとowned inbox着信を確認、認証件名/宛先/新規時刻照合済み。email=true/confirm必須/既存Googleとredirect保持。safe receipt=smtp-readback.json。browser全経路はT22 |
 
-**計画訂正:** 旧T12=root Dockerfile、新T12=専用subfolder+sanitized ZIP。Railwayがroot Dockerfileを自動検出し既存life-callのbuildを変えるため訂正する。T32はT04後に独立して実行し、T22の依存へ追加する。T12→T13の逆依存もT13→T14→T12へ訂正し、CMD対象sourceが存在してからbuildする。現在cursor=T06、進行中provider effectはない。詳細file/command/期待結果はAtomic Implementation Planを参照。
+**計画訂正:** 旧T12=root Dockerfile、新T12=専用subfolder+sanitized ZIP。Railwayがroot Dockerfileを自動検出し既存life-callのbuildを変えるため訂正する。T32はT04後に独立して実行し、T22の依存へ追加する。T12→T13の逆依存もT13→T14→T12へ訂正し、CMD対象sourceが存在してからbuildする。現在cursor=T07。T32の設定/着信は確認済み。Maritime本体signupはメール確認待ちで、VM/業務effectは未実施。詳細file/command/期待結果はAtomic Implementation Planを参照。
 
 **技術判断:** custom imageで同じfactoryを使う。中央Railwayの既存queue workerがMaritimeのdetached execへ一回dispatchしexecutionIdを回収する。VMはtenant限定tokenでwake relayへ通知し、Supabase service-roleを持たない。Keikiはemail/schedule/APIを持つが、既存Resend/CFOを置換する必須依存にしない。Maritime SDKのprovision既定OpenClawをcustom imageへ流用せず公式REST契約を使う。全14loops移植・新しいpublisher/router/schedulerは初週必須作業にしない。
 
