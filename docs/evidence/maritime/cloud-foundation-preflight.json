@@ -5,12 +5,15 @@
     "head": "5932044b9a77a9a74f9b202449fa01de0f4a4c88",
     "ci_registered": 14,
     "ci_success": 13,
-    "ci_pending": "Loop control contracts: queued, no runner assigned",
+    "ci_pending": "historical: Loop control cancelled by GitHub hosted-runner capacity",
     "merged": false,
     "focused_node_tests": 94,
     "focused_worker_tests": 12,
     "browser_python_tests": 15,
-    "review_important_remaining": 0
+    "review_important_remaining": 0,
+    "follow_up_head": "ec72b7eede8dfb20ada2fa593402e04474c6c645",
+    "follow_up_change": "same Loop control tests, standard macos-15-intel runner",
+    "follow_up_ci_verified": false
   },
   "railway": {
     "runtime_jobs_present": true,
