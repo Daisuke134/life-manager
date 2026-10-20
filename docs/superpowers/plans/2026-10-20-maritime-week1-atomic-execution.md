@@ -242,7 +242,7 @@ life-manager/
 
 **Files:** Create `skills/capafy-autopublish/scripts/cloud_cycle.py`、`skills/capafy-autopublish/test/test_cloud_cycle.py`。既存factory/runnerを呼ぶ。
 **Interfaces:** CLI `python3 .../cloud_cycle.py --tenant <uid> --occurrence <id> --date YYYY-MM-DD`。envにstate/build workspace/binding参照。stdoutは`CycleResult`一件、raw prompt/secretなし。
-**Depends:** T07/T08。
+**Depends:** T07/T08。T08の認証待ち中はsourceを先行し、実環境受入をT08より先に完了扱いしない。`run_cycle(tenant_id,occurrence_id,date_key,*,env,data_root,runner)`を定義し、Cloud専用`AGENT_RUNNER_CONFIG`を必須にする。既存Local configへfallbackしない。
 
 - [ ] T09.1 test `cycle_calls_existing_factory_once_and_scopes_workspace`を定義。spawn先が既存entry、cwd/stateがtenant以下、timeout後の外部effectはunknownというassertを置く。
 - [ ] T09.2 wrapperは既存`run_agent.sh`へ`--task-class application-lane-agent --evidence-dir /data/<tenant>/evidence/<occurrence> --task-label maritime:<occurrence> --loop capafy --schema /app/skills/self/capafy-loop/capafy-loop-pass.schema.json --workdir /data/<tenant>/build --print-result`を渡す。stdinには既存factory skillと同tenant binding/receiptから作る業務promptを渡す。modelによる案件選択・original商品生成を既存runnerへ任せ、第二のpublisher/固定ニッチ選択器を作らない。既存pass JSONをwrapperでCycleResultへ変換し、stdoutへraw runner logを混ぜない。
