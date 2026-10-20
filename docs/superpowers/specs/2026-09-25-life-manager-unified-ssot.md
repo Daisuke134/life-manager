@@ -16125,6 +16125,24 @@ REDebbd5af252→GREEN0e8f071c0eはcore guardも証明済みsell/nofill closedか
 
 **現在cursor:** PR #8450 exact-head CIとmain統合 → live historical `effect_unknown` fence/10 fillsのofficial request-ID付き照合 → winner候補の検証。winnerの宣伝文句やbacktestだけで採用せず、一次ソースで再現できる期間・fee/slippage・benchmark・最大drawdownを保存する。現在の実口座損益はマイナスで、Life Manager帰属利益は未確認。
 
+#### 2026-10-21 08:27 JST — Exact live-fence order readback and lineage gap
+
+**As-Is（2026-10-20 23:26:59Z、official Alpaca GET only）:**
+- 既存`effect_reconcile.build_proof()`でfenced occurrence `alpaca-investment-live:18d9e6f979d18818-14709`（queued_at `2026-09-29T21:08:06Z`）を照合した。`status=all&after=<queued_at>&limit=500&direction=asc`はHTTP応答に実request IDあり、4 orders、`status=open&limit=500`は実request IDあり、0 orders。4件はBTC/USDCのfilled buy 2/sell 2（9/30・10/1）。結果`verified=false`, `orders_present:after=4,open=0`。owner/admission/providerへの変更0。private raw evidence: `~/.local/state/life-manager/investment-repair/evidence/alpaca-live-fence-readback-20261020T232659.json`、SHA256=`a121340d89c686f3c6817e7d09c7f54577edc66f5392812ed011c71ffe8eee3d`。
+- fresh account historyとlocal stateを突き合わせても、これら4 late ordersのclient/provider IDはlive `receipts.jsonl`、他のlive/paper/validation/investment-repair artifactsのlocal decision/intentへ結び付かない。10 account orders中、過去canaryには4件のlocal planned-intent候補があるが、それらは9/9と9/24のペアであり、`mode=live`以外の`owner_id`・`strategy_id`・`release_sha`・`native_trading_account_id`・`policy_card`が欠落する。残る6件（9/10、9/30、10/1の各ペア）にはlocal intent matchが無い。従って4 late ordersをfenced occurrenceへ帰属できず、fenceは未解決のまま保つ。
+- official account-level損益は前節どおり`-$0.26019305`。Life Manager strategy別の損益は帰属未確定。実口座はcash/buying power `$0`、live owner disabled。
+
+**現在cursorとTODO順:**
+1. [ ] PR #8450の最新head `82cbeb7e`でrequired CIを通し、specをmainへ統合する。
+2. [ ] 10件のlive注文とlocal receipt/decisionをさらに照合し、owner/strategy/releaseが欠けた履歴の不足箇所を確定する。4 late ordersを既存fenceへ推測で結び付けない。正確な過去帰属を復元できなければその事実を残し、同じ口座でliveを再開しない。
+3. [ ] 次のlive注文より前に、既存submit経路が`owner_id/occurrence_id/mode/strategy_id/release_sha/native_account/client_order_id/provider_order_id/request_id`を保存する契約と現行コードを照合し、欠ける境界があればsource fix＋回帰を入れる。注文前のintentとprovider responseを同じrunへ結び、曖昧な結果はfencedのままにする。
+4. [ ] 一次情報と再現可能な実績からwinner候補を1つ選び、after-cost return・benchmark・drawdown・期間を記録する。その候補に対する自然validation reportを確認し、条件を満たさなければ発注しない。
+5. [ ] 現行risk/duplicate/loss capsと、USDCUSD保有から実際に使えるbuying powerの経路を確定する。新規入金は前提にしない。
+6. [ ] historical fenceが正当に解決し、strategyとrisk gateが通った場合だけ、同じローカル実装経路で小規模live pilotを始める。paperの損益を実績に数えず、実fill/fee/slippage/model/system costからreal netを判定する。
+7. [ ] 30件のcost-complete live round tripsとbenchmark超過のpositive netが揃うまで規模を拡大しない。ここまでの実績ができてから残高projectionや他venueを検討する。
+
+**順序変更の理由:** live fence readbackでqueued後の4 filled ordersを確認し、0 openだけではeffectを閉じられないと判明した。以前の`live fence照合 → winner選定`から、`fence後の4 ordersのlocal lineage有無を確定 → 今後の注文のowner/strategy/release lineageを保証 → winner候補を評価`へ進める。現在口座の損失をaccount-levelで確認できても、注文がLife Managerに帰属しないままliveへ戻せば同じ監査不能を繰り返す。
+
 ### 2026-10-09 13:18 JST — Job Hunter Dreamwork cutover and updated user criteria
 
 この追記は11:50 JST snapshot後のJob Hunter readbackとユーザーの最新指示を記録する。個別の勤務地・住所などの私的値はprivate profileのみを正本とし、このspecには複製しない。
