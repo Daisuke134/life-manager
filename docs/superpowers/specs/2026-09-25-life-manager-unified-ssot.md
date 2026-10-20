@@ -15990,7 +15990,9 @@ REDebbd5af252→GREEN0e8f071c0eはcore guardも証明済みsell/nofill closedか
 
 **TODO順更新:** 旧=`admission修正release → natural validation → BTC report/errorを判定`。新=`(1) validation reader/runnerのtyped failure reasonとUTC chunk windowをRED/GREENで保存 → (2) focused Alpaca/runner回帰・loop contract・source review/CI/main → (3) main由来immutable releaseからvalidation ownerだけをloaded-idleで採用し、queued sequence/effect_unknown 0をreadback → (4) 次の自然validationのreportまたはtyped errorで正確なfailure causeを確定 → (5) 原因に応じてreader/data windowを直し、fresh BTC V2 reportがpassしなければNO_TRADE → (6) paperの自然HOLD/EXIT/ENTRYと公式readbackを再評価`。**順序変更理由:** 初回自然runはcapacity gateを通過したが、runnerがBTC input failureをgeneric codeに畳んでexit 1となり、同じ入力の反復では原因を狭められないため。最新main `a469cda1`のvalidatorをowner-loaded SHAへ反映する次のsource atomは、この区別可能な証拠を先に保存する。**ソース実行記録:** REDでmissing barのreason_code、後半6時間chunkのUTC window、run_onceへのdiagnostic伝達が不足することを確認する。GREENではreaderがallowlist reason codeと期待/実件数など安全な数値情報を返し、runnerが失敗chunkのUTC start/endと併せて保存する。raw bar、口座、credentialは出力しない。focused reader/runner 38 tests/13 subtestsと投資skill全727 testsがPASS。これはdiagnostic source受入で、actual crypto data cause/BTC strategy report/利益は未確定。
 
-**現在cursor:** branch `fix/investment-btc-validation-diagnostics-20261021`（base `a469cda1`）の`git diff --check`/source-boundaryとdiff review → commit/push → exact-head CI/independent review。main releaseへ反映するまでnatural retryやprovider readを手動発行しない。
+**ソース実行記録:** diagnostics source commit `ee3038d7`をlatest `origin/main=e1e09492`へmerge commit `22e4bc63`で同期した。reader/runner testsと投資skill全727 testsは同期前headでPASS。validation ownerはimmutable `a469cda1`をloaded、effect_unknown 0、自然runはETF reportのみ/crypto report 0で`entrypoint_exit_1`。診断修正はまだimmutable releaseへ未反映。
+
+**現在cursor:** latest-main同期後の`git diff --check`/source-boundaryとdiff review → commit/push → exact-head CI/independent review → main統合とdiagnostic release → validation owner target-only apply → 次の自然runでreason/windowを確認。手動wake、provider read、注文、selection上書き、unknown fence解除はしない。
 
 ### 2026-10-09 13:18 JST — Job Hunter Dreamwork cutover and updated user criteria
 
