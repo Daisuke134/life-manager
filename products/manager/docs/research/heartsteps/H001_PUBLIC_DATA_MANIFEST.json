@@ -1,0 +1,232 @@
+{
+  "schema_version": 1,
+  "task_id": "H001",
+  "reviewed": "2026-10-20",
+  "raw_data_downloaded": false,
+  "source": {
+    "repository": "klasnja/HeartStepsV1",
+    "url": "https://github.com/klasnja/HeartStepsV1",
+    "commit_sha": "3016391de426116bdef41880d72bc8cd4b9b2477",
+    "readme_blob_sha": "1a8256ed1e99fea2490521cb807e32faca33830b",
+    "license_blob_sha": "10fabd90118f7ce38bb2e4753e105e744442a429",
+    "wiki_url": "https://github.com/klasnja/HeartStepsV1/wiki/Documentation-for-suggestions.csv",
+    "wiki_revision": "GitHub wiki page shows edited 2023-07-17; not cryptographically pinned",
+    "original_paper": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6401341/",
+    "author_analysis_code": "https://github.com/StatisticalReinforcementLearningLab/HeartstepsV1Code/blob/c077c86d20b5d9cfa937f7ed1720172d726ba9a0/Main%20Effects%20Analysis.R"
+  },
+  "rights": {
+    "repository_license": "CC-BY-4.0",
+    "license_url": "https://github.com/klasnja/HeartStepsV1/blob/main/LICENSE",
+    "credit_required": true,
+    "mark_modifications_required": true,
+    "local_research": "allowed_with_conditions",
+    "redistribution": "hold",
+    "commercial_or_deployed_behavior_model": "hold",
+    "independent_consent_review_required": true,
+    "paper_not_under_data_license": true,
+    "analysis_code_license_unconfirmed": true
+  },
+  "data_handling": {
+    "persist_subject_rows": false,
+    "include_in_public_git": false,
+    "publish_in_blog": false,
+    "use_for_public_manager_person_profiles": false,
+    "allowed_this_task": "read and cite public schemas, licensing and aggregate metadata only"
+  },
+  "population": {
+    "recruited_in_paper": 44,
+    "analyzed_in_paper": 37,
+    "duration_weeks": 6,
+    "decisions_per_person_per_day_max": 5,
+    "unit_of_analysis": "person-decision point; repeated decisions grouped by participant",
+    "source_for_analyzed_counts": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6401341/"
+  },
+  "tables": [
+    {
+      "path": "data_files/suggestions.csv",
+      "git_blob_sha": "67a55efd4d79e1f5646bdb26277f37ec988e2403",
+      "bytes": 4371854,
+      "reported_rows": 8274,
+      "reported_columns": 86,
+      "row_status": "upstream_readme_claim_unverified_against_raw",
+      "role": "trial decisions, action indicators, pre/post aggregate steps",
+      "recommended": "schema-only H001; H002 read-only controlled retrieval"
+    },
+    {
+      "path": "data_files/users.csv",
+      "git_blob_sha": "5ac3076f0cbf9c840308e766ea87db80671dada8",
+      "bytes": 21610,
+      "reported_rows": 37,
+      "reported_columns": 117,
+      "role": "demographics and participant surveys",
+      "recommended": "do not ingest in initial reproduction; README/Wiki column mismatch"
+    },
+    {
+      "path": "data_files/jbsteps.csv",
+      "git_blob_sha": "1a8da5a8e3cbd9126cc624f0ff3b59a1570dd4cf",
+      "bytes": 17652097,
+      "reported_rows": 237865,
+      "reported_columns": 10,
+      "role": "minute-level Jawbone steps",
+      "recommended": "no initial ingestion; README/Wiki column mismatch"
+    },
+    {
+      "path": "data_files/gfsteps.csv",
+      "git_blob_sha": "3fbe7a1e4555282414e579f2ba4f3380856a2b3c",
+      "bytes": 10021829,
+      "reported_rows": 197524,
+      "reported_columns": 7,
+      "role": "minute-level Google Fit steps",
+      "recommended": "no initial ingestion; README/Wiki column mismatch"
+    }
+  ],
+  "candidate_columns": [
+    {
+      "name": "user.index",
+      "purpose": "pseudonymous participant grouping",
+      "privacy_note": "use solely to identify within-person repeated decisions",
+      "source_url": "https://github.com/klasnja/HeartStepsV1/wiki/Documentation-for-suggestions.csv",
+      "verified_in_csv": false
+    },
+    {
+      "name": "decision.index",
+      "purpose": "unique decision index within participant",
+      "privacy_note": "do not mistake for a person count",
+      "source_url": "https://github.com/klasnja/HeartStepsV1/wiki/Documentation-for-suggestions.csv",
+      "verified_in_csv": false
+    },
+    {
+      "name": "decision.index.nogap",
+      "purpose": "decision ordering adjusted for travel-day gaps",
+      "privacy_note": "needs raw header confirmation",
+      "source_url": "https://github.com/klasnja/HeartStepsV1/wiki/Documentation-for-suggestions.csv",
+      "verified_in_csv": false
+    },
+    {
+      "name": "sugg.select.slot",
+      "purpose": "intended user-selected intervention slot",
+      "privacy_note": "do not assume equals delivery time",
+      "source_url": "https://github.com/klasnja/HeartStepsV1/wiki/Documentation-for-suggestions.csv",
+      "verified_in_csv": false
+    },
+    {
+      "name": "sugg.decision.slot",
+      "purpose": "actual decision slot",
+      "privacy_note": "may differ from selected slot due to device/time zone",
+      "source_url": "https://github.com/klasnja/HeartStepsV1/wiki/Documentation-for-suggestions.csv",
+      "verified_in_csv": false
+    },
+    {
+      "name": "avail",
+      "purpose": "whether intervention could be offered at the moment",
+      "privacy_note": "not the randomized action",
+      "source_url": "https://github.com/klasnja/HeartStepsV1/wiki/Documentation-for-suggestions.csv",
+      "verified_in_csv": false
+    },
+    {
+      "name": "is.randomized",
+      "purpose": "indicator describing random selection at decision point",
+      "privacy_note": "do not equate with suggestion being delivered",
+      "source_url": "https://github.com/klasnja/HeartStepsV1/wiki/Documentation-for-suggestions.csv",
+      "verified_in_csv": false
+    },
+    {
+      "name": "send",
+      "purpose": "whether a notification was sent",
+      "privacy_note": "must reconcile with randomized arm coding",
+      "source_url": "https://github.com/klasnja/HeartStepsV1/wiki/Documentation-for-suggestions.csv",
+      "verified_in_csv": false
+    },
+    {
+      "name": "send.active",
+      "purpose": "indicator for walking suggestion",
+      "privacy_note": "context dependent: verify semantics against code",
+      "source_url": "https://github.com/klasnja/HeartStepsV1/wiki/Documentation-for-suggestions.csv",
+      "verified_in_csv": false
+    },
+    {
+      "name": "send.sedentary",
+      "purpose": "indicator for anti-sedentary suggestion",
+      "privacy_note": "context dependent: verify semantics against code",
+      "source_url": "https://github.com/klasnja/HeartStepsV1/wiki/Documentation-for-suggestions.csv",
+      "verified_in_csv": false
+    },
+    {
+      "name": "jbsteps30",
+      "purpose": "Jawbone steps in postdecision 30-min window",
+      "privacy_note": "raw/missing semantics require explicit review",
+      "source_url": "https://github.com/klasnja/HeartStepsV1/wiki/Documentation-for-suggestions.csv",
+      "verified_in_csv": false
+    },
+    {
+      "name": "jbsteps30.zero",
+      "purpose": "30-min Jawbone steps with missing imputed as zero",
+      "privacy_note": "not raw observed zero",
+      "source_url": "https://github.com/klasnja/HeartStepsV1/wiki/Documentation-for-suggestions.csv",
+      "verified_in_csv": false
+    },
+    {
+      "name": "jbsteps30pre",
+      "purpose": "pre-decision 30-min Jawbone steps",
+      "privacy_note": "note wording differences in wiki",
+      "source_url": "https://github.com/klasnja/HeartStepsV1/wiki/Documentation-for-suggestions.csv",
+      "verified_in_csv": false
+    },
+    {
+      "name": "jbsteps30pre.zero",
+      "purpose": "pre-decision steps with NA imputed zero",
+      "privacy_note": "do not confuse missing with true zero",
+      "source_url": "https://github.com/klasnja/HeartStepsV1/wiki/Documentation-for-suggestions.csv",
+      "verified_in_csv": false
+    },
+    {
+      "name": "connect",
+      "purpose": "network connectivity at decision time",
+      "privacy_note": "disconnection can alter availability/missingness",
+      "source_url": "https://github.com/klasnja/HeartStepsV1/wiki/Documentation-for-suggestions.csv",
+      "verified_in_csv": false
+    },
+    {
+      "name": "is.prefetch",
+      "purpose": "fallback context prefetched 30 minutes earlier",
+      "privacy_note": "context can be stale",
+      "source_url": "https://github.com/klasnja/HeartStepsV1/wiki/Documentation-for-suggestions.csv",
+      "verified_in_csv": false
+    }
+  ],
+  "do_not_ingest_initially": [
+    "users.csv",
+    "jbsteps.csv",
+    "gfsteps.csv",
+    "dec.city",
+    "dec.location.exact",
+    "response.city",
+    "response.location.exact",
+    "front.end.application",
+    "returned.message",
+    "sugg.decision.utime",
+    "sugg.response.utime"
+  ],
+  "unresolved_questions": [
+    "README lists users.csv 37×117; Wiki says 37×120. H002 must inspect actual column count, do not select one as ground truth.",
+    "README lists gfsteps.csv 197524×7, jbsteps.csv 237865×10; Wiki says 197524×8 and 237865×11. H002 must verify raw headers.",
+    "The author analysis RData frame has user, decision.utime, study.day.nogap; wiki suggests user.index, sugg.decision.utime and decision.index.nogap in distributed CSV. Exact 1:1 mapping is not established.",
+    "Interpretation of is.randomized vs send vs send.active vs send.sedentary requires inspecting raw coding and published analysis, not guessing treatment arms.",
+    "Original primary analysis uses 6061 points; this cannot be derived simply from README 8274 or wiki avail 6590. Need published exclusion criteria and dataset version match.",
+    "Reconcile missing step data, zero-imputed jbsteps30.zero and true measured zero before treating any observed time series as a causal outcome.",
+    "Check whether 2023 wiki and repository main reflect the original 2019 analyses and whether every distributed column is properly permissioned for offline research."
+  ],
+  "next_task": {
+    "id": "H002",
+    "local_read_only": true,
+    "cloud_raw_backup": false,
+    "automatic_commercial_license": false,
+    "actual_human_impact_proven": false,
+    "expected_operations": [
+      "read-only download from immutable commit and check SHA256",
+      "verify exact CSV header and record count",
+      "inspect metadata only in logs, never print or upload participant rows",
+      "store raw under gitignored local data/raw; no push to GitHub or Library"
+    ]
+  }
+}

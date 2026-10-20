@@ -1,0 +1,10 @@
+flowchart LR
+  A["37人の解析対象者"] --> B["suggestions.csv / 8,274判断時点 / README報告"]
+  B --> C["user.index と decision.index"]
+  C --> D["avail：介入可能性"]
+  D --> E["is.randomized：抽選対象 / send：送信"]
+  E --> F["jbsteps30 / jbsteps30.zero：30分歩数"]
+  B -.-> G["users.csv：属性 / 初回は不使用"]
+  B -.-> H["jbsteps.csv と gfsteps.csv：分単位歩数 / 初回は不使用"]
+  E --> I{"個人の行データを共有しない"}
+  I --> J["H002：read-only + SHA256 + 生CSVヘッダー検証"]

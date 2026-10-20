@@ -100,3 +100,14 @@ All L001–L012 learning tasks are now verified as **synthetic-only, offline lea
 - [Learning-focused verification report](docs/verification/PHASE02_COMPLETE_JA.md)
 
 The PDF and two original Japanese PNG illustrations are stored in ChatGPT Library `/Manager/Phase02`; `scripts/build_phase02_visuals.py` is the reproducible source. They contain no original participant records. Manager has **not** replicated a human RCT or demonstrated net welfare benefits.
+
+## H001: HeartSteps original data structure (read-only metadata review)
+
+- [H001 public dataset and rights review (Japanese)](docs/research/heartsteps/H001_PUBLIC_DATA_REVIEW_JA.md)
+- [Pinned upstream files and minimal column candidates (JSON)](docs/research/heartsteps/H001_PUBLIC_DATA_MANIFEST.json)
+- [H001 first-source investigation (imozuru)](research/imozuru/heartsteps-h001/map.md)
+- [H001 editable data map](docs/visuals/2026-10-20-H001-HeartSteps-Data-Map-JA.mmd)
+- [H001 original PDF/PNG rendering source](scripts/build_h001_visual.py)
+- [H001 verification](docs/verification/H001.md)
+
+H001 does not copy participant CSVs into the public repo or the Manager runtime. Historical row-level data will be considered independently under H002, with privacy and raw-redistribution restrictions.

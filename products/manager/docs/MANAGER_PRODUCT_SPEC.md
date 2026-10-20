@@ -83,3 +83,9 @@ L001/L002 probability and TVD/Brier were already completed and preserved. L003-L
 - Next main dependency task: Phase03 H001 read-only dataset/schema/license review. In parallel S001 (SocSci210 permitted metadata only) and time-critical founder application work are available separately.
 
 No user messaging, private individual profiling, physical actuation, autonomous donations, new external publishing, or execution authority is granted by this phase.
+
+## Phase 03 H001: published HeartSteps metadata, no raw ingestion (2026-10-20)
+
+The upstream `klasnja/HeartStepsV1` main tree at `3016391de426116bdef41880d72bc8cd4b9b2477` contains four released CSV files. `suggestions.csv` (author README: 8,274 decision points × 86 columns) is the initial H002 retrieval candidate. H001 records official Wiki **candidate** column names (identifier, availability, randomization, send, delivered action type, raw and zero-imputed 30-minute steps), CC BY 4.0 repository rights and independent privacy limits, immutable source/blob identifiers, and original article/analysis-code locators. It does **not** ingest participant rows, or assert that the RData source fields match the released CSV without checks.
+
+Unresolved README/Wiki column count conflicts for users.csv, jbsteps.csv, and gfsteps.csv and RData/CSV field-name differences are explicitly recorded at `docs/research/heartsteps/H001_PUBLIC_DATA_REVIEW_JA.md` and machine-readable `H001_PUBLIC_DATA_MANIFEST.json`. H002 must perform separate read-only CSV snapshot/SHA256 and header validation before any analysis. Generated original visual source lives at `scripts/build_h001_visual.py` and accompanying `.mmd`; PNG/PDF stored in ChatGPT Library `/Manager/Phase03/`. Research only. All Manager live execution/beneficiary impact remain absent.
