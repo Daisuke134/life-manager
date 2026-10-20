@@ -1,0 +1,31 @@
+flowchart TB
+  subgraph PUBLIC[公開世界・検証可能な根拠]
+    S[公開情報と一次資料]
+    P[原論文/実験データ/imozuru原文追跡]
+  end
+  subgraph MANAGER[Manager独立カーネル]
+    OBS[Observe: URL/時刻/権利/ハッシュ]
+    STATE[World State: 既知・未知・不確実性]
+    CAUSE[Hypothesize: 問題と因果機構]
+    PLAN[Plan: 介入候補 + NO_ACTION]
+    SIM[Optional simulate: 挙動予測だけ]
+    GATE{Authority + safety + budget}
+    EXEC[Execute: 授権された操作と冪等性]
+    READ[Verify: 外部独立の読み戻し]
+    EVAL[Evaluate: 比較群/効果量/害]
+    LEARN[Learn: held-out確認→更新・rollback]
+  end
+  S --> OBS --> STATE --> CAUSE --> PLAN --> SIM --> GATE
+  P --> CAUSE
+  P --> EVAL
+  GATE -- 未許可/不確実 --> NO[NO_ACTIONと理由記録]
+  GATE -- 許可済み --> EXEC --> READ --> EVAL --> LEARN --> CAUSE
+  subgraph ADAPTERS[交換可能な領域接続]
+    F[財務：公開資金台帳・承認済み資金]
+    H[環境：公開センサー・承認済み設備]
+    Z[別分野：共通の契約を実装]
+  end
+  F -. データ/権限を別に接続 .-> OBS
+  H -. データ/権限を別に接続 .-> OBS
+  Z -. 同じインターフェース .-> OBS
+  EXEC -. 授権された領域内だけ .-> ADAPTERS

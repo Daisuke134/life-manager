@@ -1,0 +1,44 @@
+{
+  "task": "R004",
+  "date": "2026-10-20",
+  "task_status": "done",
+  "completion_scope": "source-backed research artifact; no raw-data replication or live result",
+  "acceptance": {
+    "four_section_locators": true,
+    "original_urls_and_sections": true,
+    "sample_time_method_constraints": true,
+    "primary_secondary_distinction": true,
+    "remaining_questions_retained": true
+  },
+  "checks": [
+    {
+      "command": "python3 tools/imozuru/report.py research/imozuru/heartsteps-r004 --check",
+      "result": "PASS; 4/4 short excerpt locators"
+    },
+    {
+      "command": "python3 -m unittest discover -s tests -v",
+      "result": "PASS; 25 existing offline scaffold tests"
+    },
+    {
+      "command": "R004 acceptance assertions (session audit, not new runtime code)",
+      "result": "PASS; required fields, sample arithmetic, upstream SHA, unchanged manager_core"
+    },
+    {
+      "command": "regenerate and compare task manifest",
+      "result": "Only R004 status changed; all other 68 task records unchanged"
+    }
+  ],
+  "status_counts": {
+    "done": 9,
+    "blocked": 3,
+    "todo": 57
+  },
+  "next_ready_task": "R005",
+  "learner_understanding": "not_inferred",
+  "field_interventions_run": 0,
+  "model_training_run": false,
+  "raw_data_reanalysis_run": false,
+  "github_remote_configured": false,
+  "github_push_performed": false,
+  "script_blob_sha": "493b759fcee8328c3dcfc61ba21148afe5957040"
+}

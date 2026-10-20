@@ -1,0 +1,76 @@
+{
+  "title": "R005 — 原文に戻る：記述的再現と因果忠実度",
+  "question": "どの条件ではLLMは人間を模倣でき、介入効果の推定では何を外すか",
+  "stopped": "Li & Jiの必須論点を原著で確認し、3つの元実験へ参考文献をたどった。追試・機械実行は未実施。",
+  "claims": [
+    {
+      "claim": "集団・条件の範囲",
+      "status": "付いた",
+      "note": "人数・国数はLi & Ji側。元ICCP側の報告数が異なる問題は残る。",
+      "quotes": [
+        {
+          "file": "population.md",
+          "line": 9,
+          "text": "59,508 respondents from 62 countries",
+          "mark": "原著から抽出した短い一致フレーズ",
+          "who": "Li & Ji (2026)",
+          "url": "https://arxiv.org/html/2604.02458v1",
+          "source_section": "Results > Descriptive fit in LLM simulations does not guarantee causal fidelity"
+        }
+      ]
+    },
+    {
+      "claim": "複数モデルのATE推定誤差",
+      "status": "付いた",
+      "note": "モデル別に原著Figure2jの数値を転記。再解析値ではない。",
+      "quotes": [
+        {
+          "file": "baseline.md",
+          "line": 9,
+          "text": "mean absolute ATE error was 9.5",
+          "mark": "原著から抽出した短い一致フレーズ",
+          "who": "Li & Ji (2026)",
+          "url": "https://arxiv.org/html/2604.02458v1",
+          "source_section": "Results > Descriptive fit in LLM simulations does not guarantee causal fidelity"
+        }
+      ]
+    },
+    {
+      "claim": "few-shotで因果誤差が悪化する例",
+      "status": "付いた",
+      "note": "全てのモデルや領域へは一般化しない。",
+      "quotes": [
+        {
+          "file": "failure.md",
+          "line": 9,
+          "text": "from 8.4 p.p. to 44.2 p.p.",
+          "mark": "原著から抽出した短い一致フレーズ",
+          "who": "Li & Ji (2026)",
+          "url": "https://arxiv.org/html/2604.02458v1",
+          "source_section": "Results > Descriptive fit in LLM simulations does not guarantee causal fidelity"
+        }
+      ]
+    },
+    {
+      "claim": "介入メカニズムごとに誤差が違う",
+      "status": "付いた",
+      "note": "規範型の相対的な小さい誤差と、状況想像型の大きな過大評価を並べて記録。",
+      "quotes": [
+        {
+          "file": "mechanism.md",
+          "line": 9,
+          "text": "smallest bias overall",
+          "mark": "原著から抽出した短い一致フレーズ",
+          "who": "Li & Ji (2026)",
+          "url": "https://arxiv.org/html/2604.02458v1",
+          "source_section": "Results > Intervention-level causal error reveals differential sensitivity across outcomes"
+        }
+      ]
+    }
+  ],
+  "unreached": [
+    "Li & Ji原論文のコードと元の個票は本環境では検証・再実行していない",
+    "Vlasceanu元実験とLi & Jiの報告した集団数の差は未照合",
+    "imozuru fetch.py/chain.pyではなくFirecrawlとGitHubの一次資料を使い、公式report.pyを使って短い抜き書きを照合した"
+  ]
+}

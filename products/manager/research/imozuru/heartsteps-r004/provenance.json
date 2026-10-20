@@ -1,0 +1,67 @@
+{
+  "task_id": "R004",
+  "checked_date": "2026-10-20",
+  "mode": "read_only_research",
+  "baseline_commit": "275cd4a7cb6c893692ee5c0939b71a84a72e6cd4",
+  "sources": [
+    {
+      "id": "HS_MAIN",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6401341/",
+      "doi": "10.1093/abm/kay067",
+      "reading_scope": "Full main article: Methods, Results, Discussion, Limitations, references; abstract-only reading not used.",
+      "retrieval": "Firecrawl markdown; web HTML and publisher PDF text",
+      "scrape_id": "01a157ea-8677-70b9-a682-b4ff8c23fa82",
+      "http_status": 200,
+      "saved_representation": "4 short excerpt locators with original interpretive notes; no full-text redistribution"
+    },
+    {
+      "id": "HS_SUPP",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/instance/6499406/bin/kay067_suppl_supplementary_materials.docx",
+      "reading_scope": "Supplement I–V including reported coefficient tables",
+      "retrieval": "Firecrawl DOCX-to-markdown",
+      "scrape_id": "01a157eb-49db-75eb-b920-3a07d8edfcf0",
+      "http_status": 200,
+      "limitation": "Some extracted formula/table labels are missing; discrepancies explicitly retained; no native DOCX visual verification"
+    },
+    {
+      "id": "HS_DATA_README",
+      "url": "https://github.com/klasnja/HeartStepsV1/blob/main/README.md",
+      "blob_sha": "1a8256ed1e99fea2490521cb807e32faca33830b",
+      "reading_scope": "Full author README; raw CSV not loaded"
+    },
+    {
+      "id": "HS_ANALYSIS",
+      "url": "https://github.com/StatisticalReinforcementLearningLab/HeartstepsV1Code/blob/c077c86d20b5d9cfa937f7ed1720172d726ba9a0/Main%20Effects%20Analysis.R",
+      "commit": "c077c86d20b5d9cfa937f7ed1720172d726ba9a0",
+      "blob_sha": "ccbace92170c68f56dddd40bbac36d88410d8738",
+      "reading_scope": "Main Effects Analysis.R lines 1–240 including data filtering and model1/model2",
+      "limitation": "Inspected code, not executed; no claim this commit is the paper-release snapshot; expects RData inputs not acquired here"
+    },
+    {
+      "id": "BORUVKA",
+      "url": "https://arxiv.org/abs/1601.00237",
+      "doi": "10.1080/01621459.2017.1305274",
+      "reading_scope": "Reference metadata and abstract only; estimation details taken from HS_SUPP and HS_ANALYSIS",
+      "limitation": "Firecrawl research passage retrieval returned empty; no claim of full-paper read"
+    }
+  ],
+  "imozuru": {
+    "upstream": "MaryCache/imozuru",
+    "skill_pin": "4f8fec7b686750c0c4083336691bdc6ea075aa32",
+    "report_git_blob_sha": "493b759fcee8328c3dcfc61ba21148afe5957040",
+    "report_execution": "4 of 4 excerpt locators passed with unmodified upstream report.py on 2026-10-20",
+    "source_files_are_excerpts_not_full_originals": true,
+    "fetch_and_chain_execution": false,
+    "fallback": "Firecrawl + connected GitHub; direct container DNS failed"
+  },
+  "unperformed": [
+    "model_training",
+    "raw_csv_analysis",
+    "effect_replication",
+    "participant_contact",
+    "live_intervention",
+    "publication",
+    "github_push"
+  ],
+  "user_understanding": "not_inferred"
+}

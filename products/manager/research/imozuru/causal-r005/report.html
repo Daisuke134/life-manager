@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>R005 — 原文に戻る：記述的再現と因果忠実度 抜き書き</title><style>
+:root{--bg:#f6efd3;--ink:#2e1703;--sub:#6b4a26;--accent:#814e0d;--card:#fbf7e8;--line:#e2cf9f;--hit:#efdcab}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#1f1710;--ink:#f1e6cc;--sub:#c9b28a;--accent:#e0a85a;--card:#2a2016;--line:#4a3a26;--hit:#4a3820}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans JP","Hiragino Sans","Yu Gothic UI",sans-serif;line-height:1.85;font-size:16px}
+main{max-width:46rem;margin:0 auto;padding:2.5rem 1rem 5rem}
+h1{font-size:1.6rem;margin:0 0 .5rem;letter-spacing:.02em}
+h2{font-size:1.2rem;margin:3rem 0 .4rem;padding-top:1rem;border-top:1px solid var(--line)}
+.lead{color:var(--sub);margin:.2rem 0}
+.status{display:inline-block;font-size:.8rem;padding:.05rem .55rem;border-radius:99px;border:1px solid var(--accent);color:var(--accent);margin-left:.5rem;vertical-align:middle}
+.status.none{border-style:dashed;color:var(--sub);border-color:var(--sub)}
+.note{color:var(--sub);font-size:.95rem}
+.quote{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:1rem 1.1rem;margin:1rem 0}
+blockquote{margin:0;padding-left:.9rem;border-left:3px solid var(--accent);white-space:pre-wrap}
+.who{font-weight:600;margin-bottom:.4rem}
+.ja{margin:.6rem 0 0;color:var(--sub)}
+.tag{font-size:.75rem;border:1px solid var(--sub);border-radius:4px;padding:0 .3rem;margin-right:.4rem}
+figcaption{margin-top:.6rem;font-size:.8rem;color:var(--sub);display:flex;flex-wrap:wrap;gap:.5rem}
+code{font-family:ui-monospace,"Cascadia Code",monospace;font-size:.78rem}
+.mark{color:var(--accent)}
+details{margin-top:.5rem;font-size:.8rem}
+summary{cursor:pointer;color:var(--sub)}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:.78rem;line-height:1.6;max-height:22rem;overflow:auto;margin:.4rem 0 0}
+pre span{display:block}
+pre span.hit{background:var(--hit)}
+pre b{display:inline-block;min-width:3em;color:var(--sub);font-weight:400}
+ul.unreached li{margin:.2rem 0}
+footer{margin-top:4rem;font-size:.8rem;color:var(--sub)}
+</style></head>
+<body><main>
+<h1>R005 — 原文に戻る：記述的再現と因果忠実度</h1>
+<p class="lead">問い: どの条件ではLLMは人間を模倣でき、介入効果の推定では何を外すか</p>
+<p class="lead">止めた理由: Li &amp; Jiの必須論点を原著で確認し、3つの元実験へ参考文献をたどった。追試・機械実行は未実施。</p>
+<p class="note">ここに並ぶ引用は、すべて原文をそのまま切り出したもの（機械で照合済み）。エージェントが書いたのは見出し・状態・注記・「訳」だけ。要約はしていない。</p>
+<h2>集団・条件の範囲<span class="status">付いた</span></h2>
+<p class="note">人数・国数はLi &amp; Ji側。元ICCP側の報告数が異なる問題は残る。</p>
+<figure class="quote">
+<div class="who">Li &amp; Ji (2026)</div>
+<blockquote>59,508 respondents from 62 countries</blockquote>
+<figcaption><code>population.md:9</code> <span class="mark">原著から抽出した短い一致フレーズ</span></figcaption>
+<details><summary>前後を読む（3〜13行）</summary><pre><span class=""><b>3</b> 原典URL: https://arxiv.org/html/2604.02458v1</span><span class=""><b>4</b> 原著内のセクション: Results &gt; Descriptive fit in LLM simulations does not guarantee causal fidelity</span><span class=""><b>5</b> 対象: Li &amp; Ji 2026 ICCP、62か国・59,508人</span><span class=""><b>7</b> ## 短い原文抜き書き（原著の連続箇所を直接目視確認）</span><span class="hit"><b>9</b> 59,508 respondents from 62 countries</span><span class=""><b>11</b> ## 補足</span><span class=""><b>12</b> 引用位置の行番号は、この保存済み抜き書きファイル内の位置であり原著HTMLの行番号ではない。詳細な比較・数値はdocs/research/R005_LI_JI_JA.mdおよび機械可読表を参照。</span></pre></details>
+</figure>
+<h2>複数モデルのATE推定誤差<span class="status">付いた</span></h2>
+<p class="note">モデル別に原著Figure2jの数値を転記。再解析値ではない。</p>
+<figure class="quote">
+<div class="who">Li &amp; Ji (2026)</div>
+<blockquote>mean absolute ATE error was 9.5</blockquote>
+<figcaption><code>baseline.md:9</code> <span class="mark">原著から抽出した短い一致フレーズ</span></figcaption>
+<details><summary>前後を読む（3〜13行）</summary><pre><span class=""><b>3</b> 原典URL: https://arxiv.org/html/2604.02458v1</span><span class=""><b>4</b> 原著内のセクション: Results &gt; Descriptive fit in LLM simulations does not guarantee causal fidelity</span><span class=""><b>5</b> 対象: Li &amp; Ji 2026 ICCP、62か国・59,508人</span><span class=""><b>7</b> ## 短い原文抜き書き（原著の連続箇所を直接目視確認）</span><span class="hit"><b>9</b> mean absolute ATE error was 9.5</span><span class=""><b>11</b> ## 補足</span><span class=""><b>12</b> 引用位置の行番号は、この保存済み抜き書きファイル内の位置であり原著HTMLの行番号ではない。詳細な比較・数値はdocs/research/R005_LI_JI_JA.mdおよび機械可読表を参照。</span></pre></details>
+</figure>
+<h2>few-shotで因果誤差が悪化する例<span class="status">付いた</span></h2>
+<p class="note">全てのモデルや領域へは一般化しない。</p>
+<figure class="quote">
+<div class="who">Li &amp; Ji (2026)</div>
+<blockquote>from 8.4 p.p. to 44.2 p.p.</blockquote>
+<figcaption><code>failure.md:9</code> <span class="mark">原著から抽出した短い一致フレーズ</span></figcaption>
+<details><summary>前後を読む（3〜13行）</summary><pre><span class=""><b>3</b> 原典URL: https://arxiv.org/html/2604.02458v1</span><span class=""><b>4</b> 原著内のセクション: Results &gt; Descriptive fit in LLM simulations does not guarantee causal fidelity</span><span class=""><b>5</b> 対象: Li &amp; Ji 2026 ICCP、62か国・59,508人</span><span class=""><b>7</b> ## 短い原文抜き書き（原著の連続箇所を直接目視確認）</span><span class="hit"><b>9</b> from 8.4 p.p. to 44.2 p.p.</span><span class=""><b>11</b> ## 補足</span><span class=""><b>12</b> 引用位置の行番号は、この保存済み抜き書きファイル内の位置であり原著HTMLの行番号ではない。詳細な比較・数値はdocs/research/R005_LI_JI_JA.mdおよび機械可読表を参照。</span></pre></details>
+</figure>
+<h2>介入メカニズムごとに誤差が違う<span class="status">付いた</span></h2>
+<p class="note">規範型の相対的な小さい誤差と、状況想像型の大きな過大評価を並べて記録。</p>
+<figure class="quote">
+<div class="who">Li &amp; Ji (2026)</div>
+<blockquote>smallest bias overall</blockquote>
+<figcaption><code>mechanism.md:9</code> <span class="mark">原著から抽出した短い一致フレーズ</span></figcaption>
+<details><summary>前後を読む（3〜13行）</summary><pre><span class=""><b>3</b> 原典URL: https://arxiv.org/html/2604.02458v1</span><span class=""><b>4</b> 原著内のセクション: Results &gt; Intervention-level causal error reveals differential sensitivity across outcomes</span><span class=""><b>5</b> 対象: Li &amp; Ji 2026 ICCP、62か国・59,508人</span><span class=""><b>7</b> ## 短い原文抜き書き（原著の連続箇所を直接目視確認）</span><span class="hit"><b>9</b> smallest bias overall</span><span class=""><b>11</b> ## 補足</span><span class=""><b>12</b> 引用位置の行番号は、この保存済み抜き書きファイル内の位置であり原著HTMLの行番号ではない。詳細な比較・数値はdocs/research/R005_LI_JI_JA.mdおよび機械可読表を参照。</span></pre></details>
+</figure>
+<h2>届かなかったもの</h2><ul class="unreached"><li>Li &amp; Ji原論文のコードと元の個票は本環境では検証・再実行していない</li><li>Vlasceanu元実験とLi &amp; Jiの報告した集団数の差は未照合</li><li>imozuru fetch.py/chain.pyではなくFirecrawlとGitHubの一次資料を使い、公式report.pyを使って短い抜き書きを照合した</li></ul>
+<footer>imozuru の抜き書き・原文はこのページと同じ場所の sources/</footer>
+</main></body></html>

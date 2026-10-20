@@ -1,0 +1,33 @@
+{
+  "checked_at": "2026-10-20",
+  "primary_paper": "https://arxiv.org/html/2604.02458v1",
+  "paper_id": "arxiv:2604.02458v1",
+  "publication_status": "preprint; peer_reviewed_version_not_verified",
+  "secondary_original_experiments": {
+    "orig_iccp": "https://pubmed.ncbi.nlm.nih.gov/38324680/",
+    "orig_spampatti": "https://pubmed.ncbi.nlm.nih.gov/38036655/",
+    "orig_veckalov": "https://pubmed.ncbi.nlm.nih.gov/39187712/",
+    "socsci": "https://aclanthology.org/2025.emnlp-main.1530/",
+    "stanford": "https://arxiv.org/abs/2411.10109",
+    "concordia": "https://github.com/google-deepmind/concordia",
+    "simile": "https://www.simile.com/blog/confidence",
+    "imozuru": "https://github.com/MaryCache/imozuru"
+  },
+  "human_iccp_discrepancy": {
+    "original_paper": {
+      "countries": 63,
+      "participants": 59440
+    },
+    "Li_Ji_report": {
+      "countries": 62,
+      "participants": 59508
+    },
+    "resolved": false
+  },
+  "method": "imozuru-like two-route search, original paper inspection, cited original experiments, short excerpt check",
+  "limitations": [
+    "source line numbers refer to local short excerpt files not original paper",
+    "no public participant-level records were downloaded",
+    "not independent replication"
+  ]
+}

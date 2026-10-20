@@ -1,0 +1,85 @@
+{
+  "title": "Manager: public behavior prediction & intervention research",
+  "question": "公開情報だけで使える行動予測・社会シミュレーション・実介入評価を何から学び、どう組むか",
+  "stopped": "主要6主張の一次資料への位置を確認して暫定停止。深掘り継続可能。",
+  "claims": [
+    {
+      "claim": "研究分野の中心的な「場」と、シミュレーション検証の課題が原著に存在する",
+      "status": "付いた",
+      "quotes": [
+        {
+          "file": "larooij-2025-validation.md",
+          "line": 5,
+          "text": "Validation is the central challenge for generative social simulation",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC12627210/"
+        }
+      ]
+    },
+    {
+      "claim": "公表済みの実世界介入研究には、実際の歩数効果と公開データがある",
+      "status": "付いた",
+      "quotes": [
+        {
+          "file": "klasnja-2019-heartsteps.md",
+          "line": 5,
+          "text": "Averaging over study days, delivering a walking suggestion vs. providing no suggestion increased the average 30-minute step count by 24%",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6401341/"
+        },
+        {
+          "file": "heartstepsv1-2023-readme.md",
+          "line": 5,
+          "text": "6-week micro-randomized trial with 37 participants, notifications could be sent at each of 5 user-specific times/day",
+          "url": "https://github.com/klasnja/HeartStepsV1"
+        }
+      ]
+    },
+    {
+      "claim": "公開行動予測データには、学習／評価の分割定義が含まれる",
+      "status": "付いた",
+      "quotes": [
+        {
+          "file": "kolluri-2025-socsci210.md",
+          "line": 5,
+          "text": "The mapping files are stored in the `metadata/` folder:",
+          "url": "https://github.com/akaashkolluri/socrates"
+        }
+      ]
+    },
+    {
+      "claim": "人間らしい出力の再現性と介入効果の再現性は同一ではない",
+      "status": "付いた",
+      "quotes": [
+        {
+          "file": "li-ji-2026-simcausal.md",
+          "line": 5,
+          "text": "descriptive fit did not reliably translate into causal fidelity",
+          "url": "https://arxiv.org/html/2604.02458v1"
+        }
+      ]
+    },
+    {
+      "claim": "社会シミュレーション基盤は既存の公開実装を活用できる",
+      "status": "付いた",
+      "quotes": [
+        {
+          "file": "concordia-2026-readme.md",
+          "line": 5,
+          "text": "A library for generative social simulation",
+          "url": "https://github.com/google-deepmind/concordia"
+        }
+      ]
+    },
+    {
+      "claim": "分布予測の誤差と信頼度を実測データで評価する実践例がある",
+      "status": "付いた",
+      "quotes": [
+        {
+          "file": "simile-2026-confidence.md",
+          "line": 5,
+          "text": "We evaluate on a set of ~8600 questions that are roughly representative of our production queries.",
+          "url": "https://www.simile.com/blog/confidence"
+        }
+      ]
+    }
+  ]
+}

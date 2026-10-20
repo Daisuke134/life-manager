@@ -1,0 +1,49 @@
+{
+  "description": "SHA256 of retained R004 artifacts; NOT source-paper hashes",
+  "files": [
+    {
+      "path": "research/imozuru/heartsteps-r004/OPEN_REPRODUCTION_QUESTIONS.md",
+      "sha256": "8c34dd83ff04759314840980ee82abe6647e9def1da9ab16e7c0e1c3475c3708"
+    },
+    {
+      "path": "research/imozuru/heartsteps-r004/extracts.json",
+      "sha256": "8d778f7f7b65cc6ecff034c459d6ceb6f183d9a8451cdd7051b0a805be7969b9"
+    },
+    {
+      "path": "research/imozuru/heartsteps-r004/log.md",
+      "sha256": "64a4e220dc99766722a713209873c9a4f315449f22999a588e1e481a8bee27dc"
+    },
+    {
+      "path": "research/imozuru/heartsteps-r004/map.md",
+      "sha256": "5c1c86333916e96bf9d5a4876d2da40ef1aee4e4e66de56424008a5eda78781e"
+    },
+    {
+      "path": "research/imozuru/heartsteps-r004/provenance.json",
+      "sha256": "2f00100fe331b90fa9af86325b68d2b3b907d1e81566049a1f7d908a52c53532"
+    },
+    {
+      "path": "research/imozuru/heartsteps-r004/report.html",
+      "sha256": "5a6fda845c3d7ae6edc3d8568ff958ed8f6aaad24ea2d24b1222d9ebdf597c0f"
+    },
+    {
+      "path": "research/imozuru/heartsteps-r004/sources/limitations.md",
+      "sha256": "1ed2c480ce970b98f2c638f315493e52f159771f64ded98d50a04f33ca22183d"
+    },
+    {
+      "path": "research/imozuru/heartsteps-r004/sources/methods.md",
+      "sha256": "990abb44cdf56d0bffd96e8cc402ca3973d6ea9ceb43fd4dbec47261e568e4b8"
+    },
+    {
+      "path": "research/imozuru/heartsteps-r004/sources/results.md",
+      "sha256": "67974f0b493770ce43d98c41bc735bb0b2dd75e416507e7c7604e3d71deb5dc4"
+    },
+    {
+      "path": "research/imozuru/heartsteps-r004/sources/sample.md",
+      "sha256": "62f7019d331da043eba1ce9f028fa3f62cb885b9fa5fbefb01fbe426e8a52fe0"
+    },
+    {
+      "path": "research/imozuru/heartsteps-r004/verification.json",
+      "sha256": "9d8693353ed48e14356724df23871500b4aa8b6d025180817167b964ec44315d"
+    }
+  ]
+}

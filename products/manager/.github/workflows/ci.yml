@@ -1,0 +1,23 @@
+name: manager-independent-checks
+on:
+  push:
+  pull_request:
+jobs:
+  offline-unit-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Syntax
+        run: python -m compileall -q manager_core scripts tests tools/imozuru
+      - name: Unit tests
+        run: python -m unittest discover -s tests -v
+      - name: Primary-source excerpt verification
+        run: python tools/imozuru/report.py research/imozuru/manager-foundations --check
+      - name: Repo isolation
+        run: python scripts/check_boundaries.py

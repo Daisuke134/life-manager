@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>R004 HeartSteps：方法・結果・限界の原典位置 抜き書き</title><style>
+:root{--bg:#f6efd3;--ink:#2e1703;--sub:#6b4a26;--accent:#814e0d;--card:#fbf7e8;--line:#e2cf9f;--hit:#efdcab}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#1f1710;--ink:#f1e6cc;--sub:#c9b28a;--accent:#e0a85a;--card:#2a2016;--line:#4a3a26;--hit:#4a3820}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans JP","Hiragino Sans","Yu Gothic UI",sans-serif;line-height:1.85;font-size:16px}
+main{max-width:46rem;margin:0 auto;padding:2.5rem 1rem 5rem}
+h1{font-size:1.6rem;margin:0 0 .5rem;letter-spacing:.02em}
+h2{font-size:1.2rem;margin:3rem 0 .4rem;padding-top:1rem;border-top:1px solid var(--line)}
+.lead{color:var(--sub);margin:.2rem 0}
+.status{display:inline-block;font-size:.8rem;padding:.05rem .55rem;border-radius:99px;border:1px solid var(--accent);color:var(--accent);margin-left:.5rem;vertical-align:middle}
+.status.none{border-style:dashed;color:var(--sub);border-color:var(--sub)}
+.note{color:var(--sub);font-size:.95rem}
+.quote{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:1rem 1.1rem;margin:1rem 0}
+blockquote{margin:0;padding-left:.9rem;border-left:3px solid var(--accent);white-space:pre-wrap}
+.who{font-weight:600;margin-bottom:.4rem}
+.ja{margin:.6rem 0 0;color:var(--sub)}
+.tag{font-size:.75rem;border:1px solid var(--sub);border-radius:4px;padding:0 .3rem;margin-right:.4rem}
+figcaption{margin-top:.6rem;font-size:.8rem;color:var(--sub);display:flex;flex-wrap:wrap;gap:.5rem}
+code{font-family:ui-monospace,"Cascadia Code",monospace;font-size:.78rem}
+.mark{color:var(--accent)}
+details{margin-top:.5rem;font-size:.8rem}
+summary{cursor:pointer;color:var(--sub)}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:.78rem;line-height:1.6;max-height:22rem;overflow:auto;margin:.4rem 0 0}
+pre span{display:block}
+pre span.hit{background:var(--hit)}
+pre b{display:inline-block;min-width:3em;color:var(--sub);font-weight:400}
+ul.unreached li{margin:.2rem 0}
+footer{margin-top:4rem;font-size:.8rem;color:var(--sub)}
+</style></head>
+<body><main>
+<h1>R004 HeartSteps：方法・結果・限界の原典位置</h1>
+<p class="lead">問い: HeartStepsで何が、どの人・時点・比較について実証され、何が未検証か。</p>
+<p class="lead">止めた理由: R004の4区分に原著の位置を付したため停止。原論文→補足、参考文献、著者の公開解析コードへ追跡。網羅性や探索の飽和を主張しない。</p>
+<p class="note">ここに並ぶ引用は、すべて原文をそのまま切り出したもの（機械で照合済み）。エージェントが書いたのは見出し・状態・注記・「訳」だけ。要約はしていない。</p>
+<h2>対象人数と分析に入った判断時点の範囲<span class="status">付いた</span></h2>
+<p class="note">原著の人数・記録の選別を保存。CSVの再分析はしていない。</p>
+<figure class="quote">
+<blockquote>37 participants</blockquote>
+<figcaption><code>sample.md:11</code> <span class="mark">原著の短い抜粋。直後の日本語は読解メモ</span></figcaption>
+<details><summary>前後を読む（5〜17行）</summary><pre><span class=""><b>5</b> DOI: 10.1093/abm/kay067</span><span class=""><b>6</b> 刊行: 2019年6月号（オンライン公開2018-09-05）。確認日: 2026-10-20。</span><span class=""><b>7</b> 保存範囲: 短い原文抜き書きと当方の読解メモ。原著全文の写しではない。</span><span class=""><b>9</b> ## 短い原文抜き書き</span><span class="hit"><b>11</b> 37 participants</span><span class=""><b>13</b> ## 読解メモ（以下は引用ではない）</span><span class=""><b>15</b> 対象人数: 募集44人、主解析37人。英語を話し、歩行に支障のない、活動の少ない成人が対象。</span><span class=""><b>16</b> 時間: 6週間（予定42日）。記録の一単位は「一人 × 一つの判断時点」。</span><span class=""><b>17</b> 統計方法: 同一人物の反復観測を考慮する、中心化・重み付き最小二乗法。</span></pre></details>
+</figure>
+<h2>割付、時間窓、統計手法<span class="status">付いた</span></h2>
+<p class="note">本文、補足I–III、著者コードのモデル定義を照合。表記差は未解決として記録。</p>
+<figure class="quote">
+<blockquote>weighted least squares</blockquote>
+<figcaption><code>methods.md:11</code> <span class="mark">原著の短い抜粋。直後の日本語は読解メモ</span></figcaption>
+<details><summary>前後を読む（5〜17行）</summary><pre><span class=""><b>5</b> DOI: 10.1093/abm/kay067</span><span class=""><b>6</b> 刊行: 2019年6月号（オンライン公開2018-09-05）。確認日: 2026-10-20。</span><span class=""><b>7</b> 保存範囲: 短い原文抜き書きと当方の読解メモ。原著全文の写しではない。</span><span class=""><b>9</b> ## 短い原文抜き書き</span><span class="hit"><b>11</b> weighted least squares</span><span class=""><b>13</b> ## 読解メモ（以下は引用ではない）</span><span class=""><b>15</b> 対象人数: 主解析37人、6,061介入可能時点。</span><span class=""><b>16</b> 時間: 1日最大5時点。介入可能性を先に判定し、その後30分間の歩数を測る。</span><span class=""><b>17</b> 統計方法: 中心化・重み付き最小二乗法。補足I–IIIと著者コードでは、GEE、個人内相関への頑健な標準誤差、小標本補正、介入前30分の対数歩数による調整を確認した。</span></pre></details>
+</figure>
+<h2>主要・二次解析の効果量と限界<span class="status">付いた</span></h2>
+<p class="note">全提案のp=0.06と歩行提案のp=0.02を分離。</p>
+<figure class="quote">
+<blockquote>1.04 to 1.47</blockquote>
+<figcaption><code>results.md:11</code> <span class="mark">原著の短い抜粋。直後の日本語は読解メモ</span></figcaption>
+<details><summary>前後を読む（5〜17行）</summary><pre><span class=""><b>5</b> DOI: 10.1093/abm/kay067</span><span class=""><b>6</b> 刊行: 2019年6月号（オンライン公開2018-09-05）。確認日: 2026-10-20。</span><span class=""><b>7</b> 保存範囲: 短い原文抜き書きと当方の読解メモ。原著全文の写しではない。</span><span class=""><b>9</b> ## 短い原文抜き書き</span><span class="hit"><b>11</b> 1.04 to 1.47</span><span class=""><b>13</b> ## 読解メモ（以下は引用ではない）</span><span class=""><b>15</b> 対象人数: 主解析37人、6,061介入可能時点。</span><span class=""><b>16</b> 時間: 判断時点直後30分の歩数について、研究期間を通じた平均効果と時間変化を別々に推定。</span><span class=""><b>17</b> 統計方法: 対数歩数モデルの係数を指数変換した比と95%信頼区間。下記は原論文の報告値で、当方の再現結果ではない。</span></pre></details>
+</figure>
+<h2>実証されなかった成果と一般化の制約<span class="status">付いた</span></h2>
+<p class="note">短期歩数を一日の活動量・健康・苦しみ軽減へ置き換えない。</p>
+<figure class="quote">
+<blockquote>compensatory behavior</blockquote>
+<figcaption><code>limitations.md:11</code> <span class="mark">原著の短い抜粋。直後の日本語は読解メモ</span></figcaption>
+<details><summary>前後を読む（5〜17行）</summary><pre><span class=""><b>5</b> DOI: 10.1093/abm/kay067</span><span class=""><b>6</b> 刊行: 2019年6月号（オンライン公開2018-09-05）。確認日: 2026-10-20。</span><span class=""><b>7</b> 保存範囲: 短い原文抜き書きと当方の読解メモ。原著全文の写しではない。</span><span class=""><b>9</b> ## 短い原文抜き書き</span><span class="hit"><b>11</b> compensatory behavior</span><span class=""><b>13</b> ## 読解メモ（以下は引用ではない）</span><span class=""><b>15</b> 対象人数: 37人という解析標本の外への一般化は未検証。</span><span class=""><b>16</b> 時間: 6週間の試験で、主な測定窓は30分。短期の変化と長期の持続性は別問題。</span><span class=""><b>17</b> 統計方法: 逐次無作為化は当該条件の介入成分比較を支えるが、試験全体・他集団・他の実行方策の効果を自動的に証明しない。</span></pre></details>
+</figure>
+<h2>届かなかったもの</h2><ul class="unreached"><li>解析用CSVの再計算は今回の範囲外。効果量の再現はH001以降。</li><li>補足の一部の式・表と本文の表記差が残る。詳細はOPEN_REPRODUCTION_QUESTIONS.md。</li><li>PDFのスクリーンショット取得は失敗。本文・補足の抽出テキストと公開コードを読解した。</li><li>公式report.pyの照合は保存した短い抜粋との一致のみ。原著そのものの真正性や研究の正しさを自動証明しない。</li></ul>
+<footer>imozuru の抜き書き・原文はこのページと同じ場所の sources/</footer>
+</main></body></html>

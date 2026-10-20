@@ -1,0 +1,181 @@
+{
+  "schema": "manager.source-rights.v1",
+  "reviewed_on": "2026-10-20",
+  "policy": "Fail closed: public visibility is not blanket legal, commercial, redistribution or ethical permission.",
+  "status_semantics": {
+    "allowed_with_conditions": "Possible only if listed requirements met; verify scope before any live use",
+    "hold": "Do not perform until unresolved source-specific issues are cleared",
+    "not_applicable": "This permission is not requested for this kind of material"
+  },
+  "sources": [
+    {
+      "id": "heartsteps-v1-data",
+      "name": "HeartStepsV1 research data",
+      "kind": "individual-level research data",
+      "license_expression": "CC-BY-4.0",
+      "source_url": "https://github.com/klasnja/HeartStepsV1",
+      "license_evidence_url": "https://github.com/klasnja/HeartStepsV1/blob/main/LICENSE",
+      "license_evidence_sha": "10fabd90118f7ce38bb2e4753e105e744442a429",
+      "permissions": {
+        "study_read": "allowed_with_conditions",
+        "local_research": "allowed_with_conditions",
+        "raw_redistribution": "hold",
+        "product_use": "hold"
+      },
+      "requirements": [
+        "Credit creators and include license link for licensed uses.",
+        "Limit to legitimate offline research; minimize individual-level data, do not upload raw responses to public Git.",
+        "Check participant privacy, consent, sensitivity and data governance independently of CC BY rights."
+      ],
+      "risk": "Research participants in users.csv have respondent attributes and surveys; public hosting is not consent to profile them.",
+      "unresolved": "Confirm whether all participant-level records and upstream sources are covered by the repository license and whether future commercialization fits research consent."
+    },
+    {
+      "id": "heartsteps-paper",
+      "name": "Klasnja et al. HeartSteps journal article",
+      "kind": "academic article",
+      "license_expression": "OUP Standard Journals Publication Model",
+      "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6401341/",
+      "license_evidence_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6401341/",
+      "license_evidence_sha": "pmc:PMC6401341",
+      "permissions": {
+        "study_read": "allowed_with_conditions",
+        "local_research": "allowed_with_conditions",
+        "raw_redistribution": "hold",
+        "product_use": "not_applicable"
+      },
+      "requirements": [
+        "Use short attribution-backed extracts only; do not copy full article or PDF into public repository or content products."
+      ],
+      "risk": "PMC access is not an open reuse license; journal site states Society of Behavioral Medicine 2018 all rights reserved.",
+      "unresolved": "Exact reuse of full tables/figures requires checking publisher permissions."
+    },
+    {
+      "id": "heartsteps-analysis-code",
+      "name": "HeartStepsV1 analysis code",
+      "kind": "third-party source code",
+      "license_expression": "NO_LICENSE_FILE_CONFIRMED",
+      "source_url": "https://github.com/StatisticalReinforcementLearningLab/HeartstepsV1Code",
+      "license_evidence_url": "https://github.com/StatisticalReinforcementLearningLab/HeartstepsV1Code",
+      "license_evidence_sha": "tree:c077c86d20b5d9cfa937f7ed1720172d726ba9a0",
+      "permissions": {
+        "study_read": "allowed_with_conditions",
+        "local_research": "allowed_with_conditions",
+        "raw_redistribution": "hold",
+        "product_use": "hold"
+      },
+      "requirements": [
+        "Read algorithms, independently implement methods; do not vendor original scripts without explicit upstream code license."
+      ],
+      "risk": "Source available is not permission to copy or distribute software.",
+      "unresolved": "Verify rights for each code file or obtain permissions; repository root tree at verified commit lacked a LICENSE entry."
+    },
+    {
+      "id": "socsci210-data",
+      "name": "SocSci210 social-science experiment corpus",
+      "kind": "mixed-origin respondent data",
+      "license_expression": "PER_ORIGINAL_STUDY_LICENSE",
+      "source_url": "https://huggingface.co/datasets/socratesft/SocSci210",
+      "license_evidence_url": "https://github.com/akaashkolluri/socrates/blob/main/README.md",
+      "license_evidence_sha": "e8101f17f2a9d150e899dc6c472f13a3fdccf750",
+      "permissions": {
+        "study_read": "allowed_with_conditions",
+        "local_research": "hold",
+        "raw_redistribution": "hold",
+        "product_use": "hold"
+      },
+      "requirements": [
+        "Treat each source study separately.",
+        "A public dataset/model listing is not a blanket right to redistribute or commercialize the collected participant profiles.",
+        "Preserve study splits if evaluation proceeds after review."
+      ],
+      "risk": "HF viewer includes respondent demographics and political/ideology proxies; public availability does not override privacy or research ethics.",
+      "unresolved": "Per-study rights and permitted processing, provenance, respondent data governance, consent and license coverage not established."
+    },
+    {
+      "id": "socrates-qwen14b-sft",
+      "name": "Socrates Qwen2.5-14B SFT",
+      "kind": "fine-tuned model",
+      "license_expression": "AMBIGUOUS_DERIVATIVE_CHAIN",
+      "source_url": "https://huggingface.co/socratesft/socrates-qwen2.5-14b-sft",
+      "license_evidence_url": "https://huggingface.co/socratesft/socrates-qwen2.5-14b-sft",
+      "license_evidence_sha": "hf:model-card; base:Qwen/Qwen2.5-14B-Instruct",
+      "permissions": {
+        "study_read": "allowed_with_conditions",
+        "local_research": "hold",
+        "raw_redistribution": "hold",
+        "product_use": "hold"
+      },
+      "requirements": [
+        "14B base model LICENSE itself shows Apache-2.0 but the fine-tune card links a separate 72B Qwen license agreement.",
+        "Confirm the actual fine-tune conditions and training dataset rights before commercial use or distribution."
+      ],
+      "risk": "Different base model license and fine-tuned card wording; no automated unconditional approval.",
+      "unresolved": "Resolve mismatch of linked 72B agreement versus actual 14B base and per-dataset training permissions."
+    },
+    {
+      "id": "socrates-llama3-model",
+      "name": "Socrates LLaMA3 variants",
+      "kind": "fine-tuned model",
+      "license_expression": "META_LLAMA3_COMMUNITY_LICENSE",
+      "source_url": "https://huggingface.co/socratesft/socrates-llama3-8b-sft",
+      "license_evidence_url": "https://github.com/akaashkolluri/socrates/blob/main/README.md",
+      "license_evidence_sha": "e8101f17f2a9d150e899dc6c472f13a3fdccf750",
+      "permissions": {
+        "study_read": "allowed_with_conditions",
+        "local_research": "hold",
+        "raw_redistribution": "hold",
+        "product_use": "hold"
+      },
+      "requirements": [
+        "Meta Llama 3 Community License is not Apache/MIT; gated upstream base and acceptable use conditions apply.",
+        "Review access, attribution, user thresholds, use restrictions and fine-tuning dataset rights separately."
+      ],
+      "risk": "Nonstandard commercial and redistribution terms, training corpus mixed-origin.",
+      "unresolved": "Verify actual model card access and license before downloading or deploying."
+    },
+    {
+      "id": "concordia-code",
+      "name": "Google DeepMind Concordia",
+      "kind": "open-source code",
+      "license_expression": "Apache-2.0",
+      "source_url": "https://github.com/google-deepmind/concordia",
+      "license_evidence_url": "https://github.com/google-deepmind/concordia/blob/main/LICENSE",
+      "license_evidence_sha": "6b0b1270ff0ca8f03867efcd09ba6ddb6392b1e1",
+      "permissions": {
+        "study_read": "allowed_with_conditions",
+        "local_research": "allowed_with_conditions",
+        "raw_redistribution": "allowed_with_conditions",
+        "product_use": "allowed_with_conditions"
+      },
+      "requirements": [
+        "Keep a copy of the Apache 2.0 license when distributing copied code.",
+        "Mark modifications and preserve applicable copyright/patent/trademark/attribution notices.",
+        "Audit dependencies and model API terms independently; no automatic rights to datasets."
+      ],
+      "risk": "Simulation validity remains unproved by license; dependency and API service rights independent.",
+      "unresolved": "Check third-party files and dependencies per version before shipping."
+    },
+    {
+      "id": "imozuru-code",
+      "name": "MaryCache imozuru",
+      "kind": "research skill code",
+      "license_expression": "MIT",
+      "source_url": "https://github.com/MaryCache/imozuru",
+      "license_evidence_url": "https://github.com/MaryCache/imozuru/blob/main/LICENSE",
+      "license_evidence_sha": "7798918c7c5ba50cebc026459c5fc87b0bb63c5d",
+      "permissions": {
+        "study_read": "allowed_with_conditions",
+        "local_research": "allowed_with_conditions",
+        "raw_redistribution": "allowed_with_conditions",
+        "product_use": "allowed_with_conditions"
+      },
+      "requirements": [
+        "Include MIT copyright and permission notice in all substantial copies.",
+        "Respect original papers and fetched webpages separate rights; do not redistribute originals wholesale."
+      ],
+      "risk": "imozuru software MIT license does not license every paper, blog or video it retrieves.",
+      "unresolved": "Check any optional dependencies and remote services separately."
+    }
+  ]
+}

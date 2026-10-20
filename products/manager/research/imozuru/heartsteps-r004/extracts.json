@@ -1,0 +1,73 @@
+{
+  "title": "R004 HeartSteps：方法・結果・限界の原典位置",
+  "question": "HeartStepsで何が、どの人・時点・比較について実証され、何が未検証か。",
+  "stopped": "R004の4区分に原著の位置を付したため停止。原論文→補足、参考文献、著者の公開解析コードへ追跡。網羅性や探索の飽和を主張しない。",
+  "claims": [
+    {
+      "claim": "対象人数と分析に入った判断時点の範囲",
+      "status": "付いた",
+      "note": "原著の人数・記録の選別を保存。CSVの再分析はしていない。",
+      "quotes": [
+        {
+          "file": "sample.md",
+          "line": 11,
+          "text": "37 participants",
+          "mark": "原著の短い抜粋。直後の日本語は読解メモ",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6401341/",
+          "source_section": "Participants; Participant Sample; Included Decision Points; Available Decision Points"
+        }
+      ]
+    },
+    {
+      "claim": "割付、時間窓、統計手法",
+      "status": "付いた",
+      "note": "本文、補足I–III、著者コードのモデル定義を照合。表記差は未解決として記録。",
+      "quotes": [
+        {
+          "file": "methods.md",
+          "line": 11,
+          "text": "weighted least squares",
+          "mark": "原著の短い抜粋。直後の日本語は読解メモ",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6401341/",
+          "source_section": "Availability; Study Design; Randomization; Proximal Outcome; Statistical Analyses"
+        }
+      ]
+    },
+    {
+      "claim": "主要・二次解析の効果量と限界",
+      "status": "付いた",
+      "note": "全提案のp=0.06と歩行提案のp=0.02を分離。",
+      "quotes": [
+        {
+          "file": "results.md",
+          "line": 11,
+          "text": "1.04 to 1.47",
+          "mark": "原著の短い抜粋。直後の日本語は読解メモ",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6401341/",
+          "source_section": "Effects of Activity Suggestions; Effects of Walking Versus Antisedentary Suggestions; Sensitivity Analyses"
+        }
+      ]
+    },
+    {
+      "claim": "実証されなかった成果と一般化の制約",
+      "status": "付いた",
+      "note": "短期歩数を一日の活動量・健康・苦しみ軽減へ置き換えない。",
+      "quotes": [
+        {
+          "file": "limitations.md",
+          "line": 11,
+          "text": "compensatory behavior",
+          "mark": "原著の短い抜粋。直後の日本語は読解メモ",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6401341/",
+          "source_section": "Discussion; Limitations"
+        }
+      ]
+    }
+  ],
+  "unreached": [
+    "解析用CSVの再計算は今回の範囲外。効果量の再現はH001以降。",
+    "補足の一部の式・表と本文の表記差が残る。詳細はOPEN_REPRODUCTION_QUESTIONS.md。",
+    "PDFのスクリーンショット取得は失敗。本文・補足の抽出テキストと公開コードを読解した。",
+    "公式report.pyの照合は保存した短い抜粋との一致のみ。原著そのものの真正性や研究の正しさを自動証明しない。"
+  ]
+}

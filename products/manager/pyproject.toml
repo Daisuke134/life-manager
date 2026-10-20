@@ -1,0 +1,13 @@
+[project]
+name = "manager-independent"
+version = "0.1.0"
+description = "Source-grounded, public-information-only intervention research prototype"
+requires-python = ">=3.11"
+license = {text = "Proprietary (starter source)"}
+
+[tool.manager]
+product = "Manager"
+life_manager_dependency = false
+live_actions_enabled = false
+public_content_publishing_enabled = false
+requires_independent_readback = true
