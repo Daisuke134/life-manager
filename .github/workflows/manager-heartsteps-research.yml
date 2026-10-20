@@ -1,0 +1,36 @@
+name: Manager HeartSteps Pinned Research
+on:
+  push:
+    branches: [research/manager-product-r006-20261020]
+    paths:
+      - 'products/manager/scripts/heartsteps_research.py'
+      - 'products/manager/tests/test_heartsteps_research_h002_h004.py'
+      - '.github/workflows/manager-heartsteps-research.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  aggregate-source-audit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: products/manager
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Focused tests
+        run: python -m unittest tests/test_heartsteps_research_h002_h004.py -v
+      - name: Download pinned source temporarily and emit aggregate reports
+        run: python scripts/heartsteps_research.py --output output/heartsteps
+      - name: Verify no raw CSV persisted in repository workspace
+        run: |
+          test ! -e data/raw/suggestions.csv
+          ! find output/heartsteps -type f -name '*.csv' | grep .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: heartsteps-h002-h004-summary
+          path: products/manager/output/heartsteps
+          if-no-files-found: error
+          retention-days: 14
