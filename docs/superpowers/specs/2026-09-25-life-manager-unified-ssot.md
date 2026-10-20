@@ -16093,6 +16093,26 @@ REDebbd5af252→GREEN0e8f071c0eはcore guardも証明済みsell/nofill closedか
 
 **現在cursor:** validation ownerの次のnatural runでpagination修正がBTC V2 reportを生成するか確認する。Paper側は`HOLD / hold_period_not_elapsed`が具体的なno-trade理由であり、fresh BTC selectionが無い間は新規注文しない。16/21 sessionsを満たすqualified closeは自然runで待つ。以降のcost-complete round trip、30件EDD、live attribution/risk gates、残高シナリオは前節TODO順を維持する。
 
+#### 2026-10-21 08:10 JST — Latest natural paper readback and corrected validation owner SHA
+
+**As-Is（08:08–08:10 JSTのread-only確認）:**
+- `alpaca-investment-paper`の自然run `18e05f6160d1c4e0-60028` は08:05:56 JSTにrelease `219374ce38ac9fc808b6cab8fb1565095c5c1d76`でpass/exit 0、`effect_status=not_applicable`、`effect_unknown=false`。allocationは同じoccurrenceで`HOLD / QQQ / hold_period_not_elapsed`、`approved=false`、strategy `alpaca-etf-126d-momentum-v1`。no-effect referenceは保存されたが、`official_readback_ref`とprovider receipt IDはnullであり、freshなAlpaca注文readbackではない。新規注文・実現利益の証拠には数えない。
+- `investment-strategy-validation`はloaded-idleで、plistとowner statusのinstalled SHAは`6c39990d330c6abfd1c51a7cf2c61d45387b0887`。そのimmutable releaseには`--page-token`を追跡するBTC history修正があり、`provenance=ancestor-of-origin-main`。従ってsource修正はownerのloaded codeに含まれる。08:08時点のlatest terminalは修正前SHA `55cc06f2`でのrun `18e059e9748552e0-55043`、`entrypoint_exit_1`、BTC report 0。修正後のnatural validation terminalはまだ無い。
+- `current` selectorとpaper plistはrelease `219374ce`を指す。前節の`dd9d4cca` owner SHAは現在のplist/statusと一致せず、そのrelease pathも存在しないため、この記録で`6c39990d`へ訂正する。今回live残高は取り直していない。最新の既知live口座snapshotは2026-10-20 19:33:01Zであり、現在残高とは扱わない。
+- このreadbackから費用後の検証済み利益は確認できない。紙のQQQはHOLD、closed round trip・費用完全なnet・benchmark超過は未確認。将来利益や「世界一」の達成は保証しない。
+
+**現在cursorと残TODO（この順序が正本）:**
+1. [ ] 最新mainを含むこのspec更新をPR #8450へpushし、新headのrequired CIを通して正本へ統合する。旧headのPASSを新headの証拠として扱わない。
+2. [ ] `investment-strategy-validation`の次の自然terminalを待つ。BTC report件数/期間、holdout、fee/slippage、drawdown、lookahead、parameter sensitivityを確認し、report不在・不正なら新しいtyped reason/windowに基づいて最小修正する。manual wakeはしない。
+3. [ ] paper ownerの次の自然decisionを同じowner/occurrence/releaseの公式注文readbackへ結ぶ。fresh BTC V2 report/selectionが成立するまではNO_TRADEを維持し、21-session/qualified exitも自然runで待つ。注文・売却を強制しない。
+4. [ ] 最初の自然closed paper round tripでbuy/sell fill、broker fee、slippage、model/system/operating cost、通貨・settlementを同じscopeへ結び、owner帰属realized netとreplay-zeroを確認する。欠測費用・損益はnullのままにする。
+5. [ ] 30件の自然paper round tripでbenchmark、未使用期間、parameter sensitivity、最大drawdown、全費用後netを評価し、既存EDDの基準でstrategyを採用または撤回する。source/test通過や含み益を収益達成と数えない。
+6. [ ] 過去live 10注文をimmutable receipt/captureからdecision、client/effect ID、owner/mode/strategy/release/native account、公式order/fillへ一対一照合する。未証明の注文はunscopedのまま保持し、historical fenceを公式証拠なしに解除しない。
+7. [ ] AT-24/AT-29、資本・日次損失上限、order identity/重複防止、fresh opposing reviewを確認した後だけliveを評価する。30件のcost-complete live round tripとbenchmark超過のowner帰属netが出るまで資本を増やさない。
+8. [ ] freshな公式口座残高から1か月/1年/10年のbest/base/worstを、入出金・手数料・return・drawdownの明示仮定で出す。実績と予測を分け、他venue・meme coinは同じpaper→cost→risk gateを通過するまで追加しない。
+
+**順序訂正の理由:** 最新の実owner readbackでは、paperはHOLDで新規注文が無く、validation修正sourceはloaded SHAに含まれる一方、修正後natural resultは未観測だった。よって次cursorはvalidationの自然評価であり、残高予測・live・別資産への拡張より先に利益を測定可能にする。以前の`dd9d4cca`というowner SHA記録は、現在のplist/statusとrelease inventoryで再現できず、本記録で訂正した。
+
 ### 2026-10-09 13:18 JST — Job Hunter Dreamwork cutover and updated user criteria
 
 この追記は11:50 JST snapshot後のJob Hunter readbackとユーザーの最新指示を記録する。個別の勤務地・住所などの私的値はprivate profileのみを正本とし、このspecには複製しない。
