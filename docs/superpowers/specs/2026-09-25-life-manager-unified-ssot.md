@@ -20631,14 +20631,14 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 
 **TODO順変更:** 旧=一業務readiness→Cloud→入口→3人pilot→packet→1,000人。新=下記atomic ID順、提出経路確認T01・配布文案T24・台本T25は即着手可能。理由はDaisが知人DMを担当し、利用者feedbackを待たず実装・素材・提出準備を進められるため。先に試せる製品と正式必須項目を揃えて提出し、改善と獲得を継続する。全体統括cursorと進行中provider effectは変更しない。
 
-**Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細・file tree・signature・focused acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。同plan内のcheckboxは実装手順で、状態判定は本節を正とする。現在cursor=T04（email認証）。T01は公式channel確認済みだがform/期限時刻は未公表の外部条件として継続確認。T03はsource実装済みでCI/main待ち。T02はmain統合済み。T03の実環境適用順は変更しない。正式提出は未実施。
+**Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細・file tree・signature・focused acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。同plan内のcheckboxは実装手順で、状態判定は本節を正とする。現在cursor=T04（email認証）。T01は公式channel確認済みだがform/期限時刻は未公表の外部条件として継続確認。T03はmain統合済みで実DB適用はT22。T02はmain統合済み。T03の実環境適用順は変更しない。正式提出は未実施。
 
 | ID | 一件の成果物 | 状態/依存 |
 |---|---|---|
 | T01 | 正式提出form・初週期限・timezone・必須fieldをrequirements.jsonへ | 主催者Slack参加・公式3channel readback済み。form/初週時刻は未公表、理由付きnullを保存 |
 | T02 | 既存OSS icon digest宣言漏れ修正と#8395 copy contract統合 | 完了。関連30/30、全13 checks PASS、#8396でmain 103f2a331bへ統合 |
-| T03 | enrollment DB/storeの一uid一row・一provision claim | source実装016b6704c5、6/6 PASS、独立review指摘修正済み。#8397でCI/main待ち、実DB未適用 |
-| T04 | Supabaseのemail認証専用handler | T03後、既存Google guard維持 |
+| T03 | enrollment DB/storeの一uid一row・一provision claim | source完了。6/6 PASS、独立review指摘修正、全14 checks PASS。#8397/main f3f5e02564、実DB未適用 |
+| T04 | Supabaseのemail認証専用handler | source実装中/#8398。既存Google guard維持、PKCE codeのみ。token_hash単独のlogin CSRF経路を拒否し、確認GETは業務を起動しない |
 | T05 | 本人POST activateから一度だけenqueue | T04後、GET/prefetchは実利用にしない |
 | T06 | email登録が主CTAのcampaign入口 | T04/T05後 |
 | T07 | Capafy既存factoryへtenant state/build path注入 | T02後 |
