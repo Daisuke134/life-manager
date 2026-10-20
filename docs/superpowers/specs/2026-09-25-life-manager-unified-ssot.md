@@ -16143,6 +16143,15 @@ REDebbd5af252→GREEN0e8f071c0eはcore guardも証明済みsell/nofill closedか
 
 **順序変更の理由:** live fence readbackでqueued後の4 filled ordersを確認し、0 openだけではeffectを閉じられないと判明した。以前の`live fence照合 → winner選定`から、`fence後の4 ordersのlocal lineage有無を確定 → 今後の注文のowner/strategy/release lineageを保証 → winner候補を評価`へ進める。現在口座の損失をaccount-levelで確認できても、注文がLife Managerに帰属しないままliveへ戻せば同じ監査不能を繰り返す。
 
+#### 2026-10-21 08:36 JST — Winner-copy source check
+
+**確認した一次資料と結論:**
+- AQRの[trend-following研究](https://www.aqr.com/Insights/Research/Journal-Article/A-Century-of-Evidence-on-Trend-Following-Investing)はtime-series momentumを「直近リターンが正のmarketを買い、負なら売り」の仕組みとして説明し、futures/FX等の歴史データを1880年まで再構成したbacktestを報告する。これは当社Alpaca BTC口座のlive実績ではなく、ポジション・費用・marketが異なるため、候補設計の根拠としてのみ使う。
+- [Freqtrade OSS](https://github.com/freqtrade/freqtrade)はcrypto bot基盤でbacktesting、hyperopt、lookahead-analysis、recursive-analysisを提供する。READMEは独立監査済みの実資金returnを提示していないため、勝者strategyの証明ではなく評価方法の参考とする。既存のLife Manager local validation/ledger/effect-fenceは再利用し、別bot実行経路は導入しない。
+- **strategy status:** winner候補は未選定。現在のETF v1新規entryはretired、BTC 5-minute V2はpagination修正後のnatural reportが無い。AQRの長期trend-followingをそのままBTC 5-minuteへ移植する根拠はまだ無い。
+
+**現在cursor:** PR #8450 exact-head CI/main統合 → liveの4 unlinked ordersとfenceを正確に扱う既存source/evidence範囲を確認 → BTC V2自然reportとAQR型momentumを同じinstrument/period/cost/benchmark条件で評価し、一つだけ候補を決める。以後のlive fence・buying power・small live pilot・real net評価の順は前節TODOを維持する。strategy名・repo人気・過去backtestだけではwinnerと判定しない。
+
 ### 2026-10-09 13:18 JST — Job Hunter Dreamwork cutover and updated user criteria
 
 この追記は11:50 JST snapshot後のJob Hunter readbackとユーザーの最新指示を記録する。個別の勤務地・住所などの私的値はprivate profileのみを正本とし、このspecには複製しない。
