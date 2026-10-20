@@ -7,10 +7,12 @@ on:
       - 'products/manager/scripts/heartsteps_phase3.py'
       - 'products/manager/scripts/heartsteps_phase3_public.py'
       - 'products/manager/scripts/heartsteps_phase3_probe.py'
+      - 'products/manager/scripts/heartsteps_phase3_cutoff_probe.py'
       - 'products/manager/tests/test_heartsteps_research_h002_h004.py'
       - 'products/manager/tests/test_heartsteps_phase3.py'
       - 'products/manager/tests/test_heartsteps_phase3_public.py'
       - 'products/manager/tests/test_heartsteps_phase3_probe.py'
+      - 'products/manager/tests/test_heartsteps_phase3_cutoff_probe.py'
       - '.github/workflows/manager-heartsteps-research.yml'
   workflow_dispatch:
 permissions:
@@ -29,11 +31,13 @@ jobs:
       - name: Focused source tests
         run: python -m unittest tests/test_heartsteps_research_h002_h004.py -v
       - name: Focused reproduction tests
-        run: python -m unittest tests/test_heartsteps_phase3.py tests/test_heartsteps_phase3_public.py tests/test_heartsteps_phase3_probe.py -v
+        run: python -m unittest tests/test_heartsteps_phase3.py tests/test_heartsteps_phase3_public.py tests/test_heartsteps_phase3_probe.py tests/test_heartsteps_phase3_cutoff_probe.py -v
       - name: Download pinned source temporarily and emit aggregate source report
         run: python scripts/heartsteps_research.py --output output/heartsteps
       - name: Emit aggregate mapping diagnostics
         run: python scripts/heartsteps_phase3_probe.py --output output/heartsteps-probe
+      - name: Scan decision-index boundaries without participant output
+        run: python scripts/heartsteps_phase3_cutoff_probe.py --output output/heartsteps-cutoff
       - name: Reproduce analysis set and aggregate models
         run: python scripts/heartsteps_phase3_public.py --output output/heartsteps-phase3
       - name: Verify no raw CSV persisted in repository workspace
@@ -48,6 +52,7 @@ jobs:
           path: |
             products/manager/output/heartsteps
             products/manager/output/heartsteps-probe
+            products/manager/output/heartsteps-cutoff
             products/manager/output/heartsteps-phase3
           if-no-files-found: warn
           retention-days: 14
