@@ -65,6 +65,7 @@
   "account_verification_routes": {
     "gmail_browser": "accepted mailbox needs Google passkey; ordinary alternative did not transition",
     "iphone": "configured device paired but connection_state=unavailable; no successful signed build; current build fails destination lookup",
-    "user_completion_requested": true
+    "user_completion_requested": true,
+    "composio_gmail": "14 registered Gmail connections EXPIRED; accepted mailbox ownership mapping unverified; no reconnect performed"
   }
 }

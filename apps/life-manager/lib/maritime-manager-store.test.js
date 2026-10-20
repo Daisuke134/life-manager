@@ -177,6 +177,27 @@ test('malformed claim response and foreign readback never authorize dispatch', a
 });
 
 
+test('RPC and readback stay bound to the original identity during caller mutation', async () => {
+  for (const operation of ['claimCycleDispatch', 'bindCycleExecution']) {
+    const mutable = { ...cycleIdentity(), executionId: 'exec-1' };
+    const rows = [
+      { uid: UID_A, occurrence_id: 'cycle-1', agent_id: 'agent-a', date_key: '2026-10-20', release_sha: SHA, execution_id: 'exec-1' },
+      { uid: UID_B, occurrence_id: 'cycle-1', agent_id: 'agent-b', date_key: '2026-10-20', release_sha: SHA, execution_id: 'exec-1' },
+    ];
+    const store = createMaritimeManagerStore({ supaUrl: 'https://database.invalid', supaKey: 'fixture',
+      fetchImpl: async (url, options) => {
+        if (options.method === 'POST') {
+          Object.assign(mutable, { uid: UID_B, agentId: 'agent-b' });
+          return new Response('true');
+        }
+        const uid = new URL(url).searchParams.get('uid').slice(3);
+        return new Response(JSON.stringify(rows.filter(row => row.uid === uid)));
+      } });
+    const result = await store[operation](mutable);
+    assert.equal(operation === 'claimCycleDispatch' ? result.row.uid : result.uid, UID_A);
+  }
+});
+
 test('PostgreSQL atomically claims dispatches and preserves execution binding with private roles', async (t) => {
   const fs = require('node:fs');
   const path = require('node:path');
@@ -190,16 +211,20 @@ test('PostgreSQL atomically claims dispatches and preserves execution binding wi
   fs.mkdirSync(workspace, { recursive: true });
   const fixtureRoot = fs.mkdtempSync(path.join(workspace, 'pg-execution-'));
   const socket = fs.mkdtempSync('/tmp/lm-cycle-pg-');
+  const pgEnv = { PATH: process.env.PATH || '/usr/bin:/bin', LANG: 'C', LC_ALL: 'C',
+    PGPASSFILE: path.join(fixtureRoot, 'no-password-file') };
+  const inheritedHostaddr = process.env.PGHOSTADDR;
   const data = path.join(fixtureRoot, 'data');
   const log = path.join(fixtureRoot, 'postgres.log');
   const args = ['-X', '-qAt', '-v', 'ON_ERROR_STOP=1', '-h', socket, '-p', '55437', '-U', 'fixture_owner', '-d', 'postgres'];
-  const sql = (text) => execFileSync(path.join(bin, 'psql'), [...args, '-c', text], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+  const sql = (text) => execFileSync(path.join(bin, 'psql'), [...args, '-c', text], { env: pgEnv, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
   const run = promisify(execFile);
   let started = false;
   try {
-    execFileSync(path.join(bin, 'initdb'), ['-D', data, '-A', 'trust', '-U', 'fixture_owner', '--no-locale'], { stdio: 'pipe' });
+    process.env.PGHOSTADDR = 'invalid-fixture-address';
+    execFileSync(path.join(bin, 'initdb'), ['-D', data, '-A', 'trust', '-U', 'fixture_owner', '--no-locale'], { env: pgEnv, stdio: 'pipe' });
     started = true;
-    execFileSync(path.join(bin, 'pg_ctl'), ['-D', data, '-l', log, '-o', `-F -h '' -k ${socket} -p 55437`, '-w', '-t', '15', 'start'], { stdio: 'pipe' });
+    execFileSync(path.join(bin, 'pg_ctl'), ['-D', data, '-l', log, '-o', `-F -h '' -k ${socket} -p 55437`, '-w', '-t', '15', 'start'], { env: pgEnv, stdio: 'pipe' });
     sql('CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role BYPASSRLS; CREATE TABLE public.lm_users(uid text PRIMARY KEY);');
     const migrations = ['2026-10-20-lm-maritime-manager.sql', '2026-10-20-lm-maritime-runtime-executions.sql'];
     for (const name of migrations) sql(fs.readFileSync(path.join(root, 'apps/life-manager/migrations', name), 'utf8'));
@@ -208,7 +233,7 @@ test('PostgreSQL atomically claims dispatches and preserves execution binding wi
       VALUES ('${UID_A}','${SUBJECT_A}','a@example.invalid','active','fixture','maritime-manager-v1','agent-a','${SHA}'),
              ('${UID_B}','${SUBJECT_B}','b@example.invalid','active','fixture','maritime-manager-v1','agent-b','${SHA}');`);
     const claim = (uid, occurrence, agent = 'agent-a') => `SET ROLE service_role; SELECT public.claim_lm_maritime_manager_cycle_v1('${uid}','${occurrence}','${agent}','${SHA}','2026-10-20');`;
-    const claims = await Promise.all([1, 2].map(() => run(path.join(bin, 'psql'), [...args, '-c', claim(UID_A, 'race')])));
+    const claims = await Promise.all([1, 2].map(() => run(path.join(bin, 'psql'), [...args, '-c', claim(UID_A, 'race')], { env: pgEnv })));
     assert.deepEqual(claims.map(result => result.stdout.trim()).sort(), ['f', 't']);
     assert.equal(sql(claim(UID_B, 'foreign', 'agent-a')), 'f');
     const bind = (execution) => `SET ROLE service_role; SELECT public.bind_lm_maritime_manager_execution_v1('${UID_A}','race','agent-a','${SHA}','2026-10-20','${execution}');`;
@@ -224,7 +249,9 @@ test('PostgreSQL atomically claims dispatches and preserves execution binding wi
     sql(fs.readFileSync(path.join(root, 'apps/life-manager/migrations', migrations[1]), 'utf8'));
     assert.equal(sql(`SELECT execution_id FROM public.lm_maritime_manager_executions WHERE uid='${UID_A}' AND occurrence_id='race'`), 'exec-1');
   } finally {
-    if (started) execFileSync(path.join(bin, 'pg_ctl'), ['-D', data, '-m', 'fast', '-w', 'stop'], { stdio: 'pipe' });
+    if (inheritedHostaddr === undefined) delete process.env.PGHOSTADDR;
+    else process.env.PGHOSTADDR = inheritedHostaddr;
+    if (started) execFileSync(path.join(bin, 'pg_ctl'), ['-D', data, '-m', 'fast', '-w', 'stop'], { env: pgEnv, stdio: 'pipe' });
     fs.rmSync(fixtureRoot, { recursive: true, force: true });
     fs.rmSync(socket, { recursive: true, force: true });
   }

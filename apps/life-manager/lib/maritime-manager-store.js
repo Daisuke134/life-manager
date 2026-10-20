@@ -106,7 +106,9 @@ function createMaritimeManagerStore(options = {}) {
       p_release_sha: releaseSha, p_date_key: dateKey };
   }
   async function readCycleDispatch(input) {
-    const identity = cycleIdentity(input);
+    return readCycleDispatchIdentity(cycleIdentity(input));
+  }
+  async function readCycleDispatchIdentity(identity) {
     const rows = await request(`lm_maritime_manager_executions?uid=eq.${encodeURIComponent(identity.p_uid)}`
       + `&occurrence_id=eq.${encodeURIComponent(identity.p_occurrence_id)}`
       + "&select=uid,occurrence_id,agent_id,date_key,release_sha,execution_id&limit=2");
@@ -124,7 +126,7 @@ function createMaritimeManagerStore(options = {}) {
     const identity = cycleIdentity(input);
     const claimed = await request("rpc/claim_lm_maritime_manager_cycle_v1", "POST", identity);
     if (typeof claimed !== "boolean") throw new Error("maritime_manager_store_invalid");
-    const row = await readCycleDispatch(input);
+    const row = await readCycleDispatchIdentity(identity);
     if (claimed && !row) throw new Error("maritime_manager_store_invalid");
     return { claimed, row };
   }
@@ -135,7 +137,7 @@ function createMaritimeManagerStore(options = {}) {
       ...identity, p_execution_id: executionId,
     });
     if (bound !== true) throw new Error("maritime_manager_binding_rejected");
-    const row = await readCycleDispatch(input);
+    const row = await readCycleDispatchIdentity(identity);
     if (!row || row.execution_id !== executionId) throw new Error("maritime_manager_binding_rejected");
     return row;
   }
