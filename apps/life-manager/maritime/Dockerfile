@@ -9,6 +9,8 @@ COPY requirements-runtime.txt /app/requirements-runtime.txt
 RUN grep -E '^(jsonschema|playwright|cloakbrowser|Pillow|PyYAML|httpx|requests|websocket-client)==' requirements-runtime.txt > /tmp/maritime-requirements.txt \
     && python3 -m pip install --no-cache-dir --break-system-packages -r /tmp/maritime-requirements.txt \
     && rm /tmp/maritime-requirements.txt \
+    && CLOAKBROWSER_CACHE_DIR=/opt/cloakbrowser python3 -c "from cloakbrowser.download import ensure_binary; from pathlib import Path; Path('/usr/local/bin/lm-cloud-chromium').symlink_to(ensure_binary())" \
+    && chmod -R a+rX /opt/cloakbrowser \
     && npm install --global @openai/codex@0.160.0 \
     && npm cache clean --force
 COPY . /app

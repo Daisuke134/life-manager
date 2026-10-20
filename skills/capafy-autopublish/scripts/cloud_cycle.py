@@ -121,6 +121,10 @@ def run_cycle(tenant_id, occurrence_id, date_key, *, env=None, data_root=Path('/
         'PATH', 'LANG', 'LC_ALL', 'TZ', 'SSL_CERT_FILE', 'SSL_CERT_DIR',
         'LM_CLOUD_MODEL_API_KEY',
     ) if key in context}
+    # Image-owned binary only; never inherit another user's browser/profile/CDP.
+    browser = '/usr/local/bin/lm-cloud-chromium'
+    if os.access(browser, os.X_OK):
+        child.update(CAPAFY_CHROMIUM=browser, CLOAKBROWSER_BINARY_PATH=browser)
     child.update({key: str(path) for key, path in child_paths.items() if key != 'EVIDENCE_DIR'})
     child.update(AGENT_RUNNER_CONFIG=str(config), AGENT_RUNNER_WORKDIR=str(workspace),
                  LM_RUNTIME_HOST='maritime', LM_RUNTIME_TENANT_ID=tenant_id,

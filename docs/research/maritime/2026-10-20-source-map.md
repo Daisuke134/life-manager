@@ -96,3 +96,7 @@ SDK docsには`provision()`を使う例があるが、それはOpenClaw template
 - https://api.maritime.sh/openapi.json — `POST /api/deploy`のDeployCreateは`source: "zip"`と`agentId`/`uploadS3Key`を受ける。既存agentを削除・追加せずmain由来ZIPへ再deployする。`POST /api/upload/zip`はBearer＋multipart file。`GET /api/deploy/{deployment_id}`と`GET /api/deploy/agent/{agent_id}`がreadback。CLI文書にないZIP flagを推測しない。
 - https://maritime.sh/docs/frameworks/custom — `/data`はredeploy後も保持。旧成果物を削除して移行しない。
 - owned Linuxのread-only execはCloakBrowser0.5.6/Playwright1.59.0を確認したが、実際のconfig.get_binary_path()のbrowser本体は存在しない。package導入をbrowser attach成功として扱わない。証拠→docs/evidence/maritime/owned-linux-browser-preflight.json。
+
+### T08 image browser
+- 一次source: https://github.com/CloakHQ/cloakbrowser （取得済み0.5.6 package source/configと公式READMEを照合）。既存owned Linux fixtureは公式`cloakbrowser.download.ensure_binary`でfree Chrome146を取得し、uid10001/caps0でCDP/DOMを確認する。
+- 採用: 同じAPIをimage buildで使いroot所有read-only binaryを固定pathへbind。既存Capafy launcherのLinux分岐のみheadless/dev-shm対応。Mac profile/認証は複製しない。image実build/provider認証は未確認。

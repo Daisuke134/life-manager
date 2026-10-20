@@ -247,6 +247,7 @@ life-manager/
 **Depends:** T07。実行者のcredential SSOT/registry事前確認が必要。
 
 - [ ] T08.1 private SSOTでservice完全一致を調べ、登録済みCapafy/browser/Maritime/model/Resendの有無とownerをsecret値を出さず確認する。specにないことを未登録の根拠にしない。
+- [ ] T08.1a Docker image内でpin済みCloakBrowserの公式ensure_binaryを使いfree Linux binaryを/optへ導入する。root所有read-only binaryを固定/usr/local/bin/lm-cloud-chromiumへbindし、cloud_cycleは存在する固定binaryだけをchildへ渡す。既存browser-ownerのLinux起動だけheadless/dev-shm制約へ対応する。Mac profileや親browser変数を継承しない。
 - [ ] T08.2 founder用と新利用者用のbindingを別々に作り、既存Steel/CDP adapterへ同じtenantのsessionだけを渡す。Macの`:9222`をCloudのlocalhostと解釈しない。
 - [ ] T08.3 Linux隔離環境でread-onlyのinventory/statusまでを一回通す。認証切れ、macOS必須処理、provider本人手続きはfield別に記録し、別tenant sessionへfallbackしない。
 - [ ] T08.4 focused isolation case `tenant_b_cannot_use_tenant_a_capafy_session`をPASSにしてcommit/push。provider認証未完の人も商品生成と報告は開始できるが、販売済みと表示しない。
