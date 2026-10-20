@@ -1,7 +1,7 @@
 "use strict";
 
 const { createWebAuthClient, createWebCsrfToken, ensureWebUser, publicOrigin,
-  hasPkceVerifier, csrfSecret } = require("./web-auth.js");
+  hasPkceVerifier, csrfSecret, captureWebFirstTouchCookie, readWebFirstTouchCookie } = require("./web-auth.js");
 const SIGNUP_PATH = "/auth/maritime/email";
 const CONFIRM_PATH = "/auth/maritime/confirm";
 function enabled(options) {
@@ -48,10 +48,10 @@ async function readMaritimeBody(req) {
 }
 async function signupBody(req) {
   const body = await readMaritimeBody(req);
-  if (Object.keys(body).some(key => key !== "email") || typeof body.email !== "string") throw new Error("invalid_body");
+  if (Object.keys(body).some(key => !["email", "attribution"].includes(key)) || typeof body.email !== "string") throw new Error("invalid_body");
   const email = body.email.trim().toLowerCase();
   if (email.length > 320 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("invalid_body");
-  return email;
+  return { email, attribution: require("./web-attribution.js").sanitizeWebAttribution(body.attribution) };
 }
 async function handleMaritimeManagerAuth(req, res, options = {}) {
   const url = new URL(req.url || "/", "http://localhost");
@@ -64,10 +64,11 @@ async function handleMaritimeManagerAuth(req, res, options = {}) {
     try { origin = publicOrigin(req, options); }
     catch { send(res, 503, { error: "manager_email_unavailable" }); return true; }
     if (req.headers?.origin !== origin) { send(res, 403, { error: "origin_rejected" }); return true; }
-    let email;
-    try { email = await signupBody(req); }
+    let email, attribution;
+    try { ({email, attribution} = await signupBody(req)); }
     catch { send(res, 400, { error: "invalid_email_request" }); return true; }
     try {
+      captureWebFirstTouchCookie(req, res, attribution, options);
       const client = clientFor(req, res, options);
       const result = await client.auth.signInWithOtp({ email,
         options: { shouldCreateUser: true, emailRedirectTo: `${origin}${CONFIRM_PATH}` } });
@@ -96,7 +97,15 @@ async function handleMaritimeManagerAuth(req, res, options = {}) {
     sessionEstablished = true;
     const user = await resolveMaritimeManagerUser(req, res, { ...options, createClient: () => client });
     if (!user) throw new Error("invalid_confirmation");
-    void Promise.resolve().then(() => (options.recordEmailVerified || require("./maritime-manager-usage.js").recordMaritimeEmailVerified)(user.uid, options)).catch(() => {});
+    const attribution = readWebFirstTouchCookie(req, options);
+    void require("./maritime-manager-usage.js").observeMaritimeUsage("email_verified", user.uid, async signal => {
+      if (Object.keys(attribution).length) {
+        const fetchImpl = options.fetchImpl || globalThis.fetch;
+        const fetch = (url, init = {}) => fetchImpl(url, { ...init, signal: init.signal ? AbortSignal.any([signal, init.signal]) : signal });
+        if (!await (options.storeFirstTouch || require("./web-auth.js").storeWebFirstTouch)(user.uid, attribution, { ...options, fetch })) return false;
+      }
+      return (options.recordEmailVerified || require("./maritime-manager-usage.js").recordMaritimeEmailVerified)(user.uid, { ...options, attribution, signal });
+    }, options);
     redirect(res, "/maritime?verified=1");
   } catch {
     if (client && sessionEstablished) { try { await client.auth.signOut({ scope: "local" }); } catch {} }
@@ -235,7 +244,7 @@ async function handleMaritimeManagerPage(req, res, options = {}) {
       const row = await store.read(user.uid);
       state = row?.status || null;
       if (state === "active" && !await managerReady(row, options)) state = "provisioning";
-      void Promise.resolve().then(() => (options.recordReturn || require("./maritime-manager-usage.js").recordMaritimeManagerReturn)(user.uid, { ...options, request: req, managerStore: store })).catch(() => {});
+      void require("./maritime-manager-usage.js").observeMaritimeUsage("returned", user.uid, signal => (options.recordReturn || require("./maritime-manager-usage.js").recordMaritimeManagerReturn)(user.uid, { ...options, signal, request: req, managerStore: store }), options);
     }
     const distribution = options.distributionStore || createMaritimeDistributionStore({ env: options.env || process.env });
     void Promise.resolve(distribution.recordAnonymousEvent("maritime_landing_view", source)).catch(() => {});

@@ -65,7 +65,10 @@ async function observeMaritimeCompletion(job, receipt, services, durable = job) 
     const completed = durable.status === "completed" ? durable
       : durable.outcome === "completed" && isDeepStrictEqual(durable.receipt, receipt)
         ? { ...job, status: "completed", completed_at: durable.created_at } : null;
-    if (completed && await services.onJobCompleted(completed, receipt) !== false) return;
+    if (completed) {
+      await require("../lib/maritime-manager-usage.js").observeMaritimeUsage("completion", job.tenant_id, signal => services.onJobCompleted(completed, receipt, { signal }), services);
+      return;
+    }
   } catch { /* Telemetry cannot change a durable business completion. */ }
   process.stderr.write(JSON.stringify({ kind: "maritime_usage_unconfirmed", job_id: job.job_id,
     phase: "completion", error_class: "usage_store_unconfirmed", retryable: true,
@@ -802,7 +805,7 @@ async function runCapabilityWorker(env = process.env) {
   let registry;
   const maritimeManagerStore = capabilities.some(value => value.startsWith("maritime.manager."))
     ? require("../lib/maritime-manager-store.js").createMaritimeManagerStore({ env }) : null;
-  const onJobCompleted = maritimeManagerStore ? (job, receipt) => require("../lib/maritime-manager-usage.js").recordMaritimeManagerCompletion(job, receipt, { env, managerStore: maritimeManagerStore }) : null;
+  const onJobCompleted = maritimeManagerStore ? (job, receipt, telemetry = {}) => require("../lib/maritime-manager-usage.js").recordMaritimeManagerCompletion(job, receipt, { env, managerStore: maritimeManagerStore, ...telemetry }) : null;
   let nextMaritimeRecoveryMs = 0;
   let maritimePausedCursor = null;
   const handlers = createWorkerHandlers(env, capabilities, {

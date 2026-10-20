@@ -37,3 +37,14 @@ test('activation and accepted email use their own verified completion receipts',
  assert.equal(await usage.recordMaritimeManagerCompletion(report,mail,deps),true);assert.equal(deps.events[1][0],'maritime_report_sent');
  assert.equal(await usage.recordMaritimeManagerCompletion(report,{...mail,tenant_id:'foreign'},deps),false);assert.equal(deps.events.length,2);
 });
+
+test('usage observer bounds stalled telemetry and records false without private identifiers',async()=>{
+ const {observeMaritimeUsage}=require('./maritime-manager-usage.js'),logs=[];
+ const deps={env:{LM_UID_SECRET:'fixture'},usageTimeoutMs:10,writeUsageDiagnostic:row=>logs.push(row)};
+ let signal;
+ assert.equal(await observeMaritimeUsage('completion',UID,s=>{signal=s;return new Promise(()=>{});},deps),false);
+ assert.equal(signal.aborted,true);assert.equal(logs[0].error_class,'usage_timeout');
+ assert.equal(await observeMaritimeUsage('returned',UID,async()=>false,deps),false);
+ assert.equal(logs[1].error_class,'usage_store_unconfirmed');
+ assert.match(logs[0].participant_id,/^[a-f0-9]{64}$/);assert.doesNotMatch(JSON.stringify(logs),new RegExp(UID));
+});

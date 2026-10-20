@@ -257,3 +257,27 @@ test("manager activation forwards only sanitized first touch through the existin
  await handleMaritimeManagerActivate(request('/maritime/activate','POST',{consentVersion:'maritime-manager-v1',source:'instagram',attribution:{utm_source:'instagram',utm_medium:'dm',email:'private@example.invalid',token:'private-token'}},{'x-lm-web-csrf':csrf}),res,deps);
  assert.equal(res.statusCode,202);assert.deepEqual(stored,[{uid:`lm_${SUBJECT}`,attribution:{utm_source:'instagram',utm_medium:'dm'}}]);
 });
+
+test('signup keeps signed first-touch until verification before emitting email event',async()=>{
+ const {deps}=fixture(),signup=response();deps.serializeCookieHeader=(name,value)=>name+'='+value;
+ await handleMaritimeManagerAuth(request('/auth/maritime/email','POST',{email:USER.email,attribution:{utm_source:'instagram',utm_medium:'dm'}}),signup,deps);
+ assert.equal(signup.statusCode,202);
+ const cookies=signup.headers['set-cookie'];assert.ok(cookies);
+ const cookie=Array.isArray(cookies)?cookies.join('; '):cookies;
+ const seen=[];deps.storeFirstTouch=async(uid,attribution)=>{seen.push(['stored',attribution]);return true;};
+ deps.recordEmailVerified=async(uid,opts)=>{seen.push(['event',opts.attribution]);return true;};
+ const confirmed=response();
+ await handleMaritimeManagerAuth(request('/auth/maritime/confirm?code=fixture-code','GET',undefined,{cookie:'lm-web-auth-code-verifier=fixture; '+cookie}),confirmed,deps);
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(confirmed.headers.location,'/maritime?verified=1');
+ assert.deepEqual(seen.map(row=>row[0]),['stored','event']);assert.equal(seen[1][1].utm_source,'instagram');
+});
+
+test('authenticated return failure records an unconfirmed observation without changing HTTP success',async()=>{
+ const {deps}=fixture(),logs=[];deps.managerStore={read:async()=>null};
+ deps.distributionStore={recordAnonymousEvent:async()=>true};deps.recordReturn=async()=>false;
+ deps.writeUsageDiagnostic=row=>logs.push(row);const res=response();
+ await handleMaritimeManagerPage(request('/maritime'),res,deps);await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(res.statusCode,200);assert.equal(logs[0].event,'returned');assert.equal(logs[0].error_class,'usage_store_unconfirmed');
+ assert.doesNotMatch(JSON.stringify(logs),/person@|lm_11111111/);
+});

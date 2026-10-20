@@ -21,12 +21,12 @@ function createMaritimeManagerStore(options = {}) {
   const key = options.supaKey || env.SUPABASE_SERVICE_ROLE_KEY;
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   const now = options.now || (() => new Date().toISOString());
-  async function request(path, method = "GET", body, prefer) {
+  async function request(path, method = "GET", body, prefer, signal) {
     if (!root || !key) throw new Error("maritime_manager_store_unconfigured");
     let response;
     try {
       response = await fetchImpl(`${root}/rest/v1/${path}`, {
-        method, headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json",
+        method, ...(signal ? { signal } : {}), headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json",
           Prefer: prefer || "return=representation" },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       });
@@ -35,9 +35,9 @@ function createMaritimeManagerStore(options = {}) {
     try { return await response.json(); }
     catch { throw new Error("maritime_manager_store_invalid"); }
   }
-  async function read(uid) {
+  async function read(uid, { signal } = {}) {
     identifier(uid, UID);
-    const rows = await request(`lm_maritime_manager_enrollments?uid=eq.${encodeURIComponent(uid)}&select=${SELECT}&limit=2`);
+    const rows = await request(`lm_maritime_manager_enrollments?uid=eq.${encodeURIComponent(uid)}&select=${SELECT}&limit=2`, "GET", undefined, undefined, signal);
     if (!Array.isArray(rows) || rows.length > 1 || (rows[0] && rows[0].uid !== uid)) {
       throw new Error("maritime_manager_store_invalid");
     }

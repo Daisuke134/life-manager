@@ -1337,3 +1337,13 @@ test("Maritime telemetry consumes the SQL completion receipt row rather than ass
   failJob:async()=>{throw new Error('unexpected failure');}});
  assert.equal(observed,1);
 });
+
+test('Maritime completed work returns when telemetry stalls',async()=>{
+ const job={tenant_id:'tenant-a',job_id:'job-a',attempt:1,capability:'maritime.manager.report',effect_class:'message'},logs=[];let signal;
+ await executeCapabilityJob(job,{workerId:'worker-a',usageTimeoutMs:10,writeUsageDiagnostic:row=>logs.push(row),
+ handlers:{[job.capability]:async()=>({receipt:{status:'completed'}})},
+ completeJob:async()=>({...job,status:'completed',completed_at:'2026-10-21T01:00:00Z'}),
+ failJob:async()=>assert.fail('business must not retry'),
+ onJobCompleted:async(row,receipt,opts)=>{signal=opts.signal;await new Promise(()=>{});}});
+ assert.equal(signal.aborted,true);assert.equal(logs[0].error_class,'usage_timeout');
+});

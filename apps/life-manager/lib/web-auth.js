@@ -178,8 +178,7 @@ function attributionCookie(req, opts = {}) {
 }
 
 function setAttributionCookie(res, opts, value) {
-  const ssr = ssrFor(opts);
-  const serializer = opts.serializeCookieHeader || ssr.serializeCookieHeader;
+  const serializer = opts.serializeCookieHeader || ssrFor(opts).serializeCookieHeader;
   if (typeof serializer !== "function") return;
   appendResponseCookies(res, [{
     name: WEB_ATTRIBUTION_COOKIE,
@@ -192,6 +191,17 @@ function setAttributionCookie(res, opts, value) {
       maxAge: WEB_ATTRIBUTION_MAX_AGE_SECONDS,
     },
   }], serializer);
+}
+
+function captureWebFirstTouchCookie(req, res, attribution, opts = {}) {
+  const existing = attributionCookie(req, opts);
+  const secret = attributionSecret(opts);
+  if (consumeWebAttribution(existing.value, secret)) return;
+  const cookie = captureWebAttribution(attribution, secret);
+  if (cookie) setAttributionCookie(res, opts, cookie);
+}
+function readWebFirstTouchCookie(req, opts = {}) {
+  return consumeWebAttribution(attributionCookie(req, opts).value, attributionSecret(opts)) || {};
 }
 
 function matchesAttribution(value, expected) {
@@ -435,8 +445,7 @@ function redirectToConnectionError(res) {
 }
 
 function clearCookie(res, opts, name) {
-  const ssr = ssrFor(opts);
-  const serializer = opts.serializeCookieHeader || ssr.serializeCookieHeader;
+  const serializer = opts.serializeCookieHeader || ssrFor(opts).serializeCookieHeader;
   if (typeof serializer !== "function") return;
   const settings = cookieOptions(opts);
   delete settings.name;
@@ -616,6 +625,8 @@ module.exports = {
   resolveWebUser,
   signedOutCalendarHandoffLocation,
   separateWebUidForSubject,
+  captureWebFirstTouchCookie,
+  readWebFirstTouchCookie,
   storeWebFirstTouch,
   readWebFirstTouchValue,
 };
