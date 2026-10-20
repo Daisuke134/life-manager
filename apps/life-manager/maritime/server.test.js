@@ -92,3 +92,35 @@ test('a stalled relay has a bounded response and receives cancellation', async t
   assert.equal(response.status, 503);
   assert.equal(signal.aborted, true);
 });
+
+test('startup binds the injected port and sends only fixed wake data through the private relay token', async t => {
+  const { startMaritimeManagerServer } = require('./server.js');
+  const net = require('node:net');
+  const reservation = net.createServer().listen(0, '127.0.0.1');
+  await once(reservation, 'listening');
+  const port = reservation.address().port;
+  await new Promise(resolve => reservation.close(resolve));
+  const calls = [];
+  const env = { PORT: String(port), LM_WAKE_RELAY_URL: 'https://manager.example/api/internal/maritime/wake', LM_WAKE_RELAY_TOKEN: 'private-relay-fixture' };
+  const server = startMaritimeManagerServer({ env, prepareRuntime: () => ({ config }), fetchImpl: async (...input) => {
+    calls.push(input); return { ok: true, json: async () => ({ accepted: true }) };
+  } });
+  await once(server, 'listening');
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  assert.equal(server.address().address, '0.0.0.0');
+  const response = await fetch(`http://127.0.0.1:${port}/chat`, { method: 'POST', body: JSON.stringify({ source: 'scheduled', message: 'lm:cycle' }) });
+  assert.equal(response.status, 202);
+  assert.equal((await response.text()).includes(env.LM_WAKE_RELAY_TOKEN), false);
+  assert.equal(calls[0][0], env.LM_WAKE_RELAY_URL);
+  assert.equal(calls[0][1].headers.Authorization, `Bearer ${env.LM_WAKE_RELAY_TOKEN}`);
+  assert.deepEqual(JSON.parse(calls[0][1].body), { tenantId: UID, releaseSha: SHA, kind: 'cycle' });
+  assert.equal(calls[0][1].redirect, 'error');
+});
+test('startup rejects unsafe relay configuration and never invents a default port', () => {
+  const { startMaritimeManagerServer } = require('./server.js');
+  for (const env of [{}, { PORT: '0' }, { PORT: 'NaN' },
+    { PORT: '8080', LM_WAKE_RELAY_URL: 'http://manager.example/api/internal/maritime/wake', LM_WAKE_RELAY_TOKEN: 'fixture' },
+    { PORT: '8080', LM_WAKE_RELAY_URL: 'https://manager.example/other', LM_WAKE_RELAY_TOKEN: 'fixture' }]) {
+    assert.throws(() => startMaritimeManagerServer({ env, prepareRuntime: () => ({ config }) }), /invalid/);
+  }
+});

@@ -58,4 +58,36 @@ function createMaritimeManagerServer({ config = {}, relayWake, relayTimeoutMs = 
   server.requestTimeout = 25000;
   return server;
 }
-module.exports = { createMaritimeManagerServer };
+function startMaritimeManagerServer({ env = process.env, prepareRuntime, fetchImpl = globalThis.fetch } = {}) {
+  const port = Number(env.PORT);
+  if (!/^[0-9]+$/.test(String(env.PORT || '')) || !Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error('maritime_server_port_invalid');
+  }
+  let relayWake;
+  if (env.LM_WAKE_RELAY_URL && env.LM_WAKE_RELAY_TOKEN) {
+    let url;
+    try { url = new URL(env.LM_WAKE_RELAY_URL); } catch { throw new Error('maritime_server_relay_invalid'); }
+    if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash
+      || url.pathname !== '/api/internal/maritime/wake' || /[\r\n\0]/.test(env.LM_WAKE_RELAY_TOKEN)) {
+      throw new Error('maritime_server_relay_invalid');
+    }
+    relayWake = async (input, { signal }) => {
+      const response = await fetchImpl(url.toString(), { method: 'POST', redirect: 'error', signal,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.LM_WAKE_RELAY_TOKEN}` },
+        body: JSON.stringify(input) });
+      if (!response.ok) return { accepted: false };
+      const result = await response.json();
+      return { accepted: result?.accepted === true };
+    };
+  }
+  const prepare = prepareRuntime || require('./runtime-env.js').prepareMaritimeRuntime;
+  const runtime = prepare({ env });
+  const server = createMaritimeManagerServer({ config: runtime.config, relayWake });
+  server.listen(port, '0.0.0.0');
+  return server;
+}
+if (require.main === module) {
+  try { startMaritimeManagerServer(); }
+  catch { process.stderr.write('maritime_server_startup_failed\n'); process.exitCode = 2; }
+}
+module.exports = { createMaritimeManagerServer, startMaritimeManagerServer };

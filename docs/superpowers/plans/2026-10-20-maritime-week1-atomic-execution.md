@@ -286,12 +286,12 @@ life-manager/
 
 ## Task T13: Maritime health/chatの薄いHTTP入口を作る
 
-**Files:** Create `apps/life-manager/maritime/server.js`/test。
+**Files:** Create `apps/life-manager/maritime/server.js`/test、`runtime-env.js`/test、`run-cycle.js`。`prepareMaritimeRuntime({env,baseConfig,dataRoot,releaseRoot})`をserver起動とdetached execの両方で呼ぶ。server内のprocess.env変更だけでは別exec processへ伝わらないため、`run-cycle.js`で同じtenant config/envを構成して既存Python wrapperへexecする。
 **Interfaces:** `createMaritimeManagerServer({config:{tenantId,releaseSha,modelReady},relayWake,relayTimeoutMs})`。固定prompt=`lm:cycle`/`lm:report`かつsource=`scheduled`だけ`relayWake({tenantId,releaseSha,kind},{signal})->{accepted}`へ通知する。default10秒・最大25秒、8KiB入力上限。requestのtenant/release/shellは採用しない。GET `/health`、POST `/chat`、GET `/schedules`。bind `0.0.0.0:Number(process.env.PORT)`。healthは外部作用なし。
 **Depends:** T11。T12の実image buildを待たず、handlerのsource/fixtureを完成させる。
 
 - [ ] T13.1 test `health_is_pure_and_chat_returns_before_factory_finishes`を定義。factory promiseが未完でもchatが30秒未満で受付応答し、healthではjob0件。
-- [ ] T13.2 startup時に、このagentへMaritimeが注入した`OPENAI_API_KEY`/`OPENAI_BASE_URL`を既存runner用のtenant configと`LM_CLOUD_MODEL_API_KEY`へbindする。既存config schemaを再利用し、Macの認証/profileや第二のmodel routerを持ち込まない。必須値欠落はhealthのreadinessへ明記し、Local routeへfallbackしない。POST `/chat`のscheduled promptはkind=`cycle|report`の内部wakeへ変換し、同tenant tokenでRailwayの`/api/internal/maritime/wake`へ通知して受付状態を返す。VMへDB credentialを渡さず、requestに任意tenantや任意shell commandを指定させない。
+- [ ] T13.2 startup時に、このagentへMaritimeが注入した`OPENAI_API_KEY`/`OPENAI_BASE_URL`を既存runner用のtenant configと`LM_CLOUD_MODEL_API_KEY`へbindする。既存config schemaを再利用し、現在のapplication-lane先頭Codex candidateのmodel/effortを保持してcloud profileだけを割り当てる。meteredと記録しsubscription quotaを複製しない。既存runnerが要求するauth_fileはtenant以下の空JSON markerに向け、key値はconfigにもmarkerにも保存しない。Macの認証/profileや第二のmodel routerを持ち込まない。必須値欠落はhealthのreadinessへ明記し、Local routeへfallbackしない。POST `/chat`のscheduled promptはkind=`cycle|report`の内部wakeへ変換し、同tenant tokenでRailwayの`/api/internal/maritime/wake`へ通知して受付状態を返す。VMへDB credentialを渡さず、requestに任意tenantや任意shell commandを指定させない。
 - [ ] T13.3 envにbindしたtenantとrelease、`LM_WAKE_RELAY_URL`/tenant限定`LM_WAKE_RELAY_TOKEN`だけを使い、GET `/health`は`{ok:true,releaseSha}`を返す。公開bodyにsecretや他tenantを含めない。`/schedules`を除く外部操作へユーザー指定shellを通さない。
 - [ ] T13.4 `node --test maritime/server.test.js`と実port health確認を行いcommit/push。
 
@@ -313,7 +313,7 @@ life-manager/
 **Depends:** T03/T12/T13。
 
 - [ ] T15.1 test `custom_create_never_uses_default_openclaw_and_lost_response_does_not_recreate`を定義。POST body `framework:'custom'`、immutable `imageName`、HMAC externalId、response喪失後はlistのみをassert。
-- [ ] T15.2 custom createは公式RESTのidempotent `POST /api/v1/end-users/{external_id}/agents`を最小fetchで呼ぶ（初回201、再呼出200）。external_idはtenantからHMACで導出し、lost responseは同end-userのGETで回収する。Maritime metered modelを使うpilotでは`useMaritimeLlm:true`を明示する（customの既定ではmodel keyが注入されない）。既存SDKのprovision defaultへcustom imageを混在させない。list/secrets等の対応済みmethodはSDK再利用、maxRetries=0。公式execは`POST /api/agents/{id}/exec`へ`{command:["python3","/app/skills/capafy-autopublish/scripts/cloud_cycle.py","--tenant",uid,"--occurrence",occurrenceId,"--date",dateKey],detached:true,timeout:3600}`。202のexecutionIdを保存し、`GET /api/agents/{id}/exec/{executionId}`で終端を読む。
+- [ ] T15.2 custom createは公式RESTのidempotent `POST /api/v1/end-users/{external_id}/agents`を最小fetchで呼ぶ（初回201、再呼出200）。external_idはtenantからHMACで導出し、lost responseは同end-userのGETで回収する。Maritime metered modelを使うpilotでは`useMaritimeLlm:true`を明示する（customの既定ではmodel keyが注入されない）。既存SDKのprovision defaultへcustom imageを混在させない。list/secrets等の対応済みmethodはSDK再利用、maxRetries=0。公式execは`POST /api/agents/{id}/exec`へ`{command:["node","/app/apps/life-manager/maritime/run-cycle.js","--tenant",uid,"--occurrence",occurrenceId,"--date",dateKey],detached:true,timeout:3720}`。202のexecutionIdを保存し、`GET /api/agents/{id}/exec/{executionId}`で終端を読む。
 - [ ] T15.3 create前にstore.claimProvisionを取り、同externalIdの既存agentを読む。通信喪失時は`effect_unknown`を保存し、readbackで同agentをbindするまで再createしない。exec POSTのresponse喪失も再POSTせず、`/data`の同occurrence receiptとprovider readbackへ進む。execution 404は実行失敗の証明にしない。
 - [ ] T15.4 `node --test lib/transport/maritime-manager.test.js lib/maritime-manager-store.test.js`を確認してcommit/push。
 
