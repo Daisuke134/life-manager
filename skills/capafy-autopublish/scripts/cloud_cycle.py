@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import stat
 import tempfile
 import uuid
 
@@ -24,6 +25,35 @@ def _save(path, value):
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)
+
+
+def _private_directory(path, owner):
+    try:
+        info = path.lstat()
+        return (stat.S_ISDIR(info.st_mode) and info.st_uid == owner
+                and stat.S_IMODE(info.st_mode) == 0o700 and path.resolve(strict=True) == path)
+    except OSError:
+        return False
+
+
+def _artifact_file(value, workspace, owner):
+    if not isinstance(value, str):
+        return None
+    candidate = Path(value.removeprefix('file://'))
+    if not candidate.is_absolute():
+        candidate = workspace / candidate
+    candidate = Path(os.path.abspath(candidate))
+    try:
+        if candidate == workspace or not candidate.is_relative_to(workspace):
+            return None
+        if candidate.resolve(strict=True) != candidate:
+            return None
+        info = candidate.lstat()
+    except OSError:
+        return None
+    if not stat.S_ISREG(info.st_mode) or info.st_uid != owner or info.st_nlink != 1:
+        return None
+    return candidate
 
 
 def run_cycle(tenant_id, occurrence_id, date_key, *, env=None, data_root=Path('/data'), runner=subprocess.run):
@@ -64,6 +94,7 @@ def run_cycle(tenant_id, occurrence_id, date_key, *, env=None, data_root=Path('/
     def result(status, error=None, artifacts=None):
         return dict(base, status=status, errorClass=error, artifactRefs=artifacts or [])
     receipt = (home / 'receipts' / occurrence_id / 'cycle.json').resolve()
+    occurrence_workspace = workspace / 'occurrences' / occurrence_id
     if not receipt.is_relative_to(home):
         raise ValueError('receipt_binding_invalid')
     child_paths = {name: home / relative for name, relative in {
@@ -88,16 +119,18 @@ def run_cycle(tenant_id, occurrence_id, date_key, *, env=None, data_root=Path('/
                     or cached['providerSnapshotRef'] is not None
                     or cached['providerReceiptRefs'] != [] or cached['nextEligibleAt'] is not None
                     or cached['errorClass'] not in (None, 'cycle_in_progress', 'runner_result_unconfirmed',
-                        'no_work', 'runner_reported_failure', 'completion_evidence_missing', 'runner_timeout')
+                        'no_work', 'runner_reported_failure', 'completion_evidence_missing', 'runner_timeout',
+                        'occurrence_workspace_preexisting', 'occurrence_workspace_unavailable')
                     or not isinstance(cached['artifactRefs'], list)):
                 raise ValueError()
             for ref in cached['artifactRefs']:
                 if not isinstance(ref, str) or not ref.startswith('artifact://'):
                     raise ValueError()
                 relative = Path(ref[len('artifact://'):])
-                artifact = (workspace / relative).resolve()
+                artifact = workspace / relative
                 if (relative.is_absolute() or '..' in relative.parts
-                        or not artifact.is_relative_to(workspace) or not artifact.is_file()):
+                        or not _private_directory(occurrence_workspace, os.geteuid())
+                        or _artifact_file(str(artifact), occurrence_workspace, os.geteuid()) is None):
                     raise ValueError()
             if cached['status'] == 'completed' and not cached['artifactRefs']:
                 raise ValueError()
@@ -116,6 +149,26 @@ def run_cycle(tenant_id, occurrence_id, date_key, *, env=None, data_root=Path('/
             json.dump(initial, stream)
     except FileExistsError:
         return result('effect_unknown', 'cycle_in_progress')
+    owner = os.geteuid()
+    occurrence_parent = occurrence_workspace.parent
+    try:
+        try:
+            occurrence_parent.mkdir(mode=0o700)
+        except FileExistsError:
+            pass
+        if not _private_directory(occurrence_parent, owner):
+            raise OSError('occurrence_parent_not_private')
+        occurrence_workspace.mkdir(mode=0o700)
+        if not _private_directory(occurrence_workspace, owner):
+            raise OSError('occurrence_workspace_not_private')
+    except FileExistsError:
+        final = result('effect_unknown', 'occurrence_workspace_preexisting')
+        _save(receipt, dict(initial, result=final))
+        return final
+    except OSError:
+        final = result('effect_unknown', 'occurrence_workspace_unavailable')
+        _save(receipt, dict(initial, result=final))
+        return final
     # Only the tenant model key crosses this boundary; founder/provider secrets do not.
     child = {key: context[key] for key in (
         'PATH', 'LANG', 'LC_ALL', 'TZ', 'SSL_CERT_FILE', 'SSL_CERT_DIR',
@@ -126,7 +179,7 @@ def run_cycle(tenant_id, occurrence_id, date_key, *, env=None, data_root=Path('/
     if os.access(browser, os.X_OK):
         child.update(CAPAFY_CHROMIUM=browser, CLOAKBROWSER_BINARY_PATH=browser)
     child.update({key: str(path) for key, path in child_paths.items() if key != 'EVIDENCE_DIR'})
-    child.update(AGENT_RUNNER_CONFIG=str(config), AGENT_RUNNER_WORKDIR=str(workspace),
+    child.update(AGENT_RUNNER_CONFIG=str(config), AGENT_RUNNER_WORKDIR=str(occurrence_workspace),
                  LM_RUNTIME_HOST='maritime', LM_RUNTIME_TENANT_ID=tenant_id,
                  LM_RELEASE_SHA=release_sha, LIFE_MANAGER_STATE_HOME=str(home),
                  LIFE_MANAGER_BUILD_WORKSPACE=str(workspace),
@@ -138,7 +191,7 @@ def run_cycle(tenant_id, occurrence_id, date_key, *, env=None, data_root=Path('/
     schema = json.loads((RELEASE / 'skills/self/capafy-loop/capafy-loop-pass.schema.json').read_text())
     schema['properties']['evidence']['items'] = {
         'type': 'string',
-        'pattern': r'^(?:file://)?' + re.escape(str(workspace)) + r'/[^\x00]+$',
+        'pattern': r'^(?:file://)?' + re.escape(str(occurrence_workspace)) + r'/[^\x00]+$',
         'description': 'One literal absolute artifact file path, without prose or labels.',
     }
     schema_path = receipt.parent / 'pass.schema.json'
@@ -150,7 +203,7 @@ def run_cycle(tenant_id, occurrence_id, date_key, *, env=None, data_root=Path('/
         'Choose and complete one useful revenue-oriented action from actual feedback. No user goal or budget input is required.',
         f'Reuse the existing Capafy factory in {RELEASE}/skills/capafy-autopublish and its runbooks; do not create another publisher.',
         account_context,
-        f'Write original artifacts only under {workspace}; runtime state belongs under {home}.',
+        f'Write original artifacts only under {occurrence_workspace}; runtime state belongs under {home}.',
         'Do not modify the immutable release, borrow founder accounts, send Telegram to Dais, or commit/push tenant work to the source repository.',
         'Keep credentials out of artifacts and reports. Verify what happened; creation, publication, sales and payouts are distinct.',
         'Return the supplied pass schema. Each evidence string must be exactly one absolute artifact file path; do not add descriptions or labels.',
@@ -159,26 +212,26 @@ def run_cycle(tenant_id, occurrence_id, date_key, *, env=None, data_root=Path('/
                '--task-class', 'application-lane-agent', '--evidence-dir', str(child_paths['EVIDENCE_DIR']),
                '--task-label', 'maritime:' + occurrence_id, '--loop', 'capafy',
                '--schema', str(schema_path),
-               '--workdir', str(workspace), '--print-result']
+               '--workdir', str(occurrence_workspace), '--print-result']
     try:
-        process = runner(command, cwd=str(workspace), env=child, input=prompt, text=True, capture_output=True, timeout=3600)
+        process = runner(command, cwd=str(occurrence_workspace), env=child, input=prompt, text=True, capture_output=True, timeout=3600)
         payload = json.loads(process.stdout) if process.returncode == 0 else None
         if not isinstance(payload, dict) or payload.get('status') not in ('success', 'failure', 'no_op') or not isinstance(payload.get('evidence'), list):
             final = result('effect_unknown', 'runner_result_unconfirmed')
-        elif payload['status'] == 'no_op':
-            final = result('deferred', 'no_work')
         elif payload['status'] == 'failure':
             final = result('effect_unknown', 'runner_reported_failure')
         else:
             artifacts = []
             for item in payload['evidence']:
-                if not isinstance(item, str):
-                    continue
-                path = Path(item.removeprefix('file://'))
-                path = (path if path.is_absolute() else workspace / path).resolve()
-                if path.is_relative_to(workspace) and path.is_file():
+                path = _artifact_file(item, occurrence_workspace, owner)
+                if path is not None:
                     artifacts.append('artifact://' + path.relative_to(workspace).as_posix())
-            final = result('completed', artifacts=artifacts) if artifacts else result('effect_unknown', 'completion_evidence_missing')
+            if artifacts:
+                final = result('completed', artifacts=artifacts)
+            elif payload['status'] == 'no_op':
+                final = result('deferred', 'no_work')
+            else:
+                final = result('effect_unknown', 'completion_evidence_missing')
     except subprocess.TimeoutExpired:
         final = result('effect_unknown', 'runner_timeout')
     except (OSError, ValueError, TypeError):

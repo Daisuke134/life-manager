@@ -21008,7 +21008,7 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 
 **TODO順変更:** 旧=一業務readiness→Cloud→入口→3人pilot→packet→1,000人。新=下記atomic ID順、提出経路確認T01・配布文案T24・台本T25は即着手可能。理由はDaisが知人DMを担当し、利用者feedbackを待たず実装・素材・提出準備を進められるため。先に試せる製品と正式必須項目を揃えて提出し、改善と獲得を継続する。全体統括cursorと進行中provider effectは変更しない。
 
-**Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細file/signature/acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。運用cursor=T22.1b.6-01（Manager保存先を既存Runtime Postgresへ接続）と独立副cursor=T22.1c-5d（main4f採用済み、未着手occurrenceの一回再dispatch）。sourceはPR #8424の最終d13e1b8d7fで全14checks成功、main `0c559693f03b34770e9c1ff61616bbe2f2e497ed`へ統合する。初回基盤はVM/Web/workerのmain0c採用と4source hash/固定browserの非rootCDP/DOMを確認する。現在のowned VMは権限修正main4fのhealth/hash/receipts親を確認済み。Web/workerの必須設定は直近のfoundation readbackを基準とし、新PG sourceの採用は未完。両appの必須設定・capacity3・内部cohortは稼働deploymentで照合し、公開email flagとMaritime capabilityは無効に保つ。DBの登録・実行・参加・利用計測migrationは公式success、Data APIの503 PGRST002は未解決、直近owned Auth Adminは200/subject・email一致。既存6ファイルのunknown receiptは維持し、新しい実業務・日報・停止・外部利用者・売上・正式提出・DaisへのURLメールは未確認/未完とする。
+**Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細file/signature/acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。運用cursor=T22.1b.6-01（Manager保存先を既存Runtime Postgresへ接続）と独立副cursor=T22.1c-5e.5（occurrence専用成果物境界のsource acceptance）。sourceはPR #8424の最終d13e1b8d7fで全14checks成功、main `0c559693f03b34770e9c1ff61616bbe2f2e497ed`へ統合する。初回基盤はVM/Web/workerのmain0c採用と4source hash/固定browserの非rootCDP/DOMを確認する。現在のowned VMは権限修正main4fのhealth/hash/receipts親を確認済み。Web/workerの必須設定は直近のfoundation readbackを基準とし、新PG sourceの採用は未完。両appの必須設定・capacity3・内部cohortは稼働deploymentで照合し、公開email flagとMaritime capabilityは無効に保つ。DBの登録・実行・参加・利用計測migrationは公式success、Data APIの503 PGRST002は未解決、直近owned Auth Adminは200/subject・email一致。既存6ファイルのunknown receiptは維持し、新しい実業務・日報・停止・外部利用者・売上・正式提出・DaisへのURLメールは未確認/未完とする。
 
 | ID | 一件の成果物 | 状態/依存 |
 |---|---|---|
@@ -21110,7 +21110,7 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 **T22.1b.6の保存先決定:** 主cursor=b.6-01。旧=Dashboard本人ログイン→REST復旧、新=Manager専用保存先を既存Runtime PGへ接続→製品経由の実PKCE/仕事/日報/停止→配布、理由=REST503、同region公式障害、候補DBimageでも当該timezone依存が残り、既存Runtime PGのDDL権限とManager未作成/Job0・Supabase enrollment/execution0・公開flag/cap無効を確認するため。一般利用者stateの移行・二重write・REST fallbackは行わない。Auth/PKCE、共通queue/receipt、FinancialRecord、CFO送信器を再利用する。owned UIDは既存separateWebUidForSubject導出に一致、既存VM externalIdもManager HMACに一致しbindingを維持する。6表とfile別atomic手順→Atomic Plan b.6-01〜34、実測→docs/evidence/maritime/runtime-pg-state-preflight.json。c-5はPR8449/exact73efの13checks全成功とfresh review0/0でmain4fへ統合し、既存VMの新image配備を進める。Supabase本人ログイン依頼は元provider診断用として非同期に残す。
 
 
-**Maritime 残TODOの現在地:** 主cursor=T22.1b.6-01、副cursor=T22.1c-5d。権限修正はPR8449/main `4f008688db5aff872ae11429d2753ed9f38c598c`へ統合し、exact73efの13checks全成功・fresh review重大指摘0を確認する。既存VMへmain4f ZIPのupload200/deploy200と公式successを受け、health release・変更file hash・receipts親10001:10001/0700の実採用を確認する。v2後の再dispatch/新業務完了は未確認。PG接続はspec/preflightまでで、b.6の実装は未着手。公開flag/Manager capabilityは無効、Manager enrollment/execution/jobは0、Cloud売上・外部利用者・正式提出・DaisへのURLメールは未完。
+**Maritime 残TODOの現在地:** 主cursor=T22.1b.6-01、副cursor=T22.1c-5e.5。権限修正はPR8449/main `4f008688db5aff872ae11429d2753ed9f38c598c`へ統合し、exact73efの13checks全成功・fresh review重大指摘0を確認する。既存VMへmain4f ZIPのupload200/deploy200と公式successを受け、health release・変更file hash・receipts親10001:10001/0700の実採用を確認する。v2後の再dispatch/新業務完了は未確認。PG接続はspec/preflightまでで、b.6の実装は未着手。公開flag/Manager capabilityは無効、Manager enrollment/execution/jobは0、Cloud売上・外部利用者・正式提出・DaisへのURLメールは未完。
 
 | 残ID | 一つずつ実行する範囲 | 状態 |
 |---|---|---|
@@ -21136,3 +21136,9 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 
 
 **権限修正の実反映:** c-5c完了。公式配備success後のread-only実行でrelease4f、変更fileのmain hash一致、receipts親10001:10001/0700を確認し、v2 cycle receipt不存在を確認する。新しいモデル実行は行っていない。証拠→docs/evidence/maritime/receipt-parent-image-adoption.json。主cursor=b.6-01、副cursor=c-5d。
+
+
+**c-5dの実業務readback:** main4f VM execution completed/exit0。runnerはno_op/evidence4、4fileはregular・single-link・UID10001、合計7188bytes。cycle receiptはdeferred/no_work/artifact refsなし。原因はcloud_cycleがno_opのevidenceを捨てること。mtimeは調査時の観測事実としてのみ記録し、時刻に基づくfreshness判定は採用しない。以前のoffline factory 6file receipt unknownとv3 deferred receiptは変更しない。販売公開/売上/入金は未確認。現在副cursor=T22.1c-5e.5、詳細→Atomic Plan c-5e.1〜8。実測→docs/evidence/maritime/owned-factory-no-op.json。
+
+
+**T22.1c-5d/5eの現況:** runnerはno_op/evidence4で、4つの成果物はUID10001所有の通常file、合計7188bytes。保存されたv3 receiptはdeferred/no_work・refs空のまま保持する。mtime freshness案は粗い時刻精度の懸念で棄却し、排他receipt claim後に作る新規`build/occurrences/<occurrence_id>/`を証拠境界にした。root既存draftは採用せず、発生dirも再利用しない。root catalog参照は維持し、runner workdirだけを発生dirへ分ける。artifact refは発生dir内のregular・single-link・実行UID所有fileに限定する。preexisting dir、symlink親/file、hardlink、directory artifactはfocused testで拒否を確認し、`test_cloud_cycle.py` 21/21 PASS。旧v3 receiptは変更せず、公開・売上のclaimはしない。副cursor=T22.1c-5e.5。詳細→Atomic Plan c-5e.1〜8。
