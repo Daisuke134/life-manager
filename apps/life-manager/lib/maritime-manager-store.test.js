@@ -274,3 +274,17 @@ test('pending enrollment recovery is bounded and excludes paused or claimed rows
   const foreign=createMaritimeManagerStore({supaUrl:'https://database.invalid',supaKey:'fixture-key',fetchImpl:async()=>new Response(JSON.stringify([{uid:UID_A,status:'paused',paused_at:null,agent_id:null,release_sha:SHA}]))});
   await assert.rejects(foreign.listPending(1),/store_invalid/);
 });
+
+
+test('quarantine pending provision is tenant scoped and cannot change active or paused enrollments',async()=>{
+ let calls=0;
+ const store=createMaritimeManagerStore({supaUrl:'https://database.invalid',supaKey:'fixture',fetchImpl:async(url,options)=>{
+  calls++;const u=new URL(url);
+  assert.equal(options.method,'PATCH');assert.equal(u.searchParams.get('uid'),'eq.'+UID_A);
+  assert.equal(u.searchParams.get('status'),'eq.pending');assert.equal(u.searchParams.get('paused_at'),'is.null');assert.equal(u.searchParams.get('agent_id'),'is.null');
+  assert.deepEqual(JSON.parse(options.body),{status:'effect_unknown'});
+  return new Response(JSON.stringify([{uid:UID_A,status:'effect_unknown',paused_at:null,agent_id:null}]));
+ }});
+ assert.equal((await store.quarantinePendingProvision(UID_A)).status,'effect_unknown');
+ await assert.rejects(()=>store.quarantinePendingProvision('../foreign'),/invalid/);assert.equal(calls,1);
+});

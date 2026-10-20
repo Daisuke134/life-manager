@@ -103,6 +103,18 @@ async function handleMaritimeManagerAuth(req, res, options = {}) {
   }
   return true;
 }
+async function managerReady(row, options) {
+  if (row?.status !== "active" || row.paused_at || !row.agent_id) return false;
+  const job = require("./maritime-manager-runtime.js").buildMaritimeManagerProvisionJob({
+    tenantId: row.uid, releaseSha: row.release_sha, phase: "configure",
+  });
+  const receipt = await (options.readCommonReceipt || require("./runtime-job-store.js").readCommonReceipt)({
+    tenantId: row.uid, jobId: job.job_id, attempt: 1,
+  }, options.storeOptions || {});
+  const ref = `maritime-agent://${row.agent_id}`;
+  return Boolean(receipt && ["verified", "reconciled"].includes(receipt.outcome) && receipt.provider === "maritime"
+    && receipt.loop_id === "maritime.manager" && receipt.external_ref === ref && receipt.evidence_refs?.includes(ref));
+}
 async function handleMaritimeManagerActivate(req, res, options = {}) {
   const path = new URL(req.url || "/", "http://localhost").pathname;
   if (path !== "/maritime/activate") return false;
@@ -136,7 +148,9 @@ async function handleMaritimeManagerActivate(req, res, options = {}) {
     const existing = await store.read(user.uid);
     if (existing?.status === "paused" || existing?.paused_at) { send(res, 409, { error: "manager_paused" }); return true; }
     if (existing?.status === "effect_unknown") { send(res, 409, { error: "manager_reconciling" }); return true; }
-    if (existing?.status === "active") { send(res, 200, { status: "active" }); return true; }
+    if (existing?.status === "active") {
+      const ready = await managerReady(existing, options); send(res, ready ? 200 : 202, { status: ready ? "active" : "pending" }); return true;
+    }
     const source = normalizeMaritimeSource(body.source || "direct");
     const distribution = options.distributionStore || createMaritimeDistributionStore({ env });
     const consent = await distribution.accept(user.uid, source);
@@ -153,7 +167,9 @@ async function handleMaritimeManagerActivate(req, res, options = {}) {
     if (queued.job.status === "reconciling") { send(res, 409, { error: "manager_reconciling" }); return true; }
     if (queued.job.status === "completed") {
       const latest = await store.read(user.uid);
-      if (latest?.status === "active" && latest.agent_id && !latest.paused_at) send(res, 200, { status: "active" });
+      if (latest?.status === "active" && latest.agent_id && !latest.paused_at) {
+        const ready = await managerReady(latest, options); send(res, ready ? 200 : 202, { status: ready ? "active" : "pending" });
+      }
       else send(res, 409, { error: "provision_state_unconfirmed" });
       return true;
     }
@@ -177,6 +193,7 @@ async function handleMaritimeManagerPage(req, res, options = {}) {
       const store = options.managerStore || require("./maritime-manager-store.js").createMaritimeManagerStore({ env: options.env || process.env });
       const row = await store.read(user.uid);
       state = row?.status || null;
+      if (state === "active" && !await managerReady(row, options)) state = "provisioning";
     }
     const distribution = options.distributionStore || createMaritimeDistributionStore({ env: options.env || process.env });
     void Promise.resolve(distribution.recordAnonymousEvent("maritime_landing_view", source)).catch(() => {});

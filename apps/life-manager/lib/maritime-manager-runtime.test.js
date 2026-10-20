@@ -279,3 +279,19 @@ test('provision create and configure are separate stable jobs with read-only rec
  row.status='paused';assert.equal(await adapter.continuation(job,receipt),null);
  await assert.rejects(()=>adapter.execute(job),/inactive/);
 });
+
+
+test('first configure readback failure happens after settings and recovers read-only',async()=>{
+ const row={uid:UID,agent_id:'agent-a',release_sha:SHA,status:'active',paused_at:null,created_at:'2026-10-21T00:00:00.000Z',timezone:'UTC'};
+ let writes=0,reloads=0,reads=0,schedules=[];
+ const adapter=createMaritimeManagerProvisionAdapter({managerStore:{read:async()=>row},
+  writeScheduleSnapshot:async input=>{writes++;schedules=input.snapshot.schedules;},configureWake:async()=>{reloads++;},
+  readWakeConfiguration:async()=>{if(++reads===1)throw new Error('temporary read failure');return {ready:reloads>0,schedules};},seedInitialReport:async()=>{},
+ });
+ const job={...buildMaritimeManagerProvisionJob({tenantId:UID,releaseSha:SHA,phase:'configure'}),available_at:row.created_at};
+ await assert.rejects(()=>adapter.execute(job),error=>error.unknownEffect===true);
+ assert.equal(writes,1);assert.equal(reloads,1);
+ const proof=await adapter.reconcile(job);assert.equal(proof.state,'present');
+ assert.equal((await adapter.continuation(job,proof.receipt)).job.capability,'maritime.manager.cycle');
+ assert.equal(writes,1);assert.equal(reloads,1);
+});

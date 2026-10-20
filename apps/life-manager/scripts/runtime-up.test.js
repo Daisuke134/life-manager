@@ -1254,3 +1254,31 @@ test("Maritime provision worker binds release-specific source and existing remot
  assert.equal(services.provisionSource(sha).uploadS3Key,"uploads/fixture.zip");
  assert.throws(()=>services.provisionSource("c".repeat(40)),/source/);
 });
+
+
+test("Maritime post-send continuation failure reconciles the receipt without a second send",async()=>{
+ let sends=0,continuations=0,failure,atomic=0;
+ const receipt={status:"completed"},next={job:{job_id:"next"},availableAt:"2026-10-22T00:00:00.000Z"};
+ const adapter={execute:async()=>{sends++;return {receipt};},verify:()=>true,
+  continuation:async()=>{if(++continuations===1)throw new Error("store temporarily unavailable");return next;},
+  reconcile:async()=>({state:"present",receipt})};
+ const registry={hasCapability:()=>true,getByCapability:()=>adapter};
+ const handlers=createWorkerHandlers({},["maritime.manager.report"],{maritimeManagerStore:{},maritimeTransport:{},query:async()=>({rows:[]}),createRegistry:()=>registry});
+ const job={tenant_id:"tenant-a",job_id:"report-a",attempt:1,capability:"maritime.manager.report",effect_class:"message",effect_key:"message-a",status:"running"};
+ await executeCapabilityJob(job,{workerId:"worker-a",handlers,failJob:async input=>{failure=input;}});
+ assert.equal(sends,1);assert.equal(failure.unknownEffect,true);
+ await reconcileMaritimeCapabilityJobs([job.capability],{registry,store:{
+  claimReconcilingJobs:async()=>[{...job,status:"reconciling"}],recordUnknownReconciliation:async()=>{throw new Error("not unknown");},
+  resolveReconciliation:async()=>{throw new Error("non-atomic");},resolveReconciliationAndEnqueue:async input=>{assert.equal(input.nextJob.job_id,"next");atomic++;},
+ }});
+ assert.equal(sends,1);assert.equal(atomic,1);
+});
+
+test("terminal pending provision is quarantined so the next tenant can recover",async()=>{
+ const a={uid:"lm_11111111-1111-4111-8111-111111111111",release_sha:"a".repeat(40)},b={...a,uid:"lm_22222222-2222-4222-8222-222222222222"};
+ const rows=[a,b],queued=[],quarantined=[];
+ const deps={managerStore:{listPending:async()=>rows.slice(0,1),quarantinePendingProvision:async uid=>{quarantined.push(uid);rows.shift();}},
+ enqueueJob:async job=>{queued.push(job.tenant_id);return {created:job.tenant_id===b.uid,job:{...job,status:job.tenant_id===a.uid?"dead_letter":"queued"}};}};
+ await recoverMaritimeEnrollments(["maritime.manager.provision"],deps);await recoverMaritimeEnrollments(["maritime.manager.provision"],deps);
+ assert.deepEqual(quarantined,[a.uid]);assert.deepEqual(queued,[a.uid,b.uid]);
+});

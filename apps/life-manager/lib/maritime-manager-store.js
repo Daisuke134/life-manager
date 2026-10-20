@@ -92,6 +92,16 @@ function createMaritimeManagerStore(options = {}) {
     }
     return row;
   }
+  async function quarantinePendingProvision(uid) {
+    identifier(uid, UID);
+    const rows = await request(`lm_maritime_manager_enrollments?uid=eq.${encodeURIComponent(uid)}&status=eq.pending&paused_at=is.null&agent_id=is.null`,
+      "PATCH", { status: "effect_unknown" });
+    if (!Array.isArray(rows) || rows.length > 1 || (rows[0] && (rows[0].uid !== uid
+      || rows[0].status !== "effect_unknown" || rows[0].agent_id !== null || rows[0].paused_at !== null))) {
+      throw new Error("maritime_manager_store_invalid");
+    }
+    return rows[0] || null;
+  }
   async function pause(uid) {
     identifier(uid, UID);
     const pausedAt = now();
@@ -150,7 +160,7 @@ function createMaritimeManagerStore(options = {}) {
     if (!row || row.execution_id !== executionId) throw new Error("maritime_manager_binding_rejected");
     return row;
   }
-  return Object.freeze({ enroll, read, listPending, claimProvision, bindAgent, pause,
+  return Object.freeze({ enroll, read, listPending, claimProvision, bindAgent, pause, quarantinePendingProvision,
     claimCycleDispatch, readCycleDispatch, bindCycleExecution });
 }
 module.exports = { createMaritimeManagerStore };

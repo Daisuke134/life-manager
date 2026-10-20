@@ -52,7 +52,7 @@
   "limitations": [
     "Owned runtime/model connectivity verified; no external-user activation, publish, sale or payout verified.",
     "Owned offline factory created six files but cycle receipt remains effect_unknown/completion_evidence_missing; literal artifact-path schema correction not deployed.",
-    "Linux browser/provider session and central worker/continuation/email wiring remain incomplete."
+    "Linux browser/provider session remains incomplete. Central worker/continuation/email source is wired and reviewed but is not deployed."
   ],
   "maritime_account_status": "active",
   "cloud_browser_observation": {
@@ -61,7 +61,14 @@
     "candidates": [
       "reuse existing Capafy browser-owner with official Linux CloakBrowser binary",
       "official Maritime Computers integration; plan/cost and factory compatibility unverified"
-    ]
+    ],
+    "owned_linux_dependencies": {
+      "cloakbrowser": "0.5.6",
+      "playwright": "1.59.0",
+      "configured_binary_present": false,
+      "attach_verified": false,
+      "evidence_ref": "docs/evidence/maritime/owned-linux-browser-preflight.json"
+    }
   },
   "cloud_model_observation": {
     "existing_runner_providers": [
@@ -87,13 +94,14 @@
     "base_url": "https://api.maritime.sh",
     "authenticated": true,
     "http_status": 200,
-    "agent_count": 0,
     "key_scopes": [
       "provision",
       "deploy",
       "secrets"
     ],
-    "key_location": "private credential SSOT only"
+    "key_location": "private credential SSOT only",
+    "agent_count_at_initial_key_check": 0,
+    "owned_agent_created_and_read_back": true
   },
   "build_route": {
     "local_docker_daemon": "unavailable_socket_missing",

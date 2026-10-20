@@ -90,3 +90,9 @@ SDK docsには`provision()`を使う例があるが、それはOpenClaw template
 - 公式Builds https://maritime.sh/docs/builds とlive /agents/new > GitHubでZIP routeを確認。公開UI bundle `/_next/static/chunks/d299fdf0623a0562.js` は `/api/upload/zip`へmultipart `file`を送り、`s3Key/hasDockerfile/detectedFramework/files`を読む。create bodyは`uploadS3Key`、`initialEnvVars`を使う。未upload/未create。内部UI APIのため実応答で再検証する。
 - live /billing はFree・3 agents・welcome AI credit USD5・used0・next charge0。大会Termsのfull accessとaccount権限の対応は未確認。有料upgradeなし。
 - Docker公式tag API https://hub.docker.com/v2/repositories/library/node/tags/22.23.3-bookworm-slim はtag存在/amd64対応。既存CLIと同じ `@openai/codex@0.160.0` はnpm metadataでversionとNode>=16を確認。Pythonは既存requirements-runtime.txtの該当locked依存だけを使う。
+
+## 既存ZIP agentの更新とLinux browserの実測
+
+- https://api.maritime.sh/openapi.json — `POST /api/deploy`のDeployCreateは`source: "zip"`と`agentId`/`uploadS3Key`を受ける。既存agentを削除・追加せずmain由来ZIPへ再deployする。`POST /api/upload/zip`はBearer＋multipart file。`GET /api/deploy/{deployment_id}`と`GET /api/deploy/agent/{agent_id}`がreadback。CLI文書にないZIP flagを推測しない。
+- https://maritime.sh/docs/frameworks/custom — `/data`はredeploy後も保持。旧成果物を削除して移行しない。
+- owned Linuxのread-only execはCloakBrowser0.5.6/Playwright1.59.0を確認したが、実際のconfig.get_binary_path()のbrowser本体は存在しない。package導入をbrowser attach成功として扱わない。証拠→docs/evidence/maritime/owned-linux-browser-preflight.json。

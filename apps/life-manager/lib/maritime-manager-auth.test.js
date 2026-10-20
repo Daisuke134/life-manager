@@ -109,6 +109,7 @@ test("unbound_token_hash_cannot_replace_an_existing_session",async()=>{
 function activationFixture({capacityFull=false,user=USER}={}) {
   const f=fixture({user});const rows=new Map();const jobs=new Map();
   f.deps.env.LM_MARITIME_MANAGER_IMAGE_RELEASE_SHA="a".repeat(40);
+  f.deps.readCommonReceipt=async()=>null;
   f.deps.managerStore={read:async uid=>rows.get(uid)||null,enroll:async input=>{
     if(!rows.has(input.uid))rows.set(input.uid,{uid:input.uid,auth_subject:input.authSubject,email:input.email,status:"pending",release_sha:input.releaseSha});
     return rows.get(input.uid);}};
@@ -168,8 +169,9 @@ test("terminal_or_reconciling_provision_jobs_are_not_reported_as_pending",async(
     await handleMaritimeManagerActivate(activateRequest(deps),res,deps);assert.equal(res.statusCode,expected,status);assert.doesNotMatch(res.body,/"status":"pending"/,status);
   }
 });
-test("completed_provision_job_requires_active_enrollment_readback",async()=>{
+test("completed_provision_job_requires_active_enrollment_and_configure_receipt",async()=>{
   const {deps,rows}=activationFixture();deps.enqueueJob=async job=>{const row=rows.get(`lm_${SUBJECT}`);row.status="active";row.agent_id="agent-a";return {created:false,job:{...job,status:"completed"}};};
+  deps.readCommonReceipt=async()=>({outcome:"verified",provider:"maritime",loop_id:"maritime.manager",external_ref:"maritime-agent://agent-a",evidence_refs:["maritime-agent://agent-a"]});
   const res=response();await handleMaritimeManagerActivate(activateRequest(deps),res,deps);assert.equal(res.statusCode,200);assert.equal(JSON.parse(res.body).status,"active");
 });
 
@@ -191,4 +193,20 @@ test('manager activation pins the VM image release independently of the central 
 test('an app deployment SHA alone cannot label an unconfigured VM image release',async()=>{
   const {deps,rows,jobs}=activationFixture();deps.env.LM_RELEASE_SHA='b'.repeat(40);delete deps.env.LM_MARITIME_MANAGER_IMAGE_RELEASE_SHA;
   const res=response();await handleMaritimeManagerActivate(activateRequest(deps),res,deps);assert.equal(res.statusCode,503);assert.equal(rows.size,0);assert.equal(jobs.size,0);
+});
+
+
+test("bound enrollment stays preparing until configure completion is committed",async()=>{
+ const {deps,rows}=activationFixture();const uid=`lm_${SUBJECT}`;
+ rows.set(uid,{uid,status:"active",agent_id:"agent-a",release_sha:"a".repeat(40)});
+ let receipt=null,reads=0;
+ deps.readCommonReceipt=async input=>{reads++;assert.equal(input.tenantId,uid);assert.equal(input.attempt,1);return receipt;};
+ let res=response();await handleMaritimeManagerActivate(activateRequest(deps),res,deps);
+ assert.equal(res.statusCode,202);assert.equal(JSON.parse(res.body).status,"pending");assert.equal(reads,1);
+ receipt={outcome:"verified",provider:"maritime",loop_id:"maritime.manager",external_ref:"maritime-agent://agent-a",evidence_refs:["maritime-agent://agent-a"]};
+ res=response();await handleMaritimeManagerActivate(activateRequest(deps),res,deps);
+ assert.equal(res.statusCode,200);assert.equal(JSON.parse(res.body).status,"active");
+ deps.distributionStore.recordAnonymousEvent=async()=>{};
+ receipt=null;res=response();await handleMaritimeManagerPage(request('/maritime?lang=ja'),res,deps);
+ assert.equal(res.statusCode,200);assert.doesNotMatch(res.body,/稼働中/);
 });

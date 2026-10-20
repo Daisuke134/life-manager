@@ -241,7 +241,7 @@ function createMaritimeManagerProvisionAdapter(services = {}) {
     return { schema_version: 1, kind: 'maritime_manager_provision', status: 'completed', provider: 'maritime',
       tenant_id: c.tenantId, job_id: job.job_id, release_sha: c.releaseSha, phase: c.phase, agent_id: agentId,
       schedule_sha256: schedule ? createHash('sha256').update(JSON.stringify(schedule.schedules)).digest('hex') : null,
-      external_ref: `maritime-agent://${agentId}` };
+      external_ref: `maritime-agent://${agentId}`, evidence_refs: [`maritime-agent://${agentId}`] };
   }
   function verify(value, job) {
     try {
@@ -250,6 +250,7 @@ function createMaritimeManagerProvisionAdapter(services = {}) {
         && value.provider === 'maritime' && value.tenant_id === c.tenantId && value.job_id === job.job_id
         && value.release_sha === c.releaseSha && value.phase === c.phase && typeof value.agent_id === 'string'
         && EXECUTION_ID.test(value.agent_id) && value.external_ref === `maritime-agent://${value.agent_id}`
+        && isDeepStrictEqual(value.evidence_refs, [value.external_ref])
         && (c.phase === 'create' ? value.schedule_sha256 === null : /^[0-9a-f]{64}$/.test(value.schedule_sha256 || '')));
     } catch { return false; }
   }
@@ -274,11 +275,15 @@ function createMaritimeManagerProvisionAdapter(services = {}) {
       const row = await enrollment(c, c.phase === 'configure');
       if (c.phase === 'create') await services.ensureAgent(source(c));
       else {
-        const before = await inspect(c, job);
-        if (before.state === 'present') return { receipt: before.receipt };
-        const input = { uid: c.tenantId, agentId: row.agent_id, releaseSha: c.releaseSha };
-        await services.writeScheduleSnapshot({ ...input, snapshot: snapshot(c, row) });
-        await services.configureWake(input);
+        // Only a freshly claimed configure job writes. Reconciliation never calls execute.
+        try {
+          const input = { uid: c.tenantId, agentId: row.agent_id, releaseSha: c.releaseSha };
+          await services.writeScheduleSnapshot({ ...input, snapshot: snapshot(c, row) });
+          await services.configureWake(input);
+          const proof = await inspect(c, job);
+          if (proof.state === 'present') return { receipt: proof.receipt };
+        } catch { /* A write may have succeeded; recover by readback, never reconfigure. */ }
+        throw new CycleError('maritime_provision_configuration_unconfirmed');
       }
       const proof = await inspect(c, job);
       if (proof.state === 'present') return { receipt: proof.receipt };
@@ -319,7 +324,7 @@ function reportReceipt(c, job, delivery) {
     tenant_id: c.tenantId, job_id: job.job_id, period_key: c.periodKey, release_sha: c.releaseSha,
     provider_message_id: delivery.providerMessageId, recipient_hash: delivery.recipientHash,
     snapshot_hash: delivery.snapshotHash, sent_at: delivery.sentAt,
-    external_ref: `resend-email://${delivery.providerMessageId}` };
+    external_ref: `resend-email://${delivery.providerMessageId}`, evidence_refs: [`resend-email://${delivery.providerMessageId}`] };
 }
 function verifyReportReceipt(receipt, job) {
   try {
@@ -329,7 +334,8 @@ function verifyReportReceipt(receipt, job) {
       && receipt.job_id === job.job_id && receipt.period_key === c.periodKey && receipt.release_sha === c.releaseSha
       && EXECUTION_ID.test(receipt.provider_message_id || '') && /^[0-9a-f]{64}$/.test(receipt.recipient_hash || '')
       && /^[0-9a-f]{64}$/.test(receipt.snapshot_hash || '') && typeof receipt.sent_at === 'string'
-      && Number.isFinite(Date.parse(receipt.sent_at)) && receipt.external_ref === `resend-email://${receipt.provider_message_id}`);
+      && Number.isFinite(Date.parse(receipt.sent_at)) && receipt.external_ref === `resend-email://${receipt.provider_message_id}`
+      && isDeepStrictEqual(receipt.evidence_refs, [receipt.external_ref]));
   } catch { return false; }
 }
 function createMaritimeManagerReportAdapter(services = {}) {

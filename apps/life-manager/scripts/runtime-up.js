@@ -212,7 +212,10 @@ async function recoverMaritimeEnrollments(capabilities, { managerStore, enqueueJ
   if (!capabilities.includes("maritime.manager.provision")) return;
   const { buildMaritimeManagerProvisionJob } = require("../lib/maritime-manager-runtime.js");
   for (const row of await managerStore.listPending(1)) {
-    await enqueueJob(buildMaritimeManagerProvisionJob({ tenantId: row.uid, releaseSha: row.release_sha }), storeOptions);
+    const queued = await enqueueJob(buildMaritimeManagerProvisionJob({ tenantId: row.uid, releaseSha: row.release_sha }), storeOptions);
+    if (["dead_letter", "completed"].includes(queued?.job?.status)) {
+      await managerStore.quarantinePendingProvision(row.uid);
+    }
   }
 }
 
@@ -715,11 +718,14 @@ function createWorkerHandlers(env, capabilities, dependencies = {}) {
     handlers[capability] = async (job) => {
       const execution = await adapter.execute(job);
       if (capability.startsWith("maritime.manager.") && !execution.continuation && typeof adapter.continuation === "function") {
-        if (!await adapter.verify(execution.receipt, job)) {
-          const error = new Error("maritime_receipt_invalid"); error.code = "MARITIME_RECEIPT_INVALID"; error.unknownEffect = true; throw error;
+        try {
+          if (!await adapter.verify(execution.receipt, job)) throw new Error("maritime_receipt_invalid");
+          const continuation = await adapter.continuation(job, execution.receipt);
+          if (continuation) return { ...execution, continuation };
+        } catch {
+          const error = new Error("maritime_completion_unconfirmed");
+          error.code = "MARITIME_COMPLETION_UNCONFIRMED"; error.unknownEffect = true; throw error;
         }
-        const continuation = await adapter.continuation(job, execution.receipt);
-        if (continuation) return { ...execution, continuation };
       }
       return execution;
     };
