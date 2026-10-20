@@ -84,3 +84,9 @@ SDK docsには`provision()`を使う例があるが、それはOpenClaw template
 ## 認証後のAPI境界
 
 公式REST https://maritime.sh/docs/api のbase URLは `https://api.maritime.sh`。同じkeyでdashboard host `/api/agents` は403、公式API hostは200/bare array（owned agent0）を実測。`GET /api/agents` はread-only。API keyはprivate SSOTだけ、provision/deploy/secrets scope。`POST /api/v1/end-users/{external_id}/agents` は公式に初回201・再呼出200のidempotent作成を提供する。T15は独自externalId検索だけに頼らず、この既存契約を優先する。
+
+## 専用imageの準備
+
+- 公式Builds https://maritime.sh/docs/builds とlive /agents/new > GitHubでZIP routeを確認。公開UI bundle `/_next/static/chunks/d299fdf0623a0562.js` は `/api/upload/zip`へmultipart `file`を送り、`s3Key/hasDockerfile/detectedFramework/files`を読む。create bodyは`uploadS3Key`、`initialEnvVars`を使う。未upload/未create。内部UI APIのため実応答で再検証する。
+- live /billing はFree・3 agents・welcome AI credit USD5・used0・next charge0。大会Termsのfull accessとaccount権限の対応は未確認。有料upgradeなし。
+- Docker公式tag API https://hub.docker.com/v2/repositories/library/node/tags/22.23.3-bookworm-slim はtag存在/amd64対応。既存CLIと同じ `@openai/codex@0.160.0` はnpm metadataでversionとNode>=16を確認。Pythonは既存requirements-runtime.txtの該当locked依存だけを使う。

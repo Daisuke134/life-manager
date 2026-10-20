@@ -9,3 +9,4 @@ skills/alpaca-investment/test_review_status.py
 skills/capafy-autopublish/test/test_cloud_paths.py
 skills/capafy-autopublish/test/test_cloud_cycle.py
 skills/earn/capafy-marketing/tests/test_capafy_owned_snapshot.py
+skills/capafy-autopublish/test/test_maritime_build_context.py

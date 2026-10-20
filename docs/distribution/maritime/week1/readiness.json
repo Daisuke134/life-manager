@@ -80,5 +80,30 @@
       "secrets"
     ],
     "key_location": "private credential SSOT only"
+  },
+  "build_route": {
+    "local_docker_daemon": "unavailable_socket_missing",
+    "official_zip_ui": "agents/new > GitHub > Upload a ZIP",
+    "upload_endpoint": "POST /api/upload/zip (dashboard session, multipart file)",
+    "upload_response_fields": [
+      "s3Key",
+      "hasDockerfile",
+      "detectedFramework",
+      "files"
+    ],
+    "agent_create_zip_field": "uploadS3Key",
+    "archive_source": "main-derived verified commit only",
+    "remote_image_build": "not_started"
+  },
+  "account_plan_readback": {
+    "plan": "Free",
+    "agents_used": 0,
+    "agents_included": 3,
+    "ai_credits_usd": 5,
+    "ai_credits_used_usd": 0,
+    "welcome_credit_expiry": "2026-11-19",
+    "next_charge_usd": 0,
+    "paid_upgrade_performed": false,
+    "competition_full_access_entitlement": "not_confirmed_on_account"
   }
 }

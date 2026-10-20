@@ -145,8 +145,8 @@
         {
           "source": "skills/capafy-autopublish",
           "target": "skills/capafy-autopublish",
-          "files": 254,
-          "inventory_sha256": "f48a9f4850bbfde557a3411c4fd9aa2dc0a4e91478013d7be47c4a038a451bb7"
+          "files": 255,
+          "inventory_sha256": "4065e394baf151c0e3268fb14e7c43462ac48897420c057284bcb90bf9230a0e"
         },
         {
           "source": "skills/_shared",
