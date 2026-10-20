@@ -19,6 +19,9 @@ happens after (1). The official readbacks are therefore:
   - If the exact pre-effect ENOSPC marker proves the occurrence slot but the
     manifest was never written, only a Capafy article slug for that slot can
     conflict; unrelated commits in the shared landing repo do not.
+  - A reel sibling's unique create receipt may exclude a preexisting scheduled
+    X post only when its id/integration/slot match the official listing and the
+    receipt predates this occurrence. Unknown shared-account posts stay fenced.
   - Any readback failure, or not enough time yet: stays fenced.
 
 Usage:
@@ -28,6 +31,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import hashlib
 import json
 import os
 import re
@@ -59,6 +63,7 @@ LANDING_ROOT = Path(os.environ.get(
     "~/.local/state/life-manager/writer/checkouts/self-owned-landing")).expanduser()
 BASE_URL = "https://aniccaai.com/blog/"
 X_INTEGRATION_ID = os.environ.get("POSTIZ_X_INTEGRATION_ID", "cmt4l2jld031tqp0y8qtyo983")
+X_VIDEO_RECEIPTS_ROOT = Path("~/.local/state/life-manager/marketing/capafy-videos").expanduser()
 POSTIZ_POST_LIST_PROOF_ROW_CAP = 500
 COMMIT_PREFIX = "feat(capafy-distribute): publish free article "
 OCCURRENCE_SCHEMA = "capafy-distribute-occurrence.v1"
@@ -346,6 +351,40 @@ def postiz_key(credentials_path: Path | None = None) -> str:
     return matches[0] if len(matches) == 1 else ""
 
 
+def preexisting_x_post(post: dict[str, Any], start: dt.datetime) -> dict[str, Any] | None:
+    """Match the reel sibling's create receipt to a post that predates this run."""
+    root = X_VIDEO_RECEIPTS_ROOT
+    if root.is_symlink():
+        return None
+    matches = []
+    for path in root.glob("*/x-receipts-v3.jsonl"):
+        if path.is_symlink() or path.parent.is_symlink():
+            continue
+        try:
+            raw = path.read_bytes()
+            receipt = json.loads(raw)
+            created = receipt["create"]
+            recorded_at = dt.datetime.fromisoformat(receipt["at"].replace("Z", "+00:00"))
+            if (not isinstance(created, list) or len(created) != 1
+                    or not isinstance(created[0], dict)
+                    or created[0].get("postId") != post["id"]
+                    or created[0].get("integration") != X_INTEGRATION_ID
+                    or receipt.get("integration") != X_INTEGRATION_ID
+                    or recorded_at.tzinfo is None or recorded_at >= start):
+                continue
+            scheduled = dt.datetime.fromisoformat(receipt["scheduled_for"].replace("Z", "+00:00"))
+            published = dt.datetime.fromisoformat(post["publishDate"].replace("Z", "+00:00"))
+            if scheduled.tzinfo is None or published.tzinfo is None or scheduled != published:
+                continue
+        except (OSError, ValueError, TypeError, KeyError, AttributeError):
+            continue
+        matches.append({"post_id": post["id"], "integration_id": X_INTEGRATION_ID,
+                        "created_at": recorded_at.isoformat(),
+                        "publish_date": published.isoformat(), "receipt_path": str(path),
+                        "receipt_sha256": hashlib.sha256(raw).hexdigest()})
+    return matches[0] if len(matches) == 1 else None
+
+
 def read_x_posts(start: dt.datetime, end: dt.datetime) -> dict[str, Any]:
     key = postiz_key()
     if not key:
@@ -363,6 +402,7 @@ def read_x_posts(start: dt.datetime, end: dt.datetime) -> dict[str, Any]:
     if any(not isinstance(post, dict) for post in posts):
         return {"ok": False, "reason": "postiz_readback_malformed"}
     ours = []
+    preexisting = []
     for post in posts:
         integration = post.get("integration")
         if (not isinstance(integration, dict)
@@ -373,8 +413,15 @@ def read_x_posts(start: dt.datetime, end: dt.datetime) -> dict[str, Any]:
             post_id = post.get("id")
             if not isinstance(post_id, str) or not post_id:
                 return {"ok": False, "reason": "postiz_readback_malformed"}
-            ours.append(post_id)
-    return {"ok": True, "posts": ours}
+            prior = preexisting_x_post(post, start)
+            if prior is not None:
+                preexisting.append(prior)
+            else:
+                ours.append(post_id)
+    result = {"ok": True, "posts": ours}
+    if preexisting:
+        result["preexisting_posts"] = preexisting
+    return result
 
 
 def build_proof(occurrence_id: str, queued_at: dt.datetime, *,
@@ -439,6 +486,8 @@ def build_proof(occurrence_id: str, queued_at: dt.datetime, *,
     if not isinstance(post_rows, list):
         proof["reason"] = "postiz_readback_malformed"
         return proof
+    if x_posts.get("preexisting_posts"):
+        proof["preexisting_x_posts"] = x_posts["preexisting_posts"]
     if post_rows:
         proof["reason"] = (
             "x_post_in_window_without_occurrence_manifest"

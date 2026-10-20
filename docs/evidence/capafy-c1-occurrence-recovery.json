@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-20T15:05:10.128884+00:00",
+  "owner_id": "capafy-distribute-daily",
+  "occurrence_id": "capafy-distribute-daily:18dfe7df67227730-86894",
+  "run_started_at": "2026-10-19T10:35:23.446816+00:00",
+  "terminal_at": "2026-10-19T10:35:48.602131+00:00",
+  "release_sha": "baac8c681314edd1fc430199f30da410d31a4c1c",
+  "old_adapter": {
+    "verified": false,
+    "reason": "x_post_without_article"
+  },
+  "official_postiz_readback": {
+    "operation": "GET posts in start to start+4200s",
+    "total_rows": 9,
+    "x_rows": 1,
+    "post_id": "cmv96ar3001adnj0yazwer4uc",
+    "integration_id": "cmt4l2jld031tqp0y8qtyo983",
+    "publish_date": "2026-10-19T11:00:00.000Z",
+    "state": "PUBLISHED",
+    "native_url": "https://twitter.com/selawmqt/status/2112136932235026641"
+  },
+  "prior_create_receipt": {
+    "path": "/Users/anicca/.local/state/life-manager/marketing/capafy-videos/hooklab-d20261019-language/x-receipts-v3.jsonl",
+    "sha256": "ccc2fd26b77596cd2d3c6cef74835d727ebdaca242c2e0066de54b5bc055db54",
+    "recorded_at": "2026-10-15T06:43:57.514346+00:00",
+    "scheduled_for": "2026-10-19T11:00:00.000Z",
+    "post_id": "cmv96ar3001adnj0yazwer4uc",
+    "integration_id": "cmt4l2jld031tqp0y8qtyo983"
+  },
+  "source_verification": {
+    "source_commit": "3fe5745e0e393c973168650789ed204623eb8ee0",
+    "red": "old adapter returned verified=false for preexisting scheduled video",
+    "focused_tests_passed": 31,
+    "independent_offline_fixture_groups_passed": 28,
+    "loop_contract": {
+      "catalog_loops": 18,
+      "registry_jobs": 191,
+      "errors": 0
+    },
+    "doctor": {
+      "ok": false,
+      "unmanaged_labels": [
+        "ai.anicca.provision-browser.tiktok.hooklab"
+      ],
+      "missing_entrypoints": [],
+      "retired_installed_labels": []
+    }
+  },
+  "promotion_status": "not_yet_merged_or_loaded",
+  "external_mutations": 0,
+  "effect_resolution_status": "still_fenced_pending_accepted_immutable_adapter"
+}
