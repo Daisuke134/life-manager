@@ -17,6 +17,11 @@ def _d(v):
     return None if v in (None, "") else Decimal(str(v))
 
 
+def _money_text(v):
+    amount = _d(v)
+    return "未確認" if amount is None else f"${amount:.2f}"
+
+
 def _window(reconcile: dict, window: str) -> tuple[dict, dict]:
     funnel: dict[str, dict] = {}
     ct: dict[str, dict] = {}
@@ -46,7 +51,8 @@ def build_scoreboard(analytics: dict, reconcile: dict) -> dict:
     bal = analytics.get("balances") or {}
     money = {
         "gross_30d": (t.get("last_30d") or {}).get("gross_usd"),
-        "earnings_after_cost_30d": t.get("net30_usd"),
+        "after_fee_estimate_30d": t.get("net30_usd"),
+        "contribution_estimate_30d": t.get("profit30_actual_usd"),
         "cost_30d": t.get("cost30_actual_usd"),
         "payout_waiting": bal.get("balance_payout_usd"),
         "pending": bal.get("balance_pending_usd"),
@@ -73,7 +79,8 @@ def build_scoreboard(analytics: dict, reconcile: dict) -> dict:
 
 def render_text(b: dict, comparisons: list[dict] | None = None) -> str:
     m = b["money"]
-    lines = [f"Capafy 成績表: 30日 gross ${m['gross_30d']} / 原価 ${m['cost_30d']} / 原価後 ${m['earnings_after_cost_30d']}",
+    lines = [f"Capafy 成績表: 30日 gross {_money_text(m['gross_30d'])} / 手数料推計後 {_money_text(m['after_fee_estimate_30d'])} / OpenRouter実費 {_money_text(m['cost_30d'])} / 寄与推計 {_money_text(m['contribution_estimate_30d'])}",
+             "手数料推計後は売上の80%を仮定。全費用後の確定利益は未確認。",
              f"出金待ち ${m['payout_waiting']} / 確定待ち ${m['pending']} / 口座着金 累計 ${m['bank_received_total']}",
              f"売上0の連続日数 {b['zero_revenue_streak_days']} / 売れている {b['skills']['selling']} 本・一度も売れていない {b['skills']['never_sold']} 本"]
     for src, f in sorted(b["funnel"].items(), key=lambda kv: -kv[1]["views"])[:5]:
