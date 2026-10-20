@@ -4,41 +4,41 @@
 
 **目的・範囲・完了条件:** ローカルLife Managerの既存設計を継承し、全業務の自然実行・配信・公式収入・費用後利益・評価付き自己改善まで、既存C1–C9を一件ずつ進める。Daisの継続実行指示により前回のdocs-only境界を実装・必要検証・通常反映まで広げる。現在はC1をexact no-effectと再送防止まで完了し、cursorをC2へ進める。全社/各laneの収益目標・未知の費用/真のMRR・benchmark/AGIの未証明は保持し、C1完了で全goalを完了扱いしない。新しいSSOT・競合scheduler・cloudの別実装は作らない。
 
-**証拠の範囲:** source base=`70a5e3657317e0a53c33a2d643cd46ce967c8079`、稼働snapshotは`lm-loop status all --json`のローカル実測、収益は既存ownerが保存した公式readback。保存観測時刻と監査時刻を分ける。新しい認証付きseller probeは実施しない。匿名化した集計・run/SHA・出所は[監査証拠](../../evidence/capafy-rsi-status-20261020.json)。観測窓は2026-10-20、時刻は以下の通り。
+**証拠の範囲:** sourceの本番採用はmain `cd4c0d98855fd27d38c61df2afad2787947b2c0b`まで、管理対象の最新snapshotは19:16:40Zの`lm-loop status all --json`、金銭は以下に保存観測時刻を明示する公式readbackを使う。初期監査の[証拠](../../evidence/capafy-rsi-status-20261020.json)を最新観測へ上書きせず、追加の正規seller/package GET・SDK canary・採用・exact閉鎖は以下のC2/C4証拠を参照する。生credential・署名URLをrepoへ保存しない。
 
 ### As-Is：基盤は完全修復に至らず、全業務の収益改善は未証明
 
 - **「20 agents」の実体:** `apps/life-manager/config/product-loop-catalog.json`は18業務group。customer_revenue 14、investment 1、financing 1、non_economic 1、aggregator 1。18個の単一processではなく191 managed jobsで動く。未登録の2業務を推測で増やさない。CFO/Connectorに直接売上を要求せず会社の収益を支える契約で評価し、資金調達や投資元本を顧客売上/MRRへ加えない。
-- **稼働:** 14:23Z台のsnapshotは191 managed、loaded-idle160 / loaded-running29 / disabled2。最新記録のblockerはdisk_floor_low104 / resource_effect_unknown44 / entrypoint_exit_1 6 / blockerなし37。これは最新attemptの分類であり同時停止数・成功率ではない。79 jobsはproduct_loop_idなし。全業務が正常とも全停止とも判定しない。
-- **容量:** watchdogの14:22:12Z receiptはfree_after=3,854,827,520 bytes、回収0 / errors0 / protected_deletions0。2GiB recovery floorは満たすが10GiB producer floorを満たさない。低いfloorのPASSを収益lane回復と扱わない。以前のcorespotlightd→swap原因は今回再測定せず、現在の書込owner/増加原因は未確認のままにする。恒久修復をkillや一度の空き容量だけで判定しない。
+- **稼働:** 19:16:40Zの更新snapshotは191 managed、loaded-idle152 / loaded-running37 / disabled2。最新attempt分類はblockerなし81 / resource_capacity_busy48 / resource_effect_unknown42 / disk_floor_low11 / entrypoint_exit_1 6 / entrypoint_exit_75 2 / brain_transport1。最新attemptの記録であり、同時停止数・期間成功率とは異なる。status allの総305行にはretired97/external15/unmanaged2も含まれ、管理対象へ加えない。79 managed jobsはproduct_loop_idなし。容量不足104→11は記録上の減少であり全ownerの自然復旧証明ではない。private正本証拠=`c2-fleet-post-adoption-snapshot.json`。
+- **容量:** native Spotlight再構築後にindexing enabledを復元し、19時台のData freeは約27.2GiBとなる。10GiB revenue/12GiB一般producer floorは満たす。初期約3.6GiBからの回復は実測済みだが、index再生成中で永続安定は未証明。保護storeの直接削除・基盤restart・floor低下は行わない。詳細とreceiptはC2容量atomを参照する。
 - **監視:** health-observer 14:21:34Zはtelemetry_gap191、health_snapshot_timeout。healthy=0は全故障の証明ではない。独立のstatus読取は成功しており、監視snapshotの失敗境界を別atomで直す必要がある。
-- **Capafy owner:** factory/hourlyはdisk_floor_low、distributor/outcome-monitor/IG-account-managerはresource_effect_unknown。IG-marketingはdisabled、reelの最新terminalはexit1。healthcheckのpassやbrowserのrunningで公開/収益成功を代用しない。installed SHAはownerごとに異なり、current symlinkだけで全fleet採用済みと判定しない。
+- **Capafy owner:** 19:16:40Zのfactoryは新main `cd4c0d98`をloaded-idleで採用し、旧exact effect fence閉鎖後のcurrent blockerはなし。distributor/hourlyはrunningで最新attemptにcapacity_busyを持ち、goal-monitor/daily-closeは過去disk_floor_low、IG-account-manager/outcome-monitorはeffect_unknown、reelはexit1、IG-marketingはdisabled。factoryの新SHA自然提出は未観測。healthcheckのpassやbrowserのrunningで公開/収益成功を代用せず、ownerごとのinstalled SHAと自然terminalを照合する。
 - **EDD:** 既存LM-EABは5つの公開synthetic fixtureによる契約検証で、自然taskに対する汎化性能・live利益・秘密held-outを証明しない。既存OpenEvolveのrun_evolveはpaper/backtest戦略を対象にし、Capafy配信を自己最適化する実装ではない。article-self-improve / gig-experiment-evaluate / self-improve-evolveもsnapshotでdisk延期。今回読んだ証拠からCapafyのeval→変更→成熟した売上/費用→keep/revertという自律閉路の完走は確認できない。
 
 ### 全18業務の確認表
 
-下表のjob数/terminalは14:23Z台snapshot、財務はCFOの07:52:49Z snapshot（trailing開始9/20同時刻）。terminalは最新記録で、期間成功率ではない。全18業務で総合net statusはunknown。Coconalaはtrailing settled revenue¥70,980 / historical¥263,634を保存するがnet=null。mobile-appsのMRR$20.34はsubscription snapshotで入金/利益ではない。self-buildはMRR status=verifiedでも通貨合計が空で、$0とは断定しない。他16業務のMRRはunknown。CFO provenanceはpartial / asc_receipt_missing_in_reporting_window。この表の「未証明」は売上0の意味ではない。
+下表のjob数/terminalは19:16:40Z更新snapshot、財務はCFOの07:52:49Z snapshot（trailing開始9/20同時刻）。terminalは最新記録で、期間成功率ではない。全18業務で総合net statusはunknown。Coconalaはtrailing settled revenue¥70,980 / historical¥263,634を保存するがnet=null。mobile-appsのMRR$20.34はsubscription snapshotで入金/利益ではない。self-buildはMRR status=verifiedでも通貨合計が空で、$0とは断定しない。他16業務のMRRはunknown。CFO provenanceはpartial / asc_receipt_missing_in_reporting_window。この表の「未証明」は売上0の意味ではない。
 
 | 業務 | managed jobs | 最新terminal内訳 | 収益の証拠・残課題 |
 |---|---:|---|---|
-| gig-coconala | 7 | 6 blocked, 1 running | 30日売上¥70,980、費用後net欠測 |
-| gig-lancers | 7 | 6 blocked, 1 running | 顧客収益/費用後netの完全性は未証明 |
-| gig-crowdworks | 5 | 4 blocked, 1 running | 顧客収益/費用後netの完全性は未証明 |
+| gig-coconala | 7 | 5 blocked, 1 pass, 1 running | 30日売上¥70,980、費用後net欠測 |
+| gig-lancers | 7 | 3 blocked, 2 fail, 1 pass, 1 running | 顧客収益/費用後netの完全性は未証明 |
+| gig-crowdworks | 5 | 3 blocked, 1 fail, 1 running | 顧客収益/費用後netの完全性は未証明 |
 | gig-mercor | 3 | 3 blocked | 顧客収益/費用後netの完全性は未証明 |
 | promptbase | 1 | 1 fail | 顧客収益/費用後netの完全性は未証明 |
-| writer | 7 | 7 blocked | 顧客収益/費用後netの完全性は未証明 |
-| affiliate | 6 | 1 fail, 3 blocked, 2 running | 顧客収益/費用後netの完全性は未証明 |
+| writer | 7 | 4 blocked, 3 pass | 顧客収益/費用後netの完全性は未証明 |
+| affiliate | 6 | 3 blocked, 3 running | 顧客収益/費用後netの完全性は未証明 |
 | investment | 4 | 4 blocked | 投資：元本を売上へ加えず実現netを評価 |
-| agent-economy | 16 | 6 running, 10 blocked | 顧客収益/費用後netの完全性は未証明 |
+| agent-economy | 16 | 10 blocked, 1 fail, 5 running | 顧客収益/費用後netの完全性は未証明 |
 | job-hunter | 4 | 4 blocked | 顧客収益/費用後netの完全性は未証明 |
-| fundraiser | 2 | 1 blocked, 1 fail | financing：獲得資金を売上へ加えない |
-| connector | 1 | 1 blocked | non_economic：接続成果を評価 |
-| self-build | 4 | 3 blocked, 1 pass | MRR通貨合計は空、net未証明 |
-| mobile-apps | 23 | 21 blocked, 1 none, 1 fail | MRR$20.34、ASC/費用/settlement欠測 |
-| ebook | 5 | 1 pass, 4 blocked | 顧客収益/費用後netの完全性は未証明 |
-| capafy | 11 | 1 running, 7 blocked, 1 none, 1 pass, 1 fail | 7日paid0、MRR/会社net欠測 |
-| line-sticker | 3 | 1 running, 2 blocked | 顧客収益/費用後netの完全性は未証明 |
-| cfo | 3 | 3 blocked | aggregator：財務coverageを評価 |
+| fundraiser | 2 | 1 blocked, 1 running | financing：獲得資金を売上へ加えない |
+| connector | 1 | 1 pass | non_economic：接続成果を評価 |
+| self-build | 4 | 2 blocked, 2 pass | MRR通貨合計は空、net未証明 |
+| mobile-apps | 23 | 1 blocked, 1 none, 20 pass, 1 running | MRR$20.34、ASC/費用/settlement欠測 |
+| ebook | 5 | 2 blocked, 3 pass | 顧客収益/費用後netの完全性は未証明 |
+| capafy | 11 | 7 blocked, 1 fail, 1 none, 1 pass, 1 running | 7日paid0、MRR/会社net欠測 |
+| line-sticker | 3 | 1 blocked, 1 fail, 1 running | 顧客収益/費用後netの完全性は未証明 |
+| cfo | 3 | 2 blocked, 1 pass | aggregator：財務coverageを評価 |
 
 79 unmapped jobsは欠落させずEDD-FLEET-01で分類する。catalogのadapter実装宣言とCFOの実receipt coverageを区別する。
 
@@ -60,6 +60,8 @@
 | true MRR / 費用後確定会社net | unknown / unknown | active/canceled subscription・全実費の公式coverageなし |
 
 **Hook Grader TODO3の確認結果:** [公式公開listing](https://capafy.ai/agent/2455220100)をFirecrawl maxAge=0で取得し、v1.0.1 / updated10/16 / Downloadの公開状態を確認する。保存analyticsもstatus=online、has_online_version=true。従って「v1.0.1がまだ審査待ち」は置換する。公開Sold20は無料downloadを含むためpaid20としない。listing末尾はHook Labへの文字による案内で、公開取得本文には直接リンクが現れない。実download出力末尾のCTAと登録CTは未確認。17:22:47Z取得の7日Hook Grader views81とhooklab_free32は別の流入母集団なので32/81を転送率にしない。以前の1.7%/基準3%は、同一無料商品・利用者cohort・期間の分母を再取得するまで再判定しない。
+
+**Hook Grader配布物の追加readback:** 公式publisher GETはAgent `2455220100`の公開version `2110998797669519360`、v1.0.1、download、platform_status/audit_status4を確認する。直のS3 packageUrlは403だが、通常購入者向け`GET /agent/agent/agents/{agentId}/package`はcode0で署名付き`files.capafy.ai` URLを返す。Python既定headerでは403となり、browser相当User-Agent/Refererの追加probeではRange206、同条件のfull GETは200/application ZIPとなる。公開ZIPは1858 bytes/2 files、SHA256=`6d32ef0aca9fecd2cf9ceda286eb42f289f65b57b1f86eceeb2404016193f240`。内包`hook-grader/SKILL.md`は出力末尾に`https://capafy.ai/agent/8123079349?ct=hooklab_free`を添える指示を持つ。展開/コード実行/注文/提出は0。したがって公開listing本文にlinkが見えないことを配布物CTA欠落や買い手のdownload不能へ昇格しない。実際のmodel出力と同一無料利用cohort→訪問→paidの対応は未確認で、C4は未完。新無料Agentを追加する判断は正しい分母と既存導線の測定後とする。private証拠=`c4-hookgrader-authorized-package-content.json`/`c4-hookgrader-package-download-boundary.json`。
 
 **費用の限界:** 07:49:31Zの旧analyticsにあるprofit30_actual_usd=$20.41はgross$33.87×80%を丸めた$27.10−OpenRouter実費$6.69の寄与推計。Capafy feeの実明細、host/他model/system費用、settlementの完全性を満たす会社確定netではない。all_time.net_usd=$102.75という名前もgrossと同値で、手取確定値として流用しない。
 
@@ -100,7 +102,7 @@
 
 **到達した状態の定義:** self-healingは既知障害からdurable進捗が自然再開すること。self-improvingは比較可能な評価・実市場成果で採用した変更を次の実行が使用すること。全社最適化は、通貨/窓/実費を保持して限界利益と不確かさから実行枠を配分し、探索枠を残しながら損失/重複/顧客義務の制約を守ること。投稿数、出品数、model judgeの好み、process passだけではいずれも完了にしない。利益の絶対最大値/毎回の増益は市場不確実性のため証明できず、改善を測って保持/撤回できる閉路を受け入れ対象にする。
 
-**今回の検証と未完:** 稼働snapshotと保存済み公式数値、公開listing、4研究の一次資料を確認する。docs-onlyのため製品コード/依存追加や広いtest suiteは実施しない。数値整合・JSON・差分・独立read-only反証・PR/CI/mainの統合証拠は本作業の完了報告へ記す。基盤/全18業務収益化/C1–C9の実行完了は主張しない。
+**今回の検証と未完:** 保存済み公式金銭/流入、管理対象191 jobsの再取得、公開listing/正規配布ZIP、4研究の一次資料を確認する。Daisの継続実行指示によりdocs-onlyから既存C1–C9の実装・必要検証・通常反映へ進む。factory修正は関連51 tests/独立反証/全12 CI/main/immutable/本番read-only canary/限定採用と旧exact閉鎖まで確認し、新SHA自然提出を待つ。新規依存/API/GPU契約は追加せず、基盤全体・全18業務収益化・C1–C9全体の完了を主張しない。
 
 ### C1実行：配信unknownのexact occurrence照合
 
@@ -125,6 +127,10 @@
 **C2 factory同一stub復帰のbounded仕様:** 現在cursor=factory draft preflight/CP1復帰。owner=`codex-capafy-stub-cp1`、worktree=`.worktrees/capafy-stub-cp1-resume-20261021`、branch=`fix/capafy-stub-cp1-resume-20261021`、base main=`698d0d0713bce4548c6d5d6db331a16983d4b05c`。17:52:06Zの公式状態とlocal `init_completed`を持つ同ID/versionで、skills/config/packageがすべてfalseの未開始stubが`retry_existing_stub_finish`の確認済みfast pathに入り、CP1の既存経路へ到達する前に毎回停止する。mainのDAILY_LOOP.md Step2c/5は同Agentのprepare→必要CP1→finishを既に定義し、resume branchも`MODEL_UNKNOWN no-confirmed-model-yet`時に同Agent re-prepareを選ぶ。既存27 tests PASS後、同じshell consumerを実行する追加testで、全false/未confirmed modelの正当なstubだけが同Agent prepareへ到達せずexit1になることをREDで再現する。既存prepareは同じAgent IDの新versionを作成し、返されたversionにCP1/finishを結ぶ契約であり、旧versionのままCP3へ進める修復ではない。未開始と不確実/不一致を区別した最小の復帰分岐を検討する。readyの同version fast finish、公式読取失敗・agent/version/status不一致・不明model・finish/upload失敗後の停止を維持し、未確認のままCP3へ進めたり新Agentを作ったりしない。追加retry・第二publisher・UI/価格/credential変更は行わない。初回sourceは関連43 testsがPASSするが、独立reviewで2 Blockingを再現する。(1) SDKのraw欠測/null→normalized falseが未開始へ化けるため、既存runtime_mapping.pyへraw identity/確認fieldの明示性だけを保持する診断を加え、新しい復帰経路で要求する。既存bool正規化の出力自体は変えない。(2) 復帰後の2回目model読取が失敗すると旧version finish/fallbackへ流れるため、初回の確定した復帰情報を既存FRESH/REUSE_PREPARE_IDへ直接引き渡し再判定しない。18:36:53Zのraw公式GETは同Agent/version・status0・run_online、2確認flagの明示int0とpackageUrl欄の存在/str型を確認する。正規化falseだけを証拠にしない。変更対象はdaily_loop.sh/既存test_daily_loop_terminal.py/vendor内packaging/publish/platform/runtime_mapping.py/正本（既存runbookの契約追記が不可欠な時だけDAILY_LOOP.md）。raw→実normalizer→shellとmodel再読取反例を追加REDで保持する。別worktreeの未統合CP1_AGENTIC.md/cp1_agent.py/publish_prepare.sh/publish_finish.sh/価格testは他者所有で触れず、main採用済みの既存経路を使う。比較/既存関連test→独立read-only反証/CI→main→ALL immutable/isolated canary→exact factoryの安全な自然再開/同Agent公式readback/再送0で受け入れる。sourceだけで提出や売上成功を宣言しない。
 
 **factory sourceの修正後受入状況:** SDKのraw明示性を保持して欠測/nullを新経路へ通さず、確定した既存FRESH/REUSE_PREPARE_IDをそのままconsumerへ渡してmodelを再読取しない。関連51 tests、独立classifier27ケース・prepare5ケース、bash syntax/diff/loop contractがPASSし、review第2roundは指摘0/blocking0となる。code受入HEAD=`7ada743cad12b1004410b6dc79522981725bcc52`は最新main `de4df5b5d39fadde105f72f3a2d5bdb397c6c3bf`を通常merge済みで、他ownerの投資変更を保持する。CIで`manifest_inventory_mismatch skills/capafy-autopublish`を確認し、既存検証器と同じGit index/file SHA256/localeCompareのinventory計算により、manifestの当該root hashだけを更新する（255 files、inventory_sha256=`708153c0052d2459d84901dad1606b179264e5027ecd1a653aeb931ea108fba9`）。対象rootの検証違反0を確認するが、sparse checkoutの全OSS PASSとは呼ばない。PR #8428はBlocking検出後draftにし、exact新HEADの全CI PASS後に統合し、main由来immutableの本番canary/自然提出/公式readbackを満たしてから本atomの本番受入完了を宣言する。本番証明をmain統合の前提にはしない。旧factory occurrence `18e04dba30cbb9f8-54466`の登録済adapterは18:47:01Zに公式77件/snapshotを用いてpublish効果なしを確認する。独立read-only GETも77 unique/ID集合一致/version差分0/開始後updated_at0/hash一致を確認するが、この段階でprimaryはresolveしていない。提出・新規売上・C2全体は未完。
+
+**C3の現時点の収益baseline:** 18:37:54Z取得・last_30dの公式source×Agent表は有料13件/$33.87、正のpaid Agent3件で欠測Agent0。Hook Labは5件/$9.95（direct1・hot4）、TikTok Script Proは4件/$15.96（search3・Google1）、YouTube Script Writerは4件/$7.96（search4）。同じ窓の過去売上の分布であり、直近配信による新規売上・因果conversion率・MRR・完全費用後profitではない。blog/X/free導線のpaidは0のままで、次の配信candidateは既存search/hotの実購入経路と比較できる形にする。全費用とslot固有CTのcoverage不足はunknownを保持する。private証拠=`c3-observed-paid-source-baseline.json`。
+
+**factory新mainの採用とexact fence閉鎖:** PR #8428はexact HEAD `055c5534420a6b56837f59a268d5b5d0b34b88a6`の全12 CI成功後、main `cd4c0d98855fd27d38c61df2afad2787947b2c0b`へ統合する。ALL immutable `/Users/anicca/loops/releases/20261021T041104-cd4c0d98`のmain bytes/readonlyを確認し、実SDK→実shell classifierの本番read-only canaryは同Agent/versionをUNSTARTED、raw明示性の証拠を除いた反例をBLOCKEDと判定する。model読取は`MODEL_UNKNOWN no-confirmed-model-yet`で、prepare/provider writeは0。fresh launchctl-safe preflight PASS後、既存current promotionと内部owner lockを持つ対象loaded-idle applyでfactoryだけを新SHAへ採用し、loaded argv/待機状態を確認する。続いてowner deploy lock内で登録済adapterにexact旧occurrence `capafy-loop-daily:18e04dba30cbb9f8-54466`だけを再照合させ、19:15:06Zにverified=true/effected=false/closed=trueで閉じる。source・本番読取・採用・旧no-effect閉鎖は完了するが、新版の自然prepare/CP1/提出/公式版readback・新規売上は未完。次のcursorは自然factory runであり、手動publisher実行や新Agent作成はしない。証拠はprivate C2 directoryの`c2-stub-production-readonly-canary.json`と`c2-factory-exact-final-resolve.json`。
 
 **C2の残る基盤/収益境界:** factory復帰の後に履歴clock/個別gapと全C2条件を照合する。自然health snapshot生成18:12:55Zは191件`health_snapshot_timeout`だが、同loaded source/configured plist env/background優先度のread-only probeは30.721秒で20 healthy/17 running/61 failed/76 safely_fenced/4 effect_unknown/13 gapを保持する。これは自然監視の復旧ではなく、実行条件による取得境界が残る証拠。18時台Data freeは約25.7GiB、再生成中Spotlight index約4.1GiB、indexing enabled、swap total9GiB/used約7.76GiB。10/12GiB floorは満たすが永続安定は未証明。最新公式金銭照合は17:22:47Z取得開始の累計gross$102.75/非trial32/7日閲覧1913・試用5・有料0・売上$0で、公開後の新規売上は未確認。MRR/null・完全費用/settled netの欠測、C2全体・C3–C9・全18業務ownerの収益/EDD/benchmark・AGI/MRR目標を維持する。
 
