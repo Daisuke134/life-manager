@@ -45,7 +45,7 @@ function createMaritimeManagerStore(options = {}) {
   }
   async function enroll(input) {
     const uid = identifier(input?.uid, UID);
-    const authSubject = identifier(input.authSubject, SUBJECT);
+    const authSubject = identifier(input.authSubject, SUBJECT).toLowerCase();
     const email = bounded(input.email, 320).toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) invalid();
     const timezone = input.timezone || "UTC";
@@ -71,7 +71,7 @@ function createMaritimeManagerStore(options = {}) {
     return result;
   }
   async function bindAgent({ uid, authSubject, agentId, releaseSha }) {
-    identifier(uid, UID); identifier(authSubject, SUBJECT); identifier(releaseSha, SHA);
+    identifier(uid, UID); authSubject = identifier(authSubject, SUBJECT).toLowerCase(); identifier(releaseSha, SHA);
     identifier(agentId, /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/);
     const bound = await request("rpc/bind_lm_maritime_manager_agent_v1", "POST", {
       p_uid: uid, p_auth_subject: authSubject, p_agent_id: agentId, p_release_sha: releaseSha,

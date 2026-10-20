@@ -38,7 +38,7 @@ function fixture() {
     if (opts.method === "POST") {
       if (rows.has(body.uid)) return response([]);
       if ([...rows.values()].some(r => r.auth_subject === body.auth_subject)) return response({}, 409);
-      const row = { ...body, status: "pending", agent_id: null, paused_at: null };
+      const row = { ...body, auth_subject: body.auth_subject.toLowerCase(), status: "pending", agent_id: null, paused_at: null };
       rows.set(body.uid, row); return response([row]);
     }
     const uid = u.searchParams.get("uid")?.replace(/^eq\./, ""); const row = rows.get(uid);
@@ -81,4 +81,15 @@ test("invalid_identity_and_unconfigured_storage_do_not_dispatch", async () => {
   await assert.rejects(store.enroll({ ...input(), timezone: "Invalid/Zone" }), /input_invalid/);
   assert.equal(requests.length, 0);
   await assert.rejects(createMaritimeManagerStore({ env: {} }).read(UID_A), /unconfigured/);
+});
+
+test("uppercase_auth_subject_matches_postgres_uuid_canonical_form", async () => {
+  const { store } = fixture();
+  const subject = "aabbccdd-1111-4111-8111-111111111111";
+  const uid = `lm_${subject}`;
+  const row = await store.enroll({ ...input(uid, subject.toUpperCase()) });
+  assert.equal(row.auth_subject, subject);
+  await store.claimProvision(uid);
+  const bound = await store.bindAgent({ uid, authSubject: subject.toUpperCase(), agentId: "agent-upper", releaseSha: SHA });
+  assert.equal(bound.agent_id, "agent-upper");
 });
