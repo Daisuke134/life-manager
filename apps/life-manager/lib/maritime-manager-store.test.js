@@ -256,3 +256,21 @@ test('PostgreSQL atomically claims dispatches and preserves execution binding wi
     fs.rmSync(socket, { recursive: true, force: true });
   }
 });
+
+test('pending enrollment recovery is bounded and excludes paused or claimed rows', async () => {
+  const requested=[];
+  const store=createMaritimeManagerStore({supaUrl:'https://database.invalid',supaKey:'fixture-key',fetchImpl:async url=>{
+    requested.push(new URL(url));return new Response(JSON.stringify([{uid:UID_A,status:'pending',paused_at:null,agent_id:null,release_sha:SHA}]));
+  }});
+  const rows=await store.listPending(5);
+  assert.equal(rows.length,1);assert.equal(rows[0].uid,UID_A);
+  assert.equal(requested[0].searchParams.get('status'),'eq.pending');
+  assert.equal(requested[0].searchParams.get('paused_at'),'is.null');
+  assert.equal(requested[0].searchParams.get('agent_id'),'is.null');
+  assert.equal(requested[0].searchParams.get('limit'),'5');
+  assert.equal(requested[0].searchParams.get('order'),'created_at.asc,uid.asc');
+  for(const limit of [0,101,'5'])await assert.rejects(store.listPending(limit),/input_invalid/);
+  assert.equal(requested.length,1);
+  const foreign=createMaritimeManagerStore({supaUrl:'https://database.invalid',supaKey:'fixture-key',fetchImpl:async()=>new Response(JSON.stringify([{uid:UID_A,status:'paused',paused_at:null,agent_id:null,release_sha:SHA}]))});
+  await assert.rejects(foreign.listPending(1),/store_invalid/);
+});
