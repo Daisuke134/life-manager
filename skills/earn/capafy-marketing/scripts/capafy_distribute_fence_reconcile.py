@@ -207,7 +207,7 @@ def expected_article_slug(occurrence_id: str, runs_root: Path | None = None) -> 
         # Only the ASCII publication URL binds this artifact; a damaged non-URL
         # query must not prevent official readback of an already failed run.
         prompt = (run_dir / "prompt.txt").read_bytes()
-        slugs = set(re.findall(rb"https://aniccaai\.com/blog/([a-z0-9]+(?:-[a-z0-9]+)*)", prompt))
+        slugs = set(re.findall(rb"https://aniccaai\.com/blog/([^\s\"'<>]*)", prompt))
         if slugs != {slug.encode("ascii")}:
             raise ValueError("occurrence prompt does not match its manifest slug")
         matches.append(slug)
