@@ -529,3 +529,93 @@ def test_occurrence_manifest_accepts_keyword_slugs_from_every_seller_list(tmp_pa
         occurrence_id="capafy-distribute-daily:seo-run", slot="2026-10-18-h02m30",
         article_slug="tiktok-script-template")
     assert record["article_slug"] == "tiktok-script-template"
+
+
+def test_preexisting_scheduled_video_does_not_fence_failed_article(tmp_path, monkeypatch):
+    # A different owner created this scheduled post days before the article run.
+    receipts = tmp_path / "videos" / "prior-video"
+    receipts.mkdir(parents=True)
+    receipt = receipts / "x-receipts-v3.jsonl"
+    receipt.write_text(json.dumps({
+        "at": "2026-09-25T06:43:57+00:00",
+        "integration": rec.X_INTEGRATION_ID,
+        "scheduled_for": "2026-09-29T09:00:00.000Z",
+        "create": [{"postId": "prior-video", "integration": rec.X_INTEGRATION_ID}],
+    }) + "\n")
+    monkeypatch.setattr(rec, "X_VIDEO_RECEIPTS_ROOT", tmp_path / "videos", raising=False)
+    class Client:
+        def __init__(self, _key):
+            pass
+        def list_posts(self, _start, _end):
+            return [{"id": "prior-video", "integration": {"id": rec.X_INTEGRATION_ID},
+                     "publishDate": "2026-09-29T09:00:00.000Z"}]
+    adapter = types.ModuleType("postiz_adapter")
+    adapter.HttpPostizClient = Client
+    monkeypatch.setitem(sys.modules, "postiz_adapter", adapter)
+    monkeypatch.setattr(rec, "postiz_key", lambda: "test-key")
+
+    posts = rec.read_x_posts(Q, Q + dt.timedelta(minutes=70))
+    result = proof(200, {"ok": True, "commits": []}, posts)
+
+    assert result["verified"] is True
+    assert result["effected"] is False
+    assert result["preexisting_x_posts"][0]["post_id"] == "prior-video"
+    assert result["preexisting_x_posts"][0]["receipt_path"] == str(receipt)
+
+
+def test_preexisting_x_post_requires_unique_prior_create_receipt(tmp_path, monkeypatch):
+    root = tmp_path / "videos"
+    directory = root / "prior-video"
+    directory.mkdir(parents=True)
+    path = directory / "x-receipts-v3.jsonl"
+    monkeypatch.setattr(rec, "X_VIDEO_RECEIPTS_ROOT", root)
+    post = {"id": "prior-video", "publishDate": "2026-09-29T09:00:00Z"}
+    valid = {"at": "2026-09-25T06:43:57Z", "integration": rec.X_INTEGRATION_ID,
+             "scheduled_for": "2026-09-29T09:00:00Z",
+             "create": [{"postId": "prior-video", "integration": rec.X_INTEGRATION_ID}]}
+    variants = [
+        {**valid, "at": Q.isoformat()},
+        {**valid, "at": "2026-09-30T06:43:57Z"},
+        {**valid, "at": "2026-09-25T06:43:57"},
+        {**valid, "at": "invalid"},
+        {**valid, "scheduled_for": "2026-09-29T09:01:00Z"},
+        {**valid, "integration": "other-account"},
+        {**valid, "create": [{"postId": "another-post", "integration": rec.X_INTEGRATION_ID}]},
+        {**valid, "create": [{"postId": "prior-video", "integration": "other-account"}]},
+        {**valid, "create": []},
+        {**valid, "create": valid["create"] * 2},
+    ]
+    for receipt in variants:
+        path.write_text(json.dumps(receipt))
+        assert rec.preexisting_x_post(post, Q) is None, receipt
+    path.write_text(json.dumps(valid))
+    assert rec.preexisting_x_post({"id": "prior-video"}, Q) is None
+    duplicate = root / "duplicate"
+    duplicate.mkdir()
+    (duplicate / path.name).write_text(json.dumps(valid))
+    assert rec.preexisting_x_post(post, Q) is None
+    (duplicate / path.name).unlink()
+    path.unlink()
+    outside = tmp_path / "outside.jsonl"
+    outside.write_text(json.dumps(valid))
+    path.symlink_to(outside)
+    assert rec.preexisting_x_post(post, Q) is None
+
+
+def test_unknown_x_post_remains_fenced_alongside_preexisting_video(tmp_path, monkeypatch):
+    # Only a proven prior create may be excluded; shared-account activity still holds.
+    monkeypatch.setattr(rec, "preexisting_x_post", lambda post, _start:
+                        {"post_id": "prior-video"} if post["id"] == "prior-video" else None)
+    class Client:
+        def __init__(self, _key):
+            pass
+        def list_posts(self, _start, _end):
+            return [{"id": pid, "integration": {"id": rec.X_INTEGRATION_ID}}
+                    for pid in ["prior-video", "unknown-post"]]
+    adapter = types.ModuleType("postiz_adapter")
+    adapter.HttpPostizClient = Client
+    monkeypatch.setitem(sys.modules, "postiz_adapter", adapter)
+    monkeypatch.setattr(rec, "postiz_key", lambda: "test-key")
+    result = proof(200, {"ok": True, "commits": []}, rec.read_x_posts(Q, Q))
+    assert result["verified"] is False
+    assert result["reason"] == "x_post_without_article"

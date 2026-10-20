@@ -74,3 +74,13 @@ SDK docsには`provision()`を使う例があるが、それはOpenClaw template
 - `--money --json`は月次aggregateで、daily rows/ownerがないためCloud日次金融変換へ直接渡さない。既存reconcileのHTTP関数をreuseする専用finite collectorを追加する。credentialsはstdinのみ、Local private storeへのfallbackなし。
 - owned readback evidenceは `docs/evidence/maritime/capafy-owned-collector-readback.json`。full snapshotはGit外private storeへ保存。これは既存ownerのread-only確認で、Maritime Cloud業務・新規user・新しい売上ではない。
 - 同日aggregateを更新時刻ごとにimmutable FinancialRecord storeへappendすると既存Local経路もidempotency collisionになることを独立reviewで確認。Cloud reportでは最新のsnapshotを期間単位で読む。T11で同日aggregateを別取引としてappendしない。
+
+## Custom runtimeのmodel接続とwakeの確認
+
+- https://maritime.sh/docs/frameworks/custom をlive再読。custom agentは既定でLLM keyなし。createの`useMaritimeLlm:true`またはEnv tabのUse Maritime LLMで、そのagent向け`OPENAI_API_KEY`と`OPENAI_BASE_URL`が注入される。T15のcreateとT13のtenant runner configで明示的に接続する。native Codex templateの既定model接続をcustom imageへ推測で転用しない。
+- 同custom docsで、$PORT bind、GET /health副作用なし、POST /chatの30秒以内response、/data永続化、GET /schedulesのscheduled wakeを確認。T13/T14はVM timerをwake源にしない。
+- /docs/agent-schedules は404。対応なしとは解釈せず、custom docsと既に取得した公式SDK agent-schedules.tsを契約根拠にする。
+
+## 認証後のAPI境界
+
+公式REST https://maritime.sh/docs/api のbase URLは `https://api.maritime.sh`。同じkeyでdashboard host `/api/agents` は403、公式API hostは200/bare array（owned agent0）を実測。`GET /api/agents` はread-only。API keyはprivate SSOTだけ、provision/deploy/secrets scope。`POST /api/v1/end-users/{external_id}/agents` は公式に初回201・再呼出200のidempotent作成を提供する。T15は独自externalId検索だけに頼らず、この既存契約を優先する。
