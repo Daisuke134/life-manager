@@ -1,10 +1,10 @@
 <!-- generated from .agents/startup-context.json; do not edit -->
-context-version: 2026-10-08.1
-context-digest: 5b8e34cf01a7cf7589fc6049c080b3eb8458ec28b98103abc2ade395e8d0f90c
+context-version: 2026-10-20.1
+context-digest: 45f79b184d1048bc643a0db1cf6f1d928f8a426077ac0e489fcaf5bcaa1435ea
 
 # Life Manager
 
-A proactive general agent that manages your body, mind, and money plus real-world follow-through, acts within delegated boundaries, and reports evidence in Telegram.
+A proactive manager for body, mind, and money that chooses work, executes ongoing workflows, verifies outcomes, and reports results without daily instructions.
 
 ## The problem
 

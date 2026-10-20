@@ -1,6 +1,6 @@
 <!-- generated from .agents/startup-context.json; do not edit -->
-context-version: 2026-10-08.1
-context-digest: 5b8e34cf01a7cf7589fc6049c080b3eb8458ec28b98103abc2ade395e8d0f90c
+context-version: 2026-10-20.1
+context-digest: 45f79b184d1048bc643a0db1cf6f1d928f8a426077ac0e489fcaf5bcaa1435ea
 
 # Life Manager — canonical fundraising answers
 
@@ -14,7 +14,7 @@ Proactive general agent for your whole life
 
 ## What is the product?
 
-A proactive general agent that manages your body, mind, and money plus real-world follow-through, acts within delegated boundaries, and reports evidence in Telegram.
+A proactive manager for body, mind, and money that chooses work, executes ongoing workflows, verifies outcomes, and reports results without daily instructions.
 
 ## What problem are you solving?
 
@@ -22,7 +22,7 @@ A person's health, mental wellbeing, money, schedules, applications, work, crypt
 
 ## How do you solve it?
 
-Life Manager coordinates specialist organs, acts within delegated boundaries across those systems, verifies outcomes with receipts, and reports concise evidence in Telegram.
+Life Manager coordinates specialist organs, chooses work and priorities, executes ongoing workflows, and verifies external outcomes with receipts. The hosted target starts with email signup and sends daily email reports; Telegram is optional. Users are not required to define goals or budgets.
 
 ## Why are you building this?
 
