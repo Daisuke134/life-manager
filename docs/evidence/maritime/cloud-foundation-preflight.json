@@ -26,7 +26,13 @@
     ],
     "manager_capabilities_present": false,
     "frontend_runtime_database_present": false,
-    "financial_record_target": "existing Railway Postgres; presence not yet checked"
+    "financial_record_target": "existing Railway Postgres; presence not yet checked",
+    "frontend_uid_secret_present": true,
+    "worker_uid_secret_present": false,
+    "supabase_url_matches_private_ssot_both_services": true,
+    "supabase_service_role_matches_verified_legacy_both_services": true,
+    "existing_resend_worker_key_matches_ssot": true,
+    "capacity_and_internal_cohort_configured": false
   },
   "supabase": {
     "manager_enrollment_present": false,
