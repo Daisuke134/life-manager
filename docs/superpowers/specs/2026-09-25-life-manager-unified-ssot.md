@@ -20638,7 +20638,7 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | T01 | 正式提出form・初週期限・timezone・必須fieldをrequirements.jsonへ | 主催者Slack参加・公式3channel readback済み。form/初週時刻は未公表、理由付きnullを保存 |
 | T02 | 既存OSS icon digest宣言漏れ修正と#8395 copy contract統合 | 完了。関連30/30、全13 checks PASS、#8396でmain 103f2a331bへ統合 |
 | T03 | enrollment DB/storeの一uid一row・一provision claim | source実装016b6704c5、6/6 PASS、独立review指摘修正済み。#8397でCI/main待ち、実DB未適用 |
-| T04 | Supabaseのemail認証専用handler | T03後、既存Google guard維持 |
+| T04 | Supabaseのemail認証専用handler | 実装中。既存Google guard維持、本人確認GETは業務を起動しない |
 | T05 | 本人POST activateから一度だけenqueue | T04後、GET/prefetchは実利用にしない |
 | T06 | email登録が主CTAのcampaign入口 | T04/T05後 |
 | T07 | Capafy既存factoryへtenant state/build path注入 | T02後 |
