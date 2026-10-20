@@ -1,0 +1,96 @@
+{
+  "title": "R007/R008 出典照合",
+  "question": "最小の証拠台帳と分類で何を守り、既存の人間行動研究基盤から何を再利用するか。",
+  "stopped": "本タスクの重要な主張に原典位置が対応したため終了。分野の網羅・飽和は主張しない。",
+  "claims": [
+    {
+      "claim": "測定窓を伴う結果の引用位置を保持する",
+      "status": "付いた",
+      "note": "原文URL・節位置を併記。短い抜粋との文字列照合であり、科学的結論の自動認証ではない。",
+      "quotes": [
+        {
+          "file": "heartsteps.md",
+          "line": 6,
+          "text": "30-min step count",
+          "mark": "一次資料の短い抜粋",
+          "context_note": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6401341/ / Results / Methods"
+        }
+      ]
+    },
+    {
+      "claim": "回答予測と介入効果予測は別の評価対象である",
+      "status": "付いた",
+      "note": "原文URL・節位置を併記。短い抜粋との文字列照合であり、科学的結論の自動認証ではない。",
+      "quotes": [
+        {
+          "file": "li-ji.md",
+          "line": 6,
+          "text": "descriptive fit did not reliably translate into causal fidelity",
+          "mark": "一次資料の短い抜粋",
+          "context_note": "https://arxiv.org/html/2604.02458v1 / Abstract"
+        }
+      ]
+    },
+    {
+      "claim": "総説から原著の検証方法へたどる",
+      "status": "付いた",
+      "note": "原文URL・節位置を併記。短い抜粋との文字列照合であり、科学的結論の自動認証ではない。",
+      "quotes": [
+        {
+          "file": "review.md",
+          "line": 6,
+          "text": "Validation is the central challenge for generative social simulation",
+          "mark": "一次資料の短い抜粋",
+          "context_note": "https://link.springer.com/article/10.1007/s10462-025-11412-6 / Title"
+        }
+      ]
+    },
+    {
+      "claim": "企業の検証報告は出典の独立性と分けて扱う",
+      "status": "付いた",
+      "note": "原文URL・節位置を併記。短い抜粋との文字列照合であり、科学的結論の自動認証ではない。",
+      "quotes": [
+        {
+          "file": "simile.md",
+          "line": 6,
+          "text": "We evaluate on a set of ~8600 questions",
+          "mark": "一次資料の短い抜粋",
+          "context_note": "https://www.simile.com/blog/confidence / Extracting a confidence signal"
+        }
+      ]
+    },
+    {
+      "claim": "Expected Parrotの人間検証機能を比較表に含める",
+      "status": "付いた",
+      "note": "原文URL・節位置を併記。短い抜粋との文字列照合であり、科学的結論の自動認証ではない。",
+      "quotes": [
+        {
+          "file": "edsl.md",
+          "line": 6,
+          "text": "a simulation is only useful if you can check it against reality",
+          "mark": "一次資料の短い抜粋",
+          "context_note": "https://www.expectedparrot.com/company / Why Expected Parrot?"
+        }
+      ]
+    },
+    {
+      "claim": "仮想環境の進行と現実の実行権限を分ける",
+      "status": "付いた",
+      "note": "原文URL・節位置を併記。短い抜粋との文字列照合であり、科学的結論の自動認証ではない。",
+      "quotes": [
+        {
+          "file": "concordia.md",
+          "line": 6,
+          "text": "a special entity called the **Game Master** (GM) simulates",
+          "mark": "一次資料の短い抜粋",
+          "context_note": "https://github.com/google-deepmind/concordia / README / About"
+        }
+      ]
+    }
+  ],
+  "unreached": [
+    "Persuade Lab / Persuade Labs の正式な対象企業は未特定。",
+    "EDSL、Concordia、AgentTorchの新規推論・実地検証は未実行。",
+    "モデル・データ・研究結果の独立再現は別タスク。"
+  ]
+}

@@ -57,3 +57,7 @@ All checks are offline, standard-library only. GitHub branch-level source mirror
 ## Evidence integrity
 
 Research under `research/imozuru` references original URLs and short excerpt-only locators. The original author-provided imozuru `report.py` is vendored exactly, checked against its Git blob SHA; it is **actually executed** for the excerpt location check. imozuru's downloader and OpenAlex chain scripts cannot connect from this environment, so primary sources and linked papers were investigated using Firecrawl and connected GitHub tools instead. Full copies of third-party papers are not redistributed.
+
+## R007 / R008
+
+See [Japanese implementation note](docs/R007_R008_IMPLEMENTATION_JA.md). Run `python3 -m manager_core.evidence` for the eight-card offline inventory; `python3 -m unittest discover -s tests -v` runs 59 tests. Structural validation does not prove scientific correctness or Manager impact.

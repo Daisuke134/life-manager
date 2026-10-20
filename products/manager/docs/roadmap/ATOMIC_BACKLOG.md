@@ -2,7 +2,7 @@
 
 Status: 2026-10-20 JST. Manager-only task registry in `tasks.json`; the Life Manager project SSOT is unchanged.
 
-Total: 113 · Done: 12 · Todo: 99 · Blocked: 2
+Total: 113 · Done: 14 · Todo: 97 · Blocked: 2
 
 ✅ = verified task; ⬜ = not started; ⛔ = outside dependency. A research task is not evidence of real-world impact.
 
@@ -35,8 +35,8 @@ Manager has a separate product identity, source scope and runtime, even when its
 | ✅ `R004` | R003 | 抽象的な効果量が実際に何を測ったかを読む | HeartSteps論文のSample/Methods/Results/Limitationsを4ファイルの短いlocatorsに保存 | 4セクションに原著URL、対象人数、時間、統計方法、制約が埋まる |
 | ✅ `R005` | R003 | よく見えるシミュレーションと因果忠実度の違いを説明する | Li & Ji(2026)の成功条件と失敗条件を一次資料で表にする | 条件×効果推定誤差×調査集団の根拠URLが埋まる |
 | ✅ `R006` | R003 | 公開と自由な再配布は違うと理解する | 一次ライセンス原文と著者配布元を調べ、HeartSteps, SocSci210, Concordia, imozuruに加えモデル派生権も記録 | docs/research-rights.md と docs/research/source-rights.json の許可/保留・原出典URL・SHAを確認、tests/test_r006_rights.py合格 |
-| ⬜ `R007` | R004, R006 | Evidence IDと反証可能性を学ぶ | evidence/*.jsonに論文/実験/対象/効果量/限界/出典の型を作る | 少なくとも原論文5件がvalid schema; 出典なし数値はreject |
-| ⬜ `R008` | R007 | 研究結果の確実性を分類する | Evidence RegisterにRCT, survey, simulation, company-claimを別タグ付け | 公開企業の主張を独立RCTと表示するテストが失敗する |
+| ✅ `R007` | R004, R006 | Evidence IDと反証可能性を学ぶ | evidence/*.jsonに論文/実験/対象/効果量/限界/出典の型を作る | 少なくとも原論文5件がvalid schema; 出典なし数値はreject |
+| ✅ `R008` | R007 | 研究結果の確実性を分類する | Evidence RegisterにRCT, survey, simulation, company-claimを別タグ付け | 公開企業の主張を独立RCTと表示するテストが失敗する |
 
 ## 02. 学習:確率・介入・反実仮想
 

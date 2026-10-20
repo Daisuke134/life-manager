@@ -37,7 +37,7 @@ Public ledger–based aid amplification / charitable matching, under explicit pe
 
 - Research artifacts: original source URLs/versions, short attribution-backed excerpts, source-rights register, owned analysis, original illustrations, and reproducible metrics.
 - Versioned PDF research briefs produced from own notes may go to cloud Library and **public GitHub only when they contain no copied third-party full-text or raw records**.
-- Articles (English-first), manga, carousels, slides, conferences and YC pitch material are downstream authored derivatives with claim-evidence links. **No autonomous publishing while a release gate is disabled.**
+- Articles (English-first), manga, carousels, slides, conferences and YC pitch material are downstream authored derivatives with claim-evidence links. **Runtime autonomous publishing remains disabled. The founder explicitly authorized the present English educational articles on the owned blog on 2026-10-20; use the canonical publishing bridge, review, and public URL readback. This does not authorize newsletters, third-party platforms, or other external effects.**
 - Research reports are not proof of YC acceptance, external investment, decacorn valuation or beneficiary improvement.
 
 ## Review and gates
@@ -45,3 +45,11 @@ Public ledger–based aid amplification / charitable matching, under explicit pe
 R006 tested 8 source families with `hold` for unknown downstream rights; detailed evidence at `docs/research-rights.md`. Product code currently offline-only and `money_transfer`, `private_person_data`, `physical_actuation`, `live_external_writes`, `public_posting` all disabled. Later phases must supply first-party evidence and legitimate operators.
 
 **A different product may share a GitHub organization/repository without sharing runtime or user data.** Keep any future integration explicit, narrow and independently reviewed.
+
+## R007 / R008 delivered (2026-10-20)
+
+The small offline literature registry and evidence-type guards are implemented in `manager_core/evidence.py` and `manager_core/evidence_types.py`, with 8 source cards and 27 new tests (59 total). Validation is structural only, not a scientific truth or source-entailment check. RCT, survey, simulation, benchmark, review, company claim, and tool documentation remain distinct; abstract-only status is retained. Registration grants no raw-data rights or execution authority.
+
+Expected Parrot already combines AI research and human validation; Simile validates behavior and confidence; Aaru reports survey and behavioral evaluation. Manager's proposed differentiation is an independently evaluated public-information welfare intervention loop, not exclusive ownership of human validation.
+
+The proposed transparent impact page is not yet implemented. It must report actions, cost, externally verified changes, beneficiary outcomes, causal comparisons, harms and missingness separately. No field benefits have been demonstrated.
