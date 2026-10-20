@@ -268,7 +268,7 @@ life-manager/
 
 - [ ] T11.1 test `same_occurrence_is_one_runtime_job`を定義。stable job/effect keyがtenant+occurrenceにbindし、別tenantでは異なることをassert。
 - [ ] T11.2 `buildRuntimeJob`と既存queue/leaseを使う。factoryを長時間HTTP request内で実行せず、中央jobからMaritime公式detached execへ一度dispatchし、executionIdを既存jobのreceipt/stateへpersistしてpollする。既存workerのlease heartbeatを維持し、次wakeをpersistする。
-- [ ] T11.3 `runtime-up.js`のservicesByAdapterへ`dispatchCycle/readExecution/readCycleReceipt`を注入する。storeに`listPending(limit)`を追加し、enroll後enqueue前に落ちたpending rowを既存stable provision jobへ戻す有限reconcileをworkerの既存pollで行う。同じjob keyで再enqueueし、paused/effect_unknownは新規実行へ戻さない。factory wrapperの実行場所はMaritime VMだけとし、Railwayで同じfactoryを二重実行しない。adapter manifestにprovision/cycle/reportの三capabilityを別entryで追加し、既存capabilityを置換しない。provision/reportを実行できないままqueueへ入れる穴を残さない。
+- [ ] T11.3 `runtime-up.js`のservicesByAdapterへ`dispatchCycle/readExecution/readCycleReceipt`を注入する。storeに`listPending(limit)`を追加し、enroll後enqueue前に落ちたpending rowを既存stable provision jobへ戻す有限reconcileをworkerの既存pollで行う。同じjob keyで再enqueueし、paused/effect_unknownは新規実行へ戻さない。factory wrapperの実行場所はMaritime VMだけとし、Railwayで同じfactoryを二重実行しない。adapter manifestにprovision/cycle/reportの三capabilityを別entryで追加し、既存capabilityを置換しない。provision/reportを実行できないままqueueへ入れる穴を残さない。日次金融aggregateは最新の検証済みsnapshotとして読み、更新時刻ごとにimmutable取引storeへappendしない。同じ日を別取引として重複加算しない。
 - [ ] T11.4 `node --test lib/maritime-manager-runtime.test.js lib/loop-adapter-registry.test.js`で再claim/unknown/replayのfocused casesを確認しcommit/push。
 
 ## Task T12: custom imageを同じrepoから作る
