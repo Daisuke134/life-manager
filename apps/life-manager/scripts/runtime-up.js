@@ -153,11 +153,13 @@ async function executeCapabilityJob(job, services) {
       ]).has(String(executionError.code || ""))
       ? executionError.code
       : null;
+    const maritimeCode = job.capability.startsWith("maritime.manager.")
+      && /^MARITIME_[A-Z_]{1,160}$/.test(String(executionError.code || "")) ? executionError.code : null;
     await failJob({
       ...identity,
       errorCode: heartbeatFailed
         ? "CAPABILITY_HEARTBEAT_FAILED"
-        : connectorCoverageCode || outboundLumaCode || "CAPABILITY_EXECUTION_FAILED",
+        : connectorCoverageCode || outboundLumaCode || maritimeCode || "CAPABILITY_EXECUTION_FAILED",
       unknownEffect,
     }, storeOptions);
     return;
@@ -169,6 +171,40 @@ async function executeCapabilityJob(job, services) {
       nextJob: execution.continuation.job, availableAt: execution.continuation.availableAt }, storeOptions);
   } else {
     await completeJob({ ...identity, receipt: execution.receipt }, storeOptions);
+  }
+}
+
+async function reconcileMaritimeCapabilityJobs(capabilities, dependencies = {}) {
+  const scoped = capabilities.filter(value => ["maritime.manager.provision", "maritime.manager.cycle", "maritime.manager.report"].includes(value));
+  if (!scoped.length) return;
+  const { registry, store, storeOptions = {}, observe } = dependencies;
+  const { reconcileUnknownEffect } = require("../lib/effect-reconciler.js");
+  const jobs = await store.claimReconcilingJobs({ capabilities: scoped, limit: 1 }, storeOptions);
+  for (const job of jobs) {
+    const adapter = registry.getByCapability(job.capability);
+    await reconcileUnknownEffect(job, {
+      adapter: { inspectEffect: async () => {
+        let proof = await adapter.reconcile(job);
+        if (proof?.state === "present" && !await adapter.verify(proof.receipt, job)) {
+          proof = { state: "unknown", errorClass: "maritime_receipt_invalid", nextAction: "inspect_provider_execution", retryable: false };
+        }
+        if (typeof observe === "function") observe({ kind: "maritime_reconciliation", job_id: job.job_id,
+          tenant_id: job.tenant_id, attempt: job.attempt, state: proof?.state,
+          error_class: /^[a-z_]{1,180}$/.test(proof?.errorClass || "") ? proof.errorClass : null,
+          next_action: /^[a-z_]{1,180}$/.test(proof?.nextAction || "") ? proof.nextAction : null,
+          retryable: proof?.retryable === true });
+        return proof;
+      } },
+      store: {
+        recordUnknownReconciliation: input => store.recordUnknownReconciliation(input, storeOptions),
+        resolveReconciliation: async input => {
+          const next = input.decision === "present" && typeof adapter.continuation === "function"
+            ? await adapter.continuation(job, input.receipt) : null;
+          return next ? store.resolveReconciliationAndEnqueue({ ...input, nextJob: next.job, availableAt: next.availableAt }, storeOptions)
+            : store.resolveReconciliation(input, storeOptions);
+        },
+      },
+    });
   }
 }
 
@@ -622,6 +658,7 @@ function createWorkerHandlers(env, capabilities, dependencies = {}) {
     require("../lib/loop-adapter-registry.js").createConfiguredLoopAdapterRegistry
   );
   const registry = createRegistry({ servicesByAdapter });
+  if (typeof dependencies.onRegistry === "function") dependencies.onRegistry(registry);
   for (const capability of capabilities) {
     if (!registry.hasCapability(capability)) continue;
     const adapter = registry.getByCapability(capability);
@@ -641,6 +678,7 @@ function observeWorkerPoll(state, active, now = () => new Date().toISOString()) 
 
 async function runCapabilityWorker(env = process.env) {
   const { Pool } = require("pg");
+  const runtimeStore = require("../lib/runtime-job-store.js");
   const {
     claimJobs,
     heartbeatJob,
@@ -656,8 +694,10 @@ async function runCapabilityWorker(env = process.env) {
   if (capabilities.length < 1) throw new Error("LM_WORKER_CAPABILITIES is empty");
   const workerId = String(env.LM_WORKER_ID || os.hostname()).trim();
   const pool = new Pool({ connectionString, max: 2 });
-  const opts = { query: pool.query.bind(pool) };
+  const opts = { query: pool.query.bind(pool), connect: pool.connect.bind(pool) };
+  let registry;
   const handlers = createWorkerHandlers(env, capabilities, {
+    onRegistry: value => { registry = value; },
     query: opts.query,
     connect: pool.connect.bind(pool),
   });
@@ -691,6 +731,8 @@ async function runCapabilityWorker(env = process.env) {
           query: opts.query, tenantId: scoutCycle.tenantId, nowMs: Date.now(), intervalMs: scoutCycle.intervalMs,
         });
       }
+      await reconcileMaritimeCapabilityJobs(capabilities, { registry, store: runtimeStore, storeOptions: opts,
+        observe: event => process.stdout.write(JSON.stringify(event) + "\n") });
       const jobs = await claimJobs({
         workerId,
         capabilities,
@@ -749,5 +791,6 @@ module.exports = {
   createWorkerHandlers,
   observeWorkerPoll,
   executeCapabilityJob,
+  reconcileMaritimeCapabilityJobs,
   runCapabilityWorker,
 };

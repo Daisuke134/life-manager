@@ -12,6 +12,7 @@ const {
   createScopedEnvironmentSecretProvider,
   createWorkerHandlers,
   observeWorkerPoll,
+  reconcileMaritimeCapabilityJobs,
 } = require("./runtime-up.js");
 const {
   buildMarketingObservationJob,
@@ -1138,4 +1139,48 @@ test("Agent Economy Cloud worker runs the shared wake and schedules the next wak
   assert.equal(result.receipt.status, "completed");
   assert.equal(wakeCalls, 1);
   assert.ok(services.citizenStore);
+});
+
+
+test("Maritime worker reconciliation reads full jobs without redispatch and commits successors atomically", async () => {
+  const job = { tenant_id: "tenant-a", job_id: "job-a", attempt: 1, status: "reconciling",
+    capability: "maritime.manager.cycle", effect_class: "money", effect_key: "effect-a", input_refs: { cycle_ref: "cycle://a" } };
+  const calls = [];
+  let state = "pending";
+  const adapter = {
+    execute: () => { throw new Error("redispatch forbidden"); },
+    reconcile: async fullJob => { assert.equal(fullJob, job); calls.push("read"); return { state, receipt: { valid: true } }; },
+    verify: receipt => receipt.valid === true,
+    continuation: async () => ({ job: { job_id: "next" }, availableAt: "2026-10-21T00:00:00.000Z" }),
+  };
+  const store = {
+    claimReconcilingJobs: async input => { assert.deepEqual(input.capabilities, [job.capability]); return [job]; },
+    resolveReconciliation: async () => { calls.push("resolve"); },
+    recordUnknownReconciliation: async () => { calls.push("age"); return { status: "reconciling" }; },
+    resolveReconciliationAndEnqueue: async input => { assert.equal(input.nextJob.job_id, "next"); calls.push("atomic"); },
+  };
+  const deps = { registry: { getByCapability: () => adapter }, store };
+  await reconcileMaritimeCapabilityJobs([job.capability, "content.publish"], deps);
+  assert.deepEqual(calls, ["read"]);
+  state = "present"; calls.length = 0;
+  await reconcileMaritimeCapabilityJobs([job.capability], deps);
+  assert.deepEqual(calls, ["read", "atomic"]);
+  state = "unknown"; calls.length = 0;
+  await reconcileMaritimeCapabilityJobs([job.capability], deps);
+  assert.deepEqual(calls, ["read", "age"]);
+  state = "present"; adapter.verify = () => false; calls.length = 0;
+  await reconcileMaritimeCapabilityJobs([job.capability], deps);
+  assert.deepEqual(calls, ["read", "age"]);
+});
+
+test("Maritime pending code survives the worker failure boundary", async () => {
+  let failure;
+  await executeCapabilityJob({ tenant_id: "tenant-a", job_id: "job-a", attempt: 1,
+    capability: "maritime.manager.cycle", effect_class: "money" }, {
+    workerId: "worker-a",
+    handlers: { "maritime.manager.cycle": async () => { const error = new Error("pending"); error.code = "MARITIME_CYCLE_PENDING"; error.unknownEffect = true; throw error; } },
+    failJob: async value => { failure = value; },
+  });
+  assert.equal(failure.errorCode, "MARITIME_CYCLE_PENDING");
+  assert.equal(failure.unknownEffect, true);
 });
