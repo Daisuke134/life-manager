@@ -2477,7 +2477,7 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 | T8 | CFO: ループごとの settled revenue と cost の join（ループ別P&L）を毎日出す | P&L 行ごとに receipt id がある |
 | T9 | Mobile funnel と `/en` `/lm` `/income` の整合（install→activation→課金） | attribution receipt |
 | T10 | one-shot capability capsule | 目標・承認の質問なしで初回の実行が通る |
-| T11 | cloud の durable worker と local の parity | 同じ task で同じ receipt |
+| T11 | 既存queue/leaseへmanager.cycle adapter登録 | #8407でsource統合中。store/SQLとstable buildersはreview修正済。cycle adapterのplan/execute/reconcile/verify/reportを実装しruntime13/13・registry15/15・全関連95/95 PASS。実行中はworkerを占有せずpending、停止後もread-only回収、共通receiptはexecutionの証拠として分離。provision/report adapter・worker wiring・本番DB/Cloud適用は未完 |
 | T12 | evaluator が所有する self-improvement（rollback つき） | canary で settled contribution が改善 |
 | T13 | settled cost で裏付けた x402 自己資金化 | inflow ≥ cost の CFO readback |
 | T14 | LM-EAB（held-out、較正、再現可能） | 独立した再実行で同じ結果 |
@@ -20650,7 +20650,7 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | T08 | Linux browser/provider accountのreadinessとtenant binding | preflight中。Maritime本体signupはメール確認待ち。SteelはRailway private DNS。既存runnerはlocal Codex/Claude profile依存を確認。Linux/認証/専用routeの実証は未完 |
 | T09 | tenant envで既存factoryを一回呼ぶcloud_cycle.py | source完了。#8404/main64175a23edへ統合、全13 checks PASS。独立reviewの3指摘を回帰RED→GREENで修正しcycle12/12・host8/8 PASS。child path・env allowlist・cached receipt検査を追加。Cloud専用config未設定はdeferred、実環境受入はT08依存を維持 |
 | T10 | 同tenant公式Capafy snapshot→FinancialRecord | T10Aは#8405/main70a5e36573・全14 checks PASS、関連16/16・独立review Blocking0。T10B公式collectorは#8406/main1d54c5d24a・全13 checks PASS。独立reviewの成功code指摘をRED→GREENで修正し7/7・既存49/49 PASS、owned APIの所有者/日別coverage/合計一致と変換を実測。Cloud利用者接続・中央worker wiringは未完 |
-| T11 | 既存queue/leaseへmanager.cycle adapter登録 | T11A source実装中。独立reviewの2指摘を回帰RED→GREENで修正。store12件＋隔離PostgreSQL fixture1件=13/13、認証/Googleを含め51/51 PASS。T11.1のcycle/report stable job builderは4件RED→GREEN、金融/認証を含む全71/71 PASS。実SQLで同時claim一件、execution ID不変、tenant FK、private権限、停止後claim拒否を確認。adapter/wiring/本番DB適用は未完 |
+| T11 | 既存queue/leaseへmanager.cycle adapter登録 | #8407でsource統合中。store/SQLとstable buildersはreview修正済。cycle adapterのplan/execute/reconcile/verify/reportを実装しruntime13/13・registry15/15・全関連95/95 PASS。実行中はworkerを占有せずpending、停止後もread-only回収、共通receiptはexecutionの証拠として分離。provision/report adapter・worker wiring・本番DB/Cloud適用は未完 |
 | T12 | 専用subfolder Dockerfileとsanitized ZIPで同repoのcustom imageをbuild | T11/T13後。Railwayのroot Dockerfile自動検出を避ける |
 | T13 | VM health/chat/schedulesの短いHTTP server | T11後。T12より先にsource作成 |
 | T14 | sleeping VMでも起きるnextRunAt schedule | T13後 |

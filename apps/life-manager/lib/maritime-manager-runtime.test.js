@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { buildMaritimeManagerCycleJob, buildMaritimeManagerReportJob } = require('./maritime-manager-runtime.js');
+const { buildMaritimeManagerCycleJob, buildMaritimeManagerReportJob, createMaritimeManagerLoopAdapter } = require('./maritime-manager-runtime.js');
 const UID = 'lm_11111111-1111-4111-8111-111111111111';
 const SHA = 'a'.repeat(40);
 const cycle = { tenantId: UID, occurrenceId: 'cycle-1', dateKey: '2026-10-20', releaseSha: SHA };
@@ -41,4 +41,129 @@ test('invalid dates and path-like occurrence ids cannot enter the queue', () => 
     assert.throws(() => buildMaritimeManagerCycleJob({ ...cycle, ...patch }), /invalid/);
   }
   assert.throws(() => buildMaritimeManagerReportJob({ tenantId: UID, periodKey: 'maritime:daily:2026-02-30', releaseSha: SHA }), /invalid/);
+});
+
+function executionFixture() {
+  const enrollment = { uid: UID, agent_id: 'agent-a', release_sha: SHA, status: 'active', paused_at: null };
+  let checkpoint = null;
+  const calls = [];
+  const envelope = { dateKey: cycle.dateKey, releaseSha: SHA, result: { tenantId: UID, occurrenceId: 'cycle-1',
+    artifactRefs: ['artifact://original/product.md'], providerSnapshotRef: null, providerReceiptRefs: [],
+    nextEligibleAt: null, status: 'completed', errorClass: null } };
+  const services = {
+    managerStore: {
+      read: async () => structuredClone(enrollment),
+      readCycleDispatch: async () => checkpoint && structuredClone(checkpoint),
+      claimCycleDispatch: async (input) => {
+        if (checkpoint) return { claimed: false, row: structuredClone(checkpoint) };
+        checkpoint = { uid: input.uid, agent_id: input.agentId, occurrence_id: input.occurrenceId,
+          date_key: input.dateKey, release_sha: input.releaseSha, execution_id: null };
+        return { claimed: true, row: structuredClone(checkpoint) };
+      },
+      bindCycleExecution: async (input) => { checkpoint.execution_id = input.executionId; return structuredClone(checkpoint); },
+    },
+    dispatchCycle: async () => { calls.push('dispatch'); return { executionId: 'exec-1' }; },
+    readExecution: async () => { calls.push('read'); return { status: 'completed', exitCode: 0 }; },
+    readCycleReceipt: async () => structuredClone(envelope),
+  };
+  return { services, calls, enrollment, envelope,
+    checkpoint: () => checkpoint, setCheckpoint: (value) => { checkpoint = value; } };
+}
+
+test('cycle dispatch persists execution id and replay only reads the same execution', async () => {
+  const f = executionFixture();
+  const adapter = createMaritimeManagerLoopAdapter(f.services);
+  const job = buildMaritimeManagerCycleJob(cycle);
+  const first = await adapter.execute(job);
+  assert.equal(f.checkpoint().execution_id, 'exec-1');
+  assert.equal(first.receipt.status, 'completed');
+  assert.equal(adapter.verify(first.receipt, job), true);
+  assert.deepEqual(await adapter.execute(job), first);
+  assert.equal(f.calls.filter(value => value === 'dispatch').length, 1);
+});
+
+test('lost dispatch response remains unknown and cannot dispatch again', async () => {
+  const f = executionFixture();
+  f.services.dispatchCycle = async () => { f.calls.push('dispatch'); throw new Error('fixture-secret'); };
+  const adapter = createMaritimeManagerLoopAdapter(f.services);
+  const job = buildMaritimeManagerCycleJob(cycle);
+  for (let attempt = 0; attempt < 2; attempt++) {
+    await assert.rejects(adapter.execute(job), error => error.unknownEffect === true && !error.message.includes('fixture-secret'));
+  }
+  assert.equal(f.calls.length, 1);
+});
+
+test('paused users cannot start new work but an existing execution still reconciles', async () => {
+  const f = executionFixture();
+  f.enrollment.status = 'paused'; f.enrollment.paused_at = '2026-10-20T00:00:00Z';
+  const adapter = createMaritimeManagerLoopAdapter(f.services);
+  const job = buildMaritimeManagerCycleJob(cycle);
+  await assert.rejects(adapter.execute(job), /paused/);
+  assert.equal(f.calls.length, 0);
+  f.setCheckpoint({ uid: UID, agent_id: 'agent-a', occurrence_id: 'cycle-1', date_key: cycle.dateKey, release_sha: SHA, execution_id: 'exec-1' });
+  const proof = await adapter.reconcile(job);
+  assert.equal(proof.state, 'present');
+  assert.equal(f.calls.includes('dispatch'), false);
+});
+
+test('known running execution releases the worker after one probe and reconciles read-only', async () => {
+  const f = executionFixture();
+  let reads = 0;
+  f.services.readExecution = async () => { reads++; return { status: 'running' }; };
+  const adapter = createMaritimeManagerLoopAdapter(f.services);
+  const job = buildMaritimeManagerCycleJob(cycle);
+  await assert.rejects(adapter.execute(job), error => error.unknownEffect === true);
+  assert.equal(reads, 1);
+  assert.deepEqual(await adapter.reconcile(job), { state: 'pending' });
+  assert.equal(f.calls.filter(value => value === 'dispatch').length, 1);
+});
+
+test('foreign or mismatched cycle receipts never become completed work', async () => {
+  for (const patch of [{ dateKey: '2026-10-21' }, { releaseSha: 'b'.repeat(40) },
+    { result: { ...executionFixture().envelope.result, tenantId: 'other-user' } },
+    { result: { ...executionFixture().envelope.result, artifactRefs: ['artifact://../../private.txt'] } }]) {
+    const f = executionFixture(); Object.assign(f.envelope, patch);
+    const adapter = createMaritimeManagerLoopAdapter(f.services);
+    await assert.rejects(adapter.execute(buildMaritimeManagerCycleJob(cycle)), error => error.unknownEffect === true);
+  }
+});
+
+test('unconfigured adapter and changed job references never dispatch', async () => {
+  const f = executionFixture();
+  const job = buildMaritimeManagerCycleJob(cycle);
+  await assert.rejects(createMaritimeManagerLoopAdapter({}).execute(job), /unconfigured/);
+  await assert.rejects(createMaritimeManagerLoopAdapter(f.services).execute({ ...job,
+    input_refs: { ...job.input_refs, enrollment_ref: 'maritime-enrollment://other-user' } }), /invalid/);
+  assert.equal(f.calls.length, 0);
+});
+
+test('completed cycle is readable through the existing common receipt contract', async () => {
+  const f = executionFixture();
+  const job = buildMaritimeManagerCycleJob(cycle);
+  const { receipt } = await createMaritimeManagerLoopAdapter(f.services).execute(job);
+  const { readCommonReceipt } = require('./runtime-job-store.js');
+  const common = await readCommonReceipt({ tenantId: UID, jobId: job.job_id, attempt: 1 }, {
+    query: async () => ({ rows: [{ ...job, attempt: 1, outcome: 'completed', receipt, created_at: '2026-10-20T12:00:00Z' }] }),
+  });
+  assert.equal(common.provider, 'maritime');
+  assert.equal(common.external_ref, 'maritime-execution://agent-a/exec-1');
+  assert.deepEqual(common.evidence_refs, ['maritime-execution://agent-a/exec-1']);
+});
+
+test('report cannot echo an unverified receipt status', async () => {
+  const f = executionFixture(); const adapter = createMaritimeManagerLoopAdapter(f.services);
+  const { receipt } = await adapter.execute(buildMaritimeManagerCycleJob(cycle));
+  assert.throws(() => adapter.report({ ...receipt, status: 'fixture-secret-status' }), /invalid/);
+  assert.equal(adapter.verify({ ...receipt, tenant_id: 'other-user' }, buildMaritimeManagerCycleJob(cycle)), false);
+});
+
+test('unknown execution has a safe diagnostic cursor and never requests another dispatch', async () => {
+  const f = executionFixture();
+  f.setCheckpoint({ uid: UID, agent_id: 'agent-a', occurrence_id: 'cycle-1', date_key: cycle.dateKey, release_sha: SHA, execution_id: null });
+  const proof = await createMaritimeManagerLoopAdapter(f.services).reconcile(buildMaritimeManagerCycleJob(cycle));
+  assert.equal(proof.state, 'unknown');
+  assert.equal(proof.errorClass, 'maritime_cycle_dispatch_unconfirmed');
+  assert.equal(proof.nextAction, 'inspect_provider_execution');
+  assert.equal(proof.retryable, false);
+  assert.equal(f.calls.length, 0);
 });
