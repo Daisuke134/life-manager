@@ -20627,18 +20627,47 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 
 これは推奨準備物であり、公式必須形式・提出済みとは扱わない。
 
-**Distribution（開発と同じ優先度）:** Cloud開発と並行して、家族・友人への無料pilot招待を準備し、最初の3人で一つの業務完了と翌日再利用を確認する。無料でも利用は未保証。実成果が出たら短いdemo/プロモーション動画とX・関連communityで10–25人へ広げる。招待文、公開URL、無料範囲/終了条件、feedbackとsource attributionを揃える。本節更新ではメール/チャット招待や投稿は送信しない。自社獲得のsource→開始→同意→初回業務完了→再利用と、顧客businessの配信成果は別funnel。既存四channel（social/SEO/AI answer/platform内部）を再利用するが、SEOだけを初週の獲得手段にしない。同じ対象・媒体・目的で1,000人を達成した検証済み成功例は今回も確保していないため、25人以下の測定実験とする。distribution費用は既存方針どおり0。1,000/42日≈24人/日は競技全体の算術目安で、初週の公式ノルマではない。
+**Distribution（開発と同じ優先度、友人待ちなし）:** Daisが家族・友人へのDMを担当する。Manager側はDM文案・X/IG copy・動画台本・公開URL・source別計測を開発と並行して用意する。3人の返答・利用・feedbackを、開発・配布素材・提出の開始条件にしない。無料pilotでも利用は未保証。動くURLと真実のdemoが揃った時点で配布し、visit→email確認→起動→業務完了→再利用を測る。自社LM獲得と、利用者businessのCapafy訪問/注文は別funnel。利益は実測するが、競技の公表winner条件を「最高利益」へ置換しない。参照事例と模倣箇所→[調査記録](../../research/maritime/2026-10-20-source-map.md)。
 
-**TODO順変更:** 旧=「source入口→主催者返信→名簿→日次計画wedge→Cloud identity→3人pilot→25人獲得→Top30 packet」。新=下記1→7、主催者確認/名簿は並行。理由は新メールが初週の動く製品と少人数feedbackを求め、入口sourceはmerge済みで、回答待ちを全作業の先頭にすると実証が遅れるため。今回さらに目標/予算入力とTelegram必須の追加前提を削除し、メール登録→自律収益業務→日次メールへ訂正する。進行中の外部effectと全体統括cursorは変更しない。
+**TODO順変更:** 旧=一業務readiness→Cloud→入口→3人pilot→packet→1,000人。新=下記atomic ID順、提出経路確認T01・配布文案T24・台本T25は即着手可能。理由はDaisが知人DMを担当し、利用者feedbackを待たず実装・素材・提出準備を進められるため。先に試せる製品と正式必須項目を揃えて提出し、改善と獲得を継続する。全体統括cursorと進行中provider effectは変更しない。
 
-**Maritime lane TODO（順序、cursor = 1）:**
-1. **公開する一業務のCloud readinessを確定。** Capafyを第一候補に既存kernel/adapterから選び、入力→自律wake→実行→公式receipt→報告→次wakeを対応付ける。本人accountを使い、Mac停止後も継続することを受入条件とする。chat応答だけでは完了しない。
-2. **一人分のCloud実行を閉じる。** 既存Railway/Maritime/Keiki/Steel/stateと最小host adapterを使う。選んだ業務のtool権限、保持条件、secret/session分離、内部費用制限、receipt、再開/重複防止を確認。host/model/追加agent費用は公式billingで読む。
-3. **配布入口を実業務へ接続。** 既存migration/flags/tenant identity/同意の実環境を確認し、メール登録から自律起動→一業務→日次メールまでを接続する。既存Telegramは任意で再利用し、メール導線をTelegramへ強制redirectしない。訂正済み日英サイト原稿を公開経路へ反映してreadbackする。権限は業務ごとに許可し、chat-only pilotの確認を全tool許可へ読み替えない。
-4. **開発と並行して家族・友人3人へ無料pilotを準備し、10–25人へ。** 人数は内部目標。開始・業務完了・再利用・feedback修正を記録し、本文/秘密情報はanalyticsに残さない。
-5. **内部10月24日までに初週packetを完成。** 入口、demo、利用/usage、receipt/費用、feedback修正、制約と次週計画を揃える。正式提出先/期限/形式が判明したら指定手段で提出し、受付receiptを保存。
-6. **実測経路で100人→1,000人へ。** 最大離脱を直し、業務完了率/継続の高いsourceを増やす。team/test/重複を別集計し、公式project usageと照合。
-7. **公式winner・賞・渡航を確認。** 公式人数承認とwinner通知後に賞/credit・日本発旅費を確定。YCは既存応募laneで実績を使い、採択保証を含めない。
+**Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細・file tree・signature・focused acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。同plan内のcheckboxは実装手順で、状態判定は本節を正とする。現在cursor=T01。計画・調査・文案は保存済み、下記product実装/正式提出は未実施。
+
+| ID | 一件の成果物 | 状態/依存 |
+|---|---|---|
+| T01 | 正式提出form・初週期限・timezone・必須fieldをrequirements.jsonへ | 未着手、即実行可。未公表fieldはnullと根拠 |
+| T02 | 既存OSS icon digest宣言漏れ修正と#8395 copy contract統合 | 未着手。画像本体/seller/gateは変えない |
+| T03 | enrollment DB/storeの一uid一row・一provision claim | T02後 |
+| T04 | Supabaseのemail認証専用handler | T03後、既存Google guard維持 |
+| T05 | 本人POST activateから一度だけenqueue | T04後、GET/prefetchは実利用にしない |
+| T06 | email登録が主CTAのcampaign入口 | T04/T05後 |
+| T07 | Capafy既存factoryへtenant state/build path注入 | T02後 |
+| T08 | Linux browser/provider accountのreadinessとtenant binding | T07後、secret値を記録しない |
+| T09 | tenant envで既存factoryを一回呼ぶcloud_cycle.py | T07/T08後 |
+| T10 | 同tenant公式Capafy snapshot→FinancialRecord | T09後 |
+| T11 | 既存queue/leaseへmanager.cycle adapter登録 | T09/T10後 |
+| T12 | root Dockerfileで同repoのcustom imageをbuild | T11後 |
+| T13 | VM health/chat/schedulesの短いHTTP server | T11/T12後 |
+| T14 | sleeping VMでも起きるnextRunAt schedule | T13後 |
+| T15 | custom create・detached exec/resultの重複防止adapter | T03/T12/T13後 |
+| T16 | 一tenant tokenのwake relay・secret・初回wake配線 | T05/T08/T14/T15後 |
+| T17 | Cloudで一件の正規publishとofficial status確認 | T16後、売上発生自体は待たない |
+| T18 | 作業/売上/費用/未確認を分ける日次結果 | T10/T11後 |
+| T19 | 既存CFO/Resendへの一日一通配信 | T18/T16後 |
+| T20 | 停止を次のjob/schedule/配信へ反映 | T14/T19後 |
+| T21 | 登録と業務完了を分けたsource別funnel | T05/T11/T19後 |
+| T22 | main image・DB・一人分のCloud自然wake/receipt確認 | T17/T19/T20/T21後 |
+| T23 | 正式提出・一回submit・受付readback | T01/T22後。3人/売上/7日継続を待たない |
+| T24 | Dais用DMとX/IG文案、source別URL | 初稿保存済み、公開URL差込は未完。待ち依存なし |
+| T25 | 30秒動画/審査demoのshot list→実画面編集 | 台本保存済み、撮影/動画本体は未完。待ち依存なし |
+| T26 | 日英公開説明と無料email入口のdeploy/readback | 原稿準備T06後、実URL切替T22後 |
+| T27 | DaisのDMとowned X/IG/community配布 | T22/T24/T26後、3人feedback待ちなし |
+| T28 | source別の最大離脱を一つ修正 | T21/T27後 |
+| T29 | 実測のcapacity/費用/利益/再利用を改善し1,000人を公式検証 | T28後 |
+
+**技術判断:** custom imageで同じfactoryを使う。中央Railwayの既存queue workerがMaritimeのdetached execへ一回dispatchしexecutionIdを回収する。VMはtenant限定tokenでwake relayへ通知し、Supabase service-roleを持たない。Keikiはemail/schedule/APIを持つが、既存Resend/CFOを置換する必須依存にしない。Maritime SDKのprovision既定OpenClawをcustom imageへ流用せず公式REST契約を使う。全14loops移植・新しいpublisher/router/schedulerは初週必須作業にしない。
+
+**配布/提出資料:** [DM・X・IG文案](../../distribution/maritime/week1/channel-copy.md) / [撮影台本](../../distribution/maritime/week1/demo-script.md) / [提出checklist](../../distribution/maritime/week1/submission-checklist.md)。文案/台本の保存は投稿・動画生成・提出完了を意味しない。
 
 **並行確認:** 初週締切/timezone、Top30 rubric、提出先、community pinned案内、両platform実装要否、人数計数、team roster、Scale更新/credits範囲、日本発旅費。最新受信は10月19日kickoff mailで、Mariaの個別条件回答は10月16日以後見つからない。10月18日に同threadでYC紹介依頼が送信済み。既存質問を重複送信せず、今回新しい問い合わせは送らない。
 
