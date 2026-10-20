@@ -41,7 +41,7 @@
   "limitations": [
     "Focused host-boundary tests use local provider fixtures; no real Cloud factory or provider effect verified."
   ],
-  "maritime_account_status": "email_verification_pending",
+  "maritime_account_status": "active",
   "cloud_browser_observation": {
     "existing_steel_base": "http://steel-browser.railway.internal:8080",
     "maritime_reachability": "unverified_private_network_boundary",
@@ -61,10 +61,24 @@
     "founder_auth_profiles_copied": false,
     "dedicated_env_key": "LM_CLOUD_MODEL_API_KEY"
   },
-  "maritime_normal_login_readback": "email_verification_required",
+  "maritime_normal_login_readback": "authenticated_agents_dashboard",
   "account_verification_routes": {
     "gmail_browser": "accepted mailbox needs Google passkey; ordinary alternative did not transition",
     "iphone": "configured device paired but connection_state=unavailable; no successful signed build; current build fails destination lookup",
-    "user_completion_requested": true
+    "user_completion_requested": false,
+    "composio_gmail": "14 registered Gmail connections EXPIRED; accepted mailbox ownership mapping unverified; no reconnect performed",
+    "gmail_connector": "existing Gmail connection read confirmation privately; verified provider link and normal email/password login to /agents"
+  },
+  "maritime_api_readback": {
+    "base_url": "https://api.maritime.sh",
+    "authenticated": true,
+    "http_status": 200,
+    "agent_count": 0,
+    "key_scopes": [
+      "provision",
+      "deploy",
+      "secrets"
+    ],
+    "key_location": "private credential SSOT only"
   }
 }
