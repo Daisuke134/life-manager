@@ -4,7 +4,9 @@ on:
     branches: [research/manager-product-r006-20261020]
     paths:
       - 'products/manager/scripts/heartsteps_research.py'
+      - 'products/manager/scripts/heartsteps_phase3.py'
       - 'products/manager/tests/test_heartsteps_research_h002_h004.py'
+      - 'products/manager/tests/test_heartsteps_phase3.py'
       - '.github/workflows/manager-heartsteps-research.yml'
   workflow_dispatch:
 permissions:
@@ -20,17 +22,23 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Focused tests
+      - name: Focused source tests
         run: python -m unittest tests/test_heartsteps_research_h002_h004.py -v
-      - name: Download pinned source temporarily and emit aggregate reports
+      - name: Focused reproduction tests
+        run: python -m unittest tests/test_heartsteps_phase3.py -v
+      - name: Download pinned source temporarily and emit aggregate source report
         run: python scripts/heartsteps_research.py --output output/heartsteps
+      - name: Reproduce analysis set and aggregate models
+        run: python scripts/heartsteps_phase3.py --output output/heartsteps-phase3
       - name: Verify no raw CSV persisted in repository workspace
         run: |
           test ! -e data/raw/suggestions.csv
-          ! find output/heartsteps -type f -name '*.csv' | grep .
+          ! find output -type f -name '*.csv' | grep .
       - uses: actions/upload-artifact@v4
         with:
-          name: heartsteps-h002-h004-summary
-          path: products/manager/output/heartsteps
+          name: heartsteps-phase3-summary
+          path: |
+            products/manager/output/heartsteps
+            products/manager/output/heartsteps-phase3
           if-no-files-found: error
           retention-days: 14
