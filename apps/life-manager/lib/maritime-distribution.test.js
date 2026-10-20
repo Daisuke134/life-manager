@@ -236,3 +236,10 @@ test("landing_inline_script_is_valid_javascript",()=>{
   const {Script}=require("node:vm");const html=renderMaritimeLanding({source:"x",language:"ja"});
   const script=html.match(/<script>([\s\S]*?)<\/script>/);assert.ok(script);assert.doesNotThrow(()=>new Script(script[1]));
 });
+
+
+test('email manager has a CSRF-bound stop control and describes retained inflight results',()=>{
+ const html=renderMaritimeLanding({language:'ja',user:{email:'person@example.invalid',csrf:'fixture-csrf'},state:'active'});
+ assert.match(html,/data-action="stop"/);assert.match(html,/fixture-csrf/);assert.match(html,/maritime\/stop/);
+ assert.match(html,/進行中/);assert.match(html,/削除/);
+});

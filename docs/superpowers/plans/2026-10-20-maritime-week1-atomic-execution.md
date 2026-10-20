@@ -401,6 +401,10 @@ life-manager/
 **Depends:** T14/T19。
 
 - [ ] T20.1 test `pause_blocks_next_job_and_report_but_preserves_inflight_receipt`を定義。他tenant停止不可、停止後新規publish/send0件、進行済みreceiptは保持。
+- [ ] T20.1a `/maritime/stop`は既存verified-cookie/Origin/CSRFでuidを解決し、空JSONだけを受ける。最初に既存store.pauseで新規job/model/sendを遮断し、既存provision capabilityのstable phase=pause jobをenqueueする。HTTPはpaused/cleanupPendingを返し、queued cleanupを完了と偽装しない。
+- [ ] T20.1b provision pause phaseは既存consent revokeとpaused schedule snapshotを実行する。bound agentなしはlocal control receipt、ありはloaded empty schedulesを確認する。reconcileは停止状態を照合し、未反映時だけ同じconsent revoke/empty snapshotをidempotentに再適用する。business/model/sendは再送せず、続きの仕事/日報をenqueueしない。新capability/table/schedulerを増やさず、既存inflight receiptは保持する。
+- [ ] T20.1d pause保存→cleanup enqueue間のcrashを回収する。store.listPaused(limit20,afterUid)をuid順で有限pagingし、既存workerの30秒recoveryが同じpause jobをidempotent enqueueする。ローカルcursorを進めて古いcompleted cleanupが新tenantを飢餓させない。新table/cronは作らない。
+- [ ] T20.1c landingへCSRF付き停止ボタンを追加し、停止は新しい仕事/今後のメールを止め、進行中の結果確認と既送信データは残ると明記する。中央queueの既存行は残し、dispatch/report直前のpaused guardで新規外部作用を拒否する。
 - [ ] T20.2 既存consent revokeとenrollment.pauseを接続し、中央のjob claim/dispatch/report直前にもpausedを読む。停止を既送信データ削除と表示しない。
 - [ ] T20.3 provider側に保存済みデータ・VMの削除は停止と分け、削除を勝手に実施しない。scheduled wake snapshotから停止分を外す。
 - [ ] T20.4 focused stop testを確認してcommit/push。

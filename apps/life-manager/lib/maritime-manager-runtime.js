@@ -4,13 +4,13 @@ const { isDeepStrictEqual } = require("node:util");
 const { buildRuntimeJob } = require("./runtime-job-store.js");
 function buildMaritimeManagerProvisionJob({ tenantId, releaseSha, phase = "create" }) {
   if (!/^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tenantId)
-    || !/^[0-9a-f]{40}$/.test(releaseSha) || !["create", "configure"].includes(phase)) throw new Error("maritime_provision_job_invalid");
-  const digest = createHash("sha256").update(`maritime-manager-provision:v1:${tenantId}${phase === "configure" ? ":configure" : ""}`).digest("hex");
+    || !/^[0-9a-f]{40}$/.test(releaseSha) || !["create", "configure", "pause"].includes(phase)) throw new Error("maritime_provision_job_invalid");
+  const digest = createHash("sha256").update(`maritime-manager-provision:v1:${tenantId}${phase === "create" ? "" : ":" + phase}`).digest("hex");
   return buildRuntimeJob({ jobId: `maritime-provision:${digest}`, tenantId,
     loopId: "maritime.manager", capability: "maritime.manager.provision", effectClass: "money",
     effectKey: `maritime-provision://${digest}`, maxAttempts: 1,
     inputRefs: { enrollment_ref: `maritime-enrollment://${tenantId}`, release_ref: `release://git/${releaseSha}`,
-      ...(phase === "configure" ? { provision_phase_ref: "maritime-provision-phase://configure" } : {}) } });
+      ...(phase !== "create" ? { provision_phase_ref: `maritime-provision-phase://${phase}` } : {}) } });
 }
 function managerDate(value) {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)
@@ -249,7 +249,7 @@ function provisionContract(job) {
     const normalized = buildRuntimeJob(job);
     const c = { tenantId: normalized.tenant_id, releaseSha: normalized.input_refs.release_ref.slice('release://git/'.length),
       phase: normalized.input_refs.provision_phase_ref === undefined ? 'create'
-        : normalized.input_refs.provision_phase_ref === 'maritime-provision-phase://configure' ? 'configure' : null };
+        : ['configure', 'pause'].find(phase => normalized.input_refs.provision_phase_ref === `maritime-provision-phase://${phase}`) || null };
     if (!isDeepStrictEqual(normalized, buildMaritimeManagerProvisionJob(c))) throw new Error();
     return c;
   } catch { throw new CycleError('maritime_provision_job_invalid', false); }
@@ -258,7 +258,8 @@ function createMaritimeManagerProvisionAdapter(services = {}) {
   async function enrollment(c, requireActive = false) {
     const row = await services.managerStore?.read(c.tenantId);
     if (!row || row.uid !== c.tenantId || row.release_sha !== c.releaseSha) throw new CycleError('maritime_provision_binding_invalid', false);
-    if (row.status === 'paused' || row.paused_at || (requireActive && row.status !== 'active')) {
+    if (c.phase === 'pause' ? (row.status !== 'paused' || !row.paused_at)
+      : (row.status === 'paused' || row.paused_at || (requireActive && row.status !== 'active'))) {
       throw new CycleError('maritime_provision_inactive', false);
     }
     return row;
@@ -270,12 +271,19 @@ function createMaritimeManagerProvisionAdapter(services = {}) {
     return { uid: c.tenantId, releaseSha: c.releaseSha, uploadS3Key: value.uploadS3Key, archiveSha256: value.archiveSha256 };
   }
   function snapshot(c, row) {
+    if (c.phase === 'pause') return { schema_version: 1, tenantId: c.tenantId, releaseSha: c.releaseSha, paused: true, schedules: [] };
     const plan = require('./maritime-manager-wake.js').buildMaritimeInitialJobs(row);
     return require('./maritime-manager-schedules.js').projectMaritimeSchedules({ tenantId: c.tenantId,
       releaseSha: c.releaseSha, status: 'active', nextEligibleAt: plan.cycle.availableAt,
       timezone: row.timezone, nowMs: Date.parse(row.created_at) });
   }
   function receipt(c, job, agentId, schedule = null) {
+    if (c.phase === 'pause') {
+      const ref = `runtime-stop://${job.job_id.slice('maritime-provision:'.length)}`;
+      return { schema_version: 1, kind: 'maritime_manager_pause', status: 'completed', provider: 'runtime',
+        tenant_id: c.tenantId, job_id: job.job_id, release_sha: c.releaseSha, phase: 'pause', agent_id: agentId || null,
+        consent_revoked: true, schedule_sha256: createHash('sha256').update('[]').digest('hex'), external_ref: ref, evidence_refs: [ref] };
+    }
     return { schema_version: 1, kind: 'maritime_manager_provision', status: 'completed', provider: 'maritime',
       tenant_id: c.tenantId, job_id: job.job_id, release_sha: c.releaseSha, phase: c.phase, agent_id: agentId,
       schedule_sha256: schedule ? createHash('sha256').update(JSON.stringify(schedule.schedules)).digest('hex') : null,
@@ -284,6 +292,13 @@ function createMaritimeManagerProvisionAdapter(services = {}) {
   function verify(value, job) {
     try {
       const c = provisionContract(job);
+      if (c.phase === 'pause') return Boolean(value?.schema_version === 1 && value.kind === 'maritime_manager_pause'
+        && value.status === 'completed' && value.provider === 'runtime' && value.tenant_id === c.tenantId
+        && value.job_id === job.job_id && value.release_sha === c.releaseSha && value.phase === 'pause'
+        && (value.agent_id === null || (typeof value.agent_id === 'string' && EXECUTION_ID.test(value.agent_id)))
+        && value.consent_revoked === true && value.schedule_sha256 === createHash('sha256').update('[]').digest('hex')
+        && value.external_ref === `runtime-stop://${job.job_id.slice('maritime-provision:'.length)}`
+        && isDeepStrictEqual(value.evidence_refs, [value.external_ref]));
       return Boolean(value?.schema_version === 1 && value.kind === 'maritime_manager_provision' && value.status === 'completed'
         && value.provider === 'maritime' && value.tenant_id === c.tenantId && value.job_id === job.job_id
         && value.release_sha === c.releaseSha && value.phase === c.phase && typeof value.agent_id === 'string'
@@ -301,16 +316,35 @@ function createMaritimeManagerProvisionAdapter(services = {}) {
       return { state: 'present', receipt: receipt(c, job, agent.agentId) };
     }
     const expected = snapshot(c, row);
+    if (c.phase === 'pause') {
+      if (typeof services.isConsentRevoked !== 'function' || !await services.isConsentRevoked(c.tenantId)) {
+        return { state: 'unknown', errorClass: 'maritime_pause_consent_unconfirmed', nextAction: 'inspect_consent_state', retryable: false };
+      }
+      if (!row.agent_id) return { state: 'present', receipt: receipt(c, job, null, expected) };
+    }
     const loaded = await services.readWakeConfiguration({ uid: c.tenantId, agentId: row.agent_id, releaseSha: c.releaseSha });
     if (!loaded?.ready || !isDeepStrictEqual(loaded.schedules, expected.schedules)) return { state: 'unknown',
       errorClass: 'maritime_provision_configuration_not_loaded', nextAction: 'inspect_agent_deployment', retryable: false };
     return { state: 'present', receipt: receipt(c, job, row.agent_id, expected) };
+  }
+  async function reconcilePause(c, job) {
+    const row = await enrollment(c);
+    try { const proof = await inspect(c, job); if (proof.state === 'present') return proof; } catch { /* Idempotent stop intent remains safe to apply. */ }
+    if (typeof services.revokeConsent !== 'function') throw new CycleError('maritime_pause_unconfigured', false);
+    await services.revokeConsent(c.tenantId);
+    if (row.agent_id) await services.writeScheduleSnapshot({ uid: c.tenantId, agentId: row.agent_id, snapshot: snapshot(c, row) });
+    return inspect(c, job);
   }
   return Object.freeze({
     plan: async input => [buildMaritimeManagerProvisionJob(input)],
     async execute(job) {
       const c = provisionContract(job);
       const row = await enrollment(c, c.phase === 'configure');
+      if (c.phase === 'pause') {
+        try { const proof = await reconcilePause(c, job); if (proof.state === 'present') return { receipt: proof.receipt }; }
+        catch { /* Retry only idempotent stop cleanup through reconciliation. */ }
+        throw new CycleError('maritime_pause_cleanup_unconfirmed');
+      }
       if (c.phase === 'create') await services.ensureAgent(source(c));
       else {
         // Only a freshly claimed configure job writes. Reconciliation never calls execute.
@@ -329,8 +363,9 @@ function createMaritimeManagerProvisionAdapter(services = {}) {
     },
     async reconcile(job) {
       const c = provisionContract(job);
-      try { return await inspect(c, job); }
-      catch { return { state: 'unknown', errorClass: 'maritime_provision_readback_unconfirmed', nextAction: 'inspect_agent_deployment', retryable: false }; }
+      try { return c.phase === 'pause' ? await reconcilePause(c, job) : await inspect(c, job); }
+      catch { return { state: 'unknown', errorClass: c.phase === 'pause' ? 'maritime_pause_cleanup_unconfirmed' : 'maritime_provision_readback_unconfirmed',
+        nextAction: c.phase === 'pause' ? 'inspect_paused_schedule' : 'inspect_agent_deployment', retryable: false }; }
     },
     async continuation(job, value) {
       const c = provisionContract(job);

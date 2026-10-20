@@ -208,7 +208,7 @@ async function reconcileMaritimeCapabilityJobs(capabilities, dependencies = {}) 
   }
 }
 
-async function recoverMaritimeEnrollments(capabilities, { managerStore, enqueueJob, storeOptions = {} } = {}) {
+async function recoverMaritimeEnrollments(capabilities, { managerStore, enqueueJob, storeOptions = {}, pausedCursor = null } = {}) {
   if (!capabilities.includes("maritime.manager.provision")) return;
   const { buildMaritimeManagerProvisionJob } = require("../lib/maritime-manager-runtime.js");
   for (const row of await managerStore.listPending(1)) {
@@ -217,6 +217,11 @@ async function recoverMaritimeEnrollments(capabilities, { managerStore, enqueueJ
       await managerStore.quarantinePendingProvision(row.uid);
     }
   }
+  const paused = await managerStore.listPaused(20, pausedCursor);
+  for (const row of paused) {
+    await enqueueJob(buildMaritimeManagerProvisionJob({ tenantId: row.uid, releaseSha: row.release_sha, phase: "pause" }), storeOptions);
+  }
+  return paused.length === 20 ? paused.at(-1).uid : null;
 }
 
 function createWorkerHandlers(env, capabilities, dependencies = {}) {
@@ -232,7 +237,20 @@ function createWorkerHandlers(env, capabilities, dependencies = {}) {
       || require("../lib/transport/maritime-manager.js").createMaritimeManagerTransport({ env, managerStore,
         getWakeBinding, fetchImpl: dependencies.fetchImpl });
     if (capabilities.includes("maritime.manager.provision")) {
+      const distribution = dependencies.maritimeDistributionStore
+        || require("../lib/maritime-distribution.js").createMaritimeDistributionStore({ env, fetchImpl: dependencies.fetchImpl });
+      const isConsentRevoked = async uid => {
+        const state = await distribution.getParticipant(uid);
+        if (state?.ok !== true) throw new Error("maritime_consent_readback_unavailable");
+        return state.participant == null || Boolean(state.participant.revoked_at);
+      };
       servicesByAdapter["maritime-manager-provision"] = { managerStore,
+        isConsentRevoked,
+        revokeConsent: async uid => {
+          if (await isConsentRevoked(uid)) return;
+          await distribution.revoke(uid);
+          if (!await isConsentRevoked(uid)) throw new Error("maritime_consent_revoke_unconfirmed");
+        },
         ensureAgent: transport.ensureAgent, readAgent: transport.readAgent,
         configureWake: transport.configureWake, readWakeConfiguration: transport.readWakeConfiguration,
         writeScheduleSnapshot: transport.writeScheduleSnapshot,
@@ -765,6 +783,7 @@ async function runCapabilityWorker(env = process.env) {
   const maritimeManagerStore = capabilities.some(value => value.startsWith("maritime.manager."))
     ? require("../lib/maritime-manager-store.js").createMaritimeManagerStore({ env }) : null;
   let nextMaritimeRecoveryMs = 0;
+  let maritimePausedCursor = null;
   const handlers = createWorkerHandlers(env, capabilities, {
     maritimeManagerStore,
     onRegistry: value => { registry = value; },
@@ -802,8 +821,8 @@ async function runCapabilityWorker(env = process.env) {
         });
       }
       if (maritimeManagerStore && Date.now() >= nextMaritimeRecoveryMs) {
-        await recoverMaritimeEnrollments(capabilities, { managerStore: maritimeManagerStore,
-          enqueueJob: runtimeStore.enqueueJob, storeOptions: opts });
+        maritimePausedCursor = await recoverMaritimeEnrollments(capabilities, { managerStore: maritimeManagerStore,
+          enqueueJob: runtimeStore.enqueueJob, storeOptions: opts, pausedCursor: maritimePausedCursor });
         nextMaritimeRecoveryMs = Date.now() + 30000;
       }
       await reconcileMaritimeCapabilityJobs(capabilities, { registry, store: runtimeStore, storeOptions: opts,

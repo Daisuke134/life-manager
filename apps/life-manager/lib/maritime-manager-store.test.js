@@ -288,3 +288,13 @@ test('quarantine pending provision is tenant scoped and cannot change active or 
  assert.equal((await store.quarantinePendingProvision(UID_A)).status,'effect_unknown');
  await assert.rejects(()=>store.quarantinePendingProvision('../foreign'),/invalid/);assert.equal(calls,1);
 });
+
+
+test('paused cleanup recovery reads bounded identity pages without contact data fallback',async()=>{
+ const calls=[];const row={uid:UID_B,status:'paused',paused_at:'2026-10-21T00:00:00Z',agent_id:null,release_sha:SHA};
+ const store=createMaritimeManagerStore({supaUrl:'https://database.invalid',supaKey:'fixture',fetchImpl:async url=>{calls.push(new URL(url));return new Response(JSON.stringify([row]));}});
+ assert.deepEqual(await store.listPaused(20,UID_A),[row]);
+ assert.equal(calls[0].searchParams.get('uid'),'gt.'+UID_A);assert.equal(calls[0].searchParams.get('status'),'eq.paused');
+ assert.equal(calls[0].searchParams.get('order'),'uid.asc');assert.equal(calls[0].searchParams.get('limit'),'20');
+ await assert.rejects(()=>store.listPaused(0),/invalid/);await assert.rejects(()=>store.listPaused(20,'foreign'),/invalid/);assert.equal(calls.length,1);
+});

@@ -178,6 +178,37 @@ async function handleMaritimeManagerActivate(req, res, options = {}) {
   } catch { send(res, 503, { error: "activation_unavailable" }); }
   return true;
 }
+async function handleMaritimeManagerStop(req, res, options = {}) {
+  if (new URL(req.url || "/", "http://localhost").pathname !== "/maritime/stop") return false;
+  if (!enabled(options)) { send(res, 503, { error: "manager_unavailable" }); return true; }
+  if (req.method !== "POST") { send(res, 405, { error: "method_not_allowed" }, { allow: "POST" }); return true; }
+  let origin;
+  try { origin = publicOrigin(req, options); } catch { send(res, 503, { error: "manager_unavailable" }); return true; }
+  if (req.headers?.origin !== origin) { send(res, 403, { error: "origin_rejected" }); return true; }
+  const user = await resolveMaritimeManagerUser(req, res, options);
+  if (!user) { send(res, 401, { error: "authentication_required" }); return true; }
+  const supplied = Buffer.from(String(req.headers?.["x-lm-web-csrf"] || "")), expected = Buffer.from(user.csrf);
+  if (supplied.length !== expected.length || !require("node:crypto").timingSafeEqual(supplied, expected)) {
+    send(res, 403, { error: "csrf_rejected" }); return true;
+  }
+  try { if (Object.keys(await readMaritimeBody(req)).length) throw new Error(); }
+  catch { send(res, 400, { error: "invalid_stop" }); return true; }
+  let paused = false;
+  try {
+    const store = options.managerStore || require("./maritime-manager-store.js").createMaritimeManagerStore({ env: options.env || process.env });
+    const existing = await store.read(user.uid);
+    if (!existing) { send(res, 404, { error: "manager_not_found" }); return true; }
+    const row = await store.pause(user.uid);
+    if (!row || row.uid !== user.uid || row.status !== "paused" || !row.paused_at) throw new Error();
+    paused = true;
+    const job = require("./maritime-manager-runtime.js").buildMaritimeManagerProvisionJob({ tenantId: user.uid, releaseSha: row.release_sha, phase: "pause" });
+    const queued = await (options.enqueueJob || require("./runtime-job-store.js").enqueueJob)(job, options.storeOptions || {});
+    if (!queued?.job || queued.job.job_id !== job.job_id || queued.job.tenant_id !== user.uid) throw new Error();
+    const pending = queued.job.status !== "completed";
+    send(res, pending ? 202 : 200, { status: "paused", cleanupPending: pending });
+  } catch { send(res, 503, { ...(paused ? { status: "paused", cleanupPending: true } : {}), error: "stop_cleanup_unconfirmed" }); }
+  return true;
+}
 async function handleMaritimeManagerPage(req, res, options = {}) {
   const url = new URL(req.url || "/", "http://localhost");
   if (url.pathname !== "/maritime") return false;
@@ -204,4 +235,4 @@ async function handleMaritimeManagerPage(req, res, options = {}) {
   } catch { send(res, 503, { error: "manager_unavailable" }); }
   return true;
 }
-module.exports = { handleMaritimeManagerAuth, resolveMaritimeManagerUser, handleMaritimeManagerActivate, handleMaritimeManagerPage };
+module.exports = { handleMaritimeManagerAuth, resolveMaritimeManagerUser, handleMaritimeManagerActivate, handleMaritimeManagerPage, handleMaritimeManagerStop };

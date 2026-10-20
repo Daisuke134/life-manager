@@ -329,3 +329,22 @@ test('transient preflight defers through the existing worker without consuming a
  assert.equal(report.actions.deferredCycles,1);assert.equal(report.actions.completedCycles,0);
  assert.match(require('./maritime-manager-report.js').renderMaritimeDailyEmail(report),/実行環境の準備待ち/);
 });
+
+
+test('pause cleanup revokes consent and clears schedules while retaining inflight data and no successors',async()=>{
+ for(const bound of [true,false]){
+  const row={uid:UID,agent_id:bound?'agent-a':null,release_sha:SHA,status:'paused',paused_at:'2026-10-21T00:00:00.000Z'};
+  let revoked=false,revokeCalls=0,writes=0,schedules=[{id:'old'}];
+  const adapter=createMaritimeManagerProvisionAdapter({managerStore:{read:async()=>row},
+   isConsentRevoked:async()=>revoked,revokeConsent:async()=>{revoked=true;revokeCalls++;},
+   writeScheduleSnapshot:async input=>{assert.equal(input.snapshot.paused,true);assert.deepEqual(input.snapshot.schedules,[]);writes++;schedules=[];},
+   readWakeConfiguration:async()=>({ready:true,schedules}),
+   ensureAgent:()=>{throw new Error('no provision');},configureWake:()=>{throw new Error('no configure');},seedInitialReport:()=>{throw new Error('no report');},
+  });
+  const job=buildMaritimeManagerProvisionJob({tenantId:UID,releaseSha:SHA,phase:'pause'});
+  const proof=await adapter.reconcile(job);assert.equal(proof.state,'present');assert.equal(adapter.verify(proof.receipt,job),true);
+  assert.equal(revokeCalls,1);assert.equal(writes,bound?1:0);assert.equal(await adapter.continuation(job,proof.receipt),null);
+  await adapter.reconcile(job);assert.equal(revokeCalls,1);assert.equal(writes,bound?1:0);
+  assert.equal(row.agent_id,bound?'agent-a':null);
+ }
+});

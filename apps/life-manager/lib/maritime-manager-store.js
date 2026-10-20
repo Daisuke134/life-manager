@@ -52,6 +52,22 @@ function createMaritimeManagerStore(options = {}) {
     }
     return rows;
   }
+  async function listPaused(limit = 20, afterUid = null) {
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) invalid();
+    if (afterUid !== null) identifier(afterUid, UID);
+    const rows = await request(`lm_maritime_manager_enrollments?status=eq.paused&paused_at=not.is.null&select=uid,status,paused_at,agent_id,release_sha&order=uid.asc&limit=${limit}`
+      + (afterUid === null ? "" : `&uid=gt.${encodeURIComponent(afterUid)}`));
+    if (!Array.isArray(rows) || rows.length > limit) throw new Error("maritime_manager_store_invalid");
+    let previous = afterUid;
+    for (const row of rows) {
+      if (!row || !UID.test(row.uid) || row.status !== "paused" || typeof row.paused_at !== "string"
+        || !Number.isFinite(Date.parse(row.paused_at)) || !SHA.test(row.release_sha)
+        || (row.agent_id !== null && !/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(row.agent_id))
+        || (previous !== null && row.uid <= previous)) throw new Error("maritime_manager_store_invalid");
+      previous = row.uid;
+    }
+    return rows;
+  }
   async function enroll(input) {
     const uid = identifier(input?.uid, UID);
     const authSubject = identifier(input.authSubject, SUBJECT).toLowerCase();
@@ -160,7 +176,7 @@ function createMaritimeManagerStore(options = {}) {
     if (!row || row.execution_id !== executionId) throw new Error("maritime_manager_binding_rejected");
     return row;
   }
-  return Object.freeze({ enroll, read, listPending, claimProvision, bindAgent, pause, quarantinePendingProvision,
+  return Object.freeze({ enroll, read, listPending, listPaused, claimProvision, bindAgent, pause, quarantinePendingProvision,
     claimCycleDispatch, readCycleDispatch, bindCycleExecution });
 }
 module.exports = { createMaritimeManagerStore };

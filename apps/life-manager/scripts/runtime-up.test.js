@@ -1236,7 +1236,7 @@ test("Maritime report worker injects existing queue reader and CFO receipt IO", 
 
 test("pending Maritime enrollment recovery reuses stable jobs and skips undeclared capability",async()=>{
  const uid="lm_11111111-1111-4111-8111-111111111111",sha="a".repeat(40),calls=[];
- const dependencies={managerStore:{listPending:async limit=>{assert.equal(limit,1);return [{uid,release_sha:sha}];}},enqueueJob:async job=>{calls.push(job);return {created:calls.length===1,job};}};
+ const dependencies={managerStore:{listPaused:async()=>[],listPending:async limit=>{assert.equal(limit,1);return [{uid,release_sha:sha}];}},enqueueJob:async job=>{calls.push(job);return {created:calls.length===1,job};}};
  await recoverMaritimeEnrollments(["maritime.manager.cycle"],dependencies);assert.equal(calls.length,0);
  await recoverMaritimeEnrollments(["maritime.manager.provision"],dependencies);
  await recoverMaritimeEnrollments(["maritime.manager.provision"],dependencies);
@@ -1277,8 +1277,34 @@ test("Maritime post-send continuation failure reconciles the receipt without a s
 test("terminal pending provision is quarantined so the next tenant can recover",async()=>{
  const a={uid:"lm_11111111-1111-4111-8111-111111111111",release_sha:"a".repeat(40)},b={...a,uid:"lm_22222222-2222-4222-8222-222222222222"};
  const rows=[a,b],queued=[],quarantined=[];
- const deps={managerStore:{listPending:async()=>rows.slice(0,1),quarantinePendingProvision:async uid=>{quarantined.push(uid);rows.shift();}},
+ const deps={managerStore:{listPaused:async()=>[],listPending:async()=>rows.slice(0,1),quarantinePendingProvision:async uid=>{quarantined.push(uid);rows.shift();}},
  enqueueJob:async job=>{queued.push(job.tenant_id);return {created:job.tenant_id===b.uid,job:{...job,status:job.tenant_id===a.uid?"dead_letter":"queued"}};}};
  await recoverMaritimeEnrollments(["maritime.manager.provision"],deps);await recoverMaritimeEnrollments(["maritime.manager.provision"],deps);
  assert.deepEqual(quarantined,[a.uid]);assert.deepEqual(queued,[a.uid,b.uid]);
+});
+
+
+test("Maritime pause job uses the existing consent store and never sends a report",async()=>{
+ const uid="lm_11111111-1111-4111-8111-111111111111",sha="a".repeat(40);let revoked=false,calls=0;
+ const runtime=require('../lib/maritime-manager-runtime.js');
+ const handlers=createWorkerHandlers({},['maritime.manager.provision'],{
+  maritimeManagerStore:{read:async()=>({uid,agent_id:null,release_sha:sha,status:'paused',paused_at:'2026-10-21T00:00:00.000Z'})},
+  maritimeTransport:{},query:async()=>{throw new Error('no report enqueue');},
+  maritimeDistributionStore:{getParticipant:async()=>({ok:true,participant:{revoked_at:revoked?'2026-10-21T00:00:01.000Z':null}}),revoke:async()=>{calls++;revoked=true;return true;}},
+  createRegistry:({servicesByAdapter})=>{const adapter=runtime.createMaritimeManagerProvisionAdapter(servicesByAdapter['maritime-manager-provision']);return {hasCapability:()=>true,getByCapability:()=>adapter};},
+ });
+ const job=runtime.buildMaritimeManagerProvisionJob({tenantId:uid,releaseSha:sha,phase:'pause'});
+ assert.equal((await handlers[job.capability](job)).receipt.consent_revoked,true);assert.equal(calls,1);
+ await handlers[job.capability](job);assert.equal(calls,1);
+});
+
+
+test("paused cleanup recovery advances beyond completed old jobs and wraps its cursor",async()=>{
+ const rows=Array.from({length:21},(_,i)=>({uid:`lm_${(i+1).toString(16).padStart(8,'0')}-1111-4111-8111-111111111111`,release_sha:'a'.repeat(40)}));
+ const seen=[];
+ const deps={managerStore:{listPending:async()=>[],listPaused:async(limit,after)=>{assert.equal(limit,20);return rows.filter(row=>!after||row.uid>after).slice(0,limit);}},
+  enqueueJob:async job=>{assert.equal(job.input_refs.provision_phase_ref,'maritime-provision-phase://pause');seen.push(job.tenant_id);return {created:false,job:{...job,status:'completed'}};}};
+ const cursor=await recoverMaritimeEnrollments(['maritime.manager.provision'],deps);assert.equal(cursor,rows[19].uid);
+ assert.equal(await recoverMaritimeEnrollments(['maritime.manager.provision'],{...deps,pausedCursor:cursor}),null);
+ assert.equal(new Set(seen).size,21);
 });
