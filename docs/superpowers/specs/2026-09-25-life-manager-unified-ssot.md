@@ -21008,7 +21008,7 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 
 **TODO順変更:** 旧=一業務readiness→Cloud→入口→3人pilot→packet→1,000人。新=下記atomic ID順、提出経路確認T01・配布文案T24・台本T25は即着手可能。理由はDaisが知人DMを担当し、利用者feedbackを待たず実装・素材・提出準備を進められるため。先に試せる製品と正式必須項目を揃えて提出し、改善と獲得を継続する。全体統括cursorと進行中provider effectは変更しない。
 
-**Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細file/signature/acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。運用cursor=T22.1b.5-1（Dashboard本人ログイン待ち）と独立副cursor=T22.1c-5c（receipts固定親ownership修正のreview/CI/main→新image採用）。sourceはPR #8424の最終d13e1b8d7fで全14checks成功、main `0c559693f03b34770e9c1ff61616bbe2f2e497ed`へ統合する。既存Maritime VM一台とWeb/workerは同mainのimageを採用し、VMの実4source hash/healthとimage固定browserの非rootCDP/DOMを確認する。両appの必須設定・capacity3・内部cohortは稼働deploymentで照合し、公開email flagとMaritime capabilityは無効に保つ。DBの登録・実行・参加・利用計測migrationは公式success、Data APIの503 PGRST002は未解決、直近owned Auth Adminは200/subject・email一致。既存6ファイルのunknown receiptは維持し、新しい実業務・日報・停止・外部利用者・売上・正式提出・DaisへのURLメールは未確認/未完とする。
+**Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細file/signature/acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。運用cursor=T22.1b.6-1（Manager保存先を既存Runtime Postgresへ接続）と独立副cursor=T22.1c-5c（main4fのreceipts親修正を新imageへ採用）。sourceはPR #8424の最終d13e1b8d7fで全14checks成功、main `0c559693f03b34770e9c1ff61616bbe2f2e497ed`へ統合する。既存Maritime VM一台とWeb/workerは同mainのimageを採用し、VMの実4source hash/healthとimage固定browserの非rootCDP/DOMを確認する。両appの必須設定・capacity3・内部cohortは稼働deploymentで照合し、公開email flagとMaritime capabilityは無効に保つ。DBの登録・実行・参加・利用計測migrationは公式success、Data APIの503 PGRST002は未解決、直近owned Auth Adminは200/subject・email一致。既存6ファイルのunknown receiptは維持し、新しい実業務・日報・停止・外部利用者・売上・正式提出・DaisへのURLメールは未確認/未完とする。
 
 | ID | 一件の成果物 | 状態/依存 |
 |---|---|---|
@@ -21105,3 +21105,6 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 
 
 **T22.1c-5a/b source受入:** 公式lstatはreceipts親uid/gid0・0755、新v2 receipt未作成を返す。固定親receiptsをruntime-env.jsの既存no-follow ownership対象へ加える1箇所の修正とし、再帰chownはしない。focused RED→runtime-env6/6を確認し、実imageのchown/再実行は未完。副cursor=c-5c、証拠→docs/evidence/maritime/owned-factory-v2-preflight.json。DB側b.5本人ログイン待ちと分離して進める。
+
+
+**T22.1b.6の保存先決定:** 主cursor=b.6-1。旧=Dashboard本人ログイン→REST復旧、新=Manager専用保存先を既存Runtime PGへ接続→製品経由の実PKCE/仕事/日報/停止→配布、理由=REST503、同region公式障害、候補DBimageでも当該timezone依存が残り、既存Runtime PGのDDL権限とManager未作成/Job0・Supabase enrollment/execution0・公開flag/cap無効を確認するため。一般利用者stateの移行・二重write・REST fallbackは行わない。Auth/PKCE、共通queue/receipt、FinancialRecord、CFO送信器を再利用する。owned UIDは既存separateWebUidForSubject導出に一致、既存VM externalIdもManager HMACに一致しbindingを維持する。6表とfile別atomic手順→Atomic Plan b.6-1〜10、実測→docs/evidence/maritime/runtime-pg-state-preflight.json。c-5はPR8449/exact73efの13checks全成功とfresh review0/0でmain4fへ統合し、既存VMの新image配備を進める。Supabase本人ログイン依頼は元provider診断用として非同期に残す。

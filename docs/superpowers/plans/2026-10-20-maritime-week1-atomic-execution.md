@@ -653,3 +653,36 @@ life-manager/
 
 
 **c-5a/b受入:** 実VMのreceipts親はuid/gid0・0755、home/buildは10001・0700、新v2 receipt directory/cycle.jsonは未作成。旧factory execution IDの現在GET404と過去completed証拠は分離する。固定親receiptsの既存no-follow ownership対象への追加だけを実装する。receipt parent inodeが10001/10001準備対象から漏れるfocused REDを確認し、修正後runtime-env6/6を確認する。fixtureはownership syscallのみ記録し、実chownの採用は新imageで別確認する。現在副cursor=c-5c。証拠→`docs/evidence/maritime/owned-factory-v2-preflight.json`。
+
+
+### T22.1b.6 — Manager保存先を既存Runtime Postgresへ接続する
+
+旧順序=b.5のDashboard本人ログイン→REST復旧→公開。新順序=b.6の既存Runtime PG接続とc-5のimage採用を並行→owned PKCE/実業務/日報/停止→T30配布、T23正式経路確認。理由は、現SupabaseデータAPI503/同regionの公式障害、候補DBimageにもtimezone依存が残り、既存Runtime PGはDDL可・Manager tables未作成・Manager job0、Supabase enrollment/execution0、公開flag/cap無効を確認できたため。b.5は元provider診断として残すが製品の進行条件から外す。本人ログイン返答を新保存先の実装待ち条件にしない。現在主cursor=b.6-1、副cursor=c-5c（main4f image配備）。
+
+**所有file/folder:**
+
+```text
+apps/life-manager/
+  migrations/20261021090000_maritime_manager_runtime_state.sql
+  lib/maritime-manager-store.js
+  lib/maritime-manager-store.test.js
+  lib/maritime-manager-persistence.js
+  lib/maritime-manager-usage.js
+  lib/maritime-manager-usage.test.js
+  server.js
+  scripts/runtime-up.js
+  test/postgres/maritime-manager-state.integration.js
+```
+
+- [ ] **b.6-1 / schema:** 既存SQLのenrollment・execution・participant claim・funnel・CFO制約を再利用して上記native migrationを作る。6表はidentities/enrollments/executions/participants/funnel/CFO receipt。一般lm_users FKやSupabase専用GRANTは持ち込まず、identityとの所有関係を保つ。既存jobs/common receipts/FinancialRecordは再作成しない。
+- [ ] **b.6-2 / Manager store:** `maritime-manager-store.js`の既存input/identity/dispatch検証と公開method名を保ち、保存transportをparameterized SQLへ置換する。claim/bind SQLは既存関数を再利用する。既存REST失敗時のfallback/二重writeは作らない。PG timestampはISO、date_keyはYYYY-MM-DDへ正規化する。関連unit fixtureを同じ受入契約へ更新する。
+- [ ] **b.6-3 / identities:** `maritime-manager-persistence.js`でverified subject→既存`separateWebUidForSubject()`の安定UIDを保存する。owned UIDとexternalIdが既存導出に一致することは私有値を出さず確認済み。Auth subjectのunique制約とUID bindingを保ち、first-touchは既存sanitizeを使い初回だけ保存する。一般Calendar/Telegramのlm_usersは参照も移行もしない。
+- [ ] **b.6-4 / consentと計測:** 同moduleでPG participant read/claim/revokeとfirstCompletedWorkAtを提供する。既存distributionのparticipantId/recordManagerEvent/recordAnonymousEventをcustom recordEventImplで再利用し、HMAC・安定event key・internal cohort・流入sanitizeを維持する。旧Telegram用global distribution storeは切替えない。容量claimは単一SQL transaction/advisory lockで直列化する。
+- [ ] **b.6-5 / 日報receipt:** 同moduleのread/claim/markを既存CFO receipt IOへ注入する。既存Resend送信器、pending/sent、recipient hash、23時間期限、provider idempotencyを保持する。金融表・送信器を増設しない。
+- [ ] **b.6-6 / frontend wiring:** server.jsのManager page/auth/activate/stop/artifact/wakeへ同じpersistence依存を渡す。既存frontendのmoneyPrinterRuntimePoolを再利用し、control lockの接続とdata query待ちが循環しない構成を保つ。一般Google/Calendar/Telegram経路は従来のstoreを使う。
+- [ ] **b.6-7 / workerとreturn:** runtime-up.jsのHandler/worker両生成箇所へ既存worker Pool queryと同じpersistenceを渡す。既存workerはjobを順にawaitする。completion/first-touch/日報IOも揃える。usage.jsのManager return直接REST読取をPGの初回業務時刻へ置換し、24時間条件を維持する。
+- [ ] **b.6-8 / source受入:** 既存native PG fixtureのinitdb/Unix socket/pg driver手順を使い、schema再適用、UID分離、capacity並行claim、停止後拒否、dispatch一回claim/同IDbind、日付正規化、CFO一回claim、usage dedupを実SQLで確認する。Auth/PKCE/handler契約の関連確認も実施し、差分review→commit/push→exact HEAD必要CI→main統合する。
+- [ ] **b.6-9 / 既存DB反映:** main由来migrationを既存Railway runtime DBへ一回適用し6表/function/identityを公式接続でreadbackする。空のManager storeへ接続する変更であり一般利用者の移行はしない。両backendのsource/env、c-5 imageのloaded SHA、archive、owned bindingを照合する。
+- [ ] **b.6-10 / 実利用の受入:** Supabase Authの実PKCE→PG identity/consent/enrollment→既存owned agent recover/configure→新work receiptと成果物download→実日報/停止/計測を確認する。その結果でのみ公開flag/worker capを有効にし、T30へ進む。売上・利益・外部利用者・正式提出は実際の証拠と分ける。
+
+**既存componentの再利用:** runtime-job-store/FinancialRecord/daily observations/Maritime transport/Resend/CFO delivery/PKCE/CSRF/UID helper。新DB・新scheduler・VMへのDB credential配布は不要。preflight→`docs/evidence/maritime/runtime-pg-state-preflight.json`。
