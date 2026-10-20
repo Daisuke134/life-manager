@@ -1,5 +1,6 @@
 'use strict';
 const { createHmac } = require('node:crypto');
+const { verifyMaritimeWakeToken } = require('../maritime-manager-wake.js');
 const { validateMaritimeScheduleSnapshot } = require('../maritime-manager-schedules.js');
 const UID = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
@@ -141,6 +142,29 @@ function createMaritimeManagerTransport({ env = {}, fetchImpl = globalThis.fetch
       const candidate = await lookup(identity);
       if (!candidate) throw new TransportError('provision_unconfirmed');
       return recoverAgent(identity, row, candidate);
+    }); },
+    configureWake(input) { return safe(async () => {
+      const uid = valid(input?.uid, UID); const agentId = valid(input.agentId, ID);
+      const releaseSha = valid(input.releaseSha, SHA);
+      await enrollment(uid, agentId, releaseSha, true);
+      if (typeof getWakeBinding !== 'function') throw new TransportError('unconfigured', false);
+      const wake = await getWakeBinding({ uid, agentId, releaseSha });
+      const identity = verifyMaritimeWakeToken(wake?.token, uidSecret);
+      if (!identity || identity.uid !== uid || identity.agentId !== agentId || identity.releaseSha !== releaseSha) {
+        throw new TransportError('relay_invalid', false);
+      }
+      const maritime = await sdk();
+      if (typeof maritime.agents.setEnv !== 'function' || typeof maritime.agents.reloadEnv !== 'function') {
+        throw new TransportError('unconfigured', false);
+      }
+      await enrollment(uid, agentId, releaseSha, true);
+      await maritime.agents.setEnv(agentId, 'LM_WAKE_RELAY_TOKEN', wake.token, { secret: true });
+      await enrollment(uid, agentId, releaseSha, true);
+      const result = await maritime.agents.reloadEnv(agentId);
+      if (result?.id !== agentId || !['active', 'sleeping', 'deploying'].includes(result.status)) {
+        throw new TransportError('reload_unconfirmed');
+      }
+      return { agentId, status: result.status };
     }); },
     dispatchCycle(input) { return safe(async () => {
       const uid = valid(input?.uid, UID); const agentId = valid(input.agentId, ID);
