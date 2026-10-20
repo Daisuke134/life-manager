@@ -20646,7 +20646,7 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | T04 | Supabaseのemail認証専用handler | source完了。#8398/main 286e982bfe、関連28/28・全14 checks PASS。既存Google guard維持、PKCE限定。productionのemail設定/配送はT32 |
 | T05 | 本人POST activateから一度だけenqueue | source実装/#8399。provision builderを定義、GET/CSRF/cap/停止/unknownは起動しない。独立reviewのterminal job誤受付を回帰で修正。adapterはT11 |
 | T06 | email登録が主CTAのcampaign入口 | source実装。旧Telegram guardから分離、日英email/開始UIと状態表示。Manager専用consent version、関連54/54 PASS。公開flagは未変更 |
-| T07 | Capafy既存factoryへtenant state/build path注入 | source実装/#8402。reviewで子gateのdotenv/owner通知とrunner workdir上書きを検出し、実gate/runner回帰4件RED→GREEN。host8/8・既存gate10/10 PASS。T09未実装/本番未適用 |
+| T07 | Capafy既存factoryへtenant state/build path注入 | source実装/#8402。reviewで子gateのdotenv/owner通知とrunner workdir上書きを検出し、実gate/runner回帰4件RED→GREEN。host8/8・既存gate14/14 PASS。T09未実装/本番未適用 |
 | T08 | Linux browser/provider accountのreadinessとtenant binding | T07後、secret値を記録しない |
 | T09 | tenant envで既存factoryを一回呼ぶcloud_cycle.py | T07/T08後 |
 | T10 | 同tenant公式Capafy snapshot→FinancialRecord | T09後 |
