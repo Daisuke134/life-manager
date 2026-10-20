@@ -273,4 +273,20 @@ class OperatingCostTotalsTests(unittest.TestCase):
             self.assertFalse(_calendar_contains({**component,'occurred_at':parent['period_end']},parent))
             self.assertTrue(_calendar_contains({**component,'occurred_at':parent['period_start']},parent))
 
+    def test_previous_period_gap_ending_at_owner_period_start_does_not_reduce_coverage(self):
+        for mode in ('paper','live'):
+            with self.subTest(mode=mode):
+                payload,inventory,child,parent=calendar_fixture(mode)
+                value=summarize([parent,child],payload,owner_id=child['owner_id'],mode=mode,
+                    observed_at=inventory['observed_at'],expected_inventory=inventory)
+                previous_gap={'order_ids':['previous-entry','previous-exit'],
+                    'period_start':'2026-09-29T00:00:00Z','period_end':parent['period_start'],
+                    'reason':'operating_cost_service_period_unverified'}
+                value['operating_cost_component_gaps'].append(previous_gap)
+
+                selected=select_components(value,[parent])
+
+                self.assertEqual(selected['model_cost_usd'],'1')
+                self.assertEqual(selected['operating_cost_coverage']['coverage_state'],'complete')
+
 if __name__=='__main__':unittest.main()

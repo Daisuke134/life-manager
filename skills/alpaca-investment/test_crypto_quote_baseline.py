@@ -3,13 +3,15 @@ import copy
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from test_crypto_entry_account import (ACCOUNT_A, ACCOUNT_B, START,
     seed)
 import test_crypto_entry_account as fixtures
 import crypto_ownership_proof as proofs
 import effect_store as store
-from test_etf_allocator import NOW
+import test_etf_allocator as etf_fixtures
+from test_etf_allocator import _now
 
 
 def observation(mode, stamp=START, positions=None):
@@ -42,10 +44,11 @@ class QuoteBaselineTests(unittest.TestCase):
         for mode in ('paper','live'):
             for empty in (False,True):
                 with self.subTest(mode=mode,empty=empty),tempfile.TemporaryDirectory() as directory:
-                    root=Path(directory);raw=observation(mode,NOW,[] if empty else None)
+                    root=Path(directory);observed_at=_now();raw=observation(mode,observed_at,[] if empty else None)
                     before=copy.deepcopy(raw)
-                    code,rows,output=fixtures.CryptoEntryAccountTests().entry_main(root,mode,
-                        filled=True,pre_trade_readback=raw)
+                    with patch.object(etf_fixtures,'_now',return_value=observed_at):
+                        code,rows,output=fixtures.CryptoEntryAccountTests().entry_main(root,mode,
+                            filled=True,pre_trade_readback=raw)
                     self.assertEqual(code,0,output)
                     decision=next(row['decision'] for row in rows if row.get('receipt_type')=='decision'
                         and row['decision'].get('action')=='ENTER')
@@ -59,10 +62,12 @@ class QuoteBaselineTests(unittest.TestCase):
 
     def test_real_main_rejects_bad_raw_before_seal_or_submit(self):
         for mode in ('paper','live'):
-            for name,raw in malformed(observation(mode,NOW)):
+            current=observation(mode,_now())
+            for name,raw in malformed(current):
                 with self.subTest(mode=mode,case=name),tempfile.TemporaryDirectory() as directory:
-                    code,rows,_=fixtures.CryptoEntryAccountTests().entry_main(Path(directory),mode,
-                        pre_trade_readback=raw)
+                    with patch.object(etf_fixtures,'_now',return_value=current['clock']['observed_at']):
+                        code,rows,_=fixtures.CryptoEntryAccountTests().entry_main(Path(directory),mode,
+                            pre_trade_readback=raw)
                     self.assertNotEqual(code,0)
                     self.assertFalse(any(row.get('receipt_type')=='effect_intent' for row in rows))
                     self.assertFalse(any(row.get('receipt_type')=='outcome' for row in rows))

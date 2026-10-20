@@ -33,6 +33,11 @@ def _binding(row):
     except (KeyError,TypeError,ValueError):return None
 
 
+def _periods_overlap(left, right):
+    return (left is not None and right is not None
+        and left[1]<right[2] and right[1]<left[2])
+
+
 def _execution_time_proof(join,trip,receipt,account,observations):
     if join.get('join_type')!='paid_allocation':return None
     proofs=[row for row in observations if row.get('inventory_verification')=='verified'
@@ -85,8 +90,7 @@ def _calendar_gap_applies(gap, trip):
     if _calendar_contains(gap,trip):
         return True
     parent,child=_binding(trip),_binding(gap)
-    return (trip.get('scope_kind')=='owner_period' and parent is not None and child is not None
-        and parent!=child and child[1]<parent[2] and parent[1]<=child[2])
+    return (trip.get('scope_kind')=='owner_period' and parent!=child and _periods_overlap(child,parent))
 
 
 def _calendar_covers(component, trip, observations):
@@ -527,7 +531,7 @@ def summarize(trips, payload, *, owner_id: str, observed_at: str, expected_inven
                 else:
                     parent=_binding(trip)
                     relevant=trip.get('scope_kind')=='owner_period' and parent is not None and any(
-                        _binding(join) is not None and _binding(join)[1]<parent[2] and parent[1]<=_binding(join)[2]
+                        _periods_overlap(_binding(join),parent)
                         for join in owned)
                 known=accepted.get(charge)
                 confirmed=(charge not in charge_conflicts and known is not None

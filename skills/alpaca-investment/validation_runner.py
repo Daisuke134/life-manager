@@ -417,7 +417,7 @@ def run_once(
             destination,
             reports_path,
             runtime_release_sha=resolved_release,
-            refresh=True,
+            refresh=crypto_error is None,
         )
         for destination in destinations
     ]

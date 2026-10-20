@@ -100,6 +100,19 @@ class CryptoStatementOriginTests(unittest.TestCase):
         self.assertEqual(json.loads((root / 'performance-crypto-latest.json').read_text()), report)
         return report
 
+    def assert_partial_daily(self, root, report):
+        paths=list(root.glob('performance-crypto-daily-*.json'))
+        self.assertEqual(len(paths),1)
+        daily=json.loads(paths[0].read_text())
+        self.assertEqual(daily['report_scope'],'owned_crypto_cycles_daily')
+        self.assertEqual(daily['performance_day'],report['performance_day'])
+        self.assertEqual(daily['cycles'],[])
+        self.assertEqual(daily['measurement_status'],'partial')
+        self.assertIsNone(daily['net_pnl_usd'])
+        self.assertFalse(daily['capital_expansion_allowed'])
+        self.assertEqual(daily['fee_evidence']['attribution_cycle_ids'],[])
+        self.assertEqual(daily['fee_evidence']['attributed_native_fees'],[])
+
     def seed_anchors(self, root):
         _, frame, _ = cycle_fixture(root, 'live')
         built = perf.build_crypto_performance(store._rows(root / 'receipts.jsonl'), mode='live',
@@ -259,7 +272,7 @@ class CryptoStatementOriginTests(unittest.TestCase):
                 self.assertEqual(self.evidence(again), self.evidence(first))
                 ref = self.evidence(again)['documents'][0]['capture_refs'][0]
                 self.assertEqual(set(ref), {'metadata_sha256', 'source_receipt_id'})
-                self.assertEqual(list(root.glob('performance-crypto-daily-*.json')), [])
+                self.assert_partial_daily(root, again)
         with self.subTest(case='live_origin_in_paper'), tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             origin_packet(root, native_readback(), mode='paper')
@@ -297,7 +310,7 @@ class CryptoStatementOriginTests(unittest.TestCase):
                         self.assert_origin(by_request[origin['native_account_get']['request_id']], origin)
                     self.assertEqual(evidence['observations'][0]['capture_refs'], refs)
             self.assertEqual(missing['statement_input_status'], 'unavailable')
-            self.assertEqual(list(root.glob('performance-crypto-daily-*.json')), [])
+            self.assert_partial_daily(root, missing)
 
     def test_invalid_later_origin_retains_known_rows_origin_and_financial_anchors(self):
         # Rejecting a later capture must keep accepted provenance and unrelated paid history.

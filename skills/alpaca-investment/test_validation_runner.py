@@ -34,6 +34,27 @@ def _report(report_id: str = "fresh-report") -> dict[str, object]:
     }
 
 
+def _valid_etf_report() -> dict[str, object]:
+    from etf_momentum import strategy_card
+    card = strategy_card().to_mapping()
+    return {
+        "report_id": "fresh-etf-report",
+        "strategy_id": card["strategy_id"],
+        "release_sha": "b" * 40,
+        "card": card,
+        "status": "measured",
+        "decision": "paper",
+        "lookahead_detected": False,
+        "holdout": {"trades": 14, "net_pnl_usd": "1.62", "max_drawdown_usd": "1.25"},
+        "cost_model": card["cost_model"],
+        "turnover": "14",
+        "evidence_ids": ["alpaca-paper://stock-bars/fixture"],
+        "fresh": True,
+        "observed_at": "2026-09-29T00:00:00Z",
+        "expires_at": "2099-01-01T00:00:00Z",
+    }
+
+
 def _history(start: date, count: int = 2) -> dict[str, object]:
     rows = [
         {
@@ -289,20 +310,33 @@ class ValidationRunnerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             history = _history(date(2026, 1, 1))
+            from strategy_policy import candidate_cards
+            card = candidate_cards()["alpaca-btc-5m-trend-400-v2"].to_mapping()
+            selection = {
+                "selection": "selected", "report_id": "existing-btc-selection",
+                "strategy_id": card["strategy_id"], "release_sha": "a" * 40,
+                "card": card, "expires_at": "2099-01-01T00:00:00Z",
+            }
+            paths = [root / mode / "selected-strategy.json" for mode in ("live", "paper")]
+            before = []
+            for path in paths:
+                path.parent.mkdir()
+                path.write_text(json.dumps(selection))
+                before.append(path.read_bytes())
             with patch.object(validation_runner, "read_etf_daily_history", return_value=history), \
-                 patch.object(validation_runner, "build_report_from_history", return_value=_report()), \
+                 patch.object(validation_runner, "build_report_from_history", return_value=_valid_etf_report()), \
                  patch.object(validation_runner, "build_crypto_reports_for_period",
-                              side_effect=ValueError("alpaca_crypto_validation_history_invalid")), \
-                 patch.object(validation_runner, "provision_selection", return_value={"status": "existing"}) as provision:
+                              side_effect=ValueError("alpaca_crypto_validation_history_invalid")):
                 result = validation_runner.run_once(
-                    reports_path=root/"reports.json", selection_path=root/"selected-strategy.json",
+                    reports_path=root/"reports.json", selection_paths=paths,
                     credentials_path=Path("credentials"), cli_path=Path("alpaca"),
                     release_sha="b"*40, start_date=date(2026,1,1), end_date=date(2026,1,30))
             self.assertEqual(result["status"], "partial")
             self.assertEqual(result["crypto_report_count"], 0)
             self.assertEqual(result["crypto_error_class"], "alpaca_crypto_validation_history_invalid")
             self.assertEqual(len(json.loads((root/"reports.json").read_text())["reports"]), 1)
-            provision.assert_called_once()
+            self.assertEqual(result["selection_statuses"], ["existing", "existing"])
+            self.assertEqual([path.read_bytes() for path in paths], before)
 
     def test_write_reports_is_atomic_and_private(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -22,11 +22,15 @@ from strategy_policy import candidate_cards
 from test_etf_policy import _snapshot as policy_snapshot
 
 
-NOW = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 ETF_ID = "alpaca-etf-126d-momentum-v1"
 
 
-def _risk() -> dict[str, object]:
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _risk(observed_at: str) -> dict[str, object]:
+    observed = datetime.fromisoformat(observed_at.replace("Z", "+00:00"))
     return {
         "allocated_capital_usd": "0",
         "cash_flow_ny_day_usd": "0",
@@ -34,22 +38,23 @@ def _risk() -> dict[str, object]:
         "official_pnl_ny_day_usd": "0",
         "risk_day_ready": True,
         "unrealized_pnl_usd": "0",
-        "observed_at": NOW,
-        "ny_day": datetime.now(ZoneInfo("America/New_York")).date().isoformat(),
+        "observed_at": observed_at,
+        "ny_day": observed.astimezone(ZoneInfo("America/New_York")).date().isoformat(),
     }
 
 
 def _snapshot(mode: str = "paper") -> dict[str, object]:
     value = policy_snapshot()
+    observed_at = _now()
     value.update({
         "mode": mode,
         "account": {"cash": "100", "equity": "100"},
         "available_cash_usd": "100",
-        "clock": {"timestamp": NOW, "is_open": True},
+        "clock": {"timestamp": observed_at, "is_open": True},
         "positions": 0,
         "open_orders": 0,
         "unresolved_intents": 0,
-        "risk": _risk(),
+        "risk": _risk(observed_at),
     })
     return value
 
@@ -98,7 +103,7 @@ class EtfAllocatorTests(unittest.TestCase):
         snapshot.update({
             "crypto": [],
             "qqq_asset": {"tradable": False, "status": "inactive"},
-            "qqq_quote": {"bid": "1", "ask": "1", "quote_at": NOW},
+            "qqq_quote": {"bid": "1", "ask": "1", "quote_at": snapshot["clock"]["timestamp"]},
             "option_quotes": [],
         })
 
@@ -130,7 +135,7 @@ class EtfAllocatorTests(unittest.TestCase):
             state = Path(directory) / "state"
             _selected_state(state)
             snapshot = _snapshot("paper")
-            snapshot["clock"] = {"timestamp": NOW, "is_open": False}
+            snapshot["clock"]["is_open"] = False
             result = allocator.choose(
                 snapshot, [_candidate("QQQ")], state,
                 Path("unused-runner"), Path(directory),
@@ -157,7 +162,7 @@ class EtfAllocatorTests(unittest.TestCase):
             _selected_state(state)
             snapshot = _snapshot("paper")
             snapshot.update({
-                "clock": {"timestamp": NOW, "is_open": False},
+                "clock": {**snapshot["clock"], "is_open": False},
                 "positions": 1,
                 "position": {
                     "owner_id": "alpaca-investment-paper",

@@ -339,6 +339,40 @@ class CryptoPerformanceTests(unittest.TestCase):
             self.assertEqual(daily['completed_round_trips'],2)
             self.assertFalse((root/'performance-latest.json').exists())
 
+    def test_writer_persists_partial_daily_receipt_for_observed_day_without_closed_cycle(self):
+        self.assertIsNotNone(PERF,'common crypto performance writer is required')
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);orders,activity,owned=cycle_fixture(root)
+            ledger=root/'receipts.jsonl'
+            rows=[row for row in store._rows(ledger)
+                  if not (row.get('receipt_type')=='outcome' and row.get('effect_id')==owned['close_effect_id'])]
+            ledger.write_text(''.join(json.dumps(row,separators=(',',':'))+'\n' for row in rows))
+            observation={'mode':'paper','paper':True,'account':{'cash':'0','equity':'100'},
+                'positions':[{'symbol':'BTCUSDC','qty':'0.05'}],'clock':{'observed_at':NOW}}
+
+            result=PERF.write_crypto_performance(root,observation,mode='paper',
+                owner_id='alpaca-investment-paper',activity_reader=lambda **_:activity)
+
+            self.assertEqual(result['closed_cycle_count'],0)
+            daily_path=root/'performance-crypto-daily-2026-01-01.json'
+            self.assertTrue(daily_path.is_file(),'observed day needs a partial crypto receipt even without a close')
+            daily=json.loads(daily_path.read_text())
+            self.assertEqual(daily['report_scope'],'owned_crypto_cycles_daily')
+            self.assertEqual(daily['performance_day'],'2026-01-01')
+            self.assertEqual(daily['observed_at'],NOW)
+            self.assertEqual(daily['cycles'],[])
+            self.assertEqual(daily['measurement_status'],'partial')
+            self.assertIsNone(daily['net_pnl_usd'])
+            self.assertFalse(daily['capital_expansion_allowed'])
+
+            core=Path(__file__).resolve().parents[2]/'apps/life-manager/investment-core'
+            if str(core) not in sys.path:sys.path.insert(0,str(core))
+            from alpaca_snapshot import _read_performance
+            readback,error=_read_performance(root,'2026-01-01')
+            self.assertIsNone(error)
+            self.assertEqual(readback['cycles'],[])
+            self.assertIsNone(readback['net_pnl_usd'])
+
     def test_late_fee_readback_keeps_execution_cache_and_replays_without_reads(self):
         for mode in ('paper','live'):
             with self.subTest(mode=mode),tempfile.TemporaryDirectory() as directory:
@@ -368,6 +402,11 @@ class CryptoPerformanceTests(unittest.TestCase):
                 self.assertEqual(same_day['fee_evidence']['observed_fee_count'],1)
                 daily=json.loads((root/'performance-crypto-daily-2026-01-01.json').read_text())
                 self.assertEqual(daily['generated_as_of'],obs['clock']['observed_at'])
+                self.assertEqual(len(daily['cycles']),1)
+                no_close=json.loads((root/'performance-crypto-daily-2026-01-02.json').read_text())
+                self.assertEqual(no_close['cycles'],[])
+                self.assertEqual(no_close['measurement_status'],'partial')
+                self.assertIsNone(no_close['net_pnl_usd'])
                 self.assertIsNone(second['fees_usd']);self.assertFalse(second['capital_expansion_allowed'])
 
     def test_fee_backlog_uses_one_ninety_day_window_per_new_observation(self):

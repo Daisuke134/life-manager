@@ -1111,6 +1111,7 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
                  'activity_window_days':window_days,'activity_limit_window':limit_window,
                  'activity_page_chunks':page_chunks,'activity_page_checked_at':page_checked}
         _atomic_json(latest,payload)
+        daily_days=set()
         for closed_day in sorted({parse_instant(c['closed_at']).astimezone(timezone.utc).date().isoformat() for c in result['cycles']}):
             cycles=[c for c in result['cycles'] if parse_instant(c['closed_at']).astimezone(timezone.utc).date().isoformat()==closed_day]
             ids={c['cycle_id'] for c in cycles}
@@ -1121,6 +1122,24 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
             daily={**{k:v for k,v in payload.items() if k!='statement_readbacks'},**select_components(result,cycles),'expected_cost_inventory':select_expected_inventory(expected_inventory,cycles),'generated_as_of':observed,'cycles':cycles,'fee_evidence':fee_evidence,**_summary(cycles),'performance_day':closed_day,
                    'observed_at':max(c['closed_at'] for c in cycles),'report_scope':'owned_crypto_cycles_daily'}
             _atomic_json(state/f'performance-crypto-daily-{closed_day}.json',daily)
+            daily_days.add(closed_day)
+        if day not in daily_days:
+            daily_path=state/f'performance-crypto-daily-{day}.json'
+            existing=None
+            if daily_path.is_file():
+                try: existing=json.loads(daily_path.read_text(encoding='utf-8'))
+                except (OSError,json.JSONDecodeError): pass
+            replace_empty=(not daily_path.exists() or isinstance(existing,dict)
+                and existing.get('report_scope')=='owned_crypto_cycles_daily'
+                and existing.get('performance_day')==day and existing.get('cycles')==[])
+            if replace_empty:
+                fee_evidence={**result['fee_evidence'],'attribution_cycle_ids':[],'attributed_native_fees':[]}
+                if 'statement_order_candidates' in fee_evidence: fee_evidence['statement_order_candidates']=[]
+                daily={**{k:v for k,v in payload.items() if k!='statement_readbacks'},
+                    **select_components(result,[]),'expected_cost_inventory':select_expected_inventory(expected_inventory,[]),
+                    'generated_as_of':observed,'cycles':[],'fee_evidence':fee_evidence,**_summary([]),
+                    'performance_day':day,'observed_at':observed,'report_scope':'owned_crypto_cycles_daily'}
+                _atomic_json(daily_path,daily)
         return payload
     except Exception as error:
         # Reporting failure is visible and non-numeric; it never permits a trade
