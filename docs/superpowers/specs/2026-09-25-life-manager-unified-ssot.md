@@ -16084,6 +16084,15 @@ REDebbd5af252→GREEN0e8f071c0eはcore guardも証明済みsell/nofill closedか
 
 **現在cursor:** validatorの次の自然validationが先。`crypto_error_context`、BTC report件数/期間、fresh selectionを確認し、report未生成なら購入判断を出さない。次にpaper ownerの自然decision/公式注文readbackを同一occurrenceへ結ぶ。以降は06:07 subsectionのTODO 8–12（最初の全費用closed round trip → 30 paper round trips/EDD → 過去live注文の帰属 → AT-24/AT-29/live gates → 残高シナリオと他venue）を維持する。
 
+#### 2026-10-21 07:45 JST — Exact paper HOLD reason and capacity readback
+
+**As-Is（2026-10-20 22:43:38Z natural paper run）:** `alpaca-investment-paper`はrelease `6c39990d`でpass/exit 0、effect `not_applicable`、effect_unknown 0。receipt `18e05e2a46c47170-12697`は`decision=HOLD`、`candidate=equity://QQQ`、`reason=hold_period_not_elapsed`、`approved=false`、`outcome=no_trade`、`held_sessions=16`、entry session `2026-09-28`、latest session `2026-10-20`を記録する。strategyはETF v1で、新規entryは退役済み。今回のallocation decisionはmodel not invokedだが、run全体のcost=0を意味しない。公式no-order refは`lm-no-effect://alpaca-investment-paper/alpaca-investment-paper:18e05e2a46c47170-12697/no_broker_order_submitted`。
+- 22:40:10Zの直前attemptは`resource_capacity_busy`/exit 75。その後の22:43:38Z natural attemptはpass/no-order。22:39:20Z host snapshotではfree bytes `23,945,732,096`、storage `met`。従って今回のcapacity deferはdisk floor未達ではなく、一時的なadmission capacity競合。22:40前後のread-only resource snapshotはglobal 8/10、deterministic 4/5 occupiedで、次のnatural slotでpaperが実行された。
+- `investment-strategy-validation`はrelease `dd9d4cca`でloaded-idle、effect_unknown 0だが、新release上のnatural runはまだ無い。直近のvalidation failureは旧release `55cc06f2`でBTC report 0。次回eligible cadenceは`calendar: Weekday=2, 14:30`。
+- live残高はこのturnで再取得していない。live owner、paper selector、資金は変更していない。
+
+**現在cursor:** validation ownerの次のnatural runでpagination修正がBTC V2 reportを生成するか確認する。Paper側は`HOLD / hold_period_not_elapsed`が具体的なno-trade理由であり、fresh BTC selectionが無い間は新規注文しない。16/21 sessionsを満たすqualified closeは自然runで待つ。以降のcost-complete round trip、30件EDD、live attribution/risk gates、残高シナリオは前節TODO順を維持する。
+
 ### 2026-10-09 13:18 JST — Job Hunter Dreamwork cutover and updated user criteria
 
 この追記は11:50 JST snapshot後のJob Hunter readbackとユーザーの最新指示を記録する。個別の勤務地・住所などの私的値はprivate profileのみを正本とし、このspecには複製しない。
