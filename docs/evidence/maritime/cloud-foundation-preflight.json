@@ -1,0 +1,64 @@
+{
+  "observed_at": "2026-10-20T20:13:54.931387+00:00",
+  "source": {
+    "pr": 8424,
+    "head": "5932044b9a77a9a74f9b202449fa01de0f4a4c88",
+    "ci_registered": 14,
+    "ci_success": 13,
+    "ci_pending": "Loop control contracts: queued, no runner assigned",
+    "merged": false,
+    "focused_node_tests": 94,
+    "focused_worker_tests": 12,
+    "browser_python_tests": 15,
+    "review_important_remaining": 0
+  },
+  "railway": {
+    "runtime_jobs_present": true,
+    "runtime_receipts_present": true,
+    "maritime_job_count": 0,
+    "existing_worker_capabilities": [
+      "money-printer.scout",
+      "report.financial.telegram",
+      "agent-economy.start"
+    ],
+    "manager_capabilities_present": false,
+    "frontend_runtime_database_present": false,
+    "financial_record_target": "existing Railway Postgres; presence not yet checked"
+  },
+  "supabase": {
+    "manager_enrollment_present": false,
+    "manager_execution_present": false,
+    "pilot_participant_present": false,
+    "funnel_present": true,
+    "auth_http_latest": 200,
+    "authenticated_rest_http_latest": 503,
+    "rest_error": "PGRST002",
+    "query_health": "intermittent success and connection timeout/544",
+    "postgres_log_window_start": "2026-10-20T19:53:10Z",
+    "postgres_log_window_end": "2026-10-20T20:08:10Z",
+    "authenticator_statement_timeouts": 9,
+    "authenticator_timezone_catalog_timeouts": 8,
+    "supabase_admin_statement_timeouts": 2,
+    "restart_performed": false,
+    "migration_applied_this_preflight": false
+  },
+  "owned_vm": {
+    "existing_external_identity_matches_manager": true,
+    "loaded_source_sha": "8d7d4474a357303a87ad3dd7acf1920b6cb77030",
+    "new_source_adopted": false,
+    "new_agent_created": false
+  },
+  "competition": {
+    "announcements_rechecked": true,
+    "new_first_week_deadline_found": false,
+    "required_form_found": false,
+    "submission_performed": false
+  },
+  "reference_urls": [
+    "https://github.com/PostgREST/postgrest/issues/5100",
+    "https://github.com/PostgREST/postgrest/blob/b180223e1f94242293d746224cf2955e31687883/CHANGELOG.md",
+    "https://supabase.com/docs/guides/observability/advanced-log-filtering",
+    "https://supabase.com/docs/reference/api/v1-run-a-query"
+  ],
+  "private_values_in_artifact": false
+}

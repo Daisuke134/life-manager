@@ -90,3 +90,9 @@ SDK docsには`provision()`を使う例があるが、それはOpenClaw template
 - 公式Builds https://maritime.sh/docs/builds とlive /agents/new > GitHubでZIP routeを確認。公開UI bundle `/_next/static/chunks/d299fdf0623a0562.js` は `/api/upload/zip`へmultipart `file`を送り、`s3Key/hasDockerfile/detectedFramework/files`を読む。create bodyは`uploadS3Key`、`initialEnvVars`を使う。未upload/未create。内部UI APIのため実応答で再検証する。
 - live /billing はFree・3 agents・welcome AI credit USD5・used0・next charge0。大会Termsのfull accessとaccount権限の対応は未確認。有料upgradeなし。
 - Docker公式tag API https://hub.docker.com/v2/repositories/library/node/tags/22.23.3-bookworm-slim はtag存在/amd64対応。既存CLIと同じ `@openai/codex@0.160.0` はnpm metadataでversionとNode>=16を確認。Pythonは既存requirements-runtime.txtの該当locked依存だけを使う。
+
+## T22 DB配置と実測
+- https://supabase.com/docs/reference/api/v1-run-a-query — read_only指定で実DBのtable存在を読む。管理面のACTIVE_HEALTHYと認証API成功は別。
+- https://supabase.com/docs/guides/observability/advanced-log-filtering — ClickHouse logs経路でpostgres_logsを時刻指定・匿名集計する。
+- https://github.com/PostgREST/postgrest/issues/5100 — startupのpg_timezone_namesはfilesystem I/Oで遅くなる。上流v16のchangelogはschema cache依存除去を記録する。今回のprovider版/原因の断定や自動upgradeの根拠にはしない。
+- 実source `maritime-manager-report.js`/`runtime-up.js`/`financial-record-store.js`: FinancialRecordはruntime queryでRailwayへ読む。`cfo-cloud-delivery.js`はSupabase lm_cfo_result_receiptsを使う。DBを取り違えて第二の金融storeを作らない。
