@@ -6,6 +6,7 @@ const { recordWebFunnelEvent } = require("./web-funnel-events.js");
 const DEFAULT_PUBLIC_MAX_USERS = 25;
 const MAX_PUBLIC_USERS = 1000;
 const CONSENT_VERSION = "maritime-retention-v1";
+const MANAGER_CONSENT_VERSION = "maritime-manager-v1";
 const PARTICIPANT_ID_RE = /^[a-f0-9]{64}$/;
 const SOURCES = new Set([
   "landing", "aniccaai", "x", "reddit", "discord", "telegram", "community", "referral", "hackathon", "direct", "other",
@@ -41,24 +42,48 @@ function sourceAttribution(source, medium = "telegram") {
   };
 }
 
-function renderMaritimeLanding({ source = "direct", language = "en" } = {}) {
+function renderMaritimeLanding({ source = "direct", language = "en", user = null, state = null, telegramAvailable = false } = {}) {
   const campaignSource = normalizeMaritimeSource(source);
-  const isJapanese = String(language || "").toLowerCase().startsWith("ja");
-  const copy = isJapanese ? {
-    title: "TelegramでLife Managerを試す",
-    description: "小さなタスクをひとつ送ると、次の一歩を相談できます。最初はCalendarやGmailを接続せず、機微な情報を含めない短い依頼から試してください。",
-    notice: "メッセージと応答はMaritime AIへ送信されます。Maritime AI creditsを使う場合、MaritimeのPrivacy Policyではrequestとresponseが無期限に保持されることがあります。氏名・住所・連絡先・予定・決済情報などは送らないでください。",
-    consent: "Telegramで保持条件を表示し、初回送信の前に明示同意を求めます。Life Managerは仮名化した利用段階だけを記録し、会話本文は保存しません。",
-    cta: "Telegramで始める",
+  const ja = String(language).toLowerCase().startsWith("ja");
+  const escape = value => String(value).replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
+  const copy = ja ? {
+    title: "自分から仕事を進める、Life Manager。",
+    intro: "仕事を選び、実行し、何をしたかを日次メールで報告するManager。目標・予算の入力は必須ではありません。Telegramは任意です。",
+    scope: "無料pilotでは商品づくりと販売業務の接続を進めます。販売先アカウントの接続や本人確認が必要な場合があります。売上・利益は保証しません。",
+    notice: "開始後、業務に必要な入力・結果をMaritimeへ送信します。Maritime AI credits経由のmodel callは、同社Privacy Policy上、account削除後も無期限保持の対象です。停止は送信済みデータの削除ではありません。",
+    email: "メールアドレス", signup: "確認メールを受け取る", check: "確認メールを送信しました。このブラウザでリンクを開いてください。",
+    consent: "データ保持条件と、このpilotでの自律実行に同意します。", activate: "Life Managerを開始する",
+    queued: "開始を受け付けました。実行した仕事と、確認できた成果をメールで報告します。",
+    failed: "開始できませんでした。しばらくしてから状態を確認してください。", signedIn: "確認済みメール",
+    states: { pending: "開始準備中", provisioning: "開始準備中", active: "稼働中", paused: "停止中", effect_unknown: "実行結果を確認中" },
   } : {
-    title: "Try Life Manager in Telegram",
-    description: "Send one small task and get a suggested next step. Start without connecting Calendar or Gmail, and keep your first request free of sensitive information.",
-    notice: "Your message and reply are sent to Maritime AI. When Maritime AI credits are used, Maritime's Privacy Policy says requests and responses may be retained indefinitely. Do not send names, addresses, contacts, calendar details, payment information, or other sensitive data.",
-    consent: "We show the retention notice and ask for explicit consent in Telegram before the first request. Life Manager records pseudonymous funnel milestones, not conversation text.",
-    cta: "Continue to Telegram",
+    title: "Life Manager takes initiative.",
+    intro: "A manager that chooses work, executes it, and emails daily results. Goal and budget setup are not required. Telegram is optional.",
+    scope: "This free pilot starts with product creation and earning-workflow connections. Selling may require your provider account and identity checks. Revenue and profit are not guaranteed.",
+    notice: "Starting the pilot sends necessary work inputs and results to Maritime. Its Privacy Policy says model calls through Maritime AI credits are retained indefinitely, including after account deletion. Stopping does not delete previously sent data.",
+    email: "Email address", signup: "Send confirmation email", check: "Check your email and open the link in this browser.",
+    consent: "I agree to the retention terms and autonomous work in this pilot.", activate: "Start Life Manager",
+    queued: "Your start request is queued. Completed work and recorded results will be emailed to you.",
+    failed: "We could not start the manager. Please check the status again shortly.", signedIn: "Verified email",
+    states: { pending: "Preparing your manager", provisioning: "Preparing your manager", active: "Active", paused: "Paused", effect_unknown: "Checking execution results" },
   };
-  const startUrl = `/maritime/start?source=${encodeURIComponent(campaignSource)}`;
-  return `<!doctype html><html lang="${isJapanese ? "ja" : "en"}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Life Manager · Maritime pilot</title><style>body{font:16px/1.65 system-ui,sans-serif;max-width:720px;margin:10vh auto;padding:0 24px;color:#17222d}h1{font-size:clamp(2rem,6vw,3.4rem);line-height:1.1}.notice{border-left:3px solid #b9832e;padding:12px 16px;background:#fbf7ef}a.button{display:inline-block;margin:12px 0;padding:12px 20px;border-radius:28px;background:#c99439;color:#111;text-decoration:none;font-weight:700}</style><main><p>Life Manager · Maritime pilot</p><h1>${copy.title}</h1><p>${copy.description}</p><p class="notice">${copy.notice}</p><p>${copy.consent}</p><p><a href="https://maritime.sh/privacy" rel="noreferrer">Maritime Privacy Policy</a></p><a class="button" href="${startUrl}">${copy.cta}</a></main></html>`;
+  const ready = user && state == null;
+  const controls = !user
+    ? `<form id="signup" method="post" action="/auth/maritime/email"><label for="email">${copy.email}</label><input id="email" name="email" type="email" autocomplete="email" required maxlength="320"><button type="submit">${copy.signup}</button></form>`
+    : `<p>${copy.signedIn}: <strong>${escape(user.email)}</strong></p>${ready
+      ? `<label class="consent"><input id="consent" type="checkbox">${copy.consent}</label><button type="button" data-action="activate" data-csrf="${escape(user.csrf)}" data-consent="${MANAGER_CONSENT_VERSION}" disabled>${copy.activate}</button>`
+      : `<p role="status">${copy.states[state] || copy.failed}</p>`}`;
+  const telegram = telegramAvailable ? `<p><a href="/maritime/start?source=${campaignSource}">Telegram (${ja ? "任意" : "optional"})</a></p>` : "";
+  return `<!doctype html><html lang="${ja ? "ja" : "en"}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Life Manager · Maritime pilot</title><style>body{font:16px/1.65 system-ui,sans-serif;max-width:760px;margin:8vh auto;padding:0 24px;color:#17222d}h1{font-size:clamp(2rem,6vw,3.4rem);line-height:1.1}.notice{border-left:3px solid #b9832e;padding:12px 16px;background:#fbf7ef}input[type=email]{display:block;width:min(95%,420px);padding:12px;margin:8px 0;font:inherit}button{display:block;margin:16px 0;padding:12px 20px;border:0;border-radius:28px;background:#c99439;font:inherit;font-weight:700;cursor:pointer}button:disabled{opacity:.5;cursor:default}.consent{display:block;margin-top:20px}</style><main data-source="${campaignSource}"><p>Life Manager · Maritime pilot</p><h1>${copy.title}</h1><p>${copy.intro}</p><p>${copy.scope}</p><p class="notice">${copy.notice}</p><p><a href="https://maritime.sh/privacy" rel="noreferrer">Maritime Privacy Policy</a></p>${controls}<p id="feedback" role="status" aria-live="polite"></p>${telegram}<noscript>${ja ? "メール登録後の開始にはJavaScriptを有効にしてください。" : "Enable JavaScript to activate the manager after email confirmation."}</noscript></main><script>
+const feedback=document.getElementById('feedback');
+const main=document.querySelector('main');
+let source=main.dataset.source;
+try{const key='lm-maritime-first-source';const saved=JSON.parse(localStorage.getItem(key)||'null');if(saved&&typeof saved.source==='string'&&Date.now()-saved.at<30*86400000)source=saved.source;else localStorage.setItem(key,JSON.stringify({source,at:Date.now()}));}catch{}
+const form=document.getElementById('signup');
+if(form)form.addEventListener('submit',async event=>{event.preventDefault();const button=form.querySelector('button');button.disabled=true;try{const result=await fetch(form.action,{method:'POST',headers:{'content-type':'application/json'},credentials:'same-origin',body:JSON.stringify({email:form.elements.email.value})});feedback.textContent=result.ok?${JSON.stringify(copy.check)}:${JSON.stringify(copy.failed)};}catch{feedback.textContent=${JSON.stringify(copy.failed)};}finally{button.disabled=false;}});
+const activate=document.querySelector('[data-action="activate"]');
+if(activate){const consent=document.getElementById('consent');consent.addEventListener('change',()=>{activate.disabled=!consent.checked;});activate.addEventListener('click',async()=>{if(!consent.checked)return;activate.disabled=true;try{const result=await fetch('/maritime/activate',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json','x-lm-web-csrf':activate.dataset.csrf},body:JSON.stringify({consentVersion:activate.dataset.consent,source,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC'})});if(result.ok){feedback.textContent=${JSON.stringify(copy.queued)};activate.remove();consent.disabled=true;}else{feedback.textContent=${JSON.stringify(copy.failed)};activate.disabled=false;}}catch{feedback.textContent=${JSON.stringify(copy.failed)};activate.disabled=false;}});}
+</script></html>`;
 }
 
 function createMaritimeDistributionStore({
@@ -247,6 +272,7 @@ function createMaritimeDistributionStore({
 
 module.exports = {
   CONSENT_VERSION,
+  MANAGER_CONSENT_VERSION,
   DEFAULT_PUBLIC_MAX_USERS,
   MAX_PUBLIC_USERS,
   parseMaritimeMaxUsers,

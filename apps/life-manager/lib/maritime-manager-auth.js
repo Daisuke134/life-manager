@@ -119,12 +119,12 @@ async function handleMaritimeManagerActivate(req, res, options = {}) {
   if (supplied.length !== expected.length || !require("node:crypto").timingSafeEqual(supplied, expected)) {
     send(res, 403, { error: "csrf_rejected" }); return true;
   }
-  const { CONSENT_VERSION, normalizeMaritimeSource, createMaritimeDistributionStore } = require("./maritime-distribution.js");
+  const { MANAGER_CONSENT_VERSION, normalizeMaritimeSource, createMaritimeDistributionStore } = require("./maritime-distribution.js");
   let body;
   try {
     body = await readMaritimeBody(req);
     if (Object.keys(body).some(key => !["consentVersion", "source", "timezone"].includes(key))
-      || body.consentVersion !== CONSENT_VERSION || (body.source != null && typeof body.source !== "string")
+      || body.consentVersion !== MANAGER_CONSENT_VERSION || (body.source != null && typeof body.source !== "string")
       || (body.timezone != null && typeof body.timezone !== "string")) throw new Error("invalid_activation");
     new Intl.DateTimeFormat("en", { timeZone: body.timezone || "UTC" });
   } catch { send(res, 400, { error: "invalid_activation" }); return true; }
@@ -142,7 +142,7 @@ async function handleMaritimeManagerActivate(req, res, options = {}) {
     const consent = await distribution.accept(user.uid, source);
     if (!consent?.ok) { send(res, consent?.status === "capacity_full" ? 429 : 503, { error: consent?.status === "capacity_full" ? "capacity_full" : "consent_unavailable" }); return true; }
     const row = await store.enroll({ uid: user.uid, authSubject: user.subject, email: user.email,
-      timezone: body.timezone || "UTC", source, consentVersion: CONSENT_VERSION, releaseSha });
+      timezone: body.timezone || "UTC", source, consentVersion: MANAGER_CONSENT_VERSION, releaseSha });
     if (row.status === "paused" || row.paused_at) { send(res, 409, { error: "manager_paused" }); return true; }
     if (row.status === "effect_unknown") { send(res, 409, { error: "manager_reconciling" }); return true; }
     const job = require("./maritime-manager-runtime.js").buildMaritimeManagerProvisionJob({ tenantId: user.uid, releaseSha: row.release_sha });
@@ -162,4 +162,29 @@ async function handleMaritimeManagerActivate(req, res, options = {}) {
   } catch { send(res, 503, { error: "activation_unavailable" }); }
   return true;
 }
-module.exports = { handleMaritimeManagerAuth, resolveMaritimeManagerUser, handleMaritimeManagerActivate };
+async function handleMaritimeManagerPage(req, res, options = {}) {
+  const url = new URL(req.url || "/", "http://localhost");
+  if (url.pathname !== "/maritime") return false;
+  if (!enabled(options)) { send(res, 503, { error: "manager_unavailable" }); return true; }
+  if (req.method !== "GET") { send(res, 405, { error: "method_not_allowed" }, { allow: "GET" }); return true; }
+  const { normalizeMaritimeSource, createMaritimeDistributionStore, renderMaritimeLanding } = require("./maritime-distribution.js");
+  const source = normalizeMaritimeSource(url.searchParams.get("source") || "direct");
+  const language = String(url.searchParams.get("lang") || "").toLowerCase().startsWith("ja") ? "ja" : "en";
+  try {
+    const user = await resolveMaritimeManagerUser(req, res, options);
+    let state = null;
+    if (user) {
+      const store = options.managerStore || require("./maritime-manager-store.js").createMaritimeManagerStore({ env: options.env || process.env });
+      const row = await store.read(user.uid);
+      state = row?.status || null;
+    }
+    const distribution = options.distributionStore || createMaritimeDistributionStore({ env: options.env || process.env });
+    void Promise.resolve(distribution.recordAnonymousEvent("maritime_landing_view", source)).catch(() => {});
+    res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "vary": "Cookie",
+      "referrer-policy": "no-referrer", "x-content-type-options": "nosniff",
+      "content-security-policy": "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'" });
+    res.end(renderMaritimeLanding({ source, language, user, state, telegramAvailable: options.telegramAvailable === true }));
+  } catch { send(res, 503, { error: "manager_unavailable" }); }
+  return true;
+}
+module.exports = { handleMaritimeManagerAuth, resolveMaritimeManagerUser, handleMaritimeManagerActivate, handleMaritimeManagerPage };

@@ -54,7 +54,7 @@ const {
 } = require("./lib/late-approval.js");
 const { sendPanelLink, handlePanelRequest, handleMoneyPrinterGuestRequest, panelDeviceCodeFromCommand, confirmPanelDeviceCode, cookieValue, sessionScope, panelScopeCookie, claimTelegramWebhookActor } = require("./lib/panel-auth.js");
 const { handleWebAuthRequest, resolveWebUser, signedOutCalendarHandoffLocation } = require("./lib/web-auth.js");
-const { handleMaritimeManagerAuth, handleMaritimeManagerActivate } = require("./lib/maritime-manager-auth.js");
+const { handleMaritimeManagerAuth, handleMaritimeManagerActivate, handleMaritimeManagerPage } = require("./lib/maritime-manager-auth.js");
 const { handleWebCalendarRequest } = require("./lib/web-calendar.js");
 const { handleWebTravelRequest, buildTodaySnapshot } = require("./lib/web-travel.js");
 const { handleWebBillingRequest, trialEndFor } = require("./lib/web-billing.js");
@@ -76,7 +76,6 @@ const {
   createMaritimeDistributionStore,
   normalizeMaritimeSource,
   parseMaritimeStartPayload,
-  renderMaritimeLanding,
 } = require("./lib/maritime-distribution.js");
 const { createInvestmentStateStore } = require("./lib/investment-state-store.js");
 const { handleFeedbackMessage, createPostgresFeedbackStore } = require("./lib/feedback-intake.js");
@@ -623,45 +622,30 @@ async function recordStripeWebFunnelEvent(event, billingResult) {
 
 const server = http.createServer(async (req, res) => {
   const path = (req.url || "").split("?")[0];
-  if (path === "/maritime" || path === "/maritime/start") {
+  if (path === "/maritime") {
+    handleMaritimeManagerPage(req, res, { publicOrigin: LM_PANEL_BASE, telegramAvailable: maritimePublicEntryReady() }).catch(() => {
+      if (res.headersSent) { res.end(); return; }
+      res.writeHead(503, { "content-type": "application/json", "cache-control": "no-store" });
+      res.end(JSON.stringify({ error: "manager_unavailable" }));
+    });
+    return;
+  }
+  if (path === "/maritime/start") {
     if (!maritimePublicEntryReady()) {
       res.writeHead(404, { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" });
-      res.end("Not found");
-      return;
+      res.end("Not found"); return;
     }
     if (req.method !== "GET") {
       res.writeHead(405, { allow: "GET", "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" });
-      res.end("Method not allowed");
-      return;
+      res.end("Method not allowed"); return;
     }
-    let url;
-    try { url = new URL(req.url || "/maritime", "https://life-call.invalid"); }
-    catch {
-      res.writeHead(400, { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" });
-      res.end("Invalid request");
-      return;
-    }
+    const url = new URL(req.url || "/maritime/start", "https://life-call.invalid");
     const source = normalizeMaritimeSource(url.searchParams.get("source"));
-    if (path === "/maritime/start") {
-      void maritimeDistributionStore.recordAnonymousEvent("maritime_cta_click", source);
-      const username = String(process.env.LM_TELEGRAM_BOT_USERNAME || "").replace(/^@/, "");
-      res.writeHead(302, {
-        location: `https://t.me/${username}?start=maritime_${source}`,
-        "cache-control": "no-store",
-        "content-length": "0",
-      });
-      res.end();
-      return;
-    }
-    void maritimeDistributionStore.recordAnonymousEvent("maritime_landing_view", source);
-    const language = String(url.searchParams.get("lang") || "").toLowerCase().startsWith("ja") ? "ja" : "en";
-    res.writeHead(200, {
-      "content-type": "text/html; charset=utf-8",
-      "cache-control": "no-store",
-      "x-content-type-options": "nosniff",
-    });
-    res.end(renderMaritimeLanding({ source, language }));
-    return;
+    void maritimeDistributionStore.recordAnonymousEvent("maritime_cta_click", source);
+    const username = String(process.env.LM_TELEGRAM_BOT_USERNAME || "").replace(/^@/, "");
+    res.writeHead(302, { location: `https://t.me/${username}?start=maritime_${source}`,
+      "cache-control": "no-store", "content-length": "0" });
+    res.end(); return;
   }
   if (path === "/lm") {
     if (req.method !== "GET") {

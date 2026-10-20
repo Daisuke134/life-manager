@@ -2,8 +2,8 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { Readable } = require("node:stream");
-let handleMaritimeManagerAuth, resolveMaritimeManagerUser, handleMaritimeManagerActivate;
-try { ({ handleMaritimeManagerAuth, resolveMaritimeManagerUser, handleMaritimeManagerActivate } = require("./maritime-manager-auth.js")); }
+let handleMaritimeManagerAuth, resolveMaritimeManagerUser, handleMaritimeManagerActivate, handleMaritimeManagerPage;
+try { ({ handleMaritimeManagerAuth, resolveMaritimeManagerUser, handleMaritimeManagerActivate, handleMaritimeManagerPage } = require("./maritime-manager-auth.js")); }
 catch (error) { if (error.code !== "MODULE_NOT_FOUND") throw error; }
 const ORIGIN = "https://manager.example.invalid";
 const SUBJECT = "11111111-1111-4111-8111-111111111111";
@@ -121,7 +121,7 @@ function activationFixture({capacityFull=false,user=USER}={}) {
 }
 function activateRequest(deps,method="POST",csrf=true){
   const {createWebCsrfToken}=require("./web-auth.js");
-  return request("/maritime/activate",method,{consentVersion:"maritime-retention-v1",source:"referral"},{
+  return request("/maritime/activate",method,{consentVersion:"maritime-manager-v1",source:"referral"},{
     "x-lm-web-csrf":csrf?createWebCsrfToken(`lm_${SUBJECT}`,deps.env.LM_UID_SECRET):"invalid"});
 }
 test("activate_post_enqueues_once_but_get_prefetch_does_not",async()=>{
@@ -171,4 +171,15 @@ test("terminal_or_reconciling_provision_jobs_are_not_reported_as_pending",async(
 test("completed_provision_job_requires_active_enrollment_readback",async()=>{
   const {deps,rows}=activationFixture();deps.enqueueJob=async job=>{const row=rows.get(`lm_${SUBJECT}`);row.status="active";row.agent_id="agent-a";return {created:false,job:{...job,status:"completed"}};};
   const res=response();await handleMaritimeManagerActivate(activateRequest(deps),res,deps);assert.equal(res.statusCode,200);assert.equal(JSON.parse(res.body).status,"active");
+});
+
+test("email_campaign_page_is_independent_of_telegram_and_get_never_enrolls",async()=>{
+  assert.equal(typeof handleMaritimeManagerPage,"function");const {deps,calls}=fixture({user:null});let events=0;deps.distributionStore={recordAnonymousEvent:async()=>{events++;return true;}};const res=response();
+  await handleMaritimeManagerPage(request("/maritime?source=referral&lang=en"),res,deps);assert.equal(res.statusCode,200);assert.match(res.body,/action="\/auth\/maritime\/email"/);assert.equal(events,1);assert.equal(calls.some(x=>x[0]==="ensure"),false);
+});
+test("verified_campaign_page_displays_activation_or_persisted_state_without_dispatch",async()=>{
+  assert.equal(typeof handleMaritimeManagerPage,"function");const {deps}=fixture();deps.distributionStore={recordAnonymousEvent:async()=>true};deps.managerStore={read:async()=>null};let res=response();
+  await handleMaritimeManagerPage(request("/maritime?lang=ja"),res,deps);assert.match(res.body,/<button[^>]+data-action="activate"/);
+  deps.managerStore.read=async()=>({status:"effect_unknown"});res=response();await handleMaritimeManagerPage(request("/maritime?lang=ja"),res,deps);
+  assert.doesNotMatch(res.body,/<button[^>]+data-action="activate"/);assert.match(res.body,/実行結果を確認中/);
 });
