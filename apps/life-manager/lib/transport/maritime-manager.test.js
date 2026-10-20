@@ -10,8 +10,8 @@ const UID = 'lm_11111111-1111-4111-8111-111111111111';
 const SHA = 'a'.repeat(40);
 const ARCHIVE = 'b'.repeat(64);
 const UPLOAD = 'uploads/fixture/source.zip';
-const env = { MARITIME_API_KEY: 'mk_fixture_key_only', LM_UID_SECRET: 'fixture-identity-secret-32-bytes-long' };
-const externalId = 'lm-manager-' + createHmac('sha256', env.LM_UID_SECRET).update(`agent:v1:${UID}`).digest('hex').slice(0,32);
+const env = { MARITIME_API_KEY: 'mk_fixture_key_only', LM_UID_SECRET: 'fixture-global-identity-is-different', LM_MARITIME_MANAGER_ID_SECRET: 'fixture-manager-identity-secret-32-bytes-long' };
+const externalId = 'lm-manager-' + createHmac('sha256', env.LM_MARITIME_MANAGER_ID_SECRET).update(`agent:v1:${UID}`).digest('hex').slice(0,32);
 function fixture() {
   const row = { uid: UID, auth_subject: UID.slice(3), status: 'pending', paused_at: null, release_sha: SHA, agent_id: null };
   let agent = null; let failCreate = false; let missingExecution = false; let checkpoint = null;
@@ -47,7 +47,7 @@ function fixture() {
     throw new Error('unexpected-test-http');
   };
   const transport = createMaritimeManagerTransport({ env,fetchImpl,client:sdk,managerStore,
-    getWakeBinding: async input => createMaritimeWakeBinding(input,{secret:env.LM_UID_SECRET,publicOrigin:'https://manager.example'}) });
+    getWakeBinding: async input => createMaritimeWakeBinding(input,{secret:env.LM_MARITIME_MANAGER_ID_SECRET,publicOrigin:'https://manager.example'}) });
   return {transport,row,calls,envelope,sdk,managerStore,ready(){agent.status='active';},loseCreate(){failCreate=true;},invalidExecution(){missingExecution=true;},agent:()=>agent};
 }
 const provision = {uid:UID,uploadS3Key:UPLOAD,archiveSha256:ARCHIVE,releaseSha:SHA};
@@ -141,7 +141,7 @@ test('bound wake secret is configured and reloaded only for its active tenant ag
   f.sdk.agents.setEnv=async (...args)=>{effects.push(['env',...args]);return {key:args[1],isSecret:true};};
   f.sdk.agents.reloadEnv=async id=>{effects.push(['reload',id]);return {id,status:'active'};};
   assert.deepEqual(await f.transport.configureWake({uid:UID,agentId:'agent-1',releaseSha:SHA}),{agentId:'agent-1',status:'active'});
-  assert.deepEqual(effects,[['env','agent-1','LM_WAKE_RELAY_TOKEN',createMaritimeWakeBinding({uid:UID,agentId:'agent-1',releaseSha:SHA},{secret:env.LM_UID_SECRET,publicOrigin:'https://manager.example'}).token,{secret:true}],['reload','agent-1']]);
+  assert.deepEqual(effects,[['env','agent-1','LM_WAKE_RELAY_TOKEN',createMaritimeWakeBinding({uid:UID,agentId:'agent-1',releaseSha:SHA},{secret:env.LM_MARITIME_MANAGER_ID_SECRET,publicOrigin:'https://manager.example'}).token,{secret:true}],['reload','agent-1']]);
   await assert.rejects(f.transport.configureWake({uid:UID,agentId:'foreign',releaseSha:SHA}),/binding/);
   f.row.status='paused';f.row.paused_at='2026-10-20T01:00:00Z';
   await assert.rejects(f.transport.configureWake({uid:UID,agentId:'agent-1',releaseSha:SHA}),/paused/);

@@ -15,10 +15,10 @@ function valid(value, pattern) {
 }
 function createMaritimeManagerTransport({ env = {}, fetchImpl = globalThis.fetch, client, managerStore, getWakeBinding, loadSdk } = {}) {
   const apiKey = env.MARITIME_API_KEY;
-  const uidSecret = env.LM_UID_SECRET;
+  const uidSecret = env.LM_MARITIME_MANAGER_ID_SECRET;
   let sdkPromise;
   function configured() {
-    if (typeof apiKey !== 'string' || !/^mk_[A-Za-z0-9_-]+$/.test(apiKey) || typeof uidSecret !== 'string' || !uidSecret
+    if (typeof apiKey !== 'string' || !/^mk_[A-Za-z0-9_-]+$/.test(apiKey) || typeof uidSecret !== 'string' || uidSecret.length < 32
       || !managerStore || ['read', 'claimProvision', 'bindAgent'].some(key => typeof managerStore[key] !== 'function')) {
       throw new TransportError('unconfigured', false);
     }
