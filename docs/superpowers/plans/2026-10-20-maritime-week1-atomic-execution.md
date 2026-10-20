@@ -344,7 +344,7 @@ life-manager/
 
 ## Task T18: 初日から役立つ日次結果を組み立てる
 
-**Files:** Create `lib/maritime-manager-report.js`/test、`lib/maritime-manager-artifacts.js`/test。Modify `lib/financial-manager-report.js`（既存formatter export）、`lib/maritime-manager-runtime.js`（既存契約parser/参照validator export）、`lib/transport/maritime-manager.js`/test、`server.js`（download route）。既存金融集計・認証cookie・queue/receiptを再利用する。
+**Files:** Create `lib/maritime-manager-report.js`/test、`lib/maritime-manager-artifacts.js`/test。Modify `lib/financial-manager-report.js`（既存formatter export）、`lib/maritime-manager-runtime.js`（既存契約parser/参照validator export）、`lib/transport/maritime-manager.js`/test、`maritime/artifact-proof.py`/test（read-onlyのdirfd/no-follow/size/hash）、`server.js`（download route）。既存金融集計・認証cookie・queue/receiptを再利用する。
 **Interfaces:** `buildMaritimeDailyResult({enrollment,periodKey,actionReceipts,financialRecords,financialCoverage,costs}) -> DailyResult`、`renderMaritimeDailyEmail(result) -> string`。
 **入力契約:** actionReceiptsは中央queueの`{receipt,completedAt}`で、VM自己申告時刻を使わない。financialRecordsは同tenantのbusiness FinancialRecordのみ。financialCoverage/costsのcompleteは中央collectorの同tenant/period/timezone/evidence付き観測だけに付与する。欠落はunknownで、空配列だけから0を出さない。費用は観測小計とcoverageを分け、両coverage完備までprofitはunknown。既存Financial Managerの日付・通貨集計とformatterを再利用する。
 **Depends:** T10/T11Aのsource。T17の売上発生は待たない。
@@ -355,7 +355,7 @@ life-manager/
 - [ ] T18.4 focused report testと二通貨/日付またぎを確認しcommit/push。
 - [ ] T18.5 `buildMaritimeArtifactPath({jobId,artifactRef})`と`handleMaritimeManagerArtifact(req,res,options)`を新artifact moduleへ定義。URLは`/maritime/artifacts/<encoded jobId>/<各segmentをencodeしたrelative artifact path>`。uidは既存resolveMaritimeManagerUserの認証cookieからのみ解決する。新しいdownload token/secret/storeは作らない。
 - [ ] T18.6 同uid+jobIdで既存readCommonJobを読み、既存cycle adapter.reconcile/verifyで公式captured stdoutと保存receiptが一致したcompleted jobだけを許可する。要求refがそのreceipt.artifact_refsに存在することを確認し、他tenant/任意file/未確認結果は返さない。pause後も既存成果は読める。
-- [ ] T18.7 transportへreadArtifact({uid,agentId,artifactRef})を追加。固定 `/data/<uid>/build/<raw relative>`だけを公式files/downloadで読み、20MiBまでstreamを蓄積して超過時cancelする（中央HTTPのmemory bound）。SDKの無制限arrayBuffer downloadをこの経路では使わない。redirect禁止/20秒。返却はattachment/octet-stream/nosniff/no-store、SVG等を同originで実行しない。
+- [ ] T18.7 transportへreadArtifact({uid,agentId,artifactRef})を追加。先に公式read-only execでimmutable sourceのartifact-proof.pyを呼び、固定 `/data/<uid>/build/<raw relative>`をdirfd/O_NOFOLLOW/regular-fileだけで開いてsize/hashを取得する。公式files/downloadを同じ固定pathで読み、metadataのsize/hashと一致したbytesだけを返す。これによりworkspace途中のsymlinkや、proof後の差替えでprivate pathを配信しない。20MiBまでstreamを蓄積して超過時cancelする（中央HTTPのmemory bound）。SDKの無制限arrayBuffer downloadをこの経路では使わない。redirect禁止/20秒。返却はattachment/octet-stream/nosniff/no-store、SVG等を同originで実行しない。
 - [ ] T18.8 serverへGET routeをmount。認証なしはログインへの案内、他tenant/不在は404。日報builderが既存publicOriginで実routeのlinkを作り、利用者がcookieで取得する。相対refだけをクリック可能URLと偽装しない。Unicode/空白/%/literal backslashをround-trip、dot/NUL/encoded separatorを拒否、foreign/未完/oversize/no-dispatchをfocused testしcommit/push。
 
 ## Task T19: 日次メールを既存CFO配信へ接続する
