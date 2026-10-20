@@ -81,3 +81,22 @@ L001 is an offline learning example, **not** behavioral model training, causal e
 - [L002 verification record](docs/verification/L002.md)
 
 TVD=0.20 and Brier=0.01/0.81 are **synthetic illustrations** and say nothing about Manager's effects on real people. PDF/PNG teaching versions are also saved in the ChatGPT Library `/Manager/Reports`.
+
+## Phase 02 learning checkpoint (2026-10-20)
+
+All L001–L012 learning tasks are now verified as **synthetic-only, offline learning material**. The combined diagram and summary:
+- [Phase 02 Japanese guide](docs/learning/PHASE02_SUMMARY_JA.md)
+- [Editable Mermaid causal learning sequence](docs/architecture/phase02-methods-ja.mmd)
+- [JITAI / HeartSteps terminology](docs/learning/JITAI_GLOSSARY.md)
+- [Calibration example](examples/02_calibration.py)
+- [Causal graph and counterexample](docs/learning/CAUSAL_DAG.md)
+- [Potential-outcome demo](examples/03_potential_outcomes.py)
+- [Randomized assignment demo](examples/04_randomization.py)
+- [MRT description](docs/learning/MRT.md)
+- [Proximal vs distal outcome windows](docs/learning/PROXIMAL_VS_LONG_TERM.md)
+- [External displacement example](examples/05_spillover.py)
+- [Off-policy assumption demo](examples/06_policy_basics.py)
+- [Evidence level P0–P5](docs/learning/OUTCOME_LADDER.md)
+- [Learning-focused verification report](docs/verification/PHASE02_COMPLETE_JA.md)
+
+The PDF and two original Japanese PNG illustrations are stored in ChatGPT Library `/Manager/Phase02`; `scripts/build_phase02_visuals.py` is the reproducible source. They contain no original participant records. Manager has **not** replicated a human RCT or demonstrated net welfare benefits.

@@ -69,3 +69,17 @@ The Manager runtime still has no permission to transfer money, act on private pe
 - **No causal result** follows from either number. No real people were observed; no external provider was called. Treat these metrics as model diagnostics, not live policy effectiveness, operator authorization or verified suffering reduction.
 - The L002 acceptance includes old tests demonstrating TVD=0 and 1 and a new 13-case test file covering published Brier arithmetic, rejection of booleans/string/NaN and wrong-length pairs, and test-first execution evidence at `docs/verification/L002.md`.
 - **Next:** L003 evaluates predictive calibration with an explicit held-out set; do not infer good calibration from low Brier alone.
+## Phase 02 L003–L012: completed learning code, not field validation (2026-10-20)
+
+L001/L002 probability and TVD/Brier were already completed and preserved. L003-L012 now contain original no-dependency educational implementations plus independent tests and source-grounded Japanese learning notes. The accepted scope consists of reliability bins and study-ID holdout, JITAI design terms, a deliberately confounded synthetic example, synthetic potential outcomes, individual randomization, five daily MRT points conditional on availability, outcome windows, program displacement accounting, a toy inverse-propensity estimator with known support, and a reviewed P0–P5 evidence-presence contract.
+
+- Reading guide: `docs/learning/PHASE02_SUMMARY_JA.md`
+- Source map: `research/imozuru/phase02-fundamentals/map.md` and `report.html` (six local excerpt-line checks; no claim of scientific verification or complete source archiving).
+- Phase overview: `docs/architecture/phase02-methods-ja.mmd`
+- Original image renderer: `scripts/build_phase02_visuals.py` (optional Pillow dependency; no Manager runtime dependency).
+- PDF and two PNG diagrams were rendered and visually checked, then stored in ChatGPT Library `/Manager/Phase02/`; regenerable visual source is in GitHub.
+- TDD: missing implementations first produced RED on 29 tests. Two later documentation regressions were separately observed failing before correction. 30 focused Phase 02 tests passed in the local source snapshot; local whole-tree 84 tests passed. Hosted GitHub CI on the integrated tree is the authoritative count and must be read back before full completion claims.
+- Status after verification: 26/113 task IDs done, 85 todo, 2 blocked. All 12 Phase02 L001–L012 learning tasks have passed their scoped offline acceptance tests, but no HeartSteps raw-data reproduction or real-world beneficiary effect has yet occurred.
+- Next main dependency task: Phase03 H001 read-only dataset/schema/license review. In parallel S001 (SocSci210 permitted metadata only) and time-critical founder application work are available separately.
+
+No user messaging, private individual profiling, physical actuation, autonomous donations, new external publishing, or execution authority is granted by this phase.

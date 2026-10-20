@@ -1,0 +1,15 @@
+flowchart TD
+    A["L001 条件付き確率 P(Y | X)"] --> B["L002 TVD / Brier 予測誤差"]
+    B --> C["L003 校正 + 未知研究holdout"]
+    C --> D["L004 状況に応じた介入 JITAI"]
+    D --> E["L005 DAG / 交絡"]
+    E --> F["L006 反実仮想 Y(0), Y(1)"]
+    F --> G["L007 無作為化"]
+    G --> H["L008 MRT - 介入可能な時点のみ割付"]
+    H --> I["L009 30分 vs 長期の成果"]
+    I --> J["L010 干渉 / 波及 / 費用"]
+    J --> K["L011 Bandit / MDP / OPE"]
+    K --> L["L012 成果の証拠階層 P0-P5"]
+    L --> M["Phase03 HeartSteps実データ再現"]
+    M -. "実データ分析はまだ未着手" .-> N["未来：許可された実地介入と独立評価"]
+    style N stroke-dasharray: 5 5

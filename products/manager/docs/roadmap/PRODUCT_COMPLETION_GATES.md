@@ -77,3 +77,7 @@ No verified external field intervention, no real monetary transfers, no separate
 | Source-chasing/evidence extraction workflow already exists | imozuru: https://github.com/MaryCache/imozuru | That every source statement is independently correct just because a local excerpt matches |
 
 No wholesale reimplementation of those tools without showing a specific missing capability. Review each upstream software/data license independently.
+
+## Learning Phase 02 delivered — not completion Gate 1 (2026-10-20)
+
+L001–L012 are implemented as minimal testable teaching artifacts. Mathematical validity of toy examples does not close Gate 1, which still requires real HeartSteps replication (H001–H010), an independent held-out human behavior benchmark (S001–S008) and later evaluation work. This turn did not publish new articles; two English lessons published in an earlier turn remain separate from new Phase 02 code and research. Subsequent scientific work must use first-source data rights, recorded splits, and appropriately pre-registered causal contrasts. No Manager beneficiaries are yet verified.

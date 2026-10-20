@@ -2,7 +2,7 @@
 
 Status: 2026-10-20 JST. Manager-only task registry in `tasks.json`; the Life Manager project SSOT is unchanged.
 
-Total: 113 · Done: 16 · Todo: 95 · Blocked: 2
+Total: 113 · Done: 26 · Todo: 85 · Blocked: 2
 
 ✅ = verified task; ⬜ = not started; ⛔ = outside dependency. A research task is not evidence of real-world impact.
 
@@ -44,16 +44,16 @@ Manager has a separate product identity, source scope and runtime, even when its
 |---|---|---|---|---|
 | ✅ `L001` | P003 | 確率変数/分布/条件付き確率を説明する | examples/01_probability.pyで二値分布を比較 | P(Y\|X)を計算でき分布合計が1でない入力は拒否 |
 | ✅ `L002` | L001 | TVDとBrier scoreの意味/限界を説明する | manager_core/evaluation.pyの関数で予測と実測を計算 | 既存test_evaluation.pyが通り、TVD=0/1を説明できる |
-| ⬜ `L003` | L002 | データ漏洩・過学習・校正を説明する | examples/02_calibration.pyにreliability binsとholdout検査 | 50%予測が実際50%と一致するテストを作る |
-| ⬜ `L004` | L001 | 状態/行動/報酬/履歴の違いを説明する | docs/learning/JITAI_GLOSSARY.mdにHeartStepsの観測変数を対応 | availability, decision_point, option, tailoring, proximalが実データに対応 |
-| ⬜ `L005` | L004 | 観測された行動と割付された介入の違いを説明する | docs/learning/CAUSAL_DAG.mdに交絡のDAGを作る | 観測的相関とRCTでの因果効果を別欄に記載 |
-| ⬜ `L006` | L005 | Y(1),Y(0),ATEと反実仮想欠損を説明する | examples/03_potential_outcomes.pyに架空の潜在結果を作る | 各対象の両方の反実仮想を現実に観測できない点を図解 |
-| ⬜ `L007` | L006 | 無作為化の強さと限界を説明する | examples/04_randomization.pyに固定seedで試験割付 | 繰り返しで無作為化効果平均が既知の真値へ近づくテスト |
-| ⬜ `L008` | L007 | MRTと通常の並行群RCTの違いを説明する | docs/learning/MRT.mdにHeartStepsの5時点/日を描く | availabilityに応じて無作為化される構造を説明 |
-| ⬜ `L009` | L008 | 近接効果と長期効果を区別する | 近接30分歩数vs6週間の長期評価を別列に記載 | 成果と測定窓を混同しない自動チェック |
-| ⬜ `L010` | L007 | 個人間干渉/スピルオーバーを説明する | docs/learning/INTERFERENCE.mdで寄付競合の例を記述 | ある寄付先の純増が他の減少だったケースを示す |
-| ⬜ `L011` | L008 | contextual bandit, MDP, off-policy条件の違いを説明する | docs/learning/DECISION_RULES.mdに3戦略を比較 | 過去の割付確率が不明ならoff-policy評価不能と明示 |
-| ⬜ `L012` | L006, L011 | 人間の苦痛へのproxyと直接測定の違いを説明する | docs/learning/OUTCOME_LADDER.mdに観測/受益/因果を分離 | クリックやTXだけでは苦しみの減少と判定しない |
+| ✅ `L003` | L002 | データ漏洩・過学習・校正を説明する | examples/02_calibration.pyにreliability binsとholdout検査 | 50%予測が実際50%と一致するテストを作る |
+| ✅ `L004` | L001 | 状態/行動/報酬/履歴の違いを説明する | docs/learning/JITAI_GLOSSARY.mdにHeartStepsの観測変数を対応 | availability, decision_point, option, tailoring, proximalが実データに対応 |
+| ✅ `L005` | L004 | 観測された行動と割付された介入の違いを説明する | docs/learning/CAUSAL_DAG.mdに交絡のDAGを作る | 観測的相関とRCTでの因果効果を別欄に記載 |
+| ✅ `L006` | L005 | Y(1),Y(0),ATEと反実仮想欠損を説明する | examples/03_potential_outcomes.pyに架空の潜在結果を作る | 各対象の両方の反実仮想を現実に観測できない点を図解 |
+| ✅ `L007` | L006 | 無作為化の強さと限界を説明する | examples/04_randomization.pyに固定seedで試験割付 | 繰り返しで無作為化効果平均が既知の真値へ近づくテスト |
+| ✅ `L008` | L007 | MRTと通常の並行群RCTの違いを説明する | docs/learning/MRT.mdにHeartStepsの5時点/日を描く | availabilityに応じて無作為化される構造を説明 |
+| ✅ `L009` | L008 | 近接効果と長期効果を区別する | 近接30分歩数vs6週間の長期評価を別列に記載 | 成果と測定窓を混同しない自動チェック |
+| ✅ `L010` | L007 | 個人間干渉/スピルオーバーを説明する | docs/learning/INTERFERENCE.mdで寄付競合の例を記述 | ある寄付先の純増が他の減少だったケースを示す |
+| ✅ `L011` | L008 | contextual bandit, MDP, off-policy条件の違いを説明する | docs/learning/DECISION_RULES.mdに3戦略を比較 | 過去の割付確率が不明ならoff-policy評価不能と明示 |
+| ✅ `L012` | L006, L011 | 人間の苦痛へのproxyと直接測定の違いを説明する | docs/learning/OUTCOME_LADDER.mdに観測/受益/因果を分離 | クリックやTXだけでは苦しみの減少と判定しない |
 
 ## 03. HeartStepsの実測研究を再現
 

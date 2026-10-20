@@ -1,0 +1,79 @@
+{
+  "title": "Phase02 L003-L012 literature locations",
+  "question": "何を学びどの元論文から対応する原理を借りるか",
+  "stopped": "6つの核となる論点の一次出典位置を記録。網羅性は主張しない。",
+  "claims": [
+    {
+      "claim": "Components of a JITAI",
+      "status": "付いた",
+      "quotes": [
+        {
+          "file": "nahum-shani-jitai.md",
+          "line": 5,
+          "text": "(1) decision points, (2) intervention options, (3) tailoring variables, and (4) decision rules",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5364076/"
+        }
+      ]
+    },
+    {
+      "claim": "Decision points and proximal window",
+      "status": "付いた",
+      "quotes": [
+        {
+          "file": "murphy-mrt.md",
+          "line": 5,
+          "text": "Therefore, the research team selected 30 minutes as the duration",
+          "url": "https://people.seas.harvard.edu/~samurphy/JITAI_MRT/faq.html"
+        }
+      ]
+    },
+    {
+      "claim": "Calibration curves",
+      "status": "付いた",
+      "quotes": [
+        {
+          "file": "scikit-calibration.md",
+          "line": 5,
+          "text": "Calibration curves, also referred to as reliability diagrams",
+          "url": "https://sklearn.org/stable/modules/calibration.html"
+        }
+      ]
+    },
+    {
+      "claim": "Abstract",
+      "status": "付いた",
+      "quotes": [
+        {
+          "file": "wang-ips.md",
+          "line": 5,
+          "text": "inverse propensity scoring (IPS) and doubly robust (DR) estimators",
+          "url": "https://proceedings.mlr.press/v70/wang17a.html"
+        }
+      ]
+    },
+    {
+      "claim": "Abstract",
+      "status": "付いた",
+      "quotes": [
+        {
+          "file": "megastudy.md",
+          "line": 5,
+          "text": "Forecasts by impartial judges failed to predict which interventions would be most effective",
+          "url": "https://www.nature.com/articles/s41586-021-04128-4"
+        }
+      ]
+    },
+    {
+      "claim": "Introduction",
+      "status": "付いた",
+      "quotes": [
+        {
+          "file": "hernan-whatif.md",
+          "line": 5,
+          "text": "the book is only available online",
+          "url": "https://miguelhernan.org/whatifbook"
+        }
+      ]
+    }
+  ]
+}
