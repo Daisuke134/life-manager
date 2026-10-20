@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createHmac } = require('node:crypto');
+const { createHmac, createHash } = require('node:crypto');
 const { createMaritimeManagerTransport } = require('./maritime-manager.js');
 const { createMaritimeWakeBinding } = require('../maritime-manager-wake.js');
 const { projectMaritimeSchedules } = require('../maritime-manager-schedules.js');
@@ -15,6 +15,8 @@ const externalId = 'lm-manager-' + createHmac('sha256', env.LM_MARITIME_MANAGER_
 function fixture() {
   const row = { uid: UID, auth_subject: UID.slice(3), status: 'pending', paused_at: null, release_sha: SHA, agent_id: null };
   let agent = null; let failCreate = false; let missingExecution = false; let checkpoint = null;
+  let download = new TextEncoder().encode('original product');
+  let oversized = false; let cancelled = 0;
   const calls = [];
   const envelope = { dateKey: '2026-10-20', releaseSha: SHA, result: { tenantId: UID, occurrenceId: 'cycle-1', artifactRefs:['artifact://original/product.md'], providerSnapshotRef:null,providerReceiptRefs:[],nextEligibleAt:null,status:'completed',errorClass:null } };
   const sdk = { agents: {
@@ -42,13 +44,15 @@ function fixture() {
       if(failCreate)throw new Error('private-provider-error');
       return {ok:true,status:201,json:async()=>structuredClone(agent)};
     }
+    if(url.endsWith('/exec') && options.method==='POST'&&data.command[0]==='python3')return {ok:true,status:200,json:async()=>({status:'completed',exitCode:0,stdout:JSON.stringify({tenantId:UID,artifactRef:data.command.at(-1),size:16,sha256:createHash('sha256').update('original product').digest('hex')})})};
+    if(url.includes('/files/download?'))return {ok:true,status:200,headers:new Headers(oversized?{'content-length':String(20*1024*1024+1)}:{}),body:new ReadableStream({start(c){c.enqueue(download);if(!oversized)c.close();},cancel(){cancelled++;}})};
     if(url.endsWith('/exec') && options.method==='POST') return {ok:true,status:202,json:async()=>(missingExecution?{}:{executionId:'exec-1',status:'running'})};
     if(url.endsWith('/exec/exec-1')) return {ok:true,status:200,json:async()=>({executionId:'exec-1',status:'completed',exitCode:0,stdout:JSON.stringify(envelope.result),stderr:'private-stderr'})};
     throw new Error('unexpected-test-http');
   };
   const transport = createMaritimeManagerTransport({ env,fetchImpl,client:sdk,managerStore,
     getWakeBinding: async input => createMaritimeWakeBinding(input,{secret:env.LM_MARITIME_MANAGER_ID_SECRET,publicOrigin:'https://manager.example'}) });
-  return {transport,row,calls,envelope,sdk,managerStore,ready(){agent.status='active';},loseCreate(){failCreate=true;},invalidExecution(){missingExecution=true;},agent:()=>agent};
+  return {transport,row,calls,envelope,sdk,managerStore,ready(){agent.status='active';},loseCreate(){failCreate=true;},invalidExecution(){missingExecution=true;},agent:()=>agent,changeArtifact(){download=new TextEncoder().encode('changed');},oversizeArtifact(){oversized=true;},cancelled:()=>cancelled};
 }
 const provision = {uid:UID,uploadS3Key:UPLOAD,archiveSha256:ARCHIVE,releaseSha:SHA};
 test('custom create seeds a scoped VM and binds only after official ready and env readback', async () => {
@@ -146,4 +150,21 @@ test('bound wake secret is configured and reloaded only for its active tenant ag
   f.row.status='paused';f.row.paused_at='2026-10-20T01:00:00Z';
   await assert.rejects(f.transport.configureWake({uid:UID,agentId:'agent-1',releaseSha:SHA}),/paused/);
   assert.equal(effects.length,2);
+});
+test('artifact bytes require bound no-follow proof, fixed workspace path and matching hash',async()=>{
+ const f=fixture();await f.transport.ensureAgent(provision);f.ready();await f.transport.readAgent(provision);
+ const ref='artifact://original/商品 % ready\\copy.md';
+ f.row.status='paused';f.row.paused_at='2026-10-21T01:00:00Z';
+ const bytes=await f.transport.readArtifact({uid:UID,agentId:'agent-1',artifactRef:ref});
+ assert.equal(new TextDecoder().decode(bytes),'original product');
+ const probe=f.calls.find(c=>c[0]==='http'&&c[1].endsWith('/exec'));
+ assert.deepEqual(JSON.parse(probe[2].body),{command:['python3','/app/apps/life-manager/maritime/artifact-proof.py','--tenant',UID,'--artifact',ref],detached:false,timeout:20});
+ const request=f.calls.find(c=>c[0]==='http'&&c[1].includes('/files/download?'));
+ assert.equal(new URL(request[1]).searchParams.get('path'),`/data/${UID}/build/original/商品 % ready\\copy.md`);
+ assert.equal(request[2].redirect,'error');
+ f.changeArtifact();await assert.rejects(f.transport.readArtifact({uid:UID,agentId:'agent-1',artifactRef:ref}),/artifact/);
+ f.oversizeArtifact();await assert.rejects(f.transport.readArtifact({uid:UID,agentId:'agent-1',artifactRef:ref}),/artifact/);assert.equal(f.cancelled(),1);
+ const before=f.calls.length;
+ for(const input of [{uid:UID,agentId:'foreign',artifactRef:ref},{uid:UID,agentId:'agent-1',artifactRef:'artifact://../private'}])await assert.rejects(f.transport.readArtifact(input));
+ assert.equal(f.calls.length,before);
 });

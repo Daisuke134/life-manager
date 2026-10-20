@@ -1,5 +1,6 @@
 'use strict';
-const { createHmac } = require('node:crypto');
+const { createHmac, createHash } = require('node:crypto');
+const { maritimeArtifactRefsValid } = require('../maritime-manager-runtime.js');
 const { verifyMaritimeWakeToken } = require('../maritime-manager-wake.js');
 const { validateMaritimeScheduleSnapshot } = require('../maritime-manager-schedules.js');
 const UID = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -198,6 +199,44 @@ function createMaritimeManagerTransport({ env = {}, fetchImpl = globalThis.fetch
       const envelope = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
       if (envelope?.result?.tenantId !== uid || envelope.result.occurrenceId !== occurrence) throw new TransportError('binding_invalid');
       return envelope;
+    }); },
+    readArtifact(input) { return safe(async () => {
+      const uid = valid(input?.uid, UID); const agentId = valid(input.agentId, ID);
+      const artifactRef = input.artifactRef; const maxBytes = 20 * 1024 * 1024;
+      if (!maritimeArtifactRefsValid([artifactRef], true)) throw new TransportError('artifact_invalid', false);
+      await enrollment(uid, agentId);
+      const execution = await request(`/api/agents/${agentId}/exec`, 'POST', {
+        command: ['python3', '/app/apps/life-manager/maritime/artifact-proof.py', '--tenant', uid, '--artifact', artifactRef],
+        detached: false, timeout: 20,
+      });
+      if (execution?.status !== 'completed' || execution.exitCode !== 0 || typeof execution.stdout !== 'string'
+        || execution.stdout.length > 262144) throw new TransportError('artifact_proof_unavailable', false);
+      let proof;
+      try { proof = JSON.parse(execution.stdout); } catch { throw new TransportError('artifact_proof_invalid', false); }
+      if (proof?.tenantId !== uid || proof.artifactRef !== artifactRef || !Number.isSafeInteger(proof.size)
+        || proof.size < 0 || proof.size > maxBytes || !/^[0-9a-f]{64}$/.test(proof.sha256 || '')) {
+        throw new TransportError('artifact_proof_invalid', false);
+      }
+      const path = `/data/${uid}/build/${artifactRef.slice('artifact://'.length)}`;
+      const response = await fetchImpl(`https://api.maritime.sh/api/agents/${agentId}/files/download?path=${encodeURIComponent(path)}`, {
+        method: 'GET', redirect: 'error', signal: AbortSignal.timeout(20000), headers: { Authorization: `Bearer ${apiKey}` },
+      });
+      const reader = response?.body?.getReader();
+      if (!reader) throw new TransportError('artifact_unavailable', false);
+      let ended = false;
+      try {
+        if (!response.ok || Number(response.headers?.get('content-length')) > maxBytes) throw new TransportError('artifact_unavailable', false);
+        const chunks = []; let total = 0; const digest = createHash('sha256');
+        while (true) {
+          const chunk = await reader.read();
+          if (chunk.done) { ended = true; break; }
+          total += chunk.value.byteLength;
+          if (total > maxBytes || total > proof.size) throw new TransportError('artifact_changed', false);
+          digest.update(chunk.value); chunks.push(chunk.value);
+        }
+        if (total !== proof.size || digest.digest('hex') !== proof.sha256) throw new TransportError('artifact_changed', false);
+        return Buffer.concat(chunks, total);
+      } finally { if (!ended) { try { await reader.cancel(); } catch {} } }
     }); },
     writeScheduleSnapshot(input) { return safe(async () => {
       const uid = valid(input?.uid, UID); const agentId = valid(input.agentId, ID);
