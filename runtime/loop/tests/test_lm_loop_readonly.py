@@ -1019,6 +1019,53 @@ class LmLoopReadonlyTest(unittest.TestCase):
             self.assertEqual(set(events), {"a", "b", "c"})
             self.assertEqual(validations.call_count, 3)
 
+    def test_current_shared_index_reuses_pid_events_and_skips_old_validations(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+
+            def report(name, run):
+                return build_runtime_event(
+                    loop_id=name, domain="system", run_id=run,
+                    release_sha="a" * 40, provider="deterministic",
+                    profile_alias=None, effect_class="none", succeeded=True, blocker=None,
+                )
+
+            def running(name, pid):
+                return build_runtime_start_event(
+                    loop_id=name, domain="system", run_id=f"current-{pid}",
+                    release_sha="b" * 40, provider="deterministic",
+                    profile_alias=None, effect_class="none", product_loop_id="affiliate",
+                    job_id=name, owner_id=name, wake_id=f"current-{pid}",
+                    occurrence_id=f"{name}:current-{pid}", loaded_argv_sha256="c" * 64,
+                    loaded_env_sha256="d" * 64,
+                )
+
+            a_report, b_report = report("a", "latest-a"), report("b", "latest-b")
+            b_running = running("b", "123")
+            rows = [report("b", "old-b")] * 1000
+            rows += [running("a", "456"), b_report, a_report, b_running]
+            rows += [{"loop_id": "b", "phase": "report"},
+                     {"loop_id": [], "phase": "report"}]
+            (root / "events.jsonl").write_text(
+                "\n".join(json.dumps(row) for row in rows) + "\n")
+            cache = {}
+            with (
+                patch.object(Path, "read_text", autospec=True,
+                             side_effect=Path.read_text) as reads,
+                patch.object(lm_loop, "validate_runtime_event",
+                             wraps=lm_loop.validate_runtime_event) as validations,
+            ):
+                self.assertEqual(_last_event(str(root), "a", cache), a_report)
+                self.assertEqual(_last_event(str(root), "b", cache, running_pid="123"), b_running)
+                self.assertEqual(_last_event(str(root), "a", cache, running_pid="456"), a_report)
+                self.assertEqual(_last_event(str(root), "b", cache, running_pid="999"), b_report)
+                self.assertIsNone(_last_event(str(root), "missing", cache, running_pid="789"))
+            self.assertEqual(reads.call_count, 1)
+            self.assertEqual(validations.call_count, 4)
+            (root / "events.jsonl").write_text(
+                json.dumps(a_report) + "\n" + json.dumps(running("a", "None")) + "\n")
+            self.assertEqual(_last_event(str(root), "a"), a_report)
+
     def test_last_event_prefers_pid_bound_diagnostic_running_event(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
