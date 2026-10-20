@@ -96,8 +96,8 @@ def build_free_article(markdown_text: str, *, slug: str, date: str, cta_url: str
     # ASCII search terms may omit accents present in the localized H1.
     folded_title = "".join(c for c in unicodedata.normalize("NFD", title_lower)
                            if not unicodedata.combining(c))
-    missing = [w for w in (title_must_contain or "").lower().split()
-               if w not in title_lower and (not w.isascii() or w not in folded_title)]
+    missing = [w.lower() for w in (title_must_contain or "").split()
+               if w.lower() not in title_lower and (not w.isascii() or w.lower() not in folded_title)]
     if missing:
         raise ValueError(f"title must contain the search query {title_must_contain!r}; missing {missing}")
     return {

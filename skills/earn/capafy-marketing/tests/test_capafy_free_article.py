@@ -350,6 +350,7 @@ def test_ascii_query_accepts_accented_title_without_changing_public_text(title: 
 @pytest.mark.parametrize(("title", "query"), [
     ("Ganchos para vídeos longos", "ganchos para videos curtos"),
     ("パターンの紹介", "ハターン"),
+    ("ķ", "K"),
 ])
 def test_keyword_check_still_rejects_missing_words_and_distinct_unicode(title: str, query: str) -> None:
     with pytest.raises(ValueError, match="search query"):
