@@ -172,6 +172,7 @@ class LatestVersion:
     version_name: Any = None
     title: Any = None
     short_description: Any = None
+    readback_fields_explicit: bool = False
 
     @classmethod
     def from_response(cls, agent_id: str, payload: dict[str, Any]) -> "LatestVersion":
@@ -201,6 +202,18 @@ class LatestVersion:
             version_name=payload.get("versionName"),
             title=payload.get("title"),
             short_description=payload.get("shortDescription"),
+            # Preserve raw evidence before legacy normalization defaults unknowns to false.
+            readback_fields_explicit=(
+                all(key in payload and payload[key] is not None for key in (
+                    "agentId", "agentVersionId", "agentType", "status",
+                    "isConfirmedSkills", "isConfirmedConfigKeys", "packageUrl",
+                ))
+                and all(type(value) is bool or (type(value) is int and value in (0, 1))
+                        for value in (payload.get("isConfirmedSkills"), payload.get("isConfirmedConfigKeys")))
+                and isinstance(payload.get("packageUrl"), str)
+                and all(str(payload.get(key) or "").strip()
+                        for key in ("agentId", "agentVersionId", "agentType"))
+            ),
         )
 
     @property
@@ -232,6 +245,7 @@ class LatestVersion:
             "is_confirmed_skills": self.is_confirmed_skills,
             "is_confirmed_config_keys": self.is_confirmed_config_keys,
             "package_uploaded": has_http_url_scheme(str(self.package_url or "")),
+            "readback_fields_explicit": self.readback_fields_explicit,
             "version_no": self.version_no,
             "version_name": self.version_name,
             "title": self.title,

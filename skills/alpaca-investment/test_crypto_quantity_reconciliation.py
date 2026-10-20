@@ -128,6 +128,61 @@ class QuantityReconciliationTests(unittest.TestCase):
                 if kind=='OCT_without_time':self.assertEqual(report['unsupported_activity_ids'],['synthetic-oct'])
                 self.assertIsNone(report['net_pnl_usd'])
 
+    def test_wallet_transfer_status_changes_are_recorded_without_activity_attribution(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);_,activity,current=self.setup_cycle(root,'live');calls=[]
+            transfer={'id':'synthetic-wallet-transfer','asset':'USDC','amount':'1',
+                'direction':'INCOMING','created_at':'2025-12-31T01:00:00Z'}
+            def reader(**kw):
+                calls.append(copy.deepcopy(kw));raw=frame(kw,count=0)
+                snapshot={**transfer,'status':'PROCESSING' if len(calls)==1 else 'COMPLETE'}
+                raw['wallet_transfers']=[copy.deepcopy(snapshot)]*(2 if len(calls)==1 else 1)
+                raw['activity_pages']=[copy.deepcopy(activity['fills'])] if len(calls)==1 else [[]]
+                return raw
+
+            first,_=self.write(root,activity,current,reader=reader)
+            current['clock']['observed_at']='2026-01-02T06:00:00Z'
+            second,report=self.write(root,activity,current,reader=reader)
+
+            self.assertEqual(len(calls),2)
+            self.assertEqual(first['net_pnl_usd'],None)
+            self.assertEqual(len(report['wallet_transfer_status_evidence']),1)
+            evidence=report['wallet_transfer_status_evidence'][0]
+            self.assertEqual(evidence['transfer_id'],transfer['id'])
+            self.assertEqual([row['status'] for row in evidence['observations']],['PROCESSING','COMPLETE'])
+            self.assertEqual([row['observed_at'] for row in evidence['observations']],
+                [NOW,'2026-01-02T06:00:00Z'])
+            self.assertTrue(evidence['status_transition_observed'])
+            self.assertIsNone(evidence['effect_time'])
+            self.assertEqual(evidence['activity_link_status'],'not_documented')
+            self.assertEqual(report['status'],'unknown')
+            self.assertIn('native_wallet_effect_time_unproved',report['reasons'])
+            self.assertIsNone(second['net_pnl_usd']);self.assertFalse(second['capital_expansion_allowed'])
+
+    def test_wallet_transfer_missing_identity_or_same_snapshot_conflict_remains_unknown(self):
+        for kind in ('missing_id','missing_status','same_snapshot_conflict'):
+            with self.subTest(kind=kind),tempfile.TemporaryDirectory() as directory:
+                root=Path(directory);_,activity,current=self.setup_cycle(root,'live')
+                transfer={'id':'synthetic-wallet-transfer','asset':'USDC','amount':'1',
+                    'direction':'INCOMING','created_at':'2025-12-31T01:00:00Z','status':'COMPLETE'}
+                if kind=='missing_id': transfer.pop('id')
+                if kind=='missing_status': transfer.pop('status')
+                wallets=[transfer]
+                if kind=='same_snapshot_conflict':
+                    wallets=[{**transfer,'status':'PROCESSING'},{**transfer,'status':'COMPLETE'}]
+                def reader(**kw):
+                    raw=frame(kw,count=0);raw['wallet_transfers']=copy.deepcopy(wallets)
+                    raw['activity_pages']=[copy.deepcopy(activity['fills'])]
+                    return raw
+
+                _,report=self.write(root,activity,current,reader=reader)
+
+                self.assertEqual(report['status'],'unknown')
+                expected=('native_wallet_transfer_snapshot_conflict' if kind=='same_snapshot_conflict'
+                    else 'native_wallet_transfer_identity_invalid')
+                self.assertIn(expected,report['reasons'])
+                self.assertIsNone(report['net_pnl_usd']);self.assertFalse(report['capital_expansion_allowed'])
+
     def test_missing_quote_or_legacy_baseline_never_uses_cash_equity_or_current_value(self):
         for kind in ('missing_quote','legacy'):
             with self.subTest(kind=kind),tempfile.TemporaryDirectory() as directory:
