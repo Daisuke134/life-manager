@@ -173,7 +173,7 @@ test('artifact bytes require bound no-follow proof, fixed workspace path and mat
 });
 
 
-test('loaded wake configuration is read-only and rejects stale relay bindings',async()=>{
+test('loaded wake configuration verifies the binding without reconfiguration',async()=>{
  const binding=createMaritimeWakeBinding({uid:UID,agentId:'agent-1',releaseSha:SHA},{secret:env.LM_MARITIME_MANAGER_ID_SECRET,publicOrigin:'https://panel.invalid'});
  const calls=[];let stale=false;
  const managerStore={read:async()=>({uid:UID,agent_id:'agent-1',release_sha:SHA,status:'active',paused_at:null}),claimProvision:async()=>{},bindAgent:async()=>{}};
@@ -210,4 +210,15 @@ test('pending execution lifecycle is tenant bound and never replays the accepted
  row.status='paused';row.paused_at='2026-10-21T00:00:00.000Z';
  assert.deepEqual(await transport.readExecution(input),{status:'running'});assert.equal(wakes,1);
  await assert.rejects(()=>transport.readExecution({...input,agentId:'foreign'}),/binding/);assert.equal(reads,2);assert.equal(wakes,1);
+});
+
+
+test('pause during execution metadata GET prevents the later lifecycle start',async()=>{
+ const row={uid:UID,agent_id:'agent-1',release_sha:SHA,status:'active',paused_at:null};let wakes=0;
+ const managerStore={read:async()=>structuredClone(row),claimProvision:async()=>{},bindAgent:async()=>{}};
+ const transport=createMaritimeManagerTransport({env,managerStore,client:{agents:{start:async id=>{wakes++;return {id,status:'active'};}}},fetchImpl:async()=>{
+  row.status='paused';row.paused_at='2026-10-21T00:00:00.000Z';
+  return {ok:true,json:async()=>({executionId:'exec-1',status:'running'})};
+ }});
+ assert.deepEqual(await transport.readExecution({uid:UID,agentId:'agent-1',executionId:'exec-1'}),{status:'running'});assert.equal(wakes,0);
 });

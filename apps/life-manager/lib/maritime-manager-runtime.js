@@ -64,9 +64,34 @@ function artifactRefsValid(refs, completed) {
     && refs.every(ref => typeof ref === 'string' && ref.startsWith('artifact://') && !ref.includes('\0')
       && ref.slice('artifact://'.length).split('/').every(part => part && part !== '.' && part !== '..'));
 }
+function deferredCyclePreflight(c, job, agentId, services, preparationErrorClass) {
+  const observedAt = (services.now || (() => new Date().toISOString()))();
+  if (!Number.isFinite(Date.parse(observedAt))) throw new CycleError('maritime_cycle_clock_invalid', false);
+  const externalRef = `runtime-preflight://${job.job_id.slice('maritime-cycle:'.length)}`;
+  return { schema_version: 1, kind: 'maritime_manager_cycle_preflight', tenant_id: c.tenantId,
+    job_id: job.job_id, occurrence_id: c.occurrenceId, date_key: c.dateKey, release_sha: c.releaseSha,
+    agent_id: agentId, execution_id: null, status: 'deferred', artifact_refs: [], error_class: 'cloud_runtime_not_ready',
+    phase: 'prepare', preparation_error_class: preparationErrorClass, retryable: true, next_action: 'retry_guest_readiness',
+    provider: 'runtime', external_ref: externalRef, evidence_refs: [externalRef],
+    observed_at: new Date(observedAt).toISOString(), next_eligible_at: new Date(Date.parse(observedAt) + 15 * 60 * 1000).toISOString() };
+}
 function verifyCycleReceipt(receipt, job) {
   try {
     const c = cycleContract(job);
+    if (receipt?.kind === 'maritime_manager_cycle_preflight') {
+      const observedMs = Date.parse(receipt.observed_at);
+      return Boolean(receipt.schema_version === 1 && receipt.tenant_id === c.tenantId && receipt.job_id === job.job_id
+        && receipt.occurrence_id === c.occurrenceId && receipt.date_key === c.dateKey && receipt.release_sha === c.releaseSha
+        && typeof receipt.agent_id === 'string' && EXECUTION_ID.test(receipt.agent_id) && receipt.execution_id === null
+        && receipt.status === 'deferred' && artifactRefsValid(receipt.artifact_refs, false)
+        && receipt.error_class === 'cloud_runtime_not_ready' && receipt.provider === 'runtime'
+        && receipt.phase === 'prepare' && /^MARITIME_[A-Z_]{1,160}$/.test(receipt.preparation_error_class || '')
+        && receipt.retryable === true && receipt.next_action === 'retry_guest_readiness'
+        && receipt.external_ref === `runtime-preflight://${job.job_id.slice('maritime-cycle:'.length)}`
+        && isDeepStrictEqual(receipt.evidence_refs, [receipt.external_ref]) && Number.isFinite(observedMs)
+        && new Date(observedMs).toISOString() === receipt.observed_at
+        && receipt.next_eligible_at === new Date(observedMs + 15 * 60 * 1000).toISOString());
+    }
     return Boolean(receipt?.schema_version === 1 && receipt.kind === 'maritime_manager_cycle'
       && receipt.tenant_id === c.tenantId && receipt.job_id === job.job_id
       && receipt.occurrence_id === c.occurrenceId && receipt.date_key === c.dateKey
@@ -147,10 +172,13 @@ function createMaritimeManagerLoopAdapter(services = {}) {
           if (!executionId) throw new CycleError('maritime_cycle_dispatch_unconfirmed');
         } else {
           active(bound.enrollment, c);
-          let ready;
+          let ready, preparationErrorClass = 'MARITIME_GUEST_NOT_READY';
           try { ready = await services.prepareCycle({ uid: c.tenantId, agentId: bound.identity.agentId, releaseSha: c.releaseSha }); }
-          catch { throw new CycleError('maritime_cycle_runtime_not_ready', false); }
-          if (ready?.ready !== true) throw new CycleError('maritime_cycle_runtime_not_ready', false);
+          catch (error) {
+            ready = null;
+            preparationErrorClass = /^MARITIME_[A-Z_]{1,160}$/.test(error?.code || '') ? error.code : 'MARITIME_PREPARE_UNAVAILABLE';
+          }
+          if (ready?.ready !== true) return { receipt: deferredCyclePreflight(c, job, bound.identity.agentId, services, preparationErrorClass) };
           const current = await binding(c); active(current.enrollment, c);
           if (!isDeepStrictEqual(current.identity, bound.identity)) throw new CycleError('maritime_cycle_binding_unknown', false);
           const claim = await store.claimCycleDispatch(bound.identity);
@@ -190,14 +218,17 @@ function createMaritimeManagerLoopAdapter(services = {}) {
         errorClass: error instanceof CycleError ? error.message : 'maritime_cycle_readback_unavailable',
         nextAction: 'inspect_provider_execution', retryable: false }; }
     },
-    async continuation(job) {
+    async continuation(job, receipt) {
       const c = cycleContract(job);
       const { enrollment } = await binding(c);
       if (enrollment.status !== 'active' || enrollment.paused_at || enrollment.release_sha !== c.releaseSha) return null;
-      const due = Date.parse(job.available_at);
+      const preflight = receipt?.kind === 'maritime_manager_cycle_preflight';
+      if (preflight && !verifyCycleReceipt(receipt, job)) throw new CycleError('maritime_cycle_receipt_invalid', false);
+      const due = Date.parse(preflight ? receipt.next_eligible_at : job.available_at);
       if (!Number.isFinite(due)) throw new CycleError('maritime_cycle_schedule_invalid', false);
-      // Reuse the existing Capafy 15-minute cadence; retries keep the same slot.
-      const nextMs = due + 15 * 60 * 1000;
+      // A preparation deferral is central evidence of no claim, not a provider execution.
+      // Its persisted retry time avoids replaying every overdue slot after an outage.
+      const nextMs = preflight ? due : due + 15 * 60 * 1000;
       const availableAt = new Date(nextMs).toISOString();
       return { job: buildMaritimeManagerCycleJob({ tenantId: c.tenantId, releaseSha: c.releaseSha,
         occurrenceId: `slot:${nextMs}`, dateKey: availableAt.slice(0, 10) }), availableAt };

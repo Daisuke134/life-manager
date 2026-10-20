@@ -302,6 +302,30 @@ test('guest readiness is checked before the irreversible cycle dispatch claim',a
  const f=executionFixture();let prepared=0;
  f.services.prepareCycle=async input=>{prepared++;assert.equal(input.uid,UID);assert.equal(f.checkpoint(),null);return {ready:false};};
  const adapter=createMaritimeManagerLoopAdapter(f.services),job=buildMaritimeManagerCycleJob(cycle);
- await assert.rejects(()=>adapter.execute(job),error=>error.code==='MARITIME_CYCLE_RUNTIME_NOT_READY'&&error.unknownEffect===false);
+ const deferred=await adapter.execute(job);assert.equal(deferred.receipt.status,'deferred');assert.equal(deferred.receipt.error_class,'cloud_runtime_not_ready');assert.equal(adapter.verify(deferred.receipt,job),true);
  assert.equal(prepared,1);assert.equal(f.checkpoint(),null);assert.equal(f.calls.filter(x=>x==='dispatch').length,0);
+});
+
+
+test('transient preflight defers through the existing worker without consuming a dispatch claim',async()=>{
+ const f=executionFixture();f.services.prepareCycle=async()=>{throw new Error('temporary guest unavailable');};
+ f.services.now=()=> '2026-10-21T01:00:00.000Z';
+ const job={...buildMaritimeManagerCycleJob(cycle),available_at:'2026-10-20T00:00:00.000Z',attempt:1};
+ const adapter=createMaritimeManagerLoopAdapter(f.services);
+ const execution=await adapter.execute(job);
+ assert.equal(execution.receipt.status,'deferred');assert.equal(execution.receipt.error_class,'cloud_runtime_not_ready');
+ assert.equal(execution.receipt.provider,'runtime');assert.equal(execution.receipt.execution_id,null);
+ assert.equal(adapter.verify(execution.receipt,job),true);
+ const next=await adapter.continuation(job,execution.receipt);assert.equal(next.availableAt,'2026-10-21T01:15:00.000Z');
+ assert.equal(f.checkpoint(),null);assert.equal(f.calls.filter(x=>x==='dispatch').length,0);
+ let completed=0;
+ await require('../scripts/runtime-up.js').executeCapabilityJob(job,{workerId:'worker-a',
+  handlers:{[job.capability]:async()=>({...execution,continuation:next})},
+  completeJobAndEnqueue:async input=>{assert.equal(input.nextJob.job_id,next.job.job_id);completed++;},
+  failJob:async()=>{throw new Error('preflight must not dead-letter');},
+ });
+ assert.equal(completed,1);
+ const report=require('./maritime-manager-report.js').buildMaritimeDailyResult({enrollment:{uid:UID,timezone:'UTC'},periodKey:'maritime:daily:2026-10-21',actionReceipts:[{receipt:execution.receipt,completedAt:'2026-10-21T01:00:00.000Z'}]});
+ assert.equal(report.actions.deferredCycles,1);assert.equal(report.actions.completedCycles,0);
+ assert.match(require('./maritime-manager-report.js').renderMaritimeDailyEmail(report),/実行環境の準備待ち/);
 });

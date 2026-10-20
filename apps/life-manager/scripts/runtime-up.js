@@ -244,7 +244,7 @@ function createWorkerHandlers(env, capabilities, dependencies = {}) {
           { query: dependencies.query }),
       };
     }
-    servicesByAdapter["maritime-manager-cycle"] = { managerStore, prepareCycle: transport.readWakeConfiguration, dispatchCycle: transport.dispatchCycle,
+    servicesByAdapter["maritime-manager-cycle"] = { managerStore, prepareCycle: input => transport.readWakeConfiguration({ ...input, activeOnly: true }), dispatchCycle: transport.dispatchCycle,
       readExecution: transport.readExecution, readCycleReceipt: transport.readCycleReceipt };
     if (capabilities.includes("maritime.manager.report")) {
       if (typeof dependencies.query !== "function") throw new Error("maritime report database unavailable");

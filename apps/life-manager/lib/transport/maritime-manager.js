@@ -59,8 +59,8 @@ function createMaritimeManagerTransport({ env = {}, fetchImpl = globalThis.fetch
     return { ...row };
   }
   async function wakeGuest(uid, agentId, releaseSha, active = false) {
-    await enrollment(uid, agentId, releaseSha, active);
     const maritime = await sdk();
+    await enrollment(uid, agentId, releaseSha, active);
     if (typeof maritime.agents.start !== 'function') throw new TransportError('unconfigured', false);
     // Official lifecycle start is idempotent. Exec itself does not auto-wake custom VMs.
     const result = await maritime.agents.start(agentId);
@@ -199,7 +199,12 @@ function createMaritimeManagerTransport({ env = {}, fetchImpl = globalThis.fetch
       }
       if (result.status === 'running') {
         // Maintain only an already accepted, active tenant execution; never re-POST it.
-        if (row.status === 'active' && !row.paused_at) await wakeGuest(uid, agentId);
+        if (row.status === 'active' && !row.paused_at) {
+          try { await wakeGuest(uid, agentId, undefined, true); }
+          catch (error) {
+            if (!(error instanceof TransportError) || !['MARITIME_MANAGER_TRANSPORT_PAUSED', 'MARITIME_MANAGER_TRANSPORT_INACTIVE'].includes(error.code)) throw error;
+          }
+        }
         return { status: result.status };
       }
       if (!Number.isInteger(result.exitCode) || typeof result.stdout !== 'string') throw new TransportError('execution_invalid');
@@ -256,12 +261,13 @@ function createMaritimeManagerTransport({ env = {}, fetchImpl = globalThis.fetch
     }); },
     readWakeConfiguration(input) { return safe(async () => {
       const uid = valid(input?.uid, UID), agentId = valid(input.agentId, ID), releaseSha = valid(input.releaseSha, SHA);
-      await enrollment(uid, agentId, releaseSha);
+      const activeOnly = input.activeOnly === true;
+      await enrollment(uid, agentId, releaseSha, activeOnly);
       if (typeof getWakeBinding !== 'function') throw new TransportError('unconfigured', false);
       const wake = await getWakeBinding({ uid, agentId, releaseSha });
       const identity = verifyMaritimeWakeToken(wake?.token, uidSecret);
       if (!identity || identity.uid !== uid || identity.agentId !== agentId || identity.releaseSha !== releaseSha) throw new TransportError('relay_invalid', false);
-      await wakeGuest(uid, agentId, releaseSha);
+      await wakeGuest(uid, agentId, releaseSha, activeOnly);
       const execution = await (await sdk()).agents.exec(agentId,
         'node /app/apps/life-manager/maritime/runtime-status.js', { detached: false, timeout: 10 });
       if (execution?.status !== 'completed' || execution.exitCode !== 0 || typeof execution.stdout !== 'string'

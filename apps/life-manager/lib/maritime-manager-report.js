@@ -105,7 +105,7 @@ function renderMaritimeDailyEmail(result,options={}){
   `利益：${result.financial.profit===null?'未確認（費用または売上の確認が未完了）':result.financial.profit.map(formatFinancialAmount).join(' / ')}`,
   '', '未完・失敗',
   `確認済みの保留：${result.actions.deferredCycles}件。結果確認中：${result.actions.unconfirmedCycles}件。失敗・要確認：${result.actions.failedCycles}件。`,
-  ...result.work.filter(work=>work.status==='deferred').map(work=>work.errorClass==='cloud_model_config_missing'?'保留理由：実行環境の準備待ちです。':'保留理由：実行できる仕事を確認できなかったためです。'),
+  ...result.work.filter(work=>work.status==='deferred').map(work=>['cloud_model_config_missing','cloud_runtime_not_ready'].includes(work.errorClass)?'保留理由：実行環境の準備待ちです。':'保留理由：実行できる仕事を確認できなかったためです。'),
   '未取得の金額は未確認と表示しています。',
   '', '次に進めること',
   '確認できた成果と利用状況をもとに、次の仕事を進めます。',
