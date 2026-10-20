@@ -1282,3 +1282,26 @@ def test_agent_sample_uses_the_same_utc_hour_across_timezones(tmp_path, monkeypa
     first = module._sample_agent_ids(ids, 60, "2026-10-20T22:07:00Z")
     assert first == module._sample_agent_ids(ids, 60, "2026-10-21T07:07:00+09:00")
     assert first == module._sample_agent_ids(ids, 60, "2026-10-20T22:59:59Z")
+
+
+@pytest.mark.parametrize("missing", ["agent", "d30", "d7"])
+def test_unsampled_settled_stats_are_unknown_while_observed_zero_and_gross_stay_known(missing):
+    module = load_module()
+    stats = skill_agent_stats()
+    baseline = module.build_skill_analytics(
+        skill_analytics_payloads(), stats, {"111": "Claude Sonnet 4.6"}, "2026-09-27T00:00:00Z")
+    if missing == "agent":
+        del stats["111"]
+    else:
+        del stats["111"][missing]
+    current = module.build_skill_analytics(
+        skill_analytics_payloads(), stats, {"111": "Claude Sonnet 4.6"}, "2026-09-27T00:00:00Z")
+    rows = {r["agent_id"]: r for r in current["per_skill_rows"]}
+    before = {r["agent_id"]: r for r in baseline["per_skill_rows"]}
+    for window, source_key in (("30d", "d30"), ("7d", "d7")):
+        for field in (f"stats_{window}_settled_orders", f"stats_{window}_settled_revenue_usd"):
+            assert rows["111"][field] is None if missing in ("agent", source_key) else rows["111"][field] == before["111"][field]
+            assert rows["222"][field] == before["222"][field]  # Successfully observed zero.
+    assert current["account_totals"] == baseline["account_totals"]
+    for field in ("stats_30d_orders", "stats_30d_revenue_usd", "stats_7d_orders", "stats_7d_revenue_usd"):
+        assert rows["111"][field] == before["111"][field]  # Separate gross-ranking endpoint.

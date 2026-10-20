@@ -882,8 +882,8 @@ def build_skill_analytics(
             gross = _money(ranking_row.get("totalSalesAmount", 0))
             earnings = _money(earnings_by_id.get(agent_id, Decimal("0")))
             stats = agent_stats.get(agent_id, {})
-            settled_orders_30d, settled_revenue_30d = _stats_orders_revenue(stats.get("d30", {}))
-            settled_orders_7d, settled_revenue_7d = _stats_orders_revenue(stats.get("d7", {}))
+            settled_orders_30d, settled_revenue_30d = _stats_orders_revenue(stats.get("d30", {"_error": "agent_window_not_observed"}))
+            settled_orders_7d, settled_revenue_7d = _stats_orders_revenue(stats.get("d7", {"_error": "agent_window_not_observed"}))
             revenue_30d = _window_gross(sales_ranking_30d.get(agent_id), sales_30d_ok)
             cost_30d = cost_30d_by_agent.get(agent_id)
             net_revenue_30d = None
