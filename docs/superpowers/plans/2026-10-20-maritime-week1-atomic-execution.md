@@ -465,7 +465,7 @@ life-manager/
 
 - [ ] T24.1 source-mapのArc/Panda/Pokeを読み、模倣する導入・成果の見せ方・CTAと、同じ対象でない証拠の限界を記録する。
 - [ ] T24.2 「Managerが自分で仕事を進める」「無料pilot」「試せる一つの業務」「一つのURL」を含むDM/X/IG文案を日英で用意する。利益保証/架空testimonial/架空実績を書かない。
-- [ ] T24.3 source別URLを`/maritime?source=referral|x|other`+既存UTMで指定する。IGは現source allowlistではotherにし、utm_source=instagramで詳細を残す。emailや知人名をURLへ入れない。
+- [ ] T24.3 source別URLを`/maritime?source=referral|x|other`+既存UTMで指定する。IGは配備済みsource allowlistのinstagramを使い、utm_source=instagramも残す。emailや知人名をURLへ入れない。
 - [ ] T24.4 DaisへのDM用文案を成果物として渡す。送信/友人の返事を待たずT25/T26へ進む。最終URLを確認してplaceholderがない版を保存しcommit/push。
 
 ## Task T25: demoとプロモーション動画の撮影単位を作る（開発と並行）
@@ -638,15 +638,18 @@ life-manager/
 
 旧順序=REST/Auth復旧→owned PKCE→新cycle。新順序=REST/Authの修復・本人ログイン待ちと並行して、owned VMの新offline occurrenceを一回確認→REST復帰後にPKCE/製品経由全体を確認。理由は、既知のliteral-path修正が新main imageへ配備済みであり、その修正の実モデル受入はDBに依存せず、既存VMと無料残高内で先に証明できるため。公開flag/worker capability、旧unknown occurrenceは変更しない。運用全体cursorはb.5-1とし、独立副cursorはc-1。
 
-- [ ] **c-1 / preflight:** 私有SSOTと既存VM identity/release0c、旧factory/adoptionのterminalを読む。既存billingでfree残高を確認し、paid変更をしない。新occurrence `owned-literal-path-20261021`が未dispatchであることを専用namespaceで確認する。
-- [ ] **c-2 / 一回実行:** 既存`maritime-owned-factory.py`のdispatch/readbackと既存`run-cycle.js`を再利用する。dedicated namespace `owned_factory_v2_`、pending fenceを保存してから一回POSTする。新モデル呼出は既存無料残高/既存モデル設定内。provider account未接続のままoriginal offline成果物を作り、publish/commerce mutation/友人への送信はしない。
+- [x] **c-1 / preflight:** 私有SSOTと既存VM identity/release0c、旧factory/adoptionのterminalを読む。既存billingでfree残高を確認し、paid変更をしない。新occurrence `owned-literal-path-20261021`が未dispatchであることを専用namespaceで確認する。
+- [x] **c-2 / 一回実行:** 既存`maritime-owned-factory.py`のdispatch/readbackと既存`run-cycle.js`を再利用する。dedicated namespace `owned_factory_v2_`、pending fenceを保存してから一回POSTする。新モデル呼出は既存無料残高/既存モデル設定内。provider account未接続のままoriginal offline成果物を作り、publish/commerce mutation/友人への送信はしない。
 - [ ] **c-3 / receipt:** 保存したexecution IDの公式GETでterminalとcycle statusを読む。completedにはliteral artifact refsが必要。不明時は同occurrenceを再送せず、既存receipt/summaryをread-onlyで診断する。旧6ファイルのunknownは書換えない。
 - [ ] **c-4 / 成果物:** 新receiptのartifact path/存在/size/hashを既存validatorの契約と照合する。内部fixtureを実利用者、ファイル作成を売上・販売・入金と呼ばない。製品経由download/日報/停止はREST復旧後の未完項目として維持する。
 
 
 **c-3診断→c-5 source修正:** 新v2 executionは公式completed/exit1、cloud_cycle.py:111のreceipt.parent.mkdirでPermissionError。モデル結果/新cycle receiptは無く、completedのcycleと扱わない。非root移行前のroot-owned receipts親が固定directory準備対象から漏れる仮説をlstatで確認する。旧順序=c-3 receipt→c-4成果物、新順序=c-3権限観測→c-5固定親修正/受入/main→新image採用→同occurrenceの未着手readback→c-4、理由=実モデル前の自己所有初期化不具合を解消するため。provider dispatch fenceと旧unknown receiptは削除しない。
 
-- [ ] **c-5a / directory境界:** `apps/life-manager/maritime/runtime-env.js`の`prepareMaritimeRuntime`、`run-cycle.js`のsetpriv→`cloud_cycle.py`のreceipt mkdirを照合する。変更は固定tenant receipts親のno-follow fd初期化へ限定し、再帰chown/モデル成果物の書換えはしない。
-- [ ] **c-5b / source修正:** 実行済みの非root失敗と既存runtime fixtureを根拠に固定`receipts`を既存ownership対象へ加える。既存のno-follow/10001/0700契約と旧receipt内容を保つ。元のpermission境界に絞って受入を確認する。
+- [x] **c-5a / directory境界:** `apps/life-manager/maritime/runtime-env.js`の`prepareMaritimeRuntime`、`run-cycle.js`のsetpriv→`cloud_cycle.py`のreceipt mkdirを照合する。変更は固定tenant receipts親のno-follow fd初期化へ限定し、再帰chown/モデル成果物の書換えはしない。
+- [x] **c-5b / source修正:** 実行済みの非root失敗と既存runtime fixtureを根拠に固定`receipts`を既存ownership対象へ加える。既存のno-follow/10001/0700契約と旧receipt内容を保つ。元のpermission境界に絞って受入を確認する。
 - [ ] **c-5c / mainと採用:** sourceをcommit/push→実read-only review→exact HEAD必要checks→mainへ統合する。既存builder/upload/redeployを再利用して既存owned VMだけ新mainへ反映し、health/source hashと固定親ownershipを確認する。
 - [ ] **c-5d / 新実行の扱い:** v2がモデル前失敗し新cycle.jsonが存在しないことを公式readbackで確認する。保存済みv2 execution IDは保持し、修復後の別dispatch namespaceを設けて同業務occurrenceへ一回だけdispatchする。存在するunknown receiptを消したり別IDで同作用を重複させたりしない。
+
+
+**c-5a/b受入:** 実VMのreceipts親はuid/gid0・0755、home/buildは10001・0700、新v2 receipt directory/cycle.jsonは未作成。旧factory execution IDの現在GET404と過去completed証拠は分離する。固定親receiptsの既存no-follow ownership対象への追加だけを実装する。receipt parent inodeが10001/10001準備対象から漏れるfocused REDを確認し、修正後runtime-env6/6を確認する。fixtureはownership syscallのみ記録し、実chownの採用は新imageで別確認する。現在副cursor=c-5c。証拠→`docs/evidence/maritime/owned-factory-v2-preflight.json`。

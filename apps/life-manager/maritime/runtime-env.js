@@ -42,7 +42,7 @@ function prepareMaritimeRuntime({ env = process.env, baseConfig, dataRoot = '/da
   if (restricted) {
     // Only fixed tenant directories change ownership, through no-follow fds.
     // Never recursively chown model-controlled paths or the immutable release.
-    for (const target of [home, ...['home', 'agent-codex', 'claude', 'tmp', 'agent-ledgers', 'state', 'runtime', 'evidence', 'build'].map(name => path.join(home, name))]) {
+    for (const target of [home, ...['home', 'agent-codex', 'claude', 'tmp', 'agent-ledgers', 'state', 'runtime', 'evidence', 'receipts', 'build'].map(name => path.join(home, name))]) {
       try { fs.mkdirSync(target, { mode: 0o700 }); } catch (error) { if (error.code !== 'EEXIST') throw error; }
       const fd = fs.openSync(target, directoryFlags);
       try { fs.fchownSync(fd, 10001, 10001); fs.fchmodSync(fd, 0o700); } finally { fs.closeSync(fd); }

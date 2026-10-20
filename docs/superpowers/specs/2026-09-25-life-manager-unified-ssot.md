@@ -20992,7 +20992,7 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 
 **TODO順変更:** 旧=一業務readiness→Cloud→入口→3人pilot→packet→1,000人。新=下記atomic ID順、提出経路確認T01・配布文案T24・台本T25は即着手可能。理由はDaisが知人DMを担当し、利用者feedbackを待たず実装・素材・提出準備を進められるため。先に試せる製品と正式必須項目を揃えて提出し、改善と獲得を継続する。全体統括cursorと進行中provider effectは変更しない。
 
-**Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細file/signature/acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。運用cursor=T22.1b.5-1（限定実験はREST未回復のためrollback済み。稼働PostgREST版/公式更新経路の読取→対象限定修復）。sourceはPR #8424の最終d13e1b8d7fで全14checks成功、main `0c559693f03b34770e9c1ff61616bbe2f2e497ed`へ統合する。既存Maritime VM一台とWeb/workerは同mainのimageを採用し、VMの実4source hash/healthとimage固定browserの非rootCDP/DOMを確認する。両appの必須設定・capacity3・内部cohortは稼働deploymentで照合し、公開email flagとMaritime capabilityは無効に保つ。DBの登録・実行・参加・利用計測migrationは公式success、Data APIの503 PGRST002は未解決、直近owned Auth Adminは200/subject・email一致。既存6ファイルのunknown receiptは維持し、新しい実業務・日報・停止・外部利用者・売上・正式提出・DaisへのURLメールは未確認/未完とする。
+**Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細file/signature/acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。運用cursor=T22.1b.5-1（Dashboard本人ログイン待ち）と独立副cursor=T22.1c-5c（receipts固定親ownership修正のreview/CI/main→新image採用）。sourceはPR #8424の最終d13e1b8d7fで全14checks成功、main `0c559693f03b34770e9c1ff61616bbe2f2e497ed`へ統合する。既存Maritime VM一台とWeb/workerは同mainのimageを採用し、VMの実4source hash/healthとimage固定browserの非rootCDP/DOMを確認する。両appの必須設定・capacity3・内部cohortは稼働deploymentで照合し、公開email flagとMaritime capabilityは無効に保つ。DBの登録・実行・参加・利用計測migrationは公式success、Data APIの503 PGRST002は未解決、直近owned Auth Adminは200/subject・email一致。既存6ファイルのunknown receiptは維持し、新しい実業務・日報・停止・外部利用者・売上・正式提出・DaisへのURLメールは未確認/未完とする。
 
 | ID | 一件の成果物 | 状態/依存 |
 |---|---|---|
@@ -21086,3 +21086,6 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 
 
 **Maritime T22.1cの自己所有修正cursor:** 新offline executionはモデル呼出前、cloud_cycle.py:111のreceipt.parent.mkdirでPermissionError/exit1。固定tenant directory初期化にreceipts親が含まれないため、lstat診断→runtime-env.jsの固定no-follow ownership対象へ追加→source受入/main→新owned image採用を進める。旧順序=新cycle結果→成果物、新順序=権限境界修正→未着手receipt確認→同occurrenceの一回再dispatch→成果物、理由=自己所有の初期化欠落を実測したため。旧unknownとv2のprovider IDは保持し、model前失敗と確認するまで再送しない。具体→Atomic Plan c-5a〜d。
+
+
+**T22.1c-5a/b source受入:** 公式lstatはreceipts親uid/gid0・0755、新v2 receipt未作成を返す。固定親receiptsをruntime-env.jsの既存no-follow ownership対象へ加える1箇所の修正とし、再帰chownはしない。focused RED→runtime-env6/6を確認し、実imageのchown/再実行は未完。副cursor=c-5c、証拠→docs/evidence/maritime/owned-factory-v2-preflight.json。DB側b.5本人ログイン待ちと分離して進める。

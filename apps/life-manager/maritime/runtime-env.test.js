@@ -93,3 +93,25 @@ print('existing-runner-profile-contract-pass')
   assert.equal(probe.status, 0, probe.stderr);
   assert.equal(probe.stdout.trim(), 'existing-runner-profile-contract-pass');
 });
+
+test('restricted startup prepares the fixed receipt parent without rewriting old receipt contents', t => {
+  const input = fixture(t);
+  const home = path.join(fs.realpathSync(input.dataRoot), UID);
+  const receipts = path.join(home, 'receipts');
+  fs.mkdirSync(receipts, { recursive: true, mode: 0o700 });
+  const oldReceipt = path.join(receipts, 'prior-cycle.json');
+  fs.writeFileSync(oldReceipt, 'old-unknown-receipt\n');
+  const changedOwners = [];
+  // Only ownership syscalls are recorded: the real no-follow open, chmod,
+  // JSON writes and existing receipt bytes still run in this private fixture.
+  const boundaryFs = { ...fs, fchownSync(fd, uid, gid) {
+    changedOwners.push({ inode: fs.fstatSync(fd).ino, uid, gid });
+  } };
+  const context = { URL, structuredClone, module: { exports: {} }, process: { platform: 'linux', getuid: () => 0 },
+    require: name => name === 'node:fs' ? boundaryFs : require(name) };
+  require('node:vm').runInNewContext(fs.readFileSync(path.join(__dirname, 'runtime-env.js'), 'utf8'), context);
+  context.module.exports.prepareMaritimeRuntime(input);
+  assert.equal(changedOwners.some(row => row.inode === fs.statSync(receipts).ino && row.uid === 10001 && row.gid === 10001), true);
+  assert.equal(fs.statSync(receipts).mode & 0o777, 0o700);
+  assert.equal(fs.readFileSync(oldReceipt, 'utf8'), 'old-unknown-receipt\n');
+});
