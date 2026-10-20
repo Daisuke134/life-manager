@@ -5,8 +5,10 @@ on:
     paths:
       - 'products/manager/scripts/heartsteps_research.py'
       - 'products/manager/scripts/heartsteps_phase3.py'
+      - 'products/manager/scripts/heartsteps_phase3_public.py'
       - 'products/manager/tests/test_heartsteps_research_h002_h004.py'
       - 'products/manager/tests/test_heartsteps_phase3.py'
+      - 'products/manager/tests/test_heartsteps_phase3_public.py'
       - '.github/workflows/manager-heartsteps-research.yml'
   workflow_dispatch:
 permissions:
@@ -25,11 +27,11 @@ jobs:
       - name: Focused source tests
         run: python -m unittest tests/test_heartsteps_research_h002_h004.py -v
       - name: Focused reproduction tests
-        run: python -m unittest tests/test_heartsteps_phase3.py -v
+        run: python -m unittest tests/test_heartsteps_phase3.py tests/test_heartsteps_phase3_public.py -v
       - name: Download pinned source temporarily and emit aggregate source report
         run: python scripts/heartsteps_research.py --output output/heartsteps
       - name: Reproduce analysis set and aggregate models
-        run: python scripts/heartsteps_phase3.py --output output/heartsteps-phase3
+        run: python scripts/heartsteps_phase3_public.py --output output/heartsteps-phase3
       - name: Verify no raw CSV persisted in repository workspace
         run: |
           test ! -e data/raw/suggestions.csv
