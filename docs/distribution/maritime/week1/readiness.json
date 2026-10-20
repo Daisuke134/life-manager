@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "host_dependencies": [
+    {
+      "file": "skills/self/capafy-loop/capafy-loop-daily.sh",
+      "boundary": "personal dotenv/source origin/owner prompt/Telegram",
+      "resolution": "Cloud delegates before personal reads to T09 adapter",
+      "status": "source_changed_not_deployed"
+    },
+    {
+      "file": "skills/capafy-autopublish/scripts/daily_loop.sh",
+      "boundary": "state fallback and dotenv",
+      "resolution": "Cloud requires explicit state/workspace/catalog and skips dotenv",
+      "status": "source_changed_not_deployed"
+    },
+    {
+      "file": "skills/capafy-autopublish/scripts/daily_loop.sh",
+      "boundary": "stat -f %m lock age",
+      "resolution": "Linux fixture still required in T08",
+      "status": "unverified"
+    },
+    {
+      "file": "skills/capafy-autopublish/scripts/cloud_cycle.py",
+      "boundary": "tenant runner adapter",
+      "resolution": "T09 implementation pending",
+      "status": "not_implemented"
+    }
+  ],
+  "linux_runtime": null,
+  "browser_attach": null,
+  "provider_auth": null,
+  "prepare": null,
+  "finish": null,
+  "readback": null,
+  "limitations": [
+    "Focused host-boundary tests use local provider fixtures; no real Cloud factory or provider effect verified."
+  ]
+}

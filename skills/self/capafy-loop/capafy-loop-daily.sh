@@ -1,4 +1,14 @@
 #!/usr/bin/env bash
+# Cloud uses the tenant adapter, before reading any personal launchd environment.
+if [ "${LM_RUNTIME_HOST:-}" = "maritime" ]; then
+  for cloud_required in LM_RUNTIME_TENANT_ID LIFE_MANAGER_OCCURRENCE_ID LM_RUNTIME_DATE_KEY LIFE_MANAGER_STATE_HOME LIFE_MANAGER_BUILD_WORKSPACE; do
+    [ -n "${!cloud_required:-}" ] || { echo "$cloud_required required for Maritime" >&2; exit 2; }
+  done
+  CLOUD_CYCLE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../capafy-autopublish/scripts" && pwd)/cloud_cycle.py"
+  [ -f "$CLOUD_CYCLE" ] || { echo "Maritime tenant cycle adapter unavailable" >&2; exit 2; }
+  exec python3 "$CLOUD_CYCLE" --tenant "$LM_RUNTIME_TENANT_ID" \
+    --occurrence "$LIFE_MANAGER_OCCURRENCE_ID" --date "$LM_RUNTIME_DATE_KEY"
+fi
 # Load the private launchd environment before any child process is started. Keep the source
 # outside the repository, suppress dotenv output, and export every assignment so provider keys
 # (including OpenRouter) reach the existing runner without ever being printed here.

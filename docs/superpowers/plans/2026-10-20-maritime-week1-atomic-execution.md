@@ -219,7 +219,7 @@ life-manager/
 ## Task T07: Capafy factoryのhost pathを注入可能にする
 
 **Files:** Modify `skills/self/capafy-loop/capafy-loop-daily.sh`、`skills/capafy-autopublish/scripts/daily_loop.sh`。Create `skills/capafy-autopublish/test/test_cloud_paths.py`。
-**Interfaces:** Consume `LIFE_MANAGER_REPO`（immutable source）、`LIFE_MANAGER_STATE_HOME`、`CAPAFY_STATE_DIR`、`AGENT_RUNNER_WORKDIR`、`LIFE_MANAGER_BUILD_WORKSPACE`。Cloud callerは全て`/data/<tenant>`へbind。
+**Interfaces:** Consume `LIFE_MANAGER_REPO`（immutable source）、`LIFE_MANAGER_STATE_HOME`、`CAPAFY_STATE_DIR`、`AGENT_RUNNER_WORKDIR`、`LIFE_MANAGER_BUILD_WORKSPACE`。Cloud callerはstate/buildを`/data/<tenant>`へbind。`LM_RUNTIME_HOST=maritime`、`LM_RUNTIME_TENANT_ID`、`LIFE_MANAGER_OCCURRENCE_ID`、`LM_RUNTIME_DATE_KEY`を渡す。Local専用wrapperは個人env読込前にT09のcloud_cycle.pyへdelegateし、T09未実装なら実行不可を明示する。
 **Depends:** T02。
 
 - [ ] T07.1 既存scriptの`HOME/.local/state`、`.env`読込、mutable source要求、`/opt/homebrew`、Browser CDP呼出しを列挙し、変更対象行だけを`readiness.json.host_dependencies`へ記録する。

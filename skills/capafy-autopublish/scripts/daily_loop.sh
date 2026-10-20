@@ -8,6 +8,12 @@ set -uo pipefail
 AUTO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LIFE_MANAGER_REPO="${LIFE_MANAGER_REPO:-$(git -C "$AUTO" rev-parse --show-toplevel 2>/dev/null)}"
 [ -n "$LIFE_MANAGER_REPO" ] || { echo "LIFE_MANAGER_REPO could not be resolved" >&2; exit 2; }
+if [ "${LM_RUNTIME_HOST:-}" = "maritime" ]; then
+  for cloud_required in LIFE_MANAGER_STATE_HOME CAPAFY_STATE_DIR LIFE_MANAGER_BUILD_WORKSPACE CAPAFY_CATALOG_DIR; do
+    [ -n "${!cloud_required:-}" ] || { echo "$cloud_required required for Maritime" >&2; exit 2; }
+  done
+  export AGENT_RUNNER_WORKDIR="$LIFE_MANAGER_BUILD_WORKSPACE"
+fi
 LIFE_MANAGER_STATE_HOME="${LIFE_MANAGER_STATE_HOME:-$HOME/.local/state/life-manager}"
 CAPAFY_STATE_DIR="${CAPAFY_STATE_DIR:-$LIFE_MANAGER_STATE_HOME/state/capafy-autopublish}"
 export LIFE_MANAGER_REPO LIFE_MANAGER_STATE_HOME CAPAFY_STATE_DIR
@@ -58,7 +64,9 @@ else
 fi
 
 # load env (keys) for the child
-set -a; . "$LIFE_MANAGER_STATE_HOME/.env" 2>/dev/null; set +a
+if [ "${LM_RUNTIME_HOST:-}" != "maritime" ]; then
+  set -a; . "$LIFE_MANAGER_STATE_HOME/.env" 2>/dev/null; set +a
+fi
 
 echo "=== $TS daily_loop start ===" >> "$LOG"
 
