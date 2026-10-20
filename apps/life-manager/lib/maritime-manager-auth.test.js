@@ -18,13 +18,13 @@ function request(url, method="GET", body, headers={}) {
   const req=Readable.from(body===undefined?[]:[JSON.stringify(body)]);
   req.url=url;req.method=method;req.headers={origin:ORIGIN,"content-type":"application/json",...headers};return req;
 }
-function fixture({ user=USER, signInError=null, verifyError=null }={}) {
+function fixture({ user=USER, signInError=null, exchangeError=null }={}) {
   assert.equal(typeof handleMaritimeManagerAuth,"function","email auth handler must exist");
   const calls=[];
   const client={auth:{
     async signInWithOtp(input) { calls.push(["otp",input]);return {data:{},error:signInError}; },
-    async verifyOtp(input) { calls.push(["verify",input]);return {data:verifyError?{}:{session:{}},error:verifyError}; },
-    async exchangeCodeForSession(input) { calls.push(["exchange",input]);return {data:{session:{}},error:null}; },
+    async verifyOtp(input) { calls.push(["verify",input]);return {data:{session:{}},error:null}; },
+    async exchangeCodeForSession(input) { calls.push(["exchange",input]);return {data:exchangeError?{}:{session:{}},error:exchangeError}; },
     async getUser() { calls.push(["getUser"]);return {data:{user},error:null}; },
     async signOut() { calls.push(["signOut"]);return {error:null}; },
   }};
@@ -46,9 +46,9 @@ test("cross_origin_signup_is_rejected_before_provider_dispatch",async()=>{
 });
 test("confirmation_only_authenticates_and_redirects_to_activation_page",async()=>{
   const {deps,calls}=fixture();const res=response();
-  await handleMaritimeManagerAuth(request("/auth/maritime/confirm?token_hash=fixture-token-hash-123456&type=email"),res,deps);
+  await handleMaritimeManagerAuth(request("/auth/maritime/confirm?code=fixture-authorization-code","GET",undefined,{cookie:"lm-web-auth-code-verifier=fixture-verifier"}),res,deps);
   assert.equal(res.statusCode,302);assert.equal(res.headers.location,"/maritime?verified=1");
-  assert.deepEqual(calls.map(x=>x[0]),["verify","getUser","ensure"]);
+  assert.deepEqual(calls.map(x=>x[0]),["exchange","getUser","ensure"]);
   assert.equal(res.headers["referrer-policy"],"no-referrer");
 });
 test("unverified_email_cannot_resolve_a_manager_user",async()=>{
@@ -83,8 +83,8 @@ test("feature_is_disabled_without_explicit_config",async()=>{
 });
 
 test("expired_link_does_not_sign_out_an_existing_session",async()=>{
-  const {deps,calls}=fixture({verifyError:{status:403,message:"expired"}});const res=response();
-  await handleMaritimeManagerAuth(request("/auth/maritime/confirm?token_hash=fixture-expired-token-123&type=email"),res,deps);
+  const {deps,calls}=fixture({exchangeError:{status:403,message:"expired"}});const res=response();
+  await handleMaritimeManagerAuth(request("/auth/maritime/confirm?code=fixture-expired-code","GET",undefined,{cookie:"lm-web-auth-code-verifier=fixture-verifier"}),res,deps);
   assert.match(res.headers.location,/auth_error/);assert.equal(calls.some(x=>x[0]==="signOut"),false);
 });
 test("native_email_form_is_supported",async()=>{
@@ -98,4 +98,10 @@ test("duplicate_confirmation_and_oversize_signup_do_not_reach_provider",async()=
   assert.match(res.headers.location,/auth_error/);assert.equal(calls.length,0);res=response();
   await handleMaritimeManagerAuth(request("/auth/maritime/email","POST",{email:"a".repeat(5000)+"@example.invalid"}),res,deps);
   assert.equal(res.statusCode,400);assert.equal(calls.length,0);
+});
+
+test("unbound_token_hash_cannot_replace_an_existing_session",async()=>{
+  const {deps,calls}=fixture();const res=response();
+  await handleMaritimeManagerAuth(request("/auth/maritime/confirm?token_hash=attacker-owned-valid-token&type=email"),res,deps);
+  assert.match(res.headers.location,/auth_error/);assert.deepEqual(calls,[]);
 });

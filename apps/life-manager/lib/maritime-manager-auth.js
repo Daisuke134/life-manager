@@ -80,15 +80,14 @@ async function handleMaritimeManagerAuth(req, res, options = {}) {
     for (const key of ["token_hash", "code", "type"]) {
       if (url.searchParams.getAll(key).length > 1) throw new Error("invalid_confirmation");
     }
-    const hash = url.searchParams.get("token_hash"); const code = url.searchParams.get("code");
-    if (Boolean(hash) === Boolean(code)) throw new Error("invalid_confirmation");
-    if (hash && (url.searchParams.get("type") !== "email" || !/^[A-Za-z0-9_-]{16,512}$/.test(hash))) {
+    const code = url.searchParams.get("code");
+    // Only exchange the PKCE code for the browser that initiated signup.
+    // A bearer token_hash callback could otherwise replace somebody else's session.
+    if (url.searchParams.has("token_hash") || !code || code.length > 2048 || !hasPkceVerifier(req, options)) {
       throw new Error("invalid_confirmation");
     }
-    if (code && (code.length > 2048 || !hasPkceVerifier(req, options))) throw new Error("invalid_confirmation");
     client = clientFor(req, res, options);
-    const result = hash ? await client.auth.verifyOtp({ token_hash: hash, type: "email" })
-      : await client.auth.exchangeCodeForSession(code);
+    const result = await client.auth.exchangeCodeForSession(code);
     if (result?.error || !result?.data?.session) throw new Error("invalid_confirmation");
     sessionEstablished = true;
     const user = await resolveMaritimeManagerUser(req, res, { ...options, createClient: () => client });

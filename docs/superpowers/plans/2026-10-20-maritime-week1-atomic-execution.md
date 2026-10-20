@@ -175,7 +175,7 @@ life-manager/
 **Depends:** T03。
 
 - [ ] T04.1 test `email_auth_does_not_require_google_calendar_goal_budget_or_telegram`と`unverified_email_cannot_activate`を定義。fake verified authをinjectしてUID以外の必須入力がないこと、未確認メールはrejectをassert。
-- [ ] T04.2 公式例の`signInWithOtp({email,options:{shouldCreateUser:true,emailRedirectTo:...}})`と`verifyOtp({token_hash,type:'email'})`を既存SSR cookie clientで使う。user確認は`getUser()`で行い、request本文のuidは信頼しない。
+- [ ] T04.2 公式例の`signInWithOtp({email,options:{shouldCreateUser:true,emailRedirectTo:...}})`と既存SSR PKCEの`exchangeCodeForSession(code)`を使う。token_hash単独callbackはlogin CSRFになるため受け付けず、開始browserのPKCE cookieを必須にする。user確認は`getUser()`で行い、request本文のuidは信頼しない。
 - [ ] T04.3 Google専用`resolveWebUser`/`hasVerifiedGoogleIdentity`を緩めず、専用email resolverで`ensureWebUser`の既存tenant分離を再利用する。confirm GETではfactoryを起動せず、登録継続画面へredirectする。
 - [ ] T04.4 rate-limit/expired-token/open-redirect/source cookieのfocused casesを同testに含め、`node --test lib/maritime-manager-auth.test.js lib/web-auth.test.js`で既存Google経路も維持してcommit/push。
 
