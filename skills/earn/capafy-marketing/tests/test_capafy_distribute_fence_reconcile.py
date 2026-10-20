@@ -619,3 +619,56 @@ def test_unknown_x_post_remains_fenced_alongside_preexisting_video(tmp_path, mon
     result = proof(200, {"ok": True, "commits": []}, rec.read_x_posts(Q, Q))
     assert result["verified"] is False
     assert result["reason"] == "x_post_without_article"
+
+
+def test_invalid_utf8_query_does_not_block_exact_ascii_slug_readback(tmp_path, monkeypatch):
+    slug = 'capafy-hook-lab-2026-09-29-h21m00'
+    occurrence_run(tmp_path, monkeypatch, OCC, Q, slug)
+    prompt = tmp_path / 'runs/capafy-distribute-2026-09-29-h21m00/prompt.txt'
+    prompt.write_bytes(prompt.read_bytes() + b'query: \xe3\\203\xaa\n')
+    assert rec.expected_article_slug(OCC) == slug
+    for age, posts, verified in ((30, [], False), (90, [], True),
+                                 (90, ['unaccounted-post'], False)):
+        result = rec.reconcile(
+            OCC, now=Q + dt.timedelta(minutes=age),
+            fenced_row_fn=lambda *_args: ('claimed', Q),
+            commits_fn=lambda *_args: {'ok': True, 'commits': []},
+            x_fn=lambda *_args: {'ok': True, 'posts': posts})
+        assert result['verified'] is verified
+    prompt.write_bytes(prompt.read_bytes() + b'https://aniccaai.com/blog/conflicting-slug\n')
+    try:
+        rec.expected_article_slug(OCC)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError('conflicting URL was accepted in a damaged prompt')
+
+
+def test_damaged_prompt_requires_the_whole_canonical_url_not_a_slug_prefix(tmp_path, monkeypatch):
+    slug = 'capafy-hook-lab-2026-09-29-h21m00'
+    occurrence_run(tmp_path, monkeypatch, OCC, Q, slug)
+    prompt = tmp_path / 'runs/capafy-distribute-2026-09-29-h21m00/prompt.txt'
+    prefix = b'https://aniccaai.com/blog/' + slug.encode('ascii')
+    for suffix in (b'\xe3', b'/other', b'--broken', b'%2Fother'):
+        prompt.write_bytes(prefix + suffix + b'\n')
+        try:
+            rec.expected_article_slug(OCC)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f'noncanonical URL prefix was accepted: {suffix!r}')
+
+
+def test_damaged_url_is_not_ignored_when_a_valid_url_is_also_present(tmp_path, monkeypatch):
+    slug = 'capafy-hook-lab-2026-09-29-h21m00'
+    occurrence_run(tmp_path, monkeypatch, OCC, Q, slug)
+    prompt = tmp_path / 'runs/capafy-distribute-2026-09-29-h21m00/prompt.txt'
+    prefix = b'https://aniccaai.com/blog/'
+    for path in (slug.encode('ascii') + b'\xff-other', b''):
+        prompt.write_bytes(prefix + slug.encode('ascii') + b'\n' + prefix + path + b'\n')
+        try:
+            rec.expected_article_slug(OCC)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError('invalid extra publication URL was silently skipped')

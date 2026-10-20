@@ -166,8 +166,8 @@ fi
 # Keyword pages must carry the query in the H1 and are announced to IndexNow (key file is public on aniccaai.com).
 SEO_QUERY="${SEO_QUERY:-}"
 INDEXNOW_KEY=92ec974b25b70513c2cbc172f532bb3b
-# Pre-quoted: bash drops the quotes inside ${VAR:+ "..."} in the model brief here-document.
-SEO_PUBLISH_FLAGS=""; [ -n "$SEO_QUERY" ] && SEO_PUBLISH_FLAGS=" --title-must-contain $(printf '%q' "$SEO_QUERY") --indexnow-key $INDEXNOW_KEY"
+# Pre-quote as UTF-8 text: macOS Bash printf %q can split multibyte query bytes.
+SEO_PUBLISH_FLAGS=""; [ -n "$SEO_QUERY" ] && SEO_PUBLISH_FLAGS=" --title-must-contain $(python3 -c 'import shlex,sys; print(shlex.quote(sys.argv[1]))' "$SEO_QUERY") --indexnow-key $INDEXNOW_KEY"
 FREE_ARTICLE_URL="${ARTICLE_SELF_OWNED_BASE_URL:-}"
 [ -n "$FREE_ARTICLE_URL" ] && FREE_ARTICLE_URL="${FREE_ARTICLE_URL%/}/blog/${FREE_ARTICLE_SLUG}"
 

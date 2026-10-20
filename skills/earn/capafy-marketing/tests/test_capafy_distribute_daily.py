@@ -135,3 +135,20 @@ def test_seo_brief_renders_under_launchd_python39() -> None:
         capture_output=True, text=True, check=True,
     ).stdout
     assert 'search query "hook script template" in language "en"' in out
+
+
+def test_publish_flags_preserve_utf8_and_one_shell_argument_across_locales() -> None:
+    import shlex
+
+    (assignment,) = [line for line in SCRIPT.read_text().splitlines()
+                     if line.startswith('SEO_PUBLISH_FLAGS=')]
+    for locale in ('en_US.UTF-8', 'C'):
+        for query in ('リール 冒頭 文言', 'ganchos para vídeos',
+                      "creator's hook; $(echo must-stay-literal)"):
+            result = subprocess.run(
+                ['/bin/bash', '-c', assignment + '\nprintf "%s" "$SEO_PUBLISH_FLAGS"'],
+                env=os.environ | {'SEO_QUERY': query, 'INDEXNOW_KEY': 'test',
+                                  'LC_ALL': locale}, capture_output=True, check=True)
+            flags = result.stdout.decode('utf-8')
+            assert shlex.split(flags) == ['--title-must-contain', query,
+                                          '--indexnow-key', 'test']
