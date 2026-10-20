@@ -168,3 +168,17 @@ test('artifact bytes require bound no-follow proof, fixed workspace path and mat
  for(const input of [{uid:UID,agentId:'foreign',artifactRef:ref},{uid:UID,agentId:'agent-1',artifactRef:'artifact://../private'}])await assert.rejects(f.transport.readArtifact(input));
  assert.equal(f.calls.length,before);
 });
+
+
+test('loaded wake configuration is read-only and rejects stale relay bindings',async()=>{
+ const binding=createMaritimeWakeBinding({uid:UID,agentId:'agent-1',releaseSha:SHA},{secret:env.LM_MARITIME_MANAGER_ID_SECRET,publicOrigin:'https://panel.invalid'});
+ const calls=[];let stale=false;
+ const managerStore={read:async()=>({uid:UID,agent_id:'agent-1',release_sha:SHA,status:'active',paused_at:null}),claimProvision:async()=>{},bindAgent:async()=>{}};
+ const client={agents:{exec:async(id,command,options)=>{calls.push([id,command,options]);return {status:'completed',exitCode:0,stdout:JSON.stringify({health:{ok:true,releaseSha:SHA,relayBindingHash:stale?'0'.repeat(64):createHash('sha256').update(binding.token).digest('hex')},schedules:[]})};}}};
+ const transport=createMaritimeManagerTransport({env,managerStore,client,getWakeBinding:async()=>binding});
+ assert.deepEqual(await transport.readWakeConfiguration({uid:UID,agentId:'agent-1',releaseSha:SHA}),{ready:true,schedules:[]});
+ assert.equal(calls[0][1],'node /app/apps/life-manager/maritime/runtime-status.js');
+ assert.equal(calls[0][2].detached,false);
+ stale=true;
+ assert.equal((await transport.readWakeConfiguration({uid:UID,agentId:'agent-1',releaseSha:SHA})).ready,false);
+});

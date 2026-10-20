@@ -20,6 +20,7 @@ function createMaritimeManagerServer({ config = {}, relayWake, readSchedules, re
   const server = http.createServer(async (request, response) => {
     if (request.method === 'GET' && request.url === '/health') {
       json(response, ready ? 200 : 503, { ok: ready, releaseSha,
+        ...(/^[0-9a-f]{64}$/.test(config.relayBindingHash || '') ? { relayBindingHash: config.relayBindingHash } : {}),
         ...(!ready ? { errorClass: modelReady ? 'wake_relay_unconfigured' : 'cloud_model_config_missing' } : {}) });
       return;
     }
@@ -91,7 +92,8 @@ function startMaritimeManagerServer({ env = process.env, prepareRuntime, fetchIm
   }
   const prepare = prepareRuntime || require('./runtime-env.js').prepareMaritimeRuntime;
   const runtime = prepare({ env });
-  const server = createMaritimeManagerServer({ config: runtime.config, relayWake });
+  const server = createMaritimeManagerServer({ config: { ...runtime.config, relayBindingHash: relayWake
+    ? require('node:crypto').createHash('sha256').update(env.LM_WAKE_RELAY_TOKEN).digest('hex') : null }, relayWake });
   server.listen(port, '0.0.0.0');
   return server;
 }

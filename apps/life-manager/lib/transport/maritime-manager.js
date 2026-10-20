@@ -238,6 +238,25 @@ function createMaritimeManagerTransport({ env = {}, fetchImpl = globalThis.fetch
         return Buffer.concat(chunks, total);
       } finally { if (!ended) { try { await reader.cancel(); } catch {} } }
     }); },
+    readWakeConfiguration(input) { return safe(async () => {
+      const uid = valid(input?.uid, UID), agentId = valid(input.agentId, ID), releaseSha = valid(input.releaseSha, SHA);
+      await enrollment(uid, agentId, releaseSha);
+      if (typeof getWakeBinding !== 'function') throw new TransportError('unconfigured', false);
+      const wake = await getWakeBinding({ uid, agentId, releaseSha });
+      const identity = verifyMaritimeWakeToken(wake?.token, uidSecret);
+      if (!identity || identity.uid !== uid || identity.agentId !== agentId || identity.releaseSha !== releaseSha) throw new TransportError('relay_invalid', false);
+      const execution = await (await sdk()).agents.exec(agentId,
+        'node /app/apps/life-manager/maritime/runtime-status.js', { detached: false, timeout: 10 });
+      if (execution?.status !== 'completed' || execution.exitCode !== 0 || typeof execution.stdout !== 'string'
+        || Buffer.byteLength(execution.stdout) > 65536) throw new TransportError('runtime_readback_unavailable');
+      let result;
+      try { result = JSON.parse(execution.stdout); } catch { throw new TransportError('runtime_readback_invalid'); }
+      if (result?.health?.ok !== true || result.health.releaseSha !== releaseSha
+        || result.health.relayBindingHash !== createHash('sha256').update(wake.token).digest('hex')) return { ready: false };
+      try { validateMaritimeScheduleSnapshot({ schema_version: 1, tenantId: uid, releaseSha, paused: false, schedules: result.schedules }, uid, releaseSha); }
+      catch { return { ready: false }; }
+      return { ready: true, schedules: result.schedules };
+    }); },
     writeScheduleSnapshot(input) { return safe(async () => {
       const uid = valid(input?.uid, UID); const agentId = valid(input.agentId, ID);
       const snapshot = structuredClone(input.snapshot);
