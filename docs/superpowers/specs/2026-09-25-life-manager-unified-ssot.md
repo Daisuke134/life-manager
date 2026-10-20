@@ -20600,7 +20600,7 @@ Top 10 by sales: 0/10 with a trial (Ocup 3,111, Serenity 2,002, HookAce 1,044, V
 
 初週は同じbusiness-kernelの一業務をCloudで完走させる。第一候補は既存factoryと売上実績のあるCapafyで、Affiliate/blog・Writerは代替候補。どの業務も新規利用者のaccount・Cloud adapter・公式receiptまで動くことは今回未確認で、readinessから実行対象を確定する。業務仮説は「メール登録→Managerが可能な収益業務を自ら選ぶ→制作/公開/配布→実際の流入・注文/売上を確認→次の施策→日次メール」。売上未発生・失敗・確認待ちはそのまま報告し、推定値やlistingを入金に置換しない。既存distribution adapterとreceipt/CFOを再利用する。旧案の日次計画chatは自律収益業務の完成証明にしない。
 
-**説明文訂正:** READMEの「turns goals into…evidence in Telegram」を置換し、目標/予算入力必須という追加前提を削除する。公開サイト https://aniccaai.com/lm にも「Set your goals and delegated boundaries」「evidence in Telegram」が残ることを今回crawlで確認。日英README・`.agents/startup-context.json`・日英サイト原稿をまとめて訂正し、原稿のmanifest hashを更新する。応募kit生成template内にもTelegram固定文があったため訂正し、application-kit（回答・one-pager・deck/PDF・receipt）を新contextから再生成する。公開サイトのdeploy/readbackは未完で、source訂正だけで公開修正済みとはしない。
+**説明文訂正:** READMEの「turns goals into…evidence in Telegram」を置換し、目標/予算入力必須という追加前提を削除する。公開サイト https://aniccaai.com/lm にも「Set your goals and delegated boundaries」「evidence in Telegram」が残ることを今回crawlで確認。日英README・`.agents/startup-context.json`・日英サイト原稿をまとめて訂正し、原稿のmanifest hashを更新する。応募kit生成template内にもTelegram固定文があったため訂正し、application-kit（回答・one-pager・deck/PDF・receipt）を新contextから再生成する。公開サイトのdeploy/readbackは未完で、source訂正だけで公開修正済みとはしない。 `.agents/product-marketing-context.md`の意味定義も同期する。既存Startup context driftのREADME文言assertionは旧文「acts within / 委任された範囲」を必須にしていたため、訂正済みの目標/予算入力不要という契約へ更新する。deliveryの既存local/cloud検証は維持して追加説明fieldを許容する。新規テスト追加/ローカルsuite実行は行わず既存CIで確認する。#8394はmain `5ce0fb939a`へ統合済みだが、merge helperがchecks未登録のnull bucketを通したことを確認。以後この作業ではhelperを再実行せず、exact-headの全check登録・完了・successを明示readbackする。既存OSS generated_artifact失敗は本作業外で未解消。
 
 **最新source/specのAs-Is → To-Be（main 060297d154を読取基準）:**
 
