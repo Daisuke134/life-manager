@@ -61,7 +61,7 @@ function database(opts = {}) {
     const Pool = opts.Pool || require("pg").Pool;
     defaultPool = new Pool({ connectionString, max: 8 });
   }
-  return { query: defaultPool.query.bind(defaultPool) };
+  return { query: defaultPool.query.bind(defaultPool), connect: defaultPool.connect.bind(defaultPool) };
 }
 
 function buildRuntimeJob(input) {
@@ -349,6 +349,31 @@ async function claimJobs(input, opts = {}) {
   )).rows;
 }
 
+// Reserve only a bounded provider-readback window; this never reclaims an effect.
+async function claimReconcilingJobs(input, opts = {}) {
+  const capabilities = input && input.capabilities;
+  if (!Array.isArray(capabilities) || capabilities.length < 1 || capabilities.length > 50) {
+    throw new Error("runtime capabilities invalid");
+  }
+  const boundedCapabilities = capabilities.map(value => nonEmpty(value, "runtime capability"));
+  const tenantId = input.tenantId == null ? null : nonEmpty(input.tenantId, "runtime tenant id");
+  const limit = positiveInteger(input.limit == null ? 1 : input.limit, "runtime reconcile limit", 50);
+  const { query } = database(opts);
+  return (await query(`
+    WITH due AS (
+      SELECT job_id FROM public.lm_runtime_jobs
+      WHERE status = 'reconciling' AND capability = ANY($1::text[])
+        AND ($2::text IS NULL OR tenant_id = $2)
+        AND updated_at <= clock_timestamp() - interval '30 seconds'
+      ORDER BY updated_at, job_id
+      LIMIT $3 FOR UPDATE SKIP LOCKED
+    )
+    UPDATE public.lm_runtime_jobs AS jobs SET updated_at = clock_timestamp()
+    FROM due WHERE jobs.job_id = due.job_id
+    RETURNING jobs.*
+  `, [boundedCapabilities, tenantId, limit])).rows;
+}
+
 function identity(input, withWorker = true) {
   const value = {
     tenantId: nonEmpty(input && input.tenantId, "runtime tenant id"),
@@ -447,6 +472,34 @@ async function resolveReconciliation(input, opts = {}) {
   );
 }
 
+async function resolveReconciliationAndEnqueue(input, opts = {}) {
+  const id = identity(input, false);
+  if (input.decision !== "present") throw new Error("runtime reconciliation decision invalid");
+  const receipt = receiptObject(input.receipt);
+  const next = buildRuntimeJob(input.nextJob);
+  const availableAt = availableInstant(input.availableAt);
+  if (next.tenant_id !== id.tenantId) throw new Error("runtime continuation tenant mismatch");
+  const connect = opts.connect || database(opts).connect;
+  if (typeof connect !== "function") throw new Error("runtime transaction connection unavailable");
+  const client = await connect();
+  if (!client || typeof client.query !== "function" || typeof client.release !== "function") {
+    throw new Error("runtime transaction connection invalid");
+  }
+  try {
+    await client.query("BEGIN");
+    const transaction = { query: client.query.bind(client) };
+    const parent = await resolveReconciliation({ ...id, decision: "present", receipt }, transaction);
+    await enqueueJobAt(next, availableAt, transaction);
+    await client.query("COMMIT");
+    return parent;
+  } catch (error) {
+    try { await client.query("ROLLBACK"); } catch { /* Keep the original transaction failure. */ }
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 async function recordUnknownReconciliation(input, opts = {}) {
   const id = identity(input, false);
   const maxUnknown = input.maxUnknownResults == null
@@ -477,11 +530,13 @@ module.exports = {
   readCommonJob,
   readCommonReceipt,
   claimJobs,
+  claimReconcilingJobs,
   heartbeatJob,
   completeJob,
   completeJobAndEnqueue,
   failJob,
   resolveReconciliation,
+  resolveReconciliationAndEnqueue,
   recordUnknownReconciliation,
   closeRuntimeJobStore,
   MAX_UNKNOWN_RECONCILE_RESULTS,
