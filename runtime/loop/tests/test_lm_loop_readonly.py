@@ -1062,6 +1062,9 @@ class LmLoopReadonlyTest(unittest.TestCase):
                 self.assertIsNone(_last_event(str(root), "missing", cache, running_pid="789"))
             self.assertEqual(reads.call_count, 1)
             self.assertEqual(validations.call_count, 4)
+            (root / "events.jsonl").write_text(
+                json.dumps(a_report) + "\n" + json.dumps(running("a", "None")) + "\n")
+            self.assertEqual(_last_event(str(root), "a"), a_report)
 
     def test_last_event_prefers_pid_bound_diagnostic_running_event(self):
         with tempfile.TemporaryDirectory() as directory:

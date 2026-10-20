@@ -381,8 +381,10 @@ class LmLoopHealthTest(unittest.TestCase):
                 event("capafy-goal-monitor-hourly", "hourly", "2026-10-18T07:27:49+00:00"),
                 encoding="utf-8",
             )
+            cache = {}
+            self.assertIsNone(lm_loop._last_event(directory, "capafy-goal-monitor", cache))
             latest = lm_loop._last_event(
-                directory, "capafy-goal-monitor", include_health_clocks=True,
+                directory, "capafy-goal-monitor", cache, include_health_clocks=True,
             )
 
         self.assertIsNotNone(latest)

@@ -132,6 +132,8 @@ C2の次の原子作業は、(1) fresh Data freeと既存host inventory/growth/c
 
 **共有indexの本番条件canary結果:** PR #8417/main `3286ef1516d3bf791533aa25cc9a95713917d6f9`は全12 CI PASS、完全immutable `20261021T013439-3286ef15`を作成する。Background read-only canaryは約30.6秒で191全欠測/history_limited0のまま。本番ownerへ再採用していない。traceはPID付き常駐ownerが同じx402-sell journalを約2.5秒で再走査することと、共有indexで過去の全reportへ不要なvalidationを繰り返すことを示す。次の契約は、共有indexに最新の検証済reportとそれより新しいPID-bound runningを保存し、他PID/他ownerも同じindexを使い、過去/無関係eventの重複validationを省くこと。単独journal早期終了と無効event排除を保ち、最小RED・差分第三review・CI/main/immutable・同じBackground canaryで検証する。失敗canaryを成功へ置換せず、capacity/revenueは未完。
 
+**現在state/PID indexのsource受入:** REDで同一journalのPID/通常/不存在の5要求が5readになることを確認し、完成した最新report/running indexの共有後は1readとなる。過去1,000件を毎回validateせず、無効な最新reportの後も有効reportを取得する。第三の独立差分reviewは修正前HEAD `d718516a41`へ2 blockingを指摘する（PID未指定の文字列Noneとの偽一致、current missをhistory missと誤認）。両方を既存testでREDにして、PID指定の明示判定とhistory clock cacheの判定分離で修正し、関連119 tests/diff check PASS。無効loop IDも除外し、既知の診断不足reportは古い正常値へ戻さない。第三round後に追加reviewを重ねず、指摘と修正の検証結果を記録する。SQLiteの既存ResourceWarningは継続。新差分のCI/main/Background canary/自然受入は未完で、前2回のcanary未達とC2未完を保持する。
+
 ### 同時進行の基盤監査との統合
 
 [PR #8409](https://github.com/Daisuke134/life-manager/pull/8409)の追加観測と[PR #8408](https://github.com/Daisuke134/life-manager/pull/8408)のOpenClaw更新を保持する。source研究の固定base70a5e365と、統合時main4dcb2769を区別する。別監査の14:23Z `df`は3,743,008KiB（約3.57GiB）、swap7,167MiB/8GiB、corespotlightd RSS約25MiB（14:23Z）/約168MiB（14:10Z）。10/19の約16GBという旧原因観測を現在へ持ち越さず、現在の容量writerは未特定のままとする。一般producer12GiB / revenue producer10GiB / recovery2GiBを別々に評価する。

@@ -2233,8 +2233,8 @@ def _last_event(state_root: str, loop_id: str | None = None,
         # missing loop id is a cached miss rather than an unscanned one.
         if running_pid is None and (loop_id in cached or None in cached):
             cached_event = cached.get(loop_id)
-            if (not include_health_clocks or cached_event is None
-                    or "_health_clocks" in cached_event):
+            if (not include_health_clocks
+                    or (cached_event is not None and "_health_clocks" in cached_event)):
                 return cached_event
     reports: dict[str | None, dict] = {}
     try:
@@ -2269,7 +2269,8 @@ def _last_event(state_root: str, loop_id: str | None = None,
         is_report = value.get("phase") == "report" and event_loop not in reports
         running_key = (event_loop, str(value.get("run_id", "")).rsplit("-", 1)[-1])
         is_running = (
-            (cache is not None or running_key == (loop_id, str(running_pid)))
+            (cache is not None or (running_pid is not None
+                                  and running_key == (loop_id, str(running_pid))))
             and value.get("phase") == "execute"
             and value.get("status") == "running"
             and value.get("job_id") is not None
