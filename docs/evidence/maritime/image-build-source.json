@@ -9,7 +9,12 @@
   "archive_mode_600": true,
   "dockerfile_matches_main": true,
   "publisher_profile_source_present": true,
-  "uploaded": false,
+  "uploaded": true,
   "image_built": false,
-  "image_digest": null
+  "image_digest": null,
+  "upload_http_status": 200,
+  "upload_has_root_dockerfile": true,
+  "upload_detected_framework": "custom",
+  "upload_reference_stored_privately": true,
+  "upload_response_file_preview_count": 100
 }

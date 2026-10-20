@@ -93,7 +93,11 @@
     ],
     "agent_create_zip_field": "uploadS3Key",
     "archive_source": "main-derived verified commit only",
-    "remote_image_build": "not_started"
+    "remote_image_build": "owned free VM bootstrap next",
+    "archive_uploaded": true,
+    "upload_http_status": 200,
+    "upload_framework": "custom",
+    "upload_browser_transfer_boundary": "CDP file input limited to 50MB; same registered browser session APIRequestContext HTTP multipart succeeds"
   },
   "account_plan_readback": {
     "plan": "Free",
@@ -104,6 +108,7 @@
     "welcome_credit_expiry": "2026-11-19",
     "next_charge_usd": 0,
     "paid_upgrade_performed": false,
-    "competition_full_access_entitlement": "not_confirmed_on_account"
+    "competition_full_access_entitlement": "organizer Scale two-month coupon verified100percent at checkout, subscription not submitted",
+    "link_authentication": "pending user action; continue current free3 VM resources"
   }
 }

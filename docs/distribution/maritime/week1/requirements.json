@@ -62,9 +62,16 @@
     "source_subject": "You're in! Keiki x Maritime",
     "received_at": "2026-10-17T01:45:30Z",
     "maritime_benefit": "Scale plan, two months free via organizer promotion at Stripe checkout",
-    "maritime_checkout_verified": false,
+    "maritime_checkout_verified": true,
     "keiki_benefit": "invitation access plus USD25 LLM credits",
     "older_start_wording": "acceptance email says October19; newer kickoff/official common window remains October20",
-    "maritime_promotion_location": "private credential SSOT only"
+    "maritime_promotion_location": "private credential SSOT only",
+    "maritime_checkout_amount_due": 0,
+    "maritime_checkout_currency": "JPY",
+    "maritime_discount_percent": 100,
+    "maritime_discount_duration_months": 2,
+    "maritime_subscription_activated": false,
+    "maritime_card_required": true,
+    "link_authentication": "pending user action; connector withholds OTP"
   }
 }
