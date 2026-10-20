@@ -14,6 +14,7 @@ from pathlib import Path
 
 
 SCHEMA_VERSION = "lm-loop.health.v1"
+HEALTH_HISTORY_TIMEOUT = "health_history_timeout"
 SYSTEM_ROLES = frozenset({"platform", "control", "shared"})
 HEALTH_STATES = frozenset({
     "healthy", "running", "safely_fenced", "effect_unknown",
@@ -39,8 +40,8 @@ RFC3339_PATTERN = (
 )
 
 
-class HealthTimeout(TimeoutError):
-    pass
+class HealthTimeout(BaseException):
+    """Deadline cancellation must escape ordinary IO and adapter error handlers."""
 
 
 class HealthAdapterTimeout(HealthTimeout):
@@ -551,6 +552,14 @@ def project_health(rows: list[dict], *, scope: str = "fleet",
                 "next_action": row.get("next_action"),
             },
         })
+        if row.get("health_history_status") == HEALTH_HISTORY_TIMEOUT:
+            jobs[-1]["facets"]["productivity"] = {
+                "status": "unknown", "reason": HEALTH_HISTORY_TIMEOUT,
+            }
+            if jobs[-1]["facets"]["revenue"]["status"] != "not_applicable":
+                jobs[-1]["facets"]["revenue"] = {
+                    "status": "unknown", "reason": HEALTH_HISTORY_TIMEOUT,
+                }
     summary = {state: 0 for state in sorted(HEALTH_STATES)}
     for job in jobs:
         summary[job["state"]] += 1
@@ -668,11 +677,16 @@ def health_exit_code(value: dict) -> int:
         "safely_fenced", "effect_unknown", "telemetry_gap", "human_required", "failed",
     )
     return 1 if any(summary[name] for name in unsafe) or any(
-        revenue_attention(job) for job in value["jobs"]) else 0
+        revenue_attention(job)
+        or job["facets"]["productivity"]["reason"] == HEALTH_HISTORY_TIMEOUT
+        for job in value["jobs"]) else 0
 
 
 def revenue_attention(job: dict) -> bool:
-    return job["facets"]["revenue"]["status"] in {"blocked", "unknown"}
+    facet = job["facets"]["revenue"]
+    # Missing optional history requests another snapshot, not a producer repair.
+    return (facet["status"] in {"blocked", "unknown"}
+            and facet["reason"] != HEALTH_HISTORY_TIMEOUT)
 
 
 def render_human(value: dict) -> str:
@@ -684,6 +698,11 @@ def render_human(value: dict) -> str:
         f"human_required={summary['human_required']} failed={summary['failed']} "
         f"revenue_outage={sum(j['facets']['revenue']['status'] == 'blocked' for j in value['jobs'])}"
     )
+    history_limited = sum(
+        job["facets"]["productivity"]["reason"] == HEALTH_HISTORY_TIMEOUT
+        for job in value["jobs"])
+    if history_limited:
+        line += f" history_limited={history_limited}"
     problems = [
         f"{job['job_id']}: {job['state']} next={job['diagnostic']['next_action'] or 'none'}"
         for job in value["jobs"] if job["state"] != "healthy"

@@ -39,7 +39,7 @@ from runtime.loop.runtime_event import (
     DIAGNOSTIC_FIELDS, append_runtime_event, build_install_event, validate_runtime_event,
 )
 from runtime.loop.health import (
-    HealthTimeout, health_deadline, health_exit_code, project_health,
+    HEALTH_HISTORY_TIMEOUT, HealthTimeout, health_deadline, health_exit_code, project_health,
     read_storage_snapshot,
     render_human as render_health_human,
     render_skill as render_health_skill,
@@ -3312,8 +3312,13 @@ def main(argv: list[str] | None = None) -> int:
             }, sort_keys=True))
             return 2
         health_deadline_at = time.monotonic() + HEALTH_SNAPSHOT_TIMEOUT_SECONDS
+        current_rows = None
         try:
             with health_deadline(HEALTH_SNAPSHOT_TIMEOUT_SECONDS):
+                current_rows = snapshot(
+                    registry, health_target or "all", include_effect_details=False,
+                    include_health_clocks=False,
+                )
                 rows = snapshot(
                     registry, health_target or "all", include_effect_details=False,
                     include_health_clocks=True,
@@ -3326,8 +3331,12 @@ def main(argv: list[str] | None = None) -> int:
                 deadline_monotonic=health_deadline_at,
             )
         except HealthTimeout:
+            # A late historical scan must not erase the observed current state.
+            fallback = ([{**row, "health_history_status": HEALTH_HISTORY_TIMEOUT}
+                         for row in current_rows] if current_rows else
+                        _health_snapshot_timeout_rows(registry, health_target))
             value = project_health(
-                _health_snapshot_timeout_rows(registry, health_target),
+                fallback,
                 scope="loop" if health_target else "fleet",
                 target=health_target,
             )
