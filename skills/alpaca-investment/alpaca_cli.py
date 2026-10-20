@@ -59,6 +59,28 @@ SAFE_ERROR_CODES = frozenset({
     "investment_mode_invalid",
 })
 
+CRYPTO_VALIDATION_REASON_CODES = frozenset({
+    "response_shape_invalid", "pagination_incomplete", "symbol_set_invalid",
+    "symbol_bars_invalid", "bar_count_exceeded", "bar_timestamp_invalid",
+    "bar_timestamp_outside_window", "bar_timestamp_unaligned",
+    "bar_timestamp_not_increasing", "bar_price_invalid", "bar_ohlc_invalid",
+    "btc_bar_count_mismatch", "btc_timestamp_gap", "malformed_payload",
+})
+
+
+class CryptoValidationHistoryError(ValueError):
+    """Safe reason code and non-sensitive counts for one validation input failure."""
+
+    def __init__(self, reason_code: str, **details: Any):
+        self.reason_code = (reason_code if reason_code in CRYPTO_VALIDATION_REASON_CODES
+                            else "malformed_payload")
+        allowed_details = {"symbol", "expected_count", "actual_count", "row_index"}
+        self.details = {
+            key: value for key, value in details.items()
+            if key in allowed_details and type(value) in {str, int}
+        }
+        super().__init__(f"alpaca_crypto_validation_history_invalid:{self.reason_code}")
+
 
 def _selected_mode(mode: str | None = None) -> str:
     value = mode if mode is not None else os.environ.get("LIFE_MANAGER_INVESTMENT_MODE")
@@ -975,29 +997,62 @@ def read_crypto_validation_history(
         "--sort", "asc", "--quiet", "--jq",
         '{next_page_token,bars:(.bars|with_entries(.value|=map({t,o,h,l,c})))}'], context)
     try:
-        if (not isinstance(payload, dict) or "next_page_token" not in payload
-                or payload["next_page_token"] is not None):
-            raise ValueError
-        by_symbol = payload["bars"]
-        if not isinstance(by_symbol, dict) or "BTC/USDC" not in by_symbol                 or set(by_symbol) - {"BTC/USDC", "USDC/USD"}:
-            raise ValueError
+        if not isinstance(payload, dict) or "next_page_token" not in payload:
+            raise CryptoValidationHistoryError("response_shape_invalid")
+        if payload["next_page_token"] is not None:
+            raise CryptoValidationHistoryError("pagination_incomplete")
+        by_symbol = payload.get("bars")
+        if (not isinstance(by_symbol, dict) or "BTC/USDC" not in by_symbol
+                or set(by_symbol) - {"BTC/USDC", "USDC/USD"}):
+            raise CryptoValidationHistoryError("symbol_set_invalid")
         rows_by_symbol = {}
         count = int((end - start).total_seconds() // 300)
         for symbol, bars in by_symbol.items():
-            if not isinstance(bars, list) or len(bars) > count + 1:
-                raise ValueError
+            if not isinstance(bars, list):
+                raise CryptoValidationHistoryError("symbol_bars_invalid", symbol=symbol)
+            if len(bars) > count + 1:
+                raise CryptoValidationHistoryError(
+                    "bar_count_exceeded", symbol=symbol,
+                    expected_count=count + 1, actual_count=len(bars),
+                )
             normalized = []
             previous = None
-            for row in bars:
-                timestamp = parse_instant(row["t"])
+            for row_index, row in enumerate(bars):
+                try:
+                    timestamp = parse_instant(row["t"])
+                except (KeyError, TypeError, ValueError, OverflowError) as error:
+                    raise CryptoValidationHistoryError(
+                        "bar_timestamp_invalid", symbol=symbol, row_index=row_index,
+                    ) from error
+                if timestamp < start or timestamp > end:
+                    raise CryptoValidationHistoryError(
+                        "bar_timestamp_outside_window", symbol=symbol, row_index=row_index,
+                    )
+                if timestamp.timestamp() % 300:
+                    raise CryptoValidationHistoryError(
+                        "bar_timestamp_unaligned", symbol=symbol, row_index=row_index,
+                    )
+                if previous is not None and timestamp <= previous:
+                    raise CryptoValidationHistoryError(
+                        "bar_timestamp_not_increasing", symbol=symbol, row_index=row_index,
+                    )
                 keys = ("o", "h", "l", "c") if symbol == "BTC/USDC" else ("c",)
-                prices = {key: Decimal(str(row[key])) for key in keys}
-                if (timestamp < start or timestamp > end or timestamp.timestamp() % 300
-                        or (previous is not None and timestamp <= previous)
-                        or any(not price.is_finite() or price <= 0 for price in prices.values())
-                        or (symbol == "BTC/USDC" and (
-                            prices["h"] < max(prices.values()) or prices["l"] > min(prices.values())))):
-                    raise ValueError
+                try:
+                    prices = {key: Decimal(str(row[key])) for key in keys}
+                except (InvalidOperation, KeyError, TypeError, ValueError) as error:
+                    raise CryptoValidationHistoryError(
+                        "bar_price_invalid", symbol=symbol, row_index=row_index,
+                    ) from error
+                if any(not price.is_finite() or price <= 0 for price in prices.values()):
+                    raise CryptoValidationHistoryError(
+                        "bar_price_invalid", symbol=symbol, row_index=row_index,
+                    )
+                if (symbol == "BTC/USDC"
+                        and (prices["h"] < max(prices.values())
+                             or prices["l"] > min(prices.values()))):
+                    raise CryptoValidationHistoryError(
+                        "bar_ohlc_invalid", symbol=symbol, row_index=row_index,
+                    )
                 previous = timestamp
                 if timestamp == end:
                     continue  # Exclusive end makes adjacent history chunks disjoint.
@@ -1005,11 +1060,21 @@ def read_crypto_validation_history(
                                    **{key: str(price) for key, price in prices.items()}})
             rows_by_symbol[symbol] = normalized
         btc = rows_by_symbol["BTC/USDC"]
-        if len(btc) != count or any(parse_instant(row["t"]) != start + timedelta(minutes=5 * i)
-                                    for i, row in enumerate(btc)):
-            raise ValueError
-    except (InvalidOperation, KeyError, TypeError, ValueError) as error:
-        raise ValueError("alpaca_crypto_validation_history_invalid") from error
+        if len(btc) != count:
+            raise CryptoValidationHistoryError(
+                "btc_bar_count_mismatch", symbol="BTC/USDC",
+                expected_count=count, actual_count=len(btc),
+            )
+        for row_index, row in enumerate(btc):
+            if parse_instant(row["t"]) != start + timedelta(minutes=5 * row_index):
+                raise CryptoValidationHistoryError(
+                    "btc_timestamp_gap", symbol="BTC/USDC", row_index=row_index,
+                    expected_count=count, actual_count=len(btc),
+                )
+    except CryptoValidationHistoryError:
+        raise
+    except (InvalidOperation, KeyError, OverflowError, TypeError, ValueError) as error:
+        raise CryptoValidationHistoryError("malformed_payload") from error
     digest = hashlib.sha256(json.dumps(rows_by_symbol, sort_keys=True,
                                       separators=(",", ":")).encode()).hexdigest()
     evidence = f"alpaca://crypto-bars/5Min/{start_text}/{end_text}/{digest}"

@@ -73,17 +73,33 @@ class CryptoValidationHistoryTests(unittest.TestCase):
         self.assertTrue(result["source_receipt_ids"])
 
     def test_history_rejects_pagination_missing_duplicate_future_and_bad_prices(self):
-        mutations = [lambda p: p.update(next_page_token="more"),
-                     lambda p: p["bars"]["BTC/USDC"].pop(2),
-                     lambda p: p["bars"]["BTC/USDC"].insert(0, p["bars"]["BTC/USDC"][0]),
-                     lambda p: p["bars"]["BTC/USDC"][0].update(c="NaN"),
-                     lambda p: p["bars"]["BTC/USDC"][0].update(h="0"),
-                     lambda p: p["bars"]["BTC/USDC"][-1].update(t="2026-01-03T00:00:00Z"),
-                     lambda p: p["bars"]["USDC/USD"][0].update(c="0")]
-        for mutate in mutations:
-            with self.subTest(mutation=mutate):
-                with self.assertRaises(ValueError):
+        mutations = [
+            ("pagination_incomplete", lambda p: p.update(next_page_token="more")),
+            ("symbol_set_invalid", lambda p: p.pop("bars")),
+            ("btc_bar_count_mismatch", lambda p: p["bars"]["BTC/USDC"].pop(2)),
+            ("bar_timestamp_not_increasing", lambda p: p["bars"]["BTC/USDC"][0].update(
+                t=p["bars"]["BTC/USDC"][1]["t"])),
+            ("bar_price_invalid", lambda p: p["bars"]["BTC/USDC"][0].update(c="NaN")),
+            ("bar_price_invalid", lambda p: p["bars"]["BTC/USDC"][0].update(h="0")),
+            ("bar_timestamp_outside_window", lambda p: p["bars"]["BTC/USDC"][-1].update(
+                t="2026-01-03T00:00:00Z")),
+            ("bar_price_invalid", lambda p: p["bars"]["USDC/USD"][0].update(c="0")),
+        ]
+        for reason, mutate in mutations:
+            with self.subTest(reason=reason):
+                with self.assertRaisesRegex(
+                        ValueError,
+                        f"^alpaca_crypto_validation_history_invalid:{reason}$"):
                     self._read(mutate=mutate)
+
+    def test_btc_bar_count_failure_reports_only_safe_counts(self):
+        with self.assertRaises(ValueError) as raised:
+            self._read(mutate=lambda p: p["bars"]["BTC/USDC"].pop(2))
+        self.assertEqual(getattr(raised.exception, "reason_code", None),
+                         "btc_bar_count_mismatch")
+        self.assertEqual(getattr(raised.exception, "details", None), {
+            "symbol": "BTC/USDC", "expected_count": 12, "actual_count": 11,
+        })
 
     def test_missing_fx_is_not_replaced_by_one(self):
         result, _, _ = self._read(mutate=lambda p: p["bars"].pop("USDC/USD"))
