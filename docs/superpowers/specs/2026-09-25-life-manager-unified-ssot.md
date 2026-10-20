@@ -162,6 +162,10 @@ private証拠は既存`~/.local/state/life-manager/reconciliation/capafy-c1-2026
 
 **中止した着手:** 利益report修正branch `fix/capafy-profit-report-20261021`にはbounded仕様commitだけを保存する。未commitの今回作成testは撤去し、report/callerの本番sourceは変更しない。修正の実装・PR・release・本番反映は行わず、下記の後順位へ戻す。以前のA01–A21 finance-first順序は廃止し、残件と現在cursorは次のR01–R16へ集約する。
 
+**R04を直接止める配信障害のbounded修復:** 新しいexact occurrence `capafy-distribute-daily:18e05f657b4d6a00-60421`（main219374ce、23:05:48Z exit1）は日本語query「リール 冒頭 文言」のpublish flagをBash `printf %q`でpromptへ展開し、byte4596に不正UTF-8を作り、shared-model-runnerのread_textで生成前に停止する。現在ownerはloaded-idle/effect_unknown1で、新しい公開有無は未確認。売上行動を直接止めるため、この箇所だけを先行修復する。scopeはcapafy-distribute-daily.shの既存flag quoting、既存test_capafy_distribute_daily.py、本正本。標準Python shlex.quoteのUTF-8文字列でqueryを1つのshell引数へ保ち、日本語/多語/quote/特殊文字/localeの最小RED→GREENを確認する。grader/H1必須語/価格/FROZEN/CTA/schedulerは変更しない。independent review/CI/main/immutable→同owner採用→新しい自然slotの生成/公開を確認する。旧occurrenceは登録adapterの公式readbackと既存最短観測期間を守ってのみ閉じ、手動再投稿や不確実fence解除をしない。現cursorはR01の購入導線確認を進めながら、このR04直接blockerを解消すること。財務report修正には戻らない。
+
+**R01の今回の公式確認:** 公開Hook Lab listingはHTTP200、Use this Agent/Run on Capafy、v1.0.8と入力→出力demoを持つ。23:21:05Zの公式publisher GETはAgent8123079349/version2108965076984549376、status4/audit4を確認する。同じ公式billingsはday$1.99/10回、week$4.99/30回、month$9.99/50回、各supportFreeTrial0。従ってこの商品の未購入を「無料trialが付くため」と断定しない。登録済みhooklab_blog/hooklab_xは既存configと公開済み返信の証拠を再利用する。今回primaryの買い手商品訪問/購入/price変更は0で、checkout成功/新paidの証明ではない。private証拠=`r01-hooklab-current-publisher-readback.json`。R04直接障害の最小REDは実日本語でUnicodeDecodeErrorを再現し、標準shlex.quoteへ1行変更後に既存関連44 tests/bash syntax/contract18業務191jobs/errors0がPASSする。独立検証/CI/main/採用/自然公開は未完。
+
 ### 収益優先原則と残るatomic TODOの正本
 
 **優先原則:** Capafyを先頭pilotとし、実際の顧客獲得・購入・継続収入を増やす作業を最優先する。優先順は「購入可能な既存seller→無料の配信と明確なCTA→新paid→売れた施策の拡大」。reportの見栄え、CFO整理、費用按分の精密化、全社監視の完全性、benchmark整備を配信/販売開始の前提にしない。計測は既存の公式売上・既存CT・既存receiptから意思決定に必要な最小限を使い、売上不振を計測framework作りへ置き換えない。修復を先行させるのは、公開/購入/顧客対応を実際に止める障害、重複送信、確認済みの金銭漏れなど、そのままでは収益行動が失敗する根拠がある時だけ。未確認の利益/入金/成果を断定せず、既存spend-cap・FROZEN・effect fence・credential保護は維持する。
