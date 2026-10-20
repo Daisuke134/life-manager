@@ -20634,7 +20634,7 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 
 **TODO順変更:** 旧=一業務readiness→Cloud→入口→3人pilot→packet→1,000人。新=下記atomic ID順、提出経路確認T01・配布文案T24・台本T25は即着手可能。理由はDaisが知人DMを担当し、利用者feedbackを待たず実装・素材・提出準備を進められるため。先に試せる製品と正式必須項目を揃えて提出し、改善と獲得を継続する。全体統括cursorと進行中provider effectは変更しない。
 
-**Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細・file tree・signature・focused acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。同plan内のcheckboxは実装手順で、状態判定は本節を正とする。現在cursor=T05（本人POST activate→一度だけjob登録）。T04 sourceはPKCE限定へ修正し28/28 PASS、#8398のCI/main待ち。T01は公式channel確認済みだがform/期限時刻は未公表の外部条件として継続確認。T03はmain統合済みで実DB適用はT22。T02はmain統合済み。T03の実環境適用順は変更しない。正式提出は未実施。
+**Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細・file tree・signature・focused acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。同plan内のcheckboxは実装手順で、状態判定は本節を正とする。現在cursor=T06（email登録/開始画面）。T05 sourceはterminal jobを分離して42/42 PASS、#8399のCI/main待ち。T04 sourceはPKCE限定へ修正し28/28 PASS、#8398のCI/main待ち。T01は公式channel確認済みだがform/期限時刻は未公表の外部条件として継続確認。T03はmain統合済みで実DB適用はT22。T02はmain統合済み。T03の実環境適用順は変更しない。正式提出は未実施。
 
 | ID | 一件の成果物 | 状態/依存 |
 |---|---|---|
@@ -20643,7 +20643,7 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | T03 | enrollment DB/storeの一uid一row・一provision claim | source完了。6/6 PASS、独立review指摘修正、全14 checks PASS。#8397/main f3f5e02564、実DB未適用 |
 | T04 | Supabaseのemail認証専用handler | source実装中/#8398。既存Google guard維持、PKCE codeのみ。token_hash単独のlogin CSRF経路を拒否し、確認GETは業務を起動しない |
 | T05 | 本人POST activateから一度だけenqueue | source実装/#8399。provision builderを定義、GET/CSRF/cap/停止/unknownは起動しない。独立reviewのterminal job誤受付を回帰で修正。adapterはT11 |
-| T06 | email登録が主CTAのcampaign入口 | T04/T05後 |
+| T06 | email登録が主CTAのcampaign入口 | 実装中。旧Telegram限定guardから分離し、本人確認後にCSRF付き開始UIを表示 |
 | T07 | Capafy既存factoryへtenant state/build path注入 | T02後 |
 | T08 | Linux browser/provider accountのreadinessとtenant binding | T07後、secret値を記録しない |
 | T09 | tenant envで既存factoryを一回呼ぶcloud_cycle.py | T07/T08後 |
