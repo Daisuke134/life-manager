@@ -143,6 +143,14 @@
 
 **今回の検証と未完:** 保存済み公式金銭/流入、管理対象191 jobsの再取得、公開listing/正規配布ZIP、4研究の一次資料を確認する。Daisの継続実行指示によりdocs-onlyから既存C1–C9の実装・必要検証・通常反映へ進む。factory修正は関連51 tests/独立反証/全12 CI/main/immutable/本番read-only canary/限定採用と旧exact閉鎖まで確認し、新SHA自然提出を待つ。新規依存/API/GPU契約は追加せず、基盤全体・全18業務収益化・C1–C9全体の完了を主張しない。
 
+### A01 bounded修復：Capafy財務reportの観測と推計を分離する
+
+目的は既存`capafy_profit_report.py`の混在期間差引・銀行利益/振込可能の断定・欠測0化を除き、実際の観測系列を期間とともに報告すること。owner/worktreeは`codex-capafy-source-attribution`/`.worktrees/capafy-source-attribution-20261021`を継続し、branchは`fix/capafy-profit-report-20261021`。変更範囲は同report、同directoryの最小回帰test、caller `capafy-loop-daily.sh`の誤った説明comment、本正本だけ。既存scoreboardの金銭段階/unknown表記を参考にし、新しい財務framework/provider呼出し/計測stateを追加しない。
+
+累計gross/creator earnings、provider paid_out/各balance/statement payable、host key暦月usage、activityの観測日範囲/usageは別行で示し、差し引かない。銀行receipt/全費用後利益は入力にないため未確認を明示する。Agent行は取得済み30日grossとlist-priceモデル費用推計を別表示し、累計取り分率による換算・推計利益の順位・赤字判定/モデル価格変更の推奨を除く。sales sourceの失敗/欠測と実測0を分け、数字の欠測/不正/非有限は未確認。観測時刻と期間/部分coverageを残し、Agent費用は現model/価格からの推計で歴史invoiceではない旨を明記する。価格/model/FROZEN/配信/scheduler/配送先/日次claimは変更しない。
+
+受入は実snapshotの誤表示を表す最小RED→GREEN、欠測/0/部分sourceのfocused test、独立fresh read-only金融検証、exact CI/main→immutableの実snapshot read-only canary→factory ownerの安全な採用→次の自然report/既存配送receipt確認。primaryの手動再送なし。既存日次claim済みなら次の自然日次機会を待ち、このatomを完了へ置換しない。費用の按分precision、キー/期間/Agent帰属、sampling自然全件、C4–C9/全18業務の収益は別の未完として保持する。
+
 ### C1実行：配信unknownのexact occurrence照合
 
 目的はCapafy配信ownerを公式証拠で復旧し、自然配信・計測・実売上へ続けること。Daisの「一件ずつ最後まで」の明示により、前回のdocs-only境界を実装・必要検証・通常反映まで広げる。現在cursorはC2（C1は下記のとおり完了）、C1対象occurrenceは`capafy-distribute-daily:18dfe7df67227730-86894`。最新statusの保持理由は`x_post_without_article`。manifestはslot`2026-10-19-h19m30`/slug`tiktok-script-for-coaches`、実行開始10/19 10:35:23Z→exit1 10:35:48Z。既存registered adapter、実runの入力/出力、GitHub/page/Postizの公式readbackを照合して原因を一段ずつ狭める。source所有は`fix/capafy-distribute-c1-20261020`、worktree`.worktrees/capafy-distribute-c1-20261020`、owner`codex-capafy-c1`。FROZEN sellers、他者のbrowser/state、他のprovider効果は変更しない。root causeがsourceなら最小RED→修正→focused acceptance/独立検証→PR/main→通常immutable/対象owner採用→exact registered reconciliation→自然terminal/公式readbackへ進む。証拠前のfence解除・再送や手動publicationを行わない。C1の完了はreceiptでeffectを確定し再送0を確認することで、会社収益・C2–C9の完了には置換しない。
