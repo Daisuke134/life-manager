@@ -54,7 +54,7 @@ const {
 } = require("./lib/late-approval.js");
 const { sendPanelLink, handlePanelRequest, handleMoneyPrinterGuestRequest, panelDeviceCodeFromCommand, confirmPanelDeviceCode, cookieValue, sessionScope, panelScopeCookie, claimTelegramWebhookActor } = require("./lib/panel-auth.js");
 const { handleWebAuthRequest, resolveWebUser, signedOutCalendarHandoffLocation } = require("./lib/web-auth.js");
-const { handleMaritimeManagerAuth } = require("./lib/maritime-manager-auth.js");
+const { handleMaritimeManagerAuth, handleMaritimeManagerActivate } = require("./lib/maritime-manager-auth.js");
 const { handleWebCalendarRequest } = require("./lib/web-calendar.js");
 const { handleWebTravelRequest, buildTodaySnapshot } = require("./lib/web-travel.js");
 const { handleWebBillingRequest, trialEndFor } = require("./lib/web-billing.js");
@@ -724,6 +724,14 @@ const server = http.createServer(async (req, res) => {
       "x-content-type-options": "nosniff",
     });
     res.end(html);
+    return;
+  }
+  if (path === "/maritime/activate") {
+    handleMaritimeManagerActivate(req, res, { publicOrigin: LM_PANEL_BASE }).catch(() => {
+      if (res.headersSent) { res.end(); return; }
+      res.writeHead(503, { "content-type": "application/json", "cache-control": "no-store" });
+      res.end(JSON.stringify({ error: "activation_unavailable" }));
+    });
     return;
   }
   if (path === "/auth/maritime/email" || path === "/auth/maritime/confirm") {
