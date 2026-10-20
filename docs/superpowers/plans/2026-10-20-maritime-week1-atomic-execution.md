@@ -257,7 +257,7 @@ life-manager/
 
 - [ ] T10.1 test `incomplete_or_foreign_provider_snapshot_never_becomes_verified_revenue`を定義。所有者不一致/欠落/不正金額は0にもverifiedにもならない。
 - [ ] T10.2 既存reconcileの`--money --json`と明示された同tenant credentialを使う。official snapshotのowner・期間・receipt referenceを保持し、推定model費用と請求済み費用を分ける。
-- [ ] T10.3 verified gross/refundを既存FinancialRecordへ変換する。入金はpayout receiptがある時だけ、費用欠落時のnetはunknown。同じprovider売上を複数利用者へ付けない。
+- [ ] T10.3 Python wrapperは`/data/<tenant>/receipts/<occurrence>/provider.json`へ`{tenantId,provider:"capafy",subjectId,observedAt,periodStart,periodEnd,complete,rows,evidenceRefs}`を保存してCycleResult.providerSnapshotRefへ同pathを返す。中央Nodeの`readCycleReceipt({uid,agentId,occurrenceId})`が同agentからその限定pathを取得し、tenantId/subjectId/期間/complete=trueを照合してからverified gross/refundを既存FinancialRecordへ変換する。入金はpayout receiptがある時だけ、費用欠落時のnetはunknown。同じprovider売上を複数利用者へ付けない。
 - [ ] T10.4 focused conversion testとfixture readbackを確認してcommit/push。catalogのmissing表示はT22の実証後まで変更しない。
 
 ## Task T11: Managerのcycleを既存runtime jobへ登録する
@@ -297,7 +297,7 @@ life-manager/
 ## Task T14: 休眠しても起きるscheduleを公開する
 
 **Files:** Modify `maritime/server.js`、runtime adapter/test。
-**Interfaces:** `/schedules` returns `{id,nextRunAt,prompt,enabled}`の配列。ID=`lm-cycle:<uid>`/`lm-report:<uid>`。nextRunAtはpersisted UTC instant。
+**Interfaces:** `/schedules` returns `{id,nextRunAt,prompt,enabled}`の配列。永続snapshotは`/data/<tenant>/maritime-schedules.json`。`transport.writeScheduleSnapshot({uid,agentId,schedules})`は公式files/writeでこのpathだけを更新し、serverは各GETで読み直す。ID=`lm-cycle:<uid>`/`lm-report:<uid>`。nextRunAtはpersisted UTC instant。
 **Depends:** T13。
 
 - [ ] T14.1 test `schedules_publish_persisted_next_occurrence_and_pause_removes_it`を定義。server再起動後も同じnextRunAt、pausedは配列から消える。
@@ -308,7 +308,7 @@ life-manager/
 ## Task T15: custom containerのcreateをidempotentにする
 
 **Files:** Create `lib/transport/maritime-manager.js`/test、Modify manager storeのbinding。
-**Interfaces:** `createMaritimeManagerTransport({env,fetchImpl,client}).ensureAgent({uid,imageDigest,releaseSha}) -> {agentId,status}`。
+**Interfaces:** `createMaritimeManagerTransport({env,fetchImpl,client})`は`ensureAgent({uid,imageDigest,releaseSha}) -> {agentId,status}`、`dispatchCycle/readExecution`（固定する境界参照）、`readCycleReceipt({uid,agentId,occurrenceId}) -> {cycleResult,providerSnapshot}`、`writeScheduleSnapshot({uid,agentId,schedules}) -> {ok}`をproduces。receipt/schedule pathはtenant/occurrenceから構成し、request指定の任意absolute pathを受けない。
 **Depends:** T03/T12/T13。
 
 - [ ] T15.1 test `custom_create_never_uses_default_openclaw_and_lost_response_does_not_recreate`を定義。POST body `framework:'custom'`、immutable `imageName`、HMAC externalId、response喪失後はlistのみをassert。
