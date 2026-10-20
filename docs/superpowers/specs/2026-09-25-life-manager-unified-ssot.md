@@ -20648,7 +20648,7 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | T06 | email登録が主CTAのcampaign入口 | source完了。#8401/main bcf87319aa、関連54/54・全14 checks PASS。Manager専用consent、公開flagは未変更 |
 | T07 | Capafy既存factoryへtenant state/build path注入 | source完了。#8402/main06151d934b。reviewの子gate/runner指摘をRED→GREENで修正、host8/8・既存gate14/14・Linux CI全13 checks PASS。本番factoryは未接続 |
 | T08 | Linux browser/provider accountのreadinessとtenant binding | preflight中。Maritime本体signupはメール確認待ち。SteelはRailway private DNS。既存runnerはlocal Codex/Claude profile依存を確認。Linux/認証/専用routeの実証は未完 |
-| T09 | tenant envで既存factoryを一回呼ぶcloud_cycle.py | source実装中。cycle9/9・host8/8 PASS。再実行/timeout receiptとtenant path/ref境界を確認。Cloud専用config未設定はdeferred、実環境受入はT08依存を維持 |
+| T09 | tenant envで既存factoryを一回呼ぶcloud_cycle.py | source実装中。独立reviewの3指摘を回帰RED→GREENで修正しcycle12/12・host8/8 PASS。child path・env allowlist・cached receipt検査を追加。Cloud専用config未設定はdeferred、実環境受入はT08依存を維持 |
 | T10 | 同tenant公式Capafy snapshot→FinancialRecord | T09後 |
 | T11 | 既存queue/leaseへmanager.cycle adapter登録 | T09/T10後 |
 | T12 | 専用subfolder Dockerfileとsanitized ZIPで同repoのcustom imageをbuild | T11/T13後。Railwayのroot Dockerfile自動検出を避ける |

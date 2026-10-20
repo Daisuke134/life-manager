@@ -22,7 +22,7 @@
 - founderのaccount・商品ID・売上・private stateを新規利用者へコピーしない。同じ売上を全員へ配賦しない。
 - runtime stateはGit外。Cloud stateは`/data`以下、secretはprovider管理のtenant単位、analyticsにemail/本文/tokenを入れない。
 - 公開・送信の結果が不明なら同じeffectを再送しない。既存job/receipt/provider readbackで回収する。
-- 今回は計画・spec・配布文案を保存する。ここに記載する実装・test・deploy・招待・投稿・提出は、実行済みを意味しない。
+- 各taskは実行手順を記す。実行済み・未実行の判定はSpec正本だけに記録し、コード統合をdeploy・投稿・正式提出の完了へ読み替えない。
 
 ## 現状と選定理由
 
@@ -245,7 +245,7 @@ life-manager/
 **Depends:** T07/T08。T08の認証待ち中はsourceを先行し、実環境受入をT08より先に完了扱いしない。`run_cycle(tenant_id,occurrence_id,date_key,*,env,data_root,runner)`を定義し、Cloud専用`AGENT_RUNNER_CONFIG`を必須にする。既存Local configへfallbackしない。
 
 - [ ] T09.1 test `cycle_calls_existing_factory_once_and_scopes_workspace`を定義。spawn先が既存entry、cwd/stateがtenant以下、timeout後の外部effectはunknownというassertを置く。
-- [ ] T09.2 wrapperは既存`run_agent.sh`へ`--task-class application-lane-agent --evidence-dir /data/<tenant>/evidence/<occurrence> --task-label maritime:<occurrence> --loop capafy --schema /app/skills/self/capafy-loop/capafy-loop-pass.schema.json --workdir /data/<tenant>/build --print-result`を渡す。stdinには既存factory skillと同tenant binding/receiptから作る業務promptを渡す。modelによる案件選択・original商品生成を既存runnerへ任せ、第二のpublisher/固定ニッチ選択器を作らない。既存pass JSONをwrapperでCycleResultへ変換し、stdoutへraw runner logを混ぜない。
+- [ ] T09.2 wrapperは既存`run_agent.sh`へ`--task-class application-lane-agent --evidence-dir /data/<tenant>/evidence/<occurrence> --task-label maritime:<occurrence> --loop capafy --schema /app/skills/self/capafy-loop/capafy-loop-pass.schema.json --workdir /data/<tenant>/build --print-result`を渡す。stdinには既存factory skillと同tenant binding/receiptから作る業務promptを渡す。modelによる案件選択・original商品生成を既存runnerへ任せ、第二のpublisher/固定ニッチ選択器を作らない。既存pass JSONをwrapperでCycleResultへ変換し、stdoutへraw runner logを混ぜない。child envはOS最小値とtenant専用`LM_CLOUD_MODEL_API_KEY`だけを許可し、既存runner configのenv_keyを同名へbindする。親のsecret/台帳を丸ごと継承しない。HOME/CODEX_HOME/CLAUDE_CONFIG_DIR/evidence/tmp/台帳/factory stateはresolve後もtenant以下であることをdispatch前に確認する。保存済みreceiptの再生でも許可field・型・status・artifact境界を検査し、破損時はunknownを返して再実行しない。
 - [ ] T09.3 provider未接続ならoriginal artifact生成を継続し、publish未実行をreceiptへ明記する。founder catalog/seller ID/売上を新規利用者へ複製しない。接続済みではsplit publishの正規経路へ進む。
 - [ ] T09.4 `python3 -m unittest discover -s skills/capafy-autopublish/test -p 'test_cloud_cycle.py'`でfocused casesを確認しcommit/push。
 

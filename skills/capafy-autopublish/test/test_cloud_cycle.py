@@ -111,6 +111,55 @@ class CloudCycleTest(unittest.TestCase):
         self.assertEqual(self.run_cycle()['status'], 'effect_unknown')
         self.assertEqual(len(self.calls), 1)
 
+    def test_child_directories_cannot_alias_another_tenant(self):
+        foreign = self.root / 'other-tenant'
+        foreign.mkdir()
+        for directory in ['home', 'codex', 'claude', 'evidence', 'state', 'runtime', 'tmp', 'ledgers']:
+            with self.subTest(directory=directory):
+                link = self.home / directory
+                if link.exists():
+                    shutil.rmtree(link)
+                self.calls.clear()
+                link.symlink_to(foreign, target_is_directory=True)
+                try:
+                    with self.assertRaisesRegex(ValueError, 'child_path'):
+                        self.run_cycle(occurrence='escape-' + directory)
+                    self.assertEqual(self.calls, [])
+                    self.assertEqual(list(foreign.iterdir()), [])
+                finally:
+                    link.unlink()
+
+    def test_child_environment_excludes_parent_secrets_and_rebinds_ledgers(self):
+        self.env.update(FOUNDER_SECRET='fixture-private', SUPABASE_SERVICE_ROLE_KEY='fixture-db',
+                        ANICCA_USAGE_LEDGER='/parent/usage.jsonl',
+                        ANICCA_TOKEN_BUDGET_LEDGER='/parent/budget.jsonl',
+                        LM_CLOUD_MODEL_API_KEY='fixture-tenant-model')
+        self.run_cycle()
+        child = self.calls[0][1]['env']
+        self.assertNotIn('FOUNDER_SECRET', child)
+        self.assertNotIn('SUPABASE_SERVICE_ROLE_KEY', child)
+        self.assertEqual(child['LM_CLOUD_MODEL_API_KEY'], 'fixture-tenant-model')
+        for key in ['ANICCA_USAGE_LEDGER', 'ANICCA_TOKEN_BUDGET_LEDGER', 'TMPDIR']:
+            self.assertTrue(Path(child[key]).is_relative_to(self.home), key)
+
+    def test_cached_receipt_rejects_extra_fields_and_unowned_artifacts(self):
+        self.run_cycle()
+        receipt = self.home / 'receipts/cycle-1/cycle.json'
+        original = json.loads(receipt.read_text())
+        for change in [{'rawSecret': 'fixture-secret'},
+                       {'artifactRefs': ['artifact://../../other/private.txt']},
+                       {'providerReceiptRefs': ['unverified-receipt']},
+                       {'status': 'invented-status'}]:
+            with self.subTest(change=change):
+                saved = json.loads(json.dumps(original))
+                saved['result'].update(change)
+                receipt.write_text(json.dumps(saved))
+                result = self.run_cycle()
+                self.assertEqual(result['status'], 'effect_unknown')
+                self.assertNotIn('fixture-secret', json.dumps(result))
+                self.assertEqual(result['artifactRefs'], [])
+        self.assertEqual(len(self.calls), 1)
+
     def test_success_without_owned_artifact_is_not_completed(self):
         def unproven(command, **options):
             return types.SimpleNamespace(returncode=0, stdout=json.dumps({'status': 'success', 'evidence': ['/etc/passwd']}), stderr='')

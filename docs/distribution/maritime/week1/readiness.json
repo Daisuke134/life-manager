@@ -22,8 +22,8 @@
     {
       "file": "skills/capafy-autopublish/scripts/cloud_cycle.py",
       "boundary": "tenant runner adapter",
-      "resolution": "T09 implementation pending",
-      "status": "not_implemented"
+      "resolution": "Dedicated Cloud config; tenant child paths/env allowlist; occurrence receipt and replay validation. Cycle12/12 and host8/8 pass; live model/provider unverified.",
+      "status": "source_changed_not_deployed"
     },
     {
       "file": "skills/capafy-autopublish/scripts/key_health_gate.sh",
@@ -58,7 +58,8 @@
     ],
     "current_application_route": "local profile alias acct1",
     "portable_tenant_route": "official Codex template documents Maritime Responses API; dedicated runner config and actual VM call still unverified",
-    "founder_auth_profiles_copied": false
+    "founder_auth_profiles_copied": false,
+    "dedicated_env_key": "LM_CLOUD_MODEL_API_KEY"
   },
   "maritime_normal_login_readback": "email_verification_required",
   "account_verification_routes": {
