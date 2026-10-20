@@ -1,0 +1,248 @@
+{
+  "run_id": "postgrest-startup-1792535089858",
+  "owner_id": "codex-maritime-atomic-plan",
+  "occurrence_id": "postgrest-startup-budget-v1",
+  "release_sha": "67b907d6ab3df3b34021ace303b528304828b22f",
+  "loaded_argv": [
+    "apps/life-manager/migrations/20261021070000_lm_postgrest_startup_budget.sql",
+    "apps/life-manager/scripts/postgrest-startup-budget-rollback.sql"
+  ],
+  "loaded_env": {
+    "credential_service": "supabase-life-manager-production"
+  },
+  "phase": "baseline_catalog_restored",
+  "command": "supabase.apply_migration",
+  "exit_code": 1,
+  "effect": "rollback_acknowledged",
+  "provider_receipt_id": null,
+  "observations": [
+    {
+      "ready": false,
+      "results": [
+        {
+          "probe": "enrollment",
+          "error_class": "TimeoutError",
+          "elapsed_seconds": 10.05
+        },
+        {
+          "probe": "funnel",
+          "error_class": "TimeoutError",
+          "elapsed_seconds": 10.05
+        },
+        {
+          "probe": "auth_admin",
+          "error_class": "TimeoutError",
+          "elapsed_seconds": 10.05
+        }
+      ],
+      "elapsed_since_dispatch_seconds": 24
+    },
+    {
+      "ready": false,
+      "results": [
+        {
+          "probe": "enrollment",
+          "http": 503,
+          "error_code": "PGRST002",
+          "elapsed_seconds": 8.4
+        },
+        {
+          "probe": "funnel",
+          "http": 503,
+          "error_code": "PGRST002",
+          "elapsed_seconds": 7.55
+        },
+        {
+          "probe": "auth_admin",
+          "error_class": "TimeoutError",
+          "elapsed_seconds": 10.04
+        }
+      ],
+      "elapsed_since_dispatch_seconds": 39
+    },
+    {
+      "ready": false,
+      "results": [
+        {
+          "probe": "enrollment",
+          "http": 503,
+          "error_code": "PGRST002",
+          "elapsed_seconds": 5.75
+        },
+        {
+          "probe": "funnel",
+          "http": 503,
+          "error_code": "PGRST002",
+          "elapsed_seconds": 4.84
+        },
+        {
+          "probe": "auth_admin",
+          "error_class": "TimeoutError",
+          "elapsed_seconds": 10.04
+        }
+      ],
+      "elapsed_since_dispatch_seconds": 54
+    },
+    {
+      "ready": false,
+      "results": [
+        {
+          "probe": "enrollment",
+          "http": 503,
+          "error_code": "PGRST002",
+          "elapsed_seconds": 2.72
+        },
+        {
+          "probe": "funnel",
+          "http": 503,
+          "error_code": "PGRST002",
+          "elapsed_seconds": 2.6
+        },
+        {
+          "probe": "auth_admin",
+          "error_class": "TimeoutError",
+          "elapsed_seconds": 10.04
+        }
+      ],
+      "elapsed_since_dispatch_seconds": 70
+    },
+    {
+      "ready": false,
+      "results": [
+        {
+          "probe": "enrollment",
+          "http": 503,
+          "error_code": "PGRST002",
+          "elapsed_seconds": 1.88
+        },
+        {
+          "probe": "funnel",
+          "http": 503,
+          "error_code": "PGRST002",
+          "elapsed_seconds": 2.39
+        },
+        {
+          "probe": "auth_admin",
+          "http": 200,
+          "subject_matches": true,
+          "email_matches": true,
+          "email_confirmed": true,
+          "elapsed_seconds": 8.16
+        }
+      ],
+      "elapsed_since_dispatch_seconds": 83
+    },
+    {
+      "ready": false,
+      "results": [
+        {
+          "probe": "enrollment",
+          "http": 503,
+          "error_code": "PGRST002",
+          "elapsed_seconds": 1.92
+        },
+        {
+          "probe": "funnel",
+          "http": 503,
+          "error_code": "PGRST002",
+          "elapsed_seconds": 1.59
+        },
+        {
+          "probe": "auth_admin",
+          "http": 200,
+          "subject_matches": true,
+          "email_matches": true,
+          "email_confirmed": true,
+          "elapsed_seconds": 0.51
+        }
+      ],
+      "elapsed_since_dispatch_seconds": 91
+    },
+    {
+      "ready": false,
+      "results": [
+        {
+          "probe": "enrollment",
+          "http": 503,
+          "error_code": "PGRST002",
+          "elapsed_seconds": 1.57
+        },
+        {
+          "probe": "funnel",
+          "http": 503,
+          "error_code": "PGRST002",
+          "elapsed_seconds": 1.57
+        },
+        {
+          "probe": "auth_admin",
+          "http": 200,
+          "subject_matches": true,
+          "email_matches": true,
+          "email_confirmed": true,
+          "elapsed_seconds": 1.03
+        }
+      ],
+      "elapsed_since_dispatch_seconds": 97
+    }
+  ],
+  "started_at": "2026-10-20T22:24:49.959Z",
+  "forward_confirmed": true,
+  "rollback_started_at": "2026-10-20T22:26:32.459Z",
+  "rollback_confirmed": true,
+  "rollback_readback": {
+    "probe": "baseline",
+    "http": 201,
+    "rows": [
+      {
+        "baseline": {
+          "settings": [
+            {
+              "scope": "global",
+              "db_role": "authenticated",
+              "setting": "statement_timeout=8s"
+            },
+            {
+              "scope": "global",
+              "db_role": "anon",
+              "setting": "statement_timeout=3s"
+            },
+            {
+              "scope": "global",
+              "db_role": "authenticator",
+              "setting": "statement_timeout=15s"
+            },
+            {
+              "scope": "global",
+              "db_role": "authenticator",
+              "setting": "lock_timeout=8s"
+            }
+          ],
+          "role_presence": [
+            "anon",
+            "authenticated",
+            "authenticator",
+            "service_role"
+          ],
+          "migration_present": true
+        }
+      }
+    ],
+    "elapsed_seconds": 3.51
+  },
+  "original_catalog_verified": true,
+  "readiness_restored": false,
+  "error_class": "PGRST002_schema_cache_unavailable",
+  "retryable": false,
+  "next_action": "T22.1b.5 identify hosted PostgREST version and supported targeted recovery; no repeated timeout increase",
+  "existing_pool_readback_pending": true,
+  "manager_email_enabled": false,
+  "maritime_capabilities_enabled": false,
+  "evidence_refs": [
+    "docs/evidence/maritime/postgrest-startup-budget-source.json"
+  ],
+  "limitations": [
+    "Rollback acknowledgment and original role catalog do not prove existing pooled connections reverted their startup GUC.",
+    "Auth Admin recovered during observation; both authenticated REST probes remained503.",
+    "No business execution, new VM, payment, global restart or resize was performed."
+  ]
+}

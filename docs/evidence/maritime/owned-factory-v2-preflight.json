@@ -1,0 +1,54 @@
+{
+  "observed_at": "2026-10-20T22:49:42.549386+00:00",
+  "release_sha": "0c559693f03b34770e9c1ff61616bbe2f2e497ed",
+  "occurrence_id": "owned-literal-path-20261021",
+  "provider_status": "completed",
+  "exit_code": 1,
+  "error_class": "PermissionError",
+  "boundary": "cloud_cycle.py:111 receipt.parent.mkdir",
+  "model_invoked": false,
+  "model_not_invoked_evidence": "Failure is before runner invocation; new cycle receipt absent.",
+  "read_only_directory_observation": {
+    ".": {
+      "uid": 10001,
+      "gid": 10001,
+      "mode": "0o700",
+      "symlink": false
+    },
+    "receipts": {
+      "uid": 0,
+      "gid": 0,
+      "mode": "0o755",
+      "symlink": false
+    },
+    "receipts/owned-literal-path-20261021": {
+      "present": false
+    },
+    "receipts/owned-preflight-20261021": {
+      "uid": 0,
+      "gid": 0,
+      "mode": "0o700",
+      "symlink": false
+    },
+    "build": {
+      "uid": 10001,
+      "gid": 10001,
+      "mode": "0o700",
+      "symlink": false
+    }
+  },
+  "new_cycle_receipt_present": false,
+  "old_factory_execution_current_http": 404,
+  "old_factory_historical_terminal_ref": "docs/evidence/maritime/owned-factory-diagnostic.json",
+  "old_unknown_receipt_modified": false,
+  "dispatch_replayed": false,
+  "publication_verified": false,
+  "sales_verified": false,
+  "source_fix": "prepareMaritimeRuntime fixed no-follow ownership list includes receipts; existing receipt bytes untouched",
+  "source_acceptance": {
+    "red": "receipt parent inode absent from 10001/10001 ownership preparation",
+    "green": "runtime-env.test.js6/6"
+  },
+  "production_fix_adopted": false,
+  "next_action": "c-5c source review/CI/main then existing image redeploy; c-5d only after absent receipt readback"
+}

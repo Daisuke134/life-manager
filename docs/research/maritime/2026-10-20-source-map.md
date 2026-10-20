@@ -110,3 +110,13 @@ SDK docsには`provision()`を使う例があるが、それはOpenClaw template
 - https://supabase.com/docs/guides/observability/advanced-log-filtering — ClickHouse logs経路でpostgres_logsを時刻指定・匿名集計する。
 - https://github.com/PostgREST/postgrest/issues/5100 — startupのpg_timezone_namesはfilesystem I/Oで遅くなる。上流v16のchangelogはschema cache依存除去を記録する。今回のprovider版/原因の断定や自動upgradeの根拠にはしない。
 - 実source `maritime-manager-report.js`/`runtime-up.js`/`financial-record-store.js`: FinancialRecordはruntime queryでRailwayへ読む。`cfo-cloud-delivery.js`はSupabase lm_cfo_result_receiptsを使う。DBを取り違えて第二の金融storeを作らない。
+
+
+## Supabase障害の追加境界
+
+- https://github.com/supabase/supabase/blob/master/packages/api-types/types/api.d.ts — public healthのREST infoはschemaだけで版なし。public upgradeはPostgres本体更新。実health200でもREST/Auth UNHEALTHY、DB ACTIVE_HEALTHYを別に扱う。
+- https://github.com/PostgREST/postgrest/blob/v16.5/CHANGELOG.md — timezone catalogのschema-cache依存除去はv16.0から含む。最新release v16.5でも含有するが、稼働版未取得のため適用可否は未確定。
+- https://github.com/supabase/supabase/blob/master/apps/studio/data/projects/project-service-versions.ts — managed service版の取得はDashboard platform認証を使用する。PATでplatform読取401、public healthとpg_stat_activityからは版を取得できない。
+- https://github.com/supabase/supabase/blob/master/apps/studio/data/projects/project-restart-services-mutation.ts — services=['postgrest']の対象限定restartと全project restartは別。現時点で操作していない。版更新を保証するAPIではない。
+- https://github.com/supabase/supabase-grafana/blob/959b30e15ab5b7dd29fab55f8d073e48fa90df24/README.md — Basic username=service_role、legacy service role keyも使用可能。既存legacy keyの一回取得は17.419秒でHTTP504、CPU/IO/メモリ未取得。0として扱わない。
+- 公式の所有アカウント復旧メールはGitHubログイン専用と通知する。Supabase通常password grantはinvalid_credentials。GitHubの既存登録passwordも拒否され、古いreset URLは既に失効と記録、recovery codeは再送禁止。新しいGitHub復旧メールは未受信、本人ログインを非同期依頼中。password変更/新規account/credential再送は無い。
