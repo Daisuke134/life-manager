@@ -89,6 +89,59 @@ class FlowWriterTests(unittest.TestCase):
                 self.assertIsNone(second['net_pnl_usd']);self.assertFalse(second['capital_expansion_allowed'])
                 self.assertTrue(all(f['fee_completeness_status']=='unknown' for f in native))
 
+    def test_acquired_open_and_close_pending_entries_keep_their_flow_scope(self):
+        mode='paper';account='synthetic-native-account-paper';observed='2026-01-01T06:00:00Z'
+        baseline={'mode':mode,'paper':True,'account':{'id':account,'cash':'100','equity':'100'},
+            'positions':[{'symbol':'USDCUSD','qty':'100'}],
+            'clock':{'observed_at':'2026-01-01T04:00:00Z'}}
+        for close_receipt_waiting in (False,True):
+            with self.subTest(close_receipt_waiting=close_receipt_waiting),tempfile.TemporaryDirectory() as directory:
+                root=Path(directory);orders,activity,owned=cycle_fixture(root,mode,
+                    native_account_id=account,pre_trade_readback=baseline)
+                close_id=owned['close_effect_id'];ledger=root/'receipts.jsonl'
+                rows=[row for row in store._rows(ledger) if not (
+                    row.get('effect_id')==close_id and
+                    (not close_receipt_waiting or row.get('receipt_type')=='outcome'))]
+                ledger.write_text(''.join(json.dumps(row,separators=(',',':'))+'\n' for row in rows))
+                buy_fills=[fill for fill in activity['fills'] if fill['order_id']==orders[0]['id']]
+                typed_source={**activity,'fills':buy_fills,'fees':[]}
+                obs={'mode':mode,'paper':True,'account':{'id':account,'cash':'0','equity':'100'},
+                    'positions':[{'symbol':'BTCUSDC','qty':'0.05'},{'symbol':'USDCUSD','qty':'90'}],
+                    'clock':{'observed_at':observed}}
+                calls=[]
+                def reader(**kw):
+                    calls.append(copy.deepcopy(kw));raw=frame(kw,count=0)
+                    raw['activity_pages']=[copy.deepcopy(buy_fills)]
+                    return raw
+                def typed(**kw):
+                    return activity_fixture(typed_source,mode=mode,start=kw['period_start'],end=kw['period_end'])
+
+                result=self.write(root,obs,activity,reader,typed)
+
+                self.assertEqual(len(result['cycles']),0)
+                active_entries=result['pending_entries'] if close_receipt_waiting else result['open_entries']
+                self.assertEqual(len(active_entries),1)
+                active=active_entries[0]
+                self.assertEqual(active['entry_effect_id'],owned['entry_effect_id'])
+                self.assertEqual(active['native_trading_account_id'],account)
+                self.assertEqual(active['period_start'],'2026-01-01T04:00:00+00:00')
+                self.assertEqual(len(calls),1,'an acquired open position still needs account flow coverage')
+                self.assertEqual(calls[0]['native_trading_account_id'],account)
+                self.assertEqual(calls[0]['period_end'],observed)
+                flow=next(iter(result['flow_readbacks'].values()))
+                self.assertIn(active['cycle_id'],flow['cycle_ids'])
+                report=result['native_quantity_reconciliation']
+                self.assertEqual(report['baseline']['cycle_id'],active['cycle_id'])
+                self.assertEqual(report['baseline']['quantities']['USDC'],'100')
+                self.assertEqual(report['current']['observed_at'],observed)
+                self.assertNotIn(orders[0]['id'],report.get('unattributed_order_ids',[]))
+                gap=next(item for item in report['buy_credit_gaps'] if item['cycle_id']==active['cycle_id'])
+                self.assertEqual(gap['provider_order_id'],orders[0]['id'])
+                self.assertEqual(gap['initial_gross_minus_credited_btc'],'0')
+                self.assertEqual(report['status'],'observed_match')
+                self.assertEqual(result['flow_readback_through'],observed)
+                self.assertIsNone(result['net_pnl_usd']);self.assertFalse(result['capital_expansion_allowed'])
+
     def test_raw_partial_resumes_same_fixed_query_on_new_clock_after_typed_complete(self):
         for mode in ('paper','live'):
             with self.subTest(mode=mode),tempfile.TemporaryDirectory() as directory:

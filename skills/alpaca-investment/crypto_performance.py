@@ -252,6 +252,16 @@ def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None,fee_ac
         acquisition=recorded_entry_proof_from_rows(rows,marker,row['broker'],wrapper['account_readback'],mode=mode,owner_id=owner_id)
         receipt=acquisition['receipt'];owned_qty=receipt['account_owned_qty']
         account_id=receipt.get('native_trading_account_id')
+        active_scope={'cycle_id':_digest({'mode':mode,'owner_id':owner_id,'entry_effect_id':effect}),
+            'owner_id':owner_id,'mode':mode,'strategy_id':receipt['strategy_id'],'release_sha':receipt['release_sha'],
+            **({'native_trading_account_id':account_id} if account_id is not None else {}),
+            'entry_effect_id':effect,'entry_client_order_id':row['broker']['client_order_id'],
+            'entry_provider_order_id':row['broker']['id'],'entry_filled_qty':receipt['entry_filled_qty'],
+            'entry_submitted_at':row['broker']['submitted_at'],
+            'entry_filled_avg_price':row['broker'].get('filled_avg_price'),
+            'entry_account_owned_qty':receipt['account_owned_qty'],
+            'entry_account_observed_at':acquisition['account_readback']['clock']['observed_at'],
+            'period_start':sealed['decision']['observed_at']}
         if last_flat is not None and parse_instant(row['broker']['submitted_at'])<last_flat:
             raise ValueError('crypto_cycle_overlap')
         marker.update(status='closing',entry_filled_qty=receipt['entry_filled_qty'],owned_qty=owned_qty)
@@ -277,7 +287,9 @@ def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None,fee_ac
             outs=[r for r in rows if r.get('receipt_type')=='outcome' and r.get('effect_id')==intent['effect_id']
                   and r.get('strategy_receipt') is not None]
             if not outs:
-                pending.append({'entry_effect_id':effect,'close_effect_id':intent['effect_id'],'reason':'owned_close_receipt_missing'})
+                pending.append({**active_scope,'recorded_owned_qty':before['owned_qty'],
+                    'post_acquisition_fee_debited_qty':before['debited_qty'],
+                    'close_effect_id':intent['effect_id'],'reason':'owned_close_receipt_missing'})
                 incomplete=True;break
             leg=outs[-1]
             verified=recorded_close_proof_from_rows(rows,marker,leg['broker'],leg['strategy_receipt']['account_readback'],mode=mode,owner_id=owner_id)
@@ -306,7 +318,7 @@ def build_crypto_performance(rows,*,mode,owner_id,activity_readbacks=None,fee_ac
             close_account=matches[0]['strategy_receipt']['account_readback']
             closed_at=fee['observed_at'];closure_kind='native_fee_debit'
         else:
-            opened.append({'entry_effect_id':effect,'recorded_owned_qty':quantity['owned_qty'],
+            opened.append({**active_scope,'recorded_owned_qty':quantity['owned_qty'],
                 'post_acquisition_fee_debited_qty':quantity['debited_qty']});continue
         last_flat=parse_instant(close_account['clock']['observed_at'])
         executions=[];cashflow=Fraction();complete=True
@@ -411,9 +423,12 @@ def _update_crypto_flows(previous,observation,result,*,mode,owner_id,reader,ceil
         errors.append({'phase':'flow_cache','error_class':'ValueError','reason':'crypto_flow_cache_invalid'})
     observed=observation['clock']['observed_at'];now=_fx_instant(observed)
     scopes={}
-    for cycle in result['cycles']:
+    for cycle in [*result.get('cycles',[]),*result.get('open_entries',[]),*result.get('pending_entries',[])]:
+        if cycle.get('mode')!=mode or cycle.get('owner_id')!=owner_id:
+            continue
         account=cycle.get('native_trading_account_id')
-        if isinstance(account,str) and account:
+        if (isinstance(account,str) and account and isinstance(cycle.get('cycle_id'),str)
+                and cycle['cycle_id'] and isinstance(cycle.get('period_start'),str)):
             scopes.setdefault(account,{})[cycle['cycle_id']]=cycle['period_start']
     starts={a:min((parse_instant(v) for v in ids.values())).astimezone(timezone.utc).replace(
         hour=0,minute=0,second=0,microsecond=0).isoformat().replace('+00:00','Z') for a,ids in scopes.items()}
@@ -583,6 +598,7 @@ def _native_quantity_reconciliation(rows,observation,result,flow_fields,*,mode,o
     currency={'BTC':Fraction(),'USDC':Fraction()}
     fee_totals={'BTC':Fraction(),'USDC':Fraction()}
     fee_seen={};fill_seen={};acquisition_clock_by_order={};buy_fee_totals={};priced_fees=set()
+    active_fill_qty={};active_fill_notional={};active_entry_orders={}
     source_account=observation.get('account') if isinstance(observation,dict) else None
     account_id=source_account.get('id') if isinstance(source_account,dict) else None
     try:
@@ -617,15 +633,19 @@ def _native_quantity_reconciliation(rows,observation,result,flow_fields,*,mode,o
         report['current']={'observed_at':current_at,
             'quantities':{k:_quantity_text(v) if k in current_present else None for k,v in current_qty.items()}}
         baselines=[];unbound=[]
-        for cycle in result.get('cycles',[]):
+        scoped_cycles=[*result.get('cycles',[]),*result.get('open_entries',[]),*result.get('pending_entries',[])]
+        for cycle in scoped_cycles:
             if cycle.get('mode')!=mode or cycle.get('owner_id')!=owner_id:continue
             if cycle.get('native_trading_account_id')!=account_id:
                 if cycle.get('native_trading_account_id') is None:unbound.append(cycle.get('cycle_id'))
                 continue
             orders=cycle.get('orders')
-            if not isinstance(orders,list) or not orders:raise ValueError('native_cycle_orders_missing')
+            entry_client_order_id=(orders[0].get('client_order_id') if isinstance(orders,list) and orders
+                else cycle.get('entry_client_order_id'))
+            if not isinstance(entry_client_order_id,str) or not entry_client_order_id:
+                raise ValueError('native_cycle_orders_missing')
             marker={'status':'entry_pending','symbol':'BTCUSD','entry_effect_id':cycle['entry_effect_id'],
-                'entry_client_order_id':orders[0]['client_order_id'],'entry_filled_qty':'0'}
+                'entry_client_order_id':entry_client_order_id,'entry_filled_qty':'0'}
             sealed=_sealed_entry_from_rows(rows,marker,mode=mode,owner_id=owner_id)
             baseline=sealed['decision'].get('pre_trade_account_readback')
             if not isinstance(baseline,dict):
@@ -670,6 +690,23 @@ def _native_quantity_reconciliation(rows,observation,result,flow_fields,*,mode,o
             gap=Fraction(cycle['entry_filled_qty'])-Fraction(cycle['entry_account_owned_qty'])
             if gap<0:raise ValueError('native_entry_credit_exceeds_fill')
             report['buy_credit_gaps'].append({'cycle_id':cycle['cycle_id'],'provider_order_id':cycle['orders'][0]['provider_order_id'],
+                'initial_gross_minus_credited_btc':_quantity_text(gap),'observed_buy_fee_btc':None,'unexplained_btc':_quantity_text(gap)})
+        for entry in [*result.get('open_entries',[]),*result.get('pending_entries',[])]:
+            if (entry.get('owner_id')!=owner_id or entry.get('mode')!=mode
+                    or entry.get('native_trading_account_id')!=account_id):continue
+            entry_row=entry_receipt_row(rows,entry['entry_effect_id']);broker=entry_row['broker']
+            order_id=entry.get('entry_provider_order_id')
+            if (broker.get('id')!=order_id or broker.get('client_order_id')!=entry.get('entry_client_order_id')
+                    or broker.get('side')!='buy' or broker.get('submitted_at')!=entry.get('entry_submitted_at')):
+                reasons.add('native_active_entry_order_invalid');continue
+            order={**broker,'provider_order_id':order_id,'filled_qty':entry['entry_filled_qty'],
+                'execution_fills':None}
+            cycles_by_order[order_id]=(entry,order);active_entry_orders[order_id]=(entry,order)
+            acquisition_clock=entry.get('entry_account_observed_at')
+            if isinstance(acquisition_clock,str):acquisition_clock_by_order[order_id]=_fx_instant(acquisition_clock)
+            gap=Fraction(entry['entry_filled_qty'])-Fraction(entry['entry_account_owned_qty'])
+            if gap<0:raise ValueError('native_entry_credit_exceeds_fill')
+            report['buy_credit_gaps'].append({'cycle_id':entry['cycle_id'],'provider_order_id':order_id,
                 'initial_gross_minus_credited_btc':_quantity_text(gap),'observed_buy_fee_btc':None,'unexplained_btc':_quantity_text(gap)})
         books=flow_fields.get('flow_readbacks',{}) if isinstance(flow_fields,dict) else {}
         windows=flow_fields.get('flow_windows',[]) if isinstance(flow_fields,dict) else []
@@ -735,10 +772,16 @@ def _native_quantity_reconciliation(rows,observation,result,flow_fields,*,mode,o
                             order_id=item['order_id'];owned=cycles_by_order.get(order_id)
                             if owned is not None:
                                 _cycle,order=owned
-                                facts={f['id']:(Fraction(f['qty']),Fraction(f['price']),_fx_instant(f['transaction_time']))
-                                    for f in order.get('execution_fills',[])}
-                                if (order['side']!=side or activity_id not in facts or facts[activity_id]!=(qty,price,event_time)):
-                                    reasons.add('native_owned_fill_conflict');continue
+                                if order.get('execution_fills') is None and order_id in active_entry_orders:
+                                    if order['side']!=side:
+                                        reasons.add('native_owned_fill_conflict');continue
+                                    active_fill_qty[order_id]=active_fill_qty.get(order_id,Fraction())+qty
+                                    active_fill_notional[order_id]=active_fill_notional.get(order_id,Fraction())+qty*price
+                                else:
+                                    facts={f['id']:(Fraction(f['qty']),Fraction(f['price']),_fx_instant(f['transaction_time']))
+                                        for f in order.get('execution_fills',[])}
+                                    if (order['side']!=side or activity_id not in facts or facts[activity_id]!=(qty,price,event_time)):
+                                        reasons.add('native_owned_fill_conflict');continue
                             else:
                                 report.setdefault('unattributed_order_ids',[]).append(order_id)
                             currency['BTC']+=qty if side=='buy' else -qty
@@ -770,6 +813,16 @@ def _native_quantity_reconciliation(rows,observation,result,flow_fields,*,mode,o
         elif pending is not None:reasons.add('native_flow_through_pending')
         report['known_flow_delta']={k:_quantity_text(v) for k,v in currency.items()}
         report['observed_fee_quantities']={k:_quantity_text(fee_totals[k]) if k in priced_fees else None for k in fee_totals}
+        for order_id,(entry,order) in active_entry_orders.items():
+            filled=active_fill_qty.get(order_id,Fraction())
+            expected=Fraction(entry['entry_filled_qty'])
+            if filled!=expected:
+                reasons.add('native_active_entry_fill_quantity_unverified')
+            average=order.get('filled_avg_price')
+            if filled<=0 or not isinstance(average,str) or not average.strip():
+                reasons.add('native_active_entry_fill_price_unverified')
+            elif abs(Fraction(_execution_number(average))-active_fill_notional[order_id]/filled)>Fraction(1,1_000_000):
+                reasons.add('native_active_entry_fill_price_conflict')
         for gap in report['buy_credit_gaps']:
             order_id=gap['provider_order_id'];observed=buy_fee_totals.get(order_id)
             gap['observed_buy_fee_btc']=_quantity_text(observed) if observed is not None else None
@@ -1031,7 +1084,7 @@ def write_crypto_performance(state_dir,observation,*,mode,owner_id,activity_read
         if not known_fees<=current_fees: raise ValueError('crypto_performance_fee_history_missing')
         known_fees.update(current_fees)
         result['fee_readback_through']=through.isoformat().replace('+00:00','Z')
-        flow_ceiling=max([through,*[parse_instant(c['period_end']) for c in result['cycles']]])
+        flow_ceiling=max([through,now,*[parse_instant(c['period_end']) for c in result['cycles']]])
         flow_fields=_update_crypto_flows(flow_fields,observation,result,mode=mode,owner_id=owner_id,reader=flow_reader,ceiling=flow_ceiling.isoformat().replace('+00:00','Z'))
         try:
             quantity_reconciliation=_native_quantity_reconciliation(
