@@ -1,12 +1,16 @@
-<!-- startup-context-version: 2026-10-08.1 -->
-<!-- startup-context-digest: 5b8e34cf01a7cf7589fc6049c080b3eb8458ec28b98103abc2ade395e8d0f90c -->
+<!-- startup-context-version: 2026-10-20.1 -->
+<!-- startup-context-digest: 45f79b184d1048bc643a0db1cf6f1d928f8a426077ac0e489fcaf5bcaa1435ea -->
 # Life Manager
 
-**Life Manager is an AI that manages your life better than you ever can.** It is a proactive general agent that
-manages your body, mind, and money. It turns goals into
-completed real-world actions, acts within delegated boundaries, verifies what happened, and reports the result
-in plain language with evidence in Telegram. Its mission is to make dependable care and agency continuously
-available and end suffering for humans and, ultimately, all living beings.
+**Life Manager is an AI that manages your life better than you ever can.** It is a proactive manager for
+body, mind, and money: it finds work, chooses what to do next, executes ongoing workflows, verifies external
+outcomes, and reports completed work and recorded revenue without waiting for daily instructions.
+Its mission is to end suffering for humans and, ultimately, all living beings.
+
+The hosted target is email signup followed by autonomous work and a daily email report. Setting goals or
+budgets is not a required onboarding step; Telegram is optional. This complete hosted experience is still
+being built: existing local earning workflows and the current hosted Calendar service do not yet establish
+that every new user can run the earning workflows in the cloud.
 
 | Group | What Life Manager manages through its loops |
 |---|---|

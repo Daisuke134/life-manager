@@ -20584,19 +20584,23 @@ Top 10 by sales: 0/10 with a trial (Ocup 3,111, Serenity 2,002, HookAce 1,044, V
 
 ### Keiki × Maritime — 初週Top 30と実利用者1,000人
 
-**目的・今回の範囲:** 採択済みLife Managerで初週Top 30進出と、その後の実利用者1,000人到達を目指す。今回の作業は新メール・公式Terms・最新mainのsource/specを照合した文書更新。コード、登録、課金、migration、production flags、VM/browser、ユーザー招待・投稿・主催者への送信は変更しない。全体統括cursorは冒頭の正本を維持し、本節はMaritime laneの順序だけを更新する。
+**目的・今回の範囲:** 採択済みLife Managerで初週Top 30進出と、その後の実利用者1,000人到達を目指す。今回の作業は新メール・公式Terms・最新mainのsource/specを照合した日英README・応募生成正本・日英サイト原稿・本節の訂正。コード、登録、課金、migration、production flags、VM/browser、ユーザー招待・投稿・主催者への送信は変更しない。全体統括cursorは冒頭の正本を維持し、本節はMaritime laneの順序だけを更新する。
 
 **新メールの確定事項:** GmailでDarshan Golchha（0.email）の件名「Keiki x Maritime kicks off tomorrow」、受信2026-10-19 05:00 UTCを確認した。メールは初週末までに製品をbuildすること、人に使ってもらえれば加点、上位30チームだけ第2週へ進むこと、一つの仕事を動かして少人数のfeedbackから改善することを案内する。初週の必須利用者数・採点配分・提出フォーム・demo形式・締切時刻/timezoneは書かれていない。Slack/Discordの案内はあるが内部のpinned announcementsは今回未確認。採択自体は10月16日の「You're in! Keiki x Maritime」で確認済み。
 
 **日程:** 新メール本文は「tomorrow, Monday, October 19」、公式サイト/Termsは10月20日開始・12月1日23:59 Pacific終了で、開始日の不一致が残る。初週は既に始まっている前提で準備する。動くdemoを10月23日18:00 JST、提出packetを10月24日までに揃える内部目標とする。この日付は公式締切ではない。[公式ページ](https://competition.maritime.sh/) / [Program Terms](https://competition.maritime.sh/terms)
 
+**platformの役割と今回の使い方:** [Maritime](https://maritime.sh/)はファイル・sessionを維持するCloud microVMで既存repo/業務kernelを動かす候補。[Keiki](https://onkeiki.com/)はagent構築/実行、tools/API/MCP、schedule、email/Telegram等のchannelを備えるmanaged platform。メール報告に利用可能だが、既存LM kernelからの起動/報告adapterは要確認。競技TermsはKeiki「または」Maritimeのproject usageで検証すると記載し、両方必須・一人一VM・Telegram必須は確認できない。初週の推奨は既存LM kernelをMaritimeで動かす案のreadiness確認を先行し、メール/scheduleは既存実装を優先してKeikiが短縮できる箇所だけ使う。新しいassistantを二重実装しない。signupだけを競技usageにせず、選んだplatformで実業務が実行された証拠を残す。
+
 **公式勝利条件:** 6週間でagentを実際に使う別々の人1,000人。agent/VM/subagent数ではない。KeikiまたはMaritimeのproject-level usageで実利用を照合し、到達して検証された最初の3プロジェクトがwinnerとなる。本人・重複確認方法、同着処理、Top 30のrubricは未公表。signup数、local test、agent数を公式人数へ置換しない。
 
 **credit・渡航:** 新メールのMaritime Scaleは2か月無料、メール記載の価値は参加者一人あたり1,000ドル相当。Keikiは「利用者向け25ドルのLLM credits」とあり、一人あたり25ドルとは断定できない。適用範囲・追加料金・期限・自動更新は公式billingで確認する。promo/invite code・token付きURLは元メール/private credential SSOTに限定し、repoへ転記しない。賞はwinner projectあたり最大20,000ドル相当で、全winner同額の保証はない。SF体験は3日間、sponsored flightは米国内の人が対象。日本発便・人数・宿泊等は未公表。YC紹介/採択は公表された競技特典ではない。
 
-**提出する製品concept:** Life Managerは、利用者が目標・予算を設定し、必要な業務accountを接続すると、仕事の発見→計画→実行→provider結果/費用確認→次の実行と改善を継続するmanager。日常の指示待ちを減らすno-human-loopを目指す。初回account接続・本人確認・本人固有の権限/予算は必要な設定として扱う。Money Printerは14 product loopsの収益業務とCFOをつなぐ名称で、収入保証を意味しない。
+**提出する製品concept:** Life Managerは、仕事の発見→優先順位の決定→実行→外部結果/費用の確認→次の実行と改善を自ら継続するproactive manager。利用者に目標・予算の設定や毎日の指示を求めない。目指す入口はメール登録で、日次メールに実行した仕事・成果・確認できた売上・費用・次の行動をまとめる。Telegramは既存pipelineを使える任意channelで、必須ではない。これは完成形の仕様であり、メール登録だけでCloud収益業務が起動する実装完了を意味しない。業務provider固有のaccount接続・本人確認・入金先などが必要な場合はその依存を特定する。内部の費用制限を利用者必須の目標/予算入力へ置換しない。Money Printerは既存収益loopsとCFOをつなぐ名称で、収入保証ではない。
 
-初週は同じbusiness-kernelの一業務をCloudで完走させる。推奨する利用者層は既にdigital productを売る個人creator/operator。業務仮説は「商品と目標を一度登録→需要/訴求を調査→許可済みの一つの配信先へ制作・公開→実際の流入/注文を確認→次の施策を実行→証拠付き報告」。既存distribution adapterとreceipt/CFOを再利用し、公開adapterはCloud実行・本人account・公式readbackのreadinessで決める。これは利用者検証前の仮説。旧案の日次計画chatは入口確認には使えるが、自律収益業務の完成証明にはしない。
+初週は同じbusiness-kernelの一業務をCloudで完走させる。第一候補は既存factoryと売上実績のあるCapafyで、Affiliate/blog・Writerは代替候補。どの業務も新規利用者のaccount・Cloud adapter・公式receiptまで動くことは今回未確認で、readinessから実行対象を確定する。業務仮説は「メール登録→Managerが可能な収益業務を自ら選ぶ→制作/公開/配布→実際の流入・注文/売上を確認→次の施策→日次メール」。売上未発生・失敗・確認待ちはそのまま報告し、推定値やlistingを入金に置換しない。既存distribution adapterとreceipt/CFOを再利用する。旧案の日次計画chatは自律収益業務の完成証明にしない。
+
+**説明文訂正:** READMEの「turns goals into…evidence in Telegram」を置換し、目標/予算入力必須という追加前提を削除する。公開サイト https://aniccaai.com/lm にも「Set your goals and delegated boundaries」「evidence in Telegram」が残ることを今回crawlで確認。日英README・`.agents/startup-context.json`・日英サイト原稿をまとめて訂正し、原稿のmanifest hashを更新する。既存application-kitは旧context versionのsnapshotで、再生成前に新しい応募へ再利用しない。公開サイトのdeploy/readbackは未完で、source訂正だけで公開修正済みとはしない。
 
 **最新source/specのAs-Is → To-Be（main 060297d154を読取基準）:**
 
@@ -20605,7 +20609,7 @@ Top 10 by sales: 0/10 with a trial (Ocup 3,111, Serenity 2,002, HookAce 1,044, V
 | Local価値 | 14 loopsと業務receiptがあり、10月19日SSOTにCoconala等の公式売上readbackを記録。今回は口座/本番を再監査していない | founder事例をreceipt・期間・経費・手作業範囲付きで示す。他利用者のCloud利益/完全自律性へ外挿しない |
 | Cloud基盤 | one-repo/two-runtime、Railway life-call/worker、tenant state、Steel browser adapterがある。全14 loopsのCloud parityは未完 | 同じkernelを使い、scheduler/state/secrets/browserのhost adapterを接続。一業務をMac不要で完走 |
 | Maritime | #8168/#8308はmain統合。現transportはOpenClaw provisionとchat応答で、既存収益kernel全体との接続ではない | platform上の実利用として照合できる経路から、一業務のkernelを実行・継続 |
-| 配布入口 | #8308/#8310でcampaign page、Telegram開始、同意/撤回、HMAC/source/初回応答/7日以内再利用を実装。25人default cap、上限1,000 | migration/settingsの実環境readbackと、新規利用者の開始→実業務receiptを確認 |
+| 配布入口 | #8308/#8310でcampaign page、Telegram開始、同意/撤回、HMAC/source/初回応答/7日以内再利用を実装。25人default cap、上限1,000 | メール登録を入口に接続し、migration/settingsの実環境readbackと、新規利用者の開始→実業務receipt→日次メールを確認 |
 | 分離/移植 | CL01–CL05は未完。launchd、Mac path、local credential/browser依存が残る | tenantごとの新しいstate/secret/session。他人のaccount/結果を読めず、再開で二重effectを起こさない |
 | live/費用 | provider/public gatesはsource上default-off。今回は実DB適用・live flag・実利用者数を再確認していない。landing build manifest欠落の前回制限も残る | loaded版、公式usage、API/browser/host費用、失敗/復旧を同一利用者・実行へ結合 |
 
@@ -20615,23 +20619,23 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 
 **準備する提出packet（公式指定形式は未確認）:**
 1. 一文の製品説明、対象利用者、業務、一つの達成指標。
-2. 公開URL/Telegram入口と審査者が自分で試せるonboarding。
-3. 目標設定→実行→実際の外部結果→receipt/費用→次の実行を示す2–3分demo。
+2. 公開URL/メール登録入口と審査者が自分で試せるonboarding。Telegramは任意。
+3. メール登録→Managerの仕事選択→実行→外部結果/receipt/費用→日次報告→次の実行を示す2–3分demo。
 4. 実在する外部利用者、初回業務完了、再利用、失敗、利用者あたり費用、Keiki/Maritime usage。founder/team/testを別集計。
 5. feedbackで直した一件のbefore/after、現在の制約、次週の獲得計画。
 6. Local実績とCloud実績を分けた収益証拠、tenant/browser構成。
 
 これは推奨準備物であり、公式必須形式・提出済みとは扱わない。
 
-**Distribution:** 初週は短い実demoと対象creatorへの直接紹介・関連communityから少人数を獲得し、一つの業務完了まで観測する。自社獲得のsource→開始→同意→初回業務完了→再利用と、顧客businessの配信成果は別funnel。既存四channel（social/SEO/AI answer/platform内部）を再利用するが、SEOだけを初週の獲得手段にしない。同じ対象・媒体・目的で1,000人を達成した検証済み成功例は今回も確保していないため、25人以下の測定実験とする。distribution費用は既存方針どおり0。1,000/42日≈24人/日は競技全体の算術目安で、初週の公式ノルマではない。
+**Distribution（開発と同じ優先度）:** Cloud開発と並行して、家族・友人への無料pilot招待を準備し、最初の3人で一つの業務完了と翌日再利用を確認する。無料でも利用は未保証。実成果が出たら短いdemo/プロモーション動画とX・関連communityで10–25人へ広げる。招待文、公開URL、無料範囲/終了条件、feedbackとsource attributionを揃える。本節更新ではメール/チャット招待や投稿は送信しない。自社獲得のsource→開始→同意→初回業務完了→再利用と、顧客businessの配信成果は別funnel。既存四channel（social/SEO/AI answer/platform内部）を再利用するが、SEOだけを初週の獲得手段にしない。同じ対象・媒体・目的で1,000人を達成した検証済み成功例は今回も確保していないため、25人以下の測定実験とする。distribution費用は既存方針どおり0。1,000/42日≈24人/日は競技全体の算術目安で、初週の公式ノルマではない。
 
-**TODO順変更:** 旧=「source入口→主催者返信→名簿→日次計画wedge→Cloud identity→3人pilot→25人獲得→Top30 packet」。新=下記1→7、主催者確認/名簿は並行。理由は新メールが初週の動く製品と少人数feedbackを求め、入口sourceはmerge済みで、回答待ちを全作業の先頭にすると実証が遅れるため。進行中の外部effectと全体統括cursorは変更しない。
+**TODO順変更:** 旧=「source入口→主催者返信→名簿→日次計画wedge→Cloud identity→3人pilot→25人獲得→Top30 packet」。新=下記1→7、主催者確認/名簿は並行。理由は新メールが初週の動く製品と少人数feedbackを求め、入口sourceはmerge済みで、回答待ちを全作業の先頭にすると実証が遅れるため。今回さらに目標/予算入力とTelegram必須の追加前提を削除し、メール登録→自律収益業務→日次メールへ訂正する。進行中の外部effectと全体統括cursorは変更しない。
 
 **Maritime lane TODO（順序、cursor = 1）:**
-1. **公開する一業務のCloud readinessを確定。** 既存kernel/adapterから選び、入力→自律wake→実行→公式receipt→報告→次wakeを対応付ける。本人accountを使い、Mac停止後も継続することを受入条件とする。chat応答だけでは完了しない。
-2. **一人分のCloud実行を閉じる。** 既存Railway/Maritime/Keiki/Steel/stateと最小host adapterを使う。選んだ業務のtool権限、保持条件、secret/session分離、予算、receipt、再開/重複防止を確認。host/model/追加agent費用は公式billingで読む。
-3. **配布入口を実業務へ接続。** 既存migration/flags/tenant identity/同意の実環境を確認し、Telegram開始から一業務を完了する。権限は業務ごとに許可し、chat-only pilotの確認を全tool許可へ読み替えない。
-4. **別人3人で価値を確認し、10–25人へ。** 人数は内部目標。開始・業務完了・再利用・feedback修正を記録し、本文/秘密情報はanalyticsに残さない。
+1. **公開する一業務のCloud readinessを確定。** Capafyを第一候補に既存kernel/adapterから選び、入力→自律wake→実行→公式receipt→報告→次wakeを対応付ける。本人accountを使い、Mac停止後も継続することを受入条件とする。chat応答だけでは完了しない。
+2. **一人分のCloud実行を閉じる。** 既存Railway/Maritime/Keiki/Steel/stateと最小host adapterを使う。選んだ業務のtool権限、保持条件、secret/session分離、内部費用制限、receipt、再開/重複防止を確認。host/model/追加agent費用は公式billingで読む。
+3. **配布入口を実業務へ接続。** 既存migration/flags/tenant identity/同意の実環境を確認し、メール登録から自律起動→一業務→日次メールまでを接続する。既存Telegramは任意で再利用し、メール導線をTelegramへ強制redirectしない。訂正済み日英サイト原稿を公開経路へ反映してreadbackする。権限は業務ごとに許可し、chat-only pilotの確認を全tool許可へ読み替えない。
+4. **開発と並行して家族・友人3人へ無料pilotを準備し、10–25人へ。** 人数は内部目標。開始・業務完了・再利用・feedback修正を記録し、本文/秘密情報はanalyticsに残さない。
 5. **内部10月24日までに初週packetを完成。** 入口、demo、利用/usage、receipt/費用、feedback修正、制約と次週計画を揃える。正式提出先/期限/形式が判明したら指定手段で提出し、受付receiptを保存。
 6. **実測経路で100人→1,000人へ。** 最大離脱を直し、業務完了率/継続の高いsourceを増やす。team/test/重複を別集計し、公式project usageと照合。
 7. **公式winner・賞・渡航を確認。** 公式人数承認とwinner通知後に賞/credit・日本発旅費を確定。YCは既存応募laneで実績を使い、採択保証を含めない。
