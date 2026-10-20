@@ -596,6 +596,9 @@ async function handleWebAuthRequest(req, res, opts = {}) {
 }
 
 module.exports = {
+  publicOrigin,
+  hasPkceVerifier,
+  csrfSecret,
   createWebAuthClient,
   createWebCsrfToken,
   ensureWebUser,
