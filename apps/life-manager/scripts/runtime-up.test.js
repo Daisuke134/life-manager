@@ -1184,3 +1184,27 @@ test("Maritime pending code survives the worker failure boundary", async () => {
   assert.equal(failure.errorCode, "MARITIME_CYCLE_PENDING");
   assert.equal(failure.unknownEffect, true);
 });
+
+
+test("Maritime cycle worker injects the existing remote transport and activates verified continuations", async () => {
+  const seen = [];
+  const managerStore = {};
+  const transport = Object.fromEntries(["dispatchCycle", "readExecution", "readCycleReceipt"].map(key => [key, async () => {}]));
+  const receipt = { status: "completed" };
+  const next = { job: { job_id: "next" }, availableAt: "2026-10-21T00:00:00.000Z" };
+  const handlers = createWorkerHandlers({}, ["maritime.manager.cycle"], {
+    maritimeManagerStore: managerStore, maritimeTransport: transport,
+    createRegistry: ({ servicesByAdapter }) => {
+      const services = servicesByAdapter["maritime-manager-cycle"];
+      assert.equal(services.managerStore, managerStore);
+      assert.equal(services.dispatchCycle, transport.dispatchCycle);
+      return { hasCapability: () => true, getByCapability: () => ({
+        execute: async () => ({ receipt }), verify: () => true,
+        continuation: async job => { seen.push(job); return next; },
+      }) };
+    },
+  });
+  const job = { job_id: "cycle-a" };
+  assert.deepEqual(await handlers["maritime.manager.cycle"](job), { receipt, continuation: next });
+  assert.deepEqual(seen, [job]);
+});

@@ -211,6 +211,19 @@ async function reconcileMaritimeCapabilityJobs(capabilities, dependencies = {}) 
 function createWorkerHandlers(env, capabilities, dependencies = {}) {
   const handlers = {};
   const servicesByAdapter = {};
+  if (capabilities.some(value => value.startsWith("maritime.manager."))) {
+    const managerStore = dependencies.maritimeManagerStore
+      || require("../lib/maritime-manager-store.js").createMaritimeManagerStore({ env, fetchImpl: dependencies.fetchImpl });
+    const getWakeBinding = identity => require("../lib/maritime-manager-wake.js").createMaritimeWakeBinding(identity, {
+      secret: env.LM_MARITIME_MANAGER_ID_SECRET, publicOrigin: env.LM_PANEL_BASE_URL,
+    });
+    const transport = dependencies.maritimeTransport
+      || require("../lib/transport/maritime-manager.js").createMaritimeManagerTransport({ env, managerStore,
+        getWakeBinding, fetchImpl: dependencies.fetchImpl });
+    servicesByAdapter["maritime-manager-cycle"] = { managerStore, dispatchCycle: transport.dispatchCycle,
+      readExecution: transport.readExecution, readCycleReceipt: transport.readCycleReceipt };
+  }
+
   if (capabilities.includes("agent-economy.start")) {
     if (typeof dependencies.query !== "function") {
       throw new Error("Agent Economy Cloud citizen store unavailable");
@@ -662,7 +675,17 @@ function createWorkerHandlers(env, capabilities, dependencies = {}) {
   for (const capability of capabilities) {
     if (!registry.hasCapability(capability)) continue;
     const adapter = registry.getByCapability(capability);
-    handlers[capability] = (job) => adapter.execute(job);
+    handlers[capability] = async (job) => {
+      const execution = await adapter.execute(job);
+      if (capability.startsWith("maritime.manager.") && !execution.continuation && typeof adapter.continuation === "function") {
+        if (!await adapter.verify(execution.receipt, job)) {
+          const error = new Error("maritime_receipt_invalid"); error.code = "MARITIME_RECEIPT_INVALID"; error.unknownEffect = true; throw error;
+        }
+        const continuation = await adapter.continuation(job, execution.receipt);
+        if (continuation) return { ...execution, continuation };
+      }
+      return execution;
+    };
   }
   return handlers;
 }

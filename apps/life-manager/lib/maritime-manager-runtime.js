@@ -182,6 +182,18 @@ function createMaritimeManagerLoopAdapter(services = {}) {
         errorClass: error instanceof CycleError ? error.message : 'maritime_cycle_readback_unavailable',
         nextAction: 'inspect_provider_execution', retryable: false }; }
     },
+    async continuation(job) {
+      const c = cycleContract(job);
+      const { enrollment } = await binding(c);
+      if (enrollment.status !== 'active' || enrollment.paused_at || enrollment.release_sha !== c.releaseSha) return null;
+      const due = Date.parse(job.available_at);
+      if (!Number.isFinite(due)) throw new CycleError('maritime_cycle_schedule_invalid', false);
+      // Reuse the existing Capafy 15-minute cadence; retries keep the same slot.
+      const nextMs = due + 15 * 60 * 1000;
+      const availableAt = new Date(nextMs).toISOString();
+      return { job: buildMaritimeManagerCycleJob({ tenantId: c.tenantId, releaseSha: c.releaseSha,
+        occurrenceId: `slot:${nextMs}`, dateKey: availableAt.slice(0, 10) }), availableAt };
+    },
     verify: verifyCycleReceipt,
     report(receipt) {
       try {

@@ -130,6 +130,16 @@
       ],
       "module_ref": "lib/connector-coverage-adapter.js",
       "factory_export": "createConnectorCoverageLoopAdapter"
+    },
+    {
+      "adapter_id": "maritime-manager-cycle",
+      "loop_id": "maritime.manager.cycle",
+      "capability": "maritime.manager.cycle",
+      "effect_classes": [
+        "money"
+      ],
+      "module_ref": "lib/maritime-manager-runtime.js",
+      "factory_export": "createMaritimeManagerLoopAdapter"
     }
   ]
 }

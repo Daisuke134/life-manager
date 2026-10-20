@@ -190,3 +190,21 @@ test('a mutable cycle file cannot override the official captured execution outpu
   await assert.rejects(createMaritimeManagerLoopAdapter(f.services).execute(buildMaritimeManagerCycleJob(cycle)),
     error => error.unknownEffect === true);
 });
+
+
+test('cycle continuation preserves stable due identity and stops when enrollment pauses', async () => {
+  const f = executionFixture();
+  const adapter = createMaritimeManagerLoopAdapter(f.services);
+  const job = { ...buildMaritimeManagerCycleJob(cycle), available_at: '2026-10-20T23:55:00.000Z' };
+  const next = await adapter.continuation(job);
+  assert.equal(next.availableAt, '2026-10-21T00:10:00.000Z');
+  assert.equal(next.job.input_refs.date_ref, 'date://2026-10-21');
+  assert.equal(next.job.input_refs.cycle_ref, `maritime-cycle://${UID}/slot%3A${Date.parse(next.availableAt)}`);
+  assert.deepEqual(await adapter.continuation(job), next);
+  f.enrollment.status = 'paused';
+  assert.equal(await adapter.continuation(job), null);
+  f.enrollment.status = 'active'; f.enrollment.paused_at = '2026-10-20T23:59:00.000Z';
+  assert.equal(await adapter.continuation(job), null);
+  f.enrollment.paused_at = null; f.enrollment.release_sha = 'b'.repeat(40);
+  assert.equal(await adapter.continuation(job), null);
+});
