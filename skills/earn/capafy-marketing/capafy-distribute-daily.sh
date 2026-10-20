@@ -271,8 +271,9 @@ DESTINATIONS:
    (there is no live URL to link to), and still run the ledger write below.
 2. X caption only -- only if step 1 published. For hook-lab, make the native
    caption useful without opening the article: show one input topic and one
-   finished spoken hook from the article's quoted published product example,
-   then briefly say what Hook Lab returns. Lead with this mini-demo instead
+   finished spoken hook from the supplied published product example (or its
+   own $LIFE_MANAGER_REPO/skills/capafy/catalog/hook-lab/LISTING.md example
+   when no example was supplied). Then briefly say what Hook Lab returns. Lead with this mini-demo instead
    of a generic teaser or just the article title. Use only supplied product
    facts, with no promised retention, views, or revenue improvement. Keep the
    copy within X's existing length limits. Other skills keep their existing
