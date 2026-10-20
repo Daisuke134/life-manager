@@ -20673,7 +20673,7 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | T31 | email利用者の任意paid upgradeを既存Stripeへ接続しLM自身の売上を照合 | 無料pilot/提出を妨げずT23後。顧客事業売上とStripe subscription売上を別集計 |
 | T32 | 既存SupabaseへResend SMTP/email enable/正確なcallbackを設定しowned inbox着信確認 | 実環境完了。設定GETとowned inbox着信を確認、認証件名/宛先/新規時刻照合済み。email=true/confirm必須/既存Googleとredirect保持。safe receipt=smtp-readback.json。browser全経路はT22 |
 
-**計画訂正:** 旧T12=root Dockerfile、新T12=専用subfolder+sanitized ZIP。Railwayがroot Dockerfileを自動検出し既存life-callのbuildを変えるため訂正する。T32はT04後に独立して実行し、T22の依存へ追加する。T12→T13の逆依存もT13→T14→T12へ訂正し、CMD対象sourceが存在してからbuildする。現在cursor=T08。T32の設定/着信は確認済み。Maritime本体は本人確認・通常login済み。API key/VM/業務effectは未実施。詳細file/command/期待結果はAtomic Implementation Planを参照。
+**計画訂正:** 旧T12=root Dockerfile、新T12=専用subfolder+sanitized ZIP。Railwayがroot Dockerfileを自動検出し既存life-callのbuildを変えるため訂正する。T32はT04後に独立して実行し、T22の依存へ追加する。T12→T13の逆依存もT13→T14→T12へ訂正し、CMD対象sourceが存在してからbuildする。現在cursor=T08。T32の設定/着信は確認済み。Maritime本体は本人確認・通常login済み。API keyはprivate SSOTへ保存し、公式API hostのGET /api/agents=200・owned agent0を確認。VM/業務effectは未実施。詳細file/command/期待結果はAtomic Implementation Planを参照。
 
 **実行順の具体化:** 旧=T08実証完了→T09全作業。新=T08の認証/実環境確認とT09のsource実装を並行し、T09の実環境受入はT08後に維持。理由は既存runner/CLI契約とMaritimeのResponses API対応を一次資料で確認でき、認証待ちで独立したコード作業を止める必要がないため。cursor=T08、VM業務effectは未開始。
 

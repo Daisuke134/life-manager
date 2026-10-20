@@ -80,3 +80,7 @@ SDK docsには`provision()`を使う例があるが、それはOpenClaw template
 - https://maritime.sh/docs/frameworks/custom をlive再読。custom agentは既定でLLM keyなし。createの`useMaritimeLlm:true`またはEnv tabのUse Maritime LLMで、そのagent向け`OPENAI_API_KEY`と`OPENAI_BASE_URL`が注入される。T15のcreateとT13のtenant runner configで明示的に接続する。native Codex templateの既定model接続をcustom imageへ推測で転用しない。
 - 同custom docsで、$PORT bind、GET /health副作用なし、POST /chatの30秒以内response、/data永続化、GET /schedulesのscheduled wakeを確認。T13/T14はVM timerをwake源にしない。
 - /docs/agent-schedules は404。対応なしとは解釈せず、custom docsと既に取得した公式SDK agent-schedules.tsを契約根拠にする。
+
+## 認証後のAPI境界
+
+公式REST https://maritime.sh/docs/api のbase URLは `https://api.maritime.sh`。同じkeyでdashboard host `/api/agents` は403、公式API hostは200/bare array（owned agent0）を実測。`GET /api/agents` はread-only。API keyはprivate SSOTだけ、provision/deploy/secrets scope。`POST /api/v1/end-users/{external_id}/agents` は公式に初回201・再呼出200のidempotent作成を提供する。T15は独自externalId検索だけに頼らず、この既存契約を優先する。

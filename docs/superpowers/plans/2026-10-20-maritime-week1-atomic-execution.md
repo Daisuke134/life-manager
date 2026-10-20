@@ -313,7 +313,7 @@ life-manager/
 **Depends:** T03/T12/T13。
 
 - [ ] T15.1 test `custom_create_never_uses_default_openclaw_and_lost_response_does_not_recreate`を定義。POST body `framework:'custom'`、immutable `imageName`、HMAC externalId、response喪失後はlistのみをassert。
-- [ ] T15.2 custom createは公式REST `/api/agents`を最小fetchで呼ぶ。Maritime metered modelを使うpilotでは`useMaritimeLlm:true`を明示する（customの既定ではmodel keyが注入されない）。既存SDKのprovision defaultへcustom imageを混在させない。list/secrets等の対応済みmethodはSDK再利用、maxRetries=0。公式execは`POST /api/agents/{id}/exec`へ`{command:["python3","/app/skills/capafy-autopublish/scripts/cloud_cycle.py","--tenant",uid,"--occurrence",occurrenceId,"--date",dateKey],detached:true,timeout:3600}`。202のexecutionIdを保存し、`GET /api/agents/{id}/exec/{executionId}`で終端を読む。
+- [ ] T15.2 custom createは公式RESTのidempotent `POST /api/v1/end-users/{external_id}/agents`を最小fetchで呼ぶ（初回201、再呼出200）。external_idはtenantからHMACで導出し、lost responseは同end-userのGETで回収する。Maritime metered modelを使うpilotでは`useMaritimeLlm:true`を明示する（customの既定ではmodel keyが注入されない）。既存SDKのprovision defaultへcustom imageを混在させない。list/secrets等の対応済みmethodはSDK再利用、maxRetries=0。公式execは`POST /api/agents/{id}/exec`へ`{command:["python3","/app/skills/capafy-autopublish/scripts/cloud_cycle.py","--tenant",uid,"--occurrence",occurrenceId,"--date",dateKey],detached:true,timeout:3600}`。202のexecutionIdを保存し、`GET /api/agents/{id}/exec/{executionId}`で終端を読む。
 - [ ] T15.3 create前にstore.claimProvisionを取り、同externalIdの既存agentを読む。通信喪失時は`effect_unknown`を保存し、readbackで同agentをbindするまで再createしない。exec POSTのresponse喪失も再POSTせず、`/data`の同occurrence receiptとprovider readbackへ進む。execution 404は実行失敗の証明にしない。
 - [ ] T15.4 `node --test lib/transport/maritime-manager.test.js lib/maritime-manager-store.test.js`を確認してcommit/push。
 

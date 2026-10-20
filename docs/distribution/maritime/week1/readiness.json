@@ -68,5 +68,17 @@
     "user_completion_requested": false,
     "composio_gmail": "14 registered Gmail connections EXPIRED; accepted mailbox ownership mapping unverified; no reconnect performed",
     "gmail_connector": "existing Gmail connection read confirmation privately; verified provider link and normal email/password login to /agents"
+  },
+  "maritime_api_readback": {
+    "base_url": "https://api.maritime.sh",
+    "authenticated": true,
+    "http_status": 200,
+    "agent_count": 0,
+    "key_scopes": [
+      "provision",
+      "deploy",
+      "secrets"
+    ],
+    "key_location": "private credential SSOT only"
   }
 }
