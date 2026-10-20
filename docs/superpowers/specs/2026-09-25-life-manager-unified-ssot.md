@@ -20631,13 +20631,13 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 
 **TODO順変更:** 旧=一業務readiness→Cloud→入口→3人pilot→packet→1,000人。新=下記atomic ID順、提出経路確認T01・配布文案T24・台本T25は即着手可能。理由はDaisが知人DMを担当し、利用者feedbackを待たず実装・素材・提出準備を進められるため。先に試せる製品と正式必須項目を揃えて提出し、改善と獲得を継続する。全体統括cursorと進行中provider effectは変更しない。
 
-**Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細・file tree・signature・focused acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。同plan内のcheckboxは実装手順で、状態判定は本節を正とする。現在cursor=T01。計画・調査・文案は保存済み、下記product実装/正式提出は未実施。
+**Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細・file tree・signature・focused acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。同plan内のcheckboxは実装手順で、状態判定は本節を正とする。現在cursor=T04（email認証）。T01は公式channel確認済みだがform/期限時刻は未公表の外部条件として継続確認。T03はsource実装済みでCI/main待ち。T02はmain統合済み。T03の実環境適用順は変更しない。正式提出は未実施。
 
 | ID | 一件の成果物 | 状態/依存 |
 |---|---|---|
-| T01 | 正式提出form・初週期限・timezone・必須fieldをrequirements.jsonへ | 未着手、即実行可。未公表fieldはnullと根拠 |
-| T02 | 既存OSS icon digest宣言漏れ修正と#8395 copy contract統合 | 未着手。画像本体/seller/gateは変えない |
-| T03 | enrollment DB/storeの一uid一row・一provision claim | T02後 |
+| T01 | 正式提出form・初週期限・timezone・必須fieldをrequirements.jsonへ | 主催者Slack参加・公式3channel readback済み。form/初週時刻は未公表、理由付きnullを保存 |
+| T02 | 既存OSS icon digest宣言漏れ修正と#8395 copy contract統合 | 完了。関連30/30、全13 checks PASS、#8396でmain 103f2a331bへ統合 |
+| T03 | enrollment DB/storeの一uid一row・一provision claim | source実装016b6704c5、6/6 PASS、独立review指摘修正済み。#8397でCI/main待ち、実DB未適用 |
 | T04 | Supabaseのemail認証専用handler | T03後、既存Google guard維持 |
 | T05 | 本人POST activateから一度だけenqueue | T04後、GET/prefetchは実利用にしない |
 | T06 | email登録が主CTAのcampaign入口 | T04/T05後 |
@@ -20664,8 +20664,11 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | T27 | DaisのDMとowned X/IG/community配布 | T22/T24/T26後、3人feedback待ちなし |
 | T28 | source別の最大離脱を一つ修正 | T21/T27後 |
 | T29 | 実測のcapacity/費用/利益/再利用を改善し1,000人を公式検証 | T28後 |
+| T30 | 共有できる稼働URLをDaisへメール送信しreceipt確認 | T23直後。T29の長期成長を待たない |
 
 **技術判断:** custom imageで同じfactoryを使う。中央Railwayの既存queue workerがMaritimeのdetached execへ一回dispatchしexecutionIdを回収する。VMはtenant限定tokenでwake relayへ通知し、Supabase service-roleを持たない。Keikiはemail/schedule/APIを持つが、既存Resend/CFOを置換する必須依存にしない。Maritime SDKのprovision既定OpenClawをcustom imageへ流用せず公式REST契約を使う。全14loops移植・新しいpublisher/router/schedulerは初週必須作業にしない。
+
+**Daisへの共有URL送信（追加必須成果）:** T23で正式提出と受付を確認後、T30として稼働URL・無料pilotの範囲・家族/友人向け短い紹介文をDaisへメール送信し、provider receiptと送信済みreadbackを確認する。宛先はprivate profile/credential SSOTから解決し、repoへ個人宛先を保存しない。配信不能を送信済みと扱わない。
 
 **配布/提出資料:** [DM・X・IG文案](../../distribution/maritime/week1/channel-copy.md) / [撮影台本](../../distribution/maritime/week1/demo-script.md) / [提出checklist](../../distribution/maritime/week1/submission-checklist.md)。文案/台本の保存は投稿・動画生成・提出完了を意味しない。
 

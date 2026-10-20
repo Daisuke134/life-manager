@@ -454,6 +454,17 @@ life-manager/
 - [ ] T29.3 費用の高いwake/無成果taskを既存model判断とbackoffで減らし、実際のnetが確認できる業務へ資源を寄せる。利益不明を黒字と報告しない。
 - [ ] T29.4 1,000人到達時に公式project usageと本人/重複確認を提出し、winner通知をreadbackする。SF日本発旅費/credit条件/YCは別の確認事項として保持する。
 
+## Task T30: 稼働URLをDaisへメールで届ける
+
+**Files:** 既存mail送信経路と`submission.json`のprivate delivery receipt参照。個人宛先/secretはrepoに保存しない。
+**Interfaces:** T23の受付済みentryとT22の稼働URLをconsumes。送信先はprivate profile/credential SSOTから解決する。
+**Depends:** T23直後。長期獲得T29やwinner通知を待たない。
+
+- [ ] T30.1 稼働中のemail登録URLと無料pilotの範囲を再度GETで確認し、Dais宛先をprivate SSOTから解決する。
+- [ ] T30.2 URL、できること、未接続部分、家族/友人へ転送できる短い紹介文を日本語の一通にまとめ、送信payloadを独立read-only検証する。
+- [ ] T30.3 許可済みの既存メール経路でDaisへ一回送信する。provider message IDを保存し、応答不明時は再送せずreadbackする。
+- [ ] T30.4 送信済みの宛先・件名・本文URLとprovider receiptを照合し、正本を更新する。API受付と着信は区別し、着信未確認ならその範囲を残す。
+
 ## 一件のtaskを実装するときの共通手順
 
 1. IDとowned filesを読む。最新mainから専用worktree/leaseを取り、他ownerの差分を保つ。
