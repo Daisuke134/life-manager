@@ -297,12 +297,12 @@ life-manager/
 
 ## Task T14: 休眠しても起きるscheduleを公開する
 
-**Files:** Modify `maritime/server.js`、runtime adapter/test。
-**Interfaces:** `/schedules` returns `{id,nextRunAt,prompt,enabled}`の配列。永続snapshotは`/data/<tenant>/maritime-schedules.json`。`transport.writeScheduleSnapshot({uid,agentId,schedules})`は公式files/writeでこのpathだけを更新し、serverは各GETで読み直す。ID=`lm-cycle:<uid>`/`lm-report:<uid>`。nextRunAtはpersisted UTC instant。
+**Files:** Create `lib/maritime-manager-schedules.js`/test、Modify `maritime/server.js`/test、runtime adapter/test。既存`user-tz.js`と`honne-ja-shadow-schedule.js::zonedSlotInstant`でtimezoneを扱い、別schedulerは作らない。
+**Interfaces:** `/schedules` returns `{id,nextRunAt,prompt,enabled}`の配列。永続snapshotは`/data/<tenant>/maritime-schedules.json`。`transport.writeScheduleSnapshot({uid,agentId,schedules})`は公式files/writeでこのpathだけを更新し、serverは各GETで読み直す。ID=`lm-cycle:<uid>`/`lm-report:<uid>`。nextRunAtはpersisted UTC instant。保存envelope=`{schema_version:1,tenantId,releaseSha,paused,schedules}`、最大cycle/report各1件。`projectMaritimeSchedules({tenantId,releaseSha,status,pausedAt,nextEligibleAt,timezone,nowMs})`が投影を返し、`readMaritimeSchedules({tenantId,releaseSha,dataRoot})`は毎回同tenantのfileを読んで配列だけを返す。未作成は空配列、破損・別tenant・symlinkは503として既存wakeを誤解除しない。
 **Depends:** T13。
 
 - [ ] T14.1 test `schedules_publish_persisted_next_occurrence_and_pause_removes_it`を定義。server再起動後も同じnextRunAt、pausedは配列から消える。
-- [ ] T14.2 既存loopのnextEligibleAtをscheduleへ投影する。日次reportはtimezoneに従う。setIntervalだけで定期稼働を保証しない。
+- [ ] T14.2 既存loopのnextEligibleAtをscheduleへ投影する。日次reportは利用者のtimezoneの19:00、既存zonedSlotInstantで次のUTC instantを計算して保存する（入力を追加しない）。setIntervalだけで定期稼働を保証しない。
 - [ ] T14.3 scheduled requestを受けた後、同じoccurrenceは既存job/receiptでdedupし、処理結果から次のscheduleを更新する。失敗時は既存retry/backoffを再利用。
 - [ ] T14.4 focused sleep/resume fixtureをPASSにしcommit/push。実際の休眠wakeはT22で確認する。
 

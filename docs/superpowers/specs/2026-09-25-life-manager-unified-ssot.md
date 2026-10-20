@@ -20652,8 +20652,8 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | T10 | 同tenant公式Capafy snapshot→FinancialRecord | T10Aは#8405/main70a5e36573・全14 checks PASS、関連16/16・独立review Blocking0。T10B公式collectorは#8406/main1d54c5d24a・全13 checks PASS。独立reviewの成功code指摘をRED→GREENで修正し7/7・既存49/49 PASS、owned APIの所有者/日別coverage/合計一致と変換を実測。Cloud利用者接続・中央worker wiringは未完 |
 | T11 | 既存queue/leaseへmanager.cycle adapter登録 | #8407でsource統合中。store/SQLとstable buildersはreview修正済。cycle adapterのplan/execute/reconcile/verify/reportを実装しruntime16/16 PASS。独立reviewのtransport uid不一致・日本語/空白のartifact path拒否と、保存fileだけを書き換えた完了判定を回帰RED→GREENで修正。公式captured stdoutとenvelope.resultを照合する。実行中はworkerを占有せずpending、停止後もread-only回収、共通receiptはexecutionの証拠として分離。provision/report adapter・worker wiring・本番DB/Cloud適用は未完 |
 | T12 | 専用subfolder Dockerfileとsanitized ZIPで同repoのcustom imageをbuild | T11/T13後。Railwayのroot Dockerfile自動検出を避ける |
-| T13 | VM health/chat/schedulesの短いHTTP server | source確認中。HTTP handler独立review Blocking0、起動/relay/runner専用configとdetached entryを実装、関連18/18 PASS（実loopback port・既存Python runnerが生成profileを読めることを含む）。model keyはenvだけ、空auth markerだけを保存。実relay/VM/model呼出は未完。T14 schedulesは別task |
-| T14 | sleeping VMでも起きるnextRunAt schedule | T13後 |
+| T13 | VM health/chat/schedulesの短いHTTP server | source確認中。HTTP handlerと起動unitの独立reviewは各Blocking0/Important0。起動/relay/runner専用configとdetached entryを実装、T14含む関連25/25 PASS（実loopback port・既存Python runnerが生成profileを読めることを含む）。model keyはenvだけ、空auth markerだけを保存。実relay/VM/model呼出は未完。T14 schedulesは別task |
+| T14 | sleeping VMでも起きるnextRunAt schedule | projection/永続snapshot reader/GET schedulesはsource実装、schedule6/6・server11/11 PASS。利用者19:00の日報時刻を既存timezone変換で計算しDST確認。中央queueからの更新/公式writeと実休眠wakeはT15/T16/T22で未完 |
 | T15 | custom create・detached exec/resultの重複防止adapter | T03/T12/T13後 |
 | T16 | 一tenant tokenのwake relay・secret・初回wake配線 | T05/T08/T14/T15後 |
 | T17 | Cloudで一件の正規publishとofficial status確認 | T16後、売上発生自体は待たない |

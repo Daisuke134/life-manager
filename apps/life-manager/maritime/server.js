@@ -3,7 +3,7 @@ const http = require('node:http');
 
 // This VM receives platform wake notifications. Business work stays in the
 // existing central queue and is dispatched separately through detached exec.
-function createMaritimeManagerServer({ config = {}, relayWake, relayTimeoutMs = 10000 } = {}) {
+function createMaritimeManagerServer({ config = {}, relayWake, readSchedules, relayTimeoutMs = 10000 } = {}) {
   const tenantId = config.tenantId;
   const releaseSha = config.releaseSha;
   if (typeof tenantId !== 'string' || !/^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(tenantId)
@@ -21,6 +21,15 @@ function createMaritimeManagerServer({ config = {}, relayWake, relayTimeoutMs = 
     if (request.method === 'GET' && request.url === '/health') {
       json(response, ready ? 200 : 503, { ok: ready, releaseSha,
         ...(!ready ? { errorClass: modelReady ? 'wake_relay_unconfigured' : 'cloud_model_config_missing' } : {}) });
+      return;
+    }
+    if (request.method === 'GET' && request.url === '/schedules') {
+      if (!ready) { json(response, 503, { errorClass: 'schedule_unavailable' }); return; }
+      try {
+        const schedules = readSchedules ? await readSchedules()
+          : require('../lib/maritime-manager-schedules.js').readMaritimeSchedules({ tenantId, releaseSha });
+        json(response, 200, schedules);
+      } catch { json(response, 503, { errorClass: 'schedule_unavailable' }); }
       return;
     }
     if (request.method !== 'POST' || request.url !== '/chat') {

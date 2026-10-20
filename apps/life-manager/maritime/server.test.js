@@ -124,3 +124,19 @@ test('startup rejects unsafe relay configuration and never invents a default por
     assert.throws(() => startMaritimeManagerServer({ env, prepareRuntime: () => ({ config }) }), /invalid/);
   }
 });
+
+test('schedule endpoint rereads the persisted projection and never turns read failures into an empty snapshot', async t => {
+  let schedules = [{ id: `lm-cycle:${UID}`, nextRunAt: '2026-10-20T10:00:00.000Z', prompt: 'lm:cycle', enabled: true }];
+  let fail = false; let reads = 0;
+  const base = await listening(t, { config, relayWake: async () => ({ accepted: true }), readSchedules: () => {
+    reads++; if (fail) throw new Error('private-path'); return structuredClone(schedules);
+  } });
+  const first = await fetch(base + '/schedules'); assert.equal(first.status, 200);
+  assert.deepEqual(await first.json(), schedules);
+  schedules = [];
+  assert.deepEqual(await (await fetch(base + '/schedules')).json(), []);
+  fail = true;
+  const third = await fetch(base + '/schedules'); assert.equal(third.status, 503);
+  assert.equal((await third.text()).includes('private-path'), false);
+  assert.equal(reads, 3);
+});
