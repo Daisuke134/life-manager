@@ -1,10 +1,10 @@
-<!-- startup-context-version: 2026-10-08.1 -->
-<!-- startup-context-digest: 5b8e34cf01a7cf7589fc6049c080b3eb8458ec28b98103abc2ade395e8d0f90c -->
+<!-- startup-context-version: 2026-10-20.1 -->
+<!-- startup-context-digest: 45f79b184d1048bc643a0db1cf6f1d928f8a426077ac0e489fcaf5bcaa1435ea -->
 # Life Manager
 
-**Life Managerは、あなたの身体・心・お金を管理するproactive general agentです。** 目標を提案で終わらせず、
-委任された範囲で現実の行動を実行し、結果を検証して、証拠と一緒に人間が理解できる言葉でTelegramへ報告します。
-信頼できるcareとagencyを常時利用可能にし、人間から始めて最終的にすべての生き物の苦しみを終わらせることがmissionです。
+**Life Managerは、身体・心・お金を管理する自発的なマネージャーです。** 自ら仕事と優先順位を決め、継続して実行し、外部の結果を確認して、実行内容と確認できた売上を報告します。毎日の指示や、開始時の目標・予算入力を必須にしません。missionは、人間から始めて最終的にすべての生き物の苦しみを終わらせることです。
+
+Cloud版の完成形は「メール登録→自律実行→日次メール報告」で、Telegramは任意です。この一連の体験は開発中で、既存のLocal収益業務や現在のホスト版Calendar管理が、そのまま新規利用者のCloud収益業務まで完成していることを意味しません。
 
 | organ | Life Managerが管理するもの |
 |---|---|

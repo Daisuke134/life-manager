@@ -1,12 +1,12 @@
 <!-- generated from .agents/startup-context.json; do not edit -->
-context-version: 2026-10-08.1
-context-digest: 5b8e34cf01a7cf7589fc6049c080b3eb8458ec28b98103abc2ade395e8d0f90c
+context-version: 2026-10-20.1
+context-digest: 45f79b184d1048bc643a0db1cf6f1d928f8a426077ac0e489fcaf5bcaa1435ea
 
 # Life Manager — 資金調達応募の正本回答
 
 ## 何を作っていますか
 
-Life Managerは、身体・心・お金と現実のfollow-throughを管理し、委任範囲で行動して、証拠付きの結果をTelegramへ返すproactive general agentです。
+Life Managerは、身体・心・お金を管理する自発的なマネージャーです。自ら仕事と優先順位を決め、継続実行し、結果と売上を確認して報告します。開始時の目標・予算入力や毎日の指示を必須にしません。Cloud版の完成形はメール登録と日次メール報告で、Telegramは任意です。この一連のCloud体験は開発中です。
 
 ## 何をしますか
 

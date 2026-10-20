@@ -1,6 +1,6 @@
 <!-- generated from .agents/startup-context.json; do not edit -->
-context-version: 2026-10-08.1
-context-digest: 5b8e34cf01a7cf7589fc6049c080b3eb8458ec28b98103abc2ade395e8d0f90c
+context-version: 2026-10-20.1
+context-digest: 45f79b184d1048bc643a0db1cf6f1d928f8a426077ac0e489fcaf5bcaa1435ea
 
 # Life Manager deck source
 
@@ -14,7 +14,7 @@ People know what would improve their lives, but action stops between disconnecte
 
 ## 3 — Product
 
-One manager coordinates specialist organs, executes within delegated boundaries, verifies the result, and reports in Telegram.
+Life Manager coordinates specialist organs, chooses work and priorities, executes ongoing workflows, and verifies external outcomes with receipts. The hosted target starts with email signup and sends daily email reports; Telegram is optional. Users are not required to define goals or budgets.
 
 ## 4 — Daily Organ
 

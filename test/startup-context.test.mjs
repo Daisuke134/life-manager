@@ -35,7 +35,7 @@ test("canonical startup context is valid and names Life Manager as the product",
   assert.notEqual(context.product.name, context.company.legal_name);
   assert.match(context.product.mission, /end suffering/i);
   assert.match(context.product.mission, /all living beings/i);
-  assert.deepEqual(context.delivery, {
+  assert.deepEqual({ local: context.delivery.local, cloud: context.delivery.cloud }, {
     local: "Free, open-source, self-hosted Life Manager.",
     cloud: "Paid monthly subscription for an always-on hosted Life Manager.",
   });
@@ -210,7 +210,7 @@ test("English README first view explains the Life Manager product experience", a
 
   assert.match(readme, /body, mind, and money/i);
   assert.match(readme, /Telegram/);
-  assert.match(readme, /acts? within/i);
+  assert.match(readme, /Setting goals or\s+budgets is not a required onboarding step/i);
   assert.match(readme, /same core/i);
   assert.match(readme, /https:\/\/aniccaai\.com\/lm/);
   assert.doesNotMatch(readme, /Live Dashboard/);
@@ -223,7 +223,7 @@ test("Japanese README first view explains the Life Manager product experience", 
   assert.match(readme, /心/);
   assert.match(readme, /お金/);
   assert.match(readme, /Telegram/);
-  assert.match(readme, /委任された範囲/);
+  assert.match(readme, /開始時の目標・予算入力を必須にしません/);
   assert.match(readme, /同じcore/);
   assert.match(readme, /https:\/\/aniccaai\.com\/lm/);
   assert.doesNotMatch(readme, /Live Dashboard/);
