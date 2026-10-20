@@ -20582,41 +20582,63 @@ Top 10 by sales: 0/10 with a trial (Ocup 3,111, Serenity 2,002, HookAce 1,044, V
 7. Daily 6-slide carousel and weekly winner-creative research loop (yt-dlp).
 8. Foundation: browser flag reconcile for line-creators/fundraiser/tiktok owners (leases always busy); pre-existing failing test test_capafy_goal_monitors_declare_rebindable_host_admission_contract; zombie claim marketing-metrics-daily since 2026-10-16; offline candidate build reports success with no new candidate.
 
-### Keiki × Maritime採択後のLife Manager実利用者1,000人計画 — 2026-10-18
+### Keiki × Maritime — 初週Top 30と実利用者1,000人
 
-**状態:** 採択済み。Darshan Golchhaから2026-10-16に件名「You're in! Keiki x Maritime」の公式メールを受信した。メールは「一人ずつが使えるLife Manager」を動かすこと、初週に製品を磨くこと、上位30チームだけが第2週へ進むことを案内する。参加者は返信で追加できるが、受諾メールにチーム名簿はない。メールではMaritime Scaleを2か月（参加者一人あたり1,000ドル相当）、初週のKeiki利用者向けLLM creditsを一人あたり25ドル相当と案内する。開始日はメールが10月19日、現行Program Termsが10月20日で食い違う。10月16日に送信した確認メールへの追加返信は10月18日時点で見つかっていない。招待・割引コード、token付きURLはSSOTへ写さない。初週の締切、Top 30の評価基準、提出物、必要なアカウント、名簿、日本からの渡航条件は推測しない。
+**目的・今回の範囲:** 採択済みLife Managerで初週Top 30進出と、その後の実利用者1,000人到達を目指す。今回の作業は新メール・公式Terms・最新mainのsource/specを照合した文書更新。コード、登録、課金、migration、production flags、VM/browser、ユーザー招待・投稿・主催者への送信は変更しない。全体統括cursorは冒頭の正本を維持し、本節はMaritime laneの順序だけを更新する。
 
-**公式目標:** agentを実際に使う別々の人1,000人。実利用の確認にはKeikiまたはMaritimeのproject-level usageを使う。agent、VM、subagentの数は目標人数ではない。1,000人に到達し検証された最初の3プロジェクトがwinnerとなる。Termsの共通期間は2026-10-20から2026-12-01 23:59 Pacificまで。利用者ごとの数値的な継続率・活動条件は記載されていない。winner projectごとに最大20,000ドル相当のAI creditsが案内され、SFでの3日間体験と米国内の人向けflightがある。日本からの便やその他旅費は未公表。[Program Terms](https://competition.maritime.sh/terms) [公式ページ](https://competition.maritime.sh/)
+**新メールの確定事項:** GmailでDarshan Golchha（0.email）の件名「Keiki x Maritime kicks off tomorrow」、受信2026-10-19 05:00 UTCを確認した。メールは初週末までに製品をbuildすること、人に使ってもらえれば加点、上位30チームだけ第2週へ進むこと、一つの仕事を動かして少人数のfeedbackから改善することを案内する。初週の必須利用者数・採点配分・提出フォーム・demo形式・締切時刻/timezoneは書かれていない。Slack/Discordの案内はあるが内部のpinned announcementsは今回未確認。採択自体は10月16日の「You're in! Keiki x Maritime」で確認済み。
 
-**現状:** 最新`origin/main`=`f0d2cc44`にはPR #8168由来の`maritime-sdk@0.9.0`、Telegram `/pilot`、UID由来HMACのagent/conversation ID、冪等provision、重複update防止receiptがある。routeはdefault-offで最大3 UID。data approval、実検証済みtool policy、server API key、`LM_UID_SECRET`がそろわなければ動かない。現在はUIDごとにagentをprovisionする。OpenClawのtool policyは未検証。大会用account/key/VM/実ユーザー操作は未確認で、一般利用者向けCloud導線の自然稼働も確認されていない。また、このrepoにはRailway/Cloud/SupabaseとTelegram tenant onboardingのソースがあるため、すべてがlocal専用ではない。ただしコードと設定の存在だけでは大会向け本番稼働を証明しない。公開Life Manager pageはGoogle Calendar接続とカード登録必須の7日trialへ進み、`/start`もCalendar OAuthを開始する。大会目的で来た人のTelegram開始、データ保持説明・同意、紹介元から初回成功までの計測はまだない。
+**日程:** 新メール本文は「tomorrow, Monday, October 19」、公式サイト/Termsは10月20日開始・12月1日23:59 Pacific終了で、開始日の不一致が残る。初週は既に始まっている前提で準備する。動くdemoを10月23日18:00 JST、提出packetを10月24日までに揃える内部目標とする。この日付は公式締切ではない。[公式ページ](https://competition.maritime.sh/) / [Program Terms](https://competition.maritime.sh/terms)
 
-**推奨:** 既存Cloud/Telegramのtenant導線を使い、ユーザーごとにLife Manager identity、conversation ID、task stateを分離する。主催者が専用VMを要求しない限り、一人ずつVMを作らない。カレンダー・メール接続のいらない低機微な日次タスクを一つ選ぶ。利用者にはMaritime AI credits使用時に入力・出力が無期限保存されると説明し、明示同意前はproviderへ送らない。記録は仮名化ID、紹介元、時刻、結果に限り、自由文を残さない。主なボトルネックはローカル機能より、最初の価値まで短い参加導線と継続的な実利用者獲得と推定する。DuckDuckGo HTMLの限定検索では同じ利用者層・媒体・1,000人条件の実績ある成功事例を確認できなかったため、勝ち筋を捏造せず25人の実験で紹介元→開始→同意→初回有用完了→7日以内再利用を測る。42日で1,000人には平均約24人/日の純増が必要だが、これは算術であり公式の日次条件ではない。
+**公式勝利条件:** 6週間でagentを実際に使う別々の人1,000人。agent/VM/subagent数ではない。KeikiまたはMaritimeのproject-level usageで実利用を照合し、到達して検証された最初の3プロジェクトがwinnerとなる。本人・重複確認方法、同着処理、Top 30のrubricは未公表。signup数、local test、agent数を公式人数へ置換しない。
 
-**AS-IS → TO-BE:** 現在の公開ページはCalendar向けtrial CTA、通常Telegram `/start`はCalendar OAuthを始める。大会向けsourceでは`NEXT_PUBLIC_MARITIME_PILOT_CTA=1`の時だけTelegram CTAを表示し、`/maritime` page → allowlist source付きredirect → `/start maritime_<source>` → 保持条件の表示 → `/maritime_accept` → 個人別`/pilot`の順で進む。新規フローはCalendarやGmailを要求しない。`/pilot`は同意保存を確認するまでrequest receiptもprovider callも作らない。HMAC参加者ID、source、start/consent/first-response/7-day-return milestoneだけを記録し、prompt/responseやTelegram IDはイベントへ保存しない。
+**credit・渡航:** 新メールのMaritime Scaleは2か月無料、メール記載の価値は参加者一人あたり1,000ドル相当。Keikiは「利用者向け25ドルのLLM credits」とあり、一人あたり25ドルとは断定できない。適用範囲・追加料金・期限・自動更新は公式billingで確認する。promo/invite code・token付きURLは元メール/private credential SSOTに限定し、repoへ転記しない。賞はwinner projectあたり最大20,000ドル相当で、全winner同額の保証はない。SF体験は3日間、sponsored flightは米国内の人が対象。日本発便・人数・宿泊等は未公表。YC紹介/採択は公表された競技特典ではない。
 
-**Source実装状態:** distribution route、tenant再利用、consent/revoke、25人default cohort cap（設定上限1,000人）、初回応答/7日再利用イベント、既存Life Manager pageのflagged CTAを専用branchに実装する。anonymous page/click telemetryはbest-effortでredirectを待たせない。デフォルトは非公開で既存data/tool/API-key gatesも維持する。DB migrationは未適用、production flagsは未変更、公開・招待・実ユーザー入力・Maritime/Keiki account/VM作成は未実施。`apps/landing`にpackage manifest・tsconfig・`@/lib/launchStrings` sourceがないためfrontend build/typecheckは未確認。
+**提出する製品concept:** Life Managerは、利用者が目標・予算を設定し、必要な業務accountを接続すると、仕事の発見→計画→実行→provider結果/費用確認→次の実行と改善を継続するmanager。日常の指示待ちを減らすno-human-loopを目指す。初回account接続・本人確認・本人固有の権限/予算は必要な設定として扱う。Money Printerは14 product loopsの収益業務とCFOをつなぐ名称で、収入保証を意味しない。
 
-**TODO順変更:** 旧順序「主催者条件 → 名簿 → wedge → Cloud導線 → data/tool同意 → identity → 3人pilot → Top 30 → 25人実験 → 100人 → 1,000人 → winner/渡航」。新順序「default-offのdistribution入口・同意・計測をsource実装 → 主催者条件と名簿 → wedgeとdata/tool条件 → Cloud個人別経路・identity → 3人pilot → 25人の獲得実験 → Top 30 packet → 100人 → 1,000人 → winner/渡航」。理由は大会開始まで日が近く、利用者へ開く前に紹介計測と同意導線を実装しておけば、規約・安全確認を待つ間にも必要なsource作業を閉じられ、最初の実利用を測る時間を増やせるため。25人実験や公開はgate完了後に限る。現在cursorは新TODO 1（source実装）。
+初週は同じbusiness-kernelの一業務をCloudで完走させる。推奨する利用者層は既にdigital productを売る個人creator/operator。業務仮説は「商品と目標を一度登録→需要/訴求を調査→許可済みの一つの配信先へ制作・公開→実際の流入/注文を確認→次の施策を実行→証拠付き報告」。既存distribution adapterとreceipt/CFOを再利用し、公開adapterはCloud実行・本人account・公式readbackのreadinessで決める。これは利用者検証前の仮説。旧案の日次計画chatは入口確認には使えるが、自律収益業務の完成証明にはしない。
 
-この順序にする理由は、利用実績の証明と初週進出が成果を決め、VM1,000台は規約上の条件でないためである。競技サイトと公開life-manager pageを再確認し、同条件の成功配信事例がない現状は小さな測定実験で埋める。
+**最新source/specのAs-Is → To-Be（main 060297d154を読取基準）:**
 
-進捗: TODO 1のdistribution sourceはPR #8308でmain merge commit `d622c4f718`へ統合済み。fresh review verdict `SHIP`、最新head CI全件PASS、focused Node tests 26/26。Telegram同意の再配信防止、row-lock内の初回／7日以内再利用分類、milestone state/eventの同一transaction、allowlist deep linkを実装した。production migration・flags・配信・ユーザー招待は未実施なので、実利用者funnelはまだliveではない。公式メールは10月16日に主催者が日程・審査基準・旅費などの確認を約束した後、10月15日以降のGmail検索では追加返信が見つからない。公式Terms（10月15日更新）は10月20日開始・12月1日終了、実在するdistinct users 1,000人、米国内居住者のみsponsored flight対象と記載し、日本発flightは未確定。TODO cursorは1から2へ進み、次は確認済みメールへの回答読み戻しと未確定条件の更新。詳しい設計と受け入れ条件は[詳細設計](2026-10-16-maritime-pilot-design.md)を参照。
+| 領域 | 確認できるAs-Is | 初週のTo-Be |
+|---|---|---|
+| Local価値 | 14 loopsと業務receiptがあり、10月19日SSOTにCoconala等の公式売上readbackを記録。今回は口座/本番を再監査していない | founder事例をreceipt・期間・経費・手作業範囲付きで示す。他利用者のCloud利益/完全自律性へ外挿しない |
+| Cloud基盤 | one-repo/two-runtime、Railway life-call/worker、tenant state、Steel browser adapterがある。全14 loopsのCloud parityは未完 | 同じkernelを使い、scheduler/state/secrets/browserのhost adapterを接続。一業務をMac不要で完走 |
+| Maritime | #8168/#8308はmain統合。現transportはOpenClaw provisionとchat応答で、既存収益kernel全体との接続ではない | platform上の実利用として照合できる経路から、一業務のkernelを実行・継続 |
+| 配布入口 | #8308/#8310でcampaign page、Telegram開始、同意/撤回、HMAC/source/初回応答/7日以内再利用を実装。25人default cap、上限1,000 | migration/settingsの実環境readbackと、新規利用者の開始→実業務receiptを確認 |
+| 分離/移植 | CL01–CL05は未完。launchd、Mac path、local credential/browser依存が残る | tenantごとの新しいstate/secret/session。他人のaccount/結果を読めず、再開で二重effectを起こさない |
+| live/費用 | provider/public gatesはsource上default-off。今回は実DB適用・live flag・実利用者数を再確認していない。landing build manifest欠落の前回制限も残る | loaded版、公式usage、API/browser/host費用、失敗/復旧を同一利用者・実行へ結合 |
 
-**Hackathon Radar同期:** Radar Page本文は採択状態・開始日の矛盾・主催者への確認事項を更新し、読み戻し済み。稼働中の日次scan workerには「1,000 distinct qualified agentsを別々のMaritime VMで動かす」という旧指示が残っている。Pages連携にはtask設定を変更・停止する操作が公開されていないため、同じworkerを重複作成しない。設定更新が可能になった時点で、1,000人の実利用を数える指示へ直す。
+Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime等のhostから呼ぶ。Steelはbrowser/sessionの実行先で、scheduler・tenant store・credential boundary・receipt照合の代わりにはならない。local credential/profile/可変ログをそのまま別利用者へ複製しない。現在のUID別agent実装と、公式が一人一VMを要求することも区別する。後者はTermsにない。→ [one-repo/two-runtime設計](2026-09-06-life-manager-one-repo-two-runtimes-design.md)
 
-**TODO（順序、cursor = 2）:**
+**保持条件:** Maritime AI credits経由のmodel callは入力・会話・tool結果・応答をアカウント削除後も無期限保持する、と現行Privacy Policyに記載される。公開前に選んだ業務で送る情報を特定し、利用者へ開示して同意を記録する。自分のmodel API keyによる呼び出しは同Policy上この保存対象外だが、secret管理と費用は別途必要。停止・同意撤回を送信済みデータの削除と表示しない。[Maritime Privacy Policy](https://maritime.sh/privacy)
 
-1. **配布入口・同意・計測をsource実装する。** default-offのsourceとfocused testsを専用branchへ実装する。独立review指摘の同意再配信、milestoneとeventのtransaction、7日以内の別利用、setup deep linkを直してから、PR/CI/main統合を完了する。production enableや配信は含めない。migration適用・data/tool確認後の3人pilot/25人cohortで「start source → consent → first response → 7-day return」を確認する。
-2. **送信済み確認への返信を読み、競技条件を確定する。** 開始日はメール10/19・Terms10/20。第1週の締切とtimezone、Top 30の評価基準、必須demo/提出物、KeikiとMaritimeの両方が必要か、公式distinct user計数法、一人用agentまたはVMの要否を記録する。2026-10-16送信の確認メールへ重複返信しない。回答が間に合わなければ公開Termsを使い、Top 30基準は未確認と明記する。
-3. **採択チームの名簿と登録案内を揃える。** メールは返信でteam membersを追加できるが、対象者名は書かれていない。private profile/contextから実際のメンバーを照合し、主催者側の名簿追加を確認する。promo/invite codeは元メールに限定する。
-4. **wedgeとdata/tool境界を確定する。** 暫定価値は、本人が今日やりたいことを一言で送り、短い行動計画を受け取り、完了を返せる低機微タスク。Calendar/contact/email/address/payment dataを要求しない。Terms、Privacy、AI-credit retention、tool policyを確認し、実環境でbrowser/code/file/external-sendが無効と確認できるまでprovider gatesをoffにする。
-5. **Cloud個人別identityと公開導線を閉じる。** 既存Telegram tenant claim、Railway、Supabase分離を再利用する。新規利用者がMac/local credentialsなしに開始でき、同じ人の再開でtenant/agentを重複作成しないことを確認する。`conversationId`のみで一人用体験・分離を満たすか検証し、別VMは主催者が明記して求めた場合のみ再見積りする。
-6. **同意済み3人pilotを行う。** 実在する別人3人で初回の有用な完了、再利用、エラー、Maritime/Keiki usage、利用者あたり費用を読み戻す。自由文は記録しない。この3人は安全・体験確認で、公式の人数条件ではない。
-7. **25人の無料獲得実験を行う。** 同条件の成功事例が見つからないため、小さな一つのcommunityまたは直接紹介から実在する25人を招き、source→start→consent→first useful completion→7-day reuseを測る。team/test usersは別集計する。有料広告・未確認のclaim・未許可の送信はしない。
-8. **初週Top 30材料を間に合わせる。** 公開demo、実際のdistinct users、利用者feedbackで変えたこと、安全/データ保護、次の検証をまとめる。rubricと締切は主催者回答を優先する。指定された公式手段だけで提出し、受付receiptを保存する。
-9. **実測できた経路だけ100人へ拡大する。** funnel最大離脱を直し、最も成果の出たsource・導入・最初の仕事を再現する。公式usageと実利用を分けて毎日追い、合計1,000人に向けて42日平均約24人/日の純増を参考にする。達成保証には使わない。
-10. **winner判定と費用を閉じる。** 重複除外のLife Manager cohort ledgerとKeiki/Maritime project usageを照合し、公式人数・winner判定を確認する。Scale/継続model利用の前に請求・credit・期限を読む。採択、signup、local test、agent/VM数を勝利と呼ばない。
-11. **渡航とYCを競技から分ける。** winner通知と日本発のflight/人数/費用の書面確認後に旅程を判断する。YC紹介・Winter 2027採択は競技条件でない。YCは別応募laneで扱う。
+**準備する提出packet（公式指定形式は未確認）:**
+1. 一文の製品説明、対象利用者、業務、一つの達成指標。
+2. 公開URL/Telegram入口と審査者が自分で試せるonboarding。
+3. 目標設定→実行→実際の外部結果→receipt/費用→次の実行を示す2–3分demo。
+4. 実在する外部利用者、初回業務完了、再利用、失敗、利用者あたり費用、Keiki/Maritime usage。founder/team/testを別集計。
+5. feedbackで直した一件のbefore/after、現在の制約、次週の獲得計画。
+6. Local実績とCloud実績を分けた収益証拠、tenant/browser構成。
+
+これは推奨準備物であり、公式必須形式・提出済みとは扱わない。
+
+**Distribution:** 初週は短い実demoと対象creatorへの直接紹介・関連communityから少人数を獲得し、一つの業務完了まで観測する。自社獲得のsource→開始→同意→初回業務完了→再利用と、顧客businessの配信成果は別funnel。既存四channel（social/SEO/AI answer/platform内部）を再利用するが、SEOだけを初週の獲得手段にしない。同じ対象・媒体・目的で1,000人を達成した検証済み成功例は今回も確保していないため、25人以下の測定実験とする。distribution費用は既存方針どおり0。1,000/42日≈24人/日は競技全体の算術目安で、初週の公式ノルマではない。
+
+**TODO順変更:** 旧=「source入口→主催者返信→名簿→日次計画wedge→Cloud identity→3人pilot→25人獲得→Top30 packet」。新=下記1→7、主催者確認/名簿は並行。理由は新メールが初週の動く製品と少人数feedbackを求め、入口sourceはmerge済みで、回答待ちを全作業の先頭にすると実証が遅れるため。進行中の外部effectと全体統括cursorは変更しない。
+
+**Maritime lane TODO（順序、cursor = 1）:**
+1. **公開する一業務のCloud readinessを確定。** 既存kernel/adapterから選び、入力→自律wake→実行→公式receipt→報告→次wakeを対応付ける。本人accountを使い、Mac停止後も継続することを受入条件とする。chat応答だけでは完了しない。
+2. **一人分のCloud実行を閉じる。** 既存Railway/Maritime/Keiki/Steel/stateと最小host adapterを使う。選んだ業務のtool権限、保持条件、secret/session分離、予算、receipt、再開/重複防止を確認。host/model/追加agent費用は公式billingで読む。
+3. **配布入口を実業務へ接続。** 既存migration/flags/tenant identity/同意の実環境を確認し、Telegram開始から一業務を完了する。権限は業務ごとに許可し、chat-only pilotの確認を全tool許可へ読み替えない。
+4. **別人3人で価値を確認し、10–25人へ。** 人数は内部目標。開始・業務完了・再利用・feedback修正を記録し、本文/秘密情報はanalyticsに残さない。
+5. **内部10月24日までに初週packetを完成。** 入口、demo、利用/usage、receipt/費用、feedback修正、制約と次週計画を揃える。正式提出先/期限/形式が判明したら指定手段で提出し、受付receiptを保存。
+6. **実測経路で100人→1,000人へ。** 最大離脱を直し、業務完了率/継続の高いsourceを増やす。team/test/重複を別集計し、公式project usageと照合。
+7. **公式winner・賞・渡航を確認。** 公式人数承認とwinner通知後に賞/credit・日本発旅費を確定。YCは既存応募laneで実績を使い、採択保証を含めない。
+
+**並行確認:** 初週締切/timezone、Top30 rubric、提出先、community pinned案内、両platform実装要否、人数計数、team roster、Scale更新/credits範囲、日本発旅費。最新受信は10月19日kickoff mailで、Mariaの個別条件回答は10月16日以後見つからない。10月18日に同threadでYC紹介依頼が送信済み。既存質問を重複送信せず、今回新しい問い合わせは送らない。
+
+**Hackathon Radar:** →既存Radar Pageと日次workerを参照。旧workerの1,000 VM指示修正は未完で、今回重複workerを作らない。
 
 ### Life Manager distribution: four channels, one metrics tool, blog per business — 2026-10-18 20:40 JST (claude-evo-eval-1012, Dais: "maximize distribution and conversion for every business; separate the blog per business; same tool for all agents; copy the successful")
 
