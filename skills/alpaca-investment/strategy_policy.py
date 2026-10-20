@@ -541,12 +541,14 @@ def evaluate(
     return _result(card, ACTION_HOLD, inputs, "signal_hold", cost_text)
 
 
-def load_selected_card(state: Path) -> tuple[StrategyCard, str]:
+def load_selected_card(state: Path, *, allow_expired: bool = False) -> tuple[StrategyCard, str]:
     """Load a release-pinned card, rejecting missing/stale selections.
 
-    Task 7 will create the selection artifact.  Until then the live effect
-    owner receives a typed no-trade rather than silently choosing a hypothesis.
+    Expired selections are only allowed for a separately verified existing
+    position's HOLD/EXIT path; callers must keep new entries fail-closed.
     """
+    if type(allow_expired) is not bool:
+        raise ValueError("strategy_release_invalid")
     try:
         payload = json.loads((state / "selected-strategy.json").read_text(encoding="utf-8"))
     except (FileNotFoundError, json.JSONDecodeError, OSError) as error:
@@ -560,7 +562,7 @@ def load_selected_card(state: Path) -> tuple[StrategyCard, str]:
         expires = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
     except ValueError as error:
         raise ValueError("strategy_release_expiry_invalid") from error
-    if expires.tzinfo is None or expires <= datetime.now(timezone.utc):
+    if expires.tzinfo is None or (expires <= datetime.now(timezone.utc) and not allow_expired):
         raise ValueError("strategy_release_expired")
     return validate_policy_card(payload.get("card"), payload.get("release_sha"),
                                 strategy_id=payload.get("strategy_id"))

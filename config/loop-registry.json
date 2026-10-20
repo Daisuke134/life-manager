@@ -138,7 +138,7 @@
     },
     "investment-strategy-validation": {
       "adapter": "python",
-      "admission_class": "borrow",
+      "admission_class": "revenue",
       "cadence": {
         "calendar_interval": {
           "Weekday": 2,
@@ -164,7 +164,7 @@
       "label": "ai.anicca.investment-strategy-validation",
       "log_root": "~/.local/state/life-manager/alpaca-investment-validation/logs",
       "resource_class": "deterministic",
-      "priority": "support",
+      "priority": "revenue",
       "provider_route": "deterministic",
       "runtime_timeout_seconds": 3600,
       "state_root": "~/.local/state/life-manager/alpaca-investment-validation"

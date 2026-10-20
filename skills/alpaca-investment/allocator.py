@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Mapping
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from risk_policy import evaluate_entry
 from etf_ownership import investment_owner_id
-from strategy_policy import (ACTION_ENTER, ACTION_EXIT, ACTION_NO_TRADE, ALLOWED_ACTIONS,
+from strategy_policy import (ACTION_ENTER, ACTION_EXIT, ACTION_HOLD, ACTION_NO_TRADE, ALLOWED_ACTIONS,
                              BTC_SYMBOLS, CANONICAL_SYMBOL, ETF_STRATEGY_ID,
                              ETF_SYMBOLS, INDICATOR_HISTORY_CONTRACTS, evaluate,
                              load_selected_card)
@@ -136,20 +137,48 @@ def choose(snapshot: dict[str, Any], candidates: list[dict[str, Any]], state: Pa
             "gate": "strategy_selection_no_strategy",
             "observed_at": observed_at,
         }
+    position = snapshot.get("position")
+    allow_expired_position_management = (
+        snapshot.get("mode") in {"paper", "live"}
+        and isinstance(selection, Mapping)
+        and selection.get("strategy_id") == ETF_STRATEGY_ID
+        and isinstance(position, Mapping)
+        and position.get("owner_id") == investment_owner_id()
+        and position.get("strategy_id") == ETF_STRATEGY_ID
+        and position.get("symbol") in ETF_SYMBOLS
+    )
+    selection_expired = False
     try:
         card, release_sha = load_selected_card(state)
     except ValueError as error:
-        return {
-            "action": ACTION_NO_TRADE,
-            "strategy_id": None,
-            "signal_inputs": {},
-            "reason": str(error),
-            "expected_cost_usd": None,
-            "candidate_ref": "NO_TRADE",
-            "approved": False,
-            "gate": str(error),
-            "observed_at": observed_at,
-        }
+        if str(error) == "strategy_release_expired" and allow_expired_position_management:
+            try:
+                card, release_sha = load_selected_card(state, allow_expired=True)
+                selection_expired = True
+            except ValueError as expired_error:
+                return {
+                    "action": ACTION_NO_TRADE,
+                    "strategy_id": None,
+                    "signal_inputs": {},
+                    "reason": str(expired_error),
+                    "expected_cost_usd": None,
+                    "candidate_ref": "NO_TRADE",
+                    "approved": False,
+                    "gate": str(expired_error),
+                    "observed_at": observed_at,
+                }
+        else:
+            return {
+                "action": ACTION_NO_TRADE,
+                "strategy_id": None,
+                "signal_inputs": {},
+                "reason": str(error),
+                "expected_cost_usd": None,
+                "candidate_ref": "NO_TRADE",
+                "approved": False,
+                "gate": str(error),
+                "observed_at": observed_at,
+            }
     if selection is not None:
         if (selection.get("selection") != "selected"
                 or not isinstance(selection.get("report_id"), str)
@@ -179,6 +208,19 @@ def choose(snapshot: dict[str, Any], candidates: list[dict[str, Any]], state: Pa
                 "observed_at": observed_at,
             }
     policy = evaluate(snapshot, card, owner_id=investment_owner_id())
+    if selection_expired:
+        policy["selection_expired"] = True
+        if policy.get("action") not in {ACTION_HOLD, ACTION_EXIT}:
+            return {
+                **policy,
+                "action": ACTION_NO_TRADE,
+                "reason": "strategy_release_expired_new_entry_forbidden",
+                "candidate_ref": "NO_TRADE",
+                "approved": False,
+                "gate": "strategy_release_expired",
+                "release_sha": release_sha,
+                "observed_at": observed_at,
+            }
     if card.strategy_id == ETF_STRATEGY_ID:
         if policy.get("action") == ACTION_NO_TRADE:
             decision = {**policy, "candidate_ref": "NO_TRADE", "release_sha": release_sha}
