@@ -530,6 +530,8 @@ def find_hit(agents: list[dict[str, Any]], snapshot: dict[str, Any] | None,
                 raise InconclusiveReadback("same_version_updated_at_missing_or_malformed")
             if updated_at >= queued_at:
                 raise InconclusiveReadback("same_version_updated_after_queued_at")
+        if not _snapshot_matches_agent_set(snapshot, agents):
+            raise InconclusiveReadback("snapshot_agent_set_mismatch")
         return None
     possible_hit = None
     ambiguous_timestamp = False
