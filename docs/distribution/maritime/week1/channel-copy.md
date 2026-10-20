@@ -33,24 +33,18 @@
 ## X 日本語・公開後
 
 > Life Managerの無料pilotを公開しました。
->
-> メール登録 → Managerが仕事を選ぶ → 実行 → 日次メール。
->
-> 最初は商品づくりと販売業務から。できた作業、確認できた売上、まだ未接続の部分を分けて報告します。収益保証はありません。
->
-> 実画面の短いdemoと、試せるリンクを添付します。
+> メール登録→Managerが仕事を選ぶ→実行→日次メール。
+> 目標・予算入力やTelegramは必須にしません。
+> まずは商品づくりから。売上・利益は保証しません。
+> 実画面demoと登録リンク👇
 
-「商品づくりと販売業務」は実行確認した範囲に限定する。公開実績がなければ販売完了を示す画面を使わない。
+最終URLを添付する。「商品づくり」は実行確認した範囲に限定し、公開実績がなければ販売完了を示す画面を使わない。長い補足は返信へ分け、accountの長文投稿権限を前提にしない。
 
 ## X English・公開後
 
-> Life Manager is a proactive manager that chooses work, executes it, and emails you a daily report.
->
-> No required goal or budget setup. No Telegram requirement.
->
-> We're starting with product creation and earning workflows. Completed work, recorded revenue, and missing connections are reported separately. Free pilot; earnings aren't guaranteed.
->
-> Real demo + signup link below.
+> Life Manager chooses work, executes it, and emails daily results. No required goal/budget setup. Telegram is optional. Starting with product creation. Free pilot; revenue isn't guaranteed. Real demo + signup link below.
+
+最終URLを添付する。利用可能な文字数へ収まることを投稿前に確認し、補足は返信へ分ける。
 
 ## Instagram DM・公開後
 
