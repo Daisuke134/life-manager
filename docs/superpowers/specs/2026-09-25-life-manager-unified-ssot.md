@@ -120,6 +120,8 @@ C2の次の原子作業は、(1) fresh Data freeと既存host inventory/growth/c
 
 観測: 同一owner interpreter/env/rootのread-only healthは約14.9秒で191 jobs/telemetry_gap1を取得する一方、自然observerは191/191 health_snapshot_timeout。profileは約167万JSON decodeとhealth event projectionに集中する。負荷差の唯一の原因は未確定だが、現行CLIは履歴clock付加を含む一つのsnapshotがtimeoutすると取得済み現在状態も失う。今回の最小契約は、既存30秒予算内に現在状態を先に取得し、残時間で履歴clockを付加する。履歴付加だけがtimeoutした場合は先に得たruntime/fence/errorを保持し、productivity/revenueの履歴依存判定をunknownと明示する。現在状態自体が取れない場合は従来のtyped telemetry gapを維持する。timeout延長・履歴window短縮・provider再実行・未知をhealthy/0へ置換する変更は行わない。RED→最小修正→既存health/observerの回帰、独立read-only反証、CI/main/immutable、read-only canary、health observerだけのloaded-idle採用と自然readbackを確認する。容量回復・C2全体・C3–C9はこのsource atomで完了扱いしない。
 
+**C2監視atomの再現結果:** baseline health45 tests PASS。REDで、履歴timeoutが先に取得した3件を191件全欠測へ置換すること、またHealthTimeoutがOSError系の読取handlerに吸収されることを再現する。現在状態→履歴clockの2段を同じ30秒予算に収め、履歴だけの失敗では既知runtime/error/fenceを保持し、productivity/revenueは履歴欠測としてunknownにする。`health_history_timeout`だけでは正常ownerのrecovery intentを作らず、CLIはdegraded exitとhistory_limitedを示す。deadline cancellationは通常IO/adapter error handlerに捕まらない型で上位の明示handlerへ伝える（[Python標準CancelledError](https://docs.python.org/3/library/asyncio-exceptions.html)の方式を参照）。通常履歴windowと実エラー・effect fence・費用/収益の真偽は変更しない。source受入と本番ownerの自然結果は別に記録する。
+
 ### 同時進行の基盤監査との統合
 
 [PR #8409](https://github.com/Daisuke134/life-manager/pull/8409)の追加観測と[PR #8408](https://github.com/Daisuke134/life-manager/pull/8408)のOpenClaw更新を保持する。source研究の固定base70a5e365と、統合時main4dcb2769を区別する。別監査の14:23Z `df`は3,743,008KiB（約3.57GiB）、swap7,167MiB/8GiB、corespotlightd RSS約25MiB（14:23Z）/約168MiB（14:10Z）。10/19の約16GBという旧原因観測を現在へ持ち越さず、現在の容量writerは未特定のままとする。一般producer12GiB / revenue producer10GiB / recovery2GiBを別々に評価する。

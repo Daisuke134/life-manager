@@ -752,6 +752,74 @@ class LmLoopHealthTest(unittest.TestCase):
             for job in payload["jobs"]
         ))
 
+    def test_history_timeout_preserves_current_states_without_revenue_inference(self):
+        rows = [
+            self.status_row("current-ok", admission_class="revenue",
+                            registered_cadence={"start_interval_seconds": 3600}),
+            self.status_row("current-failure", last_terminal_result="blocked",
+                            error_class="host_admission_deferred:disk_floor_low",
+                            blocker="host_admission_deferred:disk_floor_low"),
+            self.status_row("current-fence", admission_effect_unknown=True,
+                            effect_class="publish", effect_status="unknown"),
+        ]
+        output = io.StringIO()
+
+        def slow_history(*_args, **kwargs):
+            if not kwargs.get("include_health_clocks"):
+                return rows
+            time.sleep(0.5)
+            return rows
+
+        started = time.monotonic()
+        with (
+            patch.object(lm_loop, "snapshot", side_effect=slow_history),
+            patch.object(lm_loop, "HEALTH_SNAPSHOT_TIMEOUT_SECONDS", 0.02),
+            redirect_stdout(output),
+        ):
+            result = lm_loop_main(["health", "--json"])
+        self.assertLess(time.monotonic() - started, 0.3)
+        self.assertEqual(result, 1)
+        value = json.loads(output.getvalue())
+        self.assertEqual(value["summary"]["total"], 3)
+        self.assertEqual(value["summary"]["healthy"], 1)
+        self.assertEqual(value["summary"]["failed"], 1)
+        self.assertEqual(value["summary"]["safely_fenced"], 1)
+        self.assertEqual(value["summary"]["telemetry_gap"], 0)
+        jobs = {job["job_id"]: job for job in value["jobs"]}
+        self.assertEqual(jobs["current-failure"]["diagnostic"]["error_class"],
+                         "host_admission_deferred:disk_floor_low")
+        self.assertEqual(jobs["current-fence"]["facets"]["effect_safety"]["status"], "blocked")
+        self.assertEqual(jobs["current-ok"]["facets"]["productivity"],
+                         {"status": "unknown", "reason": "health_history_timeout"})
+        self.assertEqual(jobs["current-ok"]["facets"]["revenue"],
+                         {"status": "unknown", "reason": "health_history_timeout"})
+        self.assertFalse(health.revenue_attention(jobs["current-ok"]))
+        Draft202012Validator(health.health_json_schema()).validate(value)
+
+    def test_missing_history_does_not_enqueue_repairs_for_current_healthy_owner(self):
+        from runtime.loop.health_observer import observe_health
+
+        value = health.project_health([self.status_row(
+            "current-ok", admission_class="revenue",
+            registered_cadence={"start_interval_seconds": 3600},
+            health_history_status="health_history_timeout",
+        )])
+        self.assertEqual(health.health_exit_code(value), 1)
+        self.assertIn("history_limited=1", health.render_human(value))
+        with tempfile.TemporaryDirectory() as directory:
+            intents = []
+            result = observe_health(
+                value, Path(directory),
+                intent_builder=lambda job, run_id: intents.append(job),
+            )
+        self.assertEqual(intents, [])
+        self.assertEqual(result["recovery_intents"], [])
+
+    def test_health_deadline_cannot_be_swallowed_as_a_file_read_error(self):
+        with patch.object(Path, "read_text", side_effect=health.HealthTimeout("deadline")):
+            with self.assertRaises(health.HealthTimeout):
+                lm_loop._last_event("/unused-health-fixture", "current-ok")
+
     def test_health_cli_deadline_includes_slow_fleet_projection(self):
         output = io.StringIO()
         original_project = health.project_health
@@ -823,7 +891,8 @@ class LmLoopHealthTest(unittest.TestCase):
             "target": None,
             "deadline_monotonic": 130.0,
         })
-        self.assertEqual(project.call_args.kwargs["deadline_monotonic"] - clock.now, 23.0)
+        # Current and historical observations each consumed seven seconds.
+        self.assertEqual(project.call_args.kwargs["deadline_monotonic"] - clock.now, 16.0)
         self.assertEqual(json.loads(output.getvalue()), projected)
 
     def test_health_human_skill_and_loop_explain_surfaces(self):
