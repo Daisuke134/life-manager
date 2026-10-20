@@ -7,6 +7,7 @@ const { join } = require("node:path");
 const { createHmac } = require("node:crypto");
 const {
   normalizeMaritimeSource,
+  renderMaritimeLanding,
   parseMaritimeStartPayload,
   createMaritimeDistributionStore,
 } = require("./maritime-distribution.js");
@@ -210,4 +211,28 @@ test("full cohort cap does not create a consent record or a provider milestone",
 
   assert.deepEqual(await store.accept("new-participant", "referral"), { ok: false, status: "capacity_full" });
   assert.deepEqual(events, []);
+});
+
+test("landing_primary_cta_is_email_and_never_requires_telegram",()=>{
+  const html=renderMaritimeLanding({source:"referral",language:"en"});
+  assert.match(html,/action="\/auth\/maritime\/email"/);assert.match(html,/type="email"/);
+  assert.doesNotMatch(html,/<input[^>]+name="(?:goal|budget|telegram)"/);
+  assert.doesNotMatch(html,/href="\/maritime\/start/);assert.match(html,/Telegram is optional/);
+});
+test("verified_landing_has_csrf_activation_and_escapes_identity",()=>{
+  const html=renderMaritimeLanding({source:"x",language:"ja",user:{email:'person<bad>@example.invalid',csrf:"a".repeat(64)},state:null});
+  assert.match(html,/data-action="activate"/);assert.match(html,/data-csrf="a{64}"/);
+  assert.match(html,/person&lt;bad&gt;@example.invalid/);assert.doesNotMatch(html,/person<bad>/);
+  assert.doesNotMatch(html,/action="\/auth\/maritime\/email"/);assert.match(html,/目標・予算の入力は必須ではありません/);
+});
+test("paused_or_uncertain_landing_does_not_offer_activation",()=>{
+  for(const state of ["paused","effect_unknown","provisioning","pending","active"]){
+    const html=renderMaritimeLanding({language:"en",user:{email:"person@example.invalid",csrf:"a".repeat(64)},state});
+    assert.doesNotMatch(html,/<button[^>]+data-action="activate"/,state);
+  }
+});
+
+test("landing_inline_script_is_valid_javascript",()=>{
+  const {Script}=require("node:vm");const html=renderMaritimeLanding({source:"x",language:"ja"});
+  const script=html.match(/<script>([\s\S]*?)<\/script>/);assert.ok(script);assert.doesNotThrow(()=>new Script(script[1]));
 });

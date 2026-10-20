@@ -2,8 +2,8 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { Readable } = require("node:stream");
-let handleMaritimeManagerAuth, resolveMaritimeManagerUser;
-try { ({ handleMaritimeManagerAuth, resolveMaritimeManagerUser } = require("./maritime-manager-auth.js")); }
+let handleMaritimeManagerAuth, resolveMaritimeManagerUser, handleMaritimeManagerActivate, handleMaritimeManagerPage;
+try { ({ handleMaritimeManagerAuth, resolveMaritimeManagerUser, handleMaritimeManagerActivate, handleMaritimeManagerPage } = require("./maritime-manager-auth.js")); }
 catch (error) { if (error.code !== "MODULE_NOT_FOUND") throw error; }
 const ORIGIN = "https://manager.example.invalid";
 const SUBJECT = "11111111-1111-4111-8111-111111111111";
@@ -104,4 +104,82 @@ test("unbound_token_hash_cannot_replace_an_existing_session",async()=>{
   const {deps,calls}=fixture();const res=response();
   await handleMaritimeManagerAuth(request("/auth/maritime/confirm?token_hash=attacker-owned-valid-token&type=email"),res,deps);
   assert.match(res.headers.location,/auth_error/);assert.deepEqual(calls,[]);
+});
+
+function activationFixture({capacityFull=false,user=USER}={}) {
+  const f=fixture({user});const rows=new Map();const jobs=new Map();
+  f.deps.env.LM_RELEASE_SHA="a".repeat(40);
+  f.deps.managerStore={read:async uid=>rows.get(uid)||null,enroll:async input=>{
+    if(!rows.has(input.uid))rows.set(input.uid,{uid:input.uid,auth_subject:input.authSubject,email:input.email,status:"pending",release_sha:input.releaseSha});
+    return rows.get(input.uid);}};
+  f.deps.distributionStore={accept:async()=>capacityFull?{ok:false,status:"capacity_full"}:{ok:true,status:"consented"}};
+  f.deps.enqueueJob=async job=>{
+    const existing=jobs.get(job.job_id);
+    if(existing)assert.deepEqual(job,existing);else jobs.set(job.job_id,job);
+    return {created:!existing,job:{...job,status:"queued"}};};
+  f.rows=rows;f.jobs=jobs;return f;
+}
+function activateRequest(deps,method="POST",csrf=true){
+  const {createWebCsrfToken}=require("./web-auth.js");
+  return request("/maritime/activate",method,{consentVersion:"maritime-manager-v1",source:"referral"},{
+    "x-lm-web-csrf":csrf?createWebCsrfToken(`lm_${SUBJECT}`,deps.env.LM_UID_SECRET):"invalid"});
+}
+test("activate_post_enqueues_once_but_get_prefetch_does_not",async()=>{
+  assert.equal(typeof handleMaritimeManagerActivate,"function");const {deps,jobs}=activationFixture();let res=response();
+  await handleMaritimeManagerActivate(activateRequest(deps,"GET"),res,deps);assert.equal(res.statusCode,405);assert.equal(jobs.size,0);
+  for(let i=0;i<2;i++){res=response();await handleMaritimeManagerActivate(activateRequest(deps),res,deps);assert.equal(res.statusCode,202);}
+  assert.equal(jobs.size,1);const job=[...jobs.values()][0];assert.equal(job.tenant_id,`lm_${SUBJECT}`);assert.equal(job.capability,"maritime.manager.provision");
+});
+test("activation_requires_verified_identity_and_correct_csrf",async()=>{
+  assert.equal(typeof handleMaritimeManagerActivate,"function");let f=activationFixture({user:null});let res=response();
+  await handleMaritimeManagerActivate(activateRequest(f.deps),res,f.deps);assert.equal(res.statusCode,401);assert.equal(f.jobs.size,0);
+  f=activationFixture();res=response();await handleMaritimeManagerActivate(activateRequest(f.deps,"POST",false),res,f.deps);
+  assert.equal(res.statusCode,403);assert.equal(f.jobs.size,0);assert.equal(f.rows.size,0);
+});
+test("capacity_full_does_not_enroll_or_enqueue",async()=>{
+  assert.equal(typeof handleMaritimeManagerActivate,"function");const {deps,jobs,rows}=activationFixture({capacityFull:true});const res=response();
+  await handleMaritimeManagerActivate(activateRequest(deps),res,deps);assert.equal(res.statusCode,429);assert.equal(jobs.size,0);assert.equal(rows.size,0);
+});
+test("repeat_activation_uses_original_enrollment_release_for_stable_job",async()=>{
+  assert.equal(typeof handleMaritimeManagerActivate,"function");const {deps,jobs}=activationFixture();
+  await handleMaritimeManagerActivate(activateRequest(deps),response(),deps);deps.env.LM_RELEASE_SHA="b".repeat(40);
+  const res=response();await handleMaritimeManagerActivate(activateRequest(deps),res,deps);
+  assert.equal(res.statusCode,202);assert.equal(jobs.size,1);assert.equal([...jobs.values()][0].input_refs.release_ref,`release://git/${"a".repeat(40)}`);
+});
+
+test("paused_or_unknown_enrollment_does_not_request_new_provisioning",async()=>{
+  for(const status of ["paused","effect_unknown"]){
+    const {deps,rows,jobs}=activationFixture();rows.set(`lm_${SUBJECT}`,{uid:`lm_${SUBJECT}`,status,release_sha:"a".repeat(40)});
+    let consentCalls=0;deps.distributionStore.accept=async()=>{consentCalls++;return {ok:true};};const res=response();
+    await handleMaritimeManagerActivate(activateRequest(deps),res,deps);assert.equal(res.statusCode,409,status);assert.equal(jobs.size,0);assert.equal(consentCalls,0);
+  }
+});
+test("failed_queue_request_preserves_enrollment_and_safe_retry_uses_one_job",async()=>{
+  const {deps,rows,jobs}=activationFixture();const enqueue=deps.enqueueJob;let fail=true;
+  deps.enqueueJob=async job=>{if(fail){fail=false;throw new Error("private queue failure");}return enqueue(job);};
+  let res=response();await handleMaritimeManagerActivate(activateRequest(deps),res,deps);
+  assert.equal(res.statusCode,503);assert.equal(rows.size,1);assert.equal(jobs.size,0);assert.doesNotMatch(res.body,/private queue/);
+  res=response();await handleMaritimeManagerActivate(activateRequest(deps),res,deps);assert.equal(res.statusCode,202);assert.equal(jobs.size,1);
+});
+
+test("terminal_or_reconciling_provision_jobs_are_not_reported_as_pending",async()=>{
+  for(const [status,expected] of [["dead_letter",503],["reconciling",409],["completed",409]]){
+    const {deps}=activationFixture();deps.enqueueJob=async job=>({created:false,job:{...job,status}});const res=response();
+    await handleMaritimeManagerActivate(activateRequest(deps),res,deps);assert.equal(res.statusCode,expected,status);assert.doesNotMatch(res.body,/"status":"pending"/,status);
+  }
+});
+test("completed_provision_job_requires_active_enrollment_readback",async()=>{
+  const {deps,rows}=activationFixture();deps.enqueueJob=async job=>{const row=rows.get(`lm_${SUBJECT}`);row.status="active";row.agent_id="agent-a";return {created:false,job:{...job,status:"completed"}};};
+  const res=response();await handleMaritimeManagerActivate(activateRequest(deps),res,deps);assert.equal(res.statusCode,200);assert.equal(JSON.parse(res.body).status,"active");
+});
+
+test("email_campaign_page_is_independent_of_telegram_and_get_never_enrolls",async()=>{
+  assert.equal(typeof handleMaritimeManagerPage,"function");const {deps,calls}=fixture({user:null});let events=0;deps.distributionStore={recordAnonymousEvent:async()=>{events++;return true;}};const res=response();
+  await handleMaritimeManagerPage(request("/maritime?source=referral&lang=en"),res,deps);assert.equal(res.statusCode,200);assert.match(res.body,/action="\/auth\/maritime\/email"/);assert.equal(events,1);assert.equal(calls.some(x=>x[0]==="ensure"),false);
+});
+test("verified_campaign_page_displays_activation_or_persisted_state_without_dispatch",async()=>{
+  assert.equal(typeof handleMaritimeManagerPage,"function");const {deps}=fixture();deps.distributionStore={recordAnonymousEvent:async()=>true};deps.managerStore={read:async()=>null};let res=response();
+  await handleMaritimeManagerPage(request("/maritime?lang=ja"),res,deps);assert.match(res.body,/<button[^>]+data-action="activate"/);
+  deps.managerStore.read=async()=>({status:"effect_unknown"});res=response();await handleMaritimeManagerPage(request("/maritime?lang=ja"),res,deps);
+  assert.doesNotMatch(res.body,/<button[^>]+data-action="activate"/);assert.match(res.body,/実行結果を確認中/);
 });

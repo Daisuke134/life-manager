@@ -500,7 +500,7 @@ life-manager/
 
 - [ ] T32.1 private SSOT全体と`supabase-life-manager-production`/`resend-life-manager-production`/`agentmail-life-manager-production`完全一致を読む。新key/account/inboxを作らず、既存設定をManagement API GET `/v1/projects/<ref>/config/auth`で再取得する。秘密の値を出力しない。
 - [ ] T32.2 Python標準`email.utils.parseaddr(from_address)`でmailboxとdisplay nameを分ける。smtp_admin_emailにはmailboxのみ、smtp_sender_nameにはdisplay nameまたは`Life Manager`を使う。空mailboxなら設定を送信せず、既存Resendのsender設定を確認する。
-- [ ] T32.3 既存uri_allow_listを全保持し、`https://life-call-production.up.railway.app/auth/maritime/confirm`だけを追記したpatchを構成する。smtp_host=`smtp.resend.com`、smtp_port=465、smtp_user=`resend`、smtp_pass=既存key、external_email_enabled=true、mailer_autoconfirm=false、rate_limit_email_sent=30。site_url/Google/OTP limitは保持する。
+- [ ] T32.3 既存uri_allow_listを全保持し、`https://life-call-production.up.railway.app/auth/maritime/confirm`だけを追記したpatchを構成する。smtp_host=`smtp.resend.com`、smtp_port=`"465"`（Management APIはstring）、smtp_user=`resend`、smtp_pass=既存key、external_email_enabled=true、mailer_autoconfirm=false、rate_limit_email_sent=30。site_url/Google/OTP limitは保持する。
 - [ ] T32.4 patchの変更keyとallowlist保持をread-only検証者へ渡す。secret値は渡さない。宣言後に上記Management APIへ一回PATCHする。新しいkeyの再作成・auto-confirm有効化を修正方法にしない。
 - [ ] T32.5 同じGETで全変更fieldとGoogle/site_url/旧allowlistの保持を確認し、safe JSONへ保存する。レスポンス内smtp_passは出力・保存しない。
 - [ ] T32.6 既存owned AgentMail inboxへSupabaseの確認メールを一通送り、新規messageの時刻/送信元/件名で着信を確認する。OTP/リンク/本文はlog/chat/repoへ出さない。この内部testを競技利用者に数えない。
