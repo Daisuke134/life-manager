@@ -1,6 +1,6 @@
 # Manager — independent intervention research prototype
 
-**Code unit:** `manager-independent` (independent package). GitHub source is to be mirrored in `Daisuke134/life-manager` under a Manager-only directory and research branch, as explicitly authorized by the user. This does not connect Life Manager runtime to Manager.
+**Code unit:** `manager-independent` (independent package). GitHub source is mirrored at [Daisuke134/life-manager, branch `research/manager-product-r006-20261020`](https://github.com/Daisuke134/life-manager/tree/research/manager-product-r006-20261020/products/manager) under a Manager-only directory, as explicitly authorized by the user. This does not connect Life Manager runtime to Manager.
 
 > **Mission: End suffering.** A domain-general, evidence-grounded system for proposing, safely executing, and causally evaluating interventions based on lawful public information. “Digital Buddha” is an aspiration/metaphor—not omniscience, unrestricted permission, or an achieved system.
 
@@ -20,6 +20,7 @@
 ## Architecture and tasks
 
 - [Manager product specification](docs/MANAGER_PRODUCT_SPEC.md)
+- [GitHub research source and verification](docs/GITHUB_SOURCE.md)
 - [Architecture](docs/architecture/ARCHITECTURE.md)
 - [R006 source rights review](docs/research-rights.md)
 - [R006 machine-readable source decisions](docs/research/source-rights.json)
@@ -38,7 +39,7 @@ python3 scripts/check_boundaries.py
 python3 tools/imozuru/report.py research/imozuru/manager-foundations --check
 ```
 
-All checks are offline, standard-library only. GitHub branch-level source mirror is reviewed separately from this standalone historical Git repository; a GitHub-hosted source tree is **not** equivalent to a tested production deployment. CI scaffold is included but may not run as a nested workflow.
+All checks are offline, standard-library only. GitHub branch-level source mirror is reviewed separately from this standalone historical Git repository; a GitHub-hosted source tree is **not** equivalent to a tested production deployment. The research branch also adds a root `.github/workflows/manager-research-ci.yml` for offline tests; hosted check results have not yet been verified.
 
 ## Current research record
 

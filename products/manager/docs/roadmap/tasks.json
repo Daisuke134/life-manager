@@ -64,9 +64,9 @@
       "P001"
     ],
     "learn": "ローカルGitとGitHubリモートの違いを説明する",
-    "change": "ユーザー許可によりDaisuke134/life-managerの研究ブランチにproducts/manager/として独立製品ソースを登録する。Life ManagerランタイムとGit本体を混ぜない。",
-    "verify": "専用ブランチとproducts/manager/の研究・仕様・テスト・PDFの実ファイルをGitHubで読み戻し、ブランチコミットSHAを確認",
-    "status": "todo",
+    "change": "ユーザー許可によりDaisuke134/life-managerにManager専用ディレクトリproducts/manager/を研究ブランチで同期し、Life Manager実行環境と独立させた",
+    "verify": "GitHub研究ブランチ commit 68a2214d1edc9de4cfdd24ef75b84c8d59e5db6c からREADME/spec/tasks/R006 testを読み戻し、main SHA 060297d154d01dfa6f543b4b4c3c86de00067c60 のまま確認済み",
+    "status": "done",
     "external": "none"
   },
   {

@@ -2,7 +2,7 @@
 
 Status: 2026-10-20 JST. Manager-only task registry in `tasks.json`; the Life Manager project SSOT is unchanged.
 
-Total: 113 · Done: 11 · Todo: 100 · Blocked: 2
+Total: 113 · Done: 12 · Todo: 99 · Blocked: 2
 
 ✅ = verified task; ⬜ = not started; ⛔ = outside dependency. A research task is not evidence of real-world impact.
 
@@ -23,7 +23,7 @@ Manager has a separate product identity, source scope and runtime, even when its
 | ✅ `P003` | P001 | 依存ゼロの最小Pythonパッケージがなぜ堅牢か説明する | manager_core/, pyproject.toml, doctor CLIを作成 | python3 -m manager_core がoffline状態をJSON表示 |
 | ✅ `P004` | P003 | テスト/CI/現地検証の違いを区別する | unittestとGitHub Actions定義を作り、秘密情報を.gitignore | python3 -m unittest discover -s tests; .github/workflows/ci.yml存在。GitHub CI未実行 |
 | ✅ `P005` | P003 | リポジトリ境界を静的に検証する方法を理解する | scripts/check_boundaries.pyとデフォルト禁止設定を追加 | python3 scripts/check_boundaries.py、全外部書き込みが初期値false |
-| ⬜ `P006` | P001 | ローカルGitとGitHubリモートの違いを説明する | ユーザー許可によりDaisuke134/life-managerの研究ブランチにproducts/manager/として独立製品ソースを登録する。Life ManagerランタイムとGit本体を混ぜない。 | 専用ブランチとproducts/manager/の研究・仕様・テスト・PDFの実ファイルをGitHubで読み戻し、ブランチコミットSHAを確認 |
+| ✅ `P006` | P001 | ローカルGitとGitHubリモートの違いを説明する | ユーザー許可によりDaisuke134/life-managerにManager専用ディレクトリproducts/manager/を研究ブランチで同期し、Life Manager実行環境と独立させた | GitHub研究ブランチ commit 68a2214d1edc9de4cfdd24ef75b84c8d59e5db6c からREADME/spec/tasks/R006 testを読み戻し、main SHA 060297d154d01dfa6f543b4b4c3c86de00067c60 のまま確認済み |
 
 ## 01. imozuruによる一次資料の掘り方
 

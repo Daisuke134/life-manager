@@ -2,7 +2,7 @@
 
 **Last reviewed:** 2026-10-20 JST  
 **Mission:** End suffering.  
-**Repository source scope:** `products/manager/` on a dedicated GitHub research branch when synced. This is **not Life Manager**, despite shared source hosting. No module imports, DB, credentials, runtime owner, release flow, or user profile sharing by default.
+**Repository source scope:** `products/manager/` on GitHub branch `research/manager-product-r006-20261020` (source readback checked at 68a2214d1edc9de4cfdd24ef75b84c8d59e5db6c). This is **not Life Manager**, despite shared source hosting. No module imports, DB, credentials, runtime owner, release flow, or user profile sharing by default.
 
 ## Product thesis
 

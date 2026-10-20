@@ -60,7 +60,7 @@ P0 = theory/simulation/retrospective study; P1 = valid external execution receip
 
 ## We explicitly have not done these
 
-No verified external field intervention, no real monetary transfers, no new GitHub remote for Manager, no data ingestion requiring nonpublic individual records, no causal validation of the Li & Ji simulation study by Manager, no YC acceptance, no published article. The first finance use case remains conditional on operator access. Do not assert the society or humans can be purchased or controlled: permissions and human autonomy remain separate from technical ability.
+No verified external field intervention, no real monetary transfers, no separate GitHub repository (Manager source now isolated in an explicitly authorized Life Manager research branch), no data ingestion requiring nonpublic individual records, no causal validation of the Li & Ji simulation study by Manager, no YC acceptance, no published article. The first finance use case remains conditional on operator access. Do not assert the society or humans can be purchased or controlled: permissions and human autonomy remain separate from technical ability.
 
 
 ## First-source precedent registry (not Manager performance)
