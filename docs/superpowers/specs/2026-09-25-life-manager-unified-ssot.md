@@ -15954,6 +15954,20 @@ REDebbd5af252→GREEN0e8f071c0eはcore guardも証明済みsell/nofill closedか
 
 **完了済み:** 期限切れ後に既存QQQを保護するsource修正、725 Alpaca tests、独立read-only review、PR #8429旧headのrequired CI。**今回の差分で完了したこと:** 最新mainを取り込み、独立公式照合で明らかになった口座・帰属・費用の穴と実行順を本SSOTへ反映。source merge・immutable release・owner adoption・自然利益は未完。
 
+#### 2026-10-21 04:56 JST — Investment capacity gate diagnosis and cursor correction
+
+**As-Is（2026-10-20 19:56:04Z local read-only snapshot）:**
+- Paper occurrenceは自然にpass / effect `not_applicable`したが、同じ記録の判断はETF v1 `HOLD / hold_period_not_elapsed`で、注文は出ていない。別の自然paper wakeは`resource_capacity_busy`でpre-effect deferした。したがって「paperが動いた」と「新しい取引ができた」は別状態。
+- `investment-strategy-validation`は`loaded-idle`、queued、effect_unknown 0。registry/durable policyは`resource_class=deterministic / admission_class=borrow / priority=support`。`alpaca-investment-paper`は`deterministic / revenue / revenue`。
+- 19:56:04Zのadmission snapshotは占有推定9/10（running owner claims 4、未期限切れreservations 5）。deterministicは5件すべてrevenue class、agentは4件revenue class。`LIFE_MANAGER_HOST_MAX_FINITE_RUNS`の明示上書きはLaunchAgent群に見つからず、shared codeのdefaultは10。deterministicの既定borrow上限は2、revenue上限は5。validationは空いているglobal slotを使えても、deterministic classの上限で拒否される配置にある。
+- durable queueではvalidationがreservationなし/effect_unknown 0のまま残る。現行`rebind_queued_owner`はeffect-free queued ownerのpolicyをFIFO sequence/occurrence identityを維持して移す。これを使い、手動wakeやunknown fence解除なしでpolicy変更を反映できる。
+
+**判断:** validation ownerはpaper取引を承認せず、戦略reportを作るだけの既存deterministic経路を維持し、admissionだけを`revenue / revenue`へ揃える。これは投資ownerの分析前提を売上処理と同じrevenue容量へ分類する対象限定の変更であり、host global capacity、同時実行上限、cadence、注文・損失上限は変えない。class変更でpaperが必ずすぐ実行できるとは限らない。revenue deterministic上限5が埋まれば自然にqueueを待ち、最初に空いた適合slotへ公平順で進む。
+
+**TODO順更新:** 旧=`PR #8429 source/SSOT確認 → merge/release → paper natural run → validation queueが容量待ちならその時点で対処`。新=`(1) registry contract testをREDで作る → (2) validation admissionをrevenue/revenueへ変更しRED/GREEN・loop contractで確認 → (3) PR #8429更新headのrequired checks/independent review → (4) main統合・immutable release → (5) `alpaca-investment-paper`とloaded-idle validation ownerだけを安全に採用し、queued validationのsequence/occurrence/effect_unknownを読み戻す → (6) validationを自然実行しBTC V2 reportまたは正確なcrypto errorを確認 → (7) paperの自然HOLD/EXIT/ENTRYと公式readbackをowner別に照合`。**順序変更理由:** fresh readbackでcapacity deferがpaperとvalidationの両方に実際に出ており、validatorはdeterministic borrow上限2に縛られ、対象時点で5 deterministic slots中5件が埋まっていた。source/releaseへ先に分類修正を含める方が、週次validation期限を過ぎてから原因を調べ直すより次の自然機会を早くする。global上限引上げや稼働owner停止ではなく、既存rebind contractを利用する。**ソース実行記録:** REDでは3つのdeterministic revenue claims占有時、queued validation ownerが`borrow/support`のまま`rebind=unchanged`となりclaim不能になることを確認した。GREENは既存`rebind_queued_owner`を使うregistryのadmission/priority 2項目変更と、生成済みmacOS job fixtureの更新のみ。対象RED→GREEN 1/1、resource admission 243 tests、macOS loop registry 150 tests/210 subtests、policy mismatch 1 test、`bin/lm-loop-contract` 18 loops/191 jobs/112 mapped/errors 0がPASS。これはsource/fixture受入であり、main統合・release・owner採用・自然validation結果ではない。
+
+**現在cursor:** 変更を現PR branchへcommit/pushし、最新main `16c097c0`を含むheadのremote required checksを待つ。先行head `7fca415f`のLoop control contractsはrunner待ちでcancelledになり、統合には使わない。新head checksがPASSした場合だけ`bin/merge-when-green 8429`のhead-pinでmainへ進む。
+
 ### 2026-10-09 13:18 JST — Job Hunter Dreamwork cutover and updated user criteria
 
 この追記は11:50 JST snapshot後のJob Hunter readbackとユーザーの最新指示を記録する。個別の勤務地・住所などの私的値はprivate profileのみを正本とし、このspecには複製しない。
