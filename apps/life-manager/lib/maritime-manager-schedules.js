@@ -76,4 +76,4 @@ function readMaritimeSchedules({ tenantId, releaseSha, dataRoot = '/data' }) {
     invalid();
   } finally { if (fd !== undefined) fs.closeSync(fd); }
 }
-module.exports = { projectMaritimeSchedules, readMaritimeSchedules };
+module.exports = { projectMaritimeSchedules, readMaritimeSchedules, validateMaritimeScheduleSnapshot: validateSnapshot };
