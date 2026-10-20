@@ -2223,6 +2223,11 @@ def _last_event(state_root: str, loop_id: str | None = None,
             return running_events.get(
                 (loop_id, str(running_pid)), cached.get(loop_id)
             ) if running_pid is not None else cached.get(loop_id)
+        if (not include_health_clocks and None in cached
+                and _HEALTH_RUNNING_CACHE_KEY in cached):
+            return cached[_HEALTH_RUNNING_CACHE_KEY].get(
+                (loop_id, str(running_pid)), cached.get(loop_id)
+            ) if running_pid is not None else cached.get(loop_id)
         # A targeted scan stores only the requested loop.  The ``None`` key
         # is populated only by a complete scan, so it is the signal that a
         # missing loop id is a cached miss rather than an unscanned one.
@@ -2250,45 +2255,46 @@ def _last_event(state_root: str, loop_id: str | None = None,
                 (loop_id, str(running_pid)), health_reports.get(loop_id)
             )
         return health_reports.get(loop_id)
+    running_reports = {}
     for line in reversed(lines):
         try:
             value = json.loads(line)
-            validate_runtime_event(value)
-        except (json.JSONDecodeError, ValueError):
+        except json.JSONDecodeError:
             continue
-        pid_bound_running = (
-            running_pid is not None
-            and value.get("phase") == "execute"
+        if not isinstance(value, dict):
+            continue
+        event_loop = value.get("loop_id")
+        if not isinstance(event_loop, str):
+            continue
+        is_report = value.get("phase") == "report" and event_loop not in reports
+        running_key = (event_loop, str(value.get("run_id", "")).rsplit("-", 1)[-1])
+        is_running = (
+            value.get("phase") == "execute"
             and value.get("status") == "running"
             and value.get("job_id") is not None
-            and str(value.get("run_id", "")).endswith(f"-{running_pid}")
+            and event_loop not in reports and running_key not in running_reports
         )
-        if value.get("phase") != "report" and not pid_bound_running:
+        if not (is_report or is_running):
             continue
-        # A fleet snapshot shares this cache across owners. Index every latest
-        # report once instead of rescanning the same journal for each owner.
-        if (loop_id is not None and value.get("loop_id") == loop_id
-                and (cache is None or running_pid is not None)):
-            if include_health_clocks:
-                value = {
-                    **value,
-                    "_health_clocks": (
-                        health_reports.get(loop_id, {}).get("_health_clocks")
-                        or {
-                            "last_attempt": None,
-                            "last_success": None,
-                            "last_effect": None,
-                            "last_receipt": None,
-                        }
-                    ),
-                }
-            if cache is not None:
-                cache.setdefault(path, {})[loop_id] = value
+        try:
+            validate_runtime_event(value)
+        except ValueError:
+            continue
+        if (cache is None and loop_id is not None and event_loop == loop_id
+                and (is_report or running_key == (loop_id, str(running_pid)))):
             return value
-        reports.setdefault(None, value)
-        reports.setdefault(value.get("loop_id"), value)
+        if is_report:
+            reports.setdefault(None, value)
+            reports[event_loop] = value
+        if is_running:
+            running_reports[running_key] = value
     if cache is not None:
+        # Publish only a completed index, including a cached miss for empty files.
+        reports.setdefault(None, None)
+        reports[_HEALTH_RUNNING_CACHE_KEY] = running_reports
         cache[path] = reports
+    if running_pid is not None:
+        return running_reports.get((loop_id, str(running_pid)), reports.get(loop_id))
     return reports.get(loop_id)
 
 
