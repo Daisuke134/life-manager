@@ -242,4 +242,4 @@ function renderFinancialManagerTelegram(report) {
   return lines.filter(Boolean).join("\n");
 }
 
-module.exports = { buildFinancialManagerReport, renderFinancialManagerTelegram, renderFinancialManagerDetailed };
+module.exports = { buildFinancialManagerReport, renderFinancialManagerTelegram, renderFinancialManagerDetailed, formatFinancialAmount: money };

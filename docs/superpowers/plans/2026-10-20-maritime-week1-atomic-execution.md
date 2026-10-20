@@ -344,7 +344,8 @@ life-manager/
 ## Task T18: 初日から役立つ日次結果を組み立てる
 
 **Files:** Create `lib/maritime-manager-report.js`/test。Reuse financial conversion、`cfo-result-summary.js`、既存action receipts。
-**Interfaces:** `buildMaritimeDailyResult({enrollment,periodKey,actionReceipts,financialRecords,costs}) -> DailyResult`、`renderMaritimeDailyEmail(result) -> string`。
+**Interfaces:** `buildMaritimeDailyResult({enrollment,periodKey,actionReceipts,financialRecords,financialCoverage,costs}) -> DailyResult`、`renderMaritimeDailyEmail(result) -> string`。
+**入力契約:** actionReceiptsは中央queueの`{receipt,completedAt}`で、VM自己申告時刻を使わない。financialRecordsは同tenantのbusiness FinancialRecordのみ。financialCoverage/costsのcompleteは中央collectorの同tenant/period/timezone/evidence付き観測だけに付与する。欠落はunknownで、空配列だけから0を出さない。費用は観測小計とcoverageを分け、両coverage完備までprofitはunknown。既存Financial Managerの日付・通貨集計とformatterを再利用する。
 **Depends:** T10/T11Aのsource。T17の売上発生は待たない。
 
 - [ ] T18.1 test `daily_result_separates_artifact_publish_sales_payout_and_unknown_cost`を定義。商品作成だけなら売上0の観測がある場合のみ0、未取得は未確認、費用欠落で利益unknownをassert。
