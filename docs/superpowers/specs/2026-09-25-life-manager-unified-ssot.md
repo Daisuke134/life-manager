@@ -16113,6 +16113,18 @@ REDebbd5af252→GREEN0e8f071c0eはcore guardも証明済みsell/nofill closedか
 
 **順序訂正の理由:** 最新の実owner readbackでは、paperはHOLDで新規注文が無く、validation修正sourceはloaded SHAに含まれる一方、修正後natural resultは未観測だった。よって次cursorはvalidationの自然評価であり、残高予測・live・別資産への拡張より先に利益を測定可能にする。以前の`dd9d4cca`というowner SHA記録は、現在のplist/statusとrelease inventoryで再現できず、本記録で訂正した。
 
+#### 2026-10-21 08:22 JST — Real-money result and live-first profitability cursor
+
+**As-Is（Alpaca live API GET only、2026-10-20 23:20:53Z）:**
+- account creation `2026-09-01T14:25:40Z`から取得したaccount/orders/activities/transfersは、orders 10/10 filled（BTC/USDC buy 5・sell 5）、activities 21（FILL 10・CFEE 10・OCT 1、全ページ取得済み）、COMPLETE incoming wallet transfer 1件。外部拠出はUSDC `66.75055405 USD-equivalent`、現equityは`66.49 USD`、正確なUSDCUSD position markは`66.490361 USD`。現金`0`、buying power`0`、open positionはUSDCUSD 1件、含み損`-0.030192 USD`。したがってaccount-level mark-to-market changeは`66.490361 - 66.75055405 = -0.26019305 USD`（約`-0.39%`）。**実口座では利益でなく約26¢の損失。**同じaccount-created時点からのactivity paginationはexhausted、注文一覧は10件、transfer statusはCOMPLETE。private raw evidence: `~/.local/state/life-manager/investment-repair/evidence/alpaca-live-account-readback-20261020T232053.json`、SHA256=`ae7baa708f5c35d23caea23bf102c2ba4424be8e489cb10cc1ba49eafda186a6`。
+- この口座差額はaccount-level結果で、Life Manager strategyの純損益ではない。private live receiptsとの照合はclient order ID 4/10、provider order ID 2/10のみ一致し、特に9/30–10/1の4 fillsはdecision/owner/strategy/releaseへ未帰属。live ownerはdisabledで、2026-09-29 occurrence `alpaca-investment-live:18d9e6f979d18818-14709`の`effect_unknown` fenceが残る。最新API captureはbroker request IDを含まないためfence解除の根拠に使わない。
+- `alpaca-investment-paper`の自然runはpass/no-order/HOLDで、実収益は生まない。`investment-strategy-validation`にはpagination修正sourceがloadedされているが、修正後natural reportは未確認。Live accountで次の投資を始める現有資金もbuying power 0である。
+- 利益の完了条件は、同一account/strategyへ帰属した実約定を公式fill・fees・slippage・model/system/operating costへ結び、全費用後のrealized netが正で、同期間benchmarkを上回り、risk cap内で繰り返すこと。account balance増、paper P&L、含み益、注文数は単独ではこの条件を満たさない。
+
+**TODO順変更:** 旧=`BTC validator natural report → 30 paper round trips → 過去live注文の帰属 → live評価`。新=`(1) PR #8450のspec更新を最新mainへ統合 → (2) fresh official readbackでlive historical fenceと10注文のexact attributionを解消/確定 → (3) proven winner候補を一次情報と公開実績で一つ選び、after-cost・risk-adjusted結果/benchmark/drawdownを記録 → (4) loaded BTC pagination修正のnatural validation reportとselectionを確定 → (5) 現在のrisk/duplicate/loss capsとUSDCUSDから利用できるbuying powerを確認し、追加入金なしで安全な最小live pilotを行える条件を満たす → (6) live ownerを対象限定で再開し、最初のreal fillsから公式fees/slippage/model/system costsをつないで実netを測る → (7) 30件のcost-complete live round tripsとpositive benchmark-excess netが揃うまで規模を拡大しない → (8) その実績後にのみ残高シナリオと他venueを検討`。**理由:** fresh account-level readbackは`-$0.26019305`、live owner disabled、buying power `$0`。paperを利益達成条件に置き続けてもreal profitは生まれない。paperは注文identity/risk/fenceの最低限のmechanical checkに限り、収益の成功基準はreal accountへ置く。これはlive fence・winner evidence・損失上限を飛ばして即時発注する許可ではない。
+
+**現在cursor:** PR #8450 exact-head CIとmain統合 → live historical `effect_unknown` fence/10 fillsのofficial request-ID付き照合 → winner候補の検証。winnerの宣伝文句やbacktestだけで採用せず、一次ソースで再現できる期間・fee/slippage・benchmark・最大drawdownを保存する。現在の実口座損益はマイナスで、Life Manager帰属利益は未確認。
+
 ### 2026-10-09 13:18 JST — Job Hunter Dreamwork cutover and updated user criteria
 
 この追記は11:50 JST snapshot後のJob Hunter readbackとユーザーの最新指示を記録する。個別の勤務地・住所などの私的値はprivate profileのみを正本とし、このspecには複製しない。
