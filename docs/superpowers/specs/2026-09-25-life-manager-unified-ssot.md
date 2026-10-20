@@ -20848,9 +20848,9 @@ Top 10 by sales: 0/10 with a trial (Ocup 3,111, Serenity 2,002, HookAce 1,044, V
 
 ### Keiki × Maritime — 初週Top 30と実利用者1,000人
 
-**目的・今回の範囲:** 採択済みLife Managerで初週Top 30進出と、その後の実利用者1,000人到達を目指す。今回の作業は新メール・公式Terms・最新mainのsource/specを照合した日英README・応募生成正本・日英サイト原稿・本節の訂正。コード、登録、課金、migration、production flags、VM/browser、ユーザー招待・投稿・主催者への送信は変更しない。全体統括cursorは冒頭の正本を維持し、本節はMaritime laneの順序だけを更新する。
+**目的・今回の範囲:** 採択済みLife ManagerをCloudで実行し、初週の正式提出・Top 30進出、その後の実在利用者1,000人と実収益を目指す。開発、必要な本番反映、配布素材、正式提出、Daisへの稼働URLメールまで進める。目標/予算入力やTelegramは登録の必須条件にしない。ソース・本番稼働・提出受付・売上/利益を別々に確認する。全体統括cursorは冒頭の正本を維持し、本節はMaritime laneの順序を管理する。
 
-**新メールの確定事項:** GmailでDarshan Golchha（0.email）の件名「Keiki x Maritime kicks off tomorrow」、受信2026-10-19 05:00 UTCを確認した。メールは初週末までに製品をbuildすること、人に使ってもらえれば加点、上位30チームだけ第2週へ進むこと、一つの仕事を動かして少人数のfeedbackから改善することを案内する。初週の必須利用者数・採点配分・提出フォーム・demo形式・締切時刻/timezoneは書かれていない。Slack/Discordの案内はあるが内部のpinned announcementsは今回未確認。採択自体は10月16日の「You're in! Keiki x Maritime」で確認済み。
+**新メールの確定事項:** GmailでDarshan Golchha（0.email）の件名「Keiki x Maritime kicks off tomorrow」、受信2026-10-19 05:00 UTCを確認した。メールは初週末までに製品をbuildすること、人に使ってもらえれば加点、上位30チームだけ第2週へ進むこと、一つの仕事を動かして少人数のfeedbackから改善することを案内する。初週の必須利用者数・採点配分・提出フォーム・demo形式・締切時刻/timezoneは書かれていない。Slackの既存membershipでcompetition-announcementsを再読し、新しい初週締切/formは確認できない。採択自体は10月16日の「You're in! Keiki x Maritime」で確認済み。
 
 **日程:** 新メール本文は「tomorrow, Monday, October 19」、公式サイト/Termsは10月20日開始・12月1日23:59 Pacific終了で、開始日の不一致が残る。初週は既に始まっている前提で準備する。動くdemoを10月23日18:00 JST、提出packetを10月24日までに揃える内部目標とする。この日付は公式締切ではない。[公式ページ](https://competition.maritime.sh/) / [Program Terms](https://competition.maritime.sh/terms)
 
@@ -20933,7 +20933,7 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | T27 | DaisのDMとowned X/IG/community配布 | T22/T24/T26後、3人feedback待ちなし |
 | T28 | source別の最大離脱を一つ修正 | T21/T27後 |
 | T29 | 実測のcapacity/費用/利益/再利用を改善し1,000人を公式検証 | T28後 |
-| T30 | 共有できる稼働URLをDaisへメール送信しreceipt確認 | T23直後。T29の長期成長を待たない |
+| T30 | 共有できる稼働URLをDaisへメール送信しreceipt確認 | T22直後。正式form未公表で止めず、T29の長期成長を待たない |
 | T31 | email利用者の任意paid upgradeを既存Stripeへ接続しLM自身の売上を照合 | 無料pilot/提出を妨げずT23後。顧客事業売上とStripe subscription売上を別集計 |
 | T32 | 既存SupabaseへResend SMTP/email enable/正確なcallbackを設定しowned inbox着信確認 | 実環境完了。設定GETとowned inbox着信を確認、認証件名/宛先/新規時刻照合済み。email=true/confirm必須/既存Googleとredirect保持。safe receipt=smtp-readback.json。browser全経路はT22 |
 
@@ -20948,6 +20948,12 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 **T11B source受入:** 30秒readback席と同一connectionのreconcile完了＋successor enqueue、中央workerでのfull-job reconcile、cycle manifest/transport注入、既存15分cadenceのstable continuationをsource実装する（関連54＋worker5テストPASS）。report adapter/同tenant queue＋既存会計store reader/CFO配信とsent receiptのread-only reconciliation/現地19時のDST継続を追加する（関連48＋worker4テストPASS）。金額は接続先アカウント明細と明記しCloud帰属を捏造しない。provision create/configureの別stable job、loaded relay hash/schedule確認、初回cycle/report seed、30秒ごとのpending enrollment recoveryをsource実装する（関連43＋worker8テストPASS）。fresh read-only reviewのImportant4件（成功後continuation失敗、configure前readback、pending先頭の飢餓、早すぎるactive表示）を回帰RED→GREENで修正する。関連154＋worker10テストPASS、隔離PostgreSQLの同時poll/transaction/replay/rollback実測PASS。次はsource統合、その後T08/T20/T21を閉じT22へ進める。稼働VMは旧releaseのまま、公開/自然実行/メール/提出は未完。詳細→Atomic Implementation Plan T11.3a/b/c。
 
 **Source依存訂正:** 旧=T11全worker→T13/T12、T17実証→T22 deploy。新=T11A契約→T13/T12 source→T15/T16/T18/T19 source→T11B wiring→T22.1非公開deploy→T17/日報実測→T22完了。循環を解消し、実証条件は維持する。現在cursorは上記atomic TODOの正本を参照。
+
+**T22事前観測 / 現在cursor:** source PR #8424は計測reviewのImportant3件を解消し、関連94＋worker12、browser接続Python15、OSS検証がPASS。旧HEAD `5932044b9a`は13 CI成功、Loop controlはMac arm64容量不足でrunner未割当のまま取消となる。公式runner-imagesで対応を確認し、同じ検証をstandard `macos-15-intel`へpinしたその後のIntel CIで952件中951件成功、npm10 lock不足が1件判明する。source修正 `5e4962228103f99f799f3c16b0749bc4b72acf05`は隔離npm10 RED→GREENとbytecode focused test PASS、reviewのCritical/Important残存0。最新mainと本番手順を統合したHEADで14check確認・統合を進める。owned VMは旧main `8d7d4474a357303a87ad3dd7acf1920b6cb77030`のまま。既存VMのexternal identityは現行ManagerのHMAC identityと一致し、新VMを増やさずredeployする。Railway既存workerの3capabilityは保持してMaritimeを追加し、frontendには既存workerと同じruntime DB接続を追加する。workerで欠落するLM_UID_SECRETはfrontendの既存値を追加し、rotateしない。両appのcapacityを3、owned uidを内部cohortとして設定する。queue/receiptsはRailway Postgres、enrollment/execution/participant/funnel/CFO送信receiptはSupabaseへ配置する。FinancialRecord storeはRailway側であり、Supabaseへ第二の金融storeを作らない。
+
+**本番DBの実測:** Railwayのruntime jobs/receiptsは存在しMaritime jobは0。SupabaseのManager enrollment/execution/pilot participantは未作成、funnelは存在する。Authは一時timeoutから200へ戻るが、認証RESTは503 PGRST002が続く。Managementのread-only SQLは成功とconnection timeout/544が混在し、top-level ACTIVE_HEALTHYを機能復旧の証明にしない。直近15分の匿名化ログはauthenticatorのstatement timeout9件、そのうちtimezone catalog照会8件。過去のtimezone/timeout migration適用済み・再起動完了の記録を保持し、原因未確認の再適用/全体restart/restoreを行わない。上流PostgREST #5100はstartupの同照会の遅延とschema cache依存除去を記録するが、稼働provider版は未確認。次は残CI→source統合、RESTのreadback回復/診断、既存main由来migrationをDB別に適用し、flag offのfoundation→flag1へ切替/owned本人の自然cycle・成果物・日報・停止→DaisへURL/配布→正式提出の順。正式経路が公表されたら最短で提出する。詳細→Atomic Plan T22.1a–e、safe evidence=`docs/evidence/maritime/cloud-foundation-preflight.json`。
+
+**成果基準の順序更新:** 旧=T22→T23正式receipt→T30 URLメール。新=T22→T30 URLメール/配布、T23は正式経路が確認でき次第。理由=公式form/締切が未公表という実測不足を、友人への共有と実利用の依存にしない。現在cursorはsource CI/統合→T22のままで、進行中の外部送信はない。
 
 **配備方式:** 専用subfolderのDockerfileをsanitized main由来ZIPのrootだけに配置し、Railway既存buildを変えない。Maritime公式upload/buildはowned Free VMで成功済み。source archive hashをOCI image digestと混同しない。API key/upload referenceはprivate credential SSOTだけに保持する。
 

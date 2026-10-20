@@ -436,6 +436,11 @@ life-manager/
 - [ ] T22.0 GitHubがMac arm64 runnerを15分確保できず取消したannotationを確認する。公式actions/runner-imagesのstandard `macos-15-intel`へLoop control jobのrunnerだけをpinし、同じ契約テストを実行する。検証内容を削減せずexact HEADの14checkを再確認する。
 - [ ] T22.0a Intel CIの既存release-bytecode testがcompute-proxyのnpm10 lock不整合で失敗する。既存npm10.9.4の隔離dry-runでREDを再現し、jayson/ws用の既存pinned utf-8-validate5 metadataを不足するnested lock entryへ補う。bytecode testのrelease allowlistは対象のruntime/loopへ絞り、無関係なNode packageのnetwork installに依存させない。bytecode/readonly/runtime Pythonのassertionは保持し、同じfocused testとnpm10 dry-runを通す。
 - [ ] T22.1 全source acceptanceとexact-head CIを確認しmainへ統合する。immutable imageをmain SHAから作り、DB migration履歴とapply結果を読む。公開flagをoffに保ち、central worker/relayとowned tenantの非公開foundationを先にdeployし、その後T17の実業務とT19の着信を確認する。
+- [ ] T22.1a main由来commitで両DBのschema/historyを読む。Railwayは既存runtime jobs/receipts/reconcile agingと既存worker用`2026-09-09-lm-financial-records-worker.sql`のtableを確認する。Supabaseは`2026-09-30-lm-cfo-result-report.sql`、`2026-10-18-lm-maritime-distribution.sql`、`2026-10-20-lm-maritime-manager.sql`、`2026-10-20-lm-maritime-runtime-executions.sql`、`2026-10-21-lm-maritime-manager-usage.sql`を依存順で照合する。存在するmigrationを未確認で再applyせず、不足分だけ実行・readbackする。新FinancialRecord storeをSupabaseへ作らない。
+- [ ] T22.1b SupabaseのAuth/認証RESTを実測する。project ACTIVE_HEALTHYや未認証401だけでPASSにしない。503 PGRST002時は直近postgres_logsをerror/query classで集計し、本文/SQL本文/email/tokenを取得しない。過去の適用済みtimezone migrationを未適用と断定せず、既存の全体restart/restore禁止を守る。
+- [ ] T22.1c `build-context.py`で統合mainからZIPを作る。owned external identityは現行HMACと一致するため、既存agentへ公式ZIP redeployを一回行い、新agentを作らない。既存VMの`LM_RELEASE_SHA`/`LM_SOURCE_ARCHIVE_SHA256`を新main/ZIPへ更新し、`LM_RUNTIME_TENANT_ID`は同値維持する。source SHA/ZIP hashとprovider deployment/image digestを区別し、実source file hashとloaded healthも照合する。envのSHAだけで新版採用と判定しない。upload/agent ID/tokenはprivate SSOTへ保存する。
+- [ ] T22.1d 既存Railway life-callへruntime DB・Manager identity secret・image releaseの必要値を追加し、workerの既存3capabilityを保持して`maritime.manager.provision,maritime.manager.cycle,maritime.manager.report`を追加する。workerにはMARITIME_API_KEY/source S3 key/archive hash/同じfrontend originを設定する。secretはstdin/private SSOT経由としargv/logへ出さない。workerで未設定の`LM_UID_SECRET`へfrontendの既存値を追加し、既存値をrotateしない。両appへ`MARITIME_PILOT_MAX_USERS=3`と`LM_MARITIME_INTERNAL_UIDS=owned uid`を設定する。既存Resend keyは保持する。公開flag offでmain由来を反映し、worker healthのcapability/loaded releaseを読む。
+- [ ] T22.1e foundation準備後に宣言して`LM_MARITIME_MANAGER_EMAIL_ENABLED=1`へ切替える。flag0のままbrowser登録できるとは扱わない。配布告知前にowned本人の確認済みemail/uidと既存VMだけでenrollment/consent/provision receiptを確認する。初回cycle/reportは既存stable job identityから起動し、unknown occurrenceの再POSTをしない。自然完了・literal成果物download・日報着信・停止後の新規仕事抑止・計測の内部cohortを確認してから配布告知へ進む。
 - [ ] T22.2 登録→自律job→provider結果→日次メールを自分の別Cloud tenantで一回実行する。Macのloopやbrowserを止める破壊的検証はせず、Cloudのargv/state/network evidenceでMac非依存を確かめる。
 - [ ] T22.3 正規sleep後のscheduled wakeを一回観測し、同occurrenceの公開/送信が増えないことを読む。メール着信/送信provider ID、official usageとloaded SHAを結合する。
 - [ ] T22.4 readiness/capacity/費用/未接続条件を正本へ更新。全14loopsをCloud完成扱いにせず、実証したCapafy範囲だけcatalogへ反映する。
@@ -519,9 +524,9 @@ life-manager/
 
 ## Task T30: 稼働URLをDaisへメールで届ける
 
-**Files:** 既存mail送信経路と`submission.json`のprivate delivery receipt参照。個人宛先/secretはrepoに保存しない。
-**Interfaces:** T23の受付済みentryとT22の稼働URLをconsumes。送信先はprivate profile/credential SSOTから解決する。
-**Depends:** T23直後。長期獲得T29やwinner通知を待たない。
+**Files:** 既存mail送信経路とprivate delivery receipt。個人宛先/secretはrepoに保存しない。提出packetの作成を送信の前提にしない。
+**Interfaces:** T22の稼働URLと準備済み配布copyをconsumes。T23受付済みならその事実も記す。送信先はprivate profile/credential SSOTから解決する。
+**Depends:** T22直後。正式提出先の公表、長期獲得T29、winner通知を待たない。
 
 - [ ] T30.1 稼働中のemail登録URLと無料pilotの範囲を再度GETで確認し、Dais宛先をprivate SSOTから解決する。
 - [ ] T30.2 URL、できること、未接続部分、家族/友人へ転送できる短い紹介文を日本語の一通にまとめ、送信payloadを独立read-only検証する。
