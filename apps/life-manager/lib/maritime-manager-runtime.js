@@ -193,4 +193,4 @@ function createMaritimeManagerLoopAdapter(services = {}) {
     },
   });
 }
-module.exports = { buildMaritimeManagerProvisionJob, buildMaritimeManagerCycleJob, buildMaritimeManagerReportJob, createMaritimeManagerLoopAdapter, readMaritimeCycleContract: cycleContract };
+module.exports = { buildMaritimeManagerProvisionJob, buildMaritimeManagerCycleJob, buildMaritimeManagerReportJob, createMaritimeManagerLoopAdapter, readMaritimeCycleContract: cycleContract, maritimeArtifactRefsValid: artifactRefsValid };
