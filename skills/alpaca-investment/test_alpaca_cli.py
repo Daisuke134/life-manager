@@ -72,6 +72,89 @@ class CryptoValidationHistoryTests(unittest.TestCase):
         self.assertIn("next_page_token", run.call_args.args[1][-1])
         self.assertTrue(result["source_receipt_ids"])
 
+    def test_history_follows_page_token_before_validating_complete_window(self):
+        from datetime import datetime, timezone
+        start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        btc = [{"t": (start + timedelta(minutes=5 * i)).isoformat(),
+                "o": "100", "h": "102", "l": "99", "c": "101"}
+               for i in range(13)]
+        fx = [{"t": row["t"], "c": "0.99"} for row in btc]
+        pages = [
+            {"next_page_token": "opaque-token-2", "bars": {
+                "BTC/USDC": btc[:6]}},
+            {"next_page_token": None, "bars": {
+                "BTC/USDC": btc[6:], "USDC/USD": fx}},
+        ]
+        with patch.object(alpaca_cli, "_context", return_value={}) as context, patch.object(
+            alpaca_cli, "_run", side_effect=pages,
+        ) as run:
+            result = alpaca_cli.read_crypto_validation_history(
+                credentials_path=Path("credentials"), cli_path=Path("alpaca"),
+                start=start, end=start + timedelta(hours=1),
+                observed_at="2026-01-02T00:00:00Z")
+
+        self.assertEqual(context.call_args.kwargs["mode"], "paper")
+        self.assertEqual(run.call_count, 2)
+        second_args = run.call_args_list[1].args[1]
+        self.assertEqual(second_args[second_args.index("--page-token") + 1],
+                         "opaque-token-2")
+        self.assertEqual(len(result["crypto_history"]), 12)
+        self.assertEqual(len(result["quote_conversions"]), 12)
+
+    def test_history_fails_closed_when_page_limit_leaves_more_data(self):
+        from datetime import datetime, timezone
+        start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        pages = []
+        for index in range(alpaca_cli.MAX_CRYPTO_VALIDATION_HISTORY_PAGES):
+            row = {"t": (start + timedelta(minutes=5 * index)).isoformat(),
+                   "o": "100", "h": "102", "l": "99", "c": "101"}
+            pages.append({"next_page_token": f"opaque-token-{index + 1}",
+                          "bars": {"BTC/USDC": [row]}})
+        with patch.object(alpaca_cli, "_context", return_value={}), patch.object(
+            alpaca_cli, "_run", side_effect=pages,
+        ) as run:
+            with self.assertRaisesRegex(
+                    ValueError,
+                    "^alpaca_crypto_validation_history_invalid:pagination_incomplete$") as raised:
+                alpaca_cli.read_crypto_validation_history(
+                    credentials_path=Path("credentials"), cli_path=Path("alpaca"),
+                    start=start, end=start + timedelta(hours=1),
+                    observed_at="2026-01-02T00:00:00Z")
+
+        self.assertEqual(run.call_count, alpaca_cli.MAX_CRYPTO_VALIDATION_HISTORY_PAGES)
+        self.assertEqual(raised.exception.details, {
+            "page_number": alpaca_cli.MAX_CRYPTO_VALIDATION_HISTORY_PAGES,
+            "received_count": alpaca_cli.MAX_CRYPTO_VALIDATION_HISTORY_PAGES,
+        })
+
+    def test_history_fails_closed_when_page_has_no_bars_and_more_data(self):
+        from datetime import datetime, timezone
+        start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        btc = [{"t": (start + timedelta(minutes=5 * i)).isoformat(),
+                "o": "100", "h": "102", "l": "99", "c": "101"}
+               for i in range(13)]
+        fx = [{"t": row["t"], "c": "0.99"} for row in btc]
+        pages = [
+            {"next_page_token": "opaque-token-2", "bars": {"BTC/USDC": []}},
+            {"next_page_token": None, "bars": {"BTC/USDC": btc,
+                                                "USDC/USD": fx}},
+        ]
+        with patch.object(alpaca_cli, "_context", return_value={}), patch.object(
+            alpaca_cli, "_run", side_effect=pages,
+        ) as run:
+            with self.assertRaisesRegex(
+                    ValueError,
+                    "^alpaca_crypto_validation_history_invalid:pagination_incomplete$") as raised:
+                alpaca_cli.read_crypto_validation_history(
+                    credentials_path=Path("credentials"), cli_path=Path("alpaca"),
+                    start=start, end=start + timedelta(hours=1),
+                    observed_at="2026-01-02T00:00:00Z")
+
+        self.assertEqual(run.call_count, 1)
+        self.assertEqual(raised.exception.details, {
+            "page_number": 1, "received_count": 0,
+        })
+
     def test_history_rejects_pagination_missing_duplicate_future_and_bad_prices(self):
         mutations = [
             ("pagination_incomplete", lambda p: p.update(next_page_token="more")),

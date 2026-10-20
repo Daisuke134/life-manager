@@ -31,6 +31,7 @@ ETF_HISTORY_MAX_CALENDAR_DAYS = 90
 MAX_CREDENTIAL_BYTES = 1_048_576
 MAX_OUTPUT_BYTES = 64 * 1024
 MAX_MULTI_BARS_OUTPUT_BYTES = 512 * 1024
+MAX_CRYPTO_VALIDATION_HISTORY_PAGES = 10
 CLI_OPERATIONS = frozenset({
     "account_activity", "account_get", "api_GET", "asset_get", "clock_get", "data_crypto",
     "data_latest-quotes", "data_latest-trade", "data_multi-bars", "data_option", "data_quotes", "order_list",
@@ -74,7 +75,10 @@ class CryptoValidationHistoryError(ValueError):
     def __init__(self, reason_code: str, **details: Any):
         self.reason_code = (reason_code if reason_code in CRYPTO_VALIDATION_REASON_CODES
                             else "malformed_payload")
-        allowed_details = {"symbol", "expected_count", "actual_count", "row_index"}
+        allowed_details = {
+            "symbol", "expected_count", "actual_count", "row_index",
+            "page_number", "received_count",
+        }
         self.details = {
             key: value for key, value in details.items()
             if key in allowed_details and type(value) in {str, int}
@@ -992,19 +996,56 @@ def read_crypto_validation_history(
     start_text = start.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
     end_text = end.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
     context = _context(credentials_path, cli_path, mode="paper")
-    payload = _run(cli_path, ["data", "crypto", "bars", "--symbols", "BTC/USDC,USDC/USD",
-        "--start", start_text, "--end", end_text, "--timeframe", "5Min", "--limit", "1000",
-        "--sort", "asc", "--quiet", "--jq",
-        '{next_page_token,bars:(.bars|with_entries(.value|=map({t,o,h,l,c})))}'], context)
+    raw_rows_by_symbol: dict[str, list[dict[str, Any]]] = {}
+    seen_page_tokens: set[str] = set()
+    page_token = None
     try:
-        if not isinstance(payload, dict) or "next_page_token" not in payload:
-            raise CryptoValidationHistoryError("response_shape_invalid")
-        if payload["next_page_token"] is not None:
-            raise CryptoValidationHistoryError("pagination_incomplete")
-        by_symbol = payload.get("bars")
-        if (not isinstance(by_symbol, dict) or "BTC/USDC" not in by_symbol
-                or set(by_symbol) - {"BTC/USDC", "USDC/USD"}):
+        for page_number in range(1, MAX_CRYPTO_VALIDATION_HISTORY_PAGES + 1):
+            args = ["data", "crypto", "bars", "--symbols", "BTC/USDC,USDC/USD",
+                "--start", start_text, "--end", end_text, "--timeframe", "5Min", "--limit", "1000",
+                "--sort", "asc", "--quiet", "--jq",
+                '{next_page_token,bars:(.bars|with_entries(.value|=map({t,o,h,l,c})))}']
+            if page_token is not None:
+                args.extend(["--page-token", page_token])
+            payload = _run(cli_path, args, context)
+            if not isinstance(payload, dict) or "next_page_token" not in payload:
+                raise CryptoValidationHistoryError("response_shape_invalid")
+            next_page_token = payload["next_page_token"]
+            if next_page_token is not None and (
+                    not isinstance(next_page_token, str) or not next_page_token.strip()
+                    or len(next_page_token) > 8192 or next_page_token in seen_page_tokens):
+                raise CryptoValidationHistoryError(
+                    "pagination_incomplete", page_number=page_number,
+                    received_count=sum(map(len, raw_rows_by_symbol.values())),
+                )
+            page_rows_by_symbol = payload.get("bars")
+            if (not isinstance(page_rows_by_symbol, dict) or not page_rows_by_symbol
+                    or set(page_rows_by_symbol) - {"BTC/USDC", "USDC/USD"}):
+                raise CryptoValidationHistoryError("symbol_set_invalid")
+            page_row_count = 0
+            for symbol, bars in page_rows_by_symbol.items():
+                if not isinstance(bars, list):
+                    raise CryptoValidationHistoryError("symbol_bars_invalid", symbol=symbol)
+                page_row_count += len(bars)
+                raw_rows_by_symbol.setdefault(symbol, []).extend(bars)
+            received_count = sum(map(len, raw_rows_by_symbol.values()))
+            if next_page_token is None:
+                break
+            if page_row_count == 0:
+                raise CryptoValidationHistoryError(
+                    "pagination_incomplete", page_number=page_number,
+                    received_count=received_count,
+                )
+            seen_page_tokens.add(next_page_token)
+            if page_number == MAX_CRYPTO_VALIDATION_HISTORY_PAGES:
+                raise CryptoValidationHistoryError(
+                    "pagination_incomplete", page_number=page_number,
+                    received_count=received_count,
+                )
+            page_token = next_page_token
+        if "BTC/USDC" not in raw_rows_by_symbol:
             raise CryptoValidationHistoryError("symbol_set_invalid")
+        by_symbol = raw_rows_by_symbol
         rows_by_symbol = {}
         count = int((end - start).total_seconds() // 300)
         for symbol, bars in by_symbol.items():

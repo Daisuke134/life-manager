@@ -16030,6 +16030,24 @@ REDebbd5af252→GREEN0e8f071c0eはcore guardも証明済みsell/nofill closedか
 
 **完了条件:** BTC V2の候補が同じ入力・費用契約で再現可能なreportを出し、paperの自然取引を公式fill・全費用へ一対一で結び、30件の費用後実績がbenchmarkとrisk gateを通る。これでも将来利益の保証や「世界一」の証明にはならない。現在はTODO 2がcursorで、修正source、最新main release、BTC report、paper利益、live許可は未完。
 
+#### 2026-10-21 06:24 JST — Official pagination contract and current cursor
+
+**追認readback:** 2026-10-20 21:22:46Zのvalidation run `18e059bea67a61d0-48598`も、同じBTC chunk `[2026-07-22T00:00:00Z, 2026-07-22T06:00:00Z)`で`pagination_incomplete`、BTC report 0、effect `not_applicable`、`effect_unknown=false`となった。21:20:42Zのpaper run `18e059a52b1e4f60-46064`はrelease `fdc66e71`でpassし、`no_broker_order_submitted`を記録した。latest `origin/main`はPR #8438 merge `63a674684148624f304508c2e7450b27b03e20a5`。validation ownerは`55cc06f2`、paper ownerは`fdc66e71`をloaded。current symlinkは`20261021T062242-50935dfd`（main ancestor）を指す。
+
+**失敗契約の一次資料確認:** Alpacaの[Historical bars endpoint](https://docs.alpaca.markets/reference/cryptobars-1)は、limitをresponse page全symbols合計の最大件数とし、件数未満でも残りがあれば`next_page_token`を返すため毎回確認する、と定義する。現行Alpaca CLI `data crypto bars --help`にはそのtokenを続き取得に渡す`--page-token`がある。自然runのtyped errorは、そのtokenをreaderが取得後に捨てていたことと一致する。ページ件数やtoken数は当時のsummaryに保存されていないが、停止原因は「次ページを読まず失敗扱いする一ページ実装」と確定した。
+
+**現在cursor:** 06:07 subsectionのTODO 2（公式token契約とreader呼び出し確認）は完了。次は同sectionのTODO 3、複数ページを返すRED fixture。以降の順番・paper/live・利益の完了条件は同sectionのTODO 4–12を維持する。新しいlive/API注文や手動wakeは行わない。
+
+#### 2026-10-21 06:30 JST — BTC history pagination source RED/GREEN
+
+**変更:** branch `fix/investment-btc-bars-pagination-20261021`で`read_crypto_validation_history()`をAlpaca公式`--page-token`契約に合わせた。最大10ページ、繰り返し/不正/空ページ/上限超過は`pagination_incomplete`で停止し、safe detailにはpage numberと受信件数だけを保存する。BTCとUSDC/USDをページ横断でsymbol別に集め、全ページ完了後に既存のbar count・timestamp・OHLC・gap検証を行う。token値・raw bars・口座情報はerror detailへ出さない。
+
+**評価証拠:** multi-page fixtureは旧readerで`pagination_incomplete`となるREDを確認後、修正でBTC/FXを別ページから集めるGREENを確認した。ページ上限fixtureはguardなしだと誤った`btc_bar_count_mismatch`を返すRED、guardありで`pagination_incomplete`・page 10・received 10となるGREEN。空ページ＋続きtokenもguardなしで通るRED、fail-closedのGREENを確認。reader test file 25件、Alpaca investment suite 730件がPASS。`bin/lm-loop-contract`はcatalog 18 loops/191 jobs/112 mapped/errors 0でPASS。testsはfixture/mockを使用し、実口座へのAPI/注文操作はしていない。
+
+**本番との境界:** これはworktree sourceだけで、PR/main/release/owner反映は未完。06:24 JSTの最後のreadbackではvalidation ownerは`55cc06f2`で同じpagination failure、paper ownerは`fdc66e71`で自然pass/no-orderだった。修正sourceが動くreleaseでのvalidation結果はまだ無い。
+
+**cursor更新:** 06:24 subsectionのTODO 3（multi-page RED fixture）とTODO 4（bounded pagination修正）は完了。次cursorは06:07 subsectionのTODO 5（source/diff/contract受入、fresh read-only financial review、exact-head CI、main統合）。その後のimmutable release、validation ownerのみの安全な適用、次の自然BTC report、paper費用後取引、30 round trips、live gateは同section TODO 6–12の順を維持する。
+
 ### 2026-10-09 13:18 JST — Job Hunter Dreamwork cutover and updated user criteria
 
 この追記は11:50 JST snapshot後のJob Hunter readbackとユーザーの最新指示を記録する。個別の勤務地・住所などの私的値はprivate profileのみを正本とし、このspecには複製しない。
