@@ -7,11 +7,15 @@
 **Tech Stack:** Python標準ライブラリ(logging.handlers/subprocess/os/socket)、既存Python/Node runtime、既存OS supervisor、既存jsonschema。
 **Spec:** docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md のstorage先行section。
 
+## 2026-10-20 current cursor
+
+DS01–13のsource atomは統一SSOTで完了扱い。source acceptance JSONはmain `84c56e11`、owner-apply/next-day receiptは2026-10-09 rolloutを指す。現在のorigin/mainは`70a5e365`、release selectorは`64175a23`、filesystem freeは約3.6GiB。最新full inventoryは2026-09-24、最新health snapshotには`host_storage`がない。統一SSOTのFD02-Aから既存Host Steward inventoryとgrowth sampleを更新し、実receiptでDS14–17を追跡する。2GiB基準の`capacity_recovered`を10GiB revenue floor達成として扱わない。
+
 ## 確認したbaseline
 
 - source baseline: 844e8efaf63552fd8c213fea9dda67519e4aab57。最新mainの15日cleanup dispatcherを再利用。既存OpenClaw残計画は233atom。
 - 前回のlive readback: Data空き約0.57GiB。cleanup rc0/errors0/protected0でもcapacity_recovery=unmet。古いhealth healthy snapshotは同receiptの評価ではない。
-- 現行stderr修正は終了後のreplay/tailだけをboundedにし、実書込は無制限。raw provider stdout/stderrにも直接file captureがある。
+- FD-01/DS06–08のsourceはmainへ統合済み。policy-bound finite ownerはbounded relay/retentionを使う。unbound legacy captureと長時間実書込みの上限は別契約なので、全producer/任意外部writerの上限まで実装済みとはみなさない。
 - writerと増加速度の全体帰属は未完。大きいrootが原因だと断定せず、DS03でmetadata観測を実装する。
 
 ## 共通条件
