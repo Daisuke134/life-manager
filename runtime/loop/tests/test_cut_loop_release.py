@@ -238,7 +238,7 @@ class CutLoopReleaseTest(unittest.TestCase):
                 env={
                     **os.environ,
                     "LOOPS_ROOT": str(loops),
-                    "LOOPS_RELEASE_PATHS": "runtime",
+                    "LOOPS_RELEASE_PATHS": "runtime/loop",
                     "LOOPS_ACTIVATE_CURRENT": "0",
                     "LIFE_MANAGER_DISK_PRESSURE_FILE": str(Path(directory) / "no-pressure"),
                 },

@@ -434,6 +434,7 @@ life-manager/
 **Depends:** T22.1は各taskのsource統合（T11B/T12/T15/T16/T19/T20/T21/T32）後。T22の完了はT17とメール/停止/計測の自然readback後。T17をT22.1 deployより先に要求しない。
 
 - [ ] T22.0 GitHubがMac arm64 runnerを15分確保できず取消したannotationを確認する。公式actions/runner-imagesのstandard `macos-15-intel`へLoop control jobのrunnerだけをpinし、同じ契約テストを実行する。検証内容を削減せずexact HEADの14checkを再確認する。
+- [ ] T22.0a Intel CIの既存release-bytecode testがcompute-proxyのnpm10 lock不整合で失敗する。既存npm10.9.4の隔離dry-runでREDを再現し、jayson/ws用の既存pinned utf-8-validate5 metadataを不足するnested lock entryへ補う。bytecode testのrelease allowlistは対象のruntime/loopへ絞り、無関係なNode packageのnetwork installに依存させない。bytecode/readonly/runtime Pythonのassertionは保持し、同じfocused testとnpm10 dry-runを通す。
 - [ ] T22.1 全source acceptanceとexact-head CIを確認しmainへ統合する。immutable imageをmain SHAから作り、DB migration履歴とapply結果を読む。公開flagをoffに保ち、central worker/relayとowned tenantの非公開foundationを先にdeployし、その後T17の実業務とT19の着信を確認する。
 - [ ] T22.2 登録→自律job→provider結果→日次メールを自分の別Cloud tenantで一回実行する。Macのloopやbrowserを止める破壊的検証はせず、Cloudのargv/state/network evidenceでMac非依存を確かめる。
 - [ ] T22.3 正規sleep後のscheduled wakeを一回観測し、同occurrenceの公開/送信が増えないことを読む。メール着信/送信provider ID、official usageとloaded SHAを結合する。
