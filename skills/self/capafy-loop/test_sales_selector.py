@@ -37,11 +37,13 @@ def test_no_company_or_agent_sales_remains_none() -> None:
     assert result["signal"] == "none"
 
 
-def test_winner_is_most_profitable_not_best_selling():
+def test_positive_estimate_order_is_preserved_without_claiming_real_profit():
     import importlib.util, pathlib
     spec = importlib.util.spec_from_file_location("ss", pathlib.Path(__file__).parent / "sales_selector.py")
     mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
-    analytics = {"per_skill_rows": [
+    analytics = {"openrouter_actual": {
+        "window_start": "2026-09-19 00:00:00", "window_end": "2026-10-19 00:00:00",
+    }, "per_skill_rows": [
         {"agent_id": "hook", "name": "Hook Lab", "profit_30d_actual_usd": "-16.16", "stats_30d_orders": 11},
         {"agent_id": "slide", "name": "Slide Maker", "profit_30d_actual_usd": "15.98", "stats_30d_orders": 2},
         {"agent_id": "tiktok", "name": "TikTok Script Pro", "profit_30d_actual_usd": "11.85", "stats_30d_orders": 5},
@@ -50,4 +52,14 @@ def test_winner_is_most_profitable_not_best_selling():
     out = mod.select_signal([], 67, official, analytics)
     assert out["winner"]["name"] == "Slide Maker"
     assert [w["name"] for w in out["profit_winners"]] == ["Slide Maker", "TikTok Script Pro"]
+    assert out["signal"] == "sales"
+    assert out["winner"]["source"] == "estimated_contribution_30d"
+    assert out["attribution_status"] == "estimated_contribution_30d"
+    assert out["period_alignment"] == "unverified"
+    assert out["full_company_profit_status"] == "unknown"
+    assert out["cost_activity_observed_range"] == {
+        "start": "2026-09-19 00:00:00", "end": "2026-10-19 00:00:00",
+    }
+    assert "contribution estimates" in out["advice"]
+    assert "not verified profit" in out["advice"]
     assert mod.select_signal([], 67, official, None)["winner"]["name"] == "Hook Lab"

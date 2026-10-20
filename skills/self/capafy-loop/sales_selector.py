@@ -60,10 +60,10 @@ ANALYTICS = STATE_HOME / "state/capafy-skill-analytics.json"
 
 
 def profit_winners(analytics, limit=3):
-    """Skills ranked by real 30d profit (net revenue minus OpenRouter actual cost).
+    """Rank positive legacy contribution estimates, not verified Agent profit.
 
-    Gross sales alone picked Hook Lab, which sells most but loses money on Sonnet
-    (2026-09-28: rev $19.91, cost $36.07). Cloning a loss-maker scales the loss.
+    The collector assumes fees and prorates model-level costs; its cost period
+    is not verified to match the seller revenue window.
     """
     rows = [r for r in (analytics or {}).get("per_skill_rows") or []
             if _num(r.get("profit_30d_actual_usd")) > 0]
@@ -76,17 +76,24 @@ def profit_winners(analytics, limit=3):
 
 
 def select_signal(agents, company_orders, official_winner=None, analytics=None):
-    profitable = profit_winners(analytics)
-    if profitable:
-        top_names = ", ".join(f"'{w['name']}' (+${w['profit_30d_usd']}/30d)" for w in profitable)
+    estimates = profit_winners(analytics)
+    if estimates:
+        top_names = ", ".join(f"'{w['name']}' (+${w['profit_30d_usd']}/30d)" for w in estimates)
+        activity = (analytics or {}).get("openrouter_actual") or {}
+        if not isinstance(activity, dict):
+            activity = {}
         return {
             "ok": True, "signal": "sales", "listings": len(agents), "company_orders": company_orders,
-            "winner": {"agent_id": profitable[0]["agent_id"], "name": profitable[0]["name"],
-                       "source": "real_profit_30d"},
-            "profit_winners": profitable, "attribution_status": "real_profit_30d",
-            "advice": f"Most profitable skills (net revenue minus actual model cost, 30d): {top_names}. "
+            "winner": {"agent_id": estimates[0]["agent_id"], "name": estimates[0]["name"],
+                       "source": "estimated_contribution_30d"},
+            "profit_winners": estimates, "attribution_status": "estimated_contribution_30d",
+            "cost_activity_observed_range": {"start": activity.get("window_start"),
+                                             "end": activity.get("window_end")},
+            "period_alignment": "unverified", "full_company_profit_status": "unknown",
+            "advice": f"Positive contribution estimates (assumed fees and prorated model costs): {top_names}. "
+                      "Cost-period alignment is unverified. Treat these as hypotheses, not verified profit. "
                       "Build the NEXT skill in one of these customer-job categories/styles, on the cheap "
-                      "hosted model (DeepSeek V4.1 Flash). Do not clone a best-seller that loses money.",
+                      "hosted model (DeepSeek V4.1 Flash). Verify actual unit economics before scaling.",
         }
     ranked = sorted(agents, key=_score, reverse=True)
     total_sales = sum(_num(a.get("sales")) + _num(a.get("recentSales")) for a in agents)
