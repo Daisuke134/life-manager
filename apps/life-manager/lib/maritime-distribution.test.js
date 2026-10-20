@@ -243,3 +243,16 @@ test('email manager has a CSRF-bound stop control and describes retained infligh
  assert.match(html,/data-action="stop"/);assert.match(html,/fixture-csrf/);assert.match(html,/maritime\/stop/);
  assert.match(html,/進行中/);assert.match(html,/削除/);
 });
+
+
+test('manager milestones hash participant and occurrence keys and mark founder activity internal',async()=>{
+ const uid='lm_11111111-1111-4111-8111-111111111111',events=[];
+ const store=createMaritimeDistributionStore({env:{LM_UID_SECRET:'fixture-secret',LM_MARITIME_INTERNAL_UIDS:uid},supaUrl:'https://fixture.invalid',supaKey:'fixture',recordEventImpl:async event=>{events.push(event);return true;}});
+ assert.equal(await store.recordManagerEvent('maritime_work_completed',uid,{eventKey:'job:a',source:'instagram',attribution:{utm_source:'instagram',utm_medium:'dm',email:'private@example.invalid',token:'private-token'}}),true);
+ await store.recordManagerEvent('maritime_work_completed',uid,{eventKey:'job:a',source:'instagram'});
+ await store.recordManagerEvent('maritime_work_completed',uid,{eventKey:'job:b',source:'instagram'});
+ assert.equal(events[0].sourceEventId,events[1].sourceEventId);assert.notEqual(events[0].sourceEventId,events[2].sourceEventId);
+ assert.equal(events[0].sourceEventId.length<=128,true);assert.equal(events[0].sourceObjectId.length,64);assert.equal(events[0].audienceKind,'internal');
+ assert.equal(events[0].uid,null);assert.equal(events[0].attribution.utm_medium,'dm');assert.doesNotMatch(JSON.stringify(events),/private|lm_11111111|job:a/);
+ assert.equal(await store.recordManagerEvent('unknown',uid,{source:'instagram'}),false);
+});

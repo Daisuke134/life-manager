@@ -279,3 +279,12 @@ test("records refunds for Web customers before their first Travel block", async 
     attribution: {}, occurredAt: "2030-01-01T00:00:00.000Z",
   }]);
 });
+
+
+test("manager funnel separates verified accounts, completed work and internal cohorts",()=>{
+ for(const eventName of ['maritime_email_verified','maritime_manager_activated','maritime_work_completed','maritime_report_sent','maritime_returned']){
+  const row=funnelEvents.normalizeWebFunnelEvent({eventName,audienceKind:'internal',sourceObjectId:'a'.repeat(64),sourceEventId:'maritime:'+ 'b'.repeat(64),email:'private@example.invalid',body:'private contents',token:'private-token'});
+  assert.equal(row.audience_kind,'internal');assert.equal(row.uid,null);assert.doesNotMatch(JSON.stringify(row),/private/);
+ }
+ assert.throws(()=>funnelEvents.normalizeWebFunnelEvent({eventName:'maritime_work_completed',audienceKind:'everyone'}),/audience/);
+});

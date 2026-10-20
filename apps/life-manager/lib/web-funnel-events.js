@@ -11,6 +11,7 @@ const WEB_FUNNEL_EVENTS = new Set([
   "cancellation_requested", "subscription_canceled", "refund_recorded",
   "maritime_landing_view", "maritime_cta_click", "maritime_start", "maritime_consent",
   "maritime_consent_revoked", "maritime_first_response", "maritime_7day_return",
+  "maritime_email_verified", "maritime_manager_activated", "maritime_work_completed", "maritime_report_sent", "maritime_returned",
 ]);
 const BILLING_REASONS = new Set([
   "automatic_pending_invoice_item_invoice", "manual", "subscription", "subscription_create",
@@ -36,6 +37,8 @@ function normalizeWebFunnelEvent(event = {}, nowMs = Date.now()) {
   if (amountUsd != null && (!Number.isFinite(amountUsd) || amountUsd < 0)) throw new Error("invalid amount");
   const currency = event.currency == null ? null : String(event.currency).toLowerCase();
   if (currency != null && !/^[a-z]{3}$/.test(currency)) throw new Error("invalid currency");
+  const audienceKind = event.audienceKind == null ? null : String(event.audienceKind);
+  if (audienceKind !== null && (!event.eventName.startsWith("maritime_") || !["internal", "external"].includes(audienceKind))) throw new Error("invalid audience kind");
   const billingReason = event.billingReason == null ? null : String(event.billingReason);
   if (billingReason != null && !BILLING_REASONS.has(billingReason)) throw new Error("invalid billing reason");
   const occurredAtMs = event.occurredAt == null ? Number(nowMs) : Date.parse(String(event.occurredAt));
@@ -44,6 +47,7 @@ function normalizeWebFunnelEvent(event = {}, nowMs = Date.now()) {
   return {
     event_id: eventId,
     event_name: event.eventName,
+    ...(audienceKind === null ? {} : { audience_kind: audienceKind }),
     uid,
     source_object_id: sourceObjectId,
     source_event_id: sourceEventId,

@@ -412,11 +412,15 @@ life-manager/
 
 ## Task T21: 登録・実業務・再利用を既存funnelへ記録する
 
-**Files:** Modify `apps/life-manager/lib/web-funnel-events.js`/`web-funnel-events.test.js`、`maritime-distribution.js`/test、auth/runtime/report call sites。
+**Files:** Modify `apps/life-manager/lib/web-funnel-events.js`/test、`maritime-distribution.js`/test、`web-auth.js`/既存attribution test、`maritime-manager-auth.js`/test、`maritime-manager-artifacts.js`/test、`scripts/runtime-up.js`/test。Create `lib/maritime-manager-usage.js`/test、`migrations/2026-10-21-lm-maritime-manager-usage.sql`。
 **Interfaces:** events=`maritime_email_verified|maritime_manager_activated|maritime_work_completed|maritime_report_sent|maritime_returned`。source_object_id=既存HMAC participant ID。
 **Depends:** T05/T11/T19。
 
 - [ ] T21.1 test `manager_usage_is_not_signup_and_analytics_has_no_email_or_body`を定義。signupだけではwork_completed0、再送はmilestone1件、email/token/本文なし。
+- [ ] T21.1a `recordMaritimeManagerCompletion(job,receipt,options)`は中央completed rowと既存adapter.verifyを照合し、configure完了/実cycle完了/Resend受付だけをそれぞれactivated/work_completed/report_sentへ渡す。deferred/preflight/unknownは実業務完了に数えない。既存workerのSQL完了後とreconcile完了後にだけhookし、計測失敗で仕事/メールを再送しない。中央immutable receiptを再集計の正本として残す。
+- [ ] T21.1b `createMaritimeDistributionStore.recordManagerEvent(eventName,uid,{eventKey,source,attribution,occurredAt})`を追加。source_object_idは既存HMAC、source_event_idはHMAC participant+event+job/periodのSHA256で128文字以内。本文/email/token/生uidを送らない。new eventだけ`audience_kind=internal|external`を付け、`LM_MARITIME_INTERNAL_UIDS`のfounder/team/fixtureを外部集計から除く。email account数を実在人間数と断定しない。
+- [ ] T21.1c migrationは既存funnel event allowlist/audience_kindだけを追加する。既存`lm_users.web_first_touch`と`web-auth.storeWebFirstTouch`を再利用し、enrollmentに第二のattribution列を作らない。activationのhidden metadataへ既存sanitizeWebAttributionを使い、first-touch localStorageのUTMを引き継ぐ。emailだけ必須のformは維持し、source=instagramを追加して配布draftのIG source=otherを修正する。
+- [ ] T21.1d `recordMaritimeEmailVerified(uid,options)`は確認済みsession成立後だけ。`recordMaritimeManagerReturn(uid,options)`は認証済み非prefetch GETで初回verified workから24時間以上後だけ。既存funnel読取+安定event IDで重複を防ぐ。計測障害は未確認として記録し、signupをreal useへ変換しない。
 - [ ] T21.2 既存WEB_FUNNEL_EVENTSへevent名を追加し、既存record関数で記録する。true sourceのDM/X/IG/community別UTMを維持する。
 - [ ] T21.3 founder/team/fixtureを外部userと別集計し、公式Keiki/Maritime project usageへの対応キーをprivate receiptで保持する。
 - [ ] T21.4 focused event/distribution testを確認しcommit/push。独自analyticsサービスや新dashboardは作らない。

@@ -1,7 +1,8 @@
 "use strict";
 
-const { createHmac } = require("node:crypto");
+const { createHmac, createHash } = require("node:crypto");
 const { recordWebFunnelEvent } = require("./web-funnel-events.js");
+const { sanitizeWebAttribution } = require("./web-attribution.js");
 
 const DEFAULT_PUBLIC_MAX_USERS = 25;
 const MAX_PUBLIC_USERS = 1000;
@@ -9,12 +10,13 @@ const CONSENT_VERSION = "maritime-retention-v1";
 const MANAGER_CONSENT_VERSION = "maritime-manager-v1";
 const PARTICIPANT_ID_RE = /^[a-f0-9]{64}$/;
 const SOURCES = new Set([
-  "landing", "aniccaai", "x", "reddit", "discord", "telegram", "community", "referral", "hackathon", "direct", "other",
+  "landing", "aniccaai", "x", "instagram", "reddit", "discord", "telegram", "community", "referral", "hackathon", "direct", "other",
 ]);
 const ANONYMOUS_EVENTS = new Set(["maritime_landing_view", "maritime_cta_click"]);
+const MANAGER_EVENTS = new Set(["maritime_email_verified", "maritime_manager_activated", "maritime_work_completed", "maritime_report_sent", "maritime_returned"]);
 const USER_EVENTS = new Set([
   "maritime_start", "maritime_consent", "maritime_consent_revoked",
-  "maritime_first_response", "maritime_7day_return",
+  "maritime_first_response", "maritime_7day_return", ...MANAGER_EVENTS,
 ]);
 
 function parseMaritimeMaxUsers(value) {
@@ -121,7 +123,7 @@ function createMaritimeDistributionStore({
     return createHmac("sha256", uidSecret).update(`maritime:participant:${value}`).digest("hex");
   }
 
-  async function writeEvent(eventName, { uid, source = "other", medium = "telegram" } = {}) {
+  async function writeEvent(eventName, { uid, source = "other", medium = "telegram", eventKey = "once", attribution, audienceKind, occurredAt } = {}) {
     if (!ANONYMOUS_EVENTS.has(eventName) && !USER_EVENTS.has(eventName)) return false;
     if (typeof recordEventImpl !== "function") return false;
     const id = uid == null ? null : participantId(uid);
@@ -130,9 +132,10 @@ function createMaritimeDistributionStore({
       eventName,
       uid: null,
       sourceObjectId: id,
-      ...(id ? { sourceEventId: `maritime:${id}:${eventName}` } : {}),
-      attribution: sourceAttribution(source, medium),
-      occurredAt: new Date(Number(now())).toISOString(),
+      ...(id ? { sourceEventId: MANAGER_EVENTS.has(eventName) ? 'maritime:' + createHash('sha256').update(`${id}:${eventName}:${eventKey}`).digest('hex') : `maritime:${id}:${eventName}` } : {}),
+      ...(audienceKind ? { audienceKind } : {}),
+      attribution: { ...sourceAttribution(source, medium), ...sanitizeWebAttribution(attribution) },
+      occurredAt: occurredAt || new Date(Number(now())).toISOString(),
     };
     try {
       return (await recordEventImpl(event, {
@@ -144,6 +147,17 @@ function createMaritimeDistributionStore({
     } catch { return false; }
   }
 
+  async function recordManagerEvent(eventName, uid, options = {}) {
+    const uidPattern = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const internal = String(env.LM_MARITIME_INTERNAL_UIDS || "").split(/[\s,]+/).filter(Boolean);
+    const eventKey = options.eventKey || "once";
+    if (!MANAGER_EVENTS.has(eventName) || !uidPattern.test(uid || "") || internal.some(value => !uidPattern.test(value))
+      || typeof eventKey !== "string" || !/^[A-Za-z0-9._:-]{1,200}$/.test(eventKey)
+      || (options.occurredAt !== undefined && (typeof options.occurredAt !== "string" || !Number.isFinite(Date.parse(options.occurredAt))))) return false;
+    return writeEvent(eventName, { uid, source: normalizeMaritimeSource(options.source || "other"), medium: "web",
+      eventKey, attribution: options.attribution, occurredAt: options.occurredAt,
+      audienceKind: internal.some(value => value.toLowerCase() === uid.toLowerCase()) ? "internal" : "external" });
+  }
   async function recordAnonymousEvent(eventName, source) {
     if (!ANONYMOUS_EVENTS.has(eventName)) return false;
     return writeEvent(eventName, { source, medium: "web" });
@@ -268,6 +282,7 @@ function createMaritimeDistributionStore({
     participantId,
     getParticipant,
     recordAnonymousEvent,
+    recordManagerEvent,
     recordStart,
     startSource,
     accept,
