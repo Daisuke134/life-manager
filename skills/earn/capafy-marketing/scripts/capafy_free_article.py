@@ -39,6 +39,7 @@ import os
 import re
 import sys
 import time
+import unicodedata
 import urllib.request
 from pathlib import Path
 
@@ -91,7 +92,12 @@ def build_free_article(markdown_text: str, *, slug: str, date: str, cta_url: str
         raise ValueError("draft is missing the required Capafy CTA link")
     title = soa._title(source, soa._frontmatter_title(markdown_text))  # noqa: SLF001
     # Keyword pages rank on their title: every word of the target query must be in the H1.
-    missing = [w for w in (title_must_contain or "").lower().split() if w not in title.lower()]
+    title_lower = title.lower()
+    # ASCII search terms may omit accents present in the localized H1.
+    folded_title = "".join(c for c in unicodedata.normalize("NFD", title_lower)
+                           if not unicodedata.combining(c))
+    missing = [w for w in (title_must_contain or "").lower().split()
+               if w not in title_lower and (not w.isascii() or w not in folded_title)]
     if missing:
         raise ValueError(f"title must contain the search query {title_must_contain!r}; missing {missing}")
     return {
