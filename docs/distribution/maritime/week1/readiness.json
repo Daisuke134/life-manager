@@ -40,5 +40,24 @@
   "readback": null,
   "limitations": [
     "Focused host-boundary tests use local provider fixtures; no real Cloud factory or provider effect verified."
-  ]
+  ],
+  "maritime_account_status": "signup_email_verification_pending",
+  "cloud_browser_observation": {
+    "existing_steel_base": "http://steel-browser.railway.internal:8080",
+    "maritime_reachability": "unverified_private_network_boundary",
+    "candidates": [
+      "reuse existing Capafy browser-owner with official Linux CloakBrowser binary",
+      "official Maritime Computers integration; plan/cost and factory compatibility unverified"
+    ]
+  },
+  "cloud_model_observation": {
+    "existing_runner_providers": [
+      "codex",
+      "claude",
+      "claude-direct"
+    ],
+    "current_application_route": "local profile alias acct1",
+    "portable_tenant_route": "unverified",
+    "founder_auth_profiles_copied": false
+  }
 }
