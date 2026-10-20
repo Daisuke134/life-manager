@@ -481,9 +481,9 @@ life-manager/
 
 ## Task T30: 稼働URLをDaisへメールで届ける
 
-**Files:** 既存mail送信経路と`submission.json`のprivate delivery receipt参照。個人宛先/secretはrepoに保存しない。
-**Interfaces:** T23の受付済みentryとT22の稼働URLをconsumes。送信先はprivate profile/credential SSOTから解決する。
-**Depends:** T23直後。長期獲得T29やwinner通知を待たない。
+**Files:** 既存mail送信経路とprivate delivery receipt。個人宛先/secretはrepoに保存しない。提出packetの作成を送信の前提にしない。
+**Interfaces:** T22の稼働URLと準備済み配布copyをconsumes。T23受付済みならその事実も記す。送信先はprivate profile/credential SSOTから解決する。
+**Depends:** T22直後。正式提出先の公表、長期獲得T29、winner通知を待たない。
 
 - [ ] T30.1 稼働中のemail登録URLと無料pilotの範囲を再度GETで確認し、Dais宛先をprivate SSOTから解決する。
 - [ ] T30.2 URL、できること、未接続部分、家族/友人へ転送できる短い紹介文を日本語の一通にまとめ、送信payloadを独立read-only検証する。
