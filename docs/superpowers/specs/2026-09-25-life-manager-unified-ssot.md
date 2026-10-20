@@ -16002,6 +16002,34 @@ REDebbd5af252→GREEN0e8f071c0eはcore guardも証明済みsell/nofill closedか
 
 **現在cursor:** latest-main同期後の`git diff --check`/source-boundaryとdiff review → commit/push → exact-head CI/independent review → main統合とdiagnostic release → validation owner target-only apply → 次の自然runでreason/windowを確認。手動wake、provider read、注文、selection上書き、unknown fence解除はしない。
 
+#### 2026-10-21 06:07 JST — BTC pagination failure and updated execution cursor
+
+**As-Is（2026-10-20 21:03:35Zの自然runと06:04 JSTのowner readback）:**
+- PR #8435の診断sourceはmainへ統合済み（merge `63ccd7ff`）。最新`origin/main`は`fdc66e7187150bb22e350a5e2a52d4d01020f3ea`。
+- `investment-strategy-validation`はimmutable release `55cc06f2ea0fa344141528d9629111426b51f33f`をloaded、`loaded-idle`、`effect_unknown=false`。自然run `18e058b1eedfa3f8-13200`はterminal `entrypoint_exit_1`、effect `not_applicable`。validation logは`status=partial`、25 chunks中`completed_through_session=2026-10-20`、BTC report 0件、両selectionは`existing`のまま。
+- 診断が示した失敗は`reason_code=pagination_incomplete`、chunk `[2026-07-22T00:00:00Z, 2026-07-22T06:00:00Z)`。安全な`details`は空で、tokenが返った理由やページ数は未確定。
+- 現行`read_crypto_validation_history()`は6時間窓につき`--limit 1000`の一回だけ取得し、`next_page_token != null`なら直ちに失敗する。従って直接の停止条件は一ページ前提であり、provider/CLIがなぜこの窓で続きtokenを返したかはまだ診断できていない。
+- `alpaca-investment-paper`はrelease `e1e09492`をloaded、`loaded-idle`。最後の自然run `18e0588fa5726a60-7900`はpass/exit 0で、owner記録に`no_broker_order_submitted`がある。これは紙ownerが動いた証拠で、売買や利益の証拠ではない。ETF v1の新規entryは退役済みで、BTC V2のfresh report/selectionはまだ無い。
+- 最新release selectorは`e1e09492`のまま。`55cc06f2`は最新mainより古い診断releaseである。今回live口座の残高は再照合していない。最後の公式live口座snapshotは前節の2026-10-20 19:33:01Z。
+
+**取引しない直接理由:** paper ownerの成功終了だけでは注文しない。新規ETF v1 entryは停止され、置き換えるBTC V2 reportがpagination errorで生成されていない。BTCの新規判断は保留される。前回のQQQ HOLDを新規注文と誤認せず、fresh selectionが基準を通るまではNO_TRADEを維持する。
+
+**現在cursorと残TODO（この順序が正本。05:25のcursorを置換）:**
+1. [x] 診断reason/windowの記録sourceをPR #8435でmainへ統合し、validation ownerへ反映。次の自然runで正確な失敗を確認した。
+2. [ ] Alpaca CLI/APIの一次資料と既存呼び出しを照合し、この6時間窓で`next_page_token`が返る条件を特定する。確認値はrequest window、limit、symbol別受信件数、token有無、ページ番号だけに限定し、token値・raw bar・credentialを記録しない。
+3. [ ] `test_alpaca_cli.py`に複数ページのRED fixtureを足す。全ページの順序付きbarsが完全に集まり、途中token・同一token再出現・ページ上限超過は成功扱いにならないことを検証する。
+4. [ ] Alpaca crypto-bars endpointの公式page-token契約に従い、ページ上限と進捗検査を持つbounded取得を実装する。全ページ取得後に既存のsymbol/count/timestamp/OHLC条件を適用する。欠損barを補間せず、取得不完全ならtyped errorと安全な件数を残す。reader/runnerのRED/GREENを同じchunk fixtureで確認する。
+5. [ ] Alpaca関連focused testsと既存suite、`bin/lm-loop-contract`、`git diff --check`、source-boundaryを通し、exact-head CIをPASSさせてmainへ統合する。source passだけでBTC戦略や利益を合格扱いしない。
+6. [ ] 最新main由来の完全immutable releaseを切り、`investment-strategy-validation`だけをloaded-idleで採用する。loaded argv/release SHA、queued occurrence/sequence、effect_unknown 0を読み戻す。paper/live owner、selector、資金、Cloud設定には触れない。
+7. [ ] validation ownerの次の自然runを待ち、BTC V2 report count、対象期間、holdout、fee/slippage、drawdown、lookahead、parameter sensitivityを確認する。reportが無い・古い・条件未達ならselectionを変更せずNO_TRADEを保つ。
+8. [ ] paper ownerの自然terminalでdecision/reasonと公式注文readbackを同じowner/occurrence/releaseへ結ぶ。paperで新規注文が必要な場合もentry/exitを強制しない。最初のclosed round tripでbuy/sell fills、broker fees、slippage、model/system/operating costs、通貨・settlementを同一scopeに照合し、欠測はnullにする。
+9. [ ] 30件の自然paper round tripsが揃うまで、宣言benchmark、未使用期間、parameter sensitivity、最大drawdown、費用後owner帰属net、replay-zeroを評価する。既存EDDの候補比較・採用/撤回を使い、Harness²等は候補生成の参考に留め、自己変更をbroker経路へ直結しない。
+10. [ ] liveの過去10注文をimmutable receipt/captureからdecision・client/effect ID・owner・mode・strategy・release・native account・official order/fillへ一対一照合する。証拠のない注文はunscopedのまま、歴史的fenceは完全一致の公式証拠なしに解決しない。
+11. [ ] AT-24/AT-29、資本/日次損失上限、order identity、重複防止、fresh opposing reviewを満たした後だけlive移行を評価する。live 30件のcost-complete自然取引と正のbenchmark超過netが確認できるまで追加資金・規模拡大をしない。
+12. [ ] 現金/保有資産の最新公式残高を再取得し、1か月/1年/10年のbest/base/worstを入出金・費用・リターン・drawdownの明示仮定で表示する。予測と実績を分け、他venue・meme coinは一本のpaper→cost-complete→risk gateを通った後にだけ追加する。
+
+**完了条件:** BTC V2の候補が同じ入力・費用契約で再現可能なreportを出し、paperの自然取引を公式fill・全費用へ一対一で結び、30件の費用後実績がbenchmarkとrisk gateを通る。これでも将来利益の保証や「世界一」の証明にはならない。現在はTODO 2がcursorで、修正source、最新main release、BTC report、paper利益、live許可は未完。
+
 ### 2026-10-09 13:18 JST — Job Hunter Dreamwork cutover and updated user criteria
 
 この追記は11:50 JST snapshot後のJob Hunter readbackとユーザーの最新指示を記録する。個別の勤務地・住所などの私的値はprivate profileのみを正本とし、このspecには複製しない。
