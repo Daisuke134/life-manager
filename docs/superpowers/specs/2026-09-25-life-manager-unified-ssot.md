@@ -20643,7 +20643,7 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | T01 | 正式提出form・初週期限・timezone・必須fieldをrequirements.jsonへ | 主催者Slack参加・公式3channel readback済み。form/初週時刻は未公表、理由付きnullを保存 |
 | T02 | 既存OSS icon digest宣言漏れ修正と#8395 copy contract統合 | 完了。関連30/30、全13 checks PASS、#8396でmain 103f2a331bへ統合 |
 | T03 | enrollment DB/storeの一uid一row・一provision claim | source完了。6/6 PASS、独立review指摘修正、全14 checks PASS。#8397/main f3f5e02564、実DB未適用 |
-| T04 | Supabaseのemail認証専用handler | source実装中/#8398。既存Google guard維持、PKCE codeのみ。token_hash単独のlogin CSRF経路を拒否し、確認GETは業務を起動しない |
+| T04 | Supabaseのemail認証専用handler | source完了。#8398/main 286e982bfe、関連28/28・全14 checks PASS。既存Google guard維持、PKCE限定。productionのemail設定/配送はT32 |
 | T05 | 本人POST activateから一度だけenqueue | source実装/#8399。provision builderを定義、GET/CSRF/cap/停止/unknownは起動しない。独立reviewのterminal job誤受付を回帰で修正。adapterはT11 |
 | T06 | email登録が主CTAのcampaign入口 | source実装。旧Telegram guardから分離、日英email/開始UIと状態表示。Manager専用consent version、関連54/54 PASS。公開flagは未変更 |
 | T07 | Capafy既存factoryへtenant state/build path注入 | T02後 |
@@ -20651,8 +20651,8 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | T09 | tenant envで既存factoryを一回呼ぶcloud_cycle.py | T07/T08後 |
 | T10 | 同tenant公式Capafy snapshot→FinancialRecord | T09後 |
 | T11 | 既存queue/leaseへmanager.cycle adapter登録 | T09/T10後 |
-| T12 | root Dockerfileで同repoのcustom imageをbuild | T11後 |
-| T13 | VM health/chat/schedulesの短いHTTP server | T11/T12後 |
+| T12 | 専用subfolder Dockerfileとsanitized ZIPで同repoのcustom imageをbuild | T11/T13後。Railwayのroot Dockerfile自動検出を避ける |
+| T13 | VM health/chat/schedulesの短いHTTP server | T11後。T12より先にsource作成 |
 | T14 | sleeping VMでも起きるnextRunAt schedule | T13後 |
 | T15 | custom create・detached exec/resultの重複防止adapter | T03/T12/T13後 |
 | T16 | 一tenant tokenのwake relay・secret・初回wake配線 | T05/T08/T14/T15後 |
@@ -20661,7 +20661,7 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | T19 | 既存CFO/Resendへの一日一通配信 | T18/T16後 |
 | T20 | 停止を次のjob/schedule/配信へ反映 | T14/T19後 |
 | T21 | 登録と業務完了を分けたsource別funnel | T05/T11/T19後 |
-| T22 | main image・DB・一人分のCloud自然wake/receipt確認 | T17/T19/T20/T21後 |
+| T22 | main image・DB・一人分のCloud自然wake/receipt確認 | T17/T19/T20/T21/T32後 |
 | T23 | 正式提出・一回submit・受付readback | T01/T22後。3人/売上/7日継続を待たない |
 | T24 | Dais用DMとX/IG文案、source別URL | 初稿保存済み、公開URL差込は未完。待ち依存なし |
 | T25 | 30秒動画/審査demoのshot list→実画面編集 | 台本保存済み、撮影/動画本体は未完。待ち依存なし |
@@ -20671,6 +20671,9 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | T29 | 実測のcapacity/費用/利益/再利用を改善し1,000人を公式検証 | T28後 |
 | T30 | 共有できる稼働URLをDaisへメール送信しreceipt確認 | T23直後。T29の長期成長を待たない |
 | T31 | email利用者の任意paid upgradeを既存Stripeへ接続しLM自身の売上を照合 | 無料pilot/提出を妨げずT23後。顧客事業売上とStripe subscription売上を別集計 |
+| T32 | 既存SupabaseへResend SMTP/email enable/正確なcallbackを設定しowned inbox着信確認 | T04後で独立実行可。SMTP AUTH235まで観測済み、設定変更/着信は未実施 |
+
+**計画訂正:** 旧T12=root Dockerfile、新T12=専用subfolder+sanitized ZIP。Railwayがroot Dockerfileを自動検出し既存life-callのbuildを変えるため訂正する。T32はT04後に独立して実行し、T22の依存へ追加する。T12→T13の逆依存もT13→T14→T12へ訂正し、CMD対象sourceが存在してからbuildする。現在cursor=T06、進行中provider effectはない。詳細file/command/期待結果はAtomic Implementation Planを参照。
 
 **技術判断:** custom imageで同じfactoryを使う。中央Railwayの既存queue workerがMaritimeのdetached execへ一回dispatchしexecutionIdを回収する。VMはtenant限定tokenでwake relayへ通知し、Supabase service-roleを持たない。Keikiはemail/schedule/APIを持つが、既存Resend/CFOを置換する必須依存にしない。Maritime SDKのprovision既定OpenClawをcustom imageへ流用せず公式REST契約を使う。全14loops移植・新しいpublisher/router/schedulerは初週必須作業にしない。
 
