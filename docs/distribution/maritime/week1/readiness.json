@@ -22,7 +22,7 @@
     {
       "file": "skills/capafy-autopublish/scripts/cloud_cycle.py",
       "boundary": "tenant runner adapter",
-      "resolution": "Dedicated Cloud config; tenant child paths/env allowlist; occurrence receipt and replay validation. Cycle12/12 and host8/8 pass; live model/provider unverified.",
+      "resolution": "Actual owned factory created6 files; prose+path evidence mismatch reproduced and corrected via derived output schema;13/13 PASS, correction not deployed.",
       "status": "source_changed_not_deployed"
     },
     {
@@ -32,14 +32,27 @@
       "status": "source_changed_not_deployed"
     }
   ],
-  "linux_runtime": null,
+  "linux_runtime": {
+    "verified": true,
+    "platform": "linux",
+    "python": "3.11.2",
+    "node": "v22.23.3",
+    "codex": "0.160.0",
+    "health_ok": true,
+    "loaded_source_sha": "8d7d4474a357303a87ad3dd7acf1920b6cb77030",
+    "server_code_matches_main": true,
+    "model_invocation_verified": true,
+    "evidence_ref": "docs/evidence/maritime/owned-runtime-preflight.json"
+  },
   "browser_attach": null,
   "provider_auth": null,
   "prepare": null,
   "finish": null,
   "readback": null,
   "limitations": [
-    "Focused host-boundary tests use local provider fixtures; no real Cloud factory or provider effect verified."
+    "Owned runtime/model connectivity verified; no external-user activation, publish, sale or payout verified.",
+    "Owned offline factory created six files but cycle receipt remains effect_unknown/completion_evidence_missing; literal artifact-path schema correction not deployed.",
+    "Linux browser/provider session and central worker/continuation/email wiring remain incomplete."
   ],
   "maritime_account_status": "active",
   "cloud_browser_observation": {
@@ -57,9 +70,10 @@
       "claude-direct"
     ],
     "current_application_route": "local profile alias acct1",
-    "portable_tenant_route": "official Codex template documents Maritime Responses API; dedicated runner config and actual VM call still unverified",
+    "portable_tenant_route": "Maritime Responses API actual HTTP200; existing gpt-5.6-terra completed/OK,16 tokens; dedicated tenant config",
     "founder_auth_profiles_copied": false,
-    "dedicated_env_key": "LM_CLOUD_MODEL_API_KEY"
+    "dedicated_env_key": "LM_CLOUD_MODEL_API_KEY",
+    "evidence_ref": "docs/evidence/maritime/owned-model-preflight.json"
   },
   "maritime_normal_login_readback": "authenticated_agents_dashboard",
   "account_verification_routes": {
@@ -93,17 +107,33 @@
     ],
     "agent_create_zip_field": "uploadS3Key",
     "archive_source": "main-derived verified commit only",
-    "remote_image_build": "not_started"
+    "remote_image_build": "success; official deployment history and live source/health probe verified",
+    "archive_uploaded": true,
+    "upload_http_status": 200,
+    "upload_framework": "custom",
+    "upload_browser_transfer_boundary": "CDP file input limited to 50MB; same registered browser session APIRequestContext HTTP multipart succeeds"
   },
   "account_plan_readback": {
     "plan": "Free",
-    "agents_used": 0,
+    "agents_used": 1,
     "agents_included": 3,
     "ai_credits_usd": 5,
-    "ai_credits_used_usd": 0,
+    "ai_credits_used_usd": null,
     "welcome_credit_expiry": "2026-11-19",
     "next_charge_usd": 0,
     "paid_upgrade_performed": false,
-    "competition_full_access_entitlement": "not_confirmed_on_account"
+    "competition_full_access_entitlement": "organizer Scale two-month coupon verified100percent at checkout, subscription not submitted",
+    "link_authentication": "pending user action; continue current free3 VM resources",
+    "usage_note": "0 was before model/factory calls; refreshed billing usage pending; do not infer cost0"
+  },
+  "owned_factory": {
+    "execution_status": "completed",
+    "exit_code": 0,
+    "cycle_status": "effect_unknown",
+    "error_class": "completion_evidence_missing",
+    "artifact_file_count": 6,
+    "cause": "Runner evidence strings contained prose plus absolute paths; wrapper accepts literal paths only.",
+    "source_correction": "Derived existing pass schema constrains evidence paths to tenant workspace;13 focused tests PASS; deployment pending.",
+    "receipt_ref": "docs/evidence/maritime/owned-factory-diagnostic.json"
   }
 }

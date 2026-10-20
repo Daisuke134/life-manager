@@ -131,6 +131,14 @@ def run_cycle(tenant_id, occurrence_id, date_key, *, env=None, data_root=Path('/
     for directory in ['HOME', 'CODEX_HOME', 'CLAUDE_CONFIG_DIR', 'TMPDIR']:
         Path(child[directory]).mkdir(parents=True, exist_ok=True, mode=0o700)
     (home / 'ledgers').mkdir(parents=True, exist_ok=True, mode=0o700)
+    schema = json.loads((RELEASE / 'skills/self/capafy-loop/capafy-loop-pass.schema.json').read_text())
+    schema['properties']['evidence']['items'] = {
+        'type': 'string',
+        'pattern': r'^(?:file://)?' + re.escape(str(workspace)) + r'/[^\x00]+$',
+        'description': 'One literal absolute artifact file path, without prose or labels.',
+    }
+    schema_path = receipt.parent / 'pass.schema.json'
+    _save(schema_path, schema)
     account_context = ('No provider account is connected. Create an original product and listing offline; do not publish or call commerce mutation APIs.'
                        if binding is None else 'Use only this tenant provider binding: ' + json.dumps(binding))
     prompt = '\n'.join([
@@ -141,12 +149,12 @@ def run_cycle(tenant_id, occurrence_id, date_key, *, env=None, data_root=Path('/
         f'Write original artifacts only under {workspace}; runtime state belongs under {home}.',
         'Do not modify the immutable release, borrow founder accounts, send Telegram to Dais, or commit/push tenant work to the source repository.',
         'Keep credentials out of artifacts and reports. Verify what happened; creation, publication, sales and payouts are distinct.',
-        'Return the existing pass schema. Evidence must include actual artifact file paths, not a claim without a file.',
+        'Return the supplied pass schema. Each evidence string must be exactly one absolute artifact file path; do not add descriptions or labels.',
     ])
     command = ['bash', str(RELEASE / 'skills/earn/marketing-engine/run_agent.sh'),
                '--task-class', 'application-lane-agent', '--evidence-dir', str(child_paths['EVIDENCE_DIR']),
                '--task-label', 'maritime:' + occurrence_id, '--loop', 'capafy',
-               '--schema', str(RELEASE / 'skills/self/capafy-loop/capafy-loop-pass.schema.json'),
+               '--schema', str(schema_path),
                '--workdir', str(workspace), '--print-result']
     try:
         process = runner(command, cwd=str(workspace), env=child, input=prompt, text=True, capture_output=True, timeout=3600)

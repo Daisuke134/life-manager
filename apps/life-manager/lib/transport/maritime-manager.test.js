@@ -3,13 +3,15 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createHmac } = require('node:crypto');
 const { createMaritimeManagerTransport } = require('./maritime-manager.js');
+const { createMaritimeWakeBinding } = require('../maritime-manager-wake.js');
 const { projectMaritimeSchedules } = require('../maritime-manager-schedules.js');
 const { createMaritimeManagerLoopAdapter, buildMaritimeManagerCycleJob } = require('../maritime-manager-runtime.js');
 const UID = 'lm_11111111-1111-4111-8111-111111111111';
 const SHA = 'a'.repeat(40);
-const IMAGE = `ghcr.io/example/life-manager@sha256:${'b'.repeat(64)}`;
-const env = { MARITIME_API_KEY: 'mk_fixture_key_only', LM_UID_SECRET: 'fixture-identity-secret' };
-const externalId = 'lm-manager-' + createHmac('sha256', env.LM_UID_SECRET).update(`agent:v1:${UID}`).digest('hex').slice(0,32);
+const ARCHIVE = 'b'.repeat(64);
+const UPLOAD = 'uploads/fixture/source.zip';
+const env = { MARITIME_API_KEY: 'mk_fixture_key_only', LM_UID_SECRET: 'fixture-global-identity-is-different', LM_MARITIME_MANAGER_ID_SECRET: 'fixture-manager-identity-secret-32-bytes-long' };
+const externalId = 'lm-manager-' + createHmac('sha256', env.LM_MARITIME_MANAGER_ID_SECRET).update(`agent:v1:${UID}`).digest('hex').slice(0,32);
 function fixture() {
   const row = { uid: UID, auth_subject: UID.slice(3), status: 'pending', paused_at: null, release_sha: SHA, agent_id: null };
   let agent = null; let failCreate = false; let missingExecution = false; let checkpoint = null;
@@ -17,7 +19,7 @@ function fixture() {
   const envelope = { dateKey: '2026-10-20', releaseSha: SHA, result: { tenantId: UID, occurrenceId: 'cycle-1', artifactRefs:['artifact://original/product.md'], providerSnapshotRef:null,providerReceiptRefs:[],nextEligibleAt:null,status:'completed',errorClass:null } };
   const sdk = { agents: {
     get: async id => { calls.push(['sdk.get',id]); return structuredClone(agent); },
-    listEnv: async id => { calls.push(['sdk.env',id]); return [{ key:'LM_RUNTIME_TENANT_ID',value:UID,isSecret:false }, { key:'LM_RELEASE_SHA',value:SHA,isSecret:false }]; },
+    listEnv: async id => { calls.push(['sdk.env',id]); return [{ key:'LM_RUNTIME_TENANT_ID',value:UID,isSecret:false }, { key:'LM_RELEASE_SHA',value:SHA,isSecret:false }, { key:'LM_SOURCE_ARCHIVE_SHA256',value:ARCHIVE,isSecret:false }]; },
     files: {
       download: async (id, filename) => { calls.push(['download', id, filename]); return new TextEncoder().encode(JSON.stringify(envelope)); },
       write: async (...args) => { calls.push(['write',...args]); },
@@ -36,7 +38,7 @@ function fixture() {
     const data = options.body && JSON.parse(options.body);
     if(url.includes('/end-users/') && options.method==='GET') return { ok:true,status:200,json:async()=>agent?[structuredClone(agent)]:[] };
     if(url.includes('/end-users/') && options.method==='POST') {
-      agent = { id:'agent-1',externalId:data.externalId,framework:data.framework,imageName:data.imageName,status:'deploying' };
+      agent = { id:'agent-1',externalId:data.externalId,framework:data.framework,status:'deploying' };
       if(failCreate)throw new Error('private-provider-error');
       return {ok:true,status:201,json:async()=>structuredClone(agent)};
     }
@@ -45,10 +47,10 @@ function fixture() {
     throw new Error('unexpected-test-http');
   };
   const transport = createMaritimeManagerTransport({ env,fetchImpl,client:sdk,managerStore,
-    getWakeBinding: async () => ({ url:'https://manager.example/api/internal/maritime/wake',token:'private-wake-fixture' }) });
+    getWakeBinding: async input => createMaritimeWakeBinding(input,{secret:env.LM_MARITIME_MANAGER_ID_SECRET,publicOrigin:'https://manager.example'}) });
   return {transport,row,calls,envelope,sdk,managerStore,ready(){agent.status='active';},loseCreate(){failCreate=true;},invalidExecution(){missingExecution=true;},agent:()=>agent};
 }
-const provision = {uid:UID,imageDigest:IMAGE,releaseSha:SHA};
+const provision = {uid:UID,uploadS3Key:UPLOAD,archiveSha256:ARCHIVE,releaseSha:SHA};
 test('custom create seeds a scoped VM and binds only after official ready and env readback', async () => {
   const f=fixture();
   assert.deepEqual(await f.transport.ensureAgent(provision),{agentId:'agent-1',status:'deploying'});
@@ -56,7 +58,7 @@ test('custom create seeds a scoped VM and binds only after official ready and en
   const post=f.calls.find(x=>x[0]==='http'&&x[2].method==='POST');
   assert.equal(post[1],`https://api.maritime.sh/api/v1/end-users/${externalId}/agents`);
   const body=JSON.parse(post[2].body);
-  assert.equal(body.framework,'custom');assert.equal(body.templateId,undefined);assert.equal(body.imageName,IMAGE);assert.equal(body.useMaritimeLlm,true);
+  assert.equal(body.framework,'custom');assert.equal(body.templateId,undefined);assert.equal(body.imageName,undefined);assert.equal(body.uploadS3Key,UPLOAD);assert.equal(body.healthCheckPath,'/health');assert.equal(body.useMaritimeLlm,true);
   assert.equal(body.initialEnvVars.find(x=>x.key==='LM_RUNTIME_TENANT_ID').value,UID);
   assert.equal(body.initialEnvVars.find(x=>x.key==='LM_WAKE_RELAY_TOKEN').isSecret,true);
   assert.equal(post[2].redirect,'error');
@@ -100,7 +102,7 @@ test('schedule write uses the validated own-tenant envelope and fixed filename',
 });
 test('invalid image, tenant and missing configuration fail before provision claim or POST', async () => {
   const f=fixture();
-  await assert.rejects(f.transport.ensureAgent({...provision,imageDigest:'image:latest'}),/invalid/);
+  await assert.rejects(f.transport.ensureAgent({...provision,archiveSha256:'invalid'}),/invalid/);
   await assert.rejects(f.transport.ensureAgent({...provision,uid:'../foreign'}),/invalid/);
   assert.equal(f.calls.length,0);
   const transport=createMaritimeManagerTransport();
@@ -120,4 +122,28 @@ test('existing cycle adapter consumes real transport contracts and replays the p
   const first=await adapter.execute(job);assert.equal(adapter.verify(first.receipt,job),true);
   assert.deepEqual(await adapter.execute(job),first);
   assert.equal(f.calls.filter(x=>x[0]==='http'&&x[1].endsWith('/exec')&&x[2].method==='POST').length,1);
+});
+
+test('official ZIP agent response without imageName binds only after matching archive configuration', async () => {
+  const f=fixture();await f.transport.ensureAgent(provision);f.ready();
+  assert.equal(Object.hasOwn(f.agent(),'imageName'),false);
+  assert.deepEqual(await f.transport.readAgent(provision),{agentId:'agent-1',status:'active'});
+  const other=fixture();await other.transport.ensureAgent(provision);other.ready();
+  const list=other.sdk.agents.listEnv;
+  other.sdk.agents.listEnv=async id=>(await list(id)).map(v=>v.key==='LM_SOURCE_ARCHIVE_SHA256'?{...v,value:'c'.repeat(64)}:v);
+  await assert.rejects(other.transport.readAgent(provision),/binding/);
+  assert.equal(other.row.agent_id,null);
+});
+
+test('bound wake secret is configured and reloaded only for its active tenant agent', async () => {
+  const f=fixture();await f.transport.ensureAgent(provision);f.ready();await f.transport.readAgent(provision);
+  const effects=[];
+  f.sdk.agents.setEnv=async (...args)=>{effects.push(['env',...args]);return {key:args[1],isSecret:true};};
+  f.sdk.agents.reloadEnv=async id=>{effects.push(['reload',id]);return {id,status:'active'};};
+  assert.deepEqual(await f.transport.configureWake({uid:UID,agentId:'agent-1',releaseSha:SHA}),{agentId:'agent-1',status:'active'});
+  assert.deepEqual(effects,[['env','agent-1','LM_WAKE_RELAY_TOKEN',createMaritimeWakeBinding({uid:UID,agentId:'agent-1',releaseSha:SHA},{secret:env.LM_MARITIME_MANAGER_ID_SECRET,publicOrigin:'https://manager.example'}).token,{secret:true}],['reload','agent-1']]);
+  await assert.rejects(f.transport.configureWake({uid:UID,agentId:'foreign',releaseSha:SHA}),/binding/);
+  f.row.status='paused';f.row.paused_at='2026-10-20T01:00:00Z';
+  await assert.rejects(f.transport.configureWake({uid:UID,agentId:'agent-1',releaseSha:SHA}),/paused/);
+  assert.equal(effects.length,2);
 });

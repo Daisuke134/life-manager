@@ -166,3 +166,13 @@ test("reconciler fails closed for a non-effect job or malformed adapter proof", 
     /adapter proof/i,
   );
 });
+
+test('known pending provider execution does not age unknown results or resolve an effect', async () => {
+  const touched=[];
+  const dependencies={adapter:{inspectEffect:async()=>({state:'pending'})},store:{
+    resolveReconciliation:async()=>touched.push('resolve'),
+    recordUnknownReconciliation:async()=>touched.push('age'),
+  }};
+  for(let i=0;i<25;i++)assert.deepEqual(await reconcileUnknownEffect(reconcilingJob(),dependencies),{status:'reconciling',decision:'pending'});
+  assert.deepEqual(touched,[]);
+});
