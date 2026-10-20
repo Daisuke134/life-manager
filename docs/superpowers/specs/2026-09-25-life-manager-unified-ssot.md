@@ -103,7 +103,7 @@
 | C8 OPEN | EDD-FLEET-01/02/03、DD12、CD8/CD9：79 unmapped jobsをproduct所属または明示的な補助・基盤ownerへ分類し、18業務の共通receipt/costとtyped recoveryを展開する | lane別verified/zero/unknownとcoverage、業務目的別の自然成果、費用後会社profitが追える。CFO/Connectorは補助成果、Fundraiserはfinancing。無料outreach/OSSは既存gate後、installや登録を売上と呼ばない |
 | C9 OPEN | CD10/E03–E06/H01–H04/I01–I04：自然trace/独立held-out、fixed baseline/repeated trials、回復と利益改善を別評価する | 既存LM-EABを拡張しcost/latency/介入/汎化/公式netを報告。public synthetic PASSとAGI/収益能力を区別。会社全体$10M MRR目標と既存lane別目標を縮めない |
 
-**統括順序更新と現在cursor:** 旧順=C3計測/費用/report修正→C4無料cohort→C5配信→C6評価→C7新paid。新順=C5既存sellerの購入可能導線と配信候補→既存ownerで配信→C7新paid照合→C6成熟した実購入結果による採否→勝った配信の拡大。C4は既存無料導線の改善として実売上への距離で優先し、分母の完全修復を有料商品の配信前提にしない。理由はDaisの明示訂正と、61掲載/直近7日paid0の状況で商品の供給数や財務report整備より買い手獲得と購入が不足するため。現在cursor=C5/R01（既存sellerの購入導線と最初の配信候補）。C2/C3/C8の残件は保持し、実際に公開・購入・顧客対応を止める欠陥だけをその収益行動の直前に解消する。稼働中owner/外部effectの中断・重複送信はしない。
+**統括順序更新と現在cursor:** 旧順=C3計測/費用/report修正→C4無料cohort→C5配信→C6評価→C7新paid。新順=C5既存sellerの購入可能導線と配信候補→既存ownerで配信→C7新paid照合→C6成熟した実購入結果による採否→勝った配信の拡大。C4は既存無料導線の改善として実売上への距離で優先し、分母の完全修復を有料商品の配信前提にしない。理由はDaisの明示訂正と、61掲載/直近7日paid0の状況で商品の供給数や財務report整備より買い手獲得と購入が不足するため。現在cursor=R04の配信停止修復。R01の公開/価格確認と既存demoを再利用し、配信復帰後にC5の候補比較へ進む。C2/C3/C8の残件は保持し、実際に公開・購入・顧客対応を止める欠陥だけをその収益行動の直前に解消する。稼働中owner/外部effectの中断・重複送信はしない。
 
 **C3の一次資料による帰属訂正とbounded仕様:** 公式[TrafficSources UI asset](https://capafy.ai/assets/TrafficSources-CjDavuEU.js)はraw `sourceType`を保持し、`internal`を`In-app`、`referrer`を`Referrer`として表示する。collectorの`_traffic_merge`も値を保持する。19:07:38Z取得窓のHook Labはinternal/ai_overview15・internal/search11・referrer/google5で、selectorの合計31は内部26＋Google referrer5という混合signal。Google AI Overview由来、16 keyword記事の因果成果、SEO勝者という説明は証明できないため撤回する。Google referrer5にもAI Overview内訳や記事との対応はない。fresh read-only検証は同asset SHA256 `a45f7b215a271ef3fee7ce84d1b7e7a01d9ab4b41304946ebfa8dfb7b675feb6`と分類・正規化を独立照合し、最小の説明訂正を推奨する。owner=`codex-capafy-source-attribution`、worktree=`.worktrees/capafy-source-attribution-20261021`、branch=`fix/capafy-source-attribution-20261021`、base main=`16c097c076851ca5cf3b7081df37aeea2f879bce`。変更範囲は正本、pick_seo_keyword.pyのmodule doc、capafy-distribute-daily.shのSEO comment、select_capafy_distribute_skill.pyのdocstrings、既存testのGoogle断定commentだけ。rotationの計算・keyword選択・投稿・価格・登録CT・grader/split/windowは変更せず、説明と実装の乖離を解消する。非docstring ASTとshell非comment行の同一性、差分、通常CI/mainを確認する。C3全scorecard/費用coverage・C4–C9・売上改善は本atomで完了扱いしない。証拠はprivate C3 `c3-independent-ai-overview-classification-verification-195901.json`と公式readback。
 
@@ -199,7 +199,7 @@ private証拠は既存`~/.local/state/life-manager/reconciliation/capafy-c1-2026
 | R15 / C2・C3・C8・後順位 | 収益行動の合間に残る基盤/財務/分類の債務を既存owner単位で閉じる | 履歴clock/個別gap/永続容量、78商品自然coverage、費用窓/Agent帰属/precision/利益report、79 unmapped jobsは未完として保持。R01–R14を止める前提へ戻さない |
 | R16 / C6・C9・継続 | 実売上を生む改善cycleを反復し、独立評価で汎化を確かめる | 売れた変更を次回に保持、悪化を棄却/復帰。cost/latency/介入/held-out/fixed baseline/repeated trialsは既存評価を使って拡張し、自己改善repo導入やAGI宣言を先行させない。会社$10M MRR目標を縮めず、単調増益/最大利益を保証しない |
 
-R15は一括で先頭へ戻す作業ではなく、残債務の索引である。個別atomの履歴と未達証拠はC2/C3/EDD-FLEETの既存記録に保持する。収益を直接止める障害だけを対応するR項目内で直し、現在のbusiness cursorはR01→R02→R03→R04/R05/R06へ進める。C1はDONE、C2/C3は残件あり、C4は部分完了、C5–C9の経済成果/自律閉路/全社展開は未完。
+R15は一括で先頭へ戻す作業ではなく、残債務の索引である。個別atomの履歴と未達証拠はC2/C3/EDD-FLEETの既存記録に保持する。収益を直接止める障害だけを対応するR項目内で直し、現在のbusiness cursorはR04の直接blockerを閉じ、R01の確認と既存demoを再利用してR02/R03→R04/R05/R06の配信・実購入へ進める。C1はDONE、C2/C3は残件あり、C4は部分完了、C5–C9の経済成果/自律閉路/全社展開は未完。
 
 ### C1実行：配信unknownのexact occurrence照合
 
