@@ -358,7 +358,7 @@ life-manager/
 
 **Files:** Create `lib/maritime-manager-report.js`/test、`lib/maritime-manager-artifacts.js`/test。Modify `lib/financial-manager-report.js`（既存formatter export）、`lib/maritime-manager-runtime.js`（既存契約parser/参照validator export）、`lib/transport/maritime-manager.js`/test、`maritime/artifact-proof.py`/test（read-onlyのdirfd/no-follow/size/hash）、`server.js`（download route）。既存金融集計・認証cookie・queue/receiptを再利用する。
 **Interfaces:** `buildMaritimeDailyResult({enrollment,periodKey,actionReceipts,financialRecords,financialCoverage,costs}) -> DailyResult`、`renderMaritimeDailyEmail(result) -> string`。
-**入力契約:** actionReceiptsは中央queueの`{receipt,completedAt}`で、VM自己申告時刻を使わない。未確定jobは`{job,status,completedAt}`に中央で観測した時刻を渡し、架空の完了receiptを作らない。financialRecordsは同tenantのbusiness FinancialRecordのみ。financialCoverage/costsのcompleteは中央collectorの同tenant/period/timezone/evidence付き観測だけに付与する。欠落はunknownで、空配列だけから0を出さない。費用は観測小計とcoverageを分け、両coverage完備までprofitはunknown。既存Financial Managerの日付・通貨集計とformatterを再利用する。
+**入力契約:** actionReceiptsは中央queueの`{receipt,completedAt}`で、VM自己申告時刻を使わない。未確定jobは`{job,status,observedAt}`に中央で観測した時刻を渡し、架空の完了receiptを作らない。financialRecordsは同tenantのbusiness FinancialRecordのみ。financialCoverage/costsのcompleteは中央collectorの同tenant/period/timezone/evidence付き観測だけに付与する。欠落はunknownで、空配列だけから0を出さない。費用は観測小計とcoverageを分け、両coverage完備までprofitはunknown。既存Financial Managerの日付・通貨集計とformatterを再利用する。
 **Depends:** T10/T11Aのsource。T17の売上発生は待たない。
 
 - [ ] T18.1 test `daily_result_separates_artifact_publish_sales_payout_and_unknown_cost`を定義。商品作成だけなら売上0の観測がある場合のみ0、未取得は未確認、費用欠落で利益unknownをassert。
@@ -374,7 +374,7 @@ life-manager/
 ## Task T19: 日次メールを既存CFO配信へ接続する
 
 **Files:** Modify `maritime-manager-report.js`、`runtime-up.js`。Reuse `cfo-cloud-delivery.js`/`mail-resend.js`。
-**Interfaces:** `deliverMaritimeDailyResult({enrollment,result,observedAt},deps)`→既存`deliverCloudCfoEmail({uid,periodKey,message,observedAt,recipient})`。送信直前にmanagerStore.read(uid)でactive/非停止/同timezoneを読み直し、recipientは最新enrollment.emailだけから取得する。resultのtenant/period/dateとobservedAtを検証し、呼出側のrecipient上書きを受けない。
+**Interfaces:** `deliverMaritimeDailyResult({enrollment,result,observedAt},deps)`→既存`deliverCloudCfoEmail({uid,periodKey,message,observedAt,recipient})`。送信直前にmanagerStore.read(uid)でactive/非停止/同timezoneを読み直し、recipientは最新enrollment.emailだけから取得する。resultのtenant/period/dateとobservedAtを検証し、呼出側のrecipient上書きを受けない。成果物メールのoriginは明示したLM_PANEL_BASE_URLまたはpublicOriginだけとし、worker自身のRAILWAY_PUBLIC_DOMAINを推測で使わない。
 **Depends:** sourceはT18。実送信の受入はT16のtenant binding/worker wiring後。
 
 - [ ] T19.1 test `daily_email_replay_returns_original_provider_id`を定義。同uid+periodKeyを二回実行してResend send1回、異なるrecipientへpending receiptを再利用しない。

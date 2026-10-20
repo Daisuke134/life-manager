@@ -58,7 +58,7 @@ function buildMaritimeDailyResult({enrollment,periodKey,actionReceipts=[],financ
  const work=[];
  const seen=new Set();const verify=createMaritimeManagerLoopAdapter().verify;
  for(const item of actionReceipts){
-  const receipt=item?.receipt,at=Date.parse(item?.completedAt);
+  const receipt=item?.receipt,at=Date.parse(receipt?item?.completedAt:item?.observedAt);
   if(!Number.isFinite(at))invalid();
   if(!receipt){
    const identity=readMaritimeCycleContract(item.job);
@@ -124,8 +124,9 @@ async function deliverMaritimeDailyResult({enrollment,result,observedAt}={},deps
   const error=new Error('maritime_daily_delivery_inactive');error.unknownEffect=false;throw error;
  }
  if(typeof current.email!=='string'||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(current.email))invalid();
+ const env=deps.env||process.env;
  const origin=result.work.some(work=>work.artifactRefs.length)
-  ?require('./web-auth.js').publicOrigin(null,{publicOrigin:deps.publicOrigin,env:deps.env||process.env}):null;
+  ?require('./web-auth.js').publicOrigin(null,{publicOrigin:deps.publicOrigin||env.LM_PANEL_BASE_URL,env:{}}):null;
  return require('./cfo-cloud-delivery.js').deliverCloudCfoEmail({uid,periodKey:result.periodKey,
   message:renderMaritimeDailyEmail(result,{publicOrigin:origin}),observedAt,recipient:current.email},deps);
 }
