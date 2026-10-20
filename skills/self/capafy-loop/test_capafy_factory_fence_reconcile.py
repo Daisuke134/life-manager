@@ -150,6 +150,32 @@ def test_no_effect_stable_publish_list_writes_evidence_and_closes(tmp_path):
     assert evidence["agent_count"] == 1
 
 
+@pytest.mark.parametrize("current_ids", [[], ["111"], ["111", "111"], ["111", ""]])
+def test_no_effect_requires_complete_unique_snapshot_agent_set(tmp_path, current_ids):
+    snapshot = {
+        "ok": True, "agent_count": 2, "latest_versions": {"111": "v1", "222": "v1"},
+    }
+    agents = [
+        {"agent_id": agent_id, "updated_at": "2026-09-20T00:00:00Z",
+         "latest_agent_version_id": "v1"} for agent_id in current_ids
+    ]
+    closed_calls = []
+    evidence_dir = tmp_path / "evidence"
+    result = reconciler.reconcile(
+        OCCURRENCE, fenced_row_fn=_fenced_row_fn(),
+        load_snapshot_fn=lambda occurrence: snapshot,
+        read_publish_list_fn=lambda: _publish_list(agents),
+        resolve_pre_effect_fn=lambda *args, **kwargs: closed_calls.append((args, kwargs)) or True,
+        evidence_dir=evidence_dir, now=QUEUED_AT + dt.timedelta(hours=2),
+        run_finished_fn=lambda occurrence, queued: True, resolve=True,
+    )
+    assert result["verified"] is False
+    assert result["reason"] == "snapshot_agent_set_mismatch"
+    assert "closed" not in result
+    assert closed_calls == []
+    assert not evidence_dir.exists()
+
+
 def test_same_version_updated_after_queue_stays_inconclusive(tmp_path):
     snapshot = {
         "schema_version": 1, "owner_id": OWNER, "occurrence_id": OCCURRENCE, "ok": True,
