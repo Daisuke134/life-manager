@@ -1,0 +1,19 @@
+{
+  "observed_at": "2026-10-20T12:26:33.792728+00:00",
+  "configuration_applied": true,
+  "configuration_readback_verified": true,
+  "smtp_host": "smtp.resend.com",
+  "smtp_port": "465",
+  "sender_mailbox_format_verified": true,
+  "old_redirects_preserved": true,
+  "google_and_site_settings_preserved": true,
+  "email_enabled": true,
+  "mailer_autoconfirm": false,
+  "hourly_email_limit": 30,
+  "smtp_auth_verified": true,
+  "email_arrived": false,
+  "delivery_status": "not_yet_sent",
+  "application_feature_flag_changed": false,
+  "secrets_recreated": false,
+  "smtp_auth_evidence_ref": "docs/evidence/maritime/smtp-preflight.json"
+}
