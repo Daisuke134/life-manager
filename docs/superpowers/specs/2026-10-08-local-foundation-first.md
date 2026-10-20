@@ -3,7 +3,7 @@
 目的:ハーネス移行の前に現行workerの不要なdisk/RAM増幅を減らし、既存業務を維持する。推論はChatGPT account接続Codexのまま。OpenClaw/Temporalの追加service設置や全owner restartは先に行わない。
 
 実行順:
-1. FD-01 `runtime/loop/lm_loop_run.py::_run_entrypoint_with_stderr_capture` の終了時全量read/replayをbounded化する。子stderrはregular fileのまま、pipeへ変えない。
+1. FD-01は完了。unbound legacy callerは`entrypoint-stderr.log`を終了後にseek/readでbounded replayする。owner/run/releaseがstorage policyへbindされたfinite callerは`runtime/host/bounded_output.py`のbounded relayを使い、全writer EOFまでdrainしてdiagnosticをbounded replayする。readerを先に閉じる裸pipeは使わない。
 2. FD-02 既存cleanup/retentionとowner別scratch/evidence増加量を基にproducerのdisk予算を必要箇所へ適用する。memory/state JSONL/credentials/browser/referenced releaseを削除しない。disk gateの閾値低下で解決扱いしない。
 3. FD-03 whole job slotの長時間占有を短いmodel/browser/readback/build phaseへ分け、外部待機をcheckpoint化する。model終了確認まではclaimを解放しない。domain effect fenceは保持。
 4. FD-04 軽い公式readbackをmodel waitingと別容量で進められるようにする。quota/browser identityの排他を維持し、単なるglobal8増加を最初の修正にしない。
@@ -19,3 +19,10 @@
 所有ファイルはruntime/loop/lm_loop_run.pyとruntime/loop/tests/test_lm_loop_run_bounds.py。既存testへsmall/large/bounded read/regular fd/exitと最終tail保持の最小回帰を追加しRED→GREEN。source/diff/必要既存contractsを確認し専用branch commit/push/PR/main。production反映はidle ownerとmain-derived release境界で実施し、稼働仕事を途中で止めない。
 
 この一手は長い子process実行中のreal file増加やdetached子が保持するfd全体を解決するものではない。その対策を成功扱いせずFD-02へ残す。完了報告はsource proofとrelease/natural readbackを分ける。
+
+
+## 2026-10-20 現況と残り順序
+
+FD-01 sourceはmainに統合済み。`runtime/loop/lm_loop_run.py::_run_entrypoint_with_stderr_capture()` はlegacy file captureとpolicy-bound `_run_entrypoint_with_bounded_stderr()` の二経路を持つ。DS06/07のrelay/scratch ownershipと合わせ、runner親終了だけで子writerを切らない。既存focused testsは`runtime/loop/tests/test_lm_loop_run_bounds.py::test_entrypoint_stderr_capture_replays_bounded_slices_for_large_output`など。mainに記載されたhealth observer canary runは`18dc7136883a17c0-13707`だが、参照JSON `docs/evidence/foundation-stderr/acceptance.json` は現在のmain treeに無い。source完了とcanary receiptの格納を別状態で管理する。
+
+現在cursorはFD-02。2026-10-20 `df -h /`は約3.6GiB free、10GiB revenue floor未達。最新`host-inventory-full.json`は2026-09-24、14:16Z health snapshotには`host_storage`がない。10/19の約16GB `corespotlightd`観測は10/20 sampleで再現せず（RSS 172,368KiB）。現行root causeは未特定で、process名だけで削除/停止しない。統一SSOTのFD02-A〜FD05-Aを先に完了してからFD-06/OC-012へ進む。
