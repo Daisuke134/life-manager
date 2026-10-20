@@ -1,0 +1,39 @@
+name: Web App Factory offline contracts
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/life-manager/lib/web-app-factory*'
+      - 'apps/life-manager/lib/mobile-product-registry*'
+      - 'apps/life-manager/lib/financial-record-contract*'
+      - 'apps/life-manager/scripts/web-app-factory-plan*'
+      - 'apps/life-manager/examples/web-app-factory/**'
+      - '.github/workflows/web-app-factory.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify offline planner and shared contracts without installing dependencies
+        run: >-
+          node --test
+          apps/life-manager/lib/web-app-factory.test.js
+          apps/life-manager/scripts/web-app-factory-plan.test.js
+          apps/life-manager/lib/mobile-product-registry.test.js
+          apps/life-manager/lib/financial-record-contract.test.js
+      - name: Run synthetic blocked example
+        run: >-
+          node apps/life-manager/scripts/web-app-factory-plan.js
+          --now 2026-10-08T09:00:00Z
+          < apps/life-manager/examples/web-app-factory/example.json
