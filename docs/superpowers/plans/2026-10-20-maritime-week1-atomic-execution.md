@@ -252,12 +252,12 @@ life-manager/
 ## Task T10: provider売上をtenantのFinancialRecordへ結合する
 
 **Files:** Modify `apps/life-manager/lib/financial-record-capafy.js`/`financial-record-capafy.test.js`、`cloud_cycle.py`、既存`capafy_hourly_reconcile.py`は明示binding注入が必要な箇所のみ。
-**Interfaces:** `read_capafy_cycle_receipt(binding: dict, period_start: str, period_end: str) -> dict`をPython wrapper側に追加し、完全な公式snapshotだけを`capafyRowsToFinancialRecords(rows,{subjectId,observedAt})`へ渡す。
+**Interfaces:** T10Aは`readCapafyFinancialRecords({binding,periodStart,periodEnd},{readOfficialSnapshot})`を既存financial moduleへ追加する。trusted collectorを必須にし、tenant/provider subject/期間/complete/金額/証拠を検査してから既存`capafyRowsToFinancialRecords`へ渡す。FinancialRecord.subject_idはtenantId、binding.subjectIdはprovider所有者参照として分離する。T10Bは既存Python reconcileの公式読取を再利用するcollectorと実環境readbackを接続する。
 **Depends:** T09。
 
 - [ ] T10.1 test `incomplete_or_foreign_provider_snapshot_never_becomes_verified_revenue`を定義。所有者不一致/欠落/不正金額は0にもverifiedにもならない。
-- [ ] T10.2 既存reconcileの`--money --json`と明示された同tenant credentialを使う。official snapshotのowner・期間・receipt referenceを保持し、推定model費用と請求済み費用を分ける。
-- [ ] T10.3 Python wrapperは`/data/<tenant>/receipts/<occurrence>/provider.json`へ`{tenantId,provider:"capafy",subjectId,observedAt,periodStart,periodEnd,complete,rows,evidenceRefs}`を保存してCycleResult.providerSnapshotRefへ同pathを返す。中央Nodeの`readCycleReceipt({uid,agentId,occurrenceId})`が同agentからその限定pathを取得し、tenantId/subjectId/期間/complete=trueを照合してからverified gross/refundを既存FinancialRecordへ変換する。入金はpayout receiptがある時だけ、費用欠落時のnetはunknown。同じprovider売上を複数利用者へ付けない。
+- [ ] T10.2 既存reconcileの公式HTTP読取と明示された同tenant credentialを使う。`--money --json`は月次aggregateで日別rows/ownerを返さないため、そのままdaily snapshotとして変換しない。公式snapshotのowner・期間・receipt referenceを保持し、推定model費用と請求済み費用を分ける。
+- [ ] T10.3 中央workerのtrusted collectorが`{tenantId,provider:"capafy",subjectId,observedAt,periodStart,periodEnd,complete,rows,evidenceRefs}`を公式APIから作る。モデルが書込み可能なVM provider.jsonをverified売上の根拠にしない。factoryのartifact receiptと公式会計snapshotを分離し、中央NodeがtenantId/subjectId/期間/complete=trueを照合してからverified gross/refundを既存FinancialRecordへ変換する。入金はpayout receiptがある時だけ、費用欠落時のnetはunknown。同じprovider売上を複数利用者へ付けない。
 - [ ] T10.4 focused conversion testとfixture readbackを確認してcommit/push。catalogのmissing表示はT22の実証後まで変更しない。
 
 ## Task T11: Managerのcycleを既存runtime jobへ登録する
