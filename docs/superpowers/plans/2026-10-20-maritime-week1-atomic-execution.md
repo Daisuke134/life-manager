@@ -252,7 +252,7 @@ life-manager/
 ## Task T10: provider売上をtenantのFinancialRecordへ結合する
 
 **Files:** Modify `apps/life-manager/lib/financial-record-capafy.js`/`financial-record-capafy.test.js`、`cloud_cycle.py`、既存`capafy_hourly_reconcile.py`は明示binding注入が必要な箇所のみ。
-**Interfaces:** T10Aは`readCapafyFinancialRecords({binding,periodStart,periodEnd},{readOfficialSnapshot})`を既存financial moduleへ追加する。trusted collectorを必須にし、tenant/provider subject/期間/complete/金額/証拠を検査してから既存`capafyRowsToFinancialRecords`へ渡す。FinancialRecord.subject_idはtenantId、binding.subjectIdはprovider所有者参照として分離する。T10Bは既存Python reconcileの公式読取を再利用するcollectorと実環境readbackを接続する。
+**Interfaces:** T10Aは`readCapafyFinancialRecords({binding,periodStart,periodEnd},{readOfficialSnapshot})`を既存financial moduleへ追加する。trusted collectorを必須にし、tenant/provider subject/期間/complete/金額/証拠を検査してから既存`capafyRowsToFinancialRecords`へ渡す。FinancialRecord.subject_idはtenantId、binding.subjectIdはprovider所有者参照として分離する。T10Bは既存Python reconcileへ`read_owned_sales_snapshot(binding,period_start,period_end,*,access_token,web_token,observed_at)`と`--tenant-snapshot`を追加する。credentialはstdinのみで渡す。GET /agent/account/profileのuserIdとweb tokenのsubを照合し、同tokenの公式seller trend成功・指定期間・日別coverage・合計一致を確認する。中央worker以外へ認証を渡さない。
 **Depends:** T09。
 
 - [ ] T10.1 test `incomplete_or_foreign_provider_snapshot_never_becomes_verified_revenue`を定義。所有者不一致/欠落/不正金額は0にもverifiedにもならない。

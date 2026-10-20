@@ -8,3 +8,4 @@ runtime/agent-runner/tests/test_application_intent_isolation.py
 skills/alpaca-investment/test_review_status.py
 skills/capafy-autopublish/test/test_cloud_paths.py
 skills/capafy-autopublish/test/test_cloud_cycle.py
+skills/earn/capafy-marketing/tests/test_capafy_owned_snapshot.py

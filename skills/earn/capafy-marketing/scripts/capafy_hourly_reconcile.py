@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import datetime as dt
 import hashlib
 import json
@@ -1427,8 +1428,79 @@ def _money_complete(snapshot: dict) -> bool:
             and all(value is not None for value in snapshot["payout"].values()))
 
 
+def read_owned_sales_snapshot(binding: dict, period_start: str, period_end: str, *,
+                              access_token: str, web_token: str, observed_at: str) -> dict:
+    """Central collector only: explicit tenant credentials, no local/founder fallback.
+
+    The publisher profile binds the web-token subject. The subsequent seller API
+    must accept that exact token; decoding JWT claims alone never proves identity.
+    """
+    try:
+        start, end = dt.date.fromisoformat(period_start), dt.date.fromisoformat(period_end)
+        observed = dt.datetime.fromisoformat(observed_at.replace('Z', '+00:00'))
+        if (start.isoformat() != period_start or end.isoformat() != period_end
+                or start > end or (end - start).days > 89 or observed.tzinfo is None
+                or end > observed.astimezone(dt.timezone.utc).date()
+                or not isinstance(binding, dict) or binding.get('provider') != 'capafy'
+                or not re.fullmatch(r'lm_[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}', binding.get('tenantId', ''))
+                or not isinstance(binding.get('subjectId'), str) or not binding['subjectId']):
+            raise ValueError()
+    except (ValueError, TypeError, AttributeError):
+        raise ValueError('capafy_snapshot_input_invalid') from None
+    if not access_token or not web_token:
+        raise ValueError('capafy_snapshot_credentials_missing')
+    try:
+        part = web_token.split('.')[1]
+        claims = json.loads(base64.urlsafe_b64decode(part + '=' * (-len(part) % 4)))
+        subject = claims['sub']
+        if not isinstance(subject, str) or not subject:
+            raise ValueError()
+    except (ValueError, IndexError, KeyError, TypeError):
+        raise ValueError('capafy_snapshot_owner_mismatch') from None
+    def accepted(payload):
+        return (isinstance(payload, dict) and type(payload.get('code')) is int
+                and payload['code'] == 0 and '_error' not in payload)
+    profile = _get('/agent/account/profile', access_token)
+    owner = _data(profile) if accepted(profile) else None
+    if not isinstance(owner, dict) or owner.get('userId') != subject or subject != binding['subjectId']:
+        raise ValueError('capafy_snapshot_owner_mismatch')
+    sales = _post('/app/sales/clickhouse/trend', web_token, {
+        'startDate': period_start, 'endDate': period_end, 'granularity': 'daily',
+    })
+    data = _data(sales) if accepted(sales) else None
+    if (not isinstance(data, dict) or data.get('startDate') != period_start
+            or data.get('endDate') != period_end or data.get('granularity') != 'daily'
+            or not isinstance(data.get('data'), list)):
+        raise ValueError('capafy_snapshot_unavailable')
+    def money(value):
+        if type(value) not in (str, int, float) or not re.fullmatch(r'[0-9]+(?:\.[0-9]{1,2})?', str(value)):
+            raise ValueError('capafy_snapshot_amount_invalid')
+        amount = Decimal(str(value))
+        if amount * 100 > 9007199254740991:
+            raise ValueError('capafy_snapshot_amount_invalid')
+        return amount
+    days = {}
+    for row in data['data']:
+        if (not isinstance(row, dict) or not isinstance(row.get('date'), str)
+                or row['date'] in days):
+            raise ValueError('capafy_snapshot_coverage_invalid')
+        days[row['date']] = {'date': row['date'], 'revenue': format(money(row.get('revenue')), '.2f'),
+                             'refundAmount': format(money(row.get('refundAmount')), '.2f')}
+    expected = {(start + dt.timedelta(days=n)).isoformat() for n in range((end - start).days + 1)}
+    if set(days) != expected or sum((Decimal(row['revenue']) for row in days.values()), Decimal(0)) != money(data.get('totalRevenue')):
+        raise ValueError('capafy_snapshot_coverage_invalid')
+    snapshot = {'tenantId': binding['tenantId'], 'provider': 'capafy', 'subjectId': subject,
+                'observedAt': observed.astimezone(dt.timezone.utc).isoformat().replace('+00:00', 'Z'),
+                'periodStart': period_start, 'periodEnd': period_end, 'complete': True,
+                'currency': 'USD', 'rows': [days[day] for day in sorted(days)]}
+    digest = hashlib.sha256(json.dumps(snapshot, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+    snapshot['evidenceRefs'] = ['capafy://readback/' + digest]
+    return snapshot
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--tenant-snapshot", action="store_true", help="central owner-bound sales readback; credentials from stdin")
     parser.add_argument("--money", action="store_true", help="read live money without writing state")
     parser.add_argument("--json", action="store_true", help="machine-readable money output")
     parser.add_argument("--fixture-dir", type=Path)
@@ -1439,6 +1511,18 @@ def main(argv: list[str] | None = None) -> int:
     if args.observed_at:
         observed = dt.datetime.fromisoformat(args.observed_at.replace("Z", "+00:00"))
     observed_at = observed.astimezone(dt.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    if args.tenant_snapshot:
+        try:
+            if args.money or args.fixture_dir:
+                raise ValueError('capafy_snapshot_input_invalid')
+            payload = json.load(sys.stdin)
+            snapshot = read_owned_sales_snapshot(payload['binding'], payload['periodStart'], payload['periodEnd'],
+                access_token=payload['accessToken'], web_token=payload['webToken'], observed_at=observed_at)
+        except (OSError, ValueError, KeyError, TypeError, AttributeError):
+            print(json.dumps({'complete': False, 'errorClass': 'capafy_snapshot_unconfirmed'}))
+            return 1
+        print(json.dumps(snapshot, sort_keys=True))
+        return 0
     repo_root = Path(__file__).resolve().parents[4]
     if args.fixture_dir:
         payloads = {name: json.loads((args.fixture_dir / f"{name}.json").read_text()) for name in SOURCE_NAMES}
