@@ -27,16 +27,35 @@ function prepareMaritimeRuntime({ env = process.env, baseConfig, dataRoot = '/da
   }
   fs.mkdirSync(dataRoot, { recursive: true, mode: 0o700 });
   const root = fs.realpathSync(dataRoot);
+  const restricted = process.platform === 'linux' && process.getuid?.() === 0;
+  const directoryFlags = fs.constants.O_RDONLY | fs.constants.O_DIRECTORY | fs.constants.O_NOFOLLOW;
+  if (restricted) {
+    const fd = fs.openSync(root, directoryFlags);
+    try { fs.fchownSync(fd, 0, 0); fs.fchmodSync(fd, 0o711); } finally { fs.closeSync(fd); }
+  }
   const home = path.join(root, tenantId);
   if (fs.existsSync(home) && fs.lstatSync(home).isSymbolicLink()) throw new Error('maritime_runtime_tenant_invalid');
   fs.mkdirSync(home, { recursive: true, mode: 0o700 });
   if (fs.realpathSync(home) !== home) throw new Error('maritime_runtime_tenant_invalid');
-  const codexHome = path.join(home, 'codex');
+  const codexHome = path.join(home, 'agent-codex');
   if (fs.existsSync(codexHome) && fs.lstatSync(codexHome).isSymbolicLink()) throw new Error('maritime_runtime_tenant_invalid');
+  if (restricted) {
+    // Only fixed tenant directories change ownership, through no-follow fds.
+    // Never recursively chown model-controlled paths or the immutable release.
+    for (const target of [home, ...['home', 'agent-codex', 'claude', 'tmp', 'agent-ledgers', 'state', 'runtime', 'evidence', 'build'].map(name => path.join(home, name))]) {
+      try { fs.mkdirSync(target, { mode: 0o700 }); } catch (error) { if (error.code !== 'EEXIST') throw error; }
+      const fd = fs.openSync(target, directoryFlags);
+      try { fs.fchownSync(fd, 10001, 10001); fs.fchmodSync(fd, 0o700); } finally { fs.closeSync(fd); }
+    }
+  }
   function atomicJson(target, value) {
     const temporary = path.join(home, `.runtime-${randomUUID()}.json`);
     try {
-      fs.writeFileSync(temporary, JSON.stringify(value, null, 2) + '\n', { mode: 0o600, flag: 'wx' });
+      const fd = fs.openSync(temporary, 'wx', 0o600);
+      try {
+        if (restricted) fs.fchownSync(fd, 10001, 10001);
+        fs.writeFileSync(fd, JSON.stringify(value, null, 2) + '\n');
+      } finally { fs.closeSync(fd); }
       fs.renameSync(temporary, target);
     } finally { if (fs.existsSync(temporary)) fs.unlinkSync(temporary); }
   }

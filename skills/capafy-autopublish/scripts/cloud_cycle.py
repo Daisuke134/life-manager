@@ -67,9 +67,9 @@ def run_cycle(tenant_id, occurrence_id, date_key, *, env=None, data_root=Path('/
     if not receipt.is_relative_to(home):
         raise ValueError('receipt_binding_invalid')
     child_paths = {name: home / relative for name, relative in {
-        'HOME': 'home', 'CODEX_HOME': 'codex', 'CLAUDE_CONFIG_DIR': 'claude',
-        'TMPDIR': 'tmp', 'ANICCA_USAGE_LEDGER': 'ledgers/usage.jsonl',
-        'ANICCA_TOKEN_BUDGET_LEDGER': 'ledgers/token-budget.jsonl',
+        'HOME': 'home', 'CODEX_HOME': 'agent-codex', 'CLAUDE_CONFIG_DIR': 'claude',
+        'TMPDIR': 'tmp', 'ANICCA_USAGE_LEDGER': 'agent-ledgers/usage.jsonl',
+        'ANICCA_TOKEN_BUDGET_LEDGER': 'agent-ledgers/token-budget.jsonl',
         'CAPAFY_STATE_DIR': 'state/capafy-autopublish',
         'CAPAFY_CATALOG_DIR': 'build/skills/capafy/catalog',
         'CAPAFY_PUBLISHER_STATE_HOME': 'runtime/capafy-publisher',
@@ -130,7 +130,7 @@ def run_cycle(tenant_id, occurrence_id, date_key, *, env=None, data_root=Path('/
                  LIFE_MANAGER_SOURCE_REPO=str(workspace))
     for directory in ['HOME', 'CODEX_HOME', 'CLAUDE_CONFIG_DIR', 'TMPDIR']:
         Path(child[directory]).mkdir(parents=True, exist_ok=True, mode=0o700)
-    (home / 'ledgers').mkdir(parents=True, exist_ok=True, mode=0o700)
+    (home / 'agent-ledgers').mkdir(parents=True, exist_ok=True, mode=0o700)
     schema = json.loads((RELEASE / 'skills/self/capafy-loop/capafy-loop-pass.schema.json').read_text())
     schema['properties']['evidence']['items'] = {
         'type': 'string',

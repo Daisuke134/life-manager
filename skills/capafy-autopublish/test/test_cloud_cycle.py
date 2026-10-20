@@ -127,7 +127,7 @@ class CloudCycleTest(unittest.TestCase):
     def test_child_directories_cannot_alias_another_tenant(self):
         foreign = self.root / 'other-tenant'
         foreign.mkdir()
-        for directory in ['home', 'codex', 'claude', 'evidence', 'state', 'runtime', 'tmp', 'ledgers']:
+        for directory in ['home', 'agent-codex', 'claude', 'evidence', 'state', 'runtime', 'tmp', 'agent-ledgers']:
             with self.subTest(directory=directory):
                 link = self.home / directory
                 if link.exists():
