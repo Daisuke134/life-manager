@@ -1,33 +1,116 @@
 # Life Manager 統合SSOT — As-Is / To-Be / TODO
 
-## 2026-10-19 state + cursor（統括cursor。2026-10-15統括cursorと10/17 SH順序を置換）
+## 現況監査とCapafy優先の統括cursor
 
-**順序変更の記録:** 旧=「統括cursor（2026-10-15）D1→D4→Gig」と10/17「SH2→SH4→SH3→SH5、cursor = SH2」。新=下記「次の順序」1→7、現在cursor=1。理由: 10/19実測で収益laneを止めている根本はcorespotlightd→swap→disk floorで、merge済みsourceの採用だけでは収益laneが走らない。SH2–SH5・P2–P5は未完のまま残し、この順序の後に再評価する。
+**目的・範囲・完了条件:** ローカルLife Managerの既存設計を継承し、全業務の稼働・配信・収益・評価の証拠を照合して、本SSOTの現況と残TODOを更新する。今回の成果は監査と文書のmain統合。実装、出品、投稿、cleanup、設定・認証・state変更、apply/restart、unknown解除・再送は行わない。業務の収益化や基盤復旧自体を今回の文書作業のDONEとしない。クラウドの別実装や新しいSSOTは作らない。
 
-**10/18–19 merge+apply:** #8313 #8315 #8318 #8325 #8332 #8333 #8334 #8335 #8336 #8337 #8339 #8341 #8343 #8345 #8346 #8347 #8348 #8349 #8351 #8352 #8353 #8355 #8358（+anicca-products #520）#8366 #8368 #8371 #8373 #8374 #8381 #8382（apply-cadence test fix）。全件 `gh pr view` でMERGEDを確認。
+**証拠の範囲:** source base=`70a5e3657317e0a53c33a2d643cd46ce967c8079`、稼働snapshotは`lm-loop status all --json`のローカル実測、収益は既存ownerが保存した公式readback。保存観測時刻と監査時刻を分ける。新しい認証付きseller probeは実施しない。匿名化した集計・run/SHA・出所は[監査証拠](../../evidence/capafy-rsi-status-20261020.json)。観測窓は2026-10-20、時刻は以下の通り。
 
-**確認済みの成果（readback）:**
-- Writer: EN Substack 無料3本公開 2026-10-18 23:30–23:50Z（9/29以来初）、JA Substack 有料1本 23:20Z。article-resume fence 55543 は #8374 で閉鎖。
-- PromptBase: annual-report-risk-change-brief が「Prompt Uploaded」（審査中）23:58Z。
-- Capafy: goal-monitor-hourly 正常、会社receipt Telegram が10/18 11:26Zに再開。
-- LINEスタンプ readback 復旧（40商品）。marketing-owner-events 正常。Supabase本番は再起動後 正常。
-- Coconala: apply fence 18df80f03ec86a98-74517 を #8381 で閉鎖（5331694 retired_absent、applied 4件で roster 89/89 positive control PASS）。
-- Startup context drift: aniccaai.com/lm digest 復旧後 green（#8358 + anicca-products #520）。
+### As-Is：基盤は完全修復に至らず、全業務の収益改善は未証明
 
-**売上（公式readback）:** Coconala 7日¥31,980 / 30日¥70,980 / 生涯¥263,634。Capafy 30日$25.87、最終入金9/29。Anicca MRR $20.34。Writer / PromptBase / Ebook $0。その他はunknown（0に置換しない）。
+- **「20 agents」の実体:** `apps/life-manager/config/product-loop-catalog.json`は18業務group。customer_revenue 14、investment 1、financing 1、non_economic 1、aggregator 1。18個の単一processではなく191 managed jobsで動く。未登録の2業務を推測で増やさない。CFO/Connectorに直接売上を要求せず会社の収益を支える契約で評価し、資金調達や投資元本を顧客売上/MRRへ加えない。
+- **稼働:** 14:23Z台のsnapshotは191 managed、loaded-idle160 / loaded-running29 / disabled2。最新記録のblockerはdisk_floor_low104 / resource_effect_unknown44 / entrypoint_exit_1 6 / blockerなし37。これは最新attemptの分類であり同時停止数・成功率ではない。79 jobsはproduct_loop_idなし。全業務が正常とも全停止とも判定しない。
+- **容量:** watchdogの14:22:12Z receiptはfree_after=3,854,827,520 bytes、回収0 / errors0 / protected_deletions0。2GiB recovery floorは満たすが10GiB producer floorを満たさない。低いfloorのPASSを収益lane回復と扱わない。以前のcorespotlightd→swap原因は今回再測定せず、現在の書込owner/増加原因は未確認のままにする。恒久修復をkillや一度の空き容量だけで判定しない。
+- **監視:** health-observer 14:21:34Zはtelemetry_gap191、health_snapshot_timeout。healthy=0は全故障の証明ではない。独立のstatus読取は成功しており、監視snapshotの失敗境界を別atomで直す必要がある。
+- **Capafy owner:** factory/hourlyはdisk_floor_low、distributor/outcome-monitor/IG-account-managerはresource_effect_unknown。IG-marketingはdisabled、reelの最新terminalはexit1。healthcheckのpassやbrowserのrunningで公開/収益成功を代用しない。installed SHAはownerごとに異なり、current symlinkだけで全fleet採用済みと判定しない。
+- **EDD:** 既存LM-EABは5つの公開synthetic fixtureによる契約検証で、自然taskに対する汎化性能・live利益・秘密held-outを証明しない。既存OpenEvolveのrun_evolveはpaper/backtest戦略を対象にし、Capafy配信を自己最適化する実装ではない。article-self-improve / gig-experiment-evaluate / self-improve-evolveもsnapshotでdisk延期。今回読んだ証拠からCapafyのeval→変更→成熟した売上/費用→keep/revertという自律閉路の完走は確認できない。
 
-**根本blocker:** corespotlightd 約16GB RAM → swap 約7GB → Data空き9.4GiB < 収益floor 10GiB → 56 jobが `disk_floor_low`。killはauto-mode classifierが拒否。owner作業: `killall corespotlightd` と、`~/loops`・`~/.local/state`・`~/Projects` を Spotlight Privacy へ追加。
+### 全18業務の確認表
 
-**EDDの実態:** 直近14日で eval→変更→計測→keep/revert を自律で回したlaneは0。
+下表のjob数/terminalは14:23Z台snapshot、財務はCFOの07:52:49Z snapshot（trailing開始9/20同時刻）。terminalは最新記録で、期間成功率ではない。全18業務で総合net statusはunknown。Coconalaはtrailing settled revenue¥70,980 / historical¥263,634を保存するがnet=null。mobile-appsのMRR$20.34はsubscription snapshotで入金/利益ではない。self-buildはMRR status=verifiedでも通貨合計が空で、$0とは断定しない。他16業務のMRRはunknown。CFO provenanceはpartial / asc_receipt_missing_in_reporting_window。この表の「未証明」は売上0の意味ではない。
 
-**次の順序（現在cursor=1）:**
-1. Spotlight/disk（上記owner作業 → Data空き≥10GiBと `disk_floor_low` 解消をreadback）。
-2. 1日1回loopのdeferral retry。
-3. Coconala EDD loop（初の実keep/revert）。
-4. Capafy 無料→Hook Lab funnel の新agent。
-5. PartnerStack 税務/payout。
-6. Anicca ASC sales 404 + PostHog。
-7. Writerの残り `interactive:dais` 経路（約20）。
+| 業務 | managed jobs | 最新terminal内訳 | 収益の証拠・残課題 |
+|---|---:|---|---|
+| gig-coconala | 7 | 6 blocked, 1 running | 30日売上¥70,980、費用後net欠測 |
+| gig-lancers | 7 | 6 blocked, 1 running | 顧客収益/費用後netの完全性は未証明 |
+| gig-crowdworks | 5 | 4 blocked, 1 running | 顧客収益/費用後netの完全性は未証明 |
+| gig-mercor | 3 | 3 blocked | 顧客収益/費用後netの完全性は未証明 |
+| promptbase | 1 | 1 fail | 顧客収益/費用後netの完全性は未証明 |
+| writer | 7 | 7 blocked | 顧客収益/費用後netの完全性は未証明 |
+| affiliate | 6 | 1 fail, 3 blocked, 2 running | 顧客収益/費用後netの完全性は未証明 |
+| investment | 4 | 4 blocked | 投資：元本を売上へ加えず実現netを評価 |
+| agent-economy | 16 | 6 running, 10 blocked | 顧客収益/費用後netの完全性は未証明 |
+| job-hunter | 4 | 4 blocked | 顧客収益/費用後netの完全性は未証明 |
+| fundraiser | 2 | 1 blocked, 1 fail | financing：獲得資金を売上へ加えない |
+| connector | 1 | 1 blocked | non_economic：接続成果を評価 |
+| self-build | 4 | 3 blocked, 1 pass | MRR通貨合計は空、net未証明 |
+| mobile-apps | 23 | 21 blocked, 1 none, 1 fail | MRR$20.34、ASC/費用/settlement欠測 |
+| ebook | 5 | 1 pass, 4 blocked | 顧客収益/費用後netの完全性は未証明 |
+| capafy | 11 | 1 running, 7 blocked, 1 none, 1 pass, 1 fail | 7日paid0、MRR/会社net欠測 |
+| line-sticker | 3 | 1 running, 2 blocked | 顧客収益/費用後netの完全性は未証明 |
+| cfo | 3 | 3 blocked | aggregator：財務coverageを評価 |
+
+79 unmapped jobsは欠落させずEDD-FLEET-01で分類する。catalogのadapter実装宣言とCFOの実receipt coverageを区別する。
+
+### Capafy：最新の保存済み公式readback
+
+観測時刻=2026-10-20T07:49:31Z（JST16:49）。監査時点では約6時間半前であり、collector内部のfresh表記だけで現在freshと呼ばない。CFO既存の6時間freshness契約を超えた数値を本時点の新規読取へ昇格しない。
+
+| 指標・同一窓 | 確認値 | 解釈 |
+|---|---:|---|
+| 累計gross / 有料units | $102.75 / 32 | 前掲ユーザーsnapshotから増加なし。legacy API gross$117.74/orders875はseller系列へ混ぜない |
+| seller orders / 全units / 無料trial units | 70 / 106 / 74 | 異なる系列。free/public Soldを有料件数へ加算しない |
+| 7日 exposure / detail views | 12,809 / 1,818 | account窓。以前の13,824/1,836と窓が動くため同一cohortの減少とは断定しない |
+| 7日 trial / paid / gross | 5 / 0 / $0 | 収益化の未達は確認できるが、trialが原因という因果は未証明 |
+| 30日 paid / gross | 13 / $33.87 | last positive revenue day=9/29。過去の売上は現在の新規売上ではない |
+| 掲載 / occupied / free | 61 / 1 / 2 | occupied/freeの詳細意味は既存normalizer契約のまま。差分だけで特定Agentの審査通過を推定しない |
+| Hook Lab 7日views / paid | 65 / 0 | Agent8123079349 |
+| Hook Labへの7日source views | hooklab_free29、ai_overview14、search10、direct4、hooklab_x3、google3、category2 | hooklab_blog/IGは0。channel-window観測でcreative/slot因果ではない |
+| payout済み / creator earnings | $0 / $76.18 | pending/payout balance$59とconfirmed$17.18は入金ではない |
+| true MRR / 費用後確定会社net | unknown / unknown | active/canceled subscription・全実費の公式coverageなし |
+
+**Hook Grader TODO3の確認結果:** [公式公開listing](https://capafy.ai/agent/2455220100)をFirecrawl maxAge=0で取得し、v1.0.1 / updated10/16 / Downloadの公開状態を確認する。保存analyticsもstatus=online、has_online_version=true。従って「v1.0.1がまだ審査待ち」は置換する。公開Sold20は無料downloadを含むためpaid20としない。listing末尾はHook Labへの文字による案内で、公開取得本文には直接リンクが現れない。実download出力末尾のCTAと登録CTは未確認。7日Hook Grader views73とhooklab_free29は別の流入母集団なので29/73を転送率にしない。以前の1.7%/基準3%は、同一無料商品・利用者cohort・期間の分母を再取得するまで再判定しない。
+
+**費用の限界:** analyticsのprofit30_actual_usd=$20.41はgross$33.87×80%を丸めた$27.10−OpenRouter実費$6.69の寄与推計。Capafy feeの実明細、host/他model/system費用、settlementの完全性を満たす会社確定netではない。all_time.net_usd=$102.75という名前もgrossと同値で、手取確定値として流用しない。
+
+**配信経路の追加事実:** 現行stateは`writer/capafy-distribute/capafy-distribute/ledger.json`（236 records）で、親directoryのledgerは9/29の1件だけ。子ledgerの最新は10/19-h19m00のHook Lab記事・X PUBLISHED記録で、X first-reply ledgerにも同記事のCTA/reply URLがある。従って古い「Xは全てリンクなし」や「30分ごとに現在も公開」は採らない。最終記事はスペイン語だが言語別の成熟したclick/paid比較は未実施。記事HTTP200、Postiz PUBLISHED、返信ledger単独をcurrent official publication/readbackと同一視せず、unknown occurrenceの所有者が正確なURL/IDで照合する。
+
+### コピーする成功例と自己改善研究の採用判断
+
+**同対象・同媒体の商品例:** [ViralShorts](https://capafy.ai/agent/5586511485)は今回の公式公開取得でSold93、rating2.6。短尺動画creator向けで、入力→0–3s hook→場面別action/dialogue→payoffという具体的な納品例を示す。10/19 market snapshotのSold90とは時点を分ける。模倣するのはこの入力/出力実演・秒数付き構成・一つのCTAであり、文言や脚本素材は写さない。公開Soldの無料/paid内訳・売上額・集客元は未検証。これを「同じ配信方法で利益を伸ばした成功例」とは主張しない。同対象/同channel/同目的の検証済み配信売上事例という穴は残るため、既存CD3/T4の出典を再確認し、未検証の公式紹介/self-reportを実績へ昇格せず小規模比較する。測定はnative impressions→qualified unique click→trial/activation→paid/refund→費用後寄与。
+
+| 一次資料 | 実際に改善する対象 | Life Managerでの判断 |
+|---|---|---|
+| [Harness²](https://github.com/google-research/harness2) | weights固定でprompt/skill/tool等をpropose→probe→compose、経験を改善手順へ保持 | 最初の参照候補。既存DD/CD/評価runnerへ最小のoffline候補比較として取り込む。ground-truthなしの内部選抜を売上改善の証明にしない |
+| [Dream-RSI](https://github.com/zhengkid/Dream-RSI) | 実測済み探索treeをreplayして探索方針を改善 | 本体code/reproduction scriptsは公開準備中。今すぐ導入できる製品と呼ばず、traceを再利用する発想だけ参照。未実行の配信の反実仮想売上を過去ログから生成しない |
+| [RSI-Anything](https://github.com/Gen-Verse/RSI-Anything) | world modelの予測で候補を選び外部評価で更新 | 現在のCapafyデータで予測精度/較正/費用削減を証明できないため後段。予測売上は公式paidの代用にならない |
+| [Sakana MASS](https://sakana.ai/mass/) / [code](https://github.com/SakanaAI/mass) | multi-agent workflow探索と27B open-weights modelのpost-training | workflow比較は参考、Macへ重み学習pipelineを追加しない。公表表でもTerminal-Bench/SWEの平均は一部低下し、全能力が単調向上する証拠ではない |
+
+**subscriptionの費用境界:** [Harness² SETUP](https://github.com/google-research/harness2/blob/main/docs/SETUP.md)の公式経路はLinux/Python3.12、model-backed runはAPI費用を要する。Codex executorもResponses API endpoint/keyまたはVertex bridgeを使い、「Codex対応=現在のChatGPT/Codex subscriptionだけで全経路無料」とは確認できない。新規API/有料tool/GPU契約を追加せず、既存subscriptionで許可された有限実行と既存runnerを先に使う。今回repoのclone/install、モデル呼出し、harnessの本番組込は行わない。
+
+**推奨:** Harness²の候補生成・比較・経験保持を既存Capafy EDDへ小さく接続する。best=同じ費用内でqualified trafficと成熟paid寄与が増え、勝った変更を次回へ保持できる。base=測定が整い候補の改善は未確定。worst=内部評価だけ上がり、投稿/計算費用が増えて売上が変わらない。別repoを丸ごと入れる案の最強根拠は再現済み探索実装を再利用できる点だが、今はMac/API費用/業務adapter/収益評価が適合しない。自分が間違うとしたら、商品需要よりharnessの実行品質が支配的で、既存runtimeへの最小接続よりupstream adapter導入の方が実費後成果を早く出す場合である。これらの研究をAGI達成や収益の単調増加の証拠としない。
+
+### 既存TODOへ接続する実行順序と完了条件
+
+**順序変更:** 旧統括=Spotlight/disk→daily retry→Coconala EDD→Capafy無料funnel→PartnerStack→Mobile→Writer。新統括=共通の容量/監視修復を既存ownerが継続しながら、先頭business pilotをCapafyのC1–C7へ移す→共通CFO coverage/全18業務のDD12展開→E03–E06/H/I。理由はDaisの明示したCapafy優先と、61掲載でも7日paid0、配信ownerがunknownである実測。進行中Coconala/投資/Writer等のeffectやownerを中断・引継ぎしない。各既存laneの目標、未完TODO、固定split/費用/安全契約は維持する。
+
+以下C1–C9は新しいschedulerや競合計画ではなく、本SSOT内のT/CD/DD/EDD-FLEET/H/Iへの現在の実行索引。状態の正本はここへ集約し、旧snapshotのcursorは履歴として読む。今回「Capafy TODO3」と呼ばれた審査確認は完了、既存T3（true MRR）は未完であり番号を混同しない。
+
+| 順序・状態 | 一つの作業と既存atom | 完了の証拠 |
+|---|---|---|
+| C1 OPEN / 現在cursor | DD02/T1/CD1：既存distributorのexact未知occurrenceをBlog/GitHub/Xの公式readbackと照合し、必要なself-owned readback欠陥だけ修正する | 正確なrun/occurrence/release、provider ID、effect判定、再送0。receipt前の解除・再投稿を行わない |
+| C2 OPEN / 共通依存は並行 | F1–F5/SH2–SH5/P2–P5：容量増加owner・既存回収候補/lease、health_snapshot_timeoutの境界を分けて修復する | 必要floor通過→factory/distributor/hourlyの自然terminal→公式readback。監視がstatusと整合。既存F gatesの自然観測を保持し、保護解除/floor下げ/基盤restartはしない |
+| C3 PARTIAL | T0/T1/T2/CD1/DD03–DD05：fresh seller/traffic、正しいnested ledger、product/creative/registered CT/costを同一窓へ結ぶ | stale/missingとzeroを分離したsource×Agent scorecard。shared CTの訪問1件を複数slotへ配らない |
+| C4 OPEN | CD5/T4：Hook Grader実download出力の末尾CTAと登録CT、無料利用cohort→Hook Lab→paidの対応を検証する | v1.0.1掲載は確認済み。正しい分母で転送率を再計算。基準未達なら既存ownerが新規の非FROZEN lead magnetを1件だけ作成/提出/公開し、登録CTと自然流入を確認する |
+| C5 OPEN | CD2/CD3/CD4/T11/DD06–DD09：winner型の実入力→実出力demoを一つのcandidateとして既存配信へ流す | 一商品/一offer/一channelのcontrol、割当単位、成熟期間、費用上限、停止規則を凍結。click可能CTA/native receipt/qualified reach、自己probe除外。既存channelは維持する |
+| C6 OPEN | CD6/CD7/T12/DD10–DD11/I：成熟したclick/activation/paid/refund/費用後寄与で候補を評価しretain/reject/inconclusiveを保存する | 最初の自律1 cycleのrun→候補diff→凍結eval→配信receipt→成熟売上/費用→判定が追える。sample不足はinconclusive。optimizerはFROZEN seller、grader/split、fence/cap、credentialを変更できない |
+| C7 OPEN | T3/T13：first-new-paidと継続収益目標を別々に閉じる | 既存gate orders>70 AND gross>$102.75に加え新paidの公式証拠。active plan/cancellation/churn取得→真のMRR。$100→$1K→$10Kは目標段階で保証/現MRRではない。公式subscription源がなければMRR unknownを保持し、集客/売上作業を止めない |
+| C8 OPEN | EDD-FLEET-01/02/03、DD12、CD8/CD9：79 unmapped jobsをproduct所属または明示的な補助・基盤ownerへ分類し、18業務の共通receipt/costとtyped recoveryを展開する | lane別verified/zero/unknownとcoverage、業務目的別の自然成果、費用後会社profitが追える。CFO/Connectorは補助成果、Fundraiserはfinancing。無料outreach/OSSは既存gate後、installや登録を売上と呼ばない |
+| C9 OPEN | CD10/E03–E06/H01–H04/I01–I04：自然trace/独立held-out、fixed baseline/repeated trials、回復と利益改善を別評価する | 既存LM-EABを拡張しcost/latency/介入/汎化/公式netを報告。public synthetic PASSとAGI/収益能力を区別。会社全体$10M MRR目標と既存lane別目標を縮めない |
+
+**到達した状態の定義:** self-healingは既知障害からdurable進捗が自然再開すること。self-improvingは比較可能な評価・実市場成果で採用した変更を次の実行が使用すること。全社最適化は、通貨/窓/実費を保持して限界利益と不確かさから実行枠を配分し、探索枠を残しながら損失/重複/顧客義務の制約を守ること。投稿数、出品数、model judgeの好み、process passだけではいずれも完了にしない。利益の絶対最大値/毎回の増益は市場不確実性のため証明できず、改善を測って保持/撤回できる閉路を受け入れ対象にする。
+
+**今回の検証と未完:** 稼働snapshotと保存済み公式数値、公開listing、4研究の一次資料を確認する。docs-onlyのため製品コード/依存追加や広いtest suiteは実施しない。数値整合・JSON・差分・独立read-only反証・PR/CI/mainの統合証拠は本作業の完了報告へ記す。基盤/全18業務収益化/C1–C9の実行完了は主張しない。
+
+### 同時進行の基盤監査との統合
+
+[PR #8409](https://github.com/Daisuke134/life-manager/pull/8409)の追加観測と[PR #8408](https://github.com/Daisuke134/life-manager/pull/8408)のOpenClaw更新を保持する。source研究の固定base70a5e365と、統合時main4dcb2769を区別する。別監査の14:23Z `df`は3,743,008KiB（約3.57GiB）、swap7,167MiB/8GiB、corespotlightd RSS約25MiB（14:23Z）/約168MiB（14:10Z）。10/19の約16GBという旧原因観測を現在へ持ち越さず、現在の容量writerは未特定のままとする。一般producer12GiB / revenue producer10GiB / recovery2GiBを別々に評価する。
+
+同監査ではcleanup loaded-running / 300秒cadence、release reconciler loaded-running / 60秒cadence、両者の観測releaseは64175a23。cleanup直近terminal14:21:21Zとrelease reconciler14:17:21Zのpassは全fleet最新main採用や容量回復の証明ではない。cleanupの`last_receipt=null`、古い`last-receipt.json`/`cleanup-latest.json`と、今回のfreshな`last-unbound-receipt.json`は別sourceであり、unbound receiptを同じcleanup occurrenceのbound receiptへ昇格しない。host inventory内部時刻9/24、disk-headroom10/17、bound receipt10/10、cleanup-latest9/14という欠測境界は維持する。C2では既存host-inventory/storage_growthと同時刻dfを突合し、owner/増加量とbound cleanupのobserved_at/free_before/free_after/reclaimed/errors/protected/inventory_gapsを結ぶ。一般producerの復旧を主張する場合は12GiBとそのfresh admissionも確認する。
+
+CFO同監査のCoconala provider coverageはhistorical/trailingともcomplete=false。¥263,634はsourceの収入系列で、費用後確定会社netとしない。Google Cloud9月請求¥27,889は全社費用の全量ではない。過去10/18–19のWriter EN Substack3本/JA有料1本、PromptBase審査提出、LINE40商品、Supabase、Coconala fence#8381、startup digest回復、Capafy report再開と、#8313–#8382の統合履歴は、その時点の成果として保持する。10/20の全業務継続稼働へ外挿しない。
+
+**統合後の順序:** 基盤ownerのcapacity/receipt→health→18業務照合という依存順はC2/C8で保持する。Capafy先頭のbusiness pilotはDaisの今回明示指示によりC1–C7とし、基盤修復は並行する。1日1回loopのdeferral retry、Coconala EDD、PartnerStack税務/payout、Anicca ASC404/PostHog、Writer interactive:dais約20経路の再計数という既存未完は消さず、各ownerの作業を中断しない。順序/現在cursorは冒頭C1–C9だけを正本とし、競合する第二の実行順は残さない。最終Doneには18 ownerの自然run/公式receipts/費用後settled net/CFO coverage/EDD/benchmark/OpenClawとOSS一-command setup/会社MRR目標を保持する。
 
 ## 投資紙owner復旧の依存修正 — source reclaim inventory
 
@@ -54,7 +137,7 @@ CI依存は既存6d8bbe6a96と同じ最小修正を再利用する。mainのpubl
 
 > **正本はこの文書 1 本だけ（Dais 2026-09-29）。** 以前の `2026-09-15-life-manager-agent-architecture-refinement.md`（全体設計・meta loop #10）、`2026-09-22-paid-fulfillment-all-platforms-design.md`（Paid）、`skills/earn/gig/TODO.md`（gig TODO）と、`docs/superpowers/specs/` のほかの spec はすべて参照用。TODO・順序・状態はここだけを更新し、他のファイルに新しい TODO を書かない。
 
-> **共有資源方針・統括cursor:** →「2026-10-19 state + cursor」。旧floor撤去方針は現在のproducer契約により置換する。
+> **共有資源方針・統括cursor:** →「現況監査とCapafy優先の統括cursor」。旧floor撤去方針は現在のproducer契約により置換する。
 
 この文書は Life Manager 全体（Foundation 14ループ + Paid fulfillment）の唯一の入口。
 以下の文書は設計の参照資料。実行TODO・順序・状態・現在cursorの正本はこの文書だけとする。
@@ -68,23 +151,24 @@ CI依存は既存6d8bbe6a96と同じ最小修正を再利用する。mainのpubl
 
 目的: 現在の修正を再実装せず、local Life ManagerをOpenClawベースへ移す残作業を確定する。今回の範囲は読み取り監査と文書更新だけ。コード修正、cleanup、モデル実行、設定変更、apply/restart、effect解除・再送は行わない。クラウドWeb `/lm` は対象外。
 
-### 確認した現在地
+### 確認した現在地（2026-10-20）
 
-観測日: 2026-10-15。各receiptの観測時刻は下表に記載。source基準はmain `a4aac13fe87bbe4133b257db4f4e45c475c9fd6a`。過去の容量・owner数・DS未完記録は歴史であり、この窓の現在値ではない。
+コード基準は`origin/main=70a5e3657317e0a53c33a2d643cd46ce967c8079`。現在selectorは`/Users/anicca/loops/releases/20261020T224953-64175a23`（release SHA `64175a23ed956db27f4e02dd5ee471bbe68ac963`）で、origin/mainより2 commit遅れている。selectorは全ownerのloaded argv/SHA証明ではない。
 
 | 対象 | 確認した事実 | 意味・残る限界 |
 |---|---|---|
-| 製品構成 | READMEは18業務agent＋Host Steward。catalogは18件/114 job、registryは192 job | 15/16 agentや113 job固定の移行展開を流用しない |
-| 容量 | Data volumeの`df -h`は空き約14GiB/使用率94%。最新healthのhost_storageは10:22:08Z、free_bytes=13,215,821,824、execution_ok=true、capacity_recovered=true | 2GiB回復判定と12GiB producer下限と25GiB ballast再作成条件は別。無期限の容量維持を証明しない |
-| 追加済み対策 | `runtime/host/disk_admission.py` producer下限12GiB、control-plane除外。bounded_output/storage_policy、既存cleanupとscratch保護、`bin/disk-watchdog.sh` ballast作成/解放あり | DS01–17を最初から作り直す計画を廃止。低容量対策自体は既に存在する |
-| 予約領域 | `~/.local/state/life-manager/disk-ballast`は存在しない | 8GiBの緊急解放余地が現在あるとは言わない。空き25GiB超でのみ再作成する実装なので、現在の空きでは自動作成されない |
-| 同時実行 | `resource_admission.py`のDEFAULT_AGENT_TOTAL_RUNS=3、finite全体既定10、browser既定1、deterministic/revenue既定5 | 3は推論agent枠のsource既定。18 agentのうち3種類しか使えない意味ではない。loaded release/env別の実効枠は別途照合が必要 |
-| DB | `admission-v2.sqlite3`をread-only接続した`PRAGMA journal_mode`は`delete` | WAL定着は未達。既存SSOTの旧release owner移行を再利用する。DB強制変更やunknown解除はしない |
-| 観測 | health-observer latest生成10:22:48Z、total192/telemetry_gap192。sample error_class=`health_projection_timeout` | agentが192件失敗した証拠でも、全正常の証拠でもない。fleet projectionの欠測を正常値に変換しない |
-| release | current manifestはmain `a4aac13f`。ディスク上plistはcleanup=`f94fdd77`、watchdog=`affe5fa3`、Capafy factory=`ea5bc84b` | current一つでは全owner採用を示さない。これはplistファイル観測であり、launchd loaded argvの確認ではない |
-| OpenClaw | `runtime/openclaw/`にpaths/protocol/dispatch_store/environment/gateway-clientとtestsあり。pinはOpenClaw/Codex/OTel2026.9.8、SDK/protocol2026.8.1。runnerにOpenClaw参照なし | 基礎コードあり、本番runner移行は未完。既存Gatewayを停止・置換しない。packageの存在だけでnative Codex/tool/停止契約の適合を断定しない |
+| 製品構成 | catalog 18 agent groups / 113 mapped jobs、registry 191 rows | 古い15/16/19 agentや192 jobの数を移行母数に使わない |
+| 物理容量 | 10/20 `df -h /`: 空き約3.6GiB | sourceに記録されたrevenue lane floor 10GiBを下回る |
+| health/inventory | 14:10Z healthは`free_bytes=3,957,080,064`、`capacity_recovered=true`（2GiB回復基準）。14:16Z生成の最新healthには`host_storage`なし。`host-inventory-full.json`は9/24 20:21:47Z | 最新healthの`met`は10GiB条件の達成を意味しない。現在のgrowth ownerが未観測 |
+| 容量対策 | 10GiB revenue floor (#8176)、agent枠source既定4 (#8292)、pollerをagent slot外へ移動 (#8355)、disk floor下のbrowser recycle (#8350)、disk defer後のcooldown (#8384) がmainにある | 追加実装を先に重複しない。loaded ownerごとの採用と自然効果は未確認 |
+| process/ballast | process snapshotの`corespotlightd` RSS=172,368KiB、`managedcorespotlightd`=7,456KiB。`disk-ballast`は不在 | 10/19の16GB process観測は現時点で再現せず。現在の書き手をSpotlightと断定しない。緊急ballastも使えない |
+| 同時実行source | `DEFAULT_AGENT_TOTAL_RUNS=4`、有限run全体既定10。設定envによる上書きあり | source上限。実loaded上限・公平性・売上増加は証明していない |
+| admission DB | read-only `PRAGMA journal_mode`=`delete` | WALではない。既存旧release owner移行の証拠も未更新 |
+| storage evidence | DS01–13のsource実装はcanonical SSOTで完了扱い。DS14のsource acceptance JSONはmain SHA `84c56e11`、owner/next-day evidenceも10/09のまま | 現在のmain/releaseを反映したDS14–17の証拠更新が必要 |
+| OpenClaw source | pin: OpenClaw/Codex/OTel 2026.9.8、Gateway SDK/protocol 2026.8.1。`runtime/openclaw/`にはpaths/protocol/dispatch/environment/GatewayClientの基礎とtestsあり。`agent_runner.py`にOpenClaw routeなし | harness移行は未完。OC-012の隔離contractが最初のOpenClaw atom |
+| Gateway liveness | OpenClaw Gatewayのowner-scoped loaded argv/status receiptは今回取得していない | 起動済み/24時間稼働とは報告しない |
 
-一次資料: [固定版Gateway architecture](https://github.com/openclaw/openclaw/blob/v2026.9.8/docs/concepts/architecture.md)をGitHub APIで確認。tag object=`b1c1c6d3af1f68bc82efbb6c92fb224c36df8683`。公式Gatewayはtyped WebSocket/event境界を提供する。メモリやディスクを無限に増やせる機構ではなく、外部投稿のexactly-onceを保証する証拠でもない。実行停止・Codex制限・OTelの実配布版契約は既存OC-012/NC系acceptanceで検証する。
+FD-01はbounded stderr sourceがmainに統合済み（PR #7038 / source SHA `d1d5850630946bdb04818e62849f22af0e669379`）。ただしmain内のSSOTはhealth observerのnatural canary run `18dc7136883a17c0-13707`を記録する一方、参照先`docs/evidence/foundation-stderr/acceptance.json`は現在のmain treeに存在しない。source完了とcanary evidenceの追跡可能性を分けて扱う。
 
 ### To-Beと操作体験
 
@@ -105,9 +189,25 @@ flowchart LR
 
 ### 実行順とatomic TODO
 
-状態の正本は本節と既存OpenClaw source節。全file/function/契約/testの展開は `docs/research/openclaw-remaining-atoms.json` と `docs/superpowers/plans/2026-10-09-openclaw-remaining.md` を参照する。233 atomは旧scopeの展開数であり、現在の未完総数として宣伝しない。
+全実行順・状態の正本はこのSSOT。OpenClawのfile/function/test atomは`docs/research/openclaw-remaining-atoms.json`と`docs/superpowers/plans/2026-10-09-openclaw-remaining.md`にある。233は全移行scopeのatom数で、現在の未完数ではない。現行shared storage helperと既存domain workerを再利用し、second queue/scheduler/ledgerを作らない。
 
-順序変更: 旧=DS01–17全完了→OC012。新=既存の収益/共有資源cursorを維持し、OpenClaw sourceはOC-012→既存依存順で進める。本番cutoverだけ対象ownerの容量・旧effect・観測の受入を要求する。理由: D1–D4等の後続修正がmainへ入り、古いstorage待機をsource-only作業の前提にすると重複実装と不要な停止を生む。今回のcursorは文書監査完了までで、以下の実行は未着手。
+順序変更（旧→新）: 旧=DS01–17を全部終えてOC012。新=FD-02の現行容量/growth診断とsource evidence更新→FD-03/04の共有枠・readback自然確認→FD-05の同一業務結果比較→FD-06としてOC012からOpenClaw実装→1 idle ownerごとengine確認後にschedulerを移管。理由=DS01–13のsourceは既にある一方、disk floor未達・inventory stale・source acceptanceが旧mainのまま。現在cursor=FD02-A（fresh inventoryと現行dfの突合）。稼働中effectは変更しない。
+
+#### FD-02〜FD-05: OpenClaw前に閉じる原子TODO
+
+| 順 | 対象ファイル/function | 1操作 | 完了条件 |
+|---|---|---|---|
+| FD02-A | `skills/self/disk-cleanup/host_inventory.py::collect_host_inventory()` / `project_storage_growth()`、`~/.local/state/life-manager/host-inventory-full.json` | 登録済みHost Stewardの次の自然inventoryを取得し、同じ観測窓の`df -kP /`・`health-observer/latest.json`・growth rootsを照合する | snapshotの時刻/volumeが一致し、主要rootのbytes deltaとcoverageを記録。現物は9/24のため未完 |
+| FD02-B | 同`project_storage_growth()`、`skills/self/disk-cleanup/tests/test_host_inventory.py::test_storage_growth_requires_two_complete_snapshots` | 最大growth rootごとにregistry owner/refを照合する。owner不明なら`unattributed`を保持し、その分類契約に不足がある場合だけfixtureと既存testを直す | 上位rootがowner/refまたは明示unattributedへ分類され、Spotlightへの推測帰属が0 |
+| FD02-C | `docs/evidence/storage-foundation/source-acceptance.json` | DS01–13のsource acceptanceを現在main `70a5e365`と実際のmerged source/CIへ更新する | JSONの`main_sha`・source commit・focused acceptance・CIを現状一致で記録。現行`84c56e11`は古く未完 |
+| FD02-D | `docs/evidence/storage-foundation/owner-apply.json` | main由来immutable selectorと対象ownerごとのloaded argv/SHA/statusを照合して記録する | active/unknown ownerを変更せず、各対象の採用/延期理由をoccurrence単位で記録。現行証拠は10/09 releaseのため未完 |
+| FD02-E | `docs/evidence/storage-foundation/next-day-acceptance.json` | DS15後の自然cleanupと予定revenue ownerのrunを24h窓で照合する | fresh capacity・disk defer/resume・provider receipt/replay-zeroを同じowner/runへ結合。2GiB recovery `met`だけで10GiB revenue floor達成としない |
+| FD02-F | `docs/evidence/storage-foundation/final.json` | DS14–16のsource/main/owner/natural evidenceと保護データ境界を照合する | 達成/未達を分けて記録。容量・翌日継続が未達ならDS17とFD02を閉じない |
+| FD03-A | `runtime/host/resource_admission.py::_limits()` / `DEFAULT_AGENT_TOTAL_RUNS` | revenue floor達成後の自然queue snapshotでagent/class別active・queued・oldest age・cooldownを1回記録する | source既定4/finite10とloaded envを分け、disk defer後もrunnable waiterが進む自然証拠を保存する。既存testは`runtime/host/tests/test_resource_admission.py::test_defer_cooldown_never_shortens_a_suspended_owner` |
+| FD04-A | #8355でagent slot外へ移したpaid pollerの既存owner | model agent枠が塞がった自然窓でpollerの公式readbackを確認する | 同一owner/occurrenceへ結合し、browser/provider quotaを侵さない。別scheduler/枠増加は加えない |
+| FD05-A | 既存revenue ownerの自然run・queue・CFO/provider receipts | floor・admission採用後の同じ観測窓をsource前後で結合する | queue wait、disk growth、失敗/欠落/重複、settled revenue/costを記録。run数を売上に置換しない |
+
+FD-06へ進んだ後の次atomはOC-012。下表は移行source atomsの先頭順で、その後のowner移行・scheduler transfer・退役は同じplan/manifestを依存順で実行する。
 
 | 順 | ID・具体的変更 | 検証・完了条件 |
 |---|---|---|
@@ -7463,7 +7563,7 @@ retry0 privateglobalinstance + projectSettingsPolicy=ignoreの追加fake2cases�
 
 目的: 管理下の保存量増大/実ENOSPCから仕事を欠落/重複させず復旧し、現行とOpenClawで共通利用する。範囲: 既存inventory/governor/stdio/retention/recoveryの改善。完了: source→main immutable→owner限定idle反映→翌日の自然成果と保存量の照合。実装・main統合・DS15の安全な対象限定反映を実行する。稼働中仕事・保護データ・他ownerは変更しない。
 
-正確なfile/function/contract/test/commandは `docs/superpowers/plans/2026-10-09-storage-foundation-first.md`。旧順=OC012→OpenClaw残233atom。新順=DS01–17→OC012→OpenClaw残233atom。理由=live空き約0.57GiB/cleanup回復unmetとuserのstorage先行指示。現在cursor=DS14。既存の外部effectを中断/二重実行しない。
+正確なDS01–17 file/function/contract/testは`docs/superpowers/plans/2026-10-09-storage-foundation-first.md`。DS01–13 source complete。旧順=DS01–17を再実装してOC012。新順=FD02-A fresh inventory→FD02-B growth attribution→FD02-C current source acceptance→FD02-D owner apply evidence→FD02-E next-day→FD02-F final verdict→FD03/04/05 natural capacity/business checks→OC012。現在cursor=FD02-A。DS14–17 evidence JSONはmain84c56e11/10-09 rolloutのため更新が必要。既存の外部effectを中断/二重実行しない。
 
 - [x] DS01 source: `runtime/loop/central_cleanup.py` — `host_cleanup_readback(returncode, stdout) -> tuple[bool, dict]`。cleanup実行成功と容量回復を別の値として返す。okの既存意味は維持。trusted runnerからowner/run/occurrence/releaseをreceiptへ付け、capacity_recovery.status=met|unmet|unknownを失わない。低容量だけを理由にcleanupを失敗・全producer停止にしない。
 - [x] DS02 source: `runtime/loop/health.py; runtime/loop/health.schema.json; runtime/loop/health_observer.py; runtime/loop/lm_loop.py` — `project_health(rows, *, scope, storage_snapshot=None) -> dict`。host_storageを閉じた任意top-level項目としてschema生成元へ追加し、生成JSONを同期する。executionとcapacityをCLIで別表示。lm_loop.py::mainのhealth/status callerがvalidated storage_snapshotをproject_healthへ渡す。run/occurrence/release一致とsnapshot時間を確認し、古いreceiptを現在の回復証拠にしない。容量変化の通知は既存local alert経路だけ。
@@ -7498,7 +7598,7 @@ retry0 privateglobalinstance + projectSettingsPolicy=ignoreの追加fake2cases�
 目的: 既存agentを止めず、専用worktreeで移行接続を実装する。完了条件: 関連テスト、read-only review、commit/push、PRのsource証拠。自然仕事・公式receiptを確認するまで本番移行完了としない。
 範囲: `runtime/openclaw/` のportable paths、closed request、stable identity、排他的dispatch保存、private Gateway境界。既存runner/registry/auth/launchd/注文stateへ未接続。
 設計参照: docs/main-agents-readiness branchの `2026-10-07-main-agents-readiness.md` OC/NC/MI atoms。
-順序変更: 旧=OC001/014/NC02→Gateway。新=OC001–006→OC007–013→profile/native fence→domain/admission接続→owner移行。理由: profileを本番検証する前に、再送防止とsecret境界をsourceで成立させる。OpenClaw内cursor=OC012。開始条件は本書「OpenClaw 現況監査と移行の再開条件」を参照（旧DS01–17一括待機を置換）。
+順序変更: 旧=OC001/014/NC02→Gateway。新=OC001–006→OC007–013→profile/native fence→domain/admission接続→owner移行。理由: profileを本番検証する前に、再送防止とsecret境界をsourceで成立させる。移行atomの先頭はOC012。全体cursorはFD02-Aで、FD02–FD05 acceptance後にFD06としてOC012から再開する。
 - [x] OC001 lock: `runtime/openclaw/package.json`/lockに公開5package exact version/integrity。既存probe lock再利用、package-lock-only/ignore-scripts完了。公開runtime conformanceはOC012へ未完として分離。
 - [x] OC002: `paths.mjs::resolveHarnessPaths` 既存data root再利用。
 - [x] OC003/004: `protocol.mjs::validateRunRequest/buildRunIdentity` closed v2、同task stable key、fresh task session。
@@ -7522,7 +7622,7 @@ Independent review: 3件の実不具合（再接続readiness、digest型coercion
 
 全file/function/contract/testは `docs/superpowers/plans/2026-10-09-openclaw-remaining.md`、機械展開は `docs/research/openclaw-remaining-atoms.json`。baseline `c7b1e491bd9fb6a212dd1c8a5f05ccd9ffef70f4`、最新catalog 18分類/113job（finite 95、continuous 18）。残233atomはsource/native/caller/product binding/idle cutover/schedule自然確認/退役をすべて含む。旧111jobからebook-en-instagram-dailyとlife-manager-anicca-en2-affirmation-tiktokが追加。engine自然確認はE-productの18atomとしてS前提へ分離する。OC048は現行 `_dispatch_reserved` が対象。OC008はtext境界済みだが画像/continuation接続をfollow-up未完として明示する。
 
-順序更新: 旧=V全完了後にF installer/docs、新=F01/02/03/05/06のsource+isolated fixtureを本番移管前に完了し、A/S/V後にF04退役/F07最終。理由=現在の本番を維持したまま実装できる仕事を先に終える。既存の外部effectは中断/重複しない。OpenClaw内cursor=OC012。開始条件は本書「OpenClaw 現況監査と移行の再開条件」を参照（旧DS01–17一括待機を置換）。既存loopを永久に一切変更しない条件では本番移行完了は成立しないため、進行中runを止めずidle ownerの次の仕事だけ移す。
+順序更新: 旧=storage DS01–17後にOC012を即開始。新=FD-02 fresh disk/growth evidence→FD03/04 natural capacity check→FD05 same-business result→FD06/OC012。OpenClaw内最初のatomはOC012のまま。既存worker/schedulerはowner単位で移し、進行中runは完走させる。
 
 ## Host disk recovery incident
 
@@ -9021,7 +9121,7 @@ Source / cursor follow-up (2026-10-08 12:52 JST): docs PR #7048はmerge commit `
 **現在cursor:** A5; owner lease `codex-cfo-a5` remains active until `2026-10-08T03:18:04Z`.
 ## 現行容量基盤を先行する
 
-Daisが現行基盤を先に実装し、安定後にOpenClawへ進む順を指定。旧順序=OC-001以降、新順序=FD-01 bounded stderr replay→FD-02 disk producer budget/retention→FD-03 phase slot→FD-04 readback容量→FD-05自然成果→FD-06 OpenClaw移行。現在cursor=FD-01、source実装着手。根拠はlarge child stderrの全量read/replayとwhole job slot占有。既存workflow/account/claim/scheduleを同時変更しない。[scope](2026-10-08-local-foundation-first.md)。
+Dais指定の順序は現行worker基盤→OpenClaw。旧順序=OC-001以降、新順序=FD-01→FD-02→FD-03→FD-04→FD-05→FD-06。FD-01はmain sourceへ統合済み。2026-10-20時点のcursor=FD02-A fresh inventory/growth attribution。理由は空き約3.6GiB、10GiB revenue floor未達、host inventoryが9/24でstale、最新health snapshotにhost_storageがないこと。既存workflow/account/claim/scheduleは同時変更しない。[scope](2026-10-08-local-foundation-first.md)。
 
 ### 2026-10-08 11:36 JST — eBook Monk latest cursor and atomic path
 
@@ -18500,7 +18600,7 @@ The RRC terminal 18de4dff63700100-20669 at 05:34:21Z ended entrypoint_exit_1 aft
 
 ## Capafy運用トラッカー 2026-10-12 — 10K MRRに向けたAs-is / To-be / 原子的TODO
 
-**目的と範囲:** Anicca seller accountでCapafy Agentを販売し、真の継続課金MRRを月$10,000にする。最初の収益milestoneは2026-10-03後の有料注文で、既定readbackの `orders > 70` かつ `gross_usd > $102.75` を満たすこと。これは売上・MRRの最終達成条件ではない。この節をCapafyの唯一のTODO cursorとする。今回はこのSSOT節だけを更新し、loop・Agent・投稿・設定・stateは変更しない。
+**目的と範囲:** Anicca seller accountでCapafy Agentを販売し、真の継続課金MRRを月$10,000にする。最初の収益milestoneは2026-10-03後の有料注文で、既定readbackの `orders > 70` かつ `gross_usd > $102.75` を満たすこと。これは売上・MRRの最終達成条件ではない。現在のCapafy実行cursorは冒頭「現況監査とCapafy優先の統括cursor」C1–C9を参照する。本節はT0–T13の詳細と過去観測を保持する。今回はこのSSOT節だけを更新し、loop・Agent・投稿・設定・stateは変更しない。
 
 **不変条件:** `skills/capafy/FROZEN.json` の5 sellers（Hook Lab `8123079349`、TikTok Script Pro `2844813315`、Marketing Strategist `9563867391`、YouTube Script Writer `7686597754`、Slide Maker `8828622062`）は編集・再提出しない。販売済みAgentは配信対象として扱い、改善は非sellerと新規Agentで行う。未公開の新Agentは最大5枠。PR #7722/#7726により、live Agentの次version draftは新規Agent枠を消費しない。PR #7730のCP1 step 5bは新必須項目 `毎日の無料クォータ` に `毎日の無料クォータなし` を選ぶ。
 
@@ -18636,7 +18736,7 @@ Capafy公式Xの公開indexには、Ocupの100 sales紹介と、あるcreatorの
 
 `capafy_hourly_reconcile.py` はtraffic endpointを最大60 Agentsに対して取得する。`capafy_scoreboard.py` はsource/CT text summaryとAgent別日次snapshotを出力する。日次scorecardは同一windowでAgent×source×campaignを一行にし、raw event countとunique visitorを分け、`observed_at`/receipt freshness・scope・null reasonを必ず表示する。source別paidの合計とaccount seller ordersは独立系列として照合し、重複を足し上げない。`profit*_actual`を実費後最終利益と表示せず、20% fee仮定が残る間は80% revenue proxy由来のactual-cost contribution estimateと表示する。現行実装にないdashboard fieldやlead数を「ある」と扱わない。
 
-### 原子的な残TODO（唯一の順序・statusは2026-10-12 17:01 JST時点）
+### T0–T13詳細と過去status（現在の順序・cursorは冒頭C1–C9参照）
 
 各atomのownerはAniccaのCapafy運用loop/scoreboard。Daisへの質問・作業依頼はしない。`FROZEN.json` sellersの編集は禁止。ここでは記載更新とread-only調査だけを実施し、下記運用作業は実行していない。
 
@@ -19290,7 +19390,7 @@ Order of preference (Ponytail): existing `apps/life-manager/eval/` runner and pl
 - Reason: high publication/runtime volume has not produced paid outcomes; 74 report=pass events are not publication receipts. The audited ledger has65 site records/62 X PUBLISHED and provider registered CT7 (blog2/IG5, X0), with paid0. CD1 closes measurement gaps and CD2–CD5 test reach/activation; this is not proof that every visitor only lacked awareness.
 - Old Capafy order: T0 → T1 → T2 → T3 → T4 → T5 → … → T14.
 - New Capafy order: T0 → CD1 → CD2/CD3/CD4/CD5 (parallel, separate owners) → T2 → T3 → T4 remainder → CD6/CD7 → CD8 → CD9 → CD10. T1 fence/receipt proofs continue in parallel and no longer gate distribution work.
-- Current cursor: CD1 (claude-evo-eval-1012). No seller, price, trial or live listing was changed by this entry.
+- Current execution order and cursor: →「現況監査とCapafy優先の統括cursor」C1–C9。本節はCD/ED定義と過去baselineを保持する。
 
 ## Capafy verified state, winner benchmark, and execution cursor — 2026-10-14 10:02 JST
 
