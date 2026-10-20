@@ -252,7 +252,8 @@ try:
            and type(status) is int and status == 0
            and latest.get("agent_type") == "run_online")
     ready=bound and all(value is True or (type(value) is int and value == 1) for value in values)
-    unstarted=bound and all(value is False or (type(value) is int and value == 0) for value in values)
+    unstarted=(bound and latest.get("readback_fields_explicit") is True
+               and all(value is False or (type(value) is int and value == 0) for value in values))
     print("READY" if ready else "UNSTARTED" if unstarted else "BLOCKED")
 except (KeyError, TypeError, ValueError):
     print("BLOCKED")')"
