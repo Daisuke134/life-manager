@@ -300,7 +300,7 @@ life-manager/
 ## Task T14: 休眠しても起きるscheduleを公開する
 
 **Files:** Create `lib/maritime-manager-schedules.js`/test、Modify `maritime/server.js`/test、runtime adapter/test。既存`user-tz.js`と`honne-ja-shadow-schedule.js::zonedSlotInstant`でtimezoneを扱い、別schedulerは作らない。
-**Interfaces:** `/schedules` returns `{id,nextRunAt,prompt,enabled}`の配列。永続snapshotは`/data/<tenant>/maritime-schedules.json`。`transport.writeScheduleSnapshot({uid,agentId,schedules})`は公式files/writeでこのpathだけを更新し、serverは各GETで読み直す。ID=`lm-cycle:<uid>`/`lm-report:<uid>`。nextRunAtはpersisted UTC instant。保存envelope=`{schema_version:1,tenantId,releaseSha,paused,schedules}`、最大cycle/report各1件。`projectMaritimeSchedules({tenantId,releaseSha,status,pausedAt,nextEligibleAt,timezone,nowMs})`が投影を返し、`readMaritimeSchedules({tenantId,releaseSha,dataRoot})`は毎回同tenantのfileを読んで配列だけを返す。未作成は空配列、破損・別tenant・symlinkは503として既存wakeを誤解除しない。
+**Interfaces:** `/schedules` returns `{id,nextRunAt,prompt,enabled}`の配列。永続snapshotは`/data/<tenant>/maritime-schedules.json`。`transport.writeScheduleSnapshot({uid,agentId,snapshot})`は公式files/writeでこのpathだけを更新し、serverは各GETで読み直す。ID=`lm-cycle:<uid>`/`lm-report:<uid>`。nextRunAtはpersisted UTC instant。保存envelope=`{schema_version:1,tenantId,releaseSha,paused,schedules}`、最大cycle/report各1件。`projectMaritimeSchedules({tenantId,releaseSha,status,pausedAt,nextEligibleAt,timezone,nowMs})`が投影を返し、`readMaritimeSchedules({tenantId,releaseSha,dataRoot})`は毎回同tenantのfileを読んで配列だけを返す。未作成は空配列、破損・別tenant・symlinkは503として既存wakeを誤解除しない。
 **Depends:** T13。
 
 - [ ] T14.1 test `schedules_publish_persisted_next_occurrence_and_pause_removes_it`を定義。server再起動後も同じnextRunAt、pausedは配列から消える。
@@ -311,7 +311,7 @@ life-manager/
 ## Task T15: custom containerのcreateをidempotentにする
 
 **Files:** Create `lib/transport/maritime-manager.js`/test、Modify manager storeのbinding。
-**Interfaces:** `createMaritimeManagerTransport({env,fetchImpl,client})`は`ensureAgent({uid,imageDigest,releaseSha}) -> {agentId,status}`、`dispatchCycle/readExecution`（固定する境界参照）、`readCycleReceipt({uid,agentId,occurrenceId}) -> {dateKey,releaseSha,result}`（保存envelope。`result`は公式executionのcaptured stdoutのJSONと一致させる。providerSnapshotは中央collectorから別取得）、`writeScheduleSnapshot({uid,agentId,schedules}) -> {ok}`をproduces。receipt/schedule pathはtenant/occurrenceから構成し、request指定の任意absolute pathを受けない。
+**Interfaces:** `createMaritimeManagerTransport({env,fetchImpl,client,managerStore,getWakeBinding,loadSdk})`は`ensureAgent({uid,imageDigest,releaseSha}) -> {agentId,status}`、`readAgent({uid,imageDigest,releaseSha}) -> {agentId,status}`（provider読取と既存binding回収のみ、POST createなし）、`dispatchCycle/readExecution`（固定する境界参照）、`readCycleReceipt({uid,agentId,occurrenceId}) -> {dateKey,releaseSha,result}`（保存envelope。`result`は公式executionのcaptured stdoutのJSONと一致させる。providerSnapshotは中央collectorから別取得）、`writeScheduleSnapshot({uid,agentId,snapshot}) -> {ok}`をproduces。receipt/schedule pathはtenant/occurrenceから構成し、request指定の任意absolute pathを受けない。`managerStore`は既存read/claimProvision/bindAgent、`getWakeBinding({uid,releaseSha})->{url,token}`はT16のtenant固定relay設定をinjectする。初期envにUID/SHA/relayを渡し、custom framework/image/HMAC externalIdと非secret UID/SHAの公式env readbackを照合してからbindする。SDKが持つagents.get/listEnv/files.download/writeを再利用し、SDK未対応のend-user custom createとdetached execだけ公式RESTを直接呼ぶ。
 **Depends:** T03/T12/T13。
 
 - [ ] T15.1 test `custom_create_never_uses_default_openclaw_and_lost_response_does_not_recreate`を定義。POST body `framework:'custom'`、immutable `imageName`、HMAC externalId、response喪失後はlistのみをassert。

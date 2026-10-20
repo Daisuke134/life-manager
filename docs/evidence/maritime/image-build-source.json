@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-10-20T15:46:39.997038+00:00",
+  "source_sha": "8d7d4474a357303a87ad3dd7acf1920b6cb77030",
+  "archive_sha256": "063a9f169b7287a62bf3e8a2bb0ebc932b478ff1390bfdbfa2a4edc9a1142024",
+  "size_bytes": 91195182,
+  "unpacked_bytes": 156911279,
+  "file_count": 8683,
+  "archive_mode_600": true,
+  "dockerfile_matches_main": true,
+  "publisher_profile_source_present": true,
+  "uploaded": false,
+  "image_built": false,
+  "image_digest": null
+}
