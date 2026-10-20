@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Capafy offline source completion",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "evidence", "source_commit", "candidate_slug"],
+  "properties": {
+    "status": {"type": "string", "enum": ["success", "no_op", "failure"]},
+    "evidence": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "source_commit": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{40}$",
+      "description": "Full main-accepted commit for the completed candidate; null on failure."
+    },
+    "candidate_slug": {
+      "type": ["string", "null"],
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "New directory under skills/capafy/catalog; null on failure."
+    }
+  }
+}
