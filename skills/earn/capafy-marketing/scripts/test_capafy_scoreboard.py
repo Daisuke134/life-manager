@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from capafy_scoreboard import build_scoreboard, render_text, snapshot_rows, compare_changes, append_snapshot_jsonl
 
 ANALYTICS = {
-    "account_totals": {"last_30d": {"gross_usd": "82.77", "orders": 78}, "cost30_actual_usd": "34.50", "net30_usd": "66.22"},
+    "account_totals": {"last_30d": {"gross_usd": "82.77", "orders": 78}, "cost30_actual_usd": "34.50", "net30_usd": "66.22", "profit30_actual_usd": "31.72"},
     "balances": {"balance_payout_usd": "59.00", "balance_pending_usd": "11.02", "paid_out_usd": "0.00"},
     "per_skill_rows": [
         {"agent_id": "1", "name": "Hook Lab", "status": "online", "stats_30d_orders": 11, "stats_30d_revenue_usd": "24.89", "cost_30d_actual_usd": "0.34", "stats_7d_orders": 11, "stats_7d_revenue_usd": "24.89"},
@@ -23,11 +23,38 @@ RECONCILE = {"traffic_sources": {"by_agent": {"1": {"last_30d": {"by_source": [
 
 def test_scoreboard_separates_money_stages_and_flags_zero_streak():
     b = build_scoreboard(ANALYTICS, RECONCILE)
-    assert b["money"] == {"gross_30d": "82.77", "earnings_after_cost_30d": "66.22", "cost_30d": "34.50",
+    assert b["money"] == {"gross_30d": "82.77", "after_fee_estimate_30d": "66.22", "contribution_estimate_30d": "31.72", "cost_30d": "34.50",
                           "payout_waiting": "59.00", "pending": "11.02", "bank_received_total": "0.00"}
+    text = render_text(b)
+    assert "手数料推計後 $66.22 / OpenRouter実費 $34.50 / 寄与推計 $31.72" in text
+    assert "全費用後の確定利益は未確認" in text
     assert b["zero_revenue_streak_days"] == 2
     assert b["skills"]["selling"] == 1 and b["skills"]["never_sold"] == 1
     assert b["funnel"]["search"] == {"views": 100, "paid_orders": 2, "sales_usd": "9.98"}
+
+
+def test_missing_contribution_is_unknown_without_fee_or_zero_fallback():
+    for missing in (None, ""):
+        analytics = {**ANALYTICS, "account_totals": {
+            **ANALYTICS["account_totals"], "cost30_actual_usd": None,
+            "profit30_actual_usd": missing,
+        }}
+        text = render_text(build_scoreboard(analytics, RECONCILE))
+        assert "手数料推計後 $66.22 / OpenRouter実費 未確認 / 寄与推計 未確認" in text
+        assert "$None" not in text
+
+
+def test_zero_and_negative_contribution_are_not_unknown_or_clamped():
+    for gross, net, cost, contribution in (
+        ("6.25", "5.00", "5.00", "0.00"),
+        ("1.25", "1.00", "3.50", "-2.50"),
+    ):
+        analytics = {**ANALYTICS, "account_totals": {
+            "last_30d": {"gross_usd": gross}, "net30_usd": net,
+            "cost30_actual_usd": cost, "profit30_actual_usd": contribution,
+        }}
+        text = render_text(build_scoreboard(analytics, RECONCILE))
+        assert f"寄与推計 ${contribution}" in text
 
 
 # Capafy reports a ct= link's visits as sourceType="ct" sourceName="<token>" and a matching
@@ -148,6 +175,8 @@ def test_compare_changes_skips_not_yet_due():
 
 if __name__ == "__main__":
     test_scoreboard_separates_money_stages_and_flags_zero_streak()
+    test_missing_contribution_is_unknown_without_fee_or_zero_fallback()
+    test_zero_and_negative_contribution_are_not_unknown_or_clamped()
     test_scoreboard_merges_ct_and_campaign_rows_per_token()
     test_render_text_prints_one_line_per_ct_token()
     test_render_text_has_no_ct_lines_when_no_ct_rows()
