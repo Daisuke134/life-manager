@@ -102,6 +102,10 @@
 
 **今回の検証と未完:** 稼働snapshotと保存済み公式数値、公開listing、4研究の一次資料を確認する。docs-onlyのため製品コード/依存追加や広いtest suiteは実施しない。数値整合・JSON・差分・独立read-only反証・PR/CI/mainの統合証拠は本作業の完了報告へ記す。基盤/全18業務収益化/C1–C9の実行完了は主張しない。
 
+### C1実行：配信unknownのexact occurrence照合
+
+目的はCapafy配信ownerを公式証拠で復旧し、自然配信・計測・実売上へ続けること。Daisの「一件ずつ最後まで」の明示により、前回のdocs-only境界を実装・必要検証・通常反映まで広げる。現在cursorはC1、対象occurrenceは`capafy-distribute-daily:18dfe7df67227730-86894`。最新statusの保持理由は`x_post_without_article`。manifestはslot`2026-10-19-h19m30`/slug`tiktok-script-for-coaches`、実行開始10/19 10:35:23Z→exit1 10:35:48Z。既存registered adapter、実runの入力/出力、GitHub/page/Postizの公式readbackを照合して原因を一段ずつ狭める。source所有は`fix/capafy-distribute-c1-20261020`、worktree`.worktrees/capafy-distribute-c1-20261020`、owner`codex-capafy-c1`。FROZEN sellers、他者のbrowser/state、他のprovider効果は変更しない。root causeがsourceなら最小RED→修正→focused acceptance/独立検証→PR/main→通常immutable/対象owner採用→exact registered reconciliation→自然terminal/公式readbackへ進む。証拠前のfence解除・再送や手動publicationを行わない。C1の完了はreceiptでeffectを確定し再送0を確認することで、会社収益・C2–C9の完了には置換しない。
+
 ### 同時進行の基盤監査との統合
 
 [PR #8409](https://github.com/Daisuke134/life-manager/pull/8409)の追加観測と[PR #8408](https://github.com/Daisuke134/life-manager/pull/8408)のOpenClaw更新を保持する。source研究の固定base70a5e365と、統合時main4dcb2769を区別する。別監査の14:23Z `df`は3,743,008KiB（約3.57GiB）、swap7,167MiB/8GiB、corespotlightd RSS約25MiB（14:23Z）/約168MiB（14:10Z）。10/19の約16GBという旧原因観測を現在へ持ち越さず、現在の容量writerは未特定のままとする。一般producer12GiB / revenue producer10GiB / recovery2GiBを別々に評価する。
