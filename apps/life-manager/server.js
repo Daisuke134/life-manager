@@ -55,6 +55,7 @@ const {
 const { sendPanelLink, handlePanelRequest, handleMoneyPrinterGuestRequest, panelDeviceCodeFromCommand, confirmPanelDeviceCode, cookieValue, sessionScope, panelScopeCookie, claimTelegramWebhookActor } = require("./lib/panel-auth.js");
 const { handleWebAuthRequest, resolveWebUser, signedOutCalendarHandoffLocation } = require("./lib/web-auth.js");
 const { handleMaritimeManagerAuth, handleMaritimeManagerActivate, handleMaritimeManagerPage } = require("./lib/maritime-manager-auth.js");
+const { handleMaritimeManagerArtifact } = require("./lib/maritime-manager-artifacts.js");
 const { handleMaritimeManagerWake } = require("./lib/maritime-manager-wake.js");
 const { handleWebCalendarRequest } = require("./lib/web-calendar.js");
 const { handleWebTravelRequest, buildTodaySnapshot } = require("./lib/web-travel.js");
@@ -623,6 +624,14 @@ async function recordStripeWebFunnelEvent(event, billingResult) {
 
 const server = http.createServer(async (req, res) => {
   const path = (req.url || "").split("?")[0];
+  if (path.startsWith("/maritime/artifacts/")) {
+    handleMaritimeManagerArtifact(req, res, { publicOrigin: LM_PANEL_BASE }).catch(() => {
+      if (res.headersSent) { res.end(); return; }
+      res.writeHead(503, { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" });
+      res.end("ファイルを取得できません。");
+    });
+    return;
+  }
   if (path === "/maritime") {
     handleMaritimeManagerPage(req, res, { publicOrigin: LM_PANEL_BASE, telegramAvailable: maritimePublicEntryReady() }).catch(() => {
       if (res.headersSent) { res.end(); return; }

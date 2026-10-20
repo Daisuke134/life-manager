@@ -45,3 +45,11 @@ test('path traversal, NUL, encoded separators and unsupported methods cannot rea
  const res=response();await handleMaritimeManagerArtifact({method:'POST',url:base},res,f.options);assert.equal(res.status,405);
  assert.equal(f.calls.length,0);
 });
+test('HTTP artifact response is an attachment and preserves verified bytes',async t=>{
+ const http=require('node:http');const {once}=require('node:events');const f=fixture();
+ const server=http.createServer((req,res)=>{handleMaritimeManagerArtifact(req,res,f.options).catch(()=>{res.writeHead(500);res.end();});});
+ server.listen(0,'127.0.0.1');await once(server,'listening');t.after(()=>new Promise(resolve=>server.close(resolve)));
+ const response=await fetch('http://127.0.0.1:'+server.address().port+buildMaritimeArtifactPath({jobId:f.job.job_id,artifactRef:f.ref}));
+ assert.equal(response.status,200);assert.match(response.headers.get('content-disposition'),/^attachment;/);
+ assert.equal(await response.text(),'original product');
+});

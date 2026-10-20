@@ -20839,7 +20839,7 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | T15 | custom create・detached exec/resultの重複防止adapter | 基本source #8415/main7d6adbbd43。実APIにimageName/digestが無いため、実績のあるuploadS3Key/private＋archive SHA256＋source SHAへ補正、独立review指摘0。custom/HMAC externalIdとUID/source/archive公式envを照合してbindし、実コードは別health/byte probeで確認。#8421未統合。署名/外部IDは専用LM_MARITIME_MANAGER_ID_SECRETで統一、globalとは別fixtureで回帰確認 |
 | T16 | 一tenant tokenのwake relay・secret・初回wake配線 | #8421 source実装/CI待ち。署名uid/agent/source SHA、bootstrap拒否、body ID無視、initial job固定、停止/未登録worker拒否。configureWakeはactive同bindingだけSDK setEnv(secret)/reload、専用key混同をRED→GREEN修正。関連80/80 PASS。health確認/provision/worker continuation/本番secret設定は未完 |
 | T17 | Cloudで一件の正規publishとofficial status確認 | T16後、売上発生自体は待たない |
-| T18 | 作業/売上/費用/未確認を分ける日次結果 | 集計・本文source実装。既存Financial Managerの集計/formatterを再利用し、同tenant/日付/通貨/coverageを検査。成果物・証拠参照と保留理由を保持し、売上/返金/入金/費用/利益を分離。費用欠落・UNKNOWN通貨・概算単位では利益未確認。独立reviewの2指摘を回帰RED→GREEN、関連28/28 PASS。成果物の利用者向けdownload URLと実worker/メール配線は未完 |
+| T18 | 作業/売上/費用/未確認を分ける日次結果と成果download | sourceは#8424で実装/CI待ち。既存金融集計/formatter/CFO、認証cookie/queue/cycle proofを再利用。成果参照と保留理由を保持し、通貨・coverage欠落は未確認。成果downloadは同uid/jobの公式完了receiptに含まれるfileのみ、dirfd/no-follow/size/hashとbounded streamで照合しattachment返却。モデルはuid10001/caps0/no-new-privs、rootの/app検証器を変更できない。隔離native Linuxで実測済み（実モデル未反映）。リンク/HTTP/配信の関連22/22 PASS。新image/helper/実worker/公開URLとメール着信は未確認 |
 | T19 | 既存CFO/Resendへの一日一通配信 | source wrapper実装。最新active/非停止enrollmentのemailを読み、同tenant/period/date/timezoneとobservedAtを検証して既存CFO配信へ渡す。同日replayは元provider ID、送信1回を確認。関連17/17 PASS。実worker接続/送信/受信箱readbackはT16/T22で未完 |
 | T20 | 停止を次のjob/schedule/配信へ反映 | T14/T19後 |
 | T21 | 登録と業務完了を分けたsource別funnel | T05/T11/T19後 |

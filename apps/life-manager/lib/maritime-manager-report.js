@@ -82,15 +82,20 @@ function buildMaritimeDailyResult({enrollment,periodKey,actionReceipts=[],financ
  }
  return {schemaVersion:1,tenantId:uid,periodKey,date:day,timezone,actions,work,financial,publicationStatus:'unconfirmed'};
 }
-function renderMaritimeDailyEmail(result){
+function renderMaritimeDailyEmail(result,options={}){
+ const origin=options.publicOrigin?require('./web-auth.js').publicOrigin(null,{publicOrigin:options.publicOrigin}):null;
+ const {buildMaritimeArtifactPath}=require('./maritime-manager-artifacts.js');
  const amount=metric=>metric.status==='unknown'?'未確認':metric.amounts.map(formatFinancialAmount).join(' / ')+(metric.status==='observed'?'（確認済み小計）':'');
  return [
   `Life Managerの日次報告（${result.date}）`,
   '', '今日実行したこと',
-  `確認できた仕事：${result.actions.completedCycles}件。作成したファイル：${result.actions.artifactCount}件。`,
-  ...result.work.flatMap(work=>work.artifactRefs.map(ref=>'作成：'+ref.slice('artifact://'.length))),
+  `確認できた仕事：${result.actions.completedCycles}件。成果物の記録：${result.actions.artifactCount}件。`,
+  ...result.work.flatMap(work=>work.artifactRefs.flatMap(ref=>[
+   '成果物：'+JSON.stringify(ref.slice('artifact://'.length)).slice(1,-1),
+   ...(origin?[origin+buildMaritimeArtifactPath({jobId:work.jobId,artifactRef:ref})]:[]),
+  ])),
   '', '確認できた成果と売上',
-  '公開状況：未確認。ファイル作成を公開・販売の完了とは数えていません。',
+  '公開状況：未確認。',
   `売上：${amount(result.financial.gross)}`,
   `返金：${amount(result.financial.refunds)}`,
   `入金：${amount(result.financial.payouts)}`,
@@ -119,7 +124,9 @@ async function deliverMaritimeDailyResult({enrollment,result,observedAt}={},deps
   const error=new Error('maritime_daily_delivery_inactive');error.unknownEffect=false;throw error;
  }
  if(typeof current.email!=='string'||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(current.email))invalid();
+ const origin=result.work.some(work=>work.artifactRefs.length)
+  ?require('./web-auth.js').publicOrigin(null,{publicOrigin:deps.publicOrigin,env:deps.env||process.env}):null;
  return require('./cfo-cloud-delivery.js').deliverCloudCfoEmail({uid,periodKey:result.periodKey,
-  message:renderMaritimeDailyEmail(result),observedAt,recipient:current.email},deps);
+  message:renderMaritimeDailyEmail(result,{publicOrigin:origin}),observedAt,recipient:current.email},deps);
 }
 module.exports={buildMaritimeDailyResult,renderMaritimeDailyEmail,deliverMaritimeDailyResult};

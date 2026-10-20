@@ -57,6 +57,12 @@ life-manager/
 │   │   ├── maritime-manager-auth.js                [追加: email auth専用handler]
 │   │   ├── maritime-manager-runtime.js             [追加: 既存jobからfactoryを呼ぶadapter]
 │   │   ├── maritime-manager-report.js              [追加: tenant結果→既存CFO email]
+│   │   ├── maritime-manager-artifacts.js           [追加: 認証cookie/検証済み成果download]
+│   │   ├── maritime-manager-artifacts.test.js      [download/tenant/HTTP境界]
+│   │   ├── maritime-manager-wake.js               [追加: agent-bound wake→既存queue]
+│   │   ├── maritime-manager-wake.test.js          [署名/停止/initial dedup]
+│   │   ├── maritime-manager-schedules.js          [追加: 既存timezoneからnextRunAt投影]
+│   │   ├── maritime-manager-schedules.test.js     [永続snapshot/欠損/隔離]
 │   │   ├── maritime-manager-store.test.js           [store境界]
 │   │   ├── maritime-manager-auth.test.js            [auth/activate/page/stop境界]
 │   │   ├── maritime-manager-runtime.test.js         [queue/dispatch/reconcile境界]
@@ -74,7 +80,13 @@ life-manager/
 │   │       └── maritime-manager.test.js            [追加予定]
 │   ├── maritime/
 │   │   ├── server.js                               [追加: health/chat/schedules、短いHTTP]
-│   │   ├── server.test.js                          [追加予定]
+│   │   ├── server.test.js                          [health/chat/schedules HTTP]
+│   │   ├── runtime-env.js                         [追加: 専用model config/tenant OS所有権]
+│   │   ├── runtime-env.test.js                    [実runner profile契約]
+│   │   ├── run-cycle.js                           [追加: 非root factory child]
+│   │   ├── run-cycle.test.js                      [argv/環境/失敗時fallbackなし]
+│   │   ├── artifact-proof.py                      [追加: no-follow/size/hashのread-only proof]
+│   │   ├── artifact-proof.test.js                 [POSIX名/越境/リンク/size境界]
 │   │   ├── Dockerfile                              [追加: 専用image、repo直下へ置かない]
 │   │   └── build-context.py                        [追加: tracked SHAからsecret抜きZIP]
 │   └── scripts/
@@ -346,7 +358,7 @@ life-manager/
 
 **Files:** Create `lib/maritime-manager-report.js`/test、`lib/maritime-manager-artifacts.js`/test。Modify `lib/financial-manager-report.js`（既存formatter export）、`lib/maritime-manager-runtime.js`（既存契約parser/参照validator export）、`lib/transport/maritime-manager.js`/test、`maritime/artifact-proof.py`/test（read-onlyのdirfd/no-follow/size/hash）、`server.js`（download route）。既存金融集計・認証cookie・queue/receiptを再利用する。
 **Interfaces:** `buildMaritimeDailyResult({enrollment,periodKey,actionReceipts,financialRecords,financialCoverage,costs}) -> DailyResult`、`renderMaritimeDailyEmail(result) -> string`。
-**入力契約:** actionReceiptsは中央queueの`{receipt,completedAt}`で、VM自己申告時刻を使わない。financialRecordsは同tenantのbusiness FinancialRecordのみ。financialCoverage/costsのcompleteは中央collectorの同tenant/period/timezone/evidence付き観測だけに付与する。欠落はunknownで、空配列だけから0を出さない。費用は観測小計とcoverageを分け、両coverage完備までprofitはunknown。既存Financial Managerの日付・通貨集計とformatterを再利用する。
+**入力契約:** actionReceiptsは中央queueの`{receipt,completedAt}`で、VM自己申告時刻を使わない。未確定jobは`{job,status,completedAt}`に中央で観測した時刻を渡し、架空の完了receiptを作らない。financialRecordsは同tenantのbusiness FinancialRecordのみ。financialCoverage/costsのcompleteは中央collectorの同tenant/period/timezone/evidence付き観測だけに付与する。欠落はunknownで、空配列だけから0を出さない。費用は観測小計とcoverageを分け、両coverage完備までprofitはunknown。既存Financial Managerの日付・通貨集計とformatterを再利用する。
 **Depends:** T10/T11Aのsource。T17の売上発生は待たない。
 
 - [ ] T18.1 test `daily_result_separates_artifact_publish_sales_payout_and_unknown_cost`を定義。商品作成だけなら売上0の観測がある場合のみ0、未取得は未確認、費用欠落で利益unknownをassert。

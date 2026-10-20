@@ -70,6 +70,10 @@ test('daily work uses verified cycle receipts, queue timestamps, and replay dedu
  assert.deepEqual(result.work[0].artifactRefs,['artifact://original/商品.md']);
  assert.deepEqual(result.work[0].evidenceRefs,[ref]);
  assert.match(renderMaritimeDailyEmail(result),/original\/商品.md/);
+ const linked=renderMaritimeDailyEmail(result,{publicOrigin:'https://manager.example'});
+ const artifactPath=require('./maritime-manager-artifacts.js').buildMaritimeArtifactPath({jobId:job.job_id,artifactRef:receipt.artifact_refs[0]});
+ assert.ok(linked.includes('https://manager.example'+artifactPath));
+ assert.throws(()=>renderMaritimeDailyEmail(result,{publicOrigin:'https://private@manager.example'}),/origin/);
  assert.match(renderMaritimeDailyEmail(result),/結果確認中：1件/);
  assert.throws(()=>buildMaritimeDailyResult({enrollment,periodKey,actionReceipts:[{...completed,receipt:{...receipt,tenant_id:'other'}}]}),/invalid/);
 });
@@ -109,4 +113,11 @@ test('paused, foreign, malformed report scopes and invalid timestamps do not sen
   await assert.rejects(deliverMaritimeDailyResult({...f.input,...patch},f.deps),/invalid/);
  }
  assert.equal(f.sends.length,0);
+});
+test('artifact emails require a configured real origin before claiming or sending',async()=>{
+ const f=deliveryFixture();const job=buildMaritimeManagerCycleJob({tenantId:UID,releaseSha:enrollment.release_sha,occurrenceId:'first',dateKey:'2026-10-21'});
+ f.input.result.work=[{jobId:job.job_id,artifactRefs:['artifact://product.md'],evidenceRefs:[],status:'completed',errorClass:null}];
+ f.deps.env={};await assert.rejects(deliverMaritimeDailyResult(f.input,f.deps),/origin/);assert.equal(f.sends.length,0);
+ f.deps.env.LM_PANEL_BASE_URL='https://manager.example';await deliverMaritimeDailyResult(f.input,f.deps);
+ assert.ok(f.sends[0].text.includes('https://manager.example/maritime/artifacts/'));
 });
