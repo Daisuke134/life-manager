@@ -1,0 +1,29 @@
+{
+  "observed_at": "2026-10-20T22:07:58.115616+00:00",
+  "scope": "isolated native PostgreSQL only; production settings unchanged",
+  "source_files_sha256": {
+    "apps/life-manager/migrations/20261021070000_lm_postgrest_startup_budget.sql": "a423f555fe67c2e4504023d6d12c0c1ef6bf34d233efcec3b5fb4488044f7d55",
+    "apps/life-manager/scripts/postgrest-startup-budget-rollback.sql": "9bbf028a1ea3b6fceb6374aaabe006a6e8961a813a2487552a6e0229bccd81b5",
+    "apps/life-manager/test/postgres/postgrest-startup-budget.integration.js": "d7e076c8e030b93aad0b3cd4db3c8ab4e5b5fe9668699b57c24abf16e3e8d18b"
+  },
+  "baseline_red": "old migration leaves fresh connection at15s; expected1min assertion fails",
+  "green": {
+    "ok": true,
+    "checks": [
+      "forward_replay",
+      "new_connection_60s",
+      "existing_connection_unchanged",
+      "normal_role_settings_preserved",
+      "lock_timeout_preserved",
+      "service_role_15s_explicit",
+      "rollback_replay_restores_original_catalog",
+      "rollback_requires_new_connection"
+    ]
+  },
+  "limitations": [
+    "PostgREST role-map loading is not simulated by the native PG fixture",
+    "60s timezone completion and API restoration are unproven",
+    "existing pooled connections keep their startup timeout until reconnected"
+  ],
+  "production_applied": false
+}
