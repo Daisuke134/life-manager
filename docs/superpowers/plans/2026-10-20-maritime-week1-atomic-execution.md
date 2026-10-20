@@ -26,7 +26,7 @@
 
 ## 現状と選定理由
 
-基準main=`5ce0fb939a`。既存`maritime-pilot.js`はOpenClaw chat-onlyで、factory接続ではない。`mail-resend.js`と`cfo-cloud-delivery.js`は存在するので再利用する。Capafy factoryにはHOME、認証、browser、mutable sourceの依存が残るため、T07–T10で具体的に移す。既存売上のあるfactoryを第一候補にするが、全ての新利用者が接続なしで販売可能とは仮定しない。
+計画改訂の基準main=`286e982bfe`。T02–T04のsourceは統合済み。状態・cursorはSpec正本だけで管理する。既存`maritime-pilot.js`はOpenClaw chat-onlyで、factory接続ではない。`mail-resend.js`と`cfo-cloud-delivery.js`は存在するので再利用する。Capafy factoryにはHOME、認証、browser、mutable sourceの依存が残るため、T07–T10で具体的に移す。既存売上のあるfactoryを第一候補にするが、全ての新利用者が接続なしで販売可能とは仮定しない。
 
 **採用:** 既存factory + Maritime custom runtime + 既存メール。最短で同じ業務を移せ、競技platform usageも残る。
 **棄却した最強案:** Keikiだけで新しい収益agentを組めば入口は速い。ただし既存factory/経費/receiptを別実装にしてしまうため主経路にしない。Keikiが必要なchannelを短縮すると確認できた場合だけ追加adapterにする。
@@ -40,7 +40,6 @@
 
 ```text
 life-manager/
-├── Dockerfile                                      [追加: Maritime custom imageのroot entry]
 ├── .dockerignore                                   [既存: credential/state除外を確認]
 ├── .agents/startup-context.json                     [既存: 製品定義]
 ├── .agents/product-marketing-context.md             [既存: copyの意味定義、#8395]
@@ -57,7 +56,10 @@ life-manager/
 │   │   ├── maritime-manager-auth.js                [追加: email auth専用handler]
 │   │   ├── maritime-manager-runtime.js             [追加: 既存jobからfactoryを呼ぶadapter]
 │   │   ├── maritime-manager-report.js              [追加: tenant結果→既存CFO email]
-│   │   ├── maritime-manager-*.test.js              [追加予定: 各境界のfocused contract]
+│   │   ├── maritime-manager-store.test.js           [store境界]
+│   │   ├── maritime-manager-auth.test.js            [auth/activate/page/stop境界]
+│   │   ├── maritime-manager-runtime.test.js         [queue/dispatch/reconcile境界]
+│   │   ├── maritime-manager-report.test.js          [結果/email境界]
 │   │   ├── maritime-distribution.js                [既存: email登録入口/計測へ変更]
 │   │   ├── web-auth.js                             [既存: UID/CSRF関数を再利用、Google guard維持]
 │   │   ├── runtime-job-store.js                    [既存: queue/lease/receipt]
@@ -71,7 +73,9 @@ life-manager/
 │   │       └── maritime-manager.test.js            [追加予定]
 │   ├── maritime/
 │   │   ├── server.js                               [追加: health/chat/schedules、短いHTTP]
-│   │   └── server.test.js                          [追加予定]
+│   │   ├── server.test.js                          [追加予定]
+│   │   ├── Dockerfile                              [追加: 専用image、repo直下へ置かない]
+│   │   └── build-context.py                        [追加: tracked SHAからsecret抜きZIP]
 │   └── scripts/
 │       ├── runtime-up.js                           [既存: adapter services wiring]
 │       ├── maritime-manager-readback.js            [追加: sanitizeしたdeploy/usage/result確認]
@@ -83,7 +87,11 @@ life-manager/
 │   │   ├── scripts/cloud_cycle.py                  [追加: tenant envで既存entryを一度呼ぶ]
 │   │   ├── scripts/publish_prepare.sh              [既存: CP1前半]
 │   │   ├── scripts/publish_finish.sh               [既存: CP2/CP3/readback]
-│   │   └── vendor/                                [既存: publisher/market API]
+│   │   ├── vendor/                                [既存: publisher/market API]
+│   │   └── test/
+│   │       ├── test_cloud_paths.py                 [追加: HOME非依存]
+│   │       ├── test_cloud_cycle.py                 [追加: 既存factoryの呼出し]
+│   │       └── test_maritime_build_context.py       [追加: ZIP境界]
 │   ├── self/capafy-loop/capafy-loop-daily.sh        [既存: 自律の商品生成/改善を再利用]
 │   └── earn/
 │       ├── marketing-engine/run_agent.sh           [既存: model判断]
@@ -104,7 +112,11 @@ life-manager/
         └── submission.json                         [T23で実測だけをexport]
 ```
 
-`requirements.json`/`readiness.json`/`submission.json`は実行taskで作る。未観測をfalse/0/完了へ置換しない。図は説明用artifactで、実装の代わりにしない。
+`requirements.json`はT01で観測済み。`readiness.json`/`submission.json`は実行taskで作る。未観測をfalse/0/完了へ置換しない。図は説明用artifactで、実装の代わりにしない。
+
+## コマンドの作業場所
+
+`node --test lib/...`と`node --test maritime/...`は`apps/life-manager`をcwdとして実行する。それ以外はrepo root。全taskで、そのtaskの失敗assertionを先に実行し、失敗理由が対象契約であることを確認してから実装する。実装のない段階で全suiteを走らせない。実行済み状態はSpec正本を参照する。
 
 ## 固定する境界
 
@@ -129,10 +141,13 @@ life-manager/
 ## 実行順と並行性
 
 - **提出経路確認T01、配布文案T24、台本T25は即着手可能。友人・利用実績を待たない。**
-- 開発critical path: T02→T03→T04→T05→T06→T07→T08→T09→T10→T11→T12→T13→T14→T15→T16→T17→T18→T19→T20→T21→T22→T23。
+- T32（実メール設定）はT04後から独立して進め、T22公開前に閉じる。数字順ではなく依存順で実行する。
+- T12は専用Dockerfile+sanitized ZIPへ訂正する。旧=root Dockerfile、新=`apps/life-manager/maritime/Dockerfile`。理由はRailwayの自動検出が既存サービスを変更するため。cursorはT06のsource統合待ちで変更しない。
+- 旧T12→T13はCMD対象server未作成のままbuildする逆依存だったため、T13→T14→T12へ訂正する。各taskの成果条件は保持する。
+- 開発critical path: T02→T03→T04→T05→T06→T07→T08→T09→T10→T11→T13→T14→T12→T15→T16→T17→T18→T19→T20→T21→T22→T23。
 - T24/T25/T26の素材準備は開発の外部待ち時間に進める。投稿は公開URLと真実のdemoが揃えば進め、3人feedback待ちにしない。
 - T23の正式提出は公開製品・公式指定必須項目が揃った時点で行う。友人3人、売上、7日継続、1,000人、豪華な動画を待たない。
-- T27/T28/T29で獲得・再利用・経済性を改善する。社内目標demo=10/23 18:00 JST、packet=10/24。公式deadlineがそれより早ければ公式を優先し前倒す。上記は公式締切ではない。
+- T27/T28/T29で獲得・再利用・経済性を改善する。T31でLM自身の任意課金とStripe実売上を別に確認する。社内目標demo=10/23 18:00 JST、packet=10/24。公式deadlineがそれより早ければ公式を優先し前倒す。上記は公式締切ではない。
 - 各taskのcommit対象はそのtaskのowned filesだけ。fetch→focused acceptance→commit/push→exact-head checks完了→main統合。未登録/null checkをgreenと見なさない。
 
 ## Task T01: 公式の提出先・初週期限を一つのファイルへ確定する
@@ -203,14 +218,14 @@ life-manager/
 
 ## Task T07: Capafy factoryのhost pathを注入可能にする
 
-**Files:** Modify `skills/self/capafy-loop/capafy-loop-daily.sh`、`skills/capafy-autopublish/scripts/daily_loop.sh`、該当する既存shell/path test。
+**Files:** Modify `skills/self/capafy-loop/capafy-loop-daily.sh`、`skills/capafy-autopublish/scripts/daily_loop.sh`。Create `skills/capafy-autopublish/test/test_cloud_paths.py`。
 **Interfaces:** Consume `LIFE_MANAGER_REPO`（immutable source）、`LIFE_MANAGER_STATE_HOME`、`CAPAFY_STATE_DIR`、`AGENT_RUNNER_WORKDIR`、`LIFE_MANAGER_BUILD_WORKSPACE`。Cloud callerは全て`/data/<tenant>`へbind。
 **Depends:** T02。
 
 - [ ] T07.1 既存scriptの`HOME/.local/state`、`.env`読込、mutable source要求、`/opt/homebrew`、Browser CDP呼出しを列挙し、変更対象行だけを`readiness.json.host_dependencies`へ記録する。
-- [ ] T07.2 隔離fixtureで明示envを渡したときだけそのtenant state/build workspaceを使い、親HOME/他tenantへwriteしない失敗caseを作る。既存Localのdefaultは維持する。
-- [ ] T07.3 上記path/envを先に尊重する最小変更をする。Cloudではownerのprivate `.env`を読まない。判断prompt、publish_prepare/finish、frozen_guard、売上証拠の既存契約は変えない。
-- [ ] T07.4 該当shell focused checkと`bash -n`を実行しcommit/push。既存Local loopの再起動やlaunchctlは不要。
+- [ ] T07.2 `test_cloud_paths.py::test_cloud_state_and_notifications_are_tenant_scoped`を追加する。temporary HOMEとtenant A/Bを使い、A実行でB/private .env/親HOMEへのwrite=0、DaisのTelegram送信=0、source repo mutation=0をassertする。provider/model呼出しはstubする。既存Localのdefaultは維持する。
+- [ ] T07.3 上記path/envを先に尊重する最小変更をする。Cloud callerは`LM_RUNTIME_HOST=maritime`、`LIFE_MANAGER_RELEASE_ROOT=/app`、`LIFE_MANAGER_STATE_HOME=/data/<tenant>`、`LIFE_MANAGER_BUILD_WORKSPACE=/data/<tenant>/build`を指定する。Cloudではprivate .env読込・Dais宛Telegram・owner sourceへのcommit/push/selfhealを実行しない。Localの`LIFE_MANAGER_SOURCE_REPO`書込み/固定origin検査はLocal経路に残し、Cloudは指定tenant build workspaceだけを書込み先にする。業務判断にはtenantのbinding/receiptだけを渡し、publish_prepare/finish、frozen_guard、売上証拠の既存契約を維持する。
+- [ ] T07.4 repo rootで`python3 -m unittest discover -s skills/capafy-autopublish/test -p test_cloud_paths.py`、`bash -n skills/self/capafy-loop/capafy-loop-daily.sh skills/capafy-autopublish/scripts/daily_loop.sh`を実行する。期待=全assertion PASS、syntax exit0。対象差分をcommit/pushする。
 
 ## Task T08: account・browserのCloud準備を実測する
 
@@ -225,24 +240,24 @@ life-manager/
 
 ## Task T09: tenantごとに既存factoryを一度呼ぶwrapperを作る
 
-**Files:** Create `skills/capafy-autopublish/scripts/cloud_cycle.py`、対応focused test。既存factory/runnerを呼ぶ。
+**Files:** Create `skills/capafy-autopublish/scripts/cloud_cycle.py`、`skills/capafy-autopublish/test/test_cloud_cycle.py`。既存factory/runnerを呼ぶ。
 **Interfaces:** CLI `python3 .../cloud_cycle.py --tenant <uid> --occurrence <id> --date YYYY-MM-DD`。envにstate/build workspace/binding参照。stdoutは`CycleResult`一件、raw prompt/secretなし。
 **Depends:** T07/T08。
 
 - [ ] T09.1 test `cycle_calls_existing_factory_once_and_scopes_workspace`を定義。spawn先が既存entry、cwd/stateがtenant以下、timeout後の外部effectはunknownというassertを置く。
-- [ ] T09.2 wrapperは既存`run_agent.sh`/factoryへ引数とenvを渡すだけにする。modelによる案件選択・original商品の生成を既存loopへ任せ、第二のpublisher/固定ニッチ選択器を作らない。
+- [ ] T09.2 wrapperは既存`run_agent.sh`へ`--task-class application-lane-agent --evidence-dir /data/<tenant>/evidence/<occurrence> --task-label maritime:<occurrence> --loop capafy --schema /app/skills/self/capafy-loop/capafy-loop-pass.schema.json --workdir /data/<tenant>/build --print-result`を渡す。stdinには既存factory skillと同tenant binding/receiptから作る業務promptを渡す。modelによる案件選択・original商品生成を既存runnerへ任せ、第二のpublisher/固定ニッチ選択器を作らない。既存pass JSONをwrapperでCycleResultへ変換し、stdoutへraw runner logを混ぜない。
 - [ ] T09.3 provider未接続ならoriginal artifact生成を継続し、publish未実行をreceiptへ明記する。founder catalog/seller ID/売上を新規利用者へ複製しない。接続済みではsplit publishの正規経路へ進む。
 - [ ] T09.4 `python3 -m unittest discover -s skills/capafy-autopublish/test -p 'test_cloud_cycle.py'`でfocused casesを確認しcommit/push。
 
 ## Task T10: provider売上をtenantのFinancialRecordへ結合する
 
-**Files:** Modify `financial-record-capafy.js`/test、`cloud_cycle.py`、既存`capafy_hourly_reconcile.py`は明示binding注入が必要な箇所のみ。
+**Files:** Modify `apps/life-manager/lib/financial-record-capafy.js`/`financial-record-capafy.test.js`、`cloud_cycle.py`、既存`capafy_hourly_reconcile.py`は明示binding注入が必要な箇所のみ。
 **Interfaces:** `read_capafy_cycle_receipt(binding: dict, period_start: str, period_end: str) -> dict`をPython wrapper側に追加し、完全な公式snapshotだけを`capafyRowsToFinancialRecords(rows,{subjectId,observedAt})`へ渡す。
 **Depends:** T09。
 
 - [ ] T10.1 test `incomplete_or_foreign_provider_snapshot_never_becomes_verified_revenue`を定義。所有者不一致/欠落/不正金額は0にもverifiedにもならない。
 - [ ] T10.2 既存reconcileの`--money --json`と明示された同tenant credentialを使う。official snapshotのowner・期間・receipt referenceを保持し、推定model費用と請求済み費用を分ける。
-- [ ] T10.3 verified gross/refundを既存FinancialRecordへ変換する。入金はpayout receiptがある時だけ、費用欠落時のnetはunknown。同じprovider売上を複数利用者へ付けない。
+- [ ] T10.3 Python wrapperは`/data/<tenant>/receipts/<occurrence>/provider.json`へ`{tenantId,provider:"capafy",subjectId,observedAt,periodStart,periodEnd,complete,rows,evidenceRefs}`を保存してCycleResult.providerSnapshotRefへ同pathを返す。中央Nodeの`readCycleReceipt({uid,agentId,occurrenceId})`が同agentからその限定pathを取得し、tenantId/subjectId/期間/complete=trueを照合してからverified gross/refundを既存FinancialRecordへ変換する。入金はpayout receiptがある時だけ、費用欠落時のnetはunknown。同じprovider売上を複数利用者へ付けない。
 - [ ] T10.4 focused conversion testとfixture readbackを確認してcommit/push。catalogのmissing表示はT22の実証後まで変更しない。
 
 ## Task T11: Managerのcycleを既存runtime jobへ登録する
@@ -253,25 +268,26 @@ life-manager/
 
 - [ ] T11.1 test `same_occurrence_is_one_runtime_job`を定義。stable job/effect keyがtenant+occurrenceにbindし、別tenantでは異なることをassert。
 - [ ] T11.2 `buildRuntimeJob`と既存queue/leaseを使う。factoryを長時間HTTP request内で実行せず、中央jobからMaritime公式detached execへ一度dispatchし、executionIdを既存jobのreceipt/stateへpersistしてpollする。既存workerのlease heartbeatを維持し、次wakeをpersistする。
-- [ ] T11.3 `runtime-up.js`のservicesByAdapterへ`dispatchCycle/readExecution/readCycleReceipt`を注入する。factory wrapperの実行場所はMaritime VMだけとし、Railwayで同じfactoryを二重実行しない。adapter manifestにprovision/cycle/reportの三capabilityを別entryで追加し、既存capabilityを置換しない。provision/reportを実行できないままqueueへ入れる穴を残さない。
+- [ ] T11.3 `runtime-up.js`のservicesByAdapterへ`dispatchCycle/readExecution/readCycleReceipt`を注入する。storeに`listPending(limit)`を追加し、enroll後enqueue前に落ちたpending rowを既存stable provision jobへ戻す有限reconcileをworkerの既存pollで行う。同じjob keyで再enqueueし、paused/effect_unknownは新規実行へ戻さない。factory wrapperの実行場所はMaritime VMだけとし、Railwayで同じfactoryを二重実行しない。adapter manifestにprovision/cycle/reportの三capabilityを別entryで追加し、既存capabilityを置換しない。provision/reportを実行できないままqueueへ入れる穴を残さない。
 - [ ] T11.4 `node --test lib/maritime-manager-runtime.test.js lib/loop-adapter-registry.test.js`で再claim/unknown/replayのfocused casesを確認しcommit/push。
 
 ## Task T12: custom imageを同じrepoから作る
 
-**Files:** Create root `Dockerfile`。Modify `.dockerignore`は不足除外のみ。
+**Files:** Create `apps/life-manager/maritime/Dockerfile`、`apps/life-manager/maritime/build-context.py`、`skills/capafy-autopublish/test/test_maritime_build_context.py`。repo直下のDockerfileを新設しない。
 **Interfaces:** CMDはexec形式`["node","apps/life-manager/maritime/server.js"]`。immutable code=/app、mutable state=/data。既存Node/Python/runner/browser依存だけを含める。
-**Depends:** T11。
+**Depends:** T11/T13。先にHTTP serverのsourceを完成させ、存在しないCMDをbuildしない。
 
-- [ ] T12.1 build contextにprivate `.env`/credentials/browser profile/state/log/active worktreeが含まれないことを一覧で確認する。
-- [ ] T12.2 root DockerfileにNode floor、Python、Bash、ca-certificatesと既存locked dependenciesを入れる。shell-string CMD、Mac GUI、launchd、Homebrew pathを入れない。
-- [ ] T12.3 `docker build -t life-manager-maritime:<sha> .`を実行し、`/app`からmodule load、`/data`へのstate writeが可能なことを確認する。ローカルにDockerがなければ公式Maritime build workerで同じimmutable SHAをbuildし、別実装へ変えない。
-- [ ] T12.4 build結果/依存版/secret scan結果を保存してcommit/push。コンテナに全Mac環境をコピーしない。
+- [ ] T12.1 Docker daemonのread-only preflightを`docker info`で確認する。現在はCLIあり・socketなしを観測済み。代替buildは公式Maritime dashboardのDeploy sourceでZIPの受付field/送信先/build statusを確認し、`readiness.json.build_route`へ契約を保存する。公式CLI文書の`--source`はtemplate/github/dockerのみなので、`--source zip`など未確認flagを作らない。実UI/APIがZIPを受け付けない場合はそのexact応答を記録し、既存GitHub CIで専用Dockerfileをbuildしてpublic GHCR digestを供給する最小workflowへT12だけを更新する。primaryがこの境界を閉じ、他taskの完了を偽装しない。
+- [ ] T12.2 `test_maritime_build_context.py::test_zip_contains_only_tracked_release_and_root_dockerfile`を追加する。指定commitのtracked fileのみ、archive直下Dockerfileは専用Dockerfileと同一、.env/credential/profile/state/.git/worktreeは0件、通常repo直下には新Dockerfileなしをassertする。
+- [ ] T12.3 `build_context(repo: Path, release_sha: str, output_zip: Path) -> dict`を`build-context.py`へ実装する。`git archive <verified-main-sha>`から展開対象を取り、専用Dockerfileだけをarchive直下へ複製する。CLI=`python3 apps/life-manager/maritime/build-context.py --release <main-sha> --output <private-build-dir>/maritime.zip`。ZIPは500MB compressed/2GB unpacked未満を検証し、secret/stateの禁止prefixをarchive作成前に除外する。ZIP deployでは.dockerignoreが無視されるため、これに除外を任せない。
+- [ ] T12.4 専用DockerfileへNode floor、Python、Bash、ca-certificates、既存locked dependencies、exec形式CMDを定義する。`docker build -f apps/life-manager/maritime/Dockerfile -t life-manager-maritime:<sha> <sanitized-context>`を実行する。Docker daemonが使えない場合は、T12.1で確認した公式ZIP build経路に同じZIPを渡す。private registry未対応なので、private image URLを架空に設定しない。
+- [ ] T12.5 repo rootで`python3 -m unittest discover -s skills/capafy-autopublish/test -p test_maritime_build_context.py`を実行し、PASSを確認する。build receiptへsource SHA/archive SHA256/image digest/loaded CMDを残してcommit/pushする。既存RailwayのRailpack/rootDirectory/startCommandを変えない。
 
 ## Task T13: Maritime health/chatの薄いHTTP入口を作る
 
 **Files:** Create `apps/life-manager/maritime/server.js`/test。
 **Interfaces:** `createMaritimeManagerServer(deps)`。GET `/health`、POST `/chat`、GET `/schedules`。bind `0.0.0.0:Number(process.env.PORT)`。healthは外部作用なし。
-**Depends:** T11/T12。
+**Depends:** T11。T12の実image buildを待たず、handlerのsource/fixtureを完成させる。
 
 - [ ] T13.1 test `health_is_pure_and_chat_returns_before_factory_finishes`を定義。factory promiseが未完でもchatが30秒未満で受付応答し、healthではjob0件。
 - [ ] T13.2 POST `/chat`のscheduled promptはkind=`cycle|report`の内部wakeへ変換し、同tenant tokenでRailwayの`/api/internal/maritime/wake`へ通知して受付状態を返す。VMへDB credentialを渡さず、requestに任意tenantや任意shell commandを指定させない。
@@ -281,7 +297,7 @@ life-manager/
 ## Task T14: 休眠しても起きるscheduleを公開する
 
 **Files:** Modify `maritime/server.js`、runtime adapter/test。
-**Interfaces:** `/schedules` returns `{id,nextRunAt,prompt,enabled}`の配列。ID=`lm-cycle:<uid>`/`lm-report:<uid>`。nextRunAtはpersisted UTC instant。
+**Interfaces:** `/schedules` returns `{id,nextRunAt,prompt,enabled}`の配列。永続snapshotは`/data/<tenant>/maritime-schedules.json`。`transport.writeScheduleSnapshot({uid,agentId,schedules})`は公式files/writeでこのpathだけを更新し、serverは各GETで読み直す。ID=`lm-cycle:<uid>`/`lm-report:<uid>`。nextRunAtはpersisted UTC instant。
 **Depends:** T13。
 
 - [ ] T14.1 test `schedules_publish_persisted_next_occurrence_and_pause_removes_it`を定義。server再起動後も同じnextRunAt、pausedは配列から消える。
@@ -292,7 +308,7 @@ life-manager/
 ## Task T15: custom containerのcreateをidempotentにする
 
 **Files:** Create `lib/transport/maritime-manager.js`/test、Modify manager storeのbinding。
-**Interfaces:** `createMaritimeManagerTransport({env,fetchImpl,client}).ensureAgent({uid,imageDigest,releaseSha}) -> {agentId,status}`。
+**Interfaces:** `createMaritimeManagerTransport({env,fetchImpl,client})`は`ensureAgent({uid,imageDigest,releaseSha}) -> {agentId,status}`、`dispatchCycle/readExecution`（固定する境界参照）、`readCycleReceipt({uid,agentId,occurrenceId}) -> {cycleResult,providerSnapshot}`、`writeScheduleSnapshot({uid,agentId,schedules}) -> {ok}`をproduces。receipt/schedule pathはtenant/occurrenceから構成し、request指定の任意absolute pathを受けない。
 **Depends:** T03/T12/T13。
 
 - [ ] T15.1 test `custom_create_never_uses_default_openclaw_and_lost_response_does_not_recreate`を定義。POST body `framework:'custom'`、immutable `imageName`、HMAC externalId、response喪失後はlistのみをassert。
@@ -357,7 +373,7 @@ life-manager/
 
 ## Task T21: 登録・実業務・再利用を既存funnelへ記録する
 
-**Files:** Modify `web-funnel-events.js`/test、`maritime-distribution.js`/test、auth/runtime/report call sites。
+**Files:** Modify `apps/life-manager/lib/web-funnel-events.js`/`web-funnel-events.test.js`、`maritime-distribution.js`/test、auth/runtime/report call sites。
 **Interfaces:** events=`maritime_email_verified|maritime_manager_activated|maritime_work_completed|maritime_report_sent|maritime_returned`。source_object_id=既存HMAC participant ID。
 **Depends:** T05/T11/T19。
 
@@ -370,7 +386,7 @@ life-manager/
 
 **Files:** Create `scripts/maritime-manager-readback.js`/focused test。Modify catalogのCapafy readinessは確認できた項目のみ。
 **Interfaces:** sanitizeされた`{releaseSha,imageDigest,agentId,uidHash,loadedSha,workReceipt,emailReceipt,nextWake,usage,costStatus}`。
-**Depends:** T17/T19/T20/T21。
+**Depends:** T17/T19/T20/T21/T32。
 
 - [ ] T22.1 全source acceptanceとexact-head CIを確認しmainへ統合する。immutable imageをmain SHAから作り、DB migration履歴とapply結果を読む。
 - [ ] T22.2 登録→自律job→provider結果→日次メールを自分の別Cloud tenantで一回実行する。Macのloopやbrowserを止める破壊的検証はせず、Cloudのargv/state/network evidenceでMac非依存を確かめる。
@@ -465,6 +481,32 @@ life-manager/
 - [ ] T30.3 許可済みの既存メール経路でDaisへ一回送信する。provider message IDを保存し、応答不明時は再送せずreadbackする。
 - [ ] T30.4 送信済みの宛先・件名・本文URLとprovider receiptを照合し、正本を更新する。API受付と着信は区別し、着信未確認ならその範囲を残す。
 
+## Task T31: Cloud Life Manager自身の課金と利益をつなぐ
+
+**Files:** Modify `apps/life-manager/lib/web-billing.js`/同test、`server.js`、Manager UI。Reuse既存Stripe checkout/portal/webhook、web funnel/financial records。
+**Interfaces:** 既存`handleWebBillingRequest`の`resolveWebUserImpl`へ、Managerのverified email identityを専用経路で渡す。CalendarのGoogle guardは変えない。既存の価格/商品設定を公式Stripeでreadbackし、顧客の任意checkoutと署名済みwebhookだけでpaid状態を更新する。
+**Depends:** T23の無料pilot提出を先行。LM自身の収益と、利用者のCapafy等の収益を混同しない。
+
+- [ ] T31.1 既存checkout/portal価格・trial条件・支払済みinvoiceと返金を公式Stripeから読む。現在の『Stripe売上なし』はDaisの申告であり、再取得前に確認済み0/MRRと書かない。
+- [ ] T31.2 email-only利用者のcheckout/portalを同じuid/CSRF/originへbindするfocused caseを書き、既存web-billingのresolver injectionを使う。任意uid/customer/priceの入力は拒否し、Calendar identityは拡張しない。
+- [ ] T31.3 無料pilotを自動課金へ変えず、価値を確認した利用者が自ら選ぶupgrade入口を接続する。test modeでcheckout→webhook→本人のpaid状態を確認してから、既存価格のlive checkoutを公開する。自分のcardで架空の売上を作らない。
+- [ ] T31.4 正規利用者のpaid invoice・refund・Stripe手数料・Cloud/model/mail費用をjoinし、LMの実売上/確認できる利益を報告する。free signup×価格をMRRとしない。未取得費用があれば利益は未確認とする。
+
+## Task T32: 既存SupabaseとResendで確認メールを実際に届ける
+
+**Files:** Read `docs/evidence/maritime/smtp-preflight.json`。Create `docs/evidence/maritime/smtp-readback.json`（設定名/成否/receipt hashのみ）。実設定はSupabase production Auth、secret値はprivate credential SSOTのみ。
+**Interfaces:** T04のPKCE handlerとT22のowned inboxをconsumes。設定readbackと実メール到着をproduces。公開appのfeature flagはこのtaskでは有効化しない。
+**Depends:** T04。T07–T21とは独立して進める。現在email provider=false、custom SMTPなし、送信limit2/hour。既存Resend SMTP AUTH235/NOOP250まで確認済み、着信未確認。
+
+- [ ] T32.1 private SSOT全体と`supabase-life-manager-production`/`resend-life-manager-production`/`agentmail-life-manager-production`完全一致を読む。新key/account/inboxを作らず、既存設定をManagement API GET `/v1/projects/<ref>/config/auth`で再取得する。秘密の値を出力しない。
+- [ ] T32.2 Python標準`email.utils.parseaddr(from_address)`でmailboxとdisplay nameを分ける。smtp_admin_emailにはmailboxのみ、smtp_sender_nameにはdisplay nameまたは`Life Manager`を使う。空mailboxなら設定を送信せず、既存Resendのsender設定を確認する。
+- [ ] T32.3 既存uri_allow_listを全保持し、`https://life-call-production.up.railway.app/auth/maritime/confirm`だけを追記したpatchを構成する。smtp_host=`smtp.resend.com`、smtp_port=465、smtp_user=`resend`、smtp_pass=既存key、external_email_enabled=true、mailer_autoconfirm=false、rate_limit_email_sent=30。site_url/Google/OTP limitは保持する。
+- [ ] T32.4 patchの変更keyとallowlist保持をread-only検証者へ渡す。secret値は渡さない。宣言後に上記Management APIへ一回PATCHする。新しいkeyの再作成・auto-confirm有効化を修正方法にしない。
+- [ ] T32.5 同じGETで全変更fieldとGoogle/site_url/旧allowlistの保持を確認し、safe JSONへ保存する。レスポンス内smtp_passは出力・保存しない。
+- [ ] T32.6 既存owned AgentMail inboxへSupabaseの確認メールを一通送り、新規messageの時刻/送信元/件名で着信を確認する。OTP/リンク/本文はlog/chat/repoへ出さない。この内部testを競技利用者に数えない。
+- [ ] T32.7 `smtp-readback.json`へsmtp_auth_verified/email_arrived/observed_at/provider_receipt_hash、失敗ならexact error classと次操作を書く。API acceptedやSMTP AUTHだけではemail_arrived=trueにしない。
+- [ ] T32.8 `python3 -m json.tool docs/evidence/maritime/smtp-readback.json >/dev/null`とsecret混入なしを確認し、safe evidenceのみcommit/pushする。実browser PKCEからactivateまでの受入はT22で行う。
+
 ## 一件のtaskを実装するときの共通手順
 
 1. IDとowned filesを読む。最新mainから専用worktree/leaseを取り、他ownerの差分を保つ。
@@ -473,9 +515,18 @@ life-manager/
 4. fetch→対象fileだけadd→commit→push。必要reviewとexact-head CI後にmainへ統合する。未登録checkは待つ。
 5. そのtaskに含まれる実環境結果だけをreadbackし、正本の同IDを更新する。plan完了と実装完了と提出済みを分ける。
 
+## 完了判定を混ぜない
+
+- 計画完了: 本書・Spec・出典・配布文案がremoteへ保存され、file/署名/依存/検証の穴をself-review済み。
+- source完了: taskのfocused acceptance、review、CI、main統合。公開・売上とは別。
+- 初週提出完了: T22の稼働製品とT23の正式受付receipt。Top30通過は主催者通知を別途確認する。
+- 競技優勝: T29で実在1,000人と公式検証・winner通知。最高利益は公式順位条件にない。
+- 商業成果: 利用者のprovider事業売上はT10/T29、LM自身のStripe売上はT31、費用不明時は利益未確認。
+
 ## Coverage/self-review
 
 - email-only/目標予算不要=T04–T06、Manager自律選択=T07/T09/T11、既存再利用=T07–T20。
+- 実emailのSMTP/確認着信=T32、LM自身のStripe売上=T31。
 - Cloud/port/state/sleep=T12–T17、tenant ownership/consent/stop=T03/T08/T10/T20。
 - 完了/売上/費用/日次email=T10/T18/T19、source/実利用/1,000=T21/T27–T29。
 - 初週form/期限/提出/receipt=T01/T23、配布文案/動画/LP=T24–T27。

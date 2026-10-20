@@ -16,7 +16,7 @@
 | https://maritime.sh/docs/sdk/agents | externalIdでget-or-create、per-agent secret、chatの`error`確認、scheduled wake | tenant単位のagent/secret、unknown createのreadback |
 | https://github.com/maritime-sh/maritime-sdk/tree/8d3296d7ac24b3fd49c69a4e86d2b3863bf1b1ab/examples/typescript | `provision-on-signup.ts`、`manage-secrets.ts`、`webhook-receiver.ts`の実コードを取得。MIT | externalId/暗号化secret/HMAC webhookの形を再利用。コピーする場合はMIT noticeを維持 |
 | https://github.com/maritime-sh/maritime-sdk/blob/8d3296d7ac24b3fd49c69a4e86d2b3863bf1b1ab/typescript/src/resources/agents.ts | `provision()`がtemplate=`openclaw`をdefaultにする。`toCreateBody`にframework fieldがない | custom image作成は公式RESTの`framework: custom`を明示する最小adapter。SDKに架空のfieldを渡さない。既存SDK 0.9.0は維持し不要upgradeなし |
-| https://supabase.com/docs/guides/auth/auth-email-passwordless | 既存Supabase Authでmagic link/OTP、`verifyOtp({token_hash,type:'email'})`。未登録userを作成可能 | 認証サービスを新設しない。既存Google認証のguardを緩めず、Maritime用email入口を追加 |
+| https://supabase.com/docs/guides/auth/auth-email-passwordless | 既存Supabase Authのpasswordless/PKCE。未登録userを作成可能 | 認証サービスを新設しない。既存Google guardを維持。開始browserのPKCE cookieとcode交換を使い、token_hash単独callbackはlogin CSRF防止のため採用しない |
 | https://resend.com/docs/dashboard/emails/idempotency-keys | Idempotency-Key保持24h | 既存`cfo-cloud-delivery.js`の永続receiptと23hガードを再利用。24h超のblind retry禁止 |
 | https://poke.com/docs/creating-recipes | context/integration/share-linkをrecipeとして配布、必要連携を明示、unique-user表示 | LMの一つの具体的な業務→専用URL→最初の成果、という配布単位を模倣。LMをPokeへ移植しない |
 
@@ -48,3 +48,16 @@ SDK docsには`provision()`を使う例があるが、それはOpenClaw template
 - Capafy catalogのCloud commandはnull、financial adapterのcatalog表示はmissingだがsourceには変換関数がある。このdriftを証拠なしにimplementedへ変更しない。
 
 - https://maritime.sh/docs/api — detached execは`command`/`detached`/`timeout`、202でexecutionId、GETで結果取得。POSTの再実行は別executionとなる。VM側にDB service-roleを渡さず、中央workerから既存finite factoryを起動する。
+
+## 追加の実装判断（一次資料と稼働構成を照合）
+
+- https://docs.railway.com/builds/dockerfiles — root Dockerfileを自動検出する。既存life-callはrepo rootのRailpackなので、Maritime専用Dockerfileをrootへ置かない。T12は専用subfolderを正本とし、build context/ZIPだけのrootへ複製する。
+- https://maritime.sh/docs/builds — repo/ZIPのroot Dockerfile、ZIPでは.dockerignore非適用、上限500MB圧縮/2GB展開、private registry未対応を確認。sanitized tracked sourceのZIPを公式build workerへ渡す。
+- https://supabase.com/docs/guides/auth/auth-smtp — productionでは既定SMTPの送信制限を前提にしない。T32で既存SMTPへ接続し、confirmationを維持してowned inbox着信を確認する。
+- https://resend.com/docs/send-with-supabase-smtp — smtp.resend.com:465、user resend、既存API keyで接続。SMTP AUTH成功と着信は別。現在のsafe観測は`docs/evidence/maritime/smtp-preflight.json`。
+
+これらの訂正で新publisher/認証provider/メールproviderを増やさない。競技Termsをlive再取得し、実在1,000人・先着3組・KeikiまたはMaritimeのproject usageという条件に変更がないことを確認する。
+
+- https://github.com/maritime-sh/maritime-sdk/blob/8d3296d7ac24b3fd49c69a4e86d2b3863bf1b1ab/typescript/src/agent-schedules.ts — `ScheduleView.nextRunAt`はISO8601、cronより優先。`pushSchedules`は完全snapshotで空配列がwake解除。T14の契約を原codeで確認。無関係repoを返したdeveloper_search結果は採用しない。
+
+- https://maritime.sh/docs/cli — Deploy CLI文書はtemplate/github/dockerのみ。build文書のZIP対応から架空のCLI flag/API pathを推論しない。Docker CLIは存在するがdaemon socket不在をread-only確認。T12.1で公式dashboardの実受付契約を確認してからbuildを実行する。

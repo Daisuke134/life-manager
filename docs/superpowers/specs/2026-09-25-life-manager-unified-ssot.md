@@ -20615,6 +20615,11 @@ Top 10 by sales: 0/10 with a trial (Ocup 3,111, Serenity 2,002, HookAce 1,044, V
 
 Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime等のhostから呼ぶ。Steelはbrowser/sessionの実行先で、scheduler・tenant store・credential boundary・receipt照合の代わりにはならない。local credential/profile/可変ログをそのまま別利用者へ複製しない。現在のUID別agent実装と、公式が一人一VMを要求することも区別する。後者はTermsにない。→ [one-repo/two-runtime設計](2026-09-06-life-manager-one-repo-two-runtimes-design.md)
 
+
+**Manager同意の区別:** chat-only pilotの`maritime-retention-v1`は保持条件/参加capの既存記録。新しい自律業務開始は別の`maritime-manager-v1`を明示POSTで受け、enrollmentへ記録する。既存pilot同意だけではManagerを起動しない。
+
+**SMTP/Auth実環境readback:** production Authはexternal_email_enabled=false、SMTP未設定、rate_limit_email_sent=2、OTP rate=30、Railway callback allowlistはGoogle用のみ。既存Railway life-callにはRESEND_API_KEYとruntime DB接続が設定され、OAuth connectorは値をredactする。登録済みlocal Railway sessionで既存Resend keyを確認しprivate credential SSOTへ登録した。公開前に同じResendのSMTP・email enable・Manager callback allowlist・owned mailbox着信を確認する。confirmed/auto-confirmの弱体化、既存Google allowlist上書き、新keyの無断再作成は行わない。
+
 **保持条件:** Maritime AI credits経由のmodel callは入力・会話・tool結果・応答をアカウント削除後も無期限保持する、と現行Privacy Policyに記載される。公開前に選んだ業務で送る情報を特定し、利用者へ開示して同意を記録する。自分のmodel API keyによる呼び出しは同Policy上この保存対象外だが、secret管理と費用は別途必要。停止・同意撤回を送信済みデータの削除と表示しない。[Maritime Privacy Policy](https://maritime.sh/privacy)
 
 **準備する提出packet（公式指定形式は未確認）:**
@@ -20631,23 +20636,23 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 
 **TODO順変更:** 旧=一業務readiness→Cloud→入口→3人pilot→packet→1,000人。新=下記atomic ID順、提出経路確認T01・配布文案T24・台本T25は即着手可能。理由はDaisが知人DMを担当し、利用者feedbackを待たず実装・素材・提出準備を進められるため。先に試せる製品と正式必須項目を揃えて提出し、改善と獲得を継続する。全体統括cursorと進行中provider effectは変更しない。
 
-**Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細・file tree・signature・focused acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。同plan内のcheckboxは実装手順で、状態判定は本節を正とする。現在cursor=T04（email認証）。T01は公式channel確認済みだがform/期限時刻は未公表の外部条件として継続確認。T03はmain統合済みで実DB適用はT22。T02はmain統合済み。T03の実環境適用順は変更しない。正式提出は未実施。
+**Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細・file tree・signature・focused acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。同plan内のcheckboxは実装手順で、状態判定は本節を正とする。現在cursor=T06（email登録/開始画面）。T05 sourceはterminal jobを分離して42/42 PASS、#8399のCI/main待ち。T04はPKCE限定、28/28 PASS、全14 checks PASS、#8398/main286e982bfeへ統合済み。T01は公式channel確認済みだがform/期限時刻は未公表の外部条件として継続確認。T03はmain統合済みで実DB適用はT22。T02はmain統合済み。T03の実環境適用順は変更しない。正式提出は未実施。
 
 | ID | 一件の成果物 | 状態/依存 |
 |---|---|---|
 | T01 | 正式提出form・初週期限・timezone・必須fieldをrequirements.jsonへ | 主催者Slack参加・公式3channel readback済み。form/初週時刻は未公表、理由付きnullを保存 |
 | T02 | 既存OSS icon digest宣言漏れ修正と#8395 copy contract統合 | 完了。関連30/30、全13 checks PASS、#8396でmain 103f2a331bへ統合 |
 | T03 | enrollment DB/storeの一uid一row・一provision claim | source完了。6/6 PASS、独立review指摘修正、全14 checks PASS。#8397/main f3f5e02564、実DB未適用 |
-| T04 | Supabaseのemail認証専用handler | source実装中/#8398。既存Google guard維持、PKCE codeのみ。token_hash単独のlogin CSRF経路を拒否し、確認GETは業務を起動しない |
-| T05 | 本人POST activateから一度だけenqueue | T04後、GET/prefetchは実利用にしない |
-| T06 | email登録が主CTAのcampaign入口 | T04/T05後 |
+| T04 | Supabaseのemail認証専用handler | source完了。#8398/main 286e982bfe、関連28/28・全14 checks PASS。既存Google guard維持、PKCE限定。productionのemail設定/配送はT32 |
+| T05 | 本人POST activateから一度だけenqueue | source実装/#8399。provision builderを定義、GET/CSRF/cap/停止/unknownは起動しない。独立reviewのterminal job誤受付を回帰で修正。adapterはT11 |
+| T06 | email登録が主CTAのcampaign入口 | source実装。旧Telegram guardから分離、日英email/開始UIと状態表示。Manager専用consent version、関連54/54 PASS。公開flagは未変更 |
 | T07 | Capafy既存factoryへtenant state/build path注入 | T02後 |
 | T08 | Linux browser/provider accountのreadinessとtenant binding | T07後、secret値を記録しない |
 | T09 | tenant envで既存factoryを一回呼ぶcloud_cycle.py | T07/T08後 |
 | T10 | 同tenant公式Capafy snapshot→FinancialRecord | T09後 |
 | T11 | 既存queue/leaseへmanager.cycle adapter登録 | T09/T10後 |
-| T12 | root Dockerfileで同repoのcustom imageをbuild | T11後 |
-| T13 | VM health/chat/schedulesの短いHTTP server | T11/T12後 |
+| T12 | 専用subfolder Dockerfileとsanitized ZIPで同repoのcustom imageをbuild | T11/T13後。Railwayのroot Dockerfile自動検出を避ける |
+| T13 | VM health/chat/schedulesの短いHTTP server | T11後。T12より先にsource作成 |
 | T14 | sleeping VMでも起きるnextRunAt schedule | T13後 |
 | T15 | custom create・detached exec/resultの重複防止adapter | T03/T12/T13後 |
 | T16 | 一tenant tokenのwake relay・secret・初回wake配線 | T05/T08/T14/T15後 |
@@ -20656,7 +20661,7 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | T19 | 既存CFO/Resendへの一日一通配信 | T18/T16後 |
 | T20 | 停止を次のjob/schedule/配信へ反映 | T14/T19後 |
 | T21 | 登録と業務完了を分けたsource別funnel | T05/T11/T19後 |
-| T22 | main image・DB・一人分のCloud自然wake/receipt確認 | T17/T19/T20/T21後 |
+| T22 | main image・DB・一人分のCloud自然wake/receipt確認 | T17/T19/T20/T21/T32後 |
 | T23 | 正式提出・一回submit・受付readback | T01/T22後。3人/売上/7日継続を待たない |
 | T24 | Dais用DMとX/IG文案、source別URL | 初稿保存済み、公開URL差込は未完。待ち依存なし |
 | T25 | 30秒動画/審査demoのshot list→実画面編集 | 台本保存済み、撮影/動画本体は未完。待ち依存なし |
@@ -20665,6 +20670,10 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | T28 | source別の最大離脱を一つ修正 | T21/T27後 |
 | T29 | 実測のcapacity/費用/利益/再利用を改善し1,000人を公式検証 | T28後 |
 | T30 | 共有できる稼働URLをDaisへメール送信しreceipt確認 | T23直後。T29の長期成長を待たない |
+| T31 | email利用者の任意paid upgradeを既存Stripeへ接続しLM自身の売上を照合 | 無料pilot/提出を妨げずT23後。顧客事業売上とStripe subscription売上を別集計 |
+| T32 | 既存SupabaseへResend SMTP/email enable/正確なcallbackを設定しowned inbox着信確認 | T04後で独立実行可。SMTP AUTH235まで観測済み、設定変更/着信は未実施 |
+
+**計画訂正:** 旧T12=root Dockerfile、新T12=専用subfolder+sanitized ZIP。Railwayがroot Dockerfileを自動検出し既存life-callのbuildを変えるため訂正する。T32はT04後に独立して実行し、T22の依存へ追加する。T12→T13の逆依存もT13→T14→T12へ訂正し、CMD対象sourceが存在してからbuildする。現在cursor=T06、進行中provider effectはない。詳細file/command/期待結果はAtomic Implementation Planを参照。
 
 **技術判断:** custom imageで同じfactoryを使う。中央Railwayの既存queue workerがMaritimeのdetached execへ一回dispatchしexecutionIdを回収する。VMはtenant限定tokenでwake relayへ通知し、Supabase service-roleを持たない。Keikiはemail/schedule/APIを持つが、既存Resend/CFOを置換する必須依存にしない。Maritime SDKのprovision既定OpenClawをcustom imageへ流用せず公式REST契約を使う。全14loops移植・新しいpublisher/router/schedulerは初週必須作業にしない。
 
