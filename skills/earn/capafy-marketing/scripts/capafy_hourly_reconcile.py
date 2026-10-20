@@ -1457,14 +1457,17 @@ def read_owned_sales_snapshot(binding: dict, period_start: str, period_end: str,
             raise ValueError()
     except (ValueError, IndexError, KeyError, TypeError):
         raise ValueError('capafy_snapshot_owner_mismatch') from None
+    def accepted(payload):
+        return (isinstance(payload, dict) and type(payload.get('code')) is int
+                and payload['code'] == 0 and '_error' not in payload)
     profile = _get('/agent/account/profile', access_token)
-    owner = _data(profile) if _ok(profile) else None
+    owner = _data(profile) if accepted(profile) else None
     if not isinstance(owner, dict) or owner.get('userId') != subject or subject != binding['subjectId']:
         raise ValueError('capafy_snapshot_owner_mismatch')
     sales = _post('/app/sales/clickhouse/trend', web_token, {
         'startDate': period_start, 'endDate': period_end, 'granularity': 'daily',
     })
-    data = _data(sales) if _ok(sales) else None
+    data = _data(sales) if accepted(sales) else None
     if (not isinstance(data, dict) or data.get('startDate') != period_start
             or data.get('endDate') != period_end or data.get('granularity') != 'daily'
             or not isinstance(data.get('data'), list)):

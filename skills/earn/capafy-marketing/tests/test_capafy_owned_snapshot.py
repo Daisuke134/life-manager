@@ -76,6 +76,26 @@ class OwnedSnapshotTest(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, 'snapshot'):
                     self.read()
 
+    def test_profile_and_sales_require_explicit_integer_success_code(self):
+        for code in [None, False, True, '0', 0.0]:
+            with self.subTest(code=code, endpoint='profile'):
+                payload = {'data': {'userId': 'seller-a'}}
+                if code is not None:
+                    payload['code'] = code
+                with patch.object(self.module, '_get', return_value=payload):
+                    with self.assertRaisesRegex(ValueError, 'snapshot'):
+                        self.read()
+            with self.subTest(code=code, endpoint='sales'):
+                original = self.sales.copy()
+                self.sales.pop('code', None)
+                if code is not None:
+                    self.sales['code'] = code
+                try:
+                    with self.assertRaisesRegex(ValueError, 'snapshot'):
+                        self.read()
+                finally:
+                    self.sales = original
+
     def test_daily_coverage_total_and_amounts_are_verified(self):
         for change in [{'totalRevenue': 5}, {'startDate': '2026-10-19'}, {'data': []},
                        {'data': [{'date': '2026-10-20', 'revenue': None, 'refundAmount': 0}]},
