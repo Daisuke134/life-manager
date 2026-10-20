@@ -2269,7 +2269,8 @@ def _last_event(state_root: str, loop_id: str | None = None,
         is_report = value.get("phase") == "report" and event_loop not in reports
         running_key = (event_loop, str(value.get("run_id", "")).rsplit("-", 1)[-1])
         is_running = (
-            value.get("phase") == "execute"
+            (cache is not None or running_key == (loop_id, str(running_pid)))
+            and value.get("phase") == "execute"
             and value.get("status") == "running"
             and value.get("job_id") is not None
             and event_loop not in reports and running_key not in running_reports
