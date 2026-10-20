@@ -576,7 +576,8 @@ def _native_quantity_reconciliation(rows,observation,result,flow_fields,*,mode,o
         'observed_fee_quantities':{'BTC':None,'USDC':None},'fee_completeness_status':'unknown',
         'fee_settlement_status':'unknown','net_pnl_usd':None,'capital_expansion_allowed':False,
         'buy_credit_gaps':[],'unattributed_order_ids':[],'unattributed_fee_ids':[],
-        'unsupported_activity_ids':[],'unlocated_wallet_transfer_count':0,'reasons':[],
+        'unsupported_activity_ids':[],'unlocated_wallet_transfer_count':0,
+        'unlocated_wallet_transfer_refs':[],'reasons':[],
         'flow_coverage':'observations_only_not_final'}
     reasons=set()
     currency={'BTC':Fraction(),'USDC':Fraction()}
@@ -699,6 +700,8 @@ def _native_quantity_reconciliation(rows,observation,result,flow_fields,*,mode,o
             transfers=raw.get('wallet_transfers')
             if mode=='live' and isinstance(transfers,list) and transfers:
                 report['unlocated_wallet_transfer_count']+=len(transfers)
+                report['unlocated_wallet_transfer_refs'].extend(
+                    {'flow_readback_ref':ref,'row_index':index} for index,_ in enumerate(transfers))
                 reasons.add('native_wallet_effect_time_unproved')
             pages=raw.get('activity_pages')
             if not isinstance(pages,list):reasons.add('native_activity_pages_unavailable');continue
@@ -784,6 +787,8 @@ def _native_quantity_reconciliation(rows,observation,result,flow_fields,*,mode,o
     report['reasons']=sorted(reasons)
     report['unattributed_order_ids']=sorted(set(report['unattributed_order_ids']))
     report['unsupported_activity_ids']=sorted(set(report['unsupported_activity_ids']))
+    report['unlocated_wallet_transfer_refs']=sorted(report['unlocated_wallet_transfer_refs'],
+        key=lambda item:(item['flow_readback_ref'],item['row_index']))
     return report
 
 

@@ -107,11 +107,21 @@ class QuantityReconciliationTests(unittest.TestCase):
                 elif kind in {'OCT','OCT_without_time'}:
                     extras=[{'id':'synthetic-oct','activity_type':'OCT','qty':'1','net_amount':'1'}]
                     if kind=='OCT':extras[0]['created_at']='2026-01-01T05:00:00Z'
-                else:wallets=[{'id':'synthetic-wallet','asset':'USDC','amount':'1','status':'COMPLETE','created_at':'2025-12-31T01:00:00Z'}]
-                _,report=self.write(root,activity,current,extras=extras,wallets=wallets)
+                else:wallets=[
+                    {'id':'synthetic-wallet-1','asset':'USDC','amount':'1','status':'COMPLETE','created_at':'2025-12-31T01:00:00Z'},
+                    {'id':'synthetic-wallet-2','asset':'BTC','amount':'0.01','status':'COMPLETE','created_at':'2025-12-31T02:00:00Z'}]
+                result,report=self.write(root,activity,current,extras=extras,wallets=wallets)
                 self.assertEqual(report['status'],'unexplained' if kind=='difference' else 'unknown')
                 if kind=='difference':self.assertEqual(report['unexplained_delta']['USDC'],'-0.01')
                 else:self.assertTrue(report['reasons'])
+                if kind=='wallet':
+                    transfer_refs=report['unlocated_wallet_transfer_refs']
+                    ref=next(iter(result['flow_readbacks']))
+                    self.assertEqual(report['unlocated_wallet_transfer_count'],2)
+                    self.assertEqual(transfer_refs,[{'flow_readback_ref':ref,'row_index':0},
+                        {'flow_readback_ref':ref,'row_index':1}])
+                    self.assertEqual([result['flow_readbacks'][item['flow_readback_ref']]['readback']['wallet_transfers'][item['row_index']]['id']
+                        for item in transfer_refs],['synthetic-wallet-1','synthetic-wallet-2'])
                 if kind=='OCT_without_time':self.assertEqual(report['unsupported_activity_ids'],['synthetic-oct'])
                 self.assertIsNone(report['net_pnl_usd'])
 
