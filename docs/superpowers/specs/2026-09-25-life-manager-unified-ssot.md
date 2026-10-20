@@ -20615,6 +20615,9 @@ Top 10 by sales: 0/10 with a trial (Ocup 3,111, Serenity 2,002, HookAce 1,044, V
 
 Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime等のhostから呼ぶ。Steelはbrowser/sessionの実行先で、scheduler・tenant store・credential boundary・receipt照合の代わりにはならない。local credential/profile/可変ログをそのまま別利用者へ複製しない。現在のUID別agent実装と、公式が一人一VMを要求することも区別する。後者はTermsにない。→ [one-repo/two-runtime設計](2026-09-06-life-manager-one-repo-two-runtimes-design.md)
 
+
+**SMTP/Auth実環境readback:** production Authはexternal_email_enabled=false、SMTP未設定、rate_limit_email_sent=2、OTP rate=30、Railway callback allowlistはGoogle用のみ。既存Railway life-callにはRESEND_API_KEYとruntime DB接続が設定され、OAuth connectorは値をredactする。登録済みlocal Railway sessionで既存Resend keyを確認しprivate credential SSOTへ登録した。公開前に同じResendのSMTP・email enable・Manager callback allowlist・owned mailbox着信を確認する。confirmed/auto-confirmの弱体化、既存Google allowlist上書き、新keyの無断再作成は行わない。
+
 **保持条件:** Maritime AI credits経由のmodel callは入力・会話・tool結果・応答をアカウント削除後も無期限保持する、と現行Privacy Policyに記載される。公開前に選んだ業務で送る情報を特定し、利用者へ開示して同意を記録する。自分のmodel API keyによる呼び出しは同Policy上この保存対象外だが、secret管理と費用は別途必要。停止・同意撤回を送信済みデータの削除と表示しない。[Maritime Privacy Policy](https://maritime.sh/privacy)
 
 **準備する提出packet（公式指定形式は未確認）:**
@@ -20639,7 +20642,7 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | T02 | 既存OSS icon digest宣言漏れ修正と#8395 copy contract統合 | 完了。関連30/30、全13 checks PASS、#8396でmain 103f2a331bへ統合 |
 | T03 | enrollment DB/storeの一uid一row・一provision claim | source完了。6/6 PASS、独立review指摘修正、全14 checks PASS。#8397/main f3f5e02564、実DB未適用 |
 | T04 | Supabaseのemail認証専用handler | source実装中/#8398。既存Google guard維持、PKCE codeのみ。token_hash単独のlogin CSRF経路を拒否し、確認GETは業務を起動しない |
-| T05 | 本人POST activateから一度だけenqueue | 実装中。provision job builderを本taskで定義しT11でadapterを接続、GET/prefetchは起動しない |
+| T05 | 本人POST activateから一度だけenqueue | source実装/#8399。provision builderを定義、GET/CSRF/cap/停止/unknownは起動しない。独立reviewのterminal job誤受付を回帰で修正。adapterはT11 |
 | T06 | email登録が主CTAのcampaign入口 | T04/T05後 |
 | T07 | Capafy既存factoryへtenant state/build path注入 | T02後 |
 | T08 | Linux browser/provider accountのreadinessとtenant binding | T07後、secret値を記録しない |

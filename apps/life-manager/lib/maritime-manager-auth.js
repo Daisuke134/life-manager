@@ -149,6 +149,15 @@ async function handleMaritimeManagerActivate(req, res, options = {}) {
     const queued = await (options.enqueueJob || require("./runtime-job-store.js").enqueueJob)(job);
     if (!queued || typeof queued.created !== "boolean" || queued.job?.job_id !== job.job_id
       || queued.job?.tenant_id !== user.uid) throw new Error("enqueue_receipt_invalid");
+    if (queued.job.status === "dead_letter") { send(res, 503, { error: "provision_failed" }); return true; }
+    if (queued.job.status === "reconciling") { send(res, 409, { error: "manager_reconciling" }); return true; }
+    if (queued.job.status === "completed") {
+      const latest = await store.read(user.uid);
+      if (latest?.status === "active" && latest.agent_id && !latest.paused_at) send(res, 200, { status: "active" });
+      else send(res, 409, { error: "provision_state_unconfirmed" });
+      return true;
+    }
+    if (!["queued", "running"].includes(queued.job.status)) throw new Error("enqueue_state_invalid");
     send(res, 202, { status: "pending", jobCreated: queued.created });
   } catch { send(res, 503, { error: "activation_unavailable" }); }
   return true;

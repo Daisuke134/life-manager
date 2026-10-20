@@ -116,7 +116,7 @@ function activationFixture({capacityFull=false,user=USER}={}) {
   f.deps.enqueueJob=async job=>{
     const existing=jobs.get(job.job_id);
     if(existing)assert.deepEqual(job,existing);else jobs.set(job.job_id,job);
-    return {created:!existing,job};};
+    return {created:!existing,job:{...job,status:"queued"}};};
   f.rows=rows;f.jobs=jobs;return f;
 }
 function activateRequest(deps,method="POST",csrf=true){
@@ -160,4 +160,15 @@ test("failed_queue_request_preserves_enrollment_and_safe_retry_uses_one_job",asy
   let res=response();await handleMaritimeManagerActivate(activateRequest(deps),res,deps);
   assert.equal(res.statusCode,503);assert.equal(rows.size,1);assert.equal(jobs.size,0);assert.doesNotMatch(res.body,/private queue/);
   res=response();await handleMaritimeManagerActivate(activateRequest(deps),res,deps);assert.equal(res.statusCode,202);assert.equal(jobs.size,1);
+});
+
+test("terminal_or_reconciling_provision_jobs_are_not_reported_as_pending",async()=>{
+  for(const [status,expected] of [["dead_letter",503],["reconciling",409],["completed",409]]){
+    const {deps}=activationFixture();deps.enqueueJob=async job=>({created:false,job:{...job,status}});const res=response();
+    await handleMaritimeManagerActivate(activateRequest(deps),res,deps);assert.equal(res.statusCode,expected,status);assert.doesNotMatch(res.body,/"status":"pending"/,status);
+  }
+});
+test("completed_provision_job_requires_active_enrollment_readback",async()=>{
+  const {deps,rows}=activationFixture();deps.enqueueJob=async job=>{const row=rows.get(`lm_${SUBJECT}`);row.status="active";row.agent_id="agent-a";return {created:false,job:{...job,status:"completed"}};};
+  const res=response();await handleMaritimeManagerActivate(activateRequest(deps),res,deps);assert.equal(res.statusCode,200);assert.equal(JSON.parse(res.body).status,"active");
 });
