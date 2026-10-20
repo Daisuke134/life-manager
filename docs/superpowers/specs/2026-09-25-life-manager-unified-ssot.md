@@ -134,6 +134,8 @@ C2の次の原子作業は、(1) fresh Data freeと既存host inventory/growth/c
 
 **現在state/PID indexのsource受入:** REDで同一journalのPID/通常/不存在の5要求が5readになることを確認し、完成した最新report/running indexの共有後は1readとなる。過去1,000件を毎回validateせず、無効な最新reportの後も有効reportを取得する。第三の独立差分reviewは修正前HEAD `d718516a41`へ2 blockingを指摘する（PID未指定の文字列Noneとの偽一致、current missをhistory missと誤認）。両方を既存testでREDにして、PID指定の明示判定とhistory clock cacheの判定分離で修正し、関連119 tests/diff check PASS。無効loop IDも除外し、既知の診断不足reportは古い正常値へ戻さない。第三round後に追加reviewを重ねず、指摘と修正の検証結果を記録する。SQLiteの既存ResourceWarningは継続。新差分のCI/main/Background canary/自然受入は未完で、前2回のcanary未達とC2未完を保持する。
 
+**新indexの採用順序補正:** PR #8418/main `3de67af1035ff94b9ad1793e4d72b09997707e18`は全12 CI PASS、完全immutable `20261021T014820-3de67af1`のBackground canaryは現在状態を6.54秒で取得する。履歴だけが残予算でtimeoutし、healthy10/running14/failed72/fenced73/effect_unknown9/個別gap13を保持、history_limited191を未確認のまま示す。health単体のloaded-idle採用は成功したが、自然実行前に既存fleet reconcilerが旧current44dへ戻し、自然16:51回は旧SHAだった。旧順=candidateの対象apply→自然、新順=成功canaryと同SHAを既存完全release cutterの通常current昇格→対象healthのloaded-idle採用→自然とする。理由は稼働中の唯一のrelease ownerと正本currentを一致させ、競合pinを作らないため。既存ownerを停止/再起動せず、main祖先/ALL/host lock/逆行防止の標準契約を使う。履歴全取得、容量10/12GiB、収益の完了は主張しない。
+
 ### 同時進行の基盤監査との統合
 
 [PR #8409](https://github.com/Daisuke134/life-manager/pull/8409)の追加観測と[PR #8408](https://github.com/Daisuke134/life-manager/pull/8408)のOpenClaw更新を保持する。source研究の固定base70a5e365と、統合時main4dcb2769を区別する。別監査の14:23Z `df`は3,743,008KiB（約3.57GiB）、swap7,167MiB/8GiB、corespotlightd RSS約25MiB（14:23Z）/約168MiB（14:10Z）。10/19の約16GBという旧原因観測を現在へ持ち越さず、現在の容量writerは未特定のままとする。一般producer12GiB / revenue producer10GiB / recovery2GiBを別々に評価する。
