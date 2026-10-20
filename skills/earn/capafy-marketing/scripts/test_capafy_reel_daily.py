@@ -167,6 +167,91 @@ def test_winner_openers_pick_top_viewed_shorts_and_feed_the_hook_prompt(tmp_path
     cache.write_text(json.dumps({"fetched_at": "2026-10-18", "titles": ["Nobody tells you this about hooks"]}))
     monkeypatch.setattr(m, "WINNER_OPENERS", cache)
     seen = {}
-    monkeypatch.setattr(m, "_claude", lambda prompt: seen.setdefault("p", prompt) or "out")
+    monkeypatch.setattr(m, "_generate_text", lambda prompt: seen.setdefault("p", prompt) or "out")
     m.hook_lab_output({"key": "baking", "topic": "home baking Reel"})
     assert "Nobody tells you this about hooks" in seen["p"]
+
+
+def _text_runner_fixture(tmp_path, monkeypatch, payload, *, escape=False, rc=0, wrapper=None):
+    import json
+    from types import SimpleNamespace
+    import capafy_reel_daily as m
+    monkeypatch.setenv("CAPAFY_REEL_RUN_DIR", str(tmp_path / "run"))
+    calls = []
+
+    def fake_run(command, **kwargs):
+        calls.append((command, kwargs))
+        evidence = Path(command[command.index("--evidence-dir") + 1])
+        evidence.mkdir(parents=True, exist_ok=True)
+        result = evidence.parent / "outside.json" if escape else evidence / "result.json"
+        raw = json.dumps(payload)
+        result.write_text(wrapper(raw) if wrapper else raw)
+        (evidence / "summary.json").write_text(json.dumps({
+            "status": "success", "result_path": str(result),
+        }))
+        return SimpleNamespace(returncode=rc, stdout="private provider transcript",
+                               stderr="private provider diagnostic")
+
+    monkeypatch.setattr(m.subprocess, "run", fake_run)
+    return m, calls
+
+
+def test_generate_text_uses_shared_composition_and_private_unique_evidence(tmp_path, monkeypatch):
+    import json
+    m, calls = _text_runner_fixture(tmp_path, monkeypatch, {"text": "actual output\n"})
+    for name in ("LM_POSTIZ_API_KEY", "LIFE_MANAGER_RESULT_HINT_PATH", "LIFE_MANAGER_OCCURRENCE_ID"):
+        monkeypatch.setenv(name, "publisher-only")
+
+    assert m._generate_text("A concrete bounded text task.") == "actual output\n"
+    assert m._generate_text("A second bounded text task.") == "actual output\n"
+
+    evidence_dirs = []
+    for command, kwargs in calls:
+        assert command[command.index("--task-class") + 1] == "composition-agent"
+        assert "--prompt-stdin" in command and "--read-only" in command
+        assert command[command.index("--timeout-seconds") + 1] == "600"
+        assert "--model" not in command
+        for name in ("LM_POSTIZ_API_KEY", "LIFE_MANAGER_RESULT_HINT_PATH", "LIFE_MANAGER_OCCURRENCE_ID"):
+            assert name not in kwargs["env"]
+        schema = json.loads(Path(command[command.index("--schema") + 1]).read_text())
+        assert schema["required"] == ["text"]
+        evidence = Path(command[command.index("--evidence-dir") + 1])
+        assert evidence.is_relative_to(tmp_path / "run" / "agent-runner-evidence")
+        assert evidence.stat().st_mode & 0o077 == 0
+        evidence_dirs.append(evidence)
+    assert evidence_dirs[0] != evidence_dirs[1]
+    assert "A concrete bounded text task." in calls[0][1]["input"]
+
+
+@pytest.mark.parametrize("payload", [
+    {"text": ""}, {"text": "   "}, {"text": 7},
+    {"message": "wrong envelope"}, {"text": "valid", "extra": True},
+])
+def test_generate_text_rejects_invalid_text_contract(tmp_path, monkeypatch, payload):
+    m, calls = _text_runner_fixture(tmp_path, monkeypatch, payload)
+    with pytest.raises(RuntimeError, match="capafy_reel_text_result_invalid"):
+        m._generate_text("A concrete bounded text task.")
+
+
+def test_generate_text_rejects_result_outside_current_evidence(tmp_path, monkeypatch):
+    m, calls = _text_runner_fixture(tmp_path, monkeypatch, {"text": "outside"}, escape=True)
+    with pytest.raises(RuntimeError, match="capafy_reel_text_result_invalid"):
+        m._generate_text("A concrete bounded text task.")
+
+
+def test_generate_text_failure_reports_rc_and_evidence_without_transcript(tmp_path, monkeypatch):
+    m, calls = _text_runner_fixture(tmp_path, monkeypatch, {"text": "unused"}, rc=75)
+    with pytest.raises(RuntimeError) as caught:
+        m._generate_text("A concrete bounded text task.")
+    message = str(caught.value)
+    assert "rc=75" in message and "evidence=" in message
+    assert "private provider" not in message
+
+
+@pytest.mark.parametrize("wrapper", [
+    lambda raw: "Done.\n" + raw,
+    lambda raw: "```json\n" + raw + "\n```",
+])
+def test_generate_text_accepts_runner_supported_preamble_and_fences(tmp_path, monkeypatch, wrapper):
+    m, calls = _text_runner_fixture(tmp_path, monkeypatch, {"text": "usable answer"}, wrapper=wrapper)
+    assert m._generate_text("A concrete bounded text task.") == "usable answer"
