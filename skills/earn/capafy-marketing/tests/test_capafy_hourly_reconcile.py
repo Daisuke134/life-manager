@@ -1205,3 +1205,79 @@ def test_sellers_first_keeps_frozen_sellers_inside_the_per_agent_cap() -> None:
     assert ordered[:2] == ["8123079349", "2844813315"]
     assert ordered[2:] == [str(n) for n in range(1000, 1065)]
     assert "8123079349" in ordered[: module.TRAFFIC_AGENT_CAP]
+
+
+def _sampling_fixture(tmp_path, monkeypatch):
+    module = load_module()
+    frozen = tmp_path / "FROZEN.json"
+    frozen.write_text(json.dumps({"sellers": ["p1", "p2", "p3"]}))
+    monkeypatch.setattr(module, "FROZEN_PATH", frozen)
+    calls = []
+    monkeypatch.setattr(module, "_post", lambda path, token, body:
+                        calls.append((path, body)) or {"code": 0, "data": {"items": []}})
+    monkeypatch.setattr(module, "_get", lambda path, token: {"code": 0, "data": {}})
+    ids = ["p1", "p2", "p3"] + [f"a{i:02d}" for i in range(75)]
+    return module, ids, calls
+
+
+def test_capped_traffic_observes_all_78_across_two_hours_without_extra_calls(tmp_path, monkeypatch):
+    module, ids, calls = _sampling_fixture(tmp_path, monkeypatch)
+    selections = []
+    results = []
+    for hour in (21, 22):
+        result = module.build_traffic_sources(
+            "tok", module.dt.date(2026, 10, 20), ids,
+            observed_at=f"2026-10-20T{hour}:07:00Z", cap=60, delay=0, sleep=lambda _: None)
+        selected = set(result["by_agent"])
+        assert {"p1", "p2", "p3"} <= selected and len(selected) == 60
+        assert set(result["impressions"]["by_agent"]) == selected
+        selections.append(selected)
+        results.append(result)
+    assert set.union(*selections) == set(ids)
+    assert len(calls) == 2 * (6 + 60 * 6)
+    for result in results:
+        selection = result["agent_selection"]
+        assert set(selection["queried_ids"]) == set(result["by_agent"])
+        assert set(selection["omitted_ids"]) == set(ids) - set(result["by_agent"])
+        assert result["impressions"]["by_agent_coverage"] == {
+            "requested": 78, "queried": 60, "omitted": 18, "cap": 60}
+
+
+def test_capped_selection_is_stable_when_inventory_order_changes(tmp_path, monkeypatch):
+    module, ids, calls = _sampling_fixture(tmp_path, monkeypatch)
+    kwargs = dict(observed_at="2026-10-20T21:07:00Z", cap=60, delay=0, sleep=lambda _: None)
+    first = module.build_traffic_sources("tok", module.dt.date(2026, 10, 20), ids, **kwargs)
+    second = module.build_traffic_sources("tok", module.dt.date(2026, 10, 20), list(reversed(ids)), **kwargs)
+    assert list(first["by_agent"]) == list(second["by_agent"])
+
+
+def test_traffic_and_settled_stats_query_the_same_hourly_sample(tmp_path, monkeypatch):
+    module, ids, calls = _sampling_fixture(tmp_path, monkeypatch)
+    observed = "2026-10-20T22:07:00Z"
+    traffic = module.build_traffic_sources("tok", module.dt.date(2026, 10, 20), ids,
+        observed_at=observed, cap=60, delay=0, sleep=lambda _: None)
+    gets = []
+    monkeypatch.setattr(module, "_get", lambda path, token:
+                        gets.append(path) or {"code": 0, "data": {}})
+    stats = module._fetch_agent_stats_windows("tok", ids, module.dt.date(2026, 10, 20),
+        observed_at=observed, cap=60, delay=0, sleep=lambda _: None)
+    assert list(stats) == list(traffic["by_agent"])
+    assert len(gets) == 60 * 3
+
+
+@pytest.mark.parametrize("cap", [0, 2, 100])
+def test_agent_sample_handles_zero_saturated_and_full_budget(tmp_path, monkeypatch, cap):
+    module, ids, calls = _sampling_fixture(tmp_path, monkeypatch)
+    selected = module._sample_agent_ids(ids + [ids[-1]], cap, "2026-10-20T21:07:00Z")
+    assert len(selected) == min(cap, len(ids)) and len(set(selected)) == len(selected)
+    if cap <= 3:
+        assert selected == ["p1", "p2", "p3"][:cap]
+    else:
+        assert set(selected) == set(ids)
+
+
+def test_agent_sample_uses_the_same_utc_hour_across_timezones(tmp_path, monkeypatch):
+    module, ids, calls = _sampling_fixture(tmp_path, monkeypatch)
+    first = module._sample_agent_ids(ids, 60, "2026-10-20T22:07:00Z")
+    assert first == module._sample_agent_ids(ids, 60, "2026-10-21T07:07:00+09:00")
+    assert first == module._sample_agent_ids(ids, 60, "2026-10-20T22:59:59Z")

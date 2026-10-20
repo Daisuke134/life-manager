@@ -28,7 +28,7 @@ SOURCE_NAMES = (
     "unit_sales", "statements",
 )
 CAPAFY_ACTIVE_SUBMISSION_CAP = 5
-SKILL_STATS_CAP = 60  # ponytail: sequential per-agent calls, raise if catalog grows past this
+SKILL_STATS_CAP = 60  # Shared per-agent bound; the non-seller sample rotates hourly.
 SKILL_STATS_DELAY_SECONDS = 0.15
 TRAFFIC_SOURCES_BASE = "/app/developer/traffic-sources"
 TRAFFIC_AGENT_CAP = SKILL_STATS_CAP  # ponytail: same bound as the per-agent stats loop above
@@ -38,16 +38,44 @@ TRAFFIC_AGENT_DELAY_SECONDS = SKILL_STATS_DELAY_SECONDS
 FROZEN_PATH = Path(__file__).resolve().parents[3] / "capafy" / "FROZEN.json"
 
 
-def _sellers_first(agent_ids: list[str]) -> list[str]:
-    """FROZEN sellers first so the per-agent caps above never drop them (Hook Lab fell past
-    60 of 70 on 2026-10-15). Unreadable file = original order."""
+def _seller_ids() -> list[str]:
     try:
         frozen = json.loads(FROZEN_PATH.read_text())
-        # "sellers" outlives a temporary unfreeze (Hook Lab price restore 2026-10-16).
-        sellers = [str(a) for a in frozen.get("sellers") or frozen.get("agent_ids") or []]
+        # Historical sellers stay protected during a temporary unfreeze.
+        return [str(a) for a in frozen.get("sellers") or frozen.get("agent_ids") or []]
     except Exception:
-        return list(agent_ids)
+        return []
+
+
+def _sellers_first(agent_ids: list[str]) -> list[str]:
+    """Keep the existing protected-seller order; unreadable FROZEN = original order."""
+    sellers = _seller_ids()
     return [a for a in sellers if a in agent_ids] + [a for a in agent_ids if a not in sellers]
+
+
+def _sample_agent_ids(agent_ids: list[str], cap: int, observed_at: str) -> list[str]:
+    """Bound calls while rotating a stable non-seller pool, without cursor state.
+
+    Consecutive successful hourly slots cover a stable pool in ceil(pool/room)
+    rounds. No non-seller coverage is guaranteed when sellers fill the budget.
+    """
+    available = set(agent_ids)
+    pinned = list(dict.fromkeys(a for a in _seller_ids() if a in available))
+    room = cap - len(pinned)
+    if room <= 0:
+        return pinned[:max(0, cap)]
+    pool = sorted(available - set(pinned))
+    if len(pool) <= room:
+        return pinned + pool
+    observed = dt.datetime.fromisoformat(observed_at.replace("Z", "+00:00"))
+    if observed.tzinfo is None:
+        observed = observed.replace(tzinfo=dt.timezone.utc)
+    hour = int(observed.timestamp() // 3600)
+    offset = (hour * room) % len(pool)
+    ring = pool[offset:] + pool[:offset]
+    return pinned + ring[:room]
+
+
 TRAFFIC_DISPLAY_TIMEZONE = ZoneInfo("Asia/Tokyo")
 
 
@@ -458,7 +486,9 @@ def build_traffic_sources(
     }
     by_agent: dict[str, dict] = {}
     impressions_by_agent: dict[str, dict] = {}
-    for agent_id in agent_ids[:cap]:
+    selected_ids = _sample_agent_ids(agent_ids, cap, observed_at)
+    requested_ids = set(agent_ids)
+    for agent_id in selected_ids:
         by_agent[agent_id] = {
             label: _traffic_window(web_token, start_ms, end_ms, agent_id, observed_at=observed_at)
             for label, start_ms in starts.items()
@@ -482,13 +512,18 @@ def build_traffic_sources(
         "last_30d": windows["last_30d"],
         "last_7d": windows["last_7d"],
         "by_agent": by_agent,
+        "agent_selection": {
+            "policy": "utc_hour_round_robin_after_frozen_sellers",
+            "queried_ids": selected_ids,
+            "omitted_ids": sorted(requested_ids - set(selected_ids)),
+        },
         "impressions": {
             "status": impressions_status,
             "account": impressions_account,
             "by_agent": impressions_by_agent,
             "by_agent_coverage": {
-                "requested": len(agent_ids), "queried": len(agent_ids[:cap]),
-                "omitted": max(0, len(agent_ids) - cap), "cap": cap,
+                "requested": len(requested_ids), "queried": len(selected_ids),
+                "omitted": len(requested_ids) - len(selected_ids), "cap": cap,
             },
             "data_gaps": [
                 "userIdExposureCount semantics are not documented as unique people or qualified buyers.",
@@ -499,6 +534,7 @@ def build_traffic_sources(
             "Endpoint discovered from the public Vite chunk assets/TrafficSources-*.js (base "
             "/app/developer/traffic-sources); Capafy has no documented public API for it.",
             "Impressions are listing exposures, distinct from page/detail views; userIdExposureCount dedupe semantics are unverified.",
+            "Account fresh/funnel_status do not imply complete per-Agent coverage; omitted IDs are unobserved, not zero.",
         ],
     }
 
@@ -736,11 +772,12 @@ def _catalog_models(repo_root: Path) -> dict[str, str]:
 def _fetch_agent_stats_windows(
     token: str, agent_ids: list[str], end: dt.date, *,
     cap: int = SKILL_STATS_CAP, delay: float = SKILL_STATS_DELAY_SECONDS,
-    sleep: Callable[[float], None] = time.sleep,
+    sleep: Callable[[float], None] = time.sleep, observed_at: str | None = None,
 ) -> dict[str, dict]:
-    """Bounded, sequential per-agent settled-stats (30d, 7d) and agent-detail fetch."""
+    """Bounded, sequential settled-stats/detail, aligned with the traffic sample."""
     result: dict[str, dict] = {}
-    for agent_id in agent_ids[:cap]:
+    stamp = observed_at or f"{end.isoformat()}T00:00:00Z"
+    for agent_id in _sample_agent_ids(agent_ids, cap, stamp):
         windows = {}
         for label, days in (("d30", 29), ("d7", 6)):
             start = (end - dt.timedelta(days=days)).isoformat()
@@ -1560,7 +1597,7 @@ def main(argv: list[str] | None = None) -> int:
         agent_ids = _sellers_first([str(row["agentId"]) for row in (_inventory_rows(payloads.get("inventory", {})) or [])
                                     if row.get("agentId")])
         token = _token(repo_root)
-        agent_stats = _fetch_agent_stats_windows(token, agent_ids, observed.date()) if token else {}
+        agent_stats = _fetch_agent_stats_windows(token, agent_ids, observed.date(), observed_at=observed_at) if token else {}
     analytics = build_skill_analytics(payloads, agent_stats, _catalog_models(repo_root), observed_at)
     _atomic_write(args.output.parent / "capafy-skill-analytics.json", analytics)
     _atomic_write(args.output, receipt)
