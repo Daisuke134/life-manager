@@ -1,0 +1,38 @@
+{
+  "observed_at": "2026-10-20T11:51:53.366031+00:00",
+  "scope": "read-only provider preflight, no email sent, no provider config changed",
+  "production_auth": {
+    "email_enabled": false,
+    "smtp_configured": false,
+    "hourly_email_limit": 2,
+    "new_manager_callback_allowlisted": false
+  },
+  "existing_railway_life_call": {
+    "resend_variable_present": true,
+    "runtime_database_variable_present": true,
+    "oauth_connector_values_redacted": true,
+    "existing_registered_cli_read_succeeded": true
+  },
+  "existing_resend_credential": {
+    "ssot_service": "resend-life-manager-production",
+    "key_recreated": false,
+    "domain_read_error": "restricted_api_key",
+    "smtp_host": "smtp.resend.com",
+    "smtp_port": 465,
+    "smtp_auth_status": 235,
+    "smtp_noop_status": 250,
+    "configured_sender_domain": "aniccaai.com",
+    "delivery_verified": false
+  },
+  "reference_urls": [
+    "https://supabase.com/docs/guides/auth/auth-smtp.md",
+    "https://resend.com/docs/send-with-supabase-smtp"
+  ],
+  "remaining": [
+    "review minimal production auth patch",
+    "preserve existing Google callback allowlist and auto-confirm=false",
+    "configure existing SMTP and Manager callback only",
+    "verify owned-mailbox confirmation delivery",
+    "leave application public feature flag disabled until runtime readiness"
+  ]
+}
