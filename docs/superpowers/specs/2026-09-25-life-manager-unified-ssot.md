@@ -16068,6 +16068,14 @@ REDebbd5af252→GREEN0e8f071c0eはcore guardも証明済みsell/nofill closedか
 
 **cursor更新:** 06:07 subsectionのTODO 5（source acceptance/review/CI/main）とTODO 6（最新main immutable release、validatorのみloaded-idle apply、queue/effect_unknown readback）は完了。次cursorはTODO 7の新release上での自然validation結果。BTC reportが生成されるまでselection変更や新規entryはせず、紙の自然decision/公式readback、費用完全なclosed round trip、30件評価、live gateの順を維持する。
 
+#### 2026-10-21 07:15 JST — Post-apply natural owner readback
+
+**As-Is:** latest `origin/main`=`6c39990d330c6abfd1c51a7cf2c61d45387b0887`。`investment-strategy-validation`はrelease `dd9d4cca`で`loaded-idle`、effect_unknown occurrence 0。新releaseでの自然validationはまだ無く、health clockの最新runは旧release `55cc06f2`の`entrypoint_exit_1`、BTC report 0。次回eligible readbackは`calendar: Weekday=2, 14:30`。
+- `alpaca-investment-paper`の22:14:42Z自然run `18e05c96bb449c18-52139`はrelease `0c071d28`でpass/exit 0、`effect_status=not_applicable`、official no-order ref `lm-no-effect://alpaca-investment-paper/alpaca-investment-paper:18e05c96bb449c18-52139/no_broker_order_submitted`、effect_unknown 0。22:10:04Zには別occurrenceで`resource_capacity_busy` deferがあったため、最後のpassはその単発runの回復を示し、容量の継続安定までは証明しない。decision自体は今回のstatus readbackに無く、HOLD/ENTRYを推定しない。
+- release selectorは`20261021T064341-0c071d28`のまま。validatorだけが`dd9d4cca`へ個別適用済み。paper/live owner、口座残高、selector、資金、注文は今回変更していない。live残高の最後の公式snapshotは前節の2026-10-20 19:33:01Zで、再取得していない。
+
+**現在cursor:** validatorの次の自然validationが先。`crypto_error_context`、BTC report件数/期間、fresh selectionを確認し、report未生成なら購入判断を出さない。次にpaper ownerの自然decision/公式注文readbackを同一occurrenceへ結ぶ。以降は06:07 subsectionのTODO 8–12（最初の全費用closed round trip → 30 paper round trips/EDD → 過去live注文の帰属 → AT-24/AT-29/live gates → 残高シナリオと他venue）を維持する。
+
 ### 2026-10-09 13:18 JST — Job Hunter Dreamwork cutover and updated user criteria
 
 この追記は11:50 JST snapshot後のJob Hunter readbackとユーザーの最新指示を記録する。個別の勤務地・住所などの私的値はprivate profileのみを正本とし、このspecには複製しない。
