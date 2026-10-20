@@ -465,7 +465,7 @@ life-manager/
 
 - [ ] T24.1 source-mapのArc/Panda/Pokeを読み、模倣する導入・成果の見せ方・CTAと、同じ対象でない証拠の限界を記録する。
 - [ ] T24.2 「Managerが自分で仕事を進める」「無料pilot」「試せる一つの業務」「一つのURL」を含むDM/X/IG文案を日英で用意する。利益保証/架空testimonial/架空実績を書かない。
-- [ ] T24.3 source別URLを`/maritime?source=referral|x|other`+既存UTMで指定する。IGは現source allowlistではotherにし、utm_source=instagramで詳細を残す。emailや知人名をURLへ入れない。
+- [ ] T24.3 source別URLを`/maritime?source=referral|x|other`+既存UTMで指定する。IGは配備済みsource allowlistのinstagramを使い、utm_source=instagramも残す。emailや知人名をURLへ入れない。
 - [ ] T24.4 DaisへのDM用文案を成果物として渡す。送信/友人の返事を待たずT25/T26へ進む。最終URLを確認してplaceholderがない版を保存しcommit/push。
 
 ## Task T25: demoとプロモーション動画の撮影単位を作る（開発と並行）
@@ -598,7 +598,7 @@ life-manager/
 
 - source最終d13e1b8d7fの全14check→#8424/main0c559693へ統合する。既存VMとWeb/workerはmain0cのimageを採用、safe evidenceはcloud-foundation-preflight.jsonとowned-image-adoption.jsonを参照する。
 - DBのenrollment/execution/distribution/usageは公式apply success。CFO/financialは既存tableを再利用し、二重storeや新schedulerは作らない。
-- **先頭未完T22.1b:** service-roleのREST `/rest/v1/lm_maritime_manager_enrollments?select=uid&limit=0` と `/rest/v1/lm_web_funnel_events?select=audience_kind&limit=0`、owned Auth subjectの読取を実測する。HTTP200/JSON/subject一致とelapsedを記録し、401やproject ACTIVE_HEALTHYを合格にしない。現状はREST503 PGRST002/Auth timeout。
+- **先頭未完T22.1b:** service-roleのREST `/rest/v1/lm_maritime_manager_enrollments?select=uid&limit=0` と `/rest/v1/lm_web_funnel_events?select=audience_kind&limit=0`、owned Auth subjectの読取を実測する。HTTP200/JSON/subject一致とelapsedを記録し、401やproject ACTIVE_HEALTHYを合格にしない。直近実験はREST503 PGRST002、owned Auth Adminは200/subject・email一致。
 - 直近15分の公式分類はPGRST002707件/PG timezone取消5件/他取消7件。role readbackはanon3s/authenticated8s/authenticator15s・lock8s、service_role個別未設定。schema-cache startupと通常requestを区別し、blindなtimeout増量/全体restart/課金変更をしない。原因を特定する次probeはこの境界へ限定する。
 - T22.1b通過後、既存worker capabilityを読み直し3つのMaritime capabilityを追加、両appのemail flagを1にして、privateに保存したfoundation deploymentから同imageを一回再deployする。最新SKIPPED commitを対象にせず、受理IDを保存しGETで結果を照合する。
 - owned browserの実PKCE/同意/起動→新occurrenceの完了receipt→成果download→日報→停止を行う。旧unknown occurrenceの再送・外部友人への代理DMはしない。T30 URLメール/配布とT23正式経路の順序は維持する。
@@ -607,15 +607,49 @@ life-manager/
 
 目的は認証REST/Authが実際に応答することであり、timeout値を書き換えたことを完了としない。公開flag/Maritime capability off、既存receiptとclient deadlineを維持する。global restart・resize・新料金・新DB・catalog shadowは行わない。
 
-旧順序=resource metrics/role catalog/公開RESTの読み取り診断を続ける。新順序=下記source受入→一度の設定実験→実API判定→必要時rollback。理由は、role readbackが成功し、global4行とglobal+currentDB scope4行の一致から追加DB-specific timeoutが無いことを確認でき、繰返すtimezone取消/REST503に対する最小の反証可能な変更が具体化したため。進行中の業務effectは中断/再送しない。現在cursorはb.4-3。
+旧順序=resource metrics/role catalog/公開RESTの読み取り診断を続ける。新順序=下記source受入→一度の設定実験→実API判定→必要時rollback。理由は、role readbackが成功し、global4行とglobal+currentDB scope4行の一致から追加DB-specific timeoutが無いことを確認でき、繰返すtimezone取消/REST503に対する最小の反証可能な変更が具体化したため。進行中の業務effectは中断/再送しない。限定実験は終了し、現在cursorはb.5-1。
 
 - [x] **b.4-1 / native RED:** `apps/life-manager/test/postgres/postgrest-startup-budget.integration.js`を作る。既存native PG fixtureのinitdb/Unix socket/pg driverを再利用し、baseline auth15/service未設定/anon3/authenticated8/lock8を作る。旧migrationをforward引数にしてauth60の期待が失敗することを確認する。
 - [x] **b.4-2 / forwardとrollback:** `apps/life-manager/migrations/20261021070000_lm_postgrest_startup_budget.sql`はservice_role15を先に明示、authenticator60、config+schema NOTIFYだけとする。`apps/life-manager/scripts/postgrest-startup-budget-rollback.sql`はauthenticator15、service_role RESET、両NOTIFYで元の設定状態へ戻す。native fixtureでforward再適用、新旧接続、anon/auth/lock維持、rollback再適用と新接続15を確認する。
-- [ ] **b.4-3 / source受入:** 最小差分をcommit/pushし、実source reviewと対象CIを確認してmainへ統合する。主仮説はcold schema/timezone queryの15s取消であり、60s以内で終わる実測はまだ無い。source acceptanceを障害復旧と呼ばない。
-- [ ] **b.4-4 / 一回適用:** 既存private credentialでbaseline/履歴を読み、main由来forwardを一度だけ適用して公式receiptを保存する。応答不明時はroles/historyを読む。無根拠なforward再送はしない。
-- [ ] **b.4-5 / 2分で判定:** 認証limit0 RESTのenrollment/funnel audience_kind、owned Auth Admin、schema-cache/role-settingsの公式ログを読む。RESTだけ200なら部分回復であり、基盤全体の復旧ではない。新しいrole-map障害/60sでもtimezone取消/2分内に必要APIが回復しなければrollbackを開始する。
-- [ ] **b.4-6 / 復帰確認:** rollback SQLを既存経路で適用し、authenticator15とservice_role未設定のreadback・REST/Auth状態を記録する。2分はrollback開始期限であり接続障害時の復帰完了保証ではない。公式確認が無ければ復帰未確認としてカーソルを保つ。
+- [x] **b.4-3 / source受入:** 最小差分をcommit/pushし、実source reviewと対象CIを確認してmainへ統合する。主仮説はcold schema/timezone queryの15s取消であり、60s以内で終わる実測はまだ無い。source acceptanceを障害復旧と呼ばない。
+- [x] **b.4-4 / 一回適用:** 既存private credentialでbaseline/履歴を読み、main由来forwardを一度だけ適用して公式receiptを保存する。応答不明時はroles/historyを読む。無根拠なforward再送はしない。
+- [x] **b.4-5 / 2分で判定:** 認証limit0 RESTのenrollment/funnel audience_kind、owned Auth Admin、schema-cache/role-settingsの公式ログを読む。RESTだけ200なら部分回復であり、基盤全体の復旧ではない。新しいrole-map障害/60sでもtimezone取消/2分内に必要APIが回復しなければrollbackを開始する。
+- [x] **b.4-6 / catalog復帰確認（既存pool状態は未確認）:** rollback SQLを既存経路で適用し、authenticator15とservice_role未設定のreadback・REST/Auth状態を記録する。2分はrollback開始期限であり接続障害時の復帰完了保証ではない。公式確認が無ければ復帰未確認としてカーソルを保つ。
 
 通常requestのrole map読み込み失敗時に60s fallbackとなる可能性は残る。service_role15の明示を絶対的なrequest cap保証とは説明しない。新規のビジネス処理をこの実験に使わず、既存idempotency/receipt fenceを維持する。proposalのfresh read-only reviewはCritical0/Important0、詳細は本worktreeのignored `supabase-diagnosis-bounded-experiment-review.md`を参照する。
 
 **b.4 source観測:** 旧SQLをforward引数にしたnative REDはfresh接続15s対期待1minで失敗する。新forward/rollbackは再適用・新旧接続・role/lock・元catalog復帰の8確認がPASS。PostgREST本体のrole mapや実APIの復旧は未検証、既存接続はrollback後も起動時GUCを保持する。証拠→docs/evidence/maritime/postgrest-startup-budget-source.json。
+
+
+**b.4 本番結果:** PR #8446はexact HEAD全14checks成功後、main `67b907d6ab3df3b34021ace303b528304828b22f`へ統合する。同main由来forwardを一回だけ適用し、公式successを受ける。83秒でowned Auth Adminは200/subject・email一致・confirmedになるが、97秒時点でも両RESTは503 PGRST002のため、103秒でrollbackを開始する。rollback公式successと元のglobal4設定（anon3s/authenticated8s/authenticator15s＋lock8s、service_role未設定）を読取確認する。既存poolの起動時GUC復帰とREST復旧は未確認であり、成功扱いしない。証拠→`docs/evidence/maritime/postgrest-startup-budget-production.json`。source snapshotのproduction_applied=falseは隔離検証時点の履歴として保持する。
+
+### T22.1b.5 — 失敗した限定実験から次の修復境界へ
+
+旧順序=b.4 source→一回適用→API判定→rollback。新順序=版/公式更新経路の読取→対象限定の修復方式決定→実API判定。理由は60s設定では必要RESTが回復せず元catalogへ戻したため。同じforward再送・追加timeout増量・全project restartはしない。現在cursor=b.5-1。
+
+- [ ] **b.5-1 / 稼働版:** 公式Management health/service versionの返却shapeと公開API schemaを確認する。Postgres17.6をPostgREST版と取り違えず、版が取得できなければHTTP状態と不足するsessionを記録する。
+- [ ] **b.5-2 / 上流修正と更新範囲:** PostgRESTの公式release/changelogでtimezone catalog依存除去の修正を照合する。Supabaseの公開upgrade DTO/eligibilityを読み、DB全体upgradeとREST単独更新を区別する。非公開endpoint401を成功扱いせず、現存PATを無根拠に入替えない。
+- [ ] **b.5-3 / 修復実行と判定:** 調査で特定した最小の修復をspecへ具体化してから実行する。新たな支出/全体restart/catalog shadowを導入せず、enrollment/funnel REST200とowned Auth200を再確認する。復帰しない場合はquery/connection/公式ログの失敗境界を一段狭める。
+
+
+**b.5-1/2の読取結果:** public health200はREST/Auth UNHEALTHY、DB ACTIVE_HEALTHY。PostgREST configはpool自動/acquisition10秒/max_rows1000/schema public,graphql_public。pg_stat_activityのapplication_nameはpostgrestで版なし。公開upgrade eligibilityはPostgres17.6→17.11/推定1時間なのでREST修復として使わない。v16.0以降の上流fixは確認するがmanaged版は未取得。Metricsは一回504。DashboardはGitHubログイン専用という公式メールを受信し、保存済みGitHub password拒否・旧reset失効・recovery replay fenceを確認する。本人ログイン依頼は非同期で維持し、共有profile/identityを置換しない。
+
+### T22.1c — DB復旧と独立した配備済みfactoryの新occurrence確認
+
+旧順序=REST/Auth復旧→owned PKCE→新cycle。新順序=REST/Authの修復・本人ログイン待ちと並行して、owned VMの新offline occurrenceを一回確認→REST復帰後にPKCE/製品経由全体を確認。理由は、既知のliteral-path修正が新main imageへ配備済みであり、その修正の実モデル受入はDBに依存せず、既存VMと無料残高内で先に証明できるため。公開flag/worker capability、旧unknown occurrenceは変更しない。運用全体cursorはb.5-1とし、独立副cursorはc-1。
+
+- [x] **c-1 / preflight:** 私有SSOTと既存VM identity/release0c、旧factory/adoptionのterminalを読む。既存billingでfree残高を確認し、paid変更をしない。新occurrence `owned-literal-path-20261021`が未dispatchであることを専用namespaceで確認する。
+- [x] **c-2 / 一回実行:** 既存`maritime-owned-factory.py`のdispatch/readbackと既存`run-cycle.js`を再利用する。dedicated namespace `owned_factory_v2_`、pending fenceを保存してから一回POSTする。新モデル呼出は既存無料残高/既存モデル設定内。provider account未接続のままoriginal offline成果物を作り、publish/commerce mutation/友人への送信はしない。
+- [ ] **c-3 / receipt:** 保存したexecution IDの公式GETでterminalとcycle statusを読む。completedにはliteral artifact refsが必要。不明時は同occurrenceを再送せず、既存receipt/summaryをread-onlyで診断する。旧6ファイルのunknownは書換えない。
+- [ ] **c-4 / 成果物:** 新receiptのartifact path/存在/size/hashを既存validatorの契約と照合する。内部fixtureを実利用者、ファイル作成を売上・販売・入金と呼ばない。製品経由download/日報/停止はREST復旧後の未完項目として維持する。
+
+
+**c-3診断→c-5 source修正:** 新v2 executionは公式completed/exit1、cloud_cycle.py:111のreceipt.parent.mkdirでPermissionError。モデル結果/新cycle receiptは無く、completedのcycleと扱わない。非root移行前のroot-owned receipts親が固定directory準備対象から漏れる仮説をlstatで確認する。旧順序=c-3 receipt→c-4成果物、新順序=c-3権限観測→c-5固定親修正/受入/main→新image採用→同occurrenceの未着手readback→c-4、理由=実モデル前の自己所有初期化不具合を解消するため。provider dispatch fenceと旧unknown receiptは削除しない。
+
+- [x] **c-5a / directory境界:** `apps/life-manager/maritime/runtime-env.js`の`prepareMaritimeRuntime`、`run-cycle.js`のsetpriv→`cloud_cycle.py`のreceipt mkdirを照合する。変更は固定tenant receipts親のno-follow fd初期化へ限定し、再帰chown/モデル成果物の書換えはしない。
+- [x] **c-5b / source修正:** 実行済みの非root失敗と既存runtime fixtureを根拠に固定`receipts`を既存ownership対象へ加える。既存のno-follow/10001/0700契約と旧receipt内容を保つ。元のpermission境界に絞って受入を確認する。
+- [ ] **c-5c / mainと採用:** sourceをcommit/push→実read-only review→exact HEAD必要checks→mainへ統合する。既存builder/upload/redeployを再利用して既存owned VMだけ新mainへ反映し、health/source hashと固定親ownershipを確認する。
+- [ ] **c-5d / 新実行の扱い:** v2がモデル前失敗し新cycle.jsonが存在しないことを公式readbackで確認する。保存済みv2 execution IDは保持し、修復後の別dispatch namespaceを設けて同業務occurrenceへ一回だけdispatchする。存在するunknown receiptを消したり別IDで同作用を重複させたりしない。
+
+
+**c-5a/b受入:** 実VMのreceipts親はuid/gid0・0755、home/buildは10001・0700、新v2 receipt directory/cycle.jsonは未作成。旧factory execution IDの現在GET404と過去completed証拠は分離する。固定親receiptsの既存no-follow ownership対象への追加だけを実装する。receipt parent inodeが10001/10001準備対象から漏れるfocused REDを確認し、修正後runtime-env6/6を確認する。fixtureはownership syscallのみ記録し、実chownの採用は新imageで別確認する。現在副cursor=c-5c。証拠→`docs/evidence/maritime/owned-factory-v2-preflight.json`。
