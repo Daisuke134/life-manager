@@ -163,8 +163,8 @@ def test_buyer_visible_hook_lab_keeps_half_even_when_its_30d_profit_is_negative(
 
 
 def test_other_sellers_share_the_non_hook_lab_half_by_search_views() -> None:
-    # 2026-10-18: TikTok Script Pro drew 27 search-side views (25 from Google AI Overview) and
-    # YouTube Script Writer 9, yet each got a quarter of all slots.
+    # Mixed-source discovery weights: TikTok Script Pro has 27 views and
+    # YouTube Script Writer 9. These weights do not establish SEO acquisition.
     module = load_module()
     order = module.weighted_rotation("hook-lab", ["tiktok-script-pro", "youtube-script-writer"],
                                      {"tiktok-script-pro": 27, "youtube-script-writer": 9})

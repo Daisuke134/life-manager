@@ -137,10 +137,10 @@ X_CTA_URL="${CAPAFY_LANDING_URL}${CT_SEP}ct=${X_CT}"
 # a retry on the same JST date always resolves to the exact same page
 # instead of depending on model-chosen title text for idempotency.
 FREE_ARTICLE_SLUG="capafy-${CAPAFY_SKILL_SLUG}-${SLOT}"
-# Seller slots with seo/<skill>-keywords.json write a keyword-targeted page instead (SSOT 2026-10-17): the 16
-# keyword pages became Hook Lab's top traffic source via Google AI Overview, while
-# dated capafy-hook-lab-<slot> pages drew ~1 view a week. Falls back to the dated
-# slug when every keyword already has a page.
+# Seller slots with seo/<skill>-keywords.json write a keyword-targeted page instead.
+# Source classification and measured outcomes live in the canonical SSOT; page
+# creation alone does not establish external search acquisition. Fall back to the
+# dated slug when every keyword already has a page.
 SEO_KEYWORD_JSON=""
 SEO_BRIEF=""
 SEO_KEYWORDS_FILE="$SELF_DIR/../seo/${CAPAFY_SKILL_SLUG}-keywords.json"
