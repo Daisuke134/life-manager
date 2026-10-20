@@ -217,7 +217,7 @@ function hasVerifiedGoogleIdentity(user) {
     .some((provider) => String(provider || "").trim().toLowerCase() === "google");
 }
 
-async function readWebFirstTouch(uid, fetchImpl, root, key) {
+async function readWebFirstTouchRow(uid, fetchImpl, root, key) {
   const response = await fetchImpl(
     `${root}/rest/v1/lm_users?uid=eq.${encodeURIComponent(uid)}&select=uid,telegram_chat_id,web_first_touch&limit=2`,
     { headers: serviceHeaders(key) },
@@ -226,7 +226,17 @@ async function readWebFirstTouch(uid, fetchImpl, root, key) {
   const rows = await response.json();
   if (!Array.isArray(rows) || rows.length !== 1) return false;
   const row = rows[0];
-  return isUnboundWebRow(row, uid) && row.web_first_touch != null;
+  return isUnboundWebRow(row, uid) ? row : null;
+}
+
+async function readWebFirstTouch(uid, fetchImpl, root, key) {
+  const row = await readWebFirstTouchRow(uid, fetchImpl, root, key);
+  return Boolean(row && row.web_first_touch != null);
+}
+async function readWebFirstTouchValue(uid, opts = {}) {
+  if (!WEB_UID_RE.test(String(uid || ""))) throw new Error("verified Web uid is required");
+  const row = await readWebFirstTouchRow(uid, opts.fetch || globalThis.fetch, requiredSupabaseUrl(opts), requiredServiceRoleKey(opts));
+  return sanitizeWebAttribution(row?.web_first_touch);
 }
 
 async function storeWebFirstTouch(uid, attribution, opts = {}) {
@@ -606,4 +616,6 @@ module.exports = {
   resolveWebUser,
   signedOutCalendarHandoffLocation,
   separateWebUidForSubject,
+  storeWebFirstTouch,
+  readWebFirstTouchValue,
 };
