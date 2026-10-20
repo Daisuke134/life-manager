@@ -134,6 +134,11 @@ class FlowWriterTests(unittest.TestCase):
                 self.assertEqual(report['baseline']['cycle_id'],active['cycle_id'])
                 self.assertEqual(report['baseline']['quantities']['USDC'],'100')
                 self.assertEqual(report['current']['observed_at'],observed)
+                self.assertNotIn(orders[0]['id'],report.get('unattributed_order_ids',[]))
+                gap=next(item for item in report['buy_credit_gaps'] if item['cycle_id']==active['cycle_id'])
+                self.assertEqual(gap['provider_order_id'],orders[0]['id'])
+                self.assertEqual(gap['initial_gross_minus_credited_btc'],'0')
+                self.assertEqual(report['status'],'observed_match')
                 self.assertEqual(result['flow_readback_through'],observed)
                 self.assertIsNone(result['net_pnl_usd']);self.assertFalse(result['capital_expansion_allowed'])
 
