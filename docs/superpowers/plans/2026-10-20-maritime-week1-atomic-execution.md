@@ -518,7 +518,7 @@ life-manager/
 **Interfaces:** source別実利用、official count、gross/refund/known cost/netStatus、capacity、継続。
 **Depends:** T28。売上発生自体は保証しない。
 
-- [ ] T29.1 capacityは現在のbilling/awake制限/利用者あたり費用から読み、既存capを25→100→1,000へ段階更新する。特定人数が揃うまで提出や素材制作を止めない。
+- [ ] T29.1 capacityは現在のbilling/awake制限/利用者あたり費用から読み、稼働cap3を起点に、請求条件と単価の確認後10→100→1,000へ段階更新する。特定人数が揃うまで提出や素材制作を止めない。
 - [ ] T29.2 完了・再利用・費用が良いsourceを増やす。販売対象商品の成果はCapafy official visits/orders/refund等で確認し、SNS表示回数だけで施策を増やさない。
 - [ ] T29.3 費用の高いwake/無成果taskを既存model判断とbackoffで減らし、実際のnetが確認できる業務へ資源を寄せる。利益不明を黒字と報告しない。
 - [ ] T29.4 1,000人到達時に公式project usageと本人/重複確認を提出し、winner通知をreadbackする。SF日本発旅費/credit条件/YCは別の確認事項として保持する。
@@ -536,14 +536,20 @@ life-manager/
 
 ## Task T31: Cloud Life Manager自身の課金と利益をつなぐ
 
-**Files:** Modify `apps/life-manager/lib/web-billing.js`/同test、`server.js`、Manager UI。Reuse既存Stripe checkout/portal/webhook、web funnel/financial records。
-**Interfaces:** 既存`handleWebBillingRequest`の`resolveWebUserImpl`へ、Managerのverified email identityを専用経路で渡す。CalendarのGoogle guardは変えない。既存の価格/商品設定を公式Stripeでreadbackし、顧客の任意checkoutと署名済みwebhookだけでpaid状態を更新する。
-**Depends:** T23の無料pilot提出を先行。LM自身の収益と、利用者のCapafy等の収益を混同しない。
+**As-Is:** `web-billing.js`は`readWebBillingUser()`とcustomer保存がSupabase lm_usersへ直接依存し、`createWebCheckoutSession()`が`requireActiveCalendar()`を必ず呼ぶ。metadataもlife_manager_web_travel、戻り先も/lm。`billing.js`のevent claim/applyもSupabase直接依存。verified identity resolverを替えるだけではManager課金にならない。
 
-- [ ] T31.1 既存checkout/portal価格・trial条件・支払済みinvoiceと返金を公式Stripeから読む。現在の『Stripe売上なし』はDaisの申告であり、再取得前に確認済み0/MRRと書かない。
-- [ ] T31.2 email-only利用者のcheckout/portalを同じuid/CSRF/originへbindするfocused caseを書き、既存web-billingのresolver injectionを使う。任意uid/customer/priceの入力は拒否し、Calendar identityは拡張しない。
-- [ ] T31.3 無料pilotを自動課金へ変えず、価値を確認した利用者が自ら選ぶupgrade入口を接続する。test modeでcheckout→webhook→本人のpaid状態を確認してから、既存価格のlive checkoutを公開する。自分のcardで架空の売上を作らない。
-- [ ] T31.4 正規利用者のpaid invoice・refund・Stripe手数料・Cloud/model/mail費用をjoinし、LMの実売上/確認できる利益を報告する。free signup×価格をMRRとしない。未取得費用があれば利益は未確認とする。
+**Files:** Modify `lib/web-billing.js`/同test、`lib/billing.js`/同test、`server.js`、Manager UI。Create `lib/maritime-manager-billing.js`/同testとManager用billing migration（実装開始時に確定した入出力を同節へ反映する）。Reuse既存Stripe client/session/portal/署名検証/FinancialRecord。
+**Depends:** 無料pilotの提供/初週提出を先行する。価格・商品・支払実績の読取は独立して進められる。任意upgradeとして実装し、Calendar guardや無料pilotの条件を変えない。
+
+- [ ] **T31.1:** 既存Stripeの商品/価格/trial/paid invoice/refundを公式readbackする。現在額・課金対象・price IDの対応を記録し、Dais申告だけで売上0/MRRと確定しない。
+- [ ] **T31.2:** web-billing.jsの`readWebBillingUser`、customer保存、`requireActiveCalendar`、metadata、戻り先をManagerの差替箇所として固定する。既存Calendarのeligibilityを残し、共通Stripe session/portal組立てを再利用できる境界へ分ける。
+- [ ] **T31.3:** native Runtime PGにManager本人とStripe customer/subscriptionを結ぶ保存先、およびStripe event一回処理のfenceを定義する。一般lm_users/旧Stripe ledgerは移行しない。
+- [ ] **T31.4:** maritime-manager-billing.jsでverified Manager UIDのbilling read/customer一回保存を接続する。任意uid/customer/price入力・他人のcustomer・claim上書きを拒否する。
+- [ ] **T31.5:** 同fileのcheckout/portalを本人UID/CSRF/origin/許可priceへbindし、Manager起動と課金状態を区別する。Calendar接続をManagerのcheckout条件にしない。
+- [ ] **T31.6:** server.jsの署名確認済みStripe eventからManagerのproduct metadataだけを専用handlerへ振り分ける。billing.jsの既存parserを再利用し、PGのevent claim→subscription/paid/refund/cancel状態を結ぶ。旧Calendar/Telegram handlerへ二重適用しない。
+- [ ] **T31.7:** 関連fixtureとStripe test modeでcheckout→署名webhook→本人paid状態、portal、重複eventを確認する。自己cardでliveの架空売上を作らない。
+- [ ] **T31.8:** 任意upgrade UI、review/CI/main/既存backend反映、live checkout入口のreadbackを行う。無料pilotを自動課金に変えない。
+- [ ] **T31.9:** 実利用者のpaid invoice/refund/Stripe手数料とCloud/model/mail費用を既存FinancialRecordへ結び、実売上と確認できる純利益を報告する。未取得費用は未確認、free signup×価格はMRRにしない。
 
 ## Task T32: 既存SupabaseとResendで確認メールを実際に届ける
 
@@ -648,7 +654,7 @@ life-manager/
 
 - [x] **c-5a / directory境界:** `apps/life-manager/maritime/runtime-env.js`の`prepareMaritimeRuntime`、`run-cycle.js`のsetpriv→`cloud_cycle.py`のreceipt mkdirを照合する。変更は固定tenant receipts親のno-follow fd初期化へ限定し、再帰chown/モデル成果物の書換えはしない。
 - [x] **c-5b / source修正:** 実行済みの非root失敗と既存runtime fixtureを根拠に固定`receipts`を既存ownership対象へ加える。既存のno-follow/10001/0700契約と旧receipt内容を保つ。元のpermission境界に絞って受入を確認する。
-- [ ] **c-5c / mainと採用:** sourceをcommit/push→実read-only review→exact HEAD必要checks→mainへ統合する。既存builder/upload/redeployを再利用して既存owned VMだけ新mainへ反映し、health/source hashと固定親ownershipを確認する。
+- [x] **c-5c / mainと採用:** sourceをcommit/push→実read-only review→exact HEAD必要checks→mainへ統合する。既存builder/upload/redeployを再利用して既存owned VMだけ新mainへ反映し、health/source hashと固定親ownershipを確認する。
 - [ ] **c-5d / 新実行の扱い:** v2がモデル前失敗し新cycle.jsonが存在しないことを公式readbackで確認する。保存済みv2 execution IDは保持し、修復後の別dispatch namespaceを設けて同業務occurrenceへ一回だけdispatchする。存在するunknown receiptを消したり別IDで同作用を重複させたりしない。
 
 
@@ -657,7 +663,7 @@ life-manager/
 
 ### T22.1b.6 — Manager保存先を既存Runtime Postgresへ接続する
 
-旧順序=b.5のDashboard本人ログイン→REST復旧→公開。新順序=下記b.6とc-5のimage採用を並行→owned製品受入→T30配布、T23正式経路確認。理由は、現SupabaseデータAPI503、同regionの公式障害、候補DBimageにもtimezone依存が残る一方、既存Runtime PGはDDL可・対象6表未作成・Manager job0、Supabase enrollment/execution0、公開flag/cap無効を確認するため。b.5は元provider診断として残すが製品の進行条件から外す。進行中のimage配備と旧unknown fenceを中断/重複させない。現在主cursor=b.6-01、副cursor=c-5c。
+旧順序=b.5のDashboard本人ログイン→REST復旧→公開。新順序=下記b.6とc-5のimage採用を並行→owned製品受入→T30配布、T23正式経路確認。理由は、現SupabaseデータAPI503、同regionの公式障害、候補DBimageにもtimezone依存が残る一方、既存Runtime PGはDDL可・対象6表未作成・Manager job0、Supabase enrollment/execution0、公開flag/cap無効を確認するため。b.5は元provider診断として残すが製品の進行条件から外す。進行中のimage配備と旧unknown fenceを中断/重複させない。現在主cursor=b.6-01、副cursor=c-5d。
 
 **対象tree（新規は予定、既存componentを再利用する）:**
 
@@ -725,3 +731,6 @@ apps/life-manager/
 **その先の既存atomic TODO:** T30.1〜4=URLメール、T24.3〜4/T25/T26=媒体URL・配布素材・demo/公開、T23=正式提出と受付readback、T27/T28/T29=実利用と継続/1,000人への拡大、T31=課金/利益。各定義を重複作成せず既存節を実行する。友人3人・正式form公開・24時間再訪・1,000人をURL送信の待ち条件にしない。
 
 **再利用するcomponent:** runtime-job-store、FinancialRecord、daily observations、Maritime transport、Resend/CFO delivery、PKCE/CSRF、UID helper、distribution/event normalizer。根拠→`docs/evidence/maritime/runtime-pg-state-preflight.json`。
+
+
+**c-5cの本番採用:** main4fの既存VM再配備は公式success。新しいread-only executionはcompleted/exit0、health release4f・runtime-env.js hashのmain一致・receipts親10001:10001/0700・symlinkなしを確認する。v2失敗occurrenceのcycle receiptは存在しない。モデルは呼ばず、再dispatch/新業務完了は未確認。副cursor=c-5d。証拠→`docs/evidence/maritime/receipt-parent-image-adoption.json`。
