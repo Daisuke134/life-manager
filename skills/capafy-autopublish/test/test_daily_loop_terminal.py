@@ -157,6 +157,7 @@ def _run_retry_existing(
     post_package_uploaded: bool = True,
     model_result: str = "MODEL_MATCH deepseek/deepseek-v4.1-flash",
     retry_reason: str = "retry Capafy AI-generator stub draft on the same agent_id",
+    run_resume_branch: bool = False,
 ) -> tuple[subprocess.CompletedProcess[str], Path, Path, Path, Path]:
     release = tmp_path / "release"
     auto = release / "skills/capafy-autopublish"
@@ -261,7 +262,9 @@ def _run_retry_existing(
         "RETRY_EXISTING_STUB=1",
         _retry_existing_stub_block(),
         "retry_existing_stub_finish",
-        "echo SHOULD_NOT_REACH_DETERMINISTIC_FINISH",
+        (_between(CHILD.read_text(), 'REUSE_PREPARE_ID=""', "\n# PUBLISHABLE")
+         + '\nprintf "REUSE_PREPARE_ID=%s\\n" "$REUSE_PREPARE_ID"\n'
+         if run_resume_branch else "echo SHOULD_NOT_REACH_DETERMINISTIC_FINISH"),
         "",
     ))
 
@@ -305,6 +308,39 @@ def test_retry_existing_finishes_the_exact_existing_agent_version(tmp_path: Path
         "capafy:agent/7393298474/version/2110426515594047488:platform_status=1"
     )
     assert receipt["verified_at"].endswith("Z")
+
+
+def test_unstarted_stub_reaches_existing_same_agent_prepare_without_finishing(tmp_path: Path) -> None:
+    result, finish_log, marker, _, _ = _run_retry_existing(
+        tmp_path, confirmed_skills=False, confirmed_config_keys=False, package_uploaded=False,
+        model_result="MODEL_UNKNOWN no-confirmed-model-yet", run_resume_branch=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "REUSE_PREPARE_ID=7393298474"
+    assert not finish_log.exists()
+    assert not marker.exists()
+
+
+@pytest.mark.parametrize("overrides", [
+    {"remote_ok": False},
+    {"remote_version": "different-version"},
+    {"remote_status": 1},
+    {"model_result": "MODEL_MATCH deepseek/deepseek-v4.1-flash"},
+    {"model_result": "MODEL_UNKNOWN detail-fetch-failed:TimeoutError"},
+    {"confirmed_skills": None},
+    {"package_uploaded": True},
+])
+def test_unstarted_stub_does_not_resume_uncertain_or_changed_state(tmp_path: Path, overrides: dict) -> None:
+    options = dict(confirmed_skills=False, confirmed_config_keys=False, package_uploaded=False,
+                   model_result="MODEL_UNKNOWN no-confirmed-model-yet", run_resume_branch=True)
+    options.update(overrides)
+    result, finish_log, marker, _, _ = _run_retry_existing(tmp_path, **options)
+
+    assert result.returncode == 1
+    assert not result.stdout.strip()
+    assert not finish_log.exists()
+    assert not marker.exists()
 
 
 @pytest.mark.parametrize(
