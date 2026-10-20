@@ -13,6 +13,7 @@ import datetime as dt
 import json
 import os
 import re
+import runpy
 import subprocess
 import sys
 import urllib.request
@@ -153,7 +154,9 @@ def _generate_text(prompt: str) -> str:
             raise ValueError("runner did not succeed")
         result_path = Path(summary["result_path"]).resolve(strict=True)
         result_path.relative_to(evidence.resolve())
-        result = json.loads(result_path.read_text())
+        parse_result = runpy.run_path(
+            str(repo / "skills/writer-agent/runtime/shared-model-runner.py"))["parse_contract_result"]
+        result = parse_result(result_path.read_text())
         if (not isinstance(result, dict) or set(result) != {"text"}
                 or not isinstance(result["text"], str) or not result["text"].strip()):
             raise ValueError("invalid text envelope")

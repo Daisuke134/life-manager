@@ -172,7 +172,7 @@ def test_winner_openers_pick_top_viewed_shorts_and_feed_the_hook_prompt(tmp_path
     assert "Nobody tells you this about hooks" in seen["p"]
 
 
-def _text_runner_fixture(tmp_path, monkeypatch, payload, *, escape=False, rc=0):
+def _text_runner_fixture(tmp_path, monkeypatch, payload, *, escape=False, rc=0, wrapper=None):
     import json
     from types import SimpleNamespace
     import capafy_reel_daily as m
@@ -184,7 +184,8 @@ def _text_runner_fixture(tmp_path, monkeypatch, payload, *, escape=False, rc=0):
         evidence = Path(command[command.index("--evidence-dir") + 1])
         evidence.mkdir(parents=True, exist_ok=True)
         result = evidence.parent / "outside.json" if escape else evidence / "result.json"
-        result.write_text(json.dumps(payload))
+        raw = json.dumps(payload)
+        result.write_text(wrapper(raw) if wrapper else raw)
         (evidence / "summary.json").write_text(json.dumps({
             "status": "success", "result_path": str(result),
         }))
@@ -245,3 +246,12 @@ def test_generate_text_failure_reports_rc_and_evidence_without_transcript(tmp_pa
     message = str(caught.value)
     assert "rc=75" in message and "evidence=" in message
     assert "private provider" not in message
+
+
+@pytest.mark.parametrize("wrapper", [
+    lambda raw: "Done.\n" + raw,
+    lambda raw: "```json\n" + raw + "\n```",
+])
+def test_generate_text_accepts_runner_supported_preamble_and_fences(tmp_path, monkeypatch, wrapper):
+    m, calls = _text_runner_fixture(tmp_path, monkeypatch, {"text": "usable answer"}, wrapper=wrapper)
+    assert m._generate_text("A concrete bounded text task.") == "usable answer"
