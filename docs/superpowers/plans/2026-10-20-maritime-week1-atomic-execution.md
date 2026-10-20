@@ -112,7 +112,7 @@ life-manager/
         └── submission.json                         [T23で実測だけをexport]
 ```
 
-`requirements.json`はT01で観測済み。`readiness.json`/`submission.json`は実行taskで作る。未観測をfalse/0/完了へ置換しない。図は説明用artifactで、実装の代わりにしない。
+`requirements.json`と`readiness.json`は観測済み。`submission.json`はT23で実測から作る。未観測をfalse/0/完了へ置換しない。図は説明用artifactで、実装の代わりにしない。
 
 ## コマンドの作業場所
 
@@ -142,7 +142,7 @@ life-manager/
 
 - **提出経路確認T01、配布文案T24、台本T25は即着手可能。友人・利用実績を待たない。**
 - T32（実メール設定）はT04後から独立して進め、T22公開前に閉じる。数字順ではなく依存順で実行する。
-- T12は専用Dockerfile+sanitized ZIPへ訂正する。旧=root Dockerfile、新=`apps/life-manager/maritime/Dockerfile`。理由はRailwayの自動検出が既存サービスを変更するため。cursorはT06のsource統合待ちで変更しない。
+- T12は専用Dockerfile+sanitized ZIPへ訂正する。旧=root Dockerfile、新=`apps/life-manager/maritime/Dockerfile`。理由はRailwayの自動検出が既存サービスを変更するため。現在cursorはSpec正本を参照する。
 - 旧T12→T13はCMD対象server未作成のままbuildする逆依存だったため、T13→T14→T12へ訂正する。各taskの成果条件は保持する。
 - 開発critical path: T02→T03→T04→T05→T06→T07→T08→T09→T10→T11→T13→T14→T12→T15→T16→T17→T18→T19→T20→T21→T22→T23。
 - T24/T25/T26の素材準備は開発の外部待ち時間に進める。投稿は公開URLと真実のdemoが揃えば進め、3人feedback待ちにしない。
@@ -496,7 +496,7 @@ life-manager/
 
 **Files:** Read `docs/evidence/maritime/smtp-preflight.json`。Create `docs/evidence/maritime/smtp-readback.json`（設定名/成否/receipt hashのみ）。実設定はSupabase production Auth、secret値はprivate credential SSOTのみ。
 **Interfaces:** T04のPKCE handlerとT22のowned inboxをconsumes。設定readbackと実メール到着をproduces。公開appのfeature flagはこのtaskでは有効化しない。
-**Depends:** T04。T07–T21とは独立して進める。現在email provider=false、custom SMTPなし、送信limit2/hour。既存Resend SMTP AUTH235/NOOP250まで確認済み、着信未確認。
+**Depends:** T04。T07–T21とは独立して進める。初回の変更前観測はemail provider=false、custom SMTPなし、送信limit2/hour。これは現状値ではない。実環境の現在状態と着信証拠はSpec正本/T32とsmtp-readback.jsonを参照する。
 
 - [ ] T32.1 private SSOT全体と`supabase-life-manager-production`/`resend-life-manager-production`/`agentmail-life-manager-production`完全一致を読む。新key/account/inboxを作らず、既存設定をManagement API GET `/v1/projects/<ref>/config/auth`で再取得する。秘密の値を出力しない。
 - [ ] T32.2 Python標準`email.utils.parseaddr(from_address)`でmailboxとdisplay nameを分ける。smtp_admin_emailにはmailboxのみ、smtp_sender_nameにはdisplay nameまたは`Life Manager`を使う。空mailboxなら設定を送信せず、既存Resendのsender設定を確認する。
