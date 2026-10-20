@@ -356,7 +356,7 @@ life-manager/
 ## Task T19: 日次メールを既存CFO配信へ接続する
 
 **Files:** Modify `maritime-manager-report.js`、`runtime-up.js`。Reuse `cfo-cloud-delivery.js`/`mail-resend.js`。
-**Interfaces:** `deliverMaritimeDailyResult({enrollment,result,observedAt},deps)`→既存`deliverCloudCfoEmail({uid,periodKey,message,observedAt,recipient})`。
+**Interfaces:** `deliverMaritimeDailyResult({enrollment,result,observedAt},deps)`→既存`deliverCloudCfoEmail({uid,periodKey,message,observedAt,recipient})`。送信直前にmanagerStore.read(uid)でactive/非停止/同timezoneを読み直し、recipientは最新enrollment.emailだけから取得する。resultのtenant/period/dateとobservedAtを検証し、呼出側のrecipient上書きを受けない。
 **Depends:** sourceはT18。実送信の受入はT16のtenant binding/worker wiring後。
 
 - [ ] T19.1 test `daily_email_replay_returns_original_provider_id`を定義。同uid+periodKeyを二回実行してResend send1回、異なるrecipientへpending receiptを再利用しない。

@@ -25,7 +25,7 @@ function buildMaritimeDailyResult({enrollment,periodKey,actionReceipts=[],financ
   return [...value.currencies].sort();
  }
  const financialCurrencies=coverage(financialCoverage),costCurrencies=coverage(costs);
- const expenseRecords=costs?.records||[];
+ const expenseRecords=costs==null?[]:costs.records;
  if(!Array.isArray(expenseRecords))invalid();
  const recordIds=new Set();
  const records=[...financialRecords,...expenseRecords].map((raw,index)=>{
@@ -105,4 +105,21 @@ function renderMaritimeDailyEmail(result){
   '確認できた成果と利用状況をもとに、次の仕事を進めます。',
  ].join('\n');
 }
-module.exports={buildMaritimeDailyResult,renderMaritimeDailyEmail};
+async function deliverMaritimeDailyResult({enrollment,result,observedAt}={},deps={}){
+ const invalid=()=>{throw new Error('maritime_daily_delivery_invalid');};
+ const uid=enrollment?.uid;
+ if(!result||result.tenantId!==uid||result.periodKey!==`maritime:daily:${result.date}`
+  ||!/^\d{4}-\d{2}-\d{2}$/.test(result.date)||!Number.isFinite(Date.parse(result.date))
+  ||new Date(result.date).toISOString().slice(0,10)!==result.date
+  ||typeof observedAt!=='string'||!Number.isFinite(Date.parse(observedAt))||!/(Z|[+-]\d{2}:\d{2})$/.test(observedAt))invalid();
+ const store=deps.managerStore||require('./maritime-manager-store.js').createMaritimeManagerStore(deps);
+ const current=await store.read(uid);
+ if(!current||current.uid!==uid||(current.timezone||'UTC')!==result.timezone)invalid();
+ if(current.status!=='active'||current.paused_at){
+  const error=new Error('maritime_daily_delivery_inactive');error.unknownEffect=false;throw error;
+ }
+ if(typeof current.email!=='string'||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(current.email))invalid();
+ return require('./cfo-cloud-delivery.js').deliverCloudCfoEmail({uid,periodKey:result.periodKey,
+  message:renderMaritimeDailyEmail(result),observedAt,recipient:current.email},deps);
+}
+module.exports={buildMaritimeDailyResult,renderMaritimeDailyEmail,deliverMaritimeDailyResult};

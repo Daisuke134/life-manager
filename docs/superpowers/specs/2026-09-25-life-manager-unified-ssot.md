@@ -20826,7 +20826,7 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | T16 | 一tenant tokenのwake relay・secret・初回wake配線 | T05/T08/T14/T15後 |
 | T17 | Cloudで一件の正規publishとofficial status確認 | T16後、売上発生自体は待たない |
 | T18 | 作業/売上/費用/未確認を分ける日次結果 | 集計・本文source実装。既存Financial Managerの集計/formatterを再利用し、同tenant/日付/通貨/coverageを検査。成果物・証拠参照と保留理由を保持し、売上/返金/入金/費用/利益を分離。費用欠落・UNKNOWN通貨・概算単位では利益未確認。独立reviewの2指摘を回帰RED→GREEN、関連28/28 PASS。成果物の利用者向けdownload URLと実worker/メール配線は未完 |
-| T19 | 既存CFO/Resendへの一日一通配信 | T18/T16後 |
+| T19 | 既存CFO/Resendへの一日一通配信 | source wrapper実装。最新active/非停止enrollmentのemailを読み、同tenant/period/date/timezoneとobservedAtを検証して既存CFO配信へ渡す。同日replayは元provider ID、送信1回を確認。関連17/17 PASS。実worker接続/送信/受信箱readbackはT16/T22で未完 |
 | T20 | 停止を次のjob/schedule/配信へ反映 | T14/T19後 |
 | T21 | 登録と業務完了を分けたsource別funnel | T05/T11/T19後 |
 | T22 | main image・DB・一人分のCloud自然wake/receipt確認 | T17/T19/T20/T21/T32後 |

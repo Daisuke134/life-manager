@@ -3,7 +3,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const {financialRecordId}=require('./financial-record-contract.js');
 const {buildMaritimeManagerCycleJob}=require('./maritime-manager-runtime.js');
-const {buildMaritimeDailyResult,renderMaritimeDailyEmail}=require('./maritime-manager-report.js');
+const {buildMaritimeDailyResult,renderMaritimeDailyEmail,deliverMaritimeDailyResult}=require('./maritime-manager-report.js');
 const UID='lm_11111111-1111-4111-8111-111111111111';
 const periodKey='maritime:daily:2026-10-21';
 const enrollment={uid:UID,timezone:'Asia/Tokyo',release_sha:'a'.repeat(40)};
@@ -80,4 +80,33 @@ test('unknown currency and estimated API units never establish complete zero or 
   assert.equal(result.financial.gross.status,'unknown');assert.equal(result.financial.costs.status,'unknown');
   assert.equal(result.financial.profit,null);
  }
+});
+test('missing or malformed cost records do not become verified zero expense',()=>{
+ for(const records of [undefined,0,false])assert.throws(()=>buildMaritimeDailyResult({enrollment,periodKey,
+  financialCoverage:coverage(),costs:{...coverage(),records}}),/invalid/);
+});
+function deliveryFixture(){
+ const current={...enrollment,status:'active',paused_at:null,email:'current@example.invalid'};
+ let receipt=null;const sends=[];
+ const deps={managerStore:{read:async()=>({...current})},
+  cfoReceiptIO:{read:async()=>receipt,claim:async(_,value)=>{if(receipt)return false;receipt={...value};return true;},mark:async(_,patch)=>Object.assign(receipt,patch)},
+  sendEmail:async args=>{sends.push(args);return {sent:true,id:'mail-1'};}};
+ const input={enrollment:{...current,email:'stale@example.invalid'},result:buildMaritimeDailyResult({enrollment,periodKey}),observedAt:'2026-10-21T10:00:00Z'};
+ return {current,deps,sends,input};
+}
+test('daily email replays original provider ID and uses the latest verified enrollment recipient',async()=>{
+ const f=deliveryFixture();
+ const first=await deliverMaritimeDailyResult(f.input,f.deps);
+ const second=await deliverMaritimeDailyResult(f.input,f.deps);
+ assert.equal(first.providerMessageId,'mail-1');assert.equal(second.providerMessageId,'mail-1');
+ assert.equal(second.status,'duplicate');assert.equal(f.sends.length,1);
+ assert.equal(f.sends[0].to,'current@example.invalid');assert.match(f.sends[0].text,/利益：未確認/);
+});
+test('paused, foreign, malformed report scopes and invalid timestamps do not send email',async()=>{
+ const f=deliveryFixture();f.current.paused_at='2026-10-21T09:00:00Z';
+ await assert.rejects(deliverMaritimeDailyResult(f.input,f.deps),/inactive/);f.current.paused_at=null;
+ for(const patch of [{result:{...f.input.result,tenantId:'other'}},{observedAt:'invalid'},{result:{...f.input.result,date:'2026-10-20'}}]){
+  await assert.rejects(deliverMaritimeDailyResult({...f.input,...patch},f.deps),/invalid/);
+ }
+ assert.equal(f.sends.length,0);
 });
