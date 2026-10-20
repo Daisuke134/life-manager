@@ -9,13 +9,13 @@
 
 ## 共通条件
 
-現在の前提・状態・順序は統一SSOTの「OpenClaw 現況監査と移行の再開条件」を参照。旧DS01–17全完了をsource-only OC012の開始条件にはしない。共有storage helperをOC014/024/026/034/F01で再利用する。詳細契約はstorage先行計画と原子TODO manifestの同IDを参照。raw診断とstructured結果を分離し、business receipt/usage/state JSONLを診断retentionで削除しない。旧global profile/個人store変更なし。
+現在cursorは統一SSOTのFD02-A（2026-10-20 fresh inventory/growth attribution）。FD02–FD05の自然capacity/業務結果受入後にFD06としてOC-012から開始する。旧DS01–17を全て再実装しない。共有storage helperをOC014/024/026/034/F01で再利用する。raw診断とstructured結果を分離し、business receipt/usage/state JSONLを診断retentionで削除しない。旧global profile/個人store変更なし。
 
 - isolated_source項目は専用worktree/private fixtureで実装・RED→GREEN。routeはdisabled。稼働runner/認証/注文/個人session/旧global OpenClawを操作しない。
 - production項目はmain-derived immutable release、owner deploy lock、active/queued/reserved/unknown無しの確認が必要。進行中仕事を止めず、別ownerを変更しない。未知effectは公式readbackまで再送0。
 - engineとschedulerは別handoff。engineの次の自然仕事を確認してから旧future wakeを停止→新cronを有効にする。schedulerは常に一つ。
 - 同一Gatewayの別run生存を終了証拠にしない。cancel ACK/exit0/model finalを停止・販売・入金の証拠にしない。
-- installer/notices/CLI docsのsourceとisolated検証は本番移管前へ移す。旧順=V全完了→F全項目、新順=F01/02/03/05/06のsource→A/S/V→F04退役/F07最終。理由=安全に実装可能なものを先に終え、現在の本番を維持する。cursor=OC012。
+- installer/notices/CLI docsのsourceとisolated検証は本番移管前へ移す。旧順=V全完了→F全項目、新順=F01/02/03/05/06のsource→A/S/V→F04退役/F07最終。理由=10/20のdisk freeは3.6GiBで10GiB revenue floor未達、最新full inventoryは9/24、source acceptanceは84c56e11のまま。現cursor=FD02-A。
 
 ## 検証コマンド
 
@@ -23,7 +23,7 @@
 
 ## 全atom
 
-baseline: 18分類 / 113jobs / finite 95 / continuous 18。残233atom。旧223設計との差分は追加2jobとOC008画像/continuation follow-up、engine自然確認をscheduler移管前の18atomへ明示。これは完了率ではない。
+baseline: 2026-10-20 origin/mainの18分類 / 113 mapped jobs / finite 95 / continuous 18。233は全移行manifestのatom数で、残数ではない。旧223設計との差分は追加2jobとOC008画像/continuation follow-up、engine自然確認をscheduler移管前の18atomへ明示。これは完了率ではない。
 
 ### OC-012 — testPinnedGatewayContract()
 
