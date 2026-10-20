@@ -1,10 +1,10 @@
 {
-  "observed_at": "2026-10-20T21:04:44.996290+00:00",
+  "observed_at": "2026-10-20T21:35:11.175663+00:00",
   "source": {
     "pr": 8424,
     "reviewed_runtime_source_sha": "5e4962228103f99f799f3c16b0749bc4b72acf05",
-    "integration_ci_verified": false,
-    "merged": false,
+    "integration_ci_verified": true,
+    "merged": true,
     "focused_node_tests": 94,
     "focused_worker_tests": 12,
     "browser_python_tests": 15,
@@ -30,7 +30,11 @@
         "success": 13,
         "failed": "Loop control contracts: Intel runner lacks /opt/homebrew; 609 storage tests passed, one host-dependent fixture failed"
       }
-    ]
+    ],
+    "acceptance_head_sha": "d13e1b8d7f4ee9898206c826d6f1889684d9b975",
+    "acceptance_checks": 14,
+    "main_release_sha": "0c559693f03b34770e9c1ff61616bbe2f2e497ed",
+    "focused_host_inventory_tests": 40
   },
   "railway": {
     "runtime_jobs_present": true,
@@ -42,28 +46,61 @@
       "agent-economy.start"
     ],
     "manager_capabilities_present": false,
-    "frontend_runtime_database_present": false,
+    "frontend_runtime_database_present": true,
     "financial_record_target": "existing Railway Postgres; table presence verified",
     "frontend_uid_secret_present": true,
-    "worker_uid_secret_present": false,
+    "worker_uid_secret_present": true,
     "supabase_url_matches_private_ssot_both_services": true,
     "supabase_service_role_matches_verified_legacy_both_services": true,
     "existing_resend_worker_key_matches_ssot": true,
-    "capacity_and_internal_cohort_configured": false,
+    "capacity_and_internal_cohort_configured": true,
     "financial_records_present": true,
     "existing_reconciling_jobs": {
       "agent-economy.start": 2,
       "investment.live": 2
-    }
+    },
+    "loaded_services": [
+      {
+        "service": "life-call",
+        "deployment_matches_owned_receipt": true,
+        "release_sha": "0c559693f03b34770e9c1ff61616bbe2f2e497ed",
+        "manager_enabled": false,
+        "manager_capability_enabled": false,
+        "capacity": "3",
+        "loaded_configuration_matches": {
+          "LM_UID_SECRET": true,
+          "LM_RUNTIME_DATABASE_URL": true,
+          "LM_MARITIME_MANAGER_ID_SECRET": true,
+          "LM_PANEL_BASE_URL": true
+        }
+      },
+      {
+        "service": "money-printer-worker",
+        "deployment_matches_owned_receipt": true,
+        "release_sha": "0c559693f03b34770e9c1ff61616bbe2f2e497ed",
+        "manager_enabled": false,
+        "manager_capability_enabled": false,
+        "capacity": "3",
+        "loaded_configuration_matches": {
+          "LM_UID_SECRET": true,
+          "LM_RUNTIME_DATABASE_URL": true,
+          "LM_MARITIME_MANAGER_ID_SECRET": true,
+          "LM_MARITIME_MANAGER_SOURCE_S3_KEY": true,
+          "LM_MARITIME_MANAGER_SOURCE_ARCHIVE_SHA256": true,
+          "LM_PANEL_BASE_URL": true
+        }
+      }
+    ],
+    "source_release_sha": "0c559693f03b34770e9c1ff61616bbe2f2e497ed"
   },
   "supabase": {
-    "manager_enrollment_present": false,
-    "manager_execution_present": false,
-    "pilot_participant_present": false,
+    "manager_enrollment_present": true,
+    "manager_execution_present": null,
+    "pilot_participant_present": null,
     "funnel_present": true,
-    "auth_http_latest": 200,
-    "authenticated_rest_http_latest": null,
-    "rest_error": "latest valid zero-row read timed out; preceding invalid-column read returned 400/42703",
+    "auth_http_latest": null,
+    "authenticated_rest_http_latest": 503,
+    "rest_error": "PGRST002",
     "query_health": "intermittent success and connection timeout/544",
     "postgres_log_window_start": "2026-10-20T19:53:10Z",
     "postgres_log_window_end": "2026-10-20T20:08:10Z",
@@ -71,14 +108,63 @@
     "authenticator_timezone_catalog_timeouts": 8,
     "supabase_admin_statement_timeouts": 2,
     "restart_performed": false,
-    "migration_applied_this_preflight": false,
+    "migration_applied_this_preflight": true,
     "cfo_result_receipts_present": true,
-    "postgres_version": "17.6.1.111"
+    "postgres_version": "17.6.1.111",
+    "applied_migrations": [
+      "lm_maritime_manager_enrollments",
+      "lm_maritime_runtime_executions",
+      "lm_maritime_distribution",
+      "lm_maritime_manager_usage"
+    ],
+    "migration_success_scope": "official apply_migration success; later REST/history readback remains pending",
+    "auth_error_latest": "TimeoutError",
+    "role_timeout_readback": {
+      "roles": [
+        {
+          "db_role": "anon",
+          "setting": "statement_timeout=3s"
+        },
+        {
+          "db_role": "authenticated",
+          "setting": "statement_timeout=8s"
+        },
+        {
+          "db_role": "authenticator",
+          "setting": "statement_timeout=15s"
+        },
+        {
+          "db_role": "authenticator",
+          "setting": "lock_timeout=8s"
+        }
+      ],
+      "database_scope": [
+        {
+          "db_role": "authenticated",
+          "setting": "statement_timeout=8s"
+        },
+        {
+          "db_role": "anon",
+          "setting": "statement_timeout=3s"
+        },
+        {
+          "db_role": "authenticator",
+          "setting": "statement_timeout=15s"
+        },
+        {
+          "db_role": "authenticator",
+          "setting": "lock_timeout=8s"
+        }
+      ]
+    },
+    "timeout_configuration_changed": false,
+    "usage_migration_accepted": true,
+    "usage_schema_readback_pending": true
   },
   "owned_vm": {
     "existing_external_identity_matches_manager": true,
-    "loaded_source_sha": "8d7d4474a357303a87ad3dd7acf1920b6cb77030",
-    "new_source_adopted": false,
+    "loaded_source_sha": "0c559693f03b34770e9c1ff61616bbe2f2e497ed",
+    "new_source_adopted": true,
     "new_agent_created": false,
     "browser_no_sandbox_flag_absent_probe": {
       "uid": 10001,
@@ -97,7 +183,11 @@
       "caps_zero": true,
       "no_new_privs": true,
       "browser_version": "Chrome/146.0.7680.177"
-    }
+    },
+    "official_deploy_status": "success",
+    "image_adoption_evidence_ref": "docs/evidence/maritime/owned-image-adoption.json",
+    "actual_source_hashes_match": true,
+    "image_browser_dom_verified": true
   },
   "competition": {
     "announcements_rechecked": true,
@@ -111,5 +201,6 @@
     "https://supabase.com/docs/guides/observability/advanced-log-filtering",
     "https://supabase.com/docs/reference/api/v1-run-a-query"
   ],
-  "private_values_in_artifact": false
+  "private_values_in_artifact": false,
+  "current_cursor": "T22.1b authenticated REST/Auth recovery/readback, then enable existing worker capabilities and owned PKCE/actual work/download/report/stop; T30 usable URL mail/distribution; T23 official route when published"
 }

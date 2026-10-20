@@ -1,0 +1,45 @@
+{
+  "http_status": 200,
+  "execution_present": true,
+  "status": "completed",
+  "exit_code": 0,
+  "result": {
+    "uid": 10001,
+    "sandbox_disabled": false,
+    "cdp_attached": true,
+    "dom_verified": true,
+    "fixture_removed": true,
+    "process_group_removed": true,
+    "error_class": null,
+    "external_website_visited": false,
+    "provider_authenticated": false,
+    "download_attempted": false,
+    "release_sha": "0c559693f03b34770e9c1ff61616bbe2f2e497ed",
+    "release_match": true,
+    "health_ok": true,
+    "actual_source_sha256": {
+      "apps/life-manager/maritime/server.js": "d462c9de69853db134cc864f9b16fe5e1d1e8ea130aaec0fcd5025f44a6e1b3e",
+      "skills/capafy-autopublish/scripts/cloud_cycle.py": "58fecbd64e06d12d19681fd0ab277e9905b0c19dd1967b6fd1c9a5457b5ed49c",
+      "skills/capafy-autopublish/scripts/browser-owner": "cefe224ce835740a1fb4e9a449977848873e8173ae4514d8d1adc6a498dd0bb8",
+      "requirements-runtime.txt": "e601b3ab54346821f3bcf69ed60c1a6fa704633a4abe81a75b706b7c22b4795f"
+    },
+    "expected_source_sha256": {
+      "apps/life-manager/maritime/server.js": "d462c9de69853db134cc864f9b16fe5e1d1e8ea130aaec0fcd5025f44a6e1b3e",
+      "skills/capafy-autopublish/scripts/cloud_cycle.py": "58fecbd64e06d12d19681fd0ab277e9905b0c19dd1967b6fd1c9a5457b5ed49c",
+      "skills/capafy-autopublish/scripts/browser-owner": "cefe224ce835740a1fb4e9a449977848873e8173ae4514d8d1adc6a498dd0bb8",
+      "requirements-runtime.txt": "e601b3ab54346821f3bcf69ed60c1a6fa704633a4abe81a75b706b7c22b4795f"
+    },
+    "source_hashes_match": true,
+    "image_binary_is_symlink": true,
+    "image_binary_executable": true,
+    "image_binary_target_under_opt": true,
+    "browser_owner_linux_args_match": true,
+    "isolated_cdp_port_and_profile": true,
+    "gid": 10001,
+    "credentials_inherited": false,
+    "caps_zero": true,
+    "no_new_privs": true,
+    "image_binary_used": true,
+    "browser_version": "Chrome/146.0.7680.177"
+  }
+}
