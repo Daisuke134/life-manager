@@ -1,0 +1,52 @@
+{
+  "observed_at": "2026-10-20T11:20:25.721140+00:00",
+  "program": "Keiki x Maritime The First 1000",
+  "official_start_date": "2026-10-20",
+  "competition_deadline": "2026-12-01T23:59:00-08:00",
+  "competition_timezone": "America/Los_Angeles",
+  "first_week_deadline": null,
+  "first_week_deadline_reason": "Latest kickoff email says end of week one without date/time/timezone; official Slack announcements has no deadline post at observation.",
+  "submission_url": null,
+  "submission_url_reason": "Official competition-submissions channel exists, but its description explicitly says posting does not replace any required form; no required form URL was present in observed announcements/submissions.",
+  "required_fields": null,
+  "required_fields_reason": "No official form/rubric published in observed sources.",
+  "first_week_requirements": [
+    "Product built by end of week one",
+    "Real users earn brownie points",
+    "Only top 30 teams advance"
+  ],
+  "top30_rules": {
+    "advance_count": 30,
+    "scoring_weights": null,
+    "minimum_user_count": null
+  },
+  "winning_target": {
+    "distinct_real_users": 1000,
+    "verified_first_projects": 3,
+    "usage_review_platforms": [
+      "Keiki",
+      "Maritime"
+    ],
+    "both_platforms_required_confirmed": false
+  },
+  "source_urls": [
+    "https://competition.maritime.sh/terms",
+    "https://keikixmaritime.slack.com"
+  ],
+  "mail_source": {
+    "subject": "Keiki x Maritime kicks off tomorrow",
+    "received_at": "2026-10-19T05:00:08+00:00"
+  },
+  "community_readback": {
+    "membership": "verified in live browser",
+    "channels_read": [
+      "competition-start-here",
+      "competition-announcements",
+      "competition-submissions"
+    ],
+    "announcement_messages_observed": 3,
+    "submission_messages_observed": 3,
+    "submission_channel_instruction": "Share entry and demo here, follow official instructions/deadlines; posting does not replace required submission form."
+  },
+  "submission_status": "not_submitted"
+}
