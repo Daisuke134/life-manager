@@ -986,6 +986,39 @@ class LmLoopReadonlyTest(unittest.TestCase):
                 self.assertIsNone(_last_event(str(root), "missing", cache))
             self.assertEqual(reads.call_count, 1)
 
+    def test_current_snapshot_indexes_shared_journal_without_scanning_unique_history(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            shared, unique = root / "shared", root / "unique"
+            shared.mkdir()
+            unique.mkdir()
+
+            def report(loop_id):
+                return build_runtime_event(
+                    loop_id=loop_id, domain="system", run_id=f"run-{loop_id}",
+                    release_sha="a" * 40, provider="deterministic",
+                    profile_alias=None, effect_class="none", succeeded=True, blocker=None,
+                )
+
+            (shared / "events.jsonl").write_text(
+                "\n".join(json.dumps(report(name)) for name in ("a", "b")) + "\n")
+            (unique / "events.jsonl").write_text(
+                (json.dumps(report("old")) + "\n") * 1000
+                + json.dumps(report("c")) + "\n")
+            registry = {"loops": {
+                name: {"label": f"ai.anicca.{name}", "state_root": str(state)}
+                for name, state in (("a", shared), ("b", shared), ("c", unique))
+            }}
+            with (
+                patch.object(Path, "home", return_value=root),
+                patch.object(lm_loop, "_launchctl", return_value=""),
+                patch.object(lm_loop, "validate_runtime_event",
+                             wraps=lm_loop.validate_runtime_event) as validations,
+            ):
+                _, _, events, _, _ = lm_loop.collect_live(registry, full_inventory=False)
+            self.assertEqual(set(events), {"a", "b", "c"})
+            self.assertEqual(validations.call_count, 3)
+
     def test_last_event_prefers_pid_bound_diagnostic_running_event(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

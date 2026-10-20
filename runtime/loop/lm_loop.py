@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from contextlib import closing, contextmanager
 from datetime import datetime
 import fcntl
@@ -2344,12 +2345,19 @@ def collect_live(registry: dict, *, full_inventory: bool = True,
     for path in installed_paths:
         releases[path.stem] = _release_from_plist(path)
     event_cache: dict[Path, dict[str | None, dict]] = {}
+    state_roots = {
+        loop_id: _state_root_from_plist(
+            plist_dir / f"{entry['label']}.plist", entry["state_root"])
+        for loop_id, entry in registry["loops"].items()
+    }
+    root_counts = Counter(state_roots.values())
     for loop_id, entry in registry["loops"].items():
         label = entry["label"]
         plist_path = plist_dir / f"{label}.plist"
         releases[label] = _release_from_plist(plist_path)
         event = _last_event(
-            _state_root_from_plist(plist_path, entry["state_root"]), loop_id, event_cache,
+            state_roots[loop_id], loop_id,
+            event_cache if root_counts[state_roots[loop_id]] > 1 else None,
             running_pid=(loaded.get(label) or {}).get("pid")
             if entry.get("cadence", {}).get("keep_alive") is True else None,
             include_health_clocks=include_health_clocks,
