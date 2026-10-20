@@ -321,8 +321,8 @@ life-manager/
 
 ## Task T16: secretと初回wakeを同tenantへ配線する
 
-**Files:** Modify transport/runtime/authのservices wiring、`scripts/runtime-up.js`。
-**Interfaces:** activate→provision→setEnv(secret)→health→initial cycle enqueue。relay tokenは一tenant/agent/releaseへbindし、中央endpointで照合する。専用`LM_MARITIME_MANAGER_ID_SECRET`をprivate SSOTからserver/workerへ注入し、既存global LM_UID_SECRETは置換しない。作成時はunbound bootstrap token、bind後は署名にagentIdを含むtokenへ更新してreloadする。VM image source SHAは中央app SHAと別に`LM_MARITIME_MANAGER_IMAGE_RELEASE_SHA`で明示し、image receiptと同じ値をenrollment/jobへ渡す。bind済みagent以外へsetEnvしない。
+**Files:** Create `lib/maritime-manager-wake.js`/test。Modify `server.js`、transport/runtime/authのservices wiring、`scripts/runtime-up.js`。
+**Interfaces:** `createMaritimeWakeBinding({uid,releaseSha,agentId}, {secret,publicOrigin})->{url,token}`、`verifyMaritimeWakeToken(token,secret)->{uid,agentId,releaseSha}|null`、`buildMaritimeInitialJobs(enrollment)->{cycle:{job,availableAt},report:{job,availableAt}}`、`handleMaritimeManagerWake(req,res,options)->boolean`。POST `/api/internal/maritime/wake`は署名headerからuid/agent/releaseを解決し、bodyはkindだけを使う。初回jobのID/date/availableAtはenrollment.created_atから固定し、繰返しwakeで新しいcycleを増やさない。継続仕事/次日報はT11Bの既存queue continuationで直列化する。activate→provision→setEnv(secret)→health→initial cycle enqueue。relay tokenは一tenant/agent/releaseへbindし、中央endpointで照合する。専用`LM_MARITIME_MANAGER_ID_SECRET`をprivate SSOTからserver/workerへ注入し、既存global LM_UID_SECRETは置換しない。作成時はunbound bootstrap token、bind後は署名にagentIdを含むtokenへ更新してreloadする。VM image source SHAは中央app SHAと別に`LM_MARITIME_MANAGER_IMAGE_RELEASE_SHA`で明示し、image receiptと同じ値をenrollment/jobへ渡す。bind済みagent以外へsetEnvしない。
 **Depends:** T05/T08/T14/T15。
 
 - [ ] T16.1 test `activate_to_first_cycle_binds_one_user_one_agent_without_goal_budget`を定義。二回activateしても一agent/一initial occurrence。

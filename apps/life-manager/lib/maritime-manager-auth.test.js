@@ -108,7 +108,7 @@ test("unbound_token_hash_cannot_replace_an_existing_session",async()=>{
 
 function activationFixture({capacityFull=false,user=USER}={}) {
   const f=fixture({user});const rows=new Map();const jobs=new Map();
-  f.deps.env.LM_RELEASE_SHA="a".repeat(40);
+  f.deps.env.LM_MARITIME_MANAGER_IMAGE_RELEASE_SHA="a".repeat(40);
   f.deps.managerStore={read:async uid=>rows.get(uid)||null,enroll:async input=>{
     if(!rows.has(input.uid))rows.set(input.uid,{uid:input.uid,auth_subject:input.authSubject,email:input.email,status:"pending",release_sha:input.releaseSha});
     return rows.get(input.uid);}};
@@ -142,7 +142,7 @@ test("capacity_full_does_not_enroll_or_enqueue",async()=>{
 });
 test("repeat_activation_uses_original_enrollment_release_for_stable_job",async()=>{
   assert.equal(typeof handleMaritimeManagerActivate,"function");const {deps,jobs}=activationFixture();
-  await handleMaritimeManagerActivate(activateRequest(deps),response(),deps);deps.env.LM_RELEASE_SHA="b".repeat(40);
+  await handleMaritimeManagerActivate(activateRequest(deps),response(),deps);deps.env.LM_MARITIME_MANAGER_IMAGE_RELEASE_SHA="b".repeat(40);
   const res=response();await handleMaritimeManagerActivate(activateRequest(deps),res,deps);
   assert.equal(res.statusCode,202);assert.equal(jobs.size,1);assert.equal([...jobs.values()][0].input_refs.release_ref,`release://git/${"a".repeat(40)}`);
 });
@@ -182,4 +182,13 @@ test("verified_campaign_page_displays_activation_or_persisted_state_without_disp
   await handleMaritimeManagerPage(request("/maritime?lang=ja"),res,deps);assert.match(res.body,/<button[^>]+data-action="activate"/);
   deps.managerStore.read=async()=>({status:"effect_unknown"});res=response();await handleMaritimeManagerPage(request("/maritime?lang=ja"),res,deps);
   assert.doesNotMatch(res.body,/<button[^>]+data-action="activate"/);assert.match(res.body,/実行結果を確認中/);
+});
+
+test('manager activation pins the VM image release independently of the central app release',async()=>{
+  const {deps,rows}=activationFixture();deps.env.LM_RELEASE_SHA='b'.repeat(40);deps.env.LM_MARITIME_MANAGER_IMAGE_RELEASE_SHA='c'.repeat(40);
+  const res=response();await handleMaritimeManagerActivate(activateRequest(deps),res,deps);assert.equal(res.statusCode,202);assert.equal([...rows.values()][0].release_sha,'c'.repeat(40));
+});
+test('an app deployment SHA alone cannot label an unconfigured VM image release',async()=>{
+  const {deps,rows,jobs}=activationFixture();deps.env.LM_RELEASE_SHA='b'.repeat(40);delete deps.env.LM_MARITIME_MANAGER_IMAGE_RELEASE_SHA;
+  const res=response();await handleMaritimeManagerActivate(activateRequest(deps),res,deps);assert.equal(res.statusCode,503);assert.equal(rows.size,0);assert.equal(jobs.size,0);
 });

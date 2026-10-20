@@ -1,0 +1,15 @@
+{
+  "execution_status": "completed",
+  "exit_code": 0,
+  "probe": {
+    "platform": "linux",
+    "python": "3.11.2",
+    "node": "v22.23.3",
+    "codex": "codex-cli 0.160.0",
+    "manager_code_present": true,
+    "server_source_sha256": "c1b59426dc89e8ab19c918ba696b3dcc94231d70c2608d00ed410b97ae9a67fc",
+    "health_ok": true,
+    "health_release_sha": "8d7d4474a357303a87ad3dd7acf1920b6cb77030"
+  },
+  "source_matches_archived_main": true
+}

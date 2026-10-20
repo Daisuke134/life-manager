@@ -32,7 +32,18 @@
       "status": "source_changed_not_deployed"
     }
   ],
-  "linux_runtime": null,
+  "linux_runtime": {
+    "verified": true,
+    "platform": "linux",
+    "python": "3.11.2",
+    "node": "v22.23.3",
+    "codex": "0.160.0",
+    "health_ok": true,
+    "loaded_source_sha": "8d7d4474a357303a87ad3dd7acf1920b6cb77030",
+    "server_code_matches_main": true,
+    "model_invocation_verified": false,
+    "evidence_ref": "docs/evidence/maritime/owned-runtime-preflight.json"
+  },
   "browser_attach": null,
   "provider_auth": null,
   "prepare": null,
@@ -93,7 +104,7 @@
     ],
     "agent_create_zip_field": "uploadS3Key",
     "archive_source": "main-derived verified commit only",
-    "remote_image_build": "owned free VM bootstrap next",
+    "remote_image_build": "success; official deployment history and live source/health probe verified",
     "archive_uploaded": true,
     "upload_http_status": 200,
     "upload_framework": "custom",
