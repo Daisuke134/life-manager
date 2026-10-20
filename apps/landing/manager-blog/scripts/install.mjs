@@ -5,6 +5,17 @@ import { pathToFileURL } from 'node:url';
 import { createHash } from 'node:crypto';
 const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
 const modules=['scripts/integrate.mjs','scripts/package-contract.mjs','lib/render-manager-markdown.mjs','templates/manager-collection.tsx'];
+export async function loadSupplement(manifest,read,validate) {
+ if(!Array.isArray(manifest?.articles)) throw new Error('Invalid supplement');
+ // Validate all target paths before reading any content. Source bytes are authoritative.
+ validate({...manifest,articles:manifest.articles.map(a=>({...a,markdown:'',sha256:sha('')}))});
+ const articles=await Promise.all(manifest.articles.map(async a=>({...a,markdown:(await read(a.package_path)).toString('utf8')})));
+ return validate({...manifest,articles});
+}
+export function mergePublicationPackages(original,supplement,validate) {
+ const base=validate(original), extra=validate(supplement);
+ return validate({...base,articles:[...base.articles,...extra.articles],media:[...base.media,...extra.media]});
+}
 export async function installManagerBlog({revision,root=process.cwd(),fetchBytes}) {
  if(!/^[a-f0-9]{40}$/.test(revision||'')) throw new Error('Immutable canonical revision required');
  const base=`https://raw.githubusercontent.com/Daisuke134/life-manager/${revision}/`;
@@ -23,7 +34,8 @@ export async function installManagerBlog({revision,root=process.cwd(),fetchBytes
  for(const [file,bytes] of staged){await mkdir(dirname(file),{recursive:true});await writeFile(file,bytes);}
  const {validatePublication,digest}=await import(pathToFileURL(resolve(root,'.manager-blog/scripts/package-contract.mjs')).href);
  const packageRoot='docs/research/manager/publication/2026-10-19/';
- const pkg=validatePublication(JSON.parse(await get(packageRoot+'manifest.json')));
+ const pkg=mergePublicationPackages(JSON.parse(await get(packageRoot+'manifest.json')),
+  await loadSupplement(JSON.parse(await get(packageRoot+'supplement-2026-10-20.json')),path=>get(packageRoot+path),validatePublication),validatePublication);
  const content=[];
  for(const a of pkg.articles) {
   const bytes=await get(packageRoot+a.package_path);

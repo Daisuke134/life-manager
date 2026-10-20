@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "package_date": "2026-10-20",
+  "purpose": "Two founder-authorized English educational articles; preserve the existing reviewed package.",
+  "articles": [
+    {
+      "slug": "manager-evidence-cards-r007-r008-en",
+      "lang": "en",
+      "project": "Manager",
+      "title": "Why Real-World Agents Need Small Evidence Cards, Not Another Giant Database",
+      "date": "2026-10-20",
+      "description": "A small source-linked evidence registry and guardrails against inflated claims.",
+      "series_order": 100,
+      "package_path": "en/manager-evidence-cards-r007-r008-en.md",
+      "source": "products/manager/docs/articles/manager-evidence-cards-r007-r008-en.md",
+      "sha256": "708cc3a92402a57032529153190fce3d7204d4b1e5aebd0d3e191551d6791fb5",
+      "word_count": 1288,
+      "n_papers_cited": 1,
+      "canonical_url": "https://aniccaai.com/blog/manager-evidence-cards-r007-r008-en"
+    },
+    {
+      "slug": "manager-population-behavior-causality-field-guide-en",
+      "lang": "en",
+      "project": "Manager",
+      "title": "Population Is Not Behavior, and Behavior Is Not Causality",
+      "date": "2026-10-20",
+      "description": "A source-grounded map of population synthesis, human behavior prediction, social simulation, and causal intervention.",
+      "series_order": 101,
+      "package_path": "en/manager-population-behavior-causality-field-guide-en.md",
+      "source": "products/manager/docs/articles/manager-population-behavior-causality-field-guide-en.md",
+      "sha256": "43f09759d3541d753e88ae30d073f8791c78f2270094742dc04cd7841ac66756",
+      "word_count": 1671,
+      "n_papers_cited": 7,
+      "canonical_url": "https://aniccaai.com/blog/manager-population-behavior-causality-field-guide-en"
+    }
+  ],
+  "media": []
+}
