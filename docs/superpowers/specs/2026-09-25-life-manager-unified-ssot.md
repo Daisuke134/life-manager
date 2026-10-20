@@ -89,7 +89,7 @@
 | 順序・状態 | 一つの作業と既存atom | 完了の証拠 |
 |---|---|---|
 | C1 DONE / exact no-effect自然閉鎖 | DD02/T1/CD1：既存distributorのexact未知occurrenceをBlog/GitHub/Xの公式readbackと照合し、必要なself-owned readback欠陥だけ修正する | 正確なrun/occurrence/release、provider ID、effect判定、再送0。receipt前の解除・再投稿を行わない |
-| C2 IN PROGRESS / 現在cursor | F1–F5/SH2–SH5/P2–P5：現在状態保持の監視atomは自然受入済み。次は容量増加owner・既存回収候補/lease、履歴clock欠測・個別gapを修復する | 必要floor通過→factory/distributor/hourlyの自然terminal→公式readback。監視がstatusと整合。既存F gatesの自然観測を保持し、保護解除/floor下げ/基盤restartはしない |
+| C2 IN PROGRESS / 現在cursor | F1–F5/SH2–SH5/P2–P5：現在状態保持の自然受入と、native index再構築による容量基準回復/indexing復元を実測する。残る履歴clock・個別gap、Capafy自然terminal/公式readbackとfactory draft preflightを閉じる | 10/12GiBとfresh admissionを維持→factory/distributor/hourlyの自然terminal→公式readback。既知の失敗/未確定effectを保持し、保護解除/floor下げ/基盤restartはしない |
 | C3 PARTIAL | T0/T1/T2/CD1/DD03–DD05：fresh seller/traffic、正しいnested ledger、product/creative/registered CT/costを同一窓へ結ぶ | stale/missingとzeroを分離したsource×Agent scorecard。shared CTの訪問1件を複数slotへ配らない |
 | C4 OPEN | CD5/T4：Hook Grader実download出力の末尾CTAと登録CT、無料利用cohort→Hook Lab→paidの対応を検証する | v1.0.1掲載は確認済み。正しい分母で転送率を再計算。基準未達なら既存ownerが新規の非FROZEN lead magnetを1件だけ作成/提出/公開し、登録CTと自然流入を確認する |
 | C5 OPEN | CD2/CD3/CD4/T11/DD06–DD09：winner型の実入力→実出力demoを一つのcandidateとして既存配信へ流す | 一商品/一offer/一channelのcontrol、割当単位、成熟期間、費用上限、停止規則を凍結。click可能CTA/native receipt/qualified reach、自己probe除外。既存channelは維持する |
@@ -139,6 +139,20 @@ C2の次の原子作業は、(1) fresh Data freeと既存host inventory/growth/c
 **C2現在状態保持atom DONE / 自然受入:** 通常cutterは同じmain SHAの完全immutable `/Users/anicca/loops/releases/20261021T015237-3de67af1`をcurrentへ昇格し、対象healthだけをcurrent必須のloaded-idle applyで採用する。自然run `18e04b3a4814abb0-62173`は16:56:05Z execute→16:57:51Z report/pass・exit0、snapshot生成16:56:36Z。新SHA・loaded argv/env hash・全191取得済rowsの保持を結び、`health_snapshot_timeout`は0件になる。正常10/実行中14/failed72/safely_fenced73/effect_unknown9/telemetry_gap13を保持し、履歴不足で正常化しない。独立read-only本番照合もmain bytes/0444/ALL/current/loaded/自然terminalを確認する。native reviewerのthread枠終了後は既存Codex CLIのephemeral/read-only・model指定なしで照合し、sourceの第四reviewは行わない。private証拠は既存directoryの`c2-current-index-natural-readback.json`、`c2-runtime-proof-independent-final.txt`、`c2-promoted-health-apply.json`、`c2-current-promotion.log`。これは現在状態消失の修復完了であり、health全項目の正常化ではない。
 
 **残るC2の現在cursorと収益境界:** productivity191件・対象revenue70件は`health_history_timeout`由来unknown、個別gap13も未完。Data空きの観測は4,097,761,280 bytes（独立再観測約3.814GiB）で、収益10GiB・一般12GiBへ未達。次は(1)容量増加root/生成ownerと安全な既存回収候補を特定してfloorを満たす、(2)履歴clockと13個別gapを閉じる、(3)factory/distributor/hourlyの自然terminal・source別流入→注文・完全費用・公式収益receiptを照合する。既知故障を消したりunknownを0へ置換しない。保存済Capafy照合の取得時刻07:49:31Zでは7日窓の閲覧1,818/試用5/有料0/売上$0、累計gross$102.75、listed61。これは今回の新規provider取得ではなく、取得後の売上は未確認、MRRはactive subscription未確定のnullを保つ。C2全体・C3–C9・全agent利益・全goalは未完。
+
+**C2容量atomの実測と標準回復経路:** Data volumeの空き約3.81GiBに対し、通常権限のcensusから漏れていた`/System/Volumes/Data/.Spotlight-V100`を既存非対話sudoによるread-only `du`で39,923,964KiB（約38.1GiB）と測定する。DataのAPFS snapshotは0、観測できるunlinked open fileは数十MiB級であり、snapshot削除や無関係processの停止を回復策にしない。`mdutil -s /`とDataはともに`Index is read-only`、native VolumeConfigはData UUID/pairedIndex・Exclusions空を示す。indexはOSの再生成可能なmetadataであり、業務本文・receipt・credential・memory・profileではない。native `man mdutil`は`-E`を指定volumeのstore消去/適切な再構築、`-X`をindex directory除去（indexing無効化ではない）と定義する。既存cleanup source/登録済launchdに別のSpotlight制御は見つからない。これを根拠に、fresh-context read-only検証で対象volume/paired store/標準commandの範囲を反証した後、まず標準`sudo -n mdutil -E /System/Volumes/Data`の結果を確認する。無効果/拒否なら同じ操作を繰り返さず境界を観測し、原本indexへの直接rm・全volumeの`-a`・Spotlight無効化・基盤restartは行わない。再生成中は検索結果が一時的に不完全になり得る。単にSpotlightを止める旧案とは区別する。
+
+**容量atomの所有と受入:** owner=`codex-c2-capacity`、branch=`ops/capafy-c2-capacity-20261021`、worktree=`.worktrees/capafy-c2-capacity-20261021`、base main=`43be9232f58f17b105882792d38f4702df0436f7`。今回のsource編集は正本の運用記録だけとし、不要なcleanup実装・依存・schedulerを作らない。実行前後のnative command/exit、index状態/サイズ、Data free、対象・保護store非削除をprivate構造化証拠へ記録する。容量10/12GiBとfresh admission→Capafy factory/distributor/hourlyの自然terminal/公式readbackを確認し、履歴191件/個別gap13・C3–C9・新規収益の未完を維持する。38.1GiBはindexの観測量であって、未実施の回収量ではない。private measurementは既存C2 directoryの`c2-capacity-home-child-measurements.json`、`c2-capacity-state-child-measurements.json`、`c2-capacity-bundle-measurements.json`、`c2-capacity-privileged-readonly-measurements.json`。
+
+**標準eraseの実結果と再開契約:** fresh-context検証は対象Data/paired storeの一致を確認し、blocking0。非blockingの「再構築はif appropriate」「exit0だけでは効果未証明」を保持する。`sudo -n mdutil -E /System/Volumes/Data`を一回だけ実行し、107.129秒/exit0、stdoutは`Indexing disabled`。readbackではindexが39,923,964KiB→8KiB、Data freeが約4.10GB→43,879,497,728 bytesへ増加し、容量10/12GiBを超える。一方Dataの同一UUID/store・Exclusions[]は保持され、PolicyLevelは操作前ReadWrite→ReadOnly（PolicyProcess=mdutil）となる。`/`はbaselineと同じread-onlyであり、paired volume全体の検索影響をData内だけへ限定したとは報告しない。消去を再送せず、同じDataの元のrequested ReadWriteへ戻す標準`sudo -n mdutil -i on /System/Volumes/Data`一回を次の操作とし、独立read-only反証後にstatus/config/index生成と実容量を確認する。無効化のままで容量回復を完了扱いしない。private証拠=`c2-spotlight-native-rebuild.json`。Capafy factory/hourlyの新しい自然executeは始まるが、terminal/公式売上はまだ未確認。
+
+**容量基準回復とindexing再開の受入:** 後続案も独立read-only反証でblocking0。`sudo -n mdutil -i on /System/Volumes/Data`を一回だけ実行し、0.308秒/exit0・`Indexing enabled`を得る。再観測は同じData UUID/store・Exclusions[]、元のrequested ReadWrite、index1,268KiBで再生成開始を確認する。root側の設定/PolicyDate/read-only実状態はbaselineを維持する。独立live確認の空きは39,438,557,184 bytes（36.730GiB）で両floorを超え、後続の17:31:10Z観測も34,721,349,632 bytes（約32.3GiB）。メモリ空き37%、swap使用7,001MiB/8,192MiB。業務データ削除commandを発行せず容量基準を回復し、Data indexingを元の要求へ戻したという限定成果を受け入れる。index全再構築完了、全file byte同一、空きの永続維持、全F gates完了は主張しない。source実装/新scheduler/依存導入/基盤restartは0。証拠は既存private directoryの`c2-spotlight-native-enable.json`、`c2-spotlight-native-rebuild.json`、独立検証結果。
+
+**容量回復後の自然業務境界:** admissionの実rootは`host-admission/resources/admission-v2.sqlite3`。read-only照合でfactory `18e04cbab40f1608-22362`、distributor `18e04cdceeda2030-27990`、hourly `18e04cae1741a158-19158`の3 exact occurrenceがclaimedとなり、実childrenで市場調査/公式照合が動く。factoryは17:31:04Zにexit1/`DRAINER_RC_1`へ至る。drainerの実境界は既存draft `9425449917`/version `2112455053047386112`の`official version/status/CP1/upload readback mismatch`による`RETRY_EXISTING_PREFLIGHT_FAILED`で、local manifestは`init_completed`。公式条件のどのfieldが不一致かとexact fenceのreadbackは次の診断対象であり、未確定effectを解除したりCP1を迂回/再作成したりしない。hourly/distributorは17:31時点でliveで、terminal/新規公式売上は未確認。保存済売上の取得時刻は07:49:31Zのまま、更新前を現在売上へ昇格しない。容量以外の履歴/13gap・業務失敗・収益の未完を保持し、C2/C3–C9/全goalは完了へ変更しない。
+
+**自然terminalと新しい公式経済照合:** hourlyは17:35:48Z pass/exit0で終了し、17:22:47Z取得開始の新しい公式照合が保存される。gross累計$102.75、creator earnings$76.18、非trial32、paid_out/realized$0、MRRはactive subscription未確認のnull。7日窓の閲覧1,913/試用5/有料0/$0、listed61/occupied2/free1/全77となる。したがって照合の自然再開は確認するが、新たな売上増加/確定会社netは確認しない。distributorは17:32:50Z pass/exit0、admission released/effect_unknown0になるが、exact slot`2026-10-21-h02m00`の業務ledgerはblocked。実際のtraceは`capafy_free_article.py::build_free_article`がquery`ganchos para videos curtos`と自然なPortuguese H1の`vídeos`をlowercaseだけの包含比較で不一致とし、write/commit前にValueErrorを出す。wrapper fallbackの「live page未確認」はこの前段失敗の要約であり、公開成功としない。factoryのexact fenceは別に未解決で、まとめて解除しない。
+
+**C2内の次の順序補正:** 旧=容量回復→履歴clock/個別gap→自然業務/公式readback。新=容量基準とData indexing復元（実測済）→配信のH1 keyword check修復→factoryのexact draft preflight/fence→残る履歴clock/個別gap→C2全条件照合。理由は供給listed61/7日paid0の状態で、自然配信そのものを止める具体的な表記比較の欠陥が判明し、選択したownerのruntime/公式数値は読めるため。全fleetの履歴取得改善より先に、既存配信を公開まで戻す方が収益検証を早める。進行中の外部effectは中断/再送しない。現在cursor=C2/配信H1 check。次のsource scopeは`capafy_free_article.py`の比較のみ（返却する原文title/CTA/PII・identity gate/他言語の語義は保持）と既存関連test。同じLatin語のaccent表記差を再現し、必須語欠落・無関係語・日本語等の異なる文字を通さない最小修正を検討する。既存実装/標準Unicode機能を先に確認し、新依存/新publisher/過去blocked slotの再実行を追加しない。容量の永続維持と全C2/収益化は未完。
 
 ### 同時進行の基盤監査との統合
 
@@ -2635,7 +2649,7 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 | T12 | evaluator が所有する self-improvement（rollback つき） | canary で settled contribution が改善 |
 | T13 | settled cost で裏付けた x402 自己資金化 | inflow ≥ cost の CFO readback |
 | T14 | LM-EAB（held-out、較正、再現可能） | 独立した再実行で同じ結果 |
-| T15 | 検証済み USD 10K MRR → YC W27 の証拠 → cross-domain / AGI / UBI | receipt の集計 |
+| T15 | custom create・detached exec/resultの重複防止adapter | 基本source #8415/main7d6adbbd43。実APIにimageName/digestが無いため、実績のあるuploadS3Key/private＋archive SHA256＋source SHAへ補正、独立review指摘0。custom/HMAC externalIdとUID/source/archive公式envを照合してbindし、実コードは別health/byte probeで確認。#8421未統合。署名/外部IDは専用LM_MARITIME_MANAGER_ID_SECRETで統一、globalとは別fixtureで回帰確認 |
 
 
 ### 5.0 順序変更（2026-09-27 10:5x JST）: 土台 → 全 loop を green → 収益 → 自己修復の実証 → 自己改善
@@ -20804,7 +20818,7 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 
 **TODO順変更:** 旧=一業務readiness→Cloud→入口→3人pilot→packet→1,000人。新=下記atomic ID順、提出経路確認T01・配布文案T24・台本T25は即着手可能。理由はDaisが知人DMを担当し、利用者feedbackを待たず実装・素材・提出準備を進められるため。先に試せる製品と正式必須項目を揃えて提出し、改善と獲得を継続する。全体統括cursorと進行中provider effectは変更しない。
 
-**Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細・file tree・signature・focused acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。同plan内のcheckboxは実装手順で、状態判定は本節を正とする。現在cursor=T08（Maritime account/browser/model routeの実証）。T07は#8402/main06151d934bへ統合済み、host8/8・既存gate14/14・全13 checks PASS。T06は#8401/main bcf87319aa、関連54/54・全14 checks PASSでsource統合済み。T08のaccount/browser/model route preflightを並行している。T05 sourceはterminal jobを分離して42/42 PASS、全14 checks PASS、#8399/main e3e02c206dへ統合済み。T04はPKCE限定、28/28 PASS、全14 checks PASS、#8398/main286e982bfeへ統合済み。T01は公式channel確認済みだがform/期限時刻は未公表の外部条件として継続確認。T03はmain統合済みで実DB適用はT22。T02はmain統合済み。T03の実環境適用順は変更しない。正式提出は未実施。
+**Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細file/signature/acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。状態は本節が正本。運用cursor=T08（Linux browser/provider準備）、独立source cursor=T16/T11B（bound wake→worker/continuation→報告）。owned Free VM一台のmain由来build/実コード/healthと、既存モデルgpt-5.6-terraのResponses HTTP200を確認済み。offline factoryは6ファイルを作成したがevidence形式不一致でcycle receiptはunknownを保持し、source修正の配備は未完。公開flag・正式提出・DaisへのURLメール・外部利用者・新規Cloud売上は未完。#8421の追加sourceはCI待ちで、main/本番完了とは扱わない。
 
 | ID | 一件の成果物 | 状態/依存 |
 |---|---|---|
@@ -20815,15 +20829,15 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | T05 | 本人POST activateから一度だけenqueue | source完了。#8399/main e3e02c206d、関連42/42・全14 checks PASS。GET/CSRF/cap/停止/unknownは起動しない。実adapterはT11 |
 | T06 | email登録が主CTAのcampaign入口 | source完了。#8401/main bcf87319aa、関連54/54・全14 checks PASS。Manager専用consent、公開flagは未変更 |
 | T07 | Capafy既存factoryへtenant state/build path注入 | source完了。#8402/main06151d934b。reviewの子gate/runner指摘をRED→GREENで修正、host8/8・既存gate14/14・Linux CI全13 checks PASS。本番factoryは未接続 |
-| T08 | Linux browser/provider accountのreadinessとtenant binding | preflight中。Maritime本体はGmail既存接続から本人確認を完了し通常loginで/agentsを確認。SteelはRailway private DNS。既存runnerはlocal Codex/Claude profile依存を確認。Linux/認証/専用routeの実証は未完 |
-| T09 | tenant envで既存factoryを一回呼ぶcloud_cycle.py | source完了。#8404/main64175a23edへ統合、全13 checks PASS。独立reviewの3指摘を回帰RED→GREENで修正しcycle12/12・host8/8 PASS。child path・env allowlist・cached receipt検査を追加。Cloud専用config未設定はdeferred、実環境受入はT08依存を維持 |
+| T08 | Linux browser/provider accountのreadinessとtenant binding | Maritime本人確認/通常login/API keyとowned Free VMを実測。Linux/Python3.11/Node22/Codex0.160/health/実source hash一致、Responses200/gpt-5.6-terra/16tokensを確認。Linux browserと同tenant販売アカウントは未接続。founder認証の他tenant流用なし |
+| T09 | tenant envで既存factoryを一回呼ぶcloud_cycle.py | 基本sourceは#8404/main64175a23ed。owned Cloud実行で6ファイル生成を公式read-only観測。runnerの説明文＋パスとwrapperのliteral path契約が不一致でreceiptはeffect_unknown/completion_evidence_missingを維持。既存pass schemaからCloud用path契約を派生する修正13/13 PASS、#8421で未統合/未配備。同occurrence再送なし |
 | T10 | 同tenant公式Capafy snapshot→FinancialRecord | T10Aは#8405/main70a5e36573・全14 checks PASS、関連16/16・独立review Blocking0。T10B公式collectorは#8406/main1d54c5d24a・全13 checks PASS。独立reviewの成功code指摘をRED→GREENで修正し7/7・既存49/49 PASS、owned APIの所有者/日別coverage/合計一致と変換を実測。Cloud利用者接続・中央worker wiringは未完 |
 | T11 | 既存queue/leaseへmanager.cycle adapter登録 | foundationは#8407/main334e0bd1bc、全14 checks PASSで統合済み。store/SQLとstable buildersはreview修正済。cycle adapterのplan/execute/reconcile/verify/reportを実装しruntime16/16 PASS。独立reviewのtransport uid不一致・日本語/空白のartifact path拒否と、保存fileだけを書き換えた完了判定を回帰RED→GREENで修正。公式captured stdoutとenvelope.resultを照合する。実行中はworkerを占有せずpending、停止後もread-only回収、共通receiptはexecutionの証拠として分離。provision/report adapter・worker wiring・本番DB/Cloud適用は未完 |
-| T12 | 専用subfolder Dockerfileとsanitized ZIPで同repoのcustom imageをbuild | sourceは#8412/main8d7d4474a3へ統合、全13 checks PASS。archive5/5 PASS。独立reviewの公開実装profiles除外をRED→GREENで修正し、展開ZIPから実publisher importを確認。tracked main commitだけ・secret/profile/state除外・archive限度・既存output保護を確認。公式ZIP routeのUIとupload API契約を確認。main8d7由来の実archiveを作成、91,195,182 bytes/8,683 files、safe receipt=image-build-source.json。upload/remote imageは未実施、Docker daemonなし。 |
-| T13 | VM health/chat/schedulesの短いHTTP server | sourceは#8407/main334e0bd1bcへ統合済み。HTTP handlerと起動unitの独立reviewは各Blocking0/Important0。起動/relay/runner専用configとdetached entryを実装、T14含む関連26/26 PASS（実loopback port・既存Python runnerが生成profileを読めることを含む）。model keyはenvだけ、空auth markerだけを保存。実relay/VM/model呼出は未完。T14 schedulesは別task |
+| T12 | 専用subfolder Dockerfileとsanitized ZIPで同repoのcustom imageをbuild | sourceは#8412/main8d7d4474a3へ統合、全13 checks PASS。archive5/5 PASS。独立reviewの公開実装profiles除外をRED→GREENで修正し、展開ZIPから実publisher importを確認。tracked main commitだけ・secret/profile/state除外・archive限度・既存output保護を確認。公式ZIP routeのUIとupload API契約を確認。main8d7由来の実archiveは91,195,182 bytes/8,683 files。公式upload HTTP200、root Dockerfile/custom検出を確認、safe receipt=image-build-source.json。CDPの50MB転送上限を同じsessionのHTTP uploadで解消。owned free VMの公式build history=success、Linux/Node22/Python3.11/Codex0.160/health/source byte hash一致を実測。公式metadata/build historyにimage digestは無い。ZIP archive SHA256とsource SHAを配備契約に使用し、image digestと呼ばない。 |
+| T13 | VM health/chat/schedulesの短いHTTP server | sourceは#8407/main334e0bd1bcへ統合済み。HTTP handlerと起動unitの独立reviewは各Blocking0/Important0。起動/relay/runner専用configとdetached entryを実装、T14含む関連26/26 PASS（実loopback port・既存Python runnerが生成profileを読めることを含む）。model keyはenvだけ、空auth markerだけを保存。owned VM/health/model Responsesの実呼出は確認済み。中央wake relayの本番配線は未完。T14 schedulesは別task |
 | T14 | sleeping VMでも起きるnextRunAt schedule | #8407/main334e0bd1bcへsource統合済み。projection/永続snapshot reader/GET schedulesはsource実装、schedule7/7・server11/11 PASS。独立reviewのvolume/home欠損の誤空配列を回帰RED→GREENで修正。利用者19:00の日報時刻を既存timezone変換で計算しDST確認。中央queueからの更新/公式writeと実休眠wakeはT15/T16/T22で未完 |
-| T15 | custom create・detached exec/resultの重複防止adapter | source実装中。transport8/8・cycle/schedule含む31/31 PASS（模擬API）。custom image/HMAC end-user/UID-SHA env照合後だけbind、create応答喪失はGETで回収、detached exec ID不明はunknownを維持。実VM/image接続は未完 |
-| T16 | 一tenant tokenのwake relay・secret・初回wake配線 | T05/T08/T14/T15後 |
+| T15 | custom create・detached exec/resultの重複防止adapter | 基本source #8415/main7d6adbbd43。実APIにimageName/digestが無いため、実績のあるuploadS3Key/private＋archive SHA256＋source SHAへ補正、独立review指摘0。custom/HMAC externalIdとUID/source/archive公式envを照合してbindし、実コードは別health/byte probeで確認。#8421未統合。署名/外部IDは専用LM_MARITIME_MANAGER_ID_SECRETで統一、globalとは別fixtureで回帰確認 |
+| T16 | 一tenant tokenのwake relay・secret・初回wake配線 | #8421 source実装/CI待ち。署名uid/agent/source SHA、bootstrap拒否、body ID無視、initial job固定、停止/未登録worker拒否。configureWakeはactive同bindingだけSDK setEnv(secret)/reload、専用key混同をRED→GREEN修正。関連80/80 PASS。health確認/provision/worker continuation/本番secret設定は未完 |
 | T17 | Cloudで一件の正規publishとofficial status確認 | T16後、売上発生自体は待たない |
 | T18 | 作業/売上/費用/未確認を分ける日次結果 | T10/T11後 |
 | T19 | 既存CFO/Resendへの一日一通配信 | T18/T16後 |
@@ -20841,11 +20855,11 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | T31 | email利用者の任意paid upgradeを既存Stripeへ接続しLM自身の売上を照合 | 無料pilot/提出を妨げずT23後。顧客事業売上とStripe subscription売上を別集計 |
 | T32 | 既存SupabaseへResend SMTP/email enable/正確なcallbackを設定しowned inbox着信確認 | 実環境完了。設定GETとowned inbox着信を確認、認証件名/宛先/新規時刻照合済み。email=true/confirm必須/既存Googleとredirect保持。safe receipt=smtp-readback.json。browser全経路はT22 |
 
-**Source依存訂正:** 旧=T11全worker完了→T13→T12、T17実行→T22 deploy。新=T11Aの確定契約→T13/T12 source→T15/T16/T18/T19 source→T11B wiring→T22.1非公開foundation deploy→T17/日報の実測→T22完了。実装に存在した循環を解消するための順序具体化で、sourceを稼働完了へ置換しない。現在の運用cursor=T08、独立source cursor=T12。
+**Source依存訂正:** 旧=T11全worker→T13/T12、T17実証→T22 deploy。新=T11A契約→T13/T12 source→T15/T16/T18/T19 source→T11B wiring→T22.1非公開deploy→T17/日報実測→T22完了。循環を解消し、実証条件は維持する。現在cursorは上記atomic TODOの正本を参照。
 
-**計画訂正:** 旧T12=root Dockerfile、新T12=専用subfolder+sanitized ZIP。Railwayがroot Dockerfileを自動検出し既存life-callのbuildを変えるため訂正する。T32はT04後に独立して実行し、T22の依存へ追加する。T12→T13の逆依存もT13→T14→T12へ訂正し、CMD対象sourceが存在してからbuildする。現在cursor=T08。T32の設定/着信は確認済み。Maritime本体は本人確認・通常login済み。API keyはprivate SSOTへ保存し、公式API hostのGET /api/agents=200・owned agent0を確認。VM/業務effectは未実施。詳細file/command/期待結果はAtomic Implementation Planを参照。
+**配備方式:** 専用subfolderのDockerfileをsanitized main由来ZIPのrootだけに配置し、Railway既存buildを変えない。Maritime公式upload/buildはowned Free VMで成功済み。source archive hashをOCI image digestと混同しない。API key/upload referenceはprivate credential SSOTだけに保持する。
 
-**実行順の具体化:** 旧=T08実証完了→T09全作業。新=T08の認証/実環境確認とT09のsource実装を並行し、T09の実環境受入はT08後に維持。理由は既存runner/CLI契約とMaritimeのResponses API対応を一次資料で確認でき、認証待ちで独立したコード作業を止める必要がないため。cursor=T08、VM業務effectは未開始。
+**並行作業:** T08のbrowser/provider実証と独立source実装を並行し、実環境受入をsource PASSへ置換しない。既存Cloud factoryの6ファイルと、公開/販売/入金/利用者数は別に記録する。
 
 **技術判断:** custom imageで同じfactoryを使う。中央Railwayの既存queue workerがMaritimeのdetached execへ一回dispatchしexecutionIdを回収する。VMはtenant限定tokenでwake relayへ通知し、Supabase service-roleを持たない。Keikiはemail/schedule/APIを持つが、既存Resend/CFOを置換する必須依存にしない。Maritime SDKのprovision既定OpenClawをcustom imageへ流用せず公式REST契約を使う。全14loops移植・新しいpublisher/router/schedulerは初週必須作業にしない。
 
@@ -20853,7 +20867,7 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 
 **配布/提出資料:** [DM・X・IG文案](../../distribution/maritime/week1/channel-copy.md) / [撮影台本](../../distribution/maritime/week1/demo-script.md) / [提出checklist](../../distribution/maritime/week1/submission-checklist.md)。文案/台本の保存は投稿・動画生成・提出完了を意味しない。
 
-**並行確認:** 初週締切/timezone、Top30 rubric、提出先、community pinned案内、両platform実装要否、人数計数、team roster、Scale更新/credits範囲、日本発旅費。最新受信は10月19日kickoff mailで、Mariaの個別条件回答は10月16日以後見つからない。10月18日に同threadでYC紹介依頼が送信済み。既存質問を重複送信せず、今回新しい問い合わせは送らない。
+**並行確認:** 初週締切/timezone、Top30 rubric、提出先、community pinned案内、team roster、Scale更新/credits範囲、日本発旅費。公式サイト再読と10月20日以降の主催者メール再検索でも、新しい提出form/初週時刻は確認できない。受信済みwelcome/verificationは大会追加要件ではない。既存問い合わせを重複送信しない。
 
 **Hackathon Radar:** →既存Radar Pageと日次workerを参照。旧workerの1,000 VM指示修正は未完で、今回重複workerを作らない。
 

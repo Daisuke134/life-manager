@@ -4,7 +4,7 @@
 
 - [ ] 正式提出先、初週締切、timezone、必須field、再提出可否を`requirements.json`へ保存。
 - [ ] メール登録から一つの実業務を試せる公開URLを確認。
-- [ ] loaded main SHA/image digestとMaritime project usageを結合。
+- [ ] loaded main source SHA/配備ZIP archive SHA256とMaritime project usageを結合。
 - [ ] 一文説明、実行範囲、対象利用者、未接続条件を記述。
 - [ ] 最小の実画面demoを保存。2–3分動画は推奨で、指定がなければ受付を遅らせない。
 - [ ] 実測の外部利用者/業務完了/再利用/費用を記録。未取得はnullと理由。team/test/founderは別。

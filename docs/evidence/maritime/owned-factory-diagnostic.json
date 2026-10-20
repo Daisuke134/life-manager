@@ -1,0 +1,19 @@
+{
+  "release_sha": "8d7d4474a357303a87ad3dd7acf1920b6cb77030",
+  "execution_status": "completed",
+  "exit_code": 0,
+  "cycle_status": "effect_unknown",
+  "error_class": "completion_evidence_missing",
+  "artifact_files": [
+    "earnings-brief-builder/FEEDBACK_BASIS.md",
+    "earnings-brief-builder/icon.svg",
+    "earnings-brief-builder/SKILL.md",
+    "earnings-brief-builder/VERIFICATION.md",
+    "earnings-brief-builder/LISTING.md",
+    "earnings-brief-builder/test/case1.md"
+  ],
+  "official_read_only_diagnostic": "Files exist under owned tenant workspace; runner success evidence strings contain descriptions plus paths, not literal file paths.",
+  "publication_verified": false,
+  "sales_verified": false,
+  "external_user_count": 0
+}

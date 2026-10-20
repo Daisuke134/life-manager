@@ -1,0 +1,17 @@
+{
+  "provider": "maritime",
+  "route": "Responses API",
+  "execution_status": "completed",
+  "exit_code": 0,
+  "http_status": 200,
+  "model_requested": "gpt-5.6-terra",
+  "model_returned": "gpt-5.6-terra",
+  "status": "completed",
+  "output_ok": true,
+  "usage": {
+    "input_tokens": 11,
+    "output_tokens": 5,
+    "total_tokens": 16
+  },
+  "scope": "owned runtime connectivity only; no publication or sales"
+}

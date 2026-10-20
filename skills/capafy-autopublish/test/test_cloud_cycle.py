@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import re
 from pathlib import Path
 import subprocess
 import shutil
@@ -57,6 +58,18 @@ class CloudCycleTest(unittest.TestCase):
         self.assertNotIn('goal', command)
         self.assertEqual(result['providerReceiptRefs'], [])
         self.assertEqual(len(result['artifactRefs']), 1)
+
+    def test_cloud_output_schema_requires_literal_owned_file_paths(self):
+        def checked(command, **options):
+            schema = json.loads(Path(command[command.index('--schema') + 1]).read_text())
+            pattern = schema['properties']['evidence']['items']['pattern']
+            artifact = str(self.work / '商品と掲載原稿.md')
+            self.assertIsNotNone(re.search(pattern, artifact))
+            self.assertIsNotNone(re.search(pattern, 'file://' + artifact))
+            self.assertIsNone(re.search(pattern, 'Created original offline product: ' + artifact))
+            self.assertIsNone(re.search(pattern, '/other-tenant/build/product.md'))
+            return self.runner(command, **options)
+        self.assertEqual(self.run_cycle(checked)['status'], 'completed')
 
     def test_unconfigured_cloud_route_does_not_use_local_profiles(self):
         del self.env['AGENT_RUNNER_CONFIG']
