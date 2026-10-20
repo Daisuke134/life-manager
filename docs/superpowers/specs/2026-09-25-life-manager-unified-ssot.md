@@ -20978,7 +20978,7 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 
 **TODO順変更:** 旧=一業務readiness→Cloud→入口→3人pilot→packet→1,000人。新=下記atomic ID順、提出経路確認T01・配布文案T24・台本T25は即着手可能。理由はDaisが知人DMを担当し、利用者feedbackを待たず実装・素材・提出準備を進められるため。先に試せる製品と正式必須項目を揃えて提出し、改善と獲得を継続する。全体統括cursorと進行中provider effectは変更しない。
 
-**Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細file/signature/acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。運用cursor=T22.1b.4-1（限定startup budget実験のsource受入→一回適用→実API判定/必要時rollback）。sourceはPR #8424の最終d13e1b8d7fで全14checks成功、main `0c559693f03b34770e9c1ff61616bbe2f2e497ed`へ統合する。既存Maritime VM一台とWeb/workerは同mainのimageを採用し、VMの実4source hash/healthとimage固定browserの非rootCDP/DOMを確認する。両appの必須設定・capacity3・内部cohortは稼働deploymentで照合し、公開email flagとMaritime capabilityは無効に保つ。DBの登録・実行・参加・利用計測migrationは公式success、Data APIの503 PGRST002/Auth timeoutは未解決。既存6ファイルのunknown receiptは維持し、新しい実業務・日報・停止・外部利用者・売上・正式提出・DaisへのURLメールは未確認/未完とする。
+**Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細file/signature/acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。運用cursor=T22.1b.4-3（限定startup budget実験の実source review/CI/main統合→一回適用→実API判定/必要時rollback）。sourceはPR #8424の最終d13e1b8d7fで全14checks成功、main `0c559693f03b34770e9c1ff61616bbe2f2e497ed`へ統合する。既存Maritime VM一台とWeb/workerは同mainのimageを採用し、VMの実4source hash/healthとimage固定browserの非rootCDP/DOMを確認する。両appの必須設定・capacity3・内部cohortは稼働deploymentで照合し、公開email flagとMaritime capabilityは無効に保つ。DBの登録・実行・参加・利用計測migrationは公式success、Data APIの503 PGRST002/Auth timeoutは未解決。既存6ファイルのunknown receiptは維持し、新しい実業務・日報・停止・外部利用者・売上・正式提出・DaisへのURLメールは未確認/未完とする。
 
 | ID | 一件の成果物 | 状態/依存 |
 |---|---|---|
