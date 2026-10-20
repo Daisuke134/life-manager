@@ -113,7 +113,7 @@ life-manager/
 - `CycleResult = {status, tenantId, occurrenceId, artifactRefs, providerSnapshotRef, providerReceiptRefs, nextEligibleAt, errorClass}`。`status`は`completed|deferred|effect_unknown`。completedは選んだactionの完了で、売上発生とは別。
 - `BusinessBinding = {tenantId, provider:'capafy', subjectId, credentialRef, browserSessionRef}`。他tenantを指定したbindingは実行前にreject。
 - `DailyResult = {uid, periodKey, actions, grossByCurrency, refundsByCurrency, knownCostsByCurrency, netStatus, providerReceiptRefs, failures, nextActions}`。費用欠落時はnetStatus=`unknown`、金額を0にしない。
-- wake relay: POST `/api/internal/maritime/wake`、header `X-LM-Agent-Token`、body `{occurrenceId,kind:'cycle'|'report'}`。uidはtoken bindingから解決する。VMはこれでenqueueを依頼するだけでDBの強い鍵を持たない。reportはRailway側で実行する。
+- wake relay: POST `/api/internal/maritime/wake`、header `X-LM-Agent-Token`、body `{occurrenceId,kind:'cycle'|'report'}`。uidはtoken bindingから解決する。VMはこれでenqueueを依頼するだけでDBの強い鍵を持たない。kind=cycleはcycle job、kind=reportはreport jobへ変換し、reportはRailway側で実行する。
 - execution: `transport.dispatchCycle({uid,agentId,occurrenceId,dateKey,releaseSha}) -> {executionId,status}`、`transport.readExecution({agentId,executionId}) -> {status,exitCode,stdout,stderr}`。公式exec APIを使う。
 - 日次`periodKey`は`maritime:daily:<timezoneのYYYY-MM-DD>`とし、既存CFOのhourly/daily keyへ衝突させない。
 - 新規signatureは以下のtask記載を正とする。既存`enqueueJob`/`claimJobs`/`completeJob`/`deliverCloudCfoEmail`の既存APIは変えない。
@@ -165,7 +165,7 @@ life-manager/
 
 - [ ] T03.1 test `enrollment_is_idempotent_and_tenant_scoped`を定義し、同uid二回で一row、別uidのread/agent bind拒否をassertする。
 - [ ] T03.2 migrationに`lm_maritime_manager_enrollments`を作る。uid/auth_subject unique、agent_id unique、status check、service-role経由のみ、raw credentialのcolumnなし。既存participant tableを再作成しない。
-- [ ] T03.3 storeに上記五methodを実装する。provision claimはconditional update、paused/unknownの再claimをしない。
+- [ ] T03.3 storeに上記五methodを実装する。`read`はservice-owner用で、public handlerはverified sessionのuidからのみ呼ぶ。provision claimはconditional update、paused/unknownの再claimをしない。
 - [ ] T03.4 `cd apps/life-manager && node --test lib/maritime-manager-store.test.js`。一row/一claim/所有者分離をPASSにしcommit/push。
 
 ## Task T04: email認証を既存Supabaseへ追加する
@@ -187,7 +187,7 @@ life-manager/
 
 - [ ] T05.1 test `activate_post_enqueues_once_but_get_prefetch_does_not`を定義。POST二回=一job、GET=0job、CSRF不一致=0job。
 - [ ] T05.2 既存consent/participant capをemail uidにも適用し、sourceとtimezoneを保存する。goal/budget fieldを要求せず、timezone未指定はUTC。3人のallowlistをpublic登録の必須条件にしない。
-- [ ] T05.3 既存`runtime-job-store.enqueueJob`を使い`maritime.provision`のstable job keyをuidから作る。DB commit前にはMaritimeへ送信しない。
+- [ ] T05.3 既存`runtime-job-store.enqueueJob`を使い`maritime.manager.provision`のstable job keyをuidから作る。DB commit前にはMaritimeへ送信しない。
 - [ ] T05.4 focused testとmigrationの重複適用/同時claimを確認しcommit/push。受付は`provisioning`であり、未実行をactiveにしない。
 
 ## Task T06: email登録ページを公開入口にする
@@ -248,12 +248,12 @@ life-manager/
 ## Task T11: Managerのcycleを既存runtime jobへ登録する
 
 **Files:** Create `lib/maritime-manager-runtime.js`/test、Modify `config/loop-adapters.json`、`scripts/runtime-up.js`。
-**Interfaces:** `buildMaritimeManagerCycleJob({tenantId,occurrenceId,dateKey,releaseSha})`、`createMaritimeManagerLoopAdapter(services)`。capability=`maritime.manager.cycle`、既存adapterのplan/execute/reconcile/verify/reportを実装。
+**Interfaces:** `buildMaritimeManagerCycleJob({tenantId,occurrenceId,dateKey,releaseSha})`、`createMaritimeManagerLoopAdapter(services)`。capability=`maritime.manager.cycle`、既存adapterのplan/execute/reconcile/verify/reportを実装。同fileに`buildMaritimeManagerProvisionJob({tenantId,releaseSha})`/`createMaritimeManagerProvisionAdapter(services)`と`buildMaritimeManagerReportJob({tenantId,periodKey,releaseSha})`/`createMaritimeManagerReportAdapter(services)`を置き、`maritime.manager.provision`/`maritime.manager.report`を中央workerだけに登録する。provisionはT15 transport、reportはT19配信をinjectし、未注入なら実行前に失敗させる。
 **Depends:** T09/T10。
 
 - [ ] T11.1 test `same_occurrence_is_one_runtime_job`を定義。stable job/effect keyがtenant+occurrenceにbindし、別tenantでは異なることをassert。
 - [ ] T11.2 `buildRuntimeJob`と既存queue/leaseを使う。factoryを長時間HTTP request内で実行せず、中央jobからMaritime公式detached execへ一度dispatchし、executionIdを既存jobのreceipt/stateへpersistしてpollする。既存workerのlease heartbeatを維持し、次wakeをpersistする。
-- [ ] T11.3 `runtime-up.js`のservicesByAdapterへ`dispatchCycle/readExecution/readCycleReceipt`を注入する。factory wrapperの実行場所はMaritime VMだけとし、Railwayで同じfactoryを二重実行しない。adapter manifestに新capabilityを一つ追加し、既存capabilityを置換しない。
+- [ ] T11.3 `runtime-up.js`のservicesByAdapterへ`dispatchCycle/readExecution/readCycleReceipt`を注入する。factory wrapperの実行場所はMaritime VMだけとし、Railwayで同じfactoryを二重実行しない。adapter manifestにprovision/cycle/reportの三capabilityを別entryで追加し、既存capabilityを置換しない。provision/reportを実行できないままqueueへ入れる穴を残さない。
 - [ ] T11.4 `node --test lib/maritime-manager-runtime.test.js lib/loop-adapter-registry.test.js`で再claim/unknown/replayのfocused casesを確認しcommit/push。
 
 ## Task T12: custom imageを同じrepoから作る
@@ -274,7 +274,7 @@ life-manager/
 **Depends:** T11/T12。
 
 - [ ] T13.1 test `health_is_pure_and_chat_returns_before_factory_finishes`を定義。factory promiseが未完でもchatが30秒未満で受付応答し、healthではjob0件。
-- [ ] T13.2 POST `/chat`のscheduled promptは内部wakeへ変換し、同tenant tokenでRailwayの`/api/internal/maritime/wake`へ通知して受付状態を返す。VMへDB credentialを渡さず、requestに任意tenantや任意shell commandを指定させない。
+- [ ] T13.2 POST `/chat`のscheduled promptはkind=`cycle|report`の内部wakeへ変換し、同tenant tokenでRailwayの`/api/internal/maritime/wake`へ通知して受付状態を返す。VMへDB credentialを渡さず、requestに任意tenantや任意shell commandを指定させない。
 - [ ] T13.3 envにbindしたtenantとrelease、`LM_WAKE_RELAY_URL`/tenant限定`LM_WAKE_RELAY_TOKEN`だけを使い、GET `/health`は`{ok:true,releaseSha}`を返す。公開bodyにsecretや他tenantを含めない。`/schedules`を除く外部操作へユーザー指定shellを通さない。
 - [ ] T13.4 `node --test maritime/server.test.js`と実port health確認を行いcommit/push。
 
