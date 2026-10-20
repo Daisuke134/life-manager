@@ -263,7 +263,7 @@ life-manager/
 
 ## Task T11: Managerのcycleを既存runtime jobへ登録する
 
-**Files:** Modify `lib/maritime-manager-runtime.js`/test、`lib/maritime-manager-store.js`/test、`config/loop-adapters.json`、`scripts/runtime-up.js`。Create `migrations/2026-10-20-lm-maritime-runtime-executions.sql`。
+**Files:** Modify `lib/maritime-manager-runtime.js`/test、`lib/maritime-manager-store.js`/test、`config/loop-adapters.json`、`scripts/runtime-up.js`、`lib/effect-reconciler.js`/test。Create `migrations/2026-10-20-lm-maritime-runtime-executions.sql`。
 **Interfaces:** `buildMaritimeManagerCycleJob({tenantId,occurrenceId,dateKey,releaseSha})`、`createMaritimeManagerLoopAdapter(services)`。capability=`maritime.manager.cycle`、既存adapterのplan/execute/reconcile/verify/reportを実装。同fileに`buildMaritimeManagerProvisionJob({tenantId,releaseSha})`/`createMaritimeManagerProvisionAdapter(services)`と`buildMaritimeManagerReportJob({tenantId,periodKey,releaseSha})`/`createMaritimeManagerReportAdapter(services)`を置き、`maritime.manager.provision`/`maritime.manager.report`を中央workerだけに登録する。provisionはT15 transport、reportはT19配信をinjectし、未注入なら実行前に失敗させる。
 **Depends:** T09/T10。
 

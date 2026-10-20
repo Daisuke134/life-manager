@@ -31,9 +31,11 @@ async function reconcileUnknownEffect(job, dependencies = {}) {
     jobId: job.job_id,
     attempt: job.attempt,
   });
-  if (!proof || !["present", "absent", "unknown"].includes(proof.state)) {
+  if (!proof || !["present", "absent", "unknown", "pending"].includes(proof.state)) {
     throw new Error("runtime adapter proof invalid");
   }
+  // An observed running provider execution is known pending, not an unknown effect.
+  if (proof.state === "pending") return { status: "reconciling", decision: "pending" };
   if (proof.state === "unknown") {
     // Unknown ages: the store durably counts consecutive unknown results and, at
     // MAX_UNKNOWN_RECONCILE_RESULTS, dead-letters the job for operator review instead
