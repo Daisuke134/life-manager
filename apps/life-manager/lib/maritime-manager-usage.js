@@ -20,7 +20,7 @@ async function recordMaritimeEmailVerified(uid,options={}){
 }
 async function recordMaritimeManagerCompletion(job,receipt,options={}){
  try{
-  if(job?.status!=='completed'||!UID.test(job.tenant_id||''))return false;
+  if(job?.status!=='completed'||!UID.test(job.tenant_id||'')||job.completed_at==null)return false;
   const at=new Date(job.completed_at).toISOString();
   let eventName,eventKey='once';
   if(job.capability==='maritime.manager.cycle'){

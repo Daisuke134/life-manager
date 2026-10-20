@@ -12,6 +12,7 @@ test('manager usage is not signup or a deferred job and does not include private
  assert.doesNotMatch(JSON.stringify(deps.events),/example.invalid|private-body|private-token/);
  const before=deps.events.length;
  await usage.recordMaritimeManagerCompletion({...job,status:'running'},receipt,deps);assert.equal(deps.events.length,before);
+ assert.equal(await usage.recordMaritimeManagerCompletion({...job,completed_at:null},receipt,deps),false);assert.equal(deps.events.length,before);
  const deferred={...receipt,status:'deferred',artifact_refs:[],error_class:'no_work'};
  await usage.recordMaritimeManagerCompletion(job,deferred,deps);assert.equal(deps.events.length,before);
 });

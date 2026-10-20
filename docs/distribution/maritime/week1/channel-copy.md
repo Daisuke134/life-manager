@@ -62,7 +62,7 @@
 - 公開先はT22でreadbackしたRailway/既存domain originを使う。例のhostnameを公開しない。
 - Daisの紹介: `${PUBLIC_ORIGIN}/maritime?source=referral&utm_source=friends&utm_medium=dm&utm_campaign=maritime-week1`
 - X: `${PUBLIC_ORIGIN}/maritime?source=x&utm_source=x&utm_medium=social&utm_campaign=maritime-week1`
-- IG: `${PUBLIC_ORIGIN}/maritime?source=other&utm_source=instagram&utm_medium=dm&utm_campaign=maritime-week1`
+- IG: `${PUBLIC_ORIGIN}/maritime?source=instagram&utm_source=instagram&utm_medium=dm&utm_campaign=maritime-week1`
 - Community: `${PUBLIC_ORIGIN}/maritime?source=community&utm_source=community&utm_medium=community&utm_campaign=maritime-week1`
 - `PUBLIC_ORIGIN`差込後にGETとCTAを確認し、完成版には変数・例示URL・未検証リンクを残さない。
 - 氏名・email・紹介先の個人識別子をURLへ入れない。UTMの媒体名だけを残す。

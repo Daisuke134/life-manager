@@ -5,6 +5,7 @@ const path = require("node:path");
 const http = require("node:http");
 const os = require("node:os");
 const dns = require("node:dns");
+const { isDeepStrictEqual } = require("node:util");
 
 function requiredEnv(env, name) {
   const value = String(env[name] || "").trim();
@@ -55,6 +56,20 @@ function createScopedEnvironmentSecretProvider(env = process.env) {
       },
     },
   });
+}
+
+async function observeMaritimeCompletion(job, receipt, services, durable = job) {
+  if (typeof services.onJobCompleted !== "function" || !job?.capability?.startsWith("maritime.manager.")) return;
+  try {
+    if (!durable || durable.tenant_id !== job.tenant_id || durable.job_id !== job.job_id || durable.attempt !== job.attempt) throw new Error("completion scope invalid");
+    const completed = durable.status === "completed" ? durable
+      : durable.outcome === "completed" && isDeepStrictEqual(durable.receipt, receipt)
+        ? { ...job, status: "completed", completed_at: durable.created_at } : null;
+    if (completed && await services.onJobCompleted(completed, receipt) !== false) return;
+  } catch { /* Telemetry cannot change a durable business completion. */ }
+  process.stderr.write(JSON.stringify({ kind: "maritime_usage_unconfirmed", job_id: job.job_id,
+    phase: "completion", error_class: "usage_store_unconfirmed", retryable: true,
+    next_action: "backfill_from_runtime_receipt" }) + "\n");
 }
 
 async function executeCapabilityJob(job, services) {
@@ -165,13 +180,15 @@ async function executeCapabilityJob(job, services) {
     return;
   }
   if (execution.receipt.status === "blocked") return;
+  let completed;
   if (execution.continuation) {
     if (typeof completeJobAndEnqueue !== "function") throw new Error("runtime continuation store unavailable");
-    await completeJobAndEnqueue({ ...identity, receipt: execution.receipt,
+    completed = await completeJobAndEnqueue({ ...identity, receipt: execution.receipt,
       nextJob: execution.continuation.job, availableAt: execution.continuation.availableAt }, storeOptions);
   } else {
-    await completeJob({ ...identity, receipt: execution.receipt }, storeOptions);
+    completed = await completeJob({ ...identity, receipt: execution.receipt }, storeOptions);
   }
+  await observeMaritimeCompletion(job, execution.receipt, services, completed);
 }
 
 async function reconcileMaritimeCapabilityJobs(capabilities, dependencies = {}) {
@@ -200,8 +217,10 @@ async function reconcileMaritimeCapabilityJobs(capabilities, dependencies = {}) 
         resolveReconciliation: async input => {
           const next = input.decision === "present" && typeof adapter.continuation === "function"
             ? await adapter.continuation(job, input.receipt) : null;
-          return next ? store.resolveReconciliationAndEnqueue({ ...input, nextJob: next.job, availableAt: next.availableAt }, storeOptions)
-            : store.resolveReconciliation(input, storeOptions);
+          const completed = next ? await store.resolveReconciliationAndEnqueue({ ...input, nextJob: next.job, availableAt: next.availableAt }, storeOptions)
+            : await store.resolveReconciliation(input, storeOptions);
+          if (input.decision === "present") await observeMaritimeCompletion(job, input.receipt, dependencies, completed);
+          return completed;
         },
       },
     });
@@ -783,6 +802,7 @@ async function runCapabilityWorker(env = process.env) {
   let registry;
   const maritimeManagerStore = capabilities.some(value => value.startsWith("maritime.manager."))
     ? require("../lib/maritime-manager-store.js").createMaritimeManagerStore({ env }) : null;
+  const onJobCompleted = maritimeManagerStore ? (job, receipt) => require("../lib/maritime-manager-usage.js").recordMaritimeManagerCompletion(job, receipt, { env, managerStore: maritimeManagerStore }) : null;
   let nextMaritimeRecoveryMs = 0;
   let maritimePausedCursor = null;
   const handlers = createWorkerHandlers(env, capabilities, {
@@ -826,7 +846,7 @@ async function runCapabilityWorker(env = process.env) {
           enqueueJob: runtimeStore.enqueueJob, storeOptions: opts, pausedCursor: maritimePausedCursor });
         nextMaritimeRecoveryMs = Date.now() + 30000;
       }
-      await reconcileMaritimeCapabilityJobs(capabilities, { registry, store: runtimeStore, storeOptions: opts,
+      await reconcileMaritimeCapabilityJobs(capabilities, { registry, store: runtimeStore, storeOptions: opts, onJobCompleted,
         observe: event => process.stdout.write(JSON.stringify(event) + "\n") });
       const jobs = await claimJobs({
         workerId,
@@ -844,6 +864,7 @@ async function runCapabilityWorker(env = process.env) {
           failJob,
           storeOptions: opts,
           leaseSeconds,
+          onJobCompleted,
         });
       }
       state.ready = true;

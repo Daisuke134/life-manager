@@ -1309,3 +1309,31 @@ test("paused cleanup recovery advances beyond completed old jobs and wraps its c
  assert.equal(await recoverMaritimeEnrollments(['maritime.manager.provision'],{...deps,pausedCursor:cursor}),null);
  assert.equal(new Set(seen).size,21);
 });
+
+
+test("Maritime completion telemetry runs after durable completion and cannot trigger a resend",async()=>{
+ const order=[],job={tenant_id:'tenant-a',job_id:'job-a',attempt:1,capability:'maritime.manager.report',effect_class:'message'};
+ const completed={...job,status:'completed',completed_at:'2026-10-21T01:00:00.000Z'};
+ await executeCapabilityJob(job,{workerId:'worker-a',handlers:{[job.capability]:async()=>({receipt:{status:'completed'}})},
+ completeJob:async()=>{order.push('complete');return completed;},failJob:async()=>{throw new Error('do not fail completed mail');},
+ onJobCompleted:async row=>{assert.equal(row,completed);order.push('usage');throw new Error('metrics unavailable');}});
+ assert.deepEqual(order,['complete','usage']);
+});
+test("reconciled Maritime telemetry follows the atomic successor commit",async()=>{
+ const job={tenant_id:'tenant-a',job_id:'job-a',attempt:1,status:'reconciling',capability:'maritime.manager.cycle',effect_class:'money',effect_key:'effect-a'},order=[];
+ const adapter={reconcile:async()=>({state:'present',receipt:{status:'completed'}}),verify:()=>true,continuation:async()=>({job:{job_id:'next'},availableAt:'2026-10-21T01:15:00.000Z'})};
+ await reconcileMaritimeCapabilityJobs([job.capability],{registry:{getByCapability:()=>adapter},store:{claimReconcilingJobs:async()=>[job],recordUnknownReconciliation:async()=>{},resolveReconciliation:async()=>{},resolveReconciliationAndEnqueue:async()=>{order.push('atomic');return {...job,status:'completed'};}},
+ onJobCompleted:async row=>{assert.equal(row.status,'completed');order.push('usage');return true;}});
+ assert.deepEqual(order,['atomic','usage']);
+});
+
+
+test("Maritime telemetry consumes the SQL completion receipt row rather than assuming a job row",async()=>{
+ const receipt={status:'completed'},time='2026-10-21T01:00:00.000Z';let observed=0;
+ const job={tenant_id:'tenant-a',job_id:'job-a',attempt:1,capability:'maritime.manager.report',effect_class:'message'};
+ await executeCapabilityJob(job,{workerId:'worker-a',handlers:{[job.capability]:async()=>({receipt})},
+  completeJob:async()=>({tenant_id:job.tenant_id,job_id:job.job_id,attempt:job.attempt,outcome:'completed',receipt,created_at:time}),
+  onJobCompleted:async completed=>{assert.equal(completed.status,'completed');assert.equal(completed.completed_at,time);assert.equal(completed.capability,job.capability);observed++;},
+  failJob:async()=>{throw new Error('unexpected failure');}});
+ assert.equal(observed,1);
+});

@@ -51,6 +51,7 @@ async function handleMaritimeManagerArtifact(req,res,options={}){
   res.writeHead(200,{...headers,'content-type':'application/octet-stream',
    'content-disposition':`attachment; filename="artifact"; filename*=UTF-8''${encodeURIComponent(filename).replace(/['()*]/g,c=>'%'+c.charCodeAt(0).toString(16).toUpperCase())}`});
   res.end(bytes);
+  void Promise.resolve().then(()=>(options.recordReturn||require('./maritime-manager-usage.js').recordMaritimeManagerReturn)(user.uid,{...options,request:req})).catch(()=>{});
  }catch{send(503,'ファイルを取得できません。しばらくしてからもう一度お試しください。');}
  return true;
 }

@@ -240,3 +240,20 @@ test("late activation cannot restore consent after the serialized stop cleanup",
  const cleanup=adapter.reconcile(runtime.buildMaritimeManagerProvisionJob({tenantId:uid,releaseSha:sha,phase:'pause'}));
  const early=await Promise.race([cleanup.then(()=>true),new Promise(resolve=>setTimeout(()=>resolve(false),15))]);release();await activation;assert.equal((await cleanup).state,'present');assert.equal(early,false);assert.equal(consent,false);
 });
+
+
+test("confirmed email telemetry follows session verification and contains only the derived uid",async()=>{
+ const {deps}=fixture(),events=[];deps.recordEmailVerified=async uid=>{events.push(uid);return true;};
+ const res=response();await handleMaritimeManagerAuth(request('/auth/maritime/confirm?code=fixture-code','GET',undefined,{cookie:'lm-web-auth-code-verifier=fixture-verifier'}),res,deps);
+ assert.equal(res.statusCode,302);assert.deepEqual(events,[`lm_${SUBJECT}`]);
+ const unverified=fixture({user:{...USER,email_confirmed_at:null}});unverified.deps.recordEmailVerified=deps.recordEmailVerified;
+ await handleMaritimeManagerAuth(request('/auth/maritime/confirm?code=fixture-code','GET',undefined,{cookie:'lm-web-auth-code-verifier=fixture-verifier'}),response(),unverified.deps);assert.equal(events.length,1);
+});
+
+
+test("manager activation forwards only sanitized first touch through the existing writer",async()=>{
+ const {deps}=activationFixture(),stored=[];deps.storeFirstTouch=async(uid,attribution)=>{stored.push({uid,attribution});return true;};
+ const csrf=require('./web-auth.js').createWebCsrfToken(`lm_${SUBJECT}`,deps.env.LM_UID_SECRET),res=response();
+ await handleMaritimeManagerActivate(request('/maritime/activate','POST',{consentVersion:'maritime-manager-v1',source:'instagram',attribution:{utm_source:'instagram',utm_medium:'dm',email:'private@example.invalid',token:'private-token'}},{'x-lm-web-csrf':csrf}),res,deps);
+ assert.equal(res.statusCode,202);assert.deepEqual(stored,[{uid:`lm_${SUBJECT}`,attribution:{utm_source:'instagram',utm_medium:'dm'}}]);
+});
