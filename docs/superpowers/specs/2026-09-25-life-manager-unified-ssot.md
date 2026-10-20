@@ -16138,6 +16138,80 @@ REDebbd5af252→GREEN0e8f071c0eはcore guardも証明済みsell/nofill closedか
 
 **現在cursor:** validatorの次の自然validationが先。`crypto_error_context`、BTC report件数/期間、fresh selectionを確認し、report未生成なら購入判断を出さない。次にpaper ownerの自然decision/公式注文readbackを同一occurrenceへ結ぶ。以降は06:07 subsectionのTODO 8–12（最初の全費用closed round trip → 30 paper round trips/EDD → 過去live注文の帰属 → AT-24/AT-29/live gates → 残高シナリオと他venue）を維持する。
 
+#### 2026-10-21 07:45 JST — Exact paper HOLD reason and capacity readback
+
+**As-Is（2026-10-20 22:43:38Z natural paper run）:** `alpaca-investment-paper`はrelease `6c39990d`でpass/exit 0、effect `not_applicable`、effect_unknown 0。receipt `18e05e2a46c47170-12697`は`decision=HOLD`、`candidate=equity://QQQ`、`reason=hold_period_not_elapsed`、`approved=false`、`outcome=no_trade`、`held_sessions=16`、entry session `2026-09-28`、latest session `2026-10-20`を記録する。strategyはETF v1で、新規entryは退役済み。今回のallocation decisionはmodel not invokedだが、run全体のcost=0を意味しない。公式no-order refは`lm-no-effect://alpaca-investment-paper/alpaca-investment-paper:18e05e2a46c47170-12697/no_broker_order_submitted`。
+- 22:40:10Zの直前attemptは`resource_capacity_busy`/exit 75。その後の22:43:38Z natural attemptはpass/no-order。22:39:20Z host snapshotではfree bytes `23,945,732,096`、storage `met`。従って今回のcapacity deferはdisk floor未達ではなく、一時的なadmission capacity競合。22:40前後のread-only resource snapshotはglobal 8/10、deterministic 4/5 occupiedで、次のnatural slotでpaperが実行された。
+- `investment-strategy-validation`はrelease `dd9d4cca`でloaded-idle、effect_unknown 0だが、新release上のnatural runはまだ無い。直近のvalidation failureは旧release `55cc06f2`でBTC report 0。次回eligible cadenceは`calendar: Weekday=2, 14:30`。
+- live残高はこのturnで再取得していない。live owner、paper selector、資金は変更していない。
+
+**現在cursor:** validation ownerの次のnatural runでpagination修正がBTC V2 reportを生成するか確認する。Paper側は`HOLD / hold_period_not_elapsed`が具体的なno-trade理由であり、fresh BTC selectionが無い間は新規注文しない。16/21 sessionsを満たすqualified closeは自然runで待つ。以降のcost-complete round trip、30件EDD、live attribution/risk gates、残高シナリオは前節TODO順を維持する。
+
+#### 2026-10-21 08:10 JST — Latest natural paper readback and corrected validation owner SHA
+
+**As-Is（08:08–08:10 JSTのread-only確認）:**
+- `alpaca-investment-paper`の自然run `18e05f6160d1c4e0-60028` は08:05:56 JSTにrelease `219374ce38ac9fc808b6cab8fb1565095c5c1d76`でpass/exit 0、`effect_status=not_applicable`、`effect_unknown=false`。allocationは同じoccurrenceで`HOLD / QQQ / hold_period_not_elapsed`、`approved=false`、strategy `alpaca-etf-126d-momentum-v1`。no-effect referenceは保存されたが、`official_readback_ref`とprovider receipt IDはnullであり、freshなAlpaca注文readbackではない。新規注文・実現利益の証拠には数えない。
+- `investment-strategy-validation`はloaded-idleで、plistとowner statusのinstalled SHAは`6c39990d330c6abfd1c51a7cf2c61d45387b0887`。そのimmutable releaseには`--page-token`を追跡するBTC history修正があり、`provenance=ancestor-of-origin-main`。従ってsource修正はownerのloaded codeに含まれる。08:08時点のlatest terminalは修正前SHA `55cc06f2`でのrun `18e059e9748552e0-55043`、`entrypoint_exit_1`、BTC report 0。修正後のnatural validation terminalはまだ無い。
+- `current` selectorとpaper plistはrelease `219374ce`を指す。前節の`dd9d4cca` owner SHAは現在のplist/statusと一致せず、そのrelease pathも存在しないため、この記録で`6c39990d`へ訂正する。今回live残高は取り直していない。最新の既知live口座snapshotは2026-10-20 19:33:01Zであり、現在残高とは扱わない。
+- このreadbackから費用後の検証済み利益は確認できない。紙のQQQはHOLD、closed round trip・費用完全なnet・benchmark超過は未確認。将来利益や「世界一」の達成は保証しない。
+
+**現在cursorと残TODO（この順序が正本）:**
+1. [ ] 最新mainを含むこのspec更新をPR #8450へpushし、新headのrequired CIを通して正本へ統合する。旧headのPASSを新headの証拠として扱わない。
+2. [ ] `investment-strategy-validation`の次の自然terminalを待つ。BTC report件数/期間、holdout、fee/slippage、drawdown、lookahead、parameter sensitivityを確認し、report不在・不正なら新しいtyped reason/windowに基づいて最小修正する。manual wakeはしない。
+3. [ ] paper ownerの次の自然decisionを同じowner/occurrence/releaseの公式注文readbackへ結ぶ。fresh BTC V2 report/selectionが成立するまではNO_TRADEを維持し、21-session/qualified exitも自然runで待つ。注文・売却を強制しない。
+4. [ ] 最初の自然closed paper round tripでbuy/sell fill、broker fee、slippage、model/system/operating cost、通貨・settlementを同じscopeへ結び、owner帰属realized netとreplay-zeroを確認する。欠測費用・損益はnullのままにする。
+5. [ ] 30件の自然paper round tripでbenchmark、未使用期間、parameter sensitivity、最大drawdown、全費用後netを評価し、既存EDDの基準でstrategyを採用または撤回する。source/test通過や含み益を収益達成と数えない。
+6. [ ] 過去live 10注文をimmutable receipt/captureからdecision、client/effect ID、owner/mode/strategy/release/native account、公式order/fillへ一対一照合する。未証明の注文はunscopedのまま保持し、historical fenceを公式証拠なしに解除しない。
+7. [ ] AT-24/AT-29、資本・日次損失上限、order identity/重複防止、fresh opposing reviewを確認した後だけliveを評価する。30件のcost-complete live round tripとbenchmark超過のowner帰属netが出るまで資本を増やさない。
+8. [ ] freshな公式口座残高から1か月/1年/10年のbest/base/worstを、入出金・手数料・return・drawdownの明示仮定で出す。実績と予測を分け、他venue・meme coinは同じpaper→cost→risk gateを通過するまで追加しない。
+
+**順序訂正の理由:** 最新の実owner readbackでは、paperはHOLDで新規注文が無く、validation修正sourceはloaded SHAに含まれる一方、修正後natural resultは未観測だった。よって次cursorはvalidationの自然評価であり、残高予測・live・別資産への拡張より先に利益を測定可能にする。以前の`dd9d4cca`というowner SHA記録は、現在のplist/statusとrelease inventoryで再現できず、本記録で訂正した。
+
+#### 2026-10-21 08:22 JST — Real-money result and live-first profitability cursor
+
+**As-Is（Alpaca live API GET only、2026-10-20 23:20:53Z）:**
+- account creation `2026-09-01T14:25:40Z`から取得したaccount/orders/activities/transfersは、orders 10/10 filled（BTC/USDC buy 5・sell 5）、activities 21（FILL 10・CFEE 10・OCT 1、全ページ取得済み）、COMPLETE incoming wallet transfer 1件。外部拠出はUSDC `66.75055405 USD-equivalent`、現equityは`66.49 USD`、正確なUSDCUSD position markは`66.490361 USD`。現金`0`、buying power`0`、open positionはUSDCUSD 1件、含み損`-0.030192 USD`。したがってaccount-level mark-to-market changeは`66.490361 - 66.75055405 = -0.26019305 USD`（約`-0.39%`）。**実口座では利益でなく約26¢の損失。**同じaccount-created時点からのactivity paginationはexhausted、注文一覧は10件、transfer statusはCOMPLETE。private raw evidence: `~/.local/state/life-manager/investment-repair/evidence/alpaca-live-account-readback-20261020T232053.json`、SHA256=`ae7baa708f5c35d23caea23bf102c2ba4424be8e489cb10cc1ba49eafda186a6`。
+- この口座差額はaccount-level結果で、Life Manager strategyの純損益ではない。private live receiptsとの照合はclient order ID 4/10、provider order ID 2/10のみ一致し、特に9/30–10/1の4 fillsはdecision/owner/strategy/releaseへ未帰属。live ownerはdisabledで、2026-09-29 occurrence `alpaca-investment-live:18d9e6f979d18818-14709`の`effect_unknown` fenceが残る。最新API captureはbroker request IDを含まないためfence解除の根拠に使わない。
+- `alpaca-investment-paper`の自然runはpass/no-order/HOLDで、実収益は生まない。`investment-strategy-validation`にはpagination修正sourceがloadedされているが、修正後natural reportは未確認。Live accountで次の投資を始める現有資金もbuying power 0である。
+- 利益の完了条件は、同一account/strategyへ帰属した実約定を公式fill・fees・slippage・model/system/operating costへ結び、全費用後のrealized netが正で、同期間benchmarkを上回り、risk cap内で繰り返すこと。account balance増、paper P&L、含み益、注文数は単独ではこの条件を満たさない。
+
+**TODO順変更:** 旧=`BTC validator natural report → 30 paper round trips → 過去live注文の帰属 → live評価`。新=`(1) PR #8450のspec更新を最新mainへ統合 → (2) fresh official readbackでlive historical fenceと10注文のexact attributionを解消/確定 → (3) proven winner候補を一次情報と公開実績で一つ選び、after-cost・risk-adjusted結果/benchmark/drawdownを記録 → (4) loaded BTC pagination修正のnatural validation reportとselectionを確定 → (5) 現在のrisk/duplicate/loss capsとUSDCUSDから利用できるbuying powerを確認し、追加入金なしで安全な最小live pilotを行える条件を満たす → (6) live ownerを対象限定で再開し、最初のreal fillsから公式fees/slippage/model/system costsをつないで実netを測る → (7) 30件のcost-complete live round tripsとpositive benchmark-excess netが揃うまで規模を拡大しない → (8) その実績後にのみ残高シナリオと他venueを検討`。**理由:** fresh account-level readbackは`-$0.26019305`、live owner disabled、buying power `$0`。paperを利益達成条件に置き続けてもreal profitは生まれない。paperは注文identity/risk/fenceの最低限のmechanical checkに限り、収益の成功基準はreal accountへ置く。これはlive fence・winner evidence・損失上限を飛ばして即時発注する許可ではない。
+
+**現在cursor:** PR #8450 exact-head CIとmain統合 → live historical `effect_unknown` fence/10 fillsのofficial request-ID付き照合 → winner候補の検証。winnerの宣伝文句やbacktestだけで採用せず、一次ソースで再現できる期間・fee/slippage・benchmark・最大drawdownを保存する。現在の実口座損益はマイナスで、Life Manager帰属利益は未確認。
+
+#### 2026-10-21 08:27 JST — Exact live-fence order readback and lineage gap
+
+**As-Is（2026-10-20 23:26:59Z、official Alpaca GET only）:**
+- 既存`effect_reconcile.build_proof()`でfenced occurrence `alpaca-investment-live:18d9e6f979d18818-14709`（queued_at `2026-09-29T21:08:06Z`）を照合した。`status=all&after=<queued_at>&limit=500&direction=asc`はHTTP応答に実request IDあり、4 orders、`status=open&limit=500`は実request IDあり、0 orders。4件はBTC/USDCのfilled buy 2/sell 2（9/30・10/1）。結果`verified=false`, `orders_present:after=4,open=0`。owner/admission/providerへの変更0。private raw evidence: `~/.local/state/life-manager/investment-repair/evidence/alpaca-live-fence-readback-20261020T232659.json`、SHA256=`a121340d89c686f3c6817e7d09c7f54577edc66f5392812ed011c71ffe8eee3d`。
+- fresh account historyとlocal stateを突き合わせても、これら4 late ordersのclient/provider IDはlive `receipts.jsonl`、他のlive/paper/validation/investment-repair artifactsのlocal decision/intentへ結び付かない。10 account orders中、過去canaryには4件のlocal planned-intent候補があるが、それらは9/9と9/24のペアであり、`mode=live`以外の`owner_id`・`strategy_id`・`release_sha`・`native_trading_account_id`・`policy_card`が欠落する。残る6件（9/10、9/30、10/1の各ペア）にはlocal intent matchが無い。従って4 late ordersをfenced occurrenceへ帰属できず、fenceは未解決のまま保つ。
+- official account-level損益は前節どおり`-$0.26019305`。Life Manager strategy別の損益は帰属未確定。実口座はcash/buying power `$0`、live owner disabled。
+
+**現在cursorとTODO順:**
+1. [ ] PR #8450の最新head `82cbeb7e`でrequired CIを通し、specをmainへ統合する。
+2. [ ] 10件のlive注文とlocal receipt/decisionをさらに照合し、owner/strategy/releaseが欠けた履歴の不足箇所を確定する。4 late ordersを既存fenceへ推測で結び付けない。正確な過去帰属を復元できなければその事実を残し、同じ口座でliveを再開しない。
+3. [ ] 次のlive注文より前に、既存submit経路が`owner_id/occurrence_id/mode/strategy_id/release_sha/native_account/client_order_id/provider_order_id/request_id`を保存する契約と現行コードを照合し、欠ける境界があればsource fix＋回帰を入れる。注文前のintentとprovider responseを同じrunへ結び、曖昧な結果はfencedのままにする。
+4. [ ] 一次情報と再現可能な実績からwinner候補を1つ選び、after-cost return・benchmark・drawdown・期間を記録する。その候補に対する自然validation reportを確認し、条件を満たさなければ発注しない。
+5. [ ] 現行risk/duplicate/loss capsと、USDCUSD保有から実際に使えるbuying powerの経路を確定する。新規入金は前提にしない。
+6. [ ] historical fenceが正当に解決し、strategyとrisk gateが通った場合だけ、同じローカル実装経路で小規模live pilotを始める。paperの損益を実績に数えず、実fill/fee/slippage/model/system costからreal netを判定する。
+7. [ ] 30件のcost-complete live round tripsとbenchmark超過のpositive netが揃うまで規模を拡大しない。ここまでの実績ができてから残高projectionや他venueを検討する。
+
+**順序変更の理由:** live fence readbackでqueued後の4 filled ordersを確認し、0 openだけではeffectを閉じられないと判明した。以前の`live fence照合 → winner選定`から、`fence後の4 ordersのlocal lineage有無を確定 → 今後の注文のowner/strategy/release lineageを保証 → winner候補を評価`へ進める。現在口座の損失をaccount-levelで確認できても、注文がLife Managerに帰属しないままliveへ戻せば同じ監査不能を繰り返す。
+
+#### 2026-10-21 08:36 JST — Winner-copy source check
+
+**確認した一次資料と結論:**
+- AQRの[trend-following研究](https://www.aqr.com/Insights/Research/Journal-Article/A-Century-of-Evidence-on-Trend-Following-Investing)はtime-series momentumを「直近リターンが正のmarketを買い、負なら売り」の仕組みとして説明し、futures/FX等の歴史データを1880年まで再構成したbacktestを報告する。これは当社Alpaca BTC口座のlive実績ではなく、ポジション・費用・marketが異なるため、候補設計の根拠としてのみ使う。
+- [Freqtrade OSS](https://github.com/freqtrade/freqtrade)はcrypto bot基盤でbacktesting、hyperopt、lookahead-analysis、recursive-analysisを提供する。READMEは独立監査済みの実資金returnを提示していないため、勝者strategyの証明ではなく評価方法の参考とする。既存のLife Manager local validation/ledger/effect-fenceは再利用し、別bot実行経路は導入しない。
+- **strategy status:** winner候補は未選定。現在のETF v1新規entryはretired、BTC 5-minute V2はpagination修正後のnatural reportが無い。AQRの長期trend-followingをそのままBTC 5-minuteへ移植する根拠はまだ無い。
+
+**現在cursor:** PR #8450 exact-head CI/main統合 → liveの4 unlinked ordersとfenceを正確に扱う既存source/evidence範囲を確認 → BTC V2自然reportとAQR型momentumを同じinstrument/period/cost/benchmark条件で評価し、一つだけ候補を決める。以後のlive fence・buying power・small live pilot・real net評価の順は前節TODOを維持する。strategy名・repo人気・過去backtestだけではwinnerと判定しない。
+
+#### 2026-10-21 08:38 JST — Trend-following mechanism and transferability
+
+**Primary-source detail:** AQRの[2017 paper](https://images.aqr.com/-/media/AQR/Documents/Insights/Journal-Article/AQR-JPM-Fall-2017.pdf)は67 markets（commodities 29/equity indices 11/bonds 15/currencies 12）で、1/3/12-month time-series momentumを等加重・月次rebalanceし、10% annualized volatility targetでscaleする。過去returnが正ならlong、負ならshort。1880–2016のhistorical reconstructionに推定transaction costと2% management/20% performance feesを適用する一方、authors自身がcost estimatesの不確実性と未計上のfutures roll costを明記する。
+- **Copyable mechanism:** trend signalのlookback、volatility scaling、同一期間benchmark、費用込みnet、drawdown評価。**移植不可の前提:** 67 futures/FX市場・月次rebalance・10% target volatility・手数料モデルは現在のAlpaca BTC/USDC 5-minute pathと異なる。AQRの結果は自口座live resultではないため、この戦略をそのまま選択しない。
+- **Current choice:** existing BTC V2をまず同じ候補/期間/fees/benchmark枠で評価する。AQR-style horizonsは比較候補にし、reproducible live/after-cost evidenceと口座上の実行可能性が揃うまでwinner認定しない。Freqtradeは評価機能の参考、独立に監査されたprofit sourceではない。
+
 ### 2026-10-09 13:18 JST — Job Hunter Dreamwork cutover and updated user criteria
 
 この追記は11:50 JST snapshot後のJob Hunter readbackとユーザーの最新指示を記録する。個別の勤務地・住所などの私的値はprivate profileのみを正本とし、このspecには複製しない。
