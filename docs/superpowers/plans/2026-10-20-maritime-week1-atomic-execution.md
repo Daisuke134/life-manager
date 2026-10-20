@@ -630,3 +630,15 @@ life-manager/
 - [ ] **b.5-1 / 稼働版:** 公式Management health/service versionの返却shapeと公開API schemaを確認する。Postgres17.6をPostgREST版と取り違えず、版が取得できなければHTTP状態と不足するsessionを記録する。
 - [ ] **b.5-2 / 上流修正と更新範囲:** PostgRESTの公式release/changelogでtimezone catalog依存除去の修正を照合する。Supabaseの公開upgrade DTO/eligibilityを読み、DB全体upgradeとREST単独更新を区別する。非公開endpoint401を成功扱いせず、現存PATを無根拠に入替えない。
 - [ ] **b.5-3 / 修復実行と判定:** 調査で特定した最小の修復をspecへ具体化してから実行する。新たな支出/全体restart/catalog shadowを導入せず、enrollment/funnel REST200とowned Auth200を再確認する。復帰しない場合はquery/connection/公式ログの失敗境界を一段狭める。
+
+
+**b.5-1/2の読取結果:** public health200はREST/Auth UNHEALTHY、DB ACTIVE_HEALTHY。PostgREST configはpool自動/acquisition10秒/max_rows1000/schema public,graphql_public。pg_stat_activityのapplication_nameはpostgrestで版なし。公開upgrade eligibilityはPostgres17.6→17.11/推定1時間なのでREST修復として使わない。v16.0以降の上流fixは確認するがmanaged版は未取得。Metricsは一回504。DashboardはGitHubログイン専用という公式メールを受信し、保存済みGitHub password拒否・旧reset失効・recovery replay fenceを確認する。本人ログイン依頼は非同期で維持し、共有profile/identityを置換しない。
+
+### T22.1c — DB復旧と独立した配備済みfactoryの新occurrence確認
+
+旧順序=REST/Auth復旧→owned PKCE→新cycle。新順序=REST/Authの修復・本人ログイン待ちと並行して、owned VMの新offline occurrenceを一回確認→REST復帰後にPKCE/製品経由全体を確認。理由は、既知のliteral-path修正が新main imageへ配備済みであり、その修正の実モデル受入はDBに依存せず、既存VMと無料残高内で先に証明できるため。公開flag/worker capability、旧unknown occurrenceは変更しない。運用全体cursorはb.5-1とし、独立副cursorはc-1。
+
+- [ ] **c-1 / preflight:** 私有SSOTと既存VM identity/release0c、旧factory/adoptionのterminalを読む。既存billingでfree残高を確認し、paid変更をしない。新occurrence `owned-literal-path-20261021`が未dispatchであることを専用namespaceで確認する。
+- [ ] **c-2 / 一回実行:** 既存`maritime-owned-factory.py`のdispatch/readbackと既存`run-cycle.js`を再利用する。dedicated namespace `owned_factory_v2_`、pending fenceを保存してから一回POSTする。新モデル呼出は既存無料残高/既存モデル設定内。provider account未接続のままoriginal offline成果物を作り、publish/commerce mutation/友人への送信はしない。
+- [ ] **c-3 / receipt:** 保存したexecution IDの公式GETでterminalとcycle statusを読む。completedにはliteral artifact refsが必要。不明時は同occurrenceを再送せず、既存receipt/summaryをread-onlyで診断する。旧6ファイルのunknownは書換えない。
+- [ ] **c-4 / 成果物:** 新receiptのartifact path/存在/size/hashを既存validatorの契約と照合する。内部fixtureを実利用者、ファイル作成を売上・販売・入金と呼ばない。製品経由download/日報/停止はREST復旧後の未完項目として維持する。
