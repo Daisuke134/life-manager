@@ -20847,3 +20847,7 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 3. Capafy internal promotion: compare our listings' rating/review count/recent sales with the top 20 of each category in the market sweep and close the gap on new Agents (never edit sellers).
 4. Social: one account per language — X selawmqt English only; TikTok @hooklab.capafy live 2026-10-24 (reels + carousels); other businesses keep their existing per-brand accounts.
 5. Extend keyword-page + hub pattern to LINE stickers and eBook distribution (each business publishes keyword pages into its own hub).
+
+### Maritime custom配備の実API契約補正
+
+公式Agent APIと成功deployment履歴にimageName/image digestは無い。T15は実際に成功したmain由来ZIP buildのuploadS3Key（private SSOT）・archive SHA256・source SHAを使用する。bind前にcustom/externalIdとUID/source SHA/archive SHA256の公式envを照合する。archive SHA256をimage digestと表記しない。コード実体の確認はhealth/source-byte probeで別に行い、env設定だけを実コード確認と呼ばない。先頭cursorはT15 transport補正→T16 bound relay→T11B worker continuation。実行順は変えず、既存T15の推測を実測契約へ修正する。

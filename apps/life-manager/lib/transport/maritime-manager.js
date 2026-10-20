@@ -58,9 +58,10 @@ function createMaritimeManagerTransport({ env = {}, fetchImpl = globalThis.fetch
   }
   function provisionIdentity(input) {
     const uid = valid(input?.uid, UID); const releaseSha = valid(input.releaseSha, SHA);
-    const imageDigest = valid(input.imageDigest, /^[A-Za-z0-9][A-Za-z0-9._:/-]*@sha256:[0-9a-f]{64}$/);
+    const uploadS3Key = valid(input.uploadS3Key, /^[A-Za-z0-9][A-Za-z0-9_./-]{0,1023}$/);
+    const archiveSha256 = valid(input.archiveSha256, /^[0-9a-f]{64}$/);
     const externalId = 'lm-manager-' + createHmac('sha256', uidSecret).update(`agent:v1:${uid}`).digest('hex').slice(0,32);
-    return Object.freeze({ uid, releaseSha, imageDigest, externalId });
+    return Object.freeze({ uid, releaseSha, uploadS3Key, archiveSha256, externalId });
   }
   async function lookup(identity) {
     const rows = await request(`/api/v1/end-users/${identity.externalId}/agents`, 'GET', undefined, true);
@@ -70,16 +71,16 @@ function createMaritimeManagerTransport({ env = {}, fetchImpl = globalThis.fetch
   async function recoverAgent(identity, row, candidate) {
     if (!candidate || typeof candidate.id !== 'string' || !ID.test(candidate.id)
       || candidate.externalId !== identity.externalId || candidate.framework !== 'custom'
-      || candidate.imageName !== identity.imageDigest || !['active', 'sleeping', 'deploying', 'error', 'stopped'].includes(candidate.status)
+      || !['active', 'sleeping', 'deploying', 'error', 'stopped'].includes(candidate.status)
       || (row.agent_id && row.agent_id !== candidate.id)) throw new TransportError('binding_invalid');
     if (['active', 'sleeping'].includes(candidate.status)) {
       const maritime = await sdk();
       const official = await maritime.agents.get(candidate.id);
       if (!official || official.id !== candidate.id || official.externalId !== identity.externalId || official.framework !== 'custom'
-        || official.imageName !== identity.imageDigest || !['active', 'sleeping'].includes(official.status)) throw new TransportError('binding_invalid');
+        || !['active', 'sleeping'].includes(official.status)) throw new TransportError('binding_invalid');
       const variables = await maritime.agents.listEnv(candidate.id);
       if (!Array.isArray(variables)) throw new TransportError('binding_invalid');
-      for (const [key, value] of [['LM_RUNTIME_TENANT_ID', identity.uid], ['LM_RELEASE_SHA', identity.releaseSha]]) {
+      for (const [key, value] of [['LM_RUNTIME_TENANT_ID', identity.uid], ['LM_RELEASE_SHA', identity.releaseSha], ['LM_SOURCE_ARCHIVE_SHA256', identity.archiveSha256]]) {
         const matches = variables.filter(variable => variable.key === key);
         if (matches.length !== 1 || matches[0].value !== value || matches[0].isSecret !== false) throw new TransportError('binding_invalid');
       }
@@ -123,10 +124,11 @@ function createMaritimeManagerTransport({ env = {}, fetchImpl = globalThis.fetch
       }
       if (row.status !== 'provisioning' || row.agent_id) throw new TransportError('binding_invalid');
       const candidate = await request(`/api/v1/end-users/${identity.externalId}/agents`, 'POST', {
-        name: identity.externalId, externalId: identity.externalId, framework: 'custom', imageName: identity.imageDigest,
+        name: identity.externalId, externalId: identity.externalId, framework: 'custom', uploadS3Key: identity.uploadS3Key, healthCheckPath: '/health', hasWebUi: false,
         useMaritimeLlm: true, initialEnvVars: [
           { key: 'LM_RUNTIME_TENANT_ID', value: identity.uid, isSecret: false },
           { key: 'LM_RELEASE_SHA', value: identity.releaseSha, isSecret: false },
+          { key: 'LM_SOURCE_ARCHIVE_SHA256', value: identity.archiveSha256, isSecret: false },
           { key: 'LM_WAKE_RELAY_URL', value: url.toString(), isSecret: false },
           { key: 'LM_WAKE_RELAY_TOKEN', value: token, isSecret: true },
         ],
