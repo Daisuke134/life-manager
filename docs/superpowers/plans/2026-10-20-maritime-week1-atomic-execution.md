@@ -598,7 +598,7 @@ life-manager/
 
 - source最終d13e1b8d7fの全14check→#8424/main0c559693へ統合する。既存VMとWeb/workerはmain0cのimageを採用、safe evidenceはcloud-foundation-preflight.jsonとowned-image-adoption.jsonを参照する。
 - DBのenrollment/execution/distribution/usageは公式apply success。CFO/financialは既存tableを再利用し、二重storeや新schedulerは作らない。
-- **先頭未完T22.1b:** service-roleのREST `/rest/v1/lm_maritime_manager_enrollments?select=uid&limit=0` と `/rest/v1/lm_web_funnel_events?select=audience_kind&limit=0`、owned Auth subjectの読取を実測する。HTTP200/JSON/subject一致とelapsedを記録し、401やproject ACTIVE_HEALTHYを合格にしない。現状はREST503 PGRST002/Auth timeout。
+- **先頭未完T22.1b:** service-roleのREST `/rest/v1/lm_maritime_manager_enrollments?select=uid&limit=0` と `/rest/v1/lm_web_funnel_events?select=audience_kind&limit=0`、owned Auth subjectの読取を実測する。HTTP200/JSON/subject一致とelapsedを記録し、401やproject ACTIVE_HEALTHYを合格にしない。直近実験はREST503 PGRST002、owned Auth Adminは200/subject・email一致。
 - 直近15分の公式分類はPGRST002707件/PG timezone取消5件/他取消7件。role readbackはanon3s/authenticated8s/authenticator15s・lock8s、service_role個別未設定。schema-cache startupと通常requestを区別し、blindなtimeout増量/全体restart/課金変更をしない。原因を特定する次probeはこの境界へ限定する。
 - T22.1b通過後、既存worker capabilityを読み直し3つのMaritime capabilityを追加、両appのemail flagを1にして、privateに保存したfoundation deploymentから同imageを一回再deployする。最新SKIPPED commitを対象にせず、受理IDを保存しGETで結果を照合する。
 - owned browserの実PKCE/同意/起動→新occurrenceの完了receipt→成果download→日報→停止を行う。旧unknown occurrenceの再送・外部友人への代理DMはしない。T30 URLメール/配布とT23正式経路の順序は維持する。
@@ -607,15 +607,26 @@ life-manager/
 
 目的は認証REST/Authが実際に応答することであり、timeout値を書き換えたことを完了としない。公開flag/Maritime capability off、既存receiptとclient deadlineを維持する。global restart・resize・新料金・新DB・catalog shadowは行わない。
 
-旧順序=resource metrics/role catalog/公開RESTの読み取り診断を続ける。新順序=下記source受入→一度の設定実験→実API判定→必要時rollback。理由は、role readbackが成功し、global4行とglobal+currentDB scope4行の一致から追加DB-specific timeoutが無いことを確認でき、繰返すtimezone取消/REST503に対する最小の反証可能な変更が具体化したため。進行中の業務effectは中断/再送しない。現在cursorはb.4-3。
+旧順序=resource metrics/role catalog/公開RESTの読み取り診断を続ける。新順序=下記source受入→一度の設定実験→実API判定→必要時rollback。理由は、role readbackが成功し、global4行とglobal+currentDB scope4行の一致から追加DB-specific timeoutが無いことを確認でき、繰返すtimezone取消/REST503に対する最小の反証可能な変更が具体化したため。進行中の業務effectは中断/再送しない。限定実験は終了し、現在cursorはb.5-1。
 
 - [x] **b.4-1 / native RED:** `apps/life-manager/test/postgres/postgrest-startup-budget.integration.js`を作る。既存native PG fixtureのinitdb/Unix socket/pg driverを再利用し、baseline auth15/service未設定/anon3/authenticated8/lock8を作る。旧migrationをforward引数にしてauth60の期待が失敗することを確認する。
 - [x] **b.4-2 / forwardとrollback:** `apps/life-manager/migrations/20261021070000_lm_postgrest_startup_budget.sql`はservice_role15を先に明示、authenticator60、config+schema NOTIFYだけとする。`apps/life-manager/scripts/postgrest-startup-budget-rollback.sql`はauthenticator15、service_role RESET、両NOTIFYで元の設定状態へ戻す。native fixtureでforward再適用、新旧接続、anon/auth/lock維持、rollback再適用と新接続15を確認する。
-- [ ] **b.4-3 / source受入:** 最小差分をcommit/pushし、実source reviewと対象CIを確認してmainへ統合する。主仮説はcold schema/timezone queryの15s取消であり、60s以内で終わる実測はまだ無い。source acceptanceを障害復旧と呼ばない。
-- [ ] **b.4-4 / 一回適用:** 既存private credentialでbaseline/履歴を読み、main由来forwardを一度だけ適用して公式receiptを保存する。応答不明時はroles/historyを読む。無根拠なforward再送はしない。
-- [ ] **b.4-5 / 2分で判定:** 認証limit0 RESTのenrollment/funnel audience_kind、owned Auth Admin、schema-cache/role-settingsの公式ログを読む。RESTだけ200なら部分回復であり、基盤全体の復旧ではない。新しいrole-map障害/60sでもtimezone取消/2分内に必要APIが回復しなければrollbackを開始する。
-- [ ] **b.4-6 / 復帰確認:** rollback SQLを既存経路で適用し、authenticator15とservice_role未設定のreadback・REST/Auth状態を記録する。2分はrollback開始期限であり接続障害時の復帰完了保証ではない。公式確認が無ければ復帰未確認としてカーソルを保つ。
+- [x] **b.4-3 / source受入:** 最小差分をcommit/pushし、実source reviewと対象CIを確認してmainへ統合する。主仮説はcold schema/timezone queryの15s取消であり、60s以内で終わる実測はまだ無い。source acceptanceを障害復旧と呼ばない。
+- [x] **b.4-4 / 一回適用:** 既存private credentialでbaseline/履歴を読み、main由来forwardを一度だけ適用して公式receiptを保存する。応答不明時はroles/historyを読む。無根拠なforward再送はしない。
+- [x] **b.4-5 / 2分で判定:** 認証limit0 RESTのenrollment/funnel audience_kind、owned Auth Admin、schema-cache/role-settingsの公式ログを読む。RESTだけ200なら部分回復であり、基盤全体の復旧ではない。新しいrole-map障害/60sでもtimezone取消/2分内に必要APIが回復しなければrollbackを開始する。
+- [x] **b.4-6 / catalog復帰確認（既存pool状態は未確認）:** rollback SQLを既存経路で適用し、authenticator15とservice_role未設定のreadback・REST/Auth状態を記録する。2分はrollback開始期限であり接続障害時の復帰完了保証ではない。公式確認が無ければ復帰未確認としてカーソルを保つ。
 
 通常requestのrole map読み込み失敗時に60s fallbackとなる可能性は残る。service_role15の明示を絶対的なrequest cap保証とは説明しない。新規のビジネス処理をこの実験に使わず、既存idempotency/receipt fenceを維持する。proposalのfresh read-only reviewはCritical0/Important0、詳細は本worktreeのignored `supabase-diagnosis-bounded-experiment-review.md`を参照する。
 
 **b.4 source観測:** 旧SQLをforward引数にしたnative REDはfresh接続15s対期待1minで失敗する。新forward/rollbackは再適用・新旧接続・role/lock・元catalog復帰の8確認がPASS。PostgREST本体のrole mapや実APIの復旧は未検証、既存接続はrollback後も起動時GUCを保持する。証拠→docs/evidence/maritime/postgrest-startup-budget-source.json。
+
+
+**b.4 本番結果:** PR #8446はexact HEAD全14checks成功後、main `67b907d6ab3df3b34021ace303b528304828b22f`へ統合する。同main由来forwardを一回だけ適用し、公式successを受ける。83秒でowned Auth Adminは200/subject・email一致・confirmedになるが、97秒時点でも両RESTは503 PGRST002のため、103秒でrollbackを開始する。rollback公式successと元のglobal4設定（anon3s/authenticated8s/authenticator15s＋lock8s、service_role未設定）を読取確認する。既存poolの起動時GUC復帰とREST復旧は未確認であり、成功扱いしない。証拠→`docs/evidence/maritime/postgrest-startup-budget-production.json`。source snapshotのproduction_applied=falseは隔離検証時点の履歴として保持する。
+
+### T22.1b.5 — 失敗した限定実験から次の修復境界へ
+
+旧順序=b.4 source→一回適用→API判定→rollback。新順序=版/公式更新経路の読取→対象限定の修復方式決定→実API判定。理由は60s設定では必要RESTが回復せず元catalogへ戻したため。同じforward再送・追加timeout増量・全project restartはしない。現在cursor=b.5-1。
+
+- [ ] **b.5-1 / 稼働版:** 公式Management health/service versionの返却shapeと公開API schemaを確認する。Postgres17.6をPostgREST版と取り違えず、版が取得できなければHTTP状態と不足するsessionを記録する。
+- [ ] **b.5-2 / 上流修正と更新範囲:** PostgRESTの公式release/changelogでtimezone catalog依存除去の修正を照合する。Supabaseの公開upgrade DTO/eligibilityを読み、DB全体upgradeとREST単独更新を区別する。非公開endpoint401を成功扱いせず、現存PATを無根拠に入替えない。
+- [ ] **b.5-3 / 修復実行と判定:** 調査で特定した最小の修復をspecへ具体化してから実行する。新たな支出/全体restart/catalog shadowを導入せず、enrollment/funnel REST200とowned Auth200を再確認する。復帰しない場合はquery/connection/公式ログの失敗境界を一段狭める。
