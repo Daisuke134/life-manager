@@ -45,9 +45,114 @@
       ],
       "missing_entrypoints": [],
       "retired_installed_labels": []
+    },
+    "ci_run_id": 39445190854,
+    "ci_checks_passed": 12
+  },
+  "promotion_status": "PR8411 merged; complete immutable and loaded reconciler SHA4bf017d5; natural exact closure verified",
+  "external_mutations": 0,
+  "effect_resolution_status": "released/effect_unknown=0, verified no-effect, replay refused before readback",
+  "local_admission_resolutions": 1,
+  "natural_closure": {
+    "observed_at": "2026-10-20T15:39:00.653666+00:00",
+    "owner_id": "capafy-distribute-daily",
+    "occurrence_id": "capafy-distribute-daily:18dfe7df67227730-86894",
+    "immutable_root": "/Users/anicca/loops/releases/20261021T001625-4bf017d5",
+    "loaded_reconciler_sha": "4bf017d5a18ec2cb378710df78b299f441b207df",
+    "admission_row": {
+      "state": "released",
+      "effect_unknown": 0
+    },
+    "reconciler_events": [
+      {
+        "timestamp": "2026-10-20T15:20:58.426884+00:00",
+        "run_id": "install",
+        "phase": "plan",
+        "status": "pass",
+        "release_sha": "4bf017d5a18ec2cb378710df78b299f441b207df",
+        "exit_code": null,
+        "event_id": "28139ac2c7a61db3441b4c57"
+      },
+      {
+        "timestamp": "2026-10-20T15:25:06.514823+00:00",
+        "run_id": "18e046434920ec68-37378",
+        "phase": "execute",
+        "status": "running",
+        "release_sha": "4bf017d5a18ec2cb378710df78b299f441b207df",
+        "exit_code": null,
+        "event_id": "aba6ffcf731ae47eec74ca42"
+      },
+      {
+        "timestamp": "2026-10-20T15:25:46.042757+00:00",
+        "run_id": "18e046434920ec68-37378",
+        "phase": "report",
+        "status": "pass",
+        "release_sha": "4bf017d5a18ec2cb378710df78b299f441b207df",
+        "exit_code": 0,
+        "event_id": "f984bde8aeb13dc4c815fcab"
+      },
+      {
+        "timestamp": "2026-10-20T15:35:02.941038+00:00",
+        "run_id": "18e046ce25714548-67645",
+        "phase": "execute",
+        "status": "running",
+        "release_sha": "4bf017d5a18ec2cb378710df78b299f441b207df",
+        "exit_code": null,
+        "event_id": "e0b68c39dec993bc6891abdc"
+      },
+      {
+        "timestamp": "2026-10-20T15:37:44.246234+00:00",
+        "run_id": "18e046ce25714548-67645",
+        "phase": "report",
+        "status": "pass",
+        "release_sha": "4bf017d5a18ec2cb378710df78b299f441b207df",
+        "exit_code": 0,
+        "event_id": "ee7a8f2d80ccbb6fe3e0bfb5"
+      }
+    ],
+    "replay_guard": {
+      "command": "immutable registered adapter --occurrence exact --resolve",
+      "exit_code": 1,
+      "result": "occurrence is not an effect_unknown row",
+      "additional_resolution": false
+    },
+    "external_publications_by_this_recovery": 0,
+    "closure_proof": {
+      "occurrence_id": "capafy-distribute-daily:18dfe7df67227730-86894",
+      "owner_id": "capafy-distribute-daily",
+      "proof_type": "effect_reconcile_closure.v1",
+      "receipt_ref": "github-landing-and-postiz-x-empty:2026-10-19T10:35:23.446816+00:00",
+      "release_sha": "baac8c681314edd1fc430199f30da410d31a4c1c",
+      "verified": true
+    },
+    "provider_proof": {
+      "admission_state": "claimed",
+      "checked_at": "2026-10-20T15:37:37+00:00",
+      "closed": true,
+      "effected": false,
+      "expected_slug": "tiktok-script-for-coaches",
+      "occurrence_id": "capafy-distribute-daily:18dfe7df67227730-86894",
+      "occurrence_started_at": "2026-10-19T10:35:23.446816+00:00",
+      "owner_id": "capafy-distribute-daily",
+      "preexisting_x_posts": [
+        {
+          "created_at": "2026-10-15T06:43:57.514346+00:00",
+          "integration_id": "cmt4l2jld031tqp0y8qtyo983",
+          "post_id": "cmv96ar3001adnj0yazwer4uc",
+          "publish_date": "2026-10-19T11:00:00+00:00",
+          "receipt_path": "/Users/anicca/.local/state/life-manager/marketing/capafy-videos/hooklab-d20261019-language/x-receipts-v3.jsonl",
+          "receipt_sha256": "ccc2fd26b77596cd2d3c6cef74835d727ebdaca242c2e0066de54b5bc055db54"
+        }
+      ],
+      "proof_kind": "official_github_commits_and_postiz_listing",
+      "provider_receipt_id": "github-landing-and-postiz-x-empty:2026-10-19T10:35:23.446816+00:00",
+      "queued_at": "2026-10-19T10:34:09.334270+00:00",
+      "verified": true
     }
   },
-  "promotion_status": "not_yet_merged_or_loaded",
-  "external_mutations": 0,
-  "effect_resolution_status": "still_fenced_pending_accepted_immutable_adapter"
+  "independent_live_verification": {
+    "read_at": "2026-10-20T15:18:59Z",
+    "result": "verified no-effect reproduced; immutable/manifest/receipt bytes/GitHub API/Postiz listing/reply pending[] match",
+    "state_mutations": 0
+  }
 }

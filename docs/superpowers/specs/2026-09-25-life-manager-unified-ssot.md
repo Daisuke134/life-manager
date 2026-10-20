@@ -2,7 +2,7 @@
 
 ## 現況監査とCapafy優先の統括cursor
 
-**目的・範囲・完了条件:** ローカルLife Managerの既存設計を継承し、全業務の稼働・配信・収益・評価の証拠を照合して、本SSOTの現況と残TODOを更新する。今回の成果は監査と文書のmain統合。実装、出品、投稿、cleanup、設定・認証・state変更、apply/restart、unknown解除・再送は行わない。業務の収益化や基盤復旧自体を今回の文書作業のDONEとしない。クラウドの別実装や新しいSSOTは作らない。
+**目的・範囲・完了条件:** ローカルLife Managerの既存設計を継承し、全業務の自然実行・配信・公式収入・費用後利益・評価付き自己改善まで、既存C1–C9を一件ずつ進める。Daisの継続実行指示により前回のdocs-only境界を実装・必要検証・通常反映まで広げる。現在はC1をexact no-effectと再送防止まで完了し、cursorをC2へ進める。全社/各laneの収益目標・未知の費用/真のMRR・benchmark/AGIの未証明は保持し、C1完了で全goalを完了扱いしない。新しいSSOT・競合scheduler・cloudの別実装は作らない。
 
 **証拠の範囲:** source base=`70a5e3657317e0a53c33a2d643cd46ce967c8079`、稼働snapshotは`lm-loop status all --json`のローカル実測、収益は既存ownerが保存した公式readback。保存観測時刻と監査時刻を分ける。新しい認証付きseller probeは実施しない。匿名化した集計・run/SHA・出所は[監査証拠](../../evidence/capafy-rsi-status-20261020.json)。観測窓は2026-10-20、時刻は以下の通り。
 
@@ -88,8 +88,8 @@
 
 | 順序・状態 | 一つの作業と既存atom | 完了の証拠 |
 |---|---|---|
-| C1 OPEN / 現在cursor | DD02/T1/CD1：既存distributorのexact未知occurrenceをBlog/GitHub/Xの公式readbackと照合し、必要なself-owned readback欠陥だけ修正する | 正確なrun/occurrence/release、provider ID、effect判定、再送0。receipt前の解除・再投稿を行わない |
-| C2 OPEN / 共通依存は並行 | F1–F5/SH2–SH5/P2–P5：容量増加owner・既存回収候補/lease、health_snapshot_timeoutの境界を分けて修復する | 必要floor通過→factory/distributor/hourlyの自然terminal→公式readback。監視がstatusと整合。既存F gatesの自然観測を保持し、保護解除/floor下げ/基盤restartはしない |
+| C1 DONE / exact no-effect自然閉鎖 | DD02/T1/CD1：既存distributorのexact未知occurrenceをBlog/GitHub/Xの公式readbackと照合し、必要なself-owned readback欠陥だけ修正する | 正確なrun/occurrence/release、provider ID、effect判定、再送0。receipt前の解除・再投稿を行わない |
+| C2 IN PROGRESS / 現在cursor | F1–F5/SH2–SH5/P2–P5：容量増加owner・既存回収候補/lease、health_snapshot_timeoutの境界を分けて修復する | 必要floor通過→factory/distributor/hourlyの自然terminal→公式readback。監視がstatusと整合。既存F gatesの自然観測を保持し、保護解除/floor下げ/基盤restartはしない |
 | C3 PARTIAL | T0/T1/T2/CD1/DD03–DD05：fresh seller/traffic、正しいnested ledger、product/creative/registered CT/costを同一窓へ結ぶ | stale/missingとzeroを分離したsource×Agent scorecard。shared CTの訪問1件を複数slotへ配らない |
 | C4 OPEN | CD5/T4：Hook Grader実download出力の末尾CTAと登録CT、無料利用cohort→Hook Lab→paidの対応を検証する | v1.0.1掲載は確認済み。正しい分母で転送率を再計算。基準未達なら既存ownerが新規の非FROZEN lead magnetを1件だけ作成/提出/公開し、登録CTと自然流入を確認する |
 | C5 OPEN | CD2/CD3/CD4/T11/DD06–DD09：winner型の実入力→実出力demoを一つのcandidateとして既存配信へ流す | 一商品/一offer/一channelのcontrol、割当単位、成熟期間、費用上限、停止規則を凍結。click可能CTA/native receipt/qualified reach、自己probe除外。既存channelは維持する |
@@ -104,9 +104,17 @@
 
 ### C1実行：配信unknownのexact occurrence照合
 
-目的はCapafy配信ownerを公式証拠で復旧し、自然配信・計測・実売上へ続けること。Daisの「一件ずつ最後まで」の明示により、前回のdocs-only境界を実装・必要検証・通常反映まで広げる。現在cursorはC1、対象occurrenceは`capafy-distribute-daily:18dfe7df67227730-86894`。最新statusの保持理由は`x_post_without_article`。manifestはslot`2026-10-19-h19m30`/slug`tiktok-script-for-coaches`、実行開始10/19 10:35:23Z→exit1 10:35:48Z。既存registered adapter、実runの入力/出力、GitHub/page/Postizの公式readbackを照合して原因を一段ずつ狭める。source所有は`fix/capafy-distribute-c1-20261020`、worktree`.worktrees/capafy-distribute-c1-20261020`、owner`codex-capafy-c1`。FROZEN sellers、他者のbrowser/state、他のprovider効果は変更しない。root causeがsourceなら最小RED→修正→focused acceptance/独立検証→PR/main→通常immutable/対象owner採用→exact registered reconciliation→自然terminal/公式readbackへ進む。証拠前のfence解除・再送や手動publicationを行わない。C1の完了はreceiptでeffectを確定し再送0を確認することで、会社収益・C2–C9の完了には置換しない。
+目的はCapafy配信ownerを公式証拠で復旧し、自然配信・計測・実売上へ続けること。Daisの「一件ずつ最後まで」の明示により、前回のdocs-only境界を実装・必要検証・通常反映まで広げる。現在cursorはC2（C1は下記のとおり完了）、C1対象occurrenceは`capafy-distribute-daily:18dfe7df67227730-86894`。最新statusの保持理由は`x_post_without_article`。manifestはslot`2026-10-19-h19m30`/slug`tiktok-script-for-coaches`、実行開始10/19 10:35:23Z→exit1 10:35:48Z。既存registered adapter、実runの入力/出力、GitHub/page/Postizの公式readbackを照合して原因を一段ずつ狭める。source所有は`fix/capafy-distribute-c1-20261020`、worktree`.worktrees/capafy-distribute-c1-20261020`、owner`codex-capafy-c1`。FROZEN sellers、他者のbrowser/state、他のprovider効果は変更しない。root causeがsourceなら最小RED→修正→focused acceptance/独立検証→PR/main→通常immutable/対象owner採用→exact registered reconciliation→自然terminal/公式readbackへ進む。証拠前のfence解除・再送や手動publicationを行わない。C1の完了はreceiptでeffectを確定し再送0を確認することで、会社収益・C2–C9の完了には置換しない。
 
-**C1原因と受入契約:** 公式Postiz一覧の唯一のX候補`cmv96ar3001adnj0yazwer4uc`はnative`2112136932235026641`、publishDate=10/19 11:00Z。既存reelの`hooklab-d20261019-language/x-receipts-v3.jsonl`は10/15 06:43:57Zのcreate ID/integration/scheduled_forが一致する。旧照合器は共有integration内の全投稿を当該実行候補にしていた。既存reel照合器のcreate receipt形式を再利用し、①当該開始より前のtimezone-aware作成時刻、②公式IDと両integration、③公式publishDateとscheduled_for、④唯一のreceipt、⑤非symlinkのowner既存store、を満たす予約投稿だけ除外する。receiptのpath/hashと時刻をproofへ残す。新規/欠測/曖昧な投稿は保持する。最小REDで旧実装のfalse holdを再現し、修正後の関連31 testsはPASS。独立read-only検証はネットワーク禁止で31 testsと別プロセス28 fixture groupsをPASSし、blocking指摘0。loop契約は18業務/191 jobs/errors0。doctorは既存のunmanaged`ai.anicca.provision-browser.tiktok.hooklab`1件でok=false、今回修正済みとは扱わない。sourceとsanitized readbackは`docs/evidence/capafy-c1-occurrence-recovery.json`へ記録する。PR #8411はCI中、main/immutable/owner採用・exact fence解放・自然進行は未完。worktreeのコードで本番fenceを解除しない。
+**C1原因と受入契約:** 公式Postiz一覧の唯一のX候補`cmv96ar3001adnj0yazwer4uc`はnative`2112136932235026641`、publishDate=10/19 11:00Z。既存reelの`hooklab-d20261019-language/x-receipts-v3.jsonl`は10/15 06:43:57Zのcreate ID/integration/scheduled_forが一致する。旧照合器は共有integration内の全投稿を当該実行候補にしていた。既存reel照合器のcreate receipt形式を再利用し、①当該開始より前のtimezone-aware作成時刻、②公式IDと両integration、③公式publishDateとscheduled_for、④唯一のreceipt、⑤非symlinkのowner既存store、を満たす予約投稿だけ除外する。receiptのpath/hashと時刻をproofへ残す。新規/欠測/曖昧な投稿は保持する。最小REDで旧実装のfalse holdを再現し、修正後の関連31 testsはPASS。独立read-only検証はネットワーク禁止で31 testsと別プロセス28 fixture groupsをPASSし、blocking指摘0。loop契約は18業務/191 jobs/errors0。doctorは既存のunmanaged`ai.anicca.provision-browser.tiktok.hooklab`1件でok=false、今回修正済みとは扱わない。sourceとsanitized readbackは`docs/evidence/capafy-c1-occurrence-recovery.json`へ記録する。PR #8411は全CI12項目PASSでmain`4bf017d5a18ec2cb378710df78b299f441b207df`へmergeする。完全immutable`/Users/anicca/loops/releases/20261021T001625-4bf017d5`を作成し、lm-fence-reconcilerだけloaded-idle applyする。loaded argv/SHA一致、自然run`18e046ce25714548-67645`は15:35:02Z開始→15:37:44Z pass。worktreeのコードで本番fenceを解除しない。
+
+**C1完了の本番証拠:** 自然batchは10/20 15:37:37Zの公式GitHub/Postiz readbackで`closed=true / effected=false`を記録する。typed closure proofはowner/occurrence/元run release`baac8c68`とreceipt`github-landing-and-postiz-x-empty:2026-10-19T10:35:23.446816+00:00`を保持する。read-only DB照合は`state=released / effect_unknown=0`、owner statusのadmission_effect_unknown=false。直後の個別登録adapter呼出しは`occurrence is not an effect_unknown row`で拒否され、追加解放・投稿0。これは自然解放後のreplay guard確認で、失敗の再送ではない。追加の独立read-only本番反証もimmutable・実receipt hash・両integration/slot・GitHub API commit0・公式X候補が以前の予約1件のみ・ブラウザ返信pending[]を確認する。source/immutable/loaded owner/natural terminal/official no-effect/replay防止までC1を閉じる。通常配信と収入増加は別に未完であり、次の自然distributorと容量をC2で追う。
+
+### C2実行：容量・監視・自然配信の再開
+
+現在cursor=C2。C1の既知unknownを戻さず、既存cleanup/recycle/health ownerを使って10GiB revenue floor（一般producerの復旧は12GiB）と監視取得失敗を閉じる。C1待機中のread-only probeではメモリ空き53%、swap使用6,831MiB、Library/Caches2,747,996KiB、.cache387,276KiB、state agent-runner evidence121,108KiB。Homebrew cache/npm cache/Xcode DerivedDataは指定pathに存在しない。RSSはshared pagesを重複計上し得る。単独のcache削除・Spotlight停止・floor低下を解決策としない。削除/再起動はこのprobeでは0。private記録は`~/.local/state/life-manager/reconciliation/capafy-c1-20261021/c2-readonly-probes.json`。full inventoryも新しい観測へ更新されるが多くのsizeが欠測のため、古いsampleを現在値へ昇格しない。
+
+C2の次の原子作業は、(1) fresh Data freeと既存host inventory/growth/cleanup receiptの時刻・測定失敗境界を結び、root/生成ownerを特定する、(2) 実在するclosed・再生成可能・参照なし候補だけを既存cleanup契約で扱い、source欠陥があれば最小RED→修正→独立保護fixture→CI/main/immutable/対象採用へ進む、(3) health_snapshot_timeoutの実呼出し/入力/出力を診断し、全件timeoutを個別故障や健康へ置換しない、(4) 必要floorとfresh admission、factory/distributor/hourlyの自然terminal・公式readback・再送0でC2を閉じる、の順とする。protected store、他者worktree、参照release、session/credential/ledgerを削除しない。C3–C9と全業務収益化は未完のまま残す。
 
 ### 同時進行の基盤監査との統合
 
