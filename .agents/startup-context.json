@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "context_version": "2026-10-08.1",
-  "updated_at": "2026-10-08T09:02:18+09:00",
+  "context_version": "2026-10-20.1",
+  "updated_at": "2026-10-20T20:00:00+09:00",
   "product": {
     "name": "Life Manager",
     "usage": "Use as the product name in every public product and fundraising field.",
-    "one_liner": "A proactive general agent that manages your body, mind, and money plus real-world follow-through, acts within delegated boundaries, and reports evidence in Telegram.",
+    "one_liner": "A proactive manager for body, mind, and money that chooses work, executes ongoing workflows, verifies outcomes, and reports results without daily instructions.",
     "mission": "End suffering for humans and, ultimately, all living beings by making dependable care and agency continuously available.",
     "vision": "Life Manager grows from managing one human life across physical health, mental wellbeing, finances, work, schedules, income, crypto, and investing into a general manager for every living being.",
     "organs": [
@@ -32,7 +32,9 @@
   },
   "delivery": {
     "local": "Free, open-source, self-hosted Life Manager.",
-    "cloud": "Paid monthly subscription for an always-on hosted Life Manager."
+    "cloud": "Paid monthly subscription for an always-on hosted Life Manager.",
+    "onboarding": "User-defined goals and budgets are not required to start. The manager chooses work and priorities; Telegram is optional.",
+    "cloud_target": "Email signup, autonomous earning workflows, and a daily email report of completed work, verified revenue, costs, and next actions. This complete hosted journey is not yet verified as implemented."
   },
   "traction": {
     "founder_attested_revenue": {
@@ -46,7 +48,7 @@
     "one_word": "Agency",
     "short_description": "Proactive general agent for your whole life",
     "problem": "A person's health, mental wellbeing, money, schedules, applications, work, crypto, and investing are fragmented across tools. Advice is abundant, but dependable follow-through is scarce.",
-    "solution": "Life Manager coordinates specialist organs, acts within delegated boundaries across those systems, verifies outcomes with receipts, and reports concise evidence in Telegram.",
+    "solution": "Life Manager coordinates specialist organs, chooses work and priorities, executes ongoing workflows, and verifies external outcomes with receipts. The hosted target starts with email signup and sends daily email reports; Telegram is optional. Users are not required to define goals or budgets.",
     "why_building": "The founder is building the manager he needs personally: one dependable agent that does not stop at advice and can carry real goals through disconnected systems. The long-term mission is to end suffering for humans and ultimately all living beings.",
     "progress": "The open-source local runtime, hosted components, Telegram entry point, and multiple specialist loops exist. The founder attests that Life Manager has generated approximately $1,000 in revenue for its founder; this is not claimed as MRR or ARR.",
     "market": "The initial users are founders and professionals whose lives and work span many disconnected systems. The broader market is anyone who needs trusted execution across health, work, and finances; do not invent a numeric TAM without current sourced evidence.",
