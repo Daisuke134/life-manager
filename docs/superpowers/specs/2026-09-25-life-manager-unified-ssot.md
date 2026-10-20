@@ -44,26 +44,26 @@
 
 ### Capafy：最新の保存済み公式readback
 
-観測時刻=2026-10-20T07:49:31Z（JST16:49）。監査時点では約6時間半前であり、collector内部のfresh表記だけで現在freshと呼ばない。CFO既存の6時間freshness契約を超えた数値を本時点の新規読取へ昇格しない。
+観測時刻=2026-10-20T17:22:47Z（JST翌02:22）、自然hourlyは17:35:48Zにpass/exit0で保存を完了する。以下はこの取得時点の公式readbackであり、その後の未観測売上や現在時刻のfreshnessを推定しない。CFO既存の6時間freshness契約を維持する。
 
 | 指標・同一窓 | 確認値 | 解釈 |
 |---|---:|---|
 | 累計gross / 有料units | $102.75 / 32 | 前掲ユーザーsnapshotから増加なし。legacy API gross$117.74/orders875はseller系列へ混ぜない |
 | seller orders / 全units / 無料trial units | 70 / 106 / 74 | 異なる系列。free/public Soldを有料件数へ加算しない |
-| 7日 exposure / detail views | 12,809 / 1,818 | account窓。以前の13,824/1,836と窓が動くため同一cohortの減少とは断定しない |
+| 7日 exposure / detail views | 13,723 / 1,913 | account窓。以前の13,824/1,836と窓が動くため同一cohortの減少とは断定しない |
 | 7日 trial / paid / gross | 5 / 0 / $0 | 収益化の未達は確認できるが、trialが原因という因果は未証明 |
 | 30日 paid / gross | 13 / $33.87 | last positive revenue day=9/29。過去の売上は現在の新規売上ではない |
-| 掲載 / occupied / free | 61 / 1 / 2 | occupied/freeの詳細意味は既存normalizer契約のまま。差分だけで特定Agentの審査通過を推定しない |
-| Hook Lab 7日views / paid | 65 / 0 | Agent8123079349 |
-| Hook Labへの7日source views | hooklab_free29、ai_overview14、search10、direct4、hooklab_x3、google3、category2 | hooklab_blog/IGは0。channel-window観測でcreative/slot因果ではない |
+| 掲載 / occupied / free | 61 / 2 / 1 | occupied/freeの詳細意味は既存normalizer契約のまま。差分だけで特定Agentの審査通過を推定しない |
+| Hook Lab 7日views / paid | 73 / 0 | Agent8123079349 |
+| Hook Labへの7日source views | hooklab_free32、ai_overview15、search11、direct5、google5、hooklab_x3、category2 | hooklab_blog/IGは0。channel-window観測でcreative/slot因果ではない |
 | payout済み / creator earnings | $0 / $76.18 | pending/payout balance$59とconfirmed$17.18は入金ではない |
 | true MRR / 費用後確定会社net | unknown / unknown | active/canceled subscription・全実費の公式coverageなし |
 
-**Hook Grader TODO3の確認結果:** [公式公開listing](https://capafy.ai/agent/2455220100)をFirecrawl maxAge=0で取得し、v1.0.1 / updated10/16 / Downloadの公開状態を確認する。保存analyticsもstatus=online、has_online_version=true。従って「v1.0.1がまだ審査待ち」は置換する。公開Sold20は無料downloadを含むためpaid20としない。listing末尾はHook Labへの文字による案内で、公開取得本文には直接リンクが現れない。実download出力末尾のCTAと登録CTは未確認。7日Hook Grader views73とhooklab_free29は別の流入母集団なので29/73を転送率にしない。以前の1.7%/基準3%は、同一無料商品・利用者cohort・期間の分母を再取得するまで再判定しない。
+**Hook Grader TODO3の確認結果:** [公式公開listing](https://capafy.ai/agent/2455220100)をFirecrawl maxAge=0で取得し、v1.0.1 / updated10/16 / Downloadの公開状態を確認する。保存analyticsもstatus=online、has_online_version=true。従って「v1.0.1がまだ審査待ち」は置換する。公開Sold20は無料downloadを含むためpaid20としない。listing末尾はHook Labへの文字による案内で、公開取得本文には直接リンクが現れない。実download出力末尾のCTAと登録CTは未確認。17:22:47Z取得の7日Hook Grader views81とhooklab_free32は別の流入母集団なので32/81を転送率にしない。以前の1.7%/基準3%は、同一無料商品・利用者cohort・期間の分母を再取得するまで再判定しない。
 
-**費用の限界:** analyticsのprofit30_actual_usd=$20.41はgross$33.87×80%を丸めた$27.10−OpenRouter実費$6.69の寄与推計。Capafy feeの実明細、host/他model/system費用、settlementの完全性を満たす会社確定netではない。all_time.net_usd=$102.75という名前もgrossと同値で、手取確定値として流用しない。
+**費用の限界:** 07:49:31Zの旧analyticsにあるprofit30_actual_usd=$20.41はgross$33.87×80%を丸めた$27.10−OpenRouter実費$6.69の寄与推計。Capafy feeの実明細、host/他model/system費用、settlementの完全性を満たす会社確定netではない。all_time.net_usd=$102.75という名前もgrossと同値で、手取確定値として流用しない。
 
-**配信経路の追加事実:** 現行stateは`writer/capafy-distribute/capafy-distribute/ledger.json`（236 records）で、親directoryのledgerは9/29の1件だけ。子ledgerの最新は10/19-h19m00のHook Lab記事・X PUBLISHED記録で、X first-reply ledgerにも同記事のCTA/reply URLがある。従って古い「Xは全てリンクなし」や「30分ごとに現在も公開」は採らない。最終記事はスペイン語だが言語別の成熟したclick/paid比較は未実施。記事HTTP200、Postiz PUBLISHED、返信ledger単独をcurrent official publication/readbackと同一視せず、unknown occurrenceの所有者が正確なURL/IDで照合する。
+**配信経路の追加事実:** 現行stateは`writer/capafy-distribute/capafy-distribute/ledger.json`であり、親directoryの古いledgerを現在値へ使わない。最新の公式公開1件と新SHAの自然admission待機 → C2実行の「自然公開1件とfactoryの具体的な未完」「C2配信H1のsource受入と採用」を参照。言語別の成熟したclick/paid比較は未実施であり、HTTP200/Postiz PUBLISHED/返信ledgerを売上や全slot成功へ昇格しない。
 
 ### コピーする成功例と自己改善研究の採用判断
 
@@ -116,7 +116,7 @@
 
 **C2配信H1のsource受入と採用:** HEAD `97ec4fd0e2f4fa1cb8c8d888b203866e130b8cc4`は関連21 tests、loop contract18 groups/191 jobs/112 mapped/errors0、独立review指摘0/blocking0と独立12境界ケース、exact HEADの全12 CI successを確認する。非ASCII `K`のlowercaseがASCII `k`へ変わるreview指摘は、元query tokenのASCII判定で拒否契約を保持する。PR #8426は17:59:38Zにmain `75f69bdf5d0fb73beda824a09c0fafff8ccb16ce`へ統合する。完全immutable `/Users/anicca/loops/releases/20261021T025945-75f69bdf`はALL/main bytes一致/0444。実際に停止したPortuguese記事（draft SHA256 `dd82912b5d60c4c4e0f2696e2d97e363906619ca05644e96e879307e24d9d122`）の原H1を保ったままASCII queryを通し、必須語欠落と異なるUnicode queryを拒否するoffline canaryがPASS、公開試行/外部書込0。標準activate_currentで昇格後、対象distributorだけをloaded-idle/current必須applyし、loaded argv/SHAを確認する。自然run `18e04ef2333bfd18-89495`は18:04:13Z execute→18:04:24Z report/75・`host_admission_deferred:resource_fifo_wait`となり、exact occurrenceはqueued/effect_unknown0。自然起動は確認するが新SHAの配信本体/公式公開は未確認。先行する同優先度distribution ownerは8件で、旧slotの再送/優先度変更/他owner中断は行わず、既存admissionの再開を観測する。source worktreeは統合/clean/unusedを確認してremoveし、自己所有leaseだけを終了する。
 
-**容量文書CIと統合手順の境界:** PR #8423はHEAD `b5309cda1b`のpull_request CI run `39468090124`が未完の17:40:41Zに統合される。既存merge待機scriptのhead取得とcheck取得は独立であり、最新HEADの全checksを確認した証明にならない。以後のsource統合はexact SHAの登録済CIがすべてterminal/PASSであることを直接照合してから既存merge scriptを使う。該当文書CIは終了処理test `timeout-False-True`で1 failed/609 passed/149 subtestsとなる。50ms親終了猶予による追加SIGKILLが仮説だが、実原因は未確定。標準fixtureを5回隔離観測すると全PASS/SIGTERMだけを観測する。追加観測を保存して失敗jobだけ再実行中とし、既存runtime sourceや保護対象を修正/停止せず、未完CIを合格へ置換しない。文書統合/容量回復を全C2完了とは報告しない。
+**容量文書CIと統合手順の境界:** PR #8423はHEAD `b5309cda1b`のpull_request CI run `39468090124`が未完の17:40:41Zに統合される。既存merge待機scriptのhead取得とcheck取得は独立であり、最新HEADの全checksを確認した証明にならない。以後のsource統合はexact SHAの登録済CIがすべてterminal/PASSであることを直接照合してから既存merge scriptを使う。該当文書CIは終了処理test `timeout-False-True`で1 failed/609 passed/149 subtestsとなる。50ms親終了猶予による追加SIGKILLが仮説だが、実原因は未確定。標準fixtureを5回隔離観測すると全PASS/SIGTERMだけを観測する。追加観測を保存して失敗jobだけ再実行し、同じrunの再試行は全チェックsuccessで完了する。最初の失敗は削除せず、原因未確定の限界を維持する。既存runtime sourceや保護対象の修正/停止は行わず、別PR #8426も自身のexact HEAD全12 CI successを独立に確認する。文書統合/容量回復を全C2完了とは報告しない。
 
 **自然公開1件とfactoryの具体的な未完:** 旧SHA `4bf017d5`の自然run `18e04daa9d4d8620-52439`は17:40:46Z execute→17:50:39Z report/0。slot `2026-10-21-h02m30`の記事 `tiktok-script-for-coaches`は公式GitHub commit `9ede1dbc13a21f8cd6094f7b0509ab5d71187fd2`（17:44:02Z/main上のexact変更）・draft本文SHA一致・live HTTP200/原H1/CTAを独立read-only検証する。登録済adapterの再readbackを経てこの1件だけeffected=trueでresolveし、DB released/effect_unknown0を確認する。新規投稿/再送0で、旧SHAの公開成功をH1修正の自然受入や売上へ昇格しない。factoryは17:52:06Zの公式GETでdraft `9425449917`/version `2112455053047386112`のidentity一致、platform_status0/audit_status0/run_online、skills確認=false/config確認=false/package_uploaded=false/status_complete=false、`draft_review_not_started`を確認する。従って停止は単なる通信unknownではなくCP1/upload未完。既存retry_existing fast pathが確認済draftのfinishだけを許す境界で止まるため、次は同ID/versionの既存CP1経路と正しい復帰条件を調べる。確認gateの緩和・draft新規作成・不確実fenceの解除/再提出は行わない。private証拠は既存C2 directoryの`c2-title-immutable-canary.json`、`c2-title-target-apply.json`、`c2-title-natural-admission.json`、`c2-distributor-next-official-readback.json`、`c2-distributor-next-official-resolve.json`、`c2-factory-exact-official-status.json`、`c2-ci-process-exit-observation.json`。
 
