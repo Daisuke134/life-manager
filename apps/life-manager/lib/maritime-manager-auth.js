@@ -129,7 +129,7 @@ async function handleMaritimeManagerActivate(req, res, options = {}) {
     new Intl.DateTimeFormat("en", { timeZone: body.timezone || "UTC" });
   } catch { send(res, 400, { error: "invalid_activation" }); return true; }
   const env = options.env || process.env;
-  const releaseSha = options.releaseSha || env.LM_RELEASE_SHA || env.LIFE_MANAGER_RELEASE_SHA || env.RAILWAY_GIT_COMMIT_SHA;
+  const releaseSha = options.releaseSha || env.LM_MARITIME_MANAGER_IMAGE_RELEASE_SHA;
   if (!/^[0-9a-f]{40}$/.test(String(releaseSha || ""))) { send(res, 503, { error: "release_unavailable" }); return true; }
   try {
     const store = options.managerStore || require("./maritime-manager-store.js").createMaritimeManagerStore({ env });
