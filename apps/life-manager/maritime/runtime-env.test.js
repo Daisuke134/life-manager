@@ -14,7 +14,7 @@ function fixture(t) {
   t.after(() => fs.rmSync(dataRoot, { recursive: true, force: true }));
   const env = { LM_RUNTIME_TENANT_ID: UID, LM_RELEASE_SHA: SHA,
     OPENAI_API_KEY: 'per-agent-fixture-key', OPENAI_BASE_URL: 'https://api.maritime.sh/v1',
-    AGENT_RUNNER_CONFIG: '/Users/founder/config.json', CODEX_HOME: '/Users/founder/codex' };
+    AGENT_RUNNER_CONFIG: '/fixture/personal/config.json', CODEX_HOME: '/fixture/personal/codex' };
   return { dataRoot, env, baseConfig, releaseRoot };
 }
 test('startup reuses the existing runner schema and preserves the automation model without personal profiles', t => {
@@ -39,7 +39,7 @@ test('startup reuses the existing runner schema and preserves the automation mod
   assert.equal(saved.providers.codex.profiles.cloud.automation_home.startsWith(path.join(fs.realpathSync(input.dataRoot), UID)), true);
   assert.equal(fs.readFileSync(saved.providers.codex.profiles.cloud.auth_file, 'utf8').trim(), '{}');
   assert.equal(fs.statSync(result.env.AGENT_RUNNER_CONFIG).mode & 0o777, 0o600);
-  assert.equal(input.env.AGENT_RUNNER_CONFIG, '/Users/founder/config.json');
+  assert.equal(input.env.AGENT_RUNNER_CONFIG, '/fixture/personal/config.json');
 });
 test('missing per-agent key or base URL stays unready and never reads personal config', t => {
   for (const name of ['OPENAI_API_KEY', 'OPENAI_BASE_URL']) {

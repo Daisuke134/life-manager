@@ -57,13 +57,22 @@ function readMaritimeSchedules({ tenantId, releaseSha, dataRoot = '/data' }) {
   try {
     const root = fs.realpathSync(dataRoot);
     const home = path.join(root, tenantId);
-    if (fs.lstatSync(home).isSymbolicLink() || fs.realpathSync(home) !== home) invalid();
-    fd = fs.openSync(path.join(home, 'maritime-schedules.json'), fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+    function verifyHome() {
+      if (fs.realpathSync(dataRoot) !== root || !fs.lstatSync(home).isDirectory()
+        || fs.lstatSync(home).isSymbolicLink() || fs.realpathSync(home) !== home) invalid();
+    }
+    verifyHome();
+    try {
+      fd = fs.openSync(path.join(home, 'maritime-schedules.json'), fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+      verifyHome(); // A lost volume/home is not a new, empty schedule snapshot.
+      return [];
+    }
     const stat = fs.fstatSync(fd);
     if (!stat.isFile() || stat.size > 32768) invalid();
     return validateSnapshot(JSON.parse(fs.readFileSync(fd, 'utf8')), tenantId, releaseSha);
   } catch (error) {
-    if (error.code === 'ENOENT') return [];
     invalid();
   } finally { if (fd !== undefined) fs.closeSync(fd); }
 }

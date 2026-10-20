@@ -68,3 +68,13 @@ test('projection consumes PostgreSQL timestamp offsets and emits canonical persi
   assert.equal(projectMaritimeSchedules({ ...input, nextEligibleAt: '2026-10-20T10:15:00+00:00' }).schedules[0].nextRunAt, input.nextEligibleAt);
   assert.deepEqual(projectMaritimeSchedules({ ...input, pausedAt: '2026-10-20T09:00:00+00:00' }).schedules, []);
 });
+
+test('missing persistent volume or tenant home is unavailable and never clears existing wakes', t => {
+  const fixture = fileFixture(t);
+  const read = () => readMaritimeSchedules({ tenantId: UID, releaseSha: SHA, dataRoot: fixture.dataRoot });
+  assert.deepEqual(read(), []);
+  fs.rmdirSync(fixture.home);
+  assert.throws(read, /schedule/);
+  fs.rmdirSync(fixture.dataRoot);
+  assert.throws(read, /schedule/);
+});
