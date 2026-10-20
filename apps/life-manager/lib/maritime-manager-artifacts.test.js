@@ -53,3 +53,17 @@ test('HTTP artifact response is an attachment and preserves verified bytes',asyn
  assert.equal(response.status,200);assert.match(response.headers.get('content-disposition'),/^attachment;/);
  assert.equal(await response.text(),'original product');
 });
+
+
+test('default artifact reconciliation does not require a new-work readiness dependency',async()=>{
+ const f=fixture(),result={tenantId:UID,occurrenceId:'first',artifactRefs:[f.ref],providerSnapshotRef:null,providerReceiptRefs:[],nextEligibleAt:null,status:'completed',errorClass:null};
+ delete f.options.cycleAdapter;
+ f.options.managerStore={read:async()=>({uid:UID,agent_id:'agent-1'}),
+  readCycleDispatch:async()=>({uid:UID,agent_id:'agent-1',occurrence_id:'first',date_key:'2026-10-21',release_sha:SHA,execution_id:'exec-1'}),
+  claimCycleDispatch:async()=>{throw new Error('claim forbidden');},bindCycleExecution:async()=>{throw new Error('bind forbidden');}};
+ Object.assign(f.options.transport,{dispatchCycle:async()=>{throw new Error('dispatch forbidden');},
+  readExecution:async()=>({status:'completed',exitCode:0,stdout:JSON.stringify(result)}),
+  readCycleReceipt:async()=>({dateKey:'2026-10-21',releaseSha:SHA,result})});
+ const res=response();await handleMaritimeManagerArtifact({method:'GET',url:buildMaritimeArtifactPath({jobId:f.job.job_id,artifactRef:f.ref})},res,f.options);
+ assert.equal(res.status,200);
+});

@@ -338,6 +338,12 @@ life-manager/
 - [ ] T15.3 create前にstore.claimProvisionを取り、同externalIdの既存agentを読む。通信喪失時は`effect_unknown`を保存し、readbackで同agentをbindするまで再createしない。exec POSTのresponse喪失も再POSTせず、`/data`の同occurrence receiptとprovider readbackへ進む。execution 404は実行失敗の証明にしない。
 - [ ] T15.4 `node --test lib/transport/maritime-manager.test.js lib/maritime-manager-store.test.js`を確認してcommit/push。
 
+**T15追加の実測修正:** owned VMのauto-sleepでexecが503/guest_command_unavailable/execution_started:falseを返すことを確認する。公式POST startはidempotentで同VMをactiveへ戻す。追加VM/alwaysOn/addon/課金変更はしない。
+
+- [ ] T15.5 transportの同tenant guest操作（成果物/receipt/loaded health/schedules）前に既存SDK startで復帰し、返却ID/activeを確認する。foreign入力はstart前に拒否する。
+- [ ] T15.6 cycle adapterはfresh dispatch claim前にprepareCycle（loaded wake readback）を確認する。未準備ならclaim/model callなし。実行中のreadExecutionはuid/agent bindingを確認し、同active tenantのaccepted executionだけstartで維持する。business execの再送はしない。pausedなら新たに実行を維持せずmetadata readを続ける。これはresource lifecycle操作であり、reconcileのbusiness read-only境界を変更しない。
+- [ ] T15.7 native sleeping→start→nonroot CDP/DOM成功を証拠へ記録し、cold guest/foreign/pending/no-repost回帰を確認してcommit/pushする。
+
 ## Task T16: secretと初回wakeを同tenantへ配線する
 
 **Files:** Create `lib/maritime-manager-wake.js`/test。Modify `server.js`、transport/runtime/authのservices wiring、`scripts/runtime-up.js`。

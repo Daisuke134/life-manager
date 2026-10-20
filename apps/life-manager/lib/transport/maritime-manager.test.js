@@ -20,6 +20,9 @@ function fixture() {
   const calls = [];
   const envelope = { dateKey: '2026-10-20', releaseSha: SHA, result: { tenantId: UID, occurrenceId: 'cycle-1', artifactRefs:['artifact://original/product.md'], providerSnapshotRef:null,providerReceiptRefs:[],nextEligibleAt:null,status:'completed',errorClass:null } };
   const sdk = { agents: {
+    start: async id => { calls.push(['start',id]); return {id,status:'active'}; },
+    exec: async () => ({status:'completed',exitCode:0,stdout:JSON.stringify({health:{ok:true,releaseSha:SHA,
+      relayBindingHash:createHash('sha256').update(createMaritimeWakeBinding({uid:UID,agentId:'agent-1',releaseSha:SHA},{secret:env.LM_MARITIME_MANAGER_ID_SECRET,publicOrigin:'https://manager.example'}).token).digest('hex')},schedules:[]})}),
     get: async id => { calls.push(['sdk.get',id]); return structuredClone(agent); },
     listEnv: async id => { calls.push(['sdk.env',id]); return [{ key:'LM_RUNTIME_TENANT_ID',value:UID,isSecret:false }, { key:'LM_RELEASE_SHA',value:SHA,isSecret:false }, { key:'LM_SOURCE_ARCHIVE_SHA256',value:ARCHIVE,isSecret:false }]; },
     files: {
@@ -89,7 +92,7 @@ test('detached cycle executes the fixed wrapper only for an active same-tenant b
   assert.deepEqual(await f.transport.dispatchCycle({uid:UID,agentId:'agent-1',occurrenceId:'cycle-1',dateKey:'2026-10-20',releaseSha:SHA}),{executionId:'exec-1'});
   const post=f.calls.find(x=>x[0]==='http'&&x[1].endsWith('/exec'));
   assert.deepEqual(JSON.parse(post[2].body),{command:['node','/app/apps/life-manager/maritime/run-cycle.js','--tenant',UID,'--occurrence','cycle-1','--date','2026-10-20'],detached:true,timeout:3720});
-  assert.deepEqual(await f.transport.readExecution({agentId:'agent-1',executionId:'exec-1'}),{status:'completed',exitCode:0,stdout:JSON.stringify(f.envelope.result)});
+  assert.deepEqual(await f.transport.readExecution({uid:UID,agentId:'agent-1',executionId:'exec-1'}),{status:'completed',exitCode:0,stdout:JSON.stringify(f.envelope.result)});
   f.row.paused_at='2026-10-20T00:00:00Z';f.row.status='paused';
   await assert.rejects(f.transport.dispatchCycle({uid:UID,agentId:'agent-1',occurrenceId:'cycle-2',dateKey:'2026-10-20',releaseSha:SHA}),/paused/);
   assert.equal(f.calls.filter(x=>x[0]==='http'&&x[1].endsWith('/exec')).length,1);
@@ -120,7 +123,7 @@ test('an accepted dispatch without an execution ID retains an unknown external e
 
 test('existing cycle adapter consumes real transport contracts and replays the persisted execution only', async () => {
   const f=fixture();await f.transport.ensureAgent(provision);f.ready();await f.transport.readAgent(provision);
-  const adapter=createMaritimeManagerLoopAdapter({managerStore:f.managerStore,
+  const adapter=createMaritimeManagerLoopAdapter({managerStore:f.managerStore,prepareCycle:f.transport.readWakeConfiguration,
     dispatchCycle:f.transport.dispatchCycle,readExecution:f.transport.readExecution,readCycleReceipt:f.transport.readCycleReceipt});
   const job=buildMaritimeManagerCycleJob({tenantId:UID,occurrenceId:'cycle-1',dateKey:'2026-10-20',releaseSha:SHA});
   const first=await adapter.execute(job);assert.equal(adapter.verify(first.receipt,job),true);
@@ -174,11 +177,37 @@ test('loaded wake configuration is read-only and rejects stale relay bindings',a
  const binding=createMaritimeWakeBinding({uid:UID,agentId:'agent-1',releaseSha:SHA},{secret:env.LM_MARITIME_MANAGER_ID_SECRET,publicOrigin:'https://panel.invalid'});
  const calls=[];let stale=false;
  const managerStore={read:async()=>({uid:UID,agent_id:'agent-1',release_sha:SHA,status:'active',paused_at:null}),claimProvision:async()=>{},bindAgent:async()=>{}};
- const client={agents:{exec:async(id,command,options)=>{calls.push([id,command,options]);return {status:'completed',exitCode:0,stdout:JSON.stringify({health:{ok:true,releaseSha:SHA,relayBindingHash:stale?'0'.repeat(64):createHash('sha256').update(binding.token).digest('hex')},schedules:[]})};}}};
+ const client={agents:{start:async id=>({id,status:'active'}),exec:async(id,command,options)=>{calls.push([id,command,options]);return {status:'completed',exitCode:0,stdout:JSON.stringify({health:{ok:true,releaseSha:SHA,relayBindingHash:stale?'0'.repeat(64):createHash('sha256').update(binding.token).digest('hex')},schedules:[]})};}}};
  const transport=createMaritimeManagerTransport({env,managerStore,client,getWakeBinding:async()=>binding});
  assert.deepEqual(await transport.readWakeConfiguration({uid:UID,agentId:'agent-1',releaseSha:SHA}),{ready:true,schedules:[]});
  assert.equal(calls[0][1],'node /app/apps/life-manager/maritime/runtime-status.js');
  assert.equal(calls[0][2].detached,false);
  stale=true;
  assert.equal((await transport.readWakeConfiguration({uid:UID,agentId:'agent-1',releaseSha:SHA})).ready,false);
+});
+
+
+test('cold artifact guest wakes only its bound VM before proof and never dispatches business work',async()=>{
+ const f=fixture();await f.transport.ensureAgent(provision);f.ready();await f.transport.readAgent(provision);f.agent().status='sleeping';
+ let wakes=0;f.sdk.agents.start=async id=>{assert.equal(id,'agent-1');wakes++;f.agent().status='active';return {id,status:'active'};};
+ const bytes=await f.transport.readArtifact({uid:UID,agentId:'agent-1',artifactRef:'artifact://original/product.md'});
+ assert.equal(bytes.toString(),'original product');assert.equal(wakes,1);
+ const execs=f.calls.filter(x=>x[0]==='http'&&x[1].endsWith('/exec'));
+ assert.equal(execs.length,1);assert.equal(JSON.parse(execs[0][2].body).detached,false);
+ await assert.rejects(()=>f.transport.readArtifact({uid:UID,agentId:'foreign',artifactRef:'artifact://original/product.md'}));assert.equal(wakes,1);
+});
+
+
+test('pending execution lifecycle is tenant bound and never replays the accepted command',async()=>{
+ const row={uid:UID,agent_id:'agent-1',release_sha:SHA,status:'active',paused_at:null};let wakes=0,reads=0;
+ const managerStore={read:async uid=>uid===UID?row:null,claimProvision:async()=>{},bindAgent:async()=>{}};
+ const client={agents:{start:async id=>{wakes++;return {id,status:'active'};}}};
+ const transport=createMaritimeManagerTransport({env,managerStore,client,fetchImpl:async(url,options)=>{
+  assert.equal(options.method,'GET');reads++;return {ok:true,json:async()=>({executionId:'exec-1',status:'running'})};
+ }});
+ const input={uid:UID,agentId:'agent-1',executionId:'exec-1'};
+ assert.deepEqual(await transport.readExecution(input),{status:'running'});assert.equal(wakes,1);
+ row.status='paused';row.paused_at='2026-10-21T00:00:00.000Z';
+ assert.deepEqual(await transport.readExecution(input),{status:'running'});assert.equal(wakes,1);
+ await assert.rejects(()=>transport.readExecution({...input,agentId:'foreign'}),/binding/);assert.equal(reads,2);assert.equal(wakes,1);
 });

@@ -44,7 +44,12 @@
     "model_invocation_verified": true,
     "evidence_ref": "docs/evidence/maritime/owned-runtime-preflight.json"
   },
-  "browser_attach": null,
+  "browser_attach": {
+    "verified": true,
+    "scope": "owned_isolated_nonroot_fixture",
+    "runtime_adopted": false,
+    "evidence_ref": "docs/evidence/maritime/owned-linux-browser-attach.json"
+  },
   "provider_auth": null,
   "prepare": null,
   "finish": null,

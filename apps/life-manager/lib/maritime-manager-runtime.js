@@ -83,9 +83,10 @@ function verifyCycleReceipt(receipt, job) {
 }
 function createMaritimeManagerLoopAdapter(services = {}) {
   const store = services.managerStore;
-  function configured() {
+  function configured(requirePrepare = false) {
     if (!store || ['read', 'readCycleDispatch', 'claimCycleDispatch', 'bindCycleExecution'].some(key => typeof store[key] !== 'function')
       || ['dispatchCycle', 'readExecution', 'readCycleReceipt'].some(key => typeof services[key] !== 'function')
+      || (requirePrepare && typeof services.prepareCycle !== 'function')
 ) {
       throw new CycleError('maritime_cycle_unconfigured', false);
     }
@@ -111,7 +112,7 @@ function createMaritimeManagerLoopAdapter(services = {}) {
     if (enrollment.status !== 'active' || enrollment.release_sha !== c.releaseSha) throw new CycleError('maritime_cycle_inactive', false);
   }
   async function inspect(job, c, identity, executionId) {
-    const execution = await services.readExecution({ agentId: identity.agentId, executionId });
+    const execution = await services.readExecution({ uid: c.tenantId, agentId: identity.agentId, executionId });
     if (['running', 'pending', 'queued'].includes(execution?.status)) return { state: 'pending' };
     if (execution?.status !== 'completed' || execution.exitCode !== 0) throw new CycleError('maritime_cycle_result_unknown');
     const envelope = await services.readCycleReceipt({ uid: c.tenantId, agentId: identity.agentId, occurrenceId: c.occurrenceId });
@@ -136,7 +137,7 @@ function createMaritimeManagerLoopAdapter(services = {}) {
   return Object.freeze({
     plan: async input => [buildMaritimeManagerCycleJob(input)],
     async execute(job) {
-      const c = cycleContract(job); configured();
+      const c = cycleContract(job); configured(true);
       try {
         const bound = await binding(c);
         let row = await store.readCycleDispatch(bound.identity);
@@ -146,6 +147,12 @@ function createMaritimeManagerLoopAdapter(services = {}) {
           if (!executionId) throw new CycleError('maritime_cycle_dispatch_unconfirmed');
         } else {
           active(bound.enrollment, c);
+          let ready;
+          try { ready = await services.prepareCycle({ uid: c.tenantId, agentId: bound.identity.agentId, releaseSha: c.releaseSha }); }
+          catch { throw new CycleError('maritime_cycle_runtime_not_ready', false); }
+          if (ready?.ready !== true) throw new CycleError('maritime_cycle_runtime_not_ready', false);
+          const current = await binding(c); active(current.enrollment, c);
+          if (!isDeepStrictEqual(current.identity, bound.identity)) throw new CycleError('maritime_cycle_binding_unknown', false);
           const claim = await store.claimCycleDispatch(bound.identity);
           if (typeof claim?.claimed !== 'boolean') throw new CycleError('maritime_cycle_checkpoint_invalid');
           executionId = checkpoint(claim.row, bound.identity);

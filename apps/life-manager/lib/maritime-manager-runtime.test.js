@@ -63,6 +63,7 @@ function executionFixture() {
       },
       bindCycleExecution: async (input) => { checkpoint.execution_id = input.executionId; return structuredClone(checkpoint); },
     },
+    prepareCycle: async () => ({ready:true}),
     dispatchCycle: async () => { calls.push('dispatch'); return { executionId: 'exec-1' }; },
     readExecution: async () => { calls.push('read'); return { status: 'completed', exitCode: 0, stdout: capturedOutput }; },
     readCycleReceipt: async () => structuredClone(envelope),
@@ -294,4 +295,13 @@ test('first configure readback failure happens after settings and recovers read-
  const proof=await adapter.reconcile(job);assert.equal(proof.state,'present');
  assert.equal((await adapter.continuation(job,proof.receipt)).job.capability,'maritime.manager.cycle');
  assert.equal(writes,1);assert.equal(reloads,1);
+});
+
+
+test('guest readiness is checked before the irreversible cycle dispatch claim',async()=>{
+ const f=executionFixture();let prepared=0;
+ f.services.prepareCycle=async input=>{prepared++;assert.equal(input.uid,UID);assert.equal(f.checkpoint(),null);return {ready:false};};
+ const adapter=createMaritimeManagerLoopAdapter(f.services),job=buildMaritimeManagerCycleJob(cycle);
+ await assert.rejects(()=>adapter.execute(job),error=>error.code==='MARITIME_CYCLE_RUNTIME_NOT_READY'&&error.unknownEffect===false);
+ assert.equal(prepared,1);assert.equal(f.checkpoint(),null);assert.equal(f.calls.filter(x=>x==='dispatch').length,0);
 });
