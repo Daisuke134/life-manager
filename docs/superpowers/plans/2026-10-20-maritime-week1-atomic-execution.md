@@ -396,7 +396,7 @@ life-manager/
 
 ## Task T20: 停止が次の仕事と配信に効くようにする
 
-**Files:** Modify auth/store/runtime/report、existing consent/stop経路。
+**Files:** Modify `lib/maritime-manager-auth.js`/test、`lib/maritime-manager-store.js`/test、`lib/maritime-manager-runtime.js`/test、`lib/runtime-job-store.js`/test、`lib/maritime-distribution.js`/test、`scripts/runtime-up.js`/test、`server.js`。既存consent/report guardを再利用する。
 **Interfaces:** authenticated POST `/maritime/stop`→paused、schedule除去、未claim job停止。進行済みeffectは公式readback継続。
 **Depends:** T14/T19。
 
@@ -405,6 +405,7 @@ life-manager/
 - [ ] T20.1b provision pause phaseは既存consent revokeとpaused schedule snapshotを実行する。bound agentなしはlocal control receipt、ありはloaded empty schedulesを確認する。reconcileは停止状態を照合し、未反映時だけ同じconsent revoke/empty snapshotをidempotentに再適用する。business/model/sendは再送せず、続きの仕事/日報をenqueueしない。新capability/table/schedulerを増やさず、既存inflight receiptは保持する。
 - [ ] T20.1d pause保存→cleanup enqueue間のcrashを回収する。store.listPaused(limit20,afterUid)をuid順で有限pagingし、既存workerの30秒recoveryが同じpause jobをidempotent enqueueする。ローカルcursorを進めて古いcompleted cleanupが新tenantを飢餓させない。新table/cronは作らない。
 - [ ] T20.1c landingへCSRF付き停止ボタンを追加し、停止は新しい仕事/今後のメールを止め、進行中の結果確認と既送信データは残ると明記する。中央queueの既存行は残し、dispatch/report直前のpaused guardで新規外部作用を拒否する。
+- [ ] T20.1e review実測の競合を閉じる。`runtime-job-store.withRuntimeTenantControlLock({tenantId},operation,opts)`が既存PostgreSQL connectionで20秒lock_timeout付きtenant advisory transaction lockを使い、activateのconsent/enrollとconfigure/pauseの設定変更＋最終確認を同uidで直列化する。local pauseは先に即保存する。accepted create/configureのinspectはpausedでもreadbackを許し、execute/continuationの禁止は維持する。既存poolを使い、新lock table/providerを作らない。
 - [ ] T20.2 既存consent revokeとenrollment.pauseを接続し、中央のjob claim/dispatch/report直前にもpausedを読む。停止を既送信データ削除と表示しない。
 - [ ] T20.3 provider側に保存済みデータ・VMの削除は停止と分け、削除を勝手に実施しない。scheduled wake snapshotから停止分を外す。
 - [ ] T20.4 focused stop testを確認してcommit/push。

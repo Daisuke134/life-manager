@@ -245,6 +245,7 @@ function createWorkerHandlers(env, capabilities, dependencies = {}) {
         return state.participant == null || Boolean(state.participant.revoked_at);
       };
       servicesByAdapter["maritime-manager-provision"] = { managerStore,
+        withControlLock: dependencies.withControlLock || ((uid, operation) => require("../lib/runtime-job-store.js").withRuntimeTenantControlLock({ tenantId: uid }, operation, { connect: dependencies.connect })),
         isConsentRevoked,
         revokeConsent: async uid => {
           if (await isConsentRevoked(uid)) return;

@@ -144,6 +144,8 @@ async function handleMaritimeManagerActivate(req, res, options = {}) {
   const releaseSha = options.releaseSha || env.LM_MARITIME_MANAGER_IMAGE_RELEASE_SHA;
   if (!/^[0-9a-f]{40}$/.test(String(releaseSha || ""))) { send(res, 503, { error: "release_unavailable" }); return true; }
   try {
+    const lock = options.withControlLock || ((uid, operation) => require("./runtime-job-store.js").withRuntimeTenantControlLock({ tenantId: uid }, operation, options.storeOptions || {}));
+    await lock(user.uid, async () => {
     const store = options.managerStore || require("./maritime-manager-store.js").createMaritimeManagerStore({ env });
     const existing = await store.read(user.uid);
     if (existing?.status === "paused" || existing?.paused_at) { send(res, 409, { error: "manager_paused" }); return true; }
@@ -175,6 +177,7 @@ async function handleMaritimeManagerActivate(req, res, options = {}) {
     }
     if (!["queued", "running"].includes(queued.job.status)) throw new Error("enqueue_state_invalid");
     send(res, 202, { status: "pending", jobCreated: queued.created });
+    });
   } catch { send(res, 503, { error: "activation_unavailable" }); }
   return true;
 }

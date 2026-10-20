@@ -13,6 +13,7 @@ const {
   readCommonReceipt,
   claimJobs,
   claimReconcilingJobs,
+  withRuntimeTenantControlLock,
   heartbeatJob,
   completeJob,
   completeJobAndEnqueue,
@@ -442,4 +443,15 @@ test("reconciled completion and successor share one transaction with rollback an
   await assert.rejects(() => resolveReconciliationAndEnqueue({ ...input, nextJob: { ...nextJob, tenantId: "foreign" } }, opts), /tenant mismatch/);
   await assert.rejects(() => resolveReconciliationAndEnqueue({ ...input, decision: "absent" }, opts), /decision/);
   assert.deepEqual(calls, []);
+});
+
+
+test("tenant control lock uses a dedicated bounded transaction and releases on error",async()=>{
+ const calls=[];const client={query:async(sql,params)=>{calls.push([sql,params]);return {rows:[]};},release:()=>calls.push(['RELEASE'])};
+ const opts={connect:async()=>client};
+ assert.equal(await withRuntimeTenantControlLock({tenantId:'tenant-a'},async()=>{calls.push(['OP']);return 'ok';},opts),'ok');
+ assert.equal(calls[0][0],'BEGIN');assert.match(calls[1][0],/lock_timeout/);assert.match(calls[2][0],/pg_advisory_xact_lock/);
+ assert.deepEqual(calls[2][1],['maritime-control:tenant-a']);assert.deepEqual(calls.slice(-2),[['COMMIT',undefined],['RELEASE']]);
+ calls.length=0;await assert.rejects(()=>withRuntimeTenantControlLock({tenantId:'tenant-a'},async()=>{throw new Error('fixture failure');},opts),/fixture failure/);
+ assert.deepEqual(calls.slice(-2),[['ROLLBACK',undefined],['RELEASE']]);
 });

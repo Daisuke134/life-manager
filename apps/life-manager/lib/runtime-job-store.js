@@ -349,7 +349,28 @@ async function claimJobs(input, opts = {}) {
   )).rows;
 }
 
-// Reserve only a bounded provider-readback window; this never reclaims an effect.
+// Serialize mutable control operations for the same tenant using the existing pool.
+async function withRuntimeTenantControlLock(input, operation, opts = {}) {
+  const tenantId = nonEmpty(input?.tenantId, "runtime tenant id");
+  if (typeof operation !== "function") throw new Error("runtime control operation invalid");
+  const connect = opts.connect || database(opts).connect;
+  if (typeof connect !== "function") throw new Error("runtime transaction connection unavailable");
+  const client = await connect();
+  if (!client || typeof client.query !== "function" || typeof client.release !== "function") throw new Error("runtime transaction connection invalid");
+  try {
+    await client.query("BEGIN");
+    await client.query("SET LOCAL lock_timeout = '20s'");
+    await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 20261020))", [`maritime-control:${tenantId}`]);
+    const result = await operation();
+    await client.query("COMMIT");
+    return result;
+  } catch (error) {
+    try { await client.query("ROLLBACK"); } catch { /* Preserve the original control failure. */ }
+    throw error;
+  } finally { client.release(); }
+}
+
+// Reserve a provider-readback window without reclaiming or replaying an effect.
 async function claimReconcilingJobs(input, opts = {}) {
   const capabilities = input && input.capabilities;
   if (!Array.isArray(capabilities) || capabilities.length < 1 || capabilities.length > 50) {
@@ -531,6 +552,7 @@ module.exports = {
   readCommonReceipt,
   claimJobs,
   claimReconcilingJobs,
+  withRuntimeTenantControlLock,
   heartbeatJob,
   completeJob,
   completeJobAndEnqueue,

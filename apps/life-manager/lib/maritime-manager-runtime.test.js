@@ -251,7 +251,7 @@ test('daily report adapter sends through existing delivery and reconciles withou
 test('provision create and configure are separate stable jobs with read-only reconciliation',async()=>{
  const row={uid:UID,agent_id:'agent-a',release_sha:SHA,status:'active',paused_at:null,created_at:'2026-10-21T00:00:00.000Z',timezone:'Asia/Tokyo'};
  const calls=[];let status='deploying',ready=false,schedules=[];
- const services={managerStore:{read:async()=>row},
+ const services={withControlLock:async(_uid,operation)=>operation(),managerStore:{read:async()=>row},
   ensureAgent:async()=>{calls.push('create');return {agentId:'agent-a',status};},
   readAgent:async()=>{calls.push('readAgent');return {agentId:'agent-a',status};},
   writeScheduleSnapshot:async input=>{calls.push('schedule');schedules=input.snapshot.schedules;},
@@ -285,7 +285,7 @@ test('provision create and configure are separate stable jobs with read-only rec
 test('first configure readback failure happens after settings and recovers read-only',async()=>{
  const row={uid:UID,agent_id:'agent-a',release_sha:SHA,status:'active',paused_at:null,created_at:'2026-10-21T00:00:00.000Z',timezone:'UTC'};
  let writes=0,reloads=0,reads=0,schedules=[];
- const adapter=createMaritimeManagerProvisionAdapter({managerStore:{read:async()=>row},
+ const adapter=createMaritimeManagerProvisionAdapter({withControlLock:async(_uid,operation)=>operation(),managerStore:{read:async()=>row},
   writeScheduleSnapshot:async input=>{writes++;schedules=input.snapshot.schedules;},configureWake:async()=>{reloads++;},
   readWakeConfiguration:async()=>{if(++reads===1)throw new Error('temporary read failure');return {ready:reloads>0,schedules};},seedInitialReport:async()=>{},
  });
@@ -335,7 +335,7 @@ test('pause cleanup revokes consent and clears schedules while retaining infligh
  for(const bound of [true,false]){
   const row={uid:UID,agent_id:bound?'agent-a':null,release_sha:SHA,status:'paused',paused_at:'2026-10-21T00:00:00.000Z'};
   let revoked=false,revokeCalls=0,writes=0,schedules=[{id:'old'}];
-  const adapter=createMaritimeManagerProvisionAdapter({managerStore:{read:async()=>row},
+  const adapter=createMaritimeManagerProvisionAdapter({withControlLock:async(_uid,operation)=>operation(),managerStore:{read:async()=>row},
    isConsentRevoked:async()=>revoked,revokeConsent:async()=>{revoked=true;revokeCalls++;},
    writeScheduleSnapshot:async input=>{assert.equal(input.snapshot.paused,true);assert.deepEqual(input.snapshot.schedules,[]);writes++;schedules=[];},
    readWakeConfiguration:async()=>({ready:true,schedules}),
@@ -347,4 +347,34 @@ test('pause cleanup revokes consent and clears schedules while retaining infligh
   await adapter.reconcile(job);assert.equal(revokeCalls,1);assert.equal(writes,bound?1:0);
   assert.equal(row.agent_id,bound?'agent-a':null);
  }
+});
+
+
+function controlMutex(){let tail=Promise.resolve();return async(_uid,operation)=>{const previous=tail;let release;tail=new Promise(resolve=>{release=resolve;});await previous;try{return await operation();}finally{release();}};}
+test('pause final confirmation waits for the older configure writer before clearing schedules',async()=>{
+ const row={uid:UID,agent_id:'agent-a',release_sha:SHA,status:'active',paused_at:null,created_at:'2026-10-21T00:00:00.000Z',timezone:'UTC'};
+ let enter,release;const entered=new Promise(resolve=>{enter=resolve;}),gate=new Promise(resolve=>{release=resolve;});let schedules=[],revoked=false;
+ const adapter=createMaritimeManagerProvisionAdapter({managerStore:{read:async()=>structuredClone(row)},withControlLock:controlMutex(),
+  writeScheduleSnapshot:async input=>{if(!input.snapshot.paused){enter();await gate;}schedules=input.snapshot.schedules;},
+  configureWake:async()=>{},readWakeConfiguration:async()=>({ready:true,schedules}),isConsentRevoked:async()=>revoked,revokeConsent:async()=>{revoked=true;},
+ });
+ const configure=buildMaritimeManagerProvisionJob({tenantId:UID,releaseSha:SHA,phase:'configure'});
+ const execution=adapter.execute(configure).catch(()=>null);await entered;
+ row.status='paused';row.paused_at='2026-10-21T00:00:01.000Z';
+ const pause=buildMaritimeManagerProvisionJob({tenantId:UID,releaseSha:SHA,phase:'pause'});
+ const cleanup=adapter.reconcile(pause);const early=await Promise.race([cleanup.then(()=>true),new Promise(resolve=>setTimeout(()=>resolve(false),15))]);release();await execution;
+ const proof=await cleanup;assert.equal(early,false);assert.equal(proof.state,'present');assert.deepEqual(schedules,[]);assert.equal(revoked,true);
+});
+
+test('paused accepted provision still reads the official result without creating a successor',async()=>{
+ const row={uid:UID,agent_id:null,release_sha:SHA,status:'provisioning',paused_at:null,created_at:'2026-10-21T00:00:00.000Z',timezone:'UTC'};let reads=0,creates=0,status='deploying';
+ const adapter=createMaritimeManagerProvisionAdapter({managerStore:{read:async()=>row},provisionSource:()=>({uploadS3Key:'uploads/fixture.zip',archiveSha256:'b'.repeat(64)}),ensureAgent:async()=>{creates++;},
+ readAgent:async()=>{reads++;if(status==='active')row.agent_id='agent-a';return {agentId:'agent-a',status};}});
+ const job=buildMaritimeManagerProvisionJob({tenantId:UID,releaseSha:SHA});await assert.rejects(()=>adapter.execute(job),/pending/);
+ row.status='paused';row.paused_at='2026-10-21T00:00:01.000Z';status='active';const before=reads;
+ const proof=await adapter.reconcile(job);assert.equal(proof.state,'present');assert.equal(reads,before+1);assert.equal(creates,1);assert.equal(await adapter.continuation(job,proof.receipt),null);
+ let loaded=0;const configured=createMaritimeManagerProvisionAdapter({managerStore:{read:async()=>row},readWakeConfiguration:async()=>{loaded++;return {ready:true,schedules:[]};}});
+ const configJob=buildMaritimeManagerProvisionJob({tenantId:UID,releaseSha:SHA,phase:'configure'});const configProof=await configured.reconcile(configJob);
+ assert.equal(configProof.state,'present');assert.equal(loaded,1);assert.equal(await configured.continuation(configJob,configProof.receipt),null);
+ await assert.rejects(()=>configured.execute(configJob),/inactive/);assert.equal(loaded,1);
 });

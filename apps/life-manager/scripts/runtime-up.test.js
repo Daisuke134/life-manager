@@ -1288,6 +1288,7 @@ test("Maritime pause job uses the existing consent store and never sends a repor
  const uid="lm_11111111-1111-4111-8111-111111111111",sha="a".repeat(40);let revoked=false,calls=0;
  const runtime=require('../lib/maritime-manager-runtime.js');
  const handlers=createWorkerHandlers({},['maritime.manager.provision'],{
+  withControlLock:async(_uid,operation)=>operation(),
   maritimeManagerStore:{read:async()=>({uid,agent_id:null,release_sha:sha,status:'paused',paused_at:'2026-10-21T00:00:00.000Z'})},
   maritimeTransport:{},query:async()=>{throw new Error('no report enqueue');},
   maritimeDistributionStore:{getParticipant:async()=>({ok:true,participant:{revoked_at:revoked?'2026-10-21T00:00:01.000Z':null}}),revoke:async()=>{calls++;revoked=true;return true;}},

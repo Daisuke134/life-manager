@@ -255,11 +255,16 @@ function provisionContract(job) {
   } catch { throw new CycleError('maritime_provision_job_invalid', false); }
 }
 function createMaritimeManagerProvisionAdapter(services = {}) {
-  async function enrollment(c, requireActive = false) {
+  function controlLock(c, operation) {
+    const lock = services.withControlLock || ((uid, callback) => require('./runtime-job-store.js').withRuntimeTenantControlLock({ tenantId: uid }, callback));
+    return lock(c.tenantId, operation);
+  }
+  async function enrollment(c, requireActive = false, allowPaused = false) {
     const row = await services.managerStore?.read(c.tenantId);
     if (!row || row.uid !== c.tenantId || row.release_sha !== c.releaseSha) throw new CycleError('maritime_provision_binding_invalid', false);
     if (c.phase === 'pause' ? (row.status !== 'paused' || !row.paused_at)
-      : (row.status === 'paused' || row.paused_at || (requireActive && row.status !== 'active'))) {
+      : ((!allowPaused && (row.status === 'paused' || row.paused_at))
+        || (requireActive && row.status !== 'active' && !(allowPaused && (row.status === 'paused' || row.paused_at))))) {
       throw new CycleError('maritime_provision_inactive', false);
     }
     return row;
@@ -308,7 +313,7 @@ function createMaritimeManagerProvisionAdapter(services = {}) {
     } catch { return false; }
   }
   async function inspect(c, job) {
-    const row = await enrollment(c, c.phase === 'configure');
+    const row = await enrollment(c, c.phase === 'configure', true);
     if (c.phase === 'create') {
       const agent = await services.readAgent(source(c));
       if (agent?.status === 'deploying') return { state: 'pending' };
@@ -323,6 +328,10 @@ function createMaritimeManagerProvisionAdapter(services = {}) {
       if (!row.agent_id) return { state: 'present', receipt: receipt(c, job, null, expected) };
     }
     const loaded = await services.readWakeConfiguration({ uid: c.tenantId, agentId: row.agent_id, releaseSha: c.releaseSha });
+    if (loaded?.ready && c.phase === 'configure' && (row.status === 'paused' || row.paused_at)) {
+      require('./maritime-manager-schedules.js').validateMaritimeScheduleSnapshot({ ...expected, schedules: loaded.schedules }, c.tenantId, c.releaseSha);
+      return { state: 'present', receipt: receipt(c, job, row.agent_id, { ...expected, schedules: loaded.schedules }) };
+    }
     if (!loaded?.ready || !isDeepStrictEqual(loaded.schedules, expected.schedules)) return { state: 'unknown',
       errorClass: 'maritime_provision_configuration_not_loaded', nextAction: 'inspect_agent_deployment', retryable: false };
     return { state: 'present', receipt: receipt(c, job, row.agent_id, expected) };
@@ -341,7 +350,7 @@ function createMaritimeManagerProvisionAdapter(services = {}) {
       const c = provisionContract(job);
       const row = await enrollment(c, c.phase === 'configure');
       if (c.phase === 'pause') {
-        try { const proof = await reconcilePause(c, job); if (proof.state === 'present') return { receipt: proof.receipt }; }
+        try { const proof = await controlLock(c, () => reconcilePause(c, job)); if (proof.state === 'present') return { receipt: proof.receipt }; }
         catch { /* Retry only idempotent stop cleanup through reconciliation. */ }
         throw new CycleError('maritime_pause_cleanup_unconfirmed');
       }
@@ -349,11 +358,15 @@ function createMaritimeManagerProvisionAdapter(services = {}) {
       else {
         // Only a freshly claimed configure job writes. Reconciliation never calls execute.
         try {
-          const input = { uid: c.tenantId, agentId: row.agent_id, releaseSha: c.releaseSha };
-          await services.writeScheduleSnapshot({ ...input, snapshot: snapshot(c, row) });
-          await services.configureWake(input);
-          const proof = await inspect(c, job);
-          if (proof.state === 'present') return { receipt: proof.receipt };
+          const configured = await controlLock(c, async () => {
+            const current = await enrollment(c, true);
+            const input = { uid: c.tenantId, agentId: current.agent_id, releaseSha: c.releaseSha };
+            await services.writeScheduleSnapshot({ ...input, snapshot: snapshot(c, current) });
+            await services.configureWake(input);
+            const proof = await inspect(c, job);
+            return proof.state === 'present' ? { receipt: proof.receipt } : null;
+          });
+          if (configured) return configured;
         } catch { /* A write may have succeeded; recover by readback, never reconfigure. */ }
         throw new CycleError('maritime_provision_configuration_unconfirmed');
       }
@@ -363,7 +376,7 @@ function createMaritimeManagerProvisionAdapter(services = {}) {
     },
     async reconcile(job) {
       const c = provisionContract(job);
-      try { return c.phase === 'pause' ? await reconcilePause(c, job) : await inspect(c, job); }
+      try { return c.phase === 'pause' ? await controlLock(c, () => reconcilePause(c, job)) : await inspect(c, job); }
       catch { return { state: 'unknown', errorClass: c.phase === 'pause' ? 'maritime_pause_cleanup_unconfirmed' : 'maritime_provision_readback_unconfirmed',
         nextAction: c.phase === 'pause' ? 'inspect_paused_schedule' : 'inspect_agent_deployment', retryable: false }; }
     },
