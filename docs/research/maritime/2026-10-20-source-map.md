@@ -59,3 +59,5 @@ SDK docsには`provision()`を使う例があるが、それはOpenClaw template
 これらの訂正で新publisher/認証provider/メールproviderを増やさない。競技Termsをlive再取得し、実在1,000人・先着3組・KeikiまたはMaritimeのproject usageという条件に変更がないことを確認する。
 
 - https://github.com/maritime-sh/maritime-sdk/blob/8d3296d7ac24b3fd49c69a4e86d2b3863bf1b1ab/typescript/src/agent-schedules.ts — `ScheduleView.nextRunAt`はISO8601、cronより優先。`pushSchedules`は完全snapshotで空配列がwake解除。T14の契約を原codeで確認。無関係repoを返したdeveloper_search結果は採用しない。
+
+- https://maritime.sh/docs/cli — Deploy CLI文書はtemplate/github/dockerのみ。build文書のZIP対応から架空のCLI flag/API pathを推論しない。Docker CLIは存在するがdaemon socket不在をread-only確認。T12.5で公式dashboardの実受付契約を確認してからbuildを実行する。
