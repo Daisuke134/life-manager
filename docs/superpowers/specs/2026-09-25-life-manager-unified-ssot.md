@@ -122,6 +122,8 @@ C2の次の原子作業は、(1) fresh Data freeと既存host inventory/growth/c
 
 **C2監視atomの再現結果:** baseline health45 tests PASS。REDで、履歴timeoutが先に取得した3件を191件全欠測へ置換すること、またHealthTimeoutがOSError系の読取handlerに吸収されることを再現する。現在状態→履歴clockの2段を同じ30秒予算に収め、履歴だけの失敗では既知runtime/error/fenceを保持し、productivity/revenueは履歴欠測としてunknownにする。`health_history_timeout`だけでは正常ownerのrecovery intentを作らず、CLIはdegraded exitとhistory_limitedを示す。deadline cancellationは通常IO/adapter error handlerに捕まらない型で上位の明示handlerへ伝える（[Python標準CancelledError](https://docs.python.org/3/library/asyncio-exceptions.html)の方式を参照）。通常履歴windowと実エラー・effect fence・費用/収益の真偽は変更しない。source受入と本番ownerの自然結果は別に記録する。
 
+**C2監視atomのsource受入:** code commit=`0b15ed6d26`、最新main統合後HEAD=`10d6f72878`。health/observer60 testsとread-only取得を含む117 tests、loop contract18 groups/191 jobs/112 mapped/errors0、diff checkがPASS。fresh-context read-only reviewerは指摘0/blocking0、独立7状態fixtureと実snapshotのarchive deadline fixtureでruntime/fence/error/diagnostic保持、正常ownerへの誤repairなし、既知問題のrepair維持、単一timerとhandler復元を確認する。read-only suiteのSQLite ResourceWarningは未変更の`runtime/host/resource_admission.py::_database`と既存test helperに由来し、無警告とは報告しない。CI/main/immutable/loaded owner/自然readbackはこの時点で未完。容量floorと売上の成果条件も維持する。
+
 ### 同時進行の基盤監査との統合
 
 [PR #8409](https://github.com/Daisuke134/life-manager/pull/8409)の追加観測と[PR #8408](https://github.com/Daisuke134/life-manager/pull/8408)のOpenClaw更新を保持する。source研究の固定base70a5e365と、統合時main4dcb2769を区別する。別監査の14:23Z `df`は3,743,008KiB（約3.57GiB）、swap7,167MiB/8GiB、corespotlightd RSS約25MiB（14:23Z）/約168MiB（14:10Z）。10/19の約16GBという旧原因観測を現在へ持ち越さず、現在の容量writerは未特定のままとする。一般producer12GiB / revenue producer10GiB / recovery2GiBを別々に評価する。
