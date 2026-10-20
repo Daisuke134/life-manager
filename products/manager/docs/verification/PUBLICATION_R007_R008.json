@@ -1,0 +1,44 @@
+{
+  "date": "2026-10-20",
+  "scope": "Founder-authorized English educational publication on the owned blog; no Manager field actuation",
+  "status": "published_and_read_back",
+  "research_commit": "0c9e268c4699f3e1e0d47a80c44dc17755a7dde4",
+  "canonical_article_commit": "6ec72c658ee993cd4292548b4f8668b3fca3181d",
+  "publishing_repository": "Daisuke134/anicca-products",
+  "publishing_pull_request": 524,
+  "publishing_commit": "361699255e792d111bbafb75472b8ba4d999c76d",
+  "pull_request_build_run": 39407718804,
+  "pull_request_build_result": "success after unchanged retry for an existing-image HTTP 503",
+  "production_run": 39409956881,
+  "production_result": "success including existing post-deploy money-path smoke",
+  "public_readback": [
+    {
+      "url": "https://aniccaai.com/blog/manager-evidence-cards-r007-r008-en",
+      "http_status": 200,
+      "title": "Why Real-World Agents Need Small Evidence Cards, Not Another Giant Database",
+      "title_and_full_body_read": true,
+      "method": "Firecrawl live scrape maxAge 0",
+      "scrape_id": "01a158ef-2b30-712b-9f87-3a17f34d70c9"
+    },
+    {
+      "url": "https://aniccaai.com/blog/manager-population-behavior-causality-field-guide-en",
+      "http_status": 200,
+      "title": "Population Is Not Behavior, and Behavior Is Not Causality",
+      "title_and_full_body_read": true,
+      "method": "Firecrawl live scrape maxAge 0",
+      "scrape_id": "01a158ef-701a-71bb-b2e8-237d82668f47"
+    }
+  ],
+  "manager_offline_tests": 59,
+  "new_evidence_tests": 27,
+  "publication_loader_tests": 9,
+  "local_excerpt_checks": 6,
+  "manager_field_benefit": "not_measured",
+  "newsletter_scheduled": false,
+  "third_party_social_posts_sent": false,
+  "limitations": [
+    "Existing site-wide footer text is not evidence that any cross-post was performed in this task.",
+    "Public source hosting is not a grant of an open-source license for every Manager file or dataset.",
+    "Future autonomous public reporting, participant research, money transfers and physical actuation remain separate tasks."
+  ]
+}
