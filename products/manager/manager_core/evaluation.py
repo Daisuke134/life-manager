@@ -5,12 +5,19 @@ No results here are evidence that Manager has improved anyone's life.
 """
 from dataclasses import dataclass
 from math import isfinite
+from numbers import Real
 from typing import Mapping, Sequence
 
 
+def _is_probability(value: object) -> bool:
+    """Reject bool/strings/NaN rather than implicitly coercing them to probabilities."""
+    return (isinstance(value, Real) and not isinstance(value, bool)
+            and isfinite(value) and 0 <= value <= 1)
+
+
 def _valid_distribution(d: Mapping[str, float]) -> None:
-    if not d or any(not isfinite(x) or x < 0 for x in d.values()):
-        raise ValueError('Distribution must be nonempty, finite, and nonnegative')
+    if not isinstance(d, Mapping) or not d or any(not _is_probability(x) for x in d.values()):
+        raise ValueError('Distribution must be nonempty, finite, and contain probabilities in [0,1]')
     if abs(sum(d.values()) - 1) > 1e-9:
         raise ValueError('Distribution probabilities must sum to 1')
 
@@ -26,10 +33,10 @@ def brier_score(predictions: Sequence[float], outcomes: Sequence[int]) -> float:
     """Mean squared error of binary event probabilities; lower is better."""
     if not predictions or len(predictions) != len(outcomes):
         raise ValueError('Nonempty equal-length lists required')
-    if any(not isfinite(p) or p < 0 or p > 1 for p in predictions):
-        raise ValueError('Probabilities must be in [0,1]')
-    if any(y not in (0, 1) for y in outcomes):
-        raise ValueError('Outcomes must be 0/1')
+    if any(not _is_probability(p) for p in predictions):
+        raise ValueError('Probabilities must be real, finite, non-boolean values in [0,1]')
+    if any(type(y) is not int or y not in (0, 1) for y in outcomes):
+        raise ValueError('Outcomes must be integer 0/1, not booleans')
     return sum((p-y)**2 for p,y in zip(predictions,outcomes)) / len(predictions)
 
 

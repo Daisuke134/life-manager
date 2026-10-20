@@ -71,3 +71,13 @@ See [Japanese implementation note](docs/R007_R008_IMPLEMENTATION_JA.md). Run `py
 - [L001: synthetic Python probability demo](examples/01_probability.py)
 
 L001 is an offline learning example, **not** behavioral model training, causal evaluation, or field impact. Organizational categorization is editorial and non-exhaustive.
+
+## L002: TVD and binary Brier forecast diagnostics (2026-10-20)
+
+- [TVD/Brier Japanese learning note](docs/learning/L002_TVD_BRIER_JA.md)
+- [Offline score example](examples/02_scores.py) — `python3 -m examples.02_scores`
+- [L002 test-first verification](tests/test_scores_l002.py) — 13 new tests.
+- [Visual teaching diagram (editable SVG)](docs/visuals/2026-10-20-L002-TVD-Brier-JA.svg)
+- [L002 verification record](docs/verification/L002.md)
+
+TVD=0.20 and Brier=0.01/0.81 are **synthetic illustrations** and say nothing about Manager's effects on real people. PDF/PNG teaching versions are also saved in the ChatGPT Library `/Manager/Reports`.

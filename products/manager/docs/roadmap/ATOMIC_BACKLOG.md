@@ -2,7 +2,7 @@
 
 Status: 2026-10-20 JST. Manager-only task registry in `tasks.json`; the Life Manager project SSOT is unchanged.
 
-Total: 113 · Done: 15 · Todo: 96 · Blocked: 2
+Total: 113 · Done: 16 · Todo: 95 · Blocked: 2
 
 ✅ = verified task; ⬜ = not started; ⛔ = outside dependency. A research task is not evidence of real-world impact.
 
@@ -43,7 +43,7 @@ Manager has a separate product identity, source scope and runtime, even when its
 | 状態・ID | 依存 | 理解する | 作る・更新する | 完了の確認 |
 |---|---|---|---|---|
 | ✅ `L001` | P003 | 確率変数/分布/条件付き確率を説明する | examples/01_probability.pyで二値分布を比較 | P(Y\|X)を計算でき分布合計が1でない入力は拒否 |
-| ⬜ `L002` | L001 | TVDとBrier scoreの意味/限界を説明する | manager_core/evaluation.pyの関数で予測と実測を計算 | 既存test_evaluation.pyが通り、TVD=0/1を説明できる |
+| ✅ `L002` | L001 | TVDとBrier scoreの意味/限界を説明する | manager_core/evaluation.pyの関数で予測と実測を計算 | 既存test_evaluation.pyが通り、TVD=0/1を説明できる |
 | ⬜ `L003` | L002 | データ漏洩・過学習・校正を説明する | examples/02_calibration.pyにreliability binsとholdout検査 | 50%予測が実際50%と一致するテストを作る |
 | ⬜ `L004` | L001 | 状態/行動/報酬/履歴の違いを説明する | docs/learning/JITAI_GLOSSARY.mdにHeartStepsの観測変数を対応 | availability, decision_point, option, tailoring, proximalが実データに対応 |
 | ⬜ `L005` | L004 | 観測された行動と割付された介入の違いを説明する | docs/learning/CAUSAL_DAG.mdに交絡のDAGを作る | 観測的相関とRCTでの因果効果を別欄に記載 |
