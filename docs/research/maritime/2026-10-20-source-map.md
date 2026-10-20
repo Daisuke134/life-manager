@@ -63,3 +63,10 @@ SDK docsには`provision()`を使う例があるが、それはOpenClaw template
 - https://maritime.sh/docs/cli — Deploy CLI文書はtemplate/github/dockerのみ。build文書のZIP対応から架空のCLI flag/API pathを推論しない。Docker CLIは存在するがdaemon socket不在をread-only確認。T12.1で公式dashboardの実受付契約を確認してからbuildを実行する。
 
 - https://supabase.com/docs/reference/api/v1-update-auth-service-config — Management APIのsmtp_portはstring。integer465のPATCHは400で無変更、string"465"へ訂正後は反映・GET照合成功。SMTPのTCP port番号とAPI JSON型を区別する。
+
+## T10の公式readback境界
+
+- 既存vendor `capafy-user/api-docs/08_account.md`のGET `/agent/account/profile`を確認し、実APIのuserId fieldをread-onlyで確認。登録済みpublisher tokenで取得するprofile userIdと、web tokenのsubが一致し、同web tokenのPOST `/app/sales/clickhouse/trend`がcode0になることを実測。JWT decodeだけを本人確認としない。
+- `--money --json`は月次aggregateで、daily rows/ownerがないためCloud日次金融変換へ直接渡さない。既存reconcileのHTTP関数をreuseする専用finite collectorを追加する。credentialsはstdinのみ、Local private storeへのfallbackなし。
+- owned readback evidenceは `docs/evidence/maritime/capafy-owned-collector-readback.json`。full snapshotはGit外private storeへ保存。これは既存ownerのread-only確認で、Maritime Cloud業務・新規user・新しい売上ではない。
+- 同日aggregateを更新時刻ごとにimmutable FinancialRecord storeへappendすると既存Local経路もidempotency collisionになることを独立reviewで確認。Cloud reportでは最新のsnapshotを期間単位で読む。T11で同日aggregateを別取引としてappendしない。
