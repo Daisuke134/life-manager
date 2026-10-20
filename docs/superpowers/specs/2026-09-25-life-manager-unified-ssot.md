@@ -15927,6 +15927,31 @@ REDebbd5af252→GREEN0e8f071c0eはcore guardも証明済みsell/nofill closedか
 
 **次の実行順と現在cursor:** → IN-END-TO-END「原子的な残TODO」を参照。
 
+### 2026-10-21 04:33 JST — Investment agent latest state and atomic cursor
+
+**目的・完了条件:** 投資実行経路をLocal一本に保ち、検証中はpaperだけを使う。判断の記録、注文、公式約定、全費用、owner別の純損益を同じ証拠鎖で結び、宣言benchmarkを費用後で上回り、損失上限内で再現できるまで戦略を評価駆動で改善する。「世界一の利益」は願望であり、利益や将来残高の保証ではない。
+
+**As-Is — 最新の公式口座照合（2026-10-20 19:33:01Z）:**
+- Alpaca live口座はcash `$0`、equity `$66.49`、USDCUSD保有評価額 `$66.490361`、含み損 `-$0.030192`。公式履歴にはfilled 10注文（buy 5/sell 5）、order-linked FILL 10件とCFEE 10件、USD FEE 0件がある。これはLife Managerの利益や全費用の証明ではない。
+- 保存済み公式raw応答captureには10注文すべてがあるが、owner帰属は`unproved`、費用完全性・identity・settlementは`unknown`、netはnull。既存owner資料との照合はclient ID 4/10、provider order ID 2/10。planned 4件はowner/strategy/release/native accountが欠け、policy一致0件。既存`build_crypto_performance()`へ公式354 activity行を渡した診断はowned cycles 0、unscoped 4、net/model/system costすべてnull。よってliveの費用後純利益は未確定。
+- `live-close.json`の既知closed cycleは実現損益 `-0.006970681885 USDC`。これは一件の記録で、口座全体や10注文の合計損益ではない。既存live ownerはdisabledで、歴史的`effect_unknown` fenceが残る。完全一致する公式証拠なしに解除・再送・live enableしない。
+- Paperの直近確認は2026-10-20 19:16:42Zの自然runで、pass/exit 0、effect `not_applicable`、注文なし。loaded SHAは`75f69bdf5d0f`で、最新mainより古かった。18:32Zの判断はQQQ HOLD/`hold_period_not_elapsed`（保有15/21 sessions）。paper口座の約10万ドル相当は仮想残高で、実資産・収益へ加えない。口座期間全体のFEEには別のSPY option約定が混ざるため、QQQへ近接時刻で配賦しない。
+- `investment-strategy-validation`の最新terminalは2026-10-20 18:04Zの`resource_capacity_busy` defer。durable occurrenceはqueued、effect_unknown 0、deterministic rank 42。次の既存scheduleは2026-10-21 05:30Z、選択中のETF v1 reportは05:47:06Zに期限切れ。ETF v1の新規ENTRYは`legacy_etf_entry_retired`で拒否する。既存QQQの所有HOLD/EXITは維持する。既存BTC V2候補とvalidation経路を再利用し、fresh reportが条件を満たさなければNO_TRADEを保つ。
+- PR #8429の旧head `dd0588f8c23b04ed59a15740c8deb0dfa983a8e6`は、source修正・全725 Alpaca tests・独立read-only review SHIP・必須CI PASSを確認済みだった。最新main `01f683e0e7da710af88b8890d594b7b22ca60a20`を作業branchへ取り込んだため、最新SSOT変更をpushした後のhead/CI確認は未完。修正はreport expiry後も既存所有positionのHOLD/EXITを許し、新規entryを許可しない。
+
+**現在cursorと残TODO（この順序が正本）:**
+1. [ ] このspec更新とlatest-main mergeをPR #8429へpushし、remote head一致と更新後headのrequired checksを確認する。
+2. [ ] PR #8429を通常経路でmainへ統合する。main SHAを確認後、main由来immutable releaseを作り、`alpaca-investment-paper`だけをloaded-idleで採用する。live owner・Cloud設定・口座資金には触れない。
+3. [ ] 採用SHAの自然paper terminalと公式readbackを確認し、decision/receiptが同じowner・occurrence・releaseへ結び付くこと、replay-zero、停止/NO_TRADE理由が説明可能なことを確かめる。capacity deferが続けば、観測したowner admission境界を直し、手動wakeはしない。
+4. [ ] queuedのvalidation occurrenceを自然実行させ、既存BTC V2候補のfresh holdout/cost/readiness reportを確認する。fee/slippage・lookahead・drawdown条件を満たすものだけを選ぶ。候補がない・reportが古い・入力が欠ける場合はNO_TRADEを維持する。
+5. [ ] 既存のimmutable owner receipts/capturesからlive 10注文をsealed decision、client/effect ID、owner、mode、strategy、release、native account、official order/fillへ一対一で結ぶ。見つからない注文はunscopedのままにし、歴史的fenceはexact evidenceで効果が確定した時だけ解決する。
+6. [ ] paper/liveを分離し、order pairまたはowner-periodごとに公式broker fee/slippage、model/system/operating cost、通貨・settlementを完全照合する。欠測を0にせず、account-period feeを個別注文へ推定配賦しない。paperで非模擬の費目は完全性を別証拠で確認する。
+7. [ ] 有効戦略をpaperで自然運転し、最初の公式closed round tripと、続く30件の費用完全なround tripsを収集する。benchmark、未使用期間、parameter sensitivity、drawdown、replay-zeroを評価し、EDDで改善/撤回を自動判定する。注文を確認目的で強制しない。
+8. [ ] 既存のAT-24/AT-29、資本/損失上限、注文identity、未解決fence、fresh opposing reviewを満たした後に限り、同一policyでliveを検討する。live 30件/rolling条件と正のowner帰属純損益を満たすまで資本を増やさない。
+9. [ ] 全費用後の実測がbenchmarkを上回る時だけ規模を段階的に調整する。1か月/1年/10年残高は、公式現在残高と明示した入出金・リターン・費用・ドローダウン仮定から範囲で表示し、予測を実績として扱わない。暗号資産など他資産は、この一本の経路で利益とリスク管理が再現できた後に限り追加する。
+
+**完了済み:** 期限切れ後に既存QQQを保護するsource修正、725 Alpaca tests、独立read-only review、PR #8429旧headのrequired CI。**今回の差分で完了したこと:** 最新mainを取り込み、独立公式照合で明らかになった口座・帰属・費用の穴と実行順を本SSOTへ反映。source merge・immutable release・owner adoption・自然利益は未完。
+
 ### 2026-10-09 13:18 JST — Job Hunter Dreamwork cutover and updated user criteria
 
 この追記は11:50 JST snapshot後のJob Hunter readbackとユーザーの最新指示を記録する。個別の勤務地・住所などの私的値はprivate profileのみを正本とし、このspecには複製しない。
