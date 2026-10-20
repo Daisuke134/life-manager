@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">MLB Pitcher Workload Brief</title>
+  <desc id="desc">A navy baseball analysis card with a baseball, pitching workload bars, and a document checkmark.</desc>
+  <rect width="512" height="512" rx="88" fill="#102A43"/>
+  <rect x="76" y="74" width="360" height="364" rx="30" fill="#1F5F75" stroke="#BEE3F8" stroke-width="10"/>
+  <circle cx="205" cy="238" r="82" fill="#F7FAFC" stroke="#F6E05E" stroke-width="10"/>
+  <path d="M151 180c34 25 34 91 0 116M259 180c-34 25-34 91 0 116" fill="none" stroke="#C53030" stroke-width="11" stroke-linecap="round"/>
+  <path d="M314 174h70M314 220h48M314 266h70M314 312h35" fill="none" stroke="#BEE3F8" stroke-width="14" stroke-linecap="round"/>
+  <rect x="132" y="354" width="78" height="30" rx="10" fill="#F6E05E"/>
+  <rect x="220" y="326" width="78" height="58" rx="10" fill="#F6E05E"/>
+  <rect x="308" y="294" width="78" height="90" rx="10" fill="#F6E05E"/>
+  <path d="M146 150l15 15 28-35" fill="none" stroke="#F6E05E" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
