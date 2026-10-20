@@ -1,0 +1,18 @@
+{
+  "observed_at": "2026-10-20T13:35:38.309034+00:00",
+  "scope": "owned provider read-only probe; not Maritime Cloud execution or external user",
+  "official_http_readback": true,
+  "owner_binding_verified": true,
+  "period_start": "2026-10-20",
+  "period_end": "2026-10-20",
+  "daily_coverage_and_total_match": true,
+  "provider_snapshot_ref": "capafy://readback/7f407b2af43840feccbadeefdd825a26c564bbc4b30f75e35c8a8e318dfbf992",
+  "row_count": 1,
+  "conversion": {
+    "conversion_accepted": true,
+    "record_count": 0
+  },
+  "private_receipt_saved": true,
+  "credentials_in_artifact": false,
+  "competition_user_count_increment": 0
+}
