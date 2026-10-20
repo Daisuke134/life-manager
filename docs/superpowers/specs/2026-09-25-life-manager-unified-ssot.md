@@ -20650,7 +20650,7 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | T08 | Linux browser/provider accountのreadinessとtenant binding | preflight中。Maritime本体signupはメール確認待ち。SteelはRailway private DNS。既存runnerはlocal Codex/Claude profile依存を確認。Linux/認証/専用routeの実証は未完 |
 | T09 | tenant envで既存factoryを一回呼ぶcloud_cycle.py | source実装中。独立reviewの3指摘を回帰RED→GREENで修正しcycle12/12・host8/8 PASS。child path・env allowlist・cached receipt検査を追加。Cloud専用config未設定はdeferred、実環境受入はT08依存を維持 |
 | T10 | 同tenant公式Capafy snapshot→FinancialRecord | T09後 |
-| T11 | 既存queue/leaseへmanager.cycle adapter登録 | T09/T10後 |
+| T11 | 既存queue/leaseへmanager.cycle adapter登録 | T11A source実装中。store11件＋隔離PostgreSQL fixture1件=12/12 PASS。実SQLで同時claim一件、execution ID不変、tenant FK、private権限、停止後claim拒否を確認。adapter/wiring/本番DB適用は未完 |
 | T12 | 専用subfolder Dockerfileとsanitized ZIPで同repoのcustom imageをbuild | T11/T13後。Railwayのroot Dockerfile自動検出を避ける |
 | T13 | VM health/chat/schedulesの短いHTTP server | T11後。T12より先にsource作成 |
 | T14 | sleeping VMでも起きるnextRunAt schedule | T13後 |

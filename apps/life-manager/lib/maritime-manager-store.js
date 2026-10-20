@@ -94,6 +94,52 @@ function createMaritimeManagerStore(options = {}) {
     }
     return read(uid);
   }
-  return Object.freeze({ enroll, read, claimProvision, bindAgent, pause });
+  function cycleIdentity(input) {
+    const uid = identifier(input?.uid, UID);
+    const occurrenceId = identifier(input.occurrenceId, /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/);
+    const agentId = identifier(input.agentId, /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/);
+    const releaseSha = identifier(input.releaseSha, SHA);
+    const dateKey = input.dateKey;
+    if (typeof dateKey !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey)
+      || !Number.isFinite(Date.parse(dateKey)) || new Date(dateKey).toISOString().slice(0, 10) !== dateKey) invalid();
+    return { p_uid: uid, p_occurrence_id: occurrenceId, p_agent_id: agentId,
+      p_release_sha: releaseSha, p_date_key: dateKey };
+  }
+  async function readCycleDispatch(input) {
+    const identity = cycleIdentity(input);
+    const rows = await request(`lm_maritime_manager_executions?uid=eq.${encodeURIComponent(identity.p_uid)}`
+      + `&occurrence_id=eq.${encodeURIComponent(identity.p_occurrence_id)}`
+      + "&select=uid,occurrence_id,agent_id,date_key,release_sha,execution_id&limit=2");
+    if (!Array.isArray(rows) || rows.length > 1) throw new Error("maritime_manager_store_invalid");
+    const row = rows[0];
+    if (row && (row.uid !== identity.p_uid || row.occurrence_id !== identity.p_occurrence_id
+      || row.agent_id !== identity.p_agent_id || row.release_sha !== identity.p_release_sha
+      || row.date_key !== identity.p_date_key || (row.execution_id !== null
+        && (typeof row.execution_id !== "string" || !/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(row.execution_id))))) {
+      throw new Error("maritime_manager_binding_rejected");
+    }
+    return row || null;
+  }
+  async function claimCycleDispatch(input) {
+    const identity = cycleIdentity(input);
+    const claimed = await request("rpc/claim_lm_maritime_manager_cycle_v1", "POST", identity);
+    if (typeof claimed !== "boolean") throw new Error("maritime_manager_store_invalid");
+    const row = await readCycleDispatch(input);
+    if (claimed && !row) throw new Error("maritime_manager_store_invalid");
+    return { claimed, row };
+  }
+  async function bindCycleExecution(input) {
+    const identity = cycleIdentity(input);
+    const executionId = identifier(input.executionId, /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/);
+    const bound = await request("rpc/bind_lm_maritime_manager_execution_v1", "POST", {
+      ...identity, p_execution_id: executionId,
+    });
+    if (bound !== true) throw new Error("maritime_manager_binding_rejected");
+    const row = await readCycleDispatch(input);
+    if (!row || row.execution_id !== executionId) throw new Error("maritime_manager_binding_rejected");
+    return row;
+  }
+  return Object.freeze({ enroll, read, claimProvision, bindAgent, pause,
+    claimCycleDispatch, readCycleDispatch, bindCycleExecution });
 }
 module.exports = { createMaritimeManagerStore };
