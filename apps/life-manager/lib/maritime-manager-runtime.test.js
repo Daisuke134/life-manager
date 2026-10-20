@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { buildMaritimeManagerCycleJob, buildMaritimeManagerReportJob, createMaritimeManagerLoopAdapter } = require('./maritime-manager-runtime.js');
+const { buildMaritimeManagerCycleJob, buildMaritimeManagerReportJob, createMaritimeManagerLoopAdapter, createMaritimeManagerReportAdapter } = require('./maritime-manager-runtime.js');
 const UID = 'lm_11111111-1111-4111-8111-111111111111';
 const SHA = 'a'.repeat(40);
 const cycle = { tenantId: UID, occurrenceId: 'cycle-1', dateKey: '2026-10-20', releaseSha: SHA };
@@ -207,4 +207,41 @@ test('cycle continuation preserves stable due identity and stops when enrollment
   assert.equal(await adapter.continuation(job), null);
   f.enrollment.paused_at = null; f.enrollment.release_sha = 'b'.repeat(40);
   assert.equal(await adapter.continuation(job), null);
+});
+
+
+test('daily report adapter sends through existing delivery and reconciles without sending again', async () => {
+  const enrollment = { uid: UID, release_sha: SHA, status: 'active', paused_at: null, timezone: 'America/New_York' };
+  const job = { ...buildMaritimeManagerReportJob({ tenantId: UID, releaseSha: SHA, periodKey: 'maritime:daily:2026-10-31' }), available_at: '2026-10-31T23:00:00.000Z' };
+  let sends = 0, stored = null;
+  const adapter = createMaritimeManagerReportAdapter({
+    managerStore: { read: async () => enrollment },
+    readDailyObservations: async input => { assert.equal(input.uid, UID); return { actionReceipts: [], financialRecords: [] }; },
+    deliverDailyResult: async ({ result }) => {
+      sends++;
+      assert.equal(result.financial.profit, null);
+      stored = { uid: UID, period_key: result.periodKey, status: 'sent', channel: 'email',
+        provider_message_id: 'email-a', recipient_hash: 'b'.repeat(64), message: 'frozen report', sent_at: '2026-10-31T23:00:01.000Z' };
+      return { status: 'sent', providerMessageId: stored.provider_message_id, recipientHash: stored.recipient_hash,
+        snapshotHash: require('node:crypto').createHash('sha256').update(stored.message).digest('hex'), sentAt: stored.sent_at };
+    },
+    readReportDelivery: async () => stored,
+    now: () => '2026-10-31T23:00:01.000Z',
+  });
+  const missing = await adapter.reconcile(job);
+  assert.equal(missing.state, 'unknown');
+  const { receipt } = await adapter.execute(job);
+  assert.equal(adapter.verify(receipt, job), true);
+  assert.equal((await adapter.reconcile(job)).state, 'present');
+  assert.equal(sends, 1);
+  const next = await adapter.continuation(job);
+  assert.equal(next.availableAt, '2026-11-02T00:00:00.000Z');
+  assert.equal(next.job.input_refs.period_ref, 'maritime-period://maritime%3Adaily%3A2026-11-01');
+  stored.status = 'pending'; stored.provider_message_id = null;
+  assert.equal((await adapter.reconcile(job)).state, 'unknown');
+  assert.equal(sends, 1);
+  enrollment.status = 'paused';
+  assert.equal(await adapter.continuation(job), null);
+  await assert.rejects(() => adapter.execute(job), /inactive/);
+  assert.equal(sends, 1);
 });

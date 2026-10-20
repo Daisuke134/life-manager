@@ -3,7 +3,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const {financialRecordId}=require('./financial-record-contract.js');
 const {buildMaritimeManagerCycleJob}=require('./maritime-manager-runtime.js');
-const {buildMaritimeDailyResult,renderMaritimeDailyEmail,deliverMaritimeDailyResult}=require('./maritime-manager-report.js');
+const {buildMaritimeDailyResult,renderMaritimeDailyEmail,deliverMaritimeDailyResult,readMaritimeDailyObservations}=require('./maritime-manager-report.js');
 const UID='lm_11111111-1111-4111-8111-111111111111';
 const periodKey='maritime:daily:2026-10-21';
 const enrollment={uid:UID,timezone:'Asia/Tokyo',release_sha:'a'.repeat(40)};
@@ -120,4 +120,20 @@ test('artifact emails require a configured real origin before claiming or sendin
  f.deps.env={RAILWAY_PUBLIC_DOMAIN:'worker.example'};await assert.rejects(deliverMaritimeDailyResult(f.input,f.deps),/origin/);assert.equal(f.sends.length,0);
  f.deps.env.LM_PANEL_BASE_URL='https://manager.example';await deliverMaritimeDailyResult(f.input,f.deps);
  assert.ok(f.sends[0].text.includes('https://manager.example/maritime/artifacts/'));
+});
+
+
+test('daily observations reuse tenant-scoped queue and financial stores without appending aggregates',async()=>{
+ const job={...buildMaritimeManagerCycleJob({tenantId:UID,releaseSha:'a'.repeat(40),occurrenceId:'initial',dateKey:'2026-10-21'}),status:'reconciling',updated_at:'2026-10-21T01:00:00Z'};
+ const calls=[];
+ const query=async(sql,params)=>{calls.push({sql,params});return {rows:[{job,receipt:null,completed_at:null}]};};
+ const financialStore={read:async input=>{assert.equal(input.subjectId,UID);assert.equal(input.scope,'business');return [row('sale','business_revenue',100)];},append:()=>{throw new Error('append forbidden');}};
+ const result=await readMaritimeDailyObservations({uid:UID,periodKey},{query,financialStore});
+ assert.equal(calls[0].params[0],UID);assert.match(calls[0].sql,/tenant_id = \$1/);
+ assert.match(calls[0].sql,/LIMIT 1001/);
+ assert.equal(result.actionReceipts[0].observedAt,new Date(job.updated_at).toISOString());
+ assert.equal(result.financialRecords.length,1);
+ assert.equal(result.financialCoverage,undefined);
+ const foreign={...job,tenant_id:'lm_22222222-2222-4222-8222-222222222222'};
+ await assert.rejects(()=>readMaritimeDailyObservations({uid:UID,periodKey},{query:async()=>({rows:[{job:foreign}]}),financialStore}),/invalid/);
 });

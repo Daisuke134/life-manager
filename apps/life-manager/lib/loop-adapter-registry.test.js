@@ -161,7 +161,7 @@ test("registry rejects duplicate routing, absolute paths, and credential-shaped 
 test("committed manifest is portable and registers financial report and the Maritime cycle adapter", () => {
   const manifest = loadLoopAdapterManifest(MANIFEST_PATH);
   assert.equal(manifest.schema_version, 1);
-  assert.equal(manifest.adapters.length, 14);
+  assert.equal(manifest.adapters.length, 15);
   assert.equal(
     manifest.adapters[0].capability,
     FINANCIAL_REPORT_CAPABILITY,
@@ -206,6 +206,8 @@ test("committed manifest is portable and registers financial report and the Mari
   assert.equal(manifest.adapters[13].adapter_id, "maritime-manager-cycle");
   assert.equal(manifest.adapters[13].capability, "maritime.manager.cycle");
   assert.equal(manifest.adapters[13].factory_export, "createMaritimeManagerLoopAdapter");
+  assert.equal(manifest.adapters[14].adapter_id, "maritime-manager-report");
+  assert.equal(manifest.adapters[14].factory_export, "createMaritimeManagerReportAdapter");
   assert.doesNotMatch(
     fs.readFileSync(MANIFEST_PATH, "utf8"),
     /\.openclaw|profitable-claude|life-manager-v0|\/Users\/|api[_-]?key|password|token\s*":/i,

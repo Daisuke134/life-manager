@@ -20855,7 +20855,7 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | T31 | email利用者の任意paid upgradeを既存Stripeへ接続しLM自身の売上を照合 | 無料pilot/提出を妨げずT23後。顧客事業売上とStripe subscription売上を別集計 |
 | T32 | 既存SupabaseへResend SMTP/email enable/正確なcallbackを設定しowned inbox着信確認 | 実環境完了。設定GETとowned inbox着信を確認、認証件名/宛先/新規時刻照合済み。email=true/confirm必須/既存Googleとredirect保持。safe receipt=smtp-readback.json。browser全経路はT22 |
 
-**T11B実装カーソル:** 30秒readback席と同一connectionのreconcile完了＋successor enqueue、中央workerでのfull-job reconcile、cycle manifest/transport注入、既存15分cadenceのstable continuationをsource実装する（関連54＋worker5テストPASS）。次はprovision/report adapterとpending enrollment recovery。稼働VMは旧releaseのまま、公開/自然実行/メール/提出は未完。詳細→Atomic Implementation Plan T11.3a/b/c。
+**T11B実装カーソル:** 30秒readback席と同一connectionのreconcile完了＋successor enqueue、中央workerでのfull-job reconcile、cycle manifest/transport注入、既存15分cadenceのstable continuationをsource実装する（関連54＋worker5テストPASS）。report adapter/同tenant queue＋既存会計store reader/CFO配信とsent receiptのread-only reconciliation/現地19時のDST継続を追加する（関連48＋worker4テストPASS）。金額は接続先アカウント明細と明記しCloud帰属を捏造しない。次はprovision adapterとpending enrollment recovery。稼働VMは旧releaseのまま、公開/自然実行/メール/提出は未完。詳細→Atomic Implementation Plan T11.3a/b/c。
 
 **Source依存訂正:** 旧=T11全worker→T13/T12、T17実証→T22 deploy。新=T11A契約→T13/T12 source→T15/T16/T18/T19 source→T11B wiring→T22.1非公開deploy→T17/日報実測→T22完了。循環を解消し、実証条件は維持する。現在cursorは上記atomic TODOの正本を参照。
 

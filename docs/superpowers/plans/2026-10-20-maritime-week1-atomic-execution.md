@@ -287,6 +287,7 @@ life-manager/
 - [ ] T11.3a `runtime-job-store.js`へ`claimReconcilingJobs({capabilities,tenantId?,limit})`を追加する。既存updated_atの30秒窓と同一SQLのFOR UPDATE SKIP LOCKEDで有限のreadback席を取得し、pending一件による他tenantの飢餓と複数workerの同時pollを避ける。available_atは変更しない（既存enqueue identityと継続時刻を保持）。外部effectの再実行を許可するclaimではない。
 - [ ] T11.3b 同storeへ`resolveReconciliationAndEnqueue`を追加する。専用connectionのBEGIN/COMMITで既存resolveReconciliationとenqueueJobAtを原子的に呼び、同tenant/presentのみ許可する。失敗はROLLBACK/release、pool.queryでtransactionを開始しない。
 - [ ] T11.3c cycle adapterのcontinuationは既存Capafy同様15分を使う。次occurrence=`slot:<UTC epoch milliseconds>`、次dueは親available_at+15分に固定し、retryでDate.nowを使わない。paused/inactive/release mismatchは新規successorなし。中央workerはreceipt verify後に既存completeJobAndEnqueueを使い、reconcile時も同じcontinuationを呼ぶ。cycle transportをservicesByAdapterへ注入してmanifestへ登録する。
+- [ ] T11.3d report adapterは既存runtime queueの同tenant cycle receiptと既存FinancialRecord storeを読み、T18 builder→T19 deliveryを呼ぶ。金融は接続先アカウント明細として示し、Cloudが作った売上への帰属を断定しない。未接続/coverage不明は未確認、aggregateを新しい取引としてappendしない。reconcileはCFOのsent/provider ID/hashをread-only確認、pendingを再送しない。次の現地19時は既存DST対応projectorから決め、親dueを基準に固定する。
 - [ ] T11.4 T11Aは`node --test lib/maritime-manager-store.test.js`（既存server binariesがある環境では隔離PostgreSQLも起動し、並行claim・FK・権限・migration再適用を検証する）。adapter追加後は`node --test lib/maritime-manager-runtime.test.js lib/loop-adapter-registry.test.js`で再claim/unknown/replayのfocused casesを確認しcommit/push。
 
 ## Task T12: custom imageを同じrepoから作る

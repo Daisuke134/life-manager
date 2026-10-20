@@ -95,6 +95,7 @@ function renderMaritimeDailyEmail(result,options={}){
    ...(origin?[origin+buildMaritimeArtifactPath({jobId:work.jobId,artifactRef:ref})]:[]),
   ])),
   '', '確認できた成果と売上',
+  '金額は接続先アカウントの確認済み明細です。Life Managerによる売上かは未確認です。',
   '公開状況：未確認。',
   `売上：${amount(result.financial.gross)}`,
   `返金：${amount(result.financial.refunds)}`,
@@ -130,4 +131,42 @@ async function deliverMaritimeDailyResult({enrollment,result,observedAt}={},deps
  return require('./cfo-cloud-delivery.js').deliverCloudCfoEmail({uid,periodKey:result.periodKey,
   message:renderMaritimeDailyEmail(result,{publicOrigin:origin}),observedAt,recipient:current.email},deps);
 }
-module.exports={buildMaritimeDailyResult,renderMaritimeDailyEmail,deliverMaritimeDailyResult};
+async function readMaritimeDailyObservations({uid,periodKey}={},deps={}){
+ const day=typeof periodKey==='string'?periodKey.slice('maritime:daily:'.length):'';
+ if(!/^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(uid||'')
+  ||periodKey!==`maritime:daily:${day}`||!/^\d{4}-\d{2}-\d{2}$/.test(day)
+  ||!Number.isFinite(Date.parse(day))||new Date(day).toISOString().slice(0,10)!==day||typeof deps.query!=='function'){
+  throw new Error('maritime_daily_observations_invalid');
+ }
+ // A three-day UTC window includes every local day (UTC-12 through UTC+14).
+ // The existing builder applies the exact user's local-day filter afterwards.
+ const from=new Date(Date.parse(day)-86400000).toISOString(),until=new Date(Date.parse(day)+2*86400000).toISOString();
+ const rows=(await deps.query(`
+  SELECT row_to_json(jobs) AS job, receipts.receipt, receipts.created_at AS completed_at
+  FROM public.lm_runtime_jobs AS jobs
+  LEFT JOIN public.lm_runtime_job_receipts AS receipts ON receipts.job_id=jobs.job_id
+   AND receipts.tenant_id=jobs.tenant_id AND receipts.attempt=jobs.attempt
+   AND receipts.outcome IN ('completed','reconciled_present')
+  WHERE jobs.tenant_id = $1 AND jobs.capability='maritime.manager.cycle'
+   AND jobs.status IN ('completed','reconciling','dead_letter')
+   AND COALESCE(jobs.completed_at,jobs.updated_at) >= $2::timestamptz
+   AND COALESCE(jobs.completed_at,jobs.updated_at) < $3::timestamptz
+  ORDER BY COALESCE(jobs.completed_at,jobs.updated_at),jobs.job_id LIMIT 1001
+ `,[uid,from,until])).rows;
+ if(!Array.isArray(rows)||rows.length>1000)throw new Error('maritime_daily_observations_invalid');
+ const actionReceipts=rows.map(row=>{
+  const job=row.job;
+  if(!job||job.tenant_id!==uid||!['completed','reconciling','dead_letter'].includes(job.status))throw new Error('maritime_daily_observations_invalid');
+  if(job.status==='completed'){
+   if(!row.receipt)throw new Error('maritime_daily_observations_invalid');
+   return {receipt:row.receipt,completedAt:new Date(row.completed_at).toISOString()};
+  }
+  return {job,status:job.status,observedAt:new Date(job.updated_at).toISOString()};
+ });
+ const financialStore=deps.financialStore||require('./financial-record-store.js').createPostgresFinancialRecordStore({query:deps.query});
+ const financialRecords=(await financialStore.read({subjectId:uid,scope:'business',since:from})).filter(record=>Date.parse(record.occurred_at)<Date.parse(until));
+ // Read existing observations only. Account totals do not establish Cloud attribution
+ // or complete provider/cost coverage, and are never appended as new transactions.
+ return {actionReceipts,financialRecords};
+}
+module.exports={buildMaritimeDailyResult,renderMaritimeDailyEmail,deliverMaritimeDailyResult,readMaritimeDailyObservations};

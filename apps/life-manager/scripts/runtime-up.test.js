@@ -1208,3 +1208,26 @@ test("Maritime cycle worker injects the existing remote transport and activates 
   assert.deepEqual(await handlers["maritime.manager.cycle"](job), { receipt, continuation: next });
   assert.deepEqual(seen, [job]);
 });
+
+
+test("Maritime report worker injects existing queue reader and CFO receipt IO", async () => {
+  const io = { read: async identity => ({ uid: identity.uid, period_key: identity.periodKey, status: "sent" }) };
+  const queries = [];
+  const handlers = createWorkerHandlers({}, ["maritime.manager.report"], {
+    maritimeManagerStore: {}, maritimeTransport: {}, maritimeReportReceiptIO: io,
+    query: async (sql, params) => { queries.push({sql,params}); return { rows: [] }; },
+    createRegistry: ({ servicesByAdapter }) => {
+      const report = servicesByAdapter["maritime-manager-report"];
+      assert.equal(typeof report.deliverDailyResult, "function");
+      return { hasCapability: () => true, getByCapability: () => ({execute: async input => {
+        const observations = await report.readDailyObservations(input);
+        assert.deepEqual(observations, { actionReceipts: [], financialRecords: [] });
+        return {receipt: await report.readReportDelivery(input)};
+      }}) };
+    },
+  });
+  const input = {uid:"lm_11111111-1111-4111-8111-111111111111",periodKey:"maritime:daily:2026-10-21"};
+  assert.equal((await handlers["maritime.manager.report"](input)).receipt.status,"sent");
+  assert.equal(queries.length,2);
+  assert.equal(queries[1].params[0],input.uid);
+});

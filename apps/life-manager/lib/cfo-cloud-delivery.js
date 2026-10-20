@@ -65,4 +65,4 @@ async function deliverCloudCfoEmail({ uid, periodKey, message, observedAt, recip
   return { status: "sent", channel: "email", providerMessageId: String(result.id), recipientHash,
     sentAt: observedAt, snapshotHash: crypto.createHash("sha256").update(receipt.message).digest("hex") };
 }
-module.exports = { deliverCloudCfoEmail };
+module.exports = { deliverCloudCfoEmail, createCloudCfoReceiptIO: receiptIO };

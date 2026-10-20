@@ -205,4 +205,91 @@ function createMaritimeManagerLoopAdapter(services = {}) {
     },
   });
 }
-module.exports = { buildMaritimeManagerProvisionJob, buildMaritimeManagerCycleJob, buildMaritimeManagerReportJob, createMaritimeManagerLoopAdapter, readMaritimeCycleContract: cycleContract, maritimeArtifactRefsValid: artifactRefsValid };
+function reportContract(job) {
+  try {
+    const normalized = buildRuntimeJob(job);
+    const c = { tenantId: normalized.tenant_id,
+      periodKey: decodeURIComponent(normalized.input_refs.period_ref.slice('maritime-period://'.length)),
+      releaseSha: normalized.input_refs.release_ref.slice('release://git/'.length) };
+    if (!isDeepStrictEqual(normalized, buildMaritimeManagerReportJob(c))) throw new Error();
+    return c;
+  } catch { throw new CycleError('maritime_report_job_invalid', false); }
+}
+function reportReceipt(c, job, delivery) {
+  return { schema_version: 1, kind: 'maritime_manager_report', status: 'completed', provider: 'resend',
+    tenant_id: c.tenantId, job_id: job.job_id, period_key: c.periodKey, release_sha: c.releaseSha,
+    provider_message_id: delivery.providerMessageId, recipient_hash: delivery.recipientHash,
+    snapshot_hash: delivery.snapshotHash, sent_at: delivery.sentAt,
+    external_ref: `resend-email://${delivery.providerMessageId}` };
+}
+function verifyReportReceipt(receipt, job) {
+  try {
+    const c = reportContract(job);
+    return Boolean(receipt?.schema_version === 1 && receipt.kind === 'maritime_manager_report'
+      && receipt.status === 'completed' && receipt.provider === 'resend' && receipt.tenant_id === c.tenantId
+      && receipt.job_id === job.job_id && receipt.period_key === c.periodKey && receipt.release_sha === c.releaseSha
+      && EXECUTION_ID.test(receipt.provider_message_id || '') && /^[0-9a-f]{64}$/.test(receipt.recipient_hash || '')
+      && /^[0-9a-f]{64}$/.test(receipt.snapshot_hash || '') && typeof receipt.sent_at === 'string'
+      && Number.isFinite(Date.parse(receipt.sent_at)) && receipt.external_ref === `resend-email://${receipt.provider_message_id}`);
+  } catch { return false; }
+}
+function createMaritimeManagerReportAdapter(services = {}) {
+  async function enrollment(c, active = false) {
+    if (typeof services.managerStore?.read !== 'function') throw new CycleError('maritime_report_unconfigured', false);
+    const row = await services.managerStore.read(c.tenantId);
+    if (!row || row.uid !== c.tenantId) throw new CycleError('maritime_report_binding_invalid', false);
+    if (active && (row.status !== 'active' || row.paused_at || row.release_sha !== c.releaseSha)) {
+      throw new CycleError('maritime_report_inactive', false);
+    }
+    return row;
+  }
+  return Object.freeze({
+    plan: async input => [buildMaritimeManagerReportJob(input)],
+    async execute(job) {
+      const c = reportContract(job);
+      const row = await enrollment(c, true);
+      if (typeof services.readDailyObservations !== 'function' || typeof services.deliverDailyResult !== 'function') {
+        throw new CycleError('maritime_report_unconfigured', false);
+      }
+      const observations = await services.readDailyObservations({ uid: c.tenantId, periodKey: c.periodKey });
+      const result = require('./maritime-manager-report.js').buildMaritimeDailyResult({ ...observations, enrollment: row, periodKey: c.periodKey });
+      const observedAt = (services.now || (() => new Date().toISOString()))();
+      const delivery = await services.deliverDailyResult({ enrollment: row, result, observedAt });
+      const receipt = reportReceipt(c, job, delivery || {});
+      if (!['sent', 'duplicate'].includes(delivery?.status) || !verifyReportReceipt(receipt, job)) {
+        throw new CycleError('maritime_report_delivery_unknown');
+      }
+      return { receipt };
+    },
+    async reconcile(job) {
+      const c = reportContract(job);
+      try {
+        await enrollment(c);
+        if (typeof services.readReportDelivery !== 'function') throw new Error();
+        const row = await services.readReportDelivery({ uid: c.tenantId, periodKey: c.periodKey });
+        if (!row || row.uid !== c.tenantId || row.period_key !== c.periodKey || row.channel !== 'email'
+          || row.status !== 'sent' || typeof row.message !== 'string') throw new Error();
+        const receipt = reportReceipt(c, job, { providerMessageId: row.provider_message_id,
+          recipientHash: row.recipient_hash, snapshotHash: createHash('sha256').update(row.message).digest('hex'), sentAt: row.sent_at });
+        if (!verifyReportReceipt(receipt, job)) throw new Error();
+        return { state: 'present', receipt };
+      } catch { return { state: 'unknown', errorClass: 'maritime_report_delivery_unconfirmed',
+        nextAction: 'inspect_email_provider_receipt', retryable: false }; }
+    },
+    async continuation(job) {
+      const c = reportContract(job), row = await enrollment(c);
+      if (row.status !== 'active' || row.paused_at || row.release_sha !== c.releaseSha) return null;
+      const nowMs = Date.parse(job.available_at);
+      if (!Number.isFinite(nowMs)) throw new CycleError('maritime_report_schedule_invalid', false);
+      const snapshot = require('./maritime-manager-schedules.js').projectMaritimeSchedules({ tenantId: c.tenantId,
+        releaseSha: c.releaseSha, status: 'active', nextEligibleAt: null, timezone: row.timezone, nowMs });
+      const availableAt = snapshot.schedules.find(entry => entry.prompt === 'lm:report').nextRunAt;
+      const { localDay, zoneOffsetHours } = require('./user-tz.js');
+      const date = localDay(Date.parse(availableAt), zoneOffsetHours(row.timezone, Date.parse(availableAt)));
+      return { job: buildMaritimeManagerReportJob({ ...c, periodKey: `maritime:daily:${date}` }), availableAt };
+    },
+    verify: verifyReportReceipt,
+    report: receipt => ({ status: receipt.status, channel: 'email' }),
+  });
+}
+module.exports = { buildMaritimeManagerProvisionJob, buildMaritimeManagerCycleJob, buildMaritimeManagerReportJob, createMaritimeManagerLoopAdapter, createMaritimeManagerReportAdapter, readMaritimeCycleContract: cycleContract, maritimeArtifactRefsValid: artifactRefsValid };

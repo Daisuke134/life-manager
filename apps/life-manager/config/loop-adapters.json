@@ -140,6 +140,16 @@
       ],
       "module_ref": "lib/maritime-manager-runtime.js",
       "factory_export": "createMaritimeManagerLoopAdapter"
+    },
+    {
+      "adapter_id": "maritime-manager-report",
+      "loop_id": "maritime.manager.report",
+      "capability": "maritime.manager.report",
+      "effect_classes": [
+        "message"
+      ],
+      "module_ref": "lib/maritime-manager-runtime.js",
+      "factory_export": "createMaritimeManagerReportAdapter"
     }
   ]
 }

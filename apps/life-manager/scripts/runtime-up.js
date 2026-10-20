@@ -222,6 +222,22 @@ function createWorkerHandlers(env, capabilities, dependencies = {}) {
         getWakeBinding, fetchImpl: dependencies.fetchImpl });
     servicesByAdapter["maritime-manager-cycle"] = { managerStore, dispatchCycle: transport.dispatchCycle,
       readExecution: transport.readExecution, readCycleReceipt: transport.readCycleReceipt };
+    if (capabilities.includes("maritime.manager.report")) {
+      if (typeof dependencies.query !== "function") throw new Error("maritime report database unavailable");
+      const report = require("../lib/maritime-manager-report.js");
+      const deliveryDeps = { env, managerStore, supaUrl: env.SUPABASE_URL,
+        supaKey: env.SUPABASE_SERVICE_ROLE_KEY, resendKey: env.RESEND_API_KEY,
+        fetchImpl: dependencies.fetchImpl, publicOrigin: env.LM_PANEL_BASE_URL };
+      const io = dependencies.maritimeReportReceiptIO
+        || require("../lib/cfo-cloud-delivery.js").createCloudCfoReceiptIO(deliveryDeps);
+      servicesByAdapter["maritime-manager-report"] = {
+        managerStore,
+        readDailyObservations: input => report.readMaritimeDailyObservations(input, { query: dependencies.query }),
+        deliverDailyResult: input => report.deliverMaritimeDailyResult(input, { ...deliveryDeps, cfoReceiptIO: io }),
+        readReportDelivery: identity => io.read(identity), now: dependencies.now,
+      };
+    }
+
   }
 
   if (capabilities.includes("agent-economy.start")) {
