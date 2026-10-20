@@ -47,6 +47,7 @@ HEALTHY_MARKER="$HOME/.local/state/life-manager/state/capafy-autopublish/.capafy
 TERMINAL_LEDGER="$HOME/.local/state/life-manager/state/capafy-daily-terminals.jsonl"
 TERMINAL_TOOL="$SCRIPT_DIR/capafy_daily_terminal.py"
 PASS_SCHEMA="$SCRIPT_DIR/capafy-loop-pass.schema.json"
+OFFLINE_SCHEMA="$SCRIPT_DIR/capafy-offline-pass.schema.json"
 OFFLINE_CADENCE_TOOL="$SCRIPT_DIR/capafy_offline_cadence.py"
 OFFLINE_CADENCE_STATE="$HOME/.local/state/life-manager/state/capafy-offline-build-cadence.json"
 SELFHEAL_REQUEST="$HOME/.local/state/life-manager/state/capafy-loop-selfheal-request.json"
@@ -137,7 +138,7 @@ INVENTORY="$(CAPAFY_CATALOG_DIR="$LIFE_MANAGER_RELEASE_ROOT/skills/capafy/catalo
 VERDICT="$(printf '%s\n' "$INVENTORY" | sed -n 's/^VERDICT=//p' | head -1)"
 printf '%s\n' "$INVENTORY" | tail -n 1 | python3 \
   "$LIFE_MANAGER_RELEASE_ROOT/skills/capafy-autopublish/scripts/candidate_backlog.py" refresh \
-  --catalog "$LIFE_MANAGER_SOURCE_REPO/skills/capafy/catalog" \
+  --catalog "$LIFE_MANAGER_RELEASE_ROOT/skills/capafy/catalog" \
   --inventory-stdin >>"$LOG" 2>&1 || exit 1
 if [ "$VERDICT" = "CAP_FULL" ] && [ ! -f "$SELFHEAL_REQUEST" ]; then
   if ! python3 "$OFFLINE_CADENCE_TOOL" claim --state "$OFFLINE_CADENCE_STATE" \
@@ -147,25 +148,20 @@ if [ "$VERDICT" = "CAP_FULL" ] && [ ! -f "$SELFHEAL_REQUEST" ]; then
     exit 0
   fi
 
-  BACKLOG="$HOME/.local/state/life-manager/state/capafy-candidate-backlog.json"
-  READY_BEFORE="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("counts",{}).get("ready",0))' "$BACKLOG")"
+  git -C "$LIFE_MANAGER_SOURCE_REPO" fetch --quiet --no-auto-maintenance origin main >>"$LOG" 2>&1 || exit 1
+  SOURCE_BASE="$(git -C "$LIFE_MANAGER_SOURCE_REPO" rev-parse refs/remotes/origin/main)" || exit 1
   EVIDENCE_DIR="$HOME/.local/state/life-manager/state/agent-runner-evidence/capafy-offline-build/$(date +%s)-$$"
-  OFFLINE_PROMPT='Build exactly ONE differentiated, honest Capafy skill candidate OFFLINE inside $LIFE_MANAGER_SOURCE_REPO/skills/capafy/catalog/<new-slug>/. Use only executables from $LIFE_MANAGER_RELEASE_ROOT. This is a CAP_FULL pass: NEVER call Capafy create/publish/configure/ship/submit APIs or UI, and never modify any remote platform state. Use sales_selector.py plus current inventory and existing catalog to avoid duplicates. If $HOME/.local/state/life-manager/state/capafy-candidate-opportunities.json exists and has items, prefer its highest-total_sales uncovered category (C6 daily market-sweep finding) over guessing a family yourself, and copy what the top_winners of that shelf actually sell (their input, output and buyer); a category label alone is not a product idea (2026-10-09: the Analysis shelf was a football seller and the factory built a B2B annual-report brief). Produce SKILL.md, LISTING.md, icon.svg plus icon.png rendered from it at 512x512 (rsvg-convert -w 512 -h 512 icon.svg -o icon.png; Capafy rejects SVG logos: PNG/JPG/WebP only), and evidence/verified-demonstration.md containing a concrete input, actual output, and verification notes. Follow the repository skill-creator quality contract, keep claims within what the skill can actually do. Build the next candidate from capafy-candidate-opportunities.json (market_shelf / winner_clone items) or, if empty, a finance summary or sports analysis skill (BEST_PRACTICES.md §13). NEVER build another Hook Lab variant (stopped 2026-10-04, see skills/capafy/catalog-hold/README.md). Use Claude Sonnet 5.5 as Primary Model with the top sellers low request caps (week <= 25, month <= 40, year <= 480 at the market-band prices; cap x $0.12 per request must stay under 60% of the plan net after the 20% fee); No Free Trial on every plan and always a year plan, priced at the market band per BEST_PRACTICES.md §2-§3; set a Demand rank in LISTING.md; follow the description template in BEST_PRACTICES.md §13. Run the release-owned listing lint. Commit, push, merge through a PR, and verify origin/main contains the completed source change. Return status=success only after all four repo-owned artifacts exist, lint passes, and the commit is an ancestor of origin/main; otherwise status=failure. Include the created path, commit, merged-main readback, and lint evidence.'
+  OFFLINE_PROMPT='Build exactly ONE differentiated, honest Capafy skill candidate OFFLINE using a dedicated latest-main worktree of $LIFE_MANAGER_SOURCE_REPO, under skills/capafy/catalog/<new-slug>/. Use only executables from $LIFE_MANAGER_RELEASE_ROOT. This is a CAP_FULL pass: NEVER call Capafy create/publish/configure/ship/submit APIs or UI, and never modify any remote platform state. Use sales_selector.py plus current inventory and existing catalog to avoid duplicates. If $HOME/.local/state/life-manager/state/capafy-candidate-opportunities.json exists and has items, prefer its highest-total_sales uncovered category (C6 daily market-sweep finding) over guessing a family yourself, and copy what the top_winners of that shelf actually sell (their input, output and buyer); a category label alone is not a product idea (2026-10-09: the Analysis shelf was a football seller and the factory built a B2B annual-report brief). Produce SKILL.md, LISTING.md, icon.svg plus icon.png rendered from it at 512x512 (rsvg-convert -w 512 -h 512 icon.svg -o icon.png; Capafy rejects SVG logos: PNG/JPG/WebP only), and evidence/verified-demonstration.md containing a concrete input, actual output, and verification notes. Follow the repository skill-creator quality contract, keep claims within what the skill can actually do. Build the next candidate from capafy-candidate-opportunities.json (market_shelf / winner_clone items) or, if empty, a finance summary or sports analysis skill (BEST_PRACTICES.md §13). NEVER build another Hook Lab variant (stopped 2026-10-04, see skills/capafy/catalog-hold/README.md). Use Claude Sonnet 5.5 as Primary Model with the top sellers low request caps (week <= 25, month <= 40, year <= 480 at the market-band prices; cap x $0.12 per request must stay under 60% of the plan net after the 20% fee); No Free Trial on every plan and always a year plan, priced at the market band per BEST_PRACTICES.md §2-§3; set a Demand rank in LISTING.md; follow the description template in BEST_PRACTICES.md §13. Run the release-owned listing lint. Commit, push, merge through a PR, and verify origin/main contains the completed source change. Return status=success only after all five required repo-owned artifacts exist, lint passes, and the commit is an ancestor of origin/main; otherwise status=failure. Return source_commit as that full main-accepted SHA and candidate_slug as the new catalog directory name; on failure set both to null. Include the merged-main readback and lint evidence. Source acceptance precedes runtime adoption; do not update the shared source checkout to make a local ready count increase.'
   printf '%s\n' "$OFFLINE_PROMPT" | "$RUN_AGENT" \
-    --task-class application-lane-agent --schema "$PASS_SCHEMA" --evidence-dir "$EVIDENCE_DIR" \
+    --task-class application-lane-agent --schema "$OFFLINE_SCHEMA" --evidence-dir "$EVIDENCE_DIR" \
     --task-label capafy-offline-daily --loop capafy \
     --escalation-reason "authorized Capafy browser publishing workflow" >>"$LOG" 2>&1
   RC=$?
   [ "$RC" -eq 0 ] || exit "$RC"
-  python3 "$TERMINAL_TOOL" result --summary "$EVIDENCE_DIR/summary.json" >>"$LOG" 2>&1 || exit $?
-  printf '%s\n' "$INVENTORY" | tail -n 1 | python3 \
-    "$LIFE_MANAGER_RELEASE_ROOT/skills/capafy-autopublish/scripts/candidate_backlog.py" refresh \
-    --catalog "$LIFE_MANAGER_SOURCE_REPO/skills/capafy/catalog" \
-    --inventory-stdin >>"$LOG" 2>&1 || exit 1
-  READY_AFTER="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("counts",{}).get("ready",0))' "$BACKLOG")"
-  [ "$READY_AFTER" -gt "$READY_BEFORE" ] || { echo "offline build produced no new ready candidate" >>"$LOG"; exit 1; }
-  VERDICT="CAP_FULL_OFFLINE_BUILT"
-  echo "=== capafy-loop-daily done rc=0 (CAP_FULL_OFFLINE_BUILT; ready=$READY_BEFORE->$READY_AFTER; platform write=0) $(date '+%F %T %Z') ===" >>"$LOG"
+  python3 "$TERMINAL_TOOL" offline-result --summary "$EVIDENCE_DIR/summary.json" \
+    --source-repo "$LIFE_MANAGER_SOURCE_REPO" --source-base "$SOURCE_BASE" >>"$LOG" 2>&1 || exit $?
+  VERDICT="CAP_FULL_OFFLINE_SOURCE_BUILT"
+  echo "=== capafy-loop-daily done rc=0 (CAP_FULL_OFFLINE_SOURCE_BUILT; merged source verified; runtime adoption pending; platform write=0) $(date '+%F %T %Z') ===" >>"$LOG"
   mark_healthy || exit 2
   exit 0
 fi
