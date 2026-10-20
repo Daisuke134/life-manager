@@ -102,6 +102,40 @@ class CryptoValidationReportTests(unittest.TestCase):
         self.assertEqual(len(build.call_args.kwargs["source_receipt_ids"]), 3)
         self.assertEqual(result, [{"fixture": True}])
 
+    def test_failed_six_hour_chunk_reports_reason_and_utc_window(self):
+        from datetime import datetime, timedelta, timezone
+        start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        end = start + timedelta(hours=12)
+        calls = []
+
+        def read_chunk(**kwargs):
+            calls.append((kwargs["start"], kwargs["end"]))
+            if kwargs["start"] == start + timedelta(hours=6):
+                raise ValueError(
+                    "alpaca_crypto_validation_history_invalid:btc_bar_count_mismatch")
+            return {"crypto_history": [], "quote_conversions": [],
+                    "source_receipt_ids": ["fixture-source"]}
+
+        with patch.object(validation_runner, "read_crypto_validation_history",
+                          side_effect=read_chunk):
+            with self.assertRaisesRegex(
+                    ValueError, "^crypto_validation_chunk_failed$") as raised:
+                validation_runner.build_crypto_reports_for_period(
+                    start=start, end=end, observed_at="2026-01-02T00:00:00Z",
+                    credentials_path=Path("credentials"), cli_path=Path("alpaca"),
+                    release_sha="a" * 40,
+                )
+
+        self.assertEqual(calls, [
+            (start, start + timedelta(hours=6)),
+            (start + timedelta(hours=6), end),
+        ])
+        self.assertEqual(raised.exception.error_class,
+                         "alpaca_crypto_validation_history_invalid")
+        self.assertEqual(raised.exception.reason_code, "btc_bar_count_mismatch")
+        self.assertEqual(raised.exception.chunk_start, "2026-01-01T06:00:00Z")
+        self.assertEqual(raised.exception.chunk_end, "2026-01-01T12:00:00Z")
+
     def test_crypto_reports_use_real_feature_builder_and_common_evaluator(self):
         bars = self._history()
         fx = [{"timestamp": row["t"], "currency": "USDC", "rate": "0.99",
@@ -325,8 +359,9 @@ class ValidationRunnerTests(unittest.TestCase):
                 before.append(path.read_bytes())
             with patch.object(validation_runner, "read_etf_daily_history", return_value=history), \
                  patch.object(validation_runner, "build_report_from_history", return_value=_valid_etf_report()), \
-                 patch.object(validation_runner, "build_crypto_reports_for_period",
-                              side_effect=ValueError("alpaca_crypto_validation_history_invalid")):
+                 patch.object(validation_runner, "read_crypto_validation_history",
+                              side_effect=ValueError(
+                                  "alpaca_crypto_validation_history_invalid:btc_bar_count_mismatch")):
                 result = validation_runner.run_once(
                     reports_path=root/"reports.json", selection_paths=paths,
                     credentials_path=Path("credentials"), cli_path=Path("alpaca"),
@@ -334,6 +369,12 @@ class ValidationRunnerTests(unittest.TestCase):
             self.assertEqual(result["status"], "partial")
             self.assertEqual(result["crypto_report_count"], 0)
             self.assertEqual(result["crypto_error_class"], "alpaca_crypto_validation_history_invalid")
+            self.assertEqual(result["crypto_error_context"], {
+                "reason_code": "btc_bar_count_mismatch",
+                "chunk_start": "2026-07-01T00:00:00Z",
+                "chunk_end": "2026-07-01T06:00:00Z",
+                "details": {},
+            })
             self.assertEqual(len(json.loads((root/"reports.json").read_text())["reports"]), 1)
             self.assertEqual(result["selection_statuses"], ["existing", "existing"])
             self.assertEqual([path.read_bytes() for path in paths], before)

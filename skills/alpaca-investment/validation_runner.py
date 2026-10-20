@@ -22,7 +22,12 @@ _CORE = _ROOT / "apps" / "life-manager" / "investment-core"
 if str(_CORE) not in sys.path:
     sys.path.append(str(_CORE))
 
-from alpaca_cli import read_crypto_validation_history, read_etf_daily_history  # noqa: E402
+from alpaca_cli import (  # noqa: E402
+    CRYPTO_VALIDATION_REASON_CODES,
+    CryptoValidationHistoryError,
+    read_crypto_validation_history,
+    read_etf_daily_history,
+)
 from etf_momentum import (  # noqa: E402
     ETF_MOMENTUM_UNIVERSE,
     build_validation_report,
@@ -42,6 +47,32 @@ REPORT_TTL_DAYS = 7
 LOOKBACKS = (84, 126, 168)
 HOLD_DAYS = (15, 21, 30)
 NOTIONAL_USD = Decimal("10")
+
+
+class CryptoValidationChunkError(ValueError):
+    """Bounded failure for one historical BTC chunk, without raw market data."""
+
+    def __init__(self, error_class: str, reason_code: str, details: Mapping[str, Any],
+                 *, start: datetime, end: datetime):
+        self.error_class = error_class
+        self.reason_code = reason_code
+        self.details = dict(details)
+        self.chunk_start = _utc_timestamp(start.isoformat())
+        self.chunk_end = _utc_timestamp(end.isoformat())
+        super().__init__("crypto_validation_chunk_failed")
+
+
+def _crypto_reader_error(error: BaseException) -> tuple[str, str, dict[str, Any]]:
+    if isinstance(error, CryptoValidationHistoryError):
+        return ("alpaca_crypto_validation_history_invalid", error.reason_code,
+                dict(error.details))
+    message = str(error)
+    prefix = "alpaca_crypto_validation_history_invalid:"
+    if message.startswith(prefix):
+        reason = message[len(prefix):]
+        if reason in CRYPTO_VALIDATION_REASON_CODES:
+            return "alpaca_crypto_validation_history_invalid", reason, {}
+    return type(error).__name__.lower(), "reader_error", {}
 
 
 def _parse_timestamp(value: Any) -> datetime:
@@ -225,9 +256,15 @@ def build_crypto_reports_for_period(
     cursor = start
     while cursor < end:
         chunk_end = min(cursor + timedelta(hours=6), end)
-        chunk = read_crypto_validation_history(
-            credentials_path=credentials_path, cli_path=cli_path,
-            start=cursor, end=chunk_end, observed_at=observed_at)
+        try:
+            chunk = read_crypto_validation_history(
+                credentials_path=credentials_path, cli_path=cli_path,
+                start=cursor, end=chunk_end, observed_at=observed_at)
+        except (OSError, ValueError, TypeError, KeyError, OverflowError) as error:
+            error_class, reason_code, details = _crypto_reader_error(error)
+            raise CryptoValidationChunkError(
+                error_class, reason_code, details, start=cursor, end=chunk_end,
+            ) from error
         bars.extend(chunk["crypto_history"])
         conversions.extend(chunk["quote_conversions"])
         receipts.extend(chunk["source_receipt_ids"])
@@ -401,11 +438,21 @@ def run_once(
     observed = _parse_timestamp(merged["observed_at"]).astimezone(timezone.utc)
     crypto_end = observed.replace(hour=0, minute=0, second=0, microsecond=0)
     crypto_error = None
+    crypto_error_context = None
     try:
         crypto_reports = build_crypto_reports_for_period(
             start=crypto_end - timedelta(days=90), end=crypto_end,
             observed_at=merged["observed_at"], credentials_path=credentials_path or _default_credentials_path(),
             cli_path=cli_path or _default_cli_path(), release_sha=resolved_release)
+    except CryptoValidationChunkError as error:
+        crypto_reports = []
+        crypto_error = error.error_class
+        crypto_error_context = {
+            "reason_code": error.reason_code,
+            "chunk_start": error.chunk_start,
+            "chunk_end": error.chunk_end,
+            "details": error.details,
+        }
     except (OSError, ValueError, TypeError, KeyError) as error:
         # Keep legacy owned ETF exit policy fresh while reporting the BTC gap.
         # No BTC report/positive valuation is fabricated from failed history.
@@ -421,7 +468,7 @@ def run_once(
         )
         for destination in destinations
     ]
-    return {
+    result = {
         "status": "ok" if crypto_error is None else "partial",
         "crypto_report_count": len(crypto_reports),
         "crypto_error_class": crypto_error,
@@ -432,6 +479,9 @@ def run_once(
         "chunks": len(ranges),
         "completed_through_session": merged["completed_through_session"],
     }
+    if crypto_error_context is not None:
+        result["crypto_error_context"] = crypto_error_context
+    return result
 
 
 def _date_arg(value: str | None) -> date | None:
