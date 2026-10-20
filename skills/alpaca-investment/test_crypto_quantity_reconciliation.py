@@ -122,6 +122,9 @@ class QuantityReconciliationTests(unittest.TestCase):
                         {'flow_readback_ref':ref,'row_index':1}])
                     self.assertEqual([result['flow_readbacks'][item['flow_readback_ref']]['readback']['wallet_transfers'][item['row_index']]['id']
                         for item in transfer_refs],['synthetic-wallet-1','synthetic-wallet-2'])
+                    daily=json.loads((root/'performance-crypto-daily-2026-01-01.json').read_text())
+                    self.assertEqual(daily['native_quantity_reconciliation']['unlocated_wallet_transfer_refs'],transfer_refs)
+                    self.assertIn(ref,daily['flow_readbacks'])
                 if kind=='OCT_without_time':self.assertEqual(report['unsupported_activity_ids'],['synthetic-oct'])
                 self.assertIsNone(report['net_pnl_usd'])
 
