@@ -20780,7 +20780,7 @@ Top 10 by sales: 0/10 with a trial (Ocup 3,111, Serenity 2,002, HookAce 1,044, V
 
 ### Capafy distribution status + remaining TODO — 2026-10-18 07:30 JST (claude-evo-eval-1012, Dais: "great impressions, great conversion, great revenue; first goal $10K MRR")
 
-**Where we are (Capafy official, 7d):** impressions 11,398 → detail views 1,512 (13.3%) → trials 4 → paid 0. Lifetime gross $102.75 / 70 orders (no paid order since 9/29). Google AI Overview is the largest external source: TikTok Script Pro 25, Hook Lab 17, YouTube Script Writer 4 views (X across the three sellers: 8). Free Transcript Clip Map 7095835081 holds ~60% of impressions; ~1% of its viewers reach Hook Lab.
+**保存済み観測（Capafy official, 7d、当時の窓）:** impressions 11,398 / detail views 1,512 / trials4 / paid0、累計gross $102.75 / orders70を保存する。exposureと全source viewsの比を同一母集団のCTRとは呼ばない。`ai_overview`としてTikTok Script Pro25 / Hook Lab17 / YouTube Script Writer4 views（3 sellersのX合計8）を保存するが、Google AI Overview由来の外部流入やkeyword記事の成果とは確認できない。帰属の正本→冒頭C3。Free Transcript Clip Map7095835081は当時impressionsの約60%を持つが、同一無料利用cohortからHook Labへの転送率は未確認。率の正本→冒頭C4。
 
 **$10K MRR math (inference):** ≈1,000 monthly subscribers at $9.99 → ~50,000 views/month at 2% view→paid. Now ~6,500 views/month and 0% paid. Gap: ~8× reach and 0%→2% conversion.
 
