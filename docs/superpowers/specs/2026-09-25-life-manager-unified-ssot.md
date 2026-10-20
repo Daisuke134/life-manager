@@ -1,37 +1,43 @@
 # Life Manager 統合SSOT — As-Is / To-Be / TODO
 
-## 2026-10-19–20 state + cursor（統括cursor。2026-10-15統括cursorと10/17 SH順序を置換）
+## 2026-10-20 state + cursor（10/19統括cursorを最新readbackで更新）
 
-**順序変更の記録:** 旧=「統括cursor（2026-10-15）D1→D4→Gig」と10/17「SH2→SH4→SH3→SH5、cursor = SH2」。新=下記「次の順序」1→7、現在cursor=1。理由: 10/19実測で収益laneを止めている根本はcorespotlightd→swap→disk floorで、merge済みsourceの採用だけでは収益laneが走らない。SH2–SH5・P2–P5は未完のまま残し、この順序の後に再評価する。
+**確認時点:** 2026-10-20 14:32Z。mainはその時点の最新値、disk/owner測定は各行の観測時刻を記す。順序を「容量と証拠→fleet観測→18 owner照合→各lane」の順にした。理由: disk不足に加えてcleanup効果を測るreceiptがなく、health observerも191 job全件をtimeoutとしている。いずれもagent別の収益修正より先に共通で閉じる必要がある。
 
-**10/18–19 merge+apply:** #8313 #8315 #8318 #8325 #8332 #8333 #8334 #8335 #8336 #8337 #8339 #8341 #8343 #8345 #8346 #8347 #8348 #8349 #8351 #8352 #8353 #8355 #8358（+anicca-products #520）#8366 #8368 #8371 #8373 #8374 #8381 #8382（apply-cadence test fix）。全件 `gh pr view` でMERGEDを確認。
+**10/18–19 merge+apply（履歴）:** #8313 #8315 #8318 #8325 #8332 #8333 #8334 #8335 #8336 #8337 #8339 #8341 #8343 #8345 #8346 #8347 #8348 #8349 #8351 #8352 #8353 #8355 #8358（+anicca-products #520）#8366 #8368 #8371 #8373 #8374 #8381 #8382（apply-cadence test fix）。全件MERGEDを確認。
 
-**確認済みの成果（readback）:**
-- Writer: EN Substack 無料3本公開 2026-10-18 23:30–23:50Z（9/29以来初）、JA Substack 有料1本 23:20Z。article-resume fence 55543 は #8374 で閉鎖。
-- PromptBase: annual-report-risk-change-brief が「Prompt Uploaded」（審査中）23:58Z。
-- Capafy: goal-monitor-hourly 正常、会社receipt Telegram が10/18 11:26Zに再開。
-- LINEスタンプ readback 復旧（40商品）。marketing-owner-events 正常。Supabase本番は再起動後 正常。
-- Coconala: apply fence 18df80f03ec86a98-74517 を #8381 で閉鎖（5331694 retired_absent、applied 4件で roster 89/89 positive control PASS）。
-- Startup context drift: aniccaai.com/lm digest 復旧後 green（#8358 + anicca-products #520）。
+**過去の確認済みreadback（10/18–19）:** Writer EN Substack 3本、JA Substack有料1本、PromptBase「Prompt Uploaded」、Capafy goal-monitor-hourly、LINE 40商品、Supabase、Coconala apply fence #8381、startup digest recovery。これらは10/18–19時点の成果であり、10/20の各laneが継続稼働している証拠ではない。
 
-**売上（公式readback）:** Coconala 7日¥31,980 / 30日¥70,980 / 生涯¥263,634。Capafy 30日$25.87、最終入金9/29。Anicca MRR $20.34。Writer / PromptBase / Ebook $0。その他はunknown（0に置換しない）。
+**main / 稼働release:**
+- `origin/main=5052e266505695775ef65fb4076d36b2d6980593`（PR #8408統合後、14:32Z）。
+- 測定時の`~/loops/current`は`64175a23ed956db27f4e02dd5ee471bbe68ac963`（13:50:42Z cut、mainのancestor）。最新main由来のloaded releaseではない。
+- `life-manager-disk-cleanup`はloaded-running、300秒cadence。同releaseの直近terminalは14:21:21Z pass。14:23Zの次の起動では実receiptを取得できず、`last_receipt=null`。
+- `life-manager-release-reconciler`はloaded-running、60秒cadence。同releaseで14:17:21Z pass。これは最新mainの採用証明ではない。
 
-**10/19時点の容量診断（履歴）:** corespotlightd 約16GB RAM・swap 約7GB・Data空き9.4GiBという観測から、当時の収益floor 10GiB未満と56 jobの`disk_floor_low`を結び付けていた。これは10/20の現況としては再確認できていない。
+**容量 / cleanup:**
+- Data volumeの14:23Z `df`は空き3,743,008 KiB（約3.57 GiB）、使用率99%。14:10Zの別health snapshotは3,957,080,064 bytes・`capacity_recovered=true`（2GiB recovery判定）だが、どちらもrevenue 10GiB floorを満たさない。swapは8GiB中7,167 MiB使用。
+- 10/19の`corespotlightd`約16GBという観測は再現せず。10/20 snapshotsはRSS約25MiB（14:23Z）と約168MiB（14:10Z）。現在の空き容量の書き手・増加sourceは未特定。Spotlightへ原因を帰属させず、`killall`やSpotlight除外を先行させない。
+- 最新mainの`runtime/host/disk_admission.py`は一般producer 12GiB、revenue producer 10GiB、recovery floor 2GiB。3.57GiBは両producer floor未満。現行host inventoryは内部`observed_at=2026-09-24T20:21:47Z`で、`storage_growth`の同時刻計測がない。`disk-headroom.json`は10/17、cleanup `last-receipt.json`は10/10、`cleanup-latest.json`は9/14。cleanup terminal passだけでは回収量・容量回復を示せない。
+- **根拠と推論:** disk free・swap・process・loaded ownerはreadback。容量の増加原因はunknown。floorとfreeの比較から、現在producer admissionを通せる容量ではないと判断するが、freshな個別owner admission receiptはまだない。
 
-**10/20最新のread-only容量確認:** `df -h /`は空き約3.6GiB。10/20 14:10Zのhealth snapshotは`host_storage.free_bytes=3,957,080,064`、`capacity_recovered=true`（2GiB基準）だったが、14:16Z生成の最新healthには`host_storage`がなく、10GiB収益floorを満たす証拠にはならない。`host-inventory-full.json`は9/24 20:21:47Zのままで、現在の`storage_growth`は取れていない。ballastは不在。10/20のprocess snapshotでは`corespotlightd` RSS 172,368KiB、`managedcorespotlightd` 7,456KiBで、10/19の16GB観測を再現していない。現時点の空き容量原因をSpotlightへ帰属させない。
+**18 agent / fleet visibility:** health observerの14:21:34Z snapshotは191 registered jobs、全191が`health_snapshot_timeout`／`telemetry_gap`、healthy/running/failed/effect_unknownは各0。191はjob数でありagent数ではない。この結果は全件が停止した意味ではなく状態取得失敗。18業務agentすべての修復・稼働・収益を現時点で証明できない。
 
-**容量cursor訂正（旧→新）:** 旧=10/19観測を現在原因とみなし`killall corespotlightd`とSpotlight Privacy追加を行う。新=現行inventory/growth snapshotと同時刻の`df`を突合し、最大root・owner・書き手を特定してから、その所有者の既存cleanup/producer契約を使う。理由=10/20のprocess RSSは過去の16GB観測を再現せず、最新の成長inventoryは9/24で、現在の書き手は未特定。現在cursor=host inventory更新→growth owner attribution。
+**最新の金銭readback:** CFO B7は10/20 07:52Z送信。会社全体のhistorical/trailing revenue、cost-complete net、MRR、runway、銀行入金は未確認。Coconalaは31 receipts・累計net ¥263,634、B7 trailing readback ¥70,980だがprovider期間coverageはhistorical/trailingとも`complete=false`。確認済みloop MRRはmobile-apps USD 20.34のみ。2026-09 Google Cloud請求¥27,889は全社費用ではない。未知を0円・利益へ置換しない。
 
-**EDDの実態:** 直近14日で eval→変更→計測→keep/revert を自律で回したlaneは0。
+**EDD:** 最終確認は10/19時点の直近14日で、eval→変更→計測→keep/revertまで自然に完了したlaneは0。10/20の再計測なし。
 
 **次の順序（現在cursor=1）:**
-1. Capacity attribution/recovery（`host-inventory-full.json`と`storage_growth`を現行化し、同じ時間窓の`df -h /`と突合。最大rootのownerを確認してからowner限定の既存回復経路を使い、Data空き≥10GiBと`disk_floor_low`解消をreadback）。
-2. 1日1回loopのdeferral retry。
-3. Coconala EDD loop（初の実keep/revert）。
-4. Capafy 無料→Hook Lab funnel の新agent。
-5. PartnerStack 税務/payout。
-6. Anicca ASC sales 404 + PostHog。
-7. Writerの残り `interactive:dais` 経路（約20）。
+1. **Capacity attribution/recoveryとcleanup証拠。** `host-inventory-full.json`／`storage_growth`を現行化し、同時刻のData volume `df`と突合して最大root・owner・writerを特定する。対象ownerの既存cleanup経路を直し、receiptに`observed_at/free_before/free_after/reclaimed_bytes/errors/protected_deletions/inventory_gaps`を記録する。保護領域は削除しない。完了条件は`errors=0`、`protected_deletions=0`、revenue laneが使えるfree≥10GiB、一般producerも解放するならfree≥12GiB、対象revenue/一般ownerのfresh admission readbackが`disk_floor_low`でないこと。7日待ち・任意の連続回数は置かない。
+2. **Fleet health snapshot timeout。** `runtime/loop/health_observer.py`／`runtime/loop/health.py`の既存snapshotで191 job全件が`health_snapshot_timeout`になる境界を修正する。完了条件は191 jobに実状態または具体的external blockerがあり、unknownをhealthyやzeroとして隠さないこと。
+3. **18業務agentを一件ずつ照合。** Registryの18 ownerそれぞれについてloaded release/argv、terminal/blocker、effect fence、公式revenue/expense readbackを既存のagent節と結ぶ。完了条件は18/18 ownerの状態と未確認項目が明示され、実装ownerが重複しないこと。これだけでは18 agentの修復完了ではない。
+4. 1日1回loopのdeferral retryを直し、期限後の自然runで再開を確認する。
+5. Coconala EDDで最初の実測eval→変更→再計測→keep/revertを完了する。
+6. Capafy無料流入→Hook Lab funnelを計測し、実訪問・注文readbackで継続判断する。
+7. PartnerStack税務/payoutを公式readbackで閉じる。
+8. Anicca ASC sales 404とPostHog funnel計測を直す。
+9. Writerの残る`interactive:dais`経路をownerごとに解消する。約20件は10/19概算であり再計数する。
+
+**最終Done:** 18 ownerの自然runと公式provider receipts、fee/refund/expense後settled net、CFO全期間coverage、収益lane全体のEDD/self-improvement/eval benchmark、OpenClaw/OSSの一-command setup、会社MRR目標の公式readbackまで Life Manager 全体は未完。現在確認できるMRRはmobile-appsのUSD 20.34だけで、会社全体およびUS$10,000,000/月の達成を示さない。
 
 ## 投資紙owner復旧の依存修正 — source reclaim inventory
 
