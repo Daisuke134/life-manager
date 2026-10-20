@@ -150,6 +150,16 @@
       ],
       "module_ref": "lib/maritime-manager-runtime.js",
       "factory_export": "createMaritimeManagerReportAdapter"
+    },
+    {
+      "adapter_id": "maritime-manager-provision",
+      "loop_id": "maritime.manager",
+      "capability": "maritime.manager.provision",
+      "effect_classes": [
+        "money"
+      ],
+      "module_ref": "lib/maritime-manager-runtime.js",
+      "factory_export": "createMaritimeManagerProvisionAdapter"
     }
   ]
 }

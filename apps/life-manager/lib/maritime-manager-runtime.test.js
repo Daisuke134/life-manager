@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { buildMaritimeManagerCycleJob, buildMaritimeManagerReportJob, createMaritimeManagerLoopAdapter, createMaritimeManagerReportAdapter } = require('./maritime-manager-runtime.js');
+const { buildMaritimeManagerCycleJob, buildMaritimeManagerReportJob, createMaritimeManagerLoopAdapter, createMaritimeManagerReportAdapter, createMaritimeManagerProvisionAdapter, buildMaritimeManagerProvisionJob } = require('./maritime-manager-runtime.js');
 const UID = 'lm_11111111-1111-4111-8111-111111111111';
 const SHA = 'a'.repeat(40);
 const cycle = { tenantId: UID, occurrenceId: 'cycle-1', dateKey: '2026-10-20', releaseSha: SHA };
@@ -244,4 +244,38 @@ test('daily report adapter sends through existing delivery and reconciles withou
   assert.equal(await adapter.continuation(job), null);
   await assert.rejects(() => adapter.execute(job), /inactive/);
   assert.equal(sends, 1);
+});
+
+
+test('provision create and configure are separate stable jobs with read-only reconciliation',async()=>{
+ const row={uid:UID,agent_id:'agent-a',release_sha:SHA,status:'active',paused_at:null,created_at:'2026-10-21T00:00:00.000Z',timezone:'Asia/Tokyo'};
+ const calls=[];let status='deploying',ready=false,schedules=[];
+ const services={managerStore:{read:async()=>row},
+  ensureAgent:async()=>{calls.push('create');return {agentId:'agent-a',status};},
+  readAgent:async()=>{calls.push('readAgent');return {agentId:'agent-a',status};},
+  writeScheduleSnapshot:async input=>{calls.push('schedule');schedules=input.snapshot.schedules;},
+  configureWake:async()=>{calls.push('configure');ready=true;},
+  readWakeConfiguration:async()=>{calls.push('readWake');return {ready,schedules};},
+  seedInitialReport:async plan=>{calls.push('seedReport');assert.equal(plan.job.capability,'maritime.manager.report');},
+  provisionSource:()=>({uploadS3Key:'uploads/fixture.zip',archiveSha256:'b'.repeat(64)}),
+ };
+ const adapter=createMaritimeManagerProvisionAdapter(services);
+ const create={...buildMaritimeManagerProvisionJob({tenantId:UID,releaseSha:SHA}),available_at:row.created_at};
+ await assert.rejects(()=>adapter.execute(create),error=>error.code==='MARITIME_PROVISION_PENDING'&&error.unknownEffect);
+ assert.equal((await adapter.reconcile(create)).state,'pending');
+ assert.equal(calls.filter(x=>x==='create').length,1);
+ status='active';const created=await adapter.reconcile(create);assert.equal(created.state,'present');
+ const configure=await adapter.continuation(create,created.receipt);
+ assert.notEqual(configure.job.job_id,create.job_id);
+ const job={...configure.job,available_at:configure.availableAt};
+ const {receipt}=await adapter.execute(job);
+ assert.equal(adapter.verify(receipt,job),true);
+ const before=calls.filter(x=>['create','configure','schedule'].includes(x)).length;
+ assert.equal((await adapter.reconcile(job)).state,'present');
+ assert.equal(calls.filter(x=>['create','configure','schedule'].includes(x)).length,before);
+ const first=await adapter.continuation(job,receipt);
+ assert.equal(first.job.capability,'maritime.manager.cycle');assert.equal(calls.includes('seedReport'),true);
+ ready=false;assert.equal((await adapter.reconcile(job)).state,'unknown');ready=true;
+ row.status='paused';assert.equal(await adapter.continuation(job,receipt),null);
+ await assert.rejects(()=>adapter.execute(job),/inactive/);
 });

@@ -208,6 +208,14 @@ async function reconcileMaritimeCapabilityJobs(capabilities, dependencies = {}) 
   }
 }
 
+async function recoverMaritimeEnrollments(capabilities, { managerStore, enqueueJob, storeOptions = {} } = {}) {
+  if (!capabilities.includes("maritime.manager.provision")) return;
+  const { buildMaritimeManagerProvisionJob } = require("../lib/maritime-manager-runtime.js");
+  for (const row of await managerStore.listPending(1)) {
+    await enqueueJob(buildMaritimeManagerProvisionJob({ tenantId: row.uid, releaseSha: row.release_sha }), storeOptions);
+  }
+}
+
 function createWorkerHandlers(env, capabilities, dependencies = {}) {
   const handlers = {};
   const servicesByAdapter = {};
@@ -220,6 +228,19 @@ function createWorkerHandlers(env, capabilities, dependencies = {}) {
     const transport = dependencies.maritimeTransport
       || require("../lib/transport/maritime-manager.js").createMaritimeManagerTransport({ env, managerStore,
         getWakeBinding, fetchImpl: dependencies.fetchImpl });
+    if (capabilities.includes("maritime.manager.provision")) {
+      servicesByAdapter["maritime-manager-provision"] = { managerStore,
+        ensureAgent: transport.ensureAgent, readAgent: transport.readAgent,
+        configureWake: transport.configureWake, readWakeConfiguration: transport.readWakeConfiguration,
+        writeScheduleSnapshot: transport.writeScheduleSnapshot,
+        provisionSource: releaseSha => {
+          if (releaseSha !== env.LM_MARITIME_MANAGER_IMAGE_RELEASE_SHA) throw new Error("maritime source release unavailable");
+          return { uploadS3Key: env.LM_MARITIME_MANAGER_SOURCE_S3_KEY, archiveSha256: env.LM_MARITIME_MANAGER_SOURCE_ARCHIVE_SHA256 };
+        },
+        seedInitialReport: plan => require("../lib/runtime-job-store.js").enqueueJobAt(plan.job, plan.availableAt,
+          { query: dependencies.query }),
+      };
+    }
     servicesByAdapter["maritime-manager-cycle"] = { managerStore, dispatchCycle: transport.dispatchCycle,
       readExecution: transport.readExecution, readCycleReceipt: transport.readCycleReceipt };
     if (capabilities.includes("maritime.manager.report")) {
@@ -735,7 +756,11 @@ async function runCapabilityWorker(env = process.env) {
   const pool = new Pool({ connectionString, max: 2 });
   const opts = { query: pool.query.bind(pool), connect: pool.connect.bind(pool) };
   let registry;
+  const maritimeManagerStore = capabilities.some(value => value.startsWith("maritime.manager."))
+    ? require("../lib/maritime-manager-store.js").createMaritimeManagerStore({ env }) : null;
+  let nextMaritimeRecoveryMs = 0;
   const handlers = createWorkerHandlers(env, capabilities, {
+    maritimeManagerStore,
     onRegistry: value => { registry = value; },
     query: opts.query,
     connect: pool.connect.bind(pool),
@@ -769,6 +794,11 @@ async function runCapabilityWorker(env = process.env) {
         await scoutCycle.enqueue({
           query: opts.query, tenantId: scoutCycle.tenantId, nowMs: Date.now(), intervalMs: scoutCycle.intervalMs,
         });
+      }
+      if (maritimeManagerStore && Date.now() >= nextMaritimeRecoveryMs) {
+        await recoverMaritimeEnrollments(capabilities, { managerStore: maritimeManagerStore,
+          enqueueJob: runtimeStore.enqueueJob, storeOptions: opts });
+        nextMaritimeRecoveryMs = Date.now() + 30000;
       }
       await reconcileMaritimeCapabilityJobs(capabilities, { registry, store: runtimeStore, storeOptions: opts,
         observe: event => process.stdout.write(JSON.stringify(event) + "\n") });
@@ -831,5 +861,6 @@ module.exports = {
   observeWorkerPoll,
   executeCapabilityJob,
   reconcileMaritimeCapabilityJobs,
+  recoverMaritimeEnrollments,
   runCapabilityWorker,
 };

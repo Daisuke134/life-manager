@@ -13,6 +13,7 @@ const {
   createWorkerHandlers,
   observeWorkerPoll,
   reconcileMaritimeCapabilityJobs,
+  recoverMaritimeEnrollments,
 } = require("./runtime-up.js");
 const {
   buildMarketingObservationJob,
@@ -1230,4 +1231,26 @@ test("Maritime report worker injects existing queue reader and CFO receipt IO", 
   assert.equal((await handlers["maritime.manager.report"](input)).receipt.status,"sent");
   assert.equal(queries.length,2);
   assert.equal(queries[1].params[0],input.uid);
+});
+
+
+test("pending Maritime enrollment recovery reuses stable jobs and skips undeclared capability",async()=>{
+ const uid="lm_11111111-1111-4111-8111-111111111111",sha="a".repeat(40),calls=[];
+ const dependencies={managerStore:{listPending:async limit=>{assert.equal(limit,1);return [{uid,release_sha:sha}];}},enqueueJob:async job=>{calls.push(job);return {created:calls.length===1,job};}};
+ await recoverMaritimeEnrollments(["maritime.manager.cycle"],dependencies);assert.equal(calls.length,0);
+ await recoverMaritimeEnrollments(["maritime.manager.provision"],dependencies);
+ await recoverMaritimeEnrollments(["maritime.manager.provision"],dependencies);
+ assert.deepEqual(calls[0],calls[1]);assert.equal(calls[0].tenant_id,uid);assert.equal(calls[0].capability,"maritime.manager.provision");
+});
+
+test("Maritime provision worker binds release-specific source and existing remote operations",()=>{
+ const sha="a".repeat(40),transport=Object.fromEntries(["ensureAgent","readAgent","configureWake","readWakeConfiguration","writeScheduleSnapshot"].map(key=>[key,async()=>{}]));
+ let services;
+ createWorkerHandlers({LM_MARITIME_MANAGER_IMAGE_RELEASE_SHA:sha,LM_MARITIME_MANAGER_SOURCE_S3_KEY:"uploads/fixture.zip",LM_MARITIME_MANAGER_SOURCE_ARCHIVE_SHA256:"b".repeat(64)},["maritime.manager.provision"],{
+  maritimeManagerStore:{},maritimeTransport:transport,query:async()=>({rows:[]}),
+  createRegistry:({servicesByAdapter})=>{services=servicesByAdapter["maritime-manager-provision"];return {hasCapability:()=>false};},
+ });
+ assert.equal(services.ensureAgent,transport.ensureAgent);assert.equal(services.readWakeConfiguration,transport.readWakeConfiguration);
+ assert.equal(services.provisionSource(sha).uploadS3Key,"uploads/fixture.zip");
+ assert.throws(()=>services.provisionSource("c".repeat(40)),/source/);
 });
