@@ -125,11 +125,41 @@ def validate_spec(spec: dict) -> None:
                 raise ValueError(f"card {name} missing or longer than {LIMITS[name]}: {value!r}")
 
 
-def _claude(prompt: str) -> str:
-    claude = os.environ.get("ARTICLE_CLAUDE_BIN") or str(Path.home() / ".local/bin/claude")
-    env = {**os.environ, "USER": os.environ.get("USER") or Path.home().name}
-    return subprocess.run([claude, "-p"], input=prompt, check=True, capture_output=True, text=True, env=env,
-                          timeout=600).stdout  # stdin: a prompt starting with "---" parses as a flag
+def _generate_text(prompt: str) -> str:
+    repo = HERE.parents[3]
+    evidence = (Path(os.environ.get("CAPAFY_REEL_RUN_DIR", BASE))
+                / "agent-runner-evidence" / "text" / uuid.uuid4().hex)
+    evidence.mkdir(parents=True, mode=0o700)
+    env = {key: value for key, value in os.environ.items() if key not in {
+        "LM_POSTIZ_API_KEY", "LIFE_MANAGER_RESULT_HINT_PATH", "LIFE_MANAGER_OCCURRENCE_ID",
+    }}
+    command = [
+        sys.executable, str(repo / "runtime/agent-runner/agent_runner.py"),
+        "--task-class", "composition-agent", "--prompt-stdin",
+        "--schema", str(repo / "skills/writer-agent/runtime/shared-agent-output.schema.json"),
+        "--evidence-dir", str(evidence), "--task-label", "capafy-reel-text",
+        "--loop", "capafy-reel-daily", "--workdir", str(repo),
+        "--read-only", "--timeout-seconds", "600",
+    ]
+    request = ("Complete only the text task below. Do not use tools, modify files, or publish. "
+               "Return the schema object with the full answer in text. "
+               "If the task asks for JSON, encode that JSON as a string in text.\n\nTASK:\n" + prompt)
+    done = subprocess.run(command, input=request, capture_output=True, text=True, env=env)
+    if done.returncode:
+        raise RuntimeError(f"capafy_reel_text_failed:rc={done.returncode}:evidence={evidence}")
+    try:
+        summary = json.loads((evidence / "summary.json").read_text())
+        if summary["status"] != "success":
+            raise ValueError("runner did not succeed")
+        result_path = Path(summary["result_path"]).resolve(strict=True)
+        result_path.relative_to(evidence.resolve())
+        result = json.loads(result_path.read_text())
+        if (not isinstance(result, dict) or set(result) != {"text"}
+                or not isinstance(result["text"], str) or not result["text"].strip()):
+            raise ValueError("invalid text envelope")
+    except (OSError, KeyError, TypeError, ValueError):
+        raise RuntimeError(f"capafy_reel_text_result_invalid:evidence={evidence}") from None
+    return result["text"]
 
 
 WINNER_OPENERS = Path.home() / ".local/state/life-manager/marketing/winner-openers.json"
@@ -175,7 +205,7 @@ def hook_lab_output(niche: dict) -> str:
     openers = winner_openers()
     reference = ("\nCurrently top-viewed short-video openers (study their structure; never copy their words):\n- "
                  + "\n- ".join(openers[:10])) if openers else ""
-    return _claude(f"{HOOK_LAB_SKILL.read_text()}\n\n---\nUser request: Format: Instagram Reel, 30 seconds, "
+    return _generate_text(f"{HOOK_LAB_SKILL.read_text()}\n\n---\nUser request: Format: Instagram Reel, 30 seconds, "
                    f"direct tone. Topic: a {niche['topic']} for creators in that niche.{reference}")
 
 
@@ -189,7 +219,7 @@ def spec_from_output(output: str, niche: dict) -> dict:
         f"hook {LIMITS['quote']}, on-screen {LIMITS['onscreen']}. Pick the three strongest hooks that fit.\n\n{output}")
     last = None
     for _ in range(2):
-        raw = _claude(prompt)
+        raw = _generate_text(prompt)
         m = re.search(r"\{.*\}", raw, re.S)
         try:
             spec = json.loads(m.group(0) if m else raw)
