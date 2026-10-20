@@ -2264,7 +2264,10 @@ def _last_event(state_root: str, loop_id: str | None = None,
         )
         if value.get("phase") != "report" and not pid_bound_running:
             continue
-        if loop_id is not None and value.get("loop_id") == loop_id:
+        # A fleet snapshot shares this cache across owners. Index every latest
+        # report once instead of rescanning the same journal for each owner.
+        if (loop_id is not None and value.get("loop_id") == loop_id
+                and (cache is None or running_pid is not None)):
             if include_health_clocks:
                 value = {
                     **value,

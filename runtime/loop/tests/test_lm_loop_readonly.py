@@ -978,8 +978,13 @@ class LmLoopReadonlyTest(unittest.TestCase):
                 "\n".join(json.dumps(x) for x in rows) + "\n"
             )
             cache = {}
-            self.assertEqual(_last_event(str(root), "b", cache)["loop_id"], "b")
-            self.assertEqual(_last_event(str(root), "a", cache)["loop_id"], "a")
+            original_read = Path.read_text
+            with patch.object(Path, "read_text", autospec=True,
+                              side_effect=original_read) as reads:
+                self.assertEqual(_last_event(str(root), "b", cache)["loop_id"], "b")
+                self.assertEqual(_last_event(str(root), "a", cache)["loop_id"], "a")
+                self.assertIsNone(_last_event(str(root), "missing", cache))
+            self.assertEqual(reads.call_count, 1)
 
     def test_last_event_prefers_pid_bound_diagnostic_running_event(self):
         with tempfile.TemporaryDirectory() as directory:
