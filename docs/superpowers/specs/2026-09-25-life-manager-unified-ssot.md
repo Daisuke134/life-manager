@@ -147,22 +147,21 @@ CFO同監査のCoconala provider coverageはhistorical/trailingともcomplete=fa
 
 CI依存は既存6d8bbe6a96と同じ最小修正を再利用する。mainのpublic context auditはproduct digest不一致だけで失敗し、source context/READMEに本変更の差分はない。PRでは既存29 source testsを維持し、公開反映auditはmain push/manualへ残す。本番公開状態をsource PR前提へ戻さず、public不一致自体は未解決として保持する。
 
-現在cursor: late-fee assertionのインデント修正、当該focused test、現行full Alpaca suite 718件、`git diff --check`、fresh read-only source reviewがPASS。source commit `a7873811`を作成し、origin/main=`334e0bd1`をmerge commit `cb8647f1`で取り込み済み。次は更新したspecをcommitし、branchをpush、exact-head CIを通してPR統合する。その後D4(e)-2b全cycle・late-fee quote-flow coverageへ進む。全Life Managerの順序は上段C1–C9が正本で、投資source作業は並行し、本番採用は共有capacity/owner依存を守る。
+現在cursor: PR #8360の4 review修正はmainへ統合済み。次はD4(e)-2b全cycle/遅延fee quote-flow coverage。資産運用sourceの修正・CI合格を、immutable release採用・自然運用・利益の証拠とは扱わない。全Life Managerの順序は上段C1–C9が正本で、投資source作業は並行し、本番採用は共有capacity/owner依存を守る。
 
-**投資agentのAs-Is（2026-10-21 00:37 JST）:** remote main=334e0bd1bcb4。PR #8360はOPEN、remote head 301fc569/base14b97e8b、mergeable。remote headのstatus checksはPASSだが、そのSHAはローカル修正より前。reviewDecisionは未設定で、CodeRabbitのSUCCESS状態を独立code review PASSとは扱わない。attempt 1では947件中test_release_reuses_one_content_addressed_dependency_bundleだけがexport of 14b97e8bで失敗したが、同SHA/path allowlistのDarwin git archive+tar probeとfocused test、同headのattempt 2 full Loop suiteはPASSで再現しない。初回git/tar個別終了理由は未取得。4 inline findingのsource修正はworktreeでRED→GREEN、late-fee focused test、現行full Alpaca suite 718件、`git diff --check`、fresh read-only source review（SHIP、残存correctness findingなし）がPASS。sourceはcommit `a7873811`に記録し、origin/main=`334e0bd1`はmerge commit `cb8647f1`としてlocal branchへ統合済み。remote PRはまだ旧headで、specの最新状態記録を含むpushとexact-head CIは未実施。main/immutable/runtime採用やcost-complete net・実利益の証拠はない。
+**投資agentのAs-Is（2026-10-21 00:46 JST）:** PR #8360は2026-10-21 00:45 JSTにmergeされ、main merge commitは`eef2058053e5`。source commit `a7873811`は最新mainに含まれる。merge前head `3f93b785`のSecurity Scan run `39450292304`は12/12 workflow checks PASS。独立read-only source reviewはSHIPで残存correctness findingなし、local full Alpaca suiteは718件PASS。GitHubの`reviewDecision`は空で、CodeRabbit check status SUCCESSを独立code review approvalとは扱わない。以前attempt 1で`test_release_reuses_one_content_addressed_dependency_bundle`のarchive export失敗があったが、同SHA/path allowlist probe・focused test・attempt 2 full Loop suiteでは再現せず、最初のgit/tar個別終了理由は未取得。4 source修正（no-close日のpartial/null daily receipt、有効BTC選択保持、owner-period半開境界、fresh ETF fixture clock）は完了し、late-fee test indentationも修正済み。PR mergeはsource統合までの証拠。immutable release、loaded local owner SHA、自然run/公式broker readback、費用完全性、realized net、利益は未確認。
 
 **transferの公式契約:** Alpaca Trading APIの[crypto transfers](https://docs.alpaca.markets/us/reference/listcryptofundingtransfers.md)はid・created_at・status等を定義するが、completed_at/settled_atを定義しない。[account activities](https://docs.alpaca.markets/us/reference/getaccountactivities-2.md)のdate filterはsettlement dateでなくcreated_atを使い、fee activityはtrade日の翌UTC日に作成されることがある。よってcreated_atを資金反映/settlement時刻とみなさず、金額・日付・近似UUIDでtransferをFILL/OCTへ紐付けない。
 
 **残りのatomic TODO（この順序が投資laneの唯一の実行順）:**
-1. **PR #8360のreview修正を採用する。** late-fee focused test・現行full Alpaca suite 718件・diff-check・fresh read-only source review（SHIP）はPASS。source commitとorigin/main同期は完了。残りは最新specをcommitしてbranchをpushし、exact-head CIを通してPRをmainへ統合すること。現remote headのCI PASSやCodeRabbit statusを新sourceのCI/review PASSと扱わない。
-2. **D4(e)-2b全cycle/遅延fee flow coverageを閉じる。** sealed pre-trade baselineからowned cycle終端quoteと遅延fee期間まで、固定query window・pagination・raw token chainを照合する。欠落page/期間はgapとして保持し、空結果をzero/settlement完了と扱わない。
-3. **wallet transferの帰属限界を確定する。** baseline/currentの同一transfer IDとstatus変化を比較し、activityとはproviderの明示的な同一IDがある場合のみ結ぶ。effect timeが取れないtransferは数量帰属unknownのままとし、他fee sourceの作業は並行して進める。
-4. **broker費用の帰属と期間完全性を得る。** FILL/CFEE/PDF等の既存一次記録をexact order・account・mode・owner/card/release・cycle/期間へ一意に結び、同じfeeは一度だけ計上する。時刻境界、未帰属fee、欠落pageはuncoveredとして残す。
-5. **実費/FX/netを既存経路で完結させる。** model/system billingをowner/mode/期間へ結び、native quoteごとに時刻付きFX根拠を要求する。coverageが揃ったscopeだけ既存producer/coreでnetを算出し、欠測費用はnull、capital permissionはfalseのままにする。
-6. **完成sourceを自然運用へ採用する。** 全体SSOTのcapacity/owner依存を満たしてからmain→immutable release→local paper ownerのloaded SHAを確認し、自然run・公式orders/fills/activities・replay-zeroを読む。手動wake・強制注文・live設定変更で代用しない。
-7. **paper戦略の価値を評価する。** 30件の自然closed round tripでactual fees/slippage/model/system costs込みのnetを作り、事前固定benchmarkとout-of-sample/walk-forward、drawdownで評価する。EDDで変更をkeep/revertし、paper netを実利益と呼ばない。
-8. **live gateを満たしてから段階運用する。** exact identity/mode、資本権限、position/loss cap、既存maturity gateを確認し、許可範囲の実運用だけ公式receiptで評価する。資金移動や根拠のない上限増額はしない。
-9. **収益改善を反復し、対象資産を広げる。** 成功戦略/公開実例の仕組みを出典付きで取り入れ、一案ずつcost/benchmark/drawdown evalする。現戦略が基準を満たす前にmeme coin等へ対象を増やさない。
+1. **D4(e)-2b全cycle/遅延fee flow coverageを閉じる。** sealed pre-trade baselineからowned cycle終端quoteと遅延fee期間まで、固定query window・pagination・raw token chainを照合する。欠落page/期間はgapとして保持し、空結果をzero/settlement完了と扱わない。
+2. **wallet transferの帰属限界を確定する。** baseline/currentの同一transfer IDとstatus変化を比較し、activityとはproviderの明示的な同一IDがある場合のみ結ぶ。effect timeが取れないtransferは数量帰属unknownのままとし、他fee sourceの作業は並行して進める。
+3. **broker費用の帰属と期間完全性を得る。** FILL/CFEE/PDF等の既存一次記録をexact order・account・mode・owner/card/release・cycle/期間へ一意に結び、同じfeeは一度だけ計上する。時刻境界、未帰属fee、欠落pageはuncoveredとして残す。
+4. **実費/FX/netを既存経路で完結させる。** model/system billingをowner/mode/期間へ結び、native quoteごとに時刻付きFX根拠を要求する。coverageが揃ったscopeだけ既存producer/coreでnetを算出し、欠測費用はnull、capital permissionはfalseのままにする。
+5. **完成sourceを自然運用へ採用する。** 全体SSOTのcapacity/owner依存を満たしてからmain→immutable release→local paper ownerのloaded SHAを確認し、自然run・公式orders/fills/activities・replay-zeroを読む。手動wake・強制注文・live設定変更で代用しない。
+6. **paper戦略の価値を評価する。** 30件の自然closed round tripでactual fees/slippage/model/system costs込みのnetを作り、事前固定benchmarkとout-of-sample/walk-forward、drawdownで評価する。EDDで変更をkeep/revertし、paper netを実利益と呼ばない。
+7. **live gateを満たしてから段階運用する。** exact identity/mode、資本権限、position/loss cap、既存maturity gateを確認し、許可範囲の実運用だけ公式receiptで評価する。資金移動や根拠のない上限増額はしない。
+8. **収益改善を反復し、対象資産を広げる。** 成功戦略/公開実例の仕組みを出典付きで取り入れ、一案ずつcost/benchmark/drawdown evalする。現戦略が基準を満たす前にmeme coin等へ対象を増やさない。
 
 **利益目標の判定:** 「世界一」は保証できないため、実装上は実際のbroker fee・slippage・FX・model/system cost後の確定realized net、同期間benchmark超過、許容drawdown、再現可能な自然運用で判定する。sourceが動くことやpaperの利益だけを実利益と呼ばない。
 
