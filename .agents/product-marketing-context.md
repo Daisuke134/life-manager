@@ -5,8 +5,11 @@ metrics, and evidence live in `startup-context.json` and must not be copied here
 
 ## Product Overview
 
-Life Manager is a personal manager for a person's body, mind, and money. It is built to turn goals into
-completed real-world actions, then explain the outcome in plain language with evidence in Telegram.
+Life Manager is a proactive manager for a person's body, mind, and money. It chooses work and priorities,
+executes ongoing workflows without daily instructions, verifies external outcomes, and reports completed
+work and recorded revenue. User-defined goals and budgets are not required to start.
+The hosted target is email signup followed by autonomous work and a daily email report; Telegram is optional.
+This complete hosted earning journey is in development, distinct from the current Calendar offer below.
 The local self-hosted runtime and the cloud product are two delivery modes for the same Life Manager core.
 
 ### Cloud-first Travel wedge (first commercial path)
@@ -48,7 +51,7 @@ when to leave. A calendar reminder at the event start does not solve the missed-
 - Financial Organ builds a complete view of assets, liabilities, cash flow, spending, income opportunities,
   and risk-managed investing.
 
-The organs share one user, memory, calendar, evidence ledger, and Telegram experience. A lead agent
+The organs share one user, memory, calendar, evidence ledger, and reporting experience. Telegram is an optional channel. A lead agent
 coordinates specialist agents; deterministic code handles money arithmetic, state transitions, and receipts.
 
 ## Differentiation
