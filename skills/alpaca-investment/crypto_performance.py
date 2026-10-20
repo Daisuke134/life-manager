@@ -592,13 +592,14 @@ def _native_quantity_reconciliation(rows,observation,result,flow_fields,*,mode,o
         'fee_settlement_status':'unknown','net_pnl_usd':None,'capital_expansion_allowed':False,
         'buy_credit_gaps':[],'unattributed_order_ids':[],'unattributed_fee_ids':[],
         'unsupported_activity_ids':[],'unlocated_wallet_transfer_count':0,
-        'unlocated_wallet_transfer_refs':[],'reasons':[],
+        'unlocated_wallet_transfer_refs':[],'wallet_transfer_status_evidence':[],'reasons':[],
         'flow_coverage':'observations_only_not_final'}
     reasons=set()
     currency={'BTC':Fraction(),'USDC':Fraction()}
     fee_totals={'BTC':Fraction(),'USDC':Fraction()}
     fee_seen={};fill_seen={};acquisition_clock_by_order={};buy_fee_totals={};priced_fees=set()
     active_fill_qty={};active_fill_notional={};active_entry_orders={}
+    wallet_transfer_statuses={}
     source_account=observation.get('account') if isinstance(observation,dict) else None
     account_id=source_account.get('id') if isinstance(source_account,dict) else None
     try:
@@ -740,6 +741,28 @@ def _native_quantity_reconciliation(rows,observation,result,flow_fields,*,mode,o
                 report['unlocated_wallet_transfer_refs'].extend(
                     {'flow_readback_ref':ref,'row_index':index} for index,_ in enumerate(transfers))
                 reasons.add('native_wallet_effect_time_unproved')
+                snapshot_at=record.get('account_readback',{}).get('clock',{}).get('observed_at')
+                if not isinstance(snapshot_at,str):
+                    reasons.add('native_wallet_transfer_observation_time_unavailable')
+                else:
+                    try:_fx_instant(snapshot_at)
+                    except (ValueError,TypeError):
+                        reasons.add('native_wallet_transfer_observation_time_unavailable')
+                        snapshot_at=None
+                for transfer in transfers:
+                    transfer_id=transfer.get('id');status=transfer.get('status')
+                    if (not isinstance(transfer_id,str) or not transfer_id.strip()
+                            or not isinstance(status,str) or not status.strip()):
+                        reasons.add('native_wallet_transfer_identity_invalid');continue
+                    if status not in {'PROCESSING','FAILED','COMPLETE'}:
+                        reasons.add('native_wallet_transfer_status_unrecognized')
+                    if snapshot_at is None:continue
+                    observed=wallet_transfer_statuses.setdefault(transfer_id,{})
+                    prior=observed.get(snapshot_at)
+                    if prior is not None and prior!=status:
+                        reasons.add('native_wallet_transfer_snapshot_conflict')
+                    else:
+                        observed[snapshot_at]=status
             pages=raw.get('activity_pages')
             if not isinstance(pages,list):reasons.add('native_activity_pages_unavailable');continue
             for page in pages:
@@ -828,6 +851,13 @@ def _native_quantity_reconciliation(rows,observation,result,flow_fields,*,mode,o
             gap['observed_buy_fee_btc']=_quantity_text(observed) if observed is not None else None
             gap['unexplained_btc']=_quantity_text(Fraction(gap['initial_gross_minus_credited_btc'])-(observed or Fraction()))
             if Fraction(gap['unexplained_btc'])!=0:reasons.add('buy_credit_gap_unexplained')
+        for transfer_id,snapshots in sorted(wallet_transfer_statuses.items()):
+            observations=[{'observed_at':at,'status':status} for at,status in sorted(
+                snapshots.items(),key=lambda item:_fx_instant(item[0]))]
+            report['wallet_transfer_status_evidence'].append({'transfer_id':transfer_id,
+                'observations':observations,
+                'status_transition_observed':len({item['status'] for item in observations})>1,
+                'effect_time':None,'activity_link_status':'not_documented'})
         for asset in ('BTC','USDC'):
             if report['account_delta'][asset] is not None:
                 report['unexplained_delta'][asset]=_quantity_text(Fraction(report['account_delta'][asset])-currency[asset])
