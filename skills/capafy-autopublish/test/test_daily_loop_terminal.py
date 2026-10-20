@@ -156,7 +156,10 @@ def _run_retry_existing(
     post_confirmed_config_keys: bool = True,
     post_package_uploaded: bool = True,
     model_result: str = "MODEL_MATCH deepseek/deepseek-v4.1-flash",
+    model_result_second: str | None = None,
+    missing_raw_field: str = "",
     retry_reason: str = "retry Capafy AI-generator stub draft on the same agent_id",
+    run_resume_branch: bool = False,
 ) -> tuple[subprocess.CompletedProcess[str], Path, Path, Path, Path]:
     release = tmp_path / "release"
     auto = release / "skills/capafy-autopublish"
@@ -188,10 +191,16 @@ def _run_retry_existing(
     )
 
     (scripts / "check_hosted_model.py").write_text(
-        'import os\nprint(os.environ["MODEL_RESULT"])\n', encoding="utf-8")
+        'import os\nfrom pathlib import Path\n'
+        'p=Path(os.environ["MODEL_STATUS_CALLS"])\n'
+        'n=int(p.read_text()) if p.exists() else 0\np.write_text(str(n+1))\n'
+        'print(os.environ["MODEL_RESULT"] if n == 0 else os.environ["MODEL_RESULT_SECOND"])\n',
+        encoding="utf-8")
     (publisher / "packager.py").write_text(
         "import json,os,sys\n"
         "from pathlib import Path\n"
+        f"sys.path.insert(0, {str(ROOT / 'skills/capafy-autopublish/vendor/capafy-publisher')!r})\n"
+        "from packaging.publish.platform.runtime_mapping import LatestVersion\n"
         "agent_id=sys.argv[sys.argv.index('--agent-id')+1]\n"
         "calls_path=Path(os.environ['REMOTE_STATUS_CALLS'])\n"
         "calls=int(calls_path.read_text()) if calls_path.exists() else 0\n"
@@ -209,11 +218,13 @@ def _run_retry_existing(
         f" config={post_confirmed_config_keys}\n"
         f" package={post_package_uploaded}\n"
         f" ok={post_remote_ok}\n"
-        "print(json.dumps({'ok':ok,'agent_id':agent_id,'latest_version':{"
-        "'agent_id':agent_id,'agent_version_id':version,"
-        "'platform_status':status,'is_confirmed_skills':skills,"
-        "'is_confirmed_config_keys':config,'package_uploaded':package,"
-        "'agent_type':'run_online'}}))\n",
+        "raw={'agentId':agent_id,'agentVersionId':version,'status':status,"
+        "'auditStatus':0,'agentType':'run_online','isConfirmedSkills':skills,"
+        "'isConfirmedConfigKeys':config,'packageUrl':"
+        "('https://example.test/package.zip' if package else '' if package is not None else None)}\n"
+        "if os.environ.get('MISSING_RAW_FIELD'): raw.pop(os.environ['MISSING_RAW_FIELD'],None)\n"
+        "latest=LatestVersion.from_response(agent_id,raw).public_payload()\n"
+        "print(json.dumps({'ok':ok,'agent_id':agent_id,'latest_version':latest}))\n",
         encoding="utf-8",
     )
     finish_log = tmp_path / "finish.log"
@@ -247,6 +258,9 @@ def _run_retry_existing(
         f"export CAPAFY_PUBLISHER_STATE_HOME={shlex.quote(str(publisher_state))}",
         f"export CAPAFY_STATE_DIR={shlex.quote(str(capafy_state))}",
         f"export MODEL_RESULT={shlex.quote(model_result)}",
+        f"export MODEL_RESULT_SECOND={shlex.quote(model_result_second or model_result)}",
+        f"export MODEL_STATUS_CALLS={shlex.quote(str(tmp_path / 'model-status-calls'))}",
+        f"export MISSING_RAW_FIELD={shlex.quote(missing_raw_field)}",
         f"export REMOTE_STATUS_CALLS={shlex.quote(str(tmp_path / 'remote-status-calls'))}",
         "export LIFE_MANAGER_RUN_ID=test-run-123",
         "export LIFE_MANAGER_OCCURRENCE_ID=capafy-loop-daily:test-run-123",
@@ -259,9 +273,13 @@ def _run_retry_existing(
         f"INV={shlex.quote(json.dumps(inventory))}",
         f"RESUME={shlex.quote(chr(9).join((agent_id, skill_dir.name, str(listing), str(skill_dir), str(icon))))}",
         "RETRY_EXISTING_STUB=1",
+        'REUSE_PREPARE_ID=""',
+        'FRESH=""',
         _retry_existing_stub_block(),
         "retry_existing_stub_finish",
-        "echo SHOULD_NOT_REACH_DETERMINISTIC_FINISH",
+        (_between(CHILD.read_text(), 'if [ -n "$RESUME" ]', "\n# PUBLISHABLE")
+         + '\nprintf "REUSE_PREPARE_ID=%s\\n" "$REUSE_PREPARE_ID"\n'
+         if run_resume_branch else "echo SHOULD_NOT_REACH_DETERMINISTIC_FINISH"),
         "",
     ))
 
@@ -305,6 +323,62 @@ def test_retry_existing_finishes_the_exact_existing_agent_version(tmp_path: Path
         "capafy:agent/7393298474/version/2110426515594047488:platform_status=1"
     )
     assert receipt["verified_at"].endswith("Z")
+
+
+@pytest.mark.parametrize("second_result", [None, "MODEL_UNKNOWN detail-fetch-failed:TimeoutError"])
+def test_unstarted_stub_reaches_existing_same_agent_prepare_without_finishing(
+    tmp_path: Path, second_result: str | None,
+) -> None:
+    result, finish_log, marker, _, _ = _run_retry_existing(
+        tmp_path, confirmed_skills=False, confirmed_config_keys=False, package_uploaded=False,
+        model_result="MODEL_UNKNOWN no-confirmed-model-yet", model_result_second=second_result,
+        finish_rc=1, run_resume_branch=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "REUSE_PREPARE_ID=7393298474"
+    assert not finish_log.exists()
+    assert not marker.exists()
+    assert (tmp_path / "model-status-calls").read_text() == "1"
+
+
+@pytest.mark.parametrize("overrides", [
+    {"remote_ok": False},
+    {"remote_version": "different-version"},
+    {"remote_status": 1},
+    {"model_result": "MODEL_MATCH deepseek/deepseek-v4.1-flash"},
+    {"model_result": "MODEL_UNKNOWN detail-fetch-failed:TimeoutError"},
+    {"confirmed_skills": None},
+    {"confirmed_config_keys": None},
+    {"package_uploaded": None},
+    {"package_uploaded": True},
+])
+def test_unstarted_stub_does_not_resume_uncertain_or_changed_state(tmp_path: Path, overrides: dict) -> None:
+    options = dict(confirmed_skills=False, confirmed_config_keys=False, package_uploaded=False,
+                   model_result="MODEL_UNKNOWN no-confirmed-model-yet", run_resume_branch=True)
+    options.update(overrides)
+    result, finish_log, marker, _, _ = _run_retry_existing(tmp_path, **options)
+
+    assert result.returncode == 1
+    assert not result.stdout.strip()
+    assert not finish_log.exists()
+    assert not marker.exists()
+
+
+@pytest.mark.parametrize("field", [
+    "agentId", "agentType", "isConfirmedSkills", "isConfirmedConfigKeys", "packageUrl",
+])
+def test_unstarted_stub_rejects_raw_fields_missing_before_normalization(tmp_path: Path, field: str) -> None:
+    result, finish_log, marker, _, _ = _run_retry_existing(
+        tmp_path, confirmed_skills=False, confirmed_config_keys=False, package_uploaded=False,
+        model_result="MODEL_UNKNOWN no-confirmed-model-yet", missing_raw_field=field,
+        run_resume_branch=True,
+    )
+
+    assert result.returncode == 1
+    assert not result.stdout.strip()
+    assert not finish_log.exists()
+    assert not marker.exists()
 
 
 @pytest.mark.parametrize(
