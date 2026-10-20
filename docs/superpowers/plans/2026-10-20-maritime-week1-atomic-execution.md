@@ -259,8 +259,8 @@ life-manager/
 **Depends:** T07/T08。T08の認証待ち中はsourceを先行し、実環境受入をT08より先に完了扱いしない。`run_cycle(tenant_id,occurrence_id,date_key,*,env,data_root,runner)`を定義し、Cloud専用`AGENT_RUNNER_CONFIG`を必須にする。既存Local configへfallbackしない。
 
 - [ ] T09.1 test `cycle_calls_existing_factory_once_and_scopes_workspace`を定義。spawn先が既存entry、cwd/stateがtenant以下、timeout後の外部effectはunknownというassertを置く。
-- [ ] T09.2 wrapperは既存`run_agent.sh`へ`--task-class application-lane-agent --evidence-dir /data/<tenant>/evidence/<occurrence> --task-label maritime:<occurrence> --loop capafy --schema /data/<tenant>/receipts/<occurrence>/pass.schema.json --workdir /data/<tenant>/build --print-result`を渡す。stdinには既存factory skillと同tenant binding/receiptから作る業務promptを渡す。modelによる案件選択・original商品生成を既存runnerへ任せ、第二のpublisher/固定ニッチ選択器を作らない。pass.schema.jsonは既存capafy-loop-pass.schema.jsonを読み、Cloudのevidence項目だけをtenant workspace内のliteral absolute pathに制約して作る。説明文＋パスを許可しない。パスの実在・tenant境界は受信時にも確認する。既存pass JSONをwrapperでCycleResultへ変換し、stdoutへraw runner logを混ぜない。child envはOS最小値とtenant専用`LM_CLOUD_MODEL_API_KEY`だけを許可し、既存runner configのenv_keyを同名へbindする。親のsecret/台帳を丸ごと継承しない。HOME/CODEX_HOME/CLAUDE_CONFIG_DIR/evidence/tmp/台帳/factory stateはresolve後もtenant以下であることをdispatch前に確認する。保存済みreceiptの再生でも許可field・型・status・artifact境界を検査し、破損時はunknownを返して再実行しない。
-- [ ] T09.3 provider未接続ならoriginal artifact生成を継続し、publish未実行をreceiptへ明記する。founder catalog/seller ID/売上を新規利用者へ複製しない。接続済みではsplit publishの正規経路へ進む。
+- [ ] T09.2 wrapperは既存`run_agent.sh`へ`--task-class application-lane-agent --evidence-dir /data/<tenant>/evidence/<occurrence> --task-label maritime:<occurrence> --loop capafy --schema /data/<tenant>/receipts/<occurrence>/pass.schema.json --workdir /data/<tenant>/build/occurrences/<occurrence> --print-result`を渡す。`LIFE_MANAGER_BUILD_WORKSPACE`は既存catalog参照用のbuild rootに残し、`AGENT_RUNNER_WORKDIR`はoccurrence dirへ向ける。stdinには既存factory skillと同tenant binding/receiptから作る業務promptを渡す。modelによる案件選択・original商品生成を既存runnerへ任せ、第二のpublisher/固定ニッチ選択器を作らない。pass.schema.jsonは既存capafy-loop-pass.schema.jsonを読み、Cloudのevidence項目だけを新規occurrence dir内のliteral absolute pathに制約して作る。説明文＋パスを許可しない。パスの実在・tenant境界は受信時にも確認する。既存pass JSONをwrapperでCycleResultへ変換し、stdoutへraw runner logを混ぜない。child envはOS最小値とtenant専用`LM_CLOUD_MODEL_API_KEY`だけを許可し、既存runner configのenv_keyを同名へbindする。親のsecret/台帳を丸ごと継承しない。HOME/CODEX_HOME/CLAUDE_CONFIG_DIR/evidence/tmp/台帳/factory stateはresolve後もtenant以下であることをdispatch前に確認する。保存済みreceiptの再生でも許可field・型・status・artifact境界を検査し、破損時はunknownを返して再実行しない。
+- [ ] T09.3 provider未接続ならoriginal artifact生成を継続する。no_opでも排他receipt claim後に新規作成したoccurrence dir内のregular・single-link・実行UID所有fileが一件以上あればdraft作成はcompletedとしてrefsをreceiptへ記録する。共有build直下の既存file/証拠なしはno_work/deferredのままとする。mtimeでは判定しない。publish/sale/入金は別の公式receiptなしにclaimしない。founder catalog/seller ID/売上を新規利用者へ複製しない。接続済みではsplit publishの正規経路へ進む。
 - [ ] T09.4 `python3 -m unittest discover -s skills/capafy-autopublish/test -p 'test_cloud_cycle.py'`でfocused casesを確認しcommit/push。
 
 ## Task T10: provider売上をtenantのFinancialRecordへ結合する
@@ -518,7 +518,7 @@ life-manager/
 **Interfaces:** source別実利用、official count、gross/refund/known cost/netStatus、capacity、継続。
 **Depends:** T28。売上発生自体は保証しない。
 
-- [ ] T29.1 capacityは現在のbilling/awake制限/利用者あたり費用から読み、既存capを25→100→1,000へ段階更新する。特定人数が揃うまで提出や素材制作を止めない。
+- [ ] T29.1 capacityは現在のbilling/awake制限/利用者あたり費用から読み、稼働cap3を起点に、請求条件と単価の確認後10→100→1,000へ段階更新する。特定人数が揃うまで提出や素材制作を止めない。
 - [ ] T29.2 完了・再利用・費用が良いsourceを増やす。販売対象商品の成果はCapafy official visits/orders/refund等で確認し、SNS表示回数だけで施策を増やさない。
 - [ ] T29.3 費用の高いwake/無成果taskを既存model判断とbackoffで減らし、実際のnetが確認できる業務へ資源を寄せる。利益不明を黒字と報告しない。
 - [ ] T29.4 1,000人到達時に公式project usageと本人/重複確認を提出し、winner通知をreadbackする。SF日本発旅費/credit条件/YCは別の確認事項として保持する。
@@ -536,14 +536,20 @@ life-manager/
 
 ## Task T31: Cloud Life Manager自身の課金と利益をつなぐ
 
-**Files:** Modify `apps/life-manager/lib/web-billing.js`/同test、`server.js`、Manager UI。Reuse既存Stripe checkout/portal/webhook、web funnel/financial records。
-**Interfaces:** 既存`handleWebBillingRequest`の`resolveWebUserImpl`へ、Managerのverified email identityを専用経路で渡す。CalendarのGoogle guardは変えない。既存の価格/商品設定を公式Stripeでreadbackし、顧客の任意checkoutと署名済みwebhookだけでpaid状態を更新する。
-**Depends:** T23の無料pilot提出を先行。LM自身の収益と、利用者のCapafy等の収益を混同しない。
+**As-Is:** `web-billing.js`は`readWebBillingUser()`とcustomer保存がSupabase lm_usersへ直接依存し、`createWebCheckoutSession()`が`requireActiveCalendar()`を必ず呼ぶ。metadataもlife_manager_web_travel、戻り先も/lm。`billing.js`のevent claim/applyもSupabase直接依存。verified identity resolverを替えるだけではManager課金にならない。
 
-- [ ] T31.1 既存checkout/portal価格・trial条件・支払済みinvoiceと返金を公式Stripeから読む。現在の『Stripe売上なし』はDaisの申告であり、再取得前に確認済み0/MRRと書かない。
-- [ ] T31.2 email-only利用者のcheckout/portalを同じuid/CSRF/originへbindするfocused caseを書き、既存web-billingのresolver injectionを使う。任意uid/customer/priceの入力は拒否し、Calendar identityは拡張しない。
-- [ ] T31.3 無料pilotを自動課金へ変えず、価値を確認した利用者が自ら選ぶupgrade入口を接続する。test modeでcheckout→webhook→本人のpaid状態を確認してから、既存価格のlive checkoutを公開する。自分のcardで架空の売上を作らない。
-- [ ] T31.4 正規利用者のpaid invoice・refund・Stripe手数料・Cloud/model/mail費用をjoinし、LMの実売上/確認できる利益を報告する。free signup×価格をMRRとしない。未取得費用があれば利益は未確認とする。
+**Files:** Modify `lib/web-billing.js`/同test、`lib/billing.js`/同test、`server.js`、Manager UI。Create `lib/maritime-manager-billing.js`/同testとManager用billing migration（実装開始時に確定した入出力を同節へ反映する）。Reuse既存Stripe client/session/portal/署名検証/FinancialRecord。
+**Depends:** 無料pilotの提供/初週提出を先行する。価格・商品・支払実績の読取は独立して進められる。任意upgradeとして実装し、Calendar guardや無料pilotの条件を変えない。
+
+- [ ] **T31.1:** 既存Stripeの商品/価格/trial/paid invoice/refundを公式readbackする。現在額・課金対象・price IDの対応を記録し、Dais申告だけで売上0/MRRと確定しない。
+- [ ] **T31.2:** web-billing.jsの`readWebBillingUser`、customer保存、`requireActiveCalendar`、metadata、戻り先をManagerの差替箇所として固定する。既存Calendarのeligibilityを残し、共通Stripe session/portal組立てを再利用できる境界へ分ける。
+- [ ] **T31.3:** native Runtime PGにManager本人とStripe customer/subscriptionを結ぶ保存先、およびStripe event一回処理のfenceを定義する。一般lm_users/旧Stripe ledgerは移行しない。
+- [ ] **T31.4:** maritime-manager-billing.jsでverified Manager UIDのbilling read/customer一回保存を接続する。任意uid/customer/price入力・他人のcustomer・claim上書きを拒否する。
+- [ ] **T31.5:** 同fileのcheckout/portalを本人UID/CSRF/origin/許可priceへbindし、Manager起動と課金状態を区別する。Calendar接続をManagerのcheckout条件にしない。
+- [ ] **T31.6:** server.jsの署名確認済みStripe eventからManagerのproduct metadataだけを専用handlerへ振り分ける。billing.jsの既存parserを再利用し、PGのevent claim→subscription/paid/refund/cancel状態を結ぶ。旧Calendar/Telegram handlerへ二重適用しない。
+- [ ] **T31.7:** 関連fixtureとStripe test modeでcheckout→署名webhook→本人paid状態、portal、重複eventを確認する。自己cardでliveの架空売上を作らない。
+- [ ] **T31.8:** 任意upgrade UI、review/CI/main/既存backend反映、live checkout入口のreadbackを行う。無料pilotを自動課金に変えない。
+- [ ] **T31.9:** 実利用者のpaid invoice/refund/Stripe手数料とCloud/model/mail費用を既存FinancialRecordへ結び、実売上と確認できる純利益を報告する。未取得費用は未確認、free signup×価格はMRRにしない。
 
 ## Task T32: 既存SupabaseとResendで確認メールを実際に届ける
 
@@ -648,8 +654,95 @@ life-manager/
 
 - [x] **c-5a / directory境界:** `apps/life-manager/maritime/runtime-env.js`の`prepareMaritimeRuntime`、`run-cycle.js`のsetpriv→`cloud_cycle.py`のreceipt mkdirを照合する。変更は固定tenant receipts親のno-follow fd初期化へ限定し、再帰chown/モデル成果物の書換えはしない。
 - [x] **c-5b / source修正:** 実行済みの非root失敗と既存runtime fixtureを根拠に固定`receipts`を既存ownership対象へ加える。既存のno-follow/10001/0700契約と旧receipt内容を保つ。元のpermission境界に絞って受入を確認する。
-- [ ] **c-5c / mainと採用:** sourceをcommit/push→実read-only review→exact HEAD必要checks→mainへ統合する。既存builder/upload/redeployを再利用して既存owned VMだけ新mainへ反映し、health/source hashと固定親ownershipを確認する。
+- [x] **c-5c / mainと採用:** sourceをcommit/push→実read-only review→exact HEAD必要checks→mainへ統合する。既存builder/upload/redeployを再利用して既存owned VMだけ新mainへ反映し、health/source hashと固定親ownershipを確認する。
 - [ ] **c-5d / 新実行の扱い:** v2がモデル前失敗し新cycle.jsonが存在しないことを公式readbackで確認する。保存済みv2 execution IDは保持し、修復後の別dispatch namespaceを設けて同業務occurrenceへ一回だけdispatchする。存在するunknown receiptを消したり別IDで同作用を重複させたりしない。
 
 
 **c-5a/b受入:** 実VMのreceipts親はuid/gid0・0755、home/buildは10001・0700、新v2 receipt directory/cycle.jsonは未作成。旧factory execution IDの現在GET404と過去completed証拠は分離する。固定親receiptsの既存no-follow ownership対象への追加だけを実装する。receipt parent inodeが10001/10001準備対象から漏れるfocused REDを確認し、修正後runtime-env6/6を確認する。fixtureはownership syscallのみ記録し、実chownの採用は新imageで別確認する。現在副cursor=c-5c。証拠→`docs/evidence/maritime/owned-factory-v2-preflight.json`。
+
+
+**c-5d evidence:** owned main4f execution terminal exit0. Runner returns `no_op` with four literal workspace files, all present, regular/single-link, UID10001; an earlier read-only observation also found a newer mtime, which is diagnostic only. The four drafts total7188bytes. `cloud_cycle.py` maps no_op directly to deferred/no_work before validating paths; no publish/sale/payout/external use is evidenced. The v3 deferred receipt remains immutable.
+
+- [x] **c-5d / root-cause readback:** provider execution terminal+runner no_op, four current files/7188bytes, UID/link verified; durable receipt stays deferred/no_work with no artifact refs. Evidence→`docs/evidence/maritime/owned-factory-no-op.json`.
+- [x] **c-5e.1 / RED:** revise the no_op fixture to write under its exact occurrence output directory and require completed offline-draft refs. A file left in the shared build root remains deferred. RED showed three expected failures on the old behavior.
+- [x] **c-5e.2 / boundary checks:** empty evidence remains no_work; a preexisting occurrence dir, symlink parent/file, directory artifact, or hard-linked artifact cannot become a ref. Preserve existing receipt fences.
+- [x] **c-5e.3 / minimal fix:** after exclusive receipt creation, create `build/occurrences/<occurrence_id>` with `mkdir(exist_ok=False, mode=0700)`. `lstat` the parent and occurrence dir; reject symlink/non-directory/wrong owner and never reuse a preexisting dir. Keep `LIFE_MANAGER_BUILD_WORKSPACE` at the tenant build root; set runner `--workdir` and `AGENT_RUNNER_WORKDIR` to this occurrence dir. Accept evidence for `no_op` and `success` only when it resolves strictly inside that dir and `lstat` reports a regular, current-UID, single-link file. No valid no_op refs stays deferred/no_work; success without refs stays effect_unknown. Do not use mtime.
+- [x] **c-5e.4 / focused verification:** `python3 -m unittest skills/capafy-autopublish/test/test_cloud_cycle.py` passes 21/21. Evidence→`docs/evidence/maritime/no-op-occurrence-staging-fix.json`. Publish/sale/payout remain unverified.
+- [ ] **c-5e.5 / source acceptance:** fresh read-only review→commit/push→all registered exact-HEAD checks→main. Preserve the old v3 receipt and original drafts.
+- [ ] **c-5e.6 / image:** build from merged main, upload/redeploy the existing VM, and verify loaded SHA plus `cloud_cycle.py` hash.
+- [ ] **c-5e.7 / fresh occurrence:** verify a new occurrence ID has no receipt; retain v3 deferred receipt; read free credit and existing binding; dispatch once and verify terminal/receipt.
+- [ ] **c-5e.8 / demo proof:** verify all refs point to current literal files; use the artifact handler to download and compare size/hash. Call it an unpublished draft until an official publish receipt exists.
+
+### T22.1b.6 — Manager保存先を既存Runtime Postgresへ接続する
+
+旧順序=b.5のDashboard本人ログイン→REST復旧→公開。新順序=下記b.6とc-5のimage採用を並行→owned製品受入→T30配布、T23正式経路確認。理由は、現SupabaseデータAPI503、同regionの公式障害、候補DBimageにもtimezone依存が残る一方、既存Runtime PGはDDL可・対象6表未作成・Manager job0、Supabase enrollment/execution0、公開flag/cap無効を確認するため。b.5は元provider診断として残すが製品の進行条件から外す。進行中のimage配備と旧unknown fenceを中断/重複させない。現在主cursor=b.6-01、副cursor=c-5e.5。
+
+**対象tree（新規は予定、既存componentを再利用する）:**
+
+```text
+apps/life-manager/
+  migrations/20261021090000_maritime_manager_runtime_state.sql  [新規]
+  lib/maritime-manager-store.js
+  lib/maritime-manager-store.test.js
+  lib/maritime-manager-persistence.js                         [新規]
+  lib/maritime-manager-usage.js
+  lib/maritime-manager-usage.test.js
+  server.js
+  scripts/runtime-up.js
+  test/postgres/maritime-manager-state.integration.js          [新規]
+```
+
+以下のチェック欄は実行手順。完了状態・現在cursorの正本はSpecの同ID範囲。各項目は記載した結果で完了とし、次の作業に無関係な完了gateを追加しない。
+
+#### schemaと保存処理
+
+- [ ] **b.6-01:** `test/postgres/maritime-manager-state.integration.js`へ既存native initdb/Unix socket/pg driver手順を流用する。対象6表が無い状態の失敗を確認する。production DSNは使わない。
+- [ ] **b.6-02:** 上記migrationに`lm_maritime_manager_identities`を定義する。verified Auth subject↔uidをuniqueにし、first-touch列を持たせる。重複subject/他UIDへの差替えを拒否する。
+- [ ] **b.6-03:** 同migrationにenrollmentsと既存provision claim/bind関数を移す。一般lm_users FK/専用Supabase role GRANTを持ち込まず、identity bindingを制約する。
+- [ ] **b.6-04:** 同migrationにexecutionsと既存cycle claim/bind関数を移す。同occurrenceのclaim一回・同execution IDだけの再bindを維持する。
+- [ ] **b.6-05:** 同migrationにparticipantsと容量claim関数を移す。advisory lockで人数上限を直列化し、sourceは現在のnormalizerと揃えInstagramも受理する。旧SQLにないInstagramを落とさない。
+- [ ] **b.6-06:** 同migrationにfunnel表・stable source-event unique・audience制約・必要index・append-only guardを定義する。既存normalizerの出力をそのまま保存できることを確認する。
+- [ ] **b.6-07:** 同migrationにCFO receipt表を移す。uid/period key unique、pending/sent整合性、recipient hashを維持する。既存jobs/common receipts/FinancialRecordは再作成しない。
+- [ ] **b.6-08:** `maritime-manager-store.js`の`read/listPending/listPaused`をparameterized SQLへ接続する。PG timestamp→ISO、date_key→YYYY-MM-DDを正規化し、既存input/row検証を残す。
+- [ ] **b.6-09:** 同fileの`enroll`をPGへ接続する。verified subject・UID・emailが既存rowと一致しなければ拒否し、conflictで所有者を上書きしない。
+- [ ] **b.6-10:** 同fileの`claimProvision/bindAgent`を上記既存関数へ接続する。paused/foreign agent/異なるreleaseの拒否を確認する。
+- [ ] **b.6-11:** 同fileの`pause/quarantinePendingProvision`をPGへ接続する。pauseを先に永続化し、既存receiptを削除しない。
+- [ ] **b.6-12:** 同fileの`readCycleDispatch/claimCycleDispatch/bindCycleExecution`をPGへ接続する。agent/release/date/occurrenceの照合とdispatch前fenceを残す。ManagerのREST transportを置換し、障害時fallback/二重writeを作らない。
+
+#### verified identity・同意・日報
+
+- [ ] **b.6-13:** `maritime-manager-persistence.js`に`ensureWebUserImpl(subject)`を作る。既存`separateWebUidForSubject()`を使い、owned UIDと一致することを確認する。一般Calendar/Telegramのlm_usersは参照/移行しない。
+- [ ] **b.6-14:** 同fileに`storeFirstTouch/readFirstTouch`を作る。既存sanitizeを使い、署名cookieから得た初回流入だけを保存する。後の流入で上書きしない。
+- [ ] **b.6-15:** 同fileのPG event writerを既存distributionの`recordEventImpl`へ注入し、`participantId/recordManagerEvent/recordAnonymousEvent`を再利用する。internal除外・HMAC・stable event key・dedupを維持する。
+- [ ] **b.6-16:** 同fileにManager専用`getParticipant/accept`を作る。容量claim関数を呼び、同一利用者は一度だけ、並行申込でも上限を超えないことを確認する。
+- [ ] **b.6-17:** 同fileに`revoke/isConsentActive`を作る。停止状態を永続化し、失敗や読取不明を同意済みに置換しない。旧Telegram用global distributionは切替えない。
+- [ ] **b.6-18:** 同fileにCFO IOの`read/claim/mark`を作り、既存`deliverCloudCfoEmail`へ渡す。pending fence・recipient hash・23時間期限・Resend idempotencyを変えず、送信器を作り直さない。
+
+#### 呼出経路とsource受入
+
+- [ ] **b.6-19:** `server.js`のManager page/auth/activate/stop/artifact/wakeに同じpersistence依存を渡す。既存frontend Poolを再利用し、control lockとdata queryのPool待ちが循環しない構成にする。
+- [ ] **b.6-20:** `scripts/runtime-up.js`のHandler生成・worker生成・completion観測に同じPG store/distribution/CFO IO/first-touchを渡す。既存workerの順次awaitと既存Poolを使う。
+- [ ] **b.6-21:** `maritime-manager-usage.js`のManager return直接REST読取を、PGの`firstCompletedWorkAt`へ置換する。prefetch除外、24時間条件、internal cohort除外を維持する。
+- [ ] **b.6-22:** 上記native integrationでschema再適用、identity分離、容量並行claim、停止後拒否、dispatch一回claim、同ID bind、date/timestamp正規化、CFO一回claim、event dedupを実SQLで確認する。各機能追加時に対応する確認を増やす。
+- [ ] **b.6-23:** Manager store/auth/handler/usageの既存関連fixtureを新transportへ合わせて確認する。PKCE/CSRF/origin/他人のUID拒否を弱めない。
+- [ ] **b.6-24:** 全変更をfresh read-only reviewし、commit/push→exact HEADの必要CI→main統合する。source受入を本番採用/メール実着信/売上と混同しない。
+
+#### 本番反映と実際の製品受入
+
+- [ ] **b.6-25:** main由来migrationを既存Railway Runtime DBへ一回適用する。6表/function/所有関係を同じ接続でreadbackし、一般利用者の移行はしない。
+- [ ] **b.6-26:** frontend/workerの新source SHAと必須env、owned imageのrelease/archive、UID/externalIdを照合する。公開flag/capはこの時点で0のまま確認する。DB credentialをVM/モデルへ渡さない。
+- [ ] **b.6-27:** PG/Authのreadback成功後、email flagと3つのManager worker capabilityを既存deploymentへ有効化する。既存capabilityを保持し、loaded設定・上限3を確認する。受入後enableという循環した順序にしない。
+- [ ] **b.6-28:** ownedの同じブラウザでメール登録→実PKCE callbackを通す。Authのverified subjectとPG identity/CSRF cookieを照合する。
+- [ ] **b.6-29:** 実同意・起動でPG enrollment/jobを確認する。既存externalIdのowned VMをrecoverし、configure receipt・relay・scheduleの公式readbackを取る。
+- [ ] **b.6-30:** 製品経由の新cycleをworkerで完了させ、公式execution・共通receipt・成果物を結ぶ。ログのexit0だけで完了とせず、ブラウザから成果物をdownloadしてsize/hashを照合する。
+- [ ] **b.6-31:** 実日報のjob→CFO receipt→Resend provider受付→owned inbox着信を確認する。初回予定日時を明記し、unknownを利益0や売上へ変換しない。
+- [ ] **b.6-32:** 実停止でpaused永続化→新規dispatch抑止→同意revoke/schedule停止の公式readbackを確認する。過去receipt/成果物は維持する。
+- [ ] **b.6-33:** 計測のverified/activated/work/report/returnをPGから読取確認する。founder/testをexternal利用者へ数えない。24時間再訪の将来観測を初週提出の待ち条件にしない。
+- [ ] **b.6-34:** 初週packetの稼働URL・loaded SHA・Maritime usage・実業務・人数/費用の証拠を現在値へ更新する。T30 URLメールとT23正式経路へ渡す。
+
+**その先の既存atomic TODO:** T30.1〜4=URLメール、T24.3〜4/T25/T26=媒体URL・配布素材・demo/公開、T23=正式提出と受付readback、T27/T28/T29=実利用と継続/1,000人への拡大、T31=課金/利益。各定義を重複作成せず既存節を実行する。友人3人・正式form公開・24時間再訪・1,000人をURL送信の待ち条件にしない。
+
+**再利用するcomponent:** runtime-job-store、FinancialRecord、daily observations、Maritime transport、Resend/CFO delivery、PKCE/CSRF、UID helper、distribution/event normalizer。根拠→`docs/evidence/maritime/runtime-pg-state-preflight.json`。
+
+
+**c-5cの本番採用:** main4fの既存VM再配備は公式success。新しいread-only executionはcompleted/exit0、health release4f・runtime-env.js hashのmain一致・receipts親10001:10001/0700・symlinkなしを確認する。v2失敗occurrenceのcycle receiptは存在しない。モデルは呼ばず、再dispatch/新業務完了は未確認。副cursor=c-5d。証拠→`docs/evidence/maritime/receipt-parent-image-adoption.json`。

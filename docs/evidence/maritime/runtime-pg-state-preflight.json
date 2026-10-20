@@ -1,0 +1,45 @@
+{
+  "observed_at": "2026-10-20T23:06:46.801726+00:00",
+  "runtime_database": {
+    "schema_create_allowed": true,
+    "manager_tables_present": false,
+    "manager_jobs": 0,
+    "manager_email_enabled": false,
+    "maritime_capabilities_enabled": false
+  },
+  "supabase_manager_state": {
+    "http": 201,
+    "enrollments": 0,
+    "executions": 0,
+    "manager_consent_version_filter_count": 0,
+    "consent_filter_limitation": "Existing distribution accept stores maritime-retention-v1; enrollment count0 plus disabled flag/caps, not this consent filter alone, establishes no active Manager business data."
+  },
+  "identity": {
+    "owned_uid_matches_separate_web_subject": true,
+    "owned_external_id_matches_manager_identity": true,
+    "private_values_copied": false
+  },
+  "provider_observation": {
+    "region": "us-east-2",
+    "project_status": "ACTIVE_HEALTHY",
+    "rest_http": 503,
+    "rest_error_code": "PGRST002",
+    "auth_admin_http": 200,
+    "metrics_http": 504,
+    "http_head_extension_function_present": false,
+    "localhost_head_performed": false
+  },
+  "source_references": [
+    "https://github.com/supabase/postgres/blob/858200318423ae52f74513720f5964cf1134c237/ansible/vars.yml#L24",
+    "https://github.com/supabase/postgres/blob/17.11.0.003/ansible/vars.yml#L75",
+    "https://github.com/PostgREST/postgrest/blob/v14.18/src/PostgREST/SchemaCache.hs#L161",
+    "https://status.supabase.com/incidents/01M5DN6V02FJHZTE9390XJM9YY"
+  ],
+  "managed_postgrest_actual_version": null,
+  "package_manifests": {
+    "current_pg_image": "14.5",
+    "candidate_pg_image": "14.18",
+    "candidate_still_queries_timezone_catalog": true
+  },
+  "decision": "Manager state uses existing runtime Postgres; Supabase Auth remains. No REST fallback or dual writes. General Telegram/Calendar state stays in its existing store."
+}

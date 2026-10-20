@@ -1,0 +1,33 @@
+{
+  "observed_at": "2026-10-20T23:33:59.759022+00:00",
+  "source_release_sha": "4f008688db5aff872ae11429d2753ed9f38c598c",
+  "source_file": "skills/capafy-autopublish/scripts/cloud_cycle.py",
+  "current_sha256": "b8568a3e819854918138e96bb974905a1e0aa4f26839c7959ff03af76e604b43",
+  "focused_red": {
+    "test": "test_no_op_with_owned_draft_artifacts_records_completed_offline_work",
+    "expected": "completed with literal artifact ref",
+    "actual": "deferred/no_work"
+  },
+  "focused_green": {
+    "command": "python3 -m unittest skills/capafy-autopublish/test/test_cloud_cycle.py",
+    "passed": 18,
+    "failed": 0
+  },
+  "runner_observation": {
+    "status": "no_op",
+    "literal_evidence_files": 4,
+    "all_files_updated_after_dispatch": true,
+    "all_regular_single_link_owned_by_uid_10001": true,
+    "total_bytes": 7188
+  },
+  "cycle_receipt_observation": {
+    "status": "deferred",
+    "error_class": "no_work",
+    "artifact_refs": []
+  },
+  "publication_verified": false,
+  "sales_verified": false,
+  "payout_verified": false,
+  "fresh_occurrence_completed_after_fix": false,
+  "next_action": "source review/CI/main, rebuild+deploy, then fresh occurrence; retain v3 deferred receipt"
+}

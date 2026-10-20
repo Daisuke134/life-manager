@@ -1,0 +1,40 @@
+{
+  "source_file": "skills/capafy-autopublish/scripts/cloud_cycle.py",
+  "source_sha256": "ce2293bdeee66847269b7232d339295e9f6c6fcfcfd030ef216528ba4bf55918",
+  "artifact_boundary": "exclusive private build/occurrences/<occurrence_id> created after the durable receipt claim",
+  "validation": [
+    "lstat private directory",
+    "current uid",
+    "strict resolved path inside occurrence directory",
+    "regular file",
+    "single link"
+  ],
+  "mtime_based_freshness": "rejected; filesystem timestamp precision is not used",
+  "red": {
+    "command": "python3 -m unittest skills/capafy-autopublish/test/test_cloud_cycle.py",
+    "result": "3 expected failures before implementation"
+  },
+  "green": {
+    "command": "python3 -m unittest skills/capafy-autopublish/test/test_cloud_cycle.py",
+    "passed": 21,
+    "failed": 0
+  },
+  "review": {
+    "mode": "read-only",
+    "critical": 0,
+    "important": 0,
+    "minor": 0
+  },
+  "production": {
+    "deployed": false,
+    "fresh_occurrence_run": false,
+    "publication_verified": false,
+    "sales_verified": false,
+    "payout_verified": false
+  },
+  "preserved": [
+    "existing v3 deferred receipt",
+    "existing four draft files"
+  ],
+  "next_action": "sync latest origin/main, push exact source head, pass exact-head checks, then deploy the existing owned VM and run one fresh occurrence"
+}

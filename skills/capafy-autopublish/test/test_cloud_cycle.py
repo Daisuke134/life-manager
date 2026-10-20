@@ -63,7 +63,7 @@ class CloudCycleTest(unittest.TestCase):
 
     def runner(self, command, **options):
         self.calls.append((command, options))
-        artifact = self.work / 'original-product.md'
+        artifact = Path(command[command.index('--workdir') + 1]) / 'original-product.md'
         artifact.write_text('Original skill and listing prepared for this tenant.')
         return types.SimpleNamespace(returncode=0, stdout=json.dumps({'status': 'success', 'evidence': [str(artifact)]}), stderr='')
 
@@ -79,10 +79,13 @@ class CloudCycleTest(unittest.TestCase):
         self.assertEqual(len(self.calls), 1)
         command, opts = self.calls[0]
         self.assertTrue(command[1].endswith('/skills/earn/marketing-engine/run_agent.sh'))
-        self.assertEqual(command[command.index('--workdir') + 1], str(self.work))
-        self.assertEqual(opts['cwd'], str(self.work))
+        occurrence_work = self.work / 'occurrences' / 'cycle-1'
+        self.assertEqual(command[command.index('--workdir') + 1], str(occurrence_work))
+        self.assertEqual(opts['cwd'], str(occurrence_work))
         self.assertEqual(opts['env']['HOME'], str(self.home / 'home'))
         self.assertEqual(opts['env']['AGENT_RUNNER_CONFIG'], str(self.config))
+        self.assertEqual(opts['env']['AGENT_RUNNER_WORKDIR'], str(occurrence_work))
+        self.assertEqual(opts['env']['LIFE_MANAGER_BUILD_WORKSPACE'], str(self.work))
         self.assertIn('No provider account is connected', opts['input'])
         self.assertNotIn('goal', command)
         self.assertEqual(result['providerReceiptRefs'], [])
@@ -92,7 +95,7 @@ class CloudCycleTest(unittest.TestCase):
         def checked(command, **options):
             schema = json.loads(Path(command[command.index('--schema') + 1]).read_text())
             pattern = schema['properties']['evidence']['items']['pattern']
-            artifact = str(self.work / '商品と掲載原稿.md')
+            artifact = str(Path(command[command.index('--workdir') + 1]) / '商品と掲載原稿.md')
             self.assertIsNotNone(re.search(pattern, artifact))
             self.assertIsNotNone(re.search(pattern, 'file://' + artifact))
             self.assertIsNone(re.search(pattern, 'Created original offline product: ' + artifact))
@@ -206,6 +209,105 @@ class CloudCycleTest(unittest.TestCase):
         def unproven(command, **options):
             return types.SimpleNamespace(returncode=0, stdout=json.dumps({'status': 'success', 'evidence': ['/etc/passwd']}), stderr='')
         self.assertNotEqual(self.run_cycle(unproven)['status'], 'completed')
+
+
+    def test_no_op_with_owned_draft_artifacts_records_completed_offline_work(self):
+        def no_op_with_draft(command, **options):
+            self.calls.append((command, options))
+            artifact = Path(command[command.index('--workdir') + 1]) / 'offline-draft.md'
+            artifact.write_text('Original draft; not published.')
+            return types.SimpleNamespace(returncode=0,
+                stdout=json.dumps({'status': 'no_op', 'evidence': [str(artifact)]}), stderr='')
+
+        result = self.run_cycle(no_op_with_draft)
+        self.assertEqual(result['status'], 'completed')
+        self.assertIsNone(result['errorClass'])
+        self.assertEqual(result['artifactRefs'], ['artifact://occurrences/cycle-1/offline-draft.md'])
+        self.assertIsNone(result['providerSnapshotRef'])
+        self.assertEqual(result['providerReceiptRefs'], [])
+        self.assertIsNone(result['nextEligibleAt'])
+        self.assertEqual(self.run_cycle()['artifactRefs'], result['artifactRefs'])
+        self.assertEqual(len(self.calls), 1)
+
+    def test_no_op_with_stale_owned_artifacts_remains_deferred(self):
+        artifact = self.work / 'prior-draft.md'
+        artifact.write_text('Draft from an earlier cycle.')
+
+        def no_work(command, **options):
+            self.calls.append((command, options))
+            return types.SimpleNamespace(returncode=0,
+                stdout=json.dumps({'status': 'no_op', 'evidence': [str(artifact)]}), stderr='')
+
+        result = self.run_cycle(no_work)
+        self.assertEqual(result['status'], 'deferred')
+        self.assertEqual(result['errorClass'], 'no_work')
+        self.assertEqual(result['artifactRefs'], [])
+        self.assertEqual(len(self.calls), 1)
+
+    def test_no_op_does_not_reuse_a_preexisting_occurrence_directory(self):
+        occurrence_parent = self.work / 'occurrences'
+        occurrence_parent.mkdir(mode=0o700)
+        occurrence_work = occurrence_parent / 'cycle-1'
+        occurrence_work.mkdir(mode=0o700)
+        old_artifact = occurrence_work / 'old-draft.md'
+        old_artifact.write_text('Draft from an earlier unreceipted cycle.')
+
+        result = self.run_cycle()
+
+        self.assertEqual(result['status'], 'effect_unknown')
+        self.assertEqual(result['errorClass'], 'occurrence_workspace_preexisting')
+        self.assertEqual(result['artifactRefs'], [])
+        self.assertEqual(self.calls, [])
+        self.assertEqual(old_artifact.read_text(), 'Draft from an earlier unreceipted cycle.')
+
+    def test_no_op_rejects_a_symlinked_occurrence_parent(self):
+        foreign = self.root / 'foreign-occurrences'
+        foreign.mkdir()
+        (self.work / 'occurrences').symlink_to(foreign, target_is_directory=True)
+
+        result = self.run_cycle()
+
+        self.assertEqual(result['status'], 'effect_unknown')
+        self.assertEqual(result['errorClass'], 'occurrence_workspace_unavailable')
+        self.assertEqual(result['artifactRefs'], [])
+        self.assertEqual(self.calls, [])
+        self.assertEqual(list(foreign.iterdir()), [])
+
+    def test_no_op_does_not_accept_symlink_or_hard_link_artifacts(self):
+        import os
+
+        def linked_artifacts(command, **options):
+            occurrence_work = Path(command[command.index('--workdir') + 1])
+            occurrence_work.mkdir(parents=True, exist_ok=True)
+            source = self.work / 'shared-draft.md'
+            source.write_text('Shared file outside occurrence output.')
+            symlink = occurrence_work / 'symlink.md'
+            symlink.symlink_to(source)
+            hardlink = occurrence_work / 'hardlink.md'
+            os.link(source, hardlink)
+            non_file = occurrence_work / 'directory'
+            non_file.mkdir()
+            self.calls.append((command, options))
+            return types.SimpleNamespace(returncode=0,
+                stdout=json.dumps({'status': 'no_op', 'evidence': [str(symlink), str(hardlink), str(non_file)]}), stderr='')
+
+        result = self.run_cycle(linked_artifacts)
+
+        self.assertEqual(result['status'], 'deferred')
+        self.assertEqual(result['errorClass'], 'no_work')
+        self.assertEqual(result['artifactRefs'], [])
+
+    def test_no_op_without_owned_artifacts_remains_deferred(self):
+        def no_work(command, **options):
+            self.calls.append((command, options))
+            return types.SimpleNamespace(returncode=0,
+                stdout=json.dumps({'status': 'no_op', 'evidence': []}), stderr='')
+
+        result = self.run_cycle(no_work)
+        self.assertEqual(result['status'], 'deferred')
+        self.assertEqual(result['errorClass'], 'no_work')
+        self.assertEqual(result['artifactRefs'], [])
+        self.assertEqual(len(self.calls), 1)
 
 
 if __name__ == '__main__':

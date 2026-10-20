@@ -1,0 +1,19 @@
+{
+  "observed_at": "2026-10-20T23:16:30.497363+00:00",
+  "release_sha": "4f008688db5aff872ae11429d2753ed9f38c598c",
+  "provider_status": "completed",
+  "exit_code": 0,
+  "runtime_env_sha256": "2735f30b7b26b87995603a90c19a6faa42a88b3d68f867e266fc186079986384",
+  "matches_main_source": true,
+  "receipt_parent": {
+    "uid": 10001,
+    "gid": 10001,
+    "mode": "0o700",
+    "symlink": false
+  },
+  "prior_failed_cycle_receipt_present": false,
+  "model_invoked": false,
+  "new_cycle_completed": false,
+  "old_unknown_receipt_modified": false,
+  "next_action": "c-5d saved failed execution retained; new dispatch namespace for same unstarted occurrence, once"
+}
