@@ -100,3 +100,7 @@ SDK docsには`provision()`を使う例があるが、それはOpenClaw template
 ### T08 image browser
 - 一次source: https://github.com/CloakHQ/cloakbrowser （取得済み0.5.6 package source/configと公式READMEを照合）。既存owned Linux fixtureは公式`cloakbrowser.download.ensure_binary`でfree Chrome146を取得し、uid10001/caps0でCDP/DOMを確認する。
 - 採用: 同じAPIをimage buildで使いroot所有read-only binaryを固定pathへbind。既存Capafy launcherのLinux分岐のみheadless/dev-shm対応。Mac profile/認証は複製しない。image実build/provider認証は未確認。
+
+### T22 CI runner容量
+- https://github.com/actions/runner-images/blob/main/README.md — macos-latestはmacOS26/arm64、standard macos-15-intelはmacOS15/x64。large/xlargeの有料拡張runnerを選ばない。
+- https://github.com/Daisuke134/life-manager/actions/runs/39487734329 — Loop controlはrunner未割当のまま15分後に取消。公式annotationはhosted runnerの取得失敗とmacOS arm64 capacity constraintsを記録する。コード失敗/手動cancelではない。同じcontractを別の標準Mac poolで実行する。
