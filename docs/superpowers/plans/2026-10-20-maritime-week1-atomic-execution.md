@@ -287,7 +287,7 @@ life-manager/
 ## Task T13: Maritime health/chatの薄いHTTP入口を作る
 
 **Files:** Create `apps/life-manager/maritime/server.js`/test。
-**Interfaces:** `createMaritimeManagerServer(deps)`。GET `/health`、POST `/chat`、GET `/schedules`。bind `0.0.0.0:Number(process.env.PORT)`。healthは外部作用なし。
+**Interfaces:** `createMaritimeManagerServer({config:{tenantId,releaseSha,modelReady},relayWake,relayTimeoutMs})`。固定prompt=`lm:cycle`/`lm:report`かつsource=`scheduled`だけ`relayWake({tenantId,releaseSha,kind},{signal})->{accepted}`へ通知する。default10秒・最大25秒、8KiB入力上限。requestのtenant/release/shellは採用しない。GET `/health`、POST `/chat`、GET `/schedules`。bind `0.0.0.0:Number(process.env.PORT)`。healthは外部作用なし。
 **Depends:** T11。T12の実image buildを待たず、handlerのsource/fixtureを完成させる。
 
 - [ ] T13.1 test `health_is_pure_and_chat_returns_before_factory_finishes`を定義。factory promiseが未完でもchatが30秒未満で受付応答し、healthではjob0件。
