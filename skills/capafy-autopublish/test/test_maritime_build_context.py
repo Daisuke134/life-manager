@@ -1,6 +1,7 @@
 import importlib.util
 import json
 import os
+import shutil
 from pathlib import Path
 import subprocess
 import tempfile
@@ -46,6 +47,23 @@ class MaritimeBuildContextTest(unittest.TestCase):
         self.assertEqual(receipt['fileCount'], 3)
         self.assertEqual(len(receipt['archiveSha256']), 64)
         self.assertEqual(self.output.stat().st_mode & 0o777, 0o600)
+    def test_archive_preserves_actual_publisher_profile_imports_but_excludes_private_profiles(self):
+        source = MODULE.parents[3] / 'skills/capafy-autopublish/vendor/capafy-publisher'
+        destination = self.repo / 'skills/capafy-autopublish/vendor/capafy-publisher'
+        shutil.copytree(source, destination, ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
+        private = self.repo / 'profiles/personal/session.json'; private.parent.mkdir(parents=True); private.write_text('private-session')
+        self.git('add', '-A'); self.git('-c', 'commit.gpgSign=false', '-c', 'core.hooksPath=/dev/null', 'commit', '-m', 'publisher source fixture')
+        sha = self.git('rev-parse', 'HEAD').strip(); self.git('update-ref', 'refs/remotes/origin/main', sha)
+        self.module.build_context(self.repo, sha, self.output)
+        extracted = self.root / 'extracted'
+        with zipfile.ZipFile(self.output) as archive:
+            self.assertNotIn('profiles/personal/session.json', archive.namelist())
+            archive.extractall(extracted)
+        vendor = extracted / 'skills/capafy-autopublish/vendor/capafy-publisher'
+        probe = subprocess.run(['python3', '-c', "from packaging.publish.submit.prepare import run_prepare; from packaging.publish.profiles.mode_dispatch import get_publish_profile; from packaging.runtime.stage_plan import StagePlan; from packaging.runtime.profiles import load_profile; assert callable(get_publish_profile('download').prepare); assert callable(get_publish_profile('run_online').stage); assert load_profile('codex')['env_id'] == 'codex'"], cwd=vendor,
+            env={'PATH': os.environ['PATH'], 'HOME': str(self.root / 'empty-home'), 'PYTHONDONTWRITEBYTECODE': '1'}, capture_output=True, text=True)
+        self.assertEqual(probe.returncode, 0, probe.stderr)
+
     def test_unmerged_or_non_sha_release_is_rejected(self):
         target = self.repo / 'next.js'; target.write_text('branch-only\n'); self.git('add', 'next.js')
         self.git('-c', 'commit.gpgSign=false', '-c', 'core.hooksPath=/dev/null', 'commit', '-m', 'branch fixture')

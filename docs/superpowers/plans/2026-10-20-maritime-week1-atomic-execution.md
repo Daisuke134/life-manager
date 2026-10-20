@@ -267,6 +267,8 @@ life-manager/
 **Interfaces:** `buildMaritimeManagerCycleJob({tenantId,occurrenceId,dateKey,releaseSha})`、`createMaritimeManagerLoopAdapter(services)`。capability=`maritime.manager.cycle`、既存adapterのplan/execute/reconcile/verify/reportを実装。同fileに`buildMaritimeManagerProvisionJob({tenantId,releaseSha})`/`createMaritimeManagerProvisionAdapter(services)`と`buildMaritimeManagerReportJob({tenantId,periodKey,releaseSha})`/`createMaritimeManagerReportAdapter(services)`を置き、`maritime.manager.provision`/`maritime.manager.report`を中央workerだけに登録する。provisionはT15 transport、reportはT19配信をinjectし、未注入なら実行前に失敗させる。
 **Depends:** T09/T10。
 
+**Source依存の区別:** T11A=store/SQL・stable builders・cycle契約（main統合済み）。T11B=provision/cycle/report adapterと中央worker wiring（T15/T16、reportはT18/T19のsourceを消費）。T13/T12がT11Bを待つ循環は作らない。実VM/自然実行の受入は全wiring後に確認する。
+
 - [ ] T11.1 test `same_occurrence_is_one_runtime_job`を定義。stable job/effect keyがtenant+occurrenceにbindし、別tenantでは異なることをassert。
 - [ ] T11.2 `buildRuntimeJob`と既存queue/leaseを使う。factoryを長時間HTTP request内で実行せず、中央jobからMaritime公式detached execへ一度dispatchし、executionIdを既存jobのreceipt/stateへpersistしてpollする。既存workerのlease heartbeatを維持し、次wakeをpersistする。T11Aとして、既存storeへ`claimCycleDispatch({uid,agentId,occurrenceId,dateKey,releaseSha}) -> {claimed,row}`、`readCycleDispatch(identity)`、`bindCycleExecution({...identity,executionId})`を追加する。専用tableはuid+occurrenceにagent/date/releaseと不変のexecution IDだけを保存し、終端state/receiptは既存runtime queueに残す。新規claim成功の同じ呼出しだけがdispatch可能。既存rowでexecution IDが未記録ならunknownを保持して再dispatchせず、記録済みなら同IDをpollする。SQL claimはactiveで停止されていない同tenant/agent/releaseだけを許可する。cycle adapterのexecuteは既存checkpointを先に読み、fresh claimだけdispatch、直後にexecution IDを保存して一回だけ状態を読む。実行中はpending codeで既存queueのreconcilingへ戻し、単一workerを長時間占有しない。停止後も既存executionの読取は継続する。reconcile(job)はread-onlyでpresent/pending/unknownを返し、pendingをunknown agingや再dispatchへ変換しない。完了はexitCode=0と同tenant/occurrence/date/releaseの保存済みcycle envelopeを照合し、売上は別の公式collectorだけから取得する。
 - [ ] T11.3 `runtime-up.js`のservicesByAdapterへ`dispatchCycle/readExecution/readCycleReceipt`を注入する。storeに`listPending(limit)`を追加し、enroll後enqueue前に落ちたpending rowを既存stable provision jobへ戻す有限reconcileをworkerの既存pollで行う。同じjob keyで再enqueueし、paused/effect_unknownは新規実行へ戻さない。同workerの有限reconcileでcycle adapterを呼び、pendingはagingせず、presentは既存resolveReconciliationへ渡す。unknownは安全なerrorClass/nextActionを保存して公式readbackを続ける。factory wrapperの実行場所はMaritime VMだけとし、Railwayで同じfactoryを二重実行しない。adapter manifestにprovision/cycle/reportの三capabilityを別entryで追加し、既存capabilityを置換しない。provision/reportを実行できないままqueueへ入れる穴を残さない。日次金融aggregateは最新の検証済みsnapshotとして読み、更新時刻ごとにimmutable取引storeへappendしない。同じ日を別取引として重複加算しない。
@@ -276,11 +278,11 @@ life-manager/
 
 **Files:** Create `apps/life-manager/maritime/Dockerfile`、`apps/life-manager/maritime/build-context.py`、`skills/capafy-autopublish/test/test_maritime_build_context.py`。repo直下のDockerfileを新設しない。
 **Interfaces:** CMDはexec形式`["node","apps/life-manager/maritime/server.js"]`。immutable code=/app、mutable state=/data。既存Node/Python/runner/browser依存だけを含める。base=node:22.23.3-bookworm-slim、Codex CLI=0.160.0、Pythonは既存requirements-runtime.txtのfactory関連locked依存を使う。browser binaryの実attachはT08で別途確認し、インストール済みと偽らない。
-**Depends:** T11/T13。先にHTTP serverのsourceを完成させ、存在しないCMDをbuildしない。
+**Depends:** T09/T13のsource。T11全worker wiringの完了待ちは不要。先にHTTP serverのsourceを完成させ、存在しないCMDをbuildしない。
 
 - [ ] T12.1 Docker daemonのread-only preflightを`docker info`で確認する。現在はCLIあり・socketなしを観測済み。代替buildは公式Maritime dashboardのDeploy sourceでZIPの受付field/送信先/build statusを確認し、`readiness.json.build_route`へ契約を保存する。公式CLI文書の`--source`はtemplate/github/dockerのみなので、`--source zip`など未確認flagを作らない。実UI/APIがZIPを受け付けない場合はそのexact応答を記録し、既存GitHub CIで専用Dockerfileをbuildしてpublic GHCR digestを供給する最小workflowへT12だけを更新する。primaryがこの境界を閉じ、他taskの完了を偽装しない。
 - [ ] T12.2 `test_maritime_build_context.py::test_zip_contains_only_tracked_release_and_root_dockerfile`を追加する。指定commitのtracked fileのみ、archive直下Dockerfileは専用Dockerfileと同一、.env/credential/profile/state/.git/worktreeは0件、通常repo直下には新Dockerfileなしをassertする。
-- [ ] T12.3 `build_context(repo: Path, release_sha: str, output_zip: Path) -> dict`を`build-context.py`へ実装する。`git archive <verified-main-sha>`から展開対象を取り、専用Dockerfileだけをarchive直下へ複製する。CLI=`python3 apps/life-manager/maritime/build-context.py --release <main-sha> --output <private-build-dir>/maritime.zip`。ZIPは500,000,000 bytes compressed/2,000,000,000 bytes unpacked未満を検証し、secret/state/profile/memory・env・credential・symlinkをarchiveへ含めない。既存outputは上書きしない。未merge commitをorigin/main ancestry検査で拒否し、working tree/untracked fileを読まない。ZIP deployでは.dockerignoreが無視されるため、これに除外を任せない。
+- [ ] T12.3 `build_context(repo: Path, release_sha: str, output_zip: Path) -> dict`を`build-context.py`へ実装する。`git archive <verified-main-sha>`から展開対象を取り、専用Dockerfileだけをarchive直下へ複製する。CLI=`python3 apps/life-manager/maritime/build-context.py --release <main-sha> --output <private-build-dir>/maritime.zip`。ZIPは500,000,000 bytes compressed/2,000,000,000 bytes unpacked未満を検証し、secret/state/private profile/memory・env・credential・symlinkをarchiveへ含めない。公開vendorの`packaging/publish/profiles`のPython sourceと`packaging/runtime/profiles`のPython source/4宣言JSONは実装なので保持し、展開ZIPで既存publisher importを確認する。既存outputは上書きしない。未merge commitをorigin/main ancestry検査で拒否し、working tree/untracked fileを読まない。ZIP deployでは.dockerignoreが無視されるため、これに除外を任せない。
 - [ ] T12.4 専用DockerfileへNode floor、Python、Bash、ca-certificates、既存locked dependencies、exec形式CMDを定義する。`docker build -f apps/life-manager/maritime/Dockerfile -t life-manager-maritime:<sha> <sanitized-context>`を実行する。Docker daemonが使えない場合は、T12.1で確認した公式ZIP build経路に同じZIPを渡す。private registry未対応なので、private image URLを架空に設定しない。
 - [ ] T12.5 repo rootで`python3 -m unittest discover -s skills/capafy-autopublish/test -p test_maritime_build_context.py`を実行し、PASSを確認する。build receiptへsource SHA/archive SHA256/image digest/loaded CMDを残してcommit/pushする。既存RailwayのRailpack/rootDirectory/startCommandを変えない。
 
@@ -288,7 +290,7 @@ life-manager/
 
 **Files:** Create `apps/life-manager/maritime/server.js`/test、`runtime-env.js`/test、`run-cycle.js`。`prepareMaritimeRuntime({env,baseConfig,dataRoot,releaseRoot})`をserver起動とdetached execの両方で呼ぶ。server内のprocess.env変更だけでは別exec processへ伝わらないため、`run-cycle.js`で同じtenant config/envを構成して既存Python wrapperへexecする。
 **Interfaces:** `createMaritimeManagerServer({config:{tenantId,releaseSha,modelReady},relayWake,relayTimeoutMs})`。固定prompt=`lm:cycle`/`lm:report`かつsource=`scheduled`だけ`relayWake({tenantId,releaseSha,kind},{signal})->{accepted}`へ通知する。default10秒・最大25秒、8KiB入力上限。requestのtenant/release/shellは採用しない。GET `/health`、POST `/chat`、GET `/schedules`。bind `0.0.0.0:Number(process.env.PORT)`。healthは外部作用なし。
-**Depends:** T11。T12の実image buildを待たず、handlerのsource/fixtureを完成させる。
+**Depends:** T11A（store/builder/cycle契約）のsource。T11のprovider/worker wiringやT12の実image buildを待たず、handlerのsource/fixtureを完成させる。
 
 - [ ] T13.1 test `health_is_pure_and_chat_returns_before_factory_finishes`を定義。factory promiseが未完でもchatが30秒未満で受付応答し、healthではjob0件。
 - [ ] T13.2 startup時に、このagentへMaritimeが注入した`OPENAI_API_KEY`/`OPENAI_BASE_URL`を既存runner用のtenant configと`LM_CLOUD_MODEL_API_KEY`へbindする。既存config schemaを再利用し、現在のapplication-lane先頭Codex candidateのmodel/effortを保持してcloud profileだけを割り当てる。meteredと記録しsubscription quotaを複製しない。既存runnerが要求するauth_fileはtenant以下の空JSON markerに向け、key値はconfigにもmarkerにも保存しない。Macの認証/profileや第二のmodel routerを持ち込まない。必須値欠落はhealthのreadinessへ明記し、Local routeへfallbackしない。POST `/chat`のscheduled promptはkind=`cycle|report`の内部wakeへ変換し、同tenant tokenでRailwayの`/api/internal/maritime/wake`へ通知して受付状態を返す。VMへDB credentialを渡さず、requestに任意tenantや任意shell commandを指定させない。
@@ -332,7 +334,7 @@ life-manager/
 
 **Files:** 既存browser/session adapterとCapafy split scripts。ModifyはT08で特定した不足箇所だけ。
 **Interfaces:** CycleResultにofficial `agentId/version/status/receiptRef`を結合。provider作用のownerを一つにする。
-**Depends:** T16。
+**Depends:** T16/T11 worker wiringとT22.1の非公開foundation deploy。
 
 - [ ] T17.1 自分がownerの接続済みtenantで新規original商品を一つ選び、既存frozen_guard/duplicate_gateを通す。既存sellerを編集しない。
 - [ ] T17.2 既存prepare→CP1→finish→CP2/CP3を一回実行する。途中で応答不明ならofficial readbackへ進み、publishを再送しない。
@@ -343,7 +345,7 @@ life-manager/
 
 **Files:** Create `lib/maritime-manager-report.js`/test。Reuse financial conversion、`cfo-result-summary.js`、既存action receipts。
 **Interfaces:** `buildMaritimeDailyResult({enrollment,periodKey,actionReceipts,financialRecords,costs}) -> DailyResult`、`renderMaritimeDailyEmail(result) -> string`。
-**Depends:** T10/T11。T17の売上発生は待たない。
+**Depends:** T10/T11Aのsource。T17の売上発生は待たない。
 
 - [ ] T18.1 test `daily_result_separates_artifact_publish_sales_payout_and_unknown_cost`を定義。商品作成だけなら売上0の観測がある場合のみ0、未取得は未確認、費用欠落で利益unknownをassert。
 - [ ] T18.2 action receiptから「何を作った/公開した/保留中か」を構成し、gross/refund/known cost/payoutを別表示する。私用Moneytree/Dais balanceは参照しない。
@@ -354,7 +356,7 @@ life-manager/
 
 **Files:** Modify `maritime-manager-report.js`、`runtime-up.js`。Reuse `cfo-cloud-delivery.js`/`mail-resend.js`。
 **Interfaces:** `deliverMaritimeDailyResult({enrollment,result,observedAt},deps)`→既存`deliverCloudCfoEmail({uid,periodKey,message,observedAt,recipient})`。
-**Depends:** T18/T16。
+**Depends:** sourceはT18。実送信の受入はT16のtenant binding/worker wiring後。
 
 - [ ] T19.1 test `daily_email_replay_returns_original_provider_id`を定義。同uid+periodKeyを二回実行してResend send1回、異なるrecipientへpending receiptを再利用しない。
 - [ ] T19.2 既存永続receipt、provider idempotency、23h guardをそのまま使う。新しいメールoutbox/別providerを作らない。
@@ -387,9 +389,9 @@ life-manager/
 
 **Files:** Create `scripts/maritime-manager-readback.js`/focused test。Modify catalogのCapafy readinessは確認できた項目のみ。
 **Interfaces:** sanitizeされた`{releaseSha,imageDigest,agentId,uidHash,loadedSha,workReceipt,emailReceipt,nextWake,usage,costStatus}`。
-**Depends:** T17/T19/T20/T21/T32。
+**Depends:** T22.1は各taskのsource統合（T11B/T12/T15/T16/T19/T20/T21/T32）後。T22の完了はT17とメール/停止/計測の自然readback後。T17をT22.1 deployより先に要求しない。
 
-- [ ] T22.1 全source acceptanceとexact-head CIを確認しmainへ統合する。immutable imageをmain SHAから作り、DB migration履歴とapply結果を読む。
+- [ ] T22.1 全source acceptanceとexact-head CIを確認しmainへ統合する。immutable imageをmain SHAから作り、DB migration履歴とapply結果を読む。公開flagをoffに保ち、central worker/relayとowned tenantの非公開foundationを先にdeployし、その後T17の実業務とT19の着信を確認する。
 - [ ] T22.2 登録→自律job→provider結果→日次メールを自分の別Cloud tenantで一回実行する。Macのloopやbrowserを止める破壊的検証はせず、Cloudのargv/state/network evidenceでMac非依存を確かめる。
 - [ ] T22.3 正規sleep後のscheduled wakeを一回観測し、同occurrenceの公開/送信が増えないことを読む。メール着信/送信provider ID、official usageとloaded SHAを結合する。
 - [ ] T22.4 readiness/capacity/費用/未接続条件を正本へ更新。全14loopsをCloud完成扱いにせず、実証したCapafy範囲だけcatalogへ反映する。

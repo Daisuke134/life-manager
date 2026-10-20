@@ -19,10 +19,20 @@ EXCLUDED_PARTS = {'.git', '.worktrees', 'worktrees', '.cloak', '.codex', '.claud
                   'node_modules', '.venv', 'venv', 'state', 'memory', 'profiles', 'credentials', '__pycache__'}
 
 def excluded(name):
-    parts = PurePosixPath(name).parts
-    return (any(part.lower() in EXCLUDED_PARTS or part.lower().startswith(('.env', '.codex-')) for part in parts)
+    relative = PurePosixPath(name)
+    parts = relative.parts
+    # These are tracked publisher implementation modules, not browser/account
+    # profiles. Keep only Python sources and the four declarative runtime maps.
+    vendor = 'skills/capafy-autopublish/vendor/capafy-publisher/packaging/'
+    source_profile = (
+        (name.startswith(vendor + 'publish/profiles/') and relative.suffix == '.py')
+        or (name.startswith(vendor + 'runtime/profiles/') and (relative.suffix == '.py'
+            or name in {vendor + 'runtime/profiles/' + filename for filename in
+                        ('claude_code.json', 'codex.json', 'hermes.json', 'openclaw.json')})))
+    return (any((part.lower() in EXCLUDED_PARTS and not (part.lower() == 'profiles' and source_profile))
+                or part.lower().startswith(('.env', '.codex-')) for part in parts)
             or parts[-1].lower() in {'credentials.json', 'auth.json', 'secrets.json', 'id_rsa', 'id_ed25519'}
-            or PurePosixPath(name).suffix.lower() in {'.jsonl', '.sqlite', '.sqlite3', '.db', '.pem', '.key', '.p12', '.pyc'})
+            or relative.suffix.lower() in {'.jsonl', '.sqlite', '.sqlite3', '.db', '.pem', '.key', '.p12', '.pyc'})
 
 def build_context(repo: Path, release_sha: str, output_zip: Path) -> dict:
     repo, output_zip = Path(repo).resolve(), Path(output_zip)
