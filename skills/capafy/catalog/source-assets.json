@@ -22,6 +22,11 @@
       "sha256": "1c65386cc9e69f5cd9b6f62636e2c104419062ac89f1f18ce4a43401c6264150"
     },
     {
+      "path": "skills/capafy/catalog/mlb-pitcher-workload-brief/icon.png",
+      "role": "agent_icon",
+      "sha256": "cb995c867d08bf0c687cdfdb383a8297625ef623d7dfc8e9221a121f3bb29331"
+    },
+    {
       "path": "skills/capafy/catalog/slide-maker/icon.webp",
       "role": "agent_icon",
       "sha256": "a78b25c0ea13f98ecdf4579e376f4c168cbb9d37ef6489bf622e62d7d5e93364"
