@@ -45,6 +45,51 @@ def _response(*, add_current: bool = True, add_future: bool = False,
     return result
 
 
+class CryptoValidationHistoryTests(unittest.TestCase):
+    def _read(self, *, mutate=None):
+        from datetime import datetime, timezone
+        start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        rows = [{"t": (start + timedelta(minutes=5 * i)).isoformat(),
+                 "o": "100", "h": "102", "l": "99", "c": "101"} for i in range(13)]
+        payload = {"next_page_token": None, "bars": {"BTC/USDC": rows,
+                   "USDC/USD": [{"t": r["t"], "c": "0.99"} for r in rows]}}
+        if mutate:
+            mutate(payload)
+        with patch.object(alpaca_cli, "_context", return_value={}) as context, patch.object(
+            alpaca_cli, "_run", return_value=payload) as run:
+            result = alpaca_cli.read_crypto_validation_history(
+                credentials_path=Path("credentials"), cli_path=Path("alpaca"),
+                start=start, end=start + timedelta(hours=1), observed_at="2026-01-02T00:00:00Z")
+        return result, context, run
+
+    def test_completed_nonoverlapping_btc_and_fx_with_paper_context(self):
+        result, context, run = self._read()
+        self.assertEqual(len(result["crypto_history"]), 12)
+        self.assertEqual(len(result["quote_conversions"]), 12)
+        self.assertEqual(result["quote_conversions"][0]["rate"], "0.99")
+        self.assertEqual(context.call_args.kwargs["mode"], "paper")
+        self.assertIn("BTC/USDC,USDC/USD", run.call_args.args[1])
+        self.assertIn("next_page_token", run.call_args.args[1][-1])
+        self.assertTrue(result["source_receipt_ids"])
+
+    def test_history_rejects_pagination_missing_duplicate_future_and_bad_prices(self):
+        mutations = [lambda p: p.update(next_page_token="more"),
+                     lambda p: p["bars"]["BTC/USDC"].pop(2),
+                     lambda p: p["bars"]["BTC/USDC"].insert(0, p["bars"]["BTC/USDC"][0]),
+                     lambda p: p["bars"]["BTC/USDC"][0].update(c="NaN"),
+                     lambda p: p["bars"]["BTC/USDC"][0].update(h="0"),
+                     lambda p: p["bars"]["BTC/USDC"][-1].update(t="2026-01-03T00:00:00Z"),
+                     lambda p: p["bars"]["USDC/USD"][0].update(c="0")]
+        for mutate in mutations:
+            with self.subTest(mutation=mutate):
+                with self.assertRaises(ValueError):
+                    self._read(mutate=mutate)
+
+    def test_missing_fx_is_not_replaced_by_one(self):
+        result, _, _ = self._read(mutate=lambda p: p["bars"].pop("USDC/USD"))
+        self.assertEqual(result["quote_conversions"], [])
+
+
 class EtfDailyBarsTests(unittest.TestCase):
     def test_multi_bars_has_bounded_large_response_budget_only_for_that_operation(self):
         payload = json.dumps({"payload": "x" * alpaca_cli.MAX_OUTPUT_BYTES}).encode("utf-8")

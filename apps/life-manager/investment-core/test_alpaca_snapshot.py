@@ -26,6 +26,101 @@ RISK = {"drawdown_fraction": "0.0015"}
 
 
 class AlpacaSnapshotTests(unittest.TestCase):
+    def test_crypto_verified_operating_costs_remain_partial_in_root_and_daily_reader(self):
+        from alpaca_snapshot import _read_performance
+        base={'schema_version':1,'report_scope':'owned_crypto_cycles','mode':'live','paper':False,
+            'owner_id':'alpaca-investment-live','measurement_status':'partial','net_pnl_usd':None,
+            'capital_expansion_allowed':False,'model_cost_usd':'1','system_cost_usd':'0',
+            'operating_costs_status':'complete','operating_cost_coverage':{'coverage_state':'complete'}}
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            for mode in ('paper','live'):
+                for day in (None,'2026-01-01'):
+                    with self.subTest(mode=mode,day=day):
+                        payload={**base,'mode':mode,'paper':mode=='paper','owner_id':'alpaca-investment-'+mode}
+                        path=root/'performance-crypto-latest.json'
+                        if day:
+                            payload.update(report_scope='owned_crypto_cycles_daily',performance_day=day,
+                                observed_at=day+'T23:00:00Z')
+                            path=root/f'performance-crypto-daily-{day}.json'
+                        path.write_text(json.dumps(payload))
+                        value,error=_read_performance(root,day)
+                        self.assertIsNone(error)
+                        snapshot=self._builder()(value,OBSERVATION,RISK)
+                        self.assertEqual(snapshot['model_cost_usd'],'1')
+                        self.assertEqual(snapshot['system_cost_usd'],'0')
+                        self.assertEqual(snapshot['measurement_status'],'partial')
+                        self.assertIsNone(snapshot['gross_pnl_usd'])
+                        self.assertIsNone(snapshot['trading_fees_usd'])
+
+    def test_crypto_operating_amounts_need_complete_coverage_and_finite_nonnegative_strings(self):
+        from alpaca_snapshot import _read_performance
+        base={'schema_version':1,'report_scope':'owned_crypto_cycles','mode':'live','paper':False,
+            'owner_id':'alpaca-investment-live','measurement_status':'partial','net_pnl_usd':None,
+            'capital_expansion_allowed':False,'model_cost_usd':'1','system_cost_usd':'0',
+            'operating_costs_status':'complete','operating_cost_coverage':{'coverage_state':'complete'}}
+        changes=[{'operating_costs_status':'partial'},{'operating_cost_coverage':{'coverage_state':'gap'}},
+            {'operating_cost_coverage':None},{'model_cost_usd':None},{'system_cost_usd':None}]
+        changes += [{'model_cost_usd':raw} for raw in (True,1,1.2,[],{},'','NaN','sNaN','Infinity','-1')]
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);path=root/'performance-crypto-latest.json'
+            for change in changes:
+                with self.subTest(change=change):
+                    path.write_text(json.dumps({**base,**change}))
+                    value,error=_read_performance(root,None)
+                    self.assertIsNone(value);self.assertEqual(error,'alpaca_crypto_performance_invalid')
+
+    def test_crypto_derived_source_is_selected_without_legacy_measured_fallback(self):
+        from alpaca_snapshot import _read_performance
+        import tempfile,json
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            (root/'performance-latest.json').write_text(json.dumps({'measurement_status':'measured','net_pnl_usd':'999'}))
+            path=root/'performance-crypto-latest.json'
+            path.write_text(json.dumps({'schema_version':1,'report_scope':'owned_crypto_cycles','mode':'paper','paper':True,'owner_id':'alpaca-investment-paper','measurement_status':'partial','net_pnl_usd':None,'capital_expansion_allowed':False}))
+            value,error=_read_performance(root,None)
+            self.assertIsNone(error);self.assertEqual(value['measurement_status'],'partial');self.assertIsNone(value['net_pnl_usd'])
+            path.write_text('{broken')
+            value,error=_read_performance(root,None)
+            self.assertIsNone(value);self.assertEqual(error,'alpaca_crypto_performance_invalid')
+            value,error=_read_performance(root,'2026-01-01')
+            self.assertIsNone(value);self.assertEqual(error,'alpaca_crypto_daily_performance_missing')
+
+    def test_crypto_phase_one_contract_rejects_measured_or_invented_usd(self):
+        from alpaca_snapshot import _read_performance
+        import tempfile,json
+        from pathlib import Path
+        base={'schema_version':1,'report_scope':'owned_crypto_cycles','mode':'live','paper':False,
+              'owner_id':'alpaca-investment-live','measurement_status':'partial','net_pnl_usd':None,
+              'capital_expansion_allowed':False}
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);path=root/'performance-crypto-latest.json'
+            for change in ({'measurement_status':'measured'},{'gross_strategy_pnl_usd':'999'},
+                           {'fees_usd':'0'},{'net_pnl_usd':'1'},{'capital_expansion_allowed':True},
+                           {'owner_id':'alpaca-investment-paper'}):
+                with self.subTest(change=change):
+                    path.write_text(json.dumps({**base,**change}))
+                    value,error=_read_performance(root,None)
+                    self.assertIsNone(value);self.assertEqual(error,'alpaca_crypto_performance_invalid')
+
+    def test_crypto_daily_without_latest_cannot_fall_back_to_legacy_measured(self):
+        from alpaca_snapshot import _read_performance
+        import tempfile,json
+        from pathlib import Path
+        payload={'schema_version':1,'report_scope':'owned_crypto_cycles_daily','mode':'live','paper':False,
+                 'owner_id':'alpaca-investment-live','measurement_status':'partial','net_pnl_usd':None,
+                 'capital_expansion_allowed':False,'performance_day':'2026-01-01','observed_at':'2026-01-01T23:00:00Z'}
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            (root/'performance-crypto-daily-2026-01-01.json').write_text(json.dumps(payload))
+            (root/'performance-daily-2026-01-01.json').write_text(json.dumps({**payload,'measurement_status':'measured','net_pnl_usd':'999'}))
+            (root/'performance-latest.json').write_text(json.dumps({'measurement_status':'measured'}))
+            value,error=_read_performance(root,'2026-01-01')
+            self.assertIsNone(error);self.assertEqual(value['measurement_status'],'partial');self.assertIsNone(value['net_pnl_usd'])
+            value,error=_read_performance(root,None)
+            self.assertIsNone(value);self.assertEqual(error,'alpaca_crypto_performance_invalid')
+
     def test_paper_fill_gross_does_not_deduct_signed_slippage_twice(self):
         from net_pnl import venue_net
         for slippage in ("0.30", "-0.25"):

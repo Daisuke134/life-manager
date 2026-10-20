@@ -306,6 +306,43 @@ class PaperPerformanceTests(unittest.TestCase):
             "reason": "paper_receipt_duplicate",
         })
 
+    def test_failure_label_cannot_hide_paused_or_positive_fill_orders(self):
+        for status,qty in (('done_for_day','0'),('stopped','0'),('suspended','0'),
+                           ('canceled','0.01'),('rejected',None),('expired','NaN')):
+            with self.subTest(status=status,qty=qty):
+                intent={'receipt_type':'effect_intent','effect_id':'unsettled','status':'applied',
+                    'mode':'paper','paper':True,'owner_id':OWNER,'strategy_id':STRATEGY,
+                    'client_order_id':'lm-ai-'+'c'*24,'order':{'symbol':'SPY','side':'buy','asset_class':'us_equity'}}
+                outcome={'receipt_type':'outcome','effect_id':'unsettled','outcome':'broker_terminal_failure',
+                    'mode':'paper','paper':True,'broker':{'id':'unsettled-order','status':status,'filled_qty':qty}}
+                result=build_paper_performance([intent,outcome,*_rows()],OBSERVATION,RISK)
+                self.assertEqual(result,{'status':'unknown','reason':'paper_effect_unresolved'})
+
+    def test_paused_positive_fill_history_cannot_be_hidden_by_later_zero_failure(self):
+        intent={'receipt_type':'effect_intent','effect_id':'unsettled','status':'applied',
+            'mode':'paper','paper':True,'owner_id':OWNER,'strategy_id':STRATEGY,
+            'client_order_id':'lm-ai-'+'c'*24,'order':{'symbol':'SPY','side':'buy','asset_class':'us_equity'}}
+        previous={**intent,'status':'reconciliation_pending','broker_status':'suspended','filled_qty':'0.01'}
+        latest={'receipt_type':'outcome','effect_id':'unsettled','outcome':'broker_terminal_failure',
+                'mode':'paper','paper':True,
+                'broker':{'id':'unsettled-order','status':'canceled','filled_qty':'0'}}
+        result=build_paper_performance([intent,previous,latest,*_rows()],OBSERVATION,RISK)
+        self.assertEqual(result,{'status':'unknown','reason':'paper_effect_unresolved'})
+
+    def test_paused_outcome_enrichment_requires_same_order_and_monotonic_quantity(self):
+        for status in ('done_for_day','stopped','suspended'):
+            for key,value in ((None,None),('id','foreign'),('client_order_id','foreign'),('filled_qty','1.0')):
+                with self.subTest(status=status,key=key):
+                    rows=_rows();previous=copy.deepcopy(rows[1])
+                    previous['outcome']='broker_terminal_failure';previous.pop('strategy_receipt')
+                    previous['broker'].update(status=status,filled_qty='0')
+                    if key: previous['broker'][key]=value
+                    result=build_paper_performance([rows[0],previous,*rows[1:]],OBSERVATION,RISK)
+                    if key:
+                        self.assertEqual(result,{'status':'unknown','reason':'paper_receipt_duplicate'})
+                    else:
+                        self.assertEqual(result['completed_round_trips'],1)
+
     def test_zero_fill_terminal_failure_is_not_a_pnl_event(self):
         failed_intent = {
             "receipt_type": "effect_intent",

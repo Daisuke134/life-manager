@@ -122,7 +122,7 @@ class ControlStateTest(unittest.TestCase):
                         "pending": 0, "reconciled": 0, "unresolved": 0}), \
                     patch.object(investment_run, "read_control", return_value={
                         "paused": False, "killed": False}), \
-                    patch.object(investment_run, "observe", return_value={}), \
+                    patch.object(investment_run, "observe", return_value={"positions": []}), \
                     patch.object(investment_run, "_paper_campaign", return_value={
                         "exit_status": "EXIT_READY"}), \
                     patch.object(investment_run, "exit_order", return_value={

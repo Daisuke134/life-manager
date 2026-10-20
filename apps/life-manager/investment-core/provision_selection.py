@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import importlib.util
 import os
+import sys
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -12,6 +14,19 @@ from typing import Any
 
 from strategy_cards import StrategyCard, is_valid_release_sha, validate_strategy_card
 from strategy_validation import select_strategy
+
+
+_ALPACA = Path(__file__).resolve().parents[3] / "skills" / "alpaca-investment"
+if str(_ALPACA) not in sys.path:
+    sys.path.append(str(_ALPACA))
+from control import control_fence
+# The core has another effect_store module with a different receipt schema.
+_effect_spec = importlib.util.spec_from_file_location("alpaca_selection_effect_store", _ALPACA / "effect_store.py")
+_effects = importlib.util.module_from_spec(_effect_spec)
+_effect_spec.loader.exec_module(_effects)
+from crypto_ownership_proof import recorded_close_proof_from_rows, recorded_no_fill_proof_from_rows, recorded_fee_flat_state_from_rows
+from etf_ownership import (_read_open, _close_provider_order, _closed_account_readback,
+                           _number, ETF_OWNER_IDS, ETF_STRATEGY_ID)
 
 
 class SelectionProvisionError(ValueError):
@@ -154,7 +169,159 @@ def _selection_payload(
     return payload
 
 
-def provision_selection(
+def _official_etf_close(marker: dict[str, Any], rows: list[dict[str, Any]]) -> bool:
+    try:
+        _number(marker["close_account_cash_usd"])
+        _number(marker["close_account_equity_usd"])
+        observed = datetime.fromisoformat(marker["close_account_readback_at"].replace("Z", "+00:00"))
+        if observed.tzinfo is None:
+            return False
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return False
+    refs = marker.get("close_source_receipt_ids")
+    if not isinstance(refs, list) or not refs or any(not isinstance(ref, str) or not ref.strip() for ref in refs):
+        return False
+    for row in rows:
+        envelope = row.get("strategy_receipt")
+        receipt = envelope.get("receipt") if isinstance(envelope, dict) else None
+        if (row.get("receipt_type") != "outcome" or row.get("outcome") != "broker_reconciled"
+                or row.get("mode") != ("paper" if marker["owner_id"] == "alpaca-investment-paper" else "live")
+                or row.get("client_order_id") != marker.get("close_client_order_id")
+                or not isinstance(receipt, dict)
+                or any(receipt.get(key) != value for key, value in marker.items())):
+            continue
+        if not any(intent.get("receipt_type") == "effect_intent"
+                   and intent.get("effect_id") == row.get("effect_id")
+                   and intent.get("client_order_id") == marker.get("close_client_order_id")
+                   and intent.get("owner_id") == marker["owner_id"]
+                   and intent.get("strategy_id") == marker["strategy_id"]
+                   and intent.get("mode") == row.get("mode")
+                   and isinstance(intent.get("order"), dict)
+                   and intent["order"].get("side") == "sell"
+                   and intent["order"].get("symbol") == marker["symbol"] for intent in rows):
+            continue
+        try:
+            account = _closed_account_readback(envelope.get("account_readback", {}), symbol=marker["symbol"])
+            if (account["cash"] != marker["close_account_cash_usd"]
+                    or account["equity"] != marker["close_account_equity_usd"]
+                    or account["observed_at"] != marker["close_account_readback_at"]):
+                continue
+            provider_id, price = _close_provider_order(
+                row.get("broker", {}), client_order_id=marker["close_client_order_id"],
+                symbol=marker["symbol"], expected_qty=_number(marker["position_qty"], positive=True))
+            if (provider_id != marker.get("close_provider_order_id")
+                    or provider_id != row.get("broker_receipt_id")
+                    or price != _number(marker["close_filled_avg_price"], positive=True)):
+                continue
+            return True
+        except (KeyError, TypeError, ValueError):
+            continue
+    return False
+
+
+def _official_crypto_closed(marker: dict[str, Any], rows: list[dict[str, Any]]) -> bool:
+    try:
+        entries = [row for row in rows if row.get("receipt_type") == "effect_intent"
+                   and row.get("status") == "planned" and row.get("effect_id") == marker.get("entry_effect_id")]
+        if len(entries) != 1:
+            return False
+        intent = entries[0]
+        if marker.get('close_reason')=='native_fee_debit':
+            recorded_fee_flat_state_from_rows(rows,marker,mode=intent.get('mode'),owner_id=intent.get('owner_id'))
+            return True
+        close_effect, close_client = marker.get("close_effect_id"), marker.get("close_client_order_id")
+        if (close_effect is None) != (close_client is None):
+            return False
+        effect = close_effect if close_effect is not None else marker["entry_effect_id"]
+        outcomes = [row for row in rows if row.get("receipt_type") == "outcome"
+                    and row.get("effect_id") == effect and isinstance(row.get("strategy_receipt"), dict)]
+        if not outcomes:
+            return False
+        outcome = outcomes[-1]
+        reader = recorded_close_proof_from_rows if close_effect is not None else recorded_no_fill_proof_from_rows
+        reader(rows, marker, outcome.get("broker"), outcome["strategy_receipt"].get("account_readback"),
+               mode=intent.get("mode"), owner_id=intent.get("owner_id"))
+        return True
+    except (ValueError, KeyError, TypeError, AttributeError):
+        return False
+
+
+def _guard_reports(root: Path, existing: Any, reports: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    try:
+        ledger = root / "receipts.jsonl"
+        if ledger.is_symlink():
+            raise ValueError("ledger_symlink")
+        rows = _effects._rows(ledger)
+        intents = {row["effect_id"]: row for row in rows if row.get("receipt_type") == "effect_intent"}
+        outcomes = {row["effect_id"]: row for row in rows if row.get("receipt_type") == "outcome"}
+        protected = bool(_effects._unresolved(rows)) or any(
+            not _effects._outcome_closed(outcomes.get(effect_id), rows) for effect_id in intents)
+    except (KeyError, TypeError, ValueError, OSError) as error:
+        raise SelectionProvisionError("selection_ledger_invalid") from error
+    owned_strategy = None
+    for name in ("etf-owned-position.json", "live-owned-position.json"):
+        path = root / name
+        if path.is_symlink():
+            raise SelectionProvisionError("ownership_state_invalid")
+        try:
+            marker = json.loads(path.read_text())
+        except FileNotFoundError:
+            continue
+        except (OSError, ValueError) as error:
+            raise SelectionProvisionError("ownership_state_invalid") from error
+        if not isinstance(marker, dict):
+            raise SelectionProvisionError("ownership_state_invalid")
+        if name == "etf-owned-position.json":
+            try:
+                if marker.get("owner_id") not in ETF_OWNER_IDS or marker.get("strategy_id") != ETF_STRATEGY_ID:
+                    raise ValueError
+                _read_open(marker)
+            except (TypeError, ValueError) as error:
+                raise SelectionProvisionError("ownership_state_invalid") from error
+            closed = marker.get("status") == "closed"
+            if closed and not _official_etf_close(marker, rows):
+                raise SelectionProvisionError("owned_close_evidence_unknown")
+            if not closed:
+                owned_strategy = ETF_STRATEGY_ID
+                protected = True
+        else:
+            if marker.get("status") not in {"entry_pending", "open", "closing", "closed"}:
+                raise SelectionProvisionError("ownership_state_invalid")
+            if marker.get("status") == "closed":
+                if not _official_crypto_closed(marker, rows):
+                    raise SelectionProvisionError("owned_close_evidence_unknown")
+            else:
+                protected = True
+    if protected:
+        if not _existing_selected_shape_is_valid(existing) or (
+                owned_strategy is not None and existing.get("strategy_id") != owned_strategy):
+            raise SelectionProvisionError("owned_policy_identity_unknown")
+        def canonical(card):
+            return {key: value for key, value in card.items() if key != "status"}
+        current = canonical(existing["card"])
+        return [report for report in reports if isinstance(report.get("card"), dict)
+                and canonical(report["card"]) == current]
+    btc = [report for report in reports if isinstance(report.get("card"), dict)
+           and report["card"].get("instruments") == ["BTC/USDC"]]
+    return btc if btc else reports
+
+
+def provision_selection(path: str | Path, reports_path: str | Path,
+                        runtime_release_sha: str | None = None, *, refresh: bool = False) -> dict[str, str]:
+    """Serialize selected-policy reads and writes with the existing submit fence."""
+    destination = Path(path).expanduser()
+    if destination.is_symlink() or destination.parent.is_symlink():
+        raise SelectionProvisionError("selection_symlink_refused")
+    try:
+        with control_fence(destination.parent):
+            return _provision_selection_locked(destination, reports_path, runtime_release_sha, refresh=refresh)
+    except ValueError as error:
+        if isinstance(error, SelectionProvisionError):
+            raise
+        raise SelectionProvisionError("selection_control_invalid") from error
+
+
+def _provision_selection_locked(
     path: str | Path,
     reports_path: str | Path,
     runtime_release_sha: str | None = None,
@@ -168,6 +335,7 @@ def provision_selection(
     if runtime_release_sha is not None and not is_valid_release_sha(runtime_release_sha):
         raise SelectionProvisionError("runtime_release_sha_invalid")
     existing_valid = False
+    existing = None
     if destination.exists():
         try:
             existing = json.loads(destination.read_text(encoding="utf-8"))
@@ -179,8 +347,8 @@ def provision_selection(
         if not existing_valid and not _existing_selection_is_expired(existing):
             raise SelectionProvisionError("existing_selection_invalid")
 
+    reports = _guard_reports(destination.parent, existing, _read_reports(Path(reports_path).expanduser()))
     try:
-        reports = _read_reports(Path(reports_path).expanduser())
         selection = select_strategy(reports)
         payload = _selection_payload(selection, reports, runtime_release_sha)
     except SelectionProvisionError:

@@ -22,11 +22,15 @@ from strategy_policy import candidate_cards
 from test_etf_policy import _snapshot as policy_snapshot
 
 
-NOW = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 ETF_ID = "alpaca-etf-126d-momentum-v1"
 
 
-def _risk() -> dict[str, object]:
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _risk(observed_at: str) -> dict[str, object]:
+    observed = datetime.fromisoformat(observed_at.replace("Z", "+00:00"))
     return {
         "allocated_capital_usd": "0",
         "cash_flow_ny_day_usd": "0",
@@ -34,22 +38,23 @@ def _risk() -> dict[str, object]:
         "official_pnl_ny_day_usd": "0",
         "risk_day_ready": True,
         "unrealized_pnl_usd": "0",
-        "observed_at": NOW,
-        "ny_day": datetime.now(ZoneInfo("America/New_York")).date().isoformat(),
+        "observed_at": observed_at,
+        "ny_day": observed.astimezone(ZoneInfo("America/New_York")).date().isoformat(),
     }
 
 
 def _snapshot(mode: str = "paper") -> dict[str, object]:
     value = policy_snapshot()
+    observed_at = _now()
     value.update({
         "mode": mode,
         "account": {"cash": "100", "equity": "100"},
         "available_cash_usd": "100",
-        "clock": {"timestamp": NOW, "is_open": True},
+        "clock": {"timestamp": observed_at, "is_open": True},
         "positions": 0,
         "open_orders": 0,
         "unresolved_intents": 0,
-        "risk": _risk(),
+        "risk": _risk(observed_at),
     })
     return value
 
@@ -78,13 +83,27 @@ def _candidate(symbol: str = "QQQ") -> dict[str, object]:
     }
 
 
+class LegacyCryptoEntryRetirementTests(unittest.TestCase):
+    def test_old_btc_policy_cannot_reenter_while_new_policy_uses_the_same_risk_gates(self):
+        candidate={**_candidate("BTC/USDC"),"asset_class":"crypto","candidate_ref":"crypto://BTC/USDC"}
+        base={"action":"ENTER","mode":"paper","candidate_ref":candidate["candidate_ref"],"symbol":"BTC/USDC",
+              "expected_cost_usd":"0.02","owner_id":"alpaca-investment-paper"}
+        for strategy in ("alpaca-btc-5m-trend-v1","alpaca-btc-5m-reversion-v1"):
+            with self.subTest(strategy=strategy):
+                result=allocator.gate(_snapshot("paper"),[candidate],{**base,"strategy_id":strategy})
+                self.assertFalse(result["approved"])
+                self.assertEqual(result["gate"],"legacy_btc_entry_retired")
+        result=allocator.gate(_snapshot("paper"),[candidate],{**base,"strategy_id":"alpaca-btc-5m-trend-400-v2"})
+        self.assertTrue(result["approved"],result)
+
+
 class EtfAllocatorTests(unittest.TestCase):
     def test_build_candidates_exposes_fixed_etf_universe_when_daily_bars_exist(self):
         snapshot = _snapshot()
         snapshot.update({
             "crypto": [],
             "qqq_asset": {"tradable": False, "status": "inactive"},
-            "qqq_quote": {"bid": "1", "ask": "1", "quote_at": NOW},
+            "qqq_quote": {"bid": "1", "ask": "1", "quote_at": snapshot["clock"]["timestamp"]},
             "option_quotes": [],
         })
 
@@ -95,7 +114,7 @@ class EtfAllocatorTests(unittest.TestCase):
             ["SPY", "QQQ", "IWM", "DIA", "EFA", "EEM", "TLT", "GLD"],
         )
 
-    def test_paper_etf_selection_dispatches_and_approves_only_us_equity_candidate(self):
+    def test_legacy_paper_etf_does_not_reenter_once_flat(self):
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory) / "state"
             _selected_state(state)
@@ -107,15 +126,16 @@ class EtfAllocatorTests(unittest.TestCase):
         self.assertEqual(result["action"], "ENTER")
         self.assertEqual(result["strategy_id"], ETF_ID)
         self.assertEqual(result["candidate"]["asset_class"], "us_equity")
-        self.assertTrue(result["approved"])
-        self.assertEqual(result["gate"], "approved")
+        self.assertFalse(result["approved"])
+        self.assertFalse(result["checks"]["entry_policy_active"])
+        self.assertEqual(result["gate"], "legacy_etf_entry_retired")
 
     def test_paper_etf_entry_is_rejected_outside_regular_session(self):
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory) / "state"
             _selected_state(state)
             snapshot = _snapshot("paper")
-            snapshot["clock"] = {"timestamp": NOW, "is_open": False}
+            snapshot["clock"]["is_open"] = False
             result = allocator.choose(
                 snapshot, [_candidate("QQQ")], state,
                 Path("unused-runner"), Path(directory),
@@ -123,7 +143,7 @@ class EtfAllocatorTests(unittest.TestCase):
 
         self.assertFalse(result["approved"])
         self.assertFalse(result["checks"]["regular_session"])
-        self.assertEqual(result["gate"], "risk_rejected")
+        self.assertEqual(result["gate"], "legacy_etf_entry_retired")
 
     def test_paper_etf_exit_is_rejected_outside_regular_session(self):
         with tempfile.TemporaryDirectory() as directory, patch.dict(
@@ -142,7 +162,7 @@ class EtfAllocatorTests(unittest.TestCase):
             _selected_state(state)
             snapshot = _snapshot("paper")
             snapshot.update({
-                "clock": {"timestamp": NOW, "is_open": False},
+                "clock": {**snapshot["clock"], "is_open": False},
                 "positions": 1,
                 "position": {
                     "owner_id": "alpaca-investment-paper",
@@ -172,7 +192,7 @@ class EtfAllocatorTests(unittest.TestCase):
                 Path("unused-runner"), Path(directory),
             )
 
-        self.assertTrue(result["approved"])
+        self.assertFalse(result["approved"])
         self.assertEqual(result["owner_id"], "alpaca-investment-paper")
 
     def test_paper_etf_exit_is_approved_and_emits_sell_quantity(self):

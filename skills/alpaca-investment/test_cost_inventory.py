@@ -191,6 +191,20 @@ class IndependentCensusTests(unittest.TestCase):
         self.assertEqual(scope['known_paid_bindings'][0]['charge_identity'],
                          kwargs['paid_bindings'][0]['charge_identity'])
 
+    def test_later_runs_do_not_expand_the_seeded_trade_or_calendar_scope(self):
+        trips,kwargs=self.fixture();rows=kwargs['runtime_rows_by_owner'][OWNER]
+        late=[{**rows[0],'event_id':'late-start','run_id':'late-run','timestamp':'2026-10-18T02:00:00Z'},
+              {**rows[1],'event_id':'late-end','run_id':'late-run','timestamp':'2026-10-18T02:01:00Z'}]
+        rows.extend(late)
+        calendar={**trips[0],'scope_kind':'owner_period','owner_id':OWNER,'mode':'paper','paper':True,
+            'order_ids':[],'period_end':trips[0]['closed_at']}
+        result=self.invoke([calendar],kwargs)
+        self.assertNotIn('late-run',{r['run_id'] for r in result['scopes'][0]['execution_refs']})
+        rows[-2]['timestamp']='2026-10-18T02:00:01Z'
+        result=self.invoke(trips,kwargs)
+        self.assertNotIn('late-run',{r['run_id'] for r in result['scopes'][0]['execution_refs']})
+        self.assertEqual(result['scopes'][0]['period_end'],'2026-10-18T02:00:00+00:00')
+
     def test_physical_runs_keep_actual_claimed_occurrences(self):
         trips, kwargs = self.fixture(); result = self.invoke(trips, kwargs)
         refs = result['scopes'][0]['execution_refs']
@@ -198,6 +212,8 @@ class IndependentCensusTests(unittest.TestCase):
         self.assertEqual({row['occurrence_id'] for row in refs},
                          {f'{OWNER}:claimed-before-physical-a', f'{OWNER}:claimed-before-physical-b'})
         self.assertNotIn('admission_missing', self.reasons(result))
+        self.assertEqual(refs[0]['started_at'],'2026-10-18T01:01:00+00:00')
+        self.assertEqual(refs[0]['finished_at'],'2026-10-18T01:02:00+00:00')
         kwargs['occurrence_rows_by_owner'][OWNER][0]['occurrence_id'] = f'{OWNER}:physical-a'
         self.assertIn('admission_missing', self.reasons(self.invoke(trips, kwargs)))
 

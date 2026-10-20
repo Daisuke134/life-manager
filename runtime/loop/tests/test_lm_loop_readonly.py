@@ -212,6 +212,9 @@ class LmLoopReadonlyTest(unittest.TestCase):
                 def __exit__(self, *_):
                     return False
 
+                def close(self):
+                    pass
+
                 def execute(self, *_):
                     class Cursor:
                         def fetchall(self):
@@ -246,8 +249,11 @@ class LmLoopReadonlyTest(unittest.TestCase):
                     return self
 
                 def __exit__(self, *_exc):
-                    self.connection.close()
+                    self.close()
                     return False
+
+                def close(self):
+                    self.connection.close()
 
                 def execute(self, query, parameters=()):
                     queries.append((query, parameters))
@@ -291,8 +297,11 @@ class LmLoopReadonlyTest(unittest.TestCase):
                     return self
 
                 def __exit__(self, *_exc):
-                    self.connection.close()
+                    self.close()
                     return False
+
+                def close(self):
+                    self.connection.close()
 
                 def execute(self, query, parameters=()):
                     queries.append((query, parameters))

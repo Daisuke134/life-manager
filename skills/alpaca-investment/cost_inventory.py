@@ -3,6 +3,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
+import os
+import sqlite3
+import stat
+import sys
 import re
 from copy import deepcopy
 from datetime import datetime, timezone
@@ -13,6 +18,32 @@ from risk_policy import parse_instant
 
 
 CATALOG_PATH = Path('apps/life-manager/config/product-loop-catalog.json')
+
+
+MAX_RELEASE_METADATA_BYTES = 16 * 1024 * 1024
+
+
+def _release_bytes(root,relative):
+    relative=Path(relative)
+    if relative.is_absolute() or '..' in relative.parts:raise ValueError('source_release_invalid')
+    flags=os.O_RDONLY|os.O_DIRECTORY|getattr(os,'O_NOFOLLOW',0)
+    directory=os.open(root,flags)
+    try:
+        for part in relative.parts[:-1]:
+            child=os.open(part,flags,dir_fd=directory)
+            os.close(directory);directory=child
+        descriptor=os.open(relative.name,os.O_RDONLY|getattr(os,'O_NOFOLLOW',0)|os.O_NONBLOCK,dir_fd=directory)
+        try:
+            info=os.fstat(descriptor)
+            if not stat.S_ISREG(info.st_mode) or info.st_nlink!=1 or info.st_size>MAX_RELEASE_METADATA_BYTES:
+                raise ValueError('source_release_invalid')
+            with os.fdopen(descriptor,'rb') as handle:
+                descriptor=-1;value=handle.read(MAX_RELEASE_METADATA_BYTES+1)
+            if len(value)>MAX_RELEASE_METADATA_BYTES:raise ValueError('source_release_invalid')
+            return value
+        finally:
+            if descriptor>=0:os.close(descriptor)
+    finally:os.close(directory)
 
 
 def _gap(reason):
@@ -31,8 +62,8 @@ def record_source_inventory(ledger: Path, *, release_root: Path, owner_id: str,
             or not isinstance(occurrence_id, str) or not occurrence_id.startswith(owner_id + ':')):
         return _gap('source_execution_identity_missing')
     try:
-        manifest = json.loads((Path(release_root) / 'RELEASE.json').read_text())
-        catalog_bytes = (Path(release_root) / CATALOG_PATH).read_bytes()
+        manifest = json.loads(_release_bytes(Path(release_root),'RELEASE.json'))
+        catalog_bytes = _release_bytes(Path(release_root),CATALOG_PATH)
         catalog = json.loads(catalog_bytes)
         sha = manifest.get('sha')
         if (not isinstance(sha, str) or not re.fullmatch('[a-f0-9]{40}', sha)
@@ -97,7 +128,7 @@ def _census_scope(trip, owner, observed):
     kind = trip.get('scope_kind', 'order_pair')
     ids = trip.get('order_ids')
     if (kind not in {'order_pair', 'owner_period'} or not _ids(ids, nonempty=False)
-            or (kind == 'order_pair' and (len(ids) != 2 or len(set(ids)) != 2))
+            or (kind == 'order_pair' and (not ids or len(set(ids)) != len(ids)))
             or (kind == 'owner_period' and ids != [])
             or trip.get('owner_id', owner) != owner or trip.get('mode', mode) != mode
             or trip.get('paper', mode == 'paper') is not (mode == 'paper')
@@ -150,7 +181,7 @@ def build_expected_inventory(trips, *, beneficiary_owner_id, observed_at,
             continue
         result['scopes'].append(scope)
         gap(scope, 'history_coverage_unverified')
-        if not scope['source_receipt_ids']:
+        if not scope['source_receipt_ids'] and scope['scope_kind']!='owner_period':
             gap(scope, 'scope_evidence_missing')
         start, end = parse_instant(scope['period_start']), parse_instant(scope['period_end'])
         sources, evidence, visited, pending = {}, set(), set(), [beneficiary_owner_id]
@@ -276,7 +307,8 @@ def build_expected_inventory(trips, *, beneficiary_owner_id, observed_at,
                 run = [*valid, *invalid.get(run_id, [])]
                 starts = [(t, r) for t, r in valid if r['phase'] == 'execute']
                 terminals = [(t, r) for t, r in valid if r['phase'] == 'report']
-                if min(t for t, _ in run) > end or terminals and max(t for t, _ in run) < start:
+                earliest=min(t for t,_ in run)
+                if (earliest>=end if scope['scope_kind']=='owner_period' else earliest>end) or terminals and max(t for t,_ in run)<start:
                     continue
                 selected += 1
                 for event_id in sorted(conflicts & {row['event_id'] for _, row in valid}):
@@ -324,9 +356,15 @@ def build_expected_inventory(trips, *, beneficiary_owner_id, observed_at,
                 scope['execution_refs'].append({'execution_owner_id': owner, 'run_id': run_id,
                     'occurrence_id': occurrence, 'release_sha': terminal['release_sha'],
                     'loaded_argv_sha256': terminal['loaded_argv_sha256'], 'loaded_env_sha256': terminal['loaded_env_sha256'],
-                    'start_event_id': first['event_id'], 'terminal_event_id': terminal['event_id']})
+                    'start_event_id': first['event_id'], 'terminal_event_id': terminal['event_id'],
+                    'started_at':started_at.isoformat(),'finished_at':finished_at.isoformat()})
             if not selected:
                 gap(scope, 'source_execution_missing', execution_owner_id=owner)
+
+        if scope['scope_kind']=='owner_period' and not scope['source_receipt_ids']:
+            scope['source_receipt_ids']=sorted({ref[key] for ref in scope['execution_refs']
+                for key in ('start_event_id','terminal_event_id')})
+            if not scope['source_receipt_ids']:gap(scope,'scope_evidence_missing')
 
         for binding in paid_bindings:
             try:
@@ -367,3 +405,168 @@ def build_expected_inventory(trips, *, beneficiary_owner_id, observed_at,
         scope['execution_refs'].sort(key=lambda row: (row['execution_owner_id'], row['run_id']))
         scope['evidence_refs'] = sorted(evidence)
     return result
+
+
+MAX_INVENTORY_OWNERS = 16
+MAX_INVENTORY_ADMISSIONS = 50_000
+
+
+def _release_snapshot(root,sha):
+    manifest=json.loads(_release_bytes(root,'RELEASE.json'))
+    if manifest.get('sha')!=sha or manifest.get('release_paths')!='ALL':return None
+    raw=_release_bytes(root,CATALOG_PATH)
+    loops=[r for r in json.loads(raw)['loops'] if r.get('id')=='investment']
+    if len(loops)!=1:raise ValueError('source_release_invalid')
+    return {'receipt_type':'cost_source_inventory','release_sha':sha,
+        'catalog_sha256':hashlib.sha256(raw).hexdigest(),'source_declaration':loops[0].get('cost_source_inventory'),
+        'execution_owner_ids':loops[0].get('job_ids'),
+        'evidence_refs':[f'lm-release://{sha}/{CATALOG_PATH.as_posix()}']}
+
+
+def _private_cost_object(path,max_bytes):
+    descriptor=os.open(path,os.O_RDONLY|getattr(os,'O_NOFOLLOW',0))
+    try:
+        info=os.fstat(descriptor)
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid!=os.getuid() or info.st_nlink!=1
+                or stat.S_IMODE(info.st_mode)!=0o600 or info.st_size>max_bytes):raise ValueError
+        with os.fdopen(descriptor,'r') as handle:
+            descriptor=-1;value=json.load(handle)
+        if not isinstance(value,dict):raise ValueError
+        return value
+    finally:
+        if descriptor>=0:os.close(descriptor)
+
+
+def select_expected_inventory(inventory,trips):
+    if inventory is None:return None
+    ids={tuple(trip['order_ids']) for trip in trips}
+    return {**inventory,'scopes':[scope for scope in inventory['scopes'] if tuple(scope['order_ids']) in ids]}
+
+
+def read_expected_inventory(state,trips,*,observed_at,owner_id='alpaca-investment-paper',release_root=None):
+    """Read independent local inputs; no provider call, DB creation or coverage promotion."""
+    code_root=Path(__file__).resolve().parents[2]
+    if str(code_root) not in sys.path:sys.path.append(str(code_root))
+    from runtime.loop import lm_loop
+    root=Path(release_root) if release_root is not None else code_root
+    runtime={};admissions={};releases={};reads={};errors=[];paid_bindings=[]
+    def error(reason,owner=None):
+        item={'reason':reason}
+        if owner is not None:item['execution_owner_id']=owner
+        if item not in errors:errors.append(item)
+    def finish():
+        result=build_expected_inventory(trips,beneficiary_owner_id=owner_id,observed_at=observed_at,
+            runtime_rows_by_owner=runtime,occurrence_rows_by_owner=admissions,release_inputs=releases,paid_bindings=paid_bindings)
+        result['gaps'].extend(errors);result['input_reads']=reads
+        result['read_limits']={'owners':MAX_INVENTORY_OWNERS,'admission_rows_per_owner':MAX_INVENTORY_ADMISSIONS,
+            'runtime_archives_per_owner':lm_loop.MAX_PRE_EFFECT_ARCHIVES}
+        return result
+    try:
+        if owner_id not in _OWNER_MODES:raise ValueError
+        observed=parse_instant(observed_at)
+        if not isinstance(trips,list):raise ValueError
+        if not trips:return finish()
+        entries=json.loads(_release_bytes(root,'config/loop-registry.json'))['loops']
+        entry=entries.get(owner_id)
+        if not isinstance(entry,dict) or Path(entry['state_root']).expanduser().resolve()!=Path(state).resolve():
+            error('inventory_state_owner_mismatch',owner_id);return finish()
+    except (OSError,ValueError,KeyError,TypeError,AttributeError):
+        error('inventory_registry_unavailable',owner_id);return finish()
+    pending=[owner_id]
+    while pending:
+        owner=pending.pop(0)
+        if owner in reads:continue
+        if len(reads)>=MAX_INVENTORY_OWNERS:
+            error('inventory_owner_read_limit',owner);continue
+        detail=reads[owner]={}
+        entry=entries.get(owner)
+        if not isinstance(entry,dict) or not _text(entry.get('state_root')):
+            error('inventory_owner_unregistered',owner);continue
+        directory=Path(entry['state_root']).expanduser()
+        rows,reason=lm_loop._owner_runtime_rows(entry)
+        try:
+            if rows is None:raise ValueError
+            stamps=[parse_instant(r['timestamp']) for r in rows]
+            archives=len(list(directory.glob('events-*.jsonl.gz')))
+            detail['runtime']={'status':'ok','row_count':len(rows),'archives_available':archives,
+                'first_event_at':min(stamps).isoformat() if stamps else None,
+                'last_event_at':max(stamps).isoformat() if stamps else None}
+            if archives>lm_loop.MAX_PRE_EFFECT_ARCHIVES:error('runtime_archive_read_limit',owner)
+            runtime[owner]=rows
+        except (OSError,ValueError,KeyError,TypeError):
+            detail['runtime']={'status':'unavailable'};error('runtime_read_unavailable',owner)
+        try:ledger=lm_loop._private_jsonl_rows(directory/'receipts.jsonl',strict=True)
+        except (OSError,ValueError,TypeError,RecursionError):ledger=[]
+        detail['ledger']={'status':'ok' if ledger else 'unavailable','row_count':len(ledger)}
+        if not ledger:error('source_ledger_unavailable',owner)
+        for row in ledger:
+            kind=row.get('receipt_type')
+            if kind is not None and not isinstance(kind,str):
+                error('source_snapshot_invalid',owner);continue
+            if kind not in {'cost_source_inventory','cost_source_inventory_conflict'}:
+                if 'source_declaration' in row or 'catalog_sha256' in row:error('source_snapshot_invalid',owner)
+                continue
+            if row.get('owner_id')!=owner:
+                error('source_snapshot_owner_mismatch',owner);continue
+            sha=row.get('release_sha')
+            if not _hex(sha,40):
+                error('source_snapshot_invalid',owner);continue
+            releases.setdefault(sha,[]).append(row)
+        try:
+            database=lm_loop.admission_root()/'admission-v2.sqlite3'
+            values=lm_loop._read_admission_rows(database,
+                'SELECT occurrence_id,state,queued_at,effect_unknown FROM occurrences WHERE owner_id=? AND queued_at<=? ORDER BY queued_at DESC,occurrence_id LIMIT ?',
+                (owner,observed.timestamp(),MAX_INVENTORY_ADMISSIONS+1))
+            if len(values)>MAX_INVENTORY_ADMISSIONS:error('admission_read_limit',owner)
+            normalized=[]
+            for occurrence,status,queued,unknown in values[:MAX_INVENTORY_ADMISSIONS]:
+                if type(queued) not in (int,float) or not math.isfinite(queued):raise ValueError
+                normalized.append({'owner_id':owner,'occurrence_id':occurrence,'state':status,
+                    'queued_at':datetime.fromtimestamp(queued,timezone.utc).isoformat(),'effect_unknown':unknown})
+            admissions[owner]=normalized;detail['admission']={'status':'ok','row_count':len(normalized)}
+        except (OSError,sqlite3.Error,ValueError,OverflowError,TypeError):
+            detail['admission']={'status':'unavailable'};error('admission_read_unavailable',owner)
+        for sha in {r.get('release_sha') for r in runtime.get(owner,[]) if _hex(r.get('release_sha'),40)}:
+            if sha in releases:continue
+            parent=root.parent if (root/'RELEASE.json').exists() else Path.home()/'loops/releases'
+            candidates=[root,*sorted(parent.glob('*-'+sha[:8]))]
+            for candidate in candidates:
+                try:
+                    if candidate.is_symlink():continue
+                    captured=_release_snapshot(candidate,sha)
+                    if captured is not None:releases.setdefault(sha,[]).append(captured)
+                except (OSError,ValueError,KeyError,TypeError,AttributeError):continue
+        if owner==owner_id:
+            mode=_OWNER_MODES[owner_id];detail['paid_cache']={}
+            for name in ('performance-crypto-latest.json','performance-latest.json'):
+                path=directory/name
+                if not path.exists() and not path.is_symlink():continue
+                try:
+                    cached=_private_cost_object(path,lm_loop.MAX_HARNESS_FAILURE_BYTES)
+                    legacy=name=='performance-latest.json' and mode=='paper' and cached.get('owner_id') is None
+                    if (cached.get('mode')!=mode or cached.get('paper') is not (mode=='paper')
+                            or not legacy and cached.get('owner_id')!=owner_id):
+                        error('paid_cache_scope_invalid',owner);continue
+                    components=cached.get('known_operating_cost_components',cached.get('operating_cost_components',[]))
+                    if not isinstance(components,list):raise ValueError
+                    for component in components:
+                        if not isinstance(component,dict):raise ValueError
+                        context={'mode':mode,'paper':mode=='paper'}
+                        if not legacy:context['owner_id']=owner_id
+                        if any(k in component and component[k]!=v for k,v in context.items()):
+                            error('paid_cache_scope_invalid',owner);continue
+                        paid_bindings.append({**deepcopy(component),**context})
+                    detail['paid_cache'][name]={'status':'ok','component_count':len(components)}
+                except (OSError,ValueError,TypeError,KeyError,RecursionError):
+                    detail['paid_cache'][name]={'status':'unavailable'};error('paid_cache_unavailable',owner)
+        for snapshots in releases.values():
+            for captured in snapshots:
+                declaration=captured.get('source_declaration')
+                sources=declaration.get('sources') if isinstance(declaration,dict) else None
+                for source in sources if isinstance(sources,list) else []:
+                    if (isinstance(source,dict) and source.get('beneficiary_owner_id')==owner_id
+                            and source.get('beneficiary_mode')==_OWNER_MODES[owner_id]):
+                        executor=source.get('execution_owner_id')
+                        if (_text(executor) and isinstance(captured.get('execution_owner_ids'),list)
+                                and executor in captured['execution_owner_ids'] and executor not in reads and executor not in pending):pending.append(executor)
+    return finish()

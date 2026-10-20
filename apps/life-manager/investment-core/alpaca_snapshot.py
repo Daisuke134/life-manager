@@ -44,6 +44,9 @@ def build_alpaca_snapshot(
     """Build a provider-neutral snapshot without filling unknown costs."""
     if not isinstance(performance, Mapping) or not isinstance(observation, Mapping):
         raise ValueError("alpaca_snapshot_input_invalid")
+    if (performance.get("report_scope") in ("owned_crypto_cycles", "owned_crypto_cycles_daily")
+            and not _crypto_contract(performance, daily=performance.get("report_scope") == "owned_crypto_cycles_daily")):
+        raise ValueError("alpaca_crypto_performance_invalid")
     account = _mapping(observation.get("account")) or {}
     snapshot_risk = dict(risk) if isinstance(risk, Mapping) else {}
     if "round_trips" not in snapshot_risk:
@@ -137,13 +140,52 @@ def _utc_day(value: Any) -> str | None:
     return parsed.astimezone(timezone.utc).date().isoformat()
 
 
+def _crypto_contract(value: Any, *, daily: bool = False) -> bool:
+    """Scoped operating costs do not make BTC economics measured or settled."""
+    if not isinstance(value, Mapping):
+        return False
+    mode = value.get("mode")
+    return (isinstance(mode, str) and mode in {"paper", "live"}
+            and type(value.get("schema_version")) is int and value["schema_version"] == 1
+            and value.get("owner_id") == f"alpaca-investment-{mode}"
+            and value.get("paper") is (mode == "paper")
+            and value.get("report_scope") == ("owned_crypto_cycles_daily" if daily else "owned_crypto_cycles")
+            and value.get("measurement_status") == "partial"
+            and value.get("capital_expansion_allowed") is False
+            and _crypto_operating_costs(value)
+            and all(value.get(field) is None for field in (
+                "gross_strategy_pnl_usd", "net_pnl_usd", "fees_usd", "funding_or_borrow_usd",
+                "slippage_usd", "gas_usd")))
+
+
+def _crypto_operating_costs(value: Mapping[str, Any]) -> bool:
+    amounts=[value.get(field) for field in ("model_cost_usd", "system_cost_usd")]
+    if all(amount is None for amount in amounts):
+        return True
+    coverage=value.get("operating_cost_coverage")
+    if (value.get("operating_costs_status") != "complete" or not isinstance(coverage, Mapping)
+            or coverage.get("coverage_state") != "complete"):
+        return False
+    try:
+        return all(isinstance(amount, str) and bool(amount) and amount == amount.strip()
+            and Decimal(amount).is_finite() and Decimal(amount) >= 0 for amount in amounts)
+    except (ArithmeticError, ValueError):
+        return False
+
+
 def _read_performance(
     root: Path,
     performance_day: str | None,
 ) -> tuple[Mapping[str, Any] | None, str | None]:
+    crypto = ((root / "performance-crypto-latest.json").exists()
+              or any(root.glob("performance-crypto-daily-????-??-??.json")))
+    prefix = "performance-crypto" if crypto else "performance"
     if performance_day is None:
-        path = root / "performance-latest.json"
-        return _read_mapping(path), None
+        path = root / f"{prefix}-latest.json"
+        value = _read_mapping(path)
+        if crypto and not _crypto_contract(value):
+            return None, "alpaca_crypto_performance_invalid"
+        return value, None
     if not isinstance(performance_day, str):
         return None, "alpaca_performance_day_invalid"
     try:
@@ -152,8 +194,10 @@ def _read_performance(
         return None, "alpaca_performance_day_invalid"
     if parsed.isoformat() != performance_day:
         return None, "alpaca_performance_day_invalid"
-    path = root / f"performance-daily-{performance_day}.json"
+    path = root / f"{prefix}-daily-{performance_day}.json"
     if not path.is_file():
+        if crypto:
+            return None, "alpaca_crypto_daily_performance_missing"
         # Keep a narrow migration path for an older live gate that only wrote
         # latest: it is acceptable only when its own observation is exactly
         # the requested completed day, never when latest is a new-day record.
@@ -166,6 +210,8 @@ def _read_performance(
             return legacy, None
         return None, "alpaca_daily_performance_missing"
     performance = _read_mapping(path)
+    if crypto and not _crypto_contract(performance, daily=True):
+        return None, "alpaca_crypto_daily_performance_invalid"
     if performance is None:
         return None, "alpaca_daily_performance_invalid"
     if performance.get("performance_day") != performance_day:

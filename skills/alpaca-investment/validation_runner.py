@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the bounded, paper-only ETF validation and refresh selected strategy state."""
+"""Run bounded paper-context ETF/BTC validation and guarded strategy refresh."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ _CORE = _ROOT / "apps" / "life-manager" / "investment-core"
 if str(_CORE) not in sys.path:
     sys.path.append(str(_CORE))
 
-from alpaca_cli import read_etf_daily_history  # noqa: E402
+from alpaca_cli import read_crypto_validation_history, read_etf_daily_history  # noqa: E402
 from etf_momentum import (  # noqa: E402
     ETF_MOMENTUM_UNIVERSE,
     build_validation_report,
@@ -32,6 +32,8 @@ from etf_momentum import (  # noqa: E402
 )
 from provision_selection import provision_selection  # noqa: E402
 from strategy_cards import is_valid_release_sha  # noqa: E402
+from strategy_policy import build_validation_candles, candidate_cards, INDICATOR_HISTORY_CONTRACTS  # noqa: E402
+from strategy_validation import validate_series  # noqa: E402
 
 
 HISTORY_CALENDAR_DAYS = 2190
@@ -207,6 +209,104 @@ def build_report_from_history(
     return report
 
 
+def build_crypto_reports_for_period(
+    *, start: datetime, end: datetime, observed_at: str,
+    credentials_path: Path, cli_path: Path, release_sha: str,
+) -> list[dict[str, Any]]:
+    """Fetch every bounded interval before evaluating the two existing BTC cards."""
+    if (not isinstance(start, datetime) or not isinstance(end, datetime)
+            or start.tzinfo is None or end.tzinfo is None
+            or not timedelta(0) < end - start <= timedelta(days=90)
+            or end > _parse_timestamp(observed_at)
+            or any(moment.timestamp() % 300 for moment in (start, end))
+            or not is_valid_release_sha(release_sha)):
+        raise ValueError("crypto_validation_period_invalid")
+    bars, conversions, receipts = [], [], []
+    cursor = start
+    while cursor < end:
+        chunk_end = min(cursor + timedelta(hours=6), end)
+        chunk = read_crypto_validation_history(
+            credentials_path=credentials_path, cli_path=cli_path,
+            start=cursor, end=chunk_end, observed_at=observed_at)
+        bars.extend(chunk["crypto_history"])
+        conversions.extend(chunk["quote_conversions"])
+        receipts.extend(chunk["source_receipt_ids"])
+        cursor = chunk_end
+    return build_crypto_reports_from_history(
+        bars, quote_conversions=conversions, source_receipt_ids=receipts,
+        release_sha=release_sha, observed_at=observed_at)
+
+
+def build_crypto_reports_from_history(
+    bars: Sequence[Mapping[str, Any]], *,
+    quote_conversions: Sequence[Mapping[str, Any]], source_receipt_ids: Sequence[str],
+    release_sha: str, observed_at: str,
+) -> list[dict[str, Any]]:
+    """Reuse the existing BTC features/evaluator; never submit or provision here."""
+    if not is_valid_release_sha(release_sha):
+        raise ValueError("release_sha_invalid")
+    observed = _parse_timestamp(observed_at)
+    if (not isinstance(source_receipt_ids, (list, tuple)) or not source_receipt_ids
+            or any(not isinstance(ref, str) or not ref.strip() for ref in source_receipt_ids)
+            or not isinstance(bars, (list, tuple)) or not bars
+            or not isinstance(quote_conversions, (list, tuple))):
+        raise ValueError("crypto_validation_history_invalid")
+    previous = None
+    try:
+        for row in bars:
+            timestamp = _parse_timestamp(row["t"])
+            prices = [Decimal(str(row[key])) for key in ("o", "h", "l", "c")]
+            if (observed - timestamp < timedelta(minutes=5)
+                    or (previous is not None and timestamp - previous != timedelta(minutes=5))
+                    or any(not price.is_finite() or price <= 0 for price in prices)
+                    or prices[1] < max(prices) or prices[2] > min(prices)):
+                raise ValueError("crypto_validation_history_invalid")
+            previous = timestamp
+        fx_by_time = {}
+        for conversion in quote_conversions:
+            timestamp = _parse_timestamp(conversion["timestamp"])
+            if timestamp in fx_by_time or observed - timestamp < timedelta(minutes=5):
+                raise ValueError("crypto_validation_fx_invalid")
+            fx_by_time[timestamp] = dict(conversion)
+    except (KeyError, TypeError, ArithmeticError) as error:
+        raise ValueError("crypto_validation_history_invalid") from error
+    evidence = list(dict.fromkeys(source_receipt_ids))
+    for conversion in quote_conversions:
+        ref = conversion.get("evidence_ref")
+        if isinstance(ref, str) and ref.strip() and ref not in evidence:
+            evidence.append(ref)
+    digest = hashlib.sha256(json.dumps(
+        {"bars": list(bars), "fx": list(quote_conversions)}, sort_keys=True,
+        separators=(",", ":"),
+    ).encode()).hexdigest()
+    reports = []
+    for card in candidate_cards().values():
+        if tuple(card.instruments) != ("BTC/USDC",) or card.strategy_id not in INDICATOR_HISTORY_CONTRACTS:
+            continue
+        candles = build_validation_candles(bars, card.strategy_id)
+        for candle in candles:
+            conversion = fx_by_time.get(_parse_timestamp(candle["timestamp"]))
+            if conversion is not None:
+                candle["quote_to_usd"] = conversion
+        costs = card.to_mapping()["cost_model"]
+        result = validate_series(card, candles, {}, costs)
+        report = {
+            **result, "report_id": f"{card.strategy_id}-{digest[:16]}",
+            "release_sha": release_sha, "card": card.to_mapping(), "cost_model": costs,
+            "source_receipt_ids": evidence, "observed_at": _utc_timestamp(observed_at),
+            "expires_at": (observed + timedelta(days=REPORT_TTL_DAYS)).astimezone(
+                timezone.utc).isoformat().replace("+00:00", "Z"),
+            "measurement_kind": "modeled_validation",
+        }
+        # Shared market observations are provenance; each evaluation has its own
+        # content-addressed artifact identity, never a fabricated broker receipt.
+        artifact = hashlib.sha256(json.dumps(report, sort_keys=True,
+                                             separators=(",", ":")).encode()).hexdigest()
+        report["evidence_ids"] = [f"investment-validation://modeled/{release_sha}/{artifact}"]
+        reports.append(report)
+    return reports
+
+
 def _atomic_write(path: Path, payload: bytes) -> None:
     if path.is_symlink() or path.parent.is_symlink():
         raise ValueError("validation_report_path_invalid")
@@ -228,10 +328,11 @@ def _atomic_write(path: Path, payload: bytes) -> None:
         temporary_path.unlink(missing_ok=True)
 
 
-def write_reports(path: str | Path, report: Mapping[str, Any]) -> None:
+def write_reports(path: str | Path, report: Mapping[str, Any] | Sequence[Mapping[str, Any]]) -> None:
     destination = Path(path).expanduser()
+    report_rows = [dict(report)] if isinstance(report, Mapping) else [dict(row) for row in report]
     encoded = json.dumps(
-        {"reports": [dict(report)]}, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        {"reports": report_rows}, ensure_ascii=False, sort_keys=True, separators=(",", ":")
     )
     _atomic_write(destination, (encoded + "\n").encode("utf-8"))
 
@@ -297,18 +398,33 @@ def run_once(
         observed_at=merged["observed_at"],
         completed_through_session=merged["completed_through_session"],
     )
-    write_reports(reports_path, report)
+    observed = _parse_timestamp(merged["observed_at"]).astimezone(timezone.utc)
+    crypto_end = observed.replace(hour=0, minute=0, second=0, microsecond=0)
+    crypto_error = None
+    try:
+        crypto_reports = build_crypto_reports_for_period(
+            start=crypto_end - timedelta(days=90), end=crypto_end,
+            observed_at=merged["observed_at"], credentials_path=credentials_path or _default_credentials_path(),
+            cli_path=cli_path or _default_cli_path(), release_sha=resolved_release)
+    except (OSError, ValueError, TypeError, KeyError) as error:
+        # Keep legacy owned ETF exit policy fresh while reporting the BTC gap.
+        # No BTC report/positive valuation is fabricated from failed history.
+        crypto_reports = []
+        crypto_error = str(error) if isinstance(error, ValueError) else type(error).__name__
+    write_reports(reports_path, [report, *crypto_reports])
     selections = [
         provision_selection(
             destination,
             reports_path,
             runtime_release_sha=resolved_release,
-            refresh=True,
+            refresh=crypto_error is None,
         )
         for destination in destinations
     ]
     return {
-        "status": "ok",
+        "status": "ok" if crypto_error is None else "partial",
+        "crypto_report_count": len(crypto_reports),
+        "crypto_error_class": crypto_error,
         "report_id": report["report_id"],
         "report_decision": report["decision"],
         "selection_status": selections[0]["status"],
@@ -351,7 +467,7 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({"status": "error", "error": str(error)}, sort_keys=True))
         return 1
     print(json.dumps(result, sort_keys=True))
-    return 0
+    return 0 if result["status"] == "ok" else 1
 
 
 if __name__ == "__main__":

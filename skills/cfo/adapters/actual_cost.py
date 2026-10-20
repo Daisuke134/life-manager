@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from datetime import datetime, timezone
 from decimal import Decimal, DecimalException, localcontext
 from typing import Any
@@ -664,15 +665,159 @@ def _parse_document(row: dict, *, end: str, payload_digest: str,
     return result, failures, seen_groups
 
 
+def _query_ids(value, *, nonempty=False):
+    return (isinstance(value,list) and (bool(value) or not nonempty)
+        and all(isinstance(item,str) and item for item in value) and len(set(value))==len(value))
+
+
+def _execution_ref_triples(value):
+    fields=('execution_owner_id','run_id','occurrence_id')
+    if not isinstance(value,list) or not value:raise ValueError('cost_query_execution_ref_missing')
+    triples=set()
+    for row in value:
+        if (not isinstance(row,dict) or set(row)!=set(fields)
+                or not all(isinstance(row[k],str) and contract.IDENTITY.fullmatch(row[k]) for k in fields)
+                or not row['occurrence_id'].startswith(row['execution_owner_id']+':')):
+            raise ValueError('cost_query_execution_ref_invalid')
+        triple=tuple(row[k] for k in fields)
+        if triple in triples:raise ValueError('cost_query_execution_ref_invalid')
+        triples.add(triple)
+    return triples
+
+
+def paid_charge_identity(document,line,allocation):
+    identity=_document_identity(document)
+    if identity is None:return None
+    provider,kind,document_id=identity;invoice=document.get('invoice_id')
+    if isinstance(invoice,str) and invoice:
+        if not contract.IDENTITY.fullmatch(invoice):return None
+        kind,document_id='invoice',invoice
+    ids=(line.get('line_item_id'),allocation.get('allocation_id'))
+    if not all(isinstance(value,str) and contract.IDENTITY.fullmatch(value) for value in ids):return None
+    return provider,kind,document_id,*ids
+
+
+def _cost_scope_key(scope):
+    return (scope.get('owner_id'),scope.get('mode'),scope.get('paper'),tuple(scope['order_ids']),
+        _instant(scope.get('period_start')),_instant(scope.get('period_end')),scope.get('scope_kind','order_pair'))
+
+
+def _same_cost_scope(left,right):
+    return (type(left.get('paper')) is bool and _query_ids(left.get('order_ids'))
+        and _query_ids(left.get('source_receipt_ids'),nonempty=True)
+        and left.get('product_loop_id')==right.get('product_loop_id')
+        and _cost_scope_key(left)==_cost_scope_key(right)
+        and set(left['source_receipt_ids'])==set(right['source_receipt_ids']))
+
+
+def _inventory_cost_scope(inventory,target,snapshot_at):
+    invalid='cost_query_inventory_invalid'
+    if (not isinstance(inventory,dict) or type(inventory.get('schema_version')) is not int or inventory['schema_version']!=1
+            or inventory.get('gaps')!=[] or not isinstance(inventory.get('scopes'),list)):
+        raise ValueError(invalid)
+    mode=target.get('mode');owner=target.get('owner_id');kind=target.get('scope_kind','order_pair')
+    start,finish=_instant(target.get('period_start')),_instant(target.get('period_end'))
+    observed=_instant(inventory.get('observed_at'))
+    if (mode not in ('paper','live') or owner!=f'alpaca-investment-{mode}' or target.get('paper') is not (mode=='paper')
+            or inventory.get('beneficiary_owner_id')!=owner or kind not in ('order_pair','owner_period')
+            or not _query_ids(target.get('order_ids'),nonempty=kind=='order_pair')
+            or kind=='owner_period' and target['order_ids']!=[]
+            or not _query_ids(target.get('source_receipt_ids'),nonempty=True)
+            or None in (start,finish,observed) or not start<finish<=observed<=snapshot_at):
+        raise ValueError(invalid)
+    matches=[row for row in inventory['scopes'] if isinstance(row,dict) and _query_ids(row.get('order_ids'))
+        and _cost_scope_key(row)==_cost_scope_key(target)]
+    if len(matches)!=1:raise ValueError('cost_query_inventory_scope_missing')
+    scope=matches[0]
+    if (scope.get('scope_kind') not in ('order_pair','owner_period') or scope.get('paper') is not (mode=='paper')
+            or not _query_ids(scope.get('source_receipt_ids'),nonempty=True)
+            or not set(scope['source_receipt_ids'])<=set(target['source_receipt_ids'])
+            or not _query_ids(scope.get('evidence_refs'),nonempty=True)
+            or not isinstance(scope.get('gaps'),list)):
+        raise ValueError(invalid)
+    allowed={'history_coverage_unverified','shared_attribution_unproven'}
+    if any(not isinstance(g,dict) or g.get('reason') not in allowed for g in scope['gaps']):raise ValueError('cost_query_inventory_gap')
+    raw_refs=scope.get('execution_refs');refs=set();events=set();releases=set();windows={}
+    ref_fields={'execution_owner_id','run_id','occurrence_id','release_sha','loaded_argv_sha256','loaded_env_sha256','start_event_id','terminal_event_id','started_at','finished_at'}
+    if not isinstance(raw_refs,list) or not raw_refs:raise ValueError(invalid)
+    for row in raw_refs:
+        if not isinstance(row,dict) or set(row)!=ref_fields:raise ValueError(invalid)
+        triple=next(iter(_execution_ref_triples([{k:row[k] for k in ('execution_owner_id','run_id','occurrence_id')}])) )
+        began,ended=_instant(row['started_at']),_instant(row['finished_at'])
+        if None in (began,ended) or not began<=ended<=observed or (began>=finish if kind=='owner_period' else began>finish) or ended<start:
+            raise ValueError('cost_query_execution_window_invalid')
+        refs.add(triple);windows[triple]=(began,ended)
+        for key,length in (('release_sha',40),('loaded_argv_sha256',64),('loaded_env_sha256',64)):
+            if not isinstance(row[key],str) or re.fullmatch('[a-f0-9]{'+str(length)+'}',row[key]) is None:raise ValueError(invalid)
+        for key in ('start_event_id','terminal_event_id'):
+            if not isinstance(row[key],str) or re.fullmatch('[a-f0-9]{24,64}',row[key]) is None or row[key] in events:raise ValueError(invalid)
+            events.add(row[key])
+        releases.add(row['release_sha'])
+    if len(refs)!=len(raw_refs):raise ValueError(invalid)
+    reads=inventory.get('input_reads');limits=inventory.get('read_limits')
+    if (not isinstance(reads,dict) or not isinstance(limits,dict)
+            or any(type(limits.get(k)) is not int or limits[k]<(0 if k=='runtime_archives_per_owner' else 1)
+                   for k in ('owners','admission_rows_per_owner','runtime_archives_per_owner'))
+            or len(reads)>limits['owners']):raise ValueError(invalid)
+    for executor in {r[0] for r in refs}:
+        data=reads.get(executor)
+        if not isinstance(data,dict) or any(not isinstance(data.get(k),dict) or data[k].get('status')!='ok' for k in ('runtime','ledger','admission')):
+            raise ValueError('cost_query_history_unverified')
+        runtime=data['runtime'];first,last=_instant(runtime.get('first_event_at')),_instant(runtime.get('last_event_at'))
+        earliest=min([start]+[bounds[0] for ref,bounds in windows.items() if ref[0]==executor])
+        latest=max([finish]+[bounds[1] for ref,bounds in windows.items() if ref[0]==executor])
+        if (None in (first,last) or not first<=earliest<=latest<=last<=observed
+                or type(runtime.get('archives_available')) is not int or not 0<=runtime['archives_available']<=limits['runtime_archives_per_owner']
+                or any(type(data[k].get('row_count')) is not int or data[k]['row_count']<1 for k in ('runtime','ledger','admission'))
+                or runtime['row_count']<2*sum(r[0]==executor for r in refs)
+                or not len({r[2] for r in refs if r[0]==executor})<=data['admission']['row_count']<=limits['admission_rows_per_owner']):
+            raise ValueError('cost_query_history_unverified')
+    bindings=scope.get('known_paid_bindings')
+    if not isinstance(bindings,list):raise ValueError(invalid)
+    known=set()
+    for binding in bindings:
+        if (not isinstance(binding,dict) or binding.get('owner_id')!=owner or binding.get('mode')!=mode
+                or binding.get('paper') is not (mode=='paper') or binding.get('order_ids')!=scope['order_ids']
+                or _instant(binding.get('period_start'))!=start or _instant(binding.get('period_end'))!=finish
+                or not isinstance(binding.get('receipt_id'),str) or not binding['receipt_id']
+                or not _query_ids(binding.get('evidence_refs'),nonempty=True)
+                or not isinstance(binding.get('charge_identity'),list) or len(binding['charge_identity'])!=5
+                or not all(isinstance(v,str) and v for v in binding['charge_identity'])):raise ValueError(invalid)
+        known.add((binding.get('provider'),binding.get('billing_account_ref'),binding.get('category')))
+    required={}
+    if not isinstance(scope.get('required_sources'),list) or not scope['required_sources']:raise ValueError('cost_query_source_missing')
+    for source in scope['required_sources']:
+        if (not isinstance(source,dict) or _provider(source.get('provider')) is None
+                or not isinstance(source.get('billing_account_ref'),str) or not source['billing_account_ref'].strip()
+                or source.get('category') not in ACTUAL_COST_CATEGORIES
+                or not _query_ids(source.get('execution_owner_ids')) or not _query_ids(source.get('release_refs'))
+                or not _query_ids(source.get('evidence_refs'),nonempty=True)):raise ValueError(invalid)
+        key=(source['provider'],source['billing_account_ref'],source['category'])
+        owners=set(source['execution_owner_ids'])
+        if key in required or not owners<={r[0] for r in refs} or not set(source['release_refs'])<=releases:
+            raise ValueError(invalid)
+        if (not owners or not source['release_refs']) and key not in known:raise ValueError(invalid)
+        required[key]=owners or {owner}
+    if not known<=set(required) or {k[2] for k in required}!=set(ACTUAL_COST_CATEGORIES):raise ValueError('cost_query_source_missing')
+    for gap in scope['gaps']:
+        if gap['reason']=='shared_attribution_unproven' and (gap.get('execution_owner_id')==owner
+                or gap.get('execution_owner_id') not in {v for values in required.values() for v in values}):raise ValueError(invalid)
+    return {'scope':scope,'required':required,'refs':refs,'windows':windows,'covered':set(),'evidence_refs':set(scope['evidence_refs'])}
+
+
 def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_records,
                                    scope=None, expected_inventory=None) -> dict[str, Any]:
     """Normalize scoped billing facts, never money or complete cost coverage.
 
-    Independent runtime inventory is not connected here yet. Even accepted,
-    finalized no-charge observations leave coverage open for the D3 consumer.
+    Explicit independent inventory can prove source coverage for exact scopes.
+    Observations alone never produce zero-money receipts or complete coverage.
     """
     result = {"observations": [], "rejections": [], "coverage_state": "gap",
               "reason": "source_inventory_unverified"}
+    if scope is not None and not isinstance(scope,dict):
+        result.update(reason='cost_query_scope_invalid')
+        result['rejections'].append({'reason':'cost_query_scope_invalid'})
+        return result
     end = _instant(snapshot_at)
     readback = payload.get("readback") if isinstance(payload, dict) else None
     billing_at = _instant(readback.get("observed_at")) if isinstance(readback, dict) else None
@@ -682,10 +827,7 @@ def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_recor
         result["rejections"].append({"reason": "read_failed"})
         return result
 
-    def ids(value, *, nonempty=False):
-        return (isinstance(value, list) and (bool(value) or not nonempty)
-                and all(isinstance(item, str) and item for item in value)
-                and len(set(value)) == len(value))
+    ids = _query_ids
 
     sources = payload.get("sources", [])
     scopes = readback.get("cost_scopes", [])
@@ -732,7 +874,50 @@ def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_recor
                 and all(row in paid_records for row in parsed) else [])
         return paid_document_cache[signature]
 
+    checked_aliases=set()
+    def verify_paid_aliases(charge,target,amount,category,account):
+        cache_key=(charge,_cost_scope_key(target),frozenset(target['source_receipt_ids']),amount,category,account)
+        if cache_key in checked_aliases:return
+        for document in _document_rows(payload)[0]:
+            identity=_document_identity(document)
+            if identity is None or not paid_document_rows(document):continue
+            for line in document.get('line_items',[]):
+                for allocation in line.get('allocations',[]):
+                    if paid_charge_identity(document,line,allocation)!=charge:continue
+                    contexts=[item for item in joins if isinstance(item,dict) and item.get('join_type')!='scope_query'
+                        and (item.get('provider'),item.get('document_type'),item.get('document_id'))==identity
+                        and item.get('line_item_id')==line.get('line_item_id')
+                        and item.get('allocation_id')==allocation.get('allocation_id') and item.get('job_id')==allocation.get('job_id')]
+                    if (not contexts or any(not _same_cost_scope(item,target) for item in contexts)
+                            or document.get('billing_account_ref')!=account or document.get('currency')!='USD'
+                            or line.get('category')!=category or _amount(allocation.get('amount'))!=amount):
+                        raise ValueError('cost_query_paid_alias_conflict')
+        checked_aliases.add(cache_key)
+
+    prepared={}
+    if expected_inventory is not None:
+        try:
+            if not isinstance(expected_inventory,dict) or not isinstance(expected_inventory.get('scopes'),list) or not expected_inventory['scopes']:
+                raise ValueError('cost_query_inventory_invalid')
+            wanted=[scope] if scope is not None else [target for target in scopes if isinstance(target,dict)
+                and ids(target.get('order_ids')) and any(isinstance(r,dict) and ids(r.get('order_ids'))
+                    and _cost_scope_key(r)==_cost_scope_key(target) for r in expected_inventory['scopes'])]
+            if scope is None and len(wanted)!=len(expected_inventory['scopes']):raise ValueError('cost_query_inventory_scope_missing')
+            for target in wanted:
+                if not isinstance(target,dict) or not isinstance(target.get('scope_id'),str) or not target['scope_id'] or target['scope_id'] in prepared:
+                    raise ValueError('cost_query_inventory_invalid')
+                prepared[target['scope_id']]=_inventory_cost_scope(expected_inventory,target,end)
+        except (ValueError,KeyError,TypeError,AttributeError) as error:
+            result['reason']=str(error) if str(error).startswith('cost_query_') else 'cost_query_inventory_invalid'
+            result['rejections'].append({'reason':result['reason']})
+            diagnostic=validate_official_cost_queries(payload,snapshot_at=snapshot_at,paid_records=paid_records,scope=scope)
+            result['observations']=[{**row,'inventory_verification':'unverified'} for row in diagnostic['observations']]
+            return result
+
     for source, query in candidates:
+        if isinstance(query,dict) and isinstance(query.get('scope_id'),str):
+            if scope is not None and query['scope_id']!=scope.get('scope_id'):continue
+            if expected_inventory is not None and query['scope_id'] not in prepared:continue
         context = {"provider": source.get("provider")}
         try:
             if not isinstance(query, dict):
@@ -763,27 +948,45 @@ def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_recor
             target = matching[0]
             if scope is not None and target != scope:
                 raise ValueError
+            matching = [item for item in joins if isinstance(item, dict)
+                        and (item.get("provider"), item.get("billing_account_ref"), item.get("query_id")) == key
+                        and item.get("scope_id") == target["scope_id"]]
             mode = target.get("mode")
+            structured = expected_inventory is not None or any("execution_refs" in item for item in matching)
+            kind=target.get("scope_kind","order_pair")
             start, finish = _instant(target.get("period_start")), _instant(target.get("period_end"))
             if (target.get("product_loop_id") != "investment" or not isinstance(target.get("owner_id"), str)
                     or not target["owner_id"] or mode not in ("paper", "live", "shadow")
                     or type(target.get("paper")) is not bool or target["paper"] != (mode == "paper")
-                    or not ids(target.get("order_ids"), nonempty=True) or len(target["order_ids"]) != 2
+                    or not ids(target.get("order_ids"), nonempty=not (structured and kind=='owner_period'))
+                    or (structured and (kind not in ('order_pair','owner_period') or kind=='owner_period' and target['order_ids']!=[]))
+                    or (not structured and len(target["order_ids"])!=2)
                     or not ids(target.get("source_receipt_ids"), nonempty=True)
                     or start is None or finish is None
                     or not times["window_start"] <= start < finish <= times["window_end"]):
                 raise ValueError
-            matching = [item for item in joins if isinstance(item, dict)
-                        and (item.get("provider"), item.get("billing_account_ref"), item.get("query_id")) == key
-                        and item.get("scope_id") == target["scope_id"]]
-            scope_fields = ("product_loop_id", "owner_id", "mode", "paper", "order_ids",
-                            "period_start", "period_end", "source_receipt_ids")
-            if not matching or any(type(item.get("paper")) is not bool
-                                   or any(item.get(field) != target.get(field) for field in scope_fields) for item in matching):
+            if not matching or any(not _same_cost_scope(item,target) for item in matching):
                 raise ValueError
+            information=prepared.get(target['scope_id'])
+            wanted_refs=set();query_keys=set();joined_refs=set();scoped_paid={}
+            if information is not None:
+                if (not ids(source.get('product_loop_ids'),nonempty=True) or 'investment' not in source['product_loop_ids']
+                        or any(_loop_id(value) is None for value in source['product_loop_ids'])):raise ValueError('cost_query_source_missing')
+                query_keys={k for k in information['required'] if k[:2]==key[:2] and k[2] in query['covered_categories']}
+                if not query_keys:raise ValueError('cost_query_source_not_expected')
+                executors={v for k in query_keys for v in information['required'][k]}
+                wanted_refs={r for r in information['refs'] if r[0] in executors}
             for item in matching:
+                if 'execution_refs' in item or information is not None:
+                    item_refs=_execution_ref_triples(item.get('execution_refs'))
+                    if information is not None and not item_refs<=wanted_refs:raise ValueError('cost_query_execution_ref_mismatch')
+                    if (item.get('join_type')=='scope_query' or 'run_ids' in item or 'occurrence_ids' in item) and (
+                            not ids(item.get('run_ids'),nonempty=True) or not ids(item.get('occurrence_ids'),nonempty=True)
+                            or set(item['run_ids'])!={r[1] for r in item_refs} or set(item['occurrence_ids'])!={r[2] for r in item_refs}):
+                        raise ValueError('cost_query_execution_ref_mismatch')
+                    joined_refs.update(item_refs)
                 if item.get("join_type") == "scope_query":
-                    if (not ids(item.get("run_ids"), nonempty=True) or not ids(item.get("occurrence_ids"), nonempty=True)
+                    if 'execution_refs' not in item and (not ids(item.get("run_ids"), nonempty=True) or not ids(item.get("occurrence_ids"), nonempty=True)
                             or set(item["occurrence_ids"]) != {f"{target['owner_id']}:{run}" for run in item["run_ids"]}):
                         raise ValueError
                 elif item.get("join_type") == "paid_allocation":
@@ -791,6 +994,7 @@ def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_recor
                             or item.get("status") not in ("completed", "settled", "paid")
                             or not isinstance(item.get("job_id"), str) or not item["job_id"]):
                         raise ValueError
+                    if information is not None and (key[0],item['job_id']) in job_conflicts:raise ValueError('cost_query_paid_binding_conflict')
                     bound = False
                     for document in _document_rows(payload)[0]:
                         identity = _document_identity(document)
@@ -807,14 +1011,28 @@ def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_recor
                                     continue
                                 receipt_id = (f"{key[0]}:actual-cost:{identity[1]}:{identity[2]}:"
                                               f"line:{line['line_item_id']}:allocation:{allocation['allocation_id']}")
-                                bound |= any(isinstance(row, dict) and row.get("receipt_id") == receipt_id
+                                proved = any(isinstance(row, dict) and row.get("receipt_id") == receipt_id
                                     and row.get("record_type") == "receipt" and row.get("verification_state") == "verified"
                                     and row.get("provider") == key[0] and row.get("currency") == "USD"
                                     and row.get("product_loop_id") == target["product_loop_id"] for row in paid_document_rows(document))
+                                bound |= proved
+                                if proved:
+                                    if information is not None:
+                                        category_key=(key[0],key[1],line.get('category'))
+                                        if category_key not in query_keys or any(r[0] not in information['required'][category_key] for r in item_refs):
+                                            raise ValueError('cost_query_execution_category_mismatch')
+                                    charge=paid_charge_identity(document,line,allocation)
+                                    if charge is None:raise ValueError('cost_query_paid_alias_invalid')
+                                    scoped_paid[charge]=(_amount(allocation.get('amount')),line.get('category'),document.get('billing_account_ref'))
                     if not bound:
                         raise ValueError
                 else:
                     raise ValueError
+            if information is not None:
+                if joined_refs!=wanted_refs:raise ValueError('cost_query_execution_ref_missing')
+                if kind=='order_pair' and (times['window_start']>min(information['windows'][r][0] for r in wanted_refs)
+                        or times['window_end']<max(information['windows'][r][1] for r in wanted_refs)):
+                    raise ValueError('cost_query_execution_window_uncovered')
             chain = [page for page in pages if isinstance(page, dict)
                      and (page.get("provider"), page.get("billing_account_ref"), page.get("query_id")) == key]
             if not chain or any(type(page.get("page")) is not int for page in chain):
@@ -868,13 +1086,64 @@ def validate_official_cost_queries(payload: Any, *, snapshot_at: str, paid_recor
                     raise ValueError
             else:
                 raise ValueError
+            if information is not None:
+                for charge,(amount,category,account) in scoped_paid.items():verify_paid_aliases(charge,target,amount,category,account)
+                for binding in information['scope']['known_paid_bindings']:
+                    if (binding['provider'],binding['billing_account_ref'],binding['category']) not in query_keys:continue
+                    if settlement!='paid_final':raise ValueError('cost_query_known_paid_missing')
+                    aliases={tuple(binding['charge_identity'])}
+                    receipt_ids={binding['receipt_id']}
+                    for alias in binding.get('identity_aliases',[]):
+                        if not isinstance(alias,list) or not all(isinstance(v,str) and v for v in alias):raise ValueError('cost_query_inventory_invalid')
+                        if len(alias)==6 and alias[0]=='charge':aliases.add(tuple(alias[1:]))
+                        elif len(alias)==2 and alias[0]=='receipt':receipt_ids.add(alias[1])
+                        else:raise ValueError('cost_query_inventory_invalid')
+                    found=False
+                    for document in _document_rows(payload)[0]:
+                        identity=_document_identity(document)
+                        if identity is None or (identity[0],document.get('billing_account_ref'))!=key[:2] or identity[2] not in documents:continue
+                        verified={r['receipt_id'] for r in paid_document_rows(document)}
+                        if not verified:continue
+                        for line in document.get('line_items',[]):
+                            for allocation in line.get('allocations',[]):
+                                receipt_id=f"{key[0]}:actual-cost:{identity[1]}:{identity[2]}:line:{line.get('line_item_id')}:allocation:{allocation.get('allocation_id')}"
+                                linked=any(item.get('join_type')=='paid_allocation' and item.get('document_type')==identity[1]
+                                    and item.get('document_id')==identity[2] and item.get('line_item_id')==line.get('line_item_id')
+                                    and item.get('allocation_id')==allocation.get('allocation_id') and item.get('job_id')==allocation.get('job_id')
+                                    for item in matching)
+                                if (linked and receipt_id in verified and line.get('category')==binding['category'] and allocation.get('product_loop_id')=='investment'
+                                        and (paid_charge_identity(document,line,allocation) in aliases or receipt_id in receipt_ids)):
+                                    found=True
+                    if not found:raise ValueError('cost_query_known_paid_missing')
+                information['covered'].update(query_keys)
+                information['evidence_refs'].update(query['evidence_refs'])
+                information['evidence_refs'].update(ref for page in chain for ref in page['evidence_refs'])
             observation_fields = ("billing_account_ref", "query_id", "scope_id", "covered_categories",
                                   "window_start", "window_end", "observed_at", "finalized_through",
                                   "settlement_state", "document_ids", "evidence_refs")
             result["observations"].append({**{field: query[field] for field in observation_fields},
                 "provider": key[0], **{field: target[field] for field in ("order_ids", "period_start", "period_end")}})
-        except (KeyError, TypeError, ValueError):
-            result["rejections"].append({**context, "reason": "unverified_receipt"})
+            if information is not None:
+                result['observations'][-1].update(inventory_verification='verified',scope_kind=kind,
+                    execution_windows=[{'execution_owner_id':r[0],'run_id':r[1],'occurrence_id':r[2],
+                        'started_at':information['windows'][r][0],'finished_at':information['windows'][r][1],
+                        'covered_categories':sorted(k[2] for k in query_keys if r[0] in information['required'][k])}
+                        for r in sorted(wanted_refs)])
+        except (KeyError, TypeError, ValueError) as error:
+            reason=str(error) if str(error).startswith('cost_query_') else 'unverified_receipt'
+            result["rejections"].append({**context, "reason": reason})
+    if expected_inventory is not None:
+        result['scope_coverages']=[]
+        for scope_id,information in prepared.items():
+            trusted=information['scope']
+            complete=set(information['required'])<=information['covered'] and not any(
+                rejection.get('scope_id') in (None,scope_id) for rejection in result['rejections'])
+            result['scope_coverages'].append({**{k:trusted[k] for k in ('scope_kind','owner_id','mode','paper','order_ids','period_start','period_end','source_receipt_ids')},
+                'scope_id':scope_id,'coverage_state':'complete' if complete else 'gap',
+                'reason':None if complete else 'cost_query_sources_uncovered','evidence_refs':sorted(information['evidence_refs'])})
+        if result['scope_coverages'] and all(row['coverage_state']=='complete' for row in result['scope_coverages']):
+            result.update(coverage_state='complete',reason='official_queries_cover_expected_inventory')
+        else:result['reason']='cost_query_sources_uncovered'
     return result
 
 

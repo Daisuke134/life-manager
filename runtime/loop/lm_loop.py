@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from datetime import datetime
 import fcntl
 import gzip
@@ -150,7 +150,7 @@ def _read_admission_rows(
     uri = f"{database.as_uri()}?mode=ro"
     for attempt in range(ADMISSION_READ_RETRY_ATTEMPTS):
         try:
-            with sqlite3.connect(uri, uri=True, timeout=1) as connection:
+            with closing(sqlite3.connect(uri, uri=True, timeout=1)) as connection:
                 return connection.execute(query, parameters).fetchall()
         except sqlite3.Error as error:
             if (not _sqlite_database_busy(error)
@@ -456,7 +456,7 @@ def _is_pre_effect_terminal(entry: dict, row: dict) -> bool:
 
 
 def _private_jsonl_rows(path: Path, *, max_rows: int = 50_000,
-                        max_bytes: int = MAX_HARNESS_FAILURE_BYTES) -> list[dict]:
+                        max_bytes: int = MAX_HARNESS_FAILURE_BYTES, strict: bool = False) -> list[dict]:
     """Read one private JSONL side channel without following links or trusting its mode.
 
     Harness failures are diagnostic input, not runtime events, so they cannot use
@@ -480,7 +480,11 @@ def _private_jsonl_rows(path: Path, *, max_rows: int = 50_000,
                 try:
                     value = json.loads(line)
                 except (UnicodeDecodeError, json.JSONDecodeError):
+                    if strict:
+                        return []
                     continue
+                if strict and not isinstance(value, dict):
+                    return []
                 if isinstance(value, dict):
                     rows.append(value)
                     if len(rows) > max_rows:

@@ -13,19 +13,18 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from cost_inventory import read_expected_inventory,select_expected_inventory
 from effect_store import UNRESOLVED_INTENT_STATUSES
-from paper_operating_costs import read_readback, select_components, summarize as summarize_operating_costs
+from crypto_ownership_proof import BROKER_TERMINAL_FAILURE_STATUSES, BROKER_RESUMABLE_STATUSES, _terminal_no_fill_proven
+from paper_operating_costs import read_readback, select_components, remember_source_evidence, summarize as summarize_operating_costs
 
 
 OWNER_ID = "alpaca-investment-paper"
 STRATEGY_ID = "alpaca-etf-126d-momentum-v1"
-BROKER_TERMINAL_FAILURE_STATUSES = frozenset({
-    "canceled", "done_for_day", "expired", "rejected", "stopped", "suspended",
-})
 BROKER_NONTERMINAL_STATUSES = frozenset({
     "accepted", "accepted_for_bidding", "new", "partially_filled",
     "pending_cancel", "pending_new", "pending_replace",
-})
+}) | BROKER_RESUMABLE_STATUSES
 
 
 def _unknown(reason: str) -> dict[str, str]:
@@ -171,6 +170,22 @@ def _ledger_rows(rows: Any) -> tuple[list[dict[str, Any]], dict[str, dict[str, A
                     if isinstance(previous_broker, Mapping) else None
                 current_status = current_broker.get("status") \
                     if isinstance(current_broker, Mapping) else None
+                if previous_status in BROKER_NONTERMINAL_STATUSES:
+                    if not isinstance(previous_broker, Mapping) or not isinstance(current_broker, Mapping):
+                        raise ValueError("paper_receipt_duplicate")
+                    for key in ("id", "client_order_id", "symbol", "side", "type", "time_in_force", "submitted_at"):
+                        known = previous_broker.get(key)
+                        if key in {"id", "client_order_id"} and (not isinstance(known, str) or not known):
+                            raise ValueError("paper_receipt_duplicate")
+                        if known not in (None, "") and known != current_broker.get(key):
+                            raise ValueError("paper_receipt_duplicate")
+                    try:
+                        previous_qty = _number(previous_broker.get("filled_qty"))
+                        current_qty = _number(current_broker.get("filled_qty"))
+                        if previous_qty < 0 or current_qty < previous_qty:
+                            raise ValueError
+                    except ValueError as error:
+                        raise ValueError("paper_receipt_duplicate") from error
                 same_filled_order = (
                     previous_status == current_status == "filled"
                     and isinstance(previous_broker, Mapping)
@@ -226,6 +241,9 @@ def _closed_round_trips(
         if not isinstance(broker, Mapping):
             raise ValueError("paper_provider_receipt_invalid")
         if outcome.get("outcome") == "broker_terminal_failure":
+            if (broker.get("status") not in BROKER_TERMINAL_FAILURE_STATUSES
+                    or not _terminal_no_fill_proven(broker, rows, effect_id)):
+                raise ValueError("paper_effect_unresolved")
             continue
         if outcome.get("outcome") != "broker_reconciled":
             raise ValueError("paper_outcome_invalid")
@@ -474,6 +492,7 @@ def build_paper_performance(
     *,
     broker_cost_evidence: Any = None,
     operating_cost_readback: Any = None,
+    expected_inventory: Any = None,
 ) -> dict[str, Any]:
     """Return a partial receipt until every paper cost has official evidence."""
     try:
@@ -492,7 +511,7 @@ def build_paper_performance(
         exposure = max((item["exposure_usd"] for item in completed), default=Decimal("0"))
         broker_costs = _broker_cost_summary(completed, broker_cost_evidence)
         operating_costs = summarize_operating_costs(
-            completed, operating_cost_readback, owner_id=OWNER_ID, observed_at=observed_at,
+            completed, operating_cost_readback, owner_id=OWNER_ID, observed_at=observed_at,expected_inventory=expected_inventory,
         )
         cost_source_ids = broker_costs["broker_cost_source_receipt_ids"]
         all_source_ids = [*source_ids, *cost_source_ids, *operating_costs["operating_cost_source_receipt_ids"]]
@@ -500,8 +519,10 @@ def build_paper_performance(
             raise ValueError("paper_receipt_duplicate")
         unknown_costs = (["fees", "model", "system"] if broker_costs["broker_slippage_status"] == "complete"
                          else ["fees", "slippage", "model", "system"])
+        unknown_costs=[key for key in unknown_costs if key not in {"model","system"} or operating_costs.get(key+"_cost_usd") is None]
         return {
             **operating_costs,
+            "expected_cost_inventory":expected_inventory,"owner_id":OWNER_ID,
             "completed_round_trips": len(completed),
             "completed_round_trips_total": len(completed),
             "broker_costs_status": broker_costs["broker_costs_status"],
@@ -512,7 +533,7 @@ def build_paper_performance(
             "broker_costs_errors": [],
             "broker_cost_source_receipt_ids": cost_source_ids,
             "costs_status": ("partial" if broker_costs["broker_slippage_status"] == "complete"
-                             or operating_costs["operating_costs_status"] == "partial"
+                             or operating_costs["operating_costs_status"] in {"partial","complete"}
                              else "unknown"),
             "fees_usd": broker_costs["fees_usd"],
             "funding_or_borrow_usd": None,
@@ -522,7 +543,7 @@ def build_paper_performance(
             "gross_strategy_pnl_total_usd": str(gross),
             "measurement_status": "partial",
             "mode": "paper",
-            "model_cost_usd": None,
+            "model_cost_usd": operating_costs.get("model_cost_usd"),
             "net_realized_pnl_usd": None,
             "observed_at": observed_at,
             "owner_cash_flow_usd": "0.00",
@@ -533,7 +554,7 @@ def build_paper_performance(
             "slippage_usd": broker_costs["slippage_usd"],
             "slippage_included_in_gross_pnl": True,
             "source_receipt_ids": all_source_ids,
-            "system_cost_usd": None,
+            "system_cost_usd": operating_costs.get("system_cost_usd"),
             "unknown_cost_categories": unknown_costs,
         }
     except (TypeError, ValueError, ArithmeticError) as error:
@@ -702,6 +723,19 @@ def _operating_charge_key(component: Mapping[str, Any]) -> tuple[str, ...]:
     return tuple(key)
 
 
+def _operating_cost_facts(component):
+    account=component.get("billing_account_ref")
+    if account is not None and (not isinstance(account,str) or not account.strip()):
+        raise ValueError("paper_operating_cost_binding_invalid")
+    return (component["category"],_number(component["amount_usd"]),tuple(component["order_ids"]),
+            _timestamp(component["period_start"]),_timestamp(component["period_end"]),account)
+
+
+def _operating_cost_facts_match(current, previous):
+    return (current is not None and current[:-1]==previous[:-1]
+            and (previous[-1] is None or current[-1]==previous[-1]))
+
+
 def _operating_identity_keys(component: Mapping[str, Any]) -> set[tuple[str, ...]]:
     receipt_id = component.get("receipt_id")
     if not isinstance(receipt_id, str) or not receipt_id:
@@ -729,11 +763,17 @@ def _bind_operating_costs(state: Path, completed, summary):
                          "period_end": trip["closed_at"]}): trip
                 for trip in completed if trip.get("period_start")}
     bindings = {}
+    paid_facts = {}
     alias_sets = {}
     day_keys = {}
+    source_evidence = []
+    def selected(value):
+        return {**select_components(value,completed), 'known_operating_cost_source_evidence':
+            remember_source_evidence(source_evidence,summary,owner_id=OWNER_ID,mode='paper')}
     try:
         for path in state.glob("performance-daily-????-??-??.json"):
             previous = json.loads(path.read_text(encoding="utf-8"))
+            source_evidence=remember_source_evidence(source_evidence,previous,owner_id=OWNER_ID,mode='paper')
             components = previous.get("operating_cost_components", [])
             if not isinstance(components, list):
                 raise ValueError("paper_operating_cost_binding_invalid")
@@ -751,39 +791,51 @@ def _bind_operating_costs(state: Path, completed, summary):
                 keys, trade = _operating_identity_keys(component), binding(component)
                 keys |= {alias for key in keys for alias in alias_sets.get(key, set())}
                 trip = expected.get(trade)
+                fact = _operating_cost_facts(component)
                 if (trip is None or _utc_day(component["period_end"]) != day
                         or component.get("receipt_id") not in ids
                         or not set(trip["source_receipt_ids"]) <= set(ids)
-                        or any(key in bindings and bindings[key] != trade for key in keys)):
+                        or any(key in bindings and bindings[key] != trade for key in keys)
+                        or any(key in paid_facts and not _operating_cost_facts_match(fact,paid_facts[key]) for key in keys)):
                     raise ValueError("paper_operating_cost_binding_invalid")
                 for key in keys:
                     bindings[key] = trade
+                    paid_facts[key] = fact
                     alias_sets[key] = keys
                 day_keys.setdefault(day, []).append(keys)
         components = summary["operating_cost_components"]
         eligible = []
+        component_gaps = list(summary.get("operating_cost_component_gaps", []))
+        def gap(row, reason):
+            return {**{key: row[key] for key in ("receipt_id", "provider", "order_ids", "period_start", "period_end")},
+                    "occurred_at": row.get("occurred_at"), "reason": reason}
         for row in components:
             keys = _operating_identity_keys(row)
-            if any(key in bindings and bindings[key] != binding(row) for key in keys):
-                continue
             keys |= {alias for key in keys for alias in alias_sets.get(key, set())}
+            fact = _operating_cost_facts(row)
+            if any(key in bindings and bindings[key] != binding(row) for key in keys):
+                component_gaps.append(gap(row, "operating_cost_receipt_reassigned"))
+                continue
+            if any(key in paid_facts and not _operating_cost_facts_match(fact,paid_facts[key]) for key in keys):
+                component_gaps.append(gap(row, "operating_cost_identity_conflict"))
+                continue
             matching = [index for index, prior in enumerate(eligible)
                         if keys & _operating_identity_keys(prior)]
             if matching:
                 prior = eligible[matching[0]]
-                if (len(matching) != 1 or binding(prior) != binding(row)
-                        or prior["category"] != row["category"]
-                        or _number(prior["amount_usd"]) != _number(row["amount_usd"])):
-                    return select_components({**summary, "operating_cost_components": [],
-                        "operating_costs_reason": "operating_cost_identity_conflict"}, completed), day_keys
+                if len(matching) != 1 or _operating_cost_facts(prior) != fact:
+                    return selected({**summary, "operating_cost_components": [],
+                        "operating_cost_component_gaps": component_gaps + [gap(item, "operating_cost_identity_conflict") for item in components],
+                        "operating_costs_reason": "operating_cost_identity_conflict"}), day_keys
                 keys |= _operating_identity_keys(prior)
                 prior["identity_aliases"] = [list(key) for key in sorted(keys)]
             else:
                 eligible.append({**row, "identity_aliases": [list(key) for key in sorted(keys)]})
-        value = {**summary, "operating_cost_components": eligible}
+        value = {**summary, "operating_cost_components": eligible,
+                 "operating_cost_component_gaps": component_gaps}
         if len(eligible) != len(components):
             value["operating_costs_reason"] = "operating_cost_receipt_reassigned"
-        return select_components(value, completed), day_keys
+        return selected(value), day_keys
     except (OSError, KeyError, AttributeError, TypeError, ValueError, ArithmeticError, RecursionError) as error:
         raise ValueError("paper_operating_cost_binding_unavailable") from error
 
@@ -803,7 +855,7 @@ def _refresh_historical_costs(
         costs = _broker_cost_summary(trips, day_evidence)
         day_operating_costs = select_components(dict(operating_costs), trips)
         broker_available = costs["broker_slippage_status"] == "complete"
-        operating_available = day_operating_costs["operating_costs_status"] == "partial"
+        operating_available = day_operating_costs["operating_costs_status"] in {"partial","complete"}
         if not broker_available and not operating_available:
             continue
         path = state / f"performance-daily-{day}.json"
@@ -852,6 +904,9 @@ def _refresh_historical_costs(
                     *(day_operating_costs["operating_cost_source_receipt_ids"] if operating_available else []),
                 ])),
             }
+            updated["unknown_cost_categories"] = [category for category in updated["unknown_cost_categories"]
+                if not (category == "model" and updated.get("model_cost_usd") is not None
+                        or category == "system" and updated.get("system_cost_usd") is not None)]
             if updated != previous:
                 _atomic_json(path, updated)
             results.append({"performance_day": day, "status": "updated" if updated != previous else "unchanged"})
@@ -881,11 +936,12 @@ def write_paper_performance(
     if result.get("measurement_status") == "partial":
         completed, _source_ids = _closed_round_trips(rows)
         observed_at = result.get("observed_at")
+        expected_inventory=read_expected_inventory(state,completed,owner_id=OWNER_ID,observed_at=observed_at)
         cost_evidence, cost_errors = _broker_cost_cache(
             state, completed, observed_at, broker_cost_reader,
         )
         result = build_paper_performance(
-            rows, observation, risk, broker_cost_evidence=cost_evidence,
+            rows, observation, risk, broker_cost_evidence=cost_evidence,expected_inventory=expected_inventory,
             operating_cost_readback=read_readback(
                 os.environ.get("LM_CFO_ACTUAL_COST_READBACK") or os.environ.get("LM_CFO_ACTUAL_COST"),
             ),
@@ -937,6 +993,7 @@ def write_paper_performance(
         unknown_costs = (["fees", "model", "system"]
                          if daily_broker_costs["broker_slippage_status"] == "complete"
                          else ["fees", "slippage", "model", "system"])
+        unknown_costs=[key for key in unknown_costs if key not in {"model","system"} or daily_operating_costs.get(key+"_cost_usd") is None]
         result = {
             **result,
             **daily_operating_costs,
@@ -953,7 +1010,7 @@ def write_paper_performance(
             "completed_round_trips": len(daily_rounds),
             "completed_round_trips_total": len(completed),
             "costs_status": ("partial" if daily_broker_costs["broker_slippage_status"] == "complete"
-                             or daily_operating_costs["operating_costs_status"] == "partial"
+                             or daily_operating_costs["operating_costs_status"] in {"partial","complete"}
                              else "unknown"),
             "fees_usd": daily_broker_costs["fees_usd"],
             "gross_exposure_usd": str(daily_exposure),
@@ -961,6 +1018,9 @@ def write_paper_performance(
             "gross_strategy_pnl_total_usd": result.get("gross_strategy_pnl_usd"),
             "net_realized_pnl_usd": None,
             "reported_order_receipt_ids": cumulative_order_ids,
+            "economic_cost_scopes": [{**{key:trip[key] for key in ('order_ids','period_start','closed_at','source_receipt_ids')},
+                'owner_id':OWNER_ID,'mode':'paper','paper':True} for trip in completed],
+            "expected_cost_inventory":select_expected_inventory(expected_inventory,daily_rounds),
             "report_scope": "daily_accumulation",
             "performance_day": observation_day,
             "slippage_usd": daily_broker_costs["slippage_usd"],

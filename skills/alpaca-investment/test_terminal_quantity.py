@@ -1,0 +1,155 @@
+"""Terminal broker status is not proof that an unknown fill quantity is zero."""
+from pathlib import Path
+import sys
+import tempfile
+import unittest
+import json
+
+sys.path.insert(0,str(Path(__file__).resolve().parent))
+import effect_store as store
+
+
+class TerminalQuantityTests(unittest.TestCase):
+    def test_completion_check_requires_explicit_history_context(self):
+        with self.assertRaises(TypeError):
+            store._outcome_closed({'outcome':'broker_terminal_failure',
+                                   'broker':{'status':'canceled','filled_qty':'0'}})
+
+    def test_paused_zero_fill_orders_remain_unresolved(self):
+        for status in ('done_for_day','stopped','suspended'):
+            for mode in ('paper','live'):
+                with self.subTest(status=status,mode=mode),tempfile.TemporaryDirectory() as directory:
+                    ledger=Path(directory)/'receipts.jsonl'
+                    sealed=store.seal(ledger,{'mode':mode},{'asset_class':'crypto','side':'buy','symbol':'BTC/USDC'})
+                    store.mark_started(ledger,sealed)
+                    broker={'id':'official-order','client_order_id':sealed['client_order_id'],
+                            'status':status,'filled_qty':'0'}
+                    self.assertFalse(store._outcome_closed({'outcome':'broker_terminal_failure','broker':broker},[]))
+                    result=store.reconcile_started(ledger,lambda _:broker)
+                    self.assertEqual(result['unresolved'],1)
+                    self.assertEqual(store.effect_state(ledger,sealed['effect_id']),'started')
+                    self.assertFalse(any(r.get('receipt_type')=='outcome' for r in store._rows(ledger)))
+
+    def test_paused_entry_recovers_with_the_original_order_and_account_proof(self):
+        from test_crypto_entry import entry_fixture
+        from crypto_ownership_proof import entry_fill_proof_from_rows
+        for status in ('done_for_day','stopped','suspended'):
+            for mode in ('paper','live'):
+                with self.subTest(status=status,mode=mode),tempfile.TemporaryDirectory() as directory:
+                    root=Path(directory);marker,broker,observation,owner=entry_fixture(root,mode)
+                    ledger=root/'receipts.jsonl'
+                    waiting={**broker,'status':status,'filled_qty':'0','filled_avg_price':None,'filled_at':None}
+                    self.assertEqual(store.reconcile_started(ledger,lambda _:waiting)['unresolved'],1)
+                    proof=entry_fill_proof_from_rows(store._rows(ledger),marker,broker,observation,
+                        mode=mode,owner_id=owner)
+                    result=store.reconcile_started(ledger,lambda _:broker,on_reconciled=lambda *_:proof)
+                    self.assertEqual(result['unresolved'],0)
+                    self.assertEqual(store.effect_state(ledger,marker['entry_effect_id']),'outcome')
+                    before=ledger.read_bytes()
+                    store.reconcile_started(ledger,lambda _:self.fail('completed order replayed'))
+                    self.assertEqual(ledger.read_bytes(),before)
+
+    def test_legacy_paused_zero_outcome_recovers_to_the_same_official_fill(self):
+        from test_crypto_entry import entry_fixture
+        from crypto_ownership_proof import entry_fill_proof_from_rows
+        for status in ('done_for_day','stopped','suspended'):
+            for mode in ('paper','live'):
+                with self.subTest(status=status,mode=mode),tempfile.TemporaryDirectory() as directory:
+                    root=Path(directory);marker,broker,observation,owner=entry_fixture(root,mode)
+                    ledger=root/'receipts.jsonl'
+                    old={'receipt_type':'outcome','outcome':'broker_terminal_failure',
+                        'effect_id':marker['entry_effect_id'],'client_order_id':marker['entry_client_order_id'],
+                        'mode':mode,'paper':mode=='paper','broker_status':status,'broker_receipt_id':broker['id'],
+                        'broker':{**broker,'status':status,'filled_qty':'0','filled_avg_price':None,'filled_at':None}}
+                    with ledger.open('a') as handle: handle.write(json.dumps(old)+'\n')
+                    proof=lambda *_:entry_fill_proof_from_rows(store._rows(ledger),marker,broker,observation,
+                        mode=mode,owner_id=owner)
+                    result=store.reconcile_started(ledger,lambda _:broker,on_reconciled=proof)
+                    self.assertEqual(result['unresolved'],0)
+                    self.assertEqual(store.effect_state(ledger,marker['entry_effect_id']),'outcome')
+                    self.assertIn(old,store._rows(ledger))
+                    before=ledger.read_bytes()
+                    store.reconcile_started(ledger,lambda _:self.fail('completed order replayed'))
+                    self.assertEqual(ledger.read_bytes(),before)
+
+    def test_only_explicit_finite_zero_closes_terminal_orders(self):
+        for qty in (None,'','NaN','Infinity','-1','0.01','0'):
+            for mode in ('paper','live'):
+                with self.subTest(mode=mode,qty=qty),tempfile.TemporaryDirectory() as directory:
+                    ledger=Path(directory)/'receipts.jsonl'
+                    sealed=store.seal(ledger,{'mode':mode},
+                        {'asset_class':'crypto','side':'buy','symbol':'BTC/USDC'})
+                    store.mark_started(ledger,sealed)
+                    broker={'id':'official-order','client_order_id':sealed['client_order_id'],
+                            'status':'canceled','filled_qty':qty}
+                    outcome={'outcome':'broker_terminal_failure','broker':broker}
+                    self.assertEqual(store._outcome_closed(outcome,[]),qty=='0')
+                    result=store.reconcile_started(ledger,lambda _:broker)
+                    if qty=='0':
+                        self.assertEqual(result['unresolved'],0)
+                        self.assertEqual(store.effect_state(ledger,sealed['effect_id']),'outcome')
+                    else:
+                        self.assertEqual(result['unresolved'],1)
+                        self.assertEqual(result['deferred'],1)
+                        self.assertEqual(store.unresolved_intent_count(ledger),1)
+                        self.assertEqual(store.effect_state(ledger,sealed['effect_id']),'started')
+                        last=store._rows(ledger)[-1]
+                        self.assertEqual(last.get('broker_receipt_id'),'official-order')
+                        self.assertIn('filled_qty',last)
+                        self.assertEqual(last['filled_qty'],qty)
+                        self.assertEqual(last['reason'],'partial_fill_requires_reconciliation'
+                                         if qty=='0.01' else 'fill_quantity_unknown')
+
+    def test_a_known_positive_fill_cannot_be_reset_to_zero_by_a_later_status(self):
+        for mode in ('paper','live'):
+            with self.subTest(mode=mode),tempfile.TemporaryDirectory() as directory:
+                ledger=Path(directory)/'receipts.jsonl'
+                sealed=store.seal(ledger,{'mode':mode},{'asset_class':'crypto','side':'buy','symbol':'BTC/USDC'})
+                store.mark_started(ledger,sealed)
+                broker={'id':'official-order','client_order_id':sealed['client_order_id'],
+                        'status':'canceled','filled_qty':'0.01'}
+                store.reconcile_started(ledger,lambda _:broker)
+                broker['filled_qty']='0'
+                result=store.reconcile_started(ledger,lambda _:broker)
+                self.assertEqual(result['unresolved'],1)
+                self.assertEqual(store.unresolved_intent_count(ledger),1)
+                self.assertEqual(store.effect_state(ledger,sealed['effect_id']),'started')
+                self.assertEqual(store._rows(ledger)[-1]['reason'],'fill_quantity_conflict')
+                self.assertFalse(any(r.get('outcome')=='broker_terminal_failure' for r in store._rows(ledger)))
+
+    def test_legacy_unknown_terminal_outcome_can_be_enriched_by_official_zero(self):
+        with tempfile.TemporaryDirectory() as directory:
+            ledger=Path(directory)/'receipts.jsonl'
+            sealed=store.seal(ledger,{'mode':'paper'},{'side':'buy'})
+            store.mark_started(ledger,sealed)
+            broker={'id':'official-order','client_order_id':sealed['client_order_id'],
+                    'status':'rejected','filled_qty':None}
+            with ledger.open('a') as handle:
+                handle.write(json.dumps({'receipt_type':'outcome','outcome':'broker_terminal_failure',
+                    'effect_id':sealed['effect_id'],'client_order_id':sealed['client_order_id'],
+                    'mode':'paper','paper':True,'broker_status':'rejected','broker_receipt_id':broker['id'],
+                    'broker':dict(broker)})+'\n')
+            self.assertEqual(store.unresolved_intent_count(ledger),1)
+            broker['filled_qty']='0'
+            result=store.reconcile_started(ledger,lambda _:broker)
+            self.assertEqual(result['unresolved'],0)
+            self.assertEqual(store._rows(ledger)[-1]['broker']['filled_qty'],'0')
+
+    def test_unknown_quantity_can_recover_to_an_official_explicit_zero(self):
+        with tempfile.TemporaryDirectory() as directory:
+            ledger=Path(directory)/'receipts.jsonl'
+            sealed=store.seal(ledger,{'mode':'paper'},{'side':'buy'})
+            store.mark_started(ledger,sealed)
+            broker={'id':'official-order','client_order_id':sealed['client_order_id'],
+                    'status':'rejected','filled_qty':None}
+            pending=store.reconcile_started(ledger,lambda _:broker)
+            self.assertEqual(pending['unresolved'],1)
+            broker['filled_qty']='0'
+            result=store.reconcile_started(ledger,lambda _:broker)
+            self.assertEqual(result['unresolved'],0)
+            before=ledger.read_bytes()
+            store.reconcile_started(ledger,lambda _:self.fail('completed no-fill should not be queried again'))
+            self.assertEqual(ledger.read_bytes(),before)
+
+
+if __name__=='__main__': unittest.main()

@@ -19,6 +19,7 @@ from risk_day import reconcile as reconcile_risk_day
 
 from risk_policy import parse_instant
 from etf_ownership import ETF_STRATEGY_ID, ETF_SYMBOLS, investment_owner_id
+from crypto_ownership_proof import validate_crypto_activity_page_chunk, crypto_fx_quote_request, crypto_fx_quote_proof, _digest, _fx_instant
 
 
 CLI_VERSION = "0.0.14"
@@ -36,6 +37,17 @@ CLI_OPERATIONS = frozenset({
     "order_submit", "position_list",
 })
 SAFE_ERROR_CODES = frozenset({
+    "crypto_fx_quote_invalid", "crypto_fx_quote_missing", "crypto_fx_quote_stale",
+    "owned_position_changed_before_submit", "entry_policy_changed_before_submit",
+    "entry_position_changed_before_submit", "owned_close_proof_invalid",
+    "owned_close_receipt_missing", "owned_close_receipt_conflict",
+    "owned_closed_identity_invalid", "owned_no_fill_proof_invalid",
+    "owned_entry_account_invalid", "owned_entry_account_pending",
+    "owned_entry_receipt_missing", "owned_entry_receipt_conflict",
+    "crypto_activity_period_invalid", "crypto_activity_invalid", "crypto_activity_limit_exceeded", "crypto_activity_account_invalid",
+    "owned_crypto_fills_pending", "owned_crypto_fills_invalid",
+    "owned_sell_proof_invalid", "owned_sell_receipt_missing", "owned_sell_receipt_conflict", "owned_sell_account_pending",
+    "owned_no_fill_receipt_missing", "owned_no_fill_receipt_conflict",
     "alpaca_allocator_risk_invalid", "alpaca_allocator_shape_invalid",
     "alpaca_crypto_history_invalid",
     "alpaca_etf_daily_bars_invalid",
@@ -119,7 +131,8 @@ def _run(cli: Path, args: list[str], env: dict[str, str]) -> Any:
         raise ValueError(f"alpaca_cli_timeout:{operation}") from error
     if result.returncode != 0:
         raise ValueError(f"alpaca_cli_failed:{operation}")
-    output_limit = (MAX_MULTI_BARS_OUTPUT_BYTES if operation == "data_multi-bars"
+    bounded_btc_bars = args[:5] == ["data", "crypto", "bars", "--symbols", "BTC/USDC"]
+    output_limit = (MAX_MULTI_BARS_OUTPUT_BYTES if operation == "data_multi-bars" or bounded_btc_bars
                     else MAX_OUTPUT_BYTES)
     if len(result.stdout) > output_limit:
         raise ValueError("alpaca_cli_output_too_large")
@@ -127,6 +140,177 @@ def _run(cli: Path, args: list[str], env: dict[str, str]) -> Any:
         return json.loads(result.stdout.decode("utf-8").strip())
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
         raise ValueError("alpaca_cli_json_invalid") from error
+
+
+def _read_activity_pages(cli_path: Path, env: dict[str, str], *, kind: str | None,
+                         after: str, until: str, query: str, error_prefix: str,
+                         max_pages: int = 10, page_token: str | None = None,
+                         page_sink: list | None = None) -> list[dict[str, Any]]:
+    """Read a fixed window to an observed short page, never infer missing pages."""
+    result: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for _page in range(max_pages):
+        args = ["account", "activity", "list", *(["--activity-types", kind] if kind is not None else []),
+                "--after", after, "--until", until, "--page-size", "100",
+                "--direction", "asc", "--quiet", "--jq", query]
+        if page_token is not None:
+            args.extend(["--page-token", page_token])
+        page = _run(cli_path, args, env)
+        if not isinstance(page, list) or len(page) > 100:
+            raise ValueError(f"{error_prefix}_activity_invalid")
+        for row in page:
+            if (not isinstance(row, dict) or (row.get("activity_type") != kind if kind is not None else
+                    not isinstance(row.get("activity_type"),str) or not row["activity_type"].strip())
+                    or not isinstance(row.get("id"), str) or not row["id"].strip()
+                    or row["id"] in seen):
+                raise ValueError(f"{error_prefix}_activity_invalid")
+            seen.add(row["id"])
+        result.extend(page)
+        if page_sink is not None: page_sink.append(page)
+        if len(page) < 100:
+            return result
+        page_token = page[-1]["id"]
+    raise ValueError(f"{error_prefix}_activity_limit_exceeded")
+
+
+def _capture_crypto_flow_evidence(*, cli_path: Path, env: dict[str, str], mode: str,
+                                 native_trading_account_id: str | None, clock: dict | None,
+                                 after: str, until: str, page_token: str | None = None) -> dict[str, Any]:
+    frame={'mode':mode,'paper':mode=='paper','native_trading_account_id':native_trading_account_id,
+        'clock':clock,'wallet_transfers':None,
+        'wallet_status':'unsupported_on_paper' if mode=='paper' else 'unknown',
+        'activity_request':{'after':after,'until':until,'direction':'asc','page_size':100},
+        'activity_pages':[],'activity_pagination':'unknown','next_page_token':None,
+        'capture_status':'pending','fee_completeness_status':'unknown','net_pnl_usd':None}
+    if page_token is not None:
+        frame['activity_request']['page_token']=page_token
+    def capture_error(prefix,error):
+        code=str(error)
+        safe=(code in SAFE_ERROR_CODES or code.startswith('crypto_flow_') or
+            (code.partition(':')[0] in {'alpaca_cli_timeout','alpaca_cli_failed'} and code.partition(':')[2] in CLI_OPERATIONS))
+        frame[prefix+'_error_class']=type(error).__name__
+        frame[prefix+'_error_code']=code if safe else type(error).__name__
+    if not isinstance(native_trading_account_id,str) or not native_trading_account_id.strip():
+        capture_error('capture',ValueError('crypto_flow_account_invalid'))
+    else:
+        if mode!='paper':
+            try:
+                frame['wallet_transfers']=_run(cli_path,
+                    ['api','GET','/v2/wallets/transfers','--quiet','--jq','.'],env)
+                if (not isinstance(frame['wallet_transfers'],list) or
+                        any(not isinstance(row,dict) for row in frame['wallet_transfers'])):
+                    raise ValueError('crypto_flow_wallet_invalid')
+                frame['wallet_status']='observed'
+            except Exception as error:
+                frame['wallet_status']='failed';capture_error('wallet',error)
+        try:
+            _read_activity_pages(cli_path,env,kind=None,after=after,until=until,query='.',
+                error_prefix='crypto_flow',max_pages=4,page_token=page_token,page_sink=frame['activity_pages'])
+            frame['activity_pagination']='exhausted'
+        except Exception as error:
+            pages=frame['activity_pages']
+            frame.update(activity_pagination='partial' if pages else 'unknown',
+                next_page_token=pages[-1][-1]['id'] if pages and len(pages[-1])==100 else None)
+            capture_error('capture',error)
+    failed=any(key in frame for key in ('capture_error_code','wallet_error_code'))
+    frame['capture_status']=('partial' if frame['activity_pages'] or frame['wallet_status']=='observed' else 'failed') if failed else 'captured'
+    return json.loads(json.dumps(frame))
+
+
+def read_crypto_flow_evidence(*, credentials_path: Path, cli_path: Path, mode: str,
+                              period_start: str, period_end: str, native_trading_account_id: str,
+                              page_token: str | None = None) -> dict[str, Any]:
+    """Retain bounded raw flows for one exact account/window, without fee authority."""
+    if mode not in ('paper','live'):
+        raise ValueError('investment_mode_invalid')
+    if (not isinstance(native_trading_account_id,str) or not native_trading_account_id.strip()
+            or (page_token is not None and (not isinstance(page_token,str) or not page_token.strip()
+                                           or len(page_token)>8192))):
+        raise ValueError('crypto_flow_context_invalid')
+    try:
+        start,end=_fx_instant(period_start),_fx_instant(period_end)
+        if start>end or end-start>90*86400:raise ValueError
+    except (ValueError,TypeError,AttributeError,ArithmeticError) as error:
+        raise ValueError('crypto_flow_period_invalid') from error
+    env=_context(credentials_path,cli_path,mode=mode)
+    account=_run(cli_path,['account','get','--quiet','--jq','{id}'],env)
+    if not isinstance(account,dict) or account.get('id')!=native_trading_account_id:
+        raise ValueError('crypto_flow_account_invalid')
+    return _capture_crypto_flow_evidence(cli_path=cli_path,env=env,mode=mode,
+        native_trading_account_id=account['id'],clock=None,after=period_start,until=period_end,
+        page_token=page_token)
+
+
+def read_crypto_activity_evidence(*, credentials_path: Path, cli_path: Path,
+                                  mode: str, period_start: str, period_end: str) -> dict[str, Any]:
+    """Capture raw activity evidence; exhaustion does not prove fee settlement.
+
+    CFEE can be posted later without an order_id. Retain all account activities
+    in the window; ownership and fee attribution belong to the proof consumer.
+    """
+    if mode not in {"paper", "live"}:
+        raise ValueError("investment_mode_invalid")
+    try:
+        start, end = parse_instant(period_start), parse_instant(period_end)
+        if start > end or end - start > timedelta(days=90):
+            raise ValueError
+    except (ValueError, TypeError, AttributeError) as error:
+        raise ValueError("crypto_activity_period_invalid") from error
+    # Activities are filtered by creation time. Include the entire start day
+    # and retain each provider timestamp/date rather than relabeling it a fill.
+    after = start.astimezone(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    after_text = after.isoformat().replace("+00:00", "Z")
+    until = end.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    env = _context(credentials_path, cli_path, mode=mode)
+    account = _run(cli_path, ["account", "get", "--quiet", "--jq", "{id}"], env)
+    if not isinstance(account, dict) or not isinstance(account.get("id"), str) or not account["id"].strip():
+        raise ValueError("crypto_activity_account_invalid")
+    fills, fees = [_read_activity_pages(cli_path, env, kind=kind, after=after_text,
+        until=until, query=".", error_prefix="crypto", max_pages=4) for kind in ("FILL", "CFEE")]
+    if len({row["id"] for row in [*fills, *fees]}) != len(fills) + len(fees):
+        raise ValueError("crypto_activity_invalid")
+    snapshot = {"schema_version": 1, "mode": mode, "paper": mode == "paper", "native_trading_account_id": account["id"],
+        "requested_period_start": period_start, "requested_period_end": period_end,
+        "request": {"after": after_text, "until": until, "direction": "asc", "page_size": 100},
+        "pagination": "exhausted", "fills": fills, "fees": fees,
+        "fee_attribution_status": "unknown", "fee_settlement_status": "unknown",
+        "net_realized_pnl_usd": None}
+    # Content address of this local snapshot, not a provider-issued receipt ID.
+    snapshot["source_receipt_id"] = "alpaca-crypto-activities:" + _digest_rows([snapshot])
+    return snapshot
+
+
+def read_crypto_activity_page_chunk(*, credentials_path: Path, cli_path: Path, mode: str,
+                                    period_start: str, period_end: str, activity_type: str,
+                                    page_token: str | None = None) -> dict[str, Any]:
+    if (mode not in {'paper','live'} or activity_type not in {'FILL','CFEE'}
+            or (page_token is not None and (not isinstance(page_token,str) or not page_token.strip()))):
+        raise ValueError('crypto_activity_page_context_invalid')
+    try:
+        start,end=parse_instant(period_start),parse_instant(period_end)
+        if start>end or end-start>timedelta(days=90): raise ValueError
+    except (ValueError,TypeError,AttributeError) as error:
+        raise ValueError('crypto_activity_period_invalid') from error
+    after=start.astimezone(timezone.utc).replace(hour=0,minute=0,second=0,microsecond=0).isoformat().replace('+00:00','Z')
+    until=end.astimezone(timezone.utc).isoformat().replace('+00:00','Z');pages=[]
+    env=_context(credentials_path,cli_path,mode=mode)
+    account=_run(cli_path,['account','get','--quiet','--jq','{id}'],env)
+    if not isinstance(account,dict) or not isinstance(account.get('id'),str) or not account['id'].strip():
+        raise ValueError('crypto_activity_account_invalid')
+    try:
+        _read_activity_pages(cli_path,env,kind=activity_type,after=after,until=until,query='.',
+            error_prefix='crypto',max_pages=4,page_token=page_token,page_sink=pages)
+    except ValueError as error:
+        if str(error)!='crypto_activity_limit_exceeded' or len(pages)!=4 or any(len(p)!=100 for p in pages): raise
+    next_token=pages[-1][-1]['id'] if len(pages[-1])==100 else None
+    body={'schema_version':1,'kind':'crypto_activity_page_chunk','mode':mode,'paper':mode=='paper','native_trading_account_id':account['id'],
+        'requested_period_start':period_start,'requested_period_end':period_end,
+        'request':{'after':after,'until':until,'direction':'asc','page_size':100,
+                   'activity_type':activity_type,'page_token':page_token},'pages':pages,
+        'pagination':'partial' if next_token is not None else 'exhausted','next_page_token':next_token}
+    body['source_receipt_id']='alpaca-crypto-activity-chunk:'+_digest_rows([body])
+    validate_crypto_activity_page_chunk(body,mode=mode)
+    return body
 
 
 def read_paper_etf_cost_evidence(
@@ -178,28 +362,8 @@ def read_paper_etf_cost_evidence(
     until = observed.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
     def activities(kind: str, query: str) -> list[dict[str, Any]]:
-        result: list[dict[str, Any]] = []
-        page_token: str | None = None
-        for _page in range(10):
-            args = [
-                "account", "activity", "list", "--activity-types", kind,
-                "--after", after, "--until", until,
-                "--page-size", "100", "--direction", "asc", "--quiet", "--jq", query,
-            ]
-            if page_token is not None:
-                args.extend(["--page-token", page_token])
-            page = _run(cli_path, args, env)
-            if (not isinstance(page, list) or len(page) > 100
-                    or any(not isinstance(row, dict) for row in page)):
-                raise ValueError("paper_cost_activity_invalid")
-            result.extend(page)
-            if len(page) < 100:
-                return result
-            next_token = page[-1].get("id")
-            if not isinstance(next_token, str) or not next_token:
-                raise ValueError("paper_cost_activity_invalid")
-            page_token = next_token
-        raise ValueError("paper_cost_activity_limit_exceeded")
+        return _read_activity_pages(cli_path, env, kind=kind, after=after,
+                                    until=until, query=query, error_prefix="paper_cost")
 
     all_fills = activities(
         "FILL", "[.[]|{id,activity_type,order_id,symbol,side,qty,price,transaction_time}]",
@@ -331,7 +495,7 @@ def observe(*, credentials_path: Path, cli_path: Path, symbol: str = "SPY") -> d
 
     account = _run(cli_path, [
         "account", "get", "--quiet", "--jq",
-        "{status:.status,cash:.cash,equity:.equity,last_equity:.last_equity,options_level:.options_trading_level}",
+        "{id:.id,status:.status,cash:.cash,equity:.equity,last_equity:.last_equity,options_level:.options_trading_level}",
     ], env)
     clock = _run(cli_path, [
         "clock", "get", "--quiet", "--jq",
@@ -388,7 +552,7 @@ def find_order_by_client_id(
         "{found:true,id:.id,client_order_id:.client_order_id,status:.status,"
         "symbol:.symbol,side:.side,type:.type,time_in_force:.time_in_force,"
         "notional:.notional,qty:.qty,filled_qty:.filled_qty,"
-        "filled_avg_price:.filled_avg_price,submitted_at:.submitted_at} end"
+        "filled_avg_price:.filled_avg_price,submitted_at:.submitted_at,filled_at:.filled_at} end"
     )
     result = _run(cli_path, [
         "order", "list", "--quiet", "--status", "all", "--limit", "500", "--jq", query,
@@ -600,13 +764,13 @@ def read_etf_daily_history(
 
 def read_allocator_snapshot(
     *, credentials_path: Path, cli_path: Path, risk_day_path: Path,
-    include_etf_bars: bool = False,
+    include_etf_bars: bool = False, flow_sink: list | None = None,
 ) -> dict[str, Any]:
-    """Read only the official fields needed to offer trade candidates."""
+    """Read candidate inputs, optionally retaining raw pre-trade flow observations."""
     env = _context(credentials_path, cli_path)
     account = _run(cli_path, [
         "account", "get", "--quiet", "--jq",
-        "{cash:.cash,equity:.equity,last_equity:.last_equity}",
+        "{id:.id,cash:.cash,equity:.equity,last_equity:.last_equity}",
     ], env)
     clock = _run(cli_path, [
         "clock", "get", "--quiet", "--jq", "{is_open:.is_open,timestamp:.timestamp}",
@@ -720,23 +884,37 @@ def read_allocator_snapshot(
             credentials_path=credentials_path, cli_path=cli_path,
             clock=clock, env=env,
         ))
+    if flow_sink is not None:
+        after=day_start.astimezone(timezone.utc).isoformat().replace('+00:00','Z')
+        flow_sink.append(_capture_crypto_flow_evidence(cli_path=cli_path,env=env,mode=_selected_mode(),
+            native_trading_account_id=account.get('id'),clock=clock,after=after,until=clock['timestamp']))
     return result
 
 
 def read_crypto_history(*, credentials_path: Path, cli_path: Path,
-                        observed_at: str) -> dict[str, list[dict[str, Any]]]:
-    """Read completed five-minute bars with room for the BTC trend warmup."""
+                        observed_at: str, history_bars: int | None = None) -> dict[str, list[dict[str, Any]]]:
+    """Keep legacy history unchanged; v2 requires exactly 800 completed BTC bars."""
     observed = parse_instant(observed_at)
-    window = timedelta(hours=8)
-    window_start = observed - window
+    if history_bars is not None and (type(history_bars) is not int or history_bars != 800):
+        raise ValueError("alpaca_crypto_history_invalid")
+    window_end = (observed.replace(second=0, microsecond=0) - timedelta(minutes=observed.minute % 5)
+                  if history_bars is not None else observed)
+    window = timedelta(minutes=5 * history_bars) if history_bars is not None else timedelta(hours=8)
+    window_start = window_end - window
     max_bars = window // timedelta(minutes=5) + 1
     start = window_start.isoformat().replace("+00:00", "Z")
-    end = observed.isoformat().replace("+00:00", "Z")
+    end = window_end.isoformat().replace("+00:00", "Z")
     env = _context(credentials_path, cli_path)
+    projection = ".bars|to_entries|map({symbol:.key,bars:(.value|map({t,o,h,l,c}))})"
+    if history_bars is not None:
+        projection = "{next_page_token,rows:(" + projection + ")}"
     rows = _run(cli_path, ["data", "crypto", "bars", "--symbols",
-        "BTC/USDC,ETH/USDC", "--start", start, "--end", end,
-        "--timeframe", "5Min", "--limit", "1000", "--sort", "asc", "--quiet",
-        "--jq", ".bars|to_entries|map({symbol:.key,bars:(.value|map({t,o,h,l,c}))})"], env)
+        "BTC/USDC" if history_bars is not None else "BTC/USDC,ETH/USDC", "--start", start, "--end", end,
+        "--timeframe", "5Min", "--limit", "1000", "--sort", "asc", "--quiet", "--jq", projection], env)
+    if history_bars is not None:
+        if not isinstance(rows, dict) or "next_page_token" not in rows or rows["next_page_token"] is not None:
+            raise ValueError("alpaca_crypto_history_invalid")
+        rows = rows.get("rows")
     if not isinstance(rows, list):
         raise ValueError("alpaca_crypto_history_invalid")
     result: dict[str, list[dict[str, Any]]] = {}
@@ -744,7 +922,7 @@ def read_crypto_history(*, credentials_path: Path, cli_path: Path,
         for row in rows:
             symbol, bars = row["symbol"], row["bars"]
             # Bound the inclusive provider response before dropping a forming bar.
-            if symbol not in {"BTC/USDC", "ETH/USDC"} or symbol in result \
+            if symbol not in ({"BTC/USDC"} if history_bars is not None else {"BTC/USDC", "ETH/USDC"}) or symbol in result \
                     or not isinstance(bars, list) or len(bars) > max_bars:
                 raise ValueError
             normalized = []
@@ -752,7 +930,7 @@ def read_crypto_history(*, credentials_path: Path, cli_path: Path,
             for bar in bars:
                 timestamp = parse_instant(bar["t"])
                 values = [Decimal(str(bar[key])) for key in ("o", "h", "l", "c")]
-                if (timestamp < window_start or timestamp > observed
+                if (timestamp < window_start or timestamp > window_end
                         or (previous_timestamp is not None
                             and (timestamp <= previous_timestamp
                                  or (timestamp - previous_timestamp).total_seconds() % 300 != 0))
@@ -761,17 +939,98 @@ def read_crypto_history(*, credentials_path: Path, cli_path: Path,
                         or values[2] > min(values[0], values[1], values[3])):
                     raise ValueError
                 previous_timestamp = timestamp
-                if observed - timestamp < timedelta(minutes=5):
+                if (history_bars is not None and timestamp == window_end) or observed - timestamp < timedelta(minutes=5):
                     continue
                 normalized.append({"t": bar["t"], "o": str(values[0]), "h": str(values[1]),
                                    "l": str(values[2]), "c": str(values[3])})
             result[symbol] = normalized
         btc = result.get("BTC/USDC")
+        if history_bars is not None and (not btc or len(btc) != history_bars or any(
+                parse_instant(row["t"]) != window_start + timedelta(minutes=5 * index)
+                for index, row in enumerate(btc))):
+            raise ValueError
         if not btc or len(btc) < 6 or observed - parse_instant(btc[-1]["t"]) > timedelta(minutes=15):
             raise ValueError
     except (InvalidOperation, KeyError, TypeError, ValueError) as error:
         raise ValueError("alpaca_crypto_history_invalid") from error
     return result
+
+
+def read_crypto_validation_history(
+    *, credentials_path: Path, cli_path: Path, start: datetime, end: datetime,
+    observed_at: str,
+) -> dict[str, Any]:
+    """Read one complete, bounded paper-context historical BTC/FX window."""
+    observed = parse_instant(observed_at)
+    if (not isinstance(start, datetime) or not isinstance(end, datetime)
+            or start.tzinfo is None or end.tzinfo is None
+            or not timedelta(0) < end - start <= timedelta(hours=6)
+            or end > observed or any(moment.timestamp() % 300 for moment in (start, end))):
+        raise ValueError("alpaca_crypto_validation_range_invalid")
+    start_text = start.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    end_text = end.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    context = _context(credentials_path, cli_path, mode="paper")
+    payload = _run(cli_path, ["data", "crypto", "bars", "--symbols", "BTC/USDC,USDC/USD",
+        "--start", start_text, "--end", end_text, "--timeframe", "5Min", "--limit", "1000",
+        "--sort", "asc", "--quiet", "--jq",
+        '{next_page_token,bars:(.bars|with_entries(.value|=map({t,o,h,l,c})))}'], context)
+    try:
+        if (not isinstance(payload, dict) or "next_page_token" not in payload
+                or payload["next_page_token"] is not None):
+            raise ValueError
+        by_symbol = payload["bars"]
+        if not isinstance(by_symbol, dict) or "BTC/USDC" not in by_symbol                 or set(by_symbol) - {"BTC/USDC", "USDC/USD"}:
+            raise ValueError
+        rows_by_symbol = {}
+        count = int((end - start).total_seconds() // 300)
+        for symbol, bars in by_symbol.items():
+            if not isinstance(bars, list) or len(bars) > count + 1:
+                raise ValueError
+            normalized = []
+            previous = None
+            for row in bars:
+                timestamp = parse_instant(row["t"])
+                keys = ("o", "h", "l", "c") if symbol == "BTC/USDC" else ("c",)
+                prices = {key: Decimal(str(row[key])) for key in keys}
+                if (timestamp < start or timestamp > end or timestamp.timestamp() % 300
+                        or (previous is not None and timestamp <= previous)
+                        or any(not price.is_finite() or price <= 0 for price in prices.values())
+                        or (symbol == "BTC/USDC" and (
+                            prices["h"] < max(prices.values()) or prices["l"] > min(prices.values())))):
+                    raise ValueError
+                previous = timestamp
+                if timestamp == end:
+                    continue  # Exclusive end makes adjacent history chunks disjoint.
+                normalized.append({"t": timestamp.astimezone(timezone.utc).isoformat(),
+                                   **{key: str(price) for key, price in prices.items()}})
+            rows_by_symbol[symbol] = normalized
+        btc = rows_by_symbol["BTC/USDC"]
+        if len(btc) != count or any(parse_instant(row["t"]) != start + timedelta(minutes=5 * i)
+                                    for i, row in enumerate(btc)):
+            raise ValueError
+    except (InvalidOperation, KeyError, TypeError, ValueError) as error:
+        raise ValueError("alpaca_crypto_validation_history_invalid") from error
+    digest = hashlib.sha256(json.dumps(rows_by_symbol, sort_keys=True,
+                                      separators=(",", ":")).encode()).hexdigest()
+    evidence = f"alpaca://crypto-bars/5Min/{start_text}/{end_text}/{digest}"
+    return {"crypto_history": btc, "quote_conversions": [
+        {"timestamp": row["t"], "currency": "USDC", "rate": row["c"], "evidence_ref": evidence}
+        for row in rows_by_symbol.get("USDC/USD", [])],
+        "source_receipt_ids": [evidence], "observed_at": observed_at}
+
+
+def read_crypto_fx_evidence(*,credentials_path: Path,cli_path: Path,mode: str,asof_at: str,observed_at: str) -> dict[str,Any]:
+    request=crypto_fx_quote_request(mode=mode,asof_at=asof_at,observed_at=observed_at)
+    env=_context(credentials_path,cli_path,mode=mode)
+    response=_run(cli_path,['data','crypto','quotes','--symbols','USDC/USD',
+        '--start',request['start'],'--end',request['end'],'--sort','desc','--limit','1','--quiet','--jq',
+        '{next_page_token,quotes:(.quotes|with_entries(.value|=map({t,bp,ap})))}'],env)
+    body={'schema_version':1,'kind':'crypto_fx_asof_quote','mode':mode,'paper':mode=='paper',
+        'symbol':'USDC/USD','base_currency':'USDC','quote_currency':'USD','asof_at':asof_at,
+        'observed_at':observed_at,'request':request,'response':response}
+    body['source_receipt_id']='alpaca-crypto-fx-quote:'+_digest(body)
+    crypto_fx_quote_proof(body,mode=mode,asof_at=asof_at)
+    return body
 
 
 def read_live_performance_snapshot(
@@ -940,19 +1199,20 @@ def submit_order(
     order: dict[str, Any], mode: str | None = None,
     owner_id: str | None = None, strategy_id: str | None = None,
 ) -> dict[str, Any]:
-    """Submit one already-gated paper order or tightly bounded live crypto order."""
+    """Submit gated orders with one bounded BTC transport and explicit mode context."""
     if not re.fullmatch(r"lm-ai-[0-9a-f]{24}", client_order_id):
         raise ValueError("client_order_id_invalid")
     mode = _selected_mode(mode)
     if mode == "shadow":
         raise ValueError("investment_mode_effect_forbidden")
-    if mode == "live":
-        if order.get("asset_class") == "us_equity":
+    if mode == "live" or order.get("asset_class") == "crypto":
+        shape_error = "unsupported_live_order_shape" if mode == "live" else "unsupported_order_shape"
+        if mode == "live" and order.get("asset_class") == "us_equity":
             raise ValueError("live_etf_rejected")
         expected = {"asset_class", "side", "symbol", "time_in_force", "type"}
         if order.get("symbol") != "BTC/USDC" or order.get("asset_class") != "crypto" \
                 or order.get("type") != "market" or order.get("time_in_force") != "gtc":
-            raise ValueError("unsupported_live_order_shape")
+            raise ValueError(shape_error)
         if order.get("side") == "buy":
             expected.add("notional_usd")
             try:
@@ -961,7 +1221,7 @@ def submit_order(
             except InvalidOperation:
                 valid = False
             if set(order) != expected or not valid:
-                raise ValueError("unsupported_live_order_shape")
+                raise ValueError(shape_error)
             args = ["order", "submit", "--quiet", "--symbol", "BTC/USDC",
                     "--notional", str(order["notional_usd"]), "--side", "buy", "--type", "market",
                     "--time-in-force", "gtc", "--client-order-id", client_order_id]
@@ -973,12 +1233,12 @@ def submit_order(
             except InvalidOperation:
                 valid = False
             if set(order) != expected or not valid:
-                raise ValueError("unsupported_live_order_shape")
+                raise ValueError(shape_error)
             args = ["order", "submit", "--quiet", "--symbol", "BTC/USDC", "--qty", str(order["qty"]),
                     "--side", "sell", "--type", "market", "--time-in-force", "gtc",
                     "--client-order-id", client_order_id]
         else:
-            raise ValueError("unsupported_live_order_shape")
+            raise ValueError(shape_error)
         env = _context(credentials_path, cli_path, mode)
         result = _run(cli_path, [*args, "--jq",
             "{client_order_id,status,submitted_at,symbol,notional,qty,side,type,time_in_force}"], env)
@@ -1018,10 +1278,6 @@ def submit_order(
                     "--time-in-force", "day", "--client-order-id", client_order_id]
         else:
             raise ValueError("etf_order_shape_invalid")
-    elif order.get("asset_class") == "crypto" and order.get("symbol") in {"BTC/USD", "ETH/USD"}:
-        args = ["order", "submit", "--quiet", "--symbol", order["symbol"],
-                "--notional", order["notional_usd"], "--side", "buy", "--type", "market",
-                "--time-in-force", "gtc", "--client-order-id", client_order_id]
     elif order.get("asset_class") in {"option_spread", "option_spread_close"}:
         closing = order["asset_class"] == "option_spread_close"
         legs = json.dumps([

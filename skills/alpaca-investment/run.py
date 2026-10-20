@@ -11,26 +11,34 @@ from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
-from allocator import build_candidates, choose, gate as allocation_gate, order_for
+from allocator import _read_selection, build_candidates, choose, gate as allocation_gate, order_for
 from alpaca_cli import (CLI_OPERATIONS, SAFE_ERROR_CODES, find_order_by_client_id, observe,
                         read_allocator_snapshot, read_campaign_snapshot, read_crypto_history,
-                        read_paper_etf_cost_evidence, submit_order)
+                        read_paper_etf_cost_evidence, read_crypto_activity_evidence, read_crypto_activity_page_chunk, read_crypto_flow_evidence, read_crypto_fx_evidence, submit_order)
 from campaign import CANDIDATE_REF, SYMBOLS, exit_order, reconcile
 from control import control_fence, read_control
-from effect_store import (mark_started, reconcile_started, record_no_trade, seal,
-                          unresolved_intent_count)
+from effect_store import (ReconciliationPending, mark_started, record_no_fill_account_receipt, reconcile_started, record_no_trade, seal,
+                          unresolved_intent_count, record_native_fee_debit, _owned_rows)
 from etf_ownership import ETF_PAPER_OWNER_ID, ETF_STRATEGY_ID, investment_owner_id
 from etf_ownership import _account_position as validate_etf_position_readback
 from etf_ownership import read_state as read_etf_state
 from etf_ownership import record_closed as record_etf_closed
 from etf_ownership import record_filled as record_etf_filled
 from paper_performance import write_paper_performance
+from paper_operating_costs import read_owner_period_costs
+from crypto_performance import write_crypto_performance
 from cost_inventory import record_source_inventory
 from reporter import deliver, deliver_control, deliver_failure
-from position_manager import choose as choose_position, exit_order as live_exit_order
+from position_manager import choose as choose_position, exit_order as live_exit_order, load_owned_policy, close_fill_proof, recorded_close_fill_proof
+from position_manager import recorded_entry_fill_proof, historical_entry_fill_proof
+from crypto_ownership_proof import (BROKER_TERMINAL_FAILURE_STATUSES, _filled_qty_positive, entry_fill_proof_from_rows,
+    recorded_entry_proof_from_rows, sell_remainder_proof_from_rows, owned_open_state_from_rows,
+    recorded_fee_flat_state_from_rows, native_fee_debit_id, _account_positions, _execution_number,
+    _sell_receipt_row, recorded_close_proof_from_rows, _flat_btc_account, entry_receipt_row, entry_pre_trade_account_readback)
+from strategy_policy import INDICATOR_HISTORY_CONTRACTS, load_selected_card, validate_policy_card
 from review_status import read_receipt as read_application_status
 from review_status import refresh as refresh_application_status
-from risk_policy import evaluate_entry
+from risk_policy import evaluate_entry, parse_instant
 
 
 def _atomic_json(path: Path, value: dict) -> None:
@@ -187,9 +195,20 @@ def _owned_paper_symbols(state: Path) -> frozenset[str]:
         state / "etf-owned-position.json", owner_id=investment_owner_id(),
     )
     position = etf_state["position"]
-    if position is None:
-        return frozenset()
-    return frozenset({position["symbol"]})
+    symbols = {position["symbol"]} if position is not None else set()
+    try:
+        ownership = json.loads((state / "live-owned-position.json").read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        ownership = None
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError("live_position_not_owned") from error
+    if ownership is not None:
+        if not isinstance(ownership, dict):
+            raise ValueError("live_position_not_owned")
+        if ownership.get("status") in {"open", "closing"}:
+            load_owned_policy(state, ownership, mode="paper")
+            symbols.update({"BTCUSD", "BTCUSDC", "BTC/USDC"})
+    return frozenset(symbols)
 
 
 def _paper_campaign(*, state: Path, credentials_path: Path, cli_path: Path) -> dict:
@@ -213,8 +232,20 @@ def _normalize_live_position_symbols(observation: dict) -> dict:
     return observation
 
 
+def _audit_owned_order(rows,ownership,broker,quantity,*,mode):
+    if ownership.get('close_effect_id') is not None:
+        saved=_sell_receipt_row(rows,ownership['close_effect_id'])['strategy_receipt']
+        historical={**ownership,'status':'open','owned_qty':saved['receipt']['remaining_owned_qty']}
+        proof=recorded_close_proof_from_rows(rows,historical,broker,saved['account_readback'],
+            mode=mode,owner_id=investment_owner_id())
+        if proof['receipt'].get('kind')!='owned_crypto_sell_remainder':raise ValueError('owned_sell_proof_invalid')
+    else:
+        recorded_entry_proof_from_rows(rows,ownership,broker,quantity['acquisition']['account_readback'],
+            mode=mode,owner_id=investment_owner_id())
+
+
 def _sync_live_ownership(state: Path, credentials_path: Path, cli_path: Path,
-                         observation: dict) -> dict | None:
+                         observation: dict, *, reconcile_fees: bool = True) -> dict | None:
     path = state / "live-owned-position.json"
     try:
         ownership = json.loads(path.read_text(encoding="utf-8"))
@@ -225,45 +256,143 @@ def _sync_live_ownership(state: Path, credentials_path: Path, cli_path: Path,
     btc = [row for row in observation.get("positions", []) if row.get("symbol") == "BTCUSD"]
     if len(btc) > 1 or ownership.get("symbol") != "BTCUSD":
         raise ValueError("live_position_not_owned")
-    order_key = "close_client_order_id" if ownership.get("status") == "closing" \
-        else "entry_client_order_id"
+    if (ownership.get("status") in {"open", "closing", "closed"}
+            and ((ownership.get("close_effect_id") is None) != (ownership.get("close_client_order_id") is None))):
+        raise ValueError("owned_closed_identity_invalid")
+    order_key = ("close_client_order_id" if ownership.get("status") in {"open", "closing", "closed"}
+                 and ownership.get("close_client_order_id") is not None else "entry_client_order_id")
     broker = find_order_by_client_id(credentials_path=credentials_path, cli_path=cli_path,
                                      client_order_id=ownership.get(order_key, ""))
     status = broker.get("status") if broker else "absent"
+    def check_current_account():
+        acquisition=historical_entry_fill_proof(state,ownership,mode=os.environ.get('LIFE_MANAGER_INVESTMENT_MODE'))
+        account_id=acquisition['receipt'].get('native_trading_account_id')
+        if account_id is not None and observation.get('account',{}).get('id')!=account_id:
+            raise ValueError('owned_entry_account_invalid')
     if ownership.get("status") == "entry_pending":
-        if btc and status in {"filled", "canceled", "expired", "rejected"}:
+        if btc and (status == "filled" or (status in BROKER_TERMINAL_FAILURE_STATUSES and _filled_qty_positive(broker))):
             try:
-                held = Decimal(str(btc[0]["qty"]))
-                filled = Decimal(str(broker.get("filled_qty") or "0"))
-            except (InvalidOperation, KeyError, TypeError) as error:
-                raise ValueError("live_position_not_owned") from error
-            if held <= 0 or held > filled:
-                raise ValueError("live_position_not_owned")
+                proof = recorded_entry_fill_proof(state, ownership, broker, observation,
+                                                  mode=os.environ.get("LIFE_MANAGER_INVESTMENT_MODE"))
+            except ValueError:
+                return ownership
+            try:
+                for key, expected in (("entry_filled_qty", proof["receipt"]["entry_filled_qty"]),
+                                      ("owned_qty", proof["receipt"]["account_owned_qty"])):
+                    if key == "owned_qty" and ownership.get(key) is None:
+                        continue
+                    known = Decimal(str(ownership.get(key)))
+                    if (not known.is_finite() or known < 0
+                            or (known != Decimal(expected) and not (key == "entry_filled_qty" and known == 0))):
+                        raise ValueError
+            except (InvalidOperation, ValueError, TypeError) as error:
+                raise ValueError("owned_entry_account_invalid") from error
             ownership["status"] = "open"
-            ownership["entry_filled_qty"] = str(filled)
-            ownership["owned_qty"] = str(held)
+            ownership["entry_filled_qty"] = proof["receipt"]["entry_filled_qty"]
+            ownership["owned_qty"] = proof["receipt"]["account_owned_qty"]
+            ownership["entry_timestamp"] = proof["receipt"]["entry_timestamp"]
             _atomic_json(path, ownership)
-        elif status in {"filled", "canceled", "expired", "rejected"} and not btc:
+        elif status in BROKER_TERMINAL_FAILURE_STATUSES and not btc:
+            try:
+                record_no_fill_account_receipt(state / "receipts.jsonl", ownership, broker, observation,
+                    mode=os.environ.get("LIFE_MANAGER_INVESTMENT_MODE"), owner_id=investment_owner_id())
+            except ValueError:
+                return ownership
             ownership["status"] = "closed"
             _atomic_json(path, ownership)
+    elif ownership.get("status") == "open":
+        mode = os.environ.get("LIFE_MANAGER_INVESTMENT_MODE")
+        if observation.get("mode") != mode or observation.get("paper") is not (mode == "paper"):
+            raise ValueError("owned_entry_account_invalid")
+        try:
+            historical_entry_fill_proof(state, ownership, mode=mode)
+        except ValueError:
+            return {**ownership, "status": "entry_pending"}
+        rows=_owned_rows(state/'receipts.jsonl')
+        quantity=owned_open_state_from_rows(rows,ownership,mode=mode,owner_id=investment_owner_id(),allow_fee_recovery=True)
+        account_id=quantity['acquisition']['receipt'].get('native_trading_account_id')
+        if account_id is not None and observation.get('account',{}).get('id')!=account_id:
+            raise ValueError('owned_entry_account_invalid')
+        _audit_owned_order(rows,ownership,broker,quantity,mode=mode)
+        positions=_account_positions(observation,mode=mode,not_before=quantity['last_observed_at'])
+        btc=[p for p in positions if p['symbol'] in {'BTCUSD','BTCUSDC','BTC/USDC','BTC/USD','BTC'}]
+        if len(btc)>1:raise ValueError('owned_entry_account_invalid')
+        actual=_execution_number(btc[0]['qty']) if btc else Decimal('0')
+        if actual>Decimal(quantity['owned_qty']):raise ValueError('owned_entry_account_invalid')
+        def adopt(q):
+            candidate=q['ownership']
+            if q['owned_qty']=='0':
+                fee=q['last_fee_debit']
+                if not fee or fee['remaining_owned_qty']!='0':raise ValueError('owned_fee_flat_invalid')
+                candidate={**candidate,'status':'closed','close_reason':'native_fee_debit','fee_close_id':native_fee_debit_id(fee)}
+            if candidate!=ownership:_atomic_json(path,candidate)
+            return candidate
+        ownership=adopt(quantity)
+        if actual<Decimal(quantity['owned_qty']):
+            if not reconcile_fees:raise ReconciliationPending('owned_fee_account_pending')
+            source=entry_receipt_row(rows,ownership['entry_effect_id'])['broker']
+            activities=read_crypto_activity_evidence(credentials_path=credentials_path,cli_path=cli_path,
+                mode=mode,period_start=source['submitted_at'],period_end=observation['clock']['observed_at'])
+            try:
+                record_native_fee_debit(state/'receipts.jsonl',ownership,observation,activity_readback=activities,
+                    mode=mode,owner_id=investment_owner_id())
+            except ReconciliationPending:
+                if not btc:return ownership
+                raise
+            quantity=owned_open_state_from_rows(_owned_rows(state/'receipts.jsonl'),ownership,
+                mode=mode,owner_id=investment_owner_id(),allow_fee_recovery=True)
+            ownership=adopt(quantity)
     elif ownership.get("status") == "closing":
-        if status in {"canceled", "expired", "rejected"} and btc:
+        if status in BROKER_TERMINAL_FAILURE_STATUSES:
             try:
-                remaining = Decimal(str(btc[0]["qty"]))
-                previously_owned = Decimal(str(ownership["owned_qty"]))
-            except (InvalidOperation, KeyError, TypeError) as error:
-                raise ValueError("live_position_not_owned") from error
-            if remaining <= 0 or remaining > previously_owned:
-                raise ValueError("live_position_not_owned")
-            ownership["status"] = "open"
-            ownership["owned_qty"] = str(remaining)
+                saved=_sell_receipt_row(_owned_rows(state/'receipts.jsonl'),ownership['close_effect_id'])['strategy_receipt']
+                proof = recorded_close_fill_proof(state, ownership, broker, saved['account_readback'],
+                    mode=os.environ.get("LIFE_MANAGER_INVESTMENT_MODE"))
+                check_current_account()
+                if Decimal(proof['receipt']['remaining_owned_qty'])==0:
+                    _flat_btc_account(observation,mode=os.environ.get('LIFE_MANAGER_INVESTMENT_MODE'),
+                        not_before=parse_instant(saved['account_readback']['clock']['observed_at']))
+            except ReconciliationPending:
+                return ownership
+            except ValueError as error:
+                if str(error) == 'owned_sell_receipt_missing':
+                    return ownership
+                raise
+            remaining = Decimal(proof['receipt']['remaining_owned_qty'])
+            ownership['status'] = 'open' if remaining > 0 else 'closed'
+            if remaining > 0:
+                ownership['owned_qty'] = proof['receipt']['remaining_owned_qty']
             _atomic_json(path, ownership)
+            if remaining>0:
+                return _sync_live_ownership(state,credentials_path,cli_path,observation,reconcile_fees=reconcile_fees)
         elif status == "filled" and not btc:
+            mode = os.environ.get("LIFE_MANAGER_INVESTMENT_MODE")
+            try:
+                recorded_close_fill_proof(state, ownership, broker, observation, mode=mode)
+            except ReconciliationPending:
+                return ownership
             ownership["status"] = "closed"
             _atomic_json(path, ownership)
-    elif ownership.get("status") == "open" and not btc:
-        ownership["status"] = "closed"
-        _atomic_json(path, ownership)
+    elif ownership.get("status") == "closed":
+        if ownership.get('close_reason')=='native_fee_debit':
+            mode=os.environ.get('LIFE_MANAGER_INVESTMENT_MODE');rows=_owned_rows(state/'receipts.jsonl')
+            quantity=recorded_fee_flat_state_from_rows(rows,ownership,mode=mode,owner_id=investment_owner_id())
+            check_current_account()
+            _audit_owned_order(rows,ownership,broker,quantity,mode=mode)
+            _flat_btc_account(observation,mode=mode,not_before=quantity['last_observed_at'])
+            return ownership
+        if ownership.get("close_effect_id") is not None:
+            try:
+                saved=_sell_receipt_row(_owned_rows(state/'receipts.jsonl'),ownership['close_effect_id'])['strategy_receipt']
+                mode=os.environ.get('LIFE_MANAGER_INVESTMENT_MODE')
+                recorded_close_fill_proof(state, ownership, broker, saved['account_readback'],mode=mode)
+                check_current_account()
+                _flat_btc_account(observation,mode=mode,not_before=parse_instant(saved['account_readback']['clock']['observed_at']))
+            except ReconciliationPending:
+                return {**ownership, "status": "closing"}
+        else:
+            record_no_fill_account_receipt(state / "receipts.jsonl", ownership, broker, observation,
+                mode=os.environ.get("LIFE_MANAGER_INVESTMENT_MODE"), owner_id=investment_owner_id())
     return ownership
 
 
@@ -316,6 +445,66 @@ def _reconcile_etf_intent(
     return {"receipt": receipt, "observation": account_readback}
 
 
+
+
+def _reconcile_crypto_entry(intent: dict, provider_order: dict, *, state: Path,
+                            credentials_path: Path, cli_path: Path) -> dict:
+    mode = _mode()
+    if (intent.get("mode") != mode or intent.get("owner_id") != investment_owner_id()
+            or intent.get("order", {}).get("asset_class") != "crypto" or intent["order"].get("side") != "buy"):
+        raise ValueError("owned_entry_account_invalid")
+    with control_fence(state):
+        ownership = json.loads((state / "live-owned-position.json").read_text(encoding="utf-8"))
+        if (not isinstance(ownership, dict) or ownership.get("status") not in {"entry_pending", "open"}
+                or ownership.get("entry_effect_id") != intent.get("effect_id")
+                or ownership.get("entry_client_order_id") != intent.get("client_order_id")):
+            raise ValueError("owned_entry_account_invalid")
+        observation = _normalize_live_position_symbols(observe(
+            credentials_path=credentials_path, cli_path=cli_path))
+        from effect_store import _owned_rows
+        rows = _owned_rows(state / "receipts.jsonl")
+        if any(r.get("receipt_type") == "outcome" and r.get("effect_id") == intent["effect_id"]
+               and r.get("strategy_receipt") is not None for r in rows):
+            return recorded_entry_proof_from_rows(rows, ownership, provider_order, observation,
+                                                  mode=mode, owner_id=investment_owner_id())
+        activity = None
+        if provider_order.get("status") in BROKER_TERMINAL_FAILURE_STATUSES:
+            activity = read_crypto_activity_evidence(credentials_path=credentials_path, cli_path=cli_path,
+                mode=mode, period_start=provider_order.get("submitted_at"),
+                period_end=observation["clock"]["observed_at"])
+        return entry_fill_proof_from_rows(rows, ownership, provider_order, observation,
+                                         mode=mode, owner_id=investment_owner_id(), activity_readback=activity)
+
+
+def _reconcile_crypto_close(intent: dict, provider_order: dict, *, state: Path,
+                            credentials_path: Path, cli_path: Path) -> dict:
+    mode = _mode()
+    if (intent.get("mode") != mode or intent.get("owner_id") != investment_owner_id()
+            or intent.get("order", {}).get("asset_class") != "crypto"
+            or intent["order"].get("side") != "sell"):
+        raise ValueError("owned_close_proof_invalid")
+    with control_fence(state):
+        ownership = json.loads((state / "live-owned-position.json").read_text(encoding="utf-8"))
+        if (not isinstance(ownership, dict) or ownership.get("close_effect_id") != intent.get("effect_id")
+                or ownership.get("close_client_order_id") != intent.get("client_order_id")):
+            raise ValueError("owned_close_proof_invalid")
+        observation = _normalize_live_position_symbols(observe(
+            credentials_path=credentials_path, cli_path=cli_path))
+        if provider_order.get('status') in BROKER_TERMINAL_FAILURE_STATUSES:
+            from effect_store import _owned_rows
+            rows = _owned_rows(state / 'receipts.jsonl')
+            if any(r.get('receipt_type') == 'outcome' and r.get('effect_id') == intent['effect_id']
+                   and r.get('strategy_receipt') is not None for r in rows):
+                saved=_sell_receipt_row(rows,ownership['close_effect_id'])['strategy_receipt']
+                return recorded_close_fill_proof(state, ownership, provider_order, saved['account_readback'], mode=mode)
+            entry=entry_receipt_row(rows,ownership['entry_effect_id'])['broker']
+            activities = read_crypto_activity_evidence(credentials_path=credentials_path, cli_path=cli_path,
+                mode=mode, period_start=entry['submitted_at'], period_end=observation['clock']['observed_at'])
+            return sell_remainder_proof_from_rows(rows, ownership, provider_order, observation,
+                mode=mode, owner_id=investment_owner_id(), activity_readback=activities)
+        return close_fill_proof(state, ownership, provider_order, observation, mode=mode)
+
+
 def _observe_and_sync_live_ownership(
         state: Path, credentials_path: Path, cli_path: Path) -> tuple[dict, dict | None]:
     with control_fence(state):
@@ -328,6 +517,30 @@ def _observe_and_sync_live_ownership(
 def _closing_marker(ownership: dict, sealed: dict) -> dict:
     return {**ownership, "close_client_order_id": sealed["client_order_id"],
             "close_effect_id": sealed["effect_id"], "status": "closing"}
+
+
+def _policy_crypto_history(state: Path, ownership: dict | None, *, mode: str,
+                           credentials_path: Path, cli_path: Path, observed_at: str) -> dict:
+    """Resolve the data contract from the owned entry before a new selection."""
+    if ownership is not None and not isinstance(ownership, dict):
+        raise ValueError("live_position_not_owned")
+    if ownership and ownership.get("status") in {"entry_pending", "closing"}:
+        return {}
+    try:
+        if ownership and ownership.get("status") == "open":
+            card = load_owned_policy(state, ownership, mode=mode)["card"]
+        else:
+            card, _release = load_selected_card(state)
+    except ValueError:
+        # The decision path reports the exact policy error; do not substitute
+        # a different policy or a shorter history for an unresolved owned entry.
+        return {}
+    if tuple(card.instruments) != ("BTC/USDC",):
+        return {}
+    contract = INDICATOR_HISTORY_CONTRACTS.get(card.strategy_id)
+    options = {"history_bars": contract[2]} if contract is not None else {}
+    return read_crypto_history(credentials_path=credentials_path, cli_path=cli_path,
+                               observed_at=observed_at, **options)
 
 
 def main(*, attempt: int = 0, wake_id=None) -> int:
@@ -350,6 +563,17 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
         reconciled_observation: dict[str, dict] = {}
 
         def on_reconciled(intent: dict, provider_order: dict) -> dict | None:
+            if (intent.get("order", {}).get("asset_class") == "crypto" and intent["order"].get("side") == "buy"):
+                result = _reconcile_crypto_entry(intent, provider_order, state=state,
+                    credentials_path=credentials_path, cli_path=cli_path)
+                reconciled_observation["value"] = result["account_readback"]
+                return result
+            if (intent.get("order", {}).get("asset_class") == "crypto"
+                    and intent["order"].get("side") == "sell"):
+                result = _reconcile_crypto_close(intent, provider_order, state=state,
+                    credentials_path=credentials_path, cli_path=cli_path)
+                reconciled_observation["value"] = result["account_readback"]
+                return result
             if intent.get("order", {}).get("asset_class") != "us_equity":
                 return
             result = _reconcile_etf_intent(
@@ -401,7 +625,7 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
             }, separators=(",", ":")))
             return 0
         stage = "observe"
-        if mode == "live":
+        if mode in {"paper", "live"}:
             observation, ownership = _observe_and_sync_live_ownership(
                 state, credentials_path, cli_path)
         else:
@@ -413,9 +637,14 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
         if "value" in reconciled_observation:
             observation = reconciled_observation["value"]
         stage = "campaign_read"
-        campaign = (_paper_campaign(
-            state=state, credentials_path=credentials_path, cli_path=cli_path)
-            if mode == "paper" else _nonpaper_campaign(observation))
+        if mode == "paper" and ownership and ownership.get("status") in {"entry_pending", "closing"}:
+            campaign = {"exit_status": "OWNERSHIP_PENDING", "paper": True,
+                        "positions": observation["positions"], "realized_pnl_usd": None,
+                        "unrealized_pnl_usd": None}
+        else:
+            campaign = (_paper_campaign(
+                state=state, credentials_path=credentials_path, cli_path=cli_path)
+                if mode == "paper" else _nonpaper_campaign(observation))
         effect = "none"
         if campaign["exit_status"] == "EXIT_READY":
             exit_decision = {
@@ -478,17 +707,17 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
             credentials_path=credentials_path, cli_path=cli_path,
             risk_day_path=state / "risk-day.json", include_etf_bars=True)
         allocator_snapshot["mode"] = mode
-        if mode == "paper":
+        if mode == "paper" and not (ownership and ownership.get("status") in {"entry_pending", "open", "closing"}):
             etf_state = read_etf_state(
                 state / "etf-owned-position.json", owner_id=investment_owner_id(),
             )
             allocator_snapshot["position"] = etf_state["position"]
             allocator_snapshot["last_decision_session"] = etf_state["last_decision_session"]
-        if mode == "live":
+        if mode in {"paper", "live"}:
             stage = "market_history_read"
-            allocator_snapshot["crypto_history"] = read_crypto_history(
-                credentials_path=credentials_path, cli_path=cli_path,
-                observed_at=allocator_snapshot["clock"]["timestamp"])
+            allocator_snapshot["crypto_history"] = _policy_crypto_history(
+                state, ownership, mode=mode, credentials_path=credentials_path, cli_path=cli_path,
+                observed_at=allocator_snapshot.get("clock", {}).get("timestamp"))
         unresolved = reconciliation.get("unresolved")
         if isinstance(unresolved, bool) or not isinstance(unresolved, int) or unresolved != 0:
             if not _reconciliation_is_pending(reconciliation):
@@ -501,11 +730,17 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
             str(Path(__file__).resolve().parents[2] / "runtime/agent-runner/agent_runner.py"),
         )).expanduser()
         workdir = Path(__file__).resolve().parents[2]
-        live_positions = mode == "live" and allocator_snapshot.get("positions", 0) > 0
-        if live_positions:
+        btc_positions = (mode in {"paper", "live"}
+            and not (ownership and ownership.get("status") in {"entry_pending", "closing"})
+            and ((mode == "live" and allocator_snapshot.get("positions", 0) > 0)
+                 or any(row.get("symbol") == "BTCUSD" for row in observation.get("positions", []))))
+        if btc_positions:
             _owned_live_position(ownership, observation)
             position = choose_position(allocator_snapshot, observation, state, runner, workdir)
-            decision = {"approved": position["action"] == "EXIT",
+            decision = {"action": position["action"], "owner_id": position.get("owner_id"),
+                        **{key: position.get(key) for key in ("entry_effect_id", "entry_client_order_id",
+                            "entry_provider_order_id", "entry_price", "entry_timestamp")},
+                        "approved": position["action"] == "EXIT",
                         "candidate_ref": "position://BTCUSD", "gate": "position_exit" if position["action"] == "EXIT" else "position_hold",
                         "reason": position["reason"], "position_action": position["action"],
                         "policy_action": position.get("policy_action"),
@@ -516,7 +751,7 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                         "position_qty": position["qty"],
                         "observed_at": allocator_snapshot["clock"]["timestamp"]}
         else:
-            if mode == "live" and ownership and ownership.get("status") in {"entry_pending", "closing"}:
+            if mode in {"paper", "live"} and ownership and ownership.get("status") in {"entry_pending", "open", "closing"}:
                 decision = {"approved": False, "candidate_ref": "NO_TRADE",
                             "gate": "ownership_pending", "reason": "既存注文の公式確定を待つ。",
                             "observed_at": allocator_snapshot["clock"]["timestamp"]}
@@ -541,8 +776,8 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
         if decision["approved"] and mode in {"paper", "live"}:
             stage = "allocation_order_build"
             order = (live_exit_order({"qty": decision["position_qty"]})
-                     if live_positions else order_for(decision))
-            if mode == "live" and not live_positions:
+                     if btc_positions else order_for(decision))
+            if mode == "live" and not btc_positions:
                 if order.get("asset_class") != "crypto" or order.get("symbol") != "BTC/USDC":
                     decision.update({"approved": False, "gate": "live_asset_rejected"})
                     record_no_trade(state / "receipts.jsonl", decision)
@@ -551,6 +786,12 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                 effect = "none"
             else:
                 is_etf_order = order.get("asset_class") == "us_equity"
+                if order.get('asset_class')=='crypto' and order.get('side')=='buy':
+                    account_id=allocator_snapshot.get('account',{}).get('id')
+                    if (not isinstance(account_id,str) or not account_id.strip()
+                            or observation.get('account',{}).get('id')!=account_id):
+                        raise ValueError('owned_entry_account_invalid')
+                    decision['native_trading_account_id']=account_id
                 stage = "allocation_submit"
                 with control_fence(state) as current_control:
                     if current_control["paused"] or current_control["killed"]:
@@ -564,11 +805,12 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                         return 0
                     # Re-read official slots under the exclusive effect fence so two
                     # overlapping wakes cannot both act on the same stale snapshot.
+                    fresh_flows=[]
                     fresh = read_allocator_snapshot(credentials_path=credentials_path,
                         cli_path=cli_path, risk_day_path=state / "risk-day.json",
-                        include_etf_bars=True)
+                        include_etf_bars=True, **({'flow_sink':fresh_flows} if order.get('asset_class')=='crypto' else {}))
                     fresh["mode"] = mode
-                    if mode == "paper":
+                    if mode == "paper" and not btc_positions:
                         fresh_etf_state = read_etf_state(
                             state / "etf-owned-position.json", owner_id=investment_owner_id(),
                         )
@@ -578,15 +820,62 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                     paper_etf_exit = (mode == "paper" and is_etf_order
                                       and decision.get("strategy_id") == ETF_STRATEGY_ID
                                       and decision.get("action") == "EXIT")
-                    expected_positions = 1 if live_positions or paper_etf_exit else 0
+                    expected_positions = 1 if btc_positions or paper_etf_exit else 0
                     if (fresh.get("open_orders") != 0 or unresolved_intent_count(
                             state / "receipts.jsonl") != 0 or
                             fresh.get("positions") != expected_positions):
                         raise ValueError("investment_effect_fence_rejected")
-                    if mode == "live" and not live_positions and not evaluate_entry(
+                    if btc_positions:
+                        fresh_observation = _normalize_live_position_symbols(observe(
+                            credentials_path=credentials_path, cli_path=cli_path))
+                        try:
+                            fresh_ownership = _sync_live_ownership(state, credentials_path, cli_path, fresh_observation,reconcile_fees=False)
+                            _owned_live_position(fresh_ownership, fresh_observation)
+                            policy = load_owned_policy(state, fresh_ownership, mode=mode)
+                            if (any(policy[key] != decision.get(key) for key in (
+                                    "entry_effect_id", "entry_client_order_id", "entry_provider_order_id", "owner_id", "mode"))
+                                    or policy["card"].strategy_id != decision.get("strategy_id")
+                                    or policy["release_sha"] != decision.get("release_sha")
+                                    or Decimal(policy["entry_price"]) != Decimal(decision["entry_price"])
+                                    or parse_instant(policy["entry_timestamp"]) != parse_instant(decision["entry_timestamp"])
+                                    or parse_instant(policy["entry_timestamp"]) > parse_instant(fresh["clock"]["timestamp"])
+                                    or Decimal(policy["owned_qty"]) != Decimal(order["qty"])
+                                    or Decimal(policy["owned_qty"]) != Decimal(decision["position_qty"])
+                                    or order.get("asset_class") != "crypto" or order.get("symbol") != "BTC/USDC"
+                                    or order.get("side") != "sell" or order.get("type") != "market"
+                                    or order.get("time_in_force") != "gtc"):
+                                raise ValueError("owned_position_changed_before_submit")
+                        except (ValueError, KeyError, TypeError, InvalidOperation) as error:
+                            raise ValueError("owned_position_changed_before_submit") from error
+                        ownership, observation = fresh_ownership, fresh_observation
+                    if order.get("asset_class") == "crypto" and order.get("side") == "buy":
+                        fresh_observation = _normalize_live_position_symbols(observe(
+                            credentials_path=credentials_path, cli_path=cli_path))
+                        if (fresh.get('account',{}).get('id')!=decision['native_trading_account_id']
+                                or fresh_observation.get('account',{}).get('id')!=decision['native_trading_account_id']):
+                            raise ValueError('owned_entry_account_invalid')
+                        fresh_ownership = _sync_live_ownership(state, credentials_path, cli_path, fresh_observation,reconcile_fees=False)
+                        if ((fresh_ownership and fresh_ownership.get("status") != "closed")
+                                or any(row.get("symbol") != "USDCUSD"
+                                       for row in fresh_observation["positions"])):
+                            raise ValueError("entry_position_changed_before_submit")
+                        try:
+                            selected = _read_selection(state)
+                            card, release = load_selected_card(state)
+                            frozen, frozen_release = validate_policy_card(decision.get("policy_card"),
+                                decision.get("release_sha"), strategy_id=decision.get("strategy_id"))
+                            if (not isinstance(selected, dict) or selected.get("selection") != "selected"
+                                    or not isinstance(selected.get("report_id"), str) or not selected["report_id"].strip()
+                                    or selected.get("strategy_id") != card.strategy_id
+                                    or decision.get("action") != "ENTER"
+                                    or card.strategy_id != frozen.strategy_id or release != frozen_release):
+                                raise ValueError("entry_policy_changed_before_submit")
+                        except (ValueError, OSError, KeyError, TypeError) as error:
+                            raise ValueError("entry_policy_changed_before_submit") from error
+                    if mode == "live" and not btc_positions and not evaluate_entry(
                             fresh.get("risk"), order.get("notional_usd"))["approved"]:
                         raise ValueError("investment_effect_fence_rejected")
-                    if mode in {"paper", "live"} and not live_positions:
+                    if mode in {"paper", "live"} and not btc_positions:
                         refreshed = allocation_gate(fresh, build_candidates(fresh), decision)
                         if not refreshed["approved"]:
                             raise ValueError("investment_effect_fence_rejected")
@@ -609,11 +898,15 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                         validate_etf_position_readback(
                             broker_readback, symbol=order["symbol"], expected_qty=qty,
                         )
+                    if order.get('asset_class')=='crypto' and order.get('side')=='buy':
+                        decision['pre_trade_account_readback']=entry_pre_trade_account_readback(fresh_observation,decision)
+                    if order.get('asset_class')=='crypto':
+                        decision['pre_trade_flow_readbacks']=json.loads(json.dumps(fresh_flows)) if fresh_flows else None
                     sealed = seal(state / "receipts.jsonl", decision, order)
                     if not mark_started(state / "receipts.jsonl", sealed):
                         raise ValueError("investment_effect_already_started")
-                    if mode == "live":
-                        marker = (_closing_marker(ownership, sealed) if live_positions else {
+                    if order.get("asset_class") == "crypto":
+                        marker = (_closing_marker(ownership, sealed) if btc_positions else {
                             "entry_client_order_id": sealed["client_order_id"],
                             "entry_effect_id": sealed["effect_id"], "entry_filled_qty": "0",
                             "status": "entry_pending", "symbol": "BTCUSD",
@@ -650,27 +943,61 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
             record_no_trade(state / "receipts.jsonl", decision)
         review = _review_status(state, mode, deployment)
         decision["application_status"] = review.get("application_status", "unknown")
+        owner_costs_local=(deployment=='local' and mode in {'paper','live'}
+            and investment_owner_id()==f'alpaca-investment-{mode}')
+        previous_owner_costs=None
+        if owner_costs_local:
+            try:previous_owner_costs=json.loads((state/'allocation-latest.json').read_text()).get('owner_period_operating_costs')
+            except FileNotFoundError:pass
+            except (OSError,ValueError,AttributeError):previous_owner_costs={'read_error':'previous_owner_costs_unavailable'}
+            if (isinstance(previous_owner_costs,dict) and previous_owner_costs.get('owner_id')==investment_owner_id()
+                    and previous_owner_costs.get('mode')==mode and previous_owner_costs.get('paper') is (mode=='paper')):
+                decision['owner_period_operating_costs']=previous_owner_costs
         stage = "state_write"
         _atomic_json(state / "allocation-latest.json", decision)
         _atomic_json(state / "risk-latest.json", allocator_snapshot["risk"])
         _atomic_json(state / "observation-latest.json", observation)
         _atomic_json(state / "campaign.json", campaign)
+        economic_cost_scopes=[]
         if mode == "paper":
             # This is a reporting-only read of the append-only effect ledger.
             # Missing fees/slippage/model/system costs remain partial and never become
             # a numeric zero or a promotion signal.
-            write_paper_performance(
+            paper_result=write_paper_performance(
                 state, observation, allocator_snapshot["risk"],
                 broker_cost_reader=lambda **kwargs: read_paper_etf_cost_evidence(
                     credentials_path=credentials_path, cli_path=cli_path, **kwargs,
                 ),
             )
+            if isinstance(paper_result,dict):
+                economic_cost_scopes.extend(paper_result.get('economic_cost_scopes',[]))
+        if mode in {"paper", "live"} and investment_owner_id() == f"alpaca-investment-{mode}":
+            crypto_result=write_crypto_performance(state, observation, mode=mode, owner_id=investment_owner_id(),
+                statement_readback_dir=state/'statement-readbacks',
+                flow_reader=lambda **kwargs: read_crypto_flow_evidence(
+                    credentials_path=credentials_path,cli_path=cli_path,**kwargs),
+                activity_reader=lambda **kwargs: read_crypto_activity_evidence(
+                    credentials_path=credentials_path, cli_path=cli_path, **kwargs),
+                activity_page_reader=lambda **kwargs: read_crypto_activity_page_chunk(
+                    credentials_path=credentials_path, cli_path=cli_path, **kwargs),
+                fx_reader=lambda **kwargs: read_crypto_fx_evidence(
+                    credentials_path=credentials_path, cli_path=cli_path, **kwargs))
+            if isinstance(crypto_result,dict):
+                economic_cost_scopes.extend({**{key:cycle[key] for key in ('owner_id','mode','order_ids','period_start','closed_at','source_receipt_ids')},
+                    'paper':mode=='paper'} for cycle in crypto_result.get('cycles',[]))
+        if owner_costs_local:
+            stage='owner_period_costs'
+            decision['owner_period_operating_costs']=read_owner_period_costs(state,
+                observed_at=observation['clock']['observed_at'],owner_id=investment_owner_id(),mode=mode,
+                previous=previous_owner_costs,economic_scopes=economic_cost_scopes)
+            stage='state_write'
+            _atomic_json(state/'allocation-latest.json',decision)
         stage = "telegram_deliver"
         telegram = deliver(state, observation, campaign, decision, effect,
                            event_key=cloud_event_key if deployment == "cloud" else None)
         _mark_no_broker_order_submitted(mode, effect_attempted, effect)
         summary = {
-            "account": observation["account"],
+            "account": {key:value for key,value in observation["account"].items() if key!='id'},
             "activities_count": observation["activities_count"],
             "candidate_count": len(candidates),
             "decision": decision["candidate_ref"],

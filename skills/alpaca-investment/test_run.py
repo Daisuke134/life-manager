@@ -23,6 +23,19 @@ MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
 
 
+def _entry_selection_fixture(state: Path, decision: dict, mode="paper"):
+    from strategy_policy import candidate_cards
+    card = candidate_cards()["alpaca-btc-5m-trend-400-v2"]
+    decision.update(action="ENTER", owner_id=f"alpaca-investment-{mode}", mode=mode,
+                    strategy_id=card.strategy_id, release_sha="a" * 40, policy_card=card.to_mapping())
+    state.mkdir(parents=True, exist_ok=True)
+    selection = {"selection": "selected", "strategy_id": card.strategy_id,
+                 "release_sha": "a" * 40, "card": card.to_mapping(),
+                 "expires_at": "2099-01-01T00:00:00Z", "report_id": "entry-fixture"}
+    (state / "selected-strategy.json").write_text(json.dumps(selection))
+    return selection
+
+
 def _publisher_probe(root: Path) -> tuple[Path, Path]:
     marker = root / "publisher-called"
     executable = root / "node"
@@ -281,39 +294,36 @@ class BrokerContextTest(unittest.TestCase):
         self.assertIn("--qty", run.call_args.args[1])
 
     def test_live_ownership_selects_btc_not_usdc_and_opens_from_fill(self):
-        with tempfile.TemporaryDirectory() as directory:
-            state = Path(directory)
-            MODULE._atomic_json(state / "live-owned-position.json", {
-                "entry_client_order_id": "lm-ai-" + "c" * 24,
-                "entry_effect_id": "effect", "entry_filled_qty": "0",
-                "status": "entry_pending", "symbol": "BTCUSD"})
-            observation = {"positions": [
-                {"symbol": "USDCUSD", "qty": "60"},
-                {"symbol": "BTCUSD", "qty": "0.0001"}]}
-            with patch.object(MODULE, "find_order_by_client_id", return_value={
-                    "status": "filled", "filled_qty": "0.00011"}):
-                ownership = MODULE._sync_live_ownership(
-                    state, Path("credentials"), Path("alpaca"), observation)
-            self.assertEqual(ownership["status"], "open")
-            MODULE._owned_live_position(ownership, observation)
+        from test_crypto_entry import entry_fixture
+        from crypto_ownership_proof import entry_fill_proof_from_rows
+        with tempfile.TemporaryDirectory() as directory,patch.dict(MODULE.os.environ,{
+                "LIFE_MANAGER_INVESTMENT_MODE":"live","LIFE_MANAGER_INVESTMENT_OWNER_ID":"alpaca-investment-live"}):
+            state=Path(directory);marker,broker,observation,owner=entry_fixture(state,owned_qty="0.049875")
+            proof=entry_fill_proof_from_rows(EFFECT_STORE._rows(state/"receipts.jsonl"),marker,broker,observation,mode="live",owner_id=owner)
+            EFFECT_STORE.reconcile_started(state/"receipts.jsonl",lambda _:broker,on_reconciled=lambda *_:proof)
+            observation=MODULE._normalize_live_position_symbols(observation)
+            with patch.object(MODULE,"find_order_by_client_id",return_value=broker):
+                ownership=MODULE._sync_live_ownership(state,Path("unused"),Path("unused"),observation)
+            self.assertEqual(ownership["status"],"open")
+            self.assertEqual(ownership["owned_qty"],"0.049875")
+            MODULE._owned_live_position(ownership,observation)
 
-    def test_cloud_canary_symbol_is_normalized_before_regular_live_ownership_sync(self):
-        with tempfile.TemporaryDirectory() as directory:
-            state = Path(directory)
-            MODULE._atomic_json(state / "live-owned-position.json", {
-                "entry_client_order_id": "lm-ai-" + "c" * 24,
-                "entry_effect_id": "effect", "entry_filled_qty": "0.00002",
-                "owned_qty": "0.00001995", "status": "open", "symbol": "BTCUSD"})
-            observation = MODULE._normalize_live_position_symbols({"positions": [
-                {"symbol": "USDCUSD", "qty": "64"},
-                {"symbol": "BTCUSDC", "qty": "0.00001995"}]})
-            with patch.object(MODULE, "find_order_by_client_id", return_value={
-                    "status": "filled", "filled_qty": "0.00002"}):
-                ownership = MODULE._sync_live_ownership(
-                    state, Path("credentials"), Path("alpaca"), observation)
-            self.assertEqual(ownership["status"], "open")
-            self.assertEqual(observation["positions"][1]["symbol"], "BTCUSD")
-            MODULE._owned_live_position(ownership, observation)
+    def test_provider_symbol_is_normalized_before_regular_ownership_sync(self):
+        from test_crypto_entry import entry_fixture
+        from crypto_ownership_proof import entry_fill_proof_from_rows
+        with tempfile.TemporaryDirectory() as directory,patch.dict(MODULE.os.environ,{
+                "LIFE_MANAGER_INVESTMENT_MODE":"live","LIFE_MANAGER_INVESTMENT_OWNER_ID":"alpaca-investment-live"}):
+            state=Path(directory);marker,broker,observation,owner=entry_fixture(state)
+            proof=entry_fill_proof_from_rows(EFFECT_STORE._rows(state/"receipts.jsonl"),marker,broker,observation,mode="live",owner_id=owner)
+            EFFECT_STORE.reconcile_started(state/"receipts.jsonl",lambda _:broker,on_reconciled=lambda *_:proof)
+            marker.update(status="open",entry_filled_qty="0.05",owned_qty="0.05")
+            MODULE._atomic_json(state/"live-owned-position.json",marker)
+            observation=MODULE._normalize_live_position_symbols(observation)
+            with patch.object(MODULE,"find_order_by_client_id",return_value=broker):
+                ownership=MODULE._sync_live_ownership(state,Path("unused"),Path("unused"),observation)
+            self.assertEqual(ownership["status"],"open")
+            self.assertEqual(observation["positions"][1]["symbol"],"BTCUSD")
+            MODULE._owned_live_position(ownership,observation)
 
     def test_live_observation_and_sync_hold_fence_against_canary_open_writer(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -355,20 +365,26 @@ class BrokerContextTest(unittest.TestCase):
             marker = json.loads((state / "live-owned-position.json").read_text())
             self.assertEqual(marker["status"], "open")
 
-    def test_live_ownership_closes_when_position_disappears(self):
-        with tempfile.TemporaryDirectory() as directory:
-            state = Path(directory)
-            MODULE._atomic_json(state / "live-owned-position.json", {
-                "entry_client_order_id": "lm-ai-" + "d" * 24,
-                "entry_effect_id": "effect", "entry_filled_qty": "0.0001", "owned_qty": "0.0001",
-                "status": "open", "symbol": "BTCUSD"})
-            with patch.object(MODULE, "find_order_by_client_id", return_value={
-                    "status": "filled", "filled_qty": "0.0001"}):
-                ownership = MODULE._sync_live_ownership(
-                    state, Path("credentials"), Path("alpaca"), {"positions": []})
-            self.assertEqual(ownership["status"], "closed")
+    def test_live_ownership_remains_open_when_position_disappears(self):
+        from test_crypto_entry import entry_fixture
+        from crypto_ownership_proof import entry_fill_proof_from_rows
+        with tempfile.TemporaryDirectory() as directory,patch.dict(MODULE.os.environ,{
+                "LIFE_MANAGER_INVESTMENT_MODE":"live","LIFE_MANAGER_INVESTMENT_OWNER_ID":"alpaca-investment-live"}):
+            state=Path(directory);marker,broker,observation,owner=entry_fixture(state)
+            proof=entry_fill_proof_from_rows(EFFECT_STORE._rows(state/"receipts.jsonl"),marker,broker,observation,mode="live",owner_id=owner)
+            EFFECT_STORE.reconcile_started(state/"receipts.jsonl",lambda _:broker,on_reconciled=lambda *_:proof)
+            marker.update(status="open",entry_filled_qty="0.05",owned_qty="0.05")
+            MODULE._atomic_json(state/"live-owned-position.json",marker)
+            observation["positions"]=observation["positions"][:1]
+            from test_crypto_performance import activity_fixture
+            empty_activities=activity_fixture({'fills':[],'fees':[]},mode='live',
+                start=broker['submitted_at'],end=observation['clock']['observed_at'])
+            with patch.object(MODULE,"find_order_by_client_id",return_value=broker), \
+                 patch.object(MODULE,"read_crypto_activity_evidence",return_value=empty_activities):
+                ownership=MODULE._sync_live_ownership(state,Path("unused"),Path("unused"),observation)
+            self.assertEqual(ownership["status"],"open")
 
-    def test_rejected_close_restores_owned_position(self):
+    def test_rejected_close_without_receipt_remains_pending(self):
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
             MODULE._atomic_json(state / "live-owned-position.json", {
@@ -380,9 +396,10 @@ class BrokerContextTest(unittest.TestCase):
                     "status": "rejected", "filled_qty": "0"}):
                 ownership = MODULE._sync_live_ownership(state, Path("credentials"),
                     Path("alpaca"), {"positions": [{"symbol": "BTCUSD", "qty": "0.0001"}]})
-            self.assertEqual(ownership["status"], "open")
+            self.assertEqual(ownership["status"], "closing")
+            self.assertEqual(ownership["owned_qty"], "0.0001")
 
-    def test_partial_terminal_close_restores_only_remaining_owned_qty(self):
+    def test_partial_terminal_close_without_receipt_cannot_change_owned_qty(self):
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
             MODULE._atomic_json(state / "live-owned-position.json", {
@@ -395,8 +412,10 @@ class BrokerContextTest(unittest.TestCase):
                     "status": "canceled", "filled_qty": "0.00006"}):
                 ownership = MODULE._sync_live_ownership(
                     state, Path("credentials"), Path("alpaca"), observation)
-            self.assertEqual(ownership["owned_qty"], "0.00004")
-            MODULE._owned_live_position(ownership, observation)
+            self.assertEqual(ownership["owned_qty"], "0.00010")
+            self.assertEqual(ownership["status"], "closing")
+            with self.assertRaises(ValueError):
+                MODULE._owned_live_position(ownership, observation)
 
     def test_second_close_marker_replaces_rejected_close_identity(self):
         ownership = {"entry_client_order_id": "entry", "entry_effect_id": "entry-effect",
@@ -414,6 +433,98 @@ class BrokerContextTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "^live_position_not_owned$"):
             MODULE._owned_live_position(ownership, {
                 "positions": [{"symbol": "BTCUSD", "qty": "0.00008"}]})
+
+
+class PolicyHistoryDispatchTest(unittest.TestCase):
+    def test_owned_history_follows_entry_policy_without_a_current_selection(self):
+        from test_owned_policy import seed
+        from strategy_policy import candidate_cards
+        for mode in ("paper","live"):
+            for strategy_id,required in (("alpaca-btc-5m-trend-v1",None),
+                                         ("alpaca-btc-5m-trend-400-v2",800)):
+                with self.subTest(mode=mode,strategy=strategy_id),tempfile.TemporaryDirectory() as directory:
+                    root=Path(directory)
+                    card=candidate_cards()[strategy_id]
+                    ownership,owner=seed(root,mode,decision_changes={"strategy_id":strategy_id,"policy_card":card.to_mapping()})
+                    (root/"selected-strategy.json").unlink()
+                    with patch.dict(MODULE.os.environ,{"LIFE_MANAGER_INVESTMENT_OWNER_ID":owner}), \
+                         patch.object(MODULE,"read_crypto_history",return_value={"BTC/USDC":[]}) as read:
+                        history=MODULE._policy_crypto_history(root,ownership,mode=mode,
+                            credentials_path=Path("c"),cli_path=Path("a"),observed_at="2026-01-01T04:15:00Z")
+                    self.assertEqual(history,{"BTC/USDC":[]})
+                    self.assertEqual(read.call_count,1)
+                    if required is None: self.assertNotIn("history_bars",read.call_args.kwargs)
+                    else: self.assertEqual(read.call_args.kwargs["history_bars"],required)
+
+    def test_flat_new_candidate_requests_800_and_etf_does_not_request_crypto(self):
+        from strategy_policy import candidate_cards
+        for strategy in ("alpaca-btc-5m-trend-400-v2","alpaca-etf-126d-momentum-v1"):
+            with self.subTest(strategy=strategy),tempfile.TemporaryDirectory() as directory:
+                root=Path(directory)
+                card=candidate_cards()[strategy]
+                (root/"selected-strategy.json").write_text(json.dumps({
+                    "strategy_id":strategy,"card":card.to_mapping(),"release_sha":"a"*40,
+                    "expires_at":"2099-01-01T00:00:00Z"}))
+                with patch.object(MODULE,"read_crypto_history",return_value={}) as read:
+                    MODULE._policy_crypto_history(root,None,mode="paper",credentials_path=Path("c"),
+                                                  cli_path=Path("a"),observed_at="2026-01-01T04:15:00Z")
+                self.assertEqual(read.call_count,0 if strategy.endswith("momentum-v1") else 1)
+                if read.called: self.assertEqual(read.call_args.kwargs["history_bars"],800)
+
+    def test_unknown_owned_policy_never_falls_back_to_a_current_candidate(self):
+        from test_owned_policy import seed
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            ownership,owner=seed(root)
+            (root/"receipts.jsonl").unlink()
+            with patch.dict(MODULE.os.environ,{"LIFE_MANAGER_INVESTMENT_OWNER_ID":owner}), \
+                 patch.object(MODULE,"read_crypto_history") as read:
+                result=MODULE._policy_crypto_history(root,ownership,mode="live",credentials_path=Path("c"),
+                                                    cli_path=Path("a"),observed_at="2026-01-01T04:15:00Z")
+            self.assertEqual(result,{})
+            read.assert_not_called()
+
+
+class VersionedCryptoHistoryTest(unittest.TestCase):
+    def _read(self, observed="2026-09-10T08:05:00Z", mutate=None):
+        def serve(_cli, args, _env):
+            start=datetime.fromisoformat(args[args.index("--start")+1].replace("Z","+00:00"))
+            end=datetime.fromisoformat(args[args.index("--end")+1].replace("Z","+00:00"))
+            self.assertEqual((end-start).total_seconds(),800*300)
+            self.assertEqual(args[args.index("--symbols")+1],"BTC/USDC")
+            payload={"next_page_token":None,"rows":[{"symbol":"BTC/USDC","bars":[
+                {"t":(start+timedelta(minutes=5*i)).isoformat(),"o":"100","h":"102","l":"99","c":"101"}
+                for i in range(801)]}]}
+            if mutate: mutate(payload)
+            return payload
+        with patch.object(CLI,"_context",return_value={}),patch.object(CLI,"_run",side_effect=serve):
+            return CLI.read_crypto_history(credentials_path=Path("credentials"),cli_path=Path("alpaca"),
+                                           observed_at=observed,history_bars=800)
+
+    def test_v2_closed_end_has_identical_800_inputs_at_both_clock_offsets(self):
+        aligned=self._read()
+        unaligned=self._read("2026-09-10T08:05:29Z")
+        self.assertEqual(aligned,unaligned)
+        self.assertEqual(len(aligned["BTC/USDC"]),800)
+        self.assertEqual(aligned["BTC/USDC"][-1]["t"],"2026-09-10T08:00:00+00:00")
+
+    def test_v2_incomplete_or_paginated_history_is_not_filled(self):
+        for mutate in (lambda p:p.update(next_page_token="more"),
+                       lambda p:p["rows"][0]["bars"].pop(5),
+                       lambda p:p["rows"][0]["bars"].insert(2,p["rows"][0]["bars"][1]),
+                       lambda p:p["rows"][0]["bars"][-1].update(c="NaN")):
+            with self.subTest(mutation=mutate),self.assertRaises(ValueError):
+                self._read(mutate=mutate)
+
+    def test_large_output_budget_is_limited_to_bounded_btc_bars(self):
+        payload=json.dumps({"payload":"x"*CLI.MAX_OUTPUT_BYTES}).encode()
+        completed=type("Completed",(),{"returncode":0,"stdout":payload})()
+        with patch.object(CLI.subprocess,"run",return_value=completed):
+            CLI._run(Path("alpaca"),["data","crypto","bars","--symbols","BTC/USDC"],{})
+            for command in (["data","crypto","quotes","--symbols","BTC/USDC"],
+                            ["data","crypto","bars","--symbols","BTC/USDC,ETH/USDC"]):
+                with self.subTest(command=command),self.assertRaisesRegex(ValueError,"output_too_large"):
+                    CLI._run(Path("alpaca"),command,{})
 
 
 class BrokerSnapshotTest(unittest.TestCase):
@@ -585,35 +696,46 @@ class ShadowReadOnlyTest(unittest.TestCase):
 
 class PaperEtfFreshFenceTest(unittest.TestCase):
     def run_approved_trade(self, *, action="EXIT", fresh_changes=None,
-                           broker_positions=None, changed_owned_qty=None):
+                           broker_positions=None, changed_owned_qty=None, selection_change=None,
+                           pending_entry_at_fence=False):
         from test_etf_allocator import _snapshot, _candidate, ETF_ID
 
         owner = "alpaca-investment-paper"
         position = {"owner_id": owner, "strategy_id": ETF_ID, "symbol": "QQQ",
                     "qty": "0.025", "entry_session": "2026-09-29"}
+        candidate = _candidate() if action == "EXIT" else {
+            **_candidate("BTC/USDC"), "asset_class": "crypto", "candidate_ref": "crypto://BTC/USDC",
+        }
         raw = _snapshot()
+        if action == 'ENTER': raw['account']['id'] = 'synthetic-native-account-paper'
         raw.pop("mode")  # The real broker reader does not return this caller context.
         raw["positions"] = 1 if action == "EXIT" else 0
-        raw["source_receipt_ids"] = ["alpaca://stock-bars/iex/split/fixture"]
+        raw["source_receipt_ids"] = ["alpaca://stock-bars/iex/split/fixture" if action == "EXIT"
+                                     else "alpaca://crypto-bars/us/fixture"]
         initial = {**copy.deepcopy(raw), "mode": "paper",
                    "position": position if action == "EXIT" else None}
-        decision = MODULE.allocation_gate(initial, [_candidate()], {
-            "action": action, "candidate_ref": "equity://QQQ", "symbol": "QQQ",
-            "strategy_id": ETF_ID, "owner_id": owner,
+        decision = MODULE.allocation_gate(initial, [candidate], {
+            "action": action, "mode": "paper", "candidate_ref": candidate["candidate_ref"], "symbol": candidate["symbol"],
+            "strategy_id": ETF_ID if action == "EXIT" else "alpaca-btc-5m-trend-400-v2", "owner_id": owner,
             "position": position if action == "EXIT" else None,
             "decision_session": "2026-10-20", "expected_cost_usd": "0.02",
             "observed_at": raw["clock"]["timestamp"], "reason": "hold_sessions_elapsed",
         })
         self.assertTrue(decision["approved"], decision)
         held = [{"symbol": "QQQ", "qty": "0.025"}] if action == "EXIT" else []
-        observation = {"account": raw["account"], "activities_count": 0,
+        observation = {"mode":"paper", "paper":True, "account": raw["account"], "activities_count": 0,
                        "clock": {"observed_at": raw["clock"]["timestamp"]},
                        "open_and_closed_orders_count": 0, "positions": held}
         observed = []
         reads = []
+        allocation_gate = MODULE.allocation_gate
+        def fresh_gate(snapshot, candidates, decision):
+            self.assertEqual(snapshot.get("mode"), "paper")
+            return allocation_gate(snapshot, candidates, decision)
         with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
             state = Path(directory) / "state"
             state.mkdir()
+            selection = _entry_selection_fixture(state, decision) if action == "ENTER" else None
             ownership = {"schema_version": 1, "status": "open", "owner_id": owner,
                          "strategy_id": ETF_ID, "symbol": "QQQ",
                          "decision_session": "2026-09-29",
@@ -626,6 +748,26 @@ class PaperEtfFreshFenceTest(unittest.TestCase):
                 value = copy.deepcopy(raw)
                 if reads:
                     value.update(fresh_changes or {})
+                    if pending_entry_at_fence:
+                        MODULE._atomic_json(state / "live-owned-position.json", {
+                            "status":"entry_pending","symbol":"BTCUSD","entry_effect_id":"b"*64,
+                            "entry_client_order_id":"lm-ai-"+"b"*24,"entry_filled_qty":"0"})
+                    if selection_change is not None:
+                        selected = copy.deepcopy(selection)
+                        if selection_change == "missing":
+                            (state / "selected-strategy.json").unlink()
+                        else:
+                            if selection_change == "strategy":
+                                from strategy_policy import candidate_cards
+                                card = candidate_cards()["alpaca-btc-5m-reversion-400-v2"]
+                                selected.update(strategy_id=card.strategy_id, card=card.to_mapping())
+                            elif selection_change == "release": selected["release_sha"] = "b" * 40
+                            elif selection_change == "expired": selected["expires_at"] = "2020-01-01T00:00:00Z"
+                            elif selection_change == "report": selected["report_id"] = "new-report-same-policy"
+                            elif selection_change == "card": selected["card"]["entry_rules"] = {"all": ["close > 0"]}
+                            elif selection_change == "not_selected": selected["selection"] = "rejected"
+                            elif selection_change == "report_missing": selected["report_id"] = ""
+                            MODULE._atomic_json(state / "selected-strategy.json", selected)
                     if changed_owned_qty is not None:
                         MODULE._atomic_json(state / "etf-owned-position.json", {
                             **ownership, "position_qty": changed_owned_qty,
@@ -651,13 +793,16 @@ class PaperEtfFreshFenceTest(unittest.TestCase):
             stack.enter_context(patch.object(MODULE, "reconcile_started", return_value={
                 "pending": 0, "reconciled": 0, "unresolved": 0,
             }))
+            stack.enter_context(patch.object(MODULE, "find_order_by_client_id", return_value={"status":"new"}))
             stack.enter_context(patch.object(MODULE, "observe", side_effect=observe_read))
             stack.enter_context(patch.object(MODULE, "_paper_campaign", return_value={
                 "exit_status": "CLOSED", "unrealized_pnl_usd": "0",
             }))
             stack.enter_context(patch.object(MODULE, "read_allocator_snapshot", side_effect=allocator_read))
-            stack.enter_context(patch.object(MODULE, "build_candidates", return_value=[_candidate()]))
+            stack.enter_context(patch.object(MODULE, "build_candidates", return_value=[candidate]))
+            stack.enter_context(patch.object(MODULE, "read_crypto_history", return_value={}))
             stack.enter_context(patch.object(MODULE, "choose", return_value=copy.deepcopy(decision)))
+            stack.enter_context(patch.object(MODULE, "allocation_gate", side_effect=fresh_gate))
             stack.enter_context(patch.object(MODULE, "_review_status", return_value={}))
             stack.enter_context(patch.object(MODULE, "deliver", return_value={"message_id": "fixture"}))
             stack.enter_context(patch.object(MODULE, "deliver_failure", return_value={"status": "delivered"}))
@@ -684,6 +829,33 @@ class PaperEtfFreshFenceTest(unittest.TestCase):
         self.assertEqual(code, 0, result)
         self.assertEqual(len(calls), 1)
         self.assertEqual(calls[0].kwargs["order"]["side"], "buy")
+
+    def test_entry_rejects_changed_missing_or_expired_selection_before_submit(self):
+        for change in ("strategy", "release", "expired", "missing", "card", "not_selected", "report_missing"):
+            with self.subTest(change=change):
+                code, result, calls, _ = self.run_approved_trade(action="ENTER", selection_change=change)
+                self.assertEqual(code, 78, result)
+                self.assertEqual(result["error_code"], "entry_policy_changed_before_submit")
+                self.assertEqual(calls, [])
+
+    def test_entry_accepts_fresh_report_for_same_policy_and_release(self):
+        code, result, calls, _ = self.run_approved_trade(action="ENTER", selection_change="report")
+        self.assertEqual(code, 0, result)
+        self.assertEqual(len(calls), 1)
+
+    def test_entry_rejects_another_buy_marker_appearing_before_submit(self):
+        code,result,calls,_=self.run_approved_trade(action="ENTER",pending_entry_at_fence=True)
+        self.assertEqual(code,78,result)
+        self.assertEqual(result["error_code"],"entry_position_changed_before_submit")
+        self.assertEqual(calls,[])
+
+    def test_entry_rejects_account_position_appearing_after_initial_observation(self):
+        for positions in ([{"symbol":"BTCUSDC","qty":"0.01"}], [{"symbol":"QQQ","qty":"1"}]):
+            with self.subTest(positions=positions):
+                code,result,calls,_=self.run_approved_trade(action="ENTER",broker_positions=positions)
+                self.assertEqual(code,78,result)
+                self.assertEqual(result["error_code"],"entry_position_changed_before_submit")
+                self.assertEqual(calls,[])
 
     def test_exit_rejects_broker_quantity_symbol_or_extra_position_drift(self):
         variants = [[], [{"symbol": "QQQ", "qty": "0.024"}],
@@ -714,11 +886,11 @@ class PaperEtfFreshFenceTest(unittest.TestCase):
 
 class LiveRunTest(unittest.TestCase):
     def test_submit_marks_effect_attempted_before_provider_mutation(self):
-        observation = {"account": {"cash": "0", "equity": "66"}, "activities_count": 0,
+        observation = {"mode":"live", "paper":False, "account": {"id":"synthetic-native-account-live","cash": "0", "equity": "66"}, "activities_count": 0,
             "clock": {"observed_at": "2026-09-10T08:00:00Z"},
             "open_and_closed_orders_count": 0,
             "positions": [{"symbol": "USDCUSD", "qty": "66", "unrealized_pl": "0"}]}
-        snapshot = {"account": {"cash": "0", "equity": "66"},
+        snapshot = {"account": {"id":"synthetic-native-account-live","cash": "0", "equity": "66"},
             "available_cash_usd": "66", "clock": {"timestamp": "2026-09-10T08:00:00Z"},
             "crypto": [], "open_orders": 0, "option_quotes": [], "positions": 0,
             "risk": {}, "qqq_asset": {}, "qqq_quote": {}, "spy": {}}
@@ -729,6 +901,7 @@ class LiveRunTest(unittest.TestCase):
             "symbol": "BTC/USDC", "time_in_force": "gtc", "type": "market"}
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            _entry_selection_fixture(root / "state", decision, "live")
             hint = root / "entrypoint-result.json"
             hint.write_text('{"status":"pre_effect_failure","effect":0}\n', encoding="utf-8")
             hint.chmod(0o600)
@@ -762,11 +935,11 @@ class LiveRunTest(unittest.TestCase):
             })
 
     def test_live_entry_submits_once_and_durably_marks_pending_ownership(self):
-        observation = {"account": {"cash": "0", "equity": "66"}, "activities_count": 0,
+        observation = {"mode":"live", "paper":False, "account": {"id":"synthetic-native-account-live","cash": "0", "equity": "66"}, "activities_count": 0,
             "clock": {"observed_at": "2026-09-10T08:00:00Z"},
             "open_and_closed_orders_count": 0,
             "positions": [{"symbol": "USDCUSD", "qty": "66", "unrealized_pl": "0"}]}
-        snapshot = {"account": {"cash": "0", "equity": "66"},
+        snapshot = {"account": {"id":"synthetic-native-account-live","cash": "0", "equity": "66"},
             "available_cash_usd": "66", "clock": {"timestamp": "2026-09-10T08:00:00Z"},
             "crypto": [], "open_orders": 0, "option_quotes": [], "positions": 0,
             "risk": {}, "qqq_asset": {}, "qqq_quote": {}, "spy": {}}
@@ -775,7 +948,9 @@ class LiveRunTest(unittest.TestCase):
             "observed_at": "2026-09-10T08:00:00Z"}
         order = {"asset_class": "crypto", "notional_usd": "10.00", "side": "buy",
             "symbol": "BTC/USDC", "time_in_force": "gtc", "type": "market"}
-        with tempfile.TemporaryDirectory() as directory, patch.dict(MODULE.os.environ, {
+        with tempfile.TemporaryDirectory() as directory:
+            _entry_selection_fixture(Path(directory) / "state", decision, "live")
+            with patch.dict(MODULE.os.environ, {
             "LIFE_MANAGER_INVESTMENT_MODE": "live", "LIFE_MANAGER_INVESTMENT_DEPLOYMENT": "local",
             "ALPACA_INVESTMENT_LIVE_CREDENTIALS_FILE": str(Path(directory) / "credentials.json"),
             "ALPACA_INVESTMENT_LIVE_STATE_DIR": str(Path(directory) / "state")}, clear=True), \
@@ -790,8 +965,8 @@ class LiveRunTest(unittest.TestCase):
             patch.object(MODULE, "allocation_gate", return_value={"approved": True}), \
             patch.object(MODULE, "submit_order", return_value={"submitted_at": "now"}) as submit, \
             patch.object(MODULE, "deliver", return_value={"message_id": "live"}):
-            self.assertEqual(MODULE.main(wake_id="live-entry"), 0)
-            marker = json.loads((Path(directory) / "state/live-owned-position.json").read_text())
+                self.assertEqual(MODULE.main(wake_id="live-entry"), 0)
+                marker = json.loads((Path(directory) / "state/live-owned-position.json").read_text())
         submit.assert_called_once()
         self.assertEqual(marker["status"], "entry_pending")
         self.assertEqual(marker["symbol"], "BTCUSD")
@@ -799,12 +974,14 @@ class LiveRunTest(unittest.TestCase):
 
 class PortablePassTest(unittest.TestCase):
     def _capture_case(self, *, configured_owner=None, occurrence_owner="alpaca-investment-paper", capture_io_error=False,
-                      control_status=None, observe_error=False, terminal_summaries=None):
+                      control_status=None, observe_error=False, terminal_summaries=None, allocation_capture=None, initial_owner_costs=None):
         import cost_inventory
         from test_cost_inventory import release_fixture
         steps = []
         with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
             state = Path(directory) / "state"; state.mkdir()
+            if initial_owner_costs is not None:
+                (state/'allocation-latest.json').write_text(json.dumps({'owner_period_operating_costs':initial_owner_costs}))
             release = Path(directory) / "release"; catalog = release_fixture(release, "b" * 40)
             data = json.loads(catalog.read_text())
             data["loops"][0]["job_ids"].append("alpaca-investment-live")
@@ -852,7 +1029,42 @@ class PortablePassTest(unittest.TestCase):
             rows = [json.loads(line) for line in (state / "receipts.jsonl").read_text().splitlines()]
             pending = EFFECT_STORE.unresolved_intent_count(state / "receipts.jsonl")
             submit.assert_not_called()
+            if allocation_capture is not None and (state/'allocation-latest.json').exists():
+                allocation_capture.update(json.loads((state/'allocation-latest.json').read_text()))
             return code, rows, steps, pending
+
+    def test_local_hold_reports_owner_period_costs_without_a_trade(self):
+        snapshot={'report_scope':'owner_period_operating_costs','model_cost_usd':None,'net_pnl_usd':None,
+            'capital_expansion_allowed':False}
+        saved={}
+        with patch.object(MODULE,'read_owner_period_costs',return_value=snapshot,create=True) as costs:
+            code,rows,_steps,pending=self._capture_case(configured_owner='alpaca-investment-paper',allocation_capture=saved)
+        self.assertEqual(code,0);self.assertEqual(pending,0)
+        costs.assert_called_once()
+        self.assertEqual(saved.get('owner_period_operating_costs'),snapshot)
+        self.assertEqual(saved['action'],'HOLD')
+
+    def test_owner_period_reader_gets_full_paper_economic_context(self):
+        scope={'owner_id':'alpaca-investment-paper','mode':'paper','paper':True,'order_ids':['buy','sell'],
+            'period_start':'2026-10-16T00:00:00Z','closed_at':'2026-10-17T01:00:00Z','source_receipt_ids':['native-fill']}
+        producer={'completed_round_trips':0,'completed_round_trips_total':1,'expected_cost_inventory':{'scopes':[]},
+            'economic_cost_scopes':[scope]}
+        with patch.object(MODULE,'write_paper_performance',return_value=producer),              patch.object(MODULE,'read_owner_period_costs',return_value={},create=True) as costs:
+            code,_rows,_steps,_pending=self._capture_case(configured_owner='alpaca-investment-paper')
+        self.assertEqual(code,0)
+        self.assertEqual(costs.call_args.kwargs['economic_scopes'],[scope])
+
+    def test_owner_period_reporting_interruption_retains_previous_snapshot(self):
+        previous={'report_scope':'owner_period_operating_costs','owner_id':'alpaca-investment-paper',
+            'mode':'paper','paper':True,'observed_at':'2026-10-17T01:00:00Z',
+            'known_operating_cost_source_evidence':[],'model_cost_usd':None}
+        saved={}
+        with patch.object(MODULE,'read_owner_period_costs',side_effect=RuntimeError('isolated reporting interruption'),create=True):
+            code,_rows,_steps,pending=self._capture_case(configured_owner='alpaca-investment-paper',
+                initial_owner_costs=previous,allocation_capture=saved)
+        self.assertNotEqual(code,0);self.assertEqual(pending,0)
+        self.assertEqual(saved['owner_period_operating_costs'],previous)
+        self.assertEqual(saved['action'],'HOLD')
 
     def test_paper_capture_does_not_accept_live_or_default_live_owner(self):
         for owner in (None, "alpaca-investment-live"):

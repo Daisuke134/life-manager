@@ -24,13 +24,13 @@
     "asset_class": "crypto",
     "notional_usd": "10.00",
     "side": "buy",
-    "symbol": "BTC/USD",
+    "symbol": "BTC/USDC",
     "time_in_force": "gtc",
     "type": "market"
   },
   "paper_proposal": {
     "approved": true,
-    "candidate_ref": "crypto://BTC/USD",
+    "candidate_ref": "crypto://BTC/USDC",
     "deployment": "local",
     "gate": "approved",
     "mode": "paper",
@@ -51,7 +51,7 @@
   },
   "shadow_proposal": {
     "approved": true,
-    "candidate_ref": "crypto://BTC/USD",
+    "candidate_ref": "crypto://BTC/USDC",
     "deployment": "local",
     "gate": "approved",
     "mode": "shadow",

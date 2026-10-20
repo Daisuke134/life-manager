@@ -144,7 +144,8 @@ def _output(sealed: dict[str, str], result: dict, submitted: bool, deployment: s
 def main() -> int:
     credentials, state, cli, deployment = _paths()
     ledger = state / "receipts.jsonl"
-    sealed = seal(ledger, _decision(deployment), ORDER)
+    with control_fence(state):
+        sealed = seal(ledger, _decision(deployment), ORDER)
     existing = read_live_canary(
         credentials_path=credentials, cli_path=cli, client_order_id=sealed["client_order_id"])
     durable = effect_state(ledger, sealed["effect_id"])

@@ -4,7 +4,7 @@ import copy
 import unittest
 from datetime import datetime, timedelta, timezone
 
-from strategy_policy import build_validation_candles
+from strategy_policy import build_validation_candles, candidate_cards, evaluate
 
 
 def _bars(count: int = 60) -> list[dict[str, str]]:
@@ -23,6 +23,70 @@ def _bars(count: int = 60) -> list[dict[str, str]]:
 
 
 class ValidationFeatureTests(unittest.TestCase):
+    def test_v2_uses_identical_finite_input_for_runtime_and_validation(self):
+        from decimal import Decimal
+        from strategy_validation import _condition
+        source = _bars(800)
+        for index, row in enumerate(source):
+            close = Decimal(1000 if index < 705 else 100+index-705)
+            row.update(o=str(close), h=str(close+Decimal(".01")), l=str(close-Decimal(".01")), c=str(close))
+        strategy = "alpaca-btc-5m-trend-400-v2"
+        card = candidate_cards()[strategy]
+        candle = build_validation_candles(source, strategy)[-1]
+        clock = (datetime.fromisoformat(source[-1]["t"].replace("Z", "+00:00"))+timedelta(minutes=5)).isoformat()
+        snapshot = {"clock": {"timestamp": clock}, "crypto_history": {"BTC/USDC": source},
+                    "crypto": [{"symbol": "BTC/USDC", "bid": "193.99", "ask": "194", "quote_at": clock}],
+                    "positions": 0, "position": None, "open_orders": 0, "unresolved_intents": 0}
+        decision = evaluate(snapshot, card)
+        self.assertEqual(decision["action"] == "ENTER", _condition(card.entry_rules, candle))
+        self.assertEqual(decision["action"], "NO_TRADE")
+        self.assertEqual(decision["reason"], "signal_false")
+        self.assertEqual(candle["indicator_history_stable"], "1")
+        # Prefixes older than the declared comparison window cannot affect inputs.
+        changed = _bars(400)+source
+        start = datetime(2025,12,30,14,40,tzinfo=timezone.utc)
+        for i,row in enumerate(changed):
+            row["t"] = (start+timedelta(minutes=5*i)).isoformat()
+        self.assertEqual({k:v for k,v in candle.items() if k != "timestamp"},
+                         {k:v for k,v in build_validation_candles(changed,strategy)[-1].items() if k != "timestamp"})
+
+    def test_v2_does_not_assume_400_bars_are_universally_stable(self):
+        from decimal import Decimal
+        source = _bars(1200)
+        for i,row in enumerate(source):
+            close=Decimal("100000" if i<800 else "100" if i<1199 else "100.02")
+            row.update(o=str(close),h=str(close+Decimal(".01")),l=str(close-Decimal(".01")),c=str(close))
+        candle=build_validation_candles(source,"alpaca-btc-5m-trend-400-v2")[-1]
+        self.assertEqual(candle["indicator_history_stable"],"0")
+        self.assertEqual(build_validation_candles(source[:400],"alpaca-btc-5m-trend-400-v2"),[])
+
+    def test_real_core_evaluates_all_numeric_neighbors_for_both_v2_cards(self):
+        from strategy_validation import validate_series
+        # Synthetic feature contract fixture, not provider data or performance evidence.
+        for kind in ("trend", "reversion"):
+            with self.subTest(kind=kind):
+                card=candidate_cards()[f"alpaca-btc-5m-{kind}-400-v2"]
+                candles=[]
+                for i in range(10):
+                    stamp=(datetime(2026,1,1,tzinfo=timezone.utc)+timedelta(minutes=5*i)).isoformat()
+                    price="100" if i%2==0 else "110"
+                    features={"close":price,"atr_14":"1"}
+                    if kind=="trend":
+                        features.update(ema_20="105" if i%2==0 else "120",ema_50="100",prior_20_high="99")
+                    else:
+                        features.update(rsi_14="20" if i%2==0 else "80",tema_9="90",
+                                        bollinger_middle_20_2="100",bollinger_upper_20_2="120")
+                    candles.append({"timestamp":stamp,"open":price,"high":price,"low":price,
+                                    **features,**{f"reference_{key}":value for key,value in features.items()},
+                                    "indicator_history_stable":"1",
+                                    "quote_to_usd":{"currency":"USDC","rate":"1","timestamp":stamp,
+                                                    "evidence_ref":"fixture:fx"}})
+                report=validate_series(card,candles,{},card.to_mapping()["cost_model"])
+                self.assertEqual(report["parameter_sensitivity"]["status"],"evaluated")
+                self.assertEqual(report["parameter_sensitivity"]["positive_count"],9)
+                self.assertEqual(report["decision"],"paper")
+                self.assertEqual(report["net_pnl_usd"],"4.70")
+
     def test_trend_features_start_after_warmup_and_use_only_past_bars(self):
         source = _bars()
         changed_future = copy.deepcopy(source)

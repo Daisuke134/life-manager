@@ -46,6 +46,121 @@ def _costs():
 
 
 class StrategyValidationTests(unittest.TestCase):
+    def test_sensitivity_changes_numeric_literals_not_indicator_names(self):
+        from strategy_validation import _find_parameter, _replace_path
+        expressions = {"all": ["ema_20 > ema_50", "close > prior_20_high"]}
+        self.assertIsNone(_find_parameter(expressions))
+        for text, literal in (("rsi_14 <= 30", "30"),
+                              ("close <= entry_price - 2 * atr_14", "2"),
+                              ("tema_9 < bollinger_middle_20_2", None),
+                              ("close <= 1e-3", "1e-3")):
+            with self.subTest(expression=text):
+                found=_find_parameter({"all":[text]})
+                if literal is None:
+                    self.assertIsNone(found)
+                else:
+                    self.assertIsNotNone(found)
+                    path,_step=found
+                    self.assertEqual(text[path[-2]:path[-1]],literal)
+                    changed=_replace_path({"all":[text]},path,"7")
+                    self.assertNotIn("rsi_17",changed["all"][0])
+                    self.assertNotIn("atr_17",changed["all"][0])
+
+    def test_reference_dummy_does_not_fill_missing_comparison_from_actual(self):
+        mapping=_card().to_mapping()
+        mapping["kill_conditions"].append("indicator_history_unstable")
+        candles=_candles([90,110]*5)
+        for row in candles:
+            row.update(indicator_history_stable="1",reference_dummy="1")
+        result=validate_series(StrategyCard.from_mapping(mapping),candles,_split(),_costs())
+        self.assertEqual(result["status"],"unknown")
+        self.assertEqual(result["decision"],"rejected")
+        self.assertIsNone(result["net_pnl_usd"])
+
+    def test_required_indicator_history_comparison_is_not_optional(self):
+        mapping=_card().to_mapping()
+        mapping["kill_conditions"].append("indicator_history_unstable")
+        result=validate_series(StrategyCard.from_mapping(mapping),_candles([90,110]*5),_split(),_costs())
+        self.assertEqual(result["status"],"unknown")
+        self.assertEqual(result["reason"],"indicator_history_unknown")
+        self.assertIsNone(result["net_pnl_usd"])
+
+    def test_indicator_reference_predicate_disagreement_is_unknown(self):
+        candles=_candles([90,110]*5)
+        for row in candles:
+            row["indicator_history_stable"]="1"
+            row["reference_close"]="1000"
+        result=validate_series(_card(),candles,_split(),_costs())
+        self.assertEqual(result["status"],"unknown")
+        self.assertEqual(result["decision"],"rejected")
+        self.assertIsNone(result["net_pnl_usd"])
+
+    def test_non_usd_quotes_use_entry_and_exit_fx_without_changing_signals(self):
+        mapping = _card().to_mapping()
+        mapping["instruments"] = ["TEST/USDC"]
+        candles = _candles([90, 100, 110, 90, 100, 110, 90, 110, 90, 110])
+        for row in candles:
+            row["quote_to_usd"] = {
+                "currency": "USDC", "rate": "0.8" if row["close"] == "110" else "0.9",
+                "timestamp": row["timestamp"], "evidence_ref": "official-fx-bar-fixture",
+            }
+        result = validate_series(StrategyCard.from_mapping(mapping), candles, _split(), _costs())
+        trade = result["trades"][0]
+        self.assertEqual(trade["entry_price"], "90")
+        self.assertEqual(trade["exit_price"], "110")
+        self.assertEqual(trade["gross_pnl_usd"], "8.64")
+        self.assertEqual(trade["fees_usd"], "0.21")
+        self.assertEqual(trade["slippage_usd"], "0.10")
+        self.assertEqual(trade["net_pnl_usd"], "8.33")
+        self.assertEqual(trade["entry_quote_to_usd"]["rate"], "0.9")
+        self.assertEqual(trade["exit_quote_to_usd"]["rate"], "0.8")
+
+    def test_missing_or_invalid_quote_conversion_cannot_report_usd_profit(self):
+        mapping = _card().to_mapping()
+        mapping["instruments"] = ["TEST/USDC"]
+        base = {"currency": "USDC", "rate": "0.9",
+                "timestamp": "2026-01-01T00:00:00+00:00", "evidence_ref": "official-fx"}
+        for invalid in (None, {}, {**base, "currency": "EUR"},
+                        {**base, "rate": "NaN"}, {**base, "rate": "Infinity"},
+                        {**base, "rate": "0"}, {**base, "rate": "-1"},
+                        {**base, "rate": True}, {**base, "evidence_ref": " "},
+                        {**base, "timestamp": "2026-01-01T00:01:00+00:00"}):
+            with self.subTest(conversion=invalid):
+                candles = _candles([90, 110] * 5)
+                for row in candles:
+                    row["quote_to_usd"] = {**base, "timestamp": row["timestamp"]}
+                candles[0]["quote_to_usd"] = invalid
+                result = validate_series(StrategyCard.from_mapping(mapping), candles, _split(), _costs())
+                self.assertEqual(result["status"], "unknown")
+                self.assertEqual(result["decision"], "rejected")
+                self.assertIsNone(result["net_pnl_usd"])
+                self.assertIsNone(result["holdout"]["net_pnl_usd"])
+                self.assertEqual(result["trades"], [])
+
+    def test_ambiguous_instrument_currency_is_not_assumed_usd(self):
+        for instruments in (["TEST"], ["TEST/USD", "OTHER/USDC"], ["/USD"], [None], [1], [{}], [[]]):
+            with self.subTest(instruments=instruments):
+                mapping = _card().to_mapping()
+                mapping["instruments"] = instruments
+                result = validate_series(StrategyCard.from_mapping(mapping), _candles([90, 110] * 5),
+                                         _split(), _costs())
+                self.assertEqual(result["status"], "unknown")
+                self.assertIsNone(result["net_pnl_usd"])
+
+    def test_quote_conversion_metadata_is_detached_and_json_serializable(self):
+        from datetime import datetime
+        from decimal import Decimal
+        mapping = _card().to_mapping()
+        mapping["instruments"] = ["TEST/USDC"]
+        candles = _candles([90, 110] * 5)
+        for row in candles:
+            row["quote_to_usd"] = {"currency": "USDC", "rate": Decimal("1"),
+                "timestamp": datetime.fromisoformat(row["timestamp"]), "evidence_ref": "fx"}
+        result = validate_series(StrategyCard.from_mapping(mapping), candles, _split(), _costs())
+        json.dumps(result)
+        self.assertIsInstance(result["trades"][0]["entry_quote_to_usd"]["rate"], str)
+        self.assertIsInstance(candles[0]["quote_to_usd"]["rate"], Decimal)
+
     def test_train_validation_holdout_are_separate(self):
         result = validate_series(
             _card(),

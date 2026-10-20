@@ -12,7 +12,7 @@ from risk_policy import evaluate_entry
 from etf_ownership import investment_owner_id
 from strategy_policy import (ACTION_ENTER, ACTION_EXIT, ACTION_NO_TRADE, ALLOWED_ACTIONS,
                              BTC_SYMBOLS, CANONICAL_SYMBOL, ETF_STRATEGY_ID,
-                             ETF_SYMBOLS, evaluate,
+                             ETF_SYMBOLS, INDICATOR_HISTORY_CONTRACTS, evaluate,
                              load_selected_card)
 
 
@@ -205,11 +205,13 @@ def choose(snapshot: dict[str, Any], candidates: list[dict[str, Any]], state: Pa
             "gate": "candidate_not_offered",
             "observed_at": observed_at,
         }
-    decision = {**policy, "candidate_ref": offered["candidate_ref"], "release_sha": release_sha}
+    decision = {**policy, "candidate_ref": offered["candidate_ref"], "release_sha": release_sha,
+                "owner_id": investment_owner_id(), "mode": snapshot.get("mode")}
     if card.strategy_id == ETF_STRATEGY_ID:
-        decision["owner_id"] = investment_owner_id()
         decision["position"] = snapshot.get("position")
     gated = gate(snapshot, candidates, decision)
+    if gated["approved"] and decision.get("action") == ACTION_ENTER:
+        gated["policy_card"] = card.to_mapping()
     gated["observed_at"] = observed_at
     return gated
 
@@ -276,12 +278,23 @@ def gate(snapshot: dict[str, Any], candidates: list[dict[str, Any]], decision: d
             "paper_mode": (not is_equity) or snapshot.get("mode") == "paper",
             "regular_session": (not is_equity) or snapshot.get("clock", {}).get("is_open") is True,
         }
+        if not is_equity:
+            mode = snapshot.get("mode")
+            checks["owner_mode"] = (mode in ("paper", "live") and decision.get("mode") == mode
+                                    and decision.get("owner_id") == f"alpaca-investment-{mode}")
+        strategy_id = decision.get("strategy_id")
+        checks["entry_policy_active"] = (not is_equity and isinstance(strategy_id, str)
+                                          and strategy_id in INDICATOR_HISTORY_CONTRACTS)
+        legacy_btc = strategy_id in {contract[0] for contract in INDICATOR_HISTORY_CONTRACTS.values()} if isinstance(strategy_id, str) else False
         approved = all(checks.values()) and candidate.get("asset_class") in {
             "crypto", "us_equity",
         }
         return {**decision, "approved": approved, "candidate": candidate,
                 "checks": checks, "fixed_risk": fixed_risk,
-                "gate": "approved" if approved else "risk_rejected"}
+                "gate": ("legacy_etf_entry_retired" if is_equity
+                         else "legacy_btc_entry_retired" if legacy_btc
+                         else "entry_policy_unknown" if not checks["entry_policy_active"]
+                         else "approved" if approved else "risk_rejected")}
     if ref == "NO_TRADE":
         return {**decision, "approved": False, "gate": "model_no_trade"}
     candidate = offered.get(ref)
