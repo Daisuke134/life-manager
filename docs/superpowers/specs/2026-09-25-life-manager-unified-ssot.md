@@ -2,7 +2,7 @@
 
 ## 現況監査とCapafy優先の統括cursor
 
-**目的・範囲・完了条件:** ローカルLife Managerの既存設計を継承し、全業務の自然実行・配信・公式収入・費用後利益・評価付き自己改善まで、既存C1–C9を一件ずつ進める。C1のexact no-effect閉鎖と、C2の容量基準回復/現在状態保持/配信公開/factory自然提出は確認済み。C2の履歴clock・個別gap・永続容量安定は未完を保持し、business cursorをC3の流入帰属訂正と収益計測へ進める。Daisの継続実行指示の範囲で実装・必要検証・通常反映を行い、全社/各laneの目標、未知の費用/真のMRR、benchmark/AGIの未証明を縮めない。新しいSSOT・競合scheduler・cloudの別実装は作らない。
+**目的・範囲・完了条件:** ローカルLife Managerの既存設計を継承し、全業務の自然実行・配信・公式収入・費用後利益・評価付き自己改善まで、既存C1–C9を一件ずつ進める。C1のexact no-effect閉鎖と、C2の容量基準回復/現在状態保持/配信公開/factory自然提出は確認済み。C2の履歴clock・個別gap・永続容量安定は未完を保持し、business cursorはC5の既存sellerの配信・購入へ進める。C3の計測整備は売上行動の前提にしない。Daisの継続実行指示の範囲で実装・必要検証・通常反映を行い、全社/各laneの目標、未知の費用/真のMRR、benchmark/AGIの未証明を縮めない。新しいSSOT・競合scheduler・cloudの別実装は作らない。
 
 **証拠の範囲:** 対象ownerのsource採用はC2/C3で個別に確認し、factoryはmain `0c071d282e308cc351410bc4cf2b79e46b557956`まで、管理対象の最新snapshotは19:16:40Zの`lm-loop status all --json`、金銭は以下に保存観測時刻を明示する公式readbackを使う。初期監査の[証拠](../../evidence/capafy-rsi-status-20261020.json)を最新観測へ上書きせず、追加の正規seller/package GET・SDK canary・採用・exact閉鎖は以下のC2/C4証拠を参照する。生credential・署名URLをrepoへ保存しない。
 
@@ -103,7 +103,7 @@
 | C8 OPEN | EDD-FLEET-01/02/03、DD12、CD8/CD9：79 unmapped jobsをproduct所属または明示的な補助・基盤ownerへ分類し、18業務の共通receipt/costとtyped recoveryを展開する | lane別verified/zero/unknownとcoverage、業務目的別の自然成果、費用後会社profitが追える。CFO/Connectorは補助成果、Fundraiserはfinancing。無料outreach/OSSは既存gate後、installや登録を売上と呼ばない |
 | C9 OPEN | CD10/E03–E06/H01–H04/I01–I04：自然trace/独立held-out、fixed baseline/repeated trials、回復と利益改善を別評価する | 既存LM-EABを拡張しcost/latency/介入/汎化/公式netを報告。public synthetic PASSとAGI/収益能力を区別。会社全体$10M MRR目標と既存lane別目標を縮めない |
 
-**統括順序更新と現在cursor:** 旧順=C2の全基盤残件を閉じる→C3→C4→C5→C6→C7。新順=C2のCapafy供給/配信/金銭照合の自然復帰（確認済み）→C3のsource帰属訂正・同一窓scorecard→C4の無料cohort→C5の単一候補→C6の成熟実費後評価→C7の新paid/MRR。C2のglobal履歴clock・12個別gap・永続容量安定は既存基盤ownerの未完作業として保持し、C8以降の全業務要件も維持する。理由はCapafyの直接公式readbackと自然runが使える一方、履歴単独は42秒で30秒期限を超え、収益計測をその全改修待ちにする依存がないため。進行中の次factory runや外部effectは中断・再送しない。現在business cursor=C3/source×Agent scorecardの窓・lineage・費用coverage照合。
+**統括順序更新と現在cursor:** 旧順=C3計測/費用/report修正→C4無料cohort→C5配信→C6評価→C7新paid。新順=C5既存sellerの購入可能導線と配信候補→既存ownerで配信→C7新paid照合→C6成熟した実購入結果による採否→勝った配信の拡大。C4は既存無料導線の改善として実売上への距離で優先し、分母の完全修復を有料商品の配信前提にしない。理由はDaisの明示訂正と、61掲載/直近7日paid0の状況で商品の供給数や財務report整備より買い手獲得と購入が不足するため。現在cursor=C5/R01（既存sellerの購入導線と最初の配信候補）。C2/C3/C8の残件は保持し、実際に公開・購入・顧客対応を止める欠陥だけをその収益行動の直前に解消する。稼働中owner/外部effectの中断・重複送信はしない。
 
 **C3の一次資料による帰属訂正とbounded仕様:** 公式[TrafficSources UI asset](https://capafy.ai/assets/TrafficSources-CjDavuEU.js)はraw `sourceType`を保持し、`internal`を`In-app`、`referrer`を`Referrer`として表示する。collectorの`_traffic_merge`も値を保持する。19:07:38Z取得窓のHook Labはinternal/ai_overview15・internal/search11・referrer/google5で、selectorの合計31は内部26＋Google referrer5という混合signal。Google AI Overview由来、16 keyword記事の因果成果、SEO勝者という説明は証明できないため撤回する。Google referrer5にもAI Overview内訳や記事との対応はない。fresh read-only検証は同asset SHA256 `a45f7b215a271ef3fee7ce84d1b7e7a01d9ab4b41304946ebfa8dfb7b675feb6`と分類・正規化を独立照合し、最小の説明訂正を推奨する。owner=`codex-capafy-source-attribution`、worktree=`.worktrees/capafy-source-attribution-20261021`、branch=`fix/capafy-source-attribution-20261021`、base main=`16c097c076851ca5cf3b7081df37aeea2f879bce`。変更範囲は正本、pick_seo_keyword.pyのmodule doc、capafy-distribute-daily.shのSEO comment、select_capafy_distribute_skill.pyのdocstrings、既存testのGoogle断定commentだけ。rotationの計算・keyword選択・投稿・価格・登録CT・grader/split/windowは変更せず、説明と実装の乖離を解消する。非docstring ASTとshell非comment行の同一性、差分、通常CI/mainを確認する。C3全scorecard/費用coverage・C4–C9・売上改善は本atomで完了扱いしない。証拠はprivate C3 `c3-independent-ai-overview-classification-verification-195901.json`と公式readback。
 
@@ -139,7 +139,7 @@
 
 **C3 samplingのsource/main/採用 / portfolio自然coverageは未確認:** baseline49→6 RED→collector56/関連92 PASS。独立round1は2862 sampling/budget/clockケースを確認し、循環で省略されるsettled値を既存caller/parserが実測0へ変える1 blocking/P2を再現する。missing agent/d30/d7の3 RED→2callerのinternal error sentinelでnullを保持し、collector59/関連95 PASS。round2は0 findings/0 blocking、欠落234ケースと78件/保護5/各回省略18件の両窓を確認し、取得成功0/既知売上/settled以外の全出力を維持する。独立側は実FSの全59/95件・contractを再実行せず、primaryと分離する。PR #8448のexact HEAD `07b67da665ba34747846d7fa42e01d957ebb363c`は全12 CI PASS、main `219374ce38ac9fc808b6cab8fb1565095c5c1d76`へ統合する。ALL immutable `20261021T074513-219374ce`は8940 filesのmain bytes一致/書込不可。既存78 inventoryを使う模擬23/00時canaryは各60/union78/保護5維持とmissing null/observed zeroを確認する（自然取得ではない）。22:46:39Zの実1単位canaryは、旧snapshotで未取得かつ新枠に入るAgent2590720317の7日views5/paid0、traffic/impressionsともfreshを正規developer API3読取で確認する。primaryの商品ページ訪問/購入/外部変更/production state書込は0。通常current promotionとhourly ownerだけのloaded-idle applyはchanged=true/ok=true/install event `2ba2f2874d7b6427ed0332f6`。22:48:23Zのlive argv/LIFE_MANAGER_REPO/current一致、Minute7 calendar/未確定fenceなしを確認する。既存hourly stdoutには完全receipt JSONが残るため、新observer/collectorは追加せず、23:07以降の連続自然結果を既存記録から照合する。query ID unionだけで完了にせず、Agent×windowごとのfresh結果と実inventory集合を確認する。異なる取得窓を同一cohortや同時点利益へ合算しない。連続自然coverage・費用同一窓/帰属・新paid/会社利益・Reel09:41・C4–C9/全18業務は未完。証拠=`c3-agent-sampling-independent-review.txt`、`c3-agent-sampling-delta-review.txt`、`c3-agent-sampling-real-inventory-canary.json`、`c3-agent-sampling-immutable-canary.json`、`c3-agent-sampling-live-one-unit-canary.json`、`c3-agent-sampling-loaded-readback.json`。
 
-**C3 cost scopeの次atom / 現在診断cursor:** owner/専用worktreeを継続し、branch=`fix/capafy-c3-cost-scope-20261021`、base main=`219374ce38ac9fc808b6cab8fb1565095c5c1d76`。既存C3の連続自然coverage待機中に、同じC3の費用期間/キー・workspace scope/Agent按分を読み取り専用で照合する。最初にcollectorのOpenRouter呼出し/実payload構造・as-of・Capafyの各収益窓を確認し、management endpointの一次仕様とprivate credential SSOTの完全一致serviceを使う。secret値は出力/複製せず、必要なkey lineageやscope metadataだけ私有証拠に保持する。activityのmin/max dateをquery coverageや同一収益窓とせず、現在keyだけで過去の全Capafy costを保証しない。list-price比例配賦はAgent invoiceではなく寄与推計のまま扱い、subscription固定費/他model/host/fee/settlementの欠測を0へ置かない。provider設定/キー/課金/モデル/価格/FROZEN/leaseを変更せず、制約を満たすself-owned bookkeeping修正が必要と分かった時だけ正本のbounded scopeを先に更新して最小RED→修正→独立確認→通常反映へ進む。Reel09:41自然回、samplingの23:07/00:07以降、C4 cohort/比較配信/成熟paid/全18業務/benchmarkの成果条件は維持する。
+**C3 cost scopeの診断履歴 / 現在は後順位:** owner/専用worktreeを継続し、branch=`fix/capafy-c3-cost-scope-20261021`、base main=`219374ce38ac9fc808b6cab8fb1565095c5c1d76`。既存C3の連続自然coverage待機中に、同じC3の費用期間/キー・workspace scope/Agent按分を読み取り専用で照合する。最初にcollectorのOpenRouter呼出し/実payload構造・as-of・Capafyの各収益窓を確認し、management endpointの一次仕様とprivate credential SSOTの完全一致serviceを使う。secret値は出力/複製せず、必要なkey lineageやscope metadataだけ私有証拠に保持する。activityのmin/max dateをquery coverageや同一収益窓とせず、現在keyだけで過去の全Capafy costを保証しない。list-price比例配賦はAgent invoiceではなく寄与推計のまま扱い、subscription固定費/他model/host/fee/settlementの欠測を0へ置かない。provider設定/キー/課金/モデル/価格/FROZEN/leaseを変更せず、制約を満たすself-owned bookkeeping修正が必要と分かった時だけ正本のbounded scopeを先に更新して最小RED→修正→独立確認→通常反映へ進む。Reel09:41自然回、samplingの23:07/00:07以降、C4 cohort/比較配信/成熟paid/全18業務/benchmarkの成果条件は維持する。
 
 **到達した状態の定義:** self-healingは既知障害からdurable進捗が自然再開すること。self-improvingは比較可能な評価・実市場成果で採用した変更を次の実行が使用すること。全社最適化は、通貨/窓/実費を保持して限界利益と不確かさから実行枠を配分し、探索枠を残しながら損失/重複/顧客義務の制約を守ること。投稿数、出品数、model judgeの好み、process passだけではいずれも完了にしない。利益の絶対最大値/毎回の増益は市場不確実性のため証明できず、改善を測って保持/撤回できる閉路を受け入れ対象にする。
 
@@ -160,33 +160,34 @@
 
 private証拠は既存`~/.local/state/life-manager/reconciliation/capafy-c1-20261021/`の`c3-cost-scope-official-activity-readback.json`、`c3-cost-scope-key-workspace-readback.json`、`c3-cost-scope-filtered-key-readback.json`、`c3-cost-scope-capafy-overlap-window.json`、`c3-cost-scope-allocation-precision-replay.json`、`c3-profit-report-period-and-bank-claim-replay.json`。credential値・署名URL・key hashは本正本へ複製しない。
 
-**順序変更・現在cursor:** 旧=C3費用scope診断→按分precision→残る期間/Agent帰属照合。新=費用scope診断（上記まで確認）→誤った銀行/利益reportを修正→按分precisionと未配賦表示→期間/creator/Agent帰属照合。理由は、再現した$71.37の誤表示が経営判断を直接誤らせるため。現在cursorは下表A01のsource修正前。23:07/00:07 UTC以降のhourly自然coverageと09:41 JSTのReel自然回は既存ownerのまま観測し、収益行動を全社基盤残件の解消待ちにしない。C1完了を戻さず、C2/C3は未完、C4部分完了、C5–C9未完を維持する。
+**中止した着手:** 利益report修正branch `fix/capafy-profit-report-20261021`にはbounded仕様commitだけを保存する。未commitの今回作成testは撤去し、report/callerの本番sourceは変更しない。修正の実装・PR・release・本番反映は行わず、下記の後順位へ戻す。以前のA01–A21 finance-first順序は廃止し、残件と現在cursorは次のR01–R16へ集約する。
 
-| 実行索引 | 一つの未完作業 | 閉じる証拠 |
+### 収益優先原則と残るatomic TODOの正本
+
+**優先原則:** Capafyを先頭pilotとし、実際の顧客獲得・購入・継続収入を増やす作業を最優先する。優先順は「購入可能な既存seller→無料の配信と明確なCTA→新paid→売れた施策の拡大」。reportの見栄え、CFO整理、費用按分の精密化、全社監視の完全性、benchmark整備を配信/販売開始の前提にしない。計測は既存の公式売上・既存CT・既存receiptから意思決定に必要な最小限を使い、売上不振を計測framework作りへ置き換えない。修復を先行させるのは、公開/購入/顧客対応を実際に止める障害、重複送信、確認済みの金銭漏れなど、そのままでは収益行動が失敗する根拠がある時だけ。未確認の利益/入金/成果を断定せず、既存spend-cap・FROZEN・effect fence・credential保護は維持する。
+
+**今回の依頼範囲:** 既存specの現況と正しい優先順を更新し、チャットにatomic TODOを示す。追加投稿/商品変更/本番操作の完了を主張しない。全18業務/191 managed jobs、C1–C9、未確認MRR/利益/AGIの範囲は保持する。
+
+| 順序・状態 | 次に行う一つの作業 | 成果と最小の確認 |
 |---|---|---|
-| A01 / C3・現在 | 既存利益reportの期間混在・銀行/振込可能/利益の断定・欠測0化を修正する | 最小回帰test、独立金融read-only review、CI/main、対象owner採用と次の自然reportで原系列/期間/unknownを確認。入金receiptなしで銀行利益を出さない |
-| A02 / C3 | Agent按分weightのcent丸めによる正費用の消失を修正する | 正の微小weightを保持する回帰testと自然snapshot。未配賦model費用/推計の限界を保持 |
-| A03 / C3 | vendor費用とcreator earningsを同じ期間・宣言キー履歴・workspaceで照合する | 余分な日・creator差額の根拠を記録し、観測外日や欠測費用を0へ置かない |
-| A04 / C3 | Agent/requestと歴史model/vendor costの対応を調べる | 確定joinまたは具体的なcoverage不足をscorecardへ表示。25対12,167を無根拠に同一request系列へ合算しない |
-| A05 / C3・自然回待ち | 新samplingの連続自然2枠を既存hourly receiptで確認する | 安定inventory78のAgent×窓のfresh結果をunion照合。cap60/保護5、omitted/missingと実測0を区別。模擬union78は代用不可 |
-| A06 / C2・自然回待ち | Reel修正後の自然09:41回を確認する | loaded SHA→自然生成/終端→公式schedule/PUBLISHED→公開CTAの証拠。canary成功だけでは閉じない |
-| A07 / C2 | factory offline childの新source schemaを自然回で確認する | child結果/source commit/候補ID→既存backlogの対応。親run成功やready総数だけでは閉じない |
-| A08 / C4 | Hook Grader無料利用cohortとHook Lab訪問/paidの分母を結ぶ | 同一商品・利用者cohort・期間の転送率/paid。既存shared CT36やviews81の単純除算は禁止。未達の時だけ既存契約のlead magnet1件へ進む |
-| A09 / C5 | 同対象・媒体・目的の勝ち筋を確認し、既存商品で配信候補1件を作る | 参照URL/検証できた成果/模倣する仕組み、実入力→実出力demo。成功証拠がない場合は穴を明記した小実験 |
-| A10 / C5 | その候補の比較条件を凍結する | 一商品/offer/channel、control/割当単位、成熟期間、費用cap/停止規則、click可能CTA/登録CT、自己probe除外 |
-| A11 / C5 | 既存ownerで候補を配信し購入導線を確認する | native公開receipt、qualified reach/click→activationの対応。投稿数/HTTP200だけを成功にしない |
-| A12 / C6 | 成熟したpaid/refund/費用で候補を判定する | retain/reject/inconclusiveと理由。候補diff→凍結eval→配信→成熟結果の自律1 cycle。sample不足でwinnerを作らない |
-| A13 / C7 | 最初の新規有料購入を公式照合で確認する | orders>70 AND gross>$102.75、新paidの公式証拠。無料trial・掲載・過去売上を加えない |
-| A14 / C7 | active/cancel/churnとsettlementの公式源を接続する | true MRRと入金を分ける。取得不能はunknownを保持し集客/新paidを止めない |
-| A15 / C2 | 履歴clockの期限超過を修復する | 同owner条件の自然監視が契約期限内に履歴を保持。期限延長や欠測正常化で閉じない |
-| A16 / C2 | 個別telemetry gap・未確定effect・失敗をowner単位で閉じる | 各exact occurrenceのtyped原因→修正→自然terminal/公式readback、再送0。全体件数だけで正常化しない |
-| A17 / C2 | 容量回復の永続性を自然運転で確認する | 10/12GiB既存floorとfresh admissionを維持。保護store削除/基盤restart/floor低下なし |
-| A18 / C8 | 79 unmapped jobsの所属を分類する | productまたは明示的な補助/基盤ownerへ全件対応し、重複集計しない |
-| A19 / C8 | 全18業務へ自然成果・費用・typed recoveryの評価を適用する | 各laneのverified/zero/unknown、公式成果/費用coverage、自然復旧。financing/投資元本を顧客売上へ加えない |
-| A20 / C9 | 自己改善を独立held-outと固定baselineで反復比較する | 自然trace、cost/latency/介入/回復/汎化/公式経済成果。公開synthetic PASSをAGI証明にしない |
-| A21 / C6–C9 | 成熟した費用後成果を基に次の配信資源を配分し、改善cycleを継続する | $100→$1K→$10K等のMRR目標と会社全体$10M目標を実測で追う。収益の単調増加・最大化・AGI達成を保証せず、悪化候補は既存契約で棄却/復帰 |
+| R01 / C5・現在 | 既存seller Hook Labの掲載中商品・価格・登録CTの購入導線を確認する | 買い手が開ける商品と購入経路。既存公式証拠を再利用し、全61商品の再監査を始めない。FROZEN商品は編集しない |
+| R02 / C5 | 同対象/媒体/目的の成功事例から最初の配信候補の勝ち筋を選ぶ | 参照URL、確認できた成果、模倣する仕組み。ViralShortsのSold93はpaid/配信成功の証明ではない。適例不足なら小実験と明記し停止しない |
+| R03 / C5 | 自社の実入力→実出力を見せるHook Labの配信用demoを1件作る | 商品価値が伝わる実例と、購入へ進める単一CTA。権利物/未確認成果をコピーしない |
+| R04 / C5 | 既存記事ownerでdemoを含む無料記事を公開する | 公開URLとHook Lab登録CT。既存control/割当単位/観測期間/費用上限を最小限固定。詳細な費用按分やC4完了を待たない |
+| R05 / C5 | 既存X ownerで同じ商品のnative投稿/買えるCTAを公開する | native公開receiptと実際のlink先。記事・Xの既存配信を止めず、重複slot/送信を作らない |
+| R06 / C5・C2 | 既存縦動画ownerでdemoを配信する | Reel自然生成→公開/登録CTA。実失敗で投稿が止まれば、その境界だけ修復して再開する。全channelの完成を最初の記事/Xの前提にしない |
+| R07 / C5 | 既存公式analyticsで配信からの訪問・試用・購入を確認する | source×Agent×窓で実測し、自己probe/欠測を成果に加えない。新計測platformを作らない |
+| R08 / C7 | 新しい有料購入を公式記録で確認する | orders>70 AND gross>$102.75と新paid証拠。未達なら流入不足/価値説明/購入離脱の観測に応じて次の小実験へ進み、report整備へ戻らない |
+| R09 / C6 | 比較期間が成熟した配信候補を採用/棄却/判断保留にする | 実購入・返金・確認済み費用/capで判定し、candidate diff→配信receipt→成熟結果を既存traceに残す。少数sampleでwinnerを捏造しない |
+| R10 / C5–C7 | 購入につながった構成・媒体へ次の無料配信枠を増やす | winnerの仕組みを保持し、追加枠でも訪問/paidを確認。言語/媒体を根拠なく量産せず、既存全channelを維持する |
+| R11 / C4 | 既存Hook Grader等の無料利用からHook Lab購入への導線を改善する | 同一cohortの取得可能な利用→訪問→paid。旧1.7%や別母集団の割算は使わない。新無料Agentは既存契約の条件と収益根拠がある時だけ |
+| R12 / C2・供給 | 既存factoryが審査/掲載まで進むことを確認する | 同ID/versionの公式状態。収益商品/需要に結び付く新候補を既存枠で出し、低需要商品の量産を配信より優先しない |
+| R13 / C7 | 継続課金・解約・再購入と顧客満足を確認し、継続収入を伸ばす | 公式subscription源があればtrue MRR、なければunknownのまま実購入/継続収益を追う。$100→$1K→$10K等の段階目標を維持 |
+| R14 / C8 | Capafyで実購入に結び付いた販売・配信・改善の形を他の収益業務へ展開する | 各laneで独立した実顧客成果を確認。全18業務を同時に新設せず、既存ownerの業務は止めない。financing/元本/補助成果を顧客売上へ混ぜない |
+| R15 / C2・C3・C8・後順位 | 収益行動の合間に残る基盤/財務/分類の債務を既存owner単位で閉じる | 履歴clock/個別gap/永続容量、78商品自然coverage、費用窓/Agent帰属/precision/利益report、79 unmapped jobsは未完として保持。R01–R14を止める前提へ戻さない |
+| R16 / C6・C9・継続 | 実売上を生む改善cycleを反復し、独立評価で汎化を確かめる | 売れた変更を次回に保持、悪化を棄却/復帰。cost/latency/介入/held-out/fixed baseline/repeated trialsは既存評価を使って拡張し、自己改善repo導入やAGI宣言を先行させない。会社$10M MRR目標を縮めず、単調増益/最大利益を保証しない |
 
-A05–A07の自然時刻待ちとA15–A17の基盤作業は独立依存として扱い、A09–A13を不必要に止めない。順位は現在の実行索引であり、新しいscheduler/並列owner/評価frameworkを追加しない。
+R15は一括で先頭へ戻す作業ではなく、残債務の索引である。個別atomの履歴と未達証拠はC2/C3/EDD-FLEETの既存記録に保持する。収益を直接止める障害だけを対応するR項目内で直し、現在のbusiness cursorはR01→R02→R03→R04/R05/R06へ進める。C1はDONE、C2/C3は残件あり、C4は部分完了、C5–C9の経済成果/自律閉路/全社展開は未完。
 
 ### C1実行：配信unknownのexact occurrence照合
 
