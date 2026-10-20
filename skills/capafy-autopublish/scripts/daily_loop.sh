@@ -197,6 +197,8 @@ except (KeyError, TypeError, ValueError):
   printf '%s\n' "$receipt" >>"$LOG"
 }
 
+REUSE_PREPARE_ID=""
+FRESH=""
 retry_existing_stub_finish() {
   local is_stub R_ID R_SKILL R_LISTING R_SKILL_DIR R_ICON R_MANIFEST R_VERSION
   local REMOTE_STATUS REMOTE_PREFLIGHT MODEL_CHECK RETRY_FINISH_RC
@@ -265,6 +267,8 @@ except (KeyError, TypeError, ValueError):
   MODEL_CHECK="$(python3 "$AUTO/scripts/check_hosted_model.py" --agent-id "$R_ID" --listing "$R_LISTING" 2>&1)"
   case "$REMOTE_PREFLIGHT:$MODEL_CHECK" in
     "UNSTARTED:MODEL_UNKNOWN no-confirmed-model-yet")
+      REUSE_PREPARE_ID="$R_ID"
+      FRESH="$(printf '%s\t%s\t%s' "$R_SKILL_DIR" "$R_LISTING" "$R_ICON")"
       echo "$TS retry_existing stub $R_ID version=$R_VERSION: CP1 not started; continue through same-Agent prepare" >>"$LOG"
       return 0
       ;;
@@ -296,9 +300,7 @@ except (KeyError, TypeError, ValueError):
 }
 retry_existing_stub_finish
 
-REUSE_PREPARE_ID=""
-FRESH=""
-if [ -n "$RESUME" ]; then
+if [ -n "$RESUME" ] && [ -z "$FRESH" ]; then
   IFS=$'\t' read -r R_ID R_SKILL R_LISTING R_SKILL_DIR R_ICON <<<"$RESUME"
   # A catalog-wide model switch (LISTING.md's Primary Model changed after this
   # draft's package/hosted-key were already confirmed) leaves the CONFIRMED
