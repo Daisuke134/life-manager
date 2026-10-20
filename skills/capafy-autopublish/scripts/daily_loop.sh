@@ -242,28 +242,32 @@ try:
     latest=payload.get("latest_version")
     expected_id=os.environ["EXPECTED_AGENT_ID"]
     expected_version=os.environ["EXPECTED_AGENT_VERSION_ID"]
-    def confirmed(key):
-        value=latest.get(key)
-        return value is True or (type(value) is int and value == 1)
-    status=latest.get("platform_status")
-    ready=(payload.get("ok") is True and isinstance(latest,dict)
+    status=latest.get("platform_status") if isinstance(latest,dict) else None
+    values=[latest.get(key) for key in (
+        "is_confirmed_skills", "is_confirmed_config_keys", "package_uploaded"
+    )] if isinstance(latest,dict) else []
+    bound=(payload.get("ok") is True and isinstance(latest,dict)
            and payload.get("agent_id") == expected_id
            and str(latest.get("agent_version_id") or "") == expected_version
            and type(status) is int and status == 0
-           and latest.get("agent_type") == "run_online"
-           and all(confirmed(key) for key in (
-               "is_confirmed_skills", "is_confirmed_config_keys", "package_uploaded")))
-    print("READY" if ready else "BLOCKED")
+           and latest.get("agent_type") == "run_online")
+    ready=bound and all(value is True or (type(value) is int and value == 1) for value in values)
+    unstarted=bound and all(value is False or (type(value) is int and value == 0) for value in values)
+    print("READY" if ready else "UNSTARTED" if unstarted else "BLOCKED")
 except (KeyError, TypeError, ValueError):
     print("BLOCKED")')"
-  if [ "$REMOTE_PREFLIGHT" != "READY" ]; then
+  if [ "$REMOTE_PREFLIGHT" != "READY" ] && [ "$REMOTE_PREFLIGHT" != "UNSTARTED" ]; then
     echo "$TS retry_existing stub $R_ID version=$R_VERSION: official version/status/CP1/upload readback mismatch; stop before publish" >>"$LOG"
     echo "=== $TS daily_loop done rc=1 (RETRY_EXISTING_PREFLIGHT_FAILED — marker NOT touched; no fallback) ===" >>"$LOG"
     exit 1
   fi
   MODEL_CHECK="$(python3 "$AUTO/scripts/check_hosted_model.py" --agent-id "$R_ID" --listing "$R_LISTING" 2>&1)"
-  case "$MODEL_CHECK" in
-    "MODEL_MATCH "*|"MODEL_UNKNOWN cp1-confirmed-awaiting-cp2") ;;
+  case "$REMOTE_PREFLIGHT:$MODEL_CHECK" in
+    "UNSTARTED:MODEL_UNKNOWN no-confirmed-model-yet")
+      echo "$TS retry_existing stub $R_ID version=$R_VERSION: CP1 not started; continue through same-Agent prepare" >>"$LOG"
+      return 0
+      ;;
+    "READY:MODEL_MATCH "*|"READY:MODEL_UNKNOWN cp1-confirmed-awaiting-cp2") ;;
     *)
       echo "$TS retry_existing stub $R_ID version=$R_VERSION: hosted-model confirmation is not safe to reuse; stop before publish" >>"$LOG"
       echo "=== $TS daily_loop done rc=1 (RETRY_EXISTING_PREFLIGHT_FAILED — marker NOT touched; no fallback) ===" >>"$LOG"
