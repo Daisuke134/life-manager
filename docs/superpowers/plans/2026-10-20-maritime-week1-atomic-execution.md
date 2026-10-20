@@ -593,3 +593,12 @@ life-manager/
 - 対象: `skills/self/disk-cleanup/tests/test_host_inventory.py` の同テストだけ。`_children` のHomebrewメタデータを既存tmp_pathの実ディレクトリから作り、実環境のHomebrew有無に依存させない。
 - 保持: 本物のcollect/size-probe/30秒assertion。production inventory、root一覧、timeout、削除処理は変更しない。
 - 受入: 関連test module成功→commit/push→exact HEAD全14checks→main統合。現在cursorはこのCI差分、T22以降の順序は維持する。
+
+### T22 foundation実行カーソル
+
+- source最終d13e1b8d7fの全14check→#8424/main0c559693へ統合する。既存VMとWeb/workerはmain0cのimageを採用、safe evidenceはcloud-foundation-preflight.jsonとowned-image-adoption.jsonを参照する。
+- DBのenrollment/execution/distribution/usageは公式apply success。CFO/financialは既存tableを再利用し、二重storeや新schedulerは作らない。
+- **先頭未完T22.1b:** service-roleのREST `/rest/v1/lm_maritime_manager_enrollments?select=uid&limit=0` と `/rest/v1/lm_web_funnel_events?select=audience_kind&limit=0`、owned Auth subjectの読取を実測する。HTTP200/JSON/subject一致とelapsedを記録し、401やproject ACTIVE_HEALTHYを合格にしない。現状はREST503 PGRST002/Auth timeout。
+- 直近15分の公式分類はPGRST002707件/PG timezone取消5件/他取消7件。role readbackはanon3s/authenticated8s/authenticator15s・lock8s、service_role個別未設定。schema-cache startupと通常requestを区別し、blindなtimeout増量/全体restart/課金変更をしない。原因を特定する次probeはこの境界へ限定する。
+- T22.1b通過後、既存worker capabilityを読み直し3つのMaritime capabilityを追加、両appのemail flagを1にして、privateに保存したfoundation deploymentから同imageを一回再deployする。最新SKIPPED commitを対象にせず、受理IDを保存しGETで結果を照合する。
+- owned browserの実PKCE/同意/起動→新occurrenceの完了receipt→成果download→日報→停止を行う。旧unknown occurrenceの再送・外部友人への代理DMはしない。T30 URLメール/配布とT23正式経路の順序は維持する。
