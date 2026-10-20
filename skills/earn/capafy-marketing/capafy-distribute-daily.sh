@@ -269,7 +269,14 @@ DESTINATIONS:
    touches that paid pipeline. If this command exits non-zero, record
    status="blocked" with its stderr as the reason, skip step 2 entirely
    (there is no live URL to link to), and still run the ledger write below.
-2. X caption only -- only if step 1 published. Write ONE short caption that
+2. X caption only -- only if step 1 published. For hook-lab, make the native
+   caption useful without opening the article: show one input topic and one
+   finished spoken hook from the article's quoted published product example,
+   then briefly say what Hook Lab returns. Lead with this mini-demo instead
+   of a generic teaser or just the article title. Use only supplied product
+   facts, with no promised retention, views, or revenue improvement. Keep the
+   copy within X's existing length limits. Other skills keep their existing
+   caption style. Write ONE short caption that
    contains the aniccaai.com URL from step 1's JSON output ("url") and this
    SEPARATE Capafy link:
    $X_CTA_URL
