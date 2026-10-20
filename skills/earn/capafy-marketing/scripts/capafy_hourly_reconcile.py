@@ -770,14 +770,13 @@ def _catalog_models(repo_root: Path) -> dict[str, str]:
 
 
 def _fetch_agent_stats_windows(
-    token: str, agent_ids: list[str], end: dt.date, *,
+    token: str, agent_ids: list[str], end: dt.date, *, observed_at: str,
     cap: int = SKILL_STATS_CAP, delay: float = SKILL_STATS_DELAY_SECONDS,
-    sleep: Callable[[float], None] = time.sleep, observed_at: str | None = None,
+    sleep: Callable[[float], None] = time.sleep,
 ) -> dict[str, dict]:
     """Bounded, sequential settled-stats/detail, aligned with the traffic sample."""
     result: dict[str, dict] = {}
-    stamp = observed_at or f"{end.isoformat()}T00:00:00Z"
-    for agent_id in _sample_agent_ids(agent_ids, cap, stamp):
+    for agent_id in _sample_agent_ids(agent_ids, cap, observed_at):
         windows = {}
         for label, days in (("d30", 29), ("d7", 6)):
             start = (end - dt.timedelta(days=days)).isoformat()

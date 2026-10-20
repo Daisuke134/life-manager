@@ -575,7 +575,8 @@ def test_agent_stats_windows_bounded_sequential_with_delay(monkeypatch: pytest.M
     monkeypatch.setattr(module, "_get", lambda path, _token: calls.append(path) or {"code": 0, "data": {}})
 
     result = module._fetch_agent_stats_windows(
-        "tok", ["a", "b", "c"], module.dt.date(2026, 9, 27), cap=2, delay=0.01, sleep=sleeps.append,
+        "tok", ["a", "b", "c"], module.dt.date(2026, 9, 27),
+        observed_at="2026-09-27T00:00:00Z", cap=2, delay=0.01, sleep=sleeps.append,
     )
 
     assert list(result.keys()) == ["a", "b"]
