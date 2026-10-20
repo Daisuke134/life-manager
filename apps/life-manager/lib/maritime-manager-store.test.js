@@ -198,8 +198,8 @@ test('PostgreSQL atomically claims dispatches and preserves execution binding wi
   let started = false;
   try {
     execFileSync(path.join(bin, 'initdb'), ['-D', data, '-A', 'trust', '-U', 'fixture_owner', '--no-locale'], { stdio: 'pipe' });
-    execFileSync(path.join(bin, 'pg_ctl'), ['-D', data, '-l', log, '-o', `-F -h '' -k ${socket} -p 55437`, '-w', '-t', '15', 'start'], { stdio: 'pipe' });
     started = true;
+    execFileSync(path.join(bin, 'pg_ctl'), ['-D', data, '-l', log, '-o', `-F -h '' -k ${socket} -p 55437`, '-w', '-t', '15', 'start'], { stdio: 'pipe' });
     sql('CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role BYPASSRLS; CREATE TABLE public.lm_users(uid text PRIMARY KEY);');
     const migrations = ['2026-10-20-lm-maritime-manager.sql', '2026-10-20-lm-maritime-runtime-executions.sql'];
     for (const name of migrations) sql(fs.readFileSync(path.join(root, 'apps/life-manager/migrations', name), 'utf8'));
