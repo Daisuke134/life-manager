@@ -132,7 +132,7 @@ life-manager/
 - 開発critical path: T02→T03→T04→T05→T06→T07→T08→T09→T10→T11→T12→T13→T14→T15→T16→T17→T18→T19→T20→T21→T22→T23。
 - T24/T25/T26の素材準備は開発の外部待ち時間に進める。投稿は公開URLと真実のdemoが揃えば進め、3人feedback待ちにしない。
 - T23の正式提出は公開製品・公式指定必須項目が揃った時点で行う。友人3人、売上、7日継続、1,000人、豪華な動画を待たない。
-- T27/T28/T29で獲得・再利用・経済性を改善する。社内目標demo=10/23 18:00 JST、packet=10/24。公式deadlineがそれより早ければ公式を優先し前倒す。上記は公式締切ではない。
+- T27/T28/T29で獲得・再利用・経済性を改善する。T31でLM自身の任意課金とStripe実売上を別に確認する。社内目標demo=10/23 18:00 JST、packet=10/24。公式deadlineがそれより早ければ公式を優先し前倒す。上記は公式締切ではない。
 - 各taskのcommit対象はそのtaskのowned filesだけ。fetch→focused acceptance→commit/push→exact-head checks完了→main統合。未登録/null checkをgreenと見なさない。
 
 ## Task T01: 公式の提出先・初週期限を一つのファイルへ確定する
@@ -464,6 +464,17 @@ life-manager/
 - [ ] T30.2 URL、できること、未接続部分、家族/友人へ転送できる短い紹介文を日本語の一通にまとめ、送信payloadを独立read-only検証する。
 - [ ] T30.3 許可済みの既存メール経路でDaisへ一回送信する。provider message IDを保存し、応答不明時は再送せずreadbackする。
 - [ ] T30.4 送信済みの宛先・件名・本文URLとprovider receiptを照合し、正本を更新する。API受付と着信は区別し、着信未確認ならその範囲を残す。
+
+## Task T31: Cloud Life Manager自身の課金と利益をつなぐ
+
+**Files:** Modify `apps/life-manager/lib/web-billing.js`/同test、`server.js`、Manager UI。Reuse既存Stripe checkout/portal/webhook、web funnel/financial records。
+**Interfaces:** 既存`handleWebBillingRequest`の`resolveWebUserImpl`へ、Managerのverified email identityを専用経路で渡す。CalendarのGoogle guardは変えない。既存の価格/商品設定を公式Stripeでreadbackし、顧客の任意checkoutと署名済みwebhookだけでpaid状態を更新する。
+**Depends:** T23の無料pilot提出を先行。LM自身の収益と、利用者のCapafy等の収益を混同しない。
+
+- [ ] T31.1 既存checkout/portal価格・trial条件・支払済みinvoiceと返金を公式Stripeから読む。現在の『Stripe売上なし』はDaisの申告であり、再取得前に確認済み0/MRRと書かない。
+- [ ] T31.2 email-only利用者のcheckout/portalを同じuid/CSRF/originへbindするfocused caseを書き、既存web-billingのresolver injectionを使う。任意uid/customer/priceの入力は拒否し、Calendar identityは拡張しない。
+- [ ] T31.3 無料pilotを自動課金へ変えず、価値を確認した利用者が自ら選ぶupgrade入口を接続する。test modeでcheckout→webhook→本人のpaid状態を確認してから、既存価格のlive checkoutを公開する。自分のcardで架空の売上を作らない。
+- [ ] T31.4 正規利用者のpaid invoice・refund・Stripe手数料・Cloud/model/mail費用をjoinし、LMの実売上/確認できる利益を報告する。free signup×価格をMRRとしない。未取得費用があれば利益は未確認とする。
 
 ## 一件のtaskを実装するときの共通手順
 

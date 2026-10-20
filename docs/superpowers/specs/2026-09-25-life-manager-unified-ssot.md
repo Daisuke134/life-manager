@@ -20616,6 +20616,8 @@ Top 10 by sales: 0/10 with a trial (Ocup 3,111, Serenity 2,002, HookAce 1,044, V
 Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime等のhostから呼ぶ。Steelはbrowser/sessionの実行先で、scheduler・tenant store・credential boundary・receipt照合の代わりにはならない。local credential/profile/可変ログをそのまま別利用者へ複製しない。現在のUID別agent実装と、公式が一人一VMを要求することも区別する。後者はTermsにない。→ [one-repo/two-runtime設計](2026-09-06-life-manager-one-repo-two-runtimes-design.md)
 
 
+**Manager同意の区別:** chat-only pilotの`maritime-retention-v1`は保持条件/参加capの既存記録。新しい自律業務開始は別の`maritime-manager-v1`を明示POSTで受け、enrollmentへ記録する。既存pilot同意だけではManagerを起動しない。
+
 **SMTP/Auth実環境readback:** production Authはexternal_email_enabled=false、SMTP未設定、rate_limit_email_sent=2、OTP rate=30、Railway callback allowlistはGoogle用のみ。既存Railway life-callにはRESEND_API_KEYとruntime DB接続が設定され、OAuth connectorは値をredactする。登録済みlocal Railway sessionで既存Resend keyを確認しprivate credential SSOTへ登録した。公開前に同じResendのSMTP・email enable・Manager callback allowlist・owned mailbox着信を確認する。confirmed/auto-confirmの弱体化、既存Google allowlist上書き、新keyの無断再作成は行わない。
 
 **保持条件:** Maritime AI credits経由のmodel callは入力・会話・tool結果・応答をアカウント削除後も無期限保持する、と現行Privacy Policyに記載される。公開前に選んだ業務で送る情報を特定し、利用者へ開示して同意を記録する。自分のmodel API keyによる呼び出しは同Policy上この保存対象外だが、secret管理と費用は別途必要。停止・同意撤回を送信済みデータの削除と表示しない。[Maritime Privacy Policy](https://maritime.sh/privacy)
@@ -20643,7 +20645,7 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | T03 | enrollment DB/storeの一uid一row・一provision claim | source完了。6/6 PASS、独立review指摘修正、全14 checks PASS。#8397/main f3f5e02564、実DB未適用 |
 | T04 | Supabaseのemail認証専用handler | source実装中/#8398。既存Google guard維持、PKCE codeのみ。token_hash単独のlogin CSRF経路を拒否し、確認GETは業務を起動しない |
 | T05 | 本人POST activateから一度だけenqueue | source実装/#8399。provision builderを定義、GET/CSRF/cap/停止/unknownは起動しない。独立reviewのterminal job誤受付を回帰で修正。adapterはT11 |
-| T06 | email登録が主CTAのcampaign入口 | 実装中。旧Telegram限定guardから分離し、本人確認後にCSRF付き開始UIを表示 |
+| T06 | email登録が主CTAのcampaign入口 | source実装。旧Telegram guardから分離、日英email/開始UIと状態表示。Manager専用consent version、関連54/54 PASS。公開flagは未変更 |
 | T07 | Capafy既存factoryへtenant state/build path注入 | T02後 |
 | T08 | Linux browser/provider accountのreadinessとtenant binding | T07後、secret値を記録しない |
 | T09 | tenant envで既存factoryを一回呼ぶcloud_cycle.py | T07/T08後 |
@@ -20668,6 +20670,7 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | T28 | source別の最大離脱を一つ修正 | T21/T27後 |
 | T29 | 実測のcapacity/費用/利益/再利用を改善し1,000人を公式検証 | T28後 |
 | T30 | 共有できる稼働URLをDaisへメール送信しreceipt確認 | T23直後。T29の長期成長を待たない |
+| T31 | email利用者の任意paid upgradeを既存Stripeへ接続しLM自身の売上を照合 | 無料pilot/提出を妨げずT23後。顧客事業売上とStripe subscription売上を別集計 |
 
 **技術判断:** custom imageで同じfactoryを使う。中央Railwayの既存queue workerがMaritimeのdetached execへ一回dispatchしexecutionIdを回収する。VMはtenant限定tokenでwake relayへ通知し、Supabase service-roleを持たない。Keikiはemail/schedule/APIを持つが、既存Resend/CFOを置換する必須依存にしない。Maritime SDKのprovision既定OpenClawをcustom imageへ流用せず公式REST契約を使う。全14loops移植・新しいpublisher/router/schedulerは初週必須作業にしない。
 
