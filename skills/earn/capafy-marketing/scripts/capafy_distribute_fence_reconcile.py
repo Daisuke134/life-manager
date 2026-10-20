@@ -204,9 +204,11 @@ def expected_article_slug(occurrence_id: str, runs_root: Path | None = None) -> 
         run_dir = manifest_path.parent.parent
         if run_dir.name != f"capafy-distribute-{slot}":
             raise ValueError("occurrence manifest path does not match its slot")
-        prompt = (run_dir / "prompt.txt").read_text(encoding="utf-8")
-        slugs = set(re.findall(r"https://aniccaai\.com/blog/([a-z0-9]+(?:-[a-z0-9]+)*)", prompt))
-        if slugs != {slug}:
+        # Only the ASCII publication URL binds this artifact; a damaged non-URL
+        # query must not prevent official readback of an already failed run.
+        prompt = (run_dir / "prompt.txt").read_bytes()
+        slugs = set(re.findall(rb"https://aniccaai\.com/blog/([a-z0-9]+(?:-[a-z0-9]+)*)", prompt))
+        if slugs != {slug.encode("ascii")}:
             raise ValueError("occurrence prompt does not match its manifest slug")
         matches.append(slug)
     if len(matches) != 1:
