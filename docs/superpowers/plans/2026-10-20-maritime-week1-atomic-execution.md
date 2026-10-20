@@ -586,3 +586,10 @@ life-manager/
 - 五つのReview FocusはT04/T05/T15/T14/T08/T10/T19/T20のassertionに対応。
 - 未確定の外部事実はT01/T08/T22の観測taskに限定し、曖昧な「調べる」「Cloud化する」で後続へ渡さない。
 - 作成済み資料を確認しただけでproduct実装/友人利用/売上/提出済みにはしない。
+
+### T22前のCI環境依存修正
+
+- 実測: Intel hosted runnerで `test_full_inventory_gives_homebrew_a_longer_bounded_probe` が `/opt/homebrew` 不在により失敗。他609件成功。
+- 対象: `skills/self/disk-cleanup/tests/test_host_inventory.py` の同テストだけ。`_children` のHomebrewメタデータを既存tmp_pathの実ディレクトリから作り、実環境のHomebrew有無に依存させない。
+- 保持: 本物のcollect/size-probe/30秒assertion。production inventory、root一覧、timeout、削除処理は変更しない。
+- 受入: 関連test module成功→commit/push→exact HEAD全14checks→main統合。現在cursorはこのCI差分、T22以降の順序は維持する。

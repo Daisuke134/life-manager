@@ -20983,3 +20983,5 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 3. Capafy internal promotion: compare our listings' rating/review count/recent sales with the top 20 of each category in the market sweep and close the gap on new Agents (never edit sellers).
 4. Social: one account per language — X selawmqt English only; TikTok @hooklab.capafy live 2026-10-24 (reels + carousels); other businesses keep their existing per-brand accounts.
 5. Extend keyword-page + hub pattern to LINE stickers and eBook distribution (each business publishes keyword pages into its own hub).
+
+**Maritime T22追加readback:** 既存VMの隔離fixtureでofficial binaryをuid/gid10001、caps0、NoNewPrivs、credential非継承、`--no-sandbox`除外の条件で実行し、CDP/DOM成功・公式completed/exit0・専用process/fixture削除を確認する。旧8d7 source上のfixture実測であり、新image配備完了ではない。Railway既存金融tableは存在し、照合中のagent-economy.start2件/investment.live2件は保持する。Supabase CFO receipt tableは存在するがManager3tableは未作成。Auth200、SQL成功と接続timeoutが混在し、RESTの正しいzero-row readもtimeout、復旧完了とはしない。DBversion17.6.1.111は確認するがPostgREST版は未確認。CI bf3はIntelにHomebrewが存在する前提のfixture1件失敗、実在tmpディレクトリを使うtest-only修正とし30秒assertion・本番処理は維持する。現在cursor=最小fixture修正→exact全14check→main→T22。
