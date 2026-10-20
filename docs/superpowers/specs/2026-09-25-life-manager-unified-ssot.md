@@ -16152,6 +16152,12 @@ REDebbd5af252→GREEN0e8f071c0eはcore guardも証明済みsell/nofill closedか
 
 **現在cursor:** PR #8450 exact-head CI/main統合 → liveの4 unlinked ordersとfenceを正確に扱う既存source/evidence範囲を確認 → BTC V2自然reportとAQR型momentumを同じinstrument/period/cost/benchmark条件で評価し、一つだけ候補を決める。以後のlive fence・buying power・small live pilot・real net評価の順は前節TODOを維持する。strategy名・repo人気・過去backtestだけではwinnerと判定しない。
 
+#### 2026-10-21 08:38 JST — Trend-following mechanism and transferability
+
+**Primary-source detail:** AQRの[2017 paper](https://images.aqr.com/-/media/AQR/Documents/Insights/Journal-Article/AQR-JPM-Fall-2017.pdf)は67 markets（commodities 29/equity indices 11/bonds 15/currencies 12）で、1/3/12-month time-series momentumを等加重・月次rebalanceし、10% annualized volatility targetでscaleする。過去returnが正ならlong、負ならshort。1880–2016のhistorical reconstructionに推定transaction costと2% management/20% performance feesを適用する一方、authors自身がcost estimatesの不確実性と未計上のfutures roll costを明記する。
+- **Copyable mechanism:** trend signalのlookback、volatility scaling、同一期間benchmark、費用込みnet、drawdown評価。**移植不可の前提:** 67 futures/FX市場・月次rebalance・10% target volatility・手数料モデルは現在のAlpaca BTC/USDC 5-minute pathと異なる。AQRの結果は自口座live resultではないため、この戦略をそのまま選択しない。
+- **Current choice:** existing BTC V2をまず同じ候補/期間/fees/benchmark枠で評価する。AQR-style horizonsは比較候補にし、reproducible live/after-cost evidenceと口座上の実行可能性が揃うまでwinner認定しない。Freqtradeは評価機能の参考、独立に監査されたprofit sourceではない。
+
 ### 2026-10-09 13:18 JST — Job Hunter Dreamwork cutover and updated user criteria
 
 この追記は11:50 JST snapshot後のJob Hunter readbackとユーザーの最新指示を記録する。個別の勤務地・住所などの私的値はprivate profileのみを正本とし、このspecには複製しない。
