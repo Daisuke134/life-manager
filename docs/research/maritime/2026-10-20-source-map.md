@@ -64,6 +64,10 @@ SDK docsには`provision()`を使う例があるが、それはOpenClaw template
 
 - https://supabase.com/docs/reference/api/v1-update-auth-service-config — Management APIのsmtp_portはstring。integer465のPATCHは400で無変更、string"465"へ訂正後は反映・GET照合成功。SMTPのTCP port番号とAPI JSON型を区別する。
 
+- https://maritime.sh/docs/frameworks/codex — Maritimeのmetered accessはCodexのResponses APIを使うと公式に説明。既存runnerへCloud専用configとtenant HOMEを渡す。Macのsubscription auth/profileをコピーしない。実provider接続は未確認。
+- https://maritime.sh/docs/frameworks/claude-code — ZIPの入口はNew agent → GitHub → Upload a ZIPと明記。T12.1で実UIのfieldを確認してから同じsanitized ZIPを使う。
+- https://maritime.sh/docs/computers — native Linux desktop/MCPとend-user pinned URLを確認。費用・既存CP1との互換は未実証で、採用済みのbrowser経路とは扱わない。
+
 ## T10の公式readback境界
 
 - 既存vendor `capafy-user/api-docs/08_account.md`のGET `/agent/account/profile`を確認し、実APIのuserId fieldをread-onlyで確認。登録済みpublisher tokenで取得するprofile userIdと、web tokenのsubが一致し、同web tokenのPOST `/app/sales/clickhouse/trend`がcode0になることを実測。JWT decodeだけを本人確認としない。

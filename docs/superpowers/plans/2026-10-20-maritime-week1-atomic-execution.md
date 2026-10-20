@@ -22,7 +22,7 @@
 - founderのaccount・商品ID・売上・private stateを新規利用者へコピーしない。同じ売上を全員へ配賦しない。
 - runtime stateはGit外。Cloud stateは`/data`以下、secretはprovider管理のtenant単位、analyticsにemail/本文/tokenを入れない。
 - 公開・送信の結果が不明なら同じeffectを再送しない。既存job/receipt/provider readbackで回収する。
-- 今回は計画・spec・配布文案を保存する。ここに記載する実装・test・deploy・招待・投稿・提出は、実行済みを意味しない。
+- 各taskは実行手順を記す。実行済み・未実行の判定はSpec正本だけに記録し、コード統合をdeploy・投稿・正式提出の完了へ読み替えない。
 
 ## 現状と選定理由
 
@@ -112,7 +112,7 @@ life-manager/
         └── submission.json                         [T23で実測だけをexport]
 ```
 
-`requirements.json`はT01で観測済み。`readiness.json`/`submission.json`は実行taskで作る。未観測をfalse/0/完了へ置換しない。図は説明用artifactで、実装の代わりにしない。
+`requirements.json`と`readiness.json`は観測済み。`submission.json`はT23で実測から作る。未観測をfalse/0/完了へ置換しない。図は説明用artifactで、実装の代わりにしない。
 
 ## コマンドの作業場所
 
@@ -142,7 +142,7 @@ life-manager/
 
 - **提出経路確認T01、配布文案T24、台本T25は即着手可能。友人・利用実績を待たない。**
 - T32（実メール設定）はT04後から独立して進め、T22公開前に閉じる。数字順ではなく依存順で実行する。
-- T12は専用Dockerfile+sanitized ZIPへ訂正する。旧=root Dockerfile、新=`apps/life-manager/maritime/Dockerfile`。理由はRailwayの自動検出が既存サービスを変更するため。cursorはT06のsource統合待ちで変更しない。
+- T12は専用Dockerfile+sanitized ZIPへ訂正する。旧=root Dockerfile、新=`apps/life-manager/maritime/Dockerfile`。理由はRailwayの自動検出が既存サービスを変更するため。現在cursorはSpec正本を参照する。
 - 旧T12→T13はCMD対象server未作成のままbuildする逆依存だったため、T13→T14→T12へ訂正する。各taskの成果条件は保持する。
 - 開発critical path: T02→T03→T04→T05→T06→T07→T08→T09→T10→T11→T13→T14→T12→T15→T16→T17→T18→T19→T20→T21→T22→T23。
 - T24/T25/T26の素材準備は開発の外部待ち時間に進める。投稿は公開URLと真実のdemoが揃えば進め、3人feedback待ちにしない。
@@ -242,10 +242,10 @@ life-manager/
 
 **Files:** Create `skills/capafy-autopublish/scripts/cloud_cycle.py`、`skills/capafy-autopublish/test/test_cloud_cycle.py`。既存factory/runnerを呼ぶ。
 **Interfaces:** CLI `python3 .../cloud_cycle.py --tenant <uid> --occurrence <id> --date YYYY-MM-DD`。envにstate/build workspace/binding参照。stdoutは`CycleResult`一件、raw prompt/secretなし。
-**Depends:** T07/T08。
+**Depends:** T07/T08。T08の認証待ち中はsourceを先行し、実環境受入をT08より先に完了扱いしない。`run_cycle(tenant_id,occurrence_id,date_key,*,env,data_root,runner)`を定義し、Cloud専用`AGENT_RUNNER_CONFIG`を必須にする。既存Local configへfallbackしない。
 
 - [ ] T09.1 test `cycle_calls_existing_factory_once_and_scopes_workspace`を定義。spawn先が既存entry、cwd/stateがtenant以下、timeout後の外部effectはunknownというassertを置く。
-- [ ] T09.2 wrapperは既存`run_agent.sh`へ`--task-class application-lane-agent --evidence-dir /data/<tenant>/evidence/<occurrence> --task-label maritime:<occurrence> --loop capafy --schema /app/skills/self/capafy-loop/capafy-loop-pass.schema.json --workdir /data/<tenant>/build --print-result`を渡す。stdinには既存factory skillと同tenant binding/receiptから作る業務promptを渡す。modelによる案件選択・original商品生成を既存runnerへ任せ、第二のpublisher/固定ニッチ選択器を作らない。既存pass JSONをwrapperでCycleResultへ変換し、stdoutへraw runner logを混ぜない。
+- [ ] T09.2 wrapperは既存`run_agent.sh`へ`--task-class application-lane-agent --evidence-dir /data/<tenant>/evidence/<occurrence> --task-label maritime:<occurrence> --loop capafy --schema /app/skills/self/capafy-loop/capafy-loop-pass.schema.json --workdir /data/<tenant>/build --print-result`を渡す。stdinには既存factory skillと同tenant binding/receiptから作る業務promptを渡す。modelによる案件選択・original商品生成を既存runnerへ任せ、第二のpublisher/固定ニッチ選択器を作らない。既存pass JSONをwrapperでCycleResultへ変換し、stdoutへraw runner logを混ぜない。child envはOS最小値とtenant専用`LM_CLOUD_MODEL_API_KEY`だけを許可し、既存runner configのenv_keyを同名へbindする。親のsecret/台帳を丸ごと継承しない。HOME/CODEX_HOME/CLAUDE_CONFIG_DIR/evidence/tmp/台帳/factory stateはresolve後もtenant以下であることをdispatch前に確認する。保存済みreceiptの再生でも許可field・型・status・artifact境界を検査し、破損時はunknownを返して再実行しない。
 - [ ] T09.3 provider未接続ならoriginal artifact生成を継続し、publish未実行をreceiptへ明記する。founder catalog/seller ID/売上を新規利用者へ複製しない。接続済みではsplit publishの正規経路へ進む。
 - [ ] T09.4 `python3 -m unittest discover -s skills/capafy-autopublish/test -p 'test_cloud_cycle.py'`でfocused casesを確認しcommit/push。
 
@@ -496,7 +496,7 @@ life-manager/
 
 **Files:** Read `docs/evidence/maritime/smtp-preflight.json`。Create `docs/evidence/maritime/smtp-readback.json`（設定名/成否/receipt hashのみ）。実設定はSupabase production Auth、secret値はprivate credential SSOTのみ。
 **Interfaces:** T04のPKCE handlerとT22のowned inboxをconsumes。設定readbackと実メール到着をproduces。公開appのfeature flagはこのtaskでは有効化しない。
-**Depends:** T04。T07–T21とは独立して進める。現在email provider=false、custom SMTPなし、送信limit2/hour。既存Resend SMTP AUTH235/NOOP250まで確認済み、着信未確認。
+**Depends:** T04。T07–T21とは独立して進める。初回の変更前観測はemail provider=false、custom SMTPなし、送信limit2/hour。これは現状値ではない。実環境の現在状態と着信証拠はSpec正本/T32とsmtp-readback.jsonを参照する。
 
 - [ ] T32.1 private SSOT全体と`supabase-life-manager-production`/`resend-life-manager-production`/`agentmail-life-manager-production`完全一致を読む。新key/account/inboxを作らず、既存設定をManagement API GET `/v1/projects/<ref>/config/auth`で再取得する。秘密の値を出力しない。
 - [ ] T32.2 Python標準`email.utils.parseaddr(from_address)`でmailboxとdisplay nameを分ける。smtp_admin_emailにはmailboxのみ、smtp_sender_nameにはdisplay nameまたは`Life Manager`を使う。空mailboxなら設定を送信せず、既存Resendのsender設定を確認する。
