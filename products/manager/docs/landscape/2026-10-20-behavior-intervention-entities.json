@@ -1,0 +1,194 @@
+{
+  "date": "2026-10-20",
+  "title": "Behavior Simulation & Intervention Landscape — Entity-first Chaos Map",
+  "method": "Primary official website or original code per listed organization. A product description is vendor-reported, not independent outcome validation. Not exhaustive and no company ranking. Categories intentionally overlap.",
+  "manager_status": "proposal; no verified live field interventions or beneficiary improvements",
+  "clusters": [
+    {
+      "category": "Behavioral world & audience simulation",
+      "organizations": [
+        {
+          "entity_name": "Simile",
+          "entity_type": "company",
+          "activity": "Human-behavior world models; compare simulated responses to changes",
+          "official_source": "https://www.simile.com/"
+        },
+        {
+          "entity_name": "Aaru",
+          "entity_type": "company",
+          "activity": "Grounded population and purchasing behavior simulations",
+          "official_source": "https://aaru.com/simulation"
+        },
+        {
+          "entity_name": "CulturePulse",
+          "entity_type": "company",
+          "activity": "Cultural/social dynamics and public reaction simulation",
+          "official_source": "https://www.culturepulse.ai/"
+        },
+        {
+          "entity_name": "Artificial Societies",
+          "entity_type": "company",
+          "activity": "Synthetic audiences and interacting personas for campaign tests",
+          "official_source": "https://societies.io/advertising-testing-with-ai"
+        },
+        {
+          "entity_name": "Lakmoos",
+          "entity_type": "company",
+          "activity": "Synthetic research panels; real-world validation claims",
+          "official_source": "https://lakmoos.com/blog/validating-synthetic-panels"
+        },
+        {
+          "entity_name": "Synthetic Users",
+          "entity_type": "company",
+          "activity": "Simulated participants for user/product research",
+          "official_source": "https://www.syntheticusers.com/"
+        }
+      ]
+    },
+    {
+      "category": "AI + human research platforms",
+      "organizations": [
+        {
+          "entity_name": "Expected Parrot",
+          "entity_type": "company",
+          "activity": "EDSL: AI and human research in a combined workflow",
+          "official_source": "https://www.expectedparrot.com/"
+        },
+        {
+          "entity_name": "Evidenza",
+          "entity_type": "company",
+          "activity": "Synthetic B2B/consumer market research",
+          "official_source": "https://www.evidenza.ai/"
+        },
+        {
+          "entity_name": "Qualtrics",
+          "entity_type": "company",
+          "activity": "Enterprise research and human/synthetic panels",
+          "official_source": "https://www.qualtrics.com/market-research/research/"
+        },
+        {
+          "entity_name": "Listen Labs",
+          "entity_type": "company",
+          "activity": "AI-moderated interviews with real people",
+          "official_source": "https://listenlabs.com/"
+        },
+        {
+          "entity_name": "Prolific",
+          "entity_type": "company",
+          "activity": "Recruitment and verification of human research participants",
+          "official_source": "https://www.prolific.com/behavioural-research"
+        }
+      ]
+    },
+    {
+      "category": "Social simulation research labs and groups",
+      "organizations": [
+        {
+          "entity_name": "Stanford HAI",
+          "entity_type": "university_institute",
+          "activity": "Generative Agents and human simulation research",
+          "official_source": "https://hai.stanford.edu/policy/simulating-human-behavior-with-ai-agents"
+        },
+        {
+          "entity_name": "Google DeepMind",
+          "entity_type": "research_lab",
+          "activity": "Concordia social agent/world simulation framework",
+          "official_source": "https://github.com/google-deepmind/concordia"
+        },
+        {
+          "entity_name": "MIT Media Lab",
+          "entity_type": "university_lab",
+          "activity": "Large Population Models and AgentTorch",
+          "official_source": "https://www.media.mit.edu/projects/ai-lpm/overview/"
+        },
+        {
+          "entity_name": "Microsoft Research",
+          "entity_type": "research_lab",
+          "activity": "TinyTroupe multi-agent persona simulation",
+          "official_source": "https://github.com/microsoft/TinyTroupe"
+        },
+        {
+          "entity_name": "CAMEL-AI",
+          "entity_type": "open_source_research_community",
+          "activity": "OASIS LLM agent social-network simulation",
+          "official_source": "https://github.com/camel-ai/oasis"
+        }
+      ]
+    },
+    {
+      "category": "Causal and behavioral decision design",
+      "organizations": [
+        {
+          "entity_name": "causaLens",
+          "entity_type": "company",
+          "activity": "Causal decision intelligence and explainable decision workflows",
+          "official_source": "https://causalens.com/"
+        },
+        {
+          "entity_name": "Behavioural Insights Team (BIT)",
+          "entity_type": "consultancy",
+          "activity": "Behavioral interventions and public-sector evaluations",
+          "official_source": "https://www.bi.team/"
+        },
+        {
+          "entity_name": "ideas42",
+          "entity_type": "nonprofit",
+          "activity": "Field-tested behavioral design and social impact",
+          "official_source": "https://www.ideas42.org/offerings"
+        },
+        {
+          "entity_name": "The Decision Lab",
+          "entity_type": "consultancy",
+          "activity": "Behavioral science applied to products and interventions",
+          "official_source": "https://thedecisionlab.com/"
+        }
+      ]
+    },
+    {
+      "category": "Personalized interventions and field experiments",
+      "organizations": [
+        {
+          "entity_name": "Lirio",
+          "entity_type": "company",
+          "activity": "Health behavior intervention personalization",
+          "official_source": "https://lirio.com/"
+        },
+        {
+          "entity_name": "Irrational Labs",
+          "entity_type": "consultancy",
+          "activity": "Behavioral diagnosis, design, and experiment testing",
+          "official_source": "https://irrationallabs.com/service/team-training/"
+        },
+        {
+          "entity_name": "Penn Behavior Change for Good",
+          "entity_type": "university_initiative",
+          "activity": "Multi-intervention megastudies of health, education and saving",
+          "official_source": "https://bcfg.wharton.upenn.edu/approach/"
+        }
+      ]
+    },
+    {
+      "category": "Real-world impact systems",
+      "organizations": [
+        {
+          "entity_name": "Oracle Opower",
+          "entity_type": "corporate_product",
+          "activity": "Behavioral energy-efficiency programs deployed via utilities",
+          "official_source": "https://www.oracle.com/utilities/opower-energy-efficiency/"
+        },
+        {
+          "entity_name": "GiveDirectly",
+          "entity_type": "nonprofit",
+          "activity": "Unconditional cash transfers with experimental evaluation",
+          "official_source": "https://www.givedirectly.org/gdresearch/"
+        },
+        {
+          "entity_name": "412 Food Rescue",
+          "entity_type": "nonprofit",
+          "activity": "Food Rescue Hero: volunteer-powered surplus food logistics",
+          "official_source": "https://412foodrescue.org/food-rescue-hero/"
+        }
+      ]
+    }
+  ]
+}

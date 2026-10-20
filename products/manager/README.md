@@ -61,3 +61,13 @@ Research under `research/imozuru` references original URLs and short excerpt-onl
 ## R007 / R008
 
 See [Japanese implementation note](docs/R007_R008_IMPLEMENTATION_JA.md). Run `python3 -m manager_core.evidence` for the eight-card offline inventory; `python3 -m unittest discover -s tests -v` runs 59 tests. Structural validation does not prove scientific correctness or Manager impact.
+
+## October 20, 2026: entity-first landscape and Phase 02 L001
+
+- [26-organization market map and official primary-source URLs](docs/landscape/2026-10-20-behavior-intervention-entities.md)
+- [Machine-readable map](docs/landscape/2026-10-20-behavior-intervention-entities.json)
+- [Editable logo-free SVG market map](docs/landscape/2026-10-20-behavior-intervention-chaos-map.svg)
+- [L001: conditional probability explanation (Japanese)](docs/learning/L001_CONDITIONAL_PROBABILITY_JA.md)
+- [L001: synthetic Python probability demo](examples/01_probability.py)
+
+L001 is an offline learning example, **not** behavioral model training, causal evaluation, or field impact. Organizational categorization is editorial and non-exhaustive.

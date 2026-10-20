@@ -53,3 +53,11 @@ The small offline literature registry and evidence-type guards are implemented i
 Expected Parrot already combines AI research and human validation; Simile validates behavior and confidence; Aaru reports survey and behavioral evaluation. Manager's proposed differentiation is an independently evaluated public-information welfare intervention loop, not exclusive ownership of human validation.
 
 The proposed transparent impact page is not yet implemented. It must report actions, cost, externally verified changes, beneficiary outcomes, causal comparisons, harms and missingness separately. No field benefits have been demonstrated.
+
+## Entity-first market map and L001 learning checkpoint (2026-10-20)
+
+The ecosystem visual is an **organization-first Chaos Map**: 26 verified company, institute, lab, community or nonprofit entities in 6 overlapping activity clusters. Primary-source URLs and vendor-reporting caveats live at `docs/landscape/2026-10-20-behavior-intervention-entities.json`; companion SVG uses real organization names and no invented brand logos. This is not a competitive ranking or a claim that Manager has validated its market position. Companies such as Simile, Aaru and Expected Parrot already combine prediction and/or research with real-human validation. Penn Behavior Change for Good and GiveDirectly provide upstream lessons for actual behavioral intervention field work.
+
+**L001 completed:** `examples/01_probability.py` (pure standard library) calculates `P(Y|X)` from a fully normalized joint distribution, with explicit rejection of malformed input and zero-mass contexts. `tests/test_probability_l001.py` includes 9 focused tests, run red then green; `docs/learning/L001_CONDITIONAL_PROBABILITY_JA.md` explains an illustrative 60%/20% daypart calculation. These probabilities are synthetic and observational; they are not actual people, causal effect estimates, or verified field outcomes. After this task the ledger has 15 done, 96 todo, 2 blocked. Next dependency-order learning task is L002 (TVD / Brier score).
+
+The Manager runtime still has no permission to transfer money, act on private people, or operate physical systems.
