@@ -334,6 +334,32 @@ def test_build_free_article_requires_every_query_word_in_the_title() -> None:
                                   title_must_contain="tiktok hook generator free")
 
 
+@pytest.mark.parametrize("title", [
+    "Ganchos para vídeos curtos: 12 exemplos",
+    "Ganchos para vi\u0301deos curtos: 12 exemplos",
+])
+def test_ascii_query_accepts_accented_title_without_changing_public_text(title: str) -> None:
+    article = load().build_free_article(
+        _draft(title=title), slug="ganchos-para-videos-curtos", date="2026-10-21",
+        cta_url=CTA_URL, title_must_contain="ganchos para videos curtos",
+    )
+    assert article["title"] == title
+    assert f"# {title}" in article["markdown"]
+
+
+@pytest.mark.parametrize(("title", "query"), [
+    ("Ganchos para vídeos longos", "ganchos para videos curtos"),
+    ("パターンの紹介", "ハターン"),
+    ("ķ", "K"),
+])
+def test_keyword_check_still_rejects_missing_words_and_distinct_unicode(title: str, query: str) -> None:
+    with pytest.raises(ValueError, match="search query"):
+        load().build_free_article(
+            _draft(title=title), slug="keyword-check", date="2026-10-21",
+            cta_url=CTA_URL, title_must_contain=query,
+        )
+
+
 def test_publish_pings_indexnow_after_the_live_readback(tmp_path: Path) -> None:
     module = load()
     remote = tmp_path / "remote.git"
