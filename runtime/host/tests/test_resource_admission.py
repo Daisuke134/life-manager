@@ -269,6 +269,62 @@ def test_rebind_queued_owner_updates_admission_without_changing_sequence(tmp_pat
     assert occurrence[0]["base_priority"] == "revenue"
 
 
+def test_investment_validation_can_use_revenue_deterministic_capacity_after_rebind(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="10")
+    admission.activate_durable_v2()
+    claims = []
+    try:
+        for index in range(3):
+            owner = f"deterministic-revenue-{index}"
+            ticket, reason = admission.enqueue_durable(
+                "deterministic", owner, admission_class="revenue",
+                priority="revenue", occurrence_id=f"{owner}:wake",
+            )
+            assert ticket is not None and reason in {"ready", "capacity_busy", "fifo_wait"}
+            claim, reason = admission.claim_durable(
+                "deterministic", owner, admission_class="revenue",
+            )
+            assert claim is not None and reason == "acquired", reason
+            claims.append(claim)
+
+        registry = json.loads((Path(__file__).resolve().parents[3]
+                               / "config/loop-registry.json").read_text())
+        policy = registry["loops"]["investment-strategy-validation"]
+        owner = "investment-strategy-validation"
+        occurrence_id = f"{owner}:capacity-regression"
+        ticket, reason = admission.enqueue_durable(
+            "deterministic", owner, admission_class="borrow", priority="support",
+            occurrence_id=occurrence_id,
+        )
+        assert ticket is not None and reason == "capacity_busy"
+        before = next(row for row in durable_rows(tmp_path, "queue")
+                      if row["owner_id"] == owner)
+
+        result = admission.rebind_queued_owner(
+            owner, resource_class=policy["resource_class"],
+            admission_class=policy["admission_class"], priority=policy["priority"],
+        )
+
+        assert result == "rebound"
+        after = next(row for row in durable_rows(tmp_path, "queue")
+                     if row["owner_id"] == owner)
+        assert (after["sequence"], after["owner_id"]) == (
+            before["sequence"], before["owner_id"],
+        )
+        queued = next(row for row in durable_rows(tmp_path, "occurrences")
+                      if row["occurrence_id"] == occurrence_id)
+        assert queued["state"] == "queued" and queued["effect_unknown"] == 0
+        claim, reason = admission.claim_durable(
+            "deterministic", owner, admission_class=policy["admission_class"],
+        )
+        assert claim is not None and reason == "acquired", reason
+        admission.release_and_reserve(claim, reserve=False)
+    finally:
+        for claim in reversed(claims):
+            admission.release_and_reserve(claim, reserve=False)
+
+
 def test_rebind_queued_owner_migrates_resource_class_without_changing_fifo_identity(
         tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="4")

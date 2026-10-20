@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Pick the next Hook Lab SEO keyword whose aniccaai.com page does not exist yet.
 
-The 16 keyword-targeted pages (2026-10-16/17) became Hook Lab's top traffic source
-(Google AI Overview), while the dated capafy-hook-lab-<slot> articles drew ~1 view a
-week. capafy-distribute-daily asks this for a keyword on Hook Lab slots and writes
-that page instead. Prints the keyword JSON, or nothing when the list is exhausted.
+capafy-distribute-daily asks this for a keyword on Hook Lab slots and writes
+that page instead. Traffic-source classification and measured outcomes live in
+the canonical SSOT; creating a page does not establish external search acquisition.
+Prints the keyword JSON, or nothing when the list is exhausted.
 Usage: pick_seo_keyword.py KEYWORDS_JSON RESEARCH_DIR
 """
 import json

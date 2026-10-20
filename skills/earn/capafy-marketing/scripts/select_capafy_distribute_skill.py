@@ -98,9 +98,9 @@ def _is_buyer_visible(products_cfg: dict, analytics: dict | None, slug: str) -> 
 
 def weighted_rotation(first: str, others: list[str], search_views: dict | None) -> list[str]:
     """Alternate the top seller with the others, giving each other seller 1-3 turns by its
-    7-day search-side views (AI Overview + Google + Capafy search; +1 turn per 10 views).
-    2026-10-18: TikTok Script Pro had 27 such views and YouTube Script Writer 9, yet each
-    held a quarter of all slots. No data keeps the old equal rotation."""
+    7-day mixed discovery views (+1 turn per 10 views). The name-based signal
+    includes in-app discovery and Google referrers; it is not SEO attribution.
+    No data keeps the old equal rotation."""
     turns = []
     for slug in others:
         views = (search_views or {}).get(slug, 0)
@@ -109,7 +109,7 @@ def weighted_rotation(first: str, others: list[str], search_views: dict | None) 
 
 
 def search_views_by_skill(products_cfg: dict, reconcile_path: Path) -> dict:
-    """slug -> 7-day ai_overview + google + search views from capafy-hourly-reconcile.json."""
+    """Sum 7-day views named ai_overview, google, or search across mixed sources."""
     try:
         by_agent = json.loads(reconcile_path.read_text())["traffic_sources"]["by_agent"]
     except (OSError, ValueError, KeyError, TypeError):

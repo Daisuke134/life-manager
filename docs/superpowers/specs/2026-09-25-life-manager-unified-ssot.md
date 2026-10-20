@@ -2,64 +2,68 @@
 
 ## 現況監査とCapafy優先の統括cursor
 
-**目的・範囲・完了条件:** ローカルLife Managerの既存設計を継承し、全業務の自然実行・配信・公式収入・費用後利益・評価付き自己改善まで、既存C1–C9を一件ずつ進める。Daisの継続実行指示により前回のdocs-only境界を実装・必要検証・通常反映まで広げる。現在はC1をexact no-effectと再送防止まで完了し、cursorをC2へ進める。全社/各laneの収益目標・未知の費用/真のMRR・benchmark/AGIの未証明は保持し、C1完了で全goalを完了扱いしない。新しいSSOT・競合scheduler・cloudの別実装は作らない。
+**目的・範囲・完了条件:** ローカルLife Managerの既存設計を継承し、全業務の自然実行・配信・公式収入・費用後利益・評価付き自己改善まで、既存C1–C9を一件ずつ進める。C1のexact no-effect閉鎖と、C2の容量基準回復/現在状態保持/配信公開/factory自然提出は確認済み。C2の履歴clock・個別gap・永続容量安定は未完を保持し、business cursorをC3の流入帰属訂正と収益計測へ進める。Daisの継続実行指示の範囲で実装・必要検証・通常反映を行い、全社/各laneの目標、未知の費用/真のMRR、benchmark/AGIの未証明を縮めない。新しいSSOT・競合scheduler・cloudの別実装は作らない。
 
-**証拠の範囲:** source base=`70a5e3657317e0a53c33a2d643cd46ce967c8079`、稼働snapshotは`lm-loop status all --json`のローカル実測、収益は既存ownerが保存した公式readback。保存観測時刻と監査時刻を分ける。新しい認証付きseller probeは実施しない。匿名化した集計・run/SHA・出所は[監査証拠](../../evidence/capafy-rsi-status-20261020.json)。観測窓は2026-10-20、時刻は以下の通り。
+**証拠の範囲:** sourceの本番採用はmain `cd4c0d98855fd27d38c61df2afad2787947b2c0b`まで、管理対象の最新snapshotは19:16:40Zの`lm-loop status all --json`、金銭は以下に保存観測時刻を明示する公式readbackを使う。初期監査の[証拠](../../evidence/capafy-rsi-status-20261020.json)を最新観測へ上書きせず、追加の正規seller/package GET・SDK canary・採用・exact閉鎖は以下のC2/C4証拠を参照する。生credential・署名URLをrepoへ保存しない。
 
 ### As-Is：基盤は完全修復に至らず、全業務の収益改善は未証明
 
 - **「20 agents」の実体:** `apps/life-manager/config/product-loop-catalog.json`は18業務group。customer_revenue 14、investment 1、financing 1、non_economic 1、aggregator 1。18個の単一processではなく191 managed jobsで動く。未登録の2業務を推測で増やさない。CFO/Connectorに直接売上を要求せず会社の収益を支える契約で評価し、資金調達や投資元本を顧客売上/MRRへ加えない。
-- **稼働:** 14:23Z台のsnapshotは191 managed、loaded-idle160 / loaded-running29 / disabled2。最新記録のblockerはdisk_floor_low104 / resource_effect_unknown44 / entrypoint_exit_1 6 / blockerなし37。これは最新attemptの分類であり同時停止数・成功率ではない。79 jobsはproduct_loop_idなし。全業務が正常とも全停止とも判定しない。
-- **容量:** watchdogの14:22:12Z receiptはfree_after=3,854,827,520 bytes、回収0 / errors0 / protected_deletions0。2GiB recovery floorは満たすが10GiB producer floorを満たさない。低いfloorのPASSを収益lane回復と扱わない。以前のcorespotlightd→swap原因は今回再測定せず、現在の書込owner/増加原因は未確認のままにする。恒久修復をkillや一度の空き容量だけで判定しない。
-- **監視:** health-observer 14:21:34Zはtelemetry_gap191、health_snapshot_timeout。healthy=0は全故障の証明ではない。独立のstatus読取は成功しており、監視snapshotの失敗境界を別atomで直す必要がある。
-- **Capafy owner:** factory/hourlyはdisk_floor_low、distributor/outcome-monitor/IG-account-managerはresource_effect_unknown。IG-marketingはdisabled、reelの最新terminalはexit1。healthcheckのpassやbrowserのrunningで公開/収益成功を代用しない。installed SHAはownerごとに異なり、current symlinkだけで全fleet採用済みと判定しない。
+- **稼働:** 19:16:40Zの更新snapshotは191 managed、loaded-idle152 / loaded-running37 / disabled2。最新attempt分類はblockerなし81 / resource_capacity_busy48 / resource_effect_unknown42 / disk_floor_low11 / entrypoint_exit_1 6 / entrypoint_exit_75 2 / brain_transport1。最新attemptの記録であり、同時停止数・期間成功率とは異なる。status allの総305行にはretired97/external15/unmanaged2も含まれ、管理対象へ加えない。79 managed jobsはproduct_loop_idなし。容量不足104→11は記録上の減少であり全ownerの自然復旧証明ではない。private正本証拠=`c2-fleet-post-adoption-snapshot.json`。
+- **容量:** native Spotlight再構築後にindexing enabledを復元し、19時台のData freeは約27.2GiBとなる。10GiB revenue/12GiB一般producer floorは満たす。初期約3.6GiBからの回復は実測済みだが、index再生成中で永続安定は未証明。保護storeの直接削除・基盤restart・floor低下は行わない。詳細とreceiptはC2容量atomを参照する。
+- **監視:** 新SHAを採用した自然observerの19:31:40Z snapshotは191件を保持し、healthy31/running16/failed51/safely_fenced77/effect_unknown4/telemetry_gap12。全件health_snapshot_timeoutは最新回で再現しない。履歴clockはhealth_history_timeoutで未確認を保持する。同じowner環境/Background条件の段階probeは現在状態約6.96秒、その後の履歴が全体30秒期限に達する。診断専用の履歴単独読取も約42.37秒であり、二重snapshotの除去だけで期限内へ入るとは判断しない。期限延長・欠測の正常化をせず、履歴修復は未完とする。
+- **Capafy owner:** factory自然run `18e0534e41f919c0-37955`は新main `cd4c0d98`でpass/exit0となり、同Agent/versionの公式under_reviewとexact admission released/unknown0を確認する。distributorの次自然run `18e054b474819040-48387`もcd4c0d98でpass/exit0、hourly `18e052674634ec40-93153`もpass/exit0で金銭照合を保存する。hourlyの実run SHA43be9232と現在installed cd4c0d98を区別する。IG-account-manager/outcome-monitorのeffect unknown、reelの失敗、IG-marketing無効は未解消。公開/審査提出/有料購入を別の成果として記録する。
 - **EDD:** 既存LM-EABは5つの公開synthetic fixtureによる契約検証で、自然taskに対する汎化性能・live利益・秘密held-outを証明しない。既存OpenEvolveのrun_evolveはpaper/backtest戦略を対象にし、Capafy配信を自己最適化する実装ではない。article-self-improve / gig-experiment-evaluate / self-improve-evolveもsnapshotでdisk延期。今回読んだ証拠からCapafyのeval→変更→成熟した売上/費用→keep/revertという自律閉路の完走は確認できない。
 
 ### 全18業務の確認表
 
-下表のjob数/terminalは14:23Z台snapshot、財務はCFOの07:52:49Z snapshot（trailing開始9/20同時刻）。terminalは最新記録で、期間成功率ではない。全18業務で総合net statusはunknown。Coconalaはtrailing settled revenue¥70,980 / historical¥263,634を保存するがnet=null。mobile-appsのMRR$20.34はsubscription snapshotで入金/利益ではない。self-buildはMRR status=verifiedでも通貨合計が空で、$0とは断定しない。他16業務のMRRはunknown。CFO provenanceはpartial / asc_receipt_missing_in_reporting_window。この表の「未証明」は売上0の意味ではない。
+下表のjob数/terminalは19:16:40Z更新snapshot、財務はCFOの07:52:49Z snapshot（trailing開始9/20同時刻）。terminalは最新記録で、期間成功率ではない。全18業務で総合net statusはunknown。Coconalaはtrailing settled revenue¥70,980 / historical¥263,634を保存するがnet=null。mobile-appsのMRR$20.34はsubscription snapshotで入金/利益ではない。self-buildはMRR status=verifiedでも通貨合計が空で、$0とは断定しない。他16業務のMRRはunknown。CFO provenanceはpartial / asc_receipt_missing_in_reporting_window。この表の「未証明」は売上0の意味ではない。
 
 | 業務 | managed jobs | 最新terminal内訳 | 収益の証拠・残課題 |
 |---|---:|---|---|
-| gig-coconala | 7 | 6 blocked, 1 running | 30日売上¥70,980、費用後net欠測 |
-| gig-lancers | 7 | 6 blocked, 1 running | 顧客収益/費用後netの完全性は未証明 |
-| gig-crowdworks | 5 | 4 blocked, 1 running | 顧客収益/費用後netの完全性は未証明 |
+| gig-coconala | 7 | 5 blocked, 1 pass, 1 running | 30日売上¥70,980、費用後net欠測 |
+| gig-lancers | 7 | 3 blocked, 2 fail, 1 pass, 1 running | 顧客収益/費用後netの完全性は未証明 |
+| gig-crowdworks | 5 | 3 blocked, 1 fail, 1 running | 顧客収益/費用後netの完全性は未証明 |
 | gig-mercor | 3 | 3 blocked | 顧客収益/費用後netの完全性は未証明 |
 | promptbase | 1 | 1 fail | 顧客収益/費用後netの完全性は未証明 |
-| writer | 7 | 7 blocked | 顧客収益/費用後netの完全性は未証明 |
-| affiliate | 6 | 1 fail, 3 blocked, 2 running | 顧客収益/費用後netの完全性は未証明 |
+| writer | 7 | 4 blocked, 3 pass | 顧客収益/費用後netの完全性は未証明 |
+| affiliate | 6 | 3 blocked, 3 running | 顧客収益/費用後netの完全性は未証明 |
 | investment | 4 | 4 blocked | 投資：元本を売上へ加えず実現netを評価 |
-| agent-economy | 16 | 6 running, 10 blocked | 顧客収益/費用後netの完全性は未証明 |
+| agent-economy | 16 | 10 blocked, 1 fail, 5 running | 顧客収益/費用後netの完全性は未証明 |
 | job-hunter | 4 | 4 blocked | 顧客収益/費用後netの完全性は未証明 |
-| fundraiser | 2 | 1 blocked, 1 fail | financing：獲得資金を売上へ加えない |
-| connector | 1 | 1 blocked | non_economic：接続成果を評価 |
-| self-build | 4 | 3 blocked, 1 pass | MRR通貨合計は空、net未証明 |
-| mobile-apps | 23 | 21 blocked, 1 none, 1 fail | MRR$20.34、ASC/費用/settlement欠測 |
-| ebook | 5 | 1 pass, 4 blocked | 顧客収益/費用後netの完全性は未証明 |
-| capafy | 11 | 1 running, 7 blocked, 1 none, 1 pass, 1 fail | 7日paid0、MRR/会社net欠測 |
-| line-sticker | 3 | 1 running, 2 blocked | 顧客収益/費用後netの完全性は未証明 |
-| cfo | 3 | 3 blocked | aggregator：財務coverageを評価 |
+| fundraiser | 2 | 1 blocked, 1 running | financing：獲得資金を売上へ加えない |
+| connector | 1 | 1 pass | non_economic：接続成果を評価 |
+| self-build | 4 | 2 blocked, 2 pass | MRR通貨合計は空、net未証明 |
+| mobile-apps | 23 | 1 blocked, 1 none, 20 pass, 1 running | MRR$20.34、ASC/費用/settlement欠測 |
+| ebook | 5 | 2 blocked, 3 pass | 顧客収益/費用後netの完全性は未証明 |
+| capafy | 11 | 7 blocked, 1 fail, 1 none, 1 pass, 1 running | 7日paid0、MRR/会社net欠測 |
+| line-sticker | 3 | 1 blocked, 1 fail, 1 running | 顧客収益/費用後netの完全性は未証明 |
+| cfo | 3 | 2 blocked, 1 pass | aggregator：財務coverageを評価 |
 
 79 unmapped jobsは欠落させずEDD-FLEET-01で分類する。catalogのadapter実装宣言とCFOの実receipt coverageを区別する。
 
 ### Capafy：最新の保存済み公式readback
 
-観測時刻=2026-10-20T17:22:47Z（JST翌02:22）、自然hourlyは17:35:48Zにpass/exit0で保存を完了する。以下はこの取得時点の公式readbackであり、その後の未観測売上や現在時刻のfreshnessを推定しない。CFO既存の6時間freshness契約を維持する。
+観測時刻=2026-10-20T19:07:38Z（取得開始）、自然hourly `18e052674634ec40-93153`はpass/exit0で保存する。以下はこの取得窓の公式readbackであり、現在時刻のfreshnessや未観測売上を推定しない。CFO既存の6時間freshness契約を維持する。
 
 | 指標・同一窓 | 確認値 | 解釈 |
 |---|---:|---|
 | 累計gross / 有料units | $102.75 / 32 | 前掲ユーザーsnapshotから増加なし。legacy API gross$117.74/orders875はseller系列へ混ぜない |
 | seller orders / 全units / 無料trial units | 70 / 106 / 74 | 異なる系列。free/public Soldを有料件数へ加算しない |
-| 7日 exposure / detail views | 13,723 / 1,913 | account窓。以前の13,824/1,836と窓が動くため同一cohortの減少とは断定しない |
+| 7日 exposure / detail views | 13,917 / 1,933 | exposureはcategory/search/hot、detailは全source。単純な比を同一母集団のCTRと呼ばない |
 | 7日 trial / paid / gross | 5 / 0 / $0 | 収益化の未達は確認できるが、trialが原因という因果は未証明 |
 | 30日 paid / gross | 13 / $33.87 | last positive revenue day=9/29。過去の売上は現在の新規売上ではない |
 | 掲載 / occupied / free | 61 / 2 / 1 | occupied/freeの詳細意味は既存normalizer契約のまま。差分だけで特定Agentの審査通過を推定しない |
-| Hook Lab 7日views / paid | 73 / 0 | Agent8123079349 |
-| Hook Labへの7日source views | hooklab_free32、ai_overview15、search11、direct5、google5、hooklab_x3、category2 | hooklab_blog/IGは0。channel-window観測でcreative/slot因果ではない |
+| Hook Lab 7日views / paid | 76 / 0 | Agent8123079349 |
+| Hook Labへの7日source views | hooklab_free34、ai_overview15、search11、direct6、google5、hooklab_x3、category2 | hooklab_blog/IGは0。channel-window観測でcreative/slot因果ではない |
 | payout済み / creator earnings | $0 / $76.18 | pending/payout balance$59とconfirmed$17.18は入金ではない |
 | true MRR / 費用後確定会社net | unknown / unknown | active/canceled subscription・全実費の公式coverageなし |
 
 **Hook Grader TODO3の確認結果:** [公式公開listing](https://capafy.ai/agent/2455220100)をFirecrawl maxAge=0で取得し、v1.0.1 / updated10/16 / Downloadの公開状態を確認する。保存analyticsもstatus=online、has_online_version=true。従って「v1.0.1がまだ審査待ち」は置換する。公開Sold20は無料downloadを含むためpaid20としない。listing末尾はHook Labへの文字による案内で、公開取得本文には直接リンクが現れない。実download出力末尾のCTAと登録CTは未確認。17:22:47Z取得の7日Hook Grader views81とhooklab_free32は別の流入母集団なので32/81を転送率にしない。以前の1.7%/基準3%は、同一無料商品・利用者cohort・期間の分母を再取得するまで再判定しない。
+
+**Hook Grader配布物の追加readback:** 公式publisher GETはAgent `2455220100`の公開version `2110998797669519360`、v1.0.1、download、platform_status/audit_status4を確認する。直のS3 packageUrlは403だが、通常購入者向け`GET /agent/agent/agents/{agentId}/package`はcode0で署名付き`files.capafy.ai` URLを返す。Python既定headerでは403となり、browser相当User-Agent/Refererの追加probeではRange206、同条件のfull GETは200/application ZIPとなる。公開ZIPは1858 bytes/2 files、SHA256=`6d32ef0aca9fecd2cf9ceda286eb42f289f65b57b1f86eceeb2404016193f240`。内包`hook-grader/SKILL.md`は出力末尾に`https://capafy.ai/agent/8123079349?ct=hooklab_free`を添える指示を持つ。展開/コード実行/注文/提出は0。したがって公開listing本文にlinkが見えないことを配布物CTA欠落や買い手のdownload不能へ昇格しない。実際のmodel出力と同一無料利用cohort→訪問→paidの対応は未確認で、C4は未完。新無料Agentを追加する判断は正しい分母と既存導線の測定後とする。private証拠=`c4-hookgrader-authorized-package-content.json`/`c4-hookgrader-package-download-boundary.json`。
+
+**C4の独立consumer出力probe:** 公式正規downloadを再取得し、前回と同じ公開package SHA256 `6d32ef0aca9fecd2cf9ceda286eb42f289f65b57b1f86eceeb2404016193f240`を確認する。公開SKILL全文を入力し、既存Codex CLI accountのephemeral/read-only/model指定なしで、TikTokの既存hook一文・画面textなしという1例を実行する。exit0、4基準の点数/理由・最大の改善・1 rewrite・画面text未提出の注記を出力し、最後の行が公開SKILLに指定されたHook Lab直接link/登録済み`ct=hooklab_free`と完全一致する。tool item0、購入/提出0。input43732/cached7168/output389 tokensを観測し、subscription按分や機会費用を$0とは置かない。これは独立consumer 1応答のCTA動作であり、全buyerでの保証・評価品質の妥当性・cohort転送率・paid conversionではない。C4の実出力確認を部分達成とし、残る利用→訪問→paidの分母/対応を保持する。private証拠=`c4-hookgrader-independent-consumer-response.json`とhash付きresponse。
 
 **費用の限界:** 07:49:31Zの旧analyticsにあるprofit30_actual_usd=$20.41はgross$33.87×80%を丸めた$27.10−OpenRouter実費$6.69の寄与推計。Capafy feeの実明細、host/他model/system費用、settlementの完全性を満たす会社確定netではない。all_time.net_usd=$102.75という名前もgrossと同値で、手取確定値として流用しない。
 
@@ -89,18 +93,24 @@
 | 順序・状態 | 一つの作業と既存atom | 完了の証拠 |
 |---|---|---|
 | C1 DONE / exact no-effect自然閉鎖 | DD02/T1/CD1：既存distributorのexact未知occurrenceをBlog/GitHub/Xの公式readbackと照合し、必要なself-owned readback欠陥だけ修正する | 正確なrun/occurrence/release、provider ID、effect判定、再送0。receipt前の解除・再投稿を行わない |
-| C2 IN PROGRESS / 現在cursor | F1–F5/SH2–SH5/P2–P5：現在状態保持の自然受入と、native index再構築による容量基準回復/indexing復元を実測する。残る履歴clock・個別gap、Capafy自然terminal/公式readbackとfactory draft preflightを閉じる | 10/12GiBとfresh admissionを維持→factory/distributor/hourlyの自然terminal→公式readback。既知の失敗/未確定effectを保持し、保護解除/floor下げ/基盤restartはしない |
-| C3 PARTIAL | T0/T1/T2/CD1/DD03–DD05：fresh seller/traffic、正しいnested ledger、product/creative/registered CT/costを同一窓へ結ぶ | stale/missingとzeroを分離したsource×Agent scorecard。shared CTの訪問1件を複数slotへ配らない |
-| C4 OPEN | CD5/T4：Hook Grader実download出力の末尾CTAと登録CT、無料利用cohort→Hook Lab→paidの対応を検証する | v1.0.1掲載は確認済み。正しい分母で転送率を再計算。基準未達なら既存ownerが新規の非FROZEN lead magnetを1件だけ作成/提出/公開し、登録CTと自然流入を確認する |
+| C2 IN PROGRESS / 基盤残件 | F1–F5/SH2–SH5/P2–P5：現在状態保持の自然受入と、native index再構築による容量基準回復/indexing復元を実測する。残る履歴clock・個別gap、Capafy自然terminal/公式readbackとfactory draft preflightを閉じる | 10/12GiBとfresh admissionを維持→factory/distributor/hourlyの自然terminal→公式readback。既知の失敗/未確定effectを保持し、保護解除/floor下げ/基盤restartはしない |
+| C3 IN PROGRESS / business cursor | T0/T1/T2/CD1/DD03–DD05：fresh seller/traffic、正しいnested ledger、product/creative/registered CT/costを同一窓へ結ぶ | stale/missingとzeroを分離したsource×Agent scorecard。shared CTの訪問1件を複数slotへ配らない |
+| C4 PARTIAL / 配布物・独立出力1件確認 | CD5/T4：Hook Grader実download出力の末尾CTAと登録CT、無料利用cohort→Hook Lab→paidの対応を検証する | v1.0.1掲載は確認済み。正しい分母で転送率を再計算。基準未達なら既存ownerが新規の非FROZEN lead magnetを1件だけ作成/提出/公開し、登録CTと自然流入を確認する |
 | C5 OPEN | CD2/CD3/CD4/T11/DD06–DD09：winner型の実入力→実出力demoを一つのcandidateとして既存配信へ流す | 一商品/一offer/一channelのcontrol、割当単位、成熟期間、費用上限、停止規則を凍結。click可能CTA/native receipt/qualified reach、自己probe除外。既存channelは維持する |
 | C6 OPEN | CD6/CD7/T12/DD10–DD11/I：成熟したclick/activation/paid/refund/費用後寄与で候補を評価しretain/reject/inconclusiveを保存する | 最初の自律1 cycleのrun→候補diff→凍結eval→配信receipt→成熟売上/費用→判定が追える。sample不足はinconclusive。optimizerはFROZEN seller、grader/split、fence/cap、credentialを変更できない |
 | C7 OPEN | T3/T13：first-new-paidと継続収益目標を別々に閉じる | 既存gate orders>70 AND gross>$102.75に加え新paidの公式証拠。active plan/cancellation/churn取得→真のMRR。$100→$1K→$10Kは目標段階で保証/現MRRではない。公式subscription源がなければMRR unknownを保持し、集客/売上作業を止めない |
 | C8 OPEN | EDD-FLEET-01/02/03、DD12、CD8/CD9：79 unmapped jobsをproduct所属または明示的な補助・基盤ownerへ分類し、18業務の共通receipt/costとtyped recoveryを展開する | lane別verified/zero/unknownとcoverage、業務目的別の自然成果、費用後会社profitが追える。CFO/Connectorは補助成果、Fundraiserはfinancing。無料outreach/OSSは既存gate後、installや登録を売上と呼ばない |
 | C9 OPEN | CD10/E03–E06/H01–H04/I01–I04：自然trace/独立held-out、fixed baseline/repeated trials、回復と利益改善を別評価する | 既存LM-EABを拡張しcost/latency/介入/汎化/公式netを報告。public synthetic PASSとAGI/収益能力を区別。会社全体$10M MRR目標と既存lane別目標を縮めない |
 
+**統括順序更新と現在cursor:** 旧順=C2の全基盤残件を閉じる→C3→C4→C5→C6→C7。新順=C2のCapafy供給/配信/金銭照合の自然復帰（確認済み）→C3のsource帰属訂正・同一窓scorecard→C4の無料cohort→C5の単一候補→C6の成熟実費後評価→C7の新paid/MRR。C2のglobal履歴clock・12個別gap・永続容量安定は既存基盤ownerの未完作業として保持し、C8以降の全業務要件も維持する。理由はCapafyの直接公式readbackと自然runが使える一方、履歴単独は42秒で30秒期限を超え、収益計測をその全改修待ちにする依存がないため。進行中の次factory runや外部effectは中断・再送しない。現在business cursor=C3/流入帰属の説明訂正。
+
+**C3の一次資料による帰属訂正とbounded仕様:** 公式[TrafficSources UI asset](https://capafy.ai/assets/TrafficSources-CjDavuEU.js)はraw `sourceType`を保持し、`internal`を`In-app`、`referrer`を`Referrer`として表示する。collectorの`_traffic_merge`も値を保持する。19:07:38Z取得窓のHook Labはinternal/ai_overview15・internal/search11・referrer/google5で、selectorの合計31は内部26＋Google referrer5という混合signal。Google AI Overview由来、16 keyword記事の因果成果、SEO勝者という説明は証明できないため撤回する。Google referrer5にもAI Overview内訳や記事との対応はない。fresh read-only検証は同asset SHA256 `a45f7b215a271ef3fee7ce84d1b7e7a01d9ab4b41304946ebfa8dfb7b675feb6`と分類・正規化を独立照合し、最小の説明訂正を推奨する。owner=`codex-capafy-source-attribution`、worktree=`.worktrees/capafy-source-attribution-20261021`、branch=`fix/capafy-source-attribution-20261021`、base main=`16c097c076851ca5cf3b7081df37aeea2f879bce`。変更範囲は正本、pick_seo_keyword.pyのmodule doc、capafy-distribute-daily.shのSEO comment、select_capafy_distribute_skill.pyのdocstrings、既存testのGoogle断定commentだけ。rotationの計算・keyword選択・投稿・価格・登録CT・grader/split/windowは変更せず、説明と実装の乖離を解消する。非docstring ASTとshell非comment行の同一性、差分、通常CI/mainを確認する。C3全scorecard/費用coverage・C4–C9・売上改善は本atomで完了扱いしない。証拠はprivate C3 `c3-independent-ai-overview-classification-verification-195901.json`と公式readback。
+
+**C3説明訂正のsource受入:** 上記4 source/testファイルの説明を訂正する。docstringを除くPython ASTとshell非comment行がbase mainから同一であることをfocused checkで確認し、diff checkはPASS。配信分配・公開・価格・CTを変えず、独立一次資料確認の推奨範囲に留める。CI/main/immutableへの説明反映とC3全体の計測受入は未完を保持する。
+
 **到達した状態の定義:** self-healingは既知障害からdurable進捗が自然再開すること。self-improvingは比較可能な評価・実市場成果で採用した変更を次の実行が使用すること。全社最適化は、通貨/窓/実費を保持して限界利益と不確かさから実行枠を配分し、探索枠を残しながら損失/重複/顧客義務の制約を守ること。投稿数、出品数、model judgeの好み、process passだけではいずれも完了にしない。利益の絶対最大値/毎回の増益は市場不確実性のため証明できず、改善を測って保持/撤回できる閉路を受け入れ対象にする。
 
-**今回の検証と未完:** 稼働snapshotと保存済み公式数値、公開listing、4研究の一次資料を確認する。docs-onlyのため製品コード/依存追加や広いtest suiteは実施しない。数値整合・JSON・差分・独立read-only反証・PR/CI/mainの統合証拠は本作業の完了報告へ記す。基盤/全18業務収益化/C1–C9の実行完了は主張しない。
+**今回の検証と未完:** 保存済み公式金銭/流入、管理対象191 jobsの再取得、公開listing/正規配布ZIP、4研究の一次資料を確認する。Daisの継続実行指示によりdocs-onlyから既存C1–C9の実装・必要検証・通常反映へ進む。factory修正は関連51 tests/独立反証/全12 CI/main/immutable/本番read-only canary/限定採用と旧exact閉鎖まで確認し、新SHA自然提出を待つ。新規依存/API/GPU契約は追加せず、基盤全体・全18業務収益化・C1–C9全体の完了を主張しない。
 
 ### C1実行：配信unknownのexact occurrence照合
 
@@ -122,9 +132,15 @@
 
 **C2の現在cursor:** 配信H1 source atomは自然受入までDONE。新SHA `75f69bdf5d`の初回queued occurrenceは既存schedulerによりcoalesceされ、自然run/occurrence `18e04f8495f66258-97245`が18:14:42Z execute→18:27:41.498991Z report/pass・exit0になる。新slot `2026-10-21-h03m00`の記事は公式commit `7d30b7c5003eb86310dd659a38c753ef9699b896`（18:17:45Z）とlive HTTP200・原H1/Hook Lab CTAが一致し、Xは公式Postiz GETで`cmvh0jhl20ao4rq0y1h9jlq7h`/PUBLISHED・native `2112611137951031667`を確認する。fresh-context独立反証は指摘0/blocking0で、main ancestry/ALL immutable/readonly/loaded argv/自然terminal/DB released・effect_unknown0を確認する。primaryからの再投稿/resolve0。generic terminalのeffect_statusはunknown/provider receipt欄は空のため、公式公開proofをその欄のverifiedへ置換しない。今回の自然H1はASCII `videos`であり、accent経路は旧失敗draft`vídeos`を使うoffline canaryで検証する。売上・MRR・全C2の完了とは分ける。
 
-**C2 factory同一stub復帰のbounded仕様:** 現在cursor=factory draft preflight/CP1復帰。owner=`codex-capafy-stub-cp1`、worktree=`.worktrees/capafy-stub-cp1-resume-20261021`、branch=`fix/capafy-stub-cp1-resume-20261021`、base main=`698d0d0713bce4548c6d5d6db331a16983d4b05c`。17:52:06Zの公式状態とlocal `init_completed`を持つ同ID/versionで、skills/config/packageがすべてfalseの未開始stubが`retry_existing_stub_finish`の確認済みfast pathに入り、CP1の既存経路へ到達する前に毎回停止する。mainのDAILY_LOOP.md Step2c/5は同Agentのprepare→必要CP1→finishを既に定義し、resume branchも`MODEL_UNKNOWN no-confirmed-model-yet`時に同Agent re-prepareを選ぶ。既存27 tests PASS後、同じshell consumerを実行する追加testで、全false/未confirmed modelの正当なstubだけが同Agent prepareへ到達せずexit1になることをREDで再現する。既存prepareは同じAgent IDの新versionを作成し、返されたversionにCP1/finishを結ぶ契約であり、旧versionのままCP3へ進める修復ではない。未開始と不確実/不一致を区別した最小の復帰分岐を検討する。readyの同version fast finish、公式読取失敗・agent/version/status不一致・不明model・finish/upload失敗後の停止を維持し、未確認のままCP3へ進めたり新Agentを作ったりしない。追加retry・第二publisher・UI/価格/credential変更は行わない。初回sourceは関連43 testsがPASSするが、独立reviewで2 Blockingを再現する。(1) SDKのraw欠測/null→normalized falseが未開始へ化けるため、既存runtime_mapping.pyへraw identity/確認fieldの明示性だけを保持する診断を加え、新しい復帰経路で要求する。既存bool正規化の出力自体は変えない。(2) 復帰後の2回目model読取が失敗すると旧version finish/fallbackへ流れるため、初回の確定した復帰情報を既存FRESH/REUSE_PREPARE_IDへ直接引き渡し再判定しない。18:36:53Zのraw公式GETは同Agent/version・status0・run_online、2確認flagの明示int0とpackageUrl欄の存在/str型を確認する。正規化falseだけを証拠にしない。変更対象はdaily_loop.sh/既存test_daily_loop_terminal.py/vendor内packaging/publish/platform/runtime_mapping.py/正本（既存runbookの契約追記が不可欠な時だけDAILY_LOOP.md）。raw→実normalizer→shellとmodel再読取反例を追加REDで保持する。別worktreeの未統合CP1_AGENTIC.md/cp1_agent.py/publish_prepare.sh/publish_finish.sh/価格testは他者所有で触れず、main採用済みの既存経路を使う。比較/既存関連test→独立read-only反証/CI→main→ALL immutable/isolated canary→exact factoryの安全な自然再開/同Agent公式readback/再送0で受け入れる。sourceだけで提出や売上成功を宣言しない。
+**C2 factory同一stub復帰のbounded仕様:** 現在cursor=factory draft preflight/CP1復帰。owner=`codex-capafy-stub-cp1`、worktree=`.worktrees/capafy-stub-cp1-resume-20261021`、branch=`fix/capafy-stub-cp1-resume-20261021`、base main=`698d0d0713bce4548c6d5d6db331a16983d4b05c`。17:52:06Zの公式状態とlocal `init_completed`を持つ同ID/versionで、skills/config/packageがすべてfalseの未開始stubが`retry_existing_stub_finish`の確認済みfast pathに入り、CP1の既存経路へ到達する前に毎回停止する。mainのDAILY_LOOP.md Step2c/5は同Agentのprepare→必要CP1→finishを既に定義し、resume branchも`MODEL_UNKNOWN no-confirmed-model-yet`時に同Agent re-prepareを選ぶ。既存27 tests PASS後、同じshell consumerを実行する追加testで、全false/未confirmed modelの正当なstubだけが同Agent prepareへ到達せずexit1になることをREDで再現する。既存prepareが返す同Agent/versionにCP1/finishを結ぶ。新versionを常に作るとは仮定せず、既存未開始stubを再利用した場合も返されたIDの公式readbackを検証する。未開始と不確実/不一致を区別した最小の復帰分岐を検討する。readyの同version fast finish、公式読取失敗・agent/version/status不一致・不明model・finish/upload失敗後の停止を維持し、未確認のままCP3へ進めたり新Agentを作ったりしない。追加retry・第二publisher・UI/価格/credential変更は行わない。初回sourceは関連43 testsがPASSするが、独立reviewで2 Blockingを再現する。(1) SDKのraw欠測/null→normalized falseが未開始へ化けるため、既存runtime_mapping.pyへraw identity/確認fieldの明示性だけを保持する診断を加え、新しい復帰経路で要求する。既存bool正規化の出力自体は変えない。(2) 復帰後の2回目model読取が失敗すると旧version finish/fallbackへ流れるため、初回の確定した復帰情報を既存FRESH/REUSE_PREPARE_IDへ直接引き渡し再判定しない。18:36:53Zのraw公式GETは同Agent/version・status0・run_online、2確認flagの明示int0とpackageUrl欄の存在/str型を確認する。正規化falseだけを証拠にしない。変更対象はdaily_loop.sh/既存test_daily_loop_terminal.py/vendor内packaging/publish/platform/runtime_mapping.py/正本（既存runbookの契約追記が不可欠な時だけDAILY_LOOP.md）。raw→実normalizer→shellとmodel再読取反例を追加REDで保持する。別worktreeの未統合CP1_AGENTIC.md/cp1_agent.py/publish_prepare.sh/publish_finish.sh/価格testは他者所有で触れず、main採用済みの既存経路を使う。比較/既存関連test→独立read-only反証/CI→main→ALL immutable/isolated canary→exact factoryの安全な自然再開/同Agent公式readback/再送0で受け入れる。sourceだけで提出や売上成功を宣言しない。
 
 **factory sourceの修正後受入状況:** SDKのraw明示性を保持して欠測/nullを新経路へ通さず、確定した既存FRESH/REUSE_PREPARE_IDをそのままconsumerへ渡してmodelを再読取しない。関連51 tests、独立classifier27ケース・prepare5ケース、bash syntax/diff/loop contractがPASSし、review第2roundは指摘0/blocking0となる。code受入HEAD=`7ada743cad12b1004410b6dc79522981725bcc52`は最新main `de4df5b5d39fadde105f72f3a2d5bdb397c6c3bf`を通常merge済みで、他ownerの投資変更を保持する。CIで`manifest_inventory_mismatch skills/capafy-autopublish`を確認し、既存検証器と同じGit index/file SHA256/localeCompareのinventory計算により、manifestの当該root hashだけを更新する（255 files、inventory_sha256=`708153c0052d2459d84901dad1606b179264e5027ecd1a653aeb931ea108fba9`）。対象rootの検証違反0を確認するが、sparse checkoutの全OSS PASSとは呼ばない。PR #8428はBlocking検出後draftにし、exact新HEADの全CI PASS後に統合し、main由来immutableの本番canary/自然提出/公式readbackを満たしてから本atomの本番受入完了を宣言する。本番証明をmain統合の前提にはしない。旧factory occurrence `18e04dba30cbb9f8-54466`の登録済adapterは18:47:01Zに公式77件/snapshotを用いてpublish効果なしを確認する。独立read-only GETも77 unique/ID集合一致/version差分0/開始後updated_at0/hash一致を確認するが、この段階でprimaryはresolveしていない。提出・新規売上・C2全体は未完。
+
+**C3の現時点の収益baseline:** 18:37:54Z取得・last_30dの公式source×Agent表は有料13件/$33.87、正のpaid Agent3件で欠測Agent0。Hook Labは5件/$9.95（direct1・hot4）、TikTok Script Proは4件/$15.96（search3・Google1）、YouTube Script Writerは4件/$7.96（search4）。同じ窓の過去売上の分布であり、直近配信による新規売上・因果conversion率・MRR・完全費用後profitではない。blog/X/free導線のpaidは0のままで、次の配信candidateは既存search/hotの実購入経路と比較できる形にする。全費用とslot固有CTのcoverage不足はunknownを保持する。private証拠=`c3-observed-paid-source-baseline.json`。
+
+**factory新mainの採用とexact fence閉鎖:** PR #8428はexact HEAD `055c5534420a6b56837f59a268d5b5d0b34b88a6`の全12 CI成功後、main `cd4c0d98855fd27d38c61df2afad2787947b2c0b`へ統合する。ALL immutable `/Users/anicca/loops/releases/20261021T041104-cd4c0d98`のmain bytes/readonlyを確認し、実SDK→実shell classifierの本番read-only canaryは同Agent/versionをUNSTARTED、raw明示性の証拠を除いた反例をBLOCKEDと判定する。model読取は`MODEL_UNKNOWN no-confirmed-model-yet`で、prepare/provider writeは0。fresh launchctl-safe preflight PASS後、既存current promotionと内部owner lockを持つ対象loaded-idle applyでfactoryだけを新SHAへ採用し、loaded argv/待機状態を確認する。続いてowner deploy lock内で登録済adapterにexact旧occurrence `capafy-loop-daily:18e04dba30cbb9f8-54466`だけを再照合させ、19:15:06Zにverified=true/effected=false/closed=trueで閉じる。source・本番読取・採用・旧no-effect閉鎖は完了するが、新版の自然prepare/CP1/提出/公式版readback・新規売上は未完。次のcursorは自然factory runであり、手動publisher実行や新Agent作成はしない。証拠はprivate C2 directoryの`c2-stub-production-readonly-canary.json`と`c2-factory-exact-final-resolve.json`。
+
+**C2 factory自然復帰atom DONE:** 新main `cd4c0d98855fd27d38c61df2afad2787947b2c0b`の自然run `18e0534e41f919c0-37955`は19:24:07Z execute→19:51:28.500391Z report/pass・exit0となる。child summary/parent occurrence/SHAとSUBMITTED markerが一致する。19:52:14Zの公式GETと独立19:53:51Z GETは同Agent `9425449917`/version `2112455053047386112`のplatform_status1/audit1、skills/config確認true、package_uploaded true、under_reviewを確認する。既存未開始stubの同versionを再利用して提出した結果であり、新Agent・新version作成や掲載成功ではない。exact occurrenceは自然にreleased/effect_unknown0で、primaryの追加resolve/手動提出は0。fresh-context独立確認は指摘0/blocking0、archive対象8914 files bytes一致/書込可0、memoryは.gitattributesの明示export除外、loaded argv/SHA・自然終端・公式状態・DB1行を確認する。次run PID56418を終了済み対象PID37955と区別し、全操作traceが残らないため独立監査は自然summary/marker/公式変化の整合までの範囲とする。published ledgerの当該Agent行はsubmitted1件で、公式受理前の再送を行わない。審査通過/掲載/有料購入/全C2完了は未確認。private証拠=`c2-factory-natural-terminal-watch.json`、`c2-factory-natural-official-readback.json`、`c2-factory-natural-independent-verification-codex.json`。
 
 **C2の残る基盤/収益境界:** factory復帰の後に履歴clock/個別gapと全C2条件を照合する。自然health snapshot生成18:12:55Zは191件`health_snapshot_timeout`だが、同loaded source/configured plist env/background優先度のread-only probeは30.721秒で20 healthy/17 running/61 failed/76 safely_fenced/4 effect_unknown/13 gapを保持する。これは自然監視の復旧ではなく、実行条件による取得境界が残る証拠。18時台Data freeは約25.7GiB、再生成中Spotlight index約4.1GiB、indexing enabled、swap total9GiB/used約7.76GiB。10/12GiB floorは満たすが永続安定は未証明。最新公式金銭照合は17:22:47Z取得開始の累計gross$102.75/非trial32/7日閲覧1913・試用5・有料0・売上$0で、公開後の新規売上は未確認。MRR/null・完全費用/settled netの欠測、C2全体・C3–C9・全18業務ownerの収益/EDD/benchmark・AGI/MRR目標を維持する。
 
@@ -201,21 +217,32 @@ CFO同監査のCoconala provider coverageはhistorical/trailingともcomplete=fa
 
 CI依存は既存6d8bbe6a96と同じ最小修正を再利用する。mainのpublic context auditはproduct digest不一致だけで失敗し、source context/READMEに本変更の差分はない。PRでは既存29 source testsを維持し、公開反映auditはmain push/manualへ残す。本番公開状態をsource PR前提へ戻さず、public不一致自体は未解決として保持する。
 
-現在cursor: D4(e)-2b source atomはPR #8419でmainへ統合済み（12/12 checks PASS、fresh read-only financial review SHIP）。focused 71件・Alpaca全719件・source-boundary check PASS。item 2 wallet transfer status-history診断は局所実装・review済み。transfer status遷移を時刻付きで記録するが、official schemaにactivityとの共有ID/effect timestampはないためaccount flow/netに加算しない。focused 73件・Alpaca全721件・source-boundary PASS、fresh review #3 SHIP。PR #8422はlatest main `43be9232f58f`をbaseにOPEN。今回のspec追補でheadが変わるため、新headのrequired checksとreviewを読み直してからmergeする。source mergeはimmutable release採用や自然runを意味しない。paper ownerはsourceより古いrelease SHA=`3de67af1035f`を載せ、最新statusは`resource_capacity_busy`で停止しており、runtime/利益の受入は未完。全Life Managerの順序は上段C1–C9が正本で、本番採用は共有capacity/owner依存を守る。
+現在cursor: D4(e)-2bはPR #8419でmainへ統合済み（12/12 checks PASS、fresh read-only financial review SHIP、focused 71・Alpaca 719・source-boundary PASS）。item 2 wallet transfer status-history診断はPR #8422/merge de4df5b5d39fadde105f72f3a2d5bdb397c6c3bfでmainへ統合済み（exact-head 12/12 required checks PASS、fresh review #3 SHIP、focused 73・Alpaca 721・source-boundary PASS）。item 3 expiry-continuity sourceはcommit a28344c5abとして専用branchへpush済み、全Alpaca suite 725/725 PASS。main/runtimeへの採用は未完。fresh read-only adversarial reviewはa28344c5abに対しSHIP（findings 0、blocking 0、focused 24/24、full Alpaca suite 725/725）。現在cursorはPR/CI→main統合、次にitem 4 queued validationの期限前refresh。ETF v1 entryは意図的retiredを維持する。全Life Managerの順序は上段C1–C9が正本。
 
-**投資agentのAs-Is:** PR #8360の4 source修正はmerge commit `eef2058053e5`へ統合済み、PR #8414のspec更新は`28639d90786e`へ統合済み。active owned flow修正PR #8419は12/12 checks PASS・fresh read-only financial review SHIPでmerge commit `6ee843af2aec6c0340348afcfa0e0e844a70b745`へ統合済み。最新取得`origin/main`は`43be9232f58f`。paper ownerは300秒周期、`shared-agent-runner`、state `~/.local/state/life-manager/alpaca-investment-paper`。最新`lm-loop status`はloaded-idle、installed release SHA=`3de67af1035f`でmain `43be9232f58f`より古い。最後の成功記録は17:23:33Z。最新attempt `18e04d159662d5a8-35820`は17:30:15Zにexit 75 / `host_admission_deferred:resource_capacity_busy`で停止し、statusの`effect_status=not_applicable`、provider receipt/readbackはnull。従って現在の停止理由はdisk floorでなくresource admissionだが、providerの公式注文readbackは別途確認が必要。`df`の最新readbackは空き32GiBで10GiB floorを満たす。disk-cleanup ownerは17:25:26Zにpassし、statusはloaded-running（PID 31663）だが、この稼働とinvestmentのcapacity deferの因果は未確認。paper stateにperformance artifactは見当たらず、費用込みrealized net・自然closed trade・利益は未確認。PR #8419 source mergeはimmutable release/loaded SHA・自然paper run・公式readbackを証明しない。item 2 transfer-history diagnosticは局所実装済み、focused 73・Alpaca全721・source-boundary PASS、fresh read-only review #3 SHIP。PR #8422はbase=`43be9232f58f`でOPEN。今回のspec追補後はheadが進むので、新headのrequired checks/reviewを改めて確認する。
+**投資agentのAs-Is（readback 2026-10-20 19:01Z）:** 唯一の有効な注文writerはlocal paper owner alpaca-investment-paper（300秒周期、state ~/.local/state/life-manager/alpaca-investment-paper）。最新natural run 18e0520babb18850-71426は19:01:37Zにpass/exit0、effect not_applicableで、no_broker_order_submittedのeffect refがある。provider receipt/公式注文readbackはなく、実注文・利益の証拠ではない。ownerはloaded-idle、loaded SHA 75f69bdf5d0fb73beda824a09c0fafff8ccb16ceはorigin/main de4df5b5d39fより古い。18:45Zのresource_capacity_busy後に自然runが通っているため容量停止は間欠的。直近の容量snapshot（18:44Z）はdeterministic queue 41件、paper rank38、validation rank34。disk空き21GiB（10GiB floor以上）は18:45Zの測定で、現行disk blockerとは確認されていない。paperのdurable admission_effect_unknownはfalse。最後に理由まで読めたallocation（18:32Z）はQQQ / HOLD / hold_period_not_elapsed、126-session momentum rank 1、return 11%、15/21 sessions。19:01Zのrunのdecision payloadは未確認。保有QQQは未決済であり、利益へ数えない。
 
-**transferの公式契約:** Alpaca Trading APIの[crypto transfers](https://docs.alpaca.markets/us/reference/listcryptofundingtransfers.md)はtransfer `id`、`created_at`、`status`を定義し、completed_at/settled_at/effect timestampを定義しない。[account activities](https://docs.alpaca.markets/us/reference/getaccountactivities-2.md)は`order_id`等を持ち、`after`/`date` filterはsettlement timeでなく`created_at`を使い、fee activityはtrade日の翌UTC日に作成されることがある。両schemaに明示的な共通transfer IDはない。よってcreated_atを資金反映/settlement時刻とみなさず、amount/date/tx hash/近似UUIDでtransferをFILL/OCTへ紐付けない。
+alpaca-investment-liveはdisabledだが、古いoccurrence 18d9e6f979d18818-14709のeffect_unknown fenceが現在も残り、official readback/provider receiptはない。disabledを解決済みと扱わず、live注文・再送をしない。investment-cross-venue-reportとinvestment-strategy-validationは注文writerではない。validation ownerはloaded-idle、last success 2026-10-14 05:47:16Z、最新terminal 2026-10-20 18:04:16Zはresource_capacity_busy/exit75/effect not_applicable。read-only admission DBではoccurrence 18e04ef230380800-89461がqueued、sequence 749354、effect_unknown=0。paper/liveのselected report IDはalpaca-etf-126d-momentum-v1-2026-10-13-d4c92c2b200eで、expires_at=2026-10-21T05:47:06Z。次の週次起動は10/21 05:30Zで、期限まで17分しかない。
+
+selected cardはETF alpaca-etf-126d-momentum-v1（holdout 13 trades / gross $4.18 / modeled cost $0.26 / net $3.92 / max drawdown $1.27）だが、broker fee 0 bps・slippage 10 bps/sideの履歴simulationでありsettled broker profitではない。ETFのflat時新規ENTRYは意図的にretiredされ、allocator.gateはlegacy_etf_entry_retiredを返す（10/18 commit f5d12ff62f、flat reentry rejection test）。従ってQQQを売却してflatになっても、現在のETF v1は再入場しない。30件の自然round tripへ進むには、legacy ETF v1を復活せず、cost-aware validationを通った別のpaper-entry policyが必要。
+
+期限切れ時のallocator継続はcommit a28344c5abで専用branch fix/investment-expiry-continuity-20261021へpush済み。正確なowner-owned ETF positionだけはexpired selected cardでHOLD/EXITを続け、新規ENTER・flat/foreign/mismatched positionはNO_TRADE。全Alpaca suite 725/725 PASS、source-boundary PASS。まだPR/mainに未統合でruntime loaded SHAにも未採用。run.pyにはETF BUY向け明示selection再読込がないが、現行allocatorはETF ENTRY自体をretireしておりこの経路は到達不能。新しいvalidated paper-entry policyを作る時にfresh selection/card/release/expiry checkを同じatomへ含める。
+**provider contract:** Alpacaの[crypto transfers](https://docs.alpaca.markets/us/reference/listcryptofundingtransfers.md)はtransfer `id`/`created_at`/`status`を定義するが、completed/settled/effect timestampは定義しない。[account activities](https://docs.alpaca.markets/us/reference/getaccountactivities-2.md)はUSD `FEE`（REG/TAF等）とcrypto `CFEE`を別typeとして定義する。`NonTradeActivities` schemaには`activity_type`/`activity_sub_type`/`created_at`/`date`/`group_id`/`net_amount`等があり、`order_id`は宣言されない。`order_id` filterはfillsの取得に有用と記載されるだけで、FEE-order linkを保証しない。`after`/`date`はsettlement dateでなく`created_at`を使い、feeはtrade後の次UTC日に作られることがある。よってorder-IDをproviderが実際に定義した行だけをexact orderへ付ける。unlinked FEE/CFEEはaccount/mode/periodで完全なactivity universeを証明できる範囲だけ集計し、他orderやownerに曖昧ならnet unknown。amount/date/symbol/qty/group_idの近接heuristicや「fee行0=fee $0」は使わない。
+
+**TODO順変更:** 旧順=item 3 expiry continuity + ETF BUY直前guard → item 4 resource_control_busy分類 → item 5 validation refresh → FEE/費用/net → paper source adoption/自然run → 30-trip evaluation → live gate。新順=item 3既存positionの期限切れHOLD/EXIT source closeout → item 4期限前のqueued validation refresh → item 5 resource_control_busy pre-effect分類 → FEE/CFEE account/mode/period evidence → exact model/system/FX/net → legacy ETF v1を再開せずcost-awareな新paper-entry policy → immutable local-paper adoption/natural run → 30-trip evaluation → live gate → EDD改善/asset expansion。理由はselected reportが10/21 05:47Zに失効し、週次起動05:30Zは17分前、validation occurrenceはresource_capacity_busy後もqueuedのままだから。さらにETF v1 entryは10/18に意図してretireされ、無条件に戻すとlegacy policyへ逆行する。新しいpaper entryは全費用/検証を整えた後に限定し、live・資本移動は行わない。進行中のqueue effectを中断・再送しない。
 
 **残りのatomic TODO（この順序が投資laneの唯一の実行順）:**
 1. **D4(e)-2b active owned flow source atom — 完了。** acquisition proof済み`open_entries`/close-receipt待ち`pending_entries`をstable cycle ID・native account・sealed period startでraw flow scopeとbaseline照合へ接続し、active buy orderの帰属とgross-minus-credited BTCを検証する。partial/invalid fillsはunknown、net null/capital falseを維持。PR #8419 merge `6ee843af2aec`、12/12 CI、fresh read-only financial review SHIP、focused 71・Alpaca 719・source-boundary PASS。
-2. **wallet transfer status historyを同一IDだけで可視化する（現在cursor。局所実装・review済み）。** account-bound raw-flow snapshotsからtransfer `id`ごとの観測時刻/status列をdedupeして出す。status transitionがあっても、providerがactivityと共有IDまたはeffect timestampを定義しない限りFILL/OCTへ帰属せずaccount delta/netを変更しない。欠落ID/status、同一観測時刻の矛盾、partial wallet readbackはunknown。local RED→GREENはfocused 73・Alpaca全721・source-boundary PASS、fresh read-only review #3 SHIP。PR #8422でexact-head CIを通し、source mergeする。amount/date/tx hash/UUID類似度で関連付けない。
-3. **broker費用の帰属と期間完全性を得る。** FILL/CFEE/PDF等の既存一次記録をexact order・account・mode・owner/card/release・cycle/期間へ一意に結び、同じfeeは一度だけ計上する。時刻境界、未帰属fee、欠落pageはuncoveredとして残す。
-4. **実費/FX/netを既存経路で完結させる。** model/system billingをowner/mode/期間へ結び、native quoteごとに時刻付きFX根拠を要求する。coverageが揃ったscopeだけ既存producer/coreでnetを算出し、欠測費用はnull、capital permissionはfalseのままにする。
-5. **完成sourceを自然運用へ採用する。** 直近の`resource_capacity_busy`をadmission occurrenceとowner状態で切り分ける。最新disk readbackは空き32GiBで10GiB floorを満たすが、cleanup ownerとの因果は未確認なので決めつけない。main→immutable release→local paper ownerのloaded SHAを確認し、capacityが自然に空いた後の自然run・公式orders/fills/activities・replay-zeroを読む。各実行時にdisk floorとcapacity eligibilityを再確認する。手動wake・強制注文・live設定変更・floor低下で代用しない。
-6. **paper戦略の価値を評価する。** 30件の自然closed round tripでactual fees/slippage/model/system costs込みのnetを作り、事前固定benchmarkとout-of-sample/walk-forward、drawdownで評価する。EDDで変更をkeep/revertし、paper netを実利益と呼ばない。
-7. **live gateを満たしてから段階運用する。** exact identity/mode、資本権限、position/loss cap、既存maturity gateを確認し、許可範囲の実運用だけ公式receiptで評価する。資金移動や根拠のない上限増額はしない。
-8. **収益改善を反復し、対象資産を広げる。** 成功戦略/公開実例の仕組みを出典付きで取り入れ、一案ずつcost/benchmark/drawdown evalする。現戦略が基準を満たす前にmeme coin等へ対象を増やさない。
+2. **wallet transfer status history — 完了。** PR #8422/merge `de4df5b5d39f`、exact-head 12/12 checks PASS、fresh review #3 SHIP、focused 73・Alpaca 721・source-boundary PASS。observed statusだけを同一IDで記録し、activity/netへ帰属しない。
+3. **期限切れ選択でも既存positionを安全に管理する（source commit/push・suite完了、統合待ち）。** commit a28344c5abを専用branch fix/investment-expiry-continuity-20261021へpush済み。allocatorは正確に一致するowner/strategy/symbolの既存ETF positionに限りexpired cardでHOLD/EXITを許し、新規ENTER・flat/foreign/mismatch・selection欠落/破損はNO_TRADE。全Alpaca suite 725/725 PASS、source-boundary PASS。fresh reviewerはSHIP（findings 0、blocking 0）で完了。PR/CI→main統合が残る。ETF v1の新規ENTRYは意図的retiredのまま維持する。
+4. **期限前に既存queued validationを自然実行してfresh selectionを得る。** queued occurrence 18e04ef230380800-89461（sequence 749354、effect_unknown=0）がread-only DBに残り、last successは10/14、last terminalは10/20 18:04Z resource_capacity_busy。既存queueが自然にclaimされるのを観測し、terminalと新report/selected state/expiryをreadbackする。予定起動05:30Zが失効05:47Zの17分前だけで間に合わない場合は、既存validation ownerのcadence/admission経路を修正し期限前にrefreshできるようにする。手動wake/start・provider注文はしない。
+5. **resource_control_busyをpre-effectとして分類する。** exact host receipt status=deferred,effect=0,reason=resource_control_busyはenqueue lock取得前の停止。PRE_EFFECT_ADMISSION_BLOCKERSとruntime event mapへ追加し、claim/child/provider callがゼロの回帰RED→GREENを置く。既存eventは履歴のまま。durable unknown fenceがないことと各Occurrence readbackを別々に扱う。
+6. **broker費用をaccount/mode/period範囲で可視化・完全化する。** Alpaca FEE/CFEEのcomplete pages、native account、created_at window、known fillsと statement sourceを保存する。official schemaにfee `order_id`がなければper-order推測をしない。period内の全FILLがLife Manager scopeへ帰属し、late-fee coverageが確定したperiodのみfee totalを確定する。未帰属fee/page/time gapはnet null。
+7. **実費/FX/netを完結させる。** model/system billingをexact owner/mode/periodへ結び、native quoteごとに時刻付きFX根拠を要求する。coverageが全て揃ったscopeだけ既存producer/coreでnetを算出し、欠測費用はnull、capital permission=false。
+8. **既存BTC V2候補をpaper-entryの第一候補としてfresh validationする。** candidate_cardsとvalidation_runnerにはtrend-400-v2/reversion-400-v2の既存policy、90日BTC/USDC履歴・USDC/USD時点換算・各cardのfee/slippage modelがある。現在のpersisted reportはETF v1の1行だけで、BTC V2のfresh report/selectionは未確認。既存queued validationを自然実行させ、BTC V2 reportがpositive holdout、complete cost model、lookaheadなし等のselect_strategy gateを通り、paper selectionへ反映されたかofficial source stateで確認する。ETF v1 retirementは維持し、新strategyは既存V2候補が通らないときだけEDDで必要性を判定する。paper-onlyのposition/loss cap、duplicate fence、regular session、submit直前のcanonical selection/card/release/expiry確認は維持し、live entryは許可しない。
+9. **sourceをimmutable releaseでlocal paper運用へ採用する。** latest main→immutable release→alpaca-investment-paper loaded SHAを確認する。各自然runで10GiB disk floor・resource eligibility、strategy decision、official Alpaca orders/fills/activities、replay-zeroを読む。強制注文や手動wakeで自然取引を代用しない。
+10. **paper戦略の価値を評価する。** 30件の自然closed round tripでactual fees/slippage/model/system costs込みnetを作り、事前固定benchmark、out-of-sample/walk-forward、drawdownで評価する。既存historical reportの13 holdout trades/$3.92 netは0 fee/10 bps modelのsimulationで実利益としない。EDDで変更をkeep/revertする。
+11. **live gateを通過して段階運用する。** exact identity/mode、資本権限、position/loss cap、既存maturity gate、公式fence/readbackを満たし、許可範囲の実運用だけofficial receiptで評価する。未解決effect_unknown fenceは公式証拠なしに解除せず、資金移動や根拠のない上限増額をしない。
+12. **収益改善を反復し、対象資産を広げる。** 成功戦略/公開実例の仕組みを出典付きで取り入れ、一案ずつcost/benchmark/drawdown evalする。現戦略が基準を満たす前にmeme coin等へ対象を増やさない。
 
 **利益目標の判定:** 「世界一」は保証できないため、実装上は実際のbroker fee・slippage・FX・model/system cost後の確定realized net、同期間benchmark超過、許容drawdown、再現可能な自然運用で判定する。sourceが動くことやpaperの利益だけを実利益と呼ばない。
 
@@ -15910,6 +15937,45 @@ REDebbd5af252→GREEN0e8f071c0eはcore guardも証明済みsell/nofill closedか
 
 **次の実行順と現在cursor:** → IN-END-TO-END「原子的な残TODO」を参照。
 
+### 2026-10-21 04:33 JST — Investment agent latest state and atomic cursor
+
+**目的・完了条件:** 投資実行経路をLocal一本に保ち、検証中はpaperだけを使う。判断の記録、注文、公式約定、全費用、owner別の純損益を同じ証拠鎖で結び、宣言benchmarkを費用後で上回り、損失上限内で再現できるまで戦略を評価駆動で改善する。「世界一の利益」は願望であり、利益や将来残高の保証ではない。
+
+**As-Is — 最新の公式口座照合（2026-10-20 19:33:01Z）:**
+- Alpaca live口座はcash `$0`、equity `$66.49`、USDCUSD保有評価額 `$66.490361`、含み損 `-$0.030192`。公式履歴にはfilled 10注文（buy 5/sell 5）、order-linked FILL 10件とCFEE 10件、USD FEE 0件がある。これはLife Managerの利益や全費用の証明ではない。
+- 保存済み公式raw応答captureには10注文すべてがあるが、owner帰属は`unproved`、費用完全性・identity・settlementは`unknown`、netはnull。既存owner資料との照合はclient ID 4/10、provider order ID 2/10。planned 4件はowner/strategy/release/native accountが欠け、policy一致0件。既存`build_crypto_performance()`へ公式354 activity行を渡した診断はowned cycles 0、unscoped 4、net/model/system costすべてnull。よってliveの費用後純利益は未確定。
+- `live-close.json`の既知closed cycleは実現損益 `-0.006970681885 USDC`。これは一件の記録で、口座全体や10注文の合計損益ではない。既存live ownerはdisabledで、歴史的`effect_unknown` fenceが残る。完全一致する公式証拠なしに解除・再送・live enableしない。
+- Paperの直近確認は2026-10-20 19:16:42Zの自然runで、pass/exit 0、effect `not_applicable`、注文なし。loaded SHAは`75f69bdf5d0f`で、最新mainより古かった。18:32Zの判断はQQQ HOLD/`hold_period_not_elapsed`（保有15/21 sessions）。paper口座の約10万ドル相当は仮想残高で、実資産・収益へ加えない。口座期間全体のFEEには別のSPY option約定が混ざるため、QQQへ近接時刻で配賦しない。
+- `investment-strategy-validation`の最新terminalは2026-10-20 18:04Zの`resource_capacity_busy` defer。durable occurrenceはqueued、effect_unknown 0、deterministic rank 42。次の既存scheduleは2026-10-21 05:30Z、選択中のETF v1 reportは05:47:06Zに期限切れ。ETF v1の新規ENTRYは`legacy_etf_entry_retired`で拒否する。既存QQQの所有HOLD/EXITは維持する。既存BTC V2候補とvalidation経路を再利用し、fresh reportが条件を満たさなければNO_TRADEを保つ。
+- PR #8429の旧head `dd0588f8c23b04ed59a15740c8deb0dfa983a8e6`は、source修正・全725 Alpaca tests・独立read-only review SHIP・必須CI PASSを確認済みだった。最新main `01f683e0e7da710af88b8890d594b7b22ca60a20`を作業branchへ取り込んだため、最新SSOT変更をpushした後のhead/CI確認は未完。修正はreport expiry後も既存所有positionのHOLD/EXITを許し、新規entryを許可しない。
+
+**現在cursorと残TODO（この順序が正本）:**
+1. [ ] このspec更新とlatest-main mergeをPR #8429へpushし、remote head一致と更新後headのrequired checksを確認する。
+2. [ ] PR #8429を通常経路でmainへ統合する。main SHAを確認後、main由来immutable releaseを作り、`alpaca-investment-paper`だけをloaded-idleで採用する。live owner・Cloud設定・口座資金には触れない。
+3. [ ] 採用SHAの自然paper terminalと公式readbackを確認し、decision/receiptが同じowner・occurrence・releaseへ結び付くこと、replay-zero、停止/NO_TRADE理由が説明可能なことを確かめる。capacity deferが続けば、観測したowner admission境界を直し、手動wakeはしない。
+4. [ ] queuedのvalidation occurrenceを自然実行させ、既存BTC V2候補のfresh holdout/cost/readiness reportを確認する。fee/slippage・lookahead・drawdown条件を満たすものだけを選ぶ。候補がない・reportが古い・入力が欠ける場合はNO_TRADEを維持する。
+5. [ ] 既存のimmutable owner receipts/capturesからlive 10注文をsealed decision、client/effect ID、owner、mode、strategy、release、native account、official order/fillへ一対一で結ぶ。見つからない注文はunscopedのままにし、歴史的fenceはexact evidenceで効果が確定した時だけ解決する。
+6. [ ] paper/liveを分離し、order pairまたはowner-periodごとに公式broker fee/slippage、model/system/operating cost、通貨・settlementを完全照合する。欠測を0にせず、account-period feeを個別注文へ推定配賦しない。paperで非模擬の費目は完全性を別証拠で確認する。
+7. [ ] 有効戦略をpaperで自然運転し、最初の公式closed round tripと、続く30件の費用完全なround tripsを収集する。benchmark、未使用期間、parameter sensitivity、drawdown、replay-zeroを評価し、EDDで改善/撤回を自動判定する。注文を確認目的で強制しない。
+8. [ ] 既存のAT-24/AT-29、資本/損失上限、注文identity、未解決fence、fresh opposing reviewを満たした後に限り、同一policyでliveを検討する。live 30件/rolling条件と正のowner帰属純損益を満たすまで資本を増やさない。
+9. [ ] 全費用後の実測がbenchmarkを上回る時だけ規模を段階的に調整する。1か月/1年/10年残高は、公式現在残高と明示した入出金・リターン・費用・ドローダウン仮定から範囲で表示し、予測を実績として扱わない。暗号資産など他資産は、この一本の経路で利益とリスク管理が再現できた後に限り追加する。
+
+**完了済み:** 期限切れ後に既存QQQを保護するsource修正、725 Alpaca tests、独立read-only review、PR #8429旧headのrequired CI。**今回の差分で完了したこと:** 最新mainを取り込み、独立公式照合で明らかになった口座・帰属・費用の穴と実行順を本SSOTへ反映。source merge・immutable release・owner adoption・自然利益は未完。
+
+#### 2026-10-21 04:56 JST — Investment capacity gate diagnosis and cursor correction
+
+**As-Is（2026-10-20 19:56:04Z local read-only snapshot）:**
+- Paper occurrenceは自然にpass / effect `not_applicable`したが、同じ記録の判断はETF v1 `HOLD / hold_period_not_elapsed`で、注文は出ていない。別の自然paper wakeは`resource_capacity_busy`でpre-effect deferした。したがって「paperが動いた」と「新しい取引ができた」は別状態。
+- `investment-strategy-validation`は`loaded-idle`、queued、effect_unknown 0。registry/durable policyは`resource_class=deterministic / admission_class=borrow / priority=support`。`alpaca-investment-paper`は`deterministic / revenue / revenue`。
+- 19:56:04Zのadmission snapshotは占有推定9/10（running owner claims 4、未期限切れreservations 5）。deterministicは5件すべてrevenue class、agentは4件revenue class。`LIFE_MANAGER_HOST_MAX_FINITE_RUNS`の明示上書きはLaunchAgent群に見つからず、shared codeのdefaultは10。deterministicの既定borrow上限は2、revenue上限は5。validationは空いているglobal slotを使えても、deterministic classの上限で拒否される配置にある。
+- durable queueではvalidationがreservationなし/effect_unknown 0のまま残る。現行`rebind_queued_owner`はeffect-free queued ownerのpolicyをFIFO sequence/occurrence identityを維持して移す。これを使い、手動wakeやunknown fence解除なしでpolicy変更を反映できる。
+
+**判断:** validation ownerはpaper取引を承認せず、戦略reportを作るだけの既存deterministic経路を維持し、admissionだけを`revenue / revenue`へ揃える。これは投資ownerの分析前提を売上処理と同じrevenue容量へ分類する対象限定の変更であり、host global capacity、同時実行上限、cadence、注文・損失上限は変えない。class変更でpaperが必ずすぐ実行できるとは限らない。revenue deterministic上限5が埋まれば自然にqueueを待ち、最初に空いた適合slotへ公平順で進む。
+
+**TODO順更新:** 旧=`PR #8429 source/SSOT確認 → merge/release → paper natural run → validation queueが容量待ちならその時点で対処`。新=`(1) registry contract testをREDで作る → (2) validation admissionをrevenue/revenueへ変更しRED/GREEN・loop contractで確認 → (3) PR #8429更新headのrequired checks/independent review → (4) main統合・immutable release → (5) `alpaca-investment-paper`とloaded-idle validation ownerだけを安全に採用し、queued validationのsequence/occurrence/effect_unknownを読み戻す → (6) validationを自然実行しBTC V2 reportまたは正確なcrypto errorを確認 → (7) paperの自然HOLD/EXIT/ENTRYと公式readbackをowner別に照合`。**順序変更理由:** fresh readbackでcapacity deferがpaperとvalidationの両方に実際に出ており、validatorはdeterministic borrow上限2に縛られ、対象時点で5 deterministic slots中5件が埋まっていた。source/releaseへ先に分類修正を含める方が、週次validation期限を過ぎてから原因を調べ直すより次の自然機会を早くする。global上限引上げや稼働owner停止ではなく、既存rebind contractを利用する。**ソース実行記録:** REDでは3つのdeterministic revenue claims占有時、queued validation ownerが`borrow/support`のまま`rebind=unchanged`となりclaim不能になることを確認した。GREENは既存`rebind_queued_owner`を使うregistryのadmission/priority 2項目変更と、生成済みmacOS job fixtureの更新のみ。対象RED→GREEN 1/1、resource admission 243 tests、macOS loop registry 150 tests/210 subtests、policy mismatch 1 test、`bin/lm-loop-contract` 18 loops/191 jobs/112 mapped/errors 0がPASS。これはsource/fixture受入であり、main統合・release・owner採用・自然validation結果ではない。
+
+**現在cursor:** 変更を現PR branchへcommit/pushし、最新main `16c097c0`を含むheadのremote required checksを待つ。先行head `7fca415f`のLoop control contractsはrunner待ちでcancelledになり、統合には使わない。新head checksがPASSした場合だけ`bin/merge-when-green 8429`のhead-pinでmainへ進む。
+
 ### 2026-10-09 13:18 JST — Job Hunter Dreamwork cutover and updated user criteria
 
 この追記は11:50 JST snapshot後のJob Hunter readbackとユーザーの最新指示を記録する。個別の勤務地・住所などの私的値はprivate profileのみを正本とし、このspecには複製しない。
@@ -20764,7 +20830,7 @@ Top 10 by sales: 0/10 with a trial (Ocup 3,111, Serenity 2,002, HookAce 1,044, V
 
 ### Capafy distribution status + remaining TODO — 2026-10-18 07:30 JST (claude-evo-eval-1012, Dais: "great impressions, great conversion, great revenue; first goal $10K MRR")
 
-**Where we are (Capafy official, 7d):** impressions 11,398 → detail views 1,512 (13.3%) → trials 4 → paid 0. Lifetime gross $102.75 / 70 orders (no paid order since 9/29). Google AI Overview is the largest external source: TikTok Script Pro 25, Hook Lab 17, YouTube Script Writer 4 views (X across the three sellers: 8). Free Transcript Clip Map 7095835081 holds ~60% of impressions; ~1% of its viewers reach Hook Lab.
+**保存済み観測（Capafy official, 7d、当時の窓）:** impressions 11,398 / detail views 1,512 / trials4 / paid0、累計gross $102.75 / orders70を保存する。exposureと全source viewsの比を同一母集団のCTRとは呼ばない。`ai_overview`としてTikTok Script Pro25 / Hook Lab17 / YouTube Script Writer4 views（3 sellersのX合計8）を保存するが、Google AI Overview由来の外部流入やkeyword記事の成果とは確認できない。帰属の正本→冒頭C3。Free Transcript Clip Map7095835081は当時impressionsの約60%を持つが、同一無料利用cohortからHook Labへの転送率は未確認。率の正本→冒頭C4。
 
 **$10K MRR math (inference):** ≈1,000 monthly subscribers at $9.99 → ~50,000 views/month at 2% view→paid. Now ~6,500 views/month and 0% paid. Gap: ~8× reach and 0%→2% conversion.
 

@@ -19,7 +19,7 @@ if str(ROOT) not in sys.path:
 
 import allocator
 from strategy_policy import candidate_cards
-from test_etf_policy import _snapshot as policy_snapshot
+from test_etf_policy import SESSIONS, _snapshot as policy_snapshot
 
 
 ETF_ID = "alpaca-etf-126d-momentum-v1"
@@ -70,6 +70,14 @@ def _selected_state(path: Path) -> None:
         "card": card,
         "expires_at": "2099-01-01T00:00:00Z",
     }))
+
+
+def _expired_selected_state(path: Path) -> None:
+    _selected_state(path)
+    selection_path = path / "selected-strategy.json"
+    selection = json.loads(selection_path.read_text())
+    selection["expires_at"] = "2020-01-01T00:00:00Z"
+    selection_path.write_text(json.dumps(selection))
 
 
 def _candidate(symbol: str = "QQQ") -> dict[str, object]:
@@ -129,6 +137,102 @@ class EtfAllocatorTests(unittest.TestCase):
         self.assertFalse(result["approved"])
         self.assertFalse(result["checks"]["entry_policy_active"])
         self.assertEqual(result["gate"], "legacy_etf_entry_retired")
+
+    def test_expired_selection_keeps_holding_an_exact_owned_etf_position(self):
+        with tempfile.TemporaryDirectory() as directory, patch.dict(
+            os.environ, {"LIFE_MANAGER_INVESTMENT_OWNER_ID": "alpaca-investment-paper"},
+        ):
+            state = Path(directory) / "state"
+            _expired_selected_state(state)
+            snapshot = _snapshot("paper")
+            snapshot.update({
+                "positions": 1,
+                "position": {
+                    "owner_id": "alpaca-investment-paper",
+                    "strategy_id": ETF_ID,
+                    "symbol": "QQQ",
+                    "qty": "0.025",
+                    "entry_session": SESSIONS[-16].isoformat(),
+                },
+            })
+
+            result = allocator.choose(
+                snapshot, [_candidate("QQQ")], state,
+                Path("unused-runner"), Path(directory),
+            )
+
+        self.assertEqual(result["action"], "HOLD")
+        self.assertEqual(result["reason"], "hold_period_not_elapsed")
+        self.assertTrue(result["selection_expired"])
+        self.assertFalse(result["approved"])
+
+    def test_expired_selection_still_allows_only_the_owned_etf_exit(self):
+        with tempfile.TemporaryDirectory() as directory, patch.dict(
+            os.environ, {"LIFE_MANAGER_INVESTMENT_OWNER_ID": "alpaca-investment-paper"},
+        ):
+            state = Path(directory) / "state"
+            _expired_selected_state(state)
+            snapshot = _snapshot("paper")
+            snapshot.update({
+                "positions": 1,
+                "position": {
+                    "owner_id": "alpaca-investment-paper",
+                    "strategy_id": ETF_ID,
+                    "symbol": "QQQ",
+                    "qty": "0.025",
+                    "entry_session": SESSIONS[-22].isoformat(),
+                },
+            })
+
+            result = allocator.choose(
+                snapshot, [_candidate("QQQ")], state,
+                Path("unused-runner"), Path(directory),
+            )
+
+        self.assertEqual(result["action"], "EXIT")
+        self.assertEqual(result["reason"], "hold_sessions_elapsed")
+        self.assertTrue(result["selection_expired"])
+        self.assertTrue(result["approved"], result)
+        self.assertEqual(allocator.order_for(result)["side"], "sell")
+
+    def test_expired_selection_cannot_open_a_new_etf_position(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory) / "state"
+            _expired_selected_state(state)
+
+            result = allocator.choose(
+                _snapshot("paper"), [_candidate("QQQ")], state,
+                Path("unused-runner"), Path(directory),
+            )
+
+        self.assertEqual(result["action"], "NO_TRADE")
+        self.assertEqual(result["gate"], "strategy_release_expired")
+        self.assertFalse(result["approved"])
+
+    def test_expired_selection_does_not_manage_a_foreign_position(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory) / "state"
+            _expired_selected_state(state)
+            snapshot = _snapshot("paper")
+            snapshot.update({
+                "positions": 1,
+                "position": {
+                    "owner_id": "another-investment-owner",
+                    "strategy_id": ETF_ID,
+                    "symbol": "QQQ",
+                    "qty": "0.025",
+                    "entry_session": SESSIONS[-22].isoformat(),
+                },
+            })
+
+            result = allocator.choose(
+                snapshot, [_candidate("QQQ")], state,
+                Path("unused-runner"), Path(directory),
+            )
+
+        self.assertEqual(result["action"], "NO_TRADE")
+        self.assertEqual(result["gate"], "strategy_release_expired")
+        self.assertFalse(result["approved"])
 
     def test_paper_etf_entry_is_rejected_outside_regular_session(self):
         with tempfile.TemporaryDirectory() as directory:
