@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="TikTok series continuity planner">
+  <rect width="512" height="512" rx="96" fill="#111827"/>
+  <path d="M112 156h170c47 0 85 38 85 85v49" fill="none" stroke="#5eead4" stroke-width="30" stroke-linecap="round"/>
+  <path d="M340 262l30 30-30 30" fill="none" stroke="#5eead4" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="112" y="293" width="206" height="78" rx="25" fill="#f9a8d4"/>
+  <path d="M145 332h140" stroke="#111827" stroke-width="17" stroke-linecap="round"/>
+  <circle cx="368" cy="372" r="46" fill="#fbbf24"/>
+  <path d="M350 372l13 13 25-30" fill="none" stroke="#111827" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
