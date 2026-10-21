@@ -22424,3 +22424,27 @@ host掃除の唯一owner `com.anicca.disk-watchdog`は60秒cadenceで稼働中�
 | 6 | `lm-fence-reconciler`をmain由来latest immutable releaseへ標準reconcile経路で採用する。 | #3以降、Capafy配信を止めない。DONE=owner statusのSHA/argvが新adapterを含み、natural passで読戻す。current release再選択のexact actorが分かるまで`~/loops/current`を手動変更しない。 |
 
 このentryは直前の「current cursor=次natural distribution」を更新する。先に10 GiB admission floorを回復し、収益ownerの自然runへ戻る。
+
+### Capafy shared-runner mode integration — 2026-10-21 09:58 UTC
+
+**新しいsource blocker:** e8e91 occurrence `capafy-distribute-daily:18e08184ecb3add0-20935`は09:30:59.633850Zに開始し、09:31:04.277586Zに`entrypoint_exit_1`で終了した。ログ`~/.local/state/life-manager/writer/capafy-distribute/logs/capafy-distribute-daily.log`には`shared-model-runner.py: error: argument mode: invalid choice: 'agent-workspace'`が記録される。`skills/earn/capafy-marketing/capafy-distribute-daily.sh`はmode `agent-workspace`を`skills/writer-agent/runtime/model-runner.sh`へ渡し、そのwrapperはtool-free/no-tools/schema/output-fileを正しく要求するが、既定shared adapterの`shared-model-runner.py` parserは`agent/judge/vision/repair`しか受け付けていなかった。runner/providerは起動せず、promptだけが生成された。recovery intent=`hold_effect_unknown`、fenceはactiveのまま。09:34:02Zのoccurrence `18e081af8646d7b8-28379`はこのfenceでadmission deferした。旧`CRAFT_GUIDANCE`障害とは別の2つ目のsource defectである。
+
+**Codex-only policy (Dais reaffirmed):** Life Managerのすべてのpipeline inferenceはCodexのみを使う。Claude/他provider fallbackは許可しない。この作業でClaudeを実行していない。旧release `9802693f...`の08:01Zログに`claude-direct / transient_quota`というlegacy記録はあるが、現行経路の許可ではなく、再有効化しない。current immutable release `c0846ea05f02b801d288c7d62023d965e6dfcc25`のshared runner configはprovider/candidateともCodexのみ。`hf-reddit-loop-daily`も同SHAでloaded-idle。
+
+**fresh reviewで見つかった二つ目のsource defectと修正:** `ARTICLE_MODEL_ROLE=sol-audit`ではgeneric role branchが`composition-agent`を`writer-sol-audit`へ上書きし、Capafyのtool-less契約を破る。`test_agent_workspace_rejects_sol_audit_role_before_runner_dispatch`を先に追加し、現candidateがrunnerをdispatchすることをREDで確認した。最小修正は`agent-workspace`で`sol-audit` roleをrunner起動前に`EX_USAGE`で拒否するガード。
+
+**current candidate verification:** `test_shared_model_runner.py` 13/13、`test_model_runner_contract.py` 10/10、Capafy `test_capafy_distribute_daily.py` 12/12、Capafy marketing suite 396 tests + 18 subtests、`git diff --check` pass。全writer-agent suiteは895 passed/4 skipped/127 subtests、1 failure。唯一の失敗`test_writer_repair_candidate_wiring::test_the_launchd_driver_runs_the_repair_end_to_end`はtest自身が起動するnested gateで`/Users/anicca/.local/share/life-manager/venv/bin/python3: No module named pytest`となり、candidateを破棄した。これは`repair` modeの環境依存で、今回の`agent-workspace` modeを使わない。fresh Codex source reviewはGO・blocking finding 0。exact-head GitHub CIは未実行で、TODO #1に残す。
+
+**latest production readback:** `lm-loop status all`から対象ownerだけを抽出。09:49:06.811637Zのoccurrence `18e0828204216838-69944`はloaded SHA `c0846ea05f02b801d288c7d62023d965e6dfcc25`でloaded-idle、`host_admission_deferred:resource_effect_unknown` / exit 75。fence occurrence `18e08184ecb3add0-20935`は引き続き`admission_effect_unknown=true`。公開効果・receiptを未確定のまま保持する。
+
+**残TODO（current cursor=1）:**
+
+| # | Atomic TODO | Dependency / DONE evidence |
+|---|---|---|
+| 1 | `shared-model-runner.py::main`の`agent-workspace` Codex-only contractと`sol-audit` fail-closed回帰testをexact-head CIへ出し、required checks後にmainへmergeする。 | Current branch=`fix/capafy-model-runner-mode-20261021`、base=`c205863a05a651c17fef183e59a043383e8663b6`。fresh Codex review=GO。DONE=required CI pass、merge SHAを`origin/main`から確認。 |
+| 2 | merged mainからimmutable releaseをcutし、`capafy-distribute-daily`がidleであることを再確認してtargeted applyする。 | #1。DONE=loaded SHAにshared adapter修正が含まれ、owner statusがそのSHAでloaded-idle。global currentは手動変更せず、再選択時はactorを確認する。 |
+| 3 | occurrence `18e08184ecb3add0-20935`を`capafy_distribute_fence_reconcile.py`で公式readbackする。最短ageは開始+5100秒=`2026-10-21T10:55:59.633850Z`。 | Current active fence。DONE=完全なGitHub/Postiz window proofとraw snapshotを耐久化し、`effect_unknown.current=false`をstatusで確認。windowを満たす前のclose/再送は禁止。 |
+| 4 | fence closure後、disk gateが10 GiB以上の自然slotでCapafyを実行し、`agent-workspace`からJSON draftが返ることを確認する。 | #2/#3。DONE=同occurrenceがprovider処理へ進み、public article GitHub/HTTP 200とPostiz `PUBLISHED` ID/permalinkがjoinしduplicate=0。 |
+| 5 | 同一sourceのofficial seller rowsでviews/trials/paid/earningsを確認し、orderがなければ`/agent/agents/search`の同target勝ち例を1つ再現して1変数のdistribution experimentを行う。 | #4。DONE=source-attributed paid order/creator earnings、または次の測定実験と判定基準を記録。 |
+
+このentryは09:47時点のparser-only cursorを更新する。現在の先頭はsol-audit role overrideを含むsource PR。fence公式readback後、10 GiB admission floorを満たす自然slotで記事とXのdistributionへ戻り、source-attributed paid orderを次の成果判定にする。
