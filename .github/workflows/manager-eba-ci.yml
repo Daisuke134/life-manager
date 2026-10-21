@@ -1,0 +1,54 @@
+name: Manager EBA Benchmark
+on:
+  push:
+    branches: [research/manager-eba-eval-benchmark-20261022, research/manager-product-r006-20261020]
+    paths: ['products/manager/eba/**', 'products/manager/tests/test_eba_benchmark.py', '.github/workflows/manager-eba-ci.yml']
+  pull_request:
+    branches: [research/manager-product-r006-20261020]
+    paths: ['products/manager/eba/**', 'products/manager/tests/test_eba_benchmark.py', '.github/workflows/manager-eba-ci.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test-eba:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: products/manager
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: All existing Manager tests including EBA
+        run: python -m unittest discover -s tests -v
+      - name: Verify boundary, roadmap and phase05 fixtures unchanged
+        run: |
+          python scripts/check_boundaries.py
+          python scripts/make_roadmap.py --check
+          python scripts/phase05_demo.py --check
+      - name: Run EBA public synthetic benchmark, verify no field-effect claim
+        run: |
+          python -m eba > /tmp/eba-dev-result.json
+          python - <<'PY'
+          import json
+          x=json.load(open('/tmp/eba-dev-result.json'))
+          assert x['selection']['decision']=='SHADOW_ONLY'
+          assert x['selection']['permission_to_execute'] is False
+          for r in (x['baseline'],x['candidate']):
+              assert r['proof_scope']=='SYNTHETIC_P0'
+              assert r['human_welfare']=='NOT_MEASURED'
+              assert r['field_deployment_authorized'] is False
+              assert r['verified_causal_effect'] is False
+              assert r['metrics']['unsafe_actions']==0
+          print('PASS EBA: safe shadow-only synthetic developer benchmark')
+          PY
+      - name: Publish transparent test fixture artifact, never personal data
+        uses: actions/upload-artifact@v4
+        with:
+          name: manager-eba-dev-${{ github.sha }}
+          path: /tmp/eba-dev-result.json
+          retention-days: 30
