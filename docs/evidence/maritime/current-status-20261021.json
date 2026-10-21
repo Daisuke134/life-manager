@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "observed_at": "2026-10-21T06:08:34Z",
-  "source_main_sha": "483ba43b506c8266399334328258bc0c358d70c1",
+  "observed_at": "2026-10-21T07:01:43Z",
+  "source_main_sha": "88de3718c61eddcd160e702a0c974338bd0ed099",
   "competition": {
     "home_url": "https://competition.maritime.sh/",
     "terms_url": "https://competition.maritime.sh/terms",
     "terms_last_updated": "2026-10-15",
-    "official_pages_rechecked_at": "2026-10-21T06:05Z",
+    "official_pages_rechecked_at": "2026-10-21T06:44Z",
     "common_window": "2026-10-20 through 2026-12-01 23:59 America/Los_Angeles",
     "target": "1,000 distinct people with real usage, reviewed through project usage on Keiki or Maritime",
     "winner_rule": "The first three projects to reach the target, subject to verification",
@@ -25,19 +25,19 @@
     "project": "Anicca",
     "environment": "production",
     "life_call": {
-      "readback_at": "2026-10-21T05:49:00Z",
-      "latest_success_deployment": "65cce4c2-84e1-4add-84fb-2a78e62d5f14",
+      "readback_at": "2026-10-21T06:50:17Z",
+      "latest_success_deployment": "e9ebfb62-e8c3-46eb-a198-d9203f574899",
       "deployment_status": "SUCCESS",
-      "loaded_source_sha": "27b594cd84f6e660f6ffbacabb21be8d7f25cb2c",
+      "loaded_source_sha": "982875d62eaa03f8e924b990c4bc80f521d8dcce",
       "manager_email_enabled": "1",
       "pilot_max_users": "3",
-      "maritime_signup_route": "HTTP 200; rendered signup page"
+      "maritime_signup_route": "HTTP 200; rendered signup page at 2026-10-21T06:44Z"
     },
     "worker": {
-      "readback_at": "2026-10-21T05:49:00Z",
-      "latest_success_deployment": "ab02496c-b455-43ab-84d2-265f23aba824",
+      "readback_at": "2026-10-21T06:50:17Z",
+      "latest_success_deployment": "9dc09440-42ed-4349-83c2-e437b1fc5017",
       "deployment_status": "SUCCESS",
-      "loaded_source_sha": "27b594cd84f6e660f6ffbacabb21be8d7f25cb2c",
+      "loaded_source_sha": "982875d62eaa03f8e924b990c4bc80f521d8dcce",
       "manager_capabilities": [
         "maritime.manager.provision",
         "maritime.manager.cycle",
@@ -47,31 +47,40 @@
       "pilot_max_users": "3"
     },
     "latest_docs_only_deployments": {
-      "source_sha": "483ba43b506c8266399334328258bc0c358d70c1",
+      "source_sha": "88de3718c61eddcd160e702a0c974338bd0ed099",
       "life_call_status": "SKIPPED",
+      "life_call_deployment_id": "feea0ad3-59d9-426f-b7b8-2483c03ed9c7",
       "worker_status": "SKIPPED",
+      "worker_deployment_id": "89f5e2d7-26ef-48e3-8596-29787024fff5",
       "life_manager_app_source_diff_since_loaded_sha": []
-    }
+    },
+    "deployment_readback_at": "2026-10-21T07:01Z"
   },
   "runtime_database_readback": {
-    "observed_at": "2026-10-21T05:49:00Z",
+    "observed_at": "2026-10-21T06:50:17Z",
     "identities": 1,
     "enrollments": 0,
     "executions": 0,
     "pilot_participants": 0,
     "manager_jobs": 0,
+    "external_work_events": 0,
     "verified_external_manager_users": 0
   },
   "http_log_readback": {
-    "window_start": "2026-10-21T04:00:00Z",
-    "checked_at": "2026-10-21T05:20:00Z",
-    "maritime_get_200": 9,
-    "maritime_get_503": 1,
-    "email_signup_post_202": 1,
-    "email_signup_post_429": 1,
+    "window_start": "2026-10-21T05:20:00Z",
+    "checked_at": "2026-10-21T06:55:00Z",
+    "maritime_get_200": 4,
+    "maritime_get_503": 0,
+    "email_signup_post_202": 0,
+    "email_signup_post_429": 0,
     "auth_confirm_requests": 0,
     "manager_activate_requests": 0,
-    "manager_stop_requests": 0
+    "manager_stop_requests": 0,
+    "other_http_counts": {
+      "GET /health 200": 3,
+      "GET / 200": 1,
+      "GET /money-printer 200": 1
+    }
   },
   "signup_state": {
     "email_link_post_returned_202_once": true,
@@ -127,7 +136,7 @@
     "evidence_and_limits": "docs/research/maritime/2026-10-20-source-map.md records Todoist, Ahrefs, and Levels mechanisms and limits. None is a causal same-product case showing an autonomous Life Manager reaching 1,000 users without social."
   },
   "public_product": {
-    "readback_at": "2026-10-21T06:07:00Z",
+    "readback_at": "2026-10-21T06:44:41Z",
     "manager_page_url": "https://aniccaai.com/lm",
     "copy": "Describes proactive manager and says task-specific goals/budgets are not required; the broader hosted experience is still in development.",
     "pilot_url": "https://life-call-production.up.railway.app/maritime?lang=en",
@@ -135,19 +144,40 @@
   },
   "submission": {
     "application": "accepted",
-    "project_submission_status": "not_submitted",
+    "project_submission_status": "entry_shared_in_channel; formal_submission_unconfirmed",
     "formal_project_form_url": null,
-    "prior_slack_submission_channel_share": "Previously read back; sharing in the channel does not replace a required form.",
+    "prior_slack_submission_channel_share": "One Life Manager entry is posted and read back; the channel description says a post does not replace any required form.",
     "share_url_email": {
       "sent_and_read_back": true,
       "recipient_inbox_delivery_verified": false,
       "gmail_message_id": "1a15cc8791911599",
       "url": "https://life-call-production.up.railway.app/maritime?lang=ja"
     },
-    "current_winner_or_top_30_status": "Not verified"
+    "current_winner_or_top_30_status": "Not verified",
+    "channel_entry_readback": {
+      "channel": "#competition-submissions",
+      "status": "posted_and_read_back",
+      "author_handle": "keiodaisuke",
+      "posted_at": "2026-10-21T05:09:07.988839Z",
+      "readback_at": "2026-10-21T06:44:12.429183Z",
+      "permalink": "https://keikixmaritime.slack.com/archives/C0C9PEL45JA/p1792559347988839",
+      "matching_entry_posts": 1,
+      "entry_summary": "The public entry says Life Manager chooses delegated work and reports verified outcomes by email; the first authenticated work cycle is still being validated; no user, revenue, or completed-work outcome is claimed."
+    },
+    "official_contact_inquiry": {
+      "recipient": "contact@maritime.sh",
+      "subject": "Keiki × Maritime Week 1 project submission route",
+      "sent_at": "2026-10-21T06:41:11Z",
+      "status": "SENT",
+      "gmail_message_id": "1a15d3141c56ee22",
+      "sent_readback_at": "2026-10-21T06:43Z",
+      "reply_found": false,
+      "reply_search_at": "2026-10-21T06:43Z",
+      "question_summary": "Asked whether the channel entry is sufficient for Week 1 or whether there is a required form, deadline/timezone, or demo fields."
+    }
   },
   "mail_readback": {
-    "checked_at": "2026-10-21T05:20:00Z",
+    "checked_at": "2026-10-21T06:31:00Z",
     "new_contest_rules_found": false,
     "messages": [
       {
@@ -160,19 +190,26 @@
         "received_at": "2026-10-20T12:37:52Z",
         "classification": "account verification email; link not used"
       }
-    ]
+    ],
+    "organizer_reply_found_by_06_43Z": false
   },
   "revenue_status": {
-    "observed_at": "2026-10-21T06:08:34Z",
-    "life_manager_hosted_subscription_revenue": "unverified",
-    "hosted_user_attributed_cash_received": "unverified",
-    "settled_receipt_amount": null,
-    "interpretation": "No hosted completed earning cycle or settled payment receipt is attached to this competition project. Null means not measured, not zero. Founder/local activity, user earnings, and Life Manager subscription revenue remain separate."
+    "observed_at": "2026-10-21T06:55:37Z",
+    "life_manager_active_subscription_count": 0,
+    "life_manager_active_mrr_usd": 0,
+    "user_attributed_hosted_cash_received": "unverified",
+    "account_wide_paid_invoice_rows": 9,
+    "account_wide_paid_amount_minor_units": {
+      "usd": 4000
+    },
+    "account_wide_paid_invoice_attribution_to_life_manager": "unverified; not counted toward Life Manager revenue",
+    "evidence_ref": "docs/evidence/maritime/stripe-life-manager-readback-20261021.json",
+    "interpretation": "The SSOT-matched live Stripe account has two active Anicca Life Manager monthly prices but zero subscriptions to either price, so Life Manager subscription MRR is USD 0 at readback. Account-wide historical paid invoices are not attributed to Life Manager. User business earnings remain a separate revenue stream and have no hosted settlement receipt."
   },
   "current_cursor": {
-    "product": "T22.1b.6-28: verified account PKCE, explicit retention consent, enrollment, and one completed hosted cycle/report/stop. No confirmation or consent is recorded; do not resend or impersonate the participant.",
+    "product": "T22.1e.2 / b.6-28: hosted signup is live on loaded SHA 982875d62eaa03f8e924b990c4bc80f521d8dcce, but participant PKCE and explicit retention consent are not recorded. Runtime PG at 06:50:17Z has identity1 and zero enrollment/execution/participant/job/external work.",
     "distribution": "T24.4: one internal SEO comparison draft exists; proof-backed demo and live acquisition CTA remain on hold. T27 publication waits for product lifecycle readback; current Postiz connector exposes no integrations.",
-    "submission": "T23: project not submitted; official project form, week-one cutoff, and Top-30 scoring remain unpublished in the public pages checked.",
-    "revenue": "T31.1-9: separate Life Manager paid-customer revenue from user-attributed earnings; no settled hosted revenue receipt is verified."
+    "submission": "One truthful entry is shared in #competition-submissions and read back. Separate formal project form/receipt, Week 1 cutoff, and rubric remain unconfirmed. Organizer inquiry SENT/read back (1a15d3141c56ee22); no reply by 06:43Z. Do not duplicate the channel entry.",
+    "revenue": "Matched live Stripe account readback: 0 active subscriptions for Life Manager monthly prices, Life Manager MRR USD 0. Historical account-wide invoices are not attributed to Life Manager; user-business cash and net revenue remain unverified. Evidence docs/evidence/maritime/stripe-life-manager-readback-20261021.json."
   }
 }

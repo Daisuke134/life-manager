@@ -7,7 +7,7 @@
   "first_week_deadline": null,
   "first_week_deadline_reason": "The 2026-10-19 kickoff email says to build the product by the end of week one, that real users are a bonus, and that only the top 30 advance. It gives no exact date, time, timezone, scoring weights, or minimum-user threshold. The official home and Terms were crawled at 2026-10-21T05:20Z and publish no week-one cutoff, Top-30 rubric, or project-submission form. A fresh Gmail search found only generic Maritime Welcome and Verify messages.",
   "submission_url": null,
-  "submission_url_reason": "The application form has been accepted and is not the project submission. The official home and Terms show no project form. The previously read #competition-submissions instruction invites an entry/demo but says the channel post does not replace a required form. Current project_submission_status remains not_submitted.",
+  "submission_url_reason": "The initial application was accepted. One Life Manager entry was posted and read back in #competition-submissions; the channel description says a post does not replace any required form. The official home/Terms and live announcements channel still show no project form, Week 1 cutoff, or rubric. An inquiry was sent to contact@maritime.sh; no reply was found by 06:43Z.",
   "required_fields": null,
   "required_fields_reason": "No official form/rubric published in observed sources.",
   "first_week_requirements": [
@@ -60,8 +60,8 @@
     },
     "latest_observation": "Refreshed 2026-10-21: no newer week-1 deadline or required project form was visible; announcements page remained loading, so its current posts were not fully read. Submission channel caveat remains."
   },
-  "submission_status": "not_submitted",
-  "mail_checked_at": "2026-10-21T05:20:00Z",
+  "submission_status": "entry_shared_in_channel; formal_submission_unconfirmed",
+  "mail_checked_at": "2026-10-21T06:31:00Z",
   "official_instruction_email_unchanged": true,
   "participant_access": {
     "source_subject": "You're in! Keiki x Maritime",
@@ -96,26 +96,30 @@
     }
   },
   "last_live_refresh": {
-    "observed_at": "2026-10-21T06:05:00Z",
+    "observed_at": "2026-10-21T06:44:41Z",
     "source_urls": [
       "https://competition.maritime.sh/",
-      "https://competition.maritime.sh/terms"
+      "https://competition.maritime.sh/terms",
+      "https://keikixmaritime.slack.com/archives/C0C99TP2GBZ",
+      "https://keikixmaritime.slack.com/archives/C0C9PEL45JA/p1792559347988839"
     ],
     "terms_last_updated": "2026-10-15",
     "official_goal": "1,000 distinct users with real usage during the six-week window; first three projects to reach the target win, subject to verification.",
     "award": "Up to USD 20,000 in LLM credits per winning project; not guaranteed to all winners. Second- and third-place amounts and detailed award schedule remain unpublished.",
     "travel": "Three-day San Francisco experience. Sponsored flights are limited to people in the United States; exact eligibility, traveler count, covered expenses, dates, and international-winner arrangements remain unpublished.",
     "week1_deadline_time": null,
-    "week1_deadline_reason": "Official home and Terms were directly crawled at 2026-10-21T06:05Z. No exact cutoff or scoring and no project form were published there. The kickoff email read earlier says Top 30 advance but supplies no exact cutoff or scoring. The submissions-channel instruction previously read says posting does not replace any required form.",
-    "project_submission_status": "not_submitted",
-    "refresh_scope": "Official competition home and Terms were directly crawled at 2026-10-21T06:05Z. They still show no week-one cutoff, Top-30 rubric, or project-submission form. Gmail and the community channel were not refreshed in this observation; their last readbacks remain separately timestamped."
+    "week1_deadline_reason": "Official home/Terms and Slack announcements were read at 06:44Z; no Week 1 cutoff, rubric, or form was visible. One entry share exists in #competition-submissions, but its description says it does not replace a required form. An inquiry to contact@maritime.sh was SENT; no reply by 06:43Z.",
+    "project_submission_status": "entry_shared_in_channel; formal_submission_unconfirmed",
+    "refresh_scope": "Official home and Terms directly crawled at 06:44Z. Slack announcements/submissions read live at 06:44Z. Inbound email instructions last searched at 06:31Z; organizer reply searched at 06:43Z."
   },
-  "official_instruction_email_unchanged_reason": "The latest Gmail readback at 2026-10-21T05:20:00Z found only the same transactional Welcome and Verify messages. No new email search was performed during the 2026-10-21T06:05Z website refresh, so no newer mail status is asserted.",
+  "official_instruction_email_unchanged_reason": "The 06:31Z inbound search found only generic Welcome and Verify emails. The organizer inquiry was sent later at 06:41Z; no reply was found by 06:43Z.",
   "last_official_sources": {
-    "observed_at": "2026-10-21T06:05:00Z",
+    "observed_at": "2026-10-21T06:44:41Z",
     "urls": [
       "https://competition.maritime.sh/",
-      "https://competition.maritime.sh/terms"
+      "https://competition.maritime.sh/terms",
+      "https://keikixmaritime.slack.com/archives/C0C99TP2GBZ",
+      "https://keikixmaritime.slack.com/archives/C0C9PEL45JA"
     ],
     "verified": {
       "program_window": "2026-10-20 through 2026-12-01 23:59 America/Los_Angeles",
@@ -124,7 +128,40 @@
       "both_platforms_required": false,
       "award": "Up to USD 20,000 in LLM credits per winning project; not promised to all winners or per teammate",
       "travel": "Three days in San Francisco; sponsored flights limited to people in the United States; details for international winners, traveler count, dates, and coverage unpublished",
-      "week1_cutoff_or_submission_form": null
+      "week1_cutoff_or_submission_form": "No exact cutoff, Top-30 rubric, or project form in public home/Terms; Slack announcements channel had no organizer post. The submissions channel has one Life Manager entry, but its description says a post does not replace any required form."
     }
-  }
+  },
+  "latest_announcement_channel_readback": {
+    "checked_at": "2026-10-21T06:44:12.429183Z",
+    "channel": "#competition-announcements",
+    "visible_message_containers": 3,
+    "organizer_deadline_or_form_posts": 0,
+    "summary": "Only channel setup/join information was visible; no organizer deadline, Week 1 rubric, or project form post was present."
+  },
+  "latest_submission_channel_readback": {
+    "checked_at": "2026-10-21T06:44:12.429183Z",
+    "channel": "#competition-submissions",
+    "visible_message_containers": 4,
+    "life_manager_entry_count": 1,
+    "entry": {
+      "channel": "#competition-submissions",
+      "posted_at": "2026-10-21T05:09:07.988839Z",
+      "readback_at": "2026-10-21T06:44:12.429183Z",
+      "permalink": "https://keikixmaritime.slack.com/archives/C0C9PEL45JA/p1792559347988839",
+      "author_handle": "keiodaisuke",
+      "matching_entry_posts": 1,
+      "formal_submission_confirmed": false
+    },
+    "instruction": "Share an entry/demo here and follow official instructions; channel posts do not replace any required form."
+  },
+  "official_contact_inquiry": {
+    "recipient": "contact@maritime.sh",
+    "subject": "Keiki × Maritime Week 1 project submission route",
+    "sent_at": "2026-10-21T06:41:11Z",
+    "status": "SENT",
+    "gmail_message_id": "1a15d3141c56ee22",
+    "reply_found_by": "2026-10-21T06:43Z",
+    "reply_found": false
+  },
+  "formal_project_submission_status": "unconfirmed"
 }

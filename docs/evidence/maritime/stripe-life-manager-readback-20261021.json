@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-10-21T06:55:37Z",
+  "source": "Stripe live API readback through the connected Stripe tool",
+  "account_match": {
+    "credential_service": "stripe-life-manager-existing-deployment",
+    "livemode": true,
+    "matched_exactly_to_private_credential_ssot": true,
+    "account_id_stored_here": false
+  },
+  "life_manager_products": [
+    {
+      "name": "Anicca Life Manager",
+      "active_prices": [
+        {
+          "price_id": "price_1UGhtNEeDsUAcaLS1RltugP9",
+          "unit_amount_minor": 2900,
+          "currency": "usd",
+          "interval": "month"
+        },
+        {
+          "price_id": "price_1TjytgEeDsUAcaLSFDgoYqyL",
+          "unit_amount_minor": 2000,
+          "currency": "usd",
+          "interval": "month"
+        }
+      ],
+      "subscriptions_for_these_prices": 0,
+      "active_mrr_usd": 0
+    },
+    {
+      "name": "Anicca Cloud",
+      "active_prices": [
+        {
+          "price_id": "price_1TilZaEeDsUAcaLSLpNvdmDT",
+          "unit_amount_minor": 3000,
+          "currency": "usd",
+          "interval": "month"
+        }
+      ],
+      "subscriptions_for_these_prices": 0,
+      "active_mrr_usd": 0
+    }
+  ],
+  "account_subscription_inventory": {
+    "records": 7,
+    "has_more": false,
+    "status_counts": {
+      "canceled": 7
+    },
+    "subscription_product": "Anicca Pro",
+    "subscription_price_unit_amount_minor": 500,
+    "currency": "usd",
+    "interval": "month"
+  },
+  "account_paid_invoice_inventory": {
+    "records": 9,
+    "has_more": false,
+    "amount_paid_minor_units": {
+      "usd": 4000
+    },
+    "product_attribution_to_life_manager": "unverified; do not count as Life Manager revenue",
+    "interpretation": "Historical account-level paid invoice records are distinct from current active Life Manager MRR, net settlement, and user-attributed earning receipts."
+  },
+  "analytics_limit": "Stripe Sigma query runs are unavailable for this account because it has no Sigma subscription; direct read-only API reads above succeeded.",
+  "conclusion": "No active Stripe subscription is attached to either Life Manager or Anicca Cloud product price in this live account. Life Manager subscription MRR is USD 0 at readback. This does not measure cash earned by a user's business workflow."
+}
