@@ -1,6 +1,6 @@
 # The Behavior Simulation & Intervention Ecosystem: Company-First Chaos Map
 
-**Reviewed:** 2026-10-21 (Radiant refresh); **26 distinct entities**; **6 categories**. Existing Artificial Societies entity updated, not counted twice.
+**Reviewed:** 2026-10-21 (Radiant + economic-autonomy evaluation refresh); **30 distinct entities**; **7 categories**. Existing Artificial Societies entity updated, not counted twice.
 
 This map is a **snapshot of who is building what**, not a technology flowchart or a list of paper titles. **Company names, research institutions and nonprofits are the unit of analysis.**
 
@@ -65,6 +65,19 @@ A label on this map does not claim competitive equivalence, commercial access, p
 | Oracle Opower | corporate_product | Behavioral energy-efficiency programs deployed via utilities | [Official source](https://www.oracle.com/utilities/opower-energy-efficiency/) |
 | GiveDirectly | nonprofit | Unconditional cash transfers with experimental evaluation | [Official source](https://www.givedirectly.org/gdresearch/) |
 | 412 Food Rescue | nonprofit | Food Rescue Hero: volunteer-powered surplus food logistics | [Official source](https://412foodrescue.org/food-rescue-hero/) |
+
+## Autonomous business & economic evaluation
+
+These organizations provide a bridge between simulated agents, historically valued work, real business operations and independent evaluation; the first three are **not** interchangeable. See [wealth evidence source map](../research/autonomous_wealth_eval/PRIMARY_SOURCES_2026-10-21.json) and [proposed dual-scorecard protocol](../research/autonomous_wealth_eval/WEALTH_BLESSING_EVAL_PROTOCOL.md).
+
+| Organization | Entity type | What it works on | Official source |
+|---|---|---|---|
+| Andon Labs | company | Vending-Bench 2 long-horizon **simulated** shop balance; Project Vend/Pion and actual shops for **real** business operations (with human staff in physical deployments) | [Vending-Bench 2](https://andonlabs.com/evals/vending-bench-2), [Pion](https://andonlabs.com/blog/why-we-built-pion) |
+| Anthropic | ai_research_company | Original field-research collaborator for Project Vend physical office-store operations | [Project Vend phase 2](https://www.anthropic.com/research/project-vend-2) |
+| OpenAI | ai_research_company | SWE-Lancer historical Upwork dollar-valued task success; GDPval professional work deliverable evaluation; open-source eval code | [SWE-Lancer](https://openai.com/index/swe-lancer/), [GDPval](https://openai.com/index/gdpval/), [evaluation code](https://github.com/openai/frontier-evals) |
+| METR | research_nonprofit | Time-to-complete agent horizons and empirical randomized developer productivity | [Time horizons](https://metr.org/time-horizons/), [productivity RCT](https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/) |
+
+**Boundary:** Vending-Bench's ending simulated cash is not a settled external payout; SWE-Lancer's historical task compensation is not payment to the AI; METR's time horizons do not measure company profit. Andon physical field businesses involve people, wages, customers and real operational costs, so they are not proof of wholly human-free labor. Existing Life Manager LM-EAB provides a separate operator-owned economic autonomy scorer, not an already achieved Manager field-benefit result.
 
 ## Where Manager sits
 
