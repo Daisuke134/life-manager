@@ -28,8 +28,15 @@
         {
           "entity_name": "Artificial Societies",
           "entity_type": "company",
-          "activity": "Synthetic audiences and interacting personas for campaign tests",
-          "official_source": "https://societies.io/advertising-testing-with-ai"
+          "activity": "Radiant: grounded AI audience societies, survey simulations, follow-up interviews, focus-group network interaction and research assistant; internal human-panel/LLM benchmarking",
+          "official_source": "https://societies.ai/radiant",
+          "product": "Radiant",
+          "company_website": "https://societies.ai/",
+          "methodology_source": "https://societies.ai/eval",
+          "original_benchmark_paper": "https://arxiv.org/abs/2609.30030",
+          "original_collective_behavior_paper": "https://doi.org/10.1111/bjop.12764",
+          "evidence_status": "Vendor-reported model validation; underlying homophily work peer-reviewed; do not imply direct causal welfare verification",
+          "reviewed_on": "2026-10-21"
         },
         {
           "entity_name": "Lakmoos",
