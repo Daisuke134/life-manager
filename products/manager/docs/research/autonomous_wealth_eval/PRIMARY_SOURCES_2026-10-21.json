@@ -13,7 +13,7 @@
     "measured predictive fit != identified intervention effect"
   ],
   "method": "First party company technical disclosures, original peer-reviewed RCTs and code/license readback from original publisher repositories. Any company metric remains vendor-reported; owned code reviewed as read-only context, not integrated with Manager runtime.",
-  "source_count": 21,
+  "source_count": 25,
   "sources": [
     {
       "id": "andon-vending-bench2",
@@ -245,6 +245,50 @@
       "cannot_establish": "Not a benefit causal inference engine; do not modify Life Manager runtime or redistribute private fixtures",
       "manager_reuse_decision": "REUSE_INVARIANTS_AS_SEPARATE_READONLY_ADAPTER",
       "license_or_access": "Actual source reviewed in connected GitHub 2026-10-21"
+    },
+    {
+      "id": "eitc-reminder-2015",
+      "name": "Bhargava and Manoli — Psychological Frictions in EITC takeup",
+      "source_url": "https://www.aeaweb.org/articles?id=10.1257/aer.20121493",
+      "source_date": "2015",
+      "evidence_type": "ORIGINAL_RANDOMIZED_PUBLIC_BENEFIT_INTERVENTION",
+      "actually_measures": "35,050 eligible tax filers unclaimed about $26m, randomized followup letters; simplified notices substantially increased claims in this setting",
+      "cannot_establish": "No claim AI made or distributed the cash; rights and actual taxpayer consent separate",
+      "manager_reuse_decision": "POTENTIAL_PARTNER_ADMIN_ASSISTANCE_AND_PROOF_DESIGN",
+      "license_or_access": "Cite original, not participant records"
+    },
+    {
+      "id": "eitc-reminder-null-2022",
+      "name": "Linos et al. — Can Nudges Increase Take-Up of the EITC?",
+      "source_url": "https://swlb2.aeaweb.org/articles?id=10.1257/pol.20200603",
+      "source_date": "2022",
+      "evidence_type": "ORIGINAL_SIX_PREREGISTERED_FIELD_EXPERIMENTS",
+      "actually_measures": "Six field experiments with about one million observations; low-touch message variations did not detect higher EITC filings or claims",
+      "cannot_establish": "Null in these contexts does not imply all administrative assistance can never work",
+      "manager_reuse_decision": "CRITICAL_NEGATIVE_FIELD_PRECEDENT",
+      "license_or_access": "Read and cite original; no redistribution of underlying taxpayers"
+    },
+    {
+      "id": "eitc-filing-help-2021",
+      "name": "Goldin et al. — Tax Filing and Take-Up",
+      "source_url": "https://www.nber.org/papers/w28398",
+      "source_date": "2021",
+      "evidence_type": "ORIGINAL_RANDOMIZED_SOCIAL_BENEFIT_TAKEUP",
+      "actually_measures": "IRS letters offering free tax preparation modestly increased filing and EITC takeup",
+      "cannot_establish": "Does not independently validate autonomous AI filings or permission to submit another's taxes",
+      "manager_reuse_decision": "INTERVENTION_DESIGN_ADMINISTRATIVE_FRICTION",
+      "license_or_access": "Cite author study, separate legal/tax representations"
+    },
+    {
+      "id": "nevada-job-assistance-rct",
+      "name": "Manoli, Michaelides, Patel — Nevada Reemployment and Eligibility Assessment",
+      "source_url": "https://beta.dol.gov/research-data/clear/studies/long-term-effects-job-search-assistance-experimental-evidence-using-administrative-tax-data-manoli",
+      "source_date": "2018",
+      "evidence_type": "GOVERNMENT_RCT_EMPLOYMENT_ADMINISTRATIVE_EARNINGS",
+      "actually_measures": "Experimental job-search assistance with long-term employment, wage and benefits readback from tax administrative data",
+      "cannot_establish": "Human service program effect not automatically transferable to an AI job agent",
+      "manager_reuse_decision": "EMPLOYMENT_OUTCOME_GOLD_STANDARD",
+      "license_or_access": "Official government review; do not use private wage records"
     }
   ],
   "open_questions": [
