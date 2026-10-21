@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "observed_at": "2026-10-21T10:26:36Z",
-  "source_main_sha": "b5ecef6e624203811d0e1103003c3cdbaf88c4cd",
+  "observed_at": "2026-10-21T10:49:19Z",
+  "source_main_sha": "726123eac587131e94544a900a967b278ac550d9",
   "competition": {
     "home_url": "https://competition.maritime.sh/",
     "terms_url": "https://competition.maritime.sh/terms",
     "terms_last_updated": "2026-10-15",
-    "official_pages_rechecked_at": "2026-10-21T10:22Z",
+    "official_pages_rechecked_at": "2026-10-21T10:49:19Z",
     "common_window": "2026-10-20 through 2026-12-01 23:59 America/Los_Angeles",
     "target": "1,000 distinct people with real usage, reviewed through project usage on Keiki or Maritime",
     "winner_rule": "The first three projects to reach the target, subject to verification",
@@ -20,7 +20,7 @@
       "minimum_user_count": null,
       "official_project_submission_form": null,
       "formal_submission_receipt": null,
-      "status": "Accepted team; channel entry shared once; formal form/receipt and Top 30 status unconfirmed."
+      "status": "Accepted team; one channel entry; no project-form receipt or Top 30 status verified."
     }
   },
   "production": {
@@ -52,35 +52,45 @@
     },
     "deployment_readback_at": "2026-10-21T09:50Z",
     "latest_main_deployments": {
-      "source_sha": "d7c03e907d930511785121344ce2a2e6cd0e483a",
-      "life_call_status": "SKIPPED",
-      "life_call_deployment_id": "a8035b79-1030-4924-91a5-4fc89da44ddf",
-      "worker_status": "SKIPPED",
-      "worker_deployment_id": "357b1e1e-356a-45a9-97aa-f7ee895b8153",
+      "observed_at": "2026-10-21T10:49:19Z",
+      "current_main_sha": "726123eac587131e94544a900a967b278ac550d9",
+      "application_code_merge_sha": "b5ecef6e624203811d0e1103003c3cdbaf88c4cd",
+      "current_main_deployed": false,
+      "latest_seen_main_attempt": {
+        "source_sha": "e8e91c276264b8a5247b62d8c3f76b0d3fac3a44",
+        "life_call_status": "SKIPPED",
+        "life_call_deployment_id": "78633355-1d2e-4cda-a526-1277118ce340",
+        "worker_status": "SKIPPED",
+        "worker_deployment_id": "e83e4129-5b85-46a8-ad48-87dbe59e81d9",
+        "created_at": "2026-10-21T08:27:15Z"
+      },
       "last_success_source_sha": "982875d62eaa03f8e924b990c4bc80f521d8dcce",
       "last_success_life_call_deployment_id": "e9ebfb62-e8c3-46eb-a198-d9203f574899",
       "last_success_worker_deployment_id": "9dc09440-42ed-4349-83c2-e437b1fc5017"
     },
     "current_main_adoption_check": {
-      "observed_at": "2026-10-21T09:50:24Z",
-      "latest_origin_main_sha": "c205863a05a651c17fef183e59a043383e8663b6",
+      "observed_at": "2026-10-21T10:49:19Z",
+      "latest_origin_main_sha": "726123eac587131e94544a900a967b278ac550d9",
+      "application_code_merge_sha": "b5ecef6e624203811d0e1103003c3cdbaf88c4cd",
+      "docs_only_merge_sha": "726123eac587131e94544a900a967b278ac550d9",
       "paths_changed_after_production_loaded_sha": [
         "apps/life-manager/investment-core/provision_selection.py",
         "apps/life-manager/investment-core/test_provision_selection.py",
+        "apps/life-manager/lib/maritime-distribution.js",
         "apps/life-manager/scripts/maritime-week1-export.js",
         "apps/life-manager/scripts/maritime-week1-export.test.js"
       ],
-      "railway_live_deployments": "09:50Z Railway readback: life-call e9ebfb62-e8c3-46eb-a198-d9203f574899 and money-printer-worker 9dc09440-42ed-4349-83c2-e437b1fc5017 remain SUCCESS from 06:23Z.",
-      "latest_main_adoption": "origin/main c205863a is not verified as deployed; loaded SHA last exact readback is 982875d62eaa03f8e924b990c4bc80f521d8dcce."
+      "railway_live_deployments": "10:49Z readback: active life-call e9ebfb62-e8c3-46eb-a198-d9203f574899 and worker 9dc09440-42ed-4349-83c2-e437b1fc5017 remain SUCCESS from 06:23Z.",
+      "latest_main_adoption": "Application code through PR #8492 (b5ecef6) and current main 726123e are not verified as deployed; last exact loaded SHA remains 982875d62eaa03f8e924b990c4bc80f521d8dcce."
     },
     "latest_deployment_state": {
-      "observed_at": "2026-10-21T10:26:36Z",
+      "observed_at": "2026-10-21T10:49:19Z",
       "project": "Anicca",
       "active_success_life_call": "e9ebfb62-e8c3-46eb-a198-d9203f574899",
       "active_success_worker": "9dc09440-42ed-4349-83c2-e437b1fc5017",
       "created_at": "2026-10-21T06:23:22Z",
       "loaded_source_sha_last_exact_readback": "982875d62eaa03f8e924b990c4bc80f521d8dcce",
-      "main_sha": "b5ecef6e624203811d0e1103003c3cdbaf88c4cd",
+      "main_sha": "726123eac587131e94544a900a967b278ac550d9",
       "main_sha_adopted": false,
       "recent_main_deployment_attempt": {
         "life_call_id": "78633355-1d2e-4cda-a526-1277118ce340",
@@ -89,25 +99,26 @@
         "status": "SKIPPED",
         "created_at": "2026-10-21T08:27:15Z"
       },
-      "railway_status": "Official status page still showed Dashboard/API unavailable and builds paused at 2026-10-21T10:22Z; incident update timestamp 09:28Z.",
+      "railway_status": "Official status at 10:49Z still reports major outage: Dashboard/API unavailable and builds paused.",
       "worker_email_flag": {
         "last_exact_value": "0",
         "last_exact_readback_at": "2026-10-21T09:50Z",
-        "current_connector_readback_at": "2026-10-21T10:26:36Z",
-        "current_values_redacted": true
+        "current_values_redacted": true,
+        "redacted_readback_at": "2026-10-21T10:26Z"
       },
       "pilot_pages": {
         "en": {
           "http_status": 200,
-          "observed_at": "2026-10-21T10:22Z",
+          "observed_at": "2026-10-21T10:46Z",
           "still_promises_daily_email": true
         },
         "ja": {
           "http_status": 200,
-          "observed_at": "2026-10-21T10:22Z",
+          "observed_at": "2026-10-21T10:49:19Z",
           "still_promises_daily_email": true
         }
-      }
+      },
+      "application_code_sha": "b5ecef6e624203811d0e1103003c3cdbaf88c4cd"
     }
   },
   "runtime_database_readback": {
@@ -170,12 +181,12 @@
       "do_not_mix_life_manager_content_into_other_product_specific_accounts": true
     },
     "postiz_readback": {
-      "checked_at": "2026-10-21T10:26:36Z",
+      "checked_at": "2026-10-21T10:49:19Z",
       "groups": 0,
       "integrations": 0,
       "posts_in_window_2026_10_01_to_2026_11_01": 0,
       "posts_checked_at": "2026-10-21T09:32:00Z",
-      "interpretation": "Connected Postiz interface exposes no group or integration. No Life Manager X post, verified signup, or attributed order is read back."
+      "interpretation": "Fresh 10:49Z Postiz connector returns no groups or integrations; no Life Manager post or attributed signup/order."
     },
     "manager_blog": {
       "index_url": "https://aniccaai.com/blog/manager",
@@ -183,14 +194,14 @@
       "latest_source_article": "docs/research/manager/articles/2026-10-21-ai-assistant-vs-agent-next-task-en.md",
       "latest_source_article_main_pr": 8492,
       "proposed_canonical_url": "https://aniccaai.com/blog/manager-ai-assistant-vs-agent-next-task-en",
-      "proposed_url_readback": "HTTP 404 at 2026-10-21T10:22Z",
+      "proposed_url_readback": "HTTP 404 at 2026-10-21T10:49Z",
       "is_life_manager_signup_acquisition_article": true,
       "internal_draft": "docs/research/manager/articles/2026-10-21-ai-assistant-vs-agent-next-task-en.md",
       "internal_draft_published": false,
       "query_hypothesis": "AI assistant vs AI agent: who chooses the next task?",
       "query_volume_measured": false,
       "article_main_merge_sha": "b5ecef6e624203811d0e1103003c3cdbaf88c4cd",
-      "article_package_state": "56th manifest entry; source/package bytes and SHA match; merged to Life Manager main via PR #8492; unpublished."
+      "article_package_state": "56th manifest entry; source/package bytes and SHA match; merged via PR #8492 to application-code SHA b5ecef6; current main adds docs-only PR #8496; unpublished."
     },
     "gsc_sitewide_readback": {
       "checked_at": "2026-10-21T09:32:00Z",
@@ -208,11 +219,11 @@
     },
     "evidence_and_limits": "docs/research/maritime/2026-10-20-source-map.md records Todoist, Ahrefs, and Levels mechanisms and limits. None is a causal same-product case showing an autonomous Life Manager reaching 1,000 users without social.",
     "current_experiment": {
-      "observed_at": "2026-10-21T10:26:36Z",
+      "observed_at": "2026-10-21T10:49:19Z",
       "article_source": "docs/research/manager/articles/2026-10-21-ai-assistant-vs-agent-next-task-en.md",
-      "article_source_state": "Merged to Life Manager main b5ecef6e624203811d0e1103003c3cdbaf88c4cd via PR #8492.",
+      "article_source_state": "Merged via PR #8492; application-code SHA b5ecef6, in current main 726123eac587131e94544a900a967b278ac550d9.",
       "article_package_state": "56th manifest entry; source/package bytes and SHA verified; merged to main; unpublished.",
-      "article_public_state": "HTTP 404 at 2026-10-21T10:22Z; unpublished.",
+      "article_public_state": "HTTP 404 at 2026-10-21T10:49Z; unpublished.",
       "cta_policy": "An early-pilot CTA is allowed before the complete hosted cycle only when the article and page disclose cycle limitations, Maritime retention, and no income/profit guarantee.",
       "x_policy": "Do not post until a live readback identifies the existing broad X identity; current Postiz connector has zero integrations.",
       "article_sha256": "87935ef419b6ee54f465d128e71d8b8312ef19d23eec81eb38d2509c0894d5e9",
@@ -221,7 +232,8 @@
       "article_bridge_pr_draft": true,
       "article_bridge_checks": "Landing PR build and CodeRabbit PASS at 10:21Z; publication remains gated on live pilot page correction.",
       "pilot_copy_correction_main_merge_sha": "b5ecef6e624203811d0e1103003c3cdbaf88c4cd",
-      "pilot_copy_correction_production_status": "not deployed; live EN/JA page still displays old daily-email claim"
+      "pilot_copy_correction_production_status": "not deployed; Railway outage remains and live EN/JA pages still display old daily-email claim",
+      "demo_script_state": "T25.1/T25.2 shot list and truth gates complete; no footage or public post"
     }
   },
   "public_product": {
@@ -293,9 +305,9 @@
       },
       "latest_exact_sender_search_at": "2026-10-21T09:34:00Z"
     },
-    "latest_official_pages_rechecked_at": "2026-10-21T10:22Z",
-    "official_form_cutoff_rubric": "No official form, exact cutoff/timezone, or detailed rubric visible.",
-    "latest_organizer_reply": "The only found organizer reply is the 2026-10-16 message saying dates, eligibility, and coverage are being checked; no reply after 2026-10-19."
+    "latest_official_pages_rechecked_at": "2026-10-21T10:49:19Z",
+    "official_form_cutoff_rubric": "No separate project form, exact Week 1 cutoff/timezone, or detailed rubric is published in current home/Terms readback.",
+    "latest_organizer_reply": "Only the 2026-10-16 application reply was found; it says details are being checked. Exact-sender search after 2026-10-20 found no new reply."
   },
   "mail_readback": {
     "checked_at": "2026-10-21T06:31:00Z",
@@ -315,14 +327,14 @@
     "organizer_reply_found_by_06_43Z": false
   },
   "revenue_status": {
-    "observed_at": "2026-10-21T10:26:36Z",
+    "observed_at": "2026-10-21T10:49:19Z",
     "life_manager_active_subscription_count": 0,
     "life_manager_active_mrr_usd": 0,
     "price_readback": {
       "price_29_usd_active_subscriptions": 0,
       "price_20_usd_active_subscriptions": 0,
       "anicca_cloud_30_usd_active_subscriptions": 0,
-      "source": "Stripe live GET /v1/subscriptions filtered by each exact price ID"
+      "source": "Stripe live GET /v1/subscriptions filtered by each exact Life Manager price ID at 10:49Z"
     },
     "user_attributed_hosted_cash_received": "unverified",
     "user_attributed_hosted_net": "unverified",
@@ -334,8 +346,9 @@
     "account_wide_paid_invoice_readback_at": "2026-10-21T06:55:37Z",
     "account_wide_paid_invoice_attribution_to_life_manager": "unverified; not counted toward Life Manager revenue",
     "prior_readback_evidence": "docs/evidence/maritime/stripe-life-manager-readback-20261021.json",
-    "interpretation": "Fresh live reads show no active subscription on either Life Manager monthly price. Historical account-wide invoices and local-workflow reports are not Life Manager subscription revenue or hosted user settlement.",
-    "sigma_analytics": "unavailable; account has no Sigma subscription"
+    "interpretation": "Fresh 10:49Z reads show no active subscription on either Life Manager monthly price. Historical account-wide invoices and local-workflow reports are not Life Manager subscription revenue or hosted user settlement.",
+    "sigma_analytics": "unavailable; account has no Sigma subscription",
+    "anicca_cloud_30_usd_last_readback_at": "2026-10-21T10:26:36Z"
   },
   "source_repository_readback": {
     "observed_at": "2026-10-21T09:50:24Z",
@@ -349,11 +362,11 @@
     ]
   },
   "current_cursor": {
-    "submission": "T23.3: recheck the official route; no formal form/cutoff/rubric is published and formal receipt remains unconfirmed. Submit once only when the official route appears; do not duplicate the Slack entry.",
-    "product": "T22.1e.2 / b.6-28: owner email PKCE and explicit Maritime retention consent remain unverified; then one hosted work/result/report/stop cycle. Internal aggregate counts are all 0.",
-    "production_copy": "T26.5b: PR #8492 copy is merged at main b5ecef6 but not deployed. Wait for Railway incident recovery, then verify both live locales.",
-    "distribution": "T27.2: article source/package is merged; anicca-products PR #537 remains draft with checks passing. Article URL is 404; publish only after live pilot copy is corrected and exact-head review clears.",
-    "revenue": "Life Manager subscription MRR is 0 from two exact live price reads. Hosted user cash/net and distribution-attributed revenue remain unverified."
+    "submission": "T23.3: official home/Terms 10:49Z still expose no project form/cutoff/rubric; exact organizer email search after 10/20 is empty. Submit once only when route is published.",
+    "product": "T22.1e.2 / b.6-28: owner email PKCE and explicit Maritime retention consent remain pending; internal participant/enrollment/execution/completed-work/report counts are 0.",
+    "production_copy": "T26.5b: PR #8492 source correction at application-code b5ecef6 remains undeployed; Railway still has a major outage and public EN/JA page retains old daily-email claim.",
+    "distribution": "T25.1/.2 shot list is ready but no footage is captured. T27.2 article source is merged; PR #537 remains draft, URL is 404, and Postiz integrations are 0.",
+    "revenue": "10:49Z Life Manager subscription MRR is 0 from exact $29/$20 price reads. Hosted user cash/net and source-attributed distribution revenue remain unverified."
   },
   "latest_slack_readback": {
     "observed_at": "2026-10-21T08:07Z",
@@ -368,29 +381,31 @@
     "formal_form_warning_visible": true
   },
   "latest_organizer_email_search": {
-    "observed_at": "2026-10-21T10:26:36Z",
-    "search_scope": "Exact sender search for contact@maritime.sh and nizzy@orchid.ai after 2026-10-19.",
+    "observed_at": "2026-10-21T10:49:19Z",
+    "search_scope": "Exact sender search for contact@maritime.sh and nizzy@orchid.ai after 2026-10-20.",
     "matching_messages": 0,
     "reply_to_submission_route_inquiry_found": false,
-    "submission_route_thread_last_readback_at": "2026-10-21T08:26:15Z",
     "initial_application_thread_reply": {
       "received_at": "2026-10-16T02:40:09Z",
       "from": "contact@maritime.sh",
-      "summary": "CEO said dates, eligibility, and coverage details were being checked with the team; no subsequent reply was found."
-    }
+      "summary": "CEO said dates, eligibility, and coverage details were being checked with the team; no later reply."
+    },
+    "submission_route_thread_last_readback_at": "2026-10-21T08:26:15Z"
   },
   "latest_product_distribution_readback": {
-    "observed_at": "2026-10-21T10:26:36Z",
-    "competition_home_and_terms_rechecked_at": "2026-10-21T10:22Z",
+    "observed_at": "2026-10-21T10:49:19Z",
+    "competition_home_and_terms_rechecked_at": "2026-10-21T10:49:19Z",
     "formal_form_cutoff_rubric_published": false,
     "pilot_url": "https://life-call-production.up.railway.app/maritime",
     "pilot_locales": {
       "en": {
         "http_status": 200,
+        "observed_at": "2026-10-21T10:46Z",
         "claims_daily_email_as_current": true
       },
       "ja": {
         "http_status": 200,
+        "observed_at": "2026-10-21T10:49:19Z",
         "claims_daily_email_as_current": true
       }
     },
@@ -398,7 +413,8 @@
     "manager_article_http_status": 404,
     "article_source_main_merge": {
       "pr": 8492,
-      "merge_sha": "b5ecef6e624203811d0e1103003c3cdbaf88c4cd",
+      "application_code_sha": "b5ecef6e624203811d0e1103003c3cdbaf88c4cd",
+      "current_main_sha": "726123eac587131e94544a900a967b278ac550d9",
       "manifest_entries": 56,
       "source_package_sha256": "87935ef419b6ee54f465d128e71d8b8312ef19d23eec81eb38d2509c0894d5e9"
     },
@@ -419,7 +435,13 @@
     "gsc_sitewide_28d_through": "2026-10-18",
     "gsc_sitewide_28d_clicks": 0,
     "gsc_sitewide_28d_impressions": 7,
-    "life_manager_source_attributed_signup_or_sale": false
+    "life_manager_source_attributed_signup_or_sale": false,
+    "demo_script": {
+      "t25_1": "complete",
+      "t25_2": "complete",
+      "video_captured": false,
+      "published": false
+    }
   },
   "packet_export_readback": {
     "test_command": "node --test apps/life-manager/scripts/maritime-week1-export.test.js",
@@ -447,14 +469,14 @@
     }
   },
   "money_loop_status": {
-    "user_earning_product": "Dais reports local workflow earnings, but no joined official settlement receipt is present. Hosted participants/enrollments/executions/completed work/reports are 0 in the latest internal aggregate.",
-    "life_manager_company_revenue": "10:26Z live Stripe GET returned 0 active subscriptions for the $29 and $20 monthly Life Manager prices; subscription MRR USD 0.",
+    "user_earning_product": "Dais reports local workflow earnings without a joined official settlement receipt. Latest internal participant/enrollment/execution/completed-work/report aggregates are 0.",
+    "life_manager_company_revenue": "10:49Z Stripe live GET returned 0 active subscriptions for the $29 and $20 monthly Life Manager prices; subscription MRR USD 0.",
     "distribution_revenue": "No published acquisition article, verified Life Manager X post, source-attributed signup, paid order, or receipt. GSC is 0 clicks/7 impressions through 2026-10-18."
   },
-  "current_status_refresh_at": "2026-10-21T10:26:36Z",
-  "status_updated_at": "2026-10-21T10:26:36Z",
+  "current_status_refresh_at": "2026-10-21T10:49:19Z",
+  "status_updated_at": "2026-10-21T10:49:19Z",
   "latest_manager_metrics_readback": {
-    "observed_at": "2026-10-21T10:26:36Z",
+    "observed_at": "2026-10-21T10:49:19Z",
     "source": "Supabase Anicca; aggregate-only SQL; no row-level identity/email returned",
     "counts": {
       "live_pilot_participants_not_revoked": 0,
@@ -464,5 +486,19 @@
       "manager_report_sent_events": 0
     },
     "interpretation": "Internal app counts only; not an official Keiki/Maritime competition user count."
+  },
+  "application_source_sha": "b5ecef6e624203811d0e1103003c3cdbaf88c4cd",
+  "latest_documentation_merge": {
+    "pr": 8496,
+    "merge_sha": "726123eac587131e94544a900a967b278ac550d9",
+    "merged_at": "2026-10-21T10:46:30Z",
+    "application_code_change": false,
+    "previous_application_code_merge_sha": "b5ecef6e624203811d0e1103003c3cdbaf88c4cd"
+  },
+  "netlify_alternative_readback": {
+    "observed_at": "2026-10-21T10:49:19Z",
+    "existing_lm_landing": "aniccaai.com/lm is the separate Calendar product flow",
+    "maritime_signup_contract": "POST /auth/maritime/email validates Origin against LM_PANEL_BASE; confirmation requires the same-browser PKCE verifier and /auth/maritime/confirm on the configured public origin.",
+    "decision": "Do not duplicate the signup UI on Netlify without an explicit proxy/origin/PKCE callback design; preserve the current same-origin Railway route."
   }
 }

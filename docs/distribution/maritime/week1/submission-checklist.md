@@ -1,16 +1,18 @@
 # Maritime 初週の現状と残TODO
 
-**更新:** 2026-10-21 10:26 UTC。競技サイト/Terms、Railway、Supabase集計、Stripe live subscriptions、Postiz connector、Gmail、Life Manager/Anicca Products PRをreadback。
+**更新:** 2026-10-21 10:49 UTC。競技サイト/Terms、Railway、Supabase集計、Stripe live subscriptions、Postiz connector、Gmail、Life Manager/Anicca Products PRをreadback。
 
 ## As-Is
 
 - 申請はaccepted。競技公式条件は6週間で実利用のある別人1,000人、最初に到達して検証された3 projectがwinner。利益額は公開順位条件にない。Kickoffメールは初週後Top 30のみ次週へ進出とするが、cutoff/timezone/rubric/最低ユーザー数は公表されていない。
-- 提出: #competition-submissionsにはentry 1件を投稿/readback済み。channel説明はrequired formを代替しないと明記。公式home/Termsを10:22Zに再確認してもform/cutoff/rubricなし。10/16のCEO返信は日程・資格・旅費補助をチームに確認中という内容で、10/19以降の返信なし。正式submission receiptは未確認。投稿を重複させない。
-- Product: goal/budget入力なしでManager自身が仕事を選ぶ設計。production life-call e9ebfb62-e8c3-46eb-a198-d9203f574899とworker 9dc09440-42ed-4349-83c2-e437b1fc5017は06:23Zの旧SUCCESS deployment。last exact loaded SHA 982875d62eaa03f8e924b990c4bc80f521d8dcce。main b5ecef6e624203811d0e1103003c3cdbaf88c4cdは未採用。英日pilot pageはHTTP 200だが日次メールを現在形で示す。worker email flagは09:50Zのlast exact readback=0。10:26Z Railway variables connectorはvaluesをredact。
-- Product usage: 10:26Z Supabase aggregate-only readbackでlive participants/enrollments/executions/completed-work/report-sentはすべて0。これは内部DB集計で、Keiki/Maritimeの公式user countではない。owner PKCE、Maritime AI-credit保持への明示同意、hosted work→external result→daily report→stopは未完。個人業務データは同意前に送らない。
-- Revenue: 10:26Z Stripe live GETでLife Managerの$29/月と$20/月priceはactive subscription各0、MRR=$0。Anicca Cloudの$30/月は別productでactive subscription 0。Daisのlocal earnings申告はLife Managerやhosted userへのsettled receiptと未結合。hosted user income/net、distribution-attributed revenueは未確認。
-- Distribution: article source/package/manifestはPR #8492でmainへmerge済み（56 entries、SHA一致）。Anicca Products PR #537はdraft、Landing CI/CodeRabbit PASS。候補URLは10:22Z HTTP 404。GSC settled through 2026-10-18は0 clicks/7 impressions。Postiz connector groups/integrationsは0。Life Manager X post、verified signup、source-attributed paid receiptは未確認。Instagram新規accountなし。
-- Railway: status pageは10:22ZにもMajor Outage（Dashboard/API停止、全regionのbuild停止）。copy correctionはsourceのみで、public pageは古い日次メール表示のまま。現行pageを正す前に新規trafficを流さない。
+- 提出: #competition-submissionsにはentry 1件を投稿/readback済み。channel説明はrequired formを代替しないと明記。公式home/Termsを10:49Zに再確認してもform/cutoff/rubricなし。10/16のCEO返信は日程・資格・旅費補助をチームに確認中という内容で、10/19以降の返信なし。正式submission receiptは未確認。投稿を重複させない。
+- Product: goal/budget入力なしでManager自身が仕事を選ぶ設計。production life-call e9ebfb62-e8c3-46eb-a198-d9203f574899とworker 9dc09440-42ed-4349-83c2-e437b1fc5017は06:23Zの旧SUCCESS deployment。last exact loaded SHA 982875d62eaa03f8e924b990c4bc80f521d8dcce。app code b5ecef6e624203811d0e1103003c3cdbaf88c4cdを含むcurrent main head 726123eac587131e94544a900a967b278ac550d9は未採用。英日pilot pageはHTTP 200だが日次メールを現在形で示す。worker email flagは09:50Zのlast exact readback=0。10:26Z Railway variables connectorはvaluesをredact。
+- Product usage: 10:49Z Supabase aggregate-only readbackでlive participants/enrollments/executions/completed-work/report-sentはすべて0。これは内部DB集計で、Keiki/Maritimeの公式user countではない。owner PKCE、Maritime AI-credit保持への明示同意、hosted work→external result→daily report→stopは未完。個人業務データは同意前に送らない。
+- Revenue: 10:49Z Stripe live GETでLife Managerの$29/月と$20/月priceはactive subscription各0、MRR=$0。Anicca Cloudの$30/月は別productでactive subscription 0。Daisのlocal earnings申告はLife Managerやhosted userへのsettled receiptと未結合。hosted user income/net、distribution-attributed revenueは未確認。
+- Distribution: article source/package/manifestはPR #8492でmainへmerge済み（56 entries、SHA一致）。Anicca Products PR #537はdraft、Landing CI/CodeRabbit PASS。候補URLは10:49Z HTTP 404。GSC settled through 2026-10-18は0 clicks/7 impressions。Postiz connector groups/integrationsは0。Life Manager X post、verified signup、source-attributed paid receiptは未確認。Instagram新規accountなし。
+- Railway: status pageは10:49ZにもMajor Outage（Dashboard/API停止、全regionのbuild停止）。copy correctionはsourceのみで、public pageは古い日次メール表示のまま。現行pageを正す前に新規trafficを流さない。
+
+- Demo: T25.1/.2の5shot順・route/receipt・PII境界・未実装時のhold条件をdemo-script.mdへ追加。動画素材は未撮影でT22/T26ゲート後。
 
 ## Ordered atomic TODO
 

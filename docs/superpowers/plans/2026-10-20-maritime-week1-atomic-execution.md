@@ -494,8 +494,8 @@ life-manager/
 **Interfaces:** 30秒縦動画と2分審査demo。共通captureから切り出す。UI mockとlive画面は明確に区別。
 **Depends:** なしで台本。撮影は該当実装が動いた時点。
 
-- [ ] T25.1 台本を「メール登録→指示なしで仕事開始→成果物/公開結果→日次メール→試すURL」の5shotへ固定する。
-- [ ] T25.2 各shotの対象route/receipt・画面に出してよい情報・未実装時の表示をshot listへ書く。ユーザー売上がない時にfounder売上をユーザー実績として置かない。
+- [x] T25.1 Fix the narrative to five ordered shots: email entry → Manager's unprompted work choice → artifact/provider result → same-occurrence daily report → trial URL. DONE: docs/distribution/maritime/week1/demo-script.md lists the exact order and honest captions.
+- [x] T25.2 Add each shot's route/receipt, allowed screen data, redaction, and unimplemented-state handling. DONE: the shot list gates signup on T26.5b, live work/result/report on T22.1e.2, prevents fabricated earnings/users, and marks the capture as not produced.
 - [ ] T25.3 実装が動いたshotから順次captureし、既存HyperFramesのskill/CLIで字幕・縦動画へ編集する。新撮影のために友人3人を待たない。
 - [ ] T25.4 音なしでも理解できる30秒版、音声付き2分版、サムネイル、投稿captionを一packageにし、CTA・正しいURL・実画面の確認後commit/pushまたは既存artifact storeへ保存する。
 
@@ -510,7 +510,7 @@ life-manager/
 - [ ] T26.3 既存full site exportへapproved overlayとして反映し、他商品/blog/legal/functionを保持する。manifest hashとpublished revisionを更新する。
 - [ ] T26.4 公開URLのemail CTA/認証/停止/localeをreadbackし、source commitとpublished SHAを結合する。source変更だけを公開完了と呼ばない。
 - [x] T26.5a Source correction: ja/en copy labels the daily email as design intent and discloses the unverified hosted cycle, optional goal/budget setup, optional Telegram, Maritime retention, and no earnings guarantee. PR #8492 is merged to main at b5ecef6e624203811d0e1103003c3cdbaf88c4cd.
-- [ ] T26.5b After the official Railway incident clears, verify the production deployment contains main b5ecef6e624203811d0e1103003c3cdbaf88c4cd; read /maritime?lang=en and ?lang=ja and confirm both show the cycle caveat and required disclosures. Do not mark source merge as production adoption.
+- [ ] T26.5b After the official Railway incident clears, read back both active service deployments and their commit hashes. Require the deployed application source to include PR #8492's b5ecef6e624203811d0e1103003c3cdbaf88c4cd change (the current main head 726123eac587131e94544a900a967b278ac550d9 is a docs-only descendant); then GET /maritime?lang=en and ?lang=ja and verify the full-cycle caveat plus all disclosures. DONE: save both deployment IDs/commit hashes and the two live page readbacks. A source merge alone is not production adoption.
 
 ## Task T27: 公開配布を開始する
 
