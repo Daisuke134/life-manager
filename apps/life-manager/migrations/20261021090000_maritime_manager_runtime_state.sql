@@ -281,3 +281,41 @@ CREATE TABLE IF NOT EXISTS public.lm_cfo_result_receipts (
   CHECK ((status = 'sent' AND provider_message_id IS NOT NULL AND sent_at IS NOT NULL)
     OR (status = 'pending' AND provider_message_id IS NULL AND sent_at IS NULL))
 );
+
+-- Manager data is available only to the trusted runtime role. The direct
+-- Railway PostgreSQL pool remains the application path; browser roles get no
+-- table or RPC access if this schema is also exposed through a data API.
+ALTER TABLE public.lm_maritime_manager_identities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.lm_maritime_manager_enrollments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.lm_maritime_manager_executions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.lm_maritime_pilot_participants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.lm_web_funnel_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.lm_cfo_result_receipts ENABLE ROW LEVEL SECURITY;
+
+REVOKE ALL ON TABLE public.lm_maritime_manager_identities FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON TABLE public.lm_maritime_manager_enrollments FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON TABLE public.lm_maritime_manager_executions FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON TABLE public.lm_maritime_pilot_participants FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON TABLE public.lm_web_funnel_events FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON TABLE public.lm_cfo_result_receipts FROM PUBLIC, anon, authenticated, service_role;
+
+GRANT SELECT, INSERT, UPDATE ON TABLE public.lm_maritime_manager_identities TO service_role;
+GRANT SELECT, INSERT, UPDATE ON TABLE public.lm_maritime_manager_enrollments TO service_role;
+GRANT SELECT, INSERT, UPDATE ON TABLE public.lm_maritime_manager_executions TO service_role;
+GRANT SELECT, INSERT, UPDATE ON TABLE public.lm_maritime_pilot_participants TO service_role;
+GRANT SELECT, INSERT ON TABLE public.lm_web_funnel_events TO service_role;
+GRANT SELECT, INSERT, UPDATE ON TABLE public.lm_cfo_result_receipts TO service_role;
+
+REVOKE ALL ON FUNCTION public.prevent_lm_maritime_manager_identity_reassignment_v1() FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.lm_web_funnel_events_guard() FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.claim_lm_maritime_manager_provision_v1(text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.bind_lm_maritime_manager_agent_v1(text, uuid, text, text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.claim_lm_maritime_manager_cycle_v1(text, text, text, text, date) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.bind_lm_maritime_manager_execution_v1(text, text, text, text, date, text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.claim_lm_maritime_participant_v1(text, text, text, integer, timestamptz) FROM PUBLIC, anon, authenticated;
+
+GRANT EXECUTE ON FUNCTION public.claim_lm_maritime_manager_provision_v1(text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.bind_lm_maritime_manager_agent_v1(text, uuid, text, text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.claim_lm_maritime_manager_cycle_v1(text, text, text, text, date) TO service_role;
+GRANT EXECUTE ON FUNCTION public.bind_lm_maritime_manager_execution_v1(text, text, text, text, date, text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.claim_lm_maritime_participant_v1(text, text, text, integer, timestamptz) TO service_role;

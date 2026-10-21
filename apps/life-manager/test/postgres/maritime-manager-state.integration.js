@@ -63,6 +63,9 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     started = true;
     client = new Client({ host: socket, port, database: "postgres", user: "fixture_owner", password: "", connectionTimeoutMillis: 5000 });
     await client.connect();
+    for (const role of ["anon", "authenticated", "service_role"]) {
+      await client.query(`CREATE ROLE ${role} NOLOGIN`);
+    }
 
     const present = await client.query(
       "SELECT name, to_regclass(format('public.%I', name))::text AS relation FROM unnest($1::text[]) AS name ORDER BY name",
@@ -97,6 +100,68 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
       "Manager runtime state does not require or create the global lm_users table");
     for (const table of MANAGER_TABLES.filter(name => !["lm_maritime_manager_identities", "lm_maritime_manager_enrollments", "lm_maritime_manager_executions", "lm_maritime_pilot_participants", "lm_web_funnel_events", "lm_cfo_result_receipts"].includes(name))) {
       assert.equal(relations[table], null, `${table} stays out of this Manager migration`);
+    }
+
+    const tableAcl = await client.query(
+      `SELECT c.relname, c.relrowsecurity,
+              has_table_privilege('service_role', c.oid, 'SELECT') AS service_select,
+              has_table_privilege('service_role', c.oid, 'INSERT') AS service_insert,
+              has_table_privilege('service_role', c.oid, 'UPDATE') AS service_update,
+              has_table_privilege('service_role', c.oid, 'DELETE') AS service_delete,
+              has_table_privilege('service_role', c.oid, 'TRUNCATE') AS service_truncate,
+              has_table_privilege('service_role', c.oid, 'REFERENCES') AS service_references,
+              has_table_privilege('service_role', c.oid, 'TRIGGER') AS service_trigger,
+              has_table_privilege('anon', c.oid, 'SELECT') OR has_table_privilege('anon', c.oid, 'INSERT')
+                OR has_table_privilege('anon', c.oid, 'UPDATE') OR has_table_privilege('anon', c.oid, 'DELETE')
+                OR has_table_privilege('anon', c.oid, 'TRUNCATE') OR has_table_privilege('anon', c.oid, 'REFERENCES')
+                OR has_table_privilege('anon', c.oid, 'TRIGGER') AS anon_any,
+              has_table_privilege('authenticated', c.oid, 'SELECT') OR has_table_privilege('authenticated', c.oid, 'INSERT')
+                OR has_table_privilege('authenticated', c.oid, 'UPDATE') OR has_table_privilege('authenticated', c.oid, 'DELETE')
+                OR has_table_privilege('authenticated', c.oid, 'TRUNCATE') OR has_table_privilege('authenticated', c.oid, 'REFERENCES')
+                OR has_table_privilege('authenticated', c.oid, 'TRIGGER') AS authenticated_any
+         FROM pg_class AS c
+        WHERE c.relnamespace = 'public'::regnamespace AND c.relname = ANY($1::text[])
+        ORDER BY c.relname`,
+      [MANAGER_TABLES],
+    );
+    assert.equal(tableAcl.rows.length, MANAGER_TABLES.length, "all Manager tables have ACL readback");
+    for (const table of tableAcl.rows) {
+      assert.equal(table.relrowsecurity, true, `${table.relname} enables RLS`);
+      assert.equal(table.service_select, true, `${table.relname} grants service_role SELECT`);
+      assert.equal(table.service_insert, true, `${table.relname} grants service_role INSERT`);
+      assert.equal(table.service_update, table.relname !== "lm_web_funnel_events", `${table.relname} keeps only required UPDATE`);
+      for (const privilege of ["service_delete", "service_truncate", "service_references", "service_trigger", "anon_any", "authenticated_any"]) {
+        assert.equal(table[privilege], false, `${table.relname} denies ${privilege}`);
+      }
+    }
+
+    const functionAcl = await client.query(
+      `SELECT p.proname, p.oid::regprocedure::text AS signature,
+              has_function_privilege('service_role', p.oid, 'EXECUTE') AS service_execute,
+              has_function_privilege('anon', p.oid, 'EXECUTE') AS anon_execute,
+              has_function_privilege('authenticated', p.oid, 'EXECUTE') AS authenticated_execute
+         FROM pg_proc AS p JOIN pg_namespace AS n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND p.proname = ANY($1::text[])
+        ORDER BY p.proname, signature`,
+      [[
+        "prevent_lm_maritime_manager_identity_reassignment_v1",
+        "claim_lm_maritime_manager_provision_v1",
+        "bind_lm_maritime_manager_agent_v1",
+        "claim_lm_maritime_manager_cycle_v1",
+        "bind_lm_maritime_manager_execution_v1",
+        "claim_lm_maritime_participant_v1",
+        "lm_web_funnel_events_guard",
+      ]],
+    );
+    assert.equal(functionAcl.rows.length, 7, "all Manager RPC and trigger functions have ACL readback");
+    const triggerFunctions = new Set([
+      "prevent_lm_maritime_manager_identity_reassignment_v1",
+      "lm_web_funnel_events_guard",
+    ]);
+    for (const fn of functionAcl.rows) {
+      assert.equal(fn.anon_execute, false, `${fn.signature} denies anon EXECUTE`);
+      assert.equal(fn.authenticated_execute, false, `${fn.signature} denies authenticated EXECUTE`);
+      assert.equal(fn.service_execute, !triggerFunctions.has(fn.proname), `${fn.signature} grants only business RPCs to service_role`);
     }
 
     const columns = await client.query(

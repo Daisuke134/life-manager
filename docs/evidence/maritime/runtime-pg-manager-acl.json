@@ -1,0 +1,34 @@
+{
+  "observed_at": "2026-10-21T02:08:40Z",
+  "migration_sha256": "1b3430af910bf1e1163259d235d6345bfe63f4798c0f5c30ec1dcf8fac9cbc46",
+  "integration_test_sha256": "cf674f2af78a5dc74f51cddcc5432d51a03b606e8ca8170adb1b54cf28550fcc",
+  "red": {
+    "command": "PATH=/opt/homebrew/Cellar/postgresql@17/17.11/bin:$PATH node --test test/postgres/maritime-manager-state.integration.js",
+    "result": "expected failure: lm_cfo_result_receipts enables RLS (false !== true)"
+  },
+  "green": {
+    "command": "PATH=/opt/homebrew/Cellar/postgresql@17/17.11/bin:$PATH node --test lib/maritime-manager-auth.test.js lib/maritime-manager-artifacts.test.js lib/maritime-manager-wake.test.js lib/maritime-manager-store.test.js lib/maritime-manager-runtime.test.js lib/maritime-manager-usage.test.js lib/maritime-manager-report.test.js lib/maritime-distribution.test.js lib/cfo-cloud-delivery.test.js scripts/runtime-up.test.js test/postgres/maritime-manager-state.integration.js",
+    "result": {
+      "tests": 170,
+      "passed": 170,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "contracts": {
+    "all_six_manager_tables_enable_rls": true,
+    "anon_and_authenticated_have_no_manager_table_privileges": true,
+    "service_role_has_only_required_table_privileges": true,
+    "funnel_events_remain_append_only": true,
+    "five_manager_rpcs_execute_only_for_service_role": true,
+    "trigger_guard_functions_are_not_directly_executable": true,
+    "migration_reapply_preserves_existing_manager_state": true
+  },
+  "external_effects": {
+    "production_dsn_used": false,
+    "production_database_mutated": false,
+    "migration_applied": false,
+    "resend_invoked": false,
+    "real_email_sent": false
+  }
+}
