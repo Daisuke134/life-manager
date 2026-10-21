@@ -58,12 +58,46 @@
   },
   "source_integrity": {
     "dataset_revision": "048481111a4425ed83dc0eacf15f8431f252b21a",
-    "elapsed_seconds": 0.61,
+    "elapsed_seconds": 0.52,
     "method": "DuckDB projection and GROUP BY study_id,coarse_code; no individual records persisted",
     "parquet_files": 17,
     "source_sql_result_cells": 1553,
     "study_mapping_sha1": "8aa37bd598ce8bb00103a5a885948299f75f5ce7",
     "transport": "local"
   },
-  "interpretation": "This is real individual response data reduced to counts with study-specific numerical responses grouped into 0..10 and OTHER. Because response category semantics differ between studies, these metrics do not reproduce the paper's task-conditioned behavioral prediction benchmark or clinically validated human behavior."
+  "interpretation": "This is real individual response data reduced to counts with study-specific numerical responses grouped into 0..10 and OTHER. Because response category semantics differ between studies, these metrics do not reproduce the paper's task-conditioned behavioral prediction benchmark or clinically validated human behavior.",
+  "extended_verification_run": "https://github.com/Daisuke134/life-manager/actions/runs/39562546535",
+  "calibration": {
+    "absolute_top_class_calibration_gap": 0.00723589,
+    "meaningful_individual_level_calibration_established": false,
+    "micro_sample_size": 482642,
+    "one_reliability_bin_only": true,
+    "prediction_type": "GLOBAL_COARSE_CATEGORICAL_PRIOR_NOT_QUESTION_CONDITIONED",
+    "top_class_empirical_hit_rate_on_40_unseen": 0.22856486,
+    "top_class_probability_train_only": 0.22132897
+  },
+  "abstention_policy": {
+    "decision": "ABSTAIN_ALL_UNSEEN_FOR_DEPLOYMENT",
+    "heldout_studies_exceeding_train_error_alert": 2,
+    "reason": "No unseen-study task semantics, available options, or calibrated per-task prior available at inference time",
+    "retrospective_error_alert_not_an_online_action_policy": true,
+    "retrospective_tvd_is_never_used_to_predict_abstention": true,
+    "train_cv_studies": 170,
+    "train_only_leave_one_study_out_tvd_p90": 0.60767102
+  },
+  "subgroups": [
+    {
+      "category": "smaller_half_of_unseen_studies_by_observed_n",
+      "rows": 106125,
+      "studies": 20,
+      "tvd_study_macro": 0.44920218
+    },
+    {
+      "category": "larger_half_of_unseen_studies_by_observed_n",
+      "rows": 376517,
+      "studies": 20,
+      "tvd_study_macro": 0.34152162
+    }
+  ],
+  "subgroup_methodology": "split 40 unseen studies into smaller and larger 20 by observed record counts, not personally identifiable demographics"
 }
