@@ -26,13 +26,13 @@
       "source": "pages/products-en.html",
       "public_route": "/dais",
       "export_path": "dais.html",
-      "sha256": "89d221b02aa6084c008afe6d8da25b08952264a1ba7c91612d6e7031305760c4"
+      "sha256": "a982daf709c3c3e96b36e7f4a71e46797a8db832f9e6ce1f8cce38466d8a8611"
     },
     {
       "source": "pages/products.html",
       "public_route": "/dais/ja",
       "export_path": "dais/ja.html",
-      "sha256": "6c57176c95b5d320f7cb83a8402dc9e00d3634ca8506862498cc6cba0a0fdbdd"
+      "sha256": "95e0d1337b67f7d5ee885500a22f36610256321bca781a12ff04f2be1a356e3c"
     },
     {
       "source": "pages/life-manager-en.html",
@@ -49,12 +49,47 @@
     {
       "source": "assets/styles.css",
       "export_path": "assets/manager-site/styles.css",
-      "sha256": "8dfc5d1c50071f9b9ba20498dd454ae275c5143e80a47495f02a088b91c2fc15"
+      "sha256": "c86e1c3bf448f737bcf900f6a2a18b9e8ff7cdd30f4e888f902077d84100b12d"
     },
     {
       "source": "assets/writer-cta-url.js",
       "export_path": "assets/manager-site/writer-cta-url.js",
       "sha256": "b38abbcd5fa96835d54abe9780a3bdd7a34413e0b5526b28855a07f378847e86"
+    },
+    {
+      "source": "assets/published-apps.json",
+      "export_path": "assets/manager-site/published-apps.json",
+      "sha256": "df071a403666f646015b6fd51bee82036419e9fdd907259584fc2e988cd80cf2"
+    },
+    {
+      "source": "assets/apps/6755129214.webp",
+      "export_path": "assets/manager-site/apps/6755129214.webp",
+      "sha256": "4dd295915eb5c59828b79b61dc12db43fb9886b4bd15db77eb66be63960983c4"
+    },
+    {
+      "source": "assets/apps/6757726663.webp",
+      "export_path": "assets/manager-site/apps/6757726663.webp",
+      "sha256": "b9f6e08fa293f460e6f32bf5c40ff408e1d3846a0dc643289fb25e59cc3a2718"
+    },
+    {
+      "source": "assets/apps/6759514159.png",
+      "export_path": "assets/manager-site/apps/6759514159.png",
+      "sha256": "9dc87b7f546c507f52d7794fab3e46fb2fd05f5a691395c0a969813d18393a80"
+    },
+    {
+      "source": "assets/apps/6759667221.webp",
+      "export_path": "assets/manager-site/apps/6759667221.webp",
+      "sha256": "7654d9425a9d22f0423655bc2b5012b53267440c42986268a2f6912e324b1def"
+    },
+    {
+      "source": "assets/apps/6762143790.webp",
+      "export_path": "assets/manager-site/apps/6762143790.webp",
+      "sha256": "9e29a618b27d43304f2395f59094f2b52eb92df6ea8bf354a24fa53d9fec592d"
+    },
+    {
+      "source": "assets/apps/6766485903.webp",
+      "export_path": "assets/manager-site/apps/6766485903.webp",
+      "sha256": "19d4dff6f96ffa00d6ecae1007d5d76178f306bcb18a6dfec32fdbf56419970c"
     }
   ]
 }
