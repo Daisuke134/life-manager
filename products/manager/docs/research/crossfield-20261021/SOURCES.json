@@ -834,5 +834,71 @@
     "limitation": "A published questionnaire is not a free unrestricted package.",
     "reuse": "Treat licensed instruments as evaluation references, not bundled product content.",
     "rights": "PUBLIC_DOC_ONLY"
+  },
+  {
+    "id": "growthbook-python-sdk",
+    "name": "GrowthBook official MIT Python SDK v3.2.2",
+    "field": "online_experimentation",
+    "url": "https://github.com/growthbook/growthbook-python",
+    "source_kind": "official_oss",
+    "supported_claim": "Official SDK provides stable experiment assignments for real apps; CI exercised 512 synthetic cohort IDs.",
+    "limitation": "Assignment is not a human RCT or causal improvement. Production telemetry and consent are separate.",
+    "reuse": "Reuse pinned 3.2.2 in Manager Phase06 fixture, do not implement proprietary experiment assigner.",
+    "rights": "OPEN_SOURCE_CHECK_LICENSE"
+  },
+  {
+    "id": "github-public-contents-readback",
+    "name": "GitHub public Contents API",
+    "field": "digital_public_goods",
+    "url": "https://docs.github.com/en/rest/repos/contents",
+    "source_kind": "official_developer_doc",
+    "supported_claim": "Unauthenticated GET of public contents can independently read a published repo artifact and its Git blob sha.",
+    "limitation": "Publishing a file does not establish human beneficiary outcome. GitHub readback is not an independent welfare observer.",
+    "reuse": "Compare baseline missing and HEAD present, confirm SHA256/blob for Manager-owned public resource.",
+    "rights": "PUBLIC_DOC_ONLY"
+  },
+  {
+    "id": "japan-mhlw-livelihood",
+    "name": "MHLW Japanese livelihood self-reliance support",
+    "field": "financial_welfare_measure",
+    "url": "https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/0000059425.html",
+    "source_kind": "official_government_page",
+    "supported_claim": "Government source about employment, housing, household finances and support consultations.",
+    "limitation": "Information eligibility differs; a referral link is not approved benefit or increased finances.",
+    "reuse": "Link to existing official information from freely accessible Manager public repository; no copied forms.",
+    "rights": "PUBLIC_DOC_ONLY"
+  },
+  {
+    "id": "japan-fsa-debt",
+    "name": "Japan Financial Services Agency debt counseling",
+    "field": "financial_welfare_measure",
+    "url": "https://www.fsa.go.jp/policy/kashikin/",
+    "source_kind": "official_government_page",
+    "supported_claim": "Government source provides current multi-debt assistance contacts and financial information.",
+    "limitation": "Link usage not verified debt reduction; no financial product recommendation.",
+    "reuse": "Direct public signpost only with dated official source and rights notes.",
+    "rights": "PUBLIC_DOC_ONLY"
+  },
+  {
+    "id": "japan-mhlw-mental",
+    "name": "MHLW Mamorouyo Kokoro consultation methods",
+    "field": "mental_welfare_measure",
+    "url": "https://www.mhlw.go.jp/mamorouyokokoro/soudan/",
+    "source_kind": "official_government_page",
+    "supported_claim": "Official options for mental health support by phone, online/SNS and locality.",
+    "limitation": "MHLW support services are not Manager therapy, and page read is not mental health improvement.",
+    "reuse": "Link to official services without unsolicited messaging, psychological profiling or protected data.",
+    "rights": "PUBLIC_DOC_ONLY"
+  },
+  {
+    "id": "japan-mhlw-physical",
+    "name": "MHLW e-HealthNet physical activity guidelines",
+    "field": "physical_welfare_measure",
+    "url": "https://kennet.mhlw.go.jp/information/information/exercise",
+    "source_kind": "official_government_page",
+    "supported_claim": "Government source for general physical activity and exercise evidence and safety information.",
+    "limitation": "General information is not individualized diagnosis, injury outcome or physical function improvement.",
+    "reuse": "Link to official physical-health information with no copied medical instructions.",
+    "rights": "PUBLIC_DOC_ONLY"
   }
 ]
