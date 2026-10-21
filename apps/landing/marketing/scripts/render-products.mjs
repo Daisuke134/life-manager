@@ -13,3 +13,9 @@ for(const [locale,file] of [['en','products-en.html'],['ja','products.html']]) {
  html=html.replace('<body>','<body class="owned-media">');
  writeFileSync(path,html);
 }
+// Apply the same restrained link presentation to the entire owned route package.
+const manifest=JSON.parse(readFileSync(new URL('route-manifest.json',root),'utf8'));
+for(const source of new Set(manifest.files.map(f=>f.source).filter(p=>p.endsWith('.html')))){
+ const path=new URL(source,root);
+ writeFileSync(path,readFileSync(path,'utf8').replace(/[↗↖↥↑⬆][\uFE0E\uFE0F]?/gu,''));
+}

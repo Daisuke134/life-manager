@@ -23,3 +23,10 @@ test('one verified registry supplies six identities, languages, factual copy and
  assert.match(apps.find(a=>a.id==='6762143790').description.en,/subscription/);
  assert.equal(apps.find(a=>a.id==='6759514159').iconSha256,'9dc87b7f546c507f52d7794fab3e46fb2fd05f5a691395c0a969813d18393a80');
 });
+
+test('entire published marketing pages have no upward or external arrow glyphs',()=>{
+ const manifest=JSON.parse(read('route-manifest.json'));
+ for(const source of new Set(manifest.files.map(f=>f.source).filter(p=>p.endsWith('.html')))){
+  assert.doesNotMatch(read(source),/[↗↖↥↑⬆]/u,source);
+ }
+});
