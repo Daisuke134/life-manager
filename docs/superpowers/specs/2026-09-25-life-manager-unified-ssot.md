@@ -21769,3 +21769,37 @@ To-BeはManagerが毎回のtask goal/budget入力を要求せず、許可され�
 
 
 **T22.1c-5d/5eの現況:** receipt claim後の新規`build/occurrences/<occurrence_id>/`を証拠境界とし、mtime判定は使用しない。no_op/successのartifact refは発生dir内のregular・single-link・実行UID所有fileだけを受け付ける。preexisting dir/symlink/hardlink/non-file拒否、focused suite21/21、fresh review指摘0を確認。PR #8452をmain a0へ統合後、既存VMのhealth/source hash a0採用を確認。新offline occurrence completed/exit0、receipt refs3、追加bundle4 fileもproof/download hash一致、listing linter pass。全draftは非公開で、売上/外部利用者なし。旧receipts保持。c5 stream完了、現在主cursor=b.6-01。証拠→`docs/evidence/maritime/owned-factory-a0-occurrence.json`。
+
+
+### Anicca eBook Publishing media — current execution delta
+
+**Purpose / completion:** Build a source-backed English eBook-publishing knowledge hub on Anicca’s public blog, separate from *The Anicca Reset* product category. Analyze successful sellers’ public mechanisms, record creator claims as claims, publish original articles, and keep reusable research public. Do not reproduce their scripts, footage, voice, likeness, artwork, book text, testimonials, or unverified earnings claims.
+
+**As-Is**
+
+- The existing strategy section above contains source research on Tommi Pedruzzi, Yang Mun, Joanna Penn, and Pierre Jeanty. It is a research baseline; this update advances the Anicca public publishing work.
+- Anicca’s current blog category mapper assigns `ebook-*` to `ebook` (“The Anicca Reset”). No separate `ebook-publishing` category or this four-article set exists in the current source checkout.
+- Two publicly available videos were downloaded with the local watch workflow for private analysis: Yang Mun’s [Words of Motivation](https://www.youtube.com/shorts/Er2Ig4GM7z0) (1:05) and Genevieve Rachal’s [KDP income report](https://www.youtube.com/watch?v=rPCWjYFqZ_A) (8:53). Their temporary files were removed after analysis. Articles use public links only and do not re-upload their footage.
+- Genevieve’s royalties and Tommi’s earnings are creator-reported, not independently verified net profit. Views, followers, testimonials, list prices, and royalty examples do not prove sales or contribution margin.
+- Amazon KDP’s current public pages show a 35% and 70% eBook royalty option, with 70% territory, VAT, and delivery-cost conditions; Amazon.com’s 70% price band is $2.99–$12.99 effective 2026-07-07. KDP asks publishers to disclose AI-generated text/images/translations; AI-assisted editing and brainstorming are distinguished from generated content. See [royalties](https://kdp.amazon.com/en_US/help/topic/G200644210), [price bands](https://kdp.amazon.com/en_US/help/topic/G200634560), and [AI disclosure](https://kdp.amazon.com/en_US/help/topic/G200672390).
+- Instagram target is `@monkmujo`; login name is `monk.mujo`. The official Instagram OAuth flow currently ends on a blank CAPTCHA page with no rendered challenge/sitekey/callback. No Instagram Postiz integration has been created. The existing user-confirmed TikTok Postiz integration `cmo5rwq2p00twn10yrsdglng3` remains unchanged; `@monk_anicca` is its historical handle, not a basis for guessing a new one.
+- No Instagram plan upgrade, new subscription, or paid-ad spend is in scope. The current remaining Postiz slot count is unverified until plan/quota and account integrations are read together.
+
+**To-Be**
+
+- Public English hub at `/blog/c/ebook-publishing`, distinct from `/blog/c/ebook`.
+- Four original articles: (1) Tommi Pedruzzi’s public KDP funnel and its evidence limits; (2) Yang Mun’s short-video-to-direct-product value ladder; (3) current KDP royalty, print, and paid-acquisition unit economics; (4) a reproducible, quality-controlled, rights-aware publishing operating model.
+- Each article links primary sources, separates observed facts from creator self-reports and our inferences, and ends with an original checklist or worksheet. Public videos are linked/embedded only where available. Reusable process material is published under the applicable repository/site terms; credentials, private customer data, and third-party media remain private.
+- Instagram is connected only after the official flow yields a usable challenge/session. Read back the exact `@monkmujo` identity, Postiz integration ID, current plan limit, and enabled-channel count. Never change TikTok while doing this.
+
+**Atomic TODO, ordered by deliverable**
+
+| ID | Exact change / input → output | Dependency | DONE evidence |
+|---|---|---|---|
+| EP-1 | DONE — `apps/landing/lib/blog-business.mjs` adds `ebook-publishing` before the generic `ebook-*` route → distinct public business hub. | None | Production `/blog/c/ebook-publishing` shows all four articles; `/blog/c/ebook` still shows The Anicca Reset. |
+| EP-2 | DONE — four contract-valid English JSON articles under `apps/landing/private/writer-articles/` with source links, computed hashes, public previews, and paid worksheets → four original reports. | EP-1 mapping contract | All four production article URLs return the intended title and cited content. |
+| EP-3 | DONE — PR #529 merged as main `8a6cb625b89b5083f7a8b7a70492c287134e2610`; Netlify run `39546586509` and post-deploy smoke succeeded → live category and articles. | EP-1, EP-2 | Production crawl readback succeeded for `/blog/c/ebook-publishing` and all four article slugs. |
+| EP-4 | Resume Instagram OAuth through the registered browser identity only when the official page renders a usable challenge; read same-time Postiz plan/quota and integrations → exact connected identity and remaining slots, or exact provider blocker. | Instagram official OAuth and Postiz account readback | The returned profile is exactly `@monkmujo`; remaining slots are computed from same-time plan and integration count; no TikTok mutation or new plan spend. Current page is blank CAPTCHA with no rendered widget/sitekey/callback; the available Postiz connector list returned no rows, so slot count remains unknown and no Instagram integration was created. |
+| EP-5 | Join article/content source IDs to public visits, paid article orders, eBook orders, refunds, fees, and generation/ad cost → source-level contribution margin and next content decisions. | Live analytics and commerce receipts | Same-window provider receipts and cost rows; no extrapolation from views or claimed royalties. |
+
+**Current cursor:** EP-1 through EP-3 are complete via [anicca-products PR #529](https://github.com/Daisuke134/anicca-products/pull/529), main SHA `8a6cb625b89b5083f7a8b7a70492c287134e2610`, successful Netlify production run [39546586509](https://github.com/Daisuke134/anicca-products/actions/runs/39546586509), and direct public route readbacks. The next cursor is EP-4 Instagram OAuth and plan/quota readback. The official flow reached a blank CAPTCHA page with no rendered widget/sitekey/callback; no integration was created, and remaining slots are unverified. The existing TikTok integration was not changed. EP-5 commerce and cost reconciliation remains after live traffic and orders exist.
