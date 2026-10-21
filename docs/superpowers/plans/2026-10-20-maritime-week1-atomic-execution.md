@@ -735,7 +735,7 @@ apps/life-manager/
 
 #### 本番反映と実際の製品受入
 
-- [ ] **b.6-25:** 既存Runtime PGの同じread-only接続で`session_user/current_user`、login roleの`rolsuper/rolbypassrls`、6表のownerと`service_role` membership、migration history/既存6表を読取確認する。実Pool roleがowner/superuser/BYPASSRLS/service_role membershipのいずれでもない場合は、flagをOFFのままにし、そのroleだけへ必要最小のgrant/policyを確定する。対象migrationが未適用か確認後、main由来migrationを既存DBへ一度だけ適用し、同じ接続から6表/function/policy/grant/ownerをreadbackする。一般利用者stateの移行はしない。
+- [ ] **b.6-25:** 同じRuntime PGでrole・schema owner/RLS/PK・既存履歴・対象6表absenceをreadbackする。`anon`/`authenticated`/`service_role`が存在し、対象migration idが未登録で6表も未作成、source SHA256がmainと一致することを全て確認する。単一のdedicated `pg.Client`で`BEGIN`→`SET LOCAL lock_timeout='5s'`/`statement_timeout='120s'`→migration全文→`INSERT public.schema_migrations(id, applied_at) VALUES($1, clock_timestamp())`→`COMMIT`を順番にawaitする。失敗は同clientでROLLBACK。`ON CONFLICT DO NOTHING`を使わず、migration内にCOMMIT/非transactional DDLがないことを維持する。COMMIT応答が不明なら再送せず履歴と表をreadbackする。成功後、新しいread-only queryで対象idが一行、既存6履歴保持、Manager6表/関数/trigger/RLS/ACL/ownerが期待どおり、6表のrow count=0、flag OFF、worker Manager capabilityなしを確認しevidenceへ記録する。一般利用者stateの移行はしない。
 - [ ] **b.6-26:** frontend/workerの新source SHAと必須env、owned imageのrelease/archive、UID/externalIdを照合する。公開flag/capはこの時点で0のまま確認する。DB credentialをVM/モデルへ渡さない。
 - [ ] **b.6-27:** PG/Authのreadback成功後、email flagと3つのManager worker capabilityを既存deploymentへ有効化する。既存capabilityを保持し、loaded設定・上限3を確認する。受入後enableという循環した順序にしない。
 - [ ] **b.6-28:** ownedの同じブラウザでメール登録→実PKCE callbackを通す。Authのverified subjectとPG identity/CSRF cookieを照合する。
