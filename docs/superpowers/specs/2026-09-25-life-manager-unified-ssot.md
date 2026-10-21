@@ -21629,9 +21629,36 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 
 **Distribution（開発と同じ優先度、友人待ちなし）:** Daisが家族・友人へのDMを担当する。初期獲得は既存`aniccaai.com/blog/manager`のSEO記事を主軸とし、既存X identityをPostizで確認できた場合だけbuild-in-public投稿を補助にする。既存Writer workflowを再利用し、複数destinationへの自動配布を無条件に起動しない。Life Managerを既存Instagram profileへ混在させず、新規Instagram/X accountも作らない。Instagramは初期配布から外す。Xは一つの既存profileから独自の確認済み情報を一投稿し、duplicate post/自動DM/サイト操作scriptを使わない。3人の返答・利用・feedbackを開発・配布素材・提出の開始条件にしない。SEO/Xの有用な実績は参考にするが、同一の自律Life Managerから1,000人獲得した因果事例は未確認なので、まず一記事・一投稿で検証する。公開URLと実証済みdemoが揃った後、search impression/click・X click・email verified・activation・work completion・returnをsource別に測る。Blog reader/follower/impression/signupだけを競技利用者にしない。自社LM獲得と利用者businessのCapafy訪問/注文は別funnel。参照例・限界・模倣箇所→[調査記録](../../research/maritime/2026-10-20-source-map.md)。
 
-**TODO順変更:** 旧配布順=DM+X/IG文案→X/IG/community投稿。新配布順=既存blogのSEO記事1本→既存Postiz Xから独自build-in-public投稿1件→source別の実利用計測→実績に応じて他媒体検討、IGは除外。理由=Daisの明示方針、既存blogにManagerカテゴリがあり、X公式規則が重複アカウント/投稿を制限するため。素材は友人の返事を待たず準備する。公開CTAと投稿は稼働製品と実証済みclaim後に行う。現在の製品cursor=b.6-28、独立配信cursor=T24.4b。進行中provider effectは変更しない。
+**TODO順変更:** 旧配布順=DM+X/IG文案→X/IG/community投稿。
+新配布順=既存blogのSEO記事1本→既存Postiz Xから独自build-in-public投稿1件→source別の実利用計測→実績に応じて他媒体検討、IGは除外。
+理由=Daisの明示方針、既存blogにManagerカテゴリがあり、X公式規則が重複アカウント/投稿を制限するため。
+素材は友人の返事を待たず準備する。
+公開CTAと投稿は稼働製品と実証済みclaim後に行う。
+現在cursorは製品=b.6-28、提出packet=T23.1（exporter/testのsourceあり、focused test未確認、packet未生成）、独立配信=T24.4b（記事draftのみ、CTA/公開は保留）。
+進行中provider effectは変更しない。
 
-**Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細file/signature/acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。現在cursor=T22.1b.6-28（本人のPKCE確認・明示retention consentから開始し、enrollment→実cycle→receipt/artifact→日報→stopを読む）。b.6-01〜27bは完了。life-call/workerはloaded SHA `27b594cd84f6e660f6ffbacabb21be8d7f25cb2c`でSUCCESS、email flag=1/worker capability3件/capacity3。GET `/maritime?lang=en`はHTTP 200。ただし外部利用者0、実PKCE/同意/実業務/日報/stopは未確認。最新docs-only main `483ba43b506c8266399334328258bc0c358d70c1`のdeploymentは06:02ZにSKIPPED。詳細readback→`docs/evidence/maritime/current-status-20261021.json`。
+**Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細file/signature/acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。
+製品cursor=T22.1e.2 / b.6-28（所有者本人のPKCE確認・明示retention consentから開始し、enrollment→実cycle→receipt/artifact→日報→stopを読む）。
+b.6-01〜27bは完了。
+life-call/workerの最終読取（2026-10-21 06:50:17Z）はloaded SHA `982875d62eaa03f8e924b990c4bc80f521d8dcce`、両deployment SUCCESS、email flag=1/worker capability3件/capacity3。
+GET `/maritime?lang=en`はHTTP 200。
+Runtime PGはidentity=1、enrollment/execution/participant/job/external work event/user=0。
+本人PKCE・同意・実業務・日報・停止は未確認。
+提出packet cursor=T23.1（builder/test fileはworktreeにあるがfocused test未確認、`submission.json`未生成）。
+T23.0a/bのentry共有と主催者問い合わせはreadback済み。
+公式project form・初週期限・Top-30 rubric・正式受付receiptは未確認。
+`origin/main`の最新読取SHAは`1ea73f18e7575084ac2967d62edbe05fa4831e6b`。
+2026-10-21 07:30Z時点でloaded SHAから`apps/life-manager/`のsource差分はないが、07:01Z以降の新しいRailway readbackはない。
+競技ページ/Termsは07:30Zに再crawlし、同じ1,000 distinct real users/first three targetと未公表の初週条件を確認。
+根拠→`docs/evidence/maritime/current-status-20261021.json`、`docs/distribution/maritime/week1/requirements.json`。
+
+**製品と収益/配信の現状（readbackを混同しない）:** Life Managerは利用者にgoal/budget入力を要求せず、Manager自身が仕事を選ぶ製品として説明している。
+しかしhosted work cycleは未完了で、外部利用者の実利用・外部work receiptは0。
+Stripe live readback（06:55:37Z）はLife Manager active subscription=0 / MRR USD 0、Anicca Cloudもsubscription=0 / MRR USD 0。
+account-wideの過去invoice 9件/USD 40はLife Managerへの帰属未確認。
+Daisが申告するlocal workflow収益とLife Manager自身の売上、hosted利用者のsettled business cash/netは別項目で、後二者の証拠は未取得。
+配信も未収益化: Manager獲得記事/CTAは未公開、候補URLは404、sitewide GSCはsettled 28日で0 click/7 impressions、Postiz readbackはgroups=0/integrations=0/posts=0、X identityも未確認。
+数値と限界→`docs/evidence/maritime/current-status-20261021.json`、`docs/evidence/maritime/stripe-life-manager-readback-20261021.json`、`docs/evidence/maritime/seo-baseline-20261021.json`。
 
 | ID | 一件の成果物 | 状態/依存 |
 |---|---|---|
@@ -21656,8 +21683,8 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | T19 | 既存CFO/Resendへの一日一通配信 | #8424/main0cで既存CFO/Resendの日次adapterを統合する。SMTP/Authのowned着信は別途確認済み。Manager日報の新period送信/受信箱/自然継続はT22で未確認。 |
 | T20 | 停止を次のjob/schedule/配信へ反映 | #8424/main0cへ停止API/同tenant lock/pause recoveryを統合する。paused永続化を先行し、receipt/過去結果を保持する。実環境の停止はT22で未確認。 |
 | T21 | 登録と業務完了を分けたsource別funnel | #8424/main0cへ署名first-touch/確認/起動/実仕事/受理日報/24h復帰を統合する。利用計測migrationはproduction公式success。内部cohortを設定し、登録/deferredを実仕事や外部利用者に数えない。新Managerの実計測は未確認。 |
-| T22 | main image・DB・一人分のCloud自然wake/receipt確認 | life-call/workerはloaded SHA `982875d62eaa03f8e924b990c4bc80f521d8dcce`でSUCCESS、email flag=1、Maritime worker capability3件、pilot cap=3。GET `/maritime?lang=en`はHTTP 200。2026-10-21 06:50Z Runtime PG readbackはidentity1、enrollment/execution/participant/job/external completed work各0。現在cursor=b.6-28。PKCE・明示同意・実業務receipt・日報・停止は未完。latest main `88de371`はdocs-only deploymentでSKIPPED。 |
-| T23 | 正式提出・一回submit・受付readback | accepted teamのentryを#competition-submissionsへ共有・readback済み。formal form/receipt・初週cutoff/rubricは未確認。投稿は必要formを置き換えないとchannel descriptionが明記。organizer inquiryはSENT、返信待ち。3人/売上/7日継続を提出条件にしない |
+| T22 | main image・DB・一人分のCloud自然wake/receipt確認 | life-call/workerはloaded SHA `982875d62eaa03f8e924b990c4bc80f521d8dcce`でSUCCESS、email flag=1、Maritime worker capability3件、pilot cap=3。GET `/maritime?lang=en`はHTTP 200。2026-10-21 06:50Z Runtime PG readbackはidentity1、enrollment/execution/participant/job/external completed work各0。現在cursor=b.6-28。PKCE・明示同意・実業務receipt・日報・停止は未完。07:01Z時点のmain `88de371` deploymentはdocs-only/SKIPPED。07:30Zのrepo readbackでは`origin/main=1ea73f1`かつdeployed SHA以降`apps/life-manager/`差分なし。07:01Z以降のproduction deployment/readbackは未確認。 |
+| T23 | 正式提出・一回submit・受付readback | accepted teamのentryを#competition-submissionsへ共有・readback済み。formal form/receipt・初週cutoff/rubricは未確認。投稿は必要formを置き換えないとchannel descriptionが明記。organizer inquiryはSENT、返信は06:43Z時点で未確認。T23.1 exporter/testはworktreeにあるがfocused testとpacket生成は未完。3人/売上/7日継続を提出条件にしない |
 | T24 | 既存blog SEO記事brief・既存X投稿・Dais DMの準備 | T24.1-3完了。一つの英語比較記事を内部draftとして作成し、CTA HOLD。GSCのsitewide baselineは0 clicks / 7 impressions（2026-10-18まで、記事別ではない）。Postizはgroups=0 / integrations=0。実cycle/CTAとX identity確認後に公開する。 |
 | T25 | 30秒動画/審査demoのshot list→実画面編集 | 台本保存済み、撮影/動画本体は未完。待ち依存なし |
 | T26 | 公開説明と無料email入口のdeploy/readback | T26.1-2完了。公開`/lm`はtask-specific goal/budgetを必須とせずTelegram任意と説明し、hostedはCalendar travel-time planning中心でproactive cloudは開発中と明記。route manifestの全hashも一致。無料Maritime pilot copyは有料Calendar trialと分離した。T26.3-4の既存site overlay反映・完成したsignup/stop flow readbackは未完。 |
@@ -22317,7 +22344,7 @@ The required `lm-loop doctor` readback still reports the already-known unrelated
 
 **As-Is:** 4記事は`apps/landing/private/writer-articles/`の`access_model=both`で、`WriterUnlock`が記事購入と月額購読を表示する。Daisは4本を当面すべて無料にするよう指定した。公開サイトのブログ欄はXアカウント`@selawmqt`へリンクし、登録済み`x:anicca`の実セッションも同handleでログインしている。プロフィールは`sela | AI Tools`、6 followers、未認証で、`/compose/articles`はPage not foundを返す。Postiz MCP connectorの一覧は空配列だが、保護済み`service=postiz` credentialで行った公式`GET /public/v1/integrations`は30行を返し、その中のX integration `cmt4l2jld031tqp0y8qtyo983`は`sela | AI Tools`かつ`disabled=false`。X Articlesの利用可否と別handleの投稿先を仮定で補わない。
 
-**実施後の公開readback:** 4本の既存eBook記事と新しいAI monk記事を含む5 URLは無料全文として本番で取得でき、全ての`BUY THIS ARTICLE`/月額購読UIが消えている。eBookカテゴリ一覧から5本へ遷移できる。記事変更はPR #534、main SHA `9cc8ced8ccfd23b81343a4a4b851976b3e7a77b2`、Netlify run `39555677942` successで反映。Xでは`@selawmqt`から1件だけ公開し、Postiz submission `cmvhqvaid0429oh0ywbv95g8r`が`PUBLISHED`、integration `cmt4l2jld031tqp0y8qtyo983`、Postiz `releaseURL`を正規化したX permalinkは`https://x.com/selawmqt/status/2112796610917003351`。同一記事URLと本文はX timelineで照合済み。X Articlesは引き続き未投稿。
+**実施後の公開readback:** 4本の既存eBook記事と新しいAI monk記事を含む5 URLは無料全文として本番で取得でき、全ての`BUY THIS ARTICLE`/月額購読UIが消えている。eBookカテゴリ一覧から5本へ遷移できる。記事変更はPR #534、main SHA `9cc8ced8ccfd23b81343a4a4b851976b3e7a77b2`、Netlify run `39555677942` successで反映。Xでは`@selawmqt`から1件だけ公開し、Postiz submission `cmvhqvaid0429oh0ywbv95g8r`が`PUBLISHED`、integration `cmt4l2jld031tqp0y8qtyo983`、Postiz `releaseURL`を正規化したX permalinkは`https://x.com/selawmqt/status/2112796610917003351`。同一記事URLと本文はX timelineで照合済み。X Articlesは引き続き未投稿。Life Manager casebook/spec/tactics/receiptsはPR #8477、main SHA `1ea73f18e7575084ac2967d62edbe05fa4831e6b`に統合済み。
 
 **Instagram容量readback (2026-10-21):** 登録済みdaily-driverでPostiz Billingのcurrent planは`Pro / 30 channels`。保護済みPostiz API keyの公式`GET /public/v1/me`はworkspace `Anicca`、`GET /public/v1/integrations`はHTTP 200・30 enabled・0 disabled・うちInstagram 9件・`monkmujo`一致0件。空き枠は0のため、`@monkmujo`のOAuth接続とplan upgradeは行わず、追加支出も0。詳細receipt=`docs/evidence/postiz-ig-capacity-20261021.json`。
 
@@ -22327,14 +22354,14 @@ Yang Munについては、[HeyGenの顧客事例](https://www.heygen.com/custome
 
 追加で[Virtual Humans](https://virtualhumans.org/article/who-is-yang-mun-the-ai-generated-wellness-guru-with-2-6m-followers)は制作者主張として90日で$300,000超のprofitを記す一方、[Columbia News Service](https://columbianewsservice.com/2026/03/24/millions-found-comfort-in-a-buddhist-monk-but-he-was-never-real/)は立ち上げ後の$300,000超のrevenueと報じている。期間と会計語が異なり、いずれも監査済み数値ではない。さらに[The Wisdom Tree](https://www.thewisdomtree.ai/)はAI monkを含むapp-firstモデル、[Thai PBSのPhra Maha AI報道](https://www.thaipbsworld.com/around-thailand/thailands-first-virtual-monk-to-preach-buddhism-to-new-generation)は実在僧侶のvirtual character、[Monk Shen Yu](https://monkshen.com/)はAI由来を確認できないAmazon書籍の例として分類する。この追加確認でも「多くのAI monkがeBookを売る」は裏付けられず、Yang Munが販売ページでeBook bundleを見せる確認済み事例である。Yang MunのInstagram followers表示とYouTube登録者数は同じ指標ではないため順位比較に使わず、売上順位も未確認とする。
 
-**TODO順更新と理由:** 旧順=`EP-4 Instagram OAuth/slot調査 → EP-5 commerce/費用計測`。新順=`(1) 4記事を無料全文へ移行 → (2) Yang Mun記事とAI monkフィールド調査を拡充 → (3) 既存Postiz/X integrationで英語告知を1件公開 → (4) casebook/specをmainへ統合 → (5) EP-10の再利用workflowを実装 → (6) source別visit/order/refund/fee/costを計測 → (7) Instagram OAuthは空き枠が生じた時だけ再開`。理由は公式readbackでPro 30/30・空き0と分かり、追加planの継続費用なしにInstagramを接続できないため。既存経済性を測り、自動化を先に仕上げる。**現在cursor:** PR #8477の最新main CI/merge、続けてEP-10 generator。
+**TODO順更新と理由:** 旧順=`EP-4 Instagram OAuth/slot調査 → EP-5 commerce/費用計測`。新順=`(1) 4記事を無料全文へ移行 → (2) Yang Mun記事とAI monkフィールド調査を拡充 → (3) 既存Postiz/X integrationで英語告知を1件公開 → (4) casebook/specをmainへ統合 → (5) EP-10の再利用workflowを実装・統合 → (6) source別visit/order/refund/fee/costを計測 → (7) Instagram OAuthは空き枠が生じた場合だけ再開`。理由は公式readbackでPro 30/30・空き0と分かり、追加planの継続費用なしにInstagramを接続できないため。既存経済性を測り、自動化を先に仕上げる。**現在cursor:** EP-10のgeneratorとfocused testsはfeature branchで完了。exact-head CI/PR merge後、main上の次cursorはEP-12 source economics。
 
 | ID | exact change / input → output | dependency | DONE evidence |
 |---|---|---|---|
 | EP-6 | `apps/landing/private/writer-articles/ebook-publishing-{tommi-pedruzzi-kdp-funnel,yang-mun-video-to-product,kdp-royalty-unit-economics-2026,open-evidence-first-operating-model}.json`の`preview_markdown + paid_markdown`を`apps/landing/data/research/`の通常投稿`markdown`へ統合し、4つの旧private JSONを削除 → `apps/landing/app/blog/[slug]/page.tsx::loadPost`の既存fallbackで4記事を無料全文化 | 既存EP-1〜EP-3 | DONE: PR #534 merged main `9cc8ced8ccfd23b81343a4a4b851976b3e7a77b2`、Netlify run `39555677942` success。4記事と追加AI monk記事の全文がproductionで読め、5 URLで購入/月額UIなし、カテゴリ一覧に全5件 |
 | EP-7 | Yang Mun商品ページ、HeyGen事例、Columbia報道、6本の動画観察を入力し、`ebook-publishing-yang-mun-video-to-product`を更新、`apps/landing/data/research/ebook-publishing-ai-monk-economy-2026.json`を新設 → AI monk事例・商品導線・script beat map・独自制作blueprint | EP-6、各URLの公開 readback | DONE: 無料記事`https://aniccaai.com/blog/ebook-publishing-ai-monk-economy-2026`。6動画/6チャンネル、価格/3冊bundle/推定禁止事項、AI provenanceを分類。追加の仮想僧侶app・実在僧侶virtual persona・AI由来未確認のAmazon著者を除外理由つきで追記 |
 | EP-8 | Blogへリンクする`@selawmqt`、Postiz official integration readback、完成した記事URLを入力し、existing `skills/x-repost/scripts/x_post.py`の`original` transportで英語告知1件を投稿 → exact Postiz submission IDとX permalink | EP-6/EP-7、対象integrationがブログ用identityと一致 | DONE: 2026-10-21 06:41Z、Postiz `cmvhqvaid0429oh0ywbv95g8r`=`PUBLISHED` on `cmt4l2jld031tqp0y8qtyo983`; X timeline exact readback `https://x.com/selawmqt/status/2112796610917003351`。machine receipt=`docs/evidence/ai-monk-x-post-20261021.json`。X Articlesは`/compose/articles` Page not foundのため未投稿、追加購読なし |
-| EP-9 | `docs/articles/2026-10-21-ai-monk-creator-economy-en.md`を新設し、Yang Mun等の公開URL・creator claim・見た動画の観察・AI表示確度・権利範囲をMarkdownで記録。`skills/earn/marketing-engine/intel/playbook.jsonl`へ既存`marketing.tactic.v1` schemaに合う観察済み機構を追加 → Life Manager GitHub上の再利用可能な公開casebook | EP-7の一次出典と6本の動画記録 | DONE条件: PR #8477の全必要CI PASSとmerge。記事/証拠/playbookの更新はbranchにpush済み、現在PR CIと統合待ち。MIT対象の自作case noteと第三者の公式リンク/embedのみを含む |
-| EP-10 | `skills/earn/marketing-engine/intel/ebook_case_study.py`と`test_ebook_case_study.py`を新設。Input=`playbook.jsonl`の`applies_to`が`ebook`の記録と`docs/articles/2026-10-21-ai-monk-creator-economy-en.md`。CLI=`--case-id <id> --format article|x-post --out <path>`。Output=出典URL/claim type/未知項目を維持した再現可能なMarkdown記事またはX告知draft。投稿副作用は既存`x_post.py`のofficial receipt経路へ委譲 → 再利用可能なresearch-to-distribution generator | EP-8/EP-9、既存intel store契約の確認 | `python3 -B -m unittest skills/earn/marketing-engine/intel/test_ebook_case_study.py` PASS。fixtureで入力順を変えても同じ内容、unsupported claimは出力に上がらず、X postは一度だけPostiz/X readbackでreceipt取得 |
+| EP-9 | `docs/articles/2026-10-21-ai-monk-creator-economy-en.md`を新設し、Yang Mun等の公開URL・creator claim・見た動画の観察・AI表示確度・権利範囲をMarkdownで記録。`skills/earn/marketing-engine/intel/playbook.jsonl`へ既存`marketing.tactic.v1` schemaに合う観察済み機構を追加 → Life Manager GitHub上の再利用可能な公開casebook | EP-7の一次出典と6本の動画記録 | DONE: PR #8477 merged as `1ea73f18e7575084ac2967d62edbe05fa4831e6b`; exact-head CI pass。Case note、video metrics、tactic records、X/Instagram receipts are in main; third-party video remains official link/embed only |
+| EP-10 | `skills/earn/marketing-engine/intel/ebook_case_study.py`と`test_ebook_case_study.py`を新設。Input=`playbook.jsonl`のexact `--case-id`で`applies_to`に`ebook`を含む有効なrecordと`docs/articles/2026-10-21-ai-monk-creator-economy-en.md`。CLI=`--case-id <id> --format article|x-post --out <path>`。Output=source/evidence URLs、`provenance`、結果未記録の状態を保つ決定的Markdown記事またはX告知draft。投稿副作用なし。実公開は既存`x_post.py`のofficial receipt経路へ委譲 → 再利用可能なresearch-to-distribution generator | EP-8/EP-9、既存`intel_store.py`契約の確認 | Branch implementation: `python3 -B -m unittest discover -s skills/earn/marketing-engine/intel -p 'test_ebook_case_study.py' -v` 3/3 pass; `test_intel_store.py` 6/6 pass. Exact-head CI+merge still required. CLI produces linked source/provenance/unknowns and rejects a non-ebook ID; no provider mutation |
 | EP-11 | Instagram `@monkmujo`のofficial OAuthとPostiz plan/quotaを同時読戻し → 正確なintegration/remaining slot countまたは具体的なprovider blocker | browser registry、既存lease、official Postiz readback | DONE (capacity gate): Billing=`Pro/30 channels`、API=30 enabled/0 disabled/9 Instagram/target match 0。空き0のためOAuth接続・upgradeなし。receipt=`docs/evidence/postiz-ig-capacity-20261021.json`。TikTok `cmo5rwq2p00twn10yrsdglng3`は変更しない。OAuthは新しい空き枠が確認できてから再開 |
 | EP-12 | X/blog `creative_id`と既存のanalytics/commerce readbackを接続し、同期間のvisits・paid orders・refunds・fees・production cost → source別net contribution | EP-8、live traffic/orders | provider receiptsとsettled costが同期間・同sourceでjoin。follower/view/claimだけで収益を主張しない |
