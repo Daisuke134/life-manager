@@ -1,0 +1,95 @@
+{
+  "schema": "manager.phase04.public-observed-mobility-research-receipt.v1",
+  "date": "2026-10-21",
+  "task_scope": "S008: temporally heldout aggregate mobility demand only",
+  "evidence_run": "https://github.com/Daisuke134/life-manager/actions/runs/39545601251",
+  "source": {
+    "dataset": "UCI Bike Sharing Dataset (daily aggregate)",
+    "official_catalog": "https://archive.ics.uci.edu/dataset/275/bike+sharing+dataset",
+    "doi": "https://doi.org/10.24432/C5W894",
+    "license": "CC-BY-4.0",
+    "author": "Hadi Fanaee-T",
+    "original_archive": "https://archive.ics.uci.edu/static/public/275/bike+sharing+dataset.zip",
+    "pinned_repository": "KeithJLZ/UCI-Bike-Sharing-Dataset",
+    "pinned_commit": "f6781459ddfb55e94fc0f984c610a0cd8957b870",
+    "file": "day.csv",
+    "file_bytes": 57569,
+    "git_blob_sha1": "d39017f2f1ad2e70a4a854d17aada04d45608575",
+    "verified_against_official_archive": "BYTE_IDENTICAL"
+  },
+  "unit": "daily total public bicycle rentals",
+  "train": {
+    "year": 2011,
+    "days": 365
+  },
+  "heldout": {
+    "year": 2012,
+    "days": 366
+  },
+  "models": {
+    "frequency": {
+      "accuracy": 0.8333333333333334,
+      "brier": 0.24908863451554203,
+      "tvd": 0.3319634703196339,
+      "mae_daily_rentals": 2488.6733587843487
+    },
+    "majority": {
+      "accuracy": 0.8333333333333334,
+      "brier": 0.16666666666666666,
+      "tvd": 0.16666666666666663,
+      "mae_daily_rentals": 2488.6733587843487
+    },
+    "season_only": {
+      "accuracy": 0.6530054644808743,
+      "brier": 0.21667920624991724,
+      "tvd": 0.33333333333333404,
+      "mae_daily_rentals": 2303.6547018699443
+    }
+  },
+  "observed_mae_global_minus_season": 185.01865691440435,
+  "paired_week_block_bootstrap": {
+    "block_days": 7,
+    "iterations": 600,
+    "random_seed": 20261021,
+    "nominal_ci": 0.95,
+    "confidence_interval_global_minus_season": [
+      -50.29879269718461,
+      391.1828496632931
+    ],
+    "crosses_zero": true,
+    "causal_interval": false
+  },
+  "heldout_environments": [
+    {
+      "name": "winter_2012",
+      "days": 91,
+      "brier": 0.45054945054945056,
+      "tvd": 0.4505494505494505,
+      "classification_accuracy": 0.5494505494505495,
+      "mae_daily_rentals": 1940.5641025641028,
+      "novelty": "unseen time period, not new human population"
+    },
+    {
+      "name": "summer_2012",
+      "days": 94,
+      "brier": 0.01912630149388867,
+      "tvd": 0.13829787234042612,
+      "classification_accuracy": 1,
+      "mae_daily_rentals": 2368.323902218194,
+      "novelty": "unseen time period, not new human population"
+    }
+  ],
+  "limits": {
+    "socsci210_studies_evaluated": 0,
+    "individual_person_records": 0,
+    "randomized_intervention_effects_estimated": false,
+    "causal_social_fidelity_established": false,
+    "real_world_manager_actions": 0,
+    "real_welfare_benefit_established": false,
+    "generalizable_to_other_cities_justified": false,
+    "unknown_person_behavior_validated": false
+  },
+  "source_code": "products/manager/manager_core/phase04_bike_sharing.py",
+  "analysis_script": "products/manager/scripts/phase04_bike_sharing.py",
+  "ci_workflow": ".github/workflows/manager-phase04-public-aggregate.yml"
+}
