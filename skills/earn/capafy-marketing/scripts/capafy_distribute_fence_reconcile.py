@@ -55,12 +55,10 @@ NO_EFFECT_MIN_AGE_SECONDS = MAX_RUN_SECONDS + 900
 EVENTS_PATH = Path(
     "~/.local/state/life-manager/writer/capafy-distribute/events.jsonl"
 ).expanduser()
-LEDGER_PATH = Path(
-    "~/.local/state/life-manager/writer/capafy-distribute/ledger.json"
-).expanduser()
 RUNS_ROOT = Path(
     "~/.local/state/life-manager/writer/capafy-distribute/capafy-distribute/runs"
 ).expanduser()
+LEDGER_PATH = RUNS_ROOT.parent / "ledger.json"
 LANDING_ROOT = Path(os.environ.get(
     "CAPAFY_DISTRIBUTE_LANDING_ROOT",
     "~/.local/state/life-manager/writer/checkouts/self-owned-landing")).expanduser()

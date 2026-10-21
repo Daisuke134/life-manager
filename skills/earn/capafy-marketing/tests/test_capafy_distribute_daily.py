@@ -112,11 +112,13 @@ def test_already_published_slot_writes_occurrence_bound_no_effect_hint(tmp_path:
     now = datetime.now(ZoneInfo("Asia/Tokyo"))
     slot = f"{now:%Y-%m-%d}-h{now.hour:02d}m{(now.minute // 30) * 30:02d}"
     home = tmp_path / "home"
-    state_dir = home / ".local/state/life-manager/writer/capafy-distribute"
+    writer_state = home / ".local/state/life-manager/writer"
+    state_dir = writer_state / "capafy-distribute/capafy-distribute"
     state_dir.mkdir(parents=True)
     (state_dir / "ledger.json").write_text(json.dumps({slot: {"status": "published"}}))
     occurrence = "capafy-distribute-daily:test-run-1"
-    events = state_dir / "events.jsonl"
+    events = writer_state / "capafy-distribute/events.jsonl"
+    events.parent.mkdir(parents=True, exist_ok=True)
     events.write_text(json.dumps({
         "owner_id": "capafy-distribute-daily",
         "run_id": "test-run-1",
@@ -129,7 +131,7 @@ def test_already_published_slot_writes_occurrence_bound_no_effect_hint(tmp_path:
 
     result = run(tmp_path, {
         "HOME": str(home),
-        "WRITER_STATE_DIR": str(home / ".local/state/life-manager/writer"),
+        "WRITER_STATE_DIR": str(writer_state / "capafy-distribute"),
         "CAPAFY_DISTRIBUTE_STATE_DIR": str(state_dir),
         "LIFE_MANAGER_RESULT_HINT_PATH": str(hint),
     })

@@ -21867,3 +21867,28 @@ Independent read-only reviews identified and the local diff fixes three contract
 | 8 | Migrate `daily-nl-report.mjs::llmReport` from proxy to Codex and preserve its truth-only report contract. | Last; depends on revenue routes #6–#7. DONE: no alternate model fallback and report contract test passes. |
 
 The all-pipelines Codex-only invariant remains incomplete until TODO #8. The last official seller readback is still gross `$0` / `0` paid orders at `02:20:43Z`; the verified article effect above does not prove attributed revenue.
+
+### Latest Capafy natural distribution and path correction — 2026-10-21 04:50 UTC
+
+**Fresh natural-run evidence:** parent occurrence `capafy-distribute-daily:18e0717a2336f738-91435` completed at `04:48:30Z` on old release `76d36e33979aa6e4b8924db6405fa8031b169782`. Official proof confirms landing commit `a34dc4e4149f0bbd41f1b0adfb02e22acd33f57f`, article `https://aniccaai.com/blog/tiktok-script-for-skincare`, and HTTP 200. The local ledger binds the slot to X post ID `cmvhms2bj01msta0yg12rrih8`; Postiz official listing returns that exact ID and public URL `https://twitter.com/selawmqt/status/2112767801148743872` in the occurrence window. This confirms article + X distribution; it does not establish clicks, source-to-paid conversion, or revenue. The old terminal event still has no receipt and remains `effect_status=unknown`.
+
+At `04:49:10Z`, the next attempt `18e072235b269758-15450` was deferred before provider start with `host_admission_deferred:resource_capacity_busy`; effect is `not_applicable` and there are no active effect-unknown fences. The owner is loaded-idle on the old release. No loop or priority mutation was made.
+
+**Canonical no-effect ledger path correction:** the registered owner event log is `~/.local/state/life-manager/writer/capafy-distribute/events.jsonl`; the distributor's runtime ledger is nested at `~/.local/state/life-manager/writer/capafy-distribute/capafy-distribute/ledger.json`, derived from `RUNS_ROOT.parent`. The first local implementation pointed at the outer directory. The dirty source now uses the actual nested ledger, and the isolated-home wrapper test mirrors the registered directory tree. Capafy tests pass 48/48; loop-run-bounds pass 202/202; syntax and diff-check pass.
+
+**Git/CI:** source branch `chore/codex-only-agent-pipelines-20261021` is pushed at `fca56eaeb362cc6a7500bcb7ceec7b0a02669734`, merged with latest main `c07df80491aefd145756ab440a532a6e69c4aafc`. Exact-head checks are all PASS at 04:50Z. The canonical-ledger correction and this evidence append are dirty and not in that head; they require a fresh review and exact-head checks after push.
+
+**Remaining TODO (cursor = 2):**
+
+| # | Atomic TODO | Dependency and DONE evidence |
+|---|---|---|
+| 1 | The Codex-only route and Capafy receipt source are implemented locally. Canonical event/ledger paths, owner-bound no-effect authorization, and occurrence-only official proof writer are tested. | DONE locally: Capafy 48/48, loop-run-bounds 202/202, syntax and diff-check pass. Current branch has a small uncommitted fix selecting the nested ledger used by the production wrapper. |
+| 2 | Commit/push the canonical-ledger correction and this checkpoint; get a fresh read-only review of the exact diff; pass all PR #8467 checks and merge. | Current cursor. DONE: no unresolved Critical/Important findings, exact-head checks pass, merged SHA is read from `origin/main`. |
+| 3 | Cut a main-derived immutable release and apply only affected owners at safe idle boundaries through `launchctl-safe`. | Depends on #2. DONE: loaded release SHA/argv/env show Codex and affected owners reach natural terminals. |
+| 4 | Verify the first natural Capafy occurrence on that release writes its article receipt into the `lm-loop` terminal event; separately read back exact Postiz post ID/URL. | Depends on #3. DONE: exact parent occurrence reports verified article effect; X post ID/URL match official listing; duplicate count is zero. |
+| 5 | Read fresh official Capafy source-to-paid results and choose the next distribution action from measured conversion. | Depends on #4. DONE for a revenue win only with an attributed paid order and observed economics; otherwise continue the next bounded distribution experiment. |
+| 6 | Migrate `the402-worker-daemon.mjs::runLocalModel` from Mistral/Qwen proxy to Codex, preserve `userPrompt → non-empty markdown`, and run `node --test skills/earn/x402-sell/__tests__/*.test.mjs`. | Depends on #5. DONE: no alternate model fallback; paid-fulfillment contract tests pass. |
+| 7 | Migrate `polymarket-trade/pick.py` from BlockRun to Codex, preserve current fields/gates, run its full unittest suite plus historical evaluation, and keep live adoption behind exact receipt `pm-live-trade:18d61d6a6df63248-48979`. | Depends on #6. DONE: no BlockRun route remains, historical checks pass, and live adoption waits for exact effect reconciliation. |
+| 8 | Migrate `daily-nl-report.mjs::llmReport` from proxy to Codex while retaining its truth-only output contract. | Last; depends on #6–#7. DONE: no alternate model fallback and report contract passes. |
+
+The all-pipelines Codex-only invariant remains incomplete until TODO #8. Last official seller readback remains gross `$0` / `0` paid orders at `02:20:43Z`; the newly verified article and X post are not a paid order.
