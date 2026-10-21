@@ -1,0 +1,63 @@
+name: EBA Read-Only Upstream Code Audit
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/manager-eba-benchmark-20261022, research/manager-product-r006-20261020]
+    paths:
+      - 'products/manager/docs/research/evals/**'
+      - '.github/workflows/manager-eba-upstream-readonly.yml'
+permissions:
+  contents: read
+jobs:
+  inspect-pinned-upstream-code:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Shallow clone and read pinned upstream Python source only
+        shell: bash
+        run: |
+          set -euo pipefail
+          export GIT_TERMINAL_PROMPT=0
+          mkdir -p "$RUNNER_TEMP/eba-upstream" "$RUNNER_TEMP/eba-evidence"
+          printf 'repository\tcommit\tpath\tblob_sha\tcontains_expected_marker\n' > "$RUNNER_TEMP/eba-evidence/code-readback.tsv"
+          while IFS='|' read -r repo sha path marker; do
+            [[ -z "$repo" ]] && continue
+            echo "::group::read upstream code $repo"
+            local_dir="$RUNNER_TEMP/eba-upstream/${repo//\//_}"
+            timeout 120 git clone --quiet --filter=blob:none --depth 1 --no-checkout "https://github.com/$repo.git" "$local_dir"
+            current="$(git -C "$local_dir" rev-parse HEAD)"
+            if [[ "$current" != "$sha" ]]; then
+              echo "UPSTREAM_PIN_DRIFT $repo wanted=$sha actual=$current" >&2
+              exit 1
+            fi
+            blob="$(git -C "$local_dir" rev-parse "HEAD:$path")"
+            timeout 60 git -C "$local_dir" show "HEAD:$path" > "$RUNNER_TEMP/eba-evidence/current-code.txt"
+            if ! grep -Fq "$marker" "$RUNNER_TEMP/eba-evidence/current-code.txt"; then
+              echo "EXPECTED_MARKER_MISSING: $repo/$path" >&2
+              exit 1
+            fi
+            printf '%s\t%s\t%s\t%s\tYES\n' "$repo" "$current" "$path" "$blob" >> "$RUNNER_TEMP/eba-evidence/code-readback.tsv"
+            echo "PASS $repo $current $path blob=$blob"
+            echo "::endgroup::"
+          done <<'SOURCES'
+          UKGovernmentBEIS/inspect_ai|5e06ec2d8ba569c4ec867bfd48a7d66cda53c370|src/inspect_ai/scorer/_metric.py|ScoreReason = Literal
+          swe-bench/SWE-bench|02e7a74ffd0b707aab73d203fe87bdc7c76afc8e|swebench/harness/grading.py|SUITE_RAN
+          ethz-spylab/agentdojo|089ed468cf3ed0322acc66b0211f26d9d90dbf60|src/agentdojo/benchmark.py|security_results
+          web-arena-x/webarena|dce04686a56253aefba7b18a4fa0937cf1dc987b|evaluation_harness/evaluators.py|class StringEvaluator
+          browser-use/rl-env-use|92fe423137c01178692bf0a26c769b20438f9c5f|rl_env_use/audit.py|def grader_selftest
+          ScalerLab/JudgeBench|e2c52c284e735e139b3daa61c206ee208f36c461|run_judge.py|reverse_order
+          st-tech/zr-obp|8cbd5fa4558b7ad2ba4781546d6604e4cc3e07c4|obp/ope/estimators.py|class BaseOffPolicyEstimator
+          sierra-research/tau2-bench|57e54143025bec219b5726884651c98eede202e2|src/tau2/evaluator/evaluator.py|class EvaluationType
+          icip-cas/OmniBehavior|cd36b45b09b4bdc4254cbbebf773e2f880d6638a|src/evaluation/metrics.py|calculate_ece
+          SOURCES
+          rm -f "$RUNNER_TEMP/eba-evidence/current-code.txt"
+          test "$(tail -n +2 "$RUNNER_TEMP/eba-evidence/code-readback.tsv" | wc -l)" -eq 9
+          cat "$RUNNER_TEMP/eba-evidence/code-readback.tsv"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eba-pinned-upstream-readonly-report
+          path: ${{ runner.temp }}/eba-evidence/code-readback.tsv
+          retention-days: 30
