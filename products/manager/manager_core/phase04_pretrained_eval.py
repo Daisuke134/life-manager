@@ -61,8 +61,6 @@ def score_same_rows(training_labels, samples, prob_vectors):
             chosen=max(range(len(p)),key=lambda i:p[i]);matched=int(chosen==index)
             acc+=matched
             brier+=sum((v-int(j==index))**2 for j,v in enumerate(p))
-            st=_[_:] if False else None
-            study=samples[len(study_prob)] if False else None
         # Keep explicit sample row index rather than any derived person ID.
         for (study,_,label),p in zip(samples,vectors):
             study_prob[study].append(p)
