@@ -1,0 +1,83 @@
+{
+  "schema": "manager.management-primary-evidence.v1",
+  "reviewed_on": "2026-10-21",
+  "question": "What distinguishes effective human management, and what transfers defensibly to the Manager autonomous public-benefit research program?",
+  "method": "Primary historical research, organizational field studies and first-party methods; distinct evidence types and limitations.",
+  "research_sources": [
+    {
+      "person": "Peter Drucker",
+      "question": "What is effectiveness?",
+      "core": "Get the right things done; manage time, contribution, strengths, priorities, decisions.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/15202287/",
+      "type": "Author article abstract (HBR 2004 mirrored PubMed)",
+      "caveat": "Advice/historical synthesis, not a randomized estimate of welfare."
+    },
+    {
+      "person": "Andrew Grove",
+      "question": "What is the manager's output?",
+      "core": "Organizational output and leverage, not individual busyness.",
+      "url": "https://www.penguinrandomhouse.com/books/72467/high-output-management-by-andrew-s-grove-former-chairman-and-ceo-of-intel/",
+      "type": "Book/publisher primary description",
+      "caveat": "Operational framework rather than third-party RCT."
+    },
+    {
+      "person": "W. Edwards Deming",
+      "question": "How to improve quality without gaming metrics?",
+      "core": "Optimize the system; leadership, purpose, fear reduction, variation, continual learning.",
+      "url": "https://deming.org/explore/fourteen-points/",
+      "type": "Deming Institute primary teaching",
+      "caveat": "Normative systems philosophy; avoid treating 14 points as outcome study."
+    },
+    {
+      "person": "Google re:Work / Project Aristotle",
+      "question": "Which team dynamics correlate with performance?",
+      "core": "Psychological safety, dependability, structure/clarity, meaning, impact; 180 Google teams studied.",
+      "url": "https://rework.withgoogle.com/en/guides/understanding-team-effectiveness",
+      "type": "Organization's original methods/report",
+      "caveat": "Within-Google observational research, not universal causal ranking."
+    },
+    {
+      "person": "Amy Edmondson",
+      "question": "What supports team learning?",
+      "core": "51-team 1999 field study links psychological safety with learning behavior.",
+      "url": "https://dash.harvard.edu/entities/publication/13a7b031-0fdd-45ec-a7e0-2b80e2bc679f",
+      "type": "Peer-reviewed original study repository/abstract",
+      "caveat": "Association and mediation model; neither mind-reading nor cause guarantee."
+    },
+    {
+      "person": "Gallup",
+      "question": "How strong is the role of managers?",
+      "core": "70% of variance in team employee engagement is associated with managers (Gallup estimate).",
+      "url": "https://www.gallup.com/workplace/712895/leaders-improve-employee-engagement-company-culture.aspx",
+      "type": "Primary corporate research claims, Sep 21 2026",
+      "caveat": "An organizational estimate, not 70% of any person's wellbeing or a causal share of suffering."
+    },
+    {
+      "person": "Elinor Ostrom",
+      "question": "Can communities govern shared resources?",
+      "core": "Local rules, monitoring and conflict resolution can sustain commons; robust governance is plural, not one universal control.",
+      "url": "https://www.nobelprize.org/prizes/economic-sciences/2009/press-release/",
+      "type": "Nobel official summary of empirical governance research",
+      "caveat": "Institutional outcomes contextual; not a mandate for global AI control."
+    },
+    {
+      "person": "Manager existing empirical methods",
+      "question": "How to distinguish modeling from improvement?",
+      "core": "Source-boundaries and evidence levels separate forecasts from interventions, external change and net benefit.",
+      "url": "https://aniccaai.com/blog/manager-world-engineering-en",
+      "type": "Project public design statement",
+      "caveat": "Project aspiration and prototypes, not observed welfare benefits."
+    }
+  ],
+  "publication": {
+    "intended_reader": "An applied-AI founder or product lead who wants rigorous management principles, not a motivational slogan.",
+    "reader_job": "Identify what excellent management means, then demand evidence when transferring ideas to autonomous AI.",
+    "editorial_form": "beginner-first original research explainer",
+    "status": "DRAFT_REVIEWED_NOT_LIVE",
+    "assets": [
+      "docs/visuals/great-manager-evidence-ladder.svg"
+    ],
+    "privacy_boundary": "No user/operator real name, handle, personal repo URL or machine location in public article.",
+    "welfare_claims": "NO VERIFIED MANAGER BENEFICIARIES"
+  }
+}
