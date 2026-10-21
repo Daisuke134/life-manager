@@ -37,6 +37,8 @@ def main():
         "heldout_days": report["heldout_days"],
         "scenarios": [v["name"] for v in report["heldout_conditions"]],
         "baseline_metrics": report["baselines"],
+        "heldout_conditions": report["heldout_conditions"],
+        "bootstrap_uncertainty": report["block_bootstrap"],
         "human_personal_records": 0,
         "causal_effect_estimated": False,
         "original_socsci210_replicated": False,
