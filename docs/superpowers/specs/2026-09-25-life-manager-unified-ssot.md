@@ -16608,6 +16608,18 @@ REDebbd5af252→GREEN0e8f071c0eはcore guardも証明済みsell/nofill closedか
 
 **現在cursor:** item 2 — preserve the reviewed five-file diff, integrate `origin/main` `bd2ac75c`, verify the combined diff, then push the task branch. Keep live disabled, historical effect fences held, and do not manually wake the validation owner. No real investment profit is verified.
 
+#### 2026-10-21 12:28 JST — Latest-main merge readback
+
+`origin/main` advanced again to `0478d430188b723bc1e2ac147b172c4c8d4ddd52` (PR #8468) while syncing. Merge commit `b92df056d03b85afa236de5ddb48cdc54653aa3d` has that exact SHA as its second parent; the SSOT merge was automatic and retained both investment and main updates. The source diff against latest main contains only the five investment files. The local branch is clean and six commits ahead of its remote; PR #8462 remains OPEN at old remote head `c9d27b698ede9be6046af77b4cca465256baf824` / base `7717a5d63d40629f21c1072f12aadc8a73f9f5bd`. No remote write has occurred.
+
+**現在cursor:** rerun full Alpaca tests, source-boundary and diff checks on the merged tree; then refresh `origin/main`, push, and verify PR head. Live remains disabled, the historical effect fences remain held, and no real investment profit is verified.
+
+#### 2026-10-21 12:29 JST — Combined-tree source acceptance passed
+
+After integrating `origin/main` `0478d430188b723bc1e2ac147b172c4c8d4ddd52`, the complete Alpaca suite passed 746/746, `bash scripts/verify-source-boundary.sh` passed, and `git diff --check` passed. The merge adds only the latest main-side SSOT/evidence/document updates; the investment source/test diff remains unchanged from the independently reviewed diff. A fresh `git fetch origin main` still reads `0478d430`; PR #8462 is OPEN at old remote head `c9d27b698ede9be6046af77b4cca465256baf824` / base `7717a5d63d40629f21c1072f12aadc8a73f9f5bd`. Local branch includes main as merge parent and is six commits ahead of remote; only this status update remains uncommitted.
+
+**現在cursor:** commit the status update, refresh main once more, push the synchronized branch, and verify that PR #8462 reads the pushed head. Then wait for exact-head CI; the old `39535384153` checks do not qualify. Live remains disabled, historical effect fences remain held, and no real investment profit is verified.
+
 ### 2026-10-09 13:18 JST — Job Hunter Dreamwork cutover and updated user criteria
 
 この追記は11:50 JST snapshot後のJob Hunter readbackとユーザーの最新指示を記録する。個別の勤務地・住所などの私的値はprivate profileのみを正本とし、このspecには複製しない。
