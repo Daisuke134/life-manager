@@ -1,5 +1,13 @@
 # Manager — independent intervention research prototype
 
+## October 21 Phase04 final verification
+
+**Phase04 S001–S008: 8/8 atomic tasks verified within explicit scoped acceptance. This is not human-behavior foundation-model fidelity or real-world impact proof.** All 210 SocSci210 studies and 2,901,390 originally observed responses were processed for a **coarse numeric-code 170/40 held-out evaluation**, with anonymized aggregate outputs only. A published frozen MiniLM encoder with a seen-only head was tested against simple baselines on exactly the same 800 original unseen individual responses; a separate 135M instruction model was compared on 320 other unseen individual responses. Poor/invalid model output was preserved, not reclassified as success. SocSci authors' original task-aware evaluation and 8B/14B models are **not** independently reproduced by Manager.
+
+[Full final Phase04 evidence, actual metrics, traceable GitHub CI and remaining scientific gates](docs/verification/PHASE04_FINAL_REAL_DATA_EVIDENCE_JA.md); [45 done / 65 todo / 2 blocked / 1 skipped canonical tasks](docs/roadmap/tasks.json). This supersedes historical Phase04 progress sections below.
+
+**Manager research processing vs product runtime:** explicit operator-authorized individual survey research was executed on ephemeral GitHub CI machines; original raw source records, individual profiles, sensitive attributes, prompts and predictions were never committed as a public repository artifact. The Manager product itself remains independent of Life Manager and has no live third-party execution privileges or verified beneficiary improvement. **Gate1 still UNMET**.
+
 **Code unit:** `manager-independent` (independent package). GitHub source is mirrored at [Daisuke134/life-manager, branch `research/manager-product-r006-20261020`](https://github.com/Daisuke134/life-manager/tree/research/manager-product-r006-20261020/products/manager) under a Manager-only directory, as explicitly authorized by the user. This does not connect Life Manager runtime to Manager.
 
 > **Mission: End suffering.** A domain-general, evidence-grounded system for proposing, safely executing, and causally evaluating interventions based on lawful public information. “Digital Buddha” is an aspiration/metaphor—not omniscience, unrestricted permission, or an achieved system.
