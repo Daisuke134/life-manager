@@ -152,7 +152,7 @@ provision_investment_selection() {
   local release_root="$1"
   local release_sha="$2"
   local configured_reports_path="${LIFE_MANAGER_INVESTMENT_VALIDATION_REPORTS_PATH:-}"
-  local reports_path="${configured_reports_path:-$release_root/apps/life-manager/investment-core/reviewed-validation-reports.json}"
+  local reports_path="${configured_reports_path:-$HOME/.local/state/life-manager/alpaca-investment-validation/reviewed-validation-reports.json}"
   if [ ! -f "$reports_path" ] && [ -z "$configured_reports_path" ]; then
     return 0
   fi
