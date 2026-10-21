@@ -96,7 +96,7 @@
     }
   },
   "last_live_refresh": {
-    "observed_at": "2026-10-21T06:44:41Z",
+    "observed_at": "2026-10-21T07:30Z",
     "source_urls": [
       "https://competition.maritime.sh/",
       "https://competition.maritime.sh/terms",
@@ -108,9 +108,9 @@
     "award": "Up to USD 20,000 in LLM credits per winning project; not guaranteed to all winners. Second- and third-place amounts and detailed award schedule remain unpublished.",
     "travel": "Three-day San Francisco experience. Sponsored flights are limited to people in the United States; exact eligibility, traveler count, covered expenses, dates, and international-winner arrangements remain unpublished.",
     "week1_deadline_time": null,
-    "week1_deadline_reason": "Official home/Terms and Slack announcements were read at 06:44Z; no Week 1 cutoff, rubric, or form was visible. One entry share exists in #competition-submissions, but its description says it does not replace a required form. An inquiry to contact@maritime.sh was SENT; no reply by 06:43Z.",
+    "week1_deadline_reason": "The official home and Terms were crawled at 07:30Z and still show no Week 1 cutoff, rubric, or project form. Slack announcements/submissions were last read at 06:44Z; one entry share exists, but its description says it does not replace a required form. The organizer inquiry was SENT; no reply was found by the 06:43Z inbox readback, which was not refreshed in this crawl.",
     "project_submission_status": "entry_shared_in_channel; formal_submission_unconfirmed",
-    "refresh_scope": "Official home and Terms directly crawled at 06:44Z. Slack announcements/submissions read live at 06:44Z. Inbound email instructions last searched at 06:31Z; organizer reply searched at 06:43Z."
+    "refresh_scope": "Official home and Terms directly crawled at 07:30Z. Slack announcements/submissions last read live at 06:44Z. Inbound email instructions last searched at 06:31Z; organizer reply last searched at 06:43Z."
   },
   "official_instruction_email_unchanged_reason": "The 06:31Z inbound search found only generic Welcome and Verify emails. The organizer inquiry was sent later at 06:41Z; no reply was found by 06:43Z.",
   "last_official_sources": {

@@ -6,7 +6,7 @@
     "home_url": "https://competition.maritime.sh/",
     "terms_url": "https://competition.maritime.sh/terms",
     "terms_last_updated": "2026-10-15",
-    "official_pages_rechecked_at": "2026-10-21T06:44Z",
+    "official_pages_rechecked_at": "2026-10-21T07:30Z",
     "common_window": "2026-10-20 through 2026-12-01 23:59 America/Los_Angeles",
     "target": "1,000 distinct people with real usage, reviewed through project usage on Keiki or Maritime",
     "winner_rule": "The first three projects to reach the target, subject to verification",
@@ -64,6 +64,7 @@
     "pilot_participants": 0,
     "manager_jobs": 0,
     "external_work_events": 0,
+    "external_work_users": 0,
     "verified_external_manager_users": 0
   },
   "http_log_readback": {
@@ -206,10 +207,17 @@
     "evidence_ref": "docs/evidence/maritime/stripe-life-manager-readback-20261021.json",
     "interpretation": "The SSOT-matched live Stripe account has two active Anicca Life Manager monthly prices but zero subscriptions to either price, so Life Manager subscription MRR is USD 0 at readback. Account-wide historical paid invoices are not attributed to Life Manager. User business earnings remain a separate revenue stream and have no hosted settlement receipt."
   },
+  "source_repository_readback": {
+    "observed_at": "2026-10-21T07:30:40Z",
+    "origin_main_sha": "1ea73f18e7575084ac2967d62edbe05fa4831e6b",
+    "production_loaded_source_sha": "982875d62eaa03f8e924b990c4bc80f521d8dcce",
+    "life_manager_source_paths_changed_after_loaded_sha": []
+  },
   "current_cursor": {
     "product": "T22.1e.2 / b.6-28: hosted signup is live on loaded SHA 982875d62eaa03f8e924b990c4bc80f521d8dcce, but participant PKCE and explicit retention consent are not recorded. Runtime PG at 06:50:17Z has identity1 and zero enrollment/execution/participant/job/external work.",
-    "distribution": "T24.4: one internal SEO comparison draft exists; proof-backed demo and live acquisition CTA remain on hold. T27 publication waits for product lifecycle readback; current Postiz connector exposes no integrations.",
+    "distribution": "T24.4b: one internal SEO comparison draft exists; proof-backed demo and live acquisition CTA remain on hold. T27 publication waits for product lifecycle readback; Postiz groups/integrations/posts were 0 at the 06:02Z readback and no X identity is verified.",
     "submission": "One truthful entry is shared in #competition-submissions and read back. Separate formal project form/receipt, Week 1 cutoff, and rubric remain unconfirmed. Organizer inquiry SENT/read back (1a15d3141c56ee22); no reply by 06:43Z. Do not duplicate the channel entry.",
+    "packet_export": "T23.1: aggregate exporter and focused test source exist in the active worktree; focused test has not been rerun after implementation and docs/distribution/maritime/week1/submission.json has not been generated. Keep incomplete until the focused acceptance passes.",
     "revenue": "Matched live Stripe account readback: 0 active subscriptions for Life Manager monthly prices, Life Manager MRR USD 0. Historical account-wide invoices are not attributed to Life Manager; user-business cash and net revenue remain unverified. Evidence docs/evidence/maritime/stripe-life-manager-readback-20261021.json."
   }
 }
