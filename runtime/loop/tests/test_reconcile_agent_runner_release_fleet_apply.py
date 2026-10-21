@@ -258,10 +258,17 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
                 "from pathlib import Path\n"
                 "if os.environ.get('FAKE_SELECTION_PROVISION_FAIL') == '1':\n"
                 "    raise SystemExit(1)\n"
+                "args = sys.argv[1:]\n"
                 "marker = Path(os.environ['FAKE_SELECTION_PROVISION_MARKER'])\n"
                 "calls = json.loads(marker.read_text()) if marker.exists() else []\n"
-                "calls.append({'argv': sys.argv[1:]})\n"
-                "marker.write_text(json.dumps(calls))\n",
+                "calls.append({'argv': args})\n"
+                "marker.write_text(json.dumps(calls))\n"
+                "if os.environ.get('FAKE_SELECTION_PROVISION_HOLD_LIVE') == '1':\n"
+                "    path = args[args.index('--path') + 1]\n"
+                "    if 'alpaca-investment-live' in path:\n"
+                "        if '--hold-on-known-blocker' not in args:\n"
+                "            raise SystemExit(42)\n"
+                "        print(json.dumps({'status': 'held', 'reason': 'owned_close_evidence_unknown'}))\n",
                 encoding="utf-8",
             )
             if with_reviewed_validation_reports:
@@ -447,16 +454,52 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
                         "--path", str(root / "state/selected-strategy.json"),
                         "--reports", str(root / "state/validation-reports.json"),
                         "--refresh",
+                        "--hold-on-known-blocker",
                         "--release-sha", sha,
                     ]},
                     {"argv": [
                         "--path", str(root / "state/paper-selected-strategy.json"),
                         "--reports", str(root / "state/validation-reports.json"),
                         "--refresh",
+                        "--hold-on-known-blocker",
                         "--release-sha", sha,
                     ]},
                 ],
             )
+
+    def test_known_live_selection_hold_continues_paper_and_fleet_reconcile(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            release_dir = self._make_release(
+                root, sha, with_investment_selection_provisioner=True,
+            )
+            self._activate(root, release_dir)
+            calls_log = root / "calls.log"
+            marker = root / "selection-provision.json"
+            env = self._base_env(root, repo, calls_log=calls_log)
+            env["FAKE_SELECTION_PROVISION_MARKER"] = str(marker)
+            env["FAKE_SELECTION_PROVISION_HOLD_LIVE"] = "1"
+            env["LIFE_MANAGER_INVESTMENT_VALIDATION_REPORTS_PATH"] = str(
+                root / "state/validation-reports.json"
+            )
+            env["LIFE_MANAGER_INVESTMENT_SELECTION_PATH"] = str(
+                root / ".local/state/life-manager/alpaca-investment-live/selected-strategy.json"
+            )
+            env["LIFE_MANAGER_INVESTMENT_PAPER_SELECTION_PATH"] = str(
+                root / ".local/state/life-manager/alpaca-investment-paper/selected-strategy.json"
+            )
+
+            result = self._run(env)
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            recorded_calls = json.loads(marker.read_text(encoding="utf-8"))
+            self.assertEqual(len(recorded_calls), 2)
+            self.assertIn("--hold-on-known-blocker", recorded_calls[0]["argv"])
+            self.assertIn("--hold-on-known-blocker", recorded_calls[1]["argv"])
+            self.assertIn("alpaca-investment-live", recorded_calls[0]["argv"][1])
+            self.assertIn("alpaca-investment-paper", recorded_calls[1]["argv"][1])
+            self.assertGreater(self._apply_call_count(calls_log), 0)
 
     def test_failed_investment_selection_provisioning_stops_owner_apply(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -510,12 +553,14 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
                         "--path", str((root / ".local/state/life-manager/alpaca-investment-live/selected-strategy.json").resolve()),
                         "--reports", str(runtime_reports.resolve()),
                         "--refresh",
+                        "--hold-on-known-blocker",
                         "--release-sha", sha,
                     ]},
                     {"argv": [
                         "--path", str((root / ".local/state/life-manager/alpaca-investment-paper/selected-strategy.json").resolve()),
                         "--reports", str(runtime_reports.resolve()),
                         "--refresh",
+                        "--hold-on-known-blocker",
                         "--release-sha", sha,
                     ]},
                 ],
