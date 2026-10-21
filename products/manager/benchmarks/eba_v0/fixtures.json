@@ -1,0 +1,140 @@
+[
+  {
+    "case_id": "train-fin",
+    "group_id": "cohort-fin-0",
+    "domain": "finance",
+    "knowledge_cutoff": "2026-08-04",
+    "source_published_at": "2026-08-02",
+    "outcome_observed_at": "2026-08-05",
+    "observed_distribution": {
+      "yes": 0.5,
+      "no": 0.5
+    },
+    "observed_binary": 0,
+    "oracle_effect": 0.02,
+    "oracle_harm": 0.02,
+    "oracle_cost": 0.01,
+    "rights": "SYNTHETIC_ORIGINAL",
+    "data_classification": "FICTIONAL",
+    "allowed_actions": [
+      "NO_ACTION",
+      "INFO_LINK"
+    ],
+    "split": "train"
+  },
+  {
+    "case_id": "train-ment",
+    "group_id": "cohort-ment-0",
+    "domain": "mental",
+    "knowledge_cutoff": "2026-08-04",
+    "source_published_at": "2026-08-03",
+    "outcome_observed_at": "2026-08-05",
+    "observed_distribution": {
+      "yes": 0.6,
+      "no": 0.4
+    },
+    "observed_binary": 1,
+    "oracle_effect": 0.01,
+    "oracle_harm": 0.02,
+    "oracle_cost": 0.01,
+    "rights": "SYNTHETIC_ORIGINAL",
+    "data_classification": "FICTIONAL",
+    "allowed_actions": [
+      "NO_ACTION",
+      "INFO_LINK"
+    ],
+    "split": "train"
+  },
+  {
+    "case_id": "test-fin",
+    "group_id": "cohort-fin-1",
+    "domain": "finance",
+    "knowledge_cutoff": "2026-08-06",
+    "source_published_at": "2026-08-04",
+    "outcome_observed_at": "2026-08-07",
+    "observed_distribution": {
+      "yes": 0.6,
+      "no": 0.4
+    },
+    "observed_binary": 1,
+    "oracle_effect": 0.14,
+    "oracle_harm": 0.02,
+    "oracle_cost": 0.01,
+    "rights": "SYNTHETIC_ORIGINAL",
+    "data_classification": "FICTIONAL",
+    "allowed_actions": [
+      "NO_ACTION",
+      "INFO_LINK"
+    ],
+    "split": "test"
+  },
+  {
+    "case_id": "test-ment",
+    "group_id": "cohort-ment-1",
+    "domain": "mental",
+    "knowledge_cutoff": "2026-08-06",
+    "source_published_at": "2026-08-04",
+    "outcome_observed_at": "2026-08-07",
+    "observed_distribution": {
+      "yes": 0.4,
+      "no": 0.6
+    },
+    "observed_binary": 0,
+    "oracle_effect": 0.02,
+    "oracle_harm": 0.08,
+    "oracle_cost": 0.01,
+    "rights": "SYNTHETIC_ORIGINAL",
+    "data_classification": "FICTIONAL",
+    "allowed_actions": [
+      "NO_ACTION",
+      "INFO_LINK"
+    ],
+    "split": "test"
+  },
+  {
+    "case_id": "test-phys",
+    "group_id": "cohort-phys-1",
+    "domain": "physical",
+    "knowledge_cutoff": "2026-08-06",
+    "source_published_at": "2026-08-04",
+    "outcome_observed_at": "2026-08-07",
+    "observed_distribution": {
+      "yes": 0.7,
+      "no": 0.30000000000000004
+    },
+    "observed_binary": 1,
+    "oracle_effect": 0.03,
+    "oracle_harm": 0.01,
+    "oracle_cost": 0.02,
+    "rights": "SYNTHETIC_ORIGINAL",
+    "data_classification": "FICTIONAL",
+    "allowed_actions": [
+      "NO_ACTION",
+      "INFO_LINK"
+    ],
+    "split": "test"
+  },
+  {
+    "case_id": "test-env",
+    "group_id": "cohort-env-1",
+    "domain": "environment",
+    "knowledge_cutoff": "2026-08-06",
+    "source_published_at": "2026-08-04",
+    "outcome_observed_at": "2026-08-07",
+    "observed_distribution": {
+      "yes": 0.8,
+      "no": 0.19999999999999996
+    },
+    "observed_binary": 1,
+    "oracle_effect": 0.12,
+    "oracle_harm": 0.02,
+    "oracle_cost": 0.02,
+    "rights": "SYNTHETIC_ORIGINAL",
+    "data_classification": "FICTIONAL",
+    "allowed_actions": [
+      "NO_ACTION",
+      "INFO_LINK"
+    ],
+    "split": "test"
+  }
+]
