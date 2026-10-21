@@ -153,8 +153,7 @@ def score_economic_episode(ep: AggregateEconomicEpisode) -> DualScorecard:
     rescue=ep.human_rescue_seconds>0
     autonomy=("HUMAN_INTERVENTION_REPORTED" if rescue
               else "NO_HUMAN_RESCUES_REPORTED_UNVERIFIED")
-    possible_autonomy=(not rescue and ep.unresolved_effects==0 and
-                       ep.policy_violations==0 and ep.source_kind=="provider_claim")
+
     state="UNAUTHENTICATED_RECONCILED_INPUT"
     revenue=None
     contribution=None
@@ -176,6 +175,9 @@ def score_economic_episode(ep: AggregateEconomicEpisode) -> DualScorecard:
         contribution=revenue-sum(ep.cost_coverage.amounts_minor.values())
         if abs(contribution)>10**16:
             raise ValueError("aggregate amount outside supported bound")
+    possible_autonomy=(not rescue and ep.unresolved_effects==0 and
+                       ep.policy_violations==0 and
+                       state=="UNAUTHENTICATED_RECONCILED_INPUT")
     welfare_status="NOT_MEASURED"
     welfare_effect=None
     welfare_lower=None
@@ -193,7 +195,12 @@ def score_economic_episode(ep: AggregateEconomicEpisode) -> DualScorecard:
                 float(sum(ep.cost_coverage.amounts_minor.values())),
                 float(trial.harms_minor),comparator,"welfare")
             if estimated.causal_design_valid:
-                welfare_status="OFFLINE_CAUSAL_ESTIMATE_ONLY"
+                if estimated.net_effect < 0:
+                    welfare_status="OFFLINE_NEGATIVE_NET_EFFECT"
+                elif estimated.net_lower <= 0:
+                    welfare_status="OFFLINE_UNCERTAIN_NET_EFFECT"
+                else:
+                    welfare_status="OFFLINE_CAUSAL_ESTIMATE_ONLY"
                 welfare_effect=int(estimated.net_effect)
                 welfare_lower=int(estimated.net_lower)
     return DualScorecard(
