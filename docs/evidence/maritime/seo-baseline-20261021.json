@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-10-21T06:08:34Z",
+  "source_main_sha": "483ba43b506c8266399334328258bc0c358d70c1",
+  "property": "https://aniccaai.com/",
+  "source": "GSC Wizard site summary, Search Console API",
+  "window": {
+    "type": "last 28 settled days",
+    "start_date": "2026-09-21",
+    "end_date": "2026-10-18",
+    "settled_through": "2026-10-18",
+    "date_basis": "America/Los_Angeles"
+  },
+  "sitewide_metrics": {
+    "clicks": 0,
+    "impressions": 7,
+    "ctr_percent": 0,
+    "average_position": 5.7142857143
+  },
+  "query_observation": {
+    "visible_query": "aniccai.com",
+    "visible_query_impressions": 1,
+    "hidden_or_anonymized_impression_share_percent": 85.71,
+    "selected_article_query_hypothesis": "AI assistant vs AI agent: who chooses the next task?",
+    "search_volume": null,
+    "demand_status": "unmeasured"
+  },
+  "limitations": [
+    "These metrics cover the entire https://aniccaai.com/ property, not the Manager category or the unpublished article draft.",
+    "The visible query is branded-looking and does not validate demand for the selected article topic.",
+    "Top-page rows returned by the prior query readback summed to 21 impressions while the site summary total was 7; do not use those page rows as a page-level baseline.",
+    "Search volume, ranking potential, article clicks, product signups, and revenue are not inferred from this baseline."
+  ],
+  "distribution_decision": {
+    "action": "Prepare one evidence-backed comparison draft; keep publication CTA on hold until hosted end-to-end product readback is complete.",
+    "reference_mechanisms": [
+      "Todoist: practical reader-job content and a single relevant product CTA",
+      "Ahrefs: intent-specific guides and original research",
+      "Levels: share real build decisions and constraints across long-form and X"
+    ],
+    "reference_limit": "These sources do not prove that an autonomous Life Manager can acquire 1,000 users through SEO or X."
+  }
+}
