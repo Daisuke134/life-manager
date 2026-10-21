@@ -1,0 +1,4 @@
+# Reuse existing MIT-licensed GrowthBook Python SDK; CI/offline synthetic research only.
+# Upstream: https://github.com/growthbook/growthbook-python
+# No standalone experimentation allocation engine is written by Manager.
+growthbook==3.2.2
