@@ -16406,6 +16406,26 @@ REDebbd5af252→GREEN0e8f071c0eはcore guardも証明済みsell/nofill closedか
 
 **順序変更の理由:** the old run prevented a safe apply, then ended naturally. The targeted idle-only apply and exact loaded-argv/state readback now pass, so the next proof must come from the scheduled release `1418bc76` terminal; the provider fence and real-money gate remain unchanged.
 
+#### 2026-10-21 11:13 JST — Natural Alpaca readback complete; attribution remains unscoped
+
+**Natural readback:** `lm-fence-reconciler` ran from release `1418bc76430a0d428c85f1eafbf3014389e85a02` and ended pass at `2026-10-21T02:12:37Z`. Its exact `reconcile-calls.jsonl` record for `alpaca-investment-live:18d9e6f979d18818-14709` has `exit_code=1`, `closed=false`, parseable 1,134-character JSON, two valid provider request IDs, four orders after the occurrence's queue time, zero open orders, and four exact order refs. It reports `verified=false / orders_present:after=4,open=0`; the fence remains held.
+
+**Exact local join:** the four official refs were checked against every row in the live `receipts.jsonl`: 354 receipt rows, 10 `effect_intent` rows, zero exact `client_order_id` matches and zero exact provider order-ID matches. Keep all four orders `unscoped`; do not infer owner or strategy from timestamp or symbol. Live remains disabled. The last account balance read (2026-10-21T00:59:58Z) is equity `$66.49`, cash `$0`, buying power `$0`; this is not realized profit.
+
+**Updated atomic TODO (current cursor = 6):**
+1. [x] Repair and merge the canonical-credential readback adapter with bounded, secret-free partial evidence (PR #8458 / main `1418bc76`).
+2. [x] Cut and verify complete immutable release `20261021T105116-1418bc76`.
+3. [x] Apply only `lm-fence-reconciler`; verify exact loaded argv/SHA and owner state root.
+4. [x] Obtain a natural terminal and occurrence-bound official readback from `1418bc76`; preserve the live fence when four post-queue orders exist.
+5. [x] Compare those four exact provider IDs with all live local receipts. No joins exist, so attribution remains `unscoped` and the fence stays held.
+6. [ ] Repair `investment-strategy-validation`'s latest `entrypoint_exit_1` from release `55cc06f2` using its exact inputs, report, and event evidence. Add a failing regression before the minimal fix; verify it through the next natural run without a manual wake. **Current cursor.**
+7. [ ] Research one established profitable strategy mechanism in public repositories and primary evidence; reproduce its mechanism and record source, assumptions, and metrics. Then compare it on matched instrument/window/cost/benchmark data, including fees, slippage, drawdown, lookahead, holdout, and sensitivity. Select one only if evidence supports it.
+8. [ ] Confirm duplicate, risk, and daily-loss caps and usable buying power. Current cash/buying power is `$0`; do not deposit. Keep live disabled until the historical fence, lineage, strategy evidence, and risk gates pass.
+9. [ ] Only then evaluate a small local live pilot and calculate owner-attributed settled realized net after fills, fees, slippage, model, system, and operating costs.
+10. [ ] Require 30 cost-complete round trips with positive benchmark-excess net before scaling; then calculate evidence-based best/base/worst 1-month, 1-year, and 10-year scenarios. Profitability is a goal, not a guarantee.
+
+**順序変更の理由:** the new natural readback now provides the bounded official order refs, and the exact ledger join confirms zero attributable matches. The blocker is no longer whether the reader works; it is missing historical lineage. The next source task is the failed strategy-validation path, while live trading remains disabled and buying power is zero.
+
 ### 2026-10-09 13:18 JST — Job Hunter Dreamwork cutover and updated user criteria
 
 この追記は11:50 JST snapshot後のJob Hunter readbackとユーザーの最新指示を記録する。個別の勤務地・住所などの私的値はprivate profileのみを正本とし、このspecには複製しない。
