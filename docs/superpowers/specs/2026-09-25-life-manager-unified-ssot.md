@@ -16426,6 +16426,26 @@ REDebbd5af252→GREEN0e8f071c0eはcore guardも証明済みsell/nofill closedか
 
 **順序変更の理由:** the new natural readback now provides the bounded official order refs, and the exact ledger join confirms zero attributable matches. The blocker is no longer whether the reader works; it is missing historical lineage. The next source task is the failed strategy-validation path, while live trading remains disabled and buying power is zero.
 
+#### 2026-10-21 11:15 JST — Validation failure belongs to an older reader
+
+**Root-cause comparison:** the `entrypoint_exit_1` at `2026-10-20T21:26:02Z` ran release `55cc06f2`. Its `skills/alpaca-investment/alpaca_cli.py` made a single BTC bars request and rejected every non-null `next_page_token` as `pagination_incomplete`; the partial ETF report contains no BTC report. PR #8441/main `28d60090` already replaced this with bounded page-token traversal (maximum 10 pages per six-hour window, repeated/invalid/empty cursor and page exhaustion fail closed). The installed validation owner is currently release `4b230cba`, whose reader has this traversal and whose source file hash matches main. The old failure is not evidence that the current installed reader still fails.
+
+**Current state:** `investment-strategy-validation` is loaded-idle on `4b230cba`; no natural run from that release has followed the old `55cc06f2` failure. The validation owner runs on its Tuesday 14:30 host-local schedule. Do not manually wake it. The next natural terminal is the acceptance check for the existing fix. If pagination still fails, use that run's actual page number/received-count diagnostics to distinguish cursor repetition, empty page, or the 10-page cap before changing code.
+
+**Updated atomic TODO (current cursor = 6):**
+1. [x] Merge bounded Alpaca fence reader to main `1418bc76`; full Alpaca suite 742/742, fresh review 0 findings, all exact-head CI pass.
+2. [x] Cut complete immutable release `20261021T105116-1418bc76` and verify manifest/source hashes and import smoke.
+3. [x] Apply only `lm-fence-reconciler`; exact loaded argv/SHA and owner state path match release `1418bc76`.
+4. [x] Natural reconciler terminal from `1418bc76` returns exact provider proof `orders_present:after=4,open=0`; `verified=false`, `closed=false`.
+5. [x] Compare all four order IDs to 354 live receipt rows and 10 intents: exact client/order-ID matches are both zero; retain `unscoped` attribution and held live fence.
+6. [ ] Read the next natural `investment-strategy-validation` terminal on loaded release `4b230cba`; confirm the BTC pagination fix completes or capture its bounded cursor diagnostics. **Current cursor.**
+7. [ ] After BTC reports are complete, copy one established profitable strategy mechanism from public code/evidence and record its source and measurable outcome. Evaluate on matched instrument/window/cost/benchmark data, including fees, slippage, drawdown, lookahead, holdout, and sensitivity.
+8. [ ] Confirm duplicate/risk/daily-loss caps and usable buying power. The last official snapshot is equity `$66.49`, cash `$0`, buying power `$0`; do not deposit. Keep live disabled until lineage, strategy evidence, and risk gates pass.
+9. [ ] Only after those gates, evaluate a small local live pilot and compute settled, owner-attributed realized net after all trading, model, system, and operating costs.
+10. [ ] Require 30 cost-complete round trips with positive benchmark-excess net before scaling; only then calculate best/base/worst 1-month, 1-year, and 10-year scenarios. Profitability is a goal, not a guarantee.
+
+**順序変更の理由:** comparing the failing run SHA `55cc06f2` with installed validation SHA `4b230cba` shows the current source already contains PR #8441's bounded pagination fix. Adding another implementation before a natural 4b run would duplicate the fix and would not establish that the reader now works. Keep the fence and live owner unchanged while the next scheduled validation run evaluates the installed code.
+
 ### 2026-10-09 13:18 JST — Job Hunter Dreamwork cutover and updated user criteria
 
 この追記は11:50 JST snapshot後のJob Hunter readbackとユーザーの最新指示を記録する。個別の勤務地・住所などの私的値はprivate profileのみを正本とし、このspecには複製しない。
