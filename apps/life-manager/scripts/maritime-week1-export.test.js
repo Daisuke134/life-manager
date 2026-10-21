@@ -95,6 +95,7 @@ test("packet_uses_measured_counts_and_excludes_private_users", () => {
     proof_sha256: "a".repeat(64),
   }]);
   assert.equal(packet.costs, null);
+  assert.doesNotMatch(packet.limitations.join(" "), /No completed hosted work receipt is verified\./);
   assert.deepEqual(packet.channel_entry_share, {
     channel: "#competition-submissions",
     posted_at: "2026-10-21T05:09:07Z",
@@ -121,7 +122,7 @@ test("non_completed_receipts_keep_missing_completed_work_caveat", () => {
     status: {
       observed_at: "2026-10-21T08:20:00Z",
       runtime_database_readback: { verified_external_manager_users: 1 },
-      verified_work_receipts: ["failed", "effect_unknown"].map(status => ({
+      verified_work_receipts: ["failed", "deferred", "effect_unknown"].map(status => ({
         provider: "maritime",
         kind: "cycle",
         status,
@@ -132,6 +133,6 @@ test("non_completed_receipts_keep_missing_completed_work_caveat", () => {
     requirements: { required_fields: ["project_name"] },
   });
 
-  assert.deepEqual(packet.work_receipts.map(receipt => receipt.status), ["failed", "effect_unknown"]);
+  assert.deepEqual(packet.work_receipts.map(receipt => receipt.status), ["failed", "deferred", "effect_unknown"]);
   assert.match(packet.limitations.join(" "), /No completed hosted work receipt is verified\./);
 });
