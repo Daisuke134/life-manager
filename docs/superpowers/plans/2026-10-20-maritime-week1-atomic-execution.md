@@ -668,14 +668,17 @@ life-manager/
 - [x] **c-5e.2 / boundary checks:** empty evidence remains no_work; a preexisting occurrence dir, symlink parent/file, directory artifact, or hard-linked artifact cannot become a ref. Preserve existing receipt fences.
 - [x] **c-5e.3 / minimal fix:** after exclusive receipt creation, create `build/occurrences/<occurrence_id>` with `mkdir(exist_ok=False, mode=0700)`. `lstat` the parent and occurrence dir; reject symlink/non-directory/wrong owner and never reuse a preexisting dir. Keep `LIFE_MANAGER_BUILD_WORKSPACE` at the tenant build root; set runner `--workdir` and `AGENT_RUNNER_WORKDIR` to this occurrence dir. Accept evidence for `no_op` and `success` only when it resolves strictly inside that dir and `lstat` reports a regular, current-UID, single-link file. No valid no_op refs stays deferred/no_work; success without refs stays effect_unknown. Do not use mtime.
 - [x] **c-5e.4 / focused verification:** `python3 -m unittest skills/capafy-autopublish/test/test_cloud_cycle.py` passes 21/21. Evidence→`docs/evidence/maritime/no-op-occurrence-staging-fix.json`. Publish/sale/payout remain unverified.
-- [ ] **c-5e.5 / source acceptance:** fresh read-only review→commit/push→all registered exact-HEAD checks→main. Preserve the old v3 receipt and original drafts.
-- [ ] **c-5e.6 / image:** build from merged main, upload/redeploy the existing VM, and verify loaded SHA plus `cloud_cycle.py` hash.
-- [ ] **c-5e.7 / fresh occurrence:** verify a new occurrence ID has no receipt; retain v3 deferred receipt; read free credit and existing binding; dispatch once and verify terminal/receipt.
+- [x] **c-5e.5 / source acceptance:** fresh read-only review Critical0/Important0/Minor0; PR #8452 exact head `13b2910cae65ebdfaf53c7efd886f33ed5f52e0f` had all13 required checks success; admin squash merged as main `a0d217d0769db2dab68bb8a8a452bfaea916fe9d`. Preserve the old v3 receipt and original drafts.
+- [x] **c-5e.6.1 / sanitized build:** from merged main a0, build secret-free ZIP at 91,658,636 bytes / 8,768 files, archive SHA-256 `678cafe1261291e0fc9606c8531b70fd64816284dd73f8d8c1fd50dc41f372ee`, mode0600; forbidden path audit0, 13 approved vendored profile-source files.
+- [x] **c-5e.6.2 / source upload:** upload once through the existing official dashboard session. HTTP200/custom/100 files; archive reference stored only in credential SSOT. No new agent created.
+- [ ] **c-5e.6.3 / redeploy existing agent:** verify agentId+externalId exact match and source/archive binding; update only release/archive env then use the existing fenced redeploy helper once. Do not create another VM/agent or retry an uncertain deployment.
+- [ ] **c-5e.6.4 / loaded source readback:** official deployment terminal + `/health` must report main a0; compare loaded `cloud_cycle.py` hash with main and confirm existing tenant, browser/secret boundary, and receipt-parent ownership.
+- [ ] **c-5e.7 / fresh occurrence:** use a new occurrence ID with absent receipt; retain v3 deferred receipt; read free credits and existing binding; dispatch once and verify official terminal/receipt.
 - [ ] **c-5e.8 / demo proof:** verify all refs point to current literal files; use the artifact handler to download and compare size/hash. Call it an unpublished draft until an official publish receipt exists.
 
 ### T22.1b.6 — Manager保存先を既存Runtime Postgresへ接続する
 
-旧順序=b.5のDashboard本人ログイン→REST復旧→公開。新順序=下記b.6とc-5のimage採用を並行→owned製品受入→T30配布、T23正式経路確認。理由は、現SupabaseデータAPI503、同regionの公式障害、候補DBimageにもtimezone依存が残る一方、既存Runtime PGはDDL可・対象6表未作成・Manager job0、Supabase enrollment/execution0、公開flag/cap無効を確認するため。b.5は元provider診断として残すが製品の進行条件から外す。進行中のimage配備と旧unknown fenceを中断/重複させない。現在主cursor=b.6-01、副cursor=c-5e.5。
+旧順序=b.5のDashboard本人ログイン→REST復旧→公開。新順序=下記b.6とc-5のimage採用を並行→owned製品受入→T30配布、T23正式経路確認。理由は、現SupabaseデータAPI503、同regionの公式障害、候補DBimageにもtimezone依存が残る一方、既存Runtime PGはDDL可・対象6表未作成・Manager job0、Supabase enrollment/execution0、公開flag/cap無効を確認するため。b.5は元provider診断として残すが製品の進行条件から外す。進行中のimage配備と旧unknown fenceを中断/重複させない。現在主cursor=b.6-01、副cursor=c-5e.6.3。
 
 **対象tree（新規は予定、既存componentを再利用する）:**
 
