@@ -65,8 +65,8 @@ class BacklogTest(unittest.TestCase):
         by_id={t['id']:t for t in tasks}
         self.assertEqual(by_id['H005']['status'],'skipped')
         self.assertNotIn('H005',by_id['H006']['depends'])
-        self.assertTrue(all(by_id[f'H0{i}']['status']=='done' for i in range(6,11)))
-        self.assertTrue(all(by_id[f'H0{i}'].get('original_verify') for i in range(6,11)))
+        self.assertTrue(all(by_id[f'H{i:03d}']['status']=='done' for i in range(6,11)))
+        self.assertTrue(all(by_id[f'H{i:03d}'].get('original_verify') for i in range(6,11)))
         metrics=json.loads((ROOT/'docs/research/heartsteps/PHASE03_PUBLIC_METRICS.json').read_text(encoding='utf8'))
         self.assertEqual(metrics['original_paper_replication'],'NOT_ACHIEVED')
         self.assertFalse(metrics['exploratory_associations']['causal_effect_estimated'])
