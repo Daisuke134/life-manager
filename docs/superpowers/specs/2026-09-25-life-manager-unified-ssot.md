@@ -22199,3 +22199,25 @@ Reporting remains last because it does not directly bring distribution or paid o
 | 7 | Replace `skills/report/daily-nl-report.mjs::llmReport`'s local proxy with Codex; preserve the truth-only report contract. | Last; support work remains behind money-producing distribution. |
 
 The internal all-pipelines Codex-only invariant is still incomplete: these three direct inference paths remain in source. The shared runtime and Capafy draft route are Codex-only, but that does not prove migration or production adoption of the remaining agents.
+
+### Capafy release adoption and natural-run cursor — 2026-10-21 06:35 UTC
+
+**Official fence resolution:** after the full `[05:05:09.844547Z, 06:15:09.844547Z]` provider window and 15-minute buffer elapsed, merged-main `capafy_distribute_fence_reconcile.py --resolve` returned `verified=true`, `effected=false`, `proof_kind=official_github_postiz_empty_after_legacy_manifest_gap`, `admission_state=claimed`, and `closed=true` for `capafy-distribute-daily:18e0730354954fe8-53052`. A fresh read-only `lm-loop status` reports `admission_effect_unknown.current=false`. Do not replay that occurrence.
+
+**Release/apply:** immutable release `20261021T153343-70c93940` was cut from main SHA `70c93940bc712261f3dd01aa9556b467b1481539` with `LOOPS_KEEP_RELEASES=1000` and `LOOPS_ACTIVATE_CURRENT=0`. Disk admission measured `308543488` bytes required against `13 GiB` free. The Capafy-only `lm-loop apply --loaded-idle-only` first skipped safely because a natural wake had entered; that wake ended before provider work with `resource_capacity_busy`, no fence, and no publish. A second target-only apply then succeeded with install event `f19171e28cbac02f441b125d`; `launchctl-safe` readback shows the Capafy plist loaded on SHA `70c93940bc712261f3dd01aa9556b467b1481539`, loaded-idle, and `effect_unknown.current=false`.
+
+The global `~/loops/current` selector remains on `20261021T150253-483ba43b` so the active, registry-unmanaged `ai.anicca.provision-browser.tiktok.hooklab` browser owner is not moved. Its exact `skills/browser/cdp_persistent_context.py` and `runtime/browser` paths are byte-unchanged between the old and candidate releases; the process remains running and untouched. `lm-loop doctor` still reports this one unmanaged label; no attempt was made to stop or adopt it. The candidate is applied only to Capafy.
+
+**Revenue status:** no natural Capafy distribution has yet run on SHA `70c93940`; the next scheduled wake is `06:49Z`. The newest seller evidence remains `05:07:40Z`: 7-day gross/net `$0`, paid/trial split unavailable, true MRR unknown. No new paid order or source attribution is claimed.
+
+**Ordered atomic TODO; current cursor = 1:**
+
+| # | Next action | Dependency and DONE evidence |
+|---|---|---|
+| 1 | Let the `06:49Z` natural Capafy wake run on `70c93940`; verify exact article URL, GitHub receipt, Postiz ID/URL, occurrence binding, and duplicate-zero. | Current cursor. DONE: `lm-loop` terminal and official provider receipts join the same occurrence with no duplicate. |
+| 2 | Refresh Capafy source-to-paid data, then choose the next bounded distribution experiment from measured conversion. | Depends on #1. Revenue DONE requires an official source-attributed paid order and observed economics; otherwise continue measurable distribution. |
+| 3 | Move `the402-worker-daemon.mjs::runLocalModel` from its Mistral/Qwen proxy to Codex while preserving paid `userPrompt → non-empty markdown` fulfillment. | After the Capafy revenue cycle; x402 contract tests pass and no alternate inference fallback remains. |
+| 4 | Move `polymarket-trade/pick.py` from vendored BlockRun `AIAnalyzer.consensus_analysis` to Codex while preserving decision fields/gates and historical evaluation. | Depends on #3; keep live adoption behind official receipt `pm-live-trade:18d61d6a6df63248-48979`. |
+| 5 | Move `daily-nl-report.mjs::llmReport` from the local proxy to Codex and preserve the truth-only output contract. | Last; completes the internal all-pipelines Codex-only invariant. |
+
+The Capafy source is merged and adopted; the revenue result remains unknown until the natural article/X publication receipt and a source-attributed paid order are read back. The all-pipelines Codex-only source invariant remains incomplete because the three direct inference callers above are still present.
