@@ -114,7 +114,8 @@ life-manager/
 └── docs/
     ├── evidence/maritime/
     │   ├── current-status-20261021.json                [本番/競技/配信のreadback、未確認はnull]
-    │   └── seo-baseline-20261021.json                 [sitewide GSC baselineとquery caveat]
+    │   ├── seo-baseline-20261021.json                 [sitewide GSC baselineとquery caveat]
+    │   └── stripe-life-manager-readback-20261021.json  [live prices/subscriptions、account invoice attribution caveat]
     ├── research/maritime/2026-10-20-source-map.md    [本計画の出典・模倣箇所]
     ├── superpowers/specs/2026-09-25-life-manager-unified-ssot.md
     ├── superpowers/plans/2026-10-20-maritime-week1-atomic-execution.md
@@ -458,9 +459,11 @@ life-manager/
 **Interfaces:** aggregate-only export。`{product_url,demo_url,release_sha,official_required_fields,user_counts,work_receipts,costs,limitations,submission_receipt}`。個人データなし。
 **Depends:** T01/T22。T25の豪華な完成動画/3人feedback/売上/7日継続は待たない。
 
+- [x] T23.0a `#competition-submissions`でLife Manager entryを一度共有。2026-10-21T06:44:12Z readbackで同内容entryは1件。permalink `https://keikixmaritime.slack.com/archives/C0C9PEL45JA/p1792559347988839`、posted_at=2026-10-21T05:09:07.988839Z。channel descriptionは必要formを置き換えないと明記。
+- [x] T23.0b 2026-10-21T06:44Zにofficial home/TermsとSlack announcementsを再確認したがform・Week 1 cutoff・rubricは未公表。contact@maritime.shへroute/deadline/demo fieldを一通問い合わせ、Gmail SENT/readback id=1a15d3141c56ee22。06:43Z時点でreplyなし。
 - [ ] T23.1 export test `packet_uses_measured_counts_and_excludes_private_users`を定義し、公式必須項目と実測項目だけをJSONへ出す。未測定はnull+理由。
 - [ ] T23.2 審査者が試せるURL、最小画面録画、Cloud実行receipt、現状の人数、制約を揃える。内部2–3分動画は推奨で、公式指定と混同しない。
-- [ ] T23.3 正式form/channelのduplicate submission状態を読み、確定したpayloadを一回提出する。未送信draftを提出済みと呼ばない。正式経路が不明ならその不足だけを保持し他taskを続ける。
+- [ ] T23.3 channel entryの重複投稿は行わない。organizer replyまたは公開formから正式な必須項目を確認したら、現entry shareとは別のrequired formだけを一回提出し、正式経路が不明な間はformal status=unconfirmedのまま維持する。
 - [ ] T23.4 confirmation画面/受信メール/受付IDを保存し、本文・提出時刻・release SHAをjoinする。UI timeout時はreadbackし再submitしない。これで初週提出を完了とする。
 
 ## Task T24: 既存ブログSEOと既存X用の初週配布を準備する（開発と並行）
@@ -551,7 +554,9 @@ life-manager/
 **Files:** Modify `lib/web-billing.js`/同test、`lib/billing.js`/同test、`server.js`、Manager UI。Create `lib/maritime-manager-billing.js`/同testとManager用billing migration（実装開始時に確定した入出力を同節へ反映する）。Reuse既存Stripe client/session/portal/署名検証/FinancialRecord。
 **Depends:** 無料pilotの提供/初週提出を先行する。価格・商品・支払実績の読取は独立して進められる。任意upgradeとして実装し、Calendar guardや無料pilotの条件を変えない。
 
-- [ ] **T31.1:** 既存Stripeの商品/価格/trial/paid invoice/refundを公式readbackする。現在額・課金対象・price IDの対応を記録し、Dais申告だけで売上0/MRRと確定しない。
+- [x] **T31.1a:** Exact credential-SSOT-matched live Stripe accountをread-onlyで照合。Anicca Life Managerのactive monthly pricesはUSD 29/20、Anicca CloudはUSD 30だが、各product priceにactive subscription=0、Life Manager active MRR=USD 0。Account-wide paid invoice historyは9件/USD 40.00だが、Life Managerへのproduct attributionは未確認。証拠→`docs/evidence/maritime/stripe-life-manager-readback-20261021.json`。
+- [ ] **T31.1b:** paid invoice line itemsをLife Manager product/priceへjoinし、refund/fee/settlementを公式readbackする。Account-wide paid invoice rowsをLife Manager売上へ付け替えない。Stripe Sigmaはaccountに未契約のため、direct API readで続ける。
+**T31.1 acceptance:** Stripe product/price/trial, paid invoices, refunds, fees, and settled cash are read back and attributable to Life Manager. Never infer MRR/net revenue from Dais's statement or account-wide totals alone.
 - [ ] **T31.2:** web-billing.jsの`readWebBillingUser`、customer保存、`requireActiveCalendar`、metadata、戻り先をManagerの差替箇所として固定する。既存Calendarのeligibilityを残し、共通Stripe session/portal組立てを再利用できる境界へ分ける。
 - [ ] **T31.3:** native Runtime PGにManager本人とStripe customer/subscriptionを結ぶ保存先、およびStripe event一回処理のfenceを定義する。一般lm_users/旧Stripe ledgerは移行しない。
 - [ ] **T31.4:** maritime-manager-billing.jsでverified Manager UIDのbilling read/customer一回保存を接続する。任意uid/customer/price入力・他人のcustomer・claim上書きを拒否する。

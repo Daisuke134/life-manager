@@ -1,0 +1,85 @@
+{
+  "captured_on": "2026-10-21",
+  "time_precision": "date_only",
+  "purpose": "Public short-form research for the AI monk creator economy case study.",
+  "discovery_queries": [
+    "AI monk wisdom",
+    "AI Buddhist monk advice"
+  ],
+  "discovery_source": "VidIQ YouTube search, ordered by viewCount, requested short videos; views and subscriber counts are snapshots returned by the discovery provider.",
+  "watch_source": "VidIQ short-form walkthroughs for the linked public videos; no source media files were downloaded or reuploaded.",
+  "results": [
+    {
+      "channel": "Tiny Monk Tales",
+      "video_id": "Je-lvASkWH8",
+      "url": "https://www.youtube.com/watch?v=Je-lvASkWH8",
+      "query": "AI monk wisdom",
+      "duration_seconds": 33,
+      "view_count": 2666173,
+      "channel_subscriber_count": 9190,
+      "published_at": "2026-06-10T05:34:06Z",
+      "ai_provenance": "not stated in sampled video description; do not classify as confirmed AI"
+    },
+    {
+      "channel": "미라클붓다 (Miracle Buddha)",
+      "video_id": "JlE7egVlMZs",
+      "url": "https://www.youtube.com/watch?v=JlE7egVlMZs",
+      "query": "AI monk wisdom",
+      "duration_seconds": 32,
+      "view_count": 51306,
+      "channel_subscriber_count": 358000,
+      "published_at": "2026-10-16T04:21:59Z",
+      "ai_provenance": "video description says visuals and sound use AI; script/story claimed original by creator"
+    },
+    {
+      "channel": "Buddha-Ed",
+      "video_id": "9L_NjaLXTmQ",
+      "url": "https://www.youtube.com/watch?v=9L_NjaLXTmQ",
+      "query": "AI monk wisdom",
+      "duration_seconds": 12,
+      "view_count": 24960,
+      "channel_subscriber_count": 1410,
+      "published_at": "2025-11-04T13:41:17Z",
+      "ai_provenance": "AI tag present; sampled description does not establish generation method"
+    },
+    {
+      "channel": "Zero Style Ai",
+      "video_id": "OVHmf-Ee21M",
+      "url": "https://www.youtube.com/watch?v=OVHmf-Ee21M",
+      "query": "AI monk wisdom",
+      "duration_seconds": 25,
+      "view_count": 20099,
+      "channel_subscriber_count": 837,
+      "published_at": "2025-08-08T12:15:31Z",
+      "ai_provenance": "video description explicitly calls it an AI-generated tale"
+    },
+    {
+      "channel": "Sprouht",
+      "video_id": "EZg0NK8UWeI",
+      "url": "https://www.youtube.com/watch?v=EZg0NK8UWeI",
+      "query": "AI Buddhist monk advice",
+      "duration_seconds": 57,
+      "view_count": 523348,
+      "channel_subscriber_count": 1310000,
+      "metric_source": "public YouTube page fetched by crwl on 2026-10-21",
+      "ai_provenance": "public title/description identify the interviewee as a real Buddhist monk; comparator, not an AI persona"
+    },
+    {
+      "channel": "Yang Mun",
+      "video_id": "Er2Ig4GM7z0",
+      "url": "https://www.youtube.com/shorts/Er2Ig4GM7z0",
+      "duration_seconds": 65,
+      "view_count": null,
+      "view_count_null_reason": "not exposed in the fetched public page used for this capture",
+      "channel_subscriber_count": null,
+      "channel_subscriber_count_null_reason": "not captured in the VidIQ search sample",
+      "ai_provenance": "AI character described by HeyGen customer story and Columbia News Service; Columbia reports a contradictory seller-side claim and the linked seller page now returns 404"
+    }
+  ],
+  "interpretation_limits": [
+    "Views and subscriber counts are reach measures, not sales or profit.",
+    "Metrics are not guaranteed to remain current.",
+    "The sample is six selected videos, not a census of AI monk channels.",
+    "The existence of a public offer does not establish paid orders, refunds, fees, or net income."
+  ]
+}

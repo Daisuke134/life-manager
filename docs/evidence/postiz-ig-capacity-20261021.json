@@ -1,0 +1,34 @@
+{
+  "captured_on": "2026-10-21",
+  "time_precision": "date_only",
+  "purpose": "Conditional capacity check before connecting Instagram @monkmujo to Postiz.",
+  "workspace": {
+    "name": "Anicca",
+    "source": "Postiz GET /public/v1/me",
+    "http_status": 200,
+    "api_key_user_null": true
+  },
+  "billing": {
+    "source_url": "https://platform.postiz.com/billing",
+    "current_plan": "Pro",
+    "channel_limit": 30,
+    "plan_label_readback": "Current Plan"
+  },
+  "published_plan_limits": {
+    "source_url": "https://postiz.com/pricing",
+    "pro_channels": 30,
+    "ultimate_channels": 100
+  },
+  "integrations": {
+    "source": "Postiz GET /public/v1/integrations",
+    "http_status": 200,
+    "total": 30,
+    "enabled": 30,
+    "disabled": 0,
+    "instagram": 9,
+    "target_handle_matches": 0
+  },
+  "decision": "No free channel slot; do not connect @monkmujo or change plans under the current no-extra-spend scope.",
+  "provider_mutation": false,
+  "browser_lease_released": true
+}

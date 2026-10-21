@@ -2,6 +2,8 @@
 
 公式指定形式はT01で確定する。下記は提出準備であり、公式必須条件を発明しない。
 
+2026-10-21 14:09 JSTにLife Managerのentryを`#competition-submissions`へ一度共有し、permalink `https://keikixmaritime.slack.com/archives/C0C9PEL45JA/p1792559347988839`をreadbackした。2026-10-21 15:44 JSTにもentryは1件だけと確認した。channel descriptionは「投稿は必要なformを置き換えない」と明記する。公開ページ・Termsとannouncementsにproject formがないため、`contact@maritime.sh`へWeek 1の正式提出経路・期限・必須demoを問い合わせた（Gmail SENT/readback `1a15d3141c56ee22`）。返信は06:43Z時点で未着。**entry shareは完了、formal submission receiptは未確認**。
+
 - [ ] 正式提出先、初週締切、timezone、必須field、再提出可否を`requirements.json`へ保存。
 - [ ] メール登録から一つの実業務を試せる公開URLを確認。
 - [ ] loaded main source SHA/配備ZIP archive SHA256とMaritime project usageを結合。
