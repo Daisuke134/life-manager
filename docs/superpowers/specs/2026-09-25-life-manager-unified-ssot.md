@@ -21629,9 +21629,36 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 
 **Distribution（開発と同じ優先度、友人待ちなし）:** Daisが家族・友人へのDMを担当する。初期獲得は既存`aniccaai.com/blog/manager`のSEO記事を主軸とし、既存X identityをPostizで確認できた場合だけbuild-in-public投稿を補助にする。既存Writer workflowを再利用し、複数destinationへの自動配布を無条件に起動しない。Life Managerを既存Instagram profileへ混在させず、新規Instagram/X accountも作らない。Instagramは初期配布から外す。Xは一つの既存profileから独自の確認済み情報を一投稿し、duplicate post/自動DM/サイト操作scriptを使わない。3人の返答・利用・feedbackを開発・配布素材・提出の開始条件にしない。SEO/Xの有用な実績は参考にするが、同一の自律Life Managerから1,000人獲得した因果事例は未確認なので、まず一記事・一投稿で検証する。公開URLと実証済みdemoが揃った後、search impression/click・X click・email verified・activation・work completion・returnをsource別に測る。Blog reader/follower/impression/signupだけを競技利用者にしない。自社LM獲得と利用者businessのCapafy訪問/注文は別funnel。参照例・限界・模倣箇所→[調査記録](../../research/maritime/2026-10-20-source-map.md)。
 
-**TODO順変更:** 旧配布順=DM+X/IG文案→X/IG/community投稿。新配布順=既存blogのSEO記事1本→既存Postiz Xから独自build-in-public投稿1件→source別の実利用計測→実績に応じて他媒体検討、IGは除外。理由=Daisの明示方針、既存blogにManagerカテゴリがあり、X公式規則が重複アカウント/投稿を制限するため。素材は友人の返事を待たず準備する。公開CTAと投稿は稼働製品と実証済みclaim後に行う。現在の製品cursor=b.6-28、独立配信cursor=T24.4b。進行中provider effectは変更しない。
+**TODO順変更:** 旧配布順=DM+X/IG文案→X/IG/community投稿。
+新配布順=既存blogのSEO記事1本→既存Postiz Xから独自build-in-public投稿1件→source別の実利用計測→実績に応じて他媒体検討、IGは除外。
+理由=Daisの明示方針、既存blogにManagerカテゴリがあり、X公式規則が重複アカウント/投稿を制限するため。
+素材は友人の返事を待たず準備する。
+公開CTAと投稿は稼働製品と実証済みclaim後に行う。
+現在cursorは製品=b.6-28、提出packet=T23.1（exporter/testのsourceあり、focused test未確認、packet未生成）、独立配信=T24.4b（記事draftのみ、CTA/公開は保留）。
+進行中provider effectは変更しない。
 
-**Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細file/signature/acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。現在cursor=T22.1b.6-28（本人のPKCE確認・明示retention consentから開始し、enrollment→実cycle→receipt/artifact→日報→stopを読む）。b.6-01〜27bは完了。life-call/workerはloaded SHA `27b594cd84f6e660f6ffbacabb21be8d7f25cb2c`でSUCCESS、email flag=1/worker capability3件/capacity3。GET `/maritime?lang=en`はHTTP 200。ただし外部利用者0、実PKCE/同意/実業務/日報/stopは未確認。最新docs-only main `483ba43b506c8266399334328258bc0c358d70c1`のdeploymentは06:02ZにSKIPPED。詳細readback→`docs/evidence/maritime/current-status-20261021.json`。
+**Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細file/signature/acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。
+製品cursor=T22.1e.2 / b.6-28（所有者本人のPKCE確認・明示retention consentから開始し、enrollment→実cycle→receipt/artifact→日報→stopを読む）。
+b.6-01〜27bは完了。
+life-call/workerの最終読取（2026-10-21 06:50:17Z）はloaded SHA `982875d62eaa03f8e924b990c4bc80f521d8dcce`、両deployment SUCCESS、email flag=1/worker capability3件/capacity3。
+GET `/maritime?lang=en`はHTTP 200。
+Runtime PGはidentity=1、enrollment/execution/participant/job/external work event/user=0。
+本人PKCE・同意・実業務・日報・停止は未確認。
+提出packet cursor=T23.1（builder/test fileはworktreeにあるがfocused test未確認、`submission.json`未生成）。
+T23.0a/bのentry共有と主催者問い合わせはreadback済み。
+公式project form・初週期限・Top-30 rubric・正式受付receiptは未確認。
+`origin/main`の最新読取SHAは`1ea73f18e7575084ac2967d62edbe05fa4831e6b`。
+2026-10-21 07:30Z時点でloaded SHAから`apps/life-manager/`のsource差分はないが、07:01Z以降の新しいRailway readbackはない。
+競技ページ/Termsは07:30Zに再crawlし、同じ1,000 distinct real users/first three targetと未公表の初週条件を確認。
+根拠→`docs/evidence/maritime/current-status-20261021.json`、`docs/distribution/maritime/week1/requirements.json`。
+
+**製品と収益/配信の現状（readbackを混同しない）:** Life Managerは利用者にgoal/budget入力を要求せず、Manager自身が仕事を選ぶ製品として説明している。
+しかしhosted work cycleは未完了で、外部利用者の実利用・外部work receiptは0。
+Stripe live readback（06:55:37Z）はLife Manager active subscription=0 / MRR USD 0、Anicca Cloudもsubscription=0 / MRR USD 0。
+account-wideの過去invoice 9件/USD 40はLife Managerへの帰属未確認。
+Daisが申告するlocal workflow収益とLife Manager自身の売上、hosted利用者のsettled business cash/netは別項目で、後二者の証拠は未取得。
+配信も未収益化: Manager獲得記事/CTAは未公開、候補URLは404、sitewide GSCはsettled 28日で0 click/7 impressions、Postiz readbackはgroups=0/integrations=0/posts=0、X identityも未確認。
+数値と限界→`docs/evidence/maritime/current-status-20261021.json`、`docs/evidence/maritime/stripe-life-manager-readback-20261021.json`、`docs/evidence/maritime/seo-baseline-20261021.json`。
 
 | ID | 一件の成果物 | 状態/依存 |
 |---|---|---|
@@ -21656,8 +21683,8 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | T19 | 既存CFO/Resendへの一日一通配信 | #8424/main0cで既存CFO/Resendの日次adapterを統合する。SMTP/Authのowned着信は別途確認済み。Manager日報の新period送信/受信箱/自然継続はT22で未確認。 |
 | T20 | 停止を次のjob/schedule/配信へ反映 | #8424/main0cへ停止API/同tenant lock/pause recoveryを統合する。paused永続化を先行し、receipt/過去結果を保持する。実環境の停止はT22で未確認。 |
 | T21 | 登録と業務完了を分けたsource別funnel | #8424/main0cへ署名first-touch/確認/起動/実仕事/受理日報/24h復帰を統合する。利用計測migrationはproduction公式success。内部cohortを設定し、登録/deferredを実仕事や外部利用者に数えない。新Managerの実計測は未確認。 |
-| T22 | main image・DB・一人分のCloud自然wake/receipt確認 | life-call/workerはloaded SHA `982875d62eaa03f8e924b990c4bc80f521d8dcce`でSUCCESS、email flag=1、Maritime worker capability3件、pilot cap=3。GET `/maritime?lang=en`はHTTP 200。2026-10-21 06:50Z Runtime PG readbackはidentity1、enrollment/execution/participant/job/external completed work各0。現在cursor=b.6-28。PKCE・明示同意・実業務receipt・日報・停止は未完。latest main `88de371`はdocs-only deploymentでSKIPPED。 |
-| T23 | 正式提出・一回submit・受付readback | accepted teamのentryを#competition-submissionsへ共有・readback済み。formal form/receipt・初週cutoff/rubricは未確認。投稿は必要formを置き換えないとchannel descriptionが明記。organizer inquiryはSENT、返信待ち。3人/売上/7日継続を提出条件にしない |
+| T22 | main image・DB・一人分のCloud自然wake/receipt確認 | life-call/workerはloaded SHA `982875d62eaa03f8e924b990c4bc80f521d8dcce`でSUCCESS、email flag=1、Maritime worker capability3件、pilot cap=3。GET `/maritime?lang=en`はHTTP 200。2026-10-21 06:50Z Runtime PG readbackはidentity1、enrollment/execution/participant/job/external completed work各0。現在cursor=b.6-28。PKCE・明示同意・実業務receipt・日報・停止は未完。07:01Z時点のmain `88de371` deploymentはdocs-only/SKIPPED。07:30Zのrepo readbackでは`origin/main=1ea73f1`かつdeployed SHA以降`apps/life-manager/`差分なし。07:01Z以降のproduction deployment/readbackは未確認。 |
+| T23 | 正式提出・一回submit・受付readback | accepted teamのentryを#competition-submissionsへ共有・readback済み。formal form/receipt・初週cutoff/rubricは未確認。投稿は必要formを置き換えないとchannel descriptionが明記。organizer inquiryはSENT、返信は06:43Z時点で未確認。T23.1 exporter/testはworktreeにあるがfocused testとpacket生成は未完。3人/売上/7日継続を提出条件にしない |
 | T24 | 既存blog SEO記事brief・既存X投稿・Dais DMの準備 | T24.1-3完了。一つの英語比較記事を内部draftとして作成し、CTA HOLD。GSCのsitewide baselineは0 clicks / 7 impressions（2026-10-18まで、記事別ではない）。Postizはgroups=0 / integrations=0。実cycle/CTAとX identity確認後に公開する。 |
 | T25 | 30秒動画/審査demoのshot list→実画面編集 | 台本保存済み、撮影/動画本体は未完。待ち依存なし |
 | T26 | 公開説明と無料email入口のdeploy/readback | T26.1-2完了。公開`/lm`はtask-specific goal/budgetを必須とせずTelegram任意と説明し、hostedはCalendar travel-time planning中心でproactive cloudは開発中と明記。route manifestの全hashも一致。無料Maritime pilot copyは有料Calendar trialと分離した。T26.3-4の既存site overlay反映・完成したsignup/stop flow readbackは未完。 |
