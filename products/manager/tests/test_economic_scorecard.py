@@ -91,6 +91,7 @@ class EconomicScorecardContract(unittest.TestCase):
     def test_experiment_without_independent_comparator_never_real_benefit(self):
         x=score_economic_episode(ep(experiment=EconomicExperiment(
             method="pre_post",preregistered=False,independent=False,
+            preregistration_url="https://example.org/test-only",
             effect_minor=1400,lower_minor=300,upper_minor=2100,harms_minor=None
         )))
         self.assertEqual(x.beneficiary_status,"NOT_MEASURED")
@@ -99,6 +100,7 @@ class EconomicScorecardContract(unittest.TestCase):
     def test_randomized_fixture_causal_result_stays_p0(self):
         x=score_economic_episode(ep(experiment=EconomicExperiment(
             method="randomized",preregistered=True,independent=True,
+            preregistration_url="https://example.org/fictional-preregistration",
             effect_minor=1400,lower_minor=1100,upper_minor=2000,harms_minor=100,
         )))
         self.assertEqual(x.beneficiary_status,"OFFLINE_CAUSAL_ESTIMATE_ONLY")
