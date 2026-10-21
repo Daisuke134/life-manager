@@ -24,7 +24,7 @@ jobs:
           git -C /tmp/concordia-upstream checkout --detach FETCH_HEAD
           test "$(git -C /tmp/concordia-upstream rev-parse HEAD)" = "7128586aa8c1073bfa09dcb3781cea21e1a49229"
       - name: Install only the pinned upstream package, no API credentials
-        run: python -m pip install --disable-pip-version-check /tmp/concordia-upstream
+        run: python -m pip install --disable-pip-version-check "PyYAML==6.0.2" /tmp/concordia-upstream
       - name: Run actual Concordia engine with an offline deterministic mock
         run: |
           mkdir -p "$GITHUB_WORKSPACE/products/manager/output/concordia-sandbox/simulation"
