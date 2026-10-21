@@ -666,3 +666,14 @@ def test_missing_stdout_stays_held(tmp_path):
     result = module.reconcile(state_root=runtime, stdout_log=stdout, database=database,
                              occurrence_id=f"{OWNER_ID}:{run_id}", resolve=False)
     assert result == {"state": "HELD", "reason": "stdout_log_unreadable"}
+
+
+@pytest.mark.parametrize("reason", ["resource_admission_interrupted", "resource_heartbeat_unavailable", "unrecognized"])
+def test_post_child_or_unknown_deferral_reason_stays_closed(reason):
+    module = load_module()
+    rows = deferred_events()
+    rows[1]["error_class"] = rows[1]["blocker"] = f"host_admission_deferred:{reason}"
+    occurrence = f"{OWNER_ID}:queued"
+    with pytest.raises(module.EvidenceError):
+        module._find_window(rows + start_terminal_events(
+            "claimant", terminal_occurrence_id=occurrence), occurrence)

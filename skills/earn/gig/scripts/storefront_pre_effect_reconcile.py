@@ -37,6 +37,14 @@ from runtime.loop.runtime_event import validate_runtime_event  # noqa: E402
 
 OWNER_ID = "hf-gig-storefront-direct"
 OCCURRENCE_PREFIX = f"{OWNER_ID}:"
+# Same pre-child reason allowlist shape as CrowdWorks reconcile_host_deferred.
+# disk_floor_low is checked before admission/entrypoint in lm_loop_run.
+# Interrupted/heartbeat deferrals can occur AFTER child start and are never skipped.
+PRE_CHILD_DEFERRALS = frozenset({
+    "host_admission_deferred:resource_capacity_busy",
+    "host_admission_deferred:resource_fifo_wait",
+    "host_admission_deferred:disk_floor_low",
+})
 RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
 
 # Catalog-read failures occur before the first provider listing mutation at
@@ -123,7 +131,8 @@ def _find_window(rows: list[dict], occurrence_id: str) -> tuple[dict, dict, str]
         # an error label alone (or a claimant carrying that label) must never be skipped.
         error = row.get("error_class")
         if isinstance(error, str) and error.startswith("host_admission_deferred:"):
-            if (row.get("run_id") != suffix or row.get("wake_id") != suffix
+            if (error not in PRE_CHILD_DEFERRALS
+                    or row.get("run_id") != suffix or row.get("wake_id") != suffix
                     or row.get("status") != "blocked" or row.get("exit_code") != 75
                     or row.get("failure_layer") != "admission"
                     or row.get("blocker") != error or row.get("retryable") is not True
