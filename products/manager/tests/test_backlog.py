@@ -56,9 +56,22 @@ class BacklogTest(unittest.TestCase):
             self.assertEqual(p.returncode, 1)
             self.assertIn('原文に見つからない',p.stdout)
 
-    def test_no_completed_real_world_impact_tasks(self):
+    def test_no_completed_field_interventions_at_phase06_research_checkpoint(self):
+        """F001 source/permission review is research, not an external intervention.
+
+        This fence must be revised only when future actual external impact
+        receipts have been independently verified; research F001, F002 and
+        read-only F003 can be done without falsely proving a real effect.
+        """
         tasks=json.loads((ROOT/'docs/roadmap/tasks.json').read_text(encoding='utf8'))
-        self.assertTrue(all(t['status']!='done' for t in tasks if t['section'].startswith('06.')))
+        by_id={t['id']:t for t in tasks}
+        for task_id in ('F004', 'F005', 'F006', 'F007', 'F008', 'F009'):
+            self.assertNotEqual(by_id[task_id]['status'],'done',task_id)
+        self.assertEqual(by_id['F004']['status'],'blocked')
+        self.assertEqual(by_id['F007']['status'],'blocked')
+        demo=json.loads((ROOT/'docs/verification/PHASE05_OFFLINE_DEMO_RESULTS.json').read_text(encoding='utf8'))
+        self.assertEqual(demo['field_beneficiary_improvements_verified'],0)
+        self.assertEqual(demo['scientific_gate1'],'UNMET')
 
     def test_waived_h005_preserves_unmet_causal_replication(self):
         tasks=json.loads((ROOT/'docs/roadmap/tasks.json').read_text(encoding='utf8'))

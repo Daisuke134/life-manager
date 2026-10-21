@@ -1,12 +1,25 @@
 # Manager — independent intervention research prototype
 
+## October 21 Phase06 transition research — F001 and U001
+
+**Two additional bounded research task acceptances:** `F001` (operator/rights/feasibility comparison) and `U001` (7 beneficiary mechanisms and causal comparisons) are verified by source-linked original analysis and a new fail-closed matrix contract. They **do not** represent F002 preregistration, F003 real external ledger readback, real effect authorization, P1/P2 or improvement of human welfare. The Manager common kernel still runs as offline P0 software.
+
+- [Deep research: simulations, Andon/Anthropic, enterprise benchmarks, marketplaces, causal science, real-world bridge](docs/research/2026-10-21_MANAGER_SIM_TO_REAL_ECOSYSTEM_JA.md)
+- [7 opportunities, source links, operators, costs/harms, NO_ACTION and independent outcome feasibility](docs/product/OPPORTUNITIES.md) and [machine-readable matrix](docs/product/opportunities.json)
+- [Authority/ownership constraints, read-only pathways, real-effect blockers](pilot/FEASIBILITY_AND_AUTHORITY.md)
+- [All remaining work by canonical phase IDs, acceptance and science gates](docs/roadmap/PHASE06_TO_COMPLETION_RESEARCH_JA.md)
+- [Test-first and hosted verification](https://github.com/Daisuke134/life-manager/actions/runs/39583923552)
+
+**Current canonical registry: 113 tasks; 61 done, 49 todo, 2 blocked, 1 scientifically skipped.** Exact source of truth: [tasks.json](docs/roadmap/tasks.json). All other backlog descriptions are explanatory only.
+
+
 ## October 21 Phase05 — offline shared intervention kernel
 
 **K001–K014: 14/14 verified engineering/fixture acceptances, NOT a live welfare intervention.** A domain-independent kernel now validates public-source metadata, typed observations, competing hypotheses, NO_ACTION options, separate forecast and causal scores, signed **fixture-only** scoped grants, durable SQLite idempotence/reconciliation, independently named fixture sensors, bounded net-effect evaluation, versioned rollback, and SHA256-linked audit records. Finance and environment use the exact same offline kernel; external writes, private accounts, donations, posting, actuators and private-person processing remain prohibited.
 
 [Final Phase05 Japanese verification](docs/verification/PHASE05_FINAL_OFFLINE_KERNEL_EVIDENCE_JA.md) · [Technical architecture + state boundaries](docs/architecture/PHASE05_KERNEL_IMPLEMENTATION.md) · [Two-domain deterministic demo](scripts/phase05_demo.py) · [reproducible aggregate result](docs/verification/PHASE05_OFFLINE_DEMO_RESULTS.json) · [234 tests + demo successful hosted CI](https://github.com/Daisuke134/life-manager/actions/runs/39578500491).
 
-**Canonical 113 tasks: 59 done / 51 todo / 2 blocked / 1 skipped.** Scientific Gate 1 is **UNMET**; no real-world Manager welfare impact has been measured. Product Gate 2 also requires U005.
+**Historical Phase05 checkpoint: 59 done / 51 todo / 2 blocked / 1 skipped (since superseded by the Phase06 transition checkpoint above).** Scientific Gate 1 is **UNMET**; no real-world Manager welfare impact has been measured. Product Gate 2 also requires U005.
 
 
 ## October 21 Phase04 final verification

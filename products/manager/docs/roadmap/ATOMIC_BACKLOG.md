@@ -2,7 +2,7 @@
 
 Status: 2026-10-21 JST. Manager-only task registry in `tasks.json`; the Life Manager project SSOT is unchanged.
 
-Total: 113 · Done: 59 · Todo: 51 · Blocked: 2 · Skipped: 1
+Total: 113 · Done: 61 · Todo: 49 · Blocked: 2 · Skipped: 1
 
 ✅ = verified task; ⬜ = not started; ⛔ = outside dependency; ⏭️ = scientific waiver (not success). A research task is not evidence of real-world impact.
 
@@ -106,7 +106,7 @@ Manager has a separate product identity, source scope and runtime, even when its
 
 | 状態・ID | 依存 | 理解する | 作る・更新する | 完了の確認 |
 |---|---|---|---|---|
-| ⬜ `F001` | K014 | 現実の行動には権限が必要と説明する | finance/environment各候補にoperator, rights, metric, feasibilityを記入 | 必須権限がなくてもpilot可能と主張しない |
+| ✅ `F001` | K014 | 現実の行動には権限が必要と説明する | finance/environment各候補にoperator, rights, metric, feasibilityを記入 | 必須権限がなくてもpilot可能と主張しない |
 | ⬜ `F002` | F001, L010 | 一次アウトカムと副作用を事前固定する | pilot/PREREGISTRATION.mdにunit/comparator/n/duration/outcome | 「成功した後に指標を選ぶ」ことを禁止 |
 | ⬜ `F003` | F002 | 仮想テストと現実証明を分離する | finance read-only adapterと初期fixtureを実装 | 公開送金/公開台帳を第三者でreadbackできる |
 | ⛔ `F004` | F003, K007 | 予算・運営者承諾を確認する | 実行主体の明示的な権限と厳密な限度を持つ | 権限/資金/第三者事前同意が揃うまではblocked **外部条件:** 資金の管理主体、明示承認、受益と評価の公開性が必要 |
@@ -127,7 +127,7 @@ Manager has a separate product identity, source scope and runtime, even when its
 
 | 状態・ID | 依存 | 理解する | 作る・更新する | 完了の確認 |
 |---|---|---|---|---|
-| ⬜ `U001` | P002 | 人の便益と操作結果を混同しない | docs/product/OPPORTUNITIES.mdに公開観測と実世界の結果を備える3候補の比較行列を作る | 候補ごとに受益者・苦しみの機構・公開データ・操作権限・比較方法を記載 |
+| ✅ `U001` | P002 | 人の便益と操作結果を混同しない | docs/product/OPPORTUNITIES.mdに公開観測と実世界の結果を備える3候補の比較行列を作る | 候補ごとに受益者・苦しみの機構・公開データ・操作権限・比較方法を記載 |
 | ⬜ `U002` | U001 | 顧客と最終受益者を分ける | 最初の領域の運営者・受益者・支援者それぞれの課題をインタビュー記録で整理 | 異なる立場の5件以上の同意ある面談と、実際に必要とする結果を記録 **外部条件:** 面談相手の承諾。回答は非公開の生データではなく必要最小限の匿名メモ |
 | ⬜ `U003` | U002 | 証明可能な最小単位の選び方 | docs/product/FIRST_WEDGE.mdに最初の資金支援か環境改善かを選定する | 実行主体・測定可能な結果・費用上限・代替案と断念理由を記載 **外部条件:** オペレーターの協力が得られない場合は候補変更 |
 | ⬜ `U004` | U003, F002 | アウトカム事前定義と検出力 | pilot/FIRST_STUDY.mdで対象数・比較単位・期間・主要アウトカム・害・中止基準を固定 | 実行前に設定をハッシュ固定し、事後に成功定義を差し替えられない **外部条件:** 独立した実験実施協力・同意 |
