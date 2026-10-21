@@ -1,0 +1,108 @@
+{
+  "observed_at": "2026-10-21T03:54:40Z",
+  "owner_id": "codex-money-printer",
+  "phase": "main_deployment_adoption_readback",
+  "source_main_sha": "76d36e33979aa6e4b8924db6405fa8031b169782",
+  "source_change": {
+    "pull_request": 8469,
+    "title": "fix(maritime): make Railway npm ci reproducible",
+    "app_npmrc": "legacy-peer-deps=true",
+    "package_lock_blob_sha": "9b994de0daba2eac126f74c84981c9ed3a78418c",
+    "package_lock_changed": false
+  },
+  "railway": {
+    "project": "Anicca",
+    "project_id": "f9c524cb-ba4a-43bb-9639-ff736afd9ec1",
+    "environment": "production",
+    "environment_id": "039eb0fd-b017-458f-947d-f3f55a0b3c04",
+    "life_call": {
+      "service_id": "ca978c74-639a-4fa1-af22-9cdd53c3f615",
+      "deployment_id": "1fd0ee51-1214-429c-bee8-2e913cd51eab",
+      "deployment_status": "SUCCESS",
+      "loaded_sha": "76d36e33979aa6e4b8924db6405fa8031b169782",
+      "manager_email_enabled": "0",
+      "health": {
+        "url": "https://life-call-production.up.railway.app/health",
+        "http_status": 200,
+        "build_tag": "76d36e33979aa6e4b8924db6405fa8031b169782"
+      },
+      "manager_route": {
+        "url": "https://life-call-production.up.railway.app/maritime",
+        "body": {
+          "error": "manager_unavailable"
+        }
+      }
+    },
+    "money_printer_worker": {
+      "service_id": "7568c101-558a-4704-9956-dd523c5bb3d4",
+      "deployment_id": "c19340af-6832-497a-86bf-793bd12a7623",
+      "deployment_status": "SUCCESS",
+      "loaded_sha": "76d36e33979aa6e4b8924db6405fa8031b169782",
+      "manager_email_enabled": "0",
+      "capabilities": [
+        "money-printer.scout",
+        "report.financial.telegram",
+        "agent-economy.start"
+      ],
+      "manager_capabilities": []
+    }
+  },
+  "database_last_readback": {
+    "source": "docs/evidence/maritime/runtime-pg-production-role-preflight.json",
+    "readback_at": "2026-10-21T02:49Z",
+    "migration_id": "20261021090000_maritime_manager_runtime_state.sql",
+    "migration_sha256": "5016c67facbfe3b40a92ee4fefdf0b1e9a130047718329caac106823a40b22a0",
+    "history_total": 7,
+    "target_history_count": 1,
+    "manager_table_count": 6,
+    "manager_rows": 0,
+    "rechecked_after_03_36_deploy": false
+  },
+  "public_readbacks": {
+    "lm_page": {
+      "url": "https://aniccaai.com/lm",
+      "cloud_description": "Hosted Calendar assistant; broader proactive agent described as still in development",
+      "copy_conflict": "Set your goals and delegated boundaries"
+    },
+    "manager_blog_category": {
+      "url": "https://aniccaai.com/blog/manager",
+      "exists": true,
+      "status": "research articles are published; no campaign article with a live Manager signup CTA confirmed"
+    }
+  },
+  "competition": {
+    "application": "accepted per previously read acceptance email",
+    "project_submission": "not_submitted",
+    "first_week_deadline_or_form": "not published in current official home/Terms readback",
+    "verified_external_manager_users_last_database_readback": 0,
+    "latest_email_readback": {
+      "checked_at": "2026-10-21T04:03:27Z",
+      "competition_instruction_change": false,
+      "maritime_account_session": "unconfirmed",
+      "verification_email_consumed": false
+    }
+  },
+  "distribution": {
+    "seo_case_research": "recorded in docs/research/maritime/2026-10-20-source-map.md",
+    "life_manager_campaign_article": "not published",
+    "maritime_x_post_receipt": "none recorded",
+    "new_instagram": "not in initial plan",
+    "cross_product_accounts": "not in initial plan"
+  },
+  "external_effects_this_readback": {
+    "railway_configuration_changed": false,
+    "database_changed": false,
+    "email_sent": false,
+    "social_post_published": false,
+    "competition_submission_sent": false
+  },
+  "additional_runtime_readbacks": [
+    {
+      "observed_at": "2026-10-21T04:03:27Z",
+      "service": "money-printer-worker",
+      "field": "MARITIME_PILOT_MAX_USERS",
+      "value": "3",
+      "effect": "read_only_no_state_change"
+    }
+  ]
+}

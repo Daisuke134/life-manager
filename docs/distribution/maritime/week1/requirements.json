@@ -1,5 +1,5 @@
 {
-  "observed_at": "2026-10-21T02:45:00Z",
+  "observed_at": "2026-10-21T04:03:27Z",
   "program": "Keiki x Maritime The First 1000",
   "official_start_date": "2026-10-20",
   "competition_deadline": "2026-12-01T23:59:00-08:00",
@@ -58,7 +58,7 @@
     "latest_observation": "Refreshed 2026-10-21: no newer week-1 deadline or required project form was visible; announcements page remained loading, so its current posts were not fully read. Submission channel caveat remains."
   },
   "submission_status": "not_submitted",
-  "mail_checked_at": "2026-10-21T01:26:02Z",
+  "mail_checked_at": "2026-10-21T04:03:27Z",
   "official_instruction_email_unchanged": true,
   "participant_access": {
     "source_subject": "You're in! Keiki x Maritime",
@@ -74,10 +74,26 @@
     "maritime_discount_duration_months": 2,
     "maritime_subscription_activated": false,
     "maritime_card_required": true,
-    "link_authentication": "pending user action; connector withholds OTP"
+    "link_authentication": "pending user action; connector withholds OTP",
+    "recent_email_observation": {
+      "checked_at": "2026-10-21T04:03:27Z",
+      "messages": [
+        {
+          "subject": "Welcome to Maritime",
+          "received_at": "2026-10-20T14:53:34Z",
+          "classification": "transactional welcome; no competition rules"
+        },
+        {
+          "subject": "Verify your Maritime email",
+          "received_at": "2026-10-20T12:37:52Z",
+          "classification": "verification email; body/link/code not opened or used"
+        }
+      ],
+      "live_account_session": "unconfirmed"
+    }
   },
   "last_live_refresh": {
-    "observed_at": "2026-10-21T02:45:00Z",
+    "observed_at": "2026-10-21T03:54:40Z",
     "source_urls": [
       "https://competition.maritime.sh/",
       "https://competition.maritime.sh/terms"
@@ -87,9 +103,24 @@
     "award": "up to USD20000 credit per winning project; not guaranteed to all winners or per teammate",
     "travel": "three days in San Francisco; sponsored flights limited to people in the United States; international arrangement unpublished",
     "week1_deadline_time": null,
-    "week1_deadline_reason": "The official page and terms were refreshed at 2026-10-21T02:45Z and publish no week-1 project submission cutoff or required project form. Kickoff email and community observation remain checked_at 2026-10-21T00:17Z; no newer announcement body was confirmed there.",
+    "week1_deadline_reason": "2026-10-21T03:54Z時点でcompetition.maritime.shと/termsを直接crawl。6週間の共通期間と最終期限は掲載されているが、week-1の正確な日時、project submission form、Top 30の採点/最低利用者数は掲載されていない。Kickoff emailの最後の読取(01:26Z)ではweek-1終わりまでに製品を作り、実利用者はbonus、Top 30が次週へ進むと記録。communityの最後の本文読取(00:17Z)では#competition-submissions投稿は正式formを代替しない。",
     "project_submission_status": "not_submitted",
-    "refresh_scope": "Official website and terms only; Gmail/community last readback timestamps are retained separately."
+    "refresh_scope": "Official competition home and Terms were directly crawled this turn. Gmail/community readback timestamps remain unchanged and are separately recorded."
   },
-  "official_instruction_email_unchanged_reason": "The 2026-10-21T01:26Z Gmail search for the Keiki sender after 2026-10-19 returned only the kickoff email; no later competition instruction, exact week-one deadline, or project submission route was found."
+  "official_instruction_email_unchanged_reason": "A fresh Gmail search after 2026-10-20 for Maritime/Keiki sender domains returned only transactional messages: Welcome to Maritime (2026-10-20T14:53:34Z) and Verify your Maritime email (2026-10-20T12:37:52Z). The Welcome body contains only a general welcome and no competition instructions. The verification email body/link/code was not opened or used. No new competition cutoff, scoring, or project form was found.",
+  "last_official_sources": {
+    "observed_at": "2026-10-21T03:54:40Z",
+    "urls": [
+      "https://competition.maritime.sh/",
+      "https://competition.maritime.sh/terms"
+    ],
+    "verified": {
+      "program_window": "2026-10-20 through 2026-12-01 23:59 America/Los_Angeles",
+      "target": "1,000 distinct real users with real usage",
+      "winners": "first three projects to reach the target, subject to verification",
+      "award": "up to USD 20,000 in LLM credits per winning project; three-day San Francisco trip",
+      "travel": "sponsored flights limited to people in the United States; international arrangement unpublished",
+      "week1_cutoff_or_submission_form": null
+    }
+  }
 }
