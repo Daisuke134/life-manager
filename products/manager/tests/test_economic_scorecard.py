@@ -76,6 +76,7 @@ class EconomicScorecardContract(unittest.TestCase):
             out=score_economic_episode(episode)
             self.assertEqual(out.economic_status,status)
             self.assertIsNone(out.signed_net_contribution_minor)
+            self.assertFalse(out.autonomy_claim_eligible)
 
     def test_human_rescues_are_disclosed_and_strict_autonomy_fails(self):
         out=score_economic_episode(ep(human_rescue_seconds=45))
@@ -107,6 +108,31 @@ class EconomicScorecardContract(unittest.TestCase):
         self.assertEqual(x.real_world_proof_level,"P0")
         self.assertEqual(x.net_welfare_effect_minor,800)
         self.assertEqual(x.net_welfare_lower_minor,500)
+
+    def test_bad_outcomes_and_uncertain_interval_are_explicit_even_offline(self):
+        cases=(
+            (300,-600,800,"OFFLINE_NEGATIVE_NET_EFFECT"),
+            (900,100,1400,"OFFLINE_UNCERTAIN_NET_EFFECT"),
+        )
+        for effect,low,high,status in cases:
+            e=EconomicExperiment(
+                method="randomized",preregistered=True,independent=True,
+                preregistration_url="https://example.org/fictional-preregistration",
+                effect_minor=effect,lower_minor=low,
+                upper_minor=high,harms_minor=100,
+            )
+            out=score_economic_episode(ep(experiment=e))
+            self.assertEqual(out.beneficiary_status,status)
+            self.assertEqual(out.real_world_proof_level,"P0")
+
+    def test_cost_coverage_cannot_be_mutated_after_validation(self):
+        raw={k:0 for k in COST_CATEGORIES}
+        raw["compute"]=20
+        item=CostCoverage(raw)
+        raw["compute"]=0
+        self.assertEqual(item.amounts_minor["compute"],20)
+        with self.assertRaises(TypeError):
+            item.amounts_minor["compute"]=0
 
     def test_reject_invalid_units_identifiers_and_costs(self):
         with self.assertRaises(ValueError):
