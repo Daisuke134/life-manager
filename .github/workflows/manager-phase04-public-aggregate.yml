@@ -26,6 +26,35 @@ jobs:
         run: python -m unittest tests/test_phase04_bike_sharing.py -v
       - name: Pinned public real aggregate holdout (NO SocSci210 participants)
         run: python scripts/phase04_bike_sharing.py --output output/phase04-public-aggregate
+      - name: Cross-check against official UCI archive when reachable
+        run: |
+          python - <<'PY'
+          import io, json, zipfile
+          from pathlib import Path
+          from urllib.request import Request, urlopen
+          from manager_core.phase04_bike_sharing import git_blob_sha, SOURCE_GIT_BLOB_SHA1
+          url='https://archive.ics.uci.edu/static/public/275/bike+sharing+dataset.zip'
+          outcome={'official_archive_url':url,'source':'UCI original','status':'NOT_RETRIEVED'}
+          try:
+              with urlopen(Request(url,headers={'User-Agent':'Manager-Research-Aggregate-Only/1.0'}), timeout=20) as resp:
+                  data=resp.read(400000)
+              with zipfile.ZipFile(io.BytesIO(data)) as archive:
+                  names=[n for n in archive.namelist() if n.endswith('/day.csv') or n=='day.csv']
+                  if len(names)!=1:
+                      raise ValueError('official zip does not have unique day.csv')
+                  orig=archive.read(names[0])
+              sha=git_blob_sha(orig)
+              outcome['status']='BYTE_IDENTICAL' if sha==SOURCE_GIT_BLOB_SHA1 else 'MISMATCH'
+              outcome['official_day_csv_git_blob_sha1']=sha
+              outcome['official_file_bytes']=len(orig)
+              if outcome['status']=='MISMATCH':
+                  raise ValueError('mirror source differs from official archive')
+          except (OSError, TimeoutError, zipfile.BadZipFile) as exc:
+              outcome['status']='OFFICIAL_ARCHIVE_UNAVAILABLE'
+              outcome['failure_class']=type(exc).__name__
+          Path('output/phase04-public-aggregate/official_archive_crosscheck.json').write_text(json.dumps(outcome,indent=2)+'\n')
+          print(json.dumps(outcome,sort_keys=True))
+          PY
       - name: Enforce provenance, missing causal proof, and no raw source rows
         run: |
           python - <<'PY'
@@ -33,7 +62,7 @@ jobs:
           from pathlib import Path
           root = Path('output/phase04-public-aggregate')
           files = list(root.glob('*'))
-          assert len(files) == 1 and files[0].name == 'public_bikeshare_aggregate.json'
+          assert {x.name for x in files} == {'public_bikeshare_aggregate.json', 'official_archive_crosscheck.json'}
           report = json.loads(files[0].read_text())
           assert report['source_snapshot_verified'] is True
           assert (report['train_days'], report['heldout_days']) == (365,366)
