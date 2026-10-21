@@ -1,7 +1,7 @@
 {
-  "date": "2026-10-20",
-  "title": "Behavior Simulation & Intervention Landscape — Entity-first Chaos Map",
-  "method": "Primary official website or original code per listed organization. A product description is vendor-reported, not independent outcome validation. Not exhaustive and no company ranking. Categories intentionally overlap.",
+  "date": "2026-10-21",
+  "title": "Behavior Simulation, Autonomous Business & Intervention — Entity-first Chaos Map",
+  "method": "Primary official company/paper/code per organization; new economic evaluation cluster 2026-10-21. Company self-reports, simulated balance, actual business receipts and independently measured economic welfare remain distinct; categories overlap.",
   "manager_status": "proposal; no verified live field interventions or beneficiary improvements",
   "clusters": [
     {
@@ -194,6 +194,50 @@
           "entity_type": "nonprofit",
           "activity": "Food Rescue Hero: volunteer-powered surplus food logistics",
           "official_source": "https://412foodrescue.org/food-rescue-hero/"
+        }
+      ]
+    },
+    {
+      "category": "Autonomous business & economic evaluation",
+      "organizations": [
+        {
+          "entity_name": "Andon Labs",
+          "entity_type": "company",
+          "activity": "Vending-Bench 2 long-horizon simulated business operations; Project Vend, Pion and actual AI-managed shops for real-market capability tests",
+          "official_source": "https://andonlabs.com/evals/vending-bench-2",
+          "related_sources": [
+            "https://andonlabs.com/blog/why-we-built-pion",
+            "https://www.anthropic.com/research/project-vend-2"
+          ],
+          "evidence_status": "Simulated cash balance and field commercial evidence are distinct; Pion research preview, no universal real net-profit validation"
+        },
+        {
+          "entity_name": "Anthropic",
+          "entity_type": "ai_research_company",
+          "activity": "Project Vend with Andon: AI retail operator observed in physical office setting, including actual inventory and mistakes",
+          "official_source": "https://www.anthropic.com/research/project-vend-2",
+          "evidence_status": "Actual company-operated pilot, includes human support and operational scaffolding; not universal no-human RCT"
+        },
+        {
+          "entity_name": "OpenAI",
+          "entity_type": "ai_research_company",
+          "activity": "SWE-Lancer real historical paid-task-value benchmark, GDPval professional deliverable expert evaluation; open evaluation framework",
+          "official_source": "https://openai.com/index/swe-lancer/",
+          "related_sources": [
+            "https://openai.com/index/gdpval/",
+            "https://github.com/openai/frontier-evals"
+          ],
+          "evidence_status": "Historical contract values and graded deliverables, not new payouts to tested model or field net welfare"
+        },
+        {
+          "entity_name": "METR",
+          "entity_type": "research_nonprofit",
+          "activity": "Long-horizon agent task-reliability measurement; randomized study of real developer productivity and challenges",
+          "official_source": "https://metr.org/time-horizons/",
+          "related_sources": [
+            "https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/"
+          ],
+          "evidence_status": "Task horizon not business revenue; time-limited RCT productivity context does not directly prove wealth"
         }
       ]
     }
