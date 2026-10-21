@@ -5,19 +5,13 @@
 # supervisor restarts this script whenever it exits, so Anicca stands on its own — no human runs it
 # by hand. On every (re)start it:
 #   1. SELF-UPDATES: git pull the mother repo so this body always runs the latest motherboard.
-#   2. ensures its own brain is up — the repository x402 adapter (Base/EVM self-pay, or a
-#      per-instance repository-owned compute proxy).
+#   2. selects the local Codex brain through the shared agent-runner.
 #   3. ensures its telemetry poster is up (reports to the dashboard).
 #   4. exec's the ReAct loop in the FOREGROUND — when the loop exits, this script exits, and the
 #      supervisor brings the whole body back (freshly updated).
 #
-# ANICCA_INSTANCE selects the brain+telemetry backend (§ENGINE-PARITY-FRANKLIN 2026-07-05, THINK
-# routing fixed by franklin-loop-revival REQ-004 2026-07-08): default (unset or legacy instance ID
-# 'clawrouter') = the repository EVM/Base compute adapter + telemetry-poster.mjs path. 'franklin' = Franklin's OWN
-# Solana wallet (~/.blockrun/.solana-session, resolved via resolve-identity.mjs, never touched
-# here) for balance/tier purposes, while THINK uses the same repository compute adapter with a
-# separate per-instance EVM payer wallet and port + the ed25519
-# telemetry-post-franklin.mjs poster (one-shot script, looped here since it has no built-in interval).
+# ANICCA_INSTANCE still selects the wallet identity and telemetry path. Every local model decision
+# goes through the shared Codex agent-runner; a legacy non-Codex brain setting fails before startup.
 #
 # The loop itself is already crash-resilient (while-true + per-wake try/catch); this wrapper adds
 # OS-level persistence (survives reboots/logout) and keeps every Anicca in sync with the mother.
@@ -27,6 +21,12 @@ REPO="${ANICCA_REPO:-${LIFE_MANAGER_REPO:-$(git -C "$(dirname "${BASH_SOURCE[0]}
 [ -n "$REPO" ] || { echo "Life Manager repository could not be resolved" >&2; exit 2; }
 export ANICCA_HOME="${ANICCA_HOME:-$HOME/.anicca}"
 INSTANCE="${ANICCA_INSTANCE:-clawrouter}"
+ANICCA_BRAIN="${ANICCA_BRAIN:-codex}"
+if [ "$ANICCA_BRAIN" != "codex" ]; then
+  printf 'anicca-daemon: Codex-only local brain required; refusing brain=%s\n' "$ANICCA_BRAIN" >&2
+  exit 64
+fi
+export ANICCA_BRAIN
 
 # Exact Franklin-family classifier shared by port, brain, telemetry and identity routing.
 is_franklin_instance() {
@@ -40,16 +40,6 @@ is_franklin_instance() {
   esac
 }
 
-# Every instance owns a distinct repository-proxy port so one instance can never borrow another
-# instance's EVM payer wallet. Generic self-host uses :18402; Franklin-family ports start at :18403.
-if is_franklin_instance "$INSTANCE"; then
-  FRANKLIN_SUFFIX="${INSTANCE#franklin}"
-  FRANKLIN_INDEX="${FRANKLIN_SUFFIX:-1}"
-  PORT="${COMPUTE_PROXY_PORT:-$((18402 + 10#$FRANKLIN_INDEX))}"
-else
-  PORT="${COMPUTE_PROXY_PORT:-18402}"
-fi
-BRAIN_PID=""
 LOOP_PID=""
 POSTER_PID=""
 
@@ -60,10 +50,8 @@ stop_owned_processes() {
   if [ -n "$POSTER_PID" ] && jobs -pr | grep -qx "$POSTER_PID"; then
     kill -TERM "$POSTER_PID" 2>/dev/null || true
   fi
-  [ -n "$BRAIN_PID" ] && kill -TERM "$BRAIN_PID" 2>/dev/null || true
   [ -n "$LOOP_PID" ] && wait "$LOOP_PID" 2>/dev/null || true
   [ -n "$POSTER_PID" ] && wait "$POSTER_PID" 2>/dev/null || true
-  [ -n "$BRAIN_PID" ] && wait "$BRAIN_PID" 2>/dev/null || true
 }
 trap 'stop_owned_processes; exit 143' TERM INT
 trap 'stop_owned_processes' EXIT
@@ -84,35 +72,7 @@ export EARN_LEDGER="${EARN_LEDGER:-$EARN_STATE_ROOT/earn-ledger.jsonl}"
 export ANICCA_STATE_DIR="${ANICCA_STATE_DIR:-$ANICCA_HOME/state}"
 export ANICCA_REPO="$REPO"
 mkdir -p "$EARN_STATE_ROOT"
-# 2. brain: every instance uses the same repository-owned OpenAI-compatible x402 adapter. It creates
-# or preserves that instance's own EVM identity under ANICCA_HOME and never reads another runtime's
-# checkout, environment, wallet, or proxy process.
-ensure_brain() {
-    env -u ANICCA_EVM_PRIVATE_KEY -u BLOCKRUN_WALLET_KEY -u PKVAR -u BASE_CHAIN_WALLET_KEY \
-      ANICCA_HOME="$ANICCA_HOME" COMPUTE_PROXY_PORT="$PORT" \
-      "$REPO/runtime/compute-proxy/start-local.sh" --proxy-only \
-      >&2 &
-    BRAIN_PID="$!"
-    for _ in $(seq 1 30); do curl -sf "http://127.0.0.1:$PORT/v1/models" >/dev/null 2>&1 && break; sleep 0.5; done
-    if ! curl -sf "http://127.0.0.1:$PORT/v1/models" >/dev/null 2>&1; then
-      kill -TERM "$BRAIN_PID" 2>/dev/null || true
-      wait "$BRAIN_PID" 2>/dev/null || true
-      BRAIN_PID=""
-      return 1
-    fi
-    # start-local exits immediately when another owner already has a ready endpoint.
-    # Do not retain that finished PID: it could be reused before this daemon exits.
-    if ! kill -0 "$BRAIN_PID" 2>/dev/null; then
-      wait "$BRAIN_PID" 2>/dev/null || true
-      BRAIN_PID=""
-    fi
-}
-if ! curl -sf "http://127.0.0.1:$PORT/v1/models" >/dev/null 2>&1; then
-  log "starting repository compute proxy for $INSTANCE on :$PORT"
-  ensure_brain || { log "repository compute proxy failed readiness on :$PORT"; exit 78; }
-fi
-
-# 3. telemetry poster: one instance (kill any stale one first so the dashboard never doubles) -----
+# 2. telemetry poster: one instance (kill any stale one first so the dashboard never doubles) -----
 if is_franklin_instance "$INSTANCE"; then
   # telemetry-post-franklin.mjs is a ONE-SHOT script (ed25519 signer over Franklin's own Solana key,
   # was previously appended to sol-trade/run.sh) — no built-in setInterval like telemetry-poster.mjs,

@@ -5,7 +5,7 @@ PromptBase rejects a submission whose 4 example outputs are identical
 ("Some of your example outputs are the same", live 2026-09-29 reels-hook-lab),
 so repeating the one verified demonstration can never pass. This keeps that
 verified pair as example 1 and actually runs the skill's SKILL.md through
-Claude on 3 new buyer inputs for examples 2-4. Output is cached in
+Codex on 3 new buyer inputs for examples 2-4. Output is cached in
 state/promptbase-examples/<slug>.json (releases are read-only) and never
 regenerated once present.
 
@@ -28,7 +28,7 @@ REPO_ROOT = Path(__file__).resolve().parents[4]
 MODEL_RUNNER = REPO_ROOT / "skills" / "writer-agent" / "runtime" / "model-runner.sh"
 
 
-def _claude(prompt: str, system: str = "You are a helpful assistant. Answer in natural, complete English.") -> str:
+def _codex(prompt: str, system: str = "You are a helpful assistant. Answer in natural, complete English.") -> str:
     runner = Path(os.environ.get("ARTICLE_MODEL_RUNNER", str(MODEL_RUNNER)))
     combined_prompt = (
         "## SYSTEM INSTRUCTIONS\n"
@@ -55,7 +55,7 @@ def _claude(prompt: str, system: str = "You are a helpful assistant. Answer in n
             schema.flush()
             env = os.environ.copy()
             env.update({
-                "ARTICLE_PROVIDER": "auto",
+                "ARTICLE_PROVIDER": "codex",
                 "ARTICLE_CODEX_OUTPUT_SCHEMA": schema.name,
                 "ARTICLE_RUN_ID": env.get("ARTICLE_RUN_ID", "promptbase-gen-examples"),
                 "ARTICLE_MODEL_LOG": env.get("ARTICLE_MODEL_LOG", "/tmp/promptbase-model-runner.log"),
@@ -65,7 +65,7 @@ def _claude(prompt: str, system: str = "You are a helpful assistant. Answer in n
                 capture_output=True, text=True, timeout=600, check=True, cwd="/tmp", env=env,
             ).stdout.strip()
     if not out:
-        raise RuntimeError("claude returned empty output")
+        raise RuntimeError("Codex returned empty output")
     try:
         decoded = json.loads(out)
     except json.JSONDecodeError:
@@ -91,7 +91,7 @@ def generate(catalog_dir: Path) -> list[dict]:
     skill_md = (catalog_dir / "SKILL.md").read_text(encoding="utf-8")
     first_in, first_out = _split_example(
         (catalog_dir / "evidence" / "verified-demonstration.md").read_text(encoding="utf-8"))
-    raw = _claude(
+    raw = _codex(
         "Here is a skill a buyer uses:\n\n" + skill_md +
         "\n\nOne real buyer input was:\n" + first_in +
         "\n\nWrite 3 NEW realistic buyer inputs for this skill, each for a clearly different "
@@ -101,7 +101,7 @@ def generate(catalog_dir: Path) -> list[dict]:
     examples = [{"input": _clean(first_in), "output": first_out.strip()}]
     for text in inputs[:3]:
         text = _clean(str(text))
-        output = _claude(text, system=skill_md)
+        output = _codex(text, system=skill_md)
         examples.append({"input": text, "output": output})
     if len({e["output"] for e in examples}) != 4:
         raise RuntimeError("examples are not 4 distinct outputs")

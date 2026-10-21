@@ -57,8 +57,7 @@ const DEFAULTS = {
   LOOP_DETECT_WINDOW:   3,
   BALANCE_CACHE_TTL_S:  300,
   LEAN_TIER_THRESHOLD:  1.00,
-  ANICCA_BRAIN:         'proxy',
-  ANICCA_BRAIN_MODEL:   'claude-sonnet-4-6',
+  ANICCA_BRAIN:         'codex',
 };
 
 const INTEGER_KEYS = new Set([
@@ -151,10 +150,6 @@ export function loadConfig(processEnv, dotenvText) {
 
   config.LIFE_MANAGER_SKILLS_STATE_ROOT = processEnv.LIFE_MANAGER_SKILLS_STATE_ROOT
     ?? dotenvValues.LIFE_MANAGER_SKILLS_STATE_ROOT
-    ?? undefined;
-
-  config.CLAUDE_BIN = processEnv.CLAUDE_BIN
-    ?? dotenvValues.CLAUDE_BIN
     ?? undefined;
 
   return config;

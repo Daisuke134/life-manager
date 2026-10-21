@@ -15,7 +15,6 @@ if [ "${LIFE_MANAGER_LOOP_ID:-}" != "capafy-reel-daily" ] \
   exit 1
 fi
 export USER="${USER:-$(id -un)}"
-export ARTICLE_CLAUDE_BIN="${ARTICLE_CLAUDE_BIN:-$HOME/.local/bin/claude}"
 
 _lm_marketing_env="${LIFE_MANAGER_MARKETING_ENV_FILE:-$HOME/.local/state/life-manager/private/marketing.env}"
 if [ -z "${LM_POSTIZ_API_KEY:-}" ] && [ -f "$_lm_marketing_env" ]; then

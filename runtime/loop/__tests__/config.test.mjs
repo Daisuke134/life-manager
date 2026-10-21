@@ -47,6 +47,7 @@ test('PROP-012: entirely malformed .env does not crash', () => {
 // Default values applied when neither env nor .env sets them
 test('PROP-011/012: defaults applied when nothing set', () => {
   const config = loadConfig({ ANICCA_HOME: '/tmp/test' }, '');
+  assert.equal(config.ANICCA_BRAIN, 'codex');
   assert.equal(config.OPENAI_BASE_URL, 'http://127.0.0.1:18402/v1');
   assert.equal(config.ANICCA_FREE_MODEL, 'free/glm-4.7');
   assert.equal(config.ANICCA_LEAN_MODEL, 'free/glm-4.7');
@@ -58,6 +59,14 @@ test('PROP-011/012: defaults applied when nothing set', () => {
   assert.equal(config.LOOP_DETECT_WINDOW, 3);
   assert.equal(config.BALANCE_CACHE_TTL_S, 300);
   assert.equal(config.LEAN_TIER_THRESHOLD, 1.00);
+});
+
+test('legacy brain override remains observable for owner-configuration drift checks', () => {
+  const config = loadConfig(
+    { ANICCA_HOME: '/tmp/test', ANICCA_BRAIN: 'proxy' },
+    'ANICCA_BRAIN=claude-p\n',
+  );
+  assert.equal(config.ANICCA_BRAIN, 'proxy');
 });
 
 // ANICCA_HOME not set -> error-like config (loop will handle)

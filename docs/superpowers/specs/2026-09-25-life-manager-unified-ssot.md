@@ -21485,3 +21485,17 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 
 
 **T22.1c-5d/5eの現況:** receipt claim後の新規`build/occurrences/<occurrence_id>/`を証拠境界とし、mtime判定は使用しない。no_op/successのartifact refは発生dir内のregular・single-link・実行UID所有fileだけを受け付ける。preexisting dir/symlink/hardlink/non-file拒否、focused suite21/21、fresh review指摘0を確認。PR #8452をmain a0へ統合後、既存VMのhealth/source hash a0採用を確認。新offline occurrence completed/exit0、receipt refs3、追加bundle4 fileもproof/download hash一致、listing linter pass。全draftは非公開で、売上/外部利用者なし。旧receipts保持。c5 stream完了、現在主cursor=b.6-01。証拠→`docs/evidence/maritime/owned-factory-a0-occurrence.json`。
+
+### Capafy revenue execution — Codex-only policy and current distribution cursor — 2026-10-21
+
+**目的・範囲:** local Life Managerの収益pipelineをCodexだけで実行し、Capafyの配布を再開して閲覧→試用→有料注文を増やす。モデル呼び出し経路・正本spec・必要な検証・main由来releaseへの採用を対象とする。公開済みCapafy sellerのcustomer-facing hosted model設定、FROZEN listing、既存provider effectは変更しない。
+
+**確定ポリシー:** local Life Managerが所有する全model inferenceはCodex CLIのみを使う。Claude direct call、Claude/他providerへのfallback、local proxy経由の非Codex model inferenceを許可しない。Codexが利用できない場合は未実行のまま明示的にdeferし、既存cadence/leaseで再試行する。provider切替で別agentに意思決定を渡さない。この適用範囲はagent-runner、Writer、Job Search、Gig、scheduled self-improvement/reviewer、local loop brainを含む。Capafy上の販売Agentが顧客へ提供するhosted modelはこのlocal pipelineのproviderではなく、凍結済みseller契約として維持する。
+
+**As-Is / 根拠:** main `464635e4f455a7411e441e76c3208cc188de68c2`を基準とする。`runtime/agent-runner/config.json`にClaude fallbackがあり、`skills/writer-agent/runtime/model-runner.sh`は`ARTICLE_PROVIDER`既定値と`auto`経路でClaudeを選べる。`skills/earn/self-improve/lib/promote_gate_run.py`と`skills/_shared/adversary-daily.sh`はClaude CLIを直接起動し、GigにもClaude provider候補がある。よってCodex-onlyは現sourceで保証されていない。
+
+**Capafy production status:** distribute ownerはimmutable release `4b230cba3dc114627bcb1daf555826b6b5d0d463`でloaded-idle。occurrence `capafy-distribute-daily:18e0697919f17030-82979`（02:11:39Z）はCodex 2 profile不使用後のClaude fallbackを含む`entrypoint_exit_1`で、provider receipt/公式readbackなしの`effect_unknown`として現在もfence中。02:34Zの次回attemptは`host_admission_deferred:resource_effect_unknown`でprovider開始前にdefer。`lm-loop status capafy-distribute-daily --explain`はfenceを再確認した。registered official adapterによるno-effect readbackの最短時刻は03:35:20.638641Z。時刻前にresolve/replayしない。2026-10-21のseller APIは02:20:43Zにgross $0 / 0 orders、Hook Labの7日source snapshotではpaid 0。過去累計$102.75 / 70 ordersを本日の売上と扱わない。
+
+**TODO順序を更新:** 旧cursorはfence解消後にCapafy distributionを再開し、source-to-paidを測ることだった。新cursorは (1) local model execution全体のCodex-only source acceptanceを完了、 (2) 03:35:20.638641Z以降にoccurrence `18e0697919f17030-82979`をregistered adapterで公式照合しfenceを閉じる、 (3) latest-main immutable releaseを作り、owner-idle条件を守ってCodex-only設定を採用、 (4) Capafy distributionを新しいoccurrenceで再開し、公開URL/CTA/流入/試用/有料注文を同じsource linkで照合、 (5) measured conversion winnerだけへ配布を拡大する。変更理由は、Codex profile contention後のClaude quota failureが配布失敗とeffect fenceを生み、local pipeline全体でproviderの一貫性が保証されていないため。現在cursor=(1)。このsource作業中も進行中provider effectを中断・再送せず、fenceの公式readbackを別cursorとして保持する。
+
+**残TODOの完了証拠:** agent-runner全task-classのcandidate/provider validation、Writerの既定/明示provider境界、Gig/Job Searchのmodel candidates、scheduled reviewer/self-improvement invocation、local loop brainのprovider選択をCodex-onlyにする。各変更は該当する失敗テストを先に追加し、Codex不在時に他providerがspawnされないことを確認する。source acceptance・CI・main統合後、affected ownerごとにloaded SHA/argv/envをreadbackし、自然runのterminalとprovider/effect evidenceを確かめる。fence解消までCapafy distributorへ新releaseをapplyしない。売上成果の完了判定は新規の公式有料注文/売上readbackとsource attributionによる。

@@ -29,7 +29,7 @@ const NAME = process.env.ANICCA_NAME || (await assignIdentity(acct.address)).nam
 // self-pay proxy). Declared via env so one runtime serves both types by config, not by a separate script.
 const FUNDING = process.env.ANICCA_FUNDING || "human";
 const ENV = process.env.ANICCA_ENV || "local";
-const BRAIN = process.env.ANICCA_BRAIN || "claude-p";
+const BRAIN = "codex";
 const LEDGER = (process.env.ANICCA_HOME || HOME + "/.anicca") + "/state/ledger.jsonl";
 const SKILLS_STATE_ROOT = process.env.LIFE_MANAGER_SKILLS_STATE_ROOT
   || (process.env.ANICCA_HOME || HOME + "/.anicca") + "/state/skills";

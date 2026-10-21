@@ -90,11 +90,8 @@ test('think(): all attempts 429 (rate-limit) -> throws instead of masking as a n
   }
 });
 
-// --- claude-p missing-binary recovery (2026-09-25) --------------------------------------------
-// A missing local executable is an infrastructure gap, not a model decision. The loop may recover
-// through its configured proxy for this one typed failure; OAuth, timeout, and non-zero exits still
-// surface as claude-p errors and never silently hand a funded wake to another brain.
-test('ANICCA_BRAIN=claude-p with missing claude binary falls back to proxy', async () => {
+// A legacy Claude brain setting must never fall through to a different provider.
+test('ANICCA_BRAIN=claude-p fails closed without invoking the proxy', async () => {
   const { server, requestCount } = await startMockProxy([200]);
   const config = {
     ANICCA_BRAIN: 'claude-p',
@@ -103,12 +100,11 @@ test('ANICCA_BRAIN=claude-p with missing claude binary falls back to proxy', asy
 
   try {
     const { port } = server.address();
-    const result = await think(baseCtx(), {
+    await assert.rejects(() => think(baseCtx(), {
       ...config,
       OPENAI_BASE_URL: `http://127.0.0.1:${port}/v1`,
-    });
-    assert.equal(result.choices[0].message.content, 'ok');
-    assert.equal(requestCount(), 1, 'the configured proxy handled the recovered wake');
+    }), /codex_only_brain_required/);
+    assert.equal(requestCount(), 0, 'a Claude configuration must not fall through to the proxy');
   } finally {
     server.close();
   }

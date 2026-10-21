@@ -157,7 +157,7 @@ REVIEW_CLI_RESOLVED="$(env -i PATH="$JOB_PATH" HOME="$HOME" "$NODE_BIN" -e '
     const { resolveReviewCli } = require(process.argv[1]);
     process.stdout.write(resolveReviewCli(process.env));
   ' "$HERE/dev-adversary-review.js")"
-if [ "$REVIEW_CLI_RESOLVED" = "claude" ]; then
+if [ "$REVIEW_CLI_RESOLVED" = "codex" ]; then
   printf 'the fresh-reviewer CLI does not resolve under the job PATH; refusing to enable\n' >&2
   exit 1
 fi
@@ -191,8 +191,7 @@ cat > "$ACTIVE" <<PLIST
   <dict>
     <key>HOME</key>
     <string>$HOME</string>
-    <!-- \$HOME/.local/bin is NOT decoration: measured 2026-07-27, the reviewer CLI (\`claude\`) lives
-         there and nowhere else on this machine. The parked plist omitted it, which would have made
+    <!-- \$HOME/.local/bin is included so a user-installed Codex CLI resolves under launchd. The parked plist omitted it, which would have made
          every review fail closed and the loop merge nothing for seven days. -->
     <key>PATH</key>
     <string>$JOB_PATH</string>

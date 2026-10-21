@@ -89,6 +89,71 @@ class ModelRunnerContractTests(unittest.TestCase):
             self.assertFalse(codex_calls.exists())
             self.assertFalse(claude_calls.exists())
 
+    def test_provider_defaults_to_codex(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            sandbox = Path(temporary)
+            calls = sandbox / "codex-calls.txt"
+            fake_codex = sandbox / "codex"
+            fake_codex.write_text(
+                "#!/usr/bin/env bash\nprintf 'CODEX\\n' >>\"$CODEX_CALLS\"\n"
+                "cat >/dev/null\nprintf 'CODEX-OUTPUT\\n'\n",
+                encoding="utf-8",
+            )
+            fake_codex.chmod(0o755)
+            prompt = sandbox / "prompt.txt"
+            prompt.write_text("use the default provider", encoding="utf-8")
+            environment = self.make_environment(sandbox, fake_codex)
+            environment.pop("ARTICLE_PROVIDER")
+            environment.update({
+                "ARTICLE_RUN_ID": "codex-default-provider-contract",
+                "CODEX_CALLS": str(calls),
+            })
+
+            result = subprocess.run(
+                [str(RUNNER), "agent", "--prompt-file", str(prompt)],
+                env=environment,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(calls.read_text(encoding="utf-8"), "CODEX\n")
+
+    def test_non_codex_provider_is_rejected_before_any_model_process(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            sandbox = Path(temporary)
+            claude_calls = sandbox / "claude-calls.txt"
+            fake_codex = sandbox / "codex"
+            fake_claude = sandbox / "claude"
+            fake_codex.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+            fake_claude.write_text(
+                "#!/usr/bin/env bash\nprintf 'CLAUDE\\n' >>\"$CLAUDE_CALLS\"\n",
+                encoding="utf-8",
+            )
+            fake_codex.chmod(0o755)
+            fake_claude.chmod(0o755)
+            prompt = sandbox / "prompt.txt"
+            prompt.write_text("must fail closed", encoding="utf-8")
+            environment = self.make_environment(sandbox, fake_codex)
+            environment.update({
+                "ARTICLE_PROVIDER": "claude",
+                "ARTICLE_CLAUDE_BIN": str(fake_claude),
+                "ARTICLE_RUN_ID": "codex-only-reject-contract",
+                "CLAUDE_CALLS": str(claude_calls),
+            })
+
+            result = subprocess.run(
+                [str(RUNNER), "agent", "--prompt-file", str(prompt)],
+                env=environment,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 64, result.stderr)
+            self.assertFalse(claude_calls.exists())
+
     def test_retryable_default_cooldown_is_five_minutes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             sandbox = Path(temporary)

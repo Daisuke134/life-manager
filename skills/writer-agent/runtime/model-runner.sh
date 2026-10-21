@@ -2,11 +2,7 @@
 # One model process boundary for Writer Agent.
 set -uo pipefail
 
-# launchd jobs run with a minimal environment that omits USER; the claude CLI
-# reads its stored OAuth credentials only when USER is set, so a launchd-run
-# claude call fails "Not logged in" even though the account is fully logged
-# in (measured 2026-09-04). codex does not read USER for auth, so this is
-# scoped to the value claude needs.
+# Keep USER available to Codex CLI in launchd's minimal environment.
 : "${USER:=$(id -un)}"
 export USER
 
@@ -217,22 +213,11 @@ if [ "$BROKER_MODE" = "1" ] && [ "${ARTICLE_JUDGE_BROKER_SERVER:-}" != "1" ] \
   exit 64
 fi
 
-PROVIDER="${ARTICLE_PROVIDER:-claude}"
+PROVIDER="${ARTICLE_PROVIDER:-codex}"
 case "$PROVIDER" in
-  auto|codex|claude) ;;
-  *) echo "model-runner: ARTICLE_PROVIDER must be auto, codex, or claude" >&2; exit 64 ;;
+  codex) ;;
+  *) echo "model-runner: ARTICLE_PROVIDER must be codex" >&2; exit 64 ;;
 esac
-
-# The repair cage is a codex sandbox policy. The claude branch below has no
-# equivalent, so a repair must never reach it: pinning the provider here means
-# `CANDIDATES` never contains `claude` and `invoke_provider` is only ever
-# called with `codex` for this mode.
-if [ "$MODE" = "repair" ]; then
-  case "$PROVIDER" in
-    auto|codex) PROVIDER="codex" ;;
-    *) echo "model-runner: repair mode requires the codex provider" >&2; exit 64 ;;
-  esac
-fi
 
 MODEL_ROOT="${ARTICLE_MODEL_ROOT:-${ARTICLE_SKILL_DIR:-$SCRIPT_DIR/..}}"
 MODEL_STATE_ROOT="${ARTICLE_MODEL_STATE_ROOT:-${ARTICLE_STATE_DIR:-$MODEL_ROOT/state}}"
@@ -241,45 +226,15 @@ HEALTH_FILE="${ARTICLE_PROVIDER_HEALTH:-$MODEL_STATE_ROOT/provider-health.json}"
 MODEL_LOG="${ARTICLE_MODEL_LOG:-$MODEL_STATE_ROOT/model-runner.log}"
 COOLDOWN_SECONDS="${ARTICLE_PROVIDER_COOLDOWN_SECONDS:-300}"
 CODEX_BIN="${ARTICLE_CODEX_BIN:-$(command -v codex 2>/dev/null || true)}"
-CLAUDE_BIN="${ARTICLE_CLAUDE_BIN:-$(command -v claude 2>/dev/null || true)}"
 TEMP_FAILURE=75
 MODEL_ROLE="${ARTICLE_MODEL_ROLE:-terra}"
 CODEX_MODEL="gpt-5.6-terra"
 CODEX_EFFORT="${ARTICLE_MODEL_REASONING_EFFORT:-medium}"
 CODEX_PROVIDER_ID="${ARTICLE_CODEX_PROVIDER_ID:-openai}"
-CODEX_PROVIDER_BASE_URL="${ARTICLE_CODEX_PROVIDER_BASE_URL:-}"
-CODEX_PROVIDER_ENV_KEY="${ARTICLE_CODEX_PROVIDER_ENV_KEY:-}"
-CODEX_PROVIDER_API_KEY_SOURCE="${ARTICLE_CODEX_PROVIDER_API_KEY_SOURCE:-}"
-CODEX_PROVIDER_CONFIG="${ARTICLE_CLIPROXY_CONFIG:-}"
-
-load_codex_provider_key() {
-  set +x
-  case "$CODEX_PROVIDER_API_KEY_SOURCE" in
-    "") ;;
-    cliproxyapi)
-      [ "$CODEX_PROVIDER_ENV_KEY" = "CLIPROXY_API_KEY" ] || return 1
-      local provider_key="${ARTICLE_CODEX_PROVIDER_API_KEY:-}"
-      if [ -z "$provider_key" ]; then
-        [ -n "$CODEX_PROVIDER_CONFIG" ] && [ -r "$CODEX_PROVIDER_CONFIG" ] || return 1
-        provider_key="$(awk '/^api-keys:/{in_keys=1; next} in_keys && /- "/{gsub(/.*- "/, ""); gsub(/".*/, ""); print; exit}' "$CODEX_PROVIDER_CONFIG")"
-      fi
-      [ -n "$provider_key" ] || return 1
-      export CLIPROXY_API_KEY="$provider_key"
-      unset provider_key
-      ;;
-    *) return 1 ;;
-  esac
-}
-
-configure_codex_provider() {
-  [ "$CODEX_PROVIDER_ID" = "openai" ] && return 0
-  case "$CODEX_PROVIDER_ID" in
-    *[!A-Za-z0-9_]*|'') return 1 ;;
-  esac
-  [[ "$CODEX_PROVIDER_BASE_URL" =~ ^https://[^[:space:]]+/v1$|^http://127\.0\.0\.1:[0-9]+/v1$ ]] || return 1
-  [ "$CODEX_PROVIDER_ENV_KEY" = "CLIPROXY_API_KEY" ] || return 1
-  load_codex_provider_key
-}
+if [ "$CODEX_PROVIDER_ID" != "openai" ]; then
+  echo "model-runner: only the Codex CLI's direct provider is allowed" >&2
+  exit 64
+fi
 
 case "$MODEL_ROLE" in
   terra)
@@ -323,8 +278,7 @@ esac
 # Production Writer passes use the repository-global provider/profile router.
 # Explicit fake binaries keep the executable contract harness deterministic.
 # Every production mode, including repair/session, otherwise delegates.
-if [ -z "${ARTICLE_CODEX_BIN:-}" ] \
-  && [ -z "${ARTICLE_CLAUDE_BIN:-}" ]; then
+if [ -z "${ARTICLE_CODEX_BIN:-}" ]; then
   SHARED_ADAPTER="$SCRIPT_DIR/shared-model-runner.py"
   SHARED_ARGS=("$MODE" --prompt-file "$PROMPT_FILE")
   [ "$MODE" = "vision" ] && SHARED_ARGS+=(--image "$IMAGE_FILE")
@@ -356,11 +310,8 @@ is_eligible() {
 }
 
 provider_binary() {
-  if [ "$1" = "codex" ]; then
-    printf '%s' "$CODEX_BIN"
-  else
-    printf '%s' "$CLAUDE_BIN"
-  fi
+  [ "$1" = "codex" ] || return 64
+  printf '%s' "$CODEX_BIN"
 }
 
 # Opt-in automation surface for the repair investigation only (SSOT §9.4 C1/C3).
@@ -375,7 +326,7 @@ fi
 
 invoke_provider() {
   local provider="$1"
-  local binary prompt sandbox raw_out raw_err safe_out safe_err rc provider_config_rc errexit_was_set
+  local binary prompt sandbox raw_out raw_err safe_out safe_err rc errexit_was_set
   binary="$(provider_binary "$provider")"
   prompt="$(<"$PROMPT_FILE")"
   if [ "$CODEX_SESSION_MODE" = "1" ] && [ "$provider" = "codex" ]; then
@@ -465,45 +416,10 @@ invoke_provider() {
       # it is continuing this investigation rather than a stranger's session.
       command+=(resume "$ARTICLE_CODEX_RESUME_SESSION_ID")
     fi
-    provider_config_rc=0
-    if [ "$CODEX_PROVIDER_ID" != "openai" ]; then
-      if ! configure_codex_provider; then
-        printf '%s\n' "model-runner: invalid Codex provider configuration" >"$raw_err"
-        provider_config_rc=69
-      else
-        command+=(
-          -c "model_provider=\"$CODEX_PROVIDER_ID\""
-          -c "model_providers={$CODEX_PROVIDER_ID={name=\"Writer provider\",base_url=\"$CODEX_PROVIDER_BASE_URL\",env_key=\"$CODEX_PROVIDER_ENV_KEY\",wire_api=\"responses\"}}"
-        )
-      fi
-    fi
     command+=(-)
-  elif [ "$MODE" = "agent" ]; then
-    command=(
-      "$binary" --model sonnet
-      --dangerously-skip-permissions
-      --add-dir "$HOME"
-      --no-session-persistence
-      -p "$prompt"
-    )
-  elif [ "$MODE" = "judge" ]; then
-    command=(
-      "$binary" --model sonnet
-      --no-session-persistence
-      --allowedTools ""
-      -p "$prompt"
-    )
   else
-    prompt="${prompt}
-
-Read and judge this existing image file: $IMAGE_FILE"
-    command=(
-      "$binary" --model sonnet
-      --no-session-persistence
-      --allowedTools "Read"
-      --add-dir "$(dirname "$IMAGE_FILE")"
-      -p "$prompt"
-    )
+    echo "model-runner: Codex provider required" >&2
+    return 64
   fi
 
   errexit_was_set=0
@@ -511,20 +427,17 @@ Read and judge this existing image file: $IMAGE_FILE"
     *e*) errexit_was_set=1 ;;
   esac
   set +e
-  if [ "$provider_config_rc" -ne 0 ]; then
-    rc="$provider_config_rc"
-  elif [ "$provider" = "codex" ]; then
+  if [ "$provider" = "codex" ]; then
     if [ "$MODE" = "agent" ]; then
       # Mark every process inside the bounded sandbox so nested judge/vision
       # calls route through the wrapper-side judge broker instead of trying
       # to start a provider process the sandbox will deny.
-      ARTICLE_NESTED_SANDBOX=1 "${command[@]}" <"$PROMPT_FILE" >"$raw_out" 2>"$raw_err"
+      env -u CLIPROXY_API_KEY -u ARTICLE_CODEX_PROVIDER_API_KEY \
+        ARTICLE_NESTED_SANDBOX=1 "${command[@]}" <"$PROMPT_FILE" >"$raw_out" 2>"$raw_err"
     else
-      "${command[@]}" <"$PROMPT_FILE" >"$raw_out" 2>"$raw_err"
+      env -u CLIPROXY_API_KEY -u ARTICLE_CODEX_PROVIDER_API_KEY \
+        "${command[@]}" <"$PROMPT_FILE" >"$raw_out" 2>"$raw_err"
     fi
-    rc=$?
-  else
-    "${command[@]}" >"$raw_out" 2>"$raw_err"
     rc=$?
   fi
   if [ "$errexit_was_set" -eq 1 ]; then
@@ -578,11 +491,7 @@ cleanup_invocation() {
   INVOCATION_SAFE_STDERR=""
 }
 
-if [ "$PROVIDER" = "auto" ]; then
-  CANDIDATES=(codex claude)
-else
-  CANDIDATES=("$PROVIDER")
-fi
+CANDIDATES=(codex)
 
 for candidate in "${CANDIDATES[@]}"; do
   binary="$(provider_binary "$candidate")"

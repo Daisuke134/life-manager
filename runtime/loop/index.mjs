@@ -1001,7 +1001,7 @@ async function writeWakeErrorAndSleep({ wakeId, ts, err }) {
   });
   await safeAppend(LEDGER_PATH, record);
   // R6: err.message is NOT already redacted anywhere upstream (raw HTTP-response body/subprocess-
-  // stderr text from brain.mjs's thinkProxy/thinkClaudeP/httpPost) — this is the ONE new
+  // stderr text from brain.mjs's HTTP proxy transport) — this is the ONE new
   // redactPrivateKeyPatterns call site this feature introduces, before any further processing.
   await appendHarnessFailure({
     ts, wakeId, kind: 'wake_error', layer: 'brain_transport', exitCode: null,

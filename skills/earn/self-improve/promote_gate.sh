@@ -8,7 +8,7 @@ export LIFE_MANAGER_REPO
 # reliance on `command -v` for the durable venv) around lib/promote_gate_run.py, which does the
 # real work: deterministic pre-checks (scope_guard/stage1/stage2/trip-wire, via
 # lib/promote_gate.py — unit-tested, no LLM cost), and — ONLY for a candidate that clears all of
-# those — a real, fresh, headless `claude --model opus` adversary call (exactly the
+# those — a real, fresh, headless Codex adversary call (exactly the
 # $LIFE_MANAGER_REPO/skills/self/self-fix.sh pattern: --model opus --dangerously-skip-permissions, here as a
 # synchronous `--print` call rather than a detached tmux session, since promote_gate.sh needs the
 # verdict back before deciding whether to promote — no human anywhere in this path).

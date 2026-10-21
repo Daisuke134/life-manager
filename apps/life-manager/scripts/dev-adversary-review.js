@@ -32,13 +32,10 @@
 // reads a diff on stdin and writes JSON on stdout; anything more is capability it can be tricked
 // into using.
 //
-// MODEL ROUTING IS THE OPERATOR'S SHELL'S BUSINESS. `claude` here is whatever `claude` resolves to
-// in the environment launchd hands this process — the claudexmix/Sol proxy alias, or a direct
-// Anthropic session. This file pins NO model and NO provider, so the loop keeps working when
-// routing changes and fails loudly (FAIL, not silent pass) when the CLI is missing. Override the
-// binary with $LM_DEV_REVIEW_CLI, the budget with $LM_DEV_REVIEW_TIMEOUT_MS.
+// This reviewer is Codex-only. It pins no model ID, starts an ephemeral read-only session outside
+// the repository, and fails closed if the Codex CLI cannot be resolved.
 //
-// FRESHNESS is the point of `-p`: one non-interactive process per review, no resumed session, no
+// FRESHNESS is the point of `--ephemeral`: one non-interactive process per review, no resumed session, no
 // memory of the implementation that produced the diff. A reviewer that helped write the code is not
 // a reviewer.
 //
@@ -87,20 +84,14 @@ const REVIEW_PROMPT = [
   "findings must be concrete (file + what is wrong) and must be non-empty when the verdict is FAIL.",
 ].join("\n");
 
-// VERIFIED against `claude --help` on this machine, 2026-07-27 (see the runtime suite for the
-// quoted help text):
-//   --tools ""            disables every built-in tool ("Use \"\" to disable all tools")
-//   --strict-mcp-config   loads MCP servers ONLY from --mcp-config; none is passed, so: none
-//   --setting-sources ""  loads no user/project/local settings, so no operator hooks or CLAUDE.md
-//   --disallowedTools     belt and braces on top of --tools ""
-// `--bare` was considered and REJECTED: it forces ANTHROPIC_API_KEY-only auth, and this process is
-// deliberately spawned without one.
 const REVIEW_ARGS = Object.freeze([
-  "-p", REVIEW_PROMPT,
-  "--tools", "",
-  "--disallowedTools", "Bash,Edit,Write,Read,Glob,Grep,WebFetch,WebSearch,Task,NotebookEdit",
-  "--strict-mcp-config",
-  "--setting-sources", "",
+  "exec",
+  "--ephemeral",
+  "--sandbox", "read-only",
+  "--ignore-user-config",
+  "-C", os.tmpdir(),
+  "--output-schema", require("node:path").join(__dirname, "../schemas/dev-adversary-review.schema.json"),
+  "-",
 ]);
 
 // The reviewer needs exactly two things from the operator's environment: a PATH to find its own
@@ -192,21 +183,15 @@ function parseReviewerAnswer(text) {
 }
 
 
-// MEASURED 2026-07-27: `claude` on this machine is `~/.local/bin/claude` (a symlink into
-// ~/.local/share/claude/versions/…), and `claudexmix` is a SHELL FUNCTION — it does not exist as a
-// binary at all. The parked launchd plist's PATH is
-// `/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`, which contains neither. A
-// reviewer that cannot be spawned fails closed, so nothing unsafe merges — but the loop would then
-// burn seven days never merging anything, which is a silent waste, not a safe design. Hence: try
-// PATH first, then the known install location, and only then hand over the bare name so the failure
-// is an honest ENOENT naming what was missing.
+// A reviewer that cannot be spawned fails closed. Resolve Codex through the launchd PATH, then the
+// standard per-user install location, and keep the bare executable name only for a clear ENOENT.
 function resolveReviewCli(env = process.env) {
-  if (env.LM_DEV_REVIEW_CLI) return env.LM_DEV_REVIEW_CLI;
+  if (env.CODEX_BIN) return env.CODEX_BIN;
   const fs = require("node:fs");
   const path = require("node:path");
   const candidates = [
-    ...String(env.PATH || "").split(path.delimiter).filter(Boolean).map((dir) => path.join(dir, "claude")),
-    path.join(env.HOME || os.homedir(), ".local/bin/claude"),
+    ...String(env.PATH || "").split(path.delimiter).filter(Boolean).map((dir) => path.join(dir, "codex")),
+    path.join(env.HOME || os.homedir(), ".local/bin/codex"),
   ];
   for (const candidate of candidates) {
     try {
@@ -216,7 +201,7 @@ function resolveReviewCli(env = process.env) {
       // keep looking
     }
   }
-  return "claude";
+  return "codex";
 }
 
 
@@ -253,11 +238,13 @@ function runAdversaryReview(input = {}) {
   }
 
   const fenced = `${DIFF_FENCE_BEGIN}\n${diff}\n${DIFF_FENCE_END}\n`;
+  const fullPrompt = `${REVIEW_PROMPT}\n\n${fenced}`;
 
   let output;
   try {
     output = exec(cli, args, {
-      input: fenced,
+      cwd: os.tmpdir(),
+      input: fullPrompt,
       encoding: "utf8",
       timeout: timeoutMs,
       killSignal: "SIGKILL",

@@ -17,11 +17,14 @@ PROMPT_TMPL="${SHARED_DIR}/adversary-daily-prompt.tmpl"
 LOG="${HOME}/.openclaw/logs/${SLOT}-adversary-daily.log"
 mkdir -p "$(dirname "$LOG")"
 
-# Render prompt by substituting tokens; then invoke `claude -p` as a fresh top-level session.
-# That session is responsible for issuing exactly one `Agent` call with
-# subagent_type=vcsdd:vcsdd-adversary (= the second fresh context layer).
+# Render prompt by substituting tokens; invoke Codex as a fresh top-level session.
 PROMPT=$(sed -e "s|{{SLOT}}|${SLOT}|g" -e "s|{{MODE}}|${MODE}|g" -e "s|{{EXTRA}}|${EXTRA}|g" "$PROMPT_TMPL" 2>/dev/null || \
          echo "Review feature ${SLOT} per $LIFE_MANAGER_REPO/.vcsdd/features/${SLOT}/specs/ in mode ${MODE}.")
 PROMPT="${PROMPT} 検証結果がFAIL verdictだった場合のみ、終了前にPushNotificationツールでDaisへその要点をverbatim送信すること。PASSの場合やnarration・定常報告には使わない。"
 
-claude -p "$PROMPT" --model opus --output-format text 2>&1 | tee -a "$LOG"
+CODEX_BIN="${CODEX_BIN:-$(command -v codex 2>/dev/null || true)}"
+if [ -z "$CODEX_BIN" ] || [ ! -x "$CODEX_BIN" ]; then
+  echo "adversary-daily: Codex CLI unavailable" >&2
+  exit 69
+fi
+printf '%s' "$PROMPT" | "$CODEX_BIN" exec --ephemeral --sandbox read-only - 2>&1 | tee -a "$LOG"

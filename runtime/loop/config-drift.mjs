@@ -18,7 +18,7 @@
  * REQ-006: the diff/classify/resolve functions below take only plain data (objects, strings, arrays)
  *   and perform no file/process/network access — deterministic, side-effect-free, and they never
  *   mutate their inputs.
- * REQ-009 note: this file is unrelated to `brain.mjs`'s `claude -p` timeout — that lives in brain.mjs.
+ * REQ-009 note: this file is unrelated to the retired subprocess brain path in brain.mjs.
  * REQ-010: the monitored-target set below (`parseIndexLoopProcesses` / `listRunningIndexLoopProcesses`)
  *   is derived by enumerating live processes, never from a hardcoded instance-name list.
  * NFR-Security (FIND-002): the ONLY data this module ever extracts from a raw process command line is
@@ -230,7 +230,7 @@ export function parseIndexLoopProcesses(psOutputLines) {
  * @param {unknown} [codeDefault]
  * @returns {Array<{key: string, instance: string, declared: unknown, actual: unknown, reason?: string}>}
  */
-export function detectBrainDrift(instance, declaredConfig, observedEnvOrNull, key = 'ANICCA_BRAIN', codeDefault = 'proxy') {
+export function detectBrainDrift(instance, declaredConfig, observedEnvOrNull, key = 'ANICCA_BRAIN', codeDefault = 'codex') {
   if (classifyObservability(declaredConfig) === 'UNOBSERVABLE') {
     return [{ key, instance, declared: null, actual: null, reason: 'unobservable' }];
   }
@@ -365,7 +365,7 @@ export async function runConfigDriftDetector(deps = {}) {
     plistDir = DEFAULT_PLIST_DIR,
     canonicalRegistryPath = DEFAULT_CANONICAL_REGISTRY_PATH,
     brainKey = 'ANICCA_BRAIN',
-    codeDefaultBrain = 'proxy',
+    codeDefaultBrain = 'codex',
   } = deps;
 
   const psOutputLines = await listProcesses();

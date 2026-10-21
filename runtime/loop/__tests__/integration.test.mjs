@@ -101,7 +101,9 @@ function makeTmpHome() {
  */
 function spawnLoop(env, extraEnv = {}) {
   const proc = spawn(process.execPath, [LOOP_ENTRY], {
-    env: { ...process.env, ...env, ...extraEnv },
+    // Integration tests exercise the OpenAI-compatible wire only against an in-process mock server.
+    // Production local owners select Codex in lm_loop_apply.py.
+    env: { ...process.env, ANICCA_BRAIN: 'proxy', ...env, ...extraEnv },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   return proc;
@@ -704,52 +706,6 @@ test('PROP-023(a): ANICCA_BRAIN=proxy makes HTTP call, no claude subprocess', { 
     await waitForLines(ledgerPath, 2, 10000);
     proc.kill('SIGTERM');
     assert.ok(httpHitCount >= 2, `Expected >=2 HTTP hits, got ${httpHitCount}`);
-  } finally {
-    server.close();
-    proc.kill('SIGTERM');
-    fs.rmSync(home, { recursive: true, force: true });
-  }
-});
-
-test('PROP-023(e): ANICCA_BRAIN=claude-p with missing claude binary falls back to proxy', { timeout: 15000 }, async () => {
-  const home = makeTmpHome();
-  const ledgerPath = path.join(home, 'state', 'ledger.jsonl');
-  fs.mkdirSync(path.join(home, 'identity'), { recursive: true });
-  fs.writeFileSync(path.join(home, 'identity', 'genesis.md'), '# Anicca\nTest.\n');
-
-  let httpHitCount = 0;
-  const { server, url } = await startMockServer(() => {
-    httpHitCount++;
-    return makeNarrateResponse();
-  });
-
-  const proc = spawnLoop({
-    ANICCA_HOME: home,
-    OPENAI_BASE_URL: url,
-    ANICCA_BRAIN: 'claude-p',
-    // Point claude binary to a non-existent path so spawn fails
-    CLAUDE_BIN: '/nonexistent/claude',
-    ANICCA_BALANCE_OVERRIDE: '0',
-    SLEEP_BASE_S: '0',
-    SLEEP_ERROR_S: '0',
-    SKILL_TIMEOUT_S: '5',
-    LOOP_DETECT_WINDOW: '100',
-  });
-
-  try {
-    // Should fall back to proxy and still produce ledger lines
-    await waitForLines(ledgerPath, 1, 10000);
-    const lines = readLedger(ledgerPath);
-    proc.kill('SIGTERM');
-    assert.ok(lines.length >= 1, 'Loop must produce ledger lines even when claude binary is missing (fallback to proxy)');
-    assert.ok(
-      lines.some((line) => line.brain_fallback?.from === 'claude-p'
-        && line.brain_fallback?.to === 'proxy'
-        && line.brain_fallback?.reason === 'claude_not_found'),
-      'the recovered brain route must remain observable in the ledger',
-    );
-    // HTTP must have been called (proxy fallback)
-    assert.ok(httpHitCount >= 1, 'Proxy HTTP must be called on claude-p fallback');
   } finally {
     server.close();
     proc.kill('SIGTERM');

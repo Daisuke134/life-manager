@@ -236,6 +236,8 @@ export function spawnLoop(env) {
   return spawn(process.execPath, [LOOP_ENTRY], {
     env: {
       ...process.env,
+      // The server returned below is an in-process test fixture, never a real model provider.
+      ANICCA_BRAIN: 'proxy',
       ...env,
       ...(fixtureSkills ? { LIFE_MANAGER_SKILLS_ROOT: fixtureSkills } : {}),
       ...(fixtureLedger ? { EARN_LEDGER: fixtureLedger } : {}),
