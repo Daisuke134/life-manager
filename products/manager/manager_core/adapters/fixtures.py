@@ -1,4 +1,4 @@
-"""K014: adversarial, deterministic offline provider/sensor pair for two domains."""
+"""K014/V001: one deterministic offline provider/sensor contract for three domains."""
 from datetime import datetime, timezone
 from manager_core.verifier import ExternalReadback
 
@@ -8,7 +8,7 @@ class OfflineFixtureAdapter:
     executor_source="fixture-executor"
 
     def __init__(self,domain,action,target,*,timeout_after_effect=False,timeout_before_effect=False):
-        if domain not in {"finance","environment"}:
+        if domain not in {"finance","environment","opportunity"}:
             raise ValueError("only fixture domains are supported")
         self.domain,self.action,self.target=domain,action,target
         self.timeout_after_effect=timeout_after_effect

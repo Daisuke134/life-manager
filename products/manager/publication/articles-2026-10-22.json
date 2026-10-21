@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "source_commit": "ce75c0add1d9cec7de5ddcb9a9347dbd0c1632e5",
+  "purpose": "Add every standalone current Manager English article to the existing reviewed publication package. This is editorial inventory, not task status or a publication receipt.",
+  "legacy": {
+    "article_count": 54,
+    "articles_sha256": "87a4660b2281b4eccb62e3fdabe8124ba1e7078da401f34c9ba3843b6e2a251b",
+    "media_count": 29,
+    "media_sha256": "614ec6f890de8421b7641aaa1705a55da30c2a7d414dd9e0a4abb8fb183ce2ae"
+  },
+  "citation_count_note": "The first two articles preserve already deployed citation counts. Other manuscripts use zero to suppress the optional citation-count label because no independently enumerated paper count is asserted; their source links remain in the text.",
+  "articles": [
+    {
+      "slug": "manager-evidence-cards-r007-r008-en",
+      "title": "Why Real-World Agents Need Small Evidence Cards, Not Another Giant Database",
+      "description": "A small source-linked evidence registry and guardrails against inflated claims.",
+      "date": "2026-10-20",
+      "series_order": 100,
+      "n_papers_cited": 1,
+      "source": "products/manager/docs/articles/manager-evidence-cards-r007-r008-en.md",
+      "source_sha256": "708cc3a92402a57032529153190fce3d7204d4b1e5aebd0d3e191551d6791fb5"
+    },
+    {
+      "slug": "manager-population-behavior-causality-field-guide-en",
+      "title": "Population Is Not Behavior, and Behavior Is Not Causality",
+      "description": "A source-grounded map of population synthesis, human behavior prediction, social simulation, and causal intervention.",
+      "date": "2026-10-20",
+      "series_order": 101,
+      "n_papers_cited": 7,
+      "source": "products/manager/docs/articles/manager-population-behavior-causality-field-guide-en.md",
+      "source_sha256": "43f09759d3541d753e88ae30d073f8791c78f2270094742dc04cd7841ac66756"
+    },
+    {
+      "slug": "manager-great-management-evidence-first-en",
+      "title": "A Great Manager Doesn't Just Get Things Done. They Prove Things Got Better.",
+      "description": "What management research can teach an AI system about objectives, authority, outcomes, and evidence.",
+      "date": "2026-10-21",
+      "series_order": 102,
+      "n_papers_cited": 0,
+      "source": "products/manager/docs/articles/manager-great-management-evidence-first-en.md",
+      "source_sha256": "ec14f2ea58a6d583d2c4e566b2e1a73f62f5957e0ac14d7c55882644a51be661"
+    },
+    {
+      "slug": "manager-prediction-intervention-blessing-en",
+      "title": "Why Prediction Is Not Intervention: Building an AI That Can Prove It Helped",
+      "description": "The missing links between forecasting people, authorized action, and independently measured improvement.",
+      "date": "2026-10-21",
+      "series_order": 103,
+      "n_papers_cited": 0,
+      "source": "products/manager/docs/articles/manager-prediction-intervention-blessing-en.md",
+      "source_sha256": "c7c0d41557e3a12bffaacfe9d1bf077e38fe02582c31678afa30e4e6a9420ef3"
+    },
+    {
+      "slug": "manager-radiant-societies-field-guide-en",
+      "title": "Radiant: What Happens When a Synthetic Audience Becomes a Society?",
+      "description": "Artificial Societies' Radiant workflows, published evidence, and the limitations of simulated human behavior.",
+      "date": "2026-10-21",
+      "series_order": 104,
+      "n_papers_cited": 0,
+      "source": "products/manager/docs/articles/manager-radiant-societies-field-guide-en.md",
+      "source_sha256": "9c23fdae8bba4526a1e9ee946f1026ef461054059eb49c683c8128a55d62d462"
+    },
+    {
+      "slug": "manager-autonomous-agent-money-is-not-wealth-en",
+      "title": "A Vending-Machine AI Scored $15,515. Did Anyone Actually Get Richer?",
+      "description": "Why simulated profit, historical task values, settled net income, and beneficiary welfare require different evidence.",
+      "date": "2026-10-21",
+      "series_order": 105,
+      "n_papers_cited": 0,
+      "source": "products/manager/docs/articles/manager-autonomous-agent-money-is-not-wealth-en.md",
+      "source_sha256": "59d18deb7d03a962dec95aa04ef0708b95478e56998e39251b78c6a7a2f9ebbf"
+    },
+    {
+      "slug": "manager-eba-evaluating-beneficial-action-en",
+      "title": "EBA: Evaluating Beneficial Action — From Agent Evals to Measuring Whether AI Actually Improves Lives",
+      "description": "The working EBA developer harness, synthetic tasks, and a method for separating technical delivery from human benefit.",
+      "date": "2026-10-22",
+      "series_order": 106,
+      "n_papers_cited": 0,
+      "source": "products/manager/docs/public/2026-10-22-eba-evaluating-beneficial-action.md",
+      "source_sha256": "328e445183fa8ebad5cdd1c6a8648b5515ddd8d9643119f14f0339f87ba78a57"
+    },
+    {
+      "slug": "manager-eba-benchmark-landscape-en",
+      "title": "A Map of AI Evaluation: 90 Benchmarks and the Missing Measure of Human Benefit",
+      "description": "A primary-source map of 90 selected evaluation systems across 14 families and what each can establish.",
+      "date": "2026-10-22",
+      "series_order": 107,
+      "n_papers_cited": 0,
+      "source": "products/manager/docs/research/publications/EBA_BENCHMARK_LANDSCAPE_PUBLIC_ARTICLE_20261022.md",
+      "source_sha256": "b7ad4b8c1efc00bcb500cd0d8fab264f82d723afa4760bb9648a11a171008b48"
+    },
+    {
+      "slug": "manager-eba-open-benchmark-en",
+      "title": "EBA: A Benchmark for Evaluating Whether AI Actions Actually Help",
+      "description": "An open research proposal and runnable synthetic EBA-v0, with boundaries for causal and welfare claims.",
+      "date": "2026-10-22",
+      "series_order": 108,
+      "n_papers_cited": 0,
+      "source": "products/manager/docs/research/publications/EBA_OPEN_BENCHMARK_ARTICLE_20261022.md",
+      "source_sha256": "fa91778f0c6114e28565db5cb0b980a30b43170e606f5e89eb37685f031c685a"
+    }
+  ],
+  "excluded_non_articles": [
+    {"path": "products/manager/docs/newsletter/", "reason": "Newsletter launch issue, charter, and delivery drafts are an existing separate workflow, not standalone blog research articles."},
+    {"path": "products/manager/docs/books/", "reason": "Book outline, not a completed book or article."},
+    {"path": "products/manager/docs/research/publications/EBA_TECHNICAL_BOOK_AND_SEMINAR_OUTLINE_20261022.md", "reason": "Book and seminar outline, not a standalone article."},
+    {"path": "products/manager/docs/presentations/", "reason": "Presentation and evidence packages retain their existing delivery workflow."}
+  ]
+}

@@ -33,6 +33,27 @@ class ManagerKernel:
         self.authority=authority
         self.audit=audit
 
+    def prepare_digital_release(self, run_id, baseline, candidate, now):
+        """Plan an inert handoff; only the separate owned CI job can publish.
+
+        The fixture outbox and fixture signing authority are deliberately not
+        used. A technical page comparison is not causal evidence about people.
+        """
+        from .digital_handoff import plan_release
+        packet=plan_release(baseline,candidate,now)
+        self.audit.append(run_id,'observation',{
+            'source_url':packet['target'],'content_hash':packet['baseline_sha256'],
+            'recorded_at':now.isoformat(),'unit':'public_artifact_bytes'})
+        self.audit.append(run_id,'proposal',{
+            'effect_key':packet['effect_key'],'decision':packet['decision'],
+            'content_hash':packet['candidate_sha256'],'option_cost':0,
+            'reason':'Tested owned artifact; NO_ACTION alternative retained'})
+        self.audit.append(run_id,'authorization',{
+            'status':'EXTERNAL_PLATFORM_AUTHORITY_REQUIRED',
+            'grant_target':packet['target'],'grant_expires_at':packet['expires_at'],
+            'benefit_status':'NOT_MEASURED','proof_level':'P0'})
+        return packet
+
     def run(self,run_id:str,problem: Problem,plan: InterventionPlan,grant:Grant,
             signature:str,adapter,sensor,now:datetime,*,causal_support:bool=False) -> RunResult:
         _aware(now)

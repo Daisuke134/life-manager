@@ -15,4 +15,5 @@ __pycache__/
 research/**/originals/
 data/raw/
 output/
+tests/e2e/test-results/
 *.zip

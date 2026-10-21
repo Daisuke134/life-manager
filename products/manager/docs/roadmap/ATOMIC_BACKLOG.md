@@ -1,10 +1,10 @@
 # Manager — atomic learning & engineering backlog
 
-Status: 2026-10-21 JST. Manager-only task registry in `tasks.json`; the Life Manager project SSOT is unchanged.
+Status: 2026-10-22 JST. Manager-only task registry in `tasks.json`; the Life Manager project SSOT is unchanged.
 
-Total: 113 · Done: 63 · Todo: 47 · Blocked: 2 · Skipped: 1
+Total: 113 · Done: 69 · Todo: 41 · Blocked: 2 · Skipped: 1
 
-✅ = verified task; ⬜ = not started; ⛔ = outside dependency; ⏭️ = scientific waiver (not success). A research task is not evidence of real-world impact.
+✅ = original acceptance and dependencies verified; ⬜ = acceptance incomplete (preparation may exist); ⛔ = outside dependency; ⏭️ = scientific waiver (not success). A research task is not evidence of real-world impact.
 
 Manager has a separate product identity, source scope and runtime, even when its source is in the same GitHub repository.
 
@@ -149,10 +149,10 @@ Manager has a separate product identity, source scope and runtime, even when its
 | ⬜ `D007` | D006 | 便益と副作用のトレードオフ | 改善量と電力・騒音・費用の独立計測を合わせる | 環境改善の純効果と副作用を別指標で開示する |
 | ⬜ `D008` | D007 | 環境指標と健康改善の距離を理解する | PM2.5などの減少と直接的な健康効果を別の証拠ランクに格納 | 曝露データを病気が減ったという臨床成果と誤表示しない |
 | ⬜ `D009` | D008, U007 | 領域をまたいだ効果の再現性 | 別施設で同一の環境介入証拠フローを再現する | 許可された複数施設で再現可能なP2以上の成果を報告 |
-| ⬜ `D010` | R008 | 有給仕事と機会改善の客観測定 | 公開OSS報奨・雇用支援の適法な公開情報アダプタを設計 | 募集・納品・承認・実入金の公開可否を別欄に保存する |
+| ✅ `D010` | R008 | 有給仕事と機会改善の客観測定 | 公開OSS報奨・雇用支援の適法な公開情報アダプタを設計 | 募集・納品・承認・実入金の公開可否を別欄に保存する |
 | ⬜ `D011` | D010 | 公開済み報奨と実際の受け取りの違い | 承認された成果物と独立して確認可能な受領証拠を照合 | 支払完了を証明できなければ収入増と主張しない |
 | ⬜ `D012` | D011 | 生活安定への遠位アウトカム | 収入機会の純増と労働時間・費用・その他機会損失を評価 | 名目報奨額ではなく純額と分母を示す |
-| ⬜ `D013` | R008 | 精神的苦痛の代理尺度と倫理 | 孤立・支援アクセス等の公開集計指標と検証尺度の文献対応表を作る | 個人を特定・推定せず、対象単位と尺度妥当性を記録 |
+| ✅ `D013` | R008 | 精神的苦痛の代理尺度と倫理 | 孤立・支援アクセス等の公開集計指標と検証尺度の文献対応表を作る | 個人を特定・推定せず、対象単位と尺度妥当性を記録 |
 | ⬜ `D014` | D013 | 苦痛を公共データだけで測る限界 | 支援団体/公的機関の公表集計との協働プロトコルを作る | 同意・倫理・匿名集計を守り、公開しない個票をManagerに取得しない **外部条件:** 適切な倫理審査・団体の協力・公開集計の可用性 |
 | ⬜ `D015` | D014 | 精神面への介入の有害な副作用 | 当事者保護、過剰介入、誤評価、否定的影響の停止基準を定義 | 被害や不確実性がある場合はno_action・専門家による評価へ |
 | ⬜ `D016` | D015, D012, D009 | 複数分野の便益を比較する限界 | 経済・身体・精神の各アウトカムを比較可能な証拠階層にまとめる | 各分野の指標を単純合算しない。合成スコアは根拠と重みを明示 |
@@ -172,13 +172,13 @@ Manager has a separate product identity, source scope and runtime, even when its
 
 | 状態・ID | 依存 | 理解する | 作る・更新する | 完了の確認 |
 |---|---|---|---|---|
-| ⬜ `Y001` | P002, R004 | 技術の壮大さより具体的な顧客便益を説明 | YC W27用の英語1文、誰の何を改善するか、証拠レベルを草案化 | 0件の実介入を実績として書かず、現状のプロトタイプを正確に示す |
-| ⬜ `Y002` | Y001 | 動く証明と構想を分ける | 公開情報→候補→根拠→無介入の安全判定を示す短いデモ動画を作る | 実在の成果を捏造せず、動いたコードと未実装部品を画面で区別 |
+| ✅ `Y001` | P002, R004 | 技術の壮大さより具体的な顧客便益を説明 | YC W27用の英語1文、誰の何を改善するか、証拠レベルを草案化 | 0件の実介入を実績として書かず、現状のプロトタイプを正確に示す |
+| ✅ `Y002` | Y001 | 動く証明と構想を分ける | 公開情報→候補→根拠→無介入の安全判定を示す短いデモ動画を作る | 実在の成果を捏造せず、動いたコードと未実装部品を画面で区別 |
 | ⬜ `Y003` | Y002 | YC応募の質問と時間制約を把握 | YC W27の申請文書・創業者動画・連絡先・リンクを確認して応募する | 公式サイトで申請完了を確認。採択は別の結果であり保証しない **外部条件:** 本人による応募と申請内容の承認、期限内の提出 |
-| ⬜ `Y004` | R002 | 研究者・創業者の知見を一次情報から学ぶ | 人物×研究×企業×公開コード×注目問題の公開ソースマップを作る | 10人以上の研究/公開活動を出典URLで確認し、私生活情報を収集しない |
+| ✅ `Y004` | R002 | 研究者・創業者の知見を一次情報から学ぶ | 人物×研究×企業×公開コード×注目問題の公開ソースマップを作る | 10人以上の研究/公開活動を出典URLで確認し、私生活情報を収集しない |
 | ⬜ `Y005` | Y004 | 相手の課題を聞く研究者・顧客発見 | 相手ごとに学びたい問いを作り、許可された連絡手段で面談を依頼する | 5件以上の適切な接点と、返信/未返信を正確に記録。相手の同意なく送らない **外部条件:** 連絡先の適法な利用と送信承認 |
 | ✅ `Y006` | R005 | 論文から再利用可能な価値を伝える | 英語研究解説記事の非公開草案に成功・失敗・元実験の差を記述 | 出典つき、事前査読なし/自社成果なしのラベル、著作権遵守 |
-| ⬜ `Y007` | Y006 | 視覚表現と因果の厳密さを両立 | 研究室・IACS・YCの聴衆別に英語スライドと日本語補助資料を作る | 数値と図の出典・観測/予測/効果区別、発表日時は未確認なら未記載 |
+| ✅ `Y007` | Y006 | 視覚表現と因果の厳密さを両立 | 研究室・IACS・YCの聴衆別に英語スライドと日本語補助資料を作る | 数値と図の出典・観測/予測/効果区別、発表日時は未確認なら未記載 |
 | ⬜ `Y008` | Y007, C002 | 発信前の校閲・個人情報・著作権 | 許可された記事/スライド/漫画をレビュー後に公開しフィードバック記録 | 公開承認、リンク先、公開日時、訂正履歴を残す。自動投稿しない **外部条件:** 公開の明示承認 |
 
 ## 12. 長期運用と統治
@@ -197,3 +197,5 @@ Manager has a separate product identity, source scope and runtime, even when its
 - R006 rights register: `docs/research-rights.md` and `docs/research/source-rights.json`. Unknown downstream permissions remain HOLD.
 - imozuru research uses original links and local short excerpts; third-party original text is not automatically redistributable.
 - No Manager field intervention or human suffering reduction has yet been proven.
+
+- Phase06–12 implementation evidence and remaining original acceptances: `docs/verification/PHASE06_TO_12_ACCEPTANCE_20261022.md`.

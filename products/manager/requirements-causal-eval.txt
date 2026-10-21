@@ -1,0 +1,9 @@
+# Optional offline diagnostics only. No dependency added to Manager runtime.
+# DoWhy MIT: https://github.com/py-why/dowhy/releases/tag/v0.14
+# Python 3.11/3.12 compatible; shared NumPy/SciPy pins with experiment checks.
+dowhy==0.14
+numpy==2.2.6
+scipy==1.15.3
+pandas==2.2.3
+statsmodels==0.14.4
+scikit-learn==1.6.1

@@ -1,7 +1,7 @@
 name: Manager EBA v0 Open Benchmark
 on:
   push:
-    branches: [research/manager-eba-benchmark-20261022, research/manager-product-r006-20261020]
+    branches: [research/manager-completion-20261022, research/manager-eba-benchmark-20261022, research/manager-product-r006-20261020]
     paths:
       - 'products/manager/**'
       - '.github/workflows/manager-eba-v0.yml'
@@ -31,3 +31,32 @@ jobs:
           python -m manager_core
       - name: Deterministic EBA reproducible results
         run: python -m manager_core.eba_benchmark --check
+  optional-existing-evaluation-engines:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: products/manager
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned upstream research engines
+        run: python -m pip install --disable-pip-version-check -r requirements-causal-eval.txt -r requirements-experiment-checks.txt
+      - name: Execute actual DoWhy and GrowthBook contracts on synthetic inputs
+        env:
+          MPLCONFIGDIR: /tmp/manager-matplotlib
+        run: |
+          python -m unittest discover -s tests -p test_causal_analysis.py -v
+          python -m unittest discover -s tests -p test_digital_experiment.py -v
+          mkdir -p output
+          python scripts/phase06_experiment_contract.py > output/experiment-contract.json
+      - name: Preserve synthetic engine evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: manager-existing-engines-${{ github.sha }}
+          path: products/manager/output/experiment-contract.json
+          if-no-files-found: error

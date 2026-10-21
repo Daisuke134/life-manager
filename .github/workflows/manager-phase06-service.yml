@@ -1,7 +1,7 @@
 name: Manager Phase06 Digital Environment
 on:
   push:
-    branches: [research/manager-product-r006-20261020, research/manager-phase06-service-execution-20261021]
+    branches: [research/manager-product-r006-20261020, research/manager-phase06-service-execution-20261021, research/manager-completion-20261022]
     paths: ['products/manager/**', '.github/workflows/manager-phase06-service.yml']
   workflow_dispatch:
 permissions:
@@ -47,6 +47,8 @@ jobs:
         run: |
           python scripts/phase06_digital_service.py audit
           python scripts/phase06_digital_service.py outcomes
+      - name: Kernel plans a bounded release against independently served baseline
+        run: python scripts/phase06_kernel_release.py plan
       - name: Dry-run additive release and reject unknown sources
         run: |
           mkdir -p output/service/release-dry-run/articles
@@ -77,6 +79,8 @@ jobs:
     concurrency:
       group: manager-pages-prefix-writer
       cancel-in-progress: false
+    outputs:
+      pages_commit: ${{ steps.publish.outputs.pages_commit }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -103,10 +107,20 @@ jobs:
         with:
           ref: gh-pages
           path: pages
+          fetch-depth: 0
           persist-credentials: true
-      - name: Stage exact Manager files and preserve every other git path
+      - name: Admit kernel intent, stage exact Manager files, preserve every other git path
+        id: publish
+        env:
+          MANAGER_RELEASE_ENABLED: 'true'
         run: |
-          python source/products/manager/scripts/phase06_release_guard.py --site verified/output/service/site --checkout pages --audit verified/output/service/source-audit.json
+          python source/products/manager/scripts/phase06_kernel_release.py admit --site verified/output/service/site --checkout pages --audit verified/output/service/source-audit.json --intent verified/output/service/release-intent.json --output "$RUNNER_TEMP/manager-admission.json"
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          d=json.loads((Path(os.environ['RUNNER_TEMP'])/'manager-admission.json').read_text())
+          (Path(os.environ['RUNNER_TEMP'])/'manager-commit-message.txt').write_text(d['commit_message'])
+          PY
           cd pages
           git add -- manager-support
           python - <<'PY'
@@ -117,14 +131,21 @@ jobs:
           PY
           if git diff --cached --quiet; then
             echo 'NO_ACTION: same immutable source release already committed'
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
           else
             git config user.name 'github-actions[bot]'
             git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git commit -m "Manager-only public service: source $GITHUB_SHA"
+            git commit -F "$RUNNER_TEMP/manager-commit-message.txt"
             git push origin HEAD:gh-pages
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
           fi
-          git rev-parse HEAD
+          # A replay refers to its original occurrence, not a neighboring commit.
+          message="$(cat "$RUNNER_TEMP/manager-commit-message.txt")"
+          pages_commit="$(git log -1 --format=%H --fixed-strings --grep="$message")"
+          test -n "$pages_commit"
+          echo "pages_commit=$pages_commit" >> "$GITHUB_OUTPUT"
       - name: Delegate deployment to the ONE existing protected Pages workflow
+        if: steps.publish.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -174,6 +195,11 @@ jobs:
           npm ci --ignore-scripts --no-audit --no-fund
           npx playwright install --with-deps chromium
           npm test
+      - name: Bind independent public bytes to the exact kernel intent and GitHub occurrence
+        working-directory: products/manager
+        env:
+          MANAGER_PAGES_COMMIT: ${{ needs.publish-owned-prefix.outputs.pages_commit }}
+        run: python scripts/phase06_kernel_release.py prove --intent ../../verified/output/service/release-intent.json --pages-commit "$MANAGER_PAGES_COMMIT"
       - name: Keep actual external delivery proof and public screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -183,4 +209,6 @@ jobs:
             products/manager/output/service/public-readback.json
             products/manager/output/service/browser-results.json
             products/manager/output/service/screenshots
+            products/manager/output/service/kernel-public-proof.json
+            products/manager/output/service/proof-explorer.html
           if-no-files-found: warn

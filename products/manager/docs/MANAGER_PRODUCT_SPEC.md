@@ -1,8 +1,34 @@
 # Manager product specification (independent product)
 
-**Last reviewed:** 2026-10-20 JST  
+**Last reviewed:** 2026-10-22 JST
+
 **Mission:** End suffering.  
-**Repository source scope:** `products/manager/` on GitHub branch `research/manager-product-r006-20261020` (source readback checked at 68a2214d1edc9de4cfdd24ef75b84c8d59e5db6c). This is **not Life Manager**, despite shared source hosting. No module imports, DB, credentials, runtime owner, release flow, or user profile sharing by default.
+**Repository source scope:** `products/manager/` on GitHub branch `research/manager-product-r006-20261020` (completion-pass baseline independently checked at `ce75c0add1d9cec7de5ddcb9a9347dbd0c1632e5`). This is **not Life Manager**, despite shared source hosting. No module imports, DB, credentials, runtime owner, release flow, or user profile sharing by default.
+
+## Current execution checkpoint — 2026-10-22
+
+The existing owned digital release channel now has a kernel planning contract,
+separate platform admission, stable release identity, and a read-only proof
+collector that checks the original commit, all seven immutable files, its parent
+bundle, the exact changed-file set, and independently served page bytes. An old
+occurrence reconciled by a new observation retains its original timestamp and
+transition. This implements a bounded technical release path, not unrestricted
+agent authority or evidence of human benefit.
+
+Phase09–12 preparation supplies opportunity/payment accounting, separate
+prediction/causal/readback/harms evaluation, shift-aware abstention, incident and
+coverage records, and scoped governance utilities. Research, demo, presentation
+and article deliverables are indexed in the [execution report](verification/COMPLETION_EXECUTION_20261022.md)
+and [acceptance matrix](verification/PHASE06_TO_12_ACCEPTANCE_20261022.md).
+Only original acceptances with completed dependencies may become `done` in
+`roadmap/tasks.json`. F004/F007 and dependent field tasks retain their original
+requirements; no scope amendment is inferred from this implementation.
+
+The founder explicitly authorized the present article publication in the current
+completion request. That authority covers the reviewed owned-blog package and
+does not constitute a researcher outreach, application submission or participant
+consent. Historical dated snapshots below preserve their original evidence;
+their task totals and descriptions of then-unimplemented code are not current.
 
 ## Product direction clarification — Reuse → Connect → Evaluate (2026-10-21)
 
@@ -31,9 +57,15 @@ A domain-general intervention system uses *lawfully public information* to ident
 - **Simulation:** Score descriptive fit, uncertainty, causal fidelity and actual impacts separately. R005 shows why visual realism is insufficient.
 - **Generalization:** Identical core types and safety invariants must work across at least finance plus physical environment, with different adapters.
 
-## First verifiable use case (still provisional)
+## Historical optional finance/indoor use cases
 
-Public ledger–based aid amplification / charitable matching, under explicit permission, risk cap, pre-registered comparator, and measurable *new outside funding net of the Manager-provided matching money* and any displacement. Do not claim suffering reduction without evidence of beneficiary welfare. If rights, operator access, or measurement are unavailable, select a shared physical-environment pilot with authorized actuation and independent indoor sensors.
+Public ledger–based aid amplification / charitable matching remains an optional
+path under explicit permission, risk cap, preregistered comparator and measurable
+new outside funding net of Manager capital and displacement. A shared physical
+environment remains another optional authorized path. The preferred current
+owned-internet wedge is described above and in [FIRST_WEDGE.md](product/FIRST_WEDGE.md);
+it does not require either optional external route for routine technical releases.
+None of these proposals is an observed beneficiary improvement.
 
 ## Learning and experimental progression
 

@@ -1,0 +1,585 @@
+{
+  "causal_lift_status": "NOT_ESTIMATED",
+  "data_class": "SYNTHETIC_ONLY",
+  "domains": {
+    "finance": {
+      "assignment_counts": {
+        "NO_ACTION": 247,
+        "OFFICIAL_RESOURCE_DIRECTORY": 265
+      },
+      "assignment_unit": "FICTIONAL_SYNTHETIC_UNIT",
+      "configuration": {
+        "control_route": "/manager-support/control.html",
+        "coverage": 1.0,
+        "data_class": "SYNTHETIC_ONLY",
+        "domain": "finance",
+        "experiment_key": "manager-support-finance-v1",
+        "hash_attribute": "id",
+        "hash_version": 2,
+        "health_ttl_seconds": 3600,
+        "min_cell_count": 5,
+        "min_total_units": 14,
+        "numpy_version": "2.2.6",
+        "schema": "manager.synthetic-experiment.v1",
+        "scipy_version": "1.15.3",
+        "sdk_version": "3.2.2",
+        "seed": "manager-support-finance-synthetic-v1",
+        "srm_alpha": 0.001,
+        "treatment_route": "/manager-support/finance.html",
+        "unit_type": "SYNTHETIC_UNIT",
+        "variations": [
+          "NO_ACTION",
+          "OFFICIAL_RESOURCE_DIRECTORY"
+        ],
+        "weights": [
+          0.5,
+          0.5
+        ]
+      },
+      "configuration_sha256": "296ed81f3d07c187200b70d76e41329412391208ea5b990b63c77b98a93210dd",
+      "constructed_srm_refusal_probe": {
+        "counts": [
+          90,
+          10
+        ],
+        "decision": {
+          "action_executed": false,
+          "candidate_route": null,
+          "causal_lift_status": "NOT_ESTIMATED",
+          "decision": "NO_ACTION",
+          "experiment_enabled": false,
+          "external_authority": "NOT_ESTABLISHED",
+          "human_outcome": "NOT_MEASURED",
+          "live_action_allowed": false,
+          "proof_level": "P0",
+          "reason": "SAMPLE_RATIO_MISMATCH"
+        },
+        "observed_field_fault": false,
+        "p_value": 1.2441921148543578e-15,
+        "selection": "First 90 control plus first 10 treatment from the fictional cohort",
+        "statistic": 64.0
+      },
+      "control": {
+        "action_executed": false,
+        "candidate_route": null,
+        "causal_lift_status": "NOT_ESTIMATED",
+        "decision": "NO_ACTION",
+        "experiment_enabled": false,
+        "external_authority": "NOT_ESTABLISHED",
+        "human_outcome": "NOT_MEASURED",
+        "live_action_allowed": false,
+        "proof_level": "P0",
+        "reason": "CONTROL_HOLDOUT"
+      },
+      "deterministic_replay_units": 512,
+      "health": {
+        "action_executed": false,
+        "alpha": 0.001,
+        "assessed_at": "2026-10-22T00:00:00+00:00",
+        "causal_lift_status": "NOT_ESTIMATED",
+        "config_sha256": "296ed81f3d07c187200b70d76e41329412391208ea5b990b63c77b98a93210dd",
+        "counts": [
+          247,
+          265
+        ],
+        "expected_counts": [
+          256.0,
+          256.0
+        ],
+        "experiment_enabled": false,
+        "external_authority": "NOT_ESTABLISHED",
+        "human_outcome": "NOT_MEASURED",
+        "live_action_allowed": false,
+        "p_value": 0.426325543384408,
+        "proof_level": "P0",
+        "reason": "SRM_NOT_DETECTED",
+        "snapshot_sha256": "8a664d5da364e52808238e7b9b23c4fd3257843bc4d7d26d3187577410da4cc4",
+        "statistic": 0.6328125,
+        "status": "HEALTHY",
+        "total_units": 512
+      },
+      "refusal_probes": {
+        "duplicate_unit": {
+          "action_executed": false,
+          "candidate_route": null,
+          "causal_lift_status": "NOT_ESTIMATED",
+          "decision": "NO_ACTION",
+          "experiment_enabled": false,
+          "external_authority": "NOT_ESTABLISHED",
+          "human_outcome": "NOT_MEASURED",
+          "live_action_allowed": false,
+          "proof_level": "P0",
+          "reason": "DUPLICATE_UNIT"
+        },
+        "expired_consent": {
+          "action_executed": false,
+          "candidate_route": null,
+          "causal_lift_status": "NOT_ESTIMATED",
+          "decision": "NO_ACTION",
+          "experiment_enabled": false,
+          "external_authority": "NOT_ESTABLISHED",
+          "human_outcome": "NOT_MEASURED",
+          "live_action_allowed": false,
+          "proof_level": "P0",
+          "reason": "CONSENT_EXPIRED"
+        },
+        "health_missing": {
+          "action_executed": false,
+          "candidate_route": null,
+          "causal_lift_status": "NOT_ESTIMATED",
+          "decision": "NO_ACTION",
+          "experiment_enabled": false,
+          "external_authority": "NOT_ESTABLISHED",
+          "human_outcome": "NOT_MEASURED",
+          "live_action_allowed": false,
+          "proof_level": "P0",
+          "reason": "HEALTH_UNAVAILABLE"
+        },
+        "missing_consent": {
+          "action_executed": false,
+          "candidate_route": null,
+          "causal_lift_status": "NOT_ESTIMATED",
+          "decision": "NO_ACTION",
+          "experiment_enabled": false,
+          "external_authority": "NOT_ESTABLISHED",
+          "human_outcome": "NOT_MEASURED",
+          "live_action_allowed": false,
+          "proof_level": "P0",
+          "reason": "MISSING_OR_INVALID_CONSENT"
+        },
+        "real_participant_claim": {
+          "action_executed": false,
+          "candidate_route": null,
+          "causal_lift_status": "NOT_ESTIMATED",
+          "decision": "NO_ACTION",
+          "experiment_enabled": false,
+          "external_authority": "NOT_ESTABLISHED",
+          "human_outcome": "NOT_MEASURED",
+          "live_action_allowed": false,
+          "proof_level": "P0",
+          "reason": "REAL_PARTICIPANT_BLOCKED"
+        },
+        "revoked_consent": {
+          "action_executed": false,
+          "candidate_route": null,
+          "causal_lift_status": "NOT_ESTIMATED",
+          "decision": "NO_ACTION",
+          "experiment_enabled": false,
+          "external_authority": "NOT_ESTABLISHED",
+          "human_outcome": "NOT_MEASURED",
+          "live_action_allowed": false,
+          "proof_level": "P0",
+          "reason": "CONSENT_REVOKED"
+        }
+      },
+      "treatment_candidate": {
+        "action_executed": false,
+        "candidate_route": "/manager-support/finance.html",
+        "causal_lift_status": "NOT_ESTIMATED",
+        "decision": "SYNTHETIC_CANDIDATE",
+        "experiment_enabled": false,
+        "external_authority": "NOT_ESTABLISHED",
+        "human_outcome": "NOT_MEASURED",
+        "live_action_allowed": false,
+        "proof_level": "P0",
+        "reason": "OFFLINE_CONTRACT_ONLY"
+      },
+      "units": 512
+    },
+    "mental": {
+      "assignment_counts": {
+        "NO_ACTION": 253,
+        "OFFICIAL_RESOURCE_DIRECTORY": 259
+      },
+      "assignment_unit": "FICTIONAL_SYNTHETIC_UNIT",
+      "configuration": {
+        "control_route": "/manager-support/control.html",
+        "coverage": 1.0,
+        "data_class": "SYNTHETIC_ONLY",
+        "domain": "mental",
+        "experiment_key": "manager-support-mental-v1",
+        "hash_attribute": "id",
+        "hash_version": 2,
+        "health_ttl_seconds": 3600,
+        "min_cell_count": 5,
+        "min_total_units": 14,
+        "numpy_version": "2.2.6",
+        "schema": "manager.synthetic-experiment.v1",
+        "scipy_version": "1.15.3",
+        "sdk_version": "3.2.2",
+        "seed": "manager-support-mental-synthetic-v1",
+        "srm_alpha": 0.001,
+        "treatment_route": "/manager-support/mental.html",
+        "unit_type": "SYNTHETIC_UNIT",
+        "variations": [
+          "NO_ACTION",
+          "OFFICIAL_RESOURCE_DIRECTORY"
+        ],
+        "weights": [
+          0.5,
+          0.5
+        ]
+      },
+      "configuration_sha256": "c151d4eb1d292a4209362a27d014329b7701166b562bd8ead5052de721047c7c",
+      "constructed_srm_refusal_probe": {
+        "counts": [
+          90,
+          10
+        ],
+        "decision": {
+          "action_executed": false,
+          "candidate_route": null,
+          "causal_lift_status": "NOT_ESTIMATED",
+          "decision": "NO_ACTION",
+          "experiment_enabled": false,
+          "external_authority": "NOT_ESTABLISHED",
+          "human_outcome": "NOT_MEASURED",
+          "live_action_allowed": false,
+          "proof_level": "P0",
+          "reason": "SAMPLE_RATIO_MISMATCH"
+        },
+        "observed_field_fault": false,
+        "p_value": 1.2441921148543578e-15,
+        "selection": "First 90 control plus first 10 treatment from the fictional cohort",
+        "statistic": 64.0
+      },
+      "control": {
+        "action_executed": false,
+        "candidate_route": null,
+        "causal_lift_status": "NOT_ESTIMATED",
+        "decision": "NO_ACTION",
+        "experiment_enabled": false,
+        "external_authority": "NOT_ESTABLISHED",
+        "human_outcome": "NOT_MEASURED",
+        "live_action_allowed": false,
+        "proof_level": "P0",
+        "reason": "CONTROL_HOLDOUT"
+      },
+      "deterministic_replay_units": 512,
+      "health": {
+        "action_executed": false,
+        "alpha": 0.001,
+        "assessed_at": "2026-10-22T00:00:00+00:00",
+        "causal_lift_status": "NOT_ESTIMATED",
+        "config_sha256": "c151d4eb1d292a4209362a27d014329b7701166b562bd8ead5052de721047c7c",
+        "counts": [
+          253,
+          259
+        ],
+        "expected_counts": [
+          256.0,
+          256.0
+        ],
+        "experiment_enabled": false,
+        "external_authority": "NOT_ESTABLISHED",
+        "human_outcome": "NOT_MEASURED",
+        "live_action_allowed": false,
+        "p_value": 0.7908823229406241,
+        "proof_level": "P0",
+        "reason": "SRM_NOT_DETECTED",
+        "snapshot_sha256": "7db7959e1ab6e6a0fc5d33129029e84bfb85301b5d0f25d59f12936e1fc510f5",
+        "statistic": 0.0703125,
+        "status": "HEALTHY",
+        "total_units": 512
+      },
+      "refusal_probes": {
+        "duplicate_unit": {
+          "action_executed": false,
+          "candidate_route": null,
+          "causal_lift_status": "NOT_ESTIMATED",
+          "decision": "NO_ACTION",
+          "experiment_enabled": false,
+          "external_authority": "NOT_ESTABLISHED",
+          "human_outcome": "NOT_MEASURED",
+          "live_action_allowed": false,
+          "proof_level": "P0",
+          "reason": "DUPLICATE_UNIT"
+        },
+        "expired_consent": {
+          "action_executed": false,
+          "candidate_route": null,
+          "causal_lift_status": "NOT_ESTIMATED",
+          "decision": "NO_ACTION",
+          "experiment_enabled": false,
+          "external_authority": "NOT_ESTABLISHED",
+          "human_outcome": "NOT_MEASURED",
+          "live_action_allowed": false,
+          "proof_level": "P0",
+          "reason": "CONSENT_EXPIRED"
+        },
+        "health_missing": {
+          "action_executed": false,
+          "candidate_route": null,
+          "causal_lift_status": "NOT_ESTIMATED",
+          "decision": "NO_ACTION",
+          "experiment_enabled": false,
+          "external_authority": "NOT_ESTABLISHED",
+          "human_outcome": "NOT_MEASURED",
+          "live_action_allowed": false,
+          "proof_level": "P0",
+          "reason": "HEALTH_UNAVAILABLE"
+        },
+        "missing_consent": {
+          "action_executed": false,
+          "candidate_route": null,
+          "causal_lift_status": "NOT_ESTIMATED",
+          "decision": "NO_ACTION",
+          "experiment_enabled": false,
+          "external_authority": "NOT_ESTABLISHED",
+          "human_outcome": "NOT_MEASURED",
+          "live_action_allowed": false,
+          "proof_level": "P0",
+          "reason": "MISSING_OR_INVALID_CONSENT"
+        },
+        "real_participant_claim": {
+          "action_executed": false,
+          "candidate_route": null,
+          "causal_lift_status": "NOT_ESTIMATED",
+          "decision": "NO_ACTION",
+          "experiment_enabled": false,
+          "external_authority": "NOT_ESTABLISHED",
+          "human_outcome": "NOT_MEASURED",
+          "live_action_allowed": false,
+          "proof_level": "P0",
+          "reason": "REAL_PARTICIPANT_BLOCKED"
+        },
+        "revoked_consent": {
+          "action_executed": false,
+          "candidate_route": null,
+          "causal_lift_status": "NOT_ESTIMATED",
+          "decision": "NO_ACTION",
+          "experiment_enabled": false,
+          "external_authority": "NOT_ESTABLISHED",
+          "human_outcome": "NOT_MEASURED",
+          "live_action_allowed": false,
+          "proof_level": "P0",
+          "reason": "CONSENT_REVOKED"
+        }
+      },
+      "treatment_candidate": {
+        "action_executed": false,
+        "candidate_route": "/manager-support/mental.html",
+        "causal_lift_status": "NOT_ESTIMATED",
+        "decision": "SYNTHETIC_CANDIDATE",
+        "experiment_enabled": false,
+        "external_authority": "NOT_ESTABLISHED",
+        "human_outcome": "NOT_MEASURED",
+        "live_action_allowed": false,
+        "proof_level": "P0",
+        "reason": "OFFLINE_CONTRACT_ONLY"
+      },
+      "units": 512
+    },
+    "physical": {
+      "assignment_counts": {
+        "NO_ACTION": 256,
+        "OFFICIAL_RESOURCE_DIRECTORY": 256
+      },
+      "assignment_unit": "FICTIONAL_SYNTHETIC_UNIT",
+      "configuration": {
+        "control_route": "/manager-support/control.html",
+        "coverage": 1.0,
+        "data_class": "SYNTHETIC_ONLY",
+        "domain": "physical",
+        "experiment_key": "manager-support-physical-v1",
+        "hash_attribute": "id",
+        "hash_version": 2,
+        "health_ttl_seconds": 3600,
+        "min_cell_count": 5,
+        "min_total_units": 14,
+        "numpy_version": "2.2.6",
+        "schema": "manager.synthetic-experiment.v1",
+        "scipy_version": "1.15.3",
+        "sdk_version": "3.2.2",
+        "seed": "manager-support-physical-synthetic-v1",
+        "srm_alpha": 0.001,
+        "treatment_route": "/manager-support/physical.html",
+        "unit_type": "SYNTHETIC_UNIT",
+        "variations": [
+          "NO_ACTION",
+          "OFFICIAL_RESOURCE_DIRECTORY"
+        ],
+        "weights": [
+          0.5,
+          0.5
+        ]
+      },
+      "configuration_sha256": "ddbeb743f045262ede6393c1f59574acf2ad551c56bf591cf9986b9abd356cb8",
+      "constructed_srm_refusal_probe": {
+        "counts": [
+          90,
+          10
+        ],
+        "decision": {
+          "action_executed": false,
+          "candidate_route": null,
+          "causal_lift_status": "NOT_ESTIMATED",
+          "decision": "NO_ACTION",
+          "experiment_enabled": false,
+          "external_authority": "NOT_ESTABLISHED",
+          "human_outcome": "NOT_MEASURED",
+          "live_action_allowed": false,
+          "proof_level": "P0",
+          "reason": "SAMPLE_RATIO_MISMATCH"
+        },
+        "observed_field_fault": false,
+        "p_value": 1.2441921148543578e-15,
+        "selection": "First 90 control plus first 10 treatment from the fictional cohort",
+        "statistic": 64.0
+      },
+      "control": {
+        "action_executed": false,
+        "candidate_route": null,
+        "causal_lift_status": "NOT_ESTIMATED",
+        "decision": "NO_ACTION",
+        "experiment_enabled": false,
+        "external_authority": "NOT_ESTABLISHED",
+        "human_outcome": "NOT_MEASURED",
+        "live_action_allowed": false,
+        "proof_level": "P0",
+        "reason": "CONTROL_HOLDOUT"
+      },
+      "deterministic_replay_units": 512,
+      "health": {
+        "action_executed": false,
+        "alpha": 0.001,
+        "assessed_at": "2026-10-22T00:00:00+00:00",
+        "causal_lift_status": "NOT_ESTIMATED",
+        "config_sha256": "ddbeb743f045262ede6393c1f59574acf2ad551c56bf591cf9986b9abd356cb8",
+        "counts": [
+          256,
+          256
+        ],
+        "expected_counts": [
+          256.0,
+          256.0
+        ],
+        "experiment_enabled": false,
+        "external_authority": "NOT_ESTABLISHED",
+        "human_outcome": "NOT_MEASURED",
+        "live_action_allowed": false,
+        "p_value": 1.0,
+        "proof_level": "P0",
+        "reason": "SRM_NOT_DETECTED",
+        "snapshot_sha256": "ec147c1e66b5ad59f8328e1f4b85dcfc40cb3768c3427fd2b30a69d3b35fb07a",
+        "statistic": 0.0,
+        "status": "HEALTHY",
+        "total_units": 512
+      },
+      "refusal_probes": {
+        "duplicate_unit": {
+          "action_executed": false,
+          "candidate_route": null,
+          "causal_lift_status": "NOT_ESTIMATED",
+          "decision": "NO_ACTION",
+          "experiment_enabled": false,
+          "external_authority": "NOT_ESTABLISHED",
+          "human_outcome": "NOT_MEASURED",
+          "live_action_allowed": false,
+          "proof_level": "P0",
+          "reason": "DUPLICATE_UNIT"
+        },
+        "expired_consent": {
+          "action_executed": false,
+          "candidate_route": null,
+          "causal_lift_status": "NOT_ESTIMATED",
+          "decision": "NO_ACTION",
+          "experiment_enabled": false,
+          "external_authority": "NOT_ESTABLISHED",
+          "human_outcome": "NOT_MEASURED",
+          "live_action_allowed": false,
+          "proof_level": "P0",
+          "reason": "CONSENT_EXPIRED"
+        },
+        "health_missing": {
+          "action_executed": false,
+          "candidate_route": null,
+          "causal_lift_status": "NOT_ESTIMATED",
+          "decision": "NO_ACTION",
+          "experiment_enabled": false,
+          "external_authority": "NOT_ESTABLISHED",
+          "human_outcome": "NOT_MEASURED",
+          "live_action_allowed": false,
+          "proof_level": "P0",
+          "reason": "HEALTH_UNAVAILABLE"
+        },
+        "missing_consent": {
+          "action_executed": false,
+          "candidate_route": null,
+          "causal_lift_status": "NOT_ESTIMATED",
+          "decision": "NO_ACTION",
+          "experiment_enabled": false,
+          "external_authority": "NOT_ESTABLISHED",
+          "human_outcome": "NOT_MEASURED",
+          "live_action_allowed": false,
+          "proof_level": "P0",
+          "reason": "MISSING_OR_INVALID_CONSENT"
+        },
+        "real_participant_claim": {
+          "action_executed": false,
+          "candidate_route": null,
+          "causal_lift_status": "NOT_ESTIMATED",
+          "decision": "NO_ACTION",
+          "experiment_enabled": false,
+          "external_authority": "NOT_ESTABLISHED",
+          "human_outcome": "NOT_MEASURED",
+          "live_action_allowed": false,
+          "proof_level": "P0",
+          "reason": "REAL_PARTICIPANT_BLOCKED"
+        },
+        "revoked_consent": {
+          "action_executed": false,
+          "candidate_route": null,
+          "causal_lift_status": "NOT_ESTIMATED",
+          "decision": "NO_ACTION",
+          "experiment_enabled": false,
+          "external_authority": "NOT_ESTABLISHED",
+          "human_outcome": "NOT_MEASURED",
+          "live_action_allowed": false,
+          "proof_level": "P0",
+          "reason": "CONSENT_REVOKED"
+        }
+      },
+      "treatment_candidate": {
+        "action_executed": false,
+        "candidate_route": "/manager-support/physical.html",
+        "causal_lift_status": "NOT_ESTIMATED",
+        "decision": "SYNTHETIC_CANDIDATE",
+        "experiment_enabled": false,
+        "external_authority": "NOT_ESTABLISHED",
+        "human_outcome": "NOT_MEASURED",
+        "live_action_allowed": false,
+        "proof_level": "P0",
+        "reason": "OFFLINE_CONTRACT_ONLY"
+      },
+      "units": 512
+    }
+  },
+  "engines": {
+    "growthbook": "3.2.2",
+    "numpy": "2.2.6",
+    "scipy": "1.15.3"
+  },
+  "experiment_enabled": false,
+  "external_authority": "NOT_ESTABLISHED",
+  "external_writes": 0,
+  "human_outcome": "NOT_MEASURED",
+  "limits": [
+    "Self-supplied synthetic consent and hashes authenticate no external permission.",
+    "Unique assignment counts are not verified real exposures, participants or beneficiaries.",
+    "SRM checks assignment balance only. It provides no causal lift or welfare estimate.",
+    "The public static site is unchanged and has no enabled experiment or tracking."
+  ],
+  "live_action_allowed": false,
+  "network_connection_attempts": 0,
+  "primary_sources": [
+    "https://docs.growthbook.io/lib/python",
+    "https://docs.growthbook.io/app/experiment-results#experiment-balance-srm",
+    "https://docs.scipy.org/doc/scipy-1.15.3/reference/generated/scipy.stats.chisquare.html"
+  ],
+  "proof_level": "P0",
+  "real_participants": 0,
+  "recorded_at_utc": "2026-10-21T17:11:52.862103+00:00",
+  "schema": "manager.synthetic-experiment-check.v1",
+  "simulation_clock": "2026-10-22T00:00:00+00:00"
+}
