@@ -22425,7 +22425,7 @@ host掃除の唯一owner `com.anicca.disk-watchdog`は60秒cadenceで稼働中�
 
 このentryは直前の「current cursor=次natural distribution」を更新する。先に10 GiB admission floorを回復し、収益ownerの自然runへ戻る。
 
-### Capafy shared-runner mode integration — 2026-10-21 10:08 UTC
+### Capafy shared-runner mode integration — 2026-10-21 10:12 UTC
 
 **新しいsource blocker:** e8e91 occurrence `capafy-distribute-daily:18e08184ecb3add0-20935`は09:30:59.633850Zに開始し、09:31:04.277586Zに`entrypoint_exit_1`で終了した。ログ`~/.local/state/life-manager/writer/capafy-distribute/logs/capafy-distribute-daily.log`には`shared-model-runner.py: error: argument mode: invalid choice: 'agent-workspace'`が記録される。`skills/earn/capafy-marketing/capafy-distribute-daily.sh`はmode `agent-workspace`を`skills/writer-agent/runtime/model-runner.sh`へ渡し、そのwrapperはtool-free/no-tools/schema/output-fileを正しく要求するが、既定shared adapterの`shared-model-runner.py` parserは`agent/judge/vision/repair`しか受け付けていなかった。runner/providerは起動せず、promptだけが生成された。recovery intent=`hold_effect_unknown`、fenceはactiveのまま。09:34:02Zのoccurrence `18e081af8646d7b8-28379`はこのfenceでadmission deferした。旧`CRAFT_GUIDANCE`障害とは別の2つ目のsource defectである。
 
@@ -22435,7 +22435,7 @@ host掃除の唯一owner `com.anicca.disk-watchdog`は60秒cadenceで稼働中�
 
 **current candidate verification:** `test_shared_model_runner.py` 13/13、`test_model_runner_contract.py` 10/10、Capafy `test_capafy_distribute_daily.py` 12/12、Capafy marketing suite 396 tests + 18 subtests、`git diff --check` pass。全writer-agent suiteは895 passed/4 skipped/127 subtests、1 failure。唯一の失敗`test_writer_repair_candidate_wiring::test_the_launchd_driver_runs_the_repair_end_to_end`はtest自身が起動するnested gateで`/Users/anicca/.local/share/life-manager/venv/bin/python3: No module named pytest`となり、candidateを破棄した。これは`repair` modeの環境依存で、今回の`agent-workspace` modeを使わない。fresh Codex source reviewはGO・blocking finding 0。exact-head GitHub CIは未実行で、TODO #1に残す。
 
-**latest production readback:** `lm-loop status all`から対象ownerだけを抽出。09:49:06.811637Zのoccurrence `18e0828204216838-69944`はloaded SHA `c0846ea05f02b801d288c7d62023d965e6dfcc25`でloaded-idle、`host_admission_deferred:resource_effect_unknown` / exit 75。fence occurrence `18e08184ecb3add0-20935`は引き続き`admission_effect_unknown=true`。production DBへのread-only probeで`_owner_has_pending_admission("capafy-distribute-daily")=true`を確認した。shared apply guardはこのqueueをrebindし、effect-unknown fenceが残る間はrebind拒否となるため、fence closure前にowner applyしない。公開効果・receiptは未確定のまま保持する。
+**latest production readback:** `lm-loop status all`から対象ownerだけを抽出。10:04:02.604259Zのoccurrence `18e083529d37dbd0-24263`はloaded SHA `c0846ea05f02b801d288c7d62023d965e6dfcc25`でloaded-idle、`host_admission_deferred:resource_effect_unknown` / exit 75、provider receiptなし。fence occurrence `18e08184ecb3add0-20935`は引き続き`admission_effect_unknown=true`。production DBへのread-only probeで`_owner_has_pending_admission("capafy-distribute-daily")=true`を確認した。shared apply guardはこのqueueをrebindし、effect-unknown fenceが残る間はrebind拒否となるため、fence closure前にowner applyしない。公開効果・receiptは未確定のまま保持する。
 
 **残TODO（current cursor=1）:**
 
@@ -22448,4 +22448,4 @@ host掃除の唯一owner `com.anicca.disk-watchdog`は60秒cadenceで稼働中�
 | 5 | 10 GiB admission floorを満たす自然slotでCapafyを実行し、`agent-workspace`からJSON draftを受け取ってdistributionする。 | #4。DONE=public articleのGitHub/HTTP 200とPostiz `PUBLISHED` ID/permalinkを同occurrenceへjoinし、duplicate=0。 |
 | 6 | 同一sourceのofficial seller rowsでviews/trials/paid/earningsを確認し、orderがなければ`/agent/agents/search`の同target勝ち例を1つ再現して1変数のdistribution experimentを行う。 | #5。DONE=source-attributed paid order/creator earnings、または次の測定実験と判定基準を記録。 |
 
-このentryは10:06時点のsource-only cursorを更新する。cursor=1はPR #8493のexact-head CI/merge。source adoptionはactive fenceの公式解決より後へ置く。distributionを再開できたら、次の成果判定はsource-attributed paid order。
+このentryは10:08時点のsource-only cursorを更新する。cursor=1はPR #8493のexact-head CI/merge。source adoptionはactive fenceの公式解決より後へ置く。distributionを再開できたら、次の成果判定はsource-attributed paid order。
