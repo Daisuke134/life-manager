@@ -2,7 +2,7 @@
 
 Status: 2026-10-21 JST. Manager-only task registry in `tasks.json`; the Life Manager project SSOT is unchanged.
 
-Total: 113 · Done: 61 · Todo: 49 · Blocked: 2 · Skipped: 1
+Total: 113 · Done: 63 · Todo: 47 · Blocked: 2 · Skipped: 1
 
 ✅ = verified task; ⬜ = not started; ⛔ = outside dependency; ⏭️ = scientific waiver (not success). A research task is not evidence of real-world impact.
 
@@ -107,8 +107,8 @@ Manager has a separate product identity, source scope and runtime, even when its
 | 状態・ID | 依存 | 理解する | 作る・更新する | 完了の確認 |
 |---|---|---|---|---|
 | ✅ `F001` | K014 | 現実の行動には権限が必要と説明する | finance/environment各候補にoperator, rights, metric, feasibilityを記入 | 必須権限がなくてもpilot可能と主張しない |
-| ⬜ `F002` | F001, L010 | 一次アウトカムと副作用を事前固定する | pilot/PREREGISTRATION.mdにunit/comparator/n/duration/outcome | 「成功した後に指標を選ぶ」ことを禁止 |
-| ⬜ `F003` | F002 | 仮想テストと現実証明を分離する | finance read-only adapterと初期fixtureを実装 | 公開送金/公開台帳を第三者でreadbackできる |
+| ✅ `F002` | F001, L010 | 一次アウトカムと副作用を事前固定する | pilot/PREREGISTRATION.mdにunit/comparator/n/duration/outcome | 「成功した後に指標を選ぶ」ことを禁止 |
+| ✅ `F003` | F002 | 仮想テストと現実証明を分離する | finance read-only adapterと初期fixtureを実装 | 公開送金/公開台帳を第三者でreadbackできる |
 | ⛔ `F004` | F003, K007 | 予算・運営者承諾を確認する | 実行主体の明示的な権限と厳密な限度を持つ | 権限/資金/第三者事前同意が揃うまではblocked **外部条件:** 資金の管理主体、明示承認、受益と評価の公開性が必要 |
 | ⬜ `F005` | F004, K009 | 現実の公開receiptを照合する | 限定的な初回の実行と外部独立読み戻し | 実行の事実P1と状態変化P2まで独立確認 |
 | ⬜ `F006` | F005, K011 | 因果効果・費用・害を報告する | primary outcome+CI+null evidenceのレポート | P3/P4に届かないものは明示し、sample数不足はinconclusive |

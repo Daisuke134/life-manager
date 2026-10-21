@@ -1,5 +1,12 @@
 # Manager — independent intervention research prototype
 
+## October 21 Phase06 — F002/F003 source-grounded field-readiness increment
+
+**F002 and F003 now have bounded engineering/research evidence, not real-world intervention proof.** F002 provides a SHA256-locked **proposed** 40-campaign no-action randomized finance study design, with explicit unit, primary metric, comparator, windows, harms and stopping criteria; this is *not a registered human trial*. F003 implements a strictly read-only, no-credentials public Open Collective finance ledger adapter with defensive schema and privacy guardrails, and [hosted actual public readback](https://github.com/Daisuke134/life-manager/actions/runs/39586031696) plus 262 successful offline tests. The `webpack` ledger is historical third-party activity, not Manager revenue, a Manager receipt or causal welfare improvement.
+
+[Full evidence and remaining F004–F009 prerequisites](docs/verification/PHASE06_F002_F003_FIELD_READINESS.md) · [locked F002 design](pilot/PREREGISTRATION.json) · [real public ledger probe](scripts/phase06_public_finance_readback.py). **Manager task count: 63 done / 47 todo / 2 blocked / 1 scientific skip; Phase06 = 3 done / 4 todo / 2 blocked.** Gate1 UNMET; real beneficiary improvement NOT_MEASURED.
+
+
 ## October 21 Phase06 transition research — F001 and U001
 
 **Two additional bounded research task acceptances:** `F001` (operator/rights/feasibility comparison) and `U001` (7 beneficiary mechanisms and causal comparisons) are verified by source-linked original analysis and a new fail-closed matrix contract. They **do not** represent F002 preregistration, F003 real external ledger readback, real effect authorization, P1/P2 or improvement of human welfare. The Manager common kernel still runs as offline P0 software.

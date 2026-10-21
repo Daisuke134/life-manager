@@ -1,0 +1,73 @@
+{
+  "study_id": "MGR-FINANCE-F002-20261021-01",
+  "version": 1,
+  "status": "PREREGISTERED_DESIGN_ONLY",
+  "live_pilot_authorized": false,
+  "proof_level": "P0",
+  "scenario": "Prospective opt-in and operator-authorized public grant/donation campaign intervention; NOT CURRENTLY RECRUITING OR RUNNING",
+  "domain": "finance",
+  "target_candidate": "OPEN_LEDGER_SUPPORT",
+  "hypothesis": "A bounded information or matching intervention may increase confirmed net third-party contributions, but refunds, fees, and displacement can reverse the effect.",
+  "eligibility": "40 DISTINCT willing, owner-authorized public collectives, USD-denominated, no private-person tracking, no material exposure overlap, independently readable ledger; currently NOT VERIFIED",
+  "design": {
+    "n_campaigns_total": 40,
+    "n_treatment": 20,
+    "n_control": 20,
+    "n_is_powered": false,
+    "sample_size_basis": "engineering feasibility target only; blinded variance and power analysis must justify or replace in NEW preregistration version before any assignment",
+    "baseline_days": 14,
+    "treatment_days": 28,
+    "settlement_followup_days": 30,
+    "analysis_unit": "public USD-denominated collective campaign",
+    "currency": "USD",
+    "report_negative_and_null_results": true
+  },
+  "assignment": {
+    "method": "prospective_cluster_randomization",
+    "randomized_unit": "distinct public campaign, not individual donors",
+    "ratio": "1:1",
+    "no_action_arm": "NO_ACTION",
+    "treatment_arm": "BOUNDED_OPERATOR_APPROVED_CAMPAIGN_INFORMATION",
+    "randomization_commitment": "assignment seed, full eligibility roster and assignment file hash to be fixed before pilot; absent today",
+    "interference_policy": "exclude campaigns sharing donors/traffic when observable; quantify any contamination and refrain from P4 if spillover cannot be identified"
+  },
+  "primary_outcome": {
+    "name": "incremental_net_confirmed_third_party_contributions",
+    "unit": "USD_cents_per_campaign",
+    "estimand": "Intention-to-treat difference in per-campaign confirmed external contribution receipts net of refunds and attributable fees and costs; displacement accounted for separately; none of the operator matching principal counted as new resources",
+    "data_source": "An independent provider ledger and separately reconciled settlement corroboration; public balances alone do not establish beneficiary gain",
+    "measurement_window": "day 1 through day 28 after assignment, with predefined 30-day settlement/refund follow-up",
+    "missing_data": "UNKNOWN / NOT_MEASURED, never 0; do not silently convert pending orders or donor clicks into settled amounts"
+  },
+  "comparator": {
+    "type": "concurrently randomized no-action campaigns",
+    "unit": "campaign",
+    "statistical_plan": "intention-to-treat difference of means in USD cents, exact/randomization-inference p-value where possible, cluster-resampled 95% interval and sensitivity to noncompliance",
+    "uncertainty_rule": "if confidence interval covers zero or sensitivity overturns estimate, label INCONCLUSIVE; no causal benefit badge",
+    "displacement": "measure potential migration from other collectives and nearby period, report UNKNOWN if no observation rights"
+  },
+  "harms": [
+    "refunds/chargebacks",
+    "processor and fiscal host fees",
+    "donor complaints or deception",
+    "displacement of support from other beneficiaries",
+    "employee/volunteer labor and compute costs",
+    "unfair exposure or exclusion",
+    "privacy incidents"
+  ],
+  "stop_rules": [
+    "no verified property/funding/communication operator grant -> NO_ACTION",
+    "no documented consent or account-level rights -> NO_ACTION",
+    "independent ledger unavailable, payment uncertainty or mixed currency -> UNKNOWN_EFFECT/NOT_MEASURED",
+    "verified harm, privacy event, over-budget signal -> immediate STOP and provider reconciliation",
+    "any outcome post hoc redefinition requires a new registered design version, not silent replacement"
+  ],
+  "publication": "Only deidentified aggregates, URLs, signed scope, missingness, adverse events and caveats; no individual donor rows or profiles.",
+  "source_urls": [
+    "https://developers.opencollective.com/",
+    "https://documentation.opencollective.com/advanced/ledger",
+    "https://documentation.opencollective.com/advanced/ledger/transaction-pairs-groups-and-perspectives",
+    "https://www.aeaweb.org/articles?id=10.1257/aer.97.5.1774"
+  ],
+  "status_reason": "No 40 consenting collectives, sponsor, verified funding authority, source-rights clearance, independent settlement counterpart, preregistered random assignments or pilot partner is connected. This record is a frozen research design, not a live study, RCT or verified welfare benefit."
+}
