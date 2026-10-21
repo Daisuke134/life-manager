@@ -10,15 +10,30 @@
   "sanitized_path_audit": "pass; only public vendored publisher profile source and four declarative maps are included",
   "included_vendored_profile_source_files": 13,
   "uploaded": true,
-  "deployed": false,
-  "next_action": "redeploy the same existing owned agent once, then verify loaded source SHA and cloud_cycle.py hash",
+  "deployed": true,
+  "next_action": "preflight a fresh occurrence, dispatch once, and verify the receipt/artifact",
   "upload_http_status": 200,
   "upload_has_root_dockerfile": true,
   "upload_detected_framework": "custom",
   "upload_file_count": 100,
   "upload_reference_stored_privately": true,
   "deployment": {
-    "attempted": false,
+    "attempted": true,
+    "status": "success",
+    "loaded_release_sha": "a0d217d0769db2dab68bb8a8a452bfaea916fe9d",
+    "health_ok": true,
+    "source_hashes_match": true,
     "new_agent_created": false
-  }
+  },
+  "deployment_status": "success",
+  "loaded_release_sha": "a0d217d0769db2dab68bb8a8a452bfaea916fe9d",
+  "health_ok": true,
+  "loaded_source_hashes_match": true,
+  "loaded_source_sha256": {
+    "apps/life-manager/maritime/server.js": "d462c9de69853db134cc864f9b16fe5e1d1e8ea130aaec0fcd5025f44a6e1b3e",
+    "skills/capafy-autopublish/scripts/cloud_cycle.py": "ce2293bdeee66847269b7232d339295e9f6c6fcfcfd030ef216528ba4bf55918",
+    "skills/capafy-autopublish/scripts/browser-owner": "cefe224ce835740a1fb4e9a449977848873e8173ae4514d8d1adc6a498dd0bb8",
+    "requirements-runtime.txt": "e601b3ab54346821f3bcf69ed60c1a6fa704633a4abe81a75b706b7c22b4795f"
+  },
+  "business_cycle_verified": false
 }
