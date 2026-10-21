@@ -256,3 +256,12 @@ test('manager milestones hash participant and occurrence keys and mark founder a
  assert.equal(events[0].uid,null);assert.equal(events[0].attribution.utm_medium,'dm');assert.doesNotMatch(JSON.stringify(events),/private|lm_11111111|job:a/);
  assert.equal(await store.recordManagerEvent('unknown',uid,{source:'instagram'}),false);
 });
+
+test('manager email consent event reuses HMAC identity and web attribution',async()=>{
+ const uid='lm_11111111-1111-4111-8111-111111111111',events=[];
+ const store=createMaritimeDistributionStore({env:{LM_UID_SECRET:'fixture-secret'},recordEventImpl:async event=>{events.push(event);return true;},now:()=>Date.parse('2026-10-21T00:00:00Z')});
+ assert.equal(await store.recordConsentEvent(uid,'instagram','web'),true);
+ assert.equal(events[0].eventName,'maritime_consent');assert.equal(events[0].uid,null);
+ assert.equal(events[0].sourceObjectId,store.participantId(uid));assert.equal(events[0].sourceEventId,`maritime:${store.participantId(uid)}:maritime_consent`);
+ assert.deepEqual(events[0].attribution,{utm_source:'maritime-instagram',utm_medium:'web',utm_campaign:'the-first-1000'});
+});

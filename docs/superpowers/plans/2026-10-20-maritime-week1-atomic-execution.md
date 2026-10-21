@@ -720,7 +720,7 @@ apps/life-manager/
 - [x] **b.6-13:** `maritime-manager-persistence.js`に`ensureWebUserImpl(subject)`を作る。既存`separateWebUidForSubject()`を使い、owned UIDと一致することを確認する。一般Calendar/Telegramのlm_usersは参照/移行しない。native PG integration 1/1 pass。Evidence→`docs/evidence/maritime/runtime-pg-manager-identity-resolution.json`。
 - [x] **b.6-14:** 同fileに`storeFirstTouch/readFirstTouch`を作る。既存sanitizeを使い、署名cookieから得た初回流入だけを保存する。後の流入で上書きしない。native PG integration 1/1 pass。Evidence→`docs/evidence/maritime/runtime-pg-manager-first-touch.json`。
 - [x] **b.6-15:** 同fileのPG event writerを既存distributionの`recordEventImpl`へ注入し、`participantId/recordManagerEvent/recordAnonymousEvent`を再利用する。internal除外・HMAC・stable event key・dedupを維持する。native PG integration 1/1 + store/distribution unit 28/28 pass。Evidence→`docs/evidence/maritime/runtime-pg-manager-events.json`。
-- [ ] **b.6-16:** 同fileにManager専用`getParticipant/accept`を作る。容量claim関数を呼び、同一利用者は一度だけ、並行申込でも上限を超えないことを確認する。
+- [x] **b.6-16:** 同fileにManager専用`getParticipant/accept`を作る。容量claim関数を呼び、同一利用者は一度だけ、並行申込でも上限を超えないことを確認する。`maritime-retention-v1`と`maritime-manager-v1`を別々に保持し、既存Telegram distributionを切り替えない。Evidence→`docs/evidence/maritime/runtime-pg-manager-participant-accept.json`。
 - [ ] **b.6-17:** 同fileに`revoke/isConsentActive`を作る。停止状態を永続化し、失敗や読取不明を同意済みに置換しない。旧Telegram用global distributionは切替えない。
 - [ ] **b.6-18:** 同fileにCFO IOの`read/claim/mark`を作り、既存`deliverCloudCfoEmail`へ渡す。pending fence・recipient hash・23時間期限・Resend idempotencyを変えず、送信器を作り直さない。
 

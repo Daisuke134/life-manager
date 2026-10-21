@@ -3,8 +3,14 @@
 const { separateWebUidForSubject } = require("./web-auth.js");
 const { sanitizeWebAttribution } = require("./web-attribution.js");
 const { normalizeWebFunnelEvent } = require("./web-funnel-events.js");
-const { createMaritimeDistributionStore } = require("./maritime-distribution.js");
+const { CONSENT_VERSION, normalizeMaritimeSource, createMaritimeDistributionStore } = require("./maritime-distribution.js");
 const UID = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function timestampIso(value, nullable = false) {
+  if (value == null && nullable) return null;
+  const date = value instanceof Date ? value : new Date(String(value));
+  if (!Number.isFinite(date.getTime())) throw new Error("maritime_manager_persistence_invalid");
+  return date.toISOString();
+}
 
 function createMaritimeManagerPersistence(options = {}) {
   const pgPool = options.pgPool;
@@ -90,10 +96,57 @@ function createMaritimeManagerPersistence(options = {}) {
   }
 
   const distributionStore = createMaritimeDistributionStore({ env, now: nowMs, recordEventImpl });
+  async function getParticipant(uid) {
+    const id = distributionStore.participantId(uid);
+    if (!/^[a-f0-9]{64}$/.test(id || "")) return { ok: false, participant: null };
+    try {
+      const rows = await query(
+        `SELECT participant_id,source,consent_version,consented_at,revoked_at,first_response_at,returned_at
+         FROM public.lm_maritime_pilot_participants WHERE participant_id=$1 LIMIT 2`,
+        [id],
+      );
+      if (rows.length > 1) return { ok: false, participant: null };
+      if (!rows.length) return { ok: true, participant: null };
+      const row = rows[0];
+      if (row.participant_id !== id || row.source !== normalizeMaritimeSource(row.source)
+        || row.consent_version !== CONSENT_VERSION) return { ok: false, participant: null };
+      return { ok: true, participant: {
+        ...row,
+        consented_at: timestampIso(row.consented_at),
+        revoked_at: timestampIso(row.revoked_at, true),
+        first_response_at: timestampIso(row.first_response_at, true),
+        returned_at: timestampIso(row.returned_at, true),
+      } };
+    } catch { return { ok: false, participant: null }; }
+  }
+
+  async function accept(uid, source) {
+    const id = distributionStore.participantId(uid);
+    const campaignSource = normalizeMaritimeSource(source);
+    const maxUsers = distributionStore.maxUsers;
+    if (!/^[a-f0-9]{64}$/.test(id || "") || !Number.isInteger(maxUsers)) return { ok: false, status: "unavailable" };
+    const rawNow = nowMs();
+    const at = rawNow instanceof Date ? rawNow : new Date(rawNow);
+    if (!Number.isFinite(at.getTime())) return { ok: false, status: "unavailable" };
+    try {
+      const rows = await query(
+        "SELECT public.claim_lm_maritime_participant_v1($1,$2,$3,$4,$5::timestamptz) AS status",
+        [id, campaignSource, CONSENT_VERSION, maxUsers, at.toISOString()],
+      );
+      const status = rows.length === 1 ? rows[0].status : null;
+      if (!["consented", "already_consented", "capacity_full"].includes(status)) return { ok: false, status: "unavailable" };
+      if (status === "capacity_full") return { ok: false, status };
+      await distributionStore.recordConsentEvent(uid, campaignSource, "web");
+      return { ok: true, status };
+    } catch { return { ok: false, status: "unavailable" }; }
+  }
+
   return Object.freeze({ ensureWebUserImpl, storeFirstTouch, readFirstTouch,
     participantId: distributionStore.participantId,
     recordManagerEvent: distributionStore.recordManagerEvent,
-    recordAnonymousEvent: distributionStore.recordAnonymousEvent });
+    recordAnonymousEvent: distributionStore.recordAnonymousEvent,
+    getParticipant,
+    accept });
 }
 
 module.exports = { createMaritimeManagerPersistence };

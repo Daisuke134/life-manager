@@ -9,6 +9,7 @@ const { Client } = require("pg");
 const test = require("node:test");
 const { createMaritimeManagerStore } = require("../../lib/maritime-manager-store.js");
 const { separateWebUidForSubject } = require("../../lib/web-auth.js");
+const { CONSENT_VERSION, normalizeMaritimeSource } = require("../../lib/maritime-distribution.js");
 const { normalizeWebFunnelEvent } = require("../../lib/web-funnel-events.js");
 let createMaritimeManagerPersistence;
 try { ({ createMaritimeManagerPersistence } = require("../../lib/maritime-manager-persistence.js")); }
@@ -333,6 +334,34 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     assert.equal(restored.source, acceptedSource, "re-consent preserves first-touch source");
     assert.equal(restored.revoked_at, null);
     assert.equal(await claimParticipant(client, "e".repeat(64), "direct"), "capacity_full", "re-consent does not increase capacity");
+    assert.equal(typeof managerPersistence.getParticipant, "function", "Manager participant read must exist");
+    assert.equal(typeof managerPersistence.accept, "function", "Manager participant consent must exist");
+    const managerConsent = await managerPersistence.accept(uidC, "instagram");
+    assert.equal(managerConsent.ok, true);
+    assert.equal(managerConsent.status, "consented");
+    const managerParticipantId = managerPersistence.participantId(uidC);
+    assert.equal(managerPersistence.participantId(uidC), managerParticipantId);
+    const rawManagerParticipant = (await client.query("SELECT participant_id,source,consent_version,consented_at,revoked_at,first_response_at,returned_at FROM public.lm_maritime_pilot_participants WHERE participant_id=$1", [managerParticipantId])).rows[0];
+    assert.equal(rawManagerParticipant.participant_id, managerParticipantId);
+    assert.equal(rawManagerParticipant.source, "instagram");
+    assert.equal(rawManagerParticipant.consent_version, "maritime-retention-v1");
+    assert.equal(rawManagerParticipant.consent_version, CONSENT_VERSION);
+    assert.equal(rawManagerParticipant.source, normalizeMaritimeSource(rawManagerParticipant.source));
+    assert.ok(rawManagerParticipant.consented_at instanceof Date);
+    assert.equal(rawManagerParticipant.revoked_at, null);
+    assert.equal(rawManagerParticipant.first_response_at, null);
+    assert.equal(rawManagerParticipant.returned_at, null);
+    const managerParticipant = await managerPersistence.getParticipant(uidC);
+    assert.equal(managerParticipant.ok, true);
+    assert.equal(managerParticipant.participant.participant_id, managerParticipantId);
+    assert.equal(managerParticipant.participant.consent_version, "maritime-retention-v1");
+    assert.equal(managerParticipant.participant.source, "instagram");
+    assert.match(managerParticipant.participant.consented_at, /^\d{4}-\d{2}-\d{2}T.*Z$/);
+    assert.equal(await managerPersistence.accept(uidC, "x").then(result => result.status), "already_consented");
+    assert.equal((await managerPersistence.getParticipant(uidC)).participant.source, "instagram", "repeat consent cannot rewrite first source");
+    assert.equal((await client.query("SELECT count(*)::integer AS count FROM public.lm_maritime_pilot_participants WHERE participant_id=$1", [managerParticipantId])).rows[0].count, 1);
+    assert.equal((await client.query("SELECT count(*)::integer AS count FROM public.lm_web_funnel_events WHERE event_name='maritime_consent' AND source_object_id=$1", [managerParticipantId])).rows[0].count, 1,
+      "repeat consent deduplicates its stable funnel event");
 
     const funnelColumns = await client.query(
       "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='lm_web_funnel_events'",
