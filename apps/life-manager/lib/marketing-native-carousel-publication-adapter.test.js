@@ -178,8 +178,47 @@ test("EN slideshow TikTok lane accepts exact Postiz API photo proof without inve
   assert.equal(verifyMarketingNativeCarouselPublicationReceipt({ ...apiReceipt, provider_state: "QUEUE" }), false);
   assert.equal(verifyMarketingNativeCarouselPublicationReceipt({ ...apiReceipt, provider_content_sha256: "f".repeat(64) }), false);
   assert.equal(verifyMarketingNativeCarouselPublicationReceipt({ ...apiReceipt, provider_release_id: "p_pub_url~garbage" }), false);
+  const photoId = "7695564744492600577";
+  const directPhotoReceipt = {
+    ...apiReceipt,
+    public_url: `https://www.tiktok.com/@anicca_slideshow/photo/${photoId}`,
+    provider_release_id: photoId,
+  };
+  assert.equal(verifyMarketingNativeCarouselPublicationReceipt(directPhotoReceipt), true);
+  assert.equal(verifyMarketingNativeCarouselPublicationReceipt({
+    ...directPhotoReceipt,
+    provider_release_id: "7695564744492600578",
+  }), false);
+  assert.equal(verifyMarketingNativeCarouselPublicationReceipt({
+    ...directPhotoReceipt,
+    public_url: `https://www.tiktok.com/@wrong/photo/${photoId}`,
+  }), false);
 
   const objectRoot = path.join(os.homedir(), ".local/state/life-manager/objects/sha256");
+  const directPhotoUrl = `https://www.tiktok.com/@anicca_slideshow/photo/${photoId}`;
+  const directPhotoLedger = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "lm-tiktok-photo-receipt-")), "distribution.jsonl");
+  const directPhotoResult = await executeMarketingNativeCarouselPublicationJob(value, {
+    objectStore: { resolve: (ref) => path.join(objectRoot, ref.slice(-64)) },
+    secretProvider: { get: async () => "provider-token" },
+    ledgerPath: directPhotoLedger,
+    runDistribution: async (input) => ({
+      state: "PUBLISHED",
+      reconciled: true,
+      post_id: "postiz-direct-photo-1",
+      post_url: directPhotoUrl,
+      provider_effect_created: true,
+      integration_id: lane.integrationId,
+      content_sha256: crypto.createHash("sha256").update(fs.readFileSync(input.captionPath)).digest("hex"),
+      title: input.title,
+      posting_method: "DIRECT_POST",
+      release_id: photoId,
+    }),
+    now: () => "2026-08-26T06:01:00.000Z",
+  });
+  assert.equal(directPhotoResult.receipt.public_url, directPhotoUrl);
+  assert.equal(verifyMarketingNativeCarouselPublicationReceipt(directPhotoResult.receipt), true);
+  assert.equal(JSON.parse(fs.readFileSync(directPhotoLedger, "utf8")).receipt.public_url, directPhotoUrl);
+
   const ledgerPath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "lm-tiktok-direct-reject-")), "distribution.jsonl");
   await assert.rejects(
     executeMarketingNativeCarouselPublicationJob(value, {

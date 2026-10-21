@@ -1386,7 +1386,7 @@ def test_youtube_identity_from_existing_writer_accepts_its_exact_configured_post
     assert reconcile._expected_postiz_profile(identity) == "@anicca-affirmation-video"
 
 
-def _native_carousel_recovery_fixture(tmp_path, monkeypatch, *, copies=1, corrupt_media=False, publish_date=None):
+def _native_carousel_recovery_fixture(tmp_path, monkeypatch, *, copies=1, corrupt_media=False, publish_date=None, direct_permalink=False):
     owner = "life-manager-anicca-jp1-tiktok"
     slot = "2026-10-07T09:00:00.000Z"
     integration_id = "cmlrv8jq000hun60yy57eaptx"
@@ -1463,6 +1463,11 @@ def _native_carousel_recovery_fixture(tmp_path, monkeypatch, *, copies=1, corrup
     details = {}
     for index in range(copies):
         provider_id = f"post-photo-{index + 1}"
+        release_id = str(7695564744492600577 + index)
+        release_url = (
+            f"https://www.tiktok.com/@anicca.jpx/photo/{release_id}"
+            if direct_permalink else "https://www.tiktok.com/@anicca.jp1"
+        )
         images = [{"id": f"media-{i}", "path": f"https://uploads.postiz.com/slide-{i}.jpg"} for i in range(6)]
         row = {
             "id": provider_id,
@@ -1475,8 +1480,8 @@ def _native_carousel_recovery_fixture(tmp_path, monkeypatch, *, copies=1, corrup
         details[provider_id] = {
             **row,
             "image": json.dumps(images),
-            "releaseId": f"p_pub_url~v2.{12345 + index}",
-            "releaseURL": "https://www.tiktok.com/@anicca.jp1",
+            "releaseId": release_id if direct_permalink else f"p_pub_url~v2.{12345 + index}",
+            "releaseURL": release_url,
             "settings": json.dumps({
                 "__type": "tiktok",
                 "title": "Exact title",
@@ -1527,7 +1532,10 @@ def _native_carousel_recovery_fixture(tmp_path, monkeypatch, *, copies=1, corrup
         @staticmethod
         def find_post(rows, provider_id, platform):
             assert platform == "tiktok"
-            return {"state": rows[0]["state"], "post_url": None}
+            return {
+                "state": rows[0]["state"],
+                "post_url": rows[0].get("releaseURL") if direct_permalink else None,
+            }
 
     monkeypatch.setattr(reconcile, "_authoritative_admission_db", lambda: admission_db.resolve())
     monkeypatch.setattr(reconcile, "_request_json", request_json)
@@ -1544,6 +1552,10 @@ def _native_carousel_recovery_fixture(tmp_path, monkeypatch, *, copies=1, corrup
         "request_urls": request_urls,
         "image_urls": image_urls,
         "provider_id": "post-photo-1",
+        "release_url": (
+            "https://www.tiktok.com/@anicca.jpx/photo/7695564744492600577"
+            if direct_permalink else None
+        ),
     }
 
 
@@ -1633,6 +1645,22 @@ def test_native_carousel_recovers_exact_same_day_late_catchup_post(tmp_path, mon
     assert result["provider_receipt_id"] == fixture["provider_id"]
     assert result["identity"] == fixture["identity"]
     assert result["provider_readback"]["published_at"] == "2026-10-07T14:00:00.000Z"
+
+
+def test_native_carousel_recovers_numeric_release_id_bound_to_direct_photo_permalink(tmp_path, monkeypatch):
+    fixture = _native_carousel_recovery_fixture(tmp_path, monkeypatch, direct_permalink=True)
+
+    proof = reconcile.build_official_proof(
+        fixture["identity"], fixture["ledger"], "test-only",
+        identity_dir=fixture["identity_dir"],
+    )
+
+    assert proof["provider_readback"]["public_url"] == fixture["release_url"]
+    assert proof["provider_readback"]["provider_release_id"] == "7695564744492600577"
+    recovered = reconcile._recovered_distribution_row(
+        fixture["identity"], proof, fixture["ledger"],
+    )
+    assert recovered["receipt"]["public_url"] == fixture["release_url"]
 
 
 def test_runtime_auto_owner_resolves_current_proof_and_leaves_other_fence_for_receipt_dedup(
