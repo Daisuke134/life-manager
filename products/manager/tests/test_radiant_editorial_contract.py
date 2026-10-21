@@ -44,7 +44,7 @@ class RadiantCommunicationContract(unittest.TestCase):
         self.assertIn("not posted", issue)
         self.assertIn("October 1", issue)
         self.assertIn("company", charter.lower())
-        self.assertIn("zero", charter.lower() if "zero" in charter.lower() else "zero")
+        self.assertIn("No invented", charter)
         self.assertIn("X/social publication is DISABLED", charter)
         self.assertIn("book", charter.lower())
 
