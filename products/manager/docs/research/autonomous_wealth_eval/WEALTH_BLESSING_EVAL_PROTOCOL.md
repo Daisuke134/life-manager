@@ -128,7 +128,11 @@ This is a **research prioritization**, not a claim that the current Manager has 
 - **F001–F006 / U001–U008:** first actual preregistered intervention, partner and actual beneficiary verification remain FUTURE.
 - **V002:** real-world OutcomeBench: report descriptive accuracy, causal-effect error, execution correctness and measured harm independently.
 
-**Scientific outcome of this research:** a strong *plan to reuse*, not a verified completed Phase05 K011 or first Blessing. Keep existing SSOT task states unchanged until code and field tests actually meet acceptance conditions. Keep Life Manager's economic-eval and agent-contract modules unchanged.
+**Current Phase05 kernel integration note (updated after latest GitHub head verification on 2026-10-21):** K001–K014 have now been marked **14/14 DONE for the offline kernel**, and `manager_core/evaluator.py` already exposes a bounded `Comparator` and `evaluate_outcome` with signed net effects, 95% bounds, costs, harms, explicit `UNKNOWN_HARMS`, `NO_COMPARATOR` and `UNCERTAIN_NET_BENEFIT` states. Its output is deliberately fixed to **proof-level P0** even for randomized-looking fixture inputs. The [Phase05 verified engineering readback](../../verification/PHASE05_FINAL_OFFLINE_KERNEL_EVIDENCE_JA.md) documents **zero live field interventions or realized welfare beneficiaries**.
+
+**Reuse the EXISTING K011 evaluator instead of introducing a second causal evaluator.** The proposed economic read-only bridge should (a) validate a separate, aggregate-only business-evidence contract; (b) call the existing underlying K011 accounting contract for *supported* signed net outcomes and epistemic uncertainty; (c) preserve producer-specific net-profit/accounting proof separately from the welfare comparator; (d) never promote P0 to P3/P4 without an actual independently confirmed external action, recorded beneficiaries, valid causal design and harm readback. Retain the Life Manager product boundary—its LM-EAB source, financial records, and production runtime remain untouched.
+
+**Scientific outcome of this research:** a source-backed bridge/adaptor proposal on top of an already working **offline** K011; **not** a verified live external intervention or first Blessing. Keep the existing task SSOT unchanged, and preserve source-specific rights and field-authorization gates.
 
 ## Publication
 
