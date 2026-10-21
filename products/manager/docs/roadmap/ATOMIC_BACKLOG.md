@@ -2,7 +2,7 @@
 
 Status: 2026-10-20 JST. Manager-only task registry in `tasks.json`; the Life Manager project SSOT is unchanged.
 
-Total: 113 · Done: 27 · Todo: 84 · Blocked: 2
+Total: 113 · Done: 30 · Todo: 81 · Blocked: 2
 
 ✅ = verified task; ⬜ = not started; ⛔ = outside dependency. A research task is not evidence of real-world impact.
 
@@ -60,9 +60,9 @@ Manager has a separate product identity, source scope and runtime, even when its
 | 状態・ID | 依存 | 理解する | 作る・更新する | 完了の確認 |
 |---|---|---|---|---|
 | ✅ `H001` | R006 | 元データの範囲と匿名性を理解する | HeartSteps公開CSVの取得条件と公開されたデータの列を確認 | ライセンス記録と必要最小列の一覧。生データは再配布しない |
-| ⬜ `H002` | H001 | スナップショット/再現性/ハッシュを理解する | 公開suggestions.csvをread-only取得、SHA256/コミットID保存 | data/rawはgitignore; manifestにrowcount 8,274とSHA256 **外部条件:** GitHubの公開ファイルを取得できる実行経路が必要 |
-| ⬜ `H003` | H002 | 実データ型・欠測を理解する | scripts/inspect_heartsteps.pyでヘッダ/行数のみ出力 | 個人データの行が表示されない; 8,274 rows照合 |
-| ⬜ `H004` | H003 | decision pointとavailabilityの意味を理解する | スキーマからdecision/time/availability/action列を同定 | 出典のcodebookと列名が完全一致; 不明列はunknown |
+| ✅ `H002` | H001 | スナップショット/再現性/ハッシュを理解する | 公開suggestions.csvをread-only取得、SHA256/コミットID保存 | data/rawはgitignore; manifestにrowcount 8,274とSHA256 **外部条件:** GitHubの公開ファイルを取得できる実行経路が必要 |
+| ✅ `H003` | H002 | 実データ型・欠測を理解する | scripts/inspect_heartsteps.pyでヘッダ/行数のみ出力 | 個人データの行が表示されない; 8,274 rows照合 |
+| ✅ `H004` | H003 | decision pointとavailabilityの意味を理解する | スキーマからdecision/time/availability/action列を同定 | 出典のcodebookと列名が完全一致; 不明列はunknown |
 | ⬜ `H005` | H004 | 分析単位/交絡/欠測の危険を説明する | 研究の除外規則で解析用decision pointsを抽出 | 元研究6,061件を再現できるまで「再現済み」としない |
 | ⬜ `H006` | H005, L007 | 個別データの記述統計と因果推定を分離する | 記述統計のみのbaselineを実装 | 平均・分散・割付頻度を再計算、因果とは表示しない |
 | ⬜ `H007` | H006, L008 | 重複観測の相関と既知の割付確率を学ぶ | MRT割付確率と被験者クラスタを解析へ導入 | 単純独立標準誤差だけを使用しない |

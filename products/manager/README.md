@@ -111,3 +111,7 @@ The PDF and two original Japanese PNG illustrations are stored in ChatGPT Librar
 - [H001 verification](docs/verification/H001.md)
 
 H001 does not copy participant CSVs into the public repo or the Manager runtime. Historical row-level data will be considered independently under H002, with privacy and raw-redistribution restrictions.
+
+## October 21, 2026: autonomy philosophy and first real-data audit
+
+Routine Manager operation is designed to use no human per-action approval. Legitimate standing delegated scopes and safe policy gates remain necessary for external effects. Read [H002–H005 source audit and philosophy](docs/research/heartsteps/H002_H005_VALIDATION_2026-10-21.md). H002/H003/H004 are source-data audit checkpoints only, not an experimental treatment-effect reproduction. Raw participant rows are not part of the public repository.
