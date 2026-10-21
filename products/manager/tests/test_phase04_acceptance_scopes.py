@@ -17,7 +17,8 @@ class Phase04HonestAcceptance(unittest.TestCase):
         self.assertEqual(t["S002"]["status"], "blocked")
         rights = json.loads((ROOT / "docs/research/source-rights.json").read_text())
         by_id = {x["id"]: x for x in rights["sources"]}
-        self.assertEqual(by_id["socsci210-data"]["permissions"]["local_research"], "hold")
+        self.assertEqual(by_id["socsci210-data"]["permissions"]["local_research"], "allowed_with_conditions")
+        self.assertIn("research", by_id["socsci210-data"]["operator_authorization"]["scope"].lower())
         self.assertEqual(by_id["socsci210-data"]["permissions"]["raw_redistribution"], "hold")
 
     def test_independent_method_and_simulation_tasks_have_narrow_evidence_gates(self):
