@@ -24,12 +24,15 @@ import position_manager
 from strategy_policy import candidate_cards
 
 
-def seed(root: Path, mode: str = "live", decision_changes=None, broker_id="provider-entry", *, record_account=True):
+def seed(root: Path, mode: str = "live", decision_changes=None, broker_id="provider-entry", *,
+         record_account=True, native_account_id=None):
     owner = f"alpaca-investment-{mode}"
     card = candidate_cards()["alpaca-btc-5m-trend-v1"]
     decision = {"action": "ENTER", "mode": mode, "owner_id": owner,
                 "strategy_id": card.strategy_id, "policy_card": card.to_mapping(),
                 "release_sha": "a"*40, "observed_at": "2026-01-01T04:00:00Z"}
+    if native_account_id is not None:
+        decision["native_trading_account_id"] = native_account_id
     if decision_changes:
         decision.update(decision_changes)
     order = {"asset_class": "crypto", "notional_usd": "10.00", "side": "buy",
@@ -48,7 +51,10 @@ def seed(root: Path, mode: str = "live", decision_changes=None, broker_id="provi
     if record_account:
         from crypto_ownership_proof import entry_fill_proof_from_rows
         account={"mode":mode,"paper":mode=="paper","clock":{"observed_at":"2026-01-01T04:00:31Z"},
-                 "account":{"cash":"90","equity":"100"},"positions":[{"symbol":"BTCUSD","qty":"0.05"}]}
+                 "account":{"cash":"90","equity":"100"},
+                 "positions":[{"symbol":"BTCUSD","qty":"0.05"}]}
+        if native_account_id is not None:
+            account["account"]["id"] = native_account_id
         proof=entry_fill_proof_from_rows(effect_store._rows(ledger),ownership,broker,account,mode=mode,owner_id=owner)
         effect_store.reconcile_started(ledger,lambda client:copy.deepcopy(broker),on_reconciled=lambda *_:proof)
     else:
@@ -252,7 +258,8 @@ class OwnedPolicyTests(unittest.TestCase):
 
 
 class OwnedSubmitFenceTests(unittest.TestCase):
-    def _flow(self, *, quantity_drift=False, replace_entry=False, mode="live", remove_marker=False):
+    def _flow(self, *, quantity_drift=False, replace_entry=False, mode="live", remove_marker=False,
+              native_account_mismatch=False, native_account_id="synthetic-native-account"):
         import importlib.util
         spec=importlib.util.spec_from_file_location("owned_policy_native_run",ROOT/"run.py")
         native=importlib.util.module_from_spec(spec)
@@ -262,11 +269,11 @@ class OwnedSubmitFenceTests(unittest.TestCase):
         self.assertEqual(Path(native.__file__).resolve(),ROOT/"run.py")
         with tempfile.TemporaryDirectory() as directory,ExitStack() as stack:
             root=Path(directory)
-            original,owner=seed(root,mode=mode)
+            original,owner=seed(root,mode=mode,native_account_id=native_account_id)
             if remove_marker: (root/"live-owned-position.json").unlink()
             allocator_snapshot,observation=snapshot(mode)
             history=allocator_snapshot.pop("crypto_history")
-            observation.update(mode=mode,paper=mode=="paper",account={"cash":"90","equity":"97.5"},activities_count=1,
+            observation.update(mode=mode,paper=mode=="paper",account={"id":"synthetic-native-account","cash":"90","equity":"97.5"},activities_count=1,
                                open_and_closed_orders_count=1,clock={"observed_at":"2026-01-01T04:15:00Z"})
             observation["positions"][0]["unrealized_pl"]="0"
             reads=[0]; current_qty=["0.05"]; observation_reads=[0]; fences=[0]
@@ -274,6 +281,8 @@ class OwnedSubmitFenceTests(unittest.TestCase):
                 observation_reads[0]+=1
                 value=copy.deepcopy(observation)
                 value["positions"][0]["qty"]=current_qty[0]
+                if native_account_mismatch and observation_reads[0] > 1:
+                    value["account"]["id"] = "different-native-account"
                 return value
             def fresh_snapshot(**_kwargs):
                 reads[0]+=1
@@ -303,6 +312,9 @@ class OwnedSubmitFenceTests(unittest.TestCase):
                         "submitted_at":"2026-01-01T04:15:00Z","filled_at":"2026-01-01T04:15:00Z"}
             stack.enter_context(patch.dict(os.environ,{
                 "LIFE_MANAGER_INVESTMENT_DEPLOYMENT":"local","LIFE_MANAGER_INVESTMENT_MODE":mode,
+                "LIFE_MANAGER_RUN_ID":"owned-exit-main",
+                "LIFE_MANAGER_OCCURRENCE_ID":f"{owner}:owned-exit-main",
+                "LIFE_MANAGER_RELEASE_SHA":"b"*40,
                 "LIFE_MANAGER_INVESTMENT_OWNER_ID":owner,
                 f"ALPACA_INVESTMENT_{mode.upper()}_STATE_DIR":str(root),
                 f"ALPACA_INVESTMENT_{mode.upper()}_CREDENTIALS_FILE":str(root/"credentials")},clear=True))
@@ -454,7 +466,8 @@ class OwnedSubmitFenceTests(unittest.TestCase):
                 effect_store.reconcile_started(root/"receipts.jsonl",lambda _:copy.deepcopy(broker))
                 broker.update(change)
                 observation={"mode":"live","paper":False,"positions":[],
-                    "account":{"cash":"100","equity":"100"},"clock":{"observed_at":"2026-01-01T04:15:00Z"}}
+                    "account":{"cash":"100","equity":"100"},
+                    "clock":{"observed_at":"2026-01-01T04:15:00Z"}}
                 with patch.object(native,"find_order_by_client_id",return_value=broker):
                     actual=native._sync_live_ownership(root,Path("unused"),Path("unused"),observation)
                 self.assertEqual(actual["status"],"closed" if not change else "entry_pending")
@@ -494,6 +507,18 @@ class OwnedSubmitFenceTests(unittest.TestCase):
         self.assertEqual(len(decisions),1)
         self.assertEqual(decisions[0]["entry_effect_id"],original["entry_effect_id"])
         self.assertEqual(decisions[0]["owner_id"],"alpaca-investment-live")
+
+    def test_exit_rejects_native_account_change_before_submit(self):
+        code,summary,calls,*_=self._flow(native_account_mismatch=True)
+        self.assertEqual(code,78,summary)
+        self.assertEqual(summary["error_code"],"owned_position_changed_before_submit")
+        self.assertEqual(calls,[])
+
+    def test_live_exit_rejects_missing_parent_account_identity(self):
+        code,summary,calls,*_=self._flow(native_account_id=None)
+        self.assertEqual(code,78,summary)
+        self.assertEqual(summary["error_code"],"owned_entry_account_invalid")
+        self.assertEqual(calls,[])
 
     def test_quantity_drift_at_submit_time_cannot_sell_the_old_quantity(self):
         code,summary,calls,rows,_reads,_original=self._flow(quantity_drift=True)

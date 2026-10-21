@@ -149,11 +149,12 @@ class CryptoFeeOwnerTests(unittest.TestCase):
         for mode in ('paper','live'):
             for at_submit in (False,True):
                 with self.subTest(mode=mode,at_submit=at_submit),tempfile.TemporaryDirectory() as directory,ExitStack() as stack:
-                    root=Path(directory);owned,owner=seed(root,mode=mode);native=native_run()
+                    root=Path(directory);owned,owner=seed(root,mode=mode,
+                        native_account_id=f'synthetic-native-account-{mode}' if mode=='live' else None);native=native_run()
                     broker=next(r['broker'] for r in store._rows(root/'receipts.jsonl') if r.get('receipt_type')=='outcome')
                     raw,account=snapshot(mode);history=raw.pop('crypto_history')
                     clock=raw['clock']['timestamp'];account.update(mode=mode,paper=mode=='paper',
-                        account={'cash':'90','equity':'97.5'},activities_count=1,open_and_closed_orders_count=1,
+                        account={'id':f'synthetic-native-account-{mode}','cash':'90','equity':'97.5'},activities_count=1,open_and_closed_orders_count=1,
                         clock={'observed_at':clock})
                     fee={'id':'native-main-fee','activity_type':'CFEE','order_id':broker['id'],'symbol':'BTCUSD',
                         'qty':'-0.000075','date':'2026-01-01','created_at':'2026-01-01T04:10:00Z','net_amount':'0','status':'executed'}
@@ -171,6 +172,9 @@ class CryptoFeeOwnerTests(unittest.TestCase):
                             'filled_avg_price':'150','submitted_at':clock,'filled_at':clock}
                     stack.enter_context(patch.dict(os.environ,{'LIFE_MANAGER_INVESTMENT_DEPLOYMENT':'local',
                         'LIFE_MANAGER_INVESTMENT_MODE':mode,'LIFE_MANAGER_INVESTMENT_OWNER_ID':owner,
+                        'LIFE_MANAGER_RUN_ID':'fee-owner-main',
+                        'LIFE_MANAGER_OCCURRENCE_ID':f'{owner}:fee-owner-main',
+                        'LIFE_MANAGER_RELEASE_SHA':'b'*40,
                         f'ALPACA_INVESTMENT_{mode.upper()}_STATE_DIR':str(root),
                         f'ALPACA_INVESTMENT_{mode.upper()}_CREDENTIALS_FILE':str(root/'unused')},clear=True))
                     stack.enter_context(patch.object(native,'observe',side_effect=observe))

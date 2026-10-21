@@ -17,7 +17,7 @@ from alpaca_cli import (CLI_OPERATIONS, SAFE_ERROR_CODES, find_order_by_client_i
                         read_paper_etf_cost_evidence, read_crypto_activity_evidence, read_crypto_activity_page_chunk, read_crypto_flow_evidence, read_crypto_fx_evidence, submit_order)
 from campaign import CANDIDATE_REF, SYMBOLS, exit_order, reconcile
 from control import control_fence, read_control
-from effect_store import (ReconciliationPending, mark_started, record_no_fill_account_receipt, reconcile_started, record_no_trade, seal,
+from effect_store import (ReconciliationPending, begin_effect, record_no_fill_account_receipt, reconcile_started, record_no_trade, seal,
                           unresolved_intent_count, record_native_fee_debit, _owned_rows)
 from etf_ownership import ETF_PAPER_OWNER_ID, ETF_STRATEGY_ID, investment_owner_id
 from etf_ownership import _account_position as validate_etf_position_readback
@@ -683,7 +683,8 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                         }, separators=(",", ":")))
                         return 0
                     sealed = seal(state / "receipts.jsonl", exit_decision, order)
-                    mark_started(state / "receipts.jsonl", sealed)
+                    if not begin_effect(state / "receipts.jsonl", sealed):
+                        raise ValueError("investment_effect_already_started")
                     _mark_external_effect_attempted()
                     effect_attempted = True
                     submit_order(credentials_path=credentials_path, cli_path=cli_path,
@@ -848,12 +849,20 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                         except (ValueError, KeyError, TypeError, InvalidOperation) as error:
                             raise ValueError("owned_position_changed_before_submit") from error
                         ownership, observation = fresh_ownership, fresh_observation
+                        if mode == "live":
+                            acquired_account_id = policy.get("native_trading_account_id")
+                            account_id = fresh_observation.get("account", {}).get("id")
+                            if (not isinstance(acquired_account_id, str) or not acquired_account_id.strip()
+                                    or account_id != acquired_account_id):
+                                raise ValueError("owned_entry_account_invalid")
+                            decision["native_trading_account_id"] = acquired_account_id
                     if order.get("asset_class") == "crypto" and order.get("side") == "buy":
                         fresh_observation = _normalize_live_position_symbols(observe(
                             credentials_path=credentials_path, cli_path=cli_path))
                         if (fresh.get('account',{}).get('id')!=decision['native_trading_account_id']
                                 or fresh_observation.get('account',{}).get('id')!=decision['native_trading_account_id']):
                             raise ValueError('owned_entry_account_invalid')
+                        decision['native_trading_account_id'] = fresh_observation['account']['id']
                         fresh_ownership = _sync_live_ownership(state, credentials_path, cli_path, fresh_observation,reconcile_fees=False)
                         if ((fresh_ownership and fresh_ownership.get("status") != "closed")
                                 or any(row.get("symbol") != "USDCUSD"
@@ -903,7 +912,7 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                     if order.get('asset_class')=='crypto':
                         decision['pre_trade_flow_readbacks']=json.loads(json.dumps(fresh_flows)) if fresh_flows else None
                     sealed = seal(state / "receipts.jsonl", decision, order)
-                    if not mark_started(state / "receipts.jsonl", sealed):
+                    if not begin_effect(state / "receipts.jsonl", sealed):
                         raise ValueError("investment_effect_already_started")
                     if order.get("asset_class") == "crypto":
                         marker = (_closing_marker(ownership, sealed) if btc_positions else {

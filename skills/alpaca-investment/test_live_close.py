@@ -164,23 +164,16 @@ class LiveCloseReplayTest(unittest.TestCase):
                  patch.object(live_close, "seal", side_effect=checked_seal):
                 self.assertEqual(live_close.main(), 0)
 
-    def test_ack_unknown_then_restart_never_submits_again(self):
+    def test_legacy_live_close_stays_read_only_without_strategy_identity(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory); snap = self.seed(root)
             with self.env(root), patch.object(live_close, "read_live_close_snapshot",
                     return_value=snap), patch.object(live_close, "_gate"), patch.object(
                     live_close, "read_live_close", return_value={"status": "absent",
-                    "verified": False}), patch.object(live_close, "submit_live_close",
-                    side_effect=RuntimeError("ack_unknown")) as submit:
-                with self.assertRaisesRegex(RuntimeError, "ack_unknown"):
+                    "verified": False}), patch.object(live_close, "submit_live_close") as submit:
+                with self.assertRaisesRegex(ValueError, "investment_execution_identity_invalid"):
                     live_close.main()
-            self.assertEqual(submit.call_count, 1)
-            with self.env(root), patch.object(live_close, "read_live_close_snapshot") as observe, \
-                    patch.object(live_close, "read_live_close", return_value={
-                        "status": "absent", "verified": False}), patch.object(
-                        live_close, "submit_live_close") as retry:
-                self.assertEqual(live_close.main(), 75)
-            observe.assert_not_called(); retry.assert_not_called()
+            submit.assert_not_called()
 
 
 if __name__ == "__main__":
