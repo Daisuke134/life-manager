@@ -36,6 +36,7 @@ def run():
         try:
             reader = csv.DictReader(io.StringIO(blob.decode("utf-8-sig")))
             columns = reader.fieldnames or []
+            print(json.dumps({"cohort":name,"observed_columns":columns,"source_hash_ok":True}),flush=True)
             # Ignore all human/person proxy columns. Scalar only; no source rows written.
             n = clicks = 0; positions = set(); probmin=1.0; probmax=0.0; samplemin=None; samplemax=None
             for row in reader:
