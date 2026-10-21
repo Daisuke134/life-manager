@@ -22038,29 +22038,31 @@ Independent read-only reviews identified and the local diff fixes three contract
 
 The all-pipelines Codex-only invariant remains incomplete until TODO #8. The last official seller readback is still gross `$0` / `0` paid orders at `02:20:43Z`; the verified article effect above does not prove attributed revenue.
 
-### Capafy配布・全pipeline Codex化 checkpoint — 2026-10-21 04:55 UTC
+### Capafy配布・Codex-only pipeline checkpoint — 2026-10-21 05:00 UTC
 
-**方針:** Life Manager内部のすべてのagent推論pipelineはCodexのみを使う。Claudeや別model/proxyへのfallbackは禁止し、Codexを使えない実行はdeferする。販売中のCapafy Agentが顧客へ提供するhosted model設定は対象外。全pipelineの実装完了はTODO #8まで未達。
+**方針:** Life Manager内部のagent推論pipelineはCodexだけを使う。Claudeや別model/proxyへのfallbackは禁止し、Codexを使えない実行はdeferする。販売中のCapafy Agentが顧客へ提供するhosted model設定は対象外。全pipelineの実装完了はTODO #8まで未達。
 
-**配布の実測:** 自然occurrence `capafy-distribute-daily:18e0717a2336f738-91435` は`04:48:30Z`に旧release `76d36e33979aa6e4b8924db6405fa8031b169782`で完了。公式readbackはlanding commit `a34dc4e4149f0bbd41f1b0adfb02e22acd33f57f`、記事 `https://aniccaai.com/blog/tiktok-script-for-skincare`、HTTP 200を確認。local ledgerのX post ID `cmvhms2bj01msta0yg12rrih8`はPostiz公式listingの同一ID・公開URL `https://twitter.com/selawmqt/status/2112767801148743872`と一致。記事とXの配布は確認済みだが、click、source-to-paid conversion、売上は証明しない。旧terminal eventにはreceiptがなく`effect_status=unknown`のまま。
+**Capafy配布の実測:** 自然occurrence `capafy-distribute-daily:18e0717a2336f738-91435` は`04:48:30Z`に旧release `76d36e33979aa6e4b8924db6405fa8031b169782`で完了。公式readbackはlanding commit `a34dc4e4149f0bbd41f1b0adfb02e22acd33f57f`、記事 `https://aniccaai.com/blog/tiktok-script-for-skincare`、HTTP 200を確認。local ledgerのX post ID `cmvhms2bj01msta0yg12rrih8`はPostiz公式listingの同一ID・公開URL `https://twitter.com/selawmqt/status/2112767801148743872`と一致。記事とXの配布は確認済みだが、click、source-to-paid conversion、売上は証明しない。旧terminal eventにはreceiptがなく`effect_status=unknown`のまま。
 
-`04:49:10Z`の次attempt `18e072235b269758-15450`はprovider開始前に`host_admission_deferred:resource_capacity_busy`でdeferし、effectは`not_applicable`。最後に観測したownerは旧releaseでloaded-idle。activeなeffect-unknown fenceはなく、loopや優先度は変更していない。
+`04:49:10Z`の次attempt `18e072235b269758-15450`はprovider開始前に`host_admission_deferred:resource_capacity_busy`でdeferし、effectは`not_applicable`。05:00Zのread-only `lm-loop status`でもownerは旧releaseでloaded-idle、activeなeffect-unknown fenceはなし。loopや優先度は変更していない。
 
-**Canonical stateとsource:** 登録済みevent logは`~/.local/state/life-manager/writer/capafy-distribute/events.jsonl`、runtime ledgerは`~/.local/state/life-manager/writer/capafy-distribute/capafy-distribute/ledger.json`。実配置に合わせて`LEDGER_PATH = RUNS_ROOT.parent / "ledger.json"`へ修正し、隔離HOMEのwrapper testも登録済みディレクトリ構造を再現する。Capafy配布・receipt関連48/48、loop-run-bounds 202/202、Python compile、shell syntax、`git diff --check`は通過。これらはsource検証でありproduction adoptionではない。
+**最新保存済みseller readback:** `capafy-hourly-reconcile.json`と`capafy-skill-analytics.json`の公式seller snapshotは`observed_at=2026-10-21T04:09:48Z`、`verdict=success`、source freshness `fresh`。all-time gross `$102.75`、non-trial units `32`。last 7d gross/netは`$0.00`で、aggregate ordersは4件だが、このwindowのpaid/trial splitは出力されない。last 30d gross `$29.89`/16 orders、actual cost `$6.81`、analyticsのactual profit field `$17.10`。payout balance `$59.00`、paid out `$0.00`、true MRRはunknown。snapshotは04:48Zの記事/X配布より前なので、その配布への帰属売上ではない。
 
-**Git/production:** branch `chore/codex-only-agent-pipelines-20261021`には最新観測main `6f65732bbe047b3ec1dd3ec8df2ef925b9a7c2cf`を統合済み。checkpoint更新前のローカルmerge headは`e8241263e4a5431c527895e06c6b7bacfe09c700`。PR #8467はopenで、直近のCIは古いhead `c28332d3f7390704799ea07252d5cf117145e78e`で進行中。checkpointをcommit/pushした後に正確なheadでfresh read-only reviewと全required checksを取り直す。sourceは未merge、immutable release未作成、production ownerは未採用。
+**Receipt root causeと修正:** fresh adversarial reviewはHIGHを検出した。success proofが`prove_occurrence()`のdefault helperを使い、caller環境の`CAPAFY_DISTRIBUTE_EVENTS_PATH`/`CAPAFY_DISTRIBUTE_RUNS_ROOT`からexecute eventとarticle manifestを読めた。canonical pathを指す回帰テストは修正前に2件とも失敗し、偽pathでhint発行、executeより後のqueue時刻を成功扱いする状態を再現。worktree内の修正はsuccess writerにもcanonical `EVENTS_PATH`/`RUNS_ROOT`を明示し、queue timestampがtimezone付きでexecute開始以前であることをproof gateに加える。修正後、Capafy distribution/receipt 50/50、loop-run-bounds 202/202、Python compile、shell syntax、`git diff --check`がpass。修正はまだpush前で、fresh exact-head reviewは取り直す。
+
+**Git/production:** branch `chore/codex-only-agent-pipelines-20261021`はmain `6f65732bbe047b3ec1dd3ec8df2ef925b9a7c2cf`を含む。PR #8467の最後のpush headは`9bc07e1b5d520ccda097d4659b055a6be6554997`でopen。上記success-proof修正と回帰testはそのheadより後のworktree差分で、まだpush/mergeされていない。source未merge、immutable release未作成、production owner未採用。
 
 **Remaining TODO（cursor = 2）:**
 
 | # | Atomic TODO | Dependency and DONE evidence |
 |---|---|---|
-| 1 | Codex-only sourceとCapafy receipt pathの実装、canonical event/ledger path、owner限定hint、occurrence-only official proof writerを確定する。 | DONE locally: Capafy 48/48、loop-run-bounds 202/202、syntaxとdiff-checkがpass。main `6f65732`をmerge済み。 |
-| 2 | checkpointをcommit/pushし、PR #8467の正確なheadをfresh read-only reviewとrequired CIで確認してmergeする。 | Current cursor. DONE: unresolved Critical/Important findingなし、全required checksが同一headでpass、merged SHAを`origin/main`から確認。 |
+| 1 | Capafy success proofをcanonical event/manifestに固定し、queue≤execute時刻を検証する回帰を追加する。 | DONE locally: 2件が修正前RED/修正後GREEN。Capafy関連50/50、loop bounds 202/202、syntaxとdiff-check pass。 |
+| 2 | この修正とcheckpointをcommit/pushし、新headでfresh read-only reviewと全required CIを通してPR #8467をmergeする。 | Current cursor. DONE: HIGH以上の未解決findingなし、全required checksが同じheadでpass、merge SHAを`origin/main`から確認。 |
 | 3 | merge済みmainからimmutable releaseを作り、owner/GUI/leaseのfresh preflight後、影響ownerだけをidle境界で`launchctl-safe`経由で採用する。 | Depends on #2. DONE: loaded SHA/argv/envがCodexを示し、対象ownerがnatural terminalへ到達。 |
-| 4 | 新releaseの最初の自然Capafy occurrenceについて、article receiptを`lm-loop` terminalへ記録し、Xの正確なpost ID/URLを別途照合する。 | Depends on #3. DONE: occurrence-bound receipt、Postiz/GitHub official readback一致、duplicate 0。 |
-| 5 | 最新の公式Capafy source-to-paid結果を読み、測定conversionに基づく次の配布施策を実行する。 | Depends on #4. 売上成果DONEはsourceへ帰属する有料注文と実測economicsが必要。それまでは小さな配布実験を継続。 |
+| 4 | 新releaseの自然Capafy occurrenceについてarticle receiptを`lm-loop` terminalへ記録し、Xの正確なpost ID/URLを別途照合する。 | Depends on #3. DONE: occurrence-bound receipt、Postiz/GitHub official readback一致、duplicate 0。 |
+| 5 | 最新の公式Capafy source-to-paid結果を再取得し、測定conversionに基づく次の配布施策を実行する。 | Depends on #4. 売上成果DONEはsourceへ帰属する有料注文と実測economicsが必要。それまでは小さな配布実験を続ける。 |
 | 6 | `the402-worker-daemon.mjs::runLocalModel`をCodexへ移し、`userPrompt → non-empty markdown`を維持する。 | Depends on #5. `node --test skills/earn/x402-sell/__tests__/*.test.mjs` pass、alternate model fallbackなし。 |
 | 7 | `polymarket-trade/pick.py`をCodexへ移し、既存decision fields/gatesを保つ。 | Depends on #6. unittestとhistorical evaluation pass。live adoptionはreceipt `pm-live-trade:18d61d6a6df63248-48979`の照合後のみ。 |
 | 8 | `daily-nl-report.mjs::llmReport`をCodexへ移し、truth-only出力契約を維持する。 | Depends on #6–#7. report contract pass、alternate model fallbackなし。 |
 
-最終保存済み公式seller readbackは`02:20:43Z`時点のgross `$0` / paid `0件`。新しい公式売上readbackは未取得。記事とXの配布実績を売上とは扱わない。
+収益の現状はall-time gross `$102.75`だが、直近7日のgross/netは`$0.00`。04:48Zに確認した記事/X配布に結び付くpaid orderは未確認。

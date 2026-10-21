@@ -52,6 +52,56 @@ def test_effect_proof_writes_runtime_accepted_writer_receipt(tmp_path, monkeypat
     assert result == ("reconciled", f"writer://runs/{sha}", url)
 
 
+def test_success_hint_ignores_untrusted_event_and_manifest_path_overrides(
+        tmp_path, monkeypatch):
+    occurrence_id = "capafy-distribute-daily:override-attempt"
+    started = Q + dt.timedelta(hours=4)
+    canonical_slug = "capafy-x-2026-09-29-h21m00"
+    canonical_root = tmp_path / "canonical"
+    canonical_root.mkdir()
+    occurrence_run(canonical_root, monkeypatch, occurrence_id, started, canonical_slug)
+    canonical_events = rec.EVENTS_PATH
+    canonical_runs = rec.RUNS_ROOT
+
+    attacker_slug = "capafy-x-2026-09-29-h22m00"
+    attacker_root = tmp_path / "attacker"
+    attacker_root.mkdir()
+    occurrence_run(attacker_root, monkeypatch, occurrence_id, started, attacker_slug,
+                   slot="2026-09-29-h22m00")
+    monkeypatch.setattr(rec, "EVENTS_PATH", canonical_events)
+    monkeypatch.setattr(rec, "RUNS_ROOT", canonical_runs)
+    monkeypatch.setattr(rec, "occurrence_queued_at", lambda _occurrence: started)
+    monkeypatch.setattr(rec, "read_landing_commits", lambda _start, _end: {
+        "ok": True, "commits": [{"sha": "c" * 40, "slug": attacker_slug}],
+    })
+    monkeypatch.setattr(rec, "read_x_posts", lambda _start, _end: {"ok": True, "posts": []})
+    monkeypatch.setattr(rec, "page_status", lambda slug: 200 if slug == attacker_slug else 404)
+
+    hint = tmp_path / "attacker-result.json"
+    proof = rec.write_result_hint(occurrence_id, hint)
+    assert proof["hint_written"] is False
+    assert not hint.exists()
+
+
+def test_success_hint_rejects_queue_timestamp_after_execute_start(tmp_path, monkeypatch):
+    occurrence_id = "capafy-distribute-daily:future-queue"
+    started = Q + dt.timedelta(hours=4)
+    slug = "capafy-x-2026-09-29-h21m00"
+    occurrence_run(tmp_path, monkeypatch, occurrence_id, started, slug)
+    monkeypatch.setattr(rec, "occurrence_queued_at", lambda _occurrence: (
+        started + dt.timedelta(hours=1)))
+    monkeypatch.setattr(rec, "read_landing_commits", lambda _start, _end: {
+        "ok": True, "commits": [{"sha": "d" * 40, "slug": slug}],
+    })
+    monkeypatch.setattr(rec, "read_x_posts", lambda _start, _end: {"ok": True, "posts": []})
+    monkeypatch.setattr(rec, "page_status", lambda checked_slug: 200 if checked_slug == slug else 404)
+
+    hint = tmp_path / "future-queue-result.json"
+    proof = rec.write_result_hint(occurrence_id, hint)
+    assert proof["hint_written"] is False
+    assert not hint.exists()
+
+
 def test_no_effect_hint_is_exactly_bound_to_already_published_slot(tmp_path, monkeypatch):
     from runtime.loop.lm_loop_run import _verified_terminal_effect_result
 
@@ -212,6 +262,8 @@ def occurrence_run(tmp_path, monkeypatch, occurrence_id, started, slug, slot="20
     (run_dir / "prompt.txt").write_text(f"Publish this article: https://aniccaai.com/blog/{slug}\n")
     monkeypatch.setenv("CAPAFY_DISTRIBUTE_EVENTS_PATH", str(events))
     monkeypatch.setenv("CAPAFY_DISTRIBUTE_RUNS_ROOT", str(runs_root))
+    monkeypatch.setattr(rec, "EVENTS_PATH", events)
+    monkeypatch.setattr(rec, "RUNS_ROOT", runs_root)
 
 
 def test_occurrence_start_rejects_mismatched_owner_or_run_id(tmp_path):

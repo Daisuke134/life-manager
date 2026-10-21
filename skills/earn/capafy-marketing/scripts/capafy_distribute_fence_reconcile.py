@@ -452,6 +452,13 @@ def build_proof(occurrence_id: str, queued_at: dt.datetime, *,
                              "verified": False, "queued_at": queued_at.isoformat(),
                              "occurrence_started_at": started_at.isoformat(),
                              "expected_slug": expected_slug}
+    if (queued_at.tzinfo is None or queued_at.utcoffset() is None
+            or started_at.tzinfo is None or started_at.utcoffset() is None):
+        proof["reason"] = "occurrence_timestamp_missing_timezone"
+        return proof
+    if queued_at > started_at:
+        proof["reason"] = "queued_after_execute_start"
+        return proof
     if expected_slug is None:
         proof["pre_effect_evidence"] = pre_effect
         if pre_effect is None:
@@ -574,7 +581,11 @@ def write_result_hint(occurrence_id: str, path: Path) -> dict[str, Any]:
         return {"owner_id": OWNER_ID, "verified": False,
                 "hint_written": False, "reason": "invalid_occurrence"}
     requested_occurrence_id = occurrence_id
-    proof = prove_occurrence(requested_occurrence_id)
+    proof = prove_occurrence(
+        requested_occurrence_id,
+        started_at_fn=lambda value: occurrence_started_at(value, events_path=EVENTS_PATH),
+        expected_slug_fn=lambda value: expected_article_slug(value, runs_root=RUNS_ROOT),
+    )
     proof["hint_written"] = False
     occurrence_id = proof.get("occurrence_id")
     expected_slug = proof.get("expected_slug")
