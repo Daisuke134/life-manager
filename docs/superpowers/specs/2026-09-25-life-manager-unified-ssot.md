@@ -176,7 +176,13 @@ private証拠は既存`~/.local/state/life-manager/reconciliation/capafy-c1-2026
 
 **現在cursor=R04の新しい実行の公式readback→自然記事/X公開。** 自然occurrence `18e06438edfa56d0-67921`は00:34:07Zにmain4b230cbaで起動し、resource_capacity_busy/exit75、body未実行/effect=not_applicableで待機する。既存queueは11番目→5番目→2番目へ進み、次の自然occurrence `capafy-distribute-daily:18e064ab7fe0ce90-98509`が00:42:19.464771Zに枠を取得してh09m30/youtube-script-writer/youtube-script-writer-aiのbodyを実行する。日本語decode障害の再発ではない。既存fallbackのattempt1/2はCodex acct1/acct2ともprovider_started=false/codex_home_busy、attempt3はclaude-direct/transient_quota、00:42:41Zにexit1。lsofは両profileの実holderを確認し、lease解除/他owner停止/cap増加はしない。article/X公開は未確認で、新exact fenceを保持する。登録adapterの85分最短観測時刻は02:07:19.464771Z、公式readback前の解除/再送は禁止する。証拠は既存run manifestとagent-runner-evidence/agent-6493e44db9724816980c74591fe3944f/attempts.jsonl。モデル枠の競合と利用枠制限が現在の直接blockerで、同じ原因の再実行前にこの境界観測を追加する。
 
-最新full売上snapshot00:07:19Zはgross$102.75/orders70。00:17:29Zの公式10/20–10/21 UTC trendもgross$0。Hook Labの同snapshot 7日窓はviews80/paid0、hooklab_free37/X3/blog0。30日窓のpaid4/$7.96はCapafy内部hot経由で、外部施策の成功へ配賦しない。新paid/利益増加は未確認。R06の09:41自然attemptもprovider前のresource_capacity_busyでqueueへ入り、予約生成はまだ実行しない。00:41:16Zの公式Postiz readbackは本日UTCに既存IG/X予約4件/QUEUEを確認する（11/13/17/23Z、公開URLなし）。これは新しい動画公開の証明ではない。財務report整備へ戻らず、次は配信ownerの枠と自然生成→公開URL→native X/登録CTA→実顧客訪問/新paidを確認する。private証拠=`r06-current-buffered-official-posts.json`。
+**R04/R06最新状態（2026-10-21 01:14Z）:** Distributorの唯一のeffect_unknown fenceは `capafy-distribute-daily:18e064ab7fe0ce90-98509`（00:42:19.464771Z、slug=`youtube-script-writer-ai`）。Codex両profileが使用中で、Claude fallbackがtransient_quotaとなった実行である。次の00:49Z/01:04Zの実行は前のfenceによりprovider前で停止し、effect=0。R04のcursorはこの一件の公式GitHub/Postiz照合→必要ならregistered adapter close→次の自然記事/X公開。最短のno-effect照合時刻は02:07:19.464771Z。早期close/再送はしない。private根拠=`agent-6493e44db9724816980c74591fe3944f/attempts.jsonl`。
+
+R06では occurrence `capafy-reel-daily:18e06608a8e9ede0-52600` がimmutable SHA `4b230cba`でtarget date 2026-10-28を実行する。以前欠けたproductivity枠を同日のreceipt guard付き再実行で補い、`hooklab-d20261028-productivity`と既存`hooklab-d20261028-makeup`のInstagram/X計4予約を作成した。01:14:11Zの公式Postiz listingで4件すべて正しいintegration・予約日時の`QUEUE`、削除なしを確認する。IDと日付はprivate=`r06-week-ahead-official-posts.json`。これは10/28の予約で、公開・閲覧・売上ではない。owner eventはeffect=reconciled、last exit0、effect_unknown=false。private receipt=`r06-natural-postiz-resolve.json`。
+
+収益readbackは窓を分ける。01:01:13Zの公式seller APIで10/21 UTC売上$0/orders0。直近full snapshot 00:07:19Zは累計gross$102.75/orders70、新paidを示さない。Hook Labの7日traffic snapshot（00:07Z）は80 views/paid0、30日paid4/$7.96のsourceは内部`hot`で、外部投稿へは配賦しない。累計値・日次窓・実利益を同一視しない。private日次receipt=`r07-current-day-gross-readback.json`。
+
+**現在business cursor=R04 exact readback→記事/X公開。** R05-XD1の変更はmain採用済みだがHook Lab demo-first native Xの自然投稿、訪問、paidは未確認。次はR04の保留解除可能時刻後に自然配信を完走し、記事URL/native X/CTA、source visits、trial、新paidを順に読み、売れた構成だけ拡大する。R06の4予約は10/28のPUBLISHED receiptを別に追う。会社gross/repeat revenue/profit/MRRや全18業務は未達のまま保持する。
 
 **R05-XD1のsource/採用:** PR #8453のexact HEAD `56403b2e9c2690bdc1e5134ab0c332bda1e421e1`は全12 checks success、main `4b230cba3dc114627bcb1daf555826b6b5d0d463`へ統合する。ALL immutable `20261021T091444-4b230cba`はmain archive8946 regular filesのbytes一致/書込不可を確認する。00:16:40Zのdistributor loaded argv/envは4b230cba。独立reviewは0 findings/0 blocking。CIの時間制約を持つ既存fleet testは初回1件失敗、同testの隔離再現と追加3 trialsはPASS、失敗jobのみ再実行して全checks成功を確認する。CI失敗の根因修復や本番公開成功を主張しない。自然Hook Lab caption/登録CTA/市場結果は未確認。private証拠=`r05-x-demo-loaded-readback.json`、`r05-ci-fleet-budget-observations.json`。
 
@@ -199,7 +205,7 @@ private証拠は既存`~/.local/state/life-manager/reconciliation/capafy-c1-2026
 | R03 / C5 | 自社の実入力→実出力を見せるHook Labの配信用demoを1件作る | 商品価値が伝わる実例と、購入へ進める単一CTA。権利物/未確認成果をコピーしない |
 | R04 / C5・source/旧fence修復済み、新自然回はprovider競合/制限で未公開 | 既存記事ownerでdemoを含む無料記事を公開する | 公開URLとHook Lab登録CT。既存control/割当単位/観測期間/費用上限を最小限固定。詳細な費用按分やC4完了を待たない |
 | R05 / C5・demo先行brief採用済み、自然公開待ち | 既存X ownerで同じ商品のnative投稿/買えるCTAを公開する | native公開receiptと実際のlink先。記事・Xの既存配信を止めず、重複slot/送信を作らない |
-| R06 / C5・C2 | 既存縦動画ownerでdemoを配信する | Reel自然生成→公開/登録CTA。実失敗で投稿が止まれば、その境界だけ修復して再開する。全channelの完成を最初の記事/Xの前提にしない |
+| R06 / C5・C2・10/28の予約4件済み、公開待ち | 既存縦動画ownerでdemoを配信する | Reel自然生成→公開/登録CTA。実失敗で投稿が止まれば、その境界だけ修復して再開する。全channelの完成を最初の記事/Xの前提にしない |
 | R07 / C5 | 既存公式analyticsで配信からの訪問・試用・購入を確認する | source×Agent×窓で実測し、自己probe/欠測を成果に加えない。新計測platformを作らない |
 | R08 / C7 | 新しい有料購入を公式記録で確認する | orders>70 AND gross>$102.75と新paid証拠。未達なら流入不足/価値説明/購入離脱の観測に応じて次の小実験へ進み、report整備へ戻らない |
 | R09 / C6 | 比較期間が成熟した配信候補を採用/棄却/判断保留にする | 実購入・返金・確認済み費用/capで判定し、candidate diff→配信receipt→成熟結果を既存traceに残す。少数sampleでwinnerを捏造しない |
