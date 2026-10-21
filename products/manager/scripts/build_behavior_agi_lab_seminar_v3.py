@@ -7,7 +7,8 @@ from pptx.enum.dml import MSO_THEME_COLOR
 from pathlib import Path
 import math, statistics
 
-OUT=Path(__file__).resolve().parents[1] / 'output' / 'presentations' / 'Manager_Behavior_AGI_Research_Seminar_2026-10-21.pptx'\nOUT.parent.mkdir(parents=True, exist_ok=True)
+OUT=Path(__file__).resolve().parents[1] / 'output' / 'presentations' / 'Manager_Behavior_AGI_Research_Seminar_2026-10-21.pptx'
+OUT.parent.mkdir(parents=True, exist_ok=True)
 HERO=Path(__file__).with_name('Manager_Research_Hero_2026-10-21.png')
 if not HERO.is_file(): HERO=Path('/mnt/data/wide_cinematic_highly_detailed_illustrative_conc.png')
 prs=Presentation(); prs.slide_width=Inches(13.333); prs.slide_height=Inches(7.5)
