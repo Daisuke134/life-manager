@@ -13,6 +13,7 @@ function createMaritimeManagerDependencies({ pgPool, env = process.env } = {}) {
     ensureWebUserImpl: managerPersistence.ensureWebUserImpl,
     storeFirstTouch: managerPersistence.storeFirstTouch,
     readFirstTouch: managerPersistence.readFirstTouch,
+    readFirstCompletedWorkAt: managerPersistence.readFirstCompletedWorkAt,
     cfoReceiptIO: managerPersistence.cfoReceiptIO,
   });
 }

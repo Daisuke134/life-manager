@@ -158,6 +158,15 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     assert.equal(await managerPersistence.recordManagerEvent("maritime_work_completed", uidC, managerEvent), true);
     assert.equal(await managerPersistence.recordManagerEvent("maritime_work_completed", uidC, managerEvent), true, "stable event replay is idempotent");
     assert.equal(await managerPersistence.recordManagerEvent("maritime_work_completed", uidC, { ...managerEvent, eventKey: "job:second" }), true);
+    assert.equal(typeof managerPersistence.readFirstCompletedWorkAt, "function", "Manager return reads first completed work from Runtime PG");
+    assert.equal(await managerPersistence.recordManagerEvent("maritime_work_completed", uidB, {
+      eventKey: "external-first", source: "x", occurredAt: "2026-10-20T09:00:00Z",
+    }), true);
+    assert.equal(await managerPersistence.recordManagerEvent("maritime_work_completed", uidB, {
+      eventKey: "external-second", source: "x", occurredAt: "2026-10-20T12:00:00Z",
+    }), true);
+    assert.equal(await managerPersistence.readFirstCompletedWorkAt(uidB), "2026-10-20T09:00:00.000Z");
+    assert.equal(await managerPersistence.readFirstCompletedWorkAt(uidC), null, "internal cohort work is excluded from return eligibility");
     assert.equal(await managerPersistence.recordAnonymousEvent("maritime_landing_view", "x"), true);
     const participantId = managerPersistence.participantId(uidC);
     const managerEvents = await client.query("SELECT source_event_id,audience_kind,uid,attribution FROM public.lm_web_funnel_events WHERE source_object_id=$1 ORDER BY source_event_id", [participantId]);

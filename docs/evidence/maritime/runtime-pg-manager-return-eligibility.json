@@ -1,0 +1,31 @@
+{
+  "observed_at": "2026-10-21T01:55:21Z",
+  "source_files": {
+    "apps/life-manager/lib/maritime-manager-persistence.js": "ebf170c39f6c344f3089c76b0b83643d930622ed2af43eb3bcff2c1b55415aa2",
+    "apps/life-manager/lib/maritime-manager-dependencies.js": "2efda943e722cb1a628ee3c7ace0eb32fd3cd98e7b10cb1572e7b33c997d89e4",
+    "apps/life-manager/lib/maritime-manager-usage.js": "7fff9031bc3c233a1e49e30e20dca64f341fdb6f475d0b57c4150ebb5db8208a"
+  },
+  "tests": {
+    "unit_file": "apps/life-manager/lib/maritime-manager-usage.test.js",
+    "unit_sha256": "7b1f36c17309d7d6b504858c6acf230751ca2e07670f9eeba282e77d5830bb57",
+    "native_integration_file": "apps/life-manager/test/postgres/maritime-manager-state.integration.js",
+    "native_integration_sha256": "aaa962653a68d28d3e4e8127b078f966d2b76afabbc18595daac1a97e3cfdd09",
+    "results": {
+      "usage_unit": "4/4 pass",
+      "native_postgresql_integration": "1/1 pass"
+    }
+  },
+  "read_contract": {
+    "source": "Runtime PG lm_web_funnel_events",
+    "filter": "hashed participant source_object_id + maritime_work_completed + audience_kind external",
+    "selection": "earliest occurred_at",
+    "internal_only_history": "no return eligibility",
+    "prefetch": "skipped before the PG read",
+    "24_hour_boundary": "no return event before 24 hours; eligible at 24 hours"
+  },
+  "external_effects": {
+    "supabase_rest_used": false,
+    "production_dsn_used": false,
+    "return_message_sent": false
+  }
+}

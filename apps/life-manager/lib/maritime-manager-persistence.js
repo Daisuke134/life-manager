@@ -83,6 +83,19 @@ function createMaritimeManagerPersistence(options = {}) {
     return sanitizeWebAttribution(row.first_touch);
   }
 
+  async function readFirstCompletedWorkAt(uid) {
+    if (typeof uid !== "string" || !UID.test(uid)) throw new Error("maritime_manager_identity_mismatch");
+    const participantId = distributionStore.participantId(uid);
+    if (!/^[a-f0-9]{64}$/.test(participantId || "")) throw new Error("maritime_manager_identity_mismatch");
+    const rows = await query(
+      `SELECT min(occurred_at) AS first_completed_work_at FROM public.lm_web_funnel_events
+       WHERE source_object_id=$1 AND event_name=$2 AND audience_kind=$3`,
+      [participantId, "maritime_work_completed", "external"],
+    );
+    if (rows.length !== 1) throw new Error("maritime_manager_persistence_invalid");
+    return timestampIso(rows[0].first_completed_work_at, true);
+  }
+
   async function storeFirstTouch(uid, attribution) {
     if (typeof uid !== "string" || !UID.test(uid)) throw new Error("maritime_manager_identity_mismatch");
     const clean = sanitizeWebAttribution(attribution);
@@ -240,7 +253,7 @@ function createMaritimeManagerPersistence(options = {}) {
 
   const cfoReceiptIO = Object.freeze({ read: readCfoReceipt, claim: claimCfoReceipt, mark: markCfoReceipt });
 
-  return Object.freeze({ ensureWebUserImpl, storeFirstTouch, readFirstTouch,
+  return Object.freeze({ ensureWebUserImpl, storeFirstTouch, readFirstTouch, readFirstCompletedWorkAt,
     participantId: distributionStore.participantId,
     recordManagerEvent: distributionStore.recordManagerEvent,
     recordAnonymousEvent: distributionStore.recordAnonymousEvent,

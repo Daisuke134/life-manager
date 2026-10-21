@@ -16,13 +16,12 @@ test('manager usage is not signup or a deferred job and does not include private
  const deferred={...receipt,status:'deferred',artifact_refs:[],error_class:'no_work'};
  await usage.recordMaritimeManagerCompletion(job,deferred,deps);assert.equal(deps.events.length,before);
 });
-test('return requires a prior completed work day and skips authenticated prefetch',async()=>{
+test('return uses first externally completed work, requires 24 hours and skips authenticated prefetch',async()=>{
  const usage=require('./maritime-manager-usage.js'),deps=options();
- deps.env={SUPABASE_URL:'https://fixture.invalid',SUPABASE_SERVICE_ROLE_KEY:'fixture'};
- let fetches=0;deps.fetchImpl=async url=>{fetches++;const u=new URL(url);assert.equal(u.searchParams.get('source_object_id'),'eq.'+'b'.repeat(64));assert.equal(u.searchParams.get('select'),'occurred_at');return new Response(JSON.stringify([{occurred_at:'2026-10-21T01:00:00Z'}]));};
- await usage.recordMaritimeManagerReturn(UID,{...deps,request:{headers:{'sec-purpose':'prefetch'}}});assert.equal(fetches,0);assert.equal(deps.events.length,0);
- await usage.recordMaritimeManagerReturn(UID,{...deps,now:()=>Date.parse('2026-10-21T02:00:00Z')});assert.equal(deps.events.length,0);
- await usage.recordMaritimeManagerReturn(UID,deps);assert.equal(deps.events[0][0],'maritime_returned');
+ const reads=[];deps.readFirstCompletedWorkAt=async uid=>{reads.push(uid);return '2026-10-21T01:00:00.000Z';};
+ await usage.recordMaritimeManagerReturn(UID,{...deps,request:{headers:{'sec-purpose':'prefetch'}}});assert.equal(reads.length,0);assert.equal(deps.events.length,0);
+ await usage.recordMaritimeManagerReturn(UID,{...deps,now:()=>Date.parse('2026-10-22T00:00:00Z')});assert.equal(deps.events.length,0);
+ await usage.recordMaritimeManagerReturn(UID,{...deps,now:()=>Date.parse('2026-10-22T01:00:00Z')});assert.equal(reads.length,2);assert.equal(deps.events[0][0],'maritime_returned');
 });
 
 
