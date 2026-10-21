@@ -140,6 +140,14 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     const managerPersistence = createMaritimeManagerPersistence({ pgPool: client });
     assert.equal(await managerPersistence.ensureWebUserImpl(subjectC), uidC);
     assert.equal(await managerPersistence.ensureWebUserImpl(subjectC), uidC, "verified subject resolution is idempotent");
+    assert.equal(typeof managerPersistence.storeFirstTouch, "function", "Manager first-touch persistence must exist");
+    assert.equal(typeof managerPersistence.readFirstTouch, "function", "Manager first-touch readback must exist");
+    const initialTouch = { utm_source: "x", utm_medium: "social", email: "private@example.invalid", token: "private-token" };
+    assert.equal(await managerPersistence.storeFirstTouch(uidC, initialTouch), true);
+    assert.deepEqual(await managerPersistence.readFirstTouch(uidC), { utm_source: "x", utm_medium: "social" });
+    assert.equal(await managerPersistence.storeFirstTouch(uidC, { utm_source: "instagram", utm_campaign: "later" }), true);
+    assert.deepEqual(await managerPersistence.readFirstTouch(uidC), { utm_source: "x", utm_medium: "social" }, "later touch cannot overwrite the first attribution");
+    assert.equal((await client.query("SELECT first_touch_at IS NOT NULL AS stored FROM public.lm_maritime_manager_identities WHERE uid=$1", [uidC])).rows[0].stored, true);
     const conflictSubject = "55555555-5555-4555-8555-555555555555";
     const conflictUid = "lm_66666666-6666-4666-8666-666666666666";
     await client.query("INSERT INTO public.lm_maritime_manager_identities(uid,auth_subject) VALUES ($1,$2)", [conflictUid, conflictSubject]);
