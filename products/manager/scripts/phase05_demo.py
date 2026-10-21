@@ -5,6 +5,8 @@ import json
 from datetime import datetime,timedelta,timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 
 from manager_core.models.source import Source
 from manager_core.models.observation import Observation
