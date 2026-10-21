@@ -85,9 +85,10 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     assert.equal(relations.lm_maritime_manager_executions, "lm_maritime_manager_executions");
     assert.equal(relations.lm_maritime_pilot_participants, "lm_maritime_pilot_participants");
     assert.equal(relations.lm_web_funnel_events, "lm_web_funnel_events");
+    assert.equal(relations.lm_cfo_result_receipts, "lm_cfo_result_receipts");
     assert.equal((await client.query("SELECT to_regclass('public.lm_users') AS relation")).rows[0].relation, null,
       "Manager runtime state does not require or create the global lm_users table");
-    for (const table of MANAGER_TABLES.filter(name => !["lm_maritime_manager_identities", "lm_maritime_manager_enrollments", "lm_maritime_manager_executions", "lm_maritime_pilot_participants", "lm_web_funnel_events"].includes(name))) {
+    for (const table of MANAGER_TABLES.filter(name => !["lm_maritime_manager_identities", "lm_maritime_manager_enrollments", "lm_maritime_manager_executions", "lm_maritime_pilot_participants", "lm_web_funnel_events", "lm_cfo_result_receipts"].includes(name))) {
       assert.equal(relations[table], null, `${table} stays out of this Manager migration`);
     }
 
@@ -303,10 +304,57 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
       error => error.code === "P0001",
       "funnel events are append-only for truncation",
     );
+    const cfoColumns = await client.query(
+      "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='lm_cfo_result_receipts'",
+    );
+    const cfoNames = new Set(cfoColumns.rows.map(row => row.column_name));
+    for (const column of ["uid", "period_key", "channel", "recipient_hash", "status", "message", "observed_at", "provider_message_id", "sent_at"]) {
+      assert.ok(cfoNames.has(column), `CFO receipt schema includes ${column}`);
+    }
+    assert.equal(cfoNames.has("recipient"), false, "receipt stores only the recipient hash");
+    const receiptHash = "c".repeat(64);
+    const insertReceipt = (uid, periodKey, status, providerMessageId = null, sentAt = null, hash = receiptHash) => client.query(
+      `INSERT INTO public.lm_cfo_result_receipts(uid,period_key,channel,recipient_hash,status,message,observed_at,provider_message_id,sent_at)
+       VALUES ($1,$2,'email',$3,$4,'daily result','2026-10-21T00:00:00Z',$5,$6::timestamptz)`,
+      [uid, periodKey, hash, status, providerMessageId, sentAt],
+    );
+    await insertReceipt(uidA, "maritime:daily:2026-10-21", "pending");
+    await assert.rejects(
+      insertReceipt(uidA, "maritime:daily:2026-10-21", "pending"),
+      error => error.code === "23505",
+      "only one receipt is allowed per UID and period",
+    );
+    await assert.rejects(
+      insertReceipt(uidA, "maritime:daily:invalid-pending", "pending", "provider-message-1"),
+      error => error.code === "23514",
+      "pending receipts cannot contain a provider message or sent timestamp",
+    );
+    await assert.rejects(
+      insertReceipt(uidA, "maritime:daily:invalid-sent", "sent", "provider-message-2"),
+      error => error.code === "23514",
+      "sent receipts require both provider message ID and sent timestamp",
+    );
+    await assert.rejects(
+      insertReceipt(uidA, "maritime:daily:bad-hash", "pending", null, null, "not-a-hash"),
+      error => error.code === "23514",
+      "recipient hashes must be 64 lowercase hex characters",
+    );
+    await assert.rejects(
+      insertReceipt("lm_33333333-3333-4333-8333-333333333333", "maritime:daily:orphan", "pending"),
+      error => error.code === "23503",
+      "CFO receipts bind to Manager identity, not global lm_users",
+    );
+    await insertReceipt(uidA, "maritime:daily:2026-10-22", "sent", "provider-message-3", "2026-10-21T23:00:00Z");
+    const sentReceipt = (await client.query("SELECT status,recipient_hash,provider_message_id,sent_at FROM public.lm_cfo_result_receipts WHERE uid=$1 AND period_key=$2", [uidA, "maritime:daily:2026-10-22"])).rows[0];
+    assert.equal(sentReceipt.status, "sent");
+    assert.equal(sentReceipt.recipient_hash, receiptHash);
+    assert.equal(sentReceipt.provider_message_id, "provider-message-3");
+    assert.equal(sentReceipt.sent_at.toISOString(), "2026-10-21T23:00:00.000Z");
     await client.query(fs.readFileSync(IDENTITY_MIGRATION, "utf8"));
     assert.equal((await client.query("SELECT execution_id FROM public.lm_maritime_manager_executions WHERE uid=$1 AND occurrence_id=$2", [uidA, "week-1-occurrence"])).rows[0].execution_id, "exec-1", "reapplying the migration preserves the dispatch checkpoint");
     assert.equal((await client.query("SELECT revoked_at FROM public.lm_maritime_pilot_participants WHERE participant_id=$1", [acceptedParticipantId])).rows[0].revoked_at, null, "reapplying the migration preserves participant consent state");
     assert.equal((await client.query("SELECT event_id FROM public.lm_web_funnel_events WHERE event_id='work-1'")).rows[0].event_id, "work-1", "reapplying the migration preserves append-only events");
+    assert.equal((await client.query("SELECT status FROM public.lm_cfo_result_receipts WHERE uid=$1 AND period_key=$2", [uidA, "maritime:daily:2026-10-22"])).rows[0].status, "sent", "reapplying the migration preserves CFO delivery receipts");
   } finally {
     if (racingClient) await racingClient.end();
     if (client) await client.end();

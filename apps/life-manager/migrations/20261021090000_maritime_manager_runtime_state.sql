@@ -265,3 +265,18 @@ DROP TRIGGER IF EXISTS lm_web_funnel_events_truncate_guard ON public.lm_web_funn
 CREATE TRIGGER lm_web_funnel_events_truncate_guard
   BEFORE TRUNCATE ON public.lm_web_funnel_events
   FOR EACH STATEMENT EXECUTE FUNCTION public.lm_web_funnel_events_guard();
+
+CREATE TABLE IF NOT EXISTS public.lm_cfo_result_receipts (
+  uid text NOT NULL REFERENCES public.lm_maritime_manager_identities(uid),
+  period_key text NOT NULL,
+  channel text NOT NULL CHECK (channel = 'email'),
+  recipient_hash text NOT NULL CHECK (recipient_hash ~ '^[0-9a-f]{64}$'),
+  status text NOT NULL CHECK (status IN ('pending', 'sent')),
+  message text NOT NULL,
+  observed_at timestamptz NOT NULL,
+  provider_message_id text,
+  sent_at timestamptz,
+  PRIMARY KEY (uid, period_key),
+  CHECK ((status = 'sent' AND provider_message_id IS NOT NULL AND sent_at IS NOT NULL)
+    OR (status = 'pending' AND provider_message_id IS NULL AND sent_at IS NULL))
+);

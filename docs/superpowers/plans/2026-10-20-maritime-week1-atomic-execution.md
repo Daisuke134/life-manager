@@ -708,7 +708,7 @@ apps/life-manager/
 - [x] **b.6-04:** 同migrationにexecutionsと既存cycle claim/bind関数を移す。同occurrenceのclaim一回・同execution IDだけの再bindを維持する。native PostgreSQL 17の2接続競合・pause・migration再適用を確認。Evidence→`docs/evidence/maritime/runtime-pg-manager-execution-schema.json`。
 - [x] **b.6-05:** 同migrationにparticipantsと容量claim関数を移す。advisory lockで人数上限を直列化し、sourceは現在のnormalizerと揃えInstagramも受理する。旧SQLにないInstagramを落とさない。native PostgreSQL 17の2接続容量競合・再同意・source・上限入力を確認。Evidence→`docs/evidence/maritime/runtime-pg-manager-participant-capacity.json`。
 - [x] **b.6-06:** 同migrationにfunnel表・stable source-event unique・audience制約・必要index・append-only guardを定義する。既存normalizerの出力をそのまま保存できることを確認する。native PostgreSQL 17でsource-event重複、audience拒否、UPDATE/DELETE/TRUNCATE拒否、migration再適用を確認。Evidence→`docs/evidence/maritime/runtime-pg-manager-funnel-schema.json`。
-- [ ] **b.6-07:** 同migrationにCFO receipt表を移す。uid/period key unique、pending/sent整合性、recipient hashを維持する。既存jobs/common receipts/FinancialRecordは再作成しない。
+- [x] **b.6-07:** 同migrationにCFO receipt表を移す。uid/period key unique、pending/sent整合性、recipient hashを維持する。既存jobs/common receipts/FinancialRecordは再作成しない。native PostgreSQL 17でidentity FK、pending/sent整合、recipient hash、一意性、再適用を確認。Evidence→`docs/evidence/maritime/runtime-pg-manager-cfo-receipts.json`。
 - [ ] **b.6-08:** `maritime-manager-store.js`の`read/listPending/listPaused`をparameterized SQLへ接続する。PG timestamp→ISO、date_key→YYYY-MM-DDを正規化し、既存input/row検証を残す。
 - [ ] **b.6-09:** 同fileの`enroll`をPGへ接続する。verified subject・UID・emailが既存rowと一致しなければ拒否し、conflictで所有者を上書きしない。
 - [ ] **b.6-10:** 同fileの`claimProvision/bindAgent`を上記既存関数へ接続する。paused/foreign agent/異なるreleaseの拒否を確認する。
