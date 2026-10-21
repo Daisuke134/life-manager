@@ -80,17 +80,25 @@
       "license_evidence_sha": "e8101f17f2a9d150e899dc6c472f13a3fdccf750",
       "permissions": {
         "study_read": "allowed_with_conditions",
-        "local_research": "hold",
+        "local_research": "allowed_with_conditions",
         "raw_redistribution": "hold",
         "product_use": "hold"
       },
       "requirements": [
         "Treat each source study separately.",
         "A public dataset/model listing is not a blanket right to redistribute or commercialize the collected participant profiles.",
-        "Preserve study splits if evaluation proceeds after review."
+        "Preserve study splits if evaluation proceeds after review.",
+        "Operator-authorized research is executed with ephemeral local processing; only study-level metrics and anonymized aggregates are published.",
+        "Personal/respondent-level data, raw prompts and demographic profiles MUST NOT be committed to the public repository."
       ],
       "risk": "HF viewer includes respondent demographics and political/ideology proxies; public availability does not override privacy or research ethics.",
-      "unresolved": "Per-study rights and permitted processing, provenance, respondent data governance, consent and license coverage not established."
+      "unresolved": "Original-study derivative data redistribution and future product reuse rights remain source-specific; operator authorized research-only processing. End-to-end human model causal fidelity and privacy audit unproven.",
+      "operator_authorization": {
+        "asserted_on": "2026-10-21",
+        "scope": "User expressly and repeatedly authorized research analysis of all SocSci210 data in this chat.",
+        "scope_not_granted": "The user's permission does not certify redistribution, commercial reuse or rights of unrelated original source licensors.",
+        "execution": "Ephemeral GitHub Actions, pinned source, released anonymous aggregates only; no participant data included in commits."
+      }
     },
     {
       "id": "socrates-qwen14b-sft",
