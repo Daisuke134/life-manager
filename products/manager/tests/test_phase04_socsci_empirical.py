@@ -30,6 +30,9 @@ class SocSciRealAggregateContract(unittest.TestCase):
         result=evaluate_aggregates(split(),b)
         self.assertEqual(result["train_fitted_distribution"],a["train_fitted_distribution"])
         self.assertEqual(result["train_majority_label"],a["train_majority_label"])
+        self.assertEqual(result["abstention_policy"]["train_only_leave_one_study_out_tvd_p90"],
+                         a["abstention_policy"]["train_only_leave_one_study_out_tvd_p90"])
+        self.assertFalse(a["calibration"]["meaningful_individual_level_calibration_established"])
 
     def test_deterministic_study_bootstrap_and_never_use_test_metrics_as_policy(self):
         a=evaluate_aggregates(split(),toy())
