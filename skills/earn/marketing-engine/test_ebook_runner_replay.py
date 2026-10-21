@@ -27,7 +27,7 @@ def registered_script(tmp_path: Path) -> tuple[Path, str]:
         "baseline": True,
         "campaign_id": "campaign-1",
         "creative_id": "creative-1",
-        "renderer_id": "heygen-avatar-iv",
+        "renderer_id": "slideshow",
         "primary_metric": "completed_views",
         "maturity_window": "7d",
         "stop_rule": "stop after the declared window",
@@ -43,14 +43,14 @@ def test_render_and_telegram_replay_each_external_effect_once(tmp_path, monkeypa
     renders = 0
     sends = 0
 
-    def render(**kwargs):
+    def render(*, script, output):
         nonlocal renders
         renders += 1
         output.write_bytes(b"video")
-        return {"renderer_id": "heygen-avatar-iv", "state": "rendered",
-                "video_id": "video_12345678", "output": str(output),
+        return {"renderer_id": "slideshow", "state": "rendered",
+                "output": str(output),
                 "sha256": "a" * 64,
-                "external_effects": ["heygen_video_created", "heygen_video_downloaded"]}
+                "external_effects": []}
 
     class Client:
         @classmethod
@@ -63,7 +63,9 @@ def test_render_and_telegram_replay_each_external_effect_once(tmp_path, monkeypa
             return {"status": "delivered", "method": "sendVideo", "chat_id": 1,
                     "message_ids": [501], "date": 1}
 
-    monkeypatch.setattr(ebook_runner, "render_heygen", render)
+    monkeypatch.setattr(ebook_runner, "render_slideshow", render)
+    monkeypatch.setattr(ebook_runner, "render_heygen", lambda **_kwargs: (_ for _ in ()).throw(
+        AssertionError("HeyGen renderer was called")), raising=False)
     monkeypatch.setattr(ebook_runner, "TelegramClient", Client)
     arguments = dict(engine=Path(ebook_runner.__file__).parent, product="ebook-en",
                      slot_at="2026-09-11T23:00:00+00:00", script_id=script_id,
@@ -84,12 +86,12 @@ def test_unknown_telegram_delivery_is_never_sent_twice(tmp_path, monkeypatch):
     output = tmp_path / "video.mp4"
     sends = 0
 
-    def render(**kwargs):
+    def render(*, script, output):
         output.write_bytes(b"video")
-        return {"renderer_id": "heygen-avatar-iv", "state": "rendered",
-                "video_id": "video_12345678", "output": str(output),
+        return {"renderer_id": "slideshow", "state": "rendered",
+                "output": str(output),
                 "sha256": "b" * 64,
-                "external_effects": ["heygen_video_created", "heygen_video_downloaded"]}
+                "external_effects": []}
 
     class Client:
         @classmethod
@@ -101,7 +103,9 @@ def test_unknown_telegram_delivery_is_never_sent_twice(tmp_path, monkeypatch):
             sends += 1
             raise RuntimeError("connection lost after send")
 
-    monkeypatch.setattr(ebook_runner, "render_heygen", render)
+    monkeypatch.setattr(ebook_runner, "render_slideshow", render)
+    monkeypatch.setattr(ebook_runner, "render_heygen", lambda **_kwargs: (_ for _ in ()).throw(
+        AssertionError("HeyGen renderer was called")), raising=False)
     monkeypatch.setattr(ebook_runner, "TelegramClient", Client)
     arguments = dict(engine=Path(ebook_runner.__file__).parent, product="ebook-en",
                      slot_at="2026-09-11T23:00:00+00:00", script_id=script_id,
