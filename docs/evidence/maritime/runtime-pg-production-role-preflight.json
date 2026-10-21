@@ -1,0 +1,84 @@
+{
+  "observed_at": "2026-10-21T02:40:45Z",
+  "source_main_sha": "464635e4f455a7411e441e76c3208cc188de68c2",
+  "target_migration": {
+    "id": "20261021090000_maritime_manager_runtime_state.sql",
+    "sha256": "5016c67facbfe3b40a92ee4fefdf0b1e9a130047718329caac106823a40b22a0",
+    "present_in_schema_migrations": false,
+    "applied": false
+  },
+  "runtime_pg": {
+    "read_path": "Railway SSH into life-call production; same LM_RUNTIME_DATABASE_URL used by the app pool",
+    "connection_role": {
+      "life_call": {
+        "session_user": "postgres",
+        "current_user": "postgres",
+        "is_superuser": true,
+        "bypass_rls": true,
+        "service_role_member": true
+      },
+      "money_printer_worker": {
+        "session_user": "postgres",
+        "current_user": "postgres",
+        "is_superuser": true,
+        "bypass_rls": true,
+        "service_role_member": true
+      }
+    },
+    "manager_relations": {
+      "lm_maritime_manager_identities": false,
+      "lm_maritime_manager_enrollments": false,
+      "lm_maritime_manager_executions": false,
+      "lm_maritime_pilot_participants": false,
+      "lm_web_funnel_events": false,
+      "lm_cfo_result_receipts": false
+    },
+    "schema_migrations": {
+      "columns": ["id", "applied_at"],
+      "row_count": 6,
+      "rows": [
+        {"id": "006_init_billing_tables_on_railway.sql", "applied_at": "2025-11-20T21:34:00.951Z"},
+        {"id": "007_usage_sessions.sql", "applied_at": "2025-11-21T00:33:09.253Z"},
+        {"id": "008_monthly_vc_grants.sql", "applied_at": "2025-11-21T00:33:09.267Z"},
+        {"id": "010_v0_3_tables.sql", "applied_at": "2025-12-21T12:39:21.609Z"},
+        {"id": "011_v0_3_jsonb_gin_indexes.sql", "applied_at": "2025-12-21T12:39:21.615Z"},
+        {"id": "012_sensor_access_state.sql", "applied_at": "2025-12-27T21:15:04.410Z"}
+      ]
+    }
+  },
+  "live_services": {
+    "life_call": {
+      "loaded_sha": "4f008688db5aff872ae11429d2753ed9f38c598c",
+      "manager_email_enabled": false,
+      "manager_migration_file_in_image": false
+    },
+    "money_printer_worker": {
+      "loaded_sha": "4f008688db5aff872ae11429d2753ed9f38c598c",
+      "manager_email_enabled": false,
+      "worker_capability_count": 3,
+      "manager_capabilities": []
+    }
+  },
+  "diagnostic_boundary": {
+    "run_id": "20261021T0240Z-maritime-role-preflight",
+    "owner_id": "codex",
+    "occurrence_id": null,
+    "release_sha": "4f008688db5aff872ae11429d2753ed9f38c598c",
+    "phase": "read_only_runtime_role_preflight",
+    "local_command": "railway run --service life-call --environment production --no-local node -e <read-only role query>",
+    "local_exit_code": 1,
+    "local_effect": "read_only_no_state_change",
+    "local_readback": {"runtime_database_env_present": true, "host_class": "railway_internal"},
+    "error_class": "ENOTFOUND",
+    "retryable": true,
+    "next_action": "Run the same read-only query from the Railway service container over the existing registered SSH key."
+  },
+  "external_effects": {
+    "production_database_mutated": false,
+    "migration_applied": false,
+    "manager_rows_created": false,
+    "feature_flags_changed": false,
+    "worker_capabilities_changed": false,
+    "real_email_sent": false
+  }
+}
