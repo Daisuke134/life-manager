@@ -182,6 +182,9 @@ def _find_window(rows: list[dict], occurrence_id: str) -> tuple[dict, dict, str]
         )
         if (event.get("loop_id") != OWNER_ID or event.get("owner_id") != OWNER_ID
                 or event.get("wake_id") != run_id
+                or event.get("provider_receipt_id") is not None
+                or event.get("official_readback_ref") is not None
+                or event.get("effect_identity_status") not in {None, "not_written"}
                 or not status_valid
                 or event.get("effect_status") != expected_effect_status
                 or [ref for ref in refs if str(ref).startswith("lm-loop://")] != [expected_ref]

@@ -677,3 +677,16 @@ def test_post_child_or_unknown_deferral_reason_stays_closed(reason):
     with pytest.raises(module.EvidenceError):
         module._find_window(rows + start_terminal_events(
             "claimant", terminal_occurrence_id=occurrence), occurrence)
+
+
+@pytest.mark.parametrize("phase", [0, 1])
+@pytest.mark.parametrize("field,value", [("provider_receipt_id", "receipt"),
+    ("official_readback_ref", "readback"), ("effect_identity_status", "written"),
+    ("effect_identity_status", "ambiguous")])
+def test_claimant_with_conflicting_effect_evidence_stays_closed(phase, field, value):
+    module = load_module()
+    occurrence = f"{OWNER_ID}:queued"
+    rows = start_terminal_events("claimant", terminal_occurrence_id=occurrence)
+    rows[phase][field] = value
+    with pytest.raises(module.EvidenceError):
+        module._find_window(deferred_events() + rows, occurrence)
