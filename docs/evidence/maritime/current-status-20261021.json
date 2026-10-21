@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "observed_at": "2026-10-21T07:01:43Z",
-  "source_main_sha": "88de3718c61eddcd160e702a0c974338bd0ed099",
+  "observed_at": "2026-10-21T08:34:47Z",
+  "source_main_sha": "a165e0ae61cb8593cf1f3bcfd692b2a3c4fe7cd1",
   "competition": {
     "home_url": "https://competition.maritime.sh/",
     "terms_url": "https://competition.maritime.sh/terms",
     "terms_last_updated": "2026-10-15",
-    "official_pages_rechecked_at": "2026-10-21T07:30Z",
+    "official_pages_rechecked_at": "2026-10-21T08:06Z",
     "common_window": "2026-10-20 through 2026-12-01 23:59 America/Los_Angeles",
     "target": "1,000 distinct people with real usage, reviewed through project usage on Keiki or Maritime",
     "winner_rule": "The first three projects to reach the target, subject to verification",
@@ -25,16 +25,17 @@
     "project": "Anicca",
     "environment": "production",
     "life_call": {
-      "readback_at": "2026-10-21T06:50:17Z",
+      "readback_at": "2026-10-21T08:25Z",
       "latest_success_deployment": "e9ebfb62-e8c3-46eb-a198-d9203f574899",
       "deployment_status": "SUCCESS",
       "loaded_source_sha": "982875d62eaa03f8e924b990c4bc80f521d8dcce",
       "manager_email_enabled": "1",
       "pilot_max_users": "3",
-      "maritime_signup_route": "HTTP 200; rendered signup page at 2026-10-21T06:44Z"
+      "maritime_signup_route": "HTTP 200; rendered Japanese pilot page at 2026-10-21T08:16Z; goal/budget input optional; retention disclosure visible.",
+      "loaded_source_sha_readback_at": "2026-10-21T08:00Z"
     },
     "worker": {
-      "readback_at": "2026-10-21T06:50:17Z",
+      "readback_at": "2026-10-21T08:25Z",
       "latest_success_deployment": "9dc09440-42ed-4349-83c2-e437b1fc5017",
       "deployment_status": "SUCCESS",
       "loaded_source_sha": "982875d62eaa03f8e924b990c4bc80f521d8dcce",
@@ -44,20 +45,35 @@
         "maritime.manager.report"
       ],
       "email_enabled": "0",
-      "pilot_max_users": "3"
+      "pilot_max_users": "3",
+      "loaded_source_sha_readback_at": "2026-10-21T08:00Z"
     },
-    "latest_docs_only_deployments": {
-      "source_sha": "88de3718c61eddcd160e702a0c974338bd0ed099",
+    "deployment_readback_at": "2026-10-21T08:25Z",
+    "latest_main_deployments": {
+      "source_sha": "d7c03e907d930511785121344ce2a2e6cd0e483a",
       "life_call_status": "SKIPPED",
-      "life_call_deployment_id": "feea0ad3-59d9-426f-b7b8-2483c03ed9c7",
+      "life_call_deployment_id": "a8035b79-1030-4924-91a5-4fc89da44ddf",
       "worker_status": "SKIPPED",
-      "worker_deployment_id": "89f5e2d7-26ef-48e3-8596-29787024fff5",
-      "life_manager_app_source_diff_since_loaded_sha": []
+      "worker_deployment_id": "357b1e1e-356a-45a9-97aa-f7ee895b8153",
+      "last_success_source_sha": "982875d62eaa03f8e924b990c4bc80f521d8dcce",
+      "last_success_life_call_deployment_id": "e9ebfb62-e8c3-46eb-a198-d9203f574899",
+      "last_success_worker_deployment_id": "9dc09440-42ed-4349-83c2-e437b1fc5017"
     },
-    "deployment_readback_at": "2026-10-21T07:01Z"
+    "current_main_adoption_check": {
+      "observed_at": "2026-10-21T08:23:54Z",
+      "latest_origin_main_sha": "a165e0ae61cb8593cf1f3bcfd692b2a3c4fe7cd1",
+      "paths_changed_after_production_loaded_sha": [
+        "apps/life-manager/investment-core/provision_selection.py",
+        "apps/life-manager/investment-core/test_provision_selection.py"
+      ],
+      "railway_live_deployments": "At 08:25Z life-call e9ebfb62-e8c3-46eb-a198-d9203f574899 and money-printer-worker 9dc09440-42ed-4349-83c2-e437b1fc5017 remain the latest SUCCESS deployments, both created at 06:23Z.",
+      "latest_main_adoption": "a165e0ae is not verified as deployed; last exact loaded SHA readback remains 982875d62eaa03f8e924b990c4bc80f521d8dcce."
+    }
   },
   "runtime_database_readback": {
-    "observed_at": "2026-10-21T06:50:17Z",
+    "observed_at": "2026-10-21T08:00:19Z",
+    "database": "railway",
+    "read_path": "Read-only transaction on Railway Postgres-1nl0; app LM_RUNTIME_DATABASE_URL resolves to postgres-1nl0.railway.internal/railway.",
     "identities": 1,
     "enrollments": 0,
     "executions": 0,
@@ -100,7 +116,7 @@
       "do_not_mix_life_manager_content_into_other_product_specific_accounts": true
     },
     "postiz_readback": {
-      "checked_at": "2026-10-21T06:02:00Z",
+      "checked_at": "2026-10-21T08:11Z",
       "groups": 0,
       "integrations": 0,
       "posts_in_window_2026_10_01_to_2026_12_02": 0,
@@ -113,7 +129,7 @@
       "latest_source_article": "docs/research/manager/articles/2026-10-21-what-great-manager-does-en.md",
       "latest_source_article_main_pr": 8474,
       "proposed_canonical_url": "https://aniccaai.com/blog/manager-great-management-evidence-first-en",
-      "proposed_url_readback": "HTTP 404 at 2026-10-21T05:25Z",
+      "proposed_url_readback": "HTTP 404 at 2026-10-21T08:11Z",
       "is_life_manager_signup_acquisition_article": false,
       "internal_draft": "docs/distribution/maritime/week1/seo-article-draft-en.md",
       "internal_draft_published": false,
@@ -141,7 +157,11 @@
     "manager_page_url": "https://aniccaai.com/lm",
     "copy": "Describes proactive manager and says task-specific goals/budgets are not required; the broader hosted experience is still in development.",
     "pilot_url": "https://life-call-production.up.railway.app/maritime?lang=en",
-    "pilot_copy": "Manager chooses work; Telegram is optional; revenue is not guaranteed; provider data retention is disclosed."
+    "pilot_copy": "Manager chooses work; Telegram is optional; revenue is not guaranteed; provider data retention is disclosed.",
+    "family_share_url": "https://life-call-production.up.railway.app/maritime?lang=ja",
+    "family_share_url_readback_at": "2026-10-21T08:16Z",
+    "family_share_url_http_status": 200,
+    "family_share_copy": "The Japanese pilot page loads and discloses the Maritime AI-call retention condition."
   },
   "submission": {
     "application": "accepted",
@@ -160,7 +180,7 @@
       "status": "posted_and_read_back",
       "author_handle": "keiodaisuke",
       "posted_at": "2026-10-21T05:09:07.988839Z",
-      "readback_at": "2026-10-21T06:44:12.429183Z",
+      "readback_at": "2026-10-21T08:07Z",
       "permalink": "https://keikixmaritime.slack.com/archives/C0C9PEL45JA/p1792559347988839",
       "matching_entry_posts": 1,
       "entry_summary": "The public entry says Life Manager chooses delegated work and reports verified outcomes by email; the first authenticated work cycle is still being validated; no user, revenue, or completed-work outcome is claimed."
@@ -173,8 +193,23 @@
       "gmail_message_id": "1a15d3141c56ee22",
       "sent_readback_at": "2026-10-21T06:43Z",
       "reply_found": false,
-      "reply_search_at": "2026-10-21T06:43Z",
-      "question_summary": "Asked whether the channel entry is sufficient for Week 1 or whether there is a required form, deadline/timezone, or demo fields."
+      "reply_search_at": "2026-10-21T08:08:45Z",
+      "question_summary": "Asked whether the channel entry is sufficient for Week 1 or whether there is a required form, deadline/timezone, or demo fields.",
+      "followup_status": "SENT",
+      "followup_sent_at": "2026-10-21T08:13:26Z",
+      "followup_gmail_message_id": "1a15d85b491c9450",
+      "followup_thread_id": "1a15d3141c56ee22",
+      "followup_reply_readback_after_send": false,
+      "post_followup_thread_readback": {
+        "readback_at": "2026-10-21T08:26:15Z",
+        "thread_id": "1a15d3141c56ee22",
+        "message_count": 2,
+        "message_ids": [
+          "1a15d3141c56ee22",
+          "1a15d85b491c9450"
+        ],
+        "organizer_reply_found": false
+      }
     }
   },
   "mail_readback": {
@@ -208,16 +243,98 @@
     "interpretation": "The SSOT-matched live Stripe account has two active Anicca Life Manager monthly prices but zero subscriptions to either price, so Life Manager subscription MRR is USD 0 at readback. Account-wide historical paid invoices are not attributed to Life Manager. User business earnings remain a separate revenue stream and have no hosted settlement receipt."
   },
   "source_repository_readback": {
-    "observed_at": "2026-10-21T07:30:40Z",
-    "origin_main_sha": "1ea73f18e7575084ac2967d62edbe05fa4831e6b",
+    "observed_at": "2026-10-21T08:23:54Z",
+    "origin_main_sha": "a165e0ae61cb8593cf1f3bcfd692b2a3c4fe7cd1",
     "production_loaded_source_sha": "982875d62eaa03f8e924b990c4bc80f521d8dcce",
-    "life_manager_source_paths_changed_after_loaded_sha": []
+    "life_manager_source_paths_changed_after_loaded_sha": [
+      "apps/life-manager/investment-core/provision_selection.py",
+      "apps/life-manager/investment-core/test_provision_selection.py"
+    ]
   },
   "current_cursor": {
-    "product": "T22.1e.2 / b.6-28: hosted signup is live on loaded SHA 982875d62eaa03f8e924b990c4bc80f521d8dcce, but participant PKCE and explicit retention consent are not recorded. Runtime PG at 06:50:17Z has identity1 and zero enrollment/execution/participant/job/external work.",
-    "distribution": "T24.4b: one internal SEO comparison draft exists; proof-backed demo and live acquisition CTA remain on hold. T27 publication waits for product lifecycle readback; Postiz groups/integrations/posts were 0 at the 06:02Z readback and no X identity is verified.",
-    "submission": "One truthful entry is shared in #competition-submissions and read back. Separate formal project form/receipt, Week 1 cutoff, and rubric remain unconfirmed. Organizer inquiry SENT/read back (1a15d3141c56ee22); no reply by 06:43Z. Do not duplicate the channel entry.",
-    "packet_export": "T23.1: aggregate exporter and focused test source exist in the active worktree; focused test has not been rerun after implementation and docs/distribution/maritime/week1/submission.json has not been generated. Keep incomplete until the focused acceptance passes.",
-    "revenue": "Matched live Stripe account readback: 0 active subscriptions for Life Manager monthly prices, Life Manager MRR USD 0. Historical account-wide invoices are not attributed to Life Manager; user-business cash and net revenue remain unverified. Evidence docs/evidence/maritime/stripe-life-manager-readback-20261021.json."
+    "product": "T22.1e.2 / b.6-28: owner PKCE and explicit retention consent are still unrecorded. Railway 08:25Z shows the same two SUCCESS deployments from 06:23Z; exact loaded SHA last read at 08:00Z is 982875d62eaa03f8e924b990c4bc80f521d8dcce. Runtime PG last read at 08:00:19Z: identity 1; enrollment/execution/participant/job/external work 0.",
+    "distribution": "T24.4b/T24.5: manager acquisition URL returned 404 at 08:11Z; GSC settled baseline is 0 clicks/7 impressions through 2026-10-18. Postiz connector 08:24Z returned 0 groups/integrations, while date-only official API integration evidence from 2026-10-21 lists 30 enabled channels; the exact 06:41Z post receipt confirms general X @selawmqt and a separate AI-monk post. No Life Manager post, attributed signup, or sale is evidenced.",
+    "submission": "One entry is posted/read back; the channel warns it does not replace any required form. Public pages checked 08:06Z still had no project form, Week 1 cutoff, or rubric. Follow-up email thread was reread 08:26:15Z and contains only the two sent messages; no organizer reply. Formal receipt remains unconfirmed; do not duplicate the entry.",
+    "packet_export": "T23.1 complete: focused test 2/2 passes after review fix; privacy-safe aggregate draft regenerated at 08:34:34Z, SHA256 68024002e69d0c591dbb1614223a61697fd40d21ea7752330c2f22337bf6f4e1, mode 0600. It remains a draft; formal submission is not complete.",
+    "revenue": "Stripe live readback at 06:55:37Z: Life Manager active subscriptions 0 and MRR USD 0. Dais reports local workflow earnings, but no provider settlement receipt is joined here. Hosted external users/work events last read at 08:00:19Z are 0; hosted user cash/net is unverified. Distribution has no Life Manager-attributed paid outcome."
+  },
+  "latest_slack_readback": {
+    "observed_at": "2026-10-21T08:07Z",
+    "announcements_channel": "#competition-announcements",
+    "announcements_message_containers": 3,
+    "organizer_deadline_or_form_posts": 0,
+    "help_channel_search_query": "in:competition-help",
+    "help_channel_search_results": 0,
+    "submissions_channel": "#competition-submissions",
+    "submissions_message_containers": 4,
+    "life_manager_entry_count": 1,
+    "formal_form_warning_visible": true
+  },
+  "latest_organizer_email_search": {
+    "observed_at": "2026-10-21T08:08:45Z",
+    "search_scope": "Organizer domains after 2026-10-20.",
+    "matching_messages": 0,
+    "reply_to_submission_route_inquiry_found": false,
+    "followup_sent_at": "2026-10-21T08:13:26Z",
+    "followup_message_id": "1a15d85b491c9450",
+    "thread_id": "1a15d3141c56ee22",
+    "reply_readback_after_followup": false
+  },
+  "latest_product_distribution_readback": {
+    "observed_at": "2026-10-21T08:24Z",
+    "manager_article_candidate_http_status": 404,
+    "manager_blog_product_acquisition_article_live": false,
+    "pilot_url": "https://life-call-production.up.railway.app/maritime?lang=ja",
+    "pilot_url_http_status": 200,
+    "pilot_url_readback_at": "2026-10-21T08:16Z",
+    "postiz_connector_groups": 0,
+    "postiz_connector_integrations": 0,
+    "postiz_connector_readback_at": "2026-10-21T08:24Z",
+    "postiz_official_api_workspace": "Anicca",
+    "postiz_official_api_enabled_channels": 30,
+    "general_x_identity": "@selawmqt",
+    "separate_x_post_topic": "AI-monk field study; not Life Manager acquisition",
+    "life_manager_x_post_verified": false,
+    "life_manager_source_attributed_signup_or_sale": false,
+    "manager_article_candidate_readback_at": "2026-10-21T08:11Z",
+    "gsc_sitewide_28d_through": "2026-10-18",
+    "gsc_sitewide_28d_clicks": 0,
+    "gsc_sitewide_28d_impressions": 7,
+    "postiz_official_api_integrations_captured_on": "2026-10-21",
+    "postiz_official_api_integrations_time_precision": "date_only",
+    "postiz_x_post_readback_at": "2026-10-21T06:41Z",
+    "postiz_connector_source": "Connected Postiz MCP group/integration listing",
+    "postiz_official_api_integration_inventory_source": "docs/evidence/postiz-ig-capacity-20261021.json",
+    "postiz_x_post_receipt_source": "docs/evidence/ai-monk-x-post-20261021.json"
+  },
+  "packet_export_readback": {
+    "test_command": "node --test apps/life-manager/scripts/maritime-week1-export.test.js",
+    "test_result": "2 passed; 0 failed",
+    "packet_path": "docs/distribution/maritime/week1/submission.json",
+    "packet_status": "draft",
+    "packet_generated_at": "2026-10-21T08:34:34.541Z",
+    "packet_sha256": "68024002e69d0c591dbb1614223a61697fd40d21ea7752330c2f22337bf6f4e1",
+    "packet_mode": "0600",
+    "verified_external_manager_users": 0,
+    "external_work_events": 0,
+    "work_receipts": 0,
+    "costs": "unmeasured; null in packet",
+    "official_required_fields": null,
+    "formal_submission_receipt": null,
+    "review_finding": {
+      "severity": "medium",
+      "file": "apps/life-manager/scripts/maritime-week1-export.js",
+      "issue": "A receipt counted as evidence of completed work only when status is completed; failed/deferred/effect_unknown receipts retain the missing-completed-work limitation.",
+      "fix": "Use an explicit status === completed predicate.",
+      "regression_test": "non_completed_receipts_keep_missing_completed_work_caveat",
+      "test_command": "node --test apps/life-manager/scripts/maritime-week1-export.test.js",
+      "test_result": "2 passed; 0 failed",
+      "status": "resolved"
+    }
+  },
+  "money_loop_status": {
+    "user_earning_product": "not verified end-to-end in hosted use; local workflow earnings are Dais-reported but no joined official settlement receipt is present; hosted external work events/users are 0 at last DB readback.",
+    "life_manager_company_revenue": "active paid subscriptions 0; Stripe MRR USD 0 at 2026-10-21T06:55:37Z.",
+    "distribution_revenue": "no Life Manager source-attributed paid user or receipt; article candidate is HTTP 404, GSC has 0 clicks/7 impressions, and the verified X post concerns a separate AI-monk study."
   }
 }

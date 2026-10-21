@@ -461,7 +461,15 @@ life-manager/
 
 - [x] T23.0a `#competition-submissions`でLife Manager entryを一度共有。2026-10-21T06:44:12Z readbackで同内容entryは1件。permalink `https://keikixmaritime.slack.com/archives/C0C9PEL45JA/p1792559347988839`、posted_at=2026-10-21T05:09:07.988839Z。channel descriptionは必要formを置き換えないと明記。
 - [x] T23.0b 2026-10-21T06:44Zにofficial home/TermsとSlack announcementsを再確認したがform・Week 1 cutoff・rubricは未公表。contact@maritime.shへroute/deadline/demo fieldを一通問い合わせ、Gmail SENT/readback id=1a15d3141c56ee22。06:43Z時点でreplyなし。
-- [ ] T23.1 export test `packet_uses_measured_counts_and_excludes_private_users`を定義し、公式必須項目と実測項目だけをJSONへ出す。未測定はnull+理由。
+- [x] T23.1 `packet_uses_measured_counts_and_excludes_private_users`を実装し、`node --test apps/life-manager/scripts/maritime-week1-export.test.js`が1/1 PASS。
+  exporterは公式必須項目と実測値だけを出し、未測定はnull+理由とする。
+  `docs/distribution/maritime/week1/submission.json`を2026-10-21T08:11:36.468Zにdraft生成。
+  users/work receipts=0、costs=null、formal receipt=null。
+  作業時mode=0600、SHA256=`fa891f6e8ed9410a0bb7c6249a0a698c259557578a6816dfaaf5c4f756ca9865`。
+  このdraftは正式提出ではない。
+- [x] T23.1-R1 review findingを修正。apps/life-manager/scripts/maritime-week1-export.jsでcompleted statusのreceiptがある場合だけmissing-work caveatを外す。failed/deferred/effect_unknownだけでは注意書きを維持する。
+  入力境界は`safeWorkReceipts`、出力境界は`limitations`。`apps/life-manager/scripts/maritime-week1-export.test.js`へfailed/effect_unknownのみのケースを追加し、completed receiptが1件以上ある場合に限り注意書きを外す。
+  DONE: RED reproduced before fix; node --test apps/life-manager/scripts/maritime-week1-export.test.js passes 2/2 including non-completed-only regression. Packet regenerated at 2026-10-21T08:34:34.541Z, SHA256=68024002e69d0c591dbb1614223a61697fd40d21ea7752330c2f22337bf6f4e1, mode=0600, status=draft, work_receipts=0, costs=null. T23.2 is next.
 - [ ] T23.2 審査者が試せるURL、最小画面録画、Cloud実行receipt、現状の人数、制約を揃える。内部2–3分動画は推奨で、公式指定と混同しない。
 - [ ] T23.3 channel entryの重複投稿は行わない。organizer replyまたは公開formから正式な必須項目を確認したら、現entry shareとは別のrequired formだけを一回提出し、正式経路が不明な間はformal status=unconfirmedのまま維持する。
 - [ ] T23.4 confirmation画面/受信メール/受付IDを保存し、本文・提出時刻・release SHAをjoinする。UI timeout時はreadbackし再submitしない。これで初週提出を完了とする。
@@ -477,7 +485,7 @@ life-manager/
 - [x] T24.3 `AI assistant vs AI agent: who chooses the next task?`を一つのreader-query仮説として選んだ。GSCのサイト全体28日間は0 clicks / 7 impressions、記事需要は未計測。基準値とpage-row不一致の注意は`docs/evidence/maritime/seo-baseline-20261021.json`に保存し、検索量/順位は主張しない。
 - [x] T24.4a `channel-copy.md`へ記事briefとCTA HOLDを記録し、`seo-article-draft-en.md`を内部草稿にした。比較質問に答え、Life Managerのmanager定義を製品設計上の表現と明記し、hosted productの現状と未検証境界を含めた。
 - [ ] T24.4b 実画面/実receiptを完了した利用者サイクルへ結び、登録→仕事→結果/receipt→日報→停止をreadbackする。その後に一つの実URL CTAを入れ、記事を既存publication packageへ移す。現時点は内部draftで、公開CTAは保留。
-- [ ] T24.5 既存X向けのbuild-in-public投稿案は日英でchannel-copy.mdに保存済み（signup page HTTP 200 / end-to-end未確認）。Postiz groups=0 / integrations=0のため既存profileを特定・readbackし、一つのCTAを確定してから公開する。新規X account・自動DM・複数accountへの類似投稿を行わない。
+- [ ] T24.5 既存X向けのbuild-in-public投稿案は日英でchannel-copy.mdに保存済み（signup page HTTP 200 / end-to-end未確認）。このPostiz connectorのreadbackは08:24Zにgroups=0/integrations=0だが、別の公式Postiz integration inventory（2026-10-21、時刻精度date-only）はAnicca workspaceの30 enabled channelsを示す。06:41Zのpost receiptは一般AI Tools用`@selawmqt`を確認し、同identityのAI-monk field-study投稿がPUBLISHED。Life Managerの投稿・signup・売上計測ではないため取得成果へ数えない。既存の一般X identityのみを使い、別product専用accountへ混載せず、新規accountも作らない。実動作と正しいCTAをreadback後、source別計測を付けて公開する。
 - [ ] T24.6 Dais向けDMと一つのCTAを保存し、URL確定前はprelaunch copyとして明示する。最終URLとUTMにplaceholderがないことを確認しcommit/push。
 
 ## Task T25: demoとプロモーション動画の撮影単位を作る（開発と並行）
