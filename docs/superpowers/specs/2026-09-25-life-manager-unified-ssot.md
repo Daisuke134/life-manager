@@ -16387,6 +16387,25 @@ REDebbd5af252→GREEN0e8f071c0eはcore guardも証明済みsell/nofill closedか
 
 **順序変更の理由:** the release is ready, but the reconciler became active after an intervening scheduled wake. Applying now could swap code during a run. Wait for that owner's natural terminal and use the existing loaded-idle/owner-lock gate; keep the live owner disabled and the unresolved effect fence intact.
 
+#### 2026-10-21 10:58 JST — Targeted reconciler adoption verified
+
+**Owner apply:** after the old `lm-fence-reconciler` run ended naturally and status returned `loaded-idle`, a targeted `LIFE_MANAGER_APPLY_TARGET=lm-fence-reconciler` apply with `--loaded-idle-only` succeeded. Its official `launchctl-safe print` readback matches the installed plist `ProgramArguments` exactly; the third argument and `LIFE_MANAGER_RELEASE_SHA` point to `~/loops/releases/20261021T105116-1418bc76`, and `LIFE_MANAGER_STATE_ROOT` remains `~/.local/state/life-manager/lm-fence-reconciler`. No other owner was targeted.
+
+**Current runtime state:** `lm-loop status` reports `lm-fence-reconciler` installed on `1418bc76` and `loaded-idle`. The latest terminal still belongs to old SHA `01307d0f`; no natural terminal from `1418bc76` has occurred yet. Do not manually wake the reconciler. The live owner is still disabled and the four-order effect-unknown fence remains held. The latest official Alpaca readback (2026-10-21 01:36Z, before adoption) was four post-queue orders, zero open orders, two request IDs, four refs, `verified=false`.
+
+**Updated atomic TODO (current cursor = 4):**
+1. [x] Merge bounded adapter repair to main `1418bc76`; 742/742 Alpaca tests, review 0 findings, exact-head CI pass.
+2. [x] Cut complete immutable release `20261021T105116-1418bc76`; verify SHA, source hash, current symlink, and release-interpreter imports.
+3. [x] Apply only `lm-fence-reconciler` under loaded-idle/owner-lock gates; official loaded args match plist and state root remains owner-scoped.
+4. [ ] Wait for the next natural terminal from release `1418bc76`; read its structured reconcile receipt and official provider readback. It must retain the four unmatched order refs and keep the fence held. **Current cursor.**
+5. [ ] Match each late provider order to exact decision, intent, owner, release, occurrence, fill, fee, and settlement receipts; otherwise keep `unscoped` attribution and the fence held.
+6. [ ] Repair `investment-strategy-validation` from its exact failure inputs/logs and inspect the next natural terminal without a manual wake. Score strategies on matched windows with all costs, benchmark excess, drawdown, lookahead, holdout, and parameter sensitivity.
+7. [ ] Confirm duplicate/daily-loss/risk caps and usable buying power. Current cash/buying power snapshot is `$0`; do not deposit. Keep live disabled until the fence, lineage, strategy evidence, and risk gates pass.
+8. [ ] Only after all gates, evaluate a small local live pilot and count profit as owner-attributed, settled realized net after fills, fees, slippage, model, system, and operating costs. Require 30 cost-complete round trips with positive benchmark-excess net before scaling.
+9. [ ] After repeatable real net exists, calculate evidence-based best/base/worst 1-month, 1-year, and 10-year scenarios, then evaluate other venues. Profitability is a target, not a guarantee.
+
+**順序変更の理由:** the old run prevented a safe apply, then ended naturally. The targeted idle-only apply and exact loaded-argv/state readback now pass, so the next proof must come from the scheduled release `1418bc76` terminal; the provider fence and real-money gate remain unchanged.
+
 ### 2026-10-09 13:18 JST — Job Hunter Dreamwork cutover and updated user criteria
 
 この追記は11:50 JST snapshot後のJob Hunter readbackとユーザーの最新指示を記録する。個別の勤務地・住所などの私的値はprivate profileのみを正本とし、このspecには複製しない。
