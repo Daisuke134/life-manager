@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "packet_status": "draft",
+  "generated_at": "2026-10-21T08:11:36.468Z",
+  "product_url": "https://life-call-production.up.railway.app/maritime?lang=en",
+  "demo_url": null,
+  "release_sha": "982875d62eaa03f8e924b990c4bc80f521d8dcce",
+  "official_required_fields": null,
+  "user_counts": {
+    "verified_external_manager_users": 0,
+    "external_work_events": 0,
+    "completed_external_work_users": 0,
+    "readback_at": "2026-10-21T08:00:19Z"
+  },
+  "work_receipts": [],
+  "costs": null,
+  "channel_entry_share": {
+    "channel": "#competition-submissions",
+    "posted_at": "2026-10-21T05:09:07.988839Z",
+    "permalink": "https://keikixmaritime.slack.com/archives/C0C9PEL45JA/p1792559347988839"
+  },
+  "submission_receipt": null,
+  "limitations": [
+    "Official form fields are unpublished in the supplied requirements readback.",
+    "The supplied Runtime PG readback shows zero verified external Manager users.",
+    "No completed hosted work receipt is verified.",
+    "Costs are unmeasured; the packet does not report USD 0.",
+    "Formal submission receipt is unconfirmed; a channel entry is not a formal receipt."
+  ]
+}

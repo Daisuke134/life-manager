@@ -461,7 +461,12 @@ life-manager/
 
 - [x] T23.0a `#competition-submissions`でLife Manager entryを一度共有。2026-10-21T06:44:12Z readbackで同内容entryは1件。permalink `https://keikixmaritime.slack.com/archives/C0C9PEL45JA/p1792559347988839`、posted_at=2026-10-21T05:09:07.988839Z。channel descriptionは必要formを置き換えないと明記。
 - [x] T23.0b 2026-10-21T06:44Zにofficial home/TermsとSlack announcementsを再確認したがform・Week 1 cutoff・rubricは未公表。contact@maritime.shへroute/deadline/demo fieldを一通問い合わせ、Gmail SENT/readback id=1a15d3141c56ee22。06:43Z時点でreplyなし。
-- [ ] T23.1 export test `packet_uses_measured_counts_and_excludes_private_users`を定義し、公式必須項目と実測項目だけをJSONへ出す。未測定はnull+理由。
+- [x] T23.1 `packet_uses_measured_counts_and_excludes_private_users`を実装し、`node --test apps/life-manager/scripts/maritime-week1-export.test.js`が1/1 PASS。
+  exporterは公式必須項目と実測値だけを出し、未測定はnull+理由とする。
+  `docs/distribution/maritime/week1/submission.json`を2026-10-21T08:11:36.468Zにdraft生成。
+  users/work receipts=0、costs=null、formal receipt=null。
+  作業時mode=0600、SHA256=`fa891f6e8ed9410a0bb7c6249a0a698c259557578a6816dfaaf5c4f756ca9865`。
+  このdraftは正式提出ではない。
 - [ ] T23.2 審査者が試せるURL、最小画面録画、Cloud実行receipt、現状の人数、制約を揃える。内部2–3分動画は推奨で、公式指定と混同しない。
 - [ ] T23.3 channel entryの重複投稿は行わない。organizer replyまたは公開formから正式な必須項目を確認したら、現entry shareとは別のrequired formだけを一回提出し、正式経路が不明な間はformal status=unconfirmedのまま維持する。
 - [ ] T23.4 confirmation画面/受信メール/受付IDを保存し、本文・提出時刻・release SHAをjoinする。UI timeout時はreadbackし再submitしない。これで初週提出を完了とする。

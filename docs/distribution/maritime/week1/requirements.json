@@ -96,7 +96,7 @@
     }
   },
   "last_live_refresh": {
-    "observed_at": "2026-10-21T07:30Z",
+    "observed_at": "2026-10-21T08:08:45Z",
     "source_urls": [
       "https://competition.maritime.sh/",
       "https://competition.maritime.sh/terms",
@@ -108,13 +108,14 @@
     "award": "Up to USD 20,000 in LLM credits per winning project; not guaranteed to all winners. Second- and third-place amounts and detailed award schedule remain unpublished.",
     "travel": "Three-day San Francisco experience. Sponsored flights are limited to people in the United States; exact eligibility, traveler count, covered expenses, dates, and international-winner arrangements remain unpublished.",
     "week1_deadline_time": null,
-    "week1_deadline_reason": "The official home and Terms were crawled at 07:30Z and still show no Week 1 cutoff, rubric, or project form. Slack announcements/submissions were last read at 06:44Z; one entry share exists, but its description says it does not replace a required form. The organizer inquiry was SENT; no reply was found by the 06:43Z inbox readback, which was not refreshed in this crawl.",
+    "week1_deadline_reason": "The official home and Terms were crawled at 08:06Z and still show no Week 1 cutoff, rubric, or project form. Slack announcements were read at 08:07Z and show only setup/join messages; the help-channel search returned no results. The submissions channel still has one Life Manager entry and says channel posts do not replace any required form. Organizer-domain email search at 08:08:45Z found no reply; a follow-up was sent at 08:13:26Z and has no post-send reply readback.",
     "project_submission_status": "entry_shared_in_channel; formal_submission_unconfirmed",
-    "refresh_scope": "Official home and Terms directly crawled at 07:30Z. Slack announcements/submissions last read live at 06:44Z. Inbound email instructions last searched at 06:31Z; organizer reply last searched at 06:43Z."
+    "refresh_scope": "Official home/Terms crawled at 08:06Z. Slack announcements/help/submissions read at 08:07Z. Organizer-domain email search completed at 08:08:45Z; a follow-up was sent at 08:13:26Z, with no later reply readback.",
+    "submission_url_reason": "The initial application is accepted. One Life Manager entry remains in #competition-submissions, but its description says the post does not replace a required form. The official home/Terms crawled at 08:06Z still show no project form, Week 1 cutoff, or rubric. Organizer-domain email search at 08:08:45Z returned no reply; follow-up message 1a15d85b491c9450 was sent at 08:13:26Z. Formal submission receipt remains unconfirmed."
   },
-  "official_instruction_email_unchanged_reason": "The 06:31Z inbound search found only generic Welcome and Verify emails. The organizer inquiry was sent later at 06:41Z; no reply was found by 06:43Z.",
+  "official_instruction_email_unchanged_reason": "Organizer-domain search at 08:08:45Z returned no new matching messages. A follow-up was sent in the existing inquiry thread at 08:13:26Z; no response was read back after that follow-up.",
   "last_official_sources": {
-    "observed_at": "2026-10-21T06:44:41Z",
+    "observed_at": "2026-10-21T08:07Z",
     "urls": [
       "https://competition.maritime.sh/",
       "https://competition.maritime.sh/terms",
@@ -128,7 +129,7 @@
       "both_platforms_required": false,
       "award": "Up to USD 20,000 in LLM credits per winning project; not promised to all winners or per teammate",
       "travel": "Three days in San Francisco; sponsored flights limited to people in the United States; details for international winners, traveler count, dates, and coverage unpublished",
-      "week1_cutoff_or_submission_form": "No exact cutoff, Top-30 rubric, or project form in public home/Terms; Slack announcements channel had no organizer post. The submissions channel has one Life Manager entry, but its description says a post does not replace any required form."
+      "week1_cutoff_or_submission_form": "The official home/Terms crawled at 08:06Z still show no exact cutoff, Top-30 rubric, or project form. At 08:07Z, announcements had no organizer deadline/form post; #competition-submissions had one Life Manager entry and warns posts do not replace any required form."
     }
   },
   "latest_announcement_channel_readback": {
@@ -163,5 +164,32 @@
     "reply_found_by": "2026-10-21T06:43Z",
     "reply_found": false
   },
-  "formal_project_submission_status": "unconfirmed"
+  "formal_project_submission_status": "unconfirmed",
+  "latest_community_refresh": {
+    "observed_at": "2026-10-21T08:07Z",
+    "channels_read": [
+      "competition-announcements",
+      "competition-help",
+      "competition-submissions"
+    ],
+    "announcement_message_containers": 3,
+    "organizer_deadline_or_form_posts": 0,
+    "help_query": "in:competition-help",
+    "help_search_results": 0,
+    "submission_message_containers": 4,
+    "life_manager_entry_count": 1,
+    "submission_channel_warns_post_does_not_replace_form": true
+  },
+  "latest_organizer_email_search": {
+    "observed_at": "2026-10-21T08:08:45Z",
+    "organizer_domains": [
+      "maritime.sh",
+      "orchid.ai",
+      "onkeiki.com"
+    ],
+    "matching_messages": 0,
+    "followup_sent_at": "2026-10-21T08:13:26Z",
+    "followup_message_id": "1a15d85b491c9450",
+    "reply_readback_after_followup": false
+  }
 }

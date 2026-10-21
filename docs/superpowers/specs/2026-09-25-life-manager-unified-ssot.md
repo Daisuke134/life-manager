@@ -21634,26 +21634,25 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 理由=Daisの明示方針、既存blogにManagerカテゴリがあり、X公式規則が重複アカウント/投稿を制限するため。
 素材は友人の返事を待たず準備する。
 公開CTAと投稿は稼働製品と実証済みclaim後に行う。
-現在cursorは製品=b.6-28、提出packet=T23.1（exporter/testのsourceあり、focused test未確認、packet未生成）、独立配信=T24.4b（記事draftのみ、CTA/公開は保留）。
+現在cursorは製品=b.6-28、提出packet=T23.2（T23.1 exporter/test PASS、匿名draft生成済み）、独立配信=T24.4b（記事draftのみ、CTA/公開は保留）。
 進行中provider effectは変更しない。
 
 **Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細file/signature/acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。
 製品cursor=T22.1e.2 / b.6-28（所有者本人のPKCE確認・明示retention consentから開始し、enrollment→実cycle→receipt/artifact→日報→stopを読む）。
 b.6-01〜27bは完了。
-life-call/workerの最終読取（2026-10-21 06:50:17Z）はloaded SHA `982875d62eaa03f8e924b990c4bc80f521d8dcce`、両deployment SUCCESS、email flag=1/worker capability3件/capacity3。
+life-call/workerの最終deployment readback（2026-10-21 08:00Z）では最後のSUCCESS loaded SHA `982875d62eaa03f8e924b990c4bc80f521d8dcce`、email flag=1/worker capability3件/capacity3。latest main `d7c03e9` deploymentは両サービスとも07:50:38ZにSKIPPED。mainにはinvestment-selectionの2 path差分があるが、Maritime runtimeへ未採用。
 GET `/maritime?lang=en`はHTTP 200。
-Runtime PGはidentity=1、enrollment/execution/participant/job/external work event/user=0。
+Runtime PG read-only readback（08:00:19Z）はidentity=1、enrollment/execution/participant/job/external work event/user=0。
 本人PKCE・同意・実業務・日報・停止は未確認。
-提出packet cursor=T23.1（builder/test fileはworktreeにあるがfocused test未確認、`submission.json`未生成）。
-T23.0a/bのentry共有と主催者問い合わせはreadback済み。
+T23.1は`node --test apps/life-manager/scripts/maritime-week1-export.test.js`が1/1 PASSし、`submission.json`を08:11:36Zにdraft生成済み。SHA256=`fa891f6e8ed9410a0bb7c6249a0a698c259557578a6816dfaaf5c4f756ca9865`、作業時mode=0600。packetはusers=0、work receiptsなし、costs=null、official fields/formal receipt未確認と明記する。
+T23.0a/bのentry共有・問い合わせはreadback済み。問い合わせthreadへのfollow-upを08:13:26Zに送信し、Gmail message ID=`1a15d85b491c9450`。送信後の返信は未確認。
 公式project form・初週期限・Top-30 rubric・正式受付receiptは未確認。
-`origin/main`の最新読取SHAは`1ea73f18e7575084ac2967d62edbe05fa4831e6b`。
-2026-10-21 07:30Z時点でloaded SHAから`apps/life-manager/`のsource差分はないが、07:01Z以降の新しいRailway readbackはない。
-競技ページ/Termsは07:30Zに再crawlし、同じ1,000 distinct real users/first three targetと未公表の初週条件を確認。
+`origin/main`の最新SHAは`d7c03e907d930511785121344ce2a2e6cd0e483a`。deployed SHA以降に`apps/life-manager/investment-core/provision_selection.py`とそのtestの差分があり、production deploymentはSKIPPEDのためloaded SHA=982875を保持。
+競技ページ/Termsは08:06Zに再crawl、Slack announcements/help/submissionsは08:07Zに再読取。締切・rubric・form更新なし、submission channelのLife Manager entryは1件、help検索結果0件。主催者email searchは08:08:45Zに一致なし。
 根拠→`docs/evidence/maritime/current-status-20261021.json`、`docs/distribution/maritime/week1/requirements.json`。
 
 **製品と収益/配信の現状（readbackを混同しない）:** Life Managerは利用者にgoal/budget入力を要求せず、Manager自身が仕事を選ぶ製品として説明している。
-しかしhosted work cycleは未完了で、外部利用者の実利用・外部work receiptは0。
+しかしhosted work cycleは未完了で、08:00:19Z Runtime PG readbackの外部利用者・外部work receiptは0。
 Stripe live readback（06:55:37Z）はLife Manager active subscription=0 / MRR USD 0、Anicca Cloudもsubscription=0 / MRR USD 0。
 account-wideの過去invoice 9件/USD 40はLife Managerへの帰属未確認。
 Daisが申告するlocal workflow収益とLife Manager自身の売上、hosted利用者のsettled business cash/netは別項目で、後二者の証拠は未取得。
@@ -21683,9 +21682,9 @@ Daisが申告するlocal workflow収益とLife Manager自身の売上、hosted�
 | T19 | 既存CFO/Resendへの一日一通配信 | #8424/main0cで既存CFO/Resendの日次adapterを統合する。SMTP/Authのowned着信は別途確認済み。Manager日報の新period送信/受信箱/自然継続はT22で未確認。 |
 | T20 | 停止を次のjob/schedule/配信へ反映 | #8424/main0cへ停止API/同tenant lock/pause recoveryを統合する。paused永続化を先行し、receipt/過去結果を保持する。実環境の停止はT22で未確認。 |
 | T21 | 登録と業務完了を分けたsource別funnel | #8424/main0cへ署名first-touch/確認/起動/実仕事/受理日報/24h復帰を統合する。利用計測migrationはproduction公式success。内部cohortを設定し、登録/deferredを実仕事や外部利用者に数えない。新Managerの実計測は未確認。 |
-| T22 | main image・DB・一人分のCloud自然wake/receipt確認 | life-call/workerはloaded SHA `982875d62eaa03f8e924b990c4bc80f521d8dcce`でSUCCESS、email flag=1、Maritime worker capability3件、pilot cap=3。GET `/maritime?lang=en`はHTTP 200。2026-10-21 06:50Z Runtime PG readbackはidentity1、enrollment/execution/participant/job/external completed work各0。現在cursor=b.6-28。PKCE・明示同意・実業務receipt・日報・停止は未完。07:01Z時点のmain `88de371` deploymentはdocs-only/SKIPPED。07:30Zのrepo readbackでは`origin/main=1ea73f1`かつdeployed SHA以降`apps/life-manager/`差分なし。07:01Z以降のproduction deployment/readbackは未確認。 |
-| T23 | 正式提出・一回submit・受付readback | accepted teamのentryを#competition-submissionsへ共有・readback済み。formal form/receipt・初週cutoff/rubricは未確認。投稿は必要formを置き換えないとchannel descriptionが明記。organizer inquiryはSENT、返信は06:43Z時点で未確認。T23.1 exporter/testはworktreeにあるがfocused testとpacket生成は未完。3人/売上/7日継続を提出条件にしない |
-| T24 | 既存blog SEO記事brief・既存X投稿・Dais DMの準備 | T24.1-3完了。一つの英語比較記事を内部draftとして作成し、CTA HOLD。GSCのsitewide baselineは0 clicks / 7 impressions（2026-10-18まで、記事別ではない）。Postizはgroups=0 / integrations=0。実cycle/CTAとX identity確認後に公開する。 |
+| T22 | main image・DB・一人分のCloud自然wake/receipt確認 | 08:00Z Railway readbackの最後のSUCCESS loaded SHAは`982875d62eaa03f8e924b990c4bc80f521d8dcce`。latest main `d7c03e9` deploymentはSKIPPED。08:00:19Z Runtime PGはidentity1、enrollment/execution/participant/job/external work各0。PKCE・明示同意・実業務receipt・日報・停止は未完。 |
+| T23 | 正式提出・一回submit・受付readback | accepted teamのentryを一度共有済み。08:07Z Slack readbackでもLife Manager entryは1件。T23.1 exporter/testは1/1 PASSし、`submission.json`をdraft生成（users/receipts=0、costs=null、formal receiptなし）。公式form/cutoff/rubricは未確認。問い合わせfollow-upは08:13Zに送信、送信後の返信readbackは未完。channel postを正式提出とは扱わない。 |
+| T24 | 既存blog SEO記事brief・既存X投稿・Dais DMの準備 | T24.1-3完了。一つの英語比較記事を内部draftとして作成し、CTA HOLD。Manager記事候補URLは08:11ZにHTTP 404。GSCのsitewide baselineは0 clicks / 7 impressions（2026-10-18まで、記事別ではない）。Postiz groups/integrationsは08:11Zに0、X identityは未確認。実cycle/CTA確認後に公開する。 |
 | T25 | 30秒動画/審査demoのshot list→実画面編集 | 台本保存済み、撮影/動画本体は未完。待ち依存なし |
 | T26 | 公開説明と無料email入口のdeploy/readback | T26.1-2完了。公開`/lm`はtask-specific goal/budgetを必須とせずTelegram任意と説明し、hostedはCalendar travel-time planning中心でproactive cloudは開発中と明記。route manifestの全hashも一致。無料Maritime pilot copyは有料Calendar trialと分離した。T26.3-4の既存site overlay反映・完成したsignup/stop flow readbackは未完。 |
 | T27 | 既存blog記事→既存Postiz X投稿→Dais DM | 投稿receiptなし。公開URL/実証済み機能が揃ってから既存ブログ・既存X一profile・DaisのDMで開始。新規Instagram/他product accountへの混載なし。 |
@@ -21760,10 +21759,10 @@ Daisが申告するlocal workflow収益とLife Manager自身の売上、hosted�
 **T22.1b.6の保存先決定:** 主cursor=b.6-03。旧=Dashboard本人ログイン→REST復旧、新=Manager専用保存先を既存Runtime PGへ接続→製品経由の実PKCE/仕事/日報/停止→配布、理由=REST503、同region公式障害、候補DBimageでも当該timezone依存が残り、既存Runtime PGのDDL権限とManager未作成/Job0・Supabase enrollment/execution0・公開flag/cap無効を確認するため。一般利用者stateの移行・二重write・REST fallbackは行わない。Auth/PKCE、共通queue/receipt、FinancialRecord、CFO送信器を再利用する。owned UIDは既存separateWebUidForSubject導出に一致、既存VM externalIdもManager HMACに一致しbindingを維持する。6表とfile別atomic手順→Atomic Plan b.6-01〜34、実測→docs/evidence/maritime/runtime-pg-state-preflight.json。c-5はPR8449/exact73efの13checks全成功とfresh review0/0でmain4fへ統合し、既存VMの新image配備を進める。Supabase本人ログイン依頼は元provider診断用として非同期に残す。
 
 
-**Maritime 残TODOの最新readback（2026-10-21 07:01 UTC）:** current source main=88de3718c61eddcd160e702a0c974338bd0ed099。Railwayのlife-callとmoney-printer-workerは両方SHA 982875d62eaa03f8e924b990c4bc80f521d8dcceでSUCCESS、email flag=1/worker Maritime capability3件/pilot cap=3。最新docs-only main 88de371は06:52Zに両serviceでSKIPPED、apps/life-managerにloaded SHA以降の差分なし。06:44Zの公開GETは /maritime?lang=en HTTP 200、現行 /lm はgoal/budget入力を要求せずTelegram任意、hosted Calendar中心でproactive cloud体験は開発中。
+**Maritime 残TODOの最新readback（2026-10-21 08:16 UTC）:** current source main=`d7c03e907d930511785121344ce2a2e6cd0e483a`。Railwayのlife-callとmoney-printer-workerの最後のSUCCESSはSHA `982875d62eaa03f8e924b990c4bc80f521d8dcce`で、08:00Z時点も同SHAをloaded。main d7c03e9の両service deploymentは07:50:38ZにSKIPPED。loaded SHA以降に`investment-core/provision_selection.py`とそのtestがmainへ入ったが、両serviceへ未採用。Runtime PGの08:00:19Z read-only readbackはidentity1、enrollment/execution/participant/job/external work各0。`/maritime?lang=ja`は08:16ZにHTTP 200、目標/予算入力は必須でなくTelegram任意、Maritime AI-call contentの無期限保持条件を表示し、実サイクル未完を明記する。
 Runtime PG readback（06:50:17Z）はidentity1、enrollment/execution/participant/Manager job/external completed work/user各0。HTTP readback（05:20–06:55Z）は /maritime GET 200×4、email POST/confirm/activate/stop各0。まだ本人PKCE、明示retention consent、enrollment、agent binding、completed cycle/receipt/artifact、日次report、stopは未確認。Maritime AI credits経由のdata retention条件への同意は本人が確認する。再送や同意の代行はしない。
-**競技・勝敗:** 06:44Zに[official home](https://competition.maritime.sh/)、[Terms](https://competition.maritime.sh/terms)、Slackのannouncements/submissionsを再確認。公式条件は実利用のあるdistinct 1,000人へ到達した最初の3 project。申請はaccepted。#competition-submissionsにLife Manager entryを一件共有し、2026-10-21T06:44:12Zにpermalink [readback](https://keikixmaritime.slack.com/archives/C0C9PEL45JA/p1792559347988839)を確認した。投稿は実サイクル未完とuser/revenue/work outcome未確認を明記する。channel説明は投稿が必要formを置き換えないとする。公式form、初週の正確な締切、Top-30 rubricはpublic home/Terms/announcementsに見つからない。contact@maritime.shへ06:41Zに提出経路/期限/demo fieldsを問い合わせ、Gmail SENT/readback id=1a15d3141c56ee22、06:43Z時点返信なし。従ってentry shareは済み、formal submission receiptは未確認。Top30/winner/1,000人到達は未確認。SFは3日間の体験、LLM creditsは最大$20,000/projectで保証なし。スポンサー便は米国内の人が対象で、日本からのflight・人数・費用・日程は未公表。
-**配信:** 既存blog Manager categoryはpopulation-simulation記事が中心。Life Manager acquisition article/CTAは未公開。内部SEO草稿はdocs/distribution/maritime/week1/seo-article-draft-en.md、検索語は未計測仮説。GSCのsitewide 28日値は0 clicks/7 impressions（settled through 2026-10-18）で記事需要を示さない。Postiz groups/integrationsは06:02Zに0、postsは05:20Zまで0。このconnectorではX identityを確認できない。既存entryのSlack共有は完了したが、blog/Xのdistributionは未開始。記事CTAはhosted flow proofまでHOLD。新規Instagramなし。詳細→docs/research/maritime/2026-10-20-source-map.md。
+**競技・勝敗:** 08:06Zに[official home](https://competition.maritime.sh/)と[Terms](https://competition.maritime.sh/terms)を再crawl。公式条件は実利用のあるdistinct 1,000人に到達した最初の3 project。申請はaccepted。#competition-submissionsには一件のLife Manager entryがあり、08:07Zのreadbackでも重複なし。channel説明は投稿が必要formを置き換えないとする。08:06Zの公式pagesと08:07ZのSlack読み取りにWeek 1 cutoff、Top-30 rubric、project formなし。organizer follow-upは08:13:26ZにGmail thread `1a15d3141c56ee22`へSENT（message `1a15d85b491c9450`）、送信後の返信readbackは未完。T23.1 packetはdraft生成済みだが、formal submission receiptは未確認。Top30/winner/1,000人到達は未確認。SFは3日間の体験、LLM creditsは最大$20,000/projectで保証なし。スポンサー便は米国内の人が対象で、日本からのflight・人数・費用・日程は未公表。
+**配信:** 既存blog Manager categoryはpopulation-simulation記事が中心。Life Manager acquisition article/CTAは未公開。内部SEO草稿は`docs/distribution/maritime/week1/seo-article-draft-en.md`、検索語は未計測仮説。記事候補URLは08:11ZにHTTP 404。GSCのsitewide 28日値は0 clicks/7 impressions（settled through 2026-10-18）で記事需要を示さない。Postiz groups/integrationsは08:11Zに0、postsは05:20Zまで0。このconnectorではX identityを確認できない。既存entryのSlack共有は完了したが、blog/Xのdistributionは未開始。記事CTAはhosted flow proofまでHOLD。新規Instagramなし。詳細→`docs/research/maritime/2026-10-20-source-map.md`。
 **収益:** DaisはLocal workflowの収益を報告しているが、Cloud user earningsとは分ける。credential SSOTと一致するlive Stripe accountのreadbackではAnicca Life Managerの月額$29/$20 priceにsubscription0件、active MRR $0。Anicca Cloudの月額$30 priceもsubscription0件。account-wide paid invoicesは9件/$40.00だがLife Managerへのproduct attributionは未確認なのでLM revenueに含めない。Sigma APIは未契約で使えず、直接APIで商品/price/subscriptionを確認した。Cloud userのsettled business cashは依然未確認。証拠→docs/evidence/maritime/stripe-life-manager-readback-20261021.json。
 **As-Is → To-Be:** As-Isはmain由来のManager auth/store/runtime/landing pageとproduction worker capabilityが揃い、signup pageは200。ただし本人PKCE・明示retention consent・enrollment・既存agent binding・自律cycle・official execution receipt・artifact download/hash・日次report・stop・external user/revenue proofは未完。登録メール送信は202の後に429が一度あり、confirm/activateは0。アカウントsessionとconsentは未確認。再送や同意の代行はせず、effectを重複させない。
 To-BeはManagerがtask goal/budgetを要求せず、delegated boundariesと実行可能な文脈から仕事を選び、実行→外部receipt/成果物検証→日次report→stopまで自然に完遂する状態。その実物の証拠を使って既存Writer/blogからSEO獲得記事を公開し、既存の広いX accountがPostizで確認できたら1件紹介する。source→verified signup→manager activation→completed work→return→費用/収益を測り、同一product条件の成功例から機構を移して再現できたものだけ拡大する。友人の参加待ちを開発や素材準備の条件にせず、Daisの直接DMは実動作確認後に並行開始する。
@@ -21802,9 +21801,9 @@ To-BeはManagerがtask goal/budgetを要求せず、delegated boundariesと実�
 | b.6-27a | worker capabilityを追加しproduction loaded readback | 完了。worker loaded SHA 27b594...で既存3＋Maritime 3 capability、email flag=0、capacity=3→docs/evidence/maritime/current-status-20261021.json |
 | b.6-27b | life-call email入口を有効化しsignup pageをreadback | 完了。loaded SHA 27b594...、email flag=1、capacity=3、GET /maritime?lang=en HTTP 200→docs/evidence/maritime/current-status-20261021.json |
 | b.6-28〜34 | 実PKCE・同意・既存agent provision・cycle・artifact/download/hash・日報・停止・計測・packet更新 | 現cursor=b.6-28。signup routeのみlive。email POST 202×1/429×1、confirm/activate/stop=0。DBはidentity1、enrollment/execution/participant/job=0。本人確認と明示consentから実cycleを完了する |
-| T30.1〜4 | Daisへの稼働URLメール一回送信とreadback | 完了。Gmail Sent/readback済み、message 1a15cc8791911599。受信者inbox到達は未確認。contest project submissionではない |
-| T24〜26 | 既存blog SEO brief/X copy、実URL、実画面demo、公開readback | T24.1-3・T26.1-2完了。内部SEO draftと日英X copyを保存したが未公開。CTAは実cycle/receipt後までHOLD。GSC baselineはsitewide 0 clicks/7 impressionsで記事需要は未計測。Postiz groups/integrationsは06:02Zに0、postsは05:20Zに0。T24.4b/5/6・T26.3/4・公開記事・投稿・demoは未完。 |
-| T23 | 正式経路/締切/field確認、一回提出、受付readback | entry共有済み（2026-10-21T05:09:07Z、permalinkはevidence参照）。06:44Z readbackで重複entryなし。formal project form/receipt、初週時刻/rubricは未確認。contact@maritime.shへ問い合わせSENT、返信待ち。既存entryを再投稿しない |
+| T30.1〜4 | Daisへの稼働URLメール一回送信とreadback | 完了。Gmail Sent/readback済み、message 1a15cc8791911599。日本語family share URLは08:16ZにHTTP 200を再確認。受信者inbox到達は未確認。contest project submissionではない |
+| T24〜26 | 既存blog SEO brief/X copy、実URL、実画面demo、公開readback | T24.1-3・T26.1-2完了。内部SEO draftと日英X copyを保存したが未公開。CTAは実cycle/receipt後までHOLD。GSC baselineはsitewide 0 clicks/7 impressionsで記事需要は未計測。Postiz groups/integrationsは08:11Zに0、postsは05:20Zに0。T24.4b/5/6・T26.3/4・公開記事・投稿・demoは未完。 |
+| T23 | 正式経路/締切/field確認、一回提出、受付readback | entry共有済み（2026-10-21T05:09:07Z、permalinkはevidence参照）。08:07Z readbackでLife Manager entryは1件。T23.1 draft packet生成・focused test 1/1 PASS。formal project form/receipt、初週時刻/rubricは未確認。既存問い合わせthreadへfollow-up SENT（08:13Z）、返信readbackは未完。既存entryを再投稿しない |
 | T08/T09/T10 | 同tenantのCapafy認証・正規publish・公式売上collector→workerへの接続 | 本番の販売/売上は未確認 |
 | T27〜29 | SEO blog→既存X→実利用/再利用/1,000人への拡大 | 未完、Runtime PG verified external users=0。source→verified signup→activation→completed work→returnを測る。新規Instagram/他product専用accountへの混載なし。scaleは利用/cost evidenceで判断 |
 | T31.1〜9 | Calendar/Supabase直結の既存課金をManagerへ分離接続し、公式売上/純利益を確認 | T31.1a read-only catalog/price/subscription readback完了：Life Manager pricesにactive subs 0、MRR $0、account paid invoice historyはproduct attribution未確認。Sigma unavailable。refund/fee/settlement attribution、Manager billing integration、live receipt/true netは未完→docs/evidence/maritime/stripe-life-manager-readback-20261021.json |

@@ -55,11 +55,11 @@
   "finish": null,
   "readback": null,
   "limitations": [
-    "Production code at SHA 982875 is deployed in both Manager services; latest docs-only main 88de371 deployment at 07:01Z is SKIPPED. The signup page is live, but no complete external-user cycle has been verified.",
-    "Runtime PG readback at 2026-10-21T06:50:17Z has one identity row and zero enrollments, executions, pilot participants, Manager jobs, and external completed-work events/users.",
+    "The latest successful life-call/worker deployment remains loaded SHA 982875d62eaa03f8e924b990c4bc80f521d8dcce. Railway marked main d7c03e907d930511785121344ce2a2e6cd0e483a deployments SKIPPED at 07:50:38Z. Main has newer investment-selection paths, but no Maritime service deployment or complete external-user cycle is verified.",
+    "Runtime PG read-only readback at 2026-10-21T08:00:19Z has one identity and zero enrollments, executions, pilot participants, Manager jobs, and external completed-work events/users.",
     "No PKCE confirmation, explicit retention consent, provisioned Manager, completed work, downloaded artifact, daily report, stop readback, Life Manager paid subscription, or user-attributed hosted business cash is verified.",
-    "The Postiz connector exposes no groups, integrations, or posts; the previously stated existing X connection must be verified through its actual authorized account before posting.",
-    "The Manager source article added by PR #8474 is not live at its proposed URL, which returned 404; no Life Manager product-acquisition CTA is currently published.",
+    "Postiz readback at 08:11Z exposes zero groups and integrations. The previously stated existing X connection is not verified.",
+    "The proposed Manager article URL returned HTTP 404 at 08:11Z; no Life Manager product-acquisition article or CTA is live.",
     "An older offline factory occurrence remains effect_unknown/completion_evidence_missing. It is separate from the currently deployed Manager signup route and is not counted as a completed revenue cycle.",
     "Official Terms say three days in San Francisco, but international flight arrangements and travel coverage are unpublished; do not treat travel as confirmed."
   ],
@@ -161,7 +161,7 @@
     "docs/evidence/maritime/postgrest-startup-budget-production.json",
     "docs/evidence/maritime/current-status-20261021.json"
   ],
-  "current_blocker": "The hosted user path remains incomplete: no confirmed PKCE identity, explicit retention consent, enrollment, provisioned Manager cycle, artifact/report/stop receipt. Runtime PG readback at 06:50:17Z has 0 verified external work events/users. A Life Manager entry is posted and read back in #competition-submissions, but the channel says it does not replace any required form. No official project form, exact Week 1 cutoff, or Top-30 rubric is published in the public pages/announcements checked. Inquiry sent to contact@maritime.sh; no reply by 06:43Z. Stripe live readback shows 0 subscriptions for Life Manager prices and USD 0 active MRR; user-attributed cash remains unverified.",
+  "current_blocker": "The hosted user path remains incomplete: no owner PKCE confirmation, explicit retention consent, enrollment, provisioned Manager, completed work, artifact/report/stop receipt. Runtime PG at 08:00:19Z has zero external work events/users. One Life Manager entry is in #competition-submissions, but formal project form/receipt, Week 1 cutoff, and rubric remain unconfirmed. Organizer follow-up was SENT at 08:13:26Z; no response readback after it. Life Manager Stripe MRR is USD 0; user-attributed hosted cash/net remain unverified.",
   "updated_at": "2026-10-21T07:01:43Z",
   "current_status_refresh": {
     "observed_at": "2026-10-21T07:01:43Z",
@@ -203,5 +203,6 @@
     "verification_email": "Received 2026-10-20T12:37:52Z; body read, but the account verification link was not used.",
     "current_session": "unconfirmed",
     "new_competition_instructions": "none found in this search"
-  }
+  },
+  "status_updated_at": "2026-10-21T08:16:58Z"
 }
