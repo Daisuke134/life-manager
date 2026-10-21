@@ -19,7 +19,7 @@ jobs:
         working-directory: products/manager
     env:
       HF_HUB_DISABLE_TELEMETRY: '1'
-      HF_HOME: ${{ runner.temp }}/manager-private-hf-research
+      HF_HOME: /tmp/manager-private-hf-research
       TOKENIZERS_PARALLELISM: 'false'
       OMP_NUM_THREADS: '4'
       MKL_NUM_THREADS: '4'
