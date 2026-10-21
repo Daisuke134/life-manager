@@ -1,5 +1,5 @@
 {
-  "observed_at": "2026-10-21T01:26:02Z",
+  "observed_at": "2026-10-21T02:45:00Z",
   "program": "Keiki x Maritime The First 1000",
   "official_start_date": "2026-10-20",
   "competition_deadline": "2026-12-01T23:59:00-08:00",
@@ -77,7 +77,7 @@
     "link_authentication": "pending user action; connector withholds OTP"
   },
   "last_live_refresh": {
-    "observed_at": "2026-10-21T01:26:02Z",
+    "observed_at": "2026-10-21T02:45:00Z",
     "source_urls": [
       "https://competition.maritime.sh/",
       "https://competition.maritime.sh/terms"
@@ -87,9 +87,9 @@
     "award": "up to USD20000 credit per winning project; not guaranteed to all winners or per teammate",
     "travel": "three days in San Francisco; sponsored flights limited to people in the United States; international arrangement unpublished",
     "week1_deadline_time": null,
-    "week1_deadline_reason": "Kickoff email says product by end of week one and users are a bonus; no exact cutoff is in that email or current Program Terms. Last verified announcements view at 2026-10-21T00:17Z did not fully load.",
+    "week1_deadline_reason": "The official page and terms were refreshed at 2026-10-21T02:45Z and publish no week-1 project submission cutoff or required project form. Kickoff email and community observation remain checked_at 2026-10-21T00:17Z; no newer announcement body was confirmed there.",
     "project_submission_status": "not_submitted",
-    "gmail_refresh": "Gmail sender search at 2026-10-21T01:26Z for messages from 0.email after 2026-10-19 returned only the 2026-10-19 Keiki kickoff; it contains no exact cutoff or project form"
+    "refresh_scope": "Official website and terms only; Gmail/community last readback timestamps are retained separately."
   },
   "official_instruction_email_unchanged_reason": "The 2026-10-21T01:26Z Gmail search for the Keiki sender after 2026-10-19 returned only the kickoff email; no later competition instruction, exact week-one deadline, or project submission route was found."
 }
