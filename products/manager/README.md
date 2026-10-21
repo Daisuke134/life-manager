@@ -1,5 +1,12 @@
 # Manager — independent intervention research prototype
 
+## October 21 Phase06 — real opt-in indoor observation and rigorous blocker readiness
+
+**F004/F007 blockers are actively pursued, but external authority is still NOT VERIFIED.** A new fixed GET adapter successfully read anonymized opt-in real indoor AirGradient data in GitHub CI, separately from the existing real Open Collective historical ledger readback. Phase06 also has a machine-checkable permission/funding/site/sensor evidence matrix that NEVER self-issues financial or physical authority. The provider-source spoofing regression failed in RED CI and passed after an explicit patch. **No room was actuated; no accounts paid; real beneficiary improvement remains NOT_MEASURED.**
+
+[Japanese F004/F007 unblock evidence report](docs/verification/PHASE06_UNBLOCKING_READINESS_JA.md) · [Operator/site acquisition runbook](pilot/PHASE06_BLOCKER_REMOVAL_RUNBOOK.md) · [Live sampled indoor aggregate](docs/verification/PHASE06_PUBLIC_INDOOR_AGGREGATE_20261021.json) · [hosted green 272 tests / external provider readback](https://github.com/Daisuke134/life-manager/actions/runs/39595101996).
+
+
 ## October 21 Phase06 — F002/F003 source-grounded field-readiness increment
 
 **F002 and F003 now have bounded engineering/research evidence, not real-world intervention proof.** F002 provides a SHA256-locked **proposed** 40-campaign no-action randomized finance study design, with explicit unit, primary metric, comparator, windows, harms and stopping criteria; this is *not a registered human trial*. F003 implements a strictly read-only, no-credentials public Open Collective finance ledger adapter with defensive schema and privacy guardrails, and [hosted actual public readback](https://github.com/Daisuke134/life-manager/actions/runs/39586031696) plus 262 successful offline tests. The `webpack` ledger is historical third-party activity, not Manager revenue, a Manager receipt or causal welfare improvement.

@@ -1,0 +1,36 @@
+{
+  "schema": "manager.phase06.authority-readiness.v1",
+  "generated_date": "2026-10-21",
+  "status": "NOT_VERIFIED",
+  "default_action": "NO_ACTION",
+  "proof_level": "P0",
+  "note": "Null means no source-backed external grant was retrieved. This public manifest contains no personal identities or credentials. Completing fields does not authorize live effects.",
+  "finance": {
+    "status": "NOT_VERIFIED",
+    "fiscal_host_or_operator_ref": null,
+    "legal_entity_and_country_ref": null,
+    "funding_custody_ref": null,
+    "scoped_grant_ref": null,
+    "grant_verified_by_operator_ref": null,
+    "budget_currency_and_max_ref": null,
+    "target_campaigns_and_rights_ref": null,
+    "revocation_check_ref": null,
+    "participant_consent_ref": null,
+    "independent_receipt_source_ref": null,
+    "external_preregistration_ref": null,
+    "harm_displacement_plan_ref": null
+  },
+  "environment": {
+    "status": "NOT_VERIFIED",
+    "site_owner_ref": null,
+    "room_access_and_safety_ref": null,
+    "permission_for_portable_actuation_ref": null,
+    "independent_sensor_ref": null,
+    "sensor_public_api_provenance_ref": null,
+    "calibration_ref": null,
+    "electricity_noise_measurement_ref": null,
+    "stop_and_rollback_ref": null,
+    "occupant_consent_ref": null,
+    "independent_trial_review_ref": null
+  }
+}

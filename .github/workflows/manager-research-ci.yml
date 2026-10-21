@@ -1,7 +1,7 @@
 name: Manager Independent Offline Research
 on:
   push:
-    branches: [research/manager-product-r006-20261020, research/manager-phase05-kernel-20261021, research/manager-phase06-evidence-r001-20261021, research/manager-phase06-f002-f003-20261021, research/manager-crossfield-evidence-20261021]
+    branches: [research/manager-product-r006-20261020, research/manager-phase05-kernel-20261021, research/manager-phase06-evidence-r001-20261021, research/manager-phase06-f002-f003-20261021, research/manager-crossfield-evidence-20261021, research/manager-phase06-unblock-evidence-20261021]
     paths:
       - 'products/manager/**'
       - '.github/workflows/manager-research-ci.yml'
@@ -46,6 +46,10 @@ jobs:
         run: python scripts/phase05_demo.py --check
       - name: Phase06 third-party historical public finance readback (not impact)
         run: python scripts/phase06_public_finance_readback.py --collective webpack
+      - name: Phase06 public opt-in indoor air real readback (NO intervention)
+        run: python scripts/phase06_public_indoor_readback.py
+      - name: Phase06 issuer and site blocker gap report (not authorized)
+        run: python scripts/check_phase06_authority.py
       - name: Manager offline self-check
         run: python -m manager_core
       - name: Backlog consistency
