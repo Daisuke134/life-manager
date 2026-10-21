@@ -33,6 +33,13 @@ class SelectionProvisionError(ValueError):
     """The deployment cannot safely create or retain a selected strategy."""
 
 
+_KNOWN_HOLD_ERRORS = frozenset({
+    "owned_close_evidence_unknown",
+    "owned_policy_identity_unknown",
+    "no_strategy_selected",
+})
+
+
 def _atomic_write(path: Path, payload: bytes) -> None:
     descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
     temporary_path = Path(temporary)
@@ -380,6 +387,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--reports", required=True)
     parser.add_argument("--release-sha")
     parser.add_argument("--refresh", action="store_true")
+    parser.add_argument("--hold-on-known-blocker", action="store_true")
     args = parser.parse_args(argv)
     try:
         result = provision_selection(
@@ -389,6 +397,14 @@ def main(argv: list[str] | None = None) -> int:
             refresh=args.refresh,
         )
     except SelectionProvisionError as error:
+        if args.hold_on_known_blocker and str(error) in _KNOWN_HOLD_ERRORS:
+            print(json.dumps({
+                "next_action": "reconcile_selection_evidence",
+                "path": str(Path(args.path).expanduser()),
+                "reason": str(error),
+                "status": "held",
+            }, sort_keys=True))
+            return 0
         print(json.dumps({"status": "error", "error": str(error)}, sort_keys=True))
         return 1
     print(json.dumps(result, sort_keys=True))

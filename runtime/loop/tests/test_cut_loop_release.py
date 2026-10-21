@@ -663,6 +663,7 @@ class CutLoopReleaseTest(unittest.TestCase):
                 cwd=ROOT,
                 env={
                     **os.environ,
+                    "HOME": str(root),
                     "PATH": f"{fake_bin}:{os.environ['PATH']}",
                     "LIFE_MANAGER_SOURCE_REPO": str(root),
                     "LOOPS_ROOT": str(loops),
@@ -736,6 +737,7 @@ class CutLoopReleaseTest(unittest.TestCase):
                 cwd=ROOT,
                 env={
                     **os.environ,
+                    "HOME": str(root),
                     "PATH": f"{fake_bin}:{os.environ['PATH']}",
                     "LIFE_MANAGER_SOURCE_REPO": str(root),
                     "LOOPS_ROOT": str(loops),
@@ -818,6 +820,7 @@ class CutLoopReleaseTest(unittest.TestCase):
                 cwd=ROOT,
                 env={
                     **os.environ,
+                    "HOME": str(root),
                     "PATH": f"{fake_bin}:{os.environ['PATH']}",
                     "LIFE_MANAGER_SOURCE_REPO": str(root),
                     "LOOPS_ROOT": str(loops),

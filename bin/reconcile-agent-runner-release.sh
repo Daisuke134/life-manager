@@ -169,6 +169,7 @@ provision_investment_selection() {
       --path "$selection_path" \
       --reports "$reports_path" \
       --refresh \
+      --hold-on-known-blocker \
       --release-sha "$release_sha"; then
       printf 'agent-runner reconcile: investment strategy selection provisioning failed for %s\n' \
         "$selection_path" >&2

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import stat
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -213,6 +215,73 @@ class ProvisionSelectionTests(unittest.TestCase):
                 provision_selection(destination,reports,refresh=True)
             self.assertEqual(destination.read_bytes(),before)
 
+    def test_known_live_close_evidence_blocker_is_held_without_rewriting_selection(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            reports, destination = root / "reports.json", root / "selected-strategy.json"
+            reports.write_text(json.dumps([_report()]), encoding="utf-8")
+            provision_selection(destination, reports, runtime_release_sha="a" * 40)
+            before = destination.read_bytes()
+            (root / "live-owned-position.json").write_text(
+                json.dumps({"status": "closed", "symbol": "BTCUSD"}),
+                encoding="utf-8",
+            )
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(Path(__file__).with_name("provision_selection.py")),
+                    "--path", str(destination),
+                    "--reports", str(reports),
+                    "--release-sha", "b" * 40,
+                    "--refresh",
+                    "--hold-on-known-blocker",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(
+                json.loads(result.stdout),
+                {
+                    "next_action": "reconcile_selection_evidence",
+                    "path": str(destination),
+                    "reason": "owned_close_evidence_unknown",
+                    "status": "held",
+                },
+            )
+            self.assertEqual(destination.read_bytes(), before)
+
+    def test_known_hold_flag_does_not_mask_corrupt_ownership(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            reports, destination = root / "reports.json", root / "selected-strategy.json"
+            reports.write_text(json.dumps([_report()]), encoding="utf-8")
+            provision_selection(destination, reports, runtime_release_sha="a" * 40)
+            before = destination.read_bytes()
+            (root / "etf-owned-position.json").write_text("{}", encoding="utf-8")
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(Path(__file__).with_name("provision_selection.py")),
+                    "--path", str(destination),
+                    "--reports", str(reports),
+                    "--release-sha", "b" * 40,
+                    "--refresh",
+                    "--hold-on-known-blocker",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual(json.loads(result.stdout)["error"], "ownership_state_invalid")
+            self.assertEqual(destination.read_bytes(), before)
+
     def test_corrupt_ownership_is_an_error_even_when_selection_is_valid(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -416,14 +485,55 @@ class ProvisionSelectionTests(unittest.TestCase):
                 json.dumps([_report(report_id="rejected", net="0")]),
                 encoding="utf-8",
             )
-            result = provision_selection(destination, reports, refresh=True)
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(Path(__file__).with_name("provision_selection.py")),
+                    "--path", str(destination),
+                    "--reports", str(reports),
+                    "--release-sha", "b" * 40,
+                    "--refresh",
+                    "--hold-on-known-blocker",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
 
-            self.assertEqual(result["status"], "expired")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(json.loads(result.stdout)["status"], "expired")
             payload = json.loads(destination.read_text(encoding="utf-8"))
             expires_at = datetime.fromisoformat(payload["expires_at"].replace("Z", "+00:00"))
             self.assertLessEqual(expires_at, datetime.now(timezone.utc))
             self.assertNotEqual(destination.read_bytes(), before)
             self.assertEqual(payload["report_id"], "report-etf")
+
+    def test_no_strategy_without_existing_selection_is_held(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            reports = root / "reports.json"
+            destination = root / "selected-strategy.json"
+            reports.write_text(json.dumps([_report(report_id="rejected", net="0")]), encoding="utf-8")
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(Path(__file__).with_name("provision_selection.py")),
+                    "--path", str(destination),
+                    "--reports", str(reports),
+                    "--release-sha", "b" * 40,
+                    "--refresh",
+                    "--hold-on-known-blocker",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(json.loads(result.stdout)["reason"], "no_strategy_selected")
+            self.assertEqual(json.loads(result.stdout)["status"], "held")
+            self.assertFalse(destination.exists())
 
     def test_expired_selection_is_replaced_by_fresh_report(self):
         with tempfile.TemporaryDirectory() as directory:
