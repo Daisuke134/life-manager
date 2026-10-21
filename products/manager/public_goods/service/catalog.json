@@ -1,0 +1,9 @@
+{
+  "schema": "manager.official-support.v1",
+  "resources": [
+    {"id":"livelihood","domain":"finance","title":"生活費・仕事・住まいの相談","description":"生活に困ったときの相談や支援制度を、厚生労働省の案内から探せます。利用条件と窓口は公式ページでご確認ください。","url":"https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/0000059425.html","reviewed_on":"2026-10-21","rights":"LINK_ONLY"},
+    {"id":"debt","domain":"finance","title":"借入・多重債務の相談窓口","description":"借入や返済に関する公的な相談先を金融庁の案内から確認できます。このサイトは金融商品を勧誘しません。","url":"https://www.fsa.go.jp/policy/kashikin/","reviewed_on":"2026-10-21","rights":"LINK_ONLY"},
+    {"id":"mental-support","domain":"mental","title":"電話・SNS・地域の相談先を探す","description":"相談しやすい方法を、厚生労働省「まもろうよ こころ」の案内から選べます。電話番号や受付時間は公式ページでご確認ください。","url":"https://www.mhlw.go.jp/mamorouyokokoro/soudan/","reviewed_on":"2026-10-21","rights":"LINK_ONLY"},
+    {"id":"physical-activity","domain":"physical","title":"身体活動・運動の公的情報","description":"健康づくりのための一般的な情報と注意点を、厚生労働省 e-ヘルスネットで確認できます。個別の運動処方は行いません。","url":"https://kennet.mhlw.go.jp/information/information/exercise","reviewed_on":"2026-10-21","rights":"LINK_ONLY"}
+  ]
+}
