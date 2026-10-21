@@ -22403,7 +22403,7 @@ Yang Munについては、[HeyGenの顧客事例](https://www.heygen.com/custome
 
 **完了条件:** Capafy収益化は、公式seller sourceでsource-attributed paid orderと実際のcreator earningsが確認されるまで未完了。次は報告整形ではなく、解除後の自然distributionとその注文転換を進める。
 
-### Capafy revenue cursor — disk admission after source fix — 2026-10-21 09:07 UTC
+### Capafy revenue cursor — disk admission after source fix — 2026-10-21 09:19 UTC
 
 **新しい阻害:** fence closure後の自然occurrence `capafy-distribute-daily:18e0800deefadac8-56113`（09:04:09Z, release e8e91）は`pre_claim / host_admission_deferred:disk_floor_low / exit 75`で終了し、providerを開始していない。`admission_effect_unknown.current=false`のため、これは元fenceや`CRAFT_GUIDANCE`の再発ではなく容量gateである。従って、source修正は確認済みだが、修正後のnatural provider runはまだ未確認。
 
@@ -22411,12 +22411,14 @@ Yang Munについては、[HeyGenの顧客事例](https://www.heygen.com/custome
 
 host掃除の唯一owner `com.anicca.disk-watchdog`は60秒cadenceで稼働中。09:07:31Zの`last-unbound-receipt.json`はfree_before `10158194688` / free_after `10150838272` bytes、`reclaimed=6407` bytes（allowlistの`~/.cache/gh`）、errors=0、protected_deletions=0、preserved=9、inventory_gaps=29を記録した。容量不足は継続中で、watchdogは10候補familyの次slotを走査する。5分の`life-manager-disk-cleanup`はrelease/Git/Codex/managed-scratch保守ownerであり、HostDiskGovernorの代わりではない。削除やfloor overrideは行わない。
 
+**最新natural attempt:** occurrence `capafy-distribute-daily:18e080dedd1a2e68-94857`は09:19:06Zに同じ`disk_floor_low`でdeferし、providerを開始していない。09:19:51Zの同一producer code readbackはfree `9652842496` / floor `10737418240` bytes（short `1084575744` bytes）。09:19:09Zのwatchdog receiptはfree_after `9677336576` bytes、reclaimed `6405` bytes、errors=0、protected_deletions=0、inventory_gaps=29。09:19:51Zのswap readbackはused `9784.62M`。swapとfree-spaceの同時変化は観測したが、単一ownerへの原因帰属はしていない。effect_unknown fenceは引き続き0で、配信はcapacity admissionで止まっている。
+
 **残TODOを更新（現在cursor=1、収益優先順）:**
 
 | # | Atomic TODO | Dependency / DONE evidence |
 |---|---|---|
-| 1 | `com.anicca.disk-watchdog`の自然60秒passを監視し、次のCapafy slot前にe8e91と同じ`disk_admission.disk_free_bytes(state_dir)`が10 GiB以上になるまで登録済みallowlist sweepを継続する。 | Current cursor。DONE=新しいwatchdog inventory/receiptとproducer gateで10 GiB以上を確認。次回slotでも足りなければtyped `disk_floor_low` deferを保持し、full inventoryの候補・gap・open-path根拠を絞る。未知/稼働中/保護対象を消さず、floorを下げない。 |
-| 2 | 10 GiB gate通過後、`capafy-distribute-daily`の次の自然interval（現cadenceなら約09:19Z）を観測し、loaded SHAとterminal occurrenceを照合する。 | #1。DONE=provider処理へ進み、typed terminal eventを残す。manual wake/replayはしない。 |
+| 1 | `com.anicca.disk-watchdog`の自然60秒passを監視し、次のCapafy slot前にe8e91と同じ`disk_admission.disk_free_bytes(state_dir)`が10 GiB以上になるまで登録済みallowlist sweepを継続する。 | Current cursor。DONE=新しいwatchdog inventory/receiptとproducer gateで10 GiB以上を確認。09:19 slotはすでにcapacity defer。次回slotでも足りなければtyped `disk_floor_low` deferを保持し、full inventoryの候補・gap・open-path根拠を絞る。未知/稼働中/保護対象を消さず、floorを下げない。 |
+| 2 | 10 GiB gate通過後、`capafy-distribute-daily`の次の自然interval（現cadenceなら約09:34Z）を観測し、loaded SHAとterminal occurrenceを照合する。 | #1。DONE=provider処理へ進み、typed terminal eventを残す。manual wake/replayはしない。 |
 | 3 | そのexact occurrenceのmanifest、GitHub landing commit/live URL、Postiz `PUBLISHED` ID/permalinkを同一IDでjoinする。 | #2。DONE=1記事/1 Postiz ID、duplicate count=0。 |
 | 4 | `skills/earn/capafy-marketing/scripts/capafy_hourly_reconcile.py`の既存official seller/traffic rowsから同じsourceのviews・trial・paid・earningsを確認する。 | #3。DONE=source別paid order/earningsが公式にjoin。提供されない細粒度は`unknown`のまま残す。 |
 | 5 | 注文がない場合、`/agent/agents/search`のCapafy成功sellerから同じbuyer/mediumの勝ち例を1つ選び、確認済みoffer/価格/CTA mechanismで1変数experimentを行う。 | #4。DONE=参照URL・成果・模倣機構・source計測を記録し、自然distributionで比較する。 |
