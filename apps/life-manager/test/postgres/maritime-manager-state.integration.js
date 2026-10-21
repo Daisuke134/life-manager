@@ -8,7 +8,11 @@ const { execFileSync } = require("node:child_process");
 const { Client } = require("pg");
 const test = require("node:test");
 const { createMaritimeManagerStore } = require("../../lib/maritime-manager-store.js");
+const { separateWebUidForSubject } = require("../../lib/web-auth.js");
 const { normalizeWebFunnelEvent } = require("../../lib/web-funnel-events.js");
+let createMaritimeManagerPersistence;
+try { ({ createMaritimeManagerPersistence } = require("../../lib/maritime-manager-persistence.js")); }
+catch (error) { if (error.code !== "MODULE_NOT_FOUND") throw error; }
 
 const IDENTITY_MIGRATION = path.join(__dirname, "../../migrations/20261021090000_maritime_manager_runtime_state.sql");
 const MANAGER_TABLES = [
@@ -102,11 +106,11 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     }
     const uidA = "lm_11111111-1111-4111-8111-111111111111";
     const uidB = "lm_22222222-2222-4222-8222-222222222222";
-    const uidC = "lm_33333333-3333-4333-8333-333333333333";
     const uidD = "lm_44444444-4444-4444-8444-444444444444";
     const subjectA = "11111111-1111-4111-8111-111111111111";
     const subjectB = "22222222-2222-4222-8222-222222222222";
     const subjectC = "33333333-3333-4333-8333-333333333333";
+    const uidC = separateWebUidForSubject(subjectC);
     const subjectD = "44444444-4444-4444-8444-444444444444";
     const releaseSha = "a".repeat(40);
     await client.query("INSERT INTO public.lm_maritime_manager_identities(uid,auth_subject) VALUES ($1,$2)", [uidA, subjectA]);
@@ -132,7 +136,16 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
       "first-touch must be an object with its timestamp",
     );
     await client.query("INSERT INTO public.lm_maritime_manager_identities(uid,auth_subject) VALUES ($1,$2)", [uidB, subjectB]);
-    await client.query("INSERT INTO public.lm_maritime_manager_identities(uid,auth_subject) VALUES ($1,$2)", [uidC, subjectC]);
+    assert.equal(typeof createMaritimeManagerPersistence, "function", "Runtime PG identity persistence must exist");
+    const managerPersistence = createMaritimeManagerPersistence({ pgPool: client });
+    assert.equal(await managerPersistence.ensureWebUserImpl(subjectC), uidC);
+    assert.equal(await managerPersistence.ensureWebUserImpl(subjectC), uidC, "verified subject resolution is idempotent");
+    const conflictSubject = "55555555-5555-4555-8555-555555555555";
+    const conflictUid = "lm_66666666-6666-4666-8666-666666666666";
+    await client.query("INSERT INTO public.lm_maritime_manager_identities(uid,auth_subject) VALUES ($1,$2)", [conflictUid, conflictSubject]);
+    await assert.rejects(managerPersistence.ensureWebUserImpl(conflictSubject), /identity_mismatch/);
+    assert.equal((await client.query("SELECT uid FROM public.lm_maritime_manager_identities WHERE auth_subject=$1", [conflictSubject])).rows[0].uid, conflictUid,
+      "identity conflict cannot overwrite the existing UID");
     await client.query("INSERT INTO public.lm_maritime_manager_identities(uid,auth_subject) VALUES ($1,$2)", [uidD, subjectD]);
 
     const enrollmentColumns = await client.query(

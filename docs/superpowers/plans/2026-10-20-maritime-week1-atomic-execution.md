@@ -717,7 +717,7 @@ apps/life-manager/
 
 #### verified identity・同意・日報
 
-- [ ] **b.6-13:** `maritime-manager-persistence.js`に`ensureWebUserImpl(subject)`を作る。既存`separateWebUidForSubject()`を使い、owned UIDと一致することを確認する。一般Calendar/Telegramのlm_usersは参照/移行しない。
+- [x] **b.6-13:** `maritime-manager-persistence.js`に`ensureWebUserImpl(subject)`を作る。既存`separateWebUidForSubject()`を使い、owned UIDと一致することを確認する。一般Calendar/Telegramのlm_usersは参照/移行しない。native PG integration 1/1 pass。Evidence→`docs/evidence/maritime/runtime-pg-manager-identity-resolution.json`。
 - [ ] **b.6-14:** 同fileに`storeFirstTouch/readFirstTouch`を作る。既存sanitizeを使い、署名cookieから得た初回流入だけを保存する。後の流入で上書きしない。
 - [ ] **b.6-15:** 同fileのPG event writerを既存distributionの`recordEventImpl`へ注入し、`participantId/recordManagerEvent/recordAnonymousEvent`を再利用する。internal除外・HMAC・stable event key・dedupを維持する。
 - [ ] **b.6-16:** 同fileにManager専用`getParticipant/accept`を作る。容量claim関数を呼び、同一利用者は一度だけ、並行申込でも上限を超えないことを確認する。
