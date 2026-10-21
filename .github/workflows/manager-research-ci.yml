@@ -1,7 +1,7 @@
 name: Manager Independent Offline Research
 on:
   push:
-    branches: [research/manager-product-r006-20261020, research/manager-phase05-kernel-20261021, research/manager-phase06-evidence-r001-20261021, research/manager-phase06-f002-f003-20261021, research/manager-crossfield-evidence-20261021, research/manager-phase06-unblock-evidence-20261021, research/manager-reuse-only-world-evals-20261021]
+    branches: [research/manager-product-r006-20261020, research/manager-phase05-kernel-20261021, research/manager-phase06-evidence-r001-20261021, research/manager-phase06-f002-f003-20261021, research/manager-crossfield-evidence-20261021, research/manager-phase06-unblock-evidence-20261021, research/manager-reuse-only-world-evals-20261021, research/manager-phase06-internet-public-good-20261021]
     paths:
       - 'products/manager/**'
       - '.github/workflows/manager-research-ci.yml'
@@ -50,6 +50,14 @@ jobs:
         run: python scripts/phase06_public_indoor_readback.py
       - name: Phase06 issuer and site blocker gap report (not authorized)
         run: python scripts/check_phase06_authority.py
+      - name: Reuse official GrowthBook Python SDK (synthetic only)
+        run: |
+          python -m pip install --disable-pip-version-check -r requirements-internet-eval.txt
+          python scripts/phase06_growthbook_existing_sdk.py
+      - name: Independently verify actual public GitHub artifact by unauthenticated GET
+        run: python scripts/phase06_public_good_readback.py --baseline-sha c16660f9c6d5c1a79a801f0587dc7cc0355df1b3
+      - name: Separate beneficiary outcomes from real public technical effect
+        run: python scripts/phase06_welfare_proof_gate.py
       - name: Manager offline self-check
         run: python -m manager_core
       - name: Backlog consistency
