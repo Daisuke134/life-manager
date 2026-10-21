@@ -96,7 +96,7 @@
     }
   },
   "last_live_refresh": {
-    "observed_at": "2026-10-21T05:20:00Z",
+    "observed_at": "2026-10-21T06:05:00Z",
     "source_urls": [
       "https://competition.maritime.sh/",
       "https://competition.maritime.sh/terms"
@@ -106,13 +106,13 @@
     "award": "Up to USD 20,000 in LLM credits per winning project; not guaranteed to all winners. Second- and third-place amounts and detailed award schedule remain unpublished.",
     "travel": "Three-day San Francisco experience. Sponsored flights are limited to people in the United States; exact eligibility, traveler count, covered expenses, dates, and international-winner arrangements remain unpublished.",
     "week1_deadline_time": null,
-    "week1_deadline_reason": "Official home and Terms directly crawled at 2026-10-21T05:20Z. The kickoff email says top 30 advance but supplies no exact cutoff or scoring. No project form is published. The submissions-channel instruction previously read says posting does not replace any required form.",
+    "week1_deadline_reason": "Official home and Terms were directly crawled at 2026-10-21T06:05Z. No exact cutoff or scoring and no project form were published there. The kickoff email read earlier says Top 30 advance but supplies no exact cutoff or scoring. The submissions-channel instruction previously read says posting does not replace any required form.",
     "project_submission_status": "not_submitted",
-    "refresh_scope": "Official home and Terms were directly crawled; Gmail was freshly searched/read. Community channel was not refreshed in this observation."
+    "refresh_scope": "Official competition home and Terms were directly crawled at 2026-10-21T06:05Z. They still show no week-one cutoff, Top-30 rubric, or project-submission form. Gmail and the community channel were not refreshed in this observation; their last readbacks remain separately timestamped."
   },
-  "official_instruction_email_unchanged_reason": "Fresh Gmail search at 2026-10-21T05:20Z returned the same two transactional emails: generic Welcome and account Verify. The verification email body was read, its link was not used, and neither message contained competition rules. No new cutoff, Top-30 scoring, or project form was found.",
+  "official_instruction_email_unchanged_reason": "The latest Gmail readback at 2026-10-21T05:20:00Z found only the same transactional Welcome and Verify messages. No new email search was performed during the 2026-10-21T06:05Z website refresh, so no newer mail status is asserted.",
   "last_official_sources": {
-    "observed_at": "2026-10-21T05:20:00Z",
+    "observed_at": "2026-10-21T06:05:00Z",
     "urls": [
       "https://competition.maritime.sh/",
       "https://competition.maritime.sh/terms"

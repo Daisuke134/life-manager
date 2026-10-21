@@ -44,11 +44,11 @@ SDK docsには`provision()`を使う例があるが、それはOpenClaw template
 | Levels: https://levels.io/ | 創業者は自身の複数事業をbootstrappedと説明し、184,698人が記事を全文emailで受け取ると表示。サイトにX投稿と長文記事の両方がある | 実際のbuild decision・結果・制約を長文と短いX投稿に分け、同じURLへ戻す | 特定商品のX由来登録/売上計測は確認できない。Xが成長原因とは主張しない |
 | X automation rules: https://help.x.com/en/rules-and-policies/x-automation | 2026年4月更新。重複/実質同一投稿や複数の重複用途アカウント、無断自動DM、非APIのサイト自動化を禁じ、違反時のfilter/suspensionを明記 | 既存のPostiz接続済みXアカウントを一つ使い、人が内容を確認した独自投稿を行う。新規X/Instagramアカウント、重複投稿、無差別DMは初期配布から除外 | Postiz接続そのものは投稿許可・無制限配信の保証ではない。Xの現行automation rulesを優先する |
 
-**採用する最初の配布実験:** (1) 既存Writer workflowと`https://aniccaai.com/blog/manager`カテゴリを使い、検索意図が実測できた一つの問いに答える記事を作る。(2) 公開できるCloud入口と実行receiptが揃ってから、記事に現行機能・未対応範囲・一つのCTAを載せる。(3) 既存Postiz接続済みXから、その実証済みの一件をbuild-in-public投稿として一度紹介する。(4) `aniccaai` organic search / `x` / referralを分け、検索表示・click・email verified・activation・work completed・returnで評価する。記事表示、X impression、follower、signupだけを競技利用者に数えない。
+**採用する最初の配布実験:** (1) 既存Writer workflowと`https://aniccaai.com/blog/manager`カテゴリを使い、検索意図が実測できた一つの問いに答える記事を作る。(2) 公開できるCloud入口と実行receiptが揃ってから、記事に現行機能・未対応範囲・一つのCTAを載せる。(3) 既存X identityをPostizで確認できた場合に限り、その実証済みの一件をbuild-in-public投稿として一度紹介する。(4) `aniccaai` organic search / `x` / referralを分け、検索表示・click・email verified・activation・work completed・returnで評価する。記事表示、X impression、follower、signupだけを競技利用者に数えない。
 
 Todoistは近い生産性カテゴリ、AhrefsはSEO媒体、Levelsはbootstrapped creator発信の参考だが、どれも「自律Life ManagerをSEO/Xで1,000人へ伸ばした」同一条件の因果証拠ではない。したがって大量記事や大量投稿へ拡大せず、一記事と一つのX投稿でsourceから実利用まで計測する。既存Writerは複数媒体へ自動配布する設定を持つため、T24/T27ではその契約を読み、指定した既存blogと一つの既存Xアカウント以外へ広げない。
 
-既存の公開先確認: `https://aniccaai.com/blog`にはManagerカテゴリがあり、既存記事が公開中。Life Managerの公開説明ページ`https://aniccaai.com/lm`は現行sourceで「hosted experience is still in development」と明示するため、完成したhosted productとしてSEO CTAを出さない。`config/loop-registry.json`には`article-daily` ownerがあり、tracked `skills/writer-agent/SKILL.md`は複数destination matrixを定義する。現在worktreeはsparse checkoutのためそのdirectoryが展開されていないが、git treeからreadできる。初回配布ではWriterのevidence/editorial workflowを再利用し、全destinationを起動せず`aniccaai.com/blog`と既存Postiz Xの範囲に絞る。
+既存の公開先確認: `https://aniccaai.com/blog`にはManagerカテゴリがあり、既存記事が公開中。Life Managerの公開説明ページ`https://aniccaai.com/lm`はhosted experienceがまだ開発中と明示するため、完成したhosted productとしてSEO CTAを出さない。`config/loop-registry.json`には`article-daily` ownerがあり、tracked `skills/writer-agent/SKILL.md`は複数destination matrixを定義する。T24 refresh時のdedicated worktreeではWriter skill・registry entry・既存Manager publication READMEを直接読んだ。初回配布ではWriterのevidence/editorial workflowを再利用し、全destinationを起動せず`aniccaai.com/blog`と、identityを確認できた既存Postiz Xの範囲に絞る。
 
 ## 既存LMの再利用マップ
 

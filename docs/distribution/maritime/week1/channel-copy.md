@@ -1,17 +1,18 @@
 # Life Manager 初週の配布文案
 
-状態: 未配布。Daisが家族・友人へDMする。公開投稿は稼働URLと実際の対応範囲を確認してから実行する。初期の獲得レーンは既存ブログのSEO記事と、既存Postiz接続済みXアカウント。Instagramは使わず、新規アカウントも作らない。無料pilotは既存のpaid Calendar trialとは別。全員の利益・将来の無料継続を保証しない。
+状態: 未配布。Daisが家族・友人へDMする。初期の獲得レーンは既存ブログのSEO記事と、本人・接続先を確認した既存の広いXアカウント。2026-10-21 06:02ZのPostiz readbackはgroups=0 / integrations=0、postsは05:20Z時点で0のため、このconnectorではX連携先を確認できていない。Instagramは使わず、新規アカウントも作らない。無料pilotは既存のpaid Calendar trialとは別。全員の利益・将来の無料継続を保証しない。
 
 ## 配布の仕組み
 
 参照: `docs/research/maritime/2026-10-20-source-map.md`。Todoistの有用な生産性記事＋実ユーザー事例＋一つの製品CTA、Ahrefsの検索意図別ガイド/調査、Levelsの公開build記事と短いX投稿を形式の参考にする。いずれもLife Managerの利用者獲得を証明するものではないので、まず一記事・一投稿で計測する。数値・顧客の言葉・保護されたコピーは転用しない。
 
-## SEO記事（未作成）
+## SEO記事（内部草稿あり・未公開）
 
-- 配置先は既存`https://aniccaai.com/blog/manager`。本文と公開は既存Writer workflowを調べて再利用し、新CMSや別publisherを作らない。
-- 読者の具体的な検索意図は既存の無料keyword/SERP資料で一つ選ぶ。根拠が足りなければ検索語は仮説と明記し、検索量を捏造しない。
-- 記事の骨格: 具体的な問題 → AI assistantとManagerの違い → 現在ライブで動く実画面/receipt → 未対応・必要なprovider接続 → 無料pilotの一つのCTA。
-- Product URL、実行証拠、メール登録から初回完了までの公開経路が揃うまで公開しない。売上・利益が出たという未検証の主張は書かない。
+- 配置先は既存`https://aniccaai.com/blog/manager`。canonical sourceはLife Manager repo、公開は`Daisuke134/anicca-products`の既存Manager article bridge。新CMSや別publisherは作らず、Writerの複数destination publish matrixも起動しない。
+- 記事テーマは **“AI Assistant vs AI Agent: Who Chooses the Next Task?”**。比較意図のSERPを見た編集仮説で、検索量は未測定。2026-10-18までの28日間のサイト全体GSCは0 clicks / 7 impressionsであり、この記事の需要や性能を示す数字ではない。基準値と欠測条件は`docs/evidence/maritime/seo-baseline-20261021.json`。
+- 内部草稿: `docs/distribution/maritime/week1/seo-article-draft-en.md`。AI assistant / agent の定義差を説明し、Life Managerの「次の仕事を選び、実行し、結果を確かめて報告するmanager」は当社の製品設計上の表現だと明記する。
+- 公開CTAは保留。実際のメール確認→明示consent→仕事完了→成果/receipt→日報→停止の一連readbackを終えるまで、登録を「今すぐ試せる完成品」と表現しない。現在の製品範囲、未対応・必要なprovider接続を記事と一致させ、売上・利益の未検証claimは書かない。
+- Todoistの役立つ記事と一つのCTA、Ahrefsの検索意図別ガイド、Levelsのbuild decisionを記事へ展開する仕組みを参考にする。成果数字は転用しない。詳細と適用限界は`docs/research/maritime/2026-10-20-source-map.md`。
 - 計測UTMは`utm_source=aniccaai&utm_medium=organic_search&utm_campaign=maritime-week1`。公開後はSearch Console等の既存readbackでimpressions/clicksを見て、funnelでverified signup/activation/completed work/returnにつなぐ。
 
 ## 公開前にDaisが送れる家族・友人向けDM
@@ -48,16 +49,22 @@
 
 最終URLを添付する。「商品づくり」は実行確認した範囲に限定し、公開実績がなければ販売完了を示す画面を使わない。長い補足は返信へ分け、accountの長文投稿権限を前提にしない。
 
-## X build-in-public（初期の一投稿案）
+## X build-in-public（確認済み状況を反映した未投稿draft）
 
 > Life ManagerのCloud版をMaritime向けに接続中。今週はメール登録から「仕事を選ぶ→実行→結果を確認→日次レポート」までを一つずつ通しています。
 >
-> 今日確認できたこと: [公開可能な実際の画面またはreceiptを一つ記載]
-> まだできないこと: [未対応を一つ記載]
+> 今日確認できたこと: pilot登録ページがHTTP 200で表示され、workerにMaritimeのprovision / cycle / report capabilityが読み込まれている。
+> まだ確認できていないこと: メール確認から実業務、外部結果、日次メール、停止までの一連の利用。
 >
-> 動くpilot: [稼働URL]
+> 完了した利用者サイクルはまだ確認できていないので、登録リンクはまだ案内しません。
 
-これはdraftで未投稿。確認できた一件だけを埋め、同じ文面を複数アカウントへ重複投稿しない。既存X accountをPostiz経由で使い、URLは`utm_source=x&utm_medium=social&utm_campaign=maritime-week1`を付ける。自動DMや新規アカウントは作らない。
+これはdraftで未投稿。Postiz readbackはgroups=0 / integrations=0のため、投稿前に既存X accountの所有者・接続先を確認する。同じ文面を複数アカウントへ重複投稿しない。投稿開始後は`utm_source=x&utm_medium=social&utm_campaign=maritime-week1`を使う。自動DMや新規アカウントは作らない。
+
+## X build-in-public English (draft, unpublished)
+
+> The Life Manager pilot signup page is live. Its full path from email verification through completed work, an external result, a daily report, and stop is still unverified. I’m holding the acquisition link until that cycle works end to end.
+
+This draft is not published. The current Postiz connector exposes no groups or integrations, so verify the existing profile before scheduling it. Do not imply that the product has already earned money for users.
 
 ## X English・公開後
 

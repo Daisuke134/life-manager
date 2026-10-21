@@ -112,11 +112,15 @@ life-manager/
 │           ├── capafy_hourly_reconcile.py          [既存: 公式sales/cost readback]
 │           └── capafy_distribute_ledger.py         [既存: 配布effectのreceipt]
 └── docs/
+    ├── evidence/maritime/
+    │   ├── current-status-20261021.json                [本番/競技/配信のreadback、未確認はnull]
+    │   └── seo-baseline-20261021.json                 [sitewide GSC baselineとquery caveat]
     ├── research/maritime/2026-10-20-source-map.md    [本計画の出典・模倣箇所]
     ├── superpowers/specs/2026-09-25-life-manager-unified-ssot.md
     ├── superpowers/plans/2026-10-20-maritime-week1-atomic-execution.md
     └── distribution/maritime/week1/
-        ├── channel-copy.md                         [DM/X/IG文案、送信は未実施]
+        ├── channel-copy.md                         [DM/X文案。Instagram配布なし]
+        ├── seo-article-draft-en.md                 [未公開の検索記事草稿、CTA HOLD]
         ├── demo-script.md                          [撮影台本/素材/実装前claimの制限]
         ├── overview.png                            [生成済み: 全体設計の説明図]
         ├── submission-checklist.md                 [提出packetと受付証拠]
@@ -441,8 +445,9 @@ life-manager/
 - [ ] T22.1b SupabaseのAuth/認証RESTを実測する。project ACTIVE_HEALTHYや未認証401だけでPASSにしない。503 PGRST002時は直近postgres_logsをerror/query classで集計し、本文/SQL本文/email/tokenを取得しない。過去の適用済みtimezone migrationを未適用と断定せず、既存の全体restart/restore禁止を守る。
 - [ ] T22.1c `build-context.py`で統合mainからZIPを作る。owned external identityは現行HMACと一致するため、既存agentへ公式ZIP redeployを一回行い、新agentを作らない。既存VMの`LM_RELEASE_SHA`/`LM_SOURCE_ARCHIVE_SHA256`を新main/ZIPへ更新し、`LM_RUNTIME_TENANT_ID`は同値維持する。source SHA/ZIP hashとprovider deployment/image digestを区別し、実source file hashとloaded healthも照合する。envのSHAだけで新版採用と判定しない。upload/agent ID/tokenはprivate SSOTへ保存する。
 - [ ] T22.1d0 Maritime platform account access: use the already registered identity only. Before browser/auth interaction, read the complete private credential SSOT, exact-match service row, browser registry, and current profile lease; use the registered CloakBrowser session. Do not create a second account. A prior readiness record says authenticated_agents_dashboard and API HTTP 200, but no current session readback exists; Gmail has a generic Welcome and an unused Verify email notice. Read the live dashboard/API and plan entitlement; if email verification is required, complete the existing flow without printing or storing the code anywhere except its credential SSOT. Record only session/entitlement/API status in docs/distribution/maritime/week1/readiness.json. Do not treat an email receipt or prior API 200 as current access.
-- [ ] T22.1d life-call/workerのRuntime PG・Manager identity/image・tenant・Maritime source/wake設定を既存provider上で必要分だけ揃える。secretは既存private SSOTから設定し、値をargv/log/specへ出さない。LM_WORKER_CAPABILITIESの既存3項目は保持し、この段階ではManager capabilityを足さず、email flag=0を維持する。capabilityの有効化はb.6-27a、email入口はb.6-27bの順序を唯一の正とする。新agent、別scheduler、DB credentialのVM転送を行わない。
-- [ ] T22.1e b.6-27a/bの順序でworker capability loaded→email flag deployed/readbackを確認してから、owned本人の確認済みemailと明示同意で実PKCEを通す。flag=0のまま登録できるとは扱わない。GET/CSRFだけで登録やfactoryを開始しない。初回cycle/reportは同じstable job identityから一度実行し、unknown occurrenceを再POSTしない。
+- [x] T22.1d Runtime PG/identity/tenant/source/wake baseとservice configurationを準備し、main由来でdeployした。b.6-01〜26のschema/ACL/worker wiringは既存evidenceに記録済み。公開flag/capabilityのenableは後続b.6-27a/bで分離する。
+- [x] T22.1e.1 worker capabilityとlife-call email入口を順に有効化しloaded readbackした。b.6-27a/bの証拠と現在値はcurrent-status-20261021.jsonにある。
+- [ ] T22.1e.2 / b.6-28 owned participantがメールPKCEを完了し、Maritimeのretention条件へ明示同意した後に、PG identity/enrollment/CSRF bindingを照合する。現状confirmと同意は未確認。OTP再送や同意の代行をしない。
 - [ ] T22.2 登録→自律job→provider結果→日次メールを自分の別Cloud tenantで一回実行する。Macのloopやbrowserを止める破壊的検証はせず、Cloudのargv/state/network evidenceでMac非依存を確かめる。
 - [ ] T22.3 正規sleep後のscheduled wakeを一回観測し、同occurrenceの公開/送信が増えないことを読む。メール着信/送信provider ID、official usageとloaded SHAを結合する。
 - [ ] T22.4 readiness/capacity/費用/未接続条件を正本へ更新。全14loopsをCloud完成扱いにせず、実証したCapafy範囲だけcatalogへ反映する。
@@ -460,15 +465,16 @@ life-manager/
 
 ## Task T24: 既存ブログSEOと既存X用の初週配布を準備する（開発と並行）
 
-**Files:** `docs/distribution/maritime/week1/channel-copy.md`、`docs/research/maritime/2026-10-20-source-map.md`、既存`apps/landing/marketing/pages/life-manager-en.html`のCTA参照。
-**Interfaces:** Dais向けDM、既存`aniccaai.com/blog/manager`の記事brief、既存Postiz接続済みXアカウント向け1投稿、source別UTM。Instagramは初期配布に含めない。
+**Files:** `docs/distribution/maritime/week1/channel-copy.md`、`docs/distribution/maritime/week1/seo-article-draft-en.md`、`docs/evidence/maritime/seo-baseline-20261021.json`、`docs/research/maritime/2026-10-20-source-map.md`、既存`apps/landing/marketing/pages/life-manager-en.html`のCTA参照。
+**Interfaces:** Dais向けDM、既存`aniccaai.com/blog/manager`の記事brief、identity/connectionをreadbackした既存の広いX account向け1投稿、source別UTM。Instagramは初期配布に含めない。
 **Depends:** なしで成功事例・SEO意図・記事briefを準備する。記事公開とX投稿はT22/T26の実URL・ライブ証拠後。
 
 - [x] T24.1 source-map.mdのTodoist/Ahrefs/Levels/X policy記録を読み、各社が表示する数値と対象・獲得因果の確認範囲を分けた。同一の自律Life Manager獲得例は未確認と記録。模倣機構は「具体的な悩み→使い方/実結果→一つのCTA」「intent別how-to/独自調査」「実際のbuild decision/result/constraintをblogからXへ展開」。適用限界もsource-mapに記録済み。
-- [ ] T24.2 既存Writerの`skills/writer-agent/SKILL.md`、`article-daily` registry row、`aniccaai.com/blog/manager`のcanonical/article ownerを読む。現在worktreeのsparse checkoutはWriter directoryを展開していないため、tracked Git treeのsourceを読むか、このowner taskの専用worktreeへ必要pathだけ含める。Writerは複数destination matrixを持つため全destination自動配布を起動せず、blog+指定Xのみを使う経路を確認する。CMSやschedulerを新設しない。
-- [ ] T24.3 既存の無料keyword/SERP evidenceから一つの具体的なreader queryを選ぶ。需要が実測できない場合は仮説と記録し、検索量/SEO順位を捏造しない。
-- [ ] T24.4 `channel-copy.md`に一記事briefを作る: 読者の困りごと→現行Managerの実画面/receipt→未対応範囲/必要接続→一つの稼働URL CTA。目標/予算入力必須・Telegram必須・利益保証を加えない。
-- [ ] T24.5 既存Xのbuild-in-public投稿を一つ日英で準備する。毎回一つの確認済み進捗と一つの制約を示し、blog/landingの単一URLへ誘導する。既存Postiz profileをreadbackして使い、新規X account・自動DM・複数accountへの類似投稿を行わない。
+- [x] T24.2 `skills/writer-agent/SKILL.md`のreader-job/evidence/editorial契約と複数destination matrix、`config/loop-registry.json`の`article-daily` entry、`apps/landing/manager-blog/README.md`のcanonical source (`Daisuke134/life-manager`) とpublisher bridge (`Daisuke134/anicca-products`) を確認した。既存Writerを別媒体へ一括起動せず、記事draftだけを本repoへ保存する。
+- [x] T24.3 `AI assistant vs AI agent: who chooses the next task?`を一つのreader-query仮説として選んだ。GSCのサイト全体28日間は0 clicks / 7 impressions、記事需要は未計測。基準値とpage-row不一致の注意は`docs/evidence/maritime/seo-baseline-20261021.json`に保存し、検索量/順位は主張しない。
+- [x] T24.4a `channel-copy.md`へ記事briefとCTA HOLDを記録し、`seo-article-draft-en.md`を内部草稿にした。比較質問に答え、Life Managerのmanager定義を製品設計上の表現と明記し、hosted productの現状と未検証境界を含めた。
+- [ ] T24.4b 実画面/実receiptを完了した利用者サイクルへ結び、登録→仕事→結果/receipt→日報→停止をreadbackする。その後に一つの実URL CTAを入れ、記事を既存publication packageへ移す。現時点は内部draftで、公開CTAは保留。
+- [ ] T24.5 既存X向けのbuild-in-public投稿案は日英でchannel-copy.mdに保存済み（signup page HTTP 200 / end-to-end未確認）。Postiz groups=0 / integrations=0のため既存profileを特定・readbackし、一つのCTAを確定してから公開する。新規X account・自動DM・複数accountへの類似投稿を行わない。
 - [ ] T24.6 Dais向けDMと一つのCTAを保存し、URL確定前はprelaunch copyとして明示する。最終URLとUTMにplaceholderがないことを確認しcommit/push。
 
 ## Task T25: demoとプロモーション動画の撮影単位を作る（開発と並行）
@@ -488,8 +494,8 @@ life-manager/
 **Interfaces:** marketing CTA→稼働中`/maritime`のemail入口。既存Calendar有料導線は別で保持。
 **Depends:** T06。原稿は先に用意し、実URLへの切替はT22後。
 
-- [ ] T26.1 main原稿と公開/lmを照合する。公開中の「Set your goals and delegated boundaries」は、Managerがtask-specific goal/budget入力を要求しない現行仕様と不整合なので、delegated boundariesの範囲でManagerが次の仕事を自分で見つける意味へ直し、未実装Cloud機能を現在利用可能と書かない。README/生成正本/サイト原稿にgoal/budget必須・Telegram必須の主張がなく、現行原稿とmanifest hashが一致することを確認する。
-- [ ] T26.2 Cloud無料pilotの範囲と現在動く業務をcopyへ反映する。既存Calendarの$29 trialをMaritime無料pilotの課金条件へ混ぜない。
+- [x] T26.1 main原稿・README・startup/product contextと公開/lmを照合した。goal/budgetの入力は必須でなくTelegramは任意。hostedはCalendar中心、proactive cloudは開発中と明記。route-manifest.json内の全source hashがMATCHし、ライブ公開ページも同じ説明を返す。以前の「Set your goals and delegated boundaries」は過去のcrawl記録で、現行表示ではない。
+- [x] T26.2 Cloud無料pilotの対象範囲と現在動く業務をchannel-copy/SEO draftへ反映した。既存Calendarの$29 trialとMaritime無料pilotは別と明記し、利益保証を加えていない。
 - [ ] T26.3 既存full site exportへapproved overlayとして反映し、他商品/blog/legal/functionを保持する。manifest hashとpublished revisionを更新する。
 - [ ] T26.4 公開URLのemail CTA/認証/停止/localeをreadbackし、source commitとpublished SHAを結合する。source変更だけを公開完了と呼ばない。
 
@@ -533,10 +539,10 @@ life-manager/
 **Interfaces:** T22の稼働URLと準備済み配布copyをconsumes。T23受付済みならその事実も記す。送信先はprivate profile/credential SSOTから解決する。
 **Depends:** T22直後。正式提出先の公表、長期獲得T29、winner通知を待たない。
 
-- [ ] T30.1 稼働中のemail登録URLと無料pilotの範囲を再度GETで確認し、Dais宛先をprivate SSOTから解決する。
-- [ ] T30.2 URL、できること、未接続部分、家族/友人へ転送できる短い紹介文を日本語の一通にまとめ、送信payloadを独立read-only検証する。
-- [ ] T30.3 許可済みの既存メール経路でDaisへ一回送信する。provider message IDを保存し、応答不明時は再送せずreadbackする。
-- [ ] T30.4 送信済みの宛先・件名・本文URLとprovider receiptを照合し、正本を更新する。API受付と着信は区別し、着信未確認ならその範囲を残す。
+- [x] T30.1 稼働中のemail登録URLと無料pilot範囲をGETでreadbackし、送信時にDaisの宛先をprivate SSOTから解決した。2026-10-21 06:07Zの再GETもHTTP 200。
+- [x] T30.2 紹介文とURLを送信前に確認し、送信後のGmail Sent readbackでもURLと内容を照合した。
+- [x] T30.3 許可済みの既存メール経路で一回送信し、provider message ID `1a15cc8791911599`を保存した。再送していない。
+- [x] T30.4 Gmail Sent/readbackとmessage IDを正本へ保存した。受信者inboxへの到達は別readbackしておらず、competition project submissionでもない。
 
 ## Task T31: Cloud Life Manager自身の課金と利益をつなぐ
 
@@ -561,14 +567,14 @@ life-manager/
 **Interfaces:** T04のPKCE handlerとT22のowned inboxをconsumes。設定readbackと実メール到着をproduces。公開appのfeature flagはこのtaskでは有効化しない。
 **Depends:** T04。T07–T21とは独立して進める。初回の変更前観測はemail provider=false、custom SMTPなし、送信limit2/hour。これは現状値ではない。実環境の現在状態と着信証拠はSpec正本/T32とsmtp-readback.jsonを参照する。
 
-- [ ] T32.1 private SSOT全体と`supabase-life-manager-production`/`resend-life-manager-production`/`agentmail-life-manager-production`完全一致を読む。新key/account/inboxを作らず、既存設定をManagement API GET `/v1/projects/<ref>/config/auth`で再取得する。秘密の値を出力しない。
-- [ ] T32.2 Python標準`email.utils.parseaddr(from_address)`でmailboxとdisplay nameを分ける。smtp_admin_emailにはmailboxのみ、smtp_sender_nameにはdisplay nameまたは`Life Manager`を使う。空mailboxなら設定を送信せず、既存Resendのsender設定を確認する。
-- [ ] T32.3 既存uri_allow_listを全保持し、`https://life-call-production.up.railway.app/auth/maritime/confirm`だけを追記したpatchを構成する。smtp_host=`smtp.resend.com`、smtp_port=`"465"`（Management APIはstring）、smtp_user=`resend`、smtp_pass=既存key、external_email_enabled=true、mailer_autoconfirm=false、rate_limit_email_sent=30。site_url/Google/OTP limitは保持する。
-- [ ] T32.4 patchの変更keyとallowlist保持をread-only検証者へ渡す。secret値は渡さない。宣言後に上記Management APIへ一回PATCHする。新しいkeyの再作成・auto-confirm有効化を修正方法にしない。
-- [ ] T32.5 同じGETで全変更fieldとGoogle/site_url/旧allowlistの保持を確認し、safe JSONへ保存する。レスポンス内smtp_passは出力・保存しない。
-- [ ] T32.6 既存owned AgentMail inboxへSupabaseの確認メールを一通送り、新規messageの時刻/送信元/件名で着信を確認する。OTP/リンク/本文はlog/chat/repoへ出さない。この内部testを競技利用者に数えない。
-- [ ] T32.7 `smtp-readback.json`へsmtp_auth_verified/email_arrived/observed_at/provider_receipt_hash、失敗ならexact error classと次操作を書く。API acceptedやSMTP AUTHだけではemail_arrived=trueにしない。
-- [ ] T32.8 `python3 -m json.tool docs/evidence/maritime/smtp-readback.json >/dev/null`とsecret混入なしを確認し、safe evidenceのみcommit/pushする。実browser PKCEからactivateまでの受入はT22で行う。
+- [x] T32.1 private credential SSOTから既存Supabase/Resend/Mail inboxを完全一致で確認。新key/account/inboxを作らず、現行Auth configをread-only取得。秘密の値は出力していない。Evidence→docs/evidence/maritime/smtp-preflight.json。
+- [x] T32.2 sender mailbox/display nameを分離し、sender形式をreadbackで確認。Evidence→docs/evidence/maritime/smtp-readback.json。
+- [x] T32.3 既存Google/redirect/site設定を保持し、Manager callbackだけを追加。SMTP host/port/sender、email enabled、confirm必須、hourly limit 30を適用。secret再作成なし。
+- [x] T32.4 minimal Auth patchを確認後一度適用。auto-confirmを有効化せず、application feature flagは変更していない。Evidence→docs/evidence/maritime/smtp-readback.json。
+- [x] T32.5 provider GETで設定と既存allowlist保持をreadback。smtp_passは出力・保存していない。
+- [x] T32.6 owned inboxで一通の確認メールを受信し、時刻/送信元/件名/宛先を照合。内部probeで競技利用者に数えていない。
+- [x] T32.7 smtp-readback.jsonへSMTP auth/email deliveryのreceipt hashと時刻を保存。delivery_status=owned_inbox_received、2026-10-20T12:28Z。
+- [x] T32.8 safe JSON parseとsecret非混入を確認し、safe evidenceのみ保存。T22のbrowser PKCE→activate受入は別途未完。
 
 ## 一件のtaskを実装するときの共通手順
 
@@ -740,8 +746,8 @@ apps/life-manager/
 - [x] **b.6-26a:** apps/life-manager/package-lock.jsonはmain tracked (blob SHA 9b994de0daba2eac126f74c84981c9ed3a78418c)。元lockを変更せず、apps/life-manager/.npmrcにlegacy-peer-deps=trueを設定。npm config get legacy-peer-deps --prefix apps/life-manager=true、exact npm ci --ignore-scripts --prefix apps/life-manager exit 0、package.json/package-lock差分なし。PR #8469 merge。
 - [x] **b.6-26b:** full main sourceをrepo rootとするGitHub auto-deployを確認（PR #8469/main 76d36e33979aa6e4b8924db6405fa8031b169782）。life-call deployment 1fd0ee51-1214-429c-bee8-2e913cd51eab SUCCESS。/health HTTP 200/build tag=main SHAをreadback。
 - [x] **b.6-26c:** 同じmain SHAからmoney-printer-workerをdeploy/readback。deployment c19340af-6832-497a-86bf-793bd12a7623 SUCCESS、loaded runtime-up.js main SHA一致、既存3 capabilityのみ、Manager capabilityなし、email flag=0。
-- [ ] **b.6-27a / worker capability追加:** Railway mcp__codex_apps__railway_set_variablesをprojectId=f9c524cb-ba4a-43bb-9639-ff736afd9ec1、environmentId=039eb0fd-b017-458f-947d-f3f55a0b3c04、serviceId=7568c101-558a-4704-9956-dd523c5bb3d4で呼び、LM_WORKER_CAPABILITIESをmoney-printer.scout,report.financial.telegram,agent-economy.start,maritime.manager.provision,maritime.manager.cycle,maritime.manager.reportへ設定する。既存3つを保持し、email flagは0のままにする。worker deployment SUCCESS後、railway ssh --project f9c524cb-ba4a-43bb-9639-ff736afd9ec1 --environment production --service money-printer-worker -- node -e 'console.log(JSON.stringify({build:process.env.RAILWAY_GIT_COMMIT_SHA,caps:process.env.LM_WORKER_CAPABILITIES,emailEnabled:process.env.LM_MARITIME_MANAGER_EMAIL_ENABLED,pilotMaxUsers:process.env.MARITIME_PILOT_MAX_USERS}))'を実行する。期待値はloaded SHA=main、capability文字列が既存3+Manager3の計6件、Manager capability正確に3、email flag=0、MARITIME_PILOT_MAX_USERS=3。secret valueを表示しない。
-- [ ] **b.6-27b / email入口を開く:** b.6-27aのworker loaded readbackが揃った後だけ、同じrailway_set_variablesでlife-call (serviceId=ca978c74-639a-4fa1-af22-9cdd53c3f615) のLM_MARITIME_MANAGER_EMAIL_ENABLED=1を設定する。deployment SUCCESS後に/health build tagとGET /maritimeのsignup pageをreadbackする。email flag有効化は公開signup入口を開くeffectとして記録する。OTPを送るPOSTは、実参加者本人の同意がある時にだけ行う。
+- [x] **b.6-27a / worker capability追加:** 既存3 capabilityを保ちMaritime provision/cycle/reportを追加。2026-10-21 05:49Z readbackでworker loaded SHA=27b594cd84f6e660f6ffbacabb21be8d7f25cb2c、deployment SUCCESS、capability計6件、Manager 3件、email flag=0、pilot cap=3を確認。secret valueは表示していない。Evidence→docs/evidence/maritime/current-status-20261021.json。
+- [x] **b.6-27b / email入口を開く:** 2026-10-21 05:49Z readbackでlife-call loaded SHA=27b594cd84f6e660f6ffbacabb21be8d7f25cb2c、deployment SUCCESS、email flag=1、pilot cap=3を確認。06:07Zの公開GET /maritime?lang=enはHTTP 200 signup page。email flag有効化とOTP送信を区別し、activation/consentは未確認。Evidence→docs/evidence/maritime/current-status-20261021.json。
 - [ ] **b.6-28:** ownedの同じブラウザでメール登録→実PKCE callbackを通す。Authのverified subjectとPG identity/CSRF cookieを照合する。
 - [ ] **b.6-29:** 実同意・起動でPG enrollment/jobを確認する。既存externalIdのowned VMをrecoverし、configure receipt・relay・scheduleの公式readbackを取る。
 - [ ] **b.6-30:** 製品経由の新cycleをworkerで完了させ、公式execution・共通receipt・成果物を結ぶ。ログのexit0だけで完了とせず、ブラウザから成果物をdownloadしてsize/hashを照合する。
