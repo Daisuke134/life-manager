@@ -55,8 +55,8 @@
   "finish": null,
   "readback": null,
   "limitations": [
-    "Production code at SHA 27b594 is deployed in both Manager services; the latest efd1b2 docs-only deployment was skipped. The signup page is live, but no complete external-user cycle has been verified.",
-    "Current Runtime PG readback has one identity row and zero enrollments, executions, pilot participants, Manager jobs, and verified external users.",
+    "Production code at SHA 27b594 is deployed in both Manager services; the latest docs-only 483ba43 deployment was skipped. The signup page is live, but no complete external-user cycle has been verified.",
+    "Runtime PG readback at 2026-10-21T05:49Z has one identity row and zero enrollments, executions, pilot participants, Manager jobs, and verified external users.",
     "No PKCE confirmation, explicit retention consent, provisioned Manager, completed work, downloaded artifact, daily report, stop readback, or customer revenue is verified for this hosted pilot.",
     "The Postiz connector exposes no groups, integrations, or posts; the previously stated existing X connection must be verified through its actual authorized account before posting.",
     "The Manager source article added by PR #8474 is not live at its proposed URL, which returned 404; no Life Manager product-acquisition CTA is currently published.",
@@ -161,11 +161,11 @@
     "docs/evidence/maritime/postgrest-startup-budget-production.json",
     "docs/evidence/maritime/current-status-20261021.json"
   ],
-  "current_blocker": "The hosted signup page and worker capabilities are live, but the user path is not complete: no confirmed PKCE identity, no verified explicit retention consent, no enrollment, no provisioned manager cycle, no artifact/report/stop receipt, and 0 verified external users. A signup email POST returned 202 once and 429 on a later attempt; do not blindly resend. The formal project submission form, exact week-one cutoff, and Top-30 rubric are not published in the official pages checked.",
-  "updated_at": "2026-10-21T05:30:31Z",
+  "current_blocker": "The hosted signup page and worker capabilities are live, but the end-to-end user path is not complete: no confirmed PKCE identity, explicit retention consent, enrollment, provisioned manager cycle, artifact/report/stop receipt. The latest Runtime PG readback at 05:49Z has 0 verified external users. A signup email POST returned 202 once and 429 once in the last checked HTTP log window; do not blindly resend. The formal project submission form, exact week-one cutoff, and Top-30 rubric are not published in the official pages checked.",
+  "updated_at": "2026-10-21T06:08:34Z",
   "current_status_refresh": {
-    "observed_at": "2026-10-21T05:30:31Z",
-    "source_main_sha": "efd1b2b6183fb1bcaf850e1b09399c3ac61a5c04",
+    "observed_at": "2026-10-21T06:08:34Z",
+    "source_main_sha": "483ba43b506c8266399334328258bc0c358d70c1",
     "life_call_loaded_sha": "27b594cd84f6e660f6ffbacabb21be8d7f25cb2c",
     "life_call_deployment": "SUCCESS",
     "life_call_deployment_id": "65cce4c2-84e1-4add-84fb-2a78e62d5f14",
@@ -187,12 +187,12 @@
     ],
     "worker_email_enabled": "0",
     "worker_pilot_max_users": "3",
-    "manager_database_last_readback": "2026-10-21T05:25Z; identities=1, enrollments=0, executions=0, pilot participants=0, manager jobs=0",
+    "manager_database_last_readback": "2026-10-21T05:49Z; identities=1, enrollments=0, executions=0, pilot participants=0, manager jobs=0",
     "external_manager_users_last_readback": 0,
-    "signup_http_readback": "after 2026-10-21T04:00Z: email POST 202 once and 429 once; no confirm, activate, or stop requests",
+    "signup_http_readback": "2026-10-21T04:00Z–05:20Z log window: email POST 202 once and 429 once; no confirm, activate, or stop requests. No later HTTP log readback is included here.",
     "project_submission": "not_submitted",
     "share_url_email": "sent and read back; Gmail message 1a15cc8791911599",
-    "distribution_campaign": "No Life Manager product-acquisition article/CTA is live. The latest general Manager source article is in main but its proposed public route returned 404. Postiz groups=0, integrations=0, posts=0 in current connector readback."
+    "distribution_campaign": "Internal draft docs/distribution/maritime/week1/seo-article-draft-en.md is prepared but unpublished; no Life Manager product-acquisition article/CTA is live. GSC sitewide baseline through 2026-10-18 is 0 clicks/7 impressions, not article-level demand. Postiz groups=0 and integrations=0 at 06:02Z; posts=0 through the earlier 05:20Z readback."
   },
   "maritime_email_observation": {
     "checked_at": "2026-10-21T05:20:00Z",
