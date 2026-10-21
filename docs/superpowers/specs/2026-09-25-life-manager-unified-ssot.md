@@ -16638,6 +16638,16 @@ After integrating `origin/main` `0478d430188b723bc1e2ac147b172c4c8d4ddd52`, the 
 
 **現在cursor:** commit/push this status update on top of merge `3a5bd49c`, verify PR #8462 head/base, and pass its new exact-head CI before merge. Keep live disabled, historical effect fences held, do not deposit or manually wake, and do not report profit without settled owner-attributed net receipts.
 
+#### 2026-10-21 12:54 JST — Exact-head CI passed; profitability gate needs strengthening
+
+**Source acceptance:** PR #8462 head `035c0c95486b79819c885a986f5eefdfe179f865`, base `76d36e33979aa6e4b8924db6405fa8031b169782`, passed all 12 jobs in Security Scan run `39540108655`. The branch is mergeable and remains OPEN. Local Alpaca tests after the latest main sync passed 746/746; source-boundary and `git diff --check` passed.
+
+**Strategy evidence audit:** The only current crypto cards are research hypotheses (`alpaca-btc-5m-reversion-400-v2` and `alpaca-btc-5m-trend-400-v2`) whose references are Freqtrade methodology docs, not verified strategy-performance receipts. Freqtrade's official [strategy customization docs](https://www.freqtrade.io/en/stable/strategy-customization/) say generated templates are not profitable out of the box and its public strategy repository is for learning; results depend on market/pair and should be backtested for the intended exchange/pair and forward-tested. Its [backtesting docs](https://www.freqtrade.io/en/stable/backtesting/) describe modeled assumptions and fee handling; a backtest is not a live profit receipt. Current crypto reports are `modeled_validation` and contain no BTC buy-and-hold benchmark; `select_strategy` does not require benchmark excess. Thus a positive modeled holdout alone is not sufficient evidence that these candidates are winners.
+
+**TODO順序変更:** 旧=`sparse-data source fix → release/apply → natural validation/selector`。新=`(1) merge the verified sparse-data repair; (2) add a same-window BTC buy-and-hold/cash benchmark and make missing or non-positive net benchmark excess produce NO_STRATEGY; (3) document a strategy mechanism and independently verifiable measured outcome, or record that no proven winner was found; (4) only then cut one main-derived release, apply the validation owner, and let its natural run evaluate the candidate`. Reason=`the data fix makes inputs usable, but current source has neither a crypto benchmark gate nor outcome evidence for the two research cards`; no strategy is presently proven profitable. Do not apply/release a candidate-selection path that can promote on positive holdout alone.
+
+**現在cursor:** add the profitability evaluation contract and regression tests before runtime adoption: same-window BTC buy-and-hold and cash baselines, identical fee/slippage assumptions, explicit holdout excess, and fail-closed selection when the benchmark is missing or excess net is non-positive. Keep live disabled, cash/buying power at `$0`, and no deposit. PR #8462's current source CI is green; the spec change requires a new exact-head check before merge.
+
 ### 2026-10-09 13:18 JST — Job Hunter Dreamwork cutover and updated user criteria
 
 この追記は11:50 JST snapshot後のJob Hunter readbackとユーザーの最新指示を記録する。個別の勤務地・住所などの私的値はprivate profileのみを正本とし、このspecには複製しない。
