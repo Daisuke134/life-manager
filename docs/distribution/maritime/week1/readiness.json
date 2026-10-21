@@ -55,12 +55,15 @@
   "finish": null,
   "readback": null,
   "limitations": [
-    "Owned deployed image and model/browser foundations verified; no external-user PKCE activation, new business cycle, report, stop, publish, sale or payout verified.",
-    "Old offline factory six-file occurrence remains effect_unknown/completion_evidence_missing. Literal artifact-path correction is deployed; no new business occurrence has proved it end to end.",
-    "Railway frontend/worker deployed foundation and required settings verified, email flag and Maritime worker capabilities remain disabled until authenticated REST readiness.",
-    "Bounded PostgREST startup experiment failed to restore REST and was rolled back. Auth Admin200 is not usable-product or verified browser signup proof."
+    "Production code at SHA 27b594 is deployed in both Manager services; the latest efd1b2 docs-only deployment was skipped. The signup page is live, but no complete external-user cycle has been verified.",
+    "Current Runtime PG readback has one identity row and zero enrollments, executions, pilot participants, Manager jobs, and verified external users.",
+    "No PKCE confirmation, explicit retention consent, provisioned Manager, completed work, downloaded artifact, daily report, stop readback, or customer revenue is verified for this hosted pilot.",
+    "The Postiz connector exposes no groups, integrations, or posts; the previously stated existing X connection must be verified through its actual authorized account before posting.",
+    "The Manager source article added by PR #8474 is not live at its proposed URL, which returned 404; no Life Manager product-acquisition CTA is currently published.",
+    "An older offline factory occurrence remains effect_unknown/completion_evidence_missing. It is separate from the currently deployed Manager signup route and is not counted as a completed revenue cycle.",
+    "Official Terms say three days in San Francisco, but international flight arrangements and travel coverage are unpublished; do not treat travel as confirmed."
   ],
-  "maritime_account_status": "last recorded active; current session not rechecked",
+  "maritime_account_status": "Historical account/plan and sleeping-agent readback exists from an earlier session; dashboard session and current credit balance were not refreshed in this status update.",
   "cloud_browser_observation": {
     "existing_steel_base": "http://steel-browser.railway.internal:8080",
     "maritime_reachability": "unverified_private_network_boundary",
@@ -155,33 +158,47 @@
   "current_evidence_refs": [
     "docs/evidence/maritime/owned-image-adoption.json",
     "docs/evidence/maritime/cloud-foundation-preflight.json",
-    "docs/evidence/maritime/postgrest-startup-budget-production.json"
+    "docs/evidence/maritime/postgrest-startup-budget-production.json",
+    "docs/evidence/maritime/current-status-20261021.json"
   ],
-  "current_blocker": "Manager public signup route disabled (email flag 0; /maritime returns manager_unavailable) and Manager worker capabilities absent; complete authenticated user cycle/report/stop, public distribution and formal project submission. Prior Maritime account session/plan readings are historical and need a fresh read before platform usage.",
-  "updated_at": "2026-10-21T04:03:27Z",
+  "current_blocker": "The hosted signup page and worker capabilities are live, but the user path is not complete: no confirmed PKCE identity, no verified explicit retention consent, no enrollment, no provisioned manager cycle, no artifact/report/stop receipt, and 0 verified external users. A signup email POST returned 202 once and 429 on a later attempt; do not blindly resend. The formal project submission form, exact week-one cutoff, and Top-30 rubric are not published in the official pages checked.",
+  "updated_at": "2026-10-21T05:30:31Z",
   "current_status_refresh": {
-    "observed_at": "2026-10-21T04:03:27Z",
-    "source_main_sha": "76d36e33979aa6e4b8924db6405fa8031b169782",
-    "life_call_loaded_sha": "76d36e33979aa6e4b8924db6405fa8031b169782",
+    "observed_at": "2026-10-21T05:30:31Z",
+    "source_main_sha": "efd1b2b6183fb1bcaf850e1b09399c3ac61a5c04",
+    "life_call_loaded_sha": "27b594cd84f6e660f6ffbacabb21be8d7f25cb2c",
     "life_call_deployment": "SUCCESS",
-    "life_call_health_http": 200,
+    "life_call_deployment_id": "65cce4c2-84e1-4add-84fb-2a78e62d5f14",
+    "life_call_health_http": null,
     "manager_route_body": {
-      "error": "manager_unavailable"
+      "http": 200,
+      "page_rendered": true,
+      "content": "signup page"
     },
-    "manager_email_enabled": "0",
-    "worker_loaded_sha": "76d36e33979aa6e4b8924db6405fa8031b169782",
+    "manager_email_enabled": "1",
+    "life_call_pilot_max_users": "3",
+    "worker_loaded_sha": "27b594cd84f6e660f6ffbacabb21be8d7f25cb2c",
     "worker_deployment": "SUCCESS",
-    "worker_manager_capabilities": [],
+    "worker_deployment_id": "ab02496c-b455-43ab-84d2-265f23aba824",
+    "worker_manager_capabilities": [
+      "maritime.manager.provision",
+      "maritime.manager.cycle",
+      "maritime.manager.report"
+    ],
     "worker_email_enabled": "0",
-    "manager_database_last_readback": "2026-10-21T02:49Z; six Manager tables empty; not rechecked after deployment",
+    "worker_pilot_max_users": "3",
+    "manager_database_last_readback": "2026-10-21T05:25Z; identities=1, enrollments=0, executions=0, pilot participants=0, manager jobs=0",
     "external_manager_users_last_readback": 0,
+    "signup_http_readback": "after 2026-10-21T04:00Z: email POST 202 once and 429 once; no confirm, activate, or stop requests",
     "project_submission": "not_submitted",
-    "distribution_campaign": "no Life Manager acquisition article or Maritime X receipt recorded"
+    "share_url_email": "sent and read back; Gmail message 1a15cc8791911599",
+    "distribution_campaign": "No Life Manager product-acquisition article/CTA is live. The latest general Manager source article is in main but its proposed public route returned 404. Postiz groups=0, integrations=0, posts=0 in current connector readback."
   },
   "maritime_email_observation": {
-    "checked_at": "2026-10-21T04:03:27Z",
-    "welcome_email": "received 2026-10-20T14:53:34Z; generic welcome only",
-    "verification_email": "received 2026-10-20T12:37:52Z; body/link/code not opened or used",
-    "current_session": "unconfirmed"
+    "checked_at": "2026-10-21T05:20:00Z",
+    "welcome_email": "Received 2026-10-20T14:53:34Z; generic product welcome only.",
+    "verification_email": "Received 2026-10-20T12:37:52Z; body read, but the account verification link was not used.",
+    "current_session": "unconfirmed",
+    "new_competition_instructions": "none found in this search"
   }
 }
