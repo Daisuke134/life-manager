@@ -61,13 +61,14 @@ class IndoorAirReadOnlyTests(unittest.TestCase):
         def failing(req,timeout=0): raise TimeoutError("down")
         with self.assertRaises(IndoorAirUnverified):
             PublicIndoorAirObservations(opener=failing).read(at=NOW)
-        for problem in ("empty","invalid_bool","negative","invalid_date","provider_missing","future","stale"):
+        for problem in ("empty","invalid_bool","negative","invalid_date","provider_missing","provider_unknown","future","stale"):
             item=public_indoor_fixture()
             if problem=="empty": item["data"]=[]
             elif problem=="invalid_bool": item["data"][0]["pm25"]=True
             elif problem=="negative": item["data"][0]["pm25"]=-1.0
             elif problem=="invalid_date": item["data"][0]["measuredAt"]="yesterday"
             elif problem=="provider_missing": item["data"][0]["dataSource"]=""
+            elif problem=="provider_unknown": item["data"][0]["dataSource"]="UnknownPublisher"
             elif problem=="future": item["data"][0]["measuredAt"]="2026-10-25T12:00:00Z"
             elif problem=="stale":
                 item["data"][0]["measuredAt"]="2026-09-01T12:00:00Z"
