@@ -31,7 +31,7 @@ def git_blob_sha(data: bytes) -> str:
     """Git SHA1 includes the blob envelope, unlike ordinary SHA1(data)."""
     if not isinstance(data, bytes):
         raise TypeError("bytes required")
-    return hashlib.sha1(f"blob {len(data)}\\0".encode().replace(b"\\0", b"\\x00") + data).hexdigest()
+    return hashlib.sha1(("blob " + str(len(data))).encode("ascii") + bytes([0]) + data).hexdigest()
 
 
 def inspect_study_mapping(
