@@ -44,7 +44,7 @@ class SocSciRealAggregateContract(unittest.TestCase):
         m=split()
         a=toy()
         with self.assertRaises(ValueError):
-            evaluate_aggregates(m,a[:-1])
+            evaluate_aggregates(m,a[:-2])
         a[-1]=("unseen-39","secret-opinion",15)
         with self.assertRaises(ValueError):
             evaluate_aggregates(m,a)
