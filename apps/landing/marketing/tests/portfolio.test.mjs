@@ -13,7 +13,7 @@ for(const file of ['products-en.html','products.html']) test(`${file}: exactly s
  for(const card of cards){const name=card.match(/<h3>(.*?)<\/h3>/s)[1];assert.match(card,new RegExp(`https://apps\\.apple\\.com/us/app/[^" ]*/id${ids[name]}`));}
  assert.doesNotMatch(html,/BreathCalm|CalmCortisol|ImpulseLog/);
  const cherie=cards.find(c=>c.includes('STUDIO CHERIE'));
- assert.match(cherie,/公式サイト/);assert.match(cherie,/https:\/\/studiocherie\.official\.ec/);
+ assert.match(cherie,/アプリの紹介/);assert.match(cherie,/href="\/studio-cherie"/);
  assert.match(html,/id="mobile-apps"/);assert.match(html,/id="web-products"/);assert.match(html,/id="research-projects"/);
 });
 test('primary nav exposes Articles on all home and portfolio locales',()=>{
