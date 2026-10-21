@@ -128,3 +128,19 @@ class CrossDeviceJoinTests(unittest.TestCase):
         ])
         self.assertIsNone(combined[('a','1')])
         self.assertEqual(audit['conflicting_keys'],1)
+
+class MissingOriginalDayTests(unittest.TestCase):
+    def test_optional_device_mapping_discloses_absent_study_day_in_public_export(self):
+        import heartsteps_phase3_day_join_probe as p
+        reader = csv.DictReader(StringIO('user.index,decision.index,steps.utime\na,1,1\n'))
+        mapping, provenance = p.optional_primary_day_lookup(reader)
+        self.assertEqual(mapping,{})
+        self.assertEqual(provenance['state'],'missing_in_public_csv')
+        self.assertIn('study.day.nogap',provenance['missing_required_columns'])
+
+    def test_optional_device_mapping_does_not_mask_actual_conflicts(self):
+        import heartsteps_phase3_day_join_probe as p
+        reader = csv.DictReader(StringIO('user.index,decision.index,study.day.nogap\na,1,4\na,1,5\n'))
+        mapping, provenance = p.optional_primary_day_lookup(reader)
+        self.assertEqual(provenance['state'],'available')
+        self.assertIsNone(mapping[('a','1')])

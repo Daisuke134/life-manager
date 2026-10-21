@@ -119,3 +119,9 @@ Routine Manager operation is designed to use no human per-action approval. Legit
 ## H005 dataset-lineage diagnosis (2026-10-21)
 
 The aggregate-only [pinned public study-day join probe](scripts/heartsteps_phase3_day_join_probe.py) and its [nine focused tests](tests/test_heartsteps_day_join_probe.py) show 7,427 nonconflicting matched days from 8,274 notification decisions, 769 missing and 78 contradictory join-days. The day shortcut disagrees on 3,345 of 7,409 comparable decisions. Scientific exact-replication remains blocked. Details and [CI evidence](docs/research/heartsteps/H002_H005_VALIDATION_2026-10-21.md).
+
+## No-human macro/environment engineering doctrine (2026-10-21)
+
+[Founder clarified world-engineering and autonomy requirements](docs/MANAGER_NO_HUMAN_WORLD_ENGINEERING.md). Manager's recurring loop is autonomous by design and must be operable using lawfully public nonpersonal observations and Manager-controlled/permissionless actions. Partners are optional; no person-by-person micromanagement or privileged third-party infrastructure is a default requirement. Historical HeartSteps study data remain isolated learning-only.
+
+[HeartSteps H005 reproducibility audit](docs/research/heartsteps/H005_PUBLIC_DATA_RECONCILIATION.md) explains which published study-day fields are absent or only partially reconstructible. It is a scientific blocker and not an invitation to invent missing observations.

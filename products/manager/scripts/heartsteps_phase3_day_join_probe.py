@@ -142,6 +142,25 @@ def merge_day_lookups(primary,following):
                    'merged_unique_keys':sum(v is not None for v in merged.values()),
                    'merged_ambiguous_keys':sum(v is None for v in merged.values())}
 
+def optional_primary_day_lookup(reader):
+    """Treat a missing study-day column as unavailable data, never guess it."""
+    required={'user.index','decision.index','study.day.nogap'}
+    missing=sorted(required-set(reader.fieldnames or []))
+    if missing:
+        return {}, {'state':'missing_in_public_csv','missing_required_columns':missing}
+    mapping,counts=build_day_lookup(reader)
+    return mapping,{'state':'available', **counts}
+
+
+def optional_following_day_lookup(reader):
+    required={'user.index','decision.index.following.dec','study.day.nogap.following.dec'}
+    missing=sorted(required-set(reader.fieldnames or []))
+    if missing:
+        return {}, {'state':'missing_in_public_csv','missing_required_columns':missing}
+    mapping,counts=build_following_day_lookup(reader)
+    return mapping,{'state':'available', **counts}
+
+
 def merge_device_evidence(lookups):
     """Merge independent device+position mappings; conflicts remain unknown.
 
@@ -248,9 +267,9 @@ def main():
                 following,following_report={}, {'columns_available':False}
         merged,merged_report=merge_day_lookups(lookup,following)
         with paths['google_fit'].open(newline='',encoding='utf-8-sig') as fh:
-            gfprimary,gfprimary_report=build_day_lookup(csv.DictReader(fh))
+            gfprimary,gfprimary_report=optional_primary_day_lookup(csv.DictReader(fh))
         with paths['google_fit'].open(newline='',encoding='utf-8-sig') as fh:
-            gffollowing,gffollowing_report=build_following_day_lookup(csv.DictReader(fh))
+            gffollowing,gffollowing_report=optional_following_day_lookup(csv.DictReader(fh))
         all_four,all_four_report=merge_device_evidence([lookup,following,gfprimary,gffollowing])
         with paths['suggestions'].open(newline='',encoding='utf-8-sig') as fh:
             all_four_coverage=aggregate_coverage(csv.DictReader(fh),all_four)
