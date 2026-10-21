@@ -5,11 +5,33 @@ const { sanitizeWebAttribution } = require("./web-attribution.js");
 const { normalizeWebFunnelEvent } = require("./web-funnel-events.js");
 const { CONSENT_VERSION, normalizeMaritimeSource, createMaritimeDistributionStore } = require("./maritime-distribution.js");
 const UID = /^lm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const CFO_HASH = /^[a-f0-9]{64}$/;
 function timestampIso(value, nullable = false) {
   if (value == null && nullable) return null;
   const date = value instanceof Date ? value : new Date(String(value));
   if (!Number.isFinite(date.getTime())) throw new Error("maritime_manager_persistence_invalid");
   return date.toISOString();
+}
+function cfoIdentity(value) {
+  if (typeof value?.uid !== "string" || !UID.test(value.uid)
+    || typeof value.periodKey !== "string" || !value.periodKey.trim()
+    || value.periodKey.length > 160 || /[\r\n]/.test(value.periodKey)) {
+    throw new Error("maritime_manager_persistence_invalid");
+  }
+  return { uid: value.uid, periodKey: value.periodKey };
+}
+function cfoReceiptRow(row, identity) {
+  const observedAt = timestampIso(row.observed_at);
+  const sentAt = timestampIso(row.sent_at, true);
+  if (row.uid !== identity.uid || row.period_key !== identity.periodKey || row.channel !== "email"
+    || !CFO_HASH.test(row.recipient_hash || "") || typeof row.message !== "string"
+    || !["pending", "sent"].includes(row.status)
+    || (row.status === "pending" && (row.provider_message_id !== null || sentAt !== null))
+    || (row.status === "sent" && (typeof row.provider_message_id !== "string"
+      || !row.provider_message_id || sentAt === null))) {
+    throw new Error("maritime_manager_persistence_invalid");
+  }
+  return { ...row, observed_at: observedAt, sent_at: sentAt };
 }
 
 function createMaritimeManagerPersistence(options = {}) {
@@ -169,6 +191,55 @@ function createMaritimeManagerPersistence(options = {}) {
     return true;
   }
 
+  async function readCfoReceipt(input) {
+    const identity = cfoIdentity(input);
+    const rows = await query(
+      `SELECT uid,period_key,channel,recipient_hash,status,message,observed_at,provider_message_id,sent_at
+       FROM public.lm_cfo_result_receipts WHERE uid=$1 AND period_key=$2 LIMIT 2`,
+      [identity.uid, identity.periodKey],
+    );
+    if (rows.length > 1) throw new Error("maritime_manager_persistence_invalid");
+    return rows.length ? cfoReceiptRow(rows[0], identity) : null;
+  }
+
+  async function claimCfoReceipt(input, payload) {
+    const identity = cfoIdentity(input);
+    if (payload?.uid !== identity.uid || payload.period_key !== identity.periodKey
+      || payload.channel !== "email" || payload.status !== "pending"
+      || !CFO_HASH.test(payload.recipient_hash || "") || typeof payload.message !== "string") {
+      throw new Error("maritime_manager_persistence_invalid");
+    }
+    const observedAt = timestampIso(payload.observed_at);
+    const rows = await query(
+      `INSERT INTO public.lm_cfo_result_receipts
+        (uid,period_key,channel,recipient_hash,status,message,observed_at)
+       VALUES ($1,$2,'email',$3,'pending',$4,$5::timestamptz)
+       ON CONFLICT (uid,period_key) DO NOTHING RETURNING uid`,
+      [identity.uid, identity.periodKey, payload.recipient_hash, payload.message, observedAt],
+    );
+    if (rows.length > 1) throw new Error("maritime_manager_persistence_invalid");
+    return rows.length === 1;
+  }
+
+  async function markCfoReceipt(input, payload) {
+    const identity = cfoIdentity(input);
+    if (payload?.status !== "sent" || typeof payload.provider_message_id !== "string"
+      || !payload.provider_message_id || payload.provider_message_id.length > 255
+      || /[\r\n]/.test(payload.provider_message_id)) {
+      throw new Error("maritime_manager_persistence_invalid");
+    }
+    const sentAt = timestampIso(payload.sent_at);
+    const rows = await query(
+      `UPDATE public.lm_cfo_result_receipts SET status='sent',provider_message_id=$3,sent_at=$4::timestamptz
+       WHERE uid=$1 AND period_key=$2 AND status='pending' RETURNING uid`,
+      [identity.uid, identity.periodKey, payload.provider_message_id, sentAt],
+    );
+    if (rows.length !== 1 || rows[0].uid !== identity.uid) throw new Error("cfo_receipt_claim_lost");
+    return true;
+  }
+
+  const cfoReceiptIO = Object.freeze({ read: readCfoReceipt, claim: claimCfoReceipt, mark: markCfoReceipt });
+
   return Object.freeze({ ensureWebUserImpl, storeFirstTouch, readFirstTouch,
     participantId: distributionStore.participantId,
     recordManagerEvent: distributionStore.recordManagerEvent,
@@ -176,7 +247,8 @@ function createMaritimeManagerPersistence(options = {}) {
     getParticipant,
     accept,
     isConsentActive,
-    revoke });
+    revoke,
+    cfoReceiptIO });
 }
 
 module.exports = { createMaritimeManagerPersistence };

@@ -722,7 +722,7 @@ apps/life-manager/
 - [x] **b.6-15:** 同fileのPG event writerを既存distributionの`recordEventImpl`へ注入し、`participantId/recordManagerEvent/recordAnonymousEvent`を再利用する。internal除外・HMAC・stable event key・dedupを維持する。native PG integration 1/1 + store/distribution unit 28/28 pass。Evidence→`docs/evidence/maritime/runtime-pg-manager-events.json`。
 - [x] **b.6-16:** 同fileにManager専用`getParticipant/accept`を作る。容量claim関数を呼び、同一利用者は一度だけ、並行申込でも上限を超えないことを確認する。`maritime-retention-v1`と`maritime-manager-v1`を別々に保持し、既存Telegram distributionを切り替えない。Evidence→`docs/evidence/maritime/runtime-pg-manager-participant-accept.json`。
 - [x] **b.6-17:** 同fileに`revoke/isConsentActive`を作る。停止状態を永続化し、失敗や読取不明を同意済みに置換しない。旧Telegram用global distributionは切替えない。native PG integration 1/1、distribution unit 14/14、store unit 16/16 pass。Evidence→`docs/evidence/maritime/runtime-pg-manager-consent-revoke.json`。
-- [ ] **b.6-18:** 同fileにCFO IOの`read/claim/mark`を作り、既存`deliverCloudCfoEmail`へ渡す。pending fence・recipient hash・23時間期限・Resend idempotencyを変えず、送信器を作り直さない。
+- [x] **b.6-18:** 同fileにCFO IOの`read/claim/mark`を作り、既存`deliverCloudCfoEmail`へ渡す。pending fence・recipient hash・23時間期限・Resend idempotencyを維持する。native PostgreSQL integration 1/1と既存CFO unit 2/2 PASS。2接続raceは1 claim、2回目の配送はDB receiptからduplicateとなりsender1回。実Resend/メール送信なし、production DSN不使用。Evidence→`docs/evidence/maritime/runtime-pg-manager-cfo-receipt-io.json`。
 
 #### 呼出経路とsource受入
 

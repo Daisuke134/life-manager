@@ -8,6 +8,7 @@ const { execFileSync } = require("node:child_process");
 const { Client } = require("pg");
 const test = require("node:test");
 const { createMaritimeManagerStore } = require("../../lib/maritime-manager-store.js");
+const { deliverCloudCfoEmail } = require("../../lib/cfo-cloud-delivery.js");
 const { separateWebUidForSubject } = require("../../lib/web-auth.js");
 const { CONSENT_VERSION, normalizeMaritimeSource } = require("../../lib/maritime-distribution.js");
 const { normalizeWebFunnelEvent } = require("../../lib/web-funnel-events.js");
@@ -498,6 +499,60 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     assert.equal(sentReceipt.recipient_hash, receiptHash);
     assert.equal(sentReceipt.provider_message_id, "provider-message-3");
     assert.equal(sentReceipt.sent_at.toISOString(), "2026-10-21T23:00:00.000Z");
+
+    const maritimePersistence = createMaritimeManagerPersistence({ pgPool: client, env: {} });
+    const racingPersistence = createMaritimeManagerPersistence({ pgPool: racingClient, env: {} });
+    const pendingPeriodKey = "maritime:daily:2026-10-24";
+    const pendingIdentity = { uid: uidA, periodKey: pendingPeriodKey };
+    const pendingPayload = {
+      uid: uidA,
+      period_key: pendingPeriodKey,
+      channel: "email",
+      recipient_hash: "d".repeat(64),
+      status: "pending",
+      message: "frozen pending report",
+      observed_at: "2026-10-21T23:30:00Z",
+    };
+    const cfoClaims = await Promise.all([
+      maritimePersistence.cfoReceiptIO.claim(pendingIdentity, pendingPayload),
+      racingPersistence.cfoReceiptIO.claim(pendingIdentity, pendingPayload),
+    ]);
+    assert.deepEqual(cfoClaims.sort(), [false, true], "concurrent receipt claims for one period have one winner");
+    const pendingReceipt = await maritimePersistence.cfoReceiptIO.read(pendingIdentity);
+    assert.equal(pendingReceipt.status, "pending");
+    assert.equal(pendingReceipt.recipient_hash, "d".repeat(64));
+
+    const periodKey = "maritime:daily:2026-10-23";
+    const emailInput = {
+      uid: uidA,
+      periodKey,
+      recipient: "manager@example.test",
+      message: "frozen daily report",
+      observedAt: "2026-10-21T23:30:00Z",
+    };
+    let emailSends = 0;
+    const cfoDeps = {
+      cfoReceiptIO: maritimePersistence.cfoReceiptIO,
+      sendEmail: async ({ to, text, idempotencyKey }) => {
+        emailSends += 1;
+        assert.equal(to, "manager@example.test");
+        assert.equal(text, "frozen daily report");
+        assert.equal(idempotencyKey, `cfo:${uidA}:email:${periodKey}`);
+        return { sent: true, id: "runtime-pg-message-id" };
+      },
+    };
+    assert.equal((await deliverCloudCfoEmail(emailInput, cfoDeps)).status, "sent");
+    assert.equal((await deliverCloudCfoEmail(emailInput, cfoDeps)).status, "duplicate");
+    assert.equal(emailSends, 1, "a persisted PostgreSQL receipt prevents a second provider send");
+    const cfoReceipt = await maritimePersistence.cfoReceiptIO.read({ uid: uidA, periodKey });
+    assert.equal(cfoReceipt.status, "sent");
+    assert.equal(cfoReceipt.message, "frozen daily report");
+    assert.match(cfoReceipt.recipient_hash, /^[a-f0-9]{64}$/);
+    assert.equal(Object.hasOwn(cfoReceipt, "recipient"), false, "PostgreSQL receipt does not retain the email address");
+    assert.equal(cfoReceipt.provider_message_id, "runtime-pg-message-id");
+    assert.equal(cfoReceipt.observed_at, "2026-10-21T23:30:00.000Z");
+    assert.equal(cfoReceipt.sent_at, "2026-10-21T23:30:00.000Z");
+
     await client.query(fs.readFileSync(IDENTITY_MIGRATION, "utf8"));
     assert.equal((await client.query("SELECT execution_id FROM public.lm_maritime_manager_executions WHERE uid=$1 AND occurrence_id=$2", [uidA, "week-1-occurrence"])).rows[0].execution_id, "exec-1", "reapplying the migration preserves the dispatch checkpoint");
     assert.equal((await client.query("SELECT revoked_at FROM public.lm_maritime_pilot_participants WHERE participant_id=$1", [acceptedParticipantId])).rows[0].revoked_at, null, "reapplying the migration preserves participant consent state");
