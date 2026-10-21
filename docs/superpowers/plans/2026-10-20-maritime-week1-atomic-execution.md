@@ -727,7 +727,7 @@ apps/life-manager/
 #### 呼出経路とsource受入
 
 - [x] **b.6-19:** `server.js`のManager page/auth/activate/stop/artifact/wakeに同じpersistence依存を渡す。既存Money Printer Runtime PG PoolからmanagerStore/persistence/distribution/CFO IO/first-touchを一度構成し共有する。email flag OFFではroute依存を初期化しない。control lock用Poolをdata queryへ渡さず待ち循環を避ける。Manager auth/artifact/wake/store関連fixture 63/63 PASS、`server.js`/dependency factory構文check PASS。実runtime/PGは起動していない。Evidence→`docs/evidence/maritime/runtime-pg-manager-http-wiring.json`。
-- [ ] **b.6-20:** `scripts/runtime-up.js`のHandler生成・worker生成・completion観測に同じPG store/distribution/CFO IO/first-touchを渡す。既存workerの順次awaitと既存Poolを使う。
+- [x] **b.6-20:** `scripts/runtime-up.js`のHandler生成・worker生成・completion観測に同じPG store/distribution/CFO IO/first-touchを渡す。既存workerの順次awaitとmax2の既存Poolを使い、Manager向けSupabase REST receipt fallbackを除去する。`scripts/runtime-up.test.js` 48/48 PASS。既存CFO sender/Resendは変更・呼出しなし。Production worker/DBは起動していない。Evidence→`docs/evidence/maritime/runtime-pg-manager-worker-wiring.json`。
 - [ ] **b.6-21:** `maritime-manager-usage.js`のManager return直接REST読取を、PGの`firstCompletedWorkAt`へ置換する。prefetch除外、24時間条件、internal cohort除外を維持する。
 - [ ] **b.6-22:** 上記native integrationでschema再適用、identity分離、容量並行claim、停止後拒否、dispatch一回claim、同ID bind、date/timestamp正規化、CFO一回claim、event dedupを実SQLで確認する。各機能追加時に対応する確認を増やす。
 - [ ] **b.6-23:** Manager store/auth/handler/usageの既存関連fixtureを新transportへ合わせて確認する。PKCE/CSRF/origin/他人のUID拒否を弱めない。

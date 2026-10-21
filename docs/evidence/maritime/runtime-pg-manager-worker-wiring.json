@@ -1,0 +1,31 @@
+{
+  "observed_at": "2026-10-21T01:51:51Z",
+  "source_files": {
+    "apps/life-manager/scripts/runtime-up.js": "b7f61dd0629867224b5799a202841268824da0112553be87cd50e083edc09ab2",
+    "apps/life-manager/scripts/runtime-up.test.js": "2b117b8eace3513da40781253dd02551f7b2cd9125769fde3575a51896e690ee",
+    "apps/life-manager/lib/maritime-manager-dependencies.js": "172dccf716f360c1cd1621757fc5e11216f13b15cf446a2f66e48f1f7fa7afe2"
+  },
+  "commands": [
+    "node --test scripts/runtime-up.test.js"
+  ],
+  "results": {
+    "runtime_up_tests": "48/48 pass",
+    "manager_worker_bundle_fixture": "same PG pool dependencies reach the handler, CFO reader, and completion telemetry",
+    "provision_consent_fixture": "uses injected Runtime PG distribution persistence",
+    "missing_manager_pg_dependency": "fails closed; no Supabase REST fallback"
+  },
+  "worker_wiring": {
+    "pool": "runCapabilityWorker existing PostgreSQL Pool, max 2",
+    "manager_store": "created once from worker Pool",
+    "manager_distribution_and_cfo_io": "same Runtime PG persistence object",
+    "completion_telemetry": "same manager store, distribution store, first-touch reader, and CFO receipt IO",
+    "report_delivery": "existing deliverCloudCfoEmail/Resend sender retained; Supabase receipt URL/key removed"
+  },
+  "external_effects": {
+    "production_worker_started": false,
+    "production_dsn_used": false,
+    "resend_invoked": false,
+    "real_email_sent": false,
+    "database_migration_applied": false
+  }
+}
