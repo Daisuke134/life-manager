@@ -145,6 +145,18 @@ Original economic experiments demonstrate the distinction. [Haushofer and Shapir
 
 Another type of intervention is *avoided cost*. [Allcott's 2011 Opower experiment](https://doi.org/10.1016/j.jpubeco.2011.03.003) analyzed randomized home energy reports across approximately 600,000 households and estimated an average **2% reduction in electricity consumption**. This illustrates a scalable behavioral intervention with actual readback. To translate avoided energy use into greater wealth, an evaluator would still need real tariffs, household spending, comfort effects, costs of the program, and other impacts.
 
+### A crucial warning from income-support experiments: information alone may not be enough
+
+Could an AI make low-income households wealthier by identifying unclaimed public benefits? This is an unusually promising *authorized partner* intervention because the outcome could be confirmed against an administrative payment record. It is also where behavioral science tells a more complicated story.
+
+In a [2015 IRS field experiment](https://www.aeaweb.org/articles?id=10.1257/aer.20121493), researchers tested follow-up messages with 35,050 eligible tax filers who had missed roughly $26 million of earned-income tax credits. Clearer, simpler communication increased claims in that setting. The evaluation distinguishes *knowledge, salience, administrative complexity and stigma*: even a real benefit can go unclaimed when completing the process is too confusing.
+
+Yet a later [2022 paper reported six large, preregistered field experiments](https://swlb2.aeaweb.org/articles?id=10.1257/pol.20200603) with about one million observations and **no detectable improvement** in EITC take-up from its low-touch messages, despite varying content, messenger and delivery. These are not directly contradictory replications: populations, barriers, baseline notices, assignment and delivery differ. Their combined lesson is **do not design the Manager intervention as “the model found money, therefore the beneficiary received money.”** Eligibility estimation, the beneficiary’s informed choice, a valid filing or claim, official receipt, actual funds received, and the causal counterfactual are separate steps.
+
+A further [2021 randomized tax-filing outreach study](https://www.nber.org/papers/w28398) found a modest benefit from letters about free tax preparation, suggesting that removing an administrative obstacle may work differently from merely telling someone they qualify. The scope for a private AI to act here depends on genuine legal authority, consent, sensitive financial-data protections and the government’s official process; a public web listing is not permission to file for a stranger.
+
+Employment is another measurable intervention with a different economic mechanism. A [Nevada randomized job-search-assistance program](https://beta.dol.gov/research-data/clear/studies/long-term-effects-job-search-assistance-experimental-evidence-using-administrative-tax-data-manoli) used administrative wages and employment records for long-term outcomes. That is a more meaningful benchmark than the number of job listings found or applications submitted. The intervention is a precedent, **not proof that an AI-agent job assistant would reproduce the same wage gains**.
+
 ## 7. The causal question is: what changed *because of the agent*?
 
 A revenue dashboard tracks what happened. A causal evaluation asks what would have happened **without the intervention**.
