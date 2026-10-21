@@ -493,6 +493,10 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             result = self._run(env)
 
             self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn(
+                {"status": "held", "reason": "owned_close_evidence_unknown"},
+                [json.loads(line) for line in result.stdout.splitlines() if line.startswith("{")],
+            )
             recorded_calls = json.loads(marker.read_text(encoding="utf-8"))
             self.assertEqual(len(recorded_calls), 2)
             self.assertIn("--hold-on-known-blocker", recorded_calls[0]["argv"])
