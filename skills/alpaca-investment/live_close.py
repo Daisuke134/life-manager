@@ -13,7 +13,7 @@ from pathlib import Path
 
 from alpaca_cli import read_live_close, read_live_close_snapshot, submit_live_close
 from control import control_fence, read_control
-from effect_store import (effect_state, mark_started, record_terminal_outcome, seal,
+from effect_store import (begin_effect, effect_state, record_terminal_outcome, seal,
                           unresolved_intent_count)
 from live_canary import _write_result
 from risk_policy import parse_instant
@@ -190,7 +190,7 @@ def main() -> int:
             if control["paused"] or control["killed"]:
                 raise ValueError("live_close_control_rejected")
             _gate(read_live_close_snapshot(credentials_path=credentials, cli_path=cli), plan, state)
-            if mark_started(ledger, sealed):
+            if begin_effect(ledger, sealed):
                 submitted = True
                 submit_live_close(credentials_path=credentials, cli_path=cli,
                                   client_order_id=sealed["client_order_id"],

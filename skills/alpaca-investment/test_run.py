@@ -6,7 +6,7 @@ import sys
 import tempfile
 import threading
 import unittest
-from contextlib import ExitStack, redirect_stdout
+from contextlib import ExitStack, nullcontext, redirect_stdout
 from datetime import datetime, timedelta, timezone
 from io import StringIO
 from pathlib import Path
@@ -694,6 +694,38 @@ class ShadowReadOnlyTest(unittest.TestCase):
         submit.assert_not_called()
 
 
+class CampaignEffectFenceTest(unittest.TestCase):
+    def test_campaign_exit_does_not_submit_when_effect_was_already_started(self):
+        observation = {"account": {"cash": "100", "equity": "100"},
+            "activities_count": 0, "clock": {"observed_at": "2026-09-05T00:00:00Z"},
+            "open_and_closed_orders_count": 0, "positions": []}
+        campaign = {"exit_status": "EXIT_READY", "exit_credit_usd": "0.50",
+            "unrealized_pnl_usd": "0.00", "paper": True, "positions": [],
+            "realized_pnl_usd": None}
+        with tempfile.TemporaryDirectory() as directory, patch.dict(MODULE.os.environ, {
+            "LIFE_MANAGER_INVESTMENT_MODE": "paper", "LIFE_MANAGER_INVESTMENT_DEPLOYMENT": "local",
+            "LIFE_MANAGER_INVESTMENT_OWNER_ID": "alpaca-investment-paper",
+            "LIFE_MANAGER_RUN_ID": "campaign-exit",
+            "LIFE_MANAGER_OCCURRENCE_ID": "alpaca-investment-paper:campaign-exit",
+            "LIFE_MANAGER_RELEASE_SHA": "b" * 40,
+            "ALPACA_INVESTMENT_PAPER_CREDENTIALS_FILE": str(Path(directory) / "credentials.json"),
+            "ALPACA_INVESTMENT_PAPER_STATE_DIR": str(Path(directory) / "state"),
+        }, clear=True), \
+            patch.object(MODULE, "reconcile_started", return_value={"pending": 0, "reconciled": 0, "unresolved": 0}), \
+            patch.object(MODULE, "record_source_inventory", return_value={"coverage_state": "complete"}), \
+            patch.object(MODULE, "_observe_and_sync_live_ownership", return_value=(observation, None)), \
+            patch.object(MODULE, "_paper_campaign", return_value=campaign), \
+            patch.object(MODULE, "exit_order", return_value={"asset_class": "option_spread_close"}), \
+            patch.object(MODULE, "control_fence", side_effect=lambda *_: nullcontext({"paused": False, "killed": False})), \
+            patch.object(MODULE, "begin_effect", return_value=False), \
+            patch.object(MODULE, "submit_order", side_effect=AssertionError("duplicate campaign submit")) as submit, \
+            patch.object(MODULE, "deliver_failure", return_value={"status": "delivered"}), \
+            patch.object(MODULE, "_retry_allowed", return_value=False), \
+            redirect_stdout(StringIO()):
+            MODULE.main(wake_id="campaign-exit-replay")
+        submit.assert_not_called()
+
+
 class PaperEtfFreshFenceTest(unittest.TestCase):
     def run_approved_trade(self, *, action="EXIT", fresh_changes=None,
                            broker_positions=None, changed_owned_qty=None, selection_change=None,
@@ -914,6 +946,10 @@ class LiveRunTest(unittest.TestCase):
 
             with patch.dict(MODULE.os.environ, {
                 "LIFE_MANAGER_INVESTMENT_MODE": "live", "LIFE_MANAGER_INVESTMENT_DEPLOYMENT": "local",
+                "LIFE_MANAGER_INVESTMENT_OWNER_ID": "alpaca-investment-live",
+                "LIFE_MANAGER_RUN_ID": "live-entry-hint",
+                "LIFE_MANAGER_OCCURRENCE_ID": "alpaca-investment-live:live-entry-hint",
+                "LIFE_MANAGER_RELEASE_SHA": "b" * 40,
                 "ALPACA_INVESTMENT_LIVE_CREDENTIALS_FILE": str(root / "credentials.json"),
                 "ALPACA_INVESTMENT_LIVE_STATE_DIR": str(root / "state"),
                 "LIFE_MANAGER_RESULT_HINT_PATH": str(hint),
@@ -934,7 +970,7 @@ class LiveRunTest(unittest.TestCase):
                 "status": "effect_attempted", "effect": 1,
             })
 
-    def test_live_entry_submits_once_and_durably_marks_pending_ownership(self):
+    def test_live_entry_persists_execution_identity_and_pending_ownership(self):
         observation = {"mode":"live", "paper":False, "account": {"id":"synthetic-native-account-live","cash": "0", "equity": "66"}, "activities_count": 0,
             "clock": {"observed_at": "2026-09-10T08:00:00Z"},
             "open_and_closed_orders_count": 0,
@@ -952,6 +988,10 @@ class LiveRunTest(unittest.TestCase):
             _entry_selection_fixture(Path(directory) / "state", decision, "live")
             with patch.dict(MODULE.os.environ, {
             "LIFE_MANAGER_INVESTMENT_MODE": "live", "LIFE_MANAGER_INVESTMENT_DEPLOYMENT": "local",
+            "LIFE_MANAGER_INVESTMENT_OWNER_ID": "alpaca-investment-live",
+            "LIFE_MANAGER_RUN_ID": "live-entry",
+            "LIFE_MANAGER_OCCURRENCE_ID": "alpaca-investment-live:live-entry",
+            "LIFE_MANAGER_RELEASE_SHA": "d" * 40,
             "ALPACA_INVESTMENT_LIVE_CREDENTIALS_FILE": str(Path(directory) / "credentials.json"),
             "ALPACA_INVESTMENT_LIVE_STATE_DIR": str(Path(directory) / "state")}, clear=True), \
             patch.object(MODULE, "reconcile_started", return_value={"pending": 0, "reconciled": 0, "unresolved": 0}), \
@@ -967,9 +1007,48 @@ class LiveRunTest(unittest.TestCase):
             patch.object(MODULE, "deliver", return_value={"message_id": "live"}):
                 self.assertEqual(MODULE.main(wake_id="live-entry"), 0)
                 marker = json.loads((Path(directory) / "state/live-owned-position.json").read_text())
+                receipts = [json.loads(line) for line in
+                            (Path(directory) / "state/receipts.jsonl").read_text().splitlines()]
+                replay_decision = next(row for row in receipts if row["receipt_type"] == "decision")
+                replay_intent = next(row for row in receipts if row["receipt_type"] == "effect_intent")
+                with patch.dict(EFFECT_STORE.os.environ, {
+                    "LIFE_MANAGER_INVESTMENT_DEPLOYMENT": "local",
+                    "LIFE_MANAGER_RELEASE_SHA": "e" * 40,
+                    "LIFE_MANAGER_RUN_ID": "live-replay",
+                    "LIFE_MANAGER_OCCURRENCE_ID": "alpaca-investment-live:live-replay",
+                }, clear=True):
+                    replay = EFFECT_STORE.seal(
+                        Path(directory) / "state/receipts.jsonl",
+                        replay_decision["decision"], replay_intent["order"],
+                    )
+                    self.assertEqual(replay["client_order_id"], replay_intent["client_order_id"])
+                    durable_intents = [row for
+                                       row in (json.loads(line) for line in
+                                               (Path(directory) / "state/receipts.jsonl").read_text().splitlines())
+                                       if row.get("receipt_type") == "effect_intent"]
+                    self.assertEqual(len(durable_intents), sum(
+                        row.get("receipt_type") == "effect_intent" for row in receipts))
+                    self.assertEqual(durable_intents[0]["execution_identity"]["run_id"], "live-entry")
         submit.assert_called_once()
         self.assertEqual(marker["status"], "entry_pending")
         self.assertEqual(marker["symbol"], "BTCUSD")
+        expected_identity = {
+            "owner_id": "alpaca-investment-live",
+            "mode": "live",
+            "deployment": "local",
+            "strategy_id": "alpaca-btc-5m-trend-400-v2",
+            "policy_release_sha": "a" * 40,
+            "runtime_release_sha": "d" * 40,
+            "run_id": "live-entry",
+            "occurrence_id": "alpaca-investment-live:live-entry",
+            "native_trading_account_id": "synthetic-native-account-live",
+        }
+        decision_receipt = next(row for row in receipts if row["receipt_type"] == "decision")
+        intent_receipts = [row for row in receipts if row["receipt_type"] == "effect_intent"]
+        self.assertEqual(decision_receipt.get("execution_identity"), expected_identity)
+        self.assertTrue(intent_receipts)
+        self.assertTrue(all(row.get("execution_identity") == expected_identity
+                            for row in intent_receipts))
 
 
 class PortablePassTest(unittest.TestCase):

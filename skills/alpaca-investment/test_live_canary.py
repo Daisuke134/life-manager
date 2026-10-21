@@ -72,43 +72,39 @@ class LiveCanaryTest(unittest.TestCase):
         self.assertNotIn("deployment", value)
         self.assertEqual(value["canary_ref"], "L09_LOCAL_CANARY_V1")
 
-    def test_verified_fill_is_submitted_once_and_closed(self):
-        verified = {"status": "verified", "verified": True, "order": {"id": "one"}}
+    def test_legacy_local_canary_stays_read_only_without_strategy_identity(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            mocks = self.common([{"status": "absent", "verified": False}, verified], None)
+            mocks = self.common([{"status": "absent", "verified": False}], None)
             with self.env(root), mocks[0], mocks[1], mocks[2], mocks[3], mocks[4] as submit, mocks[5]:
-                self.assertEqual(live_canary.main(), 0)
-            self.assertEqual(submit.call_count, 1)
+                with self.assertRaisesRegex(ValueError, "investment_execution_identity_invalid"):
+                    live_canary.main()
+            submit.assert_not_called()
             rows = [json.loads(line) for line in
                     (root / "state/receipts.jsonl").read_text().splitlines()]
-            self.assertEqual(sum(row.get("outcome") == "live_canary_verified" for row in rows), 1)
-            self.assertTrue((root / "state/live-canary.json").is_file())
+            self.assertEqual([row["status"] for row in rows if row.get("receipt_type") == "effect_intent"],
+                             ["planned"])
+            self.assertFalse((root / "state/live-canary.json").exists())
 
-    def test_started_then_ack_unknown_never_submits_again(self):
+    def test_legacy_canary_retry_never_submits_without_strategy_identity(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            reads = [{"status": "absent", "verified": False}] * 11
-            mocks = self.common(reads, RuntimeError("ack_unknown"))
-            with self.env(root), mocks[0], mocks[1], mocks[2], mocks[3], mocks[4] as submit, mocks[5]:
-                with self.assertRaisesRegex(RuntimeError, "ack_unknown"):
-                    live_canary.main()
-            self.assertEqual(submit.call_count, 1)
-            mocks = self.common([{"status": "absent", "verified": False}], None)
-            with self.env(root), mocks[0] as observe, mocks[1], mocks[2], mocks[3], \
-                    mocks[4] as second_submit, mocks[5]:
-                self.assertEqual(live_canary.main(), 75)
-            observe.assert_not_called()
-            second_submit.assert_not_called()
+            for _ in range(2):
+                mocks = self.common([{"status": "absent", "verified": False}], None)
+                with self.env(root), mocks[0], mocks[1], mocks[2], mocks[3], mocks[4] as submit, mocks[5]:
+                    with self.assertRaisesRegex(ValueError, "investment_execution_identity_invalid"):
+                        live_canary.main()
+                submit.assert_not_called()
 
     def test_restart_reconciles_fill_before_new_entry_gate(self):
         verified = {"status": "verified", "verified": True, "order": {"id": "one"}}
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            first = self.common([{"status": "absent", "verified": False}], RuntimeError("crash"))
-            with self.env(root), first[0], first[1], first[2], first[3], first[4], first[5]:
-                with self.assertRaises(RuntimeError):
+            first = self.common([{"status": "absent", "verified": False}], None)
+            with self.env(root), first[0], first[1], first[2], first[3], first[4] as first_submit, first[5]:
+                with self.assertRaisesRegex(ValueError, "investment_execution_identity_invalid"):
                     live_canary.main()
+            first_submit.assert_not_called()
             second = self.common([verified], None)
             with self.env(root), second[0] as observe, second[1], second[2], second[3], \
                     second[4] as submit, second[5]:
@@ -117,73 +113,39 @@ class LiveCanaryTest(unittest.TestCase):
             submit.assert_not_called()
 
     def test_two_workers_share_one_submit_fence(self):
-        with tempfile.TemporaryDirectory() as directory:
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {
+            "LIFE_MANAGER_INVESTMENT_MODE": "live",
+            "LIFE_MANAGER_INVESTMENT_DEPLOYMENT": "local",
+            "LIFE_MANAGER_INVESTMENT_OWNER_ID": "alpaca-investment-live",
+            "LIFE_MANAGER_RELEASE_SHA": "b" * 40,
+            "LIFE_MANAGER_RUN_ID": "parallel-run",
+            "LIFE_MANAGER_OCCURRENCE_ID": "alpaca-investment-live:parallel-run",
+        }, clear=True):
             ledger = Path(directory) / "receipts.jsonl"
-            sealed = effect_store.seal(ledger, live_canary.DECISION, live_canary.ORDER)
+            decision = {**live_canary.DECISION, "owner_id": "alpaca-investment-live",
+                        "strategy_id": "btc-v2", "release_sha": "a" * 40,
+                        "native_trading_account_id": "native-account"}
+            sealed = effect_store.seal(ledger, decision, live_canary.ORDER)
             barrier = threading.Barrier(2)
             results = []
             def worker():
                 barrier.wait()
-                results.append(effect_store.mark_started(ledger, sealed))
+                results.append(effect_store.begin_effect(ledger, sealed))
             threads = [threading.Thread(target=worker) for _ in range(2)]
             for thread in threads: thread.start()
             for thread in threads: thread.join()
             self.assertEqual(sorted(results), [False, True])
 
-    def test_cloud_canary_has_distinct_identity_and_replays_without_a_second_submit(self):
-        verified = {"status": "verified", "verified": True,
-                    "order": {"id": "cloud-one", "filled_qty": "0.00002"},
-                    "position": {"symbol": "BTCUSDC", "qty": "0.00001995"}}
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            local = effect_store.seal(root / "local.jsonl", live_canary.DECISION, live_canary.ORDER)
-            first = self.common([{"status": "absent", "verified": False}, verified], None)
-            with self.env(root, "cloud"), first[0], first[1], first[2], first[3], \
-                    first[4] as submit, first[5]:
-                self.assertEqual(live_canary.main(), 0)
-            self.assertEqual(submit.call_count, 1)
-            rows = [json.loads(line) for line in
-                    (root / "state/receipts.jsonl").read_text().splitlines()]
-            started = next(row for row in rows if row.get("status") == "started")
-            decision = next(row for row in rows if row.get("decision_id") == started["decision_id"]
-                            and row.get("receipt_type") == "decision")
-            self.assertEqual(decision["decision"]["canary_ref"], "L15_CLOUD_CANARY_V1")
-            self.assertNotEqual(started["client_order_id"], local["client_order_id"])
-            ownership = json.loads((root / "state/live-owned-position.json").read_text())
-            self.assertEqual(ownership, {
-                "entry_client_order_id": started["client_order_id"],
-                "entry_effect_id": started["effect_id"], "entry_filled_qty": "0.00002",
-                "owned_qty": "0.00001995", "status": "open", "symbol": "BTCUSD",
-            })
-            replay = self.common([verified], None)
-            with self.env(root, "cloud"), replay[0], replay[1], replay[2], replay[3], \
-                    replay[4] as second_submit, replay[5]:
-                self.assertEqual(live_canary.main(), 0)
-            second_submit.assert_not_called()
-
-    def test_cloud_submit_crash_leaves_pending_ownership_for_reconciliation(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            first = self.common([{"status": "absent", "verified": False}], RuntimeError("ack_unknown"))
-            with self.env(root, "cloud"), first[0], first[1], first[2], first[3], first[4], first[5]:
-                with self.assertRaisesRegex(RuntimeError, "ack_unknown"):
-                    live_canary.main()
-            ownership = json.loads((root / "state/live-owned-position.json").read_text())
-            self.assertEqual(ownership["status"], "entry_pending")
-            self.assertEqual(ownership["symbol"], "BTCUSD")
-
-    def test_cloud_ledger_crash_window_already_has_pending_ownership(self):
+    def test_cloud_order_rejection_leaves_no_pending_ownership_or_submit(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             first = self.common([{"status": "absent", "verified": False}], None)
             with self.env(root, "cloud"), first[0], first[1], first[2], first[3], \
-                    patch.object(live_canary, "mark_started",
-                                 side_effect=RuntimeError("ledger_crash")), first[5]:
-                with self.assertRaisesRegex(RuntimeError, "ledger_crash"):
+                    first[4] as submit, first[5]:
+                with self.assertRaisesRegex(ValueError, "investment_execution_identity_invalid"):
                     live_canary.main()
-            ownership = json.loads((root / "state/live-owned-position.json").read_text())
-            self.assertEqual(ownership["status"], "entry_pending")
-            self.assertEqual(ownership["symbol"], "BTCUSD")
+            submit.assert_not_called()
+            self.assertFalse((root / "state/live-owned-position.json").exists())
 
     def test_cloud_fence_rechecks_official_slots_before_submit(self):
         with tempfile.TemporaryDirectory() as directory:

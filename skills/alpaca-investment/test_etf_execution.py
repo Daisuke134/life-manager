@@ -159,6 +159,89 @@ class PaperEtfOrderBoundaryTest(unittest.TestCase):
                 run.assert_not_called()
 
 
+class LiveExecutionIdentityTest(unittest.TestCase):
+    def test_resealing_pending_effect_preserves_first_run_identity_through_outcome(self):
+        with tempfile.TemporaryDirectory() as directory:
+            ledger = Path(directory) / "receipts.jsonl"
+            decision = {"action": "ENTER", "mode": "live", "owner_id": OWNER_ID,
+                "strategy_id": "btc-v2", "release_sha": "a" * 40,
+                "native_trading_account_id": "synthetic-native-account"}
+            order = {"asset_class": "crypto", "side": "buy", "symbol": "BTC/USDC",
+                "type": "market", "time_in_force": "gtc", "notional_usd": "10.00"}
+            def runtime(run_id):
+                runtime_sha = "c" * 40 if run_id == "run-A" else "b" * 40
+                return {"LIFE_MANAGER_INVESTMENT_MODE": "live", "LIFE_MANAGER_INVESTMENT_OWNER_ID": OWNER_ID,
+                    "LIFE_MANAGER_INVESTMENT_DEPLOYMENT": "local", "LIFE_MANAGER_RELEASE_SHA": runtime_sha,
+                    "LIFE_MANAGER_RUN_ID": run_id,
+                    "LIFE_MANAGER_OCCURRENCE_ID": f"{OWNER_ID}:{run_id}"}
+            with patch.dict(os.environ, runtime("run-A"), clear=True):
+                first = EFFECT.seal(ledger, decision, order)
+            with patch.dict(os.environ, runtime("run-B"), clear=True):
+                retried = EFFECT.seal(ledger, decision, order)
+                self.assertEqual(first["effect_id"], retried["effect_id"])
+                self.assertTrue(EFFECT.begin_effect(ledger, retried))
+                EFFECT.record_terminal_outcome(ledger, retried,
+                    {"id": "synthetic-canceled-order", "status": "canceled"},
+                    "live_canary_terminal_failure")
+
+            rows = [json.loads(line) for line in ledger.read_text().splitlines()]
+            planned = next(row for row in rows if row.get("receipt_type") == "effect_intent"
+                and row.get("status") == "planned")
+            started = next(row for row in rows if row.get("receipt_type") == "effect_intent"
+                and row.get("status") == "started")
+            outcome = next(row for row in rows if row.get("receipt_type") == "outcome")
+            self.assertEqual(retried["execution_identity"], planned["execution_identity"])
+            self.assertEqual(started["execution_identity"], planned["execution_identity"])
+            self.assertEqual(outcome["execution_identity"], planned["execution_identity"])
+            expected_submission = {**planned["execution_identity"], "runtime_release_sha": "b" * 40,
+                "run_id": "run-B", "occurrence_id": f"{OWNER_ID}:run-B"}
+            self.assertEqual(started["submission_identity"], expected_submission)
+            self.assertEqual(outcome["submission_identity"], expected_submission)
+
+    def test_begin_effect_rejects_incomplete_live_execution_identity(self):
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {}, clear=True):
+            ledger = Path(directory) / "receipts.jsonl"
+            sealed = EFFECT.seal(
+                ledger,
+                {"mode": "live", "owner_id": OWNER_ID, "strategy_id": "btc-v2",
+                 "release_sha": "a" * 40},
+                {"asset_class": "crypto", "side": "buy", "symbol": "BTC/USDC"},
+            )
+
+            begin_effect = getattr(EFFECT, "begin_effect", None)
+            self.assertTrue(callable(begin_effect), "shared live-effect start gate is required")
+            with self.assertRaisesRegex(ValueError, "^investment_execution_identity_invalid$"):
+                begin_effect(ledger, sealed)
+
+            rows = [json.loads(line) for line in ledger.read_text().splitlines()]
+        intents = [row for row in rows if row.get("receipt_type") == "effect_intent"]
+        self.assertEqual([row["status"] for row in intents], ["planned"])
+
+    def test_begin_effect_rejects_cloud_live_execution_identity(self):
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {
+            "LIFE_MANAGER_INVESTMENT_DEPLOYMENT": "cloud",
+            "LIFE_MANAGER_RELEASE_SHA": "b" * 40,
+            "LIFE_MANAGER_RUN_ID": "cloud-run",
+            "LIFE_MANAGER_OCCURRENCE_ID": "alpaca-investment-live:cloud-run",
+        }, clear=True):
+            ledger = Path(directory) / "receipts.jsonl"
+            sealed = EFFECT.seal(
+                ledger,
+                {"mode": "live", "owner_id": OWNER_ID, "strategy_id": "btc-v2",
+                 "release_sha": "a" * 40, "native_trading_account_id": "native-account"},
+                {"asset_class": "crypto", "side": "buy", "symbol": "BTC/USDC"},
+            )
+
+            begin_effect = getattr(EFFECT, "begin_effect", None)
+            self.assertTrue(callable(begin_effect), "shared live-effect start gate is required")
+            with self.assertRaisesRegex(ValueError, "^investment_execution_identity_invalid$"):
+                begin_effect(ledger, sealed)
+
+            rows = [json.loads(line) for line in ledger.read_text().splitlines()]
+        intents = [row for row in rows if row.get("receipt_type") == "effect_intent"]
+        self.assertEqual([row["status"] for row in intents], ["planned"])
+
+
 class EtfOwnershipTest(unittest.TestCase):
     def _record(self, path: Path, *, order: dict | None = None,
                 owner_id: str = OWNER_ID, strategy_id: str = STRATEGY_ID):

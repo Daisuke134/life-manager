@@ -15,7 +15,7 @@ from pathlib import Path
 from allocator import build_candidates
 from alpaca_cli import read_allocator_snapshot, read_live_canary, submit_live_canary
 from control import control_fence, read_control
-from effect_store import (effect_state, mark_started, record_terminal_outcome, seal,
+from effect_store import (begin_effect, effect_state, record_terminal_outcome, seal,
                           unresolved_intent_count)
 from risk_policy import evaluate_entry
 
@@ -176,9 +176,9 @@ def main() -> int:
                 risk_day_path=state / "risk-day.json")
             fresh["unresolved_intents"] = unresolved_intent_count(ledger)
             _gate(fresh, state)
-            if deployment == "cloud":
-                _write_cloud_ownership(state, sealed)
-            if mark_started(ledger, sealed):
+            if begin_effect(ledger, sealed):
+                if deployment == "cloud":
+                    _write_cloud_ownership(state, sealed)
                 submitted = True
                 submit_live_canary(credentials_path=credentials, cli_path=cli,
                                    client_order_id=sealed["client_order_id"], order=ORDER)
