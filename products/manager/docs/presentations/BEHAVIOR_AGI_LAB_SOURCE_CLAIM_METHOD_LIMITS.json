@@ -1,0 +1,130 @@
+{
+  "schema": "manager.communications.source-claim-method-limits.v1",
+  "as_of_date": "2026-10-21",
+  "title": "Manager Behavior × AGI living 44-slide research-lab deck",
+  "research_context": "internal and educational, not independently peer reviewed",
+  "slides": 44,
+  "numerical_and_material_claims": [
+    {
+      "id": "AS-2026",
+      "slides": [
+        17,
+        22,
+        24,
+        25
+      ],
+      "claim": "Radiant company reported 2,796 synthetic respondents, 68,280 answers, seven human survey sources; population TVD 0.08 vs 0.31.",
+      "source_url": "https://societies.ai/as-benchmark",
+      "source_kind": "VENDOR_REPORTED_EVALUATION",
+      "method": "Matched-profile survey-answer model comparison on cited company benchmark; population-level TVD.",
+      "limits": "Not independently reproduced by Manager; not individual action accuracy or real-world causal welfare."
+    },
+    {
+      "id": "AS-2026-11TEST",
+      "slides": [
+        17,
+        25,
+        38
+      ],
+      "claim": "Eleven validity tests grouped internal 4, construct 3, external 4.",
+      "source_url": "https://arxiv.org/html/2609.30030",
+      "source_kind": "COMPANY_AUTHORED_PREPRINT",
+      "method": "Published framework and formal diagnostic definitions for human-referenced simulation.",
+      "limits": "Framework paper; not proof that all product models pass the battery or generalize to welfare interventions."
+    },
+    {
+      "id": "AS-2024",
+      "slides": [
+        10,
+        25
+      ],
+      "claim": "33,299 LLM chatbots formed language/content homophily clusters in simulated online network.",
+      "source_url": "https://doi.org/10.1111/bjop.12764",
+      "source_kind": "PEER_REVIEWED_SIMULATION_STUDY",
+      "method": "Aggregate social network simulation measuring homophily.",
+      "limits": "Homophily alone is not survey or real-world intervention validation."
+    },
+    {
+      "id": "SOCSCI-S001",
+      "slides": [
+        28
+      ],
+      "claim": "SocSci210 metadata: 210 studies split 170 seen and 40 unseen with zero overlapping IDs.",
+      "source_url": "https://huggingface.co/datasets/socratesft/SocSci210",
+      "source_kind": "SOURCE_METADATA_VERIFIED_BY_MANAGER",
+      "verification_url": "https://github.com/Daisuke134/life-manager/actions/runs/39536829220",
+      "method": "Immutable study-ID mapping, Git blob hash, disjointness check.",
+      "limits": "No participant-response benchmark or consent coverage established."
+    },
+    {
+      "id": "SIMILE-CONF",
+      "slides": [
+        20
+      ],
+      "claim": "Simile reports ~8,600 held-out evaluation questions, hidden-state uncertainty probe AUROC 0.73 and 0.16 internal TVD decision threshold.",
+      "source_url": "https://www.simile.com/blog/confidence",
+      "source_kind": "VENDOR_REPORTED_METHOD_EVALUATION",
+      "method": "Question/sample-grouped CV and predicted simulation-error scoring.",
+      "limits": "Not independently reproduced; threshold is internal human-rater alignment, not a universal causal threshold."
+    },
+    {
+      "id": "HEARTSTEPS",
+      "slides": [
+        15,
+        30
+      ],
+      "claim": "Original paper 6,061 available decision points, source CSV 8,274; Manager nonidentical exploratory sample 6,330.",
+      "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6401341/",
+      "source_kind": "PEER_REVIEWED_STUDY_PLUS_DIFFERENT_MANAGER_PUBLIC_SOURCE_ANALYSIS",
+      "verification_url": "https://github.com/Daisuke134/life-manager/actions/runs/39526839889",
+      "method": "Human micro-randomized study; public CSV source audit; alternative correlation analysis.",
+      "limits": "Exact H005 analysis population not reproducible; no equivalent randomized causal-effect replication."
+    },
+    {
+      "id": "UCI",
+      "slides": [
+        31
+      ],
+      "claim": "365 days from 2011 fit, 366 days from 2012 held out; MAE 2488.67 vs 2303.65 daily rentals for simple baselines.",
+      "source_url": "https://archive.ics.uci.edu/dataset/275/bike+sharing+dataset",
+      "source_kind": "MANAGER_INDEPENDENT_EMPIRICAL_OBSERVATIONAL_BENCHMARK",
+      "verification_url": "https://github.com/Daisuke134/life-manager/actions/runs/39545601251",
+      "method": "Real aggregate daily bike rents, out-of-year holdout; 7-day paired block bootstrap interval includes zero.",
+      "limits": "Observed aggregate behavior, not individual survey prediction or randomized causal effect."
+    },
+    {
+      "id": "PHASE04",
+      "slides": [
+        27,
+        39
+      ],
+      "claim": "184/184 historic Manager tests passed; scoped Phase04 5/8 done; zero independently proven beneficiaries.",
+      "source_url": "https://github.com/Daisuke134/life-manager/actions/runs/39546654088",
+      "source_kind": "MANAGER_ENGINEERING_TEST_AND_CANONICAL_TASK_STATUS",
+      "method": "Hosted GitHub Actions test and task-registry readback.",
+      "limits": "Passing tests is software evidence; zero proven benefit means NOT_MEASURED, not evidence that real-world suffering is zero."
+    },
+    {
+      "id": "MISSION",
+      "slides": [
+        1,
+        18,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        44
+      ],
+      "claim": "Manager's general-purpose public-benefit autonomy and transparent Blessing evidence loop.",
+      "source_url": "https://github.com/Daisuke134/life-manager/tree/research/manager-product-r006-20261020/products/manager",
+      "source_kind": "MANAGER_PROPOSED_DESIGN_NOT_REALIZED",
+      "method": "Research questions, planned architecture and evidence taxonomy.",
+      "limits": "Never present design intent, simulation artifacts or tool success as field-verified benefit."
+    }
+  ],
+  "rights_boundary": "Each original data source and its use/redistribution rights are separately reviewed. User report of blanket permission is not independent verification of all downstream personal data rights.",
+  "publication_state": "PPTX/PDF stored to user cloud Library, not itself a public article",
+  "independent_manager_human_welfare_impact": "NOT_MEASURED"
+}
