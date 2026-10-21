@@ -64,5 +64,27 @@ class JoinProbeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             m.aggregate_coverage(self.read("decision.index,avail\n1,TRUE\n"), {})
 
+
+    def test_numeric_identifier_representation_does_not_destroy_join(self):
+        m = self.get_module()
+        steps = self.read(
+            "user.index,decision.index,study.day.nogap\n1.0,10.0,5\n"
+        )
+        lookup, _ = m.build_day_lookup(steps)
+        self.assertEqual(lookup[("1", "10")], 5)
+        suggestions = self.read("user.index,decision.index,avail\n1,10,TRUE\n")
+        self.assertEqual(m.aggregate_coverage(suggestions, lookup)["join_unique"], 1)
+
+    def test_key_alignment_reports_counts_without_identifiers(self):
+        m = self.get_module()
+        suggestions = self.read(
+            "user.index,decision.index,avail\n1,10,TRUE\n2,11,FALSE\n"
+        )
+        report = m.summarize_key_alignment(suggestions, {("1", "10"): 5, ("3", "12"): 8})
+        self.assertEqual(report["user_overlap"], 1)
+        self.assertEqual(report["decision_overlap"], 1)
+        self.assertEqual(report["pair_overlap"], 1)
+        self.assertNotIn("'1'", str(report))
+
 if __name__ == "__main__":
     unittest.main()

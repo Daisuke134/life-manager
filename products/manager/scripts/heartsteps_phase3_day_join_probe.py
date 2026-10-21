@@ -5,6 +5,7 @@ import csv
 import json
 import math
 from collections import Counter
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -31,6 +32,42 @@ def _day(value):
         raise ValueError("invalid observed study.day.nogap")
     return int(number)
 
+
+def _norm_key(value):
+    text = str(value if value is not None else "").strip()
+    if text in MISSING:
+        return ""
+    try:
+        number = Decimal(text)
+    except InvalidOperation:
+        return text
+    if number.is_finite() and number >= 0 and number == number.to_integral_value():
+        return str(int(number))
+    return text
+
+def summarize_key_alignment(suggestion_rows, day_lookup):
+    """Report ONLY cardinalities of identifier intersections, never values."""
+    _required(suggestion_rows, ["user.index", "decision.index"])
+    suggestion_keys = {
+        (_norm_key(row.get("user.index")), _norm_key(row.get("decision.index")))
+        for row in suggestion_rows
+    }
+    suggestion_keys = {x for x in suggestion_keys if all(x)}
+    step_keys = set(day_lookup)
+    su = {k[0] for k in suggestion_keys}
+    sd = {k[1] for k in suggestion_keys}
+    ju = {k[0] for k in step_keys}
+    jd = {k[1] for k in step_keys}
+    return {
+        "suggestion_unique_users": len(su),
+        "step_unique_users": len(ju),
+        "user_overlap": len(su & ju),
+        "suggestion_unique_decisions": len(sd),
+        "step_unique_decisions": len(jd),
+        "decision_overlap": len(sd & jd),
+        "pair_overlap": len(suggestion_keys & step_keys),
+    }
+
 def build_day_lookup(step_rows):
     """(participant ID, decision index) -> observed study day, or None if conflicting."""
     _required(step_rows, ["user.index", "decision.index", "study.day.nogap"])
@@ -38,8 +75,8 @@ def build_day_lookup(step_rows):
     rows_seen = missing_field = collisions = 0
     for row in step_rows:
         rows_seen += 1
-        uid = row.get("user.index", "").strip()
-        decision = row.get("decision.index", "").strip()
+        uid = _norm_key(row.get("user.index", ""))
+        decision = _norm_key(row.get("decision.index", ""))
         day = _day(row.get("study.day.nogap"))
         if not uid or uid in MISSING or not decision or decision in MISSING or day is None:
             missing_field += 1
@@ -65,8 +102,8 @@ def aggregate_coverage(suggestion_rows, day_lookup):
     out = Counter()
     for row in suggestion_rows:
         out["source_rows"] += 1
-        uid = row.get("user.index", "").strip()
-        decision = row.get("decision.index", "").strip()
+        uid = _norm_key(row.get("user.index", ""))
+        decision = _norm_key(row.get("decision.index", ""))
         if not uid or uid in MISSING or not decision or decision in MISSING:
             out["join_absent"] += 1
             continue
@@ -108,6 +145,8 @@ def main():
             lookup, step_counts = build_day_lookup(csv.DictReader(fh))
         with suggestions.open(newline="", encoding="utf-8-sig") as fh:
             coverage = aggregate_coverage(csv.DictReader(fh), lookup)
+        with suggestions.open(newline="", encoding="utf-8-sig") as fh:
+            alignment = summarize_key_alignment(csv.DictReader(fh), lookup)
         del lookup
         report = {
             "schema": "manager.heartsteps.pinned-day-join-diagnostic.v1",
@@ -118,6 +157,7 @@ def main():
             },
             "steps": step_counts,
             "coverage": coverage,
+            "key_alignment": alignment,
             "original_paper_counts": {"included": 7540, "available": 6061},
             "raw_subject_rows_persisted": False,
             "causal_effect_estimated": False,
