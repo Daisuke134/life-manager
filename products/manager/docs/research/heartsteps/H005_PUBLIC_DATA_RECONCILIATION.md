@@ -33,3 +33,10 @@ Do not require private participant profiles or operator credentials to unlock an
 ## Status
 
 The H005 public-data task is presently **blocked, not complete**. The end-to-end societal intervention loop, all real-world blessings, and any reduction in suffering have **not yet been demonstrated** by Manager.
+## Fresh public-source CI readback (2026-10-21)
+
+- Manager offline CI: [run 39523967370](https://github.com/Daisuke134/life-manager/actions/runs/39523967370), 149 unit tests pass, Manager-only import boundary and 113-task view checks pass.
+- Pinned empirical pipeline: [run 39523967390](https://github.com/Daisuke134/life-manager/actions/runs/39523967390). Input/source audit and aggregate cross-device day-join steps complete; **original-paper replication gate remains FAILED as designed** (`analysis-set mismatch`).
+- Public Jawbone plus following-decision mapping: 7,427 unique decision-level observed days, 78 conflicting, 769 without mapping. The 2023 public Google Fit export lacks both `study.day.nogap` and `study.day.nogap.following.dec`; verified source bytes are pinned to Google Fit blob `3fbe7a1e4555282414e579f2ba4f3380856a2b3c`. These missing columns are now explicit aggregate diagnostics; no inferred participant study days are inserted.
+- Naive index/5 days generate 6,997 included / 6,118 available; paper reports 7,540 / 6,061. A 149-test passing harness cannot override the failed scientific comparison.
+- Next acceptable action: locate **genuinely public, permission-cleared** source records that document the original day and anomaly exclusion rules, or independently replicate a different fully public RCT under a separate named task. Do not ask Manager to collect nonpublic personal records or privileged human credentials to unlock this analysis.
