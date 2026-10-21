@@ -1,0 +1,71 @@
+name: Manager SocSci210 Real Individual + Public Open Model
+on:
+  push:
+    branches: [research/manager-product-r006-20261020]
+    paths:
+      - 'products/manager/manager_core/phase04_socsci_individual.py'
+      - 'products/manager/scripts/phase04_socsci_individual_openmodel.py'
+      - 'products/manager/tests/test_phase04_socsci_individual.py'
+      - '.github/workflows/manager-socsci-individual-openmodel.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  cpu-openmodel-40-unseen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: products/manager
+    env:
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_HOME: ${{ runner.temp }}/manager-private-hf-research
+      TOKENIZERS_PARALLELISM: 'false'
+      OMP_NUM_THREADS: '4'
+      MKL_NUM_THREADS: '4'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install CPU-only pinned model and dataset components
+        run: |
+          python -m pip install --disable-pip-version-check --extra-index-url https://download.pytorch.org/whl/cpu \
+            'torch==2.5.1+cpu' 'duckdb==1.4.1' 'huggingface_hub==0.36.0' \
+            'transformers==4.48.3' 'safetensors==0.5.3'
+      - name: Offline math, leakage, parser and no-person-record tests
+        run: python -m unittest tests/test_phase04_socsci_individual.py -v
+      - name: Bounded pinned open-model inference on genuinely heldout study responses
+        run: |
+          python scripts/phase04_socsci_individual_openmodel.py \
+            --output output/phase04-socsci-individual/metrics.json
+      - name: Prove 40 unseen studies, real individual-level comparison, and artifact-only aggregates
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          folder=Path("output/phase04-socsci-individual")
+          assert {x.name for x in folder.iterdir()}=={'metrics.json'}
+          r=json.loads((folder/"metrics.json").read_text())
+          assert r['evaluation']['unseen_test_studies']==40
+          assert r['evaluation']['individual_test_rows']==320
+          assert r['evaluation']['predeclared_per_study']==8
+          assert r['scientific_scope']['individual_records_evaluated'] is True
+          assert r['scientific_scope']['text_model_executed_on_real_unseen_prompts'] is True
+          assert r['scientific_scope']['same_exact_test_sample_all_models'] is True
+          assert r['scientific_scope']['canonical_socrates_task_aware_metric_reproduced'] is False
+          assert r['scientific_scope']['independent_real_world_manager_benefit'] is False
+          assert r['privacy']['raw_person_rows_in_report']==0
+          assert r['privacy']['prompts_in_report'] is False
+          assert r['model']['direct_paid_api_cost_usd']==0
+          assert not list(folder.glob("*.parquet"))
+          assert not list(folder.glob("*.csv"))
+          print('PASS: actual individual response scoring with pinned public model, 0 raw records')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: manager-phase04-socsci210-40-unseen-real-openmodel-aggregate
+          path: products/manager/output/phase04-socsci-individual/metrics.json
+          if-no-files-found: error
+          retention-days: 21
