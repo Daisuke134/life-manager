@@ -19,6 +19,15 @@ function timestampIso(value, nullable = false) {
   if (!Number.isFinite(date.getTime())) throw new Error("maritime_manager_store_invalid");
   return date.toISOString();
 }
+function dateKeyString(value) {
+  if (value instanceof Date) {
+    if (!Number.isFinite(value.getTime())) throw new Error("maritime_manager_store_invalid");
+    return value.toISOString().slice(0, 10);
+  }
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)
+    && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value) return value;
+  throw new Error("maritime_manager_store_invalid");
+}
 
 // Service-owned storage only. Public handlers must derive uid from verified auth.
 function createMaritimeManagerStore(options = {}) {
@@ -181,11 +190,13 @@ function createMaritimeManagerStore(options = {}) {
     return readCycleDispatchIdentity(cycleIdentity(input));
   }
   async function readCycleDispatchIdentity(identity) {
-    const rows = await request(`lm_maritime_manager_executions?uid=eq.${encodeURIComponent(identity.p_uid)}`
-      + `&occurrence_id=eq.${encodeURIComponent(identity.p_occurrence_id)}`
-      + "&select=uid,occurrence_id,agent_id,date_key,release_sha,execution_id&limit=2");
-    if (!Array.isArray(rows) || rows.length > 1) throw new Error("maritime_manager_store_invalid");
-    const row = rows[0];
+    const rows = await queryPg(
+      "SELECT uid,occurrence_id,agent_id,date_key::text AS date_key,release_sha,execution_id FROM public.lm_maritime_manager_executions WHERE uid=$1 AND occurrence_id=$2 LIMIT 2",
+      [identity.p_uid, identity.p_occurrence_id],
+    );
+    if (rows.length > 1) throw new Error("maritime_manager_store_invalid");
+    const raw = rows[0];
+    const row = raw ? { ...raw, date_key: dateKeyString(raw.date_key) } : null;
     if (row && (row.uid !== identity.p_uid || row.occurrence_id !== identity.p_occurrence_id
       || row.agent_id !== identity.p_agent_id || row.release_sha !== identity.p_release_sha
       || row.date_key !== identity.p_date_key || (row.execution_id !== null
@@ -196,8 +207,12 @@ function createMaritimeManagerStore(options = {}) {
   }
   async function claimCycleDispatch(input) {
     const identity = cycleIdentity(input);
-    const claimed = await request("rpc/claim_lm_maritime_manager_cycle_v1", "POST", identity);
-    if (typeof claimed !== "boolean") throw new Error("maritime_manager_store_invalid");
+    const rows = await queryPg(
+      "SELECT public.claim_lm_maritime_manager_cycle_v1($1,$2,$3,$4,$5::date) AS claimed",
+      [identity.p_uid, identity.p_occurrence_id, identity.p_agent_id, identity.p_release_sha, identity.p_date_key],
+    );
+    if (rows.length !== 1 || typeof rows[0].claimed !== "boolean") throw new Error("maritime_manager_store_invalid");
+    const claimed = rows[0].claimed;
     const row = await readCycleDispatchIdentity(identity);
     if (claimed && !row) throw new Error("maritime_manager_store_invalid");
     return { claimed, row };
@@ -205,10 +220,12 @@ function createMaritimeManagerStore(options = {}) {
   async function bindCycleExecution(input) {
     const identity = cycleIdentity(input);
     const executionId = identifier(input.executionId, /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/);
-    const bound = await request("rpc/bind_lm_maritime_manager_execution_v1", "POST", {
-      ...identity, p_execution_id: executionId,
-    });
-    if (bound !== true) throw new Error("maritime_manager_binding_rejected");
+    const rows = await queryPg(
+      "SELECT public.bind_lm_maritime_manager_execution_v1($1,$2,$3,$4,$5::date,$6) AS bound",
+      [identity.p_uid, identity.p_occurrence_id, identity.p_agent_id, identity.p_release_sha, identity.p_date_key, executionId],
+    );
+    if (rows.length !== 1 || typeof rows[0].bound !== "boolean") throw new Error("maritime_manager_store_invalid");
+    if (rows[0].bound !== true) throw new Error("maritime_manager_binding_rejected");
     const row = await readCycleDispatchIdentity(identity);
     if (!row || row.execution_id !== executionId) throw new Error("maritime_manager_binding_rejected");
     return row;

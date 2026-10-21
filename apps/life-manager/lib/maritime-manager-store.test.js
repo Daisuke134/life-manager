@@ -102,6 +102,31 @@ function fixture() {
       }
       return { rows: [{ bound }] };
     }
+    if (statement.includes("claim_lm_maritime_manager_cycle_v1")) {
+      const [uid, occurrenceId, agentId, releaseSha, dateKey] = values;
+      const enrollment = rows.get(uid);
+      const key = uid + ":" + occurrenceId;
+      const claimed = Boolean(enrollment && enrollment.status === "active" && enrollment.paused_at == null
+        && enrollment.agent_id === agentId && enrollment.release_sha === releaseSha && !executions.has(key));
+      if (claimed) executions.set(key, { uid, occurrence_id: occurrenceId, agent_id: agentId,
+        date_key: new Date(`${dateKey}T00:00:00.000Z`), release_sha: releaseSha, execution_id: null });
+      return { rows: [{ claimed }] };
+    }
+    if (statement.includes("bind_lm_maritime_manager_execution_v1")) {
+      const [uid, occurrenceId, agentId, releaseSha, dateKey, executionId] = values;
+      const row = executions.get(uid + ":" + occurrenceId);
+      const duplicateExecution = [...executions.values()].some(candidate => candidate.agent_id === agentId
+        && candidate.execution_id === executionId && candidate !== row);
+      const bound = Boolean(row && row.agent_id === agentId && row.release_sha === releaseSha
+        && row.date_key.toISOString().slice(0, 10) === dateKey
+        && (row.execution_id == null || row.execution_id === executionId) && !duplicateExecution);
+      if (bound) row.execution_id = executionId;
+      return { rows: [{ bound }] };
+    }
+    if (statement.includes("FROM public.lm_maritime_manager_executions")) {
+      const row = executions.get(values[0] + ":" + values[1]);
+      return { rows: row ? [{ ...row }] : [] };
+    }
     if (statement.includes("SET status = $2") && statement.includes("agent_id IS NULL")) {
       const [uid, status, expected] = values;
       const row = rows.get(uid);
@@ -234,32 +259,30 @@ test('invalid cycle input is rejected before any provider database request', asy
 });
 
 test('malformed claim response and foreign readback never authorize dispatch', async () => {
-  const malformed = createMaritimeManagerStore({ supaUrl: 'https://database.invalid', supaKey: 'fixture',
-    fetchImpl: async () => new Response(JSON.stringify({ claimed: true })) });
+  const malformed = createMaritimeManagerStore({ pgPool: { query: async statement => statement.includes('claim_lm_maritime_manager_cycle_v1')
+    ? { rows: [{ claimed: true }] } : { rows: [] } } });
   await assert.rejects(malformed.claimCycleDispatch(cycleIdentity()), /store_invalid/);
-  const foreign = createMaritimeManagerStore({ supaUrl: 'https://database.invalid', supaKey: 'fixture',
-    fetchImpl: async () => new Response(JSON.stringify([{ uid: UID_B, occurrence_id: 'cycle-1',
-      agent_id: 'agent-a', date_key: '2026-10-20', release_sha: SHA, execution_id: null }])) });
+  const foreign = createMaritimeManagerStore({ pgPool: { query: async statement => statement.includes('claim_lm_maritime_manager_cycle_v1')
+    ? { rows: [{ claimed: false }] }
+    : { rows: [{ uid: UID_B, occurrence_id: 'cycle-1', agent_id: 'agent-a', date_key: new Date('2026-10-20T00:00:00Z'), release_sha: SHA, execution_id: null }] } } });
   await assert.rejects(foreign.readCycleDispatch(cycleIdentity()), /binding_rejected/);
 });
 
 
-test('RPC and readback stay bound to the original identity during caller mutation', async () => {
+test('PG claim/bind and readback stay bound to the original identity during caller mutation', async () => {
   for (const operation of ['claimCycleDispatch', 'bindCycleExecution']) {
     const mutable = { ...cycleIdentity(), executionId: 'exec-1' };
     const rows = [
       { uid: UID_A, occurrence_id: 'cycle-1', agent_id: 'agent-a', date_key: '2026-10-20', release_sha: SHA, execution_id: 'exec-1' },
       { uid: UID_B, occurrence_id: 'cycle-1', agent_id: 'agent-b', date_key: '2026-10-20', release_sha: SHA, execution_id: 'exec-1' },
     ];
-    const store = createMaritimeManagerStore({ supaUrl: 'https://database.invalid', supaKey: 'fixture',
-      fetchImpl: async (url, options) => {
-        if (options.method === 'POST') {
+    const store = createMaritimeManagerStore({ pgPool: { query: async (statement, values) => {
+        if (statement.includes('claim_lm_maritime_manager_cycle_v1') || statement.includes('bind_lm_maritime_manager_execution_v1')) {
           Object.assign(mutable, { uid: UID_B, agentId: 'agent-b' });
-          return new Response('true');
+          return { rows: [{ [operation === 'claimCycleDispatch' ? 'claimed' : 'bound']: true }] };
         }
-        const uid = new URL(url).searchParams.get('uid').slice(3);
-        return new Response(JSON.stringify(rows.filter(row => row.uid === uid)));
-      } });
+        return { rows: rows.filter(row => row.uid === values[0]).map(row => ({ ...row, date_key: new Date(`${row.date_key}T00:00:00Z`) })) };
+      } } });
     const result = await store[operation](mutable);
     assert.equal(operation === 'claimCycleDispatch' ? result.row.uid : result.uid, UID_A);
   }

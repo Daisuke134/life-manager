@@ -1,0 +1,27 @@
+{
+  "observed_at": "2026-10-21T01:08:57Z",
+  "source_file": "apps/life-manager/lib/maritime-manager-store.js",
+  "source_sha256": "6e0836e9a7faf656d71abb02070b4ed7d10b3f82313170cb779ef761a7810cc6",
+  "migration_file": "apps/life-manager/migrations/20261021090000_maritime_manager_runtime_state.sql",
+  "migration_sha256": "2ab5181a15d1ee9fcdb14d3d0c3919de1101c092d3bd59c511a79fc354f09a15",
+  "integration_test_file": "apps/life-manager/test/postgres/maritime-manager-state.integration.js",
+  "integration_test_sha256": "abc7e844c16ffe1e656c124c88366e397592c7dd51abd630c9cd61be8b1bb824",
+  "unit_test_file": "apps/life-manager/lib/maritime-manager-store.test.js",
+  "unit_test_sha256": "a1338c05fc968f0a3df8238b236081da6d48a1d235dfb91a3566aa923ceb529f",
+  "commands": [
+    "PATH=/opt/homebrew/Cellar/postgresql@17/17.11/bin:$PATH node --test test/postgres/maritime-manager-state.integration.js",
+    "node --test lib/maritime-manager-store.test.js"
+  ],
+  "results": {
+    "native_postgresql_integration": "1/1 pass",
+    "manager_store_unit": "16/16 pass"
+  },
+  "production_dsn_used": false,
+  "pg_methods": ["readCycleDispatch", "claimCycleDispatch", "bindCycleExecution"],
+  "parameterized_sql": true,
+  "supa_fallback_for_these_methods": false,
+  "date_key_read_as_text_without_timezone_shift": true,
+  "occurrence_replay_rejected": true,
+  "execution_id_rebind_immutable": true,
+  "mismatched_date_rejected": true
+}

@@ -190,6 +190,16 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     assert.equal(await managerStore.quarantinePendingProvision(uidC), null, "an active enrollment cannot be quarantined as pending");
     await assert.rejects(managerStore.bindAgent({ uid: uidC, authSubject: subjectC, agentId: "agent-c", releaseSha: "b".repeat(40) }), /binding_rejected/);
     assert.equal((await managerStore.read(uidC)).release_sha, releaseSha, "release mismatch cannot overwrite the enrollment release");
+    const storeCycle = { uid: uidC, agentId: "agent-c", occurrenceId: "store-cycle", dateKey: "2026-10-21", releaseSha };
+    const storeCycleClaim = await managerStore.claimCycleDispatch(storeCycle);
+    assert.equal(storeCycleClaim.claimed, true);
+    assert.equal(storeCycleClaim.row.date_key, "2026-10-21", "PostgreSQL date is normalized to YYYY-MM-DD");
+    const storeCycleReplay = await managerStore.claimCycleDispatch(storeCycle);
+    assert.equal(storeCycleReplay.claimed, false);
+    assert.equal(storeCycleReplay.row.date_key, "2026-10-21");
+    assert.equal((await managerStore.bindCycleExecution({ ...storeCycle, executionId: "store-exec-1" })).execution_id, "store-exec-1");
+    await assert.rejects(managerStore.bindCycleExecution({ ...storeCycle, executionId: "store-exec-2" }), /binding_rejected/);
+    await assert.rejects(managerStore.claimCycleDispatch({ ...storeCycle, dateKey: "2026-10-22" }), /binding_rejected/);
     const claim = uid => client.query('SELECT public.claim_lm_maritime_manager_provision_v1($1) AS claimed', [uid]).then(result => result.rows[0].claimed);
     const bind = (uid, subject, agent, sha = releaseSha) => client.query(
       'SELECT public.bind_lm_maritime_manager_agent_v1($1,$2,$3,$4) AS bound', [uid, subject, agent, sha],
