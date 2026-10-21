@@ -136,3 +136,19 @@ Constructed causal counterexample: predictive marginal TVD=0 and stipulated trea
 **Latest full hosted CI:** [181/181 tests PASS; 113-task view and product boundaries PASS](https://github.com/Daisuke134/life-manager/actions/runs/39546138495). This does not pass product Gate 1: original HeartSteps exact H005 reconstruction is skipped, and independent replicated randomized real effects remain unavailable. It also does not pass real-world public-benefit gates.
 
 See [Phase04 verification and blockers](docs/verification/PHASE04_PROGRESS_JA.md), [editable evidence flow](docs/architecture/PHASE04_EVIDENCE_FLOW_JA.mmd), and tasks.json for exact allowed scope. Manager and Life Manager remain isolated; no external money, messaging or physical effects executed.
+
+## Phase 04 final verified readback — 2026-10-21
+
+All **8/8 narrow atomic S001–S008 task acceptances** have now been evidenced by original source data and hosted CI. This is an **engineering/research milestone**, not completed *scientific proof* of human behavior simulation, causally valid intervention choice or real-world welfare gain. Canonical task totals: **45 done, 65 todo, 2 blocked, 1 skipped**, from 113.
+
+The actual SocSci210 release was processed ephemerally: **210 studies / 2,901,390 rows** separated into **170 seen / 40 unseen studies, zero study-ID overlap**; 2,418,748 training responses and 482,642 heldout original responses. Study-conditioned response options have different meanings; our global numeric-code comparison is deliberately labeled **NOT the canonical Socrates benchmark**. It is legitimate technical evidence only at the restricted label-encoding level.
+
+S004 real heldout-data Brier/TVD, one-bin calibration, 20/20 study-size subgroup errors, uncertainty and train-only error warning threshold were recorded; the online decision remains ABSTAIN because per-question response meanings and calibrated treatment effects are not available.
+
+S005 independently executed two actual original-respondent heldout evaluations with original-source GitHub Actions: [MiniLM frozen public encoder + training-only head](https://github.com/Daisuke134/life-manager/actions/runs/39561547086) on **800 unseen individual responses**, compared on identical records to frequency and majority (24.50% vs 19.375% code accuracy); and [SmolLM2 135M](https://github.com/Daisuke134/life-manager/actions/runs/39562677909) on a *different*, but internally same-sample, **320 unseen individual responses**, yielding **42.5% parsable model outputs and 9.0625% code accuracy including invalid outputs as errors**. Model versions, Apache-2.0 license, CPU run time and unmeasured cloud costs are separate fields. Never compare these models as if they shared an 800/320 heldout sample.
+
+S006–S008 are already verified under their narrower existing written scopes. Actual **60k historical ZOZO recommendation impressions** were evaluated with observable negative off-policy overlap diagnostics but were never Manager-run field intervention, while Concordia was executed with artificial/mock agents only.
+
+**No Human Behavioral Fidelity Certificate; no independently reproduced source-author RCT effect; no actual Manager-induced blessing. Scientific Evidence Gate 1 remains `UNMET`**, and Phase 05 K001–K014 kernel design and safe authorized first intervention must still be implemented and externally verified.
+
+Full report: [Phase04 210-study evidence, individual data metrics, limitations and handoff](docs/verification/PHASE04_FINAL_REAL_DATA_EVIDENCE_JA.md). This statement supersedes earlier same-day partial Phase04 snapshots and does not overwrite Life Manager's task registry.
