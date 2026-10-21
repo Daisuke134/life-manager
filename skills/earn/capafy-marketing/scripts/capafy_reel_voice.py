@@ -19,11 +19,10 @@ from pathlib import Path
 BASE = Path.home() / ".local/state/life-manager/marketing/capafy-videos"
 VOICE = "en-US-AndrewMultilingualNeural"
 FALLBACK_VOICE = "Samantha"  # macOS say: edge-tts 403s intermittently and lost both 2026-10-23 reels
-# Opener copied from the top creator shorts (creative/winner-patterns.md): confession, pain, "The solution?".
-CONFESSION = "I have a confession. I used to spend an hour on the first line of every video."
+# Demo-first opening: product features, not an invented personal testimonial.
+OPENING_LINES = ("ONE TOPIC.", "FIVE HOOKS.")
 HOOK_FRAME_AT = 2.2  # seconds into the render where the hook line is fully visible
-PROPER = {"Instagram", "TikTok", "YouTube", "Reels", "Shorts", "X"}
-LEAD = 5.0           # seconds the hook frame (with confession top text) is held while the confession is spoken
+LEAD = 0.6           # brief non-black first frame; the actual Hook Lab output starts immediately after
 
 
 def _lines(path: Path) -> list[str]:
@@ -32,23 +31,21 @@ def _lines(path: Path) -> list[str]:
 
 
 def narration(hook: list[str], cards: list[str], cta: list[str]) -> str:
-    """Spoken script from the reel's own copy: hook, the three quoted lines, the on-screen CTA."""
+    """Narrate an actual Codex example from the Hook Lab prompt; never invent a user testimonial."""
     product = cta[0].removeprefix("Search ").strip()
     tagline = cta[2].strip() if len(cta) > 2 else ""
-    title = cards[0]
-    topic = title.split(":")[0].strip()
     quotes = [c.strip("“”\"") for c in cards if c.startswith("“")][:3]
     if len(hook) < 2 or len(quotes) != 3 or not product:
         raise ValueError(f"unexpected reel copy: hook={hook} quotes={quotes} cta={cta}")
-    what = "three hooks" if "hook" in title.split(":")[-1].lower() else "the script"
-    verb = "are" if what == "three hooks" else "is"
-    first = topic.split()[0]
-    topic = topic if first in PROPER else topic[0].lower() + topic[1:]
-    article = "an" if topic[0].lower() in "aeiou" else "a"
-    parts = [CONFESSION, hook[0], hook[1], f"The solution? {product}. Here {verb} {what} it wrote for {article} {topic}."]
+    parts = [
+        hook[0],
+        hook[1],
+        "Codex generated this example from Hook Lab's public prompt, not a Capafy Test Run.",
+        "Here are three options:",
+    ]
     parts += [f"{n}. {q}" for n, q in zip(("One", "Two", "Three"), quotes)]
     parts.append(f"Search {product} on Capafy. {tagline}".strip())
-    return " ".join(parts).replace(" 3 ", " three ").replace("first 3 seconds", "first three seconds")
+    return " ".join(parts)
 
 
 def _run(*cmd: str) -> None:
@@ -67,13 +64,13 @@ def tts(text_file: Path, mp3: Path) -> str:
         return FALLBACK_VOICE
 
 
-def confession_frame(src: Path, dst: Path) -> None:
-    """Bold top text over the hook frame, the format every winner short opens with."""
+def opening_frame(src: Path, dst: Path) -> None:
+    """Add a factual product-feature label over the short opening frame."""
     from PIL import Image, ImageDraw, ImageFont  # noqa: PLC0415
     img = Image.open(src).convert("RGB")
     d = ImageDraw.Draw(img)
     font = ImageFont.truetype("/System/Library/Fonts/Supplemental/Arial Bold.ttf", 104)
-    for i, row in enumerate(("I HAVE A", "CONFESSION")):
+    for i, row in enumerate(OPENING_LINES):
         d.text((img.width // 2, 330 + i * 125), row, font=font, fill=(255, 255, 255), anchor="mm",
                stroke_width=6, stroke_fill=(0, 0, 0))
     img.save(dst)
@@ -101,8 +98,8 @@ def build(slug: str) -> dict:
          f"[pad][n]amix=inputs=2:weights=1 0.5,volume=-4dB,afade=t=in:d=2,afade=t=out:st={total - 2.5}:d=2.5[bgm]",
          "-map", "[bgm]", "-ar", "44100", str(out / "bgm.m4a"))
     _run("ffmpeg", "-v", "error", "-y", "-ss", str(HOOK_FRAME_AT), "-i", str(src), "-frames:v", "1", str(out / "hookframe.png"))
-    confession_frame(out / "hookframe.png", out / "openframe.png")
-    lead_ms = 200  # the confession is spoken over the held open frame
+    opening_frame(out / "hookframe.png", out / "openframe.png")
+    lead_ms = 200
     _run("ffmpeg", "-v", "error", "-y", "-loop", "1", "-t", str(LEAD), "-framerate", "30", "-i", str(out / "openframe.png"),
          "-i", str(src), "-i", str(out / "voice.mp3"), "-i", str(out / "bgm.m4a"),
          "-filter_complex",

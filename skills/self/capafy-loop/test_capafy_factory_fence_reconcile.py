@@ -78,6 +78,46 @@ def test_effected_new_agent_since_snapshot_closes_with_receipt(tmp_path):
     assert closed_calls[0][3] == "claimed"
 
 
+def test_new_agent_draft_is_reported_but_does_not_close_unknown_fence(tmp_path):
+    version_id = "2112884034971136000"
+    snapshot = {
+        "schema_version": 1, "owner_id": OWNER, "occurrence_id": OCCURRENCE, "ok": True,
+        "agent_count": 1, "latest_versions": {"111": "v1"},
+    }
+    current_agents = [
+        {"agent_id": "111", "updated_at": "2026-09-20T00:00:00Z", "latest_agent_version_id": "v1"},
+        {"agent_id": "8093774827", "updated_at": "2026-09-27T10:20:00Z",
+         "latest_agent_version_id": version_id, "agent_status": "draft"},
+    ]
+    closed_calls = []
+
+    result = reconciler.reconcile(
+        OCCURRENCE,
+        fenced_row_fn=_fenced_row_fn(),
+        load_snapshot_fn=lambda occurrence: snapshot,
+        read_publish_list_fn=lambda: _publish_list(current_agents),
+        read_remote_status_fn=lambda agent_id: {
+            "ok": True, "platform_status": 0, "agent_version_id": version_id,
+            "audit_status": 0, "is_confirmed_skills": False,
+            "is_confirmed_config_keys": False, "package_uploaded": False,
+            "agent_type": "run_online",
+        },
+        resolve_unknown_fn=lambda *args, **kwargs: closed_calls.append(args) or True,
+        evidence_dir=tmp_path / "evidence",
+        now=QUEUED_AT + dt.timedelta(minutes=25),
+        resolve=True,
+    )
+
+    assert result["verified"] is False
+    assert result["effected"] is True
+    assert result["reason"] == "draft_requires_resume"
+    assert result["provider_receipt_id"] == (
+        f"capafy:agent/8093774827/version/{version_id}:platform_status=0"
+    )
+    assert "closed" not in result
+    assert closed_calls == []
+
+
 def test_effected_version_bump_without_snapshot_falls_back_to_window(tmp_path):
     current_agents = [
         {"agent_id": "9563867391", "updated_at": "2026-09-27T10:20:00Z",

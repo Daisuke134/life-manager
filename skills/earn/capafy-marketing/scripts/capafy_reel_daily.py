@@ -27,6 +27,13 @@ import capafy_reel_voice  # noqa: E402
 
 BASE = capafy_reel_variant.BASE
 HOOK_LAB_SKILL = HERE.parents[2] / "capafy" / "catalog" / "hook-lab" / "SKILL.md"
+WINNER_PATTERN = HERE.parent / "CREATIVE_WINNER_PATTERN.md"
+HOOK_LAB_AGENT_ID = "8123079349"
+HOOK_LAB_X_URL = f"https://capafy.ai/agent/{HOOK_LAB_AGENT_ID}?ct=hooklab_x"
+HOOK_LAB_IG_URL = f"https://capafy.ai/agent/{HOOK_LAB_AGENT_ID}?ct=hooklab_ig"
+HOOK_LAB_HOOK_B = "One topic. Five hooks."
+HOOK_LAB_CTA_HEAD = "Search Hook Lab on Capafy"
+HOOK_LAB_CTA_SUB = "5+ hooks. A timed script."
 API = "https://api.postiz.com/public/v1"
 X_ID = os.environ.get("CAPAFY_REEL_X_INTEGRATION", "cmt4l2jld031tqp0y8qtyo983")      # x: sela | AI Tools
 IG_ID = os.environ.get("CAPAFY_REEL_IG_INTEGRATION", "cmuuycr5402uzqw0yhanqggo9")    # instagram: Hook Lab by Anicca
@@ -52,7 +59,8 @@ NICHES = [
     {"key": "makeup", "topic": "everyday makeup Reel"}, {"key": "smallbiz", "topic": "small business TikTok"},
     {"key": "organize", "topic": "home organization Reel"}, {"key": "running", "topic": "beginner running TikTok"},
 ]
-LIMITS = {"hook_a": 40, "hook_b": 40, "title": 34, "label": 14, "quote": 80, "onscreen": 36}
+LIMITS = {"hook_a": 40, "hook_b": 40, "title": 34, "label": 14, "quote": 80, "onscreen": 36,
+          "cta_head": 36, "cta_sub": 36}
 
 
 SLOT_TIMES = {1: ("13:00", "17:00", "14:00", "20:00"), 2: ("23:00", "11:00", "01:00", "08:00")}  # (ig, x, tt, tc) UTC
@@ -76,9 +84,9 @@ def render_carousel(slug: str, spec: dict) -> list[Path]:
     bold = "/System/Library/Fonts/Supplemental/Arial Bold.ttf"
     out_dir = BASE / slug / "carousel"
     out_dir.mkdir(parents=True, exist_ok=True)
-    pages = [(spec["hook_a"], spec["hook_b"]), (spec["title"], "Hooks Hook Lab wrote. Swipe.")]
+    pages = [(spec["hook_a"], spec["hook_b"]), (spec["title"], "Codex-generated example. Swipe.")]
     pages += [(quote, f"{label} hook · on screen: {onscreen}") for label, quote, onscreen in spec["cards"]]
-    pages.append(("Search \"Hook Lab\" on Capafy", "5+ hooks, a timed script and a caption from one line."))
+    pages.append((spec["cta_head"], spec["cta_sub"]))
     paths = []
     for i, (head, sub) in enumerate(pages, 1):
         img = Image.new("RGB", (1080, 1920), (14, 14, 18))
@@ -106,21 +114,47 @@ def tiktok_live() -> bool:
     return any(r.get("id") == TT_ID and r.get("active") and r.get("warmup_phase") == "live" for r in rows)
 
 
-def caption(spec: dict) -> str:
-    return (f"{spec['hook_a']} {spec['hook_b']}\n\n"
-            "Hook Lab turns one line about your video into 5+ first-3-second hooks, a timed script and a caption.\n\n"
-            "Search \"Hook Lab\" on Capafy to try it.")
+def caption(spec: dict, network: str) -> str:
+    disclosure = (
+        "Codex-generated example using Hook Lab's public prompt; this is not a Capafy Test Run "
+        "or a performance claim."
+    )
+    cta = f"Search Hook Lab on Capafy: {HOOK_LAB_IG_URL}" if network == "ig" else "Search Hook Lab on Capafy."
+    return (
+        f"{spec['hook_a']} {spec['hook_b']}\n\n"
+        f"{disclosure}\n\n"
+        f"{cta}"
+    )
 
 
-def validate_spec(spec: dict) -> None:
+def post_values(network: str, spec: dict, uploads: list[dict]) -> list[dict]:
+    root = {
+        "content": caption(spec, network),
+        "image": [{"id": upload["id"], "path": upload["path"]} for upload in uploads],
+    }
+    if network == "x":
+        root["content"] = (
+            f"{spec['hook_a']} {spec['hook_b']}\n\n"
+            "Codex-generated example using Hook Lab's public prompt; not a Capafy Test Run "
+            "or a performance claim."
+        )
+        return [root, {"content": f"Try Hook Lab on Capafy: {HOOK_LAB_X_URL}"}]
+    return [root]
+
+
+def validate_spec(spec: dict, output: str | None = None) -> None:
     """The hooklab-02 template is fixed-size; overflowing copy renders cut off."""
-    for k in ("hook_a", "hook_b", "title"):
+    for k in ("hook_a", "hook_b", "title", "cta_head", "cta_sub"):
         if not spec.get(k) or len(spec[k]) > LIMITS[k]:
             raise ValueError(f"{k} missing or longer than {LIMITS[k]}: {spec.get(k)!r}")
+    if output is not None and spec["hook_a"] not in output:
+        raise ValueError("hook_a must be copied from the output")
     cards = spec.get("cards") or []
     if len(cards) != 3:
         raise ValueError(f"need exactly 3 cards, got {len(cards)}")
     for label, quote, onscreen in cards:
+        if output is not None and quote not in output:
+            raise ValueError("card quote must be copied from the output")
         for name, value in (("label", label), ("quote", quote), ("onscreen", onscreen)):
             if not value or len(value) > LIMITS[name]:
                 raise ValueError(f"card {name} missing or longer than {LIMITS[name]}: {value!r}")
@@ -204,29 +238,54 @@ def winner_openers() -> list:
     return (cached or {}).get("titles") or []
 
 
-def hook_lab_output(niche: dict) -> str:
-    openers = winner_openers()
-    reference = ("\nCurrently top-viewed short-video openers (study their structure; never copy their words):\n- "
+def build_hook_lab_prompt(niche: dict, openers: list[str] | None = None, winner_pattern: str | None = None) -> str:
+    openers = openers if openers is not None else winner_openers()
+    pattern = winner_pattern if winner_pattern is not None else WINNER_PATTERN.read_text(encoding="utf-8")
+    reference = ("\nCurrent high-view short-video titles (use structure only; never copy wording):\n- "
                  + "\n- ".join(openers[:10])) if openers else ""
-    return _generate_text(f"{HOOK_LAB_SKILL.read_text()}\n\n---\nUser request: Format: Instagram Reel, 30 seconds, "
-                   f"direct tone. Topic: a {niche['topic']} for creators in that niche.{reference}")
+    return (
+        f"{HOOK_LAB_SKILL.read_text(encoding='utf-8')}\n\n"
+        f"---\nWinner reference and adaptation rules:\n{pattern}\n\n"
+        f"User request: Format: Instagram Reel, 30 seconds, direct tone. "
+        f"Topic: a {niche['topic']} for creators in that niche.{reference}\n\n"
+        "Return a genuine Hook Lab example from the published prompt text. Show the actual output "
+        "in the opening seconds. The reel is a Codex-generated example, not a Capafy Test Run. Do not imply otherwise. "
+        "Do not claim views, virality, sales, or time saved. Do not invent numbers or personal experience."
+    )
+
+
+def hook_lab_output(niche: dict) -> str:
+    return _generate_text(build_hook_lab_prompt(niche))
+
+
+def build_spec_prompt(output: str) -> str:
+    return (
+        "From the Hook Lab output below, return ONLY a JSON object, no prose. "
+        "hook_a must be copied verbatim from the Hook Lab output.\n"
+        '{"hook_a":"<one exact spoken hook from the output, <=40 characters>", '
+        '"title":"<short topic title, <=34 characters>", '
+        '"cards":[["<one-word hook type>","<a hook copied verbatim from the output>","<on-screen text>"], x3]}\n'
+        "Do not write a generic claim or personal testimonial. The first frame must show one actual "
+        "Hook Lab hook; the next beat must make the prompt-to-output transformation clear. "
+        "The fixed second line is 'One topic. Five hooks.' The fixed end card is "
+        "'Search Hook Lab on Capafy' with '5+ hooks. A timed script.' "
+        "Do not claim views, virality, sales, or time saved.\n\n"
+        f"HOOK LAB OUTPUT:\n{output}"
+    )
 
 
 def spec_from_output(output: str, niche: dict) -> dict:
-    prompt = (
-        "From the Hook Lab output below, return ONLY a JSON object, no prose:\n"
-        '{"noun": "<what the creator posts, e.g. baking video>", "hook_a": "Your <noun> is good.", '
-        '"hook_b": "They swipe in 3 seconds.", "title": "<niche> <Reel|TikTok>: 3 hooks, e.g. Home baking Reel: 3 hooks", '
-        '"cards": [["<one-word hook type>", "<a hook copied verbatim from the output>", "<on-screen text>"], x3]}\n'
-        f"Limits (characters): hook_a {LIMITS['hook_a']}, title {LIMITS['title']}, card type {LIMITS['label']}, "
-        f"hook {LIMITS['quote']}, on-screen {LIMITS['onscreen']}. Pick the three strongest hooks that fit.\n\n{output}")
+    prompt = build_spec_prompt(output)
     last = None
     for _ in range(2):
         raw = _generate_text(prompt)
         m = re.search(r"\{.*\}", raw, re.S)
         try:
             spec = json.loads(m.group(0) if m else raw)
-            validate_spec(spec)
+            spec["hook_b"] = HOOK_LAB_HOOK_B
+            spec["cta_head"] = HOOK_LAB_CTA_HEAD
+            spec["cta_sub"] = HOOK_LAB_CTA_SUB
+            validate_spec(spec, output)
             return spec
         except (ValueError, json.JSONDecodeError) as exc:  # one retry with the reason
             last = exc
@@ -282,8 +341,7 @@ def schedule(slug: str, spec: dict, day: dt.date, key: str, nets: tuple = ("ig",
         settings = ({**SETTINGS["tt"], "title": spec["hook_a"]} if net in ("tt", "tc") else SETTINGS[net])
         payload = {"type": "schedule", "date": slots(day, slot)[net], "shortLink": False, "tags": [],
                    "posts": [{"integration": {"id": integration},
-                              "value": [{"content": caption(spec),
-                                         "image": [{"id": u["id"], "path": u["path"]} for u in uploads]}],
+                              "value": post_values(net, spec, uploads),
                               "settings": settings}]}
         cr = _req(key, f"{API}/posts", json.dumps(payload).encode(), {"Content-Type": "application/json"}, "POST")
         rec = {"at": dt.datetime.now(dt.timezone.utc).isoformat(), "slug": slug, "asset": str(mp4), "upload": up,
