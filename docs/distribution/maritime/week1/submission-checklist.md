@@ -1,36 +1,45 @@
-# 初週提出のチェックリスト
+# Maritime 初週の現状と残TODO
 
-公式指定形式はT01で確定する。下記は提出準備であり、公式必須条件を発明しない。
+**更新:** 2026-10-21 10:26 UTC。競技サイト/Terms、Railway、Supabase集計、Stripe live subscriptions、Postiz connector、Gmail、Life Manager/Anicca Products PRをreadback。
 
-2026-10-21 14:09 JSTにLife Managerのentryを`#competition-submissions`へ一度共有し、permalink `https://keikixmaritime.slack.com/archives/C0C9PEL45JA/p1792559347988839`をreadbackした。2026-10-21 15:44 JSTにもentryは1件だけと確認した。channel descriptionは「投稿は必要なformを置き換えない」と明記する。公開ページ・Termsとannouncementsにproject formがないため、`contact@maritime.sh`へWeek 1の正式提出経路・期限・必須demoを問い合わせた（Gmail SENT/readback `1a15d3141c56ee22`）。返信は06:43Z時点で未着。**entry shareは完了、formal submission receiptは未確認**。
+## As-Is
 
-2026-10-21 17:06 JSTに公式home/Termsを再crawlし、Week 1 cutoff/rubric/formなしを確認。
-17:07 JSTのSlack readbackではannouncementsにsetup/join投稿のみ、help検索結果0件、submissionsのLife Manager entryは1件。
-17:08 JSTのorganizer-domain Gmail検索は一致0件。
-既存threadへroute確認follow-upを17:13 JSTに送信（message `1a15d85b491c9450`）。
-正式受付receiptは未確認。
+- 申請はaccepted。競技公式条件は6週間で実利用のある別人1,000人、最初に到達して検証された3 projectがwinner。利益額は公開順位条件にない。Kickoffメールは初週後Top 30のみ次週へ進出とするが、cutoff/timezone/rubric/最低ユーザー数は公表されていない。
+- 提出: #competition-submissionsにはentry 1件を投稿/readback済み。channel説明はrequired formを代替しないと明記。公式home/Termsを10:22Zに再確認してもform/cutoff/rubricなし。10/16のCEO返信は日程・資格・旅費補助をチームに確認中という内容で、10/19以降の返信なし。正式submission receiptは未確認。投稿を重複させない。
+- Product: goal/budget入力なしでManager自身が仕事を選ぶ設計。production life-call e9ebfb62-e8c3-46eb-a198-d9203f574899とworker 9dc09440-42ed-4349-83c2-e437b1fc5017は06:23Zの旧SUCCESS deployment。last exact loaded SHA 982875d62eaa03f8e924b990c4bc80f521d8dcce。main b5ecef6e624203811d0e1103003c3cdbaf88c4cdは未採用。英日pilot pageはHTTP 200だが日次メールを現在形で示す。worker email flagは09:50Zのlast exact readback=0。10:26Z Railway variables connectorはvaluesをredact。
+- Product usage: 10:26Z Supabase aggregate-only readbackでlive participants/enrollments/executions/completed-work/report-sentはすべて0。これは内部DB集計で、Keiki/Maritimeの公式user countではない。owner PKCE、Maritime AI-credit保持への明示同意、hosted work→external result→daily report→stopは未完。個人業務データは同意前に送らない。
+- Revenue: 10:26Z Stripe live GETでLife Managerの$29/月と$20/月priceはactive subscription各0、MRR=$0。Anicca Cloudの$30/月は別productでactive subscription 0。Daisのlocal earnings申告はLife Managerやhosted userへのsettled receiptと未結合。hosted user income/net、distribution-attributed revenueは未確認。
+- Distribution: article source/package/manifestはPR #8492でmainへmerge済み（56 entries、SHA一致）。Anicca Products PR #537はdraft、Landing CI/CodeRabbit PASS。候補URLは10:22Z HTTP 404。GSC settled through 2026-10-18は0 clicks/7 impressions。Postiz connector groups/integrationsは0。Life Manager X post、verified signup、source-attributed paid receiptは未確認。Instagram新規accountなし。
+- Railway: status pageは10:22ZにもMajor Outage（Dashboard/API停止、全regionのbuild停止）。copy correctionはsourceのみで、public pageは古い日次メール表示のまま。現行pageを正す前に新規trafficを流さない。
 
-T23.1のaggregate-only packetはsubmission.jsonとして08:34:34Zに再生成済み。
-node --test apps/life-manager/scripts/maritime-week1-export.test.jsは2/2 PASS（non-completed receipt回帰ケースを含む）。
-packetにexternal users/work receipts=0、costs=null、formal receipt=nullが入る。
-作業時modeは0600、SHA256は68024002e69d0c591dbb1614223a61697fd40d21ea7752330c2f22337bf6f4e1。
-このdraftは正式提出ではない。
-fresh read-only reviewのmedium指摘は修正済み。completed statusのみを完了receiptとして扱い、failed/deferred/effect_unknownだけならmissing-completed-work caveatを残す。回帰test 2/2 PASS。
-08:26Zに既存organizer email threadを再読し、確認できた2通は当方の問い合わせとfollow-upのみ。主催者返信なし。
+## Ordered atomic TODO
 
-- [ ] 正式提出先、初週締切、timezone、必須field、再提出可否を`requirements.json`へ保存。
-- [x] T23.1-R1 completed-work caveat判定を修正し、回帰testを追加。focused test 2/2 PASS、aggregate-only packetを08:34:34Zに再生成。SHA256=68024002e69d0c591dbb1614223a61697fd40d21ea7752330c2f22337bf6f4e1、mode=0600。packetはdraftでformal receiptなし。
-- [ ] メール登録から一つの実業務を試せる公開URLを確認。
-- [ ] loaded main source SHA/配備ZIP archive SHA256とMaritime project usageを結合。
-- [ ] 一文説明、実行範囲、対象利用者、未接続条件を記述。
-- [ ] 最小の実画面demoを保存。2–3分動画は推奨で、指定がなければ受付を遅らせない。
-- [ ] 実測の外部利用者/業務完了/再利用/費用を記録。未取得はnullと理由。team/test/founderは別。
-- [ ] Local founder実績と新規Cloud利用者の実績を分ける。
-- [ ] 改善した不具合/feedbackを記録。friend feedbackがなければ実装観測の修正を事実として書く。
-- [ ] 公開URLと正式必須項目が揃い次第提出。友人3人、売上、7日継続、1,000人は初週提出の待ち条件にしない。
-- [ ] submit直前に既存受付/重複を読み、一回提出。
-- [ ] confirmation画面または受付メール/IDをreadbackして`submission.json`へ証拠参照を保存。
-- [x] T23.1 aggregate-only draft packetを生成し、measured fieldsだけと未計測nullをfocused testで確認。
-- [ ] 正本のT23を提出済みにする。ファイル生成・送信API成功だけでは受付完了としない。
+1. **T23.3 — 正式な提出経路を監視し、出たら一度だけsubmit。**
+   - Official home/Terms、announcements、既存organizer threadの新着を確認する。現時点のpublic form/締切/rubricは未公表。
+   - 公開formが出たら、実測値と理由付きnullのみで既存draftを更新し、指定のformal formだけを一度submitする。Slack entryを重複投稿しない。
+   - **DONE:** confirmation/受付IDと提出本文・時刻・release SHAを保存。現状はformal submission unconfirmed。
 
-収益額が最大のチームが勝つという公式条件は確認できない。競技の最終winnerは実利用者1,000人へ到達して検証された先着3組。利益・継続率は製品と獲得を強くするために追う。
+2. **T26.5b — Railway復旧後に英日pilot説明を本番反映。**
+   - 公式Railway statusが正常へ戻った後に、life-call/workerがmain b5ecef6e624203811d0e1103003c3cdbaf88c4cdを使うdeploymentをreadbackする。
+   - English/Japanese /maritime をGETし、日次メールを未検証cycleの設計意図として表示し、goal/budget optional、Telegram optional、Maritime保持条件、収益非保証を照合する。
+   - **DONE:** 両localeのproduction pageが正しいcopyを返し、deployment SHAを記録。現状は旧表示でblocked by Railway outage。
+
+3. **T22.1e.2 — owner PKCE/明示同意後に一件のCloud Manager cycleを完了。**
+   - Ownerが既存email PKCEを本人手続きで完了し、無期限retention noticeを読んで明示同意する。本人同意を推定・代行しない。
+   - Identity/enrollmentをaggregate-safeに照合し、既存factoryの一件を実行する。Maritime execution/result、外部provider receipt、artifact/hash、日次報告の送信と受信、pause/stop readbackを同一user/jobへ結合する。
+   - **DONE:** 自律選択→実仕事→外部結果→日報→stopの一周期を証明。local successやpageviewは数えない。
+
+4. **T27.2 — 既存blog記事を公開し、計測入口を開く。**
+   - Existing source/package/manifestはmainへmerge済み。PR #537はdraft head 42aac79aa29012ab018a138fe295943269967210、Landing CI/CodeRabbit PASS。
+   - T26.5b後にfresh exact-head reviewを行い、PRをready/merge/deployする。Canonical URL HTTP 200、title/canonical/body/source hashをreadbackする。
+   - Existing Writer/Manager blogをSEO主軸とする。Search demandは未計測であり、SEOだけで初週usersが来ると仮定しない。
+
+5. **T27.3-4 — 既存XとDaisの個別紹介を使って実ユーザーを増やす。**
+   - Postiz identity/integration readbackが0の間はpostしない。新規Instagram/X accountを作らない。接続済みの広い既存X identityが確認できたら1件だけpublishしてUTM/permalink/receiptを保存する。
+   - Live pageのcopyが直った後、準備済みのfamily/friend DMをDaisが使う。送信・既読をsignupやuser countにしない。
+   - **DONE:** source→visit→verified signup→activation→completed work→returnをcohort別に読める。
+
+6. **T28/T29/T31 — 利用者増と収益を証拠で改善する。**
+   - Competition countはKeiki/Maritime project usageで検証されたdistinct real peopleだけ。社員/test/VM/agent/view/signupを公式usersに数えない。
+   - 1,000人/約6週間は平均約24人/日というplanning arithmetic。初週cutoff/必要数が公式にあるとは言わない。
+   - Life Manager subscription MRR、利用者businessのsettled cash/net、distribution別paid receipts/fees/costを分けて計測する。0ではなくunknownの項目はunknownのままにする。

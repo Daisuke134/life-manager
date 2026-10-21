@@ -478,15 +478,15 @@ life-manager/
 
 **Files:** `docs/distribution/maritime/week1/channel-copy.md`、`docs/distribution/maritime/week1/seo-article-draft-en.md`、`docs/evidence/maritime/seo-baseline-20261021.json`、`docs/research/maritime/2026-10-20-source-map.md`、既存`apps/landing/marketing/pages/life-manager-en.html`のCTA参照。
 **Interfaces:** Dais向けDM、既存`aniccaai.com/blog/manager`の記事brief、identity/connectionをreadbackした既存の広いX account向け1投稿、source別UTM。Instagramは初期配布に含めない。
-**Depends:** なしで成功事例・SEO意図・記事briefを準備する。記事公開とX投稿はT22/T26の実URL・ライブ証拠後。
+**Depends:** T24.1-3に依存せず成功事例/briefを準備。SEO記事はpilot pageがHTTP 200で、limitations/retention/no-earnings-guaranteeを明記する場合はT22完全cycle前でも公開可。実行/収益claimはT22 official receipts後だけ。X投稿は既存identityのlive readback後。
 
 - [x] T24.1 source-map.mdのTodoist/Ahrefs/Levels/X policy記録を読み、各社が表示する数値と対象・獲得因果の確認範囲を分けた。同一の自律Life Manager獲得例は未確認と記録。模倣機構は「具体的な悩み→使い方/実結果→一つのCTA」「intent別how-to/独自調査」「実際のbuild decision/result/constraintをblogからXへ展開」。適用限界もsource-mapに記録済み。
 - [x] T24.2 `skills/writer-agent/SKILL.md`のreader-job/evidence/editorial契約と複数destination matrix、`config/loop-registry.json`の`article-daily` entry、`apps/landing/manager-blog/README.md`のcanonical source (`Daisuke134/life-manager`) とpublisher bridge (`Daisuke134/anicca-products`) を確認した。既存Writerを別媒体へ一括起動せず、記事draftだけを本repoへ保存する。
 - [x] T24.3 `AI assistant vs AI agent: who chooses the next task?`を一つのreader-query仮説として選んだ。GSCのサイト全体28日間は0 clicks / 7 impressions、記事需要は未計測。基準値とpage-row不一致の注意は`docs/evidence/maritime/seo-baseline-20261021.json`に保存し、検索量/順位は主張しない。
-- [x] T24.4a `channel-copy.md`へ記事briefとCTA HOLDを記録し、`seo-article-draft-en.md`を内部草稿にした。比較質問に答え、Life Managerのmanager定義を製品設計上の表現と明記し、hosted productの現状と未検証境界を含めた。
-- [ ] T24.4b 実画面/実receiptを完了した利用者サイクルへ結び、登録→仕事→結果/receipt→日報→停止をreadbackする。その後に一つの実URL CTAを入れ、記事を既存publication packageへ移す。現時点は内部draftで、公開CTAは保留。
-- [ ] T24.5 既存X向けのbuild-in-public投稿案は日英でchannel-copy.mdに保存済み（signup page HTTP 200 / end-to-end未確認）。このPostiz connectorのreadbackは08:24Zにgroups=0/integrations=0だが、別の公式Postiz integration inventory（2026-10-21、時刻精度date-only）はAnicca workspaceの30 enabled channelsを示す。06:41Zのpost receiptは一般AI Tools用`@selawmqt`を確認し、同identityのAI-monk field-study投稿がPUBLISHED。Life Managerの投稿・signup・売上計測ではないため取得成果へ数えない。既存の一般X identityのみを使い、別product専用accountへ混載せず、新規accountも作らない。実動作と正しいCTAをreadback後、source別計測を付けて公開する。
-- [ ] T24.6 Dais向けDMと一つのCTAを保存し、URL確定前はprelaunch copyとして明示する。最終URLとUTMにplaceholderがないことを確認しcommit/push。
+- [x] T24.4a channel-copy.mdへ記事briefとearly-pilot CTA条件を記録し、seo-article-draft-en.mdをbriefへ更新する。検索量は未測定。completed hosted work / user earnings / profit claimはreceipt gateに残す。
+- [x] T24.4b canonical SEO article source/package/manifest: source and package are byte/hash-identical; manifest has 56 entries and series_order=56; exact-head PR #8492 CI/review passed and merged to Life Manager main b5ecef6e624203811d0e1103003c3cdbaf88c4cd. Public URL/body readback is owned by T27.2 and remains incomplete.
+- [ ] T24.5 X案は既存の広いprofile向けに一つだけ保持する。Postiz connectorは09:32Z groups/integrations=0のため、post前に既存account owner/integrationを再読取し、target profileと重複投稿なしを確認する。新規accountは作らない。DONE: exact identityとPUBLISHED receiptを照合。identity未確認の間は未投稿。
+- [ ] T24.6 docs/distribution/maritime/week1/channel-copy.mdのDMへpilot URL、hosted cycle未検証、Maritime retention、収益非保証を入れる。placeholder/PIIなしを確認し、Daisが送るcopyとして保存する。DM送信/既読/signupは実利用の証拠にしない。
 
 ## Task T25: demoとプロモーション動画の撮影単位を作る（開発と並行）
 
@@ -501,7 +501,7 @@ life-manager/
 
 ## Task T26: 入口と公開説明を同じ製品へ揃える
 
-**Files:** Modify `apps/landing/marketing/pages/life-manager-en.html`、`life-manager.html`、`route-manifest.json`、既存publish-overlay。
+**Files:** apps/life-manager/lib/maritime-distribution.js copy.intro/scope/queued; apps/life-manager/lib/maritime-distribution.test.js only if an existing exact-text assertion needs updating; existing apps/landing/marketing/pages/life-manager-en.html, life-manager.html, route-manifest.json and publish-overlay remain a separate site lane.
 **Interfaces:** marketing CTA→稼働中`/maritime`のemail入口。既存Calendar有料導線は別で保持。
 **Depends:** T06。原稿は先に用意し、実URLへの切替はT22後。
 
@@ -509,16 +509,18 @@ life-manager/
 - [x] T26.2 Cloud無料pilotの対象範囲と現在動く業務をchannel-copy/SEO draftへ反映した。既存Calendarの$29 trialとMaritime無料pilotは別と明記し、利益保証を加えていない。
 - [ ] T26.3 既存full site exportへapproved overlayとして反映し、他商品/blog/legal/functionを保持する。manifest hashとpublished revisionを更新する。
 - [ ] T26.4 公開URLのemail CTA/認証/停止/localeをreadbackし、source commitとpublished SHAを結合する。source変更だけを公開完了と呼ばない。
+- [x] T26.5a Source correction: ja/en copy labels the daily email as design intent and discloses the unverified hosted cycle, optional goal/budget setup, optional Telegram, Maritime retention, and no earnings guarantee. PR #8492 is merged to main at b5ecef6e624203811d0e1103003c3cdbaf88c4cd.
+- [ ] T26.5b After the official Railway incident clears, verify the production deployment contains main b5ecef6e624203811d0e1103003c3cdbaf88c4cd; read /maritime?lang=en and ?lang=ja and confirm both show the cycle caveat and required disclosures. Do not mark source merge as production adoption.
 
 ## Task T27: 公開配布を開始する
 
 **Files:** channel-copy公開版、`aniccaai.com/blog/manager`記事、既存Postiz/X publisher receipt、既存distribution/funnel ledger。
 **Interfaces:** Dais=家族/友人DM。LM=既存ブログ1記事→既存X profile 1投稿。source別URLとcanonical permalinkを保存。
-**Depends:** T22/T24/T26。公開URLと該当機能の実証が必要。T25完成動画・3人のfeedback・IG accountは待ち条件ではない。
+**Depends:** T24 article package and current pilot-route URL/retention/limitations readback. Article publication may precede full T22 cycle. T22 is required before asserting completed execution or revenue. T25 video, three-person feedback and Instagram are not gates.
 
-- [ ] T27.1 T22の実URL、email確認/activate/stop、表示中claimをreadbackし、本文のfeature claimと実装状態を一致させる。
-- [ ] T27.2 既存Writerの正規記事経路でManagerカテゴリへ一記事公開し、canonical URL・published revision・Search Consoleまたは既存解析の初期 readbackを記録する。Writerの他destinationを勝手に有効化しない。
-- [ ] T27.3 現在Postizへ接続済みのX account owner/integrationを確認し、確認済みの一進捗・一CTAだけを一投稿する。新規account、duplicate account、類似投稿の繰返し、無断自動DM、website scriptingを行わない。
+- [ ] T27.1 After T26.5b, read back pilot URL in both locales, signup wording, Maritime retention notice, no-earnings guarantee, and the full-cycle-unverified caveat. Keep all article/DM claims aligned with the live page; T22 completion is not a prerequisite for an honestly disclosed early-pilot CTA.
+- [ ] T27.2 Publish through the existing Daisuke134/anicca-products Manager bridge. Current PR #537 is draft at head 42aac79aa29012ab018a138fe295943269967210; Landing CI and CodeRabbit passed. After T26.5b and a fresh read-only exact-head review, mark ready/merge, read back Netlify deployment and canonical URL HTTP 200, then verify title/canonical/body against the source/package SHA. No hosted execution or revenue claim is added.
+- [ ] T27.3 current Postiz integration listから既存広いX profile owner/IDを確認してから、一意のbuild-in-public postを一件だけpublishする。Current connectorが空なら外部投稿は行わず、readbackを再試行する。DONE: exact PUBLISHED receipt/permalinkとUTMを保存。
 - [ ] T27.4 Daisへ最終URL入りDMを渡す。送信はDaisの担当とし、送ったcopyだけをsignup/userに数えない。
 - [ ] T27.5 Article canonical、X permalink/provider receipt、copy SHA、UTM sourceを既存ledgerに記録し、blog/Xからverified email→activation→completed work→returnまで読む。初期waveでInstagramは使わない。
 
