@@ -164,6 +164,63 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
       assert.equal(fn.service_execute, !triggerFunctions.has(fn.proname), `${fn.signature} grants only business RPCs to service_role`);
     }
 
+    await client.query("BEGIN");
+    await client.query("SET ROLE service_role");
+    try {
+      const serviceUid = "lm_77777777-7777-4777-8777-777777777777";
+      const serviceSubject = "77777777-7777-4777-8777-777777777777";
+      const serviceRelease = "c".repeat(40);
+      await client.query(
+        "INSERT INTO public.lm_maritime_manager_identities(uid,auth_subject) VALUES ($1,$2)",
+        [serviceUid, serviceSubject],
+      );
+      assert.equal((await client.query("SELECT count(*)::integer AS count FROM public.lm_maritime_manager_identities WHERE uid=$1", [serviceUid])).rows[0].count, 1,
+        "service_role RLS policy allows reading its trusted Manager state");
+      await client.query(
+        "UPDATE public.lm_maritime_manager_identities SET first_touch=$1::jsonb,first_touch_at=clock_timestamp() WHERE uid=$2",
+        [JSON.stringify({ utm_source: "service-role" }), serviceUid],
+      );
+      await client.query(
+        `INSERT INTO public.lm_maritime_manager_enrollments(uid,auth_subject,email,source,consent_version,release_sha)
+         VALUES ($1,$2,$3,'direct','maritime-manager-v1',$4)`,
+        [serviceUid, serviceSubject, "service-role@example.invalid", serviceRelease],
+      );
+      assert.equal((await client.query("SELECT public.claim_lm_maritime_manager_provision_v1($1) AS claimed", [serviceUid])).rows[0].claimed, true,
+        "service_role can execute the SECURITY INVOKER provisioning RPC through RLS");
+      assert.equal((await client.query(
+        "SELECT public.bind_lm_maritime_manager_agent_v1($1,$2,$3,$4) AS bound",
+        [serviceUid, serviceSubject, "service-role-agent", serviceRelease],
+      )).rows[0].bound, true, "service_role can execute the SECURITY INVOKER bind RPC through RLS");
+      assert.equal((await client.query(
+        "SELECT public.claim_lm_maritime_manager_cycle_v1($1,$2,$3,$4,$5::date) AS claimed",
+        [serviceUid, "service-role-occurrence", "service-role-agent", serviceRelease, "2026-10-21"],
+      )).rows[0].claimed, true, "service_role can execute the SECURITY INVOKER cycle claim through RLS");
+      assert.equal((await client.query(
+        "SELECT public.bind_lm_maritime_manager_execution_v1($1,$2,$3,$4,$5::date,$6) AS bound",
+        [serviceUid, "service-role-occurrence", "service-role-agent", serviceRelease, "2026-10-21", "service-role-execution"],
+      )).rows[0].bound, true, "service_role can execute the SECURITY INVOKER execution bind through RLS");
+      assert.equal((await client.query(
+        "SELECT public.claim_lm_maritime_participant_v1($1,'direct','maritime-retention-v1',10,$2::timestamptz) AS status",
+        ["5".repeat(64), "2026-10-21T02:00:00Z"],
+      )).rows[0].status, "consented", "service_role can execute the SECURITY INVOKER participant RPC through RLS");
+      await client.query(
+        `INSERT INTO public.lm_web_funnel_events(event_id,event_name,audience_kind,uid,source_object_id,source_event_id,attribution)
+         VALUES ('service-role-event','maritime_work_completed','external',$1,$2,'service-role-source-event','{}'::jsonb)`,
+        [serviceUid, "5".repeat(64)],
+      );
+      await client.query(
+        `INSERT INTO public.lm_cfo_result_receipts(uid,period_key,channel,recipient_hash,status,message,observed_at)
+         VALUES ($1,'2026-10-21','email',$2,'pending','verified report','2026-10-21T02:00:00Z')`,
+        [serviceUid, "6".repeat(64)],
+      );
+      assert.equal((await client.query(
+        "UPDATE public.lm_cfo_result_receipts SET status='sent',provider_message_id='service-role-mail',sent_at='2026-10-21T02:01:00Z' WHERE uid=$1 AND period_key='2026-10-21' RETURNING status",
+        [serviceUid],
+      )).rows[0].status, "sent", "service_role can update its trusted CFO receipt through RLS");
+    } finally {
+      await client.query("ROLLBACK");
+    }
+
     const columns = await client.query(
       "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='lm_maritime_manager_identities'",
     );

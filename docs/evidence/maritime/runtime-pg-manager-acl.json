@@ -1,13 +1,19 @@
 {
-  "observed_at": "2026-10-21T02:08:40Z",
-  "migration_sha256": "1b3430af910bf1e1163259d235d6345bfe63f4798c0f5c30ec1dcf8fac9cbc46",
-  "integration_test_sha256": "cf674f2af78a5dc74f51cddcc5432d51a03b606e8ca8170adb1b54cf28550fcc",
-  "red": {
-    "command": "PATH=/opt/homebrew/Cellar/postgresql@17/17.11/bin:$PATH node --test test/postgres/maritime-manager-state.integration.js",
-    "result": "expected failure: lm_cfo_result_receipts enables RLS (false !== true)"
-  },
+  "observed_at": "2026-10-21T02:14:12Z",
+  "migration_sha256": "5016c67facbfe3b40a92ee4fefdf0b1e9a130047718329caac106823a40b22a0",
+  "integration_test_sha256": "783accbd8a4440093667a835068a8d48e8322d71b2d73c272a1bf7d1379cc4d8",
+  "red_history": [
+    {
+      "finding": "missing table ACL/RLS closure",
+      "result": "expected failure before ACL patch: lm_cfo_result_receipts enables RLS (false !== true)"
+    },
+    {
+      "finding": "service_role could not pass RLS",
+      "result": "expected 42501 before service_role policies: new row violates row-level security policy for lm_maritime_manager_identities"
+    }
+  ],
   "green": {
-    "command": "PATH=/opt/homebrew/Cellar/postgresql@17/17.11/bin:$PATH node --test lib/maritime-manager-auth.test.js lib/maritime-manager-artifacts.test.js lib/maritime-manager-wake.test.js lib/maritime-manager-store.test.js lib/maritime-manager-runtime.test.js lib/maritime-manager-usage.test.js lib/maritime-manager-report.test.js lib/maritime-distribution.test.js lib/cfo-cloud-delivery.test.js scripts/runtime-up.test.js test/postgres/maritime-manager-state.integration.js",
+    "command": "PATH=/opt/homebrew/Cellar/postgresql@17/17.11/bin:$PATH node --test apps/life-manager/lib/maritime-manager-auth.test.js apps/life-manager/lib/maritime-manager-artifacts.test.js apps/life-manager/lib/maritime-manager-wake.test.js apps/life-manager/lib/maritime-manager-store.test.js apps/life-manager/lib/maritime-manager-runtime.test.js apps/life-manager/lib/maritime-manager-usage.test.js apps/life-manager/lib/maritime-manager-report.test.js apps/life-manager/lib/maritime-distribution.test.js apps/life-manager/lib/cfo-cloud-delivery.test.js apps/life-manager/scripts/runtime-up.test.js apps/life-manager/test/postgres/maritime-manager-state.integration.js",
     "result": {
       "tests": 170,
       "passed": 170,
@@ -19,9 +25,12 @@
     "all_six_manager_tables_enable_rls": true,
     "anon_and_authenticated_have_no_manager_table_privileges": true,
     "service_role_has_only_required_table_privileges": true,
+    "service_role_has_explicit_policies_on_all_six_manager_tables": true,
     "funnel_events_remain_append_only": true,
     "five_manager_rpcs_execute_only_for_service_role": true,
     "trigger_guard_functions_are_not_directly_executable": true,
+    "service_role_can_use_all_manager_tables_and_business_rpcs": true,
+    "cfo_receipt_read_write_works_under_service_role": true,
     "migration_reapply_preserves_existing_manager_state": true
   },
   "external_effects": {

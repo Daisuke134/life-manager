@@ -292,6 +292,37 @@ ALTER TABLE public.lm_maritime_pilot_participants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.lm_web_funnel_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.lm_cfo_result_receipts ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS lm_maritime_manager_identities_service_role_access
+  ON public.lm_maritime_manager_identities;
+CREATE POLICY lm_maritime_manager_identities_service_role_access
+  ON public.lm_maritime_manager_identities FOR ALL TO service_role
+  USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS lm_maritime_manager_enrollments_service_role_access
+  ON public.lm_maritime_manager_enrollments;
+CREATE POLICY lm_maritime_manager_enrollments_service_role_access
+  ON public.lm_maritime_manager_enrollments FOR ALL TO service_role
+  USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS lm_maritime_manager_executions_service_role_access
+  ON public.lm_maritime_manager_executions;
+CREATE POLICY lm_maritime_manager_executions_service_role_access
+  ON public.lm_maritime_manager_executions FOR ALL TO service_role
+  USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS lm_maritime_pilot_participants_service_role_access
+  ON public.lm_maritime_pilot_participants;
+CREATE POLICY lm_maritime_pilot_participants_service_role_access
+  ON public.lm_maritime_pilot_participants FOR ALL TO service_role
+  USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS lm_web_funnel_events_service_role_access
+  ON public.lm_web_funnel_events;
+CREATE POLICY lm_web_funnel_events_service_role_access
+  ON public.lm_web_funnel_events FOR ALL TO service_role
+  USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS lm_cfo_result_receipts_service_role_access
+  ON public.lm_cfo_result_receipts;
+CREATE POLICY lm_cfo_result_receipts_service_role_access
+  ON public.lm_cfo_result_receipts FOR ALL TO service_role
+  USING (true) WITH CHECK (true);
+
 REVOKE ALL ON TABLE public.lm_maritime_manager_identities FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON TABLE public.lm_maritime_manager_enrollments FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON TABLE public.lm_maritime_manager_executions FROM PUBLIC, anon, authenticated, service_role;
