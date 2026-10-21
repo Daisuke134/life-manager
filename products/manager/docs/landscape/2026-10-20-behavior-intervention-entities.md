@@ -1,6 +1,6 @@
 # The Behavior Simulation & Intervention Ecosystem: Company-First Chaos Map
 
-**Reviewed:** 2026-10-20; **26 distinct entities**; **6 categories**.
+**Reviewed:** 2026-10-21 (Radiant refresh); **26 distinct entities**; **6 categories**. Existing Artificial Societies entity updated, not counted twice.
 
 This map is a **snapshot of who is building what**, not a technology flowchart or a list of paper titles. **Company names, research institutions and nonprofits are the unit of analysis.**
 
@@ -15,9 +15,11 @@ A label on this map does not claim competitive equivalence, commercial access, p
 | Simile | company | Human-behavior world models; compare simulated responses to changes | [Official source](https://www.simile.com/) |
 | Aaru | company | Grounded population and purchasing behavior simulations | [Official source](https://aaru.com/simulation) |
 | CulturePulse | company | Cultural/social dynamics and public reaction simulation | [Official source](https://www.culturepulse.ai/) |
-| Artificial Societies | company | Synthetic audiences and interacting personas for campaign tests | [Official source](https://societies.io/advertising-testing-with-ai) |
+| Artificial Societies (Radiant) | company | Grounded artificial societies, surveys, interactive interviews, focus groups, network influence and research-assistant analysis; company-reported human-panel benchmarking | [Radiant](https://societies.ai/radiant), [evaluation](https://societies.ai/eval) |
 | Lakmoos | company | Synthetic research panels; real-world validation claims | [Official source](https://lakmoos.com/blog/validating-synthetic-panels) |
 | Synthetic Users | company | Simulated participants for user/product research | [Official source](https://www.syntheticusers.com/) |
+
+**Radiant investigation:** [Original primary-source review](../research/societies/RADIANT_2026-10-21_JA.md). Published 2026 comparison: 2,796 synthetic respondents / 68,280 answers, with company-reported population TVD 0.08 versus best generic LLM 0.31 on its seven-source benchmark. This supports survey-output fidelity on those benchmarks, **not** independently proven downstream actions or causal welfare. The peer-reviewed collective-agent paper studies 33,299 bots forming language/content affinity groups; it is **not** a human opinion-survey validation. The minimum society size varies across company pages (12 vs 20), so avoid asserting one immutable product limit.
 
 ## AI + human research platforms
 
