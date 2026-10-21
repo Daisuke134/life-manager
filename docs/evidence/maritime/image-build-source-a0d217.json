@@ -11,7 +11,7 @@
   "included_vendored_profile_source_files": 13,
   "uploaded": true,
   "deployed": true,
-  "next_action": "preflight a fresh occurrence, dispatch once, and verify the receipt/artifact",
+  "next_action": "implement the Manager signup, activation, daily report and user-facing artifact route",
   "upload_http_status": 200,
   "upload_has_root_dockerfile": true,
   "upload_detected_framework": "custom",
@@ -35,5 +35,17 @@
     "skills/capafy-autopublish/scripts/browser-owner": "cefe224ce835740a1fb4e9a449977848873e8173ae4514d8d1adc6a498dd0bb8",
     "requirements-runtime.txt": "e601b3ab54346821f3bcf69ed60c1a6fa704633a4abe81a75b706b7c22b4795f"
   },
-  "business_cycle_verified": false
+  "business_cycle_verified": false,
+  "offline_draft_cycle_verified": true,
+  "fresh_occurrence_id": "week1-offline-a0-20261021-01",
+  "latest_cycle_receipt_sha256": "2e2bc0ba750429742d30e57bfd961d8a32f96960115038a1f4b440680408e797",
+  "latest_cycle_artifact_count": 3,
+  "latest_cycle_publication_verified": false,
+  "latest_cycle_sales_verified": false,
+  "latest_cycle_occurrence_id": "week1-offline-a0-20261021-01",
+  "latest_cycle_artifact_proof_download": "all 3 receipt refs verified; 4 extra candidate files also size/hash matched",
+  "business_publication_verified": false,
+  "business_sales_verified": false,
+  "business_payout_verified": false,
+  "manager_user_facing_artifact_route_verified": false
 }

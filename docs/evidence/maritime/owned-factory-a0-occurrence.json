@@ -1,0 +1,83 @@
+{
+  "observed_at": "2026-10-21T00:17:09.321733+00:00",
+  "source_sha": "a0d217d0769db2dab68bb8a8a452bfaea916fe9d",
+  "date_key": "2026-10-21",
+  "occurrence_id": "week1-offline-a0-20261021-01",
+  "official_execution": {
+    "status": "completed",
+    "exit_code": 0,
+    "tenant_matches": true,
+    "cycle_status": "completed",
+    "error_class": null
+  },
+  "receipt_sha256": "2e2bc0ba750429742d30e57bfd961d8a32f96960115038a1f4b440680408e797",
+  "artifact_refs": [
+    {
+      "ref": "artifact://occurrences/week1-offline-a0-20261021-01/earnings-question-room/FEEDBACK_BASIS.md",
+      "size_bytes": 825,
+      "sha256": "d175ae0322a448a791596a14ced212efd8219976d6c760558bafbae90f701414"
+    },
+    {
+      "ref": "artifact://occurrences/week1-offline-a0-20261021-01/earnings-question-room/LISTING.md",
+      "size_bytes": 2335,
+      "sha256": "ae14a312636911afeb5be83d61b0abeb18a2a9ee0a6917514b2a83fcb10ba678"
+    },
+    {
+      "ref": "artifact://occurrences/week1-offline-a0-20261021-01/earnings-question-room/VERIFICATION.md",
+      "size_bytes": 1539,
+      "sha256": "688cb7c111308653b12fdc6ba0e358f59ff6bd608f37561db7da4c466ba1b289"
+    }
+  ],
+  "artifact_count": 3,
+  "artifact_proof_and_download": {
+    "receipt_refs_verified": 3,
+    "additional_product_files_verified": [
+      {
+        "path": "earnings-question-room/SKILL.md",
+        "size_bytes": 2281,
+        "sha256": "66c0bb8ed251183b1bcccfc27a83402114a0e854ddf6fc17512e3e2ae836dc3f"
+      },
+      {
+        "path": "earnings-question-room/listing-config.json",
+        "size_bytes": 2639,
+        "sha256": "d279ebd618b8a71e7f391b2dc91d3abfee35eac99d79c4eacafa302a2e28566a"
+      },
+      {
+        "path": "earnings-question-room/icon.svg",
+        "size_bytes": 791,
+        "sha256": "14ce871cf1975c89972794b523db39d5824cf7d6073673a3bfdb98b3aafaf35c"
+      },
+      {
+        "path": "earnings-question-room/test/case1.md",
+        "size_bytes": 737,
+        "sha256": "628a92597f9a86a6e29ea4dbb688005bb7e34f9aa9bf219a4e4202a5957cc24e"
+      }
+    ],
+    "all_size_sha256_matches": true,
+    "local_receipt_artifacts_mode_0600": true,
+    "local_private_directory_mode_0700": true
+  },
+  "listing_validation": {
+    "status": "pass",
+    "title_chars": 22,
+    "title_limit": 50,
+    "short_description_chars": 128,
+    "short_description_limit": 500,
+    "overclaim_failures": 0
+  },
+  "factory_verification_document_claims_build_config_pass": true,
+  "listing_config_rebuilt_independently": false,
+  "provider_binding_present": false,
+  "provider_snapshot_ref_present": false,
+  "provider_receipt_count": 0,
+  "external_users_for_this_occurrence": 0,
+  "publication_verified": false,
+  "sales_verified": false,
+  "payout_verified": false,
+  "subscription_changed": false,
+  "payment_submitted": false,
+  "next_charge_usd": 0,
+  "content_boundary": "offline unpublished draft; sample financial figures are illustrative and not verified customer results",
+  "manager_user_facing_artifact_route_verified": false,
+  "next_action": "implement the Manager Postgres/signup/activation/report path; then prepare the public URL and official submission"
+}
