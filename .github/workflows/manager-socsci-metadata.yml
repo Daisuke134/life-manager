@@ -1,0 +1,39 @@
+name: Manager SocSci210 Study Split Metadata Only
+on:
+  push:
+    branches: [research/manager-product-r006-20261020]
+    paths:
+      - 'products/manager/scripts/socsci_split_audit.py'
+      - 'products/manager/tests/test_socsci_split_audit.py'
+      - '.github/workflows/manager-socsci-metadata.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  socsci-public-metadata-audit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: products/manager
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate synthetic metadata fixtures and leakage rejection
+        run: python -m unittest tests/test_socsci_split_audit.py -v
+      - name: Audit pinned public study IDs only, no participant rows
+        run: python scripts/socsci_split_audit.py --output output/socsci-s001
+      - name: Verify no SocSci participant data persisted
+        if: always()
+        run: |
+          test ! -d data/raw
+          ! find output/socsci-s001 -type f -name '*.parquet' | grep .
+          ! find output/socsci-s001 -type f -name '*.csv' | grep .
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: socsci-s001-study-split-aggregate
+          path: products/manager/output/socsci-s001/s001_aggregate.json
+          if-no-files-found: error
+          retention-days: 14
