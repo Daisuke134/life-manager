@@ -1,3 +1,14 @@
+# Phase 04 final evidence update — 2026-10-21 (authoritative snapshot)
+
+**Current:** Eight of eight research/engineering task IDs S001–S008 are done **within recorded bounded verification scopes**; individual-response research with the actual 210 studies/2,901,390 response rows succeeded and two independent same-sample publicly pretrained model comparisons were executed. **The original Socrates task-specific/condition-specific 8B/14B human-behavior accuracy was not replicated; causal effect fidelity and real-world Manager benefits remain unmeasured.** Source-of-truth JSON: `docs/roadmap/tasks.json`. Full external readbacks and limitations: [Final scientific report](PHASE04_FINAL_REAL_DATA_EVIDENCE_JA.md). 
+
+**Canonical total:** 45 done, 65 todo, 2 blocked, 1 skipped of 113. The source metadata 170/40 study split has zero overlap. Original response labels are not semantically harmonized between the different studies; answering numerically with a global 12-class output should not be described as meaningful population behavioral simulation. S002/S004/S005 original acceptance text and revised verified scope coexist in the canonical registry.
+
+**Independent successful CI:** [210-study real data / 2.9M survey responses](https://github.com/Daisuke134/life-manager/actions/runs/39562546535), [MiniLM same-sample 800 individual heldout responses](https://github.com/Daisuke134/life-manager/actions/runs/39561547086), [SmolLM2 same-sample 320 individual heldout responses](https://github.com/Daisuke134/life-manager/actions/runs/39562677909), [full task-status and 208-test run](https://github.com/Daisuke134/life-manager/actions/runs/39564516003). Raw responses and participant profiles were not committed. **Product Gate 1 remains UNMET.**
+
+---
+**Historical progress snapshot below, before completion of S002/S004/S005. It is preserved for provenance and is superseded by the new final report.**
+
 # Manager Phase 04 — Verified progress and scientifically open acceptance gates
 
 **Audit date:** 2026-10-21 JST. **Status: partial.** This document records finished implementation and actual GitHub CI readbacks, not a claim that S001–S008 or empirical causal fidelity are fully completed.
