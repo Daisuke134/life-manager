@@ -22179,3 +22179,66 @@ The last pushed branch head remains `73ef11226e5c654394a42c98646cdbd1dfa86b9b` o
 | 8 | Migrate `skills/report/daily-nl-report.mjs::llmReport` from the local proxy to Codex and preserve its truth-only output contract. | Last. Depends on #6–#7; completes the internal all-pipelines Codex-only invariant. |
 
 Reporting remains last because it does not directly bring distribution or paid orders. The factory and distributor remain the Capafy revenue cursor. The active production fence is the current blocker before any new Capafy natural publish.
+
+### Capafy post-merge production cursor — 2026-10-21 06:24 UTC
+
+**Source acceptance complete:** PR #8467 is merged as `982875d62eaa03f8e924b990c4bc80f521d8dcce` on main `483ba43b506c8266399334328258bc0c358d70c1` plus merge commit `982875d62e`. All PR checks on `71413774a8` passed. The fresh exact-head review returned SHIP with no HIGH finding and the documented, bounded MEDIUM limitation about universal OS-level read-denial. The Codex-only Capafy draft invocation and PII attestation are now in main. No immutable release has been cut or applied.
+
+**Current production readback:** at `06:19Z`, `capafy-distribute-daily` is still loaded-idle on `27b594cd84f6e660f6ffbacabb21be8d7f25cb2c`. The original occurrence `18e0730354954fe8-53052` remains claimed with `effect_unknown`. Latest occurrence `18e0770c17a566b0-32886` deferred at `06:19:05Z` before provider work because that fence remains. The complete no-effect window opens at `06:30:09.844547Z`; the prior empty GitHub/Postiz query predates its end and cannot close the fence. Keep it held and do not replay. Latest seller snapshot is still `05:07:40Z`, with 7-day gross/net `$0`, paid/trial split unavailable, and true MRR unknown. No new paid Capafy order is confirmed.
+
+**Ordered atomic TODO; current cursor = 1:**
+
+| # | Next action | Dependency and DONE evidence |
+|---|---|---|
+| 1 | At/after `06:30:09.844547Z`, read complete GitHub and Postiz windows for `capafy-distribute-daily:18e0730354954fe8-53052`; resolve only from the occurrence-bound official receipt or complete empty listings. | Current cursor. DONE: exact admission row is closed from official evidence. Any ambiguity/read failure keeps it held. |
+| 2 | Cut an immutable release from merged main without pruning retained releases; after fresh GUI/owner/lease/idle preflight, apply only `capafy-distribute-daily` through `launchctl-safe`. | Depends on #1. DONE: loaded SHA/argv show Codex's read-only, tool-disabled, schema-output route. |
+| 3 | Observe one natural Capafy run and verify article URL, GitHub receipt, exact Postiz ID/URL, occurrence binding, and duplicate-zero. | Depends on #2. DONE: official receipts and the `lm-loop` terminal join to the same occurrence. |
+| 4 | Refresh Capafy source-to-paid evidence and run the next bounded distribution experiment from measured conversion. | Depends on #3. Revenue DONE requires an official attributed paid order and observed economics; otherwise continue measurable distribution. |
+| 5 | Replace `skills/earn/x402-sell/the402-worker-daemon.mjs::runLocalModel`'s Mistral/Qwen proxy with Codex. | After the Capafy revenue cycle. Preserve the paid `userPrompt → non-empty markdown` contract and pass x402 tests. |
+| 6 | Replace `skills/earn/polymarket-trade/pick.py`'s BlockRun consensus with Codex; preserve decision fields, gates, and historical evaluation. | After #5. Keep live adoption behind official receipt `pm-live-trade:18d61d6a6df63248-48979`. |
+| 7 | Replace `skills/report/daily-nl-report.mjs::llmReport`'s local proxy with Codex; preserve the truth-only report contract. | Last; support work remains behind money-producing distribution. |
+
+The internal all-pipelines Codex-only invariant is still incomplete: these three direct inference paths remain in source. The shared runtime and Capafy draft route are Codex-only, but that does not prove migration or production adoption of the remaining agents.
+
+### Capafy release adoption and natural-run cursor — 2026-10-21 06:35 UTC
+
+**Official fence resolution:** after the full `[05:05:09.844547Z, 06:15:09.844547Z]` provider window and 15-minute buffer elapsed, merged-main `capafy_distribute_fence_reconcile.py --resolve` returned `verified=true`, `effected=false`, `proof_kind=official_github_postiz_empty_after_legacy_manifest_gap`, `admission_state=claimed`, and `closed=true` for `capafy-distribute-daily:18e0730354954fe8-53052`. A fresh read-only `lm-loop status` reports `admission_effect_unknown.current=false`. Do not replay that occurrence.
+
+**Release/apply:** immutable release `20261021T153343-70c93940` was cut from main SHA `70c93940bc712261f3dd01aa9556b467b1481539` with `LOOPS_KEEP_RELEASES=1000` and `LOOPS_ACTIVATE_CURRENT=0`. Disk admission measured `308543488` bytes required against `13 GiB` free. The Capafy-only `lm-loop apply --loaded-idle-only` first skipped safely because a natural wake had entered; that wake ended before provider work with `resource_capacity_busy`, no fence, and no publish. A second target-only apply then succeeded with install event `f19171e28cbac02f441b125d`; `launchctl-safe` readback shows the Capafy plist loaded on SHA `70c93940bc712261f3dd01aa9556b467b1481539`, loaded-idle, and `effect_unknown.current=false`.
+
+The global `~/loops/current` selector remains on `20261021T150253-483ba43b` so the active, registry-unmanaged `ai.anicca.provision-browser.tiktok.hooklab` browser owner is not moved. Its exact `skills/browser/cdp_persistent_context.py` and `runtime/browser` paths are byte-unchanged between the old and candidate releases; the process remains running and untouched. `lm-loop doctor` still reports this one unmanaged label; no attempt was made to stop or adopt it. The candidate is applied only to Capafy.
+
+**Revenue status:** no natural Capafy distribution has yet run on SHA `70c93940`; the next scheduled wake is `06:49Z`. The newest seller evidence remains `05:07:40Z`: 7-day gross/net `$0`, paid/trial split unavailable, true MRR unknown. No new paid order or source attribution is claimed.
+
+**Ordered atomic TODO; current cursor = 1:**
+
+| # | Next action | Dependency and DONE evidence |
+|---|---|---|
+| 1 | Let the `06:49Z` natural Capafy wake run on `70c93940`; verify exact article URL, GitHub receipt, Postiz ID/URL, occurrence binding, and duplicate-zero. | Current cursor. DONE: `lm-loop` terminal and official provider receipts join the same occurrence with no duplicate. |
+| 2 | Refresh Capafy source-to-paid data, then choose the next bounded distribution experiment from measured conversion. | Depends on #1. Revenue DONE requires an official source-attributed paid order and observed economics; otherwise continue measurable distribution. |
+| 3 | Move `the402-worker-daemon.mjs::runLocalModel` from its Mistral/Qwen proxy to Codex while preserving paid `userPrompt → non-empty markdown` fulfillment. | After the Capafy revenue cycle; x402 contract tests pass and no alternate inference fallback remains. |
+| 4 | Move `polymarket-trade/pick.py` from vendored BlockRun `AIAnalyzer.consensus_analysis` to Codex while preserving decision fields/gates and historical evaluation. | Depends on #3; keep live adoption behind official receipt `pm-live-trade:18d61d6a6df63248-48979`. |
+| 5 | Move `daily-nl-report.mjs::llmReport` from the local proxy to Codex and preserve the truth-only output contract. | Last; completes the internal all-pipelines Codex-only invariant. |
+
+The Capafy source is merged and adopted; the revenue result remains unknown until the natural article/X publication receipt and a source-attributed paid order are read back. The all-pipelines Codex-only source invariant remains incomplete because the three direct inference callers above are still present.
+
+### Capafy prompt-order regression and recovery cursor — 2026-10-21 06:42 UTC
+
+**Root cause:** the first natural run on release `70c93940bc712261f3dd01aa9556b467b1481539` failed at `06:36:20.522605Z` during prompt construction, before the Codex runner or publication providers. Its terminal error is `CRAFT_GUIDANCE: unbound variable`: the unquoted prompt heredoc expands that variable under `set -u`, while the trusted wrapper assigned `CRAFT_GUIDANCE` and `IDENTITY_GUIDANCE` only after the heredoc. This ordering mistake is mine. A regression test first failed on that order; moving both guidance reads before prompt construction makes the Capafy daily suite pass 12/12. The fix is commit `cd6cf7b85e` in the updated PR #8479 branch; it is not yet merged or deployed.
+
+**New effect fence:** occurrence `capafy-distribute-daily:18e077fbebd96ce8-96969` on `70c93940` remains claimed with `effect_unknown`. The local shell error indicates the model and publish commands were not reached, but that does not release the fence. Its official no-effect readback window ends at `2026-10-21T08:01:20.522605Z` (maximum 70-minute run plus 15-minute readback buffer). Keep it fenced and do not replay. The `06:49Z` and later natural wakes defer before provider work until this exact occurrence is reconciled.
+
+**Current production state:** Capafy is loaded-idle on `70c93940`; `admission_effect_unknown.current=true` only for `18e077fbebd96ce8-96969`. The earlier occurrence `18e0730354954fe8-53052` is officially closed no-effect. `~/loops/current` stays on `20261021T150253-483ba43b`, and the unmanaged TikTok Hook Lab browser owner remains running and untouched. No natural article/X receipt or new paid order is confirmed; the freshest seller snapshot still shows 7-day gross/net `$0` and true MRR unknown.
+
+**Ordered atomic TODO; current cursor = 1:**
+
+| # | Next action | Dependency and DONE evidence |
+|---|---|---|
+| 1 | Push/review/merge PR #8479 with the prompt-guidance assignments before the heredoc, and pass exact-head CI. | Current cursor. DONE: no HIGH review findings; CI passes on the pushed head; merge SHA is read from main. |
+| 2 | At/after `08:01:20.522605Z`, read complete official GitHub/Postiz windows for `18e077fbebd96ce8-96969` and resolve only from the exact proof. | Depends on #1; do not replay. DONE: exact admission row closes from official effect or complete empty listings. |
+| 3 | Cut an immutable release from latest main without pruning or changing `~/loops/current`; apply only Capafy with its release root and `--loaded-idle-only` after the fence closes. | Depends on #1–#2. DONE: Capafy plist and loaded argv show the fixed Codex release; unrelated browser owner remains unchanged. |
+| 4 | Observe the next natural Capafy distribution and read its article, GitHub, Postiz, occurrence, and duplicate receipts. | Depends on #3. DONE: one occurrence joins all official receipts. |
+| 5 | Refresh source-to-paid evidence and choose the next bounded distribution action from measured conversion. | Depends on #4. Revenue DONE requires an official attributed paid order and observed economics. |
+| 6 | Migrate x402 `runLocalModel` from Mistral/Qwen to Codex while keeping paid markdown fulfillment. | After Capafy revenue cycle. |
+| 7 | Migrate Polymarket `pick.py` from BlockRun to Codex; preserve decision gates and historical evaluation, with live adoption behind `pm-live-trade:18d61d6a6df63248-48979`. | After #6. |
+| 8 | Migrate daily report `llmReport` from the local proxy to Codex while preserving truth-only output. | Last; completes the internal all-pipelines Codex-only invariant. |
