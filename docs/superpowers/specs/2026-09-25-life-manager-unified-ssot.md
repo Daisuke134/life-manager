@@ -22402,3 +22402,24 @@ Yang Munについては、[HeyGenの顧客事例](https://www.heygen.com/custome
 | 5 | `lm-fence-reconciler`のrelease alignmentを調べ、registryの`reconcile_queued_release=true`に沿ってmain由来latest immutable releaseを採用させる。 | #2以降、distribution継続を止めない。DONE=owner statusでlatest release SHA/argvを確認し、自然passが新adapterを実行する。`~/loops/current`を手動で動かす前に、08:35Zのcandidate→a165再installを起こしたexact actorを特定する。 |
 
 **完了条件:** Capafy収益化は、公式seller sourceでsource-attributed paid orderと実際のcreator earningsが確認されるまで未完了。次は報告整形ではなく、解除後の自然distributionとその注文転換を進める。
+
+### Capafy revenue cursor — disk admission after source fix — 2026-10-21 09:07 UTC
+
+**新しい阻害:** fence closure後の自然occurrence `capafy-distribute-daily:18e0800deefadac8-56113`（09:04:09Z, release e8e91）は`pre_claim / host_admission_deferred:disk_floor_low / exit 75`で終了し、providerを開始していない。`admission_effect_unknown.current=false`のため、これは元fenceや`CRAFT_GUIDANCE`の再発ではなく容量gateである。従って、source修正は確認済みだが、修正後のnatural provider runはまだ未確認。
+
+**容量の実測とowner:** e8e91のloaded plistは`LIFE_MANAGER_REPO`を同releaseへ向け、registryでCapafyは`admission_class=revenue`。同releaseの`disk_admission.py::_floor_bytes`は10 GiB=`10737418240` bytes。09:07:06Zの同じ`disk_free_bytes()`読取りは`10164654080` bytesで、floorを`572764160` bytes下回る。`~/.local/state/life-manager/state/disk-headroom.json`はmtimeが2026-10-17の古い記録なので、今回の判定には使わない。
+
+host掃除の唯一owner `com.anicca.disk-watchdog`は60秒cadenceで稼働中。09:07:31Zの`last-unbound-receipt.json`はfree_before `10158194688` / free_after `10150838272` bytes、`reclaimed=6407` bytes（allowlistの`~/.cache/gh`）、errors=0、protected_deletions=0、preserved=9、inventory_gaps=29を記録した。容量不足は継続中で、watchdogは10候補familyの次slotを走査する。5分の`life-manager-disk-cleanup`はrelease/Git/Codex/managed-scratch保守ownerであり、HostDiskGovernorの代わりではない。削除やfloor overrideは行わない。
+
+**残TODOを更新（現在cursor=1、収益優先順）:**
+
+| # | Atomic TODO | Dependency / DONE evidence |
+|---|---|---|
+| 1 | `com.anicca.disk-watchdog`の自然60秒passを監視し、次のCapafy slot前にe8e91と同じ`disk_admission.disk_free_bytes(state_dir)`が10 GiB以上になるまで登録済みallowlist sweepを継続する。 | Current cursor。DONE=新しいwatchdog inventory/receiptとproducer gateで10 GiB以上を確認。次回slotでも足りなければtyped `disk_floor_low` deferを保持し、full inventoryの候補・gap・open-path根拠を絞る。未知/稼働中/保護対象を消さず、floorを下げない。 |
+| 2 | 10 GiB gate通過後、`capafy-distribute-daily`の次の自然interval（現cadenceなら約09:19Z）を観測し、loaded SHAとterminal occurrenceを照合する。 | #1。DONE=provider処理へ進み、typed terminal eventを残す。manual wake/replayはしない。 |
+| 3 | そのexact occurrenceのmanifest、GitHub landing commit/live URL、Postiz `PUBLISHED` ID/permalinkを同一IDでjoinする。 | #2。DONE=1記事/1 Postiz ID、duplicate count=0。 |
+| 4 | `skills/earn/capafy-marketing/scripts/capafy_hourly_reconcile.py`の既存official seller/traffic rowsから同じsourceのviews・trial・paid・earningsを確認する。 | #3。DONE=source別paid order/earningsが公式にjoin。提供されない細粒度は`unknown`のまま残す。 |
+| 5 | 注文がない場合、`/agent/agents/search`のCapafy成功sellerから同じbuyer/mediumの勝ち例を1つ選び、確認済みoffer/価格/CTA mechanismで1変数experimentを行う。 | #4。DONE=参照URL・成果・模倣機構・source計測を記録し、自然distributionで比較する。 |
+| 6 | `lm-fence-reconciler`をmain由来latest immutable releaseへ標準reconcile経路で採用する。 | #3以降、Capafy配信を止めない。DONE=owner statusのSHA/argvが新adapterを含み、natural passで読戻す。current release再選択のexact actorが分かるまで`~/loops/current`を手動変更しない。 |
+
+このentryは直前の「current cursor=次natural distribution」を更新する。先に10 GiB admission floorを回復し、収益ownerの自然runへ戻る。
