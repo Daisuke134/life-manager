@@ -22038,27 +22038,29 @@ Independent read-only reviews identified and the local diff fixes three contract
 
 The all-pipelines Codex-only invariant remains incomplete until TODO #8. The last official seller readback is still gross `$0` / `0` paid orders at `02:20:43Z`; the verified article effect above does not prove attributed revenue.
 
-### Latest Capafy natural distribution and path correction — 2026-10-21 04:50 UTC
+### Capafy配布・全pipeline Codex化 checkpoint — 2026-10-21 04:55 UTC
 
-**Fresh natural-run evidence:** parent occurrence `capafy-distribute-daily:18e0717a2336f738-91435` completed at `04:48:30Z` on old release `76d36e33979aa6e4b8924db6405fa8031b169782`. Official proof confirms landing commit `a34dc4e4149f0bbd41f1b0adfb02e22acd33f57f`, article `https://aniccaai.com/blog/tiktok-script-for-skincare`, and HTTP 200. The local ledger binds the slot to X post ID `cmvhms2bj01msta0yg12rrih8`; Postiz official listing returns that exact ID and public URL `https://twitter.com/selawmqt/status/2112767801148743872` in the occurrence window. This confirms article + X distribution; it does not establish clicks, source-to-paid conversion, or revenue. The old terminal event still has no receipt and remains `effect_status=unknown`.
+**方針:** Life Manager内部のすべてのagent推論pipelineはCodexのみを使う。Claudeや別model/proxyへのfallbackは禁止し、Codexを使えない実行はdeferする。販売中のCapafy Agentが顧客へ提供するhosted model設定は対象外。全pipelineの実装完了はTODO #8まで未達。
 
-At `04:49:10Z`, the next attempt `18e072235b269758-15450` was deferred before provider start with `host_admission_deferred:resource_capacity_busy`; effect is `not_applicable` and there are no active effect-unknown fences. The owner is loaded-idle on the old release. No loop or priority mutation was made.
+**配布の実測:** 自然occurrence `capafy-distribute-daily:18e0717a2336f738-91435` は`04:48:30Z`に旧release `76d36e33979aa6e4b8924db6405fa8031b169782`で完了。公式readbackはlanding commit `a34dc4e4149f0bbd41f1b0adfb02e22acd33f57f`、記事 `https://aniccaai.com/blog/tiktok-script-for-skincare`、HTTP 200を確認。local ledgerのX post ID `cmvhms2bj01msta0yg12rrih8`はPostiz公式listingの同一ID・公開URL `https://twitter.com/selawmqt/status/2112767801148743872`と一致。記事とXの配布は確認済みだが、click、source-to-paid conversion、売上は証明しない。旧terminal eventにはreceiptがなく`effect_status=unknown`のまま。
 
-**Canonical no-effect ledger path correction:** the registered owner event log is `~/.local/state/life-manager/writer/capafy-distribute/events.jsonl`; the distributor's runtime ledger is nested at `~/.local/state/life-manager/writer/capafy-distribute/capafy-distribute/ledger.json`, derived from `RUNS_ROOT.parent`. The first local implementation pointed at the outer directory. The dirty source now uses the actual nested ledger, and the isolated-home wrapper test mirrors the registered directory tree. Capafy tests pass 48/48; loop-run-bounds pass 202/202; syntax and diff-check pass.
+`04:49:10Z`の次attempt `18e072235b269758-15450`はprovider開始前に`host_admission_deferred:resource_capacity_busy`でdeferし、effectは`not_applicable`。最後に観測したownerは旧releaseでloaded-idle。activeなeffect-unknown fenceはなく、loopや優先度は変更していない。
 
-**Git/CI:** source branch `chore/codex-only-agent-pipelines-20261021` is pushed at `fca56eaeb362cc6a7500bcb7ceec7b0a02669734`, merged with latest main `c07df80491aefd145756ab440a532a6e69c4aafc`. Exact-head checks are all PASS at 04:50Z. The canonical-ledger correction and this evidence append are dirty and not in that head; they require a fresh review and exact-head checks after push.
+**Canonical stateとsource:** 登録済みevent logは`~/.local/state/life-manager/writer/capafy-distribute/events.jsonl`、runtime ledgerは`~/.local/state/life-manager/writer/capafy-distribute/capafy-distribute/ledger.json`。実配置に合わせて`LEDGER_PATH = RUNS_ROOT.parent / "ledger.json"`へ修正し、隔離HOMEのwrapper testも登録済みディレクトリ構造を再現する。Capafy配布・receipt関連48/48、loop-run-bounds 202/202、Python compile、shell syntax、`git diff --check`は通過。これらはsource検証でありproduction adoptionではない。
 
-**Remaining TODO (cursor = 2):**
+**Git/production:** branch `chore/codex-only-agent-pipelines-20261021`には最新観測main `6f65732bbe047b3ec1dd3ec8df2ef925b9a7c2cf`を統合済み。checkpoint更新前のローカルmerge headは`e8241263e4a5431c527895e06c6b7bacfe09c700`。PR #8467はopenで、直近のCIは古いhead `c28332d3f7390704799ea07252d5cf117145e78e`で進行中。checkpointをcommit/pushした後に正確なheadでfresh read-only reviewと全required checksを取り直す。sourceは未merge、immutable release未作成、production ownerは未採用。
+
+**Remaining TODO（cursor = 2）:**
 
 | # | Atomic TODO | Dependency and DONE evidence |
 |---|---|---|
-| 1 | The Codex-only route and Capafy receipt source are implemented locally. Canonical event/ledger paths, owner-bound no-effect authorization, and occurrence-only official proof writer are tested. | DONE locally: Capafy 48/48, loop-run-bounds 202/202, syntax and diff-check pass. Current branch has a small uncommitted fix selecting the nested ledger used by the production wrapper. |
-| 2 | Commit/push the canonical-ledger correction and this checkpoint; get a fresh read-only review of the exact diff; pass all PR #8467 checks and merge. | Current cursor. DONE: no unresolved Critical/Important findings, exact-head checks pass, merged SHA is read from `origin/main`. |
-| 3 | Cut a main-derived immutable release and apply only affected owners at safe idle boundaries through `launchctl-safe`. | Depends on #2. DONE: loaded release SHA/argv/env show Codex and affected owners reach natural terminals. |
-| 4 | Verify the first natural Capafy occurrence on that release writes its article receipt into the `lm-loop` terminal event; separately read back exact Postiz post ID/URL. | Depends on #3. DONE: exact parent occurrence reports verified article effect; X post ID/URL match official listing; duplicate count is zero. |
-| 5 | Read fresh official Capafy source-to-paid results and choose the next distribution action from measured conversion. | Depends on #4. DONE for a revenue win only with an attributed paid order and observed economics; otherwise continue the next bounded distribution experiment. |
-| 6 | Migrate `the402-worker-daemon.mjs::runLocalModel` from Mistral/Qwen proxy to Codex, preserve `userPrompt → non-empty markdown`, and run `node --test skills/earn/x402-sell/__tests__/*.test.mjs`. | Depends on #5. DONE: no alternate model fallback; paid-fulfillment contract tests pass. |
-| 7 | Migrate `polymarket-trade/pick.py` from BlockRun to Codex, preserve current fields/gates, run its full unittest suite plus historical evaluation, and keep live adoption behind exact receipt `pm-live-trade:18d61d6a6df63248-48979`. | Depends on #6. DONE: no BlockRun route remains, historical checks pass, and live adoption waits for exact effect reconciliation. |
-| 8 | Migrate `daily-nl-report.mjs::llmReport` from proxy to Codex while retaining its truth-only output contract. | Last; depends on #6–#7. DONE: no alternate model fallback and report contract passes. |
+| 1 | Codex-only sourceとCapafy receipt pathの実装、canonical event/ledger path、owner限定hint、occurrence-only official proof writerを確定する。 | DONE locally: Capafy 48/48、loop-run-bounds 202/202、syntaxとdiff-checkがpass。main `6f65732`をmerge済み。 |
+| 2 | checkpointをcommit/pushし、PR #8467の正確なheadをfresh read-only reviewとrequired CIで確認してmergeする。 | Current cursor. DONE: unresolved Critical/Important findingなし、全required checksが同一headでpass、merged SHAを`origin/main`から確認。 |
+| 3 | merge済みmainからimmutable releaseを作り、owner/GUI/leaseのfresh preflight後、影響ownerだけをidle境界で`launchctl-safe`経由で採用する。 | Depends on #2. DONE: loaded SHA/argv/envがCodexを示し、対象ownerがnatural terminalへ到達。 |
+| 4 | 新releaseの最初の自然Capafy occurrenceについて、article receiptを`lm-loop` terminalへ記録し、Xの正確なpost ID/URLを別途照合する。 | Depends on #3. DONE: occurrence-bound receipt、Postiz/GitHub official readback一致、duplicate 0。 |
+| 5 | 最新の公式Capafy source-to-paid結果を読み、測定conversionに基づく次の配布施策を実行する。 | Depends on #4. 売上成果DONEはsourceへ帰属する有料注文と実測economicsが必要。それまでは小さな配布実験を継続。 |
+| 6 | `the402-worker-daemon.mjs::runLocalModel`をCodexへ移し、`userPrompt → non-empty markdown`を維持する。 | Depends on #5. `node --test skills/earn/x402-sell/__tests__/*.test.mjs` pass、alternate model fallbackなし。 |
+| 7 | `polymarket-trade/pick.py`をCodexへ移し、既存decision fields/gatesを保つ。 | Depends on #6. unittestとhistorical evaluation pass。live adoptionはreceipt `pm-live-trade:18d61d6a6df63248-48979`の照合後のみ。 |
+| 8 | `daily-nl-report.mjs::llmReport`をCodexへ移し、truth-only出力契約を維持する。 | Depends on #6–#7. report contract pass、alternate model fallbackなし。 |
 
-The all-pipelines Codex-only invariant remains incomplete until TODO #8. Last official seller readback remains gross `$0` / `0` paid orders at `02:20:43Z`; the newly verified article and X post are not a paid order.
+最終保存済み公式seller readbackは`02:20:43Z`時点のgross `$0` / paid `0件`。新しい公式売上readbackは未取得。記事とXの配布実績を売上とは扱わない。
