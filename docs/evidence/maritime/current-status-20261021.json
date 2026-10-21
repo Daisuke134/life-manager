@@ -1,0 +1,141 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-10-21T05:30:31Z",
+  "source_main_sha": "efd1b2b6183fb1bcaf850e1b09399c3ac61a5c04",
+  "competition": {
+    "home_url": "https://competition.maritime.sh/",
+    "terms_url": "https://competition.maritime.sh/terms",
+    "terms_last_updated": "2026-10-15",
+    "common_window": "2026-10-20 through 2026-12-01 23:59 America/Los_Angeles",
+    "target": "1,000 distinct people with real usage, reviewed through project usage on Keiki or Maritime",
+    "winner_rule": "The first three projects to reach the target, subject to verification",
+    "fake_or_duplicate_usage": "Does not qualify",
+    "award": "Up to USD 20,000 in LLM credits per winning project; not promised to all winners. Second- and third-place amounts remain unpublished.",
+    "san_francisco": "Three-day experience. Sponsored flights are limited to people in the United States; exact flight eligibility, traveler count, covered expenses, dates, and international-winner arrangements remain unpublished.",
+    "week_one": {
+      "top_30_advance": "Stated in the kickoff email",
+      "exact_cutoff": null,
+      "scoring_rubric": null,
+      "minimum_user_count": null,
+      "official_project_submission_form": null
+    }
+  },
+  "production": {
+    "project": "Anicca",
+    "environment": "production",
+    "life_call": {
+      "latest_success_deployment": "65cce4c2-84e1-4add-84fb-2a78e62d5f14",
+      "deployment_status": "SUCCESS",
+      "loaded_source_sha": "27b594cd84f6e660f6ffbacabb21be8d7f25cb2c",
+      "manager_email_enabled": "1",
+      "pilot_max_users": "3",
+      "maritime_signup_route": "HTTP 200; rendered signup page"
+    },
+    "worker": {
+      "latest_success_deployment": "ab02496c-b455-43ab-84d2-265f23aba824",
+      "deployment_status": "SUCCESS",
+      "loaded_source_sha": "27b594cd84f6e660f6ffbacabb21be8d7f25cb2c",
+      "manager_capabilities": [
+        "maritime.manager.provision",
+        "maritime.manager.cycle",
+        "maritime.manager.report"
+      ],
+      "email_enabled": "0",
+      "pilot_max_users": "3"
+    },
+    "latest_docs_only_deployments": {
+      "source_sha": "efd1b2b6183fb1bcaf850e1b09399c3ac61a5c04",
+      "life_call_status": "SKIPPED",
+      "worker_status": "SKIPPED",
+      "life_manager_app_source_diff_since_loaded_sha": []
+    }
+  },
+  "runtime_database_readback": {
+    "observed_at": "2026-10-21T05:25:00Z",
+    "identities": 1,
+    "enrollments": 0,
+    "executions": 0,
+    "pilot_participants": 0,
+    "manager_jobs": 0,
+    "verified_external_manager_users": 0
+  },
+  "http_log_readback": {
+    "window_start": "2026-10-21T04:00:00Z",
+    "checked_at": "2026-10-21T05:20:00Z",
+    "maritime_get_200": 9,
+    "maritime_get_503": 1,
+    "email_signup_post_202": 1,
+    "email_signup_post_429": 1,
+    "auth_confirm_requests": 0,
+    "manager_activate_requests": 0,
+    "manager_stop_requests": 0
+  },
+  "signup_state": {
+    "email_link_post_returned_202_once": true,
+    "later_post_returned_429_once": true,
+    "confirmation_or_activation_seen": false,
+    "link_consumed": false,
+    "explicit_retention_consent_verified": false
+  },
+  "distribution": {
+    "user_directive": {
+      "primary": "SEO articles on the existing blog using existing Writer components",
+      "secondary": "One existing broad/build-in-public X account after its Postiz identity is verified",
+      "do_not_create": [
+        "Instagram account"
+      ],
+      "do_not_mix_life_manager_content_into_other_product_specific_accounts": true
+    },
+    "postiz_readback": {
+      "checked_at": "2026-10-21T05:20:00Z",
+      "groups": 0,
+      "integrations": 0,
+      "posts_in_window_2026_10_01_to_2026_12_02": 0,
+      "interpretation": "This connected Postiz interface exposes no account; an X account elsewhere is not verified by this result."
+    },
+    "manager_blog": {
+      "index_url": "https://aniccaai.com/blog/manager",
+      "product_acquisition_article_or_cta_live": false,
+      "latest_source_article": "docs/research/manager/articles/2026-10-21-what-great-manager-does-en.md",
+      "latest_source_article_main_pr": 8474,
+      "proposed_canonical_url": "https://aniccaai.com/blog/manager-great-management-evidence-first-en",
+      "proposed_url_readback": "HTTP 404 at 2026-10-21T05:25Z",
+      "is_life_manager_signup_acquisition_article": false
+    },
+    "evidence_and_limits": "docs/research/maritime/2026-10-20-source-map.md records Todoist, Ahrefs, and Levels mechanisms and limits. None is a causal same-product case showing an autonomous Life Manager reaching 1,000 users without social."
+  },
+  "public_product": {
+    "manager_page_url": "https://aniccaai.com/lm",
+    "copy": "Describes proactive manager and says task-specific goals/budgets are not required; the broader hosted experience is still in development.",
+    "pilot_url": "https://life-call-production.up.railway.app/maritime?lang=en",
+    "pilot_copy": "Manager chooses work; Telegram is optional; revenue is not guaranteed; provider data retention is disclosed."
+  },
+  "submission": {
+    "application": "accepted",
+    "project_submission_status": "not_submitted",
+    "formal_project_form_url": null,
+    "prior_slack_submission_channel_share": "Previously read back; sharing in the channel does not replace a required form.",
+    "share_url_email": {
+      "sent_and_read_back": true,
+      "gmail_message_id": "1a15cc8791911599",
+      "url": "https://life-call-production.up.railway.app/maritime?lang=ja"
+    },
+    "current_winner_or_top_30_status": "Not verified"
+  },
+  "mail_readback": {
+    "checked_at": "2026-10-21T05:20:00Z",
+    "new_contest_rules_found": false,
+    "messages": [
+      {
+        "subject": "Welcome to Maritime",
+        "received_at": "2026-10-20T14:53:34Z",
+        "classification": "generic product welcome"
+      },
+      {
+        "subject": "Verify your Maritime email",
+        "received_at": "2026-10-20T12:37:52Z",
+        "classification": "account verification email; link not used"
+      }
+    ]
+  }
+}

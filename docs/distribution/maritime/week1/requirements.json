@@ -1,13 +1,13 @@
 {
-  "observed_at": "2026-10-21T04:03:27Z",
+  "observed_at": "2026-10-21T05:30:31Z",
   "program": "Keiki x Maritime The First 1000",
   "official_start_date": "2026-10-20",
   "competition_deadline": "2026-12-01T23:59:00-08:00",
   "competition_timezone": "America/Los_Angeles",
   "first_week_deadline": null,
-  "first_week_deadline_reason": "The 2026-10-19 kickoff email says the product should be built by the end of week one and real users are a bonus, but gives no exact date/time/timezone. Program Terms last updated 2026-10-15 set the common window to 2026-10-20 through 2026-12-01 23:59 Pacific and publish no week-1 cutoff. The last verified announcements read at 2026-10-21T00:17Z still showed a loading indicator.",
+  "first_week_deadline_reason": "The 2026-10-19 kickoff email says to build the product by the end of week one, that real users are a bonus, and that only the top 30 advance. It gives no exact date, time, timezone, scoring weights, or minimum-user threshold. The official home and Terms were crawled at 2026-10-21T05:20Z and publish no week-one cutoff, Top-30 rubric, or project-submission form. A fresh Gmail search found only generic Maritime Welcome and Verify messages.",
   "submission_url": null,
-  "submission_url_reason": "Official website has an application form, which is already accepted. Current #competition-submissions description says share entry/demo there but explicitly says a post does not replace any required submission form; no project form URL was visible in refreshed sources.",
+  "submission_url_reason": "The application form has been accepted and is not the project submission. The official home and Terms show no project form. The previously read #competition-submissions instruction invites an entry/demo but says the channel post does not replace a required form. Current project_submission_status remains not_submitted.",
   "required_fields": null,
   "required_fields_reason": "No official form/rubric published in observed sources.",
   "first_week_requirements": [
@@ -18,16 +18,19 @@
   "top30_rules": {
     "advance_count": 30,
     "scoring_weights": null,
-    "minimum_user_count": null
+    "minimum_user_count": null,
+    "source": "Kickoff email readback; exact rubric and cutoff are not published on the official home or Terms."
   },
   "winning_target": {
     "distinct_real_users": 1000,
-    "verified_first_projects": 3,
+    "user_definition": "Distinct people with real usage; fake accounts, bot inflation, duplicate identities, and fabricated activity do not qualify.",
     "usage_review_platforms": [
       "Keiki",
       "Maritime"
     ],
-    "both_platforms_required_confirmed": false
+    "both_platforms_required_confirmed": false,
+    "verified_first_projects": 3,
+    "per_user_retention_or_activity_minimum": null
   },
   "source_urls": [
     "https://competition.maritime.sh/terms",
@@ -58,7 +61,7 @@
     "latest_observation": "Refreshed 2026-10-21: no newer week-1 deadline or required project form was visible; announcements page remained loading, so its current posts were not fully read. Submission channel caveat remains."
   },
   "submission_status": "not_submitted",
-  "mail_checked_at": "2026-10-21T04:03:27Z",
+  "mail_checked_at": "2026-10-21T05:20:00Z",
   "official_instruction_email_unchanged": true,
   "participant_access": {
     "source_subject": "You're in! Keiki x Maritime",
@@ -93,33 +96,34 @@
     }
   },
   "last_live_refresh": {
-    "observed_at": "2026-10-21T03:54:40Z",
+    "observed_at": "2026-10-21T05:20:00Z",
     "source_urls": [
       "https://competition.maritime.sh/",
       "https://competition.maritime.sh/terms"
     ],
     "terms_last_updated": "2026-10-15",
-    "official_goal": "1000 distinct users with real usage during the six-week window; first three verified projects to reach the target win",
-    "award": "up to USD20000 credit per winning project; not guaranteed to all winners or per teammate",
-    "travel": "three days in San Francisco; sponsored flights limited to people in the United States; international arrangement unpublished",
+    "official_goal": "1,000 distinct users with real usage during the six-week window; first three projects to reach the target win, subject to verification.",
+    "award": "Up to USD 20,000 in LLM credits per winning project; not guaranteed to all winners. Second- and third-place amounts and detailed award schedule remain unpublished.",
+    "travel": "Three-day San Francisco experience. Sponsored flights are limited to people in the United States; exact eligibility, traveler count, covered expenses, dates, and international-winner arrangements remain unpublished.",
     "week1_deadline_time": null,
-    "week1_deadline_reason": "2026-10-21T03:54Z時点でcompetition.maritime.shと/termsを直接crawl。6週間の共通期間と最終期限は掲載されているが、week-1の正確な日時、project submission form、Top 30の採点/最低利用者数は掲載されていない。Kickoff emailの最後の読取(01:26Z)ではweek-1終わりまでに製品を作り、実利用者はbonus、Top 30が次週へ進むと記録。communityの最後の本文読取(00:17Z)では#competition-submissions投稿は正式formを代替しない。",
+    "week1_deadline_reason": "Official home and Terms directly crawled at 2026-10-21T05:20Z. The kickoff email says top 30 advance but supplies no exact cutoff or scoring. No project form is published. The submissions-channel instruction previously read says posting does not replace any required form.",
     "project_submission_status": "not_submitted",
-    "refresh_scope": "Official competition home and Terms were directly crawled this turn. Gmail/community readback timestamps remain unchanged and are separately recorded."
+    "refresh_scope": "Official home and Terms were directly crawled; Gmail was freshly searched/read. Community channel was not refreshed in this observation."
   },
-  "official_instruction_email_unchanged_reason": "A fresh Gmail search after 2026-10-20 for Maritime/Keiki sender domains returned only transactional messages: Welcome to Maritime (2026-10-20T14:53:34Z) and Verify your Maritime email (2026-10-20T12:37:52Z). The Welcome body contains only a general welcome and no competition instructions. The verification email body/link/code was not opened or used. No new competition cutoff, scoring, or project form was found.",
+  "official_instruction_email_unchanged_reason": "Fresh Gmail search at 2026-10-21T05:20Z returned the same two transactional emails: generic Welcome and account Verify. The verification email body was read, its link was not used, and neither message contained competition rules. No new cutoff, Top-30 scoring, or project form was found.",
   "last_official_sources": {
-    "observed_at": "2026-10-21T03:54:40Z",
+    "observed_at": "2026-10-21T05:20:00Z",
     "urls": [
       "https://competition.maritime.sh/",
       "https://competition.maritime.sh/terms"
     ],
     "verified": {
       "program_window": "2026-10-20 through 2026-12-01 23:59 America/Los_Angeles",
-      "target": "1,000 distinct real users with real usage",
-      "winners": "first three projects to reach the target, subject to verification",
-      "award": "up to USD 20,000 in LLM credits per winning project; three-day San Francisco trip",
-      "travel": "sponsored flights limited to people in the United States; international arrangement unpublished",
+      "target": "1,000 distinct users with real usage",
+      "winners": "First three projects to reach the target, subject to verification",
+      "both_platforms_required": false,
+      "award": "Up to USD 20,000 in LLM credits per winning project; not promised to all winners or per teammate",
+      "travel": "Three days in San Francisco; sponsored flights limited to people in the United States; details for international winners, traveler count, dates, and coverage unpublished",
       "week1_cutoff_or_submission_form": null
     }
   }

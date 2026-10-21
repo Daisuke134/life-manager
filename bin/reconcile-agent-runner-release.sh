@@ -152,7 +152,7 @@ provision_investment_selection() {
   local release_root="$1"
   local release_sha="$2"
   local configured_reports_path="${LIFE_MANAGER_INVESTMENT_VALIDATION_REPORTS_PATH:-}"
-  local reports_path="${configured_reports_path:-$release_root/apps/life-manager/investment-core/reviewed-validation-reports.json}"
+  local reports_path="${configured_reports_path:-$HOME/.local/state/life-manager/alpaca-investment-validation/reviewed-validation-reports.json}"
   if [ ! -f "$reports_path" ] && [ -z "$configured_reports_path" ]; then
     return 0
   fi
@@ -166,9 +166,10 @@ provision_investment_selection() {
   local selection_path
   for selection_path in "$live_selection_path" "$paper_selection_path"; do
     if ! "$runtime_python" "$provisioner" \
-        --path "$selection_path" \
-        --reports "$reports_path" \
-        --release-sha "$release_sha"; then
+      --path "$selection_path" \
+      --reports "$reports_path" \
+      --refresh \
+      --release-sha "$release_sha"; then
       printf 'agent-runner reconcile: investment strategy selection provisioning failed for %s\n' \
         "$selection_path" >&2
       return 1
