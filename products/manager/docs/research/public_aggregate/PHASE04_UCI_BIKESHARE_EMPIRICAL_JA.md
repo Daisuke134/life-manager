@@ -22,6 +22,8 @@
 - 使用コード: `manager_core/phase04_bike_sharing.py`、`scripts/phase04_bike_sharing.py`、`tests/test_phase04_bike_sharing.py`、`.github/workflows/manager-phase04-public-aggregate.yml`。
 - 出力は集計のみ。個人識別子、生CSV、各日付の値を成果物に保存・公開していない。このデータセットには日次集計のみを要求し、SocSci210参加者情報は読み込まない。
 
+集計値の固定機械読取版: [PHASE04_BIKESHARE_METRICS.json](PHASE04_BIKESHARE_METRICS.json)。この数値は実測データを取得した外部CIログと突き合わせたもので、将来の別バージョンでは再検証する。
+
 ## 3. 実際の2012年データに対する結果
 
 実行 [GitHub Actions 39545601251](https://github.com/Daisuke134/life-manager/actions/runs/39545601251) の**ピン留め実測CSV**から計算された数字。構築した架空回答の結果ではない。
