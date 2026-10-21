@@ -21146,7 +21146,7 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 
 **TODO順変更:** 旧=一業務readiness→Cloud→入口→3人pilot→packet→1,000人。新=下記atomic ID順、提出経路確認T01・配布文案T24・台本T25は即着手可能。理由はDaisが知人DMを担当し、利用者feedbackを待たず実装・素材・提出準備を進められるため。先に試せる製品と正式必須項目を揃えて提出し、改善と獲得を継続する。全体統括cursorと進行中provider effectは変更しない。
 
-**Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細file/signature/acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。現在主cursor=T22.1b.6-01（Manager専用stateをRuntime Postgresへ接続）。PR #8452のoccurrence artifact修正は13/13 checks・fresh review指摘0でmain a0へ統合、sanitized imageを既存owned VMへ反映。health/source hashes一致・Linux privilege/browser境界をread-only probeで確認した。新しいoffline draft cycleはcompleted/exit0、receipt3 refs、7 filesのproof/download hash一致、listing linter pass。provider未接続のため公開/売上/入金なし、外部user0。既存v3 deferredと6-file unknown receiptは保持。次はb.6-01〜34の実装、実PKCE/起動/日報/停止を通して初週用public demoを成立させ、その後T23正式経路と受付receiptを進める。
+**Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細file/signature/acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。現在主cursor=T22.1b.6-02（Manager専用identity schemaをRuntime Postgresへ定義）。PR #8452のoccurrence artifact修正は13/13 checks・fresh review指摘0でmain a0へ統合、sanitized imageを既存owned VMへ反映。health/source hashes一致・Linux privilege/browser境界をread-only probeで確認した。新しいoffline draft cycleはcompleted/exit0、receipt3 refs、7 filesのproof/download hash一致、listing linter pass。provider未接続のため公開/売上/入金なし、外部user0。既存v3 deferredと6-file unknown receiptは保持。次はb.6-01〜34の実装、実PKCE/起動/日報/停止を通して初週用public demoを成立させ、その後T23正式経路と受付receiptを進める。
 
 | ID | 一件の成果物 | 状態/依存 |
 |---|---|---|
@@ -21274,7 +21274,7 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 **収益側の残境界:** cloud_cycle.pyはprovider binding参照の形を検証するが、同tenantの販売認証と正規publishの本番完了は未確認。readCapafyFinancialRecordsはmoduleとして存在するが、本番callerは未接続。既存T08/T09/T10でowned account readback→正規publish→official seller snapshot→FinancialRecord.append→日報を一件ずつ接続する。成果物生成を売上に置換しない。LM自身の課金も既存web-billing.jsはCalendar必須/Supabase lm_users直結なのでresolver差替えだけでは動かず、Atomic Plan T31.1〜9へ補正する。現在のcapは3で、25を稼働値として扱わない。
 
 
-**権限修正の実反映:** c-5c完了。公式配備success後のread-only実行でrelease4f、変更fileのmain hash一致、receipts親10001:10001/0700を確認し、v2 cycle receipt不存在を確認する。新しいモデル実行は行っていない。証拠→docs/evidence/maritime/receipt-parent-image-adoption.json。主cursor=b.6-01、副cursor=c-5d。
+**権限修正の実反映:** c-5c完了。公式配備success後のread-only実行でrelease4f、変更fileのmain hash一致、receipts親10001:10001/0700を確認し、v2 cycle receipt不存在を確認する。新しいモデル実行は行っていない。証拠→docs/evidence/maritime/receipt-parent-image-adoption.json。当時cursor=b.6-01/c-5d。
 
 
 **c-5dの実業務readback:** main4f VM execution completed/exit0。runnerはno_op/evidence4、4fileはregular・single-link・UID10001、合計7188bytes。cycle receiptはdeferred/no_work/artifact refsなし。原因はcloud_cycleがno_opのevidenceを捨てること。mtimeは観測事実でありfreshness判定には使わない。以前のoffline factory 6-file unknown receiptとv3 deferred receiptは変更しない。販売公開/売上/入金は未確認。artifact修正は#8452でmain a0へ統合済み。実測→`docs/evidence/maritime/owned-factory-no-op.json`。
