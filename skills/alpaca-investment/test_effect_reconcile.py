@@ -1,13 +1,15 @@
+import json
 import os
 import sys
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import effect_reconcile as er  # noqa: E402
+from runtime.loop import fence_reconcile as fence_reconcile  # noqa: E402
 
 OWNER = "alpaca-investment-live"
 OCC = OWNER + ":18d89ac7ba8a6a98-47263"
@@ -58,14 +60,113 @@ class BuildProofTest(unittest.TestCase):
         self.assertEqual(proof["provider_request_ids"], ["after-request-1", "open-request-2"])
 
     def test_missing_provider_request_id_keeps_no_order_unverified(self):
+        order = {"id": "provider-order-1", "client_order_id": "client-order-1"}
         responses = iter((
-            {"data": [], "request_id": "after-request-1"},
+            {"data": [order], "request_id": "after-request-1"},
             {"data": [], "request_id": " "},
         ))
         proof = er.build_proof(OWNER, OCC, QUEUED, lambda _path: next(responses))
 
         self.assertIs(proof["verified"], False)
         self.assertEqual(proof["reason"], "provider_request_id_missing")
+        self.assertEqual(proof["provider_receipt_id"], "after-request-1")
+        self.assertEqual(proof["provider_request_ids"], ["after-request-1"])
+        self.assertEqual(proof["after_order_count"], 1)
+        self.assertEqual(proof["after_order_refs"], [order])
+        self.assertEqual(proof["phase"], "readback")
+        self.assertEqual(proof["status"], "held")
+        self.assertEqual(proof["effect_status"], "unknown")
+        self.assertEqual(proof["retryable"], False)
+        self.assertEqual(proof["next_action"], "retry_or_repair_official_readback")
+
+    def test_second_get_failure_keeps_first_receipt_and_structured_diagnostic(self):
+        order = {"id": "provider-order-1", "client_order_id": "client-order-1"}
+
+        def get(path):
+            if "status=open" in path:
+                raise OSError("PRIVATE PROVIDER RESPONSE BODY")
+            return {"data": [order], "request_id": "after-request-1"}
+
+        proof = er.build_proof(OWNER, OCC, QUEUED, get)
+
+        self.assertFalse(proof["verified"])
+        self.assertEqual(proof["reason"], "readback_failed:OSError")
+        self.assertEqual(proof["provider_receipt_id"], "after-request-1")
+        self.assertEqual(proof["provider_request_ids"], ["after-request-1"])
+        self.assertEqual(proof["after_order_count"], 1)
+        self.assertEqual(proof["after_order_refs"], [order])
+        self.assertEqual(proof["phase"], "readback")
+        self.assertEqual(proof["status"], "held")
+        self.assertEqual(proof["effect_status"], "unknown")
+        self.assertEqual(proof["error_class"], "OSError")
+        self.assertTrue(proof["retryable"])
+        self.assertEqual(proof["next_action"], "retry_or_repair_official_readback")
+        self.assertNotIn("PRIVATE PROVIDER RESPONSE BODY", json.dumps(proof))
+
+    def test_readback_stdout_fits_central_tail_and_keeps_bounded_order_refs(self):
+        def order(index, prefix):
+            return {
+                "id": "i" * 95 + str(index),
+                "client_order_id": prefix + "x" * 89 + str(index),
+                "status": "filled" * 30,
+                "submitted_at": "2026-09-30T12:39:55Z" + "x" * 130,
+                "symbol": "BTC/USDC" + "x" * 150,
+                "side": "buy" * 50,
+            }
+
+        after_orders = [order(i, "after-") for i in range(8)]
+        open_orders = [order(i, "open-") for i in range(8)]
+
+        def get(path):
+            if "status=open" in path:
+                return {"data": open_orders, "request_id": "o" * 96}
+            return {"data": after_orders, "request_id": "r" * 96}
+
+        output = StringIO()
+        with patch.object(er, "fenced_row", return_value=("claimed", QUEUED)), \
+                patch.object(er, "alpaca_get", return_value=get), \
+                redirect_stdout(output):
+            result = er.main(["--occurrence-id", OCC, "--mode", "live", "--readback-only"])
+
+        tail = output.getvalue()[-fence_reconcile.STDOUT_TAIL_LIMIT:]
+        records = fence_reconcile._json_output_records(tail)
+        self.assertEqual(result, 1)
+        self.assertEqual(len(output.getvalue()), len(tail))
+        self.assertEqual(len(records), 1)
+        proof = records[0]
+        self.assertEqual(proof["provider_request_ids"], ["r" * 96, "o" * 96])
+        self.assertEqual(proof["after_order_count"], 8)
+        self.assertEqual(proof["open_order_count"], 8)
+        self.assertTrue(proof["order_refs_truncated"])
+        self.assertGreaterEqual(len(proof["after_order_refs"]), 1)
+        self.assertGreaterEqual(len(proof["open_order_refs"]), 1)
+        self.assertLessEqual(len(proof["after_order_refs"]) + len(proof["open_order_refs"]), 4)
+        self.assertEqual(proof["after_order_refs"][0]["id"], "i" * 95 + "0")
+        self.assertTrue(proof["after_order_refs"][0]["client_order_id"].startswith("after-"))
+
+    def test_oversized_provider_request_ids_stay_held_without_raw_values(self):
+        oversized_id = "request-" + "x" * 4096
+
+        def get(path):
+            if "status=open" in path:
+                return {"data": [], "request_id": oversized_id}
+            return {"data": [], "request_id": oversized_id}
+
+        output = StringIO()
+        with patch.object(er, "fenced_row", return_value=("claimed", QUEUED)), \
+                patch.object(er, "alpaca_get", return_value=get), \
+                redirect_stdout(output):
+            result = er.main(["--occurrence-id", OCC, "--mode", "live", "--readback-only"])
+
+        tail = output.getvalue()[-fence_reconcile.STDOUT_TAIL_LIMIT:]
+        records = fence_reconcile._json_output_records(tail)
+        self.assertEqual(result, 1)
+        self.assertEqual(len(output.getvalue()), len(tail))
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0]["reason"], "provider_request_id_invalid")
+        self.assertEqual(records[0]["provider_request_id_invalid_scopes"], ["after", "open"])
+        self.assertNotIn(oversized_id, output.getvalue())
+        self.assertFalse(records[0]["verified"])
 
     def test_alpaca_get_preserves_provider_request_id_header(self):
         response = MagicMock()
@@ -106,6 +207,50 @@ class BuildProofTest(unittest.TestCase):
     def test_any_order_after_queue_is_not_verified(self):
         proof = er.build_proof(OWNER, OCC, QUEUED, fake_get([{"id": "o1"}], []))
         self.assertIs(proof["verified"], False)
+
+    def test_inconclusive_order_readback_keeps_provider_request_and_order_refs(self):
+        order = {"id": "provider-order-1", "client_order_id": "lm-ai-" + "a" * 24,
+            "status": "filled", "submitted_at": "2026-09-30T12:39:55Z",
+            "symbol": "BTC/USDC", "side": "buy"}
+        proof = er.build_proof(OWNER, OCC, QUEUED, fake_get([order], []))
+
+        self.assertFalse(proof["verified"])
+        self.assertEqual(proof["reason"], "orders_present:after=1,open=0")
+        self.assertEqual(proof["provider_receipt_id"], "after-request")
+        self.assertEqual(proof["provider_request_ids"], ["after-request", "open-request"])
+        self.assertEqual(proof["after_order_count"], 1)
+        self.assertEqual(proof["after_order_refs"], [{key: order[key] for key in (
+            "id", "client_order_id")}])
+
+    def test_live_readback_defaults_to_canonical_credentials_when_env_is_missing(self):
+        with patch.dict(os.environ, {}, clear=True), \
+                patch.object(er, "fenced_row", return_value=("claimed", QUEUED)), \
+                patch.object(er, "alpaca_get", return_value=fake_get([], [])) as alpaca_get, \
+                redirect_stdout(StringIO()):
+            result = er.main(["--occurrence-id", OCC, "--mode", "live", "--readback-only"])
+
+        self.assertEqual(result, 0)
+        alpaca_get.assert_called_once_with(Path.home() / ".local/share/anicca/credentials.json", "live")
+
+    def test_adapter_failure_emits_secret_free_structured_diagnostic(self):
+        output, error_output = StringIO(), StringIO()
+        with patch.dict(os.environ, {}, clear=True), \
+                patch.object(er, "fenced_row", return_value=("claimed", QUEUED)), \
+                patch.object(er, "alpaca_get", side_effect=ValueError("credential secret should never be printed")), \
+                redirect_stdout(output), redirect_stderr(error_output):
+            result = er.main(["--occurrence-id", OCC, "--mode", "live",
+                "--credentials", "/private/credentials.json", "--readback-only"])
+
+        self.assertEqual(result, 1)
+        diagnostic = json.loads(output.getvalue().splitlines()[0])
+        self.assertEqual(diagnostic["owner_id"], OWNER)
+        self.assertEqual(diagnostic["occurrence_id"], OCC)
+        self.assertEqual(diagnostic["phase"], "readback")
+        self.assertEqual(diagnostic["error_class"], "ValueError")
+        self.assertEqual(diagnostic["reason_code"], "credentials_unavailable")
+        self.assertEqual(diagnostic["retryable"], False)
+        self.assertEqual(diagnostic["next_action"], "inspect_readback_credentials")
+        self.assertNotIn("credential secret should never be printed", output.getvalue() + error_output.getvalue())
 
     def test_open_order_is_not_verified(self):
         proof = er.build_proof(OWNER, OCC, QUEUED, fake_get([], [{"id": "o2"}]))
