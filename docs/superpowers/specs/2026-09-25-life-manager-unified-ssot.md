@@ -16367,6 +16367,26 @@ REDebbd5af252→GREEN0e8f071c0eはcore guardも証明済みsell/nofill closedか
 
 **順序変更の理由:** the source blocker is integrated and local provider access is verified, so the next gate is immutable release adoption by the reconciler only. Live capital remains unavailable (`buying_power=$0`), and the strategy-validation owner still has an older failed terminal; neither condition justifies an order or a profitability claim.
 
+#### 2026-10-21 10:52 JST — Immutable release ready; reconciler currently running
+
+**Release evidence:** complete release `~/loops/releases/20261021T105116-1418bc76` was cut from pushed main `1418bc76430a0d428c85f1eafbf3014389e85a02`. `RELEASE.json` SHA matches; `~/loops/current` resolves to that release; `skills/alpaca-investment/effect_reconcile.py` byte hash equals main; import smoke using the exact release Python 3.14 interpreter passes. No loop was applied by the release cut.
+
+**Latest owner readback (supersedes the earlier loaded-idle snapshot):** `lm-fence-reconciler` is currently `loaded-running`, PID `28701`, installed release `01307d0fe72ba2b6d41a2a919f6e72e2ff86f7ee`. Its last natural terminal is still pass on that old release at `2026-10-21T01:36:11Z`; latest attempt began `2026-10-21T01:45:08Z` and has no terminal yet. Do not apply while it is running; wait for natural completion, then require `loaded-idle` and the existing owner deployment lock before one-owner apply. `alpaca-investment-live` remains disabled with its exact fence held. Account snapshot remains equity `$66.49`, cash `$0`, buying power `$0`; this is not realized net profit.
+
+**Updated atomic TODO (current cursor = 3):**
+1. [x] Merge adapter repair to main (`1418bc76`); 742/742 Alpaca tests, high-risk review 0 findings, and exact-head required CI passed.
+2. [x] Cut complete main-derived release `20261021T105116-1418bc76`; verify manifest SHA, exact source hash, current symlink, and release-interpreter imports.
+3. [ ] Wait for `lm-fence-reconciler`'s current run to end naturally; re-read exact owner status and proceed only when `loaded-idle` and the existing owner deployment lock is available. **Current cursor.**
+4. [ ] Apply only `lm-fence-reconciler` to the immutable `1418bc76` release. Read back exact loaded argv/SHA and state path; do not touch `alpaca-investment-live`.
+5. [ ] Allow a natural reconciler run, then read the exact occurrence receipt. It must preserve four official order refs and leave the fence held on unmatched orders.
+6. [ ] Join each late provider order to exact decision/intent/owner/release/occurrence/fill/fee/settlement evidence; otherwise keep `unscoped` attribution and the fence.
+7. [ ] Repair `investment-strategy-validation` using its exact failure inputs/logs; inspect its next natural terminal without a manual wake. Score candidates on matched windows with all costs, benchmark excess, drawdown, lookahead, holdout, and sensitivity.
+8. [ ] Confirm risk, duplicate, and daily-loss caps plus usable buying power. Current buying power is `$0`; do not deposit. Keep live disabled until the fence, lineage, strategy evidence, and risk gates pass.
+9. [ ] Only after all gates, evaluate a small local live pilot and count profit as owner-attributed, settled realized net after all costs. Require 30 cost-complete round trips with positive benchmark-excess net before scaling.
+10. [ ] After repeatable real net, calculate evidence-based best/base/worst 1-month, 1-year, and 10-year scenarios, then consider other venues. Profitability is a target, not a guarantee.
+
+**順序変更の理由:** the release is ready, but the reconciler became active after an intervening scheduled wake. Applying now could swap code during a run. Wait for that owner's natural terminal and use the existing loaded-idle/owner-lock gate; keep the live owner disabled and the unresolved effect fence intact.
+
 ### 2026-10-09 13:18 JST — Job Hunter Dreamwork cutover and updated user criteria
 
 この追記は11:50 JST snapshot後のJob Hunter readbackとユーザーの最新指示を記録する。個別の勤務地・住所などの私的値はprivate profileのみを正本とし、このspecには複製しない。
