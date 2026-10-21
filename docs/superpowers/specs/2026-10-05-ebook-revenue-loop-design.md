@@ -2,6 +2,8 @@
 
 > この設計文書は商品・配布間の契約を定めます。全体の実行順と現在cursorの正本は Life Manager unified SSOT です。
 
+> Current eBook account mapping, owner status, source order, and economics are maintained only in the unified SSOT S11 and its 2026-10-21 strategy section. This design's English Monk account-routing notes are historical; read the canonical S11 before changing an account or publisher target.
+
 ## 成果
 
 1. eBookを既存の自社アカウントで配信し、最初の自然な有料Stripe注文と正しいlocaleのPDF納品を同一campaignに結び付ける。
@@ -13,7 +15,7 @@
 
 - eBook checkout/webhook/PDF fulfillmentは anicca-products の既存Stripe・Netlify・Supabase・Resend経路を使う。
 - eBookとCapafyのcreative・投稿ownerはLife Managerの既存Marketing Engine、account registry、publication adapterへ接続する。旧OpenClaw schedulerは再有効化しない。
-- eBook marketingは本人所有と公式statusを確認したInstagram/TikTok accountに配信する。English Monkの指定先は既存の`@monk_anicca` Instagram。credential SSOTに既存recordはあるがphone verification pendingで、native identity/readinessとPostiz integrationは未確認。別アカウントを作らず、English Monk TikTokや他product accountへfallbackしない。
+- eBook marketingは本人所有と現在のSSOTでidentity/status/integrationを確認したproduct専用Instagram/TikTok accountにだけ配信する。この文書に残る`@monk_anicca` InstagramやTikTokの個別routing detailsはhistorical snapshotであり、現在値とTODO順はunified SSOT S11が所有する。他product accountへfallbackしない。
 - Capafyは既存の life-manager-capafy-ig Postiz laneを唯一のpublish ownerにする。Capafy product code・価格・listing・account lifecycleは変更しない。
 - eBook向けsystem-generated baseline creativeは、ユーザーが委任したeBook marketingのstanding policy内で配信する。対象product、locale、既存account、approved claims、CTA/token、renderer、media formatを決定的に検査し、Daisが直接編集したcopyは明示確認なしに変更・公開しない。
 
@@ -22,10 +24,12 @@
 - English `ebook-en-anicca-monk`は既存のHeyGen CLIを使い、Marketing Engineのapproved baseline scriptをAvatar IVで映像化する。HeyGenのfreeform script writerに商品claimを作らせない。avatar/voice IDは既存のAnicca monk素材を使い、API render receiptと費用readbackを保存する。
 - Japanese `ebook-ja-watercolor`はWatercolor Monk Factoryの既存Kling scene 02–10/12/13を使い、Life Manager所有のversioned asset rootへ一度コピーしてSHA-256で検証する。distribution実行時に旧factory checkoutやOpenClaw sourceへアクセスしない。コピーした映像へMarketing Engineの日本語baseline scriptを既存のローカル音声・caption rendererで合わせる。FFmpegにlibass subtitles filterがないhostでは、Pillowで日本語caption overlayを作り、FFmpegの`overlay` filterで焼き付ける。両rendererは同じMarketing Engineのscript・product/slot receipt・campaign token契約を使う。
 - 各localeはpackのAsia/Tokyo slotsで毎日3本を生成する。1 product/slotにつきrenderは1回とし、同じ動画をそのslotに属する全active Postiz targetへ配る。owner occurrenceごとの投稿effectは最大1件。
-- Japanese Instagram/TikTokはactive targetとして登録済み。English Monk Instagramが指定先で、English TikTokとは別owner・別Postiz integrationとして扱う。`@monk_anicca`の通常電話確認、ready状態、enabled Instagram integrationの公式readbackがそろうまでは`setup_required`でfail-closedにする。`@anicca.en`やTikTokへはfallbackしない。投稿前にPostiz integrationのidentity/enabled readbackを行い、disabledまたは不一致ならeffectを発生させない。
+- Current active targets, handles, Postiz integrations, cadence, and setup state come from the unified SSOT S11 only. Each Instagram/TikTok target remains a separate owner; verify its own identity and enabled Postiz integration before creating an effect. No fallback to another product account.
 - HeyGenはrender前後のwallet readbackを各render receiptへ記録する。walletを読めないrunはcreate前に止める。create後にcost/deltaが確定できないrunはreceiptをreconciliation holdに置き、次のrenderを始めない。既存のHeyGen auto-reload設定を変更しない。
 
-### English Monk Instagram: desired contract and current readback (2026-10-09 03:44 JST)
+> Current account mapping, owner status, source order, and economics are maintained only in the unified SSOT's S11 entry and its 2026-10-21 English eBook strategy section. The English Monk Instagram details below are historical as of 2026-10-09 and do not establish the current `@monkmujo` identity, connection, or Postiz quota.
+
+### Historical English Monk Instagram snapshot (2026-10-09 03:44 JST; superseded by unified SSOT S11)
 
 - **Target:** existing `@monk_anicca` Instagram account, published by `ebook-en-instagram-daily` through Postiz at 08:00, 14:00, and 21:00 JST. The English TikTok owner remains separate; this workstream does not fall back to it.
 - **Postiz:** authenticated official readback returned 31 integrations / 9 Instagram integrations. The only `monk_anicca` integration is TikTok ID `cmo5rwq2p00twn10yrsdglng3`, `disabled=false`; there is no English Monk Instagram integration. The verified target hold is `english_monk_instagram_not_connected`, `integration_id=null`, `target_daily_limit=0`. Evidence: `/Users/anicca/.local/state/life-manager/ebook/evidence/postiz-readback-english-monk-instagram-20261008T1844Z.json`.

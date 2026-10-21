@@ -1,6 +1,6 @@
 {
-  "observed_at": "2026-10-21T02:54:26Z",
-  "source_main_sha": "7717a5d63d40629f21c1072f12aadc8a73f9f5bd",
+  "observed_at": "2026-10-21T03:19:03Z",
+  "source_main_sha": "bd2ac75c2b17547ef7d4dedfefa714e2075c2427",
   "target_migration": {
     "id": "20261021090000_maritime_manager_runtime_state.sql",
     "sha256": "5016c67facbfe3b40a92ee4fefdf0b1e9a130047718329caac106823a40b22a0",
@@ -343,18 +343,72 @@
     "workspace_plan_read_path": "Railway GraphQL read-only query via authenticated CLI",
     "public_status": "Fully Operational",
     "public_status_url": "https://status.railway.com",
-    "public_status_checked_at": "2026-10-21T02:50Z",
+    "public_status_checked_at": "2026-10-21T03:07Z",
     "life_call_manual_deploy": {
       "source_branch": "main",
-      "source_sha": "7717a5d63d40629f21c1072f12aadc8a73f9f5bd",
-      "command_shape": "railway up ./apps/life-manager --path-as-root --service life-call --environment production --project <existing project> --detach --json",
-      "result": "UPLOAD_FAILED",
-      "provider_message": "Deploys have been paused temporarily",
-      "deployment_id_created": false,
+      "source_sha": "bd2ac75c2b17547ef7d4dedfefa714e2075c2427",
+      "deployment_id": "c77596a4-abbe-4e0e-b637-e295dba36b18",
+      "status": "FAILED",
+      "result": "Build stopped during npm ci lockfile validation before service source adoption",
+      "deployment_id_created": true,
       "current_service_deployment_id": "fb939ad8-2d3b-49bc-b756-7a8b8820cc09",
-      "current_loaded_sha": "4f008688db5aff872ae11429d2753ed9f38c598c"
+      "current_loaded_sha": "4f008688db5aff872ae11429d2753ed9f38c598c",
+      "health_http_status": 200,
+      "health_build_sha": "4f008688db5aff872ae11429d2753ed9f38c598c",
+      "manager_flag": "0",
+      "upload_path": "./apps/life-manager",
+      "path_as_root": true,
+      "service_build_root_expectation": "Repository root; service build command uses apps/life-manager prefix"
     },
-    "diagnosis": "Inference: a temporary Hobby-tier deployment-capacity queue is plausible because the workspace is HOBBY and Railway community reports this state during high demand; the specific workspace-level reason is not confirmed by Railway.",
-    "plan_change_or_upgrade": "not_performed"
-  }
+    "diagnosis": "The app was uploaded as archive root even though service build command expects repo root. Sparse checkout also omitted the tracked lock file. Exact npm ci succeeds with the unchanged main lock when the app-scoped legacy-peer-deps setting is active.",
+    "plan_change_or_upgrade": "not_performed",
+    "pause_state": "The earlier UPLOAD_FAILED pause no longer blocked the 2026-10-21T03:07Z retry; a deployment was accepted.",
+    "cause": {
+      "confirmed_failure_class": "Manual upload archive root mismatched service build command root; sparse checkout omitted tracked package lock from local upload.",
+      "service_build_command": "npm ci --ignore-scripts --prefix apps/life-manager && bash apps/life-manager/scripts/install-alpaca-cli.sh /app/.bin/alpaca",
+      "service_build_root_expectation": "Repository root with apps/life-manager prefix",
+      "previous_upload_path": "./apps/life-manager",
+      "previous_upload_path_as_root": true,
+      "tracked_main_lockfile": {
+        "path": "apps/life-manager/package-lock.json",
+        "git_blob_sha": "9b994de0daba2eac126f74c84981c9ed3a78418c",
+        "present_in_main": true
+      },
+      "sparse_worktree_omitted_lockfile": true,
+      "local_npm_ci_readback": {
+        "tracked_main_lock_default_peer_resolution": "ERESOLVE",
+        "tracked_main_lock_with_legacy_peer_deps": "exit 0",
+        "app_npmrc": "legacy-peer-deps=true (local branch only; PR not merged)",
+        "npm_config_get_with_prefix": "true",
+        "exact_railway_npm_ci_after_npmrc": "exit 0",
+        "package_json_changed": false,
+        "main_lock_changed": false
+      }
+    },
+    "next_action": "Merge apps/life-manager/.npmrc legacy-peer-deps=true. Create an exact full source snapshot from current origin/main at repo root, deploy with railway up . and no --path-as-root, then read back life-call and worker loaded SHA."
+  },
+  "deployment_attempts": [
+    {
+      "deployment_id": null,
+      "source_sha": "7717a5d63d40629f21c1072f12aadc8a73f9f5bd",
+      "status": "UPLOAD_FAILED",
+      "error_class": "UPLOAD_FAILED",
+      "safe_error": "Deploys have been paused temporarily",
+      "at": "2026-10-21T02:51Z",
+      "subsequent_state": "A later retry was accepted; temporary pause is no longer current."
+    },
+    {
+      "deployment_id": "c77596a4-abbe-4e0e-b637-e295dba36b18",
+      "source_sha": "bd2ac75c2b17547ef7d4dedfefa714e2075c2427",
+      "status": "FAILED",
+      "error_class": "npm EUSAGE",
+      "safe_error": "npm ci EUSAGE/lockfile because app-only archive did not include the expected repository-root prefix and sparse checkout omitted the tracked lock",
+      "at": "2026-10-21T03:07:33Z",
+      "service_readback": "Old deployment remains HTTP 200 and returns old build SHA.",
+      "upload_path": "./apps/life-manager",
+      "path_as_root": true,
+      "build_context_root": "apps/life-manager",
+      "service_build_command_expects": "repository root with apps/life-manager prefix"
+    }
+  ]
 }
