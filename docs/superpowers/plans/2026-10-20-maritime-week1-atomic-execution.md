@@ -371,6 +371,7 @@ life-manager/
 - [ ] T17.2 既存prepare→CP1→finish→CP2/CP3を一回実行する。途中で応答不明ならofficial readbackへ進み、publishを再送しない。
 - [ ] T17.3 同じagent/versionのofficial status、公開URL、申請中/公開済みの区別をreceiptへ記録する。審査待ちを販売可能と呼ばない。
 - [ ] T17.4 receiptとsource差分を分離して保存し、自己所有の不足修正だけをcommit/push。provider審査は進行中でも他taskを進める。
+- [ ] T17.5 `apps/life-manager/lib/maritime-manager-runtime.js::verifyCycleReceipt` と `createMaritimeManagerLoopAdapter` 内の `inspect` が`CycleResult.providerSnapshotRef`/`providerReceiptRefs`を拒否する境界を更新し、T17.3のofficial Capafy receiptを同じtenant/job/occurrence/releaseのcycle receiptへ結合する。入力はverified tenant-scoped Capafy receipt、出力はartifact＋provider refsを持つ同一`maritime_manager_cycle` receipt。`apps/life-manager/lib/maritime-manager-runtime.test.js`で有効receipt保持とtenant/job/agent/occurrence/release mismatch・欠落receipt拒否を確認する（`node --test apps/life-manager/lib/maritime-manager-runtime.test.js`）。DONE=同一receiptにverified provider refsがあり、欠落時はrevenue/statusを`unknown`のままにする。
 
 ## Task T18: 初日から役立つ日次結果を組み立てる
 
@@ -497,7 +498,7 @@ life-manager/
 **Depends:** なしで台本。撮影は該当実装が動いた時点。
 
 - [x] T25.1 Fix the narrative to five ordered shots: email entry → Manager's unprompted work choice → artifact/provider result → same-occurrence daily report → trial URL. DONE: docs/distribution/maritime/week1/demo-script.md lists the exact order and honest captions.
-- [x] T25.2 Add each shot's route/receipt, allowed screen data, redaction, and unimplemented-state handling. DONE: the shot list gates signup on T26.5b, live work/result/report on T22.1e.2, prevents fabricated earnings/users, and marks the capture as not produced.
+- [x] T25.2 Name exact route/capability receipts and the same-job fields: `GET /maritime?lang=…`; `POST /maritime/activate` plus common `maritime_manager_cycle` receipt (`job_id`, `occurrence_id`, `execution_id`, `release_sha`); `GET /maritime/artifacts/{encoded_job_id}/{artifact_path}`; `maritime.manager.report` receipt (`period_key`, `release_sha`, Resend `provider_message_id`); and `POST /maritime/stop` plus paused-state readback. DONE: demo script distinguishes activation from work, artifact from provider result, and provider message receipt from inbox arrival. No current provider receipt is claimed.
 - [ ] T25.3 実装が動いたshotから順次captureし、既存HyperFramesのskill/CLIで字幕・縦動画へ編集する。新撮影のために友人3人を待たない。
 - [ ] T25.4 音なしでも理解できる30秒版、音声付き2分版、サムネイル、投稿captionを一packageにし、CTA・正しいURL・実画面の確認後commit/pushまたは既存artifact storeへ保存する。
 
@@ -512,7 +513,7 @@ life-manager/
 - [ ] T26.3 既存full site exportへapproved overlayとして反映し、他商品/blog/legal/functionを保持する。manifest hashとpublished revisionを更新する。
 - [ ] T26.4 公開URLのemail CTA/認証/停止/localeをreadbackし、source commitとpublished SHAを結合する。source変更だけを公開完了と呼ばない。
 - [x] T26.5a Source correction: ja/en copy labels the daily email as design intent and discloses the unverified hosted cycle, optional goal/budget setup, optional Telegram, Maritime retention, and no earnings guarantee. PR #8492 is merged to main at b5ecef6e624203811d0e1103003c3cdbaf88c4cd.
-- [ ] T26.5b After the official Railway incident clears, read back both active service deployments and their commit hashes. Require the deployed application source to include PR #8492's b5ecef6e624203811d0e1103003c3cdbaf88c4cd change (the current main head 726123eac587131e94544a900a967b278ac550d9 is a docs-only descendant); then GET /maritime?lang=en and ?lang=ja and verify the full-cycle caveat plus all disclosures. DONE: save both deployment IDs/commit hashes and the two live page readbacks. A source merge alone is not production adoption.
+- [ ] T26.5b After the official Railway incident clears, read back both active service deployments and exact commit hashes. The required deployment input is the `origin/main` SHA recorded at that readback; if main moves before deployment, use the new SHA. Do not treat b5ecef6 as current main: PR #8493 adds `skills/writer-agent/runtime/shared-model-runner.py` after the copy correction. Then GET `/maritime?lang=en` and `?lang=ja`; verify daily email is described as design intent, the full hosted work/report cycle is marked unverified until proven, and retention/no-earnings disclosures remain visible. Do not accept unrelated staged Railway investment changes as part of this task. DONE: save both deployment IDs/commit hashes, exact origin/main SHA, and both live page bodies. A source merge alone is not production adoption.
 
 ## Task T27: 公開配布を開始する
 
@@ -548,16 +549,17 @@ life-manager/
 - [ ] T29.3 費用の高いwake/無成果taskを既存model判断とbackoffで減らし、実際のnetが確認できる業務へ資源を寄せる。利益不明を黒字と報告しない。
 - [ ] T29.4 1,000人到達時に公式project usageと本人/重複確認を提出し、winner通知をreadbackする。SF日本発旅費/credit条件/YCは別の確認事項として保持する。
 
-## Task T30: 稼働URLをDaisへメールで届ける
+## Task T30: 正確なURL案内をDaisへ届ける（初回preview送信済み）
 
 **Files:** 既存mail送信経路とprivate delivery receipt。個人宛先/secretはrepoに保存しない。提出packetの作成を送信の前提にしない。
-**Interfaces:** T22の稼働URLと準備済み配布copyをconsumes。T23受付済みならその事実も記す。送信先はprivate profile/credential SSOTから解決する。
-**Depends:** T22直後。正式提出先の公表、長期獲得T29、winner通知を待たない。
+**Interfaces:** corrected `/maritime` URL、early-pilot limitations、retention/no-earnings disclosureをconsumes。送信先はprivate profile/credential SSOTから解決する。
+**Depends:** T26.5bのlive copy readback。T22の完全cycle、T23のformal submission、長期獲得T29、winner通知は待たず、未検証cycleを明示したpreview URLとして共有できる。
 
-- [x] T30.1 稼働中のemail登録URLと無料pilot範囲をGETでreadbackし、送信時にDaisの宛先をprivate SSOTから解決した。2026-10-21 06:07Zの再GETもHTTP 200。
-- [x] T30.2 紹介文とURLを送信前に確認し、送信後のGmail Sent readbackでもURLと内容を照合した。
-- [x] T30.3 許可済みの既存メール経路で一回送信し、provider message ID `1a15cc8791911599`を保存した。再送していない。
-- [x] T30.4 Gmail Sent/readbackとmessage IDを正本へ保存した。受信者inboxへの到達は別readbackしておらず、competition project submissionでもない。
+- [x] T30.1 初回preview用URLをGETでreadbackし、送信先をprivate SSOTから解決した。日本語URLは08:16ZにHTTP 200だったが、現行live copyの最終readbackではない。
+- [x] T30.2 初回紹介文とURLを送信前に確認し、Gmail Sentで内容をreadbackした。
+- [x] T30.3 初回preview emailを一度送信し、provider message ID `1a15cc8791911599`を保存した。内容は初回previewであり、最終handoffではない。
+- [x] T30.4 Sent/readbackを保存した。受信者inbox到達は未確認。古いURLメールを再送せず、live copyが正しくなるまで最終共有を保留する。
+- [ ] T30.5 T26.5b後に日英pageを再GETし、early-pilot範囲/未検証cycle/retention/no-earnings文言を照合する。既存email threadへ一度だけ訂正案内を返信し、Sent receiptとmessage IDを記録する。T22が未完なら完了/収益を主張しない。
 
 ## Task T31: Cloud Life Manager自身の課金と利益をつなぐ
 

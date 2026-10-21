@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "observed_at": "2026-10-21T11:14:59Z",
+  "observed_at": "2026-10-21T11:27:24Z",
   "source_main_sha": "cab43203e2d80c3600ed53754377565920df6845",
   "competition": {
     "home_url": "https://competition.maritime.sh/",
@@ -68,22 +68,38 @@
       "last_success_life_call_deployment_id": "e9ebfb62-e8c3-46eb-a198-d9203f574899",
       "last_success_worker_deployment_id": "9dc09440-42ed-4349-83c2-e437b1fc5017",
       "current_main_source_readback_at": "2026-10-21T11:13Z",
-      "deployment_history_readback_at": "2026-10-21T11:12Z"
+      "deployment_history_readback_at": "2026-10-21T11:12Z",
+      "source_change_after_copy_correction": {
+        "pr": 8493,
+        "merge_sha": "27c02d3b2f9681bde609f9b381494c68cd0c0f32",
+        "path": "skills/writer-agent/runtime/shared-model-runner.py"
+      }
     },
     "current_main_adoption_check": {
-      "observed_at": "2026-10-21T11:12Z",
+      "observed_at": "2026-10-21T11:27:24Z",
       "latest_origin_main_sha": "cab43203e2d80c3600ed53754377565920df6845",
       "application_code_merge_sha": "b5ecef6e624203811d0e1103003c3cdbaf88c4cd",
-      "docs_only_merge_sha": "cab43203e2d80c3600ed53754377565920df6845",
       "paths_changed_after_production_loaded_sha": [
         "apps/life-manager/investment-core/provision_selection.py",
         "apps/life-manager/investment-core/test_provision_selection.py",
         "apps/life-manager/lib/maritime-distribution.js",
         "apps/life-manager/scripts/maritime-week1-export.js",
-        "apps/life-manager/scripts/maritime-week1-export.test.js"
+        "apps/life-manager/scripts/maritime-week1-export.test.js",
+        "skills/writer-agent/runtime/shared-model-runner.py"
       ],
       "railway_live_deployments": "11:12Z provider readback: active life-call e9ebfb62-e8c3-46eb-a198-d9203f574899 and worker 9dc09440-42ed-4349-83c2-e437b1fc5017 remain SUCCESS from 06:23Z; exact deployment commit is 982875d62eaa.",
-      "latest_main_adoption": "Application code through PR #8492 (b5ecef6) is in current main cab4320 after docs-only PR #8498; production still runs exact SHA 982875d62eaa03f8e924b990c4bc80f521d8dcce. PR #8492 copy is not adopted."
+      "latest_main_adoption": "Current main cab4320 is not deployed. It includes copy correction PR #8492 (b5ecef6) and later source change PR #8493 (27c02d3, shared-model-runner); production remains on 982875d62eaa. T26.5b requires current origin/main provenance, not b5ecef6 alone.",
+      "latest_merge_after_copy_correction": {
+        "pr": 8498,
+        "merge_sha": "cab43203e2d80c3600ed53754377565920df6845",
+        "application_code_change": false
+      },
+      "source_change_after_copy_correction": {
+        "pr": 8493,
+        "merge_sha": "27c02d3b2f9681bde609f9b381494c68cd0c0f32",
+        "path": "skills/writer-agent/runtime/shared-model-runner.py",
+        "summary": "workspace-draft support"
+      }
     },
     "latest_deployment_state": {
       "observed_at": "2026-10-21T11:12Z",
@@ -122,7 +138,7 @@
           "discloses_hosted_cycle_unverified": false
         }
       },
-      "application_code_sha": "b5ecef6e624203811d0e1103003c3cdbaf88c4cd"
+      "pilot_copy_source_sha": "b5ecef6e624203811d0e1103003c3cdbaf88c4cd"
     },
     "provider_deployment_readback_at": "2026-10-21T11:12Z"
   },
@@ -227,7 +243,7 @@
     "current_experiment": {
       "observed_at": "2026-10-21T11:10Z",
       "article_source": "docs/research/manager/articles/2026-10-21-ai-assistant-vs-agent-next-task-en.md",
-      "article_source_state": "Merged via PR #8492; application-code SHA b5ecef6, current main cab4320 (latest merge PR #8498 is docs-only).",
+      "article_source_state": "Merged via PR #8492; copy source SHA b5ecef6. Current main cab4320 also includes later source change PR #8493 (27c02d3).",
       "article_package_state": "56th manifest entry; source/package bytes and SHA verified; merged to main; unpublished.",
       "article_public_state": "HTTP 404 at 2026-10-21T11:10Z; unpublished.",
       "cta_policy": "An early-pilot CTA is allowed before the complete hosted cycle only when the article and page disclose cycle limitations, Maritime retention, and no income/profit guarantee.",
@@ -239,7 +255,8 @@
       "article_bridge_checks": "Landing PR build and CodeRabbit PASS at 10:21Z; publication remains gated on live pilot page correction.",
       "pilot_copy_correction_main_merge_sha": "b5ecef6e624203811d0e1103003c3cdbaf88c4cd",
       "pilot_copy_correction_production_status": "Source correction is merged, but live EN/JA pages still claim daily email as current behavior and omit the hosted-cycle-unverified disclosure; production SHA 982875 is old.",
-      "demo_script_state": "T25.1/T25.2 five-shot sequence and truth gates complete; no footage or public post"
+      "current_cycle_receipt_boundary": "The current maritime_manager_cycle contract rejects providerSnapshotRef/providerReceiptRefs; the receipt can prove execution/artifact only. No external provider result or revenue is attributed to the hosted cycle until T17.5 joins a verified provider receipt to the same job.",
+      "final_share_status": "preliminary preview email sent; final corrective reply remains open as T30.5 after live copy readback."
     }
   },
   "public_product": {
@@ -258,8 +275,8 @@
       "file": "apps/life-manager/lib/maritime-distribution.js",
       "pr": 8492,
       "head": "9bc24949c8bff8e45a4903d49b161ae94603dd23",
-      "status": "Bilingual correction merged via PR #8492 to application-code SHA b5ecef6; current main is cab4320 after docs-only PR #8498, but live page does not match the correction.",
-      "required_live_readback": "Both ja/en /maritime pages describe daily email as design intent, explicitly state the full hosted work/report cycle remains unverified, and match the deployed source SHA."
+      "status": "Bilingual correction merged via PR #8492 to source SHA b5ecef6; current main cab4320 also includes PR #8493 shared-model-runner change. Live page does not match corrected copy.",
+      "required_live_readback": "Deploy the exact origin/main SHA read back at T26.5b (or document a full build-input equivalence), then both ja/en /maritime pages must describe daily email as design intent and explicitly state the full hosted work/report cycle remains unverified."
     }
   },
   "submission": {
@@ -271,7 +288,10 @@
       "sent_and_read_back": true,
       "recipient_inbox_delivery_verified": false,
       "gmail_message_id": "1a15cc8791911599",
-      "url": "https://life-call-production.up.railway.app/maritime?lang=ja"
+      "url": "https://life-call-production.up.railway.app/maritime?lang=ja",
+      "purpose": "preliminary URL preview sent before the live page copy was accurate; not final product handoff",
+      "final_handoff_complete": false,
+      "final_handoff_todo": "T30.5: after T26.5b, reply once in the same thread with corrected early-pilot limitations/retention/no-earnings copy."
     },
     "current_winner_or_top_30_status": "Not verified",
     "channel_entry_readback": {
@@ -329,7 +349,8 @@
       ],
       "follow_up": "If no written reply strictly after 2026-10-23T11:14:59Z, follow up once in the same thread; keep unknown terms null and do not book based on assumptions.",
       "does_not_block_week1_submission": true
-    }
+    },
+    "final_share_status": "preliminary preview sent; final corrected-link reply pending T26.5b"
   },
   "mail_readback": {
     "checked_at": "2026-10-21T11:14:59Z",
@@ -407,22 +428,29 @@
     "t31_1b_evidence": "docs/evidence/maritime/stripe-revenue-attribution-readback-20261021.json"
   },
   "source_repository_readback": {
-    "observed_at": "2026-10-21T11:13:49Z",
+    "observed_at": "2026-10-21T11:27:24Z",
     "origin_main_sha": "cab43203e2d80c3600ed53754377565920df6845",
     "production_loaded_source_sha": "982875d62eaa03f8e924b990c4bc80f521d8dcce",
-    "life_manager_source_paths_changed_after_loaded_sha": [
+    "source_change_after_copy_correction": {
+      "pr": 8493,
+      "merge_sha": "27c02d3b2f9681bde609f9b381494c68cd0c0f32",
+      "path": "skills/writer-agent/runtime/shared-model-runner.py"
+    },
+    "repository_paths_changed_after_loaded_sha": [
       "apps/life-manager/investment-core/provision_selection.py",
       "apps/life-manager/investment-core/test_provision_selection.py",
       "apps/life-manager/scripts/maritime-week1-export.js",
-      "apps/life-manager/scripts/maritime-week1-export.test.js"
+      "apps/life-manager/scripts/maritime-week1-export.test.js",
+      "skills/writer-agent/runtime/shared-model-runner.py"
     ]
   },
   "current_cursor": {
     "submission": "T23.3: official Week 1 project form/cutoff/rubric remain unpublished. SF travel inquiry sent/read back in the existing organizer thread at 11:14:59Z (message 1a15e2beef607bc0); reply pending. If no reply strictly after 2026-10-23T11:14:59Z, follow up once. Travel clarification does not block formal submission.",
-    "product": "T22.1e.2 / b.6-28: owner email PKCE and explicit consent to indefinite Maritime AI-credit retention remain pending; latest internal usage aggregate still shows 0 participants/enrollments/executions/completed-work/reports.",
-    "production_copy": "T26.5b: PR #8492 copy is in main at app SHA b5ecef6, current main cab4320; live page still presents daily email as current and omits unverified-cycle disclosure. Railway reports new builds paused; existing services remain on SHA 982875.",
-    "distribution": "T25.1/.2 shot list ready; no footage. T27.2 article URL is HTTP 404 at 11:10Z, PR #537 remains draft, Postiz integrations were 0 at 10:49Z, and no verified acquisition or paid receipt exists.",
-    "revenue": "T31.1b readback complete: exact Life Manager paid invoice/checkout line items=0, active $29 link has no completed session, active subscriptions=0/MRR=$0. T31.1 acceptance, Manager billing integration, attributed settled cash/net remain open."
+    "product": "T22.1e.2 / b.6-28: owner email PKCE and explicit consent to indefinite Maritime AI-credit retention remain pending; latest internal usage aggregate still shows 0 participants/enrollments/executions/completed-work/reports. T17.5 must extend the current cycle contract, which rejects providerReceiptRefs, before external provider outcomes can be claimed.",
+    "production_copy": "T26.5b: copy source b5ecef6 is merged, but current main cab4320 also contains PR #8493 source change 27c02d3; production exact SHA 982875d62eaa is old. Live page still lacks the hosted-cycle-unverified disclosure. Railway new builds remain paused.",
+    "distribution": "Demo script lists exact routes/receipt kinds, but no footage or public post exists. Article URL is HTTP 404 at 11:10Z; PR #537 remains draft; Postiz integrations were 0 at 10:49Z. No verified acquisition or paid receipt exists.",
+    "revenue": "T31.1b readback complete: exact Life Manager paid invoice/checkout line items=0, active $29 link has no completed session, active subscriptions=0/MRR=$0. T31.1 acceptance, Manager billing integration, attributed settled cash/net remain open.",
+    "final_url_share": "Initial preview email is sent/read back, but final handoff is open; send one corrected reply after T26.5b, with early-pilot and unverified-cycle disclosure."
   },
   "latest_slack_readback": {
     "observed_at": "2026-10-21T08:07Z",
@@ -481,7 +509,12 @@
       "application_code_sha": "b5ecef6e624203811d0e1103003c3cdbaf88c4cd",
       "current_main_sha": "cab43203e2d80c3600ed53754377565920df6845",
       "manifest_entries": 56,
-      "source_package_sha256": "87935ef419b6ee54f465d128e71d8b8312ef19d23eec81eb38d2509c0894d5e9"
+      "source_package_sha256": "87935ef419b6ee54f465d128e71d8b8312ef19d23eec81eb38d2509c0894d5e9",
+      "source_change_after_copy_correction": {
+        "pr": 8493,
+        "merge_sha": "27c02d3b2f9681bde609f9b381494c68cd0c0f32",
+        "path": "skills/writer-agent/runtime/shared-model-runner.py"
+      }
     },
     "blog_bridge_pr": {
       "repository": "Daisuke134/anicca-products",
@@ -502,10 +535,19 @@
     "gsc_sitewide_28d_impressions": 7,
     "life_manager_source_attributed_signup_or_sale": false,
     "demo_script": {
-      "t25_1": "complete",
-      "t25_2": "complete",
+      "file": "docs/distribution/maritime/week1/demo-script.md",
+      "shot_count": 5,
       "video_captured": false,
-      "published": false
+      "public_video_or_post_found": false,
+      "routes_and_receipt_types_listed": [
+        "GET /maritime",
+        "POST /maritime/activate",
+        "maritime_manager_cycle",
+        "GET /maritime/artifacts/...",
+        "maritime.manager.report / Resend provider_message_id",
+        "POST /maritime/stop"
+      ],
+      "external_provider_receipt_currently_joined_to_cycle": false
     },
     "manager_article_observed_at": "2026-10-21T11:10Z"
   },
@@ -539,8 +581,8 @@
     "life_manager_company_revenue": "11:05Z Stripe readback: active subscription MRR USD 0; exact $29/$20 price paid invoice/session lines=0. Existing $29 link has no completed session. Account-wide payments/refunds remain unassigned.",
     "distribution_revenue": "No published acquisition article, verified Life Manager X post, source-attributed signup, paid order, or receipt. GSC is 0 clicks/7 impressions through 2026-10-18."
   },
-  "current_status_refresh_at": "2026-10-21T11:17:20Z",
-  "status_updated_at": "2026-10-21T11:17:20Z",
+  "current_status_refresh_at": "2026-10-21T11:29:11Z",
+  "status_updated_at": "2026-10-21T11:29:11Z",
   "latest_manager_metrics_readback": {
     "observed_at": "2026-10-21T10:49:19Z",
     "source": "Supabase Anicca; aggregate-only SQL; no row-level identity/email returned",
@@ -553,7 +595,6 @@
     },
     "interpretation": "Internal app counts only; not an official Keiki/Maritime competition user count."
   },
-  "application_source_sha": "b5ecef6e624203811d0e1103003c3cdbaf88c4cd",
   "latest_documentation_merge": {
     "pr": 8498,
     "merge_sha": "cab43203e2d80c3600ed53754377565920df6845",
@@ -566,5 +607,6 @@
     "existing_lm_landing": "aniccaai.com/lm is the separate Calendar product flow",
     "maritime_signup_contract": "POST /auth/maritime/email validates Origin against LM_PANEL_BASE; confirmation requires the same-browser PKCE verifier and /auth/maritime/confirm on the configured public origin.",
     "decision": "Do not duplicate the signup UI on Netlify without an explicit proxy/origin/PKCE callback design; preserve the current same-origin Railway route."
-  }
+  },
+  "pilot_copy_source_sha": "b5ecef6e624203811d0e1103003c3cdbaf88c4cd"
 }
