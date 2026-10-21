@@ -8,6 +8,7 @@ const { execFileSync } = require("node:child_process");
 const { Client } = require("pg");
 const test = require("node:test");
 
+const IDENTITY_MIGRATION = path.join(__dirname, "../../migrations/20261021090000_maritime_manager_runtime_state.sql");
 const MANAGER_TABLES = [
   "lm_maritime_manager_identities",
   "lm_maritime_manager_enrollments",
@@ -69,6 +70,52 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     }
 
     assert.equal(client.connectionParameters.host, socket, "fixture connects only over its private Unix socket");
+    assert.equal(fs.existsSync(IDENTITY_MIGRATION), true, "runtime identity migration must exist");
+    await client.query(fs.readFileSync(IDENTITY_MIGRATION, "utf8"));
+
+    const migrated = await client.query(
+      "SELECT name, to_regclass(format('public.%I', name))::text AS relation FROM unnest($1::text[]) AS name ORDER BY name",
+      [MANAGER_TABLES],
+    );
+    const relations = Object.fromEntries(migrated.rows.map(row => [row.name, row.relation]));
+    assert.equal(relations.lm_maritime_manager_identities, "lm_maritime_manager_identities");
+    for (const table of MANAGER_TABLES.filter(name => name !== "lm_maritime_manager_identities")) {
+      assert.equal(relations[table], null, `${table} stays out of the identity migration`);
+    }
+
+    const columns = await client.query(
+      "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='lm_maritime_manager_identities'",
+    );
+    const names = new Set(columns.rows.map(row => row.column_name));
+    for (const column of ["uid", "auth_subject", "verified_at", "first_touch", "first_touch_at"]) {
+      assert.ok(names.has(column), `identity schema includes ${column}`);
+    }
+    const uidA = "lm_11111111-1111-4111-8111-111111111111";
+    const uidB = "lm_22222222-2222-4222-8222-222222222222";
+    const subjectA = "11111111-1111-4111-8111-111111111111";
+    const subjectB = "22222222-2222-4222-8222-222222222222";
+    await client.query("INSERT INTO public.lm_maritime_manager_identities(uid,auth_subject) VALUES ($1,$2)", [uidA, subjectA]);
+    await client.query("UPDATE public.lm_maritime_manager_identities SET first_touch=$1::jsonb,first_touch_at=clock_timestamp() WHERE uid=$2", [JSON.stringify({ utm_source: "x" }), uidA]);
+    await assert.rejects(
+      client.query("INSERT INTO public.lm_maritime_manager_identities(uid,auth_subject) VALUES ($1,$2)", [uidB, subjectA]),
+      error => error.code === "23505",
+      "a verified Auth subject cannot be rebound to another UID",
+    );
+    await assert.rejects(
+      client.query("INSERT INTO public.lm_maritime_manager_identities(uid,auth_subject) VALUES ($1,$2)", [uidA, subjectB]),
+      error => error.code === "23505",
+      "a UID cannot be rebound to another verified Auth subject",
+    );
+    await assert.rejects(
+      client.query("UPDATE public.lm_maritime_manager_identities SET auth_subject=$1 WHERE uid=$2", [subjectB, uidA]),
+      error => error.code === "23514",
+      "an existing identity binding cannot be reassigned",
+    );
+    await assert.rejects(
+      client.query("INSERT INTO public.lm_maritime_manager_identities(uid,auth_subject,first_touch) VALUES ($1,$2,'[]'::jsonb)", [uidB, subjectB]),
+      error => error.code === "23514",
+      "first-touch must be an object with its timestamp",
+    );
   } finally {
     if (client) await client.end();
     if (started) execFileSync(bin + "/pg_ctl", ["-D", data, "-m", "fast", "-w", "stop"], { env, stdio: "pipe" });
