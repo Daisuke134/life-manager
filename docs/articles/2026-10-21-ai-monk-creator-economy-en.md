@@ -58,6 +58,19 @@ If a fictional avatar is used, describe it as fictional and AI-generated. Do not
 
 Anicca’s free field study was announced once on X; the [official Postiz/X receipt](../evidence/ai-monk-x-post-20261021.json) records the exact public permalink and tracked article URL.
 
+## Reuse the open case data
+
+The deterministic [case-study generator](../../skills/earn/marketing-engine/intel/ebook_case_study.py) renders a Markdown case note or an X draft from one validated `playbook.jsonl` entry:
+
+```bash
+python3 skills/earn/marketing-engine/intel/ebook_case_study.py \
+  --case-id tactic.yangmun-journey-ebook-bundle.v1 \
+  --format article \
+  --out <draft-path>
+```
+
+The output preserves source links, claim provenance, and unrecorded outcomes. It does not publish; X distribution stays with the existing receipt-checked `x_post.py` path.
+
 ## Source register
 
 - [Yang Mun 30-Day Healing Journey](https://www.yang-mun.com/products/30-day-healing-journey-yang-mun)
