@@ -1,0 +1,186 @@
+name: Manager Phase06 Digital Environment
+on:
+  push:
+    branches: [research/manager-product-r006-20261020, research/manager-phase06-service-execution-20261021]
+    paths: ['products/manager/**', '.github/workflows/manager-phase06-service.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: manager-service-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: products/manager
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: All Manager unit contracts
+        run: python -m unittest discover -s tests -v
+      - name: Boundaries, unchanged task registry, existing core
+        run: |
+          python -m manager_core
+          python scripts/check_boundaries.py
+          python scripts/make_roadmap.py --check
+          python scripts/phase05_demo.py --check
+      - name: Build immutable owned service bundle
+        run: python scripts/phase06_digital_service.py build --commit "$GITHUB_SHA"
+      - name: Install locked upstream browser and accessibility engines
+        run: |
+          cd tests/e2e
+          npm ci --ignore-scripts --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Real browser verification across desktop and mobile
+        run: npm --prefix tests/e2e test
+      - name: Read-only source audit and truthful outcome report
+        run: |
+          python scripts/phase06_digital_service.py audit
+          python scripts/phase06_digital_service.py outcomes
+      - name: Dry-run additive release and reject unknown sources
+        run: |
+          mkdir -p output/service/release-dry-run/articles
+          printf 'existing unrelated homepage' > output/service/release-dry-run/index.html
+          printf 'preserved article' > output/service/release-dry-run/articles/existing.html
+          python scripts/phase06_release_guard.py --site output/service/site --checkout output/service/release-dry-run --audit output/service/source-audit.json
+          python scripts/phase06_release_guard.py --site output/service/site --checkout output/service/release-dry-run --audit output/service/source-audit.json
+          test "$(cat output/service/release-dry-run/index.html)" = 'existing unrelated homepage'
+          test "$(cat output/service/release-dry-run/articles/existing.html)" = 'preserved article'
+      - name: Preserve evidence and deployable site (no auto field trial)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: manager-service-${{ github.sha }}
+          path: |
+            products/manager/output/service
+            products/manager/tests/e2e/package-lock.json
+          if-no-files-found: warn
+          retention-days: 30
+  publish-owned-prefix:
+    if: github.repository == 'Daisuke134/life-manager' && github.ref == 'refs/heads/research/manager-product-r006-20261020'
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: write
+    concurrency:
+      group: manager-pages-prefix-writer
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: source
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          name: manager-service-${{ github.sha }}
+          path: verified
+      - name: Require same immutable source as verified artifact
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          m=json.loads(Path('verified/output/service/site/manifest.json').read_text())
+          assert m['source_commit']==os.environ['GITHUB_SHA']
+          assert m['beneficiary_outcome']=='NOT_MEASURED'
+          assert not m['experiment_enabled']
+          PY
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: pages
+          persist-credentials: true
+      - name: Stage exact Manager files and preserve every other git path
+        run: |
+          python source/products/manager/scripts/phase06_release_guard.py --site verified/output/service/site --checkout pages --audit verified/output/service/source-audit.json
+          cd pages
+          git add -- manager-support
+          python - <<'PY'
+          import subprocess
+          allowed={'manager-support/'+n for n in ('index.html','finance.html','mental.html','physical.html','control.html','proof.html','manifest.json')}
+          names=subprocess.check_output(['git','diff','--cached','--name-only','-z']).decode().split('\0')
+          assert all(not n or n in allowed for n in names), names
+          PY
+          if git diff --cached --quiet; then
+            echo 'NO_ACTION: same immutable source release already committed'
+          else
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m "Manager-only public service: source $GITHUB_SHA"
+            git push origin HEAD:gh-pages
+          fi
+          git rev-parse HEAD
+      - name: Delegate deployment to the ONE existing protected Pages workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # workflow_dispatch is intentionally used: a GITHUB_TOKEN push alone
+          # does not trigger another push workflow. No environment bypass.
+          # Existing gh-pages workflow ID 307239134 owns full-site checkout,
+          # shared pages concurrency, github-pages environment, and deployment.
+          # This workflow never uploads/deploys a stale full-site snapshot.
+          printf '{"ref":"gh-pages"}' | gh api --method POST repos/Daisuke134/life-manager/actions/workflows/307239134/dispatches --input -
+  verify-live:
+    needs: [verify, publish-owned-prefix]
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: manager-service-${{ github.sha }}
+          path: verified
+      - name: Independently wait for matching served bytes (read-only, bounded)
+        working-directory: products/manager
+        run: |
+          mkdir -p output/service
+          cp -R ../../verified/output/service/site output/service/site
+          ok=0
+          for attempt in $(seq 1 20); do
+            if python scripts/phase06_digital_service.py readback; then ok=1; break; fi
+            echo "Readback UNKNOWN attempt $attempt; no write or deploy is retried"
+            sleep 15
+          done
+          test "$ok" = 1
+      - name: Real public URL browser and accessibility verification
+        working-directory: products/manager/tests/e2e
+        env:
+          MANAGER_BASE_URL: https://daisuke134.github.io/life-manager/manager-support/
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npx playwright install --with-deps chromium
+          npm test
+      - name: Keep actual external delivery proof and public screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: manager-live-readback-${{ github.sha }}
+          path: |
+            products/manager/output/service/public-readback.json
+            products/manager/output/service/browser-results.json
+            products/manager/output/service/screenshots
+          if-no-files-found: warn
