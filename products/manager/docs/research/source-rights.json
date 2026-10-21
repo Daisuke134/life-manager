@@ -194,12 +194,19 @@
       "requirements": [
         "Credit original dataset author Hadi Fanaee-T and DOI 10.24432/C5W894 with CC BY 4.0 link and adaptation notes.",
         "Use aggregate daily counts and weather only, no individual rider identifiers.",
-        "Pinned independent mirror KeithJLZ/UCI-Bike-Sharing-Dataset@f6781459ddfb55e94fc0f984c610a0cd8957b870 day.csv Git blob d39017f2f1ad2e70a4a854d17aada04d45608575; compare official archive before claiming byte-identical original.",
+        "Pinned independent mirror KeithJLZ/UCI-Bike-Sharing-Dataset@f6781459ddfb55e94fc0f984c610a0cd8957b870 day.csv Git blob d39017f2f1ad2e70a4a854d17aada04d45608575; byte-for-byte identical to official UCI archive day.csv as verified by GitHub Actions run 39545041899.",
         "Train solely on 2011, evaluate on 2012. Publish aggregate evaluation results, never individual source records.",
         "Observational ridership is not evidence of randomized causal intervention or actual Manager public benefit."
       ],
       "risk": "Observed rentals reflect weather, seasonal mix, supply and secular adoption; heldout predictive fit is not behavior-level causality.",
-      "unresolved": "Mirror-versus-official UCI archive byte equivalence not separately verified; deployment forecasting and generalization across cities require separate validation."
+      "unresolved": "Original UCI archive day.csv and pinned public mirror byte equivalence independently verified (Git blob SHA d39017f2f1ad2e70a4a854d17aada04d45608575; 57,569 bytes) in GitHub Actions 39545041899. Deployment forecasting and generalization across cities, privacy beyond the aggregate source, and real-world causal welfare impact remain separate and unverified.",
+      "official_archive_verification": {
+        "status": "BYTE_IDENTICAL",
+        "archive_url": "https://archive.ics.uci.edu/static/public/275/bike+sharing+dataset.zip",
+        "verified_git_blob_sha1": "d39017f2f1ad2e70a4a854d17aada04d45608575",
+        "file_bytes": 57569,
+        "ci_run": "https://github.com/Daisuke134/life-manager/actions/runs/39545041899"
+      }
     }
   ]
 }
