@@ -16620,6 +16620,12 @@ After integrating `origin/main` `0478d430188b723bc1e2ac147b172c4c8d4ddd52`, the 
 
 **現在cursor:** commit the status update, refresh main once more, push the synchronized branch, and verify that PR #8462 reads the pushed head. Then wait for exact-head CI; the old `39535384153` checks do not qualify. Live remains disabled, historical effect fences remain held, and no real investment profit is verified.
 
+#### 2026-10-21 12:30 JST — Synchronized source pushed
+
+`git push` succeeded without force. PR #8462 now reads OPEN, base `0478d430188b723bc1e2ac147b172c4c8d4ddd52`, head `7bbe3719539e3b0d497a52df3d4333281c16fc88`; the head matches local HEAD. At the first post-push readback, `mergeable=UNKNOWN` and no check runs were listed yet. Previous green checks remain tied to old head `c9d27b69`.
+
+**現在cursor:** obtain exact-head source acceptance/CI for the synchronized PR; merge only after required checks pass. Runtime remains validation-only, live remains disabled, and no real investment profit is verified.
+
 ### 2026-10-09 13:18 JST — Job Hunter Dreamwork cutover and updated user criteria
 
 この追記は11:50 JST snapshot後のJob Hunter readbackとユーザーの最新指示を記録する。個別の勤務地・住所などの私的値はprivate profileのみを正本とし、このspecには複製しない。
