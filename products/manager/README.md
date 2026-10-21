@@ -132,13 +132,20 @@ Founder explicitly skipped H005 because publicly released HeartSteps files do no
 
 The public research outputs are at `docs/research/heartsteps/PHASE03_PUBLIC_ANALYSIS_JA.md`, `docs/research/heartsteps/PHASE03_PUBLIC_METRICS.json`, `docs/verification/PHASE03_VERIFICATION.md`. Real-data CI: https://github.com/Daisuke134/life-manager/actions/runs/39526839889 . Proceed next to S001 rights-safe study-level metadata. Individual participant data are not copied to the Manager product.
 
-## Phase 04: verified study split and offline methods only (2026-10-21)
+## Phase 04 — observed public aggregation, technical social simulator, and honest open science (2026-10-21)
 
-**Scientific completion: NOT YET.** S001 is done: SocSci210's pinned *study-ID-only* metadata is hash-checked with **170 seen / 40 unseen**, no overlapping study, no participant rows. S002 is blocked on per-study respondent-use rights and evidence access; S003–S008 remain open. The offline baseline/causal-gap tests and six-tick real Concordia **mock engine** execute, but no real human behavior forecast or intervention effect has been independently validated. **170/170 Python tests passed** in GitHub Actions [39537750991](https://github.com/Daisuke134/life-manager/actions/runs/39537750991), official split-source [39536829220](https://github.com/Daisuke134/life-manager/actions/runs/39536829220) and Concordia mock [39537485934](https://github.com/Daisuke134/life-manager/actions/runs/39537485934).
+**Status: 5 scoped technical/methodological milestones done of 8; Phase04 SCIENTIFIC validation NOT yet complete.** S001/S003 pass verified official SocSci210 study-ID and anti-leakage checks (170/40, 0 overlap); S002 is blocked by source-study participant-data consent/license chain; S004/S005 require real permission-cleared heldout study responses, subgroup calibration and same-split pretrained-model comparisons. S006 has an analytic (NOT empirical) causal-fidelity counterexample; S007 has actual pinned Concordia *fictional* agents running an offline mock with separated evidence; S008 uses *observed aggregate* mobility outcomes in two genuinely later time conditions. None proves social-person simulation or reduced human suffering.
 
-- [Phase04 verified progress, blockers and evidence](docs/verification/PHASE04_PROGRESS_JA.md)
-- [SocSci210 actual study-split verification](docs/research/socsci/S001_STUDY_SPLIT_AUDIT_JA.md)
-- [Phase04 synthetic score/causality methods](docs/research/socsci/PHASE04_METHODS_PARTIAL_JA.md)
-- Core source: `manager_core/phase04_synthetic.py`, `scripts/socsci_split_audit.py`; no Life Manager production files modified.
+**New REAL observed data:** UCI CC BY 4.0 Bike Sharing, 2011 365 training days / 2012 366 holdout days (original UCI CSV byte-identical to fixed GitHub snapshot). Frequency classification accuracy 83.33%, season-only 65.30%; pooled daily rental MAE 2,488.67 vs season mean 2,303.65; observed error difference 185.02, seven-day block bootstrap 95% [-50.30,391.18], so no definite improvement. Separate winter vs summer 2012 Brier/TVD makes heterogeneity visible. NOT an RCT. [Actual source and analysis CI](https://github.com/Daisuke134/life-manager/actions/runs/39545601251).
 
-The Phase04 task registry is canonical in `docs/roadmap/tasks.json`. No published human-behavior benchmark, deployed effects or real-world beneficiary results are claimed.
+**Upstream simulation:** [Concordia Island real engine, two constructed ESA agents, mocked responses, separated validation evidence](https://github.com/Daisuke134/life-manager/actions/runs/39545009858). JSON response parsing warnings persist; no real social science accuracy has been measured. [Engine technical audit](docs/verification/S007_CONCORDIA_TECHNICAL_JA.md).
+
+**Recent integrated hosted checks:** [181/181 unit tests, Manager-only product boundaries and synchronized 113 tasks](https://github.com/Daisuke134/life-manager/actions/runs/39546138495). Canonical totals are **40 done, 69 todo, 3 blocked, 1 skipped**. Full scientific human-impact evidence Gate 1 remains unmet because exact H005 RCT reconstruction and empirical SocSci210 human benchmarks are not available.
+
+- [Phase04 actual source empirical evaluation report (Japanese)](docs/research/public_aggregate/PHASE04_UCI_BIKESHARE_EMPIRICAL_JA.md)
+- [Phase04 methods, task statuses, and true blockers](docs/verification/PHASE04_PROGRESS_JA.md)
+- [SocSci210 actual 170/40 split-only audit](docs/research/socsci/S001_STUDY_SPLIT_AUDIT_JA.md)
+- [Synthetic math vs actual human causal-effects note](docs/research/socsci/PHASE04_METHODS_PARTIAL_JA.md)
+- [Editable source→prediction→causality→welfare diagram](docs/architecture/PHASE04_EVIDENCE_FLOW_JA.mmd)
+
+Only independent scientific and authorized welfare measurements can later establish benefits. S006/S007/S008 original acceptance language is kept in tasks.json alongside precisely scoped substitute verification—not relabeled as successful human-effect reproduction.
