@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="650" viewBox="0 0 1200 650" role="img" aria-label="Manager evidence ladder separating prediction, authorized action, independent readback and net benefit">
+<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0B132B"/><stop offset="1" stop-color="#132E40"/></linearGradient><filter id="shadow"><feDropShadow dx="0" dy="8" stdDeviation="10" flood-opacity=".24"/></filter></defs>
+<rect width="1200" height="650" rx="28" fill="url(#bg)"/>
+<text x="75" y="90" fill="#BCEDE7" font-family="Arial,sans-serif" font-size="25" letter-spacing="5">THE MANAGER EVIDENCE LADDER</text>
+<text x="75" y="143" fill="#FFFFFF" font-family="Arial,sans-serif" font-size="39" font-weight="bold">Great management is measured outside the model.</text>
+<text x="75" y="185" fill="#C0CADB" font-family="Arial,sans-serif" font-size="20">Prediction and good intentions are hypotheses. Verified net benefit is the test.</text>
+<g font-family="Arial,sans-serif" font-size="23" font-weight="bold" text-anchor="middle" filter="url(#shadow)">
+<rect x="75" y="235" width="240" height="132" rx="16" fill="#244A69"/><text x="195" y="280" fill="#E0F2FE">01  OBSERVE</text><text x="195" y="315" fill="#D2E4F7" font-size="16" font-weight="normal">source + baseline</text>
+<rect x="344" y="235" width="240" height="132" rx="16" fill="#244A69"/><text x="464" y="280" fill="#E0F2FE">02  COMPARE</text><text x="464" y="315" fill="#D2E4F7" font-size="16" font-weight="normal">options + uncertainty</text>
+<rect x="613" y="235" width="240" height="132" rx="16" fill="#0E6B70"/><text x="733" y="280" fill="#FFFFFF">03  ACT</text><text x="733" y="315" fill="#DBFBF3" font-size="16" font-weight="normal">authority + rollback</text>
+<rect x="882" y="235" width="240" height="132" rx="16" fill="#17816E"/><text x="1002" y="280" fill="#FFFFFF">04  VERIFY</text><text x="1002" y="315" fill="#DBFBF3" font-size="16" font-weight="normal">independent outcomes</text>
+</g>
+<g stroke="#B8E7E0" stroke-width="5" fill="none" stroke-linecap="round"><path d="M320 300h17m-10 -7 10 7 -10 7"/><path d="M589 300h17m-10 -7 10 7 -10 7"/><path d="M858 300h17m-10 -7 10 7 -10 7"/></g>
+<rect x="75" y="408" width="1047" height="144" rx="20" stroke="#55CBAE" stroke-width="2" fill="#112E38"/>
+<text x="108" y="458" fill="#77E1BD" font-family="Arial,sans-serif" font-size="24" font-weight="bold">THE PUBLIC BLESSING RECEIPT</text>
+<text x="108" y="502" fill="#F0FAFB" font-family="Arial,sans-serif" font-size="22">Outcome − costs − displacement − harms = independently assessed net benefit</text>
+<text x="108" y="585" fill="#9FBDD1" font-family="Arial,sans-serif" font-size="17">Transparency is a design requirement, not evidence of an achieved effect.</text>
+</svg>
