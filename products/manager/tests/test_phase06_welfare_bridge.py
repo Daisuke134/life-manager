@@ -39,7 +39,7 @@ class ReuseOnlyWelfareContracts(unittest.TestCase):
         text=CI.read_text(encoding="utf-8")
         self.assertIn("from manager_core.outcome_ladder import proof_level",text)
         self.assertIn("NOT_MEASURED",text)
-        self.assertIn("PUBLIC_ARTIFACT_ONLY",text)
+        self.assertIn("P2_ARTIFACT_ONLY",text)
 
     def test_source_registry_contains_provenance_of_actual_official_directory(self):
         data=json.loads(REGISTRY.read_text(encoding="utf-8"))
