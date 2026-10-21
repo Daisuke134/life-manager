@@ -102,8 +102,10 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     }
     const uidA = "lm_11111111-1111-4111-8111-111111111111";
     const uidB = "lm_22222222-2222-4222-8222-222222222222";
+    const uidC = "lm_33333333-3333-4333-8333-333333333333";
     const subjectA = "11111111-1111-4111-8111-111111111111";
     const subjectB = "22222222-2222-4222-8222-222222222222";
+    const subjectC = "33333333-3333-4333-8333-333333333333";
     const releaseSha = "a".repeat(40);
     await client.query("INSERT INTO public.lm_maritime_manager_identities(uid,auth_subject) VALUES ($1,$2)", [uidA, subjectA]);
     await client.query("UPDATE public.lm_maritime_manager_identities SET first_touch=$1::jsonb,first_touch_at=clock_timestamp() WHERE uid=$2", [JSON.stringify({ utm_source: "x" }), uidA]);
@@ -128,6 +130,7 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
       "first-touch must be an object with its timestamp",
     );
     await client.query("INSERT INTO public.lm_maritime_manager_identities(uid,auth_subject) VALUES ($1,$2)", [uidB, subjectB]);
+    await client.query("INSERT INTO public.lm_maritime_manager_identities(uid,auth_subject) VALUES ($1,$2)", [uidC, subjectC]);
 
     const enrollmentColumns = await client.query(
       "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='lm_maritime_manager_enrollments'",
@@ -156,6 +159,19 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     assert.deepEqual(storeQueries[1].values, ["pending", 5]);
     assert.ok(pendingEnrollments.every(row => /^\d{4}-\d{2}-\d{2}T.*Z$/.test(row.created_at)));
     assert.deepEqual(await managerStore.listPaused(5), []);
+    const enrollmentInput = { uid: uidC, authSubject: subjectC, email: "c@example.invalid", timezone: "Pacific/Honolulu",
+      source: "instagram", consentVersion: "maritime-manager-v1", releaseSha };
+    const enrolled = await managerStore.enroll(enrollmentInput);
+    assert.equal(enrolled.uid, uidC);
+    assert.equal(enrolled.auth_subject, subjectC);
+    assert.equal(enrolled.email, "c@example.invalid");
+    assert.equal(enrolled.timezone, "Pacific/Honolulu");
+    assert.equal(enrolled.source, "instagram");
+    assert.equal(enrolled.status, "pending");
+    assert.deepEqual(await managerStore.enroll(enrollmentInput), enrolled, "same verified enrollment is idempotent");
+    await assert.rejects(managerStore.enroll({ ...enrollmentInput, email: "changed@example.invalid" }), /identity_mismatch/);
+    await assert.rejects(managerStore.enroll({ ...enrollmentInput, authSubject: subjectA }), /identity_mismatch/);
+    assert.equal((await managerStore.read(uidC)).email, "c@example.invalid", "conflicting input cannot overwrite the existing owner/contact");
     const claim = uid => client.query('SELECT public.claim_lm_maritime_manager_provision_v1($1) AS claimed', [uid]).then(result => result.rows[0].claimed);
     const bind = (uid, subject, agent) => client.query(
       'SELECT public.bind_lm_maritime_manager_agent_v1($1,$2,$3,$4) AS bound', [uid, subject, agent, releaseSha],
@@ -361,7 +377,7 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
       "recipient hashes must be 64 lowercase hex characters",
     );
     await assert.rejects(
-      insertReceipt("lm_33333333-3333-4333-8333-333333333333", "maritime:daily:orphan", "pending"),
+      insertReceipt("lm_44444444-4444-4444-8444-444444444444", "maritime:daily:orphan", "pending"),
       error => error.code === "23503",
       "CFO receipts bind to Manager identity, not global lm_users",
     );

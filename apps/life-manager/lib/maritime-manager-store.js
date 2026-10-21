@@ -102,10 +102,16 @@ function createMaritimeManagerStore(options = {}) {
     if (!/^[a-z0-9_-]+$/.test(source)) invalid();
     const consentVersion = bounded(input.consentVersion, 100);
     const releaseSha = identifier(input.releaseSha, SHA);
-    await request("lm_maritime_manager_enrollments?on_conflict=uid", "POST", {
-      uid, auth_subject: authSubject, email, timezone, source,
-      consent_version: consentVersion, release_sha: releaseSha,
-    }, "resolution=ignore-duplicates,return=representation");
+    const inserted = await queryPg(
+      `INSERT INTO public.lm_maritime_manager_enrollments
+        (uid,auth_subject,email,timezone,status,source,consent_version,release_sha)
+       SELECT i.uid,i.auth_subject,$3,$4,'pending',$5,$6,$7
+       FROM public.lm_maritime_manager_identities AS i
+       WHERE i.uid=$1 AND i.auth_subject=$2
+       ON CONFLICT (uid) DO NOTHING RETURNING uid`,
+      [uid, authSubject, email, timezone, source, consentVersion, releaseSha],
+    );
+    if (inserted.length > 1) throw new Error("maritime_manager_store_invalid");
     const row = await read(uid);
     if (!row || row.auth_subject !== authSubject || row.email !== email) {
       throw new Error("maritime_manager_identity_mismatch");

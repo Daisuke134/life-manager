@@ -15,7 +15,8 @@ function input(uid = UID_A, subject = SUBJECT_A) {
 }
 function fixture() {
   assert.equal(typeof createMaritimeManagerStore, "function", "enrollment store must exist");
-  const rows = new Map(); const executions = new Map(); const requests = []; const pgQueries = [];
+  const rows = new Map(); const identities = new Map([[UID_A, SUBJECT_A], [UID_B, SUBJECT_B]]);
+  const executions = new Map(); const requests = []; const pgQueries = [];
   const fetchImpl = async (url, opts = {}) => {
     const u = new URL(url); const body = JSON.parse(opts.body || "null");
     requests.push({ url: u, method: opts.method || "GET", body });
@@ -71,6 +72,16 @@ function fixture() {
   const pgPool = { query: async (statement, values = []) => {
     pgQueries.push({ statement, values });
     let selected;
+    if (statement.includes("INSERT INTO public.lm_maritime_manager_enrollments")) {
+      const [uid, authSubject, email, timezone, source, consentVersion, releaseSha] = values;
+      if (identities.get(uid) === authSubject && !rows.has(uid)) {
+        rows.set(uid, { uid, auth_subject: authSubject, email, timezone, status: "pending", source,
+          consent_version: consentVersion, agent_id: null, release_sha: releaseSha, paused_at: null,
+          created_at: "2026-10-20T00:00:00.000Z" });
+        return { rows: [{ uid }] };
+      }
+      return { rows: [] };
+    }
     if (statement.includes("WHERE uid = $1 LIMIT 2")) selected = [rows.get(values[0])].filter(Boolean);
     else if (statement.includes("status = $1 AND paused_at IS NULL AND agent_id IS NULL")) {
       selected = [...rows.values()].filter(row => row.status === values[0] && row.paused_at == null && row.agent_id == null)
@@ -82,8 +93,8 @@ function fixture() {
     } else throw new Error("unexpected_pg_query");
     return { rows: selected.map(pgRow) };
   } };
-  return { rows, requests, store: createMaritimeManagerStore({ supaUrl: "https://database.invalid",
-    supaKey: "fixture-private-key", fetchImpl, pgPool, now: () => "2026-10-20T00:00:00.000Z" }), pgQueries };
+  return { rows, identities, requests, pgQueries, store: createMaritimeManagerStore({ supaUrl: "https://database.invalid",
+    supaKey: "fixture-private-key", fetchImpl, pgPool, now: () => "2026-10-20T00:00:00.000Z" }) };
 }
 
 test("enrollment_is_idempotent_and_tenant_scoped", async () => {
@@ -91,7 +102,9 @@ test("enrollment_is_idempotent_and_tenant_scoped", async () => {
   const a = await store.enroll(input()); const again = await store.enroll(input());
   assert.equal(rows.size, 1); assert.equal(a.uid, UID_A); assert.deepEqual(again, a);
   await assert.rejects(store.enroll(input(UID_A, SUBJECT_B)), /identity_mismatch/);
+  await assert.rejects(store.enroll({ ...input(), email: "changed@example.invalid" }), /identity_mismatch/);
   assert.equal(rows.get(UID_A).auth_subject, SUBJECT_A);
+  assert.equal(rows.get(UID_A).email, "person@example.invalid");
 });
 test("only_one_concurrent_provision_claim_succeeds", async () => {
   const { store } = fixture(); await store.enroll(input());
@@ -121,9 +134,10 @@ test("invalid_identity_and_unconfigured_storage_do_not_dispatch", async () => {
 });
 
 test("uppercase_auth_subject_matches_postgres_uuid_canonical_form", async () => {
-  const { store } = fixture();
+  const { store, identities } = fixture();
   const subject = "aabbccdd-1111-4111-8111-111111111111";
   const uid = `lm_${subject}`;
+  identities.set(uid, subject);
   const row = await store.enroll({ ...input(uid, subject.toUpperCase()) });
   assert.equal(row.auth_subject, subject);
   await store.claimProvision(uid);
