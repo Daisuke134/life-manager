@@ -22379,3 +22379,48 @@ Yang Munについては、[HeyGenの顧客事例](https://www.heygen.com/custome
 | EP-10 | `skills/earn/marketing-engine/intel/ebook_case_study.py`と`test_ebook_case_study.py`を新設。Input=`playbook.jsonl`のexact `--case-id`で`applies_to`に`ebook`を含む有効なrecordと`docs/articles/2026-10-21-ai-monk-creator-economy-en.md`。CLI=`--case-id <id> --format article|x-post --out <path>`。Output=source/evidence URLs、`provenance`、結果未記録の状態を保つ決定的Markdown記事またはX告知draft。投稿副作用なし。実公開は既存`x_post.py`のofficial receipt経路へ委譲 → 再利用可能なresearch-to-distribution generator | EP-8/EP-9、既存`intel_store.py`契約の確認 | Branch implementation: `python3 -B -m unittest discover -s skills/earn/marketing-engine/intel -p 'test_ebook_case_study.py' -v` 3/3 pass; `test_intel_store.py` 6/6 pass. Exact-head CI+merge still required. CLI produces linked source/provenance/unknowns and rejects a non-ebook ID; no provider mutation |
 | EP-11 | Instagram `@monkmujo`のofficial OAuthとPostiz plan/quotaを同時読戻し → 正確なintegration/remaining slot countまたは具体的なprovider blocker | browser registry、既存lease、official Postiz readback | DONE (capacity gate): Billing=`Pro/30 channels`、API=30 enabled/0 disabled/9 Instagram/target match 0。空き0のためOAuth接続・upgradeなし。receipt=`docs/evidence/postiz-ig-capacity-20261021.json`。TikTok `cmo5rwq2p00twn10yrsdglng3`は変更しない。OAuthは新しい空き枠が確認できてから再開 |
 | EP-12 | X/blog `creative_id`と既存のanalytics/commerce readbackを接続し、同期間のvisits・paid orders・refunds・fees・production cost → source別net contribution | EP-8、live traffic/orders | provider receiptsとsettled costが同期間・同sourceでjoin。follower/view/claimだけで収益を主張しない |
+
+### Capafy post-fence revenue cursor — 2026-10-21 08:57 UTC
+
+**Codex-only policy:** local Life Manager pipeline inferenceはすべてCodexのみを使う。Claudeや他providerへのfallbackを許可しない。既存のCapafy計画にあるCodex-only方針と、後続のlegacy adapter移行TODOを維持する。
+
+**旧失敗のroot cause / fix:** 旧release SHA `70c93940bc712261f3dd01aa9556b467b1481539`では、`CRAFT_GUIDANCE`を代入する前にunquoted heredocで展開し、`set -u`によりoccurrenceがprovider呼び出し前に終了した。main commit `88de3718c61eddcd160e702a0c974338bd0ed099`は`CRAFT_GUIDANCE`と`IDENTITY_GUIDANCE`の代入をheredoc前へ移し、このsourceはe8e91にも含まれる。e8e91の`runtime/agent-runner/config.json`ではproviderとtask candidateが`codex`のみ。修正はsource確認済みだが、08:49の自然runはfenceによるprovider前deferだったため、修正後のnatural runtimeは未確認。
+
+**完了したfoundation atom:** PR #8485はmain `e8e91c276264b8a5247b62d8c3f76b0d3fac3a44`へmerge済み。immutable release `20261021T172743-e8e91c27`が`capafy-distribute-daily`にloaded-idleで採用され、現在のrelease SHAは同じ。元occurrence `capafy-distribute-daily:18e077fbebd96ce8-96969`は06:36:20Zにentrypointの`CRAFT_GUIDANCE`未設定で終了し、`effect_identity_status=not_written`、provider receiptなし。Codex read-only review GO後、同releaseのadapterを08:50:02Zに実行し、GitHubの該当window commitなしとPostizの唯一rowを公式readbackした。Postiz ID `cmvhqvaid0429oh0ywbv95g8r`は独立eBook receipt `docs/evidence/ai-monk-x-post-20261021.json`とintegration・公開時刻・X permalinkが一致し、Capafyの`youtube-outro-script`とは別の投稿と判定した。adapterは`verified=true`、`effected=false`、`closed=true`を返し、`admission_effect_unknown.current=false`を再確認した。durable snapshot=`~/.local/state/life-manager/writer/capafy-distribute/capafy-distribute/occurrences/18e077fbebd96ce8-96969.readback-b594b5604e6ad10ce8604b3083c40b0df5c8fdd160921c812bfde14180ddc6a7.json`、SHA-256=`b594b5604e6ad10ce8604b3083c40b0df5c8fdd160921c812bfde14180ddc6a7`、file mode `0600`、parent mode `0700`。この旧occurrenceは再送しない。
+
+**現在の収益cursor:** 08:49:09Zの自然occurrence `18e07f3bfa80bf48-27116`は、元fenceが閉じる前にadmissionでdeferした。provider処理・公開には到達していない。解除後の自然配信は未確認で、Capafyの新規有料注文も未確認。`lm-fence-reconciler`は別ownerで旧SHA `a165e0ae61cb8593cf1f3bcfd692b2a3c4fe7cd1`をloaded-idleし、08:46:19Zに自然passした。よってこの回復はe8e91 immutable adapterによる一回限りのresolutionであり、reconciler自身の新release adoptionを証明しない。
+
+**残TODO（成果順、現在cursor=1）:**
+
+| # | Atomic TODO | Dependency / DONE evidence |
+|---|---|---|
+| 1 | `capafy-distribute-daily`の次の自然occurrence（15分interval、次は約09:04Z）を観測する。入力=現loaded SHA `e8e91c27`と解除後slot、出力=同ownerのterminal event。手動replay/wakeはしない。 | Current cursor。DONE=新occurrenceが元fenceのadmission deferを受けずにprovider処理へ進み、typed terminalを残す。再度defer/失敗ならそのexact occurrenceを次cursorにして原因を直す。 |
+| 2 | そのexact occurrenceについて、`capafy-distribute-daily.sh`のoccurrence manifest、公式GitHub landing commit/live URL、Postiz `PUBLISHED` receipt/permalinkを照合する。 | #1。DONE=1つの公開記事と1つのPostiz IDが同じoccurrenceへ結び付き、duplicate count=0。source terminalだけでは公開成功にしない。 |
+| 3 | `skills/earn/capafy-marketing/scripts/capafy_hourly_reconcile.py`の既存official seller / traffic readbackを使い、該当sourceのviews・trial units・paid units・gross/creator earningsを取得する。 | #2。DONE=同じwindowのprovider rowsで注文と収益を確認。source別joinが提供されない場合は因果帰属を`unknown`と残し、aggregateを投稿成果へ帰属させない。 |
+| 4 | 注文がない場合は、既存Capafy market API `/agent/agents/search`の成功sellerから同じbuyer・listing・distribution目的の勝ち例を1つ選び、確認済みの価格/offer/CTA機構だけを自社のlisting事実で再現した1変数experimentを設計する。 | #3。DONE=参照URL・観測済み成果・模倣機構・計測sourceを記録し、1つのvariantだけを自然distributionで比較する。未検証の売上claimや表現の丸写しはしない。 |
+| 5 | `lm-fence-reconciler`のrelease alignmentを調べ、registryの`reconcile_queued_release=true`に沿ってmain由来latest immutable releaseを採用させる。 | #2以降、distribution継続を止めない。DONE=owner statusでlatest release SHA/argvを確認し、自然passが新adapterを実行する。`~/loops/current`を手動で動かす前に、08:35Zのcandidate→a165再installを起こしたexact actorを特定する。 |
+
+**完了条件:** Capafy収益化は、公式seller sourceでsource-attributed paid orderと実際のcreator earningsが確認されるまで未完了。次は報告整形ではなく、解除後の自然distributionとその注文転換を進める。
+
+### Capafy revenue cursor — disk admission after source fix — 2026-10-21 09:19 UTC
+
+**新しい阻害:** fence closure後の自然occurrence `capafy-distribute-daily:18e0800deefadac8-56113`（09:04:09Z, release e8e91）は`pre_claim / host_admission_deferred:disk_floor_low / exit 75`で終了し、providerを開始していない。`admission_effect_unknown.current=false`のため、これは元fenceや`CRAFT_GUIDANCE`の再発ではなく容量gateである。従って、source修正は確認済みだが、修正後のnatural provider runはまだ未確認。
+
+**容量の実測とowner:** e8e91のloaded plistは`LIFE_MANAGER_REPO`を同releaseへ向け、registryでCapafyは`admission_class=revenue`。同releaseの`disk_admission.py::_floor_bytes`は10 GiB=`10737418240` bytes。09:07:06Zの同じ`disk_free_bytes()`読取りは`10164654080` bytesで、floorを`572764160` bytes下回る。`~/.local/state/life-manager/state/disk-headroom.json`はmtimeが2026-10-17の古い記録なので、今回の判定には使わない。
+
+host掃除の唯一owner `com.anicca.disk-watchdog`は60秒cadenceで稼働中。09:07:31Zの`last-unbound-receipt.json`はfree_before `10158194688` / free_after `10150838272` bytes、`reclaimed=6407` bytes（allowlistの`~/.cache/gh`）、errors=0、protected_deletions=0、preserved=9、inventory_gaps=29を記録した。容量不足は継続中で、watchdogは10候補familyの次slotを走査する。5分の`life-manager-disk-cleanup`はrelease/Git/Codex/managed-scratch保守ownerであり、HostDiskGovernorの代わりではない。削除やfloor overrideは行わない。
+
+**最新natural attempt:** occurrence `capafy-distribute-daily:18e080dedd1a2e68-94857`は09:19:06Zに同じ`disk_floor_low`でdeferし、providerを開始していない。09:19:51Zの同一producer code readbackはfree `9652842496` / floor `10737418240` bytes（short `1084575744` bytes）。09:19:09Zのwatchdog receiptはfree_after `9677336576` bytes、reclaimed `6405` bytes、errors=0、protected_deletions=0、inventory_gaps=29。09:19:51Zのswap readbackはused `9784.62M`。swapとfree-spaceの同時変化は観測したが、単一ownerへの原因帰属はしていない。effect_unknown fenceは引き続き0で、配信はcapacity admissionで止まっている。
+
+**残TODOを更新（現在cursor=1、収益優先順）:**
+
+| # | Atomic TODO | Dependency / DONE evidence |
+|---|---|---|
+| 1 | `com.anicca.disk-watchdog`の自然60秒passを監視し、次のCapafy slot前にe8e91と同じ`disk_admission.disk_free_bytes(state_dir)`が10 GiB以上になるまで登録済みallowlist sweepを継続する。 | Current cursor。DONE=新しいwatchdog inventory/receiptとproducer gateで10 GiB以上を確認。09:19 slotはすでにcapacity defer。次回slotでも足りなければtyped `disk_floor_low` deferを保持し、full inventoryの候補・gap・open-path根拠を絞る。未知/稼働中/保護対象を消さず、floorを下げない。 |
+| 2 | 10 GiB gate通過後、`capafy-distribute-daily`の次の自然interval（現cadenceなら約09:34Z）を観測し、loaded SHAとterminal occurrenceを照合する。 | #1。DONE=provider処理へ進み、typed terminal eventを残す。manual wake/replayはしない。 |
+| 3 | そのexact occurrenceのmanifest、GitHub landing commit/live URL、Postiz `PUBLISHED` ID/permalinkを同一IDでjoinする。 | #2。DONE=1記事/1 Postiz ID、duplicate count=0。 |
+| 4 | `skills/earn/capafy-marketing/scripts/capafy_hourly_reconcile.py`の既存official seller/traffic rowsから同じsourceのviews・trial・paid・earningsを確認する。 | #3。DONE=source別paid order/earningsが公式にjoin。提供されない細粒度は`unknown`のまま残す。 |
+| 5 | 注文がない場合、`/agent/agents/search`のCapafy成功sellerから同じbuyer/mediumの勝ち例を1つ選び、確認済みoffer/価格/CTA mechanismで1変数experimentを行う。 | #4。DONE=参照URL・成果・模倣機構・source計測を記録し、自然distributionで比較する。 |
+| 6 | `lm-fence-reconciler`をmain由来latest immutable releaseへ標準reconcile経路で採用する。 | #3以降、Capafy配信を止めない。DONE=owner statusのSHA/argvが新adapterを含み、natural passで読戻す。current release再選択のexact actorが分かるまで`~/loops/current`を手動変更しない。 |
+
+このentryは直前の「current cursor=次natural distribution」を更新する。先に10 GiB admission floorを回復し、収益ownerの自然runへ戻る。
