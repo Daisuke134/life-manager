@@ -109,7 +109,7 @@ Harness²の方式を既存評価へ写す一つの経路は、(1) frozen baseli
 
 **暫定見立て:** bestではHarness²型のmatched probeとheld-outでharness改善が確認でき、投資risk gateを保ったまま再発や悪化を早く落とせる。baseでは修復・完走の信頼性だけが改善し、P&Lは変わらない。worstでは公開fixtureへ過適合し、実市場では効果がなく、API/compute費用だけが増える。MASSやRSI-Anythingをproductionへ入れる判断を保留する根拠は、両repoにLife Managerの実資金・settlement結果がないこと。自分が間違うとしたら、短期P&Lを最も左右する要因がcandidate alphaと共有disk/capacityで、RSI改善層の寄与が小さいケースである。
 
-**実行前提:** この比較は研究・設計資料であり、新frameworkのinstallやproduction mutationを許可しない。現在の投資cursorはINV-06F1の未帰属root診断であり、native safe-retention ownerは並行して稼働している。10:15Zの空きは約6.01 GiBで、10 GiB基準との差をまだ埋められていない。次にINV-06F2の容量回復、INV-07のnatural validation/paper readbackへ進む。RSI候補生成をproductionへ拡張する判断は、INV-10の費用込みstrategy evaluation後に行う。
+**実行前提:** この比較は研究・設計資料であり、新frameworkのinstallやproduction mutationを許可しない。現在の投資cursorはINV-06F1の未帰属root診断であり、native safe-retention ownerは並行して稼働している。10:19Zの空きは約5.65 GiBで、10 GiB基準との差をまだ埋められていない。次にINV-06F2の容量回復、INV-07のnatural validation/paper readbackへ進む。RSI候補生成をproductionへ拡張する判断は、INV-10の費用込みstrategy evaluation後に行う。
 
 ## 現行LM-EABの実態
 
