@@ -16446,6 +16446,26 @@ REDebbd5af252→GREEN0e8f071c0eはcore guardも証明済みsell/nofill closedか
 
 **順序変更の理由:** comparing the failing run SHA `55cc06f2` with installed validation SHA `4b230cba` shows the current source already contains PR #8441's bounded pagination fix. Adding another implementation before a natural 4b run would duplicate the fix and would not establish that the reader now works. Keep the fence and live owner unchanged while the next scheduled validation run evaluates the installed code.
 
+#### 2026-10-21 11:24 JST — Empty Alpaca cursor still blocks the current reader
+
+**Exact read-only reproduction:** using the installed `1418bc76` reader and canonical paper credential, I queried the same historical BTC/USDC window that failed: `2026-07-22T00:00Z`–`06:00Z`, 5-minute bars. Alpaca returned `next_page_token=""`, with 64 BTC/USDC bars and 4 USDC/USD bars. The current reader rejects the empty-string token on page 1 as `pagination_incomplete` with `received_count=0` before checking bar completeness. No trade or account effect occurred.
+
+**Primary-source contract:** Alpaca's [Crypto Historical Bars reference](https://docs.alpaca.markets/us/reference/cryptobars-1) declares `next_page_token` as string-or-null and describes a `page_token` as the cursor for more data. It does not document the observed empty-string value as an explicit end marker. The implementation change is therefore limited: treat exactly `""` as no usable next cursor, then keep the existing exact 72-bar/5-minute timestamp completeness checks. If only 64 bars are available, the result must remain invalid and report the expected/actual counts; never fill the eight gaps or publish a BTC strategy report.
+
+**Updated atomic TODO (current cursor = 4):**
+1. [x] Merge bounded fence adapter to main `1418bc76`; 742/742 Alpaca tests, high-risk review 0 findings, required CI pass.
+2. [x] Cut and verify immutable release `20261021T105116-1418bc76`; apply only `lm-fence-reconciler` and verify its loaded argv/SHA/state path.
+3. [x] Read the natural release-1418 terminal: the exact live occurrence remains held on 4 official orders, zero open; all 4 order IDs have zero exact matches in 354 local receipt rows/10 intents and remain `unscoped`.
+4. [ ] Add RED tests for an empty-string terminal token with a complete payload and for an incomplete payload; make the smallest reader change so an empty cursor reaches the existing completeness gate. Keep blank/invalid non-empty cursors, repeated tokens, and page exhaustion fail-closed. **Current cursor.**
+5. [ ] Run the focused/full Alpaca suite, open-source review, and exact-head CI; merge the reader fix and cut a main-derived immutable release.
+6. [ ] Apply only `investment-strategy-validation` through its existing loaded-idle gate, then wait for its next natural terminal. No manual wake. Require the 90-day BTC window to have complete 5-minute coverage before reporting a BTC strategy result.
+7. [ ] If the API still returns only 64 of 72 expected bars, record the exact gap and keep that window invalid; investigate an evidence-backed data repair before using it. Do not interpolate missing bars or count paper/backtest results as profit.
+8. [ ] Copy one proven profitable strategy mechanism from public code or primary evidence, record the source and measured outcome, and evaluate it on matched instrument/window/cost/benchmark data with drawdown, lookahead, holdout, and sensitivity checks.
+9. [ ] Confirm duplicate/risk/daily-loss caps and usable buying power. Last official snapshot: equity `$66.49`, cash `$0`, buying power `$0`; do not deposit. Keep live disabled until the historical fence, lineage, strategy evidence, and risk gates pass.
+10. [ ] Only then evaluate a small local live pilot and measure settled, owner-attributed realized net after all costs. Require 30 cost-complete round trips with positive benchmark-excess net before scaling; only after that calculate best/base/worst 1-month, 1-year, and 10-year scenarios.
+
+**Inference:** an empty string cannot supply a continuation cursor, so treating that exact value as the end of pagination is safer than mislabeling it `pagination_incomplete`; the separate bar-count/timestamp gate still prevents incomplete data from entering the strategy evaluator. If the complete-bar regression fails after that change, the data window remains blocked and needs another source-level diagnosis.
+
 ### 2026-10-09 13:18 JST — Job Hunter Dreamwork cutover and updated user criteria
 
 この追記は11:50 JST snapshot後のJob Hunter readbackとユーザーの最新指示を記録する。個別の勤務地・住所などの私的値はprivate profileのみを正本とし、このspecには複製しない。
