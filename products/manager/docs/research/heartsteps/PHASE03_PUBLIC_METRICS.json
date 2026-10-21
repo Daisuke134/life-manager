@@ -1,0 +1,54 @@
+{
+  "schema": "manager.heartsteps.public-alternative-verified.v1",
+  "as_of_date": "2026-10-21",
+  "source": {
+    "repo": "klasnja/HeartStepsV1",
+    "commit": "3016391de426116bdef41880d72bc8cd4b9b2477",
+    "file": "data_files/suggestions.csv",
+    "sha256": "60ee7896183d7084a084f9a6e8ef2d0afea2e7fecdb41d6b15382ce1745c5ddb",
+    "license": "CC-BY-4.0; independent data-privacy constraints"
+  },
+  "public_source_rows": 8274,
+  "selected_available_decisions": 6330,
+  "participants": 37,
+  "exclusion_counts_sequential": {
+    "unavailable": 1684,
+    "missing_decision_index": 259,
+    "ambiguous_action": 1
+  },
+  "descriptive": {
+    "mean_imputed_30min_steps": 220.416429699842,
+    "sd_imputed_30min_steps": 436.78071500365166
+  },
+  "exploratory_associations": {
+    "any_notification_ratio": 1.1395706945045134,
+    "any_notification_normal95": [1.0013927149089763, 1.296815273807479],
+    "walking_notification_ratio": 1.2388544498024963,
+    "walking_notification_normal95": [1.0555898736380722, 1.4539362172032977],
+    "per_50_ordinal_decisions_interaction_multiplier": 0.8575723831475476,
+    "per_50_ordinal_decisions_interaction_normal95": [0.7718010184253062, 0.9528756438257253],
+    "method": "within-participant-cluster robust association; adjusted for prior 30min steps and ordinal decision index",
+    "causal_effect_estimated": false
+  },
+  "original_paper_reference": {
+    "available_decision_points": 6061,
+    "included_decision_points": 7540,
+    "mean_30min_steps": 253,
+    "any_notification_ratio": 1.14,
+    "walking_notification_ratio": 1.24
+  },
+  "original_paper_replication": "NOT_ACHIEVED",
+  "H005": "WAIVED_WITH_SCIENTIFIC_LIMITATION",
+  "manager_human_benefit": "NOT_MEASURED",
+  "source_ci": {
+    "run_id": 39526839889,
+    "url": "https://github.com/Daisuke134/life-manager/actions/runs/39526839889",
+    "execution_result": "success",
+    "original_code_reproduction_run": "not attempted as success; original entrypoint remains separate and nonreproducible"
+  },
+  "privacy": {
+    "individual_rows_in_report": false,
+    "individual_ids_in_report": false,
+    "raw_data_git_published": false
+  }
+}

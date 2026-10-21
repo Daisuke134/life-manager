@@ -12,8 +12,8 @@ from collections import Counter
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / 'docs/roadmap/tasks.json'
 VIEW = ROOT / 'docs/roadmap/ATOMIC_BACKLOG.md'
-ALLOWED = {'done', 'todo', 'blocked'}
-SYMBOLS = {'done': '✅', 'todo': '⬜', 'blocked': '⛔'}
+ALLOWED = {'done', 'todo', 'blocked', 'skipped'}
+SYMBOLS = {'done': '✅', 'todo': '⬜', 'blocked': '⛔', 'skipped': '⏭️'}
 
 
 def validate(tasks):
@@ -29,7 +29,7 @@ def validate(tasks):
             raise ValueError(f"task lacks atomic acceptance: {t['id']}")
         if not set(t['depends']) <= seen:
             raise ValueError(f"dependency missing/forward/cyclic: {t['id']}")
-        seen.add(t['id'])
+        if t['status'] == 'skipped' and (not t.get('waiver_reason') or not t.get('waiver_scope')):\n            raise ValueError(f"skipped task without waiver: {t['id']}")\n        seen.add(t['id'])
 
 
 def render(tasks):
@@ -37,9 +37,9 @@ def render(tasks):
     sums = Counter(t['status'] for t in tasks)
     lines = [
       '# Manager — atomic learning & engineering backlog', '',
-      'Status: 2026-10-20 JST. Manager-only task registry in `tasks.json`; the Life Manager project SSOT is unchanged.', '',
-      f"Total: {len(tasks)} · Done: {sums['done']} · Todo: {sums['todo']} · Blocked: {sums['blocked']}", '',
-      '✅ = verified task; ⬜ = not started; ⛔ = outside dependency. A research task is not evidence of real-world impact.', '',
+      'Status: 2026-10-21 JST. Manager-only task registry in `tasks.json`; the Life Manager project SSOT is unchanged.', '',
+      f"Total: {len(tasks)} · Done: {sums['done']} · Todo: {sums['todo']} · Blocked: {sums['blocked']} · Skipped: {sums['skipped']}", '',
+      '✅ = verified task; ⬜ = not started; ⛔ = outside dependency; ⏭️ = scientific waiver (not success). A research task is not evidence of real-world impact.', '',
       'Manager has a separate product identity, source scope and runtime, even when its source is in the same GitHub repository.', '',
       '## Definitions of done', '',
       '- Study: source-backed research note and stated verification succeeds.',
@@ -52,7 +52,7 @@ def render(tasks):
             if t['section'] != group:
                 continue
             dependencies = ', '.join(t['depends']) or '—'
-            ext = '' if t.get('external', 'none')=='none' else ' **外部条件:** '+t['external']
+            ext = '' if t.get('external', 'none')=='none' else ' **外部条件:** '+t['external']\n            if t['status'] == 'skipped':\n                ext += ' **Waiver (not completed):** '+t['waiver_reason']
             fields = (SYMBOLS[t['status']]+' `'+t['id']+'`',dependencies,t['learn'],t['change'],t['verify']+ext)
             safe_fields = [str(field).replace('|', '\\|').replace('\n',' ') for field in fields]
             lines.append('| ' + ' | '.join(safe_fields) + ' |')

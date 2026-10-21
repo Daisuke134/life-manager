@@ -19,8 +19,8 @@ class BacklogTest(unittest.TestCase):
             self.assertTrue(t['verify'])
             self.assertTrue(set(t['depends']) <= seen,
                             f"unresolved dependency in {t['id']}")
-            self.assertIn(t['status'], ('done', 'todo', 'blocked'))
-            seen.add(t['id'])
+            self.assertIn(t['status'], ('done', 'todo', 'blocked', 'skipped'))
+            if t['status'] == 'skipped':\n                self.assertTrue(t.get('waiver_reason') and t.get('waiver_scope'))\n            seen.add(t['id'])
         self.assertGreaterEqual(len(seen), 60)
 
     def test_official_imozuru_source_blob_matches(self):
@@ -57,3 +57,15 @@ class BacklogTest(unittest.TestCase):
     def test_no_completed_real_world_impact_tasks(self):
         tasks=json.loads((ROOT/'docs/roadmap/tasks.json').read_text(encoding='utf8'))
         self.assertTrue(all(t['status']!='done' for t in tasks if t['section'].startswith('06.')))
+
+    def test_waived_h005_preserves_unmet_causal_replication(self):
+        tasks=json.loads((ROOT/'docs/roadmap/tasks.json').read_text(encoding='utf8'))
+        by_id={t['id']:t for t in tasks}
+        self.assertEqual(by_id['H005']['status'],'skipped')
+        self.assertNotIn('H005',by_id['H006']['depends'])
+        self.assertTrue(all(by_id[f'H0{i}']['status']=='done' for i in range(6,11)))
+        self.assertTrue(all(by_id[f'H0{i}'].get('original_verify') for i in range(6,11)))
+        metrics=json.loads((ROOT/'docs/research/heartsteps/PHASE03_PUBLIC_METRICS.json').read_text(encoding='utf8'))
+        self.assertEqual(metrics['original_paper_replication'],'NOT_ACHIEVED')
+        self.assertFalse(metrics['exploratory_associations']['causal_effect_estimated'])
+        self.assertEqual(metrics['selected_available_decisions'],6330)

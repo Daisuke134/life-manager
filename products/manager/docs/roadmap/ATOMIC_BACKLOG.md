@@ -1,10 +1,10 @@
 # Manager — atomic learning & engineering backlog
 
-Status: 2026-10-20 JST. Manager-only task registry in `tasks.json`; the Life Manager project SSOT is unchanged.
+Status: 2026-10-21 JST. Manager-only task registry in `tasks.json`; the Life Manager project SSOT is unchanged.
 
-Total: 113 · Done: 30 · Todo: 80 · Blocked: 3
+Total: 113 · Done: 35 · Todo: 75 · Blocked: 2 · Skipped: 1
 
-✅ = verified task; ⬜ = not started; ⛔ = outside dependency. A research task is not evidence of real-world impact.
+✅ = verified task; ⬜ = not started; ⛔ = outside dependency; ⏭️ = scientific waiver (not success). A research task is not evidence of real-world impact.
 
 Manager has a separate product identity, source scope and runtime, even when its source is in the same GitHub repository.
 
@@ -63,12 +63,12 @@ Manager has a separate product identity, source scope and runtime, even when its
 | ✅ `H002` | H001 | スナップショット/再現性/ハッシュを理解する | 公開suggestions.csvをread-only取得、SHA256/コミットID保存 | data/rawはgitignore; manifestにrowcount 8,274とSHA256 **外部条件:** GitHubの公開ファイルを取得できる実行経路が必要 |
 | ✅ `H003` | H002 | 実データ型・欠測を理解する | scripts/inspect_heartsteps.pyでヘッダ/行数のみ出力 | 個人データの行が表示されない; 8,274 rows照合 |
 | ✅ `H004` | H003 | decision pointとavailabilityの意味を理解する | スキーマからdecision/time/availability/action列を同定 | 出典のcodebookと列名が完全一致; 不明列はunknown |
-| ⛔ `H005` | H004 | 分析単位/交絡/欠測の危険を説明する | 研究の除外規則で解析用decision pointsを抽出 | 元研究6,061件を再現できるまで「再現済み」としない **外部条件:** Pinned public suggestions.csv omits the original study.day.nogap variable and original analysis-small.RData / csv.RData are not published. Exact 7,540/6,061 inclusion requires original author-approved material or a validated derived study-day mapping. Do not select cutoffs to match totals. |
-| ⬜ `H006` | H005, L007 | 個別データの記述統計と因果推定を分離する | 記述統計のみのbaselineを実装 | 平均・分散・割付頻度を再計算、因果とは表示しない |
-| ⬜ `H007` | H006, L008 | 重複観測の相関と既知の割付確率を学ぶ | MRT割付確率と被験者クラスタを解析へ導入 | 単純独立標準誤差だけを使用しない |
-| ⬜ `H008` | H007 | weighted-centered least squares等の公開研究手法を理解する | 著者解析仕様に従いwalking suggestion効果を推定 | 元論文の24%/約59歩と差があれば原因を報告 |
-| ⬜ `H009` | H008 | 時間変化・減衰を評価する | study dayとactionの交互作用・不確実性を推定 | 効果量/95%CI/元論文差を機械生成 |
-| ⬜ `H010` | H009 | 外的妥当性と研究の限界を理解する | レプリケーション報告に対象37人/欠測/効果限界を明記 | 第三者が原データから同じ表を再作成できる |
+| ⏭️ `H005` | H004 | 分析単位/交絡/欠測の危険を説明する | 研究の除外規則で解析用decision pointsを抽出 | 元研究6,061件を再現できるまで「再現済み」としない **Waiver (not completed):** Founder-authorized 2026-10-21: public release cannot unambiguously reconstruct the original 2019 paper's analytic 7,540/6,061 decision population. Do not force-fit missing study-day data or treatment codes. |
+| ✅ `H006` | H004, L007 | 個別データの記述統計と因果推定を分離する | 計測可能な公開CSVの6,330介入可能時点で記述統計と通知別件数を集計 | 8,274入力→6,330有効時点、平均220.42・SD436.78、欠測・割付頻度を再計算し、因果とは表示しない。 |
+| ✅ `H007` | H006, L008 | 重複観測の相関と既知の割付確率を学ぶ | 公開CSVの探索的関連分析に参加者クラスタ頑健回帰と95%区間を適用 | 37人の反復測定にクラスタ頑健標準誤差を適用。単純な独立観測CIだけは使用しない。 |
+| ✅ `H008` | H007 | weighted-centered least squares等の公開研究手法を理解する | 公開CSVの非同一サブセットで送信/非送信と歩行通知/非送信の調整関連比と95%区間を計算 | 送信関連比1.140 [1.001,1.297]、歩行関連比1.239 [1.056,1.454]。元2019年RCTの完全再現と表示しない。 |
+| ✅ `H009` | H008 | 時間変化・減衰を評価する | 研究日ではなく公開済み決定順序インデックスの交互作用で時間的関連を評価 | 決定順序50単位の倍率0.858 [0.772,0.953]を記録。著者のstudy-day変化の再現ではない。 |
+| ✅ `H010` | H009 | 外的妥当性と研究の限界を理解する | ソースの固定SHA/選別条件/統計/欠測/論文差/CIを原文リンクつきで公表可能な研究記録に保存 | CI実データ解析の再現手順があり、H005 skipped・元論文再現未達・Managerの実世界便益未測定を明記。 |
 
 ## 04. 人間行動予測とシミュレーション
 
