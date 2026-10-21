@@ -55,14 +55,14 @@
   "finish": null,
   "readback": null,
   "limitations": [
-    "Latest origin/main is a165e0ae61cb8593cf1f3bcfd692b2a3c4fe7cd1; Railway still shows life-call and money-printer-worker SUCCESS deployments created at 06:23Z. Exact loaded SHA 982875d62eaa03f8e924b990c4bc80f521d8dcce was read at 08:00Z; a165e0ae adoption is not verified.",
+    "Latest origin/main is c0846ea05f02b801d288c7d62023d965e6dfcc25; Railway life-call and money-printer-worker remain on SUCCESS deployments created at 06:23Z. Exact loaded SHA last readback at 08:00Z is 982875d62eaa03f8e924b990c4bc80f521d8dcce; c0846ea adoption is not verified.",
     "Runtime PG read-only readback at 08:00:19Z has one identity and zero enrollments, executions, pilot participants, Manager jobs, or external completed-work events/users.",
-    "No PKCE confirmation, explicit retention consent, provisioned Manager, completed work, downloaded artifact, daily report, stop readback, Life Manager paid subscription, or user-attributed hosted business cash is verified.",
-    "Postiz connector readback at 08:24Z returns zero groups/integrations. Date-only official API integration evidence from 2026-10-21 lists 30 enabled channels; the exact 06:41Z post receipt confirms general X @selawmqt and one unrelated AI-monk post; no Life Manager post or attributed conversion is verified.",
-    "The proposed Manager article URL returned HTTP 404 at 08:11Z; no Life Manager product-acquisition article or CTA is live. GSC settled sitewide baseline is 0 clicks/7 impressions through 2026-10-18.",
+    "No owner PKCE, explicit retention consent, provisioned Manager, completed work, artifact/report/stop receipt, or hosted user settlement is verified. Runtime PG last readback at 08:00:19Z has identity=1 and enrollment/execution/participant/job/external work/users=0. Life Manager Stripe MRR is USD 0 at 09:38Z.",
+    "Postiz connector readback at 09:32Z returns zero groups/integrations and an empty queried post window. Earlier same-day @selawmqt post is unrelated AI-monk content. No Life Manager post or attributed conversion is verified.",
+    "Manager acquisition article candidate returned HTTP 404 at 09:31Z. GSC settled sitewide baseline remains 0 clicks/7 impressions through 2026-10-18. The new article is only a feature-worktree draft; its CTA may publish with early-pilot/retention/no-earnings disclosures before the full cycle.",
     "An older offline factory occurrence remains effect_unknown/completion_evidence_missing. It is separate from the currently deployed Manager signup route and is not counted as a completed revenue cycle.",
     "Official Terms say three days in San Francisco, but international flight arrangements and travel coverage are unpublished; do not treat travel as confirmed.",
-    "T23.1 medium review finding was resolved at 08:34Z; focused test passed 2/2 and the aggregate-only packet was regenerated. Formal submission receipt remains null."
+    "T23.1 medium review finding was resolved; focused test passed 2/2 and aggregate-only packet was regenerated at 08:34:34Z, SHA256 68024002e69d0c591dbb1614223a61697fd40d21ea7752330c2f22337bf6f4e1, mode 0600. Formal submission receipt remains null."
   ],
   "maritime_account_status": "Historical account/plan and sleeping-agent readback exists from an earlier session; dashboard session and current credit balance were not refreshed in this status update.",
   "cloud_browser_observation": {
@@ -162,25 +162,21 @@
     "docs/evidence/maritime/postgrest-startup-budget-production.json",
     "docs/evidence/maritime/current-status-20261021.json"
   ],
-  "current_blocker": "Hosted product remains unproven end-to-end: owner PKCE and explicit Maritime retention consent are unrecorded; no enrollment, Manager job, completed work, artifact/report/stop receipt, or hosted customer settlement is verified. Latest Runtime PG readback at 08:00:19Z has 0 external work events/users. The existing Slack entry is not a formal submission receipt; organizer reply after follow-up is absent at 08:26:15Z. Life Manager Stripe MRR is USD 0 at 06:55:37Z. Distribution has no Life Manager-attributed signup or sale.",
-  "updated_at": "2026-10-21T08:34:47Z",
+  "current_blocker": "Hosted product remains unproven end-to-end: owner PKCE and explicit Maritime retention consent are unrecorded; no enrollment, Manager job, completed work, artifact/report/stop receipt, or hosted customer settlement is verified. Runtime PG last readback at 08:00:19Z has identity=1 and enrollment/execution/participant/job/external work/users=0. The official entry is posted once, but formal submission receipt remains unconfirmed. Life Manager Stripe MRR is USD 0 at 09:38Z. Distribution has no public LM article, current X integration/post, attributed signup, or sale.",
+  "updated_at": "2026-10-21T09:39:59Z",
   "current_status_refresh": {
-    "observed_at": "2026-10-21T08:34:47Z",
-    "source_main_sha": "a165e0ae61cb8593cf1f3bcfd692b2a3c4fe7cd1",
+    "observed_at": "2026-10-21T09:39:59Z",
+    "source_main_sha": "c0846ea05f02b801d288c7d62023d965e6dfcc25",
     "life_call_loaded_sha": "982875d62eaa03f8e924b990c4bc80f521d8dcce",
     "life_call_deployment": "SUCCESS",
     "life_call_deployment_id": "e9ebfb62-e8c3-46eb-a198-d9203f574899",
-    "life_call_health_http": null,
-    "manager_route_body": {
-      "http": 200,
-      "page_rendered": true,
-      "content": "signup page"
-    },
+    "life_call_readback_at": "2026-10-21T09:35Z",
     "manager_email_enabled": "1",
     "life_call_pilot_max_users": "3",
     "worker_loaded_sha": "982875d62eaa03f8e924b990c4bc80f521d8dcce",
     "worker_deployment": "SUCCESS",
     "worker_deployment_id": "9dc09440-42ed-4349-83c2-e437b1fc5017",
+    "worker_readback_at": "2026-10-21T09:35Z",
     "worker_manager_capabilities": [
       "maritime.manager.provision",
       "maritime.manager.cycle",
@@ -190,17 +186,17 @@
     "worker_pilot_max_users": "3",
     "manager_database_last_readback": "2026-10-21T08:00:19Z; identities=1, enrollments=0, executions=0, pilot participants=0, manager jobs=0, external work-completed events/users=0",
     "external_manager_users_last_readback": 0,
-    "signup_http_readback": "2026-10-21T05:20Z–06:55Z log window: /maritime GET 200 four times; email signup POST 0; confirm/activate/stop 0.",
-    "project_submission": "Entry shared once; formal form/receipt unconfirmed. Inquiry thread reread at 08:26:15Z: two sent messages, no organizer reply.",
+    "signup_http_readback": "Railway proxy log query 2026-10-21T08:00Z–09:38Z: GET /maritime 200×8; no signup/activate/stop POST routes; proxy request counts are not unique users.",
+    "project_submission": "One accepted-team entry posted/read back. Channel says it does not replace a required form. Official home/Terms at 09:31Z show no form/cutoff/rubric; formal receipt unconfirmed.",
     "share_url_email": "sent and read back; Gmail message 1a15cc8791911599",
-    "distribution_campaign": "Candidate LM article URL returned 404 at 08:11Z; GSC sitewide baseline is 0 clicks/7 impressions through 2026-10-18. Postiz connector returned 0 groups/integrations at 08:24Z, but date-only official API integration evidence from 2026-10-21 lists 30 enabled channels; exact 06:41Z post evidence confirms general X @selawmqt with a separate AI-monk post. No LM post/source-attributed signup/sale is evidenced.",
+    "distribution_campaign": "Life Manager article source and byte/hash-matching 56th publication package are prepared in the feature worktree but remain uncommitted/unpublished. Candidate URL returned 404 at 09:31Z. GSC settled through 2026-10-18 is 0 clicks/7 impressions. Postiz at 09:32Z has groups=0, integrations=0, posts=0. No attributed signup/sale.",
     "submission_channel_permalink": "https://keikixmaritime.slack.com/archives/C0C9PEL45JA/p1792559347988839",
-    "organizer_inquiry": "Follow-up message 1a15d85b491c9450; thread 1a15d3141c56ee22 reread at 08:26:15Z; no organizer reply.",
-    "stripe_life_manager_readback": "Live API readback at 06:55:37Z: Life Manager prices have 0 active subscriptions and USD 0 MRR; account-wide historical invoices are not attributed to Life Manager. Hosted user cash/net remains unverified.",
-    "railway_live_readback_at": "2026-10-21T08:25Z",
+    "organizer_inquiry": "Follow-up sent at 08:13:26Z, message 1a15d85b491c9450; last thread readback 08:26:15Z had two sent messages and no organizer reply.",
+    "stripe_life_manager_readback": "Live API at 09:38Z: both exact Life Manager monthly prices ($29/$20) have 0 active subscriptions; Life Manager subscription MRR USD 0. Sigma analytics unavailable. Hosted user cash/net unverified.",
+    "railway_live_readback_at": "2026-10-21T09:35Z",
     "runtime_loaded_sha_readback_at": "2026-10-21T08:00Z",
-    "main_adoption_note": "origin/main a165e0ae is not verified deployed; the two life-manager/investment-core files differ from loaded SHA.",
-    "packet_review_finding": "Resolved: completed-work caveat now depends on an explicit completed status; focused test 2/2 pass; regenerated draft remains truthful."
+    "main_adoption_note": "origin/main c0846ea is not verified as deployed. Live life-call/worker remain on exact loaded SHA 982875d62eaa03f8e924b990c4bc80f521d8dcce. App paths changed since that SHA include provision_selection.py/test and the Week 1 exporter/test.",
+    "packet_review_finding": "Resolved: completed-work caveat requires receipt status=completed; focused test 2/2 passed and aggregate-only draft remains truthful."
   },
   "maritime_email_observation": {
     "checked_at": "2026-10-21T05:20:00Z",
@@ -209,5 +205,5 @@
     "current_session": "unconfirmed",
     "new_competition_instructions": "none found in this search"
   },
-  "status_updated_at": "2026-10-21T08:16:58Z"
+  "status_updated_at": "2026-10-21T09:39:59Z"
 }

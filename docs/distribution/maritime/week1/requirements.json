@@ -1,5 +1,5 @@
 {
-  "observed_at": "2026-10-21T05:30:31Z",
+  "observed_at": "2026-10-21T09:39:59Z",
   "program": "Keiki x Maritime The First 1000",
   "official_start_date": "2026-10-20",
   "competition_deadline": "2026-12-01T23:59:00-08:00",
@@ -96,22 +96,20 @@
     }
   },
   "last_live_refresh": {
-    "observed_at": "2026-10-21T08:08:45Z",
+    "observed_at": "2026-10-21T09:31:00Z",
     "source_urls": [
       "https://competition.maritime.sh/",
-      "https://competition.maritime.sh/terms",
-      "https://keikixmaritime.slack.com/archives/C0C99TP2GBZ",
-      "https://keikixmaritime.slack.com/archives/C0C9PEL45JA/p1792559347988839"
+      "https://competition.maritime.sh/terms"
     ],
     "terms_last_updated": "2026-10-15",
-    "official_goal": "1,000 distinct users with real usage during the six-week window; first three projects to reach the target win, subject to verification.",
+    "official_goal": "1,000 distinct people with real usage during the six-week window; the first three projects to reach the target win, subject to verification.",
     "award": "Up to USD 20,000 in LLM credits per winning project; not guaranteed to all winners. Second- and third-place amounts and detailed award schedule remain unpublished.",
-    "travel": "Three-day San Francisco experience. Sponsored flights are limited to people in the United States; exact eligibility, traveler count, covered expenses, dates, and international-winner arrangements remain unpublished.",
+    "travel": "Three-day San Francisco experience. Sponsored flights are limited to people in the United States; exact eligibility, traveler count, covered expenses, dates, and arrangements for international winners remain unpublished.",
     "week1_deadline_time": null,
-    "week1_deadline_reason": "The official home and Terms were crawled at 08:06Z and still show no Week 1 cutoff, rubric, or project form. Slack announcements were read at 08:07Z and show only setup/join messages; the help-channel search returned no results. The submissions channel still has one Life Manager entry and says channel posts do not replace any required form. Organizer-domain email search at 08:08:45Z found no reply; a follow-up was sent at 08:13:26Z and has no post-send reply readback.",
+    "week1_deadline_reason": "Official home and Terms recrawled at 09:31Z still publish no Week 1 cutoff, Top-30 rubric, or project form. The 2026-10-19 kickoff email says only the top 30 advance and real users are a bonus; it provides no exact time, timezone, scoring weights, or minimum user threshold.",
     "project_submission_status": "entry_shared_in_channel; formal_submission_unconfirmed",
-    "refresh_scope": "Official home/Terms crawled at 08:06Z. Slack announcements/help/submissions read at 08:07Z. Organizer-domain email search completed at 08:08:45Z; a follow-up was sent at 08:13:26Z, with no later reply readback.",
-    "submission_url_reason": "The initial application is accepted. One Life Manager entry remains in #competition-submissions, but its description says the post does not replace a required form. The official home/Terms crawled at 08:06Z still show no project form, Week 1 cutoff, or rubric. Organizer-domain email search at 08:08:45Z returned no reply; follow-up message 1a15d85b491c9450 was sent at 08:13:26Z. Formal submission receipt remains unconfirmed."
+    "refresh_scope": "Official home and Terms only, recrawled at 09:31Z. Slack community readback remains 08:07Z. Gmail searches for contact@maritime.sh and nizzy@orchid.ai after 2026-10-20 returned no matches at approximately 09:34Z.",
+    "submission_url_reason": "The initial application is accepted. One Life Manager entry remains in #competition-submissions, whose description says the channel post does not replace a required form. The official home/Terms at 09:31Z show no project form or Week 1 cutoff/rubric. Formal receipt remains unconfirmed; do not duplicate the entry."
   },
   "official_instruction_email_unchanged_reason": "The existing inquiry thread was read again at 2026-10-21T08:26:15Z. It contains the original inquiry and the 08:13:26Z follow-up, both sent by Dais; no organizer reply is present.",
   "last_official_sources": {
@@ -181,15 +179,13 @@
     "submission_channel_warns_post_does_not_replace_form": true
   },
   "latest_organizer_email_search": {
-    "observed_at": "2026-10-21T08:08:45Z",
-    "organizer_domains": [
-      "maritime.sh",
-      "orchid.ai",
-      "onkeiki.com"
-    ],
+    "observed_at": "2026-10-21T09:34:00Z",
+    "search_scope": "Exact sender searches for contact@maritime.sh and nizzy@orchid.ai after 2026-10-20.",
     "matching_messages": 0,
+    "reply_to_submission_route_inquiry_found": false,
     "followup_sent_at": "2026-10-21T08:13:26Z",
     "followup_message_id": "1a15d85b491c9450",
+    "thread_id": "1a15d3141c56ee22",
     "reply_readback_after_followup": false
   },
   "latest_organizer_thread_readback": {
