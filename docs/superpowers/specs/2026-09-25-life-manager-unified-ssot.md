@@ -172,7 +172,13 @@ private証拠は既存`~/.local/state/life-manager/reconciliation/capafy-c1-2026
 
 **R04のsource統合・本番採用:** PR #8451のexact HEAD `fe335b081076de34c9653e9fae4c529849b74d21`は全12 checks success、main `9fc1892f02bb6ff2930267117cbfcf923a6afba7`へ統合する。ALL immutable `20261021T083833-9fc1892f`はmain archiveの8942 regular filesの全bytes一致/書込不可を確認する。実日本語queryの単一argv/UTF-8と、実失敗promptからreel-opening-text-jaを読む1単位read-only canaryがPASS、provider呼出し/公開試行0。fresh launchctl-safe preflightはUID/DS/Aqua/manager UID/PID/GUI PASS。通常current promotion後、distributorだけをloaded-idle applyし、install event `1107bcbf101e9b8a144b7a85`、23:40:10Zのlive argv/repo/SHAが9fc1892fで一致する。admission_resumed=falseを保持し、旧不確実effectを解除しない。
 
-照合ownerの初回applyは旧4f008688/PID24734のloaded-runningで見送る。自己所有の有限待機処理が既存CLIのloaded-idle-only/require-currentを使い、23:45:21Zの自然終了後に同ownerを採用する（install event a36caac59e1ca34a71c6a805）。23:46:57Zのlive argv/repo/SHAは両ownerとも9fc1892fで一致する。稼働中処理のkill/restartは0。旧occurrenceの公開/非公開は未確定で、最短公式no-effect照合は00:30:41Z（09:30:41 JST）。source/配信owner採用を自然公開/新paidへ昇格しない。最新保存金銭23:07:08Zはgross$102.75/orders70で新paid未確認。**現在cursor=R04のexact旧occurrence公式readback→自然記事/X公開。** 23:47Zの公式照合はmatching commitなしでtoo_recentを保持し、23:48:13Zの対象Postiz windowはok/posts[]。最短時刻前の解除は行わない。 R01の公開/価格確認と既存demoを再利用し、次は買い手の訪問/購入と売れた施策の拡大へ進む。private証拠=`r04-utf8-immutable-canary.json`、`r04-utf8-distributor-apply.json`、`r04-utf8-loaded-readback.json`、`r04-utf8-reconciler-adoption-wait.json`（存在/現在状態は再確認する）。
+照合ownerの初回applyは旧4f008688/PID24734のloaded-runningで見送り、自然終了後の23:45:21Zにloaded-idle-onlyで同releaseを採用する。23:46:57Zのlive argv/repo/SHAは両ownerとも9fc1892fで一致する。kill/restartは0。旧exact occurrence `capafy-distribute-daily:18e05f657b4d6a00-60421`は85分の観測期間後、00:30:43Zの公式GitHub commit/Postiz listing照合でverified=true/effected=falseを確認する。00:30:55Zにproduction immutableのregistered adapterをowner lock/idle確認の下で実行しclosed=true、DBはreleased/effect_unknown0。receipt=`github-landing-and-postiz-x-empty:2026-10-20T23:05:41.185124+00:00`。replay guardは閉じたrowを拒否し、primary再送0。private証拠=`r04-utf8-exact-final-resolve.json`。
+
+**現在cursor=R04の新しい実行の公式readback→自然記事/X公開。** 自然occurrence `18e06438edfa56d0-67921`は00:34:07Zにmain4b230cbaで起動し、resource_capacity_busy/exit75、body未実行/effect=not_applicableで待機する。既存queueは11番目→5番目→2番目へ進み、次の自然occurrence `capafy-distribute-daily:18e064ab7fe0ce90-98509`が00:42:19.464771Zに枠を取得してh09m30/youtube-script-writer/youtube-script-writer-aiのbodyを実行する。日本語decode障害の再発ではない。既存fallbackのattempt1/2はCodex acct1/acct2ともprovider_started=false/codex_home_busy、attempt3はclaude-direct/transient_quota、00:42:41Zにexit1。lsofは両profileの実holderを確認し、lease解除/他owner停止/cap増加はしない。article/X公開は未確認で、新exact fenceを保持する。登録adapterの85分最短観測時刻は02:07:19.464771Z、公式readback前の解除/再送は禁止する。証拠は既存run manifestとagent-runner-evidence/agent-6493e44db9724816980c74591fe3944f/attempts.jsonl。モデル枠の競合と利用枠制限が現在の直接blockerで、同じ原因の再実行前にこの境界観測を追加する。
+
+最新full売上snapshot00:07:19Zはgross$102.75/orders70。00:17:29Zの公式10/20–10/21 UTC trendもgross$0。Hook Labの同snapshot 7日窓はviews80/paid0、hooklab_free37/X3/blog0。30日窓のpaid4/$7.96はCapafy内部hot経由で、外部施策の成功へ配賦しない。新paid/利益増加は未確認。R06の09:41自然attemptもprovider前のresource_capacity_busyでqueueへ入り、予約生成はまだ実行しない。00:41:16Zの公式Postiz readbackは本日UTCに既存IG/X予約4件/QUEUEを確認する（11/13/17/23Z、公開URLなし）。これは新しい動画公開の証明ではない。財務report整備へ戻らず、次は配信ownerの枠と自然生成→公開URL→native X/登録CTA→実顧客訪問/新paidを確認する。private証拠=`r06-current-buffered-official-posts.json`。
+
+**R05-XD1のsource/採用:** PR #8453のexact HEAD `56403b2e9c2690bdc1e5134ab0c332bda1e421e1`は全12 checks success、main `4b230cba3dc114627bcb1daf555826b6b5d0d463`へ統合する。ALL immutable `20261021T091444-4b230cba`はmain archive8946 regular filesのbytes一致/書込不可を確認する。00:16:40Zのdistributor loaded argv/envは4b230cba。独立reviewは0 findings/0 blocking。CIの時間制約を持つ既存fleet testは初回1件失敗、同testの隔離再現と追加3 trialsはPASS、失敗jobのみ再実行して全checks成功を確認する。CI失敗の根因修復や本番公開成功を主張しない。自然Hook Lab caption/登録CTA/市場結果は未確認。private証拠=`r05-x-demo-loaded-readback.json`、`r05-ci-fleet-budget-observations.json`。
 
 **R05-XD1：X上で商品demoを見せる最小配信候補:** R04の既存観測窓待ちの間に準備する。scopeは既存distributorのX caption用自然言語briefだけ（capafy-distribute-daily.sh/本正本）。対象はHook Labのみ。直近公開h07m00のcaptionは「記事の36 hooksを見る」というteaserで、native本文に商品出力がない。既存記事の自社published exampleから1 topic→1 finished spoken hookを先に示し、Hook Labが返すhooks/scriptを短く伝える候補へ変える。他商品のstyle、記事本文/SEO、offer/価格、登録CT、cadence、model/provider、public safety gate/slot/fence/posterは変えない。新しい投稿/計測framework/追加有料toolは作らない。コピー判断はmodelが行い、keyword分類器や追加routerに移さない。
 
@@ -191,8 +197,8 @@ private証拠は既存`~/.local/state/life-manager/reconciliation/capafy-c1-2026
 | R01 / C5・公開/価格確認済み | 既存seller Hook Labの掲載中商品・価格・登録CTの購入導線を確認する | 買い手が開ける商品と購入経路。既存公式証拠を再利用し、全61商品の再監査を始めない。FROZEN商品は編集しない |
 | R02 / C5 | 同対象/媒体/目的の成功事例から最初の配信候補の勝ち筋を選ぶ | 参照URL、確認できた成果、模倣する仕組み。ViralShortsのSold93はpaid/配信成功の証明ではない。適例不足なら小実験と明記し停止しない |
 | R03 / C5 | 自社の実入力→実出力を見せるHook Labの配信用demoを1件作る | 商品価値が伝わる実例と、購入へ進める単一CTA。権利物/未確認成果をコピーしない |
-| R04 / C5・直接blockerを修復中 | 既存記事ownerでdemoを含む無料記事を公開する | 公開URLとHook Lab登録CT。既存control/割当単位/観測期間/費用上限を最小限固定。詳細な費用按分やC4完了を待たない |
-| R05 / C5 | 既存X ownerで同じ商品のnative投稿/買えるCTAを公開する | native公開receiptと実際のlink先。記事・Xの既存配信を止めず、重複slot/送信を作らない |
+| R04 / C5・source/旧fence修復済み、新自然回はprovider競合/制限で未公開 | 既存記事ownerでdemoを含む無料記事を公開する | 公開URLとHook Lab登録CT。既存control/割当単位/観測期間/費用上限を最小限固定。詳細な費用按分やC4完了を待たない |
+| R05 / C5・demo先行brief採用済み、自然公開待ち | 既存X ownerで同じ商品のnative投稿/買えるCTAを公開する | native公開receiptと実際のlink先。記事・Xの既存配信を止めず、重複slot/送信を作らない |
 | R06 / C5・C2 | 既存縦動画ownerでdemoを配信する | Reel自然生成→公開/登録CTA。実失敗で投稿が止まれば、その境界だけ修復して再開する。全channelの完成を最初の記事/Xの前提にしない |
 | R07 / C5 | 既存公式analyticsで配信からの訪問・試用・購入を確認する | source×Agent×窓で実測し、自己probe/欠測を成果に加えない。新計測platformを作らない |
 | R08 / C7 | 新しい有料購入を公式記録で確認する | orders>70 AND gross>$102.75と新paid証拠。未達なら流入不足/価値説明/購入離脱の観測に応じて次の小実験へ進み、report整備へ戻らない |
@@ -205,7 +211,7 @@ private証拠は既存`~/.local/state/life-manager/reconciliation/capafy-c1-2026
 | R15 / C2・C3・C8・後順位 | 収益行動の合間に残る基盤/財務/分類の債務を既存owner単位で閉じる | 履歴clock/個別gap/永続容量、78商品自然coverage、費用窓/Agent帰属/precision/利益report、79 unmapped jobsは未完として保持。R01–R14を止める前提へ戻さない |
 | R16 / C6・C9・継続 | 実売上を生む改善cycleを反復し、独立評価で汎化を確かめる | 売れた変更を次回に保持、悪化を棄却/復帰。cost/latency/介入/held-out/fixed baseline/repeated trialsは既存評価を使って拡張し、自己改善repo導入やAGI宣言を先行させない。会社$10M MRR目標を縮めず、単調増益/最大利益を保証しない |
 
-R15は一括で先頭へ戻す作業ではなく、残債務の索引である。個別atomの履歴と未達証拠はC2/C3/EDD-FLEETの既存記録に保持する。収益を直接止める障害だけを対応するR項目内で直し、現在のbusiness cursorはR04の直接blockerを閉じ、R01の確認と既存demoを再利用してR02/R03→R04/R05/R06の配信・実購入へ進める。C1はDONE、C2/C3は残件あり、C4は部分完了、C5–C9の経済成果/自律閉路/全社展開は未完。
+R15は一括で先頭へ戻す作業ではなく、残債務の索引である。個別atomの履歴と未達証拠はC2/C3/EDD-FLEETの既存記録に保持する。収益を直接止める障害だけを対応するR項目内で直し、現在のbusiness cursorはR04の実行枠待ちから自然公開を確認し、R01の確認とR02/R03の既存demoを再利用してR04/R05/R06の配信・実購入へ進める。C1はDONE、C2/C3は残件あり、C4は部分完了、C5–C9の経済成果/自律閉路/全社展開は未完。
 
 ### C1実行：配信unknownのexact occurrence照合
 
