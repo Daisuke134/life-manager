@@ -16316,7 +16316,7 @@ REDebbd5af252→GREEN0e8f071c0eはcore guardも証明済みsell/nofill closedか
 
 **Current facts:** Alpaca equity is `$66.49`; cash and buying power are `$0`. The four post-queue fills remain unscoped because none joins to an exact local decision/intent/owner/release/occurrence receipt. Live remains disabled, the effect-unknown fence remains held, no funds were added, and no order was sent. Account value/unrealized P&L is not Life Manager realized net profit.
 
-**Atomic TODO (current cursor = 1):**
+**Atomic TODO (current cursor = 5):**
 1. [ ] Rebase the dedicated source branch onto latest `origin/main`, finish the fresh high-risk review, and resolve each finding. Commit/push the bounded adapter/spec/tests, pass exact-head CI, and merge with `bin/merge-when-green`. **Current cursor.**
 2. [ ] Cut a main-derived immutable release and adopt only `lm-fence-reconciler` under its owner lock/idle gate. Its natural run must preserve the four official order refs and keep this fence held on `orders_present`.
 3. [ ] Match each late provider order to an exact decision, intent, owner, release, occurrence, fill, and cost receipt. If an exact join is unavailable, retain `unscoped` attribution and the live fence; do not infer from timestamp or instrument.
@@ -16483,6 +16483,29 @@ REDebbd5af252→GREEN0e8f071c0eはcore guardも証明済みsell/nofill closedか
 8. [ ] After repeatable real net exists, calculate best/base/worst 1-month, 1-year, and 10-year scenarios. Profitability is a goal, not a guarantee.
 
 **順序変更の理由:** exact page inspection revealed the current provider emits an empty-string cursor on a response that is itself incomplete. The change now reports the remaining 72-versus-63/64 data gap without loosening validation. The next action is source review/merge; trading remains disabled.
+
+#### 2026-10-21 11:51 JST — PR head must be refreshed against latest main
+
+**Current source/PR state:** PR #8462 is open at remote head `43d68ea9c0db1682c23548ccd5dcfa46b5c0f8eb` / base `f56b4cabd4238f90cd6b9747210f6c203829db66`. Latest `origin/main` is `7717a5d63d40629f21c1072f12aadc8a73f9f5bd`; it was merged locally into this task branch as `4a8a1002c93b5b886e89a3946b2eab972836bb2c`, preserving main's concurrent unified-SSOT changes. The source diff remains the exact empty-token normalization plus its two completeness regressions. Local Alpaca suite is 744/744; source-boundary and diff checks pass; independent source review found zero findings. Security run `39534590623` was still running on the old PR head when observed: TruffleHog and Python checks passed, while gitleaks and Loop control contracts were in progress. Those old-head results do not qualify the merged-main branch.
+
+**Fresh owner readback:** `investment-strategy-validation` is loaded-idle on installed release `1418bc76430a0d428c85f1eafbf3014389e85a02`; the recorded `entrypoint_exit_1` belongs to historical release `55cc06f2`. Its registered cadence is Tuesday 14:30 host-local; do not manually wake it. `alpaca-investment-live` is disabled; the exact money-effect fence remains held. No owner or account mutation was made.
+
+**Atomic TODO (current cursor = 1):**
+1. [x] Normalize only `next_page_token == ""` in `skills/alpaca-investment/alpaca_cli.py`; preserve all malformed/repeated cursor and exact 72-bar/timestamp gates.
+2. [x] Add complete-window acceptance and incomplete-window `btc_bar_count_mismatch` regressions in `skills/alpaca-investment/test_alpaca_cli.py`; RED was observed before the source change.
+3. [x] Run `python3 -m unittest discover -s skills/alpaca-investment -p 'test_*.py'` (744/744), `bash scripts/verify-source-boundary.sh`, and `git diff --check`; independent source review returned ready / 0 findings.
+4. [x] Merge latest `origin/main` `7717a5d6` into the dedicated feature branch; code files do not overlap and concurrent SSOT changes are retained.
+5. [ ] Update this SSOT with the refreshed branch/runtime cursor, commit and push the merged feature head; verify the remote PR head equals local HEAD. **Current cursor.**
+6. [ ] Require every exact-head CI check to pass, then merge PR #8462 to main and record the merge SHA. Do not use results from old head `43d68ea9` as acceptance for the refreshed head.
+7. [ ] Cut a complete immutable release from pushed main; verify manifest SHA, source hashes and import smoke against the generated release.
+8. [ ] Before applying, verify manager identity/context, host-wide and owner deploy locks, full registry, and loaded-idle state. Apply only `investment-strategy-validation`; verify loaded argv/SHA/state path and rollback receipt. Keep its existing cadence and do not manually wake.
+9. [ ] Read the next natural terminal from the new installed SHA. Require exactly 72 aligned 5-minute BTC bars for the six-hour window; otherwise retain `btc_bar_count_mismatch`, publish no BTC report, and investigate supported provider coverage without interpolating.
+10. [ ] Once input is complete, select one established strategy mechanism from public code or primary evidence; record source, measured outcome and assumptions, then evaluate matched windows with fees, slippage, benchmark excess, drawdown, lookahead, holdout and parameter sensitivity.
+11. [ ] Keep the four live orders `unscoped`, their exact effect fence held, and live disabled until each order joins decision, intent, owner, release, occurrence, fill, fees and settlement. Verify duplicate, risk and daily-loss caps plus positive usable buying power; do not deposit.
+12. [ ] Only after lineage, valid strategy evidence, risk gates and buying power pass, evaluate a small live pilot. Count only settled owner-attributed realized net after all costs; require 30 cost-complete round trips with positive benchmark-excess net before scaling.
+13. [ ] After repeatable positive real net is proven, produce evidence-based best/base/worst 1-month, 1-year and 10-year scenarios. Profitability remains the goal, not a guarantee.
+
+**順序変更:** 旧順序=`old-head CI → merge → release`。新順序=`latest-main sync → SSOT cursor refresh + push → exact-new-head CI → merge → release`。理由=`main advanced from f56b4cab to 7717a5d6 after PR creation and both branches changed the canonical SSOT; the PR's prior CI is not for the synchronized head`。Live trading remains disabled and the historical effect fence remains held.
 
 ### 2026-10-09 13:18 JST — Job Hunter Dreamwork cutover and updated user criteria
 
