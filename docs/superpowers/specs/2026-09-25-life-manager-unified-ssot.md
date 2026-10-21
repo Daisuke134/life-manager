@@ -16327,6 +16327,25 @@ REDebbd5af252→GREEN0e8f071c0eはcore guardも証明済みsell/nofill closedか
 
 **順序変更の理由:** the independent review reproduced three defects in the first adapter draft: provider evidence exceeded the central stdout tail, a failed second GET omitted structured diagnostics, and a missing request ID discarded the first successful response. The current source keeps the fence closed and preserves bounded evidence; the next work is review and main integration, not live trading.
 
+#### 2026-10-21 10:36 JST — Reject oversized provider request IDs
+
+**Fresh review follow-up:** PR #8458 review round 1 found one blocking envelope case: an oversized `X-Request-ID` could make the compact proof exceed the central 2,048-character stdout tail. The source now accepts only bounded 96-character ASCII identity tokens for request/order IDs. Invalid request IDs are omitted from output, their scope is recorded without the raw value, and the readback remains held as `provider_request_id_invalid`. Oversized order identities are omitted and set `order_refs_truncated=true`; no truncated prefix is presented as an exact match.
+
+**RED→GREEN and fresh provider read:** the oversized-ID regression first failed because a 4,104-character request ID made `--readback-only` return success and write an oversized proof. After the fix, the focused reconciler tests pass 19/19 and the full Alpaca suite passes 742/742. The max-valid-ID envelope test and oversized-ID test both remain parseable within the central tail. `verify-source-boundary.sh` passes. A fresh canonical-credential, no-env, read-only Alpaca call still returns two valid request IDs, four post-queue orders, zero open orders, and four refs; `verified=false / orders_present:after=4,open=0`. The private provider capture remains at `~/.local/state/life-manager/investment-repair/evidence/alpaca-live-fence-readback-20261021T012419Z.json` with SHA-256 `25c7c14fdc22fbfecf87a39a8b315a56fc41a4530f624c5b4e406c1ad512c850`.
+
+**Production readback:** live owner `alpaca-investment-live` is disabled with exact effect-unknown occurrence `18d9e6f979d18818-14709` held. `investment-strategy-validation` is loaded-idle but its latest terminal is `entrypoint_exit_1` from release `55cc06f2`; no new strategy evaluation has succeeded. `lm-fence-reconciler` is loaded-idle on old installed release `01307d0f`; the new adapter code is not yet adopted. Account remains last officially read as equity `$66.49`, cash `$0`, buying power `$0` at `2026-10-21T00:59:58Z`; this is not Life Manager-attributed realized net profit.
+
+**Updated atomic TODO (current cursor = 1):**
+1. [ ] Commit and push the oversized-request-ID follow-up, obtain fresh high-risk review and all exact-head CI, then merge PR #8458 with `bin/merge-when-green`. **Current cursor.**
+2. [ ] Cut a main-derived immutable release, then under the existing owner lock and loaded-idle gate adopt only `lm-fence-reconciler`. Require a natural adapter run with parseable official request/order refs that keeps this occurrence held on the four unmatched orders.
+3. [ ] Match each late provider order to exact decision, intent, owner, release, occurrence, fill, fee, and settlement evidence. If the complete join is unavailable, keep them `unscoped` and the live fence held.
+4. [ ] Repair the measured `investment-strategy-validation` failure from its own exact inputs/logs, then read the next natural terminal; do not manually wake it. Evaluate strategies only on matched windows with all costs, benchmark excess, drawdown, lookahead, holdout, and parameter sensitivity.
+5. [ ] Confirm risk, duplicate, and daily-loss caps plus usable buying power. Current cash/buying power is `$0`; do not deposit. Keep live disabled until the fence, lineage, strategy evidence, and risk gates pass.
+6. [ ] Only after those gates, evaluate a small local live pilot. Count money earned only as owner-attributed, settled realized net after fills, fees, slippage, model, system, and operating costs. Require 30 cost-complete round trips with positive benchmark-excess net before scaling.
+7. [ ] After repeatable real net is established, calculate best/base/worst 1-month, 1-year, and 10-year scenarios from cost-complete evidence, then evaluate other venues. No profitability guarantee.
+
+**順序変更の理由:** the fresh review found that raw provider request IDs could exceed the central evidence envelope. The adapter now rejects and redacts only that invalid case while preserving exact normal IDs; merge and release remain ahead of any strategy or live-pilot work. The current account has no buying power, and the four observed fills still lack exact Life Manager lineage.
+
 ### 2026-10-09 13:18 JST — Job Hunter Dreamwork cutover and updated user criteria
 
 この追記は11:50 JST snapshot後のJob Hunter readbackとユーザーの最新指示を記録する。個別の勤務地・住所などの私的値はprivate profileのみを正本とし、このspecには複製しない。

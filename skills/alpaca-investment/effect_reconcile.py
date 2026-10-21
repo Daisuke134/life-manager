@@ -38,7 +38,14 @@ _OWNER_BY_MODE = {"live": OWNER_ID, "paper": PAPER_OWNER_ID}
 _ENDPOINT_BY_MODE = {"live": LIVE_ENDPOINT, "paper": PAPER_ENDPOINT}
 PAGE_LIMIT = 500
 ORDER_REF_LIMIT = 4
-ORDER_REF_FIELD_LIMIT = 128
+ORDER_REF_FIELD_LIMIT = 96
+REQUEST_ID_LIMIT = 96
+
+
+def _safe_identity(value: Any, limit: int) -> bool:
+    return (isinstance(value, str) and bool(value) and len(value) <= limit
+            and value.isascii()
+            and all(char.isalnum() or char in "-_.:" for char in value))
 
 
 def _order_ref(row: Any) -> tuple[dict[str, str], bool]:
@@ -48,9 +55,11 @@ def _order_ref(row: Any) -> tuple[dict[str, str], bool]:
     truncated = False
     for key in ("id", "client_order_id"):
         value = row.get(key)
-        if isinstance(value, str) and value:
-            truncated |= len(value) > ORDER_REF_FIELD_LIMIT
-            refs[key] = value[:ORDER_REF_FIELD_LIMIT]
+        if value is not None:
+            if _safe_identity(value, ORDER_REF_FIELD_LIMIT):
+                refs[key] = value
+            else:
+                truncated = True
     return refs, truncated or not refs
 
 
@@ -109,6 +118,9 @@ def build_proof(owner_id: str, occurrence_id: str, queued_at: str,
              or not response["request_id"].strip()
              for response in responses):
         reason = "provider_request_id_missing"
+    elif any(not _safe_identity(response.get("request_id"), REQUEST_ID_LIMIT)
+             for response in responses):
+        reason = "provider_request_id_invalid"
     elif any(not isinstance(response.get("data"), list) for response in responses):
         reason = "readback_not_a_list"
     else:
@@ -130,9 +142,11 @@ def _attach_readback_details(proof: dict[str, Any], responses: list[Any]) -> Non
     orders_by_scope: list[list[Any] | None] = []
     for scope, response in zip(("after", "open"), responses):
         request_id = response.get("request_id") if isinstance(response, Mapping) else None
-        if isinstance(request_id, str) and request_id.strip():
+        if _safe_identity(request_id, REQUEST_ID_LIMIT):
             request_ids.append(request_id)
             request_sources.append(scope)
+        elif isinstance(request_id, str) and request_id.strip():
+            proof.setdefault("provider_request_id_invalid_scopes", []).append(scope)
         data = response.get("data") if isinstance(response, Mapping) else None
         orders = data if isinstance(data, list) else None
         orders_by_scope.append(orders)

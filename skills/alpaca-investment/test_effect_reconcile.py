@@ -106,8 +106,8 @@ class BuildProofTest(unittest.TestCase):
     def test_readback_stdout_fits_central_tail_and_keeps_bounded_order_refs(self):
         def order(index, prefix):
             return {
-                "id": f"{index:036d}",
-                "client_order_id": prefix + "x" * 100 + str(index),
+                "id": "i" * 95 + str(index),
+                "client_order_id": prefix + "x" * 89 + str(index),
                 "status": "filled" * 30,
                 "submitted_at": "2026-09-30T12:39:55Z" + "x" * 130,
                 "symbol": "BTC/USDC" + "x" * 150,
@@ -116,9 +116,15 @@ class BuildProofTest(unittest.TestCase):
 
         after_orders = [order(i, "after-") for i in range(8)]
         open_orders = [order(i, "open-") for i in range(8)]
+
+        def get(path):
+            if "status=open" in path:
+                return {"data": open_orders, "request_id": "o" * 96}
+            return {"data": after_orders, "request_id": "r" * 96}
+
         output = StringIO()
         with patch.object(er, "fenced_row", return_value=("claimed", QUEUED)), \
-                patch.object(er, "alpaca_get", return_value=fake_get(after_orders, open_orders)), \
+                patch.object(er, "alpaca_get", return_value=get), \
                 redirect_stdout(output):
             result = er.main(["--occurrence-id", OCC, "--mode", "live", "--readback-only"])
 
@@ -128,15 +134,39 @@ class BuildProofTest(unittest.TestCase):
         self.assertEqual(len(output.getvalue()), len(tail))
         self.assertEqual(len(records), 1)
         proof = records[0]
-        self.assertEqual(proof["provider_request_ids"], ["after-request", "open-request"])
+        self.assertEqual(proof["provider_request_ids"], ["r" * 96, "o" * 96])
         self.assertEqual(proof["after_order_count"], 8)
         self.assertEqual(proof["open_order_count"], 8)
         self.assertTrue(proof["order_refs_truncated"])
         self.assertGreaterEqual(len(proof["after_order_refs"]), 1)
         self.assertGreaterEqual(len(proof["open_order_refs"]), 1)
         self.assertLessEqual(len(proof["after_order_refs"]) + len(proof["open_order_refs"]), 4)
-        self.assertEqual(proof["after_order_refs"][0]["id"], f"{0:036d}")
+        self.assertEqual(proof["after_order_refs"][0]["id"], "i" * 95 + "0")
         self.assertTrue(proof["after_order_refs"][0]["client_order_id"].startswith("after-"))
+
+    def test_oversized_provider_request_ids_stay_held_without_raw_values(self):
+        oversized_id = "request-" + "x" * 4096
+
+        def get(path):
+            if "status=open" in path:
+                return {"data": [], "request_id": oversized_id}
+            return {"data": [], "request_id": oversized_id}
+
+        output = StringIO()
+        with patch.object(er, "fenced_row", return_value=("claimed", QUEUED)), \
+                patch.object(er, "alpaca_get", return_value=get), \
+                redirect_stdout(output):
+            result = er.main(["--occurrence-id", OCC, "--mode", "live", "--readback-only"])
+
+        tail = output.getvalue()[-fence_reconcile.STDOUT_TAIL_LIMIT:]
+        records = fence_reconcile._json_output_records(tail)
+        self.assertEqual(result, 1)
+        self.assertEqual(len(output.getvalue()), len(tail))
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0]["reason"], "provider_request_id_invalid")
+        self.assertEqual(records[0]["provider_request_id_invalid_scopes"], ["after", "open"])
+        self.assertNotIn(oversized_id, output.getvalue())
+        self.assertFalse(records[0]["verified"])
 
     def test_alpaca_get_preserves_provider_request_id_header(self):
         response = MagicMock()
