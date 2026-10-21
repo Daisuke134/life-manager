@@ -24,6 +24,8 @@ SUGGESTIONS_BLOB_SHA1 = '67a55efd4d79e1f5646bdb26277f37ec988e2403'
 SUGGESTIONS_BYTES = 4371854
 JAWBONE_BLOB_SHA1 = '1a8da5a8e3cbd9126cc624f0ff3b59a1570dd4cf'
 JAWBONE_BYTES = 17652097
+GOOGLE_FIT_BLOB_SHA1 = '3fbe7a1e4555282414e579f2ba4f3380856a2b3c'
+GOOGLE_FIT_BYTES = 10021829
 MISSING = {'', 'NA', 'NaN', 'nan', 'N/A', 'NULL', 'null'}
 
 
@@ -140,6 +142,32 @@ def merge_day_lookups(primary,following):
                    'merged_unique_keys':sum(v is not None for v in merged.values()),
                    'merged_ambiguous_keys':sum(v is None for v in merged.values())}
 
+def merge_device_evidence(lookups):
+    """Merge independent device+position mappings; conflicts remain unknown.
+
+    Returned audit is aggregate only; per-subject keys never leave caller memory.
+    """
+    merged = {}
+    conflict_keys = set()
+    additions = 0
+    for mapping in lookups:
+        for key, day in mapping.items():
+            if key not in merged:
+                merged[key] = day
+                if day is not None:
+                    additions += 1
+                continue
+            if day is not None and merged[key] is not None and merged[key] != day:
+                merged[key] = None
+                conflict_keys.add(key)
+    return merged, {
+        'conflicting_keys': len(conflict_keys),
+        'merged_unique_keys': sum(day is not None for day in merged.values()),
+        'merged_ambiguous_keys': sum(day is None for day in merged.values()),
+        'new_nonconflicting_keys': additions,
+    }
+
+
 def compare_proxy_days(suggestion_rows, day_lookup):
     """Compare observed study.day to the old unsupported index/5 assumption."""
     _required(suggestion_rows,['user.index','decision.index','decision.index.nogap'])
@@ -197,11 +225,13 @@ def main():
     args=parser.parse_args()
     with TemporaryDirectory(prefix='heartsteps-join-probe-') as td:
         root=Path(td)
-        paths={'suggestions':root/'suggestions.csv','jawbone':root/'jbsteps.csv'}
+        paths={'suggestions':root/'suggestions.csv','jawbone':root/'jbsteps.csv','google_fit':root/'gfsteps.csv'}
         download(BASE+'suggestions.csv',paths['suggestions'])
         download(BASE+'jbsteps.csv',paths['jawbone'])
+        download(BASE+'gfsteps.csv',paths['google_fit'])
         src1=validate_source(paths['suggestions'],SUGGESTIONS_BYTES,SUGGESTIONS_BLOB_SHA1)
         src2=validate_source(paths['jawbone'],JAWBONE_BYTES,JAWBONE_BLOB_SHA1)
+        src3=validate_source(paths['google_fit'],GOOGLE_FIT_BYTES,GOOGLE_FIT_BLOB_SHA1)
         with paths['jawbone'].open(newline='',encoding='utf-8-sig') as fh:
             lookup,step_counts=build_day_lookup(csv.DictReader(fh))
         with paths['suggestions'].open(newline='',encoding='utf-8-sig') as fh:
@@ -217,21 +247,35 @@ def main():
             else:
                 following,following_report={}, {'columns_available':False}
         merged,merged_report=merge_day_lookups(lookup,following)
+        with paths['google_fit'].open(newline='',encoding='utf-8-sig') as fh:
+            gfprimary,gfprimary_report=build_day_lookup(csv.DictReader(fh))
+        with paths['google_fit'].open(newline='',encoding='utf-8-sig') as fh:
+            gffollowing,gffollowing_report=build_following_day_lookup(csv.DictReader(fh))
+        all_four,all_four_report=merge_device_evidence([lookup,following,gfprimary,gffollowing])
+        with paths['suggestions'].open(newline='',encoding='utf-8-sig') as fh:
+            all_four_coverage=aggregate_coverage(csv.DictReader(fh),all_four)
+        with paths['suggestions'].open(newline='',encoding='utf-8-sig') as fh:
+            all_four_proxy_compare=compare_proxy_days(csv.DictReader(fh),all_four)
         with paths['suggestions'].open(newline='',encoding='utf-8-sig') as fh:
             merged_coverage=aggregate_coverage(csv.DictReader(fh),merged)
         with paths['suggestions'].open(newline='',encoding='utf-8-sig') as fh:
             proxy_comparison=compare_proxy_days(csv.DictReader(fh),merged)
-        del lookup,merged,following
+        del lookup,merged,following,gfprimary,gffollowing,all_four
         report={
             'schema':'manager.heartsteps.pinned-day-join-diagnostic.v1',
             'method':'aggregate join of published Jawbone study-day and suggestions; incomplete coverage is not imputed',
             'source_commit':SOURCE_COMMIT,
-            'verified_git_blobs':{'suggestions':src1['git_blob_sha1'],'jawbone':src2['git_blob_sha1']},
+            'verified_git_blobs':{'suggestions':src1['git_blob_sha1'],'jawbone':src2['git_blob_sha1'],'google_fit':src3['git_blob_sha1']},
             'steps':step_counts,
             'coverage':coverage,
             'combined_coverage':merged_coverage,
             'following_mapping':following_report,
             'combined_mapping':merged_report,
+            'cross_device_coverage':all_four_coverage,
+            'cross_device_mapping':all_four_report,
+            'google_fit_primary':gfprimary_report,
+            'google_fit_following':gffollowing_report,
+            'cross_device_proxy_comparison':all_four_proxy_compare,
             'old_proxy_comparison':proxy_comparison,
             'key_alignment':key_alignment,
             'original_paper_counts':{'included':7540,'available':6061},

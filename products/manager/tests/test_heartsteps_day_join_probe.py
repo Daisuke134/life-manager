@@ -105,3 +105,26 @@ class JoinProbeTests(unittest.TestCase):
         self.assertEqual(report['unique_day_keys'],2)
 
 if __name__=='__main__':unittest.main()
+
+class CrossDeviceJoinTests(unittest.TestCase):
+    def test_four_independent_mappings_can_add_coverage_without_subject_outputs(self):
+        import heartsteps_phase3_day_join_probe as p
+        mappings=[
+          {('a','1'):3,('a','2'):4},
+          {('a','2'):4,('a','3'):5},
+          {('a','4'):6},
+          {('a','5'):7},
+        ]
+        combined,audit=p.merge_device_evidence(mappings)
+        self.assertEqual(len(combined),5)
+        self.assertEqual(audit['merged_unique_keys'],5)
+        self.assertEqual(audit['conflicting_keys'],0)
+        self.assertNotIn("('a',", str(audit))
+
+    def test_cross_device_conflict_never_silently_selects_first(self):
+        import heartsteps_phase3_day_join_probe as p
+        combined,audit=p.merge_device_evidence([
+          {('a','1'):3}, {('a','1'):4}
+        ])
+        self.assertIsNone(combined[('a','1')])
+        self.assertEqual(audit['conflicting_keys'],1)
