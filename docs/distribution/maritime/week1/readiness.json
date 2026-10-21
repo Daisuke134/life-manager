@@ -60,7 +60,7 @@
     "Railway frontend/worker deployed foundation and required settings verified, email flag and Maritime worker capabilities remain disabled until authenticated REST readiness.",
     "Bounded PostgREST startup experiment failed to restore REST and was rolled back. Auth Admin200 is not usable-product or verified browser signup proof."
   ],
-  "maritime_account_status": "active",
+  "maritime_account_status": "last recorded active; current session not rechecked",
   "cloud_browser_observation": {
     "existing_steel_base": "http://steel-browser.railway.internal:8080",
     "maritime_reachability": "unverified_private_network_boundary",
@@ -88,7 +88,7 @@
     "dedicated_env_key": "LM_CLOUD_MODEL_API_KEY",
     "evidence_ref": "docs/evidence/maritime/owned-model-preflight.json"
   },
-  "maritime_normal_login_readback": "authenticated_agents_dashboard",
+  "maritime_normal_login_readback": "last recorded authenticated_agents_dashboard; current session not rechecked at 2026-10-21T04:03Z",
   "account_verification_routes": {
     "gmail_browser": "accepted mailbox needs Google passkey; ordinary alternative did not transition",
     "iphone": "configured device paired but connection_state=unavailable; no successful signed build; current build fails destination lookup",
@@ -107,7 +107,8 @@
     ],
     "key_location": "private credential SSOT only",
     "agent_count_at_initial_key_check": 0,
-    "owned_agent_created_and_read_back": true
+    "owned_agent_created_and_read_back": true,
+    "currentness": "prior recorded authenticated HTTP 200; current session/API not rechecked at 2026-10-21T04:03Z"
   },
   "build_route": {
     "local_docker_daemon": "unavailable_socket_missing",
@@ -138,7 +139,8 @@
     "paid_upgrade_performed": false,
     "competition_full_access_entitlement": "organizer Scale two-month coupon verified100percent at checkout, subscription not submitted",
     "link_authentication": "pending user action; continue current free3 VM resources",
-    "usage_note": "0 was before model/factory calls; refreshed billing usage pending; do not infer cost0"
+    "usage_note": "0 was before model/factory calls; refreshed billing usage pending; do not infer cost0",
+    "currentness": "prior recorded Free plan and Scale coupon checkout; current entitlement/billing state not rechecked at 2026-10-21T04:03Z"
   },
   "owned_factory": {
     "execution_status": "completed",
@@ -155,5 +157,31 @@
     "docs/evidence/maritime/cloud-foundation-preflight.json",
     "docs/evidence/maritime/postgrest-startup-budget-production.json"
   ],
-  "current_blocker": "Authenticated Supabase REST enrollment/funnel503 PGRST002 or timeout; browser PKCE and customer activation not verified."
+  "current_blocker": "Manager public signup route disabled (email flag 0; /maritime returns manager_unavailable) and Manager worker capabilities absent; complete authenticated user cycle/report/stop, public distribution and formal project submission. Prior Maritime account session/plan readings are historical and need a fresh read before platform usage.",
+  "updated_at": "2026-10-21T04:03:27Z",
+  "current_status_refresh": {
+    "observed_at": "2026-10-21T04:03:27Z",
+    "source_main_sha": "76d36e33979aa6e4b8924db6405fa8031b169782",
+    "life_call_loaded_sha": "76d36e33979aa6e4b8924db6405fa8031b169782",
+    "life_call_deployment": "SUCCESS",
+    "life_call_health_http": 200,
+    "manager_route_body": {
+      "error": "manager_unavailable"
+    },
+    "manager_email_enabled": "0",
+    "worker_loaded_sha": "76d36e33979aa6e4b8924db6405fa8031b169782",
+    "worker_deployment": "SUCCESS",
+    "worker_manager_capabilities": [],
+    "worker_email_enabled": "0",
+    "manager_database_last_readback": "2026-10-21T02:49Z; six Manager tables empty; not rechecked after deployment",
+    "external_manager_users_last_readback": 0,
+    "project_submission": "not_submitted",
+    "distribution_campaign": "no Life Manager acquisition article or Maritime X receipt recorded"
+  },
+  "maritime_email_observation": {
+    "checked_at": "2026-10-21T04:03:27Z",
+    "welcome_email": "received 2026-10-20T14:53:34Z; generic welcome only",
+    "verification_email": "received 2026-10-20T12:37:52Z; body/link/code not opened or used",
+    "current_session": "unconfirmed"
+  }
 }
