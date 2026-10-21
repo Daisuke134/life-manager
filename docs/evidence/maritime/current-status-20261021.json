@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "observed_at": "2026-10-21T09:50:24Z",
+  "observed_at": "2026-10-21T09:56:07Z",
   "source_main_sha": "c205863a05a651c17fef183e59a043383e8663b6",
   "competition": {
     "home_url": "https://competition.maritime.sh/",
@@ -193,8 +193,9 @@
     "source_copy_correction": {
       "file": "apps/life-manager/lib/maritime-distribution.js",
       "pr": 8492,
-      "status": "working-tree change after current PR head; not committed, merged, or deployed",
-      "required_live_readback": "Both ja/en pilot pages label daily-email completion as design intent and state that the full hosted work/report cycle is unverified."
+      "head": "9bc24949c8bff8e45a4903d49b161ae94603dd23",
+      "status": "bilingual correction committed to the open PR; not merged or deployed; production pilot page still has earlier copy",
+      "required_live_readback": "Both ja/en /maritime pages label daily-email completion as design intent and state that the full hosted work/report cycle remains unverified."
     }
   },
   "submission": {
@@ -296,7 +297,7 @@
   },
   "current_cursor": {
     "product": "T22.1e.2 / b.6-28: existing owner PKCE and explicit Maritime retention consent are unrecorded. No enrollment/execution/participant/job/external work is in Runtime PG at the 08:00:19Z readback. Worker email flag is 0; the full hosted work/report/stop cycle is unverified.",
-    "distribution": "T24.4b: source and matching package are committed on feature branch cf10222a9f; not merged to main or public. Candidate canonical URL returned HTTP 404 at 09:31Z. GSC is 0 clicks/7 impressions through 2026-10-18. Postiz 09:32Z has zero groups/integrations/posts; no current LM X post or attributed sale.",
+    "distribution": "T24.4b: source/package are on PR #8492; bilingual pilot-page correction is committed at head 9bc24949c8bff8e45a4903d49b161ae94603dd23. CI and independent review are pending. Live article URL is HTTP 404 and live pilot page still has earlier daily-email wording; hold CTA until new copy deploy is read back.",
     "submission": "One accepted-team entry is posted and read back; channel warns it does not replace any required form. Official home/Terms rechecked 09:31Z show no form/cutoff/rubric. Existing organizer thread last read 08:26:15Z has only two sent messages and no reply. Formal receipt unconfirmed; do not repost.",
     "packet_export": "T23.1 packet remains an aggregate-only draft generated 08:34:34Z; users/work receipts=0, costs=null, formal receipt=null. Do not treat it as submitted.",
     "revenue": "Stripe live readback 09:38Z: both Life Manager monthly prices have 0 active subscriptions; MRR USD 0. Dais reports local workflow earnings without a joined settlement receipt. Hosted user earnings and source-attributed distribution revenue are unverified."
@@ -342,7 +343,13 @@
     "gsc_sitewide_28d_impressions": 7,
     "article_source_state": "source/package committed on feature branch cf10222a9f; unpublished",
     "cta_policy": "Early-pilot article CTA allowed with full-cycle-unverified, retention, and no-income-guarantee disclosures.",
-    "article_source_sha256": "87935ef419b6ee54f465d128e71d8b8312ef19d23eec81eb38d2509c0894d5e9"
+    "article_source_sha256": "87935ef419b6ee54f465d128e71d8b8312ef19d23eec81eb38d2509c0894d5e9",
+    "pilot_copy_correction": {
+      "pr": 8492,
+      "head": "9bc24949c8bff8e45a4903d49b161ae94603dd23",
+      "production_status": "not deployed",
+      "live_pilot_page_last_readback": "2026-10-21T09:31Z"
+    }
   },
   "packet_export_readback": {
     "test_command": "node --test apps/life-manager/scripts/maritime-week1-export.test.js",
@@ -374,6 +381,6 @@
     "life_manager_company_revenue": "Stripe live readback at 09:38Z: Life Manager active subscriptions 0 and MRR USD 0; both $29 and $20 monthly prices returned zero active subscriptions.",
     "distribution_revenue": "No Life Manager source-attributed paid user or receipt. Candidate article is HTTP 404; GSC is 0 clicks/7 impressions; Postiz connector has no integrations or LM post."
   },
-  "current_status_refresh_at": "2026-10-21T09:50:24Z",
-  "status_updated_at": "2026-10-21T09:50:24Z"
+  "current_status_refresh_at": "2026-10-21T09:56:07Z",
+  "status_updated_at": "2026-10-21T09:56:07Z"
 }

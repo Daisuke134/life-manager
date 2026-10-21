@@ -1,6 +1,6 @@
 # Life Manager 初週配布プラン
 
-**最終readback:** 2026-10-21 09:39 UTC。SEO原稿とpublication packageはfeature worktree内に作成済みで未commit/未公開、candidate URLはHTTP 404。GSC sitewideは0 clicks / 7 impressions（settled through 2026-10-18）。Postiz connectorはgroups=0 / integrations=0 / posts空。live pilot pageは日次メールを現在形で案内する一方、worker email flag=0でcycle未検証。copy修正はPR #8492 sourceのみで、production反映前はarticle公開しない。Life ManagerのX投稿・attributed signup・売上は未確認。新規Instagram/X accountは作らない。
+**最終readback:** 2026-10-21 09:39 UTC。SEO原稿とpublication packageはfeature worktree内に作成済みで未commit/未公開、candidate URLはHTTP 404。GSC sitewideは0 clicks / 7 impressions（settled through 2026-10-18）。Postiz connectorはgroups=0 / integrations=0 / posts空。live pilot pageは日次メールを現在形で案内する一方、worker email flag=0でcycle未検証。copy修正はPR #8492 head 9bc24949c8bff8e45a4903d49b161ae94603dd23だがproduction未反映。deployment/readback前はarticle公開しない。Life ManagerのX投稿・attributed signup・売上は未確認。新規Instagram/X accountは作らない。
 
 ## 成功事例から移す仕組み
 
