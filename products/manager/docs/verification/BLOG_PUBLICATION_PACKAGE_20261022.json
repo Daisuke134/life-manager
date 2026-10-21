@@ -2,8 +2,8 @@
   "schema": "manager.blog-publication-package.v1",
   "source_commit": "ce75c0add1d9cec7de5ddcb9a9347dbd0c1632e5",
   "legacy_article_count": 54,
-  "article_count": 63,
-  "media_count": 29,
+  "article_count": 65,
+  "media_count": 33,
   "publication_verified": false,
   "existing_installer": "apps/landing/manager-blog/scripts/install.mjs",
   "transformations": [
@@ -101,6 +101,60 @@
       "sha256": "b39db53a24b42ec0b9b796f1ddd7a17fd7665f0ae3275c6c12c458546a529c98",
       "canonical_url": "https://aniccaai.com/blog/manager-eba-open-benchmark-en",
       "word_count": 2507
+    },
+    {
+      "slug": "manager-humansand-ampersand-en",
+      "source": "products/manager/docs/articles/manager-humansand-ampersand-en.md",
+      "source_sha256": "60797b1176f63c52eeef3419f8f091d5735e21e22f23ac22ab77868adfab0f2b",
+      "source_commit": "767a0da9bc17067e780d7fcff9ac0f519b9d2dd0",
+      "package_path": "en/manager-humansand-ampersand-en.md",
+      "sha256": "73246b20fcfa4e349ecd2c0542b056c36cda6ebba38dce1e36176f3a277ed4f7",
+      "canonical_url": "https://aniccaai.com/blog/manager-humansand-ampersand-en",
+      "word_count": 3967
+    },
+    {
+      "slug": "manager-humansand-ampersand-ja",
+      "source": "products/manager/docs/articles/manager-humansand-ampersand-ja.md",
+      "source_sha256": "2879ef04880487a984da640bb35b289ec1a7a1ed3ffedea9161796256af9c944",
+      "source_commit": "767a0da9bc17067e780d7fcff9ac0f519b9d2dd0",
+      "package_path": "ja/manager-humansand-ampersand-ja.md",
+      "sha256": "fb6de5fbedaf4e315de56f197857d97713df97709199e01db38a1f47fd036902",
+      "canonical_url": "https://aniccaai.com/blog/manager-humansand-ampersand-ja",
+      "word_count": 603
+    }
+  ],
+  "source_commits": [
+    "767a0da9bc17067e780d7fcff9ac0f519b9d2dd0",
+    "ce75c0add1d9cec7de5ddcb9a9347dbd0c1632e5"
+  ],
+  "media": [
+    {
+      "source": "products/manager/docs/articles/figures/ampersand-training-loop-en.png",
+      "package_path": "media/8ef49b9e504f98657ffde731ea18e65e4c7222df0a7c0d3fe422c7ff62b06509.png",
+      "sha256": "8ef49b9e504f98657ffde731ea18e65e4c7222df0a7c0d3fe422c7ff62b06509",
+      "bytes": 296217,
+      "public_url": "https://aniccaai.com/blog/manager/media/8ef49b9e504f98657ffde731ea18e65e4c7222df0a7c0d3fe422c7ff62b06509.png"
+    },
+    {
+      "source": "products/manager/docs/articles/figures/ampersand-training-loop-ja.png",
+      "package_path": "media/494fb9c736966e9c24f207ab05734e56a402874e393b9ea020e6c4648985e7eb.png",
+      "sha256": "494fb9c736966e9c24f207ab05734e56a402874e393b9ea020e6c4648985e7eb",
+      "bytes": 345773,
+      "public_url": "https://aniccaai.com/blog/manager/media/494fb9c736966e9c24f207ab05734e56a402874e393b9ea020e6c4648985e7eb.png"
+    },
+    {
+      "source": "products/manager/docs/articles/figures/ampersand-score-weight-en.png",
+      "package_path": "media/2a118bec752aeaede95234b2a3cd54b629bf6361d2a3dbb307de7a32ebf896dc.png",
+      "sha256": "2a118bec752aeaede95234b2a3cd54b629bf6361d2a3dbb307de7a32ebf896dc",
+      "bytes": 364174,
+      "public_url": "https://aniccaai.com/blog/manager/media/2a118bec752aeaede95234b2a3cd54b629bf6361d2a3dbb307de7a32ebf896dc.png"
+    },
+    {
+      "source": "products/manager/docs/articles/figures/ampersand-score-weight-ja.png",
+      "package_path": "media/f23d66401252228aad65717a5da92ac894c927868a33e153fe0dd61f15c15ee1.png",
+      "sha256": "f23d66401252228aad65717a5da92ac894c927868a33e153fe0dd61f15c15ee1",
+      "bytes": 397044,
+      "public_url": "https://aniccaai.com/blog/manager/media/f23d66401252228aad65717a5da92ac894c927868a33e153fe0dd61f15c15ee1.png"
     }
   ]
 }

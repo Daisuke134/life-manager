@@ -97,3 +97,29 @@ The publication adapter and installer remain unchanged. The expected next
 package contains **65 articles / 33 media**, retaining all previous 63 article
 and 29 media hashes. The final package, dry run and public readback are verified
 separately at promotion time.
+
+## Generated package verification
+
+The two new articles are pinned to source commit
+`767a0da9bc17067e780d7fcff9ac0f519b9d2dd0`. The package builder and its `--check`
+mode produced and verified **65 articles / 33 media**. Every prior article and
+media record, including metadata, and every prior file's SHA-256 matched the
+63/29 baseline. The resulting language counts are 37 English and 28 Japanese.
+
+The parent reran the full suite on this generated tree: **467 tests PASS**, with
+0 failures/errors/skips; all four Node test files and package verification also
+passed. Product boundary and unchanged 113-task roadmap checks passed. The
+installer SHA-256 remains
+`c0908ffa9f899138f3f342140063b595e3b7bcab72f6e516d704290d3207e141`.
+
+The fresh reviewer then examined only the added configuration/package and
+editorial fixes: **0 findings, 0 blocking**. Source links, figure hashes,
+per-article revision, language placement and complete baseline preservation
+were confirmed.
+
+The checkout does not contain the root guide's named `bin/merge-when-green`.
+Promotion therefore uses the existing GitHub PR/checks path, waits for every
+applicable check to finish successfully, and passes the exact expected PR head
+to the merge operation. No check, publication verdict, or branch protection is
+disabled. The publishing bridge remains limited to the two existing revision
+pins and their source-authority note.

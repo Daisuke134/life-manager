@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "source_commit": "ce75c0add1d9cec7de5ddcb9a9347dbd0c1632e5",
-  "purpose": "Add every standalone current Manager English article to the existing reviewed publication package. This is editorial inventory, not task status or a publication receipt.",
+  "purpose": "Add reviewed Manager English and Japanese articles to the existing publication package. This is editorial inventory, not task status or a publication receipt.",
   "legacy": {
     "article_count": 54,
     "articles_sha256": "87a4660b2281b4eccb62e3fdabe8124ba1e7078da401f34c9ba3843b6e2a251b",
@@ -99,12 +99,66 @@
       "n_papers_cited": 0,
       "source": "products/manager/docs/research/publications/EBA_OPEN_BENCHMARK_ARTICLE_20261022.md",
       "source_sha256": "fa91778f0c6114e28565db5cb0b980a30b43170e606f5e89eb37685f031c685a"
+    },
+    {
+      "slug": "manager-humansand-ampersand-en",
+      "lang": "en",
+      "title": "Ampersand Explained: How an AI Learns to Collaborate Over Time",
+      "description": "A foundational guide to humans& Ampersand, simulated people, long-horizon reinforcement learning, public-score reanalysis, and lessons from Simile, Aaru and Andon Labs.",
+      "date": "2026-10-22",
+      "series_order": 109,
+      "n_papers_cited": 0,
+      "source": "products/manager/docs/articles/manager-humansand-ampersand-en.md",
+      "source_sha256": "60797b1176f63c52eeef3419f8f091d5735e21e22f23ac22ab77868adfab0f2b",
+      "source_commit": "767a0da9bc17067e780d7fcff9ac0f519b9d2dd0"
+    },
+    {
+      "slug": "manager-humansand-ampersand-ja",
+      "lang": "ja",
+      "title": "Ampersandを基礎から理解する：AIはどうすれば、長く付き合える協力者になれるのか",
+      "description": "言語モデルと強化学習の基礎から、AmpersandとPersimmon、公開得点の再計算、Simile・Aaru・Andonの研究との関係まで解説します。",
+      "date": "2026-10-22",
+      "series_order": 109,
+      "n_papers_cited": 0,
+      "source": "products/manager/docs/articles/manager-humansand-ampersand-ja.md",
+      "source_sha256": "2879ef04880487a984da640bb35b289ec1a7a1ed3ffedea9161796256af9c944",
+      "source_commit": "767a0da9bc17067e780d7fcff9ac0f519b9d2dd0"
     }
   ],
   "excluded_non_articles": [
-    {"path": "products/manager/docs/newsletter/", "reason": "Newsletter launch issue, charter, and delivery drafts are an existing separate workflow, not standalone blog research articles."},
-    {"path": "products/manager/docs/books/", "reason": "Book outline, not a completed book or article."},
-    {"path": "products/manager/docs/research/publications/EBA_TECHNICAL_BOOK_AND_SEMINAR_OUTLINE_20261022.md", "reason": "Book and seminar outline, not a standalone article."},
-    {"path": "products/manager/docs/presentations/", "reason": "Presentation and evidence packages retain their existing delivery workflow."}
+    {
+      "path": "products/manager/docs/newsletter/",
+      "reason": "Newsletter launch issue, charter, and delivery drafts are an existing separate workflow, not standalone blog research articles."
+    },
+    {
+      "path": "products/manager/docs/books/",
+      "reason": "Book outline, not a completed book or article."
+    },
+    {
+      "path": "products/manager/docs/research/publications/EBA_TECHNICAL_BOOK_AND_SEMINAR_OUTLINE_20261022.md",
+      "reason": "Book and seminar outline, not a standalone article."
+    },
+    {
+      "path": "products/manager/docs/presentations/",
+      "reason": "Presentation and evidence packages retain their existing delivery workflow."
+    }
+  ],
+  "media": [
+    {
+      "source": "products/manager/docs/articles/figures/ampersand-training-loop-en.png",
+      "source_sha256": "8ef49b9e504f98657ffde731ea18e65e4c7222df0a7c0d3fe422c7ff62b06509"
+    },
+    {
+      "source": "products/manager/docs/articles/figures/ampersand-training-loop-ja.png",
+      "source_sha256": "494fb9c736966e9c24f207ab05734e56a402874e393b9ea020e6c4648985e7eb"
+    },
+    {
+      "source": "products/manager/docs/articles/figures/ampersand-score-weight-en.png",
+      "source_sha256": "2a118bec752aeaede95234b2a3cd54b629bf6361d2a3dbb307de7a32ebf896dc"
+    },
+    {
+      "source": "products/manager/docs/articles/figures/ampersand-score-weight-ja.png",
+      "source_sha256": "f23d66401252228aad65717a5da92ac894c927868a33e153fe0dd61f15c15ee1"
+    }
   ]
 }
