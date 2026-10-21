@@ -1,26 +1,29 @@
 # Maritime 初週の現状と残TODO
 
-**更新:** 2026-10-21 10:26 UTC。競技サイト/Terms、Railway、Supabase集計、Stripe live subscriptions、Postiz connector、Gmail、Life Manager/Anicca Products PRをreadback。
+**更新:** 2026-10-21 11:29 UTC。競技home/Terms、Railway status/API readback、英日pilot page、Stripe、Postiz、Gmail、Life Manager/Anicca Products PRをreadback。
 
 ## As-Is
 
 - 申請はaccepted。競技公式条件は6週間で実利用のある別人1,000人、最初に到達して検証された3 projectがwinner。利益額は公開順位条件にない。Kickoffメールは初週後Top 30のみ次週へ進出とするが、cutoff/timezone/rubric/最低ユーザー数は公表されていない。
-- 提出: #competition-submissionsにはentry 1件を投稿/readback済み。channel説明はrequired formを代替しないと明記。公式home/Termsを10:22Zに再確認してもform/cutoff/rubricなし。10/16のCEO返信は日程・資格・旅費補助をチームに確認中という内容で、10/19以降の返信なし。正式submission receiptは未確認。投稿を重複させない。
-- Product: goal/budget入力なしでManager自身が仕事を選ぶ設計。production life-call e9ebfb62-e8c3-46eb-a198-d9203f574899とworker 9dc09440-42ed-4349-83c2-e437b1fc5017は06:23Zの旧SUCCESS deployment。last exact loaded SHA 982875d62eaa03f8e924b990c4bc80f521d8dcce。main b5ecef6e624203811d0e1103003c3cdbaf88c4cdは未採用。英日pilot pageはHTTP 200だが日次メールを現在形で示す。worker email flagは09:50Zのlast exact readback=0。10:26Z Railway variables connectorはvaluesをredact。
-- Product usage: 10:26Z Supabase aggregate-only readbackでlive participants/enrollments/executions/completed-work/report-sentはすべて0。これは内部DB集計で、Keiki/Maritimeの公式user countではない。owner PKCE、Maritime AI-credit保持への明示同意、hosted work→external result→daily report→stopは未完。個人業務データは同意前に送らない。
-- Revenue: 10:26Z Stripe live GETでLife Managerの$29/月と$20/月priceはactive subscription各0、MRR=$0。Anicca Cloudの$30/月は別productでactive subscription 0。Daisのlocal earnings申告はLife Managerやhosted userへのsettled receiptと未結合。hosted user income/net、distribution-attributed revenueは未確認。
-- Distribution: article source/package/manifestはPR #8492でmainへmerge済み（56 entries、SHA一致）。Anicca Products PR #537はdraft、Landing CI/CodeRabbit PASS。候補URLは10:22Z HTTP 404。GSC settled through 2026-10-18は0 clicks/7 impressions。Postiz connector groups/integrationsは0。Life Manager X post、verified signup、source-attributed paid receiptは未確認。Instagram新規accountなし。
-- Railway: status pageは10:22ZにもMajor Outage（Dashboard/API停止、全regionのbuild停止）。copy correctionはsourceのみで、public pageは古い日次メール表示のまま。現行pageを正す前に新規trafficを流さない。
+- 提出: #competition-submissionsにはentry 1件を投稿/readback済み。channel説明はrequired formを代替しないと明記。公式home/Termsを11:10Zに再確認してもWeek 1の別form/cutoff/rubricなし。Gmailの10/20以降検索はMaritimeのWelcome/Verify通知のみで、競技案内なし。正式submission receiptとTop 30 statusは未確認。旅行条件は11:14ZにMaria宛て既存スレッドで質問し、送信済み/readback済み、返信待ち。投稿を重複させない。
+- Product: goal/budget入力なしでManager自身が仕事を選ぶ設計。copy修正PR #8492のsource SHAはb5ecef6、current mainはcab43203e2d80c3600ed53754377565920df6845だが、その間にPR #8493で`skills/writer-agent/runtime/shared-model-runner.py`のsource変更あり。production life-call e9ebfb62-e8c3-46eb-a198-d9203f574899とworker 9dc09440-42ed-4349-83c2-e437b1fc5017は06:23ZのSUCCESS deployment、exact SHA 982875d62eaa03f8e924b990c4bc80f521d8dcce。英日pilot pageは11:10ZにHTTP 200だが、日次メールを現在機能として示し、hosted cycle未検証の説明を欠く。worker email flagは09:50Zのlast exact readback=0、11:12Z variables values redacted。
+- Product usage: 10:49Z Supabase aggregate-only readbackでlive participants/enrollments/executions/completed-work/report-sentはすべて0。これは内部DB集計で、Keiki/Maritimeの公式user countではない。owner PKCE、Maritime AI-credit保持への明示同意、hosted work→external result→daily report→stopは未完。個人業務データは同意前に送らない。
+- Revenue: 11:05Z Stripe live readbackでLife Managerの$29/月と$20/月priceはactive subscription各0、MRR=$0。paid invoice/checkout line itemは両priceとも0。$29 payment linkはactiveだがcompleted session=0、$20 linkなし。Account-wide invoice/PI/refund/balance rowsはLife Managerへ未帰属。T31.1b evidence: docs/evidence/maritime/stripe-revenue-attribution-readback-20261021.json。Daisのlocal earnings申告、hosted user income/net、distribution revenueは未確認。
+- Distribution: article source/package/manifestはPR #8492でmainへmerge済み（56 entries、SHA一致）。Anicca Products PR #537はdraft、Landing CI/CodeRabbit PASS。候補URLは11:10Z HTTP 404。GSC settled through 2026-10-18は0 clicks/7 impressions。Postiz connector groups/integrationsは10:49Zに0。Life Manager X post、verified signup、source-attributed paid receiptは未確認。Instagram新規accountなし。
+- Railway: 11:10Z official statusはMajor Outage（Dashboard/API停止、新規buildは全region停止）。11:12Z Railway readbackでは既存life-call/workerは06:23ZのSUCCESSのままSHA 982875d。10/17からinvestment resource/flagの無関係な3変更がstagedのまま。Maritime変更と混ぜてacceptしない。
+
+- Demo: `demo-script.md`に`GET /maritime`、`POST /maritime/activate`、`maritime_manager_cycle` receipt、`GET /maritime/artifacts/...`、`maritime.manager.report`/Resend receipt、`POST /maritime/stop`を明記。動画素材/公開投稿は未確認。source cycle receiptにはexternal provider refsを結合できず、T17.5が未完。
 
 ## Ordered atomic TODO
 
 1. **T23.3 — 正式な提出経路を監視し、出たら一度だけsubmit。**
-   - Official home/Terms、announcements、既存organizer threadの新着を確認する。現時点のpublic form/締切/rubricは未公表。
+   - Official home/Terms、announcements、既存organizer threadの新着を確認する。11:10Z時点でpublic form/締切/rubricは未公表。11:14ZにSF国際旅行条件をMariaへ質問済み、返信待ち。
+   - 旅行問い合わせはmessage `1a15e2beef607bc0`として既存スレッドへ送信/readback済み。2026-10-23T11:14:59Zまでに回答がなければ同じthreadで一度だけfollow-upする。旅行条件の回答を待って初週提出を遅らせない。
    - 公開formが出たら、実測値と理由付きnullのみで既存draftを更新し、指定のformal formだけを一度submitする。Slack entryを重複投稿しない。
    - **DONE:** confirmation/受付IDと提出本文・時刻・release SHAを保存。現状はformal submission unconfirmed。
 
 2. **T26.5b — Railway復旧後に英日pilot説明を本番反映。**
-   - 公式Railway statusが正常へ戻った後に、life-call/workerがmain b5ecef6e624203811d0e1103003c3cdbaf88c4cdを使うdeploymentをreadbackする。
+   - 公式Railway statusが正常へ戻った後に、life-call/workerがその時点の`origin/main` exact SHAを使うdeploymentをreadbackする。b5ecef6だけでは不足し、PR #8493の後続source changeも含める。
    - English/Japanese /maritime をGETし、日次メールを未検証cycleの設計意図として表示し、goal/budget optional、Telegram optional、Maritime保持条件、収益非保証を照合する。
    - **DONE:** 両localeのproduction pageが正しいcopyを返し、deployment SHAを記録。現状は旧表示でblocked by Railway outage。
 
@@ -36,7 +39,7 @@
 
 5. **T27.3-4 — 既存XとDaisの個別紹介を使って実ユーザーを増やす。**
    - Postiz identity/integration readbackが0の間はpostしない。新規Instagram/X accountを作らない。接続済みの広い既存X identityが確認できたら1件だけpublishしてUTM/permalink/receiptを保存する。
-   - Live pageのcopyが直った後、準備済みのfamily/friend DMをDaisが使う。送信・既読をsignupやuser countにしない。
+   - Live pageのcopyが直った後、T30.5で初回preview emailの訂正版をDaisへ一度返信する。準備済みのfamily/friend DMはDaisが使う。送信・既読をsignupやuser countにしない。T22の完全cycleは待たず、early-pilot/未検証範囲/保持条件/収益非保証を明記する。
    - **DONE:** source→visit→verified signup→activation→completed work→returnをcohort別に読める。
 
 6. **T28/T29/T31 — 利用者増と収益を証拠で改善する。**

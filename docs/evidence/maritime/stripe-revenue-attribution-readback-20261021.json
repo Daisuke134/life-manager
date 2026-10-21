@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-10-21T11:05:53Z",
+  "source": "Stripe live GET operations through connected Stripe tool; same credential-SSOT-matched account as stripe-life-manager-readback-20261021.json",
+  "secret_values_stored": false,
+  "scope": {
+    "life_manager_prices": [
+      {
+        "price_id": "price_1UGhtNEeDsUAcaLS1RltugP9",
+        "amount_minor": 2900,
+        "currency": "usd",
+        "interval": "month"
+      },
+      {
+        "price_id": "price_1TjytgEeDsUAcaLSFDgoYqyL",
+        "amount_minor": 2000,
+        "currency": "usd",
+        "interval": "month"
+      }
+    ],
+    "separate_cloud_price": {
+      "price_id": "price_1TilZaEeDsUAcaLSLpNvdmDT",
+      "amount_minor": 3000,
+      "currency": "usd",
+      "interval": "month"
+    }
+  },
+  "readbacks": {
+    "paid_invoices": {
+      "endpoint": "GET /v1/invoices?status=paid",
+      "records": 9,
+      "has_more": false,
+      "account_paid_minor_by_currency": {
+        "usd": 4000
+      },
+      "life_manager_price_line_items": 0,
+      "life_manager_price_invoices": 0,
+      "cloud_price_line_items": 0,
+      "cloud_price_invoices": 0,
+      "other_price_invoices": 9,
+      "interpretation": "No paid invoice line item matched either exact Life Manager monthly price or the separate Anicca Cloud price. The nine account invoices are not attributed to Life Manager."
+    },
+    "completed_checkout_sessions": {
+      "endpoint": "GET /v1/checkout/sessions?status=complete plus GET /v1/checkout/sessions/{id}/line_items for each session",
+      "sessions": 8,
+      "payment_status_paid": 8,
+      "line_item_fetch_errors": 0,
+      "life_manager_price_sessions": 0,
+      "cloud_price_sessions": 0
+    },
+    "active_payment_links": {
+      "endpoint": "GET /v1/payment_links?active=true with line items",
+      "active_links_in_account": 54,
+      "life_manager_29_monthly_price_links": 1,
+      "life_manager_20_monthly_price_links": 0,
+      "completed_sessions_for_life_manager_29_link": 0,
+      "separate_cloud_30_monthly_price_links": 1,
+      "interpretation": "The existing $29 link belongs to the Calendar-oriented life_manager_web_travel flow. The separate $30 link belongs to Anicca Cloud. A link is not a sale; neither has an attributed completed checkout."
+    },
+    "payment_intents": {
+      "endpoint": "GET /v1/payment_intents",
+      "records": 100,
+      "has_more": false,
+      "succeeded": 9,
+      "succeeded_amount_received_minor_by_currency": {
+        "usd": 5099
+      },
+      "invoice_linked_intents": 0,
+      "succeeded_intents_with_life_manager_text_in_description_or_metadata": 0,
+      "interpretation": "Account-level PaymentIntent amounts are not product-attributed and are not counted as Life Manager revenue."
+    },
+    "refunds": {
+      "endpoint": "GET /v1/refunds",
+      "records": 3,
+      "has_more": false,
+      "succeeded": 3,
+      "succeeded_amount_minor_by_currency": {
+        "usd": 1500
+      },
+      "succeeded_refunds_linked_to_life_manager_text_match": 0,
+      "interpretation": "Account-level refunds are not attributable to Life Manager from this readback."
+    },
+    "balance_transactions": {
+      "endpoint": "GET /v1/balance_transactions",
+      "records": 20,
+      "has_more": false,
+      "currency_inventory": [
+        "jpy"
+      ],
+      "types": {
+        "payout": 2,
+        "payment": 1,
+        "stripe_fee": 5,
+        "adjustment": 1,
+        "charge": 8,
+        "refund": 3
+      },
+      "interpretation": "This is an account-level ledger readback with no Life Manager product/price attribution; do not present it as Life Manager settled cash or net."
+    }
+  },
+  "conclusion": {
+    "life_manager_subscription_mrr_usd": 0,
+    "paid_invoice_or_completed_checkout_items_for_exact_life_manager_prices": 0,
+    "life_manager_settled_cash": "unverified",
+    "life_manager_net": "unverified",
+    "account_wide_payment_and_refund_totals": "unattributed; not assigned to Life Manager"
+  }
+}
