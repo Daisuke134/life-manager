@@ -30,3 +30,16 @@ test('entire published marketing pages have no upward or external arrow glyphs',
   assert.doesNotMatch(read(source),/[↗↖↥↑⬆]/u,source);
  }
 });
+
+test('published app cards lead to their dedicated introductions in both portfolio locales',()=>{
+ const destinations={'6757726663':'/dailydharma','6762143790':'/sleepreset','6766485903':'/studio-cherie'};
+ const apps=JSON.parse(read('assets/published-apps.json'));
+ for(const [id,destination] of Object.entries(destinations)){
+  const app=apps.find(a=>a.id===id);
+  for(const locale of ['en','ja'])assert.equal(app.intro[locale],destination);
+  for(const file of ['products-en.html','products.html']){
+   const card=[...read('pages/'+file).matchAll(/<article\b[^>]*data-category="mobile"[^>]*>(.*?)<\/article>/gs)].map(m=>m[1]).find(c=>c.includes('/id'+id));
+   assert.ok(card.includes(`href="${destination}"`));
+  }
+ }
+});
