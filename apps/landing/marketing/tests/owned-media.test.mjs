@@ -43,3 +43,14 @@ test('published app cards lead to their dedicated introductions in both portfoli
   }
  }
 });
+
+test('portfolio leads with Manager then Life Manager and excludes Lookmax promotion',()=>{
+ for(const file of ['products-en.html','products.html']){
+  const html=read('pages/'+file);const main=html.match(/<main\b.*?<\/main>/s)[0];
+  const headings=[...main.matchAll(/<h3>(.*?)<\/h3>/g)].map(m=>m[1]);
+  assert.deepEqual(headings.slice(0,2),['Manager','Life Manager']);
+  assert.doesNotMatch(main,/Lookmax/);
+  for(const label of ['Anicca Letter','Anicca Music','Anicca Comedy'])assert.ok(headings.includes(label));
+  assert.match(main,/id="creative-work"/);assert.match(main,/id="research-projects"/);
+ }
+});
