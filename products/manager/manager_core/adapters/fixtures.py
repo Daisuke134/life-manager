@@ -7,17 +7,20 @@ class OfflineFixtureAdapter:
     offline_fixture=True
     executor_source="fixture-executor"
 
-    def __init__(self,domain,action,target,*,timeout_after_effect=False):
+    def __init__(self,domain,action,target,*,timeout_after_effect=False,timeout_before_effect=False):
         if domain not in {"finance","environment"}:
             raise ValueError("only fixture domains are supported")
         self.domain,self.action,self.target=domain,action,target
         self.timeout_after_effect=timeout_after_effect
+        self.timeout_before_effect=timeout_before_effect
         self.lookup_fails=False
         self.effects={}
         self.send_calls=0
 
     def send(self,key):
         self.send_calls+=1
+        if self.timeout_before_effect:
+            raise TimeoutError("simulated timeout BEFORE provider effect")
         ref="receipt-"+key
         self.effects[key]=ref
         if self.timeout_after_effect:

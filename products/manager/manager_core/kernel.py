@@ -39,20 +39,48 @@ class ManagerKernel:
         if not isinstance(problem,Problem) or not isinstance(plan,InterventionPlan):
             raise ValueError("typed problem and NO_ACTION plan required")
         m=StateMachine()
+        source_stale=False
         for o in problem.observations:
-            self.audit.append(run_id,"source",{"source_id":o.source.source_id})
-            self.audit.append(run_id,"observation",{"measure_id":o.measure_id})
+            src=o.source
+            self.audit.append(run_id,"source",{
+                "source_id":src.source_id,"source_url":src.url,
+                "license_id":src.license_id,"rights":src.rights,
+                "content_hash":src.content_sha256,"privacy_class":src.privacy_class,
+                "retrieved_at":src.retrieved_at.isoformat()})
+            self.audit.append(run_id,"observation",{
+                "measure_id":o.measure_id,"unit":o.unit,
+                "recorded_at":o.recorded_at.isoformat(),
+                "value":o.value,"missing_reason":o.missing_reason})
+            try:
+                src.require_fresh(now, max_age_hours=48)
+            except ValueError:
+                source_stale=True
+        if source_stale:
+            m.transition(State.NO_ACTION)
+            self.audit.append(run_id,"decision",{"status":"NO_ACTION","reason":"source stale or future dated"})
+            return RunResult("NO_ACTION","P0",reason="Stale or future-dated public evidence")
         m.transition(State.HYPOTHESIZED)
         for h in problem.causal_hypotheses:
-            self.audit.append(run_id,"hypothesis",{"hypothesis":h.claim})
+            self.audit.append(run_id,"hypothesis",{"hypothesis":h.claim,
+                "evidence_refs":",".join(h.evidence_refs)})
+        for alt in problem.alternative_explanations:
+            self.audit.append(run_id,"hypothesis",{"alternative":alt})
         m.transition(State.PROPOSED)
         m.transition(State.RISK_CHECKED)
         choice=plan.choose(supports_causal=causal_support)
-        self.audit.append(run_id,"proposal",{"option_id":choice.option_id})
+        for option in plan.options:
+            self.audit.append(run_id,"proposal",{
+                "option_id":option.option_id,"option_cost":option.cost,
+                "option_risk":option.risk,"expected_interval":str(option.expected_effect),
+                "decision":"SELECTED" if option==choice else "ALTERNATIVE"})
         if choice.no_action:
             m.transition(State.NO_ACTION)
             self.audit.append(run_id,"decision",{"status":"NO_ACTION","reason":"causal evidence insufficient or costs outweigh effect"})
             return RunResult("NO_ACTION","P0",reason="No credible authorized net-positive action")
+        if (choice.domain,choice.action,choice.target)!=(adapter.domain,adapter.action,adapter.target):
+            m.transition(State.REJECTED)
+            self.audit.append(run_id,"decision",{"status":"REJECTED","reason":"adapter scope does not match chosen intervention"})
+            return RunResult("REJECTED","P0",reason="adapter scope mismatch")
         effect_key=sha256(f"{run_id}|{choice.option_id}|{choice.domain}|{choice.target}|{choice.action}".encode()).hexdigest()
         self.audit.append(run_id,"risk",{"status":"fixture_only"})
         try:
@@ -63,7 +91,10 @@ class ManagerKernel:
             self.audit.append(run_id,"authorization",{"status":"REJECTED","reason":type(exc).__name__})
             return RunResult("REJECTED","P0",effect_key,reason=type(exc).__name__)
         m.transition(State.AUTHORIZED)
-        self.audit.append(run_id,"authorization",{"grant_id":grant.grant_id,"status":"OFFLINE_FIXTURE"})
+        self.audit.append(run_id,"authorization",{"grant_id":grant.grant_id,
+            "grant_domain":grant.domain,"grant_action":grant.action,
+            "grant_target":grant.target,"grant_budget":grant.limit,
+            "grant_expires_at":grant.expires_at.isoformat(),"status":"OFFLINE_FIXTURE"})
         self.audit.append(run_id,"execution",{"effect_key":effect_key,"status":receipt.status,
                                              "receipt_ref":receipt.receipt_ref})
         if receipt.status in ("UNKNOWN","DISPATCHING"):
@@ -83,7 +114,8 @@ class ManagerKernel:
             rb=None
         verification=verify_outcome(receipt,rb)
         self.audit.append(run_id,"verification",{"status":verification.status,
-            "readback_ref":verification.evidence_ref,"proof_level":verification.proof_level})
+            "readback_ref":verification.evidence_ref,"proof_level":verification.proof_level,
+            "readback_timestamp":rb.recorded_at.isoformat() if rb is not None else None})
         if verification.status!="VERIFIED_FIXTURE_ONLY":
             m.transition(State.MEASUREMENT_MISSING)
             return RunResult("MEASUREMENT_MISSING","P0",effect_key)

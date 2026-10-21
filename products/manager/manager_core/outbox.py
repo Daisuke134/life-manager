@@ -63,7 +63,9 @@ class DurableOutbox:
                 adapter,cost: float,at: datetime) -> EffectRecord:
         if not isinstance(key,str) or not key.strip() or len(key)>256:
             raise ValueError("nonempty stable intent key required")
-        if getattr(adapter,"offline_fixture",None) is not True:
+        from .adapters.fixtures import OfflineFixtureAdapter
+        # An arbitrary external caller must not bypass the fence by setting a flag.
+        if type(adapter) is not OfflineFixtureAdapter or getattr(adapter,"offline_fixture",None) is not True:
             raise PermissionError("live effects are forbidden, even with a fixture grant")
         verifier.authorize(grant,signature,adapter.domain,adapter.action,adapter.target,cost,at)
         units=_units(cost)

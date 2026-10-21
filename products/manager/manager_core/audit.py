@@ -14,6 +14,10 @@ SAFE_FIELDS={
     "option_id","decision","reason","grant_id","effect_key",
     "receipt_ref","readback_ref","status","comparator","net_impact",
     "uncertainty","proof_level","policy_version","benefit_status","state",
+    "source_url","license_id","rights","content_hash","privacy_class","retrieved_at",
+    "unit","recorded_at","value","missing_reason","evidence_refs",
+    "option_cost","option_risk","expected_interval","grant_domain","grant_action",
+    "grant_target","grant_budget","grant_expires_at","readback_timestamp",
 }
 STAGES={
     "source","observation","hypothesis","proposal","risk","authorization",

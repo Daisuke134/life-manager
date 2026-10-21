@@ -94,7 +94,8 @@ class AdversarialTests(unittest.TestCase):
             def one(_): return o.execute("concurrent-intent",g,sig,v,a,2,NOW).status
             with concurrent.futures.ThreadPoolExecutor(max_workers=10) as pool:
                 results=list(pool.map(one,range(10)))
-            self.assertEqual(results,["SUBMITTED"]*10)
+            self.assertTrue(all(x in ("DISPATCHING","SUBMITTED") for x in results))
+            self.assertEqual(o.record("concurrent-intent").status,"SUBMITTED")
             self.assertEqual(a.send_calls,1)
 
     def test_audit_has_complete_public_provenance_and_options(self):

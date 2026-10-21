@@ -1,5 +1,7 @@
 """K001: provenance is mandatory; URLs never imply ingestion, privacy or use rights."""
 from dataclasses import dataclass
+from hashlib import sha256
+from hmac import compare_digest
 from datetime import datetime, timedelta
 import re
 from manager_core.evidence import _url
@@ -46,3 +48,9 @@ class Source:
         age = now - self.retrieved_at
         if age < timedelta(0) or age > timedelta(hours=max_age_hours):
             raise ValueError("source is stale or future-dated")
+
+    def verify_content(self, payload: bytes) -> bool:
+        """Verify an actually acquired permitted public snapshot against its recorded hash."""
+        if not isinstance(payload, bytes) or not compare_digest(sha256(payload).hexdigest(),self.content_sha256.lower()):
+            raise ValueError("source bytes do not match provenance hash")
+        return True
