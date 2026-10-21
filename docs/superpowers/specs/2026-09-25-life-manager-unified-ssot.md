@@ -21146,7 +21146,7 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 
 **TODO順変更:** 旧=一業務readiness→Cloud→入口→3人pilot→packet→1,000人。新=下記atomic ID順、提出経路確認T01・配布文案T24・台本T25は即着手可能。理由はDaisが知人DMを担当し、利用者feedbackを待たず実装・素材・提出準備を進められるため。先に試せる製品と正式必須項目を揃えて提出し、改善と獲得を継続する。全体統括cursorと進行中provider effectは変更しない。
 
-**Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細file/signature/acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。現在主cursor=T22.1b.6-04（Runtime PG execution schemaとcycle claim/bind）。b.6-01〜03のnative PG identity/enrollment schemaは完了、b.6-03 evidenceは`docs/evidence/maritime/runtime-pg-manager-enrollment-schema.json`。PR #8452のoccurrence artifact修正は13/13 checks・fresh review指摘0でmain a0へ統合、sanitized imageを既存owned VMへ反映。health/source hashes一致・Linux privilege/browser境界をread-only probeで確認した。新しいoffline draft cycleはcompleted/exit0、receipt3 refs、7 filesのproof/download hash一致、listing linter pass。provider未接続のため公開/売上/入金なし、外部user0。既存v3 deferredと6-file unknown receiptは保持。実PKCE/起動/日報/停止、公開URLと実利用、作品の正式提出は未完。提出フォームと初週の正確な締切時刻は未確認。
+**Maritime lane atomic TODO（実行順・現在cursorの正本）:** 詳細file/signature/acceptance→[Atomic Implementation Plan](../plans/2026-10-20-maritime-week1-atomic-execution.md)。現在主cursor=T22.1b.6-05（参加者容量claim）。b.6-01〜04のnative PG identity/enrollment/execution schemaは完了、b.6-04は並行claim一回・execution binding固定・停止後のreadback・migration再適用を確認→`docs/evidence/maritime/runtime-pg-manager-execution-schema.json`。PR #8452のoccurrence artifact修正は13/13 checks・fresh review指摘0でmain a0へ統合、sanitized imageを既存owned VMへ反映。health/source hashes一致・Linux privilege/browser境界をread-only probeで確認した。新しいoffline draft cycleはcompleted/exit0、receipt3 refs、7 filesのproof/download hash一致、listing linter pass。provider未接続のため公開/売上/入金なし、外部user0。既存v3 deferredと6-file unknown receiptは保持。b.6-05以降の保存経路・実PKCE/起動/日報/停止、公開URLと実利用、作品の正式提出は未完。提出フォームと初週の正確な締切時刻は未確認。
 
 | ID | 一件の成果物 | 状態/依存 |
 |---|---|---|
@@ -21248,7 +21248,7 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 **T22.1b.6の保存先決定:** 主cursor=b.6-03。旧=Dashboard本人ログイン→REST復旧、新=Manager専用保存先を既存Runtime PGへ接続→製品経由の実PKCE/仕事/日報/停止→配布、理由=REST503、同region公式障害、候補DBimageでも当該timezone依存が残り、既存Runtime PGのDDL権限とManager未作成/Job0・Supabase enrollment/execution0・公開flag/cap無効を確認するため。一般利用者stateの移行・二重write・REST fallbackは行わない。Auth/PKCE、共通queue/receipt、FinancialRecord、CFO送信器を再利用する。owned UIDは既存separateWebUidForSubject導出に一致、既存VM externalIdもManager HMACに一致しbindingを維持する。6表とfile別atomic手順→Atomic Plan b.6-01〜34、実測→docs/evidence/maritime/runtime-pg-state-preflight.json。c-5はPR8449/exact73efの13checks全成功とfresh review0/0でmain4fへ統合し、既存VMの新image配備を進める。Supabase本人ログイン依頼は元provider診断用として非同期に残す。
 
 
-**Maritime 残TODOの現在地:** 主cursor=T22.1b.6-04（Runtime PG execution schemaとcycle claim/bind）。PR #8452は全13 checks成功・fresh review指摘0でmain `a0d217d0769db2dab68bb8a8a452bfaea916fe9d`へ統合。ZIP91,658,636 bytes/archive SHA-256 `678cafe1261291e0fc9606c8531b70fd64816284dd73f8d8c1fd50dc41f372ee`はHTTP200/customでupload済み、既存agentのみredeployしdeployment success・health/source hashes一致。probeはUID/GID10001、caps0、NoNewPrivs、credentials非継承、fixed browser/CDP/DOM/cleanup pass。occurrence `week1-offline-a0-20261021-01`はcompleted/exit0、artifact refs3と追加4 fileをproof/downloadして全hash一致、listing linter pass。これは非公開offline draftでexternal user 0、売上/公開/入金なし。billingはFree・next charge $0、subscription/payment変更なし。Runtime PGのidentity/enrollment schemaはb.6-01〜03完了、native PostgreSQL 17 fixture 1/1 pass、production DSN不使用。b.6-04以降の保存経路・PKCE/Manager artifact handler・user reportは未実装。作品の正式提出は`not_submitted`のまま、提出フォームと初週の正確な締切は未確認。実利用者・公開・実売上も未確認。
+**Maritime 残TODOの現在地:** 主cursor=T22.1b.6-05（参加者容量claim）。PR #8452は全13 checks成功・fresh review指摘0でmain `a0d217d0769db2dab68bb8a8a452bfaea916fe9d`へ統合。ZIP91,658,636 bytes/archive SHA-256 `678cafe1261291e0fc9606c8531b70fd64816284dd73f8d8c1fd50dc41f372ee`はHTTP200/customでupload済み、既存agentのみredeployしdeployment success・health/source hashes一致。probeはUID/GID10001、caps0、NoNewPrivs、credentials非継承、fixed browser/CDP/DOM/cleanup pass。occurrence `week1-offline-a0-20261021-01`はcompleted/exit0、artifact refs3と追加4 fileをproof/downloadして全hash一致、listing linter pass。これは非公開offline draftでexternal user 0、売上/公開/入金なし。billingはFree・next charge $0、subscription/payment変更なし。Runtime PGのidentity/enrollment/execution schemaはb.6-01〜04完了、native PostgreSQL 17 fixture 1/1 pass、production DSN不使用。b.6-05以降の保存経路・PKCE/Manager artifact handler・user reportは未実装。作品の正式提出は`not_submitted`のまま、提出フォームと初週の正確な締切は未確認。実利用者・公開・実売上も未確認。
 
 | 残ID | 一つずつ実行する範囲 | 状態 |
 |---|---|---|
@@ -21256,8 +21256,9 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | b.6-01 | local native PG fixtureで6 relation欠落/SQLSTATE42P01を確認 | 完了、production DSN不使用→`docs/evidence/maritime/runtime-pg-manager-schema-absence.json` |
 | b.6-02 | verified subject↔uid identity / first-touch schema | 完了、native PG17 unique/reassignment/first-touch checks→`docs/evidence/maritime/runtime-pg-manager-identity-schema.json` |
 | b.6-03 | enrollment schema / provision claim-bind | 完了、native PG17 claim一回・同一agent再bind・foreign subjectと別UIDのagent重複拒否→`docs/evidence/maritime/runtime-pg-manager-enrollment-schema.json` |
-| b.6-04 | execution schema / cycle claim-bind | 現在cursor。occurrence一回claim・同一execution IDだけの再bindをnative PGで確認 |
-| b.6-05〜07 | participant容量claim / funnel event / CFO receipt schema-function | 未着手 |
+| b.6-04 | execution schema / cycle claim-bind | 完了、native PG17二接続競合で一回claim・execution binding・pause・再適用→`docs/evidence/maritime/runtime-pg-manager-execution-schema.json` |
+| b.6-05 | participant schema / capacity claim | 現在cursor。並行申込でも既定上限を超えないことをnative PGで確認 |
+| b.6-06〜07 | funnel event / CFO receipt schema-function | 未着手 |
 | b.6-08〜14 | Manager CRUD/checkpoint・verified identity・first-touchのPG接続 | 未着手 |
 | b.6-15〜18 | 同意/容量/計測/CFO receiptのPG接続 | 未着手 |
 | b.6-19〜21 | frontend6経路・worker・return読取の接続 | 未着手 |

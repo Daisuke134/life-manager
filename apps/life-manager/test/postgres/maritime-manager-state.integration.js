@@ -42,6 +42,7 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
   };
   let started = false;
   let client;
+  let racingClient;
   try {
     execFileSync(bin + "/initdb", ["-D", data, "-A", "trust", "-U", "fixture_owner", "--no-locale", "-E", "UTF8"], {
       env,
@@ -80,10 +81,11 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     const relations = Object.fromEntries(migrated.rows.map(row => [row.name, row.relation]));
     assert.equal(relations.lm_maritime_manager_identities, "lm_maritime_manager_identities");
     assert.equal(relations.lm_maritime_manager_enrollments, "lm_maritime_manager_enrollments");
+    assert.equal(relations.lm_maritime_manager_executions, "lm_maritime_manager_executions");
     assert.equal((await client.query("SELECT to_regclass('public.lm_users') AS relation")).rows[0].relation, null,
       "Manager runtime state does not require or create the global lm_users table");
-    for (const table of MANAGER_TABLES.filter(name => !["lm_maritime_manager_identities", "lm_maritime_manager_enrollments"].includes(name))) {
-      assert.equal(relations[table], null, `${table} stays out of the identity migration`);
+    for (const table of MANAGER_TABLES.filter(name => !["lm_maritime_manager_identities", "lm_maritime_manager_enrollments", "lm_maritime_manager_executions"].includes(name))) {
+      assert.equal(relations[table], null, `${table} stays out of this Manager migration`);
     }
 
     const columns = await client.query(
@@ -144,7 +146,51 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     assert.equal(await claim(uidB), true);
     assert.equal(await bind(uidB, subjectB, 'agent-a'), false);
     assert.equal(await bind(uidB, subjectB, 'agent-b'), true);
+
+    const executionColumns = await client.query(
+      "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='lm_maritime_manager_executions'",
+    );
+    const executionNames = new Set(executionColumns.rows.map(row => row.column_name));
+    for (const column of ["uid", "occurrence_id", "agent_id", "date_key", "release_sha", "execution_id", "claimed_at"]) {
+      assert.ok(executionNames.has(column), `execution schema includes ${column}`);
+    }
+    racingClient = new Client({ host: socket, port, database: "postgres", user: "fixture_owner", password: "", connectionTimeoutMillis: 5000 });
+    await racingClient.connect();
+    const cycleClaim = (connection, uid, occurrence, agent, sha = releaseSha, date = "2026-10-21") => connection.query(
+      "SELECT public.claim_lm_maritime_manager_cycle_v1($1,$2,$3,$4,$5::date) AS claimed",
+      [uid, occurrence, agent, sha, date],
+    ).then(result => result.rows[0].claimed);
+    const cycleBind = (uid, occurrence, agent, sha, date, executionId) => client.query(
+      "SELECT public.bind_lm_maritime_manager_execution_v1($1,$2,$3,$4,$5::date,$6) AS bound",
+      [uid, occurrence, agent, sha, date, executionId],
+    ).then(result => result.rows[0].bound);
+    const competingClaims = await Promise.all([
+      cycleClaim(client, uidA, "week-1-occurrence", "agent-a"),
+      cycleClaim(racingClient, uidA, "week-1-occurrence", "agent-a"),
+    ]);
+    assert.deepEqual(competingClaims.sort(), [false, true], "concurrent claims for one occurrence have exactly one winner");
+    assert.equal(await cycleClaim(client, uidA, "week-1-occurrence", "agent-a"), false, "occurrence claim is not replayable");
+    assert.equal(await cycleClaim(client, uidB, "foreign-occurrence", "agent-a"), false, "an agent cannot claim for another UID");
+    assert.equal(await cycleClaim(client, uidA, "wrong-release", "agent-a", "b".repeat(40)), false, "a stale release cannot claim work");
+    assert.equal(await cycleBind(uidA, "week-1-occurrence", "agent-a", releaseSha, "2026-10-21", "exec-1"), true);
+    assert.equal(await cycleBind(uidA, "week-1-occurrence", "agent-a", releaseSha, "2026-10-21", "exec-1"), true, "same execution ID may be rebound idempotently");
+    assert.equal(await cycleBind(uidA, "week-1-occurrence", "agent-a", releaseSha, "2026-10-21", "exec-2"), false, "a bound occurrence cannot change execution ID");
+    assert.equal(await cycleBind(uidA, "week-1-occurrence", "agent-a", releaseSha, "2026-10-20", "exec-1"), false, "date mismatch cannot bind");
+    assert.equal((await client.query("SELECT execution_id FROM public.lm_maritime_manager_executions WHERE uid=$1 AND occurrence_id=$2", [uidA, "week-1-occurrence"])).rows[0].execution_id, "exec-1");
+    assert.equal(await cycleClaim(client, uidA, "second-occurrence", "agent-a"), true);
+    await assert.rejects(
+      cycleBind(uidA, "second-occurrence", "agent-a", releaseSha, "2026-10-21", "exec-1"),
+      error => error.code === "23505",
+      "an execution ID cannot be owned by two occurrences for one agent",
+    );
+    assert.equal(await cycleBind(uidA, "second-occurrence", "agent-a", releaseSha, "2026-10-21", "exec-2"), true);
+    await client.query("UPDATE public.lm_maritime_manager_enrollments SET status='paused',paused_at=clock_timestamp() WHERE uid=$1", [uidA]);
+    assert.equal(await cycleClaim(client, uidA, "after-stop", "agent-a"), false, "a paused enrollment cannot dispatch another occurrence");
+    assert.equal(await cycleBind(uidA, "week-1-occurrence", "agent-a", releaseSha, "2026-10-21", "exec-1"), true, "a prior dispatch can still read back its exact binding after pause");
+    await client.query(fs.readFileSync(IDENTITY_MIGRATION, "utf8"));
+    assert.equal((await client.query("SELECT execution_id FROM public.lm_maritime_manager_executions WHERE uid=$1 AND occurrence_id=$2", [uidA, "week-1-occurrence"])).rows[0].execution_id, "exec-1", "reapplying the migration preserves the dispatch checkpoint");
   } finally {
+    if (racingClient) await racingClient.end();
     if (client) await client.end();
     if (started) execFileSync(bin + "/pg_ctl", ["-D", data, "-m", "fast", "-w", "stop"], { env, stdio: "pipe" });
     fs.rmSync(fixture, { recursive: true, force: true });
