@@ -1,0 +1,194 @@
+[
+  {
+    "id": "OWNED_STOREFRONT",
+    "domain": "digital_commerce",
+    "name": "Owner-scoped storefront outcome optimization",
+    "beneficiaries": "Consenting merchant and customers receiving genuine value, not only agent gross sales",
+    "harm_mechanism": "Poor information/offer fit and avoidable operational costs can impair net financial results and buyer satisfaction",
+    "public_observation": "Shopify sandbox stores and public platform technical docs; actual merchant settlement records are separate and not public by default",
+    "source_urls": [
+      "https://shopify.dev/docs/apps/build/stores/development-stores",
+      "https://www.anthropic.com/research/project-vend-2"
+    ],
+    "operator": "Merchant legal account holder; no particular account or capability grant has been verified",
+    "operator_authority_status": "NOT_VERIFIED",
+    "data_rights": "Source material identified on public official pages only; reuse, API licensing, retention and commercial rights require source-specific review before ingestion.",
+    "metric": "Incremental settled net contribution after purchase/refund, fees, compute, labor and displacement; complaints separately",
+    "independent_outcome_evidence": "Official owner-approved settlement/payout or provider records corroborated by separate read-only source; none connected to Manager",
+    "comparator": "Prospectively randomized product/cohort-level treatment vs no-action holdout; minimize spillovers and lock refund horizon",
+    "feasibility": "SANDBOX_ONLY",
+    "blockers": [
+      "No verified own/merchant-scoped grant",
+      "Dev stores cannot process real payments",
+      "No verified real settlement readback",
+      "No preregistered experiment"
+    ],
+    "live_pilot_ready": false,
+    "no_action": true
+  },
+  {
+    "id": "PUBLIC_OSS_BOUNTIES",
+    "domain": "work",
+    "name": "Verified real open-source work and outcome-based bounties",
+    "beneficiaries": "Project users and contributors who receive fair settled compensation and improvements",
+    "harm_mechanism": "Unresolved public issues reduce access to reliable software and incomplete work produces no external income",
+    "public_observation": "Public issue/bounty metadata, maintainers' merge outcomes and published terms; public bounty amount is not a payout",
+    "source_urls": [
+      "https://algora.io/pricing/",
+      "https://api.docs.algora.io/"
+    ],
+    "operator": "Participating maintainer determines acceptance; contributor owns their payout account, no delegated financial capability",
+    "operator_authority_status": "NOT_VERIFIED",
+    "data_rights": "Source material identified on public official pages only; reuse, API licensing, retention and commercial rights require source-specific review before ingestion.",
+    "metric": "Maintainer-accepted and deployed useful work; verified settled net payout minus compute/time/other opportunity cost",
+    "independent_outcome_evidence": "Independent merged PR plus payment provider/recipient authorized payout confirmation; usually private settlement not publicly observable",
+    "comparator": "Matched issue cohorts or prospectively randomized assistance, compare completion quality and cost; no guarantees of payment",
+    "feasibility": "READ_ONLY_RESEARCH",
+    "blockers": [
+      "No verified contributor/maintainer permissions",
+      "No payout readback",
+      "Bounty listing is not approval/payment",
+      "Risk of public spam or low-quality PRs"
+    ],
+    "live_pilot_ready": false,
+    "no_action": true
+  },
+  {
+    "id": "OPEN_LEDGER_SUPPORT",
+    "domain": "finance",
+    "name": "Public charitable grant and matching transparency",
+    "beneficiaries": "Eligible recipients of legitimate public-interest assistance, plus donors supporting independently evidenced outcomes",
+    "harm_mechanism": "Lack of affordable assistance may cause unmet needs; matching can displace funds rather than create net support",
+    "public_observation": "Published nonprofit/grant ledger and matched campaign rules; public records may not show recipient welfare",
+    "source_urls": [
+      "https://opencollective.com/",
+      "https://www.aeaweb.org/articles?id=10.1257/aer.97.5.1774"
+    ],
+    "operator": "Grantee, fund sponsor and funding administrator; neither spend authority nor donor/recipient consent has been established",
+    "operator_authority_status": "NOT_VERIFIED",
+    "data_rights": "Source material identified on public official pages only; reuse, API licensing, retention and commercial rights require source-specific review before ingestion.",
+    "metric": "Incremental external resources reaching beneficiaries net of seed capital, fees and offsetting donations, with welfare separately measured",
+    "independent_outcome_evidence": "Original funding institution's ledger plus genuinely independent settlement and aggregate recipient results; no real pilot receipt available",
+    "comparator": "Preregistered campaign/region randomized access or comparable cohorts including NO_ACTION and cross-charity substitution",
+    "feasibility": "BLOCKED_LIVE_EFFECT",
+    "blockers": [
+      "No fund custody/issuer permission",
+      "Recipient or sponsor terms not approved",
+      "Public ledger does not equal welfare data",
+      "No credible real comparator"
+    ],
+    "live_pilot_ready": false,
+    "no_action": true
+  },
+  {
+    "id": "AIR_QUALITY",
+    "domain": "environment",
+    "name": "Independent exposure outcome in an authorized physical space",
+    "beneficiaries": "Occupants of a legitimate pilot facility and surrounding community when exposure decreases net of side effects",
+    "harm_mechanism": "Harmful PM2.5 exposure may raise risk; outdoor air observations alone are not indoor exposure or clinical improvements",
+    "public_observation": "OpenAQ publicly indexed outdoor sensor readings, timestamps, sensor calibration flags and provider licensing",
+    "source_urls": [
+      "https://docs.openaq.org/resources/measurements",
+      "https://docs.openaq.org/api",
+      "https://pmc.ncbi.nlm.nih.gov/articles/PMC12234348/"
+    ],
+    "operator": "Facility property owner/operator and properly authorized independent sensor operator; none verified",
+    "operator_authority_status": "NOT_VERIFIED",
+    "data_rights": "Source material identified on public official pages only; reuse, API licensing, retention and commercial rights require source-specific review before ingestion.",
+    "metric": "Preregistered indoor PM2.5 exposure change (µg/m³) plus kWh, noise, maintenance, harms and comfort; NOT direct disease reduction",
+    "independent_outcome_evidence": "Timestamped calibrated indoor independent sensor, treatment log, outdoor background and power meter; no facility/sensor is connected",
+    "comparator": "Randomized crossover/stepped-wedge room or timing assignment, controlled external ambient trends and carryover",
+    "feasibility": "BLOCKED_LIVE_EFFECT",
+    "blockers": [
+      "No facility/actuator rights",
+      "OpenAQ outdoor sensor does not certify indoor effects",
+      "No calibrated indoor readback",
+      "Potential worker/occupant safety concerns"
+    ],
+    "live_pilot_ready": false,
+    "no_action": true
+  },
+  {
+    "id": "PUBLIC_BENEFIT_ACCESS",
+    "domain": "public_services",
+    "name": "Access to public benefits without unauthorized filing",
+    "beneficiaries": "Eligible residents who actually receive additional legally owed support, not merely view an eligibility notice",
+    "harm_mechanism": "Administrative complexity and information frictions can prevent timely access to support",
+    "public_observation": "Public benefit eligibility publications and anonymized published aggregate application/payment statistics where available",
+    "source_urls": [
+      "https://www.aeaweb.org/articles?id=10.1257/aer.20121493",
+      "https://www.aeaweb.org/articles?id=10.1257/pol.20200603"
+    ],
+    "operator": "Public agency/consenting service provider and each affected individual; no private tax records or filing authority available",
+    "operator_authority_status": "NOT_VERIFIED",
+    "data_rights": "Source material identified on public official pages only; reuse, API licensing, retention and commercial rights require source-specific review before ingestion.",
+    "metric": "Additional independently documented completed payments and benefits net of administrative burden, harms, eligibility errors",
+    "independent_outcome_evidence": "Agency-authorized aggregate payout counts and ethically consented outcomes; individual records are not public evidence",
+    "comparator": "Prospectively randomized eligible outreach assistance or approved quasi-experiment, preserving NO_ACTION and adverse outcomes",
+    "feasibility": "READ_ONLY_RESEARCH",
+    "blockers": [
+      "No agency/individual mandate",
+      "Sensitive eligibility data forbidden",
+      "Historical RCTs conflict on intervention efficacy",
+      "No accessible independent payout data"
+    ],
+    "live_pilot_ready": false,
+    "no_action": true
+  },
+  {
+    "id": "AGENT_SERVICE_MARKETS",
+    "domain": "agent_economy",
+    "name": "Agent-discovery and machine-paid service procurement",
+    "beneficiaries": "Businesses receiving useful machine-produced services and potential end users affected by downstream work",
+    "harm_mechanism": "Discovery and contracting friction can block specialized services; malicious agents create costs and security harms",
+    "public_observation": "Official Agentverse agent-discovery and Olas Mech service marketplace documentation; token transfers are not verified welfare",
+    "source_urls": [
+      "https://docs.agentverse.ai/documentation/agent-discovery/setup-guide",
+      "https://docs.olas.network/",
+      "https://developers.cloudflare.com/monetization-gateway/x402/"
+    ],
+    "operator": "Only explicitly granted agent service publisher/buyer identity and bounded wallet owner; none delegated to Manager",
+    "operator_authority_status": "NOT_VERIFIED",
+    "data_rights": "Source material identified on public official pages only; reuse, API licensing, retention and commercial rights require source-specific review before ingestion.",
+    "metric": "Third-party verified service acceptance/quality and externally settled revenue minus payments, compute, security losses",
+    "independent_outcome_evidence": "Service provider/receiver independent receipt, signed service result and separately auditable settlement; no real transactions performed",
+    "comparator": "Matched paid vs NO_ACTION service tasks; independent blinded quality review and cost/incident accounting",
+    "feasibility": "SANDBOX_ONLY",
+    "blockers": [
+      "Wallet/token rights not granted",
+      "Counterparty identity and terms not verified",
+      "Marketplace incentives not proof of social benefit",
+      "No independent payout/quality evaluation"
+    ],
+    "live_pilot_ready": false,
+    "no_action": true
+  },
+  {
+    "id": "PHYSICAL_ASSISTANCE",
+    "domain": "physical_operations",
+    "name": "Assisted real-world stocking and licensed physical services",
+    "beneficiaries": "Workers, purchasers and customers when labor is fair and supplies reach the intended place",
+    "harm_mechanism": "Resource allocation failures and stale inventory can prevent needed goods/services, but physical workers bear risk",
+    "public_observation": "Anthropic/Andon Project Vend physical office stocking experiment contrasted with Andon Labs' simulated economy",
+    "source_urls": [
+      "https://www.anthropic.com/research/project-vend-1",
+      "https://www.anthropic.com/research/project-vend-2",
+      "https://andonlabs.com/evals/vending-bench-2"
+    ],
+    "operator": "Facility/site owner, participating workers and commercial operator; none verified for Manager",
+    "operator_authority_status": "NOT_VERIFIED",
+    "data_rights": "Source material identified on public official pages only; reuse, API licensing, retention and commercial rights require source-specific review before ingestion.",
+    "metric": "Externally verified job completed and net paid outcomes minus material, worker-time and negative incidents",
+    "independent_outcome_evidence": "Independent inventory/readback and independently reconciled worker compensation; not a simulated vending balance",
+    "comparator": "Preregistered crossover of eligible tasks with labor safety/no-action and worker consent; fairness/harm tracking",
+    "feasibility": "BLOCKED_LIVE_EFFECT",
+    "blockers": [
+      "No worker/facility mandate or labor safety review",
+      "No physical actuation capabilities",
+      "No real independent meter/receipts",
+      "Human labor consent cannot be inferred from development approval"
+    ],
+    "live_pilot_ready": false,
+    "no_action": true
+  }
+]
