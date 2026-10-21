@@ -39,20 +39,21 @@ test("the review hook, the daily CLI and the enable script are executable", () =
 });
 
 
-test("the reviewer is spawned FRESH via claude -p and reads the diff from stdin", () => {
+test("the reviewer is spawned FRESH via Codex exec and reads the diff from stdin", () => {
   const source = fs.readFileSync(REVIEW_CLI, "utf8");
-  assert.match(source, /LM_DEV_REVIEW_CLI/);
-  assert.match(source, /"-p"/);
+  assert.match(source, /CODEX_BIN/);
+  assert.ok(REVIEW_ARGS.includes("exec"));
+  assert.ok(REVIEW_ARGS.includes("--ephemeral"));
+  assert.ok(REVIEW_ARGS.includes("--output-schema"));
+  assert.equal(REVIEW_ARGS[REVIEW_ARGS.indexOf("--sandbox") + 1], "read-only");
+  assert.equal(REVIEW_ARGS.includes("--model"), false);
   assert.match(source, /process\.stdin/);
-  // Model routing is the operator's shell's business (claudexmix/Sol or direct); the loop must not
-  // hardcode a model, or it breaks the moment routing changes.
-  assert.doesNotMatch(source, /claude-[a-z0-9.-]*-20\d{6}/);
+  assert.doesNotMatch(source, /claude\s+-p/);
 });
 
 
-// A launchd PATH is not a login shell's PATH. On this machine `claude` is ~/.local/bin/claude and
-// `claudexmix` is a shell function with no binary at all, so a reviewer resolved from the parked
-// plist's PATH would never spawn — safe (fail closed) but useless (nothing ever merges).
+// A launchd PATH is not a login shell's PATH. Resolve the Codex executable using only the
+// registered job PATH plus its normal install location.
 test("the reviewer CLI is found even when it is not on the launchd PATH", () => {
   const home = "/home/tester";
   const resolved = resolveReviewCli({
@@ -60,23 +61,23 @@ test("the reviewer CLI is found even when it is not on the launchd PATH", () => 
     PATH: "/opt/homebrew/bin:/usr/bin:/bin",
   });
   assert.ok(
-    resolved === `${home}/.local/bin/claude` || resolved === "claude" || resolved.endsWith("/claude"),
+    resolved === `${home}/.local/bin/codex` || resolved === "codex" || resolved.endsWith("/codex"),
     `unexpected reviewer resolution: ${resolved}`,
   );
 });
 
 
-test("an explicit $LM_DEV_REVIEW_CLI always wins, so routing stays the operator's decision", () => {
+test("an explicit Codex executable path overrides PATH resolution", () => {
   assert.equal(
-    resolveReviewCli({ LM_DEV_REVIEW_CLI: "/opt/sol/bin/reviewer", PATH: "/bin" }),
-    "/opt/sol/bin/reviewer",
+    resolveReviewCli({ CODEX_BIN: "/opt/codex/bin/codex", PATH: "/bin" }),
+    "/opt/codex/bin/codex",
   );
 });
 
 
 test("on THIS machine the reviewer resolves to a real executable", () => {
   const resolved = resolveReviewCli({ HOME: process.env.HOME, PATH: process.env.PATH });
-  assert.notEqual(resolved, "claude", "bare 'claude' means nothing executable was found");
+  assert.notEqual(resolved, "codex", "bare 'codex' means nothing executable was found");
   assert.ok(fs.statSync(resolved).mode & 0o100, `${resolved} must be executable`);
 });
 
@@ -691,18 +692,14 @@ test("the reviewer is spawned with a minimal environment carrying no secrets", (
 });
 
 
-// Flags VERIFIED against `claude --help` on this machine, 2026-07-27:
-//   --tools ""            "Use \"\" to disable all tools"
-//   --strict-mcp-config   "Only use MCP servers from --mcp-config" (none is given, so: none)
-//   --setting-sources ""  "Comma-separated list of setting sources to load (user, project, local)"
-//   --disallowedTools     "Comma or space-separated list of tool names to deny"
-// `--bare` was deliberately NOT used: it forces ANTHROPIC_API_KEY-only auth, which a minimal-env
-// process does not have.
-test("the reviewer runs with no tools, no MCP servers and no operator settings", () => {
-  assert.ok(REVIEW_ARGS.includes("--strict-mcp-config"));
-  assert.equal(REVIEW_ARGS[REVIEW_ARGS.indexOf("--tools") + 1], "");
-  assert.equal(REVIEW_ARGS[REVIEW_ARGS.indexOf("--setting-sources") + 1], "");
-  assert.ok(REVIEW_ARGS.includes("-p"));
+test("the reviewer runs with ephemeral state, no operator config and read-only access", () => {
+  assert.ok(REVIEW_ARGS.includes("--ignore-user-config"));
+  assert.equal(REVIEW_ARGS[REVIEW_ARGS.indexOf("--sandbox") + 1], "read-only");
+  assert.ok(REVIEW_ARGS.includes("--ephemeral"));
+  for (const feature of ["shell_tool", "code_mode_host", "unified_exec"]) {
+    assert.ok(REVIEW_ARGS.some((value, index) => value === "--disable" && REVIEW_ARGS[index + 1] === feature),
+      `the diff reviewer must not have ${feature}`);
+  }
 });
 
 

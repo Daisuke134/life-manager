@@ -274,7 +274,7 @@ raise SystemExit(0)
         config_path = APP_ROOT / "agent-runner" / "config.json"
         config = json.loads(config_path.read_text(encoding="utf-8"))
 
-        self.assertTrue({"codex", "claude-direct"}.issubset(config["providers"]))
+        self.assertEqual(set(config["providers"]), {"codex"})
         self.assertTrue(
             {
                 "composition-agent",

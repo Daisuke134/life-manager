@@ -53,38 +53,6 @@
       "quota": {
         "source": "provider"
       }
-    },
-    "claude": {
-      "executable": "claude",
-      "executable_fallbacks": [
-        "~/.local/bin/claude"
-      ],
-      "base_url": "http://127.0.0.1:8317",
-      "auth_token_file": "~/.cli-proxy-api-key",
-      "capabilities": {
-        "structured_json": true,
-        "tools": true,
-        "browser": true
-      },
-      "cost_tier": "subscription",
-      "quota": {
-        "source": "provider"
-      }
-    },
-    "claude-direct": {
-      "executable": "claude",
-      "executable_fallbacks": [
-        "~/.local/bin/claude"
-      ],
-      "capabilities": {
-        "structured_json": true,
-        "tools": true,
-        "browser": true
-      },
-      "cost_tier": "subscription",
-      "quota": {
-        "source": "provider"
-      }
     }
   },
   "candidate_profiles": {},
@@ -114,11 +82,8 @@
           "provider": "codex",
           "model": "gpt-5.6-terra",
           "effort": "medium",
-          "profile_alias": "acct1", "fail_fast_provider_lease": true
-        },
-        {
-          "provider": "claude-direct",
-          "model": "claude-sonnet-5"
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
         }
       ]
     },
@@ -132,11 +97,8 @@
           "model": "gpt-5.6-luna",
           "effort": "medium",
           "timeout_seconds": 120,
-          "profile_alias": "acct1", "fail_fast_provider_lease": true
-        },
-        {
-          "provider": "claude-direct",
-          "model": "claude-sonnet-5"
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
         }
       ]
     },
@@ -150,11 +112,8 @@
           "model": "gpt-5.6-terra",
           "effort": "medium",
           "timeout_seconds": 90,
-          "profile_alias": "acct1", "fail_fast_provider_lease": true
-        },
-        {
-          "provider": "claude-direct",
-          "model": "claude-sonnet-5"
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
         }
       ]
     },
@@ -167,11 +126,8 @@
           "provider": "codex",
           "model": "gpt-5.6-terra",
           "effort": "medium",
-          "profile_alias": "acct1", "fail_fast_provider_lease": true
-        },
-        {
-          "provider": "claude-direct",
-          "model": "claude-sonnet-5"
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
         }
       ]
     },
@@ -184,11 +140,8 @@
           "provider": "codex",
           "model": "gpt-5.6-terra",
           "effort": "medium",
-          "profile_alias": "acct1", "fail_fast_provider_lease": true
-        },
-        {
-          "provider": "claude-direct",
-          "model": "claude-sonnet-5"
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
         }
       ]
     },
@@ -203,11 +156,8 @@
           "provider": "codex",
           "model": "gpt-5.6-terra",
           "effort": "high",
-          "profile_alias": "acct1", "fail_fast_provider_lease": true
-        },
-        {
-          "provider": "claude-direct",
-          "model": "claude-sonnet-5"
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
         }
       ]
     },
@@ -221,11 +171,8 @@
           "provider": "codex",
           "model": "gpt-5.6-terra",
           "effort": "medium",
-          "profile_alias": "acct1", "fail_fast_provider_lease": true
-        },
-        {
-          "provider": "claude-direct",
-          "model": "claude-sonnet-5"
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
         }
       ]
     },
@@ -303,17 +250,15 @@
           "provider": "codex",
           "model": "gpt-5.6-luna",
           "effort": "high",
-          "profile_alias": "acct1", "fail_fast_provider_lease": true
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
         },
         {
           "provider": "codex",
           "model": "gpt-5.6-terra",
           "effort": "medium",
-          "profile_alias": "acct1", "fail_fast_provider_lease": true
-        },
-        {
-          "provider": "claude-direct",
-          "model": "claude-sonnet-5"
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
         }
       ]
     },
@@ -326,11 +271,8 @@
           "provider": "codex",
           "model": "gpt-5.6-terra",
           "effort": "medium",
-          "profile_alias": "acct1", "fail_fast_provider_lease": true
-        },
-        {
-          "provider": "claude-direct",
-          "model": "claude-sonnet-5"
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
         }
       ]
     },
@@ -343,11 +285,8 @@
           "provider": "codex",
           "model": "gpt-5.6-luna",
           "effort": "medium",
-          "profile_alias": "acct1", "fail_fast_provider_lease": true
-        },
-        {
-          "provider": "claude-direct",
-          "model": "claude-sonnet-5"
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
         }
       ]
     },
@@ -375,11 +314,8 @@
           "provider": "codex",
           "model": "gpt-5.6-terra",
           "effort": "medium",
-          "profile_alias": "acct1", "fail_fast_provider_lease": true
-        },
-        {
-          "provider": "claude-direct",
-          "model": "claude-sonnet-5"
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
         }
       ]
     },
@@ -451,11 +387,8 @@
           "provider": "codex",
           "model": "gpt-5.6-sol",
           "effort": "medium",
-          "profile_alias": "acct1", "fail_fast_provider_lease": true
-        },
-        {
-          "provider": "claude-direct",
-          "model": "claude-sonnet-5"
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
         }
       ]
     },
@@ -468,11 +401,8 @@
           "provider": "codex",
           "model": "gpt-5.6-terra",
           "effort": "medium",
-          "profile_alias": "acct1", "fail_fast_provider_lease": true
-        },
-        {
-          "provider": "claude-direct",
-          "model": "claude-sonnet-5"
+          "profile_alias": "acct1",
+          "fail_fast_provider_lease": true
         }
       ]
     },

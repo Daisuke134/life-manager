@@ -7,6 +7,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=writer-runtime-env.sh
 source "$SCRIPT_DIR/writer-runtime-env.sh"
 ARTICLE_PROVIDER="${ARTICLE_PROVIDER:-codex}"
+[ "$ARTICLE_PROVIDER" = "codex" ] || {
+  echo "article-resume: ARTICLE_PROVIDER must be codex" >&2
+  exit 64
+}
 ARTICLE_PROVIDER_COOLDOWN_SECONDS="300"
 LOG="${ARTICLE_RESUME_LOG:-$WRITER_LOG_DIR/article-resume.log}"
 TELEGRAM_TARGET="${TELEGRAM_TARGET_ID:-${GIG_REPORT_CHAT:-${TELEGRAM_CHAT_ID:-}}}"
@@ -631,7 +635,7 @@ if [ "$PRIORITY_PUBLICATION_READY" -ne 1 ] \
   PROVIDER="${ARTICLE_PROVIDER:-codex}"
   HEALTH_FILE="${ARTICLE_PROVIDER_HEALTH:-$STATE_DIR/provider-health.json}"
   PROVIDER_READY=0
-  for CANDIDATE in $([ "$PROVIDER" = "auto" ] && printf 'codex claude' || printf '%s' "$PROVIDER"); do
+  for CANDIDATE in codex; do
     if python3 "$MODEL_SUPPORT" eligible --file "$HEALTH_FILE" \
       --provider "$CANDIDATE" --mode agent >/dev/null 2>&1; then
       PROVIDER_READY=1
@@ -717,7 +721,7 @@ if [ "$PRIORITY_PUBLICATION_READY" -ne 1 ] \
   PROVIDER="${ARTICLE_PROVIDER:-codex}"
   HEALTH_FILE="${ARTICLE_PROVIDER_HEALTH:-$STATE_DIR/provider-health.json}"
   PROVIDER_READY=0
-  for CANDIDATE in $([ "$PROVIDER" = "auto" ] && printf 'codex claude' || printf '%s' "$PROVIDER"); do
+  for CANDIDATE in codex; do
     if python3 "$MODEL_SUPPORT" eligible --file "$HEALTH_FILE" \
       --provider "$CANDIDATE" --mode agent >/dev/null 2>&1; then
       PROVIDER_READY=1
@@ -810,7 +814,7 @@ if [ "$PRIORITY_PUBLICATION_READY" -ne 1 ] \
   PROVIDER="${ARTICLE_PROVIDER:-codex}"
   HEALTH_FILE="${ARTICLE_PROVIDER_HEALTH:-$STATE_DIR/provider-health.json}"
   PROVIDER_READY=0
-  for CANDIDATE in $([ "$PROVIDER" = "auto" ] && printf 'codex claude' || printf '%s' "$PROVIDER"); do
+  for CANDIDATE in codex; do
     if python3 "$MODEL_SUPPORT" eligible --file "$HEALTH_FILE" \
       --provider "$CANDIDATE" --mode agent >/dev/null 2>&1; then
       PROVIDER_READY=1

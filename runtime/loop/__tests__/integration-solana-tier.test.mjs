@@ -22,6 +22,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { mockCodexRunnerEnv, stopTestLoop } from './helpers/mock-codex-runner-env.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const LOOP_ENTRY = path.resolve(__dirname, '../index.mjs');
@@ -30,10 +31,6 @@ const LOOP_ENTRY = path.resolve(__dirname, '../index.mjs');
 // address SHAPE here; the RPC response is fully mocked below, no real network call is made.
 const SOLANA_ADDR = '8FpqdcCHqjqkVXR58eVJa53neXbJf9emXhvHhgeUPCV9';
 const REAL_BALANCE_USDC = 11.63; // matches behavioral-spec.md's "~$11.63" real balance at spec time
-
-const FREE_MODEL_MARKER = 'TEST-MARKER/broke-tier-model';
-const LEAN_MODEL_MARKER = 'TEST-MARKER/lean-tier-model';
-const FUNDED_MODEL_MARKER = 'TEST-MARKER/funded-tier-model';
 
 function narrateResponse() {
   return JSON.stringify({
@@ -119,11 +116,12 @@ function waitFor(pred, timeoutMs = 15000) {
   });
 }
 
-test('PROP-006/REQ-003: a wake with a real (mocked) Solana balance > $1.00 selects the FUNDED tier — never stays "broke" — WITHOUT ANICCA_BALANCE_OVERRIDE', { timeout: 30000 }, async () => {
+test('PROP-006/REQ-003: a real (mocked) Solana balance selects funded context while the brain remains Codex', { timeout: 30000 }, async () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'anicca-sol-tier-'));
   fs.mkdirSync(path.join(home, 'identity'), { recursive: true });
   fs.writeFileSync(path.join(home, 'identity', 'genesis.md'), '# Anicca\nautonomous agent.\n');
   const wakeLedger = path.join(home, 'state', 'ledger.jsonl');
+  const promptCapture = path.join(home, 'codex-prompt.txt');
 
   const { server: chatServer, url: chatUrl } = await startChatMock();
   const { server: rpcServer, url: rpcUrl } = await startSolanaRpcMock();
@@ -137,15 +135,13 @@ test('PROP-006/REQ-003: a wake with a real (mocked) Solana balance > $1.00 selec
       OPENAI_BASE_URL: chatUrl,
       SOLANA_RPC_URL: rpcUrl,
       // Deliberately ABSENT: ANICCA_BALANCE_OVERRIDE (see file header comment — this is the point).
-      ANICCA_FREE_MODEL: FREE_MODEL_MARKER,
-      ANICCA_LEAN_MODEL: LEAN_MODEL_MARKER,
-      ANICCA_FUNDED_MODEL: FUNDED_MODEL_MARKER,
       LEAN_TIER_THRESHOLD: '1.00',
       SLEEP_BASE_S: '0',
       SLEEP_ERROR_S: '0',
       SLEEP_LOOP_DETECT_S: '0',
       SKILL_TIMEOUT_S: '10',
       LOOP_DETECT_WINDOW: '100',
+      ...mockCodexRunnerEnv({ home, baseUrl: chatUrl, capturePromptPath: promptCapture }),
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -156,15 +152,12 @@ test('PROP-006/REQ-003: a wake with a real (mocked) Solana balance > $1.00 selec
   try {
     await waitFor(() => readJsonl(wakeLedger).some((l) => l.kind === 'narrate'));
     const line = readJsonl(wakeLedger).find((l) => l.kind === 'narrate');
-    assert.ok(line, 'expected at least one narrate-kind wake ledger line');
-    assert.equal(
-      line.model,
-      FUNDED_MODEL_MARKER,
-      `currentTier must be 'funded' (real balance $${REAL_BALANCE_USDC} > $1.00 threshold) — ` +
-      `got model=${line.model} (stderr: ${stderr})`,
-    );
+    assert.ok(line, 'expected at least one Codex no-action decision');
+    assert.equal(line.model, 'gpt-5.6-terra', `brain must stay Codex (stderr: ${stderr})`);
+    assert.match(await fs.promises.readFile(promptCapture, 'utf8'), /Tier: funded/,
+      `balance $${REAL_BALANCE_USDC} should select funded context without changing provider`);
   } finally {
-    try { proc.kill('SIGTERM'); } catch { /* already exited */ }
+    await stopTestLoop(proc);
     chatServer.close();
     rpcServer.close();
   }

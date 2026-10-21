@@ -1,8 +1,8 @@
 """promote_gate_run.py — close-loop Gap 3: the EFFECTFUL driver `promote_gate.sh` invokes.
 
 Confined here (mirrors `lib/promote.py`'s own "subprocess deliberately confined to THIS module"
-convention): everything that talks to a real subprocess (the fresh `claude --model opus` adversary
-call) or performs the actual promotion side effect. The DETERMINISTIC/pure decision logic
+convention): everything that talks to a real subprocess (the fresh Codex adversary call) or
+performs the actual promotion side effect. The DETERMINISTIC/pure decision logic
 (`assess_candidate`/`decide_promotion`/`promote_if_approved`) lives in `lib/promote_gate.py` and is
 unit-tested there (`tests/test_adversary_disapprove.py`) WITHOUT ever spending a real LLM call —
 this module is instead exercised by the one real, human-zero "RUN IT ONCE" proof invocation
@@ -24,6 +24,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from difflib import unified_diff
 from typing import Optional
@@ -47,7 +48,6 @@ ADVERSARY_JSON_SCHEMA = json.dumps(
     }
 )
 
-MAX_BUDGET_USD = "1.00"  # hard $ cap on the single adversary call (paper-only proof, cheap insurance)
 ADVERSARY_TIMEOUT_S = 600
 
 
@@ -88,27 +88,6 @@ def write_realized_gate_escalation(run_dir: str, realized_gate: dict, candidate_
 def _read_text(path: str) -> str:
     with open(path, "r", encoding="utf-8") as f:
         return f.read()
-
-
-_CLAUDE_BIN_DEFAULT = "/opt/homebrew/bin/claude"
-_CLAUDE_BIN_KNOWN_GOOD_PATHS = (
-    # Ordered by observed real-world install location first (2026-07-10 incident: launchd's
-    # minimal PATH doesn't include ~/.local/bin, so `shutil.which("claude")` misses even though
-    # the npm-installed binary is right there — confirmed via `zsh -lc 'type claude'`).
-    os.path.expanduser("~/.local/bin/claude"),
-    _CLAUDE_BIN_DEFAULT,
-    "/usr/local/bin/claude",
-)
-
-
-def _resolve_claude_bin() -> str:
-    on_path = shutil.which("claude")
-    if on_path:
-        return on_path
-    for candidate in _CLAUDE_BIN_KNOWN_GOOD_PATHS:
-        if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
-            return candidate
-    return _CLAUDE_BIN_DEFAULT
 
 
 def _build_prompt(assessment: dict, candidate_code: str, baseline_code: str) -> str:
@@ -168,69 +147,62 @@ file for future backtest runs. Default to FAIL when genuinely uncertain (fail-cl
 
 
 def _invoke_adversary(prompt: str, repo_root: str) -> dict:
-    claude_bin = _resolve_claude_bin()
-    # The prompt is sent via STDIN, never as a trailing positional argument: `--add-dir` takes a
-    # variadic list of directories ("Additional directories...", nargs: variadic), and a bare
-    # positional string placed right after it gets silently swallowed as an extra --add-dir value
-    # instead of being recognized as the prompt (confirmed live: this exact ordering produced
-    # `Error: Input must be provided either through stdin or as a prompt argument` — the CLI saw
-    # zero prompt args left over). Piping via stdin sidesteps the whole ordering question.
-    cmd = [
-        claude_bin,
-        "--model",
-        "opus",
-        "--dangerously-skip-permissions",
-        "--print",
-        "--output-format",
-        "json",
-        "--json-schema",
-        ADVERSARY_JSON_SCHEMA,
-        "--max-budget-usd",
-        MAX_BUDGET_USD,
-        "--add-dir",
-        repo_root,
-    ]
-    # Auth: launchd cannot refresh the subscription OAuth token headlessly (keychain locked;
-    # this class of loop was observed dying rc=1 "OAuth session expired and could not be
-    # refreshed" 2026-07-16/17). Route through the local CLIProxyAPI (:8317) whose creds are
-    # plain files and refresh headlessly; fall back to subscription auth if the key file is absent.
-    env = os.environ.copy()
-    cliproxy_key_path = os.path.expanduser("~/.cli-proxy-api-key")
-    if os.path.exists(cliproxy_key_path):
-        with open(cliproxy_key_path, "r", encoding="utf-8") as f:
-            cliproxy_key = f.read().strip()
-        if cliproxy_key:
-            env["ANTHROPIC_BASE_URL"] = "http://127.0.0.1:8317"
-            env["ANTHROPIC_AUTH_TOKEN"] = cliproxy_key
+    codex_bin = shutil.which("codex")
+    if not codex_bin:
+        return {"ok": False, "error": "Codex CLI is unavailable"}
 
-    try:
-        result = subprocess.run(
-            cmd, cwd=repo_root, input=prompt, capture_output=True, text=True, timeout=ADVERSARY_TIMEOUT_S, env=env
-        )
-    except subprocess.TimeoutExpired:
-        return {"ok": False, "error": f"adversary process timed out after {ADVERSARY_TIMEOUT_S}s"}
-    except FileNotFoundError:
-        return {"ok": False, "error": f"claude binary not found (tried {claude_bin})"}
-
-    if result.returncode != 0:
-        return {"ok": False, "error": f"adversary process exited {result.returncode}: {result.stderr[-2000:]}"}
-
-    try:
-        outer = json.loads(result.stdout)
-    except ValueError:
-        return {"ok": False, "error": f"adversary stdout was not valid JSON: {result.stdout[-2000:]}"}
-
-    structured = outer.get("structured_output")
-    if not isinstance(structured, dict) or "verdict" not in structured:
-        return {"ok": False, "error": f"adversary response missing structured_output.verdict: {outer}"}
-
-    return {
-        "ok": True,
-        "verdict": structured.get("verdict"),
-        "reason": structured.get("reason", ""),
-        "cost_usd": outer.get("total_cost_usd"),
-        "session_id": outer.get("session_id"),
+    env = {
+        key: value for key, value in os.environ.items()
+        if not key.startswith("ANTHROPIC_") and key != "CLAUDE_CODE_OAUTH_TOKEN"
     }
+    try:
+        with tempfile.TemporaryDirectory(prefix="self-improve-codex-") as temporary:
+            schema_path = os.path.join(temporary, "adversary-schema.json")
+            output_path = os.path.join(temporary, "adversary-output.json")
+            with open(schema_path, "w", encoding="utf-8") as schema_file:
+                schema_file.write(ADVERSARY_JSON_SCHEMA)
+            cmd = [
+                codex_bin,
+                "exec",
+                "--ephemeral",
+                "--sandbox",
+                "read-only",
+                "-C",
+                repo_root,
+                "--output-schema",
+                schema_path,
+                "--output-last-message",
+                output_path,
+                "-",
+            ]
+            result = subprocess.run(
+                cmd, cwd=repo_root, input=prompt, capture_output=True, text=True,
+                timeout=ADVERSARY_TIMEOUT_S, env=env,
+            )
+            if result.returncode != 0:
+                return {
+                    "ok": False,
+                    "error": f"Codex adversary exited {result.returncode}: {result.stderr[-2000:]}",
+                }
+            try:
+                structured = json.loads(_read_text(output_path))
+            except (OSError, ValueError):
+                return {"ok": False, "error": "Codex adversary response was missing or invalid JSON"}
+            if (not isinstance(structured, dict)
+                    or structured.get("verdict") not in {"PASS", "FAIL"}
+                    or not isinstance(structured.get("reason"), str)):
+                return {"ok": False, "error": "Codex adversary response did not match the verdict schema"}
+            return {
+                "ok": True,
+                "verdict": structured["verdict"],
+                "reason": structured["reason"],
+                "cost_usd": None,
+                "session_id": None,
+            }
+    except subprocess.TimeoutExpired:
+        return {"ok": False, "error": f"Codex adversary timed out after {ADVERSARY_TIMEOUT_S}s"}
+    except FileNotFoundError:
+        return {"ok": False, "error": f"Codex CLI disappeared after resolving {codex_bin}"}
 
 
 def main(argv: list) -> int:

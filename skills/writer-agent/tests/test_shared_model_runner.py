@@ -113,28 +113,24 @@ sys.exit(1)
         for forbidden in ("CODEX_HOME", "auth.json", "codex exec", "ARTICLE_PROVIDER"):
             self.assertNotIn(forbidden, source)
 
-    def test_legacy_runner_has_no_host_fixed_provider_secret_path(self):
+    def test_legacy_runner_uses_only_the_direct_codex_provider(self):
         source = LEGACY_ENTRY.read_text(encoding="utf-8")
-        self.assertNotIn("/opt/homebrew/etc/cliproxyapi.conf", source)
-        self.assertIn("ARTICLE_CODEX_PROVIDER_API_KEY", source)
-        self.assertIn("ARTICLE_CLIPROXY_CONFIG", source)
-        start = source.index("load_codex_provider_key")
-        self.assertLess(source.index("set +x", start),
-                        source.index('provider_key="${ARTICLE_CODEX_PROVIDER_API_KEY:-}"', start))
+        self.assertIn('CODEX_PROVIDER_ID="${ARTICLE_CODEX_PROVIDER_ID:-openai}"', source)
+        self.assertIn("only the Codex CLI's direct provider is allowed", source)
+        self.assertNotIn("configure_codex_provider", source)
+        self.assertNotIn("load_codex_provider_key", source)
 
-    def test_direct_provider_key_wins_and_never_appears_in_xtrace(self):
+    def test_local_proxy_provider_is_rejected_before_codex_runs(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             prompt = root / "prompt.txt"
             prompt.write_text("portable provider probe")
-            capture = root / "captured-key"
+            called = root / "called"
             fake = root / "codex"
             fake.write_text(
-                '#!/usr/bin/env bash\nprintf %s "$CLIPROXY_API_KEY" > "$CAPTURE_KEY"\ncat >/dev/null\n'
+                '#!/usr/bin/env bash\ntouch "$CALLED"\ncat >/dev/null\n'
             )
             fake.chmod(0o755)
-            config = root / "cliproxy.conf"
-            config.write_text('api-keys:\n  - "file-key-must-lose"\n')
             secret = "direct-key-must-not-appear-in-trace"
             env = {**os.environ,
                    "ARTICLE_PROVIDER": "codex",
@@ -144,31 +140,28 @@ sys.exit(1)
                    "ARTICLE_CODEX_PROVIDER_ENV_KEY": "CLIPROXY_API_KEY",
                    "ARTICLE_CODEX_PROVIDER_API_KEY_SOURCE": "cliproxyapi",
                    "ARTICLE_CODEX_PROVIDER_API_KEY": secret,
-                   "ARTICLE_CLIPROXY_CONFIG": str(config),
-                   "CAPTURE_KEY": str(capture)}
+                   "CALLED": str(called)}
             result = subprocess.run(
                 ["bash", "-x", str(LEGACY_ENTRY), "agent", "--prompt-file", str(prompt)],
                 env=env, capture_output=True, text=True, check=False,
             )
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual(capture.read_text(), secret)
+            self.assertEqual(result.returncode, 64, result.stderr)
+            self.assertFalse(called.exists())
             self.assertNotIn(secret, result.stdout + result.stderr)
-            self.assertNotIn("file-key-must-lose", capture.read_text())
 
-    def test_explicit_provider_config_is_used_when_direct_key_is_absent(self):
+    def test_local_proxy_config_is_rejected_even_when_a_key_file_exists(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             prompt = root / "prompt.txt"
             prompt.write_text("portable provider fallback")
-            capture = root / "captured-key"
+            called = root / "called"
             fake = root / "codex"
             fake.write_text(
-                '#!/usr/bin/env bash\nprintf %s "$CLIPROXY_API_KEY" > "$CAPTURE_KEY"\ncat >/dev/null\n'
+                '#!/usr/bin/env bash\ntouch "$CALLED"\ncat >/dev/null\n'
             )
             fake.chmod(0o755)
             config = root / "cliproxy.conf"
-            secret = "explicit-file-key-must-not-appear-in-trace"
-            config.write_text(f'api-keys:\n  - "{secret}"\n')
+            config.write_text('api-keys:\n  - "fixture-key"\n')
             env = {**os.environ,
                    "ARTICLE_PROVIDER": "codex",
                    "ARTICLE_CODEX_BIN": str(fake),
@@ -177,15 +170,15 @@ sys.exit(1)
                    "ARTICLE_CODEX_PROVIDER_ENV_KEY": "CLIPROXY_API_KEY",
                    "ARTICLE_CODEX_PROVIDER_API_KEY_SOURCE": "cliproxyapi",
                    "ARTICLE_CLIPROXY_CONFIG": str(config),
-                   "CAPTURE_KEY": str(capture)}
+                   "CALLED": str(called)}
             env.pop("ARTICLE_CODEX_PROVIDER_API_KEY", None)
             result = subprocess.run(
                 ["bash", "-x", str(LEGACY_ENTRY), "agent", "--prompt-file", str(prompt)],
                 env=env, capture_output=True, text=True, check=False,
             )
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual(capture.read_text(), secret)
-            self.assertNotIn(secret, result.stdout + result.stderr)
+            self.assertEqual(result.returncode, 64, result.stderr)
+            self.assertFalse(called.exists())
+            self.assertNotIn("fixture-key", result.stdout + result.stderr)
 
     def test_nondefault_provider_fails_closed_without_any_key_source(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -212,7 +205,7 @@ sys.exit(1)
             )
             self.assertNotEqual(result.returncode, 0)
             self.assertFalse(called.exists())
-            self.assertIn("invalid Codex provider configuration", result.stderr)
+            self.assertIn("only the Codex CLI's direct provider is allowed", result.stderr)
 
     def test_production_legacy_entry_delegates_to_canonical_adapter(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -72,7 +72,6 @@ class ApplicationIntentIsolationTest(unittest.TestCase):
                  "fail_fast_provider_lease": True},
                 {"provider": "codex", "model": "gpt-5.6-terra", "effort": "medium", "profile_alias": "acct1",
                  "fail_fast_provider_lease": True},
-                {"provider": "claude-direct", "model": "claude-sonnet-5"},
             ],
         })
 

@@ -89,6 +89,71 @@ class ModelRunnerContractTests(unittest.TestCase):
             self.assertFalse(codex_calls.exists())
             self.assertFalse(claude_calls.exists())
 
+    def test_provider_defaults_to_codex(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            sandbox = Path(temporary)
+            calls = sandbox / "codex-calls.txt"
+            fake_codex = sandbox / "codex"
+            fake_codex.write_text(
+                "#!/usr/bin/env bash\nprintf 'CODEX\\n' >>\"$CODEX_CALLS\"\n"
+                "cat >/dev/null\nprintf 'CODEX-OUTPUT\\n'\n",
+                encoding="utf-8",
+            )
+            fake_codex.chmod(0o755)
+            prompt = sandbox / "prompt.txt"
+            prompt.write_text("use the default provider", encoding="utf-8")
+            environment = self.make_environment(sandbox, fake_codex)
+            environment.pop("ARTICLE_PROVIDER")
+            environment.update({
+                "ARTICLE_RUN_ID": "codex-default-provider-contract",
+                "CODEX_CALLS": str(calls),
+            })
+
+            result = subprocess.run(
+                [str(RUNNER), "agent", "--prompt-file", str(prompt)],
+                env=environment,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(calls.read_text(encoding="utf-8"), "CODEX\n")
+
+    def test_non_codex_provider_is_rejected_before_any_model_process(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            sandbox = Path(temporary)
+            claude_calls = sandbox / "claude-calls.txt"
+            fake_codex = sandbox / "codex"
+            fake_claude = sandbox / "claude"
+            fake_codex.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+            fake_claude.write_text(
+                "#!/usr/bin/env bash\nprintf 'CLAUDE\\n' >>\"$CLAUDE_CALLS\"\n",
+                encoding="utf-8",
+            )
+            fake_codex.chmod(0o755)
+            fake_claude.chmod(0o755)
+            prompt = sandbox / "prompt.txt"
+            prompt.write_text("must fail closed", encoding="utf-8")
+            environment = self.make_environment(sandbox, fake_codex)
+            environment.update({
+                "ARTICLE_PROVIDER": "claude",
+                "ARTICLE_CLAUDE_BIN": str(fake_claude),
+                "ARTICLE_RUN_ID": "codex-only-reject-contract",
+                "CLAUDE_CALLS": str(claude_calls),
+            })
+
+            result = subprocess.run(
+                [str(RUNNER), "agent", "--prompt-file", str(prompt)],
+                env=environment,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 64, result.stderr)
+            self.assertFalse(claude_calls.exists())
+
     def test_retryable_default_cooldown_is_five_minutes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             sandbox = Path(temporary)
@@ -314,13 +379,62 @@ class ModelRunnerContractTests(unittest.TestCase):
     def test_agent_mode_still_has_no_event_stream_so_repair_needs_its_own_mode(
         self,
     ) -> None:
-        """The C1 session surface is deliberately off for `agent`, which is why
-        H2 is a fourth mode rather than a widening of an existing one."""
+        """The C1 session surface stays off for `agent`; repair remains separate."""
         with tempfile.TemporaryDirectory() as temporary:
             sandbox = Path(temporary)
             args = self._capture(sandbox, "agent", session=True)
             self.assertNotIn("--json", args)
             self.assertIn("--ephemeral", args)
+
+    def test_agent_workspace_mode_is_confined_to_its_run_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            sandbox = Path(temporary)
+            workspace = sandbox / "run"
+            workspace.mkdir()
+            args_path = sandbox / "args.txt"
+            fake_codex = sandbox / "codex"
+            fake_codex.write_text(
+                "#!/usr/bin/env bash\nprintf '%s\\n' \"$@\" >\"$CAPTURE_ARGS\"\n"
+                "cat >/dev/null\nprintf 'DONE\\n'\n",
+                encoding="utf-8",
+            )
+            fake_codex.chmod(0o755)
+            prompt = sandbox / "prompt.txt"
+            prompt.write_text("draft only", encoding="utf-8")
+            environment = self.make_environment(sandbox, fake_codex)
+            environment.update({
+                "ARTICLE_RUN_ID": "isolated-agent-contract",
+                "ARTICLE_RUN_DIR": str(workspace),
+                "CAPTURE_ARGS": str(args_path),
+                "ARTICLE_CODEX_NO_TOOLS": "1",
+                "ARTICLE_CODEX_OUTPUT_FILE": str(workspace / "draft-response.json"),
+                "ARTICLE_CODEX_OUTPUT_SCHEMA": str(sandbox / "schema.json"),
+                "CODEX_SESSION_MODE": "0",
+            })
+            (sandbox / "schema.json").write_text("{}", encoding="utf-8")
+
+            result = subprocess.run(
+                [str(RUNNER), "agent-workspace", "--prompt-file", str(prompt)],
+                env=environment,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            args = args_path.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(args[args.index("--sandbox") + 1], "read-only")
+            self.assertEqual(args[args.index("-C") + 1], str(workspace))
+            self.assertEqual(
+                [args[i + 1] for i, value in enumerate(args[:-1]) if value == "--disable"],
+                ["shell_tool", "code_mode_host", "unified_exec"],
+            )
+            self.assertEqual(args[args.index("--output-schema") + 1],
+                             str(sandbox / "schema.json"))
+            self.assertEqual(args[args.index("-o") + 1],
+                             str(workspace / "draft-response.json"))
+            self.assertNotIn("--add-dir", args)
+            self.assertNotIn("--dangerously-bypass-approvals-and-sandbox", args)
 
     def test_sol_rejects_missing_invalid_or_wrong_run_receipt(self) -> None:
         cases = (

@@ -31,7 +31,7 @@ import { fetchUsdcBalance } from './balance.mjs';
 import { fetchNetWorth, resolveInstanceWallets } from '../../skills/earn/lib/net-worth.mjs';
 import { assembleContext } from './context.mjs';
 import { selfEval } from './self-eval.mjs';
-import { getBrainFallback, think } from './brain.mjs';
+import { getBrainFallback, stopActiveCodexRunners, think } from './brain.mjs';
 import { parseToolCall } from './parse-tool-call.mjs';
 import { resolveSkillPath } from './run-skill.mjs';
 import { isEarnSlot, earnStrategyFor } from './earn-slot.mjs';
@@ -318,7 +318,7 @@ async function resolveAlwaysActGate() {
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
-let currentTier = { tier: 'broke', model: config.ANICCA_FREE_MODEL || 'free/gpt-oss-120b' };
+let currentTier = selectTier(0, config);
 let recentActions = [];
 // When a loop is detected, the repeated slot is parked here and FORBIDDEN on the next wake (then cleared
 // once the model picks something else) — this is what actually breaks the cook/x402 spin (Dais 2026-06-22).
@@ -347,6 +347,8 @@ process.on('SIGTERM', async () => {
     // Give child up to 5s to die
     await new Promise(r => setTimeout(r, 5000));
   }
+
+  await stopActiveCodexRunners();
 
   const wakeId = ulid();
   const record = formatRecord({
@@ -1001,7 +1003,7 @@ async function writeWakeErrorAndSleep({ wakeId, ts, err }) {
   });
   await safeAppend(LEDGER_PATH, record);
   // R6: err.message is NOT already redacted anywhere upstream (raw HTTP-response body/subprocess-
-  // stderr text from brain.mjs's thinkProxy/thinkClaudeP/httpPost) — this is the ONE new
+  // stderr text from brain.mjs's HTTP proxy transport) — this is the ONE new
   // redactPrivateKeyPatterns call site this feature introduces, before any further processing.
   await appendHarnessFailure({
     ts, wakeId, kind: 'wake_error', layer: 'brain_transport', exitCode: null,

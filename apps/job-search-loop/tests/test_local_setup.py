@@ -127,7 +127,7 @@ class LocalSetupTests(unittest.TestCase):
         self.assertNotIn("token", encoded.lower())
         self.assertNotIn("/Users/anicca", encoded)
 
-    def test_auto_falls_through_to_authenticated_claude(self):
+    def test_auto_does_not_fall_through_to_authenticated_claude(self):
         self._write_executable("codex", "exit 1")
         self._write_executable(
             "claude",
@@ -137,8 +137,11 @@ class LocalSetupTests(unittest.TestCase):
 
         result = self._run("--provider", "auto", "--scheduler", "none")
 
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(json.loads(result.stdout)["provider"], "claude-direct")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn("claude-direct", result.stdout)
+        self.assertFalse(
+            (self.config / "anicca" / "job-search" / "profile.json").exists()
+        )
 
     def test_explicit_provider_fails_closed_when_auth_is_missing(self):
         self._write_executable("codex", "exit 1")

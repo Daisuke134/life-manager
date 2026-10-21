@@ -10,7 +10,6 @@
 import fs from "fs";
 import bs58 from "bs58";
 import nacl from "tweetnacl";
-import { normalizeModelSelection } from "../compute-proxy/model-map.mjs";
 
 // franklin2-daemon-identity impl-review iteration-1 FIND-001 fix: the dashboard `host` label must
 // derive from ANICCA_INSTANCE so franklin2 (and future franklin3, franklin10, …) are distinguishable
@@ -91,12 +90,7 @@ function burnToday() {
   } catch { return 0; }
 }
 
-// Derive the dashboard label through the same normalizer as the repository proxy. ANICCA_MODEL is
-// the loop's highest-precedence request model; without an override every current tier uses free/glm.
-const FRANKLIN_MODEL = normalizeModelSelection(
-  process.env.ANICCA_MODEL || "free/glm-4.7",
-  process.env.ANICCA_FRONTIER_MODEL || "anthropic/claude-sonnet-4-6",
-);
+const FRANKLIN_MODEL = { model: "gpt-5.6-terra", tier: "codex" };
 const HOST_LABEL = instanceHostLabel(process.env.ANICCA_INSTANCE);
 
 async function post() {
@@ -105,7 +99,7 @@ async function post() {
   const burn_day_usd = +burnToday().toFixed(6);
   const payload = {
     id: address, ts: Math.floor(Date.now() / 1000), host: HOST_LABEL, geo: "JP", chain: "solana",
-    funding: "self", env: "local", brain: "proxy",
+    funding: "self", env: "local", brain: "codex",
     model_live: FRANKLIN_MODEL.model, model_tier: FRANKLIN_MODEL.tier,
     net_worth_usd, revenue_mo_usd: 0, revenue_by_source: {}, log: activityLog(),
     burn_day_usd, runway_days: 999, status: "alive",

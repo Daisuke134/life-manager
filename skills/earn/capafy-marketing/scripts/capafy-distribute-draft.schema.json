@@ -1,0 +1,9 @@
+{
+  "type": "object",
+  "properties": {
+    "article_markdown": {"type": "string", "minLength": 500},
+    "x_caption": {"type": "string", "minLength": 30}
+  },
+  "required": ["article_markdown", "x_caption"],
+  "additionalProperties": false
+}

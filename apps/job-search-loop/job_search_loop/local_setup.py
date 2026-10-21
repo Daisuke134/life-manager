@@ -13,7 +13,7 @@ from typing import Any
 from .config import ConfigError, validate_profile
 
 
-PROVIDERS = ("codex", "claude-direct")
+PROVIDERS = ("codex",)
 SCHEDULERS = ("auto", "launchd", "systemd", "none")
 
 
@@ -46,8 +46,6 @@ def resolve_roots(env: dict[str, str]) -> dict[str, Path]:
 def _provider_command(provider: str, executable: str) -> list[str]:
     if provider == "codex":
         return [executable, "login", "status"]
-    if provider == "claude-direct":
-        return [executable, "auth", "status"]
     raise SetupError(f"unsupported provider: {provider}")
 
 
@@ -57,8 +55,7 @@ def provider_authenticated(
     env: dict[str, str],
     timeout_seconds: int = 15,
 ) -> bool:
-    executable_name = "claude" if provider == "claude-direct" else provider
-    executable = shutil.which(executable_name, path=env.get("PATH"))
+    executable = shutil.which(provider, path=env.get("PATH"))
     if executable is None:
         return False
     try:
@@ -74,23 +71,17 @@ def provider_authenticated(
         return False
     if completed.returncode != 0:
         return False
-    if provider == "claude-direct":
-        try:
-            status = json.loads(completed.stdout)
-        except json.JSONDecodeError:
-            return False
-        return status.get("loggedIn") is True
     return True
 
 
 def select_provider(requested: str, *, env: dict[str, str]) -> str:
+    if requested not in {"auto", "codex"}:
+        raise SetupError("provider must be codex or auto")
     candidates = PROVIDERS if requested == "auto" else (requested,)
     for provider in candidates:
         if provider_authenticated(provider, env=env):
             return provider
-    raise SetupError(
-        "no authenticated provider found; run `codex login` or `claude auth login`"
-    )
+    raise SetupError("no authenticated provider found for Codex; run `codex login`")
 
 
 def resolve_scheduler(requested: str, *, system: str | None = None) -> str:

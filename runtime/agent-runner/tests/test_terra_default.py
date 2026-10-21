@@ -47,7 +47,6 @@ class TerraDefaultTest(unittest.TestCase):
                     expected = [
                         {"provider": "codex", "model": "gpt-5.6-luna", "effort": "high", "profile_alias": "acct1"},
                         {"provider": "codex", "model": "gpt-5.6-terra", "effort": "medium", "profile_alias": "acct1"},
-                        {"provider": "claude-direct", "model": "claude-sonnet-5"},
                     ]
                 if name == "reply-semantic-agent":
                     expected = [{"provider": "codex", "model": "gpt-5.6-luna",
@@ -108,9 +107,8 @@ class TerraDefaultTest(unittest.TestCase):
                         "effort": "max", "service_tier": "fast",
                         "profile_alias": "acct1", "fail_fast_provider_lease": True,
                     }]
-                # 2026-10-08: short loop calls must not queue behind a long acct1 run.
-                # 2026-10-09: the same holds for every class with a claude-direct fallback behind
-                # its codex candidate; waiting silently on a busy acct1 lock killed Capafy CP1.
+                # Short loop calls must not queue behind a long acct1 run; Codex-only routes fail
+                # closed and let their owner cadence retry when both profiles are occupied.
                 if name in {"composition-agent", "marketing-agent", "browser-lane-agent",
                             "reply-semantic-agent", "storefront-proposal-agent", "repeatable-agent",
                             "tool-agent", "application-lane-agent", "application-intent-planner",
@@ -118,18 +116,6 @@ class TerraDefaultTest(unittest.TestCase):
                             "writer-repair-agent"}:
                     expected = [dict(e, fail_fast_provider_lease=True) if e["provider"] == "codex" else e
                                 for e in expected]
-                # Paid and explicit escalation stay Codex-only. Other executable
-                # classes retain their existing cross-provider fallback contract.
-                fallback = {"provider": "claude-direct", "model": "claude-sonnet-5"}
-                if name not in {
-                    "paid-owner-agent", "paid-decision-agent", "escalation-agent", "codex-brain-agent",
-                    "treg-lead-signals-agent",
-                    "affiliate-marketing-agent", "affiliate-escalation-agent",
-                    "self-heal-code-agent", "self-fix-code-agent",
-                    "connector-agent", "job-hunter-agent", "workday-browser-agent",
-                    "fundraiser-agent",
-                } and fallback not in expected:
-                    expected.append(fallback)
                 self.assertEqual(candidates, expected)
 
     def test_paid_decision_route_fails_fast_to_the_next_codex_profile(self):

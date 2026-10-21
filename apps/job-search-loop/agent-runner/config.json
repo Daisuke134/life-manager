@@ -9,37 +9,36 @@
       "auth_file": "~/.config/anicca/job-search/codex-auth.json",
       "ssl_cert_file": "/etc/ssl/cert.pem",
       "project_doc_max_bytes": 0,
-      "disabled_skills": ["imagegen", "openai-docs", "plugin-creator", "skill-creator", "skill-installer"],
-      "disabled_features": ["apps", "auth_elicitation", "code_mode_host", "goals", "hooks", "image_generation", "multi_agent", "plugins", "remote_plugin", "tool_call_mcp_elicitation", "tool_suggest", "workspace_dependencies"],
-      "capabilities": {"structured_json": true, "tools": true, "browser": true},
-      "cost_tier": "subscription",
-      "quota": {"source": "provider"}
-    },
-    "openclaw": {
-      "executable": "openclaw",
-      "agent": "life-manager",
-      "capabilities": {"structured_json": true, "tools": true, "browser": true},
-      "model_capabilities": {
-        "openai/gpt-5.4": {"tool_write": true}
+      "disabled_skills": [
+        "imagegen",
+        "openai-docs",
+        "plugin-creator",
+        "skill-creator",
+        "skill-installer"
+      ],
+      "disabled_features": [
+        "apps",
+        "auth_elicitation",
+        "code_mode_host",
+        "goals",
+        "hooks",
+        "image_generation",
+        "multi_agent",
+        "plugins",
+        "remote_plugin",
+        "tool_call_mcp_elicitation",
+        "tool_suggest",
+        "workspace_dependencies"
+      ],
+      "capabilities": {
+        "structured_json": true,
+        "tools": true,
+        "browser": true
       },
-      "cost_tier": "free-fallback",
-      "quota": {"source": "provider"}
-    },
-    "claude": {
-      "executable": "claude",
-      "executable_fallbacks": ["~/.local/bin/claude"],
-      "base_url": "http://127.0.0.1:8317",
-      "auth_token_file": "~/.cli-proxy-api-key",
-      "capabilities": {"structured_json": true, "tools": true, "browser": true},
       "cost_tier": "subscription",
-      "quota": {"source": "provider"}
-    },
-    "claude-direct": {
-      "executable": "claude",
-      "executable_fallbacks": ["~/.local/bin/claude"],
-      "capabilities": {"structured_json": true, "tools": true, "browser": true},
-      "cost_tier": "subscription",
-      "quota": {"source": "provider"}
+      "quota": {
+        "source": "provider"
+      }
     }
   },
   "candidate_profiles": {},
@@ -52,7 +51,11 @@
       "route": "terra-medium-bounded",
       "token_reservation": 16384,
       "candidates": [
-        {"provider": "codex", "model": "gpt-5.6-terra", "effort": "medium"}
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-terra",
+          "effort": "medium"
+        }
       ]
     },
     "storefront-proposal-agent": {
@@ -60,7 +63,11 @@
       "token_reservation": 16384,
       "timeout_seconds": 180,
       "candidates": [
-        {"provider": "codex", "model": "gpt-5.6-terra", "effort": "medium"}
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-terra",
+          "effort": "medium"
+        }
       ]
     },
     "repeatable-agent": {
@@ -68,7 +75,11 @@
       "token_reservation": 32768,
       "timeout_seconds": 90,
       "candidates": [
-        {"provider": "codex", "model": "gpt-5.6-terra", "effort": "medium"}
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-terra",
+          "effort": "medium"
+        }
       ]
     },
     "tool-agent": {
@@ -76,7 +87,11 @@
       "token_reservation": 24576,
       "timeout_seconds": 180,
       "candidates": [
-        {"provider": "codex", "model": "gpt-5.6-terra", "effort": "medium"}
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-terra",
+          "effort": "medium"
+        }
       ]
     },
     "browser-lane-agent": {
@@ -86,7 +101,11 @@
       "_timeout_note": "Split from tool-agent 2026-07-27. The two jobs want opposite bounds: the reality auditor must stay short (180s) so it cannot itself become the stall, while the browser lanes need minutes. Measured on the apply lane: attempt-01 ran 174s against Coconala and was killed as transient_timeout with 289KB of progress already on stdout. Delivery, at 900s, completed; applications, at 180s, ran five times in a week. Scanning postings, opening each and writing a proposal is minutes of browser work, so the old cap made the lane structurally unable to finish. Same 900s as high-value-agent.",
       "timeout_seconds": 1800,
       "candidates": [
-        {"provider": "codex", "model": "gpt-5.6-luna", "effort": "xhigh"}
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-luna",
+          "effort": "xhigh"
+        }
       ]
     },
     "application-lane-agent": {
@@ -95,7 +114,11 @@
       "_timeout_note": "B2-only route. Measured 2026-07-29: newest plus 27 category sources plus keyword/pagination had traversed only the first category after three minutes. The shared 900s browser bound contradicts the exhaustive-search completion contract. One hour remains below the launcher's 7200s runaway guard while allowing the money-entry lane to search before it returns.",
       "timeout_seconds": 3600,
       "candidates": [
-        {"provider": "codex", "model": "gpt-5.6-terra", "effort": "medium"}
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-terra",
+          "effort": "medium"
+        }
       ]
     },
     "application-intent-planner": {
@@ -104,8 +127,16 @@
       "token_reservation": 24576,
       "timeout_seconds": 420,
       "candidates": [
-        {"provider": "codex", "model": "gpt-5.6-luna", "effort": "high"},
-        {"provider": "codex", "model": "gpt-5.6-terra", "effort": "medium"}
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-luna",
+          "effort": "high"
+        },
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-terra",
+          "effort": "medium"
+        }
       ]
     },
     "diagnostic-agent": {
@@ -113,7 +144,11 @@
       "token_reservation": 32768,
       "timeout_seconds": 120,
       "candidates": [
-        {"provider": "codex", "model": "gpt-5.6-terra", "effort": "medium"}
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-terra",
+          "effort": "medium"
+        }
       ]
     },
     "marketing-agent": {
@@ -121,7 +156,11 @@
       "token_reservation": 49152,
       "timeout_seconds": 900,
       "candidates": [
-        {"provider": "codex", "model": "gpt-5.6-terra", "effort": "medium"}
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-terra",
+          "effort": "medium"
+        }
       ]
     },
     "high-value-agent": {
@@ -129,7 +168,11 @@
       "token_reservation": 65536,
       "timeout_seconds": 900,
       "candidates": [
-        {"provider": "codex", "model": "gpt-5.6-terra", "effort": "medium"}
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-terra",
+          "effort": "medium"
+        }
       ]
     },
     "escalation-agent": {
@@ -138,7 +181,11 @@
       "token_reservation": 65536,
       "timeout_seconds": 900,
       "candidates": [
-        {"provider": "codex", "model": "gpt-5.6-terra", "effort": "medium"}
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-terra",
+          "effort": "medium"
+        }
       ]
     }
   }
