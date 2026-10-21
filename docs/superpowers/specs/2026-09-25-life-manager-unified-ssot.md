@@ -22272,6 +22272,43 @@ The Capafy source is merged and adopted; the revenue result remains unknown unti
 | 7 | Replace `skills/report/daily-nl-report.mjs::llmReport` local proxy with Codex while preserving truth-only output. | Last. DONE: all internal pipeline inference routes use Codex; no Claude or alternate-model route remains. |
 
 The 06:49 admission defer is expected fence behavior, not a successful distribution. Source repair is merged, but production adoption, publication, attributed revenue, and the all-pipelines Codex-only invariant are not yet complete.
+
+### Capafy shared-Postiz collision and pre-provider fence repair — 2026-10-21 07:25 UTC
+
+**Current policy:** all internal pipeline inference uses Codex only; Claude is not a route. The Capafy prompt-order source fix remains merged, but the production owner is still loaded on `70c93940bc712261f3dd01aa9556b467b1481539`.
+
+**Effect evidence:** exact occurrence `capafy-distribute-daily:18e077fbebd96ce8-96969` started at `06:36:15.594033Z` and failed at `06:36:20.522605Z` with `entrypoint_exit_1`, `failure_layer=entrypoint`, and `line 237: CRAFT_GUIDANCE: unbound variable`; provider receipt and official readback are null. Its immutable release expands the unquoted heredoc before Codex invocation, article publish, or X publish. The run directory contains only a zero-byte `prompt.txt`; for `youtube-outro-script`, the optional image helper returns before Postiz upload. The expected article URL currently returns 404, and official GitHub listing has no landing commit for the occurrence window.
+
+**Shared integration collision:** official Postiz listing contains one `PUBLISHED` X post `cmvhqvaid0429oh0ywbv95g8r` / native status `2112796610917003351` at `06:41Z` in the same integration window. Its visible copy concerns an eBook case study, contains neither `youtube-outro-script` nor an Anicca blog URL, and the Postiz identity row has `product_id=null` because the integration is unmapped in the account registry. No local receipt maps this post to a loop. Current `read_x_posts` treats every same-integration post as a possible Capafy effect, so the exact occurrence remains fenced despite the pre-provider failure. The `07:19:10Z` natural wake also deferred with exit 75 and did not publish.
+
+**Fix scope:** add an exact, occurrence-bound pre-provider proof for this release/error and exclude only Postiz ID `cmvhqvaid0429oh0ywbv95g8r` when reconciling this occurrence. Require distinct start/failure event IDs. Before resolving, persist a content-addressed private snapshot of the exact GitHub/Postiz window results and include its path and SHA256 in `official_readback_ref` and `evidence_refs`. Keep the full 5100-second no-effect window and hold behavior for any other X post, matching landing commit, readback failure, wrong release/error, duplicate/malformed event, or snapshot-write failure. Do not generalize this exclusion to later occurrences.
+
+**Revenue:** newest saved seller snapshot remains `05:07:40Z` with 7-day gross/net `$0`, paid/trial split unavailable, and true MRR unknown. No new attributed order is confirmed.
+
+**Ordered atomic TODO; current cursor = 1:**
+
+| # | Next action | Dependency and DONE evidence |
+|---|---|---|
+| 1 | Add a failing regression for the exact pre-provider failure and exact unrelated Postiz ID; implement the narrow resolver proof and preserve unknown-post holds. | Current cursor. DONE: exact evidence plus a complete old window excludes only that ID; every wrong SHA/error, other post, landing commit, young window, or readback failure stays held/effected. |
+| 2 | At/after `08:01:20.522605Z`, run complete official GitHub/Postiz reconciliation for `18e077fbebd96ce8-96969`. | Depends on #1. DONE: exact admission row closes from the new proof; no replay. |
+| 3 | Cut an immutable release from then-current main (checkpoint base `1ea73f18`) with release pruning disabled and `~/loops/current` unchanged; after #2 closes, apply only Capafy with `--loaded-idle-only`. | Depends on #2. DONE: Capafy loaded argv points to the fixed Codex release; unrelated browser owner is unchanged. |
+| 4 | Observe the next natural Capafy distribution and reconcile its exact article, GitHub, Postiz, occurrence, and duplicate receipts. | Depends on #3. DONE: one natural occurrence joins all receipts with duplicate count zero. |
+| 5 | Refresh source-to-paid data for the same observation window, then run one measured distribution experiment chosen from conversion evidence. | Depends on #4. Revenue DONE requires an official attributed paid order and observed economics. |
+| 6 | Move x402 `the402-worker-daemon.mjs::runLocalModel` from Mistral/Qwen proxy to Codex; preserve paid markdown contract and pass `node --test skills/earn/x402-sell/__tests__/*.test.mjs`. | After #5. DONE: no alternate inference fallback remains. |
+| 7 | Move Polymarket `pick.py` from BlockRun to Codex while preserving decision fields/gates and historical evaluation. | Depends on #6. Keep live adoption behind `pm-live-trade:18d61d6a6df63248-48979`. |
+| 8 | Move daily report `llmReport` from local proxy to Codex and preserve truth-only output. | Last. DONE: no internal pipeline inference route uses Claude or another model. |
+
+This checkpoint does not claim a Capafy no-effect resolution, production adoption, publication, or revenue. The current fence remains active until the exact reconciler fix and official window readback complete.
+
+### Capafy reconciler verification update — 2026-10-21 07:44 UTC
+
+The source implementation now preserves the raw Postiz rows returned for the target integration in the private content-addressed snapshot, verifies that their IDs match the classified rows, fsyncs both the snapshot file and its parent directory, and only then calls the admission resolver. The exact-ID exception checks both ordinary `posts` and `preexisting_posts`; any other integration post, duplicate/malformed row, landing commit, failed readback, insufficient age, or snapshot failure remains held.
+
+The first fresh Codex adversarial review reproduced one gap: an unrelated post classified under `preexisting_posts` could be ignored by the exception. A regression failed before the fix and passes after checking all integration-post IDs. A second fresh Codex read-only adversarial verification found no remaining local source blocker. The full Capafy test suite passes **396 tests and 18 subtests**; `git diff --check` passes. This is local source evidence only; it does not establish current provider window state, admission closure, production adoption, publication, or revenue.
+
+The required `lm-loop doctor` readback still reports the already-known unrelated unmanaged label `ai.anicca.provision-browser.tiktok.hooklab`; preserve the other owner and apply only Capafy as documented in the earlier runtime checkpoint. The loop contract gate passes with 18 catalog loops, 191 registry jobs, and no errors; the Node loop-adapter test passes 15/15.
+
+**Current cursor = 1:** rebase the dedicated source/spec branch onto current main, push, open the source PR, pass exact-head acceptance and required CI, then merge. After merge, at or after `08:01:20.522605Z`, perform a fresh official GitHub/Postiz reconciliation for `capafy-distribute-daily:18e077fbebd96ce8-96969`; resolve only if the full 5100-second window is complete and the only integration post is the exact known ID. Do not replay it. Then cut a main-derived immutable release and apply only the Capafy owner, observe one natural distribution with joined article/Postiz receipts and zero duplicates, and measure attributed paid revenue before selecting the next distribution experiment. The remaining x402 Mistral/Qwen proxy, Polymarket BlockRun, and daily-report local-proxy migrations stay in order and move to Codex; Claude is not used by any pipeline.
 ### eBook distribution update: free articles, AI monk field study, and X — 2026-10-21
 
 **目的・範囲:** 既存の英語eBook記事4本を決済なしで全文公開し、Yang Munを主対象にAI monk/monk-themed short-formの事例と台本構造を追加調査してAniccaの無料ブログ記事にする。独自のX告知も行い、Life Managerの公開コードと計測へつなぐ。調査は公開情報と公式埋め込みを使い、他者の台本・動画ファイル・声・顔・作品を複製・再配布せず、自己申告と独立確認を分ける。
