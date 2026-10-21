@@ -21290,7 +21290,7 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 
 **Maritime 残TODOの現在地:** 主cursor=T22.1b.6-18（CFO receipt IO）。PR #8452は全13 checks成功・fresh review指摘0でmain `a0d217d0769db2dab68bb8a8a452bfaea916fe9d`へ統合。ZIP 91,658,636 bytes/archive SHA-256 `678cafe1261291e0fc9606c8531b70fd64816284dd73f8d8c1fd50dc41f372ee`はHTTP200/customでupload済み、既存agentのみredeployしdeployment success・health/source hashes一致。read-only probeはUID/GID10001・caps0・NoNewPrivs・credential非継承・fixed browser/CDP/DOM/cleanup pass。offline occurrenceはcompleted/exit0、receipt3 refsと追加4 filesのhash一致、listing linter pass。これは非公開draftでexternal user 0、売上/公開/入金なし。billingはFree・next charge $0、subscription/payment変更なし。Runtime PG schema/store/persistence/consent atoms b.6-01〜17完了、b.6-18以降のCFO IO/handler/report/PKCEは未完。作品の正式提出は`not_submitted`、project form/初週の正確な締切は未確認。したがってTop30進出・winner・San Francisco渡航は確定していない。旅行terms→`docs/distribution/maritime/week1/requirements.json`。配布は既存`aniccaai.com/blog/manager`のSEO記事＋既存Postiz Xを初期方針とし、Instagram/new accountは使わない。article/post/公開URLは未完。
 
-**As-Is → To-Be:** As-Isは、既存VMにoffline factory draftが一件あり、Runtime PGのsource schemaはb.6-01〜06まで通った状態。一般利用者向け登録→自律仕事→成果確認→日次メール→停止の一連動作、公開URL、外部利用者、正式作品提出は未成立。To-Beは、メール確認後にManager自身が仕事を選び実行し、証拠と結果をメール報告するCloud製品。利用者に目標/予算を設定させず、Telegramを必須にしない。初週は動く製品を提出してTop30進出を目指し、6週間では実利用のある別々の1,000人を公式project usageで検証する。現在はどちらの達成も確認できない。
+**As-Is → To-Be:** As-Isは、既存Maritime agentで未公開のoffline業務draftを一件作成し、3 receipt artifactと4追加fileのhashを確認した状態。external users=0、provider receipt=0、公開/販売/入金は未確認。Runtime PGのManager schema/store/identity/first-touch/event/consent atoms b.6-01〜17は専用feature branch上で完了したが、main統合・本番DB反映・public runtime adoptionは未完。一般利用者向け登録→自律仕事→成果確認/download→日次email→停止、公開URL、正式作品提出は未成立。To-Beは、メール確認後にManager自身が仕事を選び実行し、証拠と結果をメール報告するCloud製品。利用者に目標/予算を設定させず、Telegramを必須にしない。初週は動く製品を提出してTop30進出を目指し、6週間では実利用のある別々の1,000人を公式project usageで検証する。現在はどちらの達成も確認できない。
 
 | 残ID | 一つずつ実行する範囲 | 状態 |
 |---|---|---|
@@ -21318,10 +21318,10 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 | b.6-25〜27 | 既存DBへの反映、loaded設定照合、flag/cap有効化 | 未着手 |
 | b.6-28〜34 | 実PKCE・起動・仕事/download・日報・停止・計測・packet更新 | 未着手 |
 | T30.1〜4 | Daisへの稼働URLメール一回送信とreadback | 未完 |
-| T24〜26 | 既存blog SEO brief/X copy、実URL、実画面demo、公開readback | strategy/cases更新済み。article/post/demo/public route未完 |
+| T24〜26 | 既存blog SEO brief/X copy、実URL、実画面demo、公開readback | 既存WriterでSEO記事1本を先行し、全社/build-in-public用の既存Postiz Xで1投稿。URL/demo未確認のため記事・投稿・公開routeは未完 |
 | T23 | 正式経路/締切/field確認、一回提出、受付readback | 未完、正式form/初週時刻は未公表 |
 | T08/T09/T10 | 同tenantのCapafy認証・正規publish・公式売上collector→workerへの接続 | 本番の販売/売上は未確認 |
-| T27〜29 | SEO blog→既存X→実利用/再利用/cap段階拡大 | 未完、外部利用者0。初期waveでInstagramは使わない |
+| T27〜29 | SEO blog→既存X→実利用/再利用/cap段階拡大 | 未完、外部利用者0。source→verified signup→初回完了→returnで勝ち筋を測ってから既存の適合channelへ拡張する。他product用の既存accountへ混載せず、新規Instagram等のaccountも作らない |
 | T31.1〜9 | Calendar/Supabase直結の既存課金をManagerへ分離接続し、公式売上/純利益を確認 | 未完 |
 
 各IDの対象file・method・操作・完了条件はAtomic Planのb.6と既存T節が所有する。enableはPG/Auth読取確認後・実製品受入前に行う。友人の参加待ちを開発/素材制作へ戻さず、初週提出に不要な人数・売上・7日継続・1,000人を受付条件として発明しない。

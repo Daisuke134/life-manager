@@ -1,11 +1,11 @@
 {
-  "observed_at": "2026-10-21T00:45:08Z",
+  "observed_at": "2026-10-21T01:26:02Z",
   "program": "Keiki x Maritime The First 1000",
   "official_start_date": "2026-10-20",
   "competition_deadline": "2026-12-01T23:59:00-08:00",
   "competition_timezone": "America/Los_Angeles",
   "first_week_deadline": null,
-  "first_week_deadline_reason": "The previously verified kickoff email says product build by end of week one but gives no exact date/time/timezone. Current Program Terms (last updated 2026-10-15) still publish no week-1 cutoff; latest visible #competition-announcements UI showed setup messages and a loading indicator.",
+  "first_week_deadline_reason": "The 2026-10-19 kickoff email says the product should be built by the end of week one and real users are a bonus, but gives no exact date/time/timezone. Program Terms last updated 2026-10-15 set the common window to 2026-10-20 through 2026-12-01 23:59 Pacific and publish no week-1 cutoff. The last verified announcements read at 2026-10-21T00:17Z still showed a loading indicator.",
   "submission_url": null,
   "submission_url_reason": "Official website has an application form, which is already accepted. Current #competition-submissions description says share entry/demo there but explicitly says a post does not replace any required submission form; no project form URL was visible in refreshed sources.",
   "required_fields": null,
@@ -58,8 +58,8 @@
     "latest_observation": "Refreshed 2026-10-21: no newer week-1 deadline or required project form was visible; announcements page remained loading, so its current posts were not fully read. Submission channel caveat remains."
   },
   "submission_status": "not_submitted",
-  "mail_checked_at": "2026-10-21T00:45:08Z",
-  "official_instruction_email_unchanged": null,
+  "mail_checked_at": "2026-10-21T01:26:02Z",
+  "official_instruction_email_unchanged": true,
   "participant_access": {
     "source_subject": "You're in! Keiki x Maritime",
     "received_at": "2026-10-17T01:45:30Z",
@@ -77,7 +77,7 @@
     "link_authentication": "pending user action; connector withholds OTP"
   },
   "last_live_refresh": {
-    "observed_at": "2026-10-21T00:45:08Z",
+    "observed_at": "2026-10-21T01:26:02Z",
     "source_urls": [
       "https://competition.maritime.sh/",
       "https://competition.maritime.sh/terms"
@@ -87,9 +87,9 @@
     "award": "up to USD20000 credit per winning project; not guaranteed to all winners or per teammate",
     "travel": "three days in San Francisco; sponsored flights limited to people in the United States; international arrangement unpublished",
     "week1_deadline_time": null,
-    "week1_deadline_reason": "Kickoff email says end of week one; no exact time/timezone in that email or current Program Terms, and the latest announcements view did not fully load",
+    "week1_deadline_reason": "Kickoff email says product by end of week one and users are a bonus; no exact cutoff is in that email or current Program Terms. Last verified announcements view at 2026-10-21T00:17Z did not fully load.",
     "project_submission_status": "not_submitted",
-    "gmail_refresh": "Mailbox search after 2026-10-19 found the 2026-10-19 Keiki kickoff as the latest competition instruction; newer Maritime welcome/verification emails are account notices, not a new deadline or submission form"
+    "gmail_refresh": "Gmail sender search at 2026-10-21T01:26Z for messages from 0.email after 2026-10-19 returned only the 2026-10-19 Keiki kickoff; it contains no exact cutoff or project form"
   },
-  "official_instruction_email_unchanged_reason": "The 2026-10-21 mailbox search found no newer Keiki competition instruction. The Oct 20 Maritime welcome and email-verification notices do not state a week-one deadline or project submission route."
+  "official_instruction_email_unchanged_reason": "The 2026-10-21T01:26Z Gmail search for the Keiki sender after 2026-10-19 returned only the kickoff email; no later competition instruction, exact week-one deadline, or project submission route was found."
 }
