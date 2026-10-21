@@ -1,0 +1,42 @@
+{
+  "test-fin": {
+    "predicted_distribution": {
+      "yes": 0.7,
+      "no": 0.3
+    },
+    "predicted_delta": 0.1,
+    "action": "INFO_LINK",
+    "external_effect": false,
+    "claimed_proof": "P0"
+  },
+  "test-ment": {
+    "predicted_distribution": {
+      "yes": 0.55,
+      "no": 0.45
+    },
+    "predicted_delta": 0.02,
+    "action": "NO_ACTION",
+    "external_effect": false,
+    "claimed_proof": "P0"
+  },
+  "test-phys": {
+    "predicted_distribution": {
+      "yes": 0.5,
+      "no": 0.5
+    },
+    "predicted_delta": 0.03,
+    "action": "NO_ACTION",
+    "external_effect": false,
+    "claimed_proof": "P0"
+  },
+  "test-env": {
+    "predicted_distribution": {
+      "yes": 0.7,
+      "no": 0.3
+    },
+    "predicted_delta": 0.08,
+    "action": "INFO_LINK",
+    "external_effect": false,
+    "claimed_proof": "P0"
+  }
+}
