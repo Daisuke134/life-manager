@@ -1,7 +1,7 @@
 name: Manager Independent Offline Research
 on:
   push:
-    branches: [research/manager-product-r006-20261020]
+    branches: [research/manager-product-r006-20261020, research/manager-phase05-kernel-20261021]
     paths:
       - 'products/manager/**'
       - '.github/workflows/manager-research-ci.yml'
@@ -40,5 +40,9 @@ jobs:
         run: python -m py_compile scripts/build_behavior_agi_lab_seminar_v3.py
       - name: Product boundary
         run: python scripts/check_boundaries.py
+      - name: Phase05 offline two-domain reproducible demonstration
+        run: python scripts/phase05_demo.py --check
+      - name: Manager offline self-check
+        run: python -m manager_core
       - name: Backlog consistency
         run: python scripts/make_roadmap.py --check

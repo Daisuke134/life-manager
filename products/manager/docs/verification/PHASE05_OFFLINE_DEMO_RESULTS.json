@@ -1,0 +1,58 @@
+{
+  "domains": {
+    "environment": {
+      "benefit_status": "NOT_MEASURED",
+      "proof_level": "P0",
+      "provider_sends_after_replay": 1,
+      "replayed_status": "VERIFIED_FIXTURE_ONLY",
+      "status": "VERIFIED_FIXTURE_ONLY",
+      "trace_chain_valid": true
+    },
+    "finance": {
+      "benefit_status": "NOT_MEASURED",
+      "proof_level": "P0",
+      "provider_sends_after_replay": 1,
+      "replayed_status": "VERIFIED_FIXTURE_ONLY",
+      "status": "VERIFIED_FIXTURE_ONLY",
+      "trace_chain_valid": true
+    }
+  },
+  "failure_paths": {
+    "forged_authority": {
+      "provider_sends": 0,
+      "status": "REJECTED"
+    },
+    "missing_independent_sensor": {
+      "provider_sends": 1,
+      "status": "MEASUREMENT_MISSING"
+    },
+    "no_action": {
+      "provider_sends": 0,
+      "status": "NO_ACTION"
+    },
+    "synthetic_negative_net_effect": {
+      "net_effect": -8,
+      "proof_level": "P0",
+      "status": "NEGATIVE"
+    },
+    "timeout_after_effect": {
+      "benefit_status": "NOT_MEASURED",
+      "provider_sends": 1,
+      "status": "UNKNOWN_EFFECT"
+    },
+    "timeout_before_effect": {
+      "provider_sends": 1,
+      "simulated_effects": 0,
+      "status": "UNKNOWN_EFFECT"
+    }
+  },
+  "field_beneficiary_improvements_verified": 0,
+  "phase": "05",
+  "policy_learning": {
+    "active_after_regression": "safe-v1",
+    "persisted_active": "safe-v1",
+    "shadow_and_holdout_approved": true
+  },
+  "scientific_gate1": "UNMET",
+  "scope": "OFFLINE_FIXTURE_ONLY"
+}
