@@ -16626,6 +16626,18 @@ After integrating `origin/main` `0478d430188b723bc1e2ac147b172c4c8d4ddd52`, the 
 
 **現在cursor:** obtain exact-head source acceptance/CI for the synchronized PR; merge only after required checks pass. Runtime remains validation-only, live remains disabled, and no real investment profit is verified.
 
+#### 2026-10-21 12:42 JST — CI passed on prior head; latest-main sync and financial readback
+
+**CI and source acceptance:** Security Scan run `39538926587` passed all 12 jobs on PR head `e61782611107c440a088242f2731c55508fe5d43`. After main moved, latest `origin/main` `76d36e33979aa6e4b8924db6405fa8031b169782` (PR #8469) was merged into this branch as `3a5bd49c184bc5bf3caa5429f478b8d8d2f1a962`. The complete local Alpaca suite then passed 746/746; source-boundary and `git diff --check` also passed. Code changes remain the five reviewed investment files. The new merged head still needs exact-head CI.
+
+**Current account readback:** Official Alpaca live GET at `2026-10-21T03:36:31Z` reports ACTIVE, equity `$66.46`, cash and buying power `$0`, one `USDCUSD` position of `66.489696384` units valued `$66.456452`, unrealized P&L `-$0.064101`, and no open orders. This is a current holding/unrealized mark; no settled owner-attributed investment profit is verified.
+
+**Owner/runtime readback:** `investment-strategy-validation` is loaded-idle on installed release `464635e4f455a7411e441e76c3208cc188de68c2`. The latest recorded terminal is run `18e059e9748552e0-55043`, exit 1 on historical release `55cc06f2ea0fa344141528d9629111426b51f33f`, `effect_status=not_applicable`, no provider receipt, `next_action=reconcile_owner`; cadence remains Tuesday 14:30 host-local. No manual wake occurred. GUI control preflight matched uid/Directory Services 501, manager `Aqua`, manager uid 501, and `gui/501` readback succeeded. Global `lm-loop doctor` reports no missing entrypoints or retired labels, but one unrelated unmanaged label `ai.anicca.provision-browser.tiktok.hooklab`; do not mutate that other owner. Target apply still requires fresh host/owner lock and loaded-idle checks.
+
+**TODO/cursor update:** Old order=`(1) merge PR head e617 after its green CI; (2) release`. New order=`(1) complete: sync latest main 76d and rerun local Alpaca/source-boundary/diff checks; (2) commit/push the synchronized branch and verify PR head/base; (3) pass exact-head CI on that merged head; (4) merge PR #8462; (5) cut a pushed-main immutable release, apply only the loaded-idle validation owner, and read its next natural run`. Reason=`main PR #8469 merged while CI was running, so green checks for e617 do not cover the synchronized tree`.
+
+**現在cursor:** commit/push this status update on top of merge `3a5bd49c`, verify PR #8462 head/base, and pass its new exact-head CI before merge. Keep live disabled, historical effect fences held, do not deposit or manually wake, and do not report profit without settled owner-attributed net receipts.
+
 ### 2026-10-09 13:18 JST — Job Hunter Dreamwork cutover and updated user criteria
 
 この追記は11:50 JST snapshot後のJob Hunter readbackとユーザーの最新指示を記録する。個別の勤務地・住所などの私的値はprivate profileのみを正本とし、このspecには複製しない。
