@@ -149,3 +149,26 @@ The public research outputs are at `docs/research/heartsteps/PHASE03_PUBLIC_ANAL
 - [Editable source→prediction→causality→welfare diagram](docs/architecture/PHASE04_EVIDENCE_FLOW_JA.mmd)
 
 Only independent scientific and authorized welfare measurements can later establish benefits. S006/S007/S008 original acceptance language is kept in tasks.json alongside precisely scoped substitute verification—not relabeled as successful human-effect reproduction.
+
+
+## October 21: Radiant, Behavior × AGI research daily, 44-slide lab curriculum
+
+**Research sources and honest status:** Artificial Societies (Radiant) is an existing company in the 26-entity ecosystem; its record was refreshed with the current [Radiant interface](https://societies.ai/radiant), [company evaluation](https://societies.ai/eval), [October benchmark](https://societies.ai/as-benchmark), and [2026 eleven-test academic preprint](https://arxiv.org/html/2609.30030). The [Japanese first-source deep dive](docs/research/societies/RADIANT_2026-10-21_JA.md) carefully separates commercial survey data, 2024 peer-reviewed LLM homophily, 2026 research preprints, and the absent proof of real-world causal welfare. The [curated company landscape](docs/landscape/2026-10-20-behavior-intervention-entities.md) remains 26 distinct entities; we did **not** duplicate the vendor under a product name.
+
+**Education and communication:**
+- [Living 44-slide Research-Lab Deck v2, editable sources/slide index, citations and reproducibility hashes](docs/presentations/BEHAVIOR_SIMULATION_LAB_DECK_V2_2026-10-21.md)
+- [Slide-source claim/method/limitations trace](docs/presentations/BEHAVIOR_AGI_LAB_SOURCE_CLAIM_METHOD_LIMITS.json)
+- [English field guide about Radiant (research branch draft, NOT public blog publication)](docs/articles/manager-radiant-societies-field-guide-en.md)
+- [Behavior × AGI Daily launch issue](docs/newsletter/2026-10-21-launch-issue.md)
+- [Evidence-first newsletter business/product charter](docs/newsletter/NEWSLETTER_PRODUCT_CHARTER.md)
+- [Original three-volume teaching and book series plan](docs/newsletter/BOOK_SERIES_AND_LAB_CURRICULUM.md)
+- [C001/Y006 verification receipt](docs/verification/C001_Y006_RESEARCH_COMMUNICATIONS_2026-10-21.md)
+
+**Files:** Editable PPTX, PDF and original regeneration Python are verified in the owned cloud Library at `/Manager/Research/`. GitHub stores the human-editable slide-by-slide inventory, research notes and claim/limits trace, not the deck binary.
+
+**Daily delivery:** a ChatGPT “Behavior × AGI Daily” recurring task was created for approximately 08:00 Japan time from 2026-10-22. An automation answer is not an external email newsletter subscriber list. Social X/other posts are not recorded as published without a connected destination and real readback; the issue stores draft copy only. Do not infer commercial revenue.
+
+**Rights:** the user states they have permission to use all research data. The statement authorizes research tasks within the user's control; source-specific licenses, ethical participant protection, private respondent redistribution and legal scope remain separate. The [S002 rights audit](docs/research/socsci/PHASE04_LICENSE_AND_ALTERNATIVE_DATASETS_2026-10-21.md) explicitly preserves this distinction. Replacing a rights hold requires a recorded scope; no personal responses have been newly copied to public GitHub.
+
+**Science:** Detailed simulation, aggregate forecasting, 11 validity-test awareness, corporate metrics and a completed source-linked presentation do not establish that Manager has causally reduced suffering. Research / publication state is separate from the product's Phase04 human-effects proof requirements.
+
