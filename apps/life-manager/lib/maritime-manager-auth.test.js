@@ -5,6 +5,9 @@ const { Readable } = require("node:stream");
 let handleMaritimeManagerAuth, resolveMaritimeManagerUser, handleMaritimeManagerActivate, handleMaritimeManagerPage, handleMaritimeManagerStop;
 try { ({ handleMaritimeManagerAuth, resolveMaritimeManagerUser, handleMaritimeManagerActivate, handleMaritimeManagerPage, handleMaritimeManagerStop } = require("./maritime-manager-auth.js")); }
 catch (error) { if (error.code !== "MODULE_NOT_FOUND") throw error; }
+let createMaritimeManagerDependencies;
+try { ({ createMaritimeManagerDependencies } = require("./maritime-manager-dependencies.js")); }
+catch (error) { if (error.code !== "MODULE_NOT_FOUND") throw error; }
 const ORIGIN = "https://manager.example.invalid";
 const SUBJECT = "11111111-1111-4111-8111-111111111111";
 const USER = { id: SUBJECT, email: "person@example.invalid", email_confirmed_at: "2026-10-20T00:00:00Z" };
@@ -280,4 +283,28 @@ test('authenticated return failure records an unconfirmed observation without ch
  await handleMaritimeManagerPage(request('/maritime'),res,deps);await new Promise(resolve=>setImmediate(resolve));
  assert.equal(res.statusCode,200);assert.equal(logs[0].event,'returned');assert.equal(logs[0].error_class,'usage_store_unconfirmed');
  assert.doesNotMatch(JSON.stringify(logs),/person@|lm_11111111/);
+});
+
+test("server manager dependencies share the supplied Runtime PG pool", async () => {
+  assert.equal(typeof createMaritimeManagerDependencies, "function");
+  const subject = "11111111-1111-4111-8111-111111111111";
+  const uid = require("./web-auth.js").separateWebUidForSubject(subject);
+  const queries = [];
+  const pgPool = { async query(statement, values = []) {
+    queries.push({ statement, values });
+    if (statement.includes("SELECT uid,auth_subject FROM public.lm_maritime_manager_identities")) {
+      return { rows: [{ uid, auth_subject: subject }] };
+    }
+    return { rows: [] };
+  } };
+  const dependencies = createMaritimeManagerDependencies({ pgPool, env: { LM_UID_SECRET: "fixture-only-secret" } });
+  assert.equal(dependencies.distributionStore, dependencies.managerPersistence);
+  assert.equal(dependencies.cfoReceiptIO, dependencies.managerPersistence.cfoReceiptIO);
+  assert.equal(await dependencies.managerStore.read(uid), null);
+  assert.equal(await dependencies.ensureWebUserImpl(subject), uid);
+  assert.equal(queries.length, 3);
+  assert.match(queries[0].statement, /lm_maritime_manager_enrollments/);
+  assert.deepEqual(queries[0].values, [uid]);
+  assert.match(queries[1].statement, /lm_maritime_manager_identities/);
+  assert.match(queries[2].statement, /lm_maritime_manager_identities/);
 });

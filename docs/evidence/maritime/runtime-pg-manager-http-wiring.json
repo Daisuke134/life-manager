@@ -1,0 +1,40 @@
+{
+  "observed_at": "2026-10-21T01:44:22Z",
+  "source_files": {
+    "apps/life-manager/server.js": "25db754e82242a46aea7c466271276f70825aee387a18d3e221581986c18e2bc",
+    "apps/life-manager/lib/maritime-manager-dependencies.js": "172dccf716f360c1cd1621757fc5e11216f13b15cf446a2f66e48f1f7fa7afe2"
+  },
+  "test_file": "apps/life-manager/lib/maritime-manager-auth.test.js",
+  "test_sha256": "0158d29a3424d0a9ed244ab12b9fd1594a0657110b18b12b77117b3375888b59",
+  "commands": [
+    "node --test lib/maritime-manager-auth.test.js lib/maritime-manager-artifacts.test.js lib/maritime-manager-wake.test.js lib/maritime-manager-store.test.js",
+    "node --check server.js",
+    "node --check lib/maritime-manager-dependencies.js"
+  ],
+  "results": {
+    "manager_auth_artifact_wake_store_tests": "63/63 pass",
+    "server_syntax": "pass",
+    "dependency_factory_syntax": "pass",
+    "shared_pool_fixture": "manager store and persistence issued all three expected queries through one supplied PG pool"
+  },
+  "server_wiring": {
+    "handlers": [
+      "manager page",
+      "email auth and PKCE confirmation",
+      "activate",
+      "stop",
+      "artifact download",
+      "internal wake"
+    ],
+    "manager_pool": "existing moneyPrinterRuntimePool; no second Manager pool",
+    "email_flag_off": "HTTP form routes do not initialize Runtime PG dependencies",
+    "control_lock_pool": "the Manager data pool is not passed to tenant control-lock options"
+  },
+  "external_effects": {
+    "server_started": false,
+    "production_dsn_used": false,
+    "real_email_sent": false,
+    "database_migration_applied": false,
+    "legacy_telegram_path_changed": false
+  }
+}

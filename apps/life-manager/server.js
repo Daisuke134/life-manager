@@ -57,6 +57,7 @@ const { handleWebAuthRequest, resolveWebUser, signedOutCalendarHandoffLocation }
 const { handleMaritimeManagerAuth, handleMaritimeManagerActivate, handleMaritimeManagerPage, handleMaritimeManagerStop } = require("./lib/maritime-manager-auth.js");
 const { handleMaritimeManagerArtifact } = require("./lib/maritime-manager-artifacts.js");
 const { handleMaritimeManagerWake } = require("./lib/maritime-manager-wake.js");
+const { createMaritimeManagerDependencies } = require("./lib/maritime-manager-dependencies.js");
 const { handleWebCalendarRequest } = require("./lib/web-calendar.js");
 const { handleWebTravelRequest, buildTodaySnapshot } = require("./lib/web-travel.js");
 const { handleWebBillingRequest, trialEndFor } = require("./lib/web-billing.js");
@@ -180,6 +181,7 @@ async function claimMaritimeCommandReceipt(uid, chatId, updateId, commandName) {
   return { store, scope, idempotencyKey, claimed };
 }
 let moneyPrinterSource, moneyPrinterRuntimePool, moneyPrinterRuntimeStore, investmentStateStore, cloudCitizenStore, agentEconomyControlStore;
+let maritimeManagerDependencies;
 let imessageCloudClient = null;
 let imessageCloudStartup = null;
 
@@ -247,6 +249,18 @@ function getMoneyPrinterRuntimeStore() {
     moneyPrinterRuntimeStore = createMoneyPrinterRuntimeStore({ query: moneyPrinterRuntimePool.query.bind(moneyPrinterRuntimePool) });
   }
   return moneyPrinterRuntimeStore;
+}
+function getMaritimeManagerDependencies() {
+  getMoneyPrinterRuntimeStore();
+  if (!maritimeManagerDependencies) {
+    maritimeManagerDependencies = createMaritimeManagerDependencies({ pgPool: moneyPrinterRuntimePool, env: process.env });
+  }
+  return maritimeManagerDependencies;
+}
+function maritimeManagerHttpOptions() {
+  const options = { publicOrigin: LM_PANEL_BASE };
+  if (process.env.LM_MARITIME_MANAGER_EMAIL_ENABLED !== "1") return options;
+  return { ...options, ...getMaritimeManagerDependencies() };
 }
 function getInvestmentStateStore() {
   getMoneyPrinterRuntimeStore();
@@ -625,7 +639,7 @@ async function recordStripeWebFunnelEvent(event, billingResult) {
 const server = http.createServer(async (req, res) => {
   const path = (req.url || "").split("?")[0];
   if (path.startsWith("/maritime/artifacts/")) {
-    handleMaritimeManagerArtifact(req, res, { publicOrigin: LM_PANEL_BASE }).catch(() => {
+    Promise.resolve().then(() => handleMaritimeManagerArtifact(req, res, maritimeManagerHttpOptions())).catch(() => {
       if (res.headersSent) { res.end(); return; }
       res.writeHead(503, { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" });
       res.end("ファイルを取得できません。");
@@ -633,7 +647,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
   if (path === "/maritime") {
-    handleMaritimeManagerPage(req, res, { publicOrigin: LM_PANEL_BASE, telegramAvailable: maritimePublicEntryReady() }).catch(() => {
+    Promise.resolve().then(() => handleMaritimeManagerPage(req, res, { ...maritimeManagerHttpOptions(), telegramAvailable: maritimePublicEntryReady() })).catch(() => {
       if (res.headersSent) { res.end(); return; }
       res.writeHead(503, { "content-type": "application/json", "cache-control": "no-store" });
       res.end(JSON.stringify({ error: "manager_unavailable" }));
@@ -721,7 +735,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
   if (path === "/api/internal/maritime/wake") {
-    handleMaritimeManagerWake(req, res).catch(() => {
+    Promise.resolve().then(() => handleMaritimeManagerWake(req, res, getMaritimeManagerDependencies())).catch(() => {
       if (res.headersSent) { res.end(); return; }
       res.writeHead(503, { "content-type": "application/json", "cache-control": "no-store" });
       res.end(JSON.stringify({ accepted: false, error: "wake_unavailable" }));
@@ -729,7 +743,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
   if (path === "/maritime/stop") {
-    handleMaritimeManagerStop(req, res, { publicOrigin: LM_PANEL_BASE }).catch(() => {
+    Promise.resolve().then(() => handleMaritimeManagerStop(req, res, maritimeManagerHttpOptions())).catch(() => {
       if (res.headersSent) { res.end(); return; }
       res.writeHead(503, { "content-type": "application/json", "cache-control": "no-store" });
       res.end(JSON.stringify({ error: "stop_unavailable" }));
@@ -737,7 +751,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
   if (path === "/maritime/activate") {
-    handleMaritimeManagerActivate(req, res, { publicOrigin: LM_PANEL_BASE }).catch(() => {
+    Promise.resolve().then(() => handleMaritimeManagerActivate(req, res, maritimeManagerHttpOptions())).catch(() => {
       if (res.headersSent) { res.end(); return; }
       res.writeHead(503, { "content-type": "application/json", "cache-control": "no-store" });
       res.end(JSON.stringify({ error: "activation_unavailable" }));
@@ -745,7 +759,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
   if (path === "/auth/maritime/email" || path === "/auth/maritime/confirm") {
-    handleMaritimeManagerAuth(req, res, { publicOrigin: LM_PANEL_BASE }).catch(() => {
+    Promise.resolve().then(() => handleMaritimeManagerAuth(req, res, maritimeManagerHttpOptions())).catch(() => {
       if (res.headersSent) { res.end(); return; }
       res.writeHead(503, { "content-type": "application/json", "cache-control": "no-store" });
       res.end(JSON.stringify({ error: "manager_email_unavailable" }));
