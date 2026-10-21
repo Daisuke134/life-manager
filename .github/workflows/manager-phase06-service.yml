@@ -70,16 +70,12 @@ jobs:
     if: github.repository == 'Daisuke134/life-manager' && github.ref == 'refs/heads/research/manager-product-r006-20261020'
     needs: verify
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     permissions:
       contents: write
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}manager-support/
+      actions: write
     concurrency:
-      group: pages
+      group: manager-pages-prefix-writer
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
@@ -108,7 +104,7 @@ jobs:
           ref: gh-pages
           path: pages
           persist-credentials: true
-      - name: Stage only tested Manager prefix, preserve all other site content
+      - name: Stage exact Manager files and preserve every other git path
         run: |
           python source/products/manager/scripts/phase06_release_guard.py --site verified/output/service/site --checkout pages --audit verified/output/service/source-audit.json
           cd pages
@@ -120,7 +116,7 @@ jobs:
           assert all(not n or n in allowed for n in names), names
           PY
           if git diff --cached --quiet; then
-            echo 'NO_ACTION: same source release already staged'
+            echo 'NO_ACTION: same immutable source release already committed'
           else
             git config user.name 'github-actions[bot]'
             git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
@@ -128,21 +124,63 @@ jobs:
             git push origin HEAD:gh-pages
           fi
           git rev-parse HEAD
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: pages
-      - name: Deploy using existing GitHub Pages environment protections
-        id: deployment
-        uses: actions/deploy-pages@v4
-      - name: Verify independently served exact bytes, never claim welfare
+      - name: Delegate deployment to the ONE existing protected Pages workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          mkdir -p source/products/manager/output/service
-          cp -R verified/output/service/site source/products/manager/output/service/site
-          cd source/products/manager
-          python scripts/phase06_digital_service.py readback
-      - uses: actions/upload-artifact@v4
+          # workflow_dispatch is intentionally used: a GITHUB_TOKEN push alone
+          # does not trigger another push workflow. No environment bypass.
+          # Existing gh-pages workflow ID 307239134 owns full-site checkout,
+          # shared pages concurrency, github-pages environment, and deployment.
+          # This workflow never uploads/deploys a stale full-site snapshot.
+          printf '{"ref":"gh-pages"}' | gh api --method POST repos/Daisuke134/life-manager/actions/workflows/307239134/dispatches --input -
+  verify-live:
+    needs: [verify, publish-owned-prefix]
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: manager-service-${{ github.sha }}
+          path: verified
+      - name: Independently wait for matching served bytes (read-only, bounded)
+        working-directory: products/manager
+        run: |
+          mkdir -p output/service
+          cp -R ../../verified/output/service/site output/service/site
+          ok=0
+          for attempt in $(seq 1 20); do
+            if python scripts/phase06_digital_service.py readback; then ok=1; break; fi
+            echo "Readback UNKNOWN attempt $attempt; no write or deploy is retried"
+            sleep 15
+          done
+          test "$ok" = 1
+      - name: Real public URL browser and accessibility verification
+        working-directory: products/manager/tests/e2e
+        env:
+          MANAGER_BASE_URL: https://daisuke134.github.io/life-manager/manager-support/
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npx playwright install --with-deps chromium
+          npm test
+      - name: Keep actual external delivery proof and public screenshots
         if: always()
+        uses: actions/upload-artifact@v4
         with:
           name: manager-live-readback-${{ github.sha }}
-          path: source/products/manager/output/service/public-readback.json
+          path: |
+            products/manager/output/service/public-readback.json
+            products/manager/output/service/browser-results.json
+            products/manager/output/service/screenshots
           if-no-files-found: warn
