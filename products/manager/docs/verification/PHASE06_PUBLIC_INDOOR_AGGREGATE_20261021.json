@@ -1,0 +1,29 @@
+{
+  "metadata": {
+    "type": "historical independent public indoor observation, NOT intervention",
+    "provider": "AirGradient public opt-in indoor Map API",
+    "captured_at_utc": "2026-10-21T11:51:56Z",
+    "observed_at_utc": "2026-10-21T11:50:48+00:00",
+    "ci_run_url": "https://github.com/Daisuke134/life-manager/actions/runs/39595101996",
+    "endpoint": "https://map-data.airgradient.com/map/api/v1/indoor/measurements/current?pagesize=2&page=1"
+  },
+  "observation": {
+    "sample_count": 2,
+    "missing_count": 0,
+    "mean_pm25_ug_m3": 2.8,
+    "sample_sha256": "1977296d2ecf9f2424dfb77763c91bca1184e40cf43697e8794970bea04a93c3",
+    "privacy_class": "public_opt_in_aggregate",
+    "rights": "REVIEW_BEFORE_REUSE",
+    "public_raw_location_identifiers_saved": false
+  },
+  "causal_and_rights": {
+    "verified_site_owner_permission": false,
+    "verified_portable_actuation_permission": false,
+    "independent_pilot_sensor_verified": false,
+    "F004": "BLOCKED",
+    "F007": "BLOCKED",
+    "manager_originating_effects": 0,
+    "proof_level": "P0",
+    "beneficiary_effect": "NOT_MEASURED"
+  }
+}
