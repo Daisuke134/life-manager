@@ -37,7 +37,7 @@ The broader search found several nearby models, but they are not interchangeable
 - [Thai PBS World’s report on Phra Maha AI](https://www.thaipbsworld.com/around-thailand/thailands-first-virtual-monk-to-preach-buddhism-to-new-generation) says the character is a real monk working with programmers on a 2-D virtual representation for Buddhist teaching. The report did not identify an eBook offer or sales result. This is a real monk using a virtual character, not the same identity model as a fully synthetic persona.
 - [Monk Shen Yu’s public site](https://monkshen.com/) promotes an Amazon eBook and paperback, but the page does not establish that Shen Yu is AI-generated. We exclude it from the AI monk sample and do not count it as AI-monk eBook evidence.
 
-Yang Mun has the largest follower figure among the AI-character examples in this bounded review. Public evidence does not establish that it is the largest AI monk business by revenue or profit. The broader search found app, publishing, and creator-education routes, but it did not support the claim that most AI monk accounts sell eBooks.
+Yang Mun’s reported 2.5M+ Instagram followers are the largest single account count displayed in this sample, but that number is not directly comparable to the YouTube subscriber counts in the table. This does not establish that Yang Mun has the largest audience or the highest revenue; revenue rank remains unknown. The broader search found app, publishing, and creator-education routes, but it did not support the claim that most AI monk accounts sell eBooks.
 
 ## Reusable mechanics, not reusable expression
 
