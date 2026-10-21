@@ -484,7 +484,7 @@ life-manager/
 - [x] T24.2 `skills/writer-agent/SKILL.md`のreader-job/evidence/editorial契約と複数destination matrix、`config/loop-registry.json`の`article-daily` entry、`apps/landing/manager-blog/README.md`のcanonical source (`Daisuke134/life-manager`) とpublisher bridge (`Daisuke134/anicca-products`) を確認した。既存Writerを別媒体へ一括起動せず、記事draftだけを本repoへ保存する。
 - [x] T24.3 `AI assistant vs AI agent: who chooses the next task?`を一つのreader-query仮説として選んだ。GSCのサイト全体28日間は0 clicks / 7 impressions、記事需要は未計測。基準値とpage-row不一致の注意は`docs/evidence/maritime/seo-baseline-20261021.json`に保存し、検索量/順位は主張しない。
 - [x] T24.4a channel-copy.mdへ記事briefとearly-pilot CTA条件を記録し、seo-article-draft-en.mdをbriefへ更新する。検索量は未測定。completed hosted work / user earnings / profit claimはreceipt gateに残す。
-- [ ] T24.4b docs/research/manager/articles/2026-10-21-ai-assistant-vs-agent-next-task-en.mdをcanonical sourceとして確定し、docs/research/manager/publication/2026-10-19/en/へ同じ本文を追加、manifest.jsonへslug/title/description/word_count/source hash/package hash/series_order=56を登録する。pilot URLのGET 200とretention noticeを記録し、CTAはearly pilot案内、full hosted work/report cycle未検証、収益保証なしと明記。DONE: source/package hash一致、JSON parse、required CI/review、公開URL 200とbody hash readback。
+- [x] T24.4b canonical SEO article source/package/manifest: source and package are byte/hash-identical; manifest has 56 entries and series_order=56; exact-head PR #8492 CI/review passed and merged to Life Manager main b5ecef6e624203811d0e1103003c3cdbaf88c4cd. Public URL/body readback is owned by T27.2 and remains incomplete.
 - [ ] T24.5 X案は既存の広いprofile向けに一つだけ保持する。Postiz connectorは09:32Z groups/integrations=0のため、post前に既存account owner/integrationを再読取し、target profileと重複投稿なしを確認する。新規accountは作らない。DONE: exact identityとPUBLISHED receiptを照合。identity未確認の間は未投稿。
 - [ ] T24.6 docs/distribution/maritime/week1/channel-copy.mdのDMへpilot URL、hosted cycle未検証、Maritime retention、収益非保証を入れる。placeholder/PIIなしを確認し、Daisが送るcopyとして保存する。DM送信/既読/signupは実利用の証拠にしない。
 
@@ -509,7 +509,8 @@ life-manager/
 - [x] T26.2 Cloud無料pilotの対象範囲と現在動く業務をchannel-copy/SEO draftへ反映した。既存Calendarの$29 trialとMaritime無料pilotは別と明記し、利益保証を加えていない。
 - [ ] T26.3 既存full site exportへapproved overlayとして反映し、他商品/blog/legal/functionを保持する。manifest hashとpublished revisionを更新する。
 - [ ] T26.4 公開URLのemail CTA/認証/停止/localeをreadbackし、source commitとpublished SHAを結合する。source変更だけを公開完了と呼ばない。
-- [ ] T26.5 In apps/life-manager/lib/maritime-distribution.js update ja/en copy.intro, copy.scope and copy.queued: label daily email as design intent; say the full hosted work→verified result→daily email cycle is still unverified; retain no-required-goal/budget and optional-Telegram wording; retain Maritime retention and no-revenue-guarantee notice. DONE: production /maritime GET in both locales shows the caveat and no misleading current-tense completion promise. PR #8492 source change alone is not production adoption.
+- [x] T26.5a Source correction: ja/en copy labels the daily email as design intent and discloses the unverified hosted cycle, optional goal/budget setup, optional Telegram, Maritime retention, and no earnings guarantee. PR #8492 is merged to main at b5ecef6e624203811d0e1103003c3cdbaf88c4cd.
+- [ ] T26.5b After the official Railway incident clears, verify the production deployment contains main b5ecef6e624203811d0e1103003c3cdbaf88c4cd; read /maritime?lang=en and ?lang=ja and confirm both show the cycle caveat and required disclosures. Do not mark source merge as production adoption.
 
 ## Task T27: 公開配布を開始する
 
@@ -517,8 +518,8 @@ life-manager/
 **Interfaces:** Dais=家族/友人DM。LM=既存ブログ1記事→既存X profile 1投稿。source別URLとcanonical permalinkを保存。
 **Depends:** T24 article package and current pilot-route URL/retention/limitations readback. Article publication may precede full T22 cycle. T22 is required before asserting completed execution or revenue. T25 video, three-person feedback and Instagram are not gates.
 
-- [ ] T27.1 pilot URL GET、現行signup文言、Maritime retention notice、収益非保証をreadbackする。本文をearly pilot、full hosted work/report cycle未検証と一致させる。T22未完をCTAの隠れた前提にしない。
-- [ ] T27.2 Life Manager source article packageを既存Daisuke134/anicca-products Manager bridgeへpinし、latest main worktreeからPR/CI/review/merge/deployする。canonical URL・HTTP 200・slug/canonical/body hashを保存。DONE: production bodyがsource/packageと一致。T22の収益/完了work claimは追加しない。
+- [ ] T27.1 After T26.5b, read back pilot URL in both locales, signup wording, Maritime retention notice, no-earnings guarantee, and the full-cycle-unverified caveat. Keep all article/DM claims aligned with the live page; T22 completion is not a prerequisite for an honestly disclosed early-pilot CTA.
+- [ ] T27.2 Publish through the existing Daisuke134/anicca-products Manager bridge. Current PR #537 is draft at head 42aac79aa29012ab018a138fe295943269967210; Landing CI and CodeRabbit passed. After T26.5b and a fresh read-only exact-head review, mark ready/merge, read back Netlify deployment and canonical URL HTTP 200, then verify title/canonical/body against the source/package SHA. No hosted execution or revenue claim is added.
 - [ ] T27.3 current Postiz integration listから既存広いX profile owner/IDを確認してから、一意のbuild-in-public postを一件だけpublishする。Current connectorが空なら外部投稿は行わず、readbackを再試行する。DONE: exact PUBLISHED receipt/permalinkとUTMを保存。
 - [ ] T27.4 Daisへ最終URL入りDMを渡す。送信はDaisの担当とし、送ったcopyだけをsignup/userに数えない。
 - [ ] T27.5 Article canonical、X permalink/provider receipt、copy SHA、UTM sourceを既存ledgerに記録し、blog/Xからverified email→activation→completed work→returnまで読む。初期waveでInstagramは使わない。
