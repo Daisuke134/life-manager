@@ -1,0 +1,94 @@
+{
+  "schema": "manager.phase04.socsci210-real-open-model-summary.v1",
+  "verified_run": "https://github.com/Daisuke134/life-manager/actions/runs/39562677909",
+  "as_of": "2026-10-21",
+  "evaluation": {
+    "global_majority_label": "2",
+    "individual_test_rows": 320,
+    "mean_original_response_OTHER_rate": 0.109375,
+    "original_socrates_full_population_evaluation_reproduced": false,
+    "predeclared_per_study": 8,
+    "sampling": "hash(study_id,participant,sample_id,task_num,condition_num), response EXCLUDED",
+    "seen_training_studies": 170,
+    "unit": "individual survey response code on unseen study; NOT an interpretable universal behavioral label",
+    "unseen_test_studies": 40
+  },
+  "model": {
+    "direct_paid_api_cost_usd": 0,
+    "electricity_hardware_cost_usd": "NOT_MEASURED",
+    "generated_tokens_max": 5,
+    "generated_tokens_total": 1512,
+    "id": "HuggingFaceTB/SmolLM2-135M-Instruct",
+    "inference_seconds": 197.04607553,
+    "input_tokens_max": 384,
+    "input_tokens_total": 93371,
+    "license": "Apache-2.0",
+    "load_seconds": 2.09921668,
+    "median_tokens_per_sample": "NOT_RECORDED",
+    "model_license": "Apache-2.0; original Socrates-trained 8B model carries additional Meta Llama license and is NOT this comparison model",
+    "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+    "sample_count": 320,
+    "samples_per_second": 1.62398565,
+    "training": "public pre-trained checkpoint, not fitted on current heldout labels"
+  },
+  "privacy": {
+    "evaluation_fully_local_no_external_inference_api": true,
+    "generated_text_in_report": false,
+    "participant_identifiers_in_report": false,
+    "prompts_in_report": false,
+    "published_per_person_predictions": false,
+    "raw_person_rows_in_report": 0
+  },
+  "same_sample_scores": {
+    "frequency_brier_micro": 0.84829021,
+    "frequency_expected_accuracy_micro": 0.14557104,
+    "frequency_tvd_macro": 0.50811571,
+    "frequency_tvd_micro": 0.50811571,
+    "majority_accuracy_micro": 0.228125,
+    "majority_tvd_micro": 0.771875,
+    "pretrained_accuracy_including_abstentions_as_wrong": 0.090625,
+    "pretrained_accuracy_valid_only_macro": 0.20144558,
+    "pretrained_brier_valid_only_macro": 1.59710884,
+    "pretrained_coverage": 0.425,
+    "pretrained_tvd_valid_only_macro": 0.75744048
+  },
+  "scientific_scope": {
+    "author_llama8b_or_qwen14b_model_evaluated": false,
+    "canonical_socrates_task_aware_metric_reproduced": false,
+    "causal_effect_validated": false,
+    "independent_real_world_manager_benefit": false,
+    "individual_records_evaluated": true,
+    "person_level_prediction_clinically_or_socially_validated": false,
+    "same_exact_test_sample_all_models": true,
+    "text_model_executed_on_real_unseen_prompts": true,
+    "warning": "Generic numeric code has differing meaning and option sets by task and study; one-hot model outputs are not calibrated probability vectors"
+  },
+  "source": {
+    "all_train_rows_in_reference_distribution": 2418748,
+    "all_unseen_rows_for_sampling": 482642,
+    "dataset": "socratesft/SocSci210",
+    "dataset_download_and_aggregate_seconds": 4.7,
+    "evaluation_projection": [
+      "study_id",
+      "response",
+      "prompt"
+    ],
+    "full_dataset_projected_columns_for_training": [
+      "study_id",
+      "response"
+    ],
+    "original_paper": "https://aclanthology.org/2025.emnlp-main.1530/",
+    "parquet_files": 17,
+    "revision": "048481111a4425ed83dc0eacf15f8431f252b21a",
+    "split_blob_sha1": "8aa37bd598ce8bb00103a5a885948299f75f5ce7"
+  },
+  "subgroup": {
+    "response_other_rate": 0.109375,
+    "studies_with_zero_valid_model_responses": 12,
+    "study_coverage_max": 1,
+    "study_coverage_min": 0
+  },
+  "scientific_note": "Real individual responses are evaluated, but codes have incomparable semantic meaning across studies. Same-sample equality and measured CPU inference establish an honest weak negative benchmark, not original Socrates Qwen/Llama human choice task accuracy.",
+  "source_lifecycle": "All individual data, survey prompts, demographics, and generated answers existed only in ephemeral CI process memory. Only aggregated anonymous metrics committed.",
+  "reported_claim_grade": "REAL_EXTERNAL_DATA_METHODOLOGICALLY_LIMITED"
+}
