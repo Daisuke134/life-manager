@@ -26,7 +26,7 @@
 
 ## 現状と選定理由
 
-計画改訂の基準main=`286e982bfe`。T02–T04のsourceは統合済み。状態・cursorはSpec正本だけで管理する。既存`maritime-pilot.js`はOpenClaw chat-onlyで、factory接続ではない。`mail-resend.js`と`cfo-cloud-delivery.js`は存在するので再利用する。Capafy factoryにはHOME、認証、browser、mutable sourceの依存が残るため、T07–T10で具体的に移す。既存売上のあるfactoryを第一候補にするが、全ての新利用者が接続なしで販売可能とは仮定しない。
+計画初版の基準main=`286e982bfe`。現在のmain SHAと各taskの最新状態はSSOTのMaritime節を参照する。T02–T04のsourceは統合済み。状態・cursorはSpec正本だけで管理する。既存`maritime-pilot.js`はOpenClaw chat-onlyで、factory接続ではない。`mail-resend.js`と`cfo-cloud-delivery.js`は存在するので再利用する。Capafy factoryにはHOME、認証、browser、mutable sourceの依存が残るため、T07–T10で具体的に移す。既存売上のあるfactoryを第一候補にするが、全ての新利用者が接続なしで販売可能とは仮定しない。
 
 **採用:** 既存factory + Maritime custom runtime + 既存メール。最短で同じ業務を移せ、競技platform usageも残る。
 **棄却した最強案:** Keikiだけで新しい収益agentを組めば入口は速い。ただし既存factory/経費/receiptを別実装にしてしまうため主経路にしない。Keikiが必要なchannelを短縮すると確認できた場合だけ追加adapterにする。
@@ -363,15 +363,15 @@ life-manager/
 
 ## Task T17: browser実行とprovider公開を一件完走する
 
-**Files:** 既存browser/session adapterとCapafy split scripts。ModifyはT08で特定した不足箇所だけ。
-**Interfaces:** CycleResultにofficial `agentId/version/status/receiptRef`を結合。provider作用のownerを一つにする。
-**Depends:** T16/T11 worker wiringとT22.1の非公開foundation deploy。
+**Files:** Modify `apps/life-manager/lib/maritime-manager-runtime.js`, `apps/life-manager/lib/maritime-manager-runtime.test.js`, `apps/life-manager/scripts/runtime-up.js`。T08/T16で認証・readback手段が成立した後だけCreate `apps/life-manager/lib/maritime-provider-action-reader.js`。Capafy split scriptsはT08で特定した不足がある場合だけ変更する。
+**Interfaces:** VMの`CycleResult`はartifact-onlyを維持し、`providerSnapshotRef=null`/`providerReceiptRefs=[]`を受け入れ条件とする。公式provider actionはVM/modelのstdoutから受け取らない。中央workerが検証したofficial readbackだけを同じ不変job receipt内の`provider_action_receipt`へ加える。既存cycle jobは`effectClass=money`、tenant+occurrence由来の`effectKey`、`maxAttempts=1`でeffect-fenced。公開試行後にreadbackが取れなければ既存unknown-effect/reconciliation境界を使い、完了扱い・blind retryをしない。売上はT10の公式financial snapshotだけで確認する。
+**Depends:** T08 tenant-bound provider readiness、T11 worker wiring、T16 tenant wake/auth binding、T22.1 non-public foundation deploy。
 
 - [ ] T17.1 自分がownerの接続済みtenantで新規original商品を一つ選び、既存frozen_guard/duplicate_gateを通す。既存sellerを編集しない。
 - [ ] T17.2 既存prepare→CP1→finish→CP2/CP3を一回実行する。途中で応答不明ならofficial readbackへ進み、publishを再送しない。
-- [ ] T17.3 同じagent/versionのofficial status、公開URL、申請中/公開済みの区別をreceiptへ記録する。審査待ちを販売可能と呼ばない。
+- [ ] T17.3 同じtenant-bound account、agent/versionのofficial status、公開URLを読み、申請中/公開済みを区別する。公開URLは公式readbackが返した値だけを使う。審査待ちを販売可能と呼ばず、seller売上の証拠にも使わない。
 - [ ] T17.4 receiptとsource差分を分離して保存し、自己所有の不足修正だけをcommit/push。provider審査は進行中でも他taskを進める。
-- [ ] T17.5 `apps/life-manager/lib/maritime-manager-runtime.js::verifyCycleReceipt` と `createMaritimeManagerLoopAdapter` 内の `inspect` が`CycleResult.providerSnapshotRef`/`providerReceiptRefs`を拒否する境界を更新し、T17.3のofficial Capafy receiptを同じtenant/job/occurrence/releaseのcycle receiptへ結合する。入力はverified tenant-scoped Capafy receipt、出力はartifact＋provider refsを持つ同一`maritime_manager_cycle` receipt。`apps/life-manager/lib/maritime-manager-runtime.test.js`で有効receipt保持とtenant/job/agent/occurrence/release mismatch・欠落receipt拒否を確認する（`node --test apps/life-manager/lib/maritime-manager-runtime.test.js`）。DONE=同一receiptにverified provider refsがあり、欠落時はrevenue/statusを`unknown`のままにする。
+- [ ] T17.5 T08/T16でtenant-bound Capafy認証と公式readbackが成立した後に限り、`apps/life-manager/lib/maritime-provider-action-reader.js`を作り、公式`publish-remote-status`/`publish-list`のreadbackを取得する。`apps/life-manager/scripts/runtime-up.js::createWorkerHandlers`から`readOfficialProviderAction`をservice dependencyとして注入し、`apps/life-manager/lib/maritime-manager-runtime.js::createMaritimeManagerLoopAdapter.inspect`はVM stdoutの完全一致・artifact-only検証後にそれを呼ぶ。`verifyCycleReceipt`は中央workerが作った任意の`provider_action_receipt`を、tenant/account binding・job ID・occurrence ID・release SHA・agent ID/version・official status・観測時刻・evidence refで検証する。VM/modelの`CycleResult.providerSnapshotRef`/`providerReceiptRefs`は引き続き拒否し、捕捉stdoutとprovider readbackを同一視しない。公開試行後のreadbackが不確定なら既存effect fenceのunknown/reconcilingへ進み、完了receiptを作らず再送もしない。公開試行がなくartifact生成だけ完了した場合はartifact-only receiptを維持し、provider状態は未確認とする。`apps/life-manager/lib/maritime-manager-runtime.test.js`で有効receipt、VM偽装ref拒否、各identity mismatch、試行後readback不明でのunknown/reconciliation・再送なし、未試行時のartifact-only完了を確認する（`node --test apps/life-manager/lib/maritime-manager-runtime.test.js`）。DONE=同一の不変job receiptに中央取得・照合済みprovider action receiptがある。売上は別のT10公式financial snapshotが示す時だけ報告する。
 
 ## Task T18: 初日から役立つ日次結果を組み立てる
 
