@@ -1,0 +1,34 @@
+{
+  "observed_at": "2026-10-21T00:40:13Z",
+  "source_file": "apps/life-manager/migrations/20261021090000_maritime_manager_runtime_state.sql",
+  "migration_sha256": "09c0525da72693fc181eb2385a30853185466eae606b13c483ee2b9d5ed8164f",
+  "test_file": "apps/life-manager/test/postgres/maritime-manager-state.integration.js",
+  "command": "PATH=/opt/homebrew/Cellar/postgresql@17/17.11/bin:$PATH node --test test/postgres/maritime-manager-state.integration.js",
+  "result": "pass",
+  "tests": 1,
+  "production_dsn_used": false,
+  "fixture": "native PostgreSQL 17 over private Unix socket; stopped and removed",
+  "participant_sources": [
+    "landing",
+    "aniccaai",
+    "x",
+    "instagram",
+    "reddit",
+    "discord",
+    "telegram",
+    "community",
+    "referral",
+    "hackathon",
+    "direct",
+    "other"
+  ],
+  "capacity": {
+    "two_connection_one_slot_race_has_one_success": true,
+    "duplicate_active_consent_is_idempotent": true,
+    "reconsent_preserves_first_source": true,
+    "reconsent_does_not_use_new_slot": true,
+    "non_normalized_source_rejected": true,
+    "max_above_1000_rejected": true,
+    "migration_reapply_preserves_consent_state": true
+  }
+}

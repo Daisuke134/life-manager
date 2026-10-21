@@ -125,3 +125,78 @@ CREATE OR REPLACE FUNCTION public.bind_lm_maritime_manager_execution_v1(
       RETURNING uid
   ) SELECT EXISTS (SELECT 1 FROM bound);
 $$;
+
+CREATE TABLE IF NOT EXISTS public.lm_maritime_pilot_participants (
+  participant_id text PRIMARY KEY CHECK (participant_id ~ '^[a-f0-9]{64}$'),
+  source text NOT NULL CHECK (source IN (
+    'landing', 'aniccaai', 'x', 'instagram', 'reddit', 'discord', 'telegram',
+    'community', 'referral', 'hackathon', 'direct', 'other'
+  )),
+  consent_version text NOT NULL,
+  consented_at timestamptz NOT NULL,
+  revoked_at timestamptz,
+  first_response_at timestamptz,
+  returned_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE OR REPLACE FUNCTION public.claim_lm_maritime_participant_v1(
+  p_participant_id text,
+  p_source text,
+  p_consent_version text,
+  p_max_users integer,
+  p_now timestamptz DEFAULT now()
+) RETURNS text LANGUAGE plpgsql SECURITY INVOKER SET search_path = pg_catalog, public AS $$
+DECLARE
+  existing_participant public.lm_maritime_pilot_participants%ROWTYPE;
+  participant_count integer;
+  claimed_at timestamptz := COALESCE(p_now, now());
+BEGIN
+  IF p_participant_id IS NULL OR p_participant_id !~ '^[a-f0-9]{64}$'
+    OR p_source IS NULL OR p_source NOT IN (
+      'landing', 'aniccaai', 'x', 'instagram', 'reddit', 'discord', 'telegram',
+      'community', 'referral', 'hackathon', 'direct', 'other'
+    )
+    OR p_consent_version IS DISTINCT FROM 'maritime-retention-v1'
+    OR p_max_users IS NULL OR p_max_users < 1 OR p_max_users > 1000 THEN
+    RETURN 'invalid';
+  END IF;
+
+  PERFORM pg_advisory_xact_lock(824618221001);
+  SELECT * INTO existing_participant
+    FROM public.lm_maritime_pilot_participants
+    WHERE participant_id = p_participant_id
+    FOR UPDATE;
+
+  IF FOUND THEN
+    IF existing_participant.consent_version = p_consent_version
+      AND existing_participant.consented_at IS NOT NULL
+      AND existing_participant.revoked_at IS NULL THEN
+      RETURN 'already_consented';
+    END IF;
+    UPDATE public.lm_maritime_pilot_participants
+      SET source = COALESCE(existing_participant.source, p_source),
+          consent_version = p_consent_version,
+          consented_at = claimed_at,
+          revoked_at = NULL,
+          updated_at = claimed_at
+      WHERE participant_id = p_participant_id;
+    RETURN 'consented';
+  END IF;
+
+  SELECT count(*)::integer INTO participant_count
+    FROM public.lm_maritime_pilot_participants
+    WHERE consented_at IS NOT NULL;
+  IF participant_count >= p_max_users THEN
+    RETURN 'capacity_full';
+  END IF;
+
+  INSERT INTO public.lm_maritime_pilot_participants (
+    participant_id, source, consent_version, consented_at, created_at, updated_at
+  ) VALUES (
+    p_participant_id, p_source, p_consent_version, claimed_at, claimed_at, claimed_at
+  );
+  RETURN 'consented';
+END;
+$$;

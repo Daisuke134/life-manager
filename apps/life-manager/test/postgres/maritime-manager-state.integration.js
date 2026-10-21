@@ -82,9 +82,10 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     assert.equal(relations.lm_maritime_manager_identities, "lm_maritime_manager_identities");
     assert.equal(relations.lm_maritime_manager_enrollments, "lm_maritime_manager_enrollments");
     assert.equal(relations.lm_maritime_manager_executions, "lm_maritime_manager_executions");
+    assert.equal(relations.lm_maritime_pilot_participants, "lm_maritime_pilot_participants");
     assert.equal((await client.query("SELECT to_regclass('public.lm_users') AS relation")).rows[0].relation, null,
       "Manager runtime state does not require or create the global lm_users table");
-    for (const table of MANAGER_TABLES.filter(name => !["lm_maritime_manager_identities", "lm_maritime_manager_enrollments", "lm_maritime_manager_executions"].includes(name))) {
+    for (const table of MANAGER_TABLES.filter(name => !["lm_maritime_manager_identities", "lm_maritime_manager_enrollments", "lm_maritime_manager_executions", "lm_maritime_pilot_participants"].includes(name))) {
       assert.equal(relations[table], null, `${table} stays out of this Manager migration`);
     }
 
@@ -187,8 +188,39 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     await client.query("UPDATE public.lm_maritime_manager_enrollments SET status='paused',paused_at=clock_timestamp() WHERE uid=$1", [uidA]);
     assert.equal(await cycleClaim(client, uidA, "after-stop", "agent-a"), false, "a paused enrollment cannot dispatch another occurrence");
     assert.equal(await cycleBind(uidA, "week-1-occurrence", "agent-a", releaseSha, "2026-10-21", "exec-1"), true, "a prior dispatch can still read back its exact binding after pause");
+
+    const participantColumns = await client.query(
+      "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='lm_maritime_pilot_participants'",
+    );
+    const participantNames = new Set(participantColumns.rows.map(row => row.column_name));
+    for (const column of ["participant_id", "source", "consent_version", "consented_at", "revoked_at", "first_response_at", "returned_at", "created_at", "updated_at"]) {
+      assert.ok(participantNames.has(column), `participant schema includes ${column}`);
+    }
+    const claimParticipant = (connection, participantId, source, maxUsers = 1, consentVersion = "maritime-retention-v1") => connection.query(
+      "SELECT public.claim_lm_maritime_participant_v1($1,$2,$3,$4,$5::timestamptz) AS status",
+      [participantId, source, consentVersion, maxUsers, "2026-10-21T00:00:00Z"],
+    ).then(result => result.rows[0].status);
+    const participantIds = ["a".repeat(64), "b".repeat(64)];
+    const participantRace = await Promise.all([
+      claimParticipant(client, participantIds[0], "instagram"),
+      claimParticipant(racingClient, participantIds[1], "x"),
+    ]);
+    assert.deepEqual(participantRace.slice().sort(), ["capacity_full", "consented"], "one-slot concurrent claims cannot oversubscribe capacity");
+    const acceptedIndex = participantRace.indexOf("consented");
+    const acceptedParticipantId = participantIds[acceptedIndex];
+    const acceptedSource = acceptedIndex === 0 ? "instagram" : "x";
+    assert.equal(await claimParticipant(client, acceptedParticipantId, acceptedSource), "already_consented");
+    assert.equal(await claimParticipant(client, "c".repeat(64), "linkedin"), "invalid", "the database accepts only normalized source tokens");
+    assert.equal(await claimParticipant(client, "d".repeat(64), "direct", 1001), "invalid", "the max remains bounded at 1000");
+    await client.query("UPDATE public.lm_maritime_pilot_participants SET revoked_at='2026-10-21T01:00:00Z',updated_at='2026-10-21T01:00:00Z' WHERE participant_id=$1", [acceptedParticipantId]);
+    assert.equal(await claimParticipant(client, acceptedParticipantId, "direct"), "consented", "a returning participant may restore consent without consuming a new slot");
+    const restored = (await client.query("SELECT source,revoked_at FROM public.lm_maritime_pilot_participants WHERE participant_id=$1", [acceptedParticipantId])).rows[0];
+    assert.equal(restored.source, acceptedSource, "re-consent preserves first-touch source");
+    assert.equal(restored.revoked_at, null);
+    assert.equal(await claimParticipant(client, "e".repeat(64), "direct"), "capacity_full", "re-consent does not increase capacity");
     await client.query(fs.readFileSync(IDENTITY_MIGRATION, "utf8"));
     assert.equal((await client.query("SELECT execution_id FROM public.lm_maritime_manager_executions WHERE uid=$1 AND occurrence_id=$2", [uidA, "week-1-occurrence"])).rows[0].execution_id, "exec-1", "reapplying the migration preserves the dispatch checkpoint");
+    assert.equal((await client.query("SELECT revoked_at FROM public.lm_maritime_pilot_participants WHERE participant_id=$1", [acceptedParticipantId])).rows[0].revoked_at, null, "reapplying the migration preserves participant consent state");
   } finally {
     if (racingClient) await racingClient.end();
     if (client) await client.end();
