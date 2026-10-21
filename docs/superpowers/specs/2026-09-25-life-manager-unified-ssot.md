@@ -21245,15 +21245,16 @@ Cloud化はMac全体のコピーではない。一repoの同じkernelをMaritime
 **T22.1c-5a/b source受入:** 公式lstatはreceipts親uid/gid0・0755、新v2 receipt未作成を返す。固定親receiptsをruntime-env.jsの既存no-follow ownership対象へ加える1箇所の修正とし、再帰chownはしない。focused RED→runtime-env6/6を確認し、実imageのchown/再実行は未完。副cursor=c-5c、証拠→docs/evidence/maritime/owned-factory-v2-preflight.json。DB側b.5本人ログイン待ちと分離して進める。
 
 
-**T22.1b.6の保存先決定:** 主cursor=b.6-01。旧=Dashboard本人ログイン→REST復旧、新=Manager専用保存先を既存Runtime PGへ接続→製品経由の実PKCE/仕事/日報/停止→配布、理由=REST503、同region公式障害、候補DBimageでも当該timezone依存が残り、既存Runtime PGのDDL権限とManager未作成/Job0・Supabase enrollment/execution0・公開flag/cap無効を確認するため。一般利用者stateの移行・二重write・REST fallbackは行わない。Auth/PKCE、共通queue/receipt、FinancialRecord、CFO送信器を再利用する。owned UIDは既存separateWebUidForSubject導出に一致、既存VM externalIdもManager HMACに一致しbindingを維持する。6表とfile別atomic手順→Atomic Plan b.6-01〜34、実測→docs/evidence/maritime/runtime-pg-state-preflight.json。c-5はPR8449/exact73efの13checks全成功とfresh review0/0でmain4fへ統合し、既存VMの新image配備を進める。Supabase本人ログイン依頼は元provider診断用として非同期に残す。
+**T22.1b.6の保存先決定:** 主cursor=b.6-02。旧=Dashboard本人ログイン→REST復旧、新=Manager専用保存先を既存Runtime PGへ接続→製品経由の実PKCE/仕事/日報/停止→配布、理由=REST503、同region公式障害、候補DBimageでも当該timezone依存が残り、既存Runtime PGのDDL権限とManager未作成/Job0・Supabase enrollment/execution0・公開flag/cap無効を確認するため。一般利用者stateの移行・二重write・REST fallbackは行わない。Auth/PKCE、共通queue/receipt、FinancialRecord、CFO送信器を再利用する。owned UIDは既存separateWebUidForSubject導出に一致、既存VM externalIdもManager HMACに一致しbindingを維持する。6表とfile別atomic手順→Atomic Plan b.6-01〜34、実測→docs/evidence/maritime/runtime-pg-state-preflight.json。c-5はPR8449/exact73efの13checks全成功とfresh review0/0でmain4fへ統合し、既存VMの新image配備を進める。Supabase本人ログイン依頼は元provider診断用として非同期に残す。
 
 
-**Maritime 残TODOの現在地:** 主cursor=T22.1b.6-01。PR #8452は全13 checks成功・fresh review指摘0でmain `a0d217d0769db2dab68bb8a8a452bfaea916fe9d`へ統合。ZIP91,658,636 bytes/archive SHA-256 `678cafe1261291e0fc9606c8531b70fd64816284dd73f8d8c1fd50dc41f372ee`はHTTP200/customでupload済み、既存agentのみredeployしdeployment success・health/source hashes一致。probeはUID/GID10001、caps0、NoNewPrivs、credentials非継承、fixed browser/CDP/DOM/cleanup pass。occurrence `week1-offline-a0-20261021-01`はcompleted/exit0、artifact refs3と追加4 fileをproof/downloadして全hash一致、listing linter pass。これは非公開offline draftでexternal user 0、売上/公開/入金なし。billingはFree・next charge $0、subscription/payment変更なし。既存v3 deferredと6-file unknownは維持。b.6 state/PKCE/Manager artifact handler・user reportは未実装、正式提出・利用者配布・実売上は未完。
+**Maritime 残TODOの現在地:** 主cursor=T22.1b.6-02。PR #8452は全13 checks成功・fresh review指摘0でmain `a0d217d0769db2dab68bb8a8a452bfaea916fe9d`へ統合。ZIP91,658,636 bytes/archive SHA-256 `678cafe1261291e0fc9606c8531b70fd64816284dd73f8d8c1fd50dc41f372ee`はHTTP200/customでupload済み、既存agentのみredeployしdeployment success・health/source hashes一致。probeはUID/GID10001、caps0、NoNewPrivs、credentials非継承、fixed browser/CDP/DOM/cleanup pass。occurrence `week1-offline-a0-20261021-01`はcompleted/exit0、artifact refs3と追加4 fileをproof/downloadして全hash一致、listing linter pass。これは非公開offline draftでexternal user 0、売上/公開/入金なし。billingはFree・next charge $0、subscription/payment変更なし。既存v3 deferredと6-file unknownは維持。b.6 state/PKCE/Manager artifact handler・user reportは未実装、正式提出・利用者配布・実売上は未完。
 
 | 残ID | 一つずつ実行する範囲 | 状態 |
 |---|---|---|
 | c-5d → c-4 | 未着手occurrenceの一回実行→literal成果物/size/hash確認 | image採用完了、新実行は未完 |
-| b.6-01〜07 | native失敗確認と6表/functionの定義 | 未着手 |
+| b.6-01 | local native PG fixtureで6 relation欠落/SQLSTATE42P01を確認 | 完了、production DSN不使用→`docs/evidence/maritime/runtime-pg-manager-schema-absence.json` |
+| b.6-02〜07 | identity/enrollment/execution/participant/funnel/CFO receipt schema/function | 未着手 |
 | b.6-08〜14 | Manager CRUD/checkpoint・verified identity・first-touchのPG接続 | 未着手 |
 | b.6-15〜18 | 同意/容量/計測/CFO receiptのPG接続 | 未着手 |
 | b.6-19〜21 | frontend6経路・worker・return読取の接続 | 未着手 |

@@ -678,7 +678,7 @@ life-manager/
 
 ### T22.1b.6 — Manager保存先を既存Runtime Postgresへ接続する
 
-旧順序=b.5のDashboard本人ログイン→REST復旧→公開。新順序=下記b.6とc-5のimage採用を並行→owned製品受入→T30配布、T23正式経路確認。理由は、現SupabaseデータAPI503、同regionの公式障害、候補DBimageにもtimezone依存が残る一方、既存Runtime PGはDDL可・対象6表未作成・Manager job0、Supabase enrollment/execution0、公開flag/cap無効を確認するため。b.5は元provider診断として残すが製品の進行条件から外す。進行中のimage配備と旧unknown fenceを中断/重複させない。現在主cursor=b.6-01、副cursorなし（c-5e.8完了）。
+旧順序=b.5のDashboard本人ログイン→REST復旧→公開。新順序=下記b.6とc-5のimage採用を並行→owned製品受入→T30配布、T23正式経路確認。理由は、現SupabaseデータAPI503、同regionの公式障害、候補DBimageにもtimezone依存が残る一方、既存Runtime PGはDDL可・対象6表未作成・Manager job0、Supabase enrollment/execution0、公開flag/cap無効を確認するため。b.5は元provider診断として残すが製品の進行条件から外す。進行中のimage配備と旧unknown fenceを中断/重複させない。現在主cursor=b.6-02、副cursorなし（c-5e.8完了）。
 
 **対象tree（新規は予定、既存componentを再利用する）:**
 
@@ -699,7 +699,7 @@ apps/life-manager/
 
 #### schemaと保存処理
 
-- [ ] **b.6-01:** `test/postgres/maritime-manager-state.integration.js`へ既存native initdb/Unix socket/pg driver手順を流用する。対象6表が無い状態の失敗を確認する。production DSNは使わない。
+- [x] **b.6-01:** `test/postgres/maritime-manager-state.integration.js`へ既存native initdb/Unix socket/pg driver手順を流用し、6対象relationの欠落とSQLSTATE 42P01を確認する。`PATH=/opt/homebrew/Cellar/postgresql@17/17.11/bin:$PATH node --test test/postgres/maritime-manager-state.integration.js` passes1/1。Production DSN不使用、fixture stopped/removed。Evidence→`docs/evidence/maritime/runtime-pg-manager-schema-absence.json`。
 - [ ] **b.6-02:** 上記migrationに`lm_maritime_manager_identities`を定義する。verified Auth subject↔uidをuniqueにし、first-touch列を持たせる。重複subject/他UIDへの差替えを拒否する。
 - [ ] **b.6-03:** 同migrationにenrollmentsと既存provision claim/bind関数を移す。一般lm_users FK/専用Supabase role GRANTを持ち込まず、identity bindingを制約する。
 - [ ] **b.6-04:** 同migrationにexecutionsと既存cycle claim/bind関数を移す。同occurrenceのclaim一回・同execution IDだけの再bindを維持する。
