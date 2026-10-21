@@ -22050,7 +22050,7 @@ The all-pipelines Codex-only invariant remains incomplete until TODO #8. The las
 
 **Receipt root causeと修正:** fresh adversarial reviewはHIGHを検出した。success proofが`prove_occurrence()`のdefault helperを使い、caller環境の`CAPAFY_DISTRIBUTE_EVENTS_PATH`/`CAPAFY_DISTRIBUTE_RUNS_ROOT`からexecute eventとarticle manifestを読めた。canonical pathを指す回帰テストは修正前に2件とも失敗し、偽pathでhint発行、executeより後のqueue時刻を成功扱いする状態を再現。worktree内の修正はsuccess writerにもcanonical `EVENTS_PATH`/`RUNS_ROOT`を明示し、queue timestampがtimezone付きでexecute開始以前であることをproof gateに加える。修正後、Capafy distribution/receipt 50/50、loop-run-bounds 202/202、Python compile、shell syntax、`git diff --check`がpass。修正はまだpush前で、fresh exact-head reviewは取り直す。
 
-**Git/production:** branch `chore/codex-only-agent-pipelines-20261021`はmain `6f65732bbe047b3ec1dd3ec8df2ef925b9a7c2cf`を含む。PR #8467の最後のpush headは`9bc07e1b5d520ccda097d4659b055a6be6554997`でopen。上記success-proof修正と回帰testはそのheadより後のworktree差分で、まだpush/mergeされていない。source未merge、immutable release未作成、production owner未採用。
+**Git/production:** branch `chore/codex-only-agent-pipelines-20261021`にはmain `9802693fa246d08b7e0fc181587985bcf5a8fb49`を統合中。PR #8467の最後のpush headは`9bc07e1b5d520ccda097d4659b055a6be6554997`でopen。上記success-proof修正と回帰testはそのheadより後のcommit/worktree差分で、まだpush/mergeされていない。source未merge、immutable release未作成、production owner未採用。
 
 **Remaining TODO（cursor = 2）:**
 
@@ -22066,3 +22066,36 @@ The all-pipelines Codex-only invariant remains incomplete until TODO #8. The las
 | 8 | `daily-nl-report.mjs::llmReport`をCodexへ移し、truth-only出力契約を維持する。 | Depends on #6–#7. report contract pass、alternate model fallbackなし。 |
 
 収益の現状はall-time gross `$102.75`だが、直近7日のgross/netは`$0.00`。04:48Zに確認した記事/X配布に結び付くpaid orderは未確認。
+
+### Anicca eBook Publishing media — current execution delta
+
+**Purpose / completion:** Build a source-backed English eBook-publishing knowledge hub on Anicca’s public blog, separate from *The Anicca Reset* product category. Analyze successful sellers’ public mechanisms, record creator claims as claims, publish original articles, and keep reusable research public. Do not reproduce their scripts, footage, voice, likeness, artwork, book text, testimonials, or unverified earnings claims.
+
+**As-Is**
+
+- The existing strategy section above contains source research on Tommi Pedruzzi, Yang Mun, Joanna Penn, and Pierre Jeanty. It is a research baseline; this update advances the Anicca public publishing work.
+- Anicca’s current blog category mapper assigns `ebook-*` to `ebook` (“The Anicca Reset”). No separate `ebook-publishing` category or this four-article set exists in the current source checkout.
+- Two publicly available videos were downloaded with the local watch workflow for private analysis: Yang Mun’s [Words of Motivation](https://www.youtube.com/shorts/Er2Ig4GM7z0) (1:05) and Genevieve Rachal’s [KDP income report](https://www.youtube.com/watch?v=rPCWjYFqZ_A) (8:53). Their temporary files were removed after analysis. Articles use public links only and do not re-upload their footage.
+- Genevieve’s royalties and Tommi’s earnings are creator-reported, not independently verified net profit. Views, followers, testimonials, list prices, and royalty examples do not prove sales or contribution margin.
+- Amazon KDP’s current public pages show a 35% and 70% eBook royalty option, with 70% territory, VAT, and delivery-cost conditions; Amazon.com’s 70% price band is $2.99–$12.99 effective 2026-07-07. KDP asks publishers to disclose AI-generated text/images/translations; AI-assisted editing and brainstorming are distinguished from generated content. See [royalties](https://kdp.amazon.com/en_US/help/topic/G200644210), [price bands](https://kdp.amazon.com/en_US/help/topic/G200634560), and [AI disclosure](https://kdp.amazon.com/en_US/help/topic/G200672390).
+- Instagram target is `@monkmujo`; login name is `monk.mujo`. The official Instagram OAuth flow currently ends on a blank CAPTCHA page with no rendered challenge/sitekey/callback. No Instagram Postiz integration has been created. The existing user-confirmed TikTok Postiz integration `cmo5rwq2p00twn10yrsdglng3` remains unchanged; `@monk_anicca` is its historical handle, not a basis for guessing a new one.
+- No Instagram plan upgrade, new subscription, or paid-ad spend is in scope. The current remaining Postiz slot count is unverified until plan/quota and account integrations are read together.
+
+**To-Be**
+
+- Public English hub at `/blog/c/ebook-publishing`, distinct from `/blog/c/ebook`.
+- Four original articles: (1) Tommi Pedruzzi’s public KDP funnel and its evidence limits; (2) Yang Mun’s short-video-to-direct-product value ladder; (3) current KDP royalty, print, and paid-acquisition unit economics; (4) a reproducible, quality-controlled, rights-aware publishing operating model.
+- Each article links primary sources, separates observed facts from creator self-reports and our inferences, and ends with an original checklist or worksheet. Public videos are linked/embedded only where available. Reusable process material is published under the applicable repository/site terms; credentials, private customer data, and third-party media remain private.
+- Instagram is connected only after the official flow yields a usable challenge/session. Read back the exact `@monkmujo` identity, Postiz integration ID, current plan limit, and enabled-channel count. Never change TikTok while doing this.
+
+**Atomic TODO, ordered by deliverable**
+
+| ID | Exact change / input → output | Dependency | DONE evidence |
+|---|---|---|---|
+| EP-1 | DONE — `apps/landing/lib/blog-business.mjs` adds `ebook-publishing` before the generic `ebook-*` route → distinct public business hub. | None | Production `/blog/c/ebook-publishing` shows all four articles; `/blog/c/ebook` still shows The Anicca Reset. |
+| EP-2 | DONE — four contract-valid English JSON articles under `apps/landing/private/writer-articles/` with source links, computed hashes, public previews, and paid worksheets → four original reports. | EP-1 mapping contract | All four production article URLs return the intended title and cited content. |
+| EP-3 | DONE — PR #529 merged as main `8a6cb625b89b5083f7a8b7a70492c287134e2610`; Netlify run `39546586509` and post-deploy smoke succeeded → live category and articles. | EP-1, EP-2 | Production crawl readback succeeded for `/blog/c/ebook-publishing` and all four article slugs. |
+| EP-4 | Resume Instagram OAuth through the registered browser identity only when the official page renders a usable challenge; read same-time Postiz plan/quota and integrations → exact connected identity and remaining slots, or exact provider blocker. | Instagram official OAuth and Postiz account readback | The returned profile is exactly `@monkmujo`; remaining slots are computed from same-time plan and integration count; no TikTok mutation or new plan spend. Current page is blank CAPTCHA with no rendered widget/sitekey/callback; the available Postiz connector list returned no rows, so slot count remains unknown and no Instagram integration was created. |
+| EP-5 | Join article/content source IDs to public visits, paid article orders, eBook orders, refunds, fees, and generation/ad cost → source-level contribution margin and next content decisions. | Live analytics and commerce receipts | Same-window provider receipts and cost rows; no extrapolation from views or claimed royalties. |
+
+**Current cursor:** EP-1 through EP-3 are complete via [anicca-products PR #529](https://github.com/Daisuke134/anicca-products/pull/529), main SHA `8a6cb625b89b5083f7a8b7a70492c287134e2610`, successful Netlify production run [39546586509](https://github.com/Daisuke134/anicca-products/actions/runs/39546586509), and direct public route readbacks. The next cursor is EP-4 Instagram OAuth and plan/quota readback. The official flow reached a blank CAPTCHA page with no rendered widget/sitekey/callback; no integration was created, and remaining slots are unverified. The existing TikTok integration was not changed. EP-5 commerce and cost reconciliation remains after live traffic and orders exist.
