@@ -1,0 +1,60 @@
+name: Manager SocSci210 Real Frozen Pretrained Text Benchmark
+on:
+  push:
+    branches: [research/manager-product-r006-20261020]
+    paths:
+      - 'products/manager/manager_core/phase04_pretrained_eval.py'
+      - 'products/manager/scripts/phase04_socsci_pretrained_text.py'
+      - 'products/manager/tests/test_phase04_pretrained_eval.py'
+      - '.github/workflows/manager-socsci-pretrained-real.yml'
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  real-pretrained-170-40:
+    runs-on: ubuntu-latest
+    timeout-minutes: 29
+    defaults:
+      run:
+        working-directory: products/manager
+    env:
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      OMP_NUM_THREADS: '3'
+      OPENBLAS_NUM_THREADS: '3'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - name: Install light CPU-only PyTorch
+        run: python -m pip install --disable-pip-version-check torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+      - name: Pinned frozen pretrained encoder and analytic dependencies
+        run: python -m pip install --disable-pip-version-check duckdb==1.4.1 huggingface_hub==0.36.0 "sentence-transformers==3.4.1" "scikit-learn==1.6.1"
+      - name: Test exact-heldout public-pretrained comparison and safety rules
+        run: python -m unittest tests/test_phase04_pretrained_eval.py -v
+      - name: Download pinned 17 shards in temporary sandbox, evaluate 170 vs 40 real studies
+        run: python scripts/phase04_socsci_pretrained_text.py --output output/phase04-pretrained/metrics.json
+      - name: Verify same records, model and baselines, no respondent export
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('output/phase04-pretrained')
+          assert {x.name for x in root.iterdir()}=={'metrics.json'}
+          r=json.loads((root/'metrics.json').read_text())
+          a=r['study_split']
+          assert a['train_studies']==170 and a['unseen_studies']==40
+          assert a['train_rows']==3400 and a['unseen_rows']==800
+          assert r['pretrained']['no_training_of_pretrained_encoder'] is True
+          assert len(r['evaluation'])==3
+          assert all(m['n']==800 and m['studies']==40 for m in r['evaluation'].values())
+          assert r['privacy']['raw_rows_stored_or_uploaded'] is False
+          assert r['limitations']['not_the_original_socrates_8b_or_14b_model']
+          print('PASS: real 170/40 same sampled rows, 3 model comparisons, no private record output')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: manager-socsci210-real-pretrained-comparison
+          path: products/manager/output/phase04-pretrained/metrics.json
+          retention-days: 14
+          if-no-files-found: error
