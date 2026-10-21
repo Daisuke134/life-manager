@@ -6,6 +6,7 @@ Status: 2026-10-20 JST. Product strategy / milestones, **not evidence of complet
 
 End suffering is a **normative directional objective**, not a measurable one-time finish line that we can declare with a finite test. A model alone cannot prove an end to suffering. Model development, science, pilots, beneficiary evidence, legal authority, governance, and real-world verification must be kept separate. The “digital Buddha / digital god” is a metaphor for beneficial intelligence, not an authorization for control over anyone.
 
+**Phase04 status clarification (2026-10-21):** S006 is an analytically constructed counterexample, S007 an executed mock-engine sandbox, and S008 a legally public aggregate out-of-year mobility prediction. Their documented narrow completion is **not** empirical human simulation validation. S002 human response rights remain HOLD; S004/S005 are TODO; H005 is skipped exact replication. As a result, **Gate 1 remains NOT PASSED**, and no Manager-induced beneficiary improvement is measured. See [Phase04 audit](../verification/PHASE04_PROGRESS_JA.md).
 ## Milestones and gates
 
 | Gate | Outcome to prove | Required existing tasks | Additional tasks | What does NOT pass |
