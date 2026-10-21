@@ -103,7 +103,7 @@
 | C8 OPEN | EDD-FLEET-01/02/03、DD12、CD8/CD9：79 unmapped jobsをproduct所属または明示的な補助・基盤ownerへ分類し、18業務の共通receipt/costとtyped recoveryを展開する | lane別verified/zero/unknownとcoverage、業務目的別の自然成果、費用後会社profitが追える。CFO/Connectorは補助成果、Fundraiserはfinancing。無料outreach/OSSは既存gate後、installや登録を売上と呼ばない |
 | C9 OPEN | CD10/E03–E06/H01–H04/I01–I04：自然trace/独立held-out、fixed baseline/repeated trials、回復と利益改善を別評価する | 既存LM-EABを拡張しcost/latency/介入/汎化/公式netを報告。public synthetic PASSとAGI/収益能力を区別。会社全体$10M MRR目標と既存lane別目標を縮めない |
 
-**統括順序更新と現在cursor:** 旧順=C3計測/費用/report修正→C4無料cohort→C5配信→C6評価→C7新paid。新順=C5既存sellerの購入可能導線と配信候補→既存ownerで配信→C7新paid照合→C6成熟した実購入結果による採否→勝った配信の拡大。C4は既存無料導線の改善として実売上への距離で優先し、分母の完全修復を有料商品の配信前提にしない。理由はDaisの明示訂正と、61掲載/直近7日paid0の状況で商品の供給数や財務report整備より買い手獲得と購入が不足するため。現在cursor=C5/R01（既存sellerの購入導線と最初の配信候補）。C2/C3/C8の残件は保持し、実際に公開・購入・顧客対応を止める欠陥だけをその収益行動の直前に解消する。稼働中owner/外部effectの中断・重複送信はしない。
+**統括順序更新と現在cursor:** 旧順=C3計測/費用/report修正→C4無料cohort→C5配信→C6評価→C7新paid。新順=C5既存sellerの購入可能導線と配信候補→既存ownerで配信→C7新paid照合→C6成熟した実購入結果による採否→勝った配信の拡大。C4は既存無料導線の改善として実売上への距離で優先し、分母の完全修復を有料商品の配信前提にしない。理由はDaisの明示訂正と、61掲載/直近7日paid0の状況で商品の供給数や財務report整備より買い手獲得と購入が不足するため。現在cursor=R04の配信停止修復。R01の公開/価格確認と既存demoを再利用し、配信復帰後にC5の候補比較へ進む。C2/C3/C8の残件は保持し、実際に公開・購入・顧客対応を止める欠陥だけをその収益行動の直前に解消する。稼働中owner/外部effectの中断・重複送信はしない。
 
 **C3の一次資料による帰属訂正とbounded仕様:** 公式[TrafficSources UI asset](https://capafy.ai/assets/TrafficSources-CjDavuEU.js)はraw `sourceType`を保持し、`internal`を`In-app`、`referrer`を`Referrer`として表示する。collectorの`_traffic_merge`も値を保持する。19:07:38Z取得窓のHook Labはinternal/ai_overview15・internal/search11・referrer/google5で、selectorの合計31は内部26＋Google referrer5という混合signal。Google AI Overview由来、16 keyword記事の因果成果、SEO勝者という説明は証明できないため撤回する。Google referrer5にもAI Overview内訳や記事との対応はない。fresh read-only検証は同asset SHA256 `a45f7b215a271ef3fee7ce84d1b7e7a01d9ab4b41304946ebfa8dfb7b675feb6`と分類・正規化を独立照合し、最小の説明訂正を推奨する。owner=`codex-capafy-source-attribution`、worktree=`.worktrees/capafy-source-attribution-20261021`、branch=`fix/capafy-source-attribution-20261021`、base main=`16c097c076851ca5cf3b7081df37aeea2f879bce`。変更範囲は正本、pick_seo_keyword.pyのmodule doc、capafy-distribute-daily.shのSEO comment、select_capafy_distribute_skill.pyのdocstrings、既存testのGoogle断定commentだけ。rotationの計算・keyword選択・投稿・価格・登録CT・grader/split/windowは変更せず、説明と実装の乖離を解消する。非docstring ASTとshell非comment行の同一性、差分、通常CI/mainを確認する。C3全scorecard/費用coverage・C4–C9・売上改善は本atomで完了扱いしない。証拠はprivate C3 `c3-independent-ai-overview-classification-verification-195901.json`と公式readback。
 
@@ -166,9 +166,19 @@ private証拠は既存`~/.local/state/life-manager/reconciliation/capafy-c1-2026
 
 **同じR04障害の照合側境界:** 既存registered adapterのexpected_article_slugもprompt全体をUTF-8でread_textするため、同じ旧promptで公開照合前にUnicodeDecodeErrorとなり、待機時間後も配信fenceが残る。scopeへ同adapterのURL抽出と既存testを追加する。schema/owner/run/slot/path/slug一致を保持し、ASCII公開URLをraw bytesから抽出してmanifestのASCII slugと比較する。壊れたqueryを修復・無視して投稿したり、no-effectの公式readback/85分最短待機を省略したりしない。旧prompt反例でRED→最小修正、早過ぎる回/公式投稿ありは未確認を保持する回帰test、独立差分reviewを通す。診断上のURL抽出成功をeffectなしの証明にしない。 最小REDは旧read_textのUnicodeDecodeErrorを再現し、修正後は既存関連45 tests/bash syntax/diff PASS。実失敗promptのread-only probeはslug=reel-opening-text-ja、開始23:05:41.185124Z、最短no-effect照合00:30:41.185124Zを確認する。これはURL identityの診断であり、provider effect/no-effectは未確認。private証拠=`r04-utf8-exact-slug-readonly-probe.json`。 独立delta検証で、壊れたURLのslug prefixも一致し得る1 blockingを確認し、URL token全体とmanifestの完全一致を要求する。最小REDで不正byte suffixと正常URL/壊れたURLの混在の受理を再現し、/other・--broken・%2Fother・空pathも拒否する。元から無効なURL prefixの受理は互換維持しない。 最終sourceは関連47 tests PASS。独立最終delta検証は0 findings/0 blocking、2種slug/全256終端byteを含む584ケースをPASSし、前回blockingの解消を確認する。source/CI/main/本番採用/自然公開は別段階として保持する。
 
-**R01の今回の公式確認:** 公開Hook Lab listingはHTTP200、Use this Agent/Run on Capafy、v1.0.8と入力→出力demoを持つ。23:21:05Zの公式publisher GETはAgent8123079349/version2108965076984549376、status4/audit4を確認する。同じ公式billingsはday$1.99/10回、week$4.99/30回、month$9.99/50回、各supportFreeTrial0。従ってこの商品の未購入を「無料trialが付くため」と断定しない。登録済みhooklab_blog/hooklab_xは既存configと公開済み返信の証拠を再利用する。今回primaryの買い手商品訪問/購入/price変更は0で、checkout成功/新paidの証明ではない。private証拠=`r01-hooklab-current-publisher-readback.json`。R04直接障害の最小REDは実日本語でUnicodeDecodeErrorを再現し、標準shlex.quoteへ1行変更後に既存関連44 tests/bash syntax/contract18業務191jobs/errors0がPASSする。独立検証/CI/main/採用/自然公開は未完。
+**R01の今回の公式確認:** 公開Hook Lab listingはHTTP200、Use this Agent/Run on Capafy、v1.0.8と入力→出力demoを持つ。23:21:05Zの公式publisher GETはAgent8123079349/version2108965076984549376、status4/audit4を確認する。同じ公式billingsはday$1.99/10回、week$4.99/30回、month$9.99/50回、各supportFreeTrial0。従ってこの商品の未購入を「無料trialが付くため」と断定しない。登録済みhooklab_blog/hooklab_xは既存configと公開済み返信の証拠を再利用する。今回primaryの買い手商品訪問/購入/price変更は0で、checkout成功/新paidの証明ではない。private証拠=`r01-hooklab-current-publisher-readback.json`。R04直接障害の最小REDは実日本語でUnicodeDecodeErrorを再現し、標準shlex.quoteへ1行変更後に既存関連44 tests/bash syntax/contract18業務191jobs/errors0がPASSする。source/独立検証/CI/mainは下記の採用状況まで進む。旧失敗回の公式照合と自然公開は未完。
 
 **共通基盤の現在確認:** 23:26:08Zのstatus all取得は191 managed（running37/idle152/disabled2）を返し、Data available21,180,292KiB（約20.2GiB）は10/12GiB floorを満たす。latest-attempt分類はnone83/capacity_busy46/effect_unknown44/exit1 8/disk_floor_low7/exit75 2/brain_transport1であり、同時停止数や期間成功率ではない。全基盤/全owner復旧済みとはせず、共通基盤が実収益業務を止める時は先に直し、それ以外は各ownerの販売・配信障害を進める。現在は上記Capafy固有の文字/照合障害が直接blocker。private証拠=`revenue-priority-foundation-current-snapshot.json`。
+
+**R04のsource統合・本番採用:** PR #8451のexact HEAD `fe335b081076de34c9653e9fae4c529849b74d21`は全12 checks success、main `9fc1892f02bb6ff2930267117cbfcf923a6afba7`へ統合する。ALL immutable `20261021T083833-9fc1892f`はmain archiveの8942 regular filesの全bytes一致/書込不可を確認する。実日本語queryの単一argv/UTF-8と、実失敗promptからreel-opening-text-jaを読む1単位read-only canaryがPASS、provider呼出し/公開試行0。fresh launchctl-safe preflightはUID/DS/Aqua/manager UID/PID/GUI PASS。通常current promotion後、distributorだけをloaded-idle applyし、install event `1107bcbf101e9b8a144b7a85`、23:40:10Zのlive argv/repo/SHAが9fc1892fで一致する。admission_resumed=falseを保持し、旧不確実effectを解除しない。
+
+照合ownerの初回applyは旧4f008688/PID24734のloaded-runningで見送る。自己所有の有限待機処理が既存CLIのloaded-idle-only/require-currentを使い、23:45:21Zの自然終了後に同ownerを採用する（install event a36caac59e1ca34a71c6a805）。23:46:57Zのlive argv/repo/SHAは両ownerとも9fc1892fで一致する。稼働中処理のkill/restartは0。旧occurrenceの公開/非公開は未確定で、最短公式no-effect照合は00:30:41Z（09:30:41 JST）。source/配信owner採用を自然公開/新paidへ昇格しない。最新保存金銭23:07:08Zはgross$102.75/orders70で新paid未確認。**現在cursor=R04のexact旧occurrence公式readback→自然記事/X公開。** 23:47Zの公式照合はmatching commitなしでtoo_recentを保持し、23:48:13Zの対象Postiz windowはok/posts[]。最短時刻前の解除は行わない。 R01の公開/価格確認と既存demoを再利用し、次は買い手の訪問/購入と売れた施策の拡大へ進む。private証拠=`r04-utf8-immutable-canary.json`、`r04-utf8-distributor-apply.json`、`r04-utf8-loaded-readback.json`、`r04-utf8-reconciler-adoption-wait.json`（存在/現在状態は再確認する）。
+
+**R05-XD1：X上で商品demoを見せる最小配信候補:** R04の既存観測窓待ちの間に準備する。scopeは既存distributorのX caption用自然言語briefだけ（capafy-distribute-daily.sh/本正本）。対象はHook Labのみ。直近公開h07m00のcaptionは「記事の36 hooksを見る」というteaserで、native本文に商品出力がない。既存記事の自社published exampleから1 topic→1 finished spoken hookを先に示し、Hook Labが返すhooks/scriptを短く伝える候補へ変える。他商品のstyle、記事本文/SEO、offer/価格、登録CT、cadence、model/provider、public safety gate/slot/fence/posterは変えない。新しい投稿/計測framework/追加有料toolは作らない。コピー判断はmodelが行い、keyword分類器や追加routerに移さない。
+
+参照は[OpusClip agencies](https://www.opus.pro/business/agencies)の具体的な制作task→出力preview→単一CTA。ページは記名顧客の$20K MRR/成長を提供者事例として掲げるが、独立settlementと同対象/同X channelの売上因果は未検証で、数値/表現/素材/無料offerをHook Labへ流用しない。適例の穴を明記した小実験とする。自社の公開済み入力/出力を再利用し、未確認のretention/views/revenue改善を約束しない。private参照=`r02-demo-first-reference.json`。
+
+比較の固定条件はHook Lab/同じoffer/記事連動X、controlは変更前の公開caption（h07m00）、treatmentは新loaded SHAからのHook Lab記事X投稿。割当単位=実post IDと元slot、成熟窓=最初の新公開から7日、既存無料cadence/既存subscription内/追加cash spend0。既存root/返信receiptとnative反応、公式hooklab_x訪問/paid/refundを観測し、自己probeを除く。これはランダム比較ではなく、shared CTにはReelsも混じるため1件のpaidを当該creativeへ配賦しない。sample不足/交絡はinconclusiveを保持し、7日paid0やreach不足なら単なる投稿量増ではなく次の導線/対象/構成の小実験へ進む。未確認の成果claim/CTA欠落が出れば既存gate/ownerで止める。source checkは最小のshell syntax/diffと通常CI、実受入は自然生成caption→native公開/登録CTA→成熟した市場結果。R04の旧fenceを迂回して投稿しない。C6自律閉路/因果比較/全18業務/benchmarkは本候補で完了扱いしない。
 
 ### 収益優先原則と残るatomic TODOの正本
 
@@ -178,10 +188,10 @@ private証拠は既存`~/.local/state/life-manager/reconciliation/capafy-c1-2026
 
 | 順序・状態 | 次に行う一つの作業 | 成果と最小の確認 |
 |---|---|---|
-| R01 / C5・現在 | 既存seller Hook Labの掲載中商品・価格・登録CTの購入導線を確認する | 買い手が開ける商品と購入経路。既存公式証拠を再利用し、全61商品の再監査を始めない。FROZEN商品は編集しない |
+| R01 / C5・公開/価格確認済み | 既存seller Hook Labの掲載中商品・価格・登録CTの購入導線を確認する | 買い手が開ける商品と購入経路。既存公式証拠を再利用し、全61商品の再監査を始めない。FROZEN商品は編集しない |
 | R02 / C5 | 同対象/媒体/目的の成功事例から最初の配信候補の勝ち筋を選ぶ | 参照URL、確認できた成果、模倣する仕組み。ViralShortsのSold93はpaid/配信成功の証明ではない。適例不足なら小実験と明記し停止しない |
 | R03 / C5 | 自社の実入力→実出力を見せるHook Labの配信用demoを1件作る | 商品価値が伝わる実例と、購入へ進める単一CTA。権利物/未確認成果をコピーしない |
-| R04 / C5 | 既存記事ownerでdemoを含む無料記事を公開する | 公開URLとHook Lab登録CT。既存control/割当単位/観測期間/費用上限を最小限固定。詳細な費用按分やC4完了を待たない |
+| R04 / C5・直接blockerを修復中 | 既存記事ownerでdemoを含む無料記事を公開する | 公開URLとHook Lab登録CT。既存control/割当単位/観測期間/費用上限を最小限固定。詳細な費用按分やC4完了を待たない |
 | R05 / C5 | 既存X ownerで同じ商品のnative投稿/買えるCTAを公開する | native公開receiptと実際のlink先。記事・Xの既存配信を止めず、重複slot/送信を作らない |
 | R06 / C5・C2 | 既存縦動画ownerでdemoを配信する | Reel自然生成→公開/登録CTA。実失敗で投稿が止まれば、その境界だけ修復して再開する。全channelの完成を最初の記事/Xの前提にしない |
 | R07 / C5 | 既存公式analyticsで配信からの訪問・試用・購入を確認する | source×Agent×窓で実測し、自己probe/欠測を成果に加えない。新計測platformを作らない |
@@ -195,7 +205,7 @@ private証拠は既存`~/.local/state/life-manager/reconciliation/capafy-c1-2026
 | R15 / C2・C3・C8・後順位 | 収益行動の合間に残る基盤/財務/分類の債務を既存owner単位で閉じる | 履歴clock/個別gap/永続容量、78商品自然coverage、費用窓/Agent帰属/precision/利益report、79 unmapped jobsは未完として保持。R01–R14を止める前提へ戻さない |
 | R16 / C6・C9・継続 | 実売上を生む改善cycleを反復し、独立評価で汎化を確かめる | 売れた変更を次回に保持、悪化を棄却/復帰。cost/latency/介入/held-out/fixed baseline/repeated trialsは既存評価を使って拡張し、自己改善repo導入やAGI宣言を先行させない。会社$10M MRR目標を縮めず、単調増益/最大利益を保証しない |
 
-R15は一括で先頭へ戻す作業ではなく、残債務の索引である。個別atomの履歴と未達証拠はC2/C3/EDD-FLEETの既存記録に保持する。収益を直接止める障害だけを対応するR項目内で直し、現在のbusiness cursorはR01→R02→R03→R04/R05/R06へ進める。C1はDONE、C2/C3は残件あり、C4は部分完了、C5–C9の経済成果/自律閉路/全社展開は未完。
+R15は一括で先頭へ戻す作業ではなく、残債務の索引である。個別atomの履歴と未達証拠はC2/C3/EDD-FLEETの既存記録に保持する。収益を直接止める障害だけを対応するR項目内で直し、現在のbusiness cursorはR04の直接blockerを閉じ、R01の確認と既存demoを再利用してR02/R03→R04/R05/R06の配信・実購入へ進める。C1はDONE、C2/C3は残件あり、C4は部分完了、C5–C9の経済成果/自律閉路/全社展開は未完。
 
 ### C1実行：配信unknownのexact occurrence照合
 
