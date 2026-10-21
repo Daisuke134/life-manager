@@ -73,5 +73,44 @@ class CrossFieldResearchContracts(unittest.TestCase):
         self.assertEqual(by_id["F008"]["status"],"todo")
 
 
+    def test_reuse_only_welfare_and_internet_first_sources(self):
+        entries=json.loads(MATRIX.read_text(encoding="utf-8"))
+        self.assertGreaterEqual(len(entries),60)
+        ids={e["id"] for e in entries}
+        for identifier in (
+            "who-five","who-whodas","cfpb-financial-wellbeing",
+            "oecd-subjective-wellbeing-2025","fao-food-insecurity-fies",
+            "worldbank-poverty-platform","inspect-ai-evals",
+            "openai-mentalhealthbench","nice-digital-health-evidence",
+            "spirit-consort-2025","growthbook-experiments",
+            "planout-internet-experiments","digital-public-goods-standard",
+            "who-step-by-step","x402-protocol","axe-core-accessibility",
+        ):
+            self.assertIn(identifier,ids)
+        families={e["field"] for e in entries}
+        for name in ("mental_welfare_measure","physical_welfare_measure",
+                     "financial_welfare_measure","online_experimentation",
+                     "digital_public_goods","agent_evaluation","world_indicator"):
+            self.assertIn(name,families)
+        docs=[
+            ROOT/"docs/MANAGER_NO_HUMAN_WORLD_ENGINEERING.md",REPORT,
+            ROOT/"docs/roadmap/PHASE06_TO_COMPLETION_RESEARCH_JA.md",
+            ROOT/"pilot/PHASE06_BLOCKER_REMOVAL_RUNBOOK.md",
+            ROOT/"docs/MANAGER_PRODUCT_SPEC.md",
+        ]
+        for path in docs:
+            contents=path.read_text(encoding="utf-8")
+            self.assertIn("Reuse → Connect → Evaluate",contents)
+            self.assertIn("NO_ACTION",contents)
+        self.assertIn("Internet is a real-world environment",docs[0].read_text(encoding="utf-8"))
+        self.assertIn("MENTAL",REPORT.read_text(encoding="utf-8"))
+        self.assertIn("PHYSICAL",REPORT.read_text(encoding="utf-8"))
+        self.assertIn("FINANCIAL",REPORT.read_text(encoding="utf-8"))
+        self.assertIn("GrowthBook",docs[2].read_text(encoding="utf-8"))
+        self.assertIn("F004",docs[3].read_text(encoding="utf-8"))
+        self.assertIn("F007",docs[3].read_text(encoding="utf-8"))
+        self.assertIn("no per-run human approval",docs[4].read_text(encoding="utf-8"))
+        self.assertIn("NOT_MEASURED",REPORT.read_text(encoding="utf-8"))
+
 if __name__=="__main__":
     unittest.main()

@@ -1,5 +1,11 @@
 # Manager — independent intervention research prototype
 
+## October 21 — Reuse → Connect → Evaluate: digital-first welfare path
+
+**Internet is a real-world environment; external charity and facility approval are not the default execution path.** Manager prioritizes reusable public-goods software, owned transparent online assets, permitted permissionless protocols and opt-in outcomes. We will **not** invent a new welfare score, evaluation harness, marketplace, token or training method in place of existing work. The [source inventory](docs/research/crossfield-20261021/SOURCES.json) now includes **76 upstream references** spanning verified mental/physical/financial wellbeing scales and existing online experimentation/eval libraries; [scientific synthesis](docs/research/crossfield-20261021/REPORT_JA.md), [autonomy doctrine](docs/MANAGER_NO_HUMAN_WORLD_ENGINEERING.md), [Phase06 priority plan](docs/roadmap/PHASE06_TO_COMPLETION_RESEARCH_JA.md).
+
+**MentalHealthBench/Inspect AI ≠ human symptom change; online A/B conversion ≠ suffering reduction.** Use validated opt-in WHO/OECD/CFPB/FAO endpoints and actual independent evidence where licensed. No per-run human approval on self-controlled resources, but legitimate standing capability/terms, user agency and safety still apply. No production intervention or verified net benefit was created by this research update; H005 skipped, Gate1 unmet, F004/F007 blocked and **113 task statuses unchanged**.
+
 ## October 21 Phase06 — real opt-in indoor observation and rigorous blocker readiness
 
 **F004/F007 blockers are actively pursued, but external authority is still NOT VERIFIED.** A new fixed GET adapter successfully read anonymized opt-in real indoor AirGradient data in GitHub CI, separately from the existing real Open Collective historical ledger readback. Phase06 also has a machine-checkable permission/funding/site/sensor evidence matrix that NEVER self-issues financial or physical authority. The provider-source spoofing regression failed in RED CI and passed after an explicit patch. **No room was actuated; no accounts paid; real beneficiary improvement remains NOT_MEASURED.**
