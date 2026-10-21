@@ -1,4 +1,5 @@
 import datetime as dt
+import hashlib
 import json
 import os
 import stat
@@ -352,6 +353,305 @@ def test_no_commit_too_recent_stays_fenced():
 def test_no_commit_no_post_after_window_is_no_effect():
     p = proof(200, {"ok": True, "commits": []}, {"ok": True, "posts": []})
     assert p["verified"] and p["effected"] is False
+
+
+def pre_provider_prompt_failure(tmp_path, monkeypatch, *, release_sha=None, error_detail=None,
+                                event_occurrence_id=None, duplicate_failure=False):
+    occurrence_id = "capafy-distribute-daily:18e077fbebd96ce8-96969"
+    run_id = occurrence_id.rsplit(":", 1)[1]
+    started = dt.datetime(2026, 10, 21, 6, 36, 15, 594033, tzinfo=dt.timezone.utc)
+    events_path = tmp_path / "events.jsonl"
+    events_path.parent.mkdir(parents=True, exist_ok=True)
+    rows = [
+        {
+            "event_id": "pre-provider-start",
+            "owner_id": rec.OWNER_ID,
+            "loop_id": rec.OWNER_ID,
+            "job_id": rec.OWNER_ID,
+            "run_id": run_id,
+            "occurrence_id": occurrence_id,
+            "phase": "execute",
+            "status": "running",
+            "timestamp": started.isoformat(),
+            "release_sha": release_sha or "70c93940bc712261f3dd01aa9556b467b1481539",
+            "effect_class": "publish",
+            "effect_status": "started",
+            "provider_receipt_id": None,
+            "official_readback_ref": None,
+        },
+        {
+            "event_id": "pre-provider-fail",
+            "owner_id": rec.OWNER_ID,
+            "loop_id": rec.OWNER_ID,
+            "job_id": rec.OWNER_ID,
+            "run_id": run_id,
+            "occurrence_id": occurrence_id,
+            "phase": "report",
+            "status": "fail",
+            "timestamp": "2026-10-21T06:36:20.522605+00:00",
+            "release_sha": release_sha or "70c93940bc712261f3dd01aa9556b467b1481539",
+            "effect_class": "publish",
+            "effect_status": "unknown",
+            "effect_identity_status": "not_written",
+            "failure_layer": "entrypoint",
+            "error_class": "entrypoint_exit_1",
+            "error_detail": error_detail or "line 237: CRAFT_GUIDANCE: unbound variable",
+            "exit_code": 1,
+            "provider_receipt_id": None,
+            "official_readback_ref": None,
+        },
+    ]
+    if event_occurrence_id is not None:
+        for row in rows:
+            row["occurrence_id"] = event_occurrence_id
+    if duplicate_failure:
+        rows[-1]["event_id"] = rows[0]["event_id"]
+    events_path.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+    monkeypatch.setattr(rec, "EVENTS_PATH", events_path)
+    return occurrence_id, started
+
+
+def reconcile_pre_provider_prompt_failure(
+    tmp_path, monkeypatch, posts, *, age_seconds=None, release_sha=None, error_detail=None,
+    event_occurrence_id=None, duplicate_failure=False,
+):
+    occurrence_id, started = pre_provider_prompt_failure(
+        tmp_path, monkeypatch, release_sha=release_sha, error_detail=error_detail,
+        event_occurrence_id=event_occurrence_id, duplicate_failure=duplicate_failure,
+    )
+    return rec.reconcile(
+        occurrence_id,
+        now=started + dt.timedelta(seconds=age_seconds or rec.NO_EFFECT_MIN_AGE_SECONDS + 1),
+        fenced_row_fn=lambda _owner, _occurrence: ("claimed", started - dt.timedelta(seconds=1)),
+        commits_fn=lambda _start, _end: {"ok": True, "commits": []},
+        x_fn=lambda _start, _end: {"ok": True, "posts": posts},
+        started_at_fn=lambda _occurrence: started,
+        expected_slug_fn=lambda _occurrence: "youtube-outro-script",
+    )
+
+
+def test_exact_pre_provider_failure_excludes_only_its_known_postiz_post(tmp_path, monkeypatch):
+    result = reconcile_pre_provider_prompt_failure(
+        tmp_path, monkeypatch, ["cmvhqvaid0429oh0ywbv95g8r"]
+    )
+
+    assert result["verified"] is True
+    assert result["effected"] is False
+    assert result["proof_kind"] == "official_github_postiz_window_after_pre_provider_prompt_failure"
+    assert result["excluded_postiz_post_ids"] == ["cmvhqvaid0429oh0ywbv95g8r"]
+
+
+def test_exact_pre_provider_failure_keeps_any_other_postiz_post_fenced(tmp_path, monkeypatch):
+    result = reconcile_pre_provider_prompt_failure(
+        tmp_path, monkeypatch, ["cmvhqvaid0429oh0ywbv95g8r", "unknown-post"]
+    )
+
+    assert result["verified"] is False
+    assert result["reason"] == "x_post_without_article"
+
+
+def test_exact_pre_provider_failure_keeps_other_preexisting_post_fenced(tmp_path, monkeypatch):
+    occurrence_id, started = pre_provider_prompt_failure(tmp_path, monkeypatch)
+    result = rec.reconcile(
+        occurrence_id,
+        now=started + dt.timedelta(seconds=rec.NO_EFFECT_MIN_AGE_SECONDS + 1),
+        fenced_row_fn=lambda _owner, _occurrence: ("claimed", started - dt.timedelta(seconds=1)),
+        commits_fn=lambda _start, _end: {"ok": True, "commits": []},
+        x_fn=lambda _start, _end: {
+            "ok": True,
+            "posts": ["cmvhqvaid0429oh0ywbv95g8r"],
+            "preexisting_posts": [{"post_id": "other-post", "receipt_path": "/receipt"}],
+        },
+        started_at_fn=lambda _occurrence: started,
+        expected_slug_fn=lambda _occurrence: "youtube-outro-script",
+    )
+
+    assert result["verified"] is False
+    assert result["reason"] == "x_post_without_article"
+
+
+def test_exact_pre_provider_failure_still_waits_for_full_effect_window(tmp_path, monkeypatch):
+    result = reconcile_pre_provider_prompt_failure(
+        tmp_path,
+        monkeypatch,
+        ["cmvhqvaid0429oh0ywbv95g8r"],
+        age_seconds=rec.NO_EFFECT_MIN_AGE_SECONDS - 1,
+    )
+
+    assert result["verified"] is False
+    assert result["reason"].startswith("too_recent:")
+
+
+def test_pre_provider_post_exclusion_requires_exact_release_and_error(tmp_path, monkeypatch):
+    for i, (release_sha, error_detail) in enumerate((
+        ("f" * 40, "line 237: CRAFT_GUIDANCE: unbound variable"),
+        ("70c93940bc712261f3dd01aa9556b467b1481539", "unrelated entrypoint failure"),
+    )):
+        result = reconcile_pre_provider_prompt_failure(
+            tmp_path / str(i), monkeypatch, ["cmvhqvaid0429oh0ywbv95g8r"],
+            release_sha=release_sha, error_detail=error_detail,
+        )
+
+        assert result["verified"] is False
+        assert result["reason"] == "x_post_without_article"
+
+
+def test_pre_provider_post_exclusion_rejects_wrong_occurrence_events(tmp_path, monkeypatch):
+    result = reconcile_pre_provider_prompt_failure(
+        tmp_path, monkeypatch, ["cmvhqvaid0429oh0ywbv95g8r"],
+        event_occurrence_id="capafy-distribute-daily:other-run",
+    )
+
+    assert result["verified"] is False
+    assert result["reason"] == "x_post_without_article"
+
+
+def test_pre_provider_post_exclusion_rejects_duplicate_event_id(tmp_path, monkeypatch):
+    result = reconcile_pre_provider_prompt_failure(
+        tmp_path, monkeypatch, ["cmvhqvaid0429oh0ywbv95g8r"], duplicate_failure=True
+    )
+
+    assert result["verified"] is False
+    assert result["reason"] == "x_post_without_article"
+
+
+def test_pre_provider_failure_with_matching_landing_commit_is_effected(tmp_path, monkeypatch):
+    occurrence_id, started = pre_provider_prompt_failure(tmp_path, monkeypatch)
+    commit = {"sha": "a" * 40, "slug": "youtube-outro-script"}
+    result = rec.reconcile(
+        occurrence_id,
+        now=started + dt.timedelta(seconds=rec.NO_EFFECT_MIN_AGE_SECONDS + 1),
+        fenced_row_fn=lambda _owner, _occurrence: ("claimed", started - dt.timedelta(seconds=1)),
+        commits_fn=lambda _start, _end: {"ok": True, "commits": [commit]},
+        x_fn=lambda _start, _end: {"ok": True, "posts": ["cmvhqvaid0429oh0ywbv95g8r"]},
+        page_status_fn=lambda _slug: 200,
+        started_at_fn=lambda _occurrence: started,
+        expected_slug_fn=lambda _occurrence: "youtube-outro-script",
+    )
+
+    assert result["verified"] is True
+    assert result["effected"] is True
+    assert result["provider_receipt_id"].startswith(f"github:{'a' * 40}|")
+
+
+def test_pre_provider_failure_with_other_landing_commit_stays_fenced(tmp_path, monkeypatch):
+    occurrence_id, started = pre_provider_prompt_failure(tmp_path, monkeypatch)
+    commit = {"sha": "b" * 40, "slug": "other-capafy-article"}
+    result = rec.reconcile(
+        occurrence_id,
+        now=started + dt.timedelta(seconds=rec.NO_EFFECT_MIN_AGE_SECONDS + 1),
+        fenced_row_fn=lambda _owner, _occurrence: ("claimed", started - dt.timedelta(seconds=1)),
+        commits_fn=lambda _start, _end: {"ok": True, "commits": [commit]},
+        x_fn=lambda _start, _end: {"ok": True, "posts": ["cmvhqvaid0429oh0ywbv95g8r"]},
+        started_at_fn=lambda _occurrence: started,
+        expected_slug_fn=lambda _occurrence: "youtube-outro-script",
+    )
+
+    assert result["verified"] is False
+    assert result["reason"] == "landing_commit_in_window_during_pre_provider_failure"
+
+
+def test_pre_provider_failure_keeps_fence_on_postiz_readback_failure(tmp_path, monkeypatch):
+    occurrence_id, started = pre_provider_prompt_failure(tmp_path, monkeypatch)
+    result = rec.reconcile(
+        occurrence_id,
+        now=started + dt.timedelta(seconds=rec.NO_EFFECT_MIN_AGE_SECONDS + 1),
+        fenced_row_fn=lambda _owner, _occurrence: ("claimed", started - dt.timedelta(seconds=1)),
+        commits_fn=lambda _start, _end: {"ok": True, "commits": []},
+        x_fn=lambda _start, _end: {"ok": False, "reason": "postiz_readback_failed"},
+        started_at_fn=lambda _occurrence: started,
+        expected_slug_fn=lambda _occurrence: "youtube-outro-script",
+    )
+
+    assert result["verified"] is False
+    assert result["reason"] == "postiz_readback_failed"
+
+
+def test_resolve_persists_provider_readback_snapshot_before_closing(tmp_path, monkeypatch):
+    occurrence_id, started = pre_provider_prompt_failure(tmp_path, monkeypatch)
+    occurrences_root = tmp_path / "occurrences"
+    occurrences_root.mkdir(mode=0o700)
+    occurrences_root.chmod(0o700)
+    monkeypatch.setattr(rec, "OCCURRENCES_ROOT", occurrences_root)
+    resolved_proof = {}
+    postiz_row = {
+        "id": "cmvhqvaid0429oh0ywbv95g8r",
+        "integration": {"id": rec.X_INTEGRATION_ID},
+        "status": "PUBLISHED",
+        "content": "Unrelated eBook case-study CTA",
+        "publishDate": "2026-10-21T06:41:00.000Z",
+        "nativeId": "2112796610917003351",
+    }
+    original_fsync = os.fsync
+    fsynced_directory = False
+
+    def record_fsync(descriptor):
+        nonlocal fsynced_directory
+        if stat.S_ISDIR(os.fstat(descriptor).st_mode):
+            fsynced_directory = True
+        return original_fsync(descriptor)
+
+    monkeypatch.setattr(rec.os, "fsync", record_fsync)
+
+    def resolve_fn(_owner, _occurrence, *, official_readback, expected_state):
+        assert fsynced_directory is True
+        resolved_proof.update(official_readback())
+        assert expected_state == "claimed"
+        return True
+
+    result = rec.reconcile(
+        occurrence_id,
+        resolve=True,
+        now=started + dt.timedelta(seconds=rec.NO_EFFECT_MIN_AGE_SECONDS + 1),
+        fenced_row_fn=lambda _owner, _occurrence: ("claimed", started - dt.timedelta(seconds=1)),
+        commits_fn=lambda _start, _end: {"ok": True, "commits": []},
+        x_fn=lambda _start, _end: {
+            "ok": True,
+            "posts": ["cmvhqvaid0429oh0ywbv95g8r"],
+            "integration_posts": [postiz_row],
+        },
+        expected_slug_fn=lambda _occurrence: "youtube-outro-script",
+        started_at_fn=lambda _occurrence: started,
+        resolve_fn=resolve_fn,
+    )
+
+    snapshot_path = Path(result["official_readback_ref"])
+    snapshot_bytes = snapshot_path.read_bytes()
+    snapshot = json.loads(snapshot_bytes)
+    assert result["closed"] is True
+    assert result["readback_snapshot_sha256"] == hashlib.sha256(snapshot_bytes).hexdigest()
+    expected_event_ref = f"{rec.EVENTS_PATH}#event_id=pre-provider-fail"
+    assert result["evidence_refs"] == [str(snapshot_path), expected_event_ref]
+    assert resolved_proof["official_readback_ref"] == str(snapshot_path)
+    assert snapshot["github"]["landing_commits"] == []
+    assert snapshot["postiz"]["matching_post_ids"] == ["cmvhqvaid0429oh0ywbv95g8r"]
+    assert snapshot["postiz"]["integration_posts"] == [postiz_row]
+    assert snapshot["excluded_postiz_post_ids"] == ["cmvhqvaid0429oh0ywbv95g8r"]
+    assert snapshot["pre_provider_failure_event_id"] == "pre-provider-fail"
+    assert snapshot["pre_provider_failure_event_ref"] == expected_event_ref
+    assert snapshot_path.stat().st_mode & 0o777 == 0o600
+    assert occurrences_root.stat().st_mode & 0o777 == 0o700
+
+
+def test_resolve_does_not_close_if_readback_snapshot_cannot_be_persisted(tmp_path, monkeypatch):
+    occurrence_id, started = pre_provider_prompt_failure(tmp_path, monkeypatch)
+    monkeypatch.setattr(rec, "OCCURRENCES_ROOT", tmp_path / "missing-occurrences")
+    resolve_calls = []
+    result = rec.reconcile(
+        occurrence_id,
+        resolve=True,
+        now=started + dt.timedelta(seconds=rec.NO_EFFECT_MIN_AGE_SECONDS + 1),
+        fenced_row_fn=lambda _owner, _occurrence: ("claimed", started - dt.timedelta(seconds=1)),
+        commits_fn=lambda _start, _end: {"ok": True, "commits": []},
+        x_fn=lambda _start, _end: {"ok": True, "posts": ["cmvhqvaid0429oh0ywbv95g8r"]},
+        expected_slug_fn=lambda _occurrence: "youtube-outro-script",
+        started_at_fn=lambda _occurrence: started,
+        resolve_fn=lambda *_args, **_kwargs: resolve_calls.append(True) or True,
+    )
+
+    assert result["verified"] is False
+    assert result["reason"] == "readback_snapshot_persist_failed"
+    assert resolve_calls == []
 
 
 def test_legacy_missing_binding_requires_complete_empty_official_window(tmp_path, monkeypatch):
@@ -782,6 +1082,33 @@ def test_postiz_window_with_malformed_integration_is_not_complete_evidence(monke
     result = rec.read_x_posts(Q, Q + dt.timedelta(minutes=70))
 
     assert result == {"ok": False, "reason": "postiz_readback_malformed"}
+
+
+def test_postiz_window_preserves_provider_rows_for_private_snapshot(monkeypatch):
+    post = {
+        "id": "post-1",
+        "integration": {"id": rec.X_INTEGRATION_ID},
+        "status": "PUBLISHED",
+        "content": "CTA",
+        "publishDate": "2026-09-29T09:00:00.000Z",
+    }
+
+    class Client:
+        def __init__(self, _api_key):
+            pass
+
+        def list_posts(self, _start, _end):
+            return [post]
+
+    fake_adapter = types.ModuleType("postiz_adapter")
+    fake_adapter.HttpPostizClient = Client
+    monkeypatch.setattr(rec, "postiz_key", lambda: "test-key")
+    monkeypatch.setitem(sys.modules, "postiz_adapter", fake_adapter)
+
+    result = rec.read_x_posts(Q, Q + dt.timedelta(minutes=70))
+
+    assert result["posts"] == ["post-1"]
+    assert result["integration_posts"] == [post]
 
 
 def pre_effect_manifest_failure(tmp_path, monkeypatch, *, artifact=None):

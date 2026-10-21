@@ -77,6 +77,11 @@ PRE_EFFECT_ENOSPC_DETAIL = (
     "No space left on device"
 )
 PRE_EFFECT_TERMINAL_MAX_SECONDS = 120
+PRE_PROVIDER_PROMPT_FAILURE_OCCURRENCE = "capafy-distribute-daily:18e077fbebd96ce8-96969"
+PRE_PROVIDER_PROMPT_FAILURE_RELEASE_SHA = "70c93940bc712261f3dd01aa9556b467b1481539"
+PRE_PROVIDER_PROMPT_FAILURE_SLUG = "youtube-outro-script"
+PRE_PROVIDER_PROMPT_FAILURE_DETAIL = "line 237: CRAFT_GUIDANCE: unbound variable"
+PRE_PROVIDER_PROMPT_FAILURE_POSTIZ_ID = "cmvhqvaid0429oh0ywbv95g8r"
 
 
 def fenced_row(owner_id: str, occurrence_id: str) -> tuple[str, dt.datetime]:
@@ -354,6 +359,80 @@ def read_landing_commits(start: dt.datetime, end: dt.datetime) -> dict[str, Any]
     return {"ok": True, "commits": hits}
 
 
+def pre_provider_prompt_failure(occurrence_id: str, started_at: dt.datetime,
+                                expected_slug: str, *,
+                                events_path: Path | None = None) -> dict[str, Any] | None:
+    """Bind one shared-Postiz collision to the exact historical pre-provider failure."""
+    if (occurrence_id != PRE_PROVIDER_PROMPT_FAILURE_OCCURRENCE
+            or expected_slug != PRE_PROVIDER_PROMPT_FAILURE_SLUG):
+        return None
+    run_id = _run_id_for_occurrence(occurrence_id)
+    matching: list[dict[str, Any]] = []
+    path = events_path or EVENTS_PATH
+    with path.open(encoding="utf-8") as handle:
+        for line in handle:
+            if not line.strip():
+                continue
+            try:
+                event = json.loads(line)
+            except (TypeError, ValueError) as exc:
+                raise ValueError("occurrence event stream contains malformed JSON") from exc
+            if not isinstance(event, dict):
+                raise ValueError("occurrence event stream row must be a JSON object")
+            if (event.get("owner_id") == OWNER_ID
+                    and event.get("run_id") == run_id
+                    and event.get("occurrence_id") == occurrence_id):
+                matching.append(event)
+    if len(matching) != 2:
+        return None
+    starts = [event for event in matching
+              if event.get("phase") == "execute" and event.get("status") == "running"]
+    failures = [event for event in matching
+                if event.get("phase") == "report" and event.get("status") == "fail"]
+    if len(starts) != 1 or len(failures) != 1:
+        return None
+    start_event, failure = starts[0], failures[0]
+    start_event_id = start_event.get("event_id")
+    failure_event_id = failure.get("event_id")
+    if (not isinstance(start_event_id, str) or not start_event_id
+            or not isinstance(failure_event_id, str) or not failure_event_id
+            or start_event_id == failure_event_id):
+        return None
+    if (start_event.get("release_sha") != PRE_PROVIDER_PROMPT_FAILURE_RELEASE_SHA
+            or failure.get("release_sha") != PRE_PROVIDER_PROMPT_FAILURE_RELEASE_SHA
+            or start_event.get("effect_class") != "publish"
+            or start_event.get("effect_status") != "started"
+            or failure.get("effect_class") != "publish"
+            or failure.get("effect_status") != "unknown"
+            or failure.get("effect_identity_status") != "not_written"
+            or failure.get("failure_layer") != "entrypoint"
+            or failure.get("error_class") != "entrypoint_exit_1"
+            or failure.get("exit_code") != 1
+            or failure.get("provider_receipt_id") is not None
+            or failure.get("official_readback_ref") is not None
+            or PRE_PROVIDER_PROMPT_FAILURE_DETAIL not in str(failure.get("error_detail") or "")):
+        return None
+    try:
+        event_started = dt.datetime.fromisoformat(
+            str(start_event["timestamp"]).replace("Z", "+00:00")
+        ).astimezone(dt.timezone.utc)
+        terminal_at = dt.datetime.fromisoformat(
+            str(failure["timestamp"]).replace("Z", "+00:00")
+        ).astimezone(dt.timezone.utc)
+    except (KeyError, TypeError, ValueError):
+        return None
+    elapsed = (terminal_at - event_started).total_seconds()
+    if (event_started != started_at.astimezone(dt.timezone.utc)
+            or elapsed < 0 or elapsed > PRE_EFFECT_TERMINAL_MAX_SECONDS):
+        return None
+    return {
+        "failure_event_id": failure_event_id,
+        "postiz_post_ids": [PRE_PROVIDER_PROMPT_FAILURE_POSTIZ_ID],
+        "started_at": event_started.isoformat(),
+        "terminal_at": terminal_at.isoformat(),
+    }
+
+
 def page_status(slug: str) -> int:
     try:
         with urllib.request.urlopen(BASE_URL + slug, timeout=20) as response:
@@ -436,6 +515,7 @@ def read_x_posts(start: dt.datetime, end: dt.datetime) -> dict[str, Any]:
         return {"ok": False, "reason": "postiz_readback_malformed"}
     ours = []
     preexisting = []
+    integration_posts = []
     for post in posts:
         integration = post.get("integration")
         if (not isinstance(integration, dict)
@@ -446,12 +526,13 @@ def read_x_posts(start: dt.datetime, end: dt.datetime) -> dict[str, Any]:
             post_id = post.get("id")
             if not isinstance(post_id, str) or not post_id:
                 return {"ok": False, "reason": "postiz_readback_malformed"}
+            integration_posts.append(post)
             prior = preexisting_x_post(post, start)
             if prior is not None:
                 preexisting.append(prior)
             else:
                 ours.append(post_id)
-    result = {"ok": True, "posts": ours}
+    result = {"ok": True, "posts": ours, "integration_posts": integration_posts}
     if preexisting:
         result["preexisting_posts"] = preexisting
     return result
@@ -461,7 +542,8 @@ def build_proof(occurrence_id: str, queued_at: dt.datetime, *,
                 started_at: dt.datetime, expected_slug: str | None, now: dt.datetime,
                 commits: dict[str, Any], x_posts: dict[str, Any],
                 page_status_fn: Callable[[str], int] = page_status,
-                pre_effect: dict[str, Any] | None = None) -> dict[str, Any]:
+                pre_effect: dict[str, Any] | None = None,
+                pre_provider_failure: dict[str, Any] | None = None) -> dict[str, Any]:
     proof: dict[str, Any] = {"owner_id": OWNER_ID, "occurrence_id": occurrence_id,
                              "verified": False, "queued_at": queued_at.isoformat(),
                              "occurrence_started_at": started_at.isoformat(),
@@ -570,6 +652,9 @@ def build_proof(occurrence_id: str, queued_at: dt.datetime, *,
             if expected_slug is None else "landing_commit_without_live_page"
         )
         return proof
+    if pre_provider_failure is not None and commit_rows:
+        proof["reason"] = "landing_commit_in_window_during_pre_provider_failure"
+        return proof
     age = (now - started_at).total_seconds()
     if age <= NO_EFFECT_MIN_AGE_SECONDS:
         proof["reason"] = f"too_recent:{int(age)}s<={NO_EFFECT_MIN_AGE_SECONDS}s"
@@ -583,26 +668,58 @@ def build_proof(occurrence_id: str, queued_at: dt.datetime, *,
         return proof
     if x_posts.get("preexisting_posts"):
         proof["preexisting_x_posts"] = x_posts["preexisting_posts"]
-    if post_rows:
+    excluded_post_ids: list[str] = []
+    if pre_provider_failure is not None:
+        allowed = set(pre_provider_failure.get("postiz_post_ids", []))
+        preexisting_rows = x_posts.get("preexisting_posts", [])
+        if (not isinstance(preexisting_rows, list)
+                or any(not isinstance(row, dict)
+                       or not isinstance(row.get("post_id"), str)
+                       or not row["post_id"] for row in preexisting_rows)):
+            proof["reason"] = "postiz_readback_malformed"
+            return proof
+        all_post_ids = post_rows + [row["post_id"] for row in preexisting_rows]
+        if len(all_post_ids) != len(set(all_post_ids)):
+            proof["reason"] = "postiz_readback_malformed"
+            return proof
+        unexpected_posts = [post_id for post_id in all_post_ids if post_id not in allowed]
+        if unexpected_posts:
+            proof["reason"] = "x_post_without_article"
+            return proof
+        excluded_post_ids = [post_id for post_id in all_post_ids if post_id in allowed]
+        proof["excluded_postiz_post_ids"] = excluded_post_ids
+        proof["pre_provider_failure_event_id"] = pre_provider_failure["failure_event_id"]
+    elif post_rows:
         proof["reason"] = (
             "x_post_in_window_without_occurrence_manifest"
             if expected_slug is None else "x_post_without_article"
         )
         return proof
+    if pre_provider_failure is not None:
+        provider_receipt_id = (
+            f"github-postiz-window:{_run_id_for_occurrence(occurrence_id)}:"
+            f"{started_at.isoformat()}:{(started_at + dt.timedelta(seconds=MAX_RUN_SECONDS)).isoformat()}:"
+            f"pre-provider:{pre_provider_failure['failure_event_id']}:"
+            f"excluded-postiz:{','.join(excluded_post_ids) or 'none'}"
+        )
+        proof_kind = "official_github_postiz_window_after_pre_provider_prompt_failure"
+    else:
+        provider_receipt_id = (
+            f"github-postiz-empty-window:{_run_id_for_occurrence(occurrence_id)}:"
+            f"{started_at.isoformat()}:{(started_at + dt.timedelta(seconds=MAX_RUN_SECONDS)).isoformat()}"
+            if expected_slug is None else
+            f"github-landing-and-postiz-x-empty:{started_at.isoformat()}"
+        )
+        proof_kind = (
+            "official_github_postiz_empty_after_legacy_manifest_gap"
+            if expected_slug is None and pre_effect is not None
+            and pre_effect.get("proof_kind") == "legacy_manifest_gap" else
+            "official_github_postiz_empty_after_pre_effect_enospc"
+            if expected_slug is None else "official_github_commits_and_postiz_listing"
+        )
     proof.update(verified=True, effected=False,
-                 provider_receipt_id=(
-                     f"github-postiz-empty-window:{_run_id_for_occurrence(occurrence_id)}:"
-                     f"{started_at.isoformat()}:{(started_at + dt.timedelta(seconds=MAX_RUN_SECONDS)).isoformat()}"
-                     if expected_slug is None else
-                     f"github-landing-and-postiz-x-empty:{started_at.isoformat()}"
-                 ),
-                 proof_kind=(
-                     "official_github_postiz_empty_after_legacy_manifest_gap"
-                     if expected_slug is None and pre_effect is not None
-                     and pre_effect.get("proof_kind") == "legacy_manifest_gap" else
-                     "official_github_postiz_empty_after_pre_effect_enospc"
-                     if expected_slug is None else "official_github_commits_and_postiz_listing"
-                 ),
+                 provider_receipt_id=provider_receipt_id,
+                 proof_kind=proof_kind,
                  checked_at=now.isoformat(timespec="seconds"))
     return proof
 
@@ -644,6 +761,98 @@ def _write_private_hint(path: Path, value: dict[str, Any]) -> bool:
         stream.flush()
         os.fsync(stream.fileno())
     return True
+
+
+def persist_official_readback_snapshot(occurrence_id: str, started_at: dt.datetime,
+                                      expected_slug: str | None, proof: dict[str, Any],
+                                      commits: dict[str, Any],
+                                      x_posts: dict[str, Any]) -> tuple[Path, str]:
+    root = OCCURRENCES_ROOT
+    try:
+        root_info = root.lstat()
+    except OSError as exc:
+        raise ValueError("readback snapshot directory unavailable") from exc
+    if (stat.S_ISLNK(root_info.st_mode) or not stat.S_ISDIR(root_info.st_mode)
+            or root_info.st_uid != os.getuid()
+            or stat.S_IMODE(root_info.st_mode) != 0o700):
+        raise ValueError("readback snapshot directory is not private")
+
+    post_ids = x_posts.get("posts")
+    if not isinstance(post_ids, list) or any(not isinstance(post_id, str) for post_id in post_ids):
+        raise ValueError("postiz readback snapshot is malformed")
+    integration_posts = x_posts.get("integration_posts", [])
+    preexisting_posts = x_posts.get("preexisting_posts", [])
+    if (not isinstance(integration_posts, list)
+            or any(not isinstance(post, dict)
+                   or not isinstance(post.get("id"), str)
+                   or not isinstance(post.get("integration"), dict)
+                   or post["integration"].get("id") != X_INTEGRATION_ID
+                   for post in integration_posts)):
+        raise ValueError("postiz provider rows are malformed")
+    if (not isinstance(preexisting_posts, list)
+            or any(not isinstance(post, dict)
+                   or not isinstance(post.get("post_id"), str)
+                   for post in preexisting_posts)):
+        raise ValueError("postiz preexisting rows are malformed")
+    provider_ids = [post["id"] for post in integration_posts]
+    known_ids = post_ids + [post["post_id"] for post in preexisting_posts]
+    if (len(provider_ids) != len(set(provider_ids))
+            or sorted(provider_ids) != sorted(known_ids)):
+        raise ValueError("postiz provider rows do not match listed IDs")
+    snapshot = {
+        "schema_version": "capafy-distribute-official-readback.v1",
+        "owner_id": OWNER_ID,
+        "occurrence_id": occurrence_id,
+        "run_id": _run_id_for_occurrence(occurrence_id),
+        "checked_at": proof.get("checked_at"),
+        "window_start": started_at.isoformat(),
+        "window_end": (started_at + dt.timedelta(seconds=MAX_RUN_SECONDS)).isoformat(),
+        "expected_article_slug": expected_slug,
+        "proof_kind": proof.get("proof_kind"),
+        "provider_receipt_id": proof.get("provider_receipt_id"),
+        "github": {
+            "readback_ok": commits.get("ok") is True,
+            "landing_commits": commits.get("commits"),
+            "reason": commits.get("reason"),
+        },
+        "postiz": {
+            "readback_ok": x_posts.get("ok") is True,
+            "integration_id": X_INTEGRATION_ID,
+            "matching_post_ids": post_ids,
+            "integration_posts": integration_posts,
+            "preexisting_posts": preexisting_posts,
+            "reason": x_posts.get("reason"),
+        },
+        "pre_provider_failure_event_id": proof.get("pre_provider_failure_event_id"),
+        "pre_provider_failure_event_ref": (
+            f"{EVENTS_PATH}#event_id={proof['pre_provider_failure_event_id']}"
+            if proof.get("pre_provider_failure_event_id") else None
+        ),
+        "excluded_postiz_post_ids": proof.get("excluded_postiz_post_ids", []),
+    }
+    serialized = json.dumps(snapshot, sort_keys=True) + "\n"
+    snapshot_bytes = serialized.encode("utf-8")
+    digest = hashlib.sha256(snapshot_bytes).hexdigest()
+    path = root / f"{_run_id_for_occurrence(occurrence_id)}.readback-{digest}.json"
+    if not _write_private_hint(path, snapshot):
+        try:
+            descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        except OSError as exc:
+            raise ValueError("readback snapshot could not be persisted") from exc
+        with os.fdopen(descriptor, "rb") as stream:
+            info = os.fstat(stream.fileno())
+            if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                    or info.st_nlink != 1 or stat.S_IMODE(info.st_mode) != 0o600
+                    or stream.read() != snapshot_bytes):
+                raise ValueError("existing readback snapshot does not match")
+    directory_descriptor = os.open(
+        root, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    )
+    try:
+        os.fsync(directory_descriptor)
+    finally:
+        os.close(directory_descriptor)
+    return path, digest
 
 
 def _occurrence_slot(occurrence_id: str) -> str:
@@ -755,6 +964,7 @@ def reconcile(occurrence_id: str, *, resolve: bool = False, now: dt.datetime | N
     state, queued_at = fenced_row_fn(OWNER_ID, occurrence_id)
     started_at = (started_at_fn or occurrence_started_at)(occurrence_id)
     end = started_at + dt.timedelta(seconds=MAX_RUN_SECONDS)
+    pre_provider_failure = None
     try:
         expected_slug = (expected_slug_fn or expected_article_slug)(occurrence_id)
     except ValueError:
@@ -770,16 +980,42 @@ def reconcile(occurrence_id: str, *, resolve: bool = False, now: dt.datetime | N
         expected_slug = None
     else:
         pre_effect = None
+        pre_provider_failure = pre_provider_prompt_failure(
+            occurrence_id, started_at, expected_slug
+        )
+    commits_readback = commits_fn(started_at, end)
+    postiz_readback = x_fn(started_at, end)
     proof = build_proof(
         occurrence_id, queued_at, started_at=started_at,
         expected_slug=expected_slug, now=now,
-        commits=commits_fn(started_at, end),
-        x_posts=x_fn(started_at, end), page_status_fn=page_status_fn,
-        pre_effect=pre_effect,
+        commits=commits_readback,
+        x_posts=postiz_readback, page_status_fn=page_status_fn,
+        pre_effect=pre_effect, pre_provider_failure=pre_provider_failure,
     )
     result = {**proof, "admission_state": state}
     if not proof.get("verified") or not resolve:
         return result
+    try:
+        snapshot_path, snapshot_hash = persist_official_readback_snapshot(
+            occurrence_id, started_at, expected_slug, proof,
+            commits_readback, postiz_readback,
+        )
+    except (OSError, ValueError) as exc:
+        return {
+            **proof,
+            "verified": False,
+            "reason": "readback_snapshot_persist_failed",
+            "snapshot_error_class": type(exc).__name__,
+            "admission_state": state,
+        }
+    proof["official_readback_ref"] = str(snapshot_path)
+    proof["readback_snapshot_sha256"] = snapshot_hash
+    proof["evidence_refs"] = [str(snapshot_path)]
+    if proof.get("pre_provider_failure_event_id"):
+        proof["evidence_refs"].append(
+            f"{EVENTS_PATH}#event_id={proof['pre_provider_failure_event_id']}"
+        )
+    result = {**proof, "admission_state": state}
     if resolve_fn is None:
         from runtime.host.resource_admission import resolve_unknown_occurrence
         resolve_fn = resolve_unknown_occurrence
