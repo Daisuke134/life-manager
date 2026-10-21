@@ -19,6 +19,23 @@ jobs:
           python-version: '3.11'
       - name: Unit tests
         run: python -m unittest discover -s tests -v
+      - name: Phase04 deterministic methods demo (SYNTHETIC, NOT an empirical benchmark)
+        run: python scripts/phase04_synthetic_bench.py --output output/phase04-synthetic
+      - name: Verify aggregate-only and separate causal evidence
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('output/phase04-synthetic')
+          p=json.loads((root/'prediction_and_shift.json').read_text())
+          c=json.loads((root/'causal_fidelity_counterexample.json').read_text())
+          v=json.loads((root/'verification_boundary.json').read_text())
+          assert p['basis']=='SYNTHETIC_ONLY' and p['real_study_evaluated'] is False
+          assert p['test_studies_disjoint']
+          assert c['real_world_causal_validation'] is False
+          assert v['real_beneficiaries']==0
+          assert not list(root.glob('*.csv'))
+          PY
       - name: Product boundary
         run: python scripts/check_boundaries.py
       - name: Backlog consistency
