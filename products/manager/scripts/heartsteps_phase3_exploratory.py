@@ -125,6 +125,7 @@ def _regression(rows,with_index_interaction=False):
             'ratio':math.exp(effect),'ratio_ci_95_normal':[math.exp(effect-1.96*se),math.exp(effect+1.96*se)],
             'ordinal_index_50_interaction':model['beta'][4] if with_index_interaction else None,
             'ordinal_index_50_multiplier':math.exp(model['beta'][4]) if with_index_interaction else None,
+            'ordinal_index_50_multiplier_ci_95_normal':[math.exp(model['beta'][4]-1.96*model['se'][4]),math.exp(model['beta'][4]+1.96*model['se'][4])] if with_index_interaction else None,
             'description':'participant-cluster-robust regression; association, not exact 2019 causal RCT reproduction',
             'covariance':model['covariance']}
 
@@ -142,6 +143,7 @@ def fit_exploratory_models(rows):
             'walking_ci_95':walking['ratio_ci_95_normal'],
             'any_time_index_interaction':with_time['ordinal_index_50_interaction'],
             'any_index_50_multiplier':with_time['ordinal_index_50_multiplier'],
+            'any_index_50_ci':with_time['ordinal_index_50_multiplier_ci_95_normal'],
             'index_centering':'decision.index.nogap, per 50 ordinal decisions, NOT original study days',
             'clusters':any_model['clusters'],
             'method':'cluster_robust_normal_approx_associations',
@@ -189,7 +191,7 @@ def write_reports(report,out):
         '|---|---:|---:|---:|',
         f"| Any message vs none | {m['any_ratio']:.3f} | {m['any_ci_95'][0]:.3f}–{m['any_ci_95'][1]:.3f} | 1.14 (nonidentical data) |",
         f"| Walking message vs none (descriptive conditional subset) | {m['walking_association_ratio']:.3f} | {m['walking_ci_95'][0]:.3f}–{m['walking_ci_95'][1]:.3f} | 1.24 (nonidentical data) |",
-        f"| Ordinal-index effect interaction / 50 decisions | {m['any_index_50_multiplier']:.3f} | n/a | Not the paper's study-day effect |",
+        f"| Ordinal-index effect interaction / 50 decisions | {m['any_index_50_multiplier']:.3f} | {m['any_index_50_ci'][0]:.3f}–{m['any_index_50_ci'][1]:.3f} | Not the paper's study-day effect |",
         '',
         '**IMPORTANT: NOT A REPLICATION OF THE 2019 RCT ESTIMAND. No causal effect or real-world blessing is established.**',
         '', 'This is a carefully labeled exploratory regression over available, assigned public decisions. Its eligibility, time variable, intervention definition and uncertainty differ from the original paper. The computed differences are scientific limits, not discrepancies to hide.',
@@ -228,7 +230,13 @@ def main():
              'participants':report['outcomes']['unique_participants_included'],
              'any_ratio':report['model_outputs']['any_ratio'],
              'walking_association_ratio':report['model_outputs']['walking_association_ratio'],
+             'mean_imputed_steps':report['outcomes']['mean_imputed_30min_steps'],
+             'sd_imputed_steps':report['outcomes']['sd_imputed_30min_steps'],
+             'exclusions':exclusions,
+             'any_ratio_ci':report['model_outputs']['any_ci_95'],
+             'walking_ratio_ci':report['model_outputs']['walking_ci_95'],
              'index_50_multiplier':report['model_outputs']['any_index_50_multiplier'],
+             'index_50_multiplier_ci':report['model_outputs']['any_index_50_ci'],
              'original_replication':False,'causal_impact':False,'raw_persisted':False},sort_keys=True))
 
 if __name__=='__main__':main()

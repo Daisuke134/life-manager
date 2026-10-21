@@ -88,6 +88,8 @@ class PublicOnlyAlternativeTests(unittest.TestCase):
         self.assertEqual(model['clusters'],14)
         self.assertTrue(math.isfinite(model['any_ci_95'][0]))
         self.assertNotEqual(model['any_time_index_interaction'],0)
+        self.assertLess(model['any_index_50_ci'][0],model['any_index_50_multiplier'])
+        self.assertGreater(model['any_index_50_ci'][1],model['any_index_50_multiplier'])
         report=alt.build_public_report(selected,c)
         self.assertEqual(report['source_comparison']['replicated_2019_trial'],'NO')
         self.assertEqual(report['scientific_status'],'exploratory_nonidentical')
