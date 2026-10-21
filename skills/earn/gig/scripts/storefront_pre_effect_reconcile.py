@@ -111,19 +111,42 @@ def _epoch(value: object) -> float:
 def _find_window(rows: list[dict], occurrence_id: str) -> tuple[dict, dict, str]:
     suffix = occurrence_id.removeprefix(OCCURRENCE_PREFIX)
     claim_ref = f"lm-occurrence://{OWNER_ID}/{suffix}/claim"
-    occurrence_reports = [
-        row for row in rows
-        if row.get("loop_id") == OWNER_ID and row.get("owner_id") == OWNER_ID
-        and row.get("phase") == "report" and row.get("occurrence_id") == occurrence_id
-        # The occurrence's own wake deferred by host admission never ran the owner; a
-        # later run claims it (lm-occurrence://.../claim) and is the only real terminal.
-        and not (row.get("effect_status") == "not_applicable"
-                 and str(row.get("error_class") or "").startswith("host_admission_deferred:"))
-    ]
+    occurrence_reports = []
+    deferred_reports = []
+    for row in rows:
+        if row.get("phase") != "report" or row.get("occurrence_id") != occurrence_id:
+            continue
+        if row.get("loop_id") != OWNER_ID or row.get("owner_id") != OWNER_ID:
+            raise EvidenceError("runtime_occurrence_event_invalid")
+        # Admission can historically report unknown even though no child was admitted.
+        # Only the original wake's complete admission shape is non-execution evidence;
+        # an error label alone (or a claimant carrying that label) must never be skipped.
+        error = row.get("error_class")
+        if isinstance(error, str) and error.startswith("host_admission_deferred:"):
+            if (row.get("run_id") != suffix or row.get("wake_id") != suffix
+                    or row.get("status") != "blocked" or row.get("exit_code") != 75
+                    or row.get("failure_layer") != "admission"
+                    or row.get("blocker") != error or row.get("retryable") is not True
+                    or row.get("next_action") != "retry_after_eligibility"
+                    or row.get("effect_status") not in {"unknown", "not_applicable"}
+                    or row.get("effect_identity_status") not in {None, "not_written"}
+                    or (row.get("effect_status") == "unknown"
+                        and row.get("effect_identity_status") != "not_written")
+                    or row.get("provider_receipt_id") is not None
+                    or row.get("official_readback_ref") is not None
+                    or row.get("evidence_refs") != [
+                        f"lm-loop://{OWNER_ID}/{suffix}/summary.json"]):
+                raise EvidenceError("runtime_admission_deferral_invalid")
+            deferred_reports.append(row)
+        else:
+            occurrence_reports.append(row)
+    if len(deferred_reports) > 1:
+        raise EvidenceError("runtime_admission_deferral_invalid")
     if len(occurrence_reports) != 1:
         raise EvidenceError("runtime_occurrence_event_invalid")
     terminal = occurrence_reports[0]
-    if claim_ref not in (terminal.get("evidence_refs") or []):
+    if [ref for ref in (terminal.get("evidence_refs") or [])
+            if str(ref).startswith("lm-occurrence://")] != [claim_ref]:
         raise EvidenceError("runtime_occurrence_claim_ref_missing")
     run_id = terminal.get("run_id")
     if not isinstance(run_id, str) or not RUN_ID.fullmatch(run_id):
@@ -134,6 +157,10 @@ def _find_window(rows: list[dict], occurrence_id: str) -> tuple[dict, dict, str]
     start = next((row for row in matches if row.get("phase") == "execute"), None)
     if start is None or start is terminal:
         raise EvidenceError("runtime_event_phase_invalid")
+    if (_epoch(start["timestamp"]) > _epoch(terminal["timestamp"])
+            or any(_epoch(row["timestamp"]) >= _epoch(start["timestamp"])
+                   for row in deferred_reports)):
+        raise EvidenceError("runtime_event_time_invalid")
     expected_ref = f"lm-loop://{OWNER_ID}/{run_id}/summary.json"
     for event, expected_status, expected_effect_status in (
         (start, "running", "started"), (terminal, None, "unknown"),
@@ -145,9 +172,12 @@ def _find_window(rows: list[dict], occurrence_id: str) -> tuple[dict, dict, str]
             else event.get("status") in {"fail", "pass"}
         )
         if (event.get("loop_id") != OWNER_ID or event.get("owner_id") != OWNER_ID
+                or event.get("wake_id") != run_id
                 or not status_valid
                 or event.get("effect_status") != expected_effect_status
-                or expected_ref not in refs
+                or [ref for ref in refs if str(ref).startswith("lm-loop://")] != [expected_ref]
+                or (event is start and any(str(ref).startswith("lm-occurrence://")
+                                           for ref in refs))
                 or any(str(ref).startswith("lm-effect://") for ref in refs)):
             raise EvidenceError("runtime_event_shape_invalid")
     if start.get("occurrence_id") != f"{OWNER_ID}:{run_id}":

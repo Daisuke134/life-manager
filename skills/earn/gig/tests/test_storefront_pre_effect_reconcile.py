@@ -447,6 +447,8 @@ def test_cli_ignores_the_occurrences_own_admission_deferred_report(tmp_path, mon
         status="blocked", effect_status="not_applicable",
         refs=[f"lm-loop://{OWNER_ID}/queued-occurrence-5/summary.json"],
     )
+    deferred.update(exit_code=75, failure_layer="admission", retryable=True,
+                    next_action="retry_after_eligibility")
     deferred["event_id"] = "c" * 24
     deferred["error_class"] = deferred["blocker"] = "host_admission_deferred:resource_capacity_busy"
     resumed = start_terminal_events(
@@ -558,3 +560,109 @@ def test_cli_occurrence_owner_mismatch_refuses(capsys, tmp_path):
     assert json.loads(capsys.readouterr().out) == {
         "state": "HELD", "reason": "occurrence_owner_mismatch",
     }
+
+
+def deferred_events(effect_status="unknown"):
+    rows = start_terminal_events("queued", terminal_status="pass")
+    rows[0]["timestamp"] = "1970-01-01T00:01:00+00:00"
+    rows[1].update(timestamp="1970-01-01T00:01:01+00:00", status="blocked",
+                   effect_status=effect_status, effect_identity_status="not_written",
+                   exit_code=75, failure_layer="admission", retryable=True,
+                   next_action="retry_after_eligibility",
+                   error_class="host_admission_deferred:disk_floor_low",
+                   blocker="host_admission_deferred:disk_floor_low",
+                   evidence_refs=[f"lm-loop://{OWNER_ID}/queued/summary.json"])
+    return rows
+
+
+@pytest.mark.parametrize("effect_status", ["unknown", "not_applicable"])
+def test_claimant_window_accepts_proven_admission_deferral(effect_status):
+    module = load_module()
+    occurrence = f"{OWNER_ID}:queued"
+    claimant = start_terminal_events("claimant", terminal_occurrence_id=occurrence)
+    assert module._find_window(deferred_events(effect_status) + claimant, occurrence) == (
+        claimant[0], claimant[1], "claimant")
+
+
+@pytest.mark.parametrize("field,value", [
+    ("exit_code", 1), ("failure_layer", "entrypoint"), ("status", "fail"),
+    ("effect_identity_status", "written"), ("provider_receipt_id", "receipt"),
+    ("official_readback_ref", "readback"), ("owner_id", "other"),
+    ("loop_id", "other"), ("next_action", "none"), ("retryable", False),
+    ("blocker", "different"), ("run_id", "other"),
+    ("evidence_refs", []),
+    ("evidence_refs", [f"lm-loop://{OWNER_ID}/queued/summary.json",
+                       f"lm-occurrence://{OWNER_ID}/queued/claim"]),
+    ("timestamp", "1970-01-01T00:06:00+00:00"),
+])
+def test_ambiguous_deferral_stays_closed(field, value):
+    module = load_module()
+    rows = deferred_events()
+    rows[1][field] = value
+    occurrence = f"{OWNER_ID}:queued"
+    with pytest.raises(module.EvidenceError):
+        module._find_window(rows + start_terminal_events(
+            "claimant", terminal_occurrence_id=occurrence), occurrence)
+
+
+@pytest.mark.parametrize("refs", [[], [f"lm-occurrence://{OWNER_ID}/wrong/claim"]])
+def test_claimant_requires_exact_claim_reference(refs):
+    module = load_module()
+    occurrence = f"{OWNER_ID}:queued"
+    rows = start_terminal_events("claimant", terminal_occurrence_id=occurrence)
+    rows[1]["evidence_refs"] = [f"lm-loop://{OWNER_ID}/claimant/summary.json", *refs]
+    with pytest.raises(module.EvidenceError):
+        module._find_window(deferred_events() + rows, occurrence)
+
+
+def test_multiple_claimants_stay_closed():
+    module = load_module()
+    occurrence = f"{OWNER_ID}:queued"
+    with pytest.raises(module.EvidenceError):
+        module._find_window(deferred_events() + start_terminal_events(
+            "claimant", terminal_occurrence_id=occurrence) + start_terminal_events(
+            "second", terminal_occurrence_id=occurrence), occurrence)
+
+
+@pytest.mark.parametrize("phase", [0, 1])
+def test_claimant_wake_id_must_match_run(phase):
+    module = load_module()
+    rows = start_terminal_events("claimant")
+    rows[phase]["wake_id"] = "other"
+    with pytest.raises(module.EvidenceError):
+        module._find_window(rows, f"{OWNER_ID}:claimant")
+
+
+def test_claimant_cannot_claim_two_occurrences():
+    module = load_module()
+    rows = start_terminal_events("claimant", extra_terminal_refs=[
+        f"lm-occurrence://{OWNER_ID}/other/claim"])
+    with pytest.raises(module.EvidenceError):
+        module._find_window(rows, f"{OWNER_ID}:claimant")
+
+
+def test_no_executable_contract_is_not_pre_effect_proof(tmp_path):
+    module = load_module()
+    runtime, stdout, database, run_id = fixture(
+        tmp_path, reason="no_executable_unfenced_mutation_contract", status="completed")
+    result = module.reconcile(state_root=runtime, stdout_log=stdout, database=database,
+                             occurrence_id=f"{OWNER_ID}:{run_id}", resolve=False)
+    assert result == {"state": "HELD", "reason": "pass_line_not_pre_effect_proof"}
+
+
+@pytest.mark.parametrize("phase", [0, 1])
+def test_claimant_cannot_carry_foreign_summary(phase):
+    module = load_module()
+    rows = start_terminal_events("claimant")
+    rows[phase]["evidence_refs"].append(f"lm-loop://{OWNER_ID}/other/summary.json")
+    with pytest.raises(module.EvidenceError):
+        module._find_window(rows, f"{OWNER_ID}:claimant")
+
+
+def test_missing_stdout_stays_held(tmp_path):
+    module = load_module()
+    runtime, stdout, database, run_id = fixture(tmp_path)
+    stdout.unlink()
+    result = module.reconcile(state_root=runtime, stdout_log=stdout, database=database,
+                             occurrence_id=f"{OWNER_ID}:{run_id}", resolve=False)
+    assert result == {"state": "HELD", "reason": "stdout_log_unreadable"}
