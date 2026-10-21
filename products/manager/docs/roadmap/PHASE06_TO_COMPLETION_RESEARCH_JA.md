@@ -18,7 +18,7 @@
 
 **Near-term eval release:** assemble a public, versioned *reuse-only evidence bundle* rather than designing new math: each case links population/consent, preregistered instrument, upstream library and version/license, source hash, assignment/no-action, effect confidence intervals, attrition, negative harms, technical receipts, sensitivity, and independent aggregate outcome source. Show P0/P1/P2/P3/P4 as existing Manager types, not a single invented scalar. **Evidence Gate1 and human net welfare UNMET** until independent field outcomes.
 
-Reference: [expanded 76-source reuse inventory](../research/crossfield-20261021/SOURCES.json), [research synthesis](../research/crossfield-20261021/REPORT_JA.md), [autonomy doctrine](../MANAGER_NO_HUMAN_WORLD_ENGINEERING.md).
+Reference: [expanded 82-source reuse inventory](../research/crossfield-20261021/SOURCES.json), [research synthesis](../research/crossfield-20261021/REPORT_JA.md), [autonomy doctrine](../MANAGER_NO_HUMAN_WORLD_ENGINEERING.md).
 
 ## Already complete at the scoped task level
 
