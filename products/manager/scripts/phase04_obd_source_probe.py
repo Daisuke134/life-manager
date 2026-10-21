@@ -42,7 +42,7 @@ def run():
             for row in reader:
                 n += 1; clicks += int(row["click"])
                 positions.add(row["position"])
-                p = float(row["action_prob"]); probmin=min(probmin,p);probmax=max(probmax,p)
+                p = float(row["propensity_score"]); probmin=min(probmin,p);probmax=max(probmax,p)
                 t = row.get("timestamp",""); samplemin = t if samplemin is None or t<samplemin else samplemin
                 samplemax = t if samplemax is None or t>samplemax else samplemax
             results.append({"cohort":name,"n":n,"click_count":clicks,"click_rate":clicks/n,"columns":columns,
