@@ -71,9 +71,10 @@ BEGIN
     RAISE EXCEPTION 'maritime_manager_input_invalid';
   END IF;
   UPDATE public.lm_maritime_manager_enrollments
-    SET agent_id = p_agent_id, release_sha = p_release_sha,
+    SET agent_id = p_agent_id,
         status = CASE WHEN paused_at IS NOT NULL THEN 'paused' ELSE 'active' END
     WHERE uid = p_uid AND auth_subject = p_auth_subject
+      AND release_sha = p_release_sha
       AND (agent_id IS NULL OR agent_id = p_agent_id)
       AND (status IN ('provisioning', 'effect_unknown', 'paused')
            OR (status = 'active' AND agent_id = p_agent_id));

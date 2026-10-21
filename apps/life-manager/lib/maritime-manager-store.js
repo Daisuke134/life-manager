@@ -120,19 +120,22 @@ function createMaritimeManagerStore(options = {}) {
   }
   async function claimProvision(uid) {
     identifier(uid, UID);
-    const result = await request("rpc/claim_lm_maritime_manager_provision_v1", "POST", { p_uid: uid });
-    if (typeof result !== "boolean") throw new Error("maritime_manager_store_invalid");
-    return result;
+    const rows = await queryPg("SELECT public.claim_lm_maritime_manager_provision_v1($1) AS claimed", [uid]);
+    if (rows.length !== 1 || typeof rows[0].claimed !== "boolean") throw new Error("maritime_manager_store_invalid");
+    return rows[0].claimed;
   }
   async function bindAgent({ uid, authSubject, agentId, releaseSha }) {
     identifier(uid, UID); authSubject = identifier(authSubject, SUBJECT).toLowerCase(); identifier(releaseSha, SHA);
     identifier(agentId, /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/);
-    const bound = await request("rpc/bind_lm_maritime_manager_agent_v1", "POST", {
-      p_uid: uid, p_auth_subject: authSubject, p_agent_id: agentId, p_release_sha: releaseSha,
-    });
-    if (bound !== true) throw new Error("maritime_manager_binding_rejected");
+    const rows = await queryPg(
+      "SELECT public.bind_lm_maritime_manager_agent_v1($1,$2,$3,$4) AS bound",
+      [uid, authSubject, agentId, releaseSha],
+    );
+    if (rows.length !== 1 || typeof rows[0].bound !== "boolean") throw new Error("maritime_manager_store_invalid");
+    if (rows[0].bound !== true) throw new Error("maritime_manager_binding_rejected");
     const row = await read(uid);
-    if (!row || row.auth_subject !== authSubject || row.agent_id !== agentId) {
+    if (!row || row.auth_subject !== authSubject || row.agent_id !== agentId || row.release_sha !== releaseSha
+      || (row.paused_at !== null ? row.status !== "paused" : row.status !== "active")) {
       throw new Error("maritime_manager_binding_rejected");
     }
     return row;

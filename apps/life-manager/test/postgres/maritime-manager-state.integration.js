@@ -172,12 +172,20 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     await assert.rejects(managerStore.enroll({ ...enrollmentInput, email: "changed@example.invalid" }), /identity_mismatch/);
     await assert.rejects(managerStore.enroll({ ...enrollmentInput, authSubject: subjectA }), /identity_mismatch/);
     assert.equal((await managerStore.read(uidC)).email, "c@example.invalid", "conflicting input cannot overwrite the existing owner/contact");
+    assert.equal(await managerStore.claimProvision(uidC), true);
+    assert.equal(await managerStore.claimProvision(uidC), false, "provision claim is one-shot");
+    const boundEnrollment = await managerStore.bindAgent({ uid: uidC, authSubject: subjectC, agentId: "agent-c", releaseSha });
+    assert.equal(boundEnrollment.status, "active");
+    assert.equal(boundEnrollment.release_sha, releaseSha);
+    await assert.rejects(managerStore.bindAgent({ uid: uidC, authSubject: subjectC, agentId: "agent-c", releaseSha: "b".repeat(40) }), /binding_rejected/);
+    assert.equal((await managerStore.read(uidC)).release_sha, releaseSha, "release mismatch cannot overwrite the enrollment release");
     const claim = uid => client.query('SELECT public.claim_lm_maritime_manager_provision_v1($1) AS claimed', [uid]).then(result => result.rows[0].claimed);
-    const bind = (uid, subject, agent) => client.query(
-      'SELECT public.bind_lm_maritime_manager_agent_v1($1,$2,$3,$4) AS bound', [uid, subject, agent, releaseSha],
+    const bind = (uid, subject, agent, sha = releaseSha) => client.query(
+      'SELECT public.bind_lm_maritime_manager_agent_v1($1,$2,$3,$4) AS bound', [uid, subject, agent, sha],
     ).then(result => result.rows[0].bound);
     assert.equal(await claim(uidA), true);
     assert.equal(await claim(uidA), false);
+    assert.equal(await bind(uidA, subjectA, 'agent-a', 'b'.repeat(40)), false, 'agent binding cannot change the release pinned by enrollment');
     assert.equal(await bind(uidA, subjectA, 'agent-a'), true);
     assert.equal(await bind(uidA, subjectA, 'agent-a'), true);
     assert.equal(await bind(uidA, subjectB, 'agent-other'), false);

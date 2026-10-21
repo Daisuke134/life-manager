@@ -82,6 +82,26 @@ function fixture() {
       }
       return { rows: [] };
     }
+    if (statement.includes("claim_lm_maritime_manager_provision_v1")) {
+      const row = rows.get(values[0]);
+      const claimed = Boolean(row && row.status === "pending" && row.paused_at == null);
+      if (claimed) row.status = "provisioning";
+      return { rows: [{ claimed }] };
+    }
+    if (statement.includes("bind_lm_maritime_manager_agent_v1")) {
+      const [uid, authSubject, agentId, releaseSha] = values;
+      const row = rows.get(uid);
+      const duplicateAgent = [...rows.values()].some(candidate => candidate.uid !== uid && candidate.agent_id === agentId);
+      const allowedStatus = row && (['provisioning', 'effect_unknown', 'paused'].includes(row.status)
+        || (row.status === 'active' && row.agent_id === agentId));
+      const bound = Boolean(row && row.auth_subject === authSubject && row.release_sha === releaseSha
+        && (row.agent_id == null || row.agent_id === agentId) && allowedStatus && !duplicateAgent);
+      if (bound) {
+        row.agent_id = agentId;
+        row.status = row.paused_at == null ? 'active' : 'paused';
+      }
+      return { rows: [{ bound }] };
+    }
     if (statement.includes("WHERE uid = $1 LIMIT 2")) selected = [rows.get(values[0])].filter(Boolean);
     else if (statement.includes("status = $1 AND paused_at IS NULL AND agent_id IS NULL")) {
       selected = [...rows.values()].filter(row => row.status === values[0] && row.paused_at == null && row.agent_id == null)
@@ -117,7 +137,9 @@ test("a_foreign_subject_or_agent_binding_is_rejected", async () => {
   await store.bindAgent({ uid: UID_A, authSubject: SUBJECT_A, agentId: "agent-a", releaseSha: SHA });
   await assert.rejects(store.bindAgent({ uid: UID_B, authSubject: SUBJECT_A, agentId: "agent-b", releaseSha: SHA }), /binding_rejected/);
   await assert.rejects(store.bindAgent({ uid: UID_B, authSubject: SUBJECT_B, agentId: "agent-a", releaseSha: SHA }), /binding_rejected/);
+  await assert.rejects(store.bindAgent({ uid: UID_A, authSubject: SUBJECT_A, agentId: "agent-a", releaseSha: "b".repeat(40) }), /binding_rejected/);
   assert.equal((await store.read(UID_B)).agent_id, null);
+  assert.equal((await store.read(UID_A)).release_sha, SHA);
 });
 test("pause_before_provision_blocks_claim_and_late_binding_never_reactivates", async () => {
   const { store } = fixture(); await store.enroll(input()); await store.pause(UID_A);

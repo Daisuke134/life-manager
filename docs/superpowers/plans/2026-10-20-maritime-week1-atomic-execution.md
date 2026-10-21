@@ -711,7 +711,7 @@ apps/life-manager/
 - [x] **b.6-07:** 同migrationにCFO receipt表を移す。uid/period key unique、pending/sent整合性、recipient hashを維持する。既存jobs/common receipts/FinancialRecordは再作成しない。native PostgreSQL 17でidentity FK、pending/sent整合、recipient hash、一意性、再適用を確認。Evidence→`docs/evidence/maritime/runtime-pg-manager-cfo-receipts.json`。
 - [x] **b.6-08:** `maritime-manager-store.js`の`read/listPending/listPaused`をparameterized SQLへ接続する。PG timestamp→ISOを正規化し、既存input/row検証を残す。native PG integration 1/1とstore unit 16/16 pass。Evidence→`docs/evidence/maritime/runtime-pg-manager-store-reads.json`。
 - [x] **b.6-09:** 同fileの`enroll`をPGへ接続する。verified subject・UID・emailが既存rowと一致しなければ拒否し、conflictで所有者を上書きしない。native PG integration 1/1/store unit 16/16 pass。Evidence→`docs/evidence/maritime/runtime-pg-manager-enrollment-write.json`。
-- [ ] **b.6-10:** 同fileの`claimProvision/bindAgent`を上記既存関数へ接続する。paused/foreign agent/異なるreleaseの拒否を確認する。
+- [x] **b.6-10:** 同fileの`claimProvision/bindAgent`を上記既存関数へ接続する。paused時のprovision claim・foreign subject/agent・異なるreleaseを拒否し、遅延bind後もpausedを保つ。native PG integration 1/1/store unit 16/16 pass。Evidence→`docs/evidence/maritime/runtime-pg-manager-provision-binding.json`。
 - [ ] **b.6-11:** 同fileの`pause/quarantinePendingProvision`をPGへ接続する。pauseを先に永続化し、既存receiptを削除しない。
 - [ ] **b.6-12:** 同fileの`readCycleDispatch/claimCycleDispatch/bindCycleExecution`をPGへ接続する。PG date_key→YYYY-MM-DDを正規化し、agent/release/date/occurrenceの照合とdispatch前fenceを残す。ManagerのREST transportを置換し、障害時fallback/二重writeを作らない。
 
