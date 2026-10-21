@@ -1,9 +1,14 @@
 import importlib.util
+import contextlib
+import io
 import json
+import os
 import sys
 import tempfile
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 from websocket import WebSocketException, WebSocketTimeoutException
 
@@ -16,6 +21,160 @@ SPEC.loader.exec_module(MODULE)
 
 
 class RevenueCliTest(unittest.TestCase):
+    def affiliate_cost_payload(self, providers=None):
+        fixture_path = (
+            Path(__file__).parents[3]
+            / "skills/cfo/fixtures/economic_attribution/actual-cost-official.json"
+        )
+        payload = json.loads(fixture_path.read_text(encoding="utf-8"))
+        if providers is not None:
+            payload["sources"] = [
+                row for row in payload["sources"] if row["provider"] in providers
+            ]
+            payload["documents"] = [
+                row for row in payload["documents"] if row["provider"] in providers
+            ]
+        end = datetime.now(timezone.utc).replace(microsecond=0) + timedelta(minutes=5)
+        start = end - timedelta(days=31)
+        end_text = end.isoformat().replace("+00:00", "Z")
+        payload["readback"]["observed_at"] = end_text
+        payload["readback"]["historical"]["window_end"] = end_text
+        payload["readback"]["trailing"] = {
+            "complete": True,
+            "window_start": start.isoformat().replace("+00:00", "Z"),
+            "window_end": end_text,
+        }
+        return payload, end
+
+    def run_net(self, state, readback, now):
+        class FixedDateTime(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return now if tz is not None else now.replace(tzinfo=None)
+
+        output = io.StringIO()
+        with (
+            patch.object(MODULE, "datetime", FixedDateTime),
+            patch.dict(os.environ, {"LM_CFO_ACTUAL_COST_READBACK": str(readback)}),
+            patch.object(sys, "argv", [str(SCRIPT), "net", "--state", str(state)]),
+            contextlib.redirect_stdout(output),
+        ):
+            exit_code = MODULE.main()
+        return exit_code, json.loads(output.getvalue())
+
+    def test_net_imports_only_verified_affiliate_costs_and_replays_idempotently(self):
+        payload, end = self.affiliate_cost_payload({"openrouter"})
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            readback = root / "actual-cost-readback.json"
+            readback.write_text(json.dumps(payload), encoding="utf-8")
+            state = root / "affiliate-state"
+            first_code, _ = self.run_net(state, readback, end)
+            next_end = end + timedelta(minutes=1)
+            next_end_text = next_end.isoformat().replace("+00:00", "Z")
+            payload["readback"]["observed_at"] = next_end_text
+            payload["readback"]["historical"]["window_end"] = next_end_text
+            payload["readback"]["trailing"]["window_end"] = next_end_text
+            readback.write_text(json.dumps(payload), encoding="utf-8")
+            second_code, _ = self.run_net(state, readback, end)
+
+            self.assertEqual(first_code, 0)
+            self.assertEqual(second_code, 0)
+            ledger_path = state / "cost-ledger.jsonl"
+            self.assertTrue(ledger_path.is_file())
+            rows = [
+                json.loads(line)
+                for line in ledger_path.read_text().splitlines()
+            ]
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(
+                {(row["provider"], row["amount_minor"]) for row in rows},
+                {("openrouter", 125)},
+            )
+            self.assertTrue(all(row["cost_basis"] == "actual_billed" for row in rows))
+            coverage = json.loads((state / "cost-ledger-coverage.json").read_text())
+            self.assertEqual(coverage["coverage_state"], "COMPLETE")
+            net = json.loads((state / "rolling-net.json").read_text())
+            self.assertTrue(net["cost_ledger_sha256"])
+            self.assertEqual(len(net["cost_evidence_refs"]), 2)
+            self.assertTrue(all(
+                ref.startswith("lm-actual-cost://") for ref in net["cost_evidence_refs"]
+            ))
+            self.assertIsNone(net["approved_or_paid_net_usd"])
+            self.assertEqual(net["net_state"], "NO_APPROVED_OR_PAID_ROWS")
+
+    def test_net_keeps_cost_coverage_unknown_when_an_affiliate_source_has_a_gap(self):
+        payload, end = self.affiliate_cost_payload()
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            readback = root / "actual-cost-readback.json"
+            readback.write_text(json.dumps(payload), encoding="utf-8")
+            state = root / "affiliate-state"
+            exit_code, _ = self.run_net(state, readback, end)
+
+            self.assertEqual(exit_code, 0)
+            coverage = json.loads((state / "cost-ledger-coverage.json").read_text())
+            self.assertEqual(coverage["coverage_state"], "UNKNOWN")
+            self.assertIn(
+                "affiliate_actual_cost_source_gap:missing_coverage",
+                coverage["unknown_reasons"],
+            )
+            net = json.loads((state / "rolling-net.json").read_text())
+            self.assertEqual(net["cost_coverage_state"], "UNKNOWN")
+            self.assertEqual(net["cost_state"], "UNKNOWN")
+            self.assertIsNone(net["approved_or_paid_net_usd"])
+
+    def test_cost_receipt_change_keeps_coverage_unknown_without_double_count(self):
+        payload, end = self.affiliate_cost_payload({"openrouter"})
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            readback = root / "actual-cost-readback.json"
+            state = root / "affiliate-state"
+            readback.write_text(json.dumps(payload), encoding="utf-8")
+            self.run_net(state, readback, end)
+
+            payload["documents"][0]["line_items"][0]["amount"] = "2.25"
+            payload["documents"][0]["line_items"][0]["allocations"][0]["amount"] = "2.25"
+            readback.write_text(json.dumps(payload), encoding="utf-8")
+            exit_code, _ = self.run_net(state, readback, end)
+
+            self.assertEqual(exit_code, 0)
+            rows = [
+                json.loads(line)
+                for line in (state / "cost-ledger.jsonl").read_text().splitlines()
+            ]
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0]["amount_minor"], 125)
+            coverage = json.loads((state / "cost-ledger-coverage.json").read_text())
+            self.assertEqual(coverage["coverage_state"], "UNKNOWN")
+            self.assertIn(
+                "affiliate_actual_cost_receipt_identity_conflict",
+                coverage["unknown_reasons"],
+            )
+
+    def test_billed_unpaid_affiliate_invoice_does_not_complete_cost_coverage(self):
+        payload, end = self.affiliate_cost_payload({"openrouter"})
+        invoice = payload["documents"][0]
+        invoice["status"] = "billed"
+        invoice.pop("paid_at")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            readback = root / "actual-cost-readback.json"
+            readback.write_text(json.dumps(payload), encoding="utf-8")
+            state = root / "affiliate-state"
+            exit_code, _ = self.run_net(state, readback, end)
+
+            self.assertEqual(exit_code, 0)
+            coverage = json.loads((state / "cost-ledger-coverage.json").read_text())
+            self.assertEqual(coverage["coverage_state"], "UNKNOWN")
+            net = json.loads((state / "rolling-net.json").read_text())
+            self.assertEqual(net["cost_coverage_state"], "UNKNOWN")
+            self.assertIsNone(net["approved_or_paid_net_usd"])
+
     def test_month_bucket_rows_for_one_link_are_aggregated(self):
         link = "https://try.elevenlabs.io/campaign-one"
         candidate = {
