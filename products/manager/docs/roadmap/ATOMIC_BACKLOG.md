@@ -2,7 +2,7 @@
 
 Status: 2026-10-21 JST. Manager-only task registry in `tasks.json`; the Life Manager project SSOT is unchanged.
 
-Total: 113 · Done: 36 · Todo: 73 · Blocked: 3 · Skipped: 1
+Total: 113 · Done: 37 · Todo: 72 · Blocked: 3 · Skipped: 1
 
 ✅ = verified task; ⬜ = not started; ⛔ = outside dependency; ⏭️ = scientific waiver (not success). A research task is not evidence of real-world impact.
 
@@ -76,7 +76,7 @@ Manager has a separate product identity, source scope and runtime, even when its
 |---|---|---|---|---|
 | ✅ `S001` | R006 | 参加者分割と研究分割の違いを説明する | SocSci210のライセンスとmetadata/participant_mapping.jsonを取得 | 170 study train / 40 unseen study保持、splitハッシュを記録 |
 | ⛔ `S002` | S001, L002 | 予測ベースラインの重要性を理解する | 頻度・多数派予測を実装 | held-out studyのaccuracyとTVDを報告 **外部条件:** R006 respondent-data license/consent review remains HOLD; no real 40-study held-out outcomes may be ingested for a benchmark |
-| ⬜ `S003` | S002 | train/test leakageを理解する | 学習対象研究と評価対象研究のstudy_id重複を検査 | 漏洩0、偽装漏洩に対する失敗テストあり |
+| ✅ `S003` | S001 | train/test leakageを理解する | 学習対象研究と評価対象研究のstudy_id重複を検査 | 漏洩0、偽装漏洩に対する失敗テストあり |
 | ⬜ `S004` | S003, L003 | 予測較正・不確実性を評価する | 同じ未知studyでTVD, Brier, subgroup誤差を実装 | 閾値外ならabstain、分母と件数を保存 |
 | ⬜ `S005` | S004 | 評価へのモデル適合過ぎを説明する | 単純モデルと公開学習済みモデルを同じ分割で比較 | 公平な比較と推論費用とライセンスを報告 |
 | ⬜ `S006` | S005, R005 | descriptive-vs-causalギャップを理解する | 予測分布誤差と割付介入効果の誤差を別の表に保存 | 予測高精度でも介入効果不正確な反例を再現または未再現と報告 |
