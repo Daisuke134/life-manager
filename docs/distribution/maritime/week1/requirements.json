@@ -113,7 +113,7 @@
     "refresh_scope": "Official home/Terms crawled at 08:06Z. Slack announcements/help/submissions read at 08:07Z. Organizer-domain email search completed at 08:08:45Z; a follow-up was sent at 08:13:26Z, with no later reply readback.",
     "submission_url_reason": "The initial application is accepted. One Life Manager entry remains in #competition-submissions, but its description says the post does not replace a required form. The official home/Terms crawled at 08:06Z still show no project form, Week 1 cutoff, or rubric. Organizer-domain email search at 08:08:45Z returned no reply; follow-up message 1a15d85b491c9450 was sent at 08:13:26Z. Formal submission receipt remains unconfirmed."
   },
-  "official_instruction_email_unchanged_reason": "Organizer-domain search at 08:08:45Z returned no new matching messages. A follow-up was sent in the existing inquiry thread at 08:13:26Z; no response was read back after that follow-up.",
+  "official_instruction_email_unchanged_reason": "The existing inquiry thread was read again at 2026-10-21T08:26:15Z. It contains the original inquiry and the 08:13:26Z follow-up, both sent by Dais; no organizer reply is present.",
   "last_official_sources": {
     "observed_at": "2026-10-21T08:07Z",
     "urls": [
@@ -191,5 +191,16 @@
     "followup_sent_at": "2026-10-21T08:13:26Z",
     "followup_message_id": "1a15d85b491c9450",
     "reply_readback_after_followup": false
+  },
+  "latest_organizer_thread_readback": {
+    "observed_at": "2026-10-21T08:26:15Z",
+    "thread_id": "1a15d3141c56ee22",
+    "message_ids": [
+      "1a15d3141c56ee22",
+      "1a15d85b491c9450"
+    ],
+    "message_count": 2,
+    "organizer_reply_found": false,
+    "formal_project_submission_status": "unconfirmed"
   }
 }

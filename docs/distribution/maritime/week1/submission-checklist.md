@@ -15,8 +15,11 @@ T23.1のaggregate-only packetは`submission.json`として08:11:36Zにdraft生�
 packetにexternal users/work receipts=0、costs=null、formal receipt=nullが入る。
 作業時modeは0600、SHA256は`fa891f6e8ed9410a0bb7c6249a0a698c259557578a6816dfaaf5c4f756ca9865`。
 このdraftは正式提出ではない。
+fresh read-only reviewでT23.1のmedium指摘が1件ある。failed/deferred/effect_unknown receiptだけでも配列長でcompleted-work caveatが消える。現在のreceipt 0件packetは正しいが、回帰testとsource修正は未完了。
+08:26Zに既存organizer email threadを再読し、確認できた2通は当方の問い合わせとfollow-upのみ。主催者返信なし。
 
 - [ ] 正式提出先、初週締切、timezone、必須field、再提出可否を`requirements.json`へ保存。
+- [ ] T23.1-R1のcompleted-work caveat判定と回帰testを修正し、aggregate-only draftを再生成。
 - [ ] メール登録から一つの実業務を試せる公開URLを確認。
 - [ ] loaded main source SHA/配備ZIP archive SHA256とMaritime project usageを結合。
 - [ ] 一文説明、実行範囲、対象利用者、未接続条件を記述。
