@@ -103,9 +103,11 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     const uidA = "lm_11111111-1111-4111-8111-111111111111";
     const uidB = "lm_22222222-2222-4222-8222-222222222222";
     const uidC = "lm_33333333-3333-4333-8333-333333333333";
+    const uidD = "lm_44444444-4444-4444-8444-444444444444";
     const subjectA = "11111111-1111-4111-8111-111111111111";
     const subjectB = "22222222-2222-4222-8222-222222222222";
     const subjectC = "33333333-3333-4333-8333-333333333333";
+    const subjectD = "44444444-4444-4444-8444-444444444444";
     const releaseSha = "a".repeat(40);
     await client.query("INSERT INTO public.lm_maritime_manager_identities(uid,auth_subject) VALUES ($1,$2)", [uidA, subjectA]);
     await client.query("UPDATE public.lm_maritime_manager_identities SET first_touch=$1::jsonb,first_touch_at=clock_timestamp() WHERE uid=$2", [JSON.stringify({ utm_source: "x" }), uidA]);
@@ -131,6 +133,7 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     );
     await client.query("INSERT INTO public.lm_maritime_manager_identities(uid,auth_subject) VALUES ($1,$2)", [uidB, subjectB]);
     await client.query("INSERT INTO public.lm_maritime_manager_identities(uid,auth_subject) VALUES ($1,$2)", [uidC, subjectC]);
+    await client.query("INSERT INTO public.lm_maritime_manager_identities(uid,auth_subject) VALUES ($1,$2)", [uidD, subjectD]);
 
     const enrollmentColumns = await client.query(
       "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='lm_maritime_manager_enrollments'",
@@ -172,11 +175,19 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
     await assert.rejects(managerStore.enroll({ ...enrollmentInput, email: "changed@example.invalid" }), /identity_mismatch/);
     await assert.rejects(managerStore.enroll({ ...enrollmentInput, authSubject: subjectA }), /identity_mismatch/);
     assert.equal((await managerStore.read(uidC)).email, "c@example.invalid", "conflicting input cannot overwrite the existing owner/contact");
+    await managerStore.enroll({ uid: uidD, authSubject: subjectD, email: "d@example.invalid", timezone: "UTC",
+      source: "direct", consentVersion: "maritime-manager-v1", releaseSha });
+    const quarantined = await managerStore.quarantinePendingProvision(uidD);
+    assert.equal(quarantined.status, "effect_unknown");
+    assert.equal(quarantined.agent_id, null);
+    assert.equal(await managerStore.quarantinePendingProvision(uidD), null, "quarantine cannot re-write a non-pending row");
+    assert.equal((await managerStore.read(uidD)).status, "effect_unknown");
     assert.equal(await managerStore.claimProvision(uidC), true);
     assert.equal(await managerStore.claimProvision(uidC), false, "provision claim is one-shot");
     const boundEnrollment = await managerStore.bindAgent({ uid: uidC, authSubject: subjectC, agentId: "agent-c", releaseSha });
     assert.equal(boundEnrollment.status, "active");
     assert.equal(boundEnrollment.release_sha, releaseSha);
+    assert.equal(await managerStore.quarantinePendingProvision(uidC), null, "an active enrollment cannot be quarantined as pending");
     await assert.rejects(managerStore.bindAgent({ uid: uidC, authSubject: subjectC, agentId: "agent-c", releaseSha: "b".repeat(40) }), /binding_rejected/);
     assert.equal((await managerStore.read(uidC)).release_sha, releaseSha, "release mismatch cannot overwrite the enrollment release");
     const claim = uid => client.query('SELECT public.claim_lm_maritime_manager_provision_v1($1) AS claimed', [uid]).then(result => result.rows[0].claimed);
@@ -230,7 +241,14 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
       "an execution ID cannot be owned by two occurrences for one agent",
     );
     assert.equal(await cycleBind(uidA, "second-occurrence", "agent-a", releaseSha, "2026-10-21", "exec-2"), true);
-    await client.query("UPDATE public.lm_maritime_manager_enrollments SET status='paused',paused_at=clock_timestamp() WHERE uid=$1", [uidA]);
+    const receiptsBeforePause = (await client.query("SELECT count(*)::integer AS count FROM public.lm_cfo_result_receipts WHERE uid=$1", [uidA])).rows[0].count;
+    const pausedEnrollment = await managerStore.pause(uidA);
+    assert.equal(pausedEnrollment.status, "paused");
+    assert.match(pausedEnrollment.paused_at, /^\d{4}-\d{2}-\d{2}T.*Z$/);
+    assert.equal(await managerStore.claimProvision(uidA), false, "pause blocks a future provision claim");
+    assert.equal((await managerStore.pause(uidA)).paused_at, pausedEnrollment.paused_at, "pause replay keeps its original timestamp");
+    assert.equal((await client.query("SELECT count(*)::integer AS count FROM public.lm_cfo_result_receipts WHERE uid=$1", [uidA])).rows[0].count, receiptsBeforePause,
+      "pause retains existing CFO receipts");
     const pausedEnrollments = await managerStore.listPaused(5);
     assert.equal(pausedEnrollments[0].uid, uidA);
     assert.match(pausedEnrollments[0].paused_at, /^\d{4}-\d{2}-\d{2}T.*Z$/);
@@ -385,7 +403,7 @@ test("fresh runtime PostgreSQL fails closed until all six Manager state tables e
       "recipient hashes must be 64 lowercase hex characters",
     );
     await assert.rejects(
-      insertReceipt("lm_44444444-4444-4444-8444-444444444444", "maritime:daily:orphan", "pending"),
+      insertReceipt("lm_55555555-5555-4555-8555-555555555555", "maritime:daily:orphan", "pending"),
       error => error.code === "23503",
       "CFO receipts bind to Manager identity, not global lm_users",
     );

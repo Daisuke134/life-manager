@@ -102,6 +102,21 @@ function fixture() {
       }
       return { rows: [{ bound }] };
     }
+    if (statement.includes("SET status = $2") && statement.includes("agent_id IS NULL")) {
+      const [uid, status, expected] = values;
+      const row = rows.get(uid);
+      if (!row || row.status !== expected || row.paused_at != null || row.agent_id != null) return { rows: [] };
+      row.status = status;
+      return { rows: [pgRow(row)] };
+    }
+    if (statement.includes("SET status = 'paused'")) {
+      const [uid, pausedAt] = values;
+      const row = rows.get(uid);
+      if (!row || row.paused_at != null) return { rows: [] };
+      row.status = "paused";
+      row.paused_at = pausedAt;
+      return { rows: [{ uid }] };
+    }
     if (statement.includes("WHERE uid = $1 LIMIT 2")) selected = [rows.get(values[0])].filter(Boolean);
     else if (statement.includes("status = $1 AND paused_at IS NULL AND agent_id IS NULL")) {
       selected = [...rows.values()].filter(row => row.status === values[0] && row.paused_at == null && row.agent_id == null)
@@ -327,16 +342,15 @@ test('pending enrollment recovery is bounded and excludes paused or claimed rows
 
 
 test('quarantine pending provision is tenant scoped and cannot change active or paused enrollments',async()=>{
- let calls=0;
- const store=createMaritimeManagerStore({supaUrl:'https://database.invalid',supaKey:'fixture',fetchImpl:async(url,options)=>{
-  calls++;const u=new URL(url);
-  assert.equal(options.method,'PATCH');assert.equal(u.searchParams.get('uid'),'eq.'+UID_A);
-  assert.equal(u.searchParams.get('status'),'eq.pending');assert.equal(u.searchParams.get('paused_at'),'is.null');assert.equal(u.searchParams.get('agent_id'),'is.null');
-  assert.deepEqual(JSON.parse(options.body),{status:'effect_unknown'});
-  return new Response(JSON.stringify([{uid:UID_A,status:'effect_unknown',paused_at:null,agent_id:null}]));
- }});
+ const calls=[];
+ const store=createMaritimeManagerStore({pgPool:{query:async(statement,values)=>{
+  calls.push({statement,values});
+  assert.match(statement,/status = \$2/);assert.match(statement,/status = \$3 AND paused_at IS NULL AND agent_id IS NULL/);
+  assert.deepEqual(values,[UID_A,'effect_unknown','pending']);
+  return {rows:[{uid:UID_A,auth_subject:SUBJECT_A,email:'person@example.invalid',timezone:'UTC',status:'effect_unknown',source:'direct',consent_version:'maritime-manager-v1',agent_id:null,release_sha:SHA,paused_at:null,created_at:new Date('2026-10-20T00:00:00Z')}]};
+ }}});
  assert.equal((await store.quarantinePendingProvision(UID_A)).status,'effect_unknown');
- await assert.rejects(()=>store.quarantinePendingProvision('../foreign'),/invalid/);assert.equal(calls,1);
+ await assert.rejects(()=>store.quarantinePendingProvision('../foreign'),/invalid/);assert.equal(calls.length,1);
 });
 
 

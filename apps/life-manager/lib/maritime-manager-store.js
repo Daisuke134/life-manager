@@ -142,21 +142,26 @@ function createMaritimeManagerStore(options = {}) {
   }
   async function quarantinePendingProvision(uid) {
     identifier(uid, UID);
-    const rows = await request(`lm_maritime_manager_enrollments?uid=eq.${encodeURIComponent(uid)}&status=eq.pending&paused_at=is.null&agent_id=is.null`,
-      "PATCH", { status: "effect_unknown" });
-    if (!Array.isArray(rows) || rows.length > 1 || (rows[0] && (rows[0].uid !== uid
+    const rows = await queryPg(
+      `UPDATE public.lm_maritime_manager_enrollments SET status = $2
+       WHERE uid = $1 AND status = $3 AND paused_at IS NULL AND agent_id IS NULL RETURNING ${SELECT}`,
+      [uid, "effect_unknown", "pending"],
+    );
+    if (rows.length > 1 || (rows[0] && (rows[0].uid !== uid
       || rows[0].status !== "effect_unknown" || rows[0].agent_id !== null || rows[0].paused_at !== null))) {
       throw new Error("maritime_manager_store_invalid");
     }
-    return rows[0] || null;
+    return rows[0] ? { ...rows[0], paused_at: timestampIso(rows[0].paused_at, true), created_at: timestampIso(rows[0].created_at) } : null;
   }
   async function pause(uid) {
     identifier(uid, UID);
     const pausedAt = now();
     if (!Number.isFinite(Date.parse(pausedAt))) invalid();
-    const rows = await request(`lm_maritime_manager_enrollments?uid=eq.${encodeURIComponent(uid)}&paused_at=is.null`,
-      "PATCH", { status: "paused", paused_at: pausedAt });
-    if (!Array.isArray(rows) || rows.length > 1 || (rows[0] && rows[0].uid !== uid)) {
+    const rows = await queryPg(
+      "UPDATE public.lm_maritime_manager_enrollments SET status = 'paused', paused_at = $2 WHERE uid = $1 AND paused_at IS NULL RETURNING uid",
+      [uid, pausedAt],
+    );
+    if (rows.length > 1 || (rows[0] && rows[0].uid !== uid)) {
       throw new Error("maritime_manager_store_invalid");
     }
     return read(uid);

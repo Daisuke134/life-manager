@@ -1,0 +1,27 @@
+{
+  "observed_at": "2026-10-21T01:06:16Z",
+  "source_file": "apps/life-manager/lib/maritime-manager-store.js",
+  "source_sha256": "1463b083ce0018c8c7e057d7329491e6f8677704028de839d6008a6fb83c52f5",
+  "migration_file": "apps/life-manager/migrations/20261021090000_maritime_manager_runtime_state.sql",
+  "migration_sha256": "2ab5181a15d1ee9fcdb14d3d0c3919de1101c092d3bd59c511a79fc354f09a15",
+  "integration_test_file": "apps/life-manager/test/postgres/maritime-manager-state.integration.js",
+  "integration_test_sha256": "5bfac2c5d63c750785a0e32220a98bc45e0c9a888fd01b154c735b9909edb103",
+  "unit_test_file": "apps/life-manager/lib/maritime-manager-store.test.js",
+  "unit_test_sha256": "613fa811c828793b084de8e0e72d646abec011a3c8da9f6883a954554bb6f7b8",
+  "commands": [
+    "PATH=/opt/homebrew/Cellar/postgresql@17/17.11/bin:$PATH node --test test/postgres/maritime-manager-state.integration.js",
+    "node --test lib/maritime-manager-store.test.js"
+  ],
+  "results": {
+    "native_postgresql_integration": "1/1 pass",
+    "manager_store_unit": "16/16 pass"
+  },
+  "production_dsn_used": false,
+  "pause_persisted_before_return": true,
+  "pause_replay_preserves_timestamp": true,
+  "paused_provision_claim_rejected": true,
+  "pending_quarantine_is_one_shot": true,
+  "active_enrollment_not_quarantined": true,
+  "existing_cfo_receipts_preserved": true,
+  "runtime_receipts_deleted": false
+}
